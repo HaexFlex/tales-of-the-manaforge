@@ -1,5 +1,10 @@
 {
-  "buses": ["Master", "Music", "SFX_UI", "SFX_World", "SFX_Progress"],
+  "buses": [
+    "Music",
+    "SFX_UI",
+    "SFX_World",
+    "SFX_Progress"
+  ],
   "duck": {
     "from_bus": "SFX_Progress",
     "to_bus": "Music",
@@ -8,28 +13,125 @@
     "release_sec": 1.2
   },
   "cues": {
-    "mus_hub_forest": { "bus": "Music", "loop": true, "path": "" },
-    "mus_fruit_sting": { "bus": "Music", "loop": false, "path": "" },
-    "mus_ascend_sting": { "bus": "Music", "loop": false, "path": "" },
-    "mus_title": { "bus": "Music", "loop": true, "path": "" },
-    "sfx_ui_confirm": { "bus": "SFX_UI", "path": "" },
-    "sfx_ui_cancel": { "bus": "SFX_UI", "path": "" },
-    "sfx_ui_open": { "bus": "SFX_UI", "path": "" },
-    "sfx_ui_close": { "bus": "SFX_UI", "path": "" },
-    "sfx_ui_hover": { "bus": "SFX_UI", "path": "" },
-    "sfx_gather_wood": { "bus": "SFX_World", "path": "" },
-    "sfx_gather_stone": { "bus": "SFX_World", "path": "" },
-    "sfx_gather_food": { "bus": "SFX_World", "path": "" },
-    "sfx_gather_manashards": { "bus": "SFX_World", "path": "" },
-    "sfx_gather_cooldown": { "bus": "SFX_World", "path": "" },
-    "sfx_tree_water": { "bus": "SFX_World", "path": "" },
-    "sfx_tree_deny": { "bus": "SFX_World", "path": "" },
-    "sfx_stage_up": { "bus": "SFX_Progress", "path": "" },
-    "sfx_fruit_ready": { "bus": "SFX_Progress", "path": "" },
-    "sfx_fruit_harvest": { "bus": "SFX_Progress", "path": "" },
-    "sfx_upgrade_buy": { "bus": "SFX_UI", "path": "" },
-    "sfx_ascend": { "bus": "SFX_Progress", "path": "" },
-    "sfx_footstep": { "bus": "SFX_World", "path": "" },
-    "sfx_interact_arrive": { "bus": "SFX_World", "path": "" }
+    "mus_hub_forest": {
+      "bus": "Music",
+      "loop": true,
+      "path": "res://assets/audio/mus_hub_forest.ogg"
+    },
+    "mus_fruit_sting": {
+      "bus": "Music",
+      "loop": false,
+      "path": "res://assets/audio/mus_fruit_sting.ogg"
+    },
+    "mus_ascend_sting": {
+      "bus": "Music",
+      "loop": false,
+      "path": "res://assets/audio/mus_ascend_sting.ogg"
+    },
+    "mus_title": {
+      "bus": "Music",
+      "loop": true,
+      "path": "res://assets/audio/mus_title.ogg"
+    },
+    "sfx_ui_confirm": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ui_confirm.ogg"
+    },
+    "sfx_ui_cancel": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ui_cancel.ogg"
+    },
+    "sfx_ui_open": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ui_open.ogg"
+    },
+    "sfx_ui_close": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ui_close.ogg"
+    },
+    "sfx_ui_hover": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ui_hover.ogg"
+    },
+    "sfx_gather_wood": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_gather_wood.ogg"
+    },
+    "sfx_gather_stone": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_gather_stone.ogg"
+    },
+    "sfx_gather_food": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_gather_food.ogg"
+    },
+    "sfx_gather_manashards": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_gather_manashards.ogg"
+    },
+    "sfx_gather_cooldown": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_gather_cooldown.ogg"
+    },
+    "sfx_tree_water": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_tree_water.ogg"
+    },
+    "sfx_tree_deny": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_tree_deny.ogg"
+    },
+    "sfx_stage_up": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_stage_up.ogg"
+    },
+    "sfx_fruit_ready": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_fruit_ready.ogg"
+    },
+    "sfx_fruit_harvest": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_fruit_harvest.ogg"
+    },
+    "sfx_ascend": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ascend.ogg"
+    },
+    "sfx_footstep": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_footstep.ogg"
+    },
+    "sfx_interact_arrive": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_interact_arrive.ogg"
+    },
+    "sfx_upgrade_buy": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_upgrade_buy.ogg"
+    },
+    "sfx_tree_offer": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_tree_water.ogg"
+    }
   }
 }

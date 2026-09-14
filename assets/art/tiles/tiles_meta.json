@@ -1,0 +1,45 @@
+{
+  "tile_size": [
+    64,
+    64
+  ],
+  "filter": "nearest",
+  "atlas": "tileset_grass_64.png",
+  "atlas_layout": {
+    "cols": 4,
+    "rows": 2,
+    "cell": 64
+  },
+  "tiles": {
+    "grass_00": {
+      "file": "grass_00.png",
+      "role": "fill"
+    },
+    "grass_01": {
+      "file": "grass_01.png",
+      "role": "fill_flowers"
+    },
+    "grass_02": {
+      "file": "grass_02.png",
+      "role": "fill_dirt_speckle"
+    },
+    "grass_03": {
+      "file": "grass_03.png",
+      "role": "fill"
+    },
+    "grass_path_h": {
+      "file": "grass_path_h.png",
+      "role": "path"
+    },
+    "grass_path_v": {
+      "file": "grass_path_v.png",
+      "role": "path"
+    },
+    "grass_path_cross": {
+      "file": "grass_path_cross.png",
+      "role": "path"
+    }
+  },
+  "source": "overnight/grass_tile_draft.png via NN+quantize",
+  "version": "imagine_v1"
+}

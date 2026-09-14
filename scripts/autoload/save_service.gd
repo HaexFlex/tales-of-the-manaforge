@@ -1,10 +1,10 @@
 extends Node
-## Versioned save/load to user://manaforge_save.json (SYSTEMS_V01 schema).
+## Versioned save/load to user://manaforge_save.json (SYSTEMS_V01 v0.1.1 schema).
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
-const SAVE_VERSION: int = 1
+const SAVE_VERSION: int = 2
 const SAVE_PATH: String = "user://manaforge_save.json"
 
 
@@ -55,8 +55,21 @@ func load_game() -> bool:
 	return true
 
 
-func _migrate(_from_version: int, state: Dictionary) -> Dictionary:
-	return state.duplicate(true)
+func _migrate(from_version: int, state: Dictionary) -> Dictionary:
+	var out: Dictionary = state.duplicate(true)
+	if from_version < 2:
+		# Drop Food-as-water lifetime; init v2 counters.
+		out.erase("lifetime_food_watered")
+		if not out.has("lifetime_waters"):
+			out["lifetime_waters"] = 0
+		if not out.has("lifetime_offered") or typeof(out.get("lifetime_offered")) != TYPE_DICTIONARY:
+			out["lifetime_offered"] = {
+				"wood": 0,
+				"stone": 0,
+				"food": 0,
+				"manashards": 0,
+			}
+	return out
 
 
 func delete_save() -> void:

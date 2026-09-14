@@ -1,0 +1,13 @@
+{
+  "canvas": [
+    64,
+    64
+  ],
+  "anchor": "base_center",
+  "nodes": {
+    "wood": "prop_wood.png",
+    "stone": "prop_stone.png",
+    "food": "prop_food.png",
+    "manashards": "prop_manashards.png"
+  }
+}

@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## Minimal HUD + Fruit blessings / Ascend panel (CONTENT_STRINGS_V01).
+## HUD + Manatree care (Water/Offer) + Fruit blessings panel.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -8,6 +8,14 @@ class_name GameHUD
 @onready var status_label: Label = $Panel/StatusLabel
 @onready var save_button: Button = $Panel/SaveButton
 @onready var load_button: Button = $Panel/LoadButton
+@onready var care_panel: ColorRect = $CarePanel
+@onready var care_title: Label = $CarePanel/CareTitle
+@onready var water_button: Button = $CarePanel/WaterButton
+@onready var offer_wood_button: Button = $CarePanel/OfferWoodButton
+@onready var offer_stone_button: Button = $CarePanel/OfferStoneButton
+@onready var offer_food_button: Button = $CarePanel/OfferFoodButton
+@onready var offer_shards_button: Button = $CarePanel/OfferShardsButton
+@onready var care_close_button: Button = $CarePanel/CareCloseButton
 @onready var prestige_panel: ColorRect = $PrestigePanel
 @onready var prestige_title: Label = $PrestigePanel/Title
 @onready var prestige_sub: Label = $PrestigePanel/Subtitle
@@ -16,19 +24,35 @@ class_name GameHUD
 @onready var ascend_button: Button = $PrestigePanel/AscendButton
 @onready var close_button: Button = $PrestigePanel/CloseButton
 
+var _manatree: Manatree = null
+
 
 func _ready() -> void:
 	panel.color = Color(0.08, 0.1, 0.14, 0.85)
 	prestige_panel.color = Color(0.14, 0.1, 0.08, 0.96)
 	prestige_panel.visible = false
+	care_panel.visible = false
 	save_button.text = ContentStrings.get_text("btn_save")
 	load_button.text = ContentStrings.get_text("btn_load")
 	close_button.text = ContentStrings.get_text("btn_close")
+	care_close_button.text = ContentStrings.get_text("btn_close")
+	water_button.text = ContentStrings.get_text("tree_interact_water")
+	offer_wood_button.text = ContentStrings.get_text("tree_offer_wood")
+	offer_stone_button.text = ContentStrings.get_text("tree_offer_stone")
+	offer_food_button.text = ContentStrings.get_text("tree_offer_food")
+	offer_shards_button.text = ContentStrings.get_text("tree_offer_manashards")
+	care_title.text = ContentStrings.get_text("tree_menu_title")
 	save_button.pressed.connect(_on_save)
 	load_button.pressed.connect(_on_load)
 	harvest_button.pressed.connect(_on_harvest)
 	ascend_button.pressed.connect(_on_ascend)
 	close_button.pressed.connect(hide_prestige_menu)
+	care_close_button.pressed.connect(hide_care_menu)
+	water_button.pressed.connect(_on_water)
+	offer_wood_button.pressed.connect(_on_offer.bind(&"wood"))
+	offer_stone_button.pressed.connect(_on_offer.bind(&"stone"))
+	offer_food_button.pressed.connect(_on_offer.bind(&"food"))
+	offer_shards_button.pressed.connect(_on_offer.bind(&"manashards"))
 	GameState.resources_changed.connect(_on_resources)
 	GameState.stage_changed.connect(_on_stage)
 	GameState.growth_changed.connect(_on_growth)
@@ -36,6 +60,10 @@ func _ready() -> void:
 	GameState.status_message.connect(_on_status)
 	_refresh_all()
 	status_label.text = ContentStrings.get_text("boot_line")
+
+
+func bind_manatree(tree: Manatree) -> void:
+	_manatree = tree
 
 
 func _on_resources(_id: StringName, _amount: int) -> void:
@@ -77,15 +105,11 @@ func _refresh_all() -> void:
 
 func _refresh_resources() -> void:
 	resources_label.text = "%s %d  |  %s %d  |  %s %d  |  %s %d  |  %s %d" % [
-		ContentStrings.get_text("hud_wood") if false else "Wood", GameState.wood,
-		"Stone", GameState.stone,
-		"Food", GameState.food,
-		"Manashards", GameState.manashards,
-		"Essence", GameState.essence,
-	]
-	# Prefer Content keys where present:
-	resources_label.text = "Wood %d  |  Stone %d  |  Food %d  |  Manashards %d  |  Essence %d" % [
-		GameState.wood, GameState.stone, GameState.food, GameState.manashards, GameState.essence
+		ContentStrings.get_text("hud_wood"), GameState.wood,
+		ContentStrings.get_text("hud_stone"), GameState.stone,
+		ContentStrings.get_text("hud_food"), GameState.food,
+		ContentStrings.get_text("hud_manashards"), GameState.manashards,
+		ContentStrings.get_text("hud_essence"), GameState.essence,
 	]
 
 
@@ -102,7 +126,20 @@ func _refresh_stage() -> void:
 	]
 
 
+func show_care_menu() -> void:
+	hide_prestige_menu()
+	care_panel.visible = true
+	GameAudio.play_ui_open()
+
+
+func hide_care_menu() -> void:
+	if care_panel.visible:
+		GameAudio.play_ui_close()
+	care_panel.visible = false
+
+
 func show_prestige_menu() -> void:
+	hide_care_menu()
 	prestige_panel.visible = true
 	GameAudio.play_ui_open()
 	prestige_title.text = ContentStrings.get_text("fruit_panel_title")
@@ -115,6 +152,18 @@ func hide_prestige_menu() -> void:
 	if prestige_panel.visible:
 		GameAudio.play_ui_close()
 	prestige_panel.visible = false
+
+
+func _on_water() -> void:
+	if _manatree:
+		_manatree.do_water()
+	_refresh_all()
+
+
+func _on_offer(resource_id: StringName) -> void:
+	if _manatree:
+		_manatree.do_offer(resource_id)
+	_refresh_all()
 
 
 func _refresh_prestige_buttons() -> void:

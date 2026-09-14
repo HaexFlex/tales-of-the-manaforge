@@ -1,0 +1,52 @@
+{
+  "stages": [
+    {
+      "stage_id": "sapling",
+      "file": "manatree_sapling.png",
+      "size": [
+        64,
+        128
+      ],
+      "anchor": "base_center"
+    },
+    {
+      "stage_id": "young",
+      "file": "manatree_young.png",
+      "size": [
+        128,
+        192
+      ],
+      "anchor": "base_center"
+    },
+    {
+      "stage_id": "mature",
+      "file": "manatree_mature.png",
+      "size": [
+        192,
+        256
+      ],
+      "anchor": "base_center"
+    },
+    {
+      "stage_id": "elder",
+      "file": "manatree_elder.png",
+      "size": [
+        256,
+        320
+      ],
+      "anchor": "base_center"
+    },
+    {
+      "stage_id": "ancient",
+      "file": "manatree_ancient.png",
+      "size": [
+        256,
+        384
+      ],
+      "anchor": "base_center",
+      "door": "visible_noninteractive"
+    }
+  ],
+  "stage_up_fx": "1-frame flash / leaf burst \u2014 sync Audio stage-up",
+  "notes": "Derived from manatree_ancient_final.jpg via crop+NN+quantize."
+}

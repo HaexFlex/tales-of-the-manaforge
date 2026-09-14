@@ -1,13 +1,19 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** Day-1 deliverable — NEW sheet (not a forge/combat patch)  
+**Status:** v0.1.1 — aligned to `SYSTEMS_V01` v0.1.1 (free Water + Offer mats)  
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
 **Last updated:** 2026-09-14
 
-Tone: cozy, magical, contemplative, lightly melancholic — never stressful.  
+**Tone (Haex locked):** warm + lightly melancholic — never stressful.  
 **In-world rule:** *Manaforge* is **title-only** in v0.1 (window / itch blurb). Do not name the hidden forge or door in player strings yet.
+
+## Changelog
+| Ver | Change |
+|-----|--------|
+| v0.1 | Day-1 string sheet |
+| **v0.1.1** | Remove Food-cost watering. Free **Water** + **Offer** Wood/Stone/Food/Manashards. Stage-gate copy includes Food. Tone locked warm + lightly melancholic. |
 
 ---
 
@@ -32,7 +38,7 @@ Aligns to Design IDs. Short HUD name = column **HUD**.
 |----|-----|-------------------|
 | `wood` | Wood | Soft timber from the living fragment. |
 | `stone` | Stone | Cool river-rock, still dusted with moss. |
-| `food` | Food | Forage for the tree — and for you. |
+| `food` | Food | Forage to offer the Manatree — care made tangible. |
 | `manashards` | Manashards | Faint crystals that hum when held. |
 | `essence` | Essence | Gift of the Primordial Fruit. Lasts beyond the reset. |
 
@@ -49,7 +55,7 @@ Aligns to Design IDs. Short HUD name = column **HUD**.
 |---------|------------------------|-----------|-------------|
 | `node_wood` | Gather Wood | You take a careful armful of Wood. | The grove needs a moment. |
 | `node_stone` | Gather Stone | You lift a Stone from the moss. | The stones settle. Wait. |
-| `node_food` | Forage Food | Berries and soft leaves — Food for the tree. | Nothing ripe yet. |
+| `node_food` | Forage Food | Berries and soft leaves — good to Offer. | Nothing ripe yet. |
 | `node_manashards` | Gather Manashards | A Manashard warms in your palm. | The glow fades. Later. |
 
 | key | string |
@@ -79,21 +85,53 @@ Design stage_ids. Display name + one-line presence + stage-up toast.
 
 ---
 
-## 5. Watering / tending (Model A — spend Food)
+## 5. Manatree care — Water (free) + Offer mats
+
+Matches `SYSTEMS_V01` v0.1.1. Water spends nothing. Offers spend inventory for growth. Stage-up may still require a gate mix (incl. Food).
+
+### 5a. Interact menu labels
 
 | key | string |
 |-----|--------|
-| `tree_interact_water` | Tend the Manatree |
-| `tree_water_ok` | You tend the Manatree. It drinks deep. |
-| `tree_water_no_food` | The Manatree is thirsty. Gather Food first. |
-| `tree_water_cooldown` | Easy — let it breathe. |
+| `tree_menu_title` | Manatree |
+| `tree_interact_water` | Water |
+| `tree_offer_wood` | Offer Wood |
+| `tree_offer_stone` | Offer Stone |
+| `tree_offer_food` | Offer Food |
+| `tree_offer_manashards` | Offer Manashards |
+
+### 5b. Water (free)
+
+| key | string |
+|-----|--------|
+| `tree_water_ok` | You water the Manatree. It brightens. |
+| `tree_water_cooldown` | Easy — let it drink. |
+| `tree_water_ancient_block` | The Ancient Manatree needs no more water. The Fruit is ready. |
+
+### 5c. Offer
+
+| key | string |
+|-----|--------|
+| `tree_offer_ok_wood` | You offer Wood. The Manatree settles stronger. |
+| `tree_offer_ok_stone` | You offer Stone. Roots find purchase. |
+| `tree_offer_ok_food` | You offer Food. Care made visible. |
+| `tree_offer_ok_manashards` | You offer a Manashard. Magic threads into the bark. |
+| `tree_offer_deny` | Not enough {item}. |
+| `tree_offer_cooldown` | One gift at a time. |
+| `tree_offer_ancient_block` | The cycle is complete. Harvest the Fruit instead. |
+
+### 5d. Stage gate (missing mats)
+
+| key | string |
+|-----|--------|
 | `tree_stage_blocked_mats` | The Manatree is ready to grow — but needs {costs}. |
 | `tree_stage_blocked_wood` | Wood ×{count} |
 | `tree_stage_blocked_stone` | Stone ×{count} |
+| `tree_stage_blocked_food` | Food ×{count} |
 | `tree_stage_blocked_shards` | Manashards ×{count} |
 | `tree_at_ancient_idle` | Ancient and waiting. The Primordial Fruit hangs heavy. |
 
-Cost list join: use commas + “and” — e.g. `Wood ×8, Stone ×5`.
+Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
 
 ---
 
@@ -120,7 +158,7 @@ Cost list join: use commas + “and” — e.g. `Wood ×8, Stone ×5`.
 
 | upgrade_id | Display | Description |
 |------------|---------|-------------|
-| `deep_roots` | Deep Roots | Each rank: tending grants more growth. |
+| `deep_roots` | Deep Roots | Each rank: Watering grants more growth. |
 | `forager` | Forager’s Grace | Each rank: gather a little more from every node. |
 | `green_thumb` | Green Thumb | Each rank: stages need less growth to advance. |
 | `shard_sight` | Shard Sight | Each rank: Manashard nodes yield more. |
@@ -163,6 +201,6 @@ Combat, whisps, Forge interior / door interact, equipment, Echo Chamber, Manafor
 | @Code / Engine | Keys above as string-table IDs; substitute `{…}` tokens |
 | @Game Design | Labels match `SYSTEMS_V01` ids; rename only via Content |
 | @Art Direction | Stage display names for UI chips; no extra lore panels |
-| @Audio | Pair cues to: gather_*, tree_water_ok, stage-up toasts, fruit_harvest, ascend_toast |
+| @Audio | Pair cues to: gather_*, tree_water_ok, tree_offer_ok_*, stage-up toasts, fruit_harvest, ascend_toast |
 
-Ping @Game Director on landing. Haex may veto tone (warmer vs more melancholic) and any rename.
+Ping @Game Director on landing. Tone locked; renames only if Haex asks.

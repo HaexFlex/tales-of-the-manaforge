@@ -1,0 +1,143 @@
+{
+  "owner": "Audio",
+  "version": "v0.1",
+  "source_brief": "AUDIO_RESTART_V01.md",
+  "sample_rate": 44100,
+  "format": "ogg",
+  "layout": "flat",
+  "godot_target": "res://assets/audio/",
+  "sonic_identity": {
+    "mood": "cozy magical contemplative lightly melancholic",
+    "motif": "mana sigil C-Eb-F-G",
+    "era": "Secret of Mana\u2013leaning chip-orchestral"
+  },
+  "buses": [
+    "Music",
+    "SFX_UI",
+    "SFX_World",
+    "SFX_Progress"
+  ],
+  "cues": {
+    "mus_hub_forest": {
+      "file": "mus_hub_forest.ogg",
+      "bus": "Music",
+      "loop": true,
+      "duration_sec": 16.0,
+      "loop_start": 0.0,
+      "loop_end": 16.0,
+      "bpm": 80
+    },
+    "mus_fruit_sting": {
+      "file": "mus_fruit_sting.ogg",
+      "bus": "Music",
+      "loop": false
+    },
+    "mus_ascend_sting": {
+      "file": "mus_ascend_sting.ogg",
+      "bus": "Music",
+      "loop": false
+    },
+    "mus_title": {
+      "file": "mus_title.ogg",
+      "bus": "Music",
+      "loop": true,
+      "duration_sec": 10.0,
+      "bpm": 80
+    },
+    "sfx_ui_confirm": {
+      "file": "sfx_ui_confirm.ogg",
+      "bus": "SFX_UI",
+      "loop": false
+    },
+    "sfx_ui_cancel": {
+      "file": "sfx_ui_cancel.ogg",
+      "bus": "SFX_UI",
+      "loop": false
+    },
+    "sfx_ui_open": {
+      "file": "sfx_ui_open.ogg",
+      "bus": "SFX_UI",
+      "loop": false
+    },
+    "sfx_ui_close": {
+      "file": "sfx_ui_close.ogg",
+      "bus": "SFX_UI",
+      "loop": false
+    },
+    "sfx_ui_hover": {
+      "file": "sfx_ui_hover.ogg",
+      "bus": "SFX_UI",
+      "loop": false
+    },
+    "sfx_gather_wood": {
+      "file": "sfx_gather_wood.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_gather_stone": {
+      "file": "sfx_gather_stone.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_gather_food": {
+      "file": "sfx_gather_food.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_gather_manashards": {
+      "file": "sfx_gather_manashards.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_gather_cooldown": {
+      "file": "sfx_gather_cooldown.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_tree_water": {
+      "file": "sfx_tree_water.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_tree_deny": {
+      "file": "sfx_tree_deny.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_stage_up": {
+      "file": "sfx_stage_up.ogg",
+      "bus": "SFX_Progress",
+      "loop": false
+    },
+    "sfx_fruit_ready": {
+      "file": "sfx_fruit_ready.ogg",
+      "bus": "SFX_Progress",
+      "loop": false
+    },
+    "sfx_fruit_harvest": {
+      "file": "sfx_fruit_harvest.ogg",
+      "bus": "SFX_Progress",
+      "loop": false
+    },
+    "sfx_ascend": {
+      "file": "sfx_ascend.ogg",
+      "bus": "SFX_Progress",
+      "loop": false
+    },
+    "sfx_footstep": {
+      "file": "sfx_footstep.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_interact_arrive": {
+      "file": "sfx_interact_arrive.ogg",
+      "bus": "SFX_World",
+      "loop": false
+    },
+    "sfx_upgrade_buy": {
+      "file": "sfx_upgrade_buy.ogg",
+      "bus": "SFX_Progress",
+      "loop": false
+    }
+  }
+}

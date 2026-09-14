@@ -133,10 +133,14 @@ func play(cue_id: StringName) -> void:
 	else:
 		player.bus = bus
 	if bus == "Music" and bool(meta.get("loop", false)):
-		# Keep hub bed; stings can steal briefly — real assets will crossfade later.
+		# Keep hub bed through gather/walk; stings may briefly steal Music bus.
 		if player.playing and player.stream == stream:
 			cue_played.emit(cue_id)
 			return
+		if stream is AudioStreamOggVorbis:
+			(stream as AudioStreamOggVorbis).loop = true
+		elif stream is AudioStreamWAV:
+			(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
 	player.stream = stream
 	player.bus = bus
 	player.play()
@@ -163,6 +167,10 @@ func play_tree_water_ok() -> void:
 
 func play_tree_deny() -> void:
 	play(&"sfx_tree_deny")
+
+
+func play_tree_offer() -> void:
+	play(&"sfx_tree_offer")
 
 
 func play_stage_up() -> void:

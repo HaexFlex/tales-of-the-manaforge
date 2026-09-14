@@ -1,0 +1,50 @@
+{
+  "version": "v0.1.3-imagine-forest",
+  "bible": "/home/box/manaforge/VISUAL_BIBLE_RESTART_V01.md",
+  "filter": "nearest",
+  "keeper": {
+    "dir": "keeper/",
+    "canvas": [
+      128,
+      128
+    ],
+    "meta": "keeper/keeper_meta.json"
+  },
+  "manatree": {
+    "dir": "manatree/",
+    "meta": "manatree/manatree_meta.json"
+  },
+  "props": {
+    "dir": "props/",
+    "canvas": [
+      64,
+      64
+    ],
+    "meta": "props/props_meta.json"
+  },
+  "ui_icons": {
+    "dir": "ui/",
+    "canvas": [
+      32,
+      32
+    ]
+  },
+  "palette": "palette_master_v01.png",
+  "tiles": {
+    "dir": "tiles/",
+    "tile_size": [
+      64,
+      64
+    ],
+    "meta": "tiles/tiles_meta.json",
+    "atlas": "tiles/tileset_grass_64.png"
+  },
+  "trees": {
+    "dir": "trees/",
+    "meta": "trees/trees_meta.json"
+  },
+  "overnight_sources": [
+    "overnight/grass_tile_draft.png",
+    "overnight/forest_tree_draft.png"
+  ]
+}

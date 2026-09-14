@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 + AUDIO_RESTART_V01.
+## Headless verification per SYSTEMS_V01 v0.1.1 + AUDIO_RESTART_V01.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -26,6 +26,11 @@ func _run() -> void:
 
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 5, "expected 5 fruit upgrades")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 2, "SAVE_VERSION should be 2")
+	failed += _assert(int(game_state.call("param_int", "WATER_GROWTH", 0)) == 8, "WATER_GROWTH default 8")
+	failed += _assert(str(content_strings.call("get_text", "tree_offer_wood")).find("Offer") >= 0, "offer strings")
+	failed += _assert(str(content_strings.call("get_text", "tree_stage_blocked_food")).find("Food") >= 0, "food gate string")
+	failed += _assert(str(content_strings.call("get_text", "tree_water_no_food")) == "tree_water_no_food", "tree_water_no_food must be removed")
 
 	save_service.call("delete_save")
 	game_state.call("reset_for_new_game")
@@ -43,7 +48,9 @@ func _run() -> void:
 	ranks["deep_roots"] = 2
 	game_state.set("upgrade_ranks", ranks)
 	game_state.set("ascensions", 1)
-	game_state.set("lifetime_food_watered", 120)
+	game_state.set("lifetime_waters", 120)
+	var offered: Dictionary = {"wood": 10, "stone": 5, "food": 8, "manashards": 2}
+	game_state.set("lifetime_offered", offered)
 	game_state.set("lifetime_fruit_harvested", 1)
 
 	failed += _assert(bool(save_service.call("save_game")), "save_game failed")
@@ -59,7 +66,25 @@ func _run() -> void:
 	failed += _assert(str(game_state.get("stage_id")) == "mature", "stage mismatch")
 	failed += _assert(int(game_state.call("get_upgrade_rank", "deep_roots")) == 2, "upgrade rank")
 	failed += _assert(int(game_state.get("ascensions")) == 1, "ascensions")
-	failed += _assert(int(game_state.get("lifetime_food_watered")) == 120, "lifetime_food_watered")
+	failed += _assert(int(game_state.get("lifetime_waters")) == 120, "lifetime_waters")
+	failed += _assert(int(game_state.call("get_lifetime_offers_total")) == 25, "lifetime offers total")
+
+	# Free water — no Food spend
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"food", 0)
+	game_state.set("_water_cooldown_until", 0.0)
+	var water_res: String = str(game_state.call("try_water"))
+	failed += _assert(water_res == "ok", "free water should work with 0 food (got %s)" % water_res)
+	failed += _assert(int(game_state.get("food")) == 0, "water must not spend food")
+	failed += _assert(int(game_state.get("lifetime_waters")) == 1, "lifetime_waters inc")
+	failed += _assert(int(game_state.get("growth")) == int(game_state.call("get_water_growth_amount")), "water growth applied")
+
+	# Offer wood
+	game_state.call("set_resource", &"wood", 3)
+	game_state.set("_offer_cooldown_until", 0.0)
+	var offer_res: String = str(game_state.call("try_offer", &"wood"))
+	failed += _assert(offer_res == "ok", "offer wood ok (got %s)" % offer_res)
+	failed += _assert(int(game_state.get("wood")) == 2, "offer spent 1 wood")
 
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"food", 500)
@@ -67,7 +92,7 @@ func _run() -> void:
 	game_state.call("set_resource", &"stone", 500)
 	game_state.call("set_resource", &"manashards", 500)
 	var guard: int = 0
-	while str(game_state.get("stage_id")) != "ancient" and guard < 200:
+	while str(game_state.get("stage_id")) != "ancient" and guard < 400:
 		guard += 1
 		game_state.set("_water_cooldown_until", 0.0)
 		game_state.call("try_water")
@@ -102,9 +127,14 @@ func _run() -> void:
 
 	var cues: PackedStringArray = game_audio.call("list_cue_ids")
 	failed += _assert(cues.size() >= 10, "audio cue table too small (%d)" % cues.size())
+	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest.ogg"), "hub music missing")
+	failed += _assert(ResourceLoader.exists("res://assets/art/tiles/tileset_grass_64.png"), "grass atlas missing")
+	failed += _assert(ResourceLoader.exists("res://assets/art/trees/tree_forest_imagine.png"), "imagine tree missing")
+	failed += _assert(ResourceLoader.exists("res://assets/art/keeper/keeper_idle_front_0000.png"), "keeper frame missing")
 	game_audio.call("play", &"mus_hub_forest")
 	game_audio.call("play", &"sfx_gather_wood")
 	game_audio.call("play", &"sfx_tree_water")
+	game_audio.call("play", &"sfx_tree_offer")
 	game_audio.call("play", &"sfx_stage_up")
 	game_audio.call("play_fruit_harvest")
 	game_audio.call("play_ascend")

@@ -1,0 +1,59 @@
+{
+  "filter": "nearest",
+  "anchor": "base_center",
+  "items": {
+    "tree_oak_a": {
+      "file": "tree_oak_a.png",
+      "size": [
+        96,
+        128
+      ]
+    },
+    "tree_oak_b": {
+      "file": "tree_oak_b.png",
+      "size": [
+        128,
+        160
+      ],
+      "source": "imagine_draft_overwrite"
+    },
+    "tree_autumn_a": {
+      "file": "tree_autumn_a.png",
+      "size": [
+        96,
+        128
+      ]
+    },
+    "tree_pine_a": {
+      "file": "tree_pine_a.png",
+      "size": [
+        80,
+        144
+      ]
+    },
+    "bush_a": {
+      "file": "bush_a.png",
+      "size": [
+        64,
+        48
+      ]
+    },
+    "stump_a": {
+      "file": "stump_a.png",
+      "size": [
+        48,
+        40
+      ]
+    },
+    "tree_forest_imagine": {
+      "file": "tree_forest_imagine.png",
+      "size": [
+        128,
+        160
+      ],
+      "source": "overnight/forest_tree_draft.png"
+    }
+  },
+  "notes": "SoM-leaning forest props for clearing/edge. Occlude Keeper with y-sort on base.",
+  "version": "imagine_v1"
+}

@@ -9,71 +9,74 @@
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
 
-[node name="Ground" type="ColorRect" parent="."]
+[node name="Ground" type="TileMap" parent="."]
+texture_filter = 0
+format = 2
+
+[node name="ClickLayer" type="ColorRect" parent="."]
+modulate = Color(1, 1, 1, 0)
 offset_right = 1280.0
 offset_bottom = 720.0
-color = Color(0.141176, 0.207843, 0.156863, 1)
+mouse_filter = 0
+color = Color(1, 1, 1, 0)
 
-[node name="Manatree" parent="." instance=ExtResource("3_tree")]
+[node name="World" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Manatree" parent="World" instance=ExtResource("3_tree")]
 position = Vector2(640, 420)
+y_sort_enabled = true
 
-[node name="Keeper" parent="." instance=ExtResource("2_keeper")]
+[node name="Keeper" parent="World" instance=ExtResource("2_keeper")]
 position = Vector2(480, 520)
+y_sort_enabled = true
 
-[node name="WoodNode" parent="." instance=ExtResource("4_gath")]
+[node name="WoodNode" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(200, 560)
 resource_id = &"wood"
 display_name = "Wood"
 node_key = "wood"
-stub_color = Color(0.55, 0.35, 0.2, 1)
 
-[node name="WoodNode2" parent="." instance=ExtResource("4_gath")]
+[node name="WoodNode2" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(280, 600)
 resource_id = &"wood"
 display_name = "Wood"
 node_key = "wood"
-stub_color = Color(0.5, 0.32, 0.18, 1)
 
-[node name="StoneNode" parent="." instance=ExtResource("4_gath")]
+[node name="StoneNode" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(400, 580)
 resource_id = &"stone"
 display_name = "Stone"
 node_key = "stone"
-stub_color = Color(0.55, 0.55, 0.58, 1)
 
-[node name="StoneNode2" parent="." instance=ExtResource("4_gath")]
+[node name="StoneNode2" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(480, 620)
 resource_id = &"stone"
 display_name = "Stone"
 node_key = "stone"
-stub_color = Color(0.5, 0.52, 0.55, 1)
 
-[node name="FoodNode" parent="." instance=ExtResource("4_gath")]
+[node name="FoodNode" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(900, 560)
 resource_id = &"food"
 display_name = "Food"
 node_key = "food"
-stub_color = Color(0.75, 0.35, 0.3, 1)
 
-[node name="FoodNode2" parent="." instance=ExtResource("4_gath")]
+[node name="FoodNode2" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(980, 600)
 resource_id = &"food"
 display_name = "Food"
 node_key = "food"
-stub_color = Color(0.7, 0.4, 0.25, 1)
 
-[node name="FoodNode3" parent="." instance=ExtResource("4_gath")]
+[node name="FoodNode3" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(860, 620)
 resource_id = &"food"
 display_name = "Food"
 node_key = "food"
-stub_color = Color(0.65, 0.45, 0.2, 1)
 
-[node name="ManashardNode" parent="." instance=ExtResource("4_gath")]
+[node name="ManashardNode" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(1080, 400)
 resource_id = &"manashards"
 display_name = "Manashards"
 node_key = "manashards"
-stub_color = Color(0.35, 0.75, 0.95, 1)
 
 [node name="HUD" parent="." instance=ExtResource("5_hud")]

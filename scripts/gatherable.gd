@@ -1,24 +1,32 @@
 extends Area2D
 class_name Gatherable
-## 64×64 ColorRect gather prop (VISUAL_BIBLE). SYSTEMS gather amounts + cooldown.
+## 64×64 gather prop sprites (art pack). SYSTEMS gather amounts + cooldown.
 
 @export var resource_id: StringName = &"wood"
 @export var display_name: String = "Wood"
 @export var stub_color: Color = Color("8d6e63")
 @export var node_key: String = "wood"
 
-@onready var body_rect: ColorRect = $BodyRect
+@onready var sprite: Sprite2D = $Sprite
 @onready var label: Label = $Label
 
 var _available: bool = true
 const BODY_SIZE: Vector2 = Vector2(64, 64)
 
+const PROP_TEXTURES: Dictionary = {
+	"wood": "res://assets/art/props/prop_wood.png",
+	"stone": "res://assets/art/props/prop_stone.png",
+	"food": "res://assets/art/props/prop_food.png",
+	"manashards": "res://assets/art/props/prop_manashards.png",
+}
+
 
 func _ready() -> void:
-	body_rect.size = BODY_SIZE
-	body_rect.position = Vector2(-32, -64)
-	body_rect.color = stub_color
-	body_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.centered = false
+	sprite.offset = Vector2(-32, -64)
+	var path: String = str(PROP_TEXTURES.get(node_key, PROP_TEXTURES["wood"]))
+	sprite.texture = load(path) as Texture2D
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.position = Vector2(-40, -84)
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)

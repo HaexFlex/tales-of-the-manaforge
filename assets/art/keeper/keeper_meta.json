@@ -1,0 +1,34 @@
+{
+  "canvas": [
+    128,
+    128
+  ],
+  "anchor": "feet_center",
+  "anchor_px": [
+    64,
+    128
+  ],
+  "filter": "nearest",
+  "clips": {
+    "idle_front": {
+      "frames": 4,
+      "hold_ms": 140,
+      "strip": "keeper_idle_front.png",
+      "layout": "horizontal"
+    },
+    "idle_back": {
+      "frames": 1,
+      "hold_ms": 140,
+      "files": [
+        "keeper_idle_back_0000.png"
+      ]
+    },
+    "walk_back": {
+      "frames": 6,
+      "hold_ms": 90,
+      "strip": "keeper_walk_back.png",
+      "layout": "horizontal"
+    }
+  },
+  "notes": "Processed from refs via NN fit + quantize. Walk is placeholder bob; replace with true cycle later."
+}

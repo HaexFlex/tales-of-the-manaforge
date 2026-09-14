@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.1.1. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -12,6 +12,7 @@ signal load_completed
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
 ]
+const OFFER_IDS: Array[StringName] = [&"wood", &"stone", &"food", &"manashards"]
 
 var wood: int = 0
 var stone: int = 0
@@ -26,7 +27,8 @@ var fruit_ready: bool = false
 var fruit_harvested_pending_ascend: bool = false
 
 var ascensions: int = 0
-var lifetime_food_watered: int = 0
+var lifetime_waters: int = 0
+var lifetime_offered: Dictionary = {}
 var lifetime_fruit_harvested: int = 0
 var upgrade_ranks: Dictionary = {}
 
@@ -35,11 +37,13 @@ var upgrades_data: Array = []
 var params: Dictionary = {}
 
 var _water_cooldown_until: float = 0.0
+var _offer_cooldown_until: float = 0.0
 
 
 func _ready() -> void:
 	_load_tables()
 	_ensure_upgrade_keys()
+	_ensure_offer_keys()
 
 
 func _load_tables() -> void:
@@ -74,6 +78,13 @@ func _ensure_upgrade_keys() -> void:
 		var uid: String = str(d.get("id", ""))
 		if uid != "" and not upgrade_ranks.has(uid):
 			upgrade_ranks[uid] = 0
+
+
+func _ensure_offer_keys() -> void:
+	for rid: StringName in OFFER_IDS:
+		var key: String = String(rid)
+		if not lifetime_offered.has(key):
+			lifetime_offered[key] = 0
 
 
 func param_int(key: String, default_v: int = 0) -> int:
@@ -171,7 +182,23 @@ func get_effect_total(effect_name: String) -> float:
 
 
 func get_water_growth_amount() -> int:
-	return param_int("WATER_GROWTH", 10) + int(get_effect_total("water_growth_bonus"))
+	return param_int("WATER_GROWTH", 8) + int(get_effect_total("water_growth_bonus"))
+
+
+func get_offer_growth_amount(resource_id: StringName) -> int:
+	var key: String = "OFFER_GROWTH_%s" % String(resource_id).to_upper()
+	return param_int(key, 10)
+
+
+func get_offer_cost(resource_id: StringName) -> int:
+	return param_int("OFFER_COST", 1)
+
+
+func get_lifetime_offers_total() -> int:
+	var total: int = 0
+	for rid: StringName in OFFER_IDS:
+		total += int(lifetime_offered.get(String(rid), 0))
+	return total
 
 
 func get_growth_required_for_next() -> int:
@@ -214,7 +241,6 @@ func get_upgrade_cost(upgrade_id: String) -> int:
 	if def.is_empty():
 		return 999999
 	var rank: int = get_upgrade_rank(upgrade_id)
-	# cost = cost_base + cost_per_rank * rank  (pays for next rank)
 	return int(def.get("cost_base", 1)) + int(def.get("cost_per_rank", 1)) * rank
 
 
@@ -246,6 +272,7 @@ func _mats_for_next() -> Dictionary:
 	return {
 		"wood": int(def.get("cost_wood", 0)),
 		"stone": int(def.get("cost_stone", 0)),
+		"food": int(def.get("cost_food", 0)),
 		"manashards": int(def.get("cost_manashards", 0)),
 	}
 
@@ -254,6 +281,7 @@ func has_mats_for_next() -> bool:
 	var mats: Dictionary = _mats_for_next()
 	return wood >= int(mats.get("wood", 0)) \
 		and stone >= int(mats.get("stone", 0)) \
+		and food >= int(mats.get("food", 0)) \
 		and manashards >= int(mats.get("manashards", 0))
 
 
@@ -261,29 +289,50 @@ func format_missing_mats() -> String:
 	var mats: Dictionary = _mats_for_next()
 	var parts: PackedStringArray = PackedStringArray()
 	if wood < int(mats.get("wood", 0)):
-		parts.append("Wood ×%d" % int(mats["wood"]))
+		parts.append(ContentStrings.get_text("tree_stage_blocked_wood", {"count": int(mats["wood"])}))
 	if stone < int(mats.get("stone", 0)):
-		parts.append("Stone ×%d" % int(mats["stone"]))
+		parts.append(ContentStrings.get_text("tree_stage_blocked_stone", {"count": int(mats["stone"])}))
+	if food < int(mats.get("food", 0)):
+		parts.append(ContentStrings.get_text("tree_stage_blocked_food", {"count": int(mats["food"])}))
 	if manashards < int(mats.get("manashards", 0)):
-		parts.append("Manashards ×%d" % int(mats["manashards"]))
+		parts.append(ContentStrings.get_text("tree_stage_blocked_shards", {"count": int(mats["manashards"])}))
 	return ", ".join(parts)
 
 
 func try_water() -> String:
-	## Returns status key result code for UI.
+	## Free tend — no inventory spend (SYSTEMS_V01 v0.1.1).
 	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
 		return "ancient"
 	var now: float = Time.get_ticks_msec() / 1000.0
 	if now < _water_cooldown_until:
 		return "cooldown"
-	var cost: int = param_int("WATER_COST", 1)
-	if food < cost:
-		return "no_food"
-	add_resource(&"food", -cost)
-	lifetime_food_watered += cost
-	_water_cooldown_until = now + param_float("WATER_COOLDOWN_SEC", 0.5)
+	_water_cooldown_until = now + param_float("WATER_COOLDOWN_SEC", 1.0)
+	lifetime_waters += 1
 	var add_g: int = get_water_growth_amount()
 	growth += add_g
+	var required: int = get_growth_required_for_next()
+	growth_changed.emit(growth, required)
+	_try_stage_up()
+	return "ok"
+
+
+func try_offer(resource_id: StringName) -> String:
+	## Spend soft mat for OFFER_GROWTH; separate anti-spam cooldown.
+	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
+		return "ancient"
+	if not resource_id in OFFER_IDS:
+		return "bad_resource"
+	var now: float = Time.get_ticks_msec() / 1000.0
+	if now < _offer_cooldown_until:
+		return "cooldown"
+	var cost: int = get_offer_cost(resource_id)
+	if get_resource(resource_id) < cost:
+		return "no_res"
+	add_resource(resource_id, -cost)
+	var key: String = String(resource_id)
+	lifetime_offered[key] = int(lifetime_offered.get(key, 0)) + cost
+	_offer_cooldown_until = now + param_float("OFFER_COOLDOWN_SEC", 0.25)
+	growth += get_offer_growth_amount(resource_id)
 	var required: int = get_growth_required_for_next()
 	growth_changed.emit(growth, required)
 	_try_stage_up()
@@ -298,7 +347,6 @@ func _try_stage_up() -> void:
 	if growth < required:
 		return
 	if not has_mats_for_next():
-		# Cap at requirement until mats paid (sit at required).
 		growth = required
 		growth_changed.emit(growth, required)
 		status_message.emit(ContentStrings.get_text("tree_stage_blocked_mats", {"costs": format_missing_mats()}))
@@ -306,6 +354,7 @@ func _try_stage_up() -> void:
 	var mats: Dictionary = _mats_for_next()
 	add_resource(&"wood", -int(mats.get("wood", 0)))
 	add_resource(&"stone", -int(mats.get("stone", 0)))
+	add_resource(&"food", -int(mats.get("food", 0)))
 	add_resource(&"manashards", -int(mats.get("manashards", 0)))
 	if bool(params.get("GROWTH_CARRIES", true)):
 		growth = growth - required
@@ -329,10 +378,10 @@ func harvest_fruit() -> int:
 	if stage_id != &"ancient" or fruit_harvested_pending_ascend:
 		return 0
 	var base_e: int = param_int("ESSENCE_PER_HARVEST", 3)
-	var div_e: int = maxi(1, param_int("ESSENCE_FOOD_DIV", 50))
-	var bonus: int = int(floor(float(lifetime_food_watered) / float(div_e)))
-	# Only count run watering toward bonus roughly: use simple full lifetime for v0.1
-	# SYSTEMS: floor(lifetime_food_watered / ESSENCE_FOOD_DIV) — ok as written
+	var water_div: int = maxi(1, param_int("ESSENCE_WATER_DIV", 20))
+	var offer_div: int = maxi(1, param_int("ESSENCE_OFFER_DIV", 30))
+	var bonus: int = int(floor(float(lifetime_waters) / float(water_div))) \
+		+ int(floor(float(get_lifetime_offers_total()) / float(offer_div)))
 	var gained: int = base_e + bonus
 	add_resource(&"essence", gained)
 	lifetime_fruit_harvested += 1
@@ -354,7 +403,6 @@ func ascend() -> void:
 	stone = 0
 	food = 0
 	manashards = 0
-	# essence kept
 	growth = 0
 	fruit_harvested_pending_ascend = false
 	fruit_ready = false
@@ -380,7 +428,8 @@ func to_save_dict() -> Dictionary:
 		"fruit_ready": fruit_ready,
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
 		"ascensions": ascensions,
-		"lifetime_food_watered": lifetime_food_watered,
+		"lifetime_waters": lifetime_waters,
+		"lifetime_offered": lifetime_offered.duplicate(true),
 		"lifetime_fruit_harvested": lifetime_fruit_harvested,
 		"upgrades": upgrade_ranks.duplicate(true),
 	}
@@ -397,7 +446,13 @@ func apply_save_dict(data: Dictionary) -> void:
 	fruit_ready = bool(data.get("fruit_ready", false))
 	fruit_harvested_pending_ascend = bool(data.get("fruit_harvested_pending_ascend", false))
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
-	lifetime_food_watered = int(data.get("lifetime_food_watered", 0))
+	lifetime_waters = int(data.get("lifetime_waters", 0))
+	var offered: Variant = data.get("lifetime_offered", {})
+	if typeof(offered) == TYPE_DICTIONARY:
+		lifetime_offered = (offered as Dictionary).duplicate(true)
+	else:
+		lifetime_offered = {}
+	_ensure_offer_keys()
 	lifetime_fruit_harvested = int(data.get("lifetime_fruit_harvested", 0))
 	var ranks: Variant = data.get("upgrades", data.get("upgrade_ranks", {}))
 	if typeof(ranks) == TYPE_DICTIONARY:
@@ -426,8 +481,11 @@ func reset_for_new_game() -> void:
 	fruit_ready = false
 	fruit_harvested_pending_ascend = false
 	ascensions = 0
-	lifetime_food_watered = 0
+	lifetime_waters = 0
+	lifetime_offered.clear()
+	_ensure_offer_keys()
 	lifetime_fruit_harvested = 0
 	upgrade_ranks.clear()
 	_ensure_upgrade_keys()
 	_water_cooldown_until = 0.0
+	_offer_cooldown_until = 0.0

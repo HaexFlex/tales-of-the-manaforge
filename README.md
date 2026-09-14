@@ -2,21 +2,21 @@
 
 Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper**, tending a living **Manatree** in the last fragment of a fairy-forest.
 
-**Canon:** `VISION_RESTART` + day-1 briefs (`SYSTEMS_V01`, `CONTENT_STRINGS_V01`, `VISUAL_BIBLE_RESTART_V01`). Old forge/combat drafts are non-canon. *Manaforge* is **title-only** in-world for v0.1.
+**Canon:** `VISION_RESTART` + day-1 briefs (`SYSTEMS_V01`, `CONTENT_STRINGS_V01`, `VISUAL_BIBLE_RESTART_V01`). **v0.1.1** overnight playable hub (sprites, forest tiles/trees, audio). Old forge/combat drafts are non-canon. *Manaforge* is **title-only** in-world for v0.1.
 
 ## Stack
 
 - **Godot 4.3** · GDScript only · **fully typed**
 - Windows-first (`export_presets.cfg` stub)
-- ColorRect stubs: Keeper **128×128** feet-anchored; gatherables **64×64**; Manatree multi-tile landmark; view **1280×720** nearest-neighbor
+- Playable forest hub: **64² grass TileMap**, Y-sorted trees (imagine/oak/pine/autumn/bush/stump), Keeper **AnimatedSprite2D** 128×128 feet-anchored; gatherables + Manatree landmark; view **1280×720** nearest-neighbor
 - Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `SaveService`
-- Audio: cue IDs in `data/audio_cues.json`; buses Music / SFX_UI / SFX_World / SFX_Progress (music ducks under Progress). Missing `.ogg` → silent stubs; hub music stays on through gather/walk · versioned save `user://manaforge_save.json` (`save_version: 1`)
+- Audio: full `.ogg` pack + looping `mus_hub_forest` on hub load (Music bus); cue IDs in `data/audio_cues.json`; buses Music / SFX_UI / SFX_World / SFX_Progress · save `user://manaforge_save.json` (`save_version: 2`)
 
 ## Prototype loop
 
 1. Click ground to move; click gather nodes / Manatree to walk and interact.
 2. Gather **Wood, Stone, Food, Manashards** (Essence only from Fruit).
-3. **Tend** the Manatree (spends **Food**) to add growth; stage-up when growth + tend mats met: **sapling → young → mature → elder → ancient**.
+3. **Water** the Manatree (free) and **Offer** mats for growth; stage-up when growth + offer gates met: **sapling → young → mature → elder → ancient**.
 4. At **ancient**, harvest **Primordial Fruit** → spend **Essence** on blessings → **Ascend** (soft mats reset; Essence + ranks persist).
 
 ### Fruit upgrades (`data/fruit_upgrades.json`)
