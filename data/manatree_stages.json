@@ -1,0 +1,78 @@
+{
+  "params": {
+    "WATER_COST": 1,
+    "WATER_GROWTH": 10,
+    "WATER_COOLDOWN_SEC": 0.5,
+    "GROWTH_CARRIES": true,
+    "GATHER_WOOD": 1,
+    "GATHER_STONE": 1,
+    "GATHER_FOOD": 1,
+    "GATHER_MANASHARDS": 1,
+    "NODE_COOLDOWN_SEC": 3.0,
+    "ESSENCE_PER_HARVEST": 3,
+    "ESSENCE_FOOD_DIV": 50,
+    "BASE_MOVE_SPEED": 180.0
+  },
+  "stages": [
+    {
+      "id": "sapling",
+      "display_name": "Sapling",
+      "color": "#7ec850",
+      "size": [64, 128],
+      "growth_required": 0,
+      "cost_wood": 0,
+      "cost_stone": 0,
+      "cost_manashards": 0,
+      "gather_mult": 1.0,
+      "grants_fruit": false
+    },
+    {
+      "id": "young",
+      "display_name": "Young Tree",
+      "color": "#66bb6a",
+      "size": [128, 192],
+      "growth_required": 50,
+      "cost_wood": 5,
+      "cost_stone": 0,
+      "cost_manashards": 0,
+      "gather_mult": 1.1,
+      "grants_fruit": false
+    },
+    {
+      "id": "mature",
+      "display_name": "Mature Tree",
+      "color": "#43a047",
+      "size": [192, 256],
+      "growth_required": 80,
+      "cost_wood": 8,
+      "cost_stone": 5,
+      "cost_manashards": 0,
+      "gather_mult": 1.25,
+      "grants_fruit": false
+    },
+    {
+      "id": "elder",
+      "display_name": "Elder Tree",
+      "color": "#2e7d32",
+      "size": [256, 320],
+      "growth_required": 120,
+      "cost_wood": 10,
+      "cost_stone": 8,
+      "cost_manashards": 3,
+      "gather_mult": 1.4,
+      "grants_fruit": false
+    },
+    {
+      "id": "ancient",
+      "display_name": "Ancient Manatree",
+      "color": "#1b5e20",
+      "size": [256, 384],
+      "growth_required": 160,
+      "cost_wood": 12,
+      "cost_stone": 10,
+      "cost_manashards": 5,
+      "gather_mult": 1.6,
+      "grants_fruit": true
+    }
+  ]
+}

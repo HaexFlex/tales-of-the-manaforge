@@ -1,0 +1,54 @@
+{
+  "upgrades": [
+    {
+      "id": "deep_roots",
+      "display_name": "Deep Roots",
+      "description": "Each rank: tending grants more growth.",
+      "max_rank": 10,
+      "cost_base": 1,
+      "cost_per_rank": 1,
+      "effect": "water_growth_bonus",
+      "value_per_rank": 2.0
+    },
+    {
+      "id": "forager",
+      "display_name": "Forager’s Grace",
+      "description": "Each rank: gather a little more from every node.",
+      "max_rank": 10,
+      "cost_base": 1,
+      "cost_per_rank": 1,
+      "effect": "gather_mult_bonus",
+      "value_per_rank": 0.05
+    },
+    {
+      "id": "green_thumb",
+      "display_name": "Green Thumb",
+      "description": "Each rank: stages need less growth to advance.",
+      "max_rank": 5,
+      "cost_base": 2,
+      "cost_per_rank": 1,
+      "effect": "growth_required_reduction",
+      "value_per_rank": 1.0
+    },
+    {
+      "id": "shard_sight",
+      "display_name": "Shard Sight",
+      "description": "Each rank: Manashard nodes yield more.",
+      "max_rank": 5,
+      "cost_base": 2,
+      "cost_per_rank": 2,
+      "effect": "manashard_gather_bonus",
+      "value_per_rank": 1.0
+    },
+    {
+      "id": "keeper_stride",
+      "display_name": "Keeper’s Stride",
+      "description": "Each rank: walk the fragment a little faster.",
+      "max_rank": 5,
+      "cost_base": 1,
+      "cost_per_rank": 1,
+      "effect": "move_speed_mult",
+      "value_per_rank": 0.06
+    }
+  ]
+}
