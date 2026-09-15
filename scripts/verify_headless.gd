@@ -506,8 +506,14 @@ func _run() -> void:
 		if hud:
 			failed += _assert(hud.get_node_or_null("WelcomePanel") != null, "WelcomePanel missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareNeedsLabel") != null, "CareNeedsLabel missing")
-			failed += _assert(hud.get_node_or_null("CarePanel/PayButton") != null, "PayButton missing")
-			failed += _assert(hud.get_node_or_null("CarePanel/HarvestFruitButton") != null, "HarvestFruitButton missing")
+			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/PayButton") != null, "PayButton missing")
+			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/HarvestFruitButton") != null, "HarvestFruitButton missing")
+			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/WaterButton") != null, "WaterButton missing")
+			failed += _assert(hud.get_node_or_null("CarePanel/Header/CareCloseButton") != null, "care dismiss Close")
+			failed += _assert(hud.get_node_or_null("CarePanel/UpgradeList") == null, "care must not embed UpgradeList")
+			failed += _assert(hud.get_node_or_null("CarePanel/ShopScroll") == null, "care must not embed ShopScroll")
+			failed += _assert(hud.get_node_or_null("CarePanel/Footer") == null, "care must not use shop footer")
+			failed += _assert(hud.get_node_or_null("CarePanel/AscendButton") == null, "care must not have Ascend")
 			failed += _assert(hud.get_node_or_null("CarePanel/OfferWoodButton") == null, "OfferWoodButton must be gone")
 			failed += _assert(hud.get_node_or_null("Panel/PauseButton") != null, "PauseButton missing")
 			failed += _assert(hud.get_node_or_null("PrestigePanel") == null, "old PrestigePanel must be gone")
@@ -521,6 +527,8 @@ func _run() -> void:
 			failed += _assert(int(hud.process_mode) == 3, "HUD PROCESS_MODE_ALWAYS")
 			failed += _assert(FileAccess.file_exists("res://assets/art/ui/ASCENSION_SHOP_LAYOUT_V01.md"), "layout spec")
 			failed += _assert(FileAccess.file_exists("res://assets/art/ui/ascension_shop_layout_meta.json"), "layout meta")
+			failed += _assert(FileAccess.file_exists("res://assets/art/ui/MANATREE_CARE_PANEL_V01.md"), "care layout spec")
+			failed += _assert(FileAccess.file_exists("res://assets/art/ui/manatree_care_panel_meta.json"), "care layout meta")
 		var pause_menu: Node = inst.get_node_or_null("PauseMenu")
 		failed += _assert(pause_menu != null, "PauseMenu missing")
 		if pause_menu:
@@ -892,12 +900,8 @@ func _run() -> void:
 		live.queue_free()
 		await process_frame
 
-	# --- Content v0.3.4 / SYSTEMS v0.3.3: two-step Fruit, paused shop, scroll, water until commit ---
+	# --- Art v0.1.12 care vs shop + Content v0.3.4 / SYSTEMS v0.3.3 ---
 	game_state.call("reset_for_new_game")
-	game_state.call("_set_stage", &"ancient")
-	failed += _assert(bool(game_state.get("fruit_ready")), "hud test fruit ready")
-	failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "hud test not pending yet")
-	failed += _assert(not bool(game_state.get("fruit_committed")), "hud test not committed yet")
 	var hud_packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
 	failed += _assert(hud_packed != null, "hud.tscn load for fruit flow")
 	if hud_packed:
@@ -908,13 +912,40 @@ func _run() -> void:
 		game_audio.call("play_hub_music")
 		test_hud.call("show_care_menu")
 		await process_frame
+		failed += _assert(bool(test_hud.call("is_care_open")), "pre-ancient care open")
+		failed += _assert(not bool(test_hud.call("care_embeds_shop_rows")), "pre-ancient care has no shop rows")
+		var pay_pre: Button = test_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
+		var harvest_pre_anc: Button = test_hud.get_node_or_null("CarePanel/ActionBand/HarvestFruitButton") as Button
+		var water_pre_anc: Button = test_hud.get_node_or_null("CarePanel/ActionBand/WaterButton") as Button
+		failed += _assert(pay_pre != null and pay_pre.visible, "pre-ancient Pay shown")
+		failed += _assert(water_pre_anc != null and water_pre_anc.visible, "pre-ancient Water shown")
+		failed += _assert(harvest_pre_anc != null and not harvest_pre_anc.visible, "pre-ancient no Fruit CTA")
+		var care_metrics: Dictionary = test_hud.call("get_care_layout_metrics")
+		var care_sz_v: Variant = care_metrics.get("size", Vector2.ZERO)
+		failed += _assert(care_sz_v is Vector2, "care size is Vector2")
+		var care_sz: Vector2 = care_sz_v as Vector2
+		failed += _assert(abs(care_sz.x - 520.0) < 1.5 and abs(care_sz.y - 420.0) < 1.5, "care 520x420 (got %s)" % care_sz)
+		failed += _assert(abs(float(care_metrics.get("header_h", 0)) - 64.0) < 1.5, "care header 64")
+		failed += _assert(abs(float(care_metrics.get("action_band_h", 0)) - 56.0) < 1.5, "care action band 56")
+		test_hud.call("hide_care_menu")
+		game_state.call("_set_stage", &"ancient")
+		failed += _assert(bool(game_state.get("fruit_ready")), "hud test fruit ready")
+		failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "hud test not pending yet")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "hud test not committed yet")
+		test_hud.call("show_care_menu")
+		await process_frame
 		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "pre-commit shop hidden")
 		failed += _assert(not bool(test_hud.call("is_shop_list_visible")), "pre-commit no shop list")
-		var harvest_cta: Button = test_hud.get_node_or_null("CarePanel/HarvestFruitButton") as Button
+		failed += _assert(not bool(test_hud.call("care_embeds_shop_rows")), "ancient care has no shop rows")
+		var harvest_cta: Button = test_hud.get_node_or_null("CarePanel/ActionBand/HarvestFruitButton") as Button
 		failed += _assert(harvest_cta != null and harvest_cta.visible, "pre-commit fruit CTA")
-		var water_cta: Button = test_hud.get_node_or_null("CarePanel/WaterButton") as Button
+		var water_cta: Button = test_hud.get_node_or_null("CarePanel/ActionBand/WaterButton") as Button
 		failed += _assert(water_cta != null and water_cta.visible, "pre-commit water still shown")
-		var pre_hint: Label = test_hud.get_node_or_null("CarePanel/PrecommitHint") as Label
+		var pay_anc: Button = test_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
+		failed += _assert(pay_anc != null and not pay_anc.visible, "ancient hides Pay")
+		if water_cta and harvest_cta:
+			failed += _assert(water_cta.position.x < harvest_cta.position.x, "action band Water left of Fruit")
+		var pre_hint: Label = test_hud.get_node_or_null("CarePanel/FruitReadyCard/PrecommitHint") as Label
 		failed += _assert(pre_hint != null and str(pre_hint.text).find("Water anytime") >= 0, "care hint tree_ancient_care_hint")
 		failed += _assert(pre_hint != null and str(pre_hint.text).find("still water") >= 0, "care hint tree_water_ancient_note")
 		var ascend_pre: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
@@ -929,6 +960,7 @@ func _run() -> void:
 		failed += _assert(not bool(game_state.get("fruit_committed")), "step 1 does not commit")
 		failed += _assert(paused == false, "world running during fruit step 1")
 		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "shop closed during fruit modal")
+		failed += _assert(not bool(test_hud.call("is_care_open")), "care closed during fruit confirm")
 		var harvest_modal: Button = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmYes") as Button
 		var cancel_modal: Button = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmNo") as Button
 		failed += _assert(harvest_modal != null and str(harvest_modal.text) == "Continue", "step 1 Continue")
@@ -956,6 +988,8 @@ func _run() -> void:
 		failed += _assert(bool(game_state.get("fruit_committed")), "Harvest confirm sets fruit_committed")
 		failed += _assert(paused == true, "commit pauses world")
 		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "shop opens on commit")
+		failed += _assert(not bool(test_hud.call("is_care_open")), "care closed after Fruit commit")
+		failed += _assert(not bool(test_hud.call("care_embeds_shop_rows")), "care still has no shop rows after commit")
 		failed += _assert(bool(test_hud.call("is_shop_list_visible")), "shop list after commit")
 		var shop_banner: Label = test_hud.get_node_or_null("AscensionPanel/Header/Subtitle") as Label
 		failed += _assert(shop_banner != null and str(shop_banner.text).find("blessing shop only") >= 0, "shop uses fruit_shop_only_banner")
@@ -999,6 +1033,11 @@ func _run() -> void:
 		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "close hides shop")
 		var reopen: Button = test_hud.get_node_or_null("Panel/AscensionReopenButton") as Button
 		failed += _assert(reopen != null and reopen.visible, "reopen chip after close")
+		test_hud.call("show_care_menu")
+		await process_frame
+		failed += _assert(paused == true, "care reopen after commit stays paused")
+		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "post-commit care opens shop, not care")
+		failed += _assert(not bool(test_hud.call("is_care_open")), "care stays closed until next cycle")
 		test_hud.call("show_ascension_shop")
 		await process_frame
 		failed += _assert(paused == true, "reopen stays paused")

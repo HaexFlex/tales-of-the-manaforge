@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + welcome + Ascension shop. SYSTEMS v0.3.3 / Content v0.3.4 / Art shop layout v0.1.
+## HUD + Manatree care + welcome + Ascension shop. SYSTEMS v0.3.3 / Content v0.3.4 / Art care v0.1.12 + shop v0.1.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -10,14 +10,18 @@ class_name GameHUD
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var pause_button: Button = $Panel/PauseButton
 @onready var ascension_reopen_button: Button = $Panel/AscensionReopenButton
-@onready var care_panel: ColorRect = $CarePanel
-@onready var care_title: Label = $CarePanel/CareTitle
+@onready var care_panel: Panel = $CarePanel
+@onready var care_header: Control = $CarePanel/Header
+@onready var care_title: Label = $CarePanel/Header/CareTitle
+@onready var care_stage_label: Label = $CarePanel/Header/CareStageLabel
 @onready var care_needs_label: Label = $CarePanel/CareNeedsLabel
-@onready var water_button: Button = $CarePanel/WaterButton
-@onready var pay_button: Button = $CarePanel/PayButton
-@onready var harvest_fruit_button: Button = $CarePanel/HarvestFruitButton
-@onready var precommit_hint: Label = $CarePanel/PrecommitHint
-@onready var care_close_button: Button = $CarePanel/CareCloseButton
+@onready var fruit_ready_card: ColorRect = $CarePanel/FruitReadyCard
+@onready var water_button: Button = $CarePanel/ActionBand/WaterButton
+@onready var pay_button: Button = $CarePanel/ActionBand/PayButton
+@onready var harvest_fruit_button: Button = $CarePanel/ActionBand/HarvestFruitButton
+@onready var precommit_hint: Label = $CarePanel/FruitReadyCard/PrecommitHint
+@onready var care_close_button: Button = $CarePanel/Header/CareCloseButton
+@onready var care_action_band: Control = $CarePanel/ActionBand
 @onready var fruit_confirm_panel: Panel = $FruitConfirmPanel
 @onready var fruit_confirm_title: Label = $FruitConfirmPanel/ConfirmTitle
 @onready var fruit_confirm_body: Label = $FruitConfirmPanel/ConfirmBody
@@ -43,6 +47,10 @@ class_name GameHUD
 @onready var welcome_hint_label: Label = $WelcomePanel/WelcomeHint
 @onready var welcome_dismiss_button: Button = $WelcomePanel/WelcomeDismiss
 
+## Art lock MANATREE_CARE_PANEL_V01: 520×420, header 64 / body / action band 56. No shop rows.
+const CARE_SIZE: Vector2 = Vector2(520, 420)
+const CARE_HEADER_H: float = 64.0
+const CARE_ACTION_BAND_H: float = 56.0
 ## Art lock ASCENSION_SHOP_LAYOUT_V01: 720×500, header 64 / list flex / footer 72, row 48.
 const SHOP_SIZE: Vector2 = Vector2(720, 500)
 const SHOP_MIN_SIZE: Vector2 = Vector2(640, 420)
@@ -85,7 +93,10 @@ func _ready() -> void:
 	pay_button.text = ContentStrings.get_text("tree_pay")
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
 	ascension_reopen_button.text = ContentStrings.get_text("ascension_paused_title")
-	care_title.text = ContentStrings.get_text("tree_care_title")
+	care_title.text = "%s %s" % [
+		ContentStrings.get_text("tree_menu_title"),
+		ContentStrings.get_text("tree_care_title"),
+	]
 	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
 	welcome_title_label.text = ContentStrings.get_text("welcome_title")
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")
@@ -159,11 +170,16 @@ func _apply_button_chrome(btn: Button, bg: Color, border: Color) -> void:
 func _apply_wood_chrome() -> void:
 	ascension_panel.add_theme_stylebox_override("panel", _wood_style())
 	fruit_confirm_panel.add_theme_stylebox_override("panel", _wood_style())
+	care_panel.add_theme_stylebox_override("panel", _wood_style())
 	shard_chip.color = CHIP_CYAN
 	_apply_button_chrome(close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(ascend_button, LEAF, GOLD)
 	_apply_button_chrome(fruit_confirm_yes, LEAF, GOLD)
 	_apply_button_chrome(fruit_confirm_no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(care_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(water_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(pay_button, LEAF, GOLD)
+	_apply_button_chrome(harvest_fruit_button, LEAF, GOLD)
 
 
 func _refresh_dim() -> void:
@@ -326,31 +342,45 @@ func _refresh_stage() -> void:
 
 func _refresh_care_needs() -> void:
 	var info: Dictionary = GameState.get_care_next_stage_info()
-	care_title.text = str(info.get("title", ContentStrings.get_text("tree_care_title")))
+	care_title.text = "%s %s" % [
+		ContentStrings.get_text("tree_menu_title"),
+		ContentStrings.get_text("tree_care_title"),
+	]
+	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
+	var fruit_ready: bool = GameState.fruit_ready and not GameState.fruit_committed
+	if fruit_ready:
+		care_stage_label.text = "Stage: %s · Fruit ready" % stage_name
+	else:
+		care_stage_label.text = "Stage: %s" % stage_name
 	var lines: PackedStringArray = info.get("needs_lines", PackedStringArray()) as PackedStringArray
 	var header: String = str(info.get("needs_header", ""))
 	var status: String = str(info.get("needs_status", ""))
 	var body_parts: PackedStringArray = PackedStringArray()
+	var is_ancient: bool = bool(info.get("is_ancient", false))
+	if not is_ancient:
+		var toward: String = str(info.get("title", ""))
+		if toward != "":
+			body_parts.append(toward)
 	if header != "":
 		body_parts.append(header)
 	for line: String in lines:
 		body_parts.append(line)
-	if status != "" and not bool(info.get("is_ancient", false)):
+	if status != "" and not is_ancient:
 		body_parts.append(status)
 	care_needs_label.text = "\n".join(body_parts)
+	care_needs_label.visible = not fruit_ready
 	var can_pay: bool = bool(info.get("can_pay", false))
-	var is_ancient: bool = bool(info.get("is_ancient", false))
-	var fruit_ready: bool = GameState.fruit_ready and not GameState.fruit_harvested_pending_ascend
 	pay_button.visible = not is_ancient
 	if _confirm_pay and can_pay:
 		pay_button.text = ContentStrings.get_text("tree_pay_confirm_yes")
 	else:
 		pay_button.text = ContentStrings.get_text("tree_pay")
 	pay_button.disabled = not can_pay
-	water_button.visible = not GameState.fruit_harvested_pending_ascend
+	water_button.visible = not GameState.fruit_committed
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	harvest_fruit_button.visible = fruit_ready
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
+	fruit_ready_card.visible = fruit_ready
 	precommit_hint.visible = fruit_ready
 	if fruit_ready:
 		precommit_hint.text = "%s\n%s" % [
@@ -364,7 +394,7 @@ func show_care_menu() -> void:
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
-	if GameState.fruit_harvested_pending_ascend:
+	if GameState.fruit_committed:
 		show_ascension_shop()
 		return
 	hide_ascension_shop()
@@ -431,6 +461,33 @@ func get_shop_layout_metrics() -> Dictionary:
 
 func shop_has_harvest_button() -> bool:
 	return shop_footer.get_node_or_null("HarvestButton") != null or ascension_panel.get_node_or_null("HarvestButton") != null
+
+
+func is_care_open() -> bool:
+	return care_panel.visible
+
+
+func care_embeds_shop_rows() -> bool:
+	## Art v0.1.12: care must never host Buy list / shop scroll / Ascend.
+	if care_panel.find_child("UpgradeList", true, false) != null:
+		return true
+	if care_panel.find_child("ShopScroll", true, false) != null:
+		return true
+	if care_panel.find_child("AscendButton", true, false) != null:
+		return true
+	if care_panel.find_child("Footer", true, false) != null:
+		return true
+	return false
+
+
+func get_care_layout_metrics() -> Dictionary:
+	return {
+		"size": care_panel.size,
+		"header_h": care_header.size.y,
+		"action_band_h": care_action_band.size.y,
+		"preferred_w": CARE_SIZE.x,
+		"preferred_h": CARE_SIZE.y,
+	}
 
 
 func get_fruit_confirm_step() -> int:
@@ -542,6 +599,8 @@ func open_fruit_confirm() -> void:
 		return
 	if not GameState.fruit_ready:
 		return
+	care_panel.visible = false
+	_confirm_pay = false
 	_fruit_confirm_step = 1
 	_show_fruit_confirm_step()
 	GameAudio.play_ui_open()
