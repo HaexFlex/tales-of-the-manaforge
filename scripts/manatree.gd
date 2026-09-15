@@ -69,11 +69,11 @@ func _stage_size(stage: StringName) -> Vector2:
 			var arr: Array = size_v
 			return Vector2(float(arr[0]), float(arr[1]))
 	var def: Dictionary = GameState.get_stage_def(stage)
-	var size_v2: Variant = def.get("size", [96, 160])
+	var size_v2: Variant = def.get("size", [128, 192])
 	if typeof(size_v2) == TYPE_ARRAY and (size_v2 as Array).size() >= 2:
 		var arr2: Array = size_v2
 		return Vector2(float(arr2[0]), float(arr2[1]))
-	return Vector2(96, 160)
+	return Vector2(128, 192)
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:

@@ -1,63 +1,60 @@
 {
-  "version": "v0.1.5",
+  "version": "v0.1.6-sheet-scaled",
   "filter": "nearest",
-  "source_ref": "refs/manatree_ancient_final.jpg",
+  "source": "TotM Stage 0-4 sheets, first frame, NN upscale to game canvases",
+  "haex_approved": true,
   "stages": [
     {
       "stage_id": "sapling",
       "file": "manatree_sapling.png",
       "size": [
-        96,
-        160
+        128,
+        192
       ],
       "anchor": "base_center",
       "anchor_px": [
-        48,
-        160
-      ],
-      "door": "none"
+        64,
+        192
+      ]
     },
     {
       "stage_id": "young",
       "file": "manatree_young.png",
       "size": [
-        160,
-        240
+        192,
+        288
       ],
       "anchor": "base_center",
       "anchor_px": [
-        80,
-        240
-      ],
-      "door": "none"
+        96,
+        288
+      ]
     },
     {
       "stage_id": "mature",
       "file": "manatree_mature.png",
       "size": [
-        224,
-        320
+        256,
+        384
       ],
       "anchor": "base_center",
       "anchor_px": [
-        112,
-        320
-      ],
-      "door": "none"
+        128,
+        384
+      ]
     },
     {
       "stage_id": "elder",
       "file": "manatree_elder.png",
       "size": [
-        320,
-        448
+        384,
+        512
       ],
       "anchor": "base_center",
       "anchor_px": [
-        160,
-        448
-      ],
-      "door": "none"
+        192,
+        512
+      ]
     },
     {
       "stage_id": "ancient",
@@ -73,6 +70,5 @@
       ],
       "door": "visible_noninteractive"
     }
-  ],
-  "notes": "Five distinct stages; ancient is FULL uncropped landmark 512x640 with door. Growth reads by footprint + canopy mass. Door non-interactive in v0.1."
+  ]
 }

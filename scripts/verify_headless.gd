@@ -101,7 +101,7 @@ func _run() -> void:
 		failed += _assert(typeof(meta_parsed) == TYPE_DICTIONARY, "meta dict")
 		if typeof(meta_parsed) == TYPE_DICTIONARY:
 			var mroot: Dictionary = meta_parsed
-			failed += _assert(str(mroot.get("version", "")) == "v0.1.5", "meta version v0.1.5")
+			failed += _assert(str(mroot.get("version", "")) == "v0.1.6-sheet-scaled", "meta version v0.1.6-sheet-scaled")
 			var stages_m: Variant = mroot.get("stages", [])
 			failed += _assert(typeof(stages_m) == TYPE_ARRAY and (stages_m as Array).size() == 5, "meta 5 stages")
 			if typeof(stages_m) == TYPE_ARRAY:

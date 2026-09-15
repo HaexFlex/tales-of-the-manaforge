@@ -16,7 +16,10 @@
       "id": "sapling",
       "display_name": "Sapling",
       "color": "#7ec850",
-      "size": [96, 160],
+      "size": [
+        128,
+        192
+      ],
       "cost_essence": 0,
       "cost_food": 0,
       "cost_wood": 0,
@@ -29,7 +32,10 @@
       "id": "young",
       "display_name": "Young Tree",
       "color": "#66bb6a",
-      "size": [160, 240],
+      "size": [
+        192,
+        288
+      ],
       "cost_essence": 20,
       "cost_food": 0,
       "cost_wood": 0,
@@ -42,7 +48,10 @@
       "id": "mature",
       "display_name": "Mature Tree",
       "color": "#43a047",
-      "size": [224, 320],
+      "size": [
+        256,
+        384
+      ],
       "cost_essence": 40,
       "cost_food": 10,
       "cost_wood": 0,
@@ -55,7 +64,10 @@
       "id": "elder",
       "display_name": "Elder Tree",
       "color": "#2e7d32",
-      "size": [320, 448],
+      "size": [
+        384,
+        512
+      ],
       "cost_essence": 60,
       "cost_food": 20,
       "cost_wood": 10,
@@ -68,7 +80,10 @@
       "id": "ancient",
       "display_name": "Ancient Manatree",
       "color": "#1b5e20",
-      "size": [512, 640],
+      "size": [
+        512,
+        640
+      ],
       "cost_essence": 80,
       "cost_food": 40,
       "cost_wood": 20,

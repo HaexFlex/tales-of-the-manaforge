@@ -1,5 +1,5 @@
 {
-  "version": "v0.1.5-manatree-stages",
+  "version": "v0.1.6-sheet-scaled-manatree",
   "bible": "/home/box/manaforge/VISUAL_BIBLE_RESTART_V01.md",
   "filter": "nearest",
   "keeper": {
@@ -13,7 +13,7 @@
   "manatree": {
     "dir": "manatree/",
     "meta": "manatree/manatree_meta.json",
-    "version": "v0.1.5"
+    "version": "v0.1.6-sheet-scaled"
   },
   "props": {
     "dir": "props/",
