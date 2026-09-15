@@ -1,5 +1,5 @@
 extends Node2D
-## Forest hub 1280×720: grass tiles, y-sorted trees, click-to-move, care/gather.
+## Forest hub 1280×720: grass tiles, dense deco trees, 3 harvest channels, Manatree water channel.
 
 @onready var keeper: Keeper = $World/Keeper
 @onready var manatree: Manatree = $World/Manatree
@@ -12,13 +12,21 @@ const TILE: int = 64
 const COLS: int = 20
 const ROWS: int = 12
 
-## Atlas indices in tileset_grass_64.png (4×2): row0 grass, row1 paths
 const ATLAS_GRASS: Array[Vector2i] = [
 	Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)
 ]
 const ATLAS_PATH_H := Vector2i(0, 1)
 const ATLAS_PATH_V := Vector2i(1, 1)
 const ATLAS_PATH_CROSS := Vector2i(2, 1)
+
+## Keep clear of Manatree stand, three harvest nodes, keeper spawn.
+const CLEAR_POINTS: Array[Vector2] = [
+	Vector2(640, 420),
+	Vector2(200, 560),
+	Vector2(400, 580),
+	Vector2(900, 560),
+	Vector2(480, 520),
+]
 
 
 func _ready() -> void:
@@ -48,12 +56,10 @@ func _build_grass() -> void:
 				atlas.create_tile(coords)
 	var src_id: int = ts.add_source(atlas, 0)
 	ground.tile_set = ts
-	# Fill grass with slight variation
 	for x: int in range(COLS):
 		for y: int in range(ROWS):
 			var pick: Vector2i = ATLAS_GRASS[(x * 3 + y * 5) % ATLAS_GRASS.size()]
 			ground.set_cell(0, Vector2i(x, y), src_id, pick)
-	# Clearing paths toward Manatree / gather lanes
 	var mid_x: int = 10
 	var mid_y: int = 6
 	for x: int in range(3, 17):
@@ -61,7 +67,6 @@ func _build_grass() -> void:
 	for y: int in range(4, 10):
 		ground.set_cell(0, Vector2i(mid_x, y), src_id, ATLAS_PATH_V)
 	ground.set_cell(0, Vector2i(mid_x, mid_y), src_id, ATLAS_PATH_CROSS)
-	# Soft path to wood / food sides
 	for x: int in range(3, 8):
 		ground.set_cell(0, Vector2i(x, 8), src_id, ATLAS_PATH_H)
 	for x: int in range(13, 17):
@@ -69,32 +74,54 @@ func _build_grass() -> void:
 
 
 func _spawn_forest_props() -> void:
-	var placements: Array[Dictionary] = [
-		{"tex": "res://assets/art/trees/tree_forest_imagine.png", "pos": Vector2(96, 200), "size": Vector2(128, 160)},
-		{"tex": "res://assets/art/trees/tree_oak_b.png", "pos": Vector2(1180, 220), "size": Vector2(128, 160)},
-		{"tex": "res://assets/art/trees/tree_oak_a.png", "pos": Vector2(160, 360), "size": Vector2(96, 128)},
-		{"tex": "res://assets/art/trees/tree_pine_a.png", "pos": Vector2(1120, 520), "size": Vector2(80, 144)},
-		{"tex": "res://assets/art/trees/tree_autumn_a.png", "pos": Vector2(80, 620), "size": Vector2(96, 128)},
-		{"tex": "res://assets/art/trees/tree_oak_a.png", "pos": Vector2(1200, 640), "size": Vector2(96, 128)},
-		{"tex": "res://assets/art/trees/tree_pine_a.png", "pos": Vector2(320, 180), "size": Vector2(80, 144)},
-		{"tex": "res://assets/art/trees/tree_forest_imagine.png", "pos": Vector2(980, 160), "size": Vector2(128, 160)},
-		{"tex": "res://assets/art/trees/bush_a.png", "pos": Vector2(520, 300), "size": Vector2(64, 48)},
-		{"tex": "res://assets/art/trees/bush_a.png", "pos": Vector2(760, 300), "size": Vector2(64, 48)},
-		{"tex": "res://assets/art/trees/stump_a.png", "pos": Vector2(360, 480), "size": Vector2(48, 40)},
-		{"tex": "res://assets/art/trees/bush_a.png", "pos": Vector2(1040, 580), "size": Vector2(64, 48)},
-		{"tex": "res://assets/art/trees/tree_autumn_a.png", "pos": Vector2(240, 700), "size": Vector2(96, 128)},
-		{"tex": "res://assets/art/trees/tree_oak_b.png", "pos": Vector2(700, 700), "size": Vector2(128, 160)},
+	## 15–40 Y-sorted decorative (non-interactive) trees around clearing edges.
+	var catalog: Array[Dictionary] = [
+		{"tex": "res://assets/art/trees/tree_forest_imagine.png", "size": Vector2(128, 160)},
+		{"tex": "res://assets/art/trees/tree_oak_b.png", "size": Vector2(128, 160)},
+		{"tex": "res://assets/art/trees/tree_oak_a.png", "size": Vector2(96, 128)},
+		{"tex": "res://assets/art/trees/tree_pine_a.png", "size": Vector2(80, 144)},
+		{"tex": "res://assets/art/trees/tree_autumn_a.png", "size": Vector2(96, 128)},
+		{"tex": "res://assets/art/trees/bush_a.png", "size": Vector2(64, 48)},
+		{"tex": "res://assets/art/trees/stump_a.png", "size": Vector2(48, 40)},
 	]
-	for entry: Dictionary in placements:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260915
+	var placed: int = 0
+	var attempts: int = 0
+	while placed < 28 and attempts < 200:
+		attempts += 1
+		var edge: int = attempts % 4
+		var pos: Vector2
+		match edge:
+			0:
+				pos = Vector2(rng.randf_range(40, 1240), rng.randf_range(80, 220))
+			1:
+				pos = Vector2(rng.randf_range(40, 1240), rng.randf_range(620, 700))
+			2:
+				pos = Vector2(rng.randf_range(40, 180), rng.randf_range(200, 680))
+			_:
+				pos = Vector2(rng.randf_range(1100, 1240), rng.randf_range(200, 680))
+		if not _clear_of_landmarks(pos, 110.0):
+			continue
+		var entry: Dictionary = catalog[placed % catalog.size()]
 		var spr := Sprite2D.new()
 		spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		spr.centered = false
 		var sz: Vector2 = entry["size"]
-		spr.offset = Vector2(-sz.x * 0.5, -sz.y)  # base_center / feet
+		spr.offset = Vector2(-sz.x * 0.5, -sz.y)
 		spr.texture = load(str(entry["tex"])) as Texture2D
-		spr.position = entry["pos"]
+		spr.position = pos
 		spr.y_sort_enabled = true
+		spr.z_index = 0
 		world.add_child(spr)
+		placed += 1
+
+
+func _clear_of_landmarks(pos: Vector2, min_dist: float) -> bool:
+	for p: Vector2 in CLEAR_POINTS:
+		if pos.distance_to(p) < min_dist:
+			return false
+	return true
 
 
 func _on_ground_input(event: InputEvent) -> void:

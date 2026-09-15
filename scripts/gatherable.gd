@@ -1,6 +1,6 @@
 extends Area2D
 class_name Gatherable
-## 64×64 gather prop sprites (art pack). SYSTEMS gather amounts + cooldown.
+## One of three harvest channels (tree→wood, stone→stone, berry→food). Hold/channel @ 1/sec.
 
 @export var resource_id: StringName = &"wood"
 @export var display_name: String = "Wood"
@@ -10,29 +10,36 @@ class_name Gatherable
 @onready var sprite: Sprite2D = $Sprite
 @onready var label: Label = $Label
 
-var _available: bool = true
+var _channeling: bool = false
 const BODY_SIZE: Vector2 = Vector2(64, 64)
 
-const PROP_TEXTURES: Dictionary = {
-	"wood": "res://assets/art/props/prop_wood.png",
-	"stone": "res://assets/art/props/prop_stone.png",
-	"food": "res://assets/art/props/prop_food.png",
-	"manashards": "res://assets/art/props/prop_manashards.png",
+const HARVEST_TEXTURES: Dictionary = {
+	"wood": "res://assets/art/props/harvest_tree.png",
+	"stone": "res://assets/art/props/harvest_stone.png",
+	"food": "res://assets/art/props/harvest_berry.png",
+}
+const HARVEST_HEIGHT: Dictionary = {
+	"wood": 80.0,
+	"stone": 64.0,
+	"food": 64.0,
 }
 
 
 func _ready() -> void:
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
-	sprite.offset = Vector2(-32, -64)
-	var path: String = str(PROP_TEXTURES.get(node_key, PROP_TEXTURES["wood"]))
+	var h: float = float(HARVEST_HEIGHT.get(node_key, 64.0))
+	sprite.offset = Vector2(-32, -h)
+	var path: String = str(HARVEST_TEXTURES.get(node_key, HARVEST_TEXTURES["wood"]))
 	sprite.texture = load(path) as Texture2D
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.position = Vector2(-40, -84)
+	label.position = Vector2(-48, -h - 20.0)
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
 	input_event.connect(_on_input_event)
 	add_to_group("gatherable")
 	add_to_group("interactable")
+	add_to_group("harvest_node")
+	y_sort_enabled = true
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
 		(cs.shape as RectangleShape2D).size = BODY_SIZE
@@ -42,7 +49,7 @@ func _ready() -> void:
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and _available:
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			_request_keeper_interact()
 
 
@@ -55,23 +62,33 @@ func _request_keeper_interact() -> void:
 		k.move_to(global_position, self)
 
 
-func on_interact(_keeper: Node) -> void:
-	if not _available:
-		GameState.status_message.emit(ContentStrings.get_text("node_%s_cd" % node_key))
-		GameAudio.play(&"sfx_gather_cooldown")
+func on_interact(keeper: Node) -> void:
+	var k: Keeper = keeper as Keeper
+	if k == null:
 		return
-	var amount: int = GameState.get_gather_grant(resource_id)
-	GameState.add_resource(resource_id, amount)
-	GameState.status_message.emit(ContentStrings.get_text("node_%s_ok" % node_key))
+	k.start_harvest_channel(self)
+
+
+func set_channeling(active: bool) -> void:
+	_channeling = active
+	if active:
+		label.text = ContentStrings.get_text("node_%s_busy" % node_key)
+		modulate = Color(1.05, 1.1, 0.95, 1.0)
+	else:
+		label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
+		modulate = Color.WHITE
+
+
+func on_channel_cancel() -> void:
+	set_channeling(false)
+	GameState.status_message.emit(ContentStrings.get_text("node_%s_cancel" % node_key))
+
+
+func on_harvest_pulse() -> int:
+	var grant: int = GameState.apply_harvest_pulse(resource_id)
 	GameAudio.play_gather(resource_id)
-	_available = false
-	modulate = Color(0.45, 0.45, 0.45, 0.7)
-	label.text = ContentStrings.get_text("node_%s_cd" % node_key)
-	var cd: float = GameState.param_float("NODE_COOLDOWN_SEC", 3.0)
-	get_tree().create_timer(cd).timeout.connect(_respawn)
-
-
-func _respawn() -> void:
-	_available = true
-	modulate = Color.WHITE
-	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
+	var item: String = ContentStrings.get_text("hud_%s" % String(resource_id))
+	GameState.status_message.emit(
+		ContentStrings.get_text("harvest_pulse_hud", {"amount": grant, "item": item})
+	)
+	return grant

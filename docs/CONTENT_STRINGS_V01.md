@@ -1,10 +1,10 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.1.1 — aligned to `SYSTEMS_V01` v0.1.1 (free Water + Offer mats)  
+**Status:** v0.1.2 — aligned to `SYSTEMS_V01` v0.1.2 (channelled harvest + water payout)  
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
-**Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor  
+**Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
-**Last updated:** 2026-09-14
+**Last updated:** 2026-09-15
 
 **Tone (Haex locked):** warm + lightly melancholic — never stressful.  
 **In-world rule:** *Manaforge* is **title-only** in v0.1 (window / itch blurb). Do not name the hidden forge or door in player strings yet.
@@ -13,7 +13,8 @@
 | Ver | Change |
 |-----|--------|
 | v0.1 | Day-1 string sheet |
-| **v0.1.1** | Remove Food-cost watering. Free **Water** + **Offer** Wood/Stone/Food/Manashards. Stage-gate copy includes Food. Tone locked warm + lightly melancholic. |
+| v0.1.1 | Free Water + Offer mats; Food-cost watering removed |
+| **v0.1.2** | Channelled Harvest Tree / Stone / Berry @ 1/sec. Water channel: shards + essence / sec + growth. Essence not Fruit-only. Drop click-cooldown multi-node gather phrasing. |
 
 ---
 
@@ -32,42 +33,41 @@
 
 ## 2. Resources (lock these labels)
 
-Aligns to Design IDs. Short HUD name = column **HUD**.
-
 | id | HUD | Examine / tooltip |
 |----|-----|-------------------|
-| `wood` | Wood | Soft timber from the living fragment. |
+| `wood` | Wood | Soft timber from the Harvest Tree. |
 | `stone` | Stone | Cool river-rock, still dusted with moss. |
-| `food` | Food | Forage to offer the Manatree — care made tangible. |
-| `manashards` | Manashards | Faint crystals that hum when held. |
-| `essence` | Essence | Gift of the Primordial Fruit. Lasts beyond the reset. |
+| `food` | Food | Berries from the bush — good to Offer. |
+| `manashards` | Manashards | Drawn while watering the Manatree. |
+| `essence` | Essence | Grows with every careful watering — and with the Fruit. |
 
 | key | string |
 |-----|--------|
 | `hud_need` | Need {item} ×{count} |
-| `hud_full_inv_noop` | (unused in v0.1 — counters only) |
 
 ---
 
-## 3. Gather nodes + verbs
+## 3. Harvest channels (exactly three nodes)
 
-| node_id | Prompt (hover / ready) | On gather | On cooldown |
-|---------|------------------------|-----------|-------------|
-| `node_wood` | Gather Wood | You take a careful armful of Wood. | The grove needs a moment. |
-| `node_stone` | Gather Stone | You lift a Stone from the moss. | The stones settle. Wait. |
-| `node_food` | Forage Food | Berries and soft leaves — good to Offer. | Nothing ripe yet. |
-| `node_manashards` | Gather Manashards | A Manashard warms in your palm. | The glow fades. Later. |
+Interactive nodes only. Decorative forest trees have **no** strings / no prompts.
+
+| node_id | Prompt (ready) | Channeling HUD | Pulse toast (optional, rare) | Cancel / leave |
+|---------|----------------|----------------|------------------------------|----------------|
+| `harvest_tree` | Harvest Tree | Harvesting Wood… | — | You step away from the Harvest Tree. |
+| `harvest_stone` | Harvest Stone | Harvesting Stone… | — | You leave the stone. |
+| `harvest_berry` | Harvest Berries | Harvesting Food… | — | You leave the berry bush. |
 
 | key | string |
 |-----|--------|
-| `gather_busy` | One thing at a time. |
-| `gather_verb_default` | Gather |
+| `harvest_start` | You begin to harvest. |
+| `harvest_pulse_hud` | +{amount} {item}/s |
+| `harvest_busy_other` | Finish this first — or walk away. |
+| `harvest_out_of_range` | Too far to keep harvesting. |
+| `deco_tree_no_interact` | *(no prompt — deco only)* |
 
 ---
 
-## 4. Manatree — stages (working names locked for v0.1)
-
-Design stage_ids. Display name + one-line presence + stage-up toast.
+## 4. Manatree — stages
 
 | stage_id | Display | Presence (journal / examine) | Stage-up toast |
 |----------|---------|------------------------------|----------------|
@@ -85,11 +85,9 @@ Design stage_ids. Display name + one-line presence + stage-up toast.
 
 ---
 
-## 5. Manatree care — Water (free) + Offer mats
+## 5. Manatree care — Water channel + Offer
 
-Matches `SYSTEMS_V01` v0.1.1. Water spends nothing. Offers spend inventory for growth. Stage-up may still require a gate mix (incl. Food).
-
-### 5a. Interact menu labels
+### 5a. Interact menu
 
 | key | string |
 |-----|--------|
@@ -100,15 +98,19 @@ Matches `SYSTEMS_V01` v0.1.1. Water spends nothing. Offers spend inventory for g
 | `tree_offer_food` | Offer Food |
 | `tree_offer_manashards` | Offer Manashards |
 
-### 5b. Water (free)
+### 5b. Water channel (shards + essence + growth / sec)
 
 | key | string |
 |-----|--------|
-| `tree_water_ok` | You water the Manatree. It brightens. |
-| `tree_water_cooldown` | Easy — let it drink. |
-| `tree_water_ancient_block` | The Ancient Manatree needs no more water. The Fruit is ready. |
+| `tree_water_start` | You water the Manatree. Magic gathers. |
+| `tree_water_channel_hud` | Watering… |
+| `tree_water_pulse_hud` | +{shards} Manashards, +{essence} Essence |
+| `tree_water_ok` | *(legacy pulse SFX label — prefer pulse HUD)* The Manatree brightens. |
+| `tree_water_out_of_range` | Too far to keep watering. |
+| `tree_water_cancel` | You stop watering. |
+| `tree_water_ancient_note` | Ancient — still drinking, still giving. The Fruit waits when you are ready. |
 
-### 5c. Offer
+### 5c. Offer (instant)
 
 | key | string |
 |-----|--------|
@@ -118,9 +120,9 @@ Matches `SYSTEMS_V01` v0.1.1. Water spends nothing. Offers spend inventory for g
 | `tree_offer_ok_manashards` | You offer a Manashard. Magic threads into the bark. |
 | `tree_offer_deny` | Not enough {item}. |
 | `tree_offer_cooldown` | One gift at a time. |
-| `tree_offer_ancient_block` | The cycle is complete. Harvest the Fruit instead. |
+| `tree_offer_ancient_block` | Growth is complete. Harvest the Fruit — or keep watering for gifts. |
 
-### 5d. Stage gate (missing mats)
+### 5d. Stage gate
 
 | key | string |
 |-----|--------|
@@ -140,7 +142,7 @@ Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
 | key | string |
 |-----|--------|
 | `fruit_ready_prompt` | Harvest the Primordial Fruit |
-| `fruit_confirm` | Harvest the Primordial Fruit? The Manatree will return to a Sapling. Your Essence and blessings remain. |
+| `fruit_confirm` | Harvest the Primordial Fruit? The Manatree will return to a Sapling. Essence and blessings remain. |
 | `fruit_confirm_yes` | Harvest |
 | `fruit_confirm_no` | Not yet |
 | `fruit_harvest_toast` | The Primordial Fruit is yours. Essence +{amount}. |
@@ -154,14 +156,14 @@ Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
 | `ascend_toast` | A new cycle. The Sapling greets you. |
 | `ascend_count_hud` | Cycles: {count} |
 
-### Permanent upgrades (ids from Design)
+### Permanent upgrades
 
 | upgrade_id | Display | Description |
 |------------|---------|-------------|
 | `deep_roots` | Deep Roots | Each rank: Watering grants more growth. |
-| `forager` | Forager’s Grace | Each rank: gather a little more from every node. |
+| `forager` | Forager’s Grace | Each rank: harvest channels yield a little more. |
 | `green_thumb` | Green Thumb | Each rank: stages need less growth to advance. |
-| `shard_sight` | Shard Sight | Each rank: Manashard nodes yield more. |
+| `shard_sight` | Shard Sight | Each rank: watering yields more Manashards. |
 | `keeper_stride` | Keeper’s Stride | Each rank: walk the fragment a little faster. |
 
 | key | string |
@@ -174,7 +176,7 @@ Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
 
 ---
 
-## 7. Minimal HUD / UI chrome labels
+## 7. Minimal HUD / UI chrome
 
 | key | string |
 |-----|--------|
@@ -185,12 +187,13 @@ Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
 | `hud_essence` | Essence |
 | `btn_menu` | Menu |
 | `btn_close` | Close |
+| `btn_cancel_channel` | Stop |
 
 ---
 
 ## 8. Out of v0.1 (do not ship strings for)
 
-Combat, whisps, Forge interior / door interact, equipment, Echo Chamber, Manaforge-as-place name, multi-zone travel copy.
+Combat, whisps, Forge interior / door interact, equipment, Echo Chamber, Manaforge-as-place name, multi-zone travel, prompts on decorative trees.
 
 ---
 
@@ -198,9 +201,9 @@ Combat, whisps, Forge interior / door interact, equipment, Echo Chamber, Manafor
 
 | Who | Use |
 |-----|-----|
-| @Code / Engine | Keys above as string-table IDs; substitute `{…}` tokens |
-| @Game Design | Labels match `SYSTEMS_V01` ids; rename only via Content |
-| @Art Direction | Stage display names for UI chips; no extra lore panels |
-| @Audio | Pair cues to: gather_*, tree_water_ok, tree_offer_ok_*, stage-up toasts, fruit_harvest, ascend_toast |
+| @Code / Engine | Channel HUD keys + pulse tokens; cancel on move; no prompts on deco trees |
+| @Game Design | Labels match `SYSTEMS_V01` v0.1.2 ids |
+| @Art Direction | Harvest Tree ≠ deco trees in player-facing names |
+| @Audio | Pulse each harvest/water tick; reuse gather / `sfx_tree_water` |
 
-Ping @Game Director on landing. Tone locked; renames only if Haex asks.
+Ping @Game Director on landing.

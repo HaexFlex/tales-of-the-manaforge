@@ -1,5 +1,5 @@
 {
-  "version": "v0.1.3-imagine-forest",
+  "version": "v0.1.4-harvest-nodes",
   "bible": "/home/box/manaforge/VISUAL_BIBLE_RESTART_V01.md",
   "filter": "nearest",
   "keeper": {
@@ -46,5 +46,6 @@
   "overnight_sources": [
     "overnight/grass_tile_draft.png",
     "overnight/forest_tree_draft.png"
-  ]
+  ],
+  "harvest_nodes": "props/harvest_nodes_meta.json"
 }

@@ -1,6 +1,6 @@
 extends Area2D
 class_name Manatree
-## 5-stage Manatree sprites; free Water + Offer care; ancient door baked in (non-interactive).
+## 5-stage Manatree; water channel (shards+essence+growth) + Offer care; ancient door baked in.
 
 signal fruit_menu_requested
 signal care_menu_requested
@@ -8,6 +8,8 @@ signal care_menu_requested
 @onready var sprite: Sprite2D = $Sprite
 @onready var label: Label = $Label
 @onready var fruit_hint: Label = $FruitHint
+
+var _watering: bool = false
 
 const STAGE_TEXTURES: Dictionary = {
 	&"sapling": "res://assets/art/manatree/manatree_sapling.png",
@@ -50,30 +52,36 @@ func _request_keeper_interact() -> void:
 
 
 func on_interact(_keeper: Node) -> void:
-	if GameState.fruit_harvested_pending_ascend or GameState.stage_id == &"ancient":
-		if GameState.fruit_ready or GameState.fruit_harvested_pending_ascend:
-			fruit_menu_requested.emit()
-			return
+	## Pending ascend → Fruit/Ascend panel. Otherwise care menu (Water channel works at Ancient).
+	if GameState.fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
 	care_menu_requested.emit()
 
 
-func do_water() -> void:
-	var stage_before: StringName = GameState.stage_id
-	var result: String = GameState.try_water()
-	match result:
-		"ok":
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_ok"))
-			if GameState.stage_id == stage_before:
-				GameAudio.play_tree_water_ok()
-		"cooldown":
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_cooldown"))
-			GameAudio.play_tree_deny()
-		"ancient":
-			GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_block"))
-			fruit_menu_requested.emit()
+func set_watering(active: bool) -> void:
+	_watering = active
+	if active:
+		label.modulate = Color(0.85, 0.95, 1.1, 1.0)
+	else:
+		label.modulate = Color.WHITE
 	_refresh_visual()
+
+
+func do_water() -> void:
+	## Start / continue water channel via Keeper (Haex hold/channel).
+	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+	if keepers.is_empty():
+		return
+	var k: Keeper = keepers[0] as Keeper
+	if k == null:
+		return
+	if GameState.fruit_harvested_pending_ascend:
+		fruit_menu_requested.emit()
+		return
+	k.start_water_channel(self)
+	if GameState.stage_id == &"ancient":
+		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_note"))
 
 
 func do_offer(resource_id: StringName) -> void:
@@ -94,7 +102,12 @@ func do_offer(resource_id: StringName) -> void:
 			GameAudio.play_tree_deny()
 		"ancient":
 			GameState.status_message.emit(ContentStrings.get_text("tree_offer_ancient_block"))
-			fruit_menu_requested.emit()
+			if GameState.fruit_ready or GameState.fruit_harvested_pending_ascend:
+				fruit_menu_requested.emit()
+	_refresh_visual()
+
+
+func refresh_after_care() -> void:
 	_refresh_visual()
 
 
@@ -113,17 +126,22 @@ func _on_fruit_changed(ready: bool) -> void:
 
 
 func _on_growth(g: int, req: int) -> void:
+	var suffix: String = ""
+	if _watering:
+		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
 	if GameState.stage_id == &"ancient":
-		label.text = "%s\n%s" % [
+		label.text = "%s\n%s%s" % [
 			str(GameState.get_stage_def().get("display_name", "Ancient")),
-			ContentStrings.get_text("tree_at_ancient_idle") if GameState.fruit_ready else ""
+			ContentStrings.get_text("tree_at_ancient_idle") if GameState.fruit_ready else "",
+			suffix,
 		]
 	else:
-		label.text = "%s\n%s %d/%d" % [
+		label.text = "%s\n%s %d/%d%s" % [
 			str(GameState.get_stage_def().get("display_name", GameState.stage_id)),
 			ContentStrings.get_text("tree_growth_hud"),
 			g,
 			req,
+			suffix,
 		]
 
 
@@ -139,7 +157,6 @@ func _refresh_visual() -> void:
 		var arr: Array = size_v
 		w = float(arr[0])
 		h = float(arr[1])
-	# Feet/base-center pivot. Door baked into ancient art — non-interactive.
 	sprite.offset = Vector2(-w * 0.5, -h)
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:

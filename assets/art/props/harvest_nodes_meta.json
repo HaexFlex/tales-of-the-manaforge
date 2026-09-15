@@ -1,15 +1,5 @@
 {
-  "canvas": [
-    64,
-    64
-  ],
-  "anchor": "base_center",
-  "nodes": {
-    "wood": "harvest_tree.png",
-    "stone": "harvest_stone.png",
-    "food": "harvest_berry.png",
-    "manashards": "prop_manashards.png"
-  },
+  "canvas_note": "64x80 tree, 64x64 stone/berry \u2014 base_center anchor",
   "harvest_nodes": {
     "wood": {
       "file": "harvest_tree.png",
@@ -38,5 +28,7 @@
       ],
       "also": "prop_food.png"
     }
-  }
+  },
+  "decorative_trees_unchanged": "trees/tree_oak_*, tree_pine_a, tree_autumn_a, tree_forest_imagine, bush_a, stump_a",
+  "notes": "Harvestable tree is NOT Manatree and NOT decorative oak \u2014 smaller, chop-notch + nuts. Dense clearing uses trees/ for scenery."
 }

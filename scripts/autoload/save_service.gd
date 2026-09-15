@@ -1,10 +1,10 @@
 extends Node
-## Versioned save/load to user://manaforge_save.json (SYSTEMS_V01 v0.1.1 schema).
+## Versioned save/load to user://manaforge_save.json (SYSTEMS_V01 v0.1.2 schema).
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
-const SAVE_VERSION: int = 2
+const SAVE_VERSION: int = 3
 const SAVE_PATH: String = "user://manaforge_save.json"
 
 
@@ -58,7 +58,6 @@ func load_game() -> bool:
 func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 	var out: Dictionary = state.duplicate(true)
 	if from_version < 2:
-		# Drop Food-as-water lifetime; init v2 counters.
 		out.erase("lifetime_food_watered")
 		if not out.has("lifetime_waters"):
 			out["lifetime_waters"] = 0
@@ -69,6 +68,14 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 				"food": 0,
 				"manashards": 0,
 			}
+	if from_version < 3:
+		# Channel harvest / water lifetime fields; drop click-gather assumptions.
+		if not out.has("lifetime_shards_from_water"):
+			out["lifetime_shards_from_water"] = 0
+		if not out.has("lifetime_essence_from_water"):
+			out["lifetime_essence_from_water"] = 0
+		if not out.has("lifetime_harvested") or typeof(out.get("lifetime_harvested")) != TYPE_DICTIONARY:
+			out["lifetime_harvested"] = {"wood": 0, "stone": 0, "food": 0}
 	return out
 
 

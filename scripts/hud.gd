@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care (Water/Offer) + Fruit blessings panel.
+## HUD + Manatree care (Water channel / Offer) + Fruit blessings panel.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -62,8 +62,23 @@ func _ready() -> void:
 	status_label.text = ContentStrings.get_text("boot_line")
 
 
+
+func _ensure_fruit_care_button() -> void:
+	if care_panel.get_node_or_null("FruitOpenButton") != null:
+		return
+	var btn := Button.new()
+	btn.name = "FruitOpenButton"
+	btn.text = ContentStrings.get_text("tree_fruit_open")
+	btn.position = Vector2(20, 210)
+	btn.size = Vector2(200, 28)
+	btn.visible = false
+	btn.pressed.connect(open_fruit_from_care)
+	care_panel.add_child(btn)
+
+
 func bind_manatree(tree: Manatree) -> void:
 	_manatree = tree
+	_ensure_fruit_care_button()
 
 
 func _on_resources(_id: StringName, _amount: int) -> void:
@@ -129,7 +144,19 @@ func _refresh_stage() -> void:
 func show_care_menu() -> void:
 	hide_prestige_menu()
 	care_panel.visible = true
+	# Ancient: Water still available; Fruit prompt via prestige if ready.
+	_ensure_fruit_care_button()
+	var fruit_btn: Button = care_panel.get_node_or_null("FruitOpenButton") as Button
+	if fruit_btn:
+		fruit_btn.visible = GameState.fruit_ready
+	water_button.text = ContentStrings.get_text("tree_interact_water")
+	care_title.text = ContentStrings.get_text("tree_menu_title")
 	GameAudio.play_ui_open()
+
+
+func open_fruit_from_care() -> void:
+	hide_care_menu()
+	show_prestige_menu()
 
 
 func hide_care_menu() -> void:
@@ -155,7 +182,9 @@ func hide_prestige_menu() -> void:
 
 
 func _on_water() -> void:
+	## Starts water channel on Keeper; hide menu so channel can tick.
 	if _manatree:
+		hide_care_menu()
 		_manatree.do_water()
 	_refresh_all()
 

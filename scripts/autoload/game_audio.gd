@@ -147,22 +147,65 @@ func play(cue_id: StringName) -> void:
 	cue_played.emit(cue_id)
 
 
+
+func play_quiet(cue_id: StringName, volume_db: float = -8.0) -> void:
+	## Soft SFX under mus_hub_forest (channel 1Hz ticks stay cozy).
+	var key: String = String(cue_id)
+	if not _cues.has(key):
+		cue_missing.emit(cue_id)
+		cue_played.emit(cue_id)
+		return
+	var meta: Dictionary = _cues[key]
+	var path: String = str(meta.get("path", ""))
+	var bus: String = str(meta.get("bus", "Master"))
+	if path == "" or not ResourceLoader.exists(path):
+		cue_missing.emit(cue_id)
+		cue_played.emit(cue_id)
+		return
+	var stream: AudioStream = load(path) as AudioStream
+	if stream == null:
+		cue_missing.emit(cue_id)
+		return
+	var player: AudioStreamPlayer = _sfx_player
+	player.stream = stream
+	player.bus = bus
+	player.volume_db = volume_db
+	player.play()
+	# Reset so other SFX stay full level
+	call_deferred("_reset_sfx_volume")
+	cue_played.emit(cue_id)
+
+
+func _reset_sfx_volume() -> void:
+	if _sfx_player and not _sfx_player.playing:
+		_sfx_player.volume_db = 0.0
+
+
 func play_gather(resource_id: StringName) -> void:
 	match resource_id:
 		&"wood":
-			play(&"sfx_gather_wood")
+			play_quiet(&"sfx_gather_wood", -8.0)
 		&"stone":
-			play(&"sfx_gather_stone")
+			play_quiet(&"sfx_gather_stone", -8.0)
 		&"food":
-			play(&"sfx_gather_food")
+			play_quiet(&"sfx_gather_food", -8.0)
 		&"manashards":
-			play(&"sfx_gather_manashards")
+			play_quiet(&"sfx_gather_manashards", -8.0)
 		_:
-			play(&"sfx_gather_wood")
+			play_quiet(&"sfx_gather_wood", -8.0)
 
 
 func play_tree_water_ok() -> void:
+	## Legacy one-shot water; channel pulses use play_water_pulse.
 	play(&"sfx_tree_water")
+
+
+func play_water_pulse() -> void:
+	play_quiet(&"sfx_water_pulse", -10.0)
+
+
+func play_channel_start() -> void:
+	play_quiet(&"sfx_channel_start", -6.0)
 
 
 func play_tree_deny() -> void:

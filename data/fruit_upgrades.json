@@ -3,7 +3,7 @@
     {
       "id": "deep_roots",
       "display_name": "Deep Roots",
-      "description": "Each rank: tending grants more growth.",
+      "description": "Each rank: watering grants more growth.",
       "max_rank": 10,
       "cost_base": 1,
       "cost_per_rank": 1,
@@ -13,7 +13,7 @@
     {
       "id": "forager",
       "display_name": "Forager’s Grace",
-      "description": "Each rank: gather a little more from every node.",
+      "description": "Each rank: harvest channels yield a little more.",
       "max_rank": 10,
       "cost_base": 1,
       "cost_per_rank": 1,
@@ -33,11 +33,11 @@
     {
       "id": "shard_sight",
       "display_name": "Shard Sight",
-      "description": "Each rank: Manashard nodes yield more.",
+      "description": "Each rank: watering yields +1 manashard per pulse.",
       "max_rank": 5,
       "cost_base": 2,
       "cost_per_rank": 2,
-      "effect": "manashard_gather_bonus",
+      "effect": "water_shard_bonus",
       "value_per_rank": 1.0
     },
     {

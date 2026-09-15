@@ -1,9 +1,10 @@
 extends CharacterBody2D
 class_name Keeper
-## Point-and-click Keeper. AnimatedSprite2D 128×128, feet-anchored (art pack).
+## Point-and-click Keeper with harvest / water channels (SYSTEMS v0.1.2).
 
 signal arrived
 signal interaction_finished(target: Node)
+signal channel_changed(kind: StringName, active: bool)
 
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var label: Label = $Label
@@ -12,9 +13,14 @@ var _target: Vector2 = Vector2.ZERO
 var _moving: bool = false
 var _pending_interact: Node = null
 var _facing_back: bool = false
+
+enum ChannelKind { NONE, HARVEST, WATER }
+var _channel_kind: int = ChannelKind.NONE
+var _channel_target: Node = null
+var _channel_accum: float = 0.0
+
 const ARRIVE_DIST: float = 12.0
 const INTERACT_DIST: float = 64.0
-## Visual bible: feet at (64, 128) on 128×128 canvas → body sits above origin.
 const BODY_SIZE: Vector2 = Vector2(128, 128)
 const IDLE_HOLD_MS: float = 140.0
 const WALK_HOLD_MS: float = 90.0
@@ -64,33 +70,36 @@ func _add_anim(frames: SpriteFrames, anim: StringName, paths: Array, hold_ms: fl
 		frames.add_frame(anim, tex)
 
 
-func _physics_process(_delta: float) -> void:
-	if not _moving:
-		velocity = Vector2.ZERO
-		move_and_slide()
-		_update_anim()
+func _physics_process(delta: float) -> void:
+	if _moving:
+		var speed: float = GameState.get_move_speed()
+		var to_target: Vector2 = _target - global_position
+		if to_target.length() <= ARRIVE_DIST:
+			_moving = false
+			velocity = Vector2.ZERO
+			move_and_slide()
+			_update_anim()
+			arrived.emit()
+			_try_interact()
+		else:
+			velocity = to_target.normalized() * speed
+			if absf(velocity.y) >= absf(velocity.x):
+				_facing_back = velocity.y < 0.0
+			move_and_slide()
+			_update_anim()
+			# Walking away cancels channel once out of range.
+			_check_channel_range()
 		return
-	var speed: float = GameState.get_move_speed()
-	var to_target: Vector2 = _target - global_position
-	if to_target.length() <= ARRIVE_DIST:
-		_moving = false
-		velocity = Vector2.ZERO
-		move_and_slide()
-		_update_anim()
-		arrived.emit()
-		_try_interact()
-		return
-	velocity = to_target.normalized() * speed
-	if absf(velocity.y) >= absf(velocity.x):
-		_facing_back = velocity.y < 0.0
+
+	velocity = Vector2.ZERO
 	move_and_slide()
 	_update_anim()
+	_tick_channel(delta)
 
 
 func _update_anim() -> void:
 	var want: StringName
 	if _moving:
-		# walk_front missing in pack — use walk_back when facing back, idle_front otherwise
 		want = &"walk_back" if _facing_back else &"idle_front"
 	else:
 		want = &"idle_back" if _facing_back else &"idle_front"
@@ -99,9 +108,141 @@ func _update_anim() -> void:
 
 
 func move_to(world_pos: Vector2, interact: Node = null) -> void:
+	# New move / other interact cancels active channel.
+	if _channel_kind != ChannelKind.NONE:
+		if interact != _channel_target:
+			cancel_channel()
 	_target = world_pos
 	_pending_interact = interact
 	_moving = true
+
+
+func start_harvest_channel(node: Gatherable) -> void:
+	if node == null:
+		return
+	cancel_channel()
+	_channel_kind = ChannelKind.HARVEST
+	_channel_target = node
+	_channel_accum = 0.0
+	node.set_channeling(true)
+	GameAudio.play_channel_start()
+	GameState.status_message.emit(ContentStrings.get_text("harvest_start"))
+	channel_changed.emit(&"harvest", true)
+	# Immediate first pulse so click feels responsive, then every CHANNEL_PULSE_SEC.
+	node.on_harvest_pulse()
+	_channel_accum = 0.0
+
+
+func start_water_channel(tree: Manatree) -> void:
+	if tree == null:
+		return
+	cancel_channel()
+	_channel_kind = ChannelKind.WATER
+	_channel_target = tree
+	_channel_accum = 0.0
+	tree.set_watering(true)
+	GameAudio.play_channel_start()
+	GameState.status_message.emit(ContentStrings.get_text("tree_water_start"))
+	channel_changed.emit(&"water", true)
+	_do_water_pulse()
+	_channel_accum = 0.0
+
+
+func cancel_channel(emit_status: bool = true) -> void:
+	if _channel_kind == ChannelKind.NONE:
+		return
+	var kind: int = _channel_kind
+	var target: Node = _channel_target
+	_channel_kind = ChannelKind.NONE
+	_channel_target = null
+	_channel_accum = 0.0
+	if kind == ChannelKind.HARVEST and target is Gatherable:
+		var g: Gatherable = target as Gatherable
+		if emit_status:
+			g.on_channel_cancel()
+		else:
+			g.set_channeling(false)
+		channel_changed.emit(&"harvest", false)
+	elif kind == ChannelKind.WATER and target is Manatree:
+		var t: Manatree = target as Manatree
+		t.set_watering(false)
+		if emit_status:
+			GameState.status_message.emit(ContentStrings.get_text("tree_water_cancel"))
+		channel_changed.emit(&"water", false)
+
+
+func is_channeling() -> bool:
+	return _channel_kind != ChannelKind.NONE
+
+
+func get_channel_kind() -> StringName:
+	match _channel_kind:
+		ChannelKind.HARVEST:
+			return &"harvest"
+		ChannelKind.WATER:
+			return &"water"
+		_:
+			return &""
+
+
+func _channel_stand_pos(target: Node) -> Vector2:
+	if target is Manatree:
+		return target.global_position + Vector2(0, 40)
+	return target.global_position
+
+
+func _check_channel_range() -> void:
+	if _channel_kind == ChannelKind.NONE or _channel_target == null or not is_instance_valid(_channel_target):
+		if _channel_kind != ChannelKind.NONE:
+			cancel_channel()
+		return
+	var range_px: float = GameState.get_harvest_range() + 24.0
+	if global_position.distance_to(_channel_stand_pos(_channel_target)) > range_px * 2.0:
+		var was_harvest: bool = _channel_kind == ChannelKind.HARVEST
+		cancel_channel(false)
+		if was_harvest:
+			GameState.status_message.emit(ContentStrings.get_text("harvest_out_of_range"))
+		else:
+			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
+
+
+func _tick_channel(delta: float) -> void:
+	if _channel_kind == ChannelKind.NONE:
+		return
+	if _channel_target == null or not is_instance_valid(_channel_target):
+		cancel_channel(false)
+		return
+	var range_px: float = GameState.get_harvest_range() + 32.0
+	if global_position.distance_to(_channel_stand_pos(_channel_target)) > range_px:
+		var was_harvest: bool = _channel_kind == ChannelKind.HARVEST
+		cancel_channel(false)
+		if was_harvest:
+			GameState.status_message.emit(ContentStrings.get_text("harvest_out_of_range"))
+		else:
+			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
+		return
+	_channel_accum += delta
+	var pulse: float = GameState.get_channel_pulse_sec()
+	while _channel_accum >= pulse:
+		_channel_accum -= pulse
+		if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
+			(_channel_target as Gatherable).on_harvest_pulse()
+		elif _channel_kind == ChannelKind.WATER:
+			_do_water_pulse()
+
+
+func _do_water_pulse() -> void:
+	var result: Dictionary = GameState.apply_water_pulse()
+	if not bool(result.get("ok", false)):
+		cancel_channel(false)
+		return
+	GameAudio.play_water_pulse()
+	GameState.status_message.emit(ContentStrings.get_text("tree_water_pulse_hud", {
+		"shards": int(result.get("shards", 0)),
+		"essence": int(result.get("essence", 0)),
+	}))
+	if _channel_target is Manatree:
+		(_channel_target as Manatree).refresh_after_care()
 
 
 func _try_interact() -> void:

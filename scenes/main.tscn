@@ -31,52 +31,22 @@ y_sort_enabled = true
 position = Vector2(480, 520)
 y_sort_enabled = true
 
-[node name="WoodNode" parent="World" instance=ExtResource("4_gath")]
+[node name="HarvestTree" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(200, 560)
 resource_id = &"wood"
-display_name = "Wood"
+display_name = "Harvest Tree"
 node_key = "wood"
 
-[node name="WoodNode2" parent="World" instance=ExtResource("4_gath")]
-position = Vector2(280, 600)
-resource_id = &"wood"
-display_name = "Wood"
-node_key = "wood"
-
-[node name="StoneNode" parent="World" instance=ExtResource("4_gath")]
+[node name="HarvestStone" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(400, 580)
 resource_id = &"stone"
-display_name = "Stone"
+display_name = "Harvest Stone"
 node_key = "stone"
 
-[node name="StoneNode2" parent="World" instance=ExtResource("4_gath")]
-position = Vector2(480, 620)
-resource_id = &"stone"
-display_name = "Stone"
-node_key = "stone"
-
-[node name="FoodNode" parent="World" instance=ExtResource("4_gath")]
+[node name="HarvestBerry" parent="World" instance=ExtResource("4_gath")]
 position = Vector2(900, 560)
 resource_id = &"food"
-display_name = "Food"
+display_name = "Berry Bush"
 node_key = "food"
-
-[node name="FoodNode2" parent="World" instance=ExtResource("4_gath")]
-position = Vector2(980, 600)
-resource_id = &"food"
-display_name = "Food"
-node_key = "food"
-
-[node name="FoodNode3" parent="World" instance=ExtResource("4_gath")]
-position = Vector2(860, 620)
-resource_id = &"food"
-display_name = "Food"
-node_key = "food"
-
-[node name="ManashardNode" parent="World" instance=ExtResource("4_gath")]
-position = Vector2(1080, 400)
-resource_id = &"manashards"
-display_name = "Manashards"
-node_key = "manashards"
 
 [node name="HUD" parent="." instance=ExtResource("5_hud")]

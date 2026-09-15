@@ -1,6 +1,6 @@
 {
   "owner": "Audio",
-  "version": "v0.1",
+  "version": "v0.1.2-channels",
   "source_brief": "AUDIO_RESTART_V01.md",
   "sample_rate": 44100,
   "format": "ogg",
@@ -138,6 +138,18 @@
       "file": "sfx_upgrade_buy.ogg",
       "bus": "SFX_Progress",
       "loop": false
+    },
+    "sfx_water_pulse": {
+      "file": "sfx_water_pulse.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "notes": "1/sec water channel pulse (shards+essence)"
+    },
+    "sfx_channel_start": {
+      "file": "sfx_channel_start.ogg",
+      "bus": "SFX_UI",
+      "loop": false,
+      "notes": "optional on channel begin"
     }
   }
 }

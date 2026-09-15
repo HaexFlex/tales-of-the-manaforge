@@ -132,6 +132,16 @@
       "bus": "SFX_World",
       "loop": false,
       "path": "res://assets/audio/sfx_tree_water.ogg"
+    },
+    "sfx_water_pulse": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_water_pulse.ogg"
+    },
+    "sfx_channel_start": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_channel_start.ogg"
     }
   }
 }

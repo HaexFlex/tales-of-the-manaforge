@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.1.1. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.1.2 (channelled harvest + water). Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -13,6 +13,7 @@ const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
 ]
 const OFFER_IDS: Array[StringName] = [&"wood", &"stone", &"food", &"manashards"]
+const HARVEST_IDS: Array[StringName] = [&"wood", &"stone", &"food"]
 
 var wood: int = 0
 var stone: int = 0
@@ -28,15 +29,17 @@ var fruit_harvested_pending_ascend: bool = false
 
 var ascensions: int = 0
 var lifetime_waters: int = 0
+var lifetime_shards_from_water: int = 0
+var lifetime_essence_from_water: int = 0
 var lifetime_offered: Dictionary = {}
 var lifetime_fruit_harvested: int = 0
+var lifetime_harvested: Dictionary = {}
 var upgrade_ranks: Dictionary = {}
 
 var stages_data: Array = []
 var upgrades_data: Array = []
 var params: Dictionary = {}
 
-var _water_cooldown_until: float = 0.0
 var _offer_cooldown_until: float = 0.0
 
 
@@ -44,6 +47,7 @@ func _ready() -> void:
 	_load_tables()
 	_ensure_upgrade_keys()
 	_ensure_offer_keys()
+	_ensure_harvest_keys()
 
 
 func _load_tables() -> void:
@@ -85,6 +89,13 @@ func _ensure_offer_keys() -> void:
 		var key: String = String(rid)
 		if not lifetime_offered.has(key):
 			lifetime_offered[key] = 0
+
+
+func _ensure_harvest_keys() -> void:
+	for rid: StringName in HARVEST_IDS:
+		var key: String = String(rid)
+		if not lifetime_harvested.has(key):
+			lifetime_harvested[key] = 0
 
 
 func param_int(key: String, default_v: int = 0) -> int:
@@ -226,14 +237,69 @@ func get_move_speed() -> float:
 	return base_s * mult
 
 
-func get_gather_grant(resource_id: StringName) -> int:
-	var key: String = "GATHER_%s" % String(resource_id).to_upper()
+func get_channel_pulse_sec() -> float:
+	return param_float("CHANNEL_PULSE_SEC", 1.0)
+
+
+func get_harvest_range() -> float:
+	return param_float("HARVEST_RANGE_PX", 48.0)
+
+
+## Harvest channel pulse grant (wood/stone/food). Essence is NOT from harvest nodes.
+func get_harvest_grant(resource_id: StringName) -> int:
+	var key: String = "HARVEST_%s_PER_SEC" % String(resource_id).to_upper()
 	var base_amt: int = param_int(key, 1)
 	var amount: float = float(base_amt) * get_global_gather_mult()
-	var grant: int = maxi(1, int(floor(amount)))
-	if resource_id == &"manashards":
-		grant += int(get_effect_total("manashard_gather_bonus"))
+	return maxi(1, int(floor(amount)))
+
+
+## Alias kept for older call sites / verify.
+func get_gather_grant(resource_id: StringName) -> int:
+	return get_harvest_grant(resource_id)
+
+
+func apply_harvest_pulse(resource_id: StringName) -> int:
+	if not resource_id in HARVEST_IDS:
+		return 0
+	var grant: int = get_harvest_grant(resource_id)
+	add_resource(resource_id, grant)
+	var key: String = String(resource_id)
+	lifetime_harvested[key] = int(lifetime_harvested.get(key, 0)) + grant
 	return grant
+
+
+## Water channel pulse: manashards U{1,3}+shard_sight, essence+1, growth (unless blocked by pending ascend).
+## At Ancient: still pays shards+essence; no further stage growth.
+func apply_water_pulse() -> Dictionary:
+	if fruit_harvested_pending_ascend:
+		return {"ok": false, "reason": "pending_ascend", "shards": 0, "essence": 0, "growth": 0}
+	var shard_min: int = param_int("WATER_SHARD_MIN", 1)
+	var shard_max: int = param_int("WATER_SHARD_MAX", 3)
+	var shards: int = randi_range(shard_min, shard_max) + int(get_effect_total("water_shard_bonus"))
+	var ess: int = param_int("WATER_ESSENCE_PER_SEC", 1)
+	add_resource(&"manashards", shards)
+	add_resource(&"essence", ess)
+	lifetime_waters += 1
+	lifetime_shards_from_water += shards
+	lifetime_essence_from_water += ess
+	var add_g: int = 0
+	if stage_id != &"ancient":
+		add_g = get_water_growth_amount()
+		growth += add_g
+		var required: int = get_growth_required_for_next()
+		growth_changed.emit(growth, required)
+		_try_stage_up()
+	else:
+		growth_changed.emit(growth, 0)
+	return {"ok": true, "reason": "ok", "shards": shards, "essence": ess, "growth": add_g}
+
+
+## Legacy one-shot entry used by older verify paths — delegates to a single water pulse.
+func try_water() -> String:
+	var result: Dictionary = apply_water_pulse()
+	if not bool(result.get("ok", false)):
+		return str(result.get("reason", "fail"))
+	return "ok"
 
 
 func get_upgrade_cost(upgrade_id: String) -> int:
@@ -299,25 +365,8 @@ func format_missing_mats() -> String:
 	return ", ".join(parts)
 
 
-func try_water() -> String:
-	## Free tend — no inventory spend (SYSTEMS_V01 v0.1.1).
-	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
-		return "ancient"
-	var now: float = Time.get_ticks_msec() / 1000.0
-	if now < _water_cooldown_until:
-		return "cooldown"
-	_water_cooldown_until = now + param_float("WATER_COOLDOWN_SEC", 1.0)
-	lifetime_waters += 1
-	var add_g: int = get_water_growth_amount()
-	growth += add_g
-	var required: int = get_growth_required_for_next()
-	growth_changed.emit(growth, required)
-	_try_stage_up()
-	return "ok"
-
-
 func try_offer(resource_id: StringName) -> String:
-	## Spend soft mat for OFFER_GROWTH; separate anti-spam cooldown.
+	## Spend soft mat for OFFER_GROWTH; separate anti-spam cooldown. Instant (not channelled).
 	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
 		return "ancient"
 	if not resource_id in OFFER_IDS:
@@ -377,12 +426,8 @@ func _set_stage(id: StringName) -> void:
 func harvest_fruit() -> int:
 	if stage_id != &"ancient" or fruit_harvested_pending_ascend:
 		return 0
-	var base_e: int = param_int("ESSENCE_PER_HARVEST", 3)
-	var water_div: int = maxi(1, param_int("ESSENCE_WATER_DIV", 20))
-	var offer_div: int = maxi(1, param_int("ESSENCE_OFFER_DIV", 30))
-	var bonus: int = int(floor(float(lifetime_waters) / float(water_div))) \
-		+ int(floor(float(get_lifetime_offers_total()) / float(offer_div)))
-	var gained: int = base_e + bonus
+	## v0.1.2: flat ESSENCE_PER_HARVEST burst (watering already paid essence over time).
+	var gained: int = param_int("ESSENCE_PER_HARVEST", 5)
 	add_resource(&"essence", gained)
 	lifetime_fruit_harvested += 1
 	fruit_ready = false
@@ -429,8 +474,11 @@ func to_save_dict() -> Dictionary:
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
 		"ascensions": ascensions,
 		"lifetime_waters": lifetime_waters,
+		"lifetime_shards_from_water": lifetime_shards_from_water,
+		"lifetime_essence_from_water": lifetime_essence_from_water,
 		"lifetime_offered": lifetime_offered.duplicate(true),
 		"lifetime_fruit_harvested": lifetime_fruit_harvested,
+		"lifetime_harvested": lifetime_harvested.duplicate(true),
 		"upgrades": upgrade_ranks.duplicate(true),
 	}
 
@@ -447,6 +495,8 @@ func apply_save_dict(data: Dictionary) -> void:
 	fruit_harvested_pending_ascend = bool(data.get("fruit_harvested_pending_ascend", false))
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
 	lifetime_waters = int(data.get("lifetime_waters", 0))
+	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
+	lifetime_essence_from_water = int(data.get("lifetime_essence_from_water", 0))
 	var offered: Variant = data.get("lifetime_offered", {})
 	if typeof(offered) == TYPE_DICTIONARY:
 		lifetime_offered = (offered as Dictionary).duplicate(true)
@@ -454,6 +504,12 @@ func apply_save_dict(data: Dictionary) -> void:
 		lifetime_offered = {}
 	_ensure_offer_keys()
 	lifetime_fruit_harvested = int(data.get("lifetime_fruit_harvested", 0))
+	var harvested: Variant = data.get("lifetime_harvested", {})
+	if typeof(harvested) == TYPE_DICTIONARY:
+		lifetime_harvested = (harvested as Dictionary).duplicate(true)
+	else:
+		lifetime_harvested = {}
+	_ensure_harvest_keys()
 	var ranks: Variant = data.get("upgrades", data.get("upgrade_ranks", {}))
 	if typeof(ranks) == TYPE_DICTIONARY:
 		upgrade_ranks = (ranks as Dictionary).duplicate(true)
@@ -482,10 +538,13 @@ func reset_for_new_game() -> void:
 	fruit_harvested_pending_ascend = false
 	ascensions = 0
 	lifetime_waters = 0
+	lifetime_shards_from_water = 0
+	lifetime_essence_from_water = 0
 	lifetime_offered.clear()
 	_ensure_offer_keys()
 	lifetime_fruit_harvested = 0
+	lifetime_harvested.clear()
+	_ensure_harvest_keys()
 	upgrade_ranks.clear()
 	_ensure_upgrade_keys()
-	_water_cooldown_until = 0.0
 	_offer_cooldown_until = 0.0
