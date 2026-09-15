@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.3.3 + Content v0.3.4 — two-step Fruit, paused shop. SAVE_VERSION 5.
+## Headless verification per SYSTEMS_V01 v0.3.3 + Content v0.3.5 — two-step Fruit, must-Ascend shop. SAVE_VERSION 5.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -364,7 +364,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_step_1")).find("Harvest") >= 0, "fruit_step_1")
 	failed += _assert(str(content_strings.call("get_text", "fruit_step_2")).find("Bless") >= 0, "fruit_step_2")
 	failed += _assert(str(content_strings.call("get_text", "fruit_step_3")).find("Ascend") >= 0, "fruit_step_3")
-	failed += _assert(str(content_strings.call("get_text", "fruit_flow_hint")).find("Shop only") >= 0, "fruit_flow_hint")
+	failed += _assert(str(content_strings.call("get_text", "fruit_flow_hint")).find("Ascension shop only") >= 0, "fruit_flow_hint")
 	failed += _assert(str(content_strings.call("get_text", "fruit_panel_title")).find("Ascension") >= 0, "fruit_panel_title")
 	failed += _assert(str(content_strings.call("get_text", "fruit_shards_hud")).find("Manashards") >= 0, "fruit_shards_hud")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_cost")).find("Manashards") >= 0, "upgrade_cost shards")
@@ -378,11 +378,11 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step1_no")).find("watering") >= 0, "fruit step1 Keep watering")
 	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step1")).find("still water") >= 0, "fruit step1 water until commit")
 	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2_yes")) == "Harvest", "fruit step2 Harvest")
-	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2_no")) == "Go back", "fruit step2 Go back")
-	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2")).find("Commit now") >= 0, "fruit step2 commit copy")
+	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2_no")) == "Not yet", "fruit step2 Not yet")
+	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2")).find("must Ascend") >= 0, "fruit step2 commit copy")
 	failed += _assert(str(content_strings.call("get_text", "fruit_shop_only_banner")).find("blessing shop only") >= 0, "fruit_shop_only_banner")
-	failed += _assert(str(content_strings.call("get_text", "ascension_paused_title")) == "Ascension paused", "ascension_paused_title")
-	failed += _assert(str(content_strings.call("get_text", "ascension_paused_body")).find("waits") >= 0, "ascension_paused_body")
+	failed += _assert(str(content_strings.call("get_text", "ascension_paused_title")) == "Ascension", "ascension_paused_title")
+	failed += _assert(str(content_strings.call("get_text", "ascension_paused_body")).find("cannot return to watering") >= 0, "ascension_paused_body")
 	failed += _assert(str(content_strings.call("get_text", "tree_water_ancient_note")).find("still water") >= 0, "tree_water_ancient_note")
 	failed += _assert(str(content_strings.call("get_text", "tree_water_ancient_ok")).find("still drinks") >= 0, "tree_water_ancient_ok")
 	failed += _assert(str(content_strings.call("get_text", "tree_ancient_care_hint")).find("Water anytime") >= 0, "tree_ancient_care_hint")
@@ -995,11 +995,11 @@ func _run() -> void:
 		failed += _assert(paused == false, "world running during fruit step 2")
 		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "shop still closed at step 2")
 		failed += _assert(harvest_modal != null and str(harvest_modal.text) == "Harvest", "step 2 Harvest")
-		failed += _assert(cancel_modal != null and str(cancel_modal.text) == "Go back", "step 2 Go back")
+		failed += _assert(cancel_modal != null and str(cancel_modal.text) == "Not yet", "step 2 Not yet")
 		test_hud.call("cancel_fruit_confirm")
 		await process_frame
-		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "Go back returns to step 1")
-		failed += _assert(not bool(game_state.get("fruit_committed")), "Go back does not commit")
+		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "Not yet returns to step 1")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "Not yet does not commit")
 		test_hud.call("confirm_fruit_step")
 		await process_frame
 		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 2, "Continue again reaches step 2")
