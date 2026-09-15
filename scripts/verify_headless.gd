@@ -160,6 +160,13 @@ func _run() -> void:
 			if scr != null and str(scr.resource_path).ends_with("gatherable.gd"):
 				harvest_count += 1
 		failed += _assert(harvest_count == 3, "expected exactly 3 harvestables, got %d" % harvest_count)
+		var click_layer: ColorRect = inst.get_node_or_null("ClickLayer") as ColorRect
+		failed += _assert(click_layer != null, "ClickLayer missing")
+		if click_layer:
+			failed += _assert(
+				click_layer.mouse_filter == Control.MOUSE_FILTER_IGNORE,
+				"ClickLayer must IGNORE so harvest Area2D clicks work (got %d)" % click_layer.mouse_filter
+			)
 		inst.free()
 
 	var cues: PackedStringArray = game_audio.call("list_cue_ids")

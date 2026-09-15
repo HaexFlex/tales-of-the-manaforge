@@ -40,6 +40,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		var mb: InputEventMouseButton = event
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			_request_keeper_interact()
+			get_viewport().set_input_as_handled()
 
 
 func _request_keeper_interact() -> void:
@@ -160,9 +161,10 @@ func _refresh_visual() -> void:
 	sprite.offset = Vector2(-w * 0.5, -h)
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
+		# Generous rect covering the full drawn landmark (canopy + trunk).
 		var rect_shape: RectangleShape2D = cs.shape as RectangleShape2D
-		rect_shape.size = Vector2(maxi(64, int(w * 0.6)), 64)
-		cs.position = Vector2(0, -32)
+		rect_shape.size = Vector2(w, h)
+		cs.position = Vector2(0, -h * 0.5)
 	_on_growth(GameState.growth, GameState.get_growth_required_for_next())
 	label.position = Vector2(-80, -h - 36)
 	fruit_hint.position = Vector2(-140, 8)

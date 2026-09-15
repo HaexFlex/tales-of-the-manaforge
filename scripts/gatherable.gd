@@ -11,7 +11,7 @@ class_name Gatherable
 @onready var label: Label = $Label
 
 var _channeling: bool = false
-const BODY_SIZE: Vector2 = Vector2(64, 64)
+const BODY_WIDTH: float = 64.0
 
 const HARVEST_TEXTURES: Dictionary = {
 	"wood": "res://assets/art/props/harvest_tree.png",
@@ -42,8 +42,9 @@ func _ready() -> void:
 	y_sort_enabled = true
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
-		(cs.shape as RectangleShape2D).size = BODY_SIZE
-		cs.position = Vector2(0, -32)
+		# Full sprite footprint (not just feet box) so canopy/upper clicks count.
+		(cs.shape as RectangleShape2D).size = Vector2(BODY_WIDTH, h)
+		cs.position = Vector2(0, -h * 0.5)
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -51,6 +52,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		var mb: InputEventMouseButton = event
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 			_request_keeper_interact()
+			get_viewport().set_input_as_handled()
 
 
 func _request_keeper_interact() -> void:

@@ -11,6 +11,8 @@ extends Node2D
 const TILE: int = 64
 const COLS: int = 20
 const ROWS: int = 12
+## Match Area2D collision_layer on gatherable / manatree scenes.
+const INTERACT_PICK_MASK: int = 4
 
 const ATLAS_GRASS: Array[Vector2i] = [
 	Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)
@@ -32,8 +34,9 @@ const CLEAR_POINTS: Array[Vector2] = [
 func _ready() -> void:
 	_build_grass()
 	_spawn_forest_props()
-	click_layer.mouse_filter = Control.MOUSE_FILTER_STOP
-	click_layer.gui_input.connect(_on_ground_input)
+	# Pass clicks through so Area2D harvest / Manatree can receive them.
+	click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	get_viewport().physics_object_picking = true
 	manatree.fruit_menu_requested.connect(_on_fruit_menu)
 	manatree.care_menu_requested.connect(_on_care_menu)
 	hud.bind_manatree(manatree)
@@ -124,14 +127,35 @@ func _clear_of_landmarks(pos: Vector2, min_dist: float) -> bool:
 	return true
 
 
-func _on_ground_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mb: InputEventMouseButton = event
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			if hud.care_panel.visible or hud.prestige_panel.visible:
-				return
-			var world_pos: Vector2 = click_layer.global_position + mb.position
-			keeper.move_to(world_pos, null)
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if hud.care_panel.visible or hud.prestige_panel.visible:
+		return
+	# Belt-and-suspenders: skip ground move if an interactable Area2D is under the cursor.
+	if _interactable_under_point(get_global_mouse_position()):
+		return
+	keeper.move_to(get_global_mouse_position(), null)
+
+
+func _interactable_under_point(world_pos: Vector2) -> bool:
+	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
+	if space == null:
+		return false
+	var q := PhysicsPointQueryParameters2D.new()
+	q.position = world_pos
+	q.collide_with_areas = true
+	q.collide_with_bodies = false
+	q.collision_mask = INTERACT_PICK_MASK
+	var hits: Array[Dictionary] = space.intersect_point(q, 32)
+	for hit: Dictionary in hits:
+		var collider: Variant = hit.get("collider")
+		if collider is Node and (collider as Node).is_in_group("interactable"):
+			return true
+	return false
 
 
 func _on_fruit_menu() -> void:
