@@ -557,6 +557,8 @@ func _hold_world_for_ascension() -> void:
 	var tree: SceneTree = get_tree()
 	if tree:
 		tree.paused = true
+	## Hub bed keeps looping while the shop is paused — never stop mus_hub_forest.
+	GameAudio.ensure_hub_playing()
 
 
 func _release_world_if_allowed() -> void:
@@ -603,7 +605,7 @@ func open_fruit_confirm() -> void:
 	_confirm_pay = false
 	_fruit_confirm_step = 1
 	_show_fruit_confirm_step()
-	GameAudio.play_ui_open()
+	GameAudio.play_ui_confirm()
 
 
 func confirm_fruit_step() -> void:

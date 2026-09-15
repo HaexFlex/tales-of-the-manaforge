@@ -32,6 +32,8 @@ var _sfx_player: AudioStreamPlayer
 var _progress_player: AudioStreamPlayer
 var _hub_playing: bool = false
 var _fruit_ready_played_cycle: bool = false
+## Recent cue ids (verify / Haex Ascension audio lock).
+var _played_log: PackedStringArray = PackedStringArray()
 ## User linear volumes 0.0–1.0 (1.0 = mix-lock defaults).
 var music_volume_linear: float = 1.0
 var sfx_volume_linear: float = 1.0
@@ -52,6 +54,8 @@ func _ready() -> void:
 	# Hub bed stays on through gather/walk/tend (no combat crossfade).
 	call_deferred("play_hub_music")
 	call_deferred("_connect_game_signals")
+	if not cue_played.is_connected(_on_cue_logged):
+		cue_played.connect(_on_cue_logged)
 
 
 func _make_player(node_name: String, bus_name: String) -> AudioStreamPlayer:
@@ -354,14 +358,15 @@ func play_stage_up() -> void:
 
 
 func play_fruit_harvest() -> void:
-	play(&"mus_fruit_sting")
+	## Fruit commit lock: sfx_fruit_harvest + mus_fruit_sting (hub bed keeps looping).
 	play(&"sfx_fruit_harvest")
+	play(&"mus_fruit_sting")
 
 
 func play_ascend() -> void:
-	play(&"mus_ascend_sting")
+	## Ascend lock: sfx_ascend + mus_ascend_sting. Hub bed stays on (_sting_player).
 	play(&"sfx_ascend")
-	# Hub bed stays on (_sting_player); finished signal also restores if needed.
+	play(&"mus_ascend_sting")
 
 
 func play_upgrade_buy() -> void:
@@ -369,6 +374,7 @@ func play_upgrade_buy() -> void:
 
 
 func play_ui_confirm() -> void:
+	## Fruit intent (and other confirms) — sfx_ui_confirm.
 	play(&"sfx_ui_confirm")
 
 
@@ -434,6 +440,33 @@ func _on_fruit_ready(ready: bool) -> void:
 
 func reset_cycle_flags() -> void:
 	_fruit_ready_played_cycle = false
+
+
+func ensure_hub_playing() -> void:
+	## Pause / Ascension shop must never stop mus_hub_forest. Resume in place if dropped.
+	if is_hub_music_playing():
+		return
+	play_hub_music()
+
+
+func is_hub_player_always() -> bool:
+	return _music_player != null and _music_player.process_mode == Node.PROCESS_MODE_ALWAYS
+
+
+func is_hub_stream_playing() -> bool:
+	return _music_player != null and _music_player.playing
+
+
+func clear_played_log() -> void:
+	_played_log.clear()
+
+
+func did_play(cue_id: StringName) -> bool:
+	return _played_log.has(String(cue_id))
+
+
+func _on_cue_logged(cue_id: StringName) -> void:
+	_played_log.append(String(cue_id))
 
 
 func list_cue_ids() -> PackedStringArray:
