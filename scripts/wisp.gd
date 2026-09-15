@@ -1,6 +1,6 @@
 extends Area2D
 class_name WispOrb
-## Unassigned orbits Keeper (art v0.1.9). Assigned: tween with fly, then node_orbit at r≈28 (v0.1.10).
+## Unassigned orbits Keeper. Assigned: fly tween then node_orbit at r≈28 (art v0.1.10 Haex pack).
 
 signal wisp_clicked(wisp_id: int)
 
@@ -32,6 +32,8 @@ var _cached_assignment: String = ""
 var _fly_tween: Tween
 var _at_assigned_orbit: bool = false
 var _placed: bool = false
+## Cached when assigned (node_orbit_layout.follow_node = false).
+var _orbit_anchor: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -183,7 +185,8 @@ func _process(delta: float) -> void:
 	if assigned_node != _cached_assignment:
 		_cached_assignment = assigned_node
 		if assigned_node != "":
-			_begin_fly_to(_node_insert_pos(assigned_node))
+			_orbit_anchor = _resolve_assignment_center(assigned_node)
+			_begin_fly_to(_slot_around(_orbit_anchor, NODE_ORBIT_RADIUS))
 		else:
 			_begin_fly_to(_keeper_slot_pos())
 
@@ -222,22 +225,17 @@ func _tick_keeper_orbit(delta: float, is_sel: bool) -> void:
 	global_position = k.global_position + KEEPER_CHEST_OFFSET + offset + Vector2(0, bob)
 
 
-func _tick_node_orbit(node_id: String, delta: float) -> void:
+func _tick_node_orbit(_node_id: String, delta: float) -> void:
 	sprite.flip_h = false
 	_orbit_angle += NODE_ORBIT_SPEED * delta
-	global_position = _node_slot_pos(node_id)
+	global_position = _slot_around(_orbit_anchor, NODE_ORBIT_RADIUS)
 	_at_assigned_orbit = true
 
 
-func _node_insert_pos(node_id: String) -> Vector2:
-	return _node_slot_pos(node_id)
-
-
-func _node_slot_pos(node_id: String) -> Vector2:
-	var center: Vector2 = _resolve_assignment_center(node_id)
+func _slot_around(center: Vector2, radius: float) -> Vector2:
 	var angle: float = _orbit_angle + _even_slot_angle()
 	var bob: float = sin(_bob_t * 2.8 + float(wisp_id)) * 2.0
-	var offset := Vector2(cos(angle), sin(angle) * 0.55) * NODE_ORBIT_RADIUS
+	var offset := Vector2(cos(angle), sin(angle) * 0.55) * radius
 	return center + offset + Vector2(0, bob)
 
 
