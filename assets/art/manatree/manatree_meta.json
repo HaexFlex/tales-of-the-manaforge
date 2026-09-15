@@ -1,52 +1,78 @@
 {
+  "version": "v0.1.5",
+  "filter": "nearest",
+  "source_ref": "refs/manatree_ancient_final.jpg",
   "stages": [
     {
       "stage_id": "sapling",
       "file": "manatree_sapling.png",
       "size": [
-        64,
-        128
+        96,
+        160
       ],
-      "anchor": "base_center"
+      "anchor": "base_center",
+      "anchor_px": [
+        48,
+        160
+      ],
+      "door": "none"
     },
     {
       "stage_id": "young",
       "file": "manatree_young.png",
       "size": [
-        128,
-        192
+        160,
+        240
       ],
-      "anchor": "base_center"
+      "anchor": "base_center",
+      "anchor_px": [
+        80,
+        240
+      ],
+      "door": "none"
     },
     {
       "stage_id": "mature",
       "file": "manatree_mature.png",
       "size": [
-        192,
-        256
+        224,
+        320
       ],
-      "anchor": "base_center"
+      "anchor": "base_center",
+      "anchor_px": [
+        112,
+        320
+      ],
+      "door": "none"
     },
     {
       "stage_id": "elder",
       "file": "manatree_elder.png",
       "size": [
-        256,
-        320
+        320,
+        448
       ],
-      "anchor": "base_center"
+      "anchor": "base_center",
+      "anchor_px": [
+        160,
+        448
+      ],
+      "door": "none"
     },
     {
       "stage_id": "ancient",
       "file": "manatree_ancient.png",
       "size": [
-        256,
-        384
+        512,
+        640
       ],
       "anchor": "base_center",
+      "anchor_px": [
+        256,
+        640
+      ],
       "door": "visible_noninteractive"
     }
   ],
-  "stage_up_fx": "1-frame flash / leaf burst \u2014 sync Audio stage-up",
-  "notes": "Derived from manatree_ancient_final.jpg via crop+NN+quantize."
+  "notes": "Five distinct stages; ancient is FULL uncropped landmark 512x640 with door. Growth reads by footprint + canopy mass. Door non-interactive in v0.1."
 }

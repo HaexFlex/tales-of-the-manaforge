@@ -8,11 +8,11 @@
       "cost_base": 1,
       "cost_per_rank": 1,
       "effect": "water_growth_bonus",
-      "value_per_rank": 2.0
+      "value_per_rank": 1.0
     },
     {
       "id": "forager",
-      "display_name": "Forager’s Grace",
+      "display_name": "Forager\u2019s Grace",
       "description": "Each rank: harvest channels yield a little more.",
       "max_rank": 10,
       "cost_base": 1,
@@ -42,7 +42,7 @@
     },
     {
       "id": "keeper_stride",
-      "display_name": "Keeper’s Stride",
+      "display_name": "Keeper\u2019s Stride",
       "description": "Each rank: walk the fragment a little faster.",
       "max_rank": 5,
       "cost_base": 1,

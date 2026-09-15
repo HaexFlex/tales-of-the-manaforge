@@ -1,10 +1,10 @@
 extends Node
-## Versioned save/load to user://manaforge_save.json (SYSTEMS_V01 v0.1.2 schema).
+## Versioned save/load to user://manaforge_save.json (welcome flag → SAVE_VERSION 4).
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
-const SAVE_VERSION: int = 3
+const SAVE_VERSION: int = 4
 const SAVE_PATH: String = "user://manaforge_save.json"
 
 
@@ -76,6 +76,10 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 			out["lifetime_essence_from_water"] = 0
 		if not out.has("lifetime_harvested") or typeof(out.get("lifetime_harvested")) != TYPE_DICTIONARY:
 			out["lifetime_harvested"] = {"wood": 0, "stone": 0, "food": 0}
+	if from_version < 4:
+		# Existing saves already played — do not re-show welcome.
+		if not out.has("welcome_shown"):
+			out["welcome_shown"] = true
 	return out
 
 

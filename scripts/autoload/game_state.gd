@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.1.2 (channelled harvest + water). Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.1.3 + welcome flag. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -26,6 +26,8 @@ var growth: int = 0
 var fruit_ready: bool = false
 ## True after Fruit harvested this cycle; waiting for Ascend.
 var fruit_harvested_pending_ascend: bool = false
+## True after first-boot welcome was dismissed (once per new save).
+var welcome_shown: bool = false
 
 var ascensions: int = 0
 var lifetime_waters: int = 0
@@ -193,7 +195,7 @@ func get_effect_total(effect_name: String) -> float:
 
 
 func get_water_growth_amount() -> int:
-	return param_int("WATER_GROWTH", 8) + int(get_effect_total("water_growth_bonus"))
+	return param_int("WATER_GROWTH", 1) + int(get_effect_total("water_growth_bonus"))
 
 
 func get_offer_growth_amount(resource_id: StringName) -> int:
@@ -352,17 +354,107 @@ func has_mats_for_next() -> bool:
 
 
 func format_missing_mats() -> String:
+	return _join_cost_parts(_remaining_cost_parts())
+
+
+func get_remaining_gate_costs() -> Dictionary:
+	## Amount still needed for next stage gate (max 0). Empty if Ancient / no next.
 	var mats: Dictionary = _mats_for_next()
+	if mats.is_empty():
+		return {}
+	return {
+		"wood": maxi(0, int(mats.get("wood", 0)) - wood),
+		"stone": maxi(0, int(mats.get("stone", 0)) - stone),
+		"food": maxi(0, int(mats.get("food", 0)) - food),
+		"manashards": maxi(0, int(mats.get("manashards", 0)) - manashards),
+	}
+
+
+func get_next_stage_gate_costs() -> Dictionary:
+	return _mats_for_next()
+
+
+func _remaining_cost_parts() -> PackedStringArray:
+	var rem: Dictionary = get_remaining_gate_costs()
 	var parts: PackedStringArray = PackedStringArray()
-	if wood < int(mats.get("wood", 0)):
-		parts.append(ContentStrings.get_text("tree_stage_blocked_wood", {"count": int(mats["wood"])}))
-	if stone < int(mats.get("stone", 0)):
-		parts.append(ContentStrings.get_text("tree_stage_blocked_stone", {"count": int(mats["stone"])}))
-	if food < int(mats.get("food", 0)):
-		parts.append(ContentStrings.get_text("tree_stage_blocked_food", {"count": int(mats["food"])}))
-	if manashards < int(mats.get("manashards", 0)):
-		parts.append(ContentStrings.get_text("tree_stage_blocked_shards", {"count": int(mats["manashards"])}))
-	return ", ".join(parts)
+	if int(rem.get("wood", 0)) > 0:
+		parts.append(ContentStrings.get_text("tree_stage_blocked_wood", {"count": int(rem["wood"])}))
+	if int(rem.get("stone", 0)) > 0:
+		parts.append(ContentStrings.get_text("tree_stage_blocked_stone", {"count": int(rem["stone"])}))
+	if int(rem.get("food", 0)) > 0:
+		parts.append(ContentStrings.get_text("tree_stage_blocked_food", {"count": int(rem["food"])}))
+	if int(rem.get("manashards", 0)) > 0:
+		parts.append(ContentStrings.get_text("tree_stage_blocked_shards", {"count": int(rem["manashards"])}))
+	return parts
+
+
+func _join_cost_parts(parts: PackedStringArray) -> String:
+	## Content: commas + "and" — e.g. Wood ×4, Stone ×2, and Food ×2.
+	if parts.is_empty():
+		return ""
+	if parts.size() == 1:
+		return parts[0]
+	if parts.size() == 2:
+		return "%s and %s" % [parts[0], parts[1]]
+	var head: PackedStringArray = PackedStringArray()
+	for i: int in range(parts.size() - 1):
+		head.append(parts[i])
+	return "%s, and %s" % [", ".join(head), parts[parts.size() - 1]]
+
+
+func format_remaining_gate_costs() -> String:
+	return _join_cost_parts(_remaining_cost_parts())
+
+
+## Care-menu / HUD helper: next-stage growth + remaining mats, or Ancient fruit/ascend state.
+func get_care_next_stage_info() -> Dictionary:
+	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
+		var ancient_line: String = ContentStrings.get_text("tree_at_ancient_idle")
+		if fruit_harvested_pending_ascend:
+			ancient_line = ContentStrings.get_text("ascend_prompt")
+		elif fruit_ready:
+			ancient_line = ContentStrings.get_text("fruit_ready_prompt")
+		return {
+			"is_ancient": true,
+			"title": str(get_stage_def().get("display_name", "Ancient")),
+			"growth_line": ancient_line,
+			"needs_header": "",
+			"needs_line": "",
+			"ready_for_fruit": fruit_ready,
+			"pending_ascend": fruit_harvested_pending_ascend,
+		}
+	var next_id: StringName = get_next_stage_id()
+	var next_def: Dictionary = get_stage_def(next_id)
+	var next_display: String = str(next_def.get("display_name", next_id))
+	var required: int = get_growth_required_for_next()
+	var growth_line: String
+	if growth >= required and required > 0:
+		growth_line = ContentStrings.get_text("tree_next_stage_growth_ready")
+	else:
+		growth_line = ContentStrings.get_text("tree_next_stage_growth", {"current": growth, "required": required})
+	var gate: Dictionary = get_next_stage_gate_costs()
+	var total_gate: int = int(gate.get("wood", 0)) + int(gate.get("stone", 0)) + int(gate.get("food", 0)) + int(gate.get("manashards", 0))
+	var needs_header: String = ContentStrings.get_text("tree_next_stage_needs_header")
+	var needs_line: String
+	if total_gate <= 0:
+		needs_line = ContentStrings.get_text("tree_next_stage_needs_none")
+	elif has_mats_for_next():
+		needs_line = ContentStrings.get_text("tree_next_stage_needs_met")
+	else:
+		var costs: String = format_remaining_gate_costs()
+		needs_line = ContentStrings.get_text("tree_next_stage_needs_line", {"costs": costs})
+	return {
+		"is_ancient": false,
+		"title": ContentStrings.get_text("tree_next_stage_title", {"next_stage": next_display}),
+		"growth_line": growth_line,
+		"needs_header": needs_header,
+		"needs_line": needs_line,
+		"growth": growth,
+		"required": required,
+		"remaining_costs": get_remaining_gate_costs(),
+		"ready_for_fruit": false,
+		"pending_ascend": false,
+	}
 
 
 func try_offer(resource_id: StringName) -> String:
@@ -472,6 +564,7 @@ func to_save_dict() -> Dictionary:
 		"growth": growth,
 		"fruit_ready": fruit_ready,
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
+		"welcome_shown": welcome_shown,
 		"ascensions": ascensions,
 		"lifetime_waters": lifetime_waters,
 		"lifetime_shards_from_water": lifetime_shards_from_water,
@@ -493,6 +586,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	growth = int(data.get("growth", 0))
 	fruit_ready = bool(data.get("fruit_ready", false))
 	fruit_harvested_pending_ascend = bool(data.get("fruit_harvested_pending_ascend", false))
+	welcome_shown = bool(data.get("welcome_shown", false))
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
 	lifetime_waters = int(data.get("lifetime_waters", 0))
 	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
@@ -536,6 +630,7 @@ func reset_for_new_game() -> void:
 	growth = 0
 	fruit_ready = false
 	fruit_harvested_pending_ascend = false
+	welcome_shown = false
 	ascensions = 0
 	lifetime_waters = 0
 	lifetime_shards_from_water = 0

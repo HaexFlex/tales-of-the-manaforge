@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.1.2 — aligned to `SYSTEMS_V01` v0.1.2 (channelled harvest + water payout)  
+**Status:** v0.1.3 — welcome Keeper copy + next-stage needs HUD  
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -14,7 +14,8 @@
 |-----|--------|
 | v0.1 | Day-1 string sheet |
 | v0.1.1 | Free Water + Offer mats; Food-cost watering removed |
-| **v0.1.2** | Channelled Harvest Tree / Stone / Berry @ 1/sec. Water channel: shards + essence / sec + growth. Essence not Fruit-only. Drop click-cooldown multi-node gather phrasing. |
+| v0.1.2 | Channelled Harvest Tree / Stone / Berry @ 1/sec. Water channel: shards + essence / sec + growth. Essence not Fruit-only. Drop click-cooldown multi-node gather phrasing. |
+| **v0.1.3** | Welcome / first-boot Keeper lines (tend the Manatree). Next-stage needs: growth X/Y + missing mats list. |
 
 ---
 
@@ -25,6 +26,12 @@
 | `game_title` | Tales of the Manaforge |
 | `game_subtitle` | Restart Edition |
 | `boot_line` | The forest is quiet. The Manatree is waiting. |
+| `welcome_boot` | The forest is quiet. Tend the Manatree. |
+| `welcome_title` | Keeper |
+| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Tend the Manatree — water it, offer what you gather, and let it grow through the quiet cycles. The forest remembers every kindness. |
+| `welcome_body_short` | Tend the Manatree. Gather what the clearing gives. Begin again when the Fruit is ready. |
+| `welcome_dismiss` | I will tend it |
+| `welcome_hint` | Click the Manatree to water. Harvest Tree, Stone, and Berries fill your hands. |
 | `new_game_confirm` | Begin as Keeper? |
 | `load_game` | Continue |
 | `save_toast` | Progress remembered. |
@@ -122,10 +129,19 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_offer_cooldown` | One gift at a time. |
 | `tree_offer_ancient_block` | Growth is complete. Harvest the Fruit — or keep watering for gifts. |
 
-### 5d. Stage gate
+### 5d. Next-stage needs + stage gate
+
+HUD / examine panel while not Ancient. Code fills tokens from `SYSTEMS_V01` stage table.
 
 | key | string |
 |-----|--------|
+| `tree_next_stage_title` | Growing toward {next_stage} |
+| `tree_next_stage_growth` | Growth {current}/{required} |
+| `tree_next_stage_growth_ready` | Growth ready — bring what it needs |
+| `tree_next_stage_needs_header` | Needs |
+| `tree_next_stage_needs_line` | {costs} |
+| `tree_next_stage_needs_met` | All gathered — tend to advance |
+| `tree_next_stage_needs_none` | Only growth — keep watering |
 | `tree_stage_blocked_mats` | The Manatree is ready to grow — but needs {costs}. |
 | `tree_stage_blocked_wood` | Wood ×{count} |
 | `tree_stage_blocked_stone` | Stone ×{count} |
@@ -133,6 +149,7 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_stage_blocked_shards` | Manashards ×{count} |
 | `tree_at_ancient_idle` | Ancient and waiting. The Primordial Fruit hangs heavy. |
 
+**Tokens:** `{next_stage}` = display name of next stage; `{current}` / `{required}` = growth ints; `{costs}` = joined list from blocked_* keys (skip zero costs).  
 Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
 
 ---

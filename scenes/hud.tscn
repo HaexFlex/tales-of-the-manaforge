@@ -92,61 +92,71 @@ text = "Load"
 
 [node name="CarePanel" type="ColorRect" parent="."]
 visible = false
-offset_left = 440.0
-offset_top = 200.0
-offset_right = 840.0
-offset_bottom = 460.0
+offset_left = 400.0
+offset_top = 140.0
+offset_right = 880.0
+offset_bottom = 560.0
 color = Color(0.1, 0.14, 0.12, 0.96)
 
 [node name="CareTitle" type="Label" parent="CarePanel"]
 offset_left = 16.0
 offset_top = 12.0
-offset_right = 384.0
+offset_right = 464.0
 offset_bottom = 40.0
 theme_override_font_sizes/font_size = 16
 text = "Manatree"
 horizontal_alignment = 1
 
+[node name="CareNeedsLabel" type="Label" parent="CarePanel"]
+offset_left = 24.0
+offset_top = 44.0
+offset_right = 456.0
+offset_bottom = 120.0
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.78, 0.88, 0.72, 1)
+text = "Growth 0/120"
+autowrap_mode = 3
+
 [node name="WaterButton" type="Button" parent="CarePanel"]
 offset_left = 24.0
-offset_top = 56.0
-offset_right = 376.0
-offset_bottom = 92.0
+offset_top = 128.0
+offset_right = 456.0
+offset_bottom = 164.0
 text = "Water"
 
 [node name="OfferWoodButton" type="Button" parent="CarePanel"]
 offset_left = 24.0
-offset_top = 104.0
-offset_right = 192.0
-offset_bottom = 136.0
+offset_top = 176.0
+offset_right = 232.0
+offset_bottom = 208.0
 text = "Offer Wood"
 
 [node name="OfferStoneButton" type="Button" parent="CarePanel"]
-offset_left = 208.0
-offset_top = 104.0
-offset_right = 376.0
-offset_bottom = 136.0
+offset_left = 248.0
+offset_top = 176.0
+offset_right = 456.0
+offset_bottom = 208.0
 text = "Offer Stone"
 
 [node name="OfferFoodButton" type="Button" parent="CarePanel"]
 offset_left = 24.0
-offset_top = 148.0
-offset_right = 192.0
-offset_bottom = 180.0
+offset_top = 220.0
+offset_right = 232.0
+offset_bottom = 252.0
 text = "Offer Food"
 
 [node name="OfferShardsButton" type="Button" parent="CarePanel"]
-offset_left = 208.0
-offset_top = 148.0
-offset_right = 376.0
-offset_bottom = 180.0
+offset_left = 248.0
+offset_top = 220.0
+offset_right = 456.0
+offset_bottom = 252.0
 text = "Offer Manashards"
 
 [node name="CareCloseButton" type="Button" parent="CarePanel"]
-offset_left = 280.0
-offset_top = 208.0
-offset_right = 376.0
-offset_bottom = 240.0
+offset_left = 344.0
+offset_top = 340.0
+offset_right = 456.0
+offset_bottom = 372.0
 text = "Close"
 
 [node name="PrestigePanel" type="ColorRect" parent="."]
@@ -209,3 +219,59 @@ offset_top = 416.0
 offset_right = 616.0
 offset_bottom = 452.0
 text = "Close"
+
+[node name="WelcomePanel" type="ColorRect" parent="."]
+visible = false
+offset_left = 320.0
+offset_top = 140.0
+offset_right = 960.0
+offset_bottom = 520.0
+color = Color(0.07, 0.1, 0.09, 0.97)
+
+[node name="WelcomeBoot" type="Label" parent="WelcomePanel"]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 616.0
+offset_bottom = 56.0
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.85, 0.92, 0.78, 1)
+text = "The forest is quiet. Tend the Manatree."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="WelcomeTitle" type="Label" parent="WelcomePanel"]
+offset_left = 24.0
+offset_top = 64.0
+offset_right = 616.0
+offset_bottom = 92.0
+theme_override_font_sizes/font_size = 15
+text = "Keeper"
+horizontal_alignment = 1
+
+[node name="WelcomeBody" type="Label" parent="WelcomePanel"]
+offset_left = 32.0
+offset_top = 100.0
+offset_right = 608.0
+offset_bottom = 240.0
+theme_override_font_sizes/font_size = 13
+text = "Tend the Manatree."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="WelcomeHint" type="Label" parent="WelcomePanel"]
+offset_left = 32.0
+offset_top = 252.0
+offset_right = 608.0
+offset_bottom = 300.0
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.7, 0.8, 0.65, 1)
+text = "Click the Manatree to water."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="WelcomeDismiss" type="Button" parent="WelcomePanel"]
+offset_left = 200.0
+offset_top = 320.0
+offset_right = 440.0
+offset_bottom = 360.0
+text = "I will tend it"

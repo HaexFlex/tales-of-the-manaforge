@@ -43,6 +43,8 @@ func _ready() -> void:
 	GameAudio.play_hub_music()
 	if SaveService.has_save():
 		SaveService.load_game()
+	# First load / new save: show Keeper welcome once (flag in save).
+	hud.maybe_show_welcome()
 
 
 func _build_grass() -> void:
@@ -133,7 +135,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	var mb: InputEventMouseButton = event
 	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
-	if hud.care_panel.visible or hud.prestige_panel.visible:
+	if hud.care_panel.visible or hud.prestige_panel.visible or hud.welcome_panel.visible:
 		return
 	# Belt-and-suspenders: skip ground move if an interactable Area2D is under the cursor.
 	if _interactable_under_point(get_global_mouse_position()):

@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care (Water channel / Offer) + Fruit blessings panel.
+## HUD + Manatree care (Water / Offer / next-stage needs) + welcome + Fruit panel.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -10,6 +10,7 @@ class_name GameHUD
 @onready var load_button: Button = $Panel/LoadButton
 @onready var care_panel: ColorRect = $CarePanel
 @onready var care_title: Label = $CarePanel/CareTitle
+@onready var care_needs_label: Label = $CarePanel/CareNeedsLabel
 @onready var water_button: Button = $CarePanel/WaterButton
 @onready var offer_wood_button: Button = $CarePanel/OfferWoodButton
 @onready var offer_stone_button: Button = $CarePanel/OfferStoneButton
@@ -23,6 +24,12 @@ class_name GameHUD
 @onready var harvest_button: Button = $PrestigePanel/HarvestButton
 @onready var ascend_button: Button = $PrestigePanel/AscendButton
 @onready var close_button: Button = $PrestigePanel/CloseButton
+@onready var welcome_panel: ColorRect = $WelcomePanel
+@onready var welcome_boot_label: Label = $WelcomePanel/WelcomeBoot
+@onready var welcome_title_label: Label = $WelcomePanel/WelcomeTitle
+@onready var welcome_body_label: Label = $WelcomePanel/WelcomeBody
+@onready var welcome_hint_label: Label = $WelcomePanel/WelcomeHint
+@onready var welcome_dismiss_button: Button = $WelcomePanel/WelcomeDismiss
 
 var _manatree: Manatree = null
 
@@ -32,6 +39,8 @@ func _ready() -> void:
 	prestige_panel.color = Color(0.14, 0.1, 0.08, 0.96)
 	prestige_panel.visible = false
 	care_panel.visible = false
+	welcome_panel.visible = false
+	welcome_panel.color = Color(0.07, 0.1, 0.09, 0.97)
 	save_button.text = ContentStrings.get_text("btn_save")
 	load_button.text = ContentStrings.get_text("btn_load")
 	close_button.text = ContentStrings.get_text("btn_close")
@@ -42,6 +51,11 @@ func _ready() -> void:
 	offer_food_button.text = ContentStrings.get_text("tree_offer_food")
 	offer_shards_button.text = ContentStrings.get_text("tree_offer_manashards")
 	care_title.text = ContentStrings.get_text("tree_menu_title")
+	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
+	welcome_title_label.text = ContentStrings.get_text("welcome_title")
+	welcome_body_label.text = ContentStrings.get_text("welcome_body")
+	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
+	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
 	save_button.pressed.connect(_on_save)
 	load_button.pressed.connect(_on_load)
 	harvest_button.pressed.connect(_on_harvest)
@@ -53,6 +67,7 @@ func _ready() -> void:
 	offer_stone_button.pressed.connect(_on_offer.bind(&"stone"))
 	offer_food_button.pressed.connect(_on_offer.bind(&"food"))
 	offer_shards_button.pressed.connect(_on_offer.bind(&"manashards"))
+	welcome_dismiss_button.pressed.connect(_on_welcome_dismiss)
 	GameState.resources_changed.connect(_on_resources)
 	GameState.stage_changed.connect(_on_stage)
 	GameState.growth_changed.connect(_on_growth)
@@ -62,14 +77,13 @@ func _ready() -> void:
 	status_label.text = ContentStrings.get_text("boot_line")
 
 
-
 func _ensure_fruit_care_button() -> void:
 	if care_panel.get_node_or_null("FruitOpenButton") != null:
 		return
 	var btn := Button.new()
 	btn.name = "FruitOpenButton"
 	btn.text = ContentStrings.get_text("tree_fruit_open")
-	btn.position = Vector2(20, 210)
+	btn.position = Vector2(20, 300)
 	btn.size = Vector2(200, 28)
 	btn.visible = false
 	btn.pressed.connect(open_fruit_from_care)
@@ -81,17 +95,53 @@ func bind_manatree(tree: Manatree) -> void:
 	_ensure_fruit_care_button()
 
 
+func maybe_show_welcome() -> void:
+	if GameState.welcome_shown:
+		return
+	show_welcome()
+
+
+func show_welcome() -> void:
+	hide_care_menu()
+	hide_prestige_menu()
+	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
+	welcome_title_label.text = ContentStrings.get_text("welcome_title")
+	welcome_body_label.text = ContentStrings.get_text("welcome_body")
+	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
+	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
+	welcome_panel.visible = true
+	GameAudio.play_ui_open()
+
+
+func hide_welcome() -> void:
+	welcome_panel.visible = false
+
+
+func _on_welcome_dismiss() -> void:
+	GameState.welcome_shown = true
+	hide_welcome()
+	GameAudio.play_ui_confirm()
+	status_label.text = ContentStrings.get_text("welcome_hint")
+	SaveService.save_game()
+
+
 func _on_resources(_id: StringName, _amount: int) -> void:
 	_refresh_resources()
 	_refresh_prestige_buttons()
+	if care_panel.visible:
+		_refresh_care_needs()
 
 
 func _on_stage(_id: StringName) -> void:
 	_refresh_stage()
+	if care_panel.visible:
+		_refresh_care_needs()
 
 
 func _on_growth(_g: int, _r: int) -> void:
 	_refresh_stage()
+	if care_panel.visible:
+		_refresh_care_needs()
 
 
 func _on_status(text: String) -> void:
@@ -109,6 +159,7 @@ func _on_load() -> void:
 	var ok: bool = SaveService.load_game()
 	status_label.text = ContentStrings.get_text("load_toast") if ok else "No save found."
 	_refresh_all()
+	maybe_show_welcome()
 
 
 func _refresh_all() -> void:
@@ -116,6 +167,8 @@ func _refresh_all() -> void:
 	_refresh_stage()
 	_rebuild_upgrades()
 	_refresh_prestige_buttons()
+	if care_panel.visible:
+		_refresh_care_needs()
 
 
 func _refresh_resources() -> void:
@@ -141,16 +194,42 @@ func _refresh_stage() -> void:
 	]
 
 
-func show_care_menu() -> void:
-	hide_prestige_menu()
-	care_panel.visible = true
-	# Ancient: Water still available; Fruit prompt via prestige if ready.
+func _refresh_care_needs() -> void:
+	var info: Dictionary = GameState.get_care_next_stage_info()
+	if bool(info.get("is_ancient", false)):
+		care_title.text = str(info.get("title", ContentStrings.get_text("tree_menu_title")))
+		care_needs_label.text = str(info.get("growth_line", ""))
+		offer_wood_button.disabled = true
+		offer_stone_button.disabled = true
+		offer_food_button.disabled = true
+		offer_shards_button.disabled = true
+	else:
+		care_title.text = str(info.get("title", ContentStrings.get_text("tree_menu_title")))
+		var header: String = str(info.get("needs_header", ""))
+		var needs: String = str(info.get("needs_line", ""))
+		care_needs_label.text = "%s\n%s\n%s" % [
+			str(info.get("growth_line", "")),
+			header,
+			needs,
+		]
+		offer_wood_button.disabled = false
+		offer_stone_button.disabled = false
+		offer_food_button.disabled = false
+		offer_shards_button.disabled = false
 	_ensure_fruit_care_button()
 	var fruit_btn: Button = care_panel.get_node_or_null("FruitOpenButton") as Button
 	if fruit_btn:
-		fruit_btn.visible = GameState.fruit_ready
+		fruit_btn.visible = GameState.fruit_ready or GameState.fruit_harvested_pending_ascend
+
+
+func show_care_menu() -> void:
+	if welcome_panel.visible:
+		return
+	hide_prestige_menu()
+	care_panel.visible = true
+	_ensure_fruit_care_button()
 	water_button.text = ContentStrings.get_text("tree_interact_water")
-	care_title.text = ContentStrings.get_text("tree_menu_title")
+	_refresh_care_needs()
 	GameAudio.play_ui_open()
 
 
@@ -166,6 +245,8 @@ func hide_care_menu() -> void:
 
 
 func show_prestige_menu() -> void:
+	if welcome_panel.visible:
+		return
 	hide_care_menu()
 	prestige_panel.visible = true
 	GameAudio.play_ui_open()

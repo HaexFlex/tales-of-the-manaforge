@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Systems Brief v0.1 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.1.2 — Haex playtest: channelled harvest + water pays shards/essence  
+**Status:** v0.1.3 — Haex: slow growth curve (ticks still 1/sec)  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
@@ -17,7 +17,8 @@
 |-----|--------|
 | v0.1 | Day-1: 5 stages, Food-spend water, Fruit upgrades, save schema |
 | v0.1.1 | Free water click; Offer all mats; Essence Fruit-only; SAVE_VERSION 2 |
-| **v0.1.2** | **Haex playtest:** exactly **3** harvest nodes (tree/stone/berry), **1 resource per second while channelled**. Watering is a **channel**: each second `manashards += U{1,3}` and `essence += 1`, plus growth. Essence **no longer Fruit-only**. Decorative trees ≠ harvest. `SAVE_VERSION` → `3`. |
+| v0.1.2 | Haex playtest: 3 harvest channels @1/sec; water pays shards+essence+growth; Essence not Fruit-only; SAVE_VERSION 3 |
+| **v0.1.3** | **Haex: growth too fast.** Ticks stay 1/sec. `WATER_GROWTH` **8→1**. Stage `growth_required` **40/70/100/140 → 120/200/320/480** (~19 min water-only to Ancient). Offer growth nerfed **12/12/10/25 → 3/3/2/6** so offers help but don’t skip the curve. `deep_roots` still +1 WATER_GROWTH/rank (post-prestige faster). No SAVE_VERSION bump (params only). |
 
 ---
 
@@ -101,7 +102,7 @@ At **Ancient**, Water channel still allowed for shard/essence payout **or** Haex
 | `WATER_SHARD_MIN` | `1` |
 | `WATER_SHARD_MAX` | `3` |
 | `WATER_ESSENCE_PER_SEC` | `1` |
-| `WATER_GROWTH` | `8` | # per pulse, same pulse as payout |
+| `WATER_GROWTH` | `1` | # per pulse, same pulse as payout — v0.1.3 slowed |
 | `CHANNEL_PULSE_SEC` | `1.0` |
 
 **Removed:** single-click water with cooldown only; Food spend on water.
@@ -111,10 +112,10 @@ Spend soft mats at Manatree for extra growth (does not grant essence).
 
 | Resource | `OFFER_COST` | `OFFER_GROWTH` |
 |----------|--------------|----------------|
-| `wood` | `1` | `12` |
-| `stone` | `1` | `12` |
-| `food` | `1` | `10` |
-| `manashards` | `1` | `25` |
+| `wood` | `1` | `3` |
+| `stone` | `1` | `3` |
+| `food` | `1` | `2` |
+| `manashards` | `1` | `6` |
 
 `OFFER_COOLDOWN_SEC = 0.25`. Offers are instant (not channelled).
 
@@ -128,14 +129,21 @@ When `growth >= growth_required` for next stage and gate costs held → consume 
 | stage_id | growth_required | cost_wood | cost_stone | cost_food | cost_manashards | Bonus |
 |----------|-----------------|-----------|------------|-----------|-----------------|-------|
 | `sapling` | — | 0 | 0 | 0 | 0 | — |
-| `young` | `40` | `4` | `2` | `2` | `0` | `gather_mult = 1.1` |
-| `mature` | `70` | `6` | `4` | `4` | `1` | `gather_mult = 1.25` |
-| `elder` | `100` | `8` | `6` | `6` | `2` | `gather_mult = 1.4` |
-| `ancient` | `140` | `10` | `8` | `8` | `4` | `gather_mult = 1.6`; Fruit ready |
+| `young` | `120` | `4` | `2` | `2` | `0` | `gather_mult = 1.1` |
+| `mature` | `200` | `6` | `4` | `4` | `1` | `gather_mult = 1.25` |
+| `elder` | `320` | `8` | `6` | `6` | `2` | `gather_mult = 1.4` |
+| `ancient` | `480` | `10` | `8` | `8` | `4` | `gather_mult = 1.6`; Fruit ready |
 
 `gather_mult` applies to harvest channel pulses (wood/stone/food).
 
 ---
+
+
+### Pace target (v0.1.3)
+- Water-only to Ancient: `sum(growth_required) / WATER_GROWTH` = `1120 / 1` ≈ **19 minutes** of channel time (plus walking/gates).
+- Offers shorten that if the Keeper gathers; gates still force a wood/stone/food/shard mix.
+- First Fruit should feel slow and meaningful — not reachable by a minute of spam.
+- Shard/essence income unchanged at 1 tick/sec while watering.
 
 ## 5. Primordial Fruit / Ascend
 
@@ -158,7 +166,7 @@ Ascend: reset stage/growth + soft mats (`wood/stone/food/manashards`); **keep** 
 
 | upgrade_id | Max | Cost | Effect |
 |------------|-----|------|--------|
-| `deep_roots` | 10 | `1+rank` | `WATER_GROWTH += 2` / rank |
+| `deep_roots` | 10 | `1+rank` | `WATER_GROWTH += 1` / rank (v0.1.3; base water is 1) |
 | `forager` | 10 | `1+rank` | `gather_mult += 0.05` / rank |
 | `green_thumb` | 5 | `2+rank` | `-1` growth_required / rank (min 10) |
 | `shard_sight` | 5 | `2+2*rank` | `+1` to each water shard roll min **or** flat `+1` shards per water pulse / rank — **default:** add rank to shard roll result after clamp to max+rank |
@@ -230,6 +238,7 @@ decorative trees: no interact
 |------|--------|
 | 3 harvest nodes @ 1/sec channel | **LOCKED Haex** |
 | Water: shards 1–3 + 1 essence / sec | **LOCKED Haex** |
+| Slow growth curve (WATER_GROWTH=1, raised thresholds) | **LOCKED Haex intent v0.1.3** |
 | Essence Fruit-only | **REVOKED** |
 | Deco trees, one of each harvest | **LOCKED Haex** |
 | Offers + 5 stages + Fruit Ascend | Kept |

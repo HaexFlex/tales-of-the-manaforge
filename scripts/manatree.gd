@@ -1,6 +1,6 @@
 extends Area2D
 class_name Manatree
-## 5-stage Manatree; water channel (shards+essence+growth) + Offer care; ancient door baked in.
+## 5-stage Manatree; textures/size/hitbox from manatree_meta.json (v0.1.5).
 
 signal fruit_menu_requested
 signal care_menu_requested
@@ -10,7 +10,10 @@ signal care_menu_requested
 @onready var fruit_hint: Label = $FruitHint
 
 var _watering: bool = false
+## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/manatree_meta.json
+var _meta_stages: Dictionary = {}
 
+const META_PATH: String = "res://assets/art/manatree/manatree_meta.json"
 const STAGE_TEXTURES: Dictionary = {
 	&"sapling": "res://assets/art/manatree/manatree_sapling.png",
 	&"young": "res://assets/art/manatree/manatree_young.png",
@@ -21,6 +24,7 @@ const STAGE_TEXTURES: Dictionary = {
 
 
 func _ready() -> void:
+	_load_meta()
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -33,6 +37,43 @@ func _ready() -> void:
 	_on_fruit_changed(GameState.fruit_ready)
 	add_to_group("manatree")
 	add_to_group("interactable")
+
+
+func _load_meta() -> void:
+	_meta_stages.clear()
+	var file := FileAccess.open(META_PATH, FileAccess.READ)
+	if file == null:
+		push_warning("Manatree: missing manatree_meta.json — falling back to stage table sizes")
+		return
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	var stages: Variant = (parsed as Dictionary).get("stages", [])
+	if typeof(stages) != TYPE_ARRAY:
+		return
+	for entry: Variant in stages:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var d: Dictionary = entry
+		var sid: String = str(d.get("stage_id", ""))
+		if sid != "":
+			_meta_stages[sid] = d
+
+
+func _stage_size(stage: StringName) -> Vector2:
+	var meta: Variant = _meta_stages.get(String(stage), {})
+	if typeof(meta) == TYPE_DICTIONARY:
+		var size_v: Variant = (meta as Dictionary).get("size", null)
+		if typeof(size_v) == TYPE_ARRAY and (size_v as Array).size() >= 2:
+			var arr: Array = size_v
+			return Vector2(float(arr[0]), float(arr[1]))
+	var def: Dictionary = GameState.get_stage_def(stage)
+	var size_v2: Variant = def.get("size", [96, 160])
+	if typeof(size_v2) == TYPE_ARRAY and (size_v2 as Array).size() >= 2:
+		var arr2: Array = size_v2
+		return Vector2(float(arr2[0]), float(arr2[1]))
+	return Vector2(96, 160)
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -147,21 +188,23 @@ func _on_growth(g: int, req: int) -> void:
 
 
 func _refresh_visual() -> void:
-	var def: Dictionary = GameState.get_stage_def()
 	var path: String = str(STAGE_TEXTURES.get(GameState.stage_id, STAGE_TEXTURES[&"sapling"]))
+	# Prefer meta file name when present.
+	var meta: Variant = _meta_stages.get(String(GameState.stage_id), {})
+	if typeof(meta) == TYPE_DICTIONARY:
+		var fname: String = str((meta as Dictionary).get("file", ""))
+		if fname != "":
+			path = "res://assets/art/manatree/%s" % fname
 	var tex: Texture2D = load(path) as Texture2D
 	sprite.texture = tex
-	var size_v: Variant = def.get("size", [64, 128])
-	var w: float = 64.0
-	var h: float = 128.0
-	if typeof(size_v) == TYPE_ARRAY and (size_v as Array).size() >= 2:
-		var arr: Array = size_v
-		w = float(arr[0])
-		h = float(arr[1])
+	var sz: Vector2 = _stage_size(GameState.stage_id)
+	var w: float = sz.x
+	var h: float = sz.y
+	# base_center anchor: feet at node origin.
 	sprite.offset = Vector2(-w * 0.5, -h)
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
-		# Generous rect covering the full drawn landmark (canopy + trunk).
+		# Full sprite hitbox — Ancient 512×640 must not be cropped.
 		var rect_shape: RectangleShape2D = cs.shape as RectangleShape2D
 		rect_shape.size = Vector2(w, h)
 		cs.position = Vector2(0, -h * 0.5)

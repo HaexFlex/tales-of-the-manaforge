@@ -89,5 +89,18 @@
   "btn_save": "Save",
   "btn_load": "Load",
   "btn_menu": "Menu",
-  "btn_cancel_channel": "Stop"
+  "btn_cancel_channel": "Stop",
+  "welcome_boot": "The forest is quiet. Tend the Manatree.",
+  "welcome_title": "Keeper",
+  "welcome_body": "This clearing is the last living fragment. You are its Keeper. Tend the Manatree — water it, offer what you gather, and let it grow through the quiet cycles. The forest remembers every kindness.",
+  "welcome_body_short": "Tend the Manatree. Gather what the clearing gives. Begin again when the Fruit is ready.",
+  "welcome_dismiss": "I will tend it",
+  "welcome_hint": "Click the Manatree to water. Harvest Tree, Stone, and Berries fill your hands.",
+  "tree_next_stage_title": "Growing toward {next_stage}",
+  "tree_next_stage_growth": "Growth {current}/{required}",
+  "tree_next_stage_growth_ready": "Growth ready — bring what it needs",
+  "tree_next_stage_needs_header": "Needs",
+  "tree_next_stage_needs_line": "{costs}",
+  "tree_next_stage_needs_met": "All gathered — tend to advance",
+  "tree_next_stage_needs_none": "Only growth — keep watering"
 }
