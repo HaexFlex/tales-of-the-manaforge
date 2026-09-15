@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care (Water / Pay needs checklist) + welcome + Fruit panel. SYSTEMS v0.2.0.
+## HUD + Manatree care + welcome + Ascension Manashard shop. SYSTEMS/Content v0.2.4.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -29,6 +29,11 @@ class_name GameHUD
 
 var _manatree: Manatree = null
 var _confirm_pay: bool = false
+var _confirm_harvest: bool = false
+var _confirm_ascend: bool = false
+## Auto-open Fruit panel once when fruit becomes ready this cycle.
+var _auto_opened_fruit_this_cycle: bool = false
+var _highlight_ascend: bool = false
 
 
 func _ready() -> void:
@@ -62,6 +67,7 @@ func _ready() -> void:
 	GameState.needs_changed.connect(_on_needs)
 	GameState.upgrades_changed.connect(_refresh_all)
 	GameState.status_message.connect(_on_status)
+	GameState.fruit_ready_changed.connect(_on_fruit_ready_changed)
 	_refresh_all()
 	status_label.text = ContentStrings.get_text("boot_line")
 
@@ -159,6 +165,8 @@ func _on_pause_pressed() -> void:
 func _on_new_game_from_pause() -> void:
 	hide_care_menu()
 	hide_prestige_menu()
+	_auto_opened_fruit_this_cycle = false
+	_highlight_ascend = false
 	_refresh_all()
 	show_welcome()
 
@@ -166,6 +174,8 @@ func _on_new_game_from_pause() -> void:
 func _on_loaded_from_pause() -> void:
 	hide_care_menu()
 	hide_prestige_menu()
+	_auto_opened_fruit_this_cycle = GameState.fruit_ready or GameState.fruit_harvested_pending_ascend
+	_highlight_ascend = false
 	_refresh_all()
 	maybe_show_welcome()
 
@@ -250,16 +260,21 @@ func hide_care_menu() -> void:
 	_confirm_pay = false
 
 
-func show_prestige_menu() -> void:
+func show_prestige_menu(focus_ascend: bool = false) -> void:
 	if welcome_panel.visible:
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
 	hide_care_menu()
+	_confirm_harvest = false
+	_confirm_ascend = false
+	if focus_ascend or GameState.fruit_harvested_pending_ascend:
+		_highlight_ascend = true
+	elif GameState.fruit_ready:
+		_highlight_ascend = false
 	prestige_panel.visible = true
 	GameAudio.play_ui_open()
 	prestige_title.text = ContentStrings.get_text("fruit_panel_title")
-	prestige_sub.text = ContentStrings.get_text("fruit_panel_subtitle")
 	_rebuild_upgrades()
 	_refresh_prestige_buttons()
 
@@ -268,6 +283,30 @@ func hide_prestige_menu() -> void:
 	if prestige_panel.visible:
 		GameAudio.play_ui_close()
 	prestige_panel.visible = false
+	_confirm_harvest = false
+	_confirm_ascend = false
+	_highlight_ascend = false
+	_clear_ascend_highlight()
+
+
+func _on_fruit_ready_changed(ready: bool) -> void:
+	## Auto-open Fruit panel once when fruit becomes ready (Ancient).
+	if ready and not _auto_opened_fruit_this_cycle:
+		_auto_opened_fruit_this_cycle = true
+		call_deferred("_auto_open_prestige_for_fruit")
+	_refresh_prestige_buttons()
+	if care_panel.visible:
+		_refresh_care_needs()
+
+
+func _auto_open_prestige_for_fruit() -> void:
+	if welcome_panel.visible:
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
+	if not GameState.fruit_ready and not GameState.fruit_harvested_pending_ascend:
+		return
+	show_prestige_menu(GameState.fruit_harvested_pending_ascend)
 
 
 func _on_water() -> void:
@@ -302,15 +341,61 @@ func _on_pay() -> void:
 	_refresh_all()
 
 
+func _prestige_guided_steps() -> String:
+	var s1: String = ContentStrings.get_text("fruit_step_1")
+	var s2: String = ContentStrings.get_text("fruit_step_2")
+	var s3: String = ContentStrings.get_text("fruit_step_3")
+	if GameState.fruit_ready:
+		return "%s  →  %s  →  %s" % [s1, s2, s3]
+	if GameState.fruit_harvested_pending_ascend:
+		return ContentStrings.get_text("fruit_panel_step")
+	return "%s  ·  %s  ·  %s" % [s1, s2, s3]
+
+
+func _prestige_status_hint() -> String:
+	if GameState.fruit_ready:
+		return ContentStrings.get_text("fruit_ready_prompt")
+	if GameState.fruit_harvested_pending_ascend:
+		return ContentStrings.get_text("fruit_flow_hint")
+	return ContentStrings.get_text("fruit_panel_subtitle")
+
+
 func _refresh_prestige_buttons() -> void:
-	harvest_button.visible = GameState.fruit_ready
+	var in_fruit_flow: bool = GameState.fruit_ready or GameState.fruit_harvested_pending_ascend
+	# Harvest: visible in fruit flow; disabled after pending.
+	harvest_button.visible = in_fruit_flow
+	harvest_button.disabled = not GameState.fruit_ready
 	harvest_button.text = ContentStrings.get_text("fruit_confirm_yes")
-	ascend_button.visible = GameState.can_ascend()
+	# Ascend: visible in fruit flow; enabled only after harvest (no purchase required).
+	ascend_button.visible = in_fruit_flow
+	ascend_button.disabled = not GameState.can_ascend()
 	ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
-	prestige_sub.text = "%s\n%s" % [
+	var shards_line: String = ContentStrings.get_text("fruit_shards_hud", {"count": GameState.manashards})
+	var essence_line: String = ContentStrings.get_text("fruit_essence_hud", {"count": GameState.essence})
+	var hint: String = _prestige_status_hint()
+	if GameState.fruit_harvested_pending_ascend:
+		hint = "%s\n%s" % [hint, ContentStrings.get_text("ascend_before_bless_hint")]
+	prestige_sub.text = "%s\n%s\n%s  |  %s\n%s" % [
 		ContentStrings.get_text("fruit_panel_subtitle"),
-		ContentStrings.get_text("fruit_essence_hud", {"count": GameState.essence}),
+		_prestige_guided_steps(),
+		shards_line,
+		essence_line,
+		hint,
 	]
+	if _highlight_ascend and GameState.can_ascend():
+		_apply_ascend_highlight()
+	else:
+		_clear_ascend_highlight()
+
+
+func _apply_ascend_highlight() -> void:
+	ascend_button.modulate = Color(1.15, 1.05, 0.75, 1.0)
+	if ascend_button.visible and not ascend_button.disabled:
+		ascend_button.grab_focus()
+
+
+func _clear_ascend_highlight() -> void:
+	ascend_button.modulate = Color.WHITE
 
 
 func _rebuild_upgrades() -> void:
@@ -337,7 +422,11 @@ func _rebuild_upgrades() -> void:
 		if rank >= max_rank:
 			btn.text = ContentStrings.get_text("upgrade_maxed")
 			btn.disabled = true
-		elif not GameState.can_buy_upgrade(uid):
+		elif not GameState.fruit_harvested_pending_ascend:
+			# Ascension-only shop: preview costs before Harvest; Buy after.
+			btn.text = ContentStrings.get_text("upgrade_buy")
+			btn.disabled = true
+		elif GameState.manashards < cost:
 			btn.text = ContentStrings.get_text("upgrade_cant_afford")
 			btn.disabled = true
 		else:
@@ -349,27 +438,65 @@ func _rebuild_upgrades() -> void:
 
 
 func _on_buy(upgrade_id: String) -> void:
+	## Manashard blessing shop (Ascension-only): multi-buy OK; Ascend never requires a purchase.
 	if GameState.buy_upgrade(upgrade_id):
 		GameAudio.play_upgrade_buy()
+		var disp: String = str(GameState.get_upgrade_def(upgrade_id).get("display_name", upgrade_id))
+		status_label.text = ContentStrings.get_text("upgrade_buy_ok", {"blessing_name": disp})
+		_confirm_ascend = false
+		_rebuild_upgrades()
 		_refresh_all()
 		SaveService.save_game()
 
 
 func _on_harvest() -> void:
+	if not GameState.fruit_ready:
+		return
+	# Two-step confirm (like Pay).
+	if not _confirm_harvest:
+		_confirm_harvest = true
+		_confirm_ascend = false
+		status_label.text = ContentStrings.get_text("fruit_confirm")
+		_refresh_prestige_buttons()
+		return
+	_confirm_harvest = false
 	var gained: int = GameState.harvest_fruit()
 	if gained > 0:
 		GameAudio.play_fruit_harvest()
-		status_label.text = ContentStrings.get_text("fruit_harvest_toast", {"amount": gained})
-		_refresh_all()
+		status_label.text = "%s\n%s" % [
+			ContentStrings.get_text("fruit_harvest_toast", {"amount": gained}),
+			ContentStrings.get_text("fruit_flow_hint"),
+		]
+		_highlight_ascend = true
+		# Reopen/refresh Manashard shop; Ascend available (purchase optional).
+		if not prestige_panel.visible:
+			show_prestige_menu(true)
+		else:
+			_rebuild_upgrades()
+			_refresh_all()
+			_apply_ascend_highlight()
 		SaveService.save_game()
 
 
 func _on_ascend() -> void:
 	if not GameState.can_ascend():
 		return
+	# Two-step confirm (like Pay). Ascend always available after harvest (no buy required).
+	if not _confirm_ascend:
+		_confirm_ascend = true
+		_confirm_harvest = false
+		status_label.text = "%s\n%s" % [
+			ContentStrings.get_text("ascend_confirm"),
+			ContentStrings.get_text("ascend_hint"),
+		]
+		_refresh_prestige_buttons()
+		return
+	_confirm_ascend = false
 	GameAudio.play_ascend()
 	GameAudio.reset_cycle_flags()
 	GameState.ascend()
+	_auto_opened_fruit_this_cycle = false
+	_highlight_ascend = false
 	hide_prestige_menu()
 	_refresh_all()
 	SaveService.save_game()

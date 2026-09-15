@@ -230,6 +230,8 @@ func play_fruit_harvest() -> void:
 func play_ascend() -> void:
 	play(&"mus_ascend_sting")
 	play(&"sfx_ascend")
+	# Return to hub bed after Ascend sting (Music bus briefly stolen by sting).
+	call_deferred("play_hub_music")
 
 
 func play_upgrade_buy() -> void:

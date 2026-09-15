@@ -166,7 +166,7 @@ func _interactable_under_point(world_pos: Vector2) -> bool:
 
 
 func _on_fruit_menu() -> void:
-	hud.show_prestige_menu()
+	hud.show_prestige_menu(GameState.fruit_harvested_pending_ascend)
 
 
 func _on_care_menu() -> void:

@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.2.0 — aligned to `SYSTEMS_V01` v0.2.0 (needs checklist + Pay; no Offers/growth)  
+**Status:** v0.2.4 — Manashard blessing shop only after Fruit (Ascension); not mid-run  
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -18,7 +18,10 @@
 | v0.1.3 | Welcome / first-boot Keeper lines (tend the Manatree). Next-stage needs: growth X/Y + missing mats list. |
 | v0.1.4 | Pause menu: Resume, New Game (+confirm), Save, Load, Options (later), Exit (+confirm), empty-slot / overwrite. |
 | v0.1.5 | Strip growth language from next-stage/care. Needs-only (Essence + mats). Advance / can’t-afford. Growth X/Y keys retired. |
-| **v0.2.0** | `SYSTEMS_V01` v0.2.0: needs checklist `{have}/{need}` + **Pay**; remove Offer verbs; water = income only; no growth. |
+| v0.2.0 | `SYSTEMS_V01` v0.2.0: needs checklist `{have}/{need}` + **Pay**; remove Offer verbs; water = income only; no growth. |
+| v0.2.1 | Ascension polish: guide Harvest → spend Essence on blessings → Ascend. Scrub growth/offer language from welcome. |
+| v0.2.2 | Haex: after Fruit, choose one free blessing (superseded). |
+| **v0.2.3** | Haex: Ascension shop spends **Manashards** on blessings; multi-buy OK; then Ascend. Not free-pick, not Essence. |
 
 ---
 
@@ -31,10 +34,10 @@
 | `boot_line` | The forest is quiet. The Manatree is waiting. |
 | `welcome_boot` | The forest is quiet. Tend the Manatree. |
 | `welcome_title` | Keeper |
-| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Tend the Manatree — water it, offer what you gather, and let it grow through the quiet cycles. The forest remembers every kindness. |
-| `welcome_body_short` | Tend the Manatree. Gather what the clearing gives. Begin again when the Fruit is ready. |
+| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, and Pay its Needs when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend. |
+| `welcome_body_short` | Water and gather. Pay the Manatree’s Needs. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
 | `welcome_dismiss` | I will tend it |
-| `welcome_hint` | Click the Manatree to water. Harvest Tree, Stone, and Berries fill your hands. |
+| `welcome_hint` | Water the Manatree for Essence. Harvest Tree, Stone, and Berries for its Needs. Pay to advance. |
 | `new_game_confirm` | Begin as Keeper? |
 | `load_game` | Continue |
 | `save_toast` | Progress remembered. |
@@ -157,44 +160,57 @@ Design costs (§4): Young essence 20 → Mature 40+food 10 → Elder 60+food 20+
 
 ---
 
-## 6. Primordial Fruit — harvest / upgrades / ascend
+## 6. Primordial Fruit — Harvest → Manashards shop → Ascend
+
+Player flow (Haex v0.2.4): **1) Harvest Primordial Fruit** → **2) Manashard blessing shop (this panel only)** → **3) Ascend**.  
+Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick. Not Essence-priced.
 
 | key | string |
 |-----|--------|
 | `fruit_ready_prompt` | Harvest the Primordial Fruit |
-| `fruit_confirm` | Harvest the Primordial Fruit? The Manatree will return to a Sapling. Essence and blessings remain. |
+| `fruit_confirm` | Harvest the Primordial Fruit? You will spend Manashards on lasting blessings, then may Ascend. Soft goods reset on Ascend; Essence, Manashards spent on blessings, and blessings remain. |
 | `fruit_confirm_yes` | Harvest |
 | `fruit_confirm_no` | Not yet |
 | `fruit_harvest_toast` | The Primordial Fruit is yours. Essence +{amount}. |
-| `fruit_panel_title` | Blessings of the Fruit |
-| `fruit_panel_subtitle` | Spend Essence. These gifts survive every Ascend. |
+| `fruit_flow_hint` | Ascension only: spend Manashards on blessings here (leftover shards wipe on Ascend), then Ascend. |
+| `fruit_step_1` | 1 · Harvest |
+| `fruit_step_2` | 2 · Bless |
+| `fruit_step_3` | 3 · Ascend |
+| `fruit_panel_title` | Ascension Blessings |
+| `fruit_panel_subtitle` | After the Fruit — spend Manashards on lasting gifts. Then Ascend. |
+| `fruit_panel_step` | Harvest done · Bless · Ascend |
+| `fruit_shards_hud` | Manashards: {count} |
 | `fruit_essence_hud` | Essence: {count} |
 | `ascend_prompt` | Ascend — begin again, stronger |
-| `ascend_confirm` | Ascend? Soft goods (Wood, Stone, Food, Manashards) return to the forest. Essence and blessings stay. |
+| `ascend_hint` | Soft goods and leftover Manashards return to the forest. Blessings stay with you. |
+| `ascend_confirm` | Ascend? Wood, Stone, Food, and Manashards return to the forest. Blessings stay. The Manatree becomes a Sapling. |
 | `ascend_confirm_yes` | Ascend |
 | `ascend_confirm_no` | Stay a while |
-| `ascend_toast` | A new cycle. The Sapling greets you. |
+| `ascend_toast` | A new cycle. The Sapling greets you — and your blessings. |
 | `ascend_count_hud` | Cycles: {count} |
+| `ascend_before_bless_hint` | Spend Manashards on blessings first — unused shards return to the forest on Ascend. |
 
-### Permanent upgrades
+### Permanent upgrades (Manashards shop)
 
 | upgrade_id | Display | Description |
 |------------|---------|-------------|
-| `deep_roots` | Deep Roots | Each rank: watering yields Essence a little sooner. |
-| `forager` | Forager’s Grace | Each rank: harvest channels yield a little more. |
-| `green_thumb` | Green Thumb | Each rank: soft-mat Needs ask for a little less. |
-| `shard_sight` | Shard Sight | Each rank: watering yields more Manashards. |
-| `keeper_stride` | Keeper’s Stride | Each rank: walk the fragment a little faster. |
+| `deep_roots` | Deep Roots | Watering yields Essence a little sooner. |
+| `forager` | Forager’s Grace | Harvest channels yield a little more. |
+| `green_thumb` | Green Thumb | Soft-mat Needs ask for a little less. |
+| `shard_sight` | Shard Sight | Watering yields more Manashards. |
+| `keeper_stride` | Keeper’s Stride | Walk the fragment a little faster. |
 
 | key | string |
 |-----|--------|
 | `upgrade_rank` | Rank {rank}/{max} |
-| `upgrade_cost` | {cost} Essence |
-| `upgrade_buy` | Bless |
+| `upgrade_cost` | {cost} Manashards |
+| `upgrade_buy` | Buy |
+| `upgrade_bless` | Bless |
 | `upgrade_maxed` | Fully blessed |
-| `upgrade_cant_afford` | Not enough Essence |
+| `upgrade_cant_afford` | Not enough Manashards |
+| `upgrade_buy_ok` | {blessing_name} grows stronger. |
 
----
+**Retired for this flow:** free-pick `fruit_choose_*` / `upgrade_select` as the primary path (Code may ignore).
 
 ## 7. Minimal HUD / UI chrome
 

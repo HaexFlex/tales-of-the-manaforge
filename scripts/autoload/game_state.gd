@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.2.0 — needs-only stage-up. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.2.3 — needs-only; Ascension Manashard blessing shop. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -282,20 +282,24 @@ func get_upgrade_cost(upgrade_id: String) -> int:
 
 
 func can_buy_upgrade(upgrade_id: String) -> bool:
+	## Manashard shop — only while awaiting Ascend after Fruit harvest.
+	if not fruit_harvested_pending_ascend:
+		return false
 	var def: Dictionary = get_upgrade_def(upgrade_id)
 	if def.is_empty():
 		return false
 	var max_rank: int = int(def.get("max_rank", 1))
 	if get_upgrade_rank(upgrade_id) >= max_rank:
 		return false
-	return essence >= get_upgrade_cost(upgrade_id)
+	return manashards >= get_upgrade_cost(upgrade_id)
 
 
 func buy_upgrade(upgrade_id: String) -> bool:
+	## Spend Manashards for +1 blessing rank (multi-buy OK). Essence untouched.
 	if not can_buy_upgrade(upgrade_id):
 		return false
 	var cost: int = get_upgrade_cost(upgrade_id)
-	add_resource(&"essence", -cost)
+	add_resource(&"manashards", -cost)
 	upgrade_ranks[upgrade_id] = get_upgrade_rank(upgrade_id) + 1
 	upgrades_changed.emit()
 	needs_changed.emit()
@@ -540,6 +544,7 @@ func harvest_fruit() -> int:
 
 
 func can_ascend() -> bool:
+	## Ascend after Fruit harvest; Manashard purchases optional.
 	return fruit_harvested_pending_ascend
 
 

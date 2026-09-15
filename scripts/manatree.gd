@@ -94,8 +94,8 @@ func _request_keeper_interact() -> void:
 
 
 func on_interact(_keeper: Node) -> void:
-	## Pending ascend → Fruit/Ascend panel. Otherwise care menu (Water + Pay needs).
-	if GameState.fruit_harvested_pending_ascend:
+	## Fruit ready or pending Ascend → Fruit/Blessings/Ascend panel. Else care (Water + Pay).
+	if GameState.fruit_ready or GameState.fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
 	care_menu_requested.emit()
