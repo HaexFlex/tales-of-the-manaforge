@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + welcome + Ascension shop. SYSTEMS v0.3.3 / Content v0.3.5.
+## HUD + Manatree care + welcome + Ascension shop. SYSTEMS v0.3.3 / Content v0.3.5 / Art shop layout v0.1.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -18,29 +18,44 @@ class_name GameHUD
 @onready var harvest_fruit_button: Button = $CarePanel/HarvestFruitButton
 @onready var precommit_hint: Label = $CarePanel/PrecommitHint
 @onready var care_close_button: Button = $CarePanel/CareCloseButton
-@onready var fruit_confirm_panel: ColorRect = $FruitConfirmPanel
+@onready var fruit_confirm_panel: Panel = $FruitConfirmPanel
 @onready var fruit_confirm_title: Label = $FruitConfirmPanel/ConfirmTitle
 @onready var fruit_confirm_body: Label = $FruitConfirmPanel/ConfirmBody
 @onready var fruit_confirm_yes: Button = $FruitConfirmPanel/ConfirmYes
 @onready var fruit_confirm_no: Button = $FruitConfirmPanel/ConfirmNo
-@onready var ascension_panel: ColorRect = $AscensionPanel
-@onready var prestige_panel: ColorRect = $AscensionPanel
-@onready var prestige_title: Label = $AscensionPanel/Layout/Title
-@onready var shop_banner: Label = $AscensionPanel/Layout/Banner
-@onready var prestige_sub: Label = $AscensionPanel/Layout/Subtitle
-@onready var shop_balances: Label = $AscensionPanel/Layout/Balances
-@onready var shop_hint: Label = $AscensionPanel/Layout/Hint
-@onready var shop_scroll: ScrollContainer = $AscensionPanel/Layout/ShopScroll
-@onready var upgrade_list: VBoxContainer = $AscensionPanel/Layout/ShopScroll/UpgradeList
-@onready var shop_footer: HBoxContainer = $AscensionPanel/Layout/Footer
-@onready var ascend_button: Button = $AscensionPanel/Layout/Footer/AscendButton
-@onready var close_button: Button = $AscensionPanel/Layout/Footer/CloseButton
+@onready var shop_dim: ColorRect = $ShopDim
+@onready var ascension_panel: Panel = $AscensionPanel
+@onready var prestige_panel: Panel = $AscensionPanel
+@onready var shop_header: Control = $AscensionPanel/Header
+@onready var prestige_title: Label = $AscensionPanel/Header/Title
+@onready var prestige_sub: Label = $AscensionPanel/Header/Subtitle
+@onready var shard_chip: ColorRect = $AscensionPanel/Header/ShardChip
+@onready var shard_count_label: Label = $AscensionPanel/Header/ShardChip/ShardCount
+@onready var shop_scroll: ScrollContainer = $AscensionPanel/ShopScroll
+@onready var upgrade_list: VBoxContainer = $AscensionPanel/ShopScroll/UpgradeList
+@onready var shop_footer: Control = $AscensionPanel/Footer
+@onready var close_button: Button = $AscensionPanel/Footer/CloseButton
+@onready var ascend_button: Button = $AscensionPanel/Footer/AscendButton
 @onready var welcome_panel: ColorRect = $WelcomePanel
 @onready var welcome_boot_label: Label = $WelcomePanel/WelcomeBoot
 @onready var welcome_title_label: Label = $WelcomePanel/WelcomeTitle
 @onready var welcome_body_label: Label = $WelcomePanel/WelcomeBody
 @onready var welcome_hint_label: Label = $WelcomePanel/WelcomeHint
 @onready var welcome_dismiss_button: Button = $WelcomePanel/WelcomeDismiss
+
+## Art lock ASCENSION_SHOP_LAYOUT_V01: 720×500, header 64 / list flex / footer 72, row 48.
+const SHOP_SIZE: Vector2 = Vector2(720, 500)
+const SHOP_MIN_SIZE: Vector2 = Vector2(640, 420)
+const SHOP_HEADER_H: float = 64.0
+const SHOP_FOOTER_H: float = 72.0
+const SHOP_ROW_H: float = 48.0
+const SHOP_PAD: float = 16.0
+const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
+const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
+const LEAF: Color = Color(0.24, 0.48, 0.28, 1.0)
+const BUY_CAN: Color = Color(0.28, 0.52, 0.30, 1.0)
+const BUY_CANT: Color = Color(0.62, 0.22, 0.18, 1.0)
+const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
 
 var _manatree: Manatree = null
 var _confirm_pay: bool = false
@@ -53,15 +68,16 @@ var _highlight_ascend: bool = false
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	panel.color = Color(0.08, 0.1, 0.14, 0.85)
-	ascension_panel.color = Color(0.14, 0.1, 0.08, 0.96)
-	fruit_confirm_panel.color = Color(0.12, 0.1, 0.08, 0.98)
 	ascension_panel.visible = false
 	fruit_confirm_panel.visible = false
 	care_panel.visible = false
 	welcome_panel.visible = false
+	shop_dim.visible = false
 	welcome_panel.color = Color(0.07, 0.1, 0.09, 0.97)
 	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	shop_scroll.clip_contents = true
+	_apply_wood_chrome()
 	pause_button.text = ContentStrings.get_text("btn_pause")
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
@@ -99,6 +115,61 @@ func _ready() -> void:
 	_refresh_controls_hint()
 	_refresh_selection_hint()
 	_sync_ascension_from_state()
+
+
+func _wood_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = WOOD
+	sb.border_color = GOLD
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(2)
+	sb.content_margin_left = 2.0
+	sb.content_margin_right = 2.0
+	sb.content_margin_top = 2.0
+	sb.content_margin_bottom = 2.0
+	return sb
+
+
+func _btn_style(bg: Color, border: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = border
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(3)
+	sb.content_margin_left = 10.0
+	sb.content_margin_right = 10.0
+	sb.content_margin_top = 6.0
+	sb.content_margin_bottom = 6.0
+	return sb
+
+
+func _apply_button_chrome(btn: Button, bg: Color, border: Color) -> void:
+	var normal: StyleBoxFlat = _btn_style(bg, border)
+	var hover: StyleBoxFlat = _btn_style(bg.lightened(0.08), GOLD)
+	var pressed: StyleBoxFlat = _btn_style(bg.darkened(0.12), border)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_stylebox_override("focus", hover)
+	btn.add_theme_color_override("font_color", Color(0.95, 0.96, 0.88, 1.0))
+	btn.add_theme_color_override("font_hover_color", Color(1, 1, 0.92, 1.0))
+	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 1, 1.0))
+
+
+func _apply_wood_chrome() -> void:
+	ascension_panel.add_theme_stylebox_override("panel", _wood_style())
+	fruit_confirm_panel.add_theme_stylebox_override("panel", _wood_style())
+	shard_chip.color = CHIP_CYAN
+	_apply_button_chrome(close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(ascend_button, LEAF, GOLD)
+	_apply_button_chrome(fruit_confirm_yes, LEAF, GOLD)
+	_apply_button_chrome(fruit_confirm_no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+
+
+func _refresh_dim() -> void:
+	if shop_dim == null:
+		return
+	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible
 
 
 func bind_manatree(tree: Manatree) -> void:
@@ -344,6 +415,24 @@ func shop_list_clears_footer() -> bool:
 	return scroll_rect.end.y <= footer_rect.position.y + 2.0
 
 
+func get_shop_layout_metrics() -> Dictionary:
+	return {
+		"size": ascension_panel.size,
+		"header_h": shop_header.size.y,
+		"footer_h": shop_footer.size.y,
+		"row_h": SHOP_ROW_H,
+		"pad": SHOP_PAD,
+		"min_w": SHOP_MIN_SIZE.x,
+		"min_h": SHOP_MIN_SIZE.y,
+		"preferred_w": SHOP_SIZE.x,
+		"preferred_h": SHOP_SIZE.y,
+	}
+
+
+func shop_has_harvest_button() -> bool:
+	return shop_footer.get_node_or_null("HarvestButton") != null or ascension_panel.get_node_or_null("HarvestButton") != null
+
+
 func get_fruit_confirm_step() -> int:
 	return _fruit_confirm_step
 
@@ -365,6 +454,7 @@ func show_ascension_shop() -> void:
 	_rebuild_upgrades()
 	_refresh_ascension_copy()
 	_refresh_reopen_button()
+	_refresh_dim()
 	_apply_ascend_highlight()
 
 
@@ -376,6 +466,7 @@ func hide_ascension_shop() -> void:
 	_highlight_ascend = false
 	_clear_ascend_highlight()
 	_refresh_reopen_button()
+	_refresh_dim()
 
 
 func _on_shop_close() -> void:
@@ -457,12 +548,9 @@ func open_fruit_confirm() -> void:
 
 
 func confirm_fruit_step() -> void:
-	if _fruit_confirm_step == 1:
-		_fruit_confirm_step = 2
-		_show_fruit_confirm_step()
+	if _fruit_confirm_step != 1:
 		return
-	if _fruit_confirm_step == 2:
-		_commit_primordial_fruit()
+	_commit_primordial_fruit()
 
 
 func cancel_fruit_confirm() -> void:
@@ -476,24 +564,19 @@ func cancel_fruit_confirm() -> void:
 func hide_fruit_confirm() -> void:
 	fruit_confirm_panel.visible = false
 	_fruit_confirm_step = 0
+	_refresh_dim()
 
 
 func _show_fruit_confirm_step() -> void:
+	## Art lock: Fruit modal is Harvest / Cancel only — no blessing list, no Ascend.
 	fruit_confirm_panel.visible = true
-	if _fruit_confirm_step <= 1:
-		_fruit_confirm_step = 1
-		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step1_title")
-		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step1")
-		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step1_yes")
-		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step1_no")
-		status_label.text = ContentStrings.get_text("fruit_confirm_step1")
-	else:
-		_fruit_confirm_step = 2
-		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step2_title")
-		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step2")
-		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step2_yes")
-		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step2_no")
-		status_label.text = ContentStrings.get_text("fruit_confirm_step2")
+	_fruit_confirm_step = 1
+	fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step2_title")
+	fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step2")
+	fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_yes")
+	fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_cancel")
+	status_label.text = ContentStrings.get_text("fruit_confirm_step2")
+	_refresh_dim()
 
 
 func _commit_primordial_fruit() -> void:
@@ -555,22 +638,12 @@ func _refresh_ascension_copy() -> void:
 	if prestige_title == null:
 		return
 	prestige_title.text = ContentStrings.get_text("fruit_panel_title")
-	shop_banner.text = ContentStrings.get_text("fruit_shop_only_banner")
 	prestige_sub.text = ContentStrings.get_text("fruit_panel_subtitle")
-	shop_balances.text = "%s  |  %s" % [
-		ContentStrings.get_text("fruit_shards_hud", {"count": GameState.manashards}),
-		ContentStrings.get_text("fruit_essence_hud", {"count": GameState.essence}),
-	]
-	shop_hint.text = "%s\n%s" % [
-		ContentStrings.get_text("ascension_paused_body"),
-		ContentStrings.get_text("ascend_before_bless_hint"),
-	]
+	if shard_count_label:
+		shard_count_label.text = str(GameState.manashards)
 	ascend_button.visible = GameState.fruit_harvested_pending_ascend
 	ascend_button.disabled = not GameState.can_ascend()
-	if _confirm_ascend and GameState.can_ascend():
-		ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
-	else:
-		ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
+	ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
 	if _highlight_ascend and GameState.can_ascend():
 		_apply_ascend_highlight()
 	else:
@@ -592,6 +665,7 @@ func _rebuild_upgrades() -> void:
 		child.queue_free()
 	if not GameState.fruit_harvested_pending_ascend:
 		return
+	var stripe: bool = false
 	for entry: Variant in GameState.upgrades_data:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -600,31 +674,53 @@ func _rebuild_upgrades() -> void:
 		var rank: int = GameState.get_upgrade_rank(uid)
 		var max_rank: int = int(d.get("max_rank", 1))
 		var cost: int = GameState.get_upgrade_cost(uid)
-		var row := HBoxContainer.new()
-		row.custom_minimum_size = Vector2(0, 56)
-		var info := Label.new()
+		var row := PanelContainer.new()
+		row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
+		var row_sb := StyleBoxFlat.new()
+		if stripe:
+			row_sb.bg_color = Color(0.20, 0.14, 0.09, 1.0)
+		else:
+			row_sb.bg_color = Color(0.15, 0.10, 0.07, 1.0)
+		row_sb.set_border_width_all(0)
+		row_sb.border_color = Color(0.35, 0.26, 0.14, 0.5)
+		row_sb.border_width_bottom = 1
+		row.add_theme_stylebox_override("panel", row_sb)
+		var inner := HBoxContainer.new()
+		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
+		inner.add_theme_constant_override("separation", 8)
+		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		info.text = "%s — %s\n%s  |  %s" % [
-			str(d.get("display_name", uid)),
-			str(d.get("description", "")),
-			ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank}),
-			ContentStrings.get_text("upgrade_cost", {"cost": cost}),
-		]
+		info.alignment = BoxContainer.ALIGNMENT_CENTER
+		var name_lbl := Label.new()
+		name_lbl.text = str(d.get("display_name", uid))
+		name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+		var rank_lbl := Label.new()
+		rank_lbl.text = ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank})
+		rank_lbl.add_theme_font_size_override("font_size", 11)
+		rank_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+		info.add_child(name_lbl)
+		info.add_child(rank_lbl)
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(120, 36)
+		btn.custom_minimum_size = Vector2(108, 32)
+		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		if rank >= max_rank:
 			btn.text = ContentStrings.get_text("upgrade_maxed")
 			btn.disabled = true
+			_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
 		elif GameState.manashards < cost:
-			btn.text = ContentStrings.get_text("upgrade_cant_afford")
+			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
 			btn.disabled = true
+			_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
 		else:
-			btn.text = ContentStrings.get_text("upgrade_buy")
+			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
+			_apply_button_chrome(btn, BUY_CAN, GOLD)
 			btn.pressed.connect(_on_buy.bind(uid))
-		row.add_child(info)
-		row.add_child(btn)
+		inner.add_child(info)
+		inner.add_child(btn)
+		row.add_child(inner)
 		upgrade_list.add_child(row)
+		stripe = not stripe
 
 
 func _on_buy(upgrade_id: String) -> void:

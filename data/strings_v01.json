@@ -67,6 +67,7 @@
   "fruit_confirm": "Harvest the Primordial Fruit? *(legacy — prefer two-step keys)*",
   "fruit_confirm_yes": "Harvest",
   "fruit_confirm_no": "Not yet",
+  "fruit_confirm_cancel": "Cancel",
   "fruit_harvest_toast": "The Primordial Fruit is yours. Essence +{amount}.",
   "fruit_panel_title": "Ascension Blessings",
   "fruit_panel_subtitle": "Spend Manashards on lasting gifts, then Ascend. No return to the clearing until then.",

@@ -1,0 +1,70 @@
+{
+  "version": "v0.1.11-ascension-shop",
+  "canvas_ref": [
+    1280,
+    720
+  ],
+  "flow": [
+    "Fruit confirm modal (Harvest/Cancel only) \u2014 SEPARATE",
+    "On Harvest confirm: close modal, open Ascension shop window",
+    "Shop: buy 0+ blessings, then Ascend or Close"
+  ],
+  "shop_panel": {
+    "min_size": [
+      640,
+      420
+    ],
+    "preferred": [
+      720,
+      500
+    ],
+    "anchor": "screen_center",
+    "chrome": "soft wood/leaf, gold edge, NN icons 32",
+    "regions": {
+      "header_h": 64,
+      "footer_h": 72,
+      "pad": 16,
+      "scrollbar_gutter": 18,
+      "list": "between header and footer; MUST clip + scroll",
+      "row_h": 48
+    },
+    "header": [
+      "title Ascension Blessings",
+      "subtitle",
+      "manashards chip top-right"
+    ],
+    "row": [
+      "name",
+      "rank/max",
+      "Buy cost button (right)",
+      "afford tint"
+    ],
+    "footer": [
+      "Close (secondary left)",
+      "Ascend (primary right)"
+    ],
+    "forbidden_on_shop": [
+      "Harvest button",
+      "Fruit confirm copy",
+      "Buy rows overlapping footer"
+    ]
+  },
+  "fruit_modal": {
+    "contents": [
+      "title",
+      "confirm body",
+      "Harvest",
+      "Cancel"
+    ],
+    "forbidden": [
+      "blessing list",
+      "Ascend",
+      "Buy"
+    ]
+  },
+  "assets": {
+    "layout_mock": "ui/ascension_shop_layout_v01.png",
+    "regions_wire": "ui/ascension_shop_regions_v01.png",
+    "spec_md": "ui/ASCENSION_SHOP_LAYOUT_V01.md"
+  }
+}

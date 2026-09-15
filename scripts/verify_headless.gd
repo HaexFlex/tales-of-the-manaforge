@@ -376,7 +376,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_precommit_no_shop")).find("Blessings") >= 0, "fruit_precommit_no_shop")
 	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step1_yes")) == "Continue", "fruit step1 Continue")
 	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step1_no")).find("watering") >= 0, "fruit step1 Keep watering")
-	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2_yes")) == "Harvest", "fruit step2 Harvest")
+	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_cancel")) == "Cancel", "fruit_confirm_cancel")
 	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2")).find("pause") >= 0, "fruit step2 pause")
 	failed += _assert(str(content_strings.call("get_text", "fruit_shop_only_banner")).find("Ascend") >= 0, "fruit_shop_only_banner")
 	failed += _assert(str(content_strings.call("get_text", "ascension_paused_body")).find("paused") >= 0, "ascension_paused_body")
@@ -478,10 +478,16 @@ func _run() -> void:
 			failed += _assert(hud.get_node_or_null("CarePanel/OfferWoodButton") == null, "OfferWoodButton must be gone")
 			failed += _assert(hud.get_node_or_null("Panel/PauseButton") != null, "PauseButton missing")
 			failed += _assert(hud.get_node_or_null("PrestigePanel") == null, "old PrestigePanel must be gone")
-			failed += _assert(hud.get_node_or_null("AscensionPanel/Layout/ShopScroll") != null, "Ascension ShopScroll missing")
-			failed += _assert(hud.get_node_or_null("AscensionPanel/Layout/Footer/AscendButton") != null, "Ascend footer missing")
+			failed += _assert(hud.get_node_or_null("AscensionPanel/ShopScroll") != null, "Ascension ShopScroll missing")
+			failed += _assert(hud.get_node_or_null("AscensionPanel/Footer/AscendButton") != null, "Ascend footer missing")
+			failed += _assert(hud.get_node_or_null("AscensionPanel/Footer/CloseButton") != null, "Close footer missing")
+			failed += _assert(hud.get_node_or_null("AscensionPanel/Header/ShardChip") != null, "shard chip missing")
+			failed += _assert(hud.get_node_or_null("AscensionPanel/Layout") == null, "old Layout container retired")
 			failed += _assert(hud.get_node_or_null("FruitConfirmPanel") != null, "FruitConfirmPanel missing")
+			failed += _assert(hud.get_node_or_null("FruitConfirmPanel/UpgradeList") == null, "fruit modal must not have shop list")
 			failed += _assert(int(hud.process_mode) == 3, "HUD PROCESS_MODE_ALWAYS")
+			failed += _assert(FileAccess.file_exists("res://assets/art/ui/ASCENSION_SHOP_LAYOUT_V01.md"), "layout spec")
+			failed += _assert(FileAccess.file_exists("res://assets/art/ui/ascension_shop_layout_meta.json"), "layout meta")
 		var pause_menu: Node = inst.get_node_or_null("PauseMenu")
 		failed += _assert(pause_menu != null, "PauseMenu missing")
 		if pause_menu:
@@ -874,7 +880,7 @@ func _run() -> void:
 		failed += _assert(harvest_cta != null and harvest_cta.visible, "pre-commit fruit CTA")
 		var water_cta: Button = test_hud.get_node_or_null("CarePanel/WaterButton") as Button
 		failed += _assert(water_cta != null and water_cta.visible, "pre-commit water still shown")
-		var ascend_pre: Button = test_hud.get_node_or_null("AscensionPanel/Layout/Footer/AscendButton") as Button
+		var ascend_pre: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
 		failed += _assert(ascend_pre != null and not ascend_pre.is_visible_in_tree(), "Ascend hidden pre-commit")
 		var e_pre_ui: int = int(game_state.get("essence"))
 		var w_pre_ui: Dictionary = game_state.call("apply_water_pulse")
@@ -882,32 +888,51 @@ func _run() -> void:
 		failed += _assert(int(game_state.get("essence")) > e_pre_ui, "water essence until commit")
 		test_hud.call("open_fruit_confirm")
 		await process_frame
-		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "confirm step 1")
-		failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "step1 does not commit")
-		failed += _assert(paused == false, "world running during confirm")
+		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "fruit modal open")
+		failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "modal does not commit")
+		failed += _assert(paused == false, "world running during fruit modal")
+		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "shop closed during fruit modal")
+		var harvest_modal: Button = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmYes") as Button
+		var cancel_modal: Button = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmNo") as Button
+		failed += _assert(harvest_modal != null and str(harvest_modal.text).find("Harvest") >= 0, "fruit modal Harvest")
+		failed += _assert(cancel_modal != null and str(cancel_modal.text).find("Cancel") >= 0, "fruit modal Cancel")
+		failed += _assert(test_hud.get_node_or_null("FruitConfirmPanel/UpgradeList") == null, "no Buy list on fruit modal")
 		test_hud.call("confirm_fruit_step")
 		await process_frame
-		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 2, "confirm step 2")
-		failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "step2 prompt not commit")
-		test_hud.call("confirm_fruit_step")
 		await process_frame
-		await process_frame
-		failed += _assert(bool(game_state.get("fruit_harvested_pending_ascend")), "confirm commits fruit")
+		failed += _assert(bool(game_state.get("fruit_harvested_pending_ascend")), "Harvest confirm commits fruit")
 		failed += _assert(paused == true, "commit pauses world")
 		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "shop opens on commit")
 		failed += _assert(bool(test_hud.call("is_shop_list_visible")), "shop list after commit")
-		var scroll: ScrollContainer = test_hud.get_node_or_null("AscensionPanel/Layout/ShopScroll") as ScrollContainer
+		var scroll: ScrollContainer = test_hud.get_node_or_null("AscensionPanel/ShopScroll") as ScrollContainer
 		failed += _assert(scroll != null, "ShopScroll present")
 		if scroll:
 			failed += _assert(
 				scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_SHOW_ALWAYS,
 				"shop scrollbar SHOW_ALWAYS (got %d)" % int(scroll.vertical_scroll_mode)
 			)
+			failed += _assert(scroll.clip_contents, "shop list clips")
 			failed += _assert(scroll.get_node_or_null("UpgradeList") != null, "list inside scroll")
 		failed += _assert(bool(test_hud.call("shop_list_clears_footer")), "buy rows sit above footer")
-		var ascend_post: Button = test_hud.get_node_or_null("AscensionPanel/Layout/Footer/AscendButton") as Button
-		failed += _assert(ascend_post != null and ascend_post.visible and not ascend_post.disabled, "Ascend only post-commit")
-		failed += _assert(test_hud.get_node_or_null("AscensionPanel/Layout/Footer/HarvestButton") == null, "Harvest not on shop footer")
+		var metrics: Dictionary = test_hud.call("get_shop_layout_metrics")
+		var shop_sz_v: Variant = metrics.get("size", Vector2.ZERO)
+		failed += _assert(shop_sz_v is Vector2, "shop size is Vector2")
+		var shop_sz: Vector2 = shop_sz_v as Vector2
+		failed += _assert(abs(shop_sz.x - 720.0) < 1.5 and abs(shop_sz.y - 500.0) < 1.5, "shop 720x500 (got %s)" % shop_sz)
+		failed += _assert(abs(float(metrics.get("header_h", 0)) - 64.0) < 1.5, "header 64")
+		failed += _assert(abs(float(metrics.get("footer_h", 0)) - 72.0) < 1.5, "footer 72")
+		failed += _assert(shop_sz.x + 0.1 >= 640.0 and shop_sz.y + 0.1 >= 420.0, "shop meets min 640x420")
+		var close_post: Button = test_hud.get_node_or_null("AscensionPanel/Footer/CloseButton") as Button
+		var ascend_post: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
+		failed += _assert(close_post != null and ascend_post != null, "footer Close+Ascend")
+		if close_post and ascend_post:
+			failed += _assert(close_post.position.x < ascend_post.position.x, "Close left, Ascend right")
+			failed += _assert(ascend_post.visible and not ascend_post.disabled, "Ascend only post-commit")
+		failed += _assert(not bool(test_hud.call("shop_has_harvest_button")), "Harvest never on shop")
+		var list_node: VBoxContainer = test_hud.get_node_or_null("AscensionPanel/ShopScroll/UpgradeList") as VBoxContainer
+		if list_node and list_node.get_child_count() > 0:
+			var row0: Control = list_node.get_child(0) as Control
+			failed += _assert(row0 != null and abs(row0.custom_minimum_size.y - 48.0) < 0.1, "row height 48")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")
 		failed += _assert(not bool(w_post_ui.get("ok", true)), "water blocked after UI commit")
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub BGM stays on during ascension pause")
