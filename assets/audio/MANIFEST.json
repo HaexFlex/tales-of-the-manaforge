@@ -19,13 +19,14 @@
   ],
   "cues": {
     "mus_hub_forest": {
-      "file": "mus_hub_forest.ogg",
+      "file": "mus_hub_forest.wav",
       "bus": "Music",
       "loop": true,
       "duration_sec": 16.0,
       "loop_start": 0.0,
       "loop_end": 16.0,
-      "bpm": 80
+      "bpm": 80,
+      "also": "mus_hub_forest.ogg"
     },
     "mus_fruit_sting": {
       "file": "mus_fruit_sting.ogg",

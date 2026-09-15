@@ -16,7 +16,7 @@
     "mus_hub_forest": {
       "bus": "Music",
       "loop": true,
-      "path": "res://assets/audio/mus_hub_forest.ogg"
+      "path": "res://assets/audio/mus_hub_forest.wav"
     },
     "mus_fruit_sting": {
       "bus": "Music",
