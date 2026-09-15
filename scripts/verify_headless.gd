@@ -475,11 +475,11 @@ func _run() -> void:
 	game_state.call("apply_save_dict", committed_payload)
 	failed += _assert(bool(game_state.get("fruit_committed")), "apply_save_dict fruit_committed")
 	failed += _assert(bool(game_state.get("fruit_harvested_pending_ascend")), "apply_save_dict alias sync")
-	var legacy_payload: Dictionary = committed_payload.duplicate(true)
-	legacy_payload.erase("fruit_committed")
-	legacy_payload["fruit_harvested_pending_ascend"] = true
+	var alias_only_payload: Dictionary = committed_payload.duplicate(true)
+	alias_only_payload.erase("fruit_committed")
+	alias_only_payload["fruit_harvested_pending_ascend"] = true
 	game_state.call("reset_for_new_game")
-	game_state.call("apply_save_dict", legacy_payload)
+	game_state.call("apply_save_dict", alias_only_payload)
 	failed += _assert(bool(game_state.get("fruit_committed")), "migrate pending_ascend → fruit_committed")
 	failed += _assert(not bool(game_state.get("fruit_ready")), "committed load clears fruit_ready")
 
