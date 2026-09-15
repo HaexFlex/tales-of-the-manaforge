@@ -29,6 +29,9 @@ var fruit_harvested_pending_ascend: bool = false
 ## True after first-boot welcome was dismissed (once per new save).
 var welcome_shown: bool = false
 
+## Accumulated unpaused sim time (freezes while SceneTree.paused).
+var run_time_sec: float = 0.0
+
 var ascensions: int = 0
 var lifetime_waters: int = 0
 var lifetime_shards_from_water: int = 0
@@ -46,10 +49,17 @@ var _offer_cooldown_until: float = 0.0
 
 
 func _ready() -> void:
+	# Autoloads inherit root ALWAYS — force pausable so pause freezes run_time / logic.
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_load_tables()
 	_ensure_upgrade_keys()
 	_ensure_offer_keys()
 	_ensure_harvest_keys()
+
+
+func _process(delta: float) -> void:
+	## Pausable by default — stops when get_tree().paused (pause menu).
+	run_time_sec += delta
 
 
 func _load_tables() -> void:
@@ -565,6 +575,7 @@ func to_save_dict() -> Dictionary:
 		"fruit_ready": fruit_ready,
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
 		"welcome_shown": welcome_shown,
+		"run_time_sec": run_time_sec,
 		"ascensions": ascensions,
 		"lifetime_waters": lifetime_waters,
 		"lifetime_shards_from_water": lifetime_shards_from_water,
@@ -587,6 +598,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	fruit_ready = bool(data.get("fruit_ready", false))
 	fruit_harvested_pending_ascend = bool(data.get("fruit_harvested_pending_ascend", false))
 	welcome_shown = bool(data.get("welcome_shown", false))
+	run_time_sec = float(data.get("run_time_sec", 0.0))
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
 	lifetime_waters = int(data.get("lifetime_waters", 0))
 	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
@@ -643,3 +655,4 @@ func reset_for_new_game() -> void:
 	upgrade_ranks.clear()
 	_ensure_upgrade_keys()
 	_offer_cooldown_until = 0.0
+	run_time_sec = 0.0

@@ -6,8 +6,7 @@ class_name GameHUD
 @onready var resources_label: Label = $Panel/ResourcesLabel
 @onready var stage_label: Label = $Panel/StageLabel
 @onready var status_label: Label = $Panel/StatusLabel
-@onready var save_button: Button = $Panel/SaveButton
-@onready var load_button: Button = $Panel/LoadButton
+@onready var pause_button: Button = $Panel/PauseButton
 @onready var care_panel: ColorRect = $CarePanel
 @onready var care_title: Label = $CarePanel/CareTitle
 @onready var care_needs_label: Label = $CarePanel/CareNeedsLabel
@@ -41,8 +40,7 @@ func _ready() -> void:
 	care_panel.visible = false
 	welcome_panel.visible = false
 	welcome_panel.color = Color(0.07, 0.1, 0.09, 0.97)
-	save_button.text = ContentStrings.get_text("btn_save")
-	load_button.text = ContentStrings.get_text("btn_load")
+	pause_button.text = ContentStrings.get_text("btn_pause")
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -56,8 +54,7 @@ func _ready() -> void:
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")
 	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
 	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
-	save_button.pressed.connect(_on_save)
-	load_button.pressed.connect(_on_load)
+	pause_button.pressed.connect(_on_pause_pressed)
 	harvest_button.pressed.connect(_on_harvest)
 	ascend_button.pressed.connect(_on_ascend)
 	close_button.pressed.connect(hide_prestige_menu)
@@ -148,16 +145,34 @@ func _on_status(text: String) -> void:
 	status_label.text = text
 
 
-func _on_save() -> void:
-	var ok: bool = SaveService.save_game()
-	if ok:
-		GameAudio.play_ui_confirm()
-	status_label.text = ContentStrings.get_text("save_toast") if ok else "Save failed."
+var _pause_menu: PauseMenu = null
 
 
-func _on_load() -> void:
-	var ok: bool = SaveService.load_game()
-	status_label.text = ContentStrings.get_text("load_toast") if ok else "No save found."
+func bind_pause_menu(menu: PauseMenu) -> void:
+	_pause_menu = menu
+	if _pause_menu:
+		_pause_menu.status_toast.connect(_on_status)
+		_pause_menu.new_game_started.connect(_on_new_game_from_pause)
+		_pause_menu.game_loaded.connect(_on_loaded_from_pause)
+
+
+func _on_pause_pressed() -> void:
+	if welcome_panel.visible:
+		return
+	if _pause_menu:
+		_pause_menu.open_pause()
+
+
+func _on_new_game_from_pause() -> void:
+	hide_care_menu()
+	hide_prestige_menu()
+	_refresh_all()
+	show_welcome()
+
+
+func _on_loaded_from_pause() -> void:
+	hide_care_menu()
+	hide_prestige_menu()
 	_refresh_all()
 	maybe_show_welcome()
 
@@ -225,6 +240,8 @@ func _refresh_care_needs() -> void:
 func show_care_menu() -> void:
 	if welcome_panel.visible:
 		return
+	if _pause_menu and _pause_menu.is_open():
+		return
 	hide_prestige_menu()
 	care_panel.visible = true
 	_ensure_fruit_care_button()
@@ -246,6 +263,8 @@ func hide_care_menu() -> void:
 
 func show_prestige_menu() -> void:
 	if welcome_panel.visible:
+		return
+	if _pause_menu and _pause_menu.is_open():
 		return
 	hide_care_menu()
 	prestige_panel.visible = true

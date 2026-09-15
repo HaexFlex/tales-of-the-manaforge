@@ -18,6 +18,8 @@ var _fruit_ready_played_cycle: bool = false
 
 
 func _ready() -> void:
+	# Keep mus_hub_forest (and UI SFX) alive while pause freezes the world.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_buses()
 	_load_manifest()
 	_music_player = _make_player("MusicPlayer", "Music")

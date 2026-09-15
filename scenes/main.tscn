@@ -1,10 +1,11 @@
-[gd_scene load_steps=5 format=3 uid="uid://main001manaforge"]
+[gd_scene load_steps=6 format=3 uid="uid://main001manaforge"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" uid="uid://keeper001manaforge" path="res://scenes/keeper.tscn" id="2_keeper"]
 [ext_resource type="PackedScene" uid="uid://manatree001mana" path="res://scenes/manatree.tscn" id="3_tree"]
 [ext_resource type="PackedScene" uid="uid://gatherable001mf" path="res://scenes/gatherable.tscn" id="4_gath"]
 [ext_resource type="PackedScene" uid="uid://hud001manaforge" path="res://scenes/hud.tscn" id="5_hud"]
+[ext_resource type="PackedScene" uid="uid://pausemenu001mf" path="res://scenes/pause_menu.tscn" id="6_pause"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -50,3 +51,5 @@ display_name = "Berry Bush"
 node_key = "food"
 
 [node name="HUD" parent="." instance=ExtResource("5_hud")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("6_pause")]

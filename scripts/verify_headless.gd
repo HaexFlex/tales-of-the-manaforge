@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.1.3 + welcome (SAVE_VERSION 4).
+## Headless verification per SYSTEMS_V01 v0.1.5 — pause + 7 save slots (SAVE_VERSION 3).
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -26,7 +26,8 @@ func _run() -> void:
 
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 5, "expected 5 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 4, "SAVE_VERSION should be 4")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 3, "SAVE_VERSION should be 3")
+	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(int(game_state.call("param_int", "WATER_GROWTH", 0)) == 1, "WATER_GROWTH default 1 (v0.1.3)")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
 	failed += _assert(int(game_state.call("param_int", "WATER_ESSENCE_PER_SEC", 0)) == 1, "WATER_ESSENCE_PER_SEC")
@@ -44,6 +45,18 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "welcome_hint")).find("Manatree") >= 0, "welcome_hint")
 	failed += _assert(str(content_strings.call("get_text", "tree_next_stage_growth")).find("{current}") >= 0, "tree_next_stage_growth")
 	failed += _assert(str(content_strings.call("get_text", "tree_next_stage_needs_met")).find("gathered") >= 0, "tree_next_stage_needs_met")
+
+	# Pause menu content (v0.1.4 strings)
+	failed += _assert(str(content_strings.call("get_text", "pause_title")) == "Pause", "pause_title")
+	failed += _assert(str(content_strings.call("get_text", "pause_resume")).find("Resume") >= 0, "pause_resume")
+	failed += _assert(str(content_strings.call("get_text", "pause_new_game_confirm")).find("Keeper") >= 0, "pause_new_game_confirm")
+	failed += _assert(str(content_strings.call("get_text", "pause_options_stub")).find("later") >= 0, "pause_options_stub")
+	failed += _assert(str(content_strings.call("get_text", "pause_slot_empty")).find("Empty") >= 0, "pause_slot_empty")
+	failed += _assert(str(content_strings.call("get_text", "pause_save_ok")).find("remembers") >= 0, "pause_save_ok")
+	failed += _assert(save_service.has_method("get_slot_info"), "get_slot_info")
+	failed += _assert(save_service.has_method("migrate_legacy_save_if_needed"), "migrate_legacy_save_if_needed")
+	failed += _assert(save_service.has_method("slot_path"), "slot_path")
+
 
 	# Stage growth_required v0.1.3
 	var young: Dictionary = game_state.call("get_stage_def", &"young")
@@ -162,7 +175,7 @@ func _run() -> void:
 	failed += _assert(int(game_state.get("essence")) > e_a, "ancient water essence")
 	failed += _assert(int(game_state.get("manashards")) > m_a, "ancient water shards")
 
-	# Save roundtrip v4 + welcome_shown
+	# Save roundtrip slot 1 + welcome_shown (SAVE_VERSION 3 payload)
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 42)
 	game_state.call("set_resource", &"stone", 17)
@@ -184,10 +197,10 @@ func _run() -> void:
 	game_state.set("lifetime_fruit_harvested", 1)
 	game_state.set("lifetime_harvested", {"wood": 11, "stone": 7, "food": 5})
 
-	failed += _assert(bool(save_service.call("save_game")), "save_game failed")
+	failed += _assert(bool(save_service.call("save_game", 1)), "save_game slot 1 failed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(bool(game_state.get("welcome_shown")) == false, "reset clears welcome_shown")
-	failed += _assert(bool(save_service.call("load_game")), "load_game failed")
+	failed += _assert(bool(save_service.call("load_game", 1)), "load_game slot 1 failed")
 	failed += _assert(int(game_state.get("wood")) == 42, "wood mismatch")
 	failed += _assert(bool(game_state.get("welcome_shown")) == true, "welcome_shown persisted")
 	failed += _assert(int(game_state.get("lifetime_shards_from_water")) == 200, "shards lifetime")
@@ -195,6 +208,87 @@ func _run() -> void:
 	failed += _assert(int((game_state.get("lifetime_harvested") as Dictionary).get("wood", 0)) == 11, "harvested wood lifetime")
 	# deep_roots rank 2 → +2 growth
 	failed += _assert(int(game_state.call("get_water_growth_amount")) == 3, "deep_roots +1/rank → growth 3")
+	var info1: Dictionary = save_service.call("get_slot_info", 1)
+	failed += _assert(bool(info1.get("filled", false)), "slot 1 filled summary")
+	failed += _assert(str(info1.get("stage_id", "")) == "mature", "slot 1 stage summary")
+
+	# Slot 2 roundtrip (independent of slot 1)
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 77)
+	game_state.call("set_resource", &"essence", 13)
+	game_state.call("_set_stage", &"young")
+	game_state.set("ascensions", 2)
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(save_service.call("save_game", 2)), "save_game slot 2 failed")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 2)), "load_game slot 2 failed")
+	failed += _assert(int(game_state.get("wood")) == 77, "slot 2 wood")
+	failed += _assert(int(game_state.get("essence")) == 13, "slot 2 essence")
+	failed += _assert(str(game_state.get("stage_id")) == "young", "slot 2 stage")
+	failed += _assert(int(game_state.get("ascensions")) == 2, "slot 2 ascensions")
+	# Slot 1 still intact
+	failed += _assert(bool(save_service.call("has_slot", 1)), "slot 1 still present after slot 2 save")
+	failed += _assert(bool(save_service.call("load_game", 1)), "reload slot 1")
+	failed += _assert(int(game_state.get("wood")) == 42, "slot 1 wood after slot 2")
+
+	# Legacy single-file migrate → slot 1
+	save_service.call("delete_save")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 55)
+	game_state.set("welcome_shown", true)
+	var legacy_payload: Dictionary = {
+		"save_version": 3,
+		"timestamp": Time.get_unix_time_from_system(),
+		"state": game_state.call("to_save_dict"),
+	}
+	var legacy_path: String = str(save_service.get("LEGACY_SAVE_PATH"))
+	var leg_file := FileAccess.open(legacy_path, FileAccess.WRITE)
+	failed += _assert(leg_file != null, "write legacy save")
+	if leg_file:
+		leg_file.store_string(JSON.stringify(legacy_payload))
+		leg_file.close()
+	failed += _assert(bool(save_service.call("migrate_legacy_save_if_needed")), "migrate legacy → slot 1")
+	failed += _assert(bool(save_service.call("has_slot", 1)), "migrated slot 1 exists")
+	failed += _assert(not FileAccess.file_exists(legacy_path), "legacy removed after migrate")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 1)), "load migrated slot 1")
+	failed += _assert(int(game_state.get("stone")) == 55, "migrated stone")
+
+	# Pause freezes GameState.run_time_sec via SceneTree.paused (pausable _process)
+	failed += _assert(
+		int(game_state.process_mode) == Node.PROCESS_MODE_INHERIT
+		or int(game_state.process_mode) == Node.PROCESS_MODE_PAUSABLE,
+		"GameState should be pausable (got %d)" % int(game_state.process_mode)
+	)
+	game_state.set("run_time_sec", 0.0)
+	paused = false
+	await process_frame
+	await process_frame
+	var t_unpaused: float = float(game_state.get("run_time_sec"))
+	failed += _assert(t_unpaused > 0.0, "run_time advances while unpaused (got %s)" % t_unpaused)
+	paused = true
+	var t_at_pause: float = float(game_state.get("run_time_sec"))
+	await process_frame
+	await process_frame
+	var t_while_paused: float = float(game_state.get("run_time_sec"))
+	failed += _assert(
+		abs(t_while_paused - t_at_pause) < 0.0001,
+		"run_time frozen while paused (%s → %s)" % [t_at_pause, t_while_paused]
+	)
+	paused = false
+	# PauseMenu open/resume toggles tree.paused
+	var pause_packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	failed += _assert(pause_packed != null, "pause_menu.tscn load")
+	if pause_packed:
+		var pm: Node = pause_packed.instantiate()
+		tree_root.add_child(pm)
+		await process_frame
+		pm.call("open_pause")
+		failed += _assert(paused == true, "open_pause sets tree.paused")
+		pm.call("resume_game")
+		failed += _assert(paused == false, "resume_game clears tree.paused")
+		pm.queue_free()
+		await process_frame
 
 	# Offer wood
 	game_state.call("reset_for_new_game")
@@ -245,6 +339,13 @@ func _run() -> void:
 		if hud:
 			failed += _assert(hud.get_node_or_null("WelcomePanel") != null, "WelcomePanel missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareNeedsLabel") != null, "CareNeedsLabel missing")
+			failed += _assert(hud.get_node_or_null("Panel/PauseButton") != null, "PauseButton missing")
+		var pause_menu: Node = inst.get_node_or_null("PauseMenu")
+		failed += _assert(pause_menu != null, "PauseMenu missing")
+		if pause_menu:
+			failed += _assert(int(pause_menu.process_mode) == 3, "PauseMenu PROCESS_MODE_ALWAYS")
+			failed += _assert(pause_menu.has_method("open_pause"), "open_pause")
+			failed += _assert(pause_menu.has_method("resume_game"), "resume_game")
 		inst.free()
 
 	var cues: PackedStringArray = game_audio.call("list_cue_ids")

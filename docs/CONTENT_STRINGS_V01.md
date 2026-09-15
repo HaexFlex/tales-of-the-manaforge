@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.1.3 — welcome Keeper copy + next-stage needs HUD  
+**Status:** v0.1.4 — pause menu copy (Resume / New Game / Save / Load / Options / Exit)  
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -15,7 +15,8 @@
 | v0.1 | Day-1 string sheet |
 | v0.1.1 | Free Water + Offer mats; Food-cost watering removed |
 | v0.1.2 | Channelled Harvest Tree / Stone / Berry @ 1/sec. Water channel: shards + essence / sec + growth. Essence not Fruit-only. Drop click-cooldown multi-node gather phrasing. |
-| **v0.1.3** | Welcome / first-boot Keeper lines (tend the Manatree). Next-stage needs: growth X/Y + missing mats list. |
+| v0.1.3 | Welcome / first-boot Keeper lines (tend the Manatree). Next-stage needs: growth X/Y + missing mats list. |
+| **v0.1.4** | Pause menu: Resume, New Game (+confirm), Save, Load, Options (later), Exit (+confirm), empty-slot / overwrite. |
 
 ---
 
@@ -205,6 +206,40 @@ Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
 | `btn_menu` | Menu |
 | `btn_close` | Close |
 | `btn_cancel_channel` | Stop |
+
+---
+
+## 7b. Pause menu
+
+Warm + lightly melancholic. Options is a stub until later.
+
+| key | string |
+|-----|--------|
+| `pause_title` | Pause |
+| `pause_resume` | Resume |
+| `pause_new_game` | New Game |
+| `pause_new_game_confirm` | Begin again as Keeper? This clearing’s progress will be lost unless you saved. |
+| `pause_new_game_confirm_yes` | Begin again |
+| `pause_new_game_confirm_no` | Stay |
+| `pause_save` | Save |
+| `pause_load` | Load |
+| `pause_options` | Options |
+| `pause_options_stub` | Coming later |
+| `pause_options_soon` | Options will open later. For now, the forest waits quietly. |
+| `pause_exit` | Exit |
+| `pause_exit_confirm` | Leave the clearing? Unsaved care may fade with the light. |
+| `pause_exit_confirm_yes` | Leave |
+| `pause_exit_confirm_no` | Remain |
+| `pause_slot_empty` | Empty slot — quiet earth |
+| `pause_slot_filled` | Cycle {ascensions} · {stage_display} |
+| `pause_slot_overwrite_confirm` | Overwrite this memory? The older cycle will be gone. |
+| `pause_slot_overwrite_yes` | Overwrite |
+| `pause_slot_overwrite_no` | Keep it |
+| `pause_save_ok` | The clearing remembers. |
+| `pause_save_fail` | Could not save — try again. |
+| `pause_load_ok` | Welcome back, Keeper. |
+| `pause_load_empty` | Nothing grows in that slot yet. |
+| `pause_load_fail` | Could not load — try again. |
 
 ---
 

@@ -7,6 +7,7 @@ extends Node2D
 @onready var ground: TileMap = $Ground
 @onready var click_layer: ColorRect = $ClickLayer
 @onready var world: Node2D = $World
+@onready var pause_menu: PauseMenu = $PauseMenu
 
 const TILE: int = 64
 const COLS: int = 20
@@ -32,6 +33,7 @@ const CLEAR_POINTS: Array[Vector2] = [
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_build_grass()
 	_spawn_forest_props()
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
@@ -40,6 +42,7 @@ func _ready() -> void:
 	manatree.fruit_menu_requested.connect(_on_fruit_menu)
 	manatree.care_menu_requested.connect(_on_care_menu)
 	hud.bind_manatree(manatree)
+	hud.bind_pause_menu(pause_menu)
 	GameAudio.play_hub_music()
 	if SaveService.has_save():
 		SaveService.load_game()
@@ -136,6 +139,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
 	if hud.care_panel.visible or hud.prestige_panel.visible or hud.welcome_panel.visible:
+		return
+	if pause_menu.is_open():
 		return
 	# Belt-and-suspenders: skip ground move if an interactable Area2D is under the cursor.
 	if _interactable_under_point(get_global_mouse_position()):

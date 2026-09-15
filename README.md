@@ -2,14 +2,15 @@
 
 Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper**, tending a living **Manatree** in the last fragment of a fairy-forest.
 
-**Canon:** `VISION_RESTART` + day-1 briefs (`SYSTEMS_V01` **v0.1.2**, `CONTENT_STRINGS_V01` **v0.1.2**, `VISUAL_BIBLE_RESTART_V01`). Art harvest nodes **v0.1.4**. Audio channels **v0.1.2**. Old forge/combat drafts are non-canon.
+**Canon:** `VISION_RESTART` + briefs (`SYSTEMS_V01` **v0.1.5**, `CONTENT_STRINGS_V01` **v0.1.4**, `VISUAL_BIBLE_RESTART_V01`). Pause menu + **7 save slots**. Art harvest nodes **v0.1.4**. Audio channels **v0.1.2**. Old forge/combat drafts are non-canon.
 
 ## Stack
 
 - **Godot 4.3** · GDScript only · **fully typed**
 - Playable forest hub: **64² grass TileMap**, many Y-sorted **decorative** trees, **exactly 3** harvest channels, Manatree landmark; view **1280×720** nearest-neighbor
 - Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `SaveService`
-- Save `user://manaforge_save.json` (`save_version: **3**`)
+- Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options stub, Exit
+- Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **3**`; legacy single-file migrates → slot 1)
 
 ## Prototype loop (Haex channels)
 

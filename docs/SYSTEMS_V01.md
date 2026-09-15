@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Systems Brief v0.1 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.1.3 — Haex: slow growth curve (ticks still 1/sec)  
+**Status:** v0.1.5 — Haex: SAVE_SLOT_COUNT = 7  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
@@ -18,7 +18,9 @@
 | v0.1 | Day-1: 5 stages, Food-spend water, Fruit upgrades, save schema |
 | v0.1.1 | Free water click; Offer all mats; Essence Fruit-only; SAVE_VERSION 2 |
 | v0.1.2 | Haex playtest: 3 harvest channels @1/sec; water pays shards+essence+growth; Essence not Fruit-only; SAVE_VERSION 3 |
-| **v0.1.3** | **Haex: growth too fast.** Ticks stay 1/sec. `WATER_GROWTH` **8→1**. Stage `growth_required` **40/70/100/140 → 120/200/320/480** (~19 min water-only to Ancient). Offer growth nerfed **12/12/10/25 → 3/3/2/6** so offers help but don’t skip the curve. `deep_roots` still +1 WATER_GROWTH/rank (post-prestige faster). No SAVE_VERSION bump (params only). |
+| v0.1.3 | Haex growth nerf: WATER_GROWTH 1; thresholds 120/200/320/480; offers 3/3/2/6; deep_roots +1/rank |
+| v0.1.4 | Pause menu: SAVE_SLOT_COUNT defaulted to 3 |
+| **v0.1.5** | **Haex override:** `SAVE_SLOT_COUNT = **7**` (one per Manatree stage + spare). Pause save/load unchanged otherwise; `SAVE_VERSION` payload still 3. |
 
 ---
 
@@ -176,7 +178,20 @@ Ascend: reset stage/growth + soft mats (`wood/stone/food/manashards`); **keep** 
 
 ---
 
-## 6. Save fields (`SAVE_VERSION = 3`)
+## 6. Pause + save slots (v0.1.5)
+
+| Param | Default | Notes |
+|-------|---------|-------|
+| `SAVE_SLOT_COUNT` | **`7`** | Haex lock — stage checkpoints + spare |
+| `PAUSE_OPENS_SLOTS` | `true` | Pause → Resume / Save / Load / (Quit optional) |
+| `SAVE_VERSION` | `3` | Per-slot payload schema (unchanged from v0.1.2 channel fields) |
+
+**Behavior**
+- Exactly `SAVE_SLOT_COUNT` slots (1..7). Empty slots show empty; occupied show stage name + playtime if Code tracks it.
+- Save writes full game state into chosen slot; Load replaces current run from slot (confirm if dirty — Code UX).
+- Ascend / water / harvest rules unchanged; slots are orthogonal to prestige.
+
+## 7. Save fields (`SAVE_VERSION = 3`)
 
 ```
 save_version: int                  # 3
@@ -207,7 +222,7 @@ Migrate v2→v3: init new lifetime fields to 0; remove assumptions of click-gath
 
 ---
 
-## 7. Loop summary (Code)
+## 8. Loop summary (Code)
 
 ```
 click ground → move (cancels channel if out of range)
@@ -221,24 +236,25 @@ decorative trees: no interact
 
 ---
 
-## 8. Handoffs
+## 9. Handoffs
 
 | Who | Action |
 |-----|--------|
-| @Code / Engine | Replace click-gather with 3 channels; water channel payout; one-of-each nodes + deco trees; save v3 |
+| @Code / Engine | Channels + water payout + deco layout; save v3 payload; **pause + 7 save slots** |
 | @Content & Lore | Channel / “Harvesting…” / water pulse copy; drop multi-node gather phrasing |
 | @Art Direction | Distinct Harvest Tree vs deco trees; single stone + berry props if missing |
 | @Audio | Pulse SFX each harvest/water tick (reuse gather / `sfx_tree_water`) |
 
 ---
 
-## 9. Open / locked
+## 10. Open / locked
 
 | Item | Status |
 |------|--------|
 | 3 harvest nodes @ 1/sec channel | **LOCKED Haex** |
 | Water: shards 1–3 + 1 essence / sec | **LOCKED Haex** |
 | Slow growth curve (WATER_GROWTH=1, raised thresholds) | **LOCKED Haex intent v0.1.3** |
+| Pause + `SAVE_SLOT_COUNT = 7` | **LOCKED Haex v0.1.5** |
 | Essence Fruit-only | **REVOKED** |
 | Deco trees, one of each harvest | **LOCKED Haex** |
 | Offers + 5 stages + Fruit Ascend | Kept |
