@@ -1,6 +1,6 @@
 {
   "owner": "Audio",
-  "version": "v0.1.2-channels",
+  "version": "v0.1.3-haex-hub",
   "source_brief": "AUDIO_RESTART_V01.md",
   "sample_rate": 44100,
   "format": "ogg",
@@ -19,14 +19,16 @@
   ],
   "cues": {
     "mus_hub_forest": {
-      "file": "mus_hub_forest.wav",
+      "file": "mus_hub_forest_haex_loop.wav",
       "bus": "Music",
       "loop": true,
-      "duration_sec": 16.0,
-      "loop_start": 0.0,
-      "loop_end": 16.0,
-      "bpm": 80,
-      "also": "mus_hub_forest.ogg"
+      "fallback": "mus_hub_forest_haex_loop.ogg",
+      "source_mp3": "mus_hub_forest_haex.mp3",
+      "legacy_procedural": [
+        "mus_hub_forest.wav",
+        "mus_hub_forest.ogg"
+      ],
+      "notes": "Haex hub bed. Prefer *_loop.wav (2s end\u2192start crossfade). Raw MP3 fades to silence \u2014 do not hard-loop. cue_id mus_hub_forest. Procedural wav/ogg = legacy only."
     },
     "mus_fruit_sting": {
       "file": "mus_fruit_sting.ogg",
