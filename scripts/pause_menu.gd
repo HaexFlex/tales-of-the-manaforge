@@ -1,6 +1,7 @@
 extends CanvasLayer
 class_name PauseMenu
 ## Mid-game pause: ESC / HUD Pause. PROCESS_MODE_ALWAYS so ESC works while paused.
+## Options → Audio: Music / SFX volume sliders (persist via GameAudio settings).
 
 signal status_toast(text: String)
 signal new_game_started
@@ -26,7 +27,13 @@ enum SlotMode { NONE, SAVE, LOAD }
 @onready var confirm_yes: Button = $ConfirmPanel/ConfirmYes
 @onready var confirm_no: Button = $ConfirmPanel/ConfirmNo
 @onready var options_panel: ColorRect = $OptionsPanel
-@onready var options_label: Label = $OptionsPanel/OptionsLabel
+@onready var options_title: Label = $OptionsPanel/OptionsTitle
+@onready var options_hint: Label = $OptionsPanel/OptionsHint
+@onready var music_label: Label = $OptionsPanel/MusicLabel
+@onready var music_slider: HSlider = $OptionsPanel/MusicSlider
+@onready var sfx_label: Label = $OptionsPanel/SfxLabel
+@onready var sfx_slider: HSlider = $OptionsPanel/SfxSlider
+@onready var options_reset: Button = $OptionsPanel/OptionsReset
 @onready var options_close: Button = $OptionsPanel/OptionsClose
 
 var _open: bool = false
@@ -34,6 +41,7 @@ var _slot_mode: int = SlotMode.NONE
 var _confirm_action: StringName = &""
 var _pending_slot: int = 0
 var _slot_btns: Array[Button] = []
+var _audio_sliders_ready: bool = false
 
 
 func _ready() -> void:
@@ -60,6 +68,13 @@ func _ready() -> void:
 	confirm_yes.pressed.connect(_on_confirm_yes)
 	confirm_no.pressed.connect(_on_confirm_no)
 	options_close.pressed.connect(_on_options_close)
+	options_reset.pressed.connect(_on_options_reset)
+	music_slider.value_changed.connect(_on_music_slider_changed)
+	sfx_slider.value_changed.connect(_on_sfx_slider_changed)
+	music_slider.drag_ended.connect(_on_volume_drag_ended)
+	sfx_slider.drag_ended.connect(_on_volume_drag_ended)
+	_audio_sliders_ready = true
+	_sync_audio_sliders_from_game()
 	_build_slot_buttons()
 
 
@@ -72,8 +87,12 @@ func _apply_strings() -> void:
 	btn_options.text = ContentStrings.get_text("pause_options")
 	btn_exit.text = ContentStrings.get_text("pause_exit")
 	slots_back.text = ContentStrings.get_text("btn_close")
-	options_label.text = ContentStrings.get_text("pause_options_soon")
-	options_close.text = ContentStrings.get_text("btn_close")
+	options_title.text = ContentStrings.get_text("options_audio_title")
+	options_hint.text = ContentStrings.get_text("options_audio_hint")
+	music_label.text = ContentStrings.get_text("options_music_volume")
+	sfx_label.text = ContentStrings.get_text("options_sfx_volume")
+	options_reset.text = ContentStrings.get_text("options_audio_reset")
+	options_close.text = ContentStrings.get_text("options_audio_back")
 
 
 func _build_slot_buttons() -> void:
@@ -138,6 +157,9 @@ func resume_game() -> void:
 	backdrop.visible = false
 	visible = false
 	get_tree().paused = false
+	# Hub bed must still be playing after pause resume (volume-only options).
+	if not GameAudio.is_hub_music_playing():
+		GameAudio.play_hub_music()
 	GameAudio.play_ui_close()
 
 
@@ -161,9 +183,36 @@ func _on_load_pressed() -> void:
 
 
 func _on_options_pressed() -> void:
-	options_label.text = ContentStrings.get_text("pause_options_soon")
+	_apply_strings()
+	_sync_audio_sliders_from_game()
 	options_panel.visible = true
 	GameAudio.play_ui_open()
+
+
+func _sync_audio_sliders_from_game() -> void:
+	if not _audio_sliders_ready:
+		return
+	music_slider.set_value_no_signal(GameAudio.music_volume_linear)
+	sfx_slider.set_value_no_signal(GameAudio.sfx_volume_linear)
+
+
+func _on_music_slider_changed(value: float) -> void:
+	GameAudio.set_music_volume_linear(value)
+
+
+func _on_sfx_slider_changed(value: float) -> void:
+	GameAudio.set_sfx_volume_linear(value)
+
+
+func _on_volume_drag_ended(value_changed: bool) -> void:
+	if value_changed:
+		GameAudio.save_settings()
+
+
+func _on_options_reset() -> void:
+	GameAudio.reset_volumes_to_defaults()
+	_sync_audio_sliders_from_game()
+	GameAudio.play_ui_confirm()
 
 
 func _on_exit_pressed() -> void:
@@ -277,6 +326,7 @@ func _hide_confirm() -> void:
 
 
 func _on_options_close() -> void:
+	GameAudio.save_settings()
 	GameAudio.play_ui_cancel()
 	_hide_options()
 

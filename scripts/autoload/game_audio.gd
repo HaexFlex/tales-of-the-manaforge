@@ -1,20 +1,32 @@
 extends Node
-## Audio cue router per AUDIO_RESTART_V01.
+## Audio cue router per AUDIO_RESTART_V01 + Haex hub mix lock.
 ## Buses: Music / SFX_UI / SFX_World / SFX_Progress. Music ducks under Progress.
+## Hub bed (_music_player) never yields to stings — stings use a second Music player.
 ## Missing assets → silent TODO hooks (scaffold never blocks on files).
 
 signal cue_played(cue_id: StringName)
 signal cue_missing(cue_id: StringName)
+signal volumes_changed(music_linear: float, sfx_linear: float)
 
 const MANIFEST_PATH: String = "res://data/audio_cues.json"
+const SETTINGS_PATH: String = "user://manaforge_settings.cfg"
+const SETTINGS_SECTION: String = "audio"
+## Haex bed is hot — Music sits under SFX (CUE_NOTES_HAEX_HUB).
+const MUSIC_BUS_DEFAULT_DB: float = -9.0
+const SFX_BUS_DEFAULT_DB: float = 0.0
+const SFX_BUS_NAMES: PackedStringArray = ["SFX_UI", "SFX_World", "SFX_Progress"]
 
 var _cues: Dictionary = {}
 var _players: Dictionary = {}
 var _music_player: AudioStreamPlayer
+var _sting_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 var _progress_player: AudioStreamPlayer
 var _hub_playing: bool = false
 var _fruit_ready_played_cycle: bool = false
+## User linear volumes 0.0–1.0 (1.0 = mix-lock defaults).
+var music_volume_linear: float = 1.0
+var sfx_volume_linear: float = 1.0
 
 
 func _ready() -> void:
@@ -23,13 +35,14 @@ func _ready() -> void:
 	_ensure_buses()
 	_load_manifest()
 	_music_player = _make_player("MusicPlayer", "Music")
+	_sting_player = _make_player("StingPlayer", "Music")
 	_sfx_player = _make_player("SfxPlayer", "SFX_World")
 	_progress_player = _make_player("ProgressPlayer", "SFX_Progress")
+	_sting_player.finished.connect(_on_sting_finished)
+	load_settings()
+	apply_volumes()
 	# Hub bed stays on through gather/walk/tend (no combat crossfade).
 	call_deferred("play_hub_music")
-	if Engine.has_singleton("GameState") or true:
-		# Connect after GameState exists (autoload order: ContentStrings, GameAudio, GameState...).
-		pass
 	call_deferred("_connect_game_signals")
 
 
@@ -37,6 +50,7 @@ func _make_player(node_name: String, bus_name: String) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.name = node_name
 	p.bus = bus_name
+	p.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(p)
 	return p
 
@@ -51,9 +65,7 @@ func _ensure_buses() -> void:
 	var progress_idx: int = AudioServer.get_bus_index("SFX_Progress")
 	if music_idx < 0 or progress_idx < 0:
 		return
-	# Light music duck when Progress SFX fire (~4–6 dB).
-	# Clear existing sends then add compressor-sidechain style via send.
-	# Godot: use AudioEffectCompressor with sidechain on Music listening to Progress.
+	# Light music duck when Progress SFX fire (~5 dB). Not for World 1Hz pulses.
 	var has_comp: bool = false
 	for i: int in range(AudioServer.get_bus_effect_count(music_idx)):
 		if AudioServer.get_bus_effect(music_idx, i) is AudioEffectCompressor:
@@ -105,6 +117,16 @@ func play_hub_music() -> void:
 	_hub_playing = true
 
 
+func is_hub_music_playing() -> bool:
+	return _music_player != null and _music_player.playing and _hub_playing
+
+
+func get_hub_stream() -> AudioStream:
+	if _music_player == null:
+		return null
+	return _music_player.stream
+
+
 func play(cue_id: StringName) -> void:
 	var key: String = String(cue_id)
 	if not _cues.has(key):
@@ -124,30 +146,66 @@ func play(cue_id: StringName) -> void:
 	if stream == null:
 		cue_missing.emit(cue_id)
 		return
-	var player: AudioStreamPlayer = _sfx_player
+	var looping: bool = bool(meta.get("loop", false))
+	# Music bed vs Music stings: never steal hub player with a one-shot.
 	if bus == "Music":
-		player = _music_player
-	elif bus == "SFX_Progress":
+		if looping or key == "mus_hub_forest":
+			_play_hub_stream(stream, bus)
+			cue_played.emit(cue_id)
+			return
+		_play_sting_stream(stream, bus)
+		cue_played.emit(cue_id)
+		return
+	var player: AudioStreamPlayer = _sfx_player
+	if bus == "SFX_Progress":
 		player = _progress_player
 	elif bus == "SFX_UI":
 		player = _sfx_player
 		player.bus = "SFX_UI"
 	else:
 		player.bus = bus
-	if bus == "Music" and bool(meta.get("loop", false)):
-		# Keep hub bed through gather/walk; stings may briefly steal Music bus.
-		if player.playing and player.stream == stream:
-			cue_played.emit(cue_id)
-			return
-		if stream is AudioStreamOggVorbis:
-			(stream as AudioStreamOggVorbis).loop = true
-		elif stream is AudioStreamWAV:
-			(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
 	player.stream = stream
 	player.bus = bus
 	player.play()
 	cue_played.emit(cue_id)
 
+
+func _play_hub_stream(stream: AudioStream, bus: String) -> void:
+	var player: AudioStreamPlayer = _music_player
+	# Keep hub bed through gather/walk; do not restart if same stream already playing.
+	if player.playing and player.stream == stream:
+		_hub_playing = true
+		return
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
+	elif stream is AudioStreamWAV:
+		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+	player.stream = stream
+	player.bus = bus
+	player.play()
+	_hub_playing = true
+
+
+func _play_sting_stream(stream: AudioStream, bus: String) -> void:
+	## One-shot Music sting on second player — hub bed keeps looping underneath.
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = false
+	elif stream is AudioStreamWAV:
+		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_DISABLED
+	_sting_player.stream = stream
+	_sting_player.bus = bus
+	_sting_player.play()
+	# Ensure hub bed is still under the sting (volume only — never stop for SFX).
+	if not _music_player.playing:
+		play_hub_music()
+
+
+func _on_sting_finished() -> void:
+	## Restore hub bed if somehow silenced; otherwise leave looping bed alone.
+	if not _music_player.playing:
+		play_hub_music()
+	else:
+		_hub_playing = true
 
 
 func play_quiet(cue_id: StringName, volume_db: float = -8.0) -> void:
@@ -230,8 +288,7 @@ func play_fruit_harvest() -> void:
 func play_ascend() -> void:
 	play(&"mus_ascend_sting")
 	play(&"sfx_ascend")
-	# Return to hub bed after Ascend sting (Music bus briefly stolen by sting).
-	call_deferred("play_hub_music")
+	# Hub bed stays on (_sting_player); finished signal also restores if needed.
 
 
 func play_upgrade_buy() -> void:
@@ -277,3 +334,76 @@ func list_cue_ids() -> PackedStringArray:
 	for k: Variant in _cues.keys():
 		out.append(str(k))
 	return out
+
+
+func set_music_volume_linear(value: float) -> void:
+	music_volume_linear = clampf(value, 0.0, 1.0)
+	apply_volumes()
+	volumes_changed.emit(music_volume_linear, sfx_volume_linear)
+
+
+func set_sfx_volume_linear(value: float) -> void:
+	sfx_volume_linear = clampf(value, 0.0, 1.0)
+	apply_volumes()
+	volumes_changed.emit(music_volume_linear, sfx_volume_linear)
+
+
+func reset_volumes_to_defaults() -> void:
+	music_volume_linear = 1.0
+	sfx_volume_linear = 1.0
+	apply_volumes()
+	save_settings()
+	volumes_changed.emit(music_volume_linear, sfx_volume_linear)
+
+
+func apply_volumes() -> void:
+	## Volume only — never stop/restart mus_hub_forest.
+	_apply_bus_volume("Music", music_volume_linear, MUSIC_BUS_DEFAULT_DB)
+	for bus_name: String in SFX_BUS_NAMES:
+		_apply_bus_volume(bus_name, sfx_volume_linear, SFX_BUS_DEFAULT_DB)
+
+
+func _apply_bus_volume(bus_name: String, linear: float, base_db: float) -> void:
+	var idx: int = AudioServer.get_bus_index(bus_name)
+	if idx < 0:
+		return
+	if linear <= 0.001:
+		AudioServer.set_bus_mute(idx, true)
+		AudioServer.set_bus_volume_db(idx, base_db)
+		return
+	AudioServer.set_bus_mute(idx, false)
+	AudioServer.set_bus_volume_db(idx, base_db + linear_to_db(linear))
+
+
+func load_settings() -> void:
+	var cfg := ConfigFile.new()
+	var err: Error = cfg.load(SETTINGS_PATH)
+	if err != OK:
+		music_volume_linear = 1.0
+		sfx_volume_linear = 1.0
+		return
+	music_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "music_volume", 1.0)), 0.0, 1.0)
+	sfx_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "sfx_volume", 1.0)), 0.0, 1.0)
+
+
+func save_settings() -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)  # keep other sections if any
+	cfg.set_value(SETTINGS_SECTION, "music_volume", music_volume_linear)
+	cfg.set_value(SETTINGS_SECTION, "sfx_volume", sfx_volume_linear)
+	cfg.save(SETTINGS_PATH)
+
+
+func get_music_bus_volume_db() -> float:
+	var idx: int = AudioServer.get_bus_index("Music")
+	if idx < 0:
+		return MUSIC_BUS_DEFAULT_DB
+	return AudioServer.get_bus_volume_db(idx)
+
+
+func get_cue_path(cue_id: StringName) -> String:
+	var key: String = String(cue_id)
+	if not _cues.has(key):
+		return ""
+	var meta: Dictionary = _cues[key]
+	return str(meta.get("path", ""))

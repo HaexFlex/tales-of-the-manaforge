@@ -98,8 +98,8 @@
   "pause_save": "Save",
   "pause_load": "Load",
   "pause_options": "Options",
-  "pause_options_stub": "Coming later",
-  "pause_options_soon": "Options will open later. For now, the forest waits quietly.",
+  "pause_options_stub": "(retired — Options opens Audio)",
+  "pause_options_soon": "(retired)",
   "pause_exit": "Exit",
   "pause_exit_confirm": "Leave the clearing? Unsaved care may fade with the light.",
   "pause_exit_confirm_yes": "Leave",
@@ -149,5 +149,16 @@
   "upgrade_selected": "Chosen",
   "fruit_shards_hud": "Manashards: {count}",
   "upgrade_bless": "Bless",
-  "upgrade_buy_ok": "{blessing_name} grows stronger."
+  "upgrade_buy_ok": "{blessing_name} grows stronger.",
+  "options_title": "Options",
+  "options_audio": "Audio",
+  "options_back": "Back",
+  "options_audio_title": "Audio",
+  "options_music_volume": "Music",
+  "options_sfx_volume": "Sounds",
+  "options_audio_back": "Back",
+  "options_audio_hint": "Soften the forest, or let it sing.",
+  "options_audio_reset": "Reset",
+  "options_music_volume_full": "Music volume",
+  "options_sfx_volume_full": "SFX volume"
 }

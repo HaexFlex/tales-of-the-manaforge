@@ -101,7 +101,7 @@ color = Color(0.09, 0.12, 0.11, 0.97)
 [node name="SlotsTitle" type="Label" parent="SlotsPanel"]
 offset_left = 16.0
 offset_top = 12.0
-offset_right = 424.0
+offset_right = 464.0
 offset_bottom = 44.0
 theme_override_font_sizes/font_size = 18
 text = "Save"
@@ -167,27 +167,79 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -100.0
-offset_right = 240.0
-offset_bottom = 100.0
+offset_left = -260.0
+offset_top = -200.0
+offset_right = 260.0
+offset_bottom = 200.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.09, 0.12, 0.11, 0.97)
 
-[node name="OptionsLabel" type="Label" parent="OptionsPanel"]
+[node name="OptionsTitle" type="Label" parent="OptionsPanel"]
 offset_left = 24.0
-offset_top = 24.0
-offset_right = 456.0
-offset_bottom = 120.0
-theme_override_font_sizes/font_size = 14
-text = "Coming later"
+offset_top = 16.0
+offset_right = 496.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 20
+text = "Audio"
+horizontal_alignment = 1
+
+[node name="OptionsHint" type="Label" parent="OptionsPanel"]
+offset_left = 24.0
+offset_top = 52.0
+offset_right = 496.0
+offset_bottom = 84.0
+theme_override_font_sizes/font_size = 12
+text = "Soften the forest, or let it sing."
 horizontal_alignment = 1
 autowrap_mode = 3
 
+[node name="MusicLabel" type="Label" parent="OptionsPanel"]
+offset_left = 40.0
+offset_top = 100.0
+offset_right = 480.0
+offset_bottom = 128.0
+theme_override_font_sizes/font_size = 14
+text = "Music"
+
+[node name="MusicSlider" type="HSlider" parent="OptionsPanel"]
+offset_left = 40.0
+offset_top = 132.0
+offset_right = 480.0
+offset_bottom = 160.0
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="SfxLabel" type="Label" parent="OptionsPanel"]
+offset_left = 40.0
+offset_top = 180.0
+offset_right = 480.0
+offset_bottom = 208.0
+theme_override_font_sizes/font_size = 14
+text = "Sounds"
+
+[node name="SfxSlider" type="HSlider" parent="OptionsPanel"]
+offset_left = 40.0
+offset_top = 212.0
+offset_right = 480.0
+offset_bottom = 240.0
+min_value = 0.0
+max_value = 1.0
+step = 0.01
+value = 1.0
+
+[node name="OptionsReset" type="Button" parent="OptionsPanel"]
+offset_left = 40.0
+offset_top = 280.0
+offset_right = 200.0
+offset_bottom = 320.0
+text = "Reset"
+
 [node name="OptionsClose" type="Button" parent="OptionsPanel"]
-offset_left = 170.0
-offset_top = 130.0
-offset_right = 310.0
-offset_bottom = 170.0
-text = "Close"
+offset_left = 320.0
+offset_top = 280.0
+offset_right = 480.0
+offset_bottom = 320.0
+text = "Back"
