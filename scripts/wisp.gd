@@ -314,8 +314,7 @@ func _refresh_label() -> void:
 	if GameState.selected_wisp_id == wisp_id:
 		label.text = ContentStrings.get_text("wisp_selected")
 	elif assigned != "":
-		var rid: StringName = GameState.resource_for_node_id(assigned)
-		var item: String = ContentStrings.get_text("hud_%s" % String(rid))
-		label.text = ContentStrings.get_text("wisp_gathering_hud", {"item": item})
+		var target: String = GameState.assignment_target_display(assigned)
+		label.text = ContentStrings.get_text("wisp_assigned_hud", {"target": target})
 	else:
 		label.text = ContentStrings.get_text("wisp_idle_hud")

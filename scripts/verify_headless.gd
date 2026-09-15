@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.3.3 — RTS LMB/RMB, assigned wisp orbit, SAVE_VERSION 5.
+## Headless verification per SYSTEMS_V01 v0.3.2 + Content v0.3.3 — RTS LMB/RMB, assigned wisp orbit, SAVE_VERSION 5.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -44,7 +44,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "welcome_boot")).find("Tend the Manatree") >= 0, "welcome_boot")
 	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Keeper") >= 0, "welcome_body")
 	failed += _assert(str(content_strings.call("get_text", "welcome_dismiss")).find("tend") >= 0, "welcome_dismiss")
-	failed += _assert(str(content_strings.call("get_text", "welcome_hint")).find("Keeper") >= 0, "welcome_hint")
+	failed += _assert(str(content_strings.call("get_text", "welcome_hint")).find("LMB") >= 0, "welcome_hint LMB")
 	failed += _assert(str(content_strings.call("get_text", "tree_next_stage_needs_met")).find("Pay") >= 0, "tree_next_stage_needs_met")
 	failed += _assert(str(content_strings.call("get_text", "tree_pay_ok")).find("{next_stage}") >= 0, "tree_pay_ok")
 	# Offers retired from Content UI
@@ -548,11 +548,19 @@ func _run() -> void:
 	game_audio.call("reset_volumes_to_defaults")
 
 
-	# --- SYSTEMS v0.3.3: RTS LMB/RMB + assigned wisp orbit + Manatree shards ---
-	failed += _assert(str(content_strings.call("get_text", "keeper_select_hint")).find("Select the Keeper") >= 0, "keeper_select_hint")
+	# --- SYSTEMS v0.3.2 / Content v0.3.3: RTS LMB/RMB + assigned wisp orbit + Manatree shards ---
+	failed += _assert(str(content_strings.call("get_text", "controls_lmb_select")) == "Left-click: select", "controls_lmb_select")
+	failed += _assert(str(content_strings.call("get_text", "controls_rmb_command")) == "Right-click: command", "controls_rmb_command")
+	failed += _assert(str(content_strings.call("get_text", "controls_lmb_deselect")).find("deselect") >= 0, "controls_lmb_deselect")
+	failed += _assert(str(content_strings.call("get_text", "controls_hint")).find("LMB") >= 0, "controls_hint")
+	failed += _assert(str(content_strings.call("get_text", "keeper_select_hint")).find("Left-click") >= 0, "keeper_select_hint")
 	failed += _assert(str(content_strings.call("get_text", "keeper_required")).find("Select the Keeper") >= 0, "keeper_required")
-	failed += _assert(str(content_strings.call("get_text", "keeper_required_harvest")).find("Select the Keeper") >= 0, "keeper_required_harvest")
-	failed += _assert(str(content_strings.call("get_text", "wisp_orbit_hint")).find("orbit") >= 0, "wisp_orbit_hint")
+	failed += _assert(str(content_strings.call("get_text", "keeper_required_harvest")).find("right-click") >= 0, "keeper_required_harvest RMB")
+	failed += _assert(str(content_strings.call("get_text", "keeper_deselect_toast")) == "Cleared.", "keeper_deselect_toast")
+	failed += _assert(str(content_strings.call("get_text", "wisp_assign_to_manatree")) == "Gather Manashards", "wisp_assign_to_manatree")
+	failed += _assert(str(content_strings.call("get_text", "wisp_orbit_hint")).find("Assigned Wisps orbit") >= 0, "wisp_orbit_hint assigned orbit")
+	failed += _assert(str(content_strings.call("get_text", "wisp_assigned_hud")).find("Orbiting") >= 0, "wisp_assigned_hud")
+	failed += _assert(str(content_strings.call("get_text", "wisp_assign_manatree_ok")).find("Manashards") >= 0, "wisp_assign_manatree_ok")
 	failed += _assert(str(content_strings.call("get_text", "wisp_idle_hud")) == "Nearby", "wisp_idle_hud Nearby")
 	failed += _assert(str(content_strings.call("get_text", "wisp_assign_ok")).find("Wisp") >= 0, "wisp_assign_ok")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_wisp_haste_name")).find("Swift") >= 0, "Swift Wisps name")
@@ -756,13 +764,36 @@ func _run() -> void:
 			live.call("handle_lmb_ground")
 			failed += _assert(bool(game_state.get("keeper_selected")) == false, "LMB empty ground deselects keeper")
 			game_state.call("select_wisp", 0)
+			await process_frame
+			var hud: Node = live.get_node_or_null("HUD")
+			failed += _assert(hud != null, "HUD present")
+			if hud:
+				var ch: Node = hud.get_node_or_null("Panel/ControlsHint")
+				failed += _assert(ch != null, "HUD ControlsHint")
+				if ch:
+					var controls_text: String = str(ch.get("text"))
+					failed += _assert(controls_text.find("Left-click: select") >= 0, "HUD wires controls_lmb_select")
+					failed += _assert(controls_text.find("Right-click: command") >= 0, "HUD wires controls_rmb_command")
+					failed += _assert(controls_text.find("deselect") >= 0, "HUD wires controls_lmb_deselect")
+				var sh: Node = hud.get_node_or_null("Panel/SelectionHint")
+				failed += _assert(sh != null, "HUD SelectionHint")
+				if sh:
+					failed += _assert(str(sh.get("text")).find("Assigned Wisps orbit") >= 0, "HUD wires wisp_orbit_hint")
 			var harvest_tree: Node = live.get_node_or_null("World/HarvestTree")
 			failed += _assert(harvest_tree != null and harvest_tree.has_method("apply_player_command"), "HarvestTree command")
+			if harvest_tree:
+				var ht_label: Node = harvest_tree.get_node_or_null("Label")
+				if ht_label:
+					failed += _assert(str(ht_label.get("text")).find("Gather Wood") >= 0, "harvest prompt wisp_assign_to_tree")
+			var mana: Node = live.get_node_or_null("World/Manatree")
+			if mana:
+				var mt_label: Node = mana.get_node_or_null("Label")
+				if mt_label:
+					failed += _assert(str(mt_label.get("text")).find("Gather Manashards") >= 0, "manatree prompt wisp_assign_to_manatree")
 			if harvest_tree and harvest_tree.has_method("apply_player_command"):
 				harvest_tree.call("apply_player_command")
 			failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "harvest_tree", "RMB harvest assigns wisp")
 			game_state.call("select_wisp", 1)
-			var mana: Node = live.get_node_or_null("World/Manatree")
 			failed += _assert(mana != null and mana.has_method("apply_player_command"), "Manatree command")
 			if mana and mana.has_method("apply_player_command"):
 				mana.call("apply_player_command")

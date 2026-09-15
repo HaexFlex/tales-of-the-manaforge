@@ -1,6 +1,6 @@
-# Tales of the Manaforge — Systems Brief v0.2 (Restart Edition)
+# Tales of the Manaforge — Systems Brief v0.3 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.2.5 — Haex: Manashard shop costs raised (1–2 ranks per Ascension)  
+**Status:** v0.3.2 — Haex: LMB/RMB input; wisps orbit assign target; Manatree assign  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
@@ -21,15 +21,18 @@
 | v0.2.2 | Pick-one-free Ascension (superseded) |
 | v0.2.3 | Manashard blessing shop → Ascend |
 | v0.2.4 | Manashard shop Ascension-only |
-| **v0.2.5** | **Haex:** shop costs way too low. Typical Ascension affords **1–2 blessing ranks total**. `SHOP_BASE = 400`; `cost = SHOP_BASE * (current_rank + 1)` Manashards. Water ~1–3 shards/sec — bank at Fruit must not buy the whole tree. Code: update `fruit_upgrades.json`. |
+| v0.2.5 | Manashard shop SHOP_BASE=400 (~1–2 ranks/Ascension) |
+| v0.3.0 | Wisps + select-then-move + wisp blessings; SAVE_VERSION 5 |
+| v0.3.1 | Keeper select-gated actions; unassigned wisps orbit Keeper |
+| **v0.3.2** | **Haex:** Assigned wisps **path to node then orbit the node**. Wisps may assign to **Manatree** → pulse **manashards** (1 / `WISP_PULSE_SEC`). Input: **LMB** = select only (Keeper/Wisp/future friend); **RMB** = command (Keeper walk/interact; Wisp assign/unassign); **LMB empty ground** = deselect. `WISP_PER_NODE=1` includes Manatree as one slot. |
 
 ---
 
-## v0.2 scope (systems only)
+## v0.3 scope (systems only)
 
-**In:** point-and-click Keeper, Manatree stages via **needs payment**, channelled harvest (3 nodes), channelled watering (shards + essence income), Primordial Fruit / Ascend, pause + 7 save slots, versioned save, minimal HUD.
+**In:** select-then-move Keeper, Manatree needs stages, channelled harvest (3 nodes), Wisps (AFK node gather), water income, Primordial Fruit / Manashard Ascension shop, pause + 7 slots, versioned save, minimal HUD.
 
-**Out:** growth bar / WATER_GROWTH / offer-for-growth, combat, whisps, full Forge, equipment, Echo Chamber, WASD, mobile/web, many duplicate harvestables.
+**Out:** growth bar / offers, combat, full Forge, equipment, Echo Chamber, WASD, mobile/web, many duplicate harvestables, stacking multiple wisps on one node (v0.3).
 
 ---
 
@@ -40,7 +43,7 @@
 | `wood` | Harvest Tree @ 1/sec | Stage **needs** |
 | `stone` | Stone node @ 1/sec | Stage **needs** |
 | `food` | Berry bush @ 1/sec | Stage **needs** |
-| `manashards` | Water channel `U{1,3}` / sec | **Blessing shop** (Ascension permanent upgrades) |
+| `manashards` | Water channel `U{1,3}` / sec; **wisp on Manatree** @ 1/10s | **Blessing shop** (Ascension permanent upgrades) |
 | `essence` | Water channel `+1` / sec; Fruit harvest bonus | Stage **needs** only (not blessing shop) |
 
 ---
@@ -126,6 +129,84 @@ Essence gate dominates early (20s water to Young at 1 essence/sec). Later stages
 
 ---
 
+
+---
+
+## 4b. Controls (LOCKED — Haex v0.3.2)
+
+**Mouse map**
+| Input | Result |
+|-------|--------|
+| **LMB** on Keeper / Wisp / (future friend) | **Select only** (highlight). Does not move or assign. |
+| **LMB** on empty ground / grass | **Deselect** current selection. |
+| **RMB** with **Keeper** selected | **Command:** walk to point; or walk-in-range + interact if target is harvest node / Manatree (channel / care UI). |
+| **RMB** with **Wisp** selected | **Command:** assign to harvest node or Manatree if targeted; **unassign** (return to orbit Keeper) if RMB empty ground. |
+| **RMB** with nothing useful selected | No-op (optional toast). |
+
+Esc still opens pause. Future companions: LMB select / RMB command — same pattern.
+
+**Removed:** LMB-as-command; direct interact without select; assign-via-second-LMB-click.
+
+---
+
+## 4c. Wisps (LOCKED — Haex)
+
+Glowing idle helpers. Spelling in systems/code: `wisp` (not whisp).
+
+### Gain
+On each successful **Pay** stage advance to `young` / `mature` / `elder` / `ancient`:
+```
+wisp_count += 1
+# from stages alone: max 4 (one per advance from sapling)
+wisp_count_max_from_stages = 4
+```
+Bonus capacity from blessing `bonus_wisp` (see §5) adds on top.
+
+Ascend: wisps **reset** with the run (back to 0 + `bonus_wisp` ranks as starting free wisps at sapling — see blessing). Assignments cleared.
+
+### Presence
+- **Unassigned:** orbit / circle the **Keeper** (follow while walking). `WISP_ORBIT_RADIUS_PX = 56` (Art).
+- **Assigned:** **path toward** the target, then **orbit the target** (harvest node or Manatree) — not parked static, not stuck at Keeper.
+
+### Assign (default: 1 wisp per target)
+Valid targets: `harvest_tree` / `harvest_stone` / `harvest_berry` / **`manatree`**.
+1. **LMB** wisp → select.
+2. **RMB** harvest node or Manatree → assign (wisp paths there, then orbits target).
+3. If that target already has a wisp: **deny** — `WISP_PER_NODE = 1` (Manatree counts as one slot).
+4. Reassign: LMB wisp → RMB new free target.
+5. Unassign: LMB wisp → **RMB empty ground** → returns to **orbit Keeper**.
+
+### Gather pulse by target
+| Assignment | Resource pulsed | Rate |
+|------------|-----------------|------|
+| harvest_tree | `wood` | `WISP_PULSE_GRANT` / `WISP_PULSE_SEC` |
+| harvest_stone | `stone` | same |
+| harvest_berry | `food` | same |
+| **manatree** | **`manashards`** | same (default 1 / 10s) |
+
+Keeper AFK / other work OK; assigned wisps keep pulsing.
+
+### Gather pulse
+```
+WISP_PULSE_SEC = 10.0          # base; wisp_haste blessing reduces
+WISP_RES_PER_PULSE = 1         # of the assigned node’s resource
+# effective rate = 0.1/sec at base (before gather_mult? — default: NO gather_mult on wisps; Keeper channel still uses gather_mult)
+```
+Each `WISP_PULSE_SEC` while assigned: `inventory[resource] += WISP_PULSE_GRANT` (default 1) for that target’s resource (see table).
+
+| Param | Default |
+|-------|---------|
+| `WISP_PER_NODE` | `1` | # includes Manatree as one slot |
+| `WISP_PULSE_SEC` | `10` |
+| `WISP_PULSE_GRANT` | `1` |
+| `WISP_FROM_STAGES_MAX` | `4` |
+| `WISP_ORBIT_RADIUS_PX` | `56` |
+
+### Art / Audio handoff
+- Art: wisp orbit Keeper (unassigned) and **orbit assign target** (assigned); path tween OK; selected state.
+- Audio: soft assign confirm; optional quiet pulse (much quieter than Keeper gather).
+
+---
 ## 5. Primordial Fruit / Ascend
 
 **Model (LOCKED Haex v0.2.3): Manashard blessing shop after Fruit — NOT free pick, NOT Essence shop.**
@@ -168,8 +249,12 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 | `green_thumb` | 5 | `400 * (rank + 1)` | Soft-mat needs −10% / rank (floor, min 1); essence needs unchanged |
 | `shard_sight` | 5 | `400 * (rank + 1)` | `+1` shards per water pulse / rank |
 | `keeper_stride` | 5 | `400 * (rank + 1)` | `MOVE_SPEED_MULT += 0.06` / rank |
+| `wisp_haste` | 5 | `400 * (rank + 1)` | `WISP_PULSE_SEC -= 1` / rank (base 10 → min **5**) |
+| `bonus_wisp` | 3 | `400 * (rank + 1)` | `+1` wisp at sapling / +1 capacity per rank (stacks with stage grants) |
 
-**Examples:** bank 400 → one rank; bank 800 → two rank-1 buys (or one blessing toward rank 2). Unspent shards still wipe on Ascend.
+**Examples:** bank 400 → one rank; bank 800 → two rank-1 buys. Unspent shards wipe on Ascend.
+
+**Wisp blessing notes:** `bonus_wisp` ranks persist; on Ascend after reset to sapling, `wisp_count = bonus_wisp_rank` immediately (then stage advances add more up to stages max + bonus).
 
 **Code:** mirror in `fruit_upgrades.json` (or equivalent data file).
 
@@ -181,14 +266,14 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 |-------|---------|
 | `SAVE_SLOT_COUNT` | **7** |
 | `PAUSE_OPENS_SLOTS` | `true` |
-| `SAVE_VERSION` | **4** |
+| `SAVE_VERSION` | **5** |
 
 ---
 
-## 7. Save fields (`SAVE_VERSION = 4`)
+## 7. Save fields (`SAVE_VERSION = 5`)
 
 ```
-save_version: int                  # 4
+save_version: int                  # 5
 ascensions: int
 essence: int
 upgrades: Dictionary[String, int]
@@ -201,6 +286,9 @@ stone: int
 food: int
 manashards: int
 
+wisp_count: int
+wisp_assignments: Dictionary  # wisp_id → node_id or null
+
 lifetime_waters: int
 lifetime_shards_from_water: int
 lifetime_essence_from_water: int
@@ -208,23 +296,22 @@ lifetime_fruit_harvested: int
 lifetime_harvested: Dictionary[String, int]
 
 keeper_position: Vector2
+keeper_selected: bool  # optional; default false on load
 ```
 
-Migrate v3→v4: drop `growth`, drop `lifetime_offered` if present; ignore offer UI.
+Migrate v4→v5: init `wisp_count` from stage progress or 0 + bonus_wisp; empty assignments; ignore old movement assumptions.
 
 ---
 
 ## 8. Loop summary (Code)
 
 ```
-click ground → move
-click harvest_* → channel +1 res/sec
-click Manatree →
-  show needs for next stage (or Fruit if ancient)
-  Water channel → shards + essence / sec (no growth)
-  Pay needs when met → stage_up
-decorative trees: no interact
-ESC → pause (7 slots); world frozen
+LMB Keeper/Wisp → select | LMB empty → deselect
+RMB (Keeper selected) → walk / interact harvest or Manatree
+RMB (Wisp selected) → assign to node or Manatree (manashards); RMB ground → unassign → orbit Keeper
+Assigned wisps path to target then orbit it; pulse +1/10s
+Pay stage_up → +1 wisp (orbits Keeper until assigned)
+ESC → pause (7 slots)
 ```
 
 ---
@@ -233,10 +320,10 @@ ESC → pause (7 slots); world frozen
 
 | Who | Action |
 |-----|--------|
-| @Code / Engine | Remove growth/offers; needs table; Pay action; save v4; water income only |
-| @Content & Lore | Replace growth X/Y copy with needs checklist; remove Offer verbs |
-| @Art Direction | No change required for needs UI (panel language OK) |
-| @Audio | Drop offer cue if any; keep water/harvest pulses; optional pay confirm |
+| @Code / Engine | LMB/RMB map; wisp path+orbit target; Manatree→manashards pulse; wire wisp SFX; save v5 |
+| @Content & Lore | LMB/RMB hints; Manatree-wisp assign (manashards); deny if slot full; blessing names |
+| @Art Direction | Wisp orbit around Keeper; selected; parked on node; Keeper selected ring |
+| @Audio | `sfx_wisp_assign` / deny / unassign / pulse — Code should wire if not already |
 
 ---
 
@@ -253,6 +340,13 @@ ESC → pause (7 slots); world frozen
 | Ascension = Manashard blessing shop | **LOCKED Haex v0.2.3** |
 | Shop timing = Ascension-only after Fruit | **LOCKED Haex v0.2.4** |
 | Shop costs ~1–2 ranks/Ascension (`SHOP_BASE=400`) | **LOCKED Haex intent v0.2.5** |
+| Wisps: 1/stage advance, 1/node, +1/10s | **LOCKED Haex v0.3.0** |
+| Keeper select-then-move | **LOCKED Haex v0.3.0** |
+| Keeper must be selected for all actions | **LOCKED Haex v0.3.1** |
+| Unassigned wisps orbit Keeper | **LOCKED Haex v0.3.1** |
+| LMB select / RMB command / LMB empty deselect | **LOCKED Haex v0.3.2** |
+| Assigned wisps orbit their target; Manatree→manashards | **LOCKED Haex v0.3.2** |
+| Wisp blessings `wisp_haste` + `bonus_wisp` | **LOCKED Haex v0.3.0** |
 | Pick-one-free Ascension | **REVOKED** |
 | Essence blessing shop | **REVOKED** |
 

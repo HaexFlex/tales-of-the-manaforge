@@ -33,6 +33,7 @@ func _ready() -> void:
 	GameState.stage_changed.connect(_on_stage_changed)
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
 	GameState.needs_changed.connect(_refresh_label)
+	GameState.selection_changed.connect(_refresh_label)
 	_refresh_visual()
 	_on_fruit_changed(GameState.fruit_ready)
 	add_to_group("manatree")
@@ -178,6 +179,9 @@ func _refresh_label() -> void:
 	var suffix: String = ""
 	if _watering:
 		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
+	if GameState.selected_wisp_id >= 0:
+		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
+		return
 	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
 	if GameState.stage_id == &"ancient":
 		var note: String = ""

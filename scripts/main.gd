@@ -1,5 +1,5 @@
 extends Node2D
-## Forest hub 1280×720: RTS LMB select / RMB command, wisps orbit assigned targets (SYSTEMS v0.3.3).
+## Forest hub 1280×720: RTS LMB select / RMB command, wisps orbit assigned targets (SYSTEMS v0.3.2).
 
 @onready var keeper: Keeper = $World/Keeper
 @onready var manatree: Manatree = $World/Manatree
@@ -167,7 +167,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func handle_lmb_ground() -> void:
 	## LMB empty ground → deselect.
 	if GameState.clear_selection():
-		GameState.status_message.emit(ContentStrings.get_text("keeper_deselect"))
+		GameState.status_message.emit(ContentStrings.get_text("keeper_deselect_toast"))
 
 
 func handle_rmb_ground(world_pos: Vector2) -> void:
@@ -233,8 +233,10 @@ func _sync_wisps() -> void:
 
 
 func _on_wisp_clicked(wisp_id: int) -> void:
-	## LMB wisp select does NOT require Keeper selected (SYSTEMS v0.3.3).
+	## LMB wisp select does NOT require Keeper selected (SYSTEMS v0.3.2).
 	GameState.select_wisp(wisp_id)
 	if GameState.selected_wisp_id == wisp_id:
-		GameState.status_message.emit(ContentStrings.get_text("wisp_selected"))
-		GameState.status_message.emit(ContentStrings.get_text("wisp_assign_hint"))
+		GameState.status_message.emit("%s  ·  %s" % [
+			ContentStrings.get_text("wisp_orbit_hint"),
+			ContentStrings.get_text("wisp_assign_hint"),
+		])

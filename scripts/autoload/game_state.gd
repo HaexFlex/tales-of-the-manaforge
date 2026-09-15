@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.3.3 — RTS LMB/RMB, wisps orbit assigned targets. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.3.2 — RTS LMB/RMB, wisps orbit assigned targets. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -175,6 +175,20 @@ func resource_for_node_id(node_id: String) -> StringName:
 			return &""
 
 
+func assignment_target_display(node_id: String) -> String:
+	match node_id:
+		"harvest_tree":
+			return ContentStrings.get_text("node_wood_prompt")
+		"harvest_stone":
+			return ContentStrings.get_text("node_stone_prompt")
+		"harvest_berry":
+			return ContentStrings.get_text("node_food_prompt")
+		NODE_ID_MANATREE:
+			return ContentStrings.get_text("tree_menu_title")
+		_:
+			return node_id
+
+
 func is_valid_wisp_node_id(node_id: String) -> bool:
 	return resource_for_node_id(node_id) != &""
 
@@ -235,7 +249,10 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 func toast_wisp_assign(result: String, node_id: String) -> void:
 	match result:
 		"ok":
-			status_message.emit(ContentStrings.get_text("wisp_assign_ok"))
+			if node_id == NODE_ID_MANATREE:
+				status_message.emit(ContentStrings.get_text("wisp_assign_manatree_ok"))
+			else:
+				status_message.emit(ContentStrings.get_text("wisp_assign_ok"))
 		"reassign":
 			status_message.emit(ContentStrings.get_text("wisp_reassign_ok"))
 		"busy":
