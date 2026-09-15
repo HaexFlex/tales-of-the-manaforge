@@ -701,9 +701,9 @@ func get_care_next_stage_info() -> Dictionary:
 	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
 		var ancient_line: String = ContentStrings.get_text("tree_at_ancient_idle")
 		if fruit_harvested_pending_ascend:
-			ancient_line = ContentStrings.get_text("ascend_prompt")
+			ancient_line = ContentStrings.get_text("ascension_paused_body")
 		elif fruit_ready:
-			ancient_line = ContentStrings.get_text("fruit_ready_prompt")
+			ancient_line = ContentStrings.get_text("tree_ancient_care_hint")
 		return {
 			"is_ancient": true,
 			"title": str(get_stage_def().get("display_name", "Ancient")),

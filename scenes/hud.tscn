@@ -7,6 +7,8 @@
 [ext_resource type="Texture2D" path="res://assets/art/ui/icon_manashards.png" id="5_shards"]
 
 [node name="HUD" type="CanvasLayer"]
+process_mode = 3
+layer = 20
 script = ExtResource("1_hud")
 
 [node name="Panel" type="ColorRect" parent="."]
@@ -101,6 +103,14 @@ offset_right = 1192.0
 offset_bottom = 56.0
 text = "Pause"
 
+[node name="AscensionReopenButton" type="Button" parent="Panel"]
+visible = false
+offset_left = 1080.0
+offset_top = 64.0
+offset_right = 1192.0
+offset_bottom = 96.0
+text = "Ascension"
+
 [node name="CarePanel" type="ColorRect" parent="."]
 visible = false
 offset_left = 400.0
@@ -143,6 +153,25 @@ offset_bottom = 212.0
 disabled = true
 text = "Pay"
 
+[node name="HarvestFruitButton" type="Button" parent="CarePanel"]
+visible = false
+offset_left = 248.0
+offset_top = 176.0
+offset_right = 456.0
+offset_bottom = 212.0
+text = "Harvest the Primordial Fruit"
+
+[node name="PrecommitHint" type="Label" parent="CarePanel"]
+visible = false
+offset_left = 24.0
+offset_top = 224.0
+offset_right = 456.0
+offset_bottom = 320.0
+theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.82, 0.88, 0.7, 1)
+text = "You can still water and gather. Blessings wait until after you commit the harvest."
+autowrap_mode = 3
+
 [node name="CareCloseButton" type="Button" parent="CarePanel"]
 offset_left = 344.0
 offset_top = 340.0
@@ -150,65 +179,132 @@ offset_right = 456.0
 offset_bottom = 372.0
 text = "Close"
 
-[node name="PrestigePanel" type="ColorRect" parent="."]
+[node name="FruitConfirmPanel" type="ColorRect" parent="."]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -320.0
-offset_top = -260.0
-offset_right = 320.0
-offset_bottom = 260.0
+offset_left = -280.0
+offset_top = -170.0
+offset_right = 280.0
+offset_bottom = 170.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0.1, 0.08, 0.98)
+
+[node name="ConfirmTitle" type="Label" parent="FruitConfirmPanel"]
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 536.0
+offset_bottom = 48.0
+theme_override_font_sizes/font_size = 18
+text = "Begin Ascension?"
+horizontal_alignment = 1
+
+[node name="ConfirmBody" type="Label" parent="FruitConfirmPanel"]
+offset_left = 24.0
+offset_top = 56.0
+offset_right = 536.0
+offset_bottom = 220.0
+theme_override_font_sizes/font_size = 13
+text = "Begin harvesting the Primordial Fruit? You can still water until you commit."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ConfirmYes" type="Button" parent="FruitConfirmPanel"]
+offset_left = 40.0
+offset_top = 240.0
+offset_right = 250.0
+offset_bottom = 284.0
+text = "Continue"
+
+[node name="ConfirmNo" type="Button" parent="FruitConfirmPanel"]
+offset_left = 310.0
+offset_top = 240.0
+offset_right = 520.0
+offset_bottom = 284.0
+text = "Keep watering"
+
+[node name="AscensionPanel" type="ColorRect" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -300.0
+offset_right = 360.0
+offset_bottom = 300.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.14, 0.1, 0.08, 0.96)
 
-[node name="Title" type="Label" parent="PrestigePanel"]
-offset_left = 16.0
-offset_top = 12.0
-offset_right = 624.0
-offset_bottom = 40.0
+[node name="Layout" type="VBoxContainer" parent="AscensionPanel"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = 16.0
+offset_right = -20.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="AscensionPanel/Layout"]
 theme_override_font_sizes/font_size = 18
-text = "Blessings of the Fruit"
+text = "Ascension Blessings"
 horizontal_alignment = 1
 
-[node name="Subtitle" type="Label" parent="PrestigePanel"]
-offset_left = 16.0
-offset_top = 44.0
-offset_right = 624.0
-offset_bottom = 84.0
+[node name="Banner" type="Label" parent="AscensionPanel/Layout"]
 theme_override_font_sizes/font_size = 12
-text = "Spend Essence. These gifts survive every Ascend."
+theme_override_colors/font_color = Color(0.95, 0.82, 0.55, 1)
+text = "Ascension — blessing shop only. Ascend to continue."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Subtitle" type="Label" parent="AscensionPanel/Layout"]
+theme_override_font_sizes/font_size = 12
+text = "Spend Manashards on lasting gifts, then Ascend."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Balances" type="Label" parent="AscensionPanel/Layout"]
+theme_override_font_sizes/font_size = 13
+text = "Manashards: 0  |  Essence: 0"
 horizontal_alignment = 1
 
-[node name="UpgradeList" type="VBoxContainer" parent="PrestigePanel"]
-offset_left = 24.0
-offset_top = 96.0
-offset_right = 616.0
-offset_bottom = 400.0
-theme_override_constants/separation = 6
+[node name="Hint" type="Label" parent="AscensionPanel/Layout"]
+theme_override_font_sizes/font_size = 11
+theme_override_colors/font_color = Color(0.78, 0.86, 0.7, 1)
+text = "The clearing is paused. Spend Manashards on blessings, then Ascend."
+horizontal_alignment = 1
+autowrap_mode = 3
 
-[node name="HarvestButton" type="Button" parent="PrestigePanel"]
-offset_left = 24.0
-offset_top = 416.0
-offset_right = 200.0
-offset_bottom = 452.0
-text = "Harvest"
+[node name="ShopScroll" type="ScrollContainer" parent="AscensionPanel/Layout"]
+custom_minimum_size = Vector2(0, 260)
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
 
-[node name="AscendButton" type="Button" parent="PrestigePanel"]
-offset_left = 216.0
-offset_top = 416.0
-offset_right = 400.0
-offset_bottom = 452.0
+[node name="UpgradeList" type="VBoxContainer" parent="AscensionPanel/Layout/ShopScroll"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="Footer" type="HBoxContainer" parent="AscensionPanel/Layout"]
+custom_minimum_size = Vector2(0, 44)
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="AscendButton" type="Button" parent="AscensionPanel/Layout/Footer"]
+custom_minimum_size = Vector2(220, 40)
 text = "Ascend"
 
-[node name="CloseButton" type="Button" parent="PrestigePanel"]
-offset_left = 520.0
-offset_top = 416.0
-offset_right = 616.0
-offset_bottom = 452.0
+[node name="CloseButton" type="Button" parent="AscensionPanel/Layout/Footer"]
+custom_minimum_size = Vector2(140, 40)
 text = "Close"
 
 [node name="WelcomePanel" type="ColorRect" parent="."]
