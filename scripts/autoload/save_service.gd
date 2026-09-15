@@ -1,14 +1,13 @@
 extends Node
-## Slot-based save/load: user://manaforge_save_slot_{1..3}.json (SYSTEMS v0.1.4).
-## Payload schema SAVE_VERSION 3; welcome_shown is an additive state field.
-## Migrates legacy user://manaforge_save.json → slot 1 when present.
+## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.2.0).
+## Payload schema SAVE_VERSION 4 — needs-only (no growth). Migrates legacy single-file → slot 1.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
-const SAVE_VERSION: int = 3
+const SAVE_VERSION: int = 4
 ## Accept legacy writes that bumped to 4 for welcome_shown.
-const SAVE_VERSION_MAX_READ: int = 4
+const SAVE_VERSION_MAX_READ: int = 5
 const SAVE_SLOT_COUNT: int = 7
 const LEGACY_SAVE_PATH: String = "user://manaforge_save.json"
 const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
@@ -167,13 +166,6 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		out.erase("lifetime_food_watered")
 		if not out.has("lifetime_waters"):
 			out["lifetime_waters"] = 0
-		if not out.has("lifetime_offered") or typeof(out.get("lifetime_offered")) != TYPE_DICTIONARY:
-			out["lifetime_offered"] = {
-				"wood": 0,
-				"stone": 0,
-				"food": 0,
-				"manashards": 0,
-			}
 	if from_version < 3:
 		if not out.has("lifetime_shards_from_water"):
 			out["lifetime_shards_from_water"] = 0
@@ -181,7 +173,11 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 			out["lifetime_essence_from_water"] = 0
 		if not out.has("lifetime_harvested") or typeof(out.get("lifetime_harvested")) != TYPE_DICTIONARY:
 			out["lifetime_harvested"] = {"wood": 0, "stone": 0, "food": 0}
-	# Additive welcome flag (no schema bump): legacy saves already played.
+	if from_version < 4:
+		# Needs-only: drop growth meter + offer lifetime tracking.
+		out.erase("growth")
+		out.erase("lifetime_offered")
+	# Additive welcome flag: legacy saves already played.
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
 	return out

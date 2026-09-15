@@ -1,6 +1,6 @@
-# Tales of the Manaforge — Systems Brief v0.1 (Restart Edition)
+# Tales of the Manaforge — Systems Brief v0.2 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.1.5 — Haex: SAVE_SLOT_COUNT = 7  
+**Status:** v0.2.0 — Haex: abandon growth; stages advance by paying **needs** only  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
@@ -15,192 +15,154 @@
 
 | Ver | Change |
 |-----|--------|
-| v0.1 | Day-1: 5 stages, Food-spend water, Fruit upgrades, save schema |
-| v0.1.1 | Free water click; Offer all mats; Essence Fruit-only; SAVE_VERSION 2 |
-| v0.1.2 | Haex playtest: 3 harvest channels @1/sec; water pays shards+essence+growth; Essence not Fruit-only; SAVE_VERSION 3 |
-| v0.1.3 | Haex growth nerf: WATER_GROWTH 1; thresholds 120/200/320/480; offers 3/3/2/6; deep_roots +1/rank |
-| v0.1.4 | Pause menu: SAVE_SLOT_COUNT defaulted to 3 |
-| **v0.1.5** | **Haex override:** `SAVE_SLOT_COUNT = **7**` (one per Manatree stage + spare). Pause save/load unchanged otherwise; `SAVE_VERSION` payload still 3. |
+| v0.1.x | Harvest channels, water income, growth bar, offers, 7 save slots — see git history / prior copies |
+| **v0.2.0** | **Haex MAJOR:** remove Manatree **growth** entirely (`growth_required`, `WATER_GROWTH`, offer-for-growth). Stages advance **only** by paying **needs**. Cost curve: +20 essence/stage; each stage introduces one new soft mat at 10; prior soft mats **double**. Water = income only (shards + essence). UI shows needs only. `SAVE_VERSION` → **4**. |
 
 ---
 
-## v0.1 scope (systems only)
+## v0.2 scope (systems only)
 
-**In:** point-and-click Keeper, Manatree growth stages, channelled harvest (3 nodes), channelled watering (shards + essence + growth), Offer mats, Primordial Fruit / Ascend, versioned save, minimal HUD.
+**In:** point-and-click Keeper, Manatree stages via **needs payment**, channelled harvest (3 nodes), channelled watering (shards + essence income), Primordial Fruit / Ascend, pause + 7 save slots, versioned save, minimal HUD.
 
-**Out:** combat, whisps, full Forge, equipment, Echo Chamber, WASD, mobile/web, many duplicate harvestables.
+**Out:** growth bar / WATER_GROWTH / offer-for-growth, combat, whisps, full Forge, equipment, Echo Chamber, WASD, mobile/web, many duplicate harvestables.
 
 ---
 
 ## 1. Resources
 
-| ID | How gained (v0.1.2) | How spent |
-|----|---------------------|-----------|
-| `wood` | Harvest Tree channel @ 1/sec | Offer + stage gates |
-| `stone` | Stone node channel @ 1/sec | Offer + stage gates |
-| `food` | Berry bush channel @ 1/sec | Offer + stage gates |
-| `manashards` | **Watering channel** `U{1,3}` / sec; also Offer sink | Offer + stage gates |
-| `essence` | **Watering channel** `+1` / sec; also Primordial Fruit harvest bonus | Permanent Fruit upgrades |
+| ID | How gained | How spent |
+|----|------------|-----------|
+| `wood` | Harvest Tree @ 1/sec | Stage **needs** |
+| `stone` | Stone node @ 1/sec | Stage **needs** |
+| `food` | Berry bush @ 1/sec | Stage **needs** |
+| `manashards` | Water channel `U{1,3}` / sec | Prestige upgrades / future sinks (not required for stage needs in v0.2) |
+| `essence` | Water channel `+1` / sec; Fruit harvest bonus | Stage **needs** + permanent upgrades |
 
 ---
 
 ## 2. Harvest nodes (LOCKED — Haex)
 
-Exactly **three** interactive harvest nodes on the map. Not many of each.
+Exactly **three** interactive harvest nodes. Channel @ 1 resource/sec while in range.
 
-| node_id | Prop | Resource | Rate while harvesting |
-|---------|------|----------|------------------------|
-| `harvest_tree` | Harvest Tree (distinct from deco / Manatree) | `wood` | `HARVEST_WOOD_PER_SEC` (default **1**) |
-| `harvest_stone` | Stone | `stone` | `HARVEST_STONE_PER_SEC` (default **1**) |
-| `harvest_berry` | Berry bush | `food` | `HARVEST_FOOD_PER_SEC` (default **1**) |
+| node_id | Resource | Rate |
+|---------|----------|------|
+| `harvest_tree` | `wood` | `HARVEST_WOOD_PER_SEC = 1` |
+| `harvest_stone` | `stone` | `HARVEST_STONE_PER_SEC = 1` |
+| `harvest_berry` | `food` | `HARVEST_FOOD_PER_SEC = 1` |
 
-### Channel rules
-```
-on_interact(harvest_node):
-  start channel on that node (cancel prior channel)
-each tick while channel active and Keeper in range:
-  if elapsed >= 1.0s since last pulse:
-    inventory[resource] += HARVEST_*_PER_SEC * gather_mult   # floor after mult, min 1 if mult>=1
-    play gather SFX pulse
-cancel channel if: Keeper walks away / clicks elsewhere / starts another channel / UI cancel
-```
-
-| Param | Default |
-|-------|---------|
-| `HARVEST_WOOD_PER_SEC` | `1` |
-| `HARVEST_STONE_PER_SEC` | `1` |
-| `HARVEST_FOOD_PER_SEC` | `1` |
-| `HARVEST_RANGE_PX` | `48` (tune with Art feet anchors) |
-| `CHANNEL_PULSE_SEC` | `1.0` |
-
-**No manashard harvest node.** Shards come from watering (and leftover inventory).
-
-### Layout (for Code / Art)
-- Clearing with **many decorative (non-harvest) forest trees**
-- **One** Harvest Tree, **one** Stone, **one** Berry bush
-- Manatree landmark separate (growth / water / Fruit)
+`CHANNEL_PULSE_SEC = 1.0`, `HARVEST_RANGE_PX = 48`.  
+Layout: dense **decorative** trees; **one** of each harvest node; Manatree landmark separate.
 
 ---
 
-## 3. Manatree care
-
-### 3a. Water channel (LOCKED — Haex)
-Primary interact on Manatree (when not resolving Fruit/Ascend UI) starts **Water** channel.
+## 3. Water channel (income only)
 
 ```
-each CHANNEL_PULSE_SEC while watering and in range and stage != fruit-only-block:
-  manashards += randi_range(WATER_SHARD_MIN, WATER_SHARD_MAX)   # 1..3 uniform
-  essence    += WATER_ESSENCE_PER_SEC                            # 1
-  growth     += WATER_GROWTH + deep_roots_bonus                  # still grows the tree
-  lifetime_waters += 1
-  lifetime_shards_from_water += shards_this_pulse
-  lifetime_essence_from_water += WATER_ESSENCE_PER_SEC
+each CHANNEL_PULSE_SEC while watering and in range:
+  manashards += randi_range(WATER_SHARD_MIN, WATER_SHARD_MAX) + shard_sight_rank
+  essence    += WATER_ESSENCE_PER_SEC
+  # NO growth
 ```
-
-At **Ancient**, Water channel still allowed for shard/essence payout **or** Haex may prefer Fruit prompt only — **default: Water still works at Ancient** (payout + no stage growth past max); Fruit is a separate confirm action from the same interact menu.
 
 | Param | Default |
 |-------|---------|
 | `WATER_SHARD_MIN` | `1` |
 | `WATER_SHARD_MAX` | `3` |
 | `WATER_ESSENCE_PER_SEC` | `1` |
-| `WATER_GROWTH` | `1` | # per pulse, same pulse as payout — v0.1.3 slowed |
-| `CHANNEL_PULSE_SEC` | `1.0` |
 
-**Removed:** single-click water with cooldown only; Food spend on water.
-
-### 3b. Offer resources (kept from v0.1.1)
-Spend soft mats at Manatree for extra growth (does not grant essence).
-
-| Resource | `OFFER_COST` | `OFFER_GROWTH` |
-|----------|--------------|----------------|
-| `wood` | `1` | `3` |
-| `stone` | `1` | `3` |
-| `food` | `1` | `2` |
-| `manashards` | `1` | `6` |
-
-`OFFER_COOLDOWN_SEC = 0.25`. Offers are instant (not channelled).
-
-### 3c. Stage-up
-When `growth >= growth_required` for next stage and gate costs held → consume gate → advance. `GROWTH_CARRIES = true`.
+At Ancient: water still pays income; Fruit/Ascend is a separate confirm.  
+**Removed:** `WATER_GROWTH`, growth pulses, offer-for-growth.
 
 ---
 
-## 4. Manatree stage table (5 — unchanged count)
+## 4. Stage needs (LOCKED direction — Haex)
 
-| stage_id | growth_required | cost_wood | cost_stone | cost_food | cost_manashards | Bonus |
-|----------|-----------------|-----------|------------|-----------|-----------------|-------|
-| `sapling` | — | 0 | 0 | 0 | 0 | — |
-| `young` | `120` | `4` | `2` | `2` | `0` | `gather_mult = 1.1` |
-| `mature` | `200` | `6` | `4` | `4` | `1` | `gather_mult = 1.25` |
-| `elder` | `320` | `8` | `6` | `6` | `2` | `gather_mult = 1.4` |
-| `ancient` | `480` | `10` | `8` | `8` | `4` | `gather_mult = 1.6`; Fruit ready |
+**No `growth` field. No growth bar.** Clicking Manatree shows **needs for next stage** only. When inventory meets all needs → confirm pay → consume → advance stage.
 
-`gather_mult` applies to harvest channel pulses (wood/stone/food).
+### Cost curve rule (Director interpretation of Haex)
+1. Essence cost starts at **20** for Young, then **+20** each stage.
+2. Each new stage after Young introduces **one new soft mat at 10**.
+3. Soft mats introduced earlier **double** each subsequent stage.
+
+| Advance to | essence | food | wood | stone | Notes |
+|------------|---------|------|------|-------|-------|
+| `young` | **20** | — | — | — | First soft mat not yet |
+| `mature` | **40** | **10** | — | — | Introduces food @10 |
+| `elder` | **60** | **20** | **10** | — | food doubles; introduces wood @10 |
+| `ancient` | **80** | **40** | **20** | **10** | food+wood double; introduces stone @10 |
+
+```
+# Named params (Code data table)
+NEED_YOUNG_ESSENCE = 20
+NEED_MATURE = { essence: 40, food: 10 }
+NEED_ELDER  = { essence: 60, food: 20, wood: 10 }
+NEED_ANCIENT = { essence: 80, food: 40, wood: 20, stone: 10 }
+```
+
+**Sapling** (start): no needs.  
+**Pay action:** single “Tend / Grow” confirm when all needs met; partial progress is inventory only (no partial bank toward stage).
+
+### Stage bonuses (kept)
+
+| stage_id | Bonus while here |
+|----------|------------------|
+| `sapling` | — |
+| `young` | `gather_mult = 1.1` |
+| `mature` | `gather_mult = 1.25` |
+| `elder` | `gather_mult = 1.4` |
+| `ancient` | `gather_mult = 1.6`; Fruit ready |
+
+### Pace note
+Essence gate dominates early (20s water to Young at 1 essence/sec). Later stages need harvest loops for food/wood/stone while still watering for essence. First Ancient is intentional multi-loop, not a growth bar grind.
+
+### UI (Content + Code)
+- Manatree click → panel: next stage name + need lines (`essence 12/20`, `food 0/10`, …) + Pay (enabled when all met) + Water.
+- **No** growth X/Y bar.
 
 ---
-
-
-### Pace target (v0.1.3)
-- Water-only to Ancient: `sum(growth_required) / WATER_GROWTH` = `1120 / 1` ≈ **19 minutes** of channel time (plus walking/gates).
-- Offers shorten that if the Keeper gathers; gates still force a wood/stone/food/shard mix.
-- First Fruit should feel slow and meaningful — not reachable by a minute of spam.
-- Shard/essence income unchanged at 1 tick/sec while watering.
 
 ## 5. Primordial Fruit / Ascend
 
-Essence now also comes from watering — Fruit is a **burst + prestige reset**, not the sole essence source.
-
 ```
-essence += ESSENCE_PER_HARVEST
-         + floor(lifetime_essence_from_water_this_run / ESSENCE_WATER_BONUS_DIV)  # optional; default off
-# Simpler v0.1.2 default:
-essence += ESSENCE_PER_HARVEST   # flat bonus on top of what watering already paid
+essence += ESSENCE_PER_HARVEST   # default 5; on top of watered essence
 ```
 
-| Param | Default |
-|-------|---------|
-| `ESSENCE_PER_HARVEST` | `5` |
+Ascend resets: `stage_id → sapling`, soft mats `wood/stone/food/manashards → 0`.  
+**Keep:** essence, upgrades, lifetimes, `ascensions += 1`.  
+**Do not** reset/reference `growth` (field removed).
 
-Ascend: reset stage/growth + soft mats (`wood/stone/food/manashards`); **keep** essence + upgrade ranks + lifetime totals; `ascensions += 1`.
-
-### Permanent upgrades (unchanged ids)
+### Permanent upgrades (retuned for needs-only)
 
 | upgrade_id | Max | Cost | Effect |
 |------------|-----|------|--------|
-| `deep_roots` | 10 | `1+rank` | `WATER_GROWTH += 1` / rank (v0.1.3; base water is 1) |
+| `deep_roots` | 10 | `1+rank` | `WATER_ESSENCE_PER_SEC += 1` every **2** ranks (ranks 2,4,6…); odd ranks no-op **or** simpler: `+0` — **default v0.2:** `WATER_ESSENCE_PER_SEC += 1` per 2 ranks via `floor(rank/2)` |
 | `forager` | 10 | `1+rank` | `gather_mult += 0.05` / rank |
-| `green_thumb` | 5 | `2+rank` | `-1` growth_required / rank (min 10) |
-| `shard_sight` | 5 | `2+2*rank` | `+1` to each water shard roll min **or** flat `+1` shards per water pulse / rank — **default:** add rank to shard roll result after clamp to max+rank |
+| `green_thumb` | 5 | `2+rank` | Stage soft-mat needs −10% per rank (floor, min 1 if need > 0); essence needs unchanged |
+| `shard_sight` | 5 | `2+2*rank` | `+1` shards per water pulse / rank |
 | `keeper_stride` | 5 | `1+rank` | `MOVE_SPEED_MULT += 0.06` / rank |
-
-`shard_sight` v0.1.2 default: `shards = randi_range(WATER_SHARD_MIN, WATER_SHARD_MAX) + shard_sight_rank`.
 
 ---
 
-## 6. Pause + save slots (v0.1.5)
+## 6. Pause + save slots
 
-| Param | Default | Notes |
-|-------|---------|-------|
-| `SAVE_SLOT_COUNT` | **`7`** | Haex lock — stage checkpoints + spare |
-| `PAUSE_OPENS_SLOTS` | `true` | Pause → Resume / Save / Load / (Quit optional) |
-| `SAVE_VERSION` | `3` | Per-slot payload schema (unchanged from v0.1.2 channel fields) |
+| Param | Default |
+|-------|---------|
+| `SAVE_SLOT_COUNT` | **7** |
+| `PAUSE_OPENS_SLOTS` | `true` |
+| `SAVE_VERSION` | **4** |
 
-**Behavior**
-- Exactly `SAVE_SLOT_COUNT` slots (1..7). Empty slots show empty; occupied show stage name + playtime if Code tracks it.
-- Save writes full game state into chosen slot; Load replaces current run from slot (confirm if dirty — Code UX).
-- Ascend / water / harvest rules unchanged; slots are orthogonal to prestige.
+---
 
-## 7. Save fields (`SAVE_VERSION = 3`)
+## 7. Save fields (`SAVE_VERSION = 4`)
 
 ```
-save_version: int                  # 3
+save_version: int                  # 4
 ascensions: int
 essence: int
 upgrades: Dictionary[String, int]
 
 stage_id: String
-growth: int
+# growth: REMOVED
 
 wood: int
 stone: int
@@ -210,28 +172,27 @@ manashards: int
 lifetime_waters: int
 lifetime_shards_from_water: int
 lifetime_essence_from_water: int
-lifetime_offered: Dictionary[String, int]
 lifetime_fruit_harvested: int
-lifetime_harvested: Dictionary[String, int]  # wood/stone/food totals
+lifetime_harvested: Dictionary[String, int]
 
 keeper_position: Vector2
-# do not persist active channel — cancel on load
 ```
 
-Migrate v2→v3: init new lifetime fields to 0; remove assumptions of click-gather cooldowns / Fruit-only essence.
+Migrate v3→v4: drop `growth`, drop `lifetime_offered` if present; ignore offer UI.
 
 ---
 
 ## 8. Loop summary (Code)
 
 ```
-click ground → move (cancels channel if out of range)
-click harvest_tree | harvest_stone | harvest_berry → channel → +1 res / sec
+click ground → move
+click harvest_* → channel +1 res/sec
 click Manatree →
-  Water channel → each sec: shards U{1,3}, essence+1, growth+WATER_GROWTH
-  OR Offer mat (instant)
-  OR Fruit/Ascend when ancient
+  show needs for next stage (or Fruit if ancient)
+  Water channel → shards + essence / sec (no growth)
+  Pay needs when met → stage_up
 decorative trees: no interact
+ESC → pause (7 slots); world frozen
 ```
 
 ---
@@ -240,10 +201,10 @@ decorative trees: no interact
 
 | Who | Action |
 |-----|--------|
-| @Code / Engine | Channels + water payout + deco layout; save v3 payload; **pause + 7 save slots** |
-| @Content & Lore | Channel / “Harvesting…” / water pulse copy; drop multi-node gather phrasing |
-| @Art Direction | Distinct Harvest Tree vs deco trees; single stone + berry props if missing |
-| @Audio | Pulse SFX each harvest/water tick (reuse gather / `sfx_tree_water`) |
+| @Code / Engine | Remove growth/offers; needs table; Pay action; save v4; water income only |
+| @Content & Lore | Replace growth X/Y copy with needs checklist; remove Offer verbs |
+| @Art Direction | No change required for needs UI (panel language OK) |
+| @Audio | Drop offer cue if any; keep water/harvest pulses; optional pay confirm |
 
 ---
 
@@ -251,13 +212,11 @@ decorative trees: no interact
 
 | Item | Status |
 |------|--------|
-| 3 harvest nodes @ 1/sec channel | **LOCKED Haex** |
-| Water: shards 1–3 + 1 essence / sec | **LOCKED Haex** |
-| Slow growth curve (WATER_GROWTH=1, raised thresholds) | **LOCKED Haex intent v0.1.3** |
-| Pause + `SAVE_SLOT_COUNT = 7` | **LOCKED Haex v0.1.5** |
-| Essence Fruit-only | **REVOKED** |
-| Deco trees, one of each harvest | **LOCKED Haex** |
-| Offers + 5 stages + Fruit Ascend | Kept |
-| Water at Ancient still pays | Default yes — Haex may veto |
+| Needs-only stage advance; no growth | **LOCKED Haex v0.2.0** |
+| Cost curve Young→Ancient as table above | **Director interpretation — Haex may tweak** |
+| Water = shards + essence income | **LOCKED** |
+| 3 harvest nodes @ 1/sec | **LOCKED** |
+| `SAVE_SLOT_COUNT = 7` | **LOCKED** |
+| Offer-for-growth | **REMOVED** |
 
-Ping @Game Director + @Code / Engine on land.
+Ping @Game Director, @Code / Engine, @Content & Lore on land.

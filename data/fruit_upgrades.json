@@ -3,11 +3,11 @@
     {
       "id": "deep_roots",
       "display_name": "Deep Roots",
-      "description": "Each rank: watering grants more growth.",
+      "description": "Every 2 ranks: watering grants +1 Essence per pulse.",
       "max_rank": 10,
       "cost_base": 1,
       "cost_per_rank": 1,
-      "effect": "water_growth_bonus",
+      "effect": "water_essence_bonus",
       "value_per_rank": 1.0
     },
     {
@@ -23,12 +23,12 @@
     {
       "id": "green_thumb",
       "display_name": "Green Thumb",
-      "description": "Each rank: stages need less growth to advance.",
+      "description": "Each rank: soft-mat stage needs drop by 10% (min 1).",
       "max_rank": 5,
       "cost_base": 2,
       "cost_per_rank": 1,
-      "effect": "growth_required_reduction",
-      "value_per_rank": 1.0
+      "effect": "soft_need_reduction",
+      "value_per_rank": 0.1
     },
     {
       "id": "shard_sight",

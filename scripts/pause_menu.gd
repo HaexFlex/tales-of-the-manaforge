@@ -310,7 +310,7 @@ func _do_new_game() -> void:
 	GameState.resources_changed.emit(&"essence", GameState.essence)
 	GameState.stage_changed.emit(GameState.stage_id)
 	GameState.fruit_ready_changed.emit(GameState.fruit_ready)
-	GameState.growth_changed.emit(GameState.growth, GameState.get_growth_required_for_next())
+	GameState.needs_changed.emit()
 	GameState.upgrades_changed.emit()
 	GameAudio.reset_cycle_flags()
 	resume_game()

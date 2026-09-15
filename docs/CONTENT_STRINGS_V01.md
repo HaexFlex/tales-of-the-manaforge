@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.1.4 — pause menu copy (Resume / New Game / Save / Load / Options / Exit)  
+**Status:** v0.2.0 — aligned to `SYSTEMS_V01` v0.2.0 (needs checklist + Pay; no Offers/growth)  
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -16,7 +16,9 @@
 | v0.1.1 | Free Water + Offer mats; Food-cost watering removed |
 | v0.1.2 | Channelled Harvest Tree / Stone / Berry @ 1/sec. Water channel: shards + essence / sec + growth. Essence not Fruit-only. Drop click-cooldown multi-node gather phrasing. |
 | v0.1.3 | Welcome / first-boot Keeper lines (tend the Manatree). Next-stage needs: growth X/Y + missing mats list. |
-| **v0.1.4** | Pause menu: Resume, New Game (+confirm), Save, Load, Options (later), Exit (+confirm), empty-slot / overwrite. |
+| v0.1.4 | Pause menu: Resume, New Game (+confirm), Save, Load, Options (later), Exit (+confirm), empty-slot / overwrite. |
+| v0.1.5 | Strip growth language from next-stage/care. Needs-only (Essence + mats). Advance / can’t-afford. Growth X/Y keys retired. |
+| **v0.2.0** | `SYSTEMS_V01` v0.2.0: needs checklist `{have}/{need}` + **Pay**; remove Offer verbs; water = income only; no growth. |
 
 ---
 
@@ -45,7 +47,7 @@
 |----|-----|-------------------|
 | `wood` | Wood | Soft timber from the Harvest Tree. |
 | `stone` | Stone | Cool river-rock, still dusted with moss. |
-| `food` | Food | Berries from the bush — good to Offer. |
+| `food` | Food | Berries from the bush — for the Manatree’s Needs. |
 | `manashards` | Manashards | Drawn while watering the Manatree. |
 | `essence` | Essence | Grows with every careful watering — and with the Fruit. |
 
@@ -88,12 +90,14 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | key | string |
 |-----|--------|
 | `tree_examine_generic` | The Manatree. Heart of the last living fragment. |
-| `tree_growth_hud` | Growth |
+| `tree_growth_hud` | *(retired from player UI — needs-only)* |
 | `tree_stage_hud` | {stage_display} |
 
 ---
 
-## 5. Manatree care — Water channel + Offer
+## 5. Manatree care — Water + Needs / Pay (`SYSTEMS_V01` v0.2.0)
+
+**No growth bar. No Offer verbs.** Panel: next stage + needs checklist + Pay (when met) + Water.
 
 ### 5a. Interact menu
 
@@ -101,12 +105,10 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 |-----|--------|
 | `tree_menu_title` | Manatree |
 | `tree_interact_water` | Water |
-| `tree_offer_wood` | Offer Wood |
-| `tree_offer_stone` | Offer Stone |
-| `tree_offer_food` | Offer Food |
-| `tree_offer_manashards` | Offer Manashards |
+| `tree_pay` | Pay |
+| `tree_tend` | Tend |
 
-### 5b. Water channel (shards + essence + growth / sec)
+### 5b. Water channel (income only — shards + essence / sec)
 
 | key | string |
 |-----|--------|
@@ -118,40 +120,40 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_water_cancel` | You stop watering. |
 | `tree_water_ancient_note` | Ancient — still drinking, still giving. The Fruit waits when you are ready. |
 
-### 5c. Offer (instant)
+### 5c. Needs checklist + Pay
 
 | key | string |
 |-----|--------|
-| `tree_offer_ok_wood` | You offer Wood. The Manatree settles stronger. |
-| `tree_offer_ok_stone` | You offer Stone. Roots find purchase. |
-| `tree_offer_ok_food` | You offer Food. Care made visible. |
-| `tree_offer_ok_manashards` | You offer a Manashard. Magic threads into the bark. |
-| `tree_offer_deny` | Not enough {item}. |
-| `tree_offer_cooldown` | One gift at a time. |
-| `tree_offer_ancient_block` | Growth is complete. Harvest the Fruit — or keep watering for gifts. |
-
-### 5d. Next-stage needs + stage gate
-
-HUD / examine panel while not Ancient. Code fills tokens from `SYSTEMS_V01` stage table.
-
-| key | string |
-|-----|--------|
-| `tree_next_stage_title` | Growing toward {next_stage} |
-| `tree_next_stage_growth` | Growth {current}/{required} |
-| `tree_next_stage_growth_ready` | Growth ready — bring what it needs |
+| `tree_care_title` | Care |
+| `tree_next_stage_title` | Toward {next_stage} |
 | `tree_next_stage_needs_header` | Needs |
+| `tree_need_line` | {item} {have}/{need} |
+| `tree_need_line_met` | {item} {have}/{need} ✓ |
 | `tree_next_stage_needs_line` | {costs} |
-| `tree_next_stage_needs_met` | All gathered — tend to advance |
-| `tree_next_stage_needs_none` | Only growth — keep watering |
-| `tree_stage_blocked_mats` | The Manatree is ready to grow — but needs {costs}. |
-| `tree_stage_blocked_wood` | Wood ×{count} |
-| `tree_stage_blocked_stone` | Stone ×{count} |
-| `tree_stage_blocked_food` | Food ×{count} |
-| `tree_stage_blocked_shards` | Manashards ×{count} |
+| `tree_next_stage_needs_met` | Ready — Pay when you wish |
+| `tree_next_stage_needs_none` | Nothing more — Pay |
+| `tree_pay_confirm` | Give what it needs to become {next_stage}? |
+| `tree_pay_confirm_yes` | Pay |
+| `tree_pay_confirm_no` | Not yet |
+| `tree_pay_ok` | The Manatree becomes {next_stage}. |
+| `tree_pay_cant_afford` | Not enough yet — {costs} |
+| `tree_advance` | Pay |
+| `tree_advance_confirm` | Give what it needs to become {next_stage}? |
+| `tree_advance_confirm_yes` | Pay |
+| `tree_advance_confirm_no` | Not yet |
+| `tree_advance_ok` | The Manatree becomes {next_stage}. |
+| `tree_advance_cant_afford` | Not enough yet — {costs} |
+| `tree_stage_blocked_mats` | Still needs {costs}. |
+| `tree_stage_blocked_essence` | Essence {have}/{need} |
+| `tree_stage_blocked_food` | Food {have}/{need} |
+| `tree_stage_blocked_wood` | Wood {have}/{need} |
+| `tree_stage_blocked_stone` | Stone {have}/{need} |
 | `tree_at_ancient_idle` | Ancient and waiting. The Primordial Fruit hangs heavy. |
 
-**Tokens:** `{next_stage}` = display name of next stage; `{current}` / `{required}` = growth ints; `{costs}` = joined list from blocked_* keys (skip zero costs).  
-Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
+**Retired (do not ship in UI):** growth X/Y keys; all `tree_offer_*` verbs; `tree_growth_hud`.
+
+**Tokens:** `{next_stage}`, `{item}`, `{have}`, `{need}`, `{costs}` (joined need lines).  
+Design costs (§4): Young essence 20 → Mature 40+food 10 → Elder 60+food 20+wood 10 → Ancient 80+food 40+wood 20+stone 10.
 
 ---
 
@@ -178,9 +180,9 @@ Cost list join: commas + “and” — e.g. `Wood ×4, Stone ×2, and Food ×2`.
 
 | upgrade_id | Display | Description |
 |------------|---------|-------------|
-| `deep_roots` | Deep Roots | Each rank: Watering grants more growth. |
+| `deep_roots` | Deep Roots | Each rank: watering yields Essence a little sooner. |
 | `forager` | Forager’s Grace | Each rank: harvest channels yield a little more. |
-| `green_thumb` | Green Thumb | Each rank: stages need less growth to advance. |
+| `green_thumb` | Green Thumb | Each rank: soft-mat Needs ask for a little less. |
 | `shard_sight` | Shard Sight | Each rank: watering yields more Manashards. |
 | `keeper_stride` | Keeper’s Stride | Each rank: walk the fragment a little faster. |
 

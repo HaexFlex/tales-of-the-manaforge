@@ -1,6 +1,6 @@
 extends Area2D
 class_name Manatree
-## 5-stage Manatree; textures/size/hitbox from manatree_meta.json (v0.1.5).
+## 5-stage Manatree; textures/size/hitbox from manatree_meta.json. Needs-only (SYSTEMS v0.2.0).
 
 signal fruit_menu_requested
 signal care_menu_requested
@@ -32,7 +32,7 @@ func _ready() -> void:
 	input_event.connect(_on_input_event)
 	GameState.stage_changed.connect(_on_stage_changed)
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
-	GameState.growth_changed.connect(_on_growth)
+	GameState.needs_changed.connect(_refresh_label)
 	_refresh_visual()
 	_on_fruit_changed(GameState.fruit_ready)
 	add_to_group("manatree")
@@ -94,7 +94,7 @@ func _request_keeper_interact() -> void:
 
 
 func on_interact(_keeper: Node) -> void:
-	## Pending ascend → Fruit/Ascend panel. Otherwise care menu (Water channel works at Ancient).
+	## Pending ascend → Fruit/Ascend panel. Otherwise care menu (Water + Pay needs).
 	if GameState.fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
@@ -107,11 +107,11 @@ func set_watering(active: bool) -> void:
 		label.modulate = Color(0.85, 0.95, 1.1, 1.0)
 	else:
 		label.modulate = Color.WHITE
-	_refresh_visual()
+	_refresh_label()
 
 
 func do_water() -> void:
-	## Start / continue water channel via Keeper (Haex hold/channel).
+	## Start / continue water channel via Keeper (income only).
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 	if keepers.is_empty():
 		return
@@ -126,27 +126,19 @@ func do_water() -> void:
 		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_note"))
 
 
-func do_offer(resource_id: StringName) -> void:
-	var result: String = GameState.try_offer(resource_id)
-	var item: String = String(resource_id).capitalize()
-	if resource_id == &"manashards":
-		item = "Manashards"
+func do_pay_stage() -> String:
+	## Spend needs to advance. Audio stage-up fires via GameAudio on stage_changed.
+	var result: String = GameState.try_pay_stage()
 	match result:
 		"ok":
-			var ok_key: String = "tree_offer_ok_%s" % String(resource_id)
-			GameState.status_message.emit(ContentStrings.get_text(ok_key))
-			GameAudio.play_tree_offer()
-		"no_res":
-			GameState.status_message.emit(ContentStrings.get_text("tree_offer_deny", {"item": item}))
-			GameAudio.play_tree_deny()
-		"cooldown":
-			GameState.status_message.emit(ContentStrings.get_text("tree_offer_cooldown"))
+			pass
+		"cant_afford":
 			GameAudio.play_tree_deny()
 		"ancient":
-			GameState.status_message.emit(ContentStrings.get_text("tree_offer_ancient_block"))
 			if GameState.fruit_ready or GameState.fruit_harvested_pending_ascend:
 				fruit_menu_requested.emit()
 	_refresh_visual()
+	return result
 
 
 func refresh_after_care() -> void:
@@ -167,24 +159,18 @@ func _on_fruit_changed(ready: bool) -> void:
 		fruit_hint.text = ""
 
 
-func _on_growth(g: int, req: int) -> void:
+func _refresh_label() -> void:
 	var suffix: String = ""
 	if _watering:
 		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
+	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
 	if GameState.stage_id == &"ancient":
-		label.text = "%s\n%s%s" % [
-			str(GameState.get_stage_def().get("display_name", "Ancient")),
-			ContentStrings.get_text("tree_at_ancient_idle") if GameState.fruit_ready else "",
-			suffix,
-		]
+		var note: String = ""
+		if GameState.fruit_ready:
+			note = "\n" + ContentStrings.get_text("tree_at_ancient_idle")
+		label.text = "%s%s%s" % [stage_name, note, suffix]
 	else:
-		label.text = "%s\n%s %d/%d%s" % [
-			str(GameState.get_stage_def().get("display_name", GameState.stage_id)),
-			ContentStrings.get_text("tree_growth_hud"),
-			g,
-			req,
-			suffix,
-		]
+		label.text = "%s%s" % [stage_name, suffix]
 
 
 func _refresh_visual() -> void:
@@ -208,6 +194,6 @@ func _refresh_visual() -> void:
 		var rect_shape: RectangleShape2D = cs.shape as RectangleShape2D
 		rect_shape.size = Vector2(w, h)
 		cs.position = Vector2(0, -h * 0.5)
-	_on_growth(GameState.growth, GameState.get_growth_required_for_next())
+	_refresh_label()
 	label.position = Vector2(-80, -h - 36)
 	fruit_hint.position = Vector2(-140, 8)

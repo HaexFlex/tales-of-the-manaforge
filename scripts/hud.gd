@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care (Water / Offer / next-stage needs) + welcome + Fruit panel.
+## HUD + Manatree care (Water / Pay needs checklist) + welcome + Fruit panel. SYSTEMS v0.2.0.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -11,10 +11,7 @@ class_name GameHUD
 @onready var care_title: Label = $CarePanel/CareTitle
 @onready var care_needs_label: Label = $CarePanel/CareNeedsLabel
 @onready var water_button: Button = $CarePanel/WaterButton
-@onready var offer_wood_button: Button = $CarePanel/OfferWoodButton
-@onready var offer_stone_button: Button = $CarePanel/OfferStoneButton
-@onready var offer_food_button: Button = $CarePanel/OfferFoodButton
-@onready var offer_shards_button: Button = $CarePanel/OfferShardsButton
+@onready var pay_button: Button = $CarePanel/PayButton
 @onready var care_close_button: Button = $CarePanel/CareCloseButton
 @onready var prestige_panel: ColorRect = $PrestigePanel
 @onready var prestige_title: Label = $PrestigePanel/Title
@@ -31,6 +28,7 @@ class_name GameHUD
 @onready var welcome_dismiss_button: Button = $WelcomePanel/WelcomeDismiss
 
 var _manatree: Manatree = null
+var _confirm_pay: bool = false
 
 
 func _ready() -> void:
@@ -44,11 +42,8 @@ func _ready() -> void:
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
-	offer_wood_button.text = ContentStrings.get_text("tree_offer_wood")
-	offer_stone_button.text = ContentStrings.get_text("tree_offer_stone")
-	offer_food_button.text = ContentStrings.get_text("tree_offer_food")
-	offer_shards_button.text = ContentStrings.get_text("tree_offer_manashards")
-	care_title.text = ContentStrings.get_text("tree_menu_title")
+	pay_button.text = ContentStrings.get_text("tree_pay")
+	care_title.text = ContentStrings.get_text("tree_care_title")
 	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
 	welcome_title_label.text = ContentStrings.get_text("welcome_title")
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")
@@ -60,14 +55,11 @@ func _ready() -> void:
 	close_button.pressed.connect(hide_prestige_menu)
 	care_close_button.pressed.connect(hide_care_menu)
 	water_button.pressed.connect(_on_water)
-	offer_wood_button.pressed.connect(_on_offer.bind(&"wood"))
-	offer_stone_button.pressed.connect(_on_offer.bind(&"stone"))
-	offer_food_button.pressed.connect(_on_offer.bind(&"food"))
-	offer_shards_button.pressed.connect(_on_offer.bind(&"manashards"))
+	pay_button.pressed.connect(_on_pay)
 	welcome_dismiss_button.pressed.connect(_on_welcome_dismiss)
 	GameState.resources_changed.connect(_on_resources)
 	GameState.stage_changed.connect(_on_stage)
-	GameState.growth_changed.connect(_on_growth)
+	GameState.needs_changed.connect(_on_needs)
 	GameState.upgrades_changed.connect(_refresh_all)
 	GameState.status_message.connect(_on_status)
 	_refresh_all()
@@ -80,7 +72,7 @@ func _ensure_fruit_care_button() -> void:
 	var btn := Button.new()
 	btn.name = "FruitOpenButton"
 	btn.text = ContentStrings.get_text("tree_fruit_open")
-	btn.position = Vector2(20, 300)
+	btn.position = Vector2(20, 236)
 	btn.size = Vector2(200, 28)
 	btn.visible = false
 	btn.pressed.connect(open_fruit_from_care)
@@ -131,11 +123,12 @@ func _on_resources(_id: StringName, _amount: int) -> void:
 
 func _on_stage(_id: StringName) -> void:
 	_refresh_stage()
+	_confirm_pay = false
 	if care_panel.visible:
 		_refresh_care_needs()
 
 
-func _on_growth(_g: int, _r: int) -> void:
+func _on_needs() -> void:
 	_refresh_stage()
 	if care_panel.visible:
 		_refresh_care_needs()
@@ -198,39 +191,33 @@ func _refresh_resources() -> void:
 
 func _refresh_stage() -> void:
 	var def: Dictionary = GameState.get_stage_def()
-	var req: int = GameState.get_growth_required_for_next()
-	var growth_bit: String = ""
-	if GameState.stage_id != &"ancient":
-		growth_bit = "  |  Growth %d/%d" % [GameState.growth, req]
-	stage_label.text = "%s%s  |  %s" % [
+	stage_label.text = "%s  |  %s" % [
 		str(def.get("display_name", GameState.stage_id)),
-		growth_bit,
 		ContentStrings.get_text("ascend_count_hud", {"count": GameState.ascensions}),
 	]
 
 
 func _refresh_care_needs() -> void:
 	var info: Dictionary = GameState.get_care_next_stage_info()
-	if bool(info.get("is_ancient", false)):
-		care_title.text = str(info.get("title", ContentStrings.get_text("tree_menu_title")))
-		care_needs_label.text = str(info.get("growth_line", ""))
-		offer_wood_button.disabled = true
-		offer_stone_button.disabled = true
-		offer_food_button.disabled = true
-		offer_shards_button.disabled = true
+	care_title.text = str(info.get("title", ContentStrings.get_text("tree_care_title")))
+	var lines: PackedStringArray = info.get("needs_lines", PackedStringArray()) as PackedStringArray
+	var header: String = str(info.get("needs_header", ""))
+	var status: String = str(info.get("needs_status", ""))
+	var body_parts: PackedStringArray = PackedStringArray()
+	if header != "":
+		body_parts.append(header)
+	for line: String in lines:
+		body_parts.append(line)
+	if status != "" and not bool(info.get("is_ancient", false)):
+		body_parts.append(status)
+	care_needs_label.text = "\n".join(body_parts)
+	var can_pay: bool = bool(info.get("can_pay", false))
+	pay_button.visible = not bool(info.get("is_ancient", false))
+	if _confirm_pay and can_pay:
+		pay_button.text = ContentStrings.get_text("tree_pay_confirm_yes")
 	else:
-		care_title.text = str(info.get("title", ContentStrings.get_text("tree_menu_title")))
-		var header: String = str(info.get("needs_header", ""))
-		var needs: String = str(info.get("needs_line", ""))
-		care_needs_label.text = "%s\n%s\n%s" % [
-			str(info.get("growth_line", "")),
-			header,
-			needs,
-		]
-		offer_wood_button.disabled = false
-		offer_stone_button.disabled = false
-		offer_food_button.disabled = false
-		offer_shards_button.disabled = false
+		pay_button.text = ContentStrings.get_text("tree_pay")
+	pay_button.disabled = not can_pay
 	_ensure_fruit_care_button()
 	var fruit_btn: Button = care_panel.get_node_or_null("FruitOpenButton") as Button
 	if fruit_btn:
@@ -243,6 +230,7 @@ func show_care_menu() -> void:
 	if _pause_menu and _pause_menu.is_open():
 		return
 	hide_prestige_menu()
+	_confirm_pay = false
 	care_panel.visible = true
 	_ensure_fruit_care_button()
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -259,6 +247,7 @@ func hide_care_menu() -> void:
 	if care_panel.visible:
 		GameAudio.play_ui_close()
 	care_panel.visible = false
+	_confirm_pay = false
 
 
 func show_prestige_menu() -> void:
@@ -289,9 +278,27 @@ func _on_water() -> void:
 	_refresh_all()
 
 
-func _on_offer(resource_id: StringName) -> void:
+func _on_pay() -> void:
+	if not GameState.can_pay_stage():
+		GameAudio.play_tree_deny()
+		_refresh_care_needs()
+		return
+	# Two-step confirm: first click arms confirm label; second pays.
+	if not _confirm_pay:
+		_confirm_pay = true
+		var info: Dictionary = GameState.get_care_next_stage_info()
+		var next_display: String = str(info.get("next_stage_display", ""))
+		status_label.text = ContentStrings.get_text("tree_pay_confirm", {"next_stage": next_display})
+		_refresh_care_needs()
+		return
+	_confirm_pay = false
+	var result: String = "cant_afford"
 	if _manatree:
-		_manatree.do_offer(resource_id)
+		result = _manatree.do_pay_stage()
+	else:
+		result = GameState.try_pay_stage()
+	if result == "ok":
+		SaveService.save_game()
 	_refresh_all()
 
 
