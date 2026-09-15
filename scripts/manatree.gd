@@ -33,6 +33,7 @@ func _ready() -> void:
 	GameState.stage_changed.connect(_on_stage_changed)
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
 	GameState.needs_changed.connect(_refresh_label)
+	GameState.selection_changed.connect(_refresh_label)
 	_refresh_visual()
 	_on_fruit_changed(GameState.fruit_ready)
 	add_to_group("manatree")
@@ -79,16 +80,23 @@ func _stage_size(stage: StringName) -> Vector2:
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			_request_keeper_interact()
+		if not mb.pressed:
+			return
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			# LMB on the tree is not empty ground — swallow so Main does not deselect.
+			get_viewport().set_input_as_handled()
+			return
+		if mb.button_index == MOUSE_BUTTON_RIGHT:
+			apply_player_command()
 			get_viewport().set_input_as_handled()
 
 
-func _request_keeper_interact() -> void:
-	## SYSTEMS v0.3.1: Manatree interact requires Keeper selected first.
+func apply_player_command() -> void:
+	## RMB: wisp assign to Manatree (manashards pulse) OR Keeper walks + care/water as today.
 	if GameState.selected_wisp_id >= 0:
-		# Manatree is not a wisp assign target — keep selection, soft hint.
-		GameState.status_message.emit(ContentStrings.get_text("wisp_select_hint"))
+		var node_id: String = GameState.NODE_ID_MANATREE
+		var result: String = GameState.try_assign_wisp(GameState.selected_wisp_id, node_id)
+		GameState.toast_wisp_assign(result, node_id)
 		return
 	if not GameState.keeper_selected:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
@@ -171,6 +179,9 @@ func _refresh_label() -> void:
 	var suffix: String = ""
 	if _watering:
 		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
+	if GameState.selected_wisp_id >= 0:
+		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
+		return
 	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
 	if GameState.stage_id == &"ancient":
 		var note: String = ""

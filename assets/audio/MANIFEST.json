@@ -153,6 +153,30 @@
       "bus": "SFX_UI",
       "loop": false,
       "notes": "optional on channel begin"
+    },
+    "sfx_wisp_assign": {
+      "file": "sfx_wisp_assign.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "notes": "wisp assigned to harvest node or Manatree"
+    },
+    "sfx_wisp_deny": {
+      "file": "sfx_wisp_deny.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "notes": "WISP_PER_NODE / Manatree slot full"
+    },
+    "sfx_wisp_unassign": {
+      "file": "sfx_wisp_unassign.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "notes": "wisp recalled to Keeper orbit"
+    },
+    "sfx_wisp_pulse": {
+      "file": "sfx_wisp_pulse.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "notes": "assigned wisp pulse grant (quiet under hub)"
     }
   }
 }

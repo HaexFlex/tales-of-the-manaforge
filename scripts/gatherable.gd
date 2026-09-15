@@ -36,6 +36,7 @@ func _ready() -> void:
 	label.position = Vector2(-48, -h - 20.0)
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
 	input_event.connect(_on_input_event)
+	GameState.selection_changed.connect(_refresh_prompt)
 	add_to_group("gatherable")
 	add_to_group("interactable")
 	add_to_group("harvest_node")
@@ -50,25 +51,23 @@ func _ready() -> void:
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			_request_keeper_interact()
+		if not mb.pressed:
+			return
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			# LMB on a node is not empty ground — swallow so Main does not deselect.
+			get_viewport().set_input_as_handled()
+			return
+		if mb.button_index == MOUSE_BUTTON_RIGHT:
+			apply_player_command()
 			get_viewport().set_input_as_handled()
 
 
-func _request_keeper_interact() -> void:
-	## SYSTEMS v0.3.1: wisp assign (no Keeper gate) OR Keeper must be selected to harvest.
+func apply_player_command() -> void:
+	## RMB: wisp assign (no Keeper gate) OR Keeper walks + harvest channel.
 	if GameState.selected_wisp_id >= 0:
 		var node_id: String = GameState.node_id_for_resource(resource_id)
 		var result: String = GameState.try_assign_wisp(GameState.selected_wisp_id, node_id)
-		match result:
-			"ok":
-				GameState.status_message.emit(ContentStrings.get_text("wisp_assign_ok"))
-			"reassign":
-				GameState.status_message.emit(ContentStrings.get_text("wisp_reassign_ok"))
-			"busy":
-				GameState.status_message.emit(ContentStrings.get_text("wisp_assign_busy"))
-			_:
-				pass
+		GameState.toast_wisp_assign(result, node_id)
 		return
 	if not GameState.keeper_selected:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_harvest"))
@@ -91,11 +90,34 @@ func on_interact(keeper: Node) -> void:
 func set_channeling(active: bool) -> void:
 	_channeling = active
 	if active:
-		label.text = ContentStrings.get_text("node_%s_busy" % node_key)
 		modulate = Color(1.05, 1.1, 0.95, 1.0)
 	else:
-		label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
 		modulate = Color.WHITE
+	_refresh_prompt()
+
+
+func _refresh_prompt() -> void:
+	if label == null:
+		return
+	if _channeling:
+		label.text = ContentStrings.get_text("node_%s_busy" % node_key)
+		return
+	if GameState.selected_wisp_id >= 0:
+		label.text = _wisp_assign_prompt()
+		return
+	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
+
+
+func _wisp_assign_prompt() -> String:
+	match node_key:
+		"wood":
+			return ContentStrings.get_text("wisp_assign_to_tree")
+		"stone":
+			return ContentStrings.get_text("wisp_assign_to_stone")
+		"food":
+			return ContentStrings.get_text("wisp_assign_to_berry")
+		_:
+			return ContentStrings.get_text("wisp_assign_prompt")
 
 
 func on_channel_cancel() -> void:

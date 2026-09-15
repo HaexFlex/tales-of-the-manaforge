@@ -1,11 +1,13 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + welcome + Ascension Manashard shop. SYSTEMS/Content v0.2.4.
+## HUD + Manatree care + welcome + Ascension Manashard shop. SYSTEMS v0.3.2 / Content v0.3.3.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
 @onready var stage_label: Label = $Panel/StageLabel
+@onready var controls_hint: Label = $Panel/ControlsHint
 @onready var status_label: Label = $Panel/StatusLabel
+@onready var selection_hint: Label = $Panel/SelectionHint
 @onready var pause_button: Button = $Panel/PauseButton
 @onready var care_panel: ColorRect = $CarePanel
 @onready var care_title: Label = $CarePanel/CareTitle
@@ -68,8 +70,11 @@ func _ready() -> void:
 	GameState.upgrades_changed.connect(_refresh_all)
 	GameState.status_message.connect(_on_status)
 	GameState.fruit_ready_changed.connect(_on_fruit_ready_changed)
+	GameState.selection_changed.connect(_refresh_selection_hint)
 	_refresh_all()
 	status_label.text = ContentStrings.get_text("boot_line")
+	_refresh_controls_hint()
+	_refresh_selection_hint()
 
 
 func _ensure_fruit_care_button() -> void:
@@ -116,7 +121,7 @@ func _on_welcome_dismiss() -> void:
 	GameState.welcome_shown = true
 	hide_welcome()
 	GameAudio.play_ui_confirm()
-	status_label.text = ContentStrings.get_text("welcome_hint")
+	status_label.text = ContentStrings.get_text("controls_hint")
 	SaveService.save_game()
 
 
@@ -142,6 +147,27 @@ func _on_needs() -> void:
 
 func _on_status(text: String) -> void:
 	status_label.text = text
+
+
+func _refresh_controls_hint() -> void:
+	if controls_hint == null:
+		return
+	controls_hint.text = "%s  ·  %s  ·  %s" % [
+		ContentStrings.get_text("controls_lmb_select"),
+		ContentStrings.get_text("controls_rmb_command"),
+		ContentStrings.get_text("controls_lmb_deselect"),
+	]
+
+
+func _refresh_selection_hint() -> void:
+	if selection_hint == null:
+		return
+	if GameState.selected_wisp_id >= 0:
+		selection_hint.text = ContentStrings.get_text("wisp_orbit_hint")
+	elif GameState.keeper_selected:
+		selection_hint.text = ContentStrings.get_text("keeper_move_prompt")
+	else:
+		selection_hint.text = ContentStrings.get_text("keeper_select_hint")
 
 
 var _pause_menu: PauseMenu = null
@@ -185,6 +211,8 @@ func _refresh_all() -> void:
 	_refresh_stage()
 	_rebuild_upgrades()
 	_refresh_prestige_buttons()
+	_refresh_controls_hint()
+	_refresh_selection_hint()
 	if care_panel.visible:
 		_refresh_care_needs()
 

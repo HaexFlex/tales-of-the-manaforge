@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.2.4 — Manashard blessing shop only after Fruit (Ascension); not mid-run  
+**Status:** v0.3.3 — LMB select / RMB command / LMB-empty deselect; Wisp→Manatree shards; orbit assigned node
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -37,7 +37,7 @@
 | `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, and Pay its Needs when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend. |
 | `welcome_body_short` | Water and gather. Pay the Manatree’s Needs. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
 | `welcome_dismiss` | I will tend it |
-| `welcome_hint` | Water the Manatree for Essence. Harvest Tree, Stone, and Berries for its Needs. Pay to advance. |
+| `welcome_hint` | LMB selects, RMB commands. Wisps orbit you until assigned — send them to gather, or to the Manatree for Manashards. |
 | `new_game_confirm` | Begin as Keeper? |
 | `load_game` | Continue |
 | `save_toast` | Progress remembered. |
@@ -199,6 +199,8 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | `green_thumb` | Green Thumb | Soft-mat Needs ask for a little less. |
 | `shard_sight` | Shard Sight | Watering yields more Manashards. |
 | `keeper_stride` | Keeper’s Stride | Walk the fragment a little faster. |
+| `wisp_haste` | Swift Wisps | Assigned Wisps gather a little sooner. |
+| `bonus_wisp` | Extra Wisp | Another Wisp walks with you from the Sapling. |
 
 | key | string |
 |-----|--------|
@@ -242,8 +244,19 @@ Warm + lightly melancholic. Options is a stub until later.
 | `pause_save` | Save |
 | `pause_load` | Load |
 | `pause_options` | Options |
-| `pause_options_stub` | Coming later |
-| `pause_options_soon` | Options will open later. For now, the forest waits quietly. |
+| `pause_options_stub` | *(retired — Options opens Audio)* |
+| `pause_options_soon` | *(retired)* |
+| `options_title` | Options |
+| `options_audio` | Audio |
+| `options_back` | Back |
+| `options_audio_title` | Audio |
+| `options_music_volume` | Music |
+| `options_sfx_volume` | Sounds |
+| `options_audio_back` | Back |
+| `options_audio_hint` | Soften the forest, or let it sing. |
+| `options_audio_reset` | Reset |
+| `options_music_volume_full` | Music volume |
+| `options_sfx_volume_full` | SFX volume |
 | `pause_exit` | Exit |
 | `pause_exit_confirm` | Leave the clearing? Unsaved care may fade with the light. |
 | `pause_exit_confirm_yes` | Leave |
@@ -261,9 +274,80 @@ Warm + lightly melancholic. Options is a stub until later.
 
 ---
 
+## 7c. Keeper controls — LMB select / RMB command
+
+| key | string |
+|-----|--------|
+| `keeper_select` | Keeper |
+| `keeper_selected` | Keeper selected |
+| `keeper_select_hint` | Left-click to select the Keeper. Right-click to walk, harvest, or tend. |
+| `controls_lmb_select` | Left-click: select |
+| `controls_rmb_command` | Right-click: command |
+| `controls_lmb_deselect` | Left-click empty ground: deselect |
+| `controls_hint` | LMB selects. RMB commands. LMB on empty ground deselects. |
+| `keeper_move_prompt` | Right-click the ground to walk. |
+| `keeper_required` | Select the Keeper first (left-click). |
+| `keeper_required_harvest` | Select the Keeper, then right-click the tree, stone, or berries. |
+| `keeper_required_tree` | Select the Keeper, then right-click the Manatree. |
+| `keeper_required_wisp` | *(retired — Wisp select uses LMB)* |
+| `keeper_deselect` | Deselect |
+| `keeper_deselect_toast` | Cleared. |
+| `keeper_busy` | The Keeper is busy — try again in a moment. |
+
+---
+
+## 7d. Wisps (select / assign / gather)
+
+Spelling: **Wisp** (player-facing). Idle Wisps **orbit the Keeper**; assigned Wisps **orbit their node** (harvest or Manatree).
+
+| key | string |
+|-----|--------|
+| `wisp_name` | Wisp |
+| `wisp_name_plural` | Wisps |
+| `wisp_select` | Select Wisp |
+| `wisp_selected` | Wisp selected |
+| `wisp_select_hint` | Left-click a Wisp, then right-click a gather spot or the Manatree. |
+| `wisp_assign_prompt` | Assign Wisp |
+| `wisp_assign_hint` | Right-click a harvest spot or the Manatree. |
+| `wisp_assign_to_tree` | Gather Wood |
+| `wisp_assign_to_stone` | Gather Stone |
+| `wisp_assign_to_berry` | Gather Food |
+| `wisp_assign_to_manatree` | Gather Manashards |
+| `wisp_assign_ok` | The Wisp drifts to work. |
+| `wisp_assign_manatree_ok` | The Wisp circles the Manatree, drawing Manashards. |
+| `wisp_reassign_ok` | The Wisp finds a new place to gather. |
+| `wisp_assign_busy` | A Wisp already tends that spot. |
+| `wisp_unassign` | Call back |
+| `wisp_unassign_ground` | Right-click empty ground to call the Wisp back. |
+| `wisp_unassign_ok` | The Wisp returns to your side. |
+| `wisp_gathering_hud` | Gathering {item}… |
+| `wisp_idle_hud` | Nearby |
+| `wisp_assigned_hud` | Orbiting {target} |
+| `wisp_orbit_hint` | Idle Wisps orbit the Keeper. Assigned Wisps orbit their node. |
+| `wisp_none` | No Wisps yet — advance the Manatree, or buy Extra Wisp. |
+| `wisp_full` | All Wisps are busy. |
+
+---
+
+## 7e. Ascension Wisp blessings (shop — Manashards)
+
+Locked Design ids (`SYSTEMS_V01` v0.3.0).
+
+| upgrade_id | Display | Description |
+|------------|---------|-------------|
+| `wisp_haste` | Swift Wisps | Assigned Wisps gather a little sooner. |
+| `bonus_wisp` | Extra Wisp | Another Wisp walks with you from the Sapling. |
+
+| key | string |
+|-----|--------|
+| `upgrade_wisp_haste_name` | Swift Wisps |
+| `upgrade_wisp_haste_desc` | Assigned Wisps gather a little sooner. |
+| `upgrade_bonus_wisp_name` | Extra Wisp |
+| `upgrade_bonus_wisp_desc` | Another Wisp walks with you from the Sapling. |
+
 ## 8. Out of v0.1 (do not ship strings for)
 
-Combat, whisps, Forge interior / door interact, equipment, Echo Chamber, Manaforge-as-place name, multi-zone travel, prompts on decorative trees.
+Combat, Forge interior / door interact, equipment, Echo Chamber, Manaforge-as-place name, multi-zone travel, prompts on decorative trees. (Wisps are in-scope as of v0.2.6.)
 
 ---
 

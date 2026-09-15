@@ -118,6 +118,14 @@ func _connect_game_signals() -> void:
 		return
 	GameState.stage_changed.connect(_on_stage_changed)
 	GameState.fruit_ready_changed.connect(_on_fruit_ready)
+	if GameState.has_signal("wisp_assigned"):
+		GameState.wisp_assigned.connect(_on_wisp_assigned)
+	if GameState.has_signal("wisp_assign_failed"):
+		GameState.wisp_assign_failed.connect(_on_wisp_assign_failed)
+	if GameState.has_signal("wisp_unassigned"):
+		GameState.wisp_unassigned.connect(_on_wisp_unassigned)
+	if GameState.has_signal("wisp_pulsed"):
+		GameState.wisp_pulsed.connect(_on_wisp_pulsed)
 
 
 func play_hub_music() -> void:
@@ -374,6 +382,40 @@ func play_ui_open() -> void:
 
 func play_ui_close() -> void:
 	play(&"sfx_ui_close")
+
+
+func play_wisp_assign() -> void:
+	play(&"sfx_wisp_assign")
+
+
+func play_wisp_deny() -> void:
+	play(&"sfx_wisp_deny")
+
+
+func play_wisp_unassign() -> void:
+	play(&"sfx_wisp_unassign")
+
+
+func play_wisp_pulse() -> void:
+	play_quiet(&"sfx_wisp_pulse", -8.0)
+
+
+func _on_wisp_assigned(_wisp_id: int, _node_id: String, result: String) -> void:
+	if result == "ok" or result == "reassign":
+		play_wisp_assign()
+
+
+func _on_wisp_assign_failed(reason: String, _node_id: String) -> void:
+	if reason == "busy":
+		play_wisp_deny()
+
+
+func _on_wisp_unassigned(_wisp_id: int) -> void:
+	play_wisp_unassign()
+
+
+func _on_wisp_pulsed(_resource_id: StringName) -> void:
+	play_wisp_pulse()
 
 
 func _on_stage_changed(stage_id: StringName) -> void:

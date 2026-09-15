@@ -1,6 +1,6 @@
 {
-  "version": "v0.1.9-orbit",
-  "systems_ref": "SYSTEMS_V01.md \u00a74c (v0.3.1) \u2014 unassigned orbit Keeper",
+  "version": "v0.1.10-node-orbit",
+  "systems_ref": "Haex: assigned wisps fly to / orbit harvest node (not Keeper)",
   "canvas": [
     32,
     32
@@ -25,18 +25,31 @@
     "parked": {
       "strip": "wisp_parked.png",
       "frames": 4,
-      "notes": "gold ring while on harvest node; optional badge stills per resource"
+      "notes": "alias of node_orbit (motion while assigned)",
+      "alias_of": "node_orbit"
     },
     "assigned": {
       "strip": "wisp_assigned.png",
-      "frames": 4,
-      "alias_of": "parked"
+      "alias_of": "node_orbit",
+      "frames": 8
     },
     "orbit": {
       "strip": "wisp_orbit.png",
       "frames": 8,
       "hold_ms": 80,
       "notes": "motion trail; Code places on circle around Keeper and advances frame with angle"
+    },
+    "fly": {
+      "strip": "wisp_fly.png",
+      "frames": 6,
+      "hold_ms": 60,
+      "notes": "Code tweens world pos Keeper\u2192node; play this clip during tween; flip X if needed"
+    },
+    "node_orbit": {
+      "strip": "wisp_node_orbit.png",
+      "frames": 8,
+      "hold_ms": 90,
+      "notes": "after arrive: orbit harvest node; gold ring = assigned"
     }
   },
   "parked_badges": {
@@ -69,5 +82,26 @@
     "preview": "wisp_orbit_layout_preview.png",
     "when_selected": "pause orbit or freeze frame + use selected clip",
     "when_parked": "leave orbit; use parked clip on harvest node"
-  }
+  },
+  "node_orbit_layout": {
+    "radius_px": 28,
+    "radius_alt": [
+      20,
+      24,
+      28,
+      32
+    ],
+    "anchor_relative_to": "harvest node center / canopy",
+    "follow_node": false,
+    "arrive_clip": "fly",
+    "loop_clip": "node_orbit"
+  },
+  "behavior_summary": {
+    "unassigned": "orbit Keeper (clip: orbit, r\u224856)",
+    "selected": "pause + selected clip",
+    "assigning": "fly tween Keeper\u2192node (clip: fly)",
+    "assigned": "orbit node (clip: node_orbit, r\u224828)",
+    "unassign": "fly tween node\u2192Keeper then Keeper orbit"
+  },
+  "preview_assign_flow": "wisp_assign_flow_preview.png"
 }
