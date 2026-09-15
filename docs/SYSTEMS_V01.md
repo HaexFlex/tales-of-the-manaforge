@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Systems Brief v0.2 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.2.4 — Haex: Manashard shop **Ascension-only** (after Fruit)  
+**Status:** v0.2.5 — Haex: Manashard shop costs raised (1–2 ranks per Ascension)  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
@@ -20,7 +20,8 @@
 | v0.2.1 | Spend-essence blessing shop (superseded) |
 | v0.2.2 | Pick-one-free Ascension (superseded) |
 | v0.2.3 | Manashard blessing shop → Ascend |
-| **v0.2.4** | **Haex lock:** Manashard shop is **Ascension-only** (after Fruit harvest). Not available anytime mid-run. |
+| v0.2.4 | Manashard shop Ascension-only |
+| **v0.2.5** | **Haex:** shop costs way too low. Typical Ascension affords **1–2 blessing ranks total**. `SHOP_BASE = 400`; `cost = SHOP_BASE * (current_rank + 1)` Manashards. Water ~1–3 shards/sec — bank at Fruit must not buy the whole tree. Code: update `fruit_upgrades.json`. |
 
 ---
 
@@ -152,15 +153,25 @@ essence += ESSENCE_PER_HARVEST   # default 5; for stage needs next cycle only
 
 ### Permanent upgrades (blessings — spend Manashards)
 
-Costs are **Manashards** per next rank:
+**Target:** typical Ascension bank (water ~1–3 shards/sec across the needs run) affords **about 1–2 ranks total**, not the whole tree.
+
+```
+SHOP_BASE = 400
+cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
+# 0→1: 400 | 1→2: 800 | 2→3: 1200 | …
+```
 
 | upgrade_id | Max | Cost (shards) | Effect |
-|------------|-----|------|--------|
-| `deep_roots` | 10 | `1 + rank` shards | `WATER_ESSENCE_PER_SEC += 1` every **2** ranks (ranks 2,4,6…); odd ranks no-op **or** simpler: `+0` — **default v0.2:** `WATER_ESSENCE_PER_SEC += 1` per 2 ranks via `floor(rank/2)` |
-| `forager` | 10 | `1 + rank` shards | `gather_mult += 0.05` / rank |
-| `green_thumb` | 5 | `2 + rank` shards | Stage soft-mat needs −10% per rank (floor, min 1 if need > 0); essence needs unchanged |
-| `shard_sight` | 5 | `2 + 2*rank` shards | `+1` shards per water pulse / rank |
-| `keeper_stride` | 5 | `1 + rank` shards | `MOVE_SPEED_MULT += 0.06` / rank |
+|------------|-----|---------------|--------|
+| `deep_roots` | 10 | `400 * (rank + 1)` | `WATER_ESSENCE_PER_SEC` bonus `floor(rank / 2)` |
+| `forager` | 10 | `400 * (rank + 1)` | `gather_mult += 0.05` / rank |
+| `green_thumb` | 5 | `400 * (rank + 1)` | Soft-mat needs −10% / rank (floor, min 1); essence needs unchanged |
+| `shard_sight` | 5 | `400 * (rank + 1)` | `+1` shards per water pulse / rank |
+| `keeper_stride` | 5 | `400 * (rank + 1)` | `MOVE_SPEED_MULT += 0.06` / rank |
+
+**Examples:** bank 400 → one rank; bank 800 → two rank-1 buys (or one blessing toward rank 2). Unspent shards still wipe on Ascend.
+
+**Code:** mirror in `fruit_upgrades.json` (or equivalent data file).
 
 ---
 
@@ -241,6 +252,7 @@ ESC → pause (7 slots); world frozen
 | Offer-for-growth | **REMOVED** |
 | Ascension = Manashard blessing shop | **LOCKED Haex v0.2.3** |
 | Shop timing = Ascension-only after Fruit | **LOCKED Haex v0.2.4** |
+| Shop costs ~1–2 ranks/Ascension (`SHOP_BASE=400`) | **LOCKED Haex intent v0.2.5** |
 | Pick-one-free Ascension | **REVOKED** |
 | Essence blessing shop | **REVOKED** |
 

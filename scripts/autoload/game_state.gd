@@ -274,6 +274,7 @@ func try_water() -> String:
 
 
 func get_upgrade_cost(upgrade_id: String) -> int:
+	## SYSTEMS v0.2.5: cost = SHOP_BASE * (rank + 1) via cost_base=400, cost_per_rank=400.
 	var def: Dictionary = get_upgrade_def(upgrade_id)
 	if def.is_empty():
 		return 999999

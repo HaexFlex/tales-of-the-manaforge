@@ -5,18 +5,18 @@
       "display_name": "Deep Roots",
       "description": "Every 2 ranks: watering grants +1 Essence per pulse.",
       "max_rank": 10,
-      "cost_base": 1,
-      "cost_per_rank": 1,
+      "cost_base": 400,
+      "cost_per_rank": 400,
       "effect": "water_essence_bonus",
       "value_per_rank": 1.0
     },
     {
       "id": "forager",
-      "display_name": "Forager\u2019s Grace",
+      "display_name": "Forager’s Grace",
       "description": "Each rank: harvest channels yield a little more.",
       "max_rank": 10,
-      "cost_base": 1,
-      "cost_per_rank": 1,
+      "cost_base": 400,
+      "cost_per_rank": 400,
       "effect": "gather_mult_bonus",
       "value_per_rank": 0.05
     },
@@ -25,8 +25,8 @@
       "display_name": "Green Thumb",
       "description": "Each rank: soft-mat stage needs drop by 10% (min 1).",
       "max_rank": 5,
-      "cost_base": 2,
-      "cost_per_rank": 1,
+      "cost_base": 400,
+      "cost_per_rank": 400,
       "effect": "soft_need_reduction",
       "value_per_rank": 0.1
     },
@@ -35,18 +35,18 @@
       "display_name": "Shard Sight",
       "description": "Each rank: watering yields +1 manashard per pulse.",
       "max_rank": 5,
-      "cost_base": 2,
-      "cost_per_rank": 2,
+      "cost_base": 400,
+      "cost_per_rank": 400,
       "effect": "water_shard_bonus",
       "value_per_rank": 1.0
     },
     {
       "id": "keeper_stride",
-      "display_name": "Keeper\u2019s Stride",
+      "display_name": "Keeper’s Stride",
       "description": "Each rank: walk the fragment a little faster.",
       "max_rank": 5,
-      "cost_base": 1,
-      "cost_per_rank": 1,
+      "cost_base": 400,
+      "cost_per_rank": 400,
       "effect": "move_speed_mult",
       "value_per_rank": 0.06
     }

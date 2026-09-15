@@ -2,7 +2,7 @@
 
 Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper**, tending a living **Manatree** in the last fragment of a fairy-forest.
 
-**Canon:** `VISION_RESTART` + briefs (`SYSTEMS_V01` **v0.2.0**, `CONTENT_STRINGS_V01` **v0.2.0**, `VISUAL_BIBLE_RESTART_V01`). **Needs-only** stage-up (no growth bar / Offers). Pause menu + **7 save slots**. Art harvest nodes **v0.1.4**. Audio channels **v0.1.2**. Old forge/combat drafts are non-canon.
+**Canon:** `VISION_RESTART` + briefs (`SYSTEMS_V01` **v0.2.5**, `CONTENT_STRINGS_V01` **v0.2.0**, `VISUAL_BIBLE_RESTART_V01`). **Needs-only** stage-up (no growth bar / Offers). Pause menu + **7 save slots**. Art harvest nodes **v0.1.4**. Audio channels **v0.1.2**. Old forge/combat drafts are non-canon.
 
 ## Stack
 
@@ -35,6 +35,10 @@ Essence comes from **watering ticks** and Fruit — not Fruit-only. Soft mats ar
 ```
 
 Expect `VERIFY_OK` and exit code `0`.
+
+## Hub BGM (after pull)
+
+Cue `mus_hub_forest` plays `assets/audio/mus_hub_forest_haex_loop.wav` on the **Music** bus with loop. After `git pull`, **reopen the project in Godot** so the wav reimports. If the hub is silent, delete `.godot/imported/*haex_loop*` (or `mus_hub_forest_haex_loop.wav.import`) and let Godot reimport — do not point the cue back at the short legacy `mus_hub_forest.wav`.
 
 ## Out of scope (v0.2)
 
