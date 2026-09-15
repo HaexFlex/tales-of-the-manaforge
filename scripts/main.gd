@@ -1,5 +1,5 @@
 extends Node2D
-## Forest hub 1280×720: grass tiles, dense deco trees, 3 harvest channels, Manatree water channel.
+## Forest hub 1280×720: select-first Keeper, wisps orbit, 3 harvest channels, Manatree (SYSTEMS v0.3.1).
 
 @onready var keeper: Keeper = $World/Keeper
 @onready var manatree: Manatree = $World/Manatree
@@ -31,6 +31,9 @@ const CLEAR_POINTS: Array[Vector2] = [
 	Vector2(480, 520),
 ]
 
+const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
+var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -44,8 +47,11 @@ func _ready() -> void:
 	hud.bind_manatree(manatree)
 	hud.bind_pause_menu(pause_menu)
 	GameAudio.play_hub_music()
+	GameState.wisps_changed.connect(_sync_wisps)
+	GameState.load_completed.connect(_sync_wisps)
 	if SaveService.has_save():
 		SaveService.load_game()
+	_sync_wisps()
 	# First load / new save: show Keeper welcome once (flag in save).
 	hud.maybe_show_welcome()
 
@@ -142,10 +148,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if pause_menu.is_open():
 		return
-	# Belt-and-suspenders: skip ground move if an interactable Area2D is under the cursor.
+	# Belt-and-suspenders: skip if an interactable Area2D is under the cursor.
 	if _interactable_under_point(get_global_mouse_position()):
 		return
-	keeper.move_to(get_global_mouse_position(), null)
+	# Priority: selected wisp → unassign (return to orbit); else Keeper selected → move.
+	if GameState.selected_wisp_id >= 0:
+		var wid: int = GameState.selected_wisp_id
+		if GameState.unassign_wisp(wid):
+			GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
+		GameState.clear_wisp_selection()
+		return
+	if GameState.keeper_selected:
+		keeper.move_to(get_global_mouse_position(), null)
+		return
+	GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 
 
 func _interactable_under_point(world_pos: Vector2) -> bool:
@@ -171,3 +187,35 @@ func _on_fruit_menu() -> void:
 
 func _on_care_menu() -> void:
 	hud.show_care_menu()
+
+
+func _sync_wisps() -> void:
+	## Spawn / free wisp orbs to match GameState.wisp_count.
+	var want: int = GameState.wisp_count
+	# Free extras
+	var existing: Array = _wisp_nodes.keys()
+	for kid: Variant in existing:
+		var id: int = int(kid)
+		if id >= want:
+			var node: Node = _wisp_nodes[id]
+			_wisp_nodes.erase(id)
+			if is_instance_valid(node):
+				node.queue_free()
+	for i: int in range(want):
+		if _wisp_nodes.has(i) and is_instance_valid(_wisp_nodes[i]):
+			continue
+		var orb: Node = WISP_SCENE.instantiate()
+		if orb.has_method("setup"):
+			orb.call("setup", i)
+		world.add_child(orb)
+		if orb.has_signal("wisp_clicked"):
+			orb.connect("wisp_clicked", _on_wisp_clicked)
+		_wisp_nodes[i] = orb
+
+
+func _on_wisp_clicked(wisp_id: int) -> void:
+	## Wisp click does NOT require Keeper selected (SYSTEMS v0.3.1).
+	GameState.select_wisp(wisp_id)
+	if GameState.selected_wisp_id == wisp_id:
+		GameState.status_message.emit(ContentStrings.get_text("wisp_selected"))
+		GameState.status_message.emit(ContentStrings.get_text("wisp_assign_hint"))

@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.2.0 — needs-only stage-up, SAVE_VERSION 4.
+## Headless verification per SYSTEMS_V01 v0.3.1 — wisps, select-first, SAVE_VERSION 5.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -25,8 +25,8 @@ func _run() -> void:
 		return
 
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
-	failed += _assert(int(game_state.get("upgrades_data").size()) == 5, "expected 5 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 4, "SAVE_VERSION should be 4")
+	failed += _assert(int(game_state.get("upgrades_data").size()) == 7, "expected 7 fruit upgrades")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 5, "SAVE_VERSION should be 5")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -44,7 +44,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "welcome_boot")).find("Tend the Manatree") >= 0, "welcome_boot")
 	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Keeper") >= 0, "welcome_body")
 	failed += _assert(str(content_strings.call("get_text", "welcome_dismiss")).find("tend") >= 0, "welcome_dismiss")
-	failed += _assert(str(content_strings.call("get_text", "welcome_hint")).find("Manatree") >= 0, "welcome_hint")
+	failed += _assert(str(content_strings.call("get_text", "welcome_hint")).find("Keeper") >= 0, "welcome_hint")
 	failed += _assert(str(content_strings.call("get_text", "tree_next_stage_needs_met")).find("Pay") >= 0, "tree_next_stage_needs_met")
 	failed += _assert(str(content_strings.call("get_text", "tree_pay_ok")).find("{next_stage}") >= 0, "tree_pay_ok")
 	# Offers retired from Content UI
@@ -220,7 +220,7 @@ func _run() -> void:
 	failed += _assert(str(game_state.call("try_pay_stage")) == "cant_afford", "cant afford young")
 	failed += _assert(str(game_state.get("stage_id")) == "sapling", "still sapling")
 
-	# Save roundtrip slot 1 (SAVE_VERSION 4, no growth)
+	# Save roundtrip slot 1 (SAVE_VERSION 5, wisps)
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 42)
 	game_state.call("set_resource", &"stone", 17)
@@ -248,7 +248,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 4, "written save_version 4")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 5, "written save_version 5")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -533,6 +533,125 @@ func _run() -> void:
 	failed += _assert(abs(float(game_audio.get("sfx_volume_linear")) - 0.73) < 0.001, "sfx vol persist")
 	game_audio.call("apply_volumes")
 	game_audio.call("reset_volumes_to_defaults")
+
+
+	# --- SYSTEMS v0.3.1: Wisps + select-first + shop blessings ---
+	failed += _assert(str(content_strings.call("get_text", "keeper_select_hint")).find("Select the Keeper") >= 0, "keeper_select_hint")
+	failed += _assert(str(content_strings.call("get_text", "keeper_required")).find("Select the Keeper") >= 0, "keeper_required")
+	failed += _assert(str(content_strings.call("get_text", "keeper_required_harvest")).find("Select the Keeper") >= 0, "keeper_required_harvest")
+	failed += _assert(str(content_strings.call("get_text", "wisp_orbit_hint")).find("orbit") >= 0, "wisp_orbit_hint")
+	failed += _assert(str(content_strings.call("get_text", "wisp_idle_hud")) == "Nearby", "wisp_idle_hud Nearby")
+	failed += _assert(str(content_strings.call("get_text", "wisp_assign_ok")).find("Wisp") >= 0, "wisp_assign_ok")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_wisp_haste_name")).find("Swift") >= 0, "Swift Wisps name")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_bonus_wisp_name")).find("Extra") >= 0, "Extra Wisp name")
+	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_idle_0000.png"), "wisp idle art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_selected_0000.png"), "wisp selected art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_parked_0000.png"), "wisp parked art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_orbit_0000.png"), "wisp orbit art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_select_ring.png"), "keeper select ring")
+	failed += _assert(ResourceLoader.exists("res://scenes/wisp.tscn"), "wisp.tscn")
+
+	var haste_def: Dictionary = game_state.call("get_upgrade_def", "wisp_haste")
+	failed += _assert(str(haste_def.get("display_name", "")) == "Swift Wisps", "wisp_haste display")
+	failed += _assert(str(haste_def.get("effect", "")) == "wisp_pulse_reduce", "wisp_haste effect")
+	failed += _assert(int(haste_def.get("max_rank", 0)) == 5, "wisp_haste max 5")
+	var bonus_def: Dictionary = game_state.call("get_upgrade_def", "bonus_wisp")
+	failed += _assert(str(bonus_def.get("display_name", "")) == "Extra Wisp", "bonus_wisp display")
+	failed += _assert(int(bonus_def.get("max_rank", 0)) == 3, "bonus_wisp max 3")
+	failed += _assert(int(game_state.call("param_int", "WISP_PER_NODE", 0)) == 1, "WISP_PER_NODE")
+	failed += _assert(int(game_state.call("param_float", "WISP_PULSE_SEC", 0.0)) == 10, "WISP_PULSE_SEC 10")
+	failed += _assert(int(game_state.call("param_int", "WISP_PULSE_GRANT", 0)) == 1, "WISP_PULSE_GRANT")
+
+	# Stage pay grants +1 wisp
+	game_state.call("reset_for_new_game")
+	failed += _assert(int(game_state.get("wisp_count")) == 0, "start 0 wisps")
+	game_state.call("set_resource", &"essence", 20)
+	failed += _assert(str(game_state.call("try_pay_stage")) == "ok", "pay young for wisp")
+	failed += _assert(int(game_state.get("wisp_count")) == 1, "wisp +1 after young")
+	game_state.call("set_resource", &"essence", 40)
+	game_state.call("set_resource", &"food", 10)
+	failed += _assert(str(game_state.call("try_pay_stage")) == "ok", "pay mature")
+	failed += _assert(int(game_state.get("wisp_count")) == 2, "wisp +1 after mature")
+
+	# Assign + simulate 10s pulse → +1 resource (no gather_mult)
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	var wood0: int = int(game_state.get("wood"))
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "harvest_tree")) == "ok", "assign wisp to tree")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "harvest_tree", "assignment stored")
+	# Second wisp cannot stack on same node
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_tree")) == "busy", "WISP_PER_NODE deny")
+	# Pulse accum
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "pulse sec base 10")
+	game_state.call("apply_wisp_pulses", 9.9)
+	failed += _assert(int(game_state.get("wood")) == wood0, "no grant before 10s")
+	game_state.call("apply_wisp_pulses", 0.2)
+	failed += _assert(int(game_state.get("wood")) == wood0 + 1, "wisp pulse +1 wood after ~10s")
+	# wisp_haste reduces interval
+	var ranks_h: Dictionary = game_state.get("upgrade_ranks")
+	ranks_h["wisp_haste"] = 3
+	game_state.set("upgrade_ranks", ranks_h)
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 7.0) < 0.01, "haste rank3 → 7s")
+	ranks_h["wisp_haste"] = 5
+	game_state.set("upgrade_ranks", ranks_h)
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 5.0) < 0.01, "haste min 5s")
+	# Unassign
+	failed += _assert(bool(game_state.call("unassign_wisp", 0)), "unassign")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "cleared assignment")
+
+	# Keeper selection state
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(game_state.get("keeper_selected")) == false, "keeper not selected by default")
+	game_state.call("set_keeper_selected", true)
+	failed += _assert(bool(game_state.get("keeper_selected")) == true, "keeper selected")
+	game_state.call("select_wisp", 0)  # no wisps — no-op
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("select_wisp", 0)
+	failed += _assert(int(game_state.get("selected_wisp_id")) == 0, "wisp select without needing keeper")
+	game_state.call("clear_selection")
+	failed += _assert(bool(game_state.get("keeper_selected")) == false and int(game_state.get("selected_wisp_id")) == -1, "clear selection")
+
+	# Ascend resets wisps to bonus_wisp rank
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	game_state.set("wisp_count", 4)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	var ranks_b: Dictionary = game_state.get("upgrade_ranks")
+	ranks_b["bonus_wisp"] = 2
+	game_state.set("upgrade_ranks", ranks_b)
+	game_state.call("set_resource", &"manashards", 100)
+	game_state.call("harvest_fruit")
+	game_state.call("ascend")
+	failed += _assert(int(game_state.get("wisp_count")) == 2, "ascend → bonus_wisp count")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "assignments cleared on ascend")
+
+	# Shop costs for wisp blessings
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	game_state.call("harvest_fruit")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "wisp_haste")) == 400, "wisp_haste cost 400")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "bonus_wisp")) == 400, "bonus_wisp cost 400")
+	game_state.call("set_resource", &"manashards", 400)
+	failed += _assert(bool(game_state.call("buy_upgrade", "bonus_wisp")), "buy bonus_wisp")
+	failed += _assert(int(game_state.call("get_upgrade_rank", "bonus_wisp")) == 1, "bonus_wisp rank 1")
+
+	# Save roundtrip includes wisps
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 3)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 1, "harvest_stone")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(save_service.call("save_game", 3)), "save slot 3 wisps")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 3)), "load slot 3 wisps")
+	failed += _assert(int(game_state.get("wisp_count")) == 3, "loaded wisp_count")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "harvest_stone", "loaded assignment")
+
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")

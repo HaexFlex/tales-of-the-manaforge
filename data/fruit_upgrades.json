@@ -12,7 +12,7 @@
     },
     {
       "id": "forager",
-      "display_name": "Forager’s Grace",
+      "display_name": "Forager\u2019s Grace",
       "description": "Each rank: harvest channels yield a little more.",
       "max_rank": 10,
       "cost_base": 400,
@@ -42,13 +42,33 @@
     },
     {
       "id": "keeper_stride",
-      "display_name": "Keeper’s Stride",
+      "display_name": "Keeper\u2019s Stride",
       "description": "Each rank: walk the fragment a little faster.",
       "max_rank": 5,
       "cost_base": 400,
       "cost_per_rank": 400,
       "effect": "move_speed_mult",
       "value_per_rank": 0.06
+    },
+    {
+      "id": "wisp_haste",
+      "display_name": "Swift Wisps",
+      "description": "Assigned Wisps gather a little sooner.",
+      "max_rank": 5,
+      "cost_base": 400,
+      "cost_per_rank": 400,
+      "effect": "wisp_pulse_reduce",
+      "value_per_rank": 1.0
+    },
+    {
+      "id": "bonus_wisp",
+      "display_name": "Extra Wisp",
+      "description": "Another Wisp walks with you from the Sapling.",
+      "max_rank": 3,
+      "cost_base": 400,
+      "cost_per_rank": 400,
+      "effect": "bonus_wisp",
+      "value_per_rank": 1.0
     }
   ]
 }

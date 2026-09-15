@@ -85,6 +85,14 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 
 func _request_keeper_interact() -> void:
+	## SYSTEMS v0.3.1: Manatree interact requires Keeper selected first.
+	if GameState.selected_wisp_id >= 0:
+		# Manatree is not a wisp assign target — keep selection, soft hint.
+		GameState.status_message.emit(ContentStrings.get_text("wisp_select_hint"))
+		return
+	if not GameState.keeper_selected:
+		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
+		return
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 	if keepers.is_empty():
 		return

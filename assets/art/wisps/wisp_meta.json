@@ -1,0 +1,73 @@
+{
+  "version": "v0.1.9-orbit",
+  "systems_ref": "SYSTEMS_V01.md \u00a74c (v0.3.1) \u2014 unassigned orbit Keeper",
+  "canvas": [
+    32,
+    32
+  ],
+  "readable_variant": [
+    48,
+    48
+  ],
+  "anchor": "center",
+  "filter": "nearest",
+  "hold_ms": 140,
+  "clips": {
+    "idle": {
+      "strip": "wisp_idle.png",
+      "frames": 4
+    },
+    "selected": {
+      "strip": "wisp_selected.png",
+      "frames": 4,
+      "notes": "bright corners + white ring while assigning"
+    },
+    "parked": {
+      "strip": "wisp_parked.png",
+      "frames": 4,
+      "notes": "gold ring while on harvest node; optional badge stills per resource"
+    },
+    "assigned": {
+      "strip": "wisp_assigned.png",
+      "frames": 4,
+      "alias_of": "parked"
+    },
+    "orbit": {
+      "strip": "wisp_orbit.png",
+      "frames": 8,
+      "hold_ms": 80,
+      "notes": "motion trail; Code places on circle around Keeper and advances frame with angle"
+    }
+  },
+  "parked_badges": {
+    "wood": "wisp_parked_wood.png",
+    "stone": "wisp_parked_stone.png",
+    "food": "wisp_parked_food.png"
+  },
+  "keeper_select": {
+    "file": "../keeper/keeper_select_ring.png",
+    "alt_64": "../keeper/keeper_select_ring_64.png",
+    "canvas": [
+      128,
+      48
+    ],
+    "anchor": "bottom_center under Keeper feet",
+    "notes": "place under Keeper when keeper_selected; NN; soft panel assign UX OK"
+  },
+  "orbit_layout": {
+    "radius_px": 56,
+    "radius_alt": [
+      40,
+      48,
+      56,
+      64
+    ],
+    "anchor_relative_to": "Keeper center (or chest)",
+    "follow": true,
+    "max_from_stages": 4,
+    "angular_spread": "even 2\u03c0 / wisp_count",
+    "preview": "wisp_orbit_layout_preview.png",
+    "when_selected": "pause orbit or freeze frame + use selected clip",
+    "when_parked": "leave orbit; use parked clip on harvest node"
+  }
+}

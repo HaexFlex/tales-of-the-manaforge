@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.2.3 — needs-only; Ascension Manashard blessing shop. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.3.1 — wisps, select-first Keeper, Manashard shop. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -8,6 +8,8 @@ signal fruit_ready_changed(ready: bool)
 signal upgrades_changed
 signal status_message(text: String)
 signal load_completed
+signal wisps_changed
+signal selection_changed
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -41,6 +43,14 @@ var lifetime_fruit_harvested: int = 0
 var lifetime_harvested: Dictionary = {}
 var upgrade_ranks: Dictionary = {}
 
+## Wisps (SYSTEMS v0.3.1): count + assignments (wisp_id str → node_id or "").
+var wisp_count: int = 0
+var wisp_assignments: Dictionary = {}
+var wisp_pulse_accum: Dictionary = {}
+## Runtime selection (Keeper select-first; wisp click does not require Keeper).
+var keeper_selected: bool = false
+var selected_wisp_id: int = -1
+
 var stages_data: Array = []
 var upgrades_data: Array = []
 var params: Dictionary = {}
@@ -52,11 +62,13 @@ func _ready() -> void:
 	_load_tables()
 	_ensure_upgrade_keys()
 	_ensure_harvest_keys()
+	_ensure_wisp_slots()
 
 
 func _process(delta: float) -> void:
 	## Pausable by default — stops when get_tree().paused (pause menu).
 	run_time_sec += delta
+	apply_wisp_pulses(delta)
 
 
 func _load_tables() -> void:
@@ -106,6 +118,166 @@ func param_int(key: String, default_v: int = 0) -> int:
 
 func param_float(key: String, default_v: float = 0.0) -> float:
 	return float(params.get(key, default_v))
+
+
+
+func get_wisp_pulse_sec() -> float:
+	## Base 10s; wisp_haste −1s/rank; min 5s (SYSTEMS v0.3.0).
+	var base_s: float = param_float("WISP_PULSE_SEC", 10.0)
+	var haste: int = get_upgrade_rank("wisp_haste")
+	return maxf(5.0, base_s - float(haste))
+
+
+func get_wisp_capacity() -> int:
+	return param_int("WISP_FROM_STAGES_MAX", 4) + get_upgrade_rank("bonus_wisp")
+
+
+func get_wisp_assignment(wisp_id: int) -> String:
+	return str(wisp_assignments.get(str(wisp_id), ""))
+
+
+func node_id_for_resource(resource_id: StringName) -> String:
+	match resource_id:
+		&"wood":
+			return "harvest_tree"
+		&"stone":
+			return "harvest_stone"
+		&"food":
+			return "harvest_berry"
+		_:
+			return ""
+
+
+func resource_for_node_id(node_id: String) -> StringName:
+	match node_id:
+		"harvest_tree":
+			return &"wood"
+		"harvest_stone":
+			return &"stone"
+		"harvest_berry":
+			return &"food"
+		_:
+			return &""
+
+
+func _ensure_wisp_slots() -> void:
+	for i: int in range(wisp_count):
+		var key: String = str(i)
+		if not wisp_assignments.has(key):
+			wisp_assignments[key] = ""
+		if not wisp_pulse_accum.has(key):
+			wisp_pulse_accum[key] = 0.0
+	var keys: Array = wisp_assignments.keys()
+	for k: Variant in keys:
+		var ks: String = str(k)
+		if int(ks) >= wisp_count:
+			wisp_assignments.erase(ks)
+			wisp_pulse_accum.erase(ks)
+
+
+func grant_wisp_from_stage() -> void:
+	## +1 per successful Pay (Young→Ancient); capacity = 4 + bonus_wisp.
+	if wisp_count >= get_wisp_capacity():
+		return
+	wisp_count += 1
+	_ensure_wisp_slots()
+	wisps_changed.emit()
+	status_message.emit(ContentStrings.get_text("wisp_gained"))
+
+
+func try_assign_wisp(wisp_id: int, node_id: String) -> String:
+	## Returns "ok" | "reassign" | "busy" | "invalid". WISP_PER_NODE = 1.
+	if wisp_id < 0 or wisp_id >= wisp_count:
+		return "invalid"
+	if node_id == "":
+		return "invalid"
+	for k: Variant in wisp_assignments.keys():
+		if str(wisp_assignments[k]) == node_id and int(str(k)) != wisp_id:
+			return "busy"
+	var key: String = str(wisp_id)
+	var prev: String = str(wisp_assignments.get(key, ""))
+	wisp_assignments[key] = node_id
+	wisp_pulse_accum[key] = 0.0
+	selected_wisp_id = -1
+	wisps_changed.emit()
+	selection_changed.emit()
+	if prev != "" and prev != node_id:
+		return "reassign"
+	return "ok"
+
+
+func unassign_wisp(wisp_id: int) -> bool:
+	if wisp_id < 0 or wisp_id >= wisp_count:
+		return false
+	var key: String = str(wisp_id)
+	if str(wisp_assignments.get(key, "")) == "":
+		return false
+	wisp_assignments[key] = ""
+	wisp_pulse_accum[key] = 0.0
+	wisps_changed.emit()
+	return true
+
+
+func apply_wisp_pulses(delta: float) -> void:
+	## AFK grant: +WISP_PULSE_GRANT of assigned resource every get_wisp_pulse_sec(). No gather_mult.
+	var pulse: float = get_wisp_pulse_sec()
+	var grant: int = param_int("WISP_PULSE_GRANT", 1)
+	for i: int in range(wisp_count):
+		var key: String = str(i)
+		var nid: String = str(wisp_assignments.get(key, ""))
+		if nid == "":
+			wisp_pulse_accum[key] = 0.0
+			continue
+		var acc: float = float(wisp_pulse_accum.get(key, 0.0)) + delta
+		while acc >= pulse:
+			acc -= pulse
+			var rid: StringName = resource_for_node_id(nid)
+			if rid != &"":
+				add_resource(rid, grant)
+				var hk: String = String(rid)
+				lifetime_harvested[hk] = int(lifetime_harvested.get(hk, 0)) + grant
+		wisp_pulse_accum[key] = acc
+
+
+func set_keeper_selected(value: bool) -> void:
+	if keeper_selected == value:
+		return
+	keeper_selected = value
+	if not value:
+		# Deselecting Keeper clears wisp selection too (clean UX).
+		selected_wisp_id = -1
+	selection_changed.emit()
+
+
+func toggle_keeper_selected() -> void:
+	set_keeper_selected(not keeper_selected)
+
+
+func select_wisp(wisp_id: int) -> void:
+	## Wisp click does NOT require Keeper selected (SYSTEMS v0.3.1).
+	if wisp_id < 0 or wisp_id >= wisp_count:
+		return
+	if selected_wisp_id == wisp_id:
+		selected_wisp_id = -1
+	else:
+		selected_wisp_id = wisp_id
+	selection_changed.emit()
+
+
+func clear_wisp_selection() -> void:
+	if selected_wisp_id < 0:
+		return
+	selected_wisp_id = -1
+	selection_changed.emit()
+
+
+func clear_selection() -> bool:
+	var had: bool = keeper_selected or selected_wisp_id >= 0
+	keeper_selected = false
+	selected_wisp_id = -1
+	if had:
+		selection_changed.emit()
+	return had
 
 
 func get_resource(resource_id: StringName) -> int:
@@ -511,6 +683,7 @@ func try_pay_stage() -> String:
 		var rid: StringName = StringName(str(key))
 		add_resource(rid, -int(needs[key]))
 	_set_stage(next_id)
+	grant_wisp_from_stage()
 	var next_display: String = str(get_stage_def(next_id).get("display_name", next_id))
 	status_message.emit(ContentStrings.get_text("tree_pay_ok", {"next_stage": next_display}))
 	needs_changed.emit()
@@ -559,6 +732,12 @@ func ascend() -> void:
 	manashards = 0
 	fruit_harvested_pending_ascend = false
 	fruit_ready = false
+	wisp_count = get_upgrade_rank("bonus_wisp")
+	wisp_assignments.clear()
+	wisp_pulse_accum.clear()
+	_ensure_wisp_slots()
+	clear_selection()
+	wisps_changed.emit()
 	_set_stage(&"sapling")
 	resources_changed.emit(&"wood", wood)
 	resources_changed.emit(&"stone", stone)
@@ -588,6 +767,8 @@ func to_save_dict() -> Dictionary:
 		"lifetime_fruit_harvested": lifetime_fruit_harvested,
 		"lifetime_harvested": lifetime_harvested.duplicate(true),
 		"upgrades": upgrade_ranks.duplicate(true),
+		"wisp_count": wisp_count,
+		"wisp_assignments": wisp_assignments.duplicate(true),
 	}
 
 
@@ -618,6 +799,17 @@ func apply_save_dict(data: Dictionary) -> void:
 	if typeof(ranks) == TYPE_DICTIONARY:
 		upgrade_ranks = (ranks as Dictionary).duplicate(true)
 	_ensure_upgrade_keys()
+	wisp_count = int(data.get("wisp_count", 0))
+	var assigns: Variant = data.get("wisp_assignments", {})
+	if typeof(assigns) == TYPE_DICTIONARY:
+		wisp_assignments = (assigns as Dictionary).duplicate(true)
+	else:
+		wisp_assignments = {}
+	wisp_pulse_accum.clear()
+	_ensure_wisp_slots()
+	keeper_selected = false
+	selected_wisp_id = -1
+	wisps_changed.emit()
 	resources_changed.emit(&"wood", wood)
 	resources_changed.emit(&"stone", stone)
 	resources_changed.emit(&"food", food)
@@ -649,4 +841,11 @@ func reset_for_new_game() -> void:
 	_ensure_harvest_keys()
 	upgrade_ranks.clear()
 	_ensure_upgrade_keys()
+	wisp_count = 0
+	wisp_assignments.clear()
+	wisp_pulse_accum.clear()
+	keeper_selected = false
+	selected_wisp_id = -1
 	run_time_sec = 0.0
+	wisps_changed.emit()
+	selection_changed.emit()

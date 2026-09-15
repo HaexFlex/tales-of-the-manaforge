@@ -56,6 +56,23 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 
 func _request_keeper_interact() -> void:
+	## SYSTEMS v0.3.1: wisp assign (no Keeper gate) OR Keeper must be selected to harvest.
+	if GameState.selected_wisp_id >= 0:
+		var node_id: String = GameState.node_id_for_resource(resource_id)
+		var result: String = GameState.try_assign_wisp(GameState.selected_wisp_id, node_id)
+		match result:
+			"ok":
+				GameState.status_message.emit(ContentStrings.get_text("wisp_assign_ok"))
+			"reassign":
+				GameState.status_message.emit(ContentStrings.get_text("wisp_reassign_ok"))
+			"busy":
+				GameState.status_message.emit(ContentStrings.get_text("wisp_assign_busy"))
+			_:
+				pass
+		return
+	if not GameState.keeper_selected:
+		GameState.status_message.emit(ContentStrings.get_text("keeper_required_harvest"))
+		return
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 	if keepers.is_empty():
 		return

@@ -1,0 +1,29 @@
+[gd_scene load_steps=3 format=3 uid="uid://wisp001manaforge"]
+
+[ext_resource type="Script" path="res://scripts/wisp.gd" id="1_wisp"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wisp"]
+size = Vector2(40, 40)
+
+[node name="Wisp" type="Area2D"]
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+monitorable = true
+script = ExtResource("1_wisp")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+texture_filter = 0
+
+[node name="Label" type="Label" parent="."]
+offset_left = -40.0
+offset_top = -28.0
+offset_right = 40.0
+offset_bottom = -12.0
+theme_override_font_sizes/font_size = 10
+text = "Nearby"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_wisp")

@@ -1,6 +1,6 @@
 extends CharacterBody2D
 class_name Keeper
-## Point-and-click Keeper with harvest / water channels (SYSTEMS v0.1.2).
+## Select-first Keeper + harvest / water channels (SYSTEMS v0.3.1).
 
 signal arrived
 signal interaction_finished(target: Node)
@@ -8,6 +8,8 @@ signal channel_changed(kind: StringName, active: bool)
 
 @onready var sprite: AnimatedSprite2D = $Sprite
 @onready var label: Label = $Label
+@onready var select_ring: Sprite2D = $SelectRing
+@onready var click_area: Area2D = $ClickArea
 
 var _target: Vector2 = Vector2.ZERO
 var _moving: bool = false
@@ -33,9 +35,25 @@ func _ready() -> void:
 	sprite.offset = Vector2(-64, -128)
 	sprite.sprite_frames = _build_frames()
 	sprite.play(&"idle_front")
-	label.text = "Keeper"
+	label.text = ContentStrings.get_text("keeper_select")
 	label.position = Vector2(-40, -148)
 	add_to_group("keeper")
+	if select_ring:
+		select_ring.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		select_ring.centered = true
+		select_ring.position = Vector2(0, 0)
+		select_ring.texture = load("res://assets/art/keeper/keeper_select_ring.png") as Texture2D
+		select_ring.visible = false
+		select_ring.z_index = -1
+	if click_area:
+		click_area.input_event.connect(_on_click_area_input)
+		click_area.collision_layer = 4
+		click_area.collision_mask = 0
+		click_area.monitoring = false
+		click_area.monitorable = true
+		click_area.add_to_group("interactable")
+	GameState.selection_changed.connect(_on_selection_changed)
+	_on_selection_changed()
 
 
 func _build_frames() -> SpriteFrames:
@@ -256,3 +274,27 @@ func _try_interact() -> void:
 		_pending_interact.call("on_interact", self)
 	interaction_finished.emit(_pending_interact)
 	_pending_interact = null
+
+
+func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			GameState.toggle_keeper_selected()
+			if GameState.keeper_selected:
+				GameState.status_message.emit(ContentStrings.get_text("keeper_selected"))
+			else:
+				GameState.status_message.emit(ContentStrings.get_text("keeper_deselect"))
+			get_viewport().set_input_as_handled()
+
+
+func _on_selection_changed() -> void:
+	if select_ring:
+		select_ring.visible = GameState.keeper_selected
+	if label:
+		if GameState.keeper_selected:
+			label.text = ContentStrings.get_text("keeper_selected")
+			modulate = Color(1.08, 1.12, 1.0, 1.0)
+		else:
+			label.text = ContentStrings.get_text("keeper_select")
+			modulate = Color.WHITE

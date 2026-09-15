@@ -9,7 +9,11 @@
     "HARVEST_STONE_PER_SEC": 1,
     "HARVEST_FOOD_PER_SEC": 1,
     "ESSENCE_PER_HARVEST": 5,
-    "BASE_MOVE_SPEED": 180.0
+    "BASE_MOVE_SPEED": 180.0,
+    "WISP_PER_NODE": 1,
+    "WISP_PULSE_SEC": 10.0,
+    "WISP_PULSE_GRANT": 1,
+    "WISP_FROM_STAGES_MAX": 4
   },
   "stages": [
     {
