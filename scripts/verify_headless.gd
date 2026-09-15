@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.3.1 — wisps, select-first, SAVE_VERSION 5.
+## Headless verification per SYSTEMS_V01 v0.3.3 — RTS LMB/RMB, assigned wisp orbit, SAVE_VERSION 5.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -478,7 +478,7 @@ func _run() -> void:
 		inst.free()
 
 	var cues: PackedStringArray = game_audio.call("list_cue_ids")
-	failed += _assert(cues.size() >= 24, "audio cue table too small (%d)" % cues.size())
+	failed += _assert(cues.size() >= 28, "audio cue table too small (%d)" % cues.size())
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_water_pulse.ogg"), "sfx_water_pulse missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_stage_up.ogg"), "sfx_stage_up missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_channel_start.ogg"), "sfx_channel_start missing")
@@ -510,6 +510,19 @@ func _run() -> void:
 	game_audio.call("play", &"sfx_water_pulse")
 	game_audio.call("play", &"sfx_stage_up")
 	game_audio.call("play", &"sfx_channel_start")
+	game_audio.call("play", &"sfx_wisp_assign")
+	game_audio.call("play", &"sfx_wisp_deny")
+	game_audio.call("play", &"sfx_wisp_unassign")
+	game_audio.call("play", &"sfx_wisp_pulse")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_wisp_assign.ogg"), "sfx_wisp_assign missing")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_wisp_deny.ogg"), "sfx_wisp_deny missing")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_wisp_unassign.ogg"), "sfx_wisp_unassign missing")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_wisp_pulse.ogg"), "sfx_wisp_pulse missing")
+	failed += _assert(game_audio.call("get_cue_path", &"sfx_wisp_assign").ends_with("sfx_wisp_assign.ogg"), "sfx_wisp_assign cue path")
+	failed += _assert(game_audio.call("get_cue_path", &"sfx_wisp_deny").ends_with("sfx_wisp_deny.ogg"), "sfx_wisp_deny cue path")
+	failed += _assert(game_audio.call("get_cue_path", &"sfx_wisp_unassign").ends_with("sfx_wisp_unassign.ogg"), "sfx_wisp_unassign cue path")
+	failed += _assert(game_audio.call("get_cue_path", &"sfx_wisp_pulse").ends_with("sfx_wisp_pulse.ogg"), "sfx_wisp_pulse cue path")
+	failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub still playing after wisp sfx stubs")
 
 	failed += _assert(AudioServer.get_bus_index("Music") >= 0, "Music bus missing")
 	failed += _assert(AudioServer.get_bus_index("SFX_World") >= 0, "SFX_World bus missing")
@@ -535,7 +548,7 @@ func _run() -> void:
 	game_audio.call("reset_volumes_to_defaults")
 
 
-	# --- SYSTEMS v0.3.1: Wisps + select-first + shop blessings ---
+	# --- SYSTEMS v0.3.3: RTS LMB/RMB + assigned wisp orbit + Manatree shards ---
 	failed += _assert(str(content_strings.call("get_text", "keeper_select_hint")).find("Select the Keeper") >= 0, "keeper_select_hint")
 	failed += _assert(str(content_strings.call("get_text", "keeper_required")).find("Select the Keeper") >= 0, "keeper_required")
 	failed += _assert(str(content_strings.call("get_text", "keeper_required_harvest")).find("Select the Keeper") >= 0, "keeper_required_harvest")
@@ -559,6 +572,7 @@ func _run() -> void:
 	failed += _assert(str(bonus_def.get("display_name", "")) == "Extra Wisp", "bonus_wisp display")
 	failed += _assert(int(bonus_def.get("max_rank", 0)) == 3, "bonus_wisp max 3")
 	failed += _assert(int(game_state.call("param_int", "WISP_PER_NODE", 0)) == 1, "WISP_PER_NODE")
+	failed += _assert(int(game_state.call("param_int", "WISP_PER_MANATREE", 0)) == 1, "WISP_PER_MANATREE")
 	failed += _assert(int(game_state.call("param_float", "WISP_PULSE_SEC", 0.0)) == 10, "WISP_PULSE_SEC 10")
 	failed += _assert(int(game_state.call("param_int", "WISP_PULSE_GRANT", 0)) == 1, "WISP_PULSE_GRANT")
 
@@ -651,6 +665,110 @@ func _run() -> void:
 	failed += _assert(bool(save_service.call("load_game", 3)), "load slot 3 wisps")
 	failed += _assert(int(game_state.get("wisp_count")) == 3, "loaded wisp_count")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "harvest_stone", "loaded assignment")
+
+	# LMB select semantics: Keeper XOR Wisp; LMB ground deselects
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("select_keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "select_keeper")
+	failed += _assert(int(game_state.get("selected_wisp_id")) == -1, "keeper select clears wisp")
+	game_state.call("select_wisp", 0)
+	failed += _assert(int(game_state.get("selected_wisp_id")) == 0, "LMB wisp select")
+	failed += _assert(bool(game_state.get("keeper_selected")) == false, "wisp select deselects keeper")
+	game_state.call("select_wisp", 0)
+	failed += _assert(int(game_state.get("selected_wisp_id")) == 0, "LMB same wisp stays selected")
+	game_state.call("select_wisp", 1)
+	failed += _assert(int(game_state.get("selected_wisp_id")) == 1, "LMB other wisp replaces")
+	game_state.call("clear_selection")
+	failed += _assert(bool(game_state.get("keeper_selected")) == false and int(game_state.get("selected_wisp_id")) == -1, "LMB ground deselect")
+
+	# Manatree assign + pulse manashards @ 1/10s
+	failed += _assert(str(game_state.call("node_id_for_resource", &"manashards")) == "manatree", "manashards node id is manatree")
+	failed += _assert(str(content_strings.call("get_text", "wisp_assign_manatree_busy")).find("Manatree") >= 0, "wisp_assign_manatree_busy")
+	failed += _assert(str(content_strings.call("get_text", "wisp_assign_hint")).find("Right-click") >= 0, "wisp_assign_hint RMB")
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	var shards0: int = int(game_state.get("manashards"))
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "manatree")) == "ok", "assign wisp to manatree")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "manatree assignment stored")
+	failed += _assert(str(game_state.call("resource_for_node_id", "manatree")) == "manashards", "manatree → manashards")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "manatree")) == "busy", "Manatree WISP_PER_NODE=1 deny")
+	game_state.call("apply_wisp_pulses", 9.9)
+	failed += _assert(int(game_state.get("manashards")) == shards0, "no manashards before 10s")
+	game_state.call("apply_wisp_pulses", 0.2)
+	failed += _assert(int(game_state.get("manashards")) == shards0 + 1, "wisp manatree pulse +1 manashards")
+	failed += _assert(bool(game_state.call("unassign_wisp", 0)), "unassign from manatree")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "manatree assignment cleared")
+
+	# Save roundtrip manatree assignment (SAVE_VERSION 5, no bump)
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "manatree")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(save_service.call("save_game", 4)), "save slot 4 manatree wisp")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 4)), "load slot 4 manatree wisp")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "loaded manatree assignment")
+
+	# Live Main: LMB/RMB helpers, harvest+manatree command, assigned orbit (not parked)
+	save_service.call("delete_save")
+	game_state.call("reset_for_new_game")
+	game_state.set("welcome_shown", true)
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	if packed:
+		var live: Node = packed.instantiate()
+		tree_root.add_child(live)
+		await process_frame
+		await process_frame
+		failed += _assert(live.has_method("handle_lmb_ground"), "Main.handle_lmb_ground")
+		failed += _assert(live.has_method("handle_rmb_ground"), "Main.handle_rmb_ground")
+		if live.has_method("handle_lmb_ground") and live.has_method("handle_rmb_ground"):
+			game_state.call("select_keeper")
+			failed += _assert(bool(game_state.get("keeper_selected")), "keeper selected before LMB ground")
+			live.call("handle_lmb_ground")
+			failed += _assert(bool(game_state.get("keeper_selected")) == false, "LMB empty ground deselects keeper")
+			game_state.call("select_wisp", 0)
+			var harvest_tree: Node = live.get_node_or_null("World/HarvestTree")
+			failed += _assert(harvest_tree != null and harvest_tree.has_method("apply_player_command"), "HarvestTree command")
+			if harvest_tree and harvest_tree.has_method("apply_player_command"):
+				harvest_tree.call("apply_player_command")
+			failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "harvest_tree", "RMB harvest assigns wisp")
+			game_state.call("select_wisp", 1)
+			var mana: Node = live.get_node_or_null("World/Manatree")
+			failed += _assert(mana != null and mana.has_method("apply_player_command"), "Manatree command")
+			if mana and mana.has_method("apply_player_command"):
+				mana.call("apply_player_command")
+			failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "manatree", "RMB Manatree assigns wisp")
+			# Second wisp onto occupied Manatree → busy toast key path
+			game_state.call("unassign_wisp", 0)
+			game_state.call("select_wisp", 0)
+			if mana and mana.has_method("apply_player_command"):
+				mana.call("apply_player_command")
+			failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "busy manatree does not steal slot")
+			failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "manatree", "occupant keeps manatree")
+			await process_frame
+			var wisp_orbs: Array[Node] = live.get_tree().get_nodes_in_group("wisp")
+			failed += _assert(wisp_orbs.size() == 2, "two wisp orbs spawned (got %d)" % wisp_orbs.size())
+			var found_orbit_assign: bool = false
+			var found_parked_anim: bool = false
+			for wo: Node in wisp_orbs:
+				if wo.has_method("is_orbiting_assigned_target") and bool(wo.call("is_orbiting_assigned_target")):
+					found_orbit_assign = true
+					var spr: Node = wo.get_node_or_null("Sprite")
+					if spr and str(spr.get("animation")) == "parked":
+						found_parked_anim = true
+			failed += _assert(found_orbit_assign, "assigned wisp reports orbit-assigned state")
+			failed += _assert(not found_parked_anim, "assigned wisp must not use parked anim")
+			# RMB ground unassign
+			game_state.call("select_wisp", 1)
+			live.call("handle_rmb_ground", Vector2(80, 80))
+			failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "", "RMB ground unassigns wisp")
+		live.queue_free()
+		await process_frame
 
 
 	if failed == 0:

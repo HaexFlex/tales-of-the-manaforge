@@ -1,6 +1,6 @@
 extends Area2D
 class_name WispOrb
-## Clickable wisp — unassigned orbits Keeper (art v0.1.9); assigned parks on node.
+## Clickable wisp — unassigned orbits Keeper (art v0.1.9); assigned orbits the node/tree while pulsing.
 
 signal wisp_clicked(wisp_id: int)
 
@@ -8,7 +8,9 @@ const ORBIT_RADIUS: float = 56.0
 const ORBIT_SPEED: float = 1.15
 const ORBIT_HOLD_MS: float = 80.0
 const IDLE_HOLD_MS: float = 140.0
-const PARK_OFFSET: Vector2 = Vector2(28, -36)
+const APPROACH_SPEED: float = 220.0
+const ORBIT_CATCH_DIST: float = 18.0
+const TARGET_CHEST_OFFSET: Vector2 = Vector2(0, -48)
 const KEEPER_CHEST_OFFSET: Vector2 = Vector2(0, -48)
 
 @onready var sprite: AnimatedSprite2D = $Sprite
@@ -17,6 +19,8 @@ const KEEPER_CHEST_OFFSET: Vector2 = Vector2(0, -48)
 var wisp_id: int = 0
 var _orbit_angle: float = 0.0
 var _bob_t: float = 0.0
+## True once the wisp has reached orbit radius of its assignment (not still travelling).
+var _at_assigned_orbit: bool = false
 
 
 func _ready() -> void:
@@ -76,6 +80,7 @@ func _add_anim(frames: SpriteFrames, anim: StringName, paths: Array, hold_ms: fl
 func setup(id: int) -> void:
 	wisp_id = id
 	_orbit_angle = _even_slot_angle()
+	_at_assigned_orbit = false
 	if is_inside_tree():
 		_refresh_label()
 
@@ -88,8 +93,13 @@ func _even_slot_angle() -> float:
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+		if not mb.pressed:
+			return
+		if mb.button_index == MOUSE_BUTTON_LEFT:
 			wisp_clicked.emit(wisp_id)
+			get_viewport().set_input_as_handled()
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+			# RMB on a unit is not a ground command.
 			get_viewport().set_input_as_handled()
 
 
@@ -98,10 +108,11 @@ func _process(delta: float) -> void:
 	var assigned_node: String = GameState.get_wisp_assignment(wisp_id)
 	var is_sel: bool = GameState.selected_wisp_id == wisp_id
 	if assigned_node != "":
-		_park_at_node(assigned_node, delta)
-		_play_anim(&"parked" if not is_sel else &"selected")
+		_orbit_assigned_target(assigned_node, delta)
+		_play_anim(&"selected" if is_sel else &"orbit")
 		_refresh_label()
 		return
+	_at_assigned_orbit = false
 	# Orbit Keeper — even spacing, follow walk (meta.orbit_layout).
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 	if keepers.is_empty():
@@ -124,17 +135,45 @@ func _process(delta: float) -> void:
 	_refresh_label()
 
 
-func _park_at_node(node_id: String, delta: float) -> void:
-	var target: Vector2 = global_position
+func is_orbiting_assigned_target() -> bool:
+	## Assigned wisps travel to the node/tree then orbit it (never park static).
+	return GameState.get_wisp_assignment(wisp_id) != ""
+
+
+func is_at_assigned_orbit() -> bool:
+	return _at_assigned_orbit and is_orbiting_assigned_target()
+
+
+func _orbit_assigned_target(node_id: String, delta: float) -> void:
+	var center: Vector2 = _resolve_assignment_center(node_id)
+	_orbit_angle += ORBIT_SPEED * delta
+	var angle: float = _orbit_angle + _even_slot_angle()
+	var bob: float = sin(_bob_t * 2.8 + float(wisp_id)) * 3.0
+	var offset := Vector2(cos(angle), sin(angle) * 0.55) * ORBIT_RADIUS
+	var desired: Vector2 = center + offset + Vector2(0, bob)
+	var dist: float = global_position.distance_to(desired)
+	if dist > ORBIT_CATCH_DIST:
+		_at_assigned_orbit = false
+		global_position = global_position.move_toward(desired, APPROACH_SPEED * delta)
+	else:
+		_at_assigned_orbit = true
+		global_position = desired
+
+
+func _resolve_assignment_center(node_id: String) -> Vector2:
+	if node_id == GameState.NODE_ID_MANATREE:
+		var trees: Array[Node] = get_tree().get_nodes_in_group("manatree")
+		for n: Node in trees:
+			if n is Node2D:
+				return (n as Node2D).global_position + TARGET_CHEST_OFFSET
+		return global_position
 	var nodes: Array[Node] = get_tree().get_nodes_in_group("harvest_node")
 	for n: Node in nodes:
-		if n is Gatherable:
-			var g: Gatherable = n as Gatherable
-			if GameState.node_id_for_resource(g.resource_id) == node_id:
-				target = g.global_position + PARK_OFFSET
-				break
-	var bob: float = sin(_bob_t * 2.2 + float(wisp_id)) * 3.0
-	global_position = global_position.lerp(target + Vector2(0, bob), mini(1.0, delta * 6.0))
+		if n is Node2D and n.get("resource_id") != null:
+			var rid: StringName = n.get("resource_id") as StringName
+			if GameState.node_id_for_resource(rid) == node_id:
+				return (n as Node2D).global_position + TARGET_CHEST_OFFSET
+	return global_position
 
 
 func _play_anim(anim: StringName) -> void:

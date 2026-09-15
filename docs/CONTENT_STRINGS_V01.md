@@ -277,3 +277,18 @@ Combat, whisps, Forge interior / door interact, equipment, Echo Chamber, Manafor
 | @Audio | Pulse each harvest/water tick; reuse gather / `sfx_tree_water` |
 
 Ping @Game Director on landing.
+
+---
+
+## 10. Wisps + RTS input (v0.3.3)
+
+Haex / Director: **LMB** selects (Keeper or Wisp) or deselects on empty ground. **RMB** commands. Assigned Wisps **orbit** the harvest node or Manatree while pulsing.
+
+| key | string |
+|-----|--------|
+| `wisp_assign_to_manatree` | Tend the Manatree |
+| `wisp_assign_manatree_busy` | A Wisp already tends the Manatree. |
+| `wisp_assign_hint` | Right-click a harvest spot or the Manatree to send this Wisp. |
+| `wisp_unassign_ground` | Right-click the ground to call the Wisp back. |
+| `wisp_select_hint` | Idle Wisps orbit you. Left-click a Wisp, then right-click a gather spot or the Manatree. |
+| `keeper_move_prompt` | Right-click the ground to walk. |

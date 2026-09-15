@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.3.1 — wisps, select-first Keeper, Manashard shop. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.3.3 — RTS LMB/RMB, wisps orbit assigned targets. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -10,6 +10,10 @@ signal status_message(text: String)
 signal load_completed
 signal wisps_changed
 signal selection_changed
+signal wisp_assigned(wisp_id: int, node_id: String, result: String)
+signal wisp_assign_failed(reason: String, node_id: String)
+signal wisp_unassigned(wisp_id: int)
+signal wisp_pulsed(resource_id: StringName)
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -18,6 +22,9 @@ const HARVEST_IDS: Array[StringName] = [&"wood", &"stone", &"food"]
 ## Soft mats that green_thumb can reduce (not essence).
 const SOFT_NEED_IDS: Array[StringName] = [&"food", &"wood", &"stone", &"manashards"]
 const NEED_ORDER: Array[StringName] = [&"essence", &"food", &"wood", &"stone", &"manashards"]
+## Assignment target id for the Manatree. Same uniqueness cap as harvest nodes (WISP_PER_MANATREE = 1)
+## unless Design says otherwise. Stored as a string in SAVE_VERSION 5 — no schema bump.
+const NODE_ID_MANATREE: String = "manatree"
 
 var wood: int = 0
 var stone: int = 0
@@ -43,11 +50,15 @@ var lifetime_fruit_harvested: int = 0
 var lifetime_harvested: Dictionary = {}
 var upgrade_ranks: Dictionary = {}
 
-## Wisps (SYSTEMS v0.3.1): count + assignments (wisp_id str → node_id or "").
+## node_id is harvest_tree/stone/berry or NODE_ID_MANATREE ("manatree"). String stays
+## SAVE_VERSION 5 compatible — no schema bump for the new Manatree target type.
+## WISP_PER_NODE = 1 on harvest nodes. Manatree uses the same cap (1 wisp) unless Design
+## raises it — one caretaker circling the tree is the Director default.
 var wisp_count: int = 0
 var wisp_assignments: Dictionary = {}
 var wisp_pulse_accum: Dictionary = {}
-## Runtime selection (Keeper select-first; wisp click does not require Keeper).
+## Runtime selection (RTS: LMB select unit; mutually exclusive Keeper XOR one Wisp).
+## Wisp select does not require Keeper selected.
 var keeper_selected: bool = false
 var selected_wisp_id: int = -1
 
@@ -144,6 +155,8 @@ func node_id_for_resource(resource_id: StringName) -> String:
 			return "harvest_stone"
 		&"food":
 			return "harvest_berry"
+		&"manashards":
+			return NODE_ID_MANATREE
 		_:
 			return ""
 
@@ -156,8 +169,14 @@ func resource_for_node_id(node_id: String) -> StringName:
 			return &"stone"
 		"harvest_berry":
 			return &"food"
+		"manatree":
+			return &"manashards"
 		_:
 			return &""
+
+
+func is_valid_wisp_node_id(node_id: String) -> bool:
+	return resource_for_node_id(node_id) != &""
 
 
 func _ensure_wisp_slots() -> void:
@@ -186,24 +205,46 @@ func grant_wisp_from_stage() -> void:
 
 
 func try_assign_wisp(wisp_id: int, node_id: String) -> String:
-	## Returns "ok" | "reassign" | "busy" | "invalid". WISP_PER_NODE = 1.
+	## Returns "ok" | "reassign" | "busy" | "invalid". WISP_PER_NODE = 1 (harvest and Manatree).
 	if wisp_id < 0 or wisp_id >= wisp_count:
+		wisp_assign_failed.emit("invalid", node_id)
 		return "invalid"
-	if node_id == "":
+	if not is_valid_wisp_node_id(node_id):
+		wisp_assign_failed.emit("invalid", node_id)
 		return "invalid"
 	for k: Variant in wisp_assignments.keys():
 		if str(wisp_assignments[k]) == node_id and int(str(k)) != wisp_id:
+			wisp_assign_failed.emit("busy", node_id)
 			return "busy"
 	var key: String = str(wisp_id)
 	var prev: String = str(wisp_assignments.get(key, ""))
+	if prev == node_id:
+		selected_wisp_id = -1
+		selection_changed.emit()
+		return "ok"
 	wisp_assignments[key] = node_id
 	wisp_pulse_accum[key] = 0.0
 	selected_wisp_id = -1
 	wisps_changed.emit()
 	selection_changed.emit()
-	if prev != "" and prev != node_id:
-		return "reassign"
-	return "ok"
+	var result: String = "reassign" if prev != "" else "ok"
+	wisp_assigned.emit(wisp_id, node_id, result)
+	return result
+
+
+func toast_wisp_assign(result: String, node_id: String) -> void:
+	match result:
+		"ok":
+			status_message.emit(ContentStrings.get_text("wisp_assign_ok"))
+		"reassign":
+			status_message.emit(ContentStrings.get_text("wisp_reassign_ok"))
+		"busy":
+			if node_id == NODE_ID_MANATREE:
+				status_message.emit(ContentStrings.get_text("wisp_assign_manatree_busy"))
+			else:
+				status_message.emit(ContentStrings.get_text("wisp_assign_busy"))
+		_:
+			pass
 
 
 func unassign_wisp(wisp_id: int) -> bool:
@@ -215,11 +256,13 @@ func unassign_wisp(wisp_id: int) -> bool:
 	wisp_assignments[key] = ""
 	wisp_pulse_accum[key] = 0.0
 	wisps_changed.emit()
+	wisp_unassigned.emit(wisp_id)
 	return true
 
 
 func apply_wisp_pulses(delta: float) -> void:
 	## AFK grant: +WISP_PULSE_GRANT of assigned resource every get_wisp_pulse_sec(). No gather_mult.
+	## Harvest nodes → wood/stone/food; Manatree → manashards. Same pulse timing.
 	var pulse: float = get_wisp_pulse_sec()
 	var grant: int = param_int("WISP_PULSE_GRANT", 1)
 	for i: int in range(wisp_count):
@@ -236,31 +279,44 @@ func apply_wisp_pulses(delta: float) -> void:
 				add_resource(rid, grant)
 				var hk: String = String(rid)
 				lifetime_harvested[hk] = int(lifetime_harvested.get(hk, 0)) + grant
+				wisp_pulsed.emit(rid)
 		wisp_pulse_accum[key] = acc
 
 
 func set_keeper_selected(value: bool) -> void:
-	if keeper_selected == value:
+	if value:
+		select_keeper()
 		return
-	keeper_selected = value
-	if not value:
-		# Deselecting Keeper clears wisp selection too (clean UX).
-		selected_wisp_id = -1
+	if not keeper_selected:
+		return
+	keeper_selected = false
+	selection_changed.emit()
+
+
+func select_keeper() -> void:
+	## LMB on Keeper: select Keeper, deselect any Wisp.
+	if keeper_selected and selected_wisp_id < 0:
+		return
+	keeper_selected = true
+	selected_wisp_id = -1
 	selection_changed.emit()
 
 
 func toggle_keeper_selected() -> void:
-	set_keeper_selected(not keeper_selected)
+	if keeper_selected:
+		set_keeper_selected(false)
+	else:
+		select_keeper()
 
 
 func select_wisp(wisp_id: int) -> void:
-	## Wisp click does NOT require Keeper selected (SYSTEMS v0.3.1).
+	## LMB on Wisp: select that wisp (does NOT require Keeper). Deselects Keeper.
 	if wisp_id < 0 or wisp_id >= wisp_count:
 		return
-	if selected_wisp_id == wisp_id:
-		selected_wisp_id = -1
-	else:
-		selected_wisp_id = wisp_id
+	if selected_wisp_id == wisp_id and not keeper_selected:
+		return
+	keeper_selected = false
+	selected_wisp_id = wisp_id
 	selection_changed.emit()
 
 

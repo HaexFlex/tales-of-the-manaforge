@@ -1,5 +1,5 @@
 extends Node2D
-## Forest hub 1280×720: select-first Keeper, wisps orbit, 3 harvest channels, Manatree (SYSTEMS v0.3.1).
+## Forest hub 1280×720: RTS LMB select / RMB command, wisps orbit assigned targets (SYSTEMS v0.3.3).
 
 @onready var keeper: Keeper = $World/Keeper
 @onready var manatree: Manatree = $World/Manatree
@@ -138,28 +138,47 @@ func _clear_of_landmarks(pos: Vector2, min_dist: float) -> bool:
 	return true
 
 
+func world_input_blocked() -> bool:
+	if hud == null or pause_menu == null:
+		return false
+	if hud.care_panel.visible or hud.prestige_panel.visible or hud.welcome_panel.visible:
+		return true
+	return pause_menu.is_open()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
-	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+	if not mb.pressed:
 		return
-	if hud.care_panel.visible or hud.prestige_panel.visible or hud.welcome_panel.visible:
-		return
-	if pause_menu.is_open():
+	if world_input_blocked():
 		return
 	# Belt-and-suspenders: skip if an interactable Area2D is under the cursor.
 	if _interactable_under_point(get_global_mouse_position()):
 		return
-	# Priority: selected wisp → unassign (return to orbit); else Keeper selected → move.
+	if mb.button_index == MOUSE_BUTTON_LEFT:
+		handle_lmb_ground()
+		return
+	if mb.button_index == MOUSE_BUTTON_RIGHT:
+		handle_rmb_ground(get_global_mouse_position())
+
+
+func handle_lmb_ground() -> void:
+	## LMB empty ground → deselect.
+	if GameState.clear_selection():
+		GameState.status_message.emit(ContentStrings.get_text("keeper_deselect"))
+
+
+func handle_rmb_ground(world_pos: Vector2) -> void:
+	## RMB empty ground: unassign selected wisp, or walk selected Keeper.
 	if GameState.selected_wisp_id >= 0:
 		var wid: int = GameState.selected_wisp_id
 		if GameState.unassign_wisp(wid):
 			GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
-		GameState.clear_wisp_selection()
 		return
 	if GameState.keeper_selected:
-		keeper.move_to(get_global_mouse_position(), null)
+		keeper.move_to(world_pos, null)
 		return
 	GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 
@@ -214,7 +233,7 @@ func _sync_wisps() -> void:
 
 
 func _on_wisp_clicked(wisp_id: int) -> void:
-	## Wisp click does NOT require Keeper selected (SYSTEMS v0.3.1).
+	## LMB wisp select does NOT require Keeper selected (SYSTEMS v0.3.3).
 	GameState.select_wisp(wisp_id)
 	if GameState.selected_wisp_id == wisp_id:
 		GameState.status_message.emit(ContentStrings.get_text("wisp_selected"))

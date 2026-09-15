@@ -1,6 +1,6 @@
 extends CharacterBody2D
 class_name Keeper
-## Select-first Keeper + harvest / water channels (SYSTEMS v0.3.1).
+## RTS LMB-select Keeper + harvest / water channels (SYSTEMS v0.3.3).
 
 signal arrived
 signal interaction_finished(target: Node)
@@ -279,12 +279,13 @@ func _try_interact() -> void:
 func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
-		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			GameState.toggle_keeper_selected()
-			if GameState.keeper_selected:
-				GameState.status_message.emit(ContentStrings.get_text("keeper_selected"))
-			else:
-				GameState.status_message.emit(ContentStrings.get_text("keeper_deselect"))
+		if not mb.pressed:
+			return
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			GameState.select_keeper()
+			GameState.status_message.emit(ContentStrings.get_text("keeper_selected"))
+			get_viewport().set_input_as_handled()
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			get_viewport().set_input_as_handled()
 
 

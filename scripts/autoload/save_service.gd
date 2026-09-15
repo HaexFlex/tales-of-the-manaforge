@@ -1,6 +1,6 @@
 extends Node
 ## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.2.0).
-## Payload schema SAVE_VERSION 5 — wisps + assignments. Migrates legacy single-file → slot 1.
+## Payload schema SAVE_VERSION 5 — wisps + assignments (harvest_* or manatree). Migrates legacy single-file → slot 1.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
