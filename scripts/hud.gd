@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + welcome + Ascension Manashard shop. SYSTEMS v0.3.2 / Content v0.3.3.
+## HUD + Manatree care + welcome + Ascension shop. SYSTEMS v0.3.3 / Content v0.3.4 / Art care v0.1.12 + shop v0.1.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -9,19 +9,37 @@ class_name GameHUD
 @onready var status_label: Label = $Panel/StatusLabel
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var pause_button: Button = $Panel/PauseButton
-@onready var care_panel: ColorRect = $CarePanel
-@onready var care_title: Label = $CarePanel/CareTitle
+@onready var ascension_reopen_button: Button = $Panel/AscensionReopenButton
+@onready var care_panel: Panel = $CarePanel
+@onready var care_header: Control = $CarePanel/Header
+@onready var care_title: Label = $CarePanel/Header/CareTitle
+@onready var care_stage_label: Label = $CarePanel/Header/CareStageLabel
 @onready var care_needs_label: Label = $CarePanel/CareNeedsLabel
-@onready var water_button: Button = $CarePanel/WaterButton
-@onready var pay_button: Button = $CarePanel/PayButton
-@onready var care_close_button: Button = $CarePanel/CareCloseButton
-@onready var prestige_panel: ColorRect = $PrestigePanel
-@onready var prestige_title: Label = $PrestigePanel/Title
-@onready var prestige_sub: Label = $PrestigePanel/Subtitle
-@onready var upgrade_list: VBoxContainer = $PrestigePanel/UpgradeList
-@onready var harvest_button: Button = $PrestigePanel/HarvestButton
-@onready var ascend_button: Button = $PrestigePanel/AscendButton
-@onready var close_button: Button = $PrestigePanel/CloseButton
+@onready var fruit_ready_card: ColorRect = $CarePanel/FruitReadyCard
+@onready var water_button: Button = $CarePanel/ActionBand/WaterButton
+@onready var pay_button: Button = $CarePanel/ActionBand/PayButton
+@onready var harvest_fruit_button: Button = $CarePanel/ActionBand/HarvestFruitButton
+@onready var precommit_hint: Label = $CarePanel/FruitReadyCard/PrecommitHint
+@onready var care_close_button: Button = $CarePanel/Header/CareCloseButton
+@onready var care_action_band: Control = $CarePanel/ActionBand
+@onready var fruit_confirm_panel: Panel = $FruitConfirmPanel
+@onready var fruit_confirm_title: Label = $FruitConfirmPanel/ConfirmTitle
+@onready var fruit_confirm_body: Label = $FruitConfirmPanel/ConfirmBody
+@onready var fruit_confirm_yes: Button = $FruitConfirmPanel/ConfirmYes
+@onready var fruit_confirm_no: Button = $FruitConfirmPanel/ConfirmNo
+@onready var shop_dim: ColorRect = $ShopDim
+@onready var ascension_panel: Panel = $AscensionPanel
+@onready var prestige_panel: Panel = $AscensionPanel
+@onready var shop_header: Control = $AscensionPanel/Header
+@onready var prestige_title: Label = $AscensionPanel/Header/Title
+@onready var prestige_sub: Label = $AscensionPanel/Header/Subtitle
+@onready var shard_chip: ColorRect = $AscensionPanel/Header/ShardChip
+@onready var shard_count_label: Label = $AscensionPanel/Header/ShardChip/ShardCount
+@onready var shop_scroll: ScrollContainer = $AscensionPanel/ShopScroll
+@onready var upgrade_list: VBoxContainer = $AscensionPanel/ShopScroll/UpgradeList
+@onready var shop_footer: Control = $AscensionPanel/Footer
+@onready var close_button: Button = $AscensionPanel/Footer/CloseButton
+@onready var ascend_button: Button = $AscensionPanel/Footer/AscendButton
 @onready var welcome_panel: ColorRect = $WelcomePanel
 @onready var welcome_boot_label: Label = $WelcomePanel/WelcomeBoot
 @onready var welcome_title_label: Label = $WelcomePanel/WelcomeTitle
@@ -29,37 +47,68 @@ class_name GameHUD
 @onready var welcome_hint_label: Label = $WelcomePanel/WelcomeHint
 @onready var welcome_dismiss_button: Button = $WelcomePanel/WelcomeDismiss
 
+## Art lock MANATREE_CARE_PANEL_V01: 520×420, header 64 / body / action band 56. No shop rows.
+const CARE_SIZE: Vector2 = Vector2(520, 420)
+const CARE_HEADER_H: float = 64.0
+const CARE_ACTION_BAND_H: float = 56.0
+## Art lock ASCENSION_SHOP_LAYOUT_V01: 720×500, header 64 / list flex / footer 72, row 48.
+const SHOP_SIZE: Vector2 = Vector2(720, 500)
+const SHOP_MIN_SIZE: Vector2 = Vector2(640, 420)
+const SHOP_HEADER_H: float = 64.0
+const SHOP_FOOTER_H: float = 72.0
+const SHOP_ROW_H: float = 48.0
+const SHOP_PAD: float = 16.0
+const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
+const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
+const LEAF: Color = Color(0.24, 0.48, 0.28, 1.0)
+const BUY_CAN: Color = Color(0.28, 0.52, 0.30, 1.0)
+const BUY_CANT: Color = Color(0.62, 0.22, 0.18, 1.0)
+const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
+
 var _manatree: Manatree = null
 var _confirm_pay: bool = false
-var _confirm_harvest: bool = false
 var _confirm_ascend: bool = false
-## Auto-open Fruit panel once when fruit becomes ready this cycle.
-var _auto_opened_fruit_this_cycle: bool = false
+## 0 = closed, 1 = Begin Ascension?, 2 = Commit the harvest.
+var _fruit_confirm_step: int = 0
 var _highlight_ascend: bool = false
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	panel.color = Color(0.08, 0.1, 0.14, 0.85)
-	prestige_panel.color = Color(0.14, 0.1, 0.08, 0.96)
-	prestige_panel.visible = false
+	ascension_panel.visible = false
+	fruit_confirm_panel.visible = false
 	care_panel.visible = false
 	welcome_panel.visible = false
+	shop_dim.visible = false
 	welcome_panel.color = Color(0.07, 0.1, 0.09, 0.97)
+	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	shop_scroll.clip_contents = true
+	_apply_wood_chrome()
 	pause_button.text = ContentStrings.get_text("btn_pause")
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	pay_button.text = ContentStrings.get_text("tree_pay")
-	care_title.text = ContentStrings.get_text("tree_care_title")
+	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
+	ascension_reopen_button.text = ContentStrings.get_text("ascension_paused_title")
+	care_title.text = "%s %s" % [
+		ContentStrings.get_text("tree_menu_title"),
+		ContentStrings.get_text("tree_care_title"),
+	]
 	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
 	welcome_title_label.text = ContentStrings.get_text("welcome_title")
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")
 	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
 	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
 	pause_button.pressed.connect(_on_pause_pressed)
-	harvest_button.pressed.connect(_on_harvest)
+	ascension_reopen_button.pressed.connect(show_ascension_shop)
+	harvest_fruit_button.pressed.connect(open_fruit_confirm)
+	fruit_confirm_yes.pressed.connect(confirm_fruit_step)
+	fruit_confirm_no.pressed.connect(cancel_fruit_confirm)
 	ascend_button.pressed.connect(_on_ascend)
-	close_button.pressed.connect(hide_prestige_menu)
+	close_button.pressed.connect(_on_shop_close)
 	care_close_button.pressed.connect(hide_care_menu)
 	water_button.pressed.connect(_on_water)
 	pay_button.pressed.connect(_on_pay)
@@ -71,28 +120,76 @@ func _ready() -> void:
 	GameState.status_message.connect(_on_status)
 	GameState.fruit_ready_changed.connect(_on_fruit_ready_changed)
 	GameState.selection_changed.connect(_refresh_selection_hint)
+	GameState.load_completed.connect(_on_game_state_loaded)
 	_refresh_all()
 	status_label.text = ContentStrings.get_text("boot_line")
 	_refresh_controls_hint()
 	_refresh_selection_hint()
+	_sync_ascension_from_state()
 
 
-func _ensure_fruit_care_button() -> void:
-	if care_panel.get_node_or_null("FruitOpenButton") != null:
+func _wood_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = WOOD
+	sb.border_color = GOLD
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(2)
+	sb.content_margin_left = 2.0
+	sb.content_margin_right = 2.0
+	sb.content_margin_top = 2.0
+	sb.content_margin_bottom = 2.0
+	return sb
+
+
+func _btn_style(bg: Color, border: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bg
+	sb.border_color = border
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(3)
+	sb.content_margin_left = 10.0
+	sb.content_margin_right = 10.0
+	sb.content_margin_top = 6.0
+	sb.content_margin_bottom = 6.0
+	return sb
+
+
+func _apply_button_chrome(btn: Button, bg: Color, border: Color) -> void:
+	var normal: StyleBoxFlat = _btn_style(bg, border)
+	var hover: StyleBoxFlat = _btn_style(bg.lightened(0.08), GOLD)
+	var pressed: StyleBoxFlat = _btn_style(bg.darkened(0.12), border)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_stylebox_override("focus", hover)
+	btn.add_theme_color_override("font_color", Color(0.95, 0.96, 0.88, 1.0))
+	btn.add_theme_color_override("font_hover_color", Color(1, 1, 0.92, 1.0))
+	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 1, 1.0))
+
+
+func _apply_wood_chrome() -> void:
+	ascension_panel.add_theme_stylebox_override("panel", _wood_style())
+	fruit_confirm_panel.add_theme_stylebox_override("panel", _wood_style())
+	care_panel.add_theme_stylebox_override("panel", _wood_style())
+	shard_chip.color = CHIP_CYAN
+	_apply_button_chrome(close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(ascend_button, LEAF, GOLD)
+	_apply_button_chrome(fruit_confirm_yes, LEAF, GOLD)
+	_apply_button_chrome(fruit_confirm_no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(care_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(water_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(pay_button, LEAF, GOLD)
+	_apply_button_chrome(harvest_fruit_button, LEAF, GOLD)
+
+
+func _refresh_dim() -> void:
+	if shop_dim == null:
 		return
-	var btn := Button.new()
-	btn.name = "FruitOpenButton"
-	btn.text = ContentStrings.get_text("tree_fruit_open")
-	btn.position = Vector2(20, 236)
-	btn.size = Vector2(200, 28)
-	btn.visible = false
-	btn.pressed.connect(open_fruit_from_care)
-	care_panel.add_child(btn)
+	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible
 
 
 func bind_manatree(tree: Manatree) -> void:
 	_manatree = tree
-	_ensure_fruit_care_button()
 
 
 func maybe_show_welcome() -> void:
@@ -103,7 +200,8 @@ func maybe_show_welcome() -> void:
 
 func show_welcome() -> void:
 	hide_care_menu()
-	hide_prestige_menu()
+	hide_fruit_confirm()
+	hide_ascension_shop()
 	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
 	welcome_title_label.text = ContentStrings.get_text("welcome_title")
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")
@@ -127,7 +225,7 @@ func _on_welcome_dismiss() -> void:
 
 func _on_resources(_id: StringName, _amount: int) -> void:
 	_refresh_resources()
-	_refresh_prestige_buttons()
+	_refresh_ascension_copy()
 	if care_panel.visible:
 		_refresh_care_needs()
 
@@ -190,8 +288,8 @@ func _on_pause_pressed() -> void:
 
 func _on_new_game_from_pause() -> void:
 	hide_care_menu()
-	hide_prestige_menu()
-	_auto_opened_fruit_this_cycle = false
+	hide_fruit_confirm()
+	hide_ascension_shop()
 	_highlight_ascend = false
 	_refresh_all()
 	show_welcome()
@@ -199,20 +297,27 @@ func _on_new_game_from_pause() -> void:
 
 func _on_loaded_from_pause() -> void:
 	hide_care_menu()
-	hide_prestige_menu()
-	_auto_opened_fruit_this_cycle = GameState.fruit_ready or GameState.fruit_harvested_pending_ascend
+	hide_fruit_confirm()
 	_highlight_ascend = false
 	_refresh_all()
+	_sync_ascension_from_state()
 	maybe_show_welcome()
+
+
+func _on_game_state_loaded() -> void:
+	_refresh_all()
+	_sync_ascension_from_state()
 
 
 func _refresh_all() -> void:
 	_refresh_resources()
 	_refresh_stage()
-	_rebuild_upgrades()
-	_refresh_prestige_buttons()
+	if GameState.fruit_harvested_pending_ascend:
+		_rebuild_upgrades()
+	_refresh_ascension_copy()
 	_refresh_controls_hint()
 	_refresh_selection_hint()
+	_refresh_reopen_button()
 	if care_panel.visible:
 		_refresh_care_needs()
 
@@ -237,29 +342,51 @@ func _refresh_stage() -> void:
 
 func _refresh_care_needs() -> void:
 	var info: Dictionary = GameState.get_care_next_stage_info()
-	care_title.text = str(info.get("title", ContentStrings.get_text("tree_care_title")))
+	care_title.text = "%s %s" % [
+		ContentStrings.get_text("tree_menu_title"),
+		ContentStrings.get_text("tree_care_title"),
+	]
+	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
+	var fruit_ready: bool = GameState.fruit_ready and not GameState.fruit_committed
+	if fruit_ready:
+		care_stage_label.text = "Stage: %s · Fruit ready" % stage_name
+	else:
+		care_stage_label.text = "Stage: %s" % stage_name
 	var lines: PackedStringArray = info.get("needs_lines", PackedStringArray()) as PackedStringArray
 	var header: String = str(info.get("needs_header", ""))
 	var status: String = str(info.get("needs_status", ""))
 	var body_parts: PackedStringArray = PackedStringArray()
+	var is_ancient: bool = bool(info.get("is_ancient", false))
+	if not is_ancient:
+		var toward: String = str(info.get("title", ""))
+		if toward != "":
+			body_parts.append(toward)
 	if header != "":
 		body_parts.append(header)
 	for line: String in lines:
 		body_parts.append(line)
-	if status != "" and not bool(info.get("is_ancient", false)):
+	if status != "" and not is_ancient:
 		body_parts.append(status)
 	care_needs_label.text = "\n".join(body_parts)
+	care_needs_label.visible = not fruit_ready
 	var can_pay: bool = bool(info.get("can_pay", false))
-	pay_button.visible = not bool(info.get("is_ancient", false))
+	pay_button.visible = not is_ancient
 	if _confirm_pay and can_pay:
 		pay_button.text = ContentStrings.get_text("tree_pay_confirm_yes")
 	else:
 		pay_button.text = ContentStrings.get_text("tree_pay")
 	pay_button.disabled = not can_pay
-	_ensure_fruit_care_button()
-	var fruit_btn: Button = care_panel.get_node_or_null("FruitOpenButton") as Button
-	if fruit_btn:
-		fruit_btn.visible = GameState.fruit_ready or GameState.fruit_harvested_pending_ascend
+	water_button.visible = not GameState.fruit_committed
+	water_button.text = ContentStrings.get_text("tree_interact_water")
+	harvest_fruit_button.visible = fruit_ready
+	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
+	fruit_ready_card.visible = fruit_ready
+	precommit_hint.visible = fruit_ready
+	if fruit_ready:
+		precommit_hint.text = "%s\n%s" % [
+			ContentStrings.get_text("tree_ancient_care_hint"),
+			ContentStrings.get_text("tree_water_ancient_note"),
+		]
 
 
 func show_care_menu() -> void:
@@ -267,18 +394,20 @@ func show_care_menu() -> void:
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
-	hide_prestige_menu()
+	if GameState.fruit_committed:
+		show_ascension_shop()
+		return
+	hide_ascension_shop()
+	hide_fruit_confirm()
 	_confirm_pay = false
 	care_panel.visible = true
-	_ensure_fruit_care_button()
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	_refresh_care_needs()
 	GameAudio.play_ui_open()
 
 
 func open_fruit_from_care() -> void:
-	hide_care_menu()
-	show_prestige_menu()
+	open_fruit_confirm()
 
 
 func hide_care_menu() -> void:
@@ -288,57 +417,272 @@ func hide_care_menu() -> void:
 	_confirm_pay = false
 
 
-func show_prestige_menu(focus_ascend: bool = false) -> void:
+## Legacy entry: pre-commit never opens the shop; pending reopen the paused shop.
+func show_prestige_menu(_focus_ascend: bool = false) -> void:
+	if GameState.fruit_harvested_pending_ascend:
+		show_ascension_shop()
+		return
+	show_care_menu()
+
+
+func hide_prestige_menu() -> void:
+	hide_ascension_shop()
+
+
+func is_shop_list_visible() -> bool:
+	return ascension_panel.visible and upgrade_list.get_child_count() > 0
+
+
+func is_ascension_shop_open() -> bool:
+	return ascension_panel.visible
+
+
+func shop_list_clears_footer() -> bool:
+	if not is_inside_tree() or not ascension_panel.visible:
+		return false
+	var scroll_rect: Rect2 = shop_scroll.get_global_rect()
+	var footer_rect: Rect2 = shop_footer.get_global_rect()
+	return scroll_rect.end.y <= footer_rect.position.y + 2.0
+
+
+func get_shop_layout_metrics() -> Dictionary:
+	return {
+		"size": ascension_panel.size,
+		"header_h": shop_header.size.y,
+		"footer_h": shop_footer.size.y,
+		"row_h": SHOP_ROW_H,
+		"pad": SHOP_PAD,
+		"min_w": SHOP_MIN_SIZE.x,
+		"min_h": SHOP_MIN_SIZE.y,
+		"preferred_w": SHOP_SIZE.x,
+		"preferred_h": SHOP_SIZE.y,
+	}
+
+
+func shop_has_harvest_button() -> bool:
+	return shop_footer.get_node_or_null("HarvestButton") != null or ascension_panel.get_node_or_null("HarvestButton") != null
+
+
+func is_care_open() -> bool:
+	return care_panel.visible
+
+
+func care_embeds_shop_rows() -> bool:
+	## Art v0.1.12: care must never host Buy list / shop scroll / Ascend.
+	if care_panel.find_child("UpgradeList", true, false) != null:
+		return true
+	if care_panel.find_child("ShopScroll", true, false) != null:
+		return true
+	if care_panel.find_child("AscendButton", true, false) != null:
+		return true
+	if care_panel.find_child("Footer", true, false) != null:
+		return true
+	return false
+
+
+func get_care_layout_metrics() -> Dictionary:
+	return {
+		"size": care_panel.size,
+		"header_h": care_header.size.y,
+		"action_band_h": care_action_band.size.y,
+		"preferred_w": CARE_SIZE.x,
+		"preferred_h": CARE_SIZE.y,
+	}
+
+
+func get_fruit_confirm_step() -> int:
+	return _fruit_confirm_step
+
+
+func show_ascension_shop() -> void:
 	if welcome_panel.visible:
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
+	if not GameState.fruit_harvested_pending_ascend:
+		return
 	hide_care_menu()
-	_confirm_harvest = false
+	hide_fruit_confirm()
+	_hold_world_for_ascension()
 	_confirm_ascend = false
-	if focus_ascend or GameState.fruit_harvested_pending_ascend:
-		_highlight_ascend = true
-	elif GameState.fruit_ready:
-		_highlight_ascend = false
-	prestige_panel.visible = true
+	_highlight_ascend = true
+	ascension_panel.visible = true
 	GameAudio.play_ui_open()
-	prestige_title.text = ContentStrings.get_text("fruit_panel_title")
 	_rebuild_upgrades()
-	_refresh_prestige_buttons()
+	_refresh_ascension_copy()
+	_refresh_reopen_button()
+	_refresh_dim()
+	_apply_ascend_highlight()
 
 
-func hide_prestige_menu() -> void:
-	if prestige_panel.visible:
+func hide_ascension_shop() -> void:
+	if ascension_panel.visible:
 		GameAudio.play_ui_close()
-	prestige_panel.visible = false
-	_confirm_harvest = false
+	ascension_panel.visible = false
 	_confirm_ascend = false
 	_highlight_ascend = false
 	_clear_ascend_highlight()
+	_refresh_reopen_button()
+	_refresh_dim()
 
 
-func _on_fruit_ready_changed(ready: bool) -> void:
-	## Auto-open Fruit panel once when fruit becomes ready (Ancient).
-	if ready and not _auto_opened_fruit_this_cycle:
-		_auto_opened_fruit_this_cycle = true
-		call_deferred("_auto_open_prestige_for_fruit")
-	_refresh_prestige_buttons()
+func _on_shop_close() -> void:
+	## Hide shop UI only. World stays paused until Ascend.
+	hide_ascension_shop()
+
+
+func _refresh_reopen_button() -> void:
+	if ascension_reopen_button == null:
+		return
+	ascension_reopen_button.visible = (
+		GameState.fruit_harvested_pending_ascend and not ascension_panel.visible
+	)
+	ascension_reopen_button.text = ContentStrings.get_text("ascension_paused_title")
+
+
+func _sync_ascension_from_state() -> void:
+	hide_fruit_confirm()
+	if GameState.fruit_harvested_pending_ascend:
+		_hold_world_for_ascension()
+		if not welcome_panel.visible:
+			show_ascension_shop()
+		else:
+			_refresh_reopen_button()
+	else:
+		hide_ascension_shop()
+		_release_world_if_allowed()
+
+
+func _hold_world_for_ascension() -> void:
+	var tree: SceneTree = get_tree()
+	if tree:
+		tree.paused = true
+	## Hub bed keeps looping while the shop is paused — never stop mus_hub_forest.
+	GameAudio.ensure_hub_playing()
+
+
+func _release_world_if_allowed() -> void:
+	if GameState.fruit_harvested_pending_ascend:
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
+	var tree: SceneTree = get_tree()
+	if tree:
+		tree.paused = false
+
+
+func _cancel_world_channels() -> void:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return
+	var keepers: Array[Node] = tree.get_nodes_in_group("keeper")
+	if keepers.is_empty():
+		return
+	var k: Node = keepers[0]
+	if k.has_method("cancel_channel"):
+		k.call("cancel_channel", false)
+
+
+func _on_fruit_ready_changed(_ready: bool) -> void:
+	## Do not auto-open shop. Pre-commit care still offers Water + Fruit CTA.
+	_refresh_ascension_copy()
+	_refresh_reopen_button()
 	if care_panel.visible:
 		_refresh_care_needs()
 
 
-func _auto_open_prestige_for_fruit() -> void:
+func open_fruit_confirm() -> void:
 	if welcome_panel.visible:
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
-	if not GameState.fruit_ready and not GameState.fruit_harvested_pending_ascend:
+	if GameState.fruit_harvested_pending_ascend:
+		show_ascension_shop()
 		return
-	show_prestige_menu(GameState.fruit_harvested_pending_ascend)
+	if not GameState.fruit_ready:
+		return
+	care_panel.visible = false
+	_confirm_pay = false
+	_fruit_confirm_step = 1
+	_show_fruit_confirm_step()
+	GameAudio.play_ui_confirm()
+
+
+func confirm_fruit_step() -> void:
+	if _fruit_confirm_step == 1:
+		_fruit_confirm_step = 2
+		_show_fruit_confirm_step()
+		GameAudio.play_ui_confirm()
+		return
+	if _fruit_confirm_step != 2:
+		return
+	_commit_primordial_fruit()
+
+
+func cancel_fruit_confirm() -> void:
+	## Step 2 "Go back" returns to intent. Step 1 "Keep watering" closes without commit.
+	if _fruit_confirm_step == 2:
+		_fruit_confirm_step = 1
+		_show_fruit_confirm_step()
+		GameAudio.play_ui_close()
+		return
+	hide_fruit_confirm()
+	GameAudio.play_ui_close()
+	if GameState.fruit_ready and not GameState.fruit_harvested_pending_ascend:
+		if not care_panel.visible:
+			show_care_menu()
+
+
+func hide_fruit_confirm() -> void:
+	fruit_confirm_panel.visible = false
+	_fruit_confirm_step = 0
+	_refresh_dim()
+
+
+func _show_fruit_confirm_step() -> void:
+	## Two-step Content keys. Modal never includes Buy list or Ascend.
+	fruit_confirm_panel.visible = true
+	if _fruit_confirm_step == 1:
+		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step1_title")
+		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step1")
+		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step1_yes")
+		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step1_no")
+		status_label.text = ContentStrings.get_text("fruit_confirm_step1")
+	else:
+		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step2_title")
+		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step2")
+		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step2_yes")
+		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step2_no")
+		status_label.text = ContentStrings.get_text("fruit_confirm_step2")
+	_refresh_dim()
+
+
+func _commit_primordial_fruit() -> void:
+	if not GameState.fruit_ready:
+		hide_fruit_confirm()
+		return
+	var gained: int = GameState.harvest_fruit()
+	if gained <= 0:
+		hide_fruit_confirm()
+		return
+	_cancel_world_channels()
+	hide_fruit_confirm()
+	hide_care_menu()
+	GameAudio.play_fruit_harvest()
+	status_label.text = "%s\n%s" % [
+		ContentStrings.get_text("fruit_harvest_toast", {"amount": gained}),
+		ContentStrings.get_text("fruit_flow_hint"),
+	]
+	_hold_world_for_ascension()
+	show_ascension_shop()
+	SaveService.save_game()
 
 
 func _on_water() -> void:
 	## Starts water channel on Keeper; hide menu so channel can tick.
+	if GameState.fruit_harvested_pending_ascend:
+		show_ascension_shop()
+		return
 	if _manatree:
 		hide_care_menu()
 		_manatree.do_water()
@@ -350,7 +694,6 @@ func _on_pay() -> void:
 		GameAudio.play_tree_deny()
 		_refresh_care_needs()
 		return
-	# Two-step confirm: first click arms confirm label; second pays.
 	if not _confirm_pay:
 		_confirm_pay = true
 		var info: Dictionary = GameState.get_care_next_stage_info()
@@ -369,47 +712,16 @@ func _on_pay() -> void:
 	_refresh_all()
 
 
-func _prestige_guided_steps() -> String:
-	var s1: String = ContentStrings.get_text("fruit_step_1")
-	var s2: String = ContentStrings.get_text("fruit_step_2")
-	var s3: String = ContentStrings.get_text("fruit_step_3")
-	if GameState.fruit_ready:
-		return "%s  →  %s  →  %s" % [s1, s2, s3]
-	if GameState.fruit_harvested_pending_ascend:
-		return ContentStrings.get_text("fruit_panel_step")
-	return "%s  ·  %s  ·  %s" % [s1, s2, s3]
-
-
-func _prestige_status_hint() -> String:
-	if GameState.fruit_ready:
-		return ContentStrings.get_text("fruit_ready_prompt")
-	if GameState.fruit_harvested_pending_ascend:
-		return ContentStrings.get_text("fruit_flow_hint")
-	return ContentStrings.get_text("fruit_panel_subtitle")
-
-
-func _refresh_prestige_buttons() -> void:
-	var in_fruit_flow: bool = GameState.fruit_ready or GameState.fruit_harvested_pending_ascend
-	# Harvest: visible in fruit flow; disabled after pending.
-	harvest_button.visible = in_fruit_flow
-	harvest_button.disabled = not GameState.fruit_ready
-	harvest_button.text = ContentStrings.get_text("fruit_confirm_yes")
-	# Ascend: visible in fruit flow; enabled only after harvest (no purchase required).
-	ascend_button.visible = in_fruit_flow
+func _refresh_ascension_copy() -> void:
+	if prestige_title == null:
+		return
+	prestige_title.text = ContentStrings.get_text("fruit_panel_title")
+	prestige_sub.text = ContentStrings.get_text("fruit_shop_only_banner")
+	if shard_count_label:
+		shard_count_label.text = str(GameState.manashards)
+	ascend_button.visible = GameState.fruit_harvested_pending_ascend
 	ascend_button.disabled = not GameState.can_ascend()
 	ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
-	var shards_line: String = ContentStrings.get_text("fruit_shards_hud", {"count": GameState.manashards})
-	var essence_line: String = ContentStrings.get_text("fruit_essence_hud", {"count": GameState.essence})
-	var hint: String = _prestige_status_hint()
-	if GameState.fruit_harvested_pending_ascend:
-		hint = "%s\n%s" % [hint, ContentStrings.get_text("ascend_before_bless_hint")]
-	prestige_sub.text = "%s\n%s\n%s  |  %s\n%s" % [
-		ContentStrings.get_text("fruit_panel_subtitle"),
-		_prestige_guided_steps(),
-		shards_line,
-		essence_line,
-		hint,
-	]
 	if _highlight_ascend and GameState.can_ascend():
 		_apply_ascend_highlight()
 	else:
@@ -418,7 +730,7 @@ func _refresh_prestige_buttons() -> void:
 
 func _apply_ascend_highlight() -> void:
 	ascend_button.modulate = Color(1.15, 1.05, 0.75, 1.0)
-	if ascend_button.visible and not ascend_button.disabled:
+	if ascend_button.visible and not ascend_button.disabled and ascension_panel.visible:
 		ascend_button.grab_focus()
 
 
@@ -429,6 +741,9 @@ func _clear_ascend_highlight() -> void:
 func _rebuild_upgrades() -> void:
 	for child: Node in upgrade_list.get_children():
 		child.queue_free()
+	if not GameState.fruit_harvested_pending_ascend:
+		return
+	var stripe: bool = false
 	for entry: Variant in GameState.upgrades_data:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -437,32 +752,53 @@ func _rebuild_upgrades() -> void:
 		var rank: int = GameState.get_upgrade_rank(uid)
 		var max_rank: int = int(d.get("max_rank", 1))
 		var cost: int = GameState.get_upgrade_cost(uid)
-		var row := HBoxContainer.new()
-		var info := Label.new()
+		var row := PanelContainer.new()
+		row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
+		var row_sb := StyleBoxFlat.new()
+		if stripe:
+			row_sb.bg_color = Color(0.20, 0.14, 0.09, 1.0)
+		else:
+			row_sb.bg_color = Color(0.15, 0.10, 0.07, 1.0)
+		row_sb.set_border_width_all(0)
+		row_sb.border_color = Color(0.35, 0.26, 0.14, 0.5)
+		row_sb.border_width_bottom = 1
+		row.add_theme_stylebox_override("panel", row_sb)
+		var inner := HBoxContainer.new()
+		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
+		inner.add_theme_constant_override("separation", 8)
+		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		info.text = "%s — %s\n%s  |  %s" % [
-			str(d.get("display_name", uid)),
-			str(d.get("description", "")),
-			ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank}),
-			ContentStrings.get_text("upgrade_cost", {"cost": cost}),
-		]
+		info.alignment = BoxContainer.ALIGNMENT_CENTER
+		var name_lbl := Label.new()
+		name_lbl.text = str(d.get("display_name", uid))
+		name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+		var rank_lbl := Label.new()
+		rank_lbl.text = ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank})
+		rank_lbl.add_theme_font_size_override("font_size", 11)
+		rank_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+		info.add_child(name_lbl)
+		info.add_child(rank_lbl)
 		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(108, 32)
+		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		if rank >= max_rank:
 			btn.text = ContentStrings.get_text("upgrade_maxed")
 			btn.disabled = true
-		elif not GameState.fruit_harvested_pending_ascend:
-			# Ascension-only shop: preview costs before Harvest; Buy after.
-			btn.text = ContentStrings.get_text("upgrade_buy")
-			btn.disabled = true
+			_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
 		elif GameState.manashards < cost:
-			btn.text = ContentStrings.get_text("upgrade_cant_afford")
+			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
 			btn.disabled = true
+			_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
 		else:
-			btn.text = ContentStrings.get_text("upgrade_buy")
+			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
+			_apply_button_chrome(btn, BUY_CAN, GOLD)
 			btn.pressed.connect(_on_buy.bind(uid))
-		row.add_child(info)
-		row.add_child(btn)
+		inner.add_child(info)
+		inner.add_child(btn)
+		row.add_child(inner)
 		upgrade_list.add_child(row)
+		stripe = not stripe
 
 
 func _on_buy(upgrade_id: String) -> void:
@@ -477,54 +813,24 @@ func _on_buy(upgrade_id: String) -> void:
 		SaveService.save_game()
 
 
-func _on_harvest() -> void:
-	if not GameState.fruit_ready:
-		return
-	# Two-step confirm (like Pay).
-	if not _confirm_harvest:
-		_confirm_harvest = true
-		_confirm_ascend = false
-		status_label.text = ContentStrings.get_text("fruit_confirm")
-		_refresh_prestige_buttons()
-		return
-	_confirm_harvest = false
-	var gained: int = GameState.harvest_fruit()
-	if gained > 0:
-		GameAudio.play_fruit_harvest()
-		status_label.text = "%s\n%s" % [
-			ContentStrings.get_text("fruit_harvest_toast", {"amount": gained}),
-			ContentStrings.get_text("fruit_flow_hint"),
-		]
-		_highlight_ascend = true
-		# Reopen/refresh Manashard shop; Ascend available (purchase optional).
-		if not prestige_panel.visible:
-			show_prestige_menu(true)
-		else:
-			_rebuild_upgrades()
-			_refresh_all()
-			_apply_ascend_highlight()
-		SaveService.save_game()
-
-
 func _on_ascend() -> void:
 	if not GameState.can_ascend():
 		return
-	# Two-step confirm (like Pay). Ascend always available after harvest (no buy required).
 	if not _confirm_ascend:
 		_confirm_ascend = true
-		_confirm_harvest = false
 		status_label.text = "%s\n%s" % [
 			ContentStrings.get_text("ascend_confirm"),
 			ContentStrings.get_text("ascend_hint"),
 		]
-		_refresh_prestige_buttons()
+		ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
+		_refresh_ascension_copy()
 		return
 	_confirm_ascend = false
 	GameAudio.play_ascend()
 	GameAudio.reset_cycle_flags()
 	GameState.ascend()
-	_auto_opened_fruit_this_cycle = false
 	_highlight_ascend = false
-	hide_prestige_menu()
+	hide_ascension_shop()
+	_release_world_if_allowed()
 	_refresh_all()
 	SaveService.save_game()

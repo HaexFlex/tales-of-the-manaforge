@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.3.2 — RTS LMB/RMB, wisps orbit assigned targets. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.3.3 — two-step Fruit commit, paused shop. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -34,7 +34,9 @@ var essence: int = 0
 
 var stage_id: StringName = &"sapling"
 var fruit_ready: bool = false
-## True after Fruit harvested this cycle; waiting for Ascend.
+## SYSTEMS v0.3.3: true after Fruit COMMIT (paused shop until Ascend). Design save field.
+var fruit_committed: bool = false
+## Legacy alias of fruit_committed (kept for existing call sites / SAVE_VERSION 5 payloads).
 var fruit_harvested_pending_ascend: bool = false
 ## True after first-boot welcome was dismissed (once per new save).
 var welcome_shown: bool = false
@@ -220,6 +222,9 @@ func grant_wisp_from_stage() -> void:
 
 func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 	## Returns "ok" | "reassign" | "busy" | "invalid". WISP_PER_NODE = 1 (harvest and Manatree).
+	if fruit_committed:
+		wisp_assign_failed.emit("invalid", node_id)
+		return "invalid"
 	if wisp_id < 0 or wisp_id >= wisp_count:
 		wisp_assign_failed.emit("invalid", node_id)
 		return "invalid"
@@ -265,6 +270,8 @@ func toast_wisp_assign(result: String, node_id: String) -> void:
 
 
 func unassign_wisp(wisp_id: int) -> bool:
+	if fruit_committed:
+		return false
 	if wisp_id < 0 or wisp_id >= wisp_count:
 		return false
 	var key: String = str(wisp_id)
@@ -280,6 +287,8 @@ func unassign_wisp(wisp_id: int) -> bool:
 func apply_wisp_pulses(delta: float) -> void:
 	## AFK grant: +WISP_PULSE_GRANT of assigned resource every get_wisp_pulse_sec(). No gather_mult.
 	## Harvest nodes → wood/stone/food; Manatree → manashards. Same pulse timing.
+	if fruit_committed:
+		return
 	var pulse: float = get_wisp_pulse_sec()
 	var grant: int = param_int("WISP_PULSE_GRANT", 1)
 	for i: int in range(wisp_count):
@@ -484,6 +493,8 @@ func get_gather_grant(resource_id: StringName) -> int:
 
 
 func apply_harvest_pulse(resource_id: StringName) -> int:
+	if fruit_committed:
+		return 0
 	if not resource_id in HARVEST_IDS:
 		return 0
 	var grant: int = get_harvest_grant(resource_id)
@@ -496,7 +507,7 @@ func apply_harvest_pulse(resource_id: StringName) -> int:
 ## Water channel pulse: manashards U{1,3}+shard_sight, essence income only (no growth).
 ## At Ancient: still pays shards+essence.
 func apply_water_pulse() -> Dictionary:
-	if fruit_harvested_pending_ascend:
+	if fruit_committed:
 		return {"ok": false, "reason": "pending_ascend", "shards": 0, "essence": 0}
 	var shard_min: int = param_int("WATER_SHARD_MIN", 1)
 	var shard_max: int = param_int("WATER_SHARD_MAX", 3)
@@ -528,8 +539,8 @@ func get_upgrade_cost(upgrade_id: String) -> int:
 
 
 func can_buy_upgrade(upgrade_id: String) -> bool:
-	## Manashard shop — only while awaiting Ascend after Fruit harvest.
-	if not fruit_harvested_pending_ascend:
+	## Manashard shop — only while awaiting Ascend after Fruit commit.
+	if not fruit_committed:
 		return false
 	var def: Dictionary = get_upgrade_def(upgrade_id)
 	if def.is_empty():
@@ -597,8 +608,14 @@ func has_needs_for_next() -> bool:
 	return true
 
 
+func _set_fruit_committed(value: bool) -> void:
+	## Keep Design field and legacy alias in lockstep (no SAVE_VERSION bump).
+	fruit_committed = value
+	fruit_harvested_pending_ascend = value
+
+
 func can_pay_stage() -> bool:
-	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
+	if stage_id == &"ancient" or fruit_committed:
 		return false
 	return has_needs_for_next()
 
@@ -698,12 +715,12 @@ func _join_cost_parts(parts: PackedStringArray) -> String:
 
 ## Care-menu / HUD helper: next-stage needs checklist, or Ancient fruit/ascend state.
 func get_care_next_stage_info() -> Dictionary:
-	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
+	if stage_id == &"ancient" or fruit_committed:
 		var ancient_line: String = ContentStrings.get_text("tree_at_ancient_idle")
-		if fruit_harvested_pending_ascend:
-			ancient_line = ContentStrings.get_text("ascend_prompt")
+		if fruit_committed:
+			ancient_line = ContentStrings.get_text("ascension_paused_body")
 		elif fruit_ready:
-			ancient_line = ContentStrings.get_text("fruit_ready_prompt")
+			ancient_line = ContentStrings.get_text("tree_ancient_care_hint")
 		return {
 			"is_ancient": true,
 			"title": str(get_stage_def().get("display_name", "Ancient")),
@@ -712,7 +729,7 @@ func get_care_next_stage_info() -> Dictionary:
 			"needs_status": ancient_line,
 			"can_pay": false,
 			"ready_for_fruit": fruit_ready,
-			"pending_ascend": fruit_harvested_pending_ascend,
+			"pending_ascend": fruit_committed,
 		}
 	var next_id: StringName = get_next_stage_id()
 	var next_def: Dictionary = get_stage_def(next_id)
@@ -741,7 +758,7 @@ func get_care_next_stage_info() -> Dictionary:
 
 ## Pay needs to advance one stage. Returns "ok" | "cant_afford" | "ancient" | "no_next".
 func try_pay_stage() -> String:
-	if stage_id == &"ancient" or fruit_harvested_pending_ascend:
+	if stage_id == &"ancient" or fruit_committed:
 		return "ancient"
 	var next_id: StringName = get_next_stage_id()
 	if next_id == &"":
@@ -771,39 +788,39 @@ func try_advance() -> String:
 func _set_stage(id: StringName) -> void:
 	stage_id = id
 	var def: Dictionary = get_stage_def(id)
-	fruit_ready = bool(def.get("grants_fruit", false)) and not fruit_harvested_pending_ascend
+	fruit_ready = bool(def.get("grants_fruit", false)) and not fruit_committed
 	stage_changed.emit(stage_id)
 	fruit_ready_changed.emit(fruit_ready)
 	needs_changed.emit()
 
 
 func harvest_fruit() -> int:
-	if stage_id != &"ancient" or fruit_harvested_pending_ascend:
+	if stage_id != &"ancient" or fruit_committed:
 		return 0
 	## Flat ESSENCE_PER_HARVEST burst (watering already paid essence over time).
 	var gained: int = param_int("ESSENCE_PER_HARVEST", 5)
 	add_resource(&"essence", gained)
 	lifetime_fruit_harvested += 1
 	fruit_ready = false
-	fruit_harvested_pending_ascend = true
+	_set_fruit_committed(true)
 	fruit_ready_changed.emit(false)
 	return gained
 
 
 func can_ascend() -> bool:
-	## Ascend after Fruit harvest; Manashard purchases optional.
-	return fruit_harvested_pending_ascend
+	## Ascend after Fruit commit; Manashard purchases optional.
+	return fruit_committed
 
 
 func ascend() -> void:
-	if not fruit_harvested_pending_ascend:
+	if not fruit_committed:
 		return
 	ascensions += 1
 	wood = 0
 	stone = 0
 	food = 0
 	manashards = 0
-	fruit_harvested_pending_ascend = false
+	_set_fruit_committed(false)
 	fruit_ready = false
 	wisp_count = get_upgrade_rank("bonus_wisp")
 	wisp_assignments.clear()
@@ -830,6 +847,7 @@ func to_save_dict() -> Dictionary:
 		"essence": essence,
 		"stage_id": String(stage_id),
 		"fruit_ready": fruit_ready,
+		"fruit_committed": fruit_committed,
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
 		"welcome_shown": welcome_shown,
 		"run_time_sec": run_time_sec,
@@ -854,7 +872,10 @@ func apply_save_dict(data: Dictionary) -> void:
 	stage_id = StringName(str(data.get("stage_id", "sapling")))
 	# growth ignored (SAVE_VERSION 4 / v3 migrate)
 	fruit_ready = bool(data.get("fruit_ready", false))
-	fruit_harvested_pending_ascend = bool(data.get("fruit_harvested_pending_ascend", false))
+	## Prefer Design field; migrate from legacy alias without SAVE_VERSION bump.
+	_set_fruit_committed(bool(data.get("fruit_committed", data.get("fruit_harvested_pending_ascend", false))))
+	if fruit_committed:
+		fruit_ready = false
 	welcome_shown = bool(data.get("welcome_shown", false))
 	run_time_sec = float(data.get("run_time_sec", 0.0))
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
@@ -903,7 +924,7 @@ func reset_for_new_game() -> void:
 	essence = 0
 	stage_id = &"sapling"
 	fruit_ready = false
-	fruit_harvested_pending_ascend = false
+	_set_fruit_committed(false)
 	welcome_shown = false
 	ascensions = 0
 	lifetime_waters = 0

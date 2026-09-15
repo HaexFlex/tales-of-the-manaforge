@@ -1,0 +1,58 @@
+{
+  "version": "v0.1.12-manatree-care",
+  "canvas_ref": [1280, 720],
+  "lock": "Care chrome must never show Ascension Buy rows.",
+  "flow": [
+    "Pre-Ancient: Needs + Pay + Water",
+    "Ancient pre-commit: Fruit CTA + Water only (no Buy / Ascend / shop)",
+    "Fruit intent → two-step confirm (separate modal)",
+    "On Fruit commit: close care, pause world, open Ascension shop",
+    "Ascend is the only exit from the paused shop"
+  ],
+  "care_panel": {
+    "preferred": [520, 420],
+    "anchor": "screen_center",
+    "chrome": "soft wood/leaf, gold edge; narrower than shop",
+    "regions": {
+      "header_h": 64,
+      "action_band_h": 56,
+      "pad": 16
+    },
+    "pre_ancient": [
+      "title Manatree Care",
+      "stage name",
+      "needs checklist",
+      "Pay (enabled when met)",
+      "Water",
+      "dismiss Close"
+    ],
+    "ancient_precommit": [
+      "Fruit ready copy",
+      "Harvest Primordial Fruit CTA",
+      "Water"
+    ],
+    "action_band": [
+      "Water (left)",
+      "Pay or Harvest (right)",
+      "not a shop footer"
+    ],
+    "forbidden_on_care": [
+      "blessing list",
+      "Buy rows",
+      "Ascend",
+      "shop Close/Ascend footer",
+      "ShopScroll / UpgradeList"
+    ]
+  },
+  "after_commit": {
+    "care": "closed",
+    "shop": "ASCENSION_SHOP_LAYOUT_V01.md",
+    "world": "paused",
+    "exit": "Ascend only"
+  },
+  "assets": {
+    "layout_mock": "ui/manatree_care_panel_v01.png",
+    "spec_md": "ui/MANATREE_CARE_PANEL_V01.md",
+    "shop_spec": "ui/ASCENSION_SHOP_LAYOUT_V01.md"
+  }
+}

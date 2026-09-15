@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.3.3 — LMB select / RMB command / LMB-empty deselect; Wisp→Manatree shards; orbit assigned node
+**Status:** v0.3.4 — Ascension UX: water-at-Ancient; two-step Fruit; shop-only window; paused Ascension
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -121,7 +121,9 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_water_ok` | *(legacy pulse SFX label — prefer pulse HUD)* The Manatree brightens. |
 | `tree_water_out_of_range` | Too far to keep watering. |
 | `tree_water_cancel` | You stop watering. |
-| `tree_water_ancient_note` | Ancient — still drinking, still giving. The Fruit waits when you are ready. |
+| `tree_water_ancient_note` | Ancient — you may still water for Manashards and Essence. The Fruit waits when you are ready. |
+| `tree_water_ancient_ok` | The Ancient Manatree still drinks — shards and Essence gather. |
+| `tree_ancient_care_hint` | Water anytime. Harvest the Fruit when you choose to begin Ascension. |
 
 ### 5c. Needs checklist + Pay
 
@@ -168,19 +170,31 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | key | string |
 |-----|--------|
 | `fruit_ready_prompt` | Harvest the Primordial Fruit |
-| `fruit_confirm` | Harvest the Primordial Fruit? You will spend Manashards on lasting blessings, then may Ascend. Soft goods reset on Ascend; Essence, Manashards spent on blessings, and blessings remain. |
+| `fruit_confirm_step1_title` | Begin Ascension? |
+| `fruit_confirm_step1` | Harvest the Primordial Fruit? This opens the blessing shop. You can still water until you commit. |
+| `fruit_confirm_step1_yes` | Continue |
+| `fruit_confirm_step1_no` | Keep watering |
+| `fruit_confirm_step2_title` | Commit the harvest |
+| `fruit_confirm_step2` | Commit now? The Fruit is taken, Essence is granted, and only the blessing shop remains until you Ascend. |
+| `fruit_confirm_step2_yes` | Harvest |
+| `fruit_confirm_step2_no` | Go back |
+| `fruit_confirm` | Harvest the Primordial Fruit? *(legacy — prefer two-step keys)* |
 | `fruit_confirm_yes` | Harvest |
 | `fruit_confirm_no` | Not yet |
 | `fruit_harvest_toast` | The Primordial Fruit is yours. Essence +{amount}. |
-| `fruit_flow_hint` | Ascension only: spend Manashards on blessings here (leftover shards wipe on Ascend), then Ascend. |
+| `fruit_flow_hint` | Shop only now — spend Manashards on blessings, then Ascend. Leftover shards wipe on Ascend. |
 | `fruit_step_1` | 1 · Harvest |
 | `fruit_step_2` | 2 · Bless |
 | `fruit_step_3` | 3 · Ascend |
 | `fruit_panel_title` | Ascension Blessings |
-| `fruit_panel_subtitle` | After the Fruit — spend Manashards on lasting gifts. Then Ascend. |
+| `fruit_panel_subtitle` | Ascension is open — spend Manashards here, then Ascend. |
 | `fruit_panel_step` | Harvest done · Bless · Ascend |
+| `fruit_shop_only_banner` | Ascension in progress — blessing shop only |
 | `fruit_shards_hud` | Manashards: {count} |
 | `fruit_essence_hud` | Essence: {count} |
+| `ascension_paused_title` | Ascension paused |
+| `ascension_paused_body` | The clearing waits. Spend Manashards on blessings, or Ascend when ready. Watering and gathering are set aside for now. |
+| `ascension_paused_hint` | Finish blessings, then Ascend — or leave the shop open and return. |
 | `ascend_prompt` | Ascend — begin again, stronger |
 | `ascend_hint` | Soft goods and leftover Manashards return to the forest. Blessings stay with you. |
 | `ascend_confirm` | Ascend? Wood, Stone, Food, and Manashards return to the forest. Blessings stay. The Manatree becomes a Sapling. |
@@ -317,6 +331,7 @@ Spelling: **Wisp** (player-facing). Idle Wisps **orbit the Keeper**; assigned Wi
 | `wisp_assign_manatree_ok` | The Wisp circles the Manatree, drawing Manashards. |
 | `wisp_reassign_ok` | The Wisp finds a new place to gather. |
 | `wisp_assign_busy` | A Wisp already tends that spot. |
+| `wisp_assign_manatree_busy` | A Wisp already circles the Manatree. |
 | `wisp_unassign` | Call back |
 | `wisp_unassign_ground` | Right-click empty ground to call the Wisp back. |
 | `wisp_unassign_ok` | The Wisp returns to your side. |

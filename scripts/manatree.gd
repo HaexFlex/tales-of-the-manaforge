@@ -110,8 +110,8 @@ func apply_player_command() -> void:
 
 
 func on_interact(_keeper: Node) -> void:
-	## Fruit ready or pending Ascend → Fruit/Blessings/Ascend panel. Else care (Water + Pay).
-	if GameState.fruit_ready or GameState.fruit_harvested_pending_ascend:
+	## Pending Ascend → paused shop. Fruit ready (uncommitted) → care with Water + Harvest CTA.
+	if GameState.fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
 	care_menu_requested.emit()
@@ -139,7 +139,10 @@ func do_water() -> void:
 		return
 	k.start_water_channel(self)
 	if GameState.stage_id == &"ancient":
-		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_note"))
+		GameState.status_message.emit("%s\n%s" % [
+			ContentStrings.get_text("tree_water_ancient_note"),
+			ContentStrings.get_text("tree_water_ancient_ok"),
+		])
 
 
 func do_pay_stage() -> String:
@@ -151,8 +154,10 @@ func do_pay_stage() -> String:
 		"cant_afford":
 			GameAudio.play_tree_deny()
 		"ancient":
-			if GameState.fruit_ready or GameState.fruit_harvested_pending_ascend:
+			if GameState.fruit_harvested_pending_ascend:
 				fruit_menu_requested.emit()
+			elif GameState.fruit_ready:
+				care_menu_requested.emit()
 	_refresh_visual()
 	return result
 
@@ -170,7 +175,7 @@ func _on_fruit_changed(ready: bool) -> void:
 	if ready:
 		fruit_hint.text = ContentStrings.get_text("fruit_ready_prompt")
 	elif GameState.fruit_harvested_pending_ascend:
-		fruit_hint.text = ContentStrings.get_text("ascend_prompt")
+		fruit_hint.text = ContentStrings.get_text("ascension_paused_hint")
 	else:
 		fruit_hint.text = ""
 

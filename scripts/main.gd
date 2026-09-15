@@ -141,7 +141,9 @@ func _clear_of_landmarks(pos: Vector2, min_dist: float) -> bool:
 func world_input_blocked() -> bool:
 	if hud == null or pause_menu == null:
 		return false
-	if hud.care_panel.visible or hud.prestige_panel.visible or hud.welcome_panel.visible:
+	if hud.care_panel.visible or hud.ascension_panel.visible or hud.welcome_panel.visible:
+		return true
+	if hud.fruit_confirm_panel.visible:
 		return true
 	return pause_menu.is_open()
 
@@ -201,7 +203,10 @@ func _interactable_under_point(world_pos: Vector2) -> bool:
 
 
 func _on_fruit_menu() -> void:
-	hud.show_prestige_menu(GameState.fruit_harvested_pending_ascend)
+	if GameState.fruit_harvested_pending_ascend:
+		hud.show_ascension_shop()
+	else:
+		hud.show_care_menu()
 
 
 func _on_care_menu() -> void:
