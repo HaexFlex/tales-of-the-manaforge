@@ -561,6 +561,30 @@ func _run() -> void:
 	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_selected_0000.png"), "wisp selected art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_parked_0000.png"), "wisp parked art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_orbit_0000.png"), "wisp orbit art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_fly_0000.png"), "wisp fly art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_fly.png"), "wisp fly strip")
+	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_node_orbit_0000.png"), "wisp node_orbit art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/wisps/wisp_node_orbit.png"), "wisp node_orbit strip")
+	var wisp_meta_file := FileAccess.open("res://assets/art/wisps/wisp_meta.json", FileAccess.READ)
+	failed += _assert(wisp_meta_file != null, "open wisp_meta")
+	if wisp_meta_file:
+		var wisp_meta_parsed: Variant = JSON.parse_string(wisp_meta_file.get_as_text())
+		wisp_meta_file.close()
+		failed += _assert(typeof(wisp_meta_parsed) == TYPE_DICTIONARY, "wisp meta dict")
+		if typeof(wisp_meta_parsed) == TYPE_DICTIONARY:
+			var wm: Dictionary = wisp_meta_parsed
+			failed += _assert(str(wm.get("version", "")) == "v0.1.10-node-orbit", "wisp meta v0.1.10-node-orbit")
+			failed += _assert(wm.has("behavior_summary"), "wisp behavior_summary")
+			var nlayout: Variant = wm.get("node_orbit_layout", {})
+			failed += _assert(typeof(nlayout) == TYPE_DICTIONARY, "node_orbit_layout")
+			if typeof(nlayout) == TYPE_DICTIONARY:
+				failed += _assert(int((nlayout as Dictionary).get("radius_px", 0)) == 28, "node orbit r=28")
+			var clips_m: Variant = wm.get("clips", {})
+			if typeof(clips_m) == TYPE_DICTIONARY:
+				var parked_c: Dictionary = (clips_m as Dictionary).get("parked", {}) as Dictionary
+				failed += _assert(str(parked_c.get("alias_of", "")) == "node_orbit", "parked alias node_orbit")
+				var assigned_c: Dictionary = (clips_m as Dictionary).get("assigned", {}) as Dictionary
+				failed += _assert(str(assigned_c.get("alias_of", "")) == "node_orbit", "assigned alias node_orbit")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_select_ring.png"), "keeper select ring")
 	failed += _assert(ResourceLoader.exists("res://scenes/wisp.tscn"), "wisp.tscn")
 
@@ -755,14 +779,25 @@ func _run() -> void:
 			failed += _assert(wisp_orbs.size() == 2, "two wisp orbs spawned (got %d)" % wisp_orbs.size())
 			var found_orbit_assign: bool = false
 			var found_parked_anim: bool = false
+			var found_fly_or_node: bool = false
+			var node_r: float = 0.0
 			for wo: Node in wisp_orbs:
 				if wo.has_method("is_orbiting_assigned_target") and bool(wo.call("is_orbiting_assigned_target")):
 					found_orbit_assign = true
 					var spr: Node = wo.get_node_or_null("Sprite")
-					if spr and str(spr.get("animation")) == "parked":
+					var anim_name: String = ""
+					if spr:
+						anim_name = str(spr.get("animation"))
+					if anim_name == "parked":
 						found_parked_anim = true
+					if anim_name == "fly" or anim_name == "node_orbit":
+						found_fly_or_node = true
+					if wo.has_method("get_node_orbit_radius"):
+						node_r = float(wo.call("get_node_orbit_radius"))
 			failed += _assert(found_orbit_assign, "assigned wisp reports orbit-assigned state")
 			failed += _assert(not found_parked_anim, "assigned wisp must not use parked anim")
+			failed += _assert(found_fly_or_node, "assigned wisp uses fly or node_orbit clip")
+			failed += _assert(abs(node_r - 28.0) < 0.01, "node orbit radius 28 (got %s)" % node_r)
 			# RMB ground unassign
 			game_state.call("select_wisp", 1)
 			live.call("handle_rmb_ground", Vector2(80, 80))

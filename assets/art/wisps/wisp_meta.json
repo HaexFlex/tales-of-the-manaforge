@@ -1,17 +1,17 @@
 {
-  "version": "v0.1.9-orbit",
-  "systems_ref": "SYSTEMS_V01.md \u00a74c (v0.3.1) \u2014 unassigned orbit Keeper",
-  "canvas": [
-    32,
-    32
-  ],
-  "readable_variant": [
-    48,
-    48
-  ],
+  "version": "v0.1.10-node-orbit",
+  "systems_ref": "SYSTEMS_V01.md v0.3.3 — RTS assign; Code tweens Keeper↔node then orbits r≈28",
+  "source_note": "Layout/timing from Art v0.1.10. fly + node_orbit strips composed from v0.1.9 orbit trail + parked gold ring because /home/box/manaforge/art_restart/wisps was not on the agent VM — swap in Haex masters when they land.",
+  "canvas": [32, 32],
+  "readable_variant": [48, 48],
   "anchor": "center",
   "filter": "nearest",
   "hold_ms": 140,
+  "behavior_summary": {
+    "unassigned": "orbit Keeper (clip orbit, radius ~56, even 2π / wisp_count)",
+    "traveling": "Code-owned tween Keeper↔node/Manatree; clip fly (6f @ ~60ms); flip_h by travel X",
+    "assigned": "loop node_orbit (8f @ ~90ms, gold ring) at r≈28; do not park static"
+  },
   "clips": {
     "idle": {
       "strip": "wisp_idle.png",
@@ -20,54 +20,68 @@
     "selected": {
       "strip": "wisp_selected.png",
       "frames": 4,
-      "notes": "bright corners + white ring while assigning"
-    },
-    "parked": {
-      "strip": "wisp_parked.png",
-      "frames": 4,
-      "notes": "gold ring while on harvest node; optional badge stills per resource"
-    },
-    "assigned": {
-      "strip": "wisp_assigned.png",
-      "frames": 4,
-      "alias_of": "parked"
+      "notes": "bright corners + white ring while assigning (Keeper orbit paused)"
     },
     "orbit": {
       "strip": "wisp_orbit.png",
       "frames": 8,
       "hold_ms": 80,
-      "notes": "motion trail; Code places on circle around Keeper and advances frame with angle"
+      "notes": "Keeper orbit motion trail"
+    },
+    "fly": {
+      "strip": "wisp_fly.png",
+      "frames": 6,
+      "hold_ms": 60,
+      "notes": "tween Keeper↔node; Code sets flip_h from travel direction"
+    },
+    "node_orbit": {
+      "strip": "wisp_node_orbit.png",
+      "frames": 8,
+      "hold_ms": 90,
+      "notes": "gold ring while looping at harvest node or Manatree"
+    },
+    "parked": {
+      "strip": "wisp_node_orbit.png",
+      "frames": 8,
+      "hold_ms": 90,
+      "alias_of": "node_orbit"
+    },
+    "assigned": {
+      "strip": "wisp_node_orbit.png",
+      "frames": 8,
+      "hold_ms": 90,
+      "alias_of": "node_orbit"
     }
   },
   "parked_badges": {
     "wood": "wisp_parked_wood.png",
     "stone": "wisp_parked_stone.png",
-    "food": "wisp_parked_food.png"
+    "food": "wisp_parked_food.png",
+    "notes": "optional stills; v0.1.10 gameplay uses node_orbit loop instead of static park"
   },
   "keeper_select": {
     "file": "../keeper/keeper_select_ring.png",
     "alt_64": "../keeper/keeper_select_ring_64.png",
-    "canvas": [
-      128,
-      48
-    ],
-    "anchor": "bottom_center under Keeper feet",
-    "notes": "place under Keeper when keeper_selected; NN; soft panel assign UX OK"
+    "canvas": [128, 48],
+    "anchor": "bottom_center under Keeper feet"
   },
   "orbit_layout": {
     "radius_px": 56,
-    "radius_alt": [
-      40,
-      48,
-      56,
-      64
-    ],
+    "radius_alt": [40, 48, 56, 64],
     "anchor_relative_to": "Keeper center (or chest)",
     "follow": true,
     "max_from_stages": 4,
-    "angular_spread": "even 2\u03c0 / wisp_count",
+    "angular_spread": "even 2π / wisp_count",
     "preview": "wisp_orbit_layout_preview.png",
     "when_selected": "pause orbit or freeze frame + use selected clip",
-    "when_parked": "leave orbit; use parked clip on harvest node"
+    "when_assigned": "leave Keeper orbit; fly tween then node_orbit_layout"
+  },
+  "node_orbit_layout": {
+    "radius_px": 28,
+    "anchor_relative_to": "harvest node or Manatree center (chest offset)",
+    "follow": true,
+    "angular_spread": "even 2π / wisps on that target (WISP_PER_NODE=1)",
+    "clip": "node_orbit",
+    "travel": "Code tween with fly clip; flip X as needed; then loop at r≈28"
   }
 }
