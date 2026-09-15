@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + welcome + Ascension shop. SYSTEMS v0.3.3 / Content v0.3.5 / Art shop layout v0.1.
+## HUD + Manatree care + welcome + Ascension shop. SYSTEMS v0.3.3 / Content v0.3.4 / Art shop layout v0.1.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -83,7 +83,7 @@ func _ready() -> void:
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	pay_button.text = ContentStrings.get_text("tree_pay")
-	harvest_fruit_button.text = ContentStrings.get_text("fruit_precommit_cta")
+	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
 	ascension_reopen_button.text = ContentStrings.get_text("ascension_paused_title")
 	care_title.text = ContentStrings.get_text("tree_care_title")
 	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
@@ -350,12 +350,12 @@ func _refresh_care_needs() -> void:
 	water_button.visible = not GameState.fruit_harvested_pending_ascend
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	harvest_fruit_button.visible = fruit_ready
-	harvest_fruit_button.text = ContentStrings.get_text("fruit_precommit_cta")
+	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
 	precommit_hint.visible = fruit_ready
 	if fruit_ready:
 		precommit_hint.text = "%s\n%s" % [
-			ContentStrings.get_text("fruit_precommit_hint"),
-			ContentStrings.get_text("fruit_precommit_no_shop"),
+			ContentStrings.get_text("tree_ancient_care_hint"),
+			ContentStrings.get_text("tree_water_ancient_note"),
 		]
 
 
@@ -548,12 +548,23 @@ func open_fruit_confirm() -> void:
 
 
 func confirm_fruit_step() -> void:
-	if _fruit_confirm_step != 1:
+	if _fruit_confirm_step == 1:
+		_fruit_confirm_step = 2
+		_show_fruit_confirm_step()
+		GameAudio.play_ui_confirm()
+		return
+	if _fruit_confirm_step != 2:
 		return
 	_commit_primordial_fruit()
 
 
 func cancel_fruit_confirm() -> void:
+	## Step 2 "Go back" returns to intent. Step 1 "Keep watering" closes without commit.
+	if _fruit_confirm_step == 2:
+		_fruit_confirm_step = 1
+		_show_fruit_confirm_step()
+		GameAudio.play_ui_close()
+		return
 	hide_fruit_confirm()
 	GameAudio.play_ui_close()
 	if GameState.fruit_ready and not GameState.fruit_harvested_pending_ascend:
@@ -568,14 +579,20 @@ func hide_fruit_confirm() -> void:
 
 
 func _show_fruit_confirm_step() -> void:
-	## Art lock: Fruit modal is Harvest / Cancel only — no blessing list, no Ascend.
+	## Two-step Content keys. Modal never includes Buy list or Ascend.
 	fruit_confirm_panel.visible = true
-	_fruit_confirm_step = 1
-	fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step2_title")
-	fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step2")
-	fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_yes")
-	fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_cancel")
-	status_label.text = ContentStrings.get_text("fruit_confirm_step2")
+	if _fruit_confirm_step == 1:
+		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step1_title")
+		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step1")
+		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step1_yes")
+		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step1_no")
+		status_label.text = ContentStrings.get_text("fruit_confirm_step1")
+	else:
+		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step2_title")
+		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step2")
+		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step2_yes")
+		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step2_no")
+		status_label.text = ContentStrings.get_text("fruit_confirm_step2")
 	_refresh_dim()
 
 
@@ -638,7 +655,7 @@ func _refresh_ascension_copy() -> void:
 	if prestige_title == null:
 		return
 	prestige_title.text = ContentStrings.get_text("fruit_panel_title")
-	prestige_sub.text = ContentStrings.get_text("fruit_panel_subtitle")
+	prestige_sub.text = ContentStrings.get_text("fruit_shop_only_banner")
 	if shard_count_label:
 		shard_count_label.text = str(GameState.manashards)
 	ascend_button.visible = GameState.fruit_harvested_pending_ascend

@@ -139,7 +139,10 @@ func do_water() -> void:
 		return
 	k.start_water_channel(self)
 	if GameState.stage_id == &"ancient":
-		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_note"))
+		GameState.status_message.emit("%s\n%s" % [
+			ContentStrings.get_text("tree_water_ancient_note"),
+			ContentStrings.get_text("tree_water_ancient_ok"),
+		])
 
 
 func do_pay_stage() -> String:
@@ -170,7 +173,7 @@ func _on_stage_changed(_id: StringName) -> void:
 func _on_fruit_changed(ready: bool) -> void:
 	fruit_hint.visible = ready or GameState.fruit_harvested_pending_ascend
 	if ready:
-		fruit_hint.text = ContentStrings.get_text("fruit_precommit_cta")
+		fruit_hint.text = ContentStrings.get_text("fruit_ready_prompt")
 	elif GameState.fruit_harvested_pending_ascend:
 		fruit_hint.text = ContentStrings.get_text("ascension_paused_hint")
 	else:

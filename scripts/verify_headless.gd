@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.3.3 + Content v0.3.5 — Fruit commit pause + Ascension shop. SAVE_VERSION 5.
+## Headless verification per SYSTEMS_V01 v0.3.3 + Content v0.3.4 — two-step Fruit, paused shop. SAVE_VERSION 5.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -364,7 +364,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_step_1")).find("Harvest") >= 0, "fruit_step_1")
 	failed += _assert(str(content_strings.call("get_text", "fruit_step_2")).find("Bless") >= 0, "fruit_step_2")
 	failed += _assert(str(content_strings.call("get_text", "fruit_step_3")).find("Ascend") >= 0, "fruit_step_3")
-	failed += _assert(str(content_strings.call("get_text", "fruit_flow_hint")).find("no cancel") >= 0, "fruit_flow_hint")
+	failed += _assert(str(content_strings.call("get_text", "fruit_flow_hint")).find("Shop only") >= 0, "fruit_flow_hint")
 	failed += _assert(str(content_strings.call("get_text", "fruit_panel_title")).find("Ascension") >= 0, "fruit_panel_title")
 	failed += _assert(str(content_strings.call("get_text", "fruit_shards_hud")).find("Manashards") >= 0, "fruit_shards_hud")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_cost")).find("Manashards") >= 0, "upgrade_cost shards")
@@ -376,10 +376,17 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_precommit_no_shop")).find("Blessings") >= 0, "fruit_precommit_no_shop")
 	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step1_yes")) == "Continue", "fruit step1 Continue")
 	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step1_no")).find("watering") >= 0, "fruit step1 Keep watering")
-	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_cancel")) == "Cancel", "fruit_confirm_cancel")
-	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2")).find("pause") >= 0, "fruit step2 pause")
-	failed += _assert(str(content_strings.call("get_text", "fruit_shop_only_banner")).find("Ascend") >= 0, "fruit_shop_only_banner")
-	failed += _assert(str(content_strings.call("get_text", "ascension_paused_body")).find("paused") >= 0, "ascension_paused_body")
+	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step1")).find("still water") >= 0, "fruit step1 water until commit")
+	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2_yes")) == "Harvest", "fruit step2 Harvest")
+	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2_no")) == "Go back", "fruit step2 Go back")
+	failed += _assert(str(content_strings.call("get_text", "fruit_confirm_step2")).find("Commit now") >= 0, "fruit step2 commit copy")
+	failed += _assert(str(content_strings.call("get_text", "fruit_shop_only_banner")).find("blessing shop only") >= 0, "fruit_shop_only_banner")
+	failed += _assert(str(content_strings.call("get_text", "ascension_paused_title")) == "Ascension paused", "ascension_paused_title")
+	failed += _assert(str(content_strings.call("get_text", "ascension_paused_body")).find("waits") >= 0, "ascension_paused_body")
+	failed += _assert(str(content_strings.call("get_text", "tree_water_ancient_note")).find("still water") >= 0, "tree_water_ancient_note")
+	failed += _assert(str(content_strings.call("get_text", "tree_water_ancient_ok")).find("still drinks") >= 0, "tree_water_ancient_ok")
+	failed += _assert(str(content_strings.call("get_text", "tree_ancient_care_hint")).find("Water anytime") >= 0, "tree_ancient_care_hint")
+	failed += _assert(str(content_strings.call("get_text", "ascend_confirm_no")) == "Stay a while", "ascend_confirm_no")
 	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Manashards") >= 0, "welcome_body manashards")
 	# Shop locked before Fruit harvest
 	game_state.call("reset_for_new_game")
@@ -399,6 +406,7 @@ func _run() -> void:
 	failed += _assert(gained_a >= 5, "essence fruit gain A: %d" % gained_a)
 	failed += _assert(int(game_state.get("essence")) == ess_before_a + gained_a, "essence up after harvest")
 	failed += _assert(bool(game_state.get("fruit_harvested_pending_ascend")), "pending after harvest")
+	failed += _assert(bool(game_state.get("fruit_committed")), "fruit_committed after harvest")
 	failed += _assert(not bool(game_state.get("fruit_ready")), "fruit_ready false after harvest")
 	failed += _assert(bool(game_state.call("can_ascend")), "can_ascend without purchase")
 	failed += _assert(int(game_state.call("harvest_fruit")) == 0, "harvest disabled while pending")
@@ -419,6 +427,7 @@ func _run() -> void:
 	failed += _assert(int(game_state.get("manashards")) == 0, "soft shards cleared")
 	failed += _assert(int(game_state.get("essence")) == ess_before_a + gained_a, "essence kept on ascend")
 	failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "pending false after ascend")
+	failed += _assert(not bool(game_state.get("fruit_committed")), "committed false after ascend")
 	failed += _assert(int(game_state.get("ascensions")) == 1, "ascensions +1")
 	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keeper_stride")), "shop locked after ascend")
 
@@ -449,6 +458,30 @@ func _run() -> void:
 	failed += _assert(int(game_state.get("essence")) == ess_kept, "essence remainder kept")
 	failed += _assert(int(game_state.call("get_upgrade_rank", "keeper_stride")) == 2, "blessings kept")
 	failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "pending false B")
+	failed += _assert(not bool(game_state.get("fruit_committed")), "committed false B")
+
+	# fruit_committed persists on SAVE_VERSION 5; migrate from fruit_harvested_pending_ascend
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	game_state.call("set_resource", &"essence", 8)
+	var gained_save: int = int(game_state.call("harvest_fruit"))
+	failed += _assert(gained_save >= 5, "harvest for save field")
+	var committed_payload: Dictionary = game_state.call("to_save_dict")
+	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
+	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 5, "SAVE_VERSION stays 5 with fruit_committed")
+	game_state.call("reset_for_new_game")
+	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
+	game_state.call("apply_save_dict", committed_payload)
+	failed += _assert(bool(game_state.get("fruit_committed")), "apply_save_dict fruit_committed")
+	failed += _assert(bool(game_state.get("fruit_harvested_pending_ascend")), "apply_save_dict alias sync")
+	var legacy_payload: Dictionary = committed_payload.duplicate(true)
+	legacy_payload.erase("fruit_committed")
+	legacy_payload["fruit_harvested_pending_ascend"] = true
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", legacy_payload)
+	failed += _assert(bool(game_state.get("fruit_committed")), "migrate pending_ascend → fruit_committed")
+	failed += _assert(not bool(game_state.get("fruit_ready")), "committed load clears fruit_ready")
 
 	# Main scene: 3 harvestables, ClickLayer IGNORE, care PayButton, no Offer buttons
 	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
@@ -859,11 +892,12 @@ func _run() -> void:
 		live.queue_free()
 		await process_frame
 
-	# --- Content v0.3.5 / SYSTEMS v0.3.3: two-step Fruit, paused shop, scroll, water until commit ---
+	# --- Content v0.3.4 / SYSTEMS v0.3.3: two-step Fruit, paused shop, scroll, water until commit ---
 	game_state.call("reset_for_new_game")
 	game_state.call("_set_stage", &"ancient")
 	failed += _assert(bool(game_state.get("fruit_ready")), "hud test fruit ready")
 	failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "hud test not pending yet")
+	failed += _assert(not bool(game_state.get("fruit_committed")), "hud test not committed yet")
 	var hud_packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
 	failed += _assert(hud_packed != null, "hud.tscn load for fruit flow")
 	if hud_packed:
@@ -880,6 +914,9 @@ func _run() -> void:
 		failed += _assert(harvest_cta != null and harvest_cta.visible, "pre-commit fruit CTA")
 		var water_cta: Button = test_hud.get_node_or_null("CarePanel/WaterButton") as Button
 		failed += _assert(water_cta != null and water_cta.visible, "pre-commit water still shown")
+		var pre_hint: Label = test_hud.get_node_or_null("CarePanel/PrecommitHint") as Label
+		failed += _assert(pre_hint != null and str(pre_hint.text).find("Water anytime") >= 0, "care hint tree_ancient_care_hint")
+		failed += _assert(pre_hint != null and str(pre_hint.text).find("still water") >= 0, "care hint tree_water_ancient_note")
 		var ascend_pre: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
 		failed += _assert(ascend_pre != null and not ascend_pre.is_visible_in_tree(), "Ascend hidden pre-commit")
 		var e_pre_ui: int = int(game_state.get("essence"))
@@ -888,22 +925,42 @@ func _run() -> void:
 		failed += _assert(int(game_state.get("essence")) > e_pre_ui, "water essence until commit")
 		test_hud.call("open_fruit_confirm")
 		await process_frame
-		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "fruit modal open")
-		failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "modal does not commit")
-		failed += _assert(paused == false, "world running during fruit modal")
+		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "fruit modal step 1")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "step 1 does not commit")
+		failed += _assert(paused == false, "world running during fruit step 1")
 		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "shop closed during fruit modal")
 		var harvest_modal: Button = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmYes") as Button
 		var cancel_modal: Button = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmNo") as Button
-		failed += _assert(harvest_modal != null and str(harvest_modal.text).find("Harvest") >= 0, "fruit modal Harvest")
-		failed += _assert(cancel_modal != null and str(cancel_modal.text).find("Cancel") >= 0, "fruit modal Cancel")
+		failed += _assert(harvest_modal != null and str(harvest_modal.text) == "Continue", "step 1 Continue")
+		failed += _assert(cancel_modal != null and str(cancel_modal.text).find("watering") >= 0, "step 1 Keep watering")
 		failed += _assert(test_hud.get_node_or_null("FruitConfirmPanel/UpgradeList") == null, "no Buy list on fruit modal")
+		test_hud.call("confirm_fruit_step")
+		await process_frame
+		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 2, "fruit modal step 2")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "step 2 prompt does not commit")
+		failed += _assert(paused == false, "world running during fruit step 2")
+		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "shop still closed at step 2")
+		failed += _assert(harvest_modal != null and str(harvest_modal.text) == "Harvest", "step 2 Harvest")
+		failed += _assert(cancel_modal != null and str(cancel_modal.text) == "Go back", "step 2 Go back")
+		test_hud.call("cancel_fruit_confirm")
+		await process_frame
+		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "Go back returns to step 1")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "Go back does not commit")
+		test_hud.call("confirm_fruit_step")
+		await process_frame
+		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 2, "Continue again reaches step 2")
 		test_hud.call("confirm_fruit_step")
 		await process_frame
 		await process_frame
 		failed += _assert(bool(game_state.get("fruit_harvested_pending_ascend")), "Harvest confirm commits fruit")
+		failed += _assert(bool(game_state.get("fruit_committed")), "Harvest confirm sets fruit_committed")
 		failed += _assert(paused == true, "commit pauses world")
 		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "shop opens on commit")
 		failed += _assert(bool(test_hud.call("is_shop_list_visible")), "shop list after commit")
+		var shop_banner: Label = test_hud.get_node_or_null("AscensionPanel/Header/Subtitle") as Label
+		failed += _assert(shop_banner != null and str(shop_banner.text).find("blessing shop only") >= 0, "shop uses fruit_shop_only_banner")
+		var reopen_copy: Button = test_hud.get_node_or_null("Panel/AscensionReopenButton") as Button
+		failed += _assert(reopen_copy != null, "reopen control exists")
 		var scroll: ScrollContainer = test_hud.get_node_or_null("AscensionPanel/ShopScroll") as ScrollContainer
 		failed += _assert(scroll != null, "ShopScroll present")
 		if scroll:

@@ -146,7 +146,7 @@ func open_pause() -> void:
 
 func resume_game() -> void:
 	if not _open:
-		get_tree().paused = GameState.fruit_harvested_pending_ascend
+		get_tree().paused = GameState.fruit_committed
 		return
 	_open = false
 	_slot_mode = SlotMode.NONE
@@ -157,7 +157,7 @@ func resume_game() -> void:
 	backdrop.visible = false
 	visible = false
 	# Fruit commit holds the world paused until Ascend; Resume must not unpause to water.
-	get_tree().paused = GameState.fruit_harvested_pending_ascend
+	get_tree().paused = GameState.fruit_committed
 	# Hub bed must still be playing after pause resume (volume-only options).
 	if not GameAudio.is_hub_music_playing():
 		GameAudio.play_hub_music()
