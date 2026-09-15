@@ -121,7 +121,7 @@ func _on_welcome_dismiss() -> void:
 	GameState.welcome_shown = true
 	hide_welcome()
 	GameAudio.play_ui_confirm()
-	status_label.text = ContentStrings.get_text("welcome_hint")
+	status_label.text = ContentStrings.get_text("controls_hint")
 	SaveService.save_game()
 
 
