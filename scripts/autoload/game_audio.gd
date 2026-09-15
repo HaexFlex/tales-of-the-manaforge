@@ -15,6 +15,14 @@ const SETTINGS_SECTION: String = "audio"
 const MUSIC_BUS_DEFAULT_DB: float = -9.0
 const SFX_BUS_DEFAULT_DB: float = 0.0
 const SFX_BUS_NAMES: PackedStringArray = ["SFX_UI", "SFX_World", "SFX_Progress"]
+## Director: MP3 primary; ogg haex_loop fallback; wav last resort.
+const HUB_STREAM_CANDIDATES: PackedStringArray = [
+	"res://assets/audio/mus_hub_forest_haex.mp3",
+	"res://assets/audio/mus_hub_forest_haex_loop.ogg",
+	"res://assets/audio/mus_hub_forest_haex_loop.wav",
+]
+## Bugfix: music_volume 0 muted hub while SFX worked — treat as reset-to-default once.
+const MUSIC_VOLUME_ZERO_MEANS_DEFAULT: bool = true
 
 var _cues: Dictionary = {}
 var _players: Dictionary = {}
@@ -137,24 +145,41 @@ func play(cue_id: StringName) -> void:
 	var meta: Dictionary = _cues[key]
 	var path: String = str(meta.get("path", ""))
 	var bus: String = str(meta.get("bus", "Master"))
+	var looping: bool = bool(meta.get("loop", false))
+	# Music bed vs Music stings: never steal hub player with a one-shot.
+	if bus == "Music":
+		if looping or key == "mus_hub_forest":
+			# Hub: mp3 primary with ogg/wav fallback — do not bail if cue path missing.
+			var hub_stream: AudioStream = null
+			if key == "mus_hub_forest":
+				hub_stream = _resolve_hub_stream(path)
+			elif path != "" and ResourceLoader.exists(path):
+				hub_stream = load(path) as AudioStream
+			if hub_stream == null:
+				cue_missing.emit(cue_id)
+				cue_played.emit(cue_id)
+				return
+			_play_hub_stream(hub_stream, bus)
+			cue_played.emit(cue_id)
+			return
+		if path == "" or not ResourceLoader.exists(path):
+			cue_missing.emit(cue_id)
+			cue_played.emit(cue_id)
+			return
+		var stream: AudioStream = load(path) as AudioStream
+		if stream == null:
+			cue_missing.emit(cue_id)
+			return
+		_play_sting_stream(stream, bus)
+		cue_played.emit(cue_id)
+		return
 	if path == "" or not ResourceLoader.exists(path):
-		# TODO: drop .ogg under assets/audio/ and set path in audio_cues.json
 		cue_missing.emit(cue_id)
 		cue_played.emit(cue_id)
 		return
 	var stream: AudioStream = load(path) as AudioStream
 	if stream == null:
 		cue_missing.emit(cue_id)
-		return
-	var looping: bool = bool(meta.get("loop", false))
-	# Music bed vs Music stings: never steal hub player with a one-shot.
-	if bus == "Music":
-		if looping or key == "mus_hub_forest":
-			_play_hub_stream(stream, bus)
-			cue_played.emit(cue_id)
-			return
-		_play_sting_stream(stream, bus)
-		cue_played.emit(cue_id)
 		return
 	var player: AudioStreamPlayer = _sfx_player
 	if bus == "SFX_Progress":
@@ -170,16 +195,56 @@ func play(cue_id: StringName) -> void:
 	cue_played.emit(cue_id)
 
 
+func _resolve_hub_stream(primary_path: String) -> AudioStream:
+	## Try cue path first, then MP3 → ogg → wav candidates.
+	var tried: Dictionary = {}
+	var ordered: PackedStringArray = PackedStringArray()
+	if primary_path != "":
+		ordered.append(primary_path)
+	for candidate: String in HUB_STREAM_CANDIDATES:
+		if candidate not in ordered:
+			ordered.append(candidate)
+	for path: String in ordered:
+		if tried.has(path):
+			continue
+		tried[path] = true
+		if not ResourceLoader.exists(path):
+			continue
+		var stream: AudioStream = load(path) as AudioStream
+		if stream != null:
+			return stream
+	return null
+
+
+func _force_stream_loop(stream: AudioStream) -> void:
+	if stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = true
+	elif stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
+	elif stream is AudioStreamWAV:
+		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+
+
+func _ensure_music_bus_audible() -> void:
+	## Unmute Music; keep MUSIC_BUS_DEFAULT_DB mix lock (~-9).
+	var idx: int = AudioServer.get_bus_index("Music")
+	if idx < 0:
+		return
+	AudioServer.set_bus_mute(idx, false)
+	if music_volume_linear <= 0.001:
+		music_volume_linear = 1.0
+	_apply_bus_volume("Music", music_volume_linear, MUSIC_BUS_DEFAULT_DB)
+
+
 func _play_hub_stream(stream: AudioStream, bus: String) -> void:
 	var player: AudioStreamPlayer = _music_player
 	# Keep hub bed through gather/walk; do not restart if same stream already playing.
 	if player.playing and player.stream == stream:
 		_hub_playing = true
+		_ensure_music_bus_audible()
 		return
-	if stream is AudioStreamOggVorbis:
-		(stream as AudioStreamOggVorbis).loop = true
-	elif stream is AudioStreamWAV:
-		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+	_force_stream_loop(stream)
+	_ensure_music_bus_audible()
 	player.stream = stream
 	player.bus = bus
 	player.play()
@@ -384,6 +449,11 @@ func load_settings() -> void:
 		return
 	music_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "music_volume", 1.0)), 0.0, 1.0)
 	sfx_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "sfx_volume", 1.0)), 0.0, 1.0)
+	# Bugfix: music_volume 0 muted hub bed while SFX still worked. Treat 0 as
+	# reset-to-default once and persist so silent settings do not stick.
+	if MUSIC_VOLUME_ZERO_MEANS_DEFAULT and music_volume_linear <= 0.001:
+		music_volume_linear = 1.0
+		save_settings()
 
 
 func save_settings() -> void:

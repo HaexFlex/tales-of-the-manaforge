@@ -482,21 +482,25 @@ func _run() -> void:
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_water_pulse.ogg"), "sfx_water_pulse missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_stage_up.ogg"), "sfx_stage_up missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_channel_start.ogg"), "sfx_channel_start missing")
-	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex_loop.wav"), "hub haex_loop.wav missing")
-	# Cue must point at Haex loop bed (not short legacy mus_hub_forest.wav)
+	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex.mp3"), "hub haex.mp3 missing")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex_loop.ogg"), "hub haex_loop.ogg fallback missing")
+	# Cue primary = Haex MP3 (Director); ogg haex_loop is GameAudio fallback
 	var hub_cues_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
 	var hub_root: Dictionary = hub_cues_raw as Dictionary
 	var hub_cues_tbl: Dictionary = hub_root.get("cues", {}) as Dictionary
 	var hub_meta: Dictionary = hub_cues_tbl.get("mus_hub_forest", {}) as Dictionary
 	var hub_path: String = str(hub_meta.get("path", ""))
-	failed += _assert(hub_path.ends_with("mus_hub_forest_haex_loop.wav"), "mus_hub_forest cue path: %s" % hub_path)
+	failed += _assert(hub_path.ends_with("mus_hub_forest_haex.mp3"), "mus_hub_forest cue path: %s" % hub_path)
 	failed += _assert(bool(hub_meta.get("loop", false)), "mus_hub_forest loop=true")
 	failed += _assert(str(hub_meta.get("bus", "")) == "Music", "mus_hub_forest Music bus")
 	game_audio.call("play_hub_music")
-	failed += _assert(game_audio.call("get_cue_path", &"mus_hub_forest").ends_with("mus_hub_forest_haex_loop.wav"), "get_cue_path haex_loop")
+	failed += _assert(game_audio.call("get_cue_path", &"mus_hub_forest").ends_with("mus_hub_forest_haex.mp3"), "get_cue_path haex.mp3")
 	var hub_stream: Variant = game_audio.call("get_hub_stream")
 	failed += _assert(hub_stream != null, "play_hub_music sets stream")
 	failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub playing after play_hub_music")
+	failed += _assert(hub_stream is AudioStreamMP3 or hub_stream is AudioStreamOggVorbis or hub_stream is AudioStreamWAV, "hub stream type")
+	if hub_stream is AudioStreamMP3:
+		failed += _assert(bool((hub_stream as AudioStreamMP3).loop), "AudioStreamMP3.loop forced true")
 	# Stings must not silence Music bus forever — second sting player; hub stays up
 	game_audio.call("play", &"mus_fruit_sting")
 	failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub still playing under fruit sting")
