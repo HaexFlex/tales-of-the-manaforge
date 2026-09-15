@@ -241,7 +241,8 @@ func _on_wisp_clicked(wisp_id: int) -> void:
 	## LMB wisp select does NOT require Keeper selected (SYSTEMS v0.3.2).
 	GameState.select_wisp(wisp_id)
 	if GameState.selected_wisp_id == wisp_id:
-		GameState.status_message.emit("%s  ·  %s" % [
+		GameState.status_message.emit("%s  ·  %s  ·  %s" % [
 			ContentStrings.get_text("wisp_orbit_hint"),
 			ContentStrings.get_text("wisp_assign_hint"),
+			ContentStrings.get_text("wisp_node_shared_hint"),
 		])

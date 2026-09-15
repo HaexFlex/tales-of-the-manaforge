@@ -133,11 +133,26 @@ func setup(id: int) -> void:
 
 
 func _even_slot_angle() -> float:
-	var n: int = maxi(1, GameState.wisp_count)
-	return (TAU * float(wisp_id) / float(n))
+	## Keeper orbit: space among all wisps. Assigned node: space among peers on that node.
+	var assigned: String = GameState.get_wisp_assignment(wisp_id)
+	if assigned != "":
+		var n: int = maxi(1, GameState.count_wisps_on_node(assigned))
+		var slot: int = GameState.wisp_slot_index_on_node(wisp_id, assigned)
+		return TAU * float(slot) / float(n)
+	var n_all: int = maxi(1, GameState.wisp_count)
+	return TAU * float(wisp_id) / float(n_all)
+
+
+func _orbit_radius_for_assignment(node_id: String) -> float:
+	## Art: reuse node_orbit/orbit; base r≈28, +10px per extra wisp on this target.
+	var n: int = maxi(1, GameState.count_wisps_on_node(node_id))
+	return NODE_ORBIT_RADIUS + 10.0 * float(n - 1)
 
 
 func get_node_orbit_radius() -> float:
+	var assigned: String = GameState.get_wisp_assignment(wisp_id)
+	if assigned != "":
+		return _orbit_radius_for_assignment(assigned)
 	return NODE_ORBIT_RADIUS
 
 
@@ -186,7 +201,7 @@ func _process(delta: float) -> void:
 		_cached_assignment = assigned_node
 		if assigned_node != "":
 			_orbit_anchor = _resolve_assignment_center(assigned_node)
-			_begin_fly_to(_slot_around(_orbit_anchor, NODE_ORBIT_RADIUS))
+			_begin_fly_to(_slot_around(_orbit_anchor, _orbit_radius_for_assignment(assigned_node)))
 		else:
 			_begin_fly_to(_keeper_slot_pos())
 
@@ -228,7 +243,8 @@ func _tick_keeper_orbit(delta: float, is_sel: bool) -> void:
 func _tick_node_orbit(_node_id: String, delta: float) -> void:
 	sprite.flip_h = false
 	_orbit_angle += NODE_ORBIT_SPEED * delta
-	global_position = _slot_around(_orbit_anchor, NODE_ORBIT_RADIUS)
+	var r: float = _orbit_radius_for_assignment(_node_id) if _node_id != "" else NODE_ORBIT_RADIUS
+	global_position = _slot_around(_orbit_anchor, r)
 	_at_assigned_orbit = true
 
 

@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Systems Brief v0.3 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.3.3 — Haex: Ascension UX — two-step Fruit, separate shop, world pause  
+**Status:** v0.3.4 — Haex: multi-wisp per node; Essence → 0 on Ascend  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
@@ -25,7 +25,8 @@
 | v0.3.0 | Wisps + select-then-move + wisp blessings; SAVE_VERSION 5 |
 | v0.3.1 | Keeper select-gated actions; unassigned wisps orbit Keeper |
 | v0.3.2 | LMB/RMB; wisps orbit target; Manatree→manashards |
-| **v0.3.3** | **Haex Ascension UX:** At Ancient, **watering stays** until Fruit is **committed**. Two-step Fruit (intent → confirm commit). Commit opens **separate** scrollable Manashard shop (footer Ascend never overlaps rows). World **paused** after commit — no water/harvest/move; **no cancel back** (must Ascend). Pre-commit panel = Fruit CTA only (no Buy rows). |
+| v0.3.3 | Two-step Fruit; paused separate shop; no cancel |
+| **v0.3.4** | **Haex:** **Multi-wisp per target** — drop 1-wisp exclusivity. Several wisps may assign to the same harvest node **or** Manatree; each pulses independently. **Ascend:** `essence → 0` (LOCKED) plus existing soft-mat wipe; **Manashards also → 0** (Design rec, already true) so next run starts clean. Blessings persist. |
 
 ---
 
@@ -33,7 +34,7 @@
 
 **In:** select-then-move Keeper, Manatree needs stages, channelled harvest (3 nodes), Wisps (AFK node gather), water income, Primordial Fruit / Manashard Ascension shop, pause + 7 slots, versioned save, minimal HUD.
 
-**Out:** growth bar / offers, combat, full Forge, equipment, Echo Chamber, WASD, mobile/web, many duplicate harvestables, stacking multiple wisps on one node (v0.3).
+**Out:** growth bar / offers, combat, full Forge, equipment, Echo Chamber, WASD, mobile/web, many duplicate harvestables.
 
 ---
 
@@ -169,13 +170,14 @@ Ascend: wisps **reset** with the run (back to 0 + `bonus_wisp` ranks as starting
 - **Unassigned:** orbit / circle the **Keeper** (follow while walking). `WISP_ORBIT_RADIUS_PX = 56` (Art).
 - **Assigned:** **path toward** the target, then **orbit the target** (harvest node or Manatree) — not parked static, not stuck at Keeper.
 
-### Assign (default: 1 wisp per target)
+### Assign (multi-wisp per target — LOCKED v0.3.4)
 Valid targets: `harvest_tree` / `harvest_stone` / `harvest_berry` / **`manatree`**.
 1. **LMB** wisp → select.
-2. **RMB** harvest node or Manatree → assign (wisp paths there, then orbits target).
-3. If that target already has a wisp: **deny** — `WISP_PER_NODE = 1` (Manatree counts as one slot).
-4. Reassign: LMB wisp → RMB new free target.
-5. Unassign: LMB wisp → **RMB empty ground** → returns to **orbit Keeper**.
+2. **RMB** harvest node or Manatree → assign (wisp paths there, then orbits target). **Stacking allowed** — no deny if another wisp is already there.
+3. Reassign: LMB wisp → RMB any valid target (including one that already has wisps).
+4. Unassign: LMB wisp → **RMB empty ground** → returns to **orbit Keeper**.
+
+Each assigned wisp pulses **independently** (own timer). Two wisps on wood ≈ 2 wood / `WISP_PULSE_SEC`. `wisp_haste` still reduces pulse interval per wisp. Orbit layout: even spacing around the target (`WISP_ORBIT_RADIUS_PX`).
 
 ### Gather pulse by target
 | Assignment | Resource pulsed | Rate |
@@ -193,11 +195,11 @@ WISP_PULSE_SEC = 10.0          # base; wisp_haste blessing reduces
 WISP_RES_PER_PULSE = 1         # of the assigned node’s resource
 # effective rate = 0.1/sec at base (before gather_mult? — default: NO gather_mult on wisps; Keeper channel still uses gather_mult)
 ```
-Each `WISP_PULSE_SEC` while assigned: `inventory[resource] += WISP_PULSE_GRANT` (default 1) for that target’s resource (see table).
+Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_GRANT` (default 1). Stacks additively per wisp on that target.
 
 | Param | Default |
 |-------|---------|
-| `WISP_PER_NODE` | `1` | # includes Manatree as one slot |
+| `WISP_PER_NODE` | `0` | # **0 = unlimited** (v0.3.4); was 1 |
 | `WISP_PULSE_SEC` | `10` |
 | `WISP_PULSE_GRANT` | `1` |
 | `WISP_FROM_STAGES_MAX` | `4` |
@@ -213,8 +215,9 @@ Each `WISP_PULSE_SEC` while assigned: `inventory[resource] += WISP_PULSE_GRANT` 
 **Model (LOCKED): Manashard blessing shop after Fruit commit — NOT free pick, NOT Essence shop.**
 
 ```
-essence += ESSENCE_PER_HARVEST   # on Fruit COMMIT only; for stage needs next cycle
 # Shop currency = manashards (water + optional wisp-on-tree)
+# v0.3.4: essence → 0 on Ascend, so Fruit COMMIT does NOT bank essence for next cycle.
+# ESSENCE_PER_HARVEST is unused until a future "starting essence" blessing. Code: skip the add.
 ```
 
 ### Ancient pre-commit (world running)
@@ -224,13 +227,13 @@ essence += ESSENCE_PER_HARVEST   # on Fruit COMMIT only; for stage needs next cy
 
 ### Two-step Fruit harvest
 1. **Intent:** RMB/interact Fruit CTA → confirm prompt (“Harvest the Primordial Fruit?”).
-2. **Commit:** second confirm → `essence += ESSENCE_PER_HARVEST`; set `fruit_committed = true`; **pause world**; open **Ascension shop window** (separate from Manatree care panel).
+2. **Commit:** second confirm → set `fruit_committed = true`; **pause world**; open **Ascension shop window**. Do **not** add `ESSENCE_PER_HARVEST` (v0.3.4: next sapling starts at essence 0).
 
 ### After commit (world paused)
 - **Blocked:** move, Keeper harvest channels, watering, wisp assign/reassign, Pay (already Ancient).
 - **Allowed:** buy blessings (Manashards), **Ascend**.
 - **No cancel back** to watering after commit (Design lock — Fruit is spent). Footer does **not** offer a soft exit that unpauses without Ascend.
-- Ascend: reset stage→sapling, wipe soft mats (incl. manashards), keep essence + upgrades + lifetimes, `ascensions += 1`, unpause, wisps reset per §4c.
+- Ascend: reset stage→sapling; **`essence → 0` (Haex lock)**; wipe **wood/stone/food/manashards → 0** (Manashards also clear — Design rec, already the soft-mat wipe); keep upgrade ranks + lifetimes; `ascensions += 1`; unpause; wisps reset per §4c (`bonus_wisp` starting count).
 
 ### Ascension shop window (layout contract)
 - **Separate modal** — not stacked Harvest / Ascend / Close over the blessing list (fixes Haex screenshot overlap).
@@ -260,7 +263,7 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 | `wisp_haste` | 5 | `400 * (rank + 1)` | `WISP_PULSE_SEC -= 1` / rank (base 10 → min **5**) |
 | `bonus_wisp` | 3 | `400 * (rank + 1)` | `+1` wisp at sapling / +1 capacity per rank (stacks with stage grants) |
 
-**Examples:** bank 400 → one rank; bank 800 → two rank-1 buys. Unspent shards wipe on Ascend.
+**Examples:** bank 400 → one rank; bank 800 → two rank-1 buys. Unspent shards **and essence** wipe on Ascend (`essence → 0`).
 
 **Wisp blessing notes:** `bonus_wisp` ranks persist; on Ascend after reset to sapling, `wisp_count = bonus_wisp_rank` immediately (then stage advances add more up to stages max + bonus).
 
@@ -329,8 +332,8 @@ ESC → pause (7 slots)
 
 | Who | Action |
 |-----|--------|
-| @Code / Engine | Two-step Fruit; pause on commit; separate scroll shop + pinned Ascend footer; water until commit |
-| @Content & Lore | Fruit intent/commit copy; shop-only Ascend; no-cancel-after-commit; pre-commit CTA without Buy rows |
+| @Code / Engine | Multi-wisp stack on same target; independent pulses; Ascend `essence=0` + soft mats 0 |
+| @Content & Lore | Drop slot-full deny; optional stack hint; Ascend wipes Essence (and leftover shards) |
 | @Art Direction | Separate Ascension shop chrome (scroll list + pinned footer); Manatree care panel without Buy rows |
 | @Audio | `sfx_wisp_assign` / deny / unassign / pulse — Code should wire if not already |
 
@@ -349,13 +352,15 @@ ESC → pause (7 slots)
 | Ascension = Manashard blessing shop | **LOCKED Haex v0.2.3** |
 | Shop timing = Ascension-only after Fruit | **LOCKED Haex v0.2.4** |
 | Shop costs ~1–2 ranks/Ascension (`SHOP_BASE=400`) | **LOCKED Haex intent v0.2.5** |
-| Wisps: 1/stage advance, 1/node, +1/10s | **LOCKED Haex v0.3.0** |
+| Wisps: 1/stage advance, +1/10s | **LOCKED Haex v0.3.0** |
 | Keeper select-then-move | **LOCKED Haex v0.3.0** |
 | Keeper must be selected for all actions | **LOCKED Haex v0.3.1** |
 | Unassigned wisps orbit Keeper | **LOCKED Haex v0.3.1** |
 | LMB select / RMB command / LMB empty deselect | **LOCKED Haex v0.3.2** |
 | Assigned wisps orbit their target; Manatree→manashards | **LOCKED Haex v0.3.2** |
 | Ancient water until Fruit commit; two-step Fruit; paused shop; no cancel | **LOCKED Haex v0.3.3** |
+| Multi-wisp per node/Manatree (independent pulses) | **LOCKED Haex v0.3.4** |
+| Ascend: essence → 0 (blessings keep); manashards → 0 | **LOCKED Haex / Design rec v0.3.4** |
 | Wisp blessings `wisp_haste` + `bonus_wisp` | **LOCKED Haex v0.3.0** |
 | Pick-one-free Ascension | **REVOKED** |
 | Essence blessing shop | **REVOKED** |

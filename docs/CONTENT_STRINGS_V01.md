@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.3.5 — aligned to SYSTEMS v0.3.3 (intent/commit Fruit; paused shop must Ascend)
+**Status:** v0.3.7 — aligned to SYSTEMS v0.3.4 (multi-wisp; Ascend wipes Essence)
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -34,7 +34,7 @@
 | `boot_line` | The forest is quiet. The Manatree is waiting. |
 | `welcome_boot` | The forest is quiet. Tend the Manatree. |
 | `welcome_title` | Keeper |
-| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, and Pay its Needs when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend. |
+| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, and Pay its Needs when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend — Essence returns to the forest; blessings stay. |
 | `welcome_body_short` | Water and gather. Pay the Manatree’s Needs. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
 | `welcome_dismiss` | I will tend it |
 | `welcome_hint` | LMB selects, RMB commands. Wisps orbit you until assigned — send them to gather, or to the Manatree for Manashards. |
@@ -123,7 +123,7 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_water_cancel` | You stop watering. |
 | `tree_water_ancient_note` | Ancient — you may still water for Manashards and Essence. The Fruit waits when you are ready. |
 | `tree_water_ancient_ok` | The Ancient Manatree still drinks — shards and Essence gather. |
-| `tree_ancient_care_hint` | Water anytime. Harvest the Fruit when you choose to begin Ascension. |
+| `tree_ancient_care_hint` | Keep watering for Manashards. When ready, Harvest the Fruit to begin Ascension. |
 
 ### 5c. Needs checklist + Pay
 
@@ -178,13 +178,13 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | `fruit_confirm_step1_yes` | Continue |
 | `fruit_confirm_step1_no` | Keep watering |
 | `fruit_confirm_step2_title` | Commit the harvest |
-| `fruit_confirm_step2` | Commit the harvest? The world will pause. Spend Manashards on blessings, then you must Ascend — there is no going back to watering. |
+| `fruit_confirm_step2` | Commit the harvest? The world will pause. Spend Manashards on blessings, then Ascend — Essence will return to the forest with the soft goods. |
 | `fruit_confirm_step2_yes` | Harvest |
 | `fruit_confirm_step2_no` | Not yet |
 | `fruit_confirm` | Harvest the Primordial Fruit? *(legacy — prefer two-step keys)* |
 | `fruit_confirm_yes` | Harvest |
 | `fruit_confirm_no` | Not yet |
-| `fruit_harvest_toast` | The Primordial Fruit is yours. Essence +{amount}. |
+| `fruit_harvest_toast` | The Primordial Fruit is yours. The blessing shop opens. |
 | `fruit_flow_hint` | Ascension shop only — spend Manashards, then Ascend. Leftover shards wipe. There is no cancel. |
 | `fruit_step_1` | 1 · Harvest |
 | `fruit_step_2` | 2 · Bless |
@@ -199,11 +199,13 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | `ascension_paused_body` | The clearing is paused. Spend Manashards on blessings, then Ascend. You cannot return to watering until the new cycle. |
 | `ascension_paused_hint` | Ascend when ready — the only way forward. |
 | `ascend_prompt` | Ascend — begin again, stronger |
-| `ascend_hint` | Soft goods and leftover Manashards return to the forest. Blessings stay with you. |
-| `ascend_confirm` | Ascend? Wood, Stone, Food, and Manashards return to the forest. Blessings stay. The Manatree becomes a Sapling. |
+| `ascend_hint` | Soft goods and Essence return to the forest. Blessings stay. The next Sapling starts at 0 Essence — water to grow again. |
+| `ascend_confirm` | Ascend? Soft goods and Essence return to the forest. Blessings stay. The Manatree becomes a Sapling. |
+| `ascend_confirm_essence_wipe` | Ascend? Soft goods and Essence return to the forest. Blessings stay. The Manatree becomes a Sapling. |
 | `ascend_confirm_yes` | Ascend |
-| `ascend_confirm_no` | Stay a while |
+| `ascend_confirm_no` | Keep shopping |
 | `ascend_toast` | A new cycle. The Sapling greets you — and your blessings. |
+| `ascend_essence_reset_toast` | Essence settles back into the forest. Your blessings remain. |
 | `ascend_count_hud` | Cycles: {count} |
 | `ascend_before_bless_hint` | Spend Manashards on blessings first — unused shards return to the forest on Ascend. |
 
@@ -333,8 +335,10 @@ Spelling: **Wisp** (player-facing). Idle Wisps **orbit the Keeper**; assigned Wi
 | `wisp_assign_ok` | The Wisp drifts to work. |
 | `wisp_assign_manatree_ok` | The Wisp circles the Manatree, drawing Manashards. |
 | `wisp_reassign_ok` | The Wisp finds a new place to gather. |
-| `wisp_assign_busy` | A Wisp already tends that spot. |
-| `wisp_assign_manatree_busy` | A Wisp already circles the Manatree. |
+| `wisp_assign_busy` | *(retired — multi-wisp per node)* |
+| `wisp_assign_manatree_busy` | *(retired — multi-wisp per node)* |
+| `wisp_assign_join_ok` | Another Wisp joins the work. |
+| `wisp_assign_full` | *(retired)* |
 | `wisp_unassign` | Call back |
 | `wisp_unassign_ground` | Right-click empty ground to call the Wisp back. |
 | `wisp_unassign_ok` | The Wisp returns to your side. |
@@ -344,6 +348,7 @@ Spelling: **Wisp** (player-facing). Idle Wisps **orbit the Keeper**; assigned Wi
 | `wisp_orbit_hint` | Idle Wisps orbit the Keeper. Assigned Wisps orbit their node. |
 | `wisp_none` | No Wisps yet — advance the Manatree, or buy Extra Wisp. |
 | `wisp_full` | All Wisps are busy. |
+| `wisp_node_shared_hint` | Several Wisps may share one spot — each pulses on its own. |
 
 ---
 

@@ -22,8 +22,8 @@ const HARVEST_IDS: Array[StringName] = [&"wood", &"stone", &"food"]
 ## Soft mats that green_thumb can reduce (not essence).
 const SOFT_NEED_IDS: Array[StringName] = [&"food", &"wood", &"stone", &"manashards"]
 const NEED_ORDER: Array[StringName] = [&"essence", &"food", &"wood", &"stone", &"manashards"]
-## Assignment target id for the Manatree. Same uniqueness cap as harvest nodes (WISP_PER_MANATREE = 1)
-## unless Design says otherwise. Stored as a string in SAVE_VERSION 5 — no schema bump.
+## Assignment target id for the Manatree. Stored as a string in SAVE_VERSION 5 — no schema bump.
+## Playtest: multiple wisps may stack on the same target (harvest nodes and Manatree).
 const NODE_ID_MANATREE: String = "manatree"
 
 var wood: int = 0
@@ -54,8 +54,8 @@ var upgrade_ranks: Dictionary = {}
 
 ## node_id is harvest_tree/stone/berry or NODE_ID_MANATREE ("manatree"). String stays
 ## SAVE_VERSION 5 compatible — no schema bump for the new Manatree target type.
-## WISP_PER_NODE = 1 on harvest nodes. Manatree uses the same cap (1 wisp) unless Design
-## raises it — one caretaker circling the tree is the Director default.
+## Stacking allowed: any number of wisps may share one harvest node or the Manatree
+## (WISP_PER_NODE / WISP_PER_MANATREE = 0 → unlimited). Each assigned wisp pulses independently.
 var wisp_count: int = 0
 var wisp_assignments: Dictionary = {}
 var wisp_pulse_accum: Dictionary = {}
@@ -220,8 +220,27 @@ func grant_wisp_from_stage() -> void:
 	status_message.emit(ContentStrings.get_text("wisp_gained"))
 
 
+func count_wisps_on_node(node_id: String) -> int:
+	var n: int = 0
+	for k: Variant in wisp_assignments.keys():
+		if str(wisp_assignments[k]) == node_id:
+			n += 1
+	return n
+
+
+func wisp_slot_index_on_node(wisp_id: int, node_id: String) -> int:
+	## Stable 0-based index among wisps assigned to node_id (by wisp id order).
+	var ids: Array[int] = []
+	for k: Variant in wisp_assignments.keys():
+		if str(wisp_assignments[k]) == node_id:
+			ids.append(int(str(k)))
+	ids.sort()
+	var idx: int = ids.find(wisp_id)
+	return idx if idx >= 0 else 0
+
+
 func try_assign_wisp(wisp_id: int, node_id: String) -> String:
-	## Returns "ok" | "reassign" | "busy" | "invalid". WISP_PER_NODE = 1 (harvest and Manatree).
+	## Returns "ok" | "reassign" | "invalid". Stacking allowed (no slot-full busy deny).
 	if fruit_committed:
 		wisp_assign_failed.emit("invalid", node_id)
 		return "invalid"
@@ -231,22 +250,25 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 	if not is_valid_wisp_node_id(node_id):
 		wisp_assign_failed.emit("invalid", node_id)
 		return "invalid"
-	for k: Variant in wisp_assignments.keys():
-		if str(wisp_assignments[k]) == node_id and int(str(k)) != wisp_id:
-			wisp_assign_failed.emit("busy", node_id)
-			return "busy"
 	var key: String = str(wisp_id)
 	var prev: String = str(wisp_assignments.get(key, ""))
 	if prev == node_id:
 		selected_wisp_id = -1
 		selection_changed.emit()
 		return "ok"
+	var joining: bool = count_wisps_on_node(node_id) > 0
 	wisp_assignments[key] = node_id
 	wisp_pulse_accum[key] = 0.0
 	selected_wisp_id = -1
 	wisps_changed.emit()
 	selection_changed.emit()
-	var result: String = "reassign" if prev != "" else "ok"
+	var result: String
+	if joining:
+		result = "join"
+	elif prev != "":
+		result = "reassign"
+	else:
+		result = "ok"
 	wisp_assigned.emit(wisp_id, node_id, result)
 	return result
 
@@ -258,13 +280,10 @@ func toast_wisp_assign(result: String, node_id: String) -> void:
 				status_message.emit(ContentStrings.get_text("wisp_assign_manatree_ok"))
 			else:
 				status_message.emit(ContentStrings.get_text("wisp_assign_ok"))
+		"join":
+			status_message.emit(ContentStrings.get_text("wisp_assign_join_ok"))
 		"reassign":
 			status_message.emit(ContentStrings.get_text("wisp_reassign_ok"))
-		"busy":
-			if node_id == NODE_ID_MANATREE:
-				status_message.emit(ContentStrings.get_text("wisp_assign_manatree_busy"))
-			else:
-				status_message.emit(ContentStrings.get_text("wisp_assign_busy"))
 		_:
 			pass
 
@@ -286,11 +305,13 @@ func unassign_wisp(wisp_id: int) -> bool:
 
 func apply_wisp_pulses(delta: float) -> void:
 	## AFK grant: +WISP_PULSE_GRANT of assigned resource every get_wisp_pulse_sec(). No gather_mult.
-	## Harvest nodes → wood/stone/food; Manatree → manashards. Same pulse timing.
+	## Each wisp has its own timer. Audio: one quiet pulse SFX per node/Manatree per tick
+	## (not per wisp) when any grant fires on that target.
 	if fruit_committed:
 		return
 	var pulse: float = get_wisp_pulse_sec()
 	var grant: int = param_int("WISP_PULSE_GRANT", 1)
+	var pulsed_nodes: Dictionary = {}
 	for i: int in range(wisp_count):
 		var key: String = str(i)
 		var nid: String = str(wisp_assignments.get(key, ""))
@@ -305,8 +326,10 @@ func apply_wisp_pulses(delta: float) -> void:
 				add_resource(rid, grant)
 				var hk: String = String(rid)
 				lifetime_harvested[hk] = int(lifetime_harvested.get(hk, 0)) + grant
-				wisp_pulsed.emit(rid)
+				pulsed_nodes[nid] = rid
 		wisp_pulse_accum[key] = acc
+	for nid2: Variant in pulsed_nodes.keys():
+		wisp_pulsed.emit(pulsed_nodes[nid2] as StringName)
 
 
 func set_keeper_selected(value: bool) -> void:
@@ -795,16 +818,14 @@ func _set_stage(id: StringName) -> void:
 
 
 func harvest_fruit() -> int:
+	## SYSTEMS v0.3.4: commit only — do NOT bank ESSENCE_PER_HARVEST (wiped on Ascend anyway).
 	if stage_id != &"ancient" or fruit_committed:
 		return 0
-	## Flat ESSENCE_PER_HARVEST burst (watering already paid essence over time).
-	var gained: int = param_int("ESSENCE_PER_HARVEST", 5)
-	add_resource(&"essence", gained)
 	lifetime_fruit_harvested += 1
 	fruit_ready = false
 	_set_fruit_committed(true)
 	fruit_ready_changed.emit(false)
-	return gained
+	return 1
 
 
 func can_ascend() -> bool:
@@ -820,6 +841,7 @@ func ascend() -> void:
 	stone = 0
 	food = 0
 	manashards = 0
+	essence = 0
 	_set_fruit_committed(false)
 	fruit_ready = false
 	wisp_count = get_upgrade_rank("bonus_wisp")
@@ -836,6 +858,7 @@ func ascend() -> void:
 	resources_changed.emit(&"essence", essence)
 	needs_changed.emit()
 	status_message.emit(ContentStrings.get_text("ascend_toast"))
+	status_message.emit(ContentStrings.get_text("ascend_essence_reset_toast"))
 
 
 func to_save_dict() -> Dictionary:

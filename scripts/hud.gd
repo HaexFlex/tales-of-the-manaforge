@@ -261,7 +261,10 @@ func _refresh_selection_hint() -> void:
 	if selection_hint == null:
 		return
 	if GameState.selected_wisp_id >= 0:
-		selection_hint.text = ContentStrings.get_text("wisp_orbit_hint")
+		selection_hint.text = "%s  ·  %s" % [
+			ContentStrings.get_text("wisp_orbit_hint"),
+			ContentStrings.get_text("wisp_node_shared_hint"),
+		]
 	elif GameState.keeper_selected:
 		selection_hint.text = ContentStrings.get_text("keeper_move_prompt")
 	else:
@@ -661,8 +664,9 @@ func _commit_primordial_fruit() -> void:
 	if not GameState.fruit_ready:
 		hide_fruit_confirm()
 		return
-	var gained: int = GameState.harvest_fruit()
-	if gained <= 0:
+	## SYSTEMS v0.3.4: no Essence bank on commit — open shop only.
+	var committed: int = GameState.harvest_fruit()
+	if committed <= 0:
 		hide_fruit_confirm()
 		return
 	_cancel_world_channels()
@@ -670,7 +674,7 @@ func _commit_primordial_fruit() -> void:
 	hide_care_menu()
 	GameAudio.play_fruit_harvest()
 	status_label.text = "%s\n%s" % [
-		ContentStrings.get_text("fruit_harvest_toast", {"amount": gained}),
+		ContentStrings.get_text("fruit_harvest_toast"),
 		ContentStrings.get_text("fruit_flow_hint"),
 	]
 	_hold_world_for_ascension()

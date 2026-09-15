@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.3.3 + Content v0.3.5 — two-step Fruit, must-Ascend shop. SAVE_VERSION 5.
+## Headless verification per SYSTEMS_V01 v0.3.4 + Content v0.3.7 — multi-wisp stack; Ascend wipes Essence. SAVE_VERSION 5.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -369,7 +369,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_shards_hud")).find("Manashards") >= 0, "fruit_shards_hud")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_cost")).find("Manashards") >= 0, "upgrade_cost shards")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_cant_afford")).find("Manashards") >= 0, "upgrade_cant_afford")
-	failed += _assert(str(content_strings.call("get_text", "ascend_hint")).find("Manashards") >= 0, "ascend_hint")
+	failed += _assert(str(content_strings.call("get_text", "ascend_hint")).find("Essence") >= 0, "ascend_hint Essence wipe")
 	failed += _assert(str(content_strings.call("get_text", "ascend_before_bless_hint")).find("Manashards") >= 0, "ascend_before_bless_hint")
 	failed += _assert(str(content_strings.call("get_text", "fruit_precommit_cta")).find("Primordial Fruit") >= 0, "fruit_precommit_cta")
 	failed += _assert(str(content_strings.call("get_text", "fruit_precommit_hint")).find("water") >= 0, "fruit_precommit_hint")
@@ -386,7 +386,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "tree_water_ancient_note")).find("still water") >= 0, "tree_water_ancient_note")
 	failed += _assert(str(content_strings.call("get_text", "tree_water_ancient_ok")).find("still drinks") >= 0, "tree_water_ancient_ok")
 	failed += _assert(str(content_strings.call("get_text", "tree_ancient_care_hint")).find("Water anytime") >= 0, "tree_ancient_care_hint")
-	failed += _assert(str(content_strings.call("get_text", "ascend_confirm_no")) == "Stay a while", "ascend_confirm_no")
+	failed += _assert(str(content_strings.call("get_text", "ascend_confirm_no")) == "Keep shopping", "ascend_confirm_no")
 	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Manashards") >= 0, "welcome_body manashards")
 	# Shop locked before Fruit harvest
 	game_state.call("reset_for_new_game")
@@ -403,8 +403,8 @@ func _run() -> void:
 	game_state.call("set_resource", &"essence", 4)
 	var ess_before_a: int = int(game_state.get("essence"))
 	var gained_a: int = int(game_state.call("harvest_fruit"))
-	failed += _assert(gained_a >= 5, "essence fruit gain A: %d" % gained_a)
-	failed += _assert(int(game_state.get("essence")) == ess_before_a + gained_a, "essence up after harvest")
+	failed += _assert(gained_a >= 1, "fruit commit ok A: %d" % gained_a)
+	failed += _assert(int(game_state.get("essence")) == ess_before_a, "no Essence bank on Fruit commit")
 	failed += _assert(bool(game_state.get("fruit_harvested_pending_ascend")), "pending after harvest")
 	failed += _assert(bool(game_state.get("fruit_committed")), "fruit_committed after harvest")
 	failed += _assert(not bool(game_state.get("fruit_ready")), "fruit_ready false after harvest")
@@ -425,7 +425,7 @@ func _run() -> void:
 	failed += _assert(int(game_state.get("stone")) == 0, "soft stone cleared")
 	failed += _assert(int(game_state.get("food")) == 0, "soft food cleared")
 	failed += _assert(int(game_state.get("manashards")) == 0, "soft shards cleared")
-	failed += _assert(int(game_state.get("essence")) == ess_before_a + gained_a, "essence kept on ascend")
+	failed += _assert(int(game_state.get("essence")) == 0, "essence wiped on ascend")
 	failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "pending false after ascend")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "committed false after ascend")
 	failed += _assert(int(game_state.get("ascensions")) == 1, "ascensions +1")
@@ -438,9 +438,10 @@ func _run() -> void:
 	game_state.call("set_resource", &"manashards", 1500)
 	game_state.call("set_resource", &"wood", 2)
 	var gained: int = int(game_state.call("harvest_fruit"))
-	failed += _assert(gained >= 5, "essence fruit gain B: %d" % gained)
+	failed += _assert(gained >= 1, "fruit commit ok B: %d" % gained)
 	failed += _assert(bool(game_state.call("can_ascend")), "pending ascend B")
 	var ess_pre_buy: int = int(game_state.get("essence"))
+	failed += _assert(ess_pre_buy == 10, "no Essence bank on Fruit commit B")
 	var shards_pre: int = int(game_state.get("manashards"))
 	failed += _assert(bool(game_state.call("buy_upgrade", "keeper_stride")), "buy stride rank0 (400)")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "keeper_stride")) == 800, "stride cost 800 at rank 1")
@@ -455,7 +456,7 @@ func _run() -> void:
 	failed += _assert(str(game_state.get("stage_id")) == "sapling", "ascend reset B")
 	failed += _assert(int(game_state.get("wood")) == 0, "soft mats 0 after ascend B")
 	failed += _assert(int(game_state.get("manashards")) == 0, "leftover shards wiped on ascend")
-	failed += _assert(int(game_state.get("essence")) == ess_kept, "essence remainder kept")
+	failed += _assert(int(game_state.get("essence")) == 0, "essence wiped on ascend B")
 	failed += _assert(int(game_state.call("get_upgrade_rank", "keeper_stride")) == 2, "blessings kept")
 	failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "pending false B")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "committed false B")
@@ -465,7 +466,7 @@ func _run() -> void:
 	game_state.call("_set_stage", &"ancient")
 	game_state.call("set_resource", &"essence", 8)
 	var gained_save: int = int(game_state.call("harvest_fruit"))
-	failed += _assert(gained_save >= 5, "harvest for save field")
+	failed += _assert(gained_save >= 1, "harvest for save field")
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
@@ -685,8 +686,8 @@ func _run() -> void:
 	var bonus_def: Dictionary = game_state.call("get_upgrade_def", "bonus_wisp")
 	failed += _assert(str(bonus_def.get("display_name", "")) == "Extra Wisp", "bonus_wisp display")
 	failed += _assert(int(bonus_def.get("max_rank", 0)) == 3, "bonus_wisp max 3")
-	failed += _assert(int(game_state.call("param_int", "WISP_PER_NODE", 0)) == 1, "WISP_PER_NODE")
-	failed += _assert(int(game_state.call("param_int", "WISP_PER_MANATREE", 0)) == 1, "WISP_PER_MANATREE")
+	failed += _assert(int(game_state.call("param_int", "WISP_PER_NODE", -1)) == 0, "WISP_PER_NODE unlimited")
+	failed += _assert(int(game_state.call("param_int", "WISP_PER_MANATREE", -1)) == 0, "WISP_PER_MANATREE unlimited")
 	failed += _assert(int(game_state.call("param_float", "WISP_PULSE_SEC", 0.0)) == 10, "WISP_PULSE_SEC 10")
 	failed += _assert(int(game_state.call("param_int", "WISP_PULSE_GRANT", 0)) == 1, "WISP_PULSE_GRANT")
 
@@ -708,16 +709,17 @@ func _run() -> void:
 	var wood0: int = int(game_state.get("wood"))
 	failed += _assert(str(game_state.call("try_assign_wisp", 0, "harvest_tree")) == "ok", "assign wisp to tree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "harvest_tree", "assignment stored")
-	# Second wisp cannot stack on same node
+	# Second wisp stacks on same node
 	game_state.set("wisp_count", 2)
 	game_state.call("_ensure_wisp_slots")
-	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_tree")) == "busy", "WISP_PER_NODE deny")
-	# Pulse accum
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_tree")) == "join", "stack join harvest_tree")
+	failed += _assert(int(game_state.call("count_wisps_on_node", "harvest_tree")) == 2, "two wisps on tree")
+	# Pulse accum — each wisp own timer → +2 wood after ~10s
 	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "pulse sec base 10")
 	game_state.call("apply_wisp_pulses", 9.9)
 	failed += _assert(int(game_state.get("wood")) == wood0, "no grant before 10s")
 	game_state.call("apply_wisp_pulses", 0.2)
-	failed += _assert(int(game_state.get("wood")) == wood0 + 1, "wisp pulse +1 wood after ~10s")
+	failed += _assert(int(game_state.get("wood")) == wood0 + 2, "stacked wisps pulse +2 wood after ~10s")
 	# wisp_haste reduces interval
 	var ranks_h: Dictionary = game_state.get("upgrade_ranks")
 	ranks_h["wisp_haste"] = 3
@@ -799,7 +801,11 @@ func _run() -> void:
 
 	# Manatree assign + pulse manashards @ 1/10s
 	failed += _assert(str(game_state.call("node_id_for_resource", &"manashards")) == "manatree", "manashards node id is manatree")
-	failed += _assert(str(content_strings.call("get_text", "wisp_assign_manatree_busy")).find("Manatree") >= 0, "wisp_assign_manatree_busy")
+	failed += _assert(str(content_strings.call("get_text", "wisp_assign_join_ok")).find("joins") >= 0, "wisp_assign_join_ok")
+	failed += _assert(str(content_strings.call("get_text", "wisp_node_shared_hint")).find("share") >= 0, "wisp_node_shared_hint")
+	failed += _assert(str(content_strings.call("get_text", "ascend_essence_reset_toast")).find("Essence") >= 0, "ascend_essence_reset_toast")
+	failed += _assert(str(content_strings.call("get_text", "ascend_confirm")).find("Essence") >= 0, "ascend_confirm Essence wipe")
+	failed += _assert(str(content_strings.call("get_text", "fruit_harvest_toast")).find("Essence +") < 0, "fruit_harvest_toast no Essence bank")
 	failed += _assert(str(content_strings.call("get_text", "wisp_assign_hint")).find("Right-click") >= 0, "wisp_assign_hint RMB")
 	game_state.call("reset_for_new_game")
 	game_state.set("wisp_count", 2)
@@ -808,11 +814,12 @@ func _run() -> void:
 	failed += _assert(str(game_state.call("try_assign_wisp", 0, "manatree")) == "ok", "assign wisp to manatree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "manatree assignment stored")
 	failed += _assert(str(game_state.call("resource_for_node_id", "manatree")) == "manashards", "manatree → manashards")
-	failed += _assert(str(game_state.call("try_assign_wisp", 1, "manatree")) == "busy", "Manatree WISP_PER_NODE=1 deny")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "manatree")) == "join", "Manatree stack join")
+	failed += _assert(int(game_state.call("count_wisps_on_node", "manatree")) == 2, "two wisps on manatree")
 	game_state.call("apply_wisp_pulses", 9.9)
 	failed += _assert(int(game_state.get("manashards")) == shards0, "no manashards before 10s")
 	game_state.call("apply_wisp_pulses", 0.2)
-	failed += _assert(int(game_state.get("manashards")) == shards0 + 1, "wisp manatree pulse +1 manashards")
+	failed += _assert(int(game_state.get("manashards")) == shards0 + 2, "stacked manatree pulse +2 manashards")
 	failed += _assert(bool(game_state.call("unassign_wisp", 0)), "unassign from manatree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "manatree assignment cleared")
 
@@ -861,6 +868,7 @@ func _run() -> void:
 				failed += _assert(sh != null, "HUD SelectionHint")
 				if sh:
 					failed += _assert(str(sh.get("text")).find("Assigned Wisps orbit") >= 0, "HUD wires wisp_orbit_hint")
+					failed += _assert(str(sh.get("text")).find("share") >= 0, "HUD wires wisp_node_shared_hint")
 			var harvest_tree: Node = live.get_node_or_null("World/HarvestTree")
 			failed += _assert(harvest_tree != null and harvest_tree.has_method("apply_player_command"), "HarvestTree command")
 			if harvest_tree:
@@ -880,13 +888,14 @@ func _run() -> void:
 			if mana and mana.has_method("apply_player_command"):
 				mana.call("apply_player_command")
 			failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "manatree", "RMB Manatree assigns wisp")
-			# Second wisp onto occupied Manatree → busy toast key path
+			# Second wisp onto occupied Manatree → stack (join)
 			game_state.call("unassign_wisp", 0)
 			game_state.call("select_wisp", 0)
 			if mana and mana.has_method("apply_player_command"):
 				mana.call("apply_player_command")
-			failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "busy manatree does not steal slot")
-			failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "manatree", "occupant keeps manatree")
+			failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "second wisp stacks on manatree")
+			failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "manatree", "first keeps manatree")
+			failed += _assert(int(game_state.call("count_wisps_on_node", "manatree")) == 2, "live two on manatree")
 			await process_frame
 			var wisp_orbs: Array[Node] = live.get_tree().get_nodes_in_group("wisp")
 			failed += _assert(wisp_orbs.size() == 2, "two wisp orbs spawned (got %d)" % wisp_orbs.size())
@@ -910,7 +919,8 @@ func _run() -> void:
 			failed += _assert(found_orbit_assign, "assigned wisp reports orbit-assigned state")
 			failed += _assert(not found_parked_anim, "assigned wisp must not use parked anim")
 			failed += _assert(found_fly_or_node, "assigned wisp uses fly or node_orbit clip")
-			failed += _assert(abs(node_r - 28.0) < 0.01, "node orbit radius 28 (got %s)" % node_r)
+			# Two stacked on Manatree → base 28 + 10 per extra = 38
+			failed += _assert(abs(node_r - 38.0) < 0.01, "stacked node orbit radius 38 (got %s)" % node_r)
 			# RMB ground unassign
 			game_state.call("select_wisp", 1)
 			live.call("handle_rmb_ground", Vector2(80, 80))

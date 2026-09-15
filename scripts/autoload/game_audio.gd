@@ -407,7 +407,7 @@ func play_wisp_pulse() -> void:
 
 
 func _on_wisp_assigned(_wisp_id: int, _node_id: String, result: String) -> void:
-	if result == "ok" or result == "reassign":
+	if result == "ok" or result == "reassign" or result == "join":
 		play_wisp_assign()
 
 
