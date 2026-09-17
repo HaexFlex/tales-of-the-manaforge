@@ -7,7 +7,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 ## Stack
 
 - **Godot 4.3** · GDScript only · **fully typed**
-- Playable forest hub: **64² grass TileMap**, many Y-sorted **decorative** trees, **exactly 3** harvest channels, Manatree landmark; view **1280×720** nearest-neighbor
+- Playable forest hub: **64² grass TileMap**, dense Y-sorted **decorative** Haex forest ring (Art **v0.1.13-assets-upload**) around a larger glade, **exactly 3** harvest channels, Manatree landmark; view **1280×720** nearest-neighbor
 - Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `SaveService`
 - Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options stub, Exit
 - Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **4**`; legacy single-file migrates → slot 1; old `growth` ignored)

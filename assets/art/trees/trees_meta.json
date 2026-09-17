@@ -1,6 +1,9 @@
 {
   "filter": "nearest",
   "anchor": "base_center",
+  "version": "v0.1.13-assets-upload",
+  "inbox": "Assets upload/",
+  "notes": "v0.1.13 cleaned frames (bbox+2px, no downscale). Decorative only \u2014 harvest nodes stay in props/. Bushes live in assets/art/bushes/. Originals remain in Assets upload/.",
   "items": {
     "tree_oak_a": {
       "file": "tree_oak_a.png",
@@ -52,8 +55,90 @@
         160
       ],
       "source": "overnight/forest_tree_draft.png"
+    },
+    "tree_big_01": {
+      "file": "tree_big_01.png",
+      "size": [
+        432,
+        364
+      ],
+      "role": "tree",
+      "source": "Assets upload/Big Trees.png"
+    },
+    "tree_big_02": {
+      "file": "tree_big_02.png",
+      "size": [
+        398,
+        355
+      ],
+      "role": "tree",
+      "source": "Assets upload/Big Trees.png"
+    },
+    "tree_big_03": {
+      "file": "tree_big_03.png",
+      "size": [
+        397,
+        367
+      ],
+      "role": "tree",
+      "source": "Assets upload/Big Trees.png"
+    },
+    "tree_big_04": {
+      "file": "tree_big_04.png",
+      "size": [
+        402,
+        368
+      ],
+      "role": "tree",
+      "source": "Assets upload/Big Trees.png"
+    },
+    "tree_small_01": {
+      "file": "tree_small_01.png",
+      "size": [
+        306,
+        373
+      ],
+      "role": "tree",
+      "source": "Assets upload/Small Trees.png"
+    },
+    "tree_small_02": {
+      "file": "tree_small_02.png",
+      "size": [
+        451,
+        375
+      ],
+      "role": "tree",
+      "source": "Assets upload/Small Trees.png"
+    },
+    "tree_small_03": {
+      "file": "tree_small_03.png",
+      "size": [
+        166,
+        361
+      ],
+      "role": "tree",
+      "source": "Assets upload/Small Trees.png"
+    },
+    "tree_small_04": {
+      "file": "tree_small_04.png",
+      "size": [
+        346,
+        358
+      ],
+      "role": "tree",
+      "source": "Assets upload/Small Trees.png"
     }
   },
-  "notes": "SoM-leaning forest props for clearing/edge. Occlude Keeper with y-sort on base.",
-  "version": "imagine_v1"
+  "spawn_catalog": {
+    "tree": [
+      "tree_big_01",
+      "tree_big_02",
+      "tree_big_03",
+      "tree_big_04",
+      "tree_small_01",
+      "tree_small_02",
+      "tree_small_03",
+      "tree_small_04"
+    ]
+  }
 }

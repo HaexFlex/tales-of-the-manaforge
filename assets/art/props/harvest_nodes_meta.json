@@ -29,6 +29,6 @@
       "also": "prop_food.png"
     }
   },
-  "decorative_trees_unchanged": "trees/tree_oak_*, tree_pine_a, tree_autumn_a, tree_forest_imagine, bush_a, stump_a",
-  "notes": "Harvestable tree is NOT Manatree and NOT decorative oak \u2014 smaller, chop-notch + nuts. Dense clearing uses trees/ for scenery."
+  "decorative_trees": "trees/tree_big_*, tree_small_* ; bushes/bush_big_*, bush_small_* (Art v0.1.13-assets-upload)",
+  "notes": "Harvestable tree is NOT Manatree and NOT decorative Haex oaks \u2014 smaller, chop-notch + nuts. Dense clearing uses trees/ + trees/bushes/ for scenery only."
 }
