@@ -1,0 +1,710 @@
+{
+  "filter": "nearest",
+  "anchor": "base_center",
+  "version": "v0.1.13-assets-upload",
+  "dir": "bushes/",
+  "inbox": "Assets upload/",
+  "grid_decisions": {
+    "Big Bushes.png": "3x4 (gutters rows 261/498, cols 294/579/868) \u2014 not 2x2",
+    "small bushes.png": "4-connected components, min_area 80, row-banded, 57 frames"
+  },
+  "notes": "Decorative undergrowth. Variable bbox sizes. y-sort on base_center.",
+  "items": {
+    "bush_big_01": {
+      "file": "bush_big_01.png",
+      "size": [
+        219,
+        196
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_02": {
+      "file": "bush_big_02.png",
+      "size": [
+        232,
+        182
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_03": {
+      "file": "bush_big_03.png",
+      "size": [
+        206,
+        209
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_04": {
+      "file": "bush_big_04.png",
+      "size": [
+        224,
+        198
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_05": {
+      "file": "bush_big_05.png",
+      "size": [
+        224,
+        180
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_06": {
+      "file": "bush_big_06.png",
+      "size": [
+        210,
+        187
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_07": {
+      "file": "bush_big_07.png",
+      "size": [
+        222,
+        193
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_08": {
+      "file": "bush_big_08.png",
+      "size": [
+        216,
+        195
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_09": {
+      "file": "bush_big_09.png",
+      "size": [
+        230,
+        190
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_10": {
+      "file": "bush_big_10.png",
+      "size": [
+        224,
+        202
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_11": {
+      "file": "bush_big_11.png",
+      "size": [
+        241,
+        180
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_big_12": {
+      "file": "bush_big_12.png",
+      "size": [
+        225,
+        197
+      ],
+      "role": "bush",
+      "source": "Assets upload/Big Bushes.png"
+    },
+    "bush_small_01": {
+      "file": "bush_small_01.png",
+      "size": [
+        94,
+        87
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_02": {
+      "file": "bush_small_02.png",
+      "size": [
+        104,
+        96
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_03": {
+      "file": "bush_small_03.png",
+      "size": [
+        110,
+        98
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_04": {
+      "file": "bush_small_04.png",
+      "size": [
+        115,
+        99
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_05": {
+      "file": "bush_small_05.png",
+      "size": [
+        112,
+        98
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_06": {
+      "file": "bush_small_06.png",
+      "size": [
+        110,
+        97
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_07": {
+      "file": "bush_small_07.png",
+      "size": [
+        67,
+        55
+      ],
+      "role": "tuft",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_08": {
+      "file": "bush_small_08.png",
+      "size": [
+        60,
+        47
+      ],
+      "role": "tuft",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_09": {
+      "file": "bush_small_09.png",
+      "size": [
+        110,
+        94
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_10": {
+      "file": "bush_small_10.png",
+      "size": [
+        112,
+        97
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_11": {
+      "file": "bush_small_11.png",
+      "size": [
+        100,
+        83
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_12": {
+      "file": "bush_small_12.png",
+      "size": [
+        112,
+        94
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_13": {
+      "file": "bush_small_13.png",
+      "size": [
+        110,
+        96
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_14": {
+      "file": "bush_small_14.png",
+      "size": [
+        101,
+        88
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_15": {
+      "file": "bush_small_15.png",
+      "size": [
+        97,
+        78
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_16": {
+      "file": "bush_small_16.png",
+      "size": [
+        89,
+        76
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_17": {
+      "file": "bush_small_17.png",
+      "size": [
+        91,
+        78
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_18": {
+      "file": "bush_small_18.png",
+      "size": [
+        93,
+        78
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_19": {
+      "file": "bush_small_19.png",
+      "size": [
+        97,
+        84
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_20": {
+      "file": "bush_small_20.png",
+      "size": [
+        103,
+        79
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_21": {
+      "file": "bush_small_21.png",
+      "size": [
+        101,
+        80
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_22": {
+      "file": "bush_small_22.png",
+      "size": [
+        82,
+        67
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_23": {
+      "file": "bush_small_23.png",
+      "size": [
+        72,
+        65
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_24": {
+      "file": "bush_small_24.png",
+      "size": [
+        91,
+        82
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_25": {
+      "file": "bush_small_25.png",
+      "size": [
+        93,
+        85
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_26": {
+      "file": "bush_small_26.png",
+      "size": [
+        103,
+        93
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_27": {
+      "file": "bush_small_27.png",
+      "size": [
+        104,
+        91
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_28": {
+      "file": "bush_small_28.png",
+      "size": [
+        107,
+        93
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_29": {
+      "file": "bush_small_29.png",
+      "size": [
+        107,
+        93
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_30": {
+      "file": "bush_small_30.png",
+      "size": [
+        97,
+        85
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_31": {
+      "file": "bush_small_31.png",
+      "size": [
+        90,
+        80
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_32": {
+      "file": "bush_small_32.png",
+      "size": [
+        92,
+        88
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_33": {
+      "file": "bush_small_33.png",
+      "size": [
+        81,
+        73
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_34": {
+      "file": "bush_small_34.png",
+      "size": [
+        90,
+        75
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_35": {
+      "file": "bush_small_35.png",
+      "size": [
+        94,
+        78
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_36": {
+      "file": "bush_small_36.png",
+      "size": [
+        90,
+        77
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_37": {
+      "file": "bush_small_37.png",
+      "size": [
+        90,
+        78
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_38": {
+      "file": "bush_small_38.png",
+      "size": [
+        90,
+        75
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_39": {
+      "file": "bush_small_39.png",
+      "size": [
+        83,
+        71
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_40": {
+      "file": "bush_small_40.png",
+      "size": [
+        90,
+        73
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_41": {
+      "file": "bush_small_41.png",
+      "size": [
+        73,
+        66
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_42": {
+      "file": "bush_small_42.png",
+      "size": [
+        89,
+        74
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_43": {
+      "file": "bush_small_43.png",
+      "size": [
+        87,
+        73
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_44": {
+      "file": "bush_small_44.png",
+      "size": [
+        89,
+        72
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_45": {
+      "file": "bush_small_45.png",
+      "size": [
+        95,
+        75
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_46": {
+      "file": "bush_small_46.png",
+      "size": [
+        95,
+        78
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_47": {
+      "file": "bush_small_47.png",
+      "size": [
+        87,
+        72
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_48": {
+      "file": "bush_small_48.png",
+      "size": [
+        87,
+        74
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_49": {
+      "file": "bush_small_49.png",
+      "size": [
+        69,
+        51
+      ],
+      "role": "tuft",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_50": {
+      "file": "bush_small_50.png",
+      "size": [
+        57,
+        45
+      ],
+      "role": "tuft",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_51": {
+      "file": "bush_small_51.png",
+      "size": [
+        57,
+        51
+      ],
+      "role": "tuft",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_52": {
+      "file": "bush_small_52.png",
+      "size": [
+        70,
+        64
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_53": {
+      "file": "bush_small_53.png",
+      "size": [
+        94,
+        81
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_54": {
+      "file": "bush_small_54.png",
+      "size": [
+        93,
+        82
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_55": {
+      "file": "bush_small_55.png",
+      "size": [
+        93,
+        79
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_56": {
+      "file": "bush_small_56.png",
+      "size": [
+        95,
+        85
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    },
+    "bush_small_57": {
+      "file": "bush_small_57.png",
+      "size": [
+        105,
+        89
+      ],
+      "role": "bush",
+      "source": "Assets upload/small bushes.png"
+    }
+  },
+  "spawn_catalog": {
+    "bush": [
+      "bush_big_01",
+      "bush_big_02",
+      "bush_big_03",
+      "bush_big_04",
+      "bush_big_05",
+      "bush_big_06",
+      "bush_big_07",
+      "bush_big_08",
+      "bush_big_09",
+      "bush_big_10",
+      "bush_big_11",
+      "bush_big_12",
+      "bush_small_01",
+      "bush_small_02",
+      "bush_small_03",
+      "bush_small_04",
+      "bush_small_05",
+      "bush_small_06",
+      "bush_small_09",
+      "bush_small_10",
+      "bush_small_11",
+      "bush_small_12",
+      "bush_small_13",
+      "bush_small_14",
+      "bush_small_15",
+      "bush_small_16",
+      "bush_small_17",
+      "bush_small_18",
+      "bush_small_19",
+      "bush_small_20",
+      "bush_small_21",
+      "bush_small_22",
+      "bush_small_23",
+      "bush_small_24",
+      "bush_small_25",
+      "bush_small_26",
+      "bush_small_27",
+      "bush_small_28",
+      "bush_small_29",
+      "bush_small_30",
+      "bush_small_31",
+      "bush_small_32",
+      "bush_small_33",
+      "bush_small_34",
+      "bush_small_35",
+      "bush_small_36",
+      "bush_small_37",
+      "bush_small_38",
+      "bush_small_39",
+      "bush_small_40",
+      "bush_small_41",
+      "bush_small_42",
+      "bush_small_43",
+      "bush_small_44",
+      "bush_small_45",
+      "bush_small_46",
+      "bush_small_47",
+      "bush_small_48",
+      "bush_small_52",
+      "bush_small_53",
+      "bush_small_54",
+      "bush_small_55",
+      "bush_small_56",
+      "bush_small_57"
+    ],
+    "tuft": [
+      "bush_small_07",
+      "bush_small_08",
+      "bush_small_49",
+      "bush_small_50",
+      "bush_small_51"
+    ]
+  }
+}

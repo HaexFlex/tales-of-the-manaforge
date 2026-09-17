@@ -29,6 +29,6 @@
       "also": "prop_food.png"
     }
   },
-  "decorative_trees": "trees/tree_haex_*, trees/bushes/bush_haex_* (inbox Assets upload/); legacy tree_oak_* kept",
+  "decorative_trees": "trees/tree_big_*, tree_small_* ; bushes/bush_big_*, bush_small_* (Art v0.1.13-assets-upload)",
   "notes": "Harvestable tree is NOT Manatree and NOT decorative Haex oaks \u2014 smaller, chop-notch + nuts. Dense clearing uses trees/ + trees/bushes/ for scenery only."
 }

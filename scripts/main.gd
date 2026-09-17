@@ -30,9 +30,10 @@ const CLEAR_POINTS: Array[Vector2] = [
 	Vector2(900, 560),
 	Vector2(480, 520),
 ]
-## Larger open glade than the old 28-tree edge bands (screen 1280×720).
-const GLADE := Rect2(145, 175, 990, 515)
+## Larger open glade — variable-size Haex canopies stay on the ring, not the hub.
+const GLADE := Rect2(175, 185, 930, 500)
 const TREES_META_PATH: String = "res://assets/art/trees/trees_meta.json"
+const BUSHES_META_PATH: String = "res://assets/art/bushes/bushes_meta.json"
 
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
@@ -103,34 +104,44 @@ func _build_grass() -> void:
 
 func _spawn_forest_props() -> void:
 	## Dense Y-sorted decorative ring around a larger open glade. Not harvestable.
-	var meta: Dictionary = _load_trees_meta()
-	var items: Dictionary = meta.get("items", {}) as Dictionary
-	var catalog: Dictionary = meta.get("spawn_catalog", {}) as Dictionary
-	var tree_entries: Array[Dictionary] = _catalog_entries(items, catalog.get("tree", []) as Array)
-	var bush_entries: Array[Dictionary] = _catalog_entries(items, catalog.get("bush", []) as Array)
-	var tuft_entries: Array[Dictionary] = _catalog_entries(items, catalog.get("tuft", []) as Array)
+	var trees_meta: Dictionary = _load_json_dict(TREES_META_PATH)
+	var bushes_meta: Dictionary = _load_json_dict(BUSHES_META_PATH)
+	var tree_items: Dictionary = trees_meta.get("items", {}) as Dictionary
+	var bush_items: Dictionary = bushes_meta.get("items", {}) as Dictionary
+	var tree_ids: Array = (trees_meta.get("spawn_catalog", {}) as Dictionary).get("tree", []) as Array
+	var bush_cat: Dictionary = bushes_meta.get("spawn_catalog", {}) as Dictionary
+	var tree_entries: Array[Dictionary] = _catalog_entries(tree_items, tree_ids, "res://assets/art/trees/")
+	## Some bushes — big ring shrubs plus a handful of small ones, not the full 57.
+	var bush_ids: Array = bush_cat.get("bush", []) as Array
+	var tuft_ids: Array = bush_cat.get("tuft", []) as Array
+	var bush_pick: Array = []
+	for idv: Variant in bush_ids:
+		var bid: String = str(idv)
+		if bid.begins_with("bush_big_") or bush_pick.size() < 20:
+			bush_pick.append(bid)
+	var bush_entries: Array[Dictionary] = _catalog_entries(bush_items, bush_pick, "res://assets/art/bushes/")
+	var tuft_entries: Array[Dictionary] = _catalog_entries(bush_items, tuft_ids, "res://assets/art/bushes/")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260917
 	var occupied: Array[Vector2] = []
-	## Outer canopy wall (top / sides / corners) — lots of overlapping Haex trees.
-	_scatter_grid(rng, tree_entries, occupied, 18, 3, Rect2(16, 42, 1248, 128), 48.0, 18.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 3, 9, Rect2(8, 150, 128, 530), 46.0, 14.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 3, 9, Rect2(1144, 150, 128, 530), 46.0, 14.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 6, 2, Rect2(8, 640, 220, 72), 50.0, 12.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 6, 2, Rect2(1052, 640, 220, 72), 50.0, 12.0, 0.0)
-	## Bushes along the inner forest edge (may sit a little into the glade).
-	_scatter_grid(rng, bush_entries, occupied, 16, 1, Rect2(40, 168, 1200, 36), 32.0, 10.0, 28.0)
-	_scatter_grid(rng, bush_entries, occupied, 2, 10, Rect2(118, 190, 50, 470), 30.0, 8.0, 28.0)
-	_scatter_grid(rng, bush_entries, occupied, 2, 10, Rect2(1110, 190, 50, 470), 30.0, 8.0, 28.0)
-	_scatter_grid(rng, bush_entries, occupied, 14, 1, Rect2(80, 678, 1120, 28), 28.0, 8.0, 24.0)
-	## Grass tufts at the glade margin.
-	_scatter_grid(rng, tuft_entries, occupied, 12, 1, Rect2(180, 188, 920, 28), 22.0, 8.0, 40.0)
+	## Overlapping ~400px canopies on the outer ring; one column per side so the glade stays open.
+	_scatter_grid(rng, tree_entries, occupied, 12, 2, Rect2(20, 48, 1240, 120), 62.0, 16.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 1, 8, Rect2(18, 150, 70, 500), 58.0, 12.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 1, 8, Rect2(1192, 150, 70, 500), 58.0, 12.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 4, 2, Rect2(8, 645, 200, 68), 64.0, 10.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 4, 2, Rect2(1072, 645, 200, 68), 64.0, 10.0, 0.0)
+	## Inner-edge bushes (may sit a little into the glade).
+	_scatter_grid(rng, bush_entries, occupied, 10, 1, Rect2(80, 175, 1120, 32), 40.0, 10.0, 22.0)
+	_scatter_grid(rng, bush_entries, occupied, 1, 7, Rect2(140, 200, 40, 430), 36.0, 8.0, 22.0)
+	_scatter_grid(rng, bush_entries, occupied, 1, 7, Rect2(1100, 200, 40, 430), 36.0, 8.0, 22.0)
+	_scatter_grid(rng, bush_entries, occupied, 8, 1, Rect2(120, 685, 1040, 24), 34.0, 8.0, 18.0)
+	_scatter_grid(rng, tuft_entries, occupied, 8, 1, Rect2(220, 195, 840, 24), 26.0, 8.0, 32.0)
 
 
-func _load_trees_meta() -> Dictionary:
-	var f := FileAccess.open(TREES_META_PATH, FileAccess.READ)
+func _load_json_dict(path: String) -> Dictionary:
+	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
-		push_warning("Main: missing trees_meta.json")
+		push_warning("Main: missing %s" % path)
 		return {}
 	var parsed: Variant = JSON.parse_string(f.get_as_text())
 	f.close()
@@ -139,7 +150,7 @@ func _load_trees_meta() -> Dictionary:
 	return {}
 
 
-func _catalog_entries(items: Dictionary, ids: Array) -> Array[Dictionary]:
+func _catalog_entries(items: Dictionary, ids: Array, base_dir: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for idv: Variant in ids:
 		var id: String = str(idv)
@@ -151,7 +162,7 @@ func _catalog_entries(items: Dictionary, ids: Array) -> Array[Dictionary]:
 			continue
 		var path: String = file
 		if not path.begins_with("res://"):
-			path = "res://assets/art/trees/" + file
+			path = base_dir + file
 		var sz := Vector2(64, 64)
 		var sz_v: Variant = it.get("size", [])
 		if typeof(sz_v) == TYPE_ARRAY and (sz_v as Array).size() >= 2:
@@ -224,15 +235,15 @@ func _landmark_radius(index: int) -> float:
 	## Manatree needs extra room as stages grow; harvest nodes stay clickable.
 	match index:
 		0:
-			return 175.0
+			return 200.0
 		1:
-			return 125.0
+			return 150.0
 		2:
-			return 110.0
+			return 130.0
 		3:
-			return 120.0
+			return 145.0
 		_:
-			return 72.0
+			return 80.0
 
 
 func _clear_of_landmarks(pos: Vector2, min_dist: float) -> bool:

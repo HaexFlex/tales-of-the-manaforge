@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Slice Haex inbox sheets into gameplay PNGs (NN, transparent BG).
+"""Build Art Direction v0.1.13-assets-upload frames from Haex inbox PNGs.
 
-Inbox stays at `Assets upload/`. This writes copies under assets/art/.
+Matches ASSETS_UPLOAD_HANDOFF.md:
+- key RGB < 18 → alpha 0
+- trees/bushes: crop opaque bbox + 2px pad; no downscale unless side > 512
+- trees 2×2 grid; big bushes 3×4 gutters; small bushes 4-connected
+- keeper 128×128 NN fit + optional native 170×256
 """
 from __future__ import annotations
 
 import json
-import os
+import shutil
 from pathlib import Path
 
 from PIL import Image
@@ -14,67 +18,84 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 INBOX = ROOT / "Assets upload"
 TREES_DIR = ROOT / "assets" / "art" / "trees"
-BUSHES_DIR = TREES_DIR / "bushes"
+BUSHES_DIR = ROOT / "assets" / "art" / "bushes"
 KEEPER_DIR = ROOT / "assets" / "art" / "keeper"
-
+NATIVE_DIR = KEEPER_DIR / "native"
 BG_THRESH = 18
-PAD = 4
+PAD = 2
+MAX_SIDE = 512
 
 
-def flood_bg_mask(im: Image.Image, thresh: int = BG_THRESH) -> bytearray:
-    rgb = im.convert("RGB")
-    w, h = rgb.size
-    px = rgb.load()
-
-    def is_bg(x: int, y: int) -> bool:
-        r, g, b = px[x, y]
-        return r <= thresh and g <= thresh and b <= thresh
-
-    vis = bytearray(w * h)
-    stack: list[tuple[int, int]] = []
-    for x in range(w):
-        for y in (0, h - 1):
-            if is_bg(x, y):
-                stack.append((x, y))
-    for y in range(h):
-        for x in (0, w - 1):
-            if is_bg(x, y):
-                stack.append((x, y))
-    while stack:
-        x, y = stack.pop()
-        i = y * w + x
-        if vis[i] or not is_bg(x, y):
-            continue
-        vis[i] = 1
-        if x > 0:
-            stack.append((x - 1, y))
-        if x < w - 1:
-            stack.append((x + 1, y))
-        if y > 0:
-            stack.append((x, y - 1))
-        if y < h - 1:
-            stack.append((x, y + 1))
-    return vis
-
-
-def to_rgba_knockout(im: Image.Image, vis: bytearray) -> Image.Image:
+def key_alpha(im: Image.Image) -> Image.Image:
     rgba = im.convert("RGBA")
+    px = rgba.load()
     w, h = rgba.size
-    pix = rgba.load()
     for y in range(h):
-        row = y * w
         for x in range(w):
-            if vis[row + x]:
-                pix[x, y] = (0, 0, 0, 0)
+            r, g, b, a = px[x, y]
+            if r < BG_THRESH and g < BG_THRESH and b < BG_THRESH:
+                px[x, y] = (0, 0, 0, 0)
     return rgba
 
 
-def components(vis: bytearray, w: int, h: int, min_area: int) -> list[tuple[int, int, int, int, int]]:
+def opaque_bbox(im: Image.Image) -> tuple[int, int, int, int] | None:
+    return im.getbbox()
+
+
+def crop_pad(im: Image.Image, box: tuple[int, int, int, int], pad: int = PAD) -> Image.Image:
+    x0, y0, x1, y1 = box
+    x0 = max(0, x0 - pad)
+    y0 = max(0, y0 - pad)
+    x1 = min(im.size[0], x1 + pad)
+    y1 = min(im.size[1], y1 + pad)
+    return im.crop((x0, y0, x1, y1))
+
+
+def maybe_nn_cap(im: Image.Image) -> Image.Image:
+    w, h = im.size
+    if w <= MAX_SIDE and h <= MAX_SIDE:
+        return im
+    scale = min(MAX_SIDE / w, MAX_SIDE / h)
+    nw = max(1, int(round(w * scale)))
+    nh = max(1, int(round(h * scale)))
+    return im.resize((nw, nh), Image.Resampling.NEAREST)
+
+
+def save_png(im: Image.Image, dest: Path) -> None:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    im.save(dest, format="PNG", optimize=True)
+
+
+def slice_grid(rgba: Image.Image, cols: int, rows: int, col_splits: list[int] | None = None, row_splits: list[int] | None = None) -> list[Image.Image]:
+    w, h = rgba.size
+    if col_splits is None:
+        col_splits = [int(round(i * w / cols)) for i in range(cols + 1)]
+    if row_splits is None:
+        row_splits = [int(round(i * h / rows)) for i in range(rows + 1)]
+    frames: list[Image.Image] = []
+    for ry in range(rows):
+        for cx in range(cols):
+            cell = rgba.crop((col_splits[cx], row_splits[ry], col_splits[cx + 1], row_splits[ry + 1]))
+            bb = opaque_bbox(cell)
+            if bb is None:
+                continue
+            # pad in cell space, then crop from full image so pad can use gutters
+            gx0 = col_splits[cx] + bb[0]
+            gy0 = row_splits[ry] + bb[1]
+            gx1 = col_splits[cx] + bb[2]
+            gy1 = row_splits[ry] + bb[3]
+            frames.append(maybe_nn_cap(crop_pad(rgba, (gx0, gy0, gx1, gy1))))
+    return frames
+
+
+def components(rgba: Image.Image, min_area: int) -> list[tuple[int, int, int, int, int]]:
+    w, h = rgba.size
+    px = rgba.load()
     seen = bytearray(w * h)
     comps: list[tuple[int, int, int, int, int]] = []
 
     def is_fg(x: int, y: int) -> bool:
-        return vis[y * w + x] == 0
+        return px[x, y][3] > 0
 
     for y in range(h):
         for x in range(w):
@@ -107,10 +128,6 @@ def components(vis: bytearray, w: int, h: int, min_area: int) -> list[tuple[int,
                             q.append((nx, ny))
             if area >= min_area:
                 comps.append((minx, miny, maxx + 1, maxy + 1, area))
-    return comps
-
-
-def sort_reading_order(comps: list[tuple[int, int, int, int, int]]) -> list[tuple[int, int, int, int, int]]:
     if not comps:
         return comps
     heights = [c[3] - c[1] for c in comps]
@@ -118,90 +135,95 @@ def sort_reading_order(comps: list[tuple[int, int, int, int, int]]) -> list[tupl
     return sorted(comps, key=lambda c: (((c[1] + c[3]) // 2) // row_h, c[0]))
 
 
-def nn_half(im: Image.Image) -> Image.Image:
-    w, h = im.size
-    nw = max(1, w // 2)
-    nh = max(1, h // 2)
-    return im.resize((nw, nh), Image.Resampling.NEAREST)
-
-
-def crop_pad(im: Image.Image, box: tuple[int, int, int, int], pad: int = PAD) -> Image.Image:
-    x0, y0, x1, y1 = box
-    x0 = max(0, x0 - pad)
-    y0 = max(0, y0 - pad)
-    x1 = min(im.size[0], x1 + pad)
-    y1 = min(im.size[1], y1 + pad)
-    return im.crop((x0, y0, x1, y1))
-
-
-def classify_small(size: tuple[int, int], area: int) -> str:
+def classify_small(size: tuple[int, int]) -> str:
     w, h = size
-    if h <= 36 or w <= 34 or area < 900:
+    if h <= 55 or w <= 50:
         return "tuft"
-    if h >= w * 1.35 and w <= 52:
+    if h >= w * 1.35 and w <= 80:
         return "tuft"
     return "bush"
 
 
-def slice_sheet(path: Path, min_area: int) -> tuple[Image.Image, list[tuple[int, int, int, int, int]]]:
-    im = Image.open(path)
-    vis = flood_bg_mask(im)
-    rgba = to_rgba_knockout(im, vis)
-    comps = sort_reading_order(components(vis, im.size[0], im.size[1], min_area))
-    return rgba, comps
+def process_trees_bushes() -> tuple[dict, dict]:
+    tree_items: dict = {}
+    bush_items: dict = {}
+    spawn = {"tree": [], "bush": [], "tuft": []}
 
+    big_src = INBOX / "Big Trees.png"
+    small_src = INBOX / "Small Trees.png"
+    big_frames = slice_grid(key_alpha(Image.open(big_src)), 2, 2)
+    small_frames = slice_grid(key_alpha(Image.open(small_src)), 2, 2)
+    print(f"Big Trees {len(big_frames)}  Small Trees {len(small_frames)}")
+    for i, fr in enumerate(big_frames, start=1):
+        name = f"tree_big_{i:02d}"
+        save_png(fr, TREES_DIR / f"{name}.png")
+        tree_items[name] = {
+            "file": f"{name}.png",
+            "size": [fr.size[0], fr.size[1]],
+            "role": "tree",
+            "source": "Assets upload/Big Trees.png",
+        }
+        spawn["tree"].append(name)
+        print(f"  {name} {fr.size[0]}x{fr.size[1]}")
+    for i, fr in enumerate(small_frames, start=1):
+        name = f"tree_small_{i:02d}"
+        save_png(fr, TREES_DIR / f"{name}.png")
+        tree_items[name] = {
+            "file": f"{name}.png",
+            "size": [fr.size[0], fr.size[1]],
+            "role": "tree",
+            "source": "Assets upload/Small Trees.png",
+        }
+        spawn["tree"].append(name)
+        print(f"  {name} {fr.size[0]}x{fr.size[1]}")
 
-def save_png(im: Image.Image, dest: Path) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    im.save(dest, format="PNG", optimize=True)
+    bush_rgba = key_alpha(Image.open(INBOX / "Big Bushes.png"))
+    # Handoff gutters: rows ~261/498, cols ~294/579/868
+    big_bush_frames = slice_grid(
+        bush_rgba,
+        4,
+        3,
+        col_splits=[0, 294, 579, 868, bush_rgba.size[0]],
+        row_splits=[0, 261, 498, bush_rgba.size[1]],
+    )
+    print(f"Big Bushes {len(big_bush_frames)}")
+    for i, fr in enumerate(big_bush_frames, start=1):
+        name = f"bush_big_{i:02d}"
+        save_png(fr, BUSHES_DIR / f"{name}.png")
+        bush_items[name] = {
+            "file": f"{name}.png",
+            "size": [fr.size[0], fr.size[1]],
+            "role": "bush",
+            "source": "Assets upload/Big Bushes.png",
+        }
+        spawn["bush"].append(name)
+        print(f"  {name} {fr.size[0]}x{fr.size[1]}")
 
+    small_rgba = key_alpha(Image.open(INBOX / "small bushes.png"))
+    comps = components(small_rgba, 80)[:64]
+    print(f"small bushes {len(comps)}")
+    for i, (x0, y0, x1, y1, _area) in enumerate(comps, start=1):
+        fr = maybe_nn_cap(crop_pad(small_rgba, (x0, y0, x1, y1)))
+        name = f"bush_small_{i:02d}"
+        save_png(fr, BUSHES_DIR / f"{name}.png")
+        role = classify_small(fr.size)
+        bush_items[name] = {
+            "file": f"{name}.png",
+            "size": [fr.size[0], fr.size[1]],
+            "role": role,
+            "source": "Assets upload/small bushes.png",
+        }
+        spawn[role].append(name)
 
-def process_trees() -> dict:
-    items: dict = {}
-    spawn: dict[str, list[str]] = {"tree": [], "bush": [], "tuft": []}
-
-    sheets = [
-        ("Big Trees.png", "tree_haex_big", TREES_DIR, "tree", 2000),
-        ("Small Trees.png", "tree_haex_small", TREES_DIR, "tree", 2000),
-        ("Big Bushes.png", "bush_haex_big", BUSHES_DIR, "bush", 800),
-        ("small bushes.png", "bush_haex_small", BUSHES_DIR, "small", 80),
-    ]
-    for fname, prefix, out_dir, role, min_area in sheets:
-        src = INBOX / fname
-        rgba, comps = slice_sheet(src, min_area)
-        print(f"{fname}: {len(comps)} sprites")
-        for i, (x0, y0, x1, y1, area) in enumerate(comps):
-            crop = crop_pad(rgba, (x0, y0, x1, y1))
-            half = nn_half(crop)
-            name = f"{prefix}_{i:02d}.png"
-            rel_dir = "bushes/" if out_dir == BUSHES_DIR else ""
-            rel = f"{rel_dir}{name}"
-            save_png(half, out_dir / name)
-            kind = role
-            if role == "small":
-                kind = classify_small(half.size, (half.size[0] * half.size[1]))
-            items[name[:-4]] = {
-                "file": rel,
-                "size": [half.size[0], half.size[1]],
-                "role": kind,
-                "source": f"Assets upload/{fname}",
-                "native_box": [x0, y0, x1, y1],
-            }
-            spawn[kind if kind in spawn else "bush"].append(name[:-4])
-    return {"items": items, "spawn": spawn}
+    return {"trees": tree_items, "bushes": bush_items, "spawn": spawn}
 
 
 def fit_keeper_128(src: Path) -> Image.Image:
-    """NN 50% of 170×256 canvas → 85×128, pad to 128×128, feet at bottom-center."""
     im = Image.open(src).convert("RGBA")
-    if im.size != (170, 256):
-        # Still map onto 128×128 with NN, preserving aspect, feet bottom-center.
-        scale = min(128 / im.size[0], 128 / im.size[1])
-        nw = max(1, int(round(im.size[0] * scale)))
-        nh = max(1, int(round(im.size[1] * scale)))
-        scaled = im.resize((nw, nh), Image.Resampling.NEAREST)
-    else:
-        scaled = im.resize((85, 128), Image.Resampling.NEAREST)
+    scale = min(128 / im.size[0], 128 / im.size[1])
+    nw = max(1, int(round(im.size[0] * scale)))
+    nh = max(1, int(round(im.size[1] * scale)))
+    scaled = im.resize((nw, nh), Image.Resampling.NEAREST)
     canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
     x = (128 - scaled.size[0]) // 2
     y = 128 - scaled.size[1]
@@ -209,139 +231,209 @@ def fit_keeper_128(src: Path) -> Image.Image:
     return canvas
 
 
-def process_keeper() -> dict:
+def process_keeper() -> None:
     idle_src = INBOX / "keeper" / "idle_south.png"
     idle = fit_keeper_128(idle_src)
     save_png(idle, KEEPER_DIR / "keeper_idle_south.png")
+    save_png(idle, KEEPER_DIR / "keeper_idle_south_0000.png")
+    shutil.copy2(idle_src, NATIVE_DIR / "keeper_idle_south_256.png")
 
-    walk_files = []
-    frames = []
+    frames_128 = []
+    frames_native = []
     for i in range(1, 10):
         src = INBOX / "keeper" / f"walk_south_{i:02d}.png"
         fr = fit_keeper_128(src)
-        name = f"keeper_walk_south_{i - 1:04d}.png"
-        save_png(fr, KEEPER_DIR / name)
-        walk_files.append(name)
-        frames.append(fr)
+        save_png(fr, KEEPER_DIR / f"keeper_walk_south_{i:04d}.png")
+        shutil.copy2(src, NATIVE_DIR / f"keeper_walk_south_{i:04d}_256.png")
+        frames_128.append(fr)
+        frames_native.append(Image.open(src).convert("RGBA"))
 
-    strip = Image.new("RGBA", (128 * len(frames), 128), (0, 0, 0, 0))
-    for i, fr in enumerate(frames):
+    strip = Image.new("RGBA", (128 * 9, 128), (0, 0, 0, 0))
+    for i, fr in enumerate(frames_128):
         strip.paste(fr, (i * 128, 0), fr)
     save_png(strip, KEEPER_DIR / "keeper_walk_south.png")
-    return {
-        "idle_file": "keeper_idle_south.png",
-        "walk_files": walk_files,
-        "walk_strip": "keeper_walk_south.png",
-        "source": "Assets upload/keeper/",
-        "process": "NN 50% of 170x256 then pad to 128x128, feet bottom-center",
-    }
+
+    nw, nh = frames_native[0].size
+    nstrip = Image.new("RGBA", (nw * 9, nh), (0, 0, 0, 0))
+    for i, fr in enumerate(frames_native):
+        nstrip.paste(fr, (i * nw, 0), fr)
+    save_png(nstrip, NATIVE_DIR / "keeper_walk_south_256_strip.png")
 
 
-def merge_trees_meta(sliced: dict) -> None:
+def write_trees_meta(tree_items: dict, spawn: dict) -> None:
     meta_path = TREES_DIR / "trees_meta.json"
-    old = json.loads(meta_path.read_text())
-    items = dict(old.get("items", {}))
-    items.update(sliced["items"])
-    old["items"] = items
-    old["spawn_catalog"] = sliced["spawn"]
-    old["filter"] = "nearest"
-    old["anchor"] = "base_center"
-    old["version"] = "haex_inbox_v1"
-    old["inbox"] = "Assets upload/"
-    old["notes"] = (
-        "Haex inbox sheets sliced (PNG, black knockout, NN 50%). "
-        "Decorative only — harvest nodes stay in props/. "
-        "Originals remain in Assets upload/."
-    )
-    old["scale"] = "nearest_neighbor_50_percent"
-    meta_path.write_text(json.dumps(old, indent=2) + "\n")
+    old = json.loads(meta_path.read_text()) if meta_path.exists() else {}
+    items = {}
+    for k, v in (old.get("items") or {}).items():
+        if str(k).startswith("tree_haex") or str(k).startswith("bush_haex"):
+            continue
+        items[k] = v
+    items.update(tree_items)
+    meta = {
+        "filter": "nearest",
+        "anchor": "base_center",
+        "version": "v0.1.13-assets-upload",
+        "inbox": "Assets upload/",
+        "notes": (
+            "v0.1.13 cleaned frames (bbox+2px, no downscale). "
+            "Decorative only — harvest nodes stay in props/. "
+            "Bushes live in assets/art/bushes/. Originals remain in Assets upload/."
+        ),
+        "items": items,
+        "spawn_catalog": {"tree": spawn["tree"]},
+    }
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n")
 
 
-def merge_keeper_meta(info: dict) -> None:
+def write_bushes_meta(bush_items: dict, spawn: dict) -> None:
+    meta = {
+        "filter": "nearest",
+        "anchor": "base_center",
+        "version": "v0.1.13-assets-upload",
+        "dir": "bushes/",
+        "inbox": "Assets upload/",
+        "grid_decisions": {
+            "Big Bushes.png": "3x4 (gutters rows 261/498, cols 294/579/868) — not 2x2",
+            "small bushes.png": "4-connected components, min_area 80, row-banded, 57 frames",
+        },
+        "notes": "Decorative undergrowth. Variable bbox sizes. y-sort on base_center.",
+        "items": bush_items,
+        "spawn_catalog": {"bush": spawn["bush"], "tuft": spawn["tuft"]},
+    }
+    BUSHES_DIR.mkdir(parents=True, exist_ok=True)
+    (BUSHES_DIR / "bushes_meta.json").write_text(json.dumps(meta, indent=2) + "\n")
+
+
+def write_keeper_meta() -> None:
     meta_path = KEEPER_DIR / "keeper_meta.json"
     meta = json.loads(meta_path.read_text())
-    clips = dict(meta.get("clips", {}))
-    clips["idle_front"] = {
-        "alias": "idle_south",
-        "frames": 1,
-        "hold_ms": 140,
-        "files": ["keeper_idle_south.png"],
-        "source": "Assets upload/keeper/idle_south.png",
+    clips = {
+        "idle_front": {
+            "frames": 4,
+            "hold_ms": 140,
+            "strip": "keeper_idle_front.png",
+            "layout": "horizontal",
+        },
+        "idle_back": meta.get("clips", {}).get("idle_back", {
+            "frames": 1,
+            "hold_ms": 140,
+            "files": ["keeper_idle_back_0000.png"],
+        }),
+        "walk_back": meta.get("clips", {}).get("walk_back", {
+            "frames": 6,
+            "hold_ms": 90,
+            "strip": "keeper_walk_back.png",
+            "layout": "horizontal",
+        }),
+        "idle_south": {
+            "frames": 1,
+            "hold_ms": 140,
+            "files": ["keeper_idle_south_0000.png"],
+            "file": "keeper_idle_south.png",
+            "native": "native/keeper_idle_south_256.png",
+            "source_size": [170, 256],
+        },
+        "walk_south": {
+            "frames": 9,
+            "hold_ms": 100,
+            "strip": "keeper_walk_south.png",
+            "layout": "horizontal",
+            "files": [f"keeper_walk_south_{i:04d}.png" for i in range(1, 10)],
+            "native_strip": "native/keeper_walk_south_256_strip.png",
+            "source_size": [170, 256],
+            "filter": "nearest",
+        },
+        "walk_front": {
+            "alias": "walk_south",
+            "frames": 9,
+            "hold_ms": 100,
+        },
     }
-    clips["idle_south"] = clips["idle_front"]
-    clips["walk_front"] = {
-        "alias": "walk_south",
-        "frames": 9,
-        "hold_ms": 90,
-        "strip": "keeper_walk_south.png",
-        "files": info["walk_files"],
-        "layout": "horizontal",
-        "source": "Assets upload/keeper/walk_south_01.png … walk_south_09.png",
-    }
-    clips["walk_south"] = clips["walk_front"]
     meta["clips"] = clips
     meta["canvas"] = [128, 128]
     meta["anchor"] = "feet_center"
     meta["anchor_px"] = [64, 128]
     meta["filter"] = "nearest"
-    meta["version"] = "haex_south_walk_v1"
+    meta["version"] = "v0.1.13-assets-upload"
     meta["notes"] = (
-        "South idle/walk from Haex inbox, NN-fit to 128×128. "
-        "Back clips unchanged. Filter nearest."
+        "South idle+walk from Art v0.1.13 pack. Primary canvas 128x128 NN fit, "
+        "feet bottom-center, walk hold_ms 100. Native 170x256 under keeper/native/. "
+        "Back clips unchanged."
     )
     meta["inbox"] = "Assets upload/keeper/"
     meta_path.write_text(json.dumps(meta, indent=2) + "\n")
 
 
-def merge_art_manifest() -> None:
+def write_manifest() -> None:
     path = ROOT / "assets" / "art" / "MANIFEST.json"
     man = json.loads(path.read_text())
-    man["version"] = "v0.1.13-haex-forest-keeper-south"
-    man["trees"] = {
-        "dir": "trees/",
-        "meta": "trees/trees_meta.json",
-        "inbox": "Assets upload/",
-        "version": "haex_inbox_v1",
-    }
+    man["version"] = "v0.1.13-assets-upload"
+    man["filter"] = "nearest"
     man["keeper"] = {
         "dir": "keeper/",
         "canvas": [128, 128],
         "meta": "keeper/keeper_meta.json",
-        "version": "haex_south_walk_v1",
+        "version": "v0.1.13-assets-upload",
         "inbox": "Assets upload/keeper/",
+        "native": "keeper/native/",
+    }
+    man["trees"] = {
+        "dir": "trees/",
+        "meta": "trees/trees_meta.json",
+        "inbox": "Assets upload/",
+        "version": "v0.1.13-assets-upload",
+        "anchor": "base_center",
+    }
+    man["bushes"] = {
+        "dir": "bushes/",
+        "meta": "bushes/bushes_meta.json",
+        "version": "v0.1.13-assets-upload",
+        "anchor": "base_center",
     }
     path.write_text(json.dumps(man, indent=2) + "\n")
 
 
 def write_inbox_note() -> None:
-    note = INBOX / "README.md"
-    text = (
+    (INBOX / "README.md").write_text(
         "# Assets upload (Haex inbox)\n\n"
         "Original sheets and Keeper frames. **Do not delete.**\n\n"
-        "Gameplay copies (sliced, NN 50%, transparent):\n\n"
-        "- Trees/bushes → `assets/art/trees/` and `assets/art/trees/bushes/`\n"
-        "- Keeper south idle/walk → `assets/art/keeper/keeper_idle_south.png`, "
-        "`keeper_walk_south_0000.png`–`0008.png`\n\n"
-        "Prefer PNG over JPG. Re-slice with `python3 tools/slice_haex_inbox.py`.\n"
+        "Gameplay copies follow Art Direction **v0.1.13-assets-upload**:\n\n"
+        "- Trees → `assets/art/trees/tree_big_01–04`, `tree_small_01–04`\n"
+        "- Bushes → `assets/art/bushes/bush_big_01–12`, `bush_small_01–57`\n"
+        "- Keeper south → `assets/art/keeper/keeper_idle_south.png`, "
+        "`keeper_walk_south_0001.png`–`0009.png` (128×128); native 170×256 in `keeper/native/`\n\n"
+        "Prefer PNG over JPG. Rebuild: `python3 tools/slice_haex_inbox.py`.\n"
     )
-    note.write_text(text)
+
+
+def cleanup_old() -> None:
+    for p in TREES_DIR.glob("tree_haex_*.png"):
+        p.unlink()
+    old_bushes = TREES_DIR / "bushes"
+    if old_bushes.exists():
+        shutil.rmtree(old_bushes)
+    for p in KEEPER_DIR.glob("keeper_walk_south_0000.png"):
+        p.unlink()
 
 
 def main() -> None:
-    os.chdir(ROOT)
-    sliced = process_trees()
-    keeper = process_keeper()
-    merge_trees_meta(sliced)
-    merge_keeper_meta(keeper)
-    merge_art_manifest()
+    BUSHES_DIR.mkdir(parents=True, exist_ok=True)
+    NATIVE_DIR.mkdir(parents=True, exist_ok=True)
+    sliced = process_trees_bushes()
+    process_keeper()
+    write_trees_meta(sliced["trees"], sliced["spawn"])
+    write_bushes_meta(sliced["bushes"], sliced["spawn"])
+    write_keeper_meta()
+    write_manifest()
     write_inbox_note()
-    n_items = len(sliced["items"])
+    cleanup_old()
     print(
-        f"done: {n_items} forest frames, "
-        f"trees={len(sliced['spawn']['tree'])} "
-        f"bushes={len(sliced['spawn']['bush'])} "
-        f"tufts={len(sliced['spawn']['tuft'])}, "
-        f"keeper walk={len(keeper['walk_files'])}"
+        "done trees=%d bushes=%d tufts=%d"
+        % (
+            len(sliced["spawn"]["tree"]),
+            len(sliced["spawn"]["bush"]),
+            len(sliced["spawn"]["tuft"]),
+        )
     )
 
 

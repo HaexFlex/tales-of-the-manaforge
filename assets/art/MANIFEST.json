@@ -1,5 +1,5 @@
 {
-  "version": "v0.1.13-haex-forest-keeper-south",
+  "version": "v0.1.13-assets-upload",
   "bible": "/home/box/manaforge/VISUAL_BIBLE_RESTART_V01.md",
   "filter": "nearest",
   "keeper": {
@@ -9,8 +9,9 @@
       128
     ],
     "meta": "keeper/keeper_meta.json",
-    "version": "haex_south_walk_v1",
-    "inbox": "Assets upload/keeper/"
+    "version": "v0.1.13-assets-upload",
+    "inbox": "Assets upload/keeper/",
+    "native": "keeper/native/"
   },
   "manatree": {
     "dir": "manatree/",
@@ -46,11 +47,18 @@
     "dir": "trees/",
     "meta": "trees/trees_meta.json",
     "inbox": "Assets upload/",
-    "version": "haex_inbox_v1"
+    "version": "v0.1.13-assets-upload",
+    "anchor": "base_center"
   },
   "overnight_sources": [
     "overnight/grass_tile_draft.png",
     "overnight/forest_tree_draft.png"
   ],
-  "harvest_nodes": "props/harvest_nodes_meta.json"
+  "harvest_nodes": "props/harvest_nodes_meta.json",
+  "bushes": {
+    "dir": "bushes/",
+    "meta": "bushes/bushes_meta.json",
+    "version": "v0.1.13-assets-upload",
+    "anchor": "base_center"
+  }
 }

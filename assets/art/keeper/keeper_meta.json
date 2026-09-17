@@ -11,13 +11,10 @@
   "filter": "nearest",
   "clips": {
     "idle_front": {
-      "alias": "idle_south",
-      "frames": 1,
+      "frames": 4,
       "hold_ms": 140,
-      "files": [
-        "keeper_idle_south.png"
-      ],
-      "source": "Assets upload/keeper/idle_south.png"
+      "strip": "keeper_idle_front.png",
+      "layout": "horizontal"
     },
     "idle_back": {
       "frames": 1,
@@ -33,54 +30,48 @@
       "layout": "horizontal"
     },
     "idle_south": {
-      "alias": "idle_south",
       "frames": 1,
       "hold_ms": 140,
       "files": [
-        "keeper_idle_south.png"
+        "keeper_idle_south_0000.png"
       ],
-      "source": "Assets upload/keeper/idle_south.png"
+      "file": "keeper_idle_south.png",
+      "native": "native/keeper_idle_south_256.png",
+      "source_size": [
+        170,
+        256
+      ]
+    },
+    "walk_south": {
+      "frames": 9,
+      "hold_ms": 100,
+      "strip": "keeper_walk_south.png",
+      "layout": "horizontal",
+      "files": [
+        "keeper_walk_south_0001.png",
+        "keeper_walk_south_0002.png",
+        "keeper_walk_south_0003.png",
+        "keeper_walk_south_0004.png",
+        "keeper_walk_south_0005.png",
+        "keeper_walk_south_0006.png",
+        "keeper_walk_south_0007.png",
+        "keeper_walk_south_0008.png",
+        "keeper_walk_south_0009.png"
+      ],
+      "native_strip": "native/keeper_walk_south_256_strip.png",
+      "source_size": [
+        170,
+        256
+      ],
+      "filter": "nearest"
     },
     "walk_front": {
       "alias": "walk_south",
       "frames": 9,
-      "hold_ms": 90,
-      "strip": "keeper_walk_south.png",
-      "files": [
-        "keeper_walk_south_0000.png",
-        "keeper_walk_south_0001.png",
-        "keeper_walk_south_0002.png",
-        "keeper_walk_south_0003.png",
-        "keeper_walk_south_0004.png",
-        "keeper_walk_south_0005.png",
-        "keeper_walk_south_0006.png",
-        "keeper_walk_south_0007.png",
-        "keeper_walk_south_0008.png"
-      ],
-      "layout": "horizontal",
-      "source": "Assets upload/keeper/walk_south_01.png \u2026 walk_south_09.png"
-    },
-    "walk_south": {
-      "alias": "walk_south",
-      "frames": 9,
-      "hold_ms": 90,
-      "strip": "keeper_walk_south.png",
-      "files": [
-        "keeper_walk_south_0000.png",
-        "keeper_walk_south_0001.png",
-        "keeper_walk_south_0002.png",
-        "keeper_walk_south_0003.png",
-        "keeper_walk_south_0004.png",
-        "keeper_walk_south_0005.png",
-        "keeper_walk_south_0006.png",
-        "keeper_walk_south_0007.png",
-        "keeper_walk_south_0008.png"
-      ],
-      "layout": "horizontal",
-      "source": "Assets upload/keeper/walk_south_01.png \u2026 walk_south_09.png"
+      "hold_ms": 100
     }
   },
-  "notes": "South idle/walk from Haex inbox, NN-fit to 128\u00d7128. Back clips unchanged. Filter nearest.",
-  "version": "haex_south_walk_v1",
+  "notes": "South idle+walk from Art v0.1.13 pack. Primary canvas 128x128 NN fit, feet bottom-center, walk hold_ms 100. Native 170x256 under keeper/native/. Back clips unchanged.",
+  "version": "v0.1.13-assets-upload",
   "inbox": "Assets upload/keeper/"
 }

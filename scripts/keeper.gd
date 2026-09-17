@@ -26,6 +26,7 @@ const INTERACT_DIST: float = 64.0
 const BODY_SIZE: Vector2 = Vector2(128, 128)
 const IDLE_HOLD_MS: float = 140.0
 const WALK_HOLD_MS: float = 90.0
+const WALK_SOUTH_HOLD_MS: float = 100.0
 
 
 func _ready() -> void:
@@ -69,7 +70,6 @@ func _build_frames() -> SpriteFrames:
 		"res://assets/art/keeper/keeper_idle_back_0000.png",
 	], IDLE_HOLD_MS)
 	_add_anim(frames, &"walk_front", [
-		"res://assets/art/keeper/keeper_walk_south_0000.png",
 		"res://assets/art/keeper/keeper_walk_south_0001.png",
 		"res://assets/art/keeper/keeper_walk_south_0002.png",
 		"res://assets/art/keeper/keeper_walk_south_0003.png",
@@ -78,9 +78,9 @@ func _build_frames() -> SpriteFrames:
 		"res://assets/art/keeper/keeper_walk_south_0006.png",
 		"res://assets/art/keeper/keeper_walk_south_0007.png",
 		"res://assets/art/keeper/keeper_walk_south_0008.png",
-	], WALK_HOLD_MS)
+		"res://assets/art/keeper/keeper_walk_south_0009.png",
+	], WALK_SOUTH_HOLD_MS)
 	_add_anim(frames, &"walk_south", [
-		"res://assets/art/keeper/keeper_walk_south_0000.png",
 		"res://assets/art/keeper/keeper_walk_south_0001.png",
 		"res://assets/art/keeper/keeper_walk_south_0002.png",
 		"res://assets/art/keeper/keeper_walk_south_0003.png",
@@ -89,7 +89,8 @@ func _build_frames() -> SpriteFrames:
 		"res://assets/art/keeper/keeper_walk_south_0006.png",
 		"res://assets/art/keeper/keeper_walk_south_0007.png",
 		"res://assets/art/keeper/keeper_walk_south_0008.png",
-	], WALK_HOLD_MS)
+		"res://assets/art/keeper/keeper_walk_south_0009.png",
+	], WALK_SOUTH_HOLD_MS)
 	_add_anim(frames, &"walk_back", [
 		"res://assets/art/keeper/keeper_walk_back_0000.png",
 		"res://assets/art/keeper/keeper_walk_back_0001.png",

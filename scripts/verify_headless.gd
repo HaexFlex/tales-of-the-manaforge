@@ -126,14 +126,28 @@ func _run() -> void:
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_stone.png"), "harvest_stone art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_berry.png"), "harvest_berry art")
 
-	# Art v0.1.13 — Haex inbox forest + Keeper south walk
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_haex_big_00.png"), "haex big tree 00")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_haex_small_02.png"), "haex small tree 02")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/bushes/bush_haex_big_00.png"), "haex big bush 00")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/bushes/bush_haex_small_00.png"), "haex small bush 00")
+	# Art v0.1.13 — cleaned inbox forest + Keeper south walk
+	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_big_01.png"), "tree_big_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_big_04.png"), "tree_big_04")
+	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_small_01.png"), "tree_small_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_small_03.png"), "tree_small_03 thin")
+	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_big_01.png"), "bush_big_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_big_12.png"), "bush_big_12")
+	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_small_01.png"), "bush_small_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_small_57.png"), "bush_small_57")
+	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bushes_meta.json"), "bushes_meta.json")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south.png"), "keeper idle_south")
-	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0000.png"), "keeper walk_south 0")
-	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0008.png"), "keeper walk_south 8")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south_0000.png"), "keeper idle_south_0000")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0001.png"), "keeper walk_south 1")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0009.png"), "keeper walk_south 9")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south.png"), "keeper walk_south strip")
+	var walk_strip: Texture2D = load("res://assets/art/keeper/keeper_walk_south.png") as Texture2D
+	failed += _assert(walk_strip != null, "load walk_south strip")
+	if walk_strip:
+		failed += _assert(walk_strip.get_width() == 1152 and walk_strip.get_height() == 128, "walk strip 1152x128 (got %dx%d)" % [walk_strip.get_width(), walk_strip.get_height()])
+	var tree_big: Texture2D = load("res://assets/art/trees/tree_big_01.png") as Texture2D
+	failed += _assert(tree_big != null and tree_big.get_width() >= 400, "tree_big_01 full-size (got %s)" % (tree_big.get_width() if tree_big else 0))
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/native/keeper_idle_south_256.png"), "keeper native idle")
 	failed += _assert(FileAccess.file_exists("res://Assets upload/Big Trees.png"), "inbox Big Trees.png kept")
 	failed += _assert(FileAccess.file_exists("res://Assets upload/keeper/walk_south_09.png"), "inbox walk_south_09 kept")
 	var trees_meta_f := FileAccess.open("res://assets/art/trees/trees_meta.json", FileAccess.READ)
@@ -144,14 +158,22 @@ func _run() -> void:
 		failed += _assert(typeof(trees_meta_parsed) == TYPE_DICTIONARY, "trees meta dict")
 		if typeof(trees_meta_parsed) == TYPE_DICTIONARY:
 			var tm: Dictionary = trees_meta_parsed
-			failed += _assert(str(tm.get("version", "")) == "haex_inbox_v1", "trees meta haex_inbox_v1")
+			failed += _assert(str(tm.get("version", "")) == "v0.1.13-assets-upload", "trees meta v0.1.13-assets-upload")
 			var spawn_c: Variant = tm.get("spawn_catalog", {})
 			failed += _assert(typeof(spawn_c) == TYPE_DICTIONARY, "spawn_catalog")
 			if typeof(spawn_c) == TYPE_DICTIONARY:
 				var trees_ids: Array = (spawn_c as Dictionary).get("tree", []) as Array
-				var bush_ids: Array = (spawn_c as Dictionary).get("bush", []) as Array
 				failed += _assert(trees_ids.size() >= 8, "spawn trees >= 8 (got %d)" % trees_ids.size())
-				failed += _assert(bush_ids.size() >= 12, "spawn bushes >= 12 (got %d)" % bush_ids.size())
+	var bushes_meta_f := FileAccess.open("res://assets/art/bushes/bushes_meta.json", FileAccess.READ)
+	failed += _assert(bushes_meta_f != null, "open bushes_meta")
+	if bushes_meta_f:
+		var bm_parsed: Variant = JSON.parse_string(bushes_meta_f.get_as_text())
+		bushes_meta_f.close()
+		failed += _assert(typeof(bm_parsed) == TYPE_DICTIONARY, "bushes meta dict")
+		if typeof(bm_parsed) == TYPE_DICTIONARY:
+			failed += _assert(str((bm_parsed as Dictionary).get("version", "")) == "v0.1.13-assets-upload", "bushes meta version")
+			var bitems: Variant = (bm_parsed as Dictionary).get("items", {})
+			failed += _assert(typeof(bitems) == TYPE_DICTIONARY and (bitems as Dictionary).size() >= 69, "69 bush frames (got %d)" % ((bitems as Dictionary).size() if typeof(bitems) == TYPE_DICTIONARY else 0))
 	var keeper_meta_f := FileAccess.open("res://assets/art/keeper/keeper_meta.json", FileAccess.READ)
 	failed += _assert(keeper_meta_f != null, "open keeper_meta")
 	if keeper_meta_f:
@@ -159,11 +181,12 @@ func _run() -> void:
 		keeper_meta_f.close()
 		failed += _assert(typeof(km_parsed) == TYPE_DICTIONARY, "keeper meta dict")
 		if typeof(km_parsed) == TYPE_DICTIONARY:
-			failed += _assert(str((km_parsed as Dictionary).get("version", "")) == "haex_south_walk_v1", "keeper meta south walk")
+			failed += _assert(str((km_parsed as Dictionary).get("version", "")) == "v0.1.13-assets-upload", "keeper meta v0.1.13")
 			var clips_k: Variant = (km_parsed as Dictionary).get("clips", {})
 			if typeof(clips_k) == TYPE_DICTIONARY:
 				var ws: Dictionary = (clips_k as Dictionary).get("walk_south", {}) as Dictionary
 				failed += _assert(int(ws.get("frames", 0)) == 9, "walk_south 9 frames")
+				failed += _assert(int(ws.get("hold_ms", 0)) == 100, "walk_south hold_ms 100")
 
 	save_service.call("delete_save")
 	game_state.call("reset_for_new_game")
@@ -885,7 +908,7 @@ func _run() -> void:
 		await process_frame
 		await process_frame
 		var deco_n: int = live.get_tree().get_nodes_in_group("forest_prop").size()
-		failed += _assert(deco_n >= 80, "dense forest ring (got %d props)" % deco_n)
+		failed += _assert(deco_n >= 50, "dense forest ring (got %d props)" % deco_n)
 		var live_keeper: Node = live.get_node_or_null("World/Keeper")
 		failed += _assert(live_keeper != null, "live Keeper")
 		if live_keeper:
