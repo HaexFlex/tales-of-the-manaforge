@@ -11,10 +11,13 @@
   "filter": "nearest",
   "clips": {
     "idle_front": {
-      "frames": 4,
+      "alias": "idle_south",
+      "frames": 1,
       "hold_ms": 140,
-      "strip": "keeper_idle_front.png",
-      "layout": "horizontal"
+      "files": [
+        "keeper_idle_south.png"
+      ],
+      "source": "Assets upload/keeper/idle_south.png"
     },
     "idle_back": {
       "frames": 1,
@@ -28,7 +31,56 @@
       "hold_ms": 90,
       "strip": "keeper_walk_back.png",
       "layout": "horizontal"
+    },
+    "idle_south": {
+      "alias": "idle_south",
+      "frames": 1,
+      "hold_ms": 140,
+      "files": [
+        "keeper_idle_south.png"
+      ],
+      "source": "Assets upload/keeper/idle_south.png"
+    },
+    "walk_front": {
+      "alias": "walk_south",
+      "frames": 9,
+      "hold_ms": 90,
+      "strip": "keeper_walk_south.png",
+      "files": [
+        "keeper_walk_south_0000.png",
+        "keeper_walk_south_0001.png",
+        "keeper_walk_south_0002.png",
+        "keeper_walk_south_0003.png",
+        "keeper_walk_south_0004.png",
+        "keeper_walk_south_0005.png",
+        "keeper_walk_south_0006.png",
+        "keeper_walk_south_0007.png",
+        "keeper_walk_south_0008.png"
+      ],
+      "layout": "horizontal",
+      "source": "Assets upload/keeper/walk_south_01.png \u2026 walk_south_09.png"
+    },
+    "walk_south": {
+      "alias": "walk_south",
+      "frames": 9,
+      "hold_ms": 90,
+      "strip": "keeper_walk_south.png",
+      "files": [
+        "keeper_walk_south_0000.png",
+        "keeper_walk_south_0001.png",
+        "keeper_walk_south_0002.png",
+        "keeper_walk_south_0003.png",
+        "keeper_walk_south_0004.png",
+        "keeper_walk_south_0005.png",
+        "keeper_walk_south_0006.png",
+        "keeper_walk_south_0007.png",
+        "keeper_walk_south_0008.png"
+      ],
+      "layout": "horizontal",
+      "source": "Assets upload/keeper/walk_south_01.png \u2026 walk_south_09.png"
     }
   },
-  "notes": "Processed from refs via NN fit + quantize. Walk is placeholder bob; replace with true cycle later."
+  "notes": "South idle/walk from Haex inbox, NN-fit to 128\u00d7128. Back clips unchanged. Filter nearest.",
+  "version": "haex_south_walk_v1",
+  "inbox": "Assets upload/keeper/"
 }

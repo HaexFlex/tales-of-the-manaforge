@@ -30,6 +30,9 @@ const CLEAR_POINTS: Array[Vector2] = [
 	Vector2(900, 560),
 	Vector2(480, 520),
 ]
+## Larger open glade than the old 28-tree edge bands (screen 1280×720).
+const GLADE := Rect2(145, 175, 990, 515)
+const TREES_META_PATH: String = "res://assets/art/trees/trees_meta.json"
 
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
@@ -70,70 +73,172 @@ func _build_grass() -> void:
 				atlas.create_tile(coords)
 	var src_id: int = ts.add_source(atlas, 0)
 	ground.tile_set = ts
+	## Calmer grass in the open glade; mixed tiles under the forest ring.
 	for x: int in range(COLS):
 		for y: int in range(ROWS):
-			var pick: Vector2i = ATLAS_GRASS[(x * 3 + y * 5) % ATLAS_GRASS.size()]
+			var world_pt := Vector2(float(x * TILE + TILE / 2), float(y * TILE + TILE / 2))
+			var pick: Vector2i
+			if GLADE.has_point(world_pt):
+				pick = ATLAS_GRASS[(x + y) % 2]
+			else:
+				pick = ATLAS_GRASS[(x * 3 + y * 5) % ATLAS_GRASS.size()]
 			ground.set_cell(0, Vector2i(x, y), src_id, pick)
 	var mid_x: int = 10
 	var mid_y: int = 6
-	for x: int in range(3, 17):
+	## Wider hub path so the clearing reads as a glade, not a trail.
+	for x: int in range(2, 18):
 		ground.set_cell(0, Vector2i(x, mid_y), src_id, ATLAS_PATH_H)
-	for y: int in range(4, 10):
+	for y: int in range(3, 11):
 		ground.set_cell(0, Vector2i(mid_x, y), src_id, ATLAS_PATH_V)
 	ground.set_cell(0, Vector2i(mid_x, mid_y), src_id, ATLAS_PATH_CROSS)
-	for x: int in range(3, 8):
+	for x: int in range(2, 8):
 		ground.set_cell(0, Vector2i(x, 8), src_id, ATLAS_PATH_H)
-	for x: int in range(13, 17):
+	for x: int in range(13, 18):
 		ground.set_cell(0, Vector2i(x, 8), src_id, ATLAS_PATH_H)
+	for x: int in range(8, 13):
+		for y: int in range(5, 8):
+			if abs(x - mid_x) + abs(y - mid_y) <= 3:
+				ground.set_cell(0, Vector2i(x, y), src_id, ATLAS_PATH_CROSS if x == mid_x or y == mid_y else ATLAS_PATH_H)
 
 
 func _spawn_forest_props() -> void:
-	## 15–40 Y-sorted decorative (non-interactive) trees around clearing edges.
-	var catalog: Array[Dictionary] = [
-		{"tex": "res://assets/art/trees/tree_forest_imagine.png", "size": Vector2(128, 160)},
-		{"tex": "res://assets/art/trees/tree_oak_b.png", "size": Vector2(128, 160)},
-		{"tex": "res://assets/art/trees/tree_oak_a.png", "size": Vector2(96, 128)},
-		{"tex": "res://assets/art/trees/tree_pine_a.png", "size": Vector2(80, 144)},
-		{"tex": "res://assets/art/trees/tree_autumn_a.png", "size": Vector2(96, 128)},
-		{"tex": "res://assets/art/trees/bush_a.png", "size": Vector2(64, 48)},
-		{"tex": "res://assets/art/trees/stump_a.png", "size": Vector2(48, 40)},
-	]
+	## Dense Y-sorted decorative ring around a larger open glade. Not harvestable.
+	var meta: Dictionary = _load_trees_meta()
+	var items: Dictionary = meta.get("items", {}) as Dictionary
+	var catalog: Dictionary = meta.get("spawn_catalog", {}) as Dictionary
+	var tree_entries: Array[Dictionary] = _catalog_entries(items, catalog.get("tree", []) as Array)
+	var bush_entries: Array[Dictionary] = _catalog_entries(items, catalog.get("bush", []) as Array)
+	var tuft_entries: Array[Dictionary] = _catalog_entries(items, catalog.get("tuft", []) as Array)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 20260915
-	var placed: int = 0
-	var attempts: int = 0
-	while placed < 28 and attempts < 200:
-		attempts += 1
-		var edge: int = attempts % 4
-		var pos: Vector2
-		match edge:
-			0:
-				pos = Vector2(rng.randf_range(40, 1240), rng.randf_range(80, 220))
-			1:
-				pos = Vector2(rng.randf_range(40, 1240), rng.randf_range(620, 700))
-			2:
-				pos = Vector2(rng.randf_range(40, 180), rng.randf_range(200, 680))
-			_:
-				pos = Vector2(rng.randf_range(1100, 1240), rng.randf_range(200, 680))
-		if not _clear_of_landmarks(pos, 110.0):
+	rng.seed = 20260917
+	var occupied: Array[Vector2] = []
+	## Outer canopy wall (top / sides / corners) — lots of overlapping Haex trees.
+	_scatter_grid(rng, tree_entries, occupied, 18, 3, Rect2(16, 42, 1248, 128), 48.0, 18.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 3, 9, Rect2(8, 150, 128, 530), 46.0, 14.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 3, 9, Rect2(1144, 150, 128, 530), 46.0, 14.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 6, 2, Rect2(8, 640, 220, 72), 50.0, 12.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 6, 2, Rect2(1052, 640, 220, 72), 50.0, 12.0, 0.0)
+	## Bushes along the inner forest edge (may sit a little into the glade).
+	_scatter_grid(rng, bush_entries, occupied, 16, 1, Rect2(40, 168, 1200, 36), 32.0, 10.0, 28.0)
+	_scatter_grid(rng, bush_entries, occupied, 2, 10, Rect2(118, 190, 50, 470), 30.0, 8.0, 28.0)
+	_scatter_grid(rng, bush_entries, occupied, 2, 10, Rect2(1110, 190, 50, 470), 30.0, 8.0, 28.0)
+	_scatter_grid(rng, bush_entries, occupied, 14, 1, Rect2(80, 678, 1120, 28), 28.0, 8.0, 24.0)
+	## Grass tufts at the glade margin.
+	_scatter_grid(rng, tuft_entries, occupied, 12, 1, Rect2(180, 188, 920, 28), 22.0, 8.0, 40.0)
+
+
+func _load_trees_meta() -> Dictionary:
+	var f := FileAccess.open(TREES_META_PATH, FileAccess.READ)
+	if f == null:
+		push_warning("Main: missing trees_meta.json")
+		return {}
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	f.close()
+	if typeof(parsed) == TYPE_DICTIONARY:
+		return parsed
+	return {}
+
+
+func _catalog_entries(items: Dictionary, ids: Array) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for idv: Variant in ids:
+		var id: String = str(idv)
+		if not items.has(id):
 			continue
-		var entry: Dictionary = catalog[placed % catalog.size()]
-		var spr := Sprite2D.new()
-		spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		spr.centered = false
-		var sz: Vector2 = entry["size"]
-		spr.offset = Vector2(-sz.x * 0.5, -sz.y)
-		spr.texture = load(str(entry["tex"])) as Texture2D
-		spr.position = pos
-		spr.y_sort_enabled = true
-		spr.z_index = 0
-		world.add_child(spr)
-		placed += 1
+		var it: Dictionary = items[id]
+		var file: String = str(it.get("file", ""))
+		if file.is_empty():
+			continue
+		var path: String = file
+		if not path.begins_with("res://"):
+			path = "res://assets/art/trees/" + file
+		var sz := Vector2(64, 64)
+		var sz_v: Variant = it.get("size", [])
+		if typeof(sz_v) == TYPE_ARRAY and (sz_v as Array).size() >= 2:
+			sz = Vector2(float((sz_v as Array)[0]), float((sz_v as Array)[1]))
+		out.append({"tex": path, "size": sz, "id": id})
+	return out
+
+
+func _scatter_grid(
+	rng: RandomNumberGenerator,
+	entries: Array[Dictionary],
+	occupied: Array[Vector2],
+	cols: int,
+	rows: int,
+	rect: Rect2,
+	min_sep: float,
+	jitter: float,
+	glade_inset: float
+) -> void:
+	if entries.is_empty() or cols <= 0 or rows <= 0:
+		return
+	var n: int = occupied.size()
+	for row: int in range(rows):
+		for col: int in range(cols):
+			var u: float = (float(col) + 0.5) / float(cols)
+			var v: float = (float(row) + 0.5) / float(rows)
+			var pos := Vector2(
+				rect.position.x + u * rect.size.x + rng.randf_range(-jitter, jitter),
+				rect.position.y + v * rect.size.y + rng.randf_range(-jitter, jitter)
+			)
+			pos.x = clampf(pos.x, 10.0, 1270.0)
+			pos.y = clampf(pos.y, 36.0, 716.0)
+			if not _can_plant(pos, occupied, min_sep, glade_inset):
+				continue
+			_plant_prop(entries[n % entries.size()], pos)
+			occupied.append(pos)
+			n += 1
+
+
+func _plant_prop(entry: Dictionary, pos: Vector2) -> void:
+	var spr := Sprite2D.new()
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	spr.centered = false
+	var tex: Texture2D = load(str(entry["tex"])) as Texture2D
+	spr.texture = tex
+	var sz: Vector2 = entry["size"]
+	if tex != null:
+		sz = Vector2(float(tex.get_width()), float(tex.get_height()))
+	spr.offset = Vector2(-sz.x * 0.5, -sz.y)
+	spr.position = pos
+	spr.y_sort_enabled = true
+	spr.z_index = 0
+	spr.add_to_group("forest_prop")
+	world.add_child(spr)
+
+
+func _can_plant(pos: Vector2, occupied: Array[Vector2], min_sep: float, glade_inset: float) -> bool:
+	var glade: Rect2 = GLADE.grow(-glade_inset)
+	if glade.has_point(pos):
+		return false
+	if not _clear_of_landmarks(pos, 0.0):
+		return false
+	for other: Vector2 in occupied:
+		if pos.distance_to(other) < min_sep:
+			return false
+	return true
+
+
+func _landmark_radius(index: int) -> float:
+	## Manatree needs extra room as stages grow; harvest nodes stay clickable.
+	match index:
+		0:
+			return 175.0
+		1:
+			return 125.0
+		2:
+			return 110.0
+		3:
+			return 120.0
+		_:
+			return 72.0
 
 
 func _clear_of_landmarks(pos: Vector2, min_dist: float) -> bool:
-	for p: Vector2 in CLEAR_POINTS:
-		if pos.distance_to(p) < min_dist:
+	for i: int in range(CLEAR_POINTS.size()):
+		var need: float = min_dist if min_dist > 0.0 else _landmark_radius(i)
+		if pos.distance_to(CLEAR_POINTS[i]) < need:
 			return false
 	return true
 

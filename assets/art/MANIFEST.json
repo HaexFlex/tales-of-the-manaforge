@@ -1,5 +1,5 @@
 {
-  "version": "v0.1.6-sheet-scaled-manatree",
+  "version": "v0.1.13-haex-forest-keeper-south",
   "bible": "/home/box/manaforge/VISUAL_BIBLE_RESTART_V01.md",
   "filter": "nearest",
   "keeper": {
@@ -8,7 +8,9 @@
       128,
       128
     ],
-    "meta": "keeper/keeper_meta.json"
+    "meta": "keeper/keeper_meta.json",
+    "version": "haex_south_walk_v1",
+    "inbox": "Assets upload/keeper/"
   },
   "manatree": {
     "dir": "manatree/",
@@ -42,7 +44,9 @@
   },
   "trees": {
     "dir": "trees/",
-    "meta": "trees/trees_meta.json"
+    "meta": "trees/trees_meta.json",
+    "inbox": "Assets upload/",
+    "version": "haex_inbox_v1"
   },
   "overnight_sources": [
     "overnight/grass_tile_draft.png",

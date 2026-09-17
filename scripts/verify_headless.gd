@@ -126,6 +126,45 @@ func _run() -> void:
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_stone.png"), "harvest_stone art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_berry.png"), "harvest_berry art")
 
+	# Art v0.1.13 — Haex inbox forest + Keeper south walk
+	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_haex_big_00.png"), "haex big tree 00")
+	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_haex_small_02.png"), "haex small tree 02")
+	failed += _assert(FileAccess.file_exists("res://assets/art/trees/bushes/bush_haex_big_00.png"), "haex big bush 00")
+	failed += _assert(FileAccess.file_exists("res://assets/art/trees/bushes/bush_haex_small_00.png"), "haex small bush 00")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south.png"), "keeper idle_south")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0000.png"), "keeper walk_south 0")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0008.png"), "keeper walk_south 8")
+	failed += _assert(FileAccess.file_exists("res://Assets upload/Big Trees.png"), "inbox Big Trees.png kept")
+	failed += _assert(FileAccess.file_exists("res://Assets upload/keeper/walk_south_09.png"), "inbox walk_south_09 kept")
+	var trees_meta_f := FileAccess.open("res://assets/art/trees/trees_meta.json", FileAccess.READ)
+	failed += _assert(trees_meta_f != null, "open trees_meta")
+	if trees_meta_f:
+		var trees_meta_parsed: Variant = JSON.parse_string(trees_meta_f.get_as_text())
+		trees_meta_f.close()
+		failed += _assert(typeof(trees_meta_parsed) == TYPE_DICTIONARY, "trees meta dict")
+		if typeof(trees_meta_parsed) == TYPE_DICTIONARY:
+			var tm: Dictionary = trees_meta_parsed
+			failed += _assert(str(tm.get("version", "")) == "haex_inbox_v1", "trees meta haex_inbox_v1")
+			var spawn_c: Variant = tm.get("spawn_catalog", {})
+			failed += _assert(typeof(spawn_c) == TYPE_DICTIONARY, "spawn_catalog")
+			if typeof(spawn_c) == TYPE_DICTIONARY:
+				var trees_ids: Array = (spawn_c as Dictionary).get("tree", []) as Array
+				var bush_ids: Array = (spawn_c as Dictionary).get("bush", []) as Array
+				failed += _assert(trees_ids.size() >= 8, "spawn trees >= 8 (got %d)" % trees_ids.size())
+				failed += _assert(bush_ids.size() >= 12, "spawn bushes >= 12 (got %d)" % bush_ids.size())
+	var keeper_meta_f := FileAccess.open("res://assets/art/keeper/keeper_meta.json", FileAccess.READ)
+	failed += _assert(keeper_meta_f != null, "open keeper_meta")
+	if keeper_meta_f:
+		var km_parsed: Variant = JSON.parse_string(keeper_meta_f.get_as_text())
+		keeper_meta_f.close()
+		failed += _assert(typeof(km_parsed) == TYPE_DICTIONARY, "keeper meta dict")
+		if typeof(km_parsed) == TYPE_DICTIONARY:
+			failed += _assert(str((km_parsed as Dictionary).get("version", "")) == "haex_south_walk_v1", "keeper meta south walk")
+			var clips_k: Variant = (km_parsed as Dictionary).get("clips", {})
+			if typeof(clips_k) == TYPE_DICTIONARY:
+				var ws: Dictionary = (clips_k as Dictionary).get("walk_south", {}) as Dictionary
+				failed += _assert(int(ws.get("frames", 0)) == 9, "walk_south 9 frames")
+
 	save_service.call("delete_save")
 	game_state.call("reset_for_new_game")
 	failed += _assert(str(game_state.get("stage_id")) == "sapling", "expected sapling")
@@ -845,6 +884,29 @@ func _run() -> void:
 		tree_root.add_child(live)
 		await process_frame
 		await process_frame
+		var deco_n: int = live.get_tree().get_nodes_in_group("forest_prop").size()
+		failed += _assert(deco_n >= 80, "dense forest ring (got %d props)" % deco_n)
+		var live_keeper: Node = live.get_node_or_null("World/Keeper")
+		failed += _assert(live_keeper != null, "live Keeper")
+		if live_keeper:
+			var kspr: Node = live_keeper.get_node_or_null("Sprite")
+			failed += _assert(kspr != null, "Keeper Sprite")
+			if kspr:
+				var sframes: SpriteFrames = kspr.get("sprite_frames") as SpriteFrames
+				failed += _assert(sframes != null, "Keeper SpriteFrames")
+				if sframes:
+					failed += _assert(sframes.has_animation(&"walk_south"), "walk_south anim")
+					failed += _assert(sframes.has_animation(&"idle_south"), "idle_south anim")
+					failed += _assert(sframes.get_frame_count(&"walk_south") == 9, "walk_south frame count")
+					failed += _assert(sframes.get_frame_count(&"idle_south") == 1, "idle_south frame count")
+				failed += _assert(str(kspr.get("animation")) == "idle_south", "idle faces south at boot")
+			if live_keeper.has_method("move_to"):
+				var kpos: Vector2 = live_keeper.get("global_position") as Vector2
+				live_keeper.call("move_to", kpos + Vector2(0, 180), null)
+				for _i: int in range(10):
+					await physics_frame
+				if kspr:
+					failed += _assert(str(kspr.get("animation")) == "walk_south", "south move uses walk_south (got %s)" % str(kspr.get("animation")))
 		failed += _assert(live.has_method("handle_lmb_ground"), "Main.handle_lmb_ground")
 		failed += _assert(live.has_method("handle_rmb_ground"), "Main.handle_rmb_ground")
 		if live.has_method("handle_lmb_ground") and live.has_method("handle_rmb_ground"):

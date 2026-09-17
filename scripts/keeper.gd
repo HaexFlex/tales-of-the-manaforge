@@ -34,7 +34,7 @@ func _ready() -> void:
 	sprite.centered = false
 	sprite.offset = Vector2(-64, -128)
 	sprite.sprite_frames = _build_frames()
-	sprite.play(&"idle_front")
+	sprite.play(&"idle_south")
 	label.text = ContentStrings.get_text("keeper_select")
 	label.position = Vector2(-40, -148)
 	add_to_group("keeper")
@@ -60,14 +60,36 @@ func _build_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation(&"default")
 	_add_anim(frames, &"idle_front", [
-		"res://assets/art/keeper/keeper_idle_front_0000.png",
-		"res://assets/art/keeper/keeper_idle_front_0001.png",
-		"res://assets/art/keeper/keeper_idle_front_0002.png",
-		"res://assets/art/keeper/keeper_idle_front_0003.png",
+		"res://assets/art/keeper/keeper_idle_south.png",
+	], IDLE_HOLD_MS)
+	_add_anim(frames, &"idle_south", [
+		"res://assets/art/keeper/keeper_idle_south.png",
 	], IDLE_HOLD_MS)
 	_add_anim(frames, &"idle_back", [
 		"res://assets/art/keeper/keeper_idle_back_0000.png",
 	], IDLE_HOLD_MS)
+	_add_anim(frames, &"walk_front", [
+		"res://assets/art/keeper/keeper_walk_south_0000.png",
+		"res://assets/art/keeper/keeper_walk_south_0001.png",
+		"res://assets/art/keeper/keeper_walk_south_0002.png",
+		"res://assets/art/keeper/keeper_walk_south_0003.png",
+		"res://assets/art/keeper/keeper_walk_south_0004.png",
+		"res://assets/art/keeper/keeper_walk_south_0005.png",
+		"res://assets/art/keeper/keeper_walk_south_0006.png",
+		"res://assets/art/keeper/keeper_walk_south_0007.png",
+		"res://assets/art/keeper/keeper_walk_south_0008.png",
+	], WALK_HOLD_MS)
+	_add_anim(frames, &"walk_south", [
+		"res://assets/art/keeper/keeper_walk_south_0000.png",
+		"res://assets/art/keeper/keeper_walk_south_0001.png",
+		"res://assets/art/keeper/keeper_walk_south_0002.png",
+		"res://assets/art/keeper/keeper_walk_south_0003.png",
+		"res://assets/art/keeper/keeper_walk_south_0004.png",
+		"res://assets/art/keeper/keeper_walk_south_0005.png",
+		"res://assets/art/keeper/keeper_walk_south_0006.png",
+		"res://assets/art/keeper/keeper_walk_south_0007.png",
+		"res://assets/art/keeper/keeper_walk_south_0008.png",
+	], WALK_HOLD_MS)
 	_add_anim(frames, &"walk_back", [
 		"res://assets/art/keeper/keeper_walk_back_0000.png",
 		"res://assets/art/keeper/keeper_walk_back_0001.png",
@@ -118,9 +140,9 @@ func _physics_process(delta: float) -> void:
 func _update_anim() -> void:
 	var want: StringName
 	if _moving:
-		want = &"walk_back" if _facing_back else &"idle_front"
+		want = &"walk_back" if _facing_back else &"walk_south"
 	else:
-		want = &"idle_back" if _facing_back else &"idle_front"
+		want = &"idle_back" if _facing_back else &"idle_south"
 	if sprite.animation != want or not sprite.is_playing():
 		sprite.play(want)
 
