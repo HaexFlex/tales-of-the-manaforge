@@ -117,7 +117,7 @@ func _spawn_forest_props() -> void:
 	var bush_pick: Array = []
 	for idv: Variant in bush_ids:
 		var bid: String = str(idv)
-		if bid.begins_with("bush_big_") or bush_pick.size() < 20:
+		if bid.begins_with("bush_big_") or bush_pick.size() < 28:
 			bush_pick.append(bid)
 	var bush_entries: Array[Dictionary] = _catalog_entries(bush_items, bush_pick, "res://assets/art/bushes/")
 	var tuft_entries: Array[Dictionary] = _catalog_entries(bush_items, tuft_ids, "res://assets/art/bushes/")
