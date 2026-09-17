@@ -125,16 +125,17 @@ func _spawn_forest_props() -> void:
 	rng.seed = 20260917
 	var occupied: Array[Vector2] = []
 	## Overlapping ~400px canopies on the outer ring; one column per side so the glade stays open.
+	## No tall trees along the bottom — canopies hang upward and would swallow harvest nodes.
 	_scatter_grid(rng, tree_entries, occupied, 12, 2, Rect2(20, 48, 1240, 120), 62.0, 16.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 1, 8, Rect2(18, 150, 70, 500), 58.0, 12.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 1, 8, Rect2(1192, 150, 70, 500), 58.0, 12.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 4, 2, Rect2(8, 645, 200, 68), 64.0, 10.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 4, 2, Rect2(1072, 645, 200, 68), 64.0, 10.0, 0.0)
-	## Inner-edge bushes (may sit a little into the glade).
+	_scatter_grid(rng, tree_entries, occupied, 1, 6, Rect2(18, 150, 70, 280), 58.0, 12.0, 0.0)
+	_scatter_grid(rng, tree_entries, occupied, 1, 6, Rect2(1192, 150, 70, 280), 58.0, 12.0, 0.0)
+	## Inner-edge bushes (may sit a little into the glade). Bottom uses bushes only.
 	_scatter_grid(rng, bush_entries, occupied, 10, 1, Rect2(80, 175, 1120, 32), 40.0, 10.0, 22.0)
 	_scatter_grid(rng, bush_entries, occupied, 1, 7, Rect2(140, 200, 40, 430), 36.0, 8.0, 22.0)
 	_scatter_grid(rng, bush_entries, occupied, 1, 7, Rect2(1100, 200, 40, 430), 36.0, 8.0, 22.0)
-	_scatter_grid(rng, bush_entries, occupied, 8, 1, Rect2(120, 685, 1040, 24), 34.0, 8.0, 18.0)
+	_scatter_grid(rng, bush_entries, occupied, 10, 1, Rect2(40, 685, 240, 24), 34.0, 8.0, 18.0)
+	_scatter_grid(rng, bush_entries, occupied, 10, 1, Rect2(1000, 685, 240, 24), 34.0, 8.0, 18.0)
+	_scatter_grid(rng, bush_entries, occupied, 8, 1, Rect2(300, 690, 680, 22), 36.0, 8.0, 18.0)
 	_scatter_grid(rng, tuft_entries, occupied, 8, 1, Rect2(220, 195, 840, 24), 26.0, 8.0, 32.0)
 
 
@@ -237,11 +238,11 @@ func _landmark_radius(index: int) -> float:
 		0:
 			return 200.0
 		1:
-			return 150.0
+			return 175.0
 		2:
-			return 130.0
+			return 140.0
 		3:
-			return 145.0
+			return 160.0
 		_:
 			return 80.0
 
