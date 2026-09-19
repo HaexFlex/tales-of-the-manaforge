@@ -1,0 +1,49 @@
+{
+  "version": "v0.4.1-camera-map",
+  "notes": [
+    "Play area is 2× wider and 3× taller than the original 1280×720 hub (6× area).",
+    "Camera pans with ui_left/right/up/down and clamps to play bounds. No edge-of-screen scroll.",
+    "Tree collision is the bottom third of the trunk only. Bush collision is a small bottom-center box.",
+    "Open glade stays clear for Manatree, harvest nodes, and Keeper."
+  ],
+  "play_width": 2560,
+  "play_height": 2160,
+  "tile": 64,
+  "viewport_width": 1280,
+  "viewport_height": 720,
+  "camera_pan_speed": 420.0,
+  "glade": [350, 330, 1860, 1500],
+  "landmarks": {
+    "manatree": [1280, 1000],
+    "keeper": [1120, 1100],
+    "harvest_tree": [840, 1140],
+    "harvest_stone": [1040, 1160],
+    "harvest_berry": [1540, 1140]
+  },
+  "clear_radii": [200, 175, 140, 160, 80],
+  "collision": {
+    "tree_trunk_height_frac": 0.30,
+    "tree_collider_of_trunk_frac": 0.333,
+    "tree_width_frac": 0.16,
+    "tree_width_min": 14,
+    "tree_width_max": 36,
+    "bush_width": 16,
+    "bush_height": 10
+  },
+  "scatter": [
+    {"kind": "tree", "cols": 22, "rows": 4, "rect": [24, 36, 2512, 300], "min_sep": 56, "jitter": 16, "glade_inset": 0},
+    {"kind": "tree", "cols": 22, "rows": 3, "rect": [24, 1820, 2512, 320], "min_sep": 56, "jitter": 16, "glade_inset": 0},
+    {"kind": "tree", "cols": 3, "rows": 14, "rect": [16, 320, 320, 1500], "min_sep": 54, "jitter": 14, "glade_inset": 0},
+    {"kind": "tree", "cols": 3, "rows": 14, "rect": [2224, 320, 320, 1500], "min_sep": 54, "jitter": 14, "glade_inset": 0},
+    {"kind": "bush", "cols": 18, "rows": 2, "rect": [280, 300, 2000, 70], "min_sep": 38, "jitter": 10, "glade_inset": 18},
+    {"kind": "bush", "cols": 18, "rows": 2, "rect": [280, 1780, 2000, 70], "min_sep": 36, "jitter": 10, "glade_inset": 18},
+    {"kind": "bush", "cols": 2, "rows": 16, "rect": [300, 360, 80, 1400], "min_sep": 34, "jitter": 8, "glade_inset": 18},
+    {"kind": "bush", "cols": 2, "rows": 16, "rect": [2180, 360, 80, 1400], "min_sep": 34, "jitter": 8, "glade_inset": 18},
+    {"kind": "bush", "cols": 14, "rows": 2, "rect": [80, 80, 400, 220], "min_sep": 32, "jitter": 10, "glade_inset": 0},
+    {"kind": "bush", "cols": 14, "rows": 2, "rect": [2080, 80, 400, 220], "min_sep": 32, "jitter": 10, "glade_inset": 0},
+    {"kind": "bush", "cols": 14, "rows": 2, "rect": [80, 1880, 400, 220], "min_sep": 32, "jitter": 10, "glade_inset": 0},
+    {"kind": "bush", "cols": 14, "rows": 2, "rect": [2080, 1880, 400, 220], "min_sep": 32, "jitter": 10, "glade_inset": 0},
+    {"kind": "tuft", "cols": 16, "rows": 1, "rect": [420, 340, 1720, 36], "min_sep": 24, "jitter": 8, "glade_inset": 28},
+    {"kind": "tuft", "cols": 16, "rows": 1, "rect": [420, 1790, 1720, 36], "min_sep": 24, "jitter": 8, "glade_inset": 28}
+  ]
+}

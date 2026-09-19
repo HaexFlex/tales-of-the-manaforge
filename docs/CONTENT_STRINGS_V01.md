@@ -228,6 +228,7 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | `keeper_stride` | Keeper’s Stride | Walk the fragment a little faster. |
 | `wisp_haste` | Swift Wisps | Assigned Wisps gather a little sooner. |
 | `bonus_wisp` | Extra Wisp | Another Wisp walks with you from the Sapling. |
+| `keep_tools` | Keep Tools | Finished tools survive Ascend and return with you. |
 
 | key | string |
 |-----|--------|
@@ -311,7 +312,8 @@ Warm + lightly melancholic. Options is a stub until later.
 | `controls_lmb_select` | Left-click: select |
 | `controls_rmb_command` | Right-click: command |
 | `controls_lmb_deselect` | Left-click empty ground: deselect |
-| `controls_hint` | LMB selects. RMB commands. LMB on empty ground deselects. |
+| `controls_camera_pan` | Arrows: pan camera |
+| `controls_hint` | LMB selects. RMB commands. Arrows pan the camera. LMB on empty ground deselects. |
 | `keeper_move_prompt` | Right-click the ground to walk. |
 | `keeper_required` | Select the Keeper first (left-click). |
 | `keeper_required_harvest` | Select the Keeper, then right-click the tree, stone, or berries. |
@@ -437,7 +439,9 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `wood_plank` | Wood Plank | Smooth timber, ready for tools. |
 | `stone_fragment` | Stone Fragment | A workable chip of stone. |
 | `wood_rod` | Wood Rod | A straight stick for hafts and frames. |
-| `stone_head` | Stone Head | A rough head for axe or pick. |
+| `stone_head` | Stone Head | A rough head for axe or pick. *(legacy — prefer Axe/Pickaxe Head)* |
+| `stone_axe_head` | Stone Axe Head | A knapped head for the Stone Axe. |
+| `stone_pickaxe_head` | Stone Pickaxe Head | A knapped head for the Stone Pickaxe. |
 | `woven_fiber` | Woven Fiber | Twine for baskets and bindings. |
 
 | key | string |
@@ -446,6 +450,8 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `part_stone_fragment` | Stone Fragment |
 | `part_wood_rod` | Wood Rod |
 | `part_stone_head` | Stone Head |
+| `part_stone_axe_head` | Stone Axe Head |
+| `part_stone_pickaxe_head` | Stone Pickaxe Head |
 | `part_woven_fiber` | Woven Fiber |
 
 ### 9d. Tools (never gate gather; owned = faster Keeper channel)

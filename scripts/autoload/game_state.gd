@@ -645,7 +645,7 @@ func buy_upgrade(upgrade_id: String) -> bool:
 
 
 func _raw_needs_for_next() -> Dictionary:
-	## SYSTEMS v0.4.0: Grow spends Fertilizer + Essence only (placeholder 1/2/3/4 + 20/40/60/80).
+	## Grow spends Fertilizer + Essence only (playtest 3/6/12/24 + 20/40/60/80).
 	var next_id: StringName = get_next_stage_id()
 	if next_id == &"":
 		return {}

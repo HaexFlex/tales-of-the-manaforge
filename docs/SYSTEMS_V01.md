@@ -31,6 +31,7 @@
 | v0.3.4 note | Equipment & Stats mid-term discuss park (§11 D3) — unchanged |
 | v0.3.4 note | Draft: abandon needs-only → Fertilizer + Essence — **GREENLIT → live v0.4.0** |
 | **v0.4.0** | **Haex GREENLIGHT:** Abandon needs-only. Stage advance = one-click **Grow** (Fertilizer + Essence). Water still Manashards + Essence; Stone Watering Can doubles Manashard amount/pulse only. Backpack (crafts only) + handcrafting + 4 unique tools (Keeper 2× channel only). Fertilizer recipe wood+stone+food (no shards). Blessing `keep_tools`; `green_thumb` → Fertilizer craft ingredient costs −10%/rank. Ascend wipes backpack (Keep Tools re-grants 4 tools). `SAVE_VERSION` **6**. |
+| **v0.4.1** | **Haex playtest ship:** hub play area **2560×2160** (2× × 3× of 1280×720); arrow-key camera clamp; trunk/bush collision. Recipe tune: Watering Can **20 fragments** + rod; Basket **20 planks**; Fertilizer craft **10/10/10**; Grow Fertilizer **3/6/12/24** (Essence 20/40/60/80); Keep Tools **3000** shards. Intermediates **Stone Axe Head** / **Stone Pickaxe Head**. |
 
 ---
 
@@ -115,17 +116,17 @@ Mirrors old essence curve spirit (20 / 40 / 60 / 80 Essence); Fertilizer count r
 
 | Advance to | Fertilizer | Essence | Notes |
 |------------|------------|---------|-------|
-| `young` | **1** | **20** | PLACEHOLDER |
-| `mature` | **2** | **40** | PLACEHOLDER |
-| `elder` | **3** | **60** | PLACEHOLDER |
-| `ancient` | **4** | **80** | PLACEHOLDER |
+| `young` | **3** | **20** | playtest v0.4.1 |
+| `mature` | **6** | **40** | playtest v0.4.1 |
+| `elder` | **12** | **60** | playtest v0.4.1 |
+| `ancient` | **24** | **80** | playtest v0.4.1 |
 
 ```
 # Named params (Code data table) — PLACEHOLDER
-GROW_YOUNG   = { fertilizer: 1, essence: 20 }
-GROW_MATURE  = { fertilizer: 2, essence: 40 }
-GROW_ELDER   = { fertilizer: 3, essence: 60 }
-GROW_ANCIENT = { fertilizer: 4, essence: 80 }
+GROW_YOUNG   = { fertilizer: 3, essence: 20 }
+GROW_MATURE  = { fertilizer: 6, essence: 40 }
+GROW_ELDER   = { fertilizer: 12, essence: 60 }
+GROW_ANCIENT = { fertilizer: 24, essence: 80 }
 ```
 
 **Sapling** (start): no Grow cost.  
@@ -163,9 +164,9 @@ Instant craft (no station required for v0.4). Recipes consume from HUD soft mats
 
 ```
 # PLACEHOLDER base costs (before prestige mult)
-FERT_WOOD  = 5
-FERT_STONE = 5
-FERT_FOOD  = 5
+FERT_WOOD  = 10
+FERT_STONE = 10
+FERT_FOOD  = 10
 # → grants 1 Fertilizer to backpack
 
 effective_cost(ingredient) = max(1, floor(base * FERTILIZER_CRAFT_COST_MULT * green_thumb_mult))
@@ -182,13 +183,13 @@ Prestige craft-cost multiplier param name: `FERTILIZER_CRAFT_COST_MULT` (default
 | Wooden Planks | 3 Wood | intermediate |
 | Stone Fragments | 3 Stone | intermediate |
 | Wooden Tool Rod | 10 Planks | intermediate |
-| Axe Head | 10 Fragments | intermediate |
-| Pickaxe Head | 10 Fragments | intermediate |
-| **Stone Axe** | 1 Rod + 1 Axe Head | tool (unique) |
-| **Stone Pickaxe** | 1 Rod + 1 Pickaxe Head | tool (unique) |
-| **Wooden Basket** | 15 Planks | tool (unique) |
-| **Stone Watering Can** | 1 Rod + 10 Fragments | tool (unique) |
-| **Fertilizer** | 5 Wood + 5 Stone + 5 Food | stackable; see above |
+| Stone Axe Head | 10 Fragments | intermediate |
+| Stone Pickaxe Head | 10 Fragments | intermediate |
+| **Stone Axe** | 1 Rod + 1 Stone Axe Head | tool (unique) |
+| **Stone Pickaxe** | 1 Rod + 1 Stone Pickaxe Head | tool (unique) |
+| **Wooden Basket** | 20 Planks | tool (unique) |
+| **Stone Watering Can** | 1 Rod + 20 Fragments | tool (unique) |
+| **Fertilizer** | 10 Wood + 10 Stone + 10 Food | stackable; see above |
 
 All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipes.
 
@@ -342,7 +343,7 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 | `keeper_stride` | 5 | `400 * (rank + 1)` | `MOVE_SPEED_MULT += 0.06` / rank |
 | `wisp_haste` | 5 | `400 * (rank + 1)` | `WISP_PULSE_SEC -= 1` / rank (base 10 → min **5**) |
 | `bonus_wisp` | 3 | `400 * (rank + 1)` | `+1` wisp at sapling / +1 capacity per rank (stacks with stage grants) |
-| **`keep_tools`** | **1** | `400 * (rank + 1)` | On Ascend: after backpack wipe, **re-grant the 4 finished tools** only (not Fertilizer / intermediates). Max 1. |
+| **`keep_tools`** | **1** | **3000** | On Ascend: after backpack wipe, **re-grant the 4 finished tools** only (not Fertilizer / intermediates). Max 1. |
 
 **Examples:** bank 400 → one rank; bank 800 → two rank-1 buys. Unspent shards **and essence** wipe on Ascend (`essence → 0`).
 
@@ -350,7 +351,7 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 
 **`green_thumb` (v0.4 retarget LOCKED):** pick = **Fertilizer craft ingredient costs −10%/rank** (each of wood/stone/food), floor 1 per ingredient. Does **not** change Grow Fertilizer *count* required. Documented choice over “Fertilizer units to Grow −10%/rank.”
 
-**`keep_tools`:** max 1; cost `400 * (rank + 1)` like others (first buy = 400).
+**`keep_tools`:** max 1; playtest cost **3000** Manashards (other blessings stay `400 * (rank + 1)`).
 
 **Code:** mirror in `fruit_upgrades.json` (or equivalent data file).
 

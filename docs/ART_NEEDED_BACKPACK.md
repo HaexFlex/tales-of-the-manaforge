@@ -15,8 +15,8 @@ Replace each ColorRect with a sprite of the suggested name. Keep IDs stable.
 | Inventory / craft row: Wooden Planks | `icon_wooden_planks.png` | 32×32 | `#c4a574` tan | Intermediate |
 | Inventory / craft row: Stone Fragments | `icon_stone_fragments.png` | 32×32 | `#8a8e96` gray | Intermediate |
 | Inventory / craft row: Wooden Tool Rod | `icon_wooden_tool_rod.png` | 32×32 | `#8b5a2b` brown | Intermediate |
-| Inventory / craft row: Axe Head | `icon_axe_head.png` | 32×32 | `#6b7c8a` slate | Intermediate |
-| Inventory / craft row: Pickaxe Head | `icon_pickaxe_head.png` | 32×32 | `#5c6b73` steel | Intermediate |
+| Inventory / craft row: Stone Axe Head | `icon_axe_head.png` | 32×32 | `#6b7c8a` slate | Intermediate |
+| Inventory / craft row: Stone Pickaxe Head | `icon_pickaxe_head.png` | 32×32 | `#5c6b73` steel | Intermediate |
 | Inventory / craft row: Stone Axe | `icon_stone_axe.png` | 32×32 | `#c46a2b` rust | Unique tool (2× wood channel) |
 | Inventory / craft row: Stone Pickaxe | `icon_stone_pickaxe.png` | 32×32 | `#4a6d8c` iron blue | Unique tool (2× stone channel) |
 | Inventory / craft row: Wooden Basket | `icon_wooden_basket.png` | 32×32 | `#d4b84a` straw | Unique tool (2× food channel) |

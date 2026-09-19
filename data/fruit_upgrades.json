@@ -75,8 +75,8 @@
       "display_name": "Keep Tools",
       "description": "Finished tools survive Ascend and return with you.",
       "max_rank": 1,
-      "cost_base": 400,
-      "cost_per_rank": 400,
+      "cost_base": 3000,
+      "cost_per_rank": 3000,
       "effect": "keep_tools",
       "value_per_rank": 1.0
     }

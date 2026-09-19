@@ -308,10 +308,11 @@ func _on_status(text: String) -> void:
 func _refresh_controls_hint() -> void:
 	if controls_hint == null:
 		return
-	controls_hint.text = "%s  ·  %s  ·  %s" % [
+	controls_hint.text = "%s  ·  %s  ·  %s  ·  %s" % [
 		ContentStrings.get_text("controls_lmb_select"),
 		ContentStrings.get_text("controls_rmb_command"),
 		ContentStrings.get_text("controls_lmb_deselect"),
+		ContentStrings.get_text("controls_camera_pan"),
 	]
 
 
@@ -971,30 +972,36 @@ func _make_craft_row(recipe_id: String) -> Control:
 	var out_id: String = str(def.get("output_id", recipe_id))
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H + 8.0)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 8)
+	row.clip_contents = true
 	row.add_child(_placeholder_icon(Backpack.item_color(out_id)))
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.size_flags_stretch_ratio = 1.0
 	var name_lbl := Label.new()
 	name_lbl.text = Backpack.item_display_name(out_id)
 	name_lbl.add_theme_font_size_override("font_size", 13)
 	name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+	name_lbl.clip_text = true
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var cost_lbl := Label.new()
+	## Costs only — long tool/fertilizer fluff overflowed the panel.
 	cost_lbl.text = "  ".join(Backpack.recipe_ingredient_lines(recipe_id))
 	cost_lbl.add_theme_font_size_override("font_size", 11)
 	cost_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+	cost_lbl.clip_text = true
+	cost_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	cost_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	info.add_child(name_lbl)
 	info.add_child(cost_lbl)
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(88, 28)
+	btn.custom_minimum_size = Vector2(72, 28)
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	if out_id == "fertilizer":
-		cost_lbl.text = "%s  ·  %s" % [cost_lbl.text, ContentStrings.get_text("fertilizer_hint")]
-	elif out_id == "stone_watering_can":
-		cost_lbl.text = "%s  ·  %s" % [cost_lbl.text, ContentStrings.get_text("tool_water_hint")]
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 	var reason: String = Backpack.craft_block_reason(recipe_id)
 	if reason == "unique":
-		btn.text = ContentStrings.get_text("handcraft_owned_unique")
+		btn.text = ContentStrings.get_text("backpack_owned")
 		btn.disabled = true
 		_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
 	elif reason != "":
@@ -1008,6 +1015,17 @@ func _make_craft_row(recipe_id: String) -> Control:
 	row.add_child(info)
 	row.add_child(btn)
 	return row
+
+
+func get_backpack_layout_metrics() -> Dictionary:
+	var panel_w: float = backpack_panel.size.x if backpack_panel else 0.0
+	var craft_scroll: ScrollContainer = get_node_or_null("BackpackPanel/CraftScroll") as ScrollContainer
+	var craft_w: float = craft_scroll.size.x if craft_scroll else 0.0
+	return {
+		"panel_w": panel_w,
+		"craft_scroll_w": craft_w,
+		"fits": craft_w <= panel_w + 1.0,
+	}
 
 
 func _on_craft(recipe_id: String) -> void:
@@ -1105,18 +1123,25 @@ func _rebuild_upgrades() -> void:
 			name_lbl.text = str(d.get("display_name", uid))
 		name_lbl.add_theme_font_size_override("font_size", 13)
 		name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+		var desc: String = _upgrade_description(uid, d)
 		var rank_lbl := Label.new()
-		if uid == "keep_tools":
+		if desc != "":
 			rank_lbl.text = "%s  ·  %s" % [
-				ContentStrings.get_text("upgrade_keep_tools_desc"),
+				desc,
 				ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank}),
 			]
 		else:
 			rank_lbl.text = ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank})
 		rank_lbl.add_theme_font_size_override("font_size", 11)
 		rank_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+		rank_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(name_lbl)
 		info.add_child(rank_lbl)
+		if desc != "":
+			row.tooltip_text = desc
+			inner.tooltip_text = desc
+			name_lbl.tooltip_text = desc
+			rank_lbl.tooltip_text = desc
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(108, 32)
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -1137,6 +1162,14 @@ func _rebuild_upgrades() -> void:
 		row.add_child(inner)
 		upgrade_list.add_child(row)
 		stripe = not stripe
+
+
+func _upgrade_description(upgrade_id: String, def: Dictionary) -> String:
+	var key: String = "upgrade_%s_desc" % upgrade_id
+	var labeled: String = ContentStrings.get_text(key)
+	if labeled != key and labeled != "":
+		return labeled
+	return str(def.get("description", ""))
 
 
 func _on_buy(upgrade_id: String) -> void:
