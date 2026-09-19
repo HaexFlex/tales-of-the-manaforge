@@ -1,5 +1,5 @@
 extends Node2D
-## Forest hub 1280×720: RTS LMB select / RMB command, wisps orbit assigned targets (SYSTEMS v0.3.2).
+## Forest hub 2560×2160 (2× × 3× of 1280×720): arrow-key camera, RTS LMB/RMB, wisps.
 
 @onready var keeper: Keeper = $World/Keeper
 @onready var manatree: Manatree = $World/Manatree
@@ -8,12 +8,14 @@ extends Node2D
 @onready var click_layer: ColorRect = $ClickLayer
 @onready var world: Node2D = $World
 @onready var pause_menu: PauseMenu = $PauseMenu
+@onready var camera: Camera2D = $Camera2D
 
 const TILE: int = 64
-const COLS: int = 20
-const ROWS: int = 12
 ## Match Area2D collision_layer on gatherable / manatree scenes.
 const INTERACT_PICK_MASK: int = 4
+const HUB_MAP_PATH: String = "res://data/hub_map.json"
+const TREES_META_PATH: String = "res://assets/art/trees/trees_meta.json"
+const BUSHES_META_PATH: String = "res://assets/art/bushes/bushes_meta.json"
 
 const ATLAS_GRASS: Array[Vector2i] = [
 	Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)
@@ -22,29 +24,31 @@ const ATLAS_PATH_H := Vector2i(0, 1)
 const ATLAS_PATH_V := Vector2i(1, 1)
 const ATLAS_PATH_CROSS := Vector2i(2, 1)
 
-## Keep clear of Manatree stand, three harvest nodes, keeper spawn.
-const CLEAR_POINTS: Array[Vector2] = [
-	Vector2(640, 420),
-	Vector2(200, 560),
-	Vector2(400, 580),
-	Vector2(900, 560),
-	Vector2(480, 520),
-]
-## Larger open glade — variable-size Haex canopies stay on the ring, not the hub.
-const GLADE := Rect2(175, 185, 930, 500)
-const TREES_META_PATH: String = "res://assets/art/trees/trees_meta.json"
-const BUSHES_META_PATH: String = "res://assets/art/bushes/bushes_meta.json"
-
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
+var hub_map: Dictionary = {}
+var play_size: Vector2 = Vector2(2560, 2160)
+var view_size: Vector2 = Vector2(1280, 720)
+var camera_pan_speed: float = 420.0
+var glade: Rect2 = Rect2(350, 330, 1860, 1500)
+var clear_points: Array[Vector2] = []
+var clear_radii: Array[float] = []
+var collision_cfg: Dictionary = {}
+var _cols: int = 40
+var _rows: int = 34
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	_load_hub_map()
+	_apply_landmarks()
+	_setup_camera()
 	_build_grass()
 	_spawn_forest_props()
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
 	click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	click_layer.position = Vector2.ZERO
+	click_layer.size = play_size
 	get_viewport().physics_object_picking = true
 	manatree.fruit_menu_requested.connect(_on_fruit_menu)
 	manatree.care_menu_requested.connect(_on_care_menu)
@@ -58,6 +62,139 @@ func _ready() -> void:
 	_sync_wisps()
 	# First load / new save: show Keeper welcome once (flag in save).
 	hud.maybe_show_welcome()
+
+
+func _load_hub_map() -> void:
+	hub_map = _load_json_dict(HUB_MAP_PATH)
+	play_size = Vector2(
+		float(hub_map.get("play_width", 2560)),
+		float(hub_map.get("play_height", 2160))
+	)
+	view_size = Vector2(
+		float(hub_map.get("viewport_width", 1280)),
+		float(hub_map.get("viewport_height", 720))
+	)
+	camera_pan_speed = float(hub_map.get("camera_pan_speed", 420.0))
+	var glade_v: Variant = hub_map.get("glade", [350, 330, 1860, 1500])
+	if typeof(glade_v) == TYPE_ARRAY and (glade_v as Array).size() >= 4:
+		var ga: Array = glade_v
+		glade = Rect2(float(ga[0]), float(ga[1]), float(ga[2]), float(ga[3]))
+	var tile: int = int(hub_map.get("tile", TILE))
+	_cols = int(ceili(play_size.x / float(tile)))
+	_rows = int(ceili(play_size.y / float(tile)))
+	collision_cfg = hub_map.get("collision", {}) as Dictionary
+	clear_points.clear()
+	clear_radii.clear()
+	var marks: Dictionary = hub_map.get("landmarks", {}) as Dictionary
+	var order: Array[String] = ["manatree", "harvest_tree", "harvest_stone", "harvest_berry", "keeper"]
+	var radii_v: Variant = hub_map.get("clear_radii", [200, 175, 140, 160, 80])
+	for i: int in range(order.size()):
+		var pt: Vector2 = _vec2_from(marks.get(order[i], [0, 0]))
+		clear_points.append(pt)
+		var rad: float = 80.0
+		if typeof(radii_v) == TYPE_ARRAY and (radii_v as Array).size() > i:
+			rad = float((radii_v as Array)[i])
+		clear_radii.append(rad)
+
+
+func _vec2_from(raw: Variant) -> Vector2:
+	if typeof(raw) == TYPE_ARRAY and (raw as Array).size() >= 2:
+		return Vector2(float((raw as Array)[0]), float((raw as Array)[1]))
+	if raw is Vector2:
+		return raw
+	return Vector2.ZERO
+
+
+func _apply_landmarks() -> void:
+	var marks: Dictionary = hub_map.get("landmarks", {}) as Dictionary
+	if manatree:
+		manatree.position = _vec2_from(marks.get("manatree", [1280, 1000]))
+	if keeper:
+		keeper.position = _vec2_from(marks.get("keeper", [1120, 1100]))
+	var harvest_tree: Node2D = get_node_or_null("World/HarvestTree") as Node2D
+	var harvest_stone: Node2D = get_node_or_null("World/HarvestStone") as Node2D
+	var harvest_berry: Node2D = get_node_or_null("World/HarvestBerry") as Node2D
+	if harvest_tree:
+		harvest_tree.position = _vec2_from(marks.get("harvest_tree", [840, 1140]))
+	if harvest_stone:
+		harvest_stone.position = _vec2_from(marks.get("harvest_stone", [1040, 1160]))
+	if harvest_berry:
+		harvest_berry.position = _vec2_from(marks.get("harvest_berry", [1540, 1140]))
+
+
+func _setup_camera() -> void:
+	if camera == null:
+		camera = Camera2D.new()
+		camera.name = "Camera2D"
+		add_child(camera)
+	camera.enabled = true
+	camera.make_current()
+	camera.position_smoothing_enabled = false
+	var start: Vector2 = _vec2_from((hub_map.get("landmarks", {}) as Dictionary).get("manatree", [1280, 1000]))
+	camera.position = start
+	_clamp_camera()
+
+
+func get_play_size() -> Vector2:
+	return play_size
+
+
+func get_camera_pan_speed() -> float:
+	return camera_pan_speed
+
+
+func get_camera_position_clamped() -> Vector2:
+	return _clamped_camera_pos(camera.position if camera else Vector2.ZERO)
+
+
+func camera_min() -> Vector2:
+	return view_size * 0.5
+
+
+func camera_max() -> Vector2:
+	return play_size - view_size * 0.5
+
+
+func _clamped_camera_pos(pos: Vector2) -> Vector2:
+	var lo: Vector2 = camera_min()
+	var hi: Vector2 = camera_max()
+	if hi.x < lo.x:
+		hi.x = lo.x
+	if hi.y < lo.y:
+		hi.y = lo.y
+	return Vector2(clampf(pos.x, lo.x, hi.x), clampf(pos.y, lo.y, hi.y))
+
+
+func _clamp_camera() -> void:
+	if camera == null:
+		return
+	camera.position = _clamped_camera_pos(camera.position)
+
+
+func pan_camera(delta: Vector2) -> void:
+	if camera == null:
+		return
+	camera.position += delta
+	_clamp_camera()
+
+
+func _process(delta: float) -> void:
+	if camera == null:
+		return
+	if world_input_blocked():
+		return
+	var dir := Vector2.ZERO
+	if Input.is_action_pressed("ui_left"):
+		dir.x -= 1.0
+	if Input.is_action_pressed("ui_right"):
+		dir.x += 1.0
+	if Input.is_action_pressed("ui_up"):
+		dir.y -= 1.0
+	if Input.is_action_pressed("ui_down"):
+		dir.y += 1.0
+	if dir == Vector2.ZERO:
+		return
+	pan_camera(dir.normalized() * camera_pan_speed * delta)
 
 
 func _build_grass() -> void:
@@ -75,31 +212,31 @@ func _build_grass() -> void:
 	var src_id: int = ts.add_source(atlas, 0)
 	ground.tile_set = ts
 	## Calmer grass in the open glade; mixed tiles under the forest ring.
-	for x: int in range(COLS):
-		for y: int in range(ROWS):
+	for x: int in range(_cols):
+		for y: int in range(_rows):
 			var world_pt := Vector2(float(x * TILE + TILE / 2), float(y * TILE + TILE / 2))
 			var pick: Vector2i
-			if GLADE.has_point(world_pt):
+			if glade.has_point(world_pt):
 				pick = ATLAS_GRASS[(x + y) % 2]
 			else:
 				pick = ATLAS_GRASS[(x * 3 + y * 5) % ATLAS_GRASS.size()]
 			ground.set_cell(0, Vector2i(x, y), src_id, pick)
-	var mid_x: int = 10
-	var mid_y: int = 6
-	## Wider hub path so the clearing reads as a glade, not a trail.
-	for x: int in range(2, 18):
+	var mid_x: int = int(floor(play_size.x / float(TILE) * 0.5))
+	var mid_y: int = int(floor((glade.position.y + glade.size.y * 0.55) / float(TILE)))
+	var path_left: int = maxi(4, int(floor(glade.position.x / float(TILE))) + 1)
+	var path_right: int = mini(_cols - 4, int(floor((glade.position.x + glade.size.x) / float(TILE))) - 1)
+	var path_top: int = maxi(4, int(floor(glade.position.y / float(TILE))) + 2)
+	var path_bot: int = mini(_rows - 3, int(floor((glade.position.y + glade.size.y) / float(TILE))) - 2)
+	for x: int in range(path_left, path_right + 1):
 		ground.set_cell(0, Vector2i(x, mid_y), src_id, ATLAS_PATH_H)
-	for y: int in range(3, 11):
+	for y: int in range(path_top, path_bot + 1):
 		ground.set_cell(0, Vector2i(mid_x, y), src_id, ATLAS_PATH_V)
 	ground.set_cell(0, Vector2i(mid_x, mid_y), src_id, ATLAS_PATH_CROSS)
-	for x: int in range(2, 8):
-		ground.set_cell(0, Vector2i(x, 8), src_id, ATLAS_PATH_H)
-	for x: int in range(13, 18):
-		ground.set_cell(0, Vector2i(x, 8), src_id, ATLAS_PATH_H)
-	for x: int in range(8, 13):
-		for y: int in range(5, 8):
-			if abs(x - mid_x) + abs(y - mid_y) <= 3:
-				ground.set_cell(0, Vector2i(x, y), src_id, ATLAS_PATH_CROSS if x == mid_x or y == mid_y else ATLAS_PATH_H)
+	var arm_y: int = mid_y + 3
+	for x: int in range(path_left, mid_x - 2):
+		ground.set_cell(0, Vector2i(x, arm_y), src_id, ATLAS_PATH_H)
+	for x: int in range(mid_x + 3, path_right + 1):
+		ground.set_cell(0, Vector2i(x, arm_y), src_id, ATLAS_PATH_H)
 
 
 func _spawn_forest_props() -> void:
@@ -111,32 +248,55 @@ func _spawn_forest_props() -> void:
 	var tree_ids: Array = (trees_meta.get("spawn_catalog", {}) as Dictionary).get("tree", []) as Array
 	var bush_cat: Dictionary = bushes_meta.get("spawn_catalog", {}) as Dictionary
 	var tree_entries: Array[Dictionary] = _catalog_entries(tree_items, tree_ids, "res://assets/art/trees/")
-	## Some bushes — big ring shrubs plus a handful of small ones, not the full 57.
 	var bush_ids: Array = bush_cat.get("bush", []) as Array
 	var tuft_ids: Array = bush_cat.get("tuft", []) as Array
 	var bush_pick: Array = []
 	for idv: Variant in bush_ids:
 		var bid: String = str(idv)
-		if bid.begins_with("bush_big_") or bush_pick.size() < 28:
+		if bid.begins_with("bush_big_") or bush_pick.size() < 36:
 			bush_pick.append(bid)
 	var bush_entries: Array[Dictionary] = _catalog_entries(bush_items, bush_pick, "res://assets/art/bushes/")
 	var tuft_entries: Array[Dictionary] = _catalog_entries(bush_items, tuft_ids, "res://assets/art/bushes/")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260917
 	var occupied: Array[Vector2] = []
-	## Overlapping ~400px canopies on the outer ring; one column per side so the glade stays open.
-	## No tall trees along the bottom — canopies hang upward and would swallow harvest nodes.
-	_scatter_grid(rng, tree_entries, occupied, 12, 2, Rect2(20, 48, 1240, 120), 62.0, 16.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 1, 6, Rect2(18, 150, 70, 280), 58.0, 12.0, 0.0)
-	_scatter_grid(rng, tree_entries, occupied, 1, 6, Rect2(1192, 150, 70, 280), 58.0, 12.0, 0.0)
-	## Inner-edge bushes (may sit a little into the glade). Bottom uses bushes only.
-	_scatter_grid(rng, bush_entries, occupied, 10, 1, Rect2(80, 175, 1120, 32), 40.0, 10.0, 22.0)
-	_scatter_grid(rng, bush_entries, occupied, 1, 7, Rect2(140, 200, 40, 430), 36.0, 8.0, 22.0)
-	_scatter_grid(rng, bush_entries, occupied, 1, 7, Rect2(1100, 200, 40, 430), 36.0, 8.0, 22.0)
-	_scatter_grid(rng, bush_entries, occupied, 10, 1, Rect2(40, 685, 240, 24), 34.0, 8.0, 18.0)
-	_scatter_grid(rng, bush_entries, occupied, 10, 1, Rect2(1000, 685, 240, 24), 34.0, 8.0, 18.0)
-	_scatter_grid(rng, bush_entries, occupied, 8, 1, Rect2(300, 690, 680, 22), 36.0, 8.0, 18.0)
-	_scatter_grid(rng, tuft_entries, occupied, 8, 1, Rect2(220, 195, 840, 24), 26.0, 8.0, 32.0)
+	var bands: Array = hub_map.get("scatter", []) as Array
+	if bands.is_empty():
+		_scatter_grid(rng, tree_entries, occupied, "tree", 22, 4, Rect2(24, 36, 2512, 300), 56.0, 16.0, 0.0)
+		_scatter_grid(rng, tree_entries, occupied, "tree", 22, 3, Rect2(24, 1820, 2512, 320), 56.0, 16.0, 0.0)
+		_scatter_grid(rng, tree_entries, occupied, "tree", 3, 14, Rect2(16, 320, 320, 1500), 54.0, 14.0, 0.0)
+		_scatter_grid(rng, tree_entries, occupied, "tree", 3, 14, Rect2(2224, 320, 320, 1500), 54.0, 14.0, 0.0)
+		_scatter_grid(rng, bush_entries, occupied, "bush", 18, 2, Rect2(280, 300, 2000, 70), 38.0, 10.0, 18.0)
+		_scatter_grid(rng, bush_entries, occupied, "bush", 18, 2, Rect2(280, 1780, 2000, 70), 36.0, 10.0, 18.0)
+		_scatter_grid(rng, tuft_entries, occupied, "tuft", 16, 1, Rect2(420, 340, 1720, 36), 24.0, 8.0, 28.0)
+		return
+	for band_v: Variant in bands:
+		if typeof(band_v) != TYPE_DICTIONARY:
+			continue
+		var band: Dictionary = band_v
+		var kind: String = str(band.get("kind", "tree"))
+		var entries: Array[Dictionary] = tree_entries
+		if kind == "bush":
+			entries = bush_entries
+		elif kind == "tuft":
+			entries = tuft_entries
+		var rect_v: Variant = band.get("rect", [0, 0, 64, 64])
+		var rect := Rect2(0, 0, 64, 64)
+		if typeof(rect_v) == TYPE_ARRAY and (rect_v as Array).size() >= 4:
+			var ra: Array = rect_v
+			rect = Rect2(float(ra[0]), float(ra[1]), float(ra[2]), float(ra[3]))
+		_scatter_grid(
+			rng,
+			entries,
+			occupied,
+			kind,
+			int(band.get("cols", 1)),
+			int(band.get("rows", 1)),
+			rect,
+			float(band.get("min_sep", 40.0)),
+			float(band.get("jitter", 8.0)),
+			float(band.get("glade_inset", 0.0))
+		)
 
 
 func _load_json_dict(path: String) -> Dictionary:
@@ -176,6 +336,7 @@ func _scatter_grid(
 	rng: RandomNumberGenerator,
 	entries: Array[Dictionary],
 	occupied: Array[Vector2],
+	kind: String,
 	cols: int,
 	rows: int,
 	rect: Rect2,
@@ -194,16 +355,23 @@ func _scatter_grid(
 				rect.position.x + u * rect.size.x + rng.randf_range(-jitter, jitter),
 				rect.position.y + v * rect.size.y + rng.randf_range(-jitter, jitter)
 			)
-			pos.x = clampf(pos.x, 10.0, 1270.0)
-			pos.y = clampf(pos.y, 36.0, 716.0)
+			pos.x = clampf(pos.x, 16.0, play_size.x - 16.0)
+			pos.y = clampf(pos.y, 40.0, play_size.y - 16.0)
 			if not _can_plant(pos, occupied, min_sep, glade_inset):
 				continue
-			_plant_prop(entries[n % entries.size()], pos)
+			_plant_prop(entries[n % entries.size()], pos, kind)
 			occupied.append(pos)
 			n += 1
 
 
-func _plant_prop(entry: Dictionary, pos: Vector2) -> void:
+func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void:
+	## Y-sorted visual at the foot; collision only on the trunk/base, never the canopy.
+	var root := Node2D.new()
+	root.position = pos
+	root.y_sort_enabled = true
+	root.z_index = 0
+	root.add_to_group("forest_prop")
+	root.set_meta("prop_kind", kind)
 	var spr := Sprite2D.new()
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	spr.centered = false
@@ -213,16 +381,44 @@ func _plant_prop(entry: Dictionary, pos: Vector2) -> void:
 	if tex != null:
 		sz = Vector2(float(tex.get_width()), float(tex.get_height()))
 	spr.offset = Vector2(-sz.x * 0.5, -sz.y)
-	spr.position = pos
 	spr.y_sort_enabled = true
-	spr.z_index = 0
-	spr.add_to_group("forest_prop")
-	world.add_child(spr)
+	root.add_child(spr)
+	var body := StaticBody2D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.add_to_group("forest_collision")
+	var col := CollisionShape2D.new()
+	var shape := RectangleShape2D.new()
+	var col_size: Vector2
+	var col_off: Vector2
+	if kind == "tree":
+		var trunk_h: float = maxf(18.0, sz.y * float(collision_cfg.get("tree_trunk_height_frac", 0.30)))
+		var col_h: float = maxf(8.0, trunk_h * float(collision_cfg.get("tree_collider_of_trunk_frac", 0.333)))
+		var col_w: float = clampf(
+			sz.x * float(collision_cfg.get("tree_width_frac", 0.16)),
+			float(collision_cfg.get("tree_width_min", 14)),
+			float(collision_cfg.get("tree_width_max", 36))
+		)
+		col_size = Vector2(col_w, col_h)
+		col_off = Vector2(0.0, -col_h * 0.5)
+	else:
+		col_size = Vector2(
+			float(collision_cfg.get("bush_width", 16)),
+			float(collision_cfg.get("bush_height", 10))
+		)
+		col_off = Vector2(0.0, -col_size.y * 0.5)
+	shape.size = col_size
+	col.shape = shape
+	col.position = col_off
+	body.add_child(col)
+	root.add_child(body)
+	root.set_meta("collider_size", col_size)
+	world.add_child(root)
 
 
 func _can_plant(pos: Vector2, occupied: Array[Vector2], min_sep: float, glade_inset: float) -> bool:
-	var glade: Rect2 = GLADE.grow(-glade_inset)
-	if glade.has_point(pos):
+	var open: Rect2 = glade.grow(-glade_inset)
+	if open.has_point(pos):
 		return false
 	if not _clear_of_landmarks(pos, 0.0):
 		return false
@@ -233,7 +429,8 @@ func _can_plant(pos: Vector2, occupied: Array[Vector2], min_sep: float, glade_in
 
 
 func _landmark_radius(index: int) -> float:
-	## Manatree needs extra room as stages grow; harvest nodes stay clickable.
+	if index >= 0 and index < clear_radii.size():
+		return clear_radii[index]
 	match index:
 		0:
 			return 200.0
@@ -248,9 +445,9 @@ func _landmark_radius(index: int) -> float:
 
 
 func _clear_of_landmarks(pos: Vector2, min_dist: float) -> bool:
-	for i: int in range(CLEAR_POINTS.size()):
+	for i: int in range(clear_points.size()):
 		var need: float = min_dist if min_dist > 0.0 else _landmark_radius(i)
-		if pos.distance_to(CLEAR_POINTS[i]) < need:
+		if pos.distance_to(clear_points[i]) < need:
 			return false
 	return true
 

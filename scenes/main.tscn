@@ -14,10 +14,14 @@ script = ExtResource("1_main")
 texture_filter = 0
 format = 2
 
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(1280, 1000)
+enabled = true
+
 [node name="ClickLayer" type="ColorRect" parent="."]
 modulate = Color(1, 1, 1, 0)
-offset_right = 1280.0
-offset_bottom = 720.0
+offset_right = 2560.0
+offset_bottom = 2160.0
 mouse_filter = 2
 color = Color(1, 1, 1, 0)
 
@@ -25,27 +29,27 @@ color = Color(1, 1, 1, 0)
 y_sort_enabled = true
 
 [node name="Manatree" parent="World" instance=ExtResource("3_tree")]
-position = Vector2(640, 420)
+position = Vector2(1280, 1000)
 y_sort_enabled = true
 
 [node name="Keeper" parent="World" instance=ExtResource("2_keeper")]
-position = Vector2(480, 520)
+position = Vector2(1120, 1100)
 y_sort_enabled = true
 
 [node name="HarvestTree" parent="World" instance=ExtResource("4_gath")]
-position = Vector2(200, 560)
+position = Vector2(840, 1140)
 resource_id = &"wood"
 display_name = "Harvest Tree"
 node_key = "wood"
 
 [node name="HarvestStone" parent="World" instance=ExtResource("4_gath")]
-position = Vector2(400, 580)
+position = Vector2(1040, 1160)
 resource_id = &"stone"
 display_name = "Harvest Stone"
 node_key = "stone"
 
 [node name="HarvestBerry" parent="World" instance=ExtResource("4_gath")]
-position = Vector2(900, 560)
+position = Vector2(1540, 1140)
 resource_id = &"food"
 display_name = "Berry Bush"
 node_key = "food"

@@ -23,7 +23,7 @@
     {
       "id": "green_thumb",
       "display_name": "Green Thumb",
-      "description": "Each rank: Fertilizer craft costs drop by 10% (min 1). Grow Essence and Fertilizer stay as they are.",
+      "description": "Fertilizer craft asks for a little less.",
       "max_rank": 5,
       "cost_base": 400,
       "cost_per_rank": 400,
@@ -75,8 +75,8 @@
       "display_name": "Keep Tools",
       "description": "Finished tools survive Ascend and return with you.",
       "max_rank": 1,
-      "cost_base": 400,
-      "cost_per_rank": 400,
+      "cost_base": 3000,
+      "cost_per_rank": 0,
       "effect": "keep_tools",
       "value_per_rank": 1.0
     }

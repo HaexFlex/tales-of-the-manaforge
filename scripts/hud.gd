@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.4.0.
+## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.4.1.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -308,10 +308,11 @@ func _on_status(text: String) -> void:
 func _refresh_controls_hint() -> void:
 	if controls_hint == null:
 		return
-	controls_hint.text = "%s  ·  %s  ·  %s" % [
+	controls_hint.text = "%s  ·  %s  ·  %s  ·  %s" % [
 		ContentStrings.get_text("controls_lmb_select"),
 		ContentStrings.get_text("controls_rmb_command"),
 		ContentStrings.get_text("controls_lmb_deselect"),
+		ContentStrings.get_text("controls_camera_pan"),
 	]
 
 
@@ -424,6 +425,12 @@ func _refresh_care_needs() -> void:
 		var toward: String = str(info.get("title", ""))
 		if toward != "":
 			body_parts.append(toward)
+		var next_id: String = str(info.get("next_stage_id", ""))
+		if next_id != "":
+			var grow_key: String = "tree_grow_cost_%s" % next_id
+			var grow_line: String = _content_line(grow_key)
+			if grow_line != "":
+				body_parts.append(grow_line)
 	if header != "":
 		body_parts.append(header)
 	for line: String in lines:
@@ -962,6 +969,10 @@ func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
 	lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var examine: String = _item_examine_text(str(stack.get("id", "")))
+	if examine != "":
+		row.tooltip_text = examine
+		lbl.tooltip_text = examine
 	row.add_child(lbl)
 	return row
 
@@ -971,30 +982,36 @@ func _make_craft_row(recipe_id: String) -> Control:
 	var out_id: String = str(def.get("output_id", recipe_id))
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H + 8.0)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 8)
+	row.clip_contents = true
 	row.add_child(_placeholder_icon(Backpack.item_color(out_id)))
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.size_flags_stretch_ratio = 1.0
 	var name_lbl := Label.new()
 	name_lbl.text = Backpack.item_display_name(out_id)
 	name_lbl.add_theme_font_size_override("font_size", 13)
 	name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+	name_lbl.clip_text = true
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var cost_lbl := Label.new()
-	cost_lbl.text = "  ".join(Backpack.recipe_ingredient_lines(recipe_id))
+	## Costs only — long tool/fertilizer fluff overflowed the panel.
+	cost_lbl.text = _craft_row_cost_text(recipe_id)
 	cost_lbl.add_theme_font_size_override("font_size", 11)
 	cost_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+	cost_lbl.clip_text = true
+	cost_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	cost_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	info.add_child(name_lbl)
 	info.add_child(cost_lbl)
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(88, 28)
+	btn.custom_minimum_size = Vector2(72, 28)
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	if out_id == "fertilizer":
-		cost_lbl.text = "%s  ·  %s" % [cost_lbl.text, ContentStrings.get_text("fertilizer_hint")]
-	elif out_id == "stone_watering_can":
-		cost_lbl.text = "%s  ·  %s" % [cost_lbl.text, ContentStrings.get_text("tool_water_hint")]
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 	var reason: String = Backpack.craft_block_reason(recipe_id)
 	if reason == "unique":
-		btn.text = ContentStrings.get_text("handcraft_owned_unique")
+		btn.text = ContentStrings.get_text("backpack_owned")
 		btn.disabled = true
 		_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
 	elif reason != "":
@@ -1008,6 +1025,66 @@ func _make_craft_row(recipe_id: String) -> Control:
 	row.add_child(info)
 	row.add_child(btn)
 	return row
+
+
+func _item_examine_text(item_id: String) -> String:
+	match item_id:
+		"axe_head":
+			return _content_line("part_stone_axe_head_examine")
+		"pickaxe_head":
+			return _content_line("part_stone_pickaxe_head_examine")
+		_:
+			return ""
+
+
+func _content_line(key: String, tokens: Dictionary = {}) -> String:
+	var labeled: String = ContentStrings.get_text(key, tokens)
+	if labeled != key and labeled != "":
+		return labeled
+	return ""
+
+
+func _craft_row_cost_text(recipe_id: String) -> String:
+	## Prefer Content v0.4.1 shorts, then craft-cost keys, then live ingredient lines.
+	var costs: String = ""
+	match recipe_id:
+		"stone_watering_can":
+			costs = _content_line("handcraft_row_watering_can_short")
+			if costs == "":
+				costs = _content_line("tool_stone_watering_can_craft_cost")
+		"wooden_basket":
+			costs = _content_line("handcraft_row_wooden_basket_short")
+			if costs == "":
+				costs = _content_line("tool_wooden_basket_craft_cost")
+		"fertilizer":
+			var ings: Dictionary = Backpack.get_recipe_ingredients(recipe_id)
+			var toks: Dictionary = {
+				"wood": int(ings.get("wood", 10)),
+				"stone": int(ings.get("stone", 10)),
+				"food": int(ings.get("food", 10)),
+			}
+			costs = _content_line("handcraft_row_fertilizer_short", toks)
+			if costs == "":
+				costs = _content_line("fertilizer_craft_cost", toks)
+			if costs == "":
+				costs = _content_line("fertilizer_craft_cost_default")
+	if costs == "":
+		costs = "  ".join(Backpack.recipe_ingredient_lines(recipe_id))
+	var wrapped: String = _content_line("handcraft_row_costs_only", {"costs": costs})
+	if wrapped != "":
+		return wrapped
+	return costs
+
+
+func get_backpack_layout_metrics() -> Dictionary:
+	var panel_w: float = backpack_panel.size.x if backpack_panel else 0.0
+	var craft_scroll: ScrollContainer = get_node_or_null("BackpackPanel/CraftScroll") as ScrollContainer
+	var craft_w: float = craft_scroll.size.x if craft_scroll else 0.0
+	return {
+		"panel_w": panel_w,
+		"craft_scroll_w": craft_w,
+		"fits": craft_w <= panel_w + 1.0,
+	}
 
 
 func _on_craft(recipe_id: String) -> void:
@@ -1105,18 +1182,25 @@ func _rebuild_upgrades() -> void:
 			name_lbl.text = str(d.get("display_name", uid))
 		name_lbl.add_theme_font_size_override("font_size", 13)
 		name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+		var desc: String = _upgrade_description(uid, d)
 		var rank_lbl := Label.new()
-		if uid == "keep_tools":
+		if desc != "":
 			rank_lbl.text = "%s  ·  %s" % [
-				ContentStrings.get_text("upgrade_keep_tools_desc"),
+				desc,
 				ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank}),
 			]
 		else:
 			rank_lbl.text = ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank})
 		rank_lbl.add_theme_font_size_override("font_size", 11)
 		rank_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+		rank_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		info.add_child(name_lbl)
 		info.add_child(rank_lbl)
+		if desc != "":
+			row.tooltip_text = desc
+			inner.tooltip_text = desc
+			name_lbl.tooltip_text = desc
+			rank_lbl.tooltip_text = desc
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(108, 32)
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -1132,11 +1216,35 @@ func _rebuild_upgrades() -> void:
 			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
 			_apply_button_chrome(btn, BUY_CAN, GOLD)
 			btn.pressed.connect(_on_buy.bind(uid))
+		var keep_cost_tip: String = _upgrade_keep_tools_cost_text(uid, cost)
+		if keep_cost_tip != "":
+			btn.tooltip_text = keep_cost_tip
 		inner.add_child(info)
 		inner.add_child(btn)
 		row.add_child(inner)
 		upgrade_list.add_child(row)
 		stripe = not stripe
+
+
+func _upgrade_keep_tools_cost_text(upgrade_id: String, cost: int) -> String:
+	if upgrade_id != "keep_tools":
+		return ""
+	var keep_cost: String = _content_line("upgrade_keep_tools_cost", {"cost": cost})
+	if keep_cost != "":
+		return keep_cost
+	return _content_line("upgrade_keep_tools_cost_default")
+
+
+func _upgrade_description(upgrade_id: String, def: Dictionary) -> String:
+	var tip_key: String = "upgrade_%s_tooltip" % upgrade_id
+	var tip: String = ContentStrings.get_text(tip_key)
+	if tip != tip_key and tip != "":
+		return tip
+	var key: String = "upgrade_%s_desc" % upgrade_id
+	var labeled: String = ContentStrings.get_text(key)
+	if labeled != key and labeled != "":
+		return labeled
+	return str(def.get("description", ""))
 
 
 func _on_buy(upgrade_id: String) -> void:

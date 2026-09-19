@@ -645,7 +645,7 @@ func buy_upgrade(upgrade_id: String) -> bool:
 
 
 func _raw_needs_for_next() -> Dictionary:
-	## SYSTEMS v0.4.0: Grow spends Fertilizer + Essence only (placeholder 1/2/3/4 + 20/40/60/80).
+	## Grow spends Fertilizer + Essence only (playtest 3/6/12/24 + 20/40/60/80).
 	var next_id: StringName = get_next_stage_id()
 	if next_id == &"":
 		return {}
@@ -836,6 +836,7 @@ func get_care_next_stage_info() -> Dictionary:
 		"can_pay": has_needs_for_next(),
 		"can_grow": has_needs_for_next(),
 		"next_stage_display": next_display,
+		"next_stage_id": String(next_id),
 		"ready_for_fruit": false,
 		"pending_ascend": false,
 		"needs": needs,
@@ -935,8 +936,15 @@ func ascend() -> void:
 	if get_upgrade_rank("keep_tools") > 0:
 		status_message.emit(ContentStrings.get_text("upgrade_keep_tools_toast"))
 		status_message.emit(ContentStrings.get_text("keep_tools_regrant_toast"))
+		var keep_wipe: String = ContentStrings.get_text("backpack_wiped_keep_tools_toast")
+		if keep_wipe != "backpack_wiped_keep_tools_toast":
+			status_message.emit(keep_wipe)
 	else:
-		status_message.emit(ContentStrings.get_text("ascend_backpack_wipe_toast"))
+		var wipe: String = ContentStrings.get_text("backpack_wiped_toast")
+		if wipe != "backpack_wiped_toast":
+			status_message.emit(wipe)
+		else:
+			status_message.emit(ContentStrings.get_text("ascend_backpack_wipe_toast"))
 
 
 func to_save_dict() -> Dictionary:

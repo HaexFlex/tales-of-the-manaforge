@@ -111,8 +111,10 @@ func item_string_key(item_id: String) -> String:
 			return "part_stone_fragment"
 		"wooden_tool_rod":
 			return "part_wood_rod"
-		"axe_head", "pickaxe_head":
-			return "part_stone_head"
+		"axe_head":
+			return "part_stone_axe_head"
+		"pickaxe_head":
+			return "part_stone_pickaxe_head"
 		"stone_axe":
 			return "tool_stone_axe"
 		"stone_pickaxe":
