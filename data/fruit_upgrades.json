@@ -23,11 +23,11 @@
     {
       "id": "green_thumb",
       "display_name": "Green Thumb",
-      "description": "Each rank: Fertilizer Grow cost drops by 10% (min 1). Essence unchanged.",
+      "description": "Each rank: Fertilizer craft costs drop by 10% (min 1). Grow Essence and Fertilizer stay as they are.",
       "max_rank": 5,
       "cost_base": 400,
       "cost_per_rank": 400,
-      "effect": "soft_need_reduction",
+      "effect": "fertilizer_craft_cost_mult",
       "value_per_rank": 0.1
     },
     {

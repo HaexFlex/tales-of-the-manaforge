@@ -1,5 +1,5 @@
 extends Node
-## Crafted-item backpack + handcraft recipes. Thin module beside GameState (SYSTEMS v0.3.5).
+## Crafted-item backpack + handcraft recipes. Thin module beside GameState (SYSTEMS v0.4.0).
 ## Resources stay on GameState. Backpack holds intermediates, tools, Fertilizer only.
 
 signal inventory_changed(item_id: StringName, new_amount: int)
@@ -230,12 +230,12 @@ func craft_block_reason(recipe_id: String) -> String:
 	var out_id: String = str(def.get("output_id", recipe_id))
 	if is_unique_item(out_id) and owns_item(out_id):
 		return "unique"
-	var ings: Variant = def.get("ingredients", {})
-	if typeof(ings) != TYPE_DICTIONARY:
+	var ings: Dictionary = get_recipe_ingredients(recipe_id)
+	if ings.is_empty() and get_recipe_def(recipe_id).is_empty():
 		return "unknown"
-	for key: Variant in (ings as Dictionary).keys():
+	for key: Variant in ings.keys():
 		var iid: String = str(key)
-		var need: int = int((ings as Dictionary)[key])
+		var need: int = int(ings[key])
 		if iid == "manashards" and need > 0:
 			return "no_shards"
 		if not _have_ingredient(iid, need):
@@ -244,11 +244,34 @@ func craft_block_reason(recipe_id: String) -> String:
 
 
 func recipe_has_manashards(recipe_id: String) -> bool:
+	var ings: Dictionary = get_recipe_ingredients(recipe_id)
+	return int(ings.get("manashards", 0)) > 0
+
+
+func get_fertilizer_craft_cost_mult() -> float:
+	## green_thumb: −10%/rank, then floor each ingredient (min 1).
+	var rank: int = GameState.get_upgrade_rank("green_thumb")
+	return maxf(0.0, 1.0 - 0.1 * float(rank))
+
+
+func _scaled_ingredient_need(recipe_id: String, raw_need: int) -> int:
+	if raw_need <= 0:
+		return 0
+	if recipe_id != "fertilizer":
+		return raw_need
+	return maxi(1, int(floor(float(raw_need) * get_fertilizer_craft_cost_mult())))
+
+
+func get_recipe_ingredients(recipe_id: String) -> Dictionary:
 	var def: Dictionary = get_recipe_def(recipe_id)
 	var ings: Variant = def.get("ingredients", {})
 	if typeof(ings) != TYPE_DICTIONARY:
-		return false
-	return int((ings as Dictionary).get("manashards", 0)) > 0
+		return {}
+	var out: Dictionary = {}
+	for key: Variant in (ings as Dictionary).keys():
+		var iid: String = str(key)
+		out[iid] = _scaled_ingredient_need(recipe_id, int((ings as Dictionary)[key]))
+	return out
 
 
 func try_craft(recipe_id: String) -> String:
@@ -256,7 +279,7 @@ func try_craft(recipe_id: String) -> String:
 	if reason != "":
 		return reason
 	var def: Dictionary = get_recipe_def(recipe_id)
-	var ings: Dictionary = def.get("ingredients", {}) as Dictionary
+	var ings: Dictionary = get_recipe_ingredients(recipe_id)
 	for key: Variant in ings.keys():
 		if not _spend_ingredient(str(key), int(ings[key])):
 			return "cant_afford"
@@ -266,7 +289,7 @@ func try_craft(recipe_id: String) -> String:
 	return "ok"
 
 
-func format_ingredient_line(ing_id: String, need: int) -> String:
+func format_ingredient_line(ing_id: String, need: int, recipe_id: String = "") -> String:
 	var have: int
 	var name: String
 	if StringName(ing_id) in RESOURCE_IDS:
@@ -275,17 +298,19 @@ func format_ingredient_line(ing_id: String, need: int) -> String:
 	else:
 		have = get_count(ing_id)
 		name = item_display_name(ing_id)
+	if recipe_id == "fertilizer":
+		var key: String = "fertilizer_craft_cost_%s" % ing_id
+		var labeled: String = ContentStrings.get_text(key, {"have": have, "need": need, "item": name})
+		if labeled != key:
+			return labeled
 	return "%s %d/%d" % [name, have, need]
 
 
 func recipe_ingredient_lines(recipe_id: String) -> PackedStringArray:
-	var def: Dictionary = get_recipe_def(recipe_id)
 	var lines: PackedStringArray = PackedStringArray()
-	var ings: Variant = def.get("ingredients", {})
-	if typeof(ings) != TYPE_DICTIONARY:
-		return lines
-	for key: Variant in (ings as Dictionary).keys():
-		lines.append(format_ingredient_line(str(key), int((ings as Dictionary)[key])))
+	var ings: Dictionary = get_recipe_ingredients(recipe_id)
+	for key: Variant in ings.keys():
+		lines.append(format_ingredient_line(str(key), int(ings[key]), recipe_id))
 	return lines
 
 

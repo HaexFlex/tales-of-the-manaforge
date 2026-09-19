@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.3.5 — backpack, Grow (Fertilizer+Essence), Keep Tools. SAVE_VERSION 6.
+## Headless verification per SYSTEMS_V01 v0.4.0 — backpack, Grow (Fertilizer+Essence), Keep Tools, watering-can shard_roll ×2. SAVE_VERSION 6.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -92,11 +92,11 @@ func _run() -> void:
 	var anc_size: Variant = ancient.get("size", [])
 	failed += _assert(typeof(anc_size) == TYPE_ARRAY and int((anc_size as Array)[0]) == 512 and int((anc_size as Array)[1]) == 640, "ancient size 512x640")
 
-	# deep_roots = water essence bonus; green_thumb = soft need reduction
+	# deep_roots = water essence bonus; green_thumb = fertilizer craft cost
 	var deep: Dictionary = game_state.call("get_upgrade_def", "deep_roots")
 	failed += _assert(str(deep.get("effect", "")) == "water_essence_bonus", "deep_roots water_essence_bonus")
 	var thumb: Dictionary = game_state.call("get_upgrade_def", "green_thumb")
-	failed += _assert(str(thumb.get("effect", "")) == "soft_need_reduction", "green_thumb soft_need_reduction")
+	failed += _assert(str(thumb.get("effect", "")) == "fertilizer_craft_cost_mult", "green_thumb fertilizer_craft_cost_mult")
 
 	# Art stage textures + meta
 	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_sapling.png"), "sapling texture")
@@ -414,17 +414,27 @@ func _run() -> void:
 	# Offers removed
 	failed += _assert(not game_state.has_method("try_offer"), "try_offer removed")
 
-	# green_thumb Fertilizer reduction (10% per rank, min 1)
+	# green_thumb retarget: Grow Fertilizer stays raw; craft 5*0.9=4
 	game_state.call("reset_for_new_game")
 	game_state.call("_set_stage", &"mature")  # next = elder needs fertilizer 3
 	var ranks2: Dictionary = game_state.get("upgrade_ranks")
 	ranks2["green_thumb"] = 1
 	game_state.set("upgrade_ranks", ranks2)
 	var needs_gt: Dictionary = game_state.call("get_next_stage_needs")
-	failed += _assert(int(needs_gt.get("essence", 0)) == 60, "green_thumb leaves essence alone")
-	failed += _assert(int(needs_gt.get("fertilizer", 0)) == 2, "green_thumb fertilizer 3*0.9=2")
+	failed += _assert(int(needs_gt.get("essence", 0)) == 60, "green_thumb leaves Grow essence alone")
+	failed += _assert(int(needs_gt.get("fertilizer", 0)) == 3, "green_thumb does not cut Grow fertilizer")
 	failed += _assert(not needs_gt.has("food"), "grow needs have no food")
 	failed += _assert(not needs_gt.has("wood"), "grow needs have no wood")
+	var fert_craft_gt: Dictionary = backpack.call("get_recipe_ingredients", "fertilizer")
+	failed += _assert(int(fert_craft_gt.get("wood", 0)) == 4, "green_thumb craft wood 5*0.9=4")
+	failed += _assert(int(fert_craft_gt.get("stone", 0)) == 4, "green_thumb craft stone 5*0.9=4")
+	failed += _assert(int(fert_craft_gt.get("food", 0)) == 4, "green_thumb craft food 5*0.9=4")
+	game_state.call("set_resource", &"wood", 4)
+	game_state.call("set_resource", &"stone", 4)
+	game_state.call("set_resource", &"food", 4)
+	failed += _assert(str(backpack.call("try_craft", "fertilizer")) == "ok", "craft fertilizer at thumb-reduced 4/4/4")
+	failed += _assert(int(game_state.get("wood")) == 0, "thumb craft spends 4 wood")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 1, "thumb craft grants fertilizer")
 
 	# Fruit / Ascend cycle (SYSTEMS v0.2.4 — Manashard shop; Ascension-only; Ascend optional)
 	failed += _assert(str(content_strings.call("get_text", "fruit_step_1")).find("Harvest") >= 0, "fruit_step_1")
@@ -1193,14 +1203,16 @@ func _run() -> void:
 		await process_frame
 		game_state.call("reset_for_new_game")
 
-	# --- SYSTEMS v0.3.5: backpack, handcraft, tools, Grow, Keep Tools ---
+	# --- SYSTEMS v0.4.0: backpack, handcraft, tools, Grow, Keep Tools, can shard_roll ×2 ---
 	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
 	failed += _assert(int((backpack.get("items_data") as Array).size()) == 10, "10 backpack items")
 	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
 	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
 	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
-	failed += _assert(int(fert_ings.get("wood", 0)) > 0 and int(fert_ings.get("stone", 0)) > 0 and int(fert_ings.get("food", 0)) > 0, "fertilizer wood+stone+food")
+	failed += _assert(int(fert_ings.get("wood", 0)) == 5 and int(fert_ings.get("stone", 0)) == 5 and int(fert_ings.get("food", 0)) == 5, "fertilizer wood+stone+food 5/5/5")
 	failed += _assert(int(fert_ings.get("manashards", 0)) == 0, "fertilizer manashards 0")
+	var fert_live: Dictionary = backpack.call("get_recipe_ingredients", "fertilizer")
+	failed += _assert(int(fert_live.get("wood", 0)) == 5, "fertilizer live wood 5 without thumb")
 	failed += _assert(str(content_strings.call("get_text", "item_fertilizer")) == "Fertilizer", "item_fertilizer")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_name")) == "Fertilizer", "fertilizer_name")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_hint")).find("Wood") >= 0, "fertilizer_hint")
@@ -1231,6 +1243,13 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "tool_stone_hint")).find("Stone Pickaxe") >= 0, "tool_stone_hint")
 	failed += _assert(str(content_strings.call("get_text", "tool_food_hint")).find("Wooden Basket") >= 0, "tool_food_hint")
 	failed += _assert(str(content_strings.call("get_text", "tool_water_hint")).find("Manashards") >= 0, "tool_water_hint")
+	failed += _assert(str(content_strings.call("get_text", "tool_water_hint")).find("Essence") >= 0, "tool_water_hint essence unchanged")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_cost_fertilizer")).find("Fertilizer") >= 0, "tree_grow_cost_fertilizer")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_cost_essence")).find("Essence") >= 0, "tree_grow_cost_essence")
+	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_wood")).find("{have}") >= 0, "fertilizer_craft_cost_wood")
+	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_stone")).find("{need}") >= 0, "fertilizer_craft_cost_stone")
+	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_food")).find("Food") >= 0, "fertilizer_craft_cost_food")
+	failed += _assert(str(content_strings.call("get_text", "ascend_backpack_wipe_toast")).find("Keep Tools") >= 0, "ascend_backpack_wipe_toast")
 	failed += _assert(str(content_strings.call("get_text", "tool_never_gate")).find("hands") >= 0, "tool_never_gate")
 	failed += _assert(str(content_strings.call("get_text", "tool_wiped_on_ascend")).find("Keep Tools") >= 0, "tool_wiped_on_ascend")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_name")) == "Keep Tools", "Keep Tools name")
@@ -1282,10 +1301,31 @@ func _run() -> void:
 	backpack.call("set_count", "stone_fragments", 10)
 	failed += _assert(str(backpack.call("try_craft", "stone_watering_can")) == "ok", "craft watering can")
 	failed += _assert(bool(backpack.call("owns_watering_can")), "owns watering can")
-	failed += _assert(abs(float(game_state.call("get_water_shard_pulse_sec")) - 0.5) < 0.01, "can halves shard wait")
+	failed += _assert(abs(float(game_state.call("get_water_shard_pulse_sec")) - 1.0) < 0.01, "can leaves shard wait")
 	failed += _assert(abs(float(game_state.call("get_water_essence_pulse_sec")) - 1.0) < 0.01, "can leaves essence wait")
+	failed += _assert(int(game_state.call("get_water_shard_roll_mult")) == 2, "can doubles shard_roll")
 
-	# Split water pulse: shards-only does not grant essence
+	# shard_roll ×2: even U{2,4,6}; Essence still +1
+	game_state.call("reset_for_new_game")
+	failed += _assert(int(game_state.call("get_water_shard_roll_mult")) == 1, "no can: roll mult 1")
+	var bare_pulse: Dictionary = game_state.call("apply_water_pulse")
+	var bare_shards: int = int(bare_pulse.get("shards", 0))
+	failed += _assert(bare_shards >= 1 and bare_shards <= 3, "bare shard_roll U{1,3}")
+	failed += _assert(int(bare_pulse.get("essence", 0)) == 1, "bare essence +1")
+	backpack.call("set_count", "stone_watering_can", 1)
+	failed += _assert(int(game_state.call("get_water_shard_roll_mult")) == 2, "owned can: roll mult 2")
+	var can_ok: int = 0
+	var i_can: int = 0
+	while i_can < 16:
+		var can_pulse: Dictionary = game_state.call("apply_water_pulse")
+		var can_shards: int = int(can_pulse.get("shards", 0))
+		failed += _assert(can_shards == 2 or can_shards == 4 or can_shards == 6, "can shard_roll*2 in {2,4,6} got %d" % can_shards)
+		failed += _assert(int(can_pulse.get("essence", 0)) == 1, "can leaves essence +1")
+		can_ok += 1
+		i_can += 1
+	failed += _assert(can_ok == 16, "16 can pulses checked")
+
+	# Split water pulse flags still isolate grants
 	game_state.call("reset_for_new_game")
 	var e_split: int = int(game_state.get("essence"))
 	var m_split: int = int(game_state.get("manashards"))

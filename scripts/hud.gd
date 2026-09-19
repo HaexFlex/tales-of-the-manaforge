@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.3.5.
+## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.4.0.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -794,13 +794,15 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 	if grow_ess_icon:
 		grow_ess_icon.color = ICON_ESSENCE
 	if grow_fert_need:
-		grow_fert_need.text = ContentStrings.get_text("tree_need_line" if fert_have < fert_need else "tree_need_line_met", {
+		var fert_key: String = "tree_grow_cost_fertilizer" if fert_have < fert_need else "tree_grow_cost_fertilizer_met"
+		grow_fert_need.text = ContentStrings.get_text(fert_key, {
 			"item": ContentStrings.get_text("fertilizer_name"),
 			"have": fert_have,
 			"need": fert_need,
 		})
 	if grow_ess_need:
-		grow_ess_need.text = ContentStrings.get_text("tree_need_line" if ess_have < ess_need else "tree_need_line_met", {
+		var ess_key: String = "tree_grow_cost_essence" if ess_have < ess_need else "tree_grow_cost_essence_met"
+		grow_ess_need.text = ContentStrings.get_text(ess_key, {
 			"item": ContentStrings.get_text("hud_essence"),
 			"have": ess_have,
 			"need": ess_need,

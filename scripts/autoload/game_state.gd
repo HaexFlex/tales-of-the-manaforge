@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.3.5 — Grow (Fertilizer+Essence), backpack via Backpack autoload. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.4.0 — Grow (Fertilizer+Essence), backpack via Backpack autoload. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -19,8 +19,7 @@ const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
 ]
 const HARVEST_IDS: Array[StringName] = [&"wood", &"stone", &"food"]
-## Soft Grow cost that green_thumb can reduce (not essence). Food/wood/stone no longer stage needs.
-const SOFT_NEED_IDS: Array[StringName] = [&"fertilizer"]
+## Grow spends Fertilizer + Essence only. green_thumb retargets to fertilizer *craft* cost (not Grow).
 const NEED_ORDER: Array[StringName] = [&"essence", &"fertilizer"]
 ## Assignment target id for the Manatree. Stored as a string in SAVE_VERSION 5 — no schema bump.
 ## Playtest: multiple wisps may stack on the same target (harvest nodes and Manatree).
@@ -519,12 +518,15 @@ func get_water_essence_pulse_sec() -> float:
 
 
 func get_water_shard_pulse_sec() -> float:
-	## Watering Can: 2× Manashard pulse rate (half wait for shard ticks) only.
-	var base_s: float = get_channel_pulse_sec()
+	## v0.4.0: can doubles shard_roll, not pulse wait. Both grants share CHANNEL_PULSE_SEC.
+	return get_channel_pulse_sec()
+
+
+func get_water_shard_roll_mult() -> int:
+	## Watering Can owned → shard_roll ×2. Essence grant unchanged.
 	if Backpack.owns_watering_can():
-		var shard_mult: float = maxf(1.0, param_float("WATER_CAN_SHARD_SPEED_MULT", 2.0))
-		return base_s / shard_mult
-	return base_s
+		return maxi(1, int(round(param_float("WATER_CAN_SHARD_ROLL_MULT", 2.0))))
+	return 1
 
 
 func _on_backpack_changed(_item_id: StringName, _new_amount: int) -> void:
@@ -575,9 +577,8 @@ func apply_harvest_pulse(resource_id: StringName) -> int:
 	return grant
 
 
-## Water channel pulse: manashards U{1,3}+shard_sight, essence income only (no growth).
-## At Ancient: still pays shards+essence.
-## Split flags let the Stone Watering Can tick shards faster without speeding Essence.
+## Water channel pulse: manashards U{1,3}×can + shard_sight, essence income only (no growth).
+## At Ancient: still pays shards+essence. Split flags are test-only; Keeper grants both.
 func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true) -> Dictionary:
 	if fruit_committed:
 		return {"ok": false, "reason": "pending_ascend", "shards": 0, "essence": 0}
@@ -588,7 +589,8 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true) ->
 	if grant_shards:
 		var shard_min: int = param_int("WATER_SHARD_MIN", 1)
 		var shard_max: int = param_int("WATER_SHARD_MAX", 3)
-		shards = randi_range(shard_min, shard_max) + int(get_effect_total("water_shard_bonus"))
+		var shard_roll: int = randi_range(shard_min, shard_max)
+		shards = shard_roll * get_water_shard_roll_mult() + int(get_effect_total("water_shard_bonus"))
 		add_resource(&"manashards", shards)
 		lifetime_shards_from_water += shards
 	if grant_essence:
@@ -642,7 +644,7 @@ func buy_upgrade(upgrade_id: String) -> bool:
 
 
 func _raw_needs_for_next() -> Dictionary:
-	## SYSTEMS v0.3.5: Grow spends Fertilizer + Essence only (placeholder 1/2/3/4 + 20/40/60/80).
+	## SYSTEMS v0.4.0: Grow spends Fertilizer + Essence only (placeholder 1/2/3/4 + 20/40/60/80).
 	var next_id: StringName = get_next_stage_id()
 	if next_id == &"":
 		return {}
@@ -653,23 +655,17 @@ func _raw_needs_for_next() -> Dictionary:
 	}
 
 
-## Applies green_thumb soft-mat −10%/rank (floor, min 1 if >0). Essence unchanged.
+## Grow costs are raw Fertilizer + Essence. green_thumb does not cut Grow (craft only).
 func get_next_stage_needs() -> Dictionary:
 	var raw: Dictionary = _raw_needs_for_next()
 	if raw.is_empty():
 		return {}
-	var thumb_rank: int = get_upgrade_rank("green_thumb")
-	var reduction: float = 0.1 * float(thumb_rank)
 	var out: Dictionary = {}
 	for rid: StringName in NEED_ORDER:
 		var key: String = String(rid)
 		var need: int = int(raw.get(key, 0))
-		if need <= 0:
-			continue
-		if rid in SOFT_NEED_IDS and thumb_rank > 0:
-			var reduced: int = int(floor(float(need) * (1.0 - reduction)))
-			need = maxi(1, reduced)
-		out[key] = need
+		if need > 0:
+			out[key] = need
 	return out
 
 
@@ -933,7 +929,7 @@ func ascend() -> void:
 		status_message.emit(ContentStrings.get_text("upgrade_keep_tools_toast"))
 		status_message.emit(ContentStrings.get_text("keep_tools_regrant_toast"))
 	else:
-		status_message.emit(ContentStrings.get_text("tool_wiped_on_ascend"))
+		status_message.emit(ContentStrings.get_text("ascend_backpack_wipe_toast"))
 
 
 func to_save_dict() -> Dictionary:

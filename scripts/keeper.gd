@@ -20,8 +20,6 @@ enum ChannelKind { NONE, HARVEST, WATER }
 var _channel_kind: int = ChannelKind.NONE
 var _channel_target: Node = null
 var _channel_accum: float = 0.0
-## Watering Can can tick Manashards faster than Essence — keep a second accum.
-var _water_shard_accum: float = 0.0
 
 const ARRIVE_DIST: float = 12.0
 const INTERACT_DIST: float = 64.0
@@ -167,7 +165,6 @@ func start_harvest_channel(node: Gatherable) -> void:
 	_channel_kind = ChannelKind.HARVEST
 	_channel_target = node
 	_channel_accum = 0.0
-	_water_shard_accum = 0.0
 	node.set_channeling(true)
 	GameAudio.play_channel_start()
 	GameState.status_message.emit(ContentStrings.get_text("harvest_start"))
@@ -184,14 +181,12 @@ func start_water_channel(tree: Manatree) -> void:
 	_channel_kind = ChannelKind.WATER
 	_channel_target = tree
 	_channel_accum = 0.0
-	_water_shard_accum = 0.0
 	tree.set_watering(true)
 	GameAudio.play_channel_start()
 	GameState.status_message.emit(ContentStrings.get_text("tree_water_start"))
 	channel_changed.emit(&"water", true)
-	_do_water_pulse(true, true)
+	_do_water_pulse()
 	_channel_accum = 0.0
-	_water_shard_accum = 0.0
 
 
 func cancel_channel(emit_status: bool = true) -> void:
@@ -202,7 +197,6 @@ func cancel_channel(emit_status: bool = true) -> void:
 	_channel_kind = ChannelKind.NONE
 	_channel_target = null
 	_channel_accum = 0.0
-	_water_shard_accum = 0.0
 	if kind == ChannelKind.HARVEST and target is Gatherable:
 		var g: Gatherable = target as Gatherable
 		if emit_status:
@@ -276,24 +270,16 @@ func _tick_channel(delta: float) -> void:
 			_channel_accum -= pulse
 			(_channel_target as Gatherable).on_harvest_pulse()
 	elif _channel_kind == ChannelKind.WATER:
-		_water_shard_accum += delta
-		var ess_pulse: float = GameState.get_water_essence_pulse_sec()
-		var shard_pulse: float = GameState.get_water_shard_pulse_sec()
-		if ess_pulse <= 0.0 or shard_pulse <= 0.0:
+		var pulse: float = GameState.get_water_essence_pulse_sec()
+		if pulse <= 0.0:
 			return
-		while _channel_accum >= ess_pulse or _water_shard_accum >= shard_pulse:
-			var grant_ess: bool = _channel_accum >= ess_pulse
-			var grant_shards: bool = _water_shard_accum >= shard_pulse
-			if grant_ess:
-				_channel_accum -= ess_pulse
-			if grant_shards:
-				_water_shard_accum -= shard_pulse
-			if grant_ess or grant_shards:
-				_do_water_pulse(grant_shards, grant_ess)
+		while _channel_accum >= pulse:
+			_channel_accum -= pulse
+			_do_water_pulse()
 
 
-func _do_water_pulse(grant_shards: bool = true, grant_essence: bool = true) -> void:
-	var result: Dictionary = GameState.apply_water_pulse(grant_shards, grant_essence)
+func _do_water_pulse() -> void:
+	var result: Dictionary = GameState.apply_water_pulse()
 	if not bool(result.get("ok", false)):
 		cancel_channel(false)
 		return

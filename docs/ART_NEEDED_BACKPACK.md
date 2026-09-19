@@ -20,7 +20,7 @@ Replace each ColorRect with a sprite of the suggested name. Keep IDs stable.
 | Inventory / craft row: Stone Axe | `icon_stone_axe.png` | 32×32 | `#c46a2b` rust | Unique tool (2× wood channel) |
 | Inventory / craft row: Stone Pickaxe | `icon_stone_pickaxe.png` | 32×32 | `#4a6d8c` iron blue | Unique tool (2× stone channel) |
 | Inventory / craft row: Wooden Basket | `icon_wooden_basket.png` | 32×32 | `#d4b84a` straw | Unique tool (2× food channel) |
-| Inventory / craft row: Stone Watering Can | `icon_stone_watering_can.png` | 32×32 | `#3d8b8b` teal | Unique tool (2× shard water ticks only) |
+| Inventory / craft row: Stone Watering Can | `icon_stone_watering_can.png` | 32×32 | `#3d8b8b` teal | Unique tool (shard_roll ×2; Essence water unchanged) |
 | Inventory / craft row: Fertilizer | `icon_fertilizer.png` | 32×32 | `#6b5a24` soil | Consumable Grow cost |
 | Ascension shop row: Keep Tools | `icon_keep_tools.png` | 32×32 | `#b8860b` bronze | Blessing row glyph |
 

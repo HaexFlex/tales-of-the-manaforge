@@ -2,7 +2,7 @@
 
 Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper**, tending a living **Manatree** in the last fragment of a fairy-forest.
 
-**Canon:** `VISION_RESTART` + briefs (`SYSTEMS_V01` **v0.2.5**, `CONTENT_STRINGS_V01` **v0.2.0**, `VISUAL_BIBLE_RESTART_V01`). **Needs-only** stage-up (no growth bar / Offers). Pause menu + **7 save slots**. Art harvest nodes **v0.1.4**. Audio channels **v0.1.2**. Old forge/combat drafts are non-canon.
+**Canon:** `VISION_RESTART` + briefs (`SYSTEMS_V01` **v0.4.0 LIVE**, `CONTENT_STRINGS_V01` **v0.4.0**, `VISUAL_BIBLE_RESTART_V01`). **Grow** = Fertilizer + Essence (needs-only Pay superseded). Pause menu + **7 save slots**. Art harvest nodes **v0.1.4**. Audio channels **v0.1.2**. Old forge/combat drafts are non-canon.
 
 ## Stack
 
@@ -12,7 +12,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 - Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options stub, Exit
 - Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **6**`; backpack stacks; legacy single-file migrates → slot 1; old `growth` ignored)
 
-## Prototype loop (Haex needs-only)
+## Prototype loop (Haex Grow + backpack)
 
 1. Click ground to move (cancels an active channel if you leave range).
 2. Click **Harvest Tree / Stone / Berry** → starts a **harvest channel**. While in range: **+1 wood / stone / food per second** (pulse SFX quiet under hub music).
@@ -20,7 +20,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 4. Placeholder Grow costs: Young **1 Fertilizer + 20 Essence** → Mature **2+40** → Elder **3+60** → Ancient **4+80**. Handcraft Fertilizer (wood+stone+food) in the **Backpack**.
 5. At **ancient**, harvest **Primordial Fruit** → Manashard blessings (including expensive **Keep Tools**) → **Ascend** (backpack wipe; tools return only with Keep Tools).
 
-Essence comes from **watering ticks**. Soft mats feed **handcraft**, not Grow. Gathering tools never gate hands; they 2× Keeper channel speed. Stone Watering Can speeds Manashard ticks only.
+Essence comes from **watering ticks**. Soft mats feed **handcraft**, not Grow. Gathering tools never gate hands; they 2× Keeper channel speed. Stone Watering Can doubles the Manashard **roll** (`shard_roll ×2`); Essence water is unchanged.
 
 ## Run
 

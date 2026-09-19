@@ -222,7 +222,7 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 |------------|---------|-------------|
 | `deep_roots` | Deep Roots | Watering yields Essence a little sooner. |
 | `forager` | Forager’s Grace | Harvest channels yield a little more. |
-| `green_thumb` | Green Thumb | Soft-mat Needs ask for a little less. |
+| `green_thumb` | Green Thumb | Fertilizer craft asks for a little less. |
 | `shard_sight` | Shard Sight | Watering yields more Manashards. |
 | `keeper_stride` | Keeper’s Stride | Walk the fragment a little faster. |
 | `wisp_haste` | Swift Wisps | Assigned Wisps gather a little sooner. |
@@ -454,7 +454,7 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `tool_stone_axe` | Stone Axe | Doubles how quickly you gather Wood while you hold it. |
 | `tool_stone_pickaxe` | Stone Pickaxe | Doubles how quickly you gather Stone while you hold it. |
 | `tool_wooden_basket` | Wooden Basket | Doubles how quickly you gather Food while you hold it. |
-| `tool_stone_watering_can` | Stone Watering Can | Doubles how quickly watering grants Manashards. Essence stays as it is. |
+| `tool_stone_watering_can` | Stone Watering Can | Doubles the Manashards from each watering pulse. Essence stays as it is. |
 
 | key | string |
 |-----|--------|
@@ -462,7 +462,7 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `tool_wood_hint` | Stone Axe — Wood gathers faster. |
 | `tool_stone_hint` | Stone Pickaxe — Stone gathers faster. |
 | `tool_food_hint` | Wooden Basket — Food gathers faster. |
-| `tool_water_hint` | Stone Watering Can — Manashards flow faster from watering. |
+| `tool_water_hint` | Stone Watering Can — each watering pulse grants twice the Manashards. Essence is unchanged. |
 | `tool_never_gate` | Your hands always work — tools only hurry you. |
 | `tool_wiped_on_ascend` | Crafted tools return to the forest on Ascend — unless Keep Tools is blessed. |
 
@@ -477,7 +477,15 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `fertilizer_name` | Fertilizer |
 | `fertilizer_hint` | Craft from Wood, Stone, and Food. Used with Essence to Grow. |
 | `fertilizer_craft_ok` | Fertilizer ready. |
+| `fertilizer_craft_cost_wood` | Wood {have}/{need} |
+| `fertilizer_craft_cost_stone` | Stone {have}/{need} |
+| `fertilizer_craft_cost_food` | Food {have}/{need} |
 | `tree_grow_needs_fertilizer` | Needs Fertilizer ×{count} and Essence ×{count}. |
+| `tree_grow_cost_fertilizer` | Fertilizer {have}/{need} |
+| `tree_grow_cost_essence` | Essence {have}/{need} |
+| `tree_grow_cost_fertilizer_met` | Fertilizer {have}/{need} ✓ |
+| `tree_grow_cost_essence_met` | Essence {have}/{need} ✓ |
+| `tree_grow_cost_line` | {item} {have}/{need} |
 
 ### 9f. Grow CTA (Manatree)
 
