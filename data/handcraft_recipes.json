@@ -10,6 +10,7 @@
   "params": {
     "TOOL_SPEED_MULT": 2.0,
     "WATER_CAN_SHARD_ROLL_MULT": 2.0,
+    "FERTILIZER_CRAFT_COST_MULT": 1.0,
     "ICON_SIZE_PX": 32,
     "KEEP_TOOLS_BLESSING_ID": "keep_tools"
   },

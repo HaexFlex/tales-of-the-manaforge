@@ -1,6 +1,6 @@
 extends Node
-## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.2.0).
-## Payload schema SAVE_VERSION 6 — backpack stacks. Migrates legacy single-file → slot 1.
+## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.4.0).
+## Payload schema SAVE_VERSION 6 — backpack + tool flags. Migrates legacy single-file → slot 1.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -183,8 +183,12 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		if not out.has("wisp_assignments") or typeof(out.get("wisp_assignments")) != TYPE_DICTIONARY:
 			out["wisp_assignments"] = {}
 	if from_version < 6:
-		if not out.has("backpack") or typeof(out.get("backpack")) != TYPE_DICTIONARY:
-			out["backpack"] = {}
+		## SYSTEMS v0.4.0: v5→v6 starts empty backpack; tool flags false.
+		out["backpack"] = {}
+		out["owns_stone_axe"] = false
+		out["owns_stone_pickaxe"] = false
+		out["owns_wooden_basket"] = false
+		out["owns_stone_watering_can"] = false
 	# Additive welcome flag: legacy saves already played.
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true

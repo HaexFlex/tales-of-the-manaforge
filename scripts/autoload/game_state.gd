@@ -589,8 +589,9 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true) ->
 	if grant_shards:
 		var shard_min: int = param_int("WATER_SHARD_MIN", 1)
 		var shard_max: int = param_int("WATER_SHARD_MAX", 3)
-		var shard_roll: int = randi_range(shard_min, shard_max)
-		shards = shard_roll * get_water_shard_roll_mult() + int(get_effect_total("water_shard_bonus"))
+		## SYSTEMS v0.4.0: shard_roll = U{1,3} + shard_sight, then Can ×2.
+		var shard_roll: int = randi_range(shard_min, shard_max) + int(get_effect_total("water_shard_bonus"))
+		shards = shard_roll * get_water_shard_roll_mult()
 		add_resource(&"manashards", shards)
 		lifetime_shards_from_water += shards
 	if grant_essence:
@@ -955,6 +956,10 @@ func to_save_dict() -> Dictionary:
 		"wisp_count": wisp_count,
 		"wisp_assignments": wisp_assignments.duplicate(true),
 		"backpack": Backpack.to_save_dict(),
+		"owns_stone_axe": Backpack.owns_item("stone_axe"),
+		"owns_stone_pickaxe": Backpack.owns_item("stone_pickaxe"),
+		"owns_wooden_basket": Backpack.owns_item("wooden_basket"),
+		"owns_stone_watering_can": Backpack.owns_item("stone_watering_can"),
 	}
 
 
@@ -997,6 +1002,15 @@ func apply_save_dict(data: Dictionary) -> void:
 	wisp_pulse_accum.clear()
 	_ensure_wisp_slots()
 	Backpack.apply_save_dict(data.get("backpack", {}))
+	## SYSTEMS v0.4.0 prefers unique-tool flags; backpack stacks (max 1) also OK.
+	if bool(data.get("owns_stone_axe", false)):
+		Backpack.set_count("stone_axe", 1)
+	if bool(data.get("owns_stone_pickaxe", false)):
+		Backpack.set_count("stone_pickaxe", 1)
+	if bool(data.get("owns_wooden_basket", false)):
+		Backpack.set_count("wooden_basket", 1)
+	if bool(data.get("owns_stone_watering_can", false)):
+		Backpack.set_count("stone_watering_can", 1)
 	keeper_selected = false
 	selected_wisp_id = -1
 	wisps_changed.emit()

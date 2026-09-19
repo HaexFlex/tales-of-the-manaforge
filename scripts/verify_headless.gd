@@ -1265,8 +1265,10 @@ func _run() -> void:
 	game_state.call("reset_for_new_game")
 	game_state.call("_set_stage", &"ancient")
 	game_state.call("harvest_fruit")
-	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 1600, "Keep Tools expensive 1600")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 400, "Keep Tools 400*(rank+1)")
 	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools unaffordable at 0 shards")
+	game_state.call("set_resource", &"manashards", 400)
+	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 400")
 
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 3)
@@ -1324,6 +1326,17 @@ func _run() -> void:
 		can_ok += 1
 		i_can += 1
 	failed += _assert(can_ok == 16, "16 can pulses checked")
+	# Can doubles (roll + shard_sight): U{1,3}+1 → {4,6,8}
+	var ranks_ss: Dictionary = game_state.get("upgrade_ranks")
+	ranks_ss["shard_sight"] = 1
+	game_state.set("upgrade_ranks", ranks_ss)
+	var ss_i: int = 0
+	while ss_i < 12:
+		var ss_pulse: Dictionary = game_state.call("apply_water_pulse")
+		var ss_shards: int = int(ss_pulse.get("shards", 0))
+		failed += _assert(ss_shards == 4 or ss_shards == 6 or ss_shards == 8, "can*(roll+sight) in {4,6,8} got %d" % ss_shards)
+		failed += _assert(int(ss_pulse.get("essence", 0)) == 1, "can+sight essence still +1")
+		ss_i += 1
 
 	# Split water pulse flags still isolate grants
 	game_state.call("reset_for_new_game")
@@ -1389,9 +1402,15 @@ func _run() -> void:
 	var migrated: Dictionary = save_service.call("_migrate", 5, v5_state)
 	failed += _assert(typeof(migrated.get("backpack", null)) == TYPE_DICTIONARY, "v5 migrate empty backpack dict")
 	failed += _assert((migrated.get("backpack", {}) as Dictionary).is_empty(), "v5 migrate backpack empty")
+	failed += _assert(bool(migrated.get("owns_stone_axe", true)) == false, "v5 migrate axe flag false")
+	failed += _assert(bool(migrated.get("owns_stone_watering_can", true)) == false, "v5 migrate can flag false")
 	game_state.call("reset_for_new_game")
 	game_state.call("apply_save_dict", migrated)
 	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "migrated empty backpack")
+	var saved_flags: Dictionary = game_state.call("to_save_dict")
+	failed += _assert(saved_flags.has("owns_stone_axe"), "save writes owns_stone_axe")
+	failed += _assert(saved_flags.has("owns_stone_watering_can"), "save writes owns_stone_watering_can")
+	failed += _assert(abs(float(backpack.call("get_fertilizer_craft_cost_mult")) - 1.0) < 0.01, "FERTILIZER_CRAFT_COST_MULT default 1")
 
 	# HUD backpack + Grow chrome
 	if hud_packed:

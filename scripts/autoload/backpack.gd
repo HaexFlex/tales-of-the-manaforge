@@ -249,9 +249,11 @@ func recipe_has_manashards(recipe_id: String) -> bool:
 
 
 func get_fertilizer_craft_cost_mult() -> float:
-	## green_thumb: −10%/rank, then floor each ingredient (min 1).
+	## SYSTEMS v0.4.0: floor(base * FERTILIZER_CRAFT_COST_MULT * green_thumb_mult), min 1.
+	var prestige: float = param_float("FERTILIZER_CRAFT_COST_MULT", 1.0)
 	var rank: int = GameState.get_upgrade_rank("green_thumb")
-	return maxf(0.0, 1.0 - 0.1 * float(rank))
+	var thumb: float = maxf(0.0, 1.0 - 0.1 * float(rank))
+	return maxf(0.0, prestige * thumb)
 
 
 func _scaled_ingredient_need(recipe_id: String, raw_need: int) -> int:

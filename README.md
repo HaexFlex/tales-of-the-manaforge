@@ -18,7 +18,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 2. Click **Harvest Tree / Stone / Berry** → starts a **harvest channel**. While in range: **+1 wood / stone / food per second** (pulse SFX quiet under hub music).
 3. Click **Manatree** → care menu. **Water** starts a **water channel**: each second **+rand(1..3) manashards** and **+1 essence** (income only). **Grow** spends **Fertilizer + Essence** (one click) to advance.
 4. Placeholder Grow costs: Young **1 Fertilizer + 20 Essence** → Mature **2+40** → Elder **3+60** → Ancient **4+80**. Handcraft Fertilizer (wood+stone+food) in the **Backpack**.
-5. At **ancient**, harvest **Primordial Fruit** → Manashard blessings (including expensive **Keep Tools**) → **Ascend** (backpack wipe; tools return only with Keep Tools).
+5. At **ancient**, harvest **Primordial Fruit** → Manashard blessings (including **Keep Tools**) → **Ascend** (backpack wipe; tools return only with Keep Tools).
 
 Essence comes from **watering ticks**. Soft mats feed **handcraft**, not Grow. Gathering tools never gate hands; they 2× Keeper channel speed. Stone Watering Can doubles the Manashard **roll** (`shard_roll ×2`); Essence water is unchanged.
 
