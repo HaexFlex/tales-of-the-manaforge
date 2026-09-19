@@ -24,6 +24,7 @@
 | v0.2.1 | Ascension polish: guide Harvest → spend Essence on blessings → Ascend. Scrub growth/offer language from welcome. |
 | v0.2.2 | Haex: after Fruit, choose one free blessing (superseded). |
 | **v0.2.3** | Haex: Ascension shop spends **Manashards** on blessings; multi-buy OK; then Ascend. Not free-pick, not Essence. |
+| **v0.4.0 refine** | Wire `fertilizer_craft_cost_*`, `tree_grow_cost_*`, Watering Can Manashard-only hint, backpack wipe / Keep Tools regrant toasts. Align Grow (not Pay) with SYSTEMS v0.4.0. |
 
 ---
 
