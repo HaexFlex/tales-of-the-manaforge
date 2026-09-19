@@ -508,7 +508,7 @@ Haex write-up (Sep 2026): Echo Chamber power — 7 combat stats via Runestones; 
 Short pointer: live rules in **§4d**. Backpack (crafts only), instant handcraft, unique tools, Keeper 2× only / never wisps, Ascend backpack wipe, `keep_tools` re-grants 4 finished tools. Fertilizer as stage currency — see §4 / D5.
 
 ### D5. Fertilizer stages + tools — GREENLIT → live v0.4.0
-Short pointer: live rules in **§4** (Stage Grow) + **§3** (Watering Can) + **§4d** (recipes/tools) + **§5** (`keep_tools`, retargeted `green_thumb`). Needs-only **SUPERSEDED**. PLACEHOLDER numbers remain for craft/Grow costs and Can amount — tune later.
+Short pointer: live rules in **§4** (Stage Grow) + **§3** (Watering Can) + **§4d** (recipes/tools) + **§5** (`keep_tools`, retargeted `green_thumb`). Needs-only **SUPERSEDED**. Craft/Grow/Keep Tools numbers **LIVE in v0.4.1 D6**.
 
 **Obsolete Design leans removed:** water=shards-only; Essence-on-berry. Live water remains Manashards + Essence; Can boosts Manashard side only.
 
