@@ -36,8 +36,8 @@
 | `boot_line` | The forest is quiet. The Manatree is waiting. |
 | `welcome_boot` | The forest is quiet. Tend the Manatree. |
 | `welcome_title` | Keeper |
-| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, and Pay its Needs when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend — Essence returns to the forest; blessings stay. |
-| `welcome_body_short` | Water and gather. Pay the Manatree’s Needs. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
+| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, handcraft Fertilizer in your Backpack, and Grow the tree when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend. |
+| `welcome_body_short` | Water and gather. Handcraft Fertilizer. Grow the Manatree. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
 | `welcome_dismiss` | I will tend it |
 | `welcome_hint` | LMB selects, RMB commands. Wisps orbit you until assigned — send them to gather, or to the Manatree for Manashards. |
 | `new_game_confirm` | Begin as Keeper? |
@@ -462,9 +462,10 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `tool_wood_hint` | Stone Axe — Wood gathers faster. |
 | `tool_stone_hint` | Stone Pickaxe — Stone gathers faster. |
 | `tool_food_hint` | Wooden Basket — Food gathers faster. |
-| `tool_water_hint` | Stone Watering Can — each watering pulse grants twice the Manashards. Essence is unchanged. |
+| `tool_water_hint` | Stone Watering Can — watering grants twice the Manashards. Essence is unchanged. |
 | `tool_never_gate` | Your hands always work — tools only hurry you. |
 | `tool_wiped_on_ascend` | Crafted tools return to the forest on Ascend — unless Keep Tools is blessed. |
+| `ascend_backpack_wipe_toast` | Crafted tools return to the forest on Ascend — unless Keep Tools is blessed. |
 
 ### 9e. Fertilizer
 
@@ -480,6 +481,7 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `fertilizer_craft_cost_wood` | Wood {have}/{need} |
 | `fertilizer_craft_cost_stone` | Stone {have}/{need} |
 | `fertilizer_craft_cost_food` | Food {have}/{need} |
+| `fertilizer_craft_cost_line` | {item} {have}/{need} |
 | `tree_grow_needs_fertilizer` | Needs Fertilizer ×{count} and Essence ×{count}. |
 | `tree_grow_cost_fertilizer` | Fertilizer {have}/{need} |
 | `tree_grow_cost_essence` | Essence {have}/{need} |
@@ -514,6 +516,7 @@ Primary stage-advance label is **Grow** (aliases `tree_pay*` → Grow).
 | `upgrade_keep_tools_desc` | Finished tools survive Ascend and return with you. |
 | `upgrade_keep_tools_toast` | Your tools remember the path. |
 | `keep_tools_regrant_toast` | Familiar tools settle back into your backpack. |
+| `ascend_keep_tools_toast` | Familiar tools settle back into your backpack. |
 
 
 ## DEFERRED notes (historical)

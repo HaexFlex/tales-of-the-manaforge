@@ -952,7 +952,9 @@ func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var count: int = int(stack.get("count", 0))
 	var name: String = str(stack.get("display_name", ""))
-	if bool(stack.get("unique", false)):
+	if str(stack.get("id", "")) == "stone_watering_can":
+		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("tool_water_hint")]
+	elif bool(stack.get("unique", false)):
 		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("tool_owned_hint")]
 	else:
 		lbl.text = "%s  ×%d" % [name, count]
@@ -988,6 +990,8 @@ func _make_craft_row(recipe_id: String) -> Control:
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	if out_id == "fertilizer":
 		cost_lbl.text = "%s  ·  %s" % [cost_lbl.text, ContentStrings.get_text("fertilizer_hint")]
+	elif out_id == "stone_watering_can":
+		cost_lbl.text = "%s  ·  %s" % [cost_lbl.text, ContentStrings.get_text("tool_water_hint")]
 	var reason: String = Backpack.craft_block_reason(recipe_id)
 	if reason == "unique":
 		btn.text = ContentStrings.get_text("handcraft_owned_unique")
@@ -1102,7 +1106,13 @@ func _rebuild_upgrades() -> void:
 		name_lbl.add_theme_font_size_override("font_size", 13)
 		name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
 		var rank_lbl := Label.new()
-		rank_lbl.text = ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank})
+		if uid == "keep_tools":
+			rank_lbl.text = "%s  ·  %s" % [
+				ContentStrings.get_text("upgrade_keep_tools_desc"),
+				ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank}),
+			]
+		else:
+			rank_lbl.text = ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank})
 		rank_lbl.add_theme_font_size_override("font_size", 11)
 		rank_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
 		info.add_child(name_lbl)
@@ -1134,7 +1144,10 @@ func _on_buy(upgrade_id: String) -> void:
 	if GameState.buy_upgrade(upgrade_id):
 		GameAudio.play_upgrade_buy()
 		var disp: String = str(GameState.get_upgrade_def(upgrade_id).get("display_name", upgrade_id))
-		status_label.text = ContentStrings.get_text("upgrade_buy_ok", {"blessing_name": disp})
+		if upgrade_id == "keep_tools":
+			status_label.text = ContentStrings.get_text("upgrade_keep_tools_toast")
+		else:
+			status_label.text = ContentStrings.get_text("upgrade_buy_ok", {"blessing_name": disp})
 		_confirm_ascend = false
 		_rebuild_upgrades()
 		_refresh_all()

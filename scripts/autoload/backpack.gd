@@ -305,6 +305,7 @@ func format_ingredient_line(ing_id: String, need: int, recipe_id: String = "") -
 		var labeled: String = ContentStrings.get_text(key, {"have": have, "need": need, "item": name})
 		if labeled != key:
 			return labeled
+		return ContentStrings.get_text("fertilizer_craft_cost_line", {"have": have, "need": need, "item": name})
 	return "%s %d/%d" % [name, have, need]
 
 

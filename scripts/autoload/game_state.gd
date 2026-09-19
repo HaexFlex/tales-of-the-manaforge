@@ -735,10 +735,16 @@ func format_need_checklist_lines() -> PackedStringArray:
 		var have: int = get_need_have(rid)
 		var item: String = _item_display(key)
 		var toks: Dictionary = {"item": item, "have": have, "need": need}
-		if have >= need:
-			lines.append(ContentStrings.get_text("tree_need_line_met", toks))
+		var cost_key: String = "tree_grow_cost_line"
+		if key == "fertilizer":
+			cost_key = "tree_grow_cost_fertilizer_met" if have >= need else "tree_grow_cost_fertilizer"
+		elif key == "essence":
+			cost_key = "tree_grow_cost_essence_met" if have >= need else "tree_grow_cost_essence"
+		elif have >= need:
+			cost_key = "tree_need_line_met"
 		else:
-			lines.append(ContentStrings.get_text("tree_need_line", toks))
+			cost_key = "tree_need_line"
+		lines.append(ContentStrings.get_text(cost_key, toks))
 	return lines
 
 
