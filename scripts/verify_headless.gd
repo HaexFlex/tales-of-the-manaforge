@@ -593,6 +593,17 @@ func _run() -> void:
 			failed += _assert(FileAccess.file_exists("res://docs/ART_NEEDED_BACKPACK.md"), "ART_NEEDED_BACKPACK.md")
 			failed += _assert(FileAccess.file_exists("res://data/handcraft_recipes.json"), "handcraft_recipes.json")
 			failed += _assert(FileAccess.file_exists("res://data/hub_map.json"), "hub_map.json")
+			var hub_file := FileAccess.open("res://data/hub_map.json", FileAccess.READ)
+			failed += _assert(hub_file != null, "open hub_map.json")
+			if hub_file:
+				var hub_parsed: Variant = JSON.parse_string(hub_file.get_as_text())
+				hub_file.close()
+				failed += _assert(typeof(hub_parsed) == TYPE_DICTIONARY, "hub_map json dict")
+				if typeof(hub_parsed) == TYPE_DICTIONARY:
+					var hub: Dictionary = hub_parsed
+					failed += _assert(abs(float(hub.get("map_width_mult", 0)) - 2.0) < 0.01, "MAP_WIDTH_MULT 2")
+					failed += _assert(abs(float(hub.get("map_height_mult", 0)) - 3.0) < 0.01, "MAP_HEIGHT_MULT 3")
+					failed += _assert(bool(hub.get("edge_scroll", true)) == false, "EDGE_SCROLL false")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/HarvestFruitButton") != null, "HarvestFruitButton missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/WaterButton") != null, "WaterButton missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/Header/CareCloseButton") != null, "care dismiss Close")
