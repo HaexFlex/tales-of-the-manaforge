@@ -16,6 +16,9 @@ class_name GameHUD
 @onready var backpack_title: Label = $BackpackPanel/Header/BackpackTitle
 @onready var backpack_close_button: Button = $BackpackPanel/Header/BackpackCloseButton
 @onready var inventory_title: Label = $BackpackPanel/InventoryTitle
+@onready var backpack_tab_all: Button = $BackpackPanel/TabRow/TabAll
+@onready var backpack_tab_tools: Button = $BackpackPanel/TabRow/TabTools
+@onready var backpack_tab_parts: Button = $BackpackPanel/TabRow/TabParts
 @onready var inventory_list: VBoxContainer = $BackpackPanel/InventoryScroll/InventoryList
 @onready var handcraft_title: Label = $BackpackPanel/HandcraftTitle
 @onready var craft_list: VBoxContainer = $BackpackPanel/CraftScroll/CraftList
@@ -91,6 +94,7 @@ var _confirm_ascend: bool = false
 ## 0 = closed, 1 = Begin Ascension?, 2 = Commit the harvest.
 var _fruit_confirm_step: int = 0
 var _highlight_ascend: bool = false
+var _backpack_tab: String = "all"
 
 
 func _ready() -> void:
@@ -108,9 +112,16 @@ func _ready() -> void:
 	_apply_wood_chrome()
 	add_to_group("game_hud")
 	pause_button.text = ContentStrings.get_text("btn_pause")
-	backpack_button.text = ContentStrings.get_text("btn_backpack")
+	backpack_button.text = ContentStrings.get_text("backpack_open")
 	backpack_title.text = ContentStrings.get_text("backpack_title")
-	handcraft_title.text = ContentStrings.get_text("backpack_handcraft_title")
+	handcraft_title.text = "%s  ·  %s" % [
+		ContentStrings.get_text("handcraft_title"),
+		ContentStrings.get_text("tool_never_gate"),
+	]
+	inventory_title.text = ContentStrings.get_text("backpack_hint")
+	backpack_tab_all.text = ContentStrings.get_text("backpack_tab_all")
+	backpack_tab_tools.text = ContentStrings.get_text("backpack_tab_tools")
+	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
 	if backpack_icon:
 		backpack_icon.color = ICON_BACKPACK
 	if grow_fert_icon:
@@ -120,7 +131,7 @@ func _ready() -> void:
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
-	pay_button.text = ContentStrings.get_text("tree_pay")
+	pay_button.text = ContentStrings.get_text("tree_grow")
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
 	ascension_reopen_button.text = ContentStrings.get_text("ascension_paused_title")
 	care_title.text = "%s %s" % [
@@ -135,6 +146,9 @@ func _ready() -> void:
 	pause_button.pressed.connect(_on_pause_pressed)
 	backpack_button.pressed.connect(toggle_backpack)
 	backpack_close_button.pressed.connect(close_backpack)
+	backpack_tab_all.pressed.connect(_on_backpack_tab.bind("all"))
+	backpack_tab_tools.pressed.connect(_on_backpack_tab.bind("tools"))
+	backpack_tab_parts.pressed.connect(_on_backpack_tab.bind("parts"))
 	if backpack_dim:
 		backpack_dim.gui_input.connect(_on_backpack_dim_input)
 	ascension_reopen_button.pressed.connect(show_ascension_shop)
@@ -217,6 +231,9 @@ func _apply_wood_chrome() -> void:
 	_apply_button_chrome(harvest_fruit_button, LEAF, GOLD)
 	_apply_button_chrome(backpack_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(backpack_tab_all, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(backpack_tab_tools, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(backpack_tab_parts, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	backpack_panel.add_theme_stylebox_override("panel", _wood_style())
 
 
@@ -413,11 +430,20 @@ func _refresh_care_needs() -> void:
 		body_parts.append(line)
 	if status != "" and not is_ancient:
 		body_parts.append(status)
+	if not is_ancient:
+		var grow_needs: Dictionary = info.get("needs", {}) as Dictionary
+		if grow_needs.is_empty():
+			grow_needs = GameState.get_next_stage_needs()
+		body_parts.append(_format_grow_needs_sentence(
+			int(grow_needs.get("fertilizer", 0)),
+			int(grow_needs.get("essence", 0))
+		))
+		body_parts.append(ContentStrings.get_text("tree_grow_hint"))
 	care_needs_label.text = "\n".join(body_parts)
 	care_needs_label.visible = not fruit_ready
 	var can_pay: bool = bool(info.get("can_pay", false))
 	pay_button.visible = not is_ancient
-	pay_button.text = ContentStrings.get_text("tree_pay")
+	pay_button.text = ContentStrings.get_text("tree_grow")
 	pay_button.disabled = not can_pay
 	_refresh_grow_cost_icons(info, is_ancient)
 	water_button.visible = not GameState.fruit_committed
@@ -738,6 +764,18 @@ func _on_water() -> void:
 	_refresh_all()
 
 
+func _format_grow_needs_sentence(fert_need: int, ess_need: int) -> String:
+	## Content uses {count} twice; fill Fertilizer then Essence.
+	var raw: String = ContentStrings.get_text("tree_grow_needs_fertilizer")
+	var first: int = raw.find("{count}")
+	if first >= 0:
+		raw = raw.substr(0, first) + str(fert_need) + raw.substr(first + 7)
+	var second: int = raw.find("{count}")
+	if second >= 0:
+		raw = raw.substr(0, second) + str(ess_need) + raw.substr(second + 7)
+	return raw
+
+
 func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 	if care_grow_costs == null:
 		return
@@ -757,7 +795,7 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 		grow_ess_icon.color = ICON_ESSENCE
 	if grow_fert_need:
 		grow_fert_need.text = ContentStrings.get_text("tree_need_line" if fert_have < fert_need else "tree_need_line_met", {
-			"item": ContentStrings.get_text("item_fertilizer"),
+			"item": ContentStrings.get_text("fertilizer_name"),
 			"have": fert_have,
 			"need": fert_need,
 		})
@@ -844,22 +882,48 @@ func _on_backpack_inventory(_item_id: StringName, _amount: int) -> void:
 		_refresh_care_needs()
 
 
+func _on_backpack_tab(tab_id: String) -> void:
+	_backpack_tab = tab_id
+	_rebuild_backpack()
+
+
+func _stack_matches_tab(stack: Dictionary) -> bool:
+	if _backpack_tab == "tools":
+		return str(stack.get("kind", "")) == "tool"
+	if _backpack_tab == "parts":
+		var kind: String = str(stack.get("kind", ""))
+		return kind == "intermediate" or kind == "consumable"
+	return true
+
+
 func _rebuild_backpack() -> void:
 	backpack_title.text = ContentStrings.get_text("backpack_title")
-	handcraft_title.text = ContentStrings.get_text("backpack_handcraft_title")
+	handcraft_title.text = "%s  ·  %s" % [
+		ContentStrings.get_text("handcraft_title"),
+		ContentStrings.get_text("tool_never_gate"),
+	]
+	inventory_title.text = ContentStrings.get_text("backpack_hint")
+	backpack_tab_all.text = ContentStrings.get_text("backpack_tab_all")
+	backpack_tab_tools.text = ContentStrings.get_text("backpack_tab_tools")
+	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
 	for child: Node in inventory_list.get_children():
 		child.queue_free()
 	var stacks: Array[Dictionary] = Backpack.stacked_items()
-	if stacks.is_empty():
+	var shown: int = 0
+	for stack: Dictionary in stacks:
+		if not _stack_matches_tab(stack):
+			continue
+		inventory_list.add_child(_make_item_row(stack, false))
+		shown += 1
+	if shown == 0:
 		var empty := Label.new()
 		empty.text = ContentStrings.get_text("backpack_empty")
+		if _backpack_tab != "all" and not stacks.is_empty():
+			empty.text = ContentStrings.get_text("backpack_hint")
 		empty.add_theme_font_size_override("font_size", 12)
 		empty.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inventory_list.add_child(empty)
-	else:
-		for stack: Dictionary in stacks:
-			inventory_list.add_child(_make_item_row(stack, false))
 	for child2: Node in craft_list.get_children():
 		child2.queue_free()
 	for entry: Variant in Backpack.recipes_data:
@@ -887,11 +951,12 @@ func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
 	var count: int = int(stack.get("count", 0))
 	var name: String = str(stack.get("display_name", ""))
 	if bool(stack.get("unique", false)):
-		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("backpack_owned")]
+		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("tool_owned_hint")]
 	else:
 		lbl.text = "%s  ×%d" % [name, count]
-	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_font_size_override("font_size", 12)
 	lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(lbl)
 	return row
@@ -919,17 +984,19 @@ func _make_craft_row(recipe_id: String) -> Control:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(88, 28)
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if out_id == "fertilizer":
+		cost_lbl.text = "%s  ·  %s" % [cost_lbl.text, ContentStrings.get_text("fertilizer_hint")]
 	var reason: String = Backpack.craft_block_reason(recipe_id)
 	if reason == "unique":
-		btn.text = ContentStrings.get_text("backpack_owned")
+		btn.text = ContentStrings.get_text("handcraft_owned_unique")
 		btn.disabled = true
 		_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
 	elif reason != "":
-		btn.text = ContentStrings.get_text("backpack_craft")
+		btn.text = ContentStrings.get_text("handcraft_prompt")
 		btn.disabled = true
 		_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
 	else:
-		btn.text = ContentStrings.get_text("backpack_craft")
+		btn.text = ContentStrings.get_text("handcraft_prompt")
 		_apply_button_chrome(btn, BUY_CAN, GOLD)
 		btn.pressed.connect(_on_craft.bind(recipe_id))
 	row.add_child(info)
@@ -943,16 +1010,19 @@ func _on_craft(recipe_id: String) -> void:
 	var item_name: String = Backpack.item_display_name(out_id)
 	if result == "ok":
 		GameAudio.play_ui_confirm()
-		status_label.text = ContentStrings.get_text("backpack_craft_ok", {"item": item_name})
+		if out_id == "fertilizer":
+			status_label.text = ContentStrings.get_text("fertilizer_craft_ok")
+		else:
+			status_label.text = ContentStrings.get_text("handcraft_ok", {"item": item_name})
 		_rebuild_backpack()
 		_refresh_resources()
 		SaveService.save_game()
 		return
 	GameAudio.play_tree_deny()
 	if result == "unique":
-		status_label.text = ContentStrings.get_text("backpack_craft_unique", {"item": item_name})
+		status_label.text = ContentStrings.get_text("handcraft_owned_unique")
 	else:
-		status_label.text = ContentStrings.get_text("backpack_craft_cant", {
+		status_label.text = ContentStrings.get_text("handcraft_cant_afford", {
 			"costs": "  ".join(Backpack.recipe_ingredient_lines(recipe_id)),
 		})
 	_rebuild_backpack()
@@ -1023,7 +1093,10 @@ func _rebuild_upgrades() -> void:
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.alignment = BoxContainer.ALIGNMENT_CENTER
 		var name_lbl := Label.new()
-		name_lbl.text = str(d.get("display_name", uid))
+		if uid == "keep_tools":
+			name_lbl.text = ContentStrings.get_text("upgrade_keep_tools_name")
+		else:
+			name_lbl.text = str(d.get("display_name", uid))
 		name_lbl.add_theme_font_size_override("font_size", 13)
 		name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
 		var rank_lbl := Label.new()

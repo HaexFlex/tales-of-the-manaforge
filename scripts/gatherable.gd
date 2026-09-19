@@ -105,7 +105,22 @@ func _refresh_prompt() -> void:
 	if GameState.selected_wisp_id >= 0:
 		label.text = _wisp_assign_prompt()
 		return
-	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
+	var prompt: String = ContentStrings.get_text("node_%s_prompt" % node_key)
+	if Backpack.owns_tool_for_resource(resource_id):
+		prompt = "%s\n%s" % [prompt, _tool_owned_hint()]
+	label.text = prompt
+
+
+func _tool_owned_hint() -> String:
+	match resource_id:
+		&"wood":
+			return ContentStrings.get_text("tool_wood_hint")
+		&"stone":
+			return ContentStrings.get_text("tool_stone_hint")
+		&"food":
+			return ContentStrings.get_text("tool_food_hint")
+		_:
+			return ContentStrings.get_text("tool_owned_hint")
 
 
 func _wisp_assign_prompt() -> String:

@@ -487,17 +487,36 @@ text = "Close"
 
 [node name="InventoryTitle" type="Label" parent="BackpackPanel"]
 offset_left = 16.0
-offset_top = 60.0
+offset_top = 56.0
 offset_right = 544.0
-offset_bottom = 82.0
-theme_override_font_sizes/font_size = 13
+offset_bottom = 74.0
+theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.78, 0.72, 0.58, 1)
-text = "Crafted"
+text = "Crafted goods live here — tools, parts, Fertilizer."
+
+[node name="TabRow" type="HBoxContainer" parent="BackpackPanel"]
+offset_left = 16.0
+offset_top = 76.0
+offset_right = 544.0
+offset_bottom = 104.0
+theme_override_constants/separation = 8
+
+[node name="TabAll" type="Button" parent="BackpackPanel/TabRow"]
+custom_minimum_size = Vector2(88, 26)
+text = "All"
+
+[node name="TabTools" type="Button" parent="BackpackPanel/TabRow"]
+custom_minimum_size = Vector2(88, 26)
+text = "Tools"
+
+[node name="TabParts" type="Button" parent="BackpackPanel/TabRow"]
+custom_minimum_size = Vector2(88, 26)
+text = "Parts"
 
 [node name="InventoryScroll" type="ScrollContainer" parent="BackpackPanel"]
 clip_contents = true
 offset_left = 16.0
-offset_top = 84.0
+offset_top = 108.0
 offset_right = 544.0
 offset_bottom = 220.0
 horizontal_scroll_mode = 0
@@ -509,12 +528,13 @@ theme_override_constants/separation = 2
 
 [node name="HandcraftTitle" type="Label" parent="BackpackPanel"]
 offset_left = 16.0
-offset_top = 228.0
+offset_top = 224.0
 offset_right = 544.0
 offset_bottom = 250.0
-theme_override_font_sizes/font_size = 13
+theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.78, 0.72, 0.58, 1)
 text = "Handcraft"
+autowrap_mode = 3
 
 [node name="CraftScroll" type="ScrollContainer" parent="BackpackPanel"]
 clip_contents = true

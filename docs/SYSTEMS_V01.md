@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Systems Brief v0.3 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.3.5 — Haex: backpack / handcraft / Grow (Fertilizer+Essence)  
+**Status:** v0.3.5 — Haex: backpack / handcraft / Grow (Fertilizer+Essence). Player copy: Content **v0.4.0**.  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  

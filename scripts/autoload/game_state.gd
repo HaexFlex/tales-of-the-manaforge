@@ -712,7 +712,7 @@ func _item_display(resource_id: String) -> String:
 		"essence":
 			return ContentStrings.get_text("hud_essence")
 		"fertilizer":
-			return ContentStrings.get_text("item_fertilizer")
+			return ContentStrings.get_text("fertilizer_name")
 		"food":
 			return ContentStrings.get_text("hud_food")
 		"wood":
@@ -821,9 +821,9 @@ func get_care_next_stage_info() -> Dictionary:
 	if needs.is_empty():
 		status = ContentStrings.get_text("tree_next_stage_needs_none")
 	elif has_needs_for_next():
-		status = ContentStrings.get_text("tree_next_stage_needs_met")
+		status = ContentStrings.get_text("tree_grow_ready")
 	else:
-		status = ContentStrings.get_text("tree_pay_cant_afford", {"costs": format_missing_needs()})
+		status = ContentStrings.get_text("tree_grow_cant_afford", {"costs": format_missing_needs()})
 	return {
 		"is_ancient": false,
 		"title": ContentStrings.get_text("tree_next_stage_title", {"next_stage": next_display}),
@@ -851,14 +851,14 @@ func try_grow_stage() -> String:
 	if needs.is_empty():
 		return "no_next"
 	if not has_needs_for_next():
-		status_message.emit(ContentStrings.get_text("tree_pay_cant_afford", {"costs": format_missing_needs()}))
+		status_message.emit(ContentStrings.get_text("tree_grow_cant_afford", {"costs": format_missing_needs()}))
 		return "cant_afford"
 	for key: Variant in needs.keys():
 		spend_need(StringName(str(key)), int(needs[key]))
 	_set_stage(next_id)
 	grant_wisp_from_stage()
 	var next_display: String = str(get_stage_def(next_id).get("display_name", next_id))
-	status_message.emit(ContentStrings.get_text("tree_pay_ok", {"next_stage": next_display}))
+	status_message.emit(ContentStrings.get_text("tree_grow_ok", {"next_stage": next_display}))
 	needs_changed.emit()
 	return "ok"
 
@@ -930,9 +930,10 @@ func ascend() -> void:
 	status_message.emit(ContentStrings.get_text("ascend_toast"))
 	status_message.emit(ContentStrings.get_text("ascend_essence_reset_toast"))
 	if get_upgrade_rank("keep_tools") > 0:
-		status_message.emit(ContentStrings.get_text("ascend_keep_tools_toast"))
+		status_message.emit(ContentStrings.get_text("upgrade_keep_tools_toast"))
+		status_message.emit(ContentStrings.get_text("keep_tools_regrant_toast"))
 	else:
-		status_message.emit(ContentStrings.get_text("ascend_backpack_wipe_toast"))
+		status_message.emit(ContentStrings.get_text("tool_wiped_on_ascend"))
 
 
 func to_save_dict() -> Dictionary:

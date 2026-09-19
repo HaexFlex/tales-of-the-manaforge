@@ -184,6 +184,8 @@ func _refresh_label() -> void:
 	var suffix: String = ""
 	if _watering:
 		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
+		if Backpack.owns_watering_can():
+			suffix += "\n" + ContentStrings.get_text("tool_water_hint")
 	if GameState.selected_wisp_id >= 0:
 		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
 		return

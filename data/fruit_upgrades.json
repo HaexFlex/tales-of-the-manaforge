@@ -73,7 +73,7 @@
     {
       "id": "keep_tools",
       "display_name": "Keep Tools",
-      "description": "Finished gathering tools survive Ascension. Fertilizer and intermediates still return to the forest.",
+      "description": "Finished tools survive Ascend and return with you.",
       "max_rank": 1,
       "cost_base": 1600,
       "cost_per_rank": 1600,

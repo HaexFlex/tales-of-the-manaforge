@@ -99,15 +99,52 @@ func item_color(item_id: String) -> Color:
 	return Color(hex)
 
 
-func item_display_name(item_id: String) -> String:
+func item_string_key(item_id: String) -> String:
 	var def: Dictionary = get_item_def(item_id)
-	if def.is_empty():
-		return ContentStrings.get_text("item_%s" % item_id) if item_id != "" else item_id
-	var key: String = "item_%s" % item_id
+	var keyed: String = str(def.get("string_key", ""))
+	if keyed != "":
+		return keyed
+	match item_id:
+		"wooden_planks":
+			return "part_wood_plank"
+		"stone_fragments":
+			return "part_stone_fragment"
+		"wooden_tool_rod":
+			return "part_wood_rod"
+		"axe_head", "pickaxe_head":
+			return "part_stone_head"
+		"stone_axe":
+			return "tool_stone_axe"
+		"stone_pickaxe":
+			return "tool_stone_pickaxe"
+		"wooden_basket":
+			return "tool_wooden_basket"
+		"stone_watering_can":
+			return "tool_stone_watering_can"
+		"fertilizer":
+			return "fertilizer_name"
+		_:
+			return "item_%s" % item_id
+
+
+func item_display_name(item_id: String) -> String:
+	var key: String = item_string_key(item_id)
 	var labeled: String = ContentStrings.get_text(key)
 	if labeled != key:
 		return labeled
-	return str(def.get("display_name", item_id))
+	var def: Dictionary = get_item_def(item_id)
+	if not def.is_empty():
+		return str(def.get("display_name", item_id))
+	return item_id
+
+
+func item_kind(item_id: String) -> String:
+	return str(get_item_def(item_id).get("kind", ""))
+
+
+func is_part(item_id: String) -> bool:
+	var kind: String = item_kind(item_id)
+	return kind == "intermediate" or kind == "consumable"
 
 
 func get_count(item_id: String) -> int:
