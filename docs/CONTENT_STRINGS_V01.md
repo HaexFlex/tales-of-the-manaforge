@@ -1,12 +1,12 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.4.0 — Haex GREENLIGHT: Backpack / Handcraft / tools / Grow / Keep Tools / Fertilizer (live)
+**Status:** v0.4.1 — Haex D6 LIVE: playtest retunes + blessing tooltips + head names
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
 **Changelog note:** v0.4.0 backpack/handcraft greenlight.
 
-**Last updated:** 2026-09-15
+**Last updated:** 2026-09-19
 
 **Tone (Haex locked):** warm + lightly melancholic — never stressful.  
 **In-world rule:** *Manaforge* is **title-only** in v0.1 (window / itch blurb). Do not name the hidden forge or door in player strings yet.
@@ -25,6 +25,7 @@
 | v0.2.2 | Haex: after Fruit, choose one free blessing (superseded). |
 | **v0.2.3** | Haex: Ascension shop spends **Manashards** on blessings; multi-buy OK; then Ascend. Not free-pick, not Essence. |
 | **v0.4.0 refine** | Wire `fertilizer_craft_cost_*`, `tree_grow_cost_*`, Watering Can Manashard-only hint, backpack wipe / Keep Tools regrant toasts. Align Grow (not Pay) with SYSTEMS v0.4.0. |
+| **v0.4.1** | D6 LIVE: `part_stone_axe_head` / `part_stone_pickaxe_head`; costs-only handcraft shorts; Grow Fert 3/6/12/24; Keep Tools 3000; blessing `*_tooltip`; Fert craft default ×10. |
 
 ---
 
@@ -40,7 +41,7 @@
 | `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, handcraft Fertilizer in your Backpack, and Grow the tree when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend. |
 | `welcome_body_short` | Water and gather. Handcraft Fertilizer. Grow the Manatree. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
 | `welcome_dismiss` | I will tend it |
-| `welcome_hint` | LMB selects, RMB commands. Wisps orbit you until assigned — send them to gather, or to the Manatree for Manashards. |
+| `welcome_hint` | LMB selects, RMB commands. Arrow keys pan the camera. Wisps orbit you until assigned — send them to gather, or to the Manatree for Manashards. |
 | `new_game_confirm` | Begin as Keeper? |
 | `load_game` | Continue |
 | `save_toast` | Progress remembered. |
@@ -239,6 +240,15 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | `upgrade_maxed` | Fully blessed |
 | `upgrade_cant_afford` | Not enough Manashards |
 | `upgrade_buy_ok` | {blessing_name} grows stronger. |
+| `upgrade_tooltip_hint` | {desc} |
+| `upgrade_deep_roots_tooltip` | Watering yields Essence a little sooner. |
+| `upgrade_forager_tooltip` | Harvest channels yield a little more. |
+| `upgrade_green_thumb_tooltip` | Fertilizer craft asks for a little less. |
+| `upgrade_shard_sight_tooltip` | Watering yields more Manashards. |
+| `upgrade_keeper_stride_tooltip` | Walk the fragment a little faster. |
+| `upgrade_wisp_haste_tooltip` | Assigned Wisps gather a little sooner. |
+| `upgrade_bonus_wisp_tooltip` | Another Wisp walks with you from the Sapling. |
+| `upgrade_keep_tools_tooltip` | Finished tools survive Ascend and return with you. |
 
 **Retired for this flow:** free-pick `fruit_choose_*` / `upgrade_select` as the primary path (Code may ignore).
 
@@ -489,6 +499,17 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `fertilizer_craft_cost_stone` | Stone {have}/{need} |
 | `fertilizer_craft_cost_food` | Food {have}/{need} |
 | `fertilizer_craft_cost_line` | {item} {have}/{need} |
+| `fertilizer_craft_cost` | Wood ×{wood}, Stone ×{stone}, Food ×{food} |
+| `fertilizer_craft_cost_default` | Wood ×10, Stone ×10, Food ×10 |
+| `handcraft_row_watering_can_short` | Stone Fragments ×20 |
+| `handcraft_row_wooden_basket_short` | Wooden Planks ×20 |
+| `handcraft_row_fertilizer_short` | Wood ×{wood}, Stone ×{stone}, Food ×{food} |
+| `tool_stone_watering_can_craft_cost` | Stone Fragments ×20 |
+| `tool_wooden_basket_craft_cost` | Wooden Planks ×20 |
+| `tree_grow_cost_young` | Fertilizer ×3, Essence ×20 |
+| `tree_grow_cost_mature` | Fertilizer ×6, Essence ×40 |
+| `tree_grow_cost_elder` | Fertilizer ×12, Essence ×60 |
+| `tree_grow_cost_ancient` | Fertilizer ×24, Essence ×80 |
 | `tree_grow_needs_fertilizer` | Needs Fertilizer ×{count} and Essence ×{count}. |
 | `tree_grow_cost_fertilizer` | Fertilizer {have}/{need} |
 | `tree_grow_cost_essence` | Essence {have}/{need} |
@@ -521,6 +542,9 @@ Primary stage-advance label is **Grow** (aliases `tree_pay*` → Grow).
 |-----|--------|
 | `upgrade_keep_tools_name` | Keep Tools |
 | `upgrade_keep_tools_desc` | Finished tools survive Ascend and return with you. |
+| `upgrade_keep_tools_tooltip` | Finished tools survive Ascend and return with you. |
+| `upgrade_keep_tools_cost` | {cost} Manashards |
+| `upgrade_keep_tools_cost_default` | 3000 Manashards |
 | `upgrade_keep_tools_toast` | Your tools remember the path. |
 | `keep_tools_regrant_toast` | Familiar tools settle back into your backpack. |
 | `ascend_keep_tools_toast` | Familiar tools settle back into your backpack. |
@@ -547,4 +571,5 @@ Partially promoted in **v0.4.0** (Grow live). Remaining deferred: Fruit shop Clo
 | `tree_grow_ok` | The Manatree becomes {next_stage}. |
 | `tree_grow_cant_afford` | Not enough yet — {costs} |
 
-v0.4.0 promoted: Backpack, Handcraft, tools, Grow, Keep Tools, Fertilizer. Ping Code.
+v0.4.0 promoted: Backpack, Handcraft, tools, Grow, Keep Tools, Fertilizer.  
+**v0.4.1 D6 LIVE:** head names, costs-only craft rows, Grow Fert 3/6/12/24, Fert craft ×10, Keep Tools 3000, blessing `*_tooltip`, camera-pan hint. Ping Code.

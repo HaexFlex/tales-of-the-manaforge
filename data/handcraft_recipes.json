@@ -1,5 +1,5 @@
 {
-  "version": "v0.4.0-backpack",
+  "version": "v0.4.1-d6",
   "notes": [
     "Placeholder numbers — tune later. Fertilizer NEVER costs Manashards.",
     "Grow curve (to ENTER named stage): Fertilizer 3/6/12/24 and Essence 20/40/60/80 for Young/Mature/Elder/Ancient.",
@@ -169,7 +169,7 @@
       "id": "stone_watering_can",
       "output_id": "stone_watering_can",
       "output_count": 1,
-      "ingredients": { "wooden_tool_rod": 1, "stone_fragments": 20 }
+      "ingredients": { "stone_fragments": 20 }
     },
     {
       "id": "fertilizer",

@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.4.0.
+## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.4.1.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -987,7 +987,7 @@ func _make_craft_row(recipe_id: String) -> Control:
 	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var cost_lbl := Label.new()
 	## Costs only — long tool/fertilizer fluff overflowed the panel.
-	cost_lbl.text = "  ".join(Backpack.recipe_ingredient_lines(recipe_id))
+	cost_lbl.text = _craft_row_cost_text(recipe_id)
 	cost_lbl.add_theme_font_size_override("font_size", 11)
 	cost_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
 	cost_lbl.clip_text = true
@@ -1015,6 +1015,28 @@ func _make_craft_row(recipe_id: String) -> Control:
 	row.add_child(info)
 	row.add_child(btn)
 	return row
+
+
+func _craft_row_cost_text(recipe_id: String) -> String:
+	match recipe_id:
+		"stone_watering_can":
+			var short_can: String = ContentStrings.get_text("handcraft_row_watering_can_short")
+			if short_can != "handcraft_row_watering_can_short":
+				return short_can
+		"wooden_basket":
+			var short_basket: String = ContentStrings.get_text("handcraft_row_wooden_basket_short")
+			if short_basket != "handcraft_row_wooden_basket_short":
+				return short_basket
+		"fertilizer":
+			var ings: Dictionary = Backpack.get_recipe_ingredients(recipe_id)
+			var short_fert: String = ContentStrings.get_text("handcraft_row_fertilizer_short", {
+				"wood": int(ings.get("wood", 10)),
+				"stone": int(ings.get("stone", 10)),
+				"food": int(ings.get("food", 10)),
+			})
+			if short_fert != "handcraft_row_fertilizer_short":
+				return short_fert
+	return "  ".join(Backpack.recipe_ingredient_lines(recipe_id))
 
 
 func get_backpack_layout_metrics() -> Dictionary:
@@ -1165,6 +1187,10 @@ func _rebuild_upgrades() -> void:
 
 
 func _upgrade_description(upgrade_id: String, def: Dictionary) -> String:
+	var tip_key: String = "upgrade_%s_tooltip" % upgrade_id
+	var tip: String = ContentStrings.get_text(tip_key)
+	if tip != tip_key and tip != "":
+		return tip
 	var key: String = "upgrade_%s_desc" % upgrade_id
 	var labeled: String = ContentStrings.get_text(key)
 	if labeled != key and labeled != "":
