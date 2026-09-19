@@ -121,7 +121,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif _open:
 				resume_game()
 			else:
-				open_pause()
+				var hud: Node = get_tree().get_first_node_in_group("game_hud")
+				if hud != null and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
+					hud.call("close_backpack")
+				else:
+					open_pause()
 			get_viewport().set_input_as_handled()
 
 

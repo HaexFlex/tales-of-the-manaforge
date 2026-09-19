@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.3.3 — two-step Fruit commit, paused shop. Fully typed.
+## Run + prestige state per SYSTEMS_V01 v0.4.0 — Grow (Fertilizer+Essence), backpack via Backpack autoload. Fully typed.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -19,9 +19,8 @@ const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
 ]
 const HARVEST_IDS: Array[StringName] = [&"wood", &"stone", &"food"]
-## Soft mats that green_thumb can reduce (not essence).
-const SOFT_NEED_IDS: Array[StringName] = [&"food", &"wood", &"stone", &"manashards"]
-const NEED_ORDER: Array[StringName] = [&"essence", &"food", &"wood", &"stone", &"manashards"]
+## Grow spends Fertilizer + Essence only. green_thumb retargets to fertilizer *craft* cost (not Grow).
+const NEED_ORDER: Array[StringName] = [&"essence", &"fertilizer"]
 ## Assignment target id for the Manatree. Stored as a string in SAVE_VERSION 5 — no schema bump.
 ## Playtest: multiple wisps may stack on the same target (harvest nodes and Manatree).
 const NODE_ID_MANATREE: String = "manatree"
@@ -76,6 +75,8 @@ func _ready() -> void:
 	_ensure_upgrade_keys()
 	_ensure_harvest_keys()
 	_ensure_wisp_slots()
+	if has_node("/root/Backpack") and not Backpack.inventory_changed.is_connected(_on_backpack_changed):
+		Backpack.inventory_changed.connect(_on_backpack_changed)
 
 
 func _process(delta: float) -> void:
@@ -211,7 +212,7 @@ func _ensure_wisp_slots() -> void:
 
 
 func grant_wisp_from_stage() -> void:
-	## +1 per successful Pay (Young→Ancient); capacity = 4 + bonus_wisp.
+	## +1 per successful Grow (Young→Ancient); capacity = 4 + bonus_wisp.
 	if wisp_count >= get_wisp_capacity():
 		return
 	wisp_count += 1
@@ -498,6 +499,55 @@ func get_channel_pulse_sec() -> float:
 	return param_float("CHANNEL_PULSE_SEC", 1.0)
 
 
+func _tool_speed_divisor() -> float:
+	## 2× Keeper channel speed → half wait between yields. Yield/pulse unchanged.
+	return maxf(1.0, param_float("TOOL_CHANNEL_SPEED_MULT", 2.0))
+
+
+func get_keeper_harvest_pulse_sec(resource_id: StringName) -> float:
+	## Hands always work. Matching tool (Keeper only) halves wait. Wisps ignore this.
+	var base_s: float = get_channel_pulse_sec()
+	if Backpack.owns_tool_for_resource(resource_id):
+		return base_s / _tool_speed_divisor()
+	return base_s
+
+
+func get_water_essence_pulse_sec() -> float:
+	## Stone Watering Can never speeds Essence — base CHANNEL_PULSE_SEC.
+	return get_channel_pulse_sec()
+
+
+func get_water_shard_pulse_sec() -> float:
+	## v0.4.0: can doubles shard_roll, not pulse wait. Both grants share CHANNEL_PULSE_SEC.
+	return get_channel_pulse_sec()
+
+
+func get_water_shard_roll_mult() -> int:
+	## Watering Can owned → shard_roll ×2. Essence grant unchanged.
+	if Backpack.owns_watering_can():
+		return maxi(1, int(round(param_float("WATER_CAN_SHARD_ROLL_MULT", 2.0))))
+	return 1
+
+
+func _on_backpack_changed(_item_id: StringName, _new_amount: int) -> void:
+	needs_changed.emit()
+
+
+func get_need_have(resource_id: StringName) -> int:
+	if resource_id == &"fertilizer":
+		return Backpack.get_count("fertilizer")
+	return get_resource(resource_id)
+
+
+func spend_need(resource_id: StringName, amount: int) -> void:
+	if amount <= 0:
+		return
+	if resource_id == &"fertilizer":
+		Backpack.try_spend("fertilizer", amount)
+		return
+	add_resource(resource_id, -amount)
+
+
 func get_harvest_range() -> float:
 	return param_float("HARVEST_RANGE_PX", 48.0)
 
@@ -527,20 +577,28 @@ func apply_harvest_pulse(resource_id: StringName) -> int:
 	return grant
 
 
-## Water channel pulse: manashards U{1,3}+shard_sight, essence income only (no growth).
-## At Ancient: still pays shards+essence.
-func apply_water_pulse() -> Dictionary:
+## Water channel pulse: manashards U{1,3}×can + shard_sight, essence income only (no growth).
+## At Ancient: still pays shards+essence. Split flags are test-only; Keeper grants both.
+func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true) -> Dictionary:
 	if fruit_committed:
 		return {"ok": false, "reason": "pending_ascend", "shards": 0, "essence": 0}
-	var shard_min: int = param_int("WATER_SHARD_MIN", 1)
-	var shard_max: int = param_int("WATER_SHARD_MAX", 3)
-	var shards: int = randi_range(shard_min, shard_max) + int(get_effect_total("water_shard_bonus"))
-	var ess: int = get_water_essence_amount()
-	add_resource(&"manashards", shards)
-	add_resource(&"essence", ess)
+	if not grant_shards and not grant_essence:
+		return {"ok": false, "reason": "empty", "shards": 0, "essence": 0}
+	var shards: int = 0
+	var ess: int = 0
+	if grant_shards:
+		var shard_min: int = param_int("WATER_SHARD_MIN", 1)
+		var shard_max: int = param_int("WATER_SHARD_MAX", 3)
+		## SYSTEMS v0.4.0: shard_roll = U{1,3} + shard_sight, then Can ×2.
+		var shard_roll: int = randi_range(shard_min, shard_max) + int(get_effect_total("water_shard_bonus"))
+		shards = shard_roll * get_water_shard_roll_mult()
+		add_resource(&"manashards", shards)
+		lifetime_shards_from_water += shards
+	if grant_essence:
+		ess = get_water_essence_amount()
+		add_resource(&"essence", ess)
+		lifetime_essence_from_water += ess
 	lifetime_waters += 1
-	lifetime_shards_from_water += shards
-	lifetime_essence_from_water += ess
 	return {"ok": true, "reason": "ok", "shards": shards, "essence": ess}
 
 
@@ -587,36 +645,28 @@ func buy_upgrade(upgrade_id: String) -> bool:
 
 
 func _raw_needs_for_next() -> Dictionary:
+	## SYSTEMS v0.4.0: Grow spends Fertilizer + Essence only (placeholder 1/2/3/4 + 20/40/60/80).
 	var next_id: StringName = get_next_stage_id()
 	if next_id == &"":
 		return {}
 	var def: Dictionary = get_stage_def(next_id)
 	return {
 		"essence": int(def.get("cost_essence", 0)),
-		"food": int(def.get("cost_food", 0)),
-		"wood": int(def.get("cost_wood", 0)),
-		"stone": int(def.get("cost_stone", 0)),
-		"manashards": int(def.get("cost_manashards", 0)),
+		"fertilizer": int(def.get("cost_fertilizer", 0)),
 	}
 
 
-## Applies green_thumb soft-mat −10%/rank (floor, min 1 if >0). Essence unchanged.
+## Grow costs are raw Fertilizer + Essence. green_thumb does not cut Grow (craft only).
 func get_next_stage_needs() -> Dictionary:
 	var raw: Dictionary = _raw_needs_for_next()
 	if raw.is_empty():
 		return {}
-	var thumb_rank: int = get_upgrade_rank("green_thumb")
-	var reduction: float = 0.1 * float(thumb_rank)
 	var out: Dictionary = {}
 	for rid: StringName in NEED_ORDER:
 		var key: String = String(rid)
 		var need: int = int(raw.get(key, 0))
-		if need <= 0:
-			continue
-		if rid in SOFT_NEED_IDS and thumb_rank > 0:
-			var reduced: int = int(floor(float(need) * (1.0 - reduction)))
-			need = maxi(1, reduced)
-		out[key] = need
+		if need > 0:
+			out[key] = need
 	return out
 
 
@@ -626,7 +676,7 @@ func has_needs_for_next() -> bool:
 		return false
 	for key: Variant in needs.keys():
 		var rid: StringName = StringName(str(key))
-		if get_resource(rid) < int(needs[key]):
+		if get_need_have(rid) < int(needs[key]):
 			return false
 	return true
 
@@ -649,7 +699,7 @@ func get_remaining_needs() -> Dictionary:
 	for key: Variant in needs.keys():
 		var k: String = str(key)
 		var need: int = int(needs[k])
-		var have: int = get_resource(StringName(k))
+		var have: int = get_need_have(StringName(k))
 		rem[k] = maxi(0, need - have)
 	return rem
 
@@ -658,6 +708,8 @@ func _item_display(resource_id: String) -> String:
 	match resource_id:
 		"essence":
 			return ContentStrings.get_text("hud_essence")
+		"fertilizer":
+			return ContentStrings.get_text("fertilizer_name")
 		"food":
 			return ContentStrings.get_text("hud_food")
 		"wood":
@@ -680,13 +732,19 @@ func format_need_checklist_lines() -> PackedStringArray:
 		var need: int = int(needs[key])
 		if need <= 0:
 			continue
-		var have: int = get_resource(rid)
+		var have: int = get_need_have(rid)
 		var item: String = _item_display(key)
 		var toks: Dictionary = {"item": item, "have": have, "need": need}
-		if have >= need:
-			lines.append(ContentStrings.get_text("tree_need_line_met", toks))
+		var cost_key: String = "tree_grow_cost_line"
+		if key == "fertilizer":
+			cost_key = "tree_grow_cost_fertilizer_met" if have >= need else "tree_grow_cost_fertilizer"
+		elif key == "essence":
+			cost_key = "tree_grow_cost_essence_met" if have >= need else "tree_grow_cost_essence"
+		elif have >= need:
+			cost_key = "tree_need_line_met"
 		else:
-			lines.append(ContentStrings.get_text("tree_need_line", toks))
+			cost_key = "tree_need_line"
+		lines.append(ContentStrings.get_text(cost_key, toks))
 	return lines
 
 
@@ -702,13 +760,15 @@ func _remaining_need_parts() -> PackedStringArray:
 		if not needs.has(key):
 			continue
 		var need: int = int(needs[key])
-		var have: int = get_resource(rid)
+		var have: int = get_need_have(rid)
 		if have >= need:
 			continue
 		var toks: Dictionary = {"have": have, "need": need, "count": need - have}
 		match rid:
 			&"essence":
 				parts.append(ContentStrings.get_text("tree_stage_blocked_essence", toks))
+			&"fertilizer":
+				parts.append(ContentStrings.get_text("tree_stage_blocked_fertilizer", toks))
 			&"food":
 				parts.append(ContentStrings.get_text("tree_stage_blocked_food", toks))
 			&"wood":
@@ -751,6 +811,7 @@ func get_care_next_stage_info() -> Dictionary:
 			"needs_lines": PackedStringArray([ancient_line]),
 			"needs_status": ancient_line,
 			"can_pay": false,
+			"can_grow": false,
 			"ready_for_fruit": fruit_ready,
 			"pending_ascend": fruit_committed,
 		}
@@ -763,9 +824,9 @@ func get_care_next_stage_info() -> Dictionary:
 	if needs.is_empty():
 		status = ContentStrings.get_text("tree_next_stage_needs_none")
 	elif has_needs_for_next():
-		status = ContentStrings.get_text("tree_next_stage_needs_met")
+		status = ContentStrings.get_text("tree_grow_ready")
 	else:
-		status = ContentStrings.get_text("tree_pay_cant_afford", {"costs": format_missing_needs()})
+		status = ContentStrings.get_text("tree_grow_cant_afford", {"costs": format_missing_needs()})
 	return {
 		"is_ancient": false,
 		"title": ContentStrings.get_text("tree_next_stage_title", {"next_stage": next_display}),
@@ -773,14 +834,17 @@ func get_care_next_stage_info() -> Dictionary:
 		"needs_lines": lines,
 		"needs_status": status,
 		"can_pay": has_needs_for_next(),
+		"can_grow": has_needs_for_next(),
 		"next_stage_display": next_display,
 		"ready_for_fruit": false,
 		"pending_ascend": false,
+		"needs": needs,
 	}
 
 
-## Pay needs to advance one stage. Returns "ok" | "cant_afford" | "ancient" | "no_next".
-func try_pay_stage() -> String:
+## One-click Grow: spend Fertilizer + Essence to advance one stage.
+## Returns "ok" | "cant_afford" | "ancient" | "no_next".
+func try_grow_stage() -> String:
 	if stage_id == &"ancient" or fruit_committed:
 		return "ancient"
 	var next_id: StringName = get_next_stage_id()
@@ -790,22 +854,30 @@ func try_pay_stage() -> String:
 	if needs.is_empty():
 		return "no_next"
 	if not has_needs_for_next():
-		status_message.emit(ContentStrings.get_text("tree_pay_cant_afford", {"costs": format_missing_needs()}))
+		status_message.emit(ContentStrings.get_text("tree_grow_cant_afford", {"costs": format_missing_needs()}))
 		return "cant_afford"
 	for key: Variant in needs.keys():
-		var rid: StringName = StringName(str(key))
-		add_resource(rid, -int(needs[key]))
+		spend_need(StringName(str(key)), int(needs[key]))
 	_set_stage(next_id)
 	grant_wisp_from_stage()
 	var next_display: String = str(get_stage_def(next_id).get("display_name", next_id))
-	status_message.emit(ContentStrings.get_text("tree_pay_ok", {"next_stage": next_display}))
+	status_message.emit(ContentStrings.get_text("tree_grow_ok", {"next_stage": next_display}))
 	needs_changed.emit()
 	return "ok"
 
 
+## Alias — CTA is Grow (tree_pay string).
+func try_pay_stage() -> String:
+	return try_grow_stage()
+
+
+func can_grow_stage() -> bool:
+	return can_pay_stage()
+
+
 ## Alias for Content tree_advance* keys.
 func try_advance() -> String:
-	return try_pay_stage()
+	return try_grow_stage()
 
 
 func _set_stage(id: StringName) -> void:
@@ -856,9 +928,15 @@ func ascend() -> void:
 	resources_changed.emit(&"food", food)
 	resources_changed.emit(&"manashards", manashards)
 	resources_changed.emit(&"essence", essence)
+	Backpack.on_ascend()
 	needs_changed.emit()
 	status_message.emit(ContentStrings.get_text("ascend_toast"))
 	status_message.emit(ContentStrings.get_text("ascend_essence_reset_toast"))
+	if get_upgrade_rank("keep_tools") > 0:
+		status_message.emit(ContentStrings.get_text("upgrade_keep_tools_toast"))
+		status_message.emit(ContentStrings.get_text("keep_tools_regrant_toast"))
+	else:
+		status_message.emit(ContentStrings.get_text("ascend_backpack_wipe_toast"))
 
 
 func to_save_dict() -> Dictionary:
@@ -883,6 +961,11 @@ func to_save_dict() -> Dictionary:
 		"upgrades": upgrade_ranks.duplicate(true),
 		"wisp_count": wisp_count,
 		"wisp_assignments": wisp_assignments.duplicate(true),
+		"backpack": Backpack.to_save_dict(),
+		"owns_stone_axe": Backpack.owns_item("stone_axe"),
+		"owns_stone_pickaxe": Backpack.owns_item("stone_pickaxe"),
+		"owns_wooden_basket": Backpack.owns_item("wooden_basket"),
+		"owns_stone_watering_can": Backpack.owns_item("stone_watering_can"),
 	}
 
 
@@ -924,6 +1007,16 @@ func apply_save_dict(data: Dictionary) -> void:
 		wisp_assignments = {}
 	wisp_pulse_accum.clear()
 	_ensure_wisp_slots()
+	Backpack.apply_save_dict(data.get("backpack", {}))
+	## SYSTEMS v0.4.0 prefers unique-tool flags; backpack stacks (max 1) also OK.
+	if bool(data.get("owns_stone_axe", false)):
+		Backpack.set_count("stone_axe", 1)
+	if bool(data.get("owns_stone_pickaxe", false)):
+		Backpack.set_count("stone_pickaxe", 1)
+	if bool(data.get("owns_wooden_basket", false)):
+		Backpack.set_count("wooden_basket", 1)
+	if bool(data.get("owns_stone_watering_can", false)):
+		Backpack.set_count("stone_watering_can", 1)
 	keeper_selected = false
 	selected_wisp_id = -1
 	wisps_changed.emit()
@@ -964,5 +1057,6 @@ func reset_for_new_game() -> void:
 	keeper_selected = false
 	selected_wisp_id = -1
 	run_time_sec = 0.0
+	Backpack.reset_for_new_game()
 	wisps_changed.emit()
 	selection_changed.emit()

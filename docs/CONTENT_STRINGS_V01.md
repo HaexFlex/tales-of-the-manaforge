@@ -1,9 +1,11 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.3.7 — aligned to SYSTEMS v0.3.4 (multi-wisp; Ascend wipes Essence)
+**Status:** v0.4.0 — Haex GREENLIGHT: Backpack / Handcraft / tools / Grow / Keep Tools / Fertilizer (live)
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
+**Changelog note:** v0.4.0 backpack/handcraft greenlight.
+
 **Last updated:** 2026-09-15
 
 **Tone (Haex locked):** warm + lightly melancholic — never stressful.  
@@ -22,6 +24,7 @@
 | v0.2.1 | Ascension polish: guide Harvest → spend Essence on blessings → Ascend. Scrub growth/offer language from welcome. |
 | v0.2.2 | Haex: after Fruit, choose one free blessing (superseded). |
 | **v0.2.3** | Haex: Ascension shop spends **Manashards** on blessings; multi-buy OK; then Ascend. Not free-pick, not Essence. |
+| **v0.4.0 refine** | Wire `fertilizer_craft_cost_*`, `tree_grow_cost_*`, Watering Can Manashard-only hint, backpack wipe / Keep Tools regrant toasts. Align Grow (not Pay) with SYSTEMS v0.4.0. |
 
 ---
 
@@ -34,8 +37,8 @@
 | `boot_line` | The forest is quiet. The Manatree is waiting. |
 | `welcome_boot` | The forest is quiet. Tend the Manatree. |
 | `welcome_title` | Keeper |
-| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, and Pay its Needs when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend — Essence returns to the forest; blessings stay. |
-| `welcome_body_short` | Water and gather. Pay the Manatree’s Needs. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
+| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, handcraft Fertilizer in your Backpack, and Grow the tree when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend. |
+| `welcome_body_short` | Water and gather. Handcraft Fertilizer. Grow the Manatree. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
 | `welcome_dismiss` | I will tend it |
 | `welcome_hint` | LMB selects, RMB commands. Wisps orbit you until assigned — send them to gather, or to the Manatree for Manashards. |
 | `new_game_confirm` | Begin as Keeper? |
@@ -108,7 +111,8 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 |-----|--------|
 | `tree_menu_title` | Manatree |
 | `tree_interact_water` | Water |
-| `tree_pay` | Pay |
+| `tree_pay` | Grow |
+| `tree_grow` | Grow |
 | `tree_tend` | Tend |
 
 ### 5b. Water channel (income only — shards + essence / sec)
@@ -137,11 +141,15 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_next_stage_needs_line` | {costs} |
 | `tree_next_stage_needs_met` | Ready — Pay when you wish |
 | `tree_next_stage_needs_none` | Nothing more — Pay |
-| `tree_pay_confirm` | Give what it needs to become {next_stage}? |
-| `tree_pay_confirm_yes` | Pay |
+| `tree_pay_confirm` | Grow into {next_stage}? |
+| `tree_grow_confirm` | Grow into {next_stage}? |
+| `tree_pay_confirm_yes` | Grow |
+| `tree_grow_confirm_yes` | Grow |
 | `tree_pay_confirm_no` | Not yet |
 | `tree_pay_ok` | The Manatree becomes {next_stage}. |
+| `tree_grow_ok` | The Manatree becomes {next_stage}. |
 | `tree_pay_cant_afford` | Not enough yet — {costs} |
+| `tree_grow_cant_afford` | Not enough yet — {costs} |
 | `tree_advance` | Pay |
 | `tree_advance_confirm` | Give what it needs to become {next_stage}? |
 | `tree_advance_confirm_yes` | Pay |
@@ -215,7 +223,7 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 |------------|---------|-------------|
 | `deep_roots` | Deep Roots | Watering yields Essence a little sooner. |
 | `forager` | Forager’s Grace | Harvest channels yield a little more. |
-| `green_thumb` | Green Thumb | Soft-mat Needs ask for a little less. |
+| `green_thumb` | Green Thumb | Fertilizer craft asks for a little less. |
 | `shard_sight` | Shard Sight | Watering yields more Manashards. |
 | `keeper_stride` | Keeper’s Stride | Walk the fragment a little faster. |
 | `wisp_haste` | Swift Wisps | Assigned Wisps gather a little sooner. |
@@ -384,3 +392,153 @@ Combat, Forge interior / door interact, equipment, Echo Chamber, Manaforge-as-pl
 | @Audio | Pulse each harvest/water tick; reuse gather / `sfx_tree_water` |
 
 Ping @Game Director on landing.
+
+---
+
+
+
+---
+
+## 9. Backpack & Handcraft (v0.4.0 — LIVE)
+
+Resource **HUD** = Wood / Stone / Food / Manashards / Essence.  
+**Backpack** = crafted only (intermediates, tools, Fertilizer).  
+**Equipment** = Weapon / Relic (Bare Stone later — not this bump).
+
+### 9a. Backpack UI
+
+| key | string |
+|-----|--------|
+| `backpack_title` | Backpack |
+| `backpack_open` | Backpack |
+| `backpack_empty` | Nothing crafted yet. |
+| `backpack_hint` | Crafted goods live here — tools, parts, Fertilizer. |
+| `backpack_tab_all` | All |
+| `backpack_tab_tools` | Tools |
+| `backpack_tab_materials` | Parts |
+
+### 9b. Handcraft
+
+| key | string |
+|-----|--------|
+| `handcraft_title` | Handcraft |
+| `handcraft_prompt` | Craft |
+| `handcraft_confirm` | Craft {item}? |
+| `handcraft_confirm_yes` | Craft |
+| `handcraft_confirm_no` | Not now |
+| `handcraft_ok` | Crafted {item}. |
+| `handcraft_cant_afford` | Need {costs}. |
+| `handcraft_owned_unique` | You already carry one. |
+
+### 9c. Intermediate parts
+
+| id | Display | Examine |
+|----|---------|---------|
+| `wood_plank` | Wood Plank | Smooth timber, ready for tools. |
+| `stone_fragment` | Stone Fragment | A workable chip of stone. |
+| `wood_rod` | Wood Rod | A straight stick for hafts and frames. |
+| `stone_head` | Stone Head | A rough head for axe or pick. |
+| `woven_fiber` | Woven Fiber | Twine for baskets and bindings. |
+
+| key | string |
+|-----|--------|
+| `part_wood_plank` | Wood Plank |
+| `part_stone_fragment` | Stone Fragment |
+| `part_wood_rod` | Wood Rod |
+| `part_stone_head` | Stone Head |
+| `part_woven_fiber` | Woven Fiber |
+
+### 9d. Tools (never gate gather; owned = faster Keeper channel)
+
+| id | Display | Examine |
+|----|---------|---------|
+| `tool_stone_axe` | Stone Axe | Doubles how quickly you gather Wood while you hold it. |
+| `tool_stone_pickaxe` | Stone Pickaxe | Doubles how quickly you gather Stone while you hold it. |
+| `tool_wooden_basket` | Wooden Basket | Doubles how quickly you gather Food while you hold it. |
+| `tool_stone_watering_can` | Stone Watering Can | Doubles the Manashards from each watering pulse. Essence stays as it is. |
+
+| key | string |
+|-----|--------|
+| `tool_owned_hint` | Tool owned — your hands work twice as fast at this. |
+| `tool_wood_hint` | Stone Axe — Wood gathers faster. |
+| `tool_stone_hint` | Stone Pickaxe — Stone gathers faster. |
+| `tool_food_hint` | Wooden Basket — Food gathers faster. |
+| `tool_water_hint` | Stone Watering Can — watering grants twice the Manashards. Essence is unchanged. |
+| `tool_never_gate` | Your hands always work — tools only hurry you. |
+| `tool_wiped_on_ascend` | Crafted tools return to the forest on Ascend — unless Keep Tools is blessed. |
+| `ascend_backpack_wipe_toast` | Crafted tools return to the forest on Ascend — unless Keep Tools is blessed. |
+
+### 9e. Fertilizer
+
+| id | Display | Examine |
+|----|---------|---------|
+| `fertilizer` | Fertilizer | Soft earth-care. Spent with Essence to Grow the Manatree. |
+
+| key | string |
+|-----|--------|
+| `fertilizer_name` | Fertilizer |
+| `fertilizer_hint` | Craft from Wood, Stone, and Food. Used with Essence to Grow. |
+| `fertilizer_craft_ok` | Fertilizer ready. |
+| `fertilizer_craft_cost_wood` | Wood {have}/{need} |
+| `fertilizer_craft_cost_stone` | Stone {have}/{need} |
+| `fertilizer_craft_cost_food` | Food {have}/{need} |
+| `fertilizer_craft_cost_line` | {item} {have}/{need} |
+| `tree_grow_needs_fertilizer` | Needs Fertilizer ×{count} and Essence ×{count}. |
+| `tree_grow_cost_fertilizer` | Fertilizer {have}/{need} |
+| `tree_grow_cost_essence` | Essence {have}/{need} |
+| `tree_grow_cost_fertilizer_met` | Fertilizer {have}/{need} ✓ |
+| `tree_grow_cost_essence_met` | Essence {have}/{need} ✓ |
+| `tree_grow_cost_line` | {item} {have}/{need} |
+
+### 9f. Grow CTA (Manatree)
+
+Primary stage-advance label is **Grow** (aliases `tree_pay*` → Grow).
+
+| key | string |
+|-----|--------|
+| `tree_grow` | Grow |
+| `tree_grow_hint` | Spend Fertilizer and Essence to advance the Manatree. |
+| `tree_grow_confirm` | Grow into {next_stage}? |
+| `tree_grow_confirm_yes` | Grow |
+| `tree_grow_confirm_no` | Not yet |
+| `tree_grow_ok` | The Manatree becomes {next_stage}. |
+| `tree_grow_cant_afford` | Not enough yet — {costs} |
+| `tree_grow_ready` | Ready to Grow |
+
+### 9g. Keep Tools (Ascension blessing)
+
+| upgrade_id | Display | Description |
+|------------|---------|-------------|
+| `keep_tools` | Keep Tools | Finished tools survive Ascend and return with you. |
+
+| key | string |
+|-----|--------|
+| `upgrade_keep_tools_name` | Keep Tools |
+| `upgrade_keep_tools_desc` | Finished tools survive Ascend and return with you. |
+| `upgrade_keep_tools_toast` | Your tools remember the path. |
+| `keep_tools_regrant_toast` | Familiar tools settle back into your backpack. |
+| `ascend_keep_tools_toast` | Familiar tools settle back into your backpack. |
+
+
+## DEFERRED notes (historical)
+
+Partially promoted in **v0.4.0** (Grow live). Remaining deferred: Fruit shop Close-until-first-Buy → Ascend-only lock (still awaiting separate greenlight if not already live).
+
+1. **Fruit shop preview can Close** — before first Buy, player may close the Ascension shop (preview). After first Buy, shop locks to Ascend-only (no soft Close).
+2. **First Buy locks Ascend-only** — copy needed: shop still closable until first blessing purchase; then must Ascend.
+3. **Manatree Grow** — **PROMOTED v0.4.0** (`tree_grow*` / `tree_pay*` alias Grow).
+
+### Draft keys (not live)
+
+| key | draft string |
+|-----|----------------|
+| `fruit_shop_close` | Close |
+| `fruit_shop_preview_hint` | Look over blessings — Close anytime until you buy. |
+| `fruit_shop_locked_hint` | A blessing is yours — Ascend to continue. |
+| `fruit_shop_first_buy_toast` | The path is set. Ascend when ready. |
+| `tree_grow` | Grow |
+| `tree_grow_confirm` | Give what it needs to become {next_stage}? |
+| `tree_grow_ok` | The Manatree becomes {next_stage}. |
+| `tree_grow_cant_afford` | Not enough yet — {costs} |
+
+v0.4.0 promoted: Backpack, Handcraft, tools, Grow, Keep Tools, Fertilizer. Ping Code.

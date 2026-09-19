@@ -23,11 +23,11 @@
     {
       "id": "green_thumb",
       "display_name": "Green Thumb",
-      "description": "Each rank: soft-mat stage needs drop by 10% (min 1).",
+      "description": "Each rank: Fertilizer craft costs drop by 10% (min 1). Grow Essence and Fertilizer stay as they are.",
       "max_rank": 5,
       "cost_base": 400,
       "cost_per_rank": 400,
-      "effect": "soft_need_reduction",
+      "effect": "fertilizer_craft_cost_mult",
       "value_per_rank": 0.1
     },
     {
@@ -68,6 +68,16 @@
       "cost_base": 400,
       "cost_per_rank": 400,
       "effect": "bonus_wisp",
+      "value_per_rank": 1.0
+    },
+    {
+      "id": "keep_tools",
+      "display_name": "Keep Tools",
+      "description": "Finished tools survive Ascend and return with you.",
+      "max_rank": 1,
+      "cost_base": 400,
+      "cost_per_rank": 400,
+      "effect": "keep_tools",
       "value_per_rank": 1.0
     }
   ]

@@ -1,10 +1,10 @@
-# Tales of the Manaforge — Systems Brief v0.3 (Restart Edition)
+# Tales of the Manaforge — Systems Brief v0.4 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.3.4 — Haex: multi-wisp per node; Essence → 0 on Ascend  
+**Status:** v0.4.0 — Haex GREENLIGHT: Fertilizer Grow + backpack/tools/Keep Tools; needs-only SUPERSEDED  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
-**Last updated:** 2026-09-15
+**Last updated:** 2026-09-19
 
 **Art locks (Haex):** Keeper 128², tiles 64², 1280×720 NN  
 **Tone (Haex):** warm + lightly melancholic
@@ -16,7 +16,7 @@
 | Ver | Change |
 |-----|--------|
 | v0.1.x | Harvest channels, water income, growth bar, offers, 7 save slots — see git history / prior copies |
-| v0.2.0 | Needs-only stages; no growth/offers; SAVE_VERSION 4 |
+| v0.2.0 | Needs-only stages; no growth/offers; SAVE_VERSION 4 — **SUPERSEDED by v0.4.0** |
 | v0.2.1 | Spend-essence blessing shop (superseded) |
 | v0.2.2 | Pick-one-free Ascension (superseded) |
 | v0.2.3 | Manashard blessing shop → Ascend |
@@ -26,15 +26,19 @@
 | v0.3.1 | Keeper select-gated actions; unassigned wisps orbit Keeper |
 | v0.3.2 | LMB/RMB; wisps orbit target; Manatree→manashards |
 | v0.3.3 | Two-step Fruit; paused separate shop; no cancel |
-| **v0.3.4** | **Haex:** **Multi-wisp per target** — drop 1-wisp exclusivity. Several wisps may assign to the same harvest node **or** Manatree; each pulses independently. **Ascend:** `essence → 0` (LOCKED) plus existing soft-mat wipe; **Manashards also → 0** (Design rec, already true) so next run starts clean. Blessings persist. |
+| v0.3.4 | **Haex:** **Multi-wisp per target**; Ascend `essence → 0` + soft-mat wipe; Manashards → 0 |
+| v0.3.4 note | Soft-open Ascension + Grow CTA were deferred — Grow CTA **LIVE in v0.4.0**; soft-open still deferred (§11 D1) |
+| v0.3.4 note | Equipment & Stats mid-term discuss park (§11 D3) — unchanged |
+| v0.3.4 note | Draft: abandon needs-only → Fertilizer + Essence — **GREENLIT → live v0.4.0** |
+| **v0.4.0** | **Haex GREENLIGHT:** Abandon needs-only. Stage advance = one-click **Grow** (Fertilizer + Essence). Water still Manashards + Essence; Stone Watering Can doubles Manashard amount/pulse only. Backpack (crafts only) + handcrafting + 4 unique tools (Keeper 2× channel only). Fertilizer recipe wood+stone+food (no shards). Blessing `keep_tools`; `green_thumb` → Fertilizer craft ingredient costs −10%/rank. Ascend wipes backpack (Keep Tools re-grants 4 tools). `SAVE_VERSION` **6**. |
 
 ---
 
-## v0.3 scope (systems only)
+## v0.4 scope (systems only)
 
-**In:** select-then-move Keeper, Manatree needs stages, channelled harvest (3 nodes), Wisps (AFK node gather), water income, Primordial Fruit / Manashard Ascension shop, pause + 7 slots, versioned save, minimal HUD.
+**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` 6), minimal HUD (soft mats + shards + essence; backpack separate).
 
-**Out:** growth bar / offers, combat, full Forge, equipment, Echo Chamber, WASD, mobile/web, many duplicate harvestables.
+**Out:** needs-only soft-mat stage pay (**SUPERSEDED**), growth bar / offers, combat, full Forge, equipment / Echo Chamber, WASD, mobile/web, many duplicate harvestables. Tools never gate gather; tools never multiply wisp pulses.
 
 ---
 
@@ -42,26 +46,35 @@
 
 | ID | How gained | How spent |
 |----|------------|-----------|
-| `wood` | Harvest Tree @ 1/sec | Stage **needs** |
-| `stone` | Stone node @ 1/sec | Stage **needs** |
-| `food` | Berry bush @ 1/sec | Stage **needs** |
-| `manashards` | Water channel `U{1,3}` / sec; **wisp on Manatree** @ 1/10s | **Blessing shop** (Ascension permanent upgrades) |
-| `essence` | Water channel `+1` / sec; Fruit harvest bonus | Stage **needs** only (not blessing shop) |
+| `wood` | Harvest Tree @ 1/sec (Keeper; 2× channel speed if Stone Axe owned) | **Fertilizer craft** (+ tool/intermediate craft) — **not** stage needs |
+| `stone` | Stone node @ 1/sec (Keeper; 2× if Stone Pickaxe) | **Fertilizer craft** (+ tool/intermediate craft) |
+| `food` | Berry bush @ 1/sec (Keeper; 2× if Wooden Basket) | **Fertilizer craft** (+ tool/intermediate craft) |
+| `manashards` | Water channel `U{1,3}` / sec (×2 amount/pulse if Stone Watering Can); **wisp on Manatree** @ 1/10s | **Blessing shop** (Ascension permanent upgrades). Optional future Runestones discuss only — see §11 D3 |
+| `essence` | Water channel `+1` / sec (base; Can does **not** boost); Fruit harvest bonus unused | **Grow** stage advance (with Fertilizer) — not blessing shop |
+| `fertilizer` | Handcraft (wood + stone + food) | **Grow** stage advance (with Essence) |
+
+Soft mats live on the **resource HUD**. Fertilizer, intermediates, and tools live in the **backpack** (§4d).
 
 ---
 
 ## 2. Harvest nodes (LOCKED — Haex)
 
-Exactly **three** interactive harvest nodes. Channel @ 1 resource/sec while in range.
+Exactly **three** interactive harvest nodes. Channel @ 1 resource/sec while in range (base). Owning the matching tool → **half Keeper channel wait** (effective 2/sec); yield per pulse unchanged. **Never gate gather** — nodes always usable without tools. **Tools never affect wisp pulses.**
 
-| node_id | Resource | Rate |
-|---------|----------|------|
-| `harvest_tree` | `wood` | `HARVEST_WOOD_PER_SEC = 1` |
-| `harvest_stone` | `stone` | `HARVEST_STONE_PER_SEC = 1` |
-| `harvest_berry` | `food` | `HARVEST_FOOD_PER_SEC = 1` |
+| node_id | Resource | Rate (base) | Matching tool |
+|---------|----------|-------------|---------------|
+| `harvest_tree` | `wood` | `HARVEST_WOOD_PER_SEC = 1` | Stone Axe |
+| `harvest_stone` | `stone` | `HARVEST_STONE_PER_SEC = 1` | Stone Pickaxe |
+| `harvest_berry` | `food` | `HARVEST_FOOD_PER_SEC = 1` | Wooden Basket |
 
 `CHANNEL_PULSE_SEC = 1.0`, `HARVEST_RANGE_PX = 48`.  
 Layout: dense **decorative** trees; **one** of each harvest node; Manatree landmark separate.
+
+When matching tool owned (Keeper channel only):
+```
+effective_pulse_sec = CHANNEL_PULSE_SEC * 0.5   # half wait between yields
+# yield per pulse unchanged (= 1 * gather_mult)
+```
 
 ---
 
@@ -69,8 +82,11 @@ Layout: dense **decorative** trees; **one** of each harvest node; Manatree landm
 
 ```
 each CHANNEL_PULSE_SEC while watering and in range:
-  manashards += randi_range(WATER_SHARD_MIN, WATER_SHARD_MAX) + shard_sight_rank
-  essence    += WATER_ESSENCE_PER_SEC
+  shard_roll = randi_range(WATER_SHARD_MIN, WATER_SHARD_MAX) + shard_sight_rank
+  if owns_stone_watering_can:
+    shard_roll *= 2   # PLACEHOLDER — prefer double Manashard amount per pulse
+  manashards += shard_roll
+  essence    += WATER_ESSENCE_PER_SEC   # ALWAYS base; Can does NOT affect Essence
   # NO growth
 ```
 
@@ -80,37 +96,40 @@ each CHANNEL_PULSE_SEC while watering and in range:
 | `WATER_SHARD_MAX` | `3` |
 | `WATER_ESSENCE_PER_SEC` | `1` |
 
+**Stone Watering Can (LOCKED):** boosts **Manashard side of watering only**. Implement prefer: **double Manashard amount per pulse** (`shard_roll * 2`) while Essence stays `+WATER_ESSENCE_PER_SEC` each full `CHANNEL_PULSE_SEC`. (Alt considered then rejected for Code simplicity: half pulse for shards only / extra shard roll — prefer amount double.) **PLACEHOLDER** — tune later; retune shard economy when shipping.
+
 At Ancient: water still pays income; Fruit/Ascend is a separate confirm.  
 **Removed:** `WATER_GROWTH`, growth pulses, offer-for-growth.
 
 ---
 
-## 4. Stage needs (LOCKED direction — Haex)
+## 4. Stage Grow (LOCKED — Haex v0.4.0 GREENLIGHT)
 
-**No `growth` field. No growth bar.** Clicking Manatree shows **needs for next stage** only. When inventory meets all needs → confirm pay → consume → advance stage.
+**Needs-only (v0.2.0) SUPERSEDED.** No `growth` field. No growth bar. No soft-mat stage pay.
 
-### Cost curve rule (Director interpretation of Haex)
-1. Essence cost starts at **20** for Young, then **+20** each stage.
-2. Each new stage after Young introduces **one new soft mat at 10**.
-3. Soft mats introduced earlier **double** each subsequent stage.
+**Stage advance = one-click Grow** when costs met: spend **Fertilizer + Essence** → next stage. CTA label **Grow** (not Pay). Show Fertilizer + Essence costs on the control.
 
-| Advance to | essence | food | wood | stone | Notes |
-|------------|---------|------|------|-------|-------|
-| `young` | **20** | — | — | — | First soft mat not yet |
-| `mature` | **40** | **10** | — | — | Introduces food @10 |
-| `elder` | **60** | **20** | **10** | — | food doubles; introduces wood @10 |
-| `ancient` | **80** | **40** | **20** | **10** | food+wood double; introduces stone @10 |
+### Grow cost curve (PLACEHOLDER — tune later)
+
+Mirrors old essence curve spirit (20 / 40 / 60 / 80 Essence); Fertilizer count rises 1→4.
+
+| Advance to | Fertilizer | Essence | Notes |
+|------------|------------|---------|-------|
+| `young` | **1** | **20** | PLACEHOLDER |
+| `mature` | **2** | **40** | PLACEHOLDER |
+| `elder` | **3** | **60** | PLACEHOLDER |
+| `ancient` | **4** | **80** | PLACEHOLDER |
 
 ```
-# Named params (Code data table)
-NEED_YOUNG_ESSENCE = 20
-NEED_MATURE = { essence: 40, food: 10 }
-NEED_ELDER  = { essence: 60, food: 20, wood: 10 }
-NEED_ANCIENT = { essence: 80, food: 40, wood: 20, stone: 10 }
+# Named params (Code data table) — PLACEHOLDER
+GROW_YOUNG   = { fertilizer: 1, essence: 20 }
+GROW_MATURE  = { fertilizer: 2, essence: 40 }
+GROW_ELDER   = { fertilizer: 3, essence: 60 }
+GROW_ANCIENT = { fertilizer: 4, essence: 80 }
 ```
 
-**Sapling** (start): no needs.  
-**Pay action:** single “Tend / Grow” confirm when all needs met; partial progress is inventory only (no partial bank toward stage).
+**Sapling** (start): no Grow cost.  
+**Grow action:** single one-click confirm when both Fertilizer and Essence costs met; consume both → advance stage; partial progress is inventory only (no partial bank toward stage).
 
 ### Stage bonuses (kept)
 
@@ -123,14 +142,74 @@ NEED_ANCIENT = { essence: 80, food: 40, wood: 20, stone: 10 }
 | `ancient` | `gather_mult = 1.6`; Fruit ready |
 
 ### Pace note
-Essence gate dominates early (20s water to Young at 1 essence/sec). Later stages need harvest loops for food/wood/stone while still watering for essence. First Ancient is intentional multi-loop, not a growth bar grind.
+Essence gate still matters early (20s water to Young at 1 essence/sec) plus craft 1 Fertilizer. Later stages need harvest → craft Fertilizer loops while watering for essence + shards. First Ancient is intentional multi-loop.
 
 ### UI (Content + Code)
-- Manatree click → panel: next stage name + need lines (`essence 12/20`, `food 0/10`, …) + Pay (enabled when all met) + Water.
-- **No** growth X/Y bar.
+- Manatree click → panel: next stage name + Grow costs (`Fertilizer 0/1`, `Essence 12/20`, …) + **Grow** (enabled when both met; show costs on the control) + Water.
+- **No** growth X/Y bar. **No** soft-mat need lines. **No Pay** label.
 
 ---
 
+## 4d. Backpack & Handcrafting (LOCKED — Haex v0.4.0)
+
+### Backpack vs HUD
+- **Resource HUD:** wood / stone / food / manashards / essence (unchanged soft + currency display).
+- **Backpack:** crafted items **only** — intermediates, finished tools, Fertilizer stacks. Not soft mats.
+
+### Handcrafting
+Instant craft (no station required for v0.4). Recipes consume from HUD soft mats (or backpack intermediates) → grant backpack item.
+
+### Fertilizer recipe (LOCKED — no Manashards)
+
+```
+# PLACEHOLDER base costs (before prestige mult)
+FERT_WOOD  = 5
+FERT_STONE = 5
+FERT_FOOD  = 5
+# → grants 1 Fertilizer to backpack
+
+effective_cost(ingredient) = max(1, floor(base * FERTILIZER_CRAFT_COST_MULT * green_thumb_mult))
+# FERTILIZER_CRAFT_COST_MULT from blessings if any; default 1.0
+# green_thumb_mult = (1.0 - 0.10 * green_thumb_rank)  — see §5; floor 1 per ingredient
+```
+
+Prestige craft-cost multiplier param name: `FERTILIZER_CRAFT_COST_MULT` (default `1.0`; wire from blessings if/when a prestige craft-cost blessing exists — none in v0.4 besides `green_thumb` ingredient reduction).
+
+### Intermediate + tool recipes (PLACEHOLDER — Haex handcrafting write-up)
+
+| Result | Ingredients | Notes |
+|--------|-------------|-------|
+| Wooden Planks | 3 Wood | intermediate |
+| Stone Fragments | 3 Stone | intermediate |
+| Wooden Tool Rod | 10 Planks | intermediate |
+| Axe Head | 10 Fragments | intermediate |
+| Pickaxe Head | 10 Fragments | intermediate |
+| **Stone Axe** | 1 Rod + 1 Axe Head | tool (unique) |
+| **Stone Pickaxe** | 1 Rod + 1 Pickaxe Head | tool (unique) |
+| **Wooden Basket** | 15 Planks | tool (unique) |
+| **Stone Watering Can** | 1 Rod + 10 Fragments | tool (unique) |
+| **Fertilizer** | 5 Wood + 5 Stone + 5 Food | stackable; see above |
+
+All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipes.
+
+### Tools (LOCKED)
+
+| tool_id | Matches | Effect when owned |
+|---------|---------|-------------------|
+| `stone_axe` | wood harvest | Keeper wood channel: half `CHANNEL_PULSE_SEC` (2× speed); yield/pulse unchanged |
+| `stone_pickaxe` | stone harvest | same for stone |
+| `wooden_basket` | food harvest | same for food |
+| `stone_watering_can` | water | **double Manashard amount per water pulse**; Essence stays base |
+
+Rules:
+1. **Tools unique (own 1)** — cannot craft a second while owned; Design lean = inventory flag, not stack.
+2. **Never gate gather** — harvest nodes always work without the tool.
+3. Owning matching tool → **2× Keeper channel speed** only (half wait between yields).
+4. **Keeper only — never multiply wisp pulses.**
+5. Watering Can: Manashard side only (see §3).
+
+### Ascend wipe (backpack)
+On Ascend: **wipe entire backpack** (Fertilizer stacks, intermediates, tools) **unless** blessing `keep_tools` owned → **re-grant the 4 finished tools only** (not Fertilizer, not intermediates). Soft mats still wipe; essence → 0; manashards → 0 (existing).
 
 ---
 
@@ -156,7 +235,7 @@ Esc still opens pause. Future companions: LMB select / RMB command — same patt
 Glowing idle helpers. Spelling in systems/code: `wisp` (not whisp).
 
 ### Gain
-On each successful **Pay** stage advance to `young` / `mature` / `elder` / `ancient`:
+On each successful **Grow** stage advance to `young` / `mature` / `elder` / `ancient`:
 ```
 wisp_count += 1
 # from stages alone: max 4 (one per advance from sapling)
@@ -187,7 +266,7 @@ Each assigned wisp pulses **independently** (own timer). Two wisps on wood ≈ 2
 | harvest_berry | `food` | same |
 | **manatree** | **`manashards`** | same (default 1 / 10s) |
 
-Keeper AFK / other work OK; assigned wisps keep pulsing.
+Keeper AFK / other work OK; assigned wisps keep pulsing. **Tools never multiply these pulses.**
 
 ### Gather pulse
 ```
@@ -206,10 +285,11 @@ Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_
 | `WISP_ORBIT_RADIUS_PX` | `56` |
 
 ### Art / Audio handoff
-- Art: wisp orbit Keeper (unassigned) and **orbit assign target** (assigned); path tween OK; selected state.
+- Art: wisp orbit Keeper (unassigned) and **orbit assign target** (assigned); path tween OK; selected state. **No new art gen this pass** — reuse/chrome later for backpack/tools UI.
 - Audio: soft assign confirm; optional quiet pulse (much quieter than Keeper gather).
 
 ---
+
 ## 5. Primordial Fruit / Ascend
 
 **Model (LOCKED): Manashard blessing shop after Fruit commit — NOT free pick, NOT Essence shop.**
@@ -222,7 +302,7 @@ Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_
 
 ### Ancient pre-commit (world running)
 - Keeper can still **Water** (shards + essence income) and assign wisps — farm Manashards before committing.
-- Manatree panel shows **Harvest Primordial Fruit** CTA (+ needs done / Fruit ready). **No** blessing Buy rows on this panel.
+- Manatree panel shows **Harvest Primordial Fruit** CTA (+ Grow done / Fruit ready). **No** blessing Buy rows on this panel.
 - Wisps / harvest nodes still work until commit.
 
 ### Two-step Fruit harvest
@@ -230,14 +310,14 @@ Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_
 2. **Commit:** second confirm → set `fruit_committed = true`; **pause world**; open **Ascension shop window**. Do **not** add `ESSENCE_PER_HARVEST` (v0.3.4: next sapling starts at essence 0).
 
 ### After commit (world paused)
-- **Blocked:** move, Keeper harvest channels, watering, wisp assign/reassign, Pay (already Ancient).
+- **Blocked:** move, Keeper harvest channels, watering, wisp assign/reassign, Grow (already Ancient).
 - **Allowed:** buy blessings (Manashards), **Ascend**.
 - **No cancel back** to watering after commit (Design lock — Fruit is spent). Footer does **not** offer a soft exit that unpauses without Ascend.
-- Ascend: reset stage→sapling; **`essence → 0` (Haex lock)**; wipe **wood/stone/food/manashards → 0** (Manashards also clear — Design rec, already the soft-mat wipe); keep upgrade ranks + lifetimes; `ascensions += 1`; unpause; wisps reset per §4c (`bonus_wisp` starting count).
+- Ascend: reset stage→sapling; **`essence → 0` (Haex lock)**; wipe **wood/stone/food/manashards → 0**; **wipe backpack** (Fertilizer, intermediates, tools) unless `keep_tools` → re-grant 4 finished tools only; keep upgrade ranks + lifetimes; `ascensions += 1`; unpause; wisps reset per §4c (`bonus_wisp` starting count).
 
 ### Ascension shop window (layout contract)
 - **Separate modal** — not stacked Harvest / Ascend / Close over the blessing list (fixes Haex screenshot overlap).
-- **Scrollable** blessing list (all upgrades: existing five + `wisp_haste` + `bonus_wisp`).
+- **Scrollable** blessing list (all upgrades: existing + `wisp_haste` + `bonus_wisp` + **`keep_tools`**).
 - Each row: name, rank/max, Manashard cost, Buy (afford state).
 - **Pinned footer** outside the scroll view: shard balance + **Ascend** (primary). Optional secondary label only if it does not overlap rows — prefer **Ascend only** in footer.
 - Multi-buy OK; Ascend enabled with zero purchases.
@@ -245,7 +325,7 @@ Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_
 
 ### Permanent upgrades (blessings — spend Manashards)
 
-**Target:** typical Ascension bank (water ~1–3 shards/sec across the needs run) affords **about 1–2 ranks total**, not the whole tree.
+**Target:** typical Ascension bank (water ~1–3 shards/sec across the Grow run) affords **about 1–2 ranks total**, not the whole tree.
 
 ```
 SHOP_BASE = 400
@@ -257,15 +337,20 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 |------------|-----|---------------|--------|
 | `deep_roots` | 10 | `400 * (rank + 1)` | `WATER_ESSENCE_PER_SEC` bonus `floor(rank / 2)` |
 | `forager` | 10 | `400 * (rank + 1)` | `gather_mult += 0.05` / rank |
-| `green_thumb` | 5 | `400 * (rank + 1)` | Soft-mat needs −10% / rank (floor, min 1); essence needs unchanged |
+| `green_thumb` | 5 | `400 * (rank + 1)` | **Fertilizer craft ingredient costs −10%/rank** (floor 1 per ingredient). Was soft-mat needs −10% (SUPERSEDED with needs-only). |
 | `shard_sight` | 5 | `400 * (rank + 1)` | `+1` shards per water pulse / rank |
 | `keeper_stride` | 5 | `400 * (rank + 1)` | `MOVE_SPEED_MULT += 0.06` / rank |
 | `wisp_haste` | 5 | `400 * (rank + 1)` | `WISP_PULSE_SEC -= 1` / rank (base 10 → min **5**) |
 | `bonus_wisp` | 3 | `400 * (rank + 1)` | `+1` wisp at sapling / +1 capacity per rank (stacks with stage grants) |
+| **`keep_tools`** | **1** | `400 * (rank + 1)` | On Ascend: after backpack wipe, **re-grant the 4 finished tools** only (not Fertilizer / intermediates). Max 1. |
 
 **Examples:** bank 400 → one rank; bank 800 → two rank-1 buys. Unspent shards **and essence** wipe on Ascend (`essence → 0`).
 
 **Wisp blessing notes:** `bonus_wisp` ranks persist; on Ascend after reset to sapling, `wisp_count = bonus_wisp_rank` immediately (then stage advances add more up to stages max + bonus).
+
+**`green_thumb` (v0.4 retarget LOCKED):** pick = **Fertilizer craft ingredient costs −10%/rank** (each of wood/stone/food), floor 1 per ingredient. Does **not** change Grow Fertilizer *count* required. Documented choice over “Fertilizer units to Grow −10%/rank.”
+
+**`keep_tools`:** max 1; cost `400 * (rank + 1)` like others (first buy = 400).
 
 **Code:** mirror in `fruit_upgrades.json` (or equivalent data file).
 
@@ -277,25 +362,36 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 |-------|---------|
 | `SAVE_SLOT_COUNT` | **7** |
 | `PAUSE_OPENS_SLOTS` | `true` |
-| `SAVE_VERSION` | **5** |
+| `SAVE_VERSION` | **6** |
 
 ---
 
-## 7. Save fields (`SAVE_VERSION = 5`)
+## 7. Save fields (`SAVE_VERSION = 6`)
 
 ```
-save_version: int                  # 5
+save_version: int                  # 6
 ascensions: int
 essence: int
-upgrades: Dictionary[String, int]
+upgrades: Dictionary[String, int]  # includes keep_tools, green_thumb, …
 
 stage_id: String
 # growth: REMOVED
+# needs-only soft-mat stage fields: REMOVED / ignored
 
 wood: int
 stone: int
 food: int
 manashards: int
+
+# Backpack (v0.4) — crafted only
+backpack: Dictionary[String, int]  # e.g. fertilizer, wooden_planks, stone_fragments,
+                                   # wooden_tool_rod, axe_head, pickaxe_head
+# Tool ownership flags (unique; own 0 or 1)
+owns_stone_axe: bool
+owns_stone_pickaxe: bool
+owns_wooden_basket: bool
+owns_stone_watering_can: bool
+# Alternate OK: tools as backpack keys with max 1 — flags preferred for clear Keep Tools re-grant
 
 wisp_count: int
 wisp_assignments: Dictionary  # wisp_id → node_id or null
@@ -311,7 +407,7 @@ keeper_position: Vector2
 keeper_selected: bool  # optional; default false on load
 ```
 
-Migrate v4→v5: init `wisp_count` from stage progress or 0 + bonus_wisp; empty assignments; ignore old movement assumptions.
+Migrate v5→v6: init empty `backpack`; all tool flags `false`; ignore any leftover needs-only stage cost state. `green_thumb` ranks keep (effect retargeted). `keep_tools` defaults 0.
 
 ---
 
@@ -321,9 +417,12 @@ Migrate v4→v5: init `wisp_count` from stage progress or 0 + bonus_wisp; empty 
 LMB Keeper/Wisp → select | LMB empty → deselect
 RMB (Keeper selected) → walk / interact harvest or Manatree
 RMB (Wisp selected) → assign to node or Manatree (manashards); RMB ground → unassign → orbit Keeper
-Assigned wisps path to target then orbit it; pulse +1/10s
-Pay stage_up → +1 wisp (orbits Keeper until assigned)
+Assigned wisps path to target then orbit it; pulse +1/10s (tools never boost)
+Craft: soft mats → backpack (intermediates / tools / Fertilizer)
+Grow (Fertilizer + Essence met) → stage_up → +1 wisp (orbits Keeper until assigned)
+Tools owned → 2× Keeper channel (harvest) or double water shard amount (Can)
 ESC → pause (7 slots)
+Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant 4 tools
 ```
 
 ---
@@ -332,10 +431,10 @@ ESC → pause (7 slots)
 
 | Who | Action |
 |-----|--------|
-| @Code / Engine | Multi-wisp stack on same target; independent pulses; Ascend `essence=0` + soft mats 0 |
-| @Content & Lore | Drop slot-full deny; optional stack hint; Ascend wipes Essence (and leftover shards) |
-| @Art Direction | Separate Ascension shop chrome (scroll list + pinned footer); Manatree care panel without Buy rows |
-| @Audio | `sfx_wisp_assign` / deny / unassign / pulse — Code should wire if not already |
+| @Code / Engine | **Implement v0.4.0:** Fertilizer Grow; backpack + handcraft recipes; 4 tools (Keeper 2× / Can shard double); Ascend backpack wipe + `keep_tools`; blessing table (`keep_tools`, retargeted `green_thumb`); `SAVE_VERSION` 6 migrate |
+| @Content & Lore | Strings: **Grow** CTA (costs on control); craft/backpack labels; tool names; Ascend wipe + Keep Tools copy; drop needs-only / Pay soft-mat copy |
+| @Art Direction | **No gen this pass.** Reuse existing chrome; backpack/tools UI later. Ascension shop chrome still scroll list + pinned footer |
+| @Audio | Existing wisp / gather / water SFX; craft/Grow confirms later if needed |
 
 ---
 
@@ -343,11 +442,19 @@ ESC → pause (7 slots)
 
 | Item | Status |
 |------|--------|
-| Needs-only stage advance; no growth | **LOCKED Haex v0.2.0** |
-| Cost curve Young→Ancient as table above | **Director interpretation — Haex may tweak** |
+| Needs-only stage advance (soft mats for stages) | **SUPERSEDED Haex v0.4.0** |
+| Stage advance = **Grow** (Fertilizer + Essence), one-click | **LOCKED Haex v0.4.0 GREENLIGHT** |
+| CTA label **Grow** (not Pay); costs on control | **LOCKED Haex v0.4.0** |
 | Water = shards + essence income | **LOCKED** |
-| 3 harvest nodes @ 1/sec | **LOCKED** |
-| `SAVE_SLOT_COUNT = 7` | **LOCKED** |
+| Stone Watering Can = Manashard side only (`shard_roll * 2`) | **LOCKED Haex v0.4.0** (amount PLACEHOLDER) |
+| Fertilizer recipe wood+stone+food, **no Manashards** | **LOCKED Haex v0.4.0** (costs PLACEHOLDER) |
+| Backpack = crafts only; HUD = soft mats + currencies | **LOCKED Haex v0.4.0** |
+| Tools unique (own 1); never gate gather; Keeper 2× only; never wisps | **LOCKED Haex v0.4.0** |
+| Ascend wipes backpack; `keep_tools` re-grants 4 tools | **LOCKED Haex v0.4.0** |
+| `green_thumb` = Fertilizer craft ingredient −10%/rank (floor 1) | **LOCKED Haex v0.4.0** (retarget) |
+| Grow / Fertilizer / tool recipe numbers | **PLACEHOLDER — tune later** |
+| 3 harvest nodes @ 1/sec base | **LOCKED** |
+| `SAVE_SLOT_COUNT = 7`; `SAVE_VERSION = 6` | **LOCKED** |
 | Offer-for-growth | **REMOVED** |
 | Ascension = Manashard blessing shop | **LOCKED Haex v0.2.3** |
 | Shop timing = Ascension-only after Fruit | **LOCKED Haex v0.2.4** |
@@ -364,5 +471,41 @@ ESC → pause (7 slots)
 | Wisp blessings `wisp_haste` + `bonus_wisp` | **LOCKED Haex v0.3.0** |
 | Pick-one-free Ascension | **REVOKED** |
 | Essence blessing shop | **REVOKED** |
+| Ascension soft-open (preview + Close; first Buy locks) | **DEFERRED — not live** (§11 D1) |
+| Equipment / Runestones / 7 combat stats | **DISCUSS PARK — not live** (§11 D3) |
+| Runestone currency = **same Manashards** (bank vs Ascension shop) | **Haex draft lock 2026-09-19 — not live** |
+| Separate Runestone currency | **PARKED / overturned** |
 
-Ping @Game Director, @Code / Engine, @Content & Lore on land.
+---
+
+## 11. Deferred (Haex notes — **do not implement** until greenlight)
+
+Live loop is **v0.4.0** (Fertilizer Grow + backpack/tools) with must-Ascend-on-commit (v0.3.3). Soft-open and Equipment remain parked.
+
+### D1. Ascension soft-open — still deferred
+1. Fruit interact opens the Manashard shop as a **preview**. World **stays live** (move / water / harvest / wisps still work).
+2. Player can **Close / quit** the shop and keep playing (no Fruit spend, no pause).
+3. **First Buy** hard-locks the run: world **pauses**, shop becomes Ascend-only, **no cancel back** to play (same as today’s post-commit lock, but the lock trigger is first purchase, not Fruit commit).
+4. Open: does Fruit still two-step? Does preview spend Manashards on Buy before lock, or is first Buy the commit? Default Design rec when greenlit: preview is browse-only until first confirmed Buy (that Buy spends shards **and** locks).
+
+### D2. Manatree care CTA — GREENLIT → live v0.4.0
+~~Stage-advance button label Grow~~ → **LIVE:** CTA **Grow**, costs on control (Fertilizer + Essence). See §4. (Was deferred under needs-only Pay; greenlit with Fertilizer Grow.)
+
+### D3. Equipment & Stats (mid-term — discuss park)
+Haex write-up (Sep 2026): Echo Chamber power — 7 combat stats via Runestones; Weapon + Relic craft-only; Bare Stone first; levels/runes later data shape. **Not live.** Live cozy loop is Fertilizer Grow + Wisps + Ascension Manashard shop.
+
+**Haex draft lock (2026-09-19):** **One Manashard pool** for both Runestone permanent stats (mid-run) and Ascension blessing shop. Intentional **bank-vs-spend** dilemma. Prices TBD / retune at implement. **Separate Runestone currency (Design discuss rec) is PARKED / overturned.**
+
+**Still parked until greenlight:** KeeperStats, Runestones, EquipmentItem/Manager, Bare Stone recipes, Equipment menu, Echo Chamber combat. No SYSTEMS live bump, no Code implement.
+
+**When greenlit (Design notes):** Manashards still wipe on Ascend (live rule) — Runestone spends mid-run buy *persist* stats; unspent shards still feed Ascension shop then wipe. Rising Runestone cost curve numbers TBD. Do not overload `upgrade_ranks` for combat stats. Stats/gear persist across Ascend (SAVE_VERSION bump then).
+
+### D4. Backpack & Handcrafting — GREENLIT → live v0.4.0
+Short pointer: live rules in **§4d**. Backpack (crafts only), instant handcraft, unique tools, Keeper 2× only / never wisps, Ascend backpack wipe, `keep_tools` re-grants 4 finished tools. Fertilizer as stage currency — see §4 / D5.
+
+### D5. Fertilizer stages + tools — GREENLIT → live v0.4.0
+Short pointer: live rules in **§4** (Stage Grow) + **§3** (Watering Can) + **§4d** (recipes/tools) + **§5** (`keep_tools`, retargeted `green_thumb`). Needs-only **SUPERSEDED**. PLACEHOLDER numbers remain for craft/Grow costs and Can amount — tune later.
+
+**Obsolete Design leans removed:** water=shards-only; Essence-on-berry. Live water remains Manashards + Essence; Can boosts Manashard side only.
+
+Ping @Game Director only when parking new mid-term ideas; Code implements v0.4.0 from this brief.

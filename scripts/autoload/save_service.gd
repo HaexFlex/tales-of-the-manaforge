@@ -1,13 +1,13 @@
 extends Node
-## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.2.0).
-## Payload schema SAVE_VERSION 5 — wisps + assignments (harvest_* or manatree). Migrates legacy single-file → slot 1.
+## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.4.0).
+## Payload schema SAVE_VERSION 6 — backpack + tool flags. Migrates legacy single-file → slot 1.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
-const SAVE_VERSION: int = 5
-## Accept legacy writes that bumped to 4 for welcome_shown.
-const SAVE_VERSION_MAX_READ: int = 6
+const SAVE_VERSION: int = 6
+## Accept one write ahead of this schema (plus legacy 4–5).
+const SAVE_VERSION_MAX_READ: int = 7
 const SAVE_SLOT_COUNT: int = 7
 const LEGACY_SAVE_PATH: String = "user://manaforge_save.json"
 const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
@@ -182,6 +182,13 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 			out["wisp_count"] = 0
 		if not out.has("wisp_assignments") or typeof(out.get("wisp_assignments")) != TYPE_DICTIONARY:
 			out["wisp_assignments"] = {}
+	if from_version < 6:
+		## SYSTEMS v0.4.0: v5→v6 starts empty backpack; tool flags false.
+		out["backpack"] = {}
+		out["owns_stone_axe"] = false
+		out["owns_stone_pickaxe"] = false
+		out["owns_wooden_basket"] = false
+		out["owns_stone_watering_can"] = false
 	# Additive welcome flag: legacy saves already played.
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true

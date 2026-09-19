@@ -263,12 +263,18 @@ func _tick_channel(delta: float) -> void:
 			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
 		return
 	_channel_accum += delta
-	var pulse: float = GameState.get_channel_pulse_sec()
-	while _channel_accum >= pulse:
-		_channel_accum -= pulse
-		if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
+	if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
+		var rid: StringName = (_channel_target as Gatherable).resource_id
+		var pulse: float = GameState.get_keeper_harvest_pulse_sec(rid)
+		while _channel_accum >= pulse:
+			_channel_accum -= pulse
 			(_channel_target as Gatherable).on_harvest_pulse()
-		elif _channel_kind == ChannelKind.WATER:
+	elif _channel_kind == ChannelKind.WATER:
+		var pulse: float = GameState.get_water_essence_pulse_sec()
+		if pulse <= 0.0:
+			return
+		while _channel_accum >= pulse:
+			_channel_accum -= pulse
 			_do_water_pulse()
 
 
