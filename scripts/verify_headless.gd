@@ -451,7 +451,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "ascension_paused_body")).find("cannot return to watering") >= 0, "ascension_paused_body")
 	failed += _assert(str(content_strings.call("get_text", "tree_water_ancient_note")).find("still water") >= 0, "tree_water_ancient_note")
 	failed += _assert(str(content_strings.call("get_text", "tree_water_ancient_ok")).find("still drinks") >= 0, "tree_water_ancient_ok")
-	failed += _assert(str(content_strings.call("get_text", "tree_ancient_care_hint")).find("Water anytime") >= 0, "tree_ancient_care_hint")
+	failed += _assert(str(content_strings.call("get_text", "tree_ancient_care_hint")).find("Keep watering") >= 0, "tree_ancient_care_hint")
 	failed += _assert(str(content_strings.call("get_text", "ascend_confirm_no")) == "Keep shopping", "ascend_confirm_no")
 	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Manashards") >= 0, "welcome_body manashards")
 	# Shop locked before Fruit harvest
@@ -1072,7 +1072,7 @@ func _run() -> void:
 		if water_cta and harvest_cta:
 			failed += _assert(water_cta.position.x < harvest_cta.position.x, "action band Water left of Fruit")
 		var pre_hint: Label = test_hud.get_node_or_null("CarePanel/FruitReadyCard/PrecommitHint") as Label
-		failed += _assert(pre_hint != null and str(pre_hint.text).find("Water anytime") >= 0, "care hint tree_ancient_care_hint")
+		failed += _assert(pre_hint != null and str(pre_hint.text).find("Keep watering") >= 0, "care hint tree_ancient_care_hint")
 		failed += _assert(pre_hint != null and str(pre_hint.text).find("still water") >= 0, "care hint tree_water_ancient_note")
 		var ascend_pre: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
 		failed += _assert(ascend_pre != null and not ascend_pre.is_visible_in_tree(), "Ascend hidden pre-commit")
