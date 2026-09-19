@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.4.0 — backpack, Grow (Fertilizer+Essence), Keep Tools, watering-can shard_roll ×2. SAVE_VERSION 6.
+## Headless verification per SYSTEMS_V01 v0.4.1 — D6 playtest + camera/map. SAVE_VERSION 6.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
