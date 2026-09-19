@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.3.7 — aligned to SYSTEMS v0.3.4 (multi-wisp; Ascend wipes Essence)
+**Status:** v0.3.8 — aligned to SYSTEMS v0.3.5 (Grow / backpack / Keep Tools)
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  

@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 ContentStrings="*res://scripts/autoload/content_strings.gd"
 GameAudio="*res://scripts/autoload/game_audio.gd"
 GameState="*res://scripts/autoload/game_state.gd"
+Backpack="*res://scripts/autoload/backpack.gd"
 SaveService="*res://scripts/autoload/save_service.gd"
 
 [display]

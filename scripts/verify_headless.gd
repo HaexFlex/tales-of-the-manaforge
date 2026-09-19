@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.3.4 + Content v0.3.7 — multi-wisp stack; Ascend wipes Essence. SAVE_VERSION 5.
+## Headless verification per SYSTEMS_V01 v0.3.5 — backpack, Grow (Fertilizer+Essence), Keep Tools. SAVE_VERSION 6.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -13,26 +13,28 @@ func _run() -> void:
 	var save_service: Node = tree_root.get_node_or_null("SaveService")
 	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
 	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
 
 	var failed: int = 0
 	failed += _assert(game_state != null, "GameState autoload missing")
 	failed += _assert(save_service != null, "SaveService autoload missing")
 	failed += _assert(content_strings != null, "ContentStrings autoload missing")
 	failed += _assert(game_audio != null, "GameAudio autoload missing")
+	failed += _assert(backpack != null, "Backpack autoload missing")
 	if failed > 0:
 		print("VERIFY_FAIL: %d assertion(s) failed (early)" % failed)
 		quit(1)
 		return
 
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
-	failed += _assert(int(game_state.get("upgrades_data").size()) == 7, "expected 7 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 5, "SAVE_VERSION should be 5")
+	failed += _assert(int(game_state.get("upgrades_data").size()) == 8, "expected 8 fruit upgrades")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 6, "SAVE_VERSION should be 6")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
 	failed += _assert(int(game_state.call("param_int", "WATER_ESSENCE_PER_SEC", 0)) == 1, "WATER_ESSENCE_PER_SEC")
 	failed += _assert(int(game_state.call("param_float", "CHANNEL_PULSE_SEC", 0.0)) == 1, "CHANNEL_PULSE_SEC 1")
-	failed += _assert(str(content_strings.call("get_text", "tree_pay")) == "Pay", "tree_pay")
+	failed += _assert(str(content_strings.call("get_text", "tree_pay")) == "Grow", "tree_pay Grow")
 	failed += _assert(str(content_strings.call("get_text", "tree_need_line")).find("{have}") >= 0, "tree_need_line")
 	failed += _assert(str(content_strings.call("get_text", "tree_need_line_met")).find("✓") >= 0, "tree_need_line_met")
 	failed += _assert(str(content_strings.call("get_text", "tree_stage_blocked_essence")).find("Essence") >= 0, "essence gate string")
@@ -45,7 +47,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Keeper") >= 0, "welcome_body")
 	failed += _assert(str(content_strings.call("get_text", "welcome_dismiss")).find("tend") >= 0, "welcome_dismiss")
 	failed += _assert(str(content_strings.call("get_text", "welcome_hint")).find("LMB") >= 0, "welcome_hint LMB")
-	failed += _assert(str(content_strings.call("get_text", "tree_next_stage_needs_met")).find("Pay") >= 0, "tree_next_stage_needs_met")
+	failed += _assert(str(content_strings.call("get_text", "tree_next_stage_needs_met")).find("Grow") >= 0, "tree_next_stage_needs_met Grow")
 	failed += _assert(str(content_strings.call("get_text", "tree_pay_ok")).find("{next_stage}") >= 0, "tree_pay_ok")
 	# Offers retired from Content UI
 	failed += _assert(str(content_strings.call("get_text", "tree_offer_wood")) == "tree_offer_wood", "tree_offer_wood must be removed")
@@ -74,15 +76,13 @@ func _run() -> void:
 	var mature: Dictionary = game_state.call("get_stage_def", &"mature")
 	var elder: Dictionary = game_state.call("get_stage_def", &"elder")
 	var ancient: Dictionary = game_state.call("get_stage_def", &"ancient")
-	failed += _assert(int(young.get("cost_essence", 0)) == 20, "young cost_essence 20")
-	failed += _assert(int(mature.get("cost_essence", 0)) == 40 and int(mature.get("cost_food", 0)) == 10, "mature 40e+10f")
-	failed += _assert(int(elder.get("cost_essence", 0)) == 60 and int(elder.get("cost_food", 0)) == 20 and int(elder.get("cost_wood", 0)) == 10, "elder 60e+20f+10w")
+	failed += _assert(int(young.get("cost_essence", 0)) == 20 and int(young.get("cost_fertilizer", 0)) == 1, "young 20e+1fert")
+	failed += _assert(int(mature.get("cost_essence", 0)) == 40 and int(mature.get("cost_fertilizer", 0)) == 2, "mature 40e+2fert")
+	failed += _assert(int(elder.get("cost_essence", 0)) == 60 and int(elder.get("cost_fertilizer", 0)) == 3, "elder 60e+3fert")
 	failed += _assert(
 		int(ancient.get("cost_essence", 0)) == 80
-		and int(ancient.get("cost_food", 0)) == 40
-		and int(ancient.get("cost_wood", 0)) == 20
-		and int(ancient.get("cost_stone", 0)) == 10,
-		"ancient 80e+40f+20w+10s"
+		and int(ancient.get("cost_fertilizer", 0)) == 4,
+		"ancient 80e+4fert"
 	)
 	failed += _assert(not young.has("growth_required"), "growth_required removed from young")
 	var anc_size: Variant = ancient.get("size", [])
@@ -235,34 +235,33 @@ func _run() -> void:
 	failed += _assert(int(game_state.get("lifetime_shards_from_water")) == shards, "lifetime_shards_from_water")
 	failed += _assert(int(game_state.get("lifetime_essence_from_water")) == 1, "lifetime_essence_from_water")
 
-	# Pay Young: 20 essence
+	# Grow Young: 20 essence + 1 Fertilizer
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"essence", 20)
-	failed += _assert(bool(game_state.call("can_pay_stage")), "can pay young at 20e")
-	var pay_y: String = str(game_state.call("try_pay_stage"))
-	failed += _assert(pay_y == "ok", "pay young ok (got %s)" % pay_y)
-	failed += _assert(str(game_state.get("stage_id")) == "young", "stage young after pay")
+	backpack.call("add_item", "fertilizer", 1)
+	failed += _assert(bool(game_state.call("can_grow_stage")), "can grow young at 20e+1fert")
+	var pay_y: String = str(game_state.call("try_grow_stage"))
+	failed += _assert(pay_y == "ok", "grow young ok (got %s)" % pay_y)
+	failed += _assert(str(game_state.get("stage_id")) == "young", "stage young after grow")
 	failed += _assert(int(game_state.get("essence")) == 0, "essence spent for young")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "fertilizer spent for young")
 
-	# Pay Mature: 40e + 10 food
+	# Grow Mature: 40e + 2 Fertilizer
 	game_state.call("set_resource", &"essence", 40)
-	game_state.call("set_resource", &"food", 10)
-	failed += _assert(str(game_state.call("try_pay_stage")) == "ok", "pay mature")
+	backpack.call("add_item", "fertilizer", 2)
+	failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "grow mature")
 	failed += _assert(str(game_state.get("stage_id")) == "mature", "stage mature")
 
-	# Pay Elder: 60e + 20f + 10w
+	# Grow Elder: 60e + 3 Fertilizer
 	game_state.call("set_resource", &"essence", 60)
-	game_state.call("set_resource", &"food", 20)
-	game_state.call("set_resource", &"wood", 10)
-	failed += _assert(str(game_state.call("try_pay_stage")) == "ok", "pay elder")
+	backpack.call("add_item", "fertilizer", 3)
+	failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "grow elder")
 	failed += _assert(str(game_state.get("stage_id")) == "elder", "stage elder")
 
-	# Pay Ancient: 80e + 40f + 20w + 10s
+	# Grow Ancient: 80e + 4 Fertilizer
 	game_state.call("set_resource", &"essence", 80)
-	game_state.call("set_resource", &"food", 40)
-	game_state.call("set_resource", &"wood", 20)
-	game_state.call("set_resource", &"stone", 10)
-	failed += _assert(str(game_state.call("try_pay_stage")) == "ok", "pay ancient")
+	backpack.call("add_item", "fertilizer", 4)
+	failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "grow ancient")
 	failed += _assert(str(game_state.get("stage_id")) == "ancient", "stage ancient")
 	failed += _assert(bool(game_state.get("fruit_ready")), "fruit ready at ancient")
 
@@ -279,7 +278,7 @@ func _run() -> void:
 	# Cant afford path
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"essence", 5)
-	failed += _assert(str(game_state.call("try_pay_stage")) == "cant_afford", "cant afford young")
+	failed += _assert(str(game_state.call("try_grow_stage")) == "cant_afford", "cant afford young")
 	failed += _assert(str(game_state.get("stage_id")) == "sapling", "still sapling")
 
 	# Save roundtrip slot 1 (SAVE_VERSION 5, wisps)
@@ -302,7 +301,7 @@ func _run() -> void:
 	game_state.set("lifetime_harvested", {"wood": 11, "stone": 7, "food": 5})
 
 	failed += _assert(bool(save_service.call("save_game", 1)), "save_game slot 1 failed")
-	# Confirm written save_version is 4 and no growth in payload
+	# Confirm written save_version is 6 and no growth in payload
 	var slot1_path: String = str(save_service.call("slot_path", 1))
 	var s1f := FileAccess.open(slot1_path, FileAccess.READ)
 	failed += _assert(s1f != null, "read slot 1")
@@ -310,7 +309,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 5, "written save_version 5")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 6, "written save_version 6")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -411,16 +410,17 @@ func _run() -> void:
 	# Offers removed
 	failed += _assert(not game_state.has_method("try_offer"), "try_offer removed")
 
-	# green_thumb soft-mat reduction (10% per rank, min 1)
+	# green_thumb Fertilizer reduction (10% per rank, min 1)
 	game_state.call("reset_for_new_game")
-	game_state.call("_set_stage", &"mature")  # next = elder needs food 20 wood 10
+	game_state.call("_set_stage", &"mature")  # next = elder needs fertilizer 3
 	var ranks2: Dictionary = game_state.get("upgrade_ranks")
 	ranks2["green_thumb"] = 1
 	game_state.set("upgrade_ranks", ranks2)
 	var needs_gt: Dictionary = game_state.call("get_next_stage_needs")
 	failed += _assert(int(needs_gt.get("essence", 0)) == 60, "green_thumb leaves essence alone")
-	failed += _assert(int(needs_gt.get("food", 0)) == 18, "green_thumb food 20*0.9=18")
-	failed += _assert(int(needs_gt.get("wood", 0)) == 9, "green_thumb wood 10*0.9=9")
+	failed += _assert(int(needs_gt.get("fertilizer", 0)) == 2, "green_thumb fertilizer 3*0.9=2")
+	failed += _assert(not needs_gt.has("food"), "grow needs have no food")
+	failed += _assert(not needs_gt.has("wood"), "grow needs have no wood")
 
 	# Fruit / Ascend cycle (SYSTEMS v0.2.4 — Manashard shop; Ascension-only; Ascend optional)
 	failed += _assert(str(content_strings.call("get_text", "fruit_step_1")).find("Harvest") >= 0, "fruit_step_1")
@@ -532,7 +532,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 5, "SAVE_VERSION stays 5 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 6, "SAVE_VERSION stays 6 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -570,6 +570,14 @@ func _run() -> void:
 			failed += _assert(hud.get_node_or_null("WelcomePanel") != null, "WelcomePanel missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareNeedsLabel") != null, "CareNeedsLabel missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/PayButton") != null, "PayButton missing")
+			failed += _assert(hud.get_node_or_null("Panel/BackpackButton") != null, "BackpackButton missing")
+			failed += _assert(hud.get_node_or_null("Panel/BackpackButton/BackpackIcon") != null, "BackpackIcon ColorRect missing")
+			failed += _assert(hud.get_node_or_null("BackpackPanel") != null, "BackpackPanel missing")
+			failed += _assert(hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") != null, "CraftList missing")
+			failed += _assert(hud.get_node_or_null("CarePanel/CareGrowCosts/FertilizerIcon") != null, "Grow FertilizerIcon missing")
+			failed += _assert(hud.get_node_or_null("CarePanel/CareGrowCosts/EssenceIcon") != null, "Grow EssenceIcon missing")
+			failed += _assert(FileAccess.file_exists("res://docs/ART_NEEDED_BACKPACK.md"), "ART_NEEDED_BACKPACK.md")
+			failed += _assert(FileAccess.file_exists("res://data/handcraft_recipes.json"), "handcraft_recipes.json")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/HarvestFruitButton") != null, "HarvestFruitButton missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/WaterButton") != null, "WaterButton missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/Header/CareCloseButton") != null, "care dismiss Close")
@@ -753,15 +761,16 @@ func _run() -> void:
 	failed += _assert(int(game_state.call("param_float", "WISP_PULSE_SEC", 0.0)) == 10, "WISP_PULSE_SEC 10")
 	failed += _assert(int(game_state.call("param_int", "WISP_PULSE_GRANT", 0)) == 1, "WISP_PULSE_GRANT")
 
-	# Stage pay grants +1 wisp
+	# Stage Grow grants +1 wisp
 	game_state.call("reset_for_new_game")
 	failed += _assert(int(game_state.get("wisp_count")) == 0, "start 0 wisps")
 	game_state.call("set_resource", &"essence", 20)
-	failed += _assert(str(game_state.call("try_pay_stage")) == "ok", "pay young for wisp")
+	backpack.call("add_item", "fertilizer", 1)
+	failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "grow young for wisp")
 	failed += _assert(int(game_state.get("wisp_count")) == 1, "wisp +1 after young")
 	game_state.call("set_resource", &"essence", 40)
-	game_state.call("set_resource", &"food", 10)
-	failed += _assert(str(game_state.call("try_pay_stage")) == "ok", "pay mature")
+	backpack.call("add_item", "fertilizer", 2)
+	failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "grow mature")
 	failed += _assert(int(game_state.get("wisp_count")) == 2, "wisp +1 after mature")
 
 	# Assign + simulate 10s pulse → +1 resource (no gather_mult)
@@ -1177,6 +1186,158 @@ func _run() -> void:
 		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "shop reopens")
 		test_hud.queue_free()
 		paused = false
+		await process_frame
+		game_state.call("reset_for_new_game")
+
+	# --- SYSTEMS v0.3.5: backpack, handcraft, tools, Grow, Keep Tools ---
+	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
+	failed += _assert(int((backpack.get("items_data") as Array).size()) == 10, "10 backpack items")
+	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
+	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
+	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
+	failed += _assert(int(fert_ings.get("wood", 0)) > 0 and int(fert_ings.get("stone", 0)) > 0 and int(fert_ings.get("food", 0)) > 0, "fertilizer wood+stone+food")
+	failed += _assert(int(fert_ings.get("manashards", 0)) == 0, "fertilizer manashards 0")
+	failed += _assert(str(content_strings.call("get_text", "item_fertilizer")) == "Fertilizer", "item_fertilizer")
+	failed += _assert(str(content_strings.call("get_text", "btn_backpack")) == "Backpack", "btn_backpack")
+	failed += _assert(str(content_strings.call("get_text", "backpack_craft")) == "Craft", "backpack_craft")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_name")).find("Keep") >= 0, "Keep Tools name")
+	var keep_def: Dictionary = game_state.call("get_upgrade_def", "keep_tools")
+	failed += _assert(str(keep_def.get("effect", "")) == "keep_tools", "keep_tools effect")
+	failed += _assert(int(keep_def.get("max_rank", 0)) == 1, "keep_tools max 1")
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	game_state.call("harvest_fruit")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 1600, "Keep Tools expensive 1600")
+	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools unaffordable at 0 shards")
+
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 3)
+	failed += _assert(str(backpack.call("try_craft", "wooden_planks")) == "ok", "craft planks")
+	failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 1, "1 plank")
+	failed += _assert(int(game_state.get("wood")) == 0, "wood spent on planks")
+	game_state.call("set_resource", &"stone", 3)
+	failed += _assert(str(backpack.call("try_craft", "stone_fragments")) == "ok", "craft fragments")
+	game_state.call("set_resource", &"wood", 5)
+	game_state.call("set_resource", &"stone", 5)
+	game_state.call("set_resource", &"food", 5)
+	game_state.call("set_resource", &"manashards", 99)
+	var shards_pre_fert: int = int(game_state.get("manashards"))
+	failed += _assert(str(backpack.call("try_craft", "fertilizer")) == "ok", "craft fertilizer")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 1, "fertilizer stacked")
+	failed += _assert(int(game_state.get("manashards")) == shards_pre_fert, "fertilizer ignores manashards")
+
+	# Unique tools: own 1
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "wooden_tool_rod", 2)
+	backpack.call("set_count", "axe_head", 2)
+	failed += _assert(str(backpack.call("try_craft", "stone_axe")) == "ok", "craft stone axe")
+	failed += _assert(int(backpack.call("get_count", "stone_axe")) == 1, "axe unique 1")
+	failed += _assert(str(backpack.call("try_craft", "stone_axe")) == "unique", "second axe blocked")
+	failed += _assert(bool(backpack.call("owns_tool_for_resource", &"wood")), "axe boosts wood")
+	failed += _assert(not bool(backpack.call("owns_tool_for_resource", &"stone")), "axe does not boost stone")
+	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"wood")) - 0.5) < 0.01, "axe halves wood wait")
+	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"stone")) - 1.0) < 0.01, "no pickaxe: stone wait 1s")
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "tools do not change wisp pulse")
+
+	backpack.call("set_count", "wooden_tool_rod", 1)
+	backpack.call("set_count", "stone_fragments", 10)
+	failed += _assert(str(backpack.call("try_craft", "stone_watering_can")) == "ok", "craft watering can")
+	failed += _assert(bool(backpack.call("owns_watering_can")), "owns watering can")
+	failed += _assert(abs(float(game_state.call("get_water_shard_pulse_sec")) - 0.5) < 0.01, "can halves shard wait")
+	failed += _assert(abs(float(game_state.call("get_water_essence_pulse_sec")) - 1.0) < 0.01, "can leaves essence wait")
+
+	# Split water pulse: shards-only does not grant essence
+	game_state.call("reset_for_new_game")
+	var e_split: int = int(game_state.get("essence"))
+	var m_split: int = int(game_state.get("manashards"))
+	var shard_only: Dictionary = game_state.call("apply_water_pulse", true, false)
+	failed += _assert(bool(shard_only.get("ok", false)), "shard-only pulse ok")
+	failed += _assert(int(shard_only.get("essence", -1)) == 0, "shard-only essence 0")
+	failed += _assert(int(game_state.get("essence")) == e_split, "essence unchanged on shard-only")
+	failed += _assert(int(game_state.get("manashards")) > m_split, "shards granted shard-only")
+	var ess_only: Dictionary = game_state.call("apply_water_pulse", false, true)
+	failed += _assert(int(ess_only.get("shards", -1)) == 0, "essence-only shards 0")
+	failed += _assert(int(game_state.get("essence")) == e_split + 1, "essence-only +1")
+
+	# Ascend wipe backpack; Keep Tools regrants finished tools only
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	backpack.call("set_count", "fertilizer", 7)
+	backpack.call("set_count", "wooden_planks", 4)
+	backpack.call("set_count", "stone_axe", 1)
+	backpack.call("set_count", "stone_pickaxe", 1)
+	backpack.call("set_count", "wooden_basket", 1)
+	backpack.call("set_count", "stone_watering_can", 1)
+	game_state.call("harvest_fruit")
+	game_state.call("ascend")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "ascend wipes fertilizer")
+	failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "ascend wipes intermediates")
+	failed += _assert(int(backpack.call("get_count", "stone_axe")) == 0, "ascend wipes tools without blessing")
+
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	var ranks_kt: Dictionary = game_state.get("upgrade_ranks")
+	ranks_kt["keep_tools"] = 1
+	game_state.set("upgrade_ranks", ranks_kt)
+	backpack.call("set_count", "fertilizer", 3)
+	backpack.call("set_count", "wooden_planks", 2)
+	backpack.call("set_count", "stone_axe", 1)
+	backpack.call("set_count", "stone_pickaxe", 1)
+	backpack.call("set_count", "wooden_basket", 1)
+	backpack.call("set_count", "stone_watering_can", 1)
+	game_state.call("harvest_fruit")
+	game_state.call("ascend")
+	failed += _assert(int(backpack.call("get_count", "stone_axe")) == 1, "Keep Tools regrants axe")
+	failed += _assert(int(backpack.call("get_count", "stone_pickaxe")) == 1, "Keep Tools regrants pickaxe")
+	failed += _assert(int(backpack.call("get_count", "wooden_basket")) == 1, "Keep Tools regrants basket")
+	failed += _assert(int(backpack.call("get_count", "stone_watering_can")) == 1, "Keep Tools regrants can")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "Keep Tools does not keep fertilizer")
+	failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "Keep Tools does not keep planks")
+
+	# Save backpack + migrate empty from v5
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "fertilizer", 6)
+	backpack.call("set_count", "stone_axe", 1)
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(save_service.call("save_game", 5)), "save slot 5 backpack")
+	game_state.call("reset_for_new_game")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "reset clears backpack")
+	failed += _assert(bool(save_service.call("load_game", 5)), "load slot 5 backpack")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 6, "loaded fertilizer")
+	failed += _assert(int(backpack.call("get_count", "stone_axe")) == 1, "loaded axe")
+	var v5_state: Dictionary = game_state.call("to_save_dict")
+	v5_state.erase("backpack")
+	var migrated: Dictionary = save_service.call("_migrate", 5, v5_state)
+	failed += _assert(typeof(migrated.get("backpack", null)) == TYPE_DICTIONARY, "v5 migrate empty backpack dict")
+	failed += _assert((migrated.get("backpack", {}) as Dictionary).is_empty(), "v5 migrate backpack empty")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", migrated)
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "migrated empty backpack")
+
+	# HUD backpack + Grow chrome
+	if hud_packed:
+		var pack_hud: Node = hud_packed.instantiate()
+		tree_root.add_child(pack_hud)
+		await process_frame
+		failed += _assert(pack_hud.has_method("open_backpack"), "HUD.open_backpack")
+		failed += _assert(pack_hud.has_method("is_backpack_open"), "HUD.is_backpack_open")
+		var fert_icon: ColorRect = pack_hud.get_node_or_null("CarePanel/CareGrowCosts/FertilizerIcon") as ColorRect
+		var ess_icon: ColorRect = pack_hud.get_node_or_null("CarePanel/CareGrowCosts/EssenceIcon") as ColorRect
+		var pack_icon: ColorRect = pack_hud.get_node_or_null("Panel/BackpackButton/BackpackIcon") as ColorRect
+		failed += _assert(fert_icon != null and fert_icon.color.a > 0.5, "Grow fertilizer ColorRect")
+		failed += _assert(ess_icon != null and ess_icon.color.a > 0.5, "Grow essence ColorRect")
+		failed += _assert(pack_icon != null and pack_icon.color.a > 0.5, "Backpack button ColorRect")
+		pack_hud.call("open_backpack")
+		await process_frame
+		failed += _assert(bool(pack_hud.call("is_backpack_open")), "backpack opens")
+		var craft_box: VBoxContainer = pack_hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") as VBoxContainer
+		failed += _assert(craft_box != null and craft_box.get_child_count() >= 10, "craft rows built (%d)" % (craft_box.get_child_count() if craft_box else 0))
+		var grow_btn: Button = pack_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
+		failed += _assert(grow_btn != null and str(grow_btn.text) == "Grow", "care CTA Grow")
+		pack_hud.call("close_backpack")
+		await process_frame
+		failed += _assert(not bool(pack_hud.call("is_backpack_open")), "backpack closes")
+		pack_hud.queue_free()
 		await process_frame
 		game_state.call("reset_for_new_game")
 

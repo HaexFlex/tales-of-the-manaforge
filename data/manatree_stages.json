@@ -14,7 +14,13 @@
     "WISP_PER_MANATREE": 0,
     "WISP_PULSE_SEC": 10.0,
     "WISP_PULSE_GRANT": 1,
-    "WISP_FROM_STAGES_MAX": 4
+    "WISP_FROM_STAGES_MAX": 4,
+    "GROW_YOUNG_FERTILIZER": 1,
+    "GROW_MATURE_FERTILIZER": 2,
+    "GROW_ELDER_FERTILIZER": 3,
+    "GROW_ANCIENT_FERTILIZER": 4,
+    "TOOL_CHANNEL_SPEED_MULT": 2.0,
+    "WATER_CAN_SHARD_SPEED_MULT": 2.0
   },
   "stages": [
     {
@@ -26,6 +32,7 @@
         192
       ],
       "cost_essence": 0,
+      "cost_fertilizer": 0,
       "cost_food": 0,
       "cost_wood": 0,
       "cost_stone": 0,
@@ -42,6 +49,7 @@
         288
       ],
       "cost_essence": 20,
+      "cost_fertilizer": 1,
       "cost_food": 0,
       "cost_wood": 0,
       "cost_stone": 0,
@@ -58,7 +66,8 @@
         384
       ],
       "cost_essence": 40,
-      "cost_food": 10,
+      "cost_fertilizer": 2,
+      "cost_food": 0,
       "cost_wood": 0,
       "cost_stone": 0,
       "cost_manashards": 0,
@@ -74,8 +83,9 @@
         512
       ],
       "cost_essence": 60,
-      "cost_food": 20,
-      "cost_wood": 10,
+      "cost_fertilizer": 3,
+      "cost_food": 0,
+      "cost_wood": 0,
       "cost_stone": 0,
       "cost_manashards": 0,
       "gather_mult": 1.4,
@@ -90,9 +100,10 @@
         640
       ],
       "cost_essence": 80,
-      "cost_food": 40,
-      "cost_wood": 20,
-      "cost_stone": 10,
+      "cost_fertilizer": 4,
+      "cost_food": 0,
+      "cost_wood": 0,
+      "cost_stone": 0,
       "cost_manashards": 0,
       "gather_mult": 1.6,
       "grants_fruit": true

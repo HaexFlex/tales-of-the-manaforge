@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + welcome + Ascension shop. SYSTEMS v0.3.3 / Content v0.3.4 / Art care v0.1.12 + shop v0.1.
+## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.3.5.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -9,6 +9,21 @@ class_name GameHUD
 @onready var status_label: Label = $Panel/StatusLabel
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var pause_button: Button = $Panel/PauseButton
+@onready var backpack_button: Button = $Panel/BackpackButton
+@onready var backpack_icon: ColorRect = $Panel/BackpackButton/BackpackIcon
+@onready var backpack_dim: ColorRect = $BackpackDim
+@onready var backpack_panel: Panel = $BackpackPanel
+@onready var backpack_title: Label = $BackpackPanel/Header/BackpackTitle
+@onready var backpack_close_button: Button = $BackpackPanel/Header/BackpackCloseButton
+@onready var inventory_title: Label = $BackpackPanel/InventoryTitle
+@onready var inventory_list: VBoxContainer = $BackpackPanel/InventoryScroll/InventoryList
+@onready var handcraft_title: Label = $BackpackPanel/HandcraftTitle
+@onready var craft_list: VBoxContainer = $BackpackPanel/CraftScroll/CraftList
+@onready var care_grow_costs: HBoxContainer = $CarePanel/CareGrowCosts
+@onready var grow_fert_icon: ColorRect = $CarePanel/CareGrowCosts/FertilizerIcon
+@onready var grow_fert_need: Label = $CarePanel/CareGrowCosts/FertilizerNeed
+@onready var grow_ess_icon: ColorRect = $CarePanel/CareGrowCosts/EssenceIcon
+@onready var grow_ess_need: Label = $CarePanel/CareGrowCosts/EssenceNeed
 @onready var ascension_reopen_button: Button = $Panel/AscensionReopenButton
 @onready var care_panel: Panel = $CarePanel
 @onready var care_header: Control = $CarePanel/Header
@@ -64,6 +79,11 @@ const LEAF: Color = Color(0.24, 0.48, 0.28, 1.0)
 const BUY_CAN: Color = Color(0.28, 0.52, 0.30, 1.0)
 const BUY_CANT: Color = Color(0.62, 0.22, 0.18, 1.0)
 const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
+const ICON_FERTILIZER: Color = Color(0.42, 0.35, 0.14, 1.0)
+const ICON_ESSENCE: Color = Color(0.56, 0.35, 0.66, 1.0)
+const ICON_BACKPACK: Color = Color(0.48, 0.31, 0.18, 1.0)
+const ICON_KEEP_TOOLS: Color = Color(0.72, 0.53, 0.04, 1.0)
+const BACKPACK_ROW_H: float = 40.0
 
 var _manatree: Manatree = null
 var _confirm_pay: bool = false
@@ -86,7 +106,17 @@ func _ready() -> void:
 	shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	shop_scroll.clip_contents = true
 	_apply_wood_chrome()
+	add_to_group("game_hud")
 	pause_button.text = ContentStrings.get_text("btn_pause")
+	backpack_button.text = ContentStrings.get_text("btn_backpack")
+	backpack_title.text = ContentStrings.get_text("backpack_title")
+	handcraft_title.text = ContentStrings.get_text("backpack_handcraft_title")
+	if backpack_icon:
+		backpack_icon.color = ICON_BACKPACK
+	if grow_fert_icon:
+		grow_fert_icon.color = ICON_FERTILIZER
+	if grow_ess_icon:
+		grow_ess_icon.color = ICON_ESSENCE
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -103,6 +133,10 @@ func _ready() -> void:
 	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
 	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
 	pause_button.pressed.connect(_on_pause_pressed)
+	backpack_button.pressed.connect(toggle_backpack)
+	backpack_close_button.pressed.connect(close_backpack)
+	if backpack_dim:
+		backpack_dim.gui_input.connect(_on_backpack_dim_input)
 	ascension_reopen_button.pressed.connect(show_ascension_shop)
 	harvest_fruit_button.pressed.connect(open_fruit_confirm)
 	fruit_confirm_yes.pressed.connect(confirm_fruit_step)
@@ -121,6 +155,7 @@ func _ready() -> void:
 	GameState.fruit_ready_changed.connect(_on_fruit_ready_changed)
 	GameState.selection_changed.connect(_refresh_selection_hint)
 	GameState.load_completed.connect(_on_game_state_loaded)
+	Backpack.inventory_changed.connect(_on_backpack_inventory)
 	_refresh_all()
 	status_label.text = ContentStrings.get_text("boot_line")
 	_refresh_controls_hint()
@@ -180,12 +215,17 @@ func _apply_wood_chrome() -> void:
 	_apply_button_chrome(water_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(pay_button, LEAF, GOLD)
 	_apply_button_chrome(harvest_fruit_button, LEAF, GOLD)
+	_apply_button_chrome(backpack_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	backpack_panel.add_theme_stylebox_override("panel", _wood_style())
 
 
 func _refresh_dim() -> void:
 	if shop_dim == null:
 		return
 	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible
+	if backpack_dim:
+		backpack_dim.visible = backpack_panel.visible
 
 
 func bind_manatree(tree: Manatree) -> void:
@@ -199,6 +239,7 @@ func maybe_show_welcome() -> void:
 
 
 func show_welcome() -> void:
+	close_backpack()
 	hide_care_menu()
 	hide_fruit_confirm()
 	hide_ascension_shop()
@@ -285,6 +326,8 @@ func bind_pause_menu(menu: PauseMenu) -> void:
 func _on_pause_pressed() -> void:
 	if welcome_panel.visible:
 		return
+	if is_backpack_open():
+		close_backpack()
 	if _pause_menu:
 		_pause_menu.open_pause()
 
@@ -374,11 +417,9 @@ func _refresh_care_needs() -> void:
 	care_needs_label.visible = not fruit_ready
 	var can_pay: bool = bool(info.get("can_pay", false))
 	pay_button.visible = not is_ancient
-	if _confirm_pay and can_pay:
-		pay_button.text = ContentStrings.get_text("tree_pay_confirm_yes")
-	else:
-		pay_button.text = ContentStrings.get_text("tree_pay")
+	pay_button.text = ContentStrings.get_text("tree_pay")
 	pay_button.disabled = not can_pay
+	_refresh_grow_cost_icons(info, is_ancient)
 	water_button.visible = not GameState.fruit_committed
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	harvest_fruit_button.visible = fruit_ready
@@ -400,6 +441,7 @@ func show_care_menu() -> void:
 	if GameState.fruit_committed:
 		show_ascension_shop()
 		return
+	close_backpack()
 	hide_ascension_shop()
 	hide_fruit_confirm()
 	_confirm_pay = false
@@ -504,6 +546,7 @@ func show_ascension_shop() -> void:
 		return
 	if not GameState.fruit_harvested_pending_ascend:
 		return
+	backpack_panel.visible = false
 	hide_care_menu()
 	hide_fruit_confirm()
 	_hold_world_for_ascension()
@@ -566,6 +609,8 @@ func _hold_world_for_ascension() -> void:
 
 func _release_world_if_allowed() -> void:
 	if GameState.fruit_harvested_pending_ascend:
+		return
+	if is_backpack_open():
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
@@ -693,16 +738,41 @@ func _on_water() -> void:
 	_refresh_all()
 
 
-func _on_pay() -> void:
-	if not GameState.can_pay_stage():
-		GameAudio.play_tree_deny()
-		_refresh_care_needs()
+func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
+	if care_grow_costs == null:
 		return
-	if not _confirm_pay:
-		_confirm_pay = true
-		var info: Dictionary = GameState.get_care_next_stage_info()
-		var next_display: String = str(info.get("next_stage_display", ""))
-		status_label.text = ContentStrings.get_text("tree_pay_confirm", {"next_stage": next_display})
+	care_grow_costs.visible = not is_ancient and not bool(info.get("ready_for_fruit", false))
+	if not care_grow_costs.visible:
+		return
+	var needs: Dictionary = info.get("needs", {}) as Dictionary
+	if needs.is_empty():
+		needs = GameState.get_next_stage_needs()
+	var fert_need: int = int(needs.get("fertilizer", 0))
+	var ess_need: int = int(needs.get("essence", 0))
+	var fert_have: int = GameState.get_need_have(&"fertilizer")
+	var ess_have: int = GameState.get_need_have(&"essence")
+	if grow_fert_icon:
+		grow_fert_icon.color = ICON_FERTILIZER
+	if grow_ess_icon:
+		grow_ess_icon.color = ICON_ESSENCE
+	if grow_fert_need:
+		grow_fert_need.text = ContentStrings.get_text("tree_need_line" if fert_have < fert_need else "tree_need_line_met", {
+			"item": ContentStrings.get_text("item_fertilizer"),
+			"have": fert_have,
+			"need": fert_need,
+		})
+	if grow_ess_need:
+		grow_ess_need.text = ContentStrings.get_text("tree_need_line" if ess_have < ess_need else "tree_need_line_met", {
+			"item": ContentStrings.get_text("hud_essence"),
+			"have": ess_have,
+			"need": ess_need,
+		})
+
+
+func _on_pay() -> void:
+	## One-click Grow — no confirm. Spend Fertilizer + Essence when affordable.
+	if not GameState.can_grow_stage():
+		GameAudio.play_tree_deny()
 		_refresh_care_needs()
 		return
 	_confirm_pay = false
@@ -710,10 +780,182 @@ func _on_pay() -> void:
 	if _manatree:
 		result = _manatree.do_pay_stage()
 	else:
-		result = GameState.try_pay_stage()
+		result = GameState.try_grow_stage()
 	if result == "ok":
 		SaveService.save_game()
 	_refresh_all()
+
+
+func is_backpack_open() -> bool:
+	return backpack_panel != null and backpack_panel.visible
+
+
+func toggle_backpack() -> void:
+	if is_backpack_open():
+		close_backpack()
+	else:
+		open_backpack()
+
+
+func open_backpack() -> void:
+	if welcome_panel.visible:
+		return
+	if GameState.fruit_committed:
+		show_ascension_shop()
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
+	hide_care_menu()
+	hide_fruit_confirm()
+	hide_ascension_shop()
+	backpack_panel.visible = true
+	_hold_world_for_backpack()
+	_rebuild_backpack()
+	_refresh_dim()
+	GameAudio.play_ui_open()
+
+
+func close_backpack() -> void:
+	if backpack_panel.visible:
+		GameAudio.play_ui_close()
+	backpack_panel.visible = false
+	_release_world_if_allowed()
+	_refresh_dim()
+
+
+func _hold_world_for_backpack() -> void:
+	var tree: SceneTree = get_tree()
+	if tree:
+		tree.paused = true
+	GameAudio.ensure_hub_playing()
+
+
+func _on_backpack_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			close_backpack()
+
+
+func _on_backpack_inventory(_item_id: StringName, _amount: int) -> void:
+	if is_backpack_open():
+		_rebuild_backpack()
+	if care_panel.visible:
+		_refresh_care_needs()
+
+
+func _rebuild_backpack() -> void:
+	backpack_title.text = ContentStrings.get_text("backpack_title")
+	handcraft_title.text = ContentStrings.get_text("backpack_handcraft_title")
+	for child: Node in inventory_list.get_children():
+		child.queue_free()
+	var stacks: Array[Dictionary] = Backpack.stacked_items()
+	if stacks.is_empty():
+		var empty := Label.new()
+		empty.text = ContentStrings.get_text("backpack_empty")
+		empty.add_theme_font_size_override("font_size", 12)
+		empty.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		inventory_list.add_child(empty)
+	else:
+		for stack: Dictionary in stacks:
+			inventory_list.add_child(_make_item_row(stack, false))
+	for child2: Node in craft_list.get_children():
+		child2.queue_free()
+	for entry: Variant in Backpack.recipes_data:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var rec: Dictionary = entry
+		craft_list.add_child(_make_craft_row(str(rec.get("id", ""))))
+
+
+func _placeholder_icon(color: Color) -> ColorRect:
+	var icon := ColorRect.new()
+	icon.custom_minimum_size = Vector2(32, 32)
+	icon.color = color
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return icon
+
+
+func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H)
+	row.add_theme_constant_override("separation", 8)
+	row.add_child(_placeholder_icon(stack.get("color", Color.GRAY) as Color))
+	var lbl := Label.new()
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var count: int = int(stack.get("count", 0))
+	var name: String = str(stack.get("display_name", ""))
+	if bool(stack.get("unique", false)):
+		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("backpack_owned")]
+	else:
+		lbl.text = "%s  ×%d" % [name, count]
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(lbl)
+	return row
+
+
+func _make_craft_row(recipe_id: String) -> Control:
+	var def: Dictionary = Backpack.get_recipe_def(recipe_id)
+	var out_id: String = str(def.get("output_id", recipe_id))
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H + 8.0)
+	row.add_theme_constant_override("separation", 8)
+	row.add_child(_placeholder_icon(Backpack.item_color(out_id)))
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var name_lbl := Label.new()
+	name_lbl.text = Backpack.item_display_name(out_id)
+	name_lbl.add_theme_font_size_override("font_size", 13)
+	name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+	var cost_lbl := Label.new()
+	cost_lbl.text = "  ".join(Backpack.recipe_ingredient_lines(recipe_id))
+	cost_lbl.add_theme_font_size_override("font_size", 11)
+	cost_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+	info.add_child(name_lbl)
+	info.add_child(cost_lbl)
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(88, 28)
+	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var reason: String = Backpack.craft_block_reason(recipe_id)
+	if reason == "unique":
+		btn.text = ContentStrings.get_text("backpack_owned")
+		btn.disabled = true
+		_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
+	elif reason != "":
+		btn.text = ContentStrings.get_text("backpack_craft")
+		btn.disabled = true
+		_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
+	else:
+		btn.text = ContentStrings.get_text("backpack_craft")
+		_apply_button_chrome(btn, BUY_CAN, GOLD)
+		btn.pressed.connect(_on_craft.bind(recipe_id))
+	row.add_child(info)
+	row.add_child(btn)
+	return row
+
+
+func _on_craft(recipe_id: String) -> void:
+	var result: String = Backpack.try_craft(recipe_id)
+	var out_id: String = str(Backpack.get_recipe_def(recipe_id).get("output_id", recipe_id))
+	var item_name: String = Backpack.item_display_name(out_id)
+	if result == "ok":
+		GameAudio.play_ui_confirm()
+		status_label.text = ContentStrings.get_text("backpack_craft_ok", {"item": item_name})
+		_rebuild_backpack()
+		_refresh_resources()
+		SaveService.save_game()
+		return
+	GameAudio.play_tree_deny()
+	if result == "unique":
+		status_label.text = ContentStrings.get_text("backpack_craft_unique", {"item": item_name})
+	else:
+		status_label.text = ContentStrings.get_text("backpack_craft_cant", {
+			"costs": "  ".join(Backpack.recipe_ingredient_lines(recipe_id)),
+		})
+	_rebuild_backpack()
 
 
 func _refresh_ascension_copy() -> void:
@@ -770,6 +1012,13 @@ func _rebuild_upgrades() -> void:
 		var inner := HBoxContainer.new()
 		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 		inner.add_theme_constant_override("separation", 8)
+		if uid == "keep_tools":
+			var keep_icon := ColorRect.new()
+			keep_icon.custom_minimum_size = Vector2(32, 32)
+			keep_icon.color = ICON_KEEP_TOOLS
+			keep_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			keep_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			inner.add_child(keep_icon)
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.alignment = BoxContainer.ALIGNMENT_CENTER

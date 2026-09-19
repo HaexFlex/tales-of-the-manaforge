@@ -1,0 +1,177 @@
+{
+  "version": "v0.3.5-backpack",
+  "notes": [
+    "Placeholder numbers — tune later. Fertilizer NEVER costs Manashards.",
+    "Grow curve (to ENTER named stage): Fertilizer 1/2/3/4 and Essence 20/40/60/80 for Young/Mature/Elder/Ancient.",
+    "green_thumb reduces Fertilizer Grow cost only (−10%/rank, floor, min 1). Essence unchanged.",
+    "Prestige craft-cost multiplier is not patterned in v0.3.x — Fertilizer uses flat recipe cost.",
+    "Tools are unique (own 1). Hands always gather. Matching tool → 2× Keeper channel speed only (half wait). Wisps unchanged.",
+    "Stone Watering Can boosts Keeper Manashard water ticks only (half shard wait). Essence water stays at base CHANNEL_PULSE_SEC."
+  ],
+  "params": {
+    "TOOL_SPEED_MULT": 2.0,
+    "WATER_CAN_SHARD_SPEED_MULT": 2.0,
+    "ICON_SIZE_PX": 32,
+    "KEEP_TOOLS_BLESSING_ID": "keep_tools"
+  },
+  "grow_costs": {
+    "young": { "fertilizer": 1, "essence": 20 },
+    "mature": { "fertilizer": 2, "essence": 40 },
+    "elder": { "fertilizer": 3, "essence": 60 },
+    "ancient": { "fertilizer": 4, "essence": 80 }
+  },
+  "items": [
+    {
+      "id": "wooden_planks",
+      "display_name": "Wooden Planks",
+      "kind": "intermediate",
+      "unique": false,
+      "color": "#c4a574",
+      "art_name": "icon_wooden_planks"
+    },
+    {
+      "id": "stone_fragments",
+      "display_name": "Stone Fragments",
+      "kind": "intermediate",
+      "unique": false,
+      "color": "#8a8e96",
+      "art_name": "icon_stone_fragments"
+    },
+    {
+      "id": "wooden_tool_rod",
+      "display_name": "Wooden Tool Rod",
+      "kind": "intermediate",
+      "unique": false,
+      "color": "#8b5a2b",
+      "art_name": "icon_wooden_tool_rod"
+    },
+    {
+      "id": "axe_head",
+      "display_name": "Axe Head",
+      "kind": "intermediate",
+      "unique": false,
+      "color": "#6b7c8a",
+      "art_name": "icon_axe_head"
+    },
+    {
+      "id": "pickaxe_head",
+      "display_name": "Pickaxe Head",
+      "kind": "intermediate",
+      "unique": false,
+      "color": "#5c6b73",
+      "art_name": "icon_pickaxe_head"
+    },
+    {
+      "id": "stone_axe",
+      "display_name": "Stone Axe",
+      "kind": "tool",
+      "unique": true,
+      "boosts": "wood",
+      "color": "#c46a2b",
+      "art_name": "icon_stone_axe"
+    },
+    {
+      "id": "stone_pickaxe",
+      "display_name": "Stone Pickaxe",
+      "kind": "tool",
+      "unique": true,
+      "boosts": "stone",
+      "color": "#4a6d8c",
+      "art_name": "icon_stone_pickaxe"
+    },
+    {
+      "id": "wooden_basket",
+      "display_name": "Wooden Basket",
+      "kind": "tool",
+      "unique": true,
+      "boosts": "food",
+      "color": "#d4b84a",
+      "art_name": "icon_wooden_basket"
+    },
+    {
+      "id": "stone_watering_can",
+      "display_name": "Stone Watering Can",
+      "kind": "tool",
+      "unique": true,
+      "boosts": "water_manashards",
+      "color": "#3d8b8b",
+      "art_name": "icon_stone_watering_can"
+    },
+    {
+      "id": "fertilizer",
+      "display_name": "Fertilizer",
+      "kind": "consumable",
+      "unique": false,
+      "color": "#6b5a24",
+      "art_name": "icon_fertilizer"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "wooden_planks",
+      "output_id": "wooden_planks",
+      "output_count": 1,
+      "ingredients": { "wood": 3 }
+    },
+    {
+      "id": "stone_fragments",
+      "output_id": "stone_fragments",
+      "output_count": 1,
+      "ingredients": { "stone": 3 }
+    },
+    {
+      "id": "wooden_tool_rod",
+      "output_id": "wooden_tool_rod",
+      "output_count": 1,
+      "ingredients": { "wooden_planks": 10 }
+    },
+    {
+      "id": "axe_head",
+      "output_id": "axe_head",
+      "output_count": 1,
+      "ingredients": { "stone_fragments": 10 }
+    },
+    {
+      "id": "pickaxe_head",
+      "output_id": "pickaxe_head",
+      "output_count": 1,
+      "ingredients": { "stone_fragments": 10 }
+    },
+    {
+      "id": "stone_axe",
+      "output_id": "stone_axe",
+      "output_count": 1,
+      "ingredients": { "wooden_tool_rod": 1, "axe_head": 1 }
+    },
+    {
+      "id": "stone_pickaxe",
+      "output_id": "stone_pickaxe",
+      "output_count": 1,
+      "ingredients": { "wooden_tool_rod": 1, "pickaxe_head": 1 }
+    },
+    {
+      "id": "wooden_basket",
+      "output_id": "wooden_basket",
+      "output_count": 1,
+      "ingredients": { "wooden_planks": 15 }
+    },
+    {
+      "id": "stone_watering_can",
+      "output_id": "stone_watering_can",
+      "output_count": 1,
+      "ingredients": { "wooden_tool_rod": 1, "stone_fragments": 10 }
+    },
+    {
+      "id": "fertilizer",
+      "output_id": "fertilizer",
+      "output_count": 1,
+      "ingredients": { "wood": 5, "stone": 5, "food": 5 }
+    }
+  ],
+  "kept_tools_on_ascend": [
+    "stone_axe",
+    "stone_pickaxe",
+    "wooden_basket",
+    "stone_watering_can"
+  ]
+}

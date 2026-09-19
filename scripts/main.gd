@@ -262,6 +262,8 @@ func world_input_blocked() -> bool:
 		return true
 	if hud.fruit_confirm_panel.visible:
 		return true
+	if hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
+		return true
 	return pause_menu.is_open()
 
 
