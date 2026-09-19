@@ -462,6 +462,9 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `part_stone_head` | Stone Head |
 | `part_stone_axe_head` | Stone Axe Head |
 | `part_stone_pickaxe_head` | Stone Pickaxe Head |
+| `part_stone_axe_head_examine` | A rough stone head for the Stone Axe. |
+| `part_stone_pickaxe_head_examine` | A rough stone head for the Stone Pickaxe. |
+| `handcraft_row_costs_only` | {costs} |
 | `part_woven_fiber` | Woven Fiber |
 
 ### 9d. Tools (never gate gather; owned = faster Keeper channel)
@@ -548,6 +551,8 @@ Primary stage-advance label is **Grow** (aliases `tree_pay*` → Grow).
 | `upgrade_keep_tools_toast` | Your tools remember the path. |
 | `keep_tools_regrant_toast` | Familiar tools settle back into your backpack. |
 | `ascend_keep_tools_toast` | Familiar tools settle back into your backpack. |
+| `backpack_wiped_toast` | Crafted goods return to the forest. |
+| `backpack_wiped_keep_tools_toast` | Crafted parts return to the forest — your tools remain. |
 
 
 ## DEFERRED notes (historical)

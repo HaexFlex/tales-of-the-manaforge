@@ -262,6 +262,8 @@
   "upgrade_keep_tools_toast": "Your tools remember the path.",
   "keep_tools_regrant_toast": "Familiar tools settle back into your backpack.",
   "ascend_keep_tools_toast": "Familiar tools settle back into your backpack.",
+  "backpack_wiped_toast": "Crafted goods return to the forest.",
+  "backpack_wiped_keep_tools_toast": "Crafted parts return to the forest — your tools remain.",
   "ascend_backpack_wipe_toast": "Crafted tools return to the forest on Ascend — unless Keep Tools is blessed.",
   "fruit_flow_hint": "Ascension shop only — spend Manashards, then Ascend. Leftover shards wipe. There is no cancel.",
   "fruit_step_1": "1 · Harvest",

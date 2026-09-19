@@ -1286,6 +1286,8 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "part_stone_head")) == "Stone Head", "part_stone_head")
 	failed += _assert(str(content_strings.call("get_text", "part_stone_axe_head")) == "Stone Axe Head", "part_stone_axe_head")
 	failed += _assert(str(content_strings.call("get_text", "part_stone_pickaxe_head")) == "Stone Pickaxe Head", "part_stone_pickaxe_head")
+	failed += _assert(str(content_strings.call("get_text", "part_stone_axe_head_examine")).find("Axe") >= 0, "part_stone_axe_head_examine")
+	failed += _assert(str(content_strings.call("get_text", "part_stone_pickaxe_head_examine")).find("Pickaxe") >= 0, "part_stone_pickaxe_head_examine")
 	failed += _assert(str(content_strings.call("get_text", "item_axe_head")) == "Stone Axe Head", "item_axe_head")
 	failed += _assert(str(content_strings.call("get_text", "item_pickaxe_head")) == "Stone Pickaxe Head", "item_pickaxe_head")
 	failed += _assert(str(backpack.call("item_display_name", "axe_head")) == "Stone Axe Head", "display Stone Axe Head")
@@ -1300,6 +1302,14 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_fertilizer_short")).find("{wood}") >= 0, "handcraft_row_fertilizer_short")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_default")).find("10") >= 0, "fertilizer_craft_cost_default ×10")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("3000") >= 0, "keep_tools cost default 3000")
+	failed += _assert(str(content_strings.call("get_text", "tool_stone_watering_can_craft_cost")).find("20") >= 0, "tool_stone_watering_can_craft_cost")
+	failed += _assert(str(content_strings.call("get_text", "tool_wooden_basket_craft_cost")).find("20") >= 0, "tool_wooden_basket_craft_cost")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost")).find("{cost}") >= 0, "upgrade_keep_tools_cost token")
+	failed += _assert(str(content_strings.call("get_text", "backpack_wiped_toast")).find("forest") >= 0, "backpack_wiped_toast")
+	failed += _assert(str(content_strings.call("get_text", "backpack_wiped_keep_tools_toast")).find("tools") >= 0, "backpack_wiped_keep_tools_toast")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_green_thumb_desc")).find("Fertilizer") >= 0, "green_thumb desc retarget")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_green_thumb_desc")).find("Needs") < 0, "green_thumb drops soft-mat Needs")
+	failed += _assert(str(thumb.get("description", "")).find("Fertilizer") >= 0, "green_thumb json desc retarget")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_tooltip")).find("survive") >= 0, "upgrade_keep_tools_tooltip")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_green_thumb_tooltip")).find("Fertilizer") >= 0, "green_thumb tooltip retarget")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_deep_roots_tooltip")).find("Essence") >= 0, "upgrade_deep_roots_tooltip")
@@ -1532,6 +1542,11 @@ func _run() -> void:
 				if txt.find("Essence stays") >= 0 or txt.find("Used with Essence") >= 0 or txt.find("Craft from Wood") >= 0:
 					fluff += 1
 			failed += _assert(fluff == 0, "craft rows are costs only (no watering-can/fertilizer fluff)")
+		if pack_hud.has_method("_craft_row_cost_text"):
+			failed += _assert(str(pack_hud.call("_craft_row_cost_text", "stone_watering_can")).find("20") >= 0, "HUD can row uses Content short")
+			failed += _assert(str(pack_hud.call("_craft_row_cost_text", "stone_watering_can")).find("Rod") < 0, "HUD can row no Rod")
+			failed += _assert(str(pack_hud.call("_craft_row_cost_text", "wooden_basket")).find("20") >= 0, "HUD basket row uses Content short")
+			failed += _assert(str(pack_hud.call("_craft_row_cost_text", "fertilizer")).find("10") >= 0, "HUD fert row uses Content 10/10/10")
 		var grow_btn: Button = pack_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
 		failed += _assert(grow_btn != null and str(grow_btn.text) == "Grow", "care CTA Grow")
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabAll") != null, "backpack tab All")
