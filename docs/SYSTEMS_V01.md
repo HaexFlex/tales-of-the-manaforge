@@ -216,7 +216,7 @@ Prestige craft-cost multiplier param name: `FERTILIZER_CRAFT_COST_MULT` (default
 | **Stone Watering Can** | **20 Stone Fragments** | tool (unique); v0.4.1 — fragments only (no Rod) |
 | **Fertilizer** | 10 Wood + 10 Stone + 10 Food | stackable; see above; v0.4.1 |
 
-All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipes.
+All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipes. Battle-gear crafts (**Weapon Rod**, **Stone Sword**) live in **§4e** (gear inventory, not backpack).
 
 ### Handcraft UI (Code contract — v0.4.1)
 - **Watering Can** and **Fertilizer** rows: show **costs only** (shorten labels; drop long names if they overflow).
@@ -373,7 +373,7 @@ gear_inventory: Dictionary[String, int]  # battle items (e.g. stone_sword, weapo
 |-------|--------|
 | **LMB** on Keeper / Wisp / (future friend) | **Select only** (highlight). Does not move or assign. |
 | **LMB** on empty ground / grass | **Deselect** current selection. |
-| **RMB** with **Keeper** selected | **Command:** walk to point; or walk-in-range + interact if target is harvest node / Manatree (channel / care UI). |
+| **RMB** with **Keeper** selected | **Command:** walk to point; or walk-in-range + interact if target is harvest node / Manatree (channel / care UI) / **Runestone** (spend Manashards — §4e). |
 | **RMB** with **Wisp** selected | **Command:** assign to harvest node or Manatree if targeted; **unassign** (return to orbit Keeper) if RMB empty ground. |
 | **RMB** with nothing useful selected | No-op (optional toast). |
 

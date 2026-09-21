@@ -1,7 +1,7 @@
 extends Area2D
 class_name Runestone
-## One hub stone per combat stat. Click opens a Manashard confirm, then +1 rank.
-## Placeholder polygon — Haex replaces the art later.
+## One hub stone per combat stat. Keeper selected + right-click walks in range,
+## then a Manashard confirm raises that stat by 1. Placeholder polygon.
 
 @export var stat_id: StringName = &"might"
 
@@ -134,14 +134,40 @@ func cancel_spend() -> void:
 	GameAudio.play_ui_cancel()
 
 
+func apply_player_command() -> void:
+	## RMB: Keeper walks in range, then the spend confirm. Wisps do not assign here.
+	if _world_blocked():
+		return
+	if GameState.selected_wisp_id >= 0:
+		GameState.status_message.emit(ContentStrings.get_text("wisp_assign_hint"))
+		return
+	if not GameState.keeper_selected:
+		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
+		return
+	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+	if keepers.is_empty():
+		return
+	var k: Keeper = keepers[0] as Keeper
+	if k:
+		k.move_to(global_position, self)
+
+
+func on_interact(_keeper: Node) -> void:
+	begin_spend()
+
+
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
-	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+	if not mb.pressed:
 		return
-	get_viewport().set_input_as_handled()
-	begin_spend()
+	if mb.button_index == MOUSE_BUTTON_LEFT:
+		get_viewport().set_input_as_handled()
+		return
+	if mb.button_index == MOUSE_BUTTON_RIGHT:
+		apply_player_command()
+		get_viewport().set_input_as_handled()
 
 
 func _open_confirm(sid: String, stat_name: String, cost: int) -> void:

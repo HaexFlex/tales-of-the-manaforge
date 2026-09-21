@@ -1859,7 +1859,29 @@ func _run() -> void:
 					might_stone = stone_node
 					break
 		failed += _assert(might_stone != null and might_stone.has_method("begin_spend"), "runestone spend confirm")
+		failed += _assert(might_stone != null and might_stone.has_method("apply_player_command"), "runestone RMB command")
 		if might_stone:
+			game_state.call("clear_selection")
+			might_stone.call("apply_player_command")
+			failed += _assert(not bool(might_stone.call("is_spend_confirm_open")), "runestone ignores command without keeper")
+			game_state.set("selected_wisp_id", 0)
+			might_stone.call("apply_player_command")
+			failed += _assert(not bool(might_stone.call("is_spend_confirm_open")), "wisp command does not raise a runestone")
+			game_state.call("select_keeper")
+			var lmb_stone := InputEventMouseButton.new()
+			lmb_stone.button_index = MOUSE_BUTTON_LEFT
+			lmb_stone.pressed = true
+			might_stone.call("_on_input_event", null, lmb_stone, 0)
+			failed += _assert(not bool(might_stone.call("is_spend_confirm_open")), "LMB on a runestone does not spend")
+			might_stone.call("apply_player_command")
+			failed += _assert(not bool(might_stone.call("is_spend_confirm_open")), "RMB walks in range before the confirm")
+			var rmb_stone := InputEventMouseButton.new()
+			rmb_stone.button_index = MOUSE_BUTTON_RIGHT
+			rmb_stone.pressed = true
+			might_stone.call("_on_input_event", null, rmb_stone, 0)
+			might_stone.call("on_interact", null)
+			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "in-range interact opens the confirm")
+			might_stone.call("cancel_spend")
 			game_state.call("set_resource", &"manashards", 0)
 			failed += _assert(str(might_stone.call("begin_spend")) == "cant_afford", "poor keeper still sees the confirm")
 			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm stays open when short")

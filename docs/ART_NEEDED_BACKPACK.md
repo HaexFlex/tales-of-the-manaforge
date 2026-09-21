@@ -44,7 +44,7 @@ Battle-gear, Runestone, and character-sheet icons are listed in the next section
 | Paper-doll empty slot | `icon_equip_slot.png` | 32×32 | `#3d2e1f` dark wood + gold edge | Unlocked empty slot chrome (weapon, later armor) |
 | Paper-doll locked slot | `icon_equip_lock.png` | 32×32 | `#6b6b75` grey | Grey lock chip reads “Locked”. Relic tooltip: “Relic locked — needs a Forge Key.” Other slots: “Not yet — the Forge still sleeps.” |
 | Empty weapon slot | — | — | dark wood | Caption **Bare Stone** until a weapon is equipped |
-| Hub Runestone (one per stat) | `runestone.png` (or seven tinted) | ~32×48 | stat tint (Might rust, Arcana violet, Resilience olive, Ward blue, Vitality green, Swiftness gold, Fate rose) | Click to spend Manashards. Polygon2D stand-in |
+| Hub Runestone (one per stat) | `runestone.png` (or seven tinted) | ~32×48 | stat tint (Might rust, Arcana violet, Resilience olive, Ward blue, Vitality green, Swiftness gold, Fate rose) | Keeper selected + right-click walks in range, then spends Manashards. Polygon2D stand-in |
 | Character portrait | existing `keeper_idle_south_0000.png` | 128×128 | — | Already in game. Do not replace in this pass |
 
 Suggested folder: `assets/art/ui/character/` for icons, `assets/art/props/` for the Runestone.
