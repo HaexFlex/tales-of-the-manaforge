@@ -75,8 +75,25 @@ func _ready() -> void:
 	_ensure_upgrade_keys()
 	_ensure_harvest_keys()
 	_ensure_wisp_slots()
+	_ensure_character_sheet_action()
 	if has_node("/root/Backpack") and not Backpack.inventory_changed.is_connected(_on_backpack_changed):
 		Backpack.inventory_changed.connect(_on_backpack_changed)
+
+
+func _ensure_character_sheet_action() -> void:
+	## SYSTEMS v0.5.0: InputMap action character_sheet on C.
+	if not InputMap.has_action("character_sheet"):
+		InputMap.add_action("character_sheet", 0.5)
+	var already: bool = false
+	for ev: InputEvent in InputMap.action_get_events("character_sheet"):
+		if ev is InputEventKey and (ev as InputEventKey).keycode == KEY_C:
+			already = true
+			break
+	if already:
+		return
+	var key := InputEventKey.new()
+	key.keycode = KEY_C
+	InputMap.action_add_event("character_sheet", key)
 
 
 func _process(delta: float) -> void:
@@ -486,6 +503,7 @@ func get_stage_gather_mult() -> float:
 
 
 func get_global_gather_mult() -> float:
+	## Fate and the other combat stats do not modify gather.
 	return get_stage_gather_mult() + get_effect_total("gather_mult_bonus")
 
 
@@ -930,6 +948,11 @@ func ascend() -> void:
 	resources_changed.emit(&"manashards", manashards)
 	resources_changed.emit(&"essence", essence)
 	Backpack.on_ascend()
+	## Combat ranks and battle gear persist. The soft Manashard bank above is already 0.
+	if has_node("/root/KeeperStats"):
+		KeeperStats.on_ascend()
+	if has_node("/root/Equipment"):
+		Equipment.on_ascend()
 	needs_changed.emit()
 	status_message.emit(ContentStrings.get_text("ascend_toast"))
 	status_message.emit(ContentStrings.get_text("ascend_essence_reset_toast"))
@@ -974,6 +997,10 @@ func to_save_dict() -> Dictionary:
 		"owns_stone_pickaxe": Backpack.owns_item("stone_pickaxe"),
 		"owns_wooden_basket": Backpack.owns_item("wooden_basket"),
 		"owns_stone_watering_can": Backpack.owns_item("stone_watering_can"),
+		"keeper_stats": KeeperStats.to_save_dict() if has_node("/root/KeeperStats") else {},
+		"equipment_unlocked": _equipment_save_field("equipment_unlocked"),
+		"equipment_equipped": _equipment_save_field("equipment_equipped"),
+		"gear_inventory": _equipment_save_field("gear_inventory"),
 	}
 
 
@@ -1025,6 +1052,10 @@ func apply_save_dict(data: Dictionary) -> void:
 		Backpack.set_count("wooden_basket", 1)
 	if bool(data.get("owns_stone_watering_can", false)):
 		Backpack.set_count("stone_watering_can", 1)
+	if has_node("/root/KeeperStats"):
+		KeeperStats.apply_save_dict(data.get("keeper_stats", {}))
+	if has_node("/root/Equipment"):
+		Equipment.apply_save_dict(_equipment_payload(data))
 	keeper_selected = false
 	selected_wisp_id = -1
 	wisps_changed.emit()
@@ -1038,6 +1069,26 @@ func apply_save_dict(data: Dictionary) -> void:
 	needs_changed.emit()
 	upgrades_changed.emit()
 	load_completed.emit()
+
+
+func _equipment_save_field(key: String) -> Dictionary:
+	if not has_node("/root/Equipment"):
+		return {}
+	var blob: Dictionary = Equipment.to_save_dict()
+	var found: Variant = blob.get(key, {})
+	return (found as Dictionary).duplicate(true) if typeof(found) == TYPE_DICTIONARY else {}
+
+
+func _equipment_payload(data: Dictionary) -> Dictionary:
+	var has_new: bool = data.has("gear_inventory") or data.has("equipment_equipped")
+	if has_new:
+		return {
+			"equipment_unlocked": data.get("equipment_unlocked", {}),
+			"equipment_equipped": data.get("equipment_equipped", {}),
+			"gear_inventory": data.get("gear_inventory", {}),
+		}
+	var legacy: Variant = data.get("equipment", {})
+	return legacy if typeof(legacy) == TYPE_DICTIONARY else {}
 
 
 func reset_for_new_game() -> void:
@@ -1066,5 +1117,9 @@ func reset_for_new_game() -> void:
 	selected_wisp_id = -1
 	run_time_sec = 0.0
 	Backpack.reset_for_new_game()
+	if has_node("/root/KeeperStats"):
+		KeeperStats.reset_for_new_game()
+	if has_node("/root/Equipment"):
+		Equipment.reset_for_new_game()
 	wisps_changed.emit()
 	selection_changed.emit()

@@ -28,4 +28,25 @@ Suggested folder: `assets/art/ui/backpack/` (or existing `assets/art/ui/`).
 
 Resource HUD already has wood/stone/food/manashard textures — do **not** replace those in this pass. Essence still has no dedicated HUD chip; Grow uses the violet placeholder above.
 
-Do not generate battle-gear / Runestone / Echo Chamber icons here.
+Battle-gear, Runestone, and character-sheet icons are listed in the next section. Do not invent Echo Chamber combat art here.
+
+## Art needed — Character sheet, Runestones, Stone Sword
+
+**Owner:** Haex (art)
+**Status:** placeholders shipped (ColorRect slot chrome, Polygon2D stones, Keeper idle frame for the portrait)
+**Code:** `scripts/character_sheet.gd`, `scripts/runestone.gd`, `data/equipment.json`, `data/keeper_stats.json`
+
+| Placeholder (where) | Suggested sprite | Size | Color now | Purpose |
+|---------------------|------------------|------|-----------|---------|
+| `HUD/Panel/CharacterButton/CharacterIcon` | `icon_character.png` | 32×32 | `#c4a24a` gold | HUD Character button (left of Backpack). Key **C** opens the sheet |
+| Handcraft row / gear bag: Weapon Rod | `icon_weapon_rod.png` | 32×32 | `#6e4a32` dark wood | Gear-inventory intermediate. 10 Wooden Planks. Not the Wooden Tool Rod |
+| Equipment inventory / weapon slot: Stone Sword | `icon_stone_sword.png` | 32×32 | `#b7b1a8` pale stone | Only battle weapon. Lives in the equipment inventory, not the backpack |
+| Paper-doll empty slot | `icon_equip_slot.png` | 32×32 | `#3d2e1f` dark wood + gold edge | Unlocked empty slot chrome (weapon, later armor) |
+| Paper-doll locked slot | `icon_equip_lock.png` | 32×32 | `#6b6b75` grey | Grey lock chip reads “Locked”. Relic tooltip: “Relic locked — needs a Forge Key.” Other slots: “Not yet — the Forge still sleeps.” |
+| Empty weapon slot | — | — | dark wood | Caption **Bare Stone** until a weapon is equipped |
+| Hub Runestone (one per stat) | `runestone.png` (or seven tinted) | ~32×48 | stat tint (Might rust, Arcana violet, Resilience olive, Ward blue, Vitality green, Swiftness gold, Fate rose) | Keeper selected + right-click walks in range, then spends Manashards. Polygon2D stand-in |
+| Character portrait | existing `keeper_idle_south_0000.png` | 128×128 | — | Already in game. Do not replace in this pass |
+
+Suggested folder: `assets/art/ui/character/` for icons, `assets/art/props/` for the Runestone.
+
+Portrait slots already sit on the body (head above the head, chest on the chest, weapon at the right hand, and so on). Swap the ColorRect in each slot for the icon; keep the slot ids.

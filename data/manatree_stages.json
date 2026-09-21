@@ -38,7 +38,8 @@
       "cost_stone": 0,
       "cost_manashards": 0,
       "gather_mult": 1.0,
-      "grants_fruit": false
+      "grants_fruit": false,
+      "visual_scale": 0.5
     },
     {
       "id": "young",
@@ -55,7 +56,8 @@
       "cost_stone": 0,
       "cost_manashards": 0,
       "gather_mult": 1.1,
-      "grants_fruit": false
+      "grants_fruit": false,
+      "visual_scale": 1.0
     },
     {
       "id": "mature",
@@ -72,7 +74,8 @@
       "cost_stone": 0,
       "cost_manashards": 0,
       "gather_mult": 1.25,
-      "grants_fruit": false
+      "grants_fruit": false,
+      "visual_scale": 2.0
     },
     {
       "id": "elder",
@@ -89,7 +92,8 @@
       "cost_stone": 0,
       "cost_manashards": 0,
       "gather_mult": 1.4,
-      "grants_fruit": false
+      "grants_fruit": false,
+      "visual_scale": 2.0
     },
     {
       "id": "ancient",
@@ -106,7 +110,8 @@
       "cost_stone": 0,
       "cost_manashards": 0,
       "gather_mult": 1.6,
-      "grants_fruit": true
+      "grants_fruit": true,
+      "visual_scale": 1.5
     }
   ]
 }

@@ -1,12 +1,12 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.4.1 — Haex D6 LIVE: playtest retunes + blessing tooltips + head names
+**Status:** v0.5.1 — aligned to SYSTEMS v0.5.0 ids: 10 gear slots; `stone_sword`; gear ≠ backpack; D7 scales live note
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
-**Changelog note:** v0.4.0 backpack/handcraft greenlight.
+**Changelog note:** v0.5.1 Design id lock (slots + stone_sword + gear inventory + D7 live).
 
-**Last updated:** 2026-09-19
+**Last updated:** 2026-09-21
 
 **Tone (Haex locked):** warm + lightly melancholic — never stressful.  
 **In-world rule:** *Manaforge* is **title-only** in v0.1 (window / itch blurb). Do not name the hidden forge or door in player strings yet.
@@ -24,8 +24,9 @@
 | v0.2.1 | Ascension polish: guide Harvest → spend Essence on blessings → Ascend. Scrub growth/offer language from welcome. |
 | v0.2.2 | Haex: after Fruit, choose one free blessing (superseded). |
 | **v0.2.3** | Haex: Ascension shop spends **Manashards** on blessings; multi-buy OK; then Ascend. Not free-pick, not Essence. |
-| **v0.4.0 refine** | Wire `fertilizer_craft_cost_*`, `tree_grow_cost_*`, Watering Can Manashard-only hint, backpack wipe / Keep Tools regrant toasts. Align Grow (not Pay) with SYSTEMS v0.4.0. |
-| **v0.4.1** | D6 LIVE: `part_stone_axe_head` / `part_stone_pickaxe_head`; costs-only handcraft shorts; Grow Fert 3/6/12/24; Keep Tools 3000; blessing `*_tooltip`; Fert craft default ×10. |
+| **v0.4.1** | Haex D6 live: Stone Axe/Pickaxe Head; costs-only Can+Fert rows; Keep Tools 3000; blessing tooltips; Grow Fert 3/6/12/24. |
+| **v0.5.0** | Haex GREENLIGHT: Character sheet, seven stats (VISION), Runestone spend (Manashards), locked Weapon/Relic slot hints, Weapon Rod + Stone Sword, equip tooltips. Manatree scale note bundled (visual — D7). |
+| **v0.5.1** | Design id lock: slots `weapon`/`relic`/`head`/`body`/`hands`/`pants`/`feet`/`cape`/`ring1`/`ring2` (only weapon unlocked); item id `stone_sword`; gear inventory ≠ backpack; HUD+C; D7 scales live (visual). |
 
 ---
 
@@ -38,10 +39,10 @@
 | `boot_line` | The forest is quiet. The Manatree is waiting. |
 | `welcome_boot` | The forest is quiet. Tend the Manatree. |
 | `welcome_title` | Keeper |
-| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, handcraft Fertilizer in your Backpack, and Grow the tree when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend. |
-| `welcome_body_short` | Water and gather. Handcraft Fertilizer. Grow the Manatree. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
+| `welcome_body` | This clearing is the last living fragment. You are its Keeper. Water the Manatree, gather what the clearing gives, and Pay its Needs when it is ready. When the Primordial Fruit comes, harvest it, spend Manashards on lasting blessings, then Ascend — Essence returns to the forest; blessings stay. |
+| `welcome_body_short` | Water and gather. Pay the Manatree’s Needs. Harvest the Fruit, buy blessings with Manashards, then Ascend. |
 | `welcome_dismiss` | I will tend it |
-| `welcome_hint` | LMB selects, RMB commands. Arrow keys pan the camera. Wisps orbit you until assigned — send them to gather, or to the Manatree for Manashards. |
+| `welcome_hint` | LMB selects, RMB commands. Wisps orbit you until assigned — send them to gather, or to the Manatree for Manashards. |
 | `new_game_confirm` | Begin as Keeper? |
 | `load_game` | Continue |
 | `save_toast` | Progress remembered. |
@@ -224,12 +225,11 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 |------------|---------|-------------|
 | `deep_roots` | Deep Roots | Watering yields Essence a little sooner. |
 | `forager` | Forager’s Grace | Harvest channels yield a little more. |
-| `green_thumb` | Green Thumb | Fertilizer craft asks for a little less. |
+| `green_thumb` | Green Thumb | Fertilizer craft costs a little less. |
 | `shard_sight` | Shard Sight | Watering yields more Manashards. |
 | `keeper_stride` | Keeper’s Stride | Walk the fragment a little faster. |
 | `wisp_haste` | Swift Wisps | Assigned Wisps gather a little sooner. |
 | `bonus_wisp` | Extra Wisp | Another Wisp walks with you from the Sapling. |
-| `keep_tools` | Keep Tools | Finished tools survive Ascend and return with you. |
 
 | key | string |
 |-----|--------|
@@ -240,11 +240,14 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | `upgrade_maxed` | Fully blessed |
 | `upgrade_cant_afford` | Not enough Manashards |
 | `upgrade_buy_ok` | {blessing_name} grows stronger. |
-| `upgrade_tooltip_hint` | {desc} |
-| `upgrade_deep_roots_tooltip` | Watering yields Essence a little sooner. |
+
+| key | string |
+|-----|--------|
+| `upgrade_tooltip` | {desc} |
+| `upgrade_deep_roots_tooltip` | Watering yields a little more Essence over time. |
 | `upgrade_forager_tooltip` | Harvest channels yield a little more. |
-| `upgrade_green_thumb_tooltip` | Fertilizer craft asks for a little less. |
-| `upgrade_shard_sight_tooltip` | Watering yields more Manashards. |
+| `upgrade_green_thumb_tooltip` | Fertilizer craft ingredient costs drop a little each rank. |
+| `upgrade_shard_sight_tooltip` | Watering yields more Manashards each pulse. |
 | `upgrade_keeper_stride_tooltip` | Walk the fragment a little faster. |
 | `upgrade_wisp_haste_tooltip` | Assigned Wisps gather a little sooner. |
 | `upgrade_bonus_wisp_tooltip` | Another Wisp walks with you from the Sapling. |
@@ -322,8 +325,7 @@ Warm + lightly melancholic. Options is a stub until later.
 | `controls_lmb_select` | Left-click: select |
 | `controls_rmb_command` | Right-click: command |
 | `controls_lmb_deselect` | Left-click empty ground: deselect |
-| `controls_camera_pan` | Arrows: pan camera |
-| `controls_hint` | LMB selects. RMB commands. Arrows pan the camera. LMB on empty ground deselects. |
+| `controls_hint` | LMB selects. RMB commands. LMB on empty ground deselects. |
 | `keeper_move_prompt` | Right-click the ground to walk. |
 | `keeper_required` | Select the Keeper first (left-click). |
 | `keeper_required_harvest` | Select the Keeper, then right-click the tree, stone, or berries. |
@@ -390,7 +392,7 @@ Locked Design ids (`SYSTEMS_V01` v0.3.0).
 
 ## 8. Out of v0.1 (do not ship strings for)
 
-Combat, Forge interior / door interact, equipment, Echo Chamber, Manaforge-as-place name, multi-zone travel, prompts on decorative trees. (Wisps are in-scope as of v0.2.6.)
+Combat / Echo Chamber fights, Forge interior / door interact, Manaforge-as-place name, multi-zone travel, prompts on decorative trees. (Wisps in-scope; Character sheet / Runestone / first Weapon craft in-scope as of v0.5.0 — combat still later.)
 
 ---
 
@@ -415,7 +417,7 @@ Ping @Game Director on landing.
 
 Resource **HUD** = Wood / Stone / Food / Manashards / Essence.  
 **Backpack** = crafted only (intermediates, tools, Fertilizer).  
-**Equipment** = Weapon / Relic (Bare Stone later — not this bump).
+**Equipment** = Weapon / Relic (see §10). Backpack still crafts-only for tools/parts/Fertilizer.
 
 ### 9a. Backpack UI
 
@@ -442,6 +444,15 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `handcraft_cant_afford` | Need {costs}. |
 | `handcraft_owned_unique` | You already carry one. |
 
+
+| `handcraft_row_costs_only` | {costs} |
+| `handcraft_row_watering_can_short` | Stone Fragments ×20 |
+| `handcraft_row_wooden_basket_short` | Wooden Planks ×20 |
+| `handcraft_row_fertilizer_short` | Wood ×{wood}, Stone ×{stone}, Food ×{food} |
+| `handcraft_row_fertilizer_short_default` | Wood ×10, Stone ×10, Food ×10 |
+| `tool_stone_watering_can_craft_cost` | Stone Fragments ×20 |
+| `tool_wooden_basket_craft_cost` | Wooden Planks ×20 |
+
 ### 9c. Intermediate parts
 
 | id | Display | Examine |
@@ -449,9 +460,8 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `wood_plank` | Wood Plank | Smooth timber, ready for tools. |
 | `stone_fragment` | Stone Fragment | A workable chip of stone. |
 | `wood_rod` | Wood Rod | A straight stick for hafts and frames. |
-| `stone_head` | Stone Head | A rough head for axe or pick. *(legacy — prefer Axe/Pickaxe Head)* |
-| `stone_axe_head` | Stone Axe Head | A knapped head for the Stone Axe. |
-| `stone_pickaxe_head` | Stone Pickaxe Head | A knapped head for the Stone Pickaxe. |
+| `stone_axe_head` | Stone Axe Head | A rough stone head for the Stone Axe. |
+| `stone_pickaxe_head` | Stone Pickaxe Head | A rough stone head for the Stone Pickaxe. |
 | `woven_fiber` | Woven Fiber | Twine for baskets and bindings. |
 
 | key | string |
@@ -459,12 +469,9 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `part_wood_plank` | Wood Plank |
 | `part_stone_fragment` | Stone Fragment |
 | `part_wood_rod` | Wood Rod |
-| `part_stone_head` | Stone Head |
 | `part_stone_axe_head` | Stone Axe Head |
 | `part_stone_pickaxe_head` | Stone Pickaxe Head |
-| `part_stone_axe_head_examine` | A rough stone head for the Stone Axe. |
-| `part_stone_pickaxe_head_examine` | A rough stone head for the Stone Pickaxe. |
-| `handcraft_row_costs_only` | {costs} |
+| `part_stone_head` | Stone Head *(alias — prefer Axe/Pickaxe Head)* |
 | `part_woven_fiber` | Woven Fiber |
 
 ### 9d. Tools (never gate gather; owned = faster Keeper channel)
@@ -474,7 +481,7 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `tool_stone_axe` | Stone Axe | Doubles how quickly you gather Wood while you hold it. |
 | `tool_stone_pickaxe` | Stone Pickaxe | Doubles how quickly you gather Stone while you hold it. |
 | `tool_wooden_basket` | Wooden Basket | Doubles how quickly you gather Food while you hold it. |
-| `tool_stone_watering_can` | Stone Watering Can | Doubles the Manashards from each watering pulse. Essence stays as it is. |
+| `tool_stone_watering_can` | Stone Watering Can | Doubles Manashards from watering. Essence from water stays at the base rate. |
 
 | key | string |
 |-----|--------|
@@ -482,10 +489,9 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | `tool_wood_hint` | Stone Axe — Wood gathers faster. |
 | `tool_stone_hint` | Stone Pickaxe — Stone gathers faster. |
 | `tool_food_hint` | Wooden Basket — Food gathers faster. |
-| `tool_water_hint` | Stone Watering Can — watering grants twice the Manashards. Essence is unchanged. |
+| `tool_water_hint` | Stone Watering Can — Manashards from watering come twice as fast. Essence rate unchanged. |
 | `tool_never_gate` | Your hands always work — tools only hurry you. |
 | `tool_wiped_on_ascend` | Crafted tools return to the forest on Ascend — unless Keep Tools is blessed. |
-| `ascend_backpack_wipe_toast` | Crafted tools return to the forest on Ascend — unless Keep Tools is blessed. |
 
 ### 9e. Fertilizer
 
@@ -496,29 +502,16 @@ Resource **HUD** = Wood / Stone / Food / Manashards / Essence.
 | key | string |
 |-----|--------|
 | `fertilizer_name` | Fertilizer |
-| `fertilizer_hint` | Craft from Wood, Stone, and Food. Used with Essence to Grow. |
-| `fertilizer_craft_ok` | Fertilizer ready. |
-| `fertilizer_craft_cost_wood` | Wood {have}/{need} |
-| `fertilizer_craft_cost_stone` | Stone {have}/{need} |
-| `fertilizer_craft_cost_food` | Food {have}/{need} |
-| `fertilizer_craft_cost_line` | {item} {have}/{need} |
+| `fertilizer_hint` | Craft from Wood, Stone, and Food — no Manashards. Spent with Essence to Grow. |
 | `fertilizer_craft_cost` | Wood ×{wood}, Stone ×{stone}, Food ×{food} |
 | `fertilizer_craft_cost_default` | Wood ×10, Stone ×10, Food ×10 |
-| `handcraft_row_watering_can_short` | Stone Fragments ×20 |
-| `handcraft_row_wooden_basket_short` | Wooden Planks ×20 |
-| `handcraft_row_fertilizer_short` | Wood ×{wood}, Stone ×{stone}, Food ×{food} |
-| `tool_stone_watering_can_craft_cost` | Stone Fragments ×20 |
-| `tool_wooden_basket_craft_cost` | Wooden Planks ×20 |
+| `fertilizer_craft_ok` | Fertilizer ready. |
+| `tree_grow_needs` | Fertilizer ×{fertilizer}, Essence ×{essence} |
+| `tree_grow_needs_fertilizer` | Needs Fertilizer ×{count} and Essence ×{count}. |
 | `tree_grow_cost_young` | Fertilizer ×3, Essence ×20 |
 | `tree_grow_cost_mature` | Fertilizer ×6, Essence ×40 |
 | `tree_grow_cost_elder` | Fertilizer ×12, Essence ×60 |
 | `tree_grow_cost_ancient` | Fertilizer ×24, Essence ×80 |
-| `tree_grow_needs_fertilizer` | Needs Fertilizer ×{count} and Essence ×{count}. |
-| `tree_grow_cost_fertilizer` | Fertilizer {have}/{need} |
-| `tree_grow_cost_essence` | Essence {have}/{need} |
-| `tree_grow_cost_fertilizer_met` | Fertilizer {have}/{need} ✓ |
-| `tree_grow_cost_essence_met` | Essence {have}/{need} ✓ |
-| `tree_grow_cost_line` | {item} {have}/{need} |
 
 ### 9f. Grow CTA (Manatree)
 
@@ -527,7 +520,7 @@ Primary stage-advance label is **Grow** (aliases `tree_pay*` → Grow).
 | key | string |
 |-----|--------|
 | `tree_grow` | Grow |
-| `tree_grow_hint` | Spend Fertilizer and Essence to advance the Manatree. |
+| `tree_grow_hint` | Spend Fertilizer and Essence to Grow the Manatree. |
 | `tree_grow_confirm` | Grow into {next_stage}? |
 | `tree_grow_confirm_yes` | Grow |
 | `tree_grow_confirm_no` | Not yet |
@@ -545,25 +538,181 @@ Primary stage-advance label is **Grow** (aliases `tree_pay*` → Grow).
 |-----|--------|
 | `upgrade_keep_tools_name` | Keep Tools |
 | `upgrade_keep_tools_desc` | Finished tools survive Ascend and return with you. |
-| `upgrade_keep_tools_tooltip` | Finished tools survive Ascend and return with you. |
 | `upgrade_keep_tools_cost` | {cost} Manashards |
 | `upgrade_keep_tools_cost_default` | 3000 Manashards |
+| `upgrade_keep_tools_tooltip` | Finished tools survive Ascend and return with you. |
 | `upgrade_keep_tools_toast` | Your tools remember the path. |
 | `keep_tools_regrant_toast` | Familiar tools settle back into your backpack. |
-| `ascend_keep_tools_toast` | Familiar tools settle back into your backpack. |
 | `backpack_wiped_toast` | Crafted goods return to the forest. |
 | `backpack_wiped_keep_tools_toast` | Crafted parts return to the forest — your tools remain. |
 
 
-## DEFERRED notes (historical)
 
-Partially promoted in **v0.4.0** (Grow live). Remaining deferred: Fruit shop Close-until-first-Buy → Ascend-only lock (still awaiting separate greenlight if not already live).
+
+---
+
+## 10. Character sheet, Runestones & equipment (v0.5.0 — LIVE)
+
+Haex GREENLIGHT 2026-09-21. Stats + Runestone spend + first Weapon craft are **live strings**. Echo Chamber combat still later.  
+**Currency:** Runestone spends use the **same Manashard pool** as the Ascension blessing shop (bank-vs-spend). Stats/gear **persist** across Ascend; soft mats / unspent shards still wipe on Ascend per live rules.  
+Ids locked to SYSTEMS **v0.5.0** (Design mid-flight confirm). Stats match VISION. Gear inventory ≠ backpack.
+
+### 10a. Character sheet UI
+
+| key | string |
+|-----|--------|
+| `char_sheet_title` | Keeper |
+| `char_sheet_open` | Character |
+| `char_sheet_hint` | Your lasting strength — raised at Runestones, worn as gear. |
+| `char_sheet_stats_header` | Stats |
+| `char_sheet_equip_header` | Equipment |
+| `char_sheet_close` | Close |
+
+### 10b. Seven core stats (VISION)
+
+| id | Display | Short / tooltip |
+|----|---------|-----------------|
+| `might` | Might | Physical Attack |
+| `arcana` | Arcana | Magical Attack |
+| `resilience` | Resilience | Physical Resistance |
+| `ward` | Ward | Magical Resistance |
+| `vitality` | Vitality | Health and survivability |
+| `swiftness` | Swiftness | Speed |
+| `fate` | Fate | Luck, crit chance, rare finds |
+
+| key | string |
+|-----|--------|
+| `stat_might` | Might |
+| `stat_arcana` | Arcana |
+| `stat_resilience` | Resilience |
+| `stat_ward` | Ward |
+| `stat_vitality` | Vitality |
+| `stat_swiftness` | Swiftness |
+| `stat_fate` | Fate |
+| `stat_might_tooltip` | Physical Attack |
+| `stat_arcana_tooltip` | Magical Attack |
+| `stat_resilience_tooltip` | Physical Resistance |
+| `stat_ward_tooltip` | Magical Resistance |
+| `stat_vitality_tooltip` | Health and survivability |
+| `stat_swiftness_tooltip` | Speed |
+| `stat_fate_tooltip` | Luck, crit chance, rare finds |
+| `stat_rank` | Rank {rank} |
+| `stat_value` | {value} |
+| `stat_persist_hint` | Stats stay with you through Ascend. |
+
+### 10c. Runestone spend (Manashards)
+
+| key | string |
+|-----|--------|
+| `runestone_title` | Runestone |
+| `runestone_prompt` | Raise a lasting stat |
+| `runestone_hint` | Spend Manashards here to grow permanent stats. Unspent shards still feed the Ascension shop — then return to the forest. |
+| `runestone_bank_hint` | Bank shards for Ascension blessings, or spend them here to grow stronger now. |
+| `runestone_spend` | Raise {stat} |
+| `runestone_confirm` | Spend {cost} Manashards to raise {stat}? |
+| `runestone_confirm_yes` | Raise |
+| `runestone_confirm_no` | Not now |
+| `runestone_ok` | {stat} grows stronger. |
+| `runestone_cant_afford` | Not enough Manashards |
+| `runestone_cost` | {cost} Manashards |
+| `runestone_maxed` | Fully raised for now |
+
+### 10d. Equipment slots (SYSTEMS v0.5.0)
+
+Slot ids: `weapon`, `relic`, `head`, `body`, `hands`, `pants`, `feet`, `cape`, `ring1`, `ring2`.  
+**Start:** only **`weapon`** unlocked. All other slots locked (grey). **`relic`** stays locked until **Forge Key** (empty this ship).
+
+| slot_id | Display | Start |
+|---------|---------|-------|
+| `weapon` | Weapon | Unlocked |
+| `relic` | Relic | Locked — Forge Key |
+| `head` | Head | Locked |
+| `body` | Body | Locked |
+| `hands` | Hands | Locked |
+| `pants` | Pants | Locked |
+| `feet` | Feet | Locked |
+| `cape` | Cape | Locked |
+| `ring1` | Ring | Locked |
+| `ring2` | Ring | Locked |
+
+| key | string |
+|-----|--------|
+| `equip_slot_weapon` | Weapon |
+| `equip_slot_relic` | Relic |
+| `equip_slot_head` | Head |
+| `equip_slot_body` | Body |
+| `equip_slot_hands` | Hands |
+| `equip_slot_pants` | Pants |
+| `equip_slot_feet` | Feet |
+| `equip_slot_cape` | Cape |
+| `equip_slot_ring1` | Ring |
+| `equip_slot_ring2` | Ring |
+| `equip_empty` | Empty |
+| `equip_unequip` | Unequip |
+| `equip_equip` | Equip |
+| `equip_ok` | Equipped {item}. |
+| `equip_unequip_ok` | Put away {item}. |
+| `equip_locked` | Locked |
+| `equip_locked_hint` | This slot is not open yet. |
+| `equip_locked_relic` | Relic locked — needs a Forge Key. |
+| `equip_locked_armor` | Not yet — the Forge still sleeps. |
+| `equip_bare_stone` | Bare Stone |
+| `equip_bare_stone_tooltip` | Empty hands — no weapon equipped. |
+| `equip_no_item` | Nothing to equip. |
+
+### 10e. Gear inventory (≠ backpack)
+
+Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor/relics live in **Gear**.
+
+| key | string |
+|-----|--------|
+| `gear_title` | Gear |
+| `gear_open` | Gear |
+| `gear_empty` | No gear yet. |
+| `gear_hint` | Weapons and worn gear live here — separate from your Backpack. |
+| `gear_tab_weapons` | Weapons |
+| `gear_tab_all` | All |
+
+### 10f. First weapons (craft / equip)
+
+| id | Display | Examine / equip tooltip |
+|----|---------|-------------------------|
+| `weapon_rod` | Weapon Rod | A simple wooden rod — your first lasting weapon. |
+| `stone_sword` | Stone Sword | A crude stone blade. Hits a little harder than a rod. |
+
+| key | string |
+|-----|--------|
+| `weapon_rod_name` | Weapon Rod |
+| `weapon_rod_tooltip` | A simple wooden rod — your first lasting weapon. |
+| `stone_sword_name` | Stone Sword |
+| `stone_sword_tooltip` | A crude stone blade. Hits a little harder than a rod. |
+| `stone_sword_craft_cost` | Stone Fragments ×30, Weapon Rod ×1 |
+| `stone_sword_craft_cost_default` | Stone Fragments ×30, Weapon Rod ×1 |
+| `weapon_craft_ok` | Crafted {item}. |
+| `weapon_persist_hint` | Weapons stay with you through Ascend. |
+| `relic_locked_tooltip` | Relics come later — when you hold a Forge Key. |
+
+### 10g. Character sheet open (HUD + C)
+
+| key | string |
+|-----|--------|
+| `char_sheet_hotkey_hint` | C — Character |
+| `hud_btn_character` | Character |
+
+### 10h. Manatree display scales (D7 — LIVE visual note)
+
+Visual-only (Art/Code). No player-facing strings. **Live with v0.5:** sapling **0.5×**, young **1×**, mature **2×**, elder **2×**, ancient **1.5×**. Canvases unchanged.
+
+
+## DEFERRED notes (historical + park)
+
+Partially promoted in **v0.4.0** (Grow live). Remaining historical deferred: Fruit shop Close-until-first-Buy → Ascend-only lock (still awaiting separate greenlight if not already live).
 
 1. **Fruit shop preview can Close** — before first Buy, player may close the Ascension shop (preview). After first Buy, shop locks to Ascend-only (no soft Close).
 2. **First Buy locks Ascend-only** — copy needed: shop still closable until first blessing purchase; then must Ascend.
 3. **Manatree Grow** — **PROMOTED v0.4.0** (`tree_grow*` / `tree_pay*` alias Grow).
 
-### Draft keys (not live)
+### Draft keys — Fruit soft-close (not live)
 
 | key | draft string |
 |-----|----------------|
@@ -571,10 +720,56 @@ Partially promoted in **v0.4.0** (Grow live). Remaining deferred: Fruit shop Clo
 | `fruit_shop_preview_hint` | Look over blessings — Close anytime until you buy. |
 | `fruit_shop_locked_hint` | A blessing is yours — Ascend to continue. |
 | `fruit_shop_first_buy_toast` | The path is set. Ascend when ready. |
-| `tree_grow` | Grow |
-| `tree_grow_confirm` | Give what it needs to become {next_stage}? |
-| `tree_grow_ok` | The Manatree becomes {next_stage}. |
-| `tree_grow_cant_afford` | Not enough yet — {costs} |
 
-v0.4.0 promoted: Backpack, Handcraft, tools, Grow, Keep Tools, Fertilizer.  
-**v0.4.1 D6 LIVE:** head names, costs-only craft rows, Grow Fert 3/6/12/24, Fert craft ×10, Keep Tools 3000, blessing `*_tooltip`, camera-pan hint. Ping Code.
+---
+
+### D6. Haex playtest backlog (2026-09-19 — **PROMOTED v0.4.1**)
+
+Mirrors `SYSTEMS_V01` §11 D6. **PROMOTED to live in CONTENT v0.4.1** (Director session open 2026-09-19). Draft keys below kept as archive; live §9 / blessing tables are source.
+
+| # | Change | Content park |
+|---|--------|--------------|
+| 1 | Stone Watering Can = **20 Stone Fragments**; Wooden Basket = **20 Wooden Planks** | Cost-line drafts below (drop Rod from Can unless Haex clarifies). |
+| 2 | Handcraft UI overflow | Short **costs-only** row labels for Watering Can + Fertilizer (Code owns scroll/width). |
+| 3 | Rename heads → **Stone Axe Head**, **Stone Pickaxe Head** | Split `stone_head` display; draft ids/labels below. |
+| 4 | Keep Tools ≈ **3000** Manashards | Cost token draft; Design owns flat 3000. |
+| 5 | Ascension blessing tooltips / short descriptions | Draft `*_tooltip` keys; live `*_desc` stay until promote. |
+| 6 | Fertilizer steeper: craft **~2×**; Grow Fert **3 / 6 / 12 / 24** | Cost drafts; Essence curve TBD (keep live 20/40/60/80 until Haex). |
+
+#### D6 draft keys (not live)
+
+| key | draft string |
+|-----|----------------|
+| `tool_stone_watering_can_craft_cost_d6` | Stone Fragments ×20 |
+| `tool_wooden_basket_craft_cost_d6` | Wooden Planks ×20 |
+| `handcraft_row_costs_only` | {costs} |
+| `handcraft_row_watering_can_short` | Stone Fragments ×20 |
+| `handcraft_row_fertilizer_short` | Wood ×{wood}, Stone ×{stone}, Food ×{food} |
+| `part_stone_axe_head` | Stone Axe Head |
+| `part_stone_pickaxe_head` | Stone Pickaxe Head |
+| `part_stone_axe_head_examine` | A rough stone head for the Stone Axe. |
+| `part_stone_pickaxe_head_examine` | A rough stone head for the Stone Pickaxe. |
+| `upgrade_keep_tools_cost` | {cost} Manashards |
+| `upgrade_keep_tools_cost_default` | 3000 Manashards |
+| `upgrade_tooltip_hint` | {desc} |
+| `upgrade_keep_tools_tooltip` | Finished tools survive Ascend and return with you. |
+| `upgrade_wisp_haste_tooltip` | Assigned Wisps gather a little sooner. |
+| `upgrade_bonus_wisp_tooltip` | Another Wisp walks with you from the Sapling. |
+| `fertilizer_craft_cost_default_d6` | Wood ×10, Stone ×10, Food ×10 |
+| `tree_grow_cost_young_d6` | Fertilizer ×3, Essence ×{essence} |
+| `tree_grow_cost_mature_d6` | Fertilizer ×6, Essence ×{essence} |
+| `tree_grow_cost_elder_d6` | Fertilizer ×12, Essence ×{essence} |
+| `tree_grow_cost_ancient_d6` | Fertilizer ×24, Essence ×{essence} |
+
+Promoted 2026-09-19 → live v0.4.1. Ping Code.
+
+v0.4.0: Backpack, Handcraft, tools, Grow, Keep Tools, Fertilizer. **v0.4.1:** D6 string promote.
+
+### D3 → LIVE pointer (v0.5.0 / aligned v0.5.1)
+
+Character sheet / seven stats / Runestone / 10 gear slots / Weapon Rod + Stone Sword **promoted to §10**. Ids locked to Design SYSTEMS v0.5.0. Relic / armor craft still later (Forge Key).
+
+### D7. Manatree display scales — LIVE (visual)
+
+See §10h. No Content strings. Art/Code scale Manatree by stage.
+

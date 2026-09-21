@@ -56,7 +56,7 @@ stretch_mode = 2
 [node name="ResourcesLabel" type="Label" parent="Panel"]
 offset_left = 176.0
 offset_top = 10.0
-offset_right = 1000.0
+offset_right = 790.0
 offset_bottom = 34.0
 theme_override_font_sizes/font_size = 14
 text = "Wood 0  |  Stone 0  |  Food 0  |  Manashards 0  |  Essence 0"
@@ -95,6 +95,21 @@ offset_bottom = 126.0
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.68, 0.78, 0.62, 1)
 text = "Left-click to select the Keeper. Right-click to walk, harvest, or tend."
+
+[node name="CharacterButton" type="Button" parent="Panel"]
+offset_left = 808.0
+offset_top = 24.0
+offset_right = 936.0
+offset_bottom = 56.0
+text = "Character"
+
+[node name="CharacterIcon" type="ColorRect" parent="Panel/CharacterButton"]
+offset_left = 6.0
+offset_top = 6.0
+offset_right = 26.0
+offset_bottom = 26.0
+mouse_filter = 2
+color = Color(0.77, 0.64, 0.29, 1)
 
 [node name="BackpackButton" type="Button" parent="Panel"]
 offset_left = 948.0

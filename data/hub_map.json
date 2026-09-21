@@ -23,6 +23,15 @@
     "harvest_stone": [1040, 1160],
     "harvest_berry": [1540, 1140]
   },
+  "runestones": [
+    {"stat": "might", "pos": [1760, 840]},
+    {"stat": "arcana", "pos": [1760, 920]},
+    {"stat": "resilience", "pos": [1760, 1000]},
+    {"stat": "ward", "pos": [1760, 1080]},
+    {"stat": "vitality", "pos": [1760, 1160]},
+    {"stat": "swiftness", "pos": [1760, 1240]},
+    {"stat": "fate", "pos": [1760, 1320]}
+  ],
   "clear_radii": [200, 175, 140, 160, 80],
   "collision": {
     "tree_trunk_height_frac": 0.30,

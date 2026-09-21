@@ -1,0 +1,109 @@
+{
+  "version": "v0.5.0-character",
+  "notes": [
+    "Ten slots. This ship unlocks weapon only. Relic stays locked (no Forge Key).",
+    "Gear inventory is separate from the backpack. Weapon Rod and Stone Sword live here.",
+    "Weapon Rod is the battle-path intermediate (10 Wooden Planks), consumed into the Stone Sword.",
+    "Stone Sword: 30 Stone Fragments + 1 Weapon Rod, +2 Might while equipped."
+  ],
+  "slots": [
+    {
+      "id": "weapon",
+      "unlocked": true,
+      "anchor": [0.94, 0.42],
+      "label_key": "equip_slot_weapon"
+    },
+    {
+      "id": "relic",
+      "unlocked": false,
+      "anchor": [0.06, 0.18],
+      "label_key": "equip_slot_relic"
+    },
+    {
+      "id": "head",
+      "unlocked": false,
+      "anchor": [0.50, 0.02],
+      "label_key": "equip_slot_head"
+    },
+    {
+      "id": "body",
+      "unlocked": false,
+      "anchor": [0.50, 0.34],
+      "label_key": "equip_slot_body"
+    },
+    {
+      "id": "hands",
+      "unlocked": false,
+      "anchor": [0.94, 0.60],
+      "label_key": "equip_slot_hands"
+    },
+    {
+      "id": "pants",
+      "unlocked": false,
+      "anchor": [0.50, 0.62],
+      "label_key": "equip_slot_pants"
+    },
+    {
+      "id": "feet",
+      "unlocked": false,
+      "anchor": [0.50, 0.90],
+      "label_key": "equip_slot_feet"
+    },
+    {
+      "id": "cape",
+      "unlocked": false,
+      "anchor": [0.06, 0.40],
+      "label_key": "equip_slot_cape"
+    },
+    {
+      "id": "ring1",
+      "unlocked": false,
+      "anchor": [0.06, 0.68],
+      "label_key": "equip_slot_ring1"
+    },
+    {
+      "id": "ring2",
+      "unlocked": false,
+      "anchor": [0.94, 0.78],
+      "label_key": "equip_slot_ring2"
+    }
+  ],
+  "items": [
+    {
+      "id": "weapon_rod",
+      "display_name": "Weapon Rod",
+      "string_key": "weapon_rod_name",
+      "tooltip_key": "weapon_rod_tooltip",
+      "slot": "weapon",
+      "unique": false,
+      "bonuses": {},
+      "color": "#6e4a32",
+      "art_name": "icon_weapon_rod"
+    },
+    {
+      "id": "stone_sword",
+      "display_name": "Stone Sword",
+      "string_key": "stone_sword_name",
+      "tooltip_key": "stone_sword_tooltip",
+      "slot": "weapon",
+      "unique": true,
+      "bonuses": { "might": 2 },
+      "color": "#b7b1a8",
+      "art_name": "icon_stone_sword"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "weapon_rod",
+      "output_id": "weapon_rod",
+      "output_count": 1,
+      "ingredients": { "wooden_planks": 10 }
+    },
+    {
+      "id": "stone_sword",
+      "output_id": "stone_sword",
+      "output_count": 1,
+      "ingredients": { "stone_fragments": 30, "weapon_rod": 1 }
+    }
+  ]
+}

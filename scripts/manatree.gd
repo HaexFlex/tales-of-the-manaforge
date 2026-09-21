@@ -62,6 +62,14 @@ func _load_meta() -> void:
 			_meta_stages[sid] = d
 
 
+## D7 visual scale only — multiplies the stage canvas. Gather and costs stay on the stage row.
+func visual_scale_for(stage: StringName) -> float:
+	var def: Dictionary = GameState.get_stage_def(stage)
+	if def.has("visual_scale"):
+		return float(def.get("visual_scale", 1.0))
+	return 1.0
+
+
 func _stage_size(stage: StringName) -> Vector2:
 	var meta: Variant = _meta_stages.get(String(stage), {})
 	if typeof(meta) == TYPE_DICTIONARY:
@@ -210,16 +218,20 @@ func _refresh_visual() -> void:
 	var tex: Texture2D = load(path) as Texture2D
 	sprite.texture = tex
 	var sz: Vector2 = _stage_size(GameState.stage_id)
+	var scale_v: float = visual_scale_for(GameState.stage_id)
+	sprite.scale = Vector2(scale_v, scale_v)
 	var w: float = sz.x
 	var h: float = sz.y
-	# base_center anchor: feet at node origin.
+	# base_center anchor: feet at node origin. Offset is in texture pixels; scale grows it.
 	sprite.offset = Vector2(-w * 0.5, -h)
+	var vis_h: float = h * scale_v
+	var vis_w: float = w * scale_v
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
-		# Full sprite hitbox — Ancient 512×640 must not be cropped.
+		# Hitbox follows the visual scale so the grown canopy stays clickable.
 		var rect_shape: RectangleShape2D = cs.shape as RectangleShape2D
-		rect_shape.size = Vector2(w, h)
-		cs.position = Vector2(0, -h * 0.5)
+		rect_shape.size = Vector2(vis_w, vis_h)
+		cs.position = Vector2(0, -vis_h * 0.5)
 	_refresh_label()
-	label.position = Vector2(-80, -h - 36)
+	label.position = Vector2(-80, -vis_h - 36)
 	fruit_hint.position = Vector2(-140, 8)

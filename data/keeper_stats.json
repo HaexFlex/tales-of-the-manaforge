@@ -1,0 +1,68 @@
+{
+  "version": "v0.5.0-runestones",
+  "notes": [
+    "PLACEHOLDER curve — SYSTEMS v0.5.0. Tune later.",
+    "cost(rank) = floor(RUNESTONE_BASE * RUNESTONE_GROWTH ^ rank). Rank 0 costs BASE.",
+    "RUNESTONE_BASE = 100, RUNESTONE_GROWTH = 1.65.",
+    "Examples: 0→1: 100 | 1→2: 165 | 2→3: 272 | 3→4: 449 | 4→5: 741.",
+    "Each rank adds power_per_rank (flat). Fate does not change gather, Wisps, or handcraft.",
+    "Ranks persist through Ascend. Unspent Manashards still wipe."
+  ],
+  "params": {
+    "cost_base": 100,
+    "cost_growth": 1.65,
+    "power_per_rank": 1,
+    "max_rank": 40
+  },
+  "stats": [
+    {
+      "id": "might",
+      "display_name": "Might",
+      "string_key": "stat_might",
+      "tooltip_key": "stat_might_tooltip",
+      "color": "#a34832"
+    },
+    {
+      "id": "arcana",
+      "display_name": "Arcana",
+      "string_key": "stat_arcana",
+      "tooltip_key": "stat_arcana_tooltip",
+      "color": "#6a4a9a"
+    },
+    {
+      "id": "resilience",
+      "display_name": "Resilience",
+      "string_key": "stat_resilience",
+      "tooltip_key": "stat_resilience_tooltip",
+      "color": "#5a6a32"
+    },
+    {
+      "id": "ward",
+      "display_name": "Ward",
+      "string_key": "stat_ward",
+      "tooltip_key": "stat_ward_tooltip",
+      "color": "#3a5a8a"
+    },
+    {
+      "id": "vitality",
+      "display_name": "Vitality",
+      "string_key": "stat_vitality",
+      "tooltip_key": "stat_vitality_tooltip",
+      "color": "#3a8a4a"
+    },
+    {
+      "id": "swiftness",
+      "display_name": "Swiftness",
+      "string_key": "stat_swiftness",
+      "tooltip_key": "stat_swiftness_tooltip",
+      "color": "#c4a24a"
+    },
+    {
+      "id": "fate",
+      "display_name": "Fate",
+      "string_key": "stat_fate",
+      "tooltip_key": "stat_fate_tooltip",
+      "color": "#c48ab0"
+    }
+  ]
+}
