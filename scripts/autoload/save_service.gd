@@ -1,6 +1,6 @@
 extends Node
-## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.5.0).
-## Payload schema SAVE_VERSION 7 — keeper stats + gear. Migrates legacy single-file → slot 1.
+## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.5.1).
+## Payload schema SAVE_VERSION 7 — keeper ranks stay purchases. Sheet base is 5 + rank.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -190,8 +190,12 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		out["owns_wooden_basket"] = false
 		out["owns_stone_watering_can"] = false
 	if from_version < 7:
-		## SYSTEMS v0.5.0: v6→v7 starts stats at 0 and gear empty. Backpack stays.
+		## SYSTEMS v0.5.0: v6→v7 starts ranks at 0 and gear empty. Backpack stays.
 		_migrate_gear_v7(out)
+	## v0.5.1 stays on SAVE_VERSION 7. Missing ranks become 0 (sheet base 5).
+	## An absolute already stored below 5 is kept as a rank so the sheet floors
+	## the base at 5. Ranks >= 5 are not reduced.
+	_normalize_stat_ranks(out)
 	# Additive welcome flag: legacy saves already played.
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -235,6 +239,18 @@ func _migrate_gear_v7(out: Dictionary) -> void:
 	}
 	out["gear_inventory"] = {}
 	out.erase("equipment")
+
+
+func _normalize_stat_ranks(out: Dictionary) -> void:
+	var raw_v: Variant = out.get("keeper_stats", {})
+	var src: Dictionary = raw_v if typeof(raw_v) == TYPE_DICTIONARY else {}
+	var stats: Dictionary = {}
+	for sid: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+		if not src.has(sid):
+			stats[sid] = 0
+		else:
+			stats[sid] = maxi(0, int(src[sid]))
+	out["keeper_stats"] = stats
 
 
 func delete_slot(slot: int) -> void:

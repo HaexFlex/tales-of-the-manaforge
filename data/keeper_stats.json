@@ -1,18 +1,21 @@
 {
-  "version": "v0.5.0-runestones",
+  "version": "v0.5.1-runestones",
   "notes": [
-    "PLACEHOLDER curve — SYSTEMS v0.5.0. Tune later.",
+    "PLACEHOLDER curve — SYSTEMS v0.5.1. Tune later.",
     "cost(rank) = floor(RUNESTONE_BASE * RUNESTONE_GROWTH ^ rank). Rank 0 costs BASE.",
     "RUNESTONE_BASE = 100, RUNESTONE_GROWTH = 1.65.",
     "Examples: 0→1: 100 | 1→2: 165 | 2→3: 272 | 3→4: 449 | 4→5: 741.",
-    "Each rank adds power_per_rank (flat). Fate does not change gather, Wisps, or handcraft.",
+    "keeper_stats stores Runestone ranks (starts 0). Each rank adds power_per_rank.",
+    "Sheet base = STAT_BASE_START + ranks (5). Total = base + gear.",
+    "SAVE_VERSION stays 7. Missing ranks load as 0. An absolute below 5 displays at least 5. Ranks >= 5 stay.",
     "Ranks persist through Ascend. Unspent Manashards still wipe."
   ],
   "params": {
     "cost_base": 100,
     "cost_growth": 1.65,
     "power_per_rank": 1,
-    "max_rank": 40
+    "max_rank": 40,
+    "stat_base_start": 5
   },
   "stats": [
     {

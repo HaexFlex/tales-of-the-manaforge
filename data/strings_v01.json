@@ -364,6 +364,8 @@
   "stat_fate_tooltip": "Luck, crit chance, rare finds",
   "stat_rank": "Rank {rank}",
   "stat_value": "{value}",
+  "stat_value_breakdown": "{base} + {ranks}",
+  "stat_base_note": "Starts at 5 — Runestones raise it further.",
   "stat_persist_hint": "Stats stay with you through Ascend.",
   "runestone_title": "Runestone",
   "runestone_prompt": "Raise a lasting stat",

@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.5.0 — character sheet, gear, SAVE_VERSION 7.
+## Headless verification per SYSTEMS_V01 v0.5.1 — sheet polish, base = 5 + rank, SAVE_VERSION 7.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -28,7 +28,7 @@ func _run() -> void:
 
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 8, "expected 8 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION should be 6")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION should be 7")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -546,7 +546,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION stays 6 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION stays 7 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -1590,6 +1590,8 @@ func _run() -> void:
 		failed += _assert(str(content_strings.call("get_text", "stone_sword_craft_cost")).find("30") >= 0, "stone_sword_craft_cost")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_stats_header")) == "Stats", "char_sheet_stats_header")
 		failed += _assert(str(content_strings.call("get_text", "stat_might_tooltip")) == "Physical Attack", "stat_might_tooltip")
+		failed += _assert(str(content_strings.call("get_text", "stat_base_note")) == "Starts at 5 — Runestones raise it further.", "stat_base_note")
+		failed += _assert(str(content_strings.call("get_text", "stat_value_breakdown")) == "{base} + {ranks}", "stat_value_breakdown")
 		failed += _assert(str(content_strings.call("get_text", "stat_fate_tooltip")).find("rare finds") >= 0, "stat_fate_tooltip")
 		failed += _assert(str(content_strings.call("get_text", "runestone_ok")).find("grows stronger") >= 0, "runestone_ok")
 		failed += _assert(str(content_strings.call("get_text", "runestone_confirm")).find("{cost}") >= 0, "runestone_confirm")
@@ -1609,6 +1611,11 @@ func _run() -> void:
 		var stat_order: Array = keeper_stats.get("STAT_ORDER")
 		failed += _assert(stat_order.size() == 7, "seven combat stats")
 		failed += _assert(str(stat_order[0]) == "might" and str(stat_order[6]) == "fate", "stat order might..fate")
+		failed += _assert(int(keeper_stats.get("STAT_BASE_START")) == 5, "STAT_BASE_START is 5")
+		failed += _assert(int(keeper_stats.call("stat_base_start")) == 5, "stat base start is 5")
+		for stat_need: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+			failed += _assert(int(keeper_stats.call("get_rank", stat_need)) == 0, "new game %s rank is 0" % stat_need)
+			failed += _assert(int(keeper_stats.call("get_base", stat_need)) == 5, "new game %s base is 5" % stat_need)
 		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 100, "first runestone cost 100")
 		keeper_stats.call("set_rank", "might", 1)
 		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 165, "second point costs 165")
@@ -1636,8 +1643,8 @@ func _run() -> void:
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "rank unchanged when short")
 		game_state.call("set_resource", &"manashards", 100)
 		failed += _assert(str(keeper_stats.call("try_buy", "might")) == "ok", "runestone buys might")
-		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "might rank 1")
-		failed += _assert(int(keeper_stats.call("get_base", "might")) == 1, "might base is flat +1")
+		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "might rank 1 after one buy")
+		failed += _assert(int(keeper_stats.call("get_base", "might")) == 6, "might base is 5 + 1")
 		failed += _assert(int(game_state.get("manashards")) == 0, "100 shards spent")
 		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 165, "next point costs 165 after buy")
 		failed += _assert(int(keeper_stats.call("get_next_cost", "arcana")) == 100, "other stats stay at first cost")
@@ -1687,7 +1694,7 @@ func _run() -> void:
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sword in weapon slot")
 		failed += _assert(int(equipment.call("unequipped_count", "stone_sword")) == 0, "equipped sword leaves the bag")
 		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "sword +2 might")
-		failed += _assert(int(equipment.call("total_for", "might")) == 3, "base 1 + gear 2 = 3")
+		failed += _assert(int(equipment.call("total_for", "might")) == 8, "base 6 + gear 2 = 8")
 		failed += _assert(int(equipment.call("preview_gear_bonus", "might", "stone_sword")) == 2, "preview keeps sword might")
 		failed += _assert(str(equipment.call("try_equip_to_slot", "stone_sword", "head")) == "locked", "sword does not open the head slot")
 		failed += _assert(str(equipment.call("try_craft", "stone_sword")) == "unique", "second sword blocked")
@@ -1704,14 +1711,16 @@ func _run() -> void:
 		game_state.call("ascend")
 		failed += _assert(int(game_state.get("manashards")) == 0, "ascend still wipes manashards")
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "might persists through ascend")
-		failed += _assert(int(keeper_stats.call("get_rank", "fate")) == 0, "fate reset only on new game")
+		failed += _assert(int(keeper_stats.call("get_base", "might")) == 6, "ascend keeps might base at 6")
+		failed += _assert(int(keeper_stats.call("get_rank", "fate")) == 0, "fate rank stays 0 through ascend")
+		failed += _assert(int(keeper_stats.call("get_base", "fate")) == 5, "fate base stays 5 through ascend")
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sword persists through ascend")
 		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 1, "gear rod persists through ascend")
 		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "ascend still wipes backpack planks")
 		failed += _assert(int(backpack.call("get_count", "weapon_rod")) == 0, "rod is not a backpack stack")
 		var save_payload: Dictionary = game_state.call("to_save_dict")
 		failed += _assert(typeof(save_payload.get("keeper_stats", null)) == TYPE_DICTIONARY, "save writes keeper_stats")
-		failed += _assert(int((save_payload.get("keeper_stats", {}) as Dictionary).get("might", 0)) == 1, "save keeps might")
+		failed += _assert(int((save_payload.get("keeper_stats", {}) as Dictionary).get("might", -1)) == 1, "save keeps might rank")
 		failed += _assert(typeof(save_payload.get("equipment_equipped", null)) == TYPE_DICTIONARY, "save writes equipment_equipped")
 		failed += _assert(str((save_payload.get("equipment_equipped", {}) as Dictionary).get("weapon", "")) == "stone_sword", "save keeps equipped sword")
 		failed += _assert(typeof(save_payload.get("gear_inventory", null)) == TYPE_DICTIONARY, "save writes gear_inventory")
@@ -1720,10 +1729,12 @@ func _run() -> void:
 		failed += _assert(not bool((save_payload.get("equipment_unlocked", {}) as Dictionary).get("relic", true)), "save keeps relic locked")
 		failed += _assert(bool(save_service.call("save_game", 6)), "save slot 6 stats")
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "new game clears ranks")
+		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "new game ranks start at 0")
+		failed += _assert(int(keeper_stats.call("get_base", "arcana")) == 5, "new game arcana base is 5")
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "new game clears gear")
 		failed += _assert(bool(save_service.call("load_game", 6)), "load slot 6 stats")
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "loaded might rank")
+		failed += _assert(int(keeper_stats.call("get_base", "might")) == 6, "loaded might base is 5 + 1")
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "loaded sword")
 		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 1, "loaded gear rod")
 		var legacy: Dictionary = save_payload.duplicate(true)
@@ -1733,7 +1744,8 @@ func _run() -> void:
 		legacy.erase("equipment_equipped")
 		legacy.erase("gear_inventory")
 		game_state.call("apply_save_dict", legacy)
-		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "legacy save without stats starts at 0")
+		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "legacy save without stats ranks at 0")
+		failed += _assert(int(keeper_stats.call("get_base", "fate")) == 5, "legacy save fate displays 5")
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "legacy save without gear starts empty")
 		game_state.call("reset_for_new_game")
 		var scale_scene: PackedScene = load("res://scenes/manatree.tscn") as PackedScene
@@ -1794,18 +1806,30 @@ func _run() -> void:
 		failed += _assert(portrait != null and str(portrait.texture.resource_path).find("keeper_idle_south") >= 0, "portrait uses idle_south")
 		var weapon_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
 		var relic_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic")
-		var relic_lock: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Lock") as ColorRect
-		var weapon_lock: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Lock") as ColorRect
+		var relic_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as ColorRect
+		var weapon_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as ColorRect
 		failed += _assert(weapon_slot != null and relic_slot != null, "weapon and relic slots")
-		failed += _assert(relic_lock != null and relic_lock.visible, "relic grey lock")
-		failed += _assert(weapon_lock != null and not weapon_lock.visible, "weapon lock hidden")
-		var relic_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Hint") as Label
-		failed += _assert(relic_hint != null and str(relic_hint.text) == "Locked", "relic lock chip")
+		failed += _assert(relic_square != null and relic_square.color.a > 0.2 and relic_square.color.a < 0.75, "relic square is translucent")
+		failed += _assert(weapon_square != null and weapon_square.color.a > 0.2 and weapon_square.color.a < 0.75, "empty weapon square is half-transparent")
+		var relic_style: StyleBoxFlat = relic_slot.get_theme_stylebox("panel") as StyleBoxFlat
+		var weapon_style: StyleBoxFlat = weapon_slot.get_theme_stylebox("panel") as StyleBoxFlat
+		failed += _assert(relic_style != null and relic_style.get_border_width(SIDE_LEFT) == 0, "locked slot has no gold border")
+		failed += _assert(weapon_style != null and weapon_style.get_border_width(SIDE_TOP) == 0, "weapon slot has no gold border")
+		failed += _assert(relic_slot.get_node_or_null("Lock") == null, "locked slot has no inner lock chip")
+		var relic_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/CaptionHost/Hint") as Label
+		var relic_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/CaptionHost") as Control
+		failed += _assert(relic_hint != null and str(relic_hint.text) == "Locked", "relic lock caption")
+		failed += _assert(relic_cap != null and relic_square != null and relic_cap.position.y >= relic_square.position.y + relic_square.size.y - 0.5, "Locked sits under the square")
 		failed += _assert(str(relic_slot.get("tooltip_text")).find("Forge Key") >= 0, "relic tooltip names Forge Key")
-		var weapon_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Hint") as Label
-		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Bare Stone", "empty weapon is Bare Stone")
-		var head_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/Hint") as Label
-		failed += _assert(head_hint != null and str(head_hint.text) == "Locked", "locked slot chip")
+		var weapon_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/CaptionHost/Hint") as Label
+		var weapon_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/CaptionHost") as Control
+		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Weapon", "empty weapon reads Weapon")
+		failed += _assert(weapon_cap != null and weapon_square != null and weapon_cap.position.y >= weapon_square.position.y + weapon_square.size.y - 0.5, "weapon caption sits under the square")
+		var head_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/CaptionHost/Hint") as Label
+		var head_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/CaptionHost") as Control
+		var head_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/Square") as ColorRect
+		failed += _assert(head_hint != null and str(head_hint.text) == "Locked", "locked slot caption")
+		failed += _assert(head_square != null and head_cap != null and head_cap.position.y >= head_square.position.y + head_square.size.y - 0.5, "head Locked sits under the square")
 		var hotkey_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/HotkeyHint") as Label
 		failed += _assert(hotkey_lbl != null and str(hotkey_lbl.text) == "C — Character", "sheet hotkey hint")
 		failed += _assert(char_btn != null and str(char_btn.tooltip_text) == "C — Character", "HUD hotkey hint")
@@ -1813,8 +1837,33 @@ func _run() -> void:
 		failed += _assert(gear_title_lbl != null and str(gear_title_lbl.text) == "Gear", "gear column title")
 		var gear_empty: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/GearColumn/GearScroll/GearList/Empty") as Label
 		failed += _assert(gear_empty != null and str(gear_empty.text) == "No gear yet.", "gear empty copy")
-		var might_line: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line") as Label
-		failed += _assert(might_line != null and str(might_line.text).find("+") >= 0 and str(might_line.text).find("=") >= 0, "stat line base + gear = total")
+		var might_line: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line/Text") as Label
+		var might_name: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Name") as Control
+		var might_role: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Role") as Control
+		var might_nums: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line") as Control
+		var arcana_name: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_arcana/Name/Text") as Label
+		var might_block: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might") as Control
+		var arcana_block: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_arcana") as Control
+		failed += _assert(might_line != null and str(might_line.text) == "5 + 0 = 5", "new game might is 5 + 0 = 5")
+		failed += _assert(might_line != null and str(might_line.tooltip_text).find("Starts at 5") >= 0, "stat line notes the base of 5")
+		failed += _assert(might_name != null and might_role != null and might_nums != null, "stat name, role, and numbers")
+		# Role starts in the name row's empty descent so the words sit flush under the name.
+		var name_bottom: float = 0.0
+		if might_name != null:
+			name_bottom = might_name.position.y + might_name.size.y
+		failed += _assert(might_role != null and might_name != null and might_role.position.y > might_name.position.y and might_role.position.y < name_bottom and might_role.position.y + might_role.size.y > name_bottom + 4.0, "role sits directly under the name")
+		failed += _assert(might_nums != null and might_role != null and might_nums.position.y >= might_role.position.y + might_role.size.y + 4.0, "small gap before the numbers")
+		failed += _assert(might_block != null and arcana_block != null and might_nums != null, "stat blocks stacked")
+		if might_block != null and arcana_block != null and might_nums != null and might_role != null:
+			var gap_small: float = might_nums.position.y - (might_role.position.y + might_role.size.y)
+			var gap_large: float = arcana_block.position.y - (might_block.position.y + might_nums.position.y + might_nums.size.y)
+			failed += _assert(gap_large > gap_small + 4.0, "larger gap before the next stat")
+			var fate_block: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_fate") as Control
+			var stats_root: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats") as Control
+			failed += _assert(fate_block != null and stats_root != null and fate_block.position.y + might_nums.position.y + might_nums.size.y <= stats_root.size.y, "seven stats fit the panel")
+		var arcana_line: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_arcana/Line/Text") as Label
+		failed += _assert(arcana_line != null and str(arcana_line.text) == "5 + 0 = 5", "new game arcana is 5 + 0 = 5")
+		failed += _assert(arcana_name != null and str(arcana_name.text) == "Arcana", "arcana name")
 		var gear_list: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/GearColumn/GearScroll/GearList")
 		failed += _assert(gear_list != null, "equipment inventory column")
 		equipment.call("grant_item", "stone_sword")
@@ -1823,8 +1872,11 @@ func _run() -> void:
 		sheet_hud.get_node("CharacterSheet").call("request_equip", "stone_sword")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet click equips sword")
-		might_line = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line") as Label
-		failed += _assert(might_line != null and str(might_line.text).find("0 + 2 = 2") >= 0, "sheet shows 0 + 2 = 2")
+		might_line = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line/Text") as Label
+		weapon_hint = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/CaptionHost/Hint") as Label
+		failed += _assert(might_line != null and str(might_line.text).find("5 + 2 = 7") >= 0, "sheet shows 5 + 2 = 7")
+		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "equipped sword still adds +2 might")
+		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Stone Sword", "equipped weapon shows the item name")
 		var slot_plate: Node = sheet_hud.get_node("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
 		sheet_hud.get_node("CharacterSheet").call("request_unequip", "weapon")
 		await process_frame
@@ -1892,10 +1944,12 @@ func _run() -> void:
 			failed += _assert(str(might_stone.call("begin_spend")) == "confirm", "runestone opens confirm")
 			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm panel visible")
 			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "confirm does not spend yet")
+			failed += _assert(int(keeper_stats.call("get_base", "might")) == 5, "confirm sheet base is still 5")
 			var bank_lbl: Label = might_stone.get_tree().root.get_node_or_null("RunestoneConfirm/Panel/Bank") as Label
 			failed += _assert(bank_lbl != null and str(bank_lbl.text).find("Ascension") >= 0, "confirm shows bank hint")
 			failed += _assert(str(might_stone.call("confirm_spend")) == "ok", "confirm raises the stat")
-			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "confirm spend rank 1")
+			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "confirm spend raises might by 1")
+			failed += _assert(int(keeper_stats.call("get_base", "might")) == 6, "confirm spend base is 5 + 1")
 			failed += _assert(int(game_state.get("manashards")) == 0, "confirm spent 100 shards")
 			failed += _assert(not bool(might_stone.call("is_spend_confirm_open")), "confirm closes after raise")
 		var v6_state: Dictionary = game_state.call("to_save_dict")
@@ -1917,12 +1971,31 @@ func _run() -> void:
 		failed += _assert((v6_migrated.get("equipment_equipped", {}) as Dictionary).get("weapon", "x") == null, "v6 weapon slot starts null")
 		failed += _assert(bool((v6_migrated.get("equipment_unlocked", {}) as Dictionary).get("weapon", false)), "v6 unlocks weapon only")
 		failed += _assert(not bool((v6_migrated.get("equipment_unlocked", {}) as Dictionary).get("relic", true)), "v6 relic stays locked")
-		failed += _assert(int((v6_migrated.get("keeper_stats", {}) as Dictionary).get("might", -1)) == 0, "v6 migrate zeros might")
+		failed += _assert(int((v6_migrated.get("keeper_stats", {}) as Dictionary).get("might", -1)) == 0, "v6 migrate ranks might at 0")
+		failed += _assert(int((v6_migrated.get("keeper_stats", {}) as Dictionary).get("fate", -1)) == 0, "v6 migrate ranks fate at 0")
 		game_state.call("apply_save_dict", v6_migrated)
 		failed += _assert(int(backpack.call("get_count", "fertilizer")) == 4, "applied v6 fertilizer")
 		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 0, "v6 rod is not gear")
 		failed += _assert(int(equipment.call("unequipped_count", "stone_sword")) == 0, "v6 sword is not kept")
-		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "applied v6 might is 0")
+		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "applied v6 might rank is 0")
+		failed += _assert(int(keeper_stats.call("get_base", "might")) == 5, "applied v6 might displays 5")
+		var v7_state: Dictionary = {"keeper_stats": {"might": 2, "arcana": 0, "resilience": 8, "ward": 5}}
+		var v7_migrated: Dictionary = save_service.call("_migrate", 7, v7_state)
+		var v7_stats: Dictionary = v7_migrated.get("keeper_stats", {})
+		failed += _assert(int(v7_stats.get("might", -1)) == 2, "v7 might 2 stays a rank")
+		failed += _assert(int(v7_stats.get("arcana", -1)) == 0, "v7 arcana 0 stays a rank")
+		failed += _assert(int(v7_stats.get("resilience", -1)) == 8, "v7 resilience 8 is not wiped")
+		failed += _assert(int(v7_stats.get("ward", -1)) == 5, "v7 ward 5 stays")
+		failed += _assert(int(v7_stats.get("swiftness", -1)) == 0, "v7 missing swiftness becomes 0")
+		failed += _assert(int(v7_stats.get("fate", -1)) == 0, "v7 missing fate becomes 0")
+		game_state.call("apply_save_dict", v7_migrated)
+		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 2, "applied might rank stays 2")
+		failed += _assert(int(keeper_stats.call("get_base", "might")) == 7, "absolute 2 displays as base 7")
+		failed += _assert(int(keeper_stats.call("get_base", "arcana")) == 5, "absolute 0 displays as base 5")
+		failed += _assert(int(keeper_stats.call("get_rank", "resilience")) == 8, "rank 8 is not wiped")
+		failed += _assert(int(keeper_stats.call("get_base", "resilience")) == 13, "rank 8 displays as base 13")
+		failed += _assert(int(keeper_stats.call("get_rank", "swiftness")) == 0, "missing swiftness rank is 0")
+		failed += _assert(int(keeper_stats.call("get_base", "swiftness")) == 5, "missing swiftness displays 5")
 		live_sheet.free()
 		paused = false
 		await process_frame

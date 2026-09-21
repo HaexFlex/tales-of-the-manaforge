@@ -6,12 +6,21 @@ class_name CharacterSheet
 signal close_requested
 
 const PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
-const SHEET_SIZE: Vector2 = Vector2(1040, 600)
+const SHEET_SIZE: Vector2 = Vector2(1040, 640)
 const PORTRAIT_SIZE: Vector2 = Vector2(220, 300)
-const SLOT_SIZE: Vector2 = Vector2(56, 64)
+const SLOT_SIZE: Vector2 = Vector2(56, 66)
+const SLOT_SQUARE: Vector2 = Vector2(44, 44)
+## Half-transparent slot chrome. No gold edge — the caption sits under the square.
+const SLOT_ALPHA: float = 0.48
+const STAT_TOP: float = 30.0
+const STAT_NAME_H: float = 22.0
+const STAT_ROLE_H: float = 18.0
+const STAT_GAP_SMALL: float = 4.0
+const STAT_NUM_H: float = 24.0
+const STAT_GAP_LARGE: float = 10.0
+const STAT_STRIDE: float = STAT_NAME_H + STAT_ROLE_H + STAT_GAP_SMALL + STAT_NUM_H + STAT_GAP_LARGE
 const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
-const LOCK_GREY: Color = Color(0.42, 0.42, 0.46, 0.90)
 const INK: Color = Color(0.92, 0.86, 0.72, 1.0)
 const MUTED: Color = Color(0.70, 0.64, 0.52, 1.0)
 
@@ -33,6 +42,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
 	_build()
+	call_deferred("_center_stat_glyphs")
 	if not Equipment.equipment_changed.is_connected(_refresh):
 		Equipment.equipment_changed.connect(_refresh)
 	if not KeeperStats.ranks_changed.is_connected(_on_ranks):
@@ -298,8 +308,8 @@ func _build() -> void:
 
 	var right := Control.new()
 	right.name = "Stats"
-	right.position = Vector2(648, 72)
-	right.size = Vector2(368, 470)
+	right.position = Vector2(648, 68)
+	right.size = Vector2(368, 530)
 	sheet.add_child(right)
 
 	var stats_title := Label.new()
@@ -319,50 +329,99 @@ func _build() -> void:
 	stats_hint.add_theme_color_override("font_color", MUTED)
 	right.add_child(stats_hint)
 
-	var y: float = 50.0
+	## Name, role flush under it, a small gap, the numbers, then a larger gap.
+	## The font line box is taller than the glyphs, so the role row overlaps the
+	## name row's empty descent and each label is centered in its host.
+	var y: float = STAT_TOP
 	for stat_name: StringName in KeeperStats.STAT_ORDER:
 		var sid: String = String(stat_name)
-		var block := VBoxContainer.new()
+		var block := Control.new()
 		block.name = "Stat_%s" % sid
 		block.position = Vector2(0, y)
-		block.size = Vector2(360, 52)
+		block.size = Vector2(360, STAT_STRIDE)
+		block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		right.add_child(block)
-		var name_lbl := Label.new()
-		name_lbl.name = "Name"
-		name_lbl.text = KeeperStats.stat_display_name(sid)
-		name_lbl.add_theme_font_size_override("font_size", 14)
-		name_lbl.add_theme_color_override("font_color", KeeperStats.stat_color(sid))
-		var line := Label.new()
-		line.name = "Line"
-		line.add_theme_font_size_override("font_size", 16)
-		line.add_theme_color_override("font_color", INK)
-		var role := Label.new()
-		role.name = "Role"
-		role.text = KeeperStats.stat_role(sid)
-		role.add_theme_font_size_override("font_size", 11)
-		role.add_theme_color_override("font_color", MUTED)
-		block.add_child(name_lbl)
-		block.add_child(line)
-		block.add_child(role)
-		y += 58.0
+		# Role overlaps the name row's empty descent so the words sit flush under the name.
+		var role_y: float = STAT_NAME_H - 8.0
+		var line_y: float = role_y + STAT_ROLE_H + STAT_GAP_SMALL
+		_add_stat_row(block, "Name", KeeperStats.stat_display_name(sid), 14, KeeperStats.stat_color(sid), 0.0, STAT_NAME_H)
+		_add_stat_row(block, "Role", KeeperStats.stat_role(sid), 11, MUTED, role_y, STAT_ROLE_H)
+		_add_stat_row(block, "Line", "", 15, INK, line_y, STAT_NUM_H)
+		y += STAT_STRIDE
+	var stats_bottom: float = y - STAT_GAP_LARGE + 4.0
+	var sheet_h: float = SHEET_SIZE.y
+	if stats_bottom > right.size.y:
+		var extra: float = stats_bottom - right.size.y
+		right.size.y = stats_bottom
+		sheet_h = minf(688.0, SHEET_SIZE.y + extra)
+		sheet.custom_minimum_size = Vector2(SHEET_SIZE.x, sheet_h)
+		sheet.offset_top = -sheet_h * 0.5
+		sheet.offset_bottom = sheet_h * 0.5
 
 	var fate_note := Label.new()
 	fate_note.name = "FateNote"
-	fate_note.position = Vector2(0, y + 4.0)
-	fate_note.size = Vector2(360, 36)
-	fate_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fate_note.visible = false
+	fate_note.position = Vector2(0, y)
+	fate_note.size = Vector2(360, 0)
 	fate_note.text = ""
-	fate_note.add_theme_font_size_override("font_size", 11)
-	fate_note.add_theme_color_override("font_color", MUTED)
+	fate_note.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.add_child(fate_note)
 
 	_footer = Label.new()
 	_footer.name = "Footer"
-	_footer.position = Vector2(268, SHEET_SIZE.y - 36)
+	_footer.position = Vector2(268, sheet_h - 36.0)
 	_footer.size = Vector2(740, 24)
 	_footer.add_theme_font_size_override("font_size", 12)
 	_footer.add_theme_color_override("font_color", INK)
 	sheet.add_child(_footer)
+
+
+func _add_stat_row(block: Control, node_name: String, text: String, font_size: int, color: Color, y: float, row_h: float) -> void:
+	var host := Control.new()
+	host.name = node_name
+	host.position = Vector2(0, y)
+	host.size = Vector2(360, row_h)
+	host.clip_contents = false
+	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	block.add_child(host)
+	var lbl := Label.new()
+	lbl.name = "Text"
+	lbl.text = text
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.add_theme_font_size_override("font_size", font_size)
+	lbl.add_theme_color_override("font_color", color)
+	host.add_child(lbl)
+	_center_glyph_label(host, lbl)
+
+
+func _center_stat_glyphs() -> void:
+	var root: Node = get_node_or_null("Sheet/Stats")
+	if root == null:
+		return
+	for stat_name: StringName in KeeperStats.STAT_ORDER:
+		var block: Node = root.get_node_or_null("Stat_%s" % String(stat_name))
+		if block == null:
+			continue
+		for row_name: String in ["Name", "Role", "Line"]:
+			var host: Control = block.get_node_or_null(row_name) as Control
+			if host == null:
+				continue
+			var lbl: Label = host.get_node_or_null("Text") as Label
+			if lbl == null:
+				continue
+			_center_glyph_label(host, lbl)
+
+
+func _center_glyph_label(host: Control, lbl: Label) -> void:
+	var font: Font = lbl.get_theme_font("font")
+	var font_size: int = lbl.get_theme_font_size("font_size")
+	var need: float = host.size.y
+	if font != null:
+		need = float(font.get_height(font_size))
+	need = minf(host.size.y, maxf(need, lbl.get_minimum_size().y))
+	lbl.size = Vector2(host.size.x, need)
+	lbl.position = Vector2(0, (host.size.y - need) * 0.5)
 
 
 func _on_dim_input(event: InputEvent) -> void:
@@ -436,7 +495,7 @@ func _refresh_stats() -> void:
 		return
 	for stat_name: StringName in KeeperStats.STAT_ORDER:
 		var sid: String = String(stat_name)
-		var line: Label = root.get_node_or_null("Stat_%s/Line" % sid) as Label
+		var line: Label = root.get_node_or_null("Stat_%s/Line/Text" % sid) as Label
 		if line == null:
 			continue
 		var base: int = KeeperStats.get_base(sid)
@@ -445,7 +504,9 @@ func _refresh_stats() -> void:
 		if _hover_item_id != "":
 			shown_gear = Equipment.preview_gear_bonus(sid, _hover_item_id)
 		var total: int = base + shown_gear
+		## base = STAT_BASE_START + ranks. Line is base + gear = total.
 		var text: String = "%d + %d = %d" % [base, shown_gear, total]
+		line.tooltip_text = ContentStrings.get_text("stat_base_note")
 		if _hover_item_id != "" and shown_gear != gear:
 			var delta: int = shown_gear - gear
 			var sign: String = "+" if delta > 0 else ""
@@ -494,69 +555,72 @@ class InvColumn extends Control:
 class SlotPlate extends Panel:
 	var slot_id: String = ""
 	var host: Control = null
-	var _icon: ColorRect
-	var _lock: ColorRect
+	var _square: ColorRect
 	var _caption: Label
 	var _pressed: bool = false
 	var _dragged: bool = false
 
 	func setup() -> void:
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.12, 0.09, 0.07, 1.0)
-		sb.border_color = Color(0.82, 0.64, 0.28, 1.0)
-		sb.set_border_width_all(1)
-		sb.set_corner_radius_all(2)
+		sb.bg_color = Color(0, 0, 0, 0)
+		sb.border_color = Color(0, 0, 0, 0)
+		sb.set_border_width_all(0)
+		sb.set_corner_radius_all(0)
+		sb.shadow_size = 0
 		add_theme_stylebox_override("panel", sb)
-		_icon = ColorRect.new()
-		_icon.name = "Icon"
-		_icon.position = Vector2(10, 4)
-		_icon.size = Vector2(36, 36)
-		_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_icon)
-		_lock = ColorRect.new()
-		_lock.name = "Lock"
-		_lock.position = Vector2(10, 4)
-		_lock.size = Vector2(36, 36)
-		_lock.color = Color(0.42, 0.42, 0.46, 0.90)
-		_lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_lock)
+		_square = ColorRect.new()
+		_square.name = "Square"
+		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
+		_square.size = SLOT_SQUARE
+		_square.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_square)
+		var caption_host := Control.new()
+		caption_host.name = "CaptionHost"
+		caption_host.position = Vector2(-14, SLOT_SQUARE.y + 2)
+		caption_host.size = Vector2(SLOT_SIZE.x + 28, 16)
+		caption_host.clip_contents = true
+		caption_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(caption_host)
 		_caption = Label.new()
 		_caption.name = "Hint"
-		_caption.position = Vector2(0, 42)
-		_caption.size = Vector2(56, 20)
 		_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_caption.add_theme_font_size_override("font_size", 9)
-		_caption.add_theme_color_override("font_color", Color(0.78, 0.74, 0.64, 1.0))
+		_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		_caption.add_theme_font_size_override("font_size", 10)
+		_caption.add_theme_color_override("font_color", Color(0.86, 0.82, 0.70, 1.0))
 		_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(_caption)
+		caption_host.add_child(_caption)
+		var cap_h: float = maxf(16.0, _caption.get_minimum_size().y)
+		_caption.size = Vector2(caption_host.size.x, cap_h)
+		_caption.position = Vector2(0, (caption_host.size.y - cap_h) * 0.5)
 		refresh()
 
+	func _slot_fill(tint: Color, alpha: float) -> Color:
+		var c: Color = tint
+		c.a = alpha
+		return c
+
 	func refresh() -> void:
-		if _icon == null:
+		if _square == null:
 			return
 		var unlocked: bool = Equipment.is_slot_unlocked(slot_id)
 		var iid: String = Equipment.equipped_id(slot_id)
-		_lock.visible = not unlocked
 		if not unlocked:
-			_icon.color = Color(0.28, 0.28, 0.30, 1.0)
+			_square.color = _slot_fill(Color(0.72, 0.72, 0.76, 1.0), SLOT_ALPHA)
 			_caption.text = Equipment.slot_lock_short(slot_id)
 			tooltip_text = Equipment.slot_lock_hint(slot_id)
 			if slot_id == "relic":
 				tooltip_text = "%s %s" % [tooltip_text, ContentStrings.get_text("relic_locked_tooltip")]
-			_caption.clip_text = true
-			_caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			return
-		tooltip_text = Equipment.slot_display_name(slot_id)
 		if iid == "":
-			_icon.color = Color(0.24, 0.18, 0.12, 1.0)
+			_square.color = _slot_fill(Color(0.93, 0.88, 0.76, 1.0), SLOT_ALPHA)
 			if slot_id == "weapon":
-				_caption.text = ContentStrings.get_text("equip_bare_stone")
+				_caption.text = Equipment.slot_display_name(slot_id)
 				tooltip_text = ContentStrings.get_text("equip_bare_stone_tooltip")
 			else:
 				_caption.text = ContentStrings.get_text("equip_empty")
 				tooltip_text = ContentStrings.get_text("equip_empty")
 		else:
-			_icon.color = Equipment.item_color(iid)
+			_square.color = _slot_fill(Equipment.item_color(iid), 0.62)
 			_caption.text = Equipment.item_display_name(iid)
 			tooltip_text = Equipment.item_tooltip(iid)
 

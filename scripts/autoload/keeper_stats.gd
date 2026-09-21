@@ -5,6 +5,8 @@ extends Node
 
 signal ranks_changed(stat_id: StringName)
 
+## Displayed combat base before gear. Ranks are purchases on top of this.
+const STAT_BASE_START: int = 5
 const DATA_PATH: String = "res://data/keeper_stats.json"
 const STAT_ORDER: Array[StringName] = [
 	&"might", &"arcana", &"resilience", &"ward", &"vitality", &"swiftness", &"fate"
@@ -43,6 +45,14 @@ func _load_tables() -> void:
 		var sid: String = str(d.get("id", ""))
 		if sid != "":
 			_stat_index[sid] = d
+
+
+func stat_base_start() -> int:
+	return STAT_BASE_START
+
+
+func starting_base() -> int:
+	return stat_base_start()
 
 
 func _ensure_keys() -> void:
@@ -99,12 +109,13 @@ func power_per_rank() -> int:
 	return maxi(1, int(params.get("power_per_rank", 1)))
 
 
-## Flat combat power from ranks. Gear is added by Equipment, not here.
+## Sheet base. `STAT_BASE_START + ranks`. Gear is added by Equipment, not here.
 func get_base(stat_id: String) -> int:
-	return get_rank(stat_id) * power_per_rank()
+	return stat_base_start() + get_rank(stat_id) * power_per_rank()
 
 
 ## Next purchase cost. -1 when the rank cap is reached.
+## Rank 0 still costs BASE. The curve is not shifted by STAT_BASE_START.
 func get_next_cost(stat_id: String) -> int:
 	if not is_known_stat(stat_id):
 		return -1
@@ -179,15 +190,21 @@ func to_save_dict() -> Dictionary:
 	return ranks.duplicate(true)
 
 
+## Missing ranks load as 0 (sheet base 5). A stored absolute below
+## STAT_BASE_START stays a non-negative rank so the sheet base floors at 5
+## via `5 + rank`. Ranks already >= 5 are not reduced.
+func normalize_loaded_rank(present: bool, raw: int) -> int:
+	if not present:
+		return 0
+	return clampi(raw, 0, get_max_rank())
+
+
 func apply_save_dict(data: Variant) -> void:
 	ranks.clear()
-	_ensure_keys()
-	if typeof(data) != TYPE_DICTIONARY:
-		ranks_changed.emit(&"")
-		return
-	var src: Dictionary = data
+	var src: Dictionary = data if typeof(data) == TYPE_DICTIONARY else {}
 	for sid: StringName in STAT_ORDER:
 		var key: String = String(sid)
-		if src.has(key):
-			ranks[key] = clampi(int(src[key]), 0, get_max_rank())
+		var present: bool = src.has(key)
+		var raw: int = int(src.get(key, 0)) if present else 0
+		ranks[key] = normalize_loaded_rank(present, raw)
 	ranks_changed.emit(&"")
