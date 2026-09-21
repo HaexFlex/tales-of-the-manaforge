@@ -1,0 +1,113 @@
+{
+  "version": "v0.4.2-character",
+  "notes": [
+    "Ten slots exist so armor can unlock later without a schema change.",
+    "This ship unlocks weapon only. Relic stays locked until the Forge Key (combat, not this ship).",
+    "Instances store level and runes so a later forge pass can use them. Power is the flat bonus only.",
+    "Stone Sword is the only battle weapon. It lands in the equipment inventory, not the backpack."
+  ],
+  "slots": [
+    {
+      "id": "head",
+      "unlocked": false,
+      "anchor": [0.50, 0.02],
+      "label_key": "equip_slot_head",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    },
+    {
+      "id": "relic",
+      "unlocked": false,
+      "anchor": [0.06, 0.18],
+      "label_key": "equip_slot_relic",
+      "lock_short_key": "equip_locked_short_relic",
+      "lock_hint_key": "equip_locked_relic"
+    },
+    {
+      "id": "cape",
+      "unlocked": false,
+      "anchor": [0.06, 0.40],
+      "label_key": "equip_slot_cape",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    },
+    {
+      "id": "body",
+      "unlocked": false,
+      "anchor": [0.50, 0.34],
+      "label_key": "equip_slot_body",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    },
+    {
+      "id": "weapon",
+      "unlocked": true,
+      "anchor": [0.94, 0.42],
+      "label_key": "equip_slot_weapon",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    },
+    {
+      "id": "hands",
+      "unlocked": false,
+      "anchor": [0.94, 0.60],
+      "label_key": "equip_slot_hands",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    },
+    {
+      "id": "ring_1",
+      "unlocked": false,
+      "anchor": [0.06, 0.68],
+      "label_key": "equip_slot_ring_1",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    },
+    {
+      "id": "pants",
+      "unlocked": false,
+      "anchor": [0.50, 0.62],
+      "label_key": "equip_slot_pants",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    },
+    {
+      "id": "ring_2",
+      "unlocked": false,
+      "anchor": [0.94, 0.78],
+      "label_key": "equip_slot_ring_2",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    },
+    {
+      "id": "feet",
+      "unlocked": false,
+      "anchor": [0.50, 0.90],
+      "label_key": "equip_slot_feet",
+      "lock_short_key": "equip_locked_short",
+      "lock_hint_key": "equip_locked_armor"
+    }
+  ],
+  "items": [
+    {
+      "id": "stone_sword",
+      "display_name": "Stone Sword",
+      "string_key": "gear_stone_sword",
+      "slot": "weapon",
+      "unique": true,
+      "level": 1,
+      "rune_sockets": [],
+      "bonuses": { "might": 2 },
+      "color": "#b7b1a8",
+      "art_name": "icon_stone_sword"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "stone_sword",
+      "output_id": "stone_sword",
+      "output_count": 1,
+      "ingredients": { "stone_fragments": 30, "weapon_rod": 1 }
+    }
+  ]
+}

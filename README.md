@@ -8,7 +8,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 
 - **Godot 4.3** · GDScript only · **fully typed**
 - Playable forest hub: **2560×2160** play area (**2× × 3×** of the original 1280×720 hub), **64² grass TileMap**, dense Y-sorted **decorative** Haex forest ring around an open glade, **exactly 3** harvest channels, Manatree landmark; view **1280×720** nearest-neighbor; **arrow keys** pan the camera (clamped to play bounds)
-- Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `Backpack`, `SaveService`
+- Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `Backpack`, `KeeperStats`, `Equipment`, `SaveService`
 - Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options stub, Exit
 - Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **6**`; backpack stacks; legacy single-file migrates → slot 1; old `growth` ignored)
 
@@ -19,6 +19,8 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 3. Click **Manatree** → care menu. **Water** starts a **water channel**: each second **+rand(1..3) manashards** and **+1 essence** (income only). **Grow** spends **Fertilizer + Essence** (one click) to advance.
 4. Grow costs: Young **3 Fertilizer + 20 Essence** → Mature **6+40** → Elder **12+60** → Ancient **24+80**. Handcraft Fertilizer (10 wood+stone+food) in the **Backpack**.
 5. At **ancient**, harvest **Primordial Fruit** → Manashard blessings (including **Keep Tools**) → **Ascend** (backpack wipe; tools return only with Keep Tools).
+6. **Character** (HUD button or **C**): paper-doll equipment and seven combat stats (base + gear = total). Only the weapon slot starts unlocked. Handcraft a **Weapon Rod** (10 Wooden Planks) and a **Stone Sword** (30 Stone Fragments + 1 Weapon Rod) — the sword goes to the equipment inventory, not the backpack.
+7. Seven **Runestones** in the hub spend Manashards for +1 in that stat (cost doubles each rank; the stat itself is +1). Ranks and battle gear persist through Ascend. Unspent Manashards still wipe. Fate does not change gather, Wisps, or handcraft.
 
 Essence comes from **watering ticks**. Soft mats feed **handcraft**, not Grow. Gathering tools never gate hands; they 2× Keeper channel speed. Stone Watering Can doubles the Manashard **roll** (`shard_roll ×2`); Essence water is unchanged.
 
@@ -46,4 +48,4 @@ Music stings (`mus_fruit_sting`, `mus_ascend_sting`) use a second Music player s
 
 ## Out of scope (v0.2)
 
-Growth bar / Offers, Forge interact, combat, whisps, WASD, equipment, HTML5.
+Growth bar / Offers, Forge interact, combat, Forge Key drop, armor recipes, real Runestone art, edge camera, WASD, HTML5.

@@ -33,6 +33,7 @@
 | **v0.4.0** | **Haex GREENLIGHT:** Abandon needs-only. Stage advance = one-click **Grow** (Fertilizer + Essence). Water still Manashards + Essence; Stone Watering Can doubles Manashard amount/pulse only. Backpack (crafts only) + handcrafting + 4 unique tools (Keeper 2× channel only). Fertilizer recipe wood+stone+food (no shards). Blessing `keep_tools`; `green_thumb` → Fertilizer craft ingredient costs −10%/rank. Ascend wipes backpack (Keep Tools re-grants 4 tools). `SAVE_VERSION` **6**. |
 | v0.4.0 note | Playtest backlog was PARKED pending next coding session — **GREENLIT → live v0.4.1** (§11 D6). |
 | **v0.4.1** | **Haex D6 LIVE (coding session OPENED):** Can recipe = **20 Stone Fragments** only; Basket = **20 Wooden Planks**. Handcraft UI: Watering Can + Fertilizer rows **costs only**; fix scroll vs panel width. Rename heads → **Stone Axe Head**, **Stone Pickaxe Head**. `keep_tools` = **3000** Manashards flat (max 1). Ascension shop rows show **short description / tooltip**. Fert craft ~2× (`FERT_* = 10`); Grow Fertilizer **3 / 6 / 12 / 24**; Keep Essence **20 / 40 / 60 / 80**. Same PR Code notes: arrow-key camera clamped to play bounds; map ~**2×W × 3×H**; dense decorative trees + bushes; collision bottom-third trunks / bush bottom-center; no edge-scroll yet. `SAVE_VERSION` stays **6** (number-only retunes; no backpack schema change). |
+| **v0.4.2** | **Haex GREENLIGHT:** Character sheet (HUD **Character** + **C**), seven stats, seven hub Runestones, Stone Sword + Weapon Rod, Manatree visual scales. Combat and Forge Key still later. `SAVE_VERSION` stays **6** (additive `keeper_stats` + `equipment` keys). |
 
 ---
 
@@ -512,7 +513,7 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 
 ## 11. Deferred (Haex notes — **do not implement** until greenlight)
 
-Live loop is **v0.4.1** (Fertilizer Grow + backpack/tools + D6 retunes) with must-Ascend-on-commit (v0.3.3). Soft-open and Equipment remain parked. D2/D4/D5/D6 are live pointers only.
+Live loop is **v0.4.2** (Fertilizer Grow + backpack/tools + D6 retunes + character sheet / Runestones / Stone Sword) with must-Ascend-on-commit (v0.3.3). Soft-open and combat remain parked. D2/D3 foundation/D4/D5/D6 are live pointers.
 
 ### D1. Ascension soft-open — still deferred
 1. Fruit interact opens the Manashard shop as a **preview**. World **stays live** (move / water / harvest / wisps still work).
@@ -523,14 +524,12 @@ Live loop is **v0.4.1** (Fertilizer Grow + backpack/tools + D6 retunes) with mus
 ### D2. Manatree care CTA — GREENLIT → live v0.4.0
 ~~Stage-advance button label Grow~~ → **LIVE:** CTA **Grow**, costs on control (Fertilizer + Essence). See §4. (Was deferred under needs-only Pay; greenlit with Fertilizer Grow.)
 
-### D3. Equipment & Stats (mid-term — discuss park)
-Haex write-up (Sep 2026): Echo Chamber power — 7 combat stats via Runestones; Weapon + Relic craft-only; Bare Stone first; levels/runes later data shape. **Not live.** Live cozy loop is Fertilizer Grow + Wisps + Ascension Manashard shop.
+### D3. Equipment & Stats — GREENLIT foundation (v0.4.2)
+Haex greenlight overrides the older “two slots / Bare Stone Relic now” note.
 
-**Haex draft lock (2026-09-19):** **One Manashard pool** for both Runestone permanent stats (mid-run) and Ascension blessing shop. Intentional **bank-vs-spend** dilemma. Prices TBD / retune at implement. **Separate Runestone currency (Design discuss rec) is PARKED / overturned.**
+**Live:** `KeeperStats` + `Equipment` autoloads beside GameState. Seven stats (might, arcana, resilience, ward, vitality, swiftness, fate). One Runestone per stat in the hub. Cost = `round(50 * 2^rank)` Manashards (PLACEHOLDER). Power is **+1 flat per rank**. Character sheet: HUD **Character** and **C**. Left portrait (`keeper_idle_south`) with slots on the body, middle = battle gear only, right = **base + gear = total**. Slots: weapon, relic, head, body, hands, pants, feet, cape, ring_1, ring_2. **Only weapon starts unlocked.** Relic stays locked (Forge Key is the first Keeper fight — not this ship). Equip by click or drag. **Weapon Rod** = 10 Wooden Planks (backpack intermediate, not the Wooden Tool Rod). **Stone Sword** = 30 Stone Fragments + 1 Weapon Rod, +2 Might, equipment inventory only. Ranks and battle gear persist through Ascend. Unspent Manashards still wipe. Fate does not change gather, Wisps, or handcraft. Instances store `level` and `runes` unused. `SAVE_VERSION` stays **6**.
 
-**Still parked until greenlight:** KeeperStats, Runestones, EquipmentItem/Manager, Bare Stone recipes, Equipment menu, Echo Chamber combat. No SYSTEMS live bump, no Code implement.
-
-**When greenlit (Design notes):** Manashards still wipe on Ascend (live rule) — Runestone spends mid-run buy *persist* stats; unspent shards still feed Ascension shop then wipe. Rising Runestone cost curve numbers TBD. Do not overload `upgrade_ranks` for combat stats. Stats/gear persist across Ascend (SAVE_VERSION bump then).
+**Still parked:** combat resolution, Forge Key drop, armor recipes, respec, equipment levels UI, rune sockets, real Runestone art.
 
 ### D4. Backpack & Handcrafting — GREENLIT → live v0.4.0
 Short pointer: live rules in **§4d**. Backpack (crafts only), instant handcraft, unique tools, Keeper 2× only / never wisps, Ascend backpack wipe, `keep_tools` re-grants 4 finished tools. Fertilizer as stage currency — see §4 / D5.

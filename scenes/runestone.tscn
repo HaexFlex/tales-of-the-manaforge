@@ -1,0 +1,30 @@
+[gd_scene load_steps=3 format=3 uid="uid://runestone001mf"]
+
+[ext_resource type="Script" path="res://scripts/runestone.gd" id="1_stone"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_stone"]
+size = Vector2(36, 48)
+
+[node name="Runestone" type="Area2D"]
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_stone")
+
+[node name="Stone" type="Polygon2D" parent="."]
+color = Color(0.45, 0.4, 0.48, 1)
+polygon = PackedVector2Array(-14, -40, -8, -48, 8, -48, 14, -40, 16, -8, 10, 0, -10, 0, -16, -8)
+
+[node name="Label" type="Label" parent="."]
+offset_left = -52.0
+offset_top = -78.0
+offset_right = 52.0
+offset_bottom = -48.0
+theme_override_font_sizes/font_size = 11
+text = "Might"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -24)
+shape = SubResource("RectangleShape2D_stone")

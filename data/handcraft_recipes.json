@@ -114,6 +114,15 @@
       "unique": false,
       "color": "#6b5a24",
       "art_name": "icon_fertilizer"
+    },
+    {
+      "id": "weapon_rod",
+      "display_name": "Weapon Rod",
+      "string_key": "part_weapon_rod",
+      "kind": "intermediate",
+      "unique": false,
+      "color": "#6e4a32",
+      "art_name": "icon_weapon_rod"
     }
   ],
   "recipes": [
@@ -176,6 +185,12 @@
       "output_id": "fertilizer",
       "output_count": 1,
       "ingredients": { "wood": 10, "stone": 10, "food": 10 }
+    },
+    {
+      "id": "weapon_rod",
+      "output_id": "weapon_rod",
+      "output_count": 1,
+      "ingredients": { "wooden_planks": 10 }
     }
   ],
   "kept_tools_on_ascend": [

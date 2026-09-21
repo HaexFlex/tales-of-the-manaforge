@@ -122,7 +122,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				resume_game()
 			else:
 				var hud: Node = get_tree().get_first_node_in_group("game_hud")
-				if hud != null and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
+				if hud != null and hud.has_method("is_character_open") and bool(hud.call("is_character_open")):
+					hud.call("close_character_sheet")
+				elif hud != null and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 					hud.call("close_backpack")
 				else:
 					open_pause()

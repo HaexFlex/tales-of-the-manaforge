@@ -1,0 +1,74 @@
+{
+  "version": "v0.4.2-runestones",
+  "notes": [
+    "PLACEHOLDER curve — steep exponential Manashard cost, gentle flat power.",
+    "cost(next) = round(cost_base * cost_growth ^ rank). Rank 0 costs cost_base.",
+    "Each rank adds power_per_rank to that stat (not an exponential stat).",
+    "Fate is stored only. It does not change gather, Wisps, or handcraft.",
+    "Ranks persist through Ascend. Unspent Manashards still wipe."
+  ],
+  "params": {
+    "cost_base": 50,
+    "cost_growth": 2.0,
+    "power_per_rank": 1,
+    "max_rank": 40
+  },
+  "stats": [
+    {
+      "id": "might",
+      "display_name": "Might",
+      "role": "Physical attack",
+      "string_key": "stat_might",
+      "role_key": "stat_might_role",
+      "color": "#a34832"
+    },
+    {
+      "id": "arcana",
+      "display_name": "Arcana",
+      "role": "Magical attack",
+      "string_key": "stat_arcana",
+      "role_key": "stat_arcana_role",
+      "color": "#6a4a9a"
+    },
+    {
+      "id": "resilience",
+      "display_name": "Resilience",
+      "role": "Physical resistance",
+      "string_key": "stat_resilience",
+      "role_key": "stat_resilience_role",
+      "color": "#5a6a32"
+    },
+    {
+      "id": "ward",
+      "display_name": "Ward",
+      "role": "Magical resistance",
+      "string_key": "stat_ward",
+      "role_key": "stat_ward_role",
+      "color": "#3a5a8a"
+    },
+    {
+      "id": "vitality",
+      "display_name": "Vitality",
+      "role": "Health",
+      "string_key": "stat_vitality",
+      "role_key": "stat_vitality_role",
+      "color": "#3a8a4a"
+    },
+    {
+      "id": "swiftness",
+      "display_name": "Swiftness",
+      "role": "Speed",
+      "string_key": "stat_swiftness",
+      "role_key": "stat_swiftness_role",
+      "color": "#c4a24a"
+    },
+    {
+      "id": "fate",
+      "display_name": "Fate",
+      "role": "Luck",
+      "string_key": "stat_fate",
+      "role_key": "stat_fate_role",
+      "color": "#c48ab0"
+    }
+  ]
+}

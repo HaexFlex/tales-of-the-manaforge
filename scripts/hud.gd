@@ -9,6 +9,8 @@ class_name GameHUD
 @onready var status_label: Label = $Panel/StatusLabel
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var pause_button: Button = $Panel/PauseButton
+@onready var character_button: Button = $Panel/CharacterButton
+@onready var character_icon: ColorRect = $Panel/CharacterButton/CharacterIcon
 @onready var backpack_button: Button = $Panel/BackpackButton
 @onready var backpack_icon: ColorRect = $Panel/BackpackButton/BackpackIcon
 @onready var backpack_dim: ColorRect = $BackpackDim
@@ -85,6 +87,7 @@ const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
 const ICON_FERTILIZER: Color = Color(0.42, 0.35, 0.14, 1.0)
 const ICON_ESSENCE: Color = Color(0.56, 0.35, 0.66, 1.0)
 const ICON_BACKPACK: Color = Color(0.48, 0.31, 0.18, 1.0)
+const ICON_CHARACTER: Color = Color(0.77, 0.64, 0.29, 1.0)
 const ICON_KEEP_TOOLS: Color = Color(0.72, 0.53, 0.04, 1.0)
 const BACKPACK_ROW_H: float = 40.0
 
@@ -95,6 +98,7 @@ var _confirm_ascend: bool = false
 var _fruit_confirm_step: int = 0
 var _highlight_ascend: bool = false
 var _backpack_tab: String = "all"
+var _sheet: CharacterSheet = null
 
 
 func _ready() -> void:
@@ -112,6 +116,7 @@ func _ready() -> void:
 	_apply_wood_chrome()
 	add_to_group("game_hud")
 	pause_button.text = ContentStrings.get_text("btn_pause")
+	character_button.text = ContentStrings.get_text("character_open")
 	backpack_button.text = ContentStrings.get_text("backpack_open")
 	backpack_title.text = ContentStrings.get_text("backpack_title")
 	handcraft_title.text = "%s  ·  %s" % [
@@ -124,6 +129,8 @@ func _ready() -> void:
 	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
 	if backpack_icon:
 		backpack_icon.color = ICON_BACKPACK
+	if character_icon:
+		character_icon.color = ICON_CHARACTER
 	if grow_fert_icon:
 		grow_fert_icon.color = ICON_FERTILIZER
 	if grow_ess_icon:
@@ -144,7 +151,13 @@ func _ready() -> void:
 	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
 	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
 	pause_button.pressed.connect(_on_pause_pressed)
+	character_button.pressed.connect(toggle_character_sheet)
 	backpack_button.pressed.connect(toggle_backpack)
+	_sheet = CharacterSheet.new()
+	_sheet.name = "CharacterSheet"
+	_sheet.visible = false
+	_sheet.close_requested.connect(close_character_sheet)
+	add_child(_sheet)
 	backpack_close_button.pressed.connect(close_backpack)
 	backpack_tab_all.pressed.connect(_on_backpack_tab.bind("all"))
 	backpack_tab_tools.pressed.connect(_on_backpack_tab.bind("tools"))
@@ -229,6 +242,7 @@ func _apply_wood_chrome() -> void:
 	_apply_button_chrome(water_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(pay_button, LEAF, GOLD)
 	_apply_button_chrome(harvest_fruit_button, LEAF, GOLD)
+	_apply_button_chrome(character_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(backpack_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(backpack_tab_all, Color(0.18, 0.14, 0.10, 1.0), GOLD)
@@ -257,6 +271,7 @@ func maybe_show_welcome() -> void:
 
 func show_welcome() -> void:
 	close_backpack()
+	close_character_sheet()
 	hide_care_menu()
 	hide_fruit_confirm()
 	hide_ascension_shop()
@@ -346,6 +361,8 @@ func _on_pause_pressed() -> void:
 		return
 	if is_backpack_open():
 		close_backpack()
+	if is_character_open():
+		close_character_sheet()
 	if _pause_menu:
 		_pause_menu.open_pause()
 
@@ -475,6 +492,7 @@ func show_care_menu() -> void:
 		show_ascension_shop()
 		return
 	close_backpack()
+	close_character_sheet()
 	hide_ascension_shop()
 	hide_fruit_confirm()
 	_confirm_pay = false
@@ -580,6 +598,7 @@ func show_ascension_shop() -> void:
 	if not GameState.fruit_harvested_pending_ascend:
 		return
 	backpack_panel.visible = false
+	close_character_sheet()
 	hide_care_menu()
 	hide_fruit_confirm()
 	_hold_world_for_ascension()
@@ -644,6 +663,8 @@ func _release_world_if_allowed() -> void:
 	if GameState.fruit_harvested_pending_ascend:
 		return
 	if is_backpack_open():
+		return
+	if is_character_open():
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
@@ -837,6 +858,60 @@ func is_backpack_open() -> bool:
 	return backpack_panel != null and backpack_panel.visible
 
 
+func is_character_open() -> bool:
+	return _sheet != null and _sheet.visible
+
+
+func toggle_character_sheet() -> void:
+	if is_character_open():
+		close_character_sheet()
+	else:
+		open_character_sheet()
+
+
+func open_character_sheet() -> void:
+	if welcome_panel.visible:
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
+	if is_character_open():
+		return
+	if is_backpack_open():
+		close_backpack()
+	hide_care_menu()
+	hide_fruit_confirm()
+	if _sheet == null:
+		return
+	_sheet.open_sheet()
+	if not GameState.fruit_committed:
+		_hold_world_for_backpack()
+	GameAudio.play_ui_open()
+
+
+func close_character_sheet() -> void:
+	if _sheet == null or not _sheet.visible:
+		return
+	_sheet.close_sheet()
+	GameAudio.play_ui_close()
+	_release_world_if_allowed()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not (event is InputEventKey):
+		return
+	var key: InputEventKey = event
+	if not key.pressed or key.echo:
+		return
+	if key.keycode != KEY_C or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+		return
+	if welcome_panel.visible:
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
+	toggle_character_sheet()
+	get_viewport().set_input_as_handled()
+
+
 func toggle_backpack() -> void:
 	if is_backpack_open():
 		close_backpack()
@@ -852,6 +927,7 @@ func open_backpack() -> void:
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
+	close_character_sheet()
 	hide_care_menu()
 	hide_fruit_confirm()
 	hide_ascension_shop()
@@ -939,7 +1015,12 @@ func _rebuild_backpack() -> void:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
 		var rec: Dictionary = entry
-		craft_list.add_child(_make_craft_row(str(rec.get("id", ""))))
+		craft_list.add_child(_make_craft_row(str(rec.get("id", "")), false))
+	for gear_entry: Variant in Equipment.recipes_data:
+		if typeof(gear_entry) != TYPE_DICTIONARY:
+			continue
+		var gear_rec: Dictionary = gear_entry
+		craft_list.add_child(_make_craft_row(str(gear_rec.get("id", "")), true))
 
 
 func _placeholder_icon(color: Color) -> ColorRect:
@@ -977,20 +1058,21 @@ func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
 	return row
 
 
-func _make_craft_row(recipe_id: String) -> Control:
-	var def: Dictionary = Backpack.get_recipe_def(recipe_id)
+func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
+	var def: Dictionary = Equipment.get_recipe_def(recipe_id) if equipment_out else Backpack.get_recipe_def(recipe_id)
 	var out_id: String = str(def.get("output_id", recipe_id))
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H + 8.0)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 8)
 	row.clip_contents = true
-	row.add_child(_placeholder_icon(Backpack.item_color(out_id)))
+	var swatch: Color = Equipment.item_color(out_id) if equipment_out else Backpack.item_color(out_id)
+	row.add_child(_placeholder_icon(swatch))
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.size_flags_stretch_ratio = 1.0
 	var name_lbl := Label.new()
-	name_lbl.text = Backpack.item_display_name(out_id)
+	name_lbl.text = Equipment.item_display_name(out_id) if equipment_out else Backpack.item_display_name(out_id)
 	name_lbl.add_theme_font_size_override("font_size", 13)
 	name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
 	name_lbl.clip_text = true
@@ -1009,7 +1091,7 @@ func _make_craft_row(recipe_id: String) -> Control:
 	btn.custom_minimum_size = Vector2(72, 28)
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var reason: String = Backpack.craft_block_reason(recipe_id)
+	var reason: String = Equipment.craft_block_reason(recipe_id) if equipment_out else Backpack.craft_block_reason(recipe_id)
 	if reason == "unique":
 		btn.text = ContentStrings.get_text("backpack_owned")
 		btn.disabled = true
@@ -1046,8 +1128,20 @@ func _content_line(key: String, tokens: Dictionary = {}) -> String:
 
 func _craft_row_cost_text(recipe_id: String) -> String:
 	## Prefer Content v0.4.1 shorts, then craft-cost keys, then live ingredient lines.
+	if Equipment.has_recipe(recipe_id):
+		var gear_costs: String = ""
+		if recipe_id == "stone_sword":
+			gear_costs = _content_line("handcraft_row_stone_sword_short")
+		if gear_costs == "":
+			gear_costs = "  ".join(Equipment.recipe_ingredient_lines(recipe_id))
+		var gear_wrapped: String = _content_line("handcraft_row_costs_only", {"costs": gear_costs})
+		if gear_wrapped != "":
+			return gear_wrapped
+		return gear_costs
 	var costs: String = ""
 	match recipe_id:
+		"weapon_rod":
+			costs = _content_line("handcraft_row_weapon_rod_short")
 		"stone_watering_can":
 			costs = _content_line("handcraft_row_watering_can_short")
 			if costs == "":
@@ -1088,6 +1182,9 @@ func get_backpack_layout_metrics() -> Dictionary:
 
 
 func _on_craft(recipe_id: String) -> void:
+	if Equipment.has_recipe(recipe_id):
+		_on_craft_gear(recipe_id)
+		return
 	var result: String = Backpack.try_craft(recipe_id)
 	var out_id: String = str(Backpack.get_recipe_def(recipe_id).get("output_id", recipe_id))
 	var item_name: String = Backpack.item_display_name(out_id)
@@ -1107,6 +1204,27 @@ func _on_craft(recipe_id: String) -> void:
 	else:
 		status_label.text = ContentStrings.get_text("handcraft_cant_afford", {
 			"costs": "  ".join(Backpack.recipe_ingredient_lines(recipe_id)),
+		})
+	_rebuild_backpack()
+
+
+func _on_craft_gear(recipe_id: String) -> void:
+	var result: String = Equipment.try_craft(recipe_id)
+	var out_id: String = str(Equipment.get_recipe_def(recipe_id).get("output_id", recipe_id))
+	var item_name: String = Equipment.item_display_name(out_id)
+	if result == "ok":
+		GameAudio.play_ui_confirm()
+		status_label.text = ContentStrings.get_text("handcraft_gear_ok", {"item": item_name})
+		_rebuild_backpack()
+		_refresh_resources()
+		SaveService.save_game()
+		return
+	GameAudio.play_tree_deny()
+	if result == "unique":
+		status_label.text = ContentStrings.get_text("handcraft_owned_unique")
+	else:
+		status_label.text = ContentStrings.get_text("handcraft_cant_afford", {
+			"costs": "  ".join(Equipment.recipe_ingredient_lines(recipe_id)),
 		})
 	_rebuild_backpack()
 

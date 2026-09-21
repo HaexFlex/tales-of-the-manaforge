@@ -25,6 +25,7 @@ const ATLAS_PATH_V := Vector2i(1, 1)
 const ATLAS_PATH_CROSS := Vector2i(2, 1)
 
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
+const RUNESTONE_SCENE: PackedScene = preload("res://scenes/runestone.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
 var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
@@ -40,8 +41,10 @@ var _rows: int = 34
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_to_group("main_root")
 	_load_hub_map()
 	_apply_landmarks()
+	_spawn_runestones()
 	_setup_camera()
 	_build_grass()
 	_spawn_forest_props()
@@ -120,6 +123,30 @@ func _apply_landmarks() -> void:
 		harvest_stone.position = _vec2_from(marks.get("harvest_stone", [1040, 1160]))
 	if harvest_berry:
 		harvest_berry.position = _vec2_from(marks.get("harvest_berry", [1540, 1140]))
+
+
+func _spawn_runestones() -> void:
+	## One placeholder stone per combat stat, beside the Manatree in the open glade.
+	var rows: Variant = hub_map.get("runestones", [])
+	if typeof(rows) != TYPE_ARRAY or world == null:
+		return
+	var root := Node2D.new()
+	root.name = "Runestones"
+	world.add_child(root)
+	for entry: Variant in rows:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var d: Dictionary = entry
+		var sid: String = str(d.get("stat", ""))
+		if sid == "":
+			continue
+		var stone: Runestone = RUNESTONE_SCENE.instantiate() as Runestone
+		if stone == null:
+			continue
+		stone.name = "Runestone_%s" % sid
+		stone.stat_id = StringName(sid)
+		stone.position = _vec2_from(d.get("pos", [0, 0]))
+		root.add_child(stone)
 
 
 func _setup_camera() -> void:
@@ -460,6 +487,8 @@ func world_input_blocked() -> bool:
 	if hud.fruit_confirm_panel.visible:
 		return true
 	if hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
+		return true
+	if hud.has_method("is_character_open") and bool(hud.call("is_character_open")):
 		return true
 	return pause_menu.is_open()
 

@@ -1,0 +1,658 @@
+extends Control
+class_name CharacterSheet
+## Paper-doll character sheet. Portrait left, battle gear middle, stats right.
+## Equip by click or drag. Locked slots stay grey until a later forge unlock.
+
+signal close_requested
+
+const PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
+const SHEET_SIZE: Vector2 = Vector2(1040, 600)
+const PORTRAIT_SIZE: Vector2 = Vector2(220, 300)
+const SLOT_SIZE: Vector2 = Vector2(56, 64)
+const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
+const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
+const LOCK_GREY: Color = Color(0.42, 0.42, 0.46, 0.90)
+const INK: Color = Color(0.92, 0.86, 0.72, 1.0)
+const MUTED: Color = Color(0.70, 0.64, 0.52, 1.0)
+
+var _portrait: TextureRect
+var _inv_list: VBoxContainer
+var _footer: Label
+var _hover_item_id: String = ""
+var _built: bool = false
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	offset_left = 0.0
+	offset_top = 0.0
+	offset_right = 0.0
+	offset_bottom = 0.0
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	visible = false
+	_build()
+	if not Equipment.equipment_changed.is_connected(_refresh):
+		Equipment.equipment_changed.connect(_refresh)
+	if not KeeperStats.ranks_changed.is_connected(_on_ranks):
+		KeeperStats.ranks_changed.connect(_on_ranks)
+	_refresh()
+
+
+func _on_ranks(_stat_id: StringName) -> void:
+	if visible:
+		_refresh_stats()
+
+
+func is_open() -> bool:
+	return visible
+
+
+func open_sheet() -> void:
+	visible = true
+	_hover_item_id = ""
+	_refresh()
+
+
+func close_sheet() -> void:
+	visible = false
+	_hover_item_id = ""
+
+
+func request_close() -> void:
+	close_requested.emit()
+
+
+func request_equip(item_id: String) -> String:
+	var result: String = Equipment.try_equip(item_id)
+	_toast(result, item_id, Equipment.item_slot(item_id))
+	return result
+
+
+func request_equip_slot(item_id: String, slot_id: String) -> String:
+	var result: String = Equipment.try_equip_to_slot(item_id, slot_id)
+	_toast(result, item_id, slot_id)
+	return result
+
+
+func request_unequip(slot_id: String) -> String:
+	var item_id: String = Equipment.equipped_id(slot_id)
+	var result: String = Equipment.try_unequip(slot_id)
+	_toast(result, item_id, slot_id)
+	return result
+
+
+func set_hover_item(item_id: String) -> void:
+	if _hover_item_id == item_id:
+		return
+	_hover_item_id = item_id
+	_refresh_stats()
+
+
+func _toast(result: String, item_id: String, slot_id: String) -> void:
+	var item_name: String = Equipment.item_display_name(item_id) if item_id != "" else ""
+	var text: String = ""
+	match result:
+		"ok":
+			if Equipment.equipped_id(slot_id) == item_id and item_id != "":
+				text = ContentStrings.get_text("equip_ok", {"item": item_name})
+			else:
+				text = ContentStrings.get_text("unequip_ok", {"item": item_name})
+			GameAudio.play_ui_confirm()
+			SaveService.save_game()
+		"locked":
+			text = Equipment.slot_lock_hint(slot_id if slot_id != "" else Equipment.item_slot(item_id))
+			GameAudio.play_tree_deny()
+		"wrong_slot":
+			text = ContentStrings.get_text("equip_wrong_slot")
+			GameAudio.play_tree_deny()
+		"missing":
+			text = ContentStrings.get_text("equip_missing")
+			GameAudio.play_tree_deny()
+		"empty":
+			text = ""
+		_:
+			text = ""
+	if text != "":
+		if _footer:
+			_footer.text = text
+		GameState.status_message.emit(text)
+
+
+func _build() -> void:
+	if _built:
+		return
+	_built = true
+	var dim := ColorRect.new()
+	dim.name = "Dim"
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.02, 0.03, 0.02, 0.55)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.gui_input.connect(_on_dim_input)
+	add_child(dim)
+
+	var sheet := Panel.new()
+	sheet.name = "Sheet"
+	sheet.custom_minimum_size = SHEET_SIZE
+	sheet.anchor_left = 0.5
+	sheet.anchor_top = 0.5
+	sheet.anchor_right = 0.5
+	sheet.anchor_bottom = 0.5
+	sheet.offset_left = -SHEET_SIZE.x * 0.5
+	sheet.offset_top = -SHEET_SIZE.y * 0.5
+	sheet.offset_right = SHEET_SIZE.x * 0.5
+	sheet.offset_bottom = SHEET_SIZE.y * 0.5
+	sheet.mouse_filter = Control.MOUSE_FILTER_STOP
+	sheet.add_theme_stylebox_override("panel", _wood_style())
+	add_child(sheet)
+
+	var title := Label.new()
+	title.name = "Title"
+	title.position = Vector2(20, 14)
+	title.size = Vector2(640, 28)
+	title.text = ContentStrings.get_text("character_title")
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", GOLD)
+	sheet.add_child(title)
+
+	var hint := Label.new()
+	hint.name = "Hint"
+	hint.position = Vector2(20, 42)
+	hint.size = Vector2(700, 20)
+	hint.text = ContentStrings.get_text("character_hint")
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", MUTED)
+	sheet.add_child(hint)
+
+	var close := Button.new()
+	close.name = "CloseButton"
+	close.position = Vector2(SHEET_SIZE.x - 116, 16)
+	close.size = Vector2(96, 36)
+	close.text = ContentStrings.get_text("btn_close")
+	close.pressed.connect(request_close)
+	_paint_button(close, Color(0.18, 0.14, 0.10, 1.0))
+	sheet.add_child(close)
+
+	var host := Control.new()
+	host.name = "PortraitHost"
+	host.position = Vector2(24, 78)
+	host.size = PORTRAIT_SIZE
+	host.custom_minimum_size = PORTRAIT_SIZE
+	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sheet.add_child(host)
+
+	var backdrop := ColorRect.new()
+	backdrop.name = "PortraitBackdrop"
+	backdrop.position = Vector2(18, 36)
+	backdrop.size = Vector2(PORTRAIT_SIZE.x - 36, PORTRAIT_SIZE.y - 48)
+	backdrop.color = Color(0.10, 0.14, 0.11, 1.0)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.add_child(backdrop)
+
+	_portrait = TextureRect.new()
+	_portrait.name = "Portrait"
+	_portrait.position = Vector2(30, 8)
+	_portrait.size = Vector2(PORTRAIT_SIZE.x - 60, PORTRAIT_SIZE.y - 16)
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex: Texture2D = load(PORTRAIT_PATH) as Texture2D
+	_portrait.texture = tex
+	host.add_child(_portrait)
+
+	for slot_name: StringName in Equipment.SLOT_ORDER:
+		var sid: String = String(slot_name)
+		var plate := SlotPlate.new()
+		plate.name = "Slot_%s" % sid
+		plate.slot_id = sid
+		plate.host = self
+		plate.custom_minimum_size = SLOT_SIZE
+		plate.size = SLOT_SIZE
+		var anchor: Vector2 = Equipment.slot_anchor(sid)
+		plate.position = Vector2(
+			anchor.x * PORTRAIT_SIZE.x - SLOT_SIZE.x * 0.5,
+			anchor.y * PORTRAIT_SIZE.y - SLOT_SIZE.y * 0.5
+		)
+		plate.mouse_filter = Control.MOUSE_FILTER_STOP
+		host.add_child(plate)
+		plate.setup()
+
+	var mid := InvColumn.new()
+	mid.name = "GearColumn"
+	mid.host = self
+	mid.mouse_filter = Control.MOUSE_FILTER_STOP
+	mid.position = Vector2(268, 72)
+	mid.size = Vector2(360, 470)
+	sheet.add_child(mid)
+
+	var gear_title := Label.new()
+	gear_title.name = "GearTitle"
+	gear_title.position = Vector2(0, 0)
+	gear_title.size = Vector2(360, 22)
+	gear_title.text = ContentStrings.get_text("character_equip_title")
+	gear_title.add_theme_font_size_override("font_size", 15)
+	gear_title.add_theme_color_override("font_color", GOLD)
+	mid.add_child(gear_title)
+
+	var gear_hint := Label.new()
+	gear_hint.position = Vector2(0, 22)
+	gear_hint.size = Vector2(360, 36)
+	gear_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	gear_hint.text = ContentStrings.get_text("character_equip_hint")
+	gear_hint.add_theme_font_size_override("font_size", 11)
+	gear_hint.add_theme_color_override("font_color", MUTED)
+	mid.add_child(gear_hint)
+
+	var scroll := ScrollContainer.new()
+	scroll.name = "GearScroll"
+	scroll.position = Vector2(0, 62)
+	scroll.size = Vector2(360, 400)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	mid.add_child(scroll)
+
+	_inv_list = VBoxContainer.new()
+	_inv_list.name = "GearList"
+	_inv_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_inv_list.add_theme_constant_override("separation", 6)
+	scroll.add_child(_inv_list)
+
+	var right := Control.new()
+	right.name = "Stats"
+	right.position = Vector2(648, 72)
+	right.size = Vector2(368, 470)
+	sheet.add_child(right)
+
+	var stats_title := Label.new()
+	stats_title.name = "StatsTitle"
+	stats_title.position = Vector2(0, 0)
+	stats_title.size = Vector2(360, 22)
+	stats_title.text = ContentStrings.get_text("character_stats_title")
+	stats_title.add_theme_font_size_override("font_size", 15)
+	stats_title.add_theme_color_override("font_color", GOLD)
+	right.add_child(stats_title)
+
+	var stats_hint := Label.new()
+	stats_hint.position = Vector2(0, 22)
+	stats_hint.size = Vector2(360, 20)
+	stats_hint.text = ContentStrings.get_text("character_stats_hint")
+	stats_hint.add_theme_font_size_override("font_size", 11)
+	stats_hint.add_theme_color_override("font_color", MUTED)
+	right.add_child(stats_hint)
+
+	var y: float = 50.0
+	for stat_name: StringName in KeeperStats.STAT_ORDER:
+		var sid: String = String(stat_name)
+		var block := VBoxContainer.new()
+		block.name = "Stat_%s" % sid
+		block.position = Vector2(0, y)
+		block.size = Vector2(360, 52)
+		right.add_child(block)
+		var name_lbl := Label.new()
+		name_lbl.name = "Name"
+		name_lbl.text = KeeperStats.stat_display_name(sid)
+		name_lbl.add_theme_font_size_override("font_size", 14)
+		name_lbl.add_theme_color_override("font_color", KeeperStats.stat_color(sid))
+		var line := Label.new()
+		line.name = "Line"
+		line.add_theme_font_size_override("font_size", 16)
+		line.add_theme_color_override("font_color", INK)
+		var role := Label.new()
+		role.name = "Role"
+		role.text = KeeperStats.stat_role(sid)
+		role.add_theme_font_size_override("font_size", 11)
+		role.add_theme_color_override("font_color", MUTED)
+		block.add_child(name_lbl)
+		block.add_child(line)
+		block.add_child(role)
+		y += 58.0
+
+	var fate_note := Label.new()
+	fate_note.name = "FateNote"
+	fate_note.position = Vector2(0, y + 4.0)
+	fate_note.size = Vector2(360, 36)
+	fate_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fate_note.text = ContentStrings.get_text("stat_fate_note")
+	fate_note.add_theme_font_size_override("font_size", 11)
+	fate_note.add_theme_color_override("font_color", MUTED)
+	right.add_child(fate_note)
+
+	_footer = Label.new()
+	_footer.name = "Footer"
+	_footer.position = Vector2(268, SHEET_SIZE.y - 36)
+	_footer.size = Vector2(740, 24)
+	_footer.add_theme_font_size_override("font_size", 12)
+	_footer.add_theme_color_override("font_color", INK)
+	sheet.add_child(_footer)
+
+
+func _on_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			request_close()
+
+
+func _refresh() -> void:
+	if not _built:
+		return
+	_refresh_slots()
+	_refresh_inventory()
+	_refresh_stats()
+
+
+func _refresh_slots() -> void:
+	var host: Control = get_node_or_null("Sheet/PortraitHost") as Control
+	if host == null:
+		return
+	for slot_name: StringName in Equipment.SLOT_ORDER:
+		var sid: String = String(slot_name)
+		var plate: SlotPlate = host.get_node_or_null("Slot_%s" % sid) as SlotPlate
+		if plate:
+			plate.refresh()
+
+
+func _refresh_inventory() -> void:
+	if _inv_list == null:
+		return
+	for child: Node in _inv_list.get_children():
+		child.queue_free()
+	var rows: Array[Dictionary] = Equipment.list_unequipped()
+	if rows.is_empty():
+		var wearing: bool = false
+		for slot_name: StringName in Equipment.SLOT_ORDER:
+			if Equipment.equipped_id(String(slot_name)) != "":
+				wearing = true
+				break
+		var empty := Label.new()
+		empty.name = "Empty"
+		empty.text = ContentStrings.get_text("character_equip_worn" if wearing else "character_equip_empty")
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		empty.custom_minimum_size = Vector2(320, 48)
+		empty.add_theme_font_size_override("font_size", 12)
+		empty.add_theme_color_override("font_color", MUTED)
+		_inv_list.add_child(empty)
+		return
+	for inst: Dictionary in rows:
+		var row := GearRow.new()
+		row.host = self
+		row.item_id = str(inst.get("id", ""))
+		row.custom_minimum_size = Vector2(320, 48)
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.mouse_filter = Control.MOUSE_FILTER_STOP
+		_inv_list.add_child(row)
+		row.setup()
+
+
+func _refresh_stats() -> void:
+	var root: Node = get_node_or_null("Sheet/Stats")
+	if root == null:
+		return
+	for stat_name: StringName in KeeperStats.STAT_ORDER:
+		var sid: String = String(stat_name)
+		var line: Label = root.get_node_or_null("Stat_%s/Line" % sid) as Label
+		if line == null:
+			continue
+		var base: int = KeeperStats.get_base(sid)
+		var gear: int = Equipment.gear_bonus(sid)
+		var shown_gear: int = gear
+		if _hover_item_id != "":
+			shown_gear = Equipment.preview_gear_bonus(sid, _hover_item_id)
+		var total: int = base + shown_gear
+		var text: String = ContentStrings.get_text("character_stat_line", {
+			"base": base,
+			"gear": shown_gear,
+			"total": total,
+		})
+		if text == "character_stat_line":
+			text = "%d + %d = %d" % [base, shown_gear, total]
+		if _hover_item_id != "" and shown_gear != gear:
+			var delta: int = shown_gear - gear
+			var sign: String = "+" if delta > 0 else ""
+			text = "%s  (%s%d)" % [text, sign, delta]
+		line.text = text
+
+
+func _wood_style() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = WOOD
+	sb.border_color = GOLD
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(2)
+	return sb
+
+
+func _paint_button(btn: Button, bg: Color) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = bg
+	normal.border_color = GOLD
+	normal.set_border_width_all(1)
+	normal.set_corner_radius_all(3)
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = bg.lightened(0.08)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", normal)
+	btn.add_theme_stylebox_override("focus", hover)
+	btn.add_theme_color_override("font_color", INK)
+
+
+class InvColumn extends Control:
+	var host: Control = null
+
+	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
+		if typeof(data) != TYPE_DICTIONARY:
+			return false
+		return str((data as Dictionary).get("from_slot", "")) != ""
+
+	func _drop_data(_at: Vector2, data: Variant) -> void:
+		if host == null or typeof(data) != TYPE_DICTIONARY:
+			return
+		host.call("request_unequip", str((data as Dictionary).get("from_slot", "")))
+
+
+class SlotPlate extends Panel:
+	var slot_id: String = ""
+	var host: Control = null
+	var _icon: ColorRect
+	var _lock: ColorRect
+	var _caption: Label
+	var _pressed: bool = false
+	var _dragged: bool = false
+
+	func setup() -> void:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.12, 0.09, 0.07, 1.0)
+		sb.border_color = Color(0.82, 0.64, 0.28, 1.0)
+		sb.set_border_width_all(1)
+		sb.set_corner_radius_all(2)
+		add_theme_stylebox_override("panel", sb)
+		_icon = ColorRect.new()
+		_icon.name = "Icon"
+		_icon.position = Vector2(10, 4)
+		_icon.size = Vector2(36, 36)
+		_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_icon)
+		_lock = ColorRect.new()
+		_lock.name = "Lock"
+		_lock.position = Vector2(10, 4)
+		_lock.size = Vector2(36, 36)
+		_lock.color = Color(0.42, 0.42, 0.46, 0.90)
+		_lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_lock)
+		_caption = Label.new()
+		_caption.name = "Hint"
+		_caption.position = Vector2(0, 42)
+		_caption.size = Vector2(56, 20)
+		_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_caption.add_theme_font_size_override("font_size", 9)
+		_caption.add_theme_color_override("font_color", Color(0.78, 0.74, 0.64, 1.0))
+		_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_caption)
+		refresh()
+
+	func refresh() -> void:
+		if _icon == null:
+			return
+		var unlocked: bool = Equipment.is_slot_unlocked(slot_id)
+		var iid: String = Equipment.equipped_id(slot_id)
+		_lock.visible = not unlocked
+		if not unlocked:
+			_icon.color = Color(0.28, 0.28, 0.30, 1.0)
+			_caption.text = Equipment.slot_lock_short(slot_id)
+			tooltip_text = Equipment.slot_lock_hint(slot_id)
+			return
+		tooltip_text = Equipment.slot_display_name(slot_id)
+		if iid == "":
+			_icon.color = Color(0.24, 0.18, 0.12, 1.0)
+			_caption.text = Equipment.slot_display_name(slot_id)
+		else:
+			_icon.color = Equipment.item_color(iid)
+			_caption.text = Equipment.item_display_name(iid)
+			tooltip_text = Equipment.item_display_name(iid)
+
+	func _gui_input(event: InputEvent) -> void:
+		if not (event is InputEventMouseButton):
+			return
+		var mb: InputEventMouseButton = event
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mb.pressed:
+			_pressed = true
+			return
+		if not _pressed:
+			return
+		_pressed = false
+		if _dragged:
+			_dragged = false
+			return
+		if host == null:
+			return
+		if not Equipment.is_slot_unlocked(slot_id):
+			var hint: String = Equipment.slot_lock_hint(slot_id)
+			GameAudio.play_tree_deny()
+			GameState.status_message.emit(hint)
+			var footer: Label = host.get_node_or_null("Sheet/Footer") as Label
+			if footer:
+				footer.text = hint
+			return
+		var iid: String = Equipment.equipped_id(slot_id)
+		if iid != "":
+			host.call("request_unequip", slot_id)
+
+	func _get_drag_data(_at: Vector2) -> Variant:
+		var iid: String = Equipment.equipped_id(slot_id)
+		if iid == "" or not Equipment.is_slot_unlocked(slot_id):
+			return null
+		_dragged = true
+		var preview := ColorRect.new()
+		preview.custom_minimum_size = Vector2(32, 32)
+		preview.color = Equipment.item_color(iid)
+		set_drag_preview(preview)
+		return {"kind": "gear", "item_id": iid, "from_slot": slot_id}
+
+	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
+		if typeof(data) != TYPE_DICTIONARY:
+			return false
+		if not Equipment.is_slot_unlocked(slot_id):
+			return false
+		var d: Dictionary = data
+		if str(d.get("kind", "")) != "gear":
+			return false
+		var iid: String = str(d.get("item_id", ""))
+		if str(d.get("from_slot", "")) == slot_id:
+			return false
+		return Equipment.item_fits_slot(iid, slot_id)
+
+	func _drop_data(_at: Vector2, data: Variant) -> void:
+		if typeof(data) != TYPE_DICTIONARY or host == null:
+			return
+		var d: Dictionary = data
+		var iid: String = str(d.get("item_id", ""))
+		var from_slot: String = str(d.get("from_slot", ""))
+		if from_slot != "":
+			host.call("request_unequip", from_slot)
+		host.call("request_equip_slot", iid, slot_id)
+
+
+class GearRow extends Panel:
+	var item_id: String = ""
+	var host: Control = null
+	var _pressed: bool = false
+	var _dragged: bool = false
+
+	func setup() -> void:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.20, 0.14, 0.09, 1.0)
+		sb.border_color = Color(0.45, 0.34, 0.18, 1.0)
+		sb.set_border_width_all(1)
+		sb.set_corner_radius_all(2)
+		sb.content_margin_left = 4.0
+		sb.content_margin_right = 4.0
+		sb.content_margin_top = 4.0
+		sb.content_margin_bottom = 4.0
+		add_theme_stylebox_override("panel", sb)
+		var row := HBoxContainer.new()
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_theme_constant_override("separation", 8)
+		add_child(row)
+		var icon := ColorRect.new()
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.color = Equipment.item_color(item_id)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(icon)
+		var lbl := Label.new()
+		lbl.text = Equipment.item_display_name(item_id)
+		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.add_theme_font_size_override("font_size", 13)
+		lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(lbl)
+		tooltip_text = ContentStrings.get_text("character_equip_hint")
+
+	func _gui_input(event: InputEvent) -> void:
+		if event is InputEventMouseMotion and host != null:
+			host.call("set_hover_item", item_id)
+		if not (event is InputEventMouseButton):
+			return
+		var mb: InputEventMouseButton = event
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mb.pressed:
+			_pressed = true
+			return
+		if not _pressed:
+			return
+		_pressed = false
+		if _dragged:
+			_dragged = false
+			return
+		if host:
+			host.call("request_equip", item_id)
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_MOUSE_EXIT and host != null:
+			host.call("set_hover_item", "")
+
+	func _get_drag_data(_at: Vector2) -> Variant:
+		if item_id == "":
+			return null
+		_dragged = true
+		var preview := ColorRect.new()
+		preview.custom_minimum_size = Vector2(32, 32)
+		preview.color = Equipment.item_color(item_id)
+		set_drag_preview(preview)
+		return {"kind": "gear", "item_id": item_id, "from_slot": ""}
+
+	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
+		if typeof(data) != TYPE_DICTIONARY:
+			return false
+		return str((data as Dictionary).get("from_slot", "")) != ""
+
+	func _drop_data(_at: Vector2, data: Variant) -> void:
+		if host == null or typeof(data) != TYPE_DICTIONARY:
+			return
+		host.call("request_unequip", str((data as Dictionary).get("from_slot", "")))

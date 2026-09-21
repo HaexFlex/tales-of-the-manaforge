@@ -26,6 +26,7 @@
 | **v0.2.3** | Haex: Ascension shop spends **Manashards** on blessings; multi-buy OK; then Ascend. Not free-pick, not Essence. |
 | **v0.4.0 refine** | Wire `fertilizer_craft_cost_*`, `tree_grow_cost_*`, Watering Can Manashard-only hint, backpack wipe / Keep Tools regrant toasts. Align Grow (not Pay) with SYSTEMS v0.4.0. |
 | **v0.4.1** | D6 LIVE: `part_stone_axe_head` / `part_stone_pickaxe_head`; costs-only handcraft shorts; Grow Fert 3/6/12/24; Keep Tools 3000; blessing `*_tooltip`; Fert craft default ×10. |
+| **v0.4.2** | Character sheet, seven stat names, Runestone buy lines, Weapon Rod, Stone Sword, slot lock hints (Relic = Forge Key). |
 
 ---
 
