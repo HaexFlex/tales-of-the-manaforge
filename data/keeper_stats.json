@@ -1,13 +1,13 @@
 {
-  "version": "v0.5.0-runestones",
+  "version": "v0.5.1-runestones",
   "notes": [
-    "PLACEHOLDER curve — SYSTEMS v0.5.0. Tune later.",
+    "PLACEHOLDER curve — SYSTEMS v0.5.1. Tune later.",
     "cost(rank) = floor(RUNESTONE_BASE * RUNESTONE_GROWTH ^ rank). Rank 0 costs BASE.",
     "RUNESTONE_BASE = 100, RUNESTONE_GROWTH = 1.65.",
     "Examples: 0→1: 100 | 1→2: 165 | 2→3: 272 | 3→4: 449 | 4→5: 741.",
-    "Each purchase adds power_per_rank (flat) on top of starting_base.",
-    "Displayed base starts at starting_base (5). Cost rank is purchases above that floor, so a new Keeper still pays 100 for the first point.",
-    "Saves with a stat below starting_base are raised to that floor. Values already at or above it stay.",
+    "keeper_stats stores Runestone ranks (starts 0). Each rank adds power_per_rank.",
+    "Sheet base = STAT_BASE_START + ranks (5). Total = base + gear.",
+    "SAVE_VERSION stays 7. Missing ranks load as 0. An absolute below 5 displays at least 5. Ranks >= 5 stay.",
     "Ranks persist through Ascend. Unspent Manashards still wipe."
   ],
   "params": {
@@ -15,7 +15,7 @@
     "cost_growth": 1.65,
     "power_per_rank": 1,
     "max_rank": 40,
-    "starting_base": 5
+    "stat_base_start": 5
   },
   "stats": [
     {

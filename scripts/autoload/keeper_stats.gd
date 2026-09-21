@@ -5,6 +5,8 @@ extends Node
 
 signal ranks_changed(stat_id: StringName)
 
+## Displayed combat base before gear. Ranks are purchases on top of this.
+const STAT_BASE_START: int = 5
 const DATA_PATH: String = "res://data/keeper_stats.json"
 const STAT_ORDER: Array[StringName] = [
 	&"might", &"arcana", &"resilience", &"ward", &"vitality", &"swiftness", &"fate"
@@ -45,16 +47,19 @@ func _load_tables() -> void:
 			_stat_index[sid] = d
 
 
+func stat_base_start() -> int:
+	return STAT_BASE_START
+
+
 func starting_base() -> int:
-	return maxi(0, int(params.get("starting_base", 5)))
+	return stat_base_start()
 
 
 func _ensure_keys() -> void:
-	var floor_at: int = starting_base()
 	for sid: StringName in STAT_ORDER:
 		var key: String = String(sid)
 		if not ranks.has(key):
-			ranks[key] = floor_at
+			ranks[key] = 0
 
 
 func is_known_stat(stat_id: String) -> bool:
@@ -93,12 +98,7 @@ func stat_color(stat_id: String) -> Color:
 
 
 func get_rank(stat_id: String) -> int:
-	return int(ranks.get(stat_id, starting_base()))
-
-
-## Purchases above the free starting base. The cost curve still starts at 0 → 100.
-func purchased_rank(stat_id: String) -> int:
-	return maxi(0, get_rank(stat_id) - starting_base())
+	return int(ranks.get(stat_id, 0))
 
 
 func get_max_rank() -> int:
@@ -109,23 +109,23 @@ func power_per_rank() -> int:
 	return maxi(1, int(params.get("power_per_rank", 1)))
 
 
-## Flat combat power. Starts at starting_base; each purchase adds power_per_rank.
-## Gear is added by Equipment, not here.
+## Sheet base. `STAT_BASE_START + ranks`. Gear is added by Equipment, not here.
 func get_base(stat_id: String) -> int:
-	return get_rank(stat_id) * power_per_rank()
+	return stat_base_start() + get_rank(stat_id) * power_per_rank()
 
 
 ## Next purchase cost. -1 when the rank cap is reached.
+## Rank 0 still costs BASE. The curve is not shifted by STAT_BASE_START.
 func get_next_cost(stat_id: String) -> int:
 	if not is_known_stat(stat_id):
 		return -1
-	if get_rank(stat_id) >= get_max_rank():
+	var rank: int = get_rank(stat_id)
+	if rank >= get_max_rank():
 		return -1
-	var bought: int = purchased_rank(stat_id)
 	var base: int = int(params.get("cost_base", 100))
 	var growth: float = float(params.get("cost_growth", 1.65))
-	## floor(BASE * GROWTH^purchased). Fresh base 5 is purchased 0 and still costs BASE.
-	return int(floor(float(base) * pow(growth, float(bought)) + 0.0000001))
+	## floor(BASE * GROWTH^rank). Tiny epsilon keeps binary 1.65 products on the documented step.
+	return int(floor(float(base) * pow(growth, float(rank)) + 0.0000001))
 
 
 func can_buy(stat_id: String) -> bool:
@@ -158,7 +158,7 @@ func try_buy(stat_id: String) -> String:
 func set_rank(stat_id: String, rank: int) -> void:
 	if not is_known_stat(stat_id):
 		return
-	ranks[stat_id] = clampi(rank, starting_base(), get_max_rank())
+	ranks[stat_id] = clampi(rank, 0, get_max_rank())
 	ranks_changed.emit(StringName(stat_id))
 
 
@@ -190,13 +190,21 @@ func to_save_dict() -> Dictionary:
 	return ranks.duplicate(true)
 
 
+## Missing ranks load as 0 (sheet base 5). A stored absolute below
+## STAT_BASE_START stays a non-negative rank so the sheet base floors at 5
+## via `5 + rank`. Ranks already >= 5 are not reduced.
+func normalize_loaded_rank(present: bool, raw: int) -> int:
+	if not present:
+		return 0
+	return clampi(raw, 0, get_max_rank())
+
+
 func apply_save_dict(data: Variant) -> void:
 	ranks.clear()
 	var src: Dictionary = data if typeof(data) == TYPE_DICTIONARY else {}
-	var floor_at: int = starting_base()
-	var cap: int = get_max_rank()
 	for sid: StringName in STAT_ORDER:
 		var key: String = String(sid)
-		var raw: int = int(src.get(key, 0)) if src.has(key) else 0
-		ranks[key] = clampi(maxi(raw, floor_at), floor_at, cap)
+		var present: bool = src.has(key)
+		var raw: int = int(src.get(key, 0)) if present else 0
+		ranks[key] = normalize_loaded_rank(present, raw)
 	ranks_changed.emit(&"")

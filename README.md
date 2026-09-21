@@ -10,7 +10,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 - Playable forest hub: **2560×2160** play area (**2× × 3×** of the original 1280×720 hub), **64² grass TileMap**, dense Y-sorted **decorative** Haex forest ring around an open glade, **exactly 3** harvest channels, Manatree landmark; view **1280×720** nearest-neighbor; **arrow keys** pan the camera (clamped to play bounds)
 - Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `Backpack`, `KeeperStats`, `Equipment`, `SaveService`
 - Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options stub, Exit
-- Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **8**`; backpack stacks; keeper stats + gear inventory; combat bases start at **5**, older stats below 5 are raised to 5; v6 saves still start gear empty; legacy single-file migrates → slot 1; old `growth` ignored)
+- Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **7**`; backpack stacks; keeper stats store Runestone ranks starting at **0**; the sheet base is **5 + rank**; missing ranks load as 0; v6 saves still start gear empty; legacy single-file migrates → slot 1; old `growth` ignored)
 
 ## Prototype loop (Haex Grow + backpack)
 
@@ -20,7 +20,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 4. Grow costs: Young **3 Fertilizer + 20 Essence** → Mature **6+40** → Elder **12+60** → Ancient **24+80**. Handcraft Fertilizer (10 wood+stone+food) in the **Backpack**.
 5. At **ancient**, harvest **Primordial Fruit** → Manashard blessings (including **Keep Tools**) → **Ascend** (backpack wipe; tools return only with Keep Tools).
 6. **Character** (HUD button or **C**): paper-doll equipment and seven combat stats (base + gear = total). Slots are weapon, relic, head, body, hands, pants, feet, cape, ring1, ring2. Only **weapon** starts unlocked. Slots are half-transparent squares with no gold border. An empty weapon reads **Weapon**; a locked slot reads **Locked** under the square. Handcraft a **Weapon Rod** (10 Wooden Planks) and a **Stone Sword** (`stone_sword`: 30 Stone Fragments + 1 Weapon Rod). Both land in the gear inventory, not the backpack. The rod is consumed into the sword.
-7. Seven **Runestones** in the hub spend the same Manashard pool as the Ascension shop. Select the Keeper, right-click a stone, and they walk in range. Confirm, then +1 in that stat. Every combat base **starts at 5**. Cost is `floor(100 × 1.65^purchased)` where purchased is points above 5 (PLACEHOLDER) — the first point is still 100. Ranks, equipped gear, and the gear inventory persist through Ascend. Unspent Manashards and the backpack still wipe. Keep Tools returns tools only. Fate does not change gather, Wisps, or handcraft.
+7. Seven **Runestones** in the hub spend the same Manashard pool as the Ascension shop. Select the Keeper, right-click a stone, and they walk in range. Confirm, then +1 rank in that stat. The sheet base is **5 + rank** (a new game shows `5 + 0 = 5`). Cost is `floor(100 × 1.65^rank)` (PLACEHOLDER) — rank 0 still costs 100. Ranks, equipped gear, and the gear inventory persist through Ascend. Unspent Manashards and the backpack still wipe. Keep Tools returns tools only. Fate does not change gather, Wisps, or handcraft.
 
 Essence comes from **watering ticks**. Soft mats feed **handcraft**, not Grow. Gathering tools never gate hands; they 2× Keeper channel speed. Stone Watering Can doubles the Manashard **roll** (`shard_roll ×2`); Essence water is unchanged.
 

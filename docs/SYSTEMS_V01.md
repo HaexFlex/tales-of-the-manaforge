@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Systems Brief v0.5 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.5.0 — Haex GREENLIGHT 2026-09-21; Character sheet / Stats / Equipment foundation + D7 Manatree scales LIVE  
+**Status:** v0.5.1 — Haex: all combat stats **base start at 5**; sheet UI polish  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
@@ -35,14 +35,14 @@
 | **v0.4.1** | **Haex D6 LIVE (coding session OPENED):** Can recipe = **20 Stone Fragments** only; Basket = **20 Wooden Planks**. Handcraft UI: Watering Can + Fertilizer rows **costs only**; fix scroll vs panel width. Rename heads → **Stone Axe Head**, **Stone Pickaxe Head**. `keep_tools` = **3000** Manashards flat (max 1). Ascension shop rows show **short description / tooltip**. Fert craft ~2× (`FERT_* = 10`); Grow Fertilizer **3 / 6 / 12 / 24**; Keep Essence **20 / 40 / 60 / 80**. Same PR Code notes: arrow-key camera clamped to play bounds; map ~**2×W × 3×H**; dense decorative trees + bushes; collision bottom-third trunks / bush bottom-center; no edge-scroll yet. `SAVE_VERSION` stays **6** (number-only retunes; no backpack schema change). |
 | v0.4.1 note | **PARK → LIVE in v0.5.0:** Manatree display scales (stage1 0.5×, stage2 default, stage3+4 2×, stage5 1.5×). See §4 + §11 D7. |
 | **v0.5.0** | **Haex GREENLIGHT 2026-09-21:** Character sheet / Stats / Equipment foundation + D7 Manatree scales **LIVE**. Seven combat stats via world Runestones (Manashards spend, steep exponential PLACEHOLDER curve); stats persist through Ascend. Equipment slots (weapon unlocked; others locked; relic locked until Forge Key — empty this ship). Gear inventory separate from backpack. Craftable: Weapon Rod + Stone Sword only. Character sheet UI (HUD + **C**). Persist equipped + gear inventory through Ascend (like stats). Soft mats + backpack still wipe; Keep Tools tools-only. D7 Manatree display scales live (visual only). `SAVE_VERSION` **7**. Full Echo combat / Forge Key / other gear recipes still deferred. |
-| **v0.5.2** | **Sheet polish:** slot chrome is a half-transparent square with **no gold border**; locked slots read **Locked** under the square only. Empty weapon caption is **Weapon**; equipped caption is the item name. Stat block order is name, role flush underneath, small gap, `base + gear = total`, then a larger gap. Combat **base starts at 5**. Saves with a stat below 5 are raised to 5 (`SAVE_VERSION` **8**). Runestone cost rank is purchases above that floor, so the first point is still 100. |
+| **v0.5.1** | **Haex overnight polish:** All 7 combat stats **base start at 5**. Sheet display: `base = STAT_BASE_START + runestone_ranks` (+ gear = total). SAVE migrate: unset→0 (displays 5); an absolute below 5 floors the displayed base at 5; ranks ≥ 5 stay. Character sheet UI polish only otherwise. `SAVE_VERSION` stays **7**. |
 | v0.5.0 note | Out of scope this ship: combat, Forge Key, other equipment recipes, Runestone non-Manashard currency, Fate gather effects. |
 
 ---
 
 ## v0.5 scope (systems only)
 
-**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **8**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Stone Sword), **D7 Manatree display scales**.
+**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **7**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Stone Sword), **D7 Manatree display scales**.
 
 **Out:** needs-only soft-mat stage pay (**SUPERSEDED**), growth bar / offers, **combat / Echo Chamber**, **Forge Key** / relic unlock, other battle-gear recipes, Runestone non-Manashard currency, Fate gather effects, WASD, mobile/web, many duplicate harvestables. Tools never gate gather; tools never multiply wisp pulses.
 
@@ -262,10 +262,11 @@ Foundation for Echo Chamber combat power. **No combat this ship.** Full Echo com
 | `swiftness` | Swiftness |
 | `fate` | Fate |
 
-- **Base starts at 5** on a new game (`starting_base`). Each Runestone purchase: **+1 flat** on top of that (gentle power).
-- Purchased rank for the cost curve is `base - starting_base` (a fresh Keeper is still rank 0 for cost: first point **100**).
-- **Sheet display per stat:** name, role directly under the name, small gap, then `base + gear = total`, then a larger gap. Gear = sum of flat bonuses from equipped items.
-- **Migrate:** if a saved stat is below 5 (including 0 from older saves), set that base to **5**. Values already ≥ 5 stay. `SAVE_VERSION` **8**.
+- **`STAT_BASE_START = 5` (LOCKED Haex v0.5.1):** every combat stat starts at **5** before any Runestone spends.
+- `keeper_stats[stat_id]` = Runestone ranks purchased (starts **0**). Each rank: **+1 flat**.
+- **Sheet display per stat:** name, role directly under the name, small gap, then `base + gear = total`, then a larger gap. `base = STAT_BASE_START + keeper_stats[stat_id]`. Gear = sum of flat bonuses from equipped items.
+- **SAVE migrate (v7, version stays 7):** unset/missing ranks → **0** (base displays 5). An older absolute below 5 is kept as a non-negative rank so the displayed base floors at 5 (`5 + rank`). Do **not** wipe ranks ≥ 5.
+- Cost curve still uses that rank (`0→1` costs 100). It is not shifted by the starting 5.
 - **Persist through Ascend.** Unspent Manashards still wipe on Ascend.
 - **Out of scope this ship:** Fate gather effects (no Fate → harvest/wisp side effects).
 
@@ -358,14 +359,15 @@ Greenlight said stats persist; did **not** say wipe gear → **persist equipped 
 ### Code contracts (summary)
 
 ```
-keeper_stats: Dictionary[String, int]  # might/arcana/…/fate bases; default starting_base 5
+keeper_stats: Dictionary[String, int]  # might/arcana/…/fate ranks; default 0
 equipment_unlocked: Dictionary[String, bool]  # weapon true; others false at start; relic false
 equipment_equipped: Dictionary[String, String|null]  # slot_id → item_id or null
 gear_inventory: Dictionary[String, int]  # battle items (e.g. stone_sword, weapon_rod)
 # Runestone interactables: 7 world nodes keyed by stat_id
 # Sheet: HUD button + InputMap "character_sheet" (C)
-# Total for stat: keeper_stats[id] + sum(gear bonuses from equipped)
-# Cost rank: max(0, keeper_stats[id] - 5)
+# Sheet base: STAT_BASE_START + keeper_stats[id]   # 5 + ranks
+# Total: base + sum(gear bonuses from equipped)
+# Cost uses keeper_stats[id] directly (rank 0 costs 100)
 ```
 
 ---
@@ -535,17 +537,17 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 |-------|---------|
 | `SAVE_SLOT_COUNT` | **7** |
 | `PAUSE_OPENS_SLOTS` | `true` |
-| `SAVE_VERSION` | **8** |
+| `SAVE_VERSION` | **7** |
 
 v0.5.0: **`SAVE_VERSION` → 7** — character stats, equipment, gear inventory schema.  
-v0.5.2: **`SAVE_VERSION` → 8** — combat bases floor at **5** (values already ≥ 5 stay).
+v0.5.1: **`SAVE_VERSION` stays 7** — ranks stay purchases; sheet base is `5 + rank`. Missing ranks load as 0.
 
 ---
 
-## 7. Save fields (`SAVE_VERSION = 8`)
+## 7. Save fields (`SAVE_VERSION = 7`)
 
 ```
-save_version: int                  # 8
+save_version: int                  # 7
 ascensions: int
 essence: int
 upgrades: Dictionary[String, int]  # includes keep_tools, green_thumb, …
@@ -571,7 +573,7 @@ owns_stone_watering_can: bool
 
 # Character / equipment (v0.5.0)
 keeper_stats: Dictionary[String, int]  # might, arcana, resilience, ward, vitality, swiftness, fate
-                                       # absolute base; new game and floor = 5; purchases add 1
+                                       # each rank 0+; sheet base = 5 + rank
 equipment_unlocked: Dictionary[String, bool]  # weapon true; relic/head/body/hands/pants/feet/cape/ring1/ring2 false
 equipment_equipped: Dictionary[String, Variant]  # slot_id → item_id (String) or null
 gear_inventory: Dictionary[String, int]  # battle gear bag — e.g. weapon_rod, stone_sword
@@ -591,7 +593,7 @@ keeper_selected: bool  # optional; default false on load
 ```
 
 Migrate **v6→v7:** `keeper_stats` all 0; `equipment_equipped` all null; `gear_inventory` empty; `equipment_unlocked` = weapon **true** only (all other slots false, including relic). Prior v5→v6 rules still apply if jumping older saves: init empty `backpack`; all tool flags `false`; ignore leftover needs-only stage cost state. `green_thumb` ranks keep; `keep_tools` defaults 0.  
-Migrate **v7→v8:** each `keeper_stats` value below **5** (including the v6 zeros) becomes **5**. A value already ≥ 5 is left alone. Missing keys become 5.
+Migrate **v7 (no version bump):** missing `keeper_stats` keys become **0** (sheet base displays 5). A stored absolute below 5 stays a non-negative rank so `base = 5 + rank` floors the display at 5. Ranks ≥ 5 are not reduced.
 
 ---
 
@@ -649,7 +651,8 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 | Handcraft UI: Can + Fert rows costs only; scroll vs panel width | **LOCKED Haex v0.4.1** (Code contract) |
 | Arrow-key camera clamp; map ~2×W×3×H; dense décor; trunk/bush collision; no edge-scroll | **LOCKED Haex v0.4.1** (same PR Code notes) |
 | 3 harvest nodes @ 1/sec base | **LOCKED** |
-| `SAVE_SLOT_COUNT = 7`; `SAVE_VERSION = 8` | **LOCKED Haex v0.5.2** (v0.5.0 was 7) |
+| `SAVE_SLOT_COUNT = 7`; `SAVE_VERSION = 7` | **LOCKED Haex v0.5.0** (v0.5.1 does not bump) |
+| Combat stats **base start at 5** (`base = 5 + rank`) | **LOCKED Haex v0.5.1** |
 | Offer-for-growth | **REMOVED** |
 | Ascension = Manashard blessing shop | **LOCKED Haex v0.2.3** |
 | Shop timing = Ascension-only after Fruit | **LOCKED Haex v0.2.4** |
@@ -695,7 +698,7 @@ Live loop is **v0.5.0** (Fertilizer Grow + backpack/tools + D6 retunes + charact
 ~~Stage-advance button label Grow~~ → **LIVE:** CTA **Grow**, costs on control (Fertilizer + Essence). See §4. (Was deferred under needs-only Pay; greenlit with Fertilizer Grow.)
 
 ### D3. Equipment & Stats — GREENLIT foundation → live v0.5.0 (full Echo combat still deferred)
-**Foundation LIVE** — see **§4e**. Seven combat stats + Runestones (same Manashard pool, steep exponential PLACEHOLDER curve), equipment slots (weapon unlocked; relic locked / empty this ship), gear inventory ≠ backpack, Weapon Rod + Stone Sword, character sheet (HUD + **C**), Ascend persist stats + equipped + gear inventory, `SAVE_VERSION` **8** (bases floor at 5).
+**Foundation LIVE** — see **§4e**. Seven combat stats + Runestones (same Manashard pool, steep exponential PLACEHOLDER curve), equipment slots (weapon unlocked; relic locked / empty this ship), gear inventory ≠ backpack, Weapon Rod + Stone Sword, character sheet (HUD + **C**), Ascend persist stats + equipped + gear inventory, `SAVE_VERSION` **7**. v0.5.1: sheet base is **5 + rank**.
 
 **Still deferred (do not implement this ship):** Echo Chamber combat, Forge Key / relic unlock, other equipment recipes, Bare Stone / levels / runes data shape, Fate gather effects, Runestone non-Manashard currency.
 

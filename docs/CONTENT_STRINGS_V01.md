@@ -570,6 +570,8 @@ Ids locked to SYSTEMS **v0.5.0** (Design mid-flight confirm). Stats match VISION
 
 ### 10b. Seven core stats (VISION)
 
+Display rule (SYSTEMS v0.5.1): each stat **starts at base 5**. The sheet line is `base + gear = total`, where `base = 5 + Runestone ranks`. `stat_base_note` is the numbers tooltip. `stat_value_breakdown` is `{base} + {ranks}`.
+
 | id | Display | Short / tooltip |
 |----|---------|-----------------|
 | `might` | Might | Physical Attack |
@@ -598,6 +600,8 @@ Ids locked to SYSTEMS **v0.5.0** (Design mid-flight confirm). Stats match VISION
 | `stat_fate_tooltip` | Luck, crit chance, rare finds |
 | `stat_rank` | Rank {rank} |
 | `stat_value` | {value} |
+| `stat_value_breakdown` | {base} + {ranks} |
+| `stat_base_note` | Starts at 5 — Runestones raise it further. |
 | `stat_persist_hint` | Stats stay with you through Ascend. |
 
 ### 10c. Runestone spend (Manashards)

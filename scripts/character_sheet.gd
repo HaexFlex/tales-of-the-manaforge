@@ -504,7 +504,9 @@ func _refresh_stats() -> void:
 		if _hover_item_id != "":
 			shown_gear = Equipment.preview_gear_bonus(sid, _hover_item_id)
 		var total: int = base + shown_gear
+		## base = STAT_BASE_START + ranks. Line is base + gear = total.
 		var text: String = "%d + %d = %d" % [base, shown_gear, total]
+		line.tooltip_text = ContentStrings.get_text("stat_base_note")
 		if _hover_item_id != "" and shown_gear != gear:
 			var delta: int = shown_gear - gear
 			var sign: String = "+" if delta > 0 else ""
