@@ -39,10 +39,11 @@ Battle-gear, Runestone, and character-sheet icons are listed in the next section
 | Placeholder (where) | Suggested sprite | Size | Color now | Purpose |
 |---------------------|------------------|------|-----------|---------|
 | `HUD/Panel/CharacterButton/CharacterIcon` | `icon_character.png` | 32×32 | `#c4a24a` gold | HUD Character button (left of Backpack). Key **C** opens the sheet |
-| Handcraft row: Weapon Rod | `icon_weapon_rod.png` | 32×32 | `#6e4a32` dark wood | Intermediate. 10 Wooden Planks. Not the Wooden Tool Rod |
+| Handcraft row / gear bag: Weapon Rod | `icon_weapon_rod.png` | 32×32 | `#6e4a32` dark wood | Gear-inventory intermediate. 10 Wooden Planks. Not the Wooden Tool Rod |
 | Equipment inventory / weapon slot: Stone Sword | `icon_stone_sword.png` | 32×32 | `#b7b1a8` pale stone | Only battle weapon. Lives in the equipment inventory, not the backpack |
 | Paper-doll empty slot | `icon_equip_slot.png` | 32×32 | `#3d2e1f` dark wood + gold edge | Unlocked empty slot chrome (weapon, later armor) |
-| Paper-doll locked slot | `icon_equip_lock.png` | 32×32 | `#6b6b75` grey | Grey lock. Relic reads “Forge Key”; other locked slots read “Locked” |
+| Paper-doll locked slot | `icon_equip_lock.png` | 32×32 | `#6b6b75` grey | Grey lock. Relic hint: “Relic slot locked — later.” Other locked slots: “This slot is not open yet.” |
+| Empty weapon slot | — | — | dark wood | Caption **Bare Stone** until a weapon is equipped |
 | Hub Runestone (one per stat) | `runestone.png` (or seven tinted) | ~32×48 | stat tint (Might rust, Arcana violet, Resilience olive, Ward blue, Vitality green, Swiftness gold, Fate rose) | Click to spend Manashards. Polygon2D stand-in |
 | Character portrait | existing `keeper_idle_south_0000.png` | 128×128 | — | Already in game. Do not replace in this pass |
 

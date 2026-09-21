@@ -1,5 +1,5 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.4.1 — D6 playtest + camera/map. SAVE_VERSION 6.
+## Headless verification per SYSTEMS_V01 v0.5.0 — character sheet, gear, SAVE_VERSION 7.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -28,7 +28,7 @@ func _run() -> void:
 
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 8, "expected 8 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 6, "SAVE_VERSION should be 6")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION should be 6")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -305,7 +305,7 @@ func _run() -> void:
 	game_state.set("lifetime_harvested", {"wood": 11, "stone": 7, "food": 5})
 
 	failed += _assert(bool(save_service.call("save_game", 1)), "save_game slot 1 failed")
-	# Confirm written save_version is 6 and no growth in payload
+	# Confirm written save_version is 7 and no growth in payload
 	var slot1_path: String = str(save_service.call("slot_path", 1))
 	var s1f := FileAccess.open(slot1_path, FileAccess.READ)
 	failed += _assert(s1f != null, "read slot 1")
@@ -313,7 +313,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 6, "written save_version 6")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 7, "written save_version 7")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -546,7 +546,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 6, "SAVE_VERSION stays 6 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION stays 6 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -1265,8 +1265,8 @@ func _run() -> void:
 		game_state.call("reset_for_new_game")
 
 	# --- SYSTEMS v0.4.0: backpack, handcraft, tools, Grow, Keep Tools, can shard_roll ×2 ---
-	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 11, "11 handcraft recipes (weapon rod added)")
-	failed += _assert(int((backpack.get("items_data") as Array).size()) == 11, "11 backpack items (weapon rod added)")
+	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
+	failed += _assert(int((backpack.get("items_data") as Array).size()) == 10, "10 backpack items")
 	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
 	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
 	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
@@ -1579,11 +1579,38 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 6, "SAVE_VERSION stays 6 with stats/gear")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION is 7")
+		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
+		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
+		failed += _assert(str(content_strings.call("get_text", "char_sheet_stats_header")) == "Stats", "char_sheet_stats_header")
+		failed += _assert(str(content_strings.call("get_text", "stat_might_tooltip")) == "Physical Attack", "stat_might_tooltip")
+		failed += _assert(str(content_strings.call("get_text", "stat_fate_tooltip")).find("rare finds") >= 0, "stat_fate_tooltip")
+		failed += _assert(str(content_strings.call("get_text", "runestone_ok")).find("grows stronger") >= 0, "runestone_ok")
+		failed += _assert(str(content_strings.call("get_text", "runestone_confirm")).find("{cost}") >= 0, "runestone_confirm")
+		failed += _assert(str(content_strings.call("get_text", "runestone_bank_hint")).find("Ascension") >= 0, "runestone_bank_hint")
+		failed += _assert(str(content_strings.call("get_text", "runestone_cant_afford")) == "Not enough Manashards", "runestone_cant_afford")
+		failed += _assert(str(content_strings.call("get_text", "equip_bare_stone")) == "Bare Stone", "equip_bare_stone")
+		failed += _assert(str(content_strings.call("get_text", "equip_locked_relic")).find("later") >= 0, "equip_locked_relic")
+		failed += _assert(str(content_strings.call("get_text", "equip_locked_hint")).find("not open") >= 0, "equip_locked_hint")
+		failed += _assert(str(content_strings.call("get_text", "equip_unequip_ok")).find("Put away") >= 0, "equip_unequip_ok")
+		failed += _assert(str(content_strings.call("get_text", "weapon_rod_name")) == "Weapon Rod", "weapon_rod_name")
+		failed += _assert(str(content_strings.call("get_text", "weapon_stone_sword_name")) == "Stone Sword", "weapon_stone_sword_name")
+		failed += _assert(str(content_strings.call("get_text", "weapon_stone_sword_tooltip")).find("crude") >= 0, "weapon_stone_sword_tooltip")
+		failed += _assert(str(content_strings.call("get_text", "weapon_rod")) == "Weapon Rod", "weapon_rod alias")
+		failed += _assert(str(content_strings.call("get_text", "weapon_stone_sword")) == "Stone Sword", "weapon_stone_sword alias")
 		var stat_order: Array = keeper_stats.get("STAT_ORDER")
 		failed += _assert(stat_order.size() == 7, "seven combat stats")
 		failed += _assert(str(stat_order[0]) == "might" and str(stat_order[6]) == "fate", "stat order might..fate")
-		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 50, "first runestone cost 50")
+		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 100, "first runestone cost 100")
+		keeper_stats.call("set_rank", "might", 1)
+		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 165, "second point costs 165")
+		keeper_stats.call("set_rank", "might", 2)
+		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 272, "third point costs 272")
+		keeper_stats.call("set_rank", "might", 3)
+		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 449, "fourth point costs 449")
+		keeper_stats.call("set_rank", "might", 4)
+		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 741, "fifth point costs 741")
+		keeper_stats.call("set_rank", "might", 0)
 		failed += _assert(int(keeper_stats.call("power_per_rank")) == 1, "stat power +1 per rank")
 		failed += _assert(not bool(keeper_stats.call("affects_gather", "fate")), "fate does not affect gather")
 		failed += _assert(not bool(keeper_stats.call("affects_wisps", "fate")), "fate does not affect wisps")
@@ -1596,16 +1623,16 @@ func _run() -> void:
 		failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - pulse_before) < 0.01, "fate rank leaves wisp pulse")
 		failed += _assert(abs(float(backpack.call("get_fertilizer_craft_cost_mult")) - fert_before) < 0.01, "fate rank leaves craft mult")
 		keeper_stats.call("set_rank", "fate", 0)
-		game_state.call("set_resource", &"manashards", 49)
-		failed += _assert(str(keeper_stats.call("try_buy", "might")) == "cant_afford", "runestone denies 49")
+		game_state.call("set_resource", &"manashards", 99)
+		failed += _assert(str(keeper_stats.call("try_buy", "might")) == "cant_afford", "runestone denies 99")
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "rank unchanged when short")
-		game_state.call("set_resource", &"manashards", 50)
+		game_state.call("set_resource", &"manashards", 100)
 		failed += _assert(str(keeper_stats.call("try_buy", "might")) == "ok", "runestone buys might")
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "might rank 1")
 		failed += _assert(int(keeper_stats.call("get_base", "might")) == 1, "might base is flat +1")
-		failed += _assert(int(game_state.get("manashards")) == 0, "50 shards spent")
-		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 100, "second point costs 100")
-		failed += _assert(int(keeper_stats.call("get_next_cost", "arcana")) == 50, "other stats stay at first cost")
+		failed += _assert(int(game_state.get("manashards")) == 0, "100 shards spent")
+		failed += _assert(int(keeper_stats.call("get_next_cost", "might")) == 165, "next point costs 165 after buy")
+		failed += _assert(int(keeper_stats.call("get_next_cost", "arcana")) == 100, "other stats stay at first cost")
 		var slot_order: Array = equipment.get("SLOT_ORDER")
 		failed += _assert(slot_order.size() == 10, "ten equipment slots")
 		failed += _assert(bool(equipment.call("is_slot_unlocked", "weapon")), "weapon slot unlocked")
@@ -1615,10 +1642,13 @@ func _run() -> void:
 			if not bool(equipment.call("is_slot_unlocked", str(slot_name))):
 				locked_slots += 1
 		failed += _assert(locked_slots == 9, "nine slots locked at start")
-		failed += _assert(str(equipment.call("slot_lock_short", "relic")) == "Forge Key", "relic lock hint")
-		var rod_ings: Dictionary = backpack.call("get_recipe_ingredients", "weapon_rod")
+		failed += _assert(str(equipment.call("slot_lock_short", "relic")) == "Relic slot locked — later.", "relic lock hint")
+		failed += _assert(str(equipment.call("slot_lock_hint", "head")) == "This slot is not open yet.", "armor lock hint")
+		failed += _assert(not backpack.call("is_known_item", "weapon_rod"), "weapon rod is not a backpack item")
+		failed += _assert((backpack.call("get_recipe_def", "weapon_rod") as Dictionary).is_empty(), "weapon rod recipe is not backpack")
+		var rod_ings: Dictionary = equipment.call("get_recipe_ingredients", "weapon_rod")
 		failed += _assert(int(rod_ings.get("wooden_planks", 0)) == 10, "weapon rod is 10 planks")
-		failed += _assert(str(backpack.call("item_display_name", "weapon_rod")) == "Weapon Rod", "weapon rod name")
+		failed += _assert(str(equipment.call("item_display_name", "weapon_rod")) == "Weapon Rod", "weapon rod name")
 		var sword_ings: Dictionary = equipment.call("get_recipe_ingredients", "stone_sword")
 		failed += _assert(int(sword_ings.get("stone_fragments", 0)) == 30, "stone sword 30 fragments")
 		failed += _assert(int(sword_ings.get("weapon_rod", 0)) == 1, "stone sword 1 weapon rod")
@@ -1627,12 +1657,13 @@ func _run() -> void:
 		for _i: int in range(10):
 			backpack.call("try_craft", "wooden_planks")
 		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 10, "10 planks for the rod")
-		failed += _assert(str(backpack.call("try_craft", "weapon_rod")) == "ok", "craft weapon rod")
-		failed += _assert(int(backpack.call("get_count", "weapon_rod")) == 1, "rod in backpack")
+		failed += _assert(str(equipment.call("try_craft", "weapon_rod")) == "ok", "craft weapon rod")
+		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 1, "rod in gear inventory")
+		failed += _assert(int(backpack.call("get_count", "weapon_rod")) == 0, "rod stays out of the backpack")
 		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "planks spent")
 		backpack.call("set_count", "stone_fragments", 30)
 		failed += _assert(str(equipment.call("try_craft", "stone_sword")) == "ok", "craft stone sword")
-		failed += _assert(int(backpack.call("get_count", "weapon_rod")) == 0, "rod spent into the sword")
+		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 0, "rod spent into the sword")
 		failed += _assert(int(backpack.call("get_count", "stone_fragments")) == 0, "fragments spent")
 		failed += _assert(bool(equipment.call("owns_anywhere", "stone_sword")), "sword owned as gear")
 		failed += _assert(int(backpack.call("get_count", "stone_sword")) == 0, "sword not in backpack stacks")
@@ -1648,14 +1679,15 @@ func _run() -> void:
 		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "sword +2 might")
 		failed += _assert(int(equipment.call("total_for", "might")) == 3, "base 1 + gear 2 = 3")
 		failed += _assert(int(equipment.call("preview_gear_bonus", "might", "stone_sword")) == 2, "preview keeps sword might")
-		failed += _assert(str(equipment.call("try_equip_to_slot", "stone_sword", "head")) == "wrong_slot", "sword does not fit the head slot")
+		failed += _assert(str(equipment.call("try_equip_to_slot", "stone_sword", "head")) == "locked", "sword does not open the head slot")
 		failed += _assert(str(equipment.call("try_craft", "stone_sword")) == "unique", "second sword blocked")
 		failed += _assert(str(equipment.call("try_unequip", "weapon")) == "ok", "unequip sword")
-		failed += _assert(str(equipment.call("try_equip_to_slot", "stone_sword", "relic")) == "wrong_slot", "sword refuses relic")
-		failed += _assert(str(equipment.call("try_equip_to_slot", "stone_sword", "head")) == "wrong_slot", "sword refuses the head slot")
+		failed += _assert(str(equipment.call("try_equip_to_slot", "stone_sword", "relic")) == "locked", "sword refuses relic")
+		failed += _assert(str(equipment.call("try_equip_to_slot", "stone_sword", "head")) == "locked", "sword refuses the head slot")
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "weapon empty after refusals")
 		failed += _assert(str(equipment.call("try_equip_to_slot", "stone_sword", "weapon")) == "ok", "drag-equip onto weapon")
-		backpack.call("set_count", "weapon_rod", 1)
+		failed += _assert(bool(equipment.call("grant_item", "weapon_rod")), "spare rod in gear bag")
+		backpack.call("set_count", "wooden_planks", 4)
 		game_state.set("fruit_committed", true)
 		game_state.set("fruit_harvested_pending_ascend", true)
 		game_state.call("set_resource", &"manashards", 80)
@@ -1664,11 +1696,18 @@ func _run() -> void:
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "might persists through ascend")
 		failed += _assert(int(keeper_stats.call("get_rank", "fate")) == 0, "fate reset only on new game")
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sword persists through ascend")
-		failed += _assert(int(backpack.call("get_count", "weapon_rod")) == 0, "rod does not survive ascend")
+		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 1, "gear rod persists through ascend")
+		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "ascend still wipes backpack planks")
+		failed += _assert(int(backpack.call("get_count", "weapon_rod")) == 0, "rod is not a backpack stack")
 		var save_payload: Dictionary = game_state.call("to_save_dict")
 		failed += _assert(typeof(save_payload.get("keeper_stats", null)) == TYPE_DICTIONARY, "save writes keeper_stats")
 		failed += _assert(int((save_payload.get("keeper_stats", {}) as Dictionary).get("might", 0)) == 1, "save keeps might")
-		failed += _assert(typeof(save_payload.get("equipment", null)) == TYPE_DICTIONARY, "save writes equipment")
+		failed += _assert(typeof(save_payload.get("equipment_equipped", null)) == TYPE_DICTIONARY, "save writes equipment_equipped")
+		failed += _assert(str((save_payload.get("equipment_equipped", {}) as Dictionary).get("weapon", "")) == "stone_sword", "save keeps equipped sword")
+		failed += _assert(typeof(save_payload.get("gear_inventory", null)) == TYPE_DICTIONARY, "save writes gear_inventory")
+		failed += _assert(int((save_payload.get("gear_inventory", {}) as Dictionary).get("weapon_rod", 0)) == 1, "save keeps gear rod")
+		failed += _assert(bool((save_payload.get("equipment_unlocked", {}) as Dictionary).get("weapon", false)), "save unlocks weapon")
+		failed += _assert(not bool((save_payload.get("equipment_unlocked", {}) as Dictionary).get("relic", true)), "save keeps relic locked")
 		failed += _assert(bool(save_service.call("save_game", 6)), "save slot 6 stats")
 		game_state.call("reset_for_new_game")
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "new game clears ranks")
@@ -1676,9 +1715,13 @@ func _run() -> void:
 		failed += _assert(bool(save_service.call("load_game", 6)), "load slot 6 stats")
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "loaded might rank")
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "loaded sword")
+		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 1, "loaded gear rod")
 		var legacy: Dictionary = save_payload.duplicate(true)
 		legacy.erase("keeper_stats")
 		legacy.erase("equipment")
+		legacy.erase("equipment_unlocked")
+		legacy.erase("equipment_equipped")
+		legacy.erase("gear_inventory")
 		game_state.call("apply_save_dict", legacy)
 		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "legacy save without stats starts at 0")
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "legacy save without gear starts empty")
@@ -1747,7 +1790,11 @@ func _run() -> void:
 		failed += _assert(relic_lock != null and relic_lock.visible, "relic grey lock")
 		failed += _assert(weapon_lock != null and not weapon_lock.visible, "weapon lock hidden")
 		var relic_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Hint") as Label
-		failed += _assert(relic_hint != null and str(relic_hint.text) == "Forge Key", "relic short hint")
+		failed += _assert(relic_hint != null and str(relic_hint.text).find("later") >= 0, "relic lock hint")
+		var weapon_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Hint") as Label
+		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Bare Stone", "empty weapon is Bare Stone")
+		var head_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/Hint") as Label
+		failed += _assert(head_hint != null and str(head_hint.text).find("not open") >= 0, "locked slot hint")
 		var might_line: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line") as Label
 		failed += _assert(might_line != null and str(might_line.text).find("+") >= 0 and str(might_line.text).find("=") >= 0, "stat line base + gear = total")
 		var gear_list: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/GearColumn/GearScroll/GearList")
@@ -1785,6 +1832,55 @@ func _run() -> void:
 		await process_frame
 		failed += _assert(bool(sheet_hud.call("is_character_open")), "C opens the sheet")
 		sheet_hud.call("close_character_sheet")
+		game_state.call("reset_for_new_game")
+		game_state.call("set_resource", &"manashards", 100)
+		var might_stone: Node = null
+		if stones:
+			for stone_node: Node in stones.get_children():
+				if str(stone_node.get("stat_id")) == "might":
+					might_stone = stone_node
+					break
+		failed += _assert(might_stone != null and might_stone.has_method("begin_spend"), "runestone spend confirm")
+		if might_stone:
+			game_state.call("set_resource", &"manashards", 0)
+			failed += _assert(str(might_stone.call("begin_spend")) == "cant_afford", "poor keeper still sees the confirm")
+			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm stays open when short")
+			var poor_body: Label = might_stone.get_tree().root.get_node_or_null("RunestoneConfirm/Panel/Body") as Label
+			failed += _assert(poor_body != null and str(poor_body.text).find("Not enough") >= 0, "confirm says not enough")
+			might_stone.call("cancel_spend")
+			game_state.call("set_resource", &"manashards", 100)
+			failed += _assert(str(might_stone.call("begin_spend")) == "confirm", "runestone opens confirm")
+			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm panel visible")
+			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "confirm does not spend yet")
+			var bank_lbl: Label = might_stone.get_tree().root.get_node_or_null("RunestoneConfirm/Panel/Bank") as Label
+			failed += _assert(bank_lbl != null and str(bank_lbl.text).find("Ascension") >= 0, "confirm shows bank hint")
+			failed += _assert(str(might_stone.call("confirm_spend")) == "ok", "confirm raises the stat")
+			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "confirm spend rank 1")
+			failed += _assert(int(game_state.get("manashards")) == 0, "confirm spent 100 shards")
+			failed += _assert(not bool(might_stone.call("is_spend_confirm_open")), "confirm closes after raise")
+		var v6_state: Dictionary = game_state.call("to_save_dict")
+		v6_state["backpack"] = {"fertilizer": 4, "weapon_rod": 2, "wooden_planks": 3}
+		v6_state["keeper_stats"] = {"might": 3}
+		v6_state["equipment"] = {
+			"owned": [{"id": "stone_sword", "level": 1, "runes": []}],
+			"equipped": {},
+		}
+		v6_state.erase("gear_inventory")
+		v6_state.erase("equipment_equipped")
+		v6_state.erase("equipment_unlocked")
+		var v6_migrated: Dictionary = save_service.call("_migrate", 6, v6_state)
+		var v6_pack: Dictionary = v6_migrated.get("backpack", {})
+		failed += _assert(int(v6_pack.get("fertilizer", 0)) == 4, "v6 migrate keeps fertilizer")
+		failed += _assert(int(v6_pack.get("wooden_planks", 0)) == 3, "v6 migrate keeps planks")
+		failed += _assert(not v6_pack.has("weapon_rod"), "v6 migrate lifts rod out of backpack")
+		failed += _assert(int((v6_migrated.get("gear_inventory", {}) as Dictionary).get("weapon_rod", 0)) == 2, "v6 rod lands in gear inventory")
+		failed += _assert(int((v6_migrated.get("gear_inventory", {}) as Dictionary).get("stone_sword", 0)) == 1, "v6 sword instance becomes a gear count")
+		failed += _assert(int((v6_migrated.get("keeper_stats", {}) as Dictionary).get("might", 0)) == 3, "v6 migrate keeps might")
+		game_state.call("apply_save_dict", v6_migrated)
+		failed += _assert(int(backpack.call("get_count", "fertilizer")) == 4, "applied v6 fertilizer")
+		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 2, "applied v6 rod")
+		failed += _assert(int(equipment.call("unequipped_count", "stone_sword")) == 1, "applied v6 sword")
+		failed += _assert(int(keeper_stats.call("get_rank", "might")) == 3, "applied v6 might")
 		live_sheet.free()
 		paused = false
 		await process_frame

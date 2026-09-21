@@ -1,13 +1,13 @@
 extends Node
-## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.4.0).
-## Payload schema SAVE_VERSION 6 — backpack + tool flags. Migrates legacy single-file → slot 1.
+## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.5.0).
+## Payload schema SAVE_VERSION 7 — keeper stats + gear. Migrates legacy single-file → slot 1.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
-const SAVE_VERSION: int = 6
-## Accept one write ahead of this schema (plus legacy 4–5).
-const SAVE_VERSION_MAX_READ: int = 7
+const SAVE_VERSION: int = 7
+## Accept one write ahead of this schema (plus legacy 4–6).
+const SAVE_VERSION_MAX_READ: int = 8
 const SAVE_SLOT_COUNT: int = 7
 const LEGACY_SAVE_PATH: String = "user://manaforge_save.json"
 const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
@@ -189,10 +189,90 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		out["owns_stone_pickaxe"] = false
 		out["owns_wooden_basket"] = false
 		out["owns_stone_watering_can"] = false
+	if from_version < 7:
+		## SYSTEMS v0.5.0: stats + gear. Do not wipe an existing v6 backpack.
+		if typeof(out.get("keeper_stats")) != TYPE_DICTIONARY:
+			out["keeper_stats"] = {}
+		_migrate_gear_v7(out)
 	# Additive welcome flag: legacy saves already played.
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
 	return out
+
+
+func _migrate_gear_v7(out: Dictionary) -> void:
+	## Fold the v6 additive equipment blob into the v7 gear fields, and move any
+	## backpack Weapon Rod into the gear inventory. Soft mats and tools stay put.
+	var gear: Dictionary = {}
+	var equipped: Dictionary = {}
+	var legacy_v: Variant = out.get("equipment", {})
+	if typeof(legacy_v) == TYPE_DICTIONARY:
+		var legacy: Dictionary = legacy_v
+		var owned_v: Variant = legacy.get("owned", [])
+		if typeof(owned_v) == TYPE_ARRAY:
+			for entry: Variant in owned_v:
+				var iid: String = _legacy_item_id(entry)
+				if iid == "":
+					continue
+				gear[iid] = int(gear.get(iid, 0)) + 1
+		var eq_v: Variant = legacy.get("equipped", {})
+		if typeof(eq_v) == TYPE_DICTIONARY:
+			for key: Variant in (eq_v as Dictionary).keys():
+				var slot_id: String = _canonical_slot(str(key))
+				var iid: String = _legacy_item_id((eq_v as Dictionary)[key])
+				if slot_id == "" or iid == "":
+					continue
+				equipped[slot_id] = iid
+	if typeof(out.get("gear_inventory")) == TYPE_DICTIONARY:
+		for key: Variant in (out["gear_inventory"] as Dictionary).keys():
+			gear[str(key)] = int((out["gear_inventory"] as Dictionary)[key])
+	if typeof(out.get("equipment_equipped")) == TYPE_DICTIONARY:
+		for key: Variant in (out["equipment_equipped"] as Dictionary).keys():
+			var slot_id: String = _canonical_slot(str(key))
+			var raw: Variant = (out["equipment_equipped"] as Dictionary)[key]
+			if raw == null:
+				continue
+			var iid: String = _legacy_item_id(raw)
+			if slot_id != "" and iid != "":
+				equipped[slot_id] = iid
+	var pack_v: Variant = out.get("backpack", {})
+	if typeof(pack_v) == TYPE_DICTIONARY and (pack_v as Dictionary).has("weapon_rod"):
+		var rod_n: int = int((pack_v as Dictionary).get("weapon_rod", 0))
+		(pack_v as Dictionary).erase("weapon_rod")
+		if rod_n > 0:
+			gear["weapon_rod"] = int(gear.get("weapon_rod", 0)) + rod_n
+	if typeof(out.get("equipment_unlocked")) != TYPE_DICTIONARY:
+		out["equipment_unlocked"] = {
+			"weapon": true,
+			"relic": false,
+			"head": false,
+			"body": false,
+			"hands": false,
+			"pants": false,
+			"feet": false,
+			"cape": false,
+			"ring1": false,
+			"ring2": false,
+		}
+	out["gear_inventory"] = gear
+	out["equipment_equipped"] = equipped
+	out.erase("equipment")
+
+
+func _legacy_item_id(raw: Variant) -> String:
+	if typeof(raw) == TYPE_STRING or typeof(raw) == TYPE_STRING_NAME:
+		return str(raw)
+	if typeof(raw) == TYPE_DICTIONARY:
+		return str((raw as Dictionary).get("id", ""))
+	return ""
+
+
+func _canonical_slot(slot_id: String) -> String:
+	if slot_id == "ring_1":
+		return "ring1"
+	if slot_id == "ring_2":
+		return "ring2"
+	return slot_id
 
 
 func delete_slot(slot: int) -> void:

@@ -16,10 +16,10 @@ color = Color(0.45, 0.4, 0.48, 1)
 polygon = PackedVector2Array(-14, -40, -8, -48, 8, -48, 14, -40, 16, -8, 10, 0, -10, 0, -16, -8)
 
 [node name="Label" type="Label" parent="."]
-offset_left = -52.0
-offset_top = -78.0
-offset_right = 52.0
-offset_bottom = -48.0
+offset_left = -72.0
+offset_top = -96.0
+offset_right = 72.0
+offset_bottom = -46.0
 theme_override_font_sizes/font_size = 11
 text = "Might"
 horizontal_alignment = 1

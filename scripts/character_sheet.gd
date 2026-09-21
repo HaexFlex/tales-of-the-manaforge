@@ -97,17 +97,17 @@ func _toast(result: String, item_id: String, slot_id: String) -> void:
 			if Equipment.equipped_id(slot_id) == item_id and item_id != "":
 				text = ContentStrings.get_text("equip_ok", {"item": item_name})
 			else:
-				text = ContentStrings.get_text("unequip_ok", {"item": item_name})
+				text = ContentStrings.get_text("equip_unequip_ok", {"item": item_name})
 			GameAudio.play_ui_confirm()
 			SaveService.save_game()
 		"locked":
 			text = Equipment.slot_lock_hint(slot_id if slot_id != "" else Equipment.item_slot(item_id))
 			GameAudio.play_tree_deny()
 		"wrong_slot":
-			text = ContentStrings.get_text("equip_wrong_slot")
+			text = ""
 			GameAudio.play_tree_deny()
 		"missing":
-			text = ContentStrings.get_text("equip_missing")
+			text = ContentStrings.get_text("equip_no_item")
 			GameAudio.play_tree_deny()
 		"empty":
 			text = ""
@@ -150,7 +150,7 @@ func _build() -> void:
 	title.name = "Title"
 	title.position = Vector2(20, 14)
 	title.size = Vector2(640, 28)
-	title.text = ContentStrings.get_text("character_title")
+	title.text = ContentStrings.get_text("char_sheet_title")
 	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", GOLD)
 	sheet.add_child(title)
@@ -159,7 +159,7 @@ func _build() -> void:
 	hint.name = "Hint"
 	hint.position = Vector2(20, 42)
 	hint.size = Vector2(700, 20)
-	hint.text = ContentStrings.get_text("character_hint")
+	hint.text = ContentStrings.get_text("char_sheet_hint")
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", MUTED)
 	sheet.add_child(hint)
@@ -168,7 +168,7 @@ func _build() -> void:
 	close.name = "CloseButton"
 	close.position = Vector2(SHEET_SIZE.x - 116, 16)
 	close.size = Vector2(96, 36)
-	close.text = ContentStrings.get_text("btn_close")
+	close.text = ContentStrings.get_text("char_sheet_close")
 	close.pressed.connect(request_close)
 	_paint_button(close, Color(0.18, 0.14, 0.10, 1.0))
 	sheet.add_child(close)
@@ -230,7 +230,7 @@ func _build() -> void:
 	gear_title.name = "GearTitle"
 	gear_title.position = Vector2(0, 0)
 	gear_title.size = Vector2(360, 22)
-	gear_title.text = ContentStrings.get_text("character_equip_title")
+	gear_title.text = ContentStrings.get_text("char_sheet_equip_header")
 	gear_title.add_theme_font_size_override("font_size", 15)
 	gear_title.add_theme_color_override("font_color", GOLD)
 	mid.add_child(gear_title)
@@ -239,7 +239,7 @@ func _build() -> void:
 	gear_hint.position = Vector2(0, 22)
 	gear_hint.size = Vector2(360, 36)
 	gear_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	gear_hint.text = ContentStrings.get_text("character_equip_hint")
+	gear_hint.text = ContentStrings.get_text("weapon_persist_hint")
 	gear_hint.add_theme_font_size_override("font_size", 11)
 	gear_hint.add_theme_color_override("font_color", MUTED)
 	mid.add_child(gear_hint)
@@ -268,7 +268,7 @@ func _build() -> void:
 	stats_title.name = "StatsTitle"
 	stats_title.position = Vector2(0, 0)
 	stats_title.size = Vector2(360, 22)
-	stats_title.text = ContentStrings.get_text("character_stats_title")
+	stats_title.text = ContentStrings.get_text("char_sheet_stats_header")
 	stats_title.add_theme_font_size_override("font_size", 15)
 	stats_title.add_theme_color_override("font_color", GOLD)
 	right.add_child(stats_title)
@@ -276,7 +276,7 @@ func _build() -> void:
 	var stats_hint := Label.new()
 	stats_hint.position = Vector2(0, 22)
 	stats_hint.size = Vector2(360, 20)
-	stats_hint.text = ContentStrings.get_text("character_stats_hint")
+	stats_hint.text = ContentStrings.get_text("stat_persist_hint")
 	stats_hint.add_theme_font_size_override("font_size", 11)
 	stats_hint.add_theme_color_override("font_color", MUTED)
 	right.add_child(stats_hint)
@@ -313,7 +313,7 @@ func _build() -> void:
 	fate_note.position = Vector2(0, y + 4.0)
 	fate_note.size = Vector2(360, 36)
 	fate_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	fate_note.text = ContentStrings.get_text("stat_fate_note")
+	fate_note.text = ""
 	fate_note.add_theme_font_size_override("font_size", 11)
 	fate_note.add_theme_color_override("font_color", MUTED)
 	right.add_child(fate_note)
@@ -367,7 +367,7 @@ func _refresh_inventory() -> void:
 				break
 		var empty := Label.new()
 		empty.name = "Empty"
-		empty.text = ContentStrings.get_text("character_equip_worn" if wearing else "character_equip_empty")
+		empty.text = ContentStrings.get_text("weapon_persist_hint" if wearing else "equip_no_item")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		empty.custom_minimum_size = Vector2(320, 48)
@@ -401,13 +401,7 @@ func _refresh_stats() -> void:
 		if _hover_item_id != "":
 			shown_gear = Equipment.preview_gear_bonus(sid, _hover_item_id)
 		var total: int = base + shown_gear
-		var text: String = ContentStrings.get_text("character_stat_line", {
-			"base": base,
-			"gear": shown_gear,
-			"total": total,
-		})
-		if text == "character_stat_line":
-			text = "%d + %d = %d" % [base, shown_gear, total]
+		var text: String = "%d + %d = %d" % [base, shown_gear, total]
 		if _hover_item_id != "" and shown_gear != gear:
 			var delta: int = shown_gear - gear
 			var sign: String = "+" if delta > 0 else ""
@@ -501,17 +495,26 @@ class SlotPlate extends Panel:
 		_lock.visible = not unlocked
 		if not unlocked:
 			_icon.color = Color(0.28, 0.28, 0.30, 1.0)
-			_caption.text = Equipment.slot_lock_short(slot_id)
+			_caption.text = Equipment.slot_lock_hint(slot_id)
 			tooltip_text = Equipment.slot_lock_hint(slot_id)
+			if slot_id == "relic":
+				tooltip_text = "%s %s" % [tooltip_text, ContentStrings.get_text("relic_locked_tooltip")]
+			_caption.clip_text = true
+			_caption.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			return
 		tooltip_text = Equipment.slot_display_name(slot_id)
 		if iid == "":
 			_icon.color = Color(0.24, 0.18, 0.12, 1.0)
-			_caption.text = Equipment.slot_display_name(slot_id)
+			if slot_id == "weapon":
+				_caption.text = ContentStrings.get_text("equip_bare_stone")
+				tooltip_text = ContentStrings.get_text("equip_bare_stone_tooltip")
+			else:
+				_caption.text = ContentStrings.get_text("equip_empty")
+				tooltip_text = ContentStrings.get_text("equip_empty")
 		else:
 			_icon.color = Equipment.item_color(iid)
 			_caption.text = Equipment.item_display_name(iid)
-			tooltip_text = Equipment.item_display_name(iid)
+			tooltip_text = Equipment.item_tooltip(iid)
 
 	func _gui_input(event: InputEvent) -> void:
 		if not (event is InputEventMouseButton):
@@ -604,14 +607,16 @@ class GearRow extends Panel:
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(icon)
 		var lbl := Label.new()
-		lbl.text = Equipment.item_display_name(item_id)
+		var count: int = Equipment.unequipped_count(item_id)
+		var name: String = Equipment.item_display_name(item_id)
+		lbl.text = name if count <= 1 else "%s  ×%d" % [name, count]
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		lbl.add_theme_font_size_override("font_size", 13)
 		lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(lbl)
-		tooltip_text = ContentStrings.get_text("character_equip_hint")
+		tooltip_text = "%s\n%s" % [Equipment.item_tooltip(item_id), ContentStrings.get_text("equip_equip")]
 
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseMotion and host != null:

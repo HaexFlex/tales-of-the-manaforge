@@ -1,13 +1,13 @@
 extends Node
 ## Battle gear inventory + paper-doll slots. Thin module beside GameState.
-## Backpack keeps forest crafts. This inventory keeps weapons and (later) armor.
-## Equipped bonuses are flat. level / runes are stored and unused until the forge pass.
+## Backpack keeps forest crafts. This inventory keeps Weapon Rod and Stone Sword.
+## Equipped bonuses are flat. Relic stays locked this ship (no Forge Key).
 
 signal equipment_changed
 
 const DATA_PATH: String = "res://data/equipment.json"
 const SLOT_ORDER: Array[StringName] = [
-	&"weapon", &"relic", &"head", &"body", &"hands", &"pants", &"feet", &"cape", &"ring_1", &"ring_2"
+	&"weapon", &"relic", &"head", &"body", &"hands", &"pants", &"feet", &"cape", &"ring1", &"ring2"
 ]
 
 var slots_data: Array = []
@@ -16,9 +16,9 @@ var recipes_data: Array = []
 var _slot_index: Dictionary = {}
 var _item_index: Dictionary = {}
 var _recipe_index: Dictionary = {}
-## Unequipped instances: {id, level, runes}.
-var owned: Array[Dictionary] = []
-## slot_id -> instance dict. Missing or empty id means bare.
+## Unequipped battle items: item_id -> count.
+var gear_inventory: Dictionary = {}
+## slot_id -> item_id. Missing key means bare.
 var equipped: Dictionary = {}
 
 
@@ -70,7 +70,7 @@ func _load_tables() -> void:
 
 
 func is_known_slot(slot_id: String) -> bool:
-	return _slot_index.has(slot_id)
+	return _slot_index.has(_canonical_slot(slot_id))
 
 
 func is_known_item(item_id: String) -> bool:
@@ -82,7 +82,7 @@ func has_recipe(recipe_id: String) -> bool:
 
 
 func get_slot_def(slot_id: String) -> Dictionary:
-	var found: Variant = _slot_index.get(slot_id, {})
+	var found: Variant = _slot_index.get(_canonical_slot(slot_id), {})
 	return found if typeof(found) == TYPE_DICTIONARY else {}
 
 
@@ -97,34 +97,35 @@ func get_recipe_def(recipe_id: String) -> Dictionary:
 
 
 func is_slot_unlocked(slot_id: String) -> bool:
-	return bool(get_slot_def(slot_id).get("unlocked", false))
+	## Relic stays locked until Forge Key — that item is not in this ship.
+	var sid: String = _canonical_slot(slot_id)
+	if sid == "relic":
+		return false
+	return bool(get_slot_def(sid).get("unlocked", false))
 
 
 func slot_display_name(slot_id: String) -> String:
-	var def: Dictionary = get_slot_def(slot_id)
-	var key: String = str(def.get("label_key", "equip_slot_%s" % slot_id))
+	var sid: String = _canonical_slot(slot_id)
+	var def: Dictionary = get_slot_def(sid)
+	var key: String = str(def.get("label_key", "equip_slot_%s" % sid))
 	var labeled: String = ContentStrings.get_text(key)
 	if labeled != key and labeled != "":
 		return labeled
-	return slot_id.capitalize()
-
-
-func slot_lock_short(slot_id: String) -> String:
-	var def: Dictionary = get_slot_def(slot_id)
-	var key: String = str(def.get("lock_short_key", "equip_locked_short"))
-	var labeled: String = ContentStrings.get_text(key)
-	if labeled != key and labeled != "":
-		return labeled
-	return "Locked"
+	return sid.capitalize()
 
 
 func slot_lock_hint(slot_id: String) -> String:
-	var def: Dictionary = get_slot_def(slot_id)
-	var key: String = str(def.get("lock_hint_key", "equip_locked_armor"))
-	var labeled: String = ContentStrings.get_text(key)
-	if labeled != key and labeled != "":
-		return labeled
-	return "Locked."
+	var sid: String = _canonical_slot(slot_id)
+	var key: String = "equip_locked_hint"
+	if sid == "relic":
+		key = "equip_locked_relic"
+	elif sid == "weapon":
+		key = "equip_locked_weapon"
+	return ContentStrings.get_text(key)
+
+
+func slot_lock_short(slot_id: String) -> String:
+	return slot_lock_hint(slot_id)
 
 
 func slot_anchor(slot_id: String) -> Vector2:
@@ -147,6 +148,16 @@ func item_display_name(item_id: String) -> String:
 	return item_id
 
 
+func item_tooltip(item_id: String) -> String:
+	var def: Dictionary = get_item_def(item_id)
+	var key: String = str(def.get("tooltip_key", ""))
+	if key != "":
+		var labeled: String = ContentStrings.get_text(key)
+		if labeled != key and labeled != "":
+			return labeled
+	return item_display_name(item_id)
+
+
 func item_color(item_id: String) -> Color:
 	var hex: String = str(get_item_def(item_id).get("color", "#888888"))
 	return Color(hex)
@@ -161,77 +172,41 @@ func is_unique_item(item_id: String) -> bool:
 
 
 func item_fits_slot(item_id: String, slot_id: String) -> bool:
-	return is_known_item(item_id) and item_slot(item_id) == slot_id
-
-
-func _blank_instance(item_id: String) -> Dictionary:
-	var def: Dictionary = get_item_def(item_id)
-	var sockets: Variant = def.get("rune_sockets", [])
-	var runes: Array = (sockets as Array).duplicate(true) if typeof(sockets) == TYPE_ARRAY else []
-	return {
-		"id": item_id,
-		"level": maxi(1, int(def.get("level", 1))),
-		"runes": runes,
-	}
-
-
-func _normalize_instance(raw: Dictionary) -> Dictionary:
-	var iid: String = str(raw.get("id", ""))
-	if not is_known_item(iid):
-		return {}
-	var runes_v: Variant = raw.get("runes", [])
-	var runes: Array = runes_v if typeof(runes_v) == TYPE_ARRAY else []
-	return {
-		"id": iid,
-		"level": maxi(1, int(raw.get("level", 1))),
-		"runes": runes.duplicate(true),
-	}
-
-
-func equipped_instance(slot_id: String) -> Dictionary:
-	var found: Variant = equipped.get(slot_id, {})
-	if typeof(found) != TYPE_DICTIONARY:
-		return {}
-	return found as Dictionary
+	var slot: String = item_slot(item_id)
+	return is_known_item(item_id) and slot != "" and slot == _canonical_slot(slot_id)
 
 
 func equipped_id(slot_id: String) -> String:
-	return str(equipped_instance(slot_id).get("id", ""))
-
-
-func _owned_index(item_id: String) -> int:
-	for i: int in range(owned.size()):
-		if str(owned[i].get("id", "")) == item_id:
-			return i
-	return -1
+	return str(equipped.get(_canonical_slot(slot_id), ""))
 
 
 func unequipped_count(item_id: String) -> int:
-	var n: int = 0
-	for inst: Dictionary in owned:
-		if str(inst.get("id", "")) == item_id:
+	return int(gear_inventory.get(item_id, 0))
+
+
+func gear_count_anywhere(item_id: String) -> int:
+	var n: int = unequipped_count(item_id)
+	for slot_id: StringName in SLOT_ORDER:
+		if equipped_id(String(slot_id)) == item_id:
 			n += 1
 	return n
 
 
 func owns_anywhere(item_id: String) -> bool:
-	if unequipped_count(item_id) > 0:
-		return true
-	for slot_id: StringName in SLOT_ORDER:
-		if equipped_id(String(slot_id)) == item_id:
-			return true
-	return false
+	return gear_count_anywhere(item_id) > 0
 
 
 func list_unequipped() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for inst: Dictionary in owned:
-		out.append(inst.duplicate(true))
+	for key: Variant in gear_inventory.keys():
+		var iid: String = str(key)
+		var n: int = int(gear_inventory[key])
+		if n > 0 and is_known_item(iid):
+			out.append({"id": iid, "count": n})
 	return out
 
 
 func _item_bonus(item_id: String, stat_id: String) -> int:
-	## Level is stored on the instance but does not scale power yet.
 	var bonuses: Variant = get_item_def(item_id).get("bonuses", {})
 	if typeof(bonuses) != TYPE_DICTIONARY:
 		return 0
@@ -272,41 +247,48 @@ func try_equip(item_id: String) -> String:
 func try_equip_to_slot(item_id: String, slot_id: String) -> String:
 	if not is_known_item(item_id):
 		return "missing"
-	if not item_fits_slot(item_id, slot_id):
-		return "wrong_slot"
-	if not is_slot_unlocked(slot_id):
-		return "locked"
-	var idx: int = _owned_index(item_id)
-	if idx < 0:
+	var sid: String = _canonical_slot(slot_id)
+	if not is_known_slot(sid):
 		return "missing"
-	var inst: Dictionary = owned[idx].duplicate(true)
-	owned.remove_at(idx)
-	var previous: Dictionary = equipped_instance(slot_id)
-	if str(previous.get("id", "")) != "":
-		owned.append(previous.duplicate(true))
-	equipped[slot_id] = inst
+	if not is_slot_unlocked(sid):
+		return "locked"
+	if not item_fits_slot(item_id, sid):
+		return "wrong_slot"
+	if unequipped_count(item_id) <= 0:
+		return "missing"
+	_take_unequipped(item_id, 1)
+	var previous: String = equipped_id(sid)
+	if previous != "":
+		_add_unequipped(previous, 1)
+	equipped[sid] = item_id
 	equipment_changed.emit()
 	return "ok"
 
 
 func try_unequip(slot_id: String) -> String:
-	if not is_known_slot(slot_id):
+	var sid: String = _canonical_slot(slot_id)
+	if not is_known_slot(sid):
 		return "missing"
-	var inst: Dictionary = equipped_instance(slot_id)
-	if str(inst.get("id", "")) == "":
+	var iid: String = equipped_id(sid)
+	if iid == "":
 		return "empty"
-	owned.append(inst.duplicate(true))
-	equipped.erase(slot_id)
+	_add_unequipped(iid, 1)
+	equipped.erase(sid)
 	equipment_changed.emit()
 	return "ok"
 
 
 func grant_item(item_id: String) -> bool:
-	if not is_known_item(item_id):
+	return add_gear(item_id, 1)
+
+
+func add_gear(item_id: String, count: int) -> bool:
+	if not is_known_item(item_id) or count <= 0:
 		return false
 	if is_unique_item(item_id) and owns_anywhere(item_id):
 		return false
-	owned.append(_blank_instance(item_id))
+	var n: int = 1 if is_unique_item(item_id) else count
+	_add_unequipped(item_id, n)
 	equipment_changed.emit()
 	return true
 
@@ -325,7 +307,11 @@ func get_recipe_ingredients(recipe_id: String) -> Dictionary:
 func _have_ingredient(ing_id: String, need: int) -> bool:
 	if StringName(ing_id) in Backpack.RESOURCE_IDS:
 		return GameState.get_resource(StringName(ing_id)) >= need
-	return Backpack.get_count(ing_id) >= need
+	if Backpack.is_known_item(ing_id):
+		return Backpack.get_count(ing_id) >= need
+	if is_known_item(ing_id):
+		return gear_count_anywhere(ing_id) >= need
+	return false
 
 
 func _spend_ingredient(ing_id: String, need: int) -> bool:
@@ -334,7 +320,11 @@ func _spend_ingredient(ing_id: String, need: int) -> bool:
 			return false
 		GameState.add_resource(StringName(ing_id), -need)
 		return true
-	return Backpack.try_spend(ing_id, need)
+	if Backpack.is_known_item(ing_id):
+		return Backpack.try_spend(ing_id, need)
+	if is_known_item(ing_id):
+		return _spend_gear_anywhere(ing_id, need)
+	return false
 
 
 func craft_block_reason(recipe_id: String) -> String:
@@ -368,9 +358,12 @@ func recipe_ingredient_lines(recipe_id: String) -> PackedStringArray:
 		if StringName(iid) in Backpack.RESOURCE_IDS:
 			have = GameState.get_resource(StringName(iid))
 			name = ContentStrings.get_text("hud_%s" % iid)
-		else:
+		elif Backpack.is_known_item(iid):
 			have = Backpack.get_count(iid)
 			name = Backpack.item_display_name(iid)
+		else:
+			have = gear_count_anywhere(iid)
+			name = item_display_name(iid)
 		lines.append("%s %d/%d" % [name, have, need])
 	return lines
 
@@ -393,60 +386,147 @@ func try_craft(recipe_id: String) -> String:
 
 
 func on_ascend() -> void:
-	## Battle kit stays with the Keeper. Backpack intermediates (Weapon Rod included) wipe.
+	## Equipped gear and the gear inventory stay. Backpack still wipes.
 	pass
 
 
 func reset_for_new_game() -> void:
-	owned.clear()
+	gear_inventory.clear()
 	equipped.clear()
 	equipment_changed.emit()
 
 
 func to_save_dict() -> Dictionary:
-	var owned_out: Array = []
-	for inst: Dictionary in owned:
-		owned_out.append(inst.duplicate(true))
 	var eq_out: Dictionary = {}
 	for slot_id: StringName in SLOT_ORDER:
 		var key: String = String(slot_id)
-		var inst: Dictionary = equipped_instance(key)
-		if str(inst.get("id", "")) != "":
-			eq_out[key] = inst.duplicate(true)
-	return {"owned": owned_out, "equipped": eq_out}
+		var iid: String = equipped_id(key)
+		eq_out[key] = iid if iid != "" else null
+	var unlocked: Dictionary = {}
+	for slot_id: StringName in SLOT_ORDER:
+		var key: String = String(slot_id)
+		unlocked[key] = is_slot_unlocked(key)
+	var bag: Dictionary = {}
+	for key: Variant in gear_inventory.keys():
+		var n: int = int(gear_inventory[key])
+		if n > 0:
+			bag[str(key)] = n
+	return {
+		"equipment_unlocked": unlocked,
+		"equipment_equipped": eq_out,
+		"gear_inventory": bag,
+	}
 
 
 func apply_save_dict(data: Variant) -> void:
-	owned.clear()
+	gear_inventory.clear()
 	equipped.clear()
 	if typeof(data) != TYPE_DICTIONARY:
 		equipment_changed.emit()
 		return
 	var src: Dictionary = data
-	var owned_v: Variant = src.get("owned", [])
-	if typeof(owned_v) == TYPE_ARRAY:
-		for entry: Variant in owned_v:
-			if typeof(entry) != TYPE_DICTIONARY:
-				continue
-			var inst: Dictionary = _normalize_instance(entry as Dictionary)
-			if inst.is_empty():
-				continue
-			if is_unique_item(str(inst.get("id", ""))) and owns_anywhere(str(inst.get("id", ""))):
-				continue
-			owned.append(inst)
-	var eq_v: Variant = src.get("equipped", {})
-	if typeof(eq_v) == TYPE_DICTIONARY:
-		for slot_id: StringName in SLOT_ORDER:
-			var key: String = String(slot_id)
-			var raw: Variant = (eq_v as Dictionary).get(key, {})
-			if typeof(raw) != TYPE_DICTIONARY:
-				continue
-			var inst: Dictionary = _normalize_instance(raw as Dictionary)
-			if inst.is_empty():
-				continue
-			if not item_fits_slot(str(inst.get("id", "")), key):
-				continue
-			if is_unique_item(str(inst.get("id", ""))) and owns_anywhere(str(inst.get("id", ""))):
-				continue
-			equipped[key] = inst
+	if src.has("gear_inventory") or src.has("equipment_equipped") or src.has("owned"):
+		_apply_inventory(src.get("gear_inventory", src.get("owned", {})))
+		_apply_equipped(src.get("equipment_equipped", src.get("equipped", {})))
+	## Unlock flags stay on the data file this ship so a save cannot open the relic.
 	equipment_changed.emit()
+
+
+func _apply_inventory(raw: Variant) -> void:
+	if typeof(raw) == TYPE_DICTIONARY:
+		for key: Variant in (raw as Dictionary).keys():
+			var iid: String = str(key)
+			if not is_known_item(iid):
+				continue
+			var n: int = int((raw as Dictionary)[key])
+			if n <= 0:
+				continue
+			if is_unique_item(iid):
+				if owns_anywhere(iid):
+					continue
+				n = 1
+			_add_unequipped(iid, n)
+		return
+	if typeof(raw) != TYPE_ARRAY:
+		return
+	for entry: Variant in raw:
+		var iid: String = _item_id_of(entry)
+		if iid == "" or not is_known_item(iid):
+			continue
+		if is_unique_item(iid) and owns_anywhere(iid):
+			continue
+		_add_unequipped(iid, 1)
+
+
+func _apply_equipped(raw: Variant) -> void:
+	if typeof(raw) != TYPE_DICTIONARY:
+		return
+	for slot_id: StringName in SLOT_ORDER:
+		var key: String = String(slot_id)
+		var found: Variant = (raw as Dictionary).get(key, null)
+		if found == null and key == "ring1":
+			found = (raw as Dictionary).get("ring_1", null)
+		elif found == null and key == "ring2":
+			found = (raw as Dictionary).get("ring_2", null)
+		var iid: String = _item_id_of(found)
+		if iid == "" or not item_fits_slot(iid, key):
+			continue
+		if is_unique_item(iid) and owns_anywhere(iid):
+			continue
+		equipped[key] = iid
+
+
+func _add_unequipped(item_id: String, count: int) -> void:
+	if count <= 0:
+		return
+	gear_inventory[item_id] = unequipped_count(item_id) + count
+
+
+func _take_unequipped(item_id: String, count: int) -> bool:
+	var have: int = unequipped_count(item_id)
+	if have < count:
+		return false
+	var left: int = have - count
+	if left <= 0:
+		gear_inventory.erase(item_id)
+	else:
+		gear_inventory[item_id] = left
+	return true
+
+
+func _spend_gear_anywhere(item_id: String, need: int) -> bool:
+	if gear_count_anywhere(item_id) < need:
+		return false
+	var from_bag: int = mini(unequipped_count(item_id), need)
+	if from_bag > 0:
+		_take_unequipped(item_id, from_bag)
+		need -= from_bag
+	if need <= 0:
+		return true
+	for slot_id: StringName in SLOT_ORDER:
+		if need <= 0:
+			break
+		var key: String = String(slot_id)
+		if equipped_id(key) != item_id:
+			continue
+		equipped.erase(key)
+		need -= 1
+	return need <= 0
+
+
+func _item_id_of(raw: Variant) -> String:
+	if raw == null:
+		return ""
+	if typeof(raw) == TYPE_STRING or typeof(raw) == TYPE_STRING_NAME:
+		return str(raw)
+	if typeof(raw) == TYPE_DICTIONARY:
+		return str((raw as Dictionary).get("id", ""))
+	return ""
+
+
+func _canonical_slot(slot_id: String) -> String:
+	if slot_id == "ring_1":
+		return "ring1"
+	if slot_id == "ring_2":
+		return "ring2"
+	return slot_id

@@ -74,12 +74,12 @@ func stat_display_name(stat_id: String) -> String:
 
 func stat_role(stat_id: String) -> String:
 	var def: Dictionary = get_stat_def(stat_id)
-	var key: String = str(def.get("role_key", ""))
+	var key: String = str(def.get("tooltip_key", "stat_%s_tooltip" % stat_id))
 	if key != "":
 		var labeled: String = ContentStrings.get_text(key)
 		if labeled != key and labeled != "":
 			return labeled
-	return str(def.get("role", ""))
+	return ""
 
 
 func stat_color(stat_id: String) -> Color:
@@ -111,9 +111,10 @@ func get_next_cost(stat_id: String) -> int:
 	var rank: int = get_rank(stat_id)
 	if rank >= get_max_rank():
 		return -1
-	var base: int = int(params.get("cost_base", 50))
-	var growth: float = float(params.get("cost_growth", 2.0))
-	return int(round(float(base) * pow(growth, float(rank))))
+	var base: int = int(params.get("cost_base", 100))
+	var growth: float = float(params.get("cost_growth", 1.65))
+	## floor(BASE * GROWTH^rank). Tiny epsilon keeps binary 1.65 products on the documented step.
+	return int(floor(float(base) * pow(growth, float(rank)) + 0.0000001))
 
 
 func can_buy(stat_id: String) -> bool:

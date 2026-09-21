@@ -116,7 +116,7 @@ func _ready() -> void:
 	_apply_wood_chrome()
 	add_to_group("game_hud")
 	pause_button.text = ContentStrings.get_text("btn_pause")
-	character_button.text = ContentStrings.get_text("character_open")
+	character_button.text = ContentStrings.get_text("char_sheet_open")
 	backpack_button.text = ContentStrings.get_text("backpack_open")
 	backpack_title.text = ContentStrings.get_text("backpack_title")
 	handcraft_title.text = "%s  ·  %s" % [
@@ -902,7 +902,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	var key: InputEventKey = event
 	if not key.pressed or key.echo:
 		return
-	if key.keycode != KEY_C or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
+	var sheet_key: bool = key.keycode == KEY_C or key.is_action_pressed("character_sheet")
+	if not sheet_key or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
 		return
 	if welcome_panel.visible:
 		return
@@ -1132,6 +1133,8 @@ func _craft_row_cost_text(recipe_id: String) -> String:
 		var gear_costs: String = ""
 		if recipe_id == "stone_sword":
 			gear_costs = _content_line("handcraft_row_stone_sword_short")
+		elif recipe_id == "weapon_rod":
+			gear_costs = _content_line("handcraft_row_weapon_rod_short")
 		if gear_costs == "":
 			gear_costs = "  ".join(Equipment.recipe_ingredient_lines(recipe_id))
 		var gear_wrapped: String = _content_line("handcraft_row_costs_only", {"costs": gear_costs})
@@ -1140,8 +1143,6 @@ func _craft_row_cost_text(recipe_id: String) -> String:
 		return gear_costs
 	var costs: String = ""
 	match recipe_id:
-		"weapon_rod":
-			costs = _content_line("handcraft_row_weapon_rod_short")
 		"stone_watering_can":
 			costs = _content_line("handcraft_row_watering_can_short")
 			if costs == "":
@@ -1214,7 +1215,7 @@ func _on_craft_gear(recipe_id: String) -> void:
 	var item_name: String = Equipment.item_display_name(out_id)
 	if result == "ok":
 		GameAudio.play_ui_confirm()
-		status_label.text = ContentStrings.get_text("handcraft_gear_ok", {"item": item_name})
+		status_label.text = ContentStrings.get_text("weapon_craft_ok", {"item": item_name})
 		_rebuild_backpack()
 		_refresh_resources()
 		SaveService.save_game()
