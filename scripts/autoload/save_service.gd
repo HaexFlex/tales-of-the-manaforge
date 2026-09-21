@@ -1,13 +1,13 @@
 extends Node
-## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.5.0).
-## Payload schema SAVE_VERSION 7 — keeper stats + gear. Migrates legacy single-file → slot 1.
+## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.5.2).
+## Payload schema SAVE_VERSION 8 — combat bases floor at 5. Migrates legacy single-file → slot 1.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
-const SAVE_VERSION: int = 7
-## Accept one write ahead of this schema (plus legacy 4–6).
-const SAVE_VERSION_MAX_READ: int = 8
+const SAVE_VERSION: int = 8
+## Accept one write ahead of this schema (plus legacy 4–7).
+const SAVE_VERSION_MAX_READ: int = 9
 const SAVE_SLOT_COUNT: int = 7
 const LEGACY_SAVE_PATH: String = "user://manaforge_save.json"
 const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
@@ -192,6 +192,9 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 	if from_version < 7:
 		## SYSTEMS v0.5.0: v6→v7 starts stats at 0 and gear empty. Backpack stays.
 		_migrate_gear_v7(out)
+	if from_version < 8:
+		## v7→v8: every combat base is at least the starting floor (5). Higher ranks stay.
+		_migrate_stat_floor_v8(out)
 	# Additive welcome flag: legacy saves already played.
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -235,6 +238,19 @@ func _migrate_gear_v7(out: Dictionary) -> void:
 	}
 	out["gear_inventory"] = {}
 	out.erase("equipment")
+
+
+func _migrate_stat_floor_v8(out: Dictionary) -> void:
+	var floor_at: int = 5
+	if has_node("/root/KeeperStats") and KeeperStats.has_method("starting_base"):
+		floor_at = int(KeeperStats.call("starting_base"))
+	var raw_v: Variant = out.get("keeper_stats", {})
+	var src: Dictionary = raw_v if typeof(raw_v) == TYPE_DICTIONARY else {}
+	var stats: Dictionary = {}
+	for sid: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+		var raw: int = int(src.get(sid, 0)) if src.has(sid) else 0
+		stats[sid] = maxi(floor_at, raw)
+	out["keeper_stats"] = stats
 
 
 func delete_slot(slot: int) -> void:

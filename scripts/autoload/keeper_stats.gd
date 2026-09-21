@@ -45,11 +45,16 @@ func _load_tables() -> void:
 			_stat_index[sid] = d
 
 
+func starting_base() -> int:
+	return maxi(0, int(params.get("starting_base", 5)))
+
+
 func _ensure_keys() -> void:
+	var floor_at: int = starting_base()
 	for sid: StringName in STAT_ORDER:
 		var key: String = String(sid)
 		if not ranks.has(key):
-			ranks[key] = 0
+			ranks[key] = floor_at
 
 
 func is_known_stat(stat_id: String) -> bool:
@@ -88,7 +93,12 @@ func stat_color(stat_id: String) -> Color:
 
 
 func get_rank(stat_id: String) -> int:
-	return int(ranks.get(stat_id, 0))
+	return int(ranks.get(stat_id, starting_base()))
+
+
+## Purchases above the free starting base. The cost curve still starts at 0 → 100.
+func purchased_rank(stat_id: String) -> int:
+	return maxi(0, get_rank(stat_id) - starting_base())
 
 
 func get_max_rank() -> int:
@@ -99,7 +109,8 @@ func power_per_rank() -> int:
 	return maxi(1, int(params.get("power_per_rank", 1)))
 
 
-## Flat combat power from ranks. Gear is added by Equipment, not here.
+## Flat combat power. Starts at starting_base; each purchase adds power_per_rank.
+## Gear is added by Equipment, not here.
 func get_base(stat_id: String) -> int:
 	return get_rank(stat_id) * power_per_rank()
 
@@ -108,13 +119,13 @@ func get_base(stat_id: String) -> int:
 func get_next_cost(stat_id: String) -> int:
 	if not is_known_stat(stat_id):
 		return -1
-	var rank: int = get_rank(stat_id)
-	if rank >= get_max_rank():
+	if get_rank(stat_id) >= get_max_rank():
 		return -1
+	var bought: int = purchased_rank(stat_id)
 	var base: int = int(params.get("cost_base", 100))
 	var growth: float = float(params.get("cost_growth", 1.65))
-	## floor(BASE * GROWTH^rank). Tiny epsilon keeps binary 1.65 products on the documented step.
-	return int(floor(float(base) * pow(growth, float(rank)) + 0.0000001))
+	## floor(BASE * GROWTH^purchased). Fresh base 5 is purchased 0 and still costs BASE.
+	return int(floor(float(base) * pow(growth, float(bought)) + 0.0000001))
 
 
 func can_buy(stat_id: String) -> bool:
@@ -147,7 +158,7 @@ func try_buy(stat_id: String) -> String:
 func set_rank(stat_id: String, rank: int) -> void:
 	if not is_known_stat(stat_id):
 		return
-	ranks[stat_id] = clampi(rank, 0, get_max_rank())
+	ranks[stat_id] = clampi(rank, starting_base(), get_max_rank())
 	ranks_changed.emit(StringName(stat_id))
 
 
@@ -181,13 +192,11 @@ func to_save_dict() -> Dictionary:
 
 func apply_save_dict(data: Variant) -> void:
 	ranks.clear()
-	_ensure_keys()
-	if typeof(data) != TYPE_DICTIONARY:
-		ranks_changed.emit(&"")
-		return
-	var src: Dictionary = data
+	var src: Dictionary = data if typeof(data) == TYPE_DICTIONARY else {}
+	var floor_at: int = starting_base()
+	var cap: int = get_max_rank()
 	for sid: StringName in STAT_ORDER:
 		var key: String = String(sid)
-		if src.has(key):
-			ranks[key] = clampi(int(src[key]), 0, get_max_rank())
+		var raw: int = int(src.get(key, 0)) if src.has(key) else 0
+		ranks[key] = clampi(maxi(raw, floor_at), floor_at, cap)
 	ranks_changed.emit(&"")
