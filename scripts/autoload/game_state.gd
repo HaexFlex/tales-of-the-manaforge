@@ -1042,13 +1042,7 @@ func apply_save_dict(data: Dictionary) -> void:
 		wisp_assignments = {}
 	wisp_pulse_accum.clear()
 	_ensure_wisp_slots()
-	var pack_src: Variant = data.get("backpack", {})
-	var rescued_rod: int = 0
-	if typeof(pack_src) == TYPE_DICTIONARY and (pack_src as Dictionary).has("weapon_rod"):
-		rescued_rod = int((pack_src as Dictionary).get("weapon_rod", 0))
-		pack_src = (pack_src as Dictionary).duplicate(true)
-		(pack_src as Dictionary).erase("weapon_rod")
-	Backpack.apply_save_dict(pack_src)
+	Backpack.apply_save_dict(data.get("backpack", {}))
 	## SYSTEMS v0.4.0 prefers unique-tool flags; backpack stacks (max 1) also OK.
 	if bool(data.get("owns_stone_axe", false)):
 		Backpack.set_count("stone_axe", 1)
@@ -1062,8 +1056,6 @@ func apply_save_dict(data: Dictionary) -> void:
 		KeeperStats.apply_save_dict(data.get("keeper_stats", {}))
 	if has_node("/root/Equipment"):
 		Equipment.apply_save_dict(_equipment_payload(data))
-		if rescued_rod > 0:
-			Equipment.add_gear("weapon_rod", rescued_rod)
 	keeper_selected = false
 	selected_wisp_id = -1
 	wisps_changed.emit()

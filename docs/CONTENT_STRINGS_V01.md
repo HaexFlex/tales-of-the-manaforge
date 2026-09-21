@@ -1,10 +1,10 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.5.0 — Haex GREENLIGHT: Character sheet / 7 stats / Runestone spend / equip (Weapon Rod + Stone Sword) / locked-slot hints
+**Status:** v0.5.1 — aligned to SYSTEMS v0.5.0 ids: 10 gear slots; `stone_sword`; gear ≠ backpack; D7 scales live note
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
-**Changelog note:** v0.5.0 Character sheet + Runestone + first weapons (Director greenlight).
+**Changelog note:** v0.5.1 Design id lock (slots + stone_sword + gear inventory + D7 live).
 
 **Last updated:** 2026-09-21
 
@@ -26,6 +26,7 @@
 | **v0.2.3** | Haex: Ascension shop spends **Manashards** on blessings; multi-buy OK; then Ascend. Not free-pick, not Essence. |
 | **v0.4.1** | Haex D6 live: Stone Axe/Pickaxe Head; costs-only Can+Fert rows; Keep Tools 3000; blessing tooltips; Grow Fert 3/6/12/24. |
 | **v0.5.0** | Haex GREENLIGHT: Character sheet, seven stats (VISION), Runestone spend (Manashards), locked Weapon/Relic slot hints, Weapon Rod + Stone Sword, equip tooltips. Manatree scale note bundled (visual — D7). |
+| **v0.5.1** | Design id lock: slots `weapon`/`relic`/`head`/`body`/`hands`/`pants`/`feet`/`cape`/`ring1`/`ring2` (only weapon unlocked); item id `stone_sword`; gear inventory ≠ backpack; HUD+C; D7 scales live (visual). |
 
 ---
 
@@ -554,7 +555,7 @@ Primary stage-advance label is **Grow** (aliases `tree_pay*` → Grow).
 
 Haex GREENLIGHT 2026-09-21. Stats + Runestone spend + first Weapon craft are **live strings**. Echo Chamber combat still later.  
 **Currency:** Runestone spends use the **same Manashard pool** as the Ascension blessing shop (bank-vs-spend). Stats/gear **persist** across Ascend; soft mats / unspent shards still wipe on Ascend per live rules.  
-Ids lean on `VISION_RESTART` seven stats; Design may retarget ids — Content will rename if SYSTEMS diverges.
+Ids locked to SYSTEMS **v0.5.0** (Design mid-flight confirm). Stats match VISION. Gear inventory ≠ backpack.
 
 ### 10a. Character sheet UI
 
@@ -616,44 +617,92 @@ Ids lean on `VISION_RESTART` seven stats; Design may retarget ids — Content wi
 | `runestone_cost` | {cost} Manashards |
 | `runestone_maxed` | Fully raised for now |
 
-### 10d. Equipment slots (Weapon / Relic)
+### 10d. Equipment slots (SYSTEMS v0.5.0)
+
+Slot ids: `weapon`, `relic`, `head`, `body`, `hands`, `pants`, `feet`, `cape`, `ring1`, `ring2`.  
+**Start:** only **`weapon`** unlocked. All other slots locked (grey). **`relic`** stays locked until **Forge Key** (empty this ship).
+
+| slot_id | Display | Start |
+|---------|---------|-------|
+| `weapon` | Weapon | Unlocked |
+| `relic` | Relic | Locked — Forge Key |
+| `head` | Head | Locked |
+| `body` | Body | Locked |
+| `hands` | Hands | Locked |
+| `pants` | Pants | Locked |
+| `feet` | Feet | Locked |
+| `cape` | Cape | Locked |
+| `ring1` | Ring | Locked |
+| `ring2` | Ring | Locked |
 
 | key | string |
 |-----|--------|
 | `equip_slot_weapon` | Weapon |
 | `equip_slot_relic` | Relic |
+| `equip_slot_head` | Head |
+| `equip_slot_body` | Body |
+| `equip_slot_hands` | Hands |
+| `equip_slot_pants` | Pants |
+| `equip_slot_feet` | Feet |
+| `equip_slot_cape` | Cape |
+| `equip_slot_ring1` | Ring |
+| `equip_slot_ring2` | Ring |
 | `equip_empty` | Empty |
 | `equip_unequip` | Unequip |
 | `equip_equip` | Equip |
 | `equip_ok` | Equipped {item}. |
 | `equip_unequip_ok` | Put away {item}. |
-| `equip_locked_weapon` | Weapon slot locked — craft a weapon first. |
-| `equip_locked_relic` | Relic slot locked — later. |
+| `equip_locked` | Locked |
 | `equip_locked_hint` | This slot is not open yet. |
+| `equip_locked_relic` | Relic locked — needs a Forge Key. |
+| `equip_locked_armor` | Not yet — the Forge still sleeps. |
 | `equip_bare_stone` | Bare Stone |
 | `equip_bare_stone_tooltip` | Empty hands — no weapon equipped. |
 | `equip_no_item` | Nothing to equip. |
 
-### 10e. First weapons (craft / equip)
+### 10e. Gear inventory (≠ backpack)
+
+Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor/relics live in **Gear**.
+
+| key | string |
+|-----|--------|
+| `gear_title` | Gear |
+| `gear_open` | Gear |
+| `gear_empty` | No gear yet. |
+| `gear_hint` | Weapons and worn gear live here — separate from your Backpack. |
+| `gear_tab_weapons` | Weapons |
+| `gear_tab_all` | All |
+
+### 10f. First weapons (craft / equip)
 
 | id | Display | Examine / equip tooltip |
 |----|---------|-------------------------|
 | `weapon_rod` | Weapon Rod | A simple wooden rod — your first lasting weapon. |
-| `weapon_stone_sword` | Stone Sword | A crude stone blade. Hits a little harder than a rod. |
+| `stone_sword` | Stone Sword | A crude stone blade. Hits a little harder than a rod. |
 
 | key | string |
 |-----|--------|
 | `weapon_rod_name` | Weapon Rod |
 | `weapon_rod_tooltip` | A simple wooden rod — your first lasting weapon. |
-| `weapon_stone_sword_name` | Stone Sword |
-| `weapon_stone_sword_tooltip` | A crude stone blade. Hits a little harder than a rod. |
+| `stone_sword_name` | Stone Sword |
+| `stone_sword_tooltip` | A crude stone blade. Hits a little harder than a rod. |
+| `stone_sword_craft_cost` | Stone Fragments ×30, Weapon Rod ×1 |
+| `stone_sword_craft_cost_default` | Stone Fragments ×30, Weapon Rod ×1 |
 | `weapon_craft_ok` | Crafted {item}. |
 | `weapon_persist_hint` | Weapons stay with you through Ascend. |
-| `relic_locked_tooltip` | Relics come later — when the Forge wakes. |
+| `relic_locked_tooltip` | Relics come later — when you hold a Forge Key. |
 
-### 10f. Manatree display scales (D7 — note only)
+### 10g. Character sheet open (HUD + C)
 
-Visual-only (Art/Code). No player-facing strings. When Director opens the system session: sapling **0.5×**, young **1×**, mature **2×**, elder **2×**, ancient **1.5×**. Canvases unchanged. Bundled here so Content stays aligned with SYSTEMS §11 D7.
+| key | string |
+|-----|--------|
+| `char_sheet_hotkey_hint` | C — Character |
+| `hud_btn_character` | Character |
+
+### 10h. Manatree display scales (D7 — LIVE visual note)
+
+Visual-only (Art/Code). No player-facing strings. **Live with v0.5:** sapling **0.5×**, young **1×**, mature **2×**, elder **2×**, ancient **1.5×**. Canvases unchanged.
+
 
 ## DEFERRED notes (historical + park)
 
@@ -716,11 +765,11 @@ Promoted 2026-09-19 → live v0.4.1. Ping Code.
 
 v0.4.0: Backpack, Handcraft, tools, Grow, Keep Tools, Fertilizer. **v0.4.1:** D6 string promote.
 
-### D3 → LIVE pointer (v0.5.0)
+### D3 → LIVE pointer (v0.5.0 / aligned v0.5.1)
 
-Character sheet / seven stats / Runestone spend / Weapon Rod + Stone Sword / locked-slot hints **promoted to §10**. Echo Chamber combat + Relic craft still later. Align ids to SYSTEMS when Design bumps D3 live.
+Character sheet / seven stats / Runestone / 10 gear slots / Weapon Rod + Stone Sword **promoted to §10**. Ids locked to Design SYSTEMS v0.5.0. Relic / armor craft still later (Forge Key).
 
-### D7. Manatree display scales — still PARK for Art/Code
+### D7. Manatree display scales — LIVE (visual)
 
-Visual only — see §10f note. No Content strings to ship.
+See §10h. No Content strings. Art/Code scale Manatree by stage.
 

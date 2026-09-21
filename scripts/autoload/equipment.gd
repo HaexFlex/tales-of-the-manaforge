@@ -116,16 +116,15 @@ func slot_display_name(slot_id: String) -> String:
 
 func slot_lock_hint(slot_id: String) -> String:
 	var sid: String = _canonical_slot(slot_id)
-	var key: String = "equip_locked_hint"
 	if sid == "relic":
-		key = "equip_locked_relic"
-	elif sid == "weapon":
-		key = "equip_locked_weapon"
-	return ContentStrings.get_text(key)
+		return ContentStrings.get_text("equip_locked_relic")
+	if sid == "weapon":
+		return ContentStrings.get_text("equip_locked_hint")
+	return ContentStrings.get_text("equip_locked_armor")
 
 
-func slot_lock_short(slot_id: String) -> String:
-	return slot_lock_hint(slot_id)
+func slot_lock_short(_slot_id: String) -> String:
+	return ContentStrings.get_text("equip_locked")
 
 
 func slot_anchor(slot_id: String) -> Vector2:

@@ -83,8 +83,8 @@
     {
       "id": "stone_sword",
       "display_name": "Stone Sword",
-      "string_key": "weapon_stone_sword_name",
-      "tooltip_key": "weapon_stone_sword_tooltip",
+      "string_key": "stone_sword_name",
+      "tooltip_key": "stone_sword_tooltip",
       "slot": "weapon",
       "unique": true,
       "bonuses": { "might": 2 },

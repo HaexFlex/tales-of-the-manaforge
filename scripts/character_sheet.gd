@@ -19,6 +19,7 @@ var _portrait: TextureRect
 var _inv_list: VBoxContainer
 var _footer: Label
 var _hover_item_id: String = ""
+var _gear_tab: String = "all"
 var _built: bool = false
 
 
@@ -160,6 +161,15 @@ func _build() -> void:
 	hint.position = Vector2(20, 42)
 	hint.size = Vector2(700, 20)
 	hint.text = ContentStrings.get_text("char_sheet_hint")
+	var hotkey := Label.new()
+	hotkey.name = "HotkeyHint"
+	hotkey.position = Vector2(SHEET_SIZE.x - 250, 46)
+	hotkey.size = Vector2(120, 18)
+	hotkey.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hotkey.text = ContentStrings.get_text("char_sheet_hotkey_hint")
+	hotkey.add_theme_font_size_override("font_size", 11)
+	hotkey.add_theme_color_override("font_color", MUTED)
+	sheet.add_child(hotkey)
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", MUTED)
 	sheet.add_child(hint)
@@ -230,24 +240,52 @@ func _build() -> void:
 	gear_title.name = "GearTitle"
 	gear_title.position = Vector2(0, 0)
 	gear_title.size = Vector2(360, 22)
-	gear_title.text = ContentStrings.get_text("char_sheet_equip_header")
+	gear_title.text = ContentStrings.get_text("gear_title")
 	gear_title.add_theme_font_size_override("font_size", 15)
 	gear_title.add_theme_color_override("font_color", GOLD)
 	mid.add_child(gear_title)
 
 	var gear_hint := Label.new()
 	gear_hint.position = Vector2(0, 22)
-	gear_hint.size = Vector2(360, 36)
+	gear_hint.size = Vector2(360, 30)
 	gear_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	gear_hint.text = ContentStrings.get_text("weapon_persist_hint")
+	gear_hint.text = ContentStrings.get_text("gear_hint")
+	var persist := Label.new()
+	persist.name = "PersistHint"
+	persist.position = Vector2(0, 54)
+	persist.size = Vector2(360, 16)
+	persist.text = ContentStrings.get_text("weapon_persist_hint")
+	persist.add_theme_font_size_override("font_size", 11)
+	persist.add_theme_color_override("font_color", MUTED)
+	mid.add_child(persist)
+	var tabs := HBoxContainer.new()
+	tabs.name = "GearTabs"
+	tabs.position = Vector2(0, 72)
+	tabs.size = Vector2(360, 28)
+	tabs.add_theme_constant_override("separation", 6)
+	mid.add_child(tabs)
+	var tab_all := Button.new()
+	tab_all.name = "TabAll"
+	tab_all.text = ContentStrings.get_text("gear_tab_all")
+	tab_all.custom_minimum_size = Vector2(72, 26)
+	tab_all.pressed.connect(_set_gear_tab.bind("all"))
+	_paint_button(tab_all, Color(0.18, 0.14, 0.10, 1.0))
+	tabs.add_child(tab_all)
+	var tab_weapons := Button.new()
+	tab_weapons.name = "TabWeapons"
+	tab_weapons.text = ContentStrings.get_text("gear_tab_weapons")
+	tab_weapons.custom_minimum_size = Vector2(96, 26)
+	tab_weapons.pressed.connect(_set_gear_tab.bind("weapons"))
+	_paint_button(tab_weapons, Color(0.18, 0.14, 0.10, 1.0))
+	tabs.add_child(tab_weapons)
 	gear_hint.add_theme_font_size_override("font_size", 11)
 	gear_hint.add_theme_color_override("font_color", MUTED)
 	mid.add_child(gear_hint)
 
 	var scroll := ScrollContainer.new()
 	scroll.name = "GearScroll"
-	scroll.position = Vector2(0, 62)
-	scroll.size = Vector2(360, 400)
+	scroll.position = Vector2(0, 106)
+	scroll.size = Vector2(360, 356)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	mid.add_child(scroll)
@@ -353,21 +391,27 @@ func _refresh_slots() -> void:
 			plate.refresh()
 
 
+func _set_gear_tab(tab_id: String) -> void:
+	_gear_tab = tab_id
+	_refresh_inventory()
+
+
 func _refresh_inventory() -> void:
 	if _inv_list == null:
 		return
 	for child: Node in _inv_list.get_children():
-		child.queue_free()
-	var rows: Array[Dictionary] = Equipment.list_unequipped()
+		_inv_list.remove_child(child)
+		child.free()
+	var rows: Array[Dictionary] = []
+	for inst: Dictionary in Equipment.list_unequipped():
+		var iid: String = str(inst.get("id", ""))
+		if _gear_tab == "weapons" and Equipment.item_slot(iid) != "weapon":
+			continue
+		rows.append(inst)
 	if rows.is_empty():
-		var wearing: bool = false
-		for slot_name: StringName in Equipment.SLOT_ORDER:
-			if Equipment.equipped_id(String(slot_name)) != "":
-				wearing = true
-				break
 		var empty := Label.new()
 		empty.name = "Empty"
-		empty.text = ContentStrings.get_text("weapon_persist_hint" if wearing else "equip_no_item")
+		empty.text = ContentStrings.get_text("gear_empty")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		empty.custom_minimum_size = Vector2(320, 48)
@@ -495,7 +539,7 @@ class SlotPlate extends Panel:
 		_lock.visible = not unlocked
 		if not unlocked:
 			_icon.color = Color(0.28, 0.28, 0.30, 1.0)
-			_caption.text = Equipment.slot_lock_hint(slot_id)
+			_caption.text = Equipment.slot_lock_short(slot_id)
 			tooltip_text = Equipment.slot_lock_hint(slot_id)
 			if slot_id == "relic":
 				tooltip_text = "%s %s" % [tooltip_text, ContentStrings.get_text("relic_locked_tooltip")]

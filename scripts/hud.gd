@@ -116,7 +116,8 @@ func _ready() -> void:
 	_apply_wood_chrome()
 	add_to_group("game_hud")
 	pause_button.text = ContentStrings.get_text("btn_pause")
-	character_button.text = ContentStrings.get_text("char_sheet_open")
+	character_button.text = ContentStrings.get_text("hud_btn_character")
+	character_button.tooltip_text = ContentStrings.get_text("char_sheet_hotkey_hint")
 	backpack_button.text = ContentStrings.get_text("backpack_open")
 	backpack_title.text = ContentStrings.get_text("backpack_title")
 	handcraft_title.text = "%s  ·  %s" % [
@@ -1132,7 +1133,7 @@ func _craft_row_cost_text(recipe_id: String) -> String:
 	if Equipment.has_recipe(recipe_id):
 		var gear_costs: String = ""
 		if recipe_id == "stone_sword":
-			gear_costs = _content_line("handcraft_row_stone_sword_short")
+			gear_costs = _content_line("stone_sword_craft_cost")
 		elif recipe_id == "weapon_rod":
 			gear_costs = _content_line("handcraft_row_weapon_rod_short")
 		if gear_costs == "":
