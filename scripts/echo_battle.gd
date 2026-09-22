@@ -23,10 +23,21 @@ var outcome: String = ""
 var enemy_attacks: int = 0
 var last_keeper_damage: int = 0
 var last_echo_damage: int = 0
+var last_keeper_crit: bool = false
 var log: PackedStringArray = PackedStringArray()
 ## 0 = never, 1 = always, -1 = roll Fate × 1%.
 var force_crit: int = -1
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+
+func _log_line(key: String, tokens: Dictionary = {}) -> void:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var cs: Node = tree.root.get_node_or_null("ContentStrings")
+		if cs != null and cs.has_method("get_text"):
+			log.append(str(cs.call("get_text", key, tokens)))
+			return
+	log.append(key)
 
 
 static func hp_max_for(vitality: int) -> int:
@@ -115,6 +126,7 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 	enemy_attacks = 0
 	last_keeper_damage = 0
 	last_echo_damage = 0
+	last_keeper_crit = false
 	log = PackedStringArray()
 
 
@@ -137,6 +149,7 @@ func choose(action: String) -> String:
 		if action == "flee":
 			return "no_flee"
 		if action == "spare":
+			_log_line("battle_log_spare", {"enemy": echo_name})
 			_finish("spare")
 			return "spare"
 		if action == "strike":
@@ -158,7 +171,7 @@ func _flee() -> String:
 		if outcome != "":
 			return outcome
 	_finish("flee")
-	log.append("You step back through the portal.")
+	_log_line("battle_log_flee")
 	return "flee"
 
 
@@ -187,19 +200,26 @@ func _keeper_strike() -> void:
 		int(keeper["might"]),
 		int(echo["resilience"]),
 		int(keeper["fate"]),
-		KEEPER_CRIT_MULT
+		KEEPER_CRIT_MULT,
+		true
 	)
 	last_keeper_damage = dealt
 	var above_mercy: bool = float(echo_hp) > MERCY_FRACTION * float(echo_max_hp)
 	var next_hp: int = echo_hp - dealt
-	if above_mercy and next_hp <= 0:
+	if dealt <= 0:
+		_log_line("battle_log_miss")
+	elif above_mercy and next_hp <= 0:
 		echo_hp = 1
-		log.append("Your strike stops short. %s is still standing." % echo_name)
+		_log_line("battle_log_mercy_floor", {"enemy": echo_name})
 	else:
 		echo_hp = maxi(0, next_hp)
-		log.append("You strike for %d." % dealt)
+		if last_keeper_crit:
+			_log_line("battle_log_crit_you")
+		else:
+			_log_line("battle_log_strike_you")
 	if echo_hp <= 0:
 		_finish("defeat")
+		_log_line("battle_log_defeat", {"enemy": echo_name})
 		return
 	if float(echo_hp) < MERCY_FRACTION * float(echo_max_hp):
 		spare_window = true
@@ -210,12 +230,17 @@ func _strike_to_finish() -> void:
 		int(keeper["might"]),
 		int(echo["resilience"]),
 		int(keeper["fate"]),
-		KEEPER_CRIT_MULT
+		KEEPER_CRIT_MULT,
+		true
 	)
 	last_keeper_damage = dealt
 	echo_hp = 0
-	log.append("You strike for %d." % dealt)
+	if last_keeper_crit:
+		_log_line("battle_log_crit_you")
+	else:
+		_log_line("battle_log_strike_you")
 	_finish("defeat")
+	_log_line("battle_log_defeat", {"enemy": echo_name})
 
 
 func _echo_attack() -> void:
@@ -224,24 +249,28 @@ func _echo_attack() -> void:
 		int(echo["arcana"]),
 		int(keeper["ward"]),
 		int(echo["fate"]),
-		echo_crit_mult
+		echo_crit_mult,
+		false
 	)
 	last_echo_damage = dealt
 	var next_hp: int = keeper_hp - dealt
 	if first_hit and next_hp <= 0:
 		keeper_hp = 1
-		log.append("%s's first casting fails to finish you." % echo_name)
+		_log_line("battle_log_t1_floor", {"enemy": echo_name})
 	else:
 		keeper_hp = maxi(0, next_hp)
-		log.append("%s casts for %d." % [echo_name, dealt])
+		_log_line("battle_log_strike_enemy", {"enemy": echo_name})
 	enemy_attacks += 1
 	if keeper_hp <= 0:
 		_finish("ko")
 
 
-func _rolled_damage(attack: int, defense: int, fate: int, crit_mult: float) -> int:
+func _rolled_damage(attack: int, defense: int, fate: int, crit_mult: float, track_keeper_crit: bool) -> int:
 	var raw: int = raw_damage(attack, defense)
-	if raw <= 0 or not _is_crit(fate):
+	var crit: bool = raw > 0 and _is_crit(fate)
+	if track_keeper_crit:
+		last_keeper_crit = crit
+	if raw <= 0 or not crit:
 		return raw
 	return int(floor(float(raw) * crit_mult + 0.0000001))
 

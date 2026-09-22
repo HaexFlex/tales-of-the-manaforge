@@ -1,38 +1,30 @@
-# Echo Chamber v1 — ColorRect / placeholder art specs
+# Echo Chamber — ColorRect / placeholder art specs (v0.6.1 polish)
 
-**Status:** GO (Haex) — **no real sprites this ship**. Code uses ColorRects / solid placeholders matching these sizes.
+**Status:** GO (Haex / bc-d5ed7741) — Elaia stays **ColorRect**; Keeper uses **sheet idle** (no new paints).
 
-**Battle:** separate scene. Filter nearest when sprites arrive later.
+**Battle:** separate scene, 1280×720, nearest.
 
-## World / hub
+## Battle layout (locked polish)
 
-| Placeholder | Size (px) | Notes |
-|-------------|-----------|--------|
-| Echo portal | **96×96** | Landmark after first Ascend; cyan/mana tint ColorRect OK; clickable |
-| Enter Forge | **UI button only** on Manatree care panel | Grayed vs enabled states — **no world door** |
+| Region | Spec |
+|--------|------|
+| **Keeper** | **Left** — `assets/art/keeper/keeper_idle_south.png` (128² source). Display **large** (same idea as sheet ×3; target draw ~**384×384** or fill left third). Warm. |
+| **Elaia** | **Right** — big **ColorRect** ~**384×384** (cooler slate/cyan ghost). No real sprite this ship. |
+| **Flavour dialogue** | **Top** band (~full width × 80–100px) — Content brief lines |
+| **Battle log** | **Lower** band above commands (~full width × 100–140px) |
+| **Commands** | Bottom safe ~120px — Strike/Flee; mercy = Spare+Strike only |
+| HP | Under each portrait |
 
-## Battle scene (1280×720)
+## Hub / care
 
-| Region | Size / layout | Notes |
-|--------|---------------|--------|
-| Enemy portrait (Elaia) | **128×128** | Upper area; cooler/ghost ColorRect (e.g. slate + cyan) |
-| Player portrait (Keeper) | **128×128** | Opposite side or below; warmer; can reuse sheet ×3 scale later |
-| HP bars | full width under each portrait | segment or solid fill |
-| Command bar | bottom **720×120** safe band | Strike / Flee (normal); Spare window = Spare + Strike only |
-| Mercy banner | optional top strip | when Elaia &lt;10% HP |
-
-## Care menu (existing chrome)
-
-| Control | Spec |
-|---------|------|
-| Enter Forge | Same soft wood/leaf button language as Water / Fruit; **grayed** without Key; enabled with Key → “not built yet” popup (Content strings) |
-
-## Icons (optional ColorRect chips)
-
-| Item | Size |
+| Item | Spec |
 |------|------|
-| Stone Sword (already sheet) | 32×32 if shown in battle |
-| Forge Key grant toast | 32×32 chip OK |
+| Portal | ColorRect **96×96** (unchanged) |
+| Enter Forge | Care-menu button; **Elder + Ancient only** (hidden earlier stages) |
 
-## Explicitly out this ship
-Real portal art, Elaia sprite, Forge interior, companion body, battle music art frames.
+## Assets upload (standing)
+
+After each ship: sort drops into `assets/` or `assets/library/`, leave `Assets upload/` **empty**. Current inbox still has prior tree/bush/keeper sheets already sliced into `art_restart` / `assets/art` — CA should archive/clear leftovers, not re-slice.
+
+## Out this ship
+Real Elaia art, Forge interior, companion body.

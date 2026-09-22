@@ -1,11 +1,15 @@
 # Assets upload (Haex inbox)
 
-Original sheets and Keeper frames. **Do not delete.**
+**Drop new art here.** Coding ships must leave this folder **empty** (README-only) after sorting.
 
-Gameplay copies follow Art Direction **v0.1.13-assets-upload**:
+## Process (every ship)
 
-- Trees → `assets/art/trees/tree_big_01–04`, `tree_small_01–04`
-- Bushes → `assets/art/bushes/bush_big_01–12`, `bush_small_01–57`
-- Keeper south → `assets/art/keeper/keeper_idle_south.png`, `keeper_walk_south_0001.png`–`0009.png` (128×128); native 170×256 in `keeper/native/`
+1. Sort drops into permanent homes:
+   - Gameplay / sliced frames → `assets/art/...`
+   - Unsorted-but-kept PNG sheets → `assets/library/`
+   - JPG duplicates / raw refs → `assets/library/raw_refs/`
+2. Prefer PNG over JPG for anything used in-game.
+3. Rebuild sliced forest/keeper frames when needed: `python3 tools/slice_haex_inbox.py` (reads `assets/library/`).
+4. Before merge: confirm `Assets upload/` has **no loose art** — only this README.
 
-Prefer PNG over JPG. Rebuild: `python3 tools/slice_haex_inbox.py`.
+See `docs/ASSETS_UPLOAD.md`.

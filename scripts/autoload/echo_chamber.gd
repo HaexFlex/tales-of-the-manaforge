@@ -96,7 +96,7 @@ func apply_outcome(outcome: String) -> Dictionary:
 		GameState.echo_01_resolved = true
 		GameState.portal_fee_paid = false
 		if has_node("/root/Equipment"):
-			Equipment.equipment_changed.emit()
+			Equipment.ensure_forge_key_equipped()
 	elif outcome == "ko":
 		GameState.portal_fee_paid = false
 	GameState.echo_flags_changed.emit()

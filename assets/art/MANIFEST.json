@@ -10,7 +10,7 @@
     ],
     "meta": "keeper/keeper_meta.json",
     "version": "v0.1.13-assets-upload",
-    "inbox": "Assets upload/keeper/",
+    "inbox": "assets/library/keeper_inbox/",
     "native": "keeper/native/"
   },
   "manatree": {
@@ -46,7 +46,7 @@
   "trees": {
     "dir": "trees/",
     "meta": "trees/trees_meta.json",
-    "inbox": "Assets upload/",
+    "inbox": "assets/library/",
     "version": "v0.1.13-assets-upload",
     "anchor": "base_center"
   },
