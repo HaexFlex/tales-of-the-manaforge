@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.6.0 — Haex GO: Echo Chamber v1 (Elaia, portal, Enter Forge, battle keys)
+**Status:** v0.6.2 — Haex Echo flavour dialogue + battle log; inherits v0.6.1 Forge Key relic / Enter Forge gating
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -28,6 +28,8 @@
 | **v0.5.0** | Haex GREENLIGHT: Character sheet, seven stats (VISION), Runestone spend (Manashards), locked Weapon/Relic slot hints, Weapon Rod + Stone Sword, equip tooltips. Manatree scale note bundled (visual — D7). |
 | **v0.5.1** | Design id lock: slots `weapon`/`relic`/`head`/`body`/`hands`/`pants`/`feet`/`cape`/`ring1`/`ring2` (only weapon unlocked); item id `stone_sword`; gear inventory ≠ backpack; HUD+C; D7 scales live (visual). |
 | **v0.6.0** | Haex GO Echo Chamber v1: Elaia (`echo_keeper_01`); portal 30 Essence; Enter Forge care-menu (no-key / not-built); Strike/Flee/Spare; bare-fists toast; Key both endings; companion Spare-only; KO/Spare/Defeat silent. |
+| **v0.6.1** | Haex Echo polish: Enter Forge **Elder/Ancient only**; `forge_not_built` → “Not built yet! Stay tuned.”; Forge Key relic +2 Swiftness +2 Fate. |
+| **v0.6.2** | Haex GO flavour: top-band `echo_01_*` dialogue; lower `battle_log_*`; keep outcome toasts. |
 
 ---
 
@@ -659,7 +661,7 @@ Slot ids: `weapon`, `relic`, `head`, `body`, `hands`, `pants`, `feet`, `cape`, `
 | `equip_unequip_ok` | Put away {item}. |
 | `equip_locked` | Locked |
 | `equip_locked_hint` | This slot is not open yet. |
-| `equip_locked_relic` | Relic locked — needs a Forge Key. |
+| `equip_locked_relic` | Relic locked — win an Echo to earn the Forge Key. |
 | `equip_locked_armor` | Not yet — the Forge still sleeps. |
 | `equip_bare_stone` | Bare Stone |
 | `equip_bare_stone_tooltip` | Empty hands — no weapon equipped. |
@@ -717,7 +719,7 @@ Visual-only (Art/Code). No player-facing strings. **Live with v0.5:** sapling **
 
 Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 vs **Elaia** (`echo_keeper_01`) → Strike / Flee / Spare (&lt;10% HP, no Flee in mercy window) → Key both endings, companion flag Spare-only → save flags (SAVE **8**). Mid-fight HP not saved. Bare fists 0 damage (sword gate). Mercy floor + T1 no-KO. Battle music silence.  
 **Not this ship:** companion body in combat, 3v1, Cast/items/Guard, Forge interior/realm, Echo 2+, type chart, Wisps in combat.  
-**Forge entry:** Manatree care **Enter Forge** only — no world door.
+**Forge entry:** Manatree care **Enter Forge** only — **Elder/Ancient only**; no world door. With Key → “Not built yet! Stay tuned.”
 
 ### 11a. Enemy
 
@@ -772,7 +774,7 @@ Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 v
 |-----|--------|
 | `battle_spare_ok` | You spare {enemy}. |
 | `battle_defeat_ok` | {enemy} fades. |
-| `battle_key_grant` | A Forge Key settles into your keeping. |
+| `battle_key_grant` | The Forge Key settles into your keeping — +2 Swiftness, +2 Fate. |
 | `battle_companion_flag` | A quiet companion-bond stirs — for later. |
 | `battle_shards_gain` | +{amount} Manashards |
 | `battle_reward_toast` | {rewards} |
@@ -782,18 +784,66 @@ Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 v
 | key | string |
 |-----|--------|
 | `forge_enter` | Enter Forge |
-| `forge_enter_hint` | Beyond the Manatree — when you hold a Key. |
+| `forge_enter_hint` | Beyond the Manatree — Elder or Ancient, when you hold a Key. |
+
+| `forge_enter_stage_locked` | Enter Forge unlocks when the Manatree is Elder or Ancient. |
+| `forge_enter_hint_elder` | Beyond the Manatree — Elder and Ancient only. |
 | `forge_no_key` | You have no key. |
-| `forge_not_built` | Not built yet. |
+| `forge_not_built` | Not built yet! Stay tuned. |
 | `forge_locked_hint` | Needs a Forge Key. |
 | `relic_slot_unlocked` | A relic niche opens. |
+
+
+### 11g. Forge Key relic (v0.6.1)
+
+On Spare or Defeat: grant `forge_key_relic` (+2 Swiftness, +2 Fate), unlock relic slot.
+
+| id | Display | Examine / tooltip |
+|----|---------|-------------------|
+| `forge_key_relic` | Forge Key | A quiet key-relic. +2 Swiftness, +2 Fate. |
+
+| key | string |
+|-----|--------|
+| `forge_key_relic_name` | Forge Key |
+| `forge_key_relic_tooltip` | +2 Swiftness, +2 Fate. Opens the relic niche — the Forge itself still sleeps. |
+| `forge_key_relic_grant` | The Forge Key settles with you — +2 Swiftness, +2 Fate. |
+| `battle_key_grant` | The Forge Key settles into your keeping — +2 Swiftness, +2 Fate. |
+
+
+### 11h. Echo 01 flavour + battle log (v0.6.2)
+
+Top dialogue band (full lines). Opening uses `echo_01_intro` then `echo_01_intro_2`. Re-entry after flee uses `echo_01_return`.
+
+| key | string |
+|-----|--------|
+| `echo_01_intro` | You should not have opened this. We all tried to save the glade. Every one of us. |
+| `echo_01_intro_2` | The Key will not leave with you. I will not watch another Keeper fail with it in their hands. |
+| `echo_01_return` | You came back. Good. Or foolish. Show me which. |
+| `echo_01_mercy` | Wait. Please. You are stronger than I was. The Key is yours either way. Strike, and I am free of this place. Spare me, and I will remain. I will watch. I will decide, later, whether you are worth following. |
+| `echo_01_spare` | …Then I stay. Do not make me regret looking at you. |
+| `echo_01_defeat` | Thank you. I can sleep. I hope the forest is kinder to you than it was to me. |
+| `echo_01_flee` | Go. The glade still needs you more than this door does. Do not come back until you mean it. |
+
+Lower battle log (`{amount}` `{enemy}`):
+
+| key | string |
+|-----|--------|
+| `battle_log_title` | Battle log |
+| `battle_log_strike_you` | You strike for {amount}. |
+| `battle_log_strike_enemy` | {enemy} casts for {amount}. |
+| `battle_log_crit_you` | Critical! You strike for {amount}. |
+| `battle_log_miss` | Your strike does nothing. |
+| `battle_log_spare` | You spare {enemy}. |
+| `battle_log_flee` | You step back through the portal. |
+| `battle_log_defeat` | {enemy} fades under your strike. |
+| `battle_log_fists` | Bare hands cannot harm an echo — equip a weapon. |
 
 ### 11f. Implementation notes for Code
 
 - Keys above are player-facing; wire tokens `{enemy}` `{cost}` `{current}` `{max}` `{amount}` `{rewards}`.
 - Display name for `echo_keeper_01` is always **Elaia**.
 - Do not name Manaforge as a place on Forge/portal copy.
-- Silence on KO/Spare/Defeat beat lines — toasts only; Audio owns hub stop/resume.
+- Flavour dialogue (§11h) on intro/mercy/spare/defeat/flee/return; keep reward toasts. KO stays silent. Audio owns hub stop/resume.
 
 
 ## DEFERRED notes (historical + park)

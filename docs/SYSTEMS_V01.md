@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Systems Brief v0.6 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.6.0 — Haex GO Echo Chamber v1 (2026-09-22)  
+**Status:** v0.6.1 — Haex Echo polish: Forge Key relic (+2 Swift/+2 Fate); Enter Forge Elder+Ancient only  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
@@ -38,12 +38,13 @@
 | v0.5.0 note | Out of scope this ship: combat, Forge Key, other equipment recipes, Runestone non-Manashard currency, Fate gather effects. |
 | **v0.5.1** | **Haex overnight polish:** All 7 combat stats **base start at 5**. Sheet display: `base = STAT_BASE_START + runestone_ranks` (+ gear = total). SAVE migrate: unset→5 / floor displayed base at 5. Character sheet UI polish only otherwise. `SAVE_VERSION` stays **7** (migrate rule). |
 | **v0.6.0** | **Haex GO 2026-09-22:** **Echo Chamber v1 LIVE.** Portal after first Ascension (30 Essence fee once until win or KO loss; flee keeps fee; Ascend-while-fee-paid free re-entry). 1v1 vs `echo_keeper_01` display **Elaia**; Strike / Flee / Spare (<10% HP, Spare+Strike only). Formulas LOCKED (reuse KeeperStats + Equipment; HP=10×Vitality; raw=(atk−def)×10; crit Fate×1%; mercy floor; T1 protection). Rewards: spare/defeat Manashard payouts from Runestone cost curve on **stored ranks**; both wins grant `forge_key` → unlock **relic** slot; Spare sets `echo_01_redeemed`. Enter Forge = Manatree care-menu button only (no key → popup; with key → “not built yet”). `SAVE_VERSION` **8**. Echo 2+ / companion body / Forge realm / Cast/items/Guard still Out. |
+| **v0.6.1** | **Haex Echo polish:** Forge Key relic **+2 Swiftness +2 Fate** (`forge_key_relic`); **Enter Forge** only at **Elder + Ancient** (hidden earlier); Key popup **“Not built yet! Stay tuned.”** Battle UI: big Keeper idle left / Elaia right. SAVE_VERSION stays **8**. |
 
 ---
 
 ## v0.6 scope (systems only)
 
-**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **8**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Stone Sword), **D7 Manatree display scales**, **Echo Chamber v1** (portal + 1v1 battle + rewards), **Forge Key** → **relic slot unlock**, **Enter Forge** care-menu stub (“not built yet”).
+**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **8**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Stone Sword), **D7 Manatree display scales**, **Echo Chamber v1** (portal + 1v1 battle + rewards), **Forge Key relic** (+2 Swift/+2 Fate), **Enter Forge** Elder/Ancient only (“Not built yet! Stay tuned.”).
 
 **Out:** needs-only soft-mat stage pay (**SUPERSEDED**), growth bar / offers, **Echo 2+**, **companion body / companion in combat**, **3v1**, **Cast / items / Guard**, **Forge interior / Forge realm**, other battle-gear recipes, Runestone non-Manashard currency, Fate gather effects, type chart, Wisps in combat, WASD, mobile/web, many duplicate harvestables. Tools never gate gather; tools never multiply wisp pulses.
 
@@ -173,7 +174,7 @@ MANATREE_SCALE_ANCIENT = 1.5
 Essence gate still matters early (20s water to Young at 1 essence/sec) plus craft **3** Fertilizer (`FERT_* = 10` each). Later stages need harvest → craft Fertilizer loops while watering for essence + shards. First Ancient is intentional multi-loop (24 Fertilizer).
 
 ### UI (Content + Code)
-- Manatree click → panel: next stage name + Grow costs (`Fertilizer 0/3`, `Essence 12/20`, …) + **Grow** (enabled when both met; show costs on the control) + Water + **Enter Forge** (v0.6.0 care-menu stub — §4f; grayed without Key / “not built yet” with Key).
+- Manatree click → panel: next stage name + Grow costs (`Fertilizer 0/3`, `Essence 12/20`, …) + **Grow** (enabled when both met; show costs on the control) + Water + **Enter Forge** (v0.6.1 — **Elder/Ancient only**; grayed without Key / “Not built yet! Stay tuned.” with Key — §4f).
 - **No** growth X/Y bar. **No** soft-mat need lines. **No Pay** label. **No** world Forge door.
 
 ---
@@ -297,7 +298,7 @@ Rules:
 | Order | `slot_id` | Start state |
 |-------|-----------|-------------|
 | 1 | `weapon` | **Unlocked** |
-| 2 | `relic` | **Locked** until `forge_key` earned (Echo Chamber win — §4f); then **unlocked / empty** (no relic item this ship) |
+| 2 | `relic` | **Locked** until Echo win grants Forge Key; then unlocked and holds **Forge Key relic** (+2 Swiftness +2 Fate) — §4f |
 | 3 | `head` | Locked (grey) |
 | 4 | `body` | Locked (grey) |
 | 5 | `hands` | Locked (grey) |
@@ -308,7 +309,7 @@ Rules:
 | 10 | `ring2` | Locked (grey) |
 
 - **Start:** only **`weapon` unlocked**; all others **locked (grey) / non-interactive**.
-- **`relic` unlocks** when Keeper holds `forge_key` (Echo Chamber win — both Spare and Defeat grant Key). Slot becomes interactive / empty; **no relic item** content this ship.
+- **`relic` unlocks** when Echo win grants Forge Key (Spare or Defeat). Grants gear item **Forge Key relic** (`forge_key_relic`): **+2 Swiftness +2 Fate** (LOCKED Haex v0.6.1). Auto-equip to `relic` if empty, else land in gear inventory. Persists Ascend with other gear.
 - Unlock path for other slots: **deferred**. Locked slots remain grey.
 
 ### Gear inventory vs backpack (LOCKED)
@@ -468,13 +469,13 @@ defeat_shards = (cost(highest) + cost(highest + 1)) × (1 + Fate_total / 100)
 | **Flee** | nothing | fee stays paid |
 | **KO loss** | nothing | fee clears |
 
-Both wins grant **Forge Key** (`forge_key`) → unlocks **relic slot** (§4e). Enter Forge care-menu still “not built yet” (§4f Enter Forge).
+Both wins grant **Forge Key** (`forge_key` flag + **`forge_key_relic`** item: **+2 Swiftness +2 Fate**) → unlock/equip **relic** slot (§4e). Enter Forge still stub “Not built yet! Stay tuned.” at Elder/Ancient only (§4f).
 
-### Enter Forge (LOCKED — stub)
-
-- **Manatree care menu button only** (no world door).
-- **Without Key:** button grayed → popup “no key” (Content string).
-- **With Key:** button enabled → popup / toast **“not built yet”** this ship (Forge interior Out).
+### Enter Forge (LOCKED — stub v0.6.1)
+- **Manatree care-menu button only** (no world door).
+- **Visible only at `elder` and `ancient`** — **hidden** on `sapling` / `young` / `mature`.
+- Without `forge_key`: grayed → popup **“You have no key.”** (Content).
+- With `forge_key`: enabled → popup **“Not built yet! Stay tuned.”** — **no Forge scene** this ship.
 
 ### Save / mid-fight (LOCKED)
 
@@ -748,7 +749,7 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 
 | Who | Action |
 |-----|--------|
-| @Code / Engine | **Implement v0.6.0 Echo Chamber v1:** portal after `ascensions >= 1`; fee 30 Essence; battle scene 1v1 vs Elaia (`echo_keeper_01`); Strike / Flee / Spare (<10%); formulas LOCKED (§4f); rewards + `forge_key` → relic unlock; Enter Forge care-menu stub; migrate save **v7→v8**; Ascend persist forge_key + echo flags + portal_fee_paid; Save disabled in battle; mid-fight quit/load = Flee. Keep v0.5.1 stats/equipment. Placeholders labeled. **Out:** Echo 2+, companion body, Forge interior, Cast/items/Guard, 3v1. |
+| @Code / Engine | **Implement v0.6.1 polish** (with Echo v1): Forge Key → relic item +2 Swift/+2 Fate; Enter Forge Elder/Ancient only + Stay tuned popup; battle layout polish. Prior v0.6.0: portal after `ascensions >= 1`; fee 30 Essence; battle scene 1v1 vs Elaia (`echo_keeper_01`); Strike / Flee / Spare (<10%); formulas LOCKED (§4f); rewards + `forge_key` → relic unlock; Enter Forge care-menu stub; migrate save **v7→v8**; Ascend persist forge_key + echo flags + portal_fee_paid; Save disabled in battle; mid-fight quit/load = Flee. Keep v0.5.1 stats/equipment. Placeholders labeled. **Out:** Echo 2+, companion body, Forge interior, Cast/items/Guard, 3v1. |
 | @Content & Lore | Portal / fee / battle UI strings; Elaia display name; Spare / Flee / Strike / win-loss copy; no-key + “not built yet” Forge popups; reward toasts (shards + Key); keep existing sheet / Runestone / blessing / Grow strings |
 | @Art Direction | **No mandatory gen.** ColorRects OK for battle UI / portal / sheet / slots; portal world prop + battle layout chrome later. Manatree scale unchanged (D7). |
 | @Audio | Battle: silence world hub bed on enter; stop-resume hub on exit (flee/loss/win). Optional hit / crit / win stings later. Existing gather / wisp / water SFX unchanged. |
@@ -808,7 +809,8 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 | Manatree display scales (0.5 / 1 / 2 / 2 / 1.5) | **LOCKED / LIVE Haex D7 → v0.5.0** (§4 / §11 D7) |
 | Playtest backlog D6 (recipes / Grow / Keep Tools / UI / tooltips / camera-map) | **LOCKED / applied → live v0.4.1** (§11 D6) |
 | Echo Chamber v1 (portal / 1v1 Elaia / formulas / rewards / forge_key → relic) | **LOCKED / LIVE Haex GO v0.6.0** (§4f; §11 D3 foundation LIVE) |
-| Enter Forge = Manatree care-menu only; no key → popup; with key → “not built yet” | **LOCKED Haex v0.6.0** |
+| Enter Forge = care-menu only; **Elder+Ancient only**; Key → “Not built yet! Stay tuned.” | **LOCKED Haex v0.6.1** |
+| Forge Key relic **+2 Swiftness +2 Fate** (Spare/Defeat) | **LOCKED Haex v0.6.1** |
 | Echo 2+ / companion body / companion in combat / 3v1 / Cast/items/Guard / Forge interior / type chart / Wisps in combat / Fate gather / other gear recipes | **DEFERRED — not live** (§11 D3) |
 
 ---

@@ -1,26 +1,26 @@
 # Echo Chamber v1 — ColorRect / placeholder art specs
 
-**Status:** GO (Haex) — **no real sprites this ship**. Code uses ColorRects / solid placeholders matching these sizes.
+**Status:** GO (Haex) v0.6.1/0.6.2 polish — **no new paints**. Code uses ColorRects / solid placeholders matching these sizes.
 
-**Battle:** separate scene. Filter nearest when sprites arrive later.
+**Battle:** separate scene. Filter nearest. Keeper uses sheet `keeper_idle_south.png` (128²) drawn large.
 
 ## World / hub
 
 | Placeholder | Size (px) | Notes |
 |-------------|-----------|--------|
 | Echo portal | **96×96** | Landmark after first Ascend; cyan/mana tint ColorRect OK; clickable |
-| Enter Forge | **UI button only** on Manatree care panel | Grayed vs enabled states — **no world door** |
+| Enter Forge | **UI button only** on Manatree care panel | **Elder + Ancient only**; grayed vs enabled — **no world door** |
 
 ## Battle scene (1280×720)
 
 | Region | Size / layout | Notes |
 |--------|---------------|--------|
-| Flavour dialogue | top band ~960×100 | Full `echo_01_*` lines |
-| Enemy portrait (Elaia) | **320×320** ColorRect | Right; cooler/ghost slate+cyan |
-| Player portrait (Keeper) | **320×320** TextureRect | Left; same idle south as Character sheet |
-| HP bars | full width under each portrait | segment or solid fill |
-| Battle log | lower band under portraits | combat lines / reward toast |
-| Command bar | bottom **720×100** safe band | Strike / Flee (normal); Spare window = Spare + Strike only |
+| Flavour dialogue | **TOP** band | Full `echo_01_*` lines (`intro` + `intro_2`, mercy, spare, defeat, flee, return) |
+| Enemy portrait (Elaia) | **~384×384** ColorRect | Right; cooler/ghost slate+cyan |
+| Player portrait (Keeper) | **~384×384** TextureRect | Left; sheet `keeper_idle_south.png` scaled large |
+| HP bars | full width under each portrait | solid fill |
+| Battle log | **LOWER** under portraits | `battle_log_*` lines |
+| Command bar | bottom safe band | Strike / Flee (normal); Spare window = Spare + Strike only |
 | Mercy banner | optional thin top strip | when Elaia &lt;10% HP |
 
 ## Care menu (existing chrome)

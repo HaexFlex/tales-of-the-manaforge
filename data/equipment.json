@@ -5,7 +5,7 @@
     "Gear inventory is separate from the backpack. Weapon Rod and Stone Sword live here.",
     "Weapon Rod is the battle-path intermediate (10 Wooden Planks), consumed into the Stone Sword.",
     "Stone Sword: 30 Stone Fragments + 1 Weapon Rod, +2 Might while equipped.",
-    "Forge Key: unique Relic from Echo win — +2 Swiftness, +2 Fate. Relic unlocks with forge_key flag.",
+    "Forge Key relic (`forge_key_relic`): unique Relic from Echo win — +2 Swiftness, +2 Fate. Auto-equip if relic empty.",
     "Anchors are slot centers on the 496×622 character-sheet host (3× Keeper portrait)."
   ],
   "slots": [
@@ -94,10 +94,10 @@
       "art_name": "icon_stone_sword"
     },
     {
-      "id": "forge_key",
+      "id": "forge_key_relic",
       "display_name": "Forge Key",
-      "string_key": "forge_key_name",
-      "tooltip_key": "forge_key_tooltip",
+      "string_key": "forge_key_relic_name",
+      "tooltip_key": "forge_key_relic_tooltip",
       "slot": "relic",
       "unique": true,
       "bonuses": { "swiftness": 2, "fate": 2 },

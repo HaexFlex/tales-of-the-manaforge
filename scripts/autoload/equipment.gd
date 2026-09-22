@@ -281,21 +281,31 @@ func grant_item(item_id: String) -> bool:
 	return add_gear(item_id, 1)
 
 
-## Spare / Defeat (and load migration): unlock Relic, own the Key, equip it.
+## Spare / Defeat (and load migration): unlock Relic, own the Key relic.
+## Auto-equip only when the relic slot is empty; otherwise leave in gear inventory.
 func ensure_forge_key_equipped() -> void:
 	if has_node("/root/GameState"):
 		GameState.forge_key = true
-	if not owns_anywhere("forge_key"):
-		grant_item("forge_key")
-	if equipped_id("relic") == "forge_key":
+	_migrate_legacy_forge_key_id()
+	if not owns_anywhere("forge_key_relic"):
+		grant_item("forge_key_relic")
+	if equipped_id("relic") == "forge_key_relic":
 		equipment_changed.emit()
 		return
-	if equipped_id("relic") != "":
-		try_unequip("relic")
-	if unequipped_count("forge_key") > 0:
-		try_equip("forge_key")
-	else:
-		equipment_changed.emit()
+	if equipped_id("relic") == "" and unequipped_count("forge_key_relic") > 0:
+		try_equip("forge_key_relic")
+		return
+	equipment_changed.emit()
+
+
+func _migrate_legacy_forge_key_id() -> void:
+	## Pre-v0.6.1 drafts used item id `forge_key`. Rename in place; no SAVE_VERSION bump.
+	if equipped_id("relic") == "forge_key":
+		equipped["relic"] = "forge_key_relic"
+	var n: int = int(gear_inventory.get("forge_key", 0))
+	if n > 0:
+		gear_inventory.erase("forge_key")
+		gear_inventory["forge_key_relic"] = int(gear_inventory.get("forge_key_relic", 0)) + n
 
 
 func add_gear(item_id: String, count: int) -> bool:
