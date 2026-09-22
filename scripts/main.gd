@@ -26,6 +26,7 @@ const ATLAS_PATH_CROSS := Vector2i(2, 1)
 
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 const RUNESTONE_SCENE: PackedScene = preload("res://scenes/runestone.tscn")
+const PORTAL_SCENE: PackedScene = preload("res://scenes/echo_portal.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
 var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
@@ -45,6 +46,7 @@ func _ready() -> void:
 	_load_hub_map()
 	_apply_landmarks()
 	_spawn_runestones()
+	_spawn_echo_portal()
 	_setup_camera()
 	_build_grass()
 	_spawn_forest_props()
@@ -149,6 +151,18 @@ func _spawn_runestones() -> void:
 		root.add_child(stone)
 
 
+func _spawn_echo_portal() -> void:
+	if world == null:
+		return
+	var marks: Dictionary = hub_map.get("landmarks", {}) as Dictionary
+	var portal: EchoPortal = PORTAL_SCENE.instantiate() as EchoPortal
+	if portal == null:
+		return
+	portal.name = "EchoPortal"
+	portal.position = _vec2_from(marks.get("echo_portal", [1560, 820]))
+	world.add_child(portal)
+
+
 func _setup_camera() -> void:
 	if camera == null:
 		camera = Camera2D.new()
@@ -160,6 +174,12 @@ func _setup_camera() -> void:
 	var start: Vector2 = _vec2_from((hub_map.get("landmarks", {}) as Dictionary).get("manatree", [1280, 1000]))
 	camera.position = start
 	_clamp_camera()
+
+
+func focus_manatree() -> void:
+	if camera == null or manatree == null:
+		return
+	camera.position = _clamped_camera_pos(manatree.global_position)
 
 
 func get_play_size() -> Vector2:
@@ -489,6 +509,12 @@ func world_input_blocked() -> bool:
 	if hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 		return true
 	if hud.has_method("is_character_open") and bool(hud.call("is_character_open")):
+		return true
+	if hud.has_method("is_forge_popup_open") and bool(hud.call("is_forge_popup_open")):
+		return true
+	if EchoPortal.is_fee_confirm_open():
+		return true
+	if EchoChamber.in_battle:
 		return true
 	return pause_menu.is_open()
 

@@ -10,7 +10,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 - Playable forest hub: **2560×2160** play area (**2× × 3×** of the original 1280×720 hub), **64² grass TileMap**, dense Y-sorted **decorative** Haex forest ring around an open glade, **exactly 3** harvest channels, Manatree landmark; view **1280×720** nearest-neighbor; **arrow keys** pan the camera (clamped to play bounds)
 - Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `Backpack`, `KeeperStats`, `Equipment`, `SaveService`
 - Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options stub, Exit
-- Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **7**`; backpack stacks; keeper stats store Runestone ranks starting at **0**; the sheet base is **5 + rank**; missing ranks load as 0; v6 saves still start gear empty; legacy single-file migrates → slot 1; old `growth` ignored)
+- Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **8**`; backpack stacks; keeper stats store Runestone ranks starting at **0**; the sheet base is **5 + rank**; missing ranks load as 0; v6 saves still start gear empty; legacy single-file migrates → slot 1; old `growth` ignored; v8 adds Echo portal / fee / key / companion flag)
 
 ## Prototype loop (Haex Grow + backpack)
 
@@ -46,6 +46,8 @@ Music stings (`mus_fruit_sting`, `mus_ascend_sting`) use a second Music player s
 
 **Pause → Options → Audio:** Music / Sounds sliders + Reset. Persists in `user://manaforge_settings.cfg` (volume only — never restarts the hub stream).
 
+7. After the first **Ascend**, an **Echo** portal stands in the glade. Select the Keeper and right-click it. **30 Essence** opens a 1v1 with **Elaia**. Strike or Flee; Spare appears only under 10% HP. A win grants a **Forge Key** (relic slot) and Manashards. The Manatree care menu's **Enter Forge** says the door is not built yet.
+
 ## Out of scope (v0.2)
 
-Growth bar / Offers, Forge interact, combat, Forge Key drop, armor recipes, real Runestone art, edge camera, WASD, HTML5.
+Growth bar / Offers, Forge interior, companions in combat, Echo 2+, armor recipes, real Runestone art, edge camera, WASD, HTML5.

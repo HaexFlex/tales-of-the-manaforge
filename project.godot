@@ -21,6 +21,7 @@ Backpack="*res://scripts/autoload/backpack.gd"
 KeeperStats="*res://scripts/autoload/keeper_stats.gd"
 Equipment="*res://scripts/autoload/equipment.gd"
 SaveService="*res://scripts/autoload/save_service.gd"
+EchoChamber="*res://scripts/autoload/echo_chamber.gd"
 
 [display]
 

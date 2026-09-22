@@ -1,0 +1,45 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/echo_portal.gd" id="1_portal"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_portal"]
+size = Vector2(56, 88)
+
+[node name="EchoPortal" type="Area2D"]
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+script = ExtResource("1_portal")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Outer" type="ColorRect" parent="Visual"]
+offset_left = -28.0
+offset_top = -96.0
+offset_right = 28.0
+offset_bottom = -8.0
+mouse_filter = 2
+color = Color(0.16, 0.38, 0.42, 1)
+
+[node name="Inner" type="ColorRect" parent="Visual"]
+offset_left = -12.0
+offset_top = -78.0
+offset_right = 12.0
+offset_bottom = -28.0
+mouse_filter = 2
+color = Color(0.55, 0.82, 0.74, 0.9)
+
+[node name="Label" type="Label" parent="."]
+offset_left = -48.0
+offset_top = -120.0
+offset_right = 48.0
+offset_bottom = -98.0
+theme_override_colors/font_color = Color(0.82, 0.92, 0.86, 1)
+theme_override_font_sizes/font_size = 14
+text = "Echo"
+horizontal_alignment = 1
+mouse_filter = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -52)
+shape = SubResource("RectangleShape2D_portal")

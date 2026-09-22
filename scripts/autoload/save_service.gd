@@ -1,13 +1,14 @@
 extends Node
 ## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.5.1).
-## Payload schema SAVE_VERSION 7 — keeper ranks stay purchases. Sheet base is 5 + rank.
+## Payload schema SAVE_VERSION 8 — echo portal, fee, key, companion flag.
+## Keeper ranks stay purchases. Sheet base is 5 + rank.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
-const SAVE_VERSION: int = 7
-## Accept one write ahead of this schema (plus legacy 4–6).
-const SAVE_VERSION_MAX_READ: int = 8
+const SAVE_VERSION: int = 8
+## Accept one write ahead of this schema (plus legacy 4–7).
+const SAVE_VERSION_MAX_READ: int = 9
 const SAVE_SLOT_COUNT: int = 7
 const LEGACY_SAVE_PATH: String = "user://manaforge_save.json"
 const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
@@ -49,6 +50,9 @@ func migrate_legacy_save_if_needed() -> bool:
 func save_game(slot: int = 1) -> bool:
 	if not is_valid_slot(slot):
 		push_error("SaveService: invalid slot %d" % slot)
+		save_completed.emit(false)
+		return false
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
 		save_completed.emit(false)
 		return false
 	var path: String = slot_path(slot)
@@ -192,7 +196,21 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 	if from_version < 7:
 		## SYSTEMS v0.5.0: v6→v7 starts ranks at 0 and gear empty. Backpack stays.
 		_migrate_gear_v7(out)
-	## v0.5.1 stays on SAVE_VERSION 7. Missing ranks become 0 (sheet base 5).
+	if from_version < 8:
+		## Echo Chamber v1. Older ascensions already earned the portal.
+		if not out.has("portal_unlocked"):
+			out["portal_unlocked"] = int(out.get("ascensions", 0)) >= 1
+		if not out.has("portal_fee_paid"):
+			out["portal_fee_paid"] = false
+		if not out.has("echo_01_resolved"):
+			out["echo_01_resolved"] = false
+		if not out.has("echo_01_redeemed"):
+			out["echo_01_redeemed"] = false
+		if not out.has("forge_key"):
+			out["forge_key"] = false
+		if not out.has("echo_01_narrator_heard"):
+			out["echo_01_narrator_heard"] = false
+	## v0.5.1 ranks stay purchases. Missing ranks become 0 (sheet base 5).
 	## An absolute already stored below 5 is kept as a rank so the sheet floors
 	## the base at 5. Ranks >= 5 are not reduced.
 	_normalize_stat_ranks(out)

@@ -31,6 +31,8 @@ var _sting_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 var _progress_player: AudioStreamPlayer
 var _hub_playing: bool = false
+## Echo battle stops the bed. It is not ducked, and it does not restart until exit.
+var _hub_suspended: bool = false
 var _fruit_ready_played_cycle: bool = false
 ## Recent cue ids (verify / Haex Ascension audio lock).
 var _played_log: PackedStringArray = PackedStringArray()
@@ -133,8 +135,29 @@ func _connect_game_signals() -> void:
 
 
 func play_hub_music() -> void:
+	if _hub_suspended:
+		return
 	play(&"mus_hub_forest")
 	_hub_playing = true
+
+
+func suspend_hub_for_battle() -> void:
+	## Stop, do not duck. Battle itself stays silent.
+	_hub_suspended = true
+	_hub_playing = false
+	if _music_player:
+		_music_player.stop()
+	if _sting_player and _sting_player.playing:
+		_sting_player.stop()
+
+
+func resume_hub_after_battle() -> void:
+	_hub_suspended = false
+	play_hub_music()
+
+
+func is_hub_suspended() -> bool:
+	return _hub_suspended
 
 
 func is_hub_music_playing() -> bool:
@@ -273,12 +296,16 @@ func _play_sting_stream(stream: AudioStream, bus: String) -> void:
 	_sting_player.bus = bus
 	_sting_player.play()
 	# Ensure hub bed is still under the sting (volume only — never stop for SFX).
+	if _hub_suspended:
+		return
 	if not _music_player.playing:
 		play_hub_music()
 
 
 func _on_sting_finished() -> void:
 	## Restore hub bed if somehow silenced; otherwise leave looping bed alone.
+	if _hub_suspended:
+		return
 	if not _music_player.playing:
 		play_hub_music()
 	else:
@@ -444,6 +471,9 @@ func reset_cycle_flags() -> void:
 
 func ensure_hub_playing() -> void:
 	## Pause / Ascension shop must never stop mus_hub_forest. Resume in place if dropped.
+	## Echo battle is the exception: the bed stays stopped until the fight ends.
+	if _hub_suspended:
+		return
 	if is_hub_music_playing():
 		return
 	play_hub_music()

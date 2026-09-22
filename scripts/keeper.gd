@@ -148,6 +148,13 @@ func _update_anim() -> void:
 		sprite.play(want)
 
 
+func halt() -> void:
+	_moving = false
+	_pending_interact = null
+	velocity = Vector2.ZERO
+	cancel_channel(false)
+
+
 func move_to(world_pos: Vector2, interact: Node = null) -> void:
 	# New move / other interact cancels active channel.
 	if _channel_kind != ChannelKind.NONE:

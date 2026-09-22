@@ -42,6 +42,9 @@ class_name GameHUD
 @onready var precommit_hint: Label = $CarePanel/FruitReadyCard/PrecommitHint
 @onready var care_close_button: Button = $CarePanel/Header/CareCloseButton
 @onready var care_action_band: Control = $CarePanel/ActionBand
+var forge_button: Button
+var _forge_popup: Panel
+var _forge_popup_body: Label
 @onready var fruit_confirm_panel: Panel = $FruitConfirmPanel
 @onready var fruit_confirm_title: Label = $FruitConfirmPanel/ConfirmTitle
 @onready var fruit_confirm_body: Label = $FruitConfirmPanel/ConfirmBody
@@ -174,6 +177,9 @@ func _ready() -> void:
 	care_close_button.pressed.connect(hide_care_menu)
 	water_button.pressed.connect(_on_water)
 	pay_button.pressed.connect(_on_pay)
+	_ensure_forge_controls()
+	if not GameState.echo_flags_changed.is_connected(_refresh_forge_entry):
+		GameState.echo_flags_changed.connect(_refresh_forge_entry)
 	welcome_dismiss_button.pressed.connect(_on_welcome_dismiss)
 	GameState.resources_changed.connect(_on_resources)
 	GameState.stage_changed.connect(_on_stage)
@@ -475,6 +481,7 @@ func _refresh_care_needs() -> void:
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	harvest_fruit_button.visible = fruit_ready
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
+	_refresh_forge_entry()
 	fruit_ready_card.visible = fruit_ready
 	precommit_hint.visible = fruit_ready
 	if fruit_ready:
@@ -512,6 +519,7 @@ func hide_care_menu() -> void:
 		GameAudio.play_ui_close()
 	care_panel.visible = false
 	_confirm_pay = false
+	hide_forge_popup()
 
 
 ## Legacy entry: pre-commit never opens the shop; pending reopen the paused shop.
@@ -524,6 +532,96 @@ func show_prestige_menu(_focus_ascend: bool = false) -> void:
 
 func hide_prestige_menu() -> void:
 	hide_ascension_shop()
+
+
+func _ensure_forge_controls() -> void:
+	if care_panel == null:
+		return
+	forge_button = Button.new()
+	forge_button.name = "ForgeButton"
+	forge_button.position = Vector2(16, 304)
+	forge_button.size = Vector2(488, 36)
+	care_panel.add_child(forge_button)
+	forge_button.pressed.connect(_on_enter_forge)
+	_forge_popup = Panel.new()
+	_forge_popup.name = "ForgePopup"
+	_forge_popup.visible = false
+	_forge_popup.anchor_left = 0.5
+	_forge_popup.anchor_top = 0.5
+	_forge_popup.anchor_right = 0.5
+	_forge_popup.anchor_bottom = 0.5
+	_forge_popup.offset_left = -220.0
+	_forge_popup.offset_top = -80.0
+	_forge_popup.offset_right = 220.0
+	_forge_popup.offset_bottom = 80.0
+	_forge_popup.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.08, 0.13, 0.11, 0.98)
+	sb.border_color = Color(0.45, 0.58, 0.48, 1)
+	sb.set_border_width_all(2)
+	_forge_popup.add_theme_stylebox_override("panel", sb)
+	add_child(_forge_popup)
+	_forge_popup_body = Label.new()
+	_forge_popup_body.name = "Body"
+	_forge_popup_body.position = Vector2(16, 16)
+	_forge_popup_body.size = Vector2(408, 72)
+	_forge_popup_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_forge_popup_body.add_theme_font_size_override("font_size", 16)
+	_forge_popup_body.add_theme_color_override("font_color", Color(0.88, 0.92, 0.84, 1))
+	_forge_popup.add_child(_forge_popup_body)
+	var close := Button.new()
+	close.name = "Close"
+	close.position = Vector2(16, 100)
+	close.size = Vector2(120, 36)
+	close.text = ContentStrings.get_text("btn_close")
+	close.pressed.connect(hide_forge_popup)
+	_forge_popup.add_child(close)
+	_refresh_forge_entry()
+
+
+func _refresh_forge_entry() -> void:
+	if forge_button == null:
+		return
+	forge_button.text = ContentStrings.get_text("forge_enter")
+	forge_button.disabled = false
+	if GameState.forge_key:
+		forge_button.modulate = Color.WHITE
+	else:
+		forge_button.modulate = Color(0.45, 0.47, 0.44, 1)
+
+
+func is_forge_entry_gray() -> bool:
+	return forge_button != null and forge_button.modulate.r < 0.6
+
+
+func is_forge_popup_open() -> bool:
+	return _forge_popup != null and _forge_popup.visible
+
+
+func forge_popup_text() -> String:
+	if _forge_popup_body == null:
+		return ""
+	return _forge_popup_body.text
+
+
+func open_forge_entry() -> String:
+	var msg: String = ContentStrings.get_text("forge_not_built" if GameState.forge_key else "forge_no_key")
+	if _forge_popup_body:
+		_forge_popup_body.text = msg
+	if _forge_popup:
+		_forge_popup.visible = true
+	GameAudio.play_ui_confirm()
+	return msg
+
+
+func hide_forge_popup() -> void:
+	if _forge_popup and _forge_popup.visible:
+		_forge_popup.visible = false
+		GameAudio.play_ui_close()
+
+
+func _on_enter_forge() -> void:
+	open_forge_entry()
 
 
 func is_shop_list_visible() -> bool:
@@ -871,6 +969,8 @@ func toggle_character_sheet() -> void:
 
 
 func open_character_sheet() -> void:
+	if EchoChamber.in_battle:
+		return
 	if welcome_panel.visible:
 		return
 	if _pause_menu and _pause_menu.is_open():
@@ -922,6 +1022,8 @@ func toggle_backpack() -> void:
 
 
 func open_backpack() -> void:
+	if EchoChamber.in_battle:
+		return
 	if welcome_panel.visible:
 		return
 	if GameState.fruit_committed:

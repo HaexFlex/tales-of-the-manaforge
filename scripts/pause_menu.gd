@@ -146,13 +146,14 @@ func open_pause() -> void:
 	visible = true
 	backdrop.visible = true
 	panel.visible = true
+	btn_save.disabled = EchoChamber.in_battle
 	get_tree().paused = true
 	GameAudio.play_ui_open()
 
 
 func resume_game() -> void:
 	if not _open:
-		get_tree().paused = GameState.fruit_committed
+		get_tree().paused = GameState.fruit_committed or EchoChamber.in_battle
 		return
 	_open = false
 	_slot_mode = SlotMode.NONE
@@ -162,10 +163,10 @@ func resume_game() -> void:
 	panel.visible = false
 	backdrop.visible = false
 	visible = false
-	# Fruit commit holds the world paused until Ascend; Resume must not unpause to water.
-	get_tree().paused = GameState.fruit_committed
-	# Hub bed must still be playing after pause resume (volume-only options).
-	if not GameAudio.is_hub_music_playing():
+	# Fruit commit holds the world paused until Ascend. An open Echo stays paused too.
+	get_tree().paused = GameState.fruit_committed or EchoChamber.in_battle
+	# Hub bed must still be playing after pause resume, except during an Echo.
+	if not EchoChamber.in_battle and not GameAudio.is_hub_music_playing():
 		GameAudio.play_hub_music()
 	GameAudio.play_ui_close()
 
@@ -180,6 +181,8 @@ func _on_new_game_pressed() -> void:
 
 
 func _on_save_pressed() -> void:
+	if EchoChamber.in_battle:
+		return
 	_slot_mode = SlotMode.SAVE
 	_show_slots(ContentStrings.get_text("pause_save"))
 
@@ -302,8 +305,11 @@ func _do_load_slot(slot: int) -> void:
 	if not SaveService.has_slot(slot):
 		status_toast.emit(ContentStrings.get_text("pause_load_empty"))
 		return
+	var was_echo: bool = EchoChamber.in_battle
 	var ok: bool = SaveService.load_game(slot)
 	if ok:
+		if was_echo:
+			EchoChamber.dismiss_battle_without_reward()
 		GameAudio.play_ui_confirm()
 		status_toast.emit(ContentStrings.get_text("pause_load_ok"))
 		_hide_slots()
@@ -358,7 +364,10 @@ func _on_confirm_yes() -> void:
 
 
 func _do_new_game() -> void:
+	var was_echo: bool = EchoChamber.in_battle
 	GameState.reset_for_new_game()
+	if was_echo:
+		EchoChamber.dismiss_battle_without_reward()
 	# Emit HUD refresh signals after reset.
 	GameState.resources_changed.emit(&"wood", GameState.wood)
 	GameState.resources_changed.emit(&"stone", GameState.stone)
