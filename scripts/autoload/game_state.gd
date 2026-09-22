@@ -14,6 +14,7 @@ signal wisp_assigned(wisp_id: int, node_id: String, result: String)
 signal wisp_assign_failed(reason: String, node_id: String)
 signal wisp_unassigned(wisp_id: int)
 signal wisp_pulsed(resource_id: StringName)
+signal echo_flags_changed
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -39,6 +40,13 @@ var fruit_committed: bool = false
 var fruit_harvested_pending_ascend: bool = false
 ## True after first-boot welcome was dismissed (once per new save).
 var welcome_shown: bool = false
+## Echo Chamber v1. Portal after the first Ascend. No mid-fight HP.
+var portal_unlocked: bool = false
+var portal_fee_paid: bool = false
+var echo_01_resolved: bool = false
+var echo_01_redeemed: bool = false
+var forge_key: bool = false
+var echo_01_narrator_heard: bool = false
 
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
@@ -928,6 +936,9 @@ func ascend() -> void:
 	if not fruit_committed:
 		return
 	ascensions += 1
+	## First Ascend opens the Echo. A paid fee, Key, and companion flag stay.
+	portal_unlocked = true
+	echo_flags_changed.emit()
 	wood = 0
 	stone = 0
 	food = 0
@@ -1001,6 +1012,12 @@ func to_save_dict() -> Dictionary:
 		"equipment_unlocked": _equipment_save_field("equipment_unlocked"),
 		"equipment_equipped": _equipment_save_field("equipment_equipped"),
 		"gear_inventory": _equipment_save_field("gear_inventory"),
+		"portal_unlocked": portal_unlocked,
+		"portal_fee_paid": portal_fee_paid,
+		"echo_01_resolved": echo_01_resolved,
+		"echo_01_redeemed": echo_01_redeemed,
+		"forge_key": forge_key,
+		"echo_01_narrator_heard": echo_01_narrator_heard,
 	}
 
 
@@ -1020,6 +1037,12 @@ func apply_save_dict(data: Dictionary) -> void:
 	welcome_shown = bool(data.get("welcome_shown", false))
 	run_time_sec = float(data.get("run_time_sec", 0.0))
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
+	portal_unlocked = bool(data.get("portal_unlocked", false)) or ascensions >= 1
+	portal_fee_paid = bool(data.get("portal_fee_paid", false))
+	echo_01_resolved = bool(data.get("echo_01_resolved", false))
+	echo_01_redeemed = bool(data.get("echo_01_redeemed", false))
+	forge_key = bool(data.get("forge_key", false))
+	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
 	lifetime_waters = int(data.get("lifetime_waters", 0))
 	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
 	lifetime_essence_from_water = int(data.get("lifetime_essence_from_water", 0))
@@ -1068,6 +1091,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	fruit_ready_changed.emit(fruit_ready)
 	needs_changed.emit()
 	upgrades_changed.emit()
+	echo_flags_changed.emit()
 	load_completed.emit()
 
 
@@ -1116,6 +1140,13 @@ func reset_for_new_game() -> void:
 	keeper_selected = false
 	selected_wisp_id = -1
 	run_time_sec = 0.0
+	portal_unlocked = false
+	portal_fee_paid = false
+	echo_01_resolved = false
+	echo_01_redeemed = false
+	forge_key = false
+	echo_01_narrator_heard = false
+	echo_flags_changed.emit()
 	Backpack.reset_for_new_game()
 	if has_node("/root/KeeperStats"):
 		KeeperStats.reset_for_new_game()

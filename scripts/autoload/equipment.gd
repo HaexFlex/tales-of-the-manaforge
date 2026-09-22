@@ -1,7 +1,7 @@
 extends Node
 ## Battle gear inventory + paper-doll slots. Thin module beside GameState.
 ## Backpack keeps forest crafts. This inventory keeps Weapon Rod and Stone Sword.
-## Equipped bonuses are flat. Relic stays locked this ship (no Forge Key).
+## Equipped bonuses are flat. Relic unlocks when the Keeper holds a Forge Key.
 
 signal equipment_changed
 
@@ -97,10 +97,10 @@ func get_recipe_def(recipe_id: String) -> Dictionary:
 
 
 func is_slot_unlocked(slot_id: String) -> bool:
-	## Relic stays locked until Forge Key — that item is not in this ship.
+	## Relic follows the Forge Key. Other slots stay on the data file.
 	var sid: String = _canonical_slot(slot_id)
 	if sid == "relic":
-		return false
+		return has_node("/root/GameState") and GameState.forge_key
 	return bool(get_slot_def(sid).get("unlocked", false))
 
 
@@ -427,7 +427,7 @@ func apply_save_dict(data: Variant) -> void:
 	if src.has("gear_inventory") or src.has("equipment_equipped") or src.has("owned"):
 		_apply_inventory(src.get("gear_inventory", src.get("owned", {})))
 		_apply_equipped(src.get("equipment_equipped", src.get("equipped", {})))
-	## Unlock flags stay on the data file this ship so a save cannot open the relic.
+	## Armor unlocks stay on the data file. Relic follows GameState.forge_key.
 	equipment_changed.emit()
 
 

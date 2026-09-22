@@ -1,5 +1,6 @@
 extends SceneTree
-## Headless verification per SYSTEMS_V01 v0.5.1 — sheet polish, base = 5 + rank, SAVE_VERSION 7.
+const EchoBattleScript := preload("res://scripts/echo_battle.gd")
+## Headless verification per SYSTEMS_V01 v0.6.0 — Echo Chamber v1, SAVE_VERSION 8.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -28,7 +29,7 @@ func _run() -> void:
 
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 8, "expected 8 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION should be 7")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION should be 8")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -313,7 +314,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 7, "written save_version 7")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 8, "written save_version 8")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -546,7 +547,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION stays 7 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION stays 8 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -1579,7 +1580,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 7, "SAVE_VERSION is 7")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION is 8")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -2002,12 +2003,343 @@ func _run() -> void:
 		game_state.call("reset_for_new_game")
 		save_service.call("delete_save")
 
+	failed += await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
+
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
 		quit(0)
 	else:
 		print("VERIFY_FAIL: %d assertion(s) failed" % failed)
 		quit(1)
+
+
+func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, content_strings: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	failed += _assert(keeper_stats != null and equipment != null and echo != null, "echo autoloads")
+	if failed > 0:
+		return failed
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	echo.set("in_battle", false)
+	var echo_def: Dictionary = echo.call("echo_def")
+	failed += _assert(str(echo.call("echo_display_name")) == "Elaia", "Elaia display name")
+	failed += _assert(str(echo_def.get("id", "")) == "echo_keeper_01", "echo id")
+	var estats: Dictionary = echo_def.get("stats", {})
+	failed += _assert(int(estats.get("vitality", 0)) == 6 and int(estats.get("arcana", 0)) == 7, "Elaia vit 6 arcana 7")
+	failed += _assert(int(estats.get("swiftness", 0)) == 6 and int(estats.get("might", 0)) == 4, "Elaia swift 6 might 4")
+	failed += _assert(str(content_strings.call("get_text", "echo_elaia_name")) == "Elaia", "echo_elaia_name")
+	failed += _assert(str(content_strings.call("get_text", "echo_elaia_subtitle")).find("Echo") >= 0, "echo_elaia_subtitle")
+	failed += _assert(str(content_strings.call("get_text", "portal_confirm")).find("{cost}") >= 0, "portal_confirm")
+	failed += _assert(str(content_strings.call("get_text", "portal_cant_afford")).find("{cost}") >= 0, "portal_cant_afford")
+	failed += _assert(str(content_strings.call("get_text", "battle_mercy_hint")).find("{enemy}") >= 0, "battle_mercy_hint")
+	failed += _assert(str(content_strings.call("get_text", "battle_fists_toast")).find("weapon") >= 0, "battle_fists_toast")
+	failed += _assert(str(content_strings.call("get_text", "battle_spare_ok")).find("{enemy}") >= 0, "battle_spare_ok")
+	failed += _assert(str(content_strings.call("get_text", "battle_defeat_ok")).find("{enemy}") >= 0, "battle_defeat_ok")
+	failed += _assert(str(content_strings.call("get_text", "battle_key_grant")).find("Forge Key") >= 0, "battle_key_grant")
+	failed += _assert(str(content_strings.call("get_text", "forge_no_key")) == "You have no key.", "no key popup")
+	failed += _assert(str(content_strings.call("get_text", "forge_not_built")) == "Not built yet.", "forge not built")
+	failed += _assert(str(content_strings.call("get_text", "battle_save_disabled")).find("Cannot save") >= 0, "battle_save_disabled")
+	failed += _assert(str(content_strings.call("get_text", "battle_paused_hint")).find("Flee") >= 0, "battle_paused_hint")
+	failed += _assert(EchoBattleScript.raw_damage(5, 5) == 0, "fists raw 0")
+	failed += _assert(EchoBattleScript.raw_damage(4, 9) == 0, "negative raw is 0")
+	failed += _assert(EchoBattleScript.raw_damage(7, 5) == 20, "sword raw 20")
+	failed += _assert(EchoBattleScript.hp_max_for(5) == 50 and EchoBattleScript.hp_max_for(6) == 60, "hp from vitality")
+	failed += _assert(EchoBattleScript.rank_cost(0) == 100 and EchoBattleScript.rank_cost(1) == 165, "rank cost curve")
+	failed += _assert(EchoBattleScript.rank_cost(4) == 741 and EchoBattleScript.rank_cost(5) == 1222, "rank cost 741/1222")
+	var ranks0: Dictionary = {
+		"might": 0, "arcana": 0, "resilience": 0, "ward": 0, "vitality": 0, "swiftness": 0, "fate": 0
+	}
+	failed += _assert(EchoBattleScript.payout("spare", ranks0, 5) == 105, "generalist spare 105")
+	failed += _assert(EchoBattleScript.payout("defeat", ranks0, 5) == 278, "generalist defeat 278")
+	var ranks_might: Dictionary = ranks0.duplicate()
+	ranks_might["might"] = 4
+	failed += _assert(EchoBattleScript.payout("defeat", ranks_might, 5) == 2061, "specialist defeat 2061")
+	failed += _assert(EchoBattleScript.payout("spare", ranks_might, 5) == 105, "specialist spare still third rank 0")
+	var ordered: Array[String] = EchoBattleScript.ranked_stat_ids(ranks_might)
+	failed += _assert(ordered[0] == "might" and ordered[1] == "arcana" and ordered[2] == "resilience", "might leads and the third tie is resilience")
+	# Fists: 0 damage. Enemy still hits after.
+	var fists: Variant = EchoBattleScript.new()
+	fists.force_crit = 0
+	fists.configure(_echo_totals(5, 9), echo_def)
+	fists.choose("strike")
+	failed += _assert(fists.last_keeper_damage == 0 and fists.echo_hp == 60, "fists deal 0")
+	# Turn-1 floor: a lethal first cast leaves the Keeper at 1, then Flee succeeds.
+	var lethal: Dictionary = echo_def.duplicate(true)
+	(lethal["stats"] as Dictionary)["arcana"] = 40
+	(lethal["stats"] as Dictionary)["swiftness"] = 9
+	var t1: Variant = EchoBattleScript.new()
+	t1.force_crit = 0
+	t1.configure(_echo_totals(5, 1, 0), lethal)
+	failed += _assert(t1.choose("flee") == "flee", "flee after her first hit")
+	failed += _assert(t1.keeper_hp == 1 and t1.outcome == "flee" and t1.enemy_attacks == 1, "T1 cannot KO")
+	var t1_strike: Variant = EchoBattleScript.new()
+	t1_strike.force_crit = 0
+	t1_strike.configure(_echo_totals(5, 1, 0), lethal)
+	t1_strike.choose("strike")
+	failed += _assert(t1_strike.keeper_hp == 1 and t1_strike.outcome == "", "T1 strike still cannot KO")
+	# Crit does not bypass the mercy floor.
+	var floored: Variant = EchoBattleScript.new()
+	floored.force_crit = 1
+	floored.configure(_echo_totals(20, 12), echo_def)
+	floored.choose("strike")
+	failed += _assert(floored.echo_hp == 1 and floored.spare_window, "10% floor holds on a crit")
+	failed += _assert(not floored.available_actions().has("flee"), "spare window has no Flee")
+	failed += _assert(floored.choose("flee") == "no_flee" and floored.outcome == "", "flee is refused in the window")
+	failed += _assert(floored.available_actions().has("spare") and floored.available_actions().has("strike"), "window offers spare and strike")
+	# No sword: she kills on her third hit. Echo never reaches the window.
+	var bare: Variant = EchoBattleScript.new()
+	bare.force_crit = 0
+	bare.configure(_echo_totals(5, 1), echo_def)
+	bare.choose("strike")
+	bare.choose("strike")
+	failed += _assert(bare.choose("strike") == "ko" and bare.enemy_attacks == 3 and bare.echo_hp == 60, "fists die on her third hit")
+	# Sword only: die on her third action, before the window.
+	var sword: Variant = EchoBattleScript.new()
+	sword.force_crit = 0
+	sword.configure(_echo_totals(7, 5), echo_def)
+	sword.choose("strike")
+	sword.choose("strike")
+	failed += _assert(sword.choose("strike") == "ko" and sword.echo_hp == 20 and sword.enemy_attacks == 3, "sword dies before spare")
+	# Sword + 1 Swift: tie, Keeper first, floor then window before her kill.
+	var swift: Variant = EchoBattleScript.new()
+	swift.force_crit = 0
+	swift.configure(_echo_totals(7, 6), echo_def)
+	swift.choose("strike")
+	swift.choose("strike")
+	failed += _assert(swift.choose("strike") == "spare_window", "swift reaches the window")
+	failed += _assert(swift.echo_hp == 1 and swift.keeper_hp == 10 and swift.enemy_attacks == 2, "swift floor before her third hit")
+	failed += _assert(swift.choose("strike") == "defeat" and swift.echo_hp == 0, "strike inside the window is defeat")
+	# Sword + 1 Might, she is faster: window on the Keeper's second strike.
+	var might_plus: Variant = EchoBattleScript.new()
+	might_plus.force_crit = 0
+	might_plus.configure(_echo_totals(8, 5), echo_def)
+	might_plus.choose("strike")
+	failed += _assert(might_plus.choose("strike") == "spare_window" and might_plus.echo_hp == 1, "might reaches 1 HP")
+	var window_view_battle: Variant = EchoBattleScript.new()
+	window_view_battle.force_crit = 0
+	window_view_battle.configure(_echo_totals(7, 6), echo_def)
+	window_view_battle.spare_window = true
+	echo.set("battle", window_view_battle)
+	echo.set("in_battle", true)
+	echo.set("reentry", false)
+	var view_packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	var view: Node = view_packed.instantiate()
+	tree_root.add_child(view)
+	await process_frame
+	failed += _assert(not bool(view.call("is_flee_shown")), "battle UI hides Flee in the spare window")
+	failed += _assert(bool(view.call("is_spare_shown")) and bool(view.call("is_strike_shown")), "battle UI shows Spare and Strike")
+	failed += _assert(str(view.call("speech_text")).find("Spare or Strike") >= 0, "mercy toast in the window")
+	var psize: Vector2 = view.call("portrait_size")
+	failed += _assert(abs(psize.x - 128.0) < 0.5 and abs(psize.y - 128.0) < 0.5, "portraits 128x128")
+	var csize: Vector2 = view.call("command_band_size")
+	failed += _assert(abs(csize.x - 720.0) < 0.5 and abs(csize.y - 120.0) < 0.5, "command band 720x120")
+	view.free()
+	echo.set("battle", null)
+	echo.set("in_battle", false)
+	# Payout snapshot uses live ranks at the moment of the ending.
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"manashards", 0)
+	var spare_pay: Dictionary = echo.call("apply_outcome", "spare")
+	failed += _assert(int(spare_pay.get("shards", -1)) == 105, "spare snapshot 105")
+	failed += _assert(int(game_state.get("manashards")) == 105, "spare shards enter the pool")
+	failed += _assert(bool(game_state.get("forge_key")) and bool(game_state.get("echo_01_redeemed")), "spare grants key and companion flag")
+	failed += _assert(bool(game_state.get("echo_01_resolved")) and not bool(game_state.get("portal_fee_paid")), "spare closes the fee")
+	failed += _assert(bool(equipment.call("is_slot_unlocked", "relic")), "relic unlocks with the key")
+	game_state.call("reset_for_new_game")
+	keeper_stats.call("set_rank", "might", 4)
+	game_state.call("set_resource", &"manashards", 0)
+	var defeat_pay: Dictionary = echo.call("apply_outcome", "defeat")
+	failed += _assert(int(defeat_pay.get("shards", -1)) == 2061, "defeat snapshot 2061")
+	failed += _assert(not bool(game_state.get("echo_01_redeemed")) and bool(game_state.get("forge_key")), "defeat grants key, not the companion")
+	game_state.call("reset_for_new_game")
+	game_state.set("portal_fee_paid", true)
+	game_state.call("set_resource", &"manashards", 11)
+	echo.call("apply_outcome", "ko")
+	failed += _assert(int(game_state.get("manashards")) == 11 and not bool(game_state.get("portal_fee_paid")), "KO clears the fee and pays nothing")
+	failed += _assert(not bool(game_state.get("forge_key")) and not bool(game_state.get("echo_01_resolved")), "KO does not close the portal")
+	game_state.set("portal_fee_paid", true)
+	var shards_before: int = int(game_state.get("manashards"))
+	echo.call("apply_outcome", "flee")
+	failed += _assert(bool(game_state.get("portal_fee_paid")) and int(game_state.get("manashards")) == shards_before, "flee keeps the fee and pays nothing")
+	failed += _assert(str(echo.call("try_pay_fee")) == "closed", "fee reject while the portal is locked")
+	game_state.set("portal_unlocked", true)
+	game_state.set("echo_01_resolved", false)
+	game_state.set("portal_fee_paid", false)
+	game_state.call("set_resource", &"essence", 29)
+	failed += _assert(str(echo.call("try_pay_fee")) == "reject", "fee reject under 30 Essence")
+	failed += _assert(int(game_state.get("essence")) == 29 and not bool(game_state.get("portal_fee_paid")), "rejected fee does not spend")
+	game_state.call("set_resource", &"essence", 30)
+	failed += _assert(str(echo.call("try_pay_fee")) == "paid", "fee spends 30")
+	failed += _assert(int(game_state.get("essence")) == 0 and bool(game_state.get("portal_fee_paid")), "fee flag after pay")
+	failed += _assert(str(echo.call("try_pay_fee")) == "already_paid", "no second fee")
+	# Ascend keeps a paid fee and the key.
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.set("forge_key", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.call("set_resource", &"essence", 15)
+	game_state.call("ascend")
+	failed += _assert(bool(game_state.get("portal_unlocked")) and int(game_state.get("ascensions")) == 1, "ascend unlocks the portal")
+	failed += _assert(bool(game_state.get("portal_fee_paid")) and bool(game_state.get("forge_key")), "ascend keeps fee and key")
+	failed += _assert(bool(game_state.get("echo_01_redeemed")) and int(game_state.get("essence")) == 0, "ascend keeps the companion flag and wipes essence")
+	var payload: Dictionary = game_state.call("to_save_dict")
+	failed += _assert(not payload.has("keeper_hp") and not payload.has("echo_hp"), "fight HP is not saved")
+	failed += _assert(bool(payload.get("portal_unlocked", false)) and bool(payload.get("forge_key", false)), "save payload has portal and key")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save slot 7 echo flags")
+	var slot_file := FileAccess.open(str(save_service.call("slot_path", 7)), FileAccess.READ)
+	failed += _assert(slot_file != null, "open slot 7")
+	if slot_file:
+		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
+		slot_file.close()
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 8, "slot writes save_version 8")
+	game_state.call("reset_for_new_game")
+	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
+	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
+	failed += _assert(bool(game_state.get("portal_unlocked")) and bool(game_state.get("portal_fee_paid")), "loaded fee and portal")
+	failed += _assert(bool(game_state.get("forge_key")) and bool(game_state.get("echo_01_redeemed")), "loaded key and companion flag")
+	failed += _assert(bool(equipment.call("is_slot_unlocked", "relic")), "loaded key unlocks relic")
+	var v7_echo: Dictionary = save_service.call("_migrate", 7, {"ascensions": 1, "essence": 4})
+	failed += _assert(bool(v7_echo.get("portal_unlocked", false)), "v7 ascend migrates the portal open")
+	failed += _assert(not bool(v7_echo.get("forge_key", true)) and not bool(v7_echo.get("portal_fee_paid", true)), "v7 migrate does not invent a key or a fee")
+	echo.set("in_battle", true)
+	failed += _assert(not bool(save_service.call("save_game", 7)), "save disabled during battle")
+	echo.set("in_battle", false)
+	# Hub scene: portal, fee confirm, Enter Forge, battle silence.
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	var main_packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = main_packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	var portal: Node = live.get_node_or_null("World/EchoPortal")
+	var hud: Node = live.get_node_or_null("HUD")
+	var pause_menu: Node = live.get_node_or_null("PauseMenu")
+	failed += _assert(portal != null and not portal.visible, "portal hidden before the first Ascend")
+	if portal:
+		var portal_outer: ColorRect = portal.get_node_or_null("Visual/Outer") as ColorRect
+		failed += _assert(portal_outer != null and abs(portal_outer.size.x - 96.0) < 0.5 and abs(portal_outer.size.y - 96.0) < 0.5, "portal ColorRect 96x96")
+	failed += _assert(hud != null and pause_menu != null, "hud and pause for echo")
+	if hud and portal and pause_menu:
+		if hud.has_method("hide_welcome"):
+			hud.call("hide_welcome")
+		hud.call("show_care_menu")
+		var forge_btn: Button = hud.get_node_or_null("CarePanel/ForgeButton") as Button
+		failed += _assert(forge_btn != null and not forge_btn.disabled, "Enter Forge stays clickable")
+		failed += _assert(bool(hud.call("is_forge_entry_gray")), "Enter Forge is gray without a key")
+		game_audio.call("clear_played_log")
+		failed += _assert(str(hud.call("open_forge_entry")) == "You have no key.", "gray forge popup")
+		failed += _assert(bool(hud.call("is_forge_popup_open")), "forge popup open")
+		failed += _assert(not bool(game_audio.call("did_play", &"mus_fruit_sting")), "no fruit sting on forge popup")
+		failed += _assert(not bool(game_audio.call("did_play", &"mus_ascend_sting")), "no ascend sting on forge popup")
+		game_state.set("forge_key", true)
+		game_state.emit_signal("echo_flags_changed")
+		failed += _assert(not bool(hud.call("is_forge_entry_gray")), "Enter Forge wakes up with the key")
+		failed += _assert(str(hud.call("open_forge_entry")) == "Not built yet.", "key forge popup")
+		hud.call("hide_forge_popup")
+		hud.call("hide_care_menu")
+		game_state.set("forge_key", false)
+		game_state.set("portal_unlocked", true)
+		game_state.set("echo_01_resolved", false)
+		game_state.emit_signal("echo_flags_changed")
+		failed += _assert(portal.visible, "portal shows after unlock")
+		game_state.set("echo_01_resolved", true)
+		game_state.emit_signal("echo_flags_changed")
+		failed += _assert(not portal.visible, "portal closes after a win")
+		game_state.set("echo_01_resolved", false)
+		game_state.set("portal_fee_paid", false)
+		game_state.call("set_resource", &"essence", 10)
+		game_state.emit_signal("echo_flags_changed")
+		game_audio.call("clear_played_log")
+		failed += _assert(str(portal.call("begin_entry")) == "reject", "portal confirm rejects a short fee")
+		failed += _assert(bool(game_audio.call("did_play", &"sfx_ui_deny")), "short fee plays sfx_ui_deny")
+		failed += _assert(not bool(game_audio.call("did_play", &"sfx_tree_deny")), "short fee does not use the tree deny")
+		failed += _assert(not bool(game_audio.call("did_play", &"mus_fruit_sting")), "short fee has no fruit sting")
+		failed += _assert(not bool(game_audio.call("did_play", &"mus_ascend_sting")), "short fee has no ascend sting")
+		failed += _assert(int(game_state.get("essence")) == 10, "short confirm does not spend")
+		failed += _assert(bool(portal.call("is_fee_confirm_open")), "reject keeps the confirm open")
+		var yes_btn: Button = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Yes") as Button
+		failed += _assert(yes_btn != null and yes_btn.disabled, "confirm yes disabled when short")
+		portal.call("cancel_fee")
+		game_state.call("set_resource", &"essence", 30)
+		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub bed before the echo")
+		failed += _assert(str(portal.call("begin_entry")) == "confirm", "30 Essence opens the fee confirm")
+		failed += _assert(int(game_state.get("essence")) == 30, "confirm alone does not spend")
+		game_audio.call("clear_played_log")
+		failed += _assert(str(portal.call("confirm_fee")) == "enter", "confirm enters the battle")
+		failed += _assert(not bool(game_audio.call("did_play", &"mus_fruit_sting")), "no fruit sting on the fee")
+		failed += _assert(not bool(game_audio.call("did_play", &"mus_ascend_sting")), "no ascend sting on the fee")
+		failed += _assert(int(game_state.get("essence")) == 0 and bool(game_state.get("portal_fee_paid")), "entry spends 30 once")
+		failed += _assert(bool(echo.get("in_battle")) and bool(game_audio.call("is_hub_suspended")), "battle suspends the hub bed")
+		failed += _assert(not bool(game_audio.call("is_hub_stream_playing")), "battle is silent")
+		failed += _assert(bool(game_audio.call("is_hub_bed_paused")), "battle pauses the hub bed in place")
+		game_audio.call("clear_played_log")
+		game_audio.call("play", &"mus_fruit_sting")
+		game_audio.call("play", &"mus_ascend_sting")
+		failed += _assert(not bool(game_audio.call("did_play", &"mus_fruit_sting")), "battle blocks the fruit sting")
+		failed += _assert(not bool(game_audio.call("did_play", &"mus_ascend_sting")), "battle blocks the ascend sting")
+		pause_menu.call("_on_save_pressed")
+		failed += _assert(bool(game_audio.call("did_play", &"sfx_ui_cancel")), "battle save deny is sfx_ui_cancel")
+		failed += _assert(not bool(game_audio.call("did_play", &"sfx_tree_deny")), "battle save deny is not the tree deny")
+		var battle_view: Node = tree_root.get_node_or_null("EchoBattle")
+		failed += _assert(battle_view != null and bool(battle_view.call("is_flee_shown")), "battle offers Flee outside the window")
+		failed += _assert(not bool(battle_view.call("is_spare_shown")), "Spare stays hidden above 10%")
+		failed += _assert(str(battle_view.call("speech_text")).find("vs Elaia") >= 0 or str(battle_view.call("speech_text")).find("Elaia") >= 0, "opening names Elaia")
+		var pause_save: Button = pause_menu.get_node_or_null("Panel/BtnSave") as Button
+		pause_menu.call("open_pause")
+		failed += _assert(pause_save != null and pause_save.disabled, "Save disabled while the echo is open")
+		pause_menu.call("resume_game")
+		failed += _assert(bool(game_audio.call("is_hub_suspended")), "pause resume does not restart the bed")
+		echo.call("finish_battle", "flee")
+		await process_frame
+		failed += _assert(not bool(echo.get("in_battle")), "flee leaves the battle")
+		failed += _assert(bool(game_state.get("portal_fee_paid")) and not bool(game_state.get("forge_key")), "flee keeps the paid fee")
+		failed += _assert(not bool(game_audio.call("is_hub_suspended")) and bool(game_audio.call("is_hub_music_playing")), "hub bed resumes after the echo")
+		game_state.call("set_resource", &"essence", 4)
+		failed += _assert(str(portal.call("begin_entry")) == "enter", "re-entry skips the fee")
+		failed += _assert(int(game_state.get("essence")) == 4, "re-entry does not spend")
+		var return_view: Node = tree_root.get_node_or_null("EchoBattle")
+		failed += _assert(return_view != null and str(return_view.call("speech_text")).find("open") >= 0, "re-entry free toast")
+		echo.call("finish_battle", "flee")
+		await process_frame
+		game_state.call("set_resource", &"manashards", 4)
+		game_state.set("forge_key", false)
+		failed += _assert(bool(save_service.call("save_game", 1)), "save the paid portal")
+		game_state.call("set_resource", &"manashards", 90)
+		game_state.set("forge_key", true)
+		echo.set("in_battle", true)
+		pause_menu.call("_do_load_slot", 1)
+		failed += _assert(not bool(echo.get("in_battle")), "load abandons the fight")
+		failed += _assert(int(game_state.get("manashards")) == 4 and not bool(game_state.get("forge_key")), "load does not keep battle rewards")
+		failed += _assert(bool(game_state.get("portal_fee_paid")), "loaded fee stays paid")
+	var leftover_battle: Node = tree_root.get_node_or_null("EchoBattle")
+	if leftover_battle:
+		leftover_battle.free()
+	if is_instance_valid(live):
+		live.free()
+	paused = false
+	echo.set("in_battle", false)
+	echo.set("battle", null)
+	if bool(game_audio.call("is_hub_suspended")):
+		game_audio.call("resume_hub_after_battle")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	return failed
+
+
+func _echo_totals(might: int, swift: int, ward: int = 5) -> Dictionary:
+	return {
+		"might": might,
+		"arcana": 5,
+		"resilience": 5,
+		"ward": ward,
+		"vitality": 5,
+		"swiftness": swift,
+		"fate": 5,
+	}
 
 
 func _assert(cond: bool, msg: String) -> int:

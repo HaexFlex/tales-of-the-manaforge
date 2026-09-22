@@ -19,6 +19,7 @@
   "landmarks": {
     "manatree": [1280, 1000],
     "keeper": [1120, 1100],
+    "echo_portal": [1560, 820],
     "harvest_tree": [840, 1140],
     "harvest_stone": [1040, 1160],
     "harvest_berry": [1540, 1140]

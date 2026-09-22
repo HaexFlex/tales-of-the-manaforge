@@ -1,12 +1,12 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.5.1 — aligned to SYSTEMS v0.5.0 ids: 10 gear slots; `stone_sword`; gear ≠ backpack; D7 scales live note
+**Status:** v0.6.0 — Haex GO: Echo Chamber v1 (Elaia, portal, Enter Forge, battle keys)
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
-**Changelog note:** v0.5.1 Design id lock (slots + stone_sword + gear inventory + D7 live).
+**Changelog note:** v0.6.0 Echo Chamber v1 string sheet (Haex GO).
 
-**Last updated:** 2026-09-21
+**Last updated:** 2026-09-22
 
 **Tone (Haex locked):** warm + lightly melancholic — never stressful.  
 **In-world rule:** *Manaforge* is **title-only** in v0.1 (window / itch blurb). Do not name the hidden forge or door in player strings yet.
@@ -27,6 +27,7 @@
 | **v0.4.1** | Haex D6 live: Stone Axe/Pickaxe Head; costs-only Can+Fert rows; Keep Tools 3000; blessing tooltips; Grow Fert 3/6/12/24. |
 | **v0.5.0** | Haex GREENLIGHT: Character sheet, seven stats (VISION), Runestone spend (Manashards), locked Weapon/Relic slot hints, Weapon Rod + Stone Sword, equip tooltips. Manatree scale note bundled (visual — D7). |
 | **v0.5.1** | Design id lock: slots `weapon`/`relic`/`head`/`body`/`hands`/`pants`/`feet`/`cape`/`ring1`/`ring2` (only weapon unlocked); item id `stone_sword`; gear inventory ≠ backpack; HUD+C; D7 scales live (visual). |
+| **v0.6.0** | Haex GO Echo Chamber v1: Elaia (`echo_keeper_01`); portal 30 Essence; Enter Forge care-menu (no-key / not-built); Strike/Flee/Spare; bare-fists toast; Key both endings; companion Spare-only; KO/Spare/Defeat silent. |
 
 ---
 
@@ -392,7 +393,7 @@ Locked Design ids (`SYSTEMS_V01` v0.3.0).
 
 ## 8. Out of v0.1 (do not ship strings for)
 
-Combat / Echo Chamber fights, Forge interior / door interact, Manaforge-as-place name, multi-zone travel, prompts on decorative trees. (Wisps in-scope; Character sheet / Runestone / first Weapon craft in-scope as of v0.5.0 — combat still later.)
+Echo Chamber **v2+**, companion body in combat, Forge **realm/interior**, Manaforge-as-place name, multi-zone travel, prompts on decorative trees. (Echo Chamber v1 portal fight + Enter Forge stub in-scope as of v0.6.0.)
 
 ---
 
@@ -570,7 +571,7 @@ Ids locked to SYSTEMS **v0.5.0** (Design mid-flight confirm). Stats match VISION
 
 ### 10b. Seven core stats (VISION)
 
-Display rule (SYSTEMS v0.5.1): each stat **starts at base 5**. The sheet line is `base + gear = total`, where `base = 5 + Runestone ranks`. `stat_base_note` is the numbers tooltip. `stat_value_breakdown` is `{base} + {ranks}`.
+Display rule (SYSTEMS v0.5.1): each stat **starts at base 5**; sheet shows `5 + Runestone ranks` (not from 0). Player strings use `{value}` / `{rank}` tokens only — no zero-start copy.
 
 | id | Display | Short / tooltip |
 |----|---------|-----------------|
@@ -708,6 +709,93 @@ Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor
 Visual-only (Art/Code). No player-facing strings. **Live with v0.5:** sapling **0.5×**, young **1×**, mature **2×**, elder **2×**, ancient **1.5×**. Canvases unchanged.
 
 
+
+
+---
+
+## 11. Echo Chamber v1 (LIVE — Haex GO 2026-09-22)
+
+Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 vs **Elaia** (`echo_keeper_01`) → Strike / Flee / Spare (&lt;10% HP, no Flee in mercy window) → Key both endings, companion flag Spare-only → save flags (SAVE **8**). Mid-fight HP not saved. Bare fists 0 damage (sword gate). Mercy floor + T1 no-KO. Battle music silence.  
+**Not this ship:** companion body in combat, 3v1, Cast/items/Guard, Forge interior/realm, Echo 2+, type chart, Wisps in combat.  
+**Forge entry:** Manatree care **Enter Forge** only — no world door.
+
+### 11a. Enemy
+
+| id | Display | Examine / battle subtitle |
+|----|---------|---------------------------|
+| `echo_keeper_01` | Elaia | An echo of a Keeper who came before — cool and quiet. |
+
+| key | string |
+|-----|--------|
+| `echo_elaia_name` | Elaia |
+| `echo_elaia_subtitle` | Keeper’s Echo |
+| `echo_elaia_examine` | An echo of a Keeper who came before — cool and quiet. |
+
+### 11b. Portal
+
+| key | string |
+|-----|--------|
+| `portal_title` | Echo Chamber |
+| `portal_prompt` | Step through? |
+| `portal_hint` | A quiet threshold after Ascend. Pay Essence once to enter. |
+| `portal_fee` | Essence ×{cost} |
+| `portal_fee_default` | Essence ×30 |
+| `portal_confirm` | Spend {cost} Essence to enter the Echo Chamber? |
+| `portal_confirm_yes` | Enter |
+| `portal_confirm_no` | Not now |
+| `portal_cant_afford` | Not enough Essence — need {cost}. |
+| `portal_denied` | The portal stays closed. |
+| `portal_reentry_free` | The way is open — enter freely. |
+| `portal_enter_ok` | You step through. |
+
+### 11c. Battle UI
+
+| key | string |
+|-----|--------|
+| `battle_title` | Echo Chamber |
+| `battle_vs` | vs {enemy} |
+| `battle_strike` | Strike |
+| `battle_flee` | Flee |
+| `battle_spare` | Spare |
+| `battle_your_turn` | Your turn |
+| `battle_enemy_turn` | {enemy} acts… |
+| `battle_hp` | HP {current}/{max} |
+| `battle_mercy_hint` | {enemy} falters — Spare or Strike. |
+| `battle_fists_toast` | Bare hands cannot harm an echo — equip a weapon. |
+| `battle_flee_ok` | You leave the Chamber. |
+| `battle_save_disabled` | Cannot save during battle. |
+| `battle_paused_hint` | Leaving now counts as Flee. |
+
+### 11d. Outcomes (KO / Spare / Defeat — no flavour lines; UI toasts only)
+
+| key | string |
+|-----|--------|
+| `battle_spare_ok` | You spare {enemy}. |
+| `battle_defeat_ok` | {enemy} fades. |
+| `battle_key_grant` | A Forge Key settles into your keeping. |
+| `battle_companion_flag` | A quiet companion-bond stirs — for later. |
+| `battle_shards_gain` | +{amount} Manashards |
+| `battle_reward_toast` | {rewards} |
+
+### 11e. Enter Forge (Manatree care menu)
+
+| key | string |
+|-----|--------|
+| `forge_enter` | Enter Forge |
+| `forge_enter_hint` | Beyond the Manatree — when you hold a Key. |
+| `forge_no_key` | You have no key. |
+| `forge_not_built` | Not built yet. |
+| `forge_locked_hint` | Needs a Forge Key. |
+| `relic_slot_unlocked` | A relic niche opens. |
+
+### 11f. Implementation notes for Code
+
+- Keys above are player-facing; wire tokens `{enemy}` `{cost}` `{current}` `{max}` `{amount}` `{rewards}`.
+- Display name for `echo_keeper_01` is always **Elaia**.
+- Do not name Manaforge as a place on Forge/portal copy.
+- Silence on KO/Spare/Defeat beat lines — toasts only; Audio owns hub stop/resume.
+
+
 ## DEFERRED notes (historical + park)
 
 Partially promoted in **v0.4.0** (Grow live). Remaining historical deferred: Fruit shop Close-until-first-Buy → Ascend-only lock (still awaiting separate greenlight if not already live).
@@ -769,9 +857,9 @@ Promoted 2026-09-19 → live v0.4.1. Ping Code.
 
 v0.4.0: Backpack, Handcraft, tools, Grow, Keep Tools, Fertilizer. **v0.4.1:** D6 string promote.
 
-### D3 → LIVE pointer (v0.5.0 / aligned v0.5.1)
+### D3 → LIVE pointer (v0.5.0 / Echo v0.6.0)
 
-Character sheet / seven stats / Runestone / 10 gear slots / Weapon Rod + Stone Sword **promoted to §10**. Ids locked to Design SYSTEMS v0.5.0. Relic / armor craft still later (Forge Key).
+Character sheet / stats / gear **§10**. Echo Chamber v1 portal fight + Enter Forge stub + Forge Key grant **§11**. Forge realm/interior + companion body + Echo 2+ still deferred.
 
 ### D7. Manatree display scales — LIVE (visual)
 

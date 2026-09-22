@@ -31,6 +31,8 @@ var _sting_player: AudioStreamPlayer
 var _sfx_player: AudioStreamPlayer
 var _progress_player: AudioStreamPlayer
 var _hub_playing: bool = false
+## Echo battle stops the bed. It is not ducked, and it does not restart until exit.
+var _hub_suspended: bool = false
 var _fruit_ready_played_cycle: bool = false
 ## Recent cue ids (verify / Haex Ascension audio lock).
 var _played_log: PackedStringArray = PackedStringArray()
@@ -133,8 +135,39 @@ func _connect_game_signals() -> void:
 
 
 func play_hub_music() -> void:
+	if _hub_suspended:
+		return
 	play(&"mus_hub_forest")
 	_hub_playing = true
+
+
+func suspend_hub_for_battle() -> void:
+	## Pause the bed in place (no duck). Battle stays silent; resume continues the loop.
+	_hub_suspended = true
+	_hub_playing = false
+	if _music_player and _music_player.playing and not _music_player.stream_paused:
+		_music_player.stream_paused = true
+	if _sting_player and _sting_player.playing:
+		_sting_player.stop()
+
+
+func resume_hub_after_battle() -> void:
+	_hub_suspended = false
+	if _music_player and _music_player.stream_paused:
+		_music_player.stream_paused = false
+		_hub_playing = _music_player.playing
+		if _hub_playing:
+			_ensure_music_bus_audible()
+			return
+	play_hub_music()
+
+
+func is_hub_bed_paused() -> bool:
+	return _music_player != null and _music_player.stream_paused
+
+
+func is_hub_suspended() -> bool:
+	return _hub_suspended
 
 
 func is_hub_music_playing() -> bool:
@@ -149,6 +182,9 @@ func get_hub_stream() -> AudioStream:
 
 func play(cue_id: StringName) -> void:
 	var key: String = String(cue_id)
+	# Echo battle: no mus_* bed or Fruit/Ascend sting while the hub is suspended.
+	if _hub_suspended and _cue_bus(key) == "Music":
+		return
 	if not _cues.has(key):
 		# Still emit for wiring tests even if unknown.
 		cue_missing.emit(cue_id)
@@ -273,12 +309,16 @@ func _play_sting_stream(stream: AudioStream, bus: String) -> void:
 	_sting_player.bus = bus
 	_sting_player.play()
 	# Ensure hub bed is still under the sting (volume only — never stop for SFX).
+	if _hub_suspended:
+		return
 	if not _music_player.playing:
 		play_hub_music()
 
 
 func _on_sting_finished() -> void:
 	## Restore hub bed if somehow silenced; otherwise leave looping bed alone.
+	if _hub_suspended:
+		return
 	if not _music_player.playing:
 		play_hub_music()
 	else:
@@ -382,6 +422,11 @@ func play_ui_cancel() -> void:
 	play(&"sfx_ui_cancel")
 
 
+func play_ui_deny() -> void:
+	## Portal fee deny. Soft UI only — not the tree deny or a Fruit/Ascend sting.
+	play(&"sfx_ui_deny")
+
+
 func play_ui_open() -> void:
 	play(&"sfx_ui_open")
 
@@ -444,6 +489,9 @@ func reset_cycle_flags() -> void:
 
 func ensure_hub_playing() -> void:
 	## Pause / Ascension shop must never stop mus_hub_forest. Resume in place if dropped.
+	## Echo battle is the exception: the bed stays stopped until the fight ends.
+	if _hub_suspended:
+		return
 	if is_hub_music_playing():
 		return
 	play_hub_music()
@@ -454,7 +502,19 @@ func is_hub_player_always() -> bool:
 
 
 func is_hub_stream_playing() -> bool:
-	return _music_player != null and _music_player.playing
+	## Paused bed is silent. Godot keeps `playing` true while stream_paused.
+	if _music_player == null or _music_player.stream_paused:
+		return false
+	return _music_player.playing
+
+
+func _cue_bus(key: String) -> String:
+	if not _cues.has(key):
+		return ""
+	var meta: Variant = _cues[key]
+	if typeof(meta) != TYPE_DICTIONARY:
+		return ""
+	return str((meta as Dictionary).get("bus", ""))
 
 
 func clear_played_log() -> void:

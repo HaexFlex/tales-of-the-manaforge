@@ -43,6 +43,11 @@
       "loop": false,
       "path": "res://assets/audio/sfx_ui_cancel.ogg"
     },
+    "sfx_ui_deny": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_ui_cancel.ogg"
+    },
     "sfx_ui_open": {
       "bus": "SFX_UI",
       "loop": false,

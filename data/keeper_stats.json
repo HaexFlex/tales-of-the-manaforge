@@ -7,7 +7,7 @@
     "Examples: 0→1: 100 | 1→2: 165 | 2→3: 272 | 3→4: 449 | 4→5: 741.",
     "keeper_stats stores Runestone ranks (starts 0). Each rank adds power_per_rank.",
     "Sheet base = STAT_BASE_START + ranks (5). Total = base + gear.",
-    "SAVE_VERSION stays 7. Missing ranks load as 0. An absolute below 5 displays at least 5. Ranks >= 5 stay.",
+    "SAVE_VERSION is 8. Missing ranks load as 0. An absolute below 5 displays at least 5. Ranks >= 5 stay.",
     "Ranks persist through Ascend. Unspent Manashards still wipe."
   ],
   "params": {

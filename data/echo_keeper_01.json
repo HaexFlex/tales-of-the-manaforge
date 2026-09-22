@@ -1,0 +1,23 @@
+{
+  "id": "echo_keeper_01",
+  "display_name_key": "echo_elaia_name",
+  "display_name": "Elaia",
+  "subtitle_key": "echo_elaia_subtitle",
+  "examine_key": "echo_elaia_examine",
+  "role": "Ancient Keeper caster",
+  "crit_multiplier": 1.2,
+  "notes": [
+    "Fixed sheet. Not a copy of the player.",
+    "Every turn is one Arcana-vs-Ward attack.",
+    "Vitality 6 is 60 HP. Swiftness 6 acts before a default Keeper."
+  ],
+  "stats": {
+    "might": 4,
+    "arcana": 7,
+    "resilience": 5,
+    "ward": 7,
+    "vitality": 6,
+    "swiftness": 6,
+    "fate": 5
+  }
+}
