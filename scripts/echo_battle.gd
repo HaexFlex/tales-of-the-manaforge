@@ -149,6 +149,7 @@ func choose(action: String) -> String:
 		if action == "flee":
 			return "no_flee"
 		if action == "spare":
+			_log_line("battle_log_spare", {"enemy": echo_name})
 			_finish("spare")
 			return "spare"
 		if action == "strike":
@@ -213,9 +214,9 @@ func _keeper_strike() -> void:
 	else:
 		echo_hp = maxi(0, next_hp)
 		if last_keeper_crit:
-			_log_line("battle_log_crit_you", {"amount": dealt})
+			_log_line("battle_log_crit_you")
 		else:
-			_log_line("battle_log_strike_you", {"amount": dealt})
+			_log_line("battle_log_strike_you")
 	if echo_hp <= 0:
 		_finish("defeat")
 		_log_line("battle_log_defeat", {"enemy": echo_name})
@@ -235,9 +236,9 @@ func _strike_to_finish() -> void:
 	last_keeper_damage = dealt
 	echo_hp = 0
 	if last_keeper_crit:
-		_log_line("battle_log_crit_you", {"amount": dealt})
+		_log_line("battle_log_crit_you")
 	else:
-		_log_line("battle_log_strike_you", {"amount": dealt})
+		_log_line("battle_log_strike_you")
 	_finish("defeat")
 	_log_line("battle_log_defeat", {"enemy": echo_name})
 
@@ -258,7 +259,7 @@ func _echo_attack() -> void:
 		_log_line("battle_log_t1_floor", {"enemy": echo_name})
 	else:
 		keeper_hp = maxi(0, next_hp)
-		_log_line("battle_log_strike_enemy", {"enemy": echo_name, "amount": dealt})
+		_log_line("battle_log_strike_enemy", {"enemy": echo_name})
 	enemy_attacks += 1
 	if keeper_hp <= 0:
 		_finish("ko")

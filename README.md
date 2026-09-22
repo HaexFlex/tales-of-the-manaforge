@@ -2,7 +2,7 @@
 
 Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper**, tending a living **Manatree** in the last fragment of a fairy-forest.
 
-**Canon:** `VISION_RESTART` + briefs (`SYSTEMS_V01` **v0.6.1 LIVE**, `CONTENT_STRINGS_V01` **v0.6.1+**, `VISUAL_BIBLE_RESTART_V01`, `ECHO_CHAMBER_COLORRECT_V01`). **Grow** = Fertilizer + Essence (needs-only Pay superseded). Pause menu + **7 save slots**. Art harvest nodes **v0.1.4**. Audio channels **v0.1.2**. Echo Chamber v1 LIVE. Old forge/combat drafts are non-canon.
+**Canon:** `VISION_RESTART` + briefs (`SYSTEMS_V01` **v0.6.1 LIVE**, `CONTENT_STRINGS_V01` **v0.6.2**, `VISUAL_BIBLE_RESTART_V01`, `ECHO_CHAMBER_COLORRECT_V01`). **Grow** = Fertilizer + Essence (needs-only Pay superseded). Pause menu + **7 save slots**. Art harvest nodes **v0.1.4**. Audio channels **v0.1.2**. Echo Chamber v1 LIVE. Old forge/combat drafts are non-canon.
 
 ## Stack
 

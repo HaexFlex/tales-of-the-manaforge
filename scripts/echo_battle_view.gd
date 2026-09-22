@@ -334,6 +334,7 @@ func _build() -> void:
 	_echo_hp_fill = _hp_bar("EchoHp", Vector2(840, 544), Color(0.32, 0.58, 0.56, 1))
 	_keeper_hp_label = _add_label("KeeperHpText", Vector2(56, 560), Vector2(384, 20), "", 12)
 	_echo_hp_label = _add_label("EchoHpText", Vector2(840, 560), Vector2(384, 20), "", 12)
+	_add_label("LogTitle", Vector2(200, 562), Vector2(200, 18), ContentStrings.get_text("battle_log_title"), 12)
 	_log = Label.new()
 	_log.name = "Log"
 	_log.position = Vector2(200, 580)
