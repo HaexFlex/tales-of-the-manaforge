@@ -6,8 +6,26 @@ class_name CharacterSheet
 signal close_requested
 
 const PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
-const SHEET_SIZE: Vector2 = Vector2(1040, 640)
-const PORTRAIT_SIZE: Vector2 = Vector2(220, 300)
+const SHEET_SIZE: Vector2 = Vector2(1272, 716)
+const HOST_POS: Vector2 = Vector2(12, 54)
+## Paper-doll host. The sprite is inset; slots sit in the margins around the figure.
+const PORTRAIT_SIZE: Vector2 = Vector2(496, 622)
+## Prior fitted portrait was 160×160 (128² kept inside a 160×284 rect). This is 3×.
+const SPRITE_SIZE: Vector2 = Vector2(480, 480)
+const SPRITE_POS: Vector2 = Vector2(8, 70)
+## Slot plates in host space, flanking the enlarged Keeper so they do not cover the figure.
+const SLOT_POS: Dictionary = {
+	"head": Vector2(216, 2),
+	"relic": Vector2(18, 80),
+	"cape": Vector2(18, 208),
+	"body": Vector2(18, 337),
+	"ring1": Vector2(18, 465),
+	"weapon": Vector2(400, 80),
+	"hands": Vector2(400, 208),
+	"pants": Vector2(400, 337),
+	"ring2": Vector2(400, 465),
+	"feet": Vector2(216, 554),
+}
 const SLOT_SIZE: Vector2 = Vector2(56, 66)
 const SLOT_SQUARE: Vector2 = Vector2(44, 44)
 ## Half-transparent slot chrome. No gold edge — the caption sits under the square.
@@ -159,8 +177,8 @@ func _build() -> void:
 
 	var title := Label.new()
 	title.name = "Title"
-	title.position = Vector2(20, 14)
-	title.size = Vector2(640, 28)
+	title.position = Vector2(20, 8)
+	title.size = Vector2(640, 26)
 	title.text = ContentStrings.get_text("char_sheet_title")
 	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", GOLD)
@@ -168,12 +186,12 @@ func _build() -> void:
 
 	var hint := Label.new()
 	hint.name = "Hint"
-	hint.position = Vector2(20, 42)
-	hint.size = Vector2(700, 20)
+	hint.position = Vector2(20, 32)
+	hint.size = Vector2(960, 18)
 	hint.text = ContentStrings.get_text("char_sheet_hint")
 	var hotkey := Label.new()
 	hotkey.name = "HotkeyHint"
-	hotkey.position = Vector2(SHEET_SIZE.x - 250, 46)
+	hotkey.position = Vector2(SHEET_SIZE.x - 250, 34)
 	hotkey.size = Vector2(120, 18)
 	hotkey.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hotkey.text = ContentStrings.get_text("char_sheet_hotkey_hint")
@@ -186,7 +204,7 @@ func _build() -> void:
 
 	var close := Button.new()
 	close.name = "CloseButton"
-	close.position = Vector2(SHEET_SIZE.x - 116, 16)
+	close.position = Vector2(SHEET_SIZE.x - 116, 8)
 	close.size = Vector2(96, 36)
 	close.text = ContentStrings.get_text("char_sheet_close")
 	close.pressed.connect(request_close)
@@ -195,7 +213,7 @@ func _build() -> void:
 
 	var host := Control.new()
 	host.name = "PortraitHost"
-	host.position = Vector2(24, 78)
+	host.position = HOST_POS
 	host.size = PORTRAIT_SIZE
 	host.custom_minimum_size = PORTRAIT_SIZE
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -203,16 +221,16 @@ func _build() -> void:
 
 	var backdrop := ColorRect.new()
 	backdrop.name = "PortraitBackdrop"
-	backdrop.position = Vector2(18, 36)
-	backdrop.size = Vector2(PORTRAIT_SIZE.x - 36, PORTRAIT_SIZE.y - 48)
+	backdrop.position = SPRITE_POS
+	backdrop.size = SPRITE_SIZE
 	backdrop.color = Color(0.10, 0.14, 0.11, 1.0)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(backdrop)
 
 	_portrait = TextureRect.new()
 	_portrait.name = "Portrait"
-	_portrait.position = Vector2(30, 8)
-	_portrait.size = Vector2(PORTRAIT_SIZE.x - 60, PORTRAIT_SIZE.y - 16)
+	_portrait.position = SPRITE_POS
+	_portrait.size = SPRITE_SIZE
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -229,11 +247,15 @@ func _build() -> void:
 		plate.host = self
 		plate.custom_minimum_size = SLOT_SIZE
 		plate.size = SLOT_SIZE
-		var anchor: Vector2 = Equipment.slot_anchor(sid)
-		plate.position = Vector2(
-			anchor.x * PORTRAIT_SIZE.x - SLOT_SIZE.x * 0.5,
-			anchor.y * PORTRAIT_SIZE.y - SLOT_SIZE.y * 0.5
-		)
+		var placed: Variant = SLOT_POS.get(sid, null)
+		if placed is Vector2:
+			plate.position = placed as Vector2
+		else:
+			var anchor: Vector2 = Equipment.slot_anchor(sid)
+			plate.position = Vector2(
+				anchor.x * PORTRAIT_SIZE.x - SLOT_SIZE.x * 0.5,
+				anchor.y * PORTRAIT_SIZE.y - SLOT_SIZE.y * 0.5
+			)
 		plate.mouse_filter = Control.MOUSE_FILTER_STOP
 		host.add_child(plate)
 		plate.setup()
@@ -242,8 +264,8 @@ func _build() -> void:
 	mid.name = "GearColumn"
 	mid.host = self
 	mid.mouse_filter = Control.MOUSE_FILTER_STOP
-	mid.position = Vector2(268, 72)
-	mid.size = Vector2(360, 470)
+	mid.position = Vector2(524, 64)
+	mid.size = Vector2(360, 600)
 	sheet.add_child(mid)
 
 	var gear_title := Label.new()
@@ -295,7 +317,7 @@ func _build() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.name = "GearScroll"
 	scroll.position = Vector2(0, 106)
-	scroll.size = Vector2(360, 356)
+	scroll.size = Vector2(360, 480)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	mid.add_child(scroll)
@@ -308,8 +330,8 @@ func _build() -> void:
 
 	var right := Control.new()
 	right.name = "Stats"
-	right.position = Vector2(648, 68)
-	right.size = Vector2(368, 530)
+	right.position = Vector2(896, 64)
+	right.size = Vector2(360, 620)
 	sheet.add_child(right)
 
 	var stats_title := Label.new()
@@ -369,7 +391,7 @@ func _build() -> void:
 
 	_footer = Label.new()
 	_footer.name = "Footer"
-	_footer.position = Vector2(268, sheet_h - 36.0)
+	_footer.position = Vector2(524, sheet_h - 32.0)
 	_footer.size = Vector2(740, 24)
 	_footer.add_theme_font_size_override("font_size", 12)
 	_footer.add_theme_color_override("font_color", INK)

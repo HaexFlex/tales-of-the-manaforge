@@ -4,67 +4,68 @@
     "Ten slots. This ship unlocks weapon only. Relic stays locked (no Forge Key).",
     "Gear inventory is separate from the backpack. Weapon Rod and Stone Sword live here.",
     "Weapon Rod is the battle-path intermediate (10 Wooden Planks), consumed into the Stone Sword.",
-    "Stone Sword: 30 Stone Fragments + 1 Weapon Rod, +2 Might while equipped."
+    "Stone Sword: 30 Stone Fragments + 1 Weapon Rod, +2 Might while equipped.",
+    "Anchors are slot centers on the 496×622 character-sheet host (3× Keeper portrait)."
   ],
   "slots": [
     {
       "id": "weapon",
       "unlocked": true,
-      "anchor": [0.94, 0.42],
+      "anchor": [0.863, 0.182],
       "label_key": "equip_slot_weapon"
     },
     {
       "id": "relic",
       "unlocked": false,
-      "anchor": [0.06, 0.18],
+      "anchor": [0.093, 0.182],
       "label_key": "equip_slot_relic"
     },
     {
       "id": "head",
       "unlocked": false,
-      "anchor": [0.50, 0.02],
+      "anchor": [0.492, 0.056],
       "label_key": "equip_slot_head"
     },
     {
       "id": "body",
       "unlocked": false,
-      "anchor": [0.50, 0.34],
+      "anchor": [0.093, 0.595],
       "label_key": "equip_slot_body"
     },
     {
       "id": "hands",
       "unlocked": false,
-      "anchor": [0.94, 0.60],
+      "anchor": [0.863, 0.387],
       "label_key": "equip_slot_hands"
     },
     {
       "id": "pants",
       "unlocked": false,
-      "anchor": [0.50, 0.62],
+      "anchor": [0.863, 0.595],
       "label_key": "equip_slot_pants"
     },
     {
       "id": "feet",
       "unlocked": false,
-      "anchor": [0.50, 0.90],
+      "anchor": [0.492, 0.944],
       "label_key": "equip_slot_feet"
     },
     {
       "id": "cape",
       "unlocked": false,
-      "anchor": [0.06, 0.40],
+      "anchor": [0.093, 0.387],
       "label_key": "equip_slot_cape"
     },
     {
       "id": "ring1",
       "unlocked": false,
-      "anchor": [0.06, 0.68],
+      "anchor": [0.093, 0.801],
       "label_key": "equip_slot_ring1"
     },
     {
       "id": "ring2",
       "unlocked": false,
-      "anchor": [0.94, 0.78],
+      "anchor": [0.863, 0.801],
       "label_key": "equip_slot_ring2"
     }
   ],

@@ -6,7 +6,7 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 
 ## Stack
 
-- **Godot 4.3** · GDScript only · **fully typed**
+- **Godot 4.7.2** · GDScript only · **fully typed**
 - Playable forest hub: **2560×2160** play area (**2× × 3×** of the original 1280×720 hub), **64² grass TileMap**, dense Y-sorted **decorative** Haex forest ring around an open glade, **exactly 3** harvest channels, Manatree landmark; view **1280×720** nearest-neighbor; **arrow keys** pan the camera (clamped to play bounds)
 - Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `Backpack`, `KeeperStats`, `Equipment`, `SaveService`
 - Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options stub, Exit
