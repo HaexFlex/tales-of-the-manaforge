@@ -281,6 +281,23 @@ func grant_item(item_id: String) -> bool:
 	return add_gear(item_id, 1)
 
 
+## Spare / Defeat (and load migration): unlock Relic, own the Key, equip it.
+func ensure_forge_key_equipped() -> void:
+	if has_node("/root/GameState"):
+		GameState.forge_key = true
+	if not owns_anywhere("forge_key"):
+		grant_item("forge_key")
+	if equipped_id("relic") == "forge_key":
+		equipment_changed.emit()
+		return
+	if equipped_id("relic") != "":
+		try_unequip("relic")
+	if unequipped_count("forge_key") > 0:
+		try_equip("forge_key")
+	else:
+		equipment_changed.emit()
+
+
 func add_gear(item_id: String, count: int) -> bool:
 	if not is_known_item(item_id) or count <= 0:
 		return false
@@ -428,6 +445,9 @@ func apply_save_dict(data: Variant) -> void:
 		_apply_inventory(src.get("gear_inventory", src.get("owned", {})))
 		_apply_equipped(src.get("equipment_equipped", src.get("equipped", {})))
 	## Armor unlocks stay on the data file. Relic follows GameState.forge_key.
+	if has_node("/root/GameState") and GameState.forge_key:
+		ensure_forge_key_equipped()
+		return
 	equipment_changed.emit()
 
 

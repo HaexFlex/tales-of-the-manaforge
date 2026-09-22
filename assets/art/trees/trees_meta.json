@@ -2,8 +2,8 @@
   "filter": "nearest",
   "anchor": "base_center",
   "version": "v0.1.13-assets-upload",
-  "inbox": "Assets upload/",
-  "notes": "v0.1.13 cleaned frames (bbox+2px, no downscale). Decorative only \u2014 harvest nodes stay in props/. Bushes live in assets/art/bushes/. Originals remain in Assets upload/.",
+  "inbox": "assets/library/",
+  "notes": "v0.1.13 cleaned frames (bbox+2px, no downscale). Decorative only \u2014 harvest nodes stay in props/. Bushes live in assets/art/bushes/. Originals remain in assets/library/.",
   "items": {
     "tree_oak_a": {
       "file": "tree_oak_a.png",
@@ -63,7 +63,7 @@
         364
       ],
       "role": "tree",
-      "source": "Assets upload/Big Trees.png"
+      "source": "assets/library/Big Trees.png"
     },
     "tree_big_02": {
       "file": "tree_big_02.png",
@@ -72,7 +72,7 @@
         355
       ],
       "role": "tree",
-      "source": "Assets upload/Big Trees.png"
+      "source": "assets/library/Big Trees.png"
     },
     "tree_big_03": {
       "file": "tree_big_03.png",
@@ -81,7 +81,7 @@
         367
       ],
       "role": "tree",
-      "source": "Assets upload/Big Trees.png"
+      "source": "assets/library/Big Trees.png"
     },
     "tree_big_04": {
       "file": "tree_big_04.png",
@@ -90,7 +90,7 @@
         368
       ],
       "role": "tree",
-      "source": "Assets upload/Big Trees.png"
+      "source": "assets/library/Big Trees.png"
     },
     "tree_small_01": {
       "file": "tree_small_01.png",
@@ -99,7 +99,7 @@
         373
       ],
       "role": "tree",
-      "source": "Assets upload/Small Trees.png"
+      "source": "assets/library/Small Trees.png"
     },
     "tree_small_02": {
       "file": "tree_small_02.png",
@@ -108,7 +108,7 @@
         375
       ],
       "role": "tree",
-      "source": "Assets upload/Small Trees.png"
+      "source": "assets/library/Small Trees.png"
     },
     "tree_small_03": {
       "file": "tree_small_03.png",
@@ -117,7 +117,7 @@
         361
       ],
       "role": "tree",
-      "source": "Assets upload/Small Trees.png"
+      "source": "assets/library/Small Trees.png"
     },
     "tree_small_04": {
       "file": "tree_small_04.png",
@@ -126,7 +126,7 @@
         358
       ],
       "role": "tree",
-      "source": "Assets upload/Small Trees.png"
+      "source": "assets/library/Small Trees.png"
     }
   },
   "spawn_catalog": {

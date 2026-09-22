@@ -17,6 +17,8 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 INBOX = ROOT / "Assets upload"
+LIBRARY = ROOT / "assets" / "library"
+KEEPER_INBOX = LIBRARY / "keeper_inbox"
 TREES_DIR = ROOT / "assets" / "art" / "trees"
 BUSHES_DIR = ROOT / "assets" / "art" / "bushes"
 KEEPER_DIR = ROOT / "assets" / "art" / "keeper"
@@ -149,8 +151,8 @@ def process_trees_bushes() -> tuple[dict, dict]:
     bush_items: dict = {}
     spawn = {"tree": [], "bush": [], "tuft": []}
 
-    big_src = INBOX / "Big Trees.png"
-    small_src = INBOX / "Small Trees.png"
+    big_src = LIBRARY / "Big Trees.png"
+    small_src = LIBRARY / "Small Trees.png"
     big_frames = slice_grid(key_alpha(Image.open(big_src)), 2, 2)
     small_frames = slice_grid(key_alpha(Image.open(small_src)), 2, 2)
     print(f"Big Trees {len(big_frames)}  Small Trees {len(small_frames)}")
@@ -161,7 +163,7 @@ def process_trees_bushes() -> tuple[dict, dict]:
             "file": f"{name}.png",
             "size": [fr.size[0], fr.size[1]],
             "role": "tree",
-            "source": "Assets upload/Big Trees.png",
+            "source": "assets/library/Big Trees.png",
         }
         spawn["tree"].append(name)
         print(f"  {name} {fr.size[0]}x{fr.size[1]}")
@@ -172,12 +174,12 @@ def process_trees_bushes() -> tuple[dict, dict]:
             "file": f"{name}.png",
             "size": [fr.size[0], fr.size[1]],
             "role": "tree",
-            "source": "Assets upload/Small Trees.png",
+            "source": "assets/library/Small Trees.png",
         }
         spawn["tree"].append(name)
         print(f"  {name} {fr.size[0]}x{fr.size[1]}")
 
-    bush_rgba = key_alpha(Image.open(INBOX / "Big Bushes.png"))
+    bush_rgba = key_alpha(Image.open(LIBRARY / "Big Bushes.png"))
     # Handoff gutters: rows ~261/498, cols ~294/579/868
     big_bush_frames = slice_grid(
         bush_rgba,
@@ -194,12 +196,12 @@ def process_trees_bushes() -> tuple[dict, dict]:
             "file": f"{name}.png",
             "size": [fr.size[0], fr.size[1]],
             "role": "bush",
-            "source": "Assets upload/Big Bushes.png",
+            "source": "assets/library/Big Bushes.png",
         }
         spawn["bush"].append(name)
         print(f"  {name} {fr.size[0]}x{fr.size[1]}")
 
-    small_rgba = key_alpha(Image.open(INBOX / "small bushes.png"))
+    small_rgba = key_alpha(Image.open(LIBRARY / "small bushes.png"))
     comps = components(small_rgba, 80)[:64]
     print(f"small bushes {len(comps)}")
     for i, (x0, y0, x1, y1, _area) in enumerate(comps, start=1):
@@ -211,7 +213,7 @@ def process_trees_bushes() -> tuple[dict, dict]:
             "file": f"{name}.png",
             "size": [fr.size[0], fr.size[1]],
             "role": role,
-            "source": "Assets upload/small bushes.png",
+            "source": "assets/library/small bushes.png",
         }
         spawn[role].append(name)
 
@@ -232,7 +234,7 @@ def fit_keeper_128(src: Path) -> Image.Image:
 
 
 def process_keeper() -> None:
-    idle_src = INBOX / "keeper" / "idle_south.png"
+    idle_src = KEEPER_INBOX / "idle_south.png"
     idle = fit_keeper_128(idle_src)
     save_png(idle, KEEPER_DIR / "keeper_idle_south.png")
     save_png(idle, KEEPER_DIR / "keeper_idle_south_0000.png")
@@ -241,7 +243,7 @@ def process_keeper() -> None:
     frames_128 = []
     frames_native = []
     for i in range(1, 10):
-        src = INBOX / "keeper" / f"walk_south_{i:02d}.png"
+        src = KEEPER_INBOX / f"walk_south_{i:02d}.png"
         fr = fit_keeper_128(src)
         save_png(fr, KEEPER_DIR / f"keeper_walk_south_{i:04d}.png")
         shutil.copy2(src, NATIVE_DIR / f"keeper_walk_south_{i:04d}_256.png")
@@ -273,11 +275,11 @@ def write_trees_meta(tree_items: dict, spawn: dict) -> None:
         "filter": "nearest",
         "anchor": "base_center",
         "version": "v0.1.13-assets-upload",
-        "inbox": "Assets upload/",
+        "inbox": "assets/library/",
         "notes": (
             "v0.1.13 cleaned frames (bbox+2px, no downscale). "
             "Decorative only — harvest nodes stay in props/. "
-            "Bushes live in assets/art/bushes/. Originals remain in Assets upload/."
+            "Bushes live in assets/art/bushes/. Originals remain in assets/library/."
         ),
         "items": items,
         "spawn_catalog": {"tree": spawn["tree"]},
@@ -291,7 +293,7 @@ def write_bushes_meta(bush_items: dict, spawn: dict) -> None:
         "anchor": "base_center",
         "version": "v0.1.13-assets-upload",
         "dir": "bushes/",
-        "inbox": "Assets upload/",
+        "inbox": "assets/library/",
         "grid_decisions": {
             "Big Bushes.png": "3x4 (gutters rows 261/498, cols 294/579/868) — not 2x2",
             "small bushes.png": "4-connected components, min_area 80, row-banded, 57 frames",
@@ -360,7 +362,7 @@ def write_keeper_meta() -> None:
         "feet bottom-center, walk hold_ms 100. Native 170x256 under keeper/native/. "
         "Back clips unchanged."
     )
-    meta["inbox"] = "Assets upload/keeper/"
+    meta["inbox"] = "assets/library/keeper_inbox/"
     meta_path.write_text(json.dumps(meta, indent=2) + "\n")
 
 
@@ -374,13 +376,13 @@ def write_manifest() -> None:
         "canvas": [128, 128],
         "meta": "keeper/keeper_meta.json",
         "version": "v0.1.13-assets-upload",
-        "inbox": "Assets upload/keeper/",
+        "inbox": "assets/library/keeper_inbox/",
         "native": "keeper/native/",
     }
     man["trees"] = {
         "dir": "trees/",
         "meta": "trees/trees_meta.json",
-        "inbox": "Assets upload/",
+        "inbox": "assets/library/",
         "version": "v0.1.13-assets-upload",
         "anchor": "base_center",
     }
@@ -394,15 +396,21 @@ def write_manifest() -> None:
 
 
 def write_inbox_note() -> None:
+    INBOX.mkdir(parents=True, exist_ok=True)
     (INBOX / "README.md").write_text(
         "# Assets upload (Haex inbox)\n\n"
-        "Original sheets and Keeper frames. **Do not delete.**\n\n"
-        "Gameplay copies follow Art Direction **v0.1.13-assets-upload**:\n\n"
-        "- Trees → `assets/art/trees/tree_big_01–04`, `tree_small_01–04`\n"
-        "- Bushes → `assets/art/bushes/bush_big_01–12`, `bush_small_01–57`\n"
-        "- Keeper south → `assets/art/keeper/keeper_idle_south.png`, "
-        "`keeper_walk_south_0001.png`–`0009.png` (128×128); native 170×256 in `keeper/native/`\n\n"
-        "Prefer PNG over JPG. Rebuild: `python3 tools/slice_haex_inbox.py`.\n"
+        "**Drop new art here.** Coding ships must leave this folder **empty** "
+        "(README-only) after sorting.\n\n"
+        "## Process (every ship)\n\n"
+        "1. Sort drops into permanent homes:\n"
+        "   - Gameplay / sliced frames → `assets/art/...`\n"
+        "   - Unsorted-but-kept PNG sheets → `assets/library/`\n"
+        "   - JPG duplicates / raw refs → `assets/library/raw_refs/`\n"
+        "2. Prefer PNG over JPG for anything used in-game.\n"
+        "3. Rebuild sliced forest/keeper frames when needed: "
+        "`python3 tools/slice_haex_inbox.py` (reads `assets/library/`).\n"
+        "4. Before merge: confirm `Assets upload/` has **no loose art** — only this README.\n\n"
+        "See `docs/ASSETS_UPLOAD.md`.\n"
     )
 
 

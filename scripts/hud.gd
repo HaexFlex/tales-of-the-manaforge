@@ -582,6 +582,11 @@ func _ensure_forge_controls() -> void:
 func _refresh_forge_entry() -> void:
 	if forge_button == null:
 		return
+	var stage: String = String(GameState.stage_id)
+	var forge_stage: bool = stage == "elder" or stage == "ancient"
+	forge_button.visible = forge_stage
+	if not forge_stage:
+		return
 	forge_button.text = ContentStrings.get_text("forge_enter")
 	forge_button.disabled = false
 	if GameState.forge_key:
@@ -590,8 +595,12 @@ func _refresh_forge_entry() -> void:
 		forge_button.modulate = Color(0.45, 0.47, 0.44, 1)
 
 
+func is_forge_entry_visible() -> bool:
+	return forge_button != null and forge_button.visible
+
+
 func is_forge_entry_gray() -> bool:
-	return forge_button != null and forge_button.modulate.r < 0.6
+	return forge_button != null and forge_button.visible and forge_button.modulate.r < 0.6
 
 
 func is_forge_popup_open() -> bool:

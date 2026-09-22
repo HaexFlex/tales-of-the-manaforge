@@ -73,5 +73,5 @@
   },
   "notes": "South idle+walk from Art v0.1.13 pack. Primary canvas 128x128 NN fit, feet bottom-center, walk hold_ms 100. Native 170x256 under keeper/native/. Back clips unchanged.",
   "version": "v0.1.13-assets-upload",
-  "inbox": "Assets upload/keeper/"
+  "inbox": "assets/library/keeper_inbox/"
 }

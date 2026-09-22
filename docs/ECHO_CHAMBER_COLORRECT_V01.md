@@ -15,17 +15,19 @@
 
 | Region | Size / layout | Notes |
 |--------|---------------|--------|
-| Enemy portrait (Elaia) | **128×128** | Upper area; cooler/ghost ColorRect (e.g. slate + cyan) |
-| Player portrait (Keeper) | **128×128** | Opposite side or below; warmer; can reuse sheet ×3 scale later |
+| Flavour dialogue | top band ~960×100 | Full `echo_01_*` lines |
+| Enemy portrait (Elaia) | **320×320** ColorRect | Right; cooler/ghost slate+cyan |
+| Player portrait (Keeper) | **320×320** TextureRect | Left; same idle south as Character sheet |
 | HP bars | full width under each portrait | segment or solid fill |
-| Command bar | bottom **720×120** safe band | Strike / Flee (normal); Spare window = Spare + Strike only |
-| Mercy banner | optional top strip | when Elaia &lt;10% HP |
+| Battle log | lower band under portraits | combat lines / reward toast |
+| Command bar | bottom **720×100** safe band | Strike / Flee (normal); Spare window = Spare + Strike only |
+| Mercy banner | optional thin top strip | when Elaia &lt;10% HP |
 
 ## Care menu (existing chrome)
 
 | Control | Spec |
 |---------|------|
-| Enter Forge | Same soft wood/leaf button language as Water / Fruit; **grayed** without Key; enabled with Key → “not built yet” popup (Content strings) |
+| Enter Forge | Visible only on **Elder** and **Ancient**; hidden on Sapling / Young / Mature. Soft wood/leaf button language; **grayed** without Key; enabled with Key → “Not built yet! Stay tuned.” |
 
 ## Icons (optional ColorRect chips)
 

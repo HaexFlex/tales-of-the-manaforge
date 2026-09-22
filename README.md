@@ -46,7 +46,11 @@ Music stings (`mus_fruit_sting`, `mus_ascend_sting`) use a second Music player s
 
 **Pause → Options → Audio:** Music / Sounds sliders + Reset. Persists in `user://manaforge_settings.cfg` (volume only — never restarts the hub stream).
 
-7. After the first **Ascend**, an **Echo** portal stands in the glade. Select the Keeper and right-click it. **30 Essence** opens a 1v1 with **Elaia**. Strike or Flee; Spare appears only under 10% HP. A win grants a **Forge Key** (relic slot) and Manashards. The Manatree care menu's **Enter Forge** says the door is not built yet.
+7. After the first **Ascend**, an **Echo** portal stands in the glade. Select the Keeper and right-click it. **30 Essence** opens a 1v1 with **Elaia**. Strike or Flee; Spare appears only under 10% HP. A win grants a **Forge Key** Relic (**+2 Swiftness**, **+2 Fate**) and Manashards. On **Elder** or **Ancient** Manatree stages, care menu **Enter Forge** appears (hidden earlier); with the Key it says the door is not built yet.
+
+## Assets upload
+
+Drop new art in `Assets upload/`. Every coding ship must leave that folder **empty** (README-only) after sorting into `assets/art/` or `assets/library/`. See `docs/ASSETS_UPLOAD.md`.
 
 ## Out of scope (v0.2)
 

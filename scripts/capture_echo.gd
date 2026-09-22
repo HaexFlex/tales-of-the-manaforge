@@ -1,5 +1,5 @@
 extends SceneTree
-## Echo Chamber screenshots.
+## Echo Chamber screenshots (battle layout + Enter Forge stage gating).
 ##   xvfb-run -a godot --display-driver x11 --rendering-driver opengl3 --path . -s res://scripts/capture_echo.gd
 
 
@@ -29,6 +29,13 @@ func _run() -> void:
 		hud.call("hide_welcome")
 	if hud and hud.has_method("show_care_menu"):
 		hud.call("show_care_menu")
+	await process_frame
+	_shot("/opt/cursor/artifacts/echo_forge_hidden_sapling.png")
+	if gs:
+		gs.set("stage_id", &"elder")
+		gs.emit_signal("stage_changed", &"elder")
+	if hud:
+		hud.call("_refresh_forge_entry")
 	await process_frame
 	_shot("/opt/cursor/artifacts/echo_forge_gray.png")
 	if gs:
