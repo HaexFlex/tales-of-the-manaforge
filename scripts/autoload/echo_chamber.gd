@@ -34,6 +34,9 @@ func echo_def() -> Dictionary:
 
 
 func echo_display_name() -> String:
+	var labeled: String = ContentStrings.get_text("echo_elaia_name")
+	if labeled != "" and labeled != "echo_elaia_name":
+		return labeled
 	return str(_echo_def.get("display_name", "Elaia"))
 
 

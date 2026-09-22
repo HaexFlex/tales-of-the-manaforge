@@ -1,10 +1,10 @@
-# Tales of the Manaforge — Systems Brief v0.5 (Restart Edition)
+# Tales of the Manaforge — Systems Brief v0.6 (Restart Edition)
 **Owner:** Game Design  
-**Status:** v0.5.1 — Haex: all combat stats **base start at 5**; sheet UI polish  
+**Status:** v0.6.0 — Haex GO Echo Chamber v1 (2026-09-22)  
 **Source of truth above this doc:** `VISION_RESTART.md` + `refs/`  
 **Non-canon:** `DESIGN.md` (idle-combat), forge-hub art kit, battle audio drafts  
 **Audience:** Code implements; Content names strings; Art / layout for Code  
-**Last updated:** 2026-09-21
+**Last updated:** 2026-09-22
 
 **Art locks (Haex):** Keeper 128², tiles 64², 1280×720 NN  
 **Tone (Haex):** warm + lightly melancholic
@@ -35,16 +35,17 @@
 | **v0.4.1** | **Haex D6 LIVE (coding session OPENED):** Can recipe = **20 Stone Fragments** only; Basket = **20 Wooden Planks**. Handcraft UI: Watering Can + Fertilizer rows **costs only**; fix scroll vs panel width. Rename heads → **Stone Axe Head**, **Stone Pickaxe Head**. `keep_tools` = **3000** Manashards flat (max 1). Ascension shop rows show **short description / tooltip**. Fert craft ~2× (`FERT_* = 10`); Grow Fertilizer **3 / 6 / 12 / 24**; Keep Essence **20 / 40 / 60 / 80**. Same PR Code notes: arrow-key camera clamped to play bounds; map ~**2×W × 3×H**; dense decorative trees + bushes; collision bottom-third trunks / bush bottom-center; no edge-scroll yet. `SAVE_VERSION` stays **6** (number-only retunes; no backpack schema change). |
 | v0.4.1 note | **PARK → LIVE in v0.5.0:** Manatree display scales (stage1 0.5×, stage2 default, stage3+4 2×, stage5 1.5×). See §4 + §11 D7. |
 | **v0.5.0** | **Haex GREENLIGHT 2026-09-21:** Character sheet / Stats / Equipment foundation + D7 Manatree scales **LIVE**. Seven combat stats via world Runestones (Manashards spend, steep exponential PLACEHOLDER curve); stats persist through Ascend. Equipment slots (weapon unlocked; others locked; relic locked until Forge Key — empty this ship). Gear inventory separate from backpack. Craftable: Weapon Rod + Stone Sword only. Character sheet UI (HUD + **C**). Persist equipped + gear inventory through Ascend (like stats). Soft mats + backpack still wipe; Keep Tools tools-only. D7 Manatree display scales live (visual only). `SAVE_VERSION` **7**. Full Echo combat / Forge Key / other gear recipes still deferred. |
-| **v0.5.1** | **Haex overnight polish:** All 7 combat stats **base start at 5**. Sheet display: `base = STAT_BASE_START + runestone_ranks` (+ gear = total). SAVE migrate: unset→0 (displays 5); an absolute below 5 floors the displayed base at 5; ranks ≥ 5 stay. Character sheet UI polish only otherwise. `SAVE_VERSION` stays **7**. |
 | v0.5.0 note | Out of scope this ship: combat, Forge Key, other equipment recipes, Runestone non-Manashard currency, Fate gather effects. |
+| **v0.5.1** | **Haex overnight polish:** All 7 combat stats **base start at 5**. Sheet display: `base = STAT_BASE_START + runestone_ranks` (+ gear = total). SAVE migrate: unset→5 / floor displayed base at 5. Character sheet UI polish only otherwise. `SAVE_VERSION` stays **7** (migrate rule). |
+| **v0.6.0** | **Haex GO 2026-09-22:** **Echo Chamber v1 LIVE.** Portal after first Ascension (30 Essence fee once until win or KO loss; flee keeps fee; Ascend-while-fee-paid free re-entry). 1v1 vs `echo_keeper_01` display **Elaia**; Strike / Flee / Spare (<10% HP, Spare+Strike only). Formulas LOCKED (reuse KeeperStats + Equipment; HP=10×Vitality; raw=(atk−def)×10; crit Fate×1%; mercy floor; T1 protection). Rewards: spare/defeat Manashard payouts from Runestone cost curve on **stored ranks**; both wins grant `forge_key` → unlock **relic** slot; Spare sets `echo_01_redeemed`. Enter Forge = Manatree care-menu button only (no key → popup; with key → “not built yet”). `SAVE_VERSION` **8**. Echo 2+ / companion body / Forge realm / Cast/items/Guard still Out. |
 
 ---
 
-## v0.5 scope (systems only)
+## v0.6 scope (systems only)
 
-**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **7**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Stone Sword), **D7 Manatree display scales**.
+**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **8**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Stone Sword), **D7 Manatree display scales**, **Echo Chamber v1** (portal + 1v1 battle + rewards), **Forge Key** → **relic slot unlock**, **Enter Forge** care-menu stub (“not built yet”).
 
-**Out:** needs-only soft-mat stage pay (**SUPERSEDED**), growth bar / offers, **combat / Echo Chamber**, **Forge Key** / relic unlock, other battle-gear recipes, Runestone non-Manashard currency, Fate gather effects, WASD, mobile/web, many duplicate harvestables. Tools never gate gather; tools never multiply wisp pulses.
+**Out:** needs-only soft-mat stage pay (**SUPERSEDED**), growth bar / offers, **Echo 2+**, **companion body / companion in combat**, **3v1**, **Cast / items / Guard**, **Forge interior / Forge realm**, other battle-gear recipes, Runestone non-Manashard currency, Fate gather effects, type chart, Wisps in combat, WASD, mobile/web, many duplicate harvestables. Tools never gate gather; tools never multiply wisp pulses.
 
 ---
 
@@ -56,7 +57,7 @@
 | `stone` | Stone node @ 1/sec (Keeper; 2× if Stone Pickaxe) | **Fertilizer craft** (+ tool/intermediate craft) |
 | `food` | Berry bush @ 1/sec (Keeper; 2× if Wooden Basket) | **Fertilizer craft** (+ tool/intermediate craft) |
 | `manashards` | Water channel `U{1,3}` / sec (×2 amount/pulse if Stone Watering Can); **wisp on Manatree** @ 1/10s | **Blessing shop** (Ascension permanent upgrades) **and Runestones** (mid-run permanent combat stats — §4e). Same pool = bank-vs-spend dilemma |
-| `essence` | Water channel `+1` / sec (base; Can does **not** boost); Fruit harvest bonus unused | **Grow** stage advance (with Fertilizer) — not blessing shop |
+| `essence` | Water channel `+1` / sec (base; Can does **not** boost); Fruit harvest bonus unused | **Grow** stage advance (with Fertilizer); **Echo Chamber portal fee** (30 once — §4f) — not blessing shop |
 | `fertilizer` | Handcraft (wood + stone + food) | **Grow** stage advance (with Essence) |
 
 Soft mats live on the **resource HUD**. Fertilizer, intermediates, and tools live in the **backpack** (§4d). **Battle gear** lives in **gear inventory** (separate from backpack — §4e).
@@ -172,8 +173,8 @@ MANATREE_SCALE_ANCIENT = 1.5
 Essence gate still matters early (20s water to Young at 1 essence/sec) plus craft **3** Fertilizer (`FERT_* = 10` each). Later stages need harvest → craft Fertilizer loops while watering for essence + shards. First Ancient is intentional multi-loop (24 Fertilizer).
 
 ### UI (Content + Code)
-- Manatree click → panel: next stage name + Grow costs (`Fertilizer 0/3`, `Essence 12/20`, …) + **Grow** (enabled when both met; show costs on the control) + Water.
-- **No** growth X/Y bar. **No** soft-mat need lines. **No Pay** label.
+- Manatree click → panel: next stage name + Grow costs (`Fertilizer 0/3`, `Essence 12/20`, …) + **Grow** (enabled when both met; show costs on the control) + Water + **Enter Forge** (v0.6.0 care-menu stub — §4f; grayed without Key / “not built yet” with Key).
+- **No** growth X/Y bar. **No** soft-mat need lines. **No Pay** label. **No** world Forge door.
 
 ---
 
@@ -246,9 +247,9 @@ On Ascend: **wipe entire backpack** (Fertilizer stacks, intermediates, tools) **
 
 ---
 
-## 4e. Character sheet / Stats / Equipment / Runestones (LOCKED — Haex GREENLIGHT v0.5.0)
+## 4e. Character sheet / Stats / Equipment / Runestones (LOCKED — Haex GREENLIGHT v0.5.0; relic unlock via Echo v0.6.0)
 
-Foundation for Echo Chamber combat power. **No combat this ship.** Full Echo combat, Forge Key, and further equipment recipes remain deferred (§11 D3).
+Foundation for Echo Chamber combat power. Stats / equipment totals feed Echo Chamber v1 formulas (§4f). Further equipment recipes remain deferred (§11 D3).
 
 ### Seven combat stats (LOCKED)
 
@@ -263,10 +264,10 @@ Foundation for Echo Chamber combat power. **No combat this ship.** Full Echo com
 | `fate` | Fate |
 
 - **`STAT_BASE_START = 5` (LOCKED Haex v0.5.1):** every combat stat starts at **5** before any Runestone spends.
-- `keeper_stats[stat_id]` = Runestone ranks purchased (starts **0**). Each rank: **+1 flat**.
-- **Sheet display per stat:** name, role directly under the name, small gap, then `base + gear = total`, then a larger gap. `base = STAT_BASE_START + keeper_stats[stat_id]`. Gear = sum of flat bonuses from equipped items.
-- **SAVE migrate (v7, version stays 7):** unset/missing ranks → **0** (base displays 5). An older absolute below 5 is kept as a non-negative rank so the displayed base floors at 5 (`5 + rank`). Do **not** wipe ranks ≥ 5.
-- Cost curve still uses that rank (`0→1` costs 100). It is not shifted by the starting 5.
+- `keeper_stats[stat_id]` = Runestone ranks purchased (starts **0**).
+- Each rank: **+1 flat** to that stat (gentle power).
+- **Sheet display per stat:** `base + gear = total` where `base = STAT_BASE_START + keeper_stats[stat_id]` and `gear` = sum of flat bonuses from equipped items.
+- **SAVE migrate (v7):** for each of the seven stats, if unset/missing → treat ranks as 0 (base displays 5); if an older absolute value was stored below 5 → **floor base at 5** (do not wipe ranks above 5).
 - **Persist through Ascend.** Unspent Manashards still wipe on Ascend.
 - **Out of scope this ship:** Fate gather effects (no Fate → harvest/wisp side effects).
 
@@ -296,7 +297,7 @@ Rules:
 | Order | `slot_id` | Start state |
 |-------|-----------|-------------|
 | 1 | `weapon` | **Unlocked** |
-| 2 | `relic` | **Locked** until Forge Key (combat later) — **empty this ship** (no relic unlock, no Forge Key item) |
+| 2 | `relic` | **Locked** until `forge_key` earned (Echo Chamber win — §4f); then **unlocked / empty** (no relic item this ship) |
 | 3 | `head` | Locked (grey) |
 | 4 | `body` | Locked (grey) |
 | 5 | `hands` | Locked (grey) |
@@ -306,10 +307,9 @@ Rules:
 | 9 | `ring1` | Locked (grey) |
 | 10 | `ring2` | Locked (grey) |
 
-- **Start:** only **`weapon` unlocked**; all others **locked / non-interactive**.
-- **Slot chrome:** half-transparent square, **no gold border**. Locked slots show that square plus the word **Locked** underneath only. Empty weapon caption is **Weapon**. Equipped caption is the item name (Stone Sword, …).
-- **`relic` stays locked** this ship — no Forge Key, no relic content.
-- Unlock path for other slots: **deferred** (future combat / key items). Locked slots remain grey.
+- **Start:** only **`weapon` unlocked**; all others **locked (grey) / non-interactive**.
+- **`relic` unlocks** when Keeper holds `forge_key` (Echo Chamber win — both Spare and Defeat grant Key). Slot becomes interactive / empty; **no relic item** content this ship.
+- Unlock path for other slots: **deferred**. Locked slots remain grey.
 
 ### Gear inventory vs backpack (LOCKED)
 
@@ -345,7 +345,7 @@ STONE_SWORD_BONUS = { might: 2 }   # flat gear bonus while equipped
 - Locked slots: **grey / non-interactive**.
 - Art: ColorRects OK this ship; sheet layout / slot chrome later — **no mandatory gen**.
 
-### Ascend persist (LOCKED — Design default v0.5.0)
+### Ascend persist (LOCKED — Design default v0.5.0; Echo flags v0.6.0)
 
 | Persist through Ascend | Wipe on Ascend (existing) |
 |------------------------|---------------------------|
@@ -353,8 +353,12 @@ STONE_SWORD_BONUS = { might: 2 }   # flat gear bonus while equipped
 | Equipped gear dict | Manashards → 0; Essence → 0 |
 | Gear inventory | Backpack (Fertilizer, intermediates, tools) unless `keep_tools` → re-grant 4 tools only |
 | Blessing upgrade ranks | Wisps reset per §4c |
+| `forge_key` + relic unlock state | Mid-run soft mats / currencies (as existing) |
+| `echo_01_resolved` / `echo_01_redeemed` | — |
+| `portal_unlocked` (or derive from `ascensions >= 1`) | — |
+| `portal_fee_paid` (if Echo not yet resolved) | — (Ascend-while-fee-paid → free re-entry intentional) |
 
-Greenlight said stats persist; did **not** say wipe gear → **persist equipped + gear inventory** (battle power across Ascensions), like stats. Soft mats + backpack (tools/fert) still wipe per existing rules; Keep Tools still for tools only.
+Greenlight said stats persist; did **not** say wipe gear → **persist equipped + gear inventory** (battle power across Ascensions), like stats. Soft mats + backpack (tools/fert) still wipe per existing rules; Keep Tools still for tools only. Echo Key / redeemed / resolved / relic unlock / fee-paid **persist** Ascend.
 
 ### Code contracts (summary)
 
@@ -365,10 +369,122 @@ equipment_equipped: Dictionary[String, String|null]  # slot_id → item_id or nu
 gear_inventory: Dictionary[String, int]  # battle items (e.g. stone_sword, weapon_rod)
 # Runestone interactables: 7 world nodes keyed by stat_id
 # Sheet: HUD button + InputMap "character_sheet" (C)
-# Sheet base: STAT_BASE_START + keeper_stats[id]   # 5 + ranks
-# Total: base + sum(gear bonuses from equipped)
-# Cost uses keeper_stats[id] directly (rank 0 costs 100)
+# Total for stat: keeper_stats[id] + sum(gear bonuses from equipped)
 ```
+
+---
+
+## 4f. Echo Chamber v1 (LOCKED — Haex GO v0.6.0)
+
+**Source of truth for combat this ship:** Echo Chamber v1 Implementation Brief (locks below). Align stats/equipment with §4e (v0.5.1). Placeholders labeled where noted.
+
+### Portal (LOCKED)
+
+- Appears after first Ascension: `ascensions >= 1` / `portal_unlocked`.
+- Fee **30 Essence** paid **once** until win or KO loss.
+  - **Flee** keeps fee paid (re-enter free).
+  - **KO loss** clears fee (must pay again to re-enter).
+  - **Win** (Spare or Defeat) closes portal (`echo_01_resolved = true`).
+- **Ascend-while-fee-paid** allowed; free re-entry intentional.
+- Interact like Runestones (Keeper selected + RMB / in-range).
+
+```
+PORTAL_FEE_ESSENCE = 30
+# Enter: if not portal_fee_paid and essence >= 30 → deduct 30, portal_fee_paid = true, enter battle
+#        if portal_fee_paid → enter battle (no charge)
+# Flee → exit battle; portal_fee_paid stays true
+# KO loss → portal_fee_paid = false; exit battle
+# Win → echo_01_resolved = true; portal closes; portal_fee_paid irrelevant
+```
+
+### Battle (LOCKED)
+
+- **Separate scene**; **1v1** vs enemy id `echo_keeper_01`, display name **Elaia**.
+- Actions: **Strike**, **Flee**; **Spare** only when enemy HP < 10% max HP.
+- **Spare window:** once Spare available → **Spare + Strike only — no Flee**; fight paused; **no enemy turn** until player picks.
+- Turn order: higher **Swiftness** first; tie → **Keeper first**.
+- Enemy AI: every turn **one Arcana-vs-Ward hit** (no other actions).
+
+### Formulas (LOCKED)
+
+Reuse KeeperStats + Equipment totals from §4e:
+
+```
+# Per combatant:
+# base_stat = STAT_BASE_START(5) + ranks + gear   # Keeper
+# Elaia: fixed totals below (no ranks/gear)
+HP_max = 10 × Vitality_total
+
+# Damage
+raw = (attack_stat − defense_stat) × 10
+# no minimum; if raw ≤ 0 → 0 damage (bare-fists gate)
+# Keeper Strike: Might vs Resilience
+# Enemy hit:     Arcana vs Ward
+
+# Crit
+crit_chance = Fate_total × 1%   # e.g. Fate 5 → 5%
+# Keeper crit multiplier: ×2
+# Elaia crit multiplier:  ×1.2
+
+# Mercy floor (Keeper hits only):
+# If target HP > 10% max and damage would KO → set HP to 1. Crit does NOT bypass.
+
+# T1 protection:
+# Enemy cannot KO Keeper on turn 1 — floor Keeper HP to 1 if would KO.
+```
+
+**Elaia fixed stats (LOCKED):**
+
+| Stat | Value |
+|------|-------|
+| Might | 4 |
+| Arcana | 7 |
+| Resilience | 5 |
+| Ward | 7 |
+| Vitality | 6 (**60 HP**) |
+| Swiftness | 6 |
+| Fate | 5 |
+
+### Rewards (LOCKED)
+
+Runestone cost on **stored ranks** (not display base):
+
+```
+cost(rank) = floor(100 * 1.65^rank)   # same RUNESTONE_BASE / GROWTH as §4e
+```
+
+Sort the **7 stats by rank desc**; ties break **might → arcana → resilience → ward → vitality → swiftness → fate**.
+
+```
+spare_shards  = cost(third_highest) × (1 + Fate_total / 100)
+defeat_shards = (cost(highest) + cost(highest + 1)) × (1 + Fate_total / 100)
+# Floor to int; no payout floor (0 OK if ranks tiny — rare)
+```
+
+| Outcome | Manashards | Other |
+|---------|------------|-------|
+| **Spare** (win) | `spare_shards` | `forge_key`; `echo_01_redeemed = true` (companion flag; **no companion body** this ship); portal closes |
+| **Defeat** (KO win) | `defeat_shards` | `forge_key`; portal closes; **not** redeemed |
+| **Flee** | nothing | fee stays paid |
+| **KO loss** | nothing | fee clears |
+
+Both wins grant **Forge Key** (`forge_key`) → unlocks **relic slot** (§4e). Enter Forge care-menu still “not built yet” (§4f Enter Forge).
+
+### Enter Forge (LOCKED — stub)
+
+- **Manatree care menu button only** (no world door).
+- **Without Key:** button grayed → popup “no key” (Content string).
+- **With Key:** button enabled → popup / toast **“not built yet”** this ship (Forge interior Out).
+
+### Save / mid-fight (LOCKED)
+
+- Do **not** save mid-fight HP / turn state.
+- Mid-fight **pause / quit / load** = treat as **Flee** (fee stays paid if was).
+- **Save disabled** in battle.
+
+### Not this ship (Out)
+
+Companion in combat, 3v1, Cast / items / Guard, Forge interior, Echo 2+, type chart, Wisps in combat, Fate gather effects.
 
 ---
 
@@ -379,7 +495,7 @@ gear_inventory: Dictionary[String, int]  # battle items (e.g. stone_sword, weapo
 |-------|--------|
 | **LMB** on Keeper / Wisp / (future friend) | **Select only** (highlight). Does not move or assign. |
 | **LMB** on empty ground / grass | **Deselect** current selection. |
-| **RMB** with **Keeper** selected | **Command:** walk to point; or walk-in-range + interact if target is harvest node / Manatree (channel / care UI) / **Runestone** (spend Manashards — §4e). |
+| **RMB** with **Keeper** selected | **Command:** walk to point; or walk-in-range + interact if target is harvest node / Manatree (channel / care UI) / **Runestone** (spend Manashards — §4e) / **Echo Portal** (when unlocked — §4f). |
 | **RMB** with **Wisp** selected | **Command:** assign to harvest node or Manatree if targeted; **unassign** (return to orbit Keeper) if RMB empty ground. |
 | **RMB** with nothing useful selected | No-op (optional toast). |
 
@@ -487,7 +603,7 @@ Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_
 - **Blocked:** move, Keeper harvest channels, watering, wisp assign/reassign, Grow (already Ancient).
 - **Allowed:** buy blessings (Manashards), **Ascend**.
 - **No cancel back** to watering after commit (Design lock — Fruit is spent). Footer does **not** offer a soft exit that unpauses without Ascend.
-- Ascend: reset stage→sapling; **`essence → 0` (Haex lock)**; wipe **wood/stone/food/manashards → 0**; **wipe backpack** (Fertilizer, intermediates, tools) unless `keep_tools` → re-grant 4 finished tools only; **keep** blessing upgrade ranks + lifetimes; **keep** `keeper_stats` + **equipped gear** + **gear inventory** (v0.5.0); `ascensions += 1`; unpause; wisps reset per §4c (`bonus_wisp` starting count).
+- Ascend: reset stage→sapling; **`essence → 0` (Haex lock)**; wipe **wood/stone/food/manashards → 0**; **wipe backpack** (Fertilizer, intermediates, tools) unless `keep_tools` → re-grant 4 finished tools only; **keep** blessing upgrade ranks + lifetimes; **keep** `keeper_stats` + **equipped gear** + **gear inventory** (v0.5.0); **keep** `forge_key` / relic unlock / `echo_01_resolved` / `echo_01_redeemed` / `portal_fee_paid` if set (v0.6.0); `ascensions += 1` (unlocks portal if not already); unpause; wisps reset per §4c (`bonus_wisp` starting count).
 
 ### Ascension shop window (layout contract)
 - **Separate modal** — not stacked Harvest / Ascend / Close over the blessing list (fixes Haex screenshot overlap).
@@ -537,17 +653,17 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 |-------|---------|
 | `SAVE_SLOT_COUNT` | **7** |
 | `PAUSE_OPENS_SLOTS` | `true` |
-| `SAVE_VERSION` | **7** |
+| `SAVE_VERSION` | **8** |
 
 v0.5.0: **`SAVE_VERSION` → 7** — character stats, equipment, gear inventory schema.  
-v0.5.1: **`SAVE_VERSION` stays 7** — ranks stay purchases; sheet base is `5 + rank`. Missing ranks load as 0.
+v0.6.0: **`SAVE_VERSION` → 8** — Echo Chamber portal / fee / resolve / redeemed / forge_key.
 
 ---
 
-## 7. Save fields (`SAVE_VERSION = 7`)
+## 7. Save fields (`SAVE_VERSION = 8`)
 
 ```
-save_version: int                  # 7
+save_version: int                  # 8
 ascensions: int
 essence: int
 upgrades: Dictionary[String, int]  # includes keep_tools, green_thumb, …
@@ -573,10 +689,17 @@ owns_stone_watering_can: bool
 
 # Character / equipment (v0.5.0)
 keeper_stats: Dictionary[String, int]  # might, arcana, resilience, ward, vitality, swiftness, fate
-                                       # each rank 0+; sheet base = 5 + rank
-equipment_unlocked: Dictionary[String, bool]  # weapon true; relic/head/body/hands/pants/feet/cape/ring1/ring2 false
+                                       # each rank 0+; Runestone N/A beyond these ranks
+equipment_unlocked: Dictionary[String, bool]  # weapon true; relic true iff forge_key; others false
 equipment_equipped: Dictionary[String, Variant]  # slot_id → item_id (String) or null
 gear_inventory: Dictionary[String, int]  # battle gear bag — e.g. weapon_rod, stone_sword
+
+# Echo Chamber v1 (v0.6.0) — do NOT save mid-fight HP/turn
+portal_unlocked: bool     # true when ascensions >= 1 (or explicit flag)
+portal_fee_paid: bool     # fee paid this attempt cycle; flee keeps; KO clears; win closes portal
+echo_01_resolved: bool    # win (spare or defeat) → portal closed
+echo_01_redeemed: bool    # spare only — companion flag; no companion body this ship
+forge_key: bool           # both wins; unlocks relic slot
 
 wisp_count: int
 wisp_assignments: Dictionary  # wisp_id → node_id or null
@@ -592,8 +715,9 @@ keeper_position: Vector2
 keeper_selected: bool  # optional; default false on load
 ```
 
-Migrate **v6→v7:** `keeper_stats` all 0; `equipment_equipped` all null; `gear_inventory` empty; `equipment_unlocked` = weapon **true** only (all other slots false, including relic). Prior v5→v6 rules still apply if jumping older saves: init empty `backpack`; all tool flags `false`; ignore leftover needs-only stage cost state. `green_thumb` ranks keep; `keep_tools` defaults 0.  
-Migrate **v7 (no version bump):** missing `keeper_stats` keys become **0** (sheet base displays 5). A stored absolute below 5 stays a non-negative rank so `base = 5 + rank` floors the display at 5. Ranks ≥ 5 are not reduced.
+Migrate **v6→v7:** `keeper_stats` all 0; `equipment_equipped` all null; `gear_inventory` empty; `equipment_unlocked` = weapon **true** only (all other slots false, including relic). Prior v5→v6 rules still apply if jumping older saves: init empty `backpack`; all tool flags `false`; ignore leftover needs-only stage cost state. `green_thumb` ranks keep; `keep_tools` defaults 0.
+
+Migrate **v7→v8:** `portal_unlocked = (ascensions >= 1)`; `portal_fee_paid = false`; `echo_01_resolved = false`; `echo_01_redeemed = false`; `forge_key = false`; relic stays locked unless `forge_key`. Mid-fight load = Flee (no HP/turn restore). Save disabled in battle.
 
 ---
 
@@ -601,18 +725,21 @@ Migrate **v7 (no version bump):** missing `keeper_stats` keys become **0** (shee
 
 ```
 LMB Keeper/Wisp → select | LMB empty → deselect
-RMB (Keeper selected) → walk / interact harvest, Manatree, or Runestone
+RMB (Keeper selected) → walk / interact harvest, Manatree, Runestone, or Echo Portal (if unlocked)
 RMB (Wisp selected) → assign to node or Manatree (manashards); RMB ground → unassign → orbit Keeper
 Assigned wisps path to target then orbit it; pulse +1/10s (tools never boost)
 Craft: soft mats → backpack (intermediates / tools / Fertilizer); Weapon Rod / Stone Sword → gear inventory
-Equip: drag gear inventory → unlocked slots (weapon only at start)
+Equip: drag gear inventory → unlocked slots (weapon at start; relic after forge_key)
 HUD / C → character sheet (Keeper + slots | gear bag | base+gear=total stats)
 Runestone: spend Manashards → +1 flat to that stat (steep exponential cost)
 Grow (Fertilizer + Essence met) → stage_up → +1 wisp; Manatree display scale by stage (D7)
 Tools owned → 2× Keeper channel (harvest) or double water shard amount (Can)
-ESC → pause (7 slots)
+After first Ascension → Echo Portal; pay 30 Essence once → 1v1 vs Elaia (Strike/Flee/Spare)
+Win → forge_key + relic unlock + shard payout; Spare also echo_01_redeemed; portal closes
+Manatree care: Enter Forge (grayed without key / “not built yet” with key)
+ESC → pause (7 slots); Save disabled in battle; mid-fight quit/load = Flee
 Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant 4 tools;
-         KEEP keeper_stats + equipped + gear_inventory
+         KEEP keeper_stats + equipped + gear_inventory + forge_key + echo flags + portal_fee_paid
 ```
 
 ---
@@ -621,10 +748,10 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 
 | Who | Action |
 |-----|--------|
-| @Code / Engine | **Implement v0.5.0:** character sheet (HUD + **C**); seven stats + 7 world Runestones (`RUNESTONE_BASE=100`, `GROWTH=1.65`); equipment slots (weapon unlocked only; relic empty/locked); gear inventory ≠ backpack; craft Weapon Rod + Stone Sword; drag-equip; Ascend persist stats + equipped + gear inventory; D7 Manatree display scales; migrate save **v6→v7**. Placeholders labeled. No combat / Forge Key / other gear recipes. |
-| @Content & Lore | Stat display names (Might…Fate); Runestone interact prompts / cost copy; character sheet UI strings; **Weapon Rod** / **Stone Sword** names + recipe strings; locked-slot copy (grey); keep existing blessing/Grow/tool strings from v0.4.1 |
-| @Art Direction | **No mandatory gen.** ColorRects OK for sheet layout / slots; body-aligned slot chrome + Runestone world props later. Manatree scale is Code sprite scale (D7) — no new tree art required |
-| @Audio | Existing wisp / gather / water SFX; optional Runestone spend / equip / sheet open confirms later if needed |
+| @Code / Engine | **Implement v0.6.0 Echo Chamber v1:** portal after `ascensions >= 1`; fee 30 Essence; battle scene 1v1 vs Elaia (`echo_keeper_01`); Strike / Flee / Spare (<10%); formulas LOCKED (§4f); rewards + `forge_key` → relic unlock; Enter Forge care-menu stub; migrate save **v7→v8**; Ascend persist forge_key + echo flags + portal_fee_paid; Save disabled in battle; mid-fight quit/load = Flee. Keep v0.5.1 stats/equipment. Placeholders labeled. **Out:** Echo 2+, companion body, Forge interior, Cast/items/Guard, 3v1. |
+| @Content & Lore | Portal / fee / battle UI strings; Elaia display name; Spare / Flee / Strike / win-loss copy; no-key + “not built yet” Forge popups; reward toasts (shards + Key); keep existing sheet / Runestone / blessing / Grow strings |
+| @Art Direction | **No mandatory gen.** ColorRects OK for battle UI / portal / sheet / slots; portal world prop + battle layout chrome later. Manatree scale unchanged (D7). |
+| @Audio | Battle: silence world hub bed on enter; stop-resume hub on exit (flee/loss/win). Optional hit / crit / win stings later. Existing gather / wisp / water SFX unchanged. |
 
 ---
 
@@ -651,8 +778,7 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 | Handcraft UI: Can + Fert rows costs only; scroll vs panel width | **LOCKED Haex v0.4.1** (Code contract) |
 | Arrow-key camera clamp; map ~2×W×3×H; dense décor; trunk/bush collision; no edge-scroll | **LOCKED Haex v0.4.1** (same PR Code notes) |
 | 3 harvest nodes @ 1/sec base | **LOCKED** |
-| `SAVE_SLOT_COUNT = 7`; `SAVE_VERSION = 7` | **LOCKED Haex v0.5.0** (v0.5.1 does not bump) |
-| Combat stats **base start at 5** (`base = 5 + rank`) | **LOCKED Haex v0.5.1** |
+| `SAVE_SLOT_COUNT = 7`; `SAVE_VERSION = 8` | **LOCKED Haex v0.6.0** (was 7 in v0.5.0) |
 | Offer-for-growth | **REMOVED** |
 | Ascension = Manashard blessing shop | **LOCKED Haex v0.2.3** |
 | Shop timing = Ascension-only after Fruit | **LOCKED Haex v0.2.4** |
@@ -670,23 +796,26 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 | Pick-one-free Ascension | **REVOKED** |
 | Essence blessing shop | **REVOKED** |
 | Ascension soft-open (preview + Close; first Buy locks) | **DEFERRED — not live** (§11 D1) |
-| Equipment / Runestones / 7 combat stats **foundation** | **LOCKED / LIVE Haex GREENLIGHT v0.5.0** (§4e; full Echo combat still deferred §11 D3) |
+| Equipment / Runestones / 7 combat stats **foundation** | **LOCKED / LIVE Haex GREENLIGHT v0.5.0** (§4e) |
 | Runestone currency = **same Manashards** (bank vs Ascension shop) | **LOCKED Haex v0.5.0** (was draft 2026-09-19) |
+| Combat stats **base start at 5** | **LOCKED Haex v0.5.1** |
 | Separate Runestone currency | **PARKED / overturned** |
 | Runestone cost `BASE=100`, `GROWTH=1.65`, `floor(BASE*GROWTH^rank)` | **LOCKED Haex v0.5.0** (PLACEHOLDER tune later) |
 | Stats + equipped + gear inventory **persist** Ascend; shards wipe | **LOCKED Haex v0.5.0** |
-| Equipment slots order; weapon only unlocked; relic locked (no Forge Key this ship) | **LOCKED Haex v0.5.0** |
+| Equipment slots order; weapon unlocked at start; relic unlocks via `forge_key` (Echo win) | **LOCKED Haex v0.5.0 / v0.6.0** |
 | Gear inventory ≠ backpack; Weapon Rod + Stone Sword only | **LOCKED Haex v0.5.0** (recipes PLACEHOLDER) |
 | Character sheet: HUD + **C**; left Keeper/slots, mid gear, right base+gear=total | **LOCKED Haex v0.5.0** |
 | Manatree display scales (0.5 / 1 / 2 / 2 / 1.5) | **LOCKED / LIVE Haex D7 → v0.5.0** (§4 / §11 D7) |
 | Playtest backlog D6 (recipes / Grow / Keep Tools / UI / tooltips / camera-map) | **LOCKED / applied → live v0.4.1** (§11 D6) |
-| Combat / Echo Chamber / Forge Key / other gear recipes / Fate gather | **DEFERRED — not live** (§11 D3) |
+| Echo Chamber v1 (portal / 1v1 Elaia / formulas / rewards / forge_key → relic) | **LOCKED / LIVE Haex GO v0.6.0** (§4f; §11 D3 foundation LIVE) |
+| Enter Forge = Manatree care-menu only; no key → popup; with key → “not built yet” | **LOCKED Haex v0.6.0** |
+| Echo 2+ / companion body / companion in combat / 3v1 / Cast/items/Guard / Forge interior / type chart / Wisps in combat / Fate gather / other gear recipes | **DEFERRED — not live** (§11 D3) |
 
 ---
 
 ## 11. Deferred (Haex notes — **do not implement** until greenlight)
 
-Live loop is **v0.5.0** (Fertilizer Grow + backpack/tools + D6 retunes + character sheet / stats / equipment foundation + D7 Manatree scales) with must-Ascend-on-commit (v0.3.3). Soft-open still deferred. D2/D3-foundation/D4/D5/D6/D7 are live pointers; full Echo combat remains parked under D3.
+Live loop is **v0.6.0** (Fertilizer Grow + backpack/tools + D6 retunes + character sheet / stats / equipment + D7 Manatree scales + **Echo Chamber v1**) with must-Ascend-on-commit (v0.3.3). Soft-open still deferred. D2/D3-foundation(+Echo v1)/D4/D5/D6/D7 are live pointers; Echo 2+ / companion body / Forge realm / Cast/items/Guard remain parked under D3.
 
 ### D1. Ascension soft-open — still deferred
 1. Fruit interact opens the Manashard shop as a **preview**. World **stays live** (move / water / harvest / wisps still work).
@@ -697,10 +826,12 @@ Live loop is **v0.5.0** (Fertilizer Grow + backpack/tools + D6 retunes + charact
 ### D2. Manatree care CTA — GREENLIT → live v0.4.0
 ~~Stage-advance button label Grow~~ → **LIVE:** CTA **Grow**, costs on control (Fertilizer + Essence). See §4. (Was deferred under needs-only Pay; greenlit with Fertilizer Grow.)
 
-### D3. Equipment & Stats — GREENLIT foundation → live v0.5.0 (full Echo combat still deferred)
-**Foundation LIVE** — see **§4e**. Seven combat stats + Runestones (same Manashard pool, steep exponential PLACEHOLDER curve), equipment slots (weapon unlocked; relic locked / empty this ship), gear inventory ≠ backpack, Weapon Rod + Stone Sword, character sheet (HUD + **C**), Ascend persist stats + equipped + gear inventory, `SAVE_VERSION` **7**. v0.5.1: sheet base is **5 + rank**.
+### D3. Equipment & Stats / Echo Chamber — GREENLIT foundation → live v0.5.0; **Echo Chamber v1 LIVE v0.6.0**
+**Foundation LIVE** — see **§4e**. Seven combat stats + Runestones (same Manashard pool, steep exponential PLACEHOLDER curve), equipment slots (weapon unlocked; **relic unlocks via Forge Key**), gear inventory ≠ backpack, Weapon Rod + Stone Sword, character sheet (HUD + **C**), Ascend persist stats + equipped + gear inventory.
 
-**Still deferred (do not implement this ship):** Echo Chamber combat, Forge Key / relic unlock, other equipment recipes, Bare Stone / levels / runes data shape, Fate gather effects, Runestone non-Manashard currency.
+**Echo Chamber v1 LIVE** — see **§4f**. Portal + 1v1 Elaia + LOCKED formulas + spare/defeat rewards + `forge_key` → relic slot; Enter Forge stub; `SAVE_VERSION` **8**.
+
+**Still deferred (do not implement this ship):** Echo 2+, companion body / companion in combat, 3v1, Cast / items / Guard, Forge interior / Forge realm, other equipment recipes, Bare Stone / levels / runes data shape, type chart, Wisps in combat, Fate gather effects, Runestone non-Manashard currency.
 
 **Locks carried from draft:** One Manashard pool (bank-vs-shop). Separate Runestone currency **PARKED / overturned**. Do not overload `upgrade_ranks` for combat stats.
 

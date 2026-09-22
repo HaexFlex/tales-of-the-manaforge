@@ -118,6 +118,7 @@ func confirm_fee() -> String:
 			return paid
 		SaveService.save_game()
 	_close_confirm()
+	GameState.status_message.emit(ContentStrings.get_text("portal_enter_ok"))
 	EchoChamber.open_battle(already)
 	return "enter"
 
@@ -144,13 +145,18 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 func _open_confirm(can_pay: bool) -> void:
 	_ensure_confirm()
 	_title.text = ContentStrings.get_text("portal_title")
+	var cost: int = EchoChamber.FEE
 	if can_pay:
-		_body.text = ContentStrings.get_text("portal_fee_body")
+		_body.text = "%s\n%s\n%s" % [
+			ContentStrings.get_text("portal_prompt"),
+			ContentStrings.get_text("portal_confirm", {"cost": cost}),
+			ContentStrings.get_text("portal_hint"),
+		]
 		_yes.disabled = false
 	else:
 		_body.text = "%s\n%s" % [
-			ContentStrings.get_text("portal_cant_afford"),
-			ContentStrings.get_text("portal_fee_body"),
+			ContentStrings.get_text("portal_cant_afford", {"cost": cost}),
+			ContentStrings.get_text("portal_confirm", {"cost": cost}),
 		]
 		_yes.disabled = true
 	_yes.text = ContentStrings.get_text("portal_confirm_yes")

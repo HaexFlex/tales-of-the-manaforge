@@ -1,6 +1,9 @@
 {
   "id": "echo_keeper_01",
+  "display_name_key": "echo_elaia_name",
   "display_name": "Elaia",
+  "subtitle_key": "echo_elaia_subtitle",
+  "examine_key": "echo_elaia_examine",
   "role": "Ancient Keeper caster",
   "crit_multiplier": 1.2,
   "notes": [

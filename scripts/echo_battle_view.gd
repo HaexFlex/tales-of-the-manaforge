@@ -2,16 +2,24 @@ extends CanvasLayer
 class_name EchoBattleView
 ## Separate battle surface. ColorRects stand in for missing portraits.
 ## Silence underneath: the hub bed is already stopped. No battle sting.
+## CONTENT_STRINGS_V01 §11 — toasts only; no VO / flavour beat lines.
+
+const PORTRAIT: Vector2 = Vector2(128, 128)
+const COMMAND_SIZE: Vector2 = Vector2(720, 120)
 
 var _battle: EchoBattle
 var _bg: ColorRect
 var _ground: ColorRect
+var _command_band: ColorRect
+var _mercy_banner: ColorRect
+var _mercy_label: Label
 var _keeper_portrait: ColorRect
 var _echo_portrait: ColorRect
 var _keeper_hp_fill: ColorRect
 var _echo_hp_fill: ColorRect
 var _keeper_hp_label: Label
 var _echo_hp_label: Label
+var _title: Label
 var _speech: Label
 var _log: Label
 var _strike: Button
@@ -21,6 +29,7 @@ var _return_btn: Button
 var _mercy_shown: bool = false
 var _waiting_return: bool = false
 var _pending_outcome: String = ""
+var _pending_toast: String = ""
 var _pulse: float = 0.0
 
 
@@ -60,21 +69,33 @@ func speech_text() -> String:
 	return _speech.text if _speech else ""
 
 
+func portrait_size() -> Vector2:
+	return PORTRAIT
+
+
+func command_band_size() -> Vector2:
+	return COMMAND_SIZE if _command_band == null else _command_band.size
+
+
+func _enemy_name() -> String:
+	return EchoChamber.echo_display_name()
+
+
 func _bind() -> void:
 	_battle = EchoChamber.battle
 	if _battle == null:
 		return
-	var keeper_name: Label = get_node_or_null("KeeperName") as Label
+	_title.text = ContentStrings.get_text("battle_title")
 	var echo_name: Label = get_node_or_null("EchoName") as Label
+	var keeper_name: Label = get_node_or_null("KeeperName") as Label
 	if keeper_name:
-		keeper_name.text = ContentStrings.get_text("echo_battle_keeper")
+		keeper_name.text = ContentStrings.get_text("char_sheet_title")
 	if echo_name:
-		echo_name.text = _battle.echo_name
+		echo_name.text = _enemy_name()
 	_refresh_bars(false)
 	_refresh_log()
 	if _battle.spare_window and _battle.outcome == "":
-		_speech.text = ContentStrings.get_text("echo_01_mercy")
-		_mercy_shown = true
+		_show_mercy()
 		_refresh_actions()
 		return
 	_show_opening()
@@ -82,15 +103,26 @@ func _bind() -> void:
 
 
 func _show_opening() -> void:
-	var parts: PackedStringArray = PackedStringArray()
 	if EchoChamber.reentry:
-		parts.append(ContentStrings.get_text("echo_01_return"))
+		_speech.text = ContentStrings.get_text("portal_reentry_free")
 	else:
-		if not GameState.echo_01_narrator_heard:
-			parts.append(ContentStrings.get_text("echo_01_narrator"))
-			GameState.echo_01_narrator_heard = true
-		parts.append(ContentStrings.get_text("echo_01_intro"))
-	_speech.text = "\n\n".join(parts)
+		_speech.text = ContentStrings.get_text("battle_vs", {"enemy": _enemy_name()})
+	_set_mercy_visible(false)
+
+
+func _show_mercy() -> void:
+	_mercy_shown = true
+	_speech.text = ContentStrings.get_text("battle_mercy_hint", {"enemy": _enemy_name()})
+	_set_mercy_visible(true)
+
+
+func _set_mercy_visible(show: bool) -> void:
+	if _mercy_banner:
+		_mercy_banner.visible = show
+	if _mercy_label:
+		_mercy_label.visible = show
+		if show:
+			_mercy_label.text = ContentStrings.get_text("battle_mercy_hint", {"enemy": _enemy_name()})
 
 
 func _on_strike() -> void:
@@ -109,8 +141,11 @@ func _choose(action: String) -> void:
 	if _battle == null or _waiting_return:
 		return
 	GameAudio.play_ui_confirm()
+	var before_echo: int = _battle.echo_hp
 	_battle.choose(action)
 	var outcome: String = _battle.outcome
+	if action == "strike" and _battle.last_keeper_damage == 0 and before_echo == _battle.echo_hp and outcome == "":
+		_speech.text = ContentStrings.get_text("battle_fists_toast")
 	if outcome == "ko":
 		EchoChamber.finish_battle("ko")
 		return
@@ -118,24 +153,48 @@ func _choose(action: String) -> void:
 	_refresh_log()
 	if _battle.spare_window and outcome == "":
 		if not _mercy_shown:
-			_speech.text = ContentStrings.get_text("echo_01_mercy")
-			_mercy_shown = true
+			_show_mercy()
 		_refresh_actions()
 		return
 	if outcome == "flee" or outcome == "spare" or outcome == "defeat":
 		_offer_return(outcome)
 		return
+	_speech.text = ContentStrings.get_text("battle_your_turn")
 	_refresh_actions()
 
 
 func _offer_return(outcome: String) -> void:
 	_waiting_return = true
 	_pending_outcome = outcome
-	_speech.text = ContentStrings.get_text("echo_01_%s" % outcome)
+	_set_mercy_visible(false)
+	_pending_toast = _outcome_toast(outcome)
+	_speech.text = _pending_toast
 	_strike.visible = false
 	_flee.visible = false
 	_spare.visible = false
 	_return_btn.visible = true
+
+
+func _outcome_toast(outcome: String) -> String:
+	var enemy: String = _enemy_name()
+	var parts: PackedStringArray = PackedStringArray()
+	match outcome:
+		"flee":
+			parts.append(ContentStrings.get_text("battle_flee_ok"))
+		"spare":
+			parts.append(ContentStrings.get_text("battle_spare_ok", {"enemy": enemy}))
+			var shards: int = EchoChamber.snapshot_payout("spare")
+			parts.append(ContentStrings.get_text("battle_shards_gain", {"amount": shards}))
+			parts.append(ContentStrings.get_text("battle_key_grant"))
+			parts.append(ContentStrings.get_text("battle_companion_flag"))
+			parts.append(ContentStrings.get_text("relic_slot_unlocked"))
+		"defeat":
+			parts.append(ContentStrings.get_text("battle_defeat_ok", {"enemy": enemy}))
+			var shards_d: int = EchoChamber.snapshot_payout("defeat")
+			parts.append(ContentStrings.get_text("battle_shards_gain", {"amount": shards_d}))
+			parts.append(ContentStrings.get_text("battle_key_grant"))
+			parts.append(ContentStrings.get_text("relic_slot_unlocked"))
+	return "\n".join(parts)
 
 
 func _on_return() -> void:
@@ -162,13 +221,13 @@ func _refresh_bars(flash: bool) -> void:
 		return
 	var keeper_ratio: float = float(_battle.keeper_hp) / float(maxi(1, _battle.keeper_max_hp))
 	var echo_ratio: float = float(_battle.echo_hp) / float(maxi(1, _battle.echo_max_hp))
-	_keeper_hp_fill.size = Vector2(220.0 * clampf(keeper_ratio, 0.0, 1.0), 16.0)
-	_echo_hp_fill.size = Vector2(220.0 * clampf(echo_ratio, 0.0, 1.0), 16.0)
-	_keeper_hp_label.text = ContentStrings.get_text("echo_hp_label", {
+	_keeper_hp_fill.size = Vector2(PORTRAIT.x * clampf(keeper_ratio, 0.0, 1.0), 14.0)
+	_echo_hp_fill.size = Vector2(PORTRAIT.x * clampf(echo_ratio, 0.0, 1.0), 14.0)
+	_keeper_hp_label.text = ContentStrings.get_text("battle_hp", {
 		"current": _battle.keeper_hp,
 		"max": _battle.keeper_max_hp,
 	})
-	_echo_hp_label.text = ContentStrings.get_text("echo_hp_label", {
+	_echo_hp_label.text = ContentStrings.get_text("battle_hp", {
 		"current": _battle.echo_hp,
 		"max": _battle.echo_max_hp,
 	})
@@ -180,7 +239,7 @@ func _refresh_log() -> void:
 	if _battle == null or _log == null:
 		return
 	var lines: PackedStringArray = _battle.log
-	var start: int = maxi(0, lines.size() - 4)
+	var start: int = maxi(0, lines.size() - 3)
 	var shown: PackedStringArray = PackedStringArray()
 	for i: int in range(start, lines.size()):
 		shown.append(lines[i])
@@ -202,41 +261,65 @@ func _build() -> void:
 	_ground.color = Color(0.14, 0.24, 0.18, 1)
 	_ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_ground)
-	_keeper_portrait = _portrait("KeeperPortrait", Vector2(96, 120), Color(0.62, 0.46, 0.26, 1))
-	_echo_portrait = _portrait("EchoPortrait", Vector2(1004, 120), Color(0.22, 0.42, 0.44, 1))
-	_add_name("KeeperName", Vector2(96, 78), ContentStrings.get_text("echo_battle_keeper"))
-	_add_name("EchoName", Vector2(1004, 78), EchoChamber.echo_display_name())
-	_keeper_hp_fill = _hp_bar("KeeperHp", Vector2(96, 360), Color(0.52, 0.62, 0.28, 1))
-	_echo_hp_fill = _hp_bar("EchoHp", Vector2(1004, 360), Color(0.32, 0.58, 0.56, 1))
-	_keeper_hp_label = _add_name("KeeperHpText", Vector2(96, 384), "")
-	_echo_hp_label = _add_name("EchoHpText", Vector2(1004, 384), "")
+	_mercy_banner = ColorRect.new()
+	_mercy_banner.name = "MercyBanner"
+	_mercy_banner.position = Vector2(280, 8)
+	_mercy_banner.size = Vector2(720, 36)
+	_mercy_banner.color = Color(0.12, 0.22, 0.2, 0.94)
+	_mercy_banner.visible = false
+	_mercy_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_mercy_banner)
+	_mercy_label = Label.new()
+	_mercy_label.name = "MercyLabel"
+	_mercy_label.position = Vector2(296, 12)
+	_mercy_label.size = Vector2(688, 28)
+	_mercy_label.visible = false
+	_mercy_label.add_theme_font_size_override("font_size", 15)
+	_mercy_label.add_theme_color_override("font_color", Color(0.86, 0.92, 0.84, 1))
+	add_child(_mercy_label)
+	_title = _add_label("Title", Vector2(480, 52), Vector2(320, 28), ContentStrings.get_text("battle_title"), 20)
+	_keeper_portrait = _portrait("KeeperPortrait", Vector2(220, 120), Color(0.62, 0.46, 0.26, 1))
+	_echo_portrait = _portrait("EchoPortrait", Vector2(932, 120), Color(0.28, 0.4, 0.46, 1))
+	_add_label("KeeperName", Vector2(220, 88), Vector2(128, 28), ContentStrings.get_text("char_sheet_title"), 16)
+	_add_label("EchoName", Vector2(932, 88), Vector2(128, 28), EchoChamber.echo_display_name(), 16)
+	_keeper_hp_fill = _hp_bar("KeeperHp", Vector2(220, 260), Color(0.52, 0.62, 0.28, 1))
+	_echo_hp_fill = _hp_bar("EchoHp", Vector2(932, 260), Color(0.32, 0.58, 0.56, 1))
+	_keeper_hp_label = _add_label("KeeperHpText", Vector2(220, 278), Vector2(128, 24), "", 13)
+	_echo_hp_label = _add_label("EchoHpText", Vector2(932, 278), Vector2(128, 24), "", 13)
 	var speech_bg := ColorRect.new()
 	speech_bg.name = "SpeechBg"
-	speech_bg.position = Vector2(300, 140)
-	speech_bg.size = Vector2(680, 250)
+	speech_bg.position = Vector2(360, 140)
+	speech_bg.size = Vector2(560, 220)
 	speech_bg.color = Color(0.09, 0.15, 0.13, 0.94)
 	speech_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(speech_bg)
 	_speech = Label.new()
 	_speech.name = "Speech"
-	_speech.position = Vector2(320, 156)
-	_speech.size = Vector2(640, 220)
+	_speech.position = Vector2(376, 152)
+	_speech.size = Vector2(528, 196)
 	_speech.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_speech.add_theme_font_size_override("font_size", 18)
+	_speech.add_theme_font_size_override("font_size", 17)
 	_speech.add_theme_color_override("font_color", Color(0.86, 0.91, 0.84, 1))
 	add_child(_speech)
 	_log = Label.new()
 	_log.name = "Log"
-	_log.position = Vector2(320, 400)
-	_log.size = Vector2(640, 88)
+	_log.position = Vector2(360, 380)
+	_log.size = Vector2(560, 72)
 	_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_log.add_theme_font_size_override("font_size", 14)
+	_log.add_theme_font_size_override("font_size", 13)
 	_log.add_theme_color_override("font_color", Color(0.7, 0.78, 0.7, 1))
 	add_child(_log)
-	_strike = _button("StrikeButton", Vector2(300, 620), "echo_battle_strike")
-	_flee = _button("FleeButton", Vector2(520, 620), "echo_battle_flee")
-	_spare = _button("SpareButton", Vector2(740, 620), "echo_battle_spare")
-	_return_btn = _button("ReturnButton", Vector2(480, 620), "echo_battle_return")
+	_command_band = ColorRect.new()
+	_command_band.name = "CommandBand"
+	_command_band.position = Vector2(280, 580)
+	_command_band.size = COMMAND_SIZE
+	_command_band.color = Color(0.08, 0.14, 0.12, 0.96)
+	_command_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_command_band)
+	_strike = _button("StrikeButton", Vector2(308, 616), "battle_strike")
+	_flee = _button("FleeButton", Vector2(540, 616), "battle_flee")
+	_spare = _button("SpareButton", Vector2(772, 616), "battle_spare")
+	_return_btn = _button("ReturnButton", Vector2(540, 616), "battle_return")
 	_return_btn.visible = false
 	_strike.pressed.connect(_on_strike)
 	_flee.pressed.connect(_on_flee)
@@ -247,15 +330,15 @@ func _build() -> void:
 func _portrait(node_name: String, pos: Vector2, color: Color) -> ColorRect:
 	var frame := ColorRect.new()
 	frame.name = node_name + "Frame"
-	frame.position = pos - Vector2(8, 8)
-	frame.size = Vector2(196, 236)
+	frame.position = pos - Vector2(6, 6)
+	frame.size = PORTRAIT + Vector2(12, 12)
 	frame.color = Color(0.04, 0.07, 0.06, 1)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(frame)
 	var rect := ColorRect.new()
 	rect.name = node_name
 	rect.position = pos
-	rect.size = Vector2(180, 220)
+	rect.size = PORTRAIT
 	rect.color = color
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(rect)
@@ -266,27 +349,27 @@ func _hp_bar(node_name: String, pos: Vector2, fill_color: Color) -> ColorRect:
 	var back := ColorRect.new()
 	back.name = node_name + "Back"
 	back.position = pos
-	back.size = Vector2(220, 16)
+	back.size = Vector2(PORTRAIT.x, 14)
 	back.color = Color(0.04, 0.06, 0.05, 1)
 	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(back)
 	var fill := ColorRect.new()
 	fill.name = node_name + "Fill"
 	fill.position = pos
-	fill.size = Vector2(220, 16)
+	fill.size = Vector2(PORTRAIT.x, 14)
 	fill.color = fill_color
 	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fill)
 	return fill
 
 
-func _add_name(node_name: String, pos: Vector2, text: String) -> Label:
+func _add_label(node_name: String, pos: Vector2, sz: Vector2, text: String, font_size: int) -> Label:
 	var lbl := Label.new()
 	lbl.name = node_name
 	lbl.position = pos
-	lbl.size = Vector2(220, 28)
+	lbl.size = sz
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.add_theme_font_size_override("font_size", font_size)
 	lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 0.86, 1))
 	add_child(lbl)
 	return lbl

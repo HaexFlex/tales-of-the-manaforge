@@ -147,6 +147,8 @@ func open_pause() -> void:
 	backdrop.visible = true
 	panel.visible = true
 	btn_save.disabled = EchoChamber.in_battle
+	if EchoChamber.in_battle:
+		status_toast.emit(ContentStrings.get_text("battle_paused_hint"))
 	get_tree().paused = true
 	GameAudio.play_ui_open()
 
@@ -182,6 +184,8 @@ func _on_new_game_pressed() -> void:
 
 func _on_save_pressed() -> void:
 	if EchoChamber.in_battle:
+		status_toast.emit(ContentStrings.get_text("battle_save_disabled"))
+		GameAudio.play_tree_deny()
 		return
 	_slot_mode = SlotMode.SAVE
 	_show_slots(ContentStrings.get_text("pause_save"))
