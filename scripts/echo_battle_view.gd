@@ -4,7 +4,9 @@ class_name EchoBattleView
 ## Flavour lines at the top; battle log sits lower under the portraits.
 
 const PORTRAIT: Vector2 = Vector2(384, 384)
-const COMMAND_SIZE: Vector2 = Vector2(720, 108)
+const COMMAND_SIZE: Vector2 = Vector2(720, 120)
+const LOG_SIZE: Vector2 = Vector2(1040, 110)
+const SPEECH_SIZE: Vector2 = Vector2(1040, 88)
 const KEEPER_IDLE: String = "res://assets/art/keeper/keeper_idle_south.png"
 
 var _battle: EchoBattle
@@ -84,6 +86,14 @@ func keeper_uses_idle_texture() -> bool:
 
 func command_band_size() -> Vector2:
 	return COMMAND_SIZE if _command_band == null else _command_band.size
+
+
+func log_band_size() -> Vector2:
+	return LOG_SIZE
+
+
+func speech_band_size() -> Vector2:
+	return SPEECH_SIZE
 
 
 func speech_top() -> float:
@@ -310,57 +320,58 @@ func _build() -> void:
 	_mercy_label.add_theme_font_size_override("font_size", 12)
 	_mercy_label.add_theme_color_override("font_color", Color(0.86, 0.92, 0.84, 1))
 	add_child(_mercy_label)
-	_title = _add_label("Title", Vector2(520, 4), Vector2(240, 18), ContentStrings.get_text("battle_title"), 15)
+	_title = _add_label("Title", Vector2(520, 2), Vector2(240, 16), ContentStrings.get_text("battle_title"), 15)
 	var speech_bg := ColorRect.new()
 	speech_bg.name = "SpeechBg"
-	speech_bg.position = Vector2(120, 22)
-	speech_bg.size = Vector2(1040, 84)
+	speech_bg.position = Vector2(120, 18)
+	speech_bg.size = SPEECH_SIZE
 	speech_bg.color = Color(0.09, 0.15, 0.13, 0.94)
 	speech_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(speech_bg)
 	_speech = Label.new()
 	_speech.name = "Speech"
-	_speech.position = Vector2(136, 28)
-	_speech.size = Vector2(1008, 72)
+	_speech.position = Vector2(136, 24)
+	_speech.size = Vector2(1008, 76)
 	_speech.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_speech.add_theme_font_size_override("font_size", 14)
 	_speech.add_theme_color_override("font_color", Color(0.86, 0.91, 0.84, 1))
 	add_child(_speech)
-	_add_label("KeeperName", Vector2(56, 110), Vector2(384, 20), ContentStrings.get_text("char_sheet_title"), 15)
-	_add_label("EchoName", Vector2(840, 110), Vector2(384, 20), EchoChamber.echo_display_name(), 15)
-	_keeper_portrait = _keeper_texture(Vector2(56, 130))
-	_echo_portrait = _echo_rect(Vector2(840, 130), Color(0.26, 0.38, 0.46, 1))
-	_keeper_hp_fill = _hp_bar("KeeperHp", Vector2(56, 520), Color(0.52, 0.62, 0.28, 1))
-	_echo_hp_fill = _hp_bar("EchoHp", Vector2(840, 520), Color(0.32, 0.58, 0.56, 1))
-	_keeper_hp_label = _add_label("KeeperHpText", Vector2(56, 536), Vector2(384, 18), "", 12)
-	_echo_hp_label = _add_label("EchoHpText", Vector2(840, 536), Vector2(384, 18), "", 12)
+	_add_label("KeeperName", Vector2(56, 108), Vector2(384, 18), ContentStrings.get_text("char_sheet_title"), 15)
+	_add_label("EchoName", Vector2(840, 108), Vector2(384, 18), EchoChamber.echo_display_name(), 15)
+	_keeper_portrait = _keeper_texture(Vector2(56, 126))
+	_echo_portrait = _echo_rect(Vector2(840, 126), Color(0.26, 0.38, 0.46, 1))
 	var log_bg := ColorRect.new()
 	log_bg.name = "LogBg"
-	log_bg.position = Vector2(160, 522)
-	log_bg.size = Vector2(960, 90)
+	log_bg.position = Vector2(120, 490)
+	log_bg.size = LOG_SIZE
 	log_bg.color = Color(0.08, 0.13, 0.11, 0.9)
 	log_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(log_bg)
-	_add_label("LogTitle", Vector2(176, 528), Vector2(200, 18), ContentStrings.get_text("battle_log_title"), 12)
+	_add_label("LogTitle", Vector2(136, 496), Vector2(200, 18), ContentStrings.get_text("battle_log_title"), 12)
 	_log = Label.new()
 	_log.name = "Log"
-	_log.position = Vector2(176, 548)
-	_log.size = Vector2(928, 56)
+	_log.position = Vector2(136, 516)
+	_log.size = Vector2(1008, 76)
 	_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_log.add_theme_font_size_override("font_size", 12)
 	_log.add_theme_color_override("font_color", Color(0.7, 0.78, 0.7, 1))
 	add_child(_log)
+	# HP sits under each portrait and paints above the log band.
+	_keeper_hp_fill = _hp_bar("KeeperHp", Vector2(56, 514), Color(0.52, 0.62, 0.28, 1))
+	_echo_hp_fill = _hp_bar("EchoHp", Vector2(840, 514), Color(0.32, 0.58, 0.56, 1))
+	_keeper_hp_label = _add_label("KeeperHpText", Vector2(56, 530), Vector2(384, 16), "", 12)
+	_echo_hp_label = _add_label("EchoHpText", Vector2(840, 530), Vector2(384, 16), "", 12)
 	_command_band = ColorRect.new()
 	_command_band.name = "CommandBand"
-	_command_band.position = Vector2(280, 612)
+	_command_band.position = Vector2(280, 600)
 	_command_band.size = COMMAND_SIZE
 	_command_band.color = Color(0.08, 0.14, 0.12, 0.96)
 	_command_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_command_band)
-	_strike = _button("StrikeButton", Vector2(308, 642), "battle_strike")
-	_flee = _button("FleeButton", Vector2(540, 642), "battle_flee")
-	_spare = _button("SpareButton", Vector2(772, 642), "battle_spare")
-	_return_btn = _button("ReturnButton", Vector2(540, 642), "battle_return")
+	_strike = _button("StrikeButton", Vector2(308, 636), "battle_strike")
+	_flee = _button("FleeButton", Vector2(540, 636), "battle_flee")
+	_spare = _button("SpareButton", Vector2(772, 636), "battle_spare")
+	_return_btn = _button("ReturnButton", Vector2(540, 636), "battle_return")
 	_return_btn.visible = false
 	_strike.pressed.connect(_on_strike)
 	_flee.pressed.connect(_on_flee)
