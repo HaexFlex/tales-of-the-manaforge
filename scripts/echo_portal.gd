@@ -105,7 +105,7 @@ func begin_entry() -> String:
 	var can_pay: bool = GameState.essence >= EchoChamber.FEE
 	_open_confirm(can_pay)
 	if not can_pay:
-		GameAudio.play_tree_deny()
+		GameAudio.play_ui_deny()
 		return "reject"
 	return "confirm"
 

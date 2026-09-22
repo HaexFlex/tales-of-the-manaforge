@@ -185,7 +185,7 @@ func _on_new_game_pressed() -> void:
 func _on_save_pressed() -> void:
 	if EchoChamber.in_battle:
 		status_toast.emit(ContentStrings.get_text("battle_save_disabled"))
-		GameAudio.play_tree_deny()
+		GameAudio.play_ui_cancel()
 		return
 	_slot_mode = SlotMode.SAVE
 	_show_slots(ContentStrings.get_text("pause_save"))
