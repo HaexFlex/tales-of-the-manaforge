@@ -2169,7 +2169,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(bool(view.call("keeper_uses_idle_texture")), "keeper portrait uses idle_south")
 	failed += _assert(float(view.call("speech_top")) < float(view.call("log_top")), "flavour above battle log")
 	var csize: Vector2 = view.call("command_band_size")
-	failed += _assert(abs(csize.x - 720.0) < 0.5 and abs(csize.y - 88.0) < 0.5, "command band 720x88")
+	failed += _assert(abs(csize.x - 720.0) < 0.5 and abs(csize.y - 108.0) < 0.5, "command band 720x108")
 	view.free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)

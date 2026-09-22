@@ -1,40 +1,30 @@
-# Echo Chamber v1 — ColorRect / placeholder art specs
+# Echo Chamber — ColorRect / placeholder art specs (v0.6.1 polish)
 
-**Status:** GO (Haex) v0.6.1/0.6.2 polish — **no new paints**. Code uses ColorRects / solid placeholders matching these sizes.
+**Status:** GO (Haex / bc-d5ed7741) — Elaia stays **ColorRect**; Keeper uses **sheet idle** (no new paints).
 
-**Battle:** separate scene. Filter nearest. Keeper uses sheet `keeper_idle_south.png` (128²) drawn large.
+**Battle:** separate scene, 1280×720, nearest.
 
-## World / hub
+## Battle layout (locked polish)
 
-| Placeholder | Size (px) | Notes |
-|-------------|-----------|--------|
-| Echo portal | **96×96** | Landmark after first Ascend; cyan/mana tint ColorRect OK; clickable |
-| Enter Forge | **UI button only** on Manatree care panel | **Elder + Ancient only**; grayed vs enabled — **no world door** |
+| Region | Spec |
+|--------|------|
+| **Keeper** | **Left** — `assets/art/keeper/keeper_idle_south.png` (128² source). Display **large** (same idea as sheet ×3; target draw ~**384×384** or fill left third). Warm. |
+| **Elaia** | **Right** — big **ColorRect** ~**384×384** (cooler slate/cyan ghost). No real sprite this ship. |
+| **Flavour dialogue** | **Top** band (~full width × 80–100px) — Content brief lines |
+| **Battle log** | **Lower** band above commands (~full width × 100–140px) |
+| **Commands** | Bottom safe ~120px — Strike/Flee; mercy = Spare+Strike only |
+| HP | Under each portrait |
 
-## Battle scene (1280×720)
+## Hub / care
 
-| Region | Size / layout | Notes |
-|--------|---------------|--------|
-| Flavour dialogue | **TOP** band | Full `echo_01_*` lines (`intro` + `intro_2`, mercy, spare, defeat, flee, return) |
-| Enemy portrait (Elaia) | **~384×384** ColorRect | Right; cooler/ghost slate+cyan |
-| Player portrait (Keeper) | **~384×384** TextureRect | Left; sheet `keeper_idle_south.png` scaled large |
-| HP bars | full width under each portrait | solid fill |
-| Battle log | **LOWER** under portraits | `battle_log_*` lines |
-| Command bar | bottom safe band | Strike / Flee (normal); Spare window = Spare + Strike only |
-| Mercy banner | optional thin top strip | when Elaia &lt;10% HP |
-
-## Care menu (existing chrome)
-
-| Control | Spec |
-|---------|------|
-| Enter Forge | Visible only on **Elder** and **Ancient**; hidden on Sapling / Young / Mature. Soft wood/leaf button language; **grayed** without Key; enabled with Key → “Not built yet! Stay tuned.” |
-
-## Icons (optional ColorRect chips)
-
-| Item | Size |
+| Item | Spec |
 |------|------|
-| Stone Sword (already sheet) | 32×32 if shown in battle |
-| Forge Key grant toast | 32×32 chip OK |
+| Portal | ColorRect **96×96** (unchanged) |
+| Enter Forge | Care-menu button; **Elder + Ancient only** (hidden earlier stages) |
 
-## Explicitly out this ship
-Real portal art, Elaia sprite, Forge interior, companion body, battle music art frames.
+## Assets upload (standing)
+
+After each ship: sort drops into `assets/` or `assets/library/`, leave `Assets upload/` **empty**. Current inbox still has prior tree/bush/keeper sheets already sliced into `art_restart` / `assets/art` — CA should archive/clear leftovers, not re-slice.
+
+## Out this ship
+Real Elaia art, Forge interior, companion body.
