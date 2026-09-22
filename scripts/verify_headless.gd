@@ -2181,11 +2181,11 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(bool(game_state.get("echo_01_narrator_heard")), "narrator flagged heard")
 	open_view.free()
 	echo.set("reentry", true)
-	var return_view: Node = view_packed.instantiate()
-	tree_root.add_child(return_view)
+	var reentry_view: Node = view_packed.instantiate()
+	tree_root.add_child(reentry_view)
 	await process_frame
-	failed += _assert(str(return_view.call("speech_text")).find("You came back") >= 0, "return flavour on reentry")
-	return_view.free()
+	failed += _assert(str(reentry_view.call("speech_text")).find("You came back") >= 0, "return flavour on reentry")
+	reentry_view.free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)
 	echo.set("reentry", false)
@@ -2363,7 +2363,9 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var battle_view: Node = tree_root.get_node_or_null("EchoBattle")
 		failed += _assert(battle_view != null and bool(battle_view.call("is_flee_shown")), "battle offers Flee outside the window")
 		failed += _assert(not bool(battle_view.call("is_spare_shown")), "Spare stays hidden above 10%")
-		failed += _assert(str(battle_view.call("speech_text")).find("vs Elaia") >= 0 or str(battle_view.call("speech_text")).find("Elaia") >= 0, "opening names Elaia")
+		failed += _assert(str(battle_view.call("speech_text")).find("You should not have opened this") >= 0, "opening uses echo_01_intro")
+		var echo_name_lbl: Label = battle_view.get_node_or_null("EchoName") as Label
+		failed += _assert(echo_name_lbl != null and echo_name_lbl.text.find("Elaia") >= 0, "opening names Elaia")
 		var pause_save: Button = pause_menu.get_node_or_null("Panel/BtnSave") as Button
 		pause_menu.call("open_pause")
 		failed += _assert(pause_save != null and pause_save.disabled, "Save disabled while the echo is open")
@@ -2378,7 +2380,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(str(portal.call("begin_entry")) == "enter", "re-entry skips the fee")
 		failed += _assert(int(game_state.get("essence")) == 4, "re-entry does not spend")
 		var return_view: Node = tree_root.get_node_or_null("EchoBattle")
-		failed += _assert(return_view != null and str(return_view.call("speech_text")).find("open") >= 0, "re-entry free toast")
+		failed += _assert(return_view != null and str(return_view.call("speech_text")).find("You came back") >= 0, "re-entry return flavour")
 		echo.call("finish_battle", "flee")
 		await process_frame
 		game_state.call("set_resource", &"manashards", 4)
