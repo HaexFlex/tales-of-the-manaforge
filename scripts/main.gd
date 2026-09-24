@@ -382,6 +382,8 @@ func _spawn_forest_props() -> void:
 		_scatter_grid(rng, bush_entries, occupied, "bush", 18, 2, Rect2(280, 300, 2000, 70), 38.0, 10.0, 18.0)
 		_scatter_grid(rng, bush_entries, occupied, "bush", 18, 2, Rect2(280, 1780, 2000, 70), 36.0, 10.0, 18.0)
 		_scatter_grid(rng, tuft_entries, occupied, "tuft", 16, 1, Rect2(420, 340, 1720, 36), 24.0, 8.0, 28.0)
+		_seal_clearing_edge(rng, bush_entries, occupied)
+		_spawn_ground_decor(rng, occupied)
 		return
 	for band_v: Variant in bands:
 		if typeof(band_v) != TYPE_DICTIONARY:
@@ -410,7 +412,58 @@ func _spawn_forest_props() -> void:
 			float(band.get("jitter", 8.0)),
 			float(band.get("glade_inset", 0.0))
 		)
+	_seal_clearing_edge(rng, bush_entries, occupied)
 	_spawn_ground_decor(rng, occupied)
+
+
+func _point_on_clearing(ang: float, target_norm: float) -> Vector2:
+	var lo: float = 0.0
+	var hi: float = maxf(play_size.x, play_size.y)
+	var pos: Vector2 = clearing_center
+	for _i: int in range(18):
+		var mid: float = (lo + hi) * 0.5
+		pos = clearing_center + Vector2(cos(ang), sin(ang)) * mid
+		if _ellipse_norm(pos) < target_norm:
+			lo = mid
+		else:
+			hi = mid
+	return pos
+
+
+func _seal_clearing_edge(rng: RandomNumberGenerator, bush_entries: Array[Dictionary], occupied: Array[Vector2]) -> void:
+	## Two staggered bush rings just outside the wobbling tree line.
+	## Spacing overlaps the bush colliders so the Keeper cannot walk out.
+	if bush_entries.is_empty():
+		return
+	var targets: Array[float] = [1.025, 1.11]
+	var n: int = 0
+	for ring: int in range(targets.size()):
+		var sample: Vector2 = _point_on_clearing(0.2, targets[ring])
+		var radius: float = maxf(sample.distance_to(clearing_center), 400.0)
+		var count: int = maxi(64, int(ceil(TAU * radius / 24.0)))
+		var phase: float = 0.0 if ring == 0 else PI / float(count)
+		for i: int in range(count):
+			var ang: float = TAU * float(i) / float(count) + phase
+			var pos: Vector2 = _point_on_clearing(ang, targets[ring])
+			pos += Vector2(rng.randf_range(-3.0, 3.0), rng.randf_range(-2.0, 2.0))
+			pos.x = clampf(pos.x, 20.0, play_size.x - 20.0)
+			pos.y = clampf(pos.y, 20.0, play_size.y - 20.0)
+			if _ellipse_norm(pos) < 1.0:
+				continue
+			if not _clear_of_landmarks(pos, 0.0):
+				continue
+			var crowded: bool = false
+			for other: Vector2 in occupied:
+				if pos.distance_to(other) < 14.0:
+					crowded = true
+					break
+			if crowded:
+				continue
+			var entry: Dictionary = bush_entries[n % bush_entries.size()].duplicate()
+			entry["seal"] = true
+			_plant_prop(entry, pos, "bush")
+			occupied.append(pos)
+			n += 1
 
 
 func _load_json_dict(path: String) -> Dictionary:
@@ -525,10 +578,13 @@ func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void
 		col_size = Vector2(col_w, col_h)
 		col_off = Vector2(0.0, -col_h * 0.5)
 	else:
-		col_size = Vector2(
-			float(collision_cfg.get("bush_width", 16)),
-			float(collision_cfg.get("bush_height", 10))
-		)
+		if bool(entry.get("seal", false)):
+			col_size = Vector2(32.0, 24.0)
+		else:
+			col_size = Vector2(
+				float(collision_cfg.get("bush_width", 16)),
+				float(collision_cfg.get("bush_height", 10))
+			)
 		col_off = Vector2(0.0, -col_size.y * 0.5)
 	shape.size = col_size
 	col.shape = shape
