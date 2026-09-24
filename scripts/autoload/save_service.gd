@@ -6,6 +6,11 @@ extends Node
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
 
+## Set by the title screen before main.tscn loads. "auto" keeps the old boot
+## (load the newest slot) for direct launches, including headless verify.
+var boot_intent: String = "auto"
+var boot_slot: int = 0
+
 const SAVE_VERSION: int = 8
 ## Accept one write ahead of this schema (plus legacy 4–7).
 const SAVE_VERSION_MAX_READ: int = 9

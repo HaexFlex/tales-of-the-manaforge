@@ -13,6 +13,33 @@ const PORTRAIT_SIZE: Vector2 = Vector2(496, 622)
 ## Prior fitted portrait was 160×160 (128² kept inside a 160×284 rect). This is 3×.
 const SPRITE_SIZE: Vector2 = Vector2(480, 480)
 const SPRITE_POS: Vector2 = Vector2(8, 70)
+const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
+
+
+static func make_item_icon(item_id: String) -> Control:
+	var path: String = ""
+	match item_id:
+		"weapon_rod":
+			path = "res://assets/art/ui/icons/icon_weapon_rod.png"
+		"forge_key_relic":
+			path = "res://assets/art/ui/icons/icon_forge_key.png"
+	var tip: String = Equipment.item_display_name(item_id)
+	if path != "" and ResourceLoader.exists(path):
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture = load(path) as Texture2D
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.tooltip_text = tip
+		return icon
+	var swatch := ColorRect.new()
+	swatch.custom_minimum_size = Vector2(32, 32)
+	swatch.color = PLACEHOLDER_SWATCH
+	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	swatch.tooltip_text = tip
+	return swatch
 ## Slot plates in host space, flanking the enlarged Keeper so they do not cover the figure.
 const SLOT_POS: Dictionary = {
 	"head": Vector2(216, 2),
@@ -680,10 +707,7 @@ class SlotPlate extends Panel:
 		if iid == "" or not Equipment.is_slot_unlocked(slot_id):
 			return null
 		_dragged = true
-		var preview := ColorRect.new()
-		preview.custom_minimum_size = Vector2(32, 32)
-		preview.color = Equipment.item_color(iid)
-		set_drag_preview(preview)
+		set_drag_preview(CharacterSheet.make_item_icon(iid))
 		return {"kind": "gear", "item_id": iid, "from_slot": slot_id}
 
 	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
@@ -731,9 +755,7 @@ class GearRow extends Panel:
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_theme_constant_override("separation", 8)
 		add_child(row)
-		var icon := ColorRect.new()
-		icon.custom_minimum_size = Vector2(32, 32)
-		icon.color = Equipment.item_color(item_id)
+		var icon: Control = CharacterSheet.make_item_icon(item_id)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(icon)
 		var lbl := Label.new()
@@ -776,10 +798,7 @@ class GearRow extends Panel:
 		if item_id == "":
 			return null
 		_dragged = true
-		var preview := ColorRect.new()
-		preview.custom_minimum_size = Vector2(32, 32)
-		preview.color = Equipment.item_color(item_id)
-		set_drag_preview(preview)
+		set_drag_preview(CharacterSheet.make_item_icon(item_id))
 		return {"kind": "gear", "item_id": item_id, "from_slot": ""}
 
 	func _can_drop_data(_at: Vector2, data: Variant) -> bool:

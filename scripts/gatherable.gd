@@ -25,15 +25,27 @@ const HARVEST_HEIGHT: Dictionary = {
 }
 
 
+const HARVEST_SCALE: Dictionary = {
+	"wood": 1.0,
+	"stone": 2.0,
+	"food": 1.0,
+}
+
+
 func _ready() -> void:
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
-	var h: float = float(HARVEST_HEIGHT.get(node_key, 64.0))
-	sprite.offset = Vector2(-32, -h)
 	var path: String = str(HARVEST_TEXTURES.get(node_key, HARVEST_TEXTURES["wood"]))
 	sprite.texture = load(path) as Texture2D
+	var scale_v: float = float(HARVEST_SCALE.get(node_key, 1.0))
+	var frame := Vector2(BODY_WIDTH, float(HARVEST_HEIGHT.get(node_key, 64.0)))
+	if sprite.texture:
+		frame = Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
+	sprite.scale = Vector2(scale_v, scale_v)
+	sprite.offset = Vector2(-frame.x * 0.5, -frame.y)
+	var vis := frame * scale_v
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.position = Vector2(-48, -h - 20.0)
+	label.position = Vector2(-48, -vis.y - 20.0)
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
 	input_event.connect(_on_input_event)
 	GameState.selection_changed.connect(_refresh_prompt)
@@ -44,8 +56,8 @@ func _ready() -> void:
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
 		# Full sprite footprint (not just feet box) so canopy/upper clicks count.
-		(cs.shape as RectangleShape2D).size = Vector2(BODY_WIDTH, h)
-		cs.position = Vector2(0, -h * 0.5)
+		(cs.shape as RectangleShape2D).size = vis
+		cs.position = Vector2(0, -vis.y * 0.5)
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:

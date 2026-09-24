@@ -1,0 +1,132 @@
+[gd_scene load_steps=4 format=3 uid="uid://titlescreen001mf"]
+
+[ext_resource type="Script" path="res://scripts/title_screen.gd" id="1_title"]
+[ext_resource type="Texture2D" path="res://assets/art/title/titlescreen.png" id="2_bg"]
+[ext_resource type="PackedScene" uid="uid://pausemenu001mf" path="res://scenes/pause_menu.tscn" id="3_pause"]
+
+[node name="TitleScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_title")
+
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+texture = ExtResource("2_bg")
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 6
+
+[node name="Menu" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -140.0
+offset_top = -340.0
+offset_right = 180.0
+offset_bottom = -48.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 6
+
+[node name="BtnContinue" type="Button" parent="Menu"]
+custom_minimum_size = Vector2(280, 40)
+layout_mode = 2
+text = "Continue"
+
+[node name="BtnNewGame" type="Button" parent="Menu"]
+custom_minimum_size = Vector2(280, 40)
+layout_mode = 2
+text = "New Game"
+
+[node name="BtnLoad" type="Button" parent="Menu"]
+custom_minimum_size = Vector2(280, 40)
+layout_mode = 2
+text = "Load"
+
+[node name="BtnOptions" type="Button" parent="Menu"]
+custom_minimum_size = Vector2(280, 40)
+layout_mode = 2
+text = "Options"
+
+[node name="BtnQuit" type="Button" parent="Menu"]
+custom_minimum_size = Vector2(280, 40)
+layout_mode = 2
+text = "Quit"
+
+[node name="Cursor" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(28, 28)
+offset_left = 480.0
+offset_top = 420.0
+offset_right = 508.0
+offset_bottom = 448.0
+mouse_filter = 2
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ConfirmPanel" type="ColorRect" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -240.0
+offset_top = -90.0
+offset_right = 240.0
+offset_bottom = 90.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.1, 0.08, 0.96)
+
+[node name="ConfirmLabel" type="Label" parent="ConfirmPanel"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 464.0
+offset_bottom = 80.0
+theme_override_font_sizes/font_size = 16
+autowrap_mode = 3
+text = "Confirm"
+
+[node name="ConfirmYes" type="Button" parent="ConfirmPanel"]
+layout_mode = 0
+offset_left = 16.0
+offset_top = 96.0
+offset_right = 160.0
+offset_bottom = 136.0
+text = "Yes"
+
+[node name="ConfirmNo" type="Button" parent="ConfirmPanel"]
+layout_mode = 0
+offset_left = 176.0
+offset_top = 96.0
+offset_right = 320.0
+offset_bottom = 136.0
+text = "No"
+
+[node name="Fade" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0, 0, 0, 1)
+
+[node name="PauseMenu" parent="." instance=ExtResource("3_pause")]
+visible = false

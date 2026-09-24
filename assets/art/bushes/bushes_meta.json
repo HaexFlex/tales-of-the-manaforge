@@ -630,6 +630,446 @@
       ],
       "role": "bush",
       "source": "assets/library/small bushes.png"
+    },
+    "bush_native_01": {
+      "file": "native/bush_native_01.png",
+      "size": [
+        22,
+        28
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_02": {
+      "file": "native/bush_native_02.png",
+      "size": [
+        26,
+        26
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_03": {
+      "file": "native/bush_native_03.png",
+      "size": [
+        27,
+        25
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_04": {
+      "file": "native/bush_native_04.png",
+      "size": [
+        24,
+        25
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_05": {
+      "file": "native/bush_native_05.png",
+      "size": [
+        25,
+        24
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_06": {
+      "file": "native/bush_native_06.png",
+      "size": [
+        26,
+        24
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_07": {
+      "file": "native/bush_native_07.png",
+      "size": [
+        25,
+        23
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_08": {
+      "file": "native/bush_native_08.png",
+      "size": [
+        27,
+        23
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_09": {
+      "file": "native/bush_native_09.png",
+      "size": [
+        31,
+        30
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_10": {
+      "file": "native/bush_native_10.png",
+      "size": [
+        28,
+        30
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_11": {
+      "file": "native/bush_native_11.png",
+      "size": [
+        31,
+        30
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_12": {
+      "file": "native/bush_native_12.png",
+      "size": [
+        29,
+        30
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_13": {
+      "file": "native/bush_native_13.png",
+      "size": [
+        27,
+        27
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_14": {
+      "file": "native/bush_native_14.png",
+      "size": [
+        29,
+        27
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_15": {
+      "file": "native/bush_native_15.png",
+      "size": [
+        27,
+        26
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_16": {
+      "file": "native/bush_native_16.png",
+      "size": [
+        26,
+        26
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_17": {
+      "file": "native/bush_native_17.png",
+      "size": [
+        31,
+        55
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_18": {
+      "file": "native/bush_native_18.png",
+      "size": [
+        30,
+        53
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_19": {
+      "file": "native/bush_native_19.png",
+      "size": [
+        46,
+        53
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_20": {
+      "file": "native/bush_native_20.png",
+      "size": [
+        42,
+        51
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_21": {
+      "file": "native/bush_native_21.png",
+      "size": [
+        50,
+        50
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_22": {
+      "file": "native/bush_native_22.png",
+      "size": [
+        45,
+        50
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_23": {
+      "file": "native/bush_native_23.png",
+      "size": [
+        22,
+        27
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_24": {
+      "file": "native/bush_native_24.png",
+      "size": [
+        22,
+        27
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_25": {
+      "file": "native/bush_native_25.png",
+      "size": [
+        26,
+        25
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_26": {
+      "file": "native/bush_native_26.png",
+      "size": [
+        24,
+        24
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_27": {
+      "file": "native/bush_native_27.png",
+      "size": [
+        25,
+        23
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_28": {
+      "file": "native/bush_native_28.png",
+      "size": [
+        25,
+        23
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_29": {
+      "file": "native/bush_native_29.png",
+      "size": [
+        20,
+        23
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_30": {
+      "file": "native/bush_native_30.png",
+      "size": [
+        22,
+        17
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_31": {
+      "file": "native/bush_native_31.png",
+      "size": [
+        29,
+        30
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_32": {
+      "file": "native/bush_native_32.png",
+      "size": [
+        31,
+        30
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_33": {
+      "file": "native/bush_native_33.png",
+      "size": [
+        29,
+        30
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_34": {
+      "file": "native/bush_native_34.png",
+      "size": [
+        30,
+        29
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_35": {
+      "file": "native/bush_native_35.png",
+      "size": [
+        30,
+        28
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_36": {
+      "file": "native/bush_native_36.png",
+      "size": [
+        29,
+        26
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_37": {
+      "file": "native/bush_native_37.png",
+      "size": [
+        26,
+        25
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_38": {
+      "file": "native/bush_native_38.png",
+      "size": [
+        28,
+        26
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_39": {
+      "file": "native/bush_native_39.png",
+      "size": [
+        36,
+        58
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_40": {
+      "file": "native/bush_native_40.png",
+      "size": [
+        29,
+        58
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_41": {
+      "file": "native/bush_native_41.png",
+      "size": [
+        46,
+        56
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_42": {
+      "file": "native/bush_native_42.png",
+      "size": [
+        42,
+        52
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_43": {
+      "file": "native/bush_native_43.png",
+      "size": [
+        44,
+        54
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
+    },
+    "bush_native_44": {
+      "file": "native/bush_native_44.png",
+      "size": [
+        45,
+        51
+      ],
+      "role": "bush",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small bushes v2 (256).png"
     }
   },
   "spawn_catalog": {
@@ -697,7 +1137,23 @@
       "bush_small_54",
       "bush_small_55",
       "bush_small_56",
-      "bush_small_57"
+      "bush_small_57",
+      "bush_native_01",
+      "bush_native_03",
+      "bush_native_05",
+      "bush_native_09",
+      "bush_native_11",
+      "bush_native_17",
+      "bush_native_19",
+      "bush_native_21",
+      "bush_native_23",
+      "bush_native_26",
+      "bush_native_31",
+      "bush_native_34",
+      "bush_native_39",
+      "bush_native_41",
+      "bush_native_43",
+      "bush_native_44"
     ],
     "tuft": [
       "bush_small_07",

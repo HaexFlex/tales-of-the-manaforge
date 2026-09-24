@@ -5,8 +5,10 @@ class_name Runestone
 
 @export var stat_id: StringName = &"might"
 
-@onready var stone: Polygon2D = $Stone
+@onready var stone: Sprite2D = $Stone
 @onready var label: Label = $Label
+
+const RUNE_DIR: String = "res://assets/art/props/runestones/runestone_%s.png"
 
 static var _layer: CanvasLayer
 static var _panel: Panel
@@ -36,6 +38,15 @@ func _ready() -> void:
 		KeeperStats.ranks_changed.connect(_on_ranks)
 	if not GameState.resources_changed.is_connected(_on_resources):
 		GameState.resources_changed.connect(_on_resources)
+	if stone:
+		stone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		stone.centered = false
+		stone.hframes = 1
+		stone.scale = Vector2(2, 2)
+		stone.offset = Vector2(-16, -32)
+		var path: String = RUNE_DIR % String(stat_id)
+		if ResourceLoader.exists(path):
+			stone.texture = load(path) as Texture2D
 	_refresh()
 
 
@@ -55,7 +66,7 @@ func _refresh() -> void:
 	if cost >= 0 and GameState.manashards < cost:
 		tint = tint.darkened(0.35)
 	if stone:
-		stone.color = tint
+		stone.modulate = tint
 	if label == null:
 		return
 	var stat_name: String = KeeperStats.stat_display_name(sid)

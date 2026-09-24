@@ -1,72 +1,88 @@
 {
-  "version": "v0.1.6-sheet-scaled",
+  "version": "v0.1.7-animated",
   "filter": "nearest",
-  "source": "TotM Stage 0-4 sheets, first frame, NN upscale to game canvases",
+  "source": "art_drop_c9fda76 Stage 0-4 strips, 8 frames horizontal",
+  "fps": 7,
   "haex_approved": true,
   "stages": [
     {
       "stage_id": "sapling",
-      "file": "manatree_sapling.png",
+      "file": "anim/manatree_sapling_strip.png",
       "size": [
-        128,
-        192
+        64,
+        64
       ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 2,
       "anchor": "base_center",
       "anchor_px": [
-        64,
-        192
+        32,
+        64
       ]
     },
     {
       "stage_id": "young",
-      "file": "manatree_young.png",
+      "file": "anim/manatree_young_strip.png",
       "size": [
-        192,
-        288
+        96,
+        96
       ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 3,
       "anchor": "base_center",
       "anchor_px": [
-        96,
-        288
+        48,
+        96
       ]
     },
     {
       "stage_id": "mature",
-      "file": "manatree_mature.png",
+      "file": "anim/manatree_mature_strip.png",
       "size": [
-        256,
-        384
+        184,
+        184
       ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 4,
       "anchor": "base_center",
       "anchor_px": [
-        128,
-        384
+        92,
+        184
       ]
     },
     {
       "stage_id": "elder",
-      "file": "manatree_elder.png",
+      "file": "anim/manatree_elder_strip.png",
       "size": [
-        384,
-        512
+        256,
+        256
       ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 4,
       "anchor": "base_center",
       "anchor_px": [
-        192,
-        512
+        128,
+        256
       ]
     },
     {
       "stage_id": "ancient",
-      "file": "manatree_ancient.png",
+      "file": "anim/manatree_ancient_strip.png",
       "size": [
-        512,
-        640
+        256,
+        256
       ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 4,
       "anchor": "base_center",
       "anchor_px": [
-        256,
-        640
+        128,
+        256
       ],
       "door": "visible_noninteractive"
     }

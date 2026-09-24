@@ -32,7 +32,12 @@ var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
 var view_size: Vector2 = Vector2(1280, 720)
 var camera_pan_speed: float = 420.0
-var glade: Rect2 = Rect2(350, 330, 1860, 1500)
+var glade: Rect2 = Rect2(760, 820, 1680, 1360)
+var clearing_center: Vector2 = Vector2(1600, 1500)
+var clearing_rx: float = 1200.0
+var clearing_ry: float = 980.0
+var scatter_seed: int = 20260924
+const DECOR_META_PATH: String = "res://assets/art/decor/decor_meta.json"
 var clear_points: Array[Vector2] = []
 var clear_radii: Array[float] = []
 var collision_cfg: Dictionary = {}
@@ -62,8 +67,7 @@ func _ready() -> void:
 	GameAudio.play_hub_music()
 	GameState.wisps_changed.connect(_sync_wisps)
 	GameState.load_completed.connect(_sync_wisps)
-	if SaveService.has_save():
-		SaveService.load_game()
+	_apply_boot_intent()
 	_sync_wisps()
 	# First load / new save: show Keeper welcome once (flag in save).
 	hud.maybe_show_welcome()
@@ -80,7 +84,14 @@ func _load_hub_map() -> void:
 		float(hub_map.get("viewport_height", 720))
 	)
 	camera_pan_speed = float(hub_map.get("camera_pan_speed", 420.0))
-	var glade_v: Variant = hub_map.get("glade", [350, 330, 1860, 1500])
+	scatter_seed = int(hub_map.get("scatter_seed", scatter_seed))
+	var clearing_v: Variant = hub_map.get("clearing", {})
+	if typeof(clearing_v) == TYPE_DICTIONARY:
+		var cd: Dictionary = clearing_v
+		clearing_center = _vec2_from(cd.get("center", [clearing_center.x, clearing_center.y]))
+		clearing_rx = float(cd.get("rx", clearing_rx))
+		clearing_ry = float(cd.get("ry", clearing_ry))
+	var glade_v: Variant = hub_map.get("glade", [760, 820, 1680, 1360])
 	if typeof(glade_v) == TYPE_ARRAY and (glade_v as Array).size() >= 4:
 		var ga: Array = glade_v
 		glade = Rect2(float(ga[0]), float(ga[1]), float(ga[2]), float(ga[3]))
@@ -100,6 +111,22 @@ func _load_hub_map() -> void:
 		if typeof(radii_v) == TYPE_ARRAY and (radii_v as Array).size() > i:
 			rad = float((radii_v as Array)[i])
 		clear_radii.append(rad)
+	var extras: Variant = hub_map.get("extra_clear", [])
+	if typeof(extras) == TYPE_ARRAY:
+		for extra_v: Variant in extras:
+			if typeof(extra_v) != TYPE_DICTIONARY:
+				continue
+			var extra: Dictionary = extra_v
+			clear_points.append(_vec2_from(extra.get("pos", [0, 0])))
+			clear_radii.append(float(extra.get("radius", 120.0)))
+	var stone_clear: float = float(hub_map.get("runestone_clear", 84.0))
+	var stone_rows: Variant = hub_map.get("runestones", [])
+	if typeof(stone_rows) == TYPE_ARRAY:
+		for stone_v: Variant in stone_rows:
+			if typeof(stone_v) != TYPE_DICTIONARY:
+				continue
+			clear_points.append(_vec2_from((stone_v as Dictionary).get("pos", [0, 0])))
+			clear_radii.append(stone_clear)
 
 
 func _vec2_from(raw: Variant) -> Vector2:
@@ -244,6 +271,45 @@ func _process(delta: float) -> void:
 	pan_camera(dir.normalized() * camera_pan_speed * delta)
 
 
+func _apply_boot_intent() -> void:
+	## Title sets continue / new / load. A direct main.tscn launch (verify) stays on auto.
+	var intent: String = str(SaveService.boot_intent)
+	var slot: int = int(SaveService.boot_slot)
+	SaveService.boot_intent = "auto"
+	SaveService.boot_slot = 0
+	match intent:
+		"new":
+			GameState.reset_for_new_game()
+		"continue":
+			if SaveService.has_save():
+				SaveService.load_game()
+		"load":
+			if slot >= 1 and SaveService.has_slot(slot):
+				SaveService.load_game(slot)
+		_:
+			if SaveService.has_save():
+				SaveService.load_game()
+
+
+func _ellipse_norm(pos: Vector2) -> float:
+	## 0 at the clearing center, 1 on the wobbling tree line. Not mirrored.
+	var dx: float = (pos.x - clearing_center.x) / maxf(clearing_rx, 1.0)
+	var dy: float = (pos.y - clearing_center.y) / maxf(clearing_ry, 1.0)
+	var ang: float = atan2(dy, dx)
+	var wobble: float = (
+		0.075 * sin(ang * 3.0 + 0.55)
+		+ 0.055 * sin(ang * 5.0 + 2.15)
+		+ 0.040 * cos(ang * 2.0 + 0.35)
+		+ 0.028 * sin(ang * 7.0 + 1.15)
+	)
+	var limit: float = maxf(0.72, 1.0 + wobble)
+	return sqrt(dx * dx + dy * dy) / limit
+
+
+func _in_clearing(pos: Vector2) -> bool:
+	return _ellipse_norm(pos) < 1.0
+
+
 func _build_grass() -> void:
 	ground.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	var ts := TileSet.new()
@@ -263,7 +329,7 @@ func _build_grass() -> void:
 		for y: int in range(_rows):
 			var world_pt := Vector2(float(x * TILE + TILE / 2), float(y * TILE + TILE / 2))
 			var pick: Vector2i
-			if glade.has_point(world_pt):
+			if _in_clearing(world_pt):
 				pick = ATLAS_GRASS[(x + y) % 2]
 			else:
 				pick = ATLAS_GRASS[(x * 3 + y * 5) % ATLAS_GRASS.size()]
@@ -300,12 +366,12 @@ func _spawn_forest_props() -> void:
 	var bush_pick: Array = []
 	for idv: Variant in bush_ids:
 		var bid: String = str(idv)
-		if bid.begins_with("bush_big_") or bush_pick.size() < 36:
+		if bid.begins_with("bush_big_") or bid.begins_with("bush_native_") or bush_pick.size() < 36:
 			bush_pick.append(bid)
 	var bush_entries: Array[Dictionary] = _catalog_entries(bush_items, bush_pick, "res://assets/art/bushes/")
 	var tuft_entries: Array[Dictionary] = _catalog_entries(bush_items, tuft_ids, "res://assets/art/bushes/")
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 20260917
+	rng.seed = scatter_seed
 	var occupied: Array[Vector2] = []
 	var bands: Array = hub_map.get("scatter", []) as Array
 	if bands.is_empty():
@@ -344,6 +410,7 @@ func _spawn_forest_props() -> void:
 			float(band.get("jitter", 8.0)),
 			float(band.get("glade_inset", 0.0))
 		)
+	_spawn_ground_decor(rng, occupied)
 
 
 func _load_json_dict(path: String) -> Dictionary:
@@ -375,7 +442,8 @@ func _catalog_entries(items: Dictionary, ids: Array, base_dir: String) -> Array[
 		var sz_v: Variant = it.get("size", [])
 		if typeof(sz_v) == TYPE_ARRAY and (sz_v as Array).size() >= 2:
 			sz = Vector2(float((sz_v as Array)[0]), float((sz_v as Array)[1]))
-		out.append({"tex": path, "size": sz, "id": id})
+		var scale_v: float = float(it.get("scale", 1.0))
+		out.append({"tex": path, "size": sz, "id": id, "scale": scale_v})
 	return out
 
 
@@ -428,8 +496,16 @@ func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void
 	if tex != null:
 		sz = Vector2(float(tex.get_width()), float(tex.get_height()))
 	spr.offset = Vector2(-sz.x * 0.5, -sz.y)
+	var spr_scale: float = float(entry.get("scale", 1.0))
+	if spr_scale <= 0.0:
+		spr_scale = 1.0
+	spr.scale = Vector2(spr_scale, spr_scale)
 	spr.y_sort_enabled = true
 	root.add_child(spr)
+	if kind == "decor":
+		root.add_to_group("forest_decor")
+		world.add_child(root)
+		return
 	var body := StaticBody2D.new()
 	body.collision_layer = 1
 	body.collision_mask = 0
@@ -464,13 +540,86 @@ func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void
 
 
 func _can_plant(pos: Vector2, occupied: Array[Vector2], min_sep: float, glade_inset: float) -> bool:
-	var open: Rect2 = glade.grow(-glade_inset)
-	if open.has_point(pos):
+	## glade_inset lets bushes tuck a few pixels into the wobbling tree line.
+	var allow: float = glade_inset / maxf((clearing_rx + clearing_ry) * 0.5, 1.0)
+	if _ellipse_norm(pos) < 1.0 - allow:
 		return false
 	if not _clear_of_landmarks(pos, 0.0):
 		return false
 	for other: Vector2 in occupied:
 		if pos.distance_to(other) < min_sep:
+			return false
+	return true
+
+
+func _spawn_ground_decor(rng: RandomNumberGenerator, occupied: Array[Vector2]) -> void:
+	## Grass, ferns, flowers, twigs, and a few loose stones. No collision, not clickable.
+	var meta: Dictionary = _load_json_dict(DECOR_META_PATH)
+	var items: Array = meta.get("items", []) as Array
+	var flora: Array[Dictionary] = []
+	var stones: Array[Dictionary] = []
+	for entry_v: Variant in items:
+		if typeof(entry_v) != TYPE_DICTIONARY:
+			continue
+		var d: Dictionary = entry_v
+		var file: String = str(d.get("file", ""))
+		if file == "":
+			continue
+		var rec: Dictionary = {
+			"tex": "res://assets/art/decor/%s" % file,
+			"size": Vector2(32, 32),
+			"id": str(d.get("id", "")),
+			"scale": 1.0,
+		}
+		if str(d.get("kind", "")) == "stone":
+			stones.append(rec)
+		else:
+			flora.append(rec)
+	if flora.is_empty():
+		return
+	var cols: int = 36
+	var rows: int = 30
+	var n: int = 0
+	for row: int in range(rows):
+		for col: int in range(cols):
+			var pos := Vector2(
+				(float(col) + 0.5) / float(cols) * play_size.x + rng.randf_range(-22.0, 22.0),
+				(float(row) + 0.5) / float(rows) * play_size.y + rng.randf_range(-16.0, 16.0)
+			)
+			pos.x = clampf(pos.x, 24.0, play_size.x - 24.0)
+			pos.y = clampf(pos.y, 24.0, play_size.y - 24.0)
+			var norm: float = _ellipse_norm(pos)
+			if norm >= 0.96:
+				continue
+			var keep: float = 0.05 + norm * 0.62
+			if norm < 0.32:
+				keep = 0.045
+			if rng.randf() > keep:
+				continue
+			if not _decor_clear(pos):
+				continue
+			var blocked: bool = false
+			for other: Vector2 in occupied:
+				if pos.distance_to(other) < 26.0:
+					blocked = true
+					break
+			if blocked:
+				continue
+			var use_stone: bool = not stones.is_empty() and norm > 0.62 and rng.randf() < 0.12
+			var pool: Array[Dictionary] = stones if use_stone else flora
+			_plant_prop(pool[n % pool.size()], pos, "decor")
+			occupied.append(pos)
+			n += 1
+
+
+func _decor_clear(pos: Vector2) -> bool:
+	for i: int in range(clear_points.size()):
+		var need: float = _landmark_radius(i)
+		if i == 0:
+			need = maxf(need, 400.0)
+		elif need < 100.0:
+			need += 12.0
+		if pos.distance_to(clear_points[i]) < need:
 			return false
 	return true
 

@@ -4,6 +4,11 @@ class_name GameHUD
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
+@onready var num_wood: Label = $Panel/IconRow/WoodChip/NumWood
+@onready var num_stone: Label = $Panel/IconRow/StoneChip/NumStone
+@onready var num_food: Label = $Panel/IconRow/FoodChip/NumFood
+@onready var num_shards: Label = $Panel/IconRow/ShardChip/NumShards
+@onready var num_essence: Label = $Panel/IconRow/EssenceChip/NumEssence
 @onready var stage_label: Label = $Panel/StageLabel
 @onready var controls_hint: Label = $Panel/ControlsHint
 @onready var status_label: Label = $Panel/StatusLabel
@@ -12,7 +17,8 @@ class_name GameHUD
 @onready var character_button: Button = $Panel/CharacterButton
 @onready var character_icon: ColorRect = $Panel/CharacterButton/CharacterIcon
 @onready var backpack_button: Button = $Panel/BackpackButton
-@onready var backpack_icon: ColorRect = $Panel/BackpackButton/BackpackIcon
+@onready var backpack_icon: TextureRect = $Panel/BackpackButton/BackpackIcon
+@onready var pause_icon: TextureRect = $Panel/PauseButton/Icon
 @onready var backpack_dim: ColorRect = $BackpackDim
 @onready var backpack_panel: Panel = $BackpackPanel
 @onready var backpack_title: Label = $BackpackPanel/Header/BackpackTitle
@@ -25,9 +31,9 @@ class_name GameHUD
 @onready var handcraft_title: Label = $BackpackPanel/HandcraftTitle
 @onready var craft_list: VBoxContainer = $BackpackPanel/CraftScroll/CraftList
 @onready var care_grow_costs: HBoxContainer = $CarePanel/CareGrowCosts
-@onready var grow_fert_icon: ColorRect = $CarePanel/CareGrowCosts/FertilizerIcon
+@onready var grow_fert_icon: TextureRect = $CarePanel/CareGrowCosts/FertilizerIcon
 @onready var grow_fert_need: Label = $CarePanel/CareGrowCosts/FertilizerNeed
-@onready var grow_ess_icon: ColorRect = $CarePanel/CareGrowCosts/EssenceIcon
+@onready var grow_ess_icon: TextureRect = $CarePanel/CareGrowCosts/EssenceIcon
 @onready var grow_ess_need: Label = $CarePanel/CareGrowCosts/EssenceNeed
 @onready var ascension_reopen_button: Button = $Panel/AscensionReopenButton
 @onready var care_panel: Panel = $CarePanel
@@ -90,7 +96,21 @@ const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
 const ICON_FERTILIZER: Color = Color(0.42, 0.35, 0.14, 1.0)
 const ICON_ESSENCE: Color = Color(0.56, 0.35, 0.66, 1.0)
 const ICON_BACKPACK: Color = Color(0.48, 0.31, 0.18, 1.0)
-const ICON_CHARACTER: Color = Color(0.77, 0.64, 0.29, 1.0)
+const ICON_CHARACTER: Color = Color(0.46, 0.44, 0.40, 1.0)
+const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
+const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
+const ICON_WOOD_TEX: String = "res://assets/art/ui/icon_wood.png"
+const ICON_STONE_TEX: String = "res://assets/art/ui/icon_stone.png"
+const ICON_FOOD_TEX: String = "res://assets/art/ui/icon_food.png"
+const ICON_SHARD_TEX: String = "res://assets/art/ui/icon_manashards.png"
+const ICON_ESSENCE_TEX: String = "res://assets/art/ui/icon_essence.png"
+const ICON_FERTILIZER_TEX: String = "res://assets/art/ui/icon_fertilizer.png"
+const BTN_PAUSE_NORMAL: String = "res://assets/art/ui/buttons/pause_normal.png"
+const BTN_PAUSE_HOVER: String = "res://assets/art/ui/buttons/pause_hover.png"
+const BTN_PAUSE_PRESSED: String = "res://assets/art/ui/buttons/pause_pressed.png"
+const BTN_PACK_NORMAL: String = "res://assets/art/ui/buttons/backpack_normal.png"
+const BTN_PACK_HOVER: String = "res://assets/art/ui/buttons/backpack_hover.png"
+const BTN_PACK_PRESSED: String = "res://assets/art/ui/buttons/backpack_pressed.png"
 const ICON_KEEP_TOOLS: Color = Color(0.72, 0.53, 0.04, 1.0)
 const BACKPACK_ROW_H: float = 40.0
 
@@ -118,10 +138,13 @@ func _ready() -> void:
 	shop_scroll.clip_contents = true
 	_apply_wood_chrome()
 	add_to_group("game_hud")
-	pause_button.text = ContentStrings.get_text("btn_pause")
-	character_button.text = ContentStrings.get_text("hud_btn_character")
+	pause_button.text = ""
+	pause_button.tooltip_text = ContentStrings.get_text("btn_pause")
+	character_button.text = ""
 	character_button.tooltip_text = ContentStrings.get_text("char_sheet_hotkey_hint")
-	backpack_button.text = ContentStrings.get_text("backpack_open")
+	backpack_button.text = ""
+	backpack_button.tooltip_text = ContentStrings.get_text("backpack_open")
+	_wire_sprite_hud()
 	backpack_title.text = ContentStrings.get_text("backpack_title")
 	handcraft_title.text = "%s  ·  %s" % [
 		ContentStrings.get_text("handcraft_title"),
@@ -131,20 +154,15 @@ func _ready() -> void:
 	backpack_tab_all.text = ContentStrings.get_text("backpack_tab_all")
 	backpack_tab_tools.text = ContentStrings.get_text("backpack_tab_tools")
 	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
-	if backpack_icon:
-		backpack_icon.color = ICON_BACKPACK
 	if character_icon:
 		character_icon.color = ICON_CHARACTER
-	if grow_fert_icon:
-		grow_fert_icon.color = ICON_FERTILIZER
-	if grow_ess_icon:
-		grow_ess_icon.color = ICON_ESSENCE
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	pay_button.text = ContentStrings.get_text("tree_grow")
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
-	ascension_reopen_button.text = ContentStrings.get_text("ascension_paused_title")
+	ascension_reopen_button.text = ""
+	ascension_reopen_button.tooltip_text = ContentStrings.get_text("ascension_paused_title")
 	care_title.text = "%s %s" % [
 		ContentStrings.get_text("tree_menu_title"),
 		ContentStrings.get_text("tree_care_title"),
@@ -236,6 +254,142 @@ func _apply_button_chrome(btn: Button, bg: Color, border: Color) -> void:
 	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 1, 1.0))
 
 
+func _apply_icon_button(btn: Button) -> void:
+	var empty := StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("normal", empty)
+	btn.add_theme_stylebox_override("hover", empty)
+	btn.add_theme_stylebox_override("pressed", empty)
+	btn.add_theme_stylebox_override("focus", empty)
+	btn.add_theme_stylebox_override("disabled", empty)
+	btn.flat = true
+
+
+func _load_ui_tex(path: String) -> Texture2D:
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
+func _assign_tex(node: TextureRect, path: String, tip: String, tint: Color = Color.WHITE) -> void:
+	if node == null:
+		return
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	node.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	node.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	node.texture = _load_ui_tex(path)
+	node.modulate = tint
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if tip != "":
+		node.tooltip_text = tip
+
+
+func _bind_tex_states(btn: Button, icon: TextureRect, normal: String, hover: String, pressed: String) -> void:
+	if icon == null:
+		return
+	var ntex: Texture2D = _load_ui_tex(normal)
+	var htex: Texture2D = _load_ui_tex(hover)
+	var ptex: Texture2D = _load_ui_tex(pressed)
+	icon.texture = ntex
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if ntex == null:
+		return
+	btn.mouse_entered.connect(func() -> void:
+		icon.texture = htex if htex else ntex
+	)
+	btn.mouse_exited.connect(func() -> void:
+		icon.texture = ntex
+	)
+	btn.button_down.connect(func() -> void:
+		icon.texture = ptex if ptex else ntex
+	)
+	btn.button_up.connect(func() -> void:
+		icon.texture = htex if htex and btn.is_hovered() else ntex
+	)
+
+
+func _wire_sprite_hud() -> void:
+	panel.color = Color(0.04, 0.06, 0.05, 0.42)
+	_assign_tex($Panel/IconRow/WoodChip/IconWood, ICON_WOOD_TEX, ContentStrings.get_text("hud_wood"))
+	_assign_tex($Panel/IconRow/StoneChip/IconStone, ICON_STONE_TEX, ContentStrings.get_text("hud_stone"))
+	_assign_tex($Panel/IconRow/FoodChip/IconFood, ICON_FOOD_TEX, ContentStrings.get_text("hud_food"))
+	_assign_tex($Panel/IconRow/ShardChip/IconShards, ICON_SHARD_TEX, ContentStrings.get_text("hud_manashards"))
+	_assign_tex($Panel/IconRow/EssenceChip/IconEssence, ICON_ESSENCE_TEX, ContentStrings.get_text("hud_essence"), ESSENCE_TINT)
+	_assign_tex(grow_fert_icon, ICON_FERTILIZER_TEX, ContentStrings.get_text("fertilizer_name"))
+	_assign_tex(grow_ess_icon, ICON_ESSENCE_TEX, ContentStrings.get_text("hud_essence"), ESSENCE_TINT)
+	_bind_tex_states(backpack_button, backpack_icon, BTN_PACK_NORMAL, BTN_PACK_HOVER, BTN_PACK_PRESSED)
+	_bind_tex_states(pause_button, pause_icon, BTN_PAUSE_NORMAL, BTN_PAUSE_HOVER, BTN_PAUSE_PRESSED)
+	for chip_path: String in [
+		"Panel/IconRow/WoodChip",
+		"Panel/IconRow/StoneChip",
+		"Panel/IconRow/FoodChip",
+		"Panel/IconRow/ShardChip",
+		"Panel/IconRow/EssenceChip",
+	]:
+		var chip: Control = get_node_or_null(chip_path) as Control
+		if chip and chip.get_child_count() > 0:
+			var icon: CanvasItem = chip.get_child(0) as CanvasItem
+			if icon:
+				chip.tooltip_text = icon.tooltip_text
+
+
+func _item_icon_path(item_id: String) -> String:
+	match item_id:
+		"wooden_planks":
+			return "res://assets/art/ui/icons/icon_wooden_planks.png"
+		"stone_fragments":
+			return "res://assets/art/ui/icons/icon_stone_fragments.png"
+		"wooden_tool_rod":
+			return "res://assets/art/ui/icons/icon_wooden_tool_rod.png"
+		"axe_head":
+			return "res://assets/art/ui/icons/icon_axe_head.png"
+		"pickaxe_head":
+			return "res://assets/art/ui/icons/icon_pickaxe_head.png"
+		"stone_axe":
+			return "res://assets/art/ui/icons/icon_stone_axe.png"
+		"stone_pickaxe":
+			return "res://assets/art/ui/icons/icon_stone_pickaxe.png"
+		"fertilizer":
+			return ICON_FERTILIZER_TEX
+		"weapon_rod":
+			return "res://assets/art/ui/icons/icon_weapon_rod.png"
+		"forge_key_relic":
+			return "res://assets/art/ui/icons/icon_forge_key.png"
+		"wood":
+			return ICON_WOOD_TEX
+		"stone":
+			return ICON_STONE_TEX
+		"food":
+			return ICON_FOOD_TEX
+		"manashards":
+			return ICON_SHARD_TEX
+		"essence":
+			return ICON_ESSENCE_TEX
+		_:
+			return ""
+
+
+func _make_item_icon(item_id: String, tip: String) -> Control:
+	var path: String = _item_icon_path(item_id)
+	var tex: Texture2D = _load_ui_tex(path)
+	if tex:
+		var icon := TextureRect.new()
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture = tex
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.tooltip_text = tip
+		if item_id == "essence":
+			icon.modulate = ESSENCE_TINT
+		return icon
+	var placeholder := _placeholder_icon(PLACEHOLDER_SWATCH)
+	placeholder.tooltip_text = tip
+	return placeholder
+
+
 func _apply_wood_chrome() -> void:
 	ascension_panel.add_theme_stylebox_override("panel", _wood_style())
 	fruit_confirm_panel.add_theme_stylebox_override("panel", _wood_style())
@@ -249,8 +403,10 @@ func _apply_wood_chrome() -> void:
 	_apply_button_chrome(water_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(pay_button, LEAF, GOLD)
 	_apply_button_chrome(harvest_fruit_button, LEAF, GOLD)
-	_apply_button_chrome(character_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(backpack_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_icon_button(character_button)
+	_apply_icon_button(backpack_button)
+	_apply_icon_button(pause_button)
+	_apply_icon_button(ascension_reopen_button)
 	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(backpack_tab_all, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(backpack_tab_tools, Color(0.18, 0.14, 0.10, 1.0), GOLD)
@@ -411,13 +567,18 @@ func _refresh_all() -> void:
 
 
 func _refresh_resources() -> void:
-	resources_label.text = "%s %d  |  %s %d  |  %s %d  |  %s %d  |  %s %d" % [
-		ContentStrings.get_text("hud_wood"), GameState.wood,
-		ContentStrings.get_text("hud_stone"), GameState.stone,
-		ContentStrings.get_text("hud_food"), GameState.food,
-		ContentStrings.get_text("hud_manashards"), GameState.manashards,
-		ContentStrings.get_text("hud_essence"), GameState.essence,
-	]
+	if num_wood:
+		num_wood.text = str(GameState.wood)
+	if num_stone:
+		num_stone.text = str(GameState.stone)
+	if num_food:
+		num_food.text = str(GameState.food)
+	if num_shards:
+		num_shards.text = str(GameState.manashards)
+	if num_essence:
+		num_essence.text = str(GameState.essence)
+	if resources_label:
+		resources_label.text = ""
 
 
 func _refresh_stage() -> void:
@@ -550,10 +711,10 @@ func _ensure_forge_controls() -> void:
 	_forge_popup.anchor_top = 0.5
 	_forge_popup.anchor_right = 0.5
 	_forge_popup.anchor_bottom = 0.5
-	_forge_popup.offset_left = -220.0
-	_forge_popup.offset_top = -80.0
-	_forge_popup.offset_right = 220.0
-	_forge_popup.offset_bottom = 80.0
+	_forge_popup.offset_left = -240.0
+	_forge_popup.offset_top = -120.0
+	_forge_popup.offset_right = 240.0
+	_forge_popup.offset_bottom = 120.0
 	_forge_popup.mouse_filter = Control.MOUSE_FILTER_STOP
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.13, 0.11, 0.98)
@@ -563,15 +724,15 @@ func _ensure_forge_controls() -> void:
 	add_child(_forge_popup)
 	_forge_popup_body = Label.new()
 	_forge_popup_body.name = "Body"
-	_forge_popup_body.position = Vector2(16, 16)
-	_forge_popup_body.size = Vector2(408, 72)
+	_forge_popup_body.position = Vector2(20, 18)
+	_forge_popup_body.size = Vector2(440, 128)
 	_forge_popup_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_forge_popup_body.add_theme_font_size_override("font_size", 16)
 	_forge_popup_body.add_theme_color_override("font_color", Color(0.88, 0.92, 0.84, 1))
 	_forge_popup.add_child(_forge_popup_body)
 	var close := Button.new()
 	close.name = "Close"
-	close.position = Vector2(16, 100)
+	close.position = Vector2(20, 164)
 	close.size = Vector2(120, 36)
 	close.text = ContentStrings.get_text("btn_close")
 	close.pressed.connect(hide_forge_popup)
@@ -743,7 +904,8 @@ func _refresh_reopen_button() -> void:
 	ascension_reopen_button.visible = (
 		GameState.fruit_harvested_pending_ascend and not ascension_panel.visible
 	)
-	ascension_reopen_button.text = ContentStrings.get_text("ascension_paused_title")
+	ascension_reopen_button.text = ""
+	ascension_reopen_button.tooltip_text = ContentStrings.get_text("ascension_paused_title")
 
 
 func _sync_ascension_from_state() -> void:
@@ -925,20 +1087,18 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 	var ess_need: int = int(needs.get("essence", 0))
 	var fert_have: int = GameState.get_need_have(&"fertilizer")
 	var ess_have: int = GameState.get_need_have(&"essence")
-	if grow_fert_icon:
-		grow_fert_icon.color = ICON_FERTILIZER
-	if grow_ess_icon:
-		grow_ess_icon.color = ICON_ESSENCE
 	if grow_fert_need:
 		var fert_key: String = "tree_grow_cost_fertilizer" if fert_have < fert_need else "tree_grow_cost_fertilizer_met"
-		grow_fert_need.text = ContentStrings.get_text(fert_key, {
+		grow_fert_need.text = "%d/%d" % [fert_have, fert_need]
+		grow_fert_need.tooltip_text = ContentStrings.get_text(fert_key, {
 			"item": ContentStrings.get_text("fertilizer_name"),
 			"have": fert_have,
 			"need": fert_need,
 		})
 	if grow_ess_need:
 		var ess_key: String = "tree_grow_cost_essence" if ess_have < ess_need else "tree_grow_cost_essence_met"
-		grow_ess_need.text = ContentStrings.get_text(ess_key, {
+		grow_ess_need.text = "%d/%d" % [ess_have, ess_need]
+		grow_ess_need.tooltip_text = ContentStrings.get_text(ess_key, {
 			"item": ContentStrings.get_text("hud_essence"),
 			"have": ess_have,
 			"need": ess_need,
@@ -1148,7 +1308,9 @@ func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H)
 	row.add_theme_constant_override("separation", 8)
-	row.add_child(_placeholder_icon(stack.get("color", Color.GRAY) as Color))
+	var stack_id: String = str(stack.get("id", ""))
+	var stack_name: String = str(stack.get("display_name", stack_id))
+	row.add_child(_make_item_icon(stack_id, stack_name))
 	var lbl := Label.new()
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var count: int = int(stack.get("count", 0))
@@ -1179,8 +1341,8 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 8)
 	row.clip_contents = true
-	var swatch: Color = Equipment.item_color(out_id) if equipment_out else Backpack.item_color(out_id)
-	row.add_child(_placeholder_icon(swatch))
+	var craft_name: String = Equipment.item_display_name(out_id) if equipment_out else Backpack.item_display_name(out_id)
+	row.add_child(_make_item_icon(out_id, craft_name))
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.size_flags_stretch_ratio = 1.0
@@ -1397,11 +1559,9 @@ func _rebuild_upgrades() -> void:
 		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 		inner.add_theme_constant_override("separation", 8)
 		if uid == "keep_tools":
-			var keep_icon := ColorRect.new()
-			keep_icon.custom_minimum_size = Vector2(32, 32)
-			keep_icon.color = ICON_KEEP_TOOLS
-			keep_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var keep_icon := _placeholder_icon(PLACEHOLDER_SWATCH)
 			keep_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			keep_icon.tooltip_text = ContentStrings.get_text("upgrade_keep_tools_name")
 			inner.add_child(keep_icon)
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL

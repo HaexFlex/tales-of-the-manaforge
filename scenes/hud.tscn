@@ -12,134 +12,222 @@ layer = 20
 script = ExtResource("1_hud")
 
 [node name="Panel" type="ColorRect" parent="."]
-offset_left = 24.0
-offset_top = 16.0
-offset_right = 1256.0
-offset_bottom = 144.0
-color = Color(0.08, 0.1, 0.14, 0.85)
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 1268.0
+offset_bottom = 118.0
+color = Color(0.04, 0.06, 0.05, 0.42)
 
 [node name="IconRow" type="HBoxContainer" parent="Panel"]
-offset_left = 16.0
-offset_top = 8.0
-offset_right = 168.0
-offset_bottom = 40.0
-theme_override_constants/separation = 8
+offset_left = 8.0
+offset_top = 6.0
+offset_right = 760.0
+offset_bottom = 42.0
+theme_override_constants/separation = 12
 
-[node name="IconWood" type="TextureRect" parent="Panel/IconRow"]
+[node name="WoodChip" type="HBoxContainer" parent="Panel/IconRow"]
+theme_override_constants/separation = 4
+tooltip_text = "Wood"
+
+[node name="IconWood" type="TextureRect" parent="Panel/IconRow/WoodChip"]
 custom_minimum_size = Vector2(32, 32)
 texture_filter = 0
 texture = ExtResource("2_wood")
 expand_mode = 1
-stretch_mode = 2
+stretch_mode = 5
 
-[node name="IconStone" type="TextureRect" parent="Panel/IconRow"]
+[node name="NumWood" type="Label" parent="Panel/IconRow/WoodChip"]
+custom_minimum_size = Vector2(28, 32)
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
+text = "0"
+vertical_alignment = 1
+
+[node name="StoneChip" type="HBoxContainer" parent="Panel/IconRow"]
+theme_override_constants/separation = 4
+tooltip_text = "Stone"
+
+[node name="IconStone" type="TextureRect" parent="Panel/IconRow/StoneChip"]
 custom_minimum_size = Vector2(32, 32)
 texture_filter = 0
 texture = ExtResource("3_stone")
 expand_mode = 1
-stretch_mode = 2
+stretch_mode = 5
 
-[node name="IconFood" type="TextureRect" parent="Panel/IconRow"]
+[node name="NumStone" type="Label" parent="Panel/IconRow/StoneChip"]
+custom_minimum_size = Vector2(28, 32)
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
+text = "0"
+vertical_alignment = 1
+
+[node name="FoodChip" type="HBoxContainer" parent="Panel/IconRow"]
+theme_override_constants/separation = 4
+tooltip_text = "Food"
+
+[node name="IconFood" type="TextureRect" parent="Panel/IconRow/FoodChip"]
 custom_minimum_size = Vector2(32, 32)
 texture_filter = 0
 texture = ExtResource("4_food")
 expand_mode = 1
-stretch_mode = 2
+stretch_mode = 5
 
-[node name="IconManashards" type="TextureRect" parent="Panel/IconRow"]
+[node name="NumFood" type="Label" parent="Panel/IconRow/FoodChip"]
+custom_minimum_size = Vector2(28, 32)
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
+text = "0"
+vertical_alignment = 1
+
+[node name="ShardChip" type="HBoxContainer" parent="Panel/IconRow"]
+theme_override_constants/separation = 4
+tooltip_text = "Manashards"
+
+[node name="IconShards" type="TextureRect" parent="Panel/IconRow/ShardChip"]
 custom_minimum_size = Vector2(32, 32)
 texture_filter = 0
 texture = ExtResource("5_shards")
 expand_mode = 1
-stretch_mode = 2
+stretch_mode = 5
+
+[node name="NumShards" type="Label" parent="Panel/IconRow/ShardChip"]
+custom_minimum_size = Vector2(36, 32)
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
+text = "0"
+vertical_alignment = 1
+
+[node name="EssenceChip" type="HBoxContainer" parent="Panel/IconRow"]
+theme_override_constants/separation = 4
+tooltip_text = "Essence"
+
+[node name="IconEssence" type="TextureRect" parent="Panel/IconRow/EssenceChip"]
+custom_minimum_size = Vector2(32, 32)
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="NumEssence" type="Label" parent="Panel/IconRow/EssenceChip"]
+custom_minimum_size = Vector2(36, 32)
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
+text = "0"
+vertical_alignment = 1
 
 [node name="ResourcesLabel" type="Label" parent="Panel"]
-offset_left = 176.0
-offset_top = 10.0
-offset_right = 790.0
-offset_bottom = 34.0
+visible = false
+offset_left = 8.0
+offset_top = 4.0
+offset_right = 12.0
+offset_bottom = 8.0
 theme_override_font_sizes/font_size = 14
-text = "Wood 0  |  Stone 0  |  Food 0  |  Manashards 0  |  Essence 0"
+text = ""
 
 [node name="StageLabel" type="Label" parent="Panel"]
-offset_left = 16.0
+offset_left = 8.0
 offset_top = 44.0
-offset_right = 1000.0
-offset_bottom = 68.0
+offset_right = 520.0
+offset_bottom = 64.0
 theme_override_font_sizes/font_size = 13
 text = "Sapling"
 
 [node name="ControlsHint" type="Label" parent="Panel"]
-offset_left = 16.0
-offset_top = 66.0
-offset_right = 1064.0
-offset_bottom = 86.0
+offset_left = 8.0
+offset_top = 64.0
+offset_right = 1040.0
+offset_bottom = 82.0
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.62, 0.72, 0.58, 1)
 text = "Left-click: select  ·  Right-click: command  ·  Left-click empty ground: deselect"
 
 [node name="StatusLabel" type="Label" parent="Panel"]
-offset_left = 16.0
-offset_top = 86.0
-offset_right = 1064.0
-offset_bottom = 106.0
+offset_left = 8.0
+offset_top = 80.0
+offset_right = 1040.0
+offset_bottom = 98.0
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.75, 0.85, 0.7, 1)
 text = "The forest is quiet. The Manatree is waiting."
 
 [node name="SelectionHint" type="Label" parent="Panel"]
-offset_left = 16.0
-offset_top = 106.0
-offset_right = 1064.0
-offset_bottom = 126.0
+offset_left = 8.0
+offset_top = 96.0
+offset_right = 1040.0
+offset_bottom = 112.0
 theme_override_font_sizes/font_size = 11
 theme_override_colors/font_color = Color(0.68, 0.78, 0.62, 1)
 text = "Left-click to select the Keeper. Right-click to walk, harvest, or tend."
 
 [node name="CharacterButton" type="Button" parent="Panel"]
-offset_left = 808.0
-offset_top = 24.0
-offset_right = 936.0
-offset_bottom = 56.0
-text = "Character"
+offset_left = 1068.0
+offset_top = 6.0
+offset_right = 1108.0
+offset_bottom = 46.0
+flat = true
+tooltip_text = "C — Character"
 
 [node name="CharacterIcon" type="ColorRect" parent="Panel/CharacterButton"]
 offset_left = 6.0
 offset_top = 6.0
-offset_right = 26.0
-offset_bottom = 26.0
+offset_right = 34.0
+offset_bottom = 34.0
 mouse_filter = 2
-color = Color(0.77, 0.64, 0.29, 1)
+color = Color(0.46, 0.44, 0.4, 1)
 
 [node name="BackpackButton" type="Button" parent="Panel"]
-offset_left = 948.0
-offset_top = 24.0
-offset_right = 1068.0
-offset_bottom = 56.0
-text = "Backpack"
+offset_left = 1116.0
+offset_top = 4.0
+offset_right = 1156.0
+offset_bottom = 44.0
+flat = true
+tooltip_text = "Backpack"
 
-[node name="BackpackIcon" type="ColorRect" parent="Panel/BackpackButton"]
-offset_left = 6.0
-offset_top = 6.0
-offset_right = 26.0
-offset_bottom = 26.0
+[node name="BackpackIcon" type="TextureRect" parent="Panel/BackpackButton"]
+custom_minimum_size = Vector2(32, 32)
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 36.0
+offset_bottom = 36.0
 mouse_filter = 2
-color = Color(0.48, 0.31, 0.18, 1)
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="PauseButton" type="Button" parent="Panel"]
-offset_left = 1080.0
-offset_top = 24.0
-offset_right = 1192.0
-offset_bottom = 56.0
-text = "Pause"
+offset_left = 1164.0
+offset_top = 4.0
+offset_right = 1204.0
+offset_bottom = 44.0
+flat = true
+tooltip_text = "Pause"
+
+[node name="Icon" type="TextureRect" parent="Panel/PauseButton"]
+custom_minimum_size = Vector2(32, 32)
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 36.0
+offset_bottom = 36.0
+mouse_filter = 2
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="AscensionReopenButton" type="Button" parent="Panel"]
 visible = false
-offset_left = 1080.0
-offset_top = 64.0
-offset_right = 1192.0
-offset_bottom = 96.0
-text = "Ascension"
+offset_left = 1020.0
+offset_top = 6.0
+offset_right = 1060.0
+offset_bottom = 46.0
+flat = true
+tooltip_text = "Ascension"
+
+[node name="Placeholder" type="ColorRect" parent="Panel/AscensionReopenButton"]
+offset_left = 6.0
+offset_top = 6.0
+offset_right = 34.0
+offset_bottom = 34.0
+mouse_filter = 2
+color = Color(0.46, 0.44, 0.4, 1)
 
 [node name="CarePanel" type="Panel" parent="."]
 visible = false
@@ -205,9 +293,11 @@ offset_right = 504.0
 offset_bottom = 292.0
 theme_override_constants/separation = 12
 
-[node name="FertilizerIcon" type="ColorRect" parent="CarePanel/CareGrowCosts"]
+[node name="FertilizerIcon" type="TextureRect" parent="CarePanel/CareGrowCosts"]
 custom_minimum_size = Vector2(32, 32)
-color = Color(0.42, 0.35, 0.14, 1)
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="FertilizerNeed" type="Label" parent="CarePanel/CareGrowCosts"]
 custom_minimum_size = Vector2(160, 32)
@@ -216,9 +306,11 @@ theme_override_colors/font_color = Color(0.86, 0.82, 0.68, 1)
 text = "Fertilizer 0/1"
 vertical_alignment = 1
 
-[node name="EssenceIcon" type="ColorRect" parent="CarePanel/CareGrowCosts"]
+[node name="EssenceIcon" type="TextureRect" parent="CarePanel/CareGrowCosts"]
 custom_minimum_size = Vector2(32, 32)
-color = Color(0.56, 0.35, 0.66, 1)
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="EssenceNeed" type="Label" parent="CarePanel/CareGrowCosts"]
 custom_minimum_size = Vector2(160, 32)

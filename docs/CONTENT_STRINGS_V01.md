@@ -28,7 +28,7 @@
 | **v0.5.0** | Haex GREENLIGHT: Character sheet, seven stats (VISION), Runestone spend (Manashards), locked Weapon/Relic slot hints, Weapon Rod + Stone Sword, equip tooltips. Manatree scale note bundled (visual — D7). |
 | **v0.5.1** | Design id lock: slots `weapon`/`relic`/`head`/`body`/`hands`/`pants`/`feet`/`cape`/`ring1`/`ring2` (only weapon unlocked); item id `stone_sword`; gear inventory ≠ backpack; HUD+C; D7 scales live (visual). |
 | **v0.6.0** | Haex GO Echo Chamber v1: Elaia (`echo_keeper_01`); portal 30 Essence; Enter Forge care-menu (no-key / not-built); Strike/Flee/Spare; bare-fists toast; Key both endings; companion Spare-only; KO/Spare/Defeat silent. |
-| **v0.6.1** | Haex Echo polish: Enter Forge **Elder/Ancient only**; `forge_not_built` → “Not built yet! Stay tuned.”; Forge Key relic +2 Swiftness +2 Fate. |
+| **v0.6.1** | Haex Echo polish: Enter Forge **Elder/Ancient only**; `forge_not_built` → “Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”; Forge Key relic +2 Swiftness +2 Fate. |
 | **v0.6.2** | Haex GO Echo polish: brief flavour dialogue keys (`echo_01_*` intro/mercy/spare/defeat/flee/return); battle log labels; confirm Enter Forge Elder/Ancient + Stay tuned + Forge Key +2/+2. |
 
 ---
@@ -719,7 +719,7 @@ Visual-only (Art/Code). No player-facing strings. **Live with v0.5:** sapling **
 
 Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 vs **Elaia** (`echo_keeper_01`) → Strike / Flee / Spare (&lt;10% HP, no Flee in mercy window) → Key both endings, companion flag Spare-only → save flags (SAVE **8**). Mid-fight HP not saved. Bare fists 0 damage (sword gate). Mercy floor + T1 no-KO. Battle music silence.  
 **Not this ship:** companion body in combat, 3v1, Cast/items/Guard, Forge interior/realm, Echo 2+, type chart, Wisps in combat.  
-**Forge entry:** Manatree care **Enter Forge** only — **Elder/Ancient only**; no world door. With Key → “Not built yet! Stay tuned.”
+**Forge entry:** Manatree care **Enter Forge** only — **Elder/Ancient only**; no world door. With Key → “Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”
 
 ### 11a. Enemy
 
@@ -790,7 +790,7 @@ Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 v
 | `forge_enter_hidden` | *(hidden — Sapling / Young / Mature)* |
 | `forge_enter_hint_elder` | Beyond the Manatree — Elder and Ancient only. |
 | `forge_no_key` | You have no key. |
-| `forge_not_built` | Not built yet! Stay tuned. |
+| `forge_not_built` | Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned. |
 | `forge_locked_hint` | Needs a Forge Key. |
 | `relic_slot_unlocked` | A relic niche opens. |
 

@@ -1,7 +1,7 @@
 # Art needed — Backpack, Handcraft, Grow
 
 **Owner:** Haex (art)  
-**Status:** placeholders shipped as **ColorRect** only (no generated PNGs)  
+**Status:** art drop c9fda76 wired the 32px icons that exist (wood, stone, food = fish, Manashards, Essence, Fertilizer, planks, fragments, rods, axe/pick heads, stone axe, stone pickaxe, backpack, pause). Still **neutral placeholder squares** (tooltip, no label): Wooden Basket, Stone Watering Can, Stone Sword, Keep Tools, Character, Ascension reopen, equip-slot chrome, care action buttons (Water / Grow / Harvest keep their words).  
 **Icon size:** **32×32** HUD / row icons, nearest-neighbor  
 **Code:** `scripts/autoload/backpack.gd` colors + `scenes/hud.tscn` / `scripts/hud.gd`
 
