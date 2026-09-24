@@ -56,8 +56,9 @@ func _run() -> void:
 	var decor: int = get_nodes_in_group("forest_decor").size()
 	_check(decor >= 280, "decor scatter is present (got %d)" % decor)
 
-	await _shot(live, "pt_new_game_hub.png")
-	await _shot(live, "pt_hud_1280.png")
+	await _shot(live, "pt_newgame_fresh.png")
+	var fill_n: int = get_nodes_in_group("forest_fill").size()
+	_check(fill_n >= 80, "outer forest fill (got %d)" % fill_n)
 
 	_aim(live, Vector2(-4000, -4000))
 	await _shot(live, "pt_corner_nw.png")
@@ -67,6 +68,7 @@ func _run() -> void:
 	await _shot(live, "pt_corner_sw.png")
 	_aim(live, Vector2(9000, 9000))
 	await _shot(live, "pt_corner_se.png")
+	_check_corner_forest("1280")
 
 	gs.call("_set_stage", &"mature")
 	gs.call("set_resource", &"wood", 40)
@@ -90,7 +92,6 @@ func _run() -> void:
 	_check(status.visible, "toast visible")
 	_check(str(status.get("text")).find("\n") < 0, "toast is a single line")
 	_check(str(status.get("text")).find("Gathered") >= 0, "toast text")
-	await _shot(live, "pt_toast.png")
 	await create_timer(3.8).timeout
 	_check(not status.visible, "toast faded out")
 
@@ -101,7 +102,6 @@ func _run() -> void:
 	var opt_panel: CanvasItem = pause.get_node("OptionsPanel") as CanvasItem
 	_check(opt_panel.is_visible_in_tree() and str(opt.get("text")).find("Left-click: select") >= 0, "options shows the controls")
 	_check(str(opt.get("text")).find("pan camera") >= 0, "options shows camera help")
-	await _shot(live, "pt_options_help.png")
 	pause.call("close_standalone")
 	await process_frame
 
@@ -120,16 +120,59 @@ func _run() -> void:
 	var pc: float = popup.get_global_rect().get_center().x
 	var cc: float = close.get_global_rect().get_center().x
 	_check(abs(pc - cc) < 8.0, "forge close button centered (popup %.1f close %.1f)" % [pc, cc])
-	_aim(live, Vector2(1600, 1560))
-	await _shot(live, "pt_forge_popup.png")
 	hud.call("hide_forge_popup")
 	await process_frame
 	_check(care.visible, "care returns when the forge popup closes")
 	_check(not bool(hud.call("is_forge_popup_open")), "forge popup closed")
+	hud.call("hide_care_menu")
 
-	var hud_md5 := FileAccess.get_md5(OUT + "/pt_hud_1280.png")
-	var se_md5 := FileAccess.get_md5(OUT + "/pt_corner_se.png")
-	_check(hud_md5 != "" and hud_md5 != se_md5, "pt_hud_1280 and pt_corner_se differ")
+	var win: Window = root as Window
+	win.size = Vector2i(960, 540)
+	for _r: int in range(6):
+		await process_frame
+	var view_960: Vector2 = live.get_viewport().get_visible_rect().size
+	print("VIEW960_WINDOW ", view_960)
+	if live.has_method("_clamp_camera"):
+		live.call("_clamp_camera")
+	_aim(live, Vector2(1520, 1640))
+	await _shot(live, "pt_hud_960.png")
+	# A real 960×540 viewport (stretch off) sees a different slice at the same world inset.
+	win.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	win.size = Vector2i(960, 540)
+	for _s: int in range(6):
+		await process_frame
+	var view_raw: Vector2 = live.get_viewport().get_visible_rect().size
+	print("VIEW960_RAW ", view_raw)
+	if live.has_method("_clamp_camera"):
+		live.call("_clamp_camera")
+	_aim(live, Vector2(-4000, -4000))
+	await _edge_forest(live, "top", "960 nw top")
+	await _edge_forest(live, "left", "960 nw left")
+	_aim(live, Vector2(9000, -4000))
+	await _edge_forest(live, "top", "960 ne top")
+	await _edge_forest(live, "right", "960 ne right")
+	_aim(live, Vector2(-4000, 9000))
+	await _edge_forest(live, "bottom", "960 sw bottom")
+	await _edge_forest(live, "left", "960 sw left")
+	_aim(live, Vector2(9000, 9000))
+	await _edge_forest(live, "bottom", "960 se bottom")
+	await _edge_forest(live, "right", "960 se right")
+
+	var names: PackedStringArray = PackedStringArray([
+		"pt_newgame_fresh.png",
+		"pt_corner_nw.png",
+		"pt_corner_ne.png",
+		"pt_corner_sw.png",
+		"pt_corner_se.png",
+		"pt_midgame.png",
+		"pt_hover_label.png",
+		"pt_hud_960.png",
+	])
+	var seen: Dictionary = {}
+	for file_name: String in names:
+		var md5: String = FileAccess.get_md5(OUT + "/" + file_name)
+		_check(md5 != "" and not seen.has(md5), "distinct " + file_name)
+		seen[md5] = file_name
 
 	print("DECOR %d" % decor)
 	if _fails == 0:
@@ -173,6 +216,71 @@ func _hover_world(live: Node, world_pos: Vector2) -> void:
 	for _i: int in range(4):
 		await process_frame
 		await physics_frame
+
+
+func _check_corner_forest(tag: String) -> void:
+	_check(_file_edge_forest(OUT + "/pt_corner_nw.png", "top") > 0.01, "%s nw top is forest" % tag)
+	_check(_file_edge_forest(OUT + "/pt_corner_nw.png", "left") > 0.01, "%s nw left is forest" % tag)
+	_check(_file_edge_forest(OUT + "/pt_corner_ne.png", "top") > 0.01, "%s ne top is forest" % tag)
+	_check(_file_edge_forest(OUT + "/pt_corner_ne.png", "right") > 0.01, "%s ne right is forest" % tag)
+	_check(_file_edge_forest(OUT + "/pt_corner_sw.png", "bottom") > 0.01, "%s sw bottom is forest" % tag)
+	_check(_file_edge_forest(OUT + "/pt_corner_sw.png", "left") > 0.01, "%s sw left is forest" % tag)
+	_check(_file_edge_forest(OUT + "/pt_corner_se.png", "bottom") > 0.01, "%s se bottom is forest" % tag)
+	_check(_file_edge_forest(OUT + "/pt_corner_se.png", "right") > 0.01, "%s se right is forest" % tag)
+
+
+func _file_edge_forest(path: String, edge: String) -> float:
+	var img := Image.load_from_file(path)
+	if img == null:
+		return 0.0
+	return _edge_gvar(img, edge)
+
+
+func _edge_forest(live: Node, edge: String, message: String) -> void:
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var img: Image = live.get_viewport().get_texture().get_image()
+	var gvar: float = 0.0
+	if img != null:
+		gvar = _edge_gvar(img, edge)
+	# Color channels are 0–1, so variance is tiny. Flat grass sat near 0.002.
+	_check(gvar > 0.01, "%s (gvar %.4f)" % [message, gvar])
+
+
+func _edge_gvar(img: Image, edge: String) -> float:
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	var x0: int = 8
+	var y0: int = 8
+	var x1: int = w - 8
+	var y1: int = h - 8
+	var band: int = maxi(24, int(float(mini(w, h)) * 0.16))
+	match edge:
+		"top":
+			y1 = mini(h, band)
+		"bottom":
+			y0 = maxi(0, h - band)
+		"left":
+			x1 = mini(w, band)
+		"right":
+			x0 = maxi(0, w - band)
+	var sum: float = 0.0
+	var sum2: float = 0.0
+	var n: int = 0
+	var y: int = y0
+	while y < y1:
+		var x: int = x0
+		while x < x1:
+			var g: float = img.get_pixel(x, y).g
+			sum += g
+			sum2 += g * g
+			n += 1
+			x += 8
+		y += 4
+	if n < 4:
+		return 0.0
+	var mean: float = sum / float(n)
+	return sum2 / float(n) - mean * mean
 
 
 func _shot(live: Node, file_name: String) -> void:

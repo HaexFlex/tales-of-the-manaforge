@@ -221,12 +221,25 @@ func get_camera_position_clamped() -> Vector2:
 	return _clamped_camera_pos(camera.position if camera else Vector2.ZERO)
 
 
+## Keep the outer hem of the map — bare grass past the last trunks — off screen.
+const CAMERA_EDGE_INSET: float = 120.0
+
+
+func _half_view() -> Vector2:
+	var view := view_size
+	if is_inside_tree():
+		var vp := get_viewport().get_visible_rect().size
+		if vp.x >= 64.0 and vp.y >= 64.0:
+			view = vp
+	return view * 0.5
+
+
 func camera_min() -> Vector2:
-	return view_size * 0.5
+	return _half_view() + Vector2(CAMERA_EDGE_INSET, CAMERA_EDGE_INSET)
 
 
 func camera_max() -> Vector2:
-	return play_size - view_size * 0.5
+	return play_size - _half_view() - Vector2(CAMERA_EDGE_INSET, CAMERA_EDGE_INSET)
 
 
 func _clamped_camera_pos(pos: Vector2) -> Vector2:
@@ -383,6 +396,7 @@ func _spawn_forest_props() -> void:
 		_scatter_grid(rng, bush_entries, occupied, "bush", 18, 2, Rect2(280, 1780, 2000, 70), 36.0, 10.0, 18.0)
 		_scatter_grid(rng, tuft_entries, occupied, "tuft", 16, 1, Rect2(420, 340, 1720, 36), 24.0, 8.0, 28.0)
 		_seal_clearing_edge(rng, bush_entries, occupied)
+		_fill_outer_forest(tree_entries, bush_entries, occupied)
 		_spawn_ground_decor(rng, occupied)
 		return
 	for band_v: Variant in bands:
@@ -413,6 +427,7 @@ func _spawn_forest_props() -> void:
 			float(band.get("glade_inset", 0.0))
 		)
 	_seal_clearing_edge(rng, bush_entries, occupied)
+	_fill_outer_forest(tree_entries, bush_entries, occupied)
 	_spawn_ground_decor(rng, occupied)
 
 
@@ -428,6 +443,72 @@ func _point_on_clearing(ang: float, target_norm: float) -> Vector2:
 		else:
 			hi = mid
 	return pos
+
+
+func _fill_outer_forest(tree_entries: Array[Dictionary], bush_entries: Array[Dictionary], occupied: Array[Vector2]) -> void:
+	## Visual canopy past the walk wall, out to the play edge the camera can see.
+	## No extra colliders — the bush seal stays the wall.
+	if tree_entries.is_empty():
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = scatter_seed + 91
+	var n: int = 0
+	var step: float = 108.0
+	var y: float = 36.0
+	var row_i: int = 0
+	while y < play_size.y + 48.0:
+		var x: float = 24.0
+		if row_i % 2 == 1:
+			x += step * 0.5
+		while x < play_size.x + 48.0:
+			var pos := Vector2(x, y)
+			pos += Vector2(rng.randf_range(-14.0, 14.0), rng.randf_range(-12.0, 12.0))
+			pos.x = clampf(pos.x, 12.0, play_size.x + 24.0)
+			pos.y = clampf(pos.y, 28.0, play_size.y + 36.0)
+			if _ellipse_norm(pos) >= 1.02 and _skirt_clear(pos, occupied, 72.0):
+				var entry: Dictionary = tree_entries[n % tree_entries.size()].duplicate()
+				entry["visual_only"] = true
+				_plant_prop(entry, pos, "tree")
+				occupied.append(pos)
+				n += 1
+			x += step
+		y += step * 0.92
+		row_i += 1
+	if bush_entries.is_empty():
+		return
+	var bn: int = 0
+	var bstep: float = 54.0
+	y = 20.0
+	row_i = 0
+	while y < play_size.y + 28.0:
+		var x: float = 16.0
+		if row_i % 2 == 1:
+			x += bstep * 0.5
+		while x < play_size.x + 28.0:
+			var pos := Vector2(x, y)
+			pos += Vector2(rng.randf_range(-8.0, 8.0), rng.randf_range(-6.0, 6.0))
+			pos.x = clampf(pos.x, 8.0, play_size.x + 16.0)
+			pos.y = clampf(pos.y, 16.0, play_size.y + 20.0)
+			var norm: float = _ellipse_norm(pos)
+			var hem: bool = pos.x < 360.0 or pos.y < 280.0 or pos.x > play_size.x - 360.0 or pos.y > play_size.y - 340.0
+			if norm >= 1.06 and hem and _skirt_clear(pos, occupied, 34.0):
+				var entry: Dictionary = bush_entries[bn % bush_entries.size()].duplicate()
+				entry["visual_only"] = true
+				_plant_prop(entry, pos, "bush")
+				occupied.append(pos)
+				bn += 1
+			x += bstep
+		y += bstep
+		row_i += 1
+
+
+func _skirt_clear(pos: Vector2, occupied: Array[Vector2], min_sep: float) -> bool:
+	if not _clear_of_landmarks(pos, 0.0):
+		return false
+	for other: Vector2 in occupied:
+		if pos.distance_to(other) < min_sep:
+			return false
+	return true
 
 
 func _seal_clearing_edge(rng: RandomNumberGenerator, bush_entries: Array[Dictionary], occupied: Array[Vector2]) -> void:
@@ -555,9 +636,12 @@ func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void
 	spr.scale = Vector2(spr_scale, spr_scale)
 	spr.y_sort_enabled = true
 	root.add_child(spr)
-	if kind == "decor":
-		root.add_to_group("forest_decor")
-		spr.modulate = Color(1.15, 1.22, 1.06, 1.0)
+	if kind == "decor" or bool(entry.get("visual_only", false)):
+		if kind == "decor":
+			root.add_to_group("forest_decor")
+			spr.modulate = Color(1.15, 1.22, 1.06, 1.0)
+		else:
+			root.add_to_group("forest_fill")
 		world.add_child(root)
 		return
 	var body := StaticBody2D.new()
