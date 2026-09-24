@@ -20,6 +20,7 @@ enum ChannelKind { NONE, HARVEST, WATER }
 var _channel_kind: int = ChannelKind.NONE
 var _channel_target: Node = null
 var _channel_accum: float = 0.0
+var _hovered: bool = false
 
 const ARRIVE_DIST: float = 12.0
 const INTERACT_DIST: float = 64.0
@@ -46,8 +47,12 @@ func _ready() -> void:
 		select_ring.texture = load("res://assets/art/keeper/keeper_select_ring.png") as Texture2D
 		select_ring.visible = false
 		select_ring.z_index = -1
+	if label:
+		label.visible = false
 	if click_area:
 		click_area.input_event.connect(_on_click_area_input)
+		click_area.mouse_entered.connect(_on_hover.bind(true))
+		click_area.mouse_exited.connect(_on_hover.bind(false))
 		click_area.collision_layer = 4
 		click_area.collision_mask = 0
 		click_area.monitoring = false
@@ -325,6 +330,11 @@ func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -
 			get_viewport().set_input_as_handled()
 
 
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_on_selection_changed()
+
+
 func _on_selection_changed() -> void:
 	if select_ring:
 		select_ring.visible = GameState.keeper_selected
@@ -335,3 +345,4 @@ func _on_selection_changed() -> void:
 		else:
 			label.text = ContentStrings.get_text("keeper_select")
 			modulate = Color.WHITE
+		label.visible = _hovered

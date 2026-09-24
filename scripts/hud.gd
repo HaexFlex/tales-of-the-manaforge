@@ -12,7 +12,9 @@ class_name GameHUD
 @onready var stage_label: Label = $Panel/StageLabel
 @onready var controls_hint: Label = $Panel/ControlsHint
 @onready var status_label: Label = $Panel/StatusLabel
+@onready var toast_shade: ColorRect = $Panel/ToastShade
 @onready var selection_hint: Label = $Panel/SelectionHint
+@onready var help_button: Button = $Panel/HelpButton
 @onready var pause_button: Button = $Panel/PauseButton
 @onready var character_button: Button = $Panel/CharacterButton
 @onready var character_icon: ColorRect = $Panel/CharacterButton/CharacterIcon
@@ -122,11 +124,16 @@ var _fruit_confirm_step: int = 0
 var _highlight_ascend: bool = false
 var _backpack_tab: String = "all"
 var _sheet: CharacterSheet = null
+var _toast_tween: Tween
+var _care_hidden_for_forge: bool = false
+const TOAST_HOLD_SEC: float = 2.6
+const TOAST_FADE_SEC: float = 0.8
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	panel.color = Color(0.08, 0.1, 0.14, 0.85)
+	panel.color = Color(0, 0, 0, 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ascension_panel.visible = false
 	fruit_confirm_panel.visible = false
 	care_panel.visible = false
@@ -209,9 +216,15 @@ func _ready() -> void:
 	GameState.load_completed.connect(_on_game_state_loaded)
 	Backpack.inventory_changed.connect(_on_backpack_inventory)
 	_refresh_all()
-	status_label.text = ContentStrings.get_text("boot_line")
+	stage_label.visible = false
+	controls_hint.visible = false
+	selection_hint.visible = false
+	status_label.visible = false
+	if toast_shade:
+		toast_shade.visible = false
 	_refresh_controls_hint()
 	_refresh_selection_hint()
+	_show_toast(ContentStrings.get_text("boot_line"))
 	_sync_ascension_from_state()
 
 
@@ -310,7 +323,11 @@ func _bind_tex_states(btn: Button, icon: TextureRect, normal: String, hover: Str
 
 
 func _wire_sprite_hud() -> void:
-	panel.color = Color(0.04, 0.06, 0.05, 0.42)
+	panel.color = Color(0, 0, 0, 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon_row: Control = $Panel/IconRow
+	if icon_row:
+		icon_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_assign_tex($Panel/IconRow/WoodChip/IconWood, ICON_WOOD_TEX, ContentStrings.get_text("hud_wood"))
 	_assign_tex($Panel/IconRow/StoneChip/IconStone, ICON_STONE_TEX, ContentStrings.get_text("hud_stone"))
 	_assign_tex($Panel/IconRow/FoodChip/IconFood, ICON_FOOD_TEX, ContentStrings.get_text("hud_food"))
@@ -455,7 +472,7 @@ func _on_welcome_dismiss() -> void:
 	GameState.welcome_shown = true
 	hide_welcome()
 	GameAudio.play_ui_confirm()
-	status_label.text = ContentStrings.get_text("controls_hint")
+	_show_toast(ContentStrings.get_text("boot_line"))
 	SaveService.save_game()
 
 
@@ -480,18 +497,60 @@ func _on_needs() -> void:
 
 
 func _on_status(text: String) -> void:
-	status_label.text = text
+	_show_toast(text)
 
 
-func _refresh_controls_hint() -> void:
-	if controls_hint == null:
-		return
-	controls_hint.text = "%s  ·  %s  ·  %s  ·  %s" % [
+func _controls_line() -> String:
+	return "%s  ·  %s  ·  %s  ·  %s" % [
 		ContentStrings.get_text("controls_lmb_select"),
 		ContentStrings.get_text("controls_rmb_command"),
 		ContentStrings.get_text("controls_lmb_deselect"),
 		ContentStrings.get_text("controls_camera_pan"),
 	]
+
+
+func _show_toast(text: String) -> void:
+	if status_label == null:
+		return
+	var line := text.strip_edges()
+	var nl := line.find("\n")
+	if nl >= 0:
+		line = line.substr(0, nl).strip_edges()
+	if line == "":
+		return
+	status_label.text = line
+	status_label.visible = true
+	status_label.modulate.a = 1.0
+	if toast_shade:
+		toast_shade.visible = true
+		toast_shade.modulate.a = 0.92
+	if _toast_tween != null and _toast_tween.is_valid():
+		_toast_tween.kill()
+	_toast_tween = create_tween()
+	_toast_tween.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_toast_tween.tween_interval(TOAST_HOLD_SEC)
+	_toast_tween.tween_property(status_label, "modulate:a", 0.0, TOAST_FADE_SEC)
+	if toast_shade:
+		_toast_tween.parallel().tween_property(toast_shade, "modulate:a", 0.0, TOAST_FADE_SEC)
+	_toast_tween.tween_callback(_hide_toast)
+
+
+func _hide_toast() -> void:
+	if status_label:
+		status_label.visible = false
+	if toast_shade:
+		toast_shade.visible = false
+
+
+func _refresh_controls_hint() -> void:
+	if controls_hint == null:
+		return
+	var line := _controls_line()
+	controls_hint.text = line
+	controls_hint.visible = false
+	if help_button:
+		help_button.text = ""
+		help_button.tooltip_text = line
 
 
 func _refresh_selection_hint() -> void:
@@ -506,6 +565,7 @@ func _refresh_selection_hint() -> void:
 		selection_hint.text = ContentStrings.get_text("keeper_move_prompt")
 	else:
 		selection_hint.text = ContentStrings.get_text("keeper_select_hint")
+	selection_hint.visible = false
 
 
 var _pause_menu: PauseMenu = null
@@ -587,6 +647,7 @@ func _refresh_stage() -> void:
 		str(def.get("display_name", GameState.stage_id)),
 		ContentStrings.get_text("ascend_count_hud", {"count": GameState.ascensions}),
 	]
+	stage_label.visible = false
 
 
 func _refresh_care_needs() -> void:
@@ -676,6 +737,7 @@ func open_fruit_from_care() -> void:
 
 
 func hide_care_menu() -> void:
+	_care_hidden_for_forge = false
 	if care_panel.visible:
 		GameAudio.play_ui_close()
 	care_panel.visible = false
@@ -711,29 +773,38 @@ func _ensure_forge_controls() -> void:
 	_forge_popup.anchor_top = 0.5
 	_forge_popup.anchor_right = 0.5
 	_forge_popup.anchor_bottom = 0.5
-	_forge_popup.offset_left = -240.0
-	_forge_popup.offset_top = -120.0
-	_forge_popup.offset_right = 240.0
-	_forge_popup.offset_bottom = 120.0
+	_forge_popup.offset_left = -210.0
+	_forge_popup.offset_top = -78.0
+	_forge_popup.offset_right = 210.0
+	_forge_popup.offset_bottom = 72.0
 	_forge_popup.mouse_filter = Control.MOUSE_FILTER_STOP
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.13, 0.11, 0.98)
+	sb.bg_color = Color(0.08, 0.13, 0.11, 1)
 	sb.border_color = Color(0.45, 0.58, 0.48, 1)
 	sb.set_border_width_all(2)
+	sb.set_content_margin_all(12)
 	_forge_popup.add_theme_stylebox_override("panel", sb)
 	add_child(_forge_popup)
 	_forge_popup_body = Label.new()
 	_forge_popup_body.name = "Body"
-	_forge_popup_body.position = Vector2(20, 18)
-	_forge_popup_body.size = Vector2(440, 128)
+	_forge_popup_body.position = Vector2(16, 12)
+	_forge_popup_body.size = Vector2(388, 78)
 	_forge_popup_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_forge_popup_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_forge_popup_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_forge_popup_body.add_theme_font_size_override("font_size", 16)
 	_forge_popup_body.add_theme_color_override("font_color", Color(0.88, 0.92, 0.84, 1))
 	_forge_popup.add_child(_forge_popup_body)
 	var close := Button.new()
 	close.name = "Close"
-	close.position = Vector2(20, 164)
-	close.size = Vector2(120, 36)
+	close.anchor_left = 0.5
+	close.anchor_right = 0.5
+	close.anchor_top = 1.0
+	close.anchor_bottom = 1.0
+	close.offset_left = -70.0
+	close.offset_right = 70.0
+	close.offset_top = -44.0
+	close.offset_bottom = -10.0
 	close.text = ContentStrings.get_text("btn_close")
 	close.pressed.connect(hide_forge_popup)
 	_forge_popup.add_child(close)
@@ -778,6 +849,9 @@ func open_forge_entry() -> String:
 	var msg: String = ContentStrings.get_text("forge_not_built" if GameState.forge_key else "forge_no_key")
 	if _forge_popup_body:
 		_forge_popup_body.text = msg
+	if care_panel and care_panel.visible:
+		_care_hidden_for_forge = true
+		care_panel.visible = false
 	if _forge_popup:
 		_forge_popup.visible = true
 	GameAudio.play_ui_confirm()
@@ -785,9 +859,15 @@ func open_forge_entry() -> String:
 
 
 func hide_forge_popup() -> void:
-	if _forge_popup and _forge_popup.visible:
+	var was_open := _forge_popup != null and _forge_popup.visible
+	if _forge_popup:
 		_forge_popup.visible = false
+	if was_open:
 		GameAudio.play_ui_close()
+	if _care_hidden_for_forge:
+		_care_hidden_for_forge = false
+		if care_panel:
+			care_panel.visible = true
 
 
 func _on_enter_forge() -> void:
@@ -1019,13 +1099,13 @@ func _show_fruit_confirm_step() -> void:
 		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step1")
 		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step1_yes")
 		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step1_no")
-		status_label.text = ContentStrings.get_text("fruit_confirm_step1")
+		_show_toast(ContentStrings.get_text("fruit_confirm_step1"))
 	else:
 		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step2_title")
 		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step2")
 		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step2_yes")
 		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step2_no")
-		status_label.text = ContentStrings.get_text("fruit_confirm_step2")
+		_show_toast(ContentStrings.get_text("fruit_confirm_step2"))
 	_refresh_dim()
 
 
@@ -1042,10 +1122,10 @@ func _commit_primordial_fruit() -> void:
 	hide_fruit_confirm()
 	hide_care_menu()
 	GameAudio.play_fruit_harvest()
-	status_label.text = "%s\n%s" % [
+	_show_toast("%s\n%s" % [
 		ContentStrings.get_text("fruit_harvest_toast"),
 		ContentStrings.get_text("fruit_flow_hint"),
-	]
+	])
 	_hold_world_for_ascension()
 	show_ascension_shop()
 	SaveService.save_game()
@@ -1466,20 +1546,20 @@ func _on_craft(recipe_id: String) -> void:
 	if result == "ok":
 		GameAudio.play_ui_confirm()
 		if out_id == "fertilizer":
-			status_label.text = ContentStrings.get_text("fertilizer_craft_ok")
+			_show_toast(ContentStrings.get_text("fertilizer_craft_ok"))
 		else:
-			status_label.text = ContentStrings.get_text("handcraft_ok", {"item": item_name})
+			_show_toast(ContentStrings.get_text("handcraft_ok", {"item": item_name}))
 		_rebuild_backpack()
 		_refresh_resources()
 		SaveService.save_game()
 		return
 	GameAudio.play_tree_deny()
 	if result == "unique":
-		status_label.text = ContentStrings.get_text("handcraft_owned_unique")
+		_show_toast(ContentStrings.get_text("handcraft_owned_unique"))
 	else:
-		status_label.text = ContentStrings.get_text("handcraft_cant_afford", {
+		_show_toast(ContentStrings.get_text("handcraft_cant_afford", {
 			"costs": "  ".join(Backpack.recipe_ingredient_lines(recipe_id)),
-		})
+		}))
 	_rebuild_backpack()
 
 
@@ -1489,18 +1569,18 @@ func _on_craft_gear(recipe_id: String) -> void:
 	var item_name: String = Equipment.item_display_name(out_id)
 	if result == "ok":
 		GameAudio.play_ui_confirm()
-		status_label.text = ContentStrings.get_text("weapon_craft_ok", {"item": item_name})
+		_show_toast(ContentStrings.get_text("weapon_craft_ok", {"item": item_name}))
 		_rebuild_backpack()
 		_refresh_resources()
 		SaveService.save_game()
 		return
 	GameAudio.play_tree_deny()
 	if result == "unique":
-		status_label.text = ContentStrings.get_text("handcraft_owned_unique")
+		_show_toast(ContentStrings.get_text("handcraft_owned_unique"))
 	else:
-		status_label.text = ContentStrings.get_text("handcraft_cant_afford", {
+		_show_toast(ContentStrings.get_text("handcraft_cant_afford", {
 			"costs": "  ".join(Equipment.recipe_ingredient_lines(recipe_id)),
-		})
+		}))
 	_rebuild_backpack()
 
 
@@ -1644,9 +1724,9 @@ func _on_buy(upgrade_id: String) -> void:
 		GameAudio.play_upgrade_buy()
 		var disp: String = str(GameState.get_upgrade_def(upgrade_id).get("display_name", upgrade_id))
 		if upgrade_id == "keep_tools":
-			status_label.text = ContentStrings.get_text("upgrade_keep_tools_toast")
+			_show_toast(ContentStrings.get_text("upgrade_keep_tools_toast"))
 		else:
-			status_label.text = ContentStrings.get_text("upgrade_buy_ok", {"blessing_name": disp})
+			_show_toast(ContentStrings.get_text("upgrade_buy_ok", {"blessing_name": disp}))
 		_confirm_ascend = false
 		_rebuild_upgrades()
 		_refresh_all()
@@ -1658,10 +1738,10 @@ func _on_ascend() -> void:
 		return
 	if not _confirm_ascend:
 		_confirm_ascend = true
-		status_label.text = "%s\n%s" % [
+		_show_toast("%s\n%s" % [
 			ContentStrings.get_text("ascend_confirm"),
 			ContentStrings.get_text("ascend_hint"),
-		]
+		])
 		ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
 		_refresh_ascension_copy()
 		return

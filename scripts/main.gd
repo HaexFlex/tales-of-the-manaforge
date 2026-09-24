@@ -557,6 +557,7 @@ func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void
 	root.add_child(spr)
 	if kind == "decor":
 		root.add_to_group("forest_decor")
+		spr.modulate = Color(1.15, 1.22, 1.06, 1.0)
 		world.add_child(root)
 		return
 	var body := StaticBody2D.new()
@@ -625,7 +626,7 @@ func _spawn_ground_decor(rng: RandomNumberGenerator, occupied: Array[Vector2]) -
 			"tex": "res://assets/art/decor/%s" % file,
 			"size": Vector2(32, 32),
 			"id": str(d.get("id", "")),
-			"scale": 1.0,
+			"scale": 2.0,
 		}
 		if str(d.get("kind", "")) == "stone":
 			stones.append(rec)
@@ -633,8 +634,8 @@ func _spawn_ground_decor(rng: RandomNumberGenerator, occupied: Array[Vector2]) -
 			flora.append(rec)
 	if flora.is_empty():
 		return
-	var cols: int = 36
-	var rows: int = 30
+	var cols: int = 52
+	var rows: int = 44
 	var n: int = 0
 	for row: int in range(rows):
 		for col: int in range(cols):
@@ -647,16 +648,16 @@ func _spawn_ground_decor(rng: RandomNumberGenerator, occupied: Array[Vector2]) -
 			var norm: float = _ellipse_norm(pos)
 			if norm >= 0.96:
 				continue
-			var keep: float = 0.05 + norm * 0.62
-			if norm < 0.32:
-				keep = 0.045
+			var keep: float = 0.10 + norm * 0.78
+			if norm < 0.30:
+				keep = 0.16
 			if rng.randf() > keep:
 				continue
 			if not _decor_clear(pos):
 				continue
 			var blocked: bool = false
 			for other: Vector2 in occupied:
-				if pos.distance_to(other) < 26.0:
+				if pos.distance_to(other) < 36.0:
 					blocked = true
 					break
 			if blocked:

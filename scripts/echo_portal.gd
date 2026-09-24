@@ -15,6 +15,7 @@ static var _no: Button
 static var _wired: bool = false
 
 var _pulse: float = 0.0
+var _hovered: bool = false
 
 
 func _ready() -> void:
@@ -28,6 +29,9 @@ func _ready() -> void:
 	collision_mask = 0
 	if label:
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		label.visible = false
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
 	if outer:
 		outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if inner:
@@ -55,6 +59,13 @@ func refresh_visibility() -> void:
 	monitorable = show_it
 	if label:
 		label.text = ContentStrings.get_text("portal_label")
+		label.visible = _hovered
+
+
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	if label:
+		label.visible = _hovered and visible
 
 
 static func is_fee_confirm_open() -> bool:

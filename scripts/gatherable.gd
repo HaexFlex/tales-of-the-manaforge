@@ -11,6 +11,7 @@ class_name Gatherable
 @onready var label: Label = $Label
 
 var _channeling: bool = false
+var _hovered: bool = false
 const BODY_WIDTH: float = 64.0
 
 const HARVEST_TEXTURES: Dictionary = {
@@ -48,7 +49,10 @@ func _ready() -> void:
 	label.position = Vector2(-48, -vis.y - 20.0)
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
 	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
 	GameState.selection_changed.connect(_refresh_prompt)
+	label.visible = false
 	add_to_group("gatherable")
 	add_to_group("interactable")
 	add_to_group("harvest_node")
@@ -113,14 +117,36 @@ func _refresh_prompt() -> void:
 		return
 	if _channeling:
 		label.text = ContentStrings.get_text("node_%s_busy" % node_key)
+		_apply_label_visibility()
 		return
 	if GameState.selected_wisp_id >= 0:
 		label.text = _wisp_assign_prompt()
+		_apply_label_visibility()
 		return
 	var prompt: String = ContentStrings.get_text("node_%s_prompt" % node_key)
 	if Backpack.owns_tool_for_resource(resource_id):
 		prompt = "%s\n%s" % [prompt, _tool_owned_hint()]
 	label.text = prompt
+	_apply_label_visibility()
+
+
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_apply_label_visibility()
+
+
+func _label_should_show() -> bool:
+	if _hovered or _channeling:
+		return true
+	if GameState.selected_wisp_id < 0:
+		return false
+	var assigned: String = GameState.get_wisp_assignment(GameState.selected_wisp_id)
+	return assigned != "" and assigned == GameState.node_id_for_resource(resource_id)
+
+
+func _apply_label_visibility() -> void:
+	if label:
+		label.visible = _label_should_show()
 
 
 func _tool_owned_hint() -> String:

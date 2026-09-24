@@ -22,6 +22,8 @@ static var _no: Button
 static var _pending_stat: String = ""
 static var _wired: bool = false
 
+var _hovered: bool = false
+
 
 func _ready() -> void:
 	add_to_group("runestone")
@@ -33,7 +35,10 @@ func _ready() -> void:
 	collision_layer = 4
 	collision_mask = 0
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.visible = false
 	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
 	if not KeeperStats.ranks_changed.is_connected(_on_ranks):
 		KeeperStats.ranks_changed.connect(_on_ranks)
 	if not GameState.resources_changed.is_connected(_on_resources):
@@ -74,6 +79,13 @@ func _refresh() -> void:
 		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_maxed")]
 	else:
 		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_cost", {"cost": cost})]
+	var confirming: bool = is_spend_confirm_open() and _pending_stat == sid
+	label.visible = _hovered or confirming
+
+
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_refresh()
 
 
 func _world_blocked() -> bool:

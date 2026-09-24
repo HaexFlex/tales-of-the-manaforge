@@ -34,6 +34,7 @@ var _at_assigned_orbit: bool = false
 var _placed: bool = false
 ## Cached when assigned (node_orbit_layout.follow_node = false).
 var _orbit_anchor: Vector2 = Vector2.ZERO
+var _hovered: bool = false
 
 
 func _ready() -> void:
@@ -45,6 +46,9 @@ func _ready() -> void:
 	label.position = Vector2(-40, -28)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
+	label.visible = false
 	add_to_group("wisp")
 	add_to_group("interactable")
 	z_index = 2
@@ -334,3 +338,9 @@ func _refresh_label() -> void:
 		label.text = ContentStrings.get_text("wisp_assigned_hud", {"target": target})
 	else:
 		label.text = ContentStrings.get_text("wisp_idle_hud")
+	label.visible = _hovered or GameState.selected_wisp_id == wisp_id
+
+
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_refresh_label()

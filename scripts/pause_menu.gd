@@ -30,6 +30,7 @@ enum SlotMode { NONE, SAVE, LOAD }
 @onready var options_panel: ColorRect = $OptionsPanel
 @onready var options_title: Label = $OptionsPanel/OptionsTitle
 @onready var options_hint: Label = $OptionsPanel/OptionsHint
+@onready var options_controls: Label = $OptionsPanel/OptionsControls
 @onready var music_label: Label = $OptionsPanel/MusicLabel
 @onready var music_slider: HSlider = $OptionsPanel/MusicSlider
 @onready var sfx_label: Label = $OptionsPanel/SfxLabel
@@ -93,6 +94,13 @@ func _apply_strings() -> void:
 	slots_back.text = ContentStrings.get_text("btn_close")
 	options_title.text = ContentStrings.get_text("options_audio_title")
 	options_hint.text = ContentStrings.get_text("options_audio_hint")
+	if options_controls:
+		options_controls.text = "%s   ·   %s\n%s   ·   %s" % [
+			ContentStrings.get_text("controls_lmb_select"),
+			ContentStrings.get_text("controls_rmb_command"),
+			ContentStrings.get_text("controls_lmb_deselect"),
+			ContentStrings.get_text("controls_camera_pan"),
+		]
 	music_label.text = ContentStrings.get_text("options_music_volume")
 	sfx_label.text = ContentStrings.get_text("options_sfx_volume")
 	options_reset.text = ContentStrings.get_text("options_audio_reset")

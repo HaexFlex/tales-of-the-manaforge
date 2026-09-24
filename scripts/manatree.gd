@@ -10,6 +10,7 @@ signal care_menu_requested
 @onready var fruit_hint: Label = $FruitHint
 
 var _watering: bool = false
+var _hovered: bool = false
 ## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/manatree_meta.json
 var _meta_stages: Dictionary = {}
 var _anim_frames: int = 1
@@ -31,8 +32,12 @@ func _ready() -> void:
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.visible = false
 	fruit_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fruit_hint.visible = false
 	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
 	GameState.stage_changed.connect(_on_stage_changed)
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
 	GameState.needs_changed.connect(_refresh_label)
@@ -191,13 +196,18 @@ func _process(delta: float) -> void:
 
 
 func _on_fruit_changed(ready: bool) -> void:
-	fruit_hint.visible = ready or GameState.fruit_harvested_pending_ascend
 	if ready:
 		fruit_hint.text = ContentStrings.get_text("fruit_ready_prompt")
 	elif GameState.fruit_harvested_pending_ascend:
 		fruit_hint.text = ContentStrings.get_text("ascension_paused_hint")
 	else:
 		fruit_hint.text = ""
+	_apply_label_visibility()
+
+
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_apply_label_visibility()
 
 
 func _refresh_label() -> void:
@@ -208,15 +218,29 @@ func _refresh_label() -> void:
 			suffix += "\n" + ContentStrings.get_text("tool_water_hint")
 	if GameState.selected_wisp_id >= 0:
 		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
+		_apply_label_visibility()
 		return
 	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
+	var ascension: String = ContentStrings.get_text("ascend_count_hud", {"count": GameState.ascensions})
 	if GameState.stage_id == &"ancient":
 		var note: String = ""
 		if GameState.fruit_ready:
 			note = "\n" + ContentStrings.get_text("tree_at_ancient_idle")
-		label.text = "%s%s%s" % [stage_name, note, suffix]
+		label.text = "%s  |  %s%s%s" % [stage_name, ascension, note, suffix]
 	else:
-		label.text = "%s%s" % [stage_name, suffix]
+		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
+	_apply_label_visibility()
+
+
+func _apply_label_visibility() -> void:
+	var show_label := _hovered or _watering
+	if not show_label and GameState.selected_wisp_id >= 0:
+		var assigned: String = GameState.get_wisp_assignment(GameState.selected_wisp_id)
+		show_label = assigned == GameState.NODE_ID_MANATREE
+	if label:
+		label.visible = show_label
+	if fruit_hint:
+		fruit_hint.visible = _hovered and fruit_hint.text != ""
 
 
 func _stage_meta() -> Dictionary:
