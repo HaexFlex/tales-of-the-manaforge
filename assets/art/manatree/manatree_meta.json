@@ -15,10 +15,14 @@
       "frames": 8,
       "fps": 7,
       "display_scale": 2,
-      "anchor": "base_center",
+      "anchor": "door_floor",
       "anchor_px": [
         32,
         64
+      ],
+      "door_floor": [
+        31,
+        51
       ]
     },
     {
@@ -31,10 +35,14 @@
       "frames": 8,
       "fps": 7,
       "display_scale": 3,
-      "anchor": "base_center",
+      "anchor": "door_floor",
       "anchor_px": [
         48,
         96
+      ],
+      "door_floor": [
+        50,
+        85
       ]
     },
     {
@@ -47,10 +55,14 @@
       "frames": 8,
       "fps": 7,
       "display_scale": 4,
-      "anchor": "base_center",
+      "anchor": "door_floor",
       "anchor_px": [
         92,
         184
+      ],
+      "door_floor": [
+        92,
+        134
       ]
     },
     {
@@ -63,10 +75,14 @@
       "frames": 8,
       "fps": 7,
       "display_scale": 4,
-      "anchor": "base_center",
+      "anchor": "door_floor",
       "anchor_px": [
         128,
         256
+      ],
+      "door_floor": [
+        128,
+        229
       ]
     },
     {
@@ -79,10 +95,14 @@
       "frames": 8,
       "fps": 7,
       "display_scale": 4,
-      "anchor": "base_center",
+      "anchor": "door_floor",
       "anchor_px": [
         128,
         256
+      ],
+      "door_floor": [
+        126,
+        234
       ],
       "door": "visible_noninteractive"
     }

@@ -20,9 +20,11 @@ const BUSHES_META_PATH: String = "res://assets/art/bushes/bushes_meta.json"
 const ATLAS_GRASS: Array[Vector2i] = [
 	Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)
 ]
-const ATLAS_PATH_H := Vector2i(0, 1)
-const ATLAS_PATH_V := Vector2i(1, 1)
-const ATLAS_PATH_CROSS := Vector2i(2, 1)
+## Flora tufts in the open glade. Far below the old 52×44 scatter.
+const DECOR_TARGET: int = 40
+const DECOR_MIN_SEP: float = 150.0
+## Trunk and door, not the whole canopy. The rest of the clearing may hold flora.
+const MANATREE_DECOR_RADIUS: float = 200.0
 
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 const RUNESTONE_SCENE: PackedScene = preload("res://scenes/runestone.tscn")
@@ -369,22 +371,6 @@ func _build_grass() -> void:
 			else:
 				pick = ATLAS_GRASS[(x * 3 + y * 5) % ATLAS_GRASS.size()]
 			ground.set_cell(0, Vector2i(x, y), src_id, pick)
-	var mid_x: int = int(floor(play_size.x / float(TILE) * 0.5))
-	var mid_y: int = int(floor((glade.position.y + glade.size.y * 0.55) / float(TILE)))
-	var path_left: int = maxi(4, int(floor(glade.position.x / float(TILE))) + 1)
-	var path_right: int = mini(_cols - 4, int(floor((glade.position.x + glade.size.x) / float(TILE))) - 1)
-	var path_top: int = maxi(4, int(floor(glade.position.y / float(TILE))) + 2)
-	var path_bot: int = mini(_rows - 3, int(floor((glade.position.y + glade.size.y) / float(TILE))) - 2)
-	for x: int in range(path_left, path_right + 1):
-		ground.set_cell(0, Vector2i(x, mid_y), src_id, ATLAS_PATH_H)
-	for y: int in range(path_top, path_bot + 1):
-		ground.set_cell(0, Vector2i(mid_x, y), src_id, ATLAS_PATH_V)
-	ground.set_cell(0, Vector2i(mid_x, mid_y), src_id, ATLAS_PATH_CROSS)
-	var arm_y: int = mid_y + 3
-	for x: int in range(path_left, mid_x - 2):
-		ground.set_cell(0, Vector2i(x, arm_y), src_id, ATLAS_PATH_H)
-	for x: int in range(mid_x + 3, path_right + 1):
-		ground.set_cell(0, Vector2i(x, arm_y), src_id, ATLAS_PATH_H)
 
 
 func _spawn_forest_props() -> void:
@@ -716,75 +702,70 @@ func _can_plant(pos: Vector2, occupied: Array[Vector2], min_sep: float, glade_in
 
 
 func _spawn_ground_decor(rng: RandomNumberGenerator, occupied: Array[Vector2]) -> void:
-	## Grass, ferns, flowers, twigs, and a few loose stones. No collision, not clickable.
+	## Sporadic leaf / grass / fern tufts in the open glade, including the middle.
+	## Flora only — no stone scatter, no harvest-node frames. No collision.
 	var meta: Dictionary = _load_json_dict(DECOR_META_PATH)
 	var items: Array = meta.get("items", []) as Array
 	var flora: Array[Dictionary] = []
-	var stones: Array[Dictionary] = []
 	for entry_v: Variant in items:
 		if typeof(entry_v) != TYPE_DICTIONARY:
 			continue
 		var d: Dictionary = entry_v
-		var file: String = str(d.get("file", ""))
-		if file == "":
+		if str(d.get("kind", "")) != "flora":
 			continue
-		var rec: Dictionary = {
+		var file: String = str(d.get("file", ""))
+		if not file.begins_with("grass_"):
+			continue
+		flora.append({
 			"tex": "res://assets/art/decor/%s" % file,
 			"size": Vector2(32, 32),
 			"id": str(d.get("id", "")),
 			"scale": 2.0,
-		}
-		if str(d.get("kind", "")) == "stone":
-			stones.append(rec)
-		else:
-			flora.append(rec)
+		})
 	if flora.is_empty():
 		return
-	var cols: int = 52
-	var rows: int = 44
-	var n: int = 0
-	for row: int in range(rows):
-		for col: int in range(cols):
-			var pos := Vector2(
-				(float(col) + 0.5) / float(cols) * play_size.x + rng.randf_range(-22.0, 22.0),
-				(float(row) + 0.5) / float(rows) * play_size.y + rng.randf_range(-16.0, 16.0)
-			)
-			pos.x = clampf(pos.x, 24.0, play_size.x - 24.0)
-			pos.y = clampf(pos.y, 24.0, play_size.y - 24.0)
-			var norm: float = _ellipse_norm(pos)
-			if norm >= 0.96:
-				continue
-			var keep: float = 0.10 + norm * 0.78
-			if norm < 0.30:
-				keep = 0.16
-			if rng.randf() > keep:
-				continue
-			if not _decor_clear(pos):
-				continue
-			var blocked: bool = false
-			for other: Vector2 in occupied:
-				if pos.distance_to(other) < 36.0:
-					blocked = true
-					break
-			if blocked:
-				continue
-			var use_stone: bool = not stones.is_empty() and norm > 0.62 and rng.randf() < 0.12
-			var pool: Array[Dictionary] = stones if use_stone else flora
-			_plant_prop(pool[n % pool.size()], pos, "decor")
-			occupied.append(pos)
-			n += 1
+	var placed: int = 0
+	var tries: int = 0
+	while placed < DECOR_TARGET and tries < 800:
+		tries += 1
+		var ang: float = rng.randf() * TAU
+		var u: float = sqrt(rng.randf()) * 0.86
+		var pos := clearing_center + Vector2(cos(ang) * clearing_rx * u, sin(ang) * clearing_ry * u)
+		pos.x = clampf(pos.x, 24.0, play_size.x - 24.0)
+		pos.y = clampf(pos.y, 24.0, play_size.y - 24.0)
+		if not decor_spot_allowed(pos):
+			continue
+		var blocked: bool = false
+		for other: Vector2 in occupied:
+			if pos.distance_to(other) < DECOR_MIN_SEP:
+				blocked = true
+				break
+		if blocked:
+			continue
+		_plant_prop(flora[placed % flora.size()], pos, "decor")
+		occupied.append(pos)
+		placed += 1
+
+
+func decor_spot_allowed(pos: Vector2) -> bool:
+	return _decor_clear(pos)
 
 
 func _decor_clear(pos: Vector2) -> bool:
 	for i: int in range(clear_points.size()):
-		var need: float = _landmark_radius(i)
-		if i == 0:
-			need = maxf(need, 400.0)
-		elif need < 100.0:
-			need += 12.0
-		if pos.distance_to(clear_points[i]) < need:
+		if pos.distance_to(clear_points[i]) < _decor_keep_radius(i):
 			return false
 	return true
+
+
+func _decor_keep_radius(index: int) -> float:
+	## Manatree uses the trunk/door footprint so the open middle can still hold tufts.
+	if index == 0:
+		return MANATREE_DECOR_RADIUS
+	var need: float = _landmark_radius(index)
+	if need < 100.0:
+		need += 12.0
+	return need
 
 
 func _landmark_radius(index: int) -> float:

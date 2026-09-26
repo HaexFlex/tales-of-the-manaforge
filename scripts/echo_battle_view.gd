@@ -1,12 +1,16 @@
 extends CanvasLayer
 class_name EchoBattleView
 ## Separate battle surface. Big Keeper idle (same sheet frame) left; Elaia front right.
-## Flavour lines at the top; battle log sits lower under the portraits.
+## Flavour text box sits between the portraits and above the battle log.
 
 const PORTRAIT: Vector2 = Vector2(384, 384)
+const KEEPER_PORTRAIT_POS: Vector2 = Vector2(56, 114)
+const ECHO_PORTRAIT_POS: Vector2 = Vector2(840, 114)
 const COMMAND_SIZE: Vector2 = Vector2(720, 120)
 const LOG_SIZE: Vector2 = Vector2(1040, 100)
-const SPEECH_SIZE: Vector2 = Vector2(1040, 80)
+const LOG_BG_POS: Vector2 = Vector2(120, 500)
+const SPEECH_POS: Vector2 = Vector2(456, 256)
+const SPEECH_SIZE: Vector2 = Vector2(368, 100)
 const KEEPER_IDLE: String = "res://assets/art/keeper/keeper_idle_south.png"
 const ELAIA_FRONT: String = "res://assets/art/echo/elaia_front.png"
 
@@ -23,6 +27,7 @@ var _echo_hp_fill: ColorRect
 var _keeper_hp_label: Label
 var _echo_hp_label: Label
 var _title: Label
+var _speech_bg: ColorRect
 var _speech: Label
 var _log: Label
 var _strike: Button
@@ -99,11 +104,30 @@ func log_band_size() -> Vector2:
 
 
 func speech_band_size() -> Vector2:
+	if _speech_bg:
+		return _speech_bg.size
 	return SPEECH_SIZE
 
 
 func speech_top() -> float:
 	return _speech.position.y if _speech else -1.0
+
+
+func speech_between_portraits() -> bool:
+	if _speech_bg == null or _speech == null or _log == null:
+		return false
+	var gap_left: float = KEEPER_PORTRAIT_POS.x + PORTRAIT.x
+	var gap_right: float = ECHO_PORTRAIT_POS.x
+	var box_left: float = _speech_bg.position.x
+	var box_right: float = box_left + _speech_bg.size.x
+	var box_top: float = _speech_bg.position.y
+	var box_bottom: float = box_top + _speech_bg.size.y
+	var portrait_top: float = KEEPER_PORTRAIT_POS.y
+	var portrait_bottom: float = portrait_top + PORTRAIT.y
+	var in_gap: bool = box_left >= gap_left - 0.5 and box_right <= gap_right + 0.5
+	var in_band: bool = box_top >= portrait_top - 0.5 and box_bottom <= portrait_bottom + 0.5
+	var above_log: bool = _speech.position.y < _log.position.y and box_bottom <= _log.position.y + 0.5
+	return in_gap and in_band and above_log
 
 
 func log_top() -> float:
@@ -138,11 +162,14 @@ func _bind() -> void:
 func _show_opening() -> void:
 	if EchoChamber.reentry:
 		_speech.text = ContentStrings.get_text("echo_01_return")
-	else:
-		_speech.text = "%s\n\n%s" % [
+	elif not GameState.echo_01_narrator_heard:
+		_speech.text = "%s\n%s" % [
+			ContentStrings.get_text("echo_01_narrator"),
 			ContentStrings.get_text("echo_01_intro"),
-			ContentStrings.get_text("echo_01_intro_2"),
 		]
+		GameState.echo_01_narrator_heard = true
+	else:
+		_speech.text = ContentStrings.get_text("echo_01_intro")
 	_set_mercy_visible(false)
 
 
@@ -327,29 +354,31 @@ func _build() -> void:
 	_mercy_label.add_theme_color_override("font_color", Color(0.86, 0.92, 0.84, 1))
 	add_child(_mercy_label)
 	_title = _add_label("Title", Vector2(520, 2), Vector2(240, 14), ContentStrings.get_text("battle_title"), 15)
-	var speech_bg := ColorRect.new()
-	speech_bg.name = "SpeechBg"
-	speech_bg.position = Vector2(120, 16)
-	speech_bg.size = SPEECH_SIZE
-	speech_bg.color = Color(0.09, 0.15, 0.13, 0.94)
-	speech_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(speech_bg)
+	_speech_bg = ColorRect.new()
+	_speech_bg.name = "SpeechBg"
+	_speech_bg.position = SPEECH_POS
+	_speech_bg.size = SPEECH_SIZE
+	_speech_bg.color = Color(0.09, 0.15, 0.13, 0.94)
+	_speech_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_speech_bg)
 	_speech = Label.new()
 	_speech.name = "Speech"
-	_speech.position = Vector2(136, 20)
-	_speech.size = Vector2(1008, 72)
+	_speech.position = SPEECH_POS + Vector2(10, 4)
+	_speech.size = SPEECH_SIZE - Vector2(20, 8)
 	_speech.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_speech.add_theme_font_size_override("font_size", 14)
+	_speech.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_speech.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_speech.add_theme_font_size_override("font_size", 12)
 	_speech.add_theme_color_override("font_color", Color(0.86, 0.91, 0.84, 1))
 	add_child(_speech)
 	_add_label("KeeperName", Vector2(56, 98), Vector2(384, 16), ContentStrings.get_text("char_sheet_title"), 15)
 	_add_label("EchoName", Vector2(840, 98), Vector2(384, 16), EchoChamber.echo_display_name(), 15)
-	_keeper_portrait = _keeper_texture(Vector2(56, 114))
-	_echo_portrait = _echo_texture(Vector2(840, 114))
+	_keeper_portrait = _keeper_texture(KEEPER_PORTRAIT_POS)
+	_echo_portrait = _echo_texture(ECHO_PORTRAIT_POS)
 	var log_bg := ColorRect.new()
 	log_bg.name = "LogBg"
 	# Portraits end at y=498; log under them (lock: 100–140 above commands).
-	log_bg.position = Vector2(120, 500)
+	log_bg.position = LOG_BG_POS
 	log_bg.size = LOG_SIZE
 	log_bg.color = Color(0.08, 0.13, 0.11, 0.9)
 	log_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
