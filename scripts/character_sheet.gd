@@ -28,8 +28,7 @@ const SLOT_POS: Dictionary = {
 }
 const SLOT_SIZE: Vector2 = Vector2(56, 66)
 const SLOT_SQUARE: Vector2 = Vector2(44, 44)
-## Half-transparent slot chrome. No gold edge — the caption sits under the square.
-const SLOT_ALPHA: float = 0.48
+## Empty and locked chrome come from the HUD icon sheet. No gold edge — the caption sits under the square.
 const STAT_TOP: float = 30.0
 const STAT_NAME_H: float = 22.0
 const STAT_ROLE_H: float = 18.0
@@ -577,7 +576,7 @@ class InvColumn extends Control:
 class SlotPlate extends Panel:
 	var slot_id: String = ""
 	var host: Control = null
-	var _square: ColorRect
+	var _square: TextureRect
 	var _caption: Label
 	var _pressed: bool = false
 	var _dragged: bool = false
@@ -590,11 +589,14 @@ class SlotPlate extends Panel:
 		sb.set_corner_radius_all(0)
 		sb.shadow_size = 0
 		add_theme_stylebox_override("panel", sb)
-		_square = ColorRect.new()
+		_square = TextureRect.new()
 		_square.name = "Square"
 		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
 		_square.size = SLOT_SQUARE
 		_square.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_square.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_square.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_square.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		add_child(_square)
 		var caption_host := Control.new()
 		caption_host.name = "CaptionHost"
@@ -616,10 +618,11 @@ class SlotPlate extends Panel:
 		_caption.position = Vector2(0, (caption_host.size.y - cap_h) * 0.5)
 		refresh()
 
-	func _slot_fill(tint: Color, alpha: float) -> Color:
-		var c: Color = tint
-		c.a = alpha
-		return c
+	func _show_slot_icon(index: int) -> void:
+		HudIcons.apply(_square, index)
+		_square.modulate = Color.WHITE
+		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
+		_square.size = SLOT_SQUARE
 
 	func refresh() -> void:
 		if _square == null:
@@ -627,14 +630,14 @@ class SlotPlate extends Panel:
 		var unlocked: bool = Equipment.is_slot_unlocked(slot_id)
 		var iid: String = Equipment.equipped_id(slot_id)
 		if not unlocked:
-			_square.color = _slot_fill(Color(0.72, 0.72, 0.76, 1.0), SLOT_ALPHA)
+			_show_slot_icon(HudIcons.EQUIP_LOCKED)
 			_caption.text = Equipment.slot_lock_short(slot_id)
 			tooltip_text = Equipment.slot_lock_hint(slot_id)
 			if slot_id == "relic":
 				tooltip_text = "%s %s" % [tooltip_text, ContentStrings.get_text("relic_locked_tooltip")]
 			return
 		if iid == "":
-			_square.color = _slot_fill(Color(0.93, 0.88, 0.76, 1.0), SLOT_ALPHA)
+			_show_slot_icon(HudIcons.EQUIP_EMPTY)
 			if slot_id == "weapon":
 				_caption.text = Equipment.slot_display_name(slot_id)
 				tooltip_text = ContentStrings.get_text("equip_bare_stone_tooltip")
@@ -642,7 +645,12 @@ class SlotPlate extends Panel:
 				_caption.text = ContentStrings.get_text("equip_empty")
 				tooltip_text = ContentStrings.get_text("equip_empty")
 		else:
-			_square.color = _slot_fill(Equipment.item_color(iid), 0.62)
+			var gear_index: int = HudIcons.index_for_item(iid)
+			if gear_index >= 0:
+				_show_slot_icon(gear_index)
+			else:
+				_show_slot_icon(HudIcons.EQUIP_EMPTY)
+				_square.modulate = Equipment.item_color(iid)
 			_caption.text = Equipment.item_display_name(iid)
 			tooltip_text = Equipment.item_tooltip(iid)
 
@@ -731,11 +739,7 @@ class GearRow extends Panel:
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_theme_constant_override("separation", 8)
 		add_child(row)
-		var icon := ColorRect.new()
-		icon.custom_minimum_size = Vector2(32, 32)
-		icon.color = Equipment.item_color(item_id)
-		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(icon)
+		row.add_child(HudIcons.icon_or_swatch(item_id, Equipment.item_color(item_id)))
 		var lbl := Label.new()
 		var count: int = Equipment.unequipped_count(item_id)
 		var name: String = Equipment.item_display_name(item_id)

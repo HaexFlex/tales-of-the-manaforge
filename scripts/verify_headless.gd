@@ -1558,6 +1558,20 @@ func _run() -> void:
 		failed += _assert(bool(pack_metrics.get("fits", false)), "craft scroll width ≤ backpack panel")
 		failed += _assert(float(pack_metrics.get("panel_w", 0)) >= 630.0, "backpack panel widened")
 		if craft_box:
+			var sheet_hits: Dictionary = {}
+			for craft_row: Node in craft_box.get_children():
+				if craft_row.get_child_count() == 0:
+					continue
+				var craft_icon: TextureRect = craft_row.get_child(0) as TextureRect
+				if craft_icon == null or not (craft_icon.texture is AtlasTexture):
+					continue
+				var craft_atlas: AtlasTexture = craft_icon.texture as AtlasTexture
+				sheet_hits[str(craft_atlas.region)] = true
+				failed += _assert(craft_icon.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "craft icon nearest filter")
+			failed += _assert(bool(sheet_hits.get(str(HudIcons.cell(HudIcons.WOODEN_BASKET).region), false)), "basket craft icon")
+			failed += _assert(bool(sheet_hits.get(str(HudIcons.cell(HudIcons.WATERING_CAN).region), false)), "watering can craft icon")
+			failed += _assert(bool(sheet_hits.get(str(HudIcons.cell(HudIcons.WEAPON_ROD).region), false)), "weapon rod craft icon")
+			failed += _assert(bool(sheet_hits.get(str(HudIcons.cell(HudIcons.STONE_SWORD).region), false)), "stone sword craft icon")
 			var fluff: int = 0
 			for row: Node in craft_box.get_children():
 				var txt: String = ""
@@ -1806,14 +1820,27 @@ func _run() -> void:
 		var sheet_hud: Node = live_sheet.get_node_or_null("HUD")
 		failed += _assert(sheet_hud != null and sheet_hud.has_method("open_character_sheet"), "HUD character sheet")
 		var char_btn: Button = null
-		var char_icon: ColorRect = null
+		var char_icon: TextureRect = null
+		var ascension_icon: TextureRect = null
 		if sheet_hud:
 			char_btn = sheet_hud.get_node_or_null("Panel/CharacterButton") as Button
-			char_icon = sheet_hud.get_node_or_null("Panel/CharacterButton/CharacterIcon") as ColorRect
+			char_icon = sheet_hud.get_node_or_null("Panel/CharacterButton/CharacterIcon") as TextureRect
+			ascension_icon = sheet_hud.get_node_or_null("Panel/AscensionReopenButton/AscensionIcon") as TextureRect
 			if sheet_hud.has_method("hide_welcome"):
 				sheet_hud.call("hide_welcome")
 		failed += _assert(char_btn != null and str(char_btn.text) == "Character", "HUD Character button")
-		failed += _assert(char_icon != null and char_icon.color.a > 0.5, "Character button ColorRect")
+		failed += _assert(char_icon != null and char_icon.texture == HudIcons.cell(HudIcons.CHARACTER), "Character button uses sheet cell")
+		failed += _assert(ascension_icon != null and ascension_icon.texture == HudIcons.cell(HudIcons.ASCENSION), "Ascension reopen uses sheet cell")
+		var berry_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestBerry/Sprite") as Sprite2D
+		var tree_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestTree/Sprite") as Sprite2D
+		var stone_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestStone/Sprite") as Sprite2D
+		failed += _assert(berry_sprite != null and berry_sprite.texture != null and str(berry_sprite.texture.resource_path).ends_with("berry_harvest_node.png"), "berry node uses berry_harvest_node")
+		if berry_sprite and berry_sprite.texture:
+			var berry_disp: Vector2 = berry_sprite.texture.get_size() * berry_sprite.scale
+			failed += _assert(abs(berry_disp.y - 64.0) < 1.0 and berry_disp.x <= 64.0 + 0.5, "berry scaled into the 64 harvest box")
+			failed += _assert(berry_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "berry nearest filter")
+		failed += _assert(tree_sprite != null and tree_sprite.texture != null and str(tree_sprite.texture.resource_path).ends_with("harvest_tree.png") and abs(tree_sprite.scale.x - 1.0) < 0.01, "tree harvest art unchanged")
+		failed += _assert(stone_sprite != null and stone_sprite.texture != null and str(stone_sprite.texture.resource_path).ends_with("harvest_stone.png") and abs(stone_sprite.scale.x - 1.0) < 0.01, "stone harvest art unchanged")
 		sheet_hud.call("open_character_sheet")
 		await process_frame
 		failed += _assert(bool(sheet_hud.call("is_character_open")), "character sheet opens")
@@ -1822,11 +1849,11 @@ func _run() -> void:
 		failed += _assert(portrait != null and str(portrait.texture.resource_path).find("keeper_idle_south") >= 0, "portrait uses idle_south")
 		var weapon_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
 		var relic_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic")
-		var relic_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as ColorRect
-		var weapon_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as ColorRect
+		var relic_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
+		var weapon_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
 		failed += _assert(weapon_slot != null and relic_slot != null, "weapon and relic slots")
-		failed += _assert(relic_square != null and relic_square.color.a > 0.2 and relic_square.color.a < 0.75, "relic square is translucent")
-		failed += _assert(weapon_square != null and weapon_square.color.a > 0.2 and weapon_square.color.a < 0.75, "empty weapon square is half-transparent")
+		failed += _assert(relic_square != null and relic_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "relic slot uses locked chrome")
+		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "empty weapon slot uses empty chrome")
 		var relic_style: StyleBoxFlat = relic_slot.get_theme_stylebox("panel") as StyleBoxFlat
 		var weapon_style: StyleBoxFlat = weapon_slot.get_theme_stylebox("panel") as StyleBoxFlat
 		failed += _assert(relic_style != null and relic_style.get_border_width(SIDE_LEFT) == 0, "locked slot has no gold border")
@@ -1843,7 +1870,8 @@ func _run() -> void:
 		failed += _assert(weapon_cap != null and weapon_square != null and weapon_cap.position.y >= weapon_square.position.y + weapon_square.size.y - 0.5, "weapon caption sits under the square")
 		var head_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/CaptionHost/Hint") as Label
 		var head_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/CaptionHost") as Control
-		var head_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/Square") as ColorRect
+		var head_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/Square") as TextureRect
+		failed += _assert(head_square != null and head_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "locked head slot uses locked chrome")
 		failed += _assert(head_hint != null and str(head_hint.text) == "Locked", "locked slot caption")
 		failed += _assert(head_square != null and head_cap != null and head_cap.position.y >= head_square.position.y + head_square.size.y - 0.5, "head Locked sits under the square")
 		var hotkey_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/HotkeyHint") as Label
@@ -1885,6 +1913,11 @@ func _run() -> void:
 		equipment.call("grant_item", "stone_sword")
 		await process_frame
 		failed += _assert(gear_list.get_child_count() >= 1, "sword listed in equipment inventory")
+		var sword_row: Node = gear_list.get_child(0)
+		var sword_icon: TextureRect = null
+		if sword_row.get_child_count() > 0 and sword_row.get_child(0).get_child_count() > 0:
+			sword_icon = sword_row.get_child(0).get_child(0) as TextureRect
+		failed += _assert(sword_icon != null and sword_icon.texture == HudIcons.cell(HudIcons.STONE_SWORD), "gear bag sword uses sheet cell")
 		sheet_hud.get_node("CharacterSheet").call("request_equip", "stone_sword")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet click equips sword")
@@ -1893,10 +1926,14 @@ func _run() -> void:
 		failed += _assert(might_line != null and str(might_line.text).find("5 + 2 = 7") >= 0, "sheet shows 5 + 2 = 7")
 		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "equipped sword still adds +2 might")
 		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Stone Sword", "equipped weapon shows the item name")
+		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
+		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.STONE_SWORD), "equipped sword shows sheet cell")
 		var slot_plate: Node = sheet_hud.get_node("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
 		sheet_hud.get_node("CharacterSheet").call("request_unequip", "weapon")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "sheet unequip")
+		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
+		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "unequipped weapon returns to empty chrome")
 		slot_plate.call("_drop_data", Vector2.ZERO, {"kind": "gear", "item_id": "stone_sword", "from_slot": ""})
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet drag-drop equips")
@@ -2294,8 +2331,15 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	var pause_menu: Node = live.get_node_or_null("PauseMenu")
 	failed += _assert(portal != null and not portal.visible, "portal hidden before the first Ascend")
 	if portal:
-		var portal_outer: ColorRect = portal.get_node_or_null("Visual/Outer") as ColorRect
-		failed += _assert(portal_outer != null and abs(portal_outer.size.x - 96.0) < 0.5 and abs(portal_outer.size.y - 96.0) < 0.5, "portal ColorRect 96x96")
+		var portal_marker: Sprite2D = portal.get_node_or_null("Visual/Marker") as Sprite2D
+		var portal_shape: CollisionShape2D = portal.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		var portal_rect: RectangleShape2D = portal_shape.shape as RectangleShape2D if portal_shape else null
+		failed += _assert(portal_marker != null and portal_marker.texture != null and str(portal_marker.texture.resource_path).ends_with("echo_portal_hub.png"), "portal uses echo_portal_hub")
+		if portal_marker and portal_marker.texture:
+			var portal_disp: Vector2 = portal_marker.texture.get_size() * portal_marker.scale
+			failed += _assert(abs(maxf(portal_disp.x, portal_disp.y) - 96.0) < 1.0, "portal art fits the 96 box")
+			failed += _assert(portal_marker.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "portal nearest filter")
+		failed += _assert(portal_rect != null and abs(portal_rect.size.x - 96.0) < 0.5 and abs(portal_rect.size.y - 96.0) < 0.5, "portal collision stays 96x96")
 	failed += _assert(hud != null and pause_menu != null, "hud and pause for echo")
 	if hud and portal and pause_menu:
 		if hud.has_method("hide_welcome"):

@@ -103,13 +103,15 @@ offset_right = 936.0
 offset_bottom = 56.0
 text = "Character"
 
-[node name="CharacterIcon" type="ColorRect" parent="Panel/CharacterButton"]
+[node name="CharacterIcon" type="TextureRect" parent="Panel/CharacterButton"]
 offset_left = 6.0
 offset_top = 6.0
 offset_right = 26.0
 offset_bottom = 26.0
 mouse_filter = 2
-color = Color(0.77, 0.64, 0.29, 1)
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="BackpackButton" type="Button" parent="Panel"]
 offset_left = 948.0
@@ -140,6 +142,16 @@ offset_top = 64.0
 offset_right = 1192.0
 offset_bottom = 96.0
 text = "Ascension"
+
+[node name="AscensionIcon" type="TextureRect" parent="Panel/AscensionReopenButton"]
+offset_left = 4.0
+offset_top = 6.0
+offset_right = 24.0
+offset_bottom = 26.0
+mouse_filter = 2
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="CarePanel" type="Panel" parent="."]
 visible = false

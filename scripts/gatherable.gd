@@ -16,7 +16,7 @@ const BODY_WIDTH: float = 64.0
 const HARVEST_TEXTURES: Dictionary = {
 	"wood": "res://assets/art/props/harvest_tree.png",
 	"stone": "res://assets/art/props/harvest_stone.png",
-	"food": "res://assets/art/props/harvest_berry.png",
+	"food": "res://assets/art/props/berry_harvest_node.png",
 }
 const HARVEST_HEIGHT: Dictionary = {
 	"wood": 80.0,
@@ -29,9 +29,21 @@ func _ready() -> void:
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
 	var h: float = float(HARVEST_HEIGHT.get(node_key, 64.0))
-	sprite.offset = Vector2(-32, -h)
 	var path: String = str(HARVEST_TEXTURES.get(node_key, HARVEST_TEXTURES["wood"]))
-	sprite.texture = load(path) as Texture2D
+	var tex: Texture2D = load(path) as Texture2D
+	sprite.texture = tex
+	## Fit the texture in the existing harvest box. Tree and stone already match 1:1.
+	var box := Vector2(BODY_WIDTH, h)
+	var tw: float = box.x
+	var th: float = box.y
+	if tex != null:
+		tw = float(tex.get_width())
+		th = float(tex.get_height())
+	var fit: float = 1.0
+	if tw > 0.0 and th > 0.0:
+		fit = minf(box.x / tw, box.y / th)
+	sprite.scale = Vector2(fit, fit)
+	sprite.offset = Vector2(-tw * 0.5, -th)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.position = Vector2(-48, -h - 20.0)
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)

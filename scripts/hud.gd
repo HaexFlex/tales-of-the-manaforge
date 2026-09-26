@@ -10,7 +10,8 @@ class_name GameHUD
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var pause_button: Button = $Panel/PauseButton
 @onready var character_button: Button = $Panel/CharacterButton
-@onready var character_icon: ColorRect = $Panel/CharacterButton/CharacterIcon
+@onready var character_icon: TextureRect = $Panel/CharacterButton/CharacterIcon
+@onready var ascension_icon: TextureRect = $Panel/AscensionReopenButton/AscensionIcon
 @onready var backpack_button: Button = $Panel/BackpackButton
 @onready var backpack_icon: ColorRect = $Panel/BackpackButton/BackpackIcon
 @onready var backpack_dim: ColorRect = $BackpackDim
@@ -90,8 +91,6 @@ const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
 const ICON_FERTILIZER: Color = Color(0.42, 0.35, 0.14, 1.0)
 const ICON_ESSENCE: Color = Color(0.56, 0.35, 0.66, 1.0)
 const ICON_BACKPACK: Color = Color(0.48, 0.31, 0.18, 1.0)
-const ICON_CHARACTER: Color = Color(0.77, 0.64, 0.29, 1.0)
-const ICON_KEEP_TOOLS: Color = Color(0.72, 0.53, 0.04, 1.0)
 const BACKPACK_ROW_H: float = 40.0
 
 var _manatree: Manatree = null
@@ -134,7 +133,9 @@ func _ready() -> void:
 	if backpack_icon:
 		backpack_icon.color = ICON_BACKPACK
 	if character_icon:
-		character_icon.color = ICON_CHARACTER
+		HudIcons.apply(character_icon, HudIcons.CHARACTER)
+	if ascension_icon:
+		HudIcons.apply(ascension_icon, HudIcons.ASCENSION)
 	if grow_fert_icon:
 		grow_fert_icon.color = ICON_FERTILIZER
 	if grow_ess_icon:
@@ -1136,19 +1137,11 @@ func _rebuild_backpack() -> void:
 		craft_list.add_child(_make_craft_row(str(gear_rec.get("id", "")), true))
 
 
-func _placeholder_icon(color: Color) -> ColorRect:
-	var icon := ColorRect.new()
-	icon.custom_minimum_size = Vector2(32, 32)
-	icon.color = color
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return icon
-
-
 func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
 	var row := HBoxContainer.new()
 	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H)
 	row.add_theme_constant_override("separation", 8)
-	row.add_child(_placeholder_icon(stack.get("color", Color.GRAY) as Color))
+	row.add_child(HudIcons.icon_or_swatch(str(stack.get("id", "")), stack.get("color", Color.GRAY) as Color))
 	var lbl := Label.new()
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var count: int = int(stack.get("count", 0))
@@ -1180,7 +1173,7 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	row.add_theme_constant_override("separation", 8)
 	row.clip_contents = true
 	var swatch: Color = Equipment.item_color(out_id) if equipment_out else Backpack.item_color(out_id)
-	row.add_child(_placeholder_icon(swatch))
+	row.add_child(HudIcons.icon_or_swatch(out_id, swatch))
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.size_flags_stretch_ratio = 1.0
@@ -1397,12 +1390,7 @@ func _rebuild_upgrades() -> void:
 		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 		inner.add_theme_constant_override("separation", 8)
 		if uid == "keep_tools":
-			var keep_icon := ColorRect.new()
-			keep_icon.custom_minimum_size = Vector2(32, 32)
-			keep_icon.color = ICON_KEEP_TOOLS
-			keep_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			keep_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			inner.add_child(keep_icon)
+			inner.add_child(HudIcons.make_icon(HudIcons.KEEP_TOOLS))
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.alignment = BoxContainer.ALIGNMENT_CENTER
