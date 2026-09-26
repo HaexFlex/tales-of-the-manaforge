@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name EchoBattleView
-## Separate battle surface. Big Keeper idle (same sheet frame) left; Elaia ColorRect right.
+## Separate battle surface. Big Keeper idle (same sheet frame) left; Elaia front right.
 ## Flavour lines at the top; battle log sits lower under the portraits.
 
 const PORTRAIT: Vector2 = Vector2(384, 384)
@@ -8,6 +8,7 @@ const COMMAND_SIZE: Vector2 = Vector2(720, 120)
 const LOG_SIZE: Vector2 = Vector2(1040, 100)
 const SPEECH_SIZE: Vector2 = Vector2(1040, 80)
 const KEEPER_IDLE: String = "res://assets/art/keeper/keeper_idle_south.png"
+const ELAIA_FRONT: String = "res://assets/art/echo/elaia_front.png"
 
 var _battle: EchoBattle
 var _bg: ColorRect
@@ -16,7 +17,7 @@ var _command_band: ColorRect
 var _mercy_banner: ColorRect
 var _mercy_label: Label
 var _keeper_portrait: TextureRect
-var _echo_portrait: ColorRect
+var _echo_portrait: TextureRect
 var _keeper_hp_fill: ColorRect
 var _echo_hp_fill: ColorRect
 var _keeper_hp_label: Label
@@ -82,6 +83,11 @@ func portrait_size() -> Vector2:
 func keeper_uses_idle_texture() -> bool:
 	return _keeper_portrait != null and _keeper_portrait.texture != null \
 		and str(_keeper_portrait.texture.resource_path).find("keeper_idle_south") >= 0
+
+
+func echo_uses_elaia_texture() -> bool:
+	return _echo_portrait != null and _echo_portrait.texture != null \
+		and str(_echo_portrait.texture.resource_path).find("elaia_front") >= 0
 
 
 func command_band_size() -> Vector2:
@@ -339,7 +345,7 @@ func _build() -> void:
 	_add_label("KeeperName", Vector2(56, 98), Vector2(384, 16), ContentStrings.get_text("char_sheet_title"), 15)
 	_add_label("EchoName", Vector2(840, 98), Vector2(384, 16), EchoChamber.echo_display_name(), 15)
 	_keeper_portrait = _keeper_texture(Vector2(56, 114))
-	_echo_portrait = _echo_rect(Vector2(840, 114), Color(0.26, 0.38, 0.46, 1))
+	_echo_portrait = _echo_texture(Vector2(840, 114))
 	var log_bg := ColorRect.new()
 	log_bg.name = "LogBg"
 	# Portraits end at y=498; log under them (lock: 100–140 above commands).
@@ -402,7 +408,7 @@ func _keeper_texture(pos: Vector2) -> TextureRect:
 	return tex_rect
 
 
-func _echo_rect(pos: Vector2, color: Color) -> ColorRect:
+func _echo_texture(pos: Vector2) -> TextureRect:
 	var frame := ColorRect.new()
 	frame.name = "EchoPortraitFrame"
 	frame.position = pos - Vector2(6, 6)
@@ -410,14 +416,18 @@ func _echo_rect(pos: Vector2, color: Color) -> ColorRect:
 	frame.color = Color(0.04, 0.07, 0.06, 1)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(frame)
-	var rect := ColorRect.new()
-	rect.name = "EchoPortrait"
-	rect.position = pos
-	rect.size = PORTRAIT
-	rect.color = color
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(rect)
-	return rect
+	var tex_rect := TextureRect.new()
+	tex_rect.name = "EchoPortrait"
+	tex_rect.position = pos
+	tex_rect.size = PORTRAIT
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex: Texture2D = load(ELAIA_FRONT) as Texture2D
+	tex_rect.texture = tex
+	add_child(tex_rect)
+	return tex_rect
 
 
 func _hp_bar(node_name: String, pos: Vector2, fill_color: Color) -> ColorRect:

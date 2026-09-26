@@ -2258,6 +2258,8 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	var psize: Vector2 = view.call("portrait_size")
 	failed += _assert(abs(psize.x - 384.0) < 0.5 and abs(psize.y - 384.0) < 0.5, "portraits 384x384")
 	failed += _assert(bool(view.call("keeper_uses_idle_texture")), "keeper portrait uses idle_south")
+	failed += _assert(bool(view.call("echo_uses_elaia_texture")), "echo portrait uses elaia_front")
+	failed += _assert(FileAccess.file_exists("res://assets/art/echo/elaia_front.png"), "elaia_front.png shipped")
 	failed += _assert(float(view.call("speech_top")) < float(view.call("log_top")), "flavour above battle log")
 	var ssize: Vector2 = view.call("speech_band_size")
 	failed += _assert(ssize.y >= 80.0 and ssize.y <= 100.0, "flavour band 80-100")
