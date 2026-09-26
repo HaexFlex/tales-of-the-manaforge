@@ -980,8 +980,16 @@ func hide_ascension_shop() -> void:
 
 
 func _on_shop_close() -> void:
-	## Hide shop UI only. World stays paused until Ascend.
+	## Close cancels the harvest lock. Play resumes; Fruit can be harvested again.
+	## The run locks only when Ascend actually commits.
+	var cancelled_commit: bool = GameState.fruit_committed
+	if cancelled_commit:
+		GameState.cancel_fruit_commit()
 	hide_ascension_shop()
+	_release_world_if_allowed()
+	_refresh_all()
+	if cancelled_commit:
+		SaveService.save_game()
 
 
 func _refresh_reopen_button() -> void:

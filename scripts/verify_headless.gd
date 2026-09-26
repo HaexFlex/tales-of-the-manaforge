@@ -176,6 +176,10 @@ func _run() -> void:
 	failed += _assert(FileAccess.file_exists("res://Assets upload/README.md"), "Assets upload README only")
 	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
 	failed += _assert(project_text.find("res://scenes/title_screen.tscn") >= 0, "main scene is the title screen")
+	failed += _assert(
+		str(ProjectSettings.get_setting("application/run/main_scene", "")) == "res://scenes/title_screen.tscn",
+		"ProjectSettings boots the title screen"
+	)
 	save_service.call("delete_save")
 	var title_packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
 	failed += _assert(title_packed != null, "title_screen.tscn loads")
@@ -196,6 +200,34 @@ func _run() -> void:
 		failed += _assert(title.get_node_or_null("Background") is TextureRect, "title background")
 		title.queue_free()
 		await process_frame
+		save_service.set("boot_intent", "auto")
+		save_service.set("boot_slot", 0)
+		game_state.call("set_resource", &"wood", 42)
+		game_state.call("set_resource", &"stone", 7)
+		game_state.call("set_resource", &"food", 5)
+		game_state.call("set_resource", &"manashards", 11)
+		game_state.call("set_resource", &"essence", 9)
+		save_service.set("boot_intent", "new")
+		var boot_packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+		var boot_live: Node = boot_packed.instantiate() if boot_packed else null
+		if boot_live:
+			tree_root.add_child(boot_live)
+			await process_frame
+			var wood_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/WoodChip/NumWood") as Label
+			var stone_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/StoneChip/NumStone") as Label
+			var food_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/FoodChip/NumFood") as Label
+			var shard_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/ShardChip/NumShards") as Label
+			var ess_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/EssenceChip/NumEssence") as Label
+			failed += _assert(int(game_state.get("wood")) == 0 and int(game_state.get("essence")) == 0, "new game boot clears resources")
+			failed += _assert(wood_lbl != null and wood_lbl.text == "0", "new game HUD wood is 0 before harvest")
+			failed += _assert(stone_lbl != null and stone_lbl.text == "0", "new game HUD stone is 0")
+			failed += _assert(food_lbl != null and food_lbl.text == "0", "new game HUD food is 0")
+			failed += _assert(shard_lbl != null and shard_lbl.text == "0", "new game HUD shards are 0")
+			failed += _assert(ess_lbl != null and ess_lbl.text == "0", "new game HUD essence is 0")
+			failed += _assert(str(game_state.get("stage_id")) == "sapling", "new game boot is sapling")
+			boot_live.free()
+			await process_frame
+		paused = false
 		save_service.set("boot_intent", "auto")
 		save_service.set("boot_slot", 0)
 	var trees_meta_f := FileAccess.open("res://assets/art/trees/trees_meta.json", FileAccess.READ)
@@ -1287,22 +1319,28 @@ func _run() -> void:
 		failed += _assert(bool(game_audio.call("did_play", &"sfx_ascend")), "ascend plays sfx_ascend")
 		failed += _assert(bool(game_audio.call("did_play", &"mus_ascend_sting")), "ascend plays mus_ascend_sting")
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub BGM stays on under ascend sting while paused")
-		test_hud.call("hide_ascension_shop")
+		test_hud.call("_on_shop_close")
 		await process_frame
-		failed += _assert(paused == true, "close shop keeps world paused")
+		failed += _assert(paused == false, "close shop returns to play")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "close clears the harvest lock")
+		failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "close clears pending ascend")
+		failed += _assert(bool(game_state.get("fruit_ready")), "fruit is ready again after cancel")
 		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "close hides shop")
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub BGM stays on after shop Close")
 		var reopen: Button = test_hud.get_node_or_null("Panel/AscensionReopenButton") as Button
-		failed += _assert(reopen != null and reopen.visible, "reopen chip after close")
+		failed += _assert(reopen != null and not reopen.visible, "reopen chip hidden after cancel")
+		var water_after_cancel: Dictionary = game_state.call("apply_water_pulse")
+		failed += _assert(bool(water_after_cancel.get("ok", false)), "water works after cancelling the shop")
 		test_hud.call("show_care_menu")
 		await process_frame
-		failed += _assert(paused == true, "care reopen after commit stays paused")
-		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "post-commit care opens shop, not care")
-		failed += _assert(not bool(test_hud.call("is_care_open")), "care stays closed until next cycle")
-		test_hud.call("show_ascension_shop")
-		await process_frame
-		failed += _assert(paused == true, "reopen stays paused")
-		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "shop reopens")
+		failed += _assert(paused == false, "care after cancel stays in play")
+		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "cancel does not reopen the shop")
+		failed += _assert(bool(test_hud.call("is_care_open")), "care opens after cancel")
+		var harvest_again: int = int(game_state.call("harvest_fruit"))
+		failed += _assert(harvest_again >= 1, "fruit can be harvested again")
+		failed += _assert(bool(game_state.get("fruit_committed")), "second harvest commits again")
+		game_state.call("cancel_fruit_commit")
+		failed += _assert(not bool(game_state.get("fruit_committed")) and bool(game_state.get("fruit_ready")), "cancel_fruit_commit restores play")
 		test_hud.queue_free()
 		paused = false
 		await process_frame
@@ -2414,8 +2452,34 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(int(game_state.get("essence")) == 10, "short confirm does not spend")
 		failed += _assert(bool(portal.call("is_fee_confirm_open")), "reject keeps the confirm open")
 		var yes_btn: Button = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Yes") as Button
+		var no_btn: Button = tree_root.get_node_or_null("EchoPortalConfirm/Panel/No") as Button
+		var fee_panel: Control = tree_root.get_node_or_null("EchoPortalConfirm/Panel") as Control
 		failed += _assert(yes_btn != null and yes_btn.disabled, "confirm yes disabled when short")
-		portal.call("cancel_fee")
+		failed += _assert(no_btn != null and no_btn.text == "Not now" and not no_btn.disabled, "Not now is enabled")
+		if no_btn and fee_panel:
+			var panel_h: float = fee_panel.offset_bottom - fee_panel.offset_top
+			if panel_h < 1.0:
+				panel_h = fee_panel.size.y
+			failed += _assert(
+				no_btn.position.y + no_btn.size.y <= panel_h + 1.0,
+				"Not now sits inside the fee panel (btn y %.0f h %.0f panel %.0f)" % [no_btn.position.y, no_btn.size.y, panel_h]
+			)
+		# Drop the live wiring, then reopen so a stale portal cannot keep the click.
+		if no_btn:
+			var stale: Array = no_btn.pressed.get_connections()
+			for stale_v: Variant in stale:
+				if typeof(stale_v) == TYPE_DICTIONARY:
+					var stale_cb: Callable = (stale_v as Dictionary).get("callable", Callable())
+					if no_btn.pressed.is_connected(stale_cb):
+						no_btn.pressed.disconnect(stale_cb)
+		failed += _assert(str(portal.call("begin_entry")) == "reject", "reopen still rejects a short fee")
+		no_btn = tree_root.get_node_or_null("EchoPortalConfirm/Panel/No") as Button
+		failed += _assert(no_btn != null and no_btn.pressed.get_connections().size() >= 1, "Not now rebound to the live portal")
+		if no_btn:
+			no_btn.pressed.emit()
+		await process_frame
+		failed += _assert(not bool(portal.call("is_fee_confirm_open")), "Not now closes the fee UI")
+		failed += _assert(not bool(live.call("world_input_blocked")), "Not now unblocks world clicks")
 		game_state.call("set_resource", &"essence", 30)
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub bed before the echo")
 		failed += _assert(str(portal.call("begin_entry")) == "confirm", "30 Essence opens the fee confirm")

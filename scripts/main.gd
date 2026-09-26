@@ -43,9 +43,32 @@ var clear_radii: Array[float] = []
 var collision_cfg: Dictionary = {}
 var _cols: int = 40
 var _rows: int = 34
+const TITLE_SCENE: String = "res://scenes/title_screen.tscn"
+var _boot_redirect: bool = false
+
+
+func _enter_tree() -> void:
+	# Apply before child _ready so the HUD does not paint the previous run.
+	# A bare launch of this scene (Run Project / Run Current Scene) is the title.
+	if _bare_boot_to_title():
+		_boot_redirect = true
+		return
+	_apply_boot_intent()
+
+
+func _bare_boot_to_title() -> bool:
+	if str(SaveService.boot_intent) != "auto":
+		return false
+	var tree: SceneTree = get_tree()
+	return tree != null and tree.current_scene == self
 
 
 func _ready() -> void:
+	if _boot_redirect:
+		var tree: SceneTree = get_tree()
+		if tree:
+			tree.call_deferred("change_scene_to_file", TITLE_SCENE)
+		return
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group("main_root")
 	_load_hub_map()
@@ -67,7 +90,6 @@ func _ready() -> void:
 	GameAudio.play_hub_music()
 	GameState.wisps_changed.connect(_sync_wisps)
 	GameState.load_completed.connect(_sync_wisps)
-	_apply_boot_intent()
 	_sync_wisps()
 	# First load / new save: show Keeper welcome once (flag in save).
 	hud.maybe_show_welcome()

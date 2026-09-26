@@ -173,6 +173,8 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 func _open_confirm(can_pay: bool) -> void:
 	_ensure_confirm()
+	_layout_confirm()
+	_rebind_confirm()
 	_title.text = ContentStrings.get_text("portal_title")
 	var cost: int = EchoChamber.FEE
 	if can_pay:
@@ -224,9 +226,10 @@ func _ensure_confirm() -> void:
 	_panel.anchor_right = 0.5
 	_panel.anchor_bottom = 0.5
 	_panel.offset_left = -240.0
-	_panel.offset_top = -90.0
+	_panel.offset_top = -130.0
 	_panel.offset_right = 240.0
-	_panel.offset_bottom = 90.0
+	_panel.offset_bottom = 130.0
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.14, 0.12, 0.98)
 	sb.border_color = Color(0.45, 0.62, 0.52, 1.0)
@@ -234,22 +237,60 @@ func _ensure_confirm() -> void:
 	_panel.add_theme_stylebox_override("panel", sb)
 	_layer.add_child(_panel)
 	_title = _make_label(_panel, "Title", Vector2(16, 12), Vector2(448, 28), 18, Color(0.78, 0.9, 0.82, 1))
-	_body = _make_label(_panel, "Body", Vector2(16, 48), Vector2(448, 56), 14, Color(0.86, 0.9, 0.84, 1))
+	_body = _make_label(_panel, "Body", Vector2(16, 48), Vector2(448, 120), 14, Color(0.86, 0.9, 0.84, 1))
 	_yes = Button.new()
 	_yes.name = "Yes"
-	_yes.position = Vector2(16, 120)
-	_yes.size = Vector2(140, 36)
 	_panel.add_child(_yes)
 	_no = Button.new()
 	_no.name = "No"
-	_no.position = Vector2(168, 120)
-	_no.size = Vector2(140, 36)
 	_panel.add_child(_no)
-	if not _wired:
-		_yes.pressed.connect(_on_yes_pressed)
-		_no.pressed.connect(_on_no_pressed)
-		_wired = true
+	_layout_confirm()
+	_rebind_confirm()
 	_layer.visible = false
+
+
+func _layout_confirm() -> void:
+	if _panel == null or not is_instance_valid(_panel):
+		return
+	_panel.custom_minimum_size = Vector2(480, 260)
+	_panel.offset_left = -240.0
+	_panel.offset_top = -130.0
+	_panel.offset_right = 240.0
+	_panel.offset_bottom = 130.0
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	if _yes:
+		_yes.position = Vector2(24, 196)
+		_yes.size = Vector2(180, 40)
+		_yes.mouse_filter = Control.MOUSE_FILTER_STOP
+	if _no:
+		_no.position = Vector2(220, 196)
+		_no.size = Vector2(180, 40)
+		_no.disabled = false
+		_no.mouse_filter = Control.MOUSE_FILTER_STOP
+
+
+func _rebind_confirm() -> void:
+	## The confirm layer lives on the root and outlives the portal that built it.
+	## Rebind every open so Not now calls this portal, not a freed one.
+	_drop_pressed(_yes)
+	_drop_pressed(_no)
+	if _yes:
+		_yes.pressed.connect(_on_yes_pressed)
+	if _no:
+		_no.pressed.connect(_on_no_pressed)
+	_wired = true
+
+
+func _drop_pressed(btn: Button) -> void:
+	if btn == null or not is_instance_valid(btn):
+		return
+	var conns: Array = btn.pressed.get_connections()
+	for conn_v: Variant in conns:
+		if typeof(conn_v) != TYPE_DICTIONARY:
+			continue
+		var cb: Callable = (conn_v as Dictionary).get("callable", Callable())
+		if btn.pressed.is_connected(cb):
+			btn.pressed.disconnect(cb)
 
 
 func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, font_size: int, color: Color) -> Label:
@@ -257,6 +298,7 @@ func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, 
 	lbl.name = node_name
 	lbl.position = pos
 	lbl.size = sz
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.add_theme_font_size_override("font_size", font_size)
 	lbl.add_theme_color_override("font_color", color)

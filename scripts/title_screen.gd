@@ -57,7 +57,8 @@ func _ready() -> void:
 	cursor.texture = cursor_tex
 	cursor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_rebuild_items()
-	_focus_index(0)
+	_set_menu_enabled(false)
+	call_deferred("_arm_menu_when_idle")
 
 
 func _process(delta: float) -> void:
@@ -69,6 +70,39 @@ func _process(delta: float) -> void:
 	var pulse: float = 0.55 + 0.45 * abs(sin(_blink * 3.2))
 	cursor.modulate = Color(1, 1, 1, pulse)
 	_place_cursor()
+
+
+func _set_menu_enabled(enabled: bool) -> void:
+	btn_continue.disabled = not enabled
+	btn_new.disabled = not enabled
+	btn_load.disabled = not enabled
+	btn_options.disabled = not enabled
+	btn_quit.disabled = not enabled
+
+
+func _input_held() -> bool:
+	return (
+		Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+		or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)
+		or Input.is_action_pressed("ui_accept")
+		or Input.is_key_pressed(KEY_ENTER)
+		or Input.is_key_pressed(KEY_KP_ENTER)
+		or Input.is_key_pressed(KEY_SPACE)
+	)
+
+
+func _arm_menu_when_idle() -> void:
+	## The editor Play click / accept must not activate Continue or New Game.
+	while is_inside_tree() and (_fade > 0.05 or _input_held()):
+		await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	_set_menu_enabled(true)
+	_rebuild_items()
+	_focus_index(0)
 
 
 func _rebuild_items() -> void:
