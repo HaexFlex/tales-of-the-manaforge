@@ -14,7 +14,6 @@ signal channel_changed(kind: StringName, active: bool)
 var _target: Vector2 = Vector2.ZERO
 var _moving: bool = false
 var _pending_interact: Node = null
-var _facing_back: bool = false
 
 enum ChannelKind { NONE, HARVEST, WATER }
 var _channel_kind: int = ChannelKind.NONE
@@ -129,8 +128,6 @@ func _physics_process(delta: float) -> void:
 			_try_interact()
 		else:
 			velocity = to_target.normalized() * speed
-			if absf(velocity.y) >= absf(velocity.x):
-				_facing_back = velocity.y < 0.0
 			move_and_slide()
 			_update_anim()
 			# Walking away cancels channel once out of range.
@@ -144,11 +141,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_anim() -> void:
-	var want: StringName
-	if _moving:
-		want = &"walk_back" if _facing_back else &"walk_south"
-	else:
-		want = &"idle_back" if _facing_back else &"idle_south"
+	# No north-facing walk yet. Stay on the south frames while idle and while moving.
+	var want: StringName = &"walk_south" if _moving else &"idle_south"
 	if sprite.animation != want or not sprite.is_playing():
 		sprite.play(want)
 
