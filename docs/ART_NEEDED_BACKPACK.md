@@ -1,7 +1,7 @@
 # Art needed — Backpack, Handcraft, Grow
 
 **Owner:** Haex (art)  
-**Status:** art drop c9fda76 wired the 32px icons that exist (wood, stone, food = fish, Manashards, Essence, Fertilizer, planks, fragments, rods, axe/pick heads, stone axe, stone pickaxe, backpack, pause). Still **neutral placeholder squares** (tooltip, no label): Wooden Basket, Stone Watering Can, Stone Sword, Keep Tools, Character, Ascension reopen, equip-slot chrome, care action buttons (Water / Grow / Harvest keep their words).  
+**Status:** art drop c9fda76 wired the 32px icons that exist (wood, stone, food = fish, Manashards, Essence, Fertilizer, planks, fragments, rods, axe/pick heads, stone axe, stone pickaxe, backpack, pause). The HUD icon sheet now covers Character, Ascension reopen, Keep Tools, Wooden Basket, Stone Watering Can, Stone Sword, Weapon Rod, and empty/locked equip chrome. Still a **neutral placeholder square**: the Help button. Care action buttons (Water / Grow / Harvest) keep their words.
 **Icon size:** **32×32** HUD / row icons, nearest-neighbor  
 **Code:** `scripts/autoload/backpack.gd` colors + `scenes/hud.tscn` / `scripts/hud.gd`
 
@@ -49,4 +49,26 @@ Battle-gear, Runestone, and character-sheet icons are listed in the next section
 
 Suggested folder: `assets/art/ui/character/` for icons, `assets/art/props/` for the Runestone.
 
-Portrait slots already sit on the body (head above the head, chest on the chest, weapon at the right hand, and so on). Swap the ColorRect in each slot for the icon; keep the slot ids.
+Portrait slots already sit on the body (head above the head, chest on the chest, weapon at the right hand, and so on). Slot ids stay put. Empty and locked chrome, plus Stone Sword and Weapon Rod when equipped, read cells from `assets/art/ui/manaforge_hud_icons_sheet.png` (`scripts/hud_icons.gd`). The Forge Key relic still uses `icon_forge_key.png`.
+
+## HUD icon sheet and hub props (wired)
+
+Sheet: `assets/art/ui/manaforge_hud_icons_sheet.png` — **1280×512**, **5×2**, cells **256×256**, left to right, then the next row. Nearest-neighbor atlas slices. Resource HUD chips (wood, stone, food, Manashards, Essence), backpack, and pause stay on the beautification sprites.
+
+| Cell | Icon | Where |
+|------|------|--------|
+| 0 | Character | `Panel/CharacterButton/CharacterIcon` |
+| 1 | Help | not wired; Help stays a ColorRect |
+| 2 | Ascension reopen | `Panel/AscensionReopenButton/AscensionIcon` |
+| 3 | Keep Tools | Ascension shop row |
+| 4 | Wooden Basket | backpack and craft rows |
+| 5 | Stone Watering Can | backpack and craft rows |
+| 6 | Stone Sword | gear bag and weapon slot |
+| 7 | Weapon Rod | gear bag and craft rows |
+| 8 | Empty equip slot | unlocked empty paper-doll square |
+| 9 | Locked equip slot | locked paper-doll square |
+
+| Prop | Fit |
+|------|-----|
+| `assets/art/props/berry_harvest_node.png` (784×1168) | food harvest node, scaled into the existing 64 box |
+| `assets/art/props/echo_portal_hub.png` (784×1168) | hub portal marker, scaled into the existing 96 box. Collision stays 96×96 |

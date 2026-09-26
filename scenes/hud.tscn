@@ -210,13 +210,15 @@ offset_bottom = 46.0
 flat = true
 tooltip_text = "C — Character"
 
-[node name="CharacterIcon" type="ColorRect" parent="Panel/CharacterButton"]
+[node name="CharacterIcon" type="TextureRect" parent="Panel/CharacterButton"]
 offset_left = 6.0
 offset_top = 6.0
 offset_right = 34.0
 offset_bottom = 34.0
 mouse_filter = 2
-color = Color(0.46, 0.44, 0.4, 1)
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="BackpackButton" type="Button" parent="Panel"]
 offset_left = 1116.0
@@ -265,13 +267,15 @@ offset_bottom = 46.0
 flat = true
 tooltip_text = "Ascension"
 
-[node name="Placeholder" type="ColorRect" parent="Panel/AscensionReopenButton"]
+[node name="AscensionIcon" type="TextureRect" parent="Panel/AscensionReopenButton"]
 offset_left = 6.0
 offset_top = 6.0
 offset_right = 34.0
 offset_bottom = 34.0
 mouse_filter = 2
-color = Color(0.46, 0.44, 0.4, 1)
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="CarePanel" type="Panel" parent="."]
 visible = false

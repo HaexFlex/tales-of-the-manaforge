@@ -17,13 +17,16 @@ const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
 
 
 static func make_item_icon(item_id: String) -> Control:
+	var tip: String = Equipment.item_display_name(item_id)
+	var sheet_index: int = HudIcons.index_for_item(item_id)
+	if sheet_index >= 0:
+		var sheet_icon: TextureRect = HudIcons.make_icon(sheet_index)
+		sheet_icon.tooltip_text = tip
+		return sheet_icon
 	var path: String = ""
 	match item_id:
-		"weapon_rod":
-			path = "res://assets/art/ui/icons/icon_weapon_rod.png"
 		"forge_key_relic":
 			path = "res://assets/art/ui/icons/icon_forge_key.png"
-	var tip: String = Equipment.item_display_name(item_id)
 	if path != "" and ResourceLoader.exists(path):
 		var icon := TextureRect.new()
 		icon.custom_minimum_size = Vector2(32, 32)
@@ -55,8 +58,7 @@ const SLOT_POS: Dictionary = {
 }
 const SLOT_SIZE: Vector2 = Vector2(56, 66)
 const SLOT_SQUARE: Vector2 = Vector2(44, 44)
-## Half-transparent slot chrome. No gold edge — the caption sits under the square.
-const SLOT_ALPHA: float = 0.48
+## Empty and locked chrome come from the HUD icon sheet. No gold edge — the caption sits under the square.
 const STAT_TOP: float = 30.0
 const STAT_NAME_H: float = 22.0
 const STAT_ROLE_H: float = 18.0
@@ -604,7 +606,7 @@ class InvColumn extends Control:
 class SlotPlate extends Panel:
 	var slot_id: String = ""
 	var host: Control = null
-	var _square: ColorRect
+	var _square: TextureRect
 	var _caption: Label
 	var _pressed: bool = false
 	var _dragged: bool = false
@@ -617,11 +619,14 @@ class SlotPlate extends Panel:
 		sb.set_corner_radius_all(0)
 		sb.shadow_size = 0
 		add_theme_stylebox_override("panel", sb)
-		_square = ColorRect.new()
+		_square = TextureRect.new()
 		_square.name = "Square"
 		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
 		_square.size = SLOT_SQUARE
 		_square.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_square.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_square.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_square.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		add_child(_square)
 		var caption_host := Control.new()
 		caption_host.name = "CaptionHost"
@@ -643,10 +648,28 @@ class SlotPlate extends Panel:
 		_caption.position = Vector2(0, (caption_host.size.y - cap_h) * 0.5)
 		refresh()
 
-	func _slot_fill(tint: Color, alpha: float) -> Color:
-		var c: Color = tint
-		c.a = alpha
-		return c
+	func _show_slot_icon(index: int) -> void:
+		HudIcons.apply(_square, index)
+		_square.modulate = Color.WHITE
+		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
+		_square.size = SLOT_SQUARE
+
+	func _show_equipped_icon(item_id: String) -> void:
+		var gear_index: int = HudIcons.index_for_item(item_id)
+		if gear_index >= 0:
+			_show_slot_icon(gear_index)
+			return
+		if item_id == "forge_key_relic" and ResourceLoader.exists("res://assets/art/ui/icons/icon_forge_key.png"):
+			_square.texture = load("res://assets/art/ui/icons/icon_forge_key.png") as Texture2D
+			_square.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			_square.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			_square.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			_square.modulate = Color.WHITE
+			_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
+			_square.size = SLOT_SQUARE
+			return
+		_show_slot_icon(HudIcons.EQUIP_EMPTY)
+		_square.modulate = Equipment.item_color(item_id)
 
 	func refresh() -> void:
 		if _square == null:
@@ -654,14 +677,14 @@ class SlotPlate extends Panel:
 		var unlocked: bool = Equipment.is_slot_unlocked(slot_id)
 		var iid: String = Equipment.equipped_id(slot_id)
 		if not unlocked:
-			_square.color = _slot_fill(Color(0.72, 0.72, 0.76, 1.0), SLOT_ALPHA)
+			_show_slot_icon(HudIcons.EQUIP_LOCKED)
 			_caption.text = Equipment.slot_lock_short(slot_id)
 			tooltip_text = Equipment.slot_lock_hint(slot_id)
 			if slot_id == "relic":
 				tooltip_text = "%s %s" % [tooltip_text, ContentStrings.get_text("relic_locked_tooltip")]
 			return
 		if iid == "":
-			_square.color = _slot_fill(Color(0.93, 0.88, 0.76, 1.0), SLOT_ALPHA)
+			_show_slot_icon(HudIcons.EQUIP_EMPTY)
 			if slot_id == "weapon":
 				_caption.text = Equipment.slot_display_name(slot_id)
 				tooltip_text = ContentStrings.get_text("equip_bare_stone_tooltip")
@@ -669,7 +692,7 @@ class SlotPlate extends Panel:
 				_caption.text = ContentStrings.get_text("equip_empty")
 				tooltip_text = ContentStrings.get_text("equip_empty")
 		else:
-			_square.color = _slot_fill(Equipment.item_color(iid), 0.62)
+			_show_equipped_icon(iid)
 			_caption.text = Equipment.item_display_name(iid)
 			tooltip_text = Equipment.item_tooltip(iid)
 

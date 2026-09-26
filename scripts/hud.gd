@@ -17,7 +17,8 @@ class_name GameHUD
 @onready var help_button: Button = $Panel/HelpButton
 @onready var pause_button: Button = $Panel/PauseButton
 @onready var character_button: Button = $Panel/CharacterButton
-@onready var character_icon: ColorRect = $Panel/CharacterButton/CharacterIcon
+@onready var character_icon: TextureRect = $Panel/CharacterButton/CharacterIcon
+@onready var ascension_icon: TextureRect = $Panel/AscensionReopenButton/AscensionIcon
 @onready var backpack_button: Button = $Panel/BackpackButton
 @onready var backpack_icon: TextureRect = $Panel/BackpackButton/BackpackIcon
 @onready var pause_icon: TextureRect = $Panel/PauseButton/Icon
@@ -98,7 +99,6 @@ const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
 const ICON_FERTILIZER: Color = Color(0.42, 0.35, 0.14, 1.0)
 const ICON_ESSENCE: Color = Color(0.56, 0.35, 0.66, 1.0)
 const ICON_BACKPACK: Color = Color(0.48, 0.31, 0.18, 1.0)
-const ICON_CHARACTER: Color = Color(0.46, 0.44, 0.40, 1.0)
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
 const ICON_WOOD_TEX: String = "res://assets/art/ui/icon_wood.png"
@@ -113,7 +113,6 @@ const BTN_PAUSE_PRESSED: String = "res://assets/art/ui/buttons/pause_pressed.png
 const BTN_PACK_NORMAL: String = "res://assets/art/ui/buttons/backpack_normal.png"
 const BTN_PACK_HOVER: String = "res://assets/art/ui/buttons/backpack_hover.png"
 const BTN_PACK_PRESSED: String = "res://assets/art/ui/buttons/backpack_pressed.png"
-const ICON_KEEP_TOOLS: Color = Color(0.72, 0.53, 0.04, 1.0)
 const BACKPACK_ROW_H: float = 40.0
 
 var _manatree: Manatree = null
@@ -161,8 +160,6 @@ func _ready() -> void:
 	backpack_tab_all.text = ContentStrings.get_text("backpack_tab_all")
 	backpack_tab_tools.text = ContentStrings.get_text("backpack_tab_tools")
 	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
-	if character_icon:
-		character_icon.color = ICON_CHARACTER
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -337,6 +334,10 @@ func _wire_sprite_hud() -> void:
 	_assign_tex(grow_ess_icon, ICON_ESSENCE_TEX, ContentStrings.get_text("hud_essence"), ESSENCE_TINT)
 	_bind_tex_states(backpack_button, backpack_icon, BTN_PACK_NORMAL, BTN_PACK_HOVER, BTN_PACK_PRESSED)
 	_bind_tex_states(pause_button, pause_icon, BTN_PAUSE_NORMAL, BTN_PAUSE_HOVER, BTN_PAUSE_PRESSED)
+	if character_icon:
+		HudIcons.apply(character_icon, HudIcons.CHARACTER)
+	if ascension_icon:
+		HudIcons.apply(ascension_icon, HudIcons.ASCENSION)
 	for chip_path: String in [
 		"Panel/IconRow/WoodChip",
 		"Panel/IconRow/StoneChip",
@@ -388,6 +389,11 @@ func _item_icon_path(item_id: String) -> String:
 
 
 func _make_item_icon(item_id: String, tip: String) -> Control:
+	var sheet_index: int = HudIcons.index_for_item(item_id)
+	if sheet_index >= 0:
+		var sheet_icon: TextureRect = HudIcons.make_icon(sheet_index)
+		sheet_icon.tooltip_text = tip
+		return sheet_icon
 	var path: String = _item_icon_path(item_id)
 	var tex: Texture2D = _load_ui_tex(path)
 	if tex:
@@ -1639,8 +1645,7 @@ func _rebuild_upgrades() -> void:
 		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 		inner.add_theme_constant_override("separation", 8)
 		if uid == "keep_tools":
-			var keep_icon := _placeholder_icon(PLACEHOLDER_SWATCH)
-			keep_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			var keep_icon: TextureRect = HudIcons.make_icon(HudIcons.KEEP_TOOLS)
 			keep_icon.tooltip_text = ContentStrings.get_text("upgrade_keep_tools_name")
 			inner.add_child(keep_icon)
 		var info := VBoxContainer.new()

@@ -2,8 +2,10 @@ extends Area2D
 class_name EchoPortal
 ## Hub portal. Same command as a Runestone: Keeper selected, right-click, walk in range, confirm.
 
-@onready var outer: ColorRect = $Visual/Outer
-@onready var inner: ColorRect = $Visual/Inner
+const PORTAL_ART: String = "res://assets/art/props/echo_portal_hub.png"
+const PORTAL_BOX: float = 96.0
+
+@onready var marker: Sprite2D = $Visual/Marker
 @onready var label: Label = $Label
 
 static var _layer: CanvasLayer
@@ -32,10 +34,7 @@ func _ready() -> void:
 		label.visible = false
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
-	if outer:
-		outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if inner:
-		inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fit_marker()
 	input_event.connect(_on_input_event)
 	if not GameState.echo_flags_changed.is_connected(refresh_visibility):
 		GameState.echo_flags_changed.connect(refresh_visibility)
@@ -44,12 +43,31 @@ func _ready() -> void:
 	refresh_visibility()
 
 
+func _fit_marker() -> void:
+	if marker == null:
+		return
+	marker.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	marker.centered = false
+	var tex: Texture2D = load(PORTAL_ART) as Texture2D
+	marker.texture = tex
+	var tw: float = PORTAL_BOX
+	var th: float = PORTAL_BOX
+	if tex != null:
+		tw = float(tex.get_width())
+		th = float(tex.get_height())
+	var fit: float = 1.0
+	if tw > 0.0 and th > 0.0:
+		fit = minf(PORTAL_BOX / tw, PORTAL_BOX / th)
+	marker.scale = Vector2(fit, fit)
+	marker.offset = Vector2(-tw * 0.5, -th)
+
+
 func _process(delta: float) -> void:
-	if not visible or inner == null:
+	if not visible or marker == null:
 		return
 	_pulse += delta
-	var glow: float = 0.78 + 0.22 * sin(_pulse * 1.6)
-	inner.color = Color(0.45, 0.74, 0.68, glow)
+	var glow: float = 0.88 + 0.12 * sin(_pulse * 1.6)
+	marker.modulate = Color(glow, glow, glow, 1.0)
 
 
 func refresh_visibility() -> void:

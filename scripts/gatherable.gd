@@ -17,7 +17,7 @@ const BODY_WIDTH: float = 64.0
 const HARVEST_TEXTURES: Dictionary = {
 	"wood": "res://assets/art/props/harvest_tree.png",
 	"stone": "res://assets/art/props/harvest_stone.png",
-	"food": "res://assets/art/props/harvest_berry.png",
+	"food": "res://assets/art/props/berry_harvest_node.png",
 }
 const HARVEST_HEIGHT: Dictionary = {
 	"wood": 80.0,
@@ -38,10 +38,14 @@ func _ready() -> void:
 	sprite.centered = false
 	var path: String = str(HARVEST_TEXTURES.get(node_key, HARVEST_TEXTURES["wood"]))
 	sprite.texture = load(path) as Texture2D
+	var box := Vector2(BODY_WIDTH, float(HARVEST_HEIGHT.get(node_key, 64.0)))
 	var scale_v: float = float(HARVEST_SCALE.get(node_key, 1.0))
-	var frame := Vector2(BODY_WIDTH, float(HARVEST_HEIGHT.get(node_key, 64.0)))
+	var frame := box
 	if sprite.texture:
 		frame = Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
+	## Full-size berry art fits the existing 64 food box. Tree and stone keep their scales.
+	if node_key == "food" and frame.x > 0.0 and frame.y > 0.0:
+		scale_v = minf(box.x / frame.x, box.y / frame.y)
 	sprite.scale = Vector2(scale_v, scale_v)
 	sprite.offset = Vector2(-frame.x * 0.5, -frame.y)
 	var vis := frame * scale_v
