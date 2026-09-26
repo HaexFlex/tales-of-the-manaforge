@@ -10,8 +10,12 @@ signal care_menu_requested
 @onready var fruit_hint: Label = $FruitHint
 
 var _watering: bool = false
+var _hovered: bool = false
 ## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/manatree_meta.json
 var _meta_stages: Dictionary = {}
+var _anim_frames: int = 1
+var _anim_fps: float = 7.0
+var _anim_time: float = 0.0
 
 const META_PATH: String = "res://assets/art/manatree/manatree_meta.json"
 const STAGE_TEXTURES: Dictionary = {
@@ -28,8 +32,12 @@ func _ready() -> void:
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.visible = false
 	fruit_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fruit_hint.visible = false
 	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
 	GameState.stage_changed.connect(_on_stage_changed)
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
 	GameState.needs_changed.connect(_refresh_label)
@@ -178,14 +186,28 @@ func _on_stage_changed(_id: StringName) -> void:
 	_refresh_visual()
 
 
+func _process(delta: float) -> void:
+	if _anim_frames <= 1 or sprite == null:
+		return
+	_anim_time += delta
+	var frame: int = int(_anim_time * _anim_fps) % _anim_frames
+	if sprite.frame != frame:
+		sprite.frame = frame
+
+
 func _on_fruit_changed(ready: bool) -> void:
-	fruit_hint.visible = ready or GameState.fruit_harvested_pending_ascend
 	if ready:
 		fruit_hint.text = ContentStrings.get_text("fruit_ready_prompt")
 	elif GameState.fruit_harvested_pending_ascend:
 		fruit_hint.text = ContentStrings.get_text("ascension_paused_hint")
 	else:
 		fruit_hint.text = ""
+	_apply_label_visibility()
+
+
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_apply_label_visibility()
 
 
 func _refresh_label() -> void:
@@ -196,33 +218,68 @@ func _refresh_label() -> void:
 			suffix += "\n" + ContentStrings.get_text("tool_water_hint")
 	if GameState.selected_wisp_id >= 0:
 		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
+		_apply_label_visibility()
 		return
 	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
+	var ascension: String = ContentStrings.get_text("ascend_count_hud", {"count": GameState.ascensions})
 	if GameState.stage_id == &"ancient":
 		var note: String = ""
 		if GameState.fruit_ready:
 			note = "\n" + ContentStrings.get_text("tree_at_ancient_idle")
-		label.text = "%s%s%s" % [stage_name, note, suffix]
+		label.text = "%s  |  %s%s%s" % [stage_name, ascension, note, suffix]
 	else:
-		label.text = "%s%s" % [stage_name, suffix]
+		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
+	_apply_label_visibility()
+
+
+func _apply_label_visibility() -> void:
+	var show_label := _hovered or _watering
+	if not show_label and GameState.selected_wisp_id >= 0:
+		var assigned: String = GameState.get_wisp_assignment(GameState.selected_wisp_id)
+		show_label = assigned == GameState.NODE_ID_MANATREE
+	if label:
+		label.visible = show_label
+	if fruit_hint:
+		fruit_hint.visible = _hovered and fruit_hint.text != ""
+
+
+func _stage_meta() -> Dictionary:
+	var meta: Variant = _meta_stages.get(String(GameState.stage_id), {})
+	if typeof(meta) == TYPE_DICTIONARY:
+		return meta
+	return {}
+
+
+func _display_scale(stage: StringName) -> float:
+	var meta: Dictionary = _stage_meta()
+	if stage == GameState.stage_id and meta.has("display_scale"):
+		return float(meta.get("display_scale", 1.0))
+	return visual_scale_for(stage)
 
 
 func _refresh_visual() -> void:
 	var path: String = str(STAGE_TEXTURES.get(GameState.stage_id, STAGE_TEXTURES[&"sapling"]))
-	# Prefer meta file name when present.
-	var meta: Variant = _meta_stages.get(String(GameState.stage_id), {})
-	if typeof(meta) == TYPE_DICTIONARY:
-		var fname: String = str((meta as Dictionary).get("file", ""))
-		if fname != "":
-			path = "res://assets/art/manatree/%s" % fname
+	var meta: Dictionary = _stage_meta()
+	var fname: String = str(meta.get("file", ""))
+	if fname != "":
+		path = "res://assets/art/manatree/%s" % fname
 	var tex: Texture2D = load(path) as Texture2D
+	var frames: int = maxi(1, int(meta.get("frames", 1)))
+	_anim_frames = frames
+	_anim_fps = float(meta.get("fps", 7.0))
+	if _anim_fps < 1.0:
+		_anim_fps = 7.0
+	sprite.hframes = frames
+	sprite.vframes = 1
 	sprite.texture = tex
+	sprite.frame = 0
+	_anim_time = 0.0
 	var sz: Vector2 = _stage_size(GameState.stage_id)
-	var scale_v: float = visual_scale_for(GameState.stage_id)
+	var scale_v: float = _display_scale(GameState.stage_id)
 	sprite.scale = Vector2(scale_v, scale_v)
 	var w: float = sz.x
 	var h: float = sz.y
-	# base_center anchor: feet at node origin. Offset is in texture pixels; scale grows it.
+	# base_center anchor: feet at node origin. Offset is in frame pixels; scale grows the crown up.
 	sprite.offset = Vector2(-w * 0.5, -h)
 	var vis_h: float = h * scale_v
 	var vis_w: float = w * scale_v

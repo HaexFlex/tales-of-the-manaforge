@@ -5,8 +5,10 @@ class_name Runestone
 
 @export var stat_id: StringName = &"might"
 
-@onready var stone: Polygon2D = $Stone
+@onready var stone: Sprite2D = $Stone
 @onready var label: Label = $Label
+
+const RUNE_DIR: String = "res://assets/art/props/runestones/runestone_%s.png"
 
 static var _layer: CanvasLayer
 static var _panel: Panel
@@ -20,6 +22,8 @@ static var _no: Button
 static var _pending_stat: String = ""
 static var _wired: bool = false
 
+var _hovered: bool = false
+
 
 func _ready() -> void:
 	add_to_group("runestone")
@@ -31,11 +35,23 @@ func _ready() -> void:
 	collision_layer = 4
 	collision_mask = 0
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.visible = false
 	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
 	if not KeeperStats.ranks_changed.is_connected(_on_ranks):
 		KeeperStats.ranks_changed.connect(_on_ranks)
 	if not GameState.resources_changed.is_connected(_on_resources):
 		GameState.resources_changed.connect(_on_resources)
+	if stone:
+		stone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		stone.centered = false
+		stone.hframes = 1
+		stone.scale = Vector2(2, 2)
+		stone.offset = Vector2(-16, -32)
+		var path: String = RUNE_DIR % String(stat_id)
+		if ResourceLoader.exists(path):
+			stone.texture = load(path) as Texture2D
 	_refresh()
 
 
@@ -55,7 +71,7 @@ func _refresh() -> void:
 	if cost >= 0 and GameState.manashards < cost:
 		tint = tint.darkened(0.35)
 	if stone:
-		stone.color = tint
+		stone.modulate = tint
 	if label == null:
 		return
 	var stat_name: String = KeeperStats.stat_display_name(sid)
@@ -63,6 +79,13 @@ func _refresh() -> void:
 		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_maxed")]
 	else:
 		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_cost", {"cost": cost})]
+	var confirming: bool = is_spend_confirm_open() and _pending_stat == sid
+	label.visible = _hovered or confirming
+
+
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_refresh()
 
 
 func _world_blocked() -> bool:

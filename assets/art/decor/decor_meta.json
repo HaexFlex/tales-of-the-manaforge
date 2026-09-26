@@ -1,0 +1,323 @@
+{
+  "version": "v0.1.14-art-drop-c9fda76",
+  "filter": "nearest",
+  "anchor": "base_center",
+  "notes": "Visual-only scatter. No collision. Seeded in main.gd.",
+  "items": [
+    {
+      "id": "grass_01",
+      "file": "grass_01.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_02",
+      "file": "grass_02.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_03",
+      "file": "grass_03.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_04",
+      "file": "grass_04.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_05",
+      "file": "grass_05.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_06",
+      "file": "grass_06.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_07",
+      "file": "grass_07.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_08",
+      "file": "grass_08.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_09",
+      "file": "grass_09.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_10",
+      "file": "grass_10.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_11",
+      "file": "grass_11.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_12",
+      "file": "grass_12.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_13",
+      "file": "grass_13.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_14",
+      "file": "grass_14.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_15",
+      "file": "grass_15.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "grass_16",
+      "file": "grass_16.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "flora"
+    },
+    {
+      "id": "misc_01",
+      "file": "misc_01.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_02",
+      "file": "misc_02.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_03",
+      "file": "misc_03.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_04",
+      "file": "misc_04.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_05",
+      "file": "misc_05.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_06",
+      "file": "misc_06.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_07",
+      "file": "misc_07.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_08",
+      "file": "misc_08.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_09",
+      "file": "misc_09.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_10",
+      "file": "misc_10.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_11",
+      "file": "misc_11.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_12",
+      "file": "misc_12.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_13",
+      "file": "misc_13.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_14",
+      "file": "misc_14.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_15",
+      "file": "misc_15.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "misc_16",
+      "file": "misc_16.png",
+      "size": [
+        32,
+        32
+      ],
+      "kind": "misc"
+    },
+    {
+      "id": "stone_01",
+      "file": "stone_01.png",
+      "size": [
+        64,
+        64
+      ],
+      "kind": "stone"
+    },
+    {
+      "id": "stone_02",
+      "file": "stone_02.png",
+      "size": [
+        64,
+        64
+      ],
+      "kind": "stone"
+    },
+    {
+      "id": "stone_03",
+      "file": "stone_03.png",
+      "size": [
+        64,
+        64
+      ],
+      "kind": "stone"
+    }
+  ]
+}

@@ -16,7 +16,22 @@
   "manatree": {
     "dir": "manatree/",
     "meta": "manatree/manatree_meta.json",
-    "version": "v0.1.6-sheet-scaled"
+    "version": "v0.1.7-animated",
+    "anim": "manatree/anim/"
+  },
+  "title": {
+    "file": "title/titlescreen.png",
+    "source": "art_drop_c9fda76"
+  },
+  "decor": {
+    "dir": "decor/",
+    "meta": "decor/decor_meta.json"
+  },
+  "nodes": {
+    "dir": "nodes/"
+  },
+  "ui_buttons": {
+    "dir": "ui/buttons/"
   },
   "props": {
     "dir": "props/",

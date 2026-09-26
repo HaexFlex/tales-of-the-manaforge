@@ -14,12 +14,12 @@ signal channel_changed(kind: StringName, active: bool)
 var _target: Vector2 = Vector2.ZERO
 var _moving: bool = false
 var _pending_interact: Node = null
-var _facing_back: bool = false
 
 enum ChannelKind { NONE, HARVEST, WATER }
 var _channel_kind: int = ChannelKind.NONE
 var _channel_target: Node = null
 var _channel_accum: float = 0.0
+var _hovered: bool = false
 
 const ARRIVE_DIST: float = 12.0
 const INTERACT_DIST: float = 64.0
@@ -46,8 +46,12 @@ func _ready() -> void:
 		select_ring.texture = load("res://assets/art/keeper/keeper_select_ring.png") as Texture2D
 		select_ring.visible = false
 		select_ring.z_index = -1
+	if label:
+		label.visible = false
 	if click_area:
 		click_area.input_event.connect(_on_click_area_input)
+		click_area.mouse_entered.connect(_on_hover.bind(true))
+		click_area.mouse_exited.connect(_on_hover.bind(false))
 		click_area.collision_layer = 4
 		click_area.collision_mask = 0
 		click_area.monitoring = false
@@ -124,8 +128,6 @@ func _physics_process(delta: float) -> void:
 			_try_interact()
 		else:
 			velocity = to_target.normalized() * speed
-			if absf(velocity.y) >= absf(velocity.x):
-				_facing_back = velocity.y < 0.0
 			move_and_slide()
 			_update_anim()
 			# Walking away cancels channel once out of range.
@@ -139,11 +141,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _update_anim() -> void:
-	var want: StringName
-	if _moving:
-		want = &"walk_back" if _facing_back else &"walk_south"
-	else:
-		want = &"idle_back" if _facing_back else &"idle_south"
+	# No north-facing walk yet. Stay on the south frames while idle and while moving.
+	var want: StringName = &"walk_south" if _moving else &"idle_south"
 	if sprite.animation != want or not sprite.is_playing():
 		sprite.play(want)
 
@@ -325,6 +324,11 @@ func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -
 			get_viewport().set_input_as_handled()
 
 
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_on_selection_changed()
+
+
 func _on_selection_changed() -> void:
 	if select_ring:
 		select_ring.visible = GameState.keeper_selected
@@ -335,3 +339,4 @@ func _on_selection_changed() -> void:
 		else:
 			label.text = ContentStrings.get_text("keeper_select")
 			modulate = Color.WHITE
+		label.visible = _hovered

@@ -1154,3 +1154,23 @@ func reset_for_new_game() -> void:
 		Equipment.reset_for_new_game()
 	wisps_changed.emit()
 	selection_changed.emit()
+	resources_changed.emit(&"wood", wood)
+	resources_changed.emit(&"stone", stone)
+	resources_changed.emit(&"food", food)
+	resources_changed.emit(&"manashards", manashards)
+	resources_changed.emit(&"essence", essence)
+	stage_changed.emit(stage_id)
+	fruit_ready_changed.emit(fruit_ready)
+	needs_changed.emit()
+	upgrades_changed.emit()
+
+
+func cancel_fruit_commit() -> void:
+	## Close on the Ascension shop. Harvest does not lock the run; Ascend does.
+	if not fruit_committed:
+		return
+	_set_fruit_committed(false)
+	var def: Dictionary = get_stage_def(stage_id)
+	fruit_ready = bool(def.get("grants_fruit", false))
+	fruit_ready_changed.emit(fruit_ready)
+	needs_changed.emit()

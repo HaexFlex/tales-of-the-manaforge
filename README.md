@@ -7,9 +7,9 @@ Cozy top-down pixel adventure inspired by *Secret of Mana*. You are the **Keeper
 ## Stack
 
 - **Godot 4.7.2** · GDScript only · **fully typed**
-- Playable forest hub: **2560×2160** play area (**2× × 3×** of the original 1280×720 hub), **64² grass TileMap**, dense Y-sorted **decorative** Haex forest ring around an open glade, **exactly 3** harvest channels, Manatree landmark; view **1280×720** nearest-neighbor; **arrow keys** pan the camera (clamped to play bounds)
+- Playable forest hub: **3200×2800** play area, irregular oval clearing (~32% more walkable ground than the old rectangle), **64² grass TileMap**, dense Y-sorted forest ring with grass/fern scatter (no collision), **exactly 3** harvest channels, animated Manatree; view **1280×720** nearest-neighbor; **arrow keys** pan the camera (clamped to play bounds). Boot opens the **title screen** (Continue / New Game / Load / Options / Quit). Pause **Return to Title** replaces quit; quit lives on the title.
 - Autoloads: `ContentStrings`, `GameAudio`, `GameState`, `Backpack`, `KeeperStats`, `Equipment`, `SaveService`
-- Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options stub, Exit
+- Pause (**ESC** / HUD **Pause**): Resume, New Game, Save/Load (**7 slots**), Options (audio), **Return to Title**
 - Saves `user://manaforge_save_slot_{1..7}.json` (`save_version: **8**`; backpack stacks; keeper stats store Runestone ranks starting at **0**; the sheet base is **5 + rank**; missing ranks load as 0; v6 saves still start gear empty; legacy single-file migrates → slot 1; old `growth` ignored; v8 adds Echo portal / fee / key / companion flag)
 
 ## Prototype loop (Haex Grow + backpack)

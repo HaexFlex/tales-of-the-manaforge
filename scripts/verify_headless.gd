@@ -114,7 +114,7 @@ func _run() -> void:
 		failed += _assert(typeof(meta_parsed) == TYPE_DICTIONARY, "meta dict")
 		if typeof(meta_parsed) == TYPE_DICTIONARY:
 			var mroot: Dictionary = meta_parsed
-			failed += _assert(str(mroot.get("version", "")) == "v0.1.6-sheet-scaled", "meta version v0.1.6-sheet-scaled")
+			failed += _assert(str(mroot.get("version", "")) == "v0.1.7-animated", "meta version v0.1.7-animated")
 			var stages_m: Variant = mroot.get("stages", [])
 			failed += _assert(typeof(stages_m) == TYPE_ARRAY and (stages_m as Array).size() == 5, "meta 5 stages")
 			if typeof(stages_m) == TYPE_ARRAY:
@@ -124,12 +124,16 @@ func _run() -> void:
 					var ed: Dictionary = entry
 					if str(ed.get("stage_id", "")) == "ancient":
 						var asz: Variant = ed.get("size", [])
-						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 512 and int((asz as Array)[1]) == 640, "meta ancient 512x640")
+						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 256 and int((asz as Array)[1]) == 256, "meta ancient frame 256")
+						failed += _assert(int(ed.get("frames", 0)) == 8, "ancient strip has 8 frames")
 
 	# Art harvest nodes
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_tree.png"), "harvest_tree art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_stone.png"), "harvest_stone art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_berry.png"), "harvest_berry art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/props/berry_harvest_node.png"), "berry_harvest_node art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/props/echo_portal_hub.png"), "echo_portal_hub art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/ui/manaforge_hud_icons_sheet.png"), "hud icon sheet")
 
 	# Art v0.1.13 — cleaned inbox forest + Keeper south walk
 	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_big_01.png"), "tree_big_01")
@@ -170,6 +174,62 @@ func _run() -> void:
 		inbox_dir.list_dir_end()
 		failed += _assert(loose == 0, "Assets upload empty after ship (got %d loose)" % loose)
 	failed += _assert(FileAccess.file_exists("res://Assets upload/README.md"), "Assets upload README only")
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("res://scenes/title_screen.tscn") >= 0, "main scene is the title screen")
+	failed += _assert(
+		str(ProjectSettings.get_setting("application/run/main_scene", "")) == "res://scenes/title_screen.tscn",
+		"ProjectSettings boots the title screen"
+	)
+	save_service.call("delete_save")
+	var title_packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	failed += _assert(title_packed != null, "title_screen.tscn loads")
+	if title_packed:
+		var title: Node = title_packed.instantiate()
+		tree_root.add_child(title)
+		await process_frame
+		var cont: Button = title.get_node_or_null("Menu/BtnContinue") as Button
+		var new_btn: Button = title.get_node_or_null("Menu/BtnNewGame") as Button
+		var load_btn: Button = title.get_node_or_null("Menu/BtnLoad") as Button
+		var opt_btn: Button = title.get_node_or_null("Menu/BtnOptions") as Button
+		var quit_btn: Button = title.get_node_or_null("Menu/BtnQuit") as Button
+		failed += _assert(cont != null and not cont.visible, "Continue hidden with no save")
+		failed += _assert(new_btn != null and new_btn.visible, "New Game on title")
+		failed += _assert(load_btn != null and load_btn.visible, "Load on title")
+		failed += _assert(opt_btn != null and opt_btn.visible, "Options on title")
+		failed += _assert(quit_btn != null and quit_btn.visible, "Quit on title")
+		failed += _assert(title.get_node_or_null("Background") is TextureRect, "title background")
+		title.queue_free()
+		await process_frame
+		save_service.set("boot_intent", "auto")
+		save_service.set("boot_slot", 0)
+		game_state.call("set_resource", &"wood", 42)
+		game_state.call("set_resource", &"stone", 7)
+		game_state.call("set_resource", &"food", 5)
+		game_state.call("set_resource", &"manashards", 11)
+		game_state.call("set_resource", &"essence", 9)
+		save_service.set("boot_intent", "new")
+		var boot_packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+		var boot_live: Node = boot_packed.instantiate() if boot_packed else null
+		if boot_live:
+			tree_root.add_child(boot_live)
+			await process_frame
+			var wood_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/WoodChip/NumWood") as Label
+			var stone_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/StoneChip/NumStone") as Label
+			var food_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/FoodChip/NumFood") as Label
+			var shard_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/ShardChip/NumShards") as Label
+			var ess_lbl: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/EssenceChip/NumEssence") as Label
+			failed += _assert(int(game_state.get("wood")) == 0 and int(game_state.get("essence")) == 0, "new game boot clears resources")
+			failed += _assert(wood_lbl != null and wood_lbl.text == "0", "new game HUD wood is 0 before harvest")
+			failed += _assert(stone_lbl != null and stone_lbl.text == "0", "new game HUD stone is 0")
+			failed += _assert(food_lbl != null and food_lbl.text == "0", "new game HUD food is 0")
+			failed += _assert(shard_lbl != null and shard_lbl.text == "0", "new game HUD shards are 0")
+			failed += _assert(ess_lbl != null and ess_lbl.text == "0", "new game HUD essence is 0")
+			failed += _assert(str(game_state.get("stage_id")) == "sapling", "new game boot is sapling")
+			boot_live.free()
+			await process_frame
+		paused = false
+		save_service.set("boot_intent", "auto")
+		save_service.set("boot_slot", 0)
 	var trees_meta_f := FileAccess.open("res://assets/art/trees/trees_meta.json", FileAccess.READ)
 	failed += _assert(trees_meta_f != null, "open trees_meta")
 	if trees_meta_f:
@@ -617,8 +677,8 @@ func _run() -> void:
 				failed += _assert(typeof(hub_parsed) == TYPE_DICTIONARY, "hub_map json dict")
 				if typeof(hub_parsed) == TYPE_DICTIONARY:
 					var hub: Dictionary = hub_parsed
-					failed += _assert(abs(float(hub.get("map_width_mult", 0)) - 2.0) < 0.01, "MAP_WIDTH_MULT 2")
-					failed += _assert(abs(float(hub.get("map_height_mult", 0)) - 3.0) < 0.01, "MAP_HEIGHT_MULT 3")
+					failed += _assert(abs(float(hub.get("map_width_mult", 0)) - 2.5) < 0.01, "MAP_WIDTH_MULT 2.5")
+					failed += _assert(abs(float(hub.get("map_height_mult", 0)) - 3.89) < 0.01, "MAP_HEIGHT_MULT 3.89")
 					failed += _assert(bool(hub.get("edge_scroll", true)) == false, "EDGE_SCROLL false")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/HarvestFruitButton") != null, "HarvestFruitButton missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/WaterButton") != null, "WaterButton missing")
@@ -964,7 +1024,7 @@ func _run() -> void:
 		failed += _assert(live.has_method("get_play_size"), "Main.get_play_size")
 		if live.has_method("get_play_size"):
 			var play: Vector2 = live.call("get_play_size") as Vector2
-			failed += _assert(abs(play.x - 2560.0) < 0.5 and abs(play.y - 2160.0) < 0.5, "play area 2560x2160 (got %s)" % play)
+			failed += _assert(abs(play.x - 3200.0) < 0.5 and abs(play.y - 2800.0) < 0.5, "play area 3200x2800 (got %s)" % play)
 		if live.has_method("pan_camera") and live.has_method("camera_min") and live.has_method("camera_max"):
 			var cam_min: Vector2 = live.call("camera_min") as Vector2
 			var cam_max: Vector2 = live.call("camera_max") as Vector2
@@ -1259,22 +1319,28 @@ func _run() -> void:
 		failed += _assert(bool(game_audio.call("did_play", &"sfx_ascend")), "ascend plays sfx_ascend")
 		failed += _assert(bool(game_audio.call("did_play", &"mus_ascend_sting")), "ascend plays mus_ascend_sting")
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub BGM stays on under ascend sting while paused")
-		test_hud.call("hide_ascension_shop")
+		test_hud.call("_on_shop_close")
 		await process_frame
-		failed += _assert(paused == true, "close shop keeps world paused")
+		failed += _assert(paused == false, "close shop returns to play")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "close clears the harvest lock")
+		failed += _assert(not bool(game_state.get("fruit_harvested_pending_ascend")), "close clears pending ascend")
+		failed += _assert(bool(game_state.get("fruit_ready")), "fruit is ready again after cancel")
 		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "close hides shop")
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub BGM stays on after shop Close")
 		var reopen: Button = test_hud.get_node_or_null("Panel/AscensionReopenButton") as Button
-		failed += _assert(reopen != null and reopen.visible, "reopen chip after close")
+		failed += _assert(reopen != null and not reopen.visible, "reopen chip hidden after cancel")
+		var water_after_cancel: Dictionary = game_state.call("apply_water_pulse")
+		failed += _assert(bool(water_after_cancel.get("ok", false)), "water works after cancelling the shop")
 		test_hud.call("show_care_menu")
 		await process_frame
-		failed += _assert(paused == true, "care reopen after commit stays paused")
-		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "post-commit care opens shop, not care")
-		failed += _assert(not bool(test_hud.call("is_care_open")), "care stays closed until next cycle")
-		test_hud.call("show_ascension_shop")
-		await process_frame
-		failed += _assert(paused == true, "reopen stays paused")
-		failed += _assert(bool(test_hud.call("is_ascension_shop_open")), "shop reopens")
+		failed += _assert(paused == false, "care after cancel stays in play")
+		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "cancel does not reopen the shop")
+		failed += _assert(bool(test_hud.call("is_care_open")), "care opens after cancel")
+		var harvest_again: int = int(game_state.call("harvest_fruit"))
+		failed += _assert(harvest_again >= 1, "fruit can be harvested again")
+		failed += _assert(bool(game_state.get("fruit_committed")), "second harvest commits again")
+		game_state.call("cancel_fruit_commit")
+		failed += _assert(not bool(game_state.get("fruit_committed")) and bool(game_state.get("fruit_ready")), "cancel_fruit_commit restores play")
 		test_hud.queue_free()
 		paused = false
 		await process_frame
@@ -1543,12 +1609,12 @@ func _run() -> void:
 		await process_frame
 		failed += _assert(pack_hud.has_method("open_backpack"), "HUD.open_backpack")
 		failed += _assert(pack_hud.has_method("is_backpack_open"), "HUD.is_backpack_open")
-		var fert_icon: ColorRect = pack_hud.get_node_or_null("CarePanel/CareGrowCosts/FertilizerIcon") as ColorRect
-		var ess_icon: ColorRect = pack_hud.get_node_or_null("CarePanel/CareGrowCosts/EssenceIcon") as ColorRect
-		var pack_icon: ColorRect = pack_hud.get_node_or_null("Panel/BackpackButton/BackpackIcon") as ColorRect
-		failed += _assert(fert_icon != null and fert_icon.color.a > 0.5, "Grow fertilizer ColorRect")
-		failed += _assert(ess_icon != null and ess_icon.color.a > 0.5, "Grow essence ColorRect")
-		failed += _assert(pack_icon != null and pack_icon.color.a > 0.5, "Backpack button ColorRect")
+		var fert_icon: TextureRect = pack_hud.get_node_or_null("CarePanel/CareGrowCosts/FertilizerIcon") as TextureRect
+		var ess_icon: TextureRect = pack_hud.get_node_or_null("CarePanel/CareGrowCosts/EssenceIcon") as TextureRect
+		var pack_icon: TextureRect = pack_hud.get_node_or_null("Panel/BackpackButton/BackpackIcon") as TextureRect
+		failed += _assert(fert_icon != null and fert_icon.texture != null, "Grow fertilizer sprite")
+		failed += _assert(ess_icon != null and ess_icon.texture != null, "Grow essence sprite")
+		failed += _assert(pack_icon != null and pack_icon.texture != null, "Backpack button sprite")
 		pack_hud.call("open_backpack")
 		await process_frame
 		failed += _assert(bool(pack_hud.call("is_backpack_open")), "backpack opens")
@@ -1580,7 +1646,7 @@ func _run() -> void:
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabTools") != null, "backpack tab Tools")
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabParts") != null, "backpack tab Parts")
 		var pack_btn: Button = pack_hud.get_node_or_null("Panel/BackpackButton") as Button
-		failed += _assert(pack_btn != null and str(pack_btn.text) == "Backpack", "HUD backpack_open")
+		failed += _assert(pack_btn != null and str(pack_btn.text) == "" and str(pack_btn.tooltip_text).find("Backpack") >= 0, "HUD backpack sprite button")
 		pack_hud.call("close_backpack")
 		await process_frame
 		failed += _assert(not bool(pack_hud.call("is_backpack_open")), "backpack closes")
@@ -1774,10 +1840,11 @@ func _run() -> void:
 		failed += _assert(abs(float(scale_tree.call("visual_scale_for", &"elder")) - 2.0) < 0.01, "elder visual 2")
 		failed += _assert(abs(float(scale_tree.call("visual_scale_for", &"ancient")) - 1.5) < 0.01, "ancient visual 1.5")
 		var sap_sprite: Sprite2D = scale_tree.get_node_or_null("Sprite") as Sprite2D
-		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 0.5) < 0.01, "sapling sprite scale 0.5")
+		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 2.0) < 0.01, "sapling sprite scale 2")
+		failed += _assert(sap_sprite != null and sap_sprite.hframes == 8, "sapling anim 8 frames")
 		game_state.set("stage_id", &"ancient")
 		scale_tree.call("_refresh_visual")
-		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 1.5) < 0.01 and abs(sap_sprite.scale.y - 1.5) < 0.01, "ancient sprite scale 1.5")
+		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 4.0) < 0.01 and abs(sap_sprite.scale.y - 4.0) < 0.01, "ancient sprite scale 4")
 		var ancient_def: Dictionary = game_state.call("get_stage_def", &"ancient")
 		var ancient_sz: Variant = ancient_def.get("size", [])
 		failed += _assert(typeof(ancient_sz) == TYPE_ARRAY and int((ancient_sz as Array)[0]) == 512, "ancient canvas size unchanged")
@@ -1795,25 +1862,39 @@ func _run() -> void:
 			for stone_node: Node in stones.get_children():
 				seen[str(stone_node.get("stat_id"))] = true
 				failed += _assert(stone_node.is_in_group("interactable"), "runestone is interactable")
-				failed += _assert(stone_node.get_node_or_null("Stone") is Polygon2D, "runestone placeholder poly")
+				var rune_sprite: Sprite2D = stone_node.get_node_or_null("Stone") as Sprite2D
+				failed += _assert(rune_sprite != null and rune_sprite.texture != null, "runestone sprite")
 			for stat_need: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
 				failed += _assert(bool(seen.get(stat_need, false)), "runestone for %s" % stat_need)
 		var live_tree: Node = live_sheet.get_node_or_null("World/Manatree")
 		var live_sprite: Sprite2D = null
 		if live_tree:
 			live_sprite = live_tree.get_node_or_null("Sprite") as Sprite2D
-		failed += _assert(live_sprite != null and abs(live_sprite.scale.x - 0.5) < 0.01, "live sapling scale 0.5")
+		failed += _assert(live_sprite != null and abs(live_sprite.scale.x - 2.0) < 0.01, "live sapling scale 2")
 		var sheet_hud: Node = live_sheet.get_node_or_null("HUD")
 		failed += _assert(sheet_hud != null and sheet_hud.has_method("open_character_sheet"), "HUD character sheet")
 		var char_btn: Button = null
-		var char_icon: ColorRect = null
+		var char_icon: TextureRect = null
+		var ascension_icon: TextureRect = null
 		if sheet_hud:
 			char_btn = sheet_hud.get_node_or_null("Panel/CharacterButton") as Button
-			char_icon = sheet_hud.get_node_or_null("Panel/CharacterButton/CharacterIcon") as ColorRect
+			char_icon = sheet_hud.get_node_or_null("Panel/CharacterButton/CharacterIcon") as TextureRect
+			ascension_icon = sheet_hud.get_node_or_null("Panel/AscensionReopenButton/AscensionIcon") as TextureRect
 			if sheet_hud.has_method("hide_welcome"):
 				sheet_hud.call("hide_welcome")
-		failed += _assert(char_btn != null and str(char_btn.text) == "Character", "HUD Character button")
-		failed += _assert(char_icon != null and char_icon.color.a > 0.5, "Character button ColorRect")
+		failed += _assert(char_btn != null and str(char_btn.text) == "", "HUD Character button is icon-only")
+		failed += _assert(char_icon != null and char_icon.texture == HudIcons.cell(HudIcons.CHARACTER), "Character button uses sheet cell")
+		failed += _assert(ascension_icon != null and ascension_icon.texture == HudIcons.cell(HudIcons.ASCENSION), "Ascension reopen uses sheet cell")
+		var berry_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestBerry/Sprite") as Sprite2D
+		var tree_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestTree/Sprite") as Sprite2D
+		var stone_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestStone/Sprite") as Sprite2D
+		failed += _assert(berry_sprite != null and berry_sprite.texture != null and str(berry_sprite.texture.resource_path).ends_with("berry_harvest_node.png"), "berry node uses berry_harvest_node")
+		if berry_sprite and berry_sprite.texture:
+			var berry_disp: Vector2 = berry_sprite.texture.get_size() * berry_sprite.scale
+			failed += _assert(abs(berry_disp.y - 64.0) < 1.0 and berry_disp.x <= 64.0 + 0.5, "berry scaled into the 64 harvest box")
+			failed += _assert(berry_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "berry nearest filter")
+		failed += _assert(tree_sprite != null and tree_sprite.texture != null and str(tree_sprite.texture.resource_path).ends_with("harvest_tree.png"), "tree harvest art unchanged")
+		failed += _assert(stone_sprite != null and stone_sprite.texture != null and str(stone_sprite.texture.resource_path).ends_with("harvest_stone.png"), "stone harvest art unchanged")
 		sheet_hud.call("open_character_sheet")
 		await process_frame
 		failed += _assert(bool(sheet_hud.call("is_character_open")), "character sheet opens")
@@ -1822,11 +1903,11 @@ func _run() -> void:
 		failed += _assert(portrait != null and str(portrait.texture.resource_path).find("keeper_idle_south") >= 0, "portrait uses idle_south")
 		var weapon_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
 		var relic_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic")
-		var relic_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as ColorRect
-		var weapon_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as ColorRect
+		var relic_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
+		var weapon_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
 		failed += _assert(weapon_slot != null and relic_slot != null, "weapon and relic slots")
-		failed += _assert(relic_square != null and relic_square.color.a > 0.2 and relic_square.color.a < 0.75, "relic square is translucent")
-		failed += _assert(weapon_square != null and weapon_square.color.a > 0.2 and weapon_square.color.a < 0.75, "empty weapon square is half-transparent")
+		failed += _assert(relic_square != null and relic_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "relic slot uses locked chrome")
+		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "empty weapon slot uses empty chrome")
 		var relic_style: StyleBoxFlat = relic_slot.get_theme_stylebox("panel") as StyleBoxFlat
 		var weapon_style: StyleBoxFlat = weapon_slot.get_theme_stylebox("panel") as StyleBoxFlat
 		failed += _assert(relic_style != null and relic_style.get_border_width(SIDE_LEFT) == 0, "locked slot has no gold border")
@@ -1843,7 +1924,8 @@ func _run() -> void:
 		failed += _assert(weapon_cap != null and weapon_square != null and weapon_cap.position.y >= weapon_square.position.y + weapon_square.size.y - 0.5, "weapon caption sits under the square")
 		var head_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/CaptionHost/Hint") as Label
 		var head_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/CaptionHost") as Control
-		var head_square: ColorRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/Square") as ColorRect
+		var head_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/Square") as TextureRect
+		failed += _assert(head_square != null and head_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "locked head slot uses locked chrome")
 		failed += _assert(head_hint != null and str(head_hint.text) == "Locked", "locked slot caption")
 		failed += _assert(head_square != null and head_cap != null and head_cap.position.y >= head_square.position.y + head_square.size.y - 0.5, "head Locked sits under the square")
 		var hotkey_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/HotkeyHint") as Label
@@ -1885,6 +1967,11 @@ func _run() -> void:
 		equipment.call("grant_item", "stone_sword")
 		await process_frame
 		failed += _assert(gear_list.get_child_count() >= 1, "sword listed in equipment inventory")
+		var sword_row: Node = gear_list.get_child(0)
+		var sword_icon: TextureRect = null
+		if sword_row.get_child_count() > 0 and sword_row.get_child(0).get_child_count() > 0:
+			sword_icon = sword_row.get_child(0).get_child(0) as TextureRect
+		failed += _assert(sword_icon != null and sword_icon.texture == HudIcons.cell(HudIcons.STONE_SWORD), "gear bag sword uses sheet cell")
 		sheet_hud.get_node("CharacterSheet").call("request_equip", "stone_sword")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet click equips sword")
@@ -1893,10 +1980,14 @@ func _run() -> void:
 		failed += _assert(might_line != null and str(might_line.text).find("5 + 2 = 7") >= 0, "sheet shows 5 + 2 = 7")
 		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "equipped sword still adds +2 might")
 		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Stone Sword", "equipped weapon shows the item name")
+		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
+		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.STONE_SWORD), "equipped sword shows sheet cell")
 		var slot_plate: Node = sheet_hud.get_node("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
 		sheet_hud.get_node("CharacterSheet").call("request_unequip", "weapon")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "sheet unequip")
+		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
+		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "unequipped weapon returns to empty chrome")
 		slot_plate.call("_drop_data", Vector2.ZERO, {"kind": "gear", "item_id": "stone_sword", "from_slot": ""})
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet drag-drop equips")
@@ -2055,7 +2146,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(content_strings.call("get_text", "battle_defeat_ok")).find("{enemy}") >= 0, "battle_defeat_ok")
 	failed += _assert(str(content_strings.call("get_text", "battle_key_grant")).find("+2 Swiftness") >= 0, "battle_key_grant")
 	failed += _assert(str(content_strings.call("get_text", "forge_no_key")) == "You have no key.", "no key popup")
-	failed += _assert(str(content_strings.call("get_text", "forge_not_built")) == "Not built yet! Stay tuned.", "forge not built")
+	failed += _assert(str(content_strings.call("get_text", "forge_not_built")) == "Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.", "forge not built")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_intro")).find("clearing alive") >= 0, "echo_01_intro")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_intro_2")).find("Elaia waits") >= 0, "echo_01_intro_2")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_return")).find("Chamber remembers you") >= 0, "echo_01_return")
@@ -2294,8 +2385,15 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	var pause_menu: Node = live.get_node_or_null("PauseMenu")
 	failed += _assert(portal != null and not portal.visible, "portal hidden before the first Ascend")
 	if portal:
-		var portal_outer: ColorRect = portal.get_node_or_null("Visual/Outer") as ColorRect
-		failed += _assert(portal_outer != null and abs(portal_outer.size.x - 96.0) < 0.5 and abs(portal_outer.size.y - 96.0) < 0.5, "portal ColorRect 96x96")
+		var portal_marker: Sprite2D = portal.get_node_or_null("Visual/Marker") as Sprite2D
+		var portal_shape: CollisionShape2D = portal.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		var portal_rect: RectangleShape2D = portal_shape.shape as RectangleShape2D if portal_shape else null
+		failed += _assert(portal_marker != null and portal_marker.texture != null and str(portal_marker.texture.resource_path).ends_with("echo_portal_hub.png"), "portal uses echo_portal_hub")
+		if portal_marker and portal_marker.texture:
+			var portal_disp: Vector2 = portal_marker.texture.get_size() * portal_marker.scale
+			failed += _assert(abs(maxf(portal_disp.x, portal_disp.y) - 96.0) < 1.0, "portal art fits the 96 box")
+			failed += _assert(portal_marker.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "portal nearest filter")
+		failed += _assert(portal_rect != null and abs(portal_rect.size.x - 96.0) < 0.5 and abs(portal_rect.size.y - 96.0) < 0.5, "portal collision stays 96x96")
 	failed += _assert(hud != null and pause_menu != null, "hud and pause for echo")
 	if hud and portal and pause_menu:
 		if hud.has_method("hide_welcome"):
@@ -2324,7 +2422,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_state.set("forge_key", true)
 		game_state.emit_signal("echo_flags_changed")
 		failed += _assert(not bool(hud.call("is_forge_entry_gray")), "Enter Forge wakes up with the key")
-		failed += _assert(str(hud.call("open_forge_entry")) == "Not built yet! Stay tuned.", "key forge popup")
+		failed += _assert(str(hud.call("open_forge_entry")) == "Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.", "key forge popup")
 		hud.call("hide_forge_popup")
 		game_state.set("stage_id", &"ancient")
 		game_state.emit_signal("stage_changed", &"ancient")
@@ -2354,8 +2452,34 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(int(game_state.get("essence")) == 10, "short confirm does not spend")
 		failed += _assert(bool(portal.call("is_fee_confirm_open")), "reject keeps the confirm open")
 		var yes_btn: Button = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Yes") as Button
+		var no_btn: Button = tree_root.get_node_or_null("EchoPortalConfirm/Panel/No") as Button
+		var fee_panel: Control = tree_root.get_node_or_null("EchoPortalConfirm/Panel") as Control
 		failed += _assert(yes_btn != null and yes_btn.disabled, "confirm yes disabled when short")
-		portal.call("cancel_fee")
+		failed += _assert(no_btn != null and no_btn.text == "Not now" and not no_btn.disabled, "Not now is enabled")
+		if no_btn and fee_panel:
+			var panel_h: float = fee_panel.offset_bottom - fee_panel.offset_top
+			if panel_h < 1.0:
+				panel_h = fee_panel.size.y
+			failed += _assert(
+				no_btn.position.y + no_btn.size.y <= panel_h + 1.0,
+				"Not now sits inside the fee panel (btn y %.0f h %.0f panel %.0f)" % [no_btn.position.y, no_btn.size.y, panel_h]
+			)
+		# Drop the live wiring, then reopen so a stale portal cannot keep the click.
+		if no_btn:
+			var stale: Array = no_btn.pressed.get_connections()
+			for stale_v: Variant in stale:
+				if typeof(stale_v) == TYPE_DICTIONARY:
+					var stale_cb: Callable = (stale_v as Dictionary).get("callable", Callable())
+					if no_btn.pressed.is_connected(stale_cb):
+						no_btn.pressed.disconnect(stale_cb)
+		failed += _assert(str(portal.call("begin_entry")) == "reject", "reopen still rejects a short fee")
+		no_btn = tree_root.get_node_or_null("EchoPortalConfirm/Panel/No") as Button
+		failed += _assert(no_btn != null and no_btn.pressed.get_connections().size() >= 1, "Not now rebound to the live portal")
+		if no_btn:
+			no_btn.pressed.emit()
+		await process_frame
+		failed += _assert(not bool(portal.call("is_fee_confirm_open")), "Not now closes the fee UI")
+		failed += _assert(not bool(live.call("world_input_blocked")), "Not now unblocks world clicks")
 		game_state.call("set_resource", &"essence", 30)
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub bed before the echo")
 		failed += _assert(str(portal.call("begin_entry")) == "confirm", "30 Essence opens the fee confirm")

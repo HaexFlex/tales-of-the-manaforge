@@ -20,11 +20,15 @@
       "also": "prop_stone.png"
     },
     "food": {
-      "file": "harvest_berry.png",
+      "file": "berry_harvest_node.png",
       "spent": "harvest_berry_spent.png",
       "size": [
         64,
         64
+      ],
+      "native_size": [
+        784,
+        1168
       ],
       "also": "prop_food.png"
     }

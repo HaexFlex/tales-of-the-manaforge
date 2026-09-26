@@ -6,6 +6,7 @@ class_name PauseMenu
 signal status_toast(text: String)
 signal new_game_started
 signal game_loaded
+signal standalone_load_requested(slot: int)
 
 enum SlotMode { NONE, SAVE, LOAD }
 
@@ -29,6 +30,7 @@ enum SlotMode { NONE, SAVE, LOAD }
 @onready var options_panel: ColorRect = $OptionsPanel
 @onready var options_title: Label = $OptionsPanel/OptionsTitle
 @onready var options_hint: Label = $OptionsPanel/OptionsHint
+@onready var options_controls: Label = $OptionsPanel/OptionsControls
 @onready var music_label: Label = $OptionsPanel/MusicLabel
 @onready var music_slider: HSlider = $OptionsPanel/MusicSlider
 @onready var sfx_label: Label = $OptionsPanel/SfxLabel
@@ -37,6 +39,9 @@ enum SlotMode { NONE, SAVE, LOAD }
 @onready var options_close: Button = $OptionsPanel/OptionsClose
 
 var _open: bool = false
+var standalone: bool = false
+## Title screen owns ESC. Do not open the in-game pause from that scene.
+var suppress_pause_hotkey: bool = false
 var _slot_mode: int = SlotMode.NONE
 var _confirm_action: StringName = &""
 var _pending_slot: int = 0
@@ -89,6 +94,13 @@ func _apply_strings() -> void:
 	slots_back.text = ContentStrings.get_text("btn_close")
 	options_title.text = ContentStrings.get_text("options_audio_title")
 	options_hint.text = ContentStrings.get_text("options_audio_hint")
+	if options_controls:
+		options_controls.text = "%s   ·   %s\n%s   ·   %s" % [
+			ContentStrings.get_text("controls_lmb_select"),
+			ContentStrings.get_text("controls_rmb_command"),
+			ContentStrings.get_text("controls_lmb_deselect"),
+			ContentStrings.get_text("controls_camera_pan"),
+		]
 	music_label.text = ContentStrings.get_text("options_music_volume")
 	sfx_label.text = ContentStrings.get_text("options_sfx_volume")
 	options_reset.text = ContentStrings.get_text("options_audio_reset")
@@ -108,10 +120,55 @@ func _build_slot_buttons() -> void:
 		_slot_btns.append(btn)
 
 
+func open_load_standalone() -> void:
+	standalone = true
+	visible = true
+	backdrop.visible = true
+	panel.visible = false
+	_hide_confirm()
+	_hide_options()
+	_slot_mode = SlotMode.LOAD
+	_show_slots(ContentStrings.get_text("pause_load"))
+
+
+func open_options_standalone() -> void:
+	standalone = true
+	visible = true
+	backdrop.visible = true
+	panel.visible = false
+	_hide_slots()
+	_hide_confirm()
+	_apply_strings()
+	_sync_audio_sliders_from_game()
+	options_panel.visible = true
+	GameAudio.play_ui_open()
+
+
+func close_standalone() -> void:
+	standalone = false
+	_slot_mode = SlotMode.NONE
+	_hide_slots()
+	_hide_confirm()
+	_hide_options()
+	panel.visible = false
+	backdrop.visible = false
+	visible = false
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event
 		if key.keycode == KEY_ESCAPE:
+			if suppress_pause_hotkey and not standalone:
+				return
+			if standalone:
+				if confirm_panel.visible:
+					_hide_confirm()
+				elif options_panel.visible or slots_panel.visible:
+					close_standalone()
+					GameAudio.play_ui_cancel()
+				get_viewport().set_input_as_handled()
+				return
 			if confirm_panel.visible:
 				_hide_confirm()
 			elif options_panel.visible:
@@ -247,6 +304,9 @@ func _show_slots(title: String) -> void:
 
 func _on_slots_back() -> void:
 	GameAudio.play_ui_cancel()
+	if standalone:
+		close_standalone()
+		return
 	_hide_slots()
 
 
@@ -306,6 +366,14 @@ func _do_save_slot(slot: int) -> void:
 
 
 func _do_load_slot(slot: int) -> void:
+	if standalone:
+		if not SaveService.has_slot(slot):
+			status_toast.emit(ContentStrings.get_text("pause_load_empty"))
+			return
+		var chosen: int = slot
+		close_standalone()
+		standalone_load_requested.emit(chosen)
+		return
 	if not SaveService.has_slot(slot):
 		status_toast.emit(ContentStrings.get_text("pause_load_empty"))
 		return
@@ -346,6 +414,8 @@ func _on_options_close() -> void:
 	GameAudio.save_settings()
 	GameAudio.play_ui_cancel()
 	_hide_options()
+	if standalone:
+		close_standalone()
 
 
 func _hide_options() -> void:
@@ -361,7 +431,11 @@ func _on_confirm_yes() -> void:
 			_do_new_game()
 		&"exit":
 			get_tree().paused = false
-			get_tree().quit()
+			if EchoChamber.in_battle:
+				EchoChamber.dismiss_battle_without_reward()
+			else:
+				GameAudio.play_hub_music()
+			get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
 		&"overwrite":
 			if slot >= 1:
 				_do_save_slot(slot)

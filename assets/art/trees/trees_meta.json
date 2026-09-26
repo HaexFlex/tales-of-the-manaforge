@@ -127,6 +127,76 @@
       ],
       "role": "tree",
       "source": "assets/library/Small Trees.png"
+    },
+    "tree_native_01": {
+      "file": "tree_native_01.png",
+      "size": [
+        102,
+        111
+      ],
+      "role": "tree",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small trees 1.png"
+    },
+    "tree_native_02": {
+      "file": "tree_native_02.png",
+      "size": [
+        91,
+        109
+      ],
+      "role": "tree",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small trees 1.png"
+    },
+    "tree_native_03": {
+      "file": "tree_native_03.png",
+      "size": [
+        62,
+        117
+      ],
+      "role": "tree",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small trees 1.png"
+    },
+    "tree_native_04": {
+      "file": "tree_native_04.png",
+      "size": [
+        118,
+        114
+      ],
+      "role": "tree",
+      "scale": 2,
+      "source": "art_drop_c9fda76/small trees 1.png"
+    },
+    "tree_mana_02": {
+      "file": "tree_mana_02.png",
+      "size": [
+        91,
+        112
+      ],
+      "role": "tree",
+      "scale": 1,
+      "source": "art_drop_c9fda76/Tree Resource_Node.png"
+    },
+    "tree_mana_03": {
+      "file": "tree_mana_03.png",
+      "size": [
+        92,
+        110
+      ],
+      "role": "tree",
+      "scale": 1,
+      "source": "art_drop_c9fda76/Tree Resource_Node.png"
+    },
+    "tree_mana_04": {
+      "file": "tree_mana_04.png",
+      "size": [
+        87,
+        98
+      ],
+      "role": "tree",
+      "scale": 1,
+      "source": "art_drop_c9fda76/Tree Resource_Node.png"
     }
   },
   "spawn_catalog": {
@@ -138,7 +208,14 @@
       "tree_small_01",
       "tree_small_02",
       "tree_small_03",
-      "tree_small_04"
+      "tree_small_04",
+      "tree_native_01",
+      "tree_native_02",
+      "tree_native_03",
+      "tree_native_04",
+      "tree_mana_02",
+      "tree_mana_03",
+      "tree_mana_04"
     ]
   }
 }

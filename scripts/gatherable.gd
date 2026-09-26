@@ -11,12 +11,13 @@ class_name Gatherable
 @onready var label: Label = $Label
 
 var _channeling: bool = false
+var _hovered: bool = false
 const BODY_WIDTH: float = 64.0
 
 const HARVEST_TEXTURES: Dictionary = {
 	"wood": "res://assets/art/props/harvest_tree.png",
 	"stone": "res://assets/art/props/harvest_stone.png",
-	"food": "res://assets/art/props/harvest_berry.png",
+	"food": "res://assets/art/props/berry_harvest_node.png",
 }
 const HARVEST_HEIGHT: Dictionary = {
 	"wood": 80.0,
@@ -25,18 +26,37 @@ const HARVEST_HEIGHT: Dictionary = {
 }
 
 
+const HARVEST_SCALE: Dictionary = {
+	"wood": 1.0,
+	"stone": 2.0,
+	"food": 1.0,
+}
+
+
 func _ready() -> void:
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
-	var h: float = float(HARVEST_HEIGHT.get(node_key, 64.0))
-	sprite.offset = Vector2(-32, -h)
 	var path: String = str(HARVEST_TEXTURES.get(node_key, HARVEST_TEXTURES["wood"]))
 	sprite.texture = load(path) as Texture2D
+	var box := Vector2(BODY_WIDTH, float(HARVEST_HEIGHT.get(node_key, 64.0)))
+	var scale_v: float = float(HARVEST_SCALE.get(node_key, 1.0))
+	var frame := box
+	if sprite.texture:
+		frame = Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
+	## Full-size berry art fits the existing 64 food box. Tree and stone keep their scales.
+	if node_key == "food" and frame.x > 0.0 and frame.y > 0.0:
+		scale_v = minf(box.x / frame.x, box.y / frame.y)
+	sprite.scale = Vector2(scale_v, scale_v)
+	sprite.offset = Vector2(-frame.x * 0.5, -frame.y)
+	var vis := frame * scale_v
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.position = Vector2(-48, -h - 20.0)
+	label.position = Vector2(-48, -vis.y - 20.0)
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
 	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
 	GameState.selection_changed.connect(_refresh_prompt)
+	label.visible = false
 	add_to_group("gatherable")
 	add_to_group("interactable")
 	add_to_group("harvest_node")
@@ -44,8 +64,8 @@ func _ready() -> void:
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
 		# Full sprite footprint (not just feet box) so canopy/upper clicks count.
-		(cs.shape as RectangleShape2D).size = Vector2(BODY_WIDTH, h)
-		cs.position = Vector2(0, -h * 0.5)
+		(cs.shape as RectangleShape2D).size = vis
+		cs.position = Vector2(0, -vis.y * 0.5)
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -101,14 +121,36 @@ func _refresh_prompt() -> void:
 		return
 	if _channeling:
 		label.text = ContentStrings.get_text("node_%s_busy" % node_key)
+		_apply_label_visibility()
 		return
 	if GameState.selected_wisp_id >= 0:
 		label.text = _wisp_assign_prompt()
+		_apply_label_visibility()
 		return
 	var prompt: String = ContentStrings.get_text("node_%s_prompt" % node_key)
 	if Backpack.owns_tool_for_resource(resource_id):
 		prompt = "%s\n%s" % [prompt, _tool_owned_hint()]
 	label.text = prompt
+	_apply_label_visibility()
+
+
+func _on_hover(inside: bool) -> void:
+	_hovered = inside
+	_apply_label_visibility()
+
+
+func _label_should_show() -> bool:
+	if _hovered or _channeling:
+		return true
+	if GameState.selected_wisp_id < 0:
+		return false
+	var assigned: String = GameState.get_wisp_assignment(GameState.selected_wisp_id)
+	return assigned != "" and assigned == GameState.node_id_for_resource(resource_id)
+
+
+func _apply_label_visibility() -> void:
+	if label:
+		label.visible = _label_should_show()
 
 
 func _tool_owned_hint() -> String:
