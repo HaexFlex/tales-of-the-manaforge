@@ -75,5 +75,15 @@
     "meta": "bushes/bushes_meta.json",
     "version": "v0.1.13-assets-upload",
     "anchor": "base_center"
+  },
+  "echo": {
+    "dir": "echo/",
+    "portrait": "echo/elaia_front.png",
+    "source": "assets/library/art_drop_c9fda76/Elaia front.png",
+    "display": [
+      384,
+      384
+    ],
+    "filter": "nearest"
   }
 }
