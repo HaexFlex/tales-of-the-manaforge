@@ -13,21 +13,9 @@ script = ExtResource("1_portal")
 
 [node name="Visual" type="Node2D" parent="."]
 
-[node name="Outer" type="ColorRect" parent="Visual"]
-offset_left = -48.0
-offset_top = -96.0
-offset_right = 48.0
-offset_bottom = 0.0
-mouse_filter = 2
-color = Color(0.16, 0.42, 0.48, 1)
-
-[node name="Inner" type="ColorRect" parent="Visual"]
-offset_left = -24.0
-offset_top = -72.0
-offset_right = 24.0
-offset_bottom = -24.0
-mouse_filter = 2
-color = Color(0.45, 0.82, 0.78, 0.92)
+[node name="Marker" type="Sprite2D" parent="Visual"]
+texture_filter = 0
+centered = false
 
 [node name="Label" type="Label" parent="."]
 offset_left = -48.0
