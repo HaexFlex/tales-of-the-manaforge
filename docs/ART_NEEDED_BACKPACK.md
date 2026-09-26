@@ -50,3 +50,29 @@ Battle-gear, Runestone, and character-sheet icons are listed in the next section
 Suggested folder: `assets/art/ui/character/` for icons, `assets/art/props/` for the Runestone.
 
 Portrait slots already sit on the body (head above the head, chest on the chest, weapon at the right hand, and so on). Swap the ColorRect in each slot for the icon; keep the slot ids.
+
+## Haex placeholder sheet + props (unwired)
+
+Art Direction drop. Live HUD chips, harvest nodes, and the Echo portal ColorRect stay on their current files.
+
+**Sheet:** `assets/art/ui/manaforge_hud_icons_sheet.png` — **1280×512**, **2×5**, cells **256×256**, left to right, top to bottom. Sharp pixel sheet. Kept whole (not sliced onto the resource HUD).
+
+| Cell | Icon |
+|------|------|
+| 1 | Character |
+| 2 | Help |
+| 3 | Ascension reopen |
+| 4 | Keep Tools |
+| 5 | Wooden Basket |
+| 6 | Stone Watering Can |
+| 7 | Stone Sword |
+| 8 | Weapon Rod |
+| 9 | Empty equip slot |
+| 10 | Locked equip slot |
+
+**Props** (full size, separate from the sheet):
+
+| File | What |
+|------|------|
+| `assets/art/props/berry_harvest_node.png` | Berry / food harvest bush (**784×1168**). Wired food node remains `harvest_berry.png`. |
+| `assets/art/props/echo_portal_hub.png` | Echo portal hub marker (**784×1168**). Hub portal remains the ColorRect in `scenes/echo_portal.tscn`. |
