@@ -1062,6 +1062,35 @@ func _run() -> void:
 		failed += _assert(tree_cols >= 40, "trees have trunk collision (got %d)" % tree_cols)
 		failed += _assert(bush_cols >= 20, "bushes have small collision (got %d)" % bush_cols)
 		failed += _assert(canopy_ok >= 20, "tree colliders stay on bottom trunk (got %d)" % canopy_ok)
+		var ground_tm: TileMap = live.get_node_or_null("Ground") as TileMap
+		failed += _assert(ground_tm != null, "ground tilemap")
+		if ground_tm:
+			var path_cells: int = 0
+			for cell: Vector2i in ground_tm.get_used_cells(0):
+				var atlas: Vector2i = ground_tm.get_cell_atlas_coords(0, cell)
+				if atlas.y != 0:
+					path_cells += 1
+			failed += _assert(path_cells == 0, "clearing ground is grass only (non-grass cells %d)" % path_cells)
+		var decor_nodes: Array[Node] = live.get_tree().get_nodes_in_group("forest_decor")
+		failed += _assert(decor_nodes.size() >= 20 and decor_nodes.size() <= 60, "sparse flora decor (got %d)" % decor_nodes.size())
+		var decor_bad: int = 0
+		var decor_on_landmark: int = 0
+		for decor_node: Node in decor_nodes:
+			var dspr: Sprite2D = null
+			for dch: Node in decor_node.get_children():
+				if dch is Sprite2D:
+					dspr = dch
+					break
+			var dpath: String = ""
+			if dspr and dspr.texture:
+				dpath = str(dspr.texture.resource_path)
+			if dpath.find("/decor/grass_") < 0 or dpath.find("stone_") >= 0 or dpath.find("/nodes/") >= 0 or dpath.find("harvest") >= 0:
+				decor_bad += 1
+			if decor_node is Node2D and live.has_method("decor_spot_allowed"):
+				if not bool(live.call("decor_spot_allowed", (decor_node as Node2D).global_position)):
+					decor_on_landmark += 1
+		failed += _assert(decor_bad == 0, "decor is flora grass only (bad %d)" % decor_bad)
+		failed += _assert(decor_on_landmark == 0, "decor stays off node footprints (hits %d)" % decor_on_landmark)
 		var live_keeper: Node = live.get_node_or_null("World/Keeper")
 		failed += _assert(live_keeper != null, "live Keeper")
 		if live_keeper:
@@ -1845,6 +1874,25 @@ func _run() -> void:
 		game_state.set("stage_id", &"ancient")
 		scale_tree.call("_refresh_visual")
 		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 4.0) < 0.01 and abs(sap_sprite.scale.y - 4.0) < 0.01, "ancient sprite scale 4")
+		for stage_name: String in ["sapling", "young", "mature", "elder", "ancient"]:
+			game_state.set("stage_id", StringName(stage_name))
+			scale_tree.call("_refresh_visual")
+			var door_px: Vector2 = scale_tree.call("door_floor_px")
+			var frame_sz: Vector2 = scale_tree.call("_stage_size", StringName(stage_name))
+			var anchor: Vector2 = scale_tree.call("door_anchor_offset")
+			failed += _assert(door_px.y < frame_sz.y - 1.0, "door sill above frame bottom on %s (y %.0f h %.0f)" % [stage_name, door_px.y, frame_sz.y])
+			failed += _assert(anchor.length() < 0.75, "door floor stays on the node for %s (offset %s)" % [stage_name, anchor])
+			var door_shape: CollisionShape2D = scale_tree.get_node_or_null("CollisionShape2D") as CollisionShape2D
+			var door_rect: RectangleShape2D = door_shape.shape as RectangleShape2D if door_shape else null
+			if door_shape and door_rect:
+				var covers: bool = abs(door_shape.position.x) <= door_rect.size.x * 0.5 + 1.0 and abs(door_shape.position.y) <= door_rect.size.y * 0.5 + 1.0
+				failed += _assert(covers, "hitbox still covers the door on %s" % stage_name)
+			var door_label: Label = scale_tree.get_node_or_null("Label") as Label
+			if door_label and sap_sprite:
+				var sprite_top: float = sap_sprite.offset.y * sap_sprite.scale.y
+				failed += _assert(door_label.position.y < sprite_top, "label stays above the crown on %s" % stage_name)
+		game_state.set("stage_id", &"sapling")
+		scale_tree.call("_refresh_visual")
 		var ancient_def: Dictionary = game_state.call("get_stage_def", &"ancient")
 		var ancient_sz: Variant = ancient_def.get("size", [])
 		failed += _assert(typeof(ancient_sz) == TYPE_ARRAY and int((ancient_sz as Array)[0]) == 512, "ancient canvas size unchanged")
@@ -1866,6 +1914,30 @@ func _run() -> void:
 				failed += _assert(rune_sprite != null and rune_sprite.texture != null, "runestone sprite")
 			for stat_need: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
 				failed += _assert(bool(seen.get(stat_need, false)), "runestone for %s" % stat_need)
+			var frame_seen: Dictionary = {}
+			game_state.call("set_resource", &"manashards", 500)
+			for stone_node: Node in stones.get_children():
+				var cell: Vector2i = stone_node.call("sheet_cell")
+				var cell_key: String = "%d,%d" % [cell.x, cell.y]
+				failed += _assert(not bool(frame_seen.get(cell_key, false)), "distinct runestone frame %s" % cell_key)
+				frame_seen[cell_key] = true
+				var sid: String = str(stone_node.get("stat_id"))
+				var tint: Color = keeper_stats.call("stat_color", sid)
+				var glow: Color = stone_node.call("glow_modulate", tint, true)
+				var dye: float = absf(glow.r - tint.r) + absf(glow.g - tint.g) + absf(glow.b - tint.b)
+				failed += _assert(dye > 0.35, "soft glow is not a full dye for %s" % sid)
+				failed += _assert(glow.r > 0.75 and glow.g > 0.75 and glow.b > 0.75, "soft glow stays light for %s" % sid)
+				var rune_sprite2: Sprite2D = stone_node.get_node_or_null("Stone") as Sprite2D
+				var glow_match: float = 1.0
+				if rune_sprite2:
+					glow_match = absf(rune_sprite2.modulate.r - glow.r) + absf(rune_sprite2.modulate.g - glow.g) + absf(rune_sprite2.modulate.b - glow.b)
+				failed += _assert(rune_sprite2 != null and glow_match < 0.05, "live stone uses the soft glow for %s" % sid)
+				var atlas_tex: AtlasTexture = rune_sprite2.texture as AtlasTexture if rune_sprite2 else null
+				failed += _assert(atlas_tex != null, "runestone uses the sheet atlas for %s" % sid)
+				if atlas_tex:
+					var expect := Rect2(cell.x * 32, cell.y * 32, 32, 32)
+					failed += _assert(atlas_tex.region == expect, "runestone region matches %s cell %s" % [sid, cell])
+			game_state.call("set_resource", &"manashards", 0)
 		var live_tree: Node = live_sheet.get_node_or_null("World/Manatree")
 		var live_sprite: Sprite2D = null
 		if live_tree:
@@ -2147,13 +2219,15 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(content_strings.call("get_text", "battle_key_grant")).find("+2 Swiftness") >= 0, "battle_key_grant")
 	failed += _assert(str(content_strings.call("get_text", "forge_no_key")) == "You have no key.", "no key popup")
 	failed += _assert(str(content_strings.call("get_text", "forge_not_built")) == "Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.", "forge not built")
-	failed += _assert(str(content_strings.call("get_text", "echo_01_intro")).find("clearing alive") >= 0, "echo_01_intro")
-	failed += _assert(str(content_strings.call("get_text", "echo_01_intro_2")).find("Elaia waits") >= 0, "echo_01_intro_2")
-	failed += _assert(str(content_strings.call("get_text", "echo_01_return")).find("Chamber remembers you") >= 0, "echo_01_return")
-	failed += _assert(str(content_strings.call("get_text", "echo_01_mercy")).find("still be spared") >= 0, "echo_01_mercy")
-	failed += _assert(str(content_strings.call("get_text", "echo_01_spare")).find("choosing kindness") >= 0, "echo_01_spare")
-	failed += _assert(str(content_strings.call("get_text", "echo_01_defeat")).find("without blame") >= 0, "echo_01_defeat")
-	failed += _assert(str(content_strings.call("get_text", "echo_01_flee")).find("Chamber keeps its silence") >= 0, "echo_01_flee")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_narrator")).find("does not raise her voice") >= 0, "echo_01_narrator")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_intro")).find("should not have opened this") >= 0, "echo_01_intro")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_intro")).find("another Keeper fail") >= 0, "echo_01_intro full line")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_return")).find("You came back") >= 0, "echo_01_return")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_mercy")).find("Wait. Please") >= 0, "echo_01_mercy")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_mercy")).find("worth following") >= 0, "echo_01_mercy full line")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_spare")).find("Then I stay") >= 0, "echo_01_spare")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_defeat")).find("I can sleep") >= 0, "echo_01_defeat")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_flee")).find("glade still needs you") >= 0, "echo_01_flee")
 	failed += _assert(str(content_strings.call("get_text", "forge_key_relic_name")) == "Forge Key", "forge_key_relic_name")
 	failed += _assert(str(content_strings.call("get_text", "forge_key_relic_tooltip")).find("+2 Swiftness") >= 0, "forge_key_relic_tooltip")
 	failed += _assert(str(content_strings.call("get_text", "forge_key_relic_grant")).find("settles with you") >= 0, "forge_key_relic_grant")
@@ -2254,13 +2328,15 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	await process_frame
 	failed += _assert(not bool(view.call("is_flee_shown")), "battle UI hides Flee in the spare window")
 	failed += _assert(bool(view.call("is_spare_shown")) and bool(view.call("is_strike_shown")), "battle UI shows Spare and Strike")
-	failed += _assert(str(view.call("speech_text")).find("still be spared") >= 0, "mercy flavour in the window")
+	failed += _assert(str(view.call("speech_text")).find("Wait. Please") >= 0, "mercy flavour in the window")
+	failed += _assert(str(view.call("speech_text")).find("worth following") >= 0, "mercy uses the full line")
 	var psize: Vector2 = view.call("portrait_size")
 	failed += _assert(abs(psize.x - 384.0) < 0.5 and abs(psize.y - 384.0) < 0.5, "portraits 384x384")
 	failed += _assert(bool(view.call("keeper_uses_idle_texture")), "keeper portrait uses idle_south")
 	failed += _assert(bool(view.call("echo_uses_elaia_texture")), "echo portrait uses elaia_front")
 	failed += _assert(FileAccess.file_exists("res://assets/art/echo/elaia_front.png"), "elaia_front.png shipped")
 	failed += _assert(float(view.call("speech_top")) < float(view.call("log_top")), "flavour above battle log")
+	failed += _assert(bool(view.call("speech_between_portraits")), "flavour box sits between the portraits")
 	var ssize: Vector2 = view.call("speech_band_size")
 	failed += _assert(ssize.y >= 80.0 and ssize.y <= 100.0, "flavour band 80-100")
 	var lsize: Vector2 = view.call("log_band_size")
@@ -2270,7 +2346,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	view.free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)
-	# Opening flavour: intro + intro_2; return on reentry.
+	# Opening flavour: narrator + intro on a new fee; return when the fee is already paid.
 	game_state.call("reset_for_new_game")
 	var open_battle: Variant = EchoBattleScript.new()
 	open_battle.force_crit = 0
@@ -2281,14 +2357,15 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	var open_view: Node = view_packed.instantiate()
 	tree_root.add_child(open_view)
 	await process_frame
-	failed += _assert(str(open_view.call("speech_text")).find("clearing alive") >= 0, "intro on first enter")
-	failed += _assert(str(open_view.call("speech_text")).find("Elaia waits") >= 0, "intro_2 on first enter")
+	failed += _assert(str(open_view.call("speech_text")).find("does not raise her voice") >= 0, "narrator on first enter")
+	failed += _assert(str(open_view.call("speech_text")).find("should not have opened this") >= 0, "intro on first enter")
 	open_view.free()
 	echo.set("reentry", true)
 	var reentry_view: Node = view_packed.instantiate()
 	tree_root.add_child(reentry_view)
 	await process_frame
-	failed += _assert(str(reentry_view.call("speech_text")).find("Chamber remembers you") >= 0, "return flavour on reentry")
+	failed += _assert(str(reentry_view.call("speech_text")).find("You came back") >= 0, "return flavour on reentry")
+	failed += _assert(str(reentry_view.call("speech_text")).find("should not have opened this") < 0, "return does not repeat the intro")
 	reentry_view.free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)
@@ -2505,8 +2582,8 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var battle_view: Node = tree_root.get_node_or_null("EchoBattle")
 		failed += _assert(battle_view != null and bool(battle_view.call("is_flee_shown")), "battle offers Flee outside the window")
 		failed += _assert(not bool(battle_view.call("is_spare_shown")), "Spare stays hidden above 10%")
-		failed += _assert(str(battle_view.call("speech_text")).find("clearing alive") >= 0, "opening uses echo_01_intro")
-		failed += _assert(str(battle_view.call("speech_text")).find("Elaia waits") >= 0, "opening uses echo_01_intro_2")
+		failed += _assert(str(battle_view.call("speech_text")).find("does not raise her voice") >= 0, "opening narrator")
+		failed += _assert(str(battle_view.call("speech_text")).find("should not have opened this") >= 0, "opening uses echo_01_intro")
 		var echo_name_lbl: Label = battle_view.get_node_or_null("EchoName") as Label
 		failed += _assert(echo_name_lbl != null and echo_name_lbl.text.find("Elaia") >= 0, "opening names Elaia")
 		var pause_save: Button = pause_menu.get_node_or_null("Panel/BtnSave") as Button
@@ -2523,7 +2600,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(str(portal.call("begin_entry")) == "enter", "re-entry skips the fee")
 		failed += _assert(int(game_state.get("essence")) == 4, "re-entry does not spend")
 		var return_view: Node = tree_root.get_node_or_null("EchoBattle")
-		failed += _assert(return_view != null and str(return_view.call("speech_text")).find("Chamber remembers you") >= 0, "re-entry return flavour")
+		failed += _assert(return_view != null and str(return_view.call("speech_text")).find("You came back") >= 0, "re-entry return flavour")
 		echo.call("finish_battle", "flee")
 		await process_frame
 		game_state.call("set_resource", &"manashards", 4)

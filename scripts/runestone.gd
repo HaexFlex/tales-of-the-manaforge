@@ -1,14 +1,16 @@
 extends Area2D
 class_name Runestone
 ## One hub stone per combat stat. Keeper selected + right-click walks in range,
-## then a Manashard confirm raises that stat by 1. Placeholder polygon.
+## then a Manashard confirm raises that stat by 1.
+## Each stat uses a distinct 32×32 cell of runestones_sheet.png (8×8 atlas).
 
 @export var stat_id: StringName = &"might"
 
 @onready var stone: Sprite2D = $Stone
 @onready var label: Label = $Label
 
-const RUNE_DIR: String = "res://assets/art/props/runestones/runestone_%s.png"
+const RUNE_SHEET: String = "res://assets/art/props/runestones/runestones_sheet.png"
+const RUNE_CELL: int = 32
 
 static var _layer: CanvasLayer
 static var _panel: Panel
@@ -49,10 +51,55 @@ func _ready() -> void:
 		stone.hframes = 1
 		stone.scale = Vector2(2, 2)
 		stone.offset = Vector2(-16, -32)
-		var path: String = RUNE_DIR % String(stat_id)
-		if ResourceLoader.exists(path):
-			stone.texture = load(path) as Texture2D
+		_apply_sheet_frame()
 	_refresh()
+
+
+## Column, row on the 8×8 runestone sheet. Chosen from separate silhouette groups.
+func sheet_cell() -> Vector2i:
+	match String(stat_id):
+		"might":
+			return Vector2i(0, 0)
+		"arcana":
+			return Vector2i(2, 5)
+		"resilience":
+			return Vector2i(3, 3)
+		"ward":
+			return Vector2i(1, 3)
+		"vitality":
+			return Vector2i(3, 5)
+		"swiftness":
+			return Vector2i(0, 3)
+		"fate":
+			return Vector2i(2, 3)
+		_:
+			return Vector2i(0, 0)
+
+
+func _apply_sheet_frame() -> void:
+	var sheet: Texture2D = load(RUNE_SHEET) as Texture2D
+	if sheet == null or stone == null:
+		return
+	var cell: Vector2i = sheet_cell()
+	var atlas := AtlasTexture.new()
+	atlas.atlas = sheet
+	atlas.region = Rect2(cell.x * RUNE_CELL, cell.y * RUNE_CELL, RUNE_CELL, RUNE_CELL)
+	stone.texture = atlas
+
+
+## Slight lift toward the stat color. Not a full dye, and not a neon multiply.
+func glow_modulate(tint: Color, affordable: bool) -> Color:
+	var mix: float = 0.28
+	var base: float = 1.08
+	var glow := Color(
+		lerpf(base, tint.r, mix),
+		lerpf(base, tint.g, mix),
+		lerpf(base, tint.b, mix),
+		1.0
+	)
+	if not affordable:
+		glow = glow.darkened(0.22)
+	return glow
 
 
 func _on_ranks(_stat_id: StringName) -> void:
@@ -68,10 +115,9 @@ func _refresh() -> void:
 	var sid: String = String(stat_id)
 	var tint: Color = KeeperStats.stat_color(sid)
 	var cost: int = KeeperStats.get_next_cost(sid)
-	if cost >= 0 and GameState.manashards < cost:
-		tint = tint.darkened(0.35)
+	var affordable: bool = cost < 0 or GameState.manashards >= cost
 	if stone:
-		stone.modulate = tint
+		stone.modulate = glow_modulate(tint, affordable)
 	if label == null:
 		return
 	var stat_name: String = KeeperStats.stat_display_name(sid)

@@ -250,6 +250,30 @@ func _stage_meta() -> Dictionary:
 	return {}
 
 
+## Frame-pixel midpoint of the door sill. Measured on frame 0 of each strip:
+## the last row where the trunk still bridges the center, above the root split.
+func door_floor_px(stage: StringName = &"") -> Vector2:
+	var sid: StringName = stage if stage != &"" else GameState.stage_id
+	var meta: Dictionary = {}
+	var raw: Variant = _meta_stages.get(String(sid), {})
+	if typeof(raw) == TYPE_DICTIONARY:
+		meta = raw
+	var door_v: Variant = meta.get("door_floor", null)
+	if typeof(door_v) == TYPE_ARRAY and (door_v as Array).size() >= 2:
+		var arr: Array = door_v
+		return Vector2(float(arr[0]), float(arr[1]))
+	var sz: Vector2 = _stage_size(sid)
+	return Vector2(sz.x * 0.5, sz.y)
+
+
+## Local position of the door-floor midpoint after offset and scale. Zero pins the sill to the node.
+func door_anchor_offset() -> Vector2:
+	if sprite == null:
+		return Vector2(9999, 9999)
+	var door: Vector2 = door_floor_px(GameState.stage_id)
+	return (sprite.offset + door) * sprite.scale
+
+
 func _display_scale(stage: StringName) -> float:
 	var meta: Dictionary = _stage_meta()
 	if stage == GameState.stage_id and meta.has("display_scale"):
@@ -279,8 +303,9 @@ func _refresh_visual() -> void:
 	sprite.scale = Vector2(scale_v, scale_v)
 	var w: float = sz.x
 	var h: float = sz.y
-	# base_center anchor: feet at node origin. Offset is in frame pixels; scale grows the crown up.
-	sprite.offset = Vector2(-w * 0.5, -h)
+	# Door sill is the world anchor. Offset is in frame pixels; scale grows the crown up from that point.
+	var door: Vector2 = door_floor_px(GameState.stage_id)
+	sprite.offset = Vector2(-door.x, -door.y)
 	var vis_h: float = h * scale_v
 	var vis_w: float = w * scale_v
 	var cs: CollisionShape2D = $CollisionShape2D
@@ -288,7 +313,7 @@ func _refresh_visual() -> void:
 		# Hitbox follows the visual scale so the grown canopy stays clickable.
 		var rect_shape: RectangleShape2D = cs.shape as RectangleShape2D
 		rect_shape.size = Vector2(vis_w, vis_h)
-		cs.position = Vector2(0, -vis_h * 0.5)
+		cs.position = (Vector2(w * 0.5, h * 0.5) - door) * scale_v
 	_refresh_label()
-	label.position = Vector2(-80, -vis_h - 36)
-	fruit_hint.position = Vector2(-140, 8)
+	label.position = Vector2(-80, -door.y * scale_v - 36)
+	fruit_hint.position = Vector2(-140, 12)
