@@ -1,15 +1,15 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.6.2 — Haex GO: Echo flavour dialogue (brief) + confirm Forge Key/+2/+2 + Enter Forge Elder/Ancient
+**Status:** v0.7.0 — Haex GO: Forge interior v1 (test branch) — Crucible/Mill/Anvil, path weapons, Sapsteel/Bits
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
 **Changelog note:** v0.6.0 Echo Chamber v1 string sheet (Haex GO).
 
-**Last updated:** 2026-09-22
+**Last updated:** 2026-09-27
 
 **Tone (Haex locked):** warm + lightly melancholic — never stressful.  
-**In-world rule:** *Manaforge* is **title-only** in v0.1 (window / itch blurb). Do not name the hidden forge or door in player strings yet.
+**In-world rule:** *Manaforge* remains **title-leaning**. Player strings may say **the Forge** (Enter Forge / interior). Avoid lore-dump place names beyond that.
 
 ## Changelog
 | Ver | Change |
@@ -30,6 +30,7 @@
 | **v0.6.0** | Haex GO Echo Chamber v1: Elaia (`echo_keeper_01`); portal 30 Essence; Enter Forge care-menu (no-key / not-built); Strike/Flee/Spare; bare-fists toast; Key both endings; companion Spare-only; KO/Spare/Defeat silent. |
 | **v0.6.1** | Haex Echo polish: Enter Forge **Elder/Ancient only**; `forge_not_built` → “Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”; Forge Key relic +2 Swiftness +2 Fate. |
 | **v0.6.2** | Haex GO Echo polish: brief flavour dialogue keys (`echo_01_*` intro/mercy/spare/defeat/flee/return); battle log labels; confirm Enter Forge Elder/Ancient + Stay tuned + Forge Key +2/+2. |
+| **v0.7.0** | Haex GO Forge v1 (test branch): Crucible/Mill/Anvil + Wisp pulses; mats Sapsteel/Heartwood Bits; handcraft Sapstaff/Thornbow; Anvil Rootsteel Edge/Heartwand/Switchshaft; Phys/Mag battle toggle; replace `forge_not_built` with real enter. Armor/Reliquary/offline 1/20 park. |
 
 ---
 
@@ -61,6 +62,8 @@
 | `food` | Food | Berries from the bush — for the Manatree’s Needs. |
 | `manashards` | Manashards | Drawn while watering the Manatree. |
 | `essence` | Essence | Grows with every careful watering — and with the Fruit. |
+| `sapsteel` | Sapsteel | Stone warmed until it remembers metal. |
+| `heartwood_bits` | Heartwood Bits | Wood ground to what the Anvil can use. |
 
 | key | string |
 |-----|--------|
@@ -395,7 +398,7 @@ Locked Design ids (`SYSTEMS_V01` v0.3.0).
 
 ## 8. Out of v0.1 (do not ship strings for)
 
-Echo Chamber **v2+**, companion body in combat, Forge **realm/interior**, Manaforge-as-place name, multi-zone travel, prompts on decorative trees. (Echo Chamber v1 portal fight + Enter Forge stub in-scope as of v0.6.0.)
+Echo Chamber **v2+**, companion body in combat, armor/body slots, Reliquary craft, offline 1/20 (unless Code ships shared catch-up), multi-zone travel, prompts on decorative trees. Forge interior v1 in-scope as of v0.7.0 (test branch).
 
 ---
 
@@ -680,12 +683,19 @@ Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor
 | `gear_tab_weapons` | Weapons |
 | `gear_tab_all` | All |
 
-### 10f. First weapons (craft / equip)
+### 10f. Weapons — handcraft starters + Forge Anvil upgrades (v0.7.0)
 
-| id | Display | Examine / equip tooltip |
-|----|---------|-------------------------|
-| `weapon_rod` | Weapon Rod | A simple wooden rod — your first lasting weapon. |
-| `stone_sword` | Stone Sword | A crude stone blade. Hits a little harder than a rod. |
+Path fantasy (systems labels; not HUD class names): fighter = physical (Might), caster = magical (Arcana), ranger = hybrid (Might+Arcana; battle Phys/Mag toggle).
+
+| id | Display | Path | Examine / equip tooltip |
+|----|---------|------|-------------------------|
+| `weapon_rod` | Weapon Rod | — | A simple wooden rod — your first lasting weapon. |
+| `stone_sword` | Stone Sword | Fighter | A crude stone blade. Hits a little harder than a rod. |
+| `sapstaff` | Sapstaff | Caster | A focus of living wood — light that remembers wards. |
+| `thornbow` | Thornbow | Ranger | A switch-shaft bow. It chooses its bite. |
+| `rootsteel_edge` | Rootsteel Edge | Fighter | A blade that grew harder than it should. |
+| `heartwand` | Heartwand | Caster | Sap-light shaped for striking wards. |
+| `switchshaft` | Switchshaft | Ranger | A ranger’s shaft that flips its teeth. |
 
 | key | string |
 |-----|--------|
@@ -695,6 +705,18 @@ Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor
 | `stone_sword_tooltip` | A crude stone blade. Hits a little harder than a rod. |
 | `stone_sword_craft_cost` | Stone Fragments ×30, Weapon Rod ×1 |
 | `stone_sword_craft_cost_default` | Stone Fragments ×30, Weapon Rod ×1 |
+| `sapstaff_name` | Sapstaff |
+| `sapstaff_tooltip` | A focus of living wood — light that remembers wards. |
+| `sapstaff_craft_cost` | Planks ×20, Food ×10, Weapon Rod ×1 |
+| `thornbow_name` | Thornbow |
+| `thornbow_tooltip` | A switch-shaft bow. It chooses its bite. |
+| `thornbow_craft_cost` | Planks ×25, Stone ×15 |
+| `rootsteel_edge_name` | Rootsteel Edge |
+| `rootsteel_edge_tooltip` | A blade that grew harder than it should. |
+| `heartwand_name` | Heartwand |
+| `heartwand_tooltip` | Sap-light shaped for striking wards. |
+| `switchshaft_name` | Switchshaft |
+| `switchshaft_tooltip` | A ranger’s shaft that flips its teeth. |
 | `weapon_craft_ok` | Crafted {item}. |
 | `weapon_persist_hint` | Weapons stay with you through Ascend. |
 | `relic_locked_tooltip` | Relics come later — when you hold a Forge Key. |
@@ -718,8 +740,8 @@ Visual-only (Art/Code). No player-facing strings. **Live with v0.5:** sapling **
 ## 11. Echo Chamber v1 (LIVE — Haex GO 2026-09-22)
 
 Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 vs **Elaia** (`echo_keeper_01`) → Strike / Flee / Spare (&lt;10% HP, no Flee in mercy window) → Key both endings, companion flag Spare-only → save flags (SAVE **8**). Mid-fight HP not saved. Bare fists 0 damage (sword gate). Mercy floor + T1 no-KO. Battle music silence.  
-**Not this ship:** companion body in combat, 3v1, Cast/items/Guard, Forge interior/realm, Echo 2+, type chart, Wisps in combat.  
-**Forge entry:** Manatree care **Enter Forge** only — **Elder/Ancient only**; no world door. With Key → “Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”
+**Not this ship:** companion body in combat, 3v1, Cast menu / items / Guard, armor slots, Reliquary craft, Echo 2+, type chart, Wisps in combat. (Forge interior → §12. Phys/Mag toggle is in-scope for hybrid weapons.)  
+**Forge entry:** Manatree care **Enter Forge** only — **Elder/Ancient + Key**; no world door. With Key → Forge interior (v0.7.0). See **§12**.
 
 ### 11a. Enemy
 
@@ -767,6 +789,13 @@ Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 v
 | `battle_flee_ok` | You leave the Chamber. |
 | `battle_save_disabled` | Cannot save during battle. |
 | `battle_paused_hint` | Leaving now counts as Flee. |
+| `battle_mode_phys` | Physical |
+| `battle_mode_mag` | Magical |
+| `battle_toggle_phys` | Phys |
+| `battle_toggle_mag` | Mag |
+| `battle_mode_hint` | Choose how this weapon bites. |
+| `battle_log_mode_phys` | You shift to a physical strike. |
+| `battle_log_mode_mag` | You shift to a magical strike. |
 
 ### 11d. Outcomes (KO / Spare / Defeat — no flavour lines; UI toasts only)
 
@@ -790,8 +819,11 @@ Scope this ship: portal after first Ascend → pay **30 Essence** once → 1v1 v
 | `forge_enter_hidden` | *(hidden — Sapling / Young / Mature)* |
 | `forge_enter_hint_elder` | Beyond the Manatree — Elder and Ancient only. |
 | `forge_no_key` | You have no key. |
-| `forge_not_built` | Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned. |
+| `forge_not_built` | *(retired v0.7.0 — Forge opens; keep key for save compat, unused)* |
 | `forge_locked_hint` | Needs a Forge Key. |
+| `forge_exit` | Leave the Forge |
+| `forge_exit_ok` | You return to the clearing. |
+| `forge_room_examine` | Warm bark and soft ember — the tree’s quiet workshop. |
 | `relic_slot_unlocked` | A relic niche opens. |
 
 
@@ -806,7 +838,7 @@ On Spare or Defeat: grant `forge_key_relic` (+2 Swiftness, +2 Fate), unlock reli
 | key | string |
 |-----|--------|
 | `forge_key_relic_name` | Forge Key |
-| `forge_key_relic_tooltip` | +2 Swiftness, +2 Fate. Opens the relic niche — the Forge itself still sleeps. |
+| `forge_key_relic_tooltip` | +2 Swiftness, +2 Fate. Opens the relic niche — and the Forge beyond the Manatree. |
 | `forge_key_relic_grant` | The Forge Key settles with you — +2 Swiftness, +2 Fate. |
 | `battle_key_grant` | The Forge Key settles into your keeping — +2 Swiftness, +2 Fate. |
 
@@ -841,6 +873,71 @@ Brief lines for the **top dialogue band**. Battle log (lower) uses short action 
 - Do not name Manaforge as a place on Forge/portal copy.
 - Flavour beats: `echo_01_*` for top dialogue band; short `battle_log_*` for lower log; outcome toasts still apply. Audio: hub stop/resume; no battle music.
 
+
+## 12. The Forge v1 (TEST BRANCH — Haex GO 2026-09-27)
+
+**Scope:** separate Forge scene from Manatree care (Elder/Ancient + Key). One bark-chamber. Stations: **Crucible**, **Mill**, **Anvil**. Wisps assignable; pulsed jobs (not backpack-instant). Hub BGM keep/light duck. Gear persists Ascend. Soft mats / intermediates wipe on Ascend unless Keep Tools.  
+**Recipes:** Key-tier free once inside. Handcraft starters in hub; Anvil upgrades consume Sapsteel + Heartwood Bits + Essence (Design PLACEHOLDER numbers in SYSTEMS v0.7.0-DRAFT).  
+**Park:** armor/body, Reliquary craft, Echo-gated tiers 2+, Forge BGM, offline 1/20 unless Code ships shared Wisp catch-up.
+
+### 12a. Intermediate mats
+
+| id | Display | Examine |
+|----|---------|---------|
+| `sapsteel` | Sapsteel | Stone warmed until it remembers metal. |
+| `heartwood_bits` | Heartwood Bits | Wood ground to what the Anvil can use. |
+
+| key | string |
+|-----|--------|
+| `sapsteel_name` | Sapsteel |
+| `sapsteel_tooltip` | Stone warmed until it remembers metal. |
+| `heartwood_bits_name` | Heartwood Bits |
+| `heartwood_bits_tooltip` | Wood ground to what the Anvil can use. |
+
+### 12b. Stations
+
+| station_id | Display | Examine / prompt |
+|------------|---------|------------------|
+| `forge_crucible` | Crucible | Warm the stone until it remembers metal. |
+| `forge_mill` | Mill | Grind what grew into what the Anvil can use. |
+| `forge_anvil` | Anvil | Shape what the clearing gave. |
+
+| key | string |
+|-----|--------|
+| `forge_crucible_name` | Crucible |
+| `forge_crucible_examine` | Warm the stone until it remembers metal. |
+| `forge_crucible_prompt` | Assign Wisps to smelt Sapsteel |
+| `forge_mill_name` | Mill |
+| `forge_mill_examine` | Grind what grew into what the Anvil can use. |
+| `forge_mill_prompt` | Assign Wisps to grind Heartwood Bits |
+| `forge_anvil_name` | Anvil |
+| `forge_anvil_examine` | Shape what the clearing gave. |
+| `forge_anvil_prompt` | Assign Wisps to shape gear |
+| `forge_station_busy` | Wisps are already working here. |
+| `forge_station_empty` | No Wisps assigned. |
+| `forge_job_start` | Work begins at the {station}. |
+| `forge_job_done` | The {station} finishes — {item} ready. |
+| `forge_job_progress` | {station}: {current}/{need} |
+| `forge_cant_afford` | Not enough materials. |
+| `forge_recipe_locked` | Not unlocked yet. |
+| `forge_assign_wisp` | Send Wisps |
+| `forge_unassign_wisp` | Call Wisps back |
+
+### 12c. Anvil recipe cost labels (numbers from Design — PLACEHOLDER)
+
+| key | string |
+|-----|--------|
+| `rootsteel_edge_craft_cost` | Sapsteel ×8, Heartwood Bits ×4, Essence ×20 |
+| `heartwand_craft_cost` | Sapsteel ×4, Heartwood Bits ×8, Essence ×20 |
+| `switchshaft_craft_cost` | Sapsteel ×6, Heartwood Bits ×6, Essence ×20 |
+| `sapsteel_process_cost` | Stone ×5 → Sapsteel ×1 |
+| `heartwood_bits_process_cost` | Wood ×5 → Heartwood Bits ×1 |
+
+### 12d. Code ping
+
+Pull **CONTENT_STRINGS_V01 v0.7.0** with SYSTEMS **v0.7.0-DRAFT**. Ship on **test branch only** — VERIFY + leave open for Haex; **do not merge to main** until he likes it.
+
+---
 
 ## DEFERRED notes (historical + park)
 
@@ -905,7 +1002,7 @@ v0.4.0: Backpack, Handcraft, tools, Grow, Keep Tools, Fertilizer. **v0.4.1:** D6
 
 ### D3 → LIVE pointer (v0.5.0 / Echo v0.6.0)
 
-Character sheet / stats / gear **§10**. Echo Chamber v1 portal fight + Enter Forge stub + Forge Key grant **§11**. Forge realm/interior + companion body + Echo 2+ still deferred.
+Character sheet / stats / gear **§10**. Echo Chamber v1 + Forge Key **§11**. Forge interior v1 **§12**. Armor / Reliquary / companion body / Echo 2+ still deferred.
 
 ### D7. Manatree display scales — LIVE (visual)
 

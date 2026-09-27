@@ -1527,6 +1527,10 @@ func _craft_row_cost_text(recipe_id: String) -> String:
 			gear_costs = _content_line("stone_sword_craft_cost")
 		elif recipe_id == "weapon_rod":
 			gear_costs = _content_line("handcraft_row_weapon_rod_short")
+		elif recipe_id == "sapstaff":
+			gear_costs = _content_line("sapstaff_craft_cost")
+		elif recipe_id == "thornbow":
+			gear_costs = _content_line("thornbow_craft_cost")
 		if gear_costs == "":
 			gear_costs = "  ".join(Equipment.recipe_ingredient_lines(recipe_id))
 		var gear_wrapped: String = _content_line("handcraft_row_costs_only", {"costs": gear_costs})

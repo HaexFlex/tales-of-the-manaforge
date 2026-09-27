@@ -20,7 +20,7 @@ func _ready() -> void:
 	if not GameState.status_message.is_connected(_on_status):
 		GameState.status_message.connect(_on_status)
 	if _toast:
-		_toast.text = ContentStrings.get_text("forge_enter_toast")
+		_toast.text = ContentStrings.get_text("forge_room_examine")
 	_refresh()
 
 
@@ -78,9 +78,9 @@ func _build() -> void:
 	root.add_child(bg)
 	var title := _label(root, "Title", Vector2(36, 152), Vector2(720, 28), ContentStrings.get_text("forge_title"), 22)
 	title.add_theme_color_override("font_color", Color(0.95, 0.88, 0.72, 1))
-	_label(root, "Subtitle", Vector2(36, 182), Vector2(980, 22), ContentStrings.get_text("forge_subtitle"), 14)
+	_label(root, "Subtitle", Vector2(36, 182), Vector2(980, 22), ContentStrings.get_text("forge_room_examine"), 14)
 	_mats = _label(root, "Mats", Vector2(36, 206), Vector2(1000, 22), "", 13)
-	_label(root, "Hint", Vector2(36, 228), Vector2(980, 20), ContentStrings.get_text("forge_equip_hint"), 12)
+	_label(root, "Hint", Vector2(36, 228), Vector2(980, 20), ContentStrings.get_text("weapon_persist_hint"), 12)
 	var exit_btn := Button.new()
 	exit_btn.name = "ExitButton"
 	exit_btn.position = Vector2(1040, 152)
@@ -142,7 +142,7 @@ func _add_station(parent: Control, station_id: String, origin: Vector2, swatch: 
 	send.name = "SendWisp"
 	send.position = Vector2(204, 224)
 	send.size = Vector2(180, 34)
-	send.text = ContentStrings.get_text("forge_send_wisp")
+	send.text = ContentStrings.get_text("forge_assign_wisp")
 	send.pressed.connect(_on_send.bind(station_id))
 	card.add_child(send)
 	_send[station_id] = send
@@ -150,7 +150,7 @@ func _add_station(parent: Control, station_id: String, origin: Vector2, swatch: 
 	recall.name = "RecallWisp"
 	recall.position = Vector2(16, 266)
 	recall.size = Vector2(368, 32)
-	recall.text = ContentStrings.get_text("forge_recall_wisp")
+	recall.text = ContentStrings.get_text("forge_unassign_wisp")
 	recall.pressed.connect(_on_recall.bind(station_id))
 	card.add_child(recall)
 	_recall[station_id] = recall
@@ -182,7 +182,7 @@ func _add_anvil_recipes(card: Control) -> void:
 func _refresh() -> void:
 	if _mats:
 		_mats.text = ContentStrings.get_text("forge_mats_line", {
-			"stone": GameState.stone,
+			"fragments": Backpack.get_count("stone_fragments"),
 			"wood": GameState.wood,
 			"sapsteel": Backpack.get_count("sapsteel"),
 			"heartwood": Backpack.get_count("heartwood_bits"),
@@ -217,8 +217,7 @@ func _refresh_anvil_buttons() -> void:
 		var def: Dictionary = Equipment.get_recipe_def(rid)
 		var out_id: String = str(def.get("output_id", rid))
 		var item_name: String = Equipment.item_display_name(out_id)
-		var lines: PackedStringArray = Equipment.recipe_ingredient_lines(rid)
-		btn.tooltip_text = "  ".join(lines)
+		btn.tooltip_text = ContentStrings.get_text("%s_craft_cost" % rid)
 		if GameState.anvil_recipe == rid:
 			btn.text = item_name
 			btn.disabled = true
@@ -231,23 +230,31 @@ func _refresh_anvil_buttons() -> void:
 
 
 func _station_status(station_id: String) -> String:
-	var listening: String = ContentStrings.get_text("forge_wisp_listening", {
-		"count": GameState.count_wisps_on_node(station_id),
-	})
+	var wisps: int = GameState.count_wisps_on_node(station_id)
+	var wisp_line: String = ContentStrings.get_text("forge_station_empty" if wisps == 0 else "forge_station_busy")
+	var progress: String = ""
 	if station_id == GameState.FORGE_ANVIL:
 		if GameState.anvil_recipe == "":
-			return "%s\n%s" % [ContentStrings.get_text("forge_anvil_quiet"), listening]
-		var def: Dictionary = Equipment.get_recipe_def(GameState.anvil_recipe)
-		var out_id: String = str(def.get("output_id", GameState.anvil_recipe))
-		return "%s  %d/%d\n%s" % [
-			Equipment.item_display_name(out_id),
-			GameState.anvil_pulses_done,
-			GameState.FORGE_ANVIL_PULSES,
-			listening,
-		]
-	var mat_name: String = ContentStrings.get_text("sapsteel_name" if station_id == GameState.FORGE_CRUCIBLE else "heartwood_bits_name")
-	var mat_id: String = "sapsteel" if station_id == GameState.FORGE_CRUCIBLE else "heartwood_bits"
-	return "%s %d\n%s" % [mat_name, Backpack.get_count(mat_id), listening]
+			progress = ContentStrings.get_text("forge_anvil_prompt")
+		else:
+			progress = ContentStrings.get_text("forge_job_progress", {
+				"station": ContentStrings.get_text("forge_anvil_name"),
+				"current": GameState.anvil_pulses_done,
+				"need": GameState.STATION_PULSES_TO_FINISH,
+			})
+	else:
+		var paid: bool = bool(GameState.forge_job_paid.get(station_id, false))
+		if paid:
+			progress = ContentStrings.get_text("forge_job_progress", {
+				"station": GameState.assignment_target_display(station_id),
+				"current": int(GameState.forge_pulses.get(station_id, 0)),
+				"need": GameState.STATION_PULSES_TO_FINISH,
+			})
+		elif station_id == GameState.FORGE_CRUCIBLE:
+			progress = ContentStrings.get_text("sapsteel_process_cost")
+		else:
+			progress = ContentStrings.get_text("heartwood_bits_process_cost")
+	return "%s\n%s" % [progress, wisp_line]
 
 
 func _card_name(station_id: String) -> String:

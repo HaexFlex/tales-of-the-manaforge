@@ -210,6 +210,7 @@ func toggle_arrow_mode() -> String:
 	if strike_kind != "hybrid":
 		return arrow_mode
 	arrow_mode = "physical" if arrow_mode == "magical" else "magical"
+	_log_line("battle_log_mode_mag" if arrow_mode == "magical" else "battle_log_mode_phys")
 	return arrow_mode
 
 
@@ -230,8 +231,6 @@ func _log_keeper_hit(dealt: int) -> void:
 		_log_line("battle_log_miss")
 	elif last_keeper_crit:
 		_log_line("battle_log_crit_you")
-	elif resolved_strike_kind() == "magical":
-		_log_line("battle_log_cast_you")
 	else:
 		_log_line("battle_log_strike_you")
 

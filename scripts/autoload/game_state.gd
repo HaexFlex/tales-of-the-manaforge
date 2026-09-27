@@ -31,9 +31,10 @@ const FORGE_CRUCIBLE: String = "forge_crucible"
 const FORGE_MILL: String = "forge_mill"
 const FORGE_ANVIL: String = "forge_anvil"
 const FORGE_STATION_IDS: Array[String] = ["forge_crucible", "forge_mill", "forge_anvil"]
-const FORGE_CRUCIBLE_STONE: int = 3
-const FORGE_MILL_WOOD: int = 3
-const FORGE_ANVIL_PULSES: int = 3
+## Crucible spends backpack stone_fragments. Mill spends soft wood. Content labels say Stone / Wood.
+const FORGE_CRUCIBLE_INPUT: int = 5
+const FORGE_MILL_INPUT: int = 5
+const STATION_PULSES_TO_FINISH: int = 10
 const FORGE_PULSE_SEC: float = 1.0
 
 var wood: int = 0
@@ -62,6 +63,8 @@ var in_forge: bool = false
 ## Lit stations keep pulsing after you leave. Wisps are a second driver.
 var forge_running: Dictionary = {}
 var forge_accum: Dictionary = {}
+var forge_pulses: Dictionary = {}
+var forge_job_paid: Dictionary = {}
 var anvil_recipe: String = ""
 var anvil_pulses_done: int = 0
 ## Hybrid bows: "physical" (thorn) or "magical" (heart). Persists.
@@ -416,7 +419,7 @@ func begin_forge_visit() -> void:
 			if keeper_node.has_method("halt"):
 				keeper_node.call("halt")
 	forge_changed.emit()
-	status_message.emit(ContentStrings.get_text("forge_enter_toast"))
+	status_message.emit(ContentStrings.get_text("forge_room_examine"))
 
 
 func end_forge_visit() -> void:
@@ -425,7 +428,7 @@ func end_forge_visit() -> void:
 	in_forge = false
 	_return_keeper_to_manatree()
 	forge_changed.emit()
-	status_message.emit(ContentStrings.get_text("forge_exit_toast"))
+	status_message.emit(ContentStrings.get_text("forge_exit_ok"))
 
 
 func _return_keeper_to_manatree() -> void:
@@ -463,7 +466,7 @@ func tick_forge_stations(delta: float) -> void:
 			continue
 		var acc: float = float(forge_accum.get(sid, 0.0)) + delta
 		var guard: int = 0
-		while acc >= FORGE_PULSE_SEC and guard < 8:
+		while acc >= FORGE_PULSE_SEC and guard < STATION_PULSES_TO_FINISH + 2:
 			guard += 1
 			if not bool(forge_running.get(sid, false)):
 				break
@@ -485,22 +488,28 @@ func try_toggle_forge_station(station_id: String) -> String:
 		status_message.emit(ContentStrings.get_text("forge_rest"))
 		return "rest"
 	if station_id == FORGE_ANVIL and anvil_recipe == "":
-		status_message.emit(ContentStrings.get_text("forge_anvil_quiet"))
+		status_message.emit(ContentStrings.get_text("forge_anvil_prompt"))
 		return "need_job"
 	forge_running[station_id] = true
 	forge_accum[station_id] = 0.0
 	if not _forge_station_pulse(station_id, false):
-		status_message.emit(ContentStrings.get_text("forge_need_mats", {"mats": _forge_wait_name(station_id)}))
+		status_message.emit(ContentStrings.get_text("forge_cant_afford"))
 		forge_changed.emit()
 		return "need_mats"
-	status_message.emit(ContentStrings.get_text("forge_station_warm"))
+	status_message.emit(ContentStrings.get_text("forge_job_start", {
+		"station": assignment_target_display(station_id),
+	}))
 	forge_changed.emit()
 	return "tend"
 
 
 func try_begin_anvil(recipe_id: String) -> String:
 	if anvil_recipe != "":
-		status_message.emit(ContentStrings.get_text("forge_anvil_busy"))
+		status_message.emit(ContentStrings.get_text("forge_job_progress", {
+			"station": assignment_target_display(FORGE_ANVIL),
+			"current": anvil_pulses_done,
+			"need": STATION_PULSES_TO_FINISH,
+		}))
 		return "busy"
 	if not has_node("/root/Equipment"):
 		return "unknown"
@@ -511,8 +520,7 @@ func try_begin_anvil(recipe_id: String) -> String:
 		if spent == "unique":
 			status_message.emit(ContentStrings.get_text("handcraft_owned_unique"))
 		elif spent == "cant_afford":
-			var lines: PackedStringArray = Equipment.recipe_ingredient_lines(recipe_id)
-			status_message.emit(ContentStrings.get_text("handcraft_cant_afford", {"costs": "  ".join(lines)}))
+			status_message.emit(ContentStrings.get_text("forge_cant_afford"))
 		return spent
 	anvil_recipe = recipe_id
 	anvil_pulses_done = 0
@@ -520,7 +528,9 @@ func try_begin_anvil(recipe_id: String) -> String:
 	forge_accum[FORGE_ANVIL] = 0.0
 	if has_node("/root/GameAudio"):
 		GameAudio.play_ui_confirm()
-	status_message.emit(ContentStrings.get_text("forge_anvil_started"))
+	status_message.emit(ContentStrings.get_text("forge_job_start", {
+		"station": assignment_target_display(FORGE_ANVIL),
+	}))
 	forge_changed.emit()
 	return "ok"
 
@@ -555,7 +565,7 @@ func recall_wisp_from_forge(station_id: String) -> String:
 	if chosen < 0:
 		if has_node("/root/GameAudio"):
 			GameAudio.play_wisp_deny()
-		status_message.emit(ContentStrings.get_text("forge_wisp_none_here"))
+		status_message.emit(ContentStrings.get_text("forge_station_empty"))
 		return "none"
 	if not unassign_wisp(chosen):
 		return "invalid"
@@ -565,13 +575,17 @@ func recall_wisp_from_forge(station_id: String) -> String:
 
 
 func forge_progress_ratio(station_id: String) -> float:
+	var need: float = float(maxi(1, STATION_PULSES_TO_FINISH))
+	var partial: float = 0.0
+	if bool(forge_running.get(station_id, false)):
+		partial = clampf(float(forge_accum.get(station_id, 0.0)) / FORGE_PULSE_SEC, 0.0, 0.999)
 	if station_id == FORGE_ANVIL:
 		if anvil_recipe == "":
 			return 0.0
-		return clampf(float(anvil_pulses_done) / float(maxi(1, FORGE_ANVIL_PULSES)), 0.0, 1.0)
-	if not bool(forge_running.get(station_id, false)):
+		return clampf((float(anvil_pulses_done) + partial) / need, 0.0, 1.0)
+	if not bool(forge_job_paid.get(station_id, false)):
 		return 0.0
-	return clampf(float(forge_accum.get(station_id, 0.0)) / FORGE_PULSE_SEC, 0.0, 1.0)
+	return clampf((float(int(forge_pulses.get(station_id, 0))) + partial) / need, 0.0, 1.0)
 
 
 func _first_idle_wisp_id() -> int:
@@ -581,34 +595,58 @@ func _first_idle_wisp_id() -> int:
 	return -1
 
 
-func _forge_wait_name(station_id: String) -> String:
+func _ensure_process_job(station_id: String) -> bool:
+	if bool(forge_job_paid.get(station_id, false)):
+		return true
 	if station_id == FORGE_CRUCIBLE:
-		return ContentStrings.get_text("hud_stone")
+		if not has_node("/root/Backpack"):
+			return false
+		if Backpack.get_count("stone_fragments") < FORGE_CRUCIBLE_INPUT:
+			return false
+		if not Backpack.try_spend("stone_fragments", FORGE_CRUCIBLE_INPUT):
+			return false
+		forge_job_paid[station_id] = true
+		forge_pulses[station_id] = 0
+		return true
 	if station_id == FORGE_MILL:
-		return ContentStrings.get_text("hud_wood")
-	return ContentStrings.get_text("forge_anvil_quiet")
+		if wood < FORGE_MILL_INPUT:
+			return false
+		add_resource(&"wood", -FORGE_MILL_INPUT)
+		forge_job_paid[station_id] = true
+		forge_pulses[station_id] = 0
+		return true
+	return false
+
+
+func _finish_process_job(station_id: String, item_id: String) -> void:
+	forge_job_paid[station_id] = false
+	forge_pulses[station_id] = 0
+	forge_accum[station_id] = 0.0
+	var item_name: String = item_id
+	if has_node("/root/Backpack"):
+		item_name = Backpack.item_display_name(item_id)
+	if has_node("/root/GameAudio"):
+		GameAudio.play_ui_confirm()
+	status_message.emit(ContentStrings.get_text("forge_job_done", {
+		"station": assignment_target_display(station_id),
+		"item": item_name,
+	}))
 
 
 func _forge_station_pulse(station_id: String, from_wisp: bool) -> bool:
-	if station_id == FORGE_CRUCIBLE:
-		if stone < FORGE_CRUCIBLE_STONE:
+	if station_id == FORGE_CRUCIBLE or station_id == FORGE_MILL:
+		if not _ensure_process_job(station_id):
 			if not from_wisp:
-				forge_running[FORGE_CRUCIBLE] = false
+				forge_running[station_id] = false
 			return false
-		add_resource(&"stone", -FORGE_CRUCIBLE_STONE)
-		if has_node("/root/Backpack"):
-			Backpack.add_item("sapsteel", 1)
-		if not from_wisp and has_node("/root/GameAudio"):
-			GameAudio.play_wisp_pulse()
-		return true
-	if station_id == FORGE_MILL:
-		if wood < FORGE_MILL_WOOD:
-			if not from_wisp:
-				forge_running[FORGE_MILL] = false
-			return false
-		add_resource(&"wood", -FORGE_MILL_WOOD)
-		if has_node("/root/Backpack"):
-			Backpack.add_item("heartwood_bits", 1)
+		var done: int = int(forge_pulses.get(station_id, 0)) + 1
+		forge_pulses[station_id] = done
+		if done >= STATION_PULSES_TO_FINISH:
+			var out_id: String = "sapsteel" if station_id == FORGE_CRUCIBLE else "heartwood_bits"
+			if has_node("/root/Backpack"):
+				Backpack.add_item(out_id, 1)
+			_finish_process_job(station_id, out_id)
+			return true
 		if not from_wisp and has_node("/root/GameAudio"):
 			GameAudio.play_wisp_pulse()
 		return true
@@ -617,7 +655,7 @@ func _forge_station_pulse(station_id: String, from_wisp: bool) -> bool:
 			forge_running[FORGE_ANVIL] = false
 			return false
 		anvil_pulses_done += 1
-		var finished: bool = anvil_pulses_done >= FORGE_ANVIL_PULSES
+		var finished: bool = anvil_pulses_done >= STATION_PULSES_TO_FINISH
 		if finished:
 			var recipe_id: String = anvil_recipe
 			var out_id: String = recipe_id
@@ -634,7 +672,10 @@ func _forge_station_pulse(station_id: String, from_wisp: bool) -> bool:
 			forge_accum[FORGE_ANVIL] = 0.0
 			if has_node("/root/GameAudio"):
 				GameAudio.play_ui_confirm()
-			status_message.emit(ContentStrings.get_text("forge_anvil_done", {"item": item_name}))
+			status_message.emit(ContentStrings.get_text("forge_job_done", {
+				"station": assignment_target_display(FORGE_ANVIL),
+				"item": item_name,
+			}))
 			return true
 		if not from_wisp and has_node("/root/GameAudio"):
 			GameAudio.play_wisp_pulse()
@@ -648,6 +689,10 @@ func _clear_forge_hearths_for_ascend() -> void:
 	forge_running[FORGE_MILL] = false
 	forge_accum[FORGE_CRUCIBLE] = 0.0
 	forge_accum[FORGE_MILL] = 0.0
+	forge_pulses[FORGE_CRUCIBLE] = 0
+	forge_pulses[FORGE_MILL] = 0
+	forge_job_paid[FORGE_CRUCIBLE] = false
+	forge_job_paid[FORGE_MILL] = false
 
 
 func set_keeper_selected(value: bool) -> void:
@@ -1317,6 +1362,8 @@ func to_save_dict() -> Dictionary:
 		"forge_accum": forge_accum.duplicate(true),
 		"anvil_recipe": anvil_recipe,
 		"anvil_pulses_done": anvil_pulses_done,
+		"forge_pulses": forge_pulses.duplicate(true),
+		"forge_job_paid": forge_job_paid.duplicate(true),
 		"arrow_mode": arrow_mode,
 	}
 
@@ -1354,6 +1401,8 @@ func apply_save_dict(data: Dictionary) -> void:
 			forge_accum[str(accum_key)] = float((accum_v as Dictionary)[accum_key])
 	anvil_recipe = str(data.get("anvil_recipe", ""))
 	anvil_pulses_done = maxi(0, int(data.get("anvil_pulses_done", 0)))
+	forge_pulses = _int_dict_field(data, "forge_pulses")
+	forge_job_paid = _bool_dict_field(data, "forge_job_paid")
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
 	if was_in_forge:
 		_return_keeper_to_manatree()
@@ -1410,6 +1459,26 @@ func apply_save_dict(data: Dictionary) -> void:
 	load_completed.emit()
 
 
+func _int_dict_field(data: Dictionary, key: String) -> Dictionary:
+	var out: Dictionary = {}
+	var raw: Variant = data.get(key, {})
+	if typeof(raw) != TYPE_DICTIONARY:
+		return out
+	for entry_key: Variant in (raw as Dictionary).keys():
+		out[str(entry_key)] = int((raw as Dictionary)[entry_key])
+	return out
+
+
+func _bool_dict_field(data: Dictionary, key: String) -> Dictionary:
+	var out: Dictionary = {}
+	var raw: Variant = data.get(key, {})
+	if typeof(raw) != TYPE_DICTIONARY:
+		return out
+	for entry_key: Variant in (raw as Dictionary).keys():
+		out[str(entry_key)] = bool((raw as Dictionary)[entry_key])
+	return out
+
+
 func _equipment_save_field(key: String) -> Dictionary:
 	if not has_node("/root/Equipment"):
 		return {}
@@ -1464,6 +1533,8 @@ func reset_for_new_game() -> void:
 	in_forge = false
 	forge_running.clear()
 	forge_accum.clear()
+	forge_pulses.clear()
+	forge_job_paid.clear()
 	anvil_recipe = ""
 	anvil_pulses_done = 0
 	arrow_mode = "physical"

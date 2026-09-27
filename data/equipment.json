@@ -124,7 +124,7 @@
       "tooltip_key": "thornbow_tooltip",
       "slot": "weapon",
       "unique": true,
-      "bonuses": { "resilience": 1, "ward": 1 },
+      "bonuses": { "might": 1, "arcana": 1 },
       "damage_kind": "hybrid",
       "color": "#5a6a32",
       "art_name": "icon_thornbow"
@@ -160,7 +160,7 @@
       "tooltip_key": "switchshaft_tooltip",
       "slot": "weapon",
       "unique": true,
-      "bonuses": { "resilience": 2, "ward": 2 },
+      "bonuses": { "might": 2, "arcana": 2 },
       "damage_kind": "hybrid",
       "color": "#6a8a5a",
       "art_name": "icon_switchshaft"
@@ -184,35 +184,35 @@
       "output_id": "sapstaff",
       "output_count": 1,
       "station": "handcraft",
-      "ingredients": { "wooden_planks": 30, "weapon_rod": 1 }
+      "ingredients": { "wooden_planks": 20, "food": 10, "weapon_rod": 1 }
     },
     {
       "id": "thornbow",
       "output_id": "thornbow",
       "output_count": 1,
       "station": "handcraft",
-      "ingredients": { "stone_fragments": 15, "wooden_planks": 15, "weapon_rod": 1 }
+      "ingredients": { "wooden_planks": 25, "stone_fragments": 15 }
     },
     {
       "id": "rootsteel_edge",
       "output_id": "rootsteel_edge",
       "output_count": 1,
       "station": "anvil",
-      "ingredients": { "sapsteel": 2, "heartwood_bits": 2, "essence": 8 }
+      "ingredients": { "sapsteel": 8, "heartwood_bits": 4, "essence": 20 }
     },
     {
       "id": "heartwand",
       "output_id": "heartwand",
       "output_count": 1,
       "station": "anvil",
-      "ingredients": { "sapsteel": 2, "heartwood_bits": 2, "essence": 8 }
+      "ingredients": { "sapsteel": 4, "heartwood_bits": 8, "essence": 20 }
     },
     {
       "id": "switchshaft",
       "output_id": "switchshaft",
       "output_count": 1,
       "station": "anvil",
-      "ingredients": { "sapsteel": 2, "heartwood_bits": 2, "essence": 8 }
+      "ingredients": { "sapsteel": 6, "heartwood_bits": 6, "essence": 20 }
     }
   ]
 }

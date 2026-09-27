@@ -216,6 +216,7 @@ func _on_arrow() -> void:
 	var mode: String = _battle.toggle_arrow_mode()
 	GameState.arrow_mode = mode
 	_refresh_actions()
+	_refresh_log()
 
 
 func _choose(action: String) -> void:
@@ -310,15 +311,15 @@ func _refresh_actions() -> void:
 	_flee.visible = actions.has("flee")
 	_spare.visible = actions.has("spare")
 	_return_btn.visible = false
-	var magical: bool = _battle.resolved_strike_kind() == "magical"
 	if _strike:
-		_strike.text = ContentStrings.get_text("battle_cast" if magical else "battle_strike")
+		_strike.text = ContentStrings.get_text("battle_strike")
 	if _arrow:
 		var hybrid: bool = _battle.strike_kind == "hybrid" and _battle.outcome == ""
 		_arrow.visible = hybrid
 		if hybrid:
-			var heart: bool = _battle.arrow_mode == "magical"
-			_arrow.text = ContentStrings.get_text("battle_arrow_heart" if heart else "battle_arrow_thorn")
+			var magical: bool = _battle.arrow_mode == "magical"
+			_arrow.text = ContentStrings.get_text("battle_toggle_mag" if magical else "battle_toggle_phys")
+			_arrow.tooltip_text = ContentStrings.get_text("battle_mode_hint")
 
 
 func _refresh_bars(flash: bool) -> void:
@@ -438,7 +439,7 @@ func _build() -> void:
 	_spare = _button("SpareButton", Vector2(772, 636), "battle_spare")
 	_return_btn = _button("ReturnButton", Vector2(540, 636), "battle_return")
 	_return_btn.visible = false
-	_arrow = _button("ArrowToggle", Vector2(308, 604), "battle_arrow_thorn")
+	_arrow = _button("ArrowToggle", Vector2(308, 604), "battle_toggle_phys")
 	_arrow.size = Vector2(640, 28)
 	_arrow.visible = false
 	_strike.pressed.connect(_on_strike)
