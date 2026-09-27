@@ -149,17 +149,17 @@
       "path": "res://assets/audio/sfx_channel_start.ogg"
     },
     "sfx_wisp_assign": {
-      "bus": "SFX_World",
+      "bus": "SFX_UI",
       "loop": false,
       "path": "res://assets/audio/sfx_wisp_assign.ogg"
     },
     "sfx_wisp_deny": {
-      "bus": "SFX_World",
+      "bus": "SFX_UI",
       "loop": false,
       "path": "res://assets/audio/sfx_wisp_deny.ogg"
     },
     "sfx_wisp_unassign": {
-      "bus": "SFX_World",
+      "bus": "SFX_UI",
       "loop": false,
       "path": "res://assets/audio/sfx_wisp_unassign.ogg"
     },
