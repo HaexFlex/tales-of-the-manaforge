@@ -1,6 +1,8 @@
 extends CanvasLayer
 ## Bark-chamber overlay. Stations tick in GameState, so work continues after you leave.
 
+const BARK_PATH: String = "res://assets/art/forge/forge_bark_chamber_bg.png"
+
 var _mats: Label
 var _toast: Label
 var _tend: Dictionary = {}
@@ -8,6 +10,8 @@ var _send: Dictionary = {}
 var _recall: Dictionary = {}
 var _status: Dictionary = {}
 var _fill: Dictionary = {}
+var _swatch: Dictionary = {}
+var _swatch_busy: Dictionary = {}
 var _anvil_buttons: Dictionary = {}
 
 
@@ -70,12 +74,7 @@ func _build() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(root)
-	var bg := ColorRect.new()
-	bg.name = "Bark"
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.22, 0.14, 0.09, 1)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.add_child(bg)
+	root.add_child(_bark_background())
 	var title := _label(root, "Title", Vector2(36, 152), Vector2(720, 28), ContentStrings.get_text("forge_title"), 22)
 	title.add_theme_color_override("font_color", Color(0.95, 0.88, 0.72, 1))
 	_label(root, "Subtitle", Vector2(36, 182), Vector2(980, 22), ContentStrings.get_text("forge_room_examine"), 14)
@@ -102,13 +101,21 @@ func _add_station(parent: Control, station_id: String, origin: Vector2, swatch: 
 	card.color = Color(0.11, 0.08, 0.06, 0.94)
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	parent.add_child(card)
-	var icon := ColorRect.new()
+	var icon := TextureRect.new()
 	icon.name = "Swatch"
 	icon.position = Vector2(16, 14)
 	icon.size = Vector2(56, 56)
-	icon.color = swatch
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var idle_tex: Texture2D = _prop_texture(station_id, false)
+	if idle_tex:
+		icon.texture = idle_tex
+	else:
+		icon.modulate = swatch
 	card.add_child(icon)
+	_swatch[station_id] = icon
+	_swatch_busy[station_id] = false
 	var name_lbl := _label(card, "Name", Vector2(84, 16), Vector2(300, 24), _station_name(station_id), 18)
 	name_lbl.add_theme_color_override("font_color", Color(0.95, 0.9, 0.78, 1))
 	var examine := _label(card, "Examine", Vector2(16, 78), Vector2(368, 64), _station_examine(station_id), 13)
@@ -195,9 +202,16 @@ func _refresh() -> void:
 
 func _refresh_station(station_id: String) -> void:
 	var tend: Button = _tend.get(station_id) as Button
+	var running: bool = bool(GameState.forge_running.get(station_id, false))
 	if tend:
-		var running: bool = bool(GameState.forge_running.get(station_id, false))
 		tend.text = ContentStrings.get_text("forge_rest" if running else "forge_tend")
+	var busy: bool = _station_busy(station_id)
+	var swatch: TextureRect = _swatch.get(station_id) as TextureRect
+	if swatch and bool(_swatch_busy.get(station_id, false)) != busy:
+		_swatch_busy[station_id] = busy
+		var tex: Texture2D = _prop_texture(station_id, busy)
+		if tex:
+			swatch.texture = tex
 	var fill: ColorRect = _fill.get(station_id) as ColorRect
 	if fill:
 		var ratio: float = GameState.forge_progress_ratio(station_id)
@@ -255,6 +269,54 @@ func _station_status(station_id: String) -> String:
 		else:
 			progress = ContentStrings.get_text("heartwood_bits_process_cost")
 	return "%s\n%s" % [progress, wisp_line]
+
+
+func _bark_background() -> Control:
+	var tex: Texture2D = null
+	if ResourceLoader.exists(BARK_PATH):
+		tex = load(BARK_PATH) as Texture2D
+	if tex:
+		var bg := TextureRect.new()
+		bg.name = "Bark"
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bg.texture = tex
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_SCALE
+		return bg
+	var fallback := ColorRect.new()
+	fallback.name = "Bark"
+	fallback.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fallback.color = Color(0.22, 0.14, 0.09, 1)
+	fallback.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return fallback
+
+
+func _prop_key(station_id: String) -> String:
+	match station_id:
+		GameState.FORGE_CRUCIBLE:
+			return "crucible"
+		GameState.FORGE_MILL:
+			return "mill"
+		_:
+			return "anvil"
+
+
+func _prop_texture(station_id: String, busy: bool) -> Texture2D:
+	var path := "res://assets/art/forge/prop_%s_%s.png" % [_prop_key(station_id), "busy" if busy else "idle"]
+	if not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
+func _station_busy(station_id: String) -> bool:
+	if bool(GameState.forge_running.get(station_id, false)):
+		return true
+	if bool(GameState.forge_job_paid.get(station_id, false)):
+		return true
+	if station_id == GameState.FORGE_ANVIL and GameState.anvil_recipe != "":
+		return true
+	return GameState.count_wisps_on_node(station_id) > 0
 
 
 func _card_name(station_id: String) -> String:

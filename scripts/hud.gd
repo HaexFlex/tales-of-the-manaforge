@@ -408,6 +408,17 @@ func _make_item_icon(item_id: String, tip: String) -> Control:
 		if item_id == "essence":
 			icon.modulate = ESSENCE_TINT
 		return icon
+	var forge_tex: Texture2D = _load_ui_tex("res://assets/art/ui/icon_%s.png" % item_id)
+	if forge_tex:
+		var forge_icon := TextureRect.new()
+		forge_icon.custom_minimum_size = Vector2(32, 32)
+		forge_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		forge_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		forge_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		forge_icon.texture = forge_tex
+		forge_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		forge_icon.tooltip_text = tip
+		return forge_icon
 	var placeholder := _placeholder_icon(PLACEHOLDER_SWATCH)
 	placeholder.tooltip_text = tip
 	return placeholder
