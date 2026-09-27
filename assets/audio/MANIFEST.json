@@ -176,7 +176,19 @@
       "file": "sfx_wisp_pulse.ogg",
       "bus": "SFX_World",
       "loop": false,
-      "notes": "assigned wisp pulse grant (quiet under hub)"
+      "notes": "assigned wisp pulse grant (quiet under hub). Also the Forge station pulse."
+    },
+    "sfx_forge_craft_start": {
+      "file": "sfx_forge_craft_start.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "notes": "Forge job begins. One-shot. No hammer loop. No Forge BGM."
+    },
+    "sfx_forge_craft_done": {
+      "file": "sfx_forge_craft_done.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "notes": "Forge job finishes. One-shot. Hub bed keeps looping."
     }
   }
 }

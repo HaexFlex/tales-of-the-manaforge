@@ -418,6 +418,8 @@ func begin_forge_visit() -> void:
 		for keeper_node: Node in keepers:
 			if keeper_node.has_method("halt"):
 				keeper_node.call("halt")
+	if has_node("/root/GameAudio"):
+		GameAudio.duck_hub_for_forge()
 	forge_changed.emit()
 	status_message.emit(ContentStrings.get_text("forge_room_examine"))
 
@@ -426,6 +428,8 @@ func end_forge_visit() -> void:
 	if not in_forge:
 		return
 	in_forge = false
+	if has_node("/root/GameAudio"):
+		GameAudio.clear_hub_duck()
 	_return_keeper_to_manatree()
 	forge_changed.emit()
 	status_message.emit(ContentStrings.get_text("forge_exit_ok"))
@@ -526,8 +530,7 @@ func try_begin_anvil(recipe_id: String) -> String:
 	anvil_pulses_done = 0
 	forge_running[FORGE_ANVIL] = true
 	forge_accum[FORGE_ANVIL] = 0.0
-	if has_node("/root/GameAudio"):
-		GameAudio.play_ui_confirm()
+	_play_forge_craft_start()
 	status_message.emit(ContentStrings.get_text("forge_job_start", {
 		"station": assignment_target_display(FORGE_ANVIL),
 	}))
@@ -595,9 +598,25 @@ func _first_idle_wisp_id() -> int:
 	return -1
 
 
+func _play_forge_craft_start() -> void:
+	if has_node("/root/GameAudio"):
+		GameAudio.play_forge_craft_start()
+
+
+func _play_forge_craft_done() -> void:
+	if has_node("/root/GameAudio"):
+		GameAudio.play_forge_craft_done()
+
+
+func _clear_forge_audio() -> void:
+	if has_node("/root/GameAudio"):
+		GameAudio.clear_hub_duck()
+
+
 func _ensure_process_job(station_id: String) -> bool:
 	if bool(forge_job_paid.get(station_id, false)):
 		return true
+	var paid: bool = false
 	if station_id == FORGE_CRUCIBLE:
 		if not has_node("/root/Backpack"):
 			return false
@@ -605,17 +624,18 @@ func _ensure_process_job(station_id: String) -> bool:
 			return false
 		if not Backpack.try_spend("stone_fragments", FORGE_CRUCIBLE_INPUT):
 			return false
-		forge_job_paid[station_id] = true
-		forge_pulses[station_id] = 0
-		return true
-	if station_id == FORGE_MILL:
+		paid = true
+	elif station_id == FORGE_MILL:
 		if wood < FORGE_MILL_INPUT:
 			return false
 		add_resource(&"wood", -FORGE_MILL_INPUT)
-		forge_job_paid[station_id] = true
-		forge_pulses[station_id] = 0
-		return true
-	return false
+		paid = true
+	if not paid:
+		return false
+	forge_job_paid[station_id] = true
+	forge_pulses[station_id] = 0
+	_play_forge_craft_start()
+	return true
 
 
 func _finish_process_job(station_id: String, item_id: String) -> void:
@@ -625,8 +645,7 @@ func _finish_process_job(station_id: String, item_id: String) -> void:
 	var item_name: String = item_id
 	if has_node("/root/Backpack"):
 		item_name = Backpack.item_display_name(item_id)
-	if has_node("/root/GameAudio"):
-		GameAudio.play_ui_confirm()
+	_play_forge_craft_done()
 	status_message.emit(ContentStrings.get_text("forge_job_done", {
 		"station": assignment_target_display(station_id),
 		"item": item_name,
@@ -635,6 +654,7 @@ func _finish_process_job(station_id: String, item_id: String) -> void:
 
 func _forge_station_pulse(station_id: String, from_wisp: bool) -> bool:
 	if station_id == FORGE_CRUCIBLE or station_id == FORGE_MILL:
+		var opening: bool = not bool(forge_job_paid.get(station_id, false))
 		if not _ensure_process_job(station_id):
 			if not from_wisp:
 				forge_running[station_id] = false
@@ -647,7 +667,7 @@ func _forge_station_pulse(station_id: String, from_wisp: bool) -> bool:
 				Backpack.add_item(out_id, 1)
 			_finish_process_job(station_id, out_id)
 			return true
-		if not from_wisp and has_node("/root/GameAudio"):
+		if not from_wisp and not opening and has_node("/root/GameAudio"):
 			GameAudio.play_wisp_pulse()
 		return true
 	if station_id == FORGE_ANVIL:
@@ -670,8 +690,7 @@ func _forge_station_pulse(station_id: String, from_wisp: bool) -> bool:
 			anvil_pulses_done = 0
 			forge_running[FORGE_ANVIL] = false
 			forge_accum[FORGE_ANVIL] = 0.0
-			if has_node("/root/GameAudio"):
-				GameAudio.play_ui_confirm()
+			_play_forge_craft_done()
 			status_message.emit(ContentStrings.get_text("forge_job_done", {
 				"station": assignment_target_display(FORGE_ANVIL),
 				"item": item_name,
@@ -1392,6 +1411,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
 	var was_in_forge: bool = in_forge
 	in_forge = false
+	_clear_forge_audio()
 	var running_v: Variant = data.get("forge_running", {})
 	forge_running = (running_v as Dictionary).duplicate(true) if typeof(running_v) == TYPE_DICTIONARY else {}
 	var accum_v: Variant = data.get("forge_accum", {})
@@ -1531,6 +1551,7 @@ func reset_for_new_game() -> void:
 	forge_key = false
 	echo_01_narrator_heard = false
 	in_forge = false
+	_clear_forge_audio()
 	forge_running.clear()
 	forge_accum.clear()
 	forge_pulses.clear()

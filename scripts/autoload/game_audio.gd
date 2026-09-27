@@ -33,6 +33,9 @@ var _progress_player: AudioStreamPlayer
 var _hub_playing: bool = false
 ## Echo battle stops the bed. It is not ducked, and it does not restart until exit.
 var _hub_suspended: bool = false
+## Forge keeps the bed looping and only trims it. Never the Echo pause.
+var _hub_duck_db: float = 0.0
+const FORGE_HUB_DUCK_DB: float = -3.0
 var _fruit_ready_played_cycle: bool = false
 ## Recent cue ids (verify / Haex Ascension audio lock).
 var _played_log: PackedStringArray = PackedStringArray()
@@ -451,6 +454,28 @@ func play_wisp_pulse() -> void:
 	play_quiet(&"sfx_wisp_pulse", -8.0)
 
 
+func play_forge_craft_start() -> void:
+	play(&"sfx_forge_craft_start")
+
+
+func play_forge_craft_done() -> void:
+	play(&"sfx_forge_craft_done")
+
+
+func set_hub_duck_db(duck_db: float) -> void:
+	## Volume trim only. The hub stream keeps playing.
+	_hub_duck_db = duck_db
+	apply_volumes()
+
+
+func duck_hub_for_forge() -> void:
+	set_hub_duck_db(FORGE_HUB_DUCK_DB)
+
+
+func clear_hub_duck() -> void:
+	set_hub_duck_db(0.0)
+
+
 func _on_wisp_assigned(_wisp_id: int, _node_id: String, result: String) -> void:
 	if result == "ok" or result == "reassign" or result == "join":
 		play_wisp_assign()
@@ -567,12 +592,13 @@ func _apply_bus_volume(bus_name: String, linear: float, base_db: float) -> void:
 	var idx: int = AudioServer.get_bus_index(bus_name)
 	if idx < 0:
 		return
+	var duck: float = _hub_duck_db if bus_name == "Music" else 0.0
 	if linear <= 0.001:
 		AudioServer.set_bus_mute(idx, true)
-		AudioServer.set_bus_volume_db(idx, base_db)
+		AudioServer.set_bus_volume_db(idx, base_db + duck)
 		return
 	AudioServer.set_bus_mute(idx, false)
-	AudioServer.set_bus_volume_db(idx, base_db + linear_to_db(linear))
+	AudioServer.set_bus_volume_db(idx, base_db + linear_to_db(linear) + duck)
 
 
 func load_settings() -> void:
