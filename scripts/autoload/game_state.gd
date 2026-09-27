@@ -31,9 +31,11 @@ const FORGE_CRUCIBLE: String = "forge_crucible"
 const FORGE_MILL: String = "forge_mill"
 const FORGE_ANVIL: String = "forge_anvil"
 const FORGE_STATION_IDS: Array[String] = ["forge_crucible", "forge_mill", "forge_anvil"]
-## Crucible spends backpack stone_fragments. Mill spends soft wood. Content labels say Stone / Wood.
+## PLACEHOLDER upcycle. Crucible spends raw stone. Mill spends raw wood. No fragments or planks.
 const FORGE_CRUCIBLE_INPUT: int = 5
 const FORGE_MILL_INPUT: int = 5
+const HUB_SCENE_PATH: String = "res://scenes/main.tscn"
+const FORGE_SCENE_PATH: String = "res://scenes/forge_room.tscn"
 const STATION_PULSES_TO_FINISH: int = 10
 const FORGE_PULSE_SEC: float = 1.0
 
@@ -60,6 +62,8 @@ var forge_key: bool = false
 var echo_01_narrator_heard: bool = false
 ## True only while the bark-chamber overlay is up. Not written to disk.
 var in_forge: bool = false
+## Set when leaving the walkable room so the hub places the Keeper at the Manatree.
+var return_to_tree: bool = false
 ## Lit stations keep pulsing after you leave. Wisps are a second driver.
 var forge_running: Dictionary = {}
 var forge_accum: Dictionary = {}
@@ -422,17 +426,126 @@ func begin_forge_visit() -> void:
 		GameAudio.duck_hub_for_forge()
 	forge_changed.emit()
 	status_message.emit(ContentStrings.get_text("forge_room_examine"))
+	_switch_play_scene(FORGE_SCENE_PATH)
 
 
 func end_forge_visit() -> void:
 	if not in_forge:
 		return
 	in_forge = false
+	return_to_tree = true
 	if has_node("/root/GameAudio"):
 		GameAudio.clear_hub_duck()
-	_return_keeper_to_manatree()
 	forge_changed.emit()
 	status_message.emit(ContentStrings.get_text("forge_exit_ok"))
+	var scene: SceneTree = get_tree()
+	var current: Node = scene.current_scene if scene != null else null
+	if current != null and current.scene_file_path == HUB_SCENE_PATH:
+		_return_keeper_to_manatree()
+		return_to_tree = false
+		return
+	_switch_play_scene(HUB_SCENE_PATH)
+
+
+func take_hub_return() -> bool:
+	var pending: bool = return_to_tree
+	return_to_tree = false
+	return pending
+
+
+func _switch_play_scene(path: String) -> void:
+	var scene: SceneTree = get_tree()
+	if scene == null:
+		return
+	var current: Node = scene.current_scene
+	if current == null:
+		return
+	var here: String = current.scene_file_path
+	if here != HUB_SCENE_PATH and here != FORGE_SCENE_PATH:
+		return
+	if here == path:
+		return
+	if path == HUB_SCENE_PATH and has_node("/root/SaveService"):
+		SaveService.boot_intent = "resume_hub"
+	scene.paused = false
+	scene.call_deferred("change_scene_to_file", path)
+
+
+## Keeper now. Elaia later, once a companion unit with this id is in the world.
+func forge_tender_ids() -> Array[String]:
+	var ids: Array[String] = ["keeper"]
+	return ids
+
+
+func can_tend_forge(tender_id: String) -> bool:
+	return forge_tender_ids().has(tender_id)
+
+
+func selected_tender_id() -> String:
+	if keeper_selected and can_tend_forge("keeper"):
+		return "keeper"
+	return ""
+
+
+func try_tend_station(station_id: String, tender_id: String) -> String:
+	if not can_tend_forge(tender_id):
+		status_message.emit(ContentStrings.get_text("keeper_required_harvest"))
+		return "not_companion"
+	if not is_forge_station(station_id):
+		return "invalid"
+	if station_id == FORGE_ANVIL:
+		if anvil_recipe == "":
+			status_message.emit(ContentStrings.get_text("forge_anvil_prompt"))
+			return "need_job"
+		_toast_forge_progress(station_id)
+		if not bool(forge_running.get(FORGE_ANVIL, false)):
+			forge_running[FORGE_ANVIL] = true
+			forge_accum[FORGE_ANVIL] = 0.0
+		forge_changed.emit()
+		return "working"
+	if bool(forge_job_paid.get(station_id, false)) or bool(forge_running.get(station_id, false)):
+		if not bool(forge_running.get(station_id, false)):
+			forge_running[station_id] = true
+			forge_accum[station_id] = 0.0
+		_toast_forge_progress(station_id)
+		forge_changed.emit()
+		return "working"
+	forge_running[station_id] = true
+	forge_accum[station_id] = 0.0
+	if not _forge_station_pulse(station_id, false):
+		status_message.emit(ContentStrings.get_text("forge_cant_afford"))
+		forge_changed.emit()
+		return "need_mats"
+	status_message.emit(ContentStrings.get_text("forge_job_start", {
+		"station": assignment_target_display(station_id),
+	}))
+	forge_changed.emit()
+	return "tend"
+
+
+func _toast_forge_progress(station_id: String) -> void:
+	var current: int = anvil_pulses_done if station_id == FORGE_ANVIL else int(forge_pulses.get(station_id, 0))
+	status_message.emit(ContentStrings.get_text("forge_job_progress", {
+		"station": assignment_target_display(station_id),
+		"current": current,
+		"need": STATION_PULSES_TO_FINISH,
+	}))
+
+
+func _exit_forge_scene_or_place() -> void:
+	if _leave_forge_room():
+		return
+	_return_keeper_to_manatree()
+
+
+func _leave_forge_room() -> bool:
+	var scene: SceneTree = get_tree()
+	var current: Node = scene.current_scene if scene != null else null
+	if current == null or current.scene_file_path != FORGE_SCENE_PATH:
+		return false
+	return_to_tree = true
+	_switch_play_scene(HUB_SCENE_PATH)
+	return true
 
 
 func _return_keeper_to_manatree() -> void:
@@ -447,7 +560,7 @@ func _return_keeper_to_manatree() -> void:
 	var keeper: Node = keepers[0]
 	if tree == null or keeper == null:
 		return
-	var dest: Vector2 = tree.global_position + Vector2(0, 48)
+	var dest: Vector2 = tree.global_position + Vector2(0, 72)
 	if keeper is Node2D:
 		(keeper as Node2D).global_position = dest
 	if keeper.has_method("halt"):
@@ -618,12 +731,9 @@ func _ensure_process_job(station_id: String) -> bool:
 		return true
 	var paid: bool = false
 	if station_id == FORGE_CRUCIBLE:
-		if not has_node("/root/Backpack"):
+		if stone < FORGE_CRUCIBLE_INPUT:
 			return false
-		if Backpack.get_count("stone_fragments") < FORGE_CRUCIBLE_INPUT:
-			return false
-		if not Backpack.try_spend("stone_fragments", FORGE_CRUCIBLE_INPUT):
-			return false
+		add_resource(&"stone", -FORGE_CRUCIBLE_INPUT)
 		paid = true
 	elif station_id == FORGE_MILL:
 		if wood < FORGE_MILL_INPUT:
@@ -1411,6 +1521,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
 	var was_in_forge: bool = in_forge
 	in_forge = false
+	return_to_tree = false
 	_clear_forge_audio()
 	var running_v: Variant = data.get("forge_running", {})
 	forge_running = (running_v as Dictionary).duplicate(true) if typeof(running_v) == TYPE_DICTIONARY else {}
@@ -1425,7 +1536,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	forge_job_paid = _bool_dict_field(data, "forge_job_paid")
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
 	if was_in_forge:
-		_return_keeper_to_manatree()
+		_exit_forge_scene_or_place()
 	lifetime_waters = int(data.get("lifetime_waters", 0))
 	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
 	lifetime_essence_from_water = int(data.get("lifetime_essence_from_water", 0))
@@ -1551,6 +1662,7 @@ func reset_for_new_game() -> void:
 	forge_key = false
 	echo_01_narrator_heard = false
 	in_forge = false
+	return_to_tree = false
 	_clear_forge_audio()
 	forge_running.clear()
 	forge_accum.clear()
@@ -1577,6 +1689,7 @@ func reset_for_new_game() -> void:
 	fruit_ready_changed.emit(fruit_ready)
 	needs_changed.emit()
 	upgrades_changed.emit()
+	_leave_forge_room()
 
 
 func cancel_fruit_commit() -> void:

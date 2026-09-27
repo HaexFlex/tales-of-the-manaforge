@@ -39,6 +39,7 @@ func _ready() -> void:
 	label.text = ContentStrings.get_text("keeper_select")
 	label.position = Vector2(-40, -148)
 	add_to_group("keeper")
+	add_to_group("forge_tender")
 	if select_ring:
 		select_ring.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		select_ring.centered = true
@@ -49,6 +50,8 @@ func _ready() -> void:
 	if label:
 		label.visible = false
 	if click_area:
+		click_area.z_index = 8
+		click_area.z_as_relative = false
 		click_area.input_event.connect(_on_click_area_input)
 		click_area.mouse_entered.connect(_on_hover.bind(true))
 		click_area.mouse_exited.connect(_on_hover.bind(false))
@@ -116,11 +119,6 @@ func _add_anim(frames: SpriteFrames, anim: StringName, paths: Array, hold_ms: fl
 
 
 func _physics_process(delta: float) -> void:
-	if GameState.in_forge:
-		velocity = Vector2.ZERO
-		if _moving or _channel_kind != ChannelKind.NONE:
-			halt()
-		return
 	if _moving:
 		var speed: float = GameState.get_move_speed()
 		var to_target: Vector2 = _target - global_position
@@ -221,6 +219,10 @@ func cancel_channel(emit_status: bool = true) -> void:
 		if emit_status:
 			GameState.status_message.emit(ContentStrings.get_text("tree_water_cancel"))
 		channel_changed.emit(&"water", false)
+
+
+func tender_id() -> String:
+	return "keeper"
 
 
 func is_channeling() -> bool:

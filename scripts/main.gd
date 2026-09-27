@@ -59,6 +59,8 @@ func _enter_tree() -> void:
 
 
 func _bare_boot_to_title() -> bool:
+	if str(SaveService.boot_intent) == "resume_hub":
+		return false
 	if str(SaveService.boot_intent) != "auto":
 		return false
 	var tree: SceneTree = get_tree()
@@ -85,6 +87,7 @@ func _ready() -> void:
 	click_layer.position = Vector2.ZERO
 	click_layer.size = play_size
 	get_viewport().physics_object_picking = true
+	get_viewport().physics_object_picking_sort = true
 	manatree.fruit_menu_requested.connect(_on_fruit_menu)
 	manatree.care_menu_requested.connect(_on_care_menu)
 	hud.bind_manatree(manatree)
@@ -95,6 +98,8 @@ func _ready() -> void:
 	_sync_wisps()
 	# First load / new save: show Keeper welcome once (flag in save).
 	hud.maybe_show_welcome()
+	if GameState.take_hub_return():
+		_return_from_forge()
 
 
 func _load_hub_map() -> void:
@@ -308,12 +313,22 @@ func _process(delta: float) -> void:
 	pan_camera(dir.normalized() * camera_pan_speed * delta)
 
 
+func _return_from_forge() -> void:
+	if keeper and manatree:
+		keeper.global_position = manatree.global_position + Vector2(0, 72)
+		keeper.halt()
+	focus_manatree()
+
+
 func _apply_boot_intent() -> void:
 	## Title sets continue / new / load. A direct main.tscn launch (verify) stays on auto.
+	## resume_hub keeps the live GameState after leaving the Forge scene.
 	var intent: String = str(SaveService.boot_intent)
 	var slot: int = int(SaveService.boot_slot)
 	SaveService.boot_intent = "auto"
 	SaveService.boot_slot = 0
+	if intent == "resume_hub":
+		return
 	match intent:
 		"new":
 			GameState.reset_for_new_game()

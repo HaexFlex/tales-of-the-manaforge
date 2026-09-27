@@ -867,7 +867,6 @@ func open_forge_entry() -> String:
 	if result == "enter":
 		hide_forge_popup()
 		hide_care_menu()
-		_ensure_forge_chamber()
 		GameAudio.play_ui_open()
 		return "enter"
 	var msg: String = ContentStrings.get_text("forge_no_key" if result == "no_key" else "forge_enter_stage_locked")
@@ -880,21 +879,6 @@ func open_forge_entry() -> String:
 		_forge_popup.visible = true
 	GameAudio.play_ui_confirm()
 	return msg
-
-
-func _ensure_forge_chamber() -> void:
-	var host: Node = get_parent()
-	if host == null:
-		host = get_tree().root
-	if host.get_node_or_null("ForgeChamber") != null:
-		return
-	var packed: PackedScene = load("res://scenes/forge.tscn") as PackedScene
-	if packed == null:
-		push_error("HUD: forge scene missing")
-		return
-	var chamber: Node = packed.instantiate()
-	chamber.name = "ForgeChamber"
-	host.add_child(chamber)
 
 
 func hide_forge_popup() -> void:

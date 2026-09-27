@@ -274,11 +274,18 @@ func door_anchor_offset() -> Vector2:
 	return (sprite.offset + door) * sprite.scale
 
 
+## Elder and Ancient were covering nearby nodes and the Keeper standing at the door.
+const GROWN_CANOPY_SCALE: float = 0.8
+
+
 func _display_scale(stage: StringName) -> float:
 	var meta: Dictionary = _stage_meta()
+	var scale_v: float = visual_scale_for(stage)
 	if stage == GameState.stage_id and meta.has("display_scale"):
-		return float(meta.get("display_scale", 1.0))
-	return visual_scale_for(stage)
+		scale_v = float(meta.get("display_scale", 1.0))
+	if stage == &"elder" or stage == &"ancient":
+		scale_v *= GROWN_CANOPY_SCALE
+	return scale_v
 
 
 func _refresh_visual() -> void:
@@ -308,12 +315,20 @@ func _refresh_visual() -> void:
 	sprite.offset = Vector2(-door.x, -door.y)
 	var vis_h: float = h * scale_v
 	var vis_w: float = w * scale_v
+	z_index = 0
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
-		# Hitbox follows the visual scale so the grown canopy stays clickable.
 		var rect_shape: RectangleShape2D = cs.shape as RectangleShape2D
-		rect_shape.size = Vector2(vis_w, vis_h)
-		cs.position = (Vector2(w * 0.5, h * 0.5) - door) * scale_v
+		var grown: bool = GameState.stage_id == &"elder" or GameState.stage_id == &"ancient"
+		if grown:
+			# Trunk only, ending at the door sill, so the ground in front stays the Keeper's.
+			var trunk_w: float = vis_w * 0.38
+			var crown_h: float = maxf(32.0, door.y * scale_v)
+			rect_shape.size = Vector2(trunk_w, crown_h)
+			cs.position = Vector2(0, -crown_h * 0.5)
+		else:
+			rect_shape.size = Vector2(vis_w, vis_h)
+			cs.position = (Vector2(w * 0.5, h * 0.5) - door) * scale_v
 	_refresh_label()
 	label.position = Vector2(-80, -door.y * scale_v - 36)
 	fruit_hint.position = Vector2(-140, 12)
