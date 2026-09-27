@@ -852,7 +852,14 @@ func forge_popup_text() -> String:
 
 
 func open_forge_entry() -> String:
-	var msg: String = ContentStrings.get_text("forge_not_built" if GameState.forge_key else "forge_no_key")
+	var result: String = GameState.try_enter_forge()
+	if result == "enter":
+		hide_forge_popup()
+		hide_care_menu()
+		_ensure_forge_chamber()
+		GameAudio.play_ui_open()
+		return "enter"
+	var msg: String = ContentStrings.get_text("forge_no_key" if result == "no_key" else "forge_enter_stage_locked")
 	if _forge_popup_body:
 		_forge_popup_body.text = msg
 	if care_panel and care_panel.visible:
@@ -862,6 +869,21 @@ func open_forge_entry() -> String:
 		_forge_popup.visible = true
 	GameAudio.play_ui_confirm()
 	return msg
+
+
+func _ensure_forge_chamber() -> void:
+	var host: Node = get_parent()
+	if host == null:
+		host = get_tree().root
+	if host.get_node_or_null("ForgeChamber") != null:
+		return
+	var packed: PackedScene = load("res://scenes/forge.tscn") as PackedScene
+	if packed == null:
+		push_error("HUD: forge scene missing")
+		return
+	var chamber: Node = packed.instantiate()
+	chamber.name = "ForgeChamber"
+	host.add_child(chamber)
 
 
 func hide_forge_popup() -> void:
@@ -1387,6 +1409,8 @@ func _rebuild_backpack() -> void:
 		if typeof(gear_entry) != TYPE_DICTIONARY:
 			continue
 		var gear_rec: Dictionary = gear_entry
+		if str(gear_rec.get("station", "handcraft")) == "anvil":
+			continue
 		craft_list.add_child(_make_craft_row(str(gear_rec.get("id", "")), true))
 
 

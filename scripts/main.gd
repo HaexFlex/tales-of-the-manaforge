@@ -805,6 +805,8 @@ func world_input_blocked() -> bool:
 		return true
 	if hud.has_method("is_forge_popup_open") and bool(hud.call("is_forge_popup_open")):
 		return true
+	if GameState.in_forge:
+		return true
 	if EchoPortal.is_fee_confirm_open():
 		return true
 	if EchoChamber.in_battle:

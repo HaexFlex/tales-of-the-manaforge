@@ -116,6 +116,11 @@ func _add_anim(frames: SpriteFrames, anim: StringName, paths: Array, hold_ms: fl
 
 
 func _physics_process(delta: float) -> void:
+	if GameState.in_forge:
+		velocity = Vector2.ZERO
+		if _moving or _channel_kind != ChannelKind.NONE:
+			halt()
+		return
 	if _moving:
 		var speed: float = GameState.get_move_speed()
 		var to_target: Vector2 = _target - global_position

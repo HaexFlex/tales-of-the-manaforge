@@ -183,6 +183,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					hud.call("close_character_sheet")
 				elif hud != null and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 					hud.call("close_backpack")
+				elif GameState.in_forge:
+					GameState.end_forge_visit()
 				else:
 					open_pause()
 			get_viewport().set_input_as_handled()

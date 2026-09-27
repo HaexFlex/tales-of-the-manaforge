@@ -27,6 +27,9 @@ var last_keeper_crit: bool = false
 var log: PackedStringArray = PackedStringArray()
 ## 0 = never, 1 = always, -1 = roll Fate × 1%.
 var force_crit: int = -1
+## physical | magical | hybrid. Hybrid reads arrow_mode. Default keeps fists/swords physical.
+var strike_kind: String = "physical"
+var arrow_mode: String = "physical"
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
@@ -195,10 +198,49 @@ func _strike_round() -> String:
 	return "continue"
 
 
+func resolved_strike_kind() -> String:
+	if strike_kind == "hybrid":
+		return "magical" if arrow_mode == "magical" else "physical"
+	if strike_kind == "magical":
+		return "magical"
+	return "physical"
+
+
+func toggle_arrow_mode() -> String:
+	if strike_kind != "hybrid":
+		return arrow_mode
+	arrow_mode = "physical" if arrow_mode == "magical" else "magical"
+	return arrow_mode
+
+
+func _keeper_offense() -> Dictionary:
+	if resolved_strike_kind() == "magical":
+		return {
+			"attack": int(keeper.get("arcana", 5)),
+			"defense": int(echo.get("ward", 5)),
+		}
+	return {
+		"attack": int(keeper.get("might", 5)),
+		"defense": int(echo.get("resilience", 5)),
+	}
+
+
+func _log_keeper_hit(dealt: int) -> void:
+	if dealt <= 0:
+		_log_line("battle_log_miss")
+	elif last_keeper_crit:
+		_log_line("battle_log_crit_you")
+	elif resolved_strike_kind() == "magical":
+		_log_line("battle_log_cast_you")
+	else:
+		_log_line("battle_log_strike_you")
+
+
 func _keeper_strike() -> void:
+	var offense: Dictionary = _keeper_offense()
 	var dealt: int = _rolled_damage(
-		int(keeper["might"]),
-		int(echo["resilience"]),
+		int(offense.get("attack", 0)),
+		int(offense.get("defense", 0)),
 		int(keeper["fate"]),
 		KEEPER_CRIT_MULT,
 		true
@@ -207,16 +249,13 @@ func _keeper_strike() -> void:
 	var above_mercy: bool = float(echo_hp) > MERCY_FRACTION * float(echo_max_hp)
 	var next_hp: int = echo_hp - dealt
 	if dealt <= 0:
-		_log_line("battle_log_miss")
+		_log_keeper_hit(dealt)
 	elif above_mercy and next_hp <= 0:
 		echo_hp = 1
 		_log_line("battle_log_mercy_floor", {"enemy": echo_name})
 	else:
 		echo_hp = maxi(0, next_hp)
-		if last_keeper_crit:
-			_log_line("battle_log_crit_you")
-		else:
-			_log_line("battle_log_strike_you")
+		_log_keeper_hit(dealt)
 	if echo_hp <= 0:
 		_finish("defeat")
 		_log_line("battle_log_defeat", {"enemy": echo_name})
@@ -226,19 +265,17 @@ func _keeper_strike() -> void:
 
 
 func _strike_to_finish() -> void:
+	var offense: Dictionary = _keeper_offense()
 	var dealt: int = _rolled_damage(
-		int(keeper["might"]),
-		int(echo["resilience"]),
+		int(offense.get("attack", 0)),
+		int(offense.get("defense", 0)),
 		int(keeper["fate"]),
 		KEEPER_CRIT_MULT,
 		true
 	)
 	last_keeper_damage = dealt
 	echo_hp = 0
-	if last_keeper_crit:
-		_log_line("battle_log_crit_you")
-	else:
-		_log_line("battle_log_strike_you")
+	_log_keeper_hit(dealt)
 	_finish("defeat")
 	_log_line("battle_log_defeat", {"enemy": echo_name})
 

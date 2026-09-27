@@ -90,6 +90,7 @@
       "slot": "weapon",
       "unique": true,
       "bonuses": { "might": 2 },
+      "damage_kind": "physical",
       "color": "#b7b1a8",
       "art_name": "icon_stone_sword"
     },
@@ -103,6 +104,66 @@
       "bonuses": { "swiftness": 2, "fate": 2 },
       "color": "#7eb8b0",
       "art_name": "icon_forge_key"
+    },
+    {
+      "id": "sapstaff",
+      "display_name": "Sapstaff",
+      "string_key": "sapstaff_name",
+      "tooltip_key": "sapstaff_tooltip",
+      "slot": "weapon",
+      "unique": true,
+      "bonuses": { "arcana": 2 },
+      "damage_kind": "magical",
+      "color": "#6a4a9a",
+      "art_name": "icon_sapstaff"
+    },
+    {
+      "id": "thornbow",
+      "display_name": "Thornbow",
+      "string_key": "thornbow_name",
+      "tooltip_key": "thornbow_tooltip",
+      "slot": "weapon",
+      "unique": true,
+      "bonuses": { "resilience": 1, "ward": 1 },
+      "damage_kind": "hybrid",
+      "color": "#5a6a32",
+      "art_name": "icon_thornbow"
+    },
+    {
+      "id": "rootsteel_edge",
+      "display_name": "Rootsteel Edge",
+      "string_key": "rootsteel_edge_name",
+      "tooltip_key": "rootsteel_edge_tooltip",
+      "slot": "weapon",
+      "unique": true,
+      "bonuses": { "might": 4 },
+      "damage_kind": "physical",
+      "color": "#8a9a6a",
+      "art_name": "icon_rootsteel_edge"
+    },
+    {
+      "id": "heartwand",
+      "display_name": "Heartwand",
+      "string_key": "heartwand_name",
+      "tooltip_key": "heartwand_tooltip",
+      "slot": "weapon",
+      "unique": true,
+      "bonuses": { "arcana": 4 },
+      "damage_kind": "magical",
+      "color": "#c46a9a",
+      "art_name": "icon_heartwand"
+    },
+    {
+      "id": "switchshaft",
+      "display_name": "Switchshaft",
+      "string_key": "switchshaft_name",
+      "tooltip_key": "switchshaft_tooltip",
+      "slot": "weapon",
+      "unique": true,
+      "bonuses": { "resilience": 2, "ward": 2 },
+      "damage_kind": "hybrid",
+      "color": "#6a8a5a",
+      "art_name": "icon_switchshaft"
     }
   ],
   "recipes": [
@@ -117,6 +178,41 @@
       "output_id": "stone_sword",
       "output_count": 1,
       "ingredients": { "stone_fragments": 30, "weapon_rod": 1 }
+    },
+    {
+      "id": "sapstaff",
+      "output_id": "sapstaff",
+      "output_count": 1,
+      "station": "handcraft",
+      "ingredients": { "wooden_planks": 30, "weapon_rod": 1 }
+    },
+    {
+      "id": "thornbow",
+      "output_id": "thornbow",
+      "output_count": 1,
+      "station": "handcraft",
+      "ingredients": { "stone_fragments": 15, "wooden_planks": 15, "weapon_rod": 1 }
+    },
+    {
+      "id": "rootsteel_edge",
+      "output_id": "rootsteel_edge",
+      "output_count": 1,
+      "station": "anvil",
+      "ingredients": { "sapsteel": 2, "heartwood_bits": 2, "essence": 8 }
+    },
+    {
+      "id": "heartwand",
+      "output_id": "heartwand",
+      "output_count": 1,
+      "station": "anvil",
+      "ingredients": { "sapsteel": 2, "heartwood_bits": 2, "essence": 8 }
+    },
+    {
+      "id": "switchshaft",
+      "output_id": "switchshaft",
+      "output_count": 1,
+      "station": "anvil",
+      "ingredients": { "sapsteel": 2, "heartwood_bits": 2, "essence": 8 }
     }
   ]
 }

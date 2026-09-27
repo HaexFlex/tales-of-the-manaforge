@@ -1377,7 +1377,7 @@ func _run() -> void:
 
 	# --- SYSTEMS v0.4.0: backpack, handcraft, tools, Grow, Keep Tools, can shard_roll ×2 ---
 	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
-	failed += _assert(int((backpack.get("items_data") as Array).size()) == 10, "10 backpack items")
+	failed += _assert(int((backpack.get("items_data") as Array).size()) == 12, "12 backpack items (forge mats)")
 	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
 	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
 	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
@@ -2182,6 +2182,7 @@ func _run() -> void:
 		save_service.call("delete_save")
 
 	failed += await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
+	failed += await _verify_forge(tree_root, game_state, content_strings, game_audio)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2501,7 +2502,16 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_state.set("forge_key", true)
 		game_state.emit_signal("echo_flags_changed")
 		failed += _assert(not bool(hud.call("is_forge_entry_gray")), "Enter Forge wakes up with the key")
-		failed += _assert(str(hud.call("open_forge_entry")) == "Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.", "key forge popup")
+		failed += _assert(str(hud.call("open_forge_entry")) == "enter", "key opens the forge")
+		failed += _assert(bool(game_state.get("in_forge")), "forge visit flag")
+		var forge_ui: Node = live.get_node_or_null("ForgeChamber")
+		failed += _assert(forge_ui != null, "forge chamber is open")
+		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "forge keeps the hub bed")
+		failed += _assert(not bool(game_audio.call("is_hub_suspended")), "forge does not suspend the hub bed")
+		var forge_exit: Button = live.get_node_or_null("ForgeChamber/Root/ExitButton") as Button
+		failed += _assert(forge_exit != null and forge_exit.text.find("Manatree") >= 0, "forge exit names the Manatree")
+		game_state.call("end_forge_visit")
+		failed += _assert(not bool(game_state.get("in_forge")), "exit forge returns to the hub")
 		hud.call("hide_forge_popup")
 		game_state.set("stage_id", &"ancient")
 		game_state.emit_signal("stage_changed", &"ancient")
@@ -2625,6 +2635,191 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_audio.call("resume_hub_after_battle")
 	game_state.call("reset_for_new_game")
 	save_service.call("delete_save")
+	return failed
+
+
+func _verify_forge(tree_root: Window, game_state: Node, content_strings: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	failed += _assert(backpack != null and equipment != null and echo != null, "forge autoloads")
+	if failed > 0:
+		return failed
+	game_state.call("reset_for_new_game")
+	failed += _assert(str(content_strings.call("get_text", "sapsteel_name")) == "Sapsteel", "sapsteel name")
+	failed += _assert(str(content_strings.call("get_text", "heartwood_bits_name")) == "Heartwood Bits", "heartwood name")
+	failed += _assert(str(content_strings.call("get_text", "forge_wisp_deny")).find("Wisp") >= 0, "wisp deny copy")
+	failed += _assert(str(content_strings.call("get_text", "battle_log_cast_you")) == "You cast.", "cast log")
+	failed += _assert(str(equipment.call("recipe_station", "sapstaff")) == "handcraft", "sapstaff is handcraft")
+	failed += _assert(str(equipment.call("recipe_station", "rootsteel_edge")) == "anvil", "rootsteel is anvil")
+	failed += _assert(str(equipment.call("try_craft", "rootsteel_edge")) == "anvil", "anvil is not instant")
+	var staff_ings: Dictionary = equipment.call("get_recipe_ingredients", "sapstaff")
+	failed += _assert(int(staff_ings.get("wooden_planks", 0)) == 30 and int(staff_ings.get("weapon_rod", 0)) == 1, "sapstaff 30 planks + rod")
+	var bow_ings: Dictionary = equipment.call("get_recipe_ingredients", "thornbow")
+	failed += _assert(int(bow_ings.get("stone_fragments", 0)) == 15 and int(bow_ings.get("wooden_planks", 0)) == 15, "thornbow hybrid mats")
+	var edge_ings: Dictionary = equipment.call("get_recipe_ingredients", "rootsteel_edge")
+	failed += _assert(int(edge_ings.get("sapsteel", 0)) == 2 and int(edge_ings.get("heartwood_bits", 0)) == 2 and int(edge_ings.get("essence", 0)) == 8, "anvil placeholder cost")
+	backpack.call("set_count", "wooden_planks", 10)
+	failed += _assert(str(equipment.call("try_craft", "weapon_rod")) == "ok", "rod for sapstaff")
+	backpack.call("set_count", "wooden_planks", 30)
+	failed += _assert(str(equipment.call("try_craft", "sapstaff")) == "ok", "craft sapstaff")
+	failed += _assert(str(equipment.call("try_equip", "sapstaff")) == "ok", "equip sapstaff")
+	failed += _assert(str(equipment.call("equipped_strike_kind")) == "magical", "sapstaff strikes as magic")
+	failed += _assert(int(equipment.call("gear_bonus", "arcana")) == 2, "sapstaff +2 arcana")
+	equipment.call("try_unequip", "weapon")
+	backpack.call("set_count", "wooden_planks", 15)
+	backpack.call("set_count", "stone_fragments", 15)
+	equipment.call("grant_item", "weapon_rod")
+	failed += _assert(str(equipment.call("try_craft", "thornbow")) == "ok", "craft thornbow")
+	failed += _assert(str(equipment.call("equipped_strike_kind")) == "physical", "unequipped bow does not change fists")
+	failed += _assert(str(equipment.call("try_equip", "thornbow")) == "ok", "equip thornbow")
+	failed += _assert(str(equipment.call("equipped_strike_kind")) == "hybrid", "thornbow is hybrid")
+	failed += _assert(int(equipment.call("gear_bonus", "resilience")) == 1 and int(equipment.call("gear_bonus", "ward")) == 1, "thornbow mid res+ward")
+	# Crucible / mill pulses, including after leaving the chamber.
+	game_state.call("set_resource", &"stone", 6)
+	game_state.call("set_resource", &"wood", 3)
+	failed += _assert(str(game_state.call("try_toggle_forge_station", "forge_crucible")) == "tend", "tend crucible")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 1, "crucible immediate sapsteel")
+	failed += _assert(int(game_state.get("stone")) == 3, "crucible spent 3 stone")
+	game_state.set("in_forge", false)
+	game_state.call("tick_forge_stations", 1.0)
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 2, "crucible keeps working outside")
+	failed += _assert(int(game_state.get("stone")) == 0, "second crucible pulse")
+	failed += _assert(str(game_state.call("try_toggle_forge_station", "forge_mill")) == "tend", "tend mill")
+	failed += _assert(int(backpack.call("get_count", "heartwood_bits")) == 1, "mill heartwood")
+	# Anvil job: paid up front, finishes in FORGE_ANVIL_PULSES, gear persists.
+	game_state.call("set_resource", &"essence", 8)
+	backpack.call("add_item", "sapsteel", 2)
+	backpack.call("add_item", "heartwood_bits", 2)
+	failed += _assert(str(game_state.call("try_begin_anvil", "heartwand")) == "ok", "begin heartwand")
+	failed += _assert(int(game_state.get("essence")) == 0, "anvil spent essence")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 2, "anvil spent 2 sapsteel from the extra stack")
+	var pulses: int = int(game_state.get("FORGE_ANVIL_PULSES"))
+	var pulse_sec: float = float(game_state.get("FORGE_PULSE_SEC"))
+	# Begin does not pulse; the lit station does.
+	game_state.call("tick_forge_stations", pulse_sec * float(pulses) + 0.05)
+	failed += _assert(bool(equipment.call("owns_anywhere", "heartwand")), "heartwand granted")
+	failed += _assert(str(game_state.get("anvil_recipe")) == "", "anvil job cleared")
+	failed += _assert(str(equipment.call("try_equip", "heartwand")) == "ok", "equip heartwand")
+	failed += _assert(int(equipment.call("gear_bonus", "arcana")) == 4, "heartwand +4 arcana")
+	failed += _assert(str(equipment.call("equipped_strike_kind")) == "magical", "heartwand is magical")
+	# Rootsteel + switchshaft are reachable the same way.
+	game_state.call("set_resource", &"essence", 8)
+	backpack.call("add_item", "sapsteel", 2)
+	backpack.call("add_item", "heartwood_bits", 2)
+	failed += _assert(str(game_state.call("try_begin_anvil", "rootsteel_edge")) == "ok", "begin rootsteel")
+	game_state.call("tick_forge_stations", pulse_sec * float(pulses) + 0.05)
+	failed += _assert(bool(equipment.call("owns_anywhere", "rootsteel_edge")), "rootsteel granted")
+	game_state.call("set_resource", &"essence", 8)
+	backpack.call("add_item", "sapsteel", 2)
+	backpack.call("add_item", "heartwood_bits", 2)
+	failed += _assert(str(game_state.call("try_begin_anvil", "switchshaft")) == "ok", "begin switchshaft")
+	game_state.call("tick_forge_stations", pulse_sec * float(pulses) + 0.05)
+	failed += _assert(bool(equipment.call("owns_anywhere", "switchshaft")), "switchshaft granted")
+	failed += _assert(int(equipment.call("gear_bonus", "resilience")) == 0, "switchshaft waits in the bag")
+	failed += _assert(str(equipment.call("try_equip", "switchshaft")) == "ok", "equip switchshaft")
+	failed += _assert(int(equipment.call("gear_bonus", "resilience")) == 2 and int(equipment.call("gear_bonus", "ward")) == 2, "switchshaft +2/+2")
+	# Wisp on the crucible, and glade wisps freeze inside the forge.
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	failed += _assert(str(game_state.call("send_wisp_to_forge", "forge_crucible")) == "ok", "send wisp to crucible")
+	game_state.call("set_resource", &"stone", 3)
+	game_state.call("apply_wisp_pulses", 9.9)
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 0, "wisp not early")
+	game_state.call("apply_wisp_pulses", 0.2)
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 1 and int(game_state.get("stone")) == 0, "wisp crucible pulse")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	game_state.call("set_resource", &"wood", 0)
+	game_state.set("in_forge", true)
+	game_state.call("apply_wisp_pulses", 10.0)
+	failed += _assert(int(game_state.get("wood")) == 0, "glade wisp frozen in forge")
+	game_state.set("in_forge", false)
+	game_state.call("apply_wisp_pulses", 9.9)
+	game_state.call("apply_wisp_pulses", 0.2)
+	failed += _assert(int(game_state.get("wood")) == 1, "glade wisp resumes after forge")
+	failed += _assert(str(game_state.call("send_wisp_to_forge", "forge_mill")) == "none", "deny when the only wisp is busy")
+	# Ascend wipes forge mats, keeps the equipped weapon and a paid anvil job.
+	game_state.call("reset_for_new_game")
+	equipment.call("grant_item", "rootsteel_edge")
+	equipment.call("try_equip", "rootsteel_edge")
+	backpack.call("add_item", "sapsteel", 5)
+	game_state.call("set_resource", &"essence", 8)
+	backpack.call("add_item", "heartwood_bits", 2)
+	backpack.call("add_item", "sapsteel", 2)
+	failed += _assert(str(game_state.call("try_begin_anvil", "heartwand")) == "ok", "anvil job before ascend")
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.call("ascend")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 0, "ascend wipes sapsteel")
+	failed += _assert(str(equipment.call("equipped_id", "weapon")) == "rootsteel_edge", "rootsteel persists ascend")
+	failed += _assert(str(game_state.get("anvil_recipe")) == "heartwand", "paid anvil job survives ascend")
+	game_state.call("tick_forge_stations", pulse_sec * float(pulses) + 0.05)
+	failed += _assert(bool(equipment.call("owns_anywhere", "heartwand")), "anvil finishes after ascend")
+	# Strike uses the weapon. Magical hits Ward, not Resilience.
+	var echo_def: Dictionary = echo.call("echo_def")
+	var cast: Variant = EchoBattleScript.new()
+	cast.force_crit = 0
+	cast.strike_kind = "magical"
+	cast.configure({
+		"might": 30, "arcana": 9, "resilience": 5, "ward": 5,
+		"vitality": 5, "swiftness": 9, "fate": 5,
+	}, echo_def)
+	cast.choose("strike")
+	var cast_log: String = ""
+	for cast_line: String in cast.log:
+		cast_log += cast_line
+	failed += _assert(cast.last_keeper_damage == 20 and cast.echo_hp == 40, "arcana strike vs ward")
+	failed += _assert(cast_log.find("cast") >= 0, "magical log says cast")
+	var hybrid: Variant = EchoBattleScript.new()
+	hybrid.force_crit = 0
+	hybrid.strike_kind = "hybrid"
+	hybrid.arrow_mode = "physical"
+	hybrid.configure({
+		"might": 8, "arcana": 5, "resilience": 5, "ward": 5,
+		"vitality": 5, "swiftness": 9, "fate": 5,
+	}, echo_def)
+	hybrid.choose("strike")
+	failed += _assert(hybrid.last_keeper_damage == 30, "thorn arrows use might")
+	hybrid.arrow_mode = "magical"
+	hybrid.choose("strike")
+	failed += _assert(hybrid.last_keeper_damage == 0, "heart arrows use arcana vs her ward")
+	# Toggle is a button, not a turn.
+	var view_battle: Variant = EchoBattleScript.new()
+	view_battle.force_crit = 0
+	view_battle.strike_kind = "hybrid"
+	view_battle.arrow_mode = "physical"
+	view_battle.configure({
+		"might": 5, "arcana": 5, "resilience": 5, "ward": 5,
+		"vitality": 5, "swiftness": 9, "fate": 5,
+	}, echo_def)
+	echo.set("battle", view_battle)
+	echo.set("in_battle", true)
+	var view_packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	var view: Node = view_packed.instantiate()
+	tree_root.add_child(view)
+	await process_frame
+	failed += _assert(bool(view.call("is_arrow_toggle_shown")), "hybrid shows the arrow toggle")
+	failed += _assert(str(view.call("arrow_toggle_text")).find("Thorn") >= 0, "toggle starts on thorn arrows")
+	view.call("_on_arrow")
+	failed += _assert(str(view_battle.arrow_mode) == "magical", "toggle does not spend the turn")
+	failed += _assert(str(view.call("arrow_toggle_text")).find("Heart") >= 0, "toggle flips to heart arrows")
+	failed += _assert(view_battle.outcome == "", "arrow toggle is not a turn")
+	view.free()
+	echo.set("battle", null)
+	echo.set("in_battle", false)
+	game_audio.call("clear_played_log")
+	game_state.call("reset_for_new_game")
+	failed += _assert(str(game_state.call("try_enter_forge")) == "stage", "forge closed before elder")
+	game_state.set("stage_id", &"elder")
+	failed += _assert(str(game_state.call("try_enter_forge")) == "no_key", "forge closed without the key")
+	game_state.set("forge_key", true)
+	failed += _assert(str(game_state.call("try_enter_forge")) == "enter", "elder + key enters")
+	failed += _assert(not bool(game_audio.call("is_hub_suspended")), "direct enter does not suspend music")
+	game_state.call("end_forge_visit")
+	failed += _assert(not bool(game_state.get("in_forge")), "direct exit clears the visit")
+	game_state.call("reset_for_new_game")
 	return failed
 
 

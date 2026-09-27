@@ -15,6 +15,7 @@ signal wisp_assign_failed(reason: String, node_id: String)
 signal wisp_unassigned(wisp_id: int)
 signal wisp_pulsed(resource_id: StringName)
 signal echo_flags_changed
+signal forge_changed
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -25,6 +26,15 @@ const NEED_ORDER: Array[StringName] = [&"essence", &"fertilizer"]
 ## Assignment target id for the Manatree. Stored as a string in SAVE_VERSION 5 — no schema bump.
 ## Playtest: multiple wisps may stack on the same target (harvest nodes and Manatree).
 const NODE_ID_MANATREE: String = "manatree"
+## Forge stations. Pulse math is PLACEHOLDER — tune later.
+const FORGE_CRUCIBLE: String = "forge_crucible"
+const FORGE_MILL: String = "forge_mill"
+const FORGE_ANVIL: String = "forge_anvil"
+const FORGE_STATION_IDS: Array[String] = ["forge_crucible", "forge_mill", "forge_anvil"]
+const FORGE_CRUCIBLE_STONE: int = 3
+const FORGE_MILL_WOOD: int = 3
+const FORGE_ANVIL_PULSES: int = 3
+const FORGE_PULSE_SEC: float = 1.0
 
 var wood: int = 0
 var stone: int = 0
@@ -47,6 +57,15 @@ var echo_01_resolved: bool = false
 var echo_01_redeemed: bool = false
 var forge_key: bool = false
 var echo_01_narrator_heard: bool = false
+## True only while the bark-chamber overlay is up. Not written to disk.
+var in_forge: bool = false
+## Lit stations keep pulsing after you leave. Wisps are a second driver.
+var forge_running: Dictionary = {}
+var forge_accum: Dictionary = {}
+var anvil_recipe: String = ""
+var anvil_pulses_done: int = 0
+## Hybrid bows: "physical" (thorn) or "magical" (heart). Persists.
+var arrow_mode: String = "physical"
 
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
@@ -108,6 +127,7 @@ func _process(delta: float) -> void:
 	## Pausable by default — stops when get_tree().paused (pause menu).
 	run_time_sec += delta
 	apply_wisp_pulses(delta)
+	tick_forge_stations(delta)
 
 
 func _load_tables() -> void:
@@ -213,12 +233,22 @@ func assignment_target_display(node_id: String) -> String:
 			return ContentStrings.get_text("node_food_prompt")
 		NODE_ID_MANATREE:
 			return ContentStrings.get_text("tree_menu_title")
+		FORGE_CRUCIBLE:
+			return ContentStrings.get_text("forge_crucible_name")
+		FORGE_MILL:
+			return ContentStrings.get_text("forge_mill_name")
+		FORGE_ANVIL:
+			return ContentStrings.get_text("forge_anvil_name")
 		_:
 			return node_id
 
 
+func is_forge_station(node_id: String) -> bool:
+	return FORGE_STATION_IDS.has(node_id)
+
+
 func is_valid_wisp_node_id(node_id: String) -> bool:
-	return resource_for_node_id(node_id) != &""
+	return resource_for_node_id(node_id) != &"" or is_forge_station(node_id)
 
 
 func _ensure_wisp_slots() -> void:
@@ -344,18 +374,280 @@ func apply_wisp_pulses(delta: float) -> void:
 		if nid == "":
 			wisp_pulse_accum[key] = 0.0
 			continue
+		## Glade wisps freeze while you are inside the Forge. Their timers hold.
+		if in_forge and not is_forge_station(nid):
+			continue
 		var acc: float = float(wisp_pulse_accum.get(key, 0.0)) + delta
 		while acc >= pulse:
 			acc -= pulse
-			var rid: StringName = resource_for_node_id(nid)
-			if rid != &"":
-				add_resource(rid, grant)
-				var hk: String = String(rid)
-				lifetime_harvested[hk] = int(lifetime_harvested.get(hk, 0)) + grant
-				pulsed_nodes[nid] = rid
+			if is_forge_station(nid):
+				if _forge_station_pulse(nid, true):
+					pulsed_nodes[nid] = &"forge"
+			else:
+				var rid: StringName = resource_for_node_id(nid)
+				if rid != &"":
+					add_resource(rid, grant)
+					var hk: String = String(rid)
+					lifetime_harvested[hk] = int(lifetime_harvested.get(hk, 0)) + grant
+					pulsed_nodes[nid] = rid
 		wisp_pulse_accum[key] = acc
 	for nid2: Variant in pulsed_nodes.keys():
 		wisp_pulsed.emit(pulsed_nodes[nid2] as StringName)
+
+
+func try_enter_forge() -> String:
+	var stage_name: String = String(stage_id)
+	if stage_name != "elder" and stage_name != "ancient":
+		return "stage"
+	if not forge_key:
+		return "no_key"
+	begin_forge_visit()
+	return "enter"
+
+
+func begin_forge_visit() -> void:
+	if in_forge:
+		return
+	in_forge = true
+	var scene: SceneTree = get_tree()
+	if scene != null:
+		var keepers: Array[Node] = scene.get_nodes_in_group("keeper")
+		for keeper_node: Node in keepers:
+			if keeper_node.has_method("halt"):
+				keeper_node.call("halt")
+	forge_changed.emit()
+	status_message.emit(ContentStrings.get_text("forge_enter_toast"))
+
+
+func end_forge_visit() -> void:
+	if not in_forge:
+		return
+	in_forge = false
+	_return_keeper_to_manatree()
+	forge_changed.emit()
+	status_message.emit(ContentStrings.get_text("forge_exit_toast"))
+
+
+func _return_keeper_to_manatree() -> void:
+	var scene: SceneTree = get_tree()
+	if scene == null:
+		return
+	var trees: Array[Node] = scene.get_nodes_in_group("manatree")
+	var keepers: Array[Node] = scene.get_nodes_in_group("keeper")
+	if trees.is_empty() or keepers.is_empty():
+		return
+	var tree: Node2D = trees[0] as Node2D
+	var keeper: Node = keepers[0]
+	if tree == null or keeper == null:
+		return
+	var dest: Vector2 = tree.global_position + Vector2(0, 48)
+	if keeper is Node2D:
+		(keeper as Node2D).global_position = dest
+	if keeper.has_method("halt"):
+		keeper.call("halt")
+	var mains: Array[Node] = scene.get_nodes_in_group("main_root")
+	if not mains.is_empty() and mains[0].has_method("focus_manatree"):
+		mains[0].call("focus_manatree")
+
+
+func tick_forge_stations(delta: float) -> void:
+	## Lit stations keep their 1s pulse in the hub and in the chamber.
+	if fruit_committed or delta <= 0.0:
+		return
+	var any: bool = false
+	for sid: String in FORGE_STATION_IDS:
+		if not bool(forge_running.get(sid, false)):
+			continue
+		if sid == FORGE_ANVIL and anvil_recipe == "":
+			forge_running[sid] = false
+			continue
+		var acc: float = float(forge_accum.get(sid, 0.0)) + delta
+		var guard: int = 0
+		while acc >= FORGE_PULSE_SEC and guard < 8:
+			guard += 1
+			if not bool(forge_running.get(sid, false)):
+				break
+			acc -= FORGE_PULSE_SEC
+			if not _forge_station_pulse(sid, false):
+				break
+			any = true
+		forge_accum[sid] = acc
+	if any:
+		forge_changed.emit()
+
+
+func try_toggle_forge_station(station_id: String) -> String:
+	if not is_forge_station(station_id):
+		return "invalid"
+	if bool(forge_running.get(station_id, false)):
+		forge_running[station_id] = false
+		forge_changed.emit()
+		status_message.emit(ContentStrings.get_text("forge_rest"))
+		return "rest"
+	if station_id == FORGE_ANVIL and anvil_recipe == "":
+		status_message.emit(ContentStrings.get_text("forge_anvil_quiet"))
+		return "need_job"
+	forge_running[station_id] = true
+	forge_accum[station_id] = 0.0
+	if not _forge_station_pulse(station_id, false):
+		status_message.emit(ContentStrings.get_text("forge_need_mats", {"mats": _forge_wait_name(station_id)}))
+		forge_changed.emit()
+		return "need_mats"
+	status_message.emit(ContentStrings.get_text("forge_station_warm"))
+	forge_changed.emit()
+	return "tend"
+
+
+func try_begin_anvil(recipe_id: String) -> String:
+	if anvil_recipe != "":
+		status_message.emit(ContentStrings.get_text("forge_anvil_busy"))
+		return "busy"
+	if not has_node("/root/Equipment"):
+		return "unknown"
+	if Equipment.recipe_station(recipe_id) != "anvil":
+		return "unknown"
+	var spent: String = Equipment.consume_recipe_ingredients(recipe_id)
+	if spent != "ok":
+		if spent == "unique":
+			status_message.emit(ContentStrings.get_text("handcraft_owned_unique"))
+		elif spent == "cant_afford":
+			var lines: PackedStringArray = Equipment.recipe_ingredient_lines(recipe_id)
+			status_message.emit(ContentStrings.get_text("handcraft_cant_afford", {"costs": "  ".join(lines)}))
+		return spent
+	anvil_recipe = recipe_id
+	anvil_pulses_done = 0
+	forge_running[FORGE_ANVIL] = true
+	forge_accum[FORGE_ANVIL] = 0.0
+	if has_node("/root/GameAudio"):
+		GameAudio.play_ui_confirm()
+	status_message.emit(ContentStrings.get_text("forge_anvil_started"))
+	forge_changed.emit()
+	return "ok"
+
+
+func send_wisp_to_forge(station_id: String) -> String:
+	if not is_forge_station(station_id):
+		wisp_assign_failed.emit("invalid", station_id)
+		return "invalid"
+	var wid: int = selected_wisp_id
+	if wid < 0 or wid >= wisp_count:
+		wid = _first_idle_wisp_id()
+	if wid < 0:
+		if has_node("/root/GameAudio"):
+			GameAudio.play_wisp_deny()
+		status_message.emit(ContentStrings.get_text("forge_wisp_deny"))
+		return "none"
+	var result: String = try_assign_wisp(wid, station_id)
+	if result == "invalid":
+		return result
+	toast_wisp_assign(result, station_id)
+	forge_changed.emit()
+	return result
+
+
+func recall_wisp_from_forge(station_id: String) -> String:
+	if not is_forge_station(station_id):
+		return "invalid"
+	var chosen: int = -1
+	for i: int in range(wisp_count):
+		if get_wisp_assignment(i) == station_id:
+			chosen = i
+	if chosen < 0:
+		if has_node("/root/GameAudio"):
+			GameAudio.play_wisp_deny()
+		status_message.emit(ContentStrings.get_text("forge_wisp_none_here"))
+		return "none"
+	if not unassign_wisp(chosen):
+		return "invalid"
+	status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
+	forge_changed.emit()
+	return "ok"
+
+
+func forge_progress_ratio(station_id: String) -> float:
+	if station_id == FORGE_ANVIL:
+		if anvil_recipe == "":
+			return 0.0
+		return clampf(float(anvil_pulses_done) / float(maxi(1, FORGE_ANVIL_PULSES)), 0.0, 1.0)
+	if not bool(forge_running.get(station_id, false)):
+		return 0.0
+	return clampf(float(forge_accum.get(station_id, 0.0)) / FORGE_PULSE_SEC, 0.0, 1.0)
+
+
+func _first_idle_wisp_id() -> int:
+	for i: int in range(wisp_count):
+		if get_wisp_assignment(i) == "":
+			return i
+	return -1
+
+
+func _forge_wait_name(station_id: String) -> String:
+	if station_id == FORGE_CRUCIBLE:
+		return ContentStrings.get_text("hud_stone")
+	if station_id == FORGE_MILL:
+		return ContentStrings.get_text("hud_wood")
+	return ContentStrings.get_text("forge_anvil_quiet")
+
+
+func _forge_station_pulse(station_id: String, from_wisp: bool) -> bool:
+	if station_id == FORGE_CRUCIBLE:
+		if stone < FORGE_CRUCIBLE_STONE:
+			if not from_wisp:
+				forge_running[FORGE_CRUCIBLE] = false
+			return false
+		add_resource(&"stone", -FORGE_CRUCIBLE_STONE)
+		if has_node("/root/Backpack"):
+			Backpack.add_item("sapsteel", 1)
+		if not from_wisp and has_node("/root/GameAudio"):
+			GameAudio.play_wisp_pulse()
+		return true
+	if station_id == FORGE_MILL:
+		if wood < FORGE_MILL_WOOD:
+			if not from_wisp:
+				forge_running[FORGE_MILL] = false
+			return false
+		add_resource(&"wood", -FORGE_MILL_WOOD)
+		if has_node("/root/Backpack"):
+			Backpack.add_item("heartwood_bits", 1)
+		if not from_wisp and has_node("/root/GameAudio"):
+			GameAudio.play_wisp_pulse()
+		return true
+	if station_id == FORGE_ANVIL:
+		if anvil_recipe == "":
+			forge_running[FORGE_ANVIL] = false
+			return false
+		anvil_pulses_done += 1
+		var finished: bool = anvil_pulses_done >= FORGE_ANVIL_PULSES
+		if finished:
+			var recipe_id: String = anvil_recipe
+			var out_id: String = recipe_id
+			if has_node("/root/Equipment"):
+				var def: Dictionary = Equipment.get_recipe_def(recipe_id)
+				out_id = str(def.get("output_id", recipe_id))
+				Equipment.grant_item(out_id)
+			var item_name: String = out_id
+			if has_node("/root/Equipment"):
+				item_name = Equipment.item_display_name(out_id)
+			anvil_recipe = ""
+			anvil_pulses_done = 0
+			forge_running[FORGE_ANVIL] = false
+			forge_accum[FORGE_ANVIL] = 0.0
+			if has_node("/root/GameAudio"):
+				GameAudio.play_ui_confirm()
+			status_message.emit(ContentStrings.get_text("forge_anvil_done", {"item": item_name}))
+			return true
+		if not from_wisp and has_node("/root/GameAudio"):
+			GameAudio.play_wisp_pulse()
+		return true
+	return false
+
+
+func _clear_forge_hearths_for_ascend() -> void:
+	## Processed mats live in the backpack and wipe. A paid anvil job keeps going.
+	forge_running[FORGE_CRUCIBLE] = false
+	forge_running[FORGE_MILL] = false
+	forge_accum[FORGE_CRUCIBLE] = 0.0
+	forge_accum[FORGE_MILL] = 0.0
 
 
 func set_keeper_selected(value: bool) -> void:
@@ -935,6 +1227,8 @@ func can_ascend() -> bool:
 func ascend() -> void:
 	if not fruit_committed:
 		return
+	if in_forge:
+		end_forge_visit()
 	ascensions += 1
 	## First Ascend opens the Echo. A paid fee, Key, and companion flag stay.
 	portal_unlocked = true
@@ -959,6 +1253,7 @@ func ascend() -> void:
 	resources_changed.emit(&"manashards", manashards)
 	resources_changed.emit(&"essence", essence)
 	Backpack.on_ascend()
+	_clear_forge_hearths_for_ascend()
 	## Combat ranks and battle gear persist. The soft Manashard bank above is already 0.
 	if has_node("/root/KeeperStats"):
 		KeeperStats.on_ascend()
@@ -1018,6 +1313,11 @@ func to_save_dict() -> Dictionary:
 		"echo_01_redeemed": echo_01_redeemed,
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
+		"forge_running": forge_running.duplicate(true),
+		"forge_accum": forge_accum.duplicate(true),
+		"anvil_recipe": anvil_recipe,
+		"anvil_pulses_done": anvil_pulses_done,
+		"arrow_mode": arrow_mode,
 	}
 
 
@@ -1043,6 +1343,20 @@ func apply_save_dict(data: Dictionary) -> void:
 	echo_01_redeemed = bool(data.get("echo_01_redeemed", false))
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
+	var was_in_forge: bool = in_forge
+	in_forge = false
+	var running_v: Variant = data.get("forge_running", {})
+	forge_running = (running_v as Dictionary).duplicate(true) if typeof(running_v) == TYPE_DICTIONARY else {}
+	var accum_v: Variant = data.get("forge_accum", {})
+	forge_accum = {}
+	if typeof(accum_v) == TYPE_DICTIONARY:
+		for accum_key: Variant in (accum_v as Dictionary).keys():
+			forge_accum[str(accum_key)] = float((accum_v as Dictionary)[accum_key])
+	anvil_recipe = str(data.get("anvil_recipe", ""))
+	anvil_pulses_done = maxi(0, int(data.get("anvil_pulses_done", 0)))
+	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
+	if was_in_forge:
+		_return_keeper_to_manatree()
 	lifetime_waters = int(data.get("lifetime_waters", 0))
 	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
 	lifetime_essence_from_water = int(data.get("lifetime_essence_from_water", 0))
@@ -1092,6 +1406,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	needs_changed.emit()
 	upgrades_changed.emit()
 	echo_flags_changed.emit()
+	forge_changed.emit()
 	load_completed.emit()
 
 
@@ -1146,7 +1461,14 @@ func reset_for_new_game() -> void:
 	echo_01_redeemed = false
 	forge_key = false
 	echo_01_narrator_heard = false
+	in_forge = false
+	forge_running.clear()
+	forge_accum.clear()
+	anvil_recipe = ""
+	anvil_pulses_done = 0
+	arrow_mode = "physical"
 	echo_flags_changed.emit()
+	forge_changed.emit()
 	Backpack.reset_for_new_game()
 	if has_node("/root/KeeperStats"):
 		KeeperStats.reset_for_new_game()

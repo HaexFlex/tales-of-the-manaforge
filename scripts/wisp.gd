@@ -307,6 +307,20 @@ func _kill_fly_tween() -> void:
 
 
 func _resolve_assignment_center(node_id: String) -> Vector2:
+	if GameState.is_forge_station(node_id):
+		## The hearth is off-glade. While it works, the Wisp rests by the Manatree.
+		var forge_trees: Array[Node] = get_tree().get_nodes_in_group("manatree")
+		var center: Vector2 = global_position
+		for forge_tree: Node in forge_trees:
+			if forge_tree is Node2D:
+				center = (forge_tree as Node2D).global_position + TARGET_CHEST_OFFSET
+				break
+		var nudge: float = 0.0
+		if node_id == GameState.FORGE_MILL:
+			nudge = 2.2
+		elif node_id == GameState.FORGE_ANVIL:
+			nudge = 4.2
+		return center + Vector2(cos(nudge), sin(nudge) * 0.55) * 48.0
 	if node_id == GameState.NODE_ID_MANATREE:
 		var trees: Array[Node] = get_tree().get_nodes_in_group("manatree")
 		for n: Node in trees:

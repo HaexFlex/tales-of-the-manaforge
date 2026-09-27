@@ -46,7 +46,7 @@ Music stings (`mus_fruit_sting`, `mus_ascend_sting`) use a second Music player s
 
 **Pause → Options → Audio:** Music / Sounds sliders + Reset. Persists in `user://manaforge_settings.cfg` (volume only — never restarts the hub stream).
 
-7. After the first **Ascend**, an **Echo** portal stands in the glade. Select the Keeper and right-click it. **30 Essence** opens a 1v1 with **Elaia**. Strike or Flee; Spare appears only under 10% HP. A win grants a **Forge Key** Relic (**+2 Swiftness**, **+2 Fate**) and Manashards. On **Elder** or **Ancient** Manatree stages, care menu **Enter Forge** appears (hidden earlier); with the Key it says the door is not built yet.
+7. After the first **Ascend**, an **Echo** portal stands in the glade. Select the Keeper and right-click it. **30 Essence** opens a 1v1 with **Elaia**. Strike or Flee; Spare appears only under 10% HP. A win grants a **Forge Key** Relic (**+2 Swiftness**, **+2 Fate**) and Manashards. On **Elder** or **Ancient** Manatree stages, care menu **Enter Forge** opens the bark-chamber (hidden earlier; without the Key: “You have no key.”). Hub music keeps playing. **Esc** returns you to the Manatree. Crucible (3 stone → Sapsteel), Mill (3 wood → Heartwood Bits), and Anvil (2 Sapsteel + 2 Heartwood Bits + 8 Essence, 3 pulses) keep working after you leave if you tend them or send a Wisp. Handcraft **Sapstaff** and **Thornbow** beside the Stone Sword. Strike follows the weapon: Might vs Resilience, Arcana vs Ward, or a Thorn/Heart arrow toggle on bows. No armor this ship.
 
 ## Assets upload
 
@@ -54,4 +54,4 @@ Drop new art in `Assets upload/`. Every coding ship must leave that folder **emp
 
 ## Out of scope (v0.2)
 
-Growth bar / Offers, Forge interior, companions in combat, Echo 2+, armor recipes, real Runestone art, edge camera, WASD, HTML5.
+Growth bar / Offers, companions in combat, Echo 2+, armor recipes, offline catch-up, real Runestone art, edge camera, WASD, HTML5.
