@@ -2226,7 +2226,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(content_strings.call("get_text", "battle_defeat_ok")).find("{enemy}") >= 0, "battle_defeat_ok")
 	failed += _assert(str(content_strings.call("get_text", "battle_key_grant")).find("+2 Swiftness") >= 0, "battle_key_grant")
 	failed += _assert(str(content_strings.call("get_text", "forge_no_key")) == "You have no key.", "no key popup")
-	failed += _assert(str(content_strings.call("get_text", "forge_not_built")) == "Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.", "forge not built")
+	failed += _assert(str(content_strings.call("get_text", "forge_not_built")) == "Not built yet! Stay tuned.", "retired forge stub kept")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_narrator")).find("does not raise her voice") >= 0, "echo_01_narrator")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_intro")).find("should not have opened this") >= 0, "echo_01_intro")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_intro")).find("another Keeper fail") >= 0, "echo_01_intro full line")
