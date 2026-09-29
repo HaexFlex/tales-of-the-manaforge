@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3 uid="uid://forestsolid001mf"]
+
+[ext_resource type="Script" path="res://scripts/forest_prop.gd" id="1_prop"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(16, 10)
+
+[node name="ForestSolid" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_prop")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture_filter = 0
+centered = false
+y_sort_enabled = true
+
+[node name="Body" type="StaticBody2D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Body"]
+position = Vector2(0, -5)
+shape = SubResource("RectangleShape2D_body")
