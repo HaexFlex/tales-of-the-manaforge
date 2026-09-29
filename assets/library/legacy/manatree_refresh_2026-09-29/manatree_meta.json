@@ -1,7 +1,7 @@
 {
-  "version": "v0.1.8-A2",
+  "version": "v0.1.7-animated",
   "filter": "nearest",
-  "source": "assets/library/manatree_tries/A2 (Haex-picked Manatree set A2, Grok Imagine raws via tools/build_manatree.py), 8 frames horizontal",
+  "source": "art_drop_c9fda76 Stage 0-4 strips, 8 frames horizontal",
   "fps": 7,
   "haex_approved": true,
   "stages": [

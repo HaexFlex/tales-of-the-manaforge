@@ -1,16 +1,34 @@
-# Manatree progression tries A / B / C (not wired)
+# Manatree progression tries A / B / C / A2
 
-Three alternative Manatree art sets. **Nothing here is used by the game.** Haex picks one; the live
-art in `assets/art/manatree/` is untouched.
+Alternative Manatree art sets. A, B and C are proposals and are not used by the game.
+**A2 (Haex's pick) is wired live** in `assets/art/manatree/` (see below). The previous live files are in
+`assets/library/legacy/manatree_refresh_2026-09-29/`.
 
 | set | design |
 |---|---|
 | **A** | Evolved current design: teal-veined oak with the mana gem, orange leaves at Ancient |
 | **B** | Broad oak: clumped teal-veined canopy, buttress roots, hanging vines with drops, crystals at Ancient |
 | **C** | Spiral willow: double-helix trunk under a weeping willow canopy |
+| **A2** | Set A with changes (**live**): see the A2 section |
 
 Sheets: `contact_ABC.png` (all three), `<S>/contact_<S>.png` (per set: frame 0 at in-game display
 size standing on the door_floor ground line, the stills, and 1:1 in-game close-ups of the doors).
+
+## A2 (Haex's pick, wired live, `v0.1.8-A2`)
+Set A with changes. Files: `A2/` (stills, `anim/`, `contact_A2.png`, `manatree_meta.proposed.json`
+with `haex_approved: true`). The same files are live in `assets/art/manatree/` under the live names.
+
+| stage | art | placement (raw base row on the kept `door_floor`) |
+|---|---|---|
+| sapling | same as A | anchor, base row 1180 (as A) |
+| young | same as A | old bbox (as A) |
+| mature | A's Elder art with the door replaced by a thick teal arch **outline** (bark inside). Leftover strokes from an erased old arc above the arch are painted over with nearby bark | anchor, base row 1317 = bottom of the outline. Scaled down into the unchanged 184 px mature frame |
+| elder | A's Ancient art without the orange blossoms: green canopy, real door | anchor, base row 1390 = bottom of the door sill |
+| ancient | Withered version of the new Elder: same silhouette and door, grey bark, dry sparse leaves, bright teal veins | anchor, base row 1392 = bottom of the door sill |
+
+The Ancient's gaps between its sparse leaves are real see-through gaps and are keyed transparent. No
+canopy pockets were filled in A2. Anchors, sizes, frame counts and `display_scale` are identical to the
+previous live meta; only `version` and `source` changed.
 
 ## Rules the sets follow
 - Stage to stage it is visibly the same tree growing.
