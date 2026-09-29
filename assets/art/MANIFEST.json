@@ -41,6 +41,12 @@
     ],
     "meta": "props/props_meta.json"
   },
+  "forge": {
+    "dir": "forge/",
+    "meta": "forge/forge_meta.json",
+    "markers": "forge/markers.json",
+    "version": "forge_v2_2026-09-29"
+  },
   "ui_icons": {
     "dir": "ui/",
     "canvas": [

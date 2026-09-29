@@ -1,0 +1,253 @@
+{
+ "canvas": [
+  192,
+  192
+ ],
+ "base_anchor_px": [
+  96,
+  191
+ ],
+ "scene_from_canvas": "(cx-96, cy-192)",
+ "stations": {
+  "crucible": {
+   "KeeperStand": [
+    0,
+    44
+   ],
+   "WispOrbit": [
+    0,
+    -113
+   ],
+   "badge_anchor": [
+    52,
+    -132
+   ],
+   "label_y": [
+    -170,
+    -146
+   ],
+   "pick_rect": {
+    "size": [
+     97,
+     124
+    ],
+    "center": [
+     0,
+     -70
+    ]
+   },
+   "H": 140,
+   "W": 113,
+   "idle_bbox_scene": [
+    -56,
+    -141,
+    57,
+    -1
+   ],
+   "files": [
+    "prop_crucible_idle.png",
+    "prop_crucible_busy.png"
+   ]
+  },
+  "mill": {
+   "KeeperStand": [
+    0,
+    44
+   ],
+   "WispOrbit": [
+    2,
+    -101
+   ],
+   "badge_anchor": [
+    59,
+    -157
+   ],
+   "label_y": [
+    -195,
+    -171
+   ],
+   "pick_rect": {
+    "size": [
+     110,
+     149
+    ],
+    "center": [
+     0,
+     -83
+    ]
+   },
+   "H": 165,
+   "W": 126,
+   "idle_bbox_scene": [
+    -63,
+    -166,
+    63,
+    -1
+   ],
+   "files": [
+    "prop_mill_idle.png",
+    "prop_mill_busy.png"
+   ]
+  },
+  "press": {
+   "KeeperStand": [
+    0,
+    44
+   ],
+   "WispOrbit": [
+    15,
+    -54
+   ],
+   "badge_anchor": [
+    50,
+    -152
+   ],
+   "label_y": [
+    -190,
+    -166
+   ],
+   "pick_rect": {
+    "size": [
+     93,
+     144
+    ],
+    "center": [
+     0,
+     -80
+    ]
+   },
+   "H": 160,
+   "W": 109,
+   "idle_bbox_scene": [
+    -50,
+    -161,
+    59,
+    -1
+   ],
+   "files": [
+    "prop_press_idle.png",
+    "prop_press_busy.png"
+   ]
+  },
+  "anvil": {
+   "KeeperStand": [
+    0,
+    44
+   ],
+   "WispOrbit": [
+    -2,
+    -102
+   ],
+   "badge_anchor": [
+    62,
+    -127
+   ],
+   "label_y": [
+    -165,
+    -141
+   ],
+   "pick_rect": {
+    "size": [
+     117,
+     119
+    ],
+    "center": [
+     0,
+     -68
+    ]
+   },
+   "H": 135,
+   "W": 133,
+   "idle_bbox_scene": [
+    -66,
+    -136,
+    67,
+    -1
+   ],
+   "files": [
+    "prop_anvil_idle.png",
+    "prop_anvil_busy.png"
+   ]
+  },
+  "reliquary": {
+   "KeeperStand": [
+    0,
+    44
+   ],
+   "WispOrbit": [
+    -3,
+    -109
+   ],
+   "badge_anchor": [
+    38,
+    -167
+   ],
+   "label_y": [
+    -205,
+    -181
+   ],
+   "pick_rect": {
+    "size": [
+     69,
+     159
+    ],
+    "center": [
+     0,
+     -88
+    ]
+   },
+   "H": 175,
+   "W": 85,
+   "idle_bbox_scene": [
+    -43,
+    -176,
+    42,
+    -1
+   ],
+   "files": [
+    "prop_reliquary_idle.png",
+    "prop_reliquary_busy.png"
+   ]
+  },
+  "bench": {
+   "KeeperStand": [
+    0,
+    44
+   ],
+   "WispOrbit": [
+    -7,
+    -83
+   ],
+   "badge_anchor": [
+    87,
+    -117
+   ],
+   "label_y": [
+    -155,
+    -131
+   ],
+   "pick_rect": {
+    "size": [
+     166,
+     109
+    ],
+    "center": [
+     0,
+     -63
+    ]
+   },
+   "H": 125,
+   "W": 182,
+   "idle_bbox_scene": [
+    -92,
+    -126,
+    90,
+    -1
+   ],
+   "files": [
+    "bench_idle.png",
+    "bench_busy.png"
+   ]
+  }
+ }
+}

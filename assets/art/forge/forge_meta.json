@@ -1,0 +1,684 @@
+{
+ "version": 2,
+ "stations": {
+  "canvas": [
+   192,
+   192
+  ],
+  "anchor": "bottom_center",
+  "anchor_px": [
+   96,
+   191
+  ],
+  "bottom_opaque_row": 190,
+  "scale_in_game": 1,
+  "filter": "nearest",
+  "frames": [
+   "idle",
+   "busy"
+  ],
+  "files": "prop_<id>_{idle,busy}.png; bench: bench_{idle,busy}.png (Pass B scene path)",
+  "scene_from_canvas": "(cx-96, cy-192)",
+  "sprite_setup": {
+   "centered": false,
+   "offset": [
+    -96,
+    -192
+   ],
+   "position": [
+    0,
+    0
+   ],
+   "scale": 1
+  },
+  "per_station": {
+   "crucible": {
+    "KeeperStand": [
+     0,
+     44
+    ],
+    "WispOrbit": [
+     0,
+     -113
+    ],
+    "badge_anchor": [
+     52,
+     -132
+    ],
+    "label_y": [
+     -170,
+     -146
+    ],
+    "pick_rect": {
+     "size": [
+      97,
+      124
+     ],
+     "center": [
+      0,
+      -70
+     ]
+    },
+    "H": 140,
+    "W": 113,
+    "idle_bbox_scene": [
+     -56,
+     -141,
+     57,
+     -1
+    ],
+    "idle_bbox_canvas": [
+     40,
+     51,
+     153,
+     191
+    ],
+    "H_target": 140,
+    "W_max": 140,
+    "palette": 38,
+    "files": [
+     "prop_crucible_idle.png",
+     "prop_crucible_busy.png"
+    ],
+    "room_position": [
+     500,
+     640
+    ]
+   },
+   "mill": {
+    "KeeperStand": [
+     0,
+     44
+    ],
+    "WispOrbit": [
+     2,
+     -101
+    ],
+    "badge_anchor": [
+     59,
+     -157
+    ],
+    "label_y": [
+     -195,
+     -171
+    ],
+    "pick_rect": {
+     "size": [
+      110,
+      149
+     ],
+     "center": [
+      0,
+      -83
+     ]
+    },
+    "H": 165,
+    "W": 126,
+    "idle_bbox_scene": [
+     -63,
+     -166,
+     63,
+     -1
+    ],
+    "idle_bbox_canvas": [
+     33,
+     26,
+     159,
+     191
+    ],
+    "H_target": 165,
+    "W_max": 128,
+    "palette": 36,
+    "files": [
+     "prop_mill_idle.png",
+     "prop_mill_busy.png"
+    ],
+    "room_position": [
+     660,
+     480
+    ]
+   },
+   "press": {
+    "KeeperStand": [
+     0,
+     44
+    ],
+    "WispOrbit": [
+     15,
+     -54
+    ],
+    "badge_anchor": [
+     50,
+     -152
+    ],
+    "label_y": [
+     -190,
+     -166
+    ],
+    "pick_rect": {
+     "size": [
+      93,
+      144
+     ],
+     "center": [
+      0,
+      -80
+     ]
+    },
+    "H": 160,
+    "W": 109,
+    "idle_bbox_scene": [
+     -50,
+     -161,
+     59,
+     -1
+    ],
+    "idle_bbox_canvas": [
+     46,
+     31,
+     155,
+     191
+    ],
+    "H_target": 160,
+    "W_max": 128,
+    "palette": 36,
+    "files": [
+     "prop_press_idle.png",
+     "prop_press_busy.png"
+    ],
+    "room_position": [
+     940,
+     480
+    ]
+   },
+   "anvil": {
+    "KeeperStand": [
+     0,
+     44
+    ],
+    "WispOrbit": [
+     -2,
+     -102
+    ],
+    "badge_anchor": [
+     62,
+     -127
+    ],
+    "label_y": [
+     -165,
+     -141
+    ],
+    "pick_rect": {
+     "size": [
+      117,
+      119
+     ],
+     "center": [
+      0,
+      -68
+     ]
+    },
+    "H": 135,
+    "W": 133,
+    "idle_bbox_scene": [
+     -66,
+     -136,
+     67,
+     -1
+    ],
+    "idle_bbox_canvas": [
+     30,
+     56,
+     163,
+     191
+    ],
+    "H_target": 135,
+    "W_max": 150,
+    "palette": 38,
+    "files": [
+     "prop_anvil_idle.png",
+     "prop_anvil_busy.png"
+    ],
+    "room_position": [
+     1100,
+     640
+    ]
+   },
+   "reliquary": {
+    "KeeperStand": [
+     0,
+     44
+    ],
+    "WispOrbit": [
+     -3,
+     -109
+    ],
+    "badge_anchor": [
+     38,
+     -167
+    ],
+    "label_y": [
+     -205,
+     -181
+    ],
+    "pick_rect": {
+     "size": [
+      69,
+      159
+     ],
+     "center": [
+      0,
+      -88
+     ]
+    },
+    "H": 175,
+    "W": 85,
+    "idle_bbox_scene": [
+     -43,
+     -176,
+     42,
+     -1
+    ],
+    "idle_bbox_canvas": [
+     53,
+     16,
+     138,
+     191
+    ],
+    "H_target": 175,
+    "W_max": 128,
+    "palette": 43,
+    "files": [
+     "prop_reliquary_idle.png",
+     "prop_reliquary_busy.png"
+    ],
+    "room_position": [
+     420,
+     800
+    ]
+   },
+   "bench": {
+    "KeeperStand": [
+     0,
+     44
+    ],
+    "WispOrbit": [
+     -7,
+     -83
+    ],
+    "badge_anchor": [
+     87,
+     -117
+    ],
+    "label_y": [
+     -155,
+     -131
+    ],
+    "pick_rect": {
+     "size": [
+      166,
+      109
+     ],
+     "center": [
+      0,
+      -63
+     ]
+    },
+    "H": 125,
+    "W": 182,
+    "idle_bbox_scene": [
+     -92,
+     -126,
+     90,
+     -1
+    ],
+    "idle_bbox_canvas": [
+     4,
+     66,
+     186,
+     191
+    ],
+    "H_target": 130,
+    "W_max": 184,
+    "palette": 41,
+    "files": [
+     "bench_idle.png",
+     "bench_busy.png"
+    ],
+    "note": "hub prop (scenes/keepers_bench.tscn); needs offset (-96,-192) instead of the placeholder's (-48,-112)"
+   }
+  },
+  "notes": [
+   "idle and busy share one palette and are pixel-registered; busy = idle outside the changed (FX) region",
+   "badge anchor = top-right (W/2-4, -H+8); Pass B BadgeArt sits at (0,18), Code decides",
+   "no y-sort in ForgeRoom today: stations must draw above the swirl overlay; Mill/Press have ~110 px floor above the base",
+   "badge anchor = top-right (W/2-4, -H+8); Pass B BadgeArt sits at (0,18), Code decides",
+   "no y-sort in ForgeRoom today: stations must draw above the swirl overlay; Mill/Press have ~110 px floor above the base"
+  ]
+ },
+ "room": {
+  "plate": {
+   "file": "forge_bark_chamber_bg.png",
+   "size": [
+    1600,
+    1200
+   ],
+   "mode": "opaque RGB",
+   "scale_in_game": 1,
+   "centre": [
+    800,
+    600
+   ],
+   "px_equals_world_px": true,
+   "art_grid": [
+    800,
+    600
+   ],
+   "grid_scale": 2,
+   "grid_note": "authored on an 800x600 grid, nearest x2 (2-px art pixels, like the hub x2 props); stations are 1:1",
+   "colors": 80,
+   "corners": "painted (roots/foliage), no transparency",
+   "floor_rune": "teal rune circle kept as floor centrepiece (~(800,690), r~165), flat walkable decor",
+   "door_arch_centre_x": 800.0,
+   "source": "raw forge_room_base.png 1712x1152, crop x0=91 w=1536 h=1152, x1.04167"
+  },
+  "swirl_overlay": {
+   "file": "forge_room_swirls.png",
+   "size": [
+    1600,
+    1200
+   ],
+   "mode": "RGBA",
+   "centre": [
+    800,
+    600
+   ],
+   "alpha_levels": [
+    0,
+    110,
+    255
+   ],
+   "core_alpha": 255,
+   "glow_ring_alpha": 110,
+   "glow_ring": "1-2 art px ring around the strokes at alpha 110 (second alpha step)",
+   "walls_only": true,
+   "floor_px": 0,
+   "keyed": "by colour (teal hue 140-205, high sat/value) from forge_room_swirls.png, registered to the base raw",
+   "draw": {
+    "z_index": "below stations and Keeper (e.g. 0, drawn right after FloorPlate)",
+    "modulate": [
+     1,
+     1,
+     1,
+     1
+    ],
+    "note": "authored full strength; pulse alpha 0.7-1.0 in code if wanted"
+   }
+  },
+  "floor_mask": {
+   "file": "forge_floor_mask.png",
+   "preview": "forge_floor_mask_preview.png",
+   "size": [
+    1600,
+    1200
+   ],
+   "format": "RGBA, floor #FFFFFF a255, everything else a0 (1-bit), one connected region",
+   "floor_bbox": [
+    206,
+    358,
+    1412,
+    1016
+   ],
+   "bbox_with_door": [
+    206,
+    358,
+    1412,
+    1162
+   ],
+   "area_px": 647092,
+   "centroid": [
+    802.0,
+    690.9
+   ],
+   "door_corridor": {
+    "x": [
+     720,
+     880
+    ],
+    "width_px": 160,
+    "walkable_to_y": 1161,
+    "painted_arch_px": "~160 interior, ~182 incl. jamb shadows"
+   },
+   "tool_note": "tools/floor_mask_to_polygon.gd gives ~70 points (verify expects 74) and a ~110 px door; drag the two door points to x720/x880"
+  },
+  "checks": {
+   "crucible": {
+    "base": [
+     500,
+     640
+    ],
+    "base_on_floor": true,
+    "footprint_150x30_cover": 1.0,
+    "keeper_stand": [
+     500,
+     684
+    ],
+    "stand_feet_on_floor": true,
+    "stand_body_48x64_cover": 1.0,
+    "floor_above_base_px": 244
+   },
+   "mill": {
+    "base": [
+     660,
+     480
+    ],
+    "base_on_floor": true,
+    "footprint_150x30_cover": 1.0,
+    "keeper_stand": [
+     660,
+     524
+    ],
+    "stand_feet_on_floor": true,
+    "stand_body_48x64_cover": 1.0,
+    "floor_above_base_px": 112
+   },
+   "reliquary": {
+    "base": [
+     420,
+     800
+    ],
+    "base_on_floor": true,
+    "footprint_150x30_cover": 1.0,
+    "keeper_stand": [
+     420,
+     844
+    ],
+    "stand_feet_on_floor": true,
+    "stand_body_48x64_cover": 1.0,
+    "floor_above_base_px": 372
+   },
+   "press": {
+    "base": [
+     940,
+     480
+    ],
+    "base_on_floor": true,
+    "footprint_150x30_cover": 1.0,
+    "keeper_stand": [
+     940,
+     524
+    ],
+    "stand_feet_on_floor": true,
+    "stand_body_48x64_cover": 1.0,
+    "floor_above_base_px": 108
+   },
+   "anvil": {
+    "base": [
+     1100,
+     640
+    ],
+    "base_on_floor": true,
+    "footprint_150x30_cover": 1.0,
+    "keeper_stand": [
+     1100,
+     684
+    ],
+    "stand_feet_on_floor": true,
+    "stand_body_48x64_cover": 1.0,
+    "floor_above_base_px": 236
+   },
+   "spawn": {
+    "at": [
+     800,
+     860
+    ],
+    "on_floor": true
+   },
+   "exit_trigger": {
+    "rect": [
+     725,
+     1088,
+     875,
+     1160
+    ],
+    "cover": 1.0
+   }
+  }
+ },
+ "icons_ui": {
+  "root": "assets/art/ui/",
+  "icons": {
+   "amberbind": {
+    "path": "ui/icon_amberbind.png",
+    "size": [
+     32,
+     32
+    ],
+    "colors": 21,
+    "canvas": [
+     32,
+     32
+    ],
+    "pad": 1,
+    "anchor": "center"
+   },
+   "sapsteel": {
+    "path": "ui/icon_sapsteel.png",
+    "size": [
+     32,
+     32
+    ],
+    "colors": 19,
+    "canvas": [
+     32,
+     32
+    ],
+    "pad": 1,
+    "anchor": "center"
+   },
+   "heartwood_bits": {
+    "path": "ui/icon_heartwood_bits.png",
+    "size": [
+     32,
+     32
+    ],
+    "colors": 18,
+    "canvas": [
+     32,
+     32
+    ],
+    "pad": 1,
+    "anchor": "center"
+   },
+   "oakheart_knot": {
+    "path": "ui/icons/icon_oakheart_knot.png",
+    "size": [
+     32,
+     32
+    ],
+    "colors": 21,
+    "canvas": [
+     32,
+     32
+    ],
+    "pad": 1,
+    "anchor": "center"
+   },
+   "shardlens": {
+    "path": "ui/icons/icon_shardlens.png",
+    "size": [
+     32,
+     32
+    ],
+    "colors": 21,
+    "canvas": [
+     32,
+     32
+    ],
+    "pad": 1,
+    "anchor": "center"
+   },
+   "windthorn_bead": {
+    "path": "ui/icons/icon_windthorn_bead.png",
+    "size": [
+     32,
+     32
+    ],
+    "colors": 21,
+    "canvas": [
+     32,
+     32
+    ],
+    "pad": 1,
+    "anchor": "center"
+   }
+  },
+  "badges": {
+   "badge_station_paused": {
+    "path": "ui/badge_station_paused.png",
+    "size": [
+     32,
+     32
+    ],
+    "colors": 16,
+    "canvas": [
+     32,
+     32
+    ],
+    "pad": 1,
+    "draw": "1:1 at the station badge anchor (top-right (W/2-4, -H+8) or Pass B BadgeArt)"
+   },
+   "badge_station_busy": {
+    "path": "ui/badge_station_busy.png",
+    "size": [
+     32,
+     32
+    ],
+    "colors": 17,
+    "canvas": [
+     32,
+     32
+    ],
+    "pad": 1,
+    "draw": "1:1 at the station badge anchor (top-right (W/2-4, -H+8) or Pass B BadgeArt)"
+   }
+  },
+  "relic_slot_empty": {
+   "path": "ui/relic_slot_empty.png",
+   "size": [
+    44,
+    44
+   ],
+   "colors": 16,
+   "canvas": [
+    44,
+    44
+   ],
+   "pad": 0,
+   "interior": "opaque dark (no hole); frame corners transparent",
+   "draw": "1:1 in the 44x44 relic slot when empty; draw equipped 32 px relic icons at 32x32 centred (offset 6,6) inside the frame, not scaled to 44"
+  },
+  "style": "hard alpha, nearest, 1 px outer outline on icons and badges; slices from forge_icons_A (3x2) / forge_ui_A (3x1)",
+  "wiring": "art_name fields exist in data/handcraft_recipes.json and data/equipment.json; hud.gd/character_sheet.gd need the path mapping"
+ }
+}
