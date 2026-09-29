@@ -110,16 +110,9 @@ func _apply_sheet_frame() -> void:
 	stone.texture = atlas
 
 
-## Slight lift toward the stat color. Not a full dye, and not a neon multiply.
-func glow_modulate(tint: Color, affordable: bool) -> Color:
-	var mix: float = 0.28
-	var base: float = 1.08
-	var glow := Color(
-		lerpf(base, tint.r, mix),
-		lerpf(base, tint.g, mix),
-		lerpf(base, tint.b, mix),
-		1.0
-	)
+## Glyphs already carry the stat colour. Leave the stone white so that colour reads true.
+func glow_modulate(_tint: Color, affordable: bool) -> Color:
+	var glow := Color(1, 1, 1, 1)
 	if not affordable:
 		glow = glow.darkened(0.22)
 	return glow

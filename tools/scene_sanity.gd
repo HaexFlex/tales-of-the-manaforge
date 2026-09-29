@@ -161,15 +161,22 @@ func _layout_pass(live: Node) -> int:
 	failed += _check(tspr.texture != null and str(tspr.texture.resource_path).ends_with("harvest_tree.png"), "wood texture path")
 	failed += _check(absf(tspr.offset.x + float(tspr.texture.get_width()) * 0.5) < 0.5, "tree feet x")
 	failed += _check(absf(tspr.offset.y + float(tspr.texture.get_height())) < 0.5, "tree feet y")
-	failed += _check(float(tree.get("stand_height")) + 0.5 >= keeper_h * 3.0, "stand_height export")
+	failed += _check(absf(float(tree.get("stand_height")) - 384.0) < 0.5, "stand_height 384")
+	failed += _check(absf(tspr.scale.y - 1.0) < 0.02, "tree scale 1")
 	var click_shape: CollisionShape2D = tree.get_node("CollisionShape2D") as CollisionShape2D
 	var click_rect: RectangleShape2D = click_shape.shape as RectangleShape2D
 	var vis := Vector2(float(tspr.texture.get_width()), float(tspr.texture.get_height())) * tspr.scale
-	failed += _check(click_rect != null and click_rect.size.distance_to(vis) < 1.5, "click matches sprite")
+	failed += _check(click_rect != null and click_rect.size.distance_to(Vector2(120, 240)) < 1.5, "click 120x240")
+	failed += _check(click_shape.position.distance_to(Vector2(0, -120)) < 1.5, "click centered (0,-120)")
 	var trunk_shape: CollisionShape2D = tree.get_node("Trunk/CollisionShape2D") as CollisionShape2D
 	var trunk_rect: RectangleShape2D = trunk_shape.shape as RectangleShape2D
 	failed += _check(trunk_shape != null and not trunk_shape.disabled, "trunk collision on")
+	failed += _check(absf(float(tree.get("trunk_width_ratio")) - 0.26) < 0.011, "trunk_width_ratio 0.26")
+	failed += _check(trunk_rect != null and absf(trunk_rect.size.x - vis.x * 0.26) < 1.5, "trunk width matches ratio")
 	failed += _check(trunk_rect != null and trunk_rect.size.y < vis.y * 0.45 and trunk_rect.size.y > 8.0, "trunk is the base")
+	var spent: Texture2D = tree.get("spent_texture") as Texture2D
+	failed += _check(spent != null and str(spent.resource_path).ends_with("harvest_tree_spent.png"), "tree spent texture ready")
+	failed += _check(str(tspr.texture.resource_path).ends_with("harvest_tree.png"), "spent art is not shown")
 	failed += _check(str(tree.get("resource_id")) == "wood" and str(tree.get("node_key")) == "wood", "wood ids")
 	var stone: Node = live.get_node("World/HarvestStone")
 	var berry: Node = live.get_node("World/HarvestBerry")
@@ -184,7 +191,23 @@ func _layout_pass(live: Node) -> int:
 			if child is Line2D:
 				lines += 1
 		failed += _check(lines >= 11, "path lines %d" % lines)
-		failed += _check(paths.get("path_texture") == null, "path texture slot empty")
+		var path_tex: Texture2D = paths.get("path_texture") as Texture2D
+		failed += _check(path_tex != null and str(path_tex.resource_path).ends_with("trample_path_strip.png"), "trample strip")
+		failed += _check(absf(float(paths.get("path_width")) - 48.0) < 0.5, "path width 48")
+		var path_tint: Color = paths.get("tint")
+		failed += _check(path_tint.r > 0.98 and path_tint.g > 0.98 and path_tint.b > 0.98 and path_tint.a > 0.98, "path tint white")
+		var sample: Line2D = paths.get_node_or_null("ToHarvestTree") as Line2D
+		failed += _check(sample != null and sample.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "path nearest")
+		failed += _check(sample != null and sample.texture_repeat == CanvasItem.TEXTURE_REPEAT_ENABLED, "path repeat")
+		var patches: int = 0
+		for child: Node in paths.get_children():
+			if child is Sprite2D:
+				patches += 1
+		failed += _check(patches >= 8, "trample patches %d" % patches)
+	var berry_spent: Texture2D = berry.get("spent_texture") as Texture2D
+	var berry_sprite: Sprite2D = berry.get_node("Sprite") as Sprite2D
+	failed += _check(berry_spent != null and str(berry_spent.resource_path).ends_with("harvest_berry_spent.png"), "berry spent texture ready")
+	failed += _check(berry_sprite.texture != null and str(berry_sprite.texture.resource_path).ends_with("berry_harvest_node.png"), "berry still shows the live art")
 	var ground: TileMap = live.get_node_or_null("Ground") as TileMap
 	var cells: int = ground.get_used_cells(0).size() if ground else 0
 	failed += _check(cells >= 4900, "grass covers wide clearing (%d)" % cells)

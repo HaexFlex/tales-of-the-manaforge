@@ -24,11 +24,20 @@ class_name Gatherable
 		trunk_height_ratio = clampf(value, 0.05, 0.45)
 		if is_node_ready():
 			_apply_art()
-@export_range(0.08, 0.6, 0.01) var trunk_width_ratio: float = 0.22:
+## Wood trunk on the 288-wide canvas runs about x 105–182. 0.26 of that width.
+@export_range(0.08, 0.6, 0.01) var trunk_width_ratio: float = 0.26:
 	set(value):
 		trunk_width_ratio = clampf(value, 0.08, 0.6)
 		if is_node_ready():
 			_apply_art()
+## Click box in world pixels. Zero uses the full sprite. The tall tree uses 120×240, centered on (0, -120).
+@export var click_size: Vector2 = Vector2.ZERO:
+	set(value):
+		click_size = value
+		if is_node_ready():
+			_apply_art()
+## Ready for a depleted swap. Nothing in play turns this on yet.
+@export var spent_texture: Texture2D
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var label: Label = $Label
@@ -104,9 +113,14 @@ func _apply_art() -> void:
 	var cs: CollisionShape2D = get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
 		var rect := (cs.shape as RectangleShape2D).duplicate() as RectangleShape2D
-		rect.size = vis
+		var click := vis
+		var click_pos := Vector2(0, -vis.y * 0.5)
+		if click_size.x > 1.0 and click_size.y > 1.0:
+			click = click_size
+			click_pos = Vector2(0, -click_size.y * 0.5)
+		rect.size = click
 		cs.shape = rect
-		cs.position = Vector2(0, -vis.y * 0.5)
+		cs.position = click_pos
 	_apply_trunk(vis)
 
 
@@ -147,8 +161,9 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 
 func approach_point() -> Vector2:
-	## Feet stay on this node. The trunk collider sits on those feet, so the Keeper
-	## stops just south of it — close enough to channel, clear of the body shape.
+	## Feet stay on this node. The trunk collider sits on those feet (it does not
+	## hang south of y=0), so a wider trunk does not move this stop. The Keeper
+	## halts just south of it — close enough to channel, clear of the body shape.
 	if stand_height <= 0.0:
 		return global_position
 	return global_position + Vector2(0, 72)

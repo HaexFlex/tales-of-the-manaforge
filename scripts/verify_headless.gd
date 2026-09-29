@@ -1924,14 +1924,15 @@ func _run() -> void:
 				var sid: String = str(stone_node.get("stat_id"))
 				var tint: Color = keeper_stats.call("stat_color", sid)
 				var glow: Color = stone_node.call("glow_modulate", tint, true)
-				var dye: float = absf(glow.r - tint.r) + absf(glow.g - tint.g) + absf(glow.b - tint.b)
-				failed += _assert(dye > 0.35, "soft glow is not a full dye for %s" % sid)
-				failed += _assert(glow.r > 0.75 and glow.g > 0.75 and glow.b > 0.75, "soft glow stays light for %s" % sid)
+				failed += _assert(
+					absf(glow.r - 1.0) < 0.02 and absf(glow.g - 1.0) < 0.02 and absf(glow.b - 1.0) < 0.02,
+					"runestone glow stays white so the glyph colour reads for %s" % sid
+				)
 				var rune_sprite2: Sprite2D = stone_node.get_node_or_null("Stone") as Sprite2D
 				var glow_match: float = 1.0
 				if rune_sprite2:
 					glow_match = absf(rune_sprite2.modulate.r - glow.r) + absf(rune_sprite2.modulate.g - glow.g) + absf(rune_sprite2.modulate.b - glow.b)
-				failed += _assert(rune_sprite2 != null and glow_match < 0.05, "live stone uses the soft glow for %s" % sid)
+				failed += _assert(rune_sprite2 != null and glow_match < 0.05, "live stone stays neutral for %s" % sid)
 				var atlas_tex: AtlasTexture = rune_sprite2.texture as AtlasTexture if rune_sprite2 else null
 				failed += _assert(atlas_tex != null, "runestone uses the sheet atlas for %s" % sid)
 				if atlas_tex:

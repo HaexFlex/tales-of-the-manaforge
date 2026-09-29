@@ -20,6 +20,12 @@
 [ext_resource type="PackedScene" path="res://scenes/hub/forest_visual.tscn" id="15_yq6so"]
 [ext_resource type="Script" path="res://scripts/hud.gd" id="17_fv21b"]
 [ext_resource type="Script" path="res://scripts/pause_menu.gd" id="19_tel4y"]
+[ext_resource type="Texture2D" path="res://assets/art/props/trample/trample_path_strip.png" id="20_path"]
+[ext_resource type="Texture2D" path="res://assets/art/props/trample/trample_patch_01.png" id="21_p1"]
+[ext_resource type="Texture2D" path="res://assets/art/props/trample/trample_patch_02.png" id="22_p2"]
+[ext_resource type="Texture2D" path="res://assets/art/props/trample/trample_patch_03.png" id="23_p3"]
+[ext_resource type="Texture2D" path="res://assets/art/props/harvest_tree_spent.png" id="24_tree_spent"]
+[ext_resource type="Texture2D" path="res://assets/art/props/harvest_berry_spent.png" id="25_berry_spent"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_yc10j"]
 texture = ExtResource("2_0ld40")
@@ -50,6 +56,9 @@ layer_0/tile_data = PackedInt32Array(0, 0, 0, 65536, 65536, 0, 131072, 131072, 0
 [node name="Paths" type="Node2D" parent="." unique_id=892310099]
 unique_name_in_owner = true
 script = ExtResource("3_gqmmt")
+path_texture = ExtResource("20_path")
+tint = Color(1, 1, 1, 1)
+path_width = 48.0
 
 [node name="ToHarvestTree" type="Line2D" parent="Paths" unique_id=464354625]
 points = PackedVector2Array(2400, 2340, 1989.2063, 2214.762, 1560, 2200)
@@ -150,6 +159,144 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
+[node name="PatchBaseManatree" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2400, 2340)
+texture = ExtResource("21_p1")
+
+[node name="PatchBaseHarvestTree" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(1560, 2200)
+texture = ExtResource("22_p2")
+
+[node name="PatchBaseHarvestStone" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(3240, 2100)
+texture = ExtResource("23_p3")
+
+[node name="PatchBaseHarvestBerry" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(3000, 2760)
+texture = ExtResource("21_p1")
+
+[node name="PatchBasePortal" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2520, 1500)
+texture = ExtResource("22_p2")
+
+[node name="PatchBaseMight" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(3120, 1680)
+texture = ExtResource("23_p3")
+
+[node name="PatchBaseArcana" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(3480, 1980)
+texture = ExtResource("21_p1")
+
+[node name="PatchBaseResilience" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(3540, 2460)
+texture = ExtResource("22_p2")
+
+[node name="PatchBaseWard" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(3180, 2940)
+texture = ExtResource("23_p3")
+
+[node name="PatchBaseVitality" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(1980, 3000)
+texture = ExtResource("21_p1")
+
+[node name="PatchBaseSwiftness" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(1500, 2640)
+texture = ExtResource("22_p2")
+
+[node name="PatchBaseFate" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(1440, 2040)
+texture = ExtResource("23_p3")
+
+[node name="PatchBendHarvestTree" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(1989.2063, 2214.762)
+texture = ExtResource("22_p2")
+
+[node name="PatchBendHarvestStone" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2804.6157, 2166.1545)
+texture = ExtResource("23_p3")
+
+[node name="PatchBendHarvestBerry" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2672.4739, 2589.3232)
+texture = ExtResource("21_p1")
+
+[node name="PatchBendPortal" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2420.402, 1914.3431)
+texture = ExtResource("22_p2")
+
+[node name="PatchBendMight" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2795.1377, 2048.332)
+texture = ExtResource("23_p3")
+
+[node name="PatchBendArcana" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2924.821, 2114.4631)
+texture = ExtResource("21_p1")
+
+[node name="PatchBendResilience" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2965.3938, 2443.7583)
+texture = ExtResource("22_p2")
+
+[node name="PatchBendWard" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2821.705, 2598.7834)
+texture = ExtResource("23_p3")
+
+[node name="PatchBendVitality" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(2156.2534, 2648.525)
+texture = ExtResource("21_p1")
+
+[node name="PatchBendSwiftness" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(1963.9141, 2531.7422)
+texture = ExtResource("22_p2")
+
+[node name="PatchBendFate" type="Sprite2D" parent="Paths"]
+z_index = 1
+texture_filter = 1
+position = Vector2(1930.7379, 2155.6387)
+texture = ExtResource("23_p3")
+
 [node name="Camera2D" type="Camera2D" parent="." unique_id=878904830]
 unique_name_in_owner = true
 position = Vector2(2400, 2340)
@@ -197,6 +344,9 @@ monitoring = false
 script = ExtResource("8_jscy8")
 display_name = "Harvest Tree"
 stand_height = 384.0
+trunk_width_ratio = 0.26
+click_size = Vector2(120, 240)
+spent_texture = ExtResource("24_tree_spent")
 
 [node name="HarvestStone" type="Area2D" parent="World" unique_id=542621590 instance=ExtResource("4_gath")]
 unique_name_in_owner = true
@@ -221,6 +371,7 @@ script = ExtResource("8_jscy8")
 resource_id = &"food"
 display_name = "Berry Bush"
 node_key = "food"
+spent_texture = ExtResource("25_berry_spent")
 
 [node name="Runestones" type="Node2D" parent="World" unique_id=1966238930]
 unique_name_in_owner = true
