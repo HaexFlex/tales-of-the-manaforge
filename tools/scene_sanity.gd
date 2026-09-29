@@ -209,6 +209,12 @@ func _layout_pass(live: Node) -> int:
 	var berry_sprite: Sprite2D = berry.get_node("Sprite") as Sprite2D
 	failed += _check(berry_spent != null and str(berry_spent.resource_path).ends_with("harvest_berry_spent.png"), "berry spent texture ready")
 	failed += _check(berry_sprite.texture != null and str(berry_sprite.texture.resource_path).ends_with("berry_harvest_node.png"), "berry still shows the live art")
+	var berry_vis := Vector2(float(berry_sprite.texture.get_width()), float(berry_sprite.texture.get_height())) * berry_sprite.scale
+	var berry_click: CollisionShape2D = berry.get_node("CollisionShape2D") as CollisionShape2D
+	var berry_rect: RectangleShape2D = berry_click.shape as RectangleShape2D
+	failed += _check(absf(berry_vis.y - 128.0) < 1.0 and berry_vis.x <= 128.5, "berry display is 2x the 64 box")
+	failed += _check(berry_rect != null and berry_rect.size.distance_to(berry_vis) < 1.5, "berry click matches the doubled sprite")
+	failed += _check(berry_click.position.distance_to(Vector2(0, -berry_vis.y * 0.5)) < 1.5, "berry click centered on the sprite")
 	var stone_spent: Texture2D = stone.get("spent_texture") as Texture2D
 	var stone_sprite: Sprite2D = stone.get_node("Sprite") as Sprite2D
 	failed += _check(stone_spent != null and str(stone_spent.resource_path).ends_with("harvest_stone_spent.png"), "stone spent texture ready")

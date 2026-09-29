@@ -1958,13 +1958,17 @@ func _run() -> void:
 		failed += _assert(char_btn != null and str(char_btn.text) == "", "HUD Character button is icon-only")
 		failed += _assert(char_icon != null and char_icon.texture == HudIcons.cell(HudIcons.CHARACTER), "Character button uses sheet cell")
 		failed += _assert(ascension_icon != null and ascension_icon.texture == HudIcons.cell(HudIcons.ASCENSION), "Ascension reopen uses sheet cell")
+		var help_icon: TextureRect = null
+		if sheet_hud:
+			help_icon = sheet_hud.get_node_or_null("Panel/HelpButton/HelpIcon") as TextureRect
+		failed += _assert(help_icon != null and help_icon.texture == HudIcons.cell(HudIcons.HELP), "Help button uses sheet cell")
 		var berry_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestBerry/Sprite") as Sprite2D
 		var tree_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestTree/Sprite") as Sprite2D
 		var stone_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestStone/Sprite") as Sprite2D
 		failed += _assert(berry_sprite != null and berry_sprite.texture != null and str(berry_sprite.texture.resource_path).ends_with("berry_harvest_node.png"), "berry node uses berry_harvest_node")
 		if berry_sprite and berry_sprite.texture:
 			var berry_disp: Vector2 = berry_sprite.texture.get_size() * berry_sprite.scale
-			failed += _assert(abs(berry_disp.y - 64.0) < 1.0 and berry_disp.x <= 64.0 + 0.5, "berry scaled into the 64 harvest box")
+			failed += _assert(abs(berry_disp.y - 128.0) < 1.0 and berry_disp.x <= 128.0 + 0.5, "berry scaled to twice the 64 harvest box")
 			failed += _assert(berry_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "berry nearest filter")
 		failed += _assert(tree_sprite != null and tree_sprite.texture != null and str(tree_sprite.texture.resource_path).ends_with("harvest_tree.png"), "tree harvest art unchanged")
 		failed += _assert(stone_sprite != null and stone_sprite.texture != null and str(stone_sprite.texture.resource_path).ends_with("harvest_stone.png"), "stone harvest art unchanged")

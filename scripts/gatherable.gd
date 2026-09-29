@@ -97,12 +97,12 @@ func _apply_art() -> void:
 	var frame := box
 	if sprite.texture:
 		frame = Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
-	## Full-size berry art fits the existing 64 food box. Tree and stone keep their scales.
+	## Berry art fits the 64 food box, then doubles in play. Tree and stone keep their scales.
 	## stand_height overrides that and sizes the sprite to a fixed on-screen height.
 	if stand_height > 0.0 and frame.y > 0.0:
 		scale_v = stand_height / frame.y
 	elif node_key == "food" and frame.x > 0.0 and frame.y > 0.0:
-		scale_v = minf(box.x / frame.x, box.y / frame.y)
+		scale_v = minf(box.x / frame.x, box.y / frame.y) * 2.0
 	sprite.scale = Vector2(scale_v, scale_v)
 	sprite.offset = Vector2(-frame.x * 0.5, -frame.y)
 	var vis := frame * scale_v

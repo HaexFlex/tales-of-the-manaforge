@@ -15,6 +15,7 @@ class_name GameHUD
 @onready var toast_shade: ColorRect = $Panel/ToastShade
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var help_button: Button = $Panel/HelpButton
+@onready var help_icon: TextureRect = $Panel/HelpButton/HelpIcon
 @onready var pause_button: Button = $Panel/PauseButton
 @onready var character_button: Button = $Panel/CharacterButton
 @onready var character_icon: TextureRect = $Panel/CharacterButton/CharacterIcon
@@ -336,6 +337,8 @@ func _wire_sprite_hud() -> void:
 	_bind_tex_states(pause_button, pause_icon, BTN_PAUSE_NORMAL, BTN_PAUSE_HOVER, BTN_PAUSE_PRESSED)
 	if character_icon:
 		HudIcons.apply(character_icon, HudIcons.CHARACTER)
+	if help_icon:
+		HudIcons.apply(help_icon, HudIcons.HELP)
 	if ascension_icon:
 		HudIcons.apply(ascension_icon, HudIcons.ASCENSION)
 	for chip_path: String in [
