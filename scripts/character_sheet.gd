@@ -16,6 +16,30 @@ const SPRITE_POS: Vector2 = Vector2(8, 70)
 const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
 
 
+static func gear_icon_path(item_id: String) -> String:
+	match item_id:
+		"forge_key_relic":
+			return "res://assets/art/ui/icons/icon_forge_key.png"
+		"amberbind":
+			return "res://assets/art/ui/icon_amberbind.png"
+		"sapsteel":
+			return "res://assets/art/ui/icon_sapsteel.png"
+		"heartwood_bits":
+			return "res://assets/art/ui/icon_heartwood_bits.png"
+		"oakheart_knot":
+			return "res://assets/art/ui/icons/icon_oakheart_knot.png"
+		"shardlens":
+			return "res://assets/art/ui/icons/icon_shardlens.png"
+		"windthorn_bead":
+			return "res://assets/art/ui/icons/icon_windthorn_bead.png"
+		"sapstaff":
+			return "res://assets/art/ui/icon_sapstaff.png"
+		"thornbow":
+			return "res://assets/art/ui/icon_thornbow.png"
+		_:
+			return ""
+
+
 static func make_item_icon(item_id: String) -> Control:
 	var tip: String = Equipment.item_display_name(item_id)
 	var sheet_index: int = HudIcons.index_for_item(item_id)
@@ -23,14 +47,7 @@ static func make_item_icon(item_id: String) -> Control:
 		var sheet_icon: TextureRect = HudIcons.make_icon(sheet_index)
 		sheet_icon.tooltip_text = tip
 		return sheet_icon
-	var path: String = ""
-	match item_id:
-		"forge_key_relic":
-			path = "res://assets/art/ui/icons/icon_forge_key.png"
-		"sapstaff":
-			path = "res://assets/art/ui/icon_sapstaff.png"
-		"thornbow":
-			path = "res://assets/art/ui/icon_thornbow.png"
+	var path: String = gear_icon_path(item_id)
 	if path != "" and ResourceLoader.exists(path):
 		var icon := TextureRect.new()
 		icon.custom_minimum_size = Vector2(32, 32)
@@ -607,7 +624,9 @@ class InvColumn extends Control:
 		host.call("request_unequip", str((data as Dictionary).get("from_slot", "")))
 
 
-const EMPTY_RELIC_FRAME_PATH: String = "res://assets/art/ui/slot_relic_empty.png"
+const EMPTY_RELIC_FRAME_PATH: String = "res://assets/art/ui/relic_slot_empty.png"
+const RELIC_ICON_SIZE: Vector2 = Vector2(32, 32)
+const RELIC_ICON_INSET: Vector2 = Vector2(6, 6)
 
 class SlotPlate extends Panel:
 	var slot_id: String = ""
@@ -652,6 +671,17 @@ class SlotPlate extends Panel:
 		var cap_h: float = maxf(16.0, _caption.get_minimum_size().y)
 		_caption.size = Vector2(caption_host.size.x, cap_h)
 		_caption.position = Vector2(0, (caption_host.size.y - cap_h) * 0.5)
+		if slot_id == "relic":
+			var glyph := TextureRect.new()
+			glyph.name = "RelicGlyph"
+			glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			glyph.position = CharacterSheet.RELIC_ICON_INSET
+			glyph.size = CharacterSheet.RELIC_ICON_SIZE
+			glyph.visible = false
+			_square.add_child(glyph)
 		refresh()
 
 	func _apply_empty_relic_frame() -> bool:
@@ -676,6 +706,42 @@ class SlotPlate extends Panel:
 		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
 		_square.size = SLOT_SQUARE
 
+	func _relic_glyph() -> TextureRect:
+		if _square == null:
+			return null
+		return _square.get_node_or_null("RelicGlyph") as TextureRect
+
+
+	func _hide_relic_glyph() -> void:
+		var glyph: TextureRect = _relic_glyph()
+		if glyph:
+			glyph.visible = false
+			glyph.texture = null
+
+
+	func _show_relic_in_frame(item_id: String) -> bool:
+		if not _apply_empty_relic_frame():
+			return false
+		var glyph: TextureRect = _relic_glyph()
+		if glyph == null:
+			return false
+		var path: String = CharacterSheet.gear_icon_path(item_id)
+		var tex: Texture2D = null
+		if path != "" and ResourceLoader.exists(path):
+			tex = load(path) as Texture2D
+		if tex == null:
+			_hide_relic_glyph()
+			return false
+		glyph.texture = tex
+		glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		glyph.position = CharacterSheet.RELIC_ICON_INSET
+		glyph.size = CharacterSheet.RELIC_ICON_SIZE
+		glyph.visible = true
+		return true
+
+
 	func _show_equipped_icon(item_id: String) -> void:
 		var gear_index: int = HudIcons.index_for_item(item_id)
 		if gear_index >= 0:
@@ -699,6 +765,7 @@ class SlotPlate extends Panel:
 		var unlocked: bool = Equipment.is_slot_unlocked(slot_id)
 		var iid: String = Equipment.equipped_id(slot_id)
 		if not unlocked:
+			_hide_relic_glyph()
 			_show_slot_icon(HudIcons.EQUIP_LOCKED)
 			_caption.text = Equipment.slot_lock_short(slot_id)
 			tooltip_text = Equipment.slot_lock_hint(slot_id)
@@ -706,6 +773,7 @@ class SlotPlate extends Panel:
 				tooltip_text = "%s %s" % [tooltip_text, ContentStrings.get_text("relic_locked_tooltip")]
 			return
 		if iid == "":
+			_hide_relic_glyph()
 			if slot_id == "relic" and _apply_empty_relic_frame():
 				_caption.text = ContentStrings.get_text("equip_empty")
 				tooltip_text = ContentStrings.get_text("equip_empty")
@@ -718,6 +786,11 @@ class SlotPlate extends Panel:
 				_caption.text = ContentStrings.get_text("equip_empty")
 				tooltip_text = ContentStrings.get_text("equip_empty")
 		else:
+			if slot_id == "relic" and _show_relic_in_frame(iid):
+				_caption.text = Equipment.item_display_name(iid)
+				tooltip_text = Equipment.item_tooltip(iid)
+				return
+			_hide_relic_glyph()
 			_show_equipped_icon(iid)
 			_caption.text = Equipment.item_display_name(iid)
 			tooltip_text = Equipment.item_tooltip(iid)

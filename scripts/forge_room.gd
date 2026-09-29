@@ -14,7 +14,7 @@ const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 @onready var recipe_list: VBoxContainer = get_node_or_null("UI/RecipePanel/List") as VBoxContainer
 @onready var recipe_title: Label = get_node_or_null("UI/RecipePanel/Title") as Label
 @onready var swirl_overlay: Sprite2D = get_node_or_null("SwirlOverlay") as Sprite2D
-## Art slots. The bark plate is the round-room placeholder. Swirl and floor mask stay empty.
+## Swirl draws under the stations. The floor mask is the source of the wall polygon.
 @export var swirl_texture: Texture2D
 @export var floor_mask: Texture2D
 

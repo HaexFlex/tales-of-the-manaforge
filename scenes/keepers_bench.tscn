@@ -1,22 +1,26 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/keepers_bench.gd" id="1_script"]
 [ext_resource type="Texture2D" path="res://assets/art/forge/bench_idle.png" id="2_idle"]
 [ext_resource type="Texture2D" path="res://assets/art/forge/bench_busy.png" id="3_busy"]
+[ext_resource type="Texture2D" path="res://assets/art/ui/badge_station_paused.png" id="4_paused"]
+[ext_resource type="Texture2D" path="res://assets/art/ui/badge_station_busy.png" id="5_busy"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_pick"]
-radius = 46.0
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pick"]
+size = Vector2(166, 109)
 
 [node name="KeepersBench" type="Area2D"]
 script = ExtResource("1_script")
 idle_texture = ExtResource("2_idle")
 busy_texture = ExtResource("3_busy")
+paused_badge = ExtResource("4_paused")
+busy_badge = ExtResource("5_busy")
 
 [node name="Sprite" type="Sprite2D" parent="."]
 centered = false
-offset = Vector2(-48, -112)
+offset = Vector2(-96, -192)
 texture = ExtResource("2_idle")
-texture_filter = 0
+texture_filter = 1
 
 [node name="Placeholder" type="Polygon2D" parent="."]
 visible = false
@@ -24,21 +28,24 @@ color = Color(0.45, 0.3, 0.16, 1)
 polygon = PackedVector2Array(-40, -72, 40, -72, 48, -28, 36, 0, -36, 0, -48, -28)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, -48)
-shape = SubResource("CircleShape2D_pick")
+position = Vector2(0, -63)
+shape = SubResource("RectangleShape2D_pick")
 
 [node name="KeeperStand" type="Marker2D" parent="."]
-position = Vector2(0, 36)
+position = Vector2(0, 44)
+
+[node name="WispOrbit" type="Marker2D" parent="."]
+position = Vector2(-7, -83)
 
 [node name="BadgeArt" type="Sprite2D" parent="."]
-position = Vector2(0, 8)
-texture_filter = 0
+position = Vector2(87, -117)
+texture_filter = 1
 
 [node name="Title" type="Label" parent="."]
-offset_left = -80.0
-offset_top = -132.0
-offset_right = 80.0
-offset_bottom = -112.0
+offset_left = -90.0
+offset_top = -155.0
+offset_right = 90.0
+offset_bottom = -131.0
 theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
 theme_override_font_sizes/font_size = 14
 text = "Keeper's Bench"

@@ -406,6 +406,10 @@ func _spacing_pass(live: Node) -> int:
 	var stones: Node2D = world.get_node("Runestones") as Node2D
 	for stone: Node in stones.get_children():
 		named[str(stone.name)] = _sprite_rect(stone)
+	var bench_canvas: Rect2 = named["KeepersBench"]
+	var bench_node: Node2D = world.get_node("KeepersBench") as Node2D
+	var bench_rect: Rect2 = _opaque_sprite_rect(bench_node)
+	named["KeepersBench"] = bench_rect
 	var keys: Array = named.keys()
 	var min_gap: float = 1.0e9
 	for i: int in range(keys.size()):
@@ -415,7 +419,7 @@ func _spacing_pass(live: Node) -> int:
 	var rune_gap: float = 1.0e9
 	for stone: Node in stones.get_children():
 		rune_gap = minf(rune_gap, _rect_gap(tree_rect, named[str(stone.name)]))
-	var bench_tree_gap: float = _rect_gap(tree_rect, named["KeepersBench"])
+	var bench_tree_gap: float = _rect_gap(tree_rect, bench_rect)
 	var exclusion: Rect2 = _manatree_exclusion((world.get_node("Manatree") as Node2D).position)
 	var hidden: int = 0
 	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "KeepersBench"]:
@@ -426,13 +430,25 @@ func _spacing_pass(live: Node) -> int:
 		if named[str(stone.name)].intersects(exclusion):
 			hidden += 1
 			print("FAIL hidden by manatree %s" % stone.name)
-	var bench_rect: Rect2 = named["KeepersBench"]
+	var path_gap: float = 1.0e9
+	var paths: Node = live.get_node("Paths")
+	for child: Node in paths.get_children():
+		if not (child is Line2D) or str(child.name) == "ToBench":
+			continue
+		path_gap = minf(path_gap, _line_clearance(child as Line2D, bench_rect))
+	var clear_radius: float = _bench_clear_radius()
+	var footprint: float = _farthest_corner(bench_rect, bench_node.position)
 	print("MIN_PAIR_GAP %.2f" % min_gap)
 	print("RUNE_TREE_GAP %.2f" % rune_gap)
 	print("BENCH_TREE_GAP %.2f" % bench_tree_gap)
 	print("BENCH_RECT %.1f %.1f %.1f %.1f" % [
 		bench_rect.position.x, bench_rect.position.y, bench_rect.size.x, bench_rect.size.y,
 	])
+	print("BENCH_CANVAS %.1f %.1f %.1f %.1f" % [
+		bench_canvas.position.x, bench_canvas.position.y, bench_canvas.size.x, bench_canvas.size.y,
+	])
+	print("BENCH_PATH_GAP %.2f" % path_gap)
+	print("BENCH_CLEAR %.1f covers %.1f" % [clear_radius, footprint])
 	print("MANATREE_EXCLUSION %.1f %.1f %.1f %.1f" % [
 		exclusion.position.x, exclusion.position.y, exclusion.size.x, exclusion.size.y,
 	])
@@ -440,7 +456,8 @@ func _spacing_pass(live: Node) -> int:
 	failed += _check(rune_gap + 0.01 >= 160.0, "runestone to harvest tree >= 160")
 	failed += _check(bench_tree_gap + 0.01 >= 160.0, "bench to harvest tree >= 160")
 	failed += _check(hidden == 0, "nodes stay outside the grown manatree")
-	var bench_node: Node2D = world.get_node("KeepersBench") as Node2D
+	failed += _check(path_gap + 0.01 >= 16.0, "bench clears path ribbons")
+	failed += _check(clear_radius + 0.1 >= footprint, "bench clear radius covers the painted footprint")
 	failed += _check(bench_node.position.distance_to(Vector2(1760, 2580)) < 1.0, "bench position")
 	var map_text: String = FileAccess.get_file_as_string("res://data/hub_map.json")
 	var map_v: Variant = JSON.parse_string(map_text)
@@ -469,6 +486,65 @@ func _manatree_exclusion(origin: Vector2) -> Rect2:
 		union = rect if first else union.merge(rect)
 		first = false
 	return union.grow(96.0)
+
+
+func _opaque_sprite_rect(node: Node) -> Rect2:
+	var spr: Sprite2D = node.get_node_or_null("Sprite") as Sprite2D
+	if spr == null or spr.texture == null or spr.centered:
+		return _sprite_rect(node)
+	var image: Image = spr.texture.get_image()
+	if image == null:
+		return _sprite_rect(node)
+	var used: Rect2i = image.get_used_rect()
+	if used.size.x <= 0 or used.size.y <= 0:
+		return _sprite_rect(node)
+	var local := Rect2(spr.offset + Vector2(used.position), Vector2(used.size))
+	return _transformed_rect(spr.global_transform, local)
+
+
+func _bench_clear_radius() -> float:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/hub_map.json"))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return 0.0
+	var extras: Variant = (parsed as Dictionary).get("extra_clear", [])
+	if typeof(extras) != TYPE_ARRAY:
+		return 0.0
+	for extra_v: Variant in extras:
+		if typeof(extra_v) != TYPE_DICTIONARY:
+			continue
+		var extra: Dictionary = extra_v
+		var pos: Variant = extra.get("pos", [])
+		if typeof(pos) == TYPE_ARRAY and (pos as Array).size() >= 2:
+			var at := Vector2(float((pos as Array)[0]), float((pos as Array)[1]))
+			if at.distance_to(Vector2(1760, 2580)) < 1.0:
+				return float(extra.get("radius", 0.0))
+	return 0.0
+
+
+func _farthest_corner(rect: Rect2, origin: Vector2) -> float:
+	var far: float = 0.0
+	for corner: Vector2 in [rect.position, rect.end, Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.position.y)]:
+		far = maxf(far, origin.distance_to(corner))
+	return far
+
+
+func _line_clearance(line: Line2D, rect: Rect2) -> float:
+	var best: float = 1.0e9
+	var pts: PackedVector2Array = line.points
+	for i: int in range(pts.size() - 1):
+		best = minf(best, _segment_rect_distance(pts[i], pts[i + 1], rect))
+	return best - line.width * 0.5
+
+
+func _segment_rect_distance(a: Vector2, b: Vector2, rect: Rect2) -> float:
+	var best: float = 1.0e9
+	var steps: int = 64
+	for step: int in range(steps + 1):
+		var p: Vector2 = a.lerp(b, float(step) / float(steps))
+		var dx: float = maxf(rect.position.x - p.x, maxf(0.0, p.x - rect.end.x))
+		var dy: float = maxf(rect.position.y - p.y, maxf(0.0, p.y - rect.end.y))
+		best = minf(best, Vector2(dx, dy).length())
+	return best
 
 
 func _sprite_rect(node: Node) -> Rect2:

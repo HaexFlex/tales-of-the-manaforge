@@ -6,7 +6,7 @@ class_name ForgeStation
 @export var station_id: String = ""
 @export var idle_texture: Texture2D
 @export var busy_texture: Texture2D
-## Art slots. Empty until the paused and busy badges land.
+## Paused and busy badges. Drawn at BadgeArt, which sits on the marker anchor.
 @export var paused_badge: Texture2D
 @export var busy_badge: Texture2D
 

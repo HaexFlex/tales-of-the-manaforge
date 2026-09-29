@@ -2210,6 +2210,7 @@ func _run() -> void:
 	failed += await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
 	failed += _forge_pass_a(tree_root, game_state, save_service, backpack)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
+	failed += await _forge_pass_c(tree_root, game_state, backpack)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2819,14 +2820,55 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 		var room: Node = packed.instantiate()
 		tree_root.add_child(room)
 		var poly: CollisionPolygon2D = room.get_node_or_null("Walls/CollisionPolygon2D") as CollisionPolygon2D
-		failed += _assert(poly != null and poly.polygon.size() == 74, "round room wall has 74 points")
+		var point_count: int = poly.polygon.size() if poly != null else 0
+		failed += _assert(poly != null and point_count == 68, "round room wall has 68 points (got %d)" % point_count)
+		var floor: PackedVector2Array = poly.polygon.slice(0, point_count / 2) if poly != null else PackedVector2Array()
+		if floor.size() >= 2:
+			failed += _assert(floor[0].distance_to(Vector2(880, 1161)) < 0.5, "east door point is x880 y1161")
+			failed += _assert(floor[floor.size() - 1].distance_to(Vector2(720, 1161)) < 0.5, "west door point is x720 y1161")
 		var stations: int = 0
 		for node: Node in room.get_tree().get_nodes_in_group("forge_station"):
-			if str(node.get("station_id")) != "":
-				stations += 1
+			if str(node.get("station_id")) == "":
+				continue
+			stations += 1
+			var station: Node2D = node as Node2D
+			var stand: Node2D = station.get_node_or_null("KeeperStand") as Node2D
+			failed += _assert(_on_forge_floor(floor, station.global_position), "%s base is on the floor" % station.name)
+			failed += _assert(stand != null and _on_forge_floor(floor, stand.global_position), "%s stand is on the floor" % station.name)
+			var sprite: Sprite2D = station.get_node_or_null("Sprite") as Sprite2D
+			failed += _assert(sprite != null and sprite.texture != null and sprite.texture.get_width() == 192 and sprite.texture.get_height() == 192, "%s frame is 192" % station.name)
+			failed += _assert(sprite != null and not sprite.centered and sprite.offset.distance_to(Vector2(-96, -192)) < 0.1 and sprite.scale.distance_to(Vector2.ONE) < 0.01, "%s sprite setup" % station.name)
+			failed += _assert(sprite != null and sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "%s nearest filter" % station.name)
+			failed += _assert(station.z_index > 0, "%s draws above the swirl" % station.name)
+			failed += _assert(station.get("idle_texture") != null and station.get("busy_texture") != null, "%s idle and busy textures" % station.name)
+			failed += _assert(station.get("paused_badge") != null and station.get("busy_badge") != null, "%s badges" % station.name)
+			var badge_art: Sprite2D = station.get_node_or_null("BadgeArt") as Sprite2D
+			failed += _assert(badge_art != null, "%s badge anchor" % station.name)
 		failed += _assert(stations == 5, "five station scenes")
-		failed += _assert(room.get_node_or_null("ExitDoor") != null, "south exit")
-		failed += _assert(room.get_node_or_null("SwirlOverlay") != null, "swirl overlay slot")
+		var keeper_spawn: Node2D = room.get_node_or_null("Keeper") as Node2D
+		failed += _assert(keeper_spawn != null and _on_forge_floor(floor, keeper_spawn.global_position), "spawn is on the floor")
+		failed += _assert(keeper_spawn != null and keeper_spawn.z_index > 0, "keeper draws above the swirl")
+		var exit_door: Node2D = room.get_node_or_null("ExitDoor") as Node2D
+		failed += _assert(exit_door != null, "south exit")
+		if exit_door:
+			var exit_shape: CollisionShape2D = exit_door.get_node_or_null("CollisionShape2D") as CollisionShape2D
+			var exit_rect: RectangleShape2D = null
+			if exit_shape:
+				exit_rect = exit_shape.shape as RectangleShape2D
+			failed += _assert(exit_rect != null and _on_forge_floor(floor, exit_door.global_position), "exit is on the floor")
+			failed += _assert(_on_forge_floor(floor, Vector2(800, 1100)) and _on_forge_floor(floor, Vector2(750, 1160)) and _on_forge_floor(floor, Vector2(850, 1160)), "door corridor stays walkable")
+			if exit_rect:
+				var half: Vector2 = exit_rect.size * 0.5
+				for corner: Vector2 in [Vector2(-half.x, -half.y), Vector2(half.x, -half.y), Vector2(-half.x, half.y), Vector2(half.x, half.y)]:
+					failed += _assert(_on_forge_floor(floor, exit_door.global_position + corner), "exit corner on the floor")
+		var swirl: Sprite2D = room.get_node_or_null("SwirlOverlay") as Sprite2D
+		failed += _assert(swirl != null and swirl.texture != null, "swirl texture loads")
+		failed += _assert(swirl != null and swirl.z_index == 0 and swirl.modulate.is_equal_approx(Color(1, 1, 1, 1)), "swirl draws full strength under the stations")
+		var plate: Sprite2D = room.get_node_or_null("FloorPlate") as Sprite2D
+		failed += _assert(plate != null and plate.texture != null and plate.texture.get_width() == 1600 and plate.texture.get_height() == 1200, "plate is 1600x1200")
+		failed += _assert(plate != null and plate.position.distance_to(Vector2(800, 600)) < 1.0 and plate.scale.distance_to(Vector2.ONE) < 0.01, "plate scale 1 at (800, 600)")
+		var cam: Camera2D = room.get_node_or_null("Camera2D") as Camera2D
+		failed += _assert(cam != null and cam.limit_left == 0 and cam.limit_top == 0 and cam.limit_right == 1600 and cam.limit_bottom == 1200, "camera limits fit the plate")
 		room.free()
 	game_state.call("reset_for_new_game")
 	return failed
@@ -3016,10 +3058,10 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 	failed += _assert(bool(audio.call("did_play", &"sfx_forge_big_done")), "big_done plays again after 3s")
 	var crucible_img := Image.new()
 	var img_err: Error = crucible_img.load(ProjectSettings.globalize_path("res://assets/art/forge/prop_crucible_idle.png"))
-	failed += _assert(img_err == OK, "crucible placeholder loads")
+	failed += _assert(img_err == OK and crucible_img.get_width() == 192 and crucible_img.get_height() == 192, "crucible frame is 192")
 	if img_err == OK:
 		var corner: Color = crucible_img.get_pixel(0, 0)
-		failed += _assert(corner.a < 0.05, "crucible placeholder background is keyed out")
+		failed += _assert(corner.a < 0.05, "crucible frame corner is clear")
 	var reliquary: Node2D = null
 	var room_packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
 	if room_packed:
@@ -3032,6 +3074,80 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 	jobs.call("set_in_forge_override", -1)
 	game_state.call("reset_for_new_game")
 	return failed
+
+
+func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(equipment != null and backpack != null, "pass c nodes")
+	if equipment == null:
+		return failed
+	var art_paths: Dictionary = {
+		"res://assets/art/ui/icon_amberbind.png": Vector2i(32, 32),
+		"res://assets/art/ui/icon_sapsteel.png": Vector2i(32, 32),
+		"res://assets/art/ui/icon_heartwood_bits.png": Vector2i(32, 32),
+		"res://assets/art/ui/icons/icon_oakheart_knot.png": Vector2i(32, 32),
+		"res://assets/art/ui/icons/icon_shardlens.png": Vector2i(32, 32),
+		"res://assets/art/ui/icons/icon_windthorn_bead.png": Vector2i(32, 32),
+		"res://assets/art/ui/badge_station_paused.png": Vector2i(32, 32),
+		"res://assets/art/ui/badge_station_busy.png": Vector2i(32, 32),
+		"res://assets/art/ui/relic_slot_empty.png": Vector2i(44, 44),
+		"res://assets/art/forge/bench_idle.png": Vector2i(192, 192),
+		"res://assets/art/forge/bench_busy.png": Vector2i(192, 192),
+		"res://assets/art/forge/prop_press_idle.png": Vector2i(192, 192),
+		"res://assets/art/forge/prop_reliquary_idle.png": Vector2i(192, 192),
+	}
+	for path: String in art_paths.keys():
+		var tex: Texture2D = load(path) as Texture2D
+		var want: Vector2i = art_paths[path]
+		failed += _assert(tex != null and tex.get_width() == want.x and tex.get_height() == want.y, "texture %s" % path)
+	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if hud_scene:
+		var hud_node: Node = hud_scene.instantiate()
+		tree_root.add_child(hud_node)
+		await process_frame
+		for item_id: String in ["amberbind", "sapsteel", "heartwood_bits", "oakheart_knot", "shardlens", "windthorn_bead"]:
+			var icon: TextureRect = hud_node.call("_make_item_icon", item_id, item_id) as TextureRect
+			failed += _assert(icon != null and icon.texture != null and icon.texture.get_width() == 32, "%s icon is wired" % item_id)
+		game_state.set("forge_key", true)
+		equipment.call("try_unequip", "relic")
+		hud_node.call("open_character_sheet")
+		await process_frame
+		var relic_square: TextureRect = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
+		var empty_frame: Texture2D = load("res://assets/art/ui/relic_slot_empty.png") as Texture2D
+		failed += _assert(relic_square != null and relic_square.texture == empty_frame and relic_square.size.distance_to(Vector2(44, 44)) < 0.5, "empty relic slot uses the 44 frame")
+		equipment.call("grant_item", "oakheart_knot")
+		failed += _assert(str(equipment.call("try_equip", "oakheart_knot")) == "ok", "oakheart equips")
+		var relic_slot: Node = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic")
+		if relic_slot:
+			relic_slot.call("refresh")
+		var glyph: TextureRect = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square/RelicGlyph") as TextureRect
+		failed += _assert(glyph != null and glyph.visible and glyph.texture != null and glyph.texture.get_width() == 32, "relic icon is 32px")
+		failed += _assert(glyph != null and glyph.position.distance_to(Vector2(6, 6)) < 0.5 and glyph.size.distance_to(Vector2(32, 32)) < 0.5, "relic icon sits centred in the frame")
+		failed += _assert(relic_square != null and relic_square.texture == empty_frame, "equipped relic keeps the frame")
+		hud_node.call("close_character_sheet")
+		paused = false
+		hud_node.queue_free()
+		await process_frame
+	var bench_scene: PackedScene = load("res://scenes/keepers_bench.tscn") as PackedScene
+	if bench_scene:
+		var bench: Node2D = bench_scene.instantiate() as Node2D
+		var bench_sprite: Sprite2D = bench.get_node_or_null("Sprite") as Sprite2D
+		failed += _assert(bench_sprite != null and bench_sprite.texture != null and not bench_sprite.centered, "bench sprite")
+		failed += _assert(bench_sprite != null and bench_sprite.offset.distance_to(Vector2(-96, -192)) < 0.1 and bench_sprite.scale.distance_to(Vector2.ONE) < 0.01, "bench offset (-96,-192)")
+		failed += _assert(bench_sprite != null and bench_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "bench nearest")
+		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
+		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
+		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 44)) < 0.5, "bench stand")
+		bench.free()
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _on_forge_floor(floor: PackedVector2Array, point: Vector2) -> bool:
+	if floor.size() < 3:
+		return false
+	return Geometry2D.is_point_in_polygon(point, floor)
 
 
 func _assert(cond: bool, msg: String) -> int:

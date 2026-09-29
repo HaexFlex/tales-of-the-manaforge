@@ -1,7 +1,7 @@
 extends Area2D
 class_name KeepersBench
 ## Hub handcraft station. The Keeper walks to KeeperStand, then the bench opens.
-## Idle and busy frames are art slots. The colored textures are placeholders.
+## Idle and busy frames are the 192px bench art, feet on the node origin.
 
 @export var idle_texture: Texture2D
 @export var busy_texture: Texture2D

@@ -388,6 +388,18 @@ func _item_icon_path(item_id: String) -> String:
 			return "res://assets/art/ui/icons/icon_weapon_rod.png"
 		"forge_key_relic":
 			return "res://assets/art/ui/icons/icon_forge_key.png"
+		"amberbind":
+			return "res://assets/art/ui/icon_amberbind.png"
+		"sapsteel":
+			return "res://assets/art/ui/icon_sapsteel.png"
+		"heartwood_bits":
+			return "res://assets/art/ui/icon_heartwood_bits.png"
+		"oakheart_knot":
+			return "res://assets/art/ui/icons/icon_oakheart_knot.png"
+		"shardlens":
+			return "res://assets/art/ui/icons/icon_shardlens.png"
+		"windthorn_bead":
+			return "res://assets/art/ui/icons/icon_windthorn_bead.png"
 		"sapstaff":
 			return "res://assets/art/ui/icon_sapstaff.png"
 		"thornbow":

@@ -1,35 +1,44 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/forge_station.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/art/forge/prop_reliquary_idle.png" id="2_idle"]
+[ext_resource type="Texture2D" path="res://assets/art/forge/prop_reliquary_busy.png" id="3_busy"]
+[ext_resource type="Texture2D" path="res://assets/art/ui/badge_station_paused.png" id="4_paused"]
+[ext_resource type="Texture2D" path="res://assets/art/ui/badge_station_busy.png" id="5_busy"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_pick"]
-radius = 42.0
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pick"]
+size = Vector2(69, 159)
 
 [node name="Reliquary" type="Area2D"]
+z_index = 1
 script = ExtResource("1_script")
 station_id = "reliquary"
+idle_texture = ExtResource("2_idle")
+busy_texture = ExtResource("3_busy")
+paused_badge = ExtResource("4_paused")
+busy_badge = ExtResource("5_busy")
 
 [node name="Sprite" type="Sprite2D" parent="."]
-position = Vector2(0, -64)
-
-[node name="Placeholder" type="Polygon2D" parent="."]
-color = Color(0.35, 0.32, 0.55, 1)
-polygon = PackedVector2Array(-32, -96, 32, -96, 40, 0, -40, 0)
+centered = false
+offset = Vector2(-96, -192)
+texture = ExtResource("2_idle")
+texture_filter = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("CircleShape2D_pick")
+position = Vector2(0, -88)
+shape = SubResource("RectangleShape2D_pick")
 
 [node name="KeeperStand" type="Marker2D" parent="."]
-position = Vector2(0, 48)
+position = Vector2(0, 44)
 
 [node name="WispOrbit" type="Marker2D" parent="."]
-position = Vector2(40, -24)
+position = Vector2(-3, -109)
 
 [node name="Title" type="Label" parent="."]
-offset_left = -70.0
-offset_top = -156.0
-offset_right = 70.0
-offset_bottom = -132.0
+offset_left = -90.0
+offset_top = -205.0
+offset_right = 90.0
+offset_bottom = -181.0
 theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
 theme_override_font_sizes/font_size = 14
 text = "Reliquary"
@@ -45,5 +54,5 @@ theme_override_font_sizes/font_size = 12
 horizontal_alignment = 1
 
 [node name="BadgeArt" type="Sprite2D" parent="."]
-position = Vector2(0, 18)
-texture_filter = 0
+position = Vector2(38, -167)
+texture_filter = 1
