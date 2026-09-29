@@ -104,6 +104,7 @@ func _run() -> void:
 		if decor_node is Node2D and not bool(live.call("decor_spot_allowed", (decor_node as Node2D).global_position)):
 			decor_hit += 1
 	failed += _check(decor_bad == 0 and decor_hit == 0, "decor grass off landmarks")
+	failed += _art_fit(live)
 	game.set("forge_key", true)
 	var forge_msg: String = str(live.get_node("HUD").call("open_forge_entry"))
 	failed += _check(forge_msg == str(strings.call("get_text", "forge_not_built")), "forge stub")
@@ -227,12 +228,63 @@ func _battle_view() -> int:
 	view.call("_on_arrow")
 	failed += _check(str(game.get("arrow_mode")) == "magical", "toggle writes GameState")
 	failed += _check(str(view.call("arrow_toggle_text")) == str(strings.call("get_text", "battle_toggle_mag")), "toggle reads Mag")
-	var art: TextureRect = view.get_node_or_null("ChamberArt") as TextureRect
-	failed += _check(art != null and not art.visible, "chamber art slot hidden")
+	failed += _chamber_plate(view)
 	view.queue_free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)
 	await process_frame
+	return failed
+
+
+func _art_fit(live: Node) -> int:
+	var failed: int = 0
+	var berry: Sprite2D = live.get_node_or_null("World/HarvestBerry/Sprite") as Sprite2D
+	failed += _check(berry != null and berry.texture != null, "berry sprite")
+	if berry and berry.texture:
+		var bw: float = float(berry.texture.get_width())
+		var bh: float = float(berry.texture.get_height())
+		failed += _check(bw == 784.0 and bh == 1168.0, "berry canvas 784x1168 (got %sx%s)" % [bw, bh])
+		failed += _check(not berry.centered, "berry bottom-anchored")
+		failed += _check(absf(berry.offset.x + bw * 0.5) < 0.5 and absf(berry.offset.y + bh) < 0.5, "berry offset bottom-center")
+	var marker: Sprite2D = live.get_node_or_null("World/EchoPortal/Visual/Marker") as Sprite2D
+	failed += _check(marker != null and marker.texture != null, "portal sprite")
+	if marker and marker.texture:
+		var pw: float = float(marker.texture.get_width())
+		var ph: float = float(marker.texture.get_height())
+		failed += _check(pw == 784.0 and ph == 1168.0, "portal canvas 784x1168 (got %sx%s)" % [pw, ph])
+		failed += _check(not marker.centered, "portal bottom-anchored")
+		failed += _check(absf(marker.offset.x + pw * 0.5) < 0.5 and absf(marker.offset.y + ph) < 0.5, "portal offset bottom-center")
+	var sheet: Texture2D = load("res://assets/art/ui/manaforge_hud_icons_sheet.png") as Texture2D
+	failed += _check(sheet != null and sheet.get_width() == 1280 and sheet.get_height() == 512, "hud icon sheet 1280x512")
+	return failed
+
+
+func _chamber_plate(view: Node) -> int:
+	var failed: int = 0
+	var art: TextureRect = view.get_node_or_null("ChamberArt") as TextureRect
+	var bg: ColorRect = view.get_node_or_null("Background") as ColorRect
+	var ground: ColorRect = view.get_node_or_null("Ground") as ColorRect
+	var keeper: TextureRect = view.get_node_or_null("KeeperPortrait") as TextureRect
+	var echo_portrait: TextureRect = view.get_node_or_null("EchoPortrait") as TextureRect
+	failed += _check(art != null and bg != null and ground != null, "chamber nodes")
+	failed += _check(bg != null and bg.visible and ground != null and ground.visible, "color rects stay as fallback")
+	if art and ground and bg:
+		failed += _check(art.get_index() > ground.get_index() and ground.get_index() > bg.get_index(), "plate draws over both color rects")
+	var plate_path: String = "res://assets/art/echo/echo_chamber_bg.png"
+	if FileAccess.file_exists(plate_path):
+		failed += _check(art != null and art.visible and art.texture != null, "chamber plate visible")
+		if art and art.texture:
+			failed += _check(art.texture.get_width() == 1280 and art.texture.get_height() == 720, "plate is 1280x720")
+	else:
+		failed += _check(art != null and not art.visible, "chamber art hidden without a plate")
+	failed += _check(
+		keeper != null and keeper.position == Vector2(56, 114) and keeper.size == Vector2(384, 384),
+		"keeper portrait box"
+	)
+	failed += _check(
+		echo_portrait != null and echo_portrait.position == Vector2(840, 114) and echo_portrait.size == Vector2(384, 384),
+		"elaia portrait box"
+	)
 	return failed
 
 
