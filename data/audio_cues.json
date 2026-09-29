@@ -169,17 +169,17 @@
       "path": "res://assets/audio/sfx_wisp_pulse.ogg"
     },
     "sfx_forge_craft_start": {
-      "bus": "SFX_Progress",
+      "bus": "SFX_World",
       "loop": false,
       "path": "res://assets/audio/sfx_forge_craft_start.ogg"
     },
     "sfx_forge_craft_done": {
-      "bus": "SFX_Progress",
+      "bus": "SFX_World",
       "loop": false,
       "path": "res://assets/audio/sfx_forge_craft_done.ogg"
     },
     "sfx_press_squeeze": {
-      "bus": "SFX_Progress",
+      "bus": "SFX_World",
       "loop": false,
       "path": "res://assets/audio/sfx_press_squeeze.ogg"
     },
