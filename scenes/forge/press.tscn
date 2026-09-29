@@ -1,0 +1,45 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/forge_station.gd" id="1_script"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_pick"]
+radius = 42.0
+
+[node name="Press" type="Area2D"]
+script = ExtResource("1_script")
+station_id = "press"
+
+[node name="Sprite" type="Sprite2D" parent="."]
+position = Vector2(0, -64)
+
+[node name="Placeholder" type="Polygon2D" parent="."]
+color = Color(0.62, 0.38, 0.16, 1)
+polygon = PackedVector2Array(-32, -96, 32, -96, 40, 0, -40, 0)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_pick")
+
+[node name="KeeperStand" type="Marker2D" parent="."]
+position = Vector2(0, 48)
+
+[node name="WispOrbit" type="Marker2D" parent="."]
+position = Vector2(40, -24)
+
+[node name="Title" type="Label" parent="."]
+offset_left = -70.0
+offset_top = -156.0
+offset_right = 70.0
+offset_bottom = -132.0
+theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
+theme_override_font_sizes/font_size = 14
+text = "Bramble Press"
+horizontal_alignment = 1
+
+[node name="Badge" type="Label" parent="."]
+offset_left = -80.0
+offset_top = 6.0
+offset_right = 80.0
+offset_bottom = 28.0
+theme_override_colors/font_color = Color(0.85, 0.95, 0.88, 1)
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1

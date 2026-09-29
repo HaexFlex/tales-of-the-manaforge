@@ -175,6 +175,8 @@ func start_harvest_channel(node: Gatherable) -> void:
 	GameAudio.play_channel_start()
 	GameState.status_message.emit(ContentStrings.get_text("harvest_start"))
 	channel_changed.emit(&"harvest", true)
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.set_keeper_task("harvest", String(node.resource_id), true)
 	# Immediate first pulse so click feels responsive, then every CHANNEL_PULSE_SEC.
 	node.on_harvest_pulse()
 	_channel_accum = 0.0
@@ -191,6 +193,8 @@ func start_water_channel(tree: Manatree) -> void:
 	GameAudio.play_channel_start()
 	GameState.status_message.emit(ContentStrings.get_text("tree_water_start"))
 	channel_changed.emit(&"water", true)
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.set_keeper_task("water", "manatree", true)
 	_do_water_pulse()
 	_channel_accum = 0.0
 
@@ -216,6 +220,11 @@ func cancel_channel(emit_status: bool = true) -> void:
 		if emit_status:
 			GameState.status_message.emit(ContentStrings.get_text("tree_water_cancel"))
 		channel_changed.emit(&"water", false)
+	if has_node("/root/ForgeJobs"):
+		var task: Dictionary = ForgeJobs.keeper_task()
+		var task_kind: String = str(task.get("kind", ""))
+		if task_kind == "harvest" or task_kind == "water":
+			ForgeJobs.note_keeper_idle()
 
 
 func is_channeling() -> bool:

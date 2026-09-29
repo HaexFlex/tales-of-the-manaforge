@@ -1,0 +1,21 @@
+{
+  "station_busy": "Working.",
+  "station_paused": "Paused. A Keeper or Wisps must work this station.",
+  "not_enough_material": "Not enough material.",
+  "job_done": "{item} is finished.",
+  "jobs_finished_away": "While you were away: {summary}",
+  "wisp_speed_hint": "Each Wisp works a station faster, up to four.",
+  "relic_swap_confirm": "The relic slot now holds {item}.",
+  "ascend_warning_materials": "Ascend clears Forge materials unless you own Keep Forge Materials.",
+  "ascend_warning_jobs": "Ascend clears Forge jobs unless you own Keep Forge Jobs.",
+  "examine_crucible": "The Crucible smelts Stone into Sapsteel.",
+  "examine_mill": "The Mill chips Wood into Heartwood Bits.",
+  "examine_press": "The Bramble Press squeezes Food into Amberbind.",
+  "examine_anvil": "The Anvil shapes weapons.",
+  "examine_reliquary": "The Reliquary binds relics. Stats only.",
+  "examine_bench": "The Keeper's Bench is quiet for now.",
+  "wisp_counter": "Wisps: {count}",
+  "queue_full": "That station already has four Wisps.",
+  "already_owned": "You already carry that.",
+  "job_started": "Started."
+}

@@ -106,13 +106,13 @@ func _run() -> void:
 	await process_frame
 
 	gs.call("_set_stage", &"elder")
-	gs.set("forge_key", true)
+	gs.set("forge_key", false)
 	hud.call("show_care_menu")
 	await process_frame
 	var care: Node = hud.get_node("CarePanel")
 	_check(care.visible, "care open before the forge popup")
 	var msg: String = str(hud.call("open_forge_entry"))
-	_check(msg.find("Congratulations") >= 0, "forge congratulations")
+	_check(msg == "You have no key.", "forge still asks for a key")
 	_check(not care.visible, "care hidden while the forge popup is open")
 	_check(bool(hud.call("is_forge_popup_open")), "forge popup open")
 	var popup: Control = hud.get_node("ForgePopup") as Control
@@ -124,6 +124,9 @@ func _run() -> void:
 	await process_frame
 	_check(care.visible, "care returns when the forge popup closes")
 	_check(not bool(hud.call("is_forge_popup_open")), "forge popup closed")
+	gs.set("forge_key", true)
+	var jobs: Node = root.get_node_or_null("ForgeJobs")
+	_check(jobs != null and bool(jobs.call("can_enter_forge")), "elder with a key can enter")
 	hud.call("hide_care_menu")
 
 	var win: Window = root as Window

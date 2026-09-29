@@ -167,6 +167,36 @@
       "bus": "SFX_World",
       "loop": false,
       "path": "res://assets/audio/sfx_wisp_pulse.ogg"
+    },
+    "sfx_forge_craft_start": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_forge_craft_start.ogg"
+    },
+    "sfx_forge_craft_done": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_forge_craft_done.ogg"
+    },
+    "sfx_press_squeeze": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_press_squeeze.ogg"
+    },
+    "sfx_forge_big_done": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_forge_big_done.ogg"
+    },
+    "sfx_bench_open": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_bench_open.ogg"
+    },
+    "sfx_door_bark": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_door_bark.ogg"
     }
   }
 }

@@ -216,11 +216,15 @@ func assignment_target_display(node_id: String) -> String:
 		NODE_ID_MANATREE:
 			return ContentStrings.get_text("tree_menu_title")
 		_:
+			if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id):
+				return ForgeJobs.station_display(node_id)
 			return node_id
 
 
 func is_valid_wisp_node_id(node_id: String) -> bool:
-	return resource_for_node_id(node_id) != &""
+	if resource_for_node_id(node_id) != &"":
+		return true
+	return has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id)
 
 
 func _ensure_wisp_slots() -> void:
@@ -280,6 +284,12 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 		return "invalid"
 	var key: String = str(wisp_id)
 	var prev: String = str(wisp_assignments.get(key, ""))
+	if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id) and prev != node_id:
+		if count_wisps_on_node(node_id) >= ForgeJobs.wisp_cap():
+			wisp_assign_failed.emit("full", node_id)
+			if has_node("/root/GameAudio"):
+				GameAudio.play(&"sfx_wisp_deny")
+			return "full"
 	if prev == node_id:
 		selected_wisp_id = -1
 		selection_changed.emit()
@@ -344,6 +354,9 @@ func apply_wisp_pulses(delta: float) -> void:
 		var key: String = str(i)
 		var nid: String = str(wisp_assignments.get(key, ""))
 		if nid == "":
+			wisp_pulse_accum[key] = 0.0
+			continue
+		if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(nid):
 			wisp_pulse_accum[key] = 0.0
 			continue
 		var acc: float = float(wisp_pulse_accum.get(key, 0.0)) + delta
@@ -934,9 +947,24 @@ func can_ascend() -> bool:
 	return fruit_committed
 
 
+func register_forge_upgrades(entries: Array) -> void:
+	for entry: Variant in entries:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var d: Dictionary = (entry as Dictionary).duplicate(true)
+		var uid: String = str(d.get("id", ""))
+		if uid == "" or not get_upgrade_def(uid).is_empty():
+			continue
+		upgrades_data.append(d)
+	_ensure_upgrade_keys()
+
+
 func ascend() -> void:
 	if not fruit_committed:
 		return
+	var forge_snap: Dictionary = {}
+	if has_node("/root/ForgeJobs"):
+		forge_snap = ForgeJobs.prepare_ascend()
 	ascensions += 1
 	## First Ascend opens the Echo. A paid fee, Key, and companion flag stay.
 	portal_unlocked = true
@@ -961,6 +989,8 @@ func ascend() -> void:
 	resources_changed.emit(&"manashards", manashards)
 	resources_changed.emit(&"essence", essence)
 	Backpack.on_ascend()
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.finish_ascend(forge_snap)
 	## Combat ranks and battle gear persist. The soft Manashard bank above is already 0.
 	if has_node("/root/KeeperStats"):
 		KeeperStats.on_ascend()
@@ -1021,7 +1051,7 @@ func to_save_dict() -> Dictionary:
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
 		"arrow_mode": arrow_mode,
-	}
+	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {})
 
 
 func apply_save_dict(data: Dictionary) -> void:
@@ -1083,6 +1113,8 @@ func apply_save_dict(data: Dictionary) -> void:
 		KeeperStats.apply_save_dict(data.get("keeper_stats", {}))
 	if has_node("/root/Equipment"):
 		Equipment.apply_save_dict(_equipment_payload(data))
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.apply_save_fields(data)
 	keeper_selected = false
 	selected_wisp_id = -1
 	wisps_changed.emit()
@@ -1157,6 +1189,8 @@ func reset_for_new_game() -> void:
 		KeeperStats.reset_for_new_game()
 	if has_node("/root/Equipment"):
 		Equipment.reset_for_new_game()
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.reset_for_new_game()
 	wisps_changed.emit()
 	selection_changed.emit()
 	resources_changed.emit(&"wood", wood)

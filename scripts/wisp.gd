@@ -197,10 +197,14 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 func _process(delta: float) -> void:
 	_bob_t += delta
+	var assigned_now: String = GameState.get_wisp_assignment(wisp_id)
+	if has_node("/root/ForgeJobs"):
+		var in_forge: bool = get_tree().get_first_node_in_group("forge_room") != null
+		visible = ForgeJobs.wisp_should_show(assigned_now, in_forge)
 	if not _placed:
 		global_position = _keeper_slot_pos()
 		_placed = true
-	var assigned_node: String = GameState.get_wisp_assignment(wisp_id)
+	var assigned_node: String = assigned_now
 	if assigned_node != _cached_assignment:
 		_cached_assignment = assigned_node
 		if assigned_node != "":
@@ -307,6 +311,12 @@ func _kill_fly_tween() -> void:
 
 
 func _resolve_assignment_center(node_id: String) -> Vector2:
+	if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id):
+		var stations: Array[Node] = get_tree().get_nodes_in_group("forge_station")
+		for station: Node in stations:
+			if station is ForgeStation and (station as ForgeStation).station_id == node_id:
+				return (station as ForgeStation).orbit_global()
+		return global_position
 	if node_id == GameState.NODE_ID_MANATREE:
 		var trees: Array[Node] = get_tree().get_nodes_in_group("manatree")
 		for n: Node in trees:

@@ -10,6 +10,10 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed: int = 0
+	var jobs: Node = root.get_node_or_null("ForgeJobs")
+	if jobs:
+		jobs.call("set_dev_speed_override", 1.0)
+		jobs.call("set_autosave_enabled", false)
 	var game: Node = root.get_node("GameState")
 	var strings: Node = root.get_node("ContentStrings")
 	root.get_node("SaveService").set("boot_intent", "new")
@@ -114,9 +118,15 @@ func _run() -> void:
 			decor_hit += 1
 	failed += _check(decor_bad == 0 and decor_hit == 0, "decor grass off landmarks")
 	failed += _art_fit(live)
-	game.set("forge_key", true)
+	game.set("forge_key", false)
 	var forge_msg: String = str(live.get_node("HUD").call("open_forge_entry"))
-	failed += _check(forge_msg == str(strings.call("get_text", "forge_not_built")), "forge stub")
+	failed += _check(forge_msg == str(strings.call("get_text", "forge_no_key")), "forge needs a key")
+	failed += _check(FileAccess.file_exists("res://scenes/forge_room.tscn"), "forge room scene")
+	game.set("stage_id", &"elder")
+	game.set("forge_key", true)
+	failed += _check(jobs != null and bool(jobs.call("can_enter_forge")), "elder with a key can enter")
+	game.set("stage_id", &"sapling")
+	game.set("forge_key", false)
 	live.queue_free()
 	await process_frame
 
@@ -129,7 +139,7 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 8") >= 0, "SAVE_VERSION 8")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 9") >= 0, "SAVE_VERSION 9")
 
 	if failed == 0:
 		print("SANITY_OK")

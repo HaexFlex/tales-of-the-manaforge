@@ -39,6 +39,11 @@ var _played_log: PackedStringArray = PackedStringArray()
 ## User linear volumes 0.0–1.0 (1.0 = mix-lock defaults).
 var music_volume_linear: float = 1.0
 var sfx_volume_linear: float = 1.0
+## Forge room mix: low-pass, small reverb, and a few dB off the Music bus. Cleared on exit.
+var _forge_mix_on: bool = false
+var _forge_music_offset_db: float = 0.0
+var _forge_lowpass: AudioEffectLowPassFilter
+var _forge_reverb: AudioEffectReverb
 
 
 func _ready() -> void:
@@ -178,6 +183,42 @@ func get_hub_stream() -> AudioStream:
 	if _music_player == null:
 		return null
 	return _music_player.stream
+
+
+func set_forge_room_mix(enabled: bool, lowpass_hz: float = 1800.0, room_size: float = 0.35, gain_db: float = -3.0) -> void:
+	var idx: int = AudioServer.get_bus_index("Music")
+	if idx < 0:
+		return
+	if enabled == _forge_mix_on:
+		return
+	if enabled:
+		_forge_lowpass = AudioEffectLowPassFilter.new()
+		_forge_lowpass.cutoff_hz = lowpass_hz
+		_forge_reverb = AudioEffectReverb.new()
+		_forge_reverb.room_size = room_size
+		AudioServer.add_bus_effect(idx, _forge_lowpass)
+		AudioServer.add_bus_effect(idx, _forge_reverb)
+		_forge_music_offset_db = gain_db
+		_forge_mix_on = true
+	else:
+		_remove_bus_effect("Music", _forge_lowpass)
+		_remove_bus_effect("Music", _forge_reverb)
+		_forge_lowpass = null
+		_forge_reverb = null
+		_forge_music_offset_db = 0.0
+		_forge_mix_on = false
+	apply_volumes()
+
+
+func _remove_bus_effect(bus_name: String, effect: AudioEffect) -> void:
+	if effect == null:
+		return
+	var idx: int = AudioServer.get_bus_index(bus_name)
+	if idx < 0:
+		return
+	for i: int in range(AudioServer.get_bus_effect_count(idx) - 1, -1, -1):
+		if AudioServer.get_bus_effect(idx, i) == effect:
+			AudioServer.remove_bus_effect(idx, i)
 
 
 func play(cue_id: StringName) -> void:
@@ -572,7 +613,8 @@ func _apply_bus_volume(bus_name: String, linear: float, base_db: float) -> void:
 		AudioServer.set_bus_volume_db(idx, base_db)
 		return
 	AudioServer.set_bus_mute(idx, false)
-	AudioServer.set_bus_volume_db(idx, base_db + linear_to_db(linear))
+	var extra: float = _forge_music_offset_db if bus_name == "Music" else 0.0
+	AudioServer.set_bus_volume_db(idx, base_db + linear_to_db(linear) + extra)
 
 
 func load_settings() -> void:

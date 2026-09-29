@@ -1,6 +1,6 @@
 extends Node
 ## Slot-based save/load: user://manaforge_save_slot_{1..7}.json (SYSTEMS v0.5.1).
-## Payload schema SAVE_VERSION 8 — echo portal, fee, key, companion flag.
+## Payload schema SAVE_VERSION 9 — forge jobs, workers, offline tiers, item categories.
 ## Keeper ranks stay purchases. Sheet base is 5 + rank.
 
 signal save_completed(ok: bool)
@@ -11,9 +11,9 @@ signal load_completed(ok: bool)
 var boot_intent: String = "auto"
 var boot_slot: int = 0
 
-const SAVE_VERSION: int = 8
-## Accept one write ahead of this schema (plus legacy 4–7).
-const SAVE_VERSION_MAX_READ: int = 9
+const SAVE_VERSION: int = 9
+## Accept one write ahead of this schema (plus legacy 4–8).
+const SAVE_VERSION_MAX_READ: int = 10
 const SAVE_SLOT_COUNT: int = 7
 const LEGACY_SAVE_PATH: String = "user://manaforge_save.json"
 const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
@@ -107,6 +107,7 @@ func load_game(slot: int = -1) -> bool:
 		load_completed.emit(false)
 		return false
 	GameState.apply_save_dict(_migrate(version, state as Dictionary))
+	_apply_offline_catchup(root)
 	load_completed.emit(true)
 	return true
 
@@ -215,6 +216,23 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 			out["forge_key"] = false
 		if not out.has("echo_01_narrator_heard"):
 			out["echo_01_narrator_heard"] = false
+	if from_version < 9:
+		## Forge v2: jobs, workers, keeper task, offline timestamp, item categories.
+		## An equipped Forge Key moves into gear inventory so another relic can be worn.
+		if not out.has("forge_jobs") or typeof(out.get("forge_jobs")) != TYPE_DICTIONARY:
+			out["forge_jobs"] = {}
+		if not out.has("forge_workers") or typeof(out.get("forge_workers")) != TYPE_DICTIONARY:
+			out["forge_workers"] = {}
+		if not out.has("keeper_task") or typeof(out.get("keeper_task")) != TYPE_DICTIONARY:
+			out["keeper_task"] = {"kind": "none", "target": "", "working": false}
+		if not out.has("idle_timestamp"):
+			out["idle_timestamp"] = 0
+		_migrate_equipped_key_to_inventory(out)
+		if not out.has("item_categories") or typeof(out.get("item_categories")) != TYPE_DICTIONARY:
+			if has_node("/root/ForgeJobs"):
+				out["item_categories"] = ForgeJobs.item_categories()
+			else:
+				out["item_categories"] = {}
 	## v0.5.1 ranks stay purchases. Missing ranks become 0 (sheet base 5).
 	## An absolute already stored below 5 is kept as a rank so the sheet floors
 	## the base at 5. Ranks >= 5 are not reduced.
@@ -294,6 +312,39 @@ func delete_save() -> void:
 
 func has_slot(slot: int) -> bool:
 	return is_valid_slot(slot) and FileAccess.file_exists(slot_path(slot))
+
+
+func _apply_offline_catchup(root: Dictionary) -> void:
+	## Closed-game tiers. Skips a gap under 1 second so a save/load in the same moment stays put.
+	if not has_node("/root/ForgeJobs"):
+		return
+	var ts: float = float(root.get("timestamp", 0.0))
+	if ts <= 1.0:
+		return
+	var closed: float = Time.get_unix_time_from_system() - ts
+	if closed < 1.0:
+		return
+	ForgeJobs.apply_offline_seconds(closed)
+
+
+func _migrate_equipped_key_to_inventory(out: Dictionary) -> void:
+	var eq_v: Variant = out.get("equipment_equipped", {})
+	if typeof(eq_v) != TYPE_DICTIONARY:
+		return
+	var eq: Dictionary = eq_v
+	var relic_v: Variant = eq.get("relic", null)
+	var relic_id: String = ""
+	if relic_v != null:
+		relic_id = str(relic_v)
+	if relic_id != "forge_key" and relic_id != "forge_key_relic":
+		return
+	eq["relic"] = null
+	out["equipment_equipped"] = eq
+	var bag_v: Variant = out.get("gear_inventory", {})
+	var bag: Dictionary = (bag_v as Dictionary).duplicate(true) if typeof(bag_v) == TYPE_DICTIONARY else {}
+	if int(bag.get("forge_key_relic", 0)) < 1 and int(bag.get("forge_key", 0)) < 1:
+		bag["forge_key_relic"] = 1
+	out["gear_inventory"] = bag
 
 
 func has_save() -> bool:

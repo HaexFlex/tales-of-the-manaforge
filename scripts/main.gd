@@ -90,6 +90,7 @@ func _ready() -> void:
 		click_layer.size = play_size
 		return
 	_setup_camera(false)
+	_apply_forge_return()
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
 	click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	click_layer.position = Vector2.ZERO
@@ -237,6 +238,16 @@ func _setup_camera(snap_to_tree: bool) -> void:
 	if snap_to_tree and manatree:
 		camera.position = manatree.position
 	_clamp_camera()
+
+
+func _apply_forge_return() -> void:
+	if not has_node("/root/ForgeJobs") or not ForgeJobs.take_clearing_return():
+		return
+	if keeper == null or manatree == null:
+		return
+	keeper.global_position = manatree.global_position + ForgeJobs.return_offset()
+	if camera:
+		camera.position = _clamped_camera_pos(keeper.global_position)
 
 
 func focus_manatree() -> void:

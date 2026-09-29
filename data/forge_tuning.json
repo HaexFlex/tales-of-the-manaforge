@@ -1,0 +1,151 @@
+{
+  "notes": "All Forge v2 numbers live here. Placeholder tuning until Haex signs off.",
+  "dev_speed_multiplier": 60,
+  "wisp_speed_bonus": 0.5,
+  "wisp_cap": 4,
+  "offline_tier1_hours": 8,
+  "offline_tier2_hours": 24,
+  "offline_rate_tier1": 0.05,
+  "offline_rate_tier2": 0.01,
+  "offline_rate_tier3": 0.001,
+  "offline_water_mult": 0.2,
+  "upcycle_tick_db": -28,
+  "big_done_min_interval_sec": 2.5,
+  "forge_music_db": -3,
+  "lowpass_cutoff_hz": 1800,
+  "reverb_room_size": 0.35,
+  "autosave_sec": 30,
+  "room_width": 1600,
+  "room_height": 1200,
+  "stand_radius": 56,
+  "return_offset": [-80, 354],
+  "camera_pan_speed": 420,
+  "door_gap_px": 160,
+  "wall_thickness_px": 64,
+  "forge_materials": ["sapsteel", "heartwood_bits", "amberbind"],
+  "resource_categories": {
+    "wood": "raw",
+    "stone": "raw",
+    "food": "raw",
+    "manashards": "raw",
+    "essence": "raw"
+  },
+  "backpack_filters": ["all", "raw", "refined", "tools", "weapons", "relics"],
+  "ascend_upgrades": [
+    {
+      "id": "keep_forge_intermediates",
+      "display_name": "Keep Forge Materials",
+      "description": "Ascend keeps Sapsteel, Heartwood Bits, and Amberbind.",
+      "max_rank": 1,
+      "cost_base": 25000,
+      "cost_per_rank": 0,
+      "effect": "keep_forge_intermediates",
+      "value_per_rank": 1.0
+    },
+    {
+      "id": "keep_forge_jobs",
+      "display_name": "Keep Forge Jobs",
+      "description": "Ascend keeps the job sitting on each station.",
+      "max_rank": 1,
+      "cost_base": 40000,
+      "cost_per_rank": 0,
+      "effect": "keep_forge_jobs",
+      "value_per_rank": 1.0
+    }
+  ],
+  "stations": {
+    "crucible": { "auto_repeat": true, "recipe": "sapsteel", "display_name": "Crucible" },
+    "mill": { "auto_repeat": true, "recipe": "heartwood_bits", "display_name": "Mill" },
+    "press": { "auto_repeat": true, "recipe": "amberbind", "display_name": "Bramble Press" },
+    "anvil": {
+      "auto_repeat": false,
+      "recipes": ["rootsteel_edge", "heartwand", "switchshaft"],
+      "display_name": "Anvil"
+    },
+    "reliquary": {
+      "auto_repeat": false,
+      "recipes": ["oakheart_knot", "shardlens", "windthorn_bead"],
+      "display_name": "Reliquary"
+    }
+  },
+  "recipes": {
+    "sapsteel": {
+      "station": "crucible",
+      "duration_sec": 60,
+      "inputs": { "stone": 20 },
+      "output": "sapsteel",
+      "output_gear": false
+    },
+    "heartwood_bits": {
+      "station": "mill",
+      "duration_sec": 60,
+      "inputs": { "wood": 20 },
+      "output": "heartwood_bits",
+      "output_gear": false
+    },
+    "amberbind": {
+      "station": "press",
+      "duration_sec": 45,
+      "inputs": { "food": 15 },
+      "output": "amberbind",
+      "output_gear": false
+    },
+    "rootsteel_edge": {
+      "station": "anvil",
+      "duration_sec": 600,
+      "inputs": { "sapsteel": 12, "heartwood_bits": 6, "amberbind": 4, "essence": 150 },
+      "output": "rootsteel_edge",
+      "output_gear": true,
+      "damage_kind": "physical",
+      "bonuses": {},
+      "category": "weapon"
+    },
+    "heartwand": {
+      "station": "anvil",
+      "duration_sec": 600,
+      "inputs": { "sapsteel": 6, "heartwood_bits": 12, "amberbind": 4, "essence": 150 },
+      "output": "heartwand",
+      "output_gear": true,
+      "damage_kind": "magical",
+      "bonuses": {},
+      "category": "weapon"
+    },
+    "switchshaft": {
+      "station": "anvil",
+      "duration_sec": 600,
+      "inputs": { "sapsteel": 9, "heartwood_bits": 9, "amberbind": 4, "essence": 150 },
+      "output": "switchshaft",
+      "output_gear": true,
+      "damage_kind": "hybrid",
+      "bonuses": {},
+      "category": "weapon"
+    },
+    "oakheart_knot": {
+      "station": "reliquary",
+      "duration_sec": 600,
+      "inputs": { "sapsteel": 6, "heartwood_bits": 6, "amberbind": 6, "essence": 100 },
+      "output": "oakheart_knot",
+      "output_gear": true,
+      "bonuses": { "might": 3, "resilience": 2 },
+      "category": "relic"
+    },
+    "shardlens": {
+      "station": "reliquary",
+      "duration_sec": 600,
+      "inputs": { "sapsteel": 6, "heartwood_bits": 6, "amberbind": 6, "essence": 100 },
+      "output": "shardlens",
+      "output_gear": true,
+      "bonuses": { "arcana": 3, "ward": 2 },
+      "category": "relic"
+    },
+    "windthorn_bead": {
+      "station": "reliquary",
+      "duration_sec": 600,
+      "inputs": { "sapsteel": 6, "heartwood_bits": 6, "amberbind": 6, "essence": 100 },
+      "output": "windthorn_bead",
+      "output_gear": true,
+      "bonuses": { "might": 2, "arcana": 2, "swiftness": 1 },
+      "category": "relic"
+    }
+  }
+}

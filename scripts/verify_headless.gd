@@ -28,8 +28,13 @@ func _run() -> void:
 		return
 
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
-	failed += _assert(int(game_state.get("upgrades_data").size()) == 8, "expected 8 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION should be 8")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	if jobs:
+		jobs.call("set_dev_speed_override", 1.0)
+		jobs.call("set_autosave_enabled", false)
+	failed += _assert(jobs != null, "ForgeJobs autoload missing")
+	failed += _assert(int(game_state.get("upgrades_data").size()) == 10, "expected 10 fruit upgrades")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION should be 9")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -389,7 +394,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 8, "written save_version 8")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 9, "written save_version 9")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -622,7 +627,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION stays 8 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION stays 9 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -1377,7 +1382,7 @@ func _run() -> void:
 
 	# --- SYSTEMS v0.4.0: backpack, handcraft, tools, Grow, Keep Tools, can shard_roll ×2 ---
 	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
-	failed += _assert(int((backpack.get("items_data") as Array).size()) == 10, "10 backpack items")
+	failed += _assert(int((backpack.get("items_data") as Array).size()) == 13, "13 backpack items")
 	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
 	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
 	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
@@ -1690,7 +1695,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION is 8")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION is 9")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -2187,6 +2192,7 @@ func _run() -> void:
 		save_service.call("delete_save")
 
 	failed += await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
+	failed += _forge_pass_a(tree_root, game_state, save_service, backpack)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2441,7 +2447,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 8, "slot writes save_version 8")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 9, "slot writes save_version 9")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -2506,7 +2512,8 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_state.set("forge_key", true)
 		game_state.emit_signal("echo_flags_changed")
 		failed += _assert(not bool(hud.call("is_forge_entry_gray")), "Enter Forge wakes up with the key")
-		failed += _assert(str(hud.call("open_forge_entry")) == "Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.", "key forge popup")
+		var forge_jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+		failed += _assert(forge_jobs != null and bool(forge_jobs.call("can_enter_forge")), "key can enter the forge")
 		hud.call("hide_forge_popup")
 		game_state.set("stage_id", &"ancient")
 		game_state.emit_signal("stage_changed", &"ancient")
@@ -2643,6 +2650,169 @@ func _echo_totals(might: int, swift: int, ward: int = 5) -> Dictionary:
 		"swiftness": swift,
 		"fate": 5,
 	}
+
+
+func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(jobs != null and equipment != null, "forge pass a nodes")
+	if jobs == null or equipment == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", -1.0)
+	var open_scale: float = 60.0 if OS.is_debug_build() else 1.0
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - open_scale) < 0.01, "dev speed is 60 in debug and 1 in release")
+	jobs.call("set_dev_speed_override", 1.0)
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - 1.0) < 0.01, "verify pins forge speed at 1")
+	game_state.call("reset_for_new_game")
+	var h8: float = 8.0 * 3600.0
+	var h24: float = 24.0 * 3600.0
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", 0.0))) < 0.001, "offline zero")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h8)) - h8 * 0.05) < 0.05, "offline 0-8h is 1/20")
+	var at_24: float = h8 * 0.05 + (h24 - h8) * 0.01
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24)) - at_24) < 0.05, "offline 8-24h is 1/100")
+	var after: float = at_24 + 3600.0 * 0.001
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24 + 3600.0)) - after) < 0.05, "offline after 24h is 1/1000")
+	failed += _assert(absf(float(jobs.get("OFFLINE_WATER_MULT")) - 0.2) < 0.001, "OFFLINE_WATER_MULT is 0.2")
+	jobs.call("set_keeper_task", "water", "manatree", true)
+	var water: Variant = jobs.call("apply_offline_seconds", h8)
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("shards", -1)) == 576, "offline water shards use the midpoint and 0.2")
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("essence", -1)) == 288, "offline water essence uses 0.2")
+	var task: Variant = jobs.call("keeper_task")
+	failed += _assert(typeof(task) == TYPE_DICTIONARY and not bool((task as Dictionary).get("working", true)), "offline clears the keeper task")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	var gathered: Variant = jobs.call("apply_offline_seconds", 20.0)
+	failed += _assert(typeof(gathered) == TYPE_DICTIONARY and int((gathered as Dictionary).get("harvest", -1)) == 1, "20s closed harvest is one pulse")
+	failed += _assert(int(game_state.get("wood")) == 1, "offline harvest banks wood")
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "manatree")
+	var wisp_off: Variant = jobs.call("apply_offline_seconds", h8)
+	failed += _assert(typeof(wisp_off) == TYPE_DICTIONARY and int((wisp_off as Dictionary).get("shards", -1)) == 144, "wisp watering uses tiers only")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 40)
+	failed += _assert(str(jobs.call("try_begin_job", "crucible", "sapsteel")) == "ok", "crucible starts")
+	failed += _assert(int(game_state.get("stone")) == 20, "crucible spends 20 stone")
+	jobs.call("advance_seconds", 30.0)
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible"))) < 0.01, "paused job stays put")
+	jobs.call("set_keeper_working", "crucible", true)
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "crucible")) - 1.0) < 0.01, "keeper works at 1x")
+	jobs.call("advance_seconds", 30.0)
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - 30.0) < 0.01, "worked job advances")
+	jobs.call("set_keeper_working", "crucible", false)
+	game_state.set("wisp_count", 4)
+	game_state.call("_ensure_wisp_slots")
+	for i: int in range(4):
+		var joined: String = str(game_state.call("try_assign_wisp", i, "crucible"))
+		failed += _assert(joined != "full" and joined != "invalid", "wisp %d can work the crucible" % i)
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "crucible")) - 3.0) < 0.01, "four wisps are 3x")
+	game_state.set("wisp_count", 5)
+	game_state.call("_ensure_wisp_slots")
+	failed += _assert(str(game_state.call("try_assign_wisp", 4, "crucible")) == "full", "a fifth wisp is refused")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 40)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	jobs.call("advance_seconds", 120.0)
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 2, "crucible repeats while paid")
+	failed += _assert(int(game_state.get("stone")) == 0, "repeat spends the remaining stone")
+	failed += _assert(not bool(jobs.call("has_job", "crucible")), "repeat stops when it cannot pay")
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "sapsteel", 24)
+	backpack.call("set_count", "heartwood_bits", 12)
+	backpack.call("set_count", "amberbind", 8)
+	game_state.call("set_resource", &"essence", 300)
+	failed += _assert(str(jobs.call("try_begin_job", "anvil", "rootsteel_edge")) == "ok", "anvil starts")
+	jobs.call("set_keeper_working", "anvil", true)
+	jobs.call("advance_seconds", 1200.0)
+	failed += _assert(int(equipment.call("unequipped_count", "rootsteel_edge")) == 1, "anvil finishes one weapon")
+	failed += _assert(not bool(jobs.call("has_job", "anvil")), "anvil does not repeat")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 12, "anvil leaves the next batch")
+	failed += _assert(int(game_state.get("essence")) == 150, "anvil leaves the next essence")
+	failed += _assert(str(jobs.call("try_begin_job", "anvil", "rootsteel_edge")) == "owned", "a owned weapon is refused")
+	backpack.call("set_count", "sapsteel", 6)
+	backpack.call("set_count", "heartwood_bits", 6)
+	backpack.call("set_count", "amberbind", 6)
+	game_state.call("set_resource", &"essence", 100)
+	game_state.set("forge_key", true)
+	jobs.call("set_keeper_working", "reliquary", true)
+	failed += _assert(str(jobs.call("try_begin_job", "reliquary", "oakheart_knot")) == "ok", "reliquary starts")
+	jobs.call("advance_seconds", 600.0)
+	failed += _assert(str(equipment.call("try_equip", "oakheart_knot")) == "ok", "oakheart equips")
+	failed += _assert(int(equipment.call("gear_bonus", "might")) == 3, "oakheart +3 might")
+	failed += _assert(int(equipment.call("gear_bonus", "resilience")) == 2, "oakheart +2 resilience")
+	game_state.call("reset_for_new_game")
+	var v8: Dictionary = {
+		"forge_key": true,
+		"equipment_equipped": {"relic": "forge_key_relic", "weapon": null},
+		"gear_inventory": {},
+	}
+	var migrated: Dictionary = save_service.call("_migrate", 8, v8)
+	var eq: Dictionary = migrated.get("equipment_equipped", {})
+	failed += _assert(eq.get("relic", "stuck") == null, "v8 equipped key leaves the relic slot")
+	var bag: Dictionary = migrated.get("gear_inventory", {})
+	failed += _assert(int(bag.get("forge_key_relic", 0)) == 1, "v8 key moves into inventory")
+	failed += _assert(typeof(migrated.get("forge_jobs", null)) == TYPE_DICTIONARY, "v8 gains forge jobs")
+	failed += _assert(typeof(migrated.get("keeper_task", null)) == TYPE_DICTIONARY, "v8 gains the keeper task")
+	failed += _assert(typeof(migrated.get("item_categories", null)) == TYPE_DICTIONARY, "v8 gains item categories")
+	game_state.call("apply_save_dict", migrated)
+	failed += _assert(str(equipment.call("equipped_id", "relic")) == "", "loaded v8 key is not re-equipped")
+	failed += _assert(int(equipment.call("unequipped_count", "forge_key_relic")) == 1, "loaded v8 key sits in the bag")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	backpack.call("set_count", "sapsteel", 4)
+	failed += _assert(str(jobs.call("ascend_warning")) != "", "ascend warns about forge losses")
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.call("ascend")
+	failed += _assert(not bool(jobs.call("has_job", "crucible")), "ascend clears forge jobs")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 0, "ascend clears forge materials")
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "sapsteel", 7)
+	(game_state.get("upgrade_ranks") as Dictionary)["keep_forge_intermediates"] = 1
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.call("ascend")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 7, "keep materials holds sapsteel")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	jobs.call("advance_seconds", 12.0)
+	var kept: float = float(jobs.call("job_progress", "crucible"))
+	(game_state.get("upgrade_ranks") as Dictionary)["keep_forge_jobs"] = 1
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.call("ascend")
+	failed += _assert(bool(jobs.call("has_job", "crucible")), "keep jobs holds the station")
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - kept) < 0.05, "kept job keeps its progress")
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "crucible"))) < 0.01, "a kept job waits for a worker")
+	var copy_src: String = FileAccess.get_file_as_string("res://data/forge_copy.json")
+	failed += _assert(copy_src.to_lower().find("companion") < 0, "player copy never says companion")
+	jobs.call("set_companion_working", "mill", "hook", true)
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "mill")) - 1.0) < 0.01, "companion hook can work a station")
+	jobs.call("set_companion_working", "mill", "", false)
+	var packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
+	failed += _assert(packed != null, "forge room loads")
+	if packed:
+		var room: Node = packed.instantiate()
+		tree_root.add_child(room)
+		var poly: CollisionPolygon2D = room.get_node_or_null("Walls/CollisionPolygon2D") as CollisionPolygon2D
+		failed += _assert(poly != null and poly.polygon.size() == 74, "round room wall has 74 points")
+		var stations: int = 0
+		for node: Node in room.get_tree().get_nodes_in_group("forge_station"):
+			if str(node.get("station_id")) != "":
+				stations += 1
+		failed += _assert(stations == 5, "five station scenes")
+		failed += _assert(room.get_node_or_null("ExitDoor") != null, "south exit")
+		failed += _assert(room.get_node_or_null("SwirlOverlay") != null, "swirl overlay slot")
+		room.free()
+	game_state.call("reset_for_new_game")
+	return failed
 
 
 func _assert(cond: bool, msg: String) -> int:

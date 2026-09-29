@@ -201,6 +201,7 @@ func _ready() -> void:
 	water_button.pressed.connect(_on_water)
 	pay_button.pressed.connect(_on_pay)
 	_ensure_forge_controls()
+	_ensure_wisp_counter()
 	if not GameState.echo_flags_changed.is_connected(_refresh_forge_entry):
 		GameState.echo_flags_changed.connect(_refresh_forge_entry)
 	welcome_dismiss_button.pressed.connect(_on_welcome_dismiss)
@@ -770,6 +771,29 @@ func hide_prestige_menu() -> void:
 	hide_ascension_shop()
 
 
+func _ensure_wisp_counter() -> void:
+	var counter := Label.new()
+	counter.name = "WispCounter"
+	counter.position = Vector2(780, 14)
+	counter.size = Vector2(180, 28)
+	counter.add_theme_font_size_override("font_size", 15)
+	counter.add_theme_color_override("font_color", Color(0.86, 0.95, 0.9, 1))
+	add_child(counter)
+	if not GameState.wisps_changed.is_connected(_refresh_wisp_counter):
+		GameState.wisps_changed.connect(_refresh_wisp_counter)
+	_refresh_wisp_counter()
+
+
+func _refresh_wisp_counter() -> void:
+	var counter: Label = get_node_or_null("WispCounter") as Label
+	if counter == null:
+		return
+	var text: String = "Wisps: %d" % GameState.wisp_count
+	if has_node("/root/ForgeJobs"):
+		text = ForgeJobs.copy_text("wisp_counter", {"count": GameState.wisp_count})
+	counter.text = text
+
+
 func _ensure_forge_controls() -> void:
 	if care_panel == null:
 		return
@@ -834,7 +858,10 @@ func _refresh_forge_entry() -> void:
 		return
 	forge_button.text = ContentStrings.get_text("forge_enter")
 	forge_button.disabled = false
-	if GameState.forge_key:
+	var owns_key: bool = GameState.forge_key
+	if has_node("/root/ForgeJobs"):
+		owns_key = ForgeJobs.owns_forge_key()
+	if owns_key:
 		forge_button.modulate = Color.WHITE
 	else:
 		forge_button.modulate = Color(0.45, 0.47, 0.44, 1)
@@ -859,16 +886,23 @@ func forge_popup_text() -> String:
 
 
 func open_forge_entry() -> String:
-	var msg: String = ContentStrings.get_text("forge_not_built" if GameState.forge_key else "forge_no_key")
-	if _forge_popup_body:
-		_forge_popup_body.text = msg
-	if care_panel and care_panel.visible:
-		_care_hidden_for_forge = true
-		care_panel.visible = false
-	if _forge_popup:
-		_forge_popup.visible = true
-	GameAudio.play_ui_confirm()
-	return msg
+	var owns_key: bool = GameState.forge_key
+	if has_node("/root/ForgeJobs"):
+		owns_key = ForgeJobs.owns_forge_key()
+	if not owns_key:
+		var msg: String = ContentStrings.get_text("forge_no_key")
+		if _forge_popup_body:
+			_forge_popup_body.text = msg
+		if care_panel and care_panel.visible:
+			_care_hidden_for_forge = true
+			care_panel.visible = false
+		if _forge_popup:
+			_forge_popup.visible = true
+		GameAudio.play_ui_confirm()
+		return msg
+	if has_node("/root/ForgeJobs") and ForgeJobs.can_enter_forge():
+		return ForgeJobs.try_enter_forge()
+	return "denied"
 
 
 func hide_forge_popup() -> void:
@@ -1765,8 +1799,14 @@ func _on_ascend() -> void:
 		return
 	if not _confirm_ascend:
 		_confirm_ascend = true
+		var confirm_line: String = ContentStrings.get_text("ascend_confirm")
+		if has_node("/root/ForgeJobs"):
+			var warn: String = ForgeJobs.ascend_warning()
+			if warn != "":
+				confirm_line = warn
+				ascend_button.tooltip_text = warn
 		_show_toast("%s\n%s" % [
-			ContentStrings.get_text("ascend_confirm"),
+			confirm_line,
 			ContentStrings.get_text("ascend_hint"),
 		])
 		ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")

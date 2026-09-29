@@ -86,6 +86,24 @@ func is_known_item(item_id: String) -> bool:
 	return _item_index.has(item_id)
 
 
+func item_category(item_id: String) -> String:
+	var cat: String = str(get_item_def(item_id).get("category", ""))
+	if cat != "":
+		return cat
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.category_of(item_id)
+	return ""
+
+
+func matches_filter(item_id: String, filter_id: String) -> bool:
+	## Pass B backpack filters. Existing All / Tools / Parts tabs stay as they are.
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.matches_backpack_filter(item_id, filter_id)
+	if filter_id == "" or filter_id == "all":
+		return true
+	return item_category(item_id) == filter_id
+
+
 func is_unique_item(item_id: String) -> bool:
 	return bool(get_item_def(item_id).get("unique", false))
 
