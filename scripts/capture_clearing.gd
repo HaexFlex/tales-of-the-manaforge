@@ -1,9 +1,11 @@
 extends SceneTree
-## Top-down shot of the whole 4320×3780 clearing.
+## Debug-only full-clearing shots. Does not save the scene or change gameplay.
+## The root window stays 1280×720 (canvas_items stretch), so this renders a
+## SubViewport whose camera fits the play rect plus every forest sprite.
 ##   xvfb-run -a godot --display-driver x11 --rendering-driver opengl3 --path . -s res://scripts/capture_clearing.gd
 
-const OUT_PATH: String = "/opt/cursor/artifacts/clearing_topdown.png"
-const PLAY: Vector2 = Vector2(4320, 3780)
+const OUT_DIR: String = "/opt/cursor/artifacts"
+const OUT_W: int = 2160
 
 
 func _init() -> void:
@@ -21,116 +23,105 @@ func _run() -> void:
 	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
 	var live: Node = packed.instantiate()
 	root.add_child(live)
-	var window: Window = root.get_window()
-	window.size = Vector2i(2160, 1890)
-	var camera: Camera2D = live.get_node("Camera2D") as Camera2D
-	camera.limit_left = -100000
-	camera.limit_top = -100000
-	camera.limit_right = 100000
-	camera.limit_bottom = 100000
-	camera.position = PLAY * 0.5
-	camera.zoom = Vector2(0.5, 0.5)
-	camera.enabled = true
-	camera.make_current()
-	var hud: CanvasItem = live.get_node_or_null("HUD") as CanvasItem
-	if hud:
-		hud.visible = false
-	var pause: CanvasItem = live.get_node_or_null("PauseMenu") as CanvasItem
-	if pause:
-		pause.visible = false
-	for _i: int in range(4):
+	await process_frame
+	## Boot intent "new" clears welcome_shown inside _enter_tree. Hide UI after that.
+	if gs:
+		gs.set("welcome_shown", true)
+	_hide_ui(live)
+	await process_frame
+	var frame: Rect2 = _frame_rect(live)
+	var zoom: float = float(OUT_W) / frame.size.x
+	var out_h: int = maxi(2, int(round(frame.size.y * zoom)))
+	var shot: SubViewport = _make_view(live, frame, zoom, out_h)
+	for _i: int in range(3):
 		await process_frame
-	var img: Image = root.get_viewport().get_texture().get_image()
-	var rendered: bool = img != null and img.get_width() > 64 and not _is_blank(img)
-	if rendered:
-		img.save_png(OUT_PATH)
-		print("CAPTURE_RENDER %dx%d" % [img.get_width(), img.get_height()])
-	else:
-		_schematic(live).save_png(OUT_PATH)
-		print("CAPTURE_SCHEMATIC")
+	var sapling: Image = shot.get_texture().get_image()
+	if not _image_ok(sapling, out_h):
+		push_error("capture_clearing: sapling render failed")
+		quit(1)
+		return
+	var sapling_path: String = OUT_DIR + "/clearing_topdown.png"
+	sapling.save_png(sapling_path)
+	_report("sapling", sapling, frame, zoom, live)
+	if gs and gs.has_method("_set_stage"):
+		gs.call("_set_stage", &"ancient")
+	_hide_ui(live)
+	for _j: int in range(4):
+		await process_frame
+	var ancient: Image = shot.get_texture().get_image()
+	if not _image_ok(ancient, out_h):
+		push_error("capture_clearing: ancient render failed")
+		quit(1)
+		return
+	var ancient_path: String = OUT_DIR + "/clearing_topdown_ancient.png"
+	ancient.save_png(ancient_path)
+	_report("ancient", ancient, frame, zoom, live)
 	print("CAPTURE_OK")
 	quit(0)
 
 
-func _is_blank(img: Image) -> bool:
-	var sample: Color = img.get_pixel(img.get_width() / 2, img.get_height() / 2)
-	var corners: Array[Color] = [
-		img.get_pixel(8, 8),
-		img.get_pixel(img.get_width() - 8, 8),
-		img.get_pixel(8, img.get_height() - 8),
-	]
-	for corner: Color in corners:
-		if absf(corner.r - sample.r) + absf(corner.g - sample.g) + absf(corner.b - sample.b) > 0.04:
-			return false
-	return true
+func _hide_ui(live: Node) -> void:
+	for node_name: String in ["HUD", "PauseMenu"]:
+		var layer: CanvasItem = live.get_node_or_null(node_name) as CanvasItem
+		if layer:
+			layer.visible = false
+			layer.process_mode = Node.PROCESS_MODE_DISABLED
+	var welcome: CanvasItem = live.get_node_or_null("HUD/WelcomePanel") as CanvasItem
+	if welcome:
+		welcome.visible = false
+	var tree_label: CanvasItem = live.get_node_or_null("World/Manatree/Label") as CanvasItem
+	if tree_label:
+		tree_label.visible = false
+	var fruit: CanvasItem = live.get_node_or_null("World/Manatree/FruitHint") as CanvasItem
+	if fruit:
+		fruit.visible = false
 
 
-func _schematic(live: Node) -> Image:
-	var scale: float = 0.25
-	var img := Image.create(int(PLAY.x * scale), int(PLAY.y * scale), false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.16, 0.28, 0.14, 1))
+func _make_view(live: Node, frame: Rect2, zoom: float, out_h: int) -> SubViewport:
+	var shot := SubViewport.new()
+	shot.name = "ClearingShot"
+	shot.size = Vector2i(OUT_W, out_h)
+	shot.transparent_bg = false
+	shot.handle_input_locally = false
+	shot.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	shot.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
+	shot.world_2d = live.get_world_2d()
+	root.add_child(shot)
+	var cam := Camera2D.new()
+	cam.name = "ShotCamera"
+	cam.enabled = true
+	cam.position_smoothing_enabled = false
+	cam.position = frame.get_center()
+	cam.zoom = Vector2(zoom, zoom)
+	shot.add_child(cam)
+	cam.make_current()
+	return shot
+
+
+func _frame_rect(live: Node) -> Rect2:
+	var play: Vector2 = live.call("get_play_size")
+	var bounds := Rect2(Vector2.ZERO, play)
 	var world: Node2D = live.get_node("World") as Node2D
 	for child: Node in world.get_children():
 		var kind: String = str(child.get("prop_kind"))
-		if kind != "tree" and kind != "bush":
+		if kind != "tree" and kind != "bush" and kind != "tuft" and kind != "decor":
 			continue
 		var spr: Sprite2D = child.get_node_or_null("Sprite") as Sprite2D
 		if spr == null or spr.texture == null:
 			continue
-		var rect: Rect2 = _aabb(spr)
-		var col: Color = Color(0.05, 0.22, 0.08, 1) if kind == "tree" else Color(0.12, 0.38, 0.16, 1)
-		_fill_rect(img, rect, scale, col)
-	var paths: Node2D = live.get_node("Paths") as Node2D
-	for child: Node in paths.get_children():
-		if child is Line2D:
-			var line: Line2D = child as Line2D
-			for i: int in range(line.points.size() - 1):
-				_line(img, line.points[i], line.points[i + 1], scale, Color(0.72, 0.62, 0.38, 1))
-	var marks: Array[String] = ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "Keeper"]
-	for mark_name: String in marks:
-		var node: Node = world.get_node(mark_name)
-		var spr: Node = node.get_node_or_null("Sprite")
-		if spr == null:
-			spr = node.get_node_or_null("Visual/Marker")
-		if spr is Sprite2D and (spr as Sprite2D).texture != null:
-			_stroke(img, _aabb(spr as Sprite2D), scale, Color(0.95, 0.85, 0.2, 1))
-	var stones: Node2D = world.get_node("Runestones") as Node2D
-	for stone: Node in stones.get_children():
-		var spr: Sprite2D = stone.get_node_or_null("Stone") as Sprite2D
-		if spr and spr.texture:
-			_stroke(img, _aabb(spr), scale, Color(0.45, 0.75, 1.0, 1))
-	var origin: Vector2 = (world.get_node("Manatree") as Node2D).position
-	_stroke(img, _manatree_exclusion(origin), scale, Color(0.85, 0.25, 0.85, 1))
-	_stroke(img, Rect2(Vector2.ZERO, PLAY), scale, Color(1, 1, 1, 1))
-	return img
+		bounds = bounds.merge(_sprite_aabb(spr))
+	return bounds.grow(24.0)
 
 
-func _manatree_exclusion(origin: Vector2) -> Rect2:
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/art/manatree/manatree_meta.json"))
-	var union := Rect2()
-	var first: bool = true
-	for entry: Variant in (parsed as Dictionary).get("stages", []):
-		var stage: Dictionary = entry
-		var size_v: Array = stage.get("size", [0, 0])
-		var door_v: Array = stage.get("door_floor", [0, 0])
-		var sc: float = float(stage.get("display_scale", 1.0))
-		var sz := Vector2(float(size_v[0]), float(size_v[1])) * sc
-		var door := Vector2(float(door_v[0]), float(door_v[1])) * sc
-		var rect := Rect2(origin + Vector2(-door.x, -door.y), sz)
-		union = rect if first else union.merge(rect)
-		first = false
-	return union.grow(96.0)
-
-
-func _aabb(spr: Sprite2D) -> Rect2:
+func _sprite_aabb(spr: Sprite2D) -> Rect2:
 	var fw: float = float(spr.texture.get_width())
 	var fh: float = float(spr.texture.get_height())
 	if spr.hframes > 1:
 		fw /= float(spr.hframes)
 	if spr.vframes > 1:
 		fh /= float(spr.vframes)
-	var xf: Transform2D = spr.global_transform
 	var local := Rect2(spr.offset, Vector2(fw, fh))
+	var xf: Transform2D = spr.global_transform
 	var pts: Array[Vector2] = [
 		xf * local.position,
 		xf * (local.position + Vector2(local.size.x, 0)),
@@ -145,36 +136,27 @@ func _aabb(spr: Sprite2D) -> Rect2:
 	return Rect2(lo, hi - lo)
 
 
-func _fill_rect(img: Image, rect: Rect2, scale: float, col: Color) -> void:
-	var x0: int = clampi(int(rect.position.x * scale), 0, img.get_width() - 1)
-	var y0: int = clampi(int(rect.position.y * scale), 0, img.get_height() - 1)
-	var x1: int = clampi(int(rect.end.x * scale), 0, img.get_width() - 1)
-	var y1: int = clampi(int(rect.end.y * scale), 0, img.get_height() - 1)
-	for y: int in range(y0, y1 + 1):
-		for x: int in range(x0, x1 + 1):
-			img.set_pixel(x, y, col)
+func _report(tag: String, img: Image, frame: Rect2, zoom: float, live: Node) -> void:
+	var keeper: Node2D = live.get_node("World/Keeper") as Node2D
+	var tree: Node2D = live.get_node("World/HarvestTree") as Node2D
+	print("CAPTURE_%s %dx%d zoom=%.4f frame=(%.1f,%.1f,%.1f,%.1f) keeper_px=%.1f tree_px=%.1f" % [
+		tag.to_upper(), img.get_width(), img.get_height(), zoom,
+		frame.position.x, frame.position.y, frame.size.x, frame.size.y,
+		128.0 * zoom, 384.0 * zoom,
+	])
+	print("CAPTURE_%s_ANCHORS keeper=%s tree=%s" % [
+		tag.to_upper(), _px(keeper.position, frame, zoom), _px(tree.position, frame, zoom),
+	])
 
 
-func _stroke(img: Image, rect: Rect2, scale: float, col: Color) -> void:
-	var x0: int = clampi(int(rect.position.x * scale), 0, img.get_width() - 1)
-	var y0: int = clampi(int(rect.position.y * scale), 0, img.get_height() - 1)
-	var x1: int = clampi(int(rect.end.x * scale), 0, img.get_width() - 1)
-	var y1: int = clampi(int(rect.end.y * scale), 0, img.get_height() - 1)
-	for x: int in range(x0, x1 + 1):
-		img.set_pixel(x, y0, col)
-		img.set_pixel(x, y1, col)
-	for y: int in range(y0, y1 + 1):
-		img.set_pixel(x0, y, col)
-		img.set_pixel(x1, y, col)
+func _px(world: Vector2, frame: Rect2, zoom: float) -> String:
+	var p: Vector2 = (world - frame.position) * zoom
+	return "(%.0f,%.0f)" % [p.x, p.y]
 
 
-func _line(img: Image, a: Vector2, b: Vector2, scale: float, col: Color) -> void:
-	var steps: int = int(a.distance_to(b) * scale)
-	steps = maxi(steps, 1)
-	for i: int in range(steps + 1):
-		var p: Vector2 = a.lerp(b, float(i) / float(steps)) * scale
-		var x: int = clampi(int(p.x), 0, img.get_width() - 1)
-		var y: int = clampi(int(p.y), 0, img.get_height() - 1)
-		img.set_pixel(x, y, col)
-		if x + 1 < img.get_width():
-			img.set_pixel(x + 1, y, col)
+func _image_ok(img: Image, out_h: int) -> bool:
+	if img == null or img.get_width() != OUT_W or img.get_height() != out_h:
+		return false
+	var mid: Color = img.get_pixel(img.get_width() / 2, img.get_height() / 2)
+	var corner: Color = img.get_pixel(4, 4)
+	return absf(mid.r - corner.r) + absf(mid.g - corner.g) + absf(mid.b - corner.b) > 0.05
