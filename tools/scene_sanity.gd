@@ -208,6 +208,13 @@ func _layout_pass(live: Node) -> int:
 	var berry_sprite: Sprite2D = berry.get_node("Sprite") as Sprite2D
 	failed += _check(berry_spent != null and str(berry_spent.resource_path).ends_with("harvest_berry_spent.png"), "berry spent texture ready")
 	failed += _check(berry_sprite.texture != null and str(berry_sprite.texture.resource_path).ends_with("berry_harvest_node.png"), "berry still shows the live art")
+	var stone_spent: Texture2D = stone.get("spent_texture") as Texture2D
+	var stone_sprite: Sprite2D = stone.get_node("Sprite") as Sprite2D
+	failed += _check(stone_spent != null and str(stone_spent.resource_path).ends_with("harvest_stone_spent.png"), "stone spent texture ready")
+	failed += _check(stone_sprite.texture != null and str(stone_sprite.texture.resource_path).ends_with("harvest_stone.png"), "stone still shows the live art")
+	var main_src: String = FileAccess.get_file_as_string("res://scenes/main.tscn")
+	failed += _check(main_src.find("width = 36.0") < 0 and main_src.find("width = 48.0") >= 0, "saved path width 48")
+	failed += _check(main_src.find("texture_repeat = 2") >= 0 and main_src.find("texture_filter = 1") >= 0, "saved path filter and repeat")
 	var ground: TileMap = live.get_node_or_null("Ground") as TileMap
 	var cells: int = ground.get_used_cells(0).size() if ground else 0
 	failed += _check(cells >= 4900, "grass covers wide clearing (%d)" % cells)

@@ -26,6 +26,7 @@
 [ext_resource type="Texture2D" path="res://assets/art/props/trample/trample_patch_03.png" id="23_p3"]
 [ext_resource type="Texture2D" path="res://assets/art/props/harvest_tree_spent.png" id="24_tree_spent"]
 [ext_resource type="Texture2D" path="res://assets/art/props/harvest_berry_spent.png" id="25_berry_spent"]
+[ext_resource type="Texture2D" path="res://assets/art/props/harvest_stone_spent.png" id="26_stone_spent"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_yc10j"]
 texture = ExtResource("2_0ld40")
@@ -62,102 +63,157 @@ path_width = 48.0
 
 [node name="ToHarvestTree" type="Line2D" parent="Paths" unique_id=464354625]
 points = PackedVector2Array(2400, 2340, 1989.2063, 2214.762, 1560, 2200)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToHarvestStone" type="Line2D" parent="Paths" unique_id=311628853]
 points = PackedVector2Array(2400, 2340, 2804.6157, 2166.1545, 3240, 2100)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToHarvestBerry" type="Line2D" parent="Paths" unique_id=597855622]
 points = PackedVector2Array(2400, 2340, 2672.4739, 2589.3232, 3000, 2760)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToEchoPortal" type="Line2D" parent="Paths" unique_id=1160769102]
 points = PackedVector2Array(2400, 2340, 2420.402, 1914.3431, 2520, 1500)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToMight" type="Line2D" parent="Paths" unique_id=1625475057]
 points = PackedVector2Array(2400, 2340, 2795.1377, 2048.332, 3120, 1680)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToArcana" type="Line2D" parent="Paths" unique_id=1389587758]
 points = PackedVector2Array(2400, 2340, 2924.821, 2114.4631, 3480, 1980)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToResilience" type="Line2D" parent="Paths" unique_id=1757981152]
 points = PackedVector2Array(2400, 2340, 2965.3938, 2443.7583, 3540, 2460)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToWard" type="Line2D" parent="Paths" unique_id=853996248]
 points = PackedVector2Array(2400, 2340, 2821.705, 2598.7834, 3180, 2940)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToVitality" type="Line2D" parent="Paths" unique_id=1911209003]
 points = PackedVector2Array(2400, 2340, 2156.2534, 2648.525, 1980, 3000)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToSwiftness" type="Line2D" parent="Paths" unique_id=1677150273]
 points = PackedVector2Array(2400, 2340, 1963.9141, 2531.7422, 1500, 2640)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="ToFate" type="Line2D" parent="Paths" unique_id=1344185008]
 points = PackedVector2Array(2400, 2340, 1930.7379, 2155.6387, 1440, 2040)
-width = 36.0
-default_color = Color(0.55, 0.46, 0.34, 0.32)
+z_index = 0
+texture_filter = 1
+texture_repeat = 2
+width = 48.0
+default_color = Color(1, 1, 1, 1)
+texture = ExtResource("20_path")
 texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
+antialiased = false
 
 [node name="PatchBaseManatree" type="Sprite2D" parent="Paths"]
 z_index = 1
@@ -359,6 +415,7 @@ script = ExtResource("8_jscy8")
 resource_id = &"stone"
 display_name = "Harvest Stone"
 node_key = "stone"
+spent_texture = ExtResource("26_stone_spent")
 
 [node name="HarvestBerry" type="Area2D" parent="World" unique_id=1907999646 instance=ExtResource("4_gath")]
 unique_name_in_owner = true
