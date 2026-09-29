@@ -64,6 +64,8 @@ func open_battle(already_paid: bool) -> void:
 	battle = EchoBattle.new()
 	battle.force_crit = -1
 	battle.configure(_keeper_totals(), _echo_def)
+	battle.strike_kind = Equipment.equipped_strike_kind()
+	battle.arrow_mode = "magical" if GameState.arrow_mode == "magical" else "physical"
 	in_battle = true
 	GameAudio.suspend_hub_for_battle()
 	var packed: PackedScene = load(BATTLE_SCENE) as PackedScene

@@ -1,3 +1,4 @@
+@tool
 extends Area2D
 class_name EchoPortal
 ## Hub portal. Same command as a Runestone: Keeper selected, right-click, walk in range, confirm.
@@ -21,6 +22,12 @@ var _hovered: bool = false
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		_fit_marker()
+		if label:
+			label.text = "Echo"
+			label.visible = true
+		return
 	add_to_group("echo_portal")
 	add_to_group("interactable")
 	y_sort_enabled = true
@@ -63,6 +70,8 @@ func _fit_marker() -> void:
 
 
 func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	if not visible or marker == null:
 		return
 	_pulse += delta

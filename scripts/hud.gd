@@ -374,6 +374,10 @@ func _item_icon_path(item_id: String) -> String:
 			return "res://assets/art/ui/icons/icon_weapon_rod.png"
 		"forge_key_relic":
 			return "res://assets/art/ui/icons/icon_forge_key.png"
+		"sapstaff":
+			return "res://assets/art/ui/icon_sapstaff.png"
+		"thornbow":
+			return "res://assets/art/ui/icon_thornbow.png"
 		"wood":
 			return ICON_WOOD_TEX
 		"stone":
@@ -1387,7 +1391,10 @@ func _rebuild_backpack() -> void:
 		if typeof(gear_entry) != TYPE_DICTIONARY:
 			continue
 		var gear_rec: Dictionary = gear_entry
-		craft_list.add_child(_make_craft_row(str(gear_rec.get("id", "")), true))
+		var gear_id: String = str(gear_rec.get("id", ""))
+		if Equipment.recipe_station(gear_id) == "anvil":
+			continue
+		craft_list.add_child(_make_craft_row(gear_id, true))
 
 
 func _placeholder_icon(color: Color) -> ColorRect:
@@ -1503,6 +1510,10 @@ func _craft_row_cost_text(recipe_id: String) -> String:
 			gear_costs = _content_line("stone_sword_craft_cost")
 		elif recipe_id == "weapon_rod":
 			gear_costs = _content_line("handcraft_row_weapon_rod_short")
+		elif recipe_id == "sapstaff":
+			gear_costs = _content_line("sapstaff_craft_cost")
+		elif recipe_id == "thornbow":
+			gear_costs = _content_line("thornbow_craft_cost")
 		if gear_costs == "":
 			gear_costs = "  ".join(Equipment.recipe_ingredient_lines(recipe_id))
 		var gear_wrapped: String = _content_line("handcraft_row_costs_only", {"costs": gear_costs})

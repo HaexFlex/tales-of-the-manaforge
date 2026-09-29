@@ -1,10 +1,15 @@
+@tool
 extends Area2D
 class_name Runestone
 ## One hub stone per combat stat. Keeper selected + right-click walks in range,
 ## then a Manashard confirm raises that stat by 1.
 ## Each stat uses a distinct 32×32 cell of runestones_sheet.png (8×8 atlas).
 
-@export var stat_id: StringName = &"might"
+@export var stat_id: StringName = &"might":
+	set(value):
+		stat_id = value
+		if Engine.is_editor_hint() and is_inside_tree():
+			_apply_editor_preview()
 
 @onready var stone: Sprite2D = $Stone
 @onready var label: Label = $Label
@@ -28,6 +33,9 @@ var _hovered: bool = false
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		_apply_editor_preview()
+		return
 	add_to_group("runestone")
 	add_to_group("interactable")
 	y_sort_enabled = true
@@ -56,6 +64,21 @@ func _ready() -> void:
 
 
 ## Column, row on the 8×8 runestone sheet. Chosen from separate silhouette groups.
+func _apply_editor_preview() -> void:
+	if stone == null:
+		stone = get_node_or_null("Stone") as Sprite2D
+	if stone:
+		stone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		stone.centered = false
+		stone.hframes = 1
+		stone.scale = Vector2(2, 2)
+		stone.offset = Vector2(-16, -32)
+		_apply_sheet_frame()
+	if label:
+		label.text = String(stat_id).capitalize()
+		label.visible = true
+
+
 func sheet_cell() -> Vector2i:
 	match String(stat_id):
 		"might":

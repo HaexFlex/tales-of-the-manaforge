@@ -27,6 +27,10 @@ static func make_item_icon(item_id: String) -> Control:
 	match item_id:
 		"forge_key_relic":
 			path = "res://assets/art/ui/icons/icon_forge_key.png"
+		"sapstaff":
+			path = "res://assets/art/ui/icon_sapstaff.png"
+		"thornbow":
+			path = "res://assets/art/ui/icon_thornbow.png"
 	if path != "" and ResourceLoader.exists(path):
 		var icon := TextureRect.new()
 		icon.custom_minimum_size = Vector2(32, 32)

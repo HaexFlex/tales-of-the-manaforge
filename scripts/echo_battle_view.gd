@@ -15,25 +15,26 @@ const KEEPER_IDLE: String = "res://assets/art/keeper/keeper_idle_south.png"
 const ELAIA_FRONT: String = "res://assets/art/echo/elaia_front.png"
 
 var _battle: EchoBattle
-var _bg: ColorRect
-var _ground: ColorRect
-var _command_band: ColorRect
-var _mercy_banner: ColorRect
-var _mercy_label: Label
-var _keeper_portrait: TextureRect
-var _echo_portrait: TextureRect
-var _keeper_hp_fill: ColorRect
-var _echo_hp_fill: ColorRect
-var _keeper_hp_label: Label
-var _echo_hp_label: Label
-var _title: Label
-var _speech_bg: ColorRect
-var _speech: Label
-var _log: Label
-var _strike: Button
-var _flee: Button
-var _spare: Button
-var _return_btn: Button
+@onready var _bg: ColorRect = $Background
+@onready var _ground: ColorRect = $Ground
+@onready var _command_band: ColorRect = $CommandBand
+@onready var _mercy_banner: ColorRect = $MercyBanner
+@onready var _mercy_label: Label = $MercyLabel
+@onready var _keeper_portrait: TextureRect = $KeeperPortrait
+@onready var _echo_portrait: TextureRect = $EchoPortrait
+@onready var _keeper_hp_fill: ColorRect = $KeeperHpFill
+@onready var _echo_hp_fill: ColorRect = $EchoHpFill
+@onready var _keeper_hp_label: Label = $KeeperHpText
+@onready var _echo_hp_label: Label = $EchoHpText
+@onready var _title: Label = $Title
+@onready var _speech_bg: ColorRect = $SpeechBg
+@onready var _speech: Label = $Speech
+@onready var _log: Label = $Log
+@onready var _strike: Button = $StrikeButton
+@onready var _flee: Button = $FleeButton
+@onready var _spare: Button = $SpareButton
+@onready var _return_btn: Button = $ReturnButton
+@onready var _arrow: Button = $ArrowToggle
 var _mercy_shown: bool = false
 var _waiting_return: bool = false
 var _pending_outcome: String = ""
@@ -44,7 +45,12 @@ var _pulse: float = 0.0
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 50
-	_build()
+	_apply_button_copy()
+	var chamber_art: TextureRect = get_node_or_null("ChamberArt") as TextureRect
+	if chamber_art and chamber_art.texture != null:
+		chamber_art.visible = true
+		if _bg:
+			_bg.visible = false
 	_bind()
 
 
@@ -73,6 +79,14 @@ func is_strike_shown() -> bool:
 	return _strike != null and _strike.visible
 
 
+func is_arrow_toggle_shown() -> bool:
+	return _arrow != null and _arrow.visible
+
+
+func arrow_toggle_text() -> String:
+	return _arrow.text if _arrow else ""
+
+
 func speech_text() -> String:
 	return _speech.text if _speech else ""
 
@@ -87,12 +101,12 @@ func portrait_size() -> Vector2:
 
 func keeper_uses_idle_texture() -> bool:
 	return _keeper_portrait != null and _keeper_portrait.texture != null \
-		and str(_keeper_portrait.texture.resource_path).find("keeper_idle_south") >= 0
+		and str(_keeper_portrait.texture.resource_path).find(KEEPER_IDLE.get_file()) >= 0
 
 
 func echo_uses_elaia_texture() -> bool:
 	return _echo_portrait != null and _echo_portrait.texture != null \
-		and str(_echo_portrait.texture.resource_path).find("elaia_front") >= 0
+		and str(_echo_portrait.texture.resource_path).find(ELAIA_FRONT.get_file()) >= 0
 
 
 func command_band_size() -> Vector2:
@@ -136,6 +150,18 @@ func log_top() -> float:
 
 func _enemy_name() -> String:
 	return EchoChamber.echo_display_name()
+
+
+func _apply_button_copy() -> void:
+	_strike.text = ContentStrings.get_text("battle_strike")
+	_flee.text = ContentStrings.get_text("battle_flee")
+	_spare.text = ContentStrings.get_text("battle_spare")
+	_return_btn.text = ContentStrings.get_text("battle_return")
+	_arrow.text = ContentStrings.get_text("battle_toggle_phys")
+	var log_title: Label = get_node_or_null("LogTitle") as Label
+	if log_title:
+		log_title.text = ContentStrings.get_text("battle_log_title")
+	_title.text = ContentStrings.get_text("battle_title")
 
 
 func _bind() -> void:
@@ -200,6 +226,16 @@ func _on_spare() -> void:
 	_choose("spare")
 
 
+func _on_arrow() -> void:
+	if _battle == null or _waiting_return or _battle.strike_kind != "hybrid":
+		return
+	GameAudio.play_ui_confirm()
+	var mode: String = _battle.toggle_arrow_mode()
+	GameState.arrow_mode = mode
+	_refresh_actions()
+	_refresh_log()
+
+
 func _choose(action: String) -> void:
 	if _battle == null or _waiting_return:
 		return
@@ -235,6 +271,8 @@ func _offer_return(outcome: String) -> void:
 	_strike.visible = false
 	_flee.visible = false
 	_spare.visible = false
+	if _arrow:
+		_arrow.visible = false
 	_return_btn.visible = true
 	if _log:
 		_log.text = _pending_toast
@@ -290,6 +328,15 @@ func _refresh_actions() -> void:
 	_flee.visible = actions.has("flee")
 	_spare.visible = actions.has("spare")
 	_return_btn.visible = false
+	if _strike:
+		_strike.text = ContentStrings.get_text("battle_strike")
+	if _arrow:
+		var hybrid: bool = _battle.strike_kind == "hybrid" and _battle.outcome == ""
+		_arrow.visible = hybrid
+		if hybrid:
+			var magical: bool = _battle.arrow_mode == "magical"
+			_arrow.text = ContentStrings.get_text("battle_toggle_mag" if magical else "battle_toggle_phys")
+			_arrow.tooltip_text = ContentStrings.get_text("battle_mode_hint")
 
 
 func _refresh_bars(flash: bool) -> void:
@@ -322,178 +369,3 @@ func _refresh_log() -> void:
 	_log.text = "\n".join(shown)
 
 
-func _build() -> void:
-	_bg = ColorRect.new()
-	_bg.name = "Background"
-	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bg.color = Color(0.07, 0.12, 0.11, 1)
-	_bg.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_bg)
-	_ground = ColorRect.new()
-	_ground.name = "Ground"
-	_ground.anchor_right = 1.0
-	_ground.anchor_bottom = 1.0
-	_ground.offset_top = 500.0
-	_ground.color = Color(0.14, 0.24, 0.18, 1)
-	_ground.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_ground)
-	_mercy_banner = ColorRect.new()
-	_mercy_banner.name = "MercyBanner"
-	_mercy_banner.position = Vector2(200, 2)
-	_mercy_banner.size = Vector2(880, 20)
-	_mercy_banner.color = Color(0.12, 0.22, 0.2, 0.94)
-	_mercy_banner.visible = false
-	_mercy_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_mercy_banner)
-	_mercy_label = Label.new()
-	_mercy_label.name = "MercyLabel"
-	_mercy_label.position = Vector2(216, 2)
-	_mercy_label.size = Vector2(848, 18)
-	_mercy_label.visible = false
-	_mercy_label.add_theme_font_size_override("font_size", 12)
-	_mercy_label.add_theme_color_override("font_color", Color(0.86, 0.92, 0.84, 1))
-	add_child(_mercy_label)
-	_title = _add_label("Title", Vector2(520, 2), Vector2(240, 14), ContentStrings.get_text("battle_title"), 15)
-	_speech_bg = ColorRect.new()
-	_speech_bg.name = "SpeechBg"
-	_speech_bg.position = SPEECH_POS
-	_speech_bg.size = SPEECH_SIZE
-	_speech_bg.color = Color(0.09, 0.15, 0.13, 0.94)
-	_speech_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_speech_bg)
-	_speech = Label.new()
-	_speech.name = "Speech"
-	_speech.position = SPEECH_POS + Vector2(10, 4)
-	_speech.size = SPEECH_SIZE - Vector2(20, 8)
-	_speech.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_speech.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_speech.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_speech.add_theme_font_size_override("font_size", 12)
-	_speech.add_theme_color_override("font_color", Color(0.86, 0.91, 0.84, 1))
-	add_child(_speech)
-	_add_label("KeeperName", Vector2(56, 98), Vector2(384, 16), ContentStrings.get_text("char_sheet_title"), 15)
-	_add_label("EchoName", Vector2(840, 98), Vector2(384, 16), EchoChamber.echo_display_name(), 15)
-	_keeper_portrait = _keeper_texture(KEEPER_PORTRAIT_POS)
-	_echo_portrait = _echo_texture(ECHO_PORTRAIT_POS)
-	var log_bg := ColorRect.new()
-	log_bg.name = "LogBg"
-	# Portraits end at y=498; log under them (lock: 100–140 above commands).
-	log_bg.position = LOG_BG_POS
-	log_bg.size = LOG_SIZE
-	log_bg.color = Color(0.08, 0.13, 0.11, 0.9)
-	log_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(log_bg)
-	_add_label("LogTitle", Vector2(560, 506), Vector2(160, 18), ContentStrings.get_text("battle_log_title"), 12)
-	_log = Label.new()
-	_log.name = "Log"
-	_log.position = Vector2(136, 526)
-	_log.size = Vector2(1008, 68)
-	_log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_log.add_theme_font_size_override("font_size", 12)
-	_log.add_theme_color_override("font_color", Color(0.7, 0.78, 0.7, 1))
-	add_child(_log)
-	# HP under each portrait; paint after log so bars stay readable.
-	_keeper_hp_fill = _hp_bar("KeeperHp", Vector2(56, 500), Color(0.52, 0.62, 0.28, 1))
-	_echo_hp_fill = _hp_bar("EchoHp", Vector2(840, 500), Color(0.32, 0.58, 0.56, 1))
-	_keeper_hp_label = _add_label("KeeperHpText", Vector2(56, 516), Vector2(384, 16), "", 12)
-	_echo_hp_label = _add_label("EchoHpText", Vector2(840, 516), Vector2(384, 16), "", 12)
-	_command_band = ColorRect.new()
-	_command_band.name = "CommandBand"
-	_command_band.position = Vector2(280, 600)
-	_command_band.size = COMMAND_SIZE
-	_command_band.color = Color(0.08, 0.14, 0.12, 0.96)
-	_command_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_command_band)
-	_strike = _button("StrikeButton", Vector2(308, 636), "battle_strike")
-	_flee = _button("FleeButton", Vector2(540, 636), "battle_flee")
-	_spare = _button("SpareButton", Vector2(772, 636), "battle_spare")
-	_return_btn = _button("ReturnButton", Vector2(540, 636), "battle_return")
-	_return_btn.visible = false
-	_strike.pressed.connect(_on_strike)
-	_flee.pressed.connect(_on_flee)
-	_spare.pressed.connect(_on_spare)
-	_return_btn.pressed.connect(_on_return)
-
-
-func _keeper_texture(pos: Vector2) -> TextureRect:
-	var frame := ColorRect.new()
-	frame.name = "KeeperPortraitFrame"
-	frame.position = pos - Vector2(6, 6)
-	frame.size = PORTRAIT + Vector2(12, 12)
-	frame.color = Color(0.04, 0.07, 0.06, 1)
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(frame)
-	var tex_rect := TextureRect.new()
-	tex_rect.name = "KeeperPortrait"
-	tex_rect.position = pos
-	tex_rect.size = PORTRAIT
-	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tex: Texture2D = load(KEEPER_IDLE) as Texture2D
-	tex_rect.texture = tex
-	add_child(tex_rect)
-	return tex_rect
-
-
-func _echo_texture(pos: Vector2) -> TextureRect:
-	var frame := ColorRect.new()
-	frame.name = "EchoPortraitFrame"
-	frame.position = pos - Vector2(6, 6)
-	frame.size = PORTRAIT + Vector2(12, 12)
-	frame.color = Color(0.04, 0.07, 0.06, 1)
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(frame)
-	var tex_rect := TextureRect.new()
-	tex_rect.name = "EchoPortrait"
-	tex_rect.position = pos
-	tex_rect.size = PORTRAIT
-	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tex: Texture2D = load(ELAIA_FRONT) as Texture2D
-	tex_rect.texture = tex
-	add_child(tex_rect)
-	return tex_rect
-
-
-func _hp_bar(node_name: String, pos: Vector2, fill_color: Color) -> ColorRect:
-	var back := ColorRect.new()
-	back.name = node_name + "Back"
-	back.position = pos
-	back.size = Vector2(PORTRAIT.x, 14)
-	back.color = Color(0.04, 0.06, 0.05, 1)
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(back)
-	var fill := ColorRect.new()
-	fill.name = node_name + "Fill"
-	fill.position = pos
-	fill.size = Vector2(PORTRAIT.x, 14)
-	fill.color = fill_color
-	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(fill)
-	return fill
-
-
-func _add_label(node_name: String, pos: Vector2, sz: Vector2, text: String, font_size: int) -> Label:
-	var lbl := Label.new()
-	lbl.name = node_name
-	lbl.position = pos
-	lbl.size = sz
-	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", font_size)
-	lbl.add_theme_color_override("font_color", Color(0.88, 0.92, 0.86, 1))
-	add_child(lbl)
-	return lbl
-
-
-func _button(node_name: String, pos: Vector2, key: String) -> Button:
-	var btn := Button.new()
-	btn.name = node_name
-	btn.position = pos
-	btn.size = Vector2(200, 40)
-	btn.text = ContentStrings.get_text(key)
-	add_child(btn)
-	return btn

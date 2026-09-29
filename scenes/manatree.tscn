@@ -42,3 +42,7 @@ mouse_filter = 2
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -96)
 shape = SubResource("RectangleShape2D_tree")
+
+[node name="Door" type="Marker2D" parent="."]
+unique_name_in_owner = true
+gizmo_extents = 20.0

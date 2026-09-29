@@ -686,6 +686,8 @@ Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor
 |----|---------|-------------------------|
 | `weapon_rod` | Weapon Rod | A simple wooden rod — your first lasting weapon. |
 | `stone_sword` | Stone Sword | A crude stone blade. Hits a little harder than a rod. |
+| `sapstaff` | Sapstaff | A focus of living wood — light that remembers wards. |
+| `thornbow` | Thornbow | A switch-shaft bow. It chooses its bite. |
 
 | key | string |
 |-----|--------|
@@ -695,6 +697,12 @@ Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor
 | `stone_sword_tooltip` | A crude stone blade. Hits a little harder than a rod. |
 | `stone_sword_craft_cost` | Stone Fragments ×30, Weapon Rod ×1 |
 | `stone_sword_craft_cost_default` | Stone Fragments ×30, Weapon Rod ×1 |
+| `sapstaff_name` | Sapstaff |
+| `sapstaff_tooltip` | A focus of living wood — light that remembers wards. |
+| `sapstaff_craft_cost` | Planks ×20, Food ×10, Weapon Rod ×1 |
+| `thornbow_name` | Thornbow |
+| `thornbow_tooltip` | A switch-shaft bow. It chooses its bite. |
+| `thornbow_craft_cost` | Planks ×25, Stone ×15 |
 | `weapon_craft_ok` | Crafted {item}. |
 | `weapon_persist_hint` | Weapons stay with you through Ascend. |
 | `relic_locked_tooltip` | Relics come later — when you hold a Forge Key. |
@@ -833,6 +841,13 @@ Brief lines for the **top dialogue band**. Battle log (lower) uses short action 
 | `battle_log_flee` | You flee. |
 | `battle_log_defeat` | {enemy} fades. |
 | `battle_log_fists` | Bare hands — no harm done. |
+| `battle_mode_phys` | Physical |
+| `battle_mode_mag` | Magical |
+| `battle_toggle_phys` | Phys |
+| `battle_toggle_mag` | Mag |
+| `battle_mode_hint` | Choose how this weapon bites. |
+| `battle_log_mode_phys` | You shift to a physical strike. |
+| `battle_log_mode_mag` | You shift to a magical strike. |
 
 ### 11f. Implementation notes for Code
 

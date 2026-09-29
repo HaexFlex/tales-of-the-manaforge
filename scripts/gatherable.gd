@@ -1,3 +1,4 @@
+@tool
 extends Area2D
 class_name Gatherable
 ## One of three harvest channels (tree→wood, stone→stone, berry→food). Hold/channel @ 1/sec.
@@ -5,7 +6,11 @@ class_name Gatherable
 @export var resource_id: StringName = &"wood"
 @export var display_name: String = "Wood"
 @export var stub_color: Color = Color("8d6e63")
-@export var node_key: String = "wood"
+@export var node_key: String = "wood":
+	set(value):
+		node_key = value
+		if Engine.is_editor_hint() and is_node_ready():
+			_apply_art()
 
 @onready var sprite: Sprite2D = $Sprite
 @onready var label: Label = $Label
@@ -34,6 +39,28 @@ const HARVEST_SCALE: Dictionary = {
 
 
 func _ready() -> void:
+	_apply_art()
+	if Engine.is_editor_hint():
+		if label:
+			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			label.visible = true
+		return
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
+	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_hover.bind(true))
+	mouse_exited.connect(_on_hover.bind(false))
+	GameState.selection_changed.connect(_refresh_prompt)
+	label.visible = false
+	add_to_group("gatherable")
+	add_to_group("interactable")
+	add_to_group("harvest_node")
+	y_sort_enabled = true
+
+
+func _apply_art() -> void:
+	if sprite == null:
+		return
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
 	var path: String = str(HARVEST_TEXTURES.get(node_key, HARVEST_TEXTURES["wood"]))
@@ -49,22 +76,15 @@ func _ready() -> void:
 	sprite.scale = Vector2(scale_v, scale_v)
 	sprite.offset = Vector2(-frame.x * 0.5, -frame.y)
 	var vis := frame * scale_v
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.position = Vector2(-48, -vis.y - 20.0)
-	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
-	input_event.connect(_on_input_event)
-	mouse_entered.connect(_on_hover.bind(true))
-	mouse_exited.connect(_on_hover.bind(false))
-	GameState.selection_changed.connect(_refresh_prompt)
-	label.visible = false
-	add_to_group("gatherable")
-	add_to_group("interactable")
-	add_to_group("harvest_node")
-	y_sort_enabled = true
-	var cs: CollisionShape2D = $CollisionShape2D
+	if label:
+		label.position = Vector2(-48, -vis.y - 20.0)
+		if Engine.is_editor_hint():
+			label.text = display_name if display_name != "" else node_key
+	var cs: CollisionShape2D = get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
-		# Full sprite footprint (not just feet box) so canopy/upper clicks count.
-		(cs.shape as RectangleShape2D).size = vis
+		var rect := (cs.shape as RectangleShape2D).duplicate() as RectangleShape2D
+		rect.size = vis
+		cs.shape = rect
 		cs.position = Vector2(0, -vis.y * 0.5)
 
 
