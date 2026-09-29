@@ -1,0 +1,110 @@
+{
+  "version": "v0.2.0-manatree-try-A",
+  "filter": "nearest",
+  "source": "assets/library/manatree_tries/A (Grok Imagine raws via tools/build_manatree.py, 8 frames horizontal). PROPOSAL, not wired; door_floor/size/display_scale identical to the live manatree_meta.json",
+  "fps": 7,
+  "haex_approved": false,
+  "stages": [
+    {
+      "stage_id": "sapling",
+      "file": "anim/manatree_sapling_strip.png",
+      "size": [
+        64,
+        64
+      ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 2,
+      "anchor": "door_floor",
+      "anchor_px": [
+        32,
+        64
+      ],
+      "door_floor": [
+        31,
+        51
+      ]
+    },
+    {
+      "stage_id": "young",
+      "file": "anim/manatree_young_strip.png",
+      "size": [
+        96,
+        96
+      ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 3,
+      "anchor": "door_floor",
+      "anchor_px": [
+        48,
+        96
+      ],
+      "door_floor": [
+        50,
+        85
+      ]
+    },
+    {
+      "stage_id": "mature",
+      "file": "anim/manatree_mature_strip.png",
+      "size": [
+        184,
+        184
+      ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 4,
+      "anchor": "door_floor",
+      "anchor_px": [
+        92,
+        184
+      ],
+      "door_floor": [
+        92,
+        134
+      ]
+    },
+    {
+      "stage_id": "elder",
+      "file": "anim/manatree_elder_strip.png",
+      "size": [
+        256,
+        256
+      ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 4,
+      "anchor": "door_floor",
+      "anchor_px": [
+        128,
+        256
+      ],
+      "door_floor": [
+        128,
+        229
+      ]
+    },
+    {
+      "stage_id": "ancient",
+      "file": "anim/manatree_ancient_strip.png",
+      "size": [
+        256,
+        256
+      ],
+      "frames": 8,
+      "fps": 7,
+      "display_scale": 4,
+      "anchor": "door_floor",
+      "anchor_px": [
+        128,
+        256
+      ],
+      "door_floor": [
+        126,
+        234
+      ],
+      "door": "visible_noninteractive"
+    }
+  ]
+}
