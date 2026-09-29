@@ -30,11 +30,11 @@ func _run() -> void:
 	failed += _check(props == props_before, "forest props stable after frames (got %d)" % props)
 	failed += _check(props >= 80, "forest_prop >= 80 (got %d)" % props)
 	var play: Vector2 = live.call("get_play_size")
-	failed += _check(absf(play.x - 4800.0) < 0.5 and absf(play.y - 4200.0) < 0.5, "play 4800x4200")
+	failed += _check(absf(play.x - 4320.0) < 0.5 and absf(play.y - 3780.0) < 0.5, "play 4320x3780")
 	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
 	failed += _check(cam != null, "Camera2D")
 	if cam:
-		failed += _check(cam.limit_left == 180 and cam.limit_top == 180 and cam.limit_right == 4620 and cam.limit_bottom == 4020, "camera limits")
+		failed += _check(cam.limit_left == 180 and cam.limit_top == 180 and cam.limit_right == 4140 and cam.limit_bottom == 3600, "camera limits")
 	var cam_min: Vector2 = live.call("camera_min")
 	var cam_max: Vector2 = live.call("camera_max")
 	live.call("pan_camera", Vector2(-9999, -9999))
@@ -45,23 +45,24 @@ func _run() -> void:
 	failed += _check(hi.distance_to(cam_max) < 1.5, "camera clamp max")
 	failed += _check(get_nodes_in_group("runestone").size() == 7, "7 runestones")
 	failed += _check(get_nodes_in_group("gatherable").size() == 3, "3 harvest nodes")
-	failed += _near(live, "World/Manatree", Vector2(2400, 2340))
-	failed += _near(live, "World/Keeper", Vector2(2200, 2560))
-	failed += _near(live, "World/HarvestTree", Vector2(1560, 2200))
-	failed += _near(live, "World/HarvestStone", Vector2(3240, 2100))
-	failed += _near(live, "World/HarvestBerry", Vector2(3000, 2760))
-	failed += _near(live, "World/EchoPortal", Vector2(2520, 1500))
-	failed += _near(live, "World/Runestones/Runestone_might", Vector2(3120, 1680))
-	failed += _near(live, "World/Runestones/Runestone_arcana", Vector2(3480, 1980))
-	failed += _near(live, "World/Runestones/Runestone_resilience", Vector2(3540, 2460))
-	failed += _near(live, "World/Runestones/Runestone_ward", Vector2(3180, 2940))
-	failed += _near(live, "World/Runestones/Runestone_vitality", Vector2(1980, 3000))
-	failed += _near(live, "World/Runestones/Runestone_swiftness", Vector2(1500, 2640))
-	failed += _near(live, "World/Runestones/Runestone_fate", Vector2(1440, 2040))
+	failed += _near(live, "World/Manatree", Vector2(2160, 2106))
+	failed += _near(live, "World/Keeper", Vector2(2080, 2460))
+	failed += _near(live, "World/HarvestTree", Vector2(1200, 2100))
+	failed += _near(live, "World/HarvestStone", Vector2(3300, 1900))
+	failed += _near(live, "World/HarvestBerry", Vector2(2480, 2780))
+	failed += _near(live, "World/EchoPortal", Vector2(2900, 1280))
+	failed += _near(live, "World/Runestones/Runestone_might", Vector2(2000, 1000))
+	failed += _near(live, "World/Runestones/Runestone_arcana", Vector2(3200, 1600))
+	failed += _near(live, "World/Runestones/Runestone_resilience", Vector2(3300, 2500))
+	failed += _near(live, "World/Runestones/Runestone_ward", Vector2(2700, 2950))
+	failed += _near(live, "World/Runestones/Runestone_vitality", Vector2(1800, 2950))
+	failed += _near(live, "World/Runestones/Runestone_swiftness", Vector2(900, 2400))
+	failed += _near(live, "World/Runestones/Runestone_fate", Vector2(1100, 1500))
+	failed += _spacing_pass(live)
 	failed += _check(live.get_node_or_null("World/Manatree/Door") != null, "Door marker")
 	failed += _check(live.get_node_or_null("World/Keeper/SpawnPoint") != null, "SpawnPoint marker")
 	var click: ColorRect = live.get_node_or_null("ClickLayer") as ColorRect
-	failed += _check(click != null and click.mouse_filter == Control.MOUSE_FILTER_IGNORE and absf(click.size.x - 4800.0) < 0.5, "click layer")
+	failed += _check(click != null and click.mouse_filter == Control.MOUSE_FILTER_IGNORE and absf(click.size.x - 4320.0) < 0.5, "click layer")
 	failed += _layout_pass(live)
 	var tree_cols: int = 0
 	var bush_cols: int = 0
@@ -217,7 +218,7 @@ func _layout_pass(live: Node) -> int:
 	failed += _check(main_src.find("texture_repeat = 2") >= 0 and main_src.find("texture_filter = 1") >= 0, "saved path filter and repeat")
 	var ground: TileMap = live.get_node_or_null("Ground") as TileMap
 	var cells: int = ground.get_used_cells(0).size() if ground else 0
-	failed += _check(cells >= 4900, "grass covers wide clearing (%d)" % cells)
+	failed += _check(cells >= 4000 and cells <= 4200, "grass covers tighter clearing (%d)" % cells)
 	return failed
 
 
@@ -378,6 +379,113 @@ func _chamber_plate(view: Node) -> int:
 		"elaia portrait box"
 	)
 	return failed
+
+
+func _spacing_pass(live: Node) -> int:
+	var failed: int = 0
+	var world: Node2D = live.get_node("World") as Node2D
+	var named: Dictionary = {}
+	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "Keeper"]:
+		named[mark_name] = _sprite_rect(world.get_node(mark_name))
+	var stones: Node2D = world.get_node("Runestones") as Node2D
+	for stone: Node in stones.get_children():
+		named[str(stone.name)] = _sprite_rect(stone)
+	var keys: Array = named.keys()
+	var min_gap: float = 1.0e9
+	for i: int in range(keys.size()):
+		for j: int in range(i + 1, keys.size()):
+			min_gap = minf(min_gap, _rect_gap(named[keys[i]], named[keys[j]]))
+	var tree_rect: Rect2 = named["HarvestTree"]
+	var rune_gap: float = 1.0e9
+	for stone: Node in stones.get_children():
+		rune_gap = minf(rune_gap, _rect_gap(tree_rect, named[str(stone.name)]))
+	var exclusion: Rect2 = _manatree_exclusion((world.get_node("Manatree") as Node2D).position)
+	var hidden: int = 0
+	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal"]:
+		if named[mark_name].intersects(exclusion):
+			hidden += 1
+			print("FAIL hidden by manatree %s" % mark_name)
+	for stone: Node in stones.get_children():
+		if named[str(stone.name)].intersects(exclusion):
+			hidden += 1
+			print("FAIL hidden by manatree %s" % stone.name)
+	print("MIN_PAIR_GAP %.2f" % min_gap)
+	print("RUNE_TREE_GAP %.2f" % rune_gap)
+	print("MANATREE_EXCLUSION %.1f %.1f %.1f %.1f" % [
+		exclusion.position.x, exclusion.position.y, exclusion.size.x, exclusion.size.y,
+	])
+	failed += _check(min_gap + 0.01 >= 64.0, "pairwise sprite gap >= 64")
+	failed += _check(rune_gap + 0.01 >= 160.0, "runestone to harvest tree >= 160")
+	failed += _check(hidden == 0, "nodes stay outside the grown manatree")
+	return failed
+
+
+func _manatree_exclusion(origin: Vector2) -> Rect2:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/art/manatree/manatree_meta.json"))
+	var union := Rect2()
+	var first: bool = true
+	for entry: Variant in (parsed as Dictionary).get("stages", []):
+		var stage: Dictionary = entry
+		var size_v: Array = stage.get("size", [0, 0])
+		var door_v: Array = stage.get("door_floor", [0, 0])
+		var sc: float = float(stage.get("display_scale", 1.0))
+		var sz := Vector2(float(size_v[0]), float(size_v[1])) * sc
+		var door := Vector2(float(door_v[0]), float(door_v[1])) * sc
+		var rect := Rect2(origin + Vector2(-door.x, -door.y), sz)
+		union = rect if first else union.merge(rect)
+		first = false
+	return union.grow(96.0)
+
+
+func _sprite_rect(node: Node) -> Rect2:
+	var spr: Node = node.get_node_or_null("Sprite")
+	if spr == null:
+		spr = node.get_node_or_null("Visual/Marker")
+	if spr == null:
+		spr = node.get_node_or_null("Stone")
+	if spr is Sprite2D and (spr as Sprite2D).texture != null:
+		var sprite: Sprite2D = spr as Sprite2D
+		var fw: float = float(sprite.texture.get_width())
+		var fh: float = float(sprite.texture.get_height())
+		if sprite.hframes > 1:
+			fw /= float(sprite.hframes)
+		if sprite.vframes > 1:
+			fh /= float(sprite.vframes)
+		return _transformed_rect(sprite.global_transform, Rect2(sprite.offset, Vector2(fw, fh)))
+	if spr is AnimatedSprite2D:
+		var anim: AnimatedSprite2D = spr as AnimatedSprite2D
+		var tex: Texture2D = anim.sprite_frames.get_frame_texture(anim.animation, 0) if anim.sprite_frames else null
+		if tex == null:
+			return Rect2(anim.global_position, Vector2(128, 128))
+		return _transformed_rect(anim.global_transform, Rect2(anim.offset, Vector2(float(tex.get_width()), float(tex.get_height()))))
+	return Rect2((node as Node2D).global_position, Vector2(64, 64))
+
+
+func _transformed_rect(xf: Transform2D, local: Rect2) -> Rect2:
+	var pts: Array[Vector2] = [
+		xf * local.position,
+		xf * (local.position + Vector2(local.size.x, 0)),
+		xf * (local.position + local.size),
+		xf * (local.position + Vector2(0, local.size.y)),
+	]
+	var lo: Vector2 = pts[0]
+	var hi: Vector2 = pts[0]
+	for p: Vector2 in pts:
+		lo = lo.min(p)
+		hi = hi.max(p)
+	return Rect2(lo, hi - lo)
+
+
+func _rect_gap(a: Rect2, b: Rect2) -> float:
+	var dx: float = maxf(a.position.x - b.end.x, b.position.x - a.end.x)
+	var dy: float = maxf(a.position.y - b.end.y, b.position.y - a.end.y)
+	if dx < 0.0 and dy < 0.0:
+		return maxf(dx, dy)
+	if dx < 0.0:
+		return dy
+	if dy < 0.0:
+		return dx
+	return sqrt(dx * dx + dy * dy)
 
 
 func _near(live: Node, path: String, want: Vector2) -> int:
