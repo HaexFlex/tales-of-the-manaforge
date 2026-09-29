@@ -235,6 +235,8 @@ func get_channel_kind() -> StringName:
 func _channel_stand_pos(target: Node) -> Vector2:
 	if target is Manatree:
 		return target.global_position + Vector2(0, 40)
+	if target is Gatherable:
+		return (target as Gatherable).approach_point()
 	return target.global_position
 
 

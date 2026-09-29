@@ -677,8 +677,8 @@ func _run() -> void:
 				failed += _assert(typeof(hub_parsed) == TYPE_DICTIONARY, "hub_map json dict")
 				if typeof(hub_parsed) == TYPE_DICTIONARY:
 					var hub: Dictionary = hub_parsed
-					failed += _assert(abs(float(hub.get("map_width_mult", 0)) - 2.5) < 0.01, "MAP_WIDTH_MULT 2.5")
-					failed += _assert(abs(float(hub.get("map_height_mult", 0)) - 3.89) < 0.01, "MAP_HEIGHT_MULT 3.89")
+					failed += _assert(abs(float(hub.get("map_width_mult", 0)) - 3.75) < 0.01, "MAP_WIDTH_MULT 3.75")
+					failed += _assert(abs(float(hub.get("map_height_mult", 0)) - 5.833) < 0.01, "MAP_HEIGHT_MULT 5.833")
 					failed += _assert(bool(hub.get("edge_scroll", true)) == false, "EDGE_SCROLL false")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/HarvestFruitButton") != null, "HarvestFruitButton missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/WaterButton") != null, "WaterButton missing")
@@ -1024,7 +1024,7 @@ func _run() -> void:
 		failed += _assert(live.has_method("get_play_size"), "Main.get_play_size")
 		if live.has_method("get_play_size"):
 			var play: Vector2 = live.call("get_play_size") as Vector2
-			failed += _assert(abs(play.x - 3200.0) < 0.5 and abs(play.y - 2800.0) < 0.5, "play area 3200x2800 (got %s)" % play)
+			failed += _assert(abs(play.x - 4800.0) < 0.5 and abs(play.y - 4200.0) < 0.5, "play area 4800x4200 (got %s)" % play)
 		if live.has_method("pan_camera") and live.has_method("camera_min") and live.has_method("camera_max"):
 			var cam_min: Vector2 = live.call("camera_min") as Vector2
 			var cam_max: Vector2 = live.call("camera_max") as Vector2

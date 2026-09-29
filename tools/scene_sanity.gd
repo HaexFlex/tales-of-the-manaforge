@@ -30,11 +30,11 @@ func _run() -> void:
 	failed += _check(props == props_before, "forest props stable after frames (got %d)" % props)
 	failed += _check(props >= 80, "forest_prop >= 80 (got %d)" % props)
 	var play: Vector2 = live.call("get_play_size")
-	failed += _check(absf(play.x - 3200.0) < 0.5 and absf(play.y - 2800.0) < 0.5, "play 3200x2800")
+	failed += _check(absf(play.x - 4800.0) < 0.5 and absf(play.y - 4200.0) < 0.5, "play 4800x4200")
 	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
 	failed += _check(cam != null, "Camera2D")
 	if cam:
-		failed += _check(cam.limit_left == 120 and cam.limit_top == 120 and cam.limit_right == 3080 and cam.limit_bottom == 2680, "camera limits")
+		failed += _check(cam.limit_left == 180 and cam.limit_top == 180 and cam.limit_right == 4620 and cam.limit_bottom == 4020, "camera limits")
 	var cam_min: Vector2 = live.call("camera_min")
 	var cam_max: Vector2 = live.call("camera_max")
 	live.call("pan_camera", Vector2(-9999, -9999))
@@ -45,16 +45,24 @@ func _run() -> void:
 	failed += _check(hi.distance_to(cam_max) < 1.5, "camera clamp max")
 	failed += _check(get_nodes_in_group("runestone").size() == 7, "7 runestones")
 	failed += _check(get_nodes_in_group("gatherable").size() == 3, "3 harvest nodes")
-	failed += _near(live, "World/Manatree", Vector2(1600, 1560))
-	failed += _near(live, "World/Keeper", Vector2(1420, 1700))
-	failed += _near(live, "World/HarvestTree", Vector2(1120, 1680))
-	failed += _near(live, "World/HarvestStone", Vector2(1300, 1800))
-	failed += _near(live, "World/HarvestBerry", Vector2(1900, 1740))
-	failed += _near(live, "World/EchoPortal", Vector2(1960, 1280))
+	failed += _near(live, "World/Manatree", Vector2(2400, 2340))
+	failed += _near(live, "World/Keeper", Vector2(2200, 2560))
+	failed += _near(live, "World/HarvestTree", Vector2(1560, 2200))
+	failed += _near(live, "World/HarvestStone", Vector2(3240, 2100))
+	failed += _near(live, "World/HarvestBerry", Vector2(3000, 2760))
+	failed += _near(live, "World/EchoPortal", Vector2(2520, 1500))
+	failed += _near(live, "World/Runestones/Runestone_might", Vector2(3120, 1680))
+	failed += _near(live, "World/Runestones/Runestone_arcana", Vector2(3480, 1980))
+	failed += _near(live, "World/Runestones/Runestone_resilience", Vector2(3540, 2460))
+	failed += _near(live, "World/Runestones/Runestone_ward", Vector2(3180, 2940))
+	failed += _near(live, "World/Runestones/Runestone_vitality", Vector2(1980, 3000))
+	failed += _near(live, "World/Runestones/Runestone_swiftness", Vector2(1500, 2640))
+	failed += _near(live, "World/Runestones/Runestone_fate", Vector2(1440, 2040))
 	failed += _check(live.get_node_or_null("World/Manatree/Door") != null, "Door marker")
 	failed += _check(live.get_node_or_null("World/Keeper/SpawnPoint") != null, "SpawnPoint marker")
 	var click: ColorRect = live.get_node_or_null("ClickLayer") as ColorRect
-	failed += _check(click != null and click.mouse_filter == Control.MOUSE_FILTER_IGNORE and absf(click.size.x - 3200.0) < 0.5, "click layer")
+	failed += _check(click != null and click.mouse_filter == Control.MOUSE_FILTER_IGNORE and absf(click.size.x - 4800.0) < 0.5, "click layer")
+	failed += _layout_pass(live)
 	var tree_cols: int = 0
 	var bush_cols: int = 0
 	var canopy_ok: int = 0
@@ -127,6 +135,60 @@ func _run() -> void:
 	else:
 		print("SANITY_FAIL %d" % failed)
 	quit(failed)
+
+
+func _layout_pass(live: Node) -> int:
+	var failed: int = 0
+	var world: Node2D = live.get_node_or_null("World") as Node2D
+	failed += _check(world != null and world.y_sort_enabled and world.z_index > 0, "world y-sort above ground")
+	var nested: int = 0
+	for prop: Node in get_nodes_in_group("forest_prop"):
+		if prop.get_parent() != world:
+			nested += 1
+	failed += _check(nested == 0, "forest props stay direct children of World (nested %d)" % nested)
+	var keeper: Node = live.get_node_or_null("World/Keeper")
+	var kspr: AnimatedSprite2D = keeper.get_node("Sprite") as AnimatedSprite2D
+	var ktex: Texture2D = kspr.sprite_frames.get_frame_texture(&"idle_south", 0)
+	var keeper_h: float = float(ktex.get_height()) * absf(kspr.scale.y)
+	var tree: Node = live.get_node_or_null("World/HarvestTree")
+	var tspr: Sprite2D = tree.get_node("Sprite") as Sprite2D
+	var tree_h: float = 0.0
+	if tspr.texture:
+		tree_h = float(tspr.texture.get_height()) * absf(tspr.scale.y)
+	print("KEEPER_HEIGHT %.2f" % keeper_h)
+	print("TREE_HEIGHT %.2f" % tree_h)
+	failed += _check(tree_h + 0.5 >= keeper_h * 3.0, "wood tree >= 3x keeper")
+	failed += _check(tspr.texture != null and str(tspr.texture.resource_path).ends_with("harvest_tree.png"), "wood texture path")
+	failed += _check(absf(tspr.offset.x + float(tspr.texture.get_width()) * 0.5) < 0.5, "tree feet x")
+	failed += _check(absf(tspr.offset.y + float(tspr.texture.get_height())) < 0.5, "tree feet y")
+	failed += _check(float(tree.get("stand_height")) + 0.5 >= keeper_h * 3.0, "stand_height export")
+	var click_shape: CollisionShape2D = tree.get_node("CollisionShape2D") as CollisionShape2D
+	var click_rect: RectangleShape2D = click_shape.shape as RectangleShape2D
+	var vis := Vector2(float(tspr.texture.get_width()), float(tspr.texture.get_height())) * tspr.scale
+	failed += _check(click_rect != null and click_rect.size.distance_to(vis) < 1.5, "click matches sprite")
+	var trunk_shape: CollisionShape2D = tree.get_node("Trunk/CollisionShape2D") as CollisionShape2D
+	var trunk_rect: RectangleShape2D = trunk_shape.shape as RectangleShape2D
+	failed += _check(trunk_shape != null and not trunk_shape.disabled, "trunk collision on")
+	failed += _check(trunk_rect != null and trunk_rect.size.y < vis.y * 0.45 and trunk_rect.size.y > 8.0, "trunk is the base")
+	failed += _check(str(tree.get("resource_id")) == "wood" and str(tree.get("node_key")) == "wood", "wood ids")
+	var stone: Node = live.get_node("World/HarvestStone")
+	var berry: Node = live.get_node("World/HarvestBerry")
+	failed += _check(str(stone.get("resource_id")) == "stone" and str(stone.get("node_key")) == "stone", "stone ids")
+	failed += _check(str(berry.get("resource_id")) == "food" and str(berry.get("node_key")) == "food", "food ids")
+	var paths: Node = live.get_node_or_null("Paths")
+	failed += _check(paths != null and paths.get_parent() == live, "Paths in main")
+	if paths:
+		failed += _check(int(paths.z_index) < int(world.z_index), "paths under props")
+		var lines: int = 0
+		for child: Node in paths.get_children():
+			if child is Line2D:
+				lines += 1
+		failed += _check(lines >= 11, "path lines %d" % lines)
+		failed += _check(paths.get("path_texture") == null, "path texture slot empty")
+	var ground: TileMap = live.get_node_or_null("Ground") as TileMap
+	var cells: int = ground.get_used_cells(0).size() if ground else 0
+	failed += _check(cells >= 4900, "grass covers wide clearing (%d)" % cells)
+	return failed
 
 
 func _weapons() -> int:

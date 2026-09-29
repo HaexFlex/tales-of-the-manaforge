@@ -1,50 +1,49 @@
 {
-  "version": "v0.1.14-oval-clearing",
+  "version": "v0.1.15-wide-clearing",
   "notes": [
-    "Play area grew with the clearing. Walkable ground is an irregular oval, about 32% larger in area than the old 1860×1500 rectangle.",
-    "Corners of the map are dense forest. The tree line wobbles; it is not mirrored.",
-    "Camera pans with ui_left/right/up/down and clamps to play bounds.",
-    "Decorative grass, ferns, and misc props are visual only (no collision).",
+    "Play area is 4800×4200, half again the old 3200×2800 clearing. The forest ring moved out with it.",
+    "scenes/main.tscn is the layout you edit. Do not run tools/bake_hub_layout.gd; it rebuilds the forest and wipes editor moves.",
+    "These landmark coordinates match the scene so decor clearance stays off the nodes.",
     "World positions are not stored in the save, so older slots still load."
   ],
-  "play_width": 3200,
-  "play_height": 2800,
-  "map_width_mult": 2.5,
-  "map_height_mult": 3.89,
+  "play_width": 4800,
+  "play_height": 4200,
+  "map_width_mult": 3.75,
+  "map_height_mult": 5.833,
   "edge_scroll": false,
   "tile": 64,
   "viewport_width": 1280,
   "viewport_height": 720,
   "camera_pan_speed": 420.0,
   "scatter_seed": 20260924,
-  "glade": [760, 820, 1680, 1360],
+  "glade": [1140, 1230, 2520, 2040],
   "clearing": {
-    "center": [1600, 1500],
-    "rx": 1200,
-    "ry": 980
+    "center": [2400, 2250],
+    "rx": 1800,
+    "ry": 1470
   },
   "landmarks": {
-    "manatree": [1600, 1560],
-    "keeper": [1420, 1700],
-    "echo_portal": [1960, 1280],
-    "harvest_tree": [1120, 1680],
-    "harvest_stone": [1300, 1800],
-    "harvest_berry": [1900, 1740]
+    "manatree": [2400, 2340],
+    "keeper": [2200, 2560],
+    "echo_portal": [2520, 1500],
+    "harvest_tree": [1560, 2200],
+    "harvest_stone": [3240, 2100],
+    "harvest_berry": [3000, 2760]
   },
   "runestones": [
-    {"stat": "might", "pos": [2100, 1400]},
-    {"stat": "arcana", "pos": [2180, 1520]},
-    {"stat": "resilience", "pos": [2140, 1660]},
-    {"stat": "ward", "pos": [2000, 1780]},
-    {"stat": "vitality", "pos": [1840, 1860]},
-    {"stat": "swiftness", "pos": [1660, 1900]},
-    {"stat": "fate", "pos": [1480, 1860]}
+    {"stat": "might", "pos": [3120, 1680]},
+    {"stat": "arcana", "pos": [3480, 1980]},
+    {"stat": "resilience", "pos": [3540, 2460]},
+    {"stat": "ward", "pos": [3180, 2940]},
+    {"stat": "vitality", "pos": [1980, 3000]},
+    {"stat": "swiftness", "pos": [1500, 2640]},
+    {"stat": "fate", "pos": [1440, 2040]}
   ],
-  "clear_radii": [400, 180, 160, 170, 100],
+  "clear_radii": [400, 240, 160, 170, 120],
   "extra_clear": [
-    {"pos": [1960, 1280], "radius": 140}
+    {"pos": [2520, 1500], "radius": 160}
   ],
-  "runestone_clear": 84,
+  "runestone_clear": 110,
   "collision": {
     "tree_trunk_height_frac": 0.30,
     "tree_collider_of_trunk_frac": 0.333,
@@ -55,21 +54,21 @@
     "bush_height": 10
   },
   "scatter": [
-    {"kind": "tree", "cols": 28, "rows": 5, "rect": [16, 20, 3160, 640], "min_sep": 58, "jitter": 22, "glade_inset": 0},
-    {"kind": "tree", "cols": 26, "rows": 4, "rect": [20, 2140, 3100, 620], "min_sep": 60, "jitter": 24, "glade_inset": 0},
-    {"kind": "tree", "cols": 4, "rows": 18, "rect": [12, 480, 520, 1900], "min_sep": 56, "jitter": 18, "glade_inset": 0},
-    {"kind": "tree", "cols": 5, "rows": 16, "rect": [2620, 560, 560, 1760], "min_sep": 54, "jitter": 20, "glade_inset": 0},
-    {"kind": "tree", "cols": 6, "rows": 5, "rect": [20, 20, 520, 520], "min_sep": 48, "jitter": 16, "glade_inset": 0},
-    {"kind": "tree", "cols": 5, "rows": 4, "rect": [2680, 24, 480, 480], "min_sep": 50, "jitter": 18, "glade_inset": 0},
-    {"kind": "tree", "cols": 5, "rows": 4, "rect": [16, 2280, 500, 480], "min_sep": 48, "jitter": 16, "glade_inset": 0},
-    {"kind": "tree", "cols": 6, "rows": 5, "rect": [2660, 2260, 500, 500], "min_sep": 46, "jitter": 18, "glade_inset": 0},
-    {"kind": "bush", "cols": 22, "rows": 2, "rect": [280, 560, 2600, 120], "min_sep": 36, "jitter": 12, "glade_inset": 28},
-    {"kind": "bush", "cols": 20, "rows": 2, "rect": [320, 2100, 2500, 110], "min_sep": 34, "jitter": 14, "glade_inset": 22},
-    {"kind": "bush", "cols": 2, "rows": 16, "rect": [420, 640, 120, 1500], "min_sep": 32, "jitter": 10, "glade_inset": 20},
-    {"kind": "bush", "cols": 3, "rows": 14, "rect": [2580, 700, 140, 1400], "min_sep": 34, "jitter": 12, "glade_inset": 16},
-    {"kind": "bush", "cols": 8, "rows": 3, "rect": [40, 40, 460, 280], "min_sep": 30, "jitter": 10, "glade_inset": 0},
-    {"kind": "bush", "cols": 7, "rows": 3, "rect": [2720, 80, 420, 260], "min_sep": 30, "jitter": 12, "glade_inset": 0},
-    {"kind": "bush", "cols": 8, "rows": 2, "rect": [60, 2460, 480, 260], "min_sep": 28, "jitter": 10, "glade_inset": 0},
-    {"kind": "bush", "cols": 6, "rows": 3, "rect": [2700, 2480, 440, 260], "min_sep": 30, "jitter": 11, "glade_inset": 0}
+    {"kind": "tree", "cols": 28, "rows": 5, "rect": [24, 30, 4740, 960], "min_sep": 58, "jitter": 22, "glade_inset": 0},
+    {"kind": "tree", "cols": 26, "rows": 4, "rect": [30, 3210, 4650, 930], "min_sep": 60, "jitter": 24, "glade_inset": 0},
+    {"kind": "tree", "cols": 4, "rows": 18, "rect": [18, 720, 780, 2850], "min_sep": 56, "jitter": 18, "glade_inset": 0},
+    {"kind": "tree", "cols": 5, "rows": 16, "rect": [3930, 840, 840, 2640], "min_sep": 54, "jitter": 20, "glade_inset": 0},
+    {"kind": "tree", "cols": 6, "rows": 5, "rect": [30, 30, 780, 780], "min_sep": 48, "jitter": 16, "glade_inset": 0},
+    {"kind": "tree", "cols": 5, "rows": 4, "rect": [4020, 36, 720, 720], "min_sep": 50, "jitter": 18, "glade_inset": 0},
+    {"kind": "tree", "cols": 5, "rows": 4, "rect": [24, 3420, 750, 720], "min_sep": 48, "jitter": 16, "glade_inset": 0},
+    {"kind": "tree", "cols": 6, "rows": 5, "rect": [3990, 3390, 750, 750], "min_sep": 46, "jitter": 18, "glade_inset": 0},
+    {"kind": "bush", "cols": 22, "rows": 2, "rect": [420, 840, 3900, 180], "min_sep": 36, "jitter": 12, "glade_inset": 28},
+    {"kind": "bush", "cols": 20, "rows": 2, "rect": [480, 3150, 3750, 165], "min_sep": 34, "jitter": 14, "glade_inset": 22},
+    {"kind": "bush", "cols": 2, "rows": 16, "rect": [630, 960, 180, 2250], "min_sep": 32, "jitter": 10, "glade_inset": 20},
+    {"kind": "bush", "cols": 3, "rows": 14, "rect": [3870, 1050, 210, 2100], "min_sep": 34, "jitter": 12, "glade_inset": 16},
+    {"kind": "bush", "cols": 8, "rows": 3, "rect": [60, 60, 690, 420], "min_sep": 30, "jitter": 10, "glade_inset": 0},
+    {"kind": "bush", "cols": 7, "rows": 3, "rect": [4080, 120, 630, 390], "min_sep": 30, "jitter": 12, "glade_inset": 0},
+    {"kind": "bush", "cols": 8, "rows": 2, "rect": [90, 3690, 720, 390], "min_sep": 28, "jitter": 10, "glade_inset": 0},
+    {"kind": "bush", "cols": 6, "rows": 3, "rect": [4050, 3720, 660, 390], "min_sep": 30, "jitter": 11, "glade_inset": 0}
   ]
 }

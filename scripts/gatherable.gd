@@ -9,7 +9,25 @@ class_name Gatherable
 @export var node_key: String = "wood":
 	set(value):
 		node_key = value
-		if Engine.is_editor_hint() and is_node_ready():
+		if is_node_ready():
+			_apply_art()
+## On-screen height in pixels. 0 keeps the small harvest box.
+## The sprite stays bottom-centered on this node (feet at the origin). Art swaps the texture and edits this number.
+@export var stand_height: float = 0.0:
+	set(value):
+		stand_height = maxf(0.0, value)
+		if is_node_ready():
+			_apply_art()
+## Walk-blocking trunk, as a fraction of the standing sprite. Click area stays the full sprite.
+@export_range(0.05, 0.45, 0.01) var trunk_height_ratio: float = 0.14:
+	set(value):
+		trunk_height_ratio = clampf(value, 0.05, 0.45)
+		if is_node_ready():
+			_apply_art()
+@export_range(0.08, 0.6, 0.01) var trunk_width_ratio: float = 0.22:
+	set(value):
+		trunk_width_ratio = clampf(value, 0.08, 0.6)
+		if is_node_ready():
 			_apply_art()
 
 @onready var sprite: Sprite2D = $Sprite
@@ -71,7 +89,10 @@ func _apply_art() -> void:
 	if sprite.texture:
 		frame = Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
 	## Full-size berry art fits the existing 64 food box. Tree and stone keep their scales.
-	if node_key == "food" and frame.x > 0.0 and frame.y > 0.0:
+	## stand_height overrides that and sizes the sprite to a fixed on-screen height.
+	if stand_height > 0.0 and frame.y > 0.0:
+		scale_v = stand_height / frame.y
+	elif node_key == "food" and frame.x > 0.0 and frame.y > 0.0:
 		scale_v = minf(box.x / frame.x, box.y / frame.y)
 	sprite.scale = Vector2(scale_v, scale_v)
 	sprite.offset = Vector2(-frame.x * 0.5, -frame.y)
@@ -86,6 +107,29 @@ func _apply_art() -> void:
 		rect.size = vis
 		cs.shape = rect
 		cs.position = Vector2(0, -vis.y * 0.5)
+	_apply_trunk(vis)
+
+
+func _apply_trunk(vis: Vector2) -> void:
+	var trunk: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
+	var shape_node: CollisionShape2D = get_node_or_null("Trunk/CollisionShape2D") as CollisionShape2D
+	if trunk == null or shape_node == null:
+		return
+	trunk.input_pickable = false
+	var use_trunk: bool = stand_height > 0.0 and vis.y > 1.0
+	shape_node.disabled = not use_trunk
+	if not use_trunk:
+		return
+	var trunk_size := Vector2(
+		maxf(18.0, vis.x * trunk_width_ratio),
+		maxf(12.0, vis.y * trunk_height_ratio)
+	)
+	var rect := RectangleShape2D.new()
+	if shape_node.shape is RectangleShape2D:
+		rect = (shape_node.shape as RectangleShape2D).duplicate() as RectangleShape2D
+	rect.size = trunk_size
+	shape_node.shape = rect
+	shape_node.position = Vector2(0, -trunk_size.y * 0.5)
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -100,6 +144,14 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if mb.button_index == MOUSE_BUTTON_RIGHT:
 			apply_player_command()
 			get_viewport().set_input_as_handled()
+
+
+func approach_point() -> Vector2:
+	## Feet stay on this node. The trunk collider sits on those feet, so the Keeper
+	## stops just south of it — close enough to channel, clear of the body shape.
+	if stand_height <= 0.0:
+		return global_position
+	return global_position + Vector2(0, 72)
 
 
 func apply_player_command() -> void:
@@ -117,7 +169,7 @@ func apply_player_command() -> void:
 		return
 	var k: Keeper = keepers[0] as Keeper
 	if k:
-		k.move_to(global_position, self)
+		k.move_to(approach_point(), self)
 
 
 func on_interact(keeper: Node) -> void:
