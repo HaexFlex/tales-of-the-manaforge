@@ -1,75 +1,362 @@
 {
-  "version": "v0.1.14-oval-clearing",
-  "notes": [
-    "Play area grew with the clearing. Walkable ground is an irregular oval, about 32% larger in area than the old 1860×1500 rectangle.",
-    "Corners of the map are dense forest. The tree line wobbles; it is not mirrored.",
-    "Camera pans with ui_left/right/up/down and clamps to play bounds.",
-    "Decorative grass, ferns, and misc props are visual only (no collision).",
-    "World positions are not stored in the save, so older slots still load."
-  ],
-  "play_width": 3200,
-  "play_height": 2800,
-  "map_width_mult": 2.5,
-  "map_height_mult": 3.89,
-  "edge_scroll": false,
-  "tile": 64,
-  "viewport_width": 1280,
-  "viewport_height": 720,
-  "camera_pan_speed": 420.0,
-  "scatter_seed": 20260924,
-  "glade": [760, 820, 1680, 1360],
-  "clearing": {
-    "center": [1600, 1500],
-    "rx": 1200,
-    "ry": 980
-  },
-  "landmarks": {
-    "manatree": [1600, 1560],
-    "keeper": [1420, 1700],
-    "echo_portal": [1960, 1280],
-    "harvest_tree": [1120, 1680],
-    "harvest_stone": [1300, 1800],
-    "harvest_berry": [1900, 1740]
-  },
-  "runestones": [
-    {"stat": "might", "pos": [2100, 1400]},
-    {"stat": "arcana", "pos": [2180, 1520]},
-    {"stat": "resilience", "pos": [2140, 1660]},
-    {"stat": "ward", "pos": [2000, 1780]},
-    {"stat": "vitality", "pos": [1840, 1860]},
-    {"stat": "swiftness", "pos": [1660, 1900]},
-    {"stat": "fate", "pos": [1480, 1860]}
-  ],
-  "clear_radii": [400, 180, 160, 170, 100],
-  "extra_clear": [
-    {"pos": [1960, 1280], "radius": 140}
-  ],
-  "runestone_clear": 84,
-  "collision": {
-    "tree_trunk_height_frac": 0.30,
-    "tree_collider_of_trunk_frac": 0.333,
-    "tree_width_frac": 0.16,
-    "tree_width_min": 14,
-    "tree_width_max": 36,
-    "bush_width": 16,
-    "bush_height": 10
-  },
-  "scatter": [
-    {"kind": "tree", "cols": 28, "rows": 5, "rect": [16, 20, 3160, 640], "min_sep": 58, "jitter": 22, "glade_inset": 0},
-    {"kind": "tree", "cols": 26, "rows": 4, "rect": [20, 2140, 3100, 620], "min_sep": 60, "jitter": 24, "glade_inset": 0},
-    {"kind": "tree", "cols": 4, "rows": 18, "rect": [12, 480, 520, 1900], "min_sep": 56, "jitter": 18, "glade_inset": 0},
-    {"kind": "tree", "cols": 5, "rows": 16, "rect": [2620, 560, 560, 1760], "min_sep": 54, "jitter": 20, "glade_inset": 0},
-    {"kind": "tree", "cols": 6, "rows": 5, "rect": [20, 20, 520, 520], "min_sep": 48, "jitter": 16, "glade_inset": 0},
-    {"kind": "tree", "cols": 5, "rows": 4, "rect": [2680, 24, 480, 480], "min_sep": 50, "jitter": 18, "glade_inset": 0},
-    {"kind": "tree", "cols": 5, "rows": 4, "rect": [16, 2280, 500, 480], "min_sep": 48, "jitter": 16, "glade_inset": 0},
-    {"kind": "tree", "cols": 6, "rows": 5, "rect": [2660, 2260, 500, 500], "min_sep": 46, "jitter": 18, "glade_inset": 0},
-    {"kind": "bush", "cols": 22, "rows": 2, "rect": [280, 560, 2600, 120], "min_sep": 36, "jitter": 12, "glade_inset": 28},
-    {"kind": "bush", "cols": 20, "rows": 2, "rect": [320, 2100, 2500, 110], "min_sep": 34, "jitter": 14, "glade_inset": 22},
-    {"kind": "bush", "cols": 2, "rows": 16, "rect": [420, 640, 120, 1500], "min_sep": 32, "jitter": 10, "glade_inset": 20},
-    {"kind": "bush", "cols": 3, "rows": 14, "rect": [2580, 700, 140, 1400], "min_sep": 34, "jitter": 12, "glade_inset": 16},
-    {"kind": "bush", "cols": 8, "rows": 3, "rect": [40, 40, 460, 280], "min_sep": 30, "jitter": 10, "glade_inset": 0},
-    {"kind": "bush", "cols": 7, "rows": 3, "rect": [2720, 80, 420, 260], "min_sep": 30, "jitter": 12, "glade_inset": 0},
-    {"kind": "bush", "cols": 8, "rows": 2, "rect": [60, 2460, 480, 260], "min_sep": 28, "jitter": 10, "glade_inset": 0},
-    {"kind": "bush", "cols": 6, "rows": 3, "rect": [2700, 2480, 440, 260], "min_sep": 30, "jitter": 11, "glade_inset": 0}
-  ]
+	"camera_pan_speed": 420.0,
+	"clear_radii": [
+		400,
+		420,
+		160,
+		170,
+		120
+	],
+	"clearing": {
+		"center": [
+			2160,
+			2025
+		],
+		"rx": 1620,
+		"ry": 1323
+	},
+	"collision": {
+		"bush_height": 10.0,
+		"bush_width": 16.0,
+		"tree_collider_of_trunk_frac": 0.333,
+		"tree_trunk_height_frac": 0.3,
+		"tree_width_frac": 0.16,
+		"tree_width_max": 36.0,
+		"tree_width_min": 14.0
+	},
+	"edge_scroll": false,
+	"extra_clear": [
+		{
+			"pos": [
+				2900,
+				1280
+			],
+			"radius": 160
+		}
+	],
+	"glade": [
+		1026,
+		1107,
+		2268,
+		1836
+	],
+	"landmarks": {
+		"echo_portal": [
+			2900,
+			1280
+		],
+		"harvest_berry": [
+			2480,
+			2780
+		],
+		"harvest_stone": [
+			3300,
+			1900
+		],
+		"harvest_tree": [
+			1200,
+			2100
+		],
+		"keeper": [
+			2080,
+			2460
+		],
+		"manatree": [
+			2160,
+			2106
+		]
+	},
+	"map_height_mult": 5.25,
+	"map_width_mult": 3.375,
+	"notes": [
+		"Play area is 4320×3780, about 10% under the 4800×4200 clearing. The forest ring moved in with it, then gap sprites were added.",
+		"scenes/main.tscn is the layout you edit. Do not run tools/bake_hub_layout.gd; it rebuilds the forest and wipes editor moves.",
+		"These landmark coordinates match the scene so decor clearance stays off the nodes.",
+		"World positions are not stored in the save, so older slots still load."
+	],
+	"play_height": 3780,
+	"play_width": 4320,
+	"runestone_clear": 110.0,
+	"runestones": [
+		{
+			"pos": [
+				2000,
+				1000
+			],
+			"stat": "might"
+		},
+		{
+			"pos": [
+				3200,
+				1600
+			],
+			"stat": "arcana"
+		},
+		{
+			"pos": [
+				3300,
+				2500
+			],
+			"stat": "resilience"
+		},
+		{
+			"pos": [
+				2700,
+				2950
+			],
+			"stat": "ward"
+		},
+		{
+			"pos": [
+				1800,
+				2950
+			],
+			"stat": "vitality"
+		},
+		{
+			"pos": [
+				900,
+				2400
+			],
+			"stat": "swiftness"
+		},
+		{
+			"pos": [
+				1100,
+				1500
+			],
+			"stat": "fate"
+		}
+	],
+	"scatter": [
+		{
+			"cols": 28.0,
+			"glade_inset": 0.0,
+			"jitter": 22.0,
+			"kind": "tree",
+			"min_sep": 58.0,
+			"rect": [
+				22,
+				27,
+				4266,
+				864
+			],
+			"rows": 5.0
+		},
+		{
+			"cols": 26.0,
+			"glade_inset": 0.0,
+			"jitter": 24.0,
+			"kind": "tree",
+			"min_sep": 60.0,
+			"rect": [
+				27,
+				2889,
+				4185,
+				837
+			],
+			"rows": 4.0
+		},
+		{
+			"cols": 4.0,
+			"glade_inset": 0.0,
+			"jitter": 18.0,
+			"kind": "tree",
+			"min_sep": 56.0,
+			"rect": [
+				16,
+				648,
+				702,
+				2565
+			],
+			"rows": 18.0
+		},
+		{
+			"cols": 5.0,
+			"glade_inset": 0.0,
+			"jitter": 20.0,
+			"kind": "tree",
+			"min_sep": 54.0,
+			"rect": [
+				3537,
+				756,
+				756,
+				2376
+			],
+			"rows": 16.0
+		},
+		{
+			"cols": 6.0,
+			"glade_inset": 0.0,
+			"jitter": 16.0,
+			"kind": "tree",
+			"min_sep": 48.0,
+			"rect": [
+				27,
+				27,
+				702,
+				702
+			],
+			"rows": 5.0
+		},
+		{
+			"cols": 5.0,
+			"glade_inset": 0.0,
+			"jitter": 18.0,
+			"kind": "tree",
+			"min_sep": 50.0,
+			"rect": [
+				3618,
+				32,
+				648,
+				648
+			],
+			"rows": 4.0
+		},
+		{
+			"cols": 5.0,
+			"glade_inset": 0.0,
+			"jitter": 16.0,
+			"kind": "tree",
+			"min_sep": 48.0,
+			"rect": [
+				22,
+				3078,
+				675,
+				648
+			],
+			"rows": 4.0
+		},
+		{
+			"cols": 6.0,
+			"glade_inset": 0.0,
+			"jitter": 18.0,
+			"kind": "tree",
+			"min_sep": 46.0,
+			"rect": [
+				3591,
+				3051,
+				675,
+				675
+			],
+			"rows": 5.0
+		},
+		{
+			"cols": 22.0,
+			"glade_inset": 28.0,
+			"jitter": 12.0,
+			"kind": "bush",
+			"min_sep": 36.0,
+			"rect": [
+				378,
+				756,
+				3510,
+				162
+			],
+			"rows": 2.0
+		},
+		{
+			"cols": 20.0,
+			"glade_inset": 22.0,
+			"jitter": 14.0,
+			"kind": "bush",
+			"min_sep": 34.0,
+			"rect": [
+				432,
+				2835,
+				3375,
+				149
+			],
+			"rows": 2.0
+		},
+		{
+			"cols": 2.0,
+			"glade_inset": 20.0,
+			"jitter": 10.0,
+			"kind": "bush",
+			"min_sep": 32.0,
+			"rect": [
+				567,
+				864,
+				162,
+				2025
+			],
+			"rows": 16.0
+		},
+		{
+			"cols": 3.0,
+			"glade_inset": 16.0,
+			"jitter": 12.0,
+			"kind": "bush",
+			"min_sep": 34.0,
+			"rect": [
+				3483,
+				945,
+				189,
+				1890
+			],
+			"rows": 14.0
+		},
+		{
+			"cols": 8.0,
+			"glade_inset": 0.0,
+			"jitter": 10.0,
+			"kind": "bush",
+			"min_sep": 30.0,
+			"rect": [
+				54,
+				54,
+				621,
+				378
+			],
+			"rows": 3.0
+		},
+		{
+			"cols": 7.0,
+			"glade_inset": 0.0,
+			"jitter": 12.0,
+			"kind": "bush",
+			"min_sep": 30.0,
+			"rect": [
+				3672,
+				108,
+				567,
+				351
+			],
+			"rows": 3.0
+		},
+		{
+			"cols": 8.0,
+			"glade_inset": 0.0,
+			"jitter": 10.0,
+			"kind": "bush",
+			"min_sep": 28.0,
+			"rect": [
+				81,
+				3321,
+				648,
+				351
+			],
+			"rows": 2.0
+		},
+		{
+			"cols": 6.0,
+			"glade_inset": 0.0,
+			"jitter": 11.0,
+			"kind": "bush",
+			"min_sep": 30.0,
+			"rect": [
+				3645,
+				3348,
+				594,
+				351
+			],
+			"rows": 3.0
+		}
+	],
+	"scatter_seed": 20260924.0,
+	"tile": 64.0,
+	"version": "v0.1.16-tighter-clearing",
+	"viewport_height": 720.0,
+	"viewport_width": 1280.0
 }

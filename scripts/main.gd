@@ -1,14 +1,14 @@
 extends Node2D
 ## Forest hub 2560×2160 (2× × 3× of 1280×720): arrow-key camera, RTS LMB/RMB, wisps.
 
-@onready var keeper: Keeper = $World/Keeper
-@onready var manatree: Manatree = $World/Manatree
-@onready var hud: GameHUD = $HUD
-@onready var ground: TileMap = $Ground
-@onready var click_layer: ColorRect = $ClickLayer
-@onready var world: Node2D = $World
-@onready var pause_menu: PauseMenu = $PauseMenu
-@onready var camera: Camera2D = $Camera2D
+@onready var keeper: Keeper = %Keeper
+@onready var manatree: Manatree = %Manatree
+@onready var hud: GameHUD = %HUD
+@onready var ground: TileMap = %Ground
+@onready var click_layer: ColorRect = %ClickLayer
+@onready var world: Node2D = %World
+@onready var pause_menu: PauseMenu = %PauseMenu
+@onready var camera: Camera2D = %Camera2D
 
 const TILE: int = 64
 ## Match Area2D collision_layer on gatherable / manatree scenes.
@@ -29,6 +29,8 @@ const MANATREE_DECOR_RADIUS: float = 200.0
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 const RUNESTONE_SCENE: PackedScene = preload("res://scenes/runestone.tscn")
 const PORTAL_SCENE: PackedScene = preload("res://scenes/echo_portal.tscn")
+const FOREST_SOLID_SCENE: PackedScene = preload("res://scenes/hub/forest_solid.tscn")
+const FOREST_VISUAL_SCENE: PackedScene = preload("res://scenes/hub/forest_visual.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
 var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
@@ -45,6 +47,7 @@ var clear_radii: Array[float] = []
 var collision_cfg: Dictionary = {}
 var _cols: int = 40
 var _rows: int = 34
+var _prop_serial: int = 0
 const TITLE_SCENE: String = "res://scenes/title_screen.tscn"
 var _boot_redirect: bool = false
 
@@ -74,12 +77,19 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group("main_root")
 	_load_hub_map()
-	_apply_landmarks()
-	_spawn_runestones()
-	_spawn_echo_portal()
-	_setup_camera()
-	_build_grass()
-	_spawn_forest_props()
+	# Layout lives in main.tscn. This path only rebuilds it for tools/bake_hub_layout.gd.
+	if OS.get_environment("MANAFORGE_BAKE") == "1":
+		_apply_landmarks()
+		_spawn_runestones()
+		_spawn_echo_portal()
+		_setup_camera(true)
+		_build_grass()
+		_spawn_forest_props()
+		click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		click_layer.position = Vector2.ZERO
+		click_layer.size = play_size
+		return
+	_setup_camera(false)
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
 	click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	click_layer.position = Vector2.ZERO
@@ -185,6 +195,7 @@ func _spawn_runestones() -> void:
 		return
 	var root := Node2D.new()
 	root.name = "Runestones"
+	root.unique_name_in_owner = true
 	world.add_child(root)
 	for entry: Variant in rows:
 		if typeof(entry) != TYPE_DICTIONARY:
@@ -210,11 +221,12 @@ func _spawn_echo_portal() -> void:
 	if portal == null:
 		return
 	portal.name = "EchoPortal"
+	portal.unique_name_in_owner = true
 	portal.position = _vec2_from(marks.get("echo_portal", [1560, 820]))
 	world.add_child(portal)
 
 
-func _setup_camera() -> void:
+func _setup_camera(snap_to_tree: bool) -> void:
 	if camera == null:
 		camera = Camera2D.new()
 		camera.name = "Camera2D"
@@ -222,8 +234,8 @@ func _setup_camera() -> void:
 	camera.enabled = true
 	camera.make_current()
 	camera.position_smoothing_enabled = false
-	var start: Vector2 = _vec2_from((hub_map.get("landmarks", {}) as Dictionary).get("manatree", [1280, 1000]))
-	camera.position = start
+	if snap_to_tree and manatree:
+		camera.position = manatree.position
 	_clamp_camera()
 
 
@@ -258,12 +270,30 @@ func _half_view() -> Vector2:
 	return view * 0.5
 
 
+func _camera_limit_rect() -> Rect2:
+	## Inspector values on Camera2D (Limit). Defaults match the old inset around the play rect.
+	if camera != null and camera.limit_right < 1000000 and camera.limit_bottom < 1000000:
+		return Rect2(
+			float(camera.limit_left),
+			float(camera.limit_top),
+			float(camera.limit_right - camera.limit_left),
+			float(camera.limit_bottom - camera.limit_top)
+		)
+	return Rect2(
+		CAMERA_EDGE_INSET,
+		CAMERA_EDGE_INSET,
+		play_size.x - CAMERA_EDGE_INSET * 2.0,
+		play_size.y - CAMERA_EDGE_INSET * 2.0
+	)
+
+
 func camera_min() -> Vector2:
-	return _half_view() + Vector2(CAMERA_EDGE_INSET, CAMERA_EDGE_INSET)
+	return _camera_limit_rect().position + _half_view()
 
 
 func camera_max() -> Vector2:
-	return play_size - _half_view() - Vector2(CAMERA_EDGE_INSET, CAMERA_EDGE_INSET)
+	var rect: Rect2 = _camera_limit_rect()
+	return rect.position + rect.size - _half_view()
 
 
 func _clamped_camera_pos(pos: Vector2) -> Vector2:
@@ -394,6 +424,7 @@ func _spawn_forest_props() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = scatter_seed
 	var occupied: Array[Vector2] = []
+	_prop_serial = 0
 	var bands: Array = hub_map.get("scatter", []) as Array
 	if bands.is_empty():
 		_scatter_grid(rng, tree_entries, occupied, "tree", 22, 4, Rect2(24, 36, 2512, 300), 56.0, 16.0, 0.0)
@@ -623,43 +654,38 @@ func _scatter_grid(
 
 func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void:
 	## Y-sorted visual at the foot; collision only on the trunk/base, never the canopy.
-	var root := Node2D.new()
-	root.position = pos
-	root.y_sort_enabled = true
-	root.z_index = 0
-	root.add_to_group("forest_prop")
-	root.set_meta("prop_kind", kind)
-	var spr := Sprite2D.new()
-	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	spr.centered = false
-	var tex: Texture2D = load(str(entry["tex"])) as Texture2D
-	spr.texture = tex
-	var sz: Vector2 = entry["size"]
+	## Bake-only: instances a reusable scene so the editor can move each piece.
+	var visual_only: bool = kind == "decor" or bool(entry.get("visual_only", false))
+	var tex: Texture2D = load(str(entry.get("tex", ""))) as Texture2D
+	var sz: Vector2 = entry.get("size", Vector2(64, 64))
 	if tex != null:
 		sz = Vector2(float(tex.get_width()), float(tex.get_height()))
-	spr.offset = Vector2(-sz.x * 0.5, -sz.y)
 	var spr_scale: float = float(entry.get("scale", 1.0))
 	if spr_scale <= 0.0:
 		spr_scale = 1.0
-	spr.scale = Vector2(spr_scale, spr_scale)
-	spr.y_sort_enabled = true
-	root.add_child(spr)
-	if kind == "decor" or bool(entry.get("visual_only", false)):
-		if kind == "decor":
-			root.add_to_group("forest_decor")
-			spr.modulate = Color(1.15, 1.22, 1.06, 1.0)
-		else:
-			root.add_to_group("forest_fill")
-		world.add_child(root)
+	var packed: PackedScene = FOREST_VISUAL_SCENE if visual_only else FOREST_SOLID_SCENE
+	var prop: ForestProp = packed.instantiate() as ForestProp
+	if prop == null:
 		return
-	var body := StaticBody2D.new()
-	body.collision_layer = 1
-	body.collision_mask = 0
-	body.add_to_group("forest_collision")
-	var col := CollisionShape2D.new()
-	var shape := RectangleShape2D.new()
-	var col_size: Vector2
-	var col_off: Vector2
+	_prop_serial += 1
+	var prefix: String = "Decor"
+	if kind == "tree":
+		prefix = "Canopy" if visual_only else "Tree"
+	elif kind == "bush" or kind == "tuft":
+		prefix = "Hem" if visual_only else "Bush"
+	prop.name = "%s_%04d" % [prefix, _prop_serial]
+	prop.texture_path = str(entry.get("tex", ""))
+	prop.prop_kind = kind
+	prop.sprite_scale = spr_scale
+	prop.sprite_modulate = Color(1.15, 1.22, 1.06, 1.0) if kind == "decor" else Color.WHITE
+	if not visual_only:
+		prop.collider_size = _collider_size_for(kind, sz, bool(entry.get("seal", false)))
+	prop.position = pos
+	prop.z_index = 0
+	world.add_child(prop)
+
+
+func _collider_size_for(kind: String, sz: Vector2, seal: bool) -> Vector2:
 	if kind == "tree":
 		var trunk_h: float = maxf(18.0, sz.y * float(collision_cfg.get("tree_trunk_height_frac", 0.30)))
 		var col_h: float = maxf(8.0, trunk_h * float(collision_cfg.get("tree_collider_of_trunk_frac", 0.333)))
@@ -668,24 +694,13 @@ func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void
 			float(collision_cfg.get("tree_width_min", 14)),
 			float(collision_cfg.get("tree_width_max", 36))
 		)
-		col_size = Vector2(col_w, col_h)
-		col_off = Vector2(0.0, -col_h * 0.5)
-	else:
-		if bool(entry.get("seal", false)):
-			col_size = Vector2(32.0, 24.0)
-		else:
-			col_size = Vector2(
-				float(collision_cfg.get("bush_width", 16)),
-				float(collision_cfg.get("bush_height", 10))
-			)
-		col_off = Vector2(0.0, -col_size.y * 0.5)
-	shape.size = col_size
-	col.shape = shape
-	col.position = col_off
-	body.add_child(col)
-	root.add_child(body)
-	root.set_meta("collider_size", col_size)
-	world.add_child(root)
+		return Vector2(col_w, col_h)
+	if seal:
+		return Vector2(32.0, 24.0)
+	return Vector2(
+		float(collision_cfg.get("bush_width", 16)),
+		float(collision_cfg.get("bush_height", 10))
+	)
 
 
 func _can_plant(pos: Vector2, occupied: Array[Vector2], min_sep: float, glade_inset: float) -> bool:

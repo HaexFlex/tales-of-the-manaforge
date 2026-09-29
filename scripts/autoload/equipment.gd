@@ -166,6 +166,29 @@ func item_slot(item_id: String) -> String:
 	return str(get_item_def(item_id).get("slot", ""))
 
 
+func item_damage_kind(item_id: String) -> String:
+	return str(get_item_def(item_id).get("damage_kind", ""))
+
+
+func equipped_strike_kind() -> String:
+	## physical | magical | hybrid. Bare hands and non-weapons stay physical.
+	var kind: String = item_damage_kind(equipped_id("weapon"))
+	if kind == "magical" or kind == "hybrid" or kind == "physical":
+		return kind
+	return "physical"
+
+
+func recipe_station(recipe_id: String) -> String:
+	var station: String = str(get_recipe_def(recipe_id).get("station", "handcraft"))
+	if station == "":
+		return "handcraft"
+	return station
+
+
+func is_handcraft_recipe(recipe_id: String) -> bool:
+	return has_recipe(recipe_id) and recipe_station(recipe_id) != "anvil"
+
+
 func is_unique_item(item_id: String) -> bool:
 	return bool(get_item_def(item_id).get("unique", false))
 
@@ -395,6 +418,9 @@ func recipe_ingredient_lines(recipe_id: String) -> PackedStringArray:
 
 
 func try_craft(recipe_id: String) -> String:
+	## Anvil upgrades are not crafted from the hub. Handcraft stays instant.
+	if recipe_station(recipe_id) == "anvil":
+		return "anvil"
 	var reason: String = craft_block_reason(recipe_id)
 	if reason != "":
 		return reason

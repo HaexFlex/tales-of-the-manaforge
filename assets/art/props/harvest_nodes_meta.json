@@ -1,14 +1,19 @@
 {
-  "canvas_note": "64x80 tree, 64x64 stone/berry \u2014 base_center anchor",
+  "canvas_note": "nodes v2 2026-09-29: tree + spent 288x384 at 1 art px = 1 world px (bottom-centre on the trunk base); stone 46x48 (x2 in code), spent 64x64; berry + spent 784x1168 (43x64 art grid, fit to the 64 box) \u2014 base_center anchor",
   "harvest_nodes": {
     "wood": {
       "file": "harvest_tree.png",
       "spent": "harvest_tree_spent.png",
       "size": [
-        64,
-        80
+        288,
+        384
       ],
-      "also": "prop_wood.png"
+      "also": "prop_wood.png",
+      "spent_size": [
+        288,
+        384
+      ],
+      "anchor": "base_center (trunk base, bottom row 382, x centre 144)"
     },
     "stone": {
       "file": "harvest_stone.png",
@@ -30,7 +35,11 @@
         784,
         1168
       ],
-      "also": "prop_food.png"
+      "also": "prop_food.png",
+      "spent_native_size": [
+        784,
+        1168
+      ]
     }
   },
   "decorative_trees": "trees/tree_big_*, tree_small_* ; bushes/bush_big_*, bush_small_* (Art v0.1.13-assets-upload)",

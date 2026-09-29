@@ -1,6 +1,15 @@
+@tool
 extends Area2D
 class_name Manatree
 ## 5-stage Manatree; textures/size/hitbox from manatree_meta.json. Needs-only (SYSTEMS v0.2.0).
+## preview_stage is editor-only so the canopy is visible before a save loads.
+
+@export_enum("sapling", "young", "mature", "elder", "ancient") var preview_stage: String = "sapling":
+	set(value):
+		preview_stage = value if value != "" else "sapling"
+		if Engine.is_editor_hint() and is_inside_tree():
+			_load_meta()
+			_refresh_visual()
 
 signal fruit_menu_requested
 signal care_menu_requested
@@ -31,6 +40,12 @@ func _ready() -> void:
 	_load_meta()
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
+	if Engine.is_editor_hint():
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if fruit_hint:
+			fruit_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_refresh_visual()
+		return
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.visible = false
 	fruit_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -85,6 +100,8 @@ func _stage_size(stage: StringName) -> Vector2:
 		if typeof(size_v) == TYPE_ARRAY and (size_v as Array).size() >= 2:
 			var arr: Array = size_v
 			return Vector2(float(arr[0]), float(arr[1]))
+	if Engine.is_editor_hint():
+		return Vector2(128, 192)
 	var def: Dictionary = GameState.get_stage_def(stage)
 	var size_v2: Variant = def.get("size", [128, 192])
 	if typeof(size_v2) == TYPE_ARRAY and (size_v2 as Array).size() >= 2:
@@ -187,6 +204,8 @@ func _on_stage_changed(_id: StringName) -> void:
 
 
 func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	if _anim_frames <= 1 or sprite == null:
 		return
 	_anim_time += delta
@@ -275,6 +294,11 @@ func door_anchor_offset() -> Vector2:
 
 
 func _display_scale(stage: StringName) -> float:
+	if Engine.is_editor_hint():
+		var raw: Variant = _meta_stages.get(String(stage), {})
+		if typeof(raw) == TYPE_DICTIONARY and (raw as Dictionary).has("display_scale"):
+			return float((raw as Dictionary).get("display_scale", 1.0))
+		return 1.0
 	var meta: Dictionary = _stage_meta()
 	if stage == GameState.stage_id and meta.has("display_scale"):
 		return float(meta.get("display_scale", 1.0))
@@ -282,8 +306,14 @@ func _display_scale(stage: StringName) -> float:
 
 
 func _refresh_visual() -> void:
-	var path: String = str(STAGE_TEXTURES.get(GameState.stage_id, STAGE_TEXTURES[&"sapling"]))
-	var meta: Dictionary = _stage_meta()
+	var stage: StringName = StringName(preview_stage) if Engine.is_editor_hint() else GameState.stage_id
+	var path: String = str(STAGE_TEXTURES.get(stage, STAGE_TEXTURES[&"sapling"]))
+	var meta: Dictionary = {}
+	var raw_meta: Variant = _meta_stages.get(String(stage), {})
+	if typeof(raw_meta) == TYPE_DICTIONARY:
+		meta = raw_meta
+	if not Engine.is_editor_hint():
+		meta = _stage_meta()
 	var fname: String = str(meta.get("file", ""))
 	if fname != "":
 		path = "res://assets/art/manatree/%s" % fname
@@ -298,22 +328,28 @@ func _refresh_visual() -> void:
 	sprite.texture = tex
 	sprite.frame = 0
 	_anim_time = 0.0
-	var sz: Vector2 = _stage_size(GameState.stage_id)
-	var scale_v: float = _display_scale(GameState.stage_id)
+	var sz: Vector2 = _stage_size(stage)
+	var scale_v: float = _display_scale(stage)
 	sprite.scale = Vector2(scale_v, scale_v)
 	var w: float = sz.x
 	var h: float = sz.y
 	# Door sill is the world anchor. Offset is in frame pixels; scale grows the crown up from that point.
-	var door: Vector2 = door_floor_px(GameState.stage_id)
+	var door: Vector2 = door_floor_px(stage)
 	sprite.offset = Vector2(-door.x, -door.y)
 	var vis_h: float = h * scale_v
 	var vis_w: float = w * scale_v
 	var cs: CollisionShape2D = $CollisionShape2D
 	if cs and cs.shape is RectangleShape2D:
 		# Hitbox follows the visual scale so the grown canopy stays clickable.
-		var rect_shape: RectangleShape2D = cs.shape as RectangleShape2D
+		var rect_shape: RectangleShape2D = (cs.shape as RectangleShape2D).duplicate() as RectangleShape2D
 		rect_shape.size = Vector2(vis_w, vis_h)
+		cs.shape = rect_shape
 		cs.position = (Vector2(w * 0.5, h * 0.5) - door) * scale_v
-	_refresh_label()
+	if Engine.is_editor_hint():
+		if label:
+			label.text = String(stage).capitalize()
+			label.visible = true
+	else:
+		_refresh_label()
 	label.position = Vector2(-80, -door.y * scale_v - 36)
 	fruit_hint.position = Vector2(-140, 12)

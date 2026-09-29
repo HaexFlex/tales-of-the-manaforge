@@ -47,6 +47,8 @@ var echo_01_resolved: bool = false
 var echo_01_redeemed: bool = false
 var forge_key: bool = false
 var echo_01_narrator_heard: bool = false
+## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
+var arrow_mode: String = "physical"
 
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
@@ -1018,6 +1020,7 @@ func to_save_dict() -> Dictionary:
 		"echo_01_redeemed": echo_01_redeemed,
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
+		"arrow_mode": arrow_mode,
 	}
 
 
@@ -1043,6 +1046,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	echo_01_redeemed = bool(data.get("echo_01_redeemed", false))
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
+	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
 	lifetime_waters = int(data.get("lifetime_waters", 0))
 	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
 	lifetime_essence_from_water = int(data.get("lifetime_essence_from_water", 0))
@@ -1146,6 +1150,7 @@ func reset_for_new_game() -> void:
 	echo_01_redeemed = false
 	forge_key = false
 	echo_01_narrator_heard = false
+	arrow_mode = "physical"
 	echo_flags_changed.emit()
 	Backpack.reset_for_new_game()
 	if has_node("/root/KeeperStats"):

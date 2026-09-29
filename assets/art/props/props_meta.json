@@ -15,10 +15,15 @@
       "file": "harvest_tree.png",
       "spent": "harvest_tree_spent.png",
       "size": [
-        64,
-        80
+        288,
+        384
       ],
-      "also": "prop_wood.png"
+      "also": "prop_wood.png",
+      "spent_size": [
+        288,
+        384
+      ],
+      "anchor": "base_center (trunk base, bottom row 382, x centre 144)"
     },
     "stone": {
       "file": "harvest_stone.png",
@@ -40,7 +45,11 @@
         784,
         1168
       ],
-      "also": "prop_food.png"
+      "also": "prop_food.png",
+      "spent_native_size": [
+        784,
+        1168
+      ]
     }
   }
 }

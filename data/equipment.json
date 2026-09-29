@@ -90,6 +90,7 @@
       "slot": "weapon",
       "unique": true,
       "bonuses": { "might": 2 },
+      "damage_kind": "physical",
       "color": "#b7b1a8",
       "art_name": "icon_stone_sword"
     },
@@ -103,6 +104,30 @@
       "bonuses": { "swiftness": 2, "fate": 2 },
       "color": "#7eb8b0",
       "art_name": "icon_forge_key"
+    },
+    {
+      "id": "sapstaff",
+      "display_name": "Sapstaff",
+      "string_key": "sapstaff_name",
+      "tooltip_key": "sapstaff_tooltip",
+      "slot": "weapon",
+      "unique": true,
+      "bonuses": { "arcana": 2 },
+      "damage_kind": "magical",
+      "color": "#6a4a9a",
+      "art_name": "icon_sapstaff"
+    },
+    {
+      "id": "thornbow",
+      "display_name": "Thornbow",
+      "string_key": "thornbow_name",
+      "tooltip_key": "thornbow_tooltip",
+      "slot": "weapon",
+      "unique": true,
+      "bonuses": { "might": 1, "arcana": 1 },
+      "damage_kind": "hybrid",
+      "color": "#5a6a32",
+      "art_name": "icon_thornbow"
     }
   ],
   "recipes": [
@@ -117,6 +142,20 @@
       "output_id": "stone_sword",
       "output_count": 1,
       "ingredients": { "stone_fragments": 30, "weapon_rod": 1 }
+    },
+    {
+      "id": "sapstaff",
+      "output_id": "sapstaff",
+      "output_count": 1,
+      "station": "handcraft",
+      "ingredients": { "wooden_planks": 20, "food": 10, "weapon_rod": 1 }
+    },
+    {
+      "id": "thornbow",
+      "output_id": "thornbow",
+      "output_count": 1,
+      "station": "handcraft",
+      "ingredients": { "wooden_planks": 25, "stone_fragments": 15 }
     }
   ]
 }

@@ -114,7 +114,7 @@ func _run() -> void:
 		failed += _assert(typeof(meta_parsed) == TYPE_DICTIONARY, "meta dict")
 		if typeof(meta_parsed) == TYPE_DICTIONARY:
 			var mroot: Dictionary = meta_parsed
-			failed += _assert(str(mroot.get("version", "")) == "v0.1.7-animated", "meta version v0.1.7-animated")
+			failed += _assert(str(mroot.get("version", "")) == "v0.1.8-A2", "meta version v0.1.8-A2")
 			var stages_m: Variant = mroot.get("stages", [])
 			failed += _assert(typeof(stages_m) == TYPE_ARRAY and (stages_m as Array).size() == 5, "meta 5 stages")
 			if typeof(stages_m) == TYPE_ARRAY:
@@ -677,8 +677,8 @@ func _run() -> void:
 				failed += _assert(typeof(hub_parsed) == TYPE_DICTIONARY, "hub_map json dict")
 				if typeof(hub_parsed) == TYPE_DICTIONARY:
 					var hub: Dictionary = hub_parsed
-					failed += _assert(abs(float(hub.get("map_width_mult", 0)) - 2.5) < 0.01, "MAP_WIDTH_MULT 2.5")
-					failed += _assert(abs(float(hub.get("map_height_mult", 0)) - 3.89) < 0.01, "MAP_HEIGHT_MULT 3.89")
+					failed += _assert(abs(float(hub.get("map_width_mult", 0)) - 3.375) < 0.01, "MAP_WIDTH_MULT 3.375")
+					failed += _assert(abs(float(hub.get("map_height_mult", 0)) - 5.25) < 0.01, "MAP_HEIGHT_MULT 5.25")
 					failed += _assert(bool(hub.get("edge_scroll", true)) == false, "EDGE_SCROLL false")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/HarvestFruitButton") != null, "HarvestFruitButton missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/ActionBand/WaterButton") != null, "WaterButton missing")
@@ -1024,7 +1024,7 @@ func _run() -> void:
 		failed += _assert(live.has_method("get_play_size"), "Main.get_play_size")
 		if live.has_method("get_play_size"):
 			var play: Vector2 = live.call("get_play_size") as Vector2
-			failed += _assert(abs(play.x - 3200.0) < 0.5 and abs(play.y - 2800.0) < 0.5, "play area 3200x2800 (got %s)" % play)
+			failed += _assert(abs(play.x - 4320.0) < 0.5 and abs(play.y - 3780.0) < 0.5, "play area 4320x3780 (got %s)" % play)
 		if live.has_method("pan_camera") and live.has_method("camera_min") and live.has_method("camera_max"):
 			var cam_min: Vector2 = live.call("camera_min") as Vector2
 			var cam_max: Vector2 = live.call("camera_max") as Vector2
@@ -1924,14 +1924,15 @@ func _run() -> void:
 				var sid: String = str(stone_node.get("stat_id"))
 				var tint: Color = keeper_stats.call("stat_color", sid)
 				var glow: Color = stone_node.call("glow_modulate", tint, true)
-				var dye: float = absf(glow.r - tint.r) + absf(glow.g - tint.g) + absf(glow.b - tint.b)
-				failed += _assert(dye > 0.35, "soft glow is not a full dye for %s" % sid)
-				failed += _assert(glow.r > 0.75 and glow.g > 0.75 and glow.b > 0.75, "soft glow stays light for %s" % sid)
+				failed += _assert(
+					absf(glow.r - 1.0) < 0.02 and absf(glow.g - 1.0) < 0.02 and absf(glow.b - 1.0) < 0.02,
+					"runestone glow stays white so the glyph colour reads for %s" % sid
+				)
 				var rune_sprite2: Sprite2D = stone_node.get_node_or_null("Stone") as Sprite2D
 				var glow_match: float = 1.0
 				if rune_sprite2:
 					glow_match = absf(rune_sprite2.modulate.r - glow.r) + absf(rune_sprite2.modulate.g - glow.g) + absf(rune_sprite2.modulate.b - glow.b)
-				failed += _assert(rune_sprite2 != null and glow_match < 0.05, "live stone uses the soft glow for %s" % sid)
+				failed += _assert(rune_sprite2 != null and glow_match < 0.05, "live stone stays neutral for %s" % sid)
 				var atlas_tex: AtlasTexture = rune_sprite2.texture as AtlasTexture if rune_sprite2 else null
 				failed += _assert(atlas_tex != null, "runestone uses the sheet atlas for %s" % sid)
 				if atlas_tex:
@@ -1957,13 +1958,17 @@ func _run() -> void:
 		failed += _assert(char_btn != null and str(char_btn.text) == "", "HUD Character button is icon-only")
 		failed += _assert(char_icon != null and char_icon.texture == HudIcons.cell(HudIcons.CHARACTER), "Character button uses sheet cell")
 		failed += _assert(ascension_icon != null and ascension_icon.texture == HudIcons.cell(HudIcons.ASCENSION), "Ascension reopen uses sheet cell")
+		var help_icon: TextureRect = null
+		if sheet_hud:
+			help_icon = sheet_hud.get_node_or_null("Panel/HelpButton/HelpIcon") as TextureRect
+		failed += _assert(help_icon != null and help_icon.texture == HudIcons.cell(HudIcons.HELP), "Help button uses sheet cell")
 		var berry_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestBerry/Sprite") as Sprite2D
 		var tree_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestTree/Sprite") as Sprite2D
 		var stone_sprite: Sprite2D = live_sheet.get_node_or_null("World/HarvestStone/Sprite") as Sprite2D
 		failed += _assert(berry_sprite != null and berry_sprite.texture != null and str(berry_sprite.texture.resource_path).ends_with("berry_harvest_node.png"), "berry node uses berry_harvest_node")
 		if berry_sprite and berry_sprite.texture:
 			var berry_disp: Vector2 = berry_sprite.texture.get_size() * berry_sprite.scale
-			failed += _assert(abs(berry_disp.y - 64.0) < 1.0 and berry_disp.x <= 64.0 + 0.5, "berry scaled into the 64 harvest box")
+			failed += _assert(abs(berry_disp.y - 128.0) < 1.0 and berry_disp.x <= 128.0 + 0.5, "berry scaled to twice the 64 harvest box")
 			failed += _assert(berry_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "berry nearest filter")
 		failed += _assert(tree_sprite != null and tree_sprite.texture != null and str(tree_sprite.texture.resource_path).ends_with("harvest_tree.png"), "tree harvest art unchanged")
 		failed += _assert(stone_sprite != null and stone_sprite.texture != null and str(stone_sprite.texture.resource_path).ends_with("harvest_stone.png"), "stone harvest art unchanged")

@@ -194,13 +194,15 @@ offset_bottom = 46.0
 flat = true
 tooltip_text = "Left-click: select  ·  Right-click: command"
 
-[node name="HelpIcon" type="ColorRect" parent="Panel/HelpButton"]
+[node name="HelpIcon" type="TextureRect" parent="Panel/HelpButton"]
 offset_left = 6.0
 offset_top = 6.0
 offset_right = 34.0
 offset_bottom = 34.0
 mouse_filter = 2
-color = Color(0.38, 0.46, 0.4, 1)
+texture_filter = 0
+expand_mode = 1
+stretch_mode = 5
 
 [node name="CharacterButton" type="Button" parent="Panel"]
 offset_left = 1068.0

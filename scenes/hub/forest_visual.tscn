@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3 uid="uid://forestvisual001mf"]
+
+[ext_resource type="Script" path="res://scripts/forest_prop.gd" id="1_prop"]
+
+[node name="ForestVisual" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_prop")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture_filter = 0
+centered = false
+y_sort_enabled = true
