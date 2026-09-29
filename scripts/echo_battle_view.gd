@@ -1,3 +1,4 @@
+@tool
 extends CanvasLayer
 class_name EchoBattleView
 ## Separate battle surface. Big Keeper idle (same sheet frame) left; Elaia front right.
@@ -13,10 +14,13 @@ const SPEECH_POS: Vector2 = Vector2(456, 256)
 const SPEECH_SIZE: Vector2 = Vector2(368, 100)
 const KEEPER_IDLE: String = "res://assets/art/keeper/keeper_idle_south.png"
 const ELAIA_FRONT: String = "res://assets/art/echo/elaia_front.png"
+## Opaque 1280×720 plate. Background + Ground stay underneath until this file exists.
+const CHAMBER_BG: String = "res://assets/art/echo/echo_chamber_bg.png"
 
 var _battle: EchoBattle
 @onready var _bg: ColorRect = $Background
 @onready var _ground: ColorRect = $Ground
+@onready var _chamber_art: TextureRect = $ChamberArt
 @onready var _command_band: ColorRect = $CommandBand
 @onready var _mercy_banner: ColorRect = $MercyBanner
 @onready var _mercy_label: Label = $MercyLabel
@@ -43,18 +47,32 @@ var _pulse: float = 0.0
 
 
 func _ready() -> void:
+	_apply_chamber_plate()
+	if Engine.is_editor_hint():
+		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 50
 	_apply_button_copy()
-	var chamber_art: TextureRect = get_node_or_null("ChamberArt") as TextureRect
-	if chamber_art and chamber_art.texture != null:
-		chamber_art.visible = true
-		if _bg:
-			_bg.visible = false
 	_bind()
 
 
+func _apply_chamber_plate() -> void:
+	if _chamber_art == null:
+		return
+	var plate: Texture2D = null
+	if FileAccess.file_exists(CHAMBER_BG):
+		plate = load(CHAMBER_BG) as Texture2D
+	_chamber_art.texture = plate
+	_chamber_art.visible = plate != null
+	if _bg:
+		_bg.visible = true
+	if _ground:
+		_ground.visible = true
+
+
 func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	_pulse += delta
 	if _echo_portrait:
 		var echo_breath: float = 0.9 + 0.1 * sin(_pulse * 1.35)
@@ -62,7 +80,7 @@ func _process(delta: float) -> void:
 	if _keeper_portrait:
 		var keeper_breath: float = 0.92 + 0.08 * sin(_pulse * 1.05 + 0.8)
 		_keeper_portrait.modulate = Color(keeper_breath, keeper_breath, keeper_breath, 1.0)
-	if _ground:
+	if _ground and (_chamber_art == null or not _chamber_art.visible):
 		var ground_shift: float = 0.96 + 0.04 * sin(_pulse * 0.7)
 		_ground.modulate = Color(ground_shift, ground_shift, ground_shift, 1.0)
 
