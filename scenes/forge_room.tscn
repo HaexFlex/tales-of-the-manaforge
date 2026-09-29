@@ -42,7 +42,7 @@ position = Vector2(500, 640)
 position = Vector2(660, 480)
 
 [node name="Reliquary" parent="." instance=ExtResource("7_reliquary")]
-position = Vector2(800, 430)
+position = Vector2(420, 800)
 
 [node name="Press" parent="." instance=ExtResource("5_press")]
 position = Vector2(940, 480)

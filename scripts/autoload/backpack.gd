@@ -96,7 +96,7 @@ func item_category(item_id: String) -> String:
 
 
 func matches_filter(item_id: String, filter_id: String) -> bool:
-	## Pass B backpack filters. Existing All / Tools / Parts tabs stay as they are.
+	## Filter ids: all, raw, refined, tools, weapons, relics.
 	if has_node("/root/ForgeJobs"):
 		return ForgeJobs.matches_backpack_filter(item_id, filter_id)
 	if filter_id == "" or filter_id == "all":

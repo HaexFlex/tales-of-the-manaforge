@@ -1,0 +1,45 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/keepers_bench.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/art/forge/bench_idle.png" id="2_idle"]
+[ext_resource type="Texture2D" path="res://assets/art/forge/bench_busy.png" id="3_busy"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_pick"]
+radius = 46.0
+
+[node name="KeepersBench" type="Area2D"]
+script = ExtResource("1_script")
+idle_texture = ExtResource("2_idle")
+busy_texture = ExtResource("3_busy")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+centered = false
+offset = Vector2(-48, -112)
+texture = ExtResource("2_idle")
+texture_filter = 0
+
+[node name="Placeholder" type="Polygon2D" parent="."]
+visible = false
+color = Color(0.45, 0.3, 0.16, 1)
+polygon = PackedVector2Array(-40, -72, 40, -72, 48, -28, 36, 0, -36, 0, -48, -28)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -48)
+shape = SubResource("CircleShape2D_pick")
+
+[node name="KeeperStand" type="Marker2D" parent="."]
+position = Vector2(0, 36)
+
+[node name="BadgeArt" type="Sprite2D" parent="."]
+position = Vector2(0, 8)
+texture_filter = 0
+
+[node name="Title" type="Label" parent="."]
+offset_left = -80.0
+offset_top = -132.0
+offset_right = 80.0
+offset_bottom = -112.0
+theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
+theme_override_font_sizes/font_size = 14
+text = "Keeper's Bench"
+horizontal_alignment = 1

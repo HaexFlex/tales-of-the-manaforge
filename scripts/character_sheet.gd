@@ -607,6 +607,8 @@ class InvColumn extends Control:
 		host.call("request_unequip", str((data as Dictionary).get("from_slot", "")))
 
 
+const EMPTY_RELIC_FRAME_PATH: String = "res://assets/art/ui/slot_relic_empty.png"
+
 class SlotPlate extends Panel:
 	var slot_id: String = ""
 	var host: Control = null
@@ -652,6 +654,22 @@ class SlotPlate extends Panel:
 		_caption.position = Vector2(0, (caption_host.size.y - cap_h) * 0.5)
 		refresh()
 
+	func _apply_empty_relic_frame() -> bool:
+		var tex: Texture2D = null
+		if ResourceLoader.exists(CharacterSheet.EMPTY_RELIC_FRAME_PATH):
+			tex = load(CharacterSheet.EMPTY_RELIC_FRAME_PATH) as Texture2D
+		if tex == null:
+			return false
+		_square.texture = tex
+		_square.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_square.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_square.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_square.modulate = Color.WHITE
+		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
+		_square.size = SLOT_SQUARE
+		return true
+
+
 	func _show_slot_icon(index: int) -> void:
 		HudIcons.apply(_square, index)
 		_square.modulate = Color.WHITE
@@ -688,6 +706,10 @@ class SlotPlate extends Panel:
 				tooltip_text = "%s %s" % [tooltip_text, ContentStrings.get_text("relic_locked_tooltip")]
 			return
 		if iid == "":
+			if slot_id == "relic" and _apply_empty_relic_frame():
+				_caption.text = ContentStrings.get_text("equip_empty")
+				tooltip_text = ContentStrings.get_text("equip_empty")
+				return
 			_show_slot_icon(HudIcons.EQUIP_EMPTY)
 			if slot_id == "weapon":
 				_caption.text = Equipment.slot_display_name(slot_id)

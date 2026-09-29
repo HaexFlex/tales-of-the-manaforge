@@ -13,6 +13,10 @@ const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 @onready var recipe_panel: Panel = get_node_or_null("UI/RecipePanel") as Panel
 @onready var recipe_list: VBoxContainer = get_node_or_null("UI/RecipePanel/List") as VBoxContainer
 @onready var recipe_title: Label = get_node_or_null("UI/RecipePanel/Title") as Label
+@onready var swirl_overlay: Sprite2D = get_node_or_null("SwirlOverlay") as Sprite2D
+## Art slots. The bark plate is the round-room placeholder. Swirl and floor mask stay empty.
+@export var swirl_texture: Texture2D
+@export var floor_mask: Texture2D
 
 var _wisp_nodes: Dictionary = {}
 var _dest_station: String = ""
@@ -36,6 +40,8 @@ func _ready() -> void:
 	if has_node("/root/GameAudio") and has_node("/root/ForgeJobs"):
 		GameAudio.set_forge_room_mix(true, ForgeJobs.audio_lowpass_hz(), ForgeJobs.audio_reverb_room(), ForgeJobs.audio_music_db())
 		GameAudio.play_hub_music()
+	if swirl_overlay and swirl_texture != null:
+		swirl_overlay.texture = swirl_texture
 	_setup_camera()
 	_hide_recipes()
 	GameState.wisps_changed.connect(_sync_wisps)
@@ -88,6 +94,9 @@ func _on_escape() -> void:
 		return
 	if hud and hud.has_method("is_character_open") and bool(hud.call("is_character_open")):
 		hud.call("close_character_sheet")
+		return
+	if hud and hud.has_method("is_bench_open") and bool(hud.call("is_bench_open")):
+		hud.call("close_bench")
 		return
 	if hud and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 		hud.call("close_backpack")

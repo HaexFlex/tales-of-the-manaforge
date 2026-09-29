@@ -26,6 +26,9 @@ var _dev_override: float = -1.0
 var _autosave_enabled: bool = true
 var _autosave_accum: float = 0.0
 var _last_big_done_msec: int = -1000000
+var _allow_scene_change: bool = true
+## -1 follows the live scene. 0/1 forces the upcycle tick inside or outside the Forge.
+var _in_forge_override: int = -1
 var _materials_snapshot: Dictionary = {}
 
 
@@ -123,7 +126,7 @@ func camera_pan_speed() -> float:
 
 
 func audio_lowpass_hz() -> float:
-	return float(_tuning.get("lowpass_cutoff_hz", 1800.0))
+	return float(_tuning.get("lowpass_cutoff_hz", 1500.0))
 
 
 func audio_reverb_room() -> float:
@@ -236,7 +239,15 @@ func backpack_filters() -> PackedStringArray:
 func matches_backpack_filter(item_id: String, filter_id: String) -> bool:
 	if filter_id == "" or filter_id == "all":
 		return true
-	return category_of(item_id) == filter_id
+	var want: String = filter_id
+	match filter_id:
+		"tools":
+			want = "tool"
+		"weapons":
+			want = "weapon"
+		"relics":
+			want = "relic"
+	return category_of(item_id) == want
 
 
 func open_bench_hook() -> void:
@@ -269,7 +280,8 @@ func try_enter_forge() -> String:
 	_play(&"sfx_door_bark")
 	if has_node("/root/GameAudio"):
 		GameAudio.set_forge_room_mix(true, audio_lowpass_hz(), audio_reverb_room(), audio_music_db())
-	get_tree().change_scene_to_file(FORGE_SCENE)
+	if _allow_scene_change:
+		get_tree().change_scene_to_file(FORGE_SCENE)
 	return "entered"
 
 
@@ -284,7 +296,8 @@ func exit_forge() -> void:
 	_play(&"sfx_door_bark")
 	if has_node("/root/GameAudio"):
 		GameAudio.set_forge_room_mix(false)
-	get_tree().change_scene_to_file(HUB_SCENE)
+	if _allow_scene_change:
+		get_tree().change_scene_to_file(HUB_SCENE)
 
 
 func take_clearing_return() -> bool:
@@ -300,7 +313,17 @@ func return_offset() -> Vector2:
 	return Vector2(-80, 354)
 
 
+func set_scene_changes_enabled(enabled: bool) -> void:
+	_allow_scene_change = enabled
+
+
+func set_in_forge_override(mode: int) -> void:
+	_in_forge_override = mode
+
+
 func in_forge_scene() -> bool:
+	if _in_forge_override >= 0:
+		return _in_forge_override == 1
 	return get_tree() != null and get_tree().get_first_node_in_group("forge_room") != null
 
 
@@ -377,6 +400,8 @@ func try_begin_job(station_id: String, recipe_id: String) -> String:
 		"duration": _duration(recipe),
 	}
 	_play(&"sfx_forge_craft_start")
+	if station_id == "press":
+		_play(&"sfx_press_squeeze")
 	return "ok"
 
 
@@ -620,14 +645,13 @@ func _play_completion(station_id: String, _recipe: Dictionary) -> void:
 		return
 	if not in_forge_scene():
 		return
-	var cue: StringName = &"sfx_press_squeeze" if station_id == "press" else &"sfx_forge_craft_done"
 	if has_node("/root/GameAudio"):
-		GameAudio.play_quiet(cue, float(_tuning.get("upcycle_tick_db", -28.0)))
+		GameAudio.play_quiet(&"sfx_forge_craft_done", float(_tuning.get("upcycle_tick_db", -8.0)))
 
 
 func _play_big_done() -> void:
 	var now: int = Time.get_ticks_msec()
-	var gap: int = int(float(_tuning.get("big_done_min_interval_sec", 2.5)) * 1000.0)
+	var gap: int = int(float(_tuning.get("big_done_min_interval_sec", 3.0)) * 1000.0)
 	if now - _last_big_done_msec < gap:
 		return
 	_last_big_done_msec = now

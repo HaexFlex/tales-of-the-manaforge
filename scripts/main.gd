@@ -827,6 +827,8 @@ func world_input_blocked() -> bool:
 		return true
 	if hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 		return true
+	if hud.has_method("is_bench_open") and bool(hud.call("is_bench_open")):
+		return true
 	if hud.has_method("is_character_open") and bool(hud.call("is_character_open")):
 		return true
 	if hud.has_method("is_forge_popup_open") and bool(hud.call("is_forge_popup_open")):

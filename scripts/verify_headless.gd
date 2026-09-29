@@ -668,7 +668,11 @@ func _run() -> void:
 			failed += _assert(hud.get_node_or_null("Panel/BackpackButton") != null, "BackpackButton missing")
 			failed += _assert(hud.get_node_or_null("Panel/BackpackButton/BackpackIcon") != null, "BackpackIcon ColorRect missing")
 			failed += _assert(hud.get_node_or_null("BackpackPanel") != null, "BackpackPanel missing")
-			failed += _assert(hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") != null, "CraftList missing")
+			failed += _assert(hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") == null, "backpack has no handcraft list")
+			failed += _assert(hud.get_node_or_null("BackpackPanel/HandcraftTitle") == null, "backpack has no handcraft title")
+			failed += _assert(hud.get_node_or_null("BenchPanel/CraftScroll/CraftList") != null, "bench CraftList missing")
+			failed += _assert(inst.get_node_or_null("World/KeepersBench") != null, "KeepersBench missing")
+			failed += _assert(inst.get_node_or_null("Paths/ToBench") is Line2D, "ToBench path missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareGrowCosts/FertilizerIcon") != null, "Grow FertilizerIcon missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareGrowCosts/EssenceIcon") != null, "Grow EssenceIcon missing")
 			failed += _assert(FileAccess.file_exists("res://docs/ART_NEEDED_BACKPACK.md"), "ART_NEEDED_BACKPACK.md")
@@ -1652,10 +1656,16 @@ func _run() -> void:
 		pack_hud.call("open_backpack")
 		await process_frame
 		failed += _assert(bool(pack_hud.call("is_backpack_open")), "backpack opens")
-		var craft_box: VBoxContainer = pack_hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") as VBoxContainer
-		failed += _assert(craft_box != null and craft_box.get_child_count() >= 10, "craft rows built (%d)" % (craft_box.get_child_count() if craft_box else 0))
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") == null, "open backpack stays inventory")
+		pack_hud.call("open_bench_panel")
+		await process_frame
+		failed += _assert(bool(pack_hud.call("is_bench_open")), "bench panel opens from the station")
+		failed += _assert(not bool(pack_hud.call("is_backpack_open")), "bench closes the backpack")
+		var craft_box: VBoxContainer = pack_hud.get_node_or_null("BenchPanel/CraftScroll/CraftList") as VBoxContainer
+		failed += _assert(craft_box != null and craft_box.get_child_count() >= 14, "bench craft rows built (%d)" % (craft_box.get_child_count() if craft_box else 0))
 		var pack_metrics: Dictionary = pack_hud.call("get_backpack_layout_metrics")
-		failed += _assert(bool(pack_metrics.get("fits", false)), "craft scroll width ≤ backpack panel")
+		var bench_metrics: Dictionary = pack_hud.call("get_bench_layout_metrics")
+		failed += _assert(bool(bench_metrics.get("fits", false)), "craft scroll width ≤ bench panel")
 		failed += _assert(float(pack_metrics.get("panel_w", 0)) >= 630.0, "backpack panel widened")
 		if craft_box:
 			var fluff: int = 0
@@ -1677,13 +1687,19 @@ func _run() -> void:
 		var grow_btn: Button = pack_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
 		failed += _assert(grow_btn != null and str(grow_btn.text) == "Grow", "care CTA Grow")
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabAll") != null, "backpack tab All")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabRaw") != null, "backpack tab Raw")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabRefined") != null, "backpack tab Refined")
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabTools") != null, "backpack tab Tools")
-		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabParts") != null, "backpack tab Parts")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabWeapons") != null, "backpack tab Weapons")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabRelics") != null, "backpack tab Relics")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabParts") == null, "parts tab removed")
 		var pack_btn: Button = pack_hud.get_node_or_null("Panel/BackpackButton") as Button
 		failed += _assert(pack_btn != null and str(pack_btn.text) == "" and str(pack_btn.tooltip_text).find("Backpack") >= 0, "HUD backpack sprite button")
+		pack_hud.call("close_bench")
 		pack_hud.call("close_backpack")
 		await process_frame
 		failed += _assert(not bool(pack_hud.call("is_backpack_open")), "backpack closes")
+		failed += _assert(not bool(pack_hud.call("is_bench_open")), "bench closes")
 		pack_hud.queue_free()
 		await process_frame
 		game_state.call("reset_for_new_game")
@@ -2193,6 +2209,7 @@ func _run() -> void:
 
 	failed += await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
 	failed += _forge_pass_a(tree_root, game_state, save_service, backpack)
+	failed += await _forge_pass_b(tree_root, game_state, backpack)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2811,6 +2828,208 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 		failed += _assert(room.get_node_or_null("ExitDoor") != null, "south exit")
 		failed += _assert(room.get_node_or_null("SwirlOverlay") != null, "swirl overlay slot")
 		room.free()
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(jobs != null and equipment != null and audio != null, "pass b nodes")
+	if jobs == null or equipment == null or audio == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	var fresh: Dictionary = {}
+	var hud_probe: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if hud_probe:
+		var hud_node: Node = hud_probe.instantiate()
+		tree_root.add_child(hud_node)
+		await process_frame
+		fresh = hud_node.call("filter_owned_counts")
+		print("FRESH_FILTER_COUNTS %s" % str(fresh))
+		for key: Variant in fresh.keys():
+			failed += _assert(int(fresh[key]) == 0, "fresh %s count is 0" % str(key))
+		hud_node.queue_free()
+		await process_frame
+	var catalog: Dictionary = {
+		"raw": ["wood", "stone", "food", "manashards", "essence"],
+		"refined": ["fertilizer", "wooden_tool_rod", "sapsteel", "heartwood_bits", "amberbind", "weapon_rod"],
+		"tools": ["stone_axe", "stone_pickaxe", "wooden_basket", "stone_watering_can"],
+		"weapons": ["stone_sword", "sapstaff", "thornbow", "rootsteel_edge", "heartwand", "switchshaft"],
+		"relics": ["forge_key_relic", "oakheart_knot", "shardlens", "windthorn_bead"],
+	}
+	for filter_id: Variant in catalog.keys():
+		for item_id: String in catalog[filter_id]:
+			failed += _assert(bool(backpack.call("matches_filter", item_id, str(filter_id))), "%s is %s" % [item_id, filter_id])
+			failed += _assert(bool(backpack.call("matches_filter", item_id, "all")), "all matches %s" % item_id)
+	failed += _assert(bool(backpack.call("matches_filter", "wooden_planks", "all")), "planks are in all")
+	failed += _assert(not bool(backpack.call("matches_filter", "wooden_planks", "refined")), "planks are not refined")
+	failed += _assert(not bool(backpack.call("matches_filter", "wooden_planks", "tools")), "planks are not tools")
+	failed += _assert(not bool(backpack.call("matches_filter", "stone_sword", "tools")), "sword is not a tool")
+	failed += _assert(not bool(backpack.call("matches_filter", "fertilizer", "raw")), "fertilizer is not raw")
+	game_state.call("set_resource", &"wood", 4)
+	backpack.call("set_count", "fertilizer", 2)
+	backpack.call("set_count", "stone_axe", 1)
+	equipment.call("add_gear", "stone_sword", 1)
+	equipment.call("add_gear", "forge_key_relic", 1)
+	var hud_counts: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if hud_counts:
+		var hud_node2: Node = hud_counts.instantiate()
+		tree_root.add_child(hud_node2)
+		await process_frame
+		var owned: Dictionary = hud_node2.call("filter_owned_counts")
+		failed += _assert(int(owned.get("raw", 0)) == 1, "raw shows wood")
+		failed += _assert(int(owned.get("refined", 0)) == 1, "refined shows fertilizer")
+		failed += _assert(int(owned.get("tools", 0)) == 1, "tools shows the axe")
+		failed += _assert(int(owned.get("weapons", 0)) == 1, "weapons shows the sword")
+		failed += _assert(int(owned.get("relics", 0)) == 1, "relics shows the key")
+		failed += _assert(int(owned.get("all", 0)) >= 5, "all shows every granted stack")
+		hud_node2.call("open_bench_panel")
+		await process_frame
+		var craft_box: VBoxContainer = hud_node2.get_node_or_null("BenchPanel/CraftScroll/CraftList") as VBoxContainer
+		var seen: Dictionary = {}
+		if craft_box:
+			for row: Node in craft_box.get_children():
+				seen[str(row.get_meta("recipe_id", ""))] = true
+		var recipe_ids: PackedStringArray = PackedStringArray([
+			"wooden_planks", "stone_fragments", "wooden_tool_rod", "axe_head", "pickaxe_head",
+			"stone_axe", "stone_pickaxe", "wooden_basket", "stone_watering_can", "fertilizer",
+			"weapon_rod", "stone_sword", "sapstaff", "thornbow",
+		])
+		for recipe_id: String in recipe_ids:
+			failed += _assert(bool(seen.get(recipe_id, false)), "bench lists %s" % recipe_id)
+		var plank_before: int = int(backpack.call("get_count", "wooden_planks"))
+		for row2: Node in craft_box.get_children():
+			if str(row2.get_meta("recipe_id", "")) != "wooden_planks":
+				continue
+			for sub: Node in row2.get_children():
+				if sub is Button and not (sub as Button).disabled:
+					(sub as Button).emit_signal("pressed")
+		await process_frame
+		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == plank_before + 1, "bench crafts planks")
+		hud_node2.call("close_bench")
+		hud_node2.queue_free()
+		await process_frame
+	var bench_scene: PackedScene = load("res://scenes/keepers_bench.tscn") as PackedScene
+	var keeper_scene: PackedScene = load("res://scenes/keeper.tscn") as PackedScene
+	var bench_hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if bench_scene and keeper_scene and bench_hud_scene:
+		var bench: Node = bench_scene.instantiate()
+		var keeper: Node2D = keeper_scene.instantiate() as Node2D
+		var bench_hud: Node = bench_hud_scene.instantiate()
+		tree_root.add_child(bench)
+		tree_root.add_child(keeper)
+		tree_root.add_child(bench_hud)
+		await process_frame
+		keeper.global_position = (bench.call("stand_global") as Vector2) + Vector2(400, 0)
+		audio.call("clear_played_log")
+		bench.call("try_open")
+		await process_frame
+		failed += _assert(not bool(bench_hud.call("is_bench_open")), "bench stays shut away from the stand")
+		failed += _assert(not bool(audio.call("did_play", &"sfx_bench_open")), "bench_open waits for arrival")
+		keeper.global_position = bench.call("stand_global")
+		bench.set("_awaiting_arrival", false)
+		bench.call("_on_keeper_arrived")
+		await process_frame
+		failed += _assert(not bool(bench_hud.call("is_bench_open")), "arrival without a walk does not open")
+		bench.set("_awaiting_arrival", true)
+		bench.call("_on_keeper_arrived")
+		await process_frame
+		failed += _assert(bool(bench_hud.call("is_bench_open")), "bench opens when the keeper arrives")
+		failed += _assert(bool(audio.call("did_play", &"sfx_bench_open")), "sfx_bench_open plays")
+		bench_hud.call("close_bench")
+		bench.queue_free()
+		keeper.queue_free()
+		bench_hud.queue_free()
+		await process_frame
+	for cue_id: String in ["sfx_bench_open", "sfx_door_bark", "sfx_forge_big_done", "sfx_press_squeeze"]:
+		failed += _assert(FileAccess.file_exists("res://assets/audio/%s.ogg" % cue_id), "%s imported" % cue_id)
+	failed += _assert(str(audio.call("cue_bus", "sfx_forge_craft_start")) == "SFX_World", "craft_start on SFX_World")
+	failed += _assert(str(audio.call("cue_bus", "sfx_forge_craft_done")) == "SFX_World", "craft_done on SFX_World")
+	failed += _assert(str(audio.call("cue_bus", "sfx_press_squeeze")) == "SFX_World", "press_squeeze on SFX_World")
+	failed += _assert(str(audio.call("cue_bus", "sfx_forge_big_done")) == "SFX_Progress", "big_done on SFX_Progress")
+	failed += _assert(str(audio.call("cue_bus", "sfx_bench_open")) == "SFX_UI", "bench_open on SFX_UI")
+	failed += _assert(absf(float(jobs.call("audio_lowpass_hz")) - 1500.0) < 1.0, "forge low-pass is 1.5 kHz")
+	failed += _assert(absf(float(jobs.call("audio_music_db")) + 3.0) < 0.01, "forge music is -3 dB")
+	audio.call("set_forge_room_mix", false)
+	jobs.call("set_scene_changes_enabled", false)
+	game_state.call("reset_for_new_game")
+	game_state.set("stage_id", &"elder")
+	game_state.set("forge_key", true)
+	audio.call("clear_played_log")
+	failed += _assert(str(jobs.call("try_enter_forge")) == "entered", "door enter")
+	failed += _assert(bool(audio.call("did_play", &"sfx_door_bark")), "door bark on enter")
+	failed += _assert(bool(audio.call("forge_mix_on")), "forge mix on")
+	failed += _assert(absf(float(audio.call("forge_lowpass_hz")) - 1500.0) < 1.0, "live low-pass is 1.5 kHz")
+	failed += _assert(absf(float(audio.call("forge_music_offset_db")) + 3.0) < 0.01, "live music offset is -3 dB")
+	audio.call("clear_played_log")
+	jobs.call("exit_forge")
+	failed += _assert(bool(audio.call("did_play", &"sfx_door_bark")), "door bark on exit")
+	failed += _assert(not bool(audio.call("forge_mix_on")), "forge mix restored")
+	failed += _assert(absf(float(audio.call("forge_music_offset_db"))) < 0.01, "music offset restored")
+	failed += _assert(absf(float(audio.call("forge_lowpass_hz"))) < 0.01, "low-pass removed")
+	jobs.call("take_clearing_return")
+	jobs.call("set_in_forge_override", 0)
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 20)
+	jobs.call("set_keeper_working", "mill", true)
+	audio.call("clear_played_log")
+	jobs.call("try_begin_job", "mill", "heartwood_bits")
+	jobs.call("advance_seconds", 60.0)
+	failed += _assert(not bool(audio.call("did_play", &"sfx_forge_craft_done")), "upcycle is silent outside the forge")
+	jobs.call("set_in_forge_override", 1)
+	game_state.call("set_resource", &"wood", 20)
+	jobs.call("set_keeper_working", "mill", true)
+	audio.call("clear_played_log")
+	jobs.call("try_begin_job", "mill", "heartwood_bits")
+	jobs.call("advance_seconds", 60.0)
+	failed += _assert(bool(audio.call("did_play", &"sfx_forge_craft_done")), "upcycle plays craft_done inside")
+	failed += _assert(absf(float(audio.get("last_cue_volume_db")) + 8.0) < 0.51, "craft_done is about -8 dB")
+	game_state.call("set_resource", &"food", 15)
+	jobs.call("set_keeper_working", "press", true)
+	audio.call("clear_played_log")
+	failed += _assert(str(jobs.call("try_begin_job", "press", "amberbind")) == "ok", "press queues")
+	failed += _assert(bool(audio.call("did_play", &"sfx_press_squeeze")), "press squeeze on queue")
+	audio.call("clear_played_log")
+	jobs.call("advance_seconds", 45.0)
+	failed += _assert(bool(audio.call("did_play", &"sfx_forge_craft_done")), "press completion is craft_done")
+	failed += _assert(not bool(audio.call("did_play", &"sfx_forge_big_done")), "press is not big_done")
+	jobs.call("set_in_forge_override", -1)
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "sapsteel", 12)
+	backpack.call("set_count", "heartwood_bits", 6)
+	backpack.call("set_count", "amberbind", 4)
+	game_state.call("set_resource", &"essence", 150)
+	jobs.call("set_keeper_working", "anvil", true)
+	jobs.set("_last_big_done_msec", Time.get_ticks_msec() - 4000)
+	audio.call("clear_played_log")
+	jobs.call("try_begin_job", "anvil", "rootsteel_edge")
+	jobs.call("advance_seconds", 600.0)
+	failed += _assert(bool(audio.call("did_play", &"sfx_forge_big_done")), "anvil plays big_done outside the forge")
+	audio.call("clear_played_log")
+	jobs.call("_play_big_done")
+	failed += _assert(not bool(audio.call("did_play", &"sfx_forge_big_done")), "big_done throttles inside 3s")
+	jobs.set("_last_big_done_msec", Time.get_ticks_msec() - 4000)
+	jobs.call("_play_big_done")
+	failed += _assert(bool(audio.call("did_play", &"sfx_forge_big_done")), "big_done plays again after 3s")
+	var crucible_img := Image.new()
+	var img_err: Error = crucible_img.load(ProjectSettings.globalize_path("res://assets/art/forge/prop_crucible_idle.png"))
+	failed += _assert(img_err == OK, "crucible placeholder loads")
+	if img_err == OK:
+		var corner: Color = crucible_img.get_pixel(0, 0)
+		failed += _assert(corner.a < 0.05, "crucible placeholder background is keyed out")
+	var reliquary: Node2D = null
+	var room_packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
+	if room_packed:
+		var room: Node = room_packed.instantiate()
+		reliquary = room.get_node_or_null("Reliquary") as Node2D
+		failed += _assert(reliquary != null and reliquary.position.distance_to(Vector2(420, 800)) < 1.0, "reliquary left the north doorway")
+		room.free()
+	audio.call("set_forge_room_mix", false)
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
 	game_state.call("reset_for_new_game")
 	return failed
 

@@ -44,6 +44,8 @@ var _forge_mix_on: bool = false
 var _forge_music_offset_db: float = 0.0
 var _forge_lowpass: AudioEffectLowPassFilter
 var _forge_reverb: AudioEffectReverb
+## Last one-shot level. play() is 0 dB. play_quiet() keeps the requested offset.
+var last_cue_volume_db: float = 0.0
 
 
 func _ready() -> void:
@@ -185,7 +187,25 @@ func get_hub_stream() -> AudioStream:
 	return _music_player.stream
 
 
-func set_forge_room_mix(enabled: bool, lowpass_hz: float = 1800.0, room_size: float = 0.35, gain_db: float = -3.0) -> void:
+func forge_mix_on() -> bool:
+	return _forge_mix_on
+
+
+func forge_lowpass_hz() -> float:
+	if _forge_lowpass == null:
+		return 0.0
+	return _forge_lowpass.cutoff_hz
+
+
+func forge_music_offset_db() -> float:
+	return _forge_music_offset_db
+
+
+func cue_bus(cue_id: String) -> String:
+	return _cue_bus(cue_id)
+
+
+func set_forge_room_mix(enabled: bool, lowpass_hz: float = 1500.0, room_size: float = 0.35, gain_db: float = -3.0) -> void:
 	var idx: int = AudioServer.get_bus_index("Music")
 	if idx < 0:
 		return
@@ -222,6 +242,7 @@ func _remove_bus_effect(bus_name: String, effect: AudioEffect) -> void:
 
 
 func play(cue_id: StringName) -> void:
+	last_cue_volume_db = 0.0
 	var key: String = String(cue_id)
 	# Echo battle: no mus_* bed or Fruit/Ascend sting while the hub is suspended.
 	if _hub_suspended and _cue_bus(key) == "Music":
@@ -368,6 +389,7 @@ func _on_sting_finished() -> void:
 
 func play_quiet(cue_id: StringName, volume_db: float = -8.0) -> void:
 	## Soft SFX under mus_hub_forest (channel 1Hz ticks stay cozy).
+	last_cue_volume_db = volume_db
 	var key: String = String(cue_id)
 	if not _cues.has(key):
 		cue_missing.emit(cue_id)

@@ -401,7 +401,7 @@ func _spacing_pass(live: Node) -> int:
 	var failed: int = 0
 	var world: Node2D = live.get_node("World") as Node2D
 	var named: Dictionary = {}
-	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "Keeper"]:
+	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "Keeper", "KeepersBench"]:
 		named[mark_name] = _sprite_rect(world.get_node(mark_name))
 	var stones: Node2D = world.get_node("Runestones") as Node2D
 	for stone: Node in stones.get_children():
@@ -415,9 +415,10 @@ func _spacing_pass(live: Node) -> int:
 	var rune_gap: float = 1.0e9
 	for stone: Node in stones.get_children():
 		rune_gap = minf(rune_gap, _rect_gap(tree_rect, named[str(stone.name)]))
+	var bench_tree_gap: float = _rect_gap(tree_rect, named["KeepersBench"])
 	var exclusion: Rect2 = _manatree_exclusion((world.get_node("Manatree") as Node2D).position)
 	var hidden: int = 0
-	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal"]:
+	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "KeepersBench"]:
 		if named[mark_name].intersects(exclusion):
 			hidden += 1
 			print("FAIL hidden by manatree %s" % mark_name)
@@ -425,14 +426,31 @@ func _spacing_pass(live: Node) -> int:
 		if named[str(stone.name)].intersects(exclusion):
 			hidden += 1
 			print("FAIL hidden by manatree %s" % stone.name)
+	var bench_rect: Rect2 = named["KeepersBench"]
 	print("MIN_PAIR_GAP %.2f" % min_gap)
 	print("RUNE_TREE_GAP %.2f" % rune_gap)
+	print("BENCH_TREE_GAP %.2f" % bench_tree_gap)
+	print("BENCH_RECT %.1f %.1f %.1f %.1f" % [
+		bench_rect.position.x, bench_rect.position.y, bench_rect.size.x, bench_rect.size.y,
+	])
 	print("MANATREE_EXCLUSION %.1f %.1f %.1f %.1f" % [
 		exclusion.position.x, exclusion.position.y, exclusion.size.x, exclusion.size.y,
 	])
 	failed += _check(min_gap + 0.01 >= 64.0, "pairwise sprite gap >= 64")
 	failed += _check(rune_gap + 0.01 >= 160.0, "runestone to harvest tree >= 160")
+	failed += _check(bench_tree_gap + 0.01 >= 160.0, "bench to harvest tree >= 160")
 	failed += _check(hidden == 0, "nodes stay outside the grown manatree")
+	var bench_node: Node2D = world.get_node("KeepersBench") as Node2D
+	failed += _check(bench_node.position.distance_to(Vector2(1760, 2580)) < 1.0, "bench position")
+	var map_text: String = FileAccess.get_file_as_string("res://data/hub_map.json")
+	var map_v: Variant = JSON.parse_string(map_text)
+	var marks: Dictionary = (map_v as Dictionary).get("landmarks", {}) if typeof(map_v) == TYPE_DICTIONARY else {}
+	var bench_mark: Variant = marks.get("keepers_bench", [])
+	var mark_ok: bool = typeof(bench_mark) == TYPE_ARRAY and (bench_mark as Array).size() >= 2
+	if mark_ok:
+		mark_ok = Vector2(float((bench_mark as Array)[0]), float((bench_mark as Array)[1])).distance_to(bench_node.position) < 1.0
+	failed += _check(mark_ok, "hub_map keepers_bench matches the scene")
+	failed += _check(live.get_node_or_null("Paths/ToBench") is Line2D, "path branch to the bench")
 	return failed
 
 

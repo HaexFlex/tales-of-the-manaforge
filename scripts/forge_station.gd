@@ -6,12 +6,16 @@ class_name ForgeStation
 @export var station_id: String = ""
 @export var idle_texture: Texture2D
 @export var busy_texture: Texture2D
+## Art slots. Empty until the paused and busy badges land.
+@export var paused_badge: Texture2D
+@export var busy_badge: Texture2D
 
 @onready var sprite: Sprite2D = get_node_or_null("Sprite") as Sprite2D
 @onready var placeholder: Polygon2D = get_node_or_null("Placeholder") as Polygon2D
 @onready var keeper_stand: Marker2D = get_node_or_null("KeeperStand") as Marker2D
 @onready var wisp_orbit: Marker2D = get_node_or_null("WispOrbit") as Marker2D
 @onready var badge: Label = get_node_or_null("Badge") as Label
+@onready var badge_art: Sprite2D = get_node_or_null("BadgeArt") as Sprite2D
 @onready var title: Label = get_node_or_null("Title") as Label
 
 
@@ -65,6 +69,19 @@ func _refresh_visual() -> void:
 			placeholder.color = placeholder.color.lightened(0.15)
 	if badge:
 		badge.text = line
+	_apply_badge_art(worked)
+
+
+func _apply_badge_art(worked: bool) -> void:
+	if badge_art == null:
+		return
+	var tex: Texture2D = null
+	if worked and busy_badge != null:
+		tex = busy_badge
+	elif not worked and has_node("/root/ForgeJobs") and ForgeJobs.has_job(station_id) and paused_badge != null:
+		tex = paused_badge
+	badge_art.texture = tex
+	badge_art.visible = tex != null
 
 
 func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> void:

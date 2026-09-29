@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.4.1.
+## HUD + Manatree care + backpack + Keeper's Bench + Ascension shop.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -29,11 +29,17 @@ class_name GameHUD
 @onready var backpack_close_button: Button = $BackpackPanel/Header/BackpackCloseButton
 @onready var inventory_title: Label = $BackpackPanel/InventoryTitle
 @onready var backpack_tab_all: Button = $BackpackPanel/TabRow/TabAll
+@onready var backpack_tab_raw: Button = $BackpackPanel/TabRow/TabRaw
+@onready var backpack_tab_refined: Button = $BackpackPanel/TabRow/TabRefined
 @onready var backpack_tab_tools: Button = $BackpackPanel/TabRow/TabTools
-@onready var backpack_tab_parts: Button = $BackpackPanel/TabRow/TabParts
+@onready var backpack_tab_weapons: Button = $BackpackPanel/TabRow/TabWeapons
+@onready var backpack_tab_relics: Button = $BackpackPanel/TabRow/TabRelics
 @onready var inventory_list: VBoxContainer = $BackpackPanel/InventoryScroll/InventoryList
-@onready var handcraft_title: Label = $BackpackPanel/HandcraftTitle
-@onready var craft_list: VBoxContainer = $BackpackPanel/CraftScroll/CraftList
+@onready var bench_panel: Panel = $BenchPanel
+@onready var bench_title: Label = $BenchPanel/Header/BenchTitle
+@onready var bench_close_button: Button = $BenchPanel/Header/BenchCloseButton
+@onready var bench_prompt: Label = $BenchPanel/BenchPrompt
+@onready var craft_list: VBoxContainer = $BenchPanel/CraftScroll/CraftList
 @onready var care_grow_costs: HBoxContainer = $CarePanel/CareGrowCosts
 @onready var grow_fert_icon: TextureRect = $CarePanel/CareGrowCosts/FertilizerIcon
 @onready var grow_fert_need: Label = $CarePanel/CareGrowCosts/FertilizerNeed
@@ -153,14 +159,14 @@ func _ready() -> void:
 	backpack_button.tooltip_text = ContentStrings.get_text("backpack_open")
 	_wire_sprite_hud()
 	backpack_title.text = ContentStrings.get_text("backpack_title")
-	handcraft_title.text = "%s  ·  %s" % [
+	inventory_title.text = ContentStrings.get_text("backpack_hint")
+	_apply_filter_labels()
+	bench_title.text = ContentStrings.get_text("bench_title")
+	bench_prompt.text = "%s  ·  %s" % [
 		ContentStrings.get_text("handcraft_title"),
 		ContentStrings.get_text("tool_never_gate"),
 	]
-	inventory_title.text = ContentStrings.get_text("backpack_hint")
-	backpack_tab_all.text = ContentStrings.get_text("backpack_tab_all")
-	backpack_tab_tools.text = ContentStrings.get_text("backpack_tab_tools")
-	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
+	bench_panel.visible = false
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -186,9 +192,13 @@ func _ready() -> void:
 	_sheet.close_requested.connect(close_character_sheet)
 	add_child(_sheet)
 	backpack_close_button.pressed.connect(close_backpack)
+	bench_close_button.pressed.connect(close_bench)
 	backpack_tab_all.pressed.connect(_on_backpack_tab.bind("all"))
+	backpack_tab_raw.pressed.connect(_on_backpack_tab.bind("raw"))
+	backpack_tab_refined.pressed.connect(_on_backpack_tab.bind("refined"))
 	backpack_tab_tools.pressed.connect(_on_backpack_tab.bind("tools"))
-	backpack_tab_parts.pressed.connect(_on_backpack_tab.bind("parts"))
+	backpack_tab_weapons.pressed.connect(_on_backpack_tab.bind("weapons"))
+	backpack_tab_relics.pressed.connect(_on_backpack_tab.bind("relics"))
 	if backpack_dim:
 		backpack_dim.gui_input.connect(_on_backpack_dim_input)
 	ascension_reopen_button.pressed.connect(show_ascension_shop)
@@ -439,10 +449,11 @@ func _apply_wood_chrome() -> void:
 	_apply_icon_button(pause_button)
 	_apply_icon_button(ascension_reopen_button)
 	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(backpack_tab_all, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(backpack_tab_tools, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(backpack_tab_parts, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(bench_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	for tab: Button in [backpack_tab_all, backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
+		_apply_button_chrome(tab, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	backpack_panel.add_theme_stylebox_override("panel", _wood_style())
+	bench_panel.add_theme_stylebox_override("panel", _wood_style())
 
 
 func _refresh_dim() -> void:
@@ -450,7 +461,7 @@ func _refresh_dim() -> void:
 		return
 	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible
 	if backpack_dim:
-		backpack_dim.visible = backpack_panel.visible
+		backpack_dim.visible = backpack_panel.visible or bench_panel.visible
 
 
 func bind_manatree(tree: Manatree) -> void:
@@ -1069,6 +1080,8 @@ func _release_world_if_allowed() -> void:
 		return
 	if is_backpack_open():
 		return
+	if is_bench_open():
+		return
 	if is_character_open():
 		return
 	if _pause_menu and _pause_menu.is_open():
@@ -1283,6 +1296,8 @@ func open_character_sheet() -> void:
 		return
 	if is_backpack_open():
 		close_backpack()
+	if is_bench_open():
+		close_bench()
 	hide_care_menu()
 	hide_fruit_confirm()
 	if _sheet == null:
@@ -1336,6 +1351,7 @@ func open_backpack() -> void:
 	if _pause_menu and _pause_menu.is_open():
 		return
 	close_character_sheet()
+	close_bench()
 	hide_care_menu()
 	hide_fruit_confirm()
 	hide_ascension_shop()
@@ -1365,12 +1381,17 @@ func _on_backpack_dim_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			close_backpack()
+			if is_bench_open():
+				close_bench()
+			else:
+				close_backpack()
 
 
 func _on_backpack_inventory(_item_id: StringName, _amount: int) -> void:
 	if is_backpack_open():
 		_rebuild_backpack()
+	if is_bench_open():
+		_rebuild_bench()
 	if care_panel.visible:
 		_refresh_care_needs()
 
@@ -1380,45 +1401,136 @@ func _on_backpack_tab(tab_id: String) -> void:
 	_rebuild_backpack()
 
 
-func _stack_matches_tab(stack: Dictionary) -> bool:
-	if _backpack_tab == "tools":
-		return str(stack.get("kind", "")) == "tool"
-	if _backpack_tab == "parts":
-		var kind: String = str(stack.get("kind", ""))
-		return kind == "intermediate" or kind == "consumable"
-	return true
+func _apply_filter_labels() -> void:
+	backpack_tab_all.text = _filter_label("all")
+	backpack_tab_raw.text = _filter_label("raw")
+	backpack_tab_refined.text = _filter_label("refined")
+	backpack_tab_tools.text = _filter_label("tools")
+	backpack_tab_weapons.text = _filter_label("weapons")
+	backpack_tab_relics.text = _filter_label("relics")
+
+
+func _filter_label(filter_id: String) -> String:
+	match filter_id:
+		"all":
+			return ContentStrings.get_text("backpack_tab_all")
+		"raw":
+			return ContentStrings.get_text("backpack_tab_raw")
+		"refined":
+			return ContentStrings.get_text("backpack_tab_refined")
+		"tools":
+			return ContentStrings.get_text("backpack_tab_tools")
+		"weapons":
+			return ContentStrings.get_text("backpack_tab_weapons")
+		"relics":
+			return ContentStrings.get_text("backpack_tab_relics")
+		_:
+			return filter_id
 
 
 func _rebuild_backpack() -> void:
 	backpack_title.text = ContentStrings.get_text("backpack_title")
-	handcraft_title.text = "%s  ·  %s" % [
-		ContentStrings.get_text("handcraft_title"),
-		ContentStrings.get_text("tool_never_gate"),
-	]
 	inventory_title.text = ContentStrings.get_text("backpack_hint")
-	backpack_tab_all.text = ContentStrings.get_text("backpack_tab_all")
-	backpack_tab_tools.text = ContentStrings.get_text("backpack_tab_tools")
-	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
+	_apply_filter_labels()
 	for child: Node in inventory_list.get_children():
 		child.queue_free()
-	var stacks: Array[Dictionary] = Backpack.stacked_items()
-	var shown: int = 0
-	for stack: Dictionary in stacks:
-		if not _stack_matches_tab(stack):
-			continue
-		inventory_list.add_child(_make_item_row(stack, false))
-		shown += 1
-	if shown == 0:
+	var rows: Array[Dictionary] = _filtered_rows(_backpack_tab)
+	for row: Dictionary in rows:
+		inventory_list.add_child(_make_item_row(row, false))
+	if rows.is_empty():
 		var empty := Label.new()
 		empty.text = ContentStrings.get_text("backpack_empty")
-		if _backpack_tab != "all" and not stacks.is_empty():
-			empty.text = ContentStrings.get_text("backpack_hint")
 		empty.add_theme_font_size_override("font_size", 12)
 		empty.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inventory_list.add_child(empty)
-	for child2: Node in craft_list.get_children():
-		child2.queue_free()
+
+
+func filter_owned_counts() -> Dictionary:
+	var counts: Dictionary = {}
+	var filters: PackedStringArray = PackedStringArray(["all", "raw", "refined", "tools", "weapons", "relics"])
+	if has_node("/root/ForgeJobs"):
+		filters = ForgeJobs.backpack_filters()
+	for filter_id: String in filters:
+		counts[filter_id] = _filtered_rows(filter_id).size()
+	return counts
+
+
+func _filtered_rows(filter_id: String) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	var resources: Array[String] = ["wood", "stone", "food", "manashards", "essence"]
+	for resource_id: String in resources:
+		var count: int = int(GameState.get(resource_id))
+		if count <= 0 or not Backpack.matches_filter(resource_id, filter_id):
+			continue
+		rows.append({
+			"id": resource_id,
+			"count": count,
+			"display_name": ContentStrings.get_text("hud_%s" % resource_id),
+			"unique": false,
+		})
+	for stack: Dictionary in Backpack.stacked_items():
+		var stack_id: String = str(stack.get("id", ""))
+		if Backpack.matches_filter(stack_id, filter_id):
+			rows.append(stack)
+	var gear_counts: Dictionary = {}
+	for entry: Dictionary in Equipment.list_unequipped():
+		var gear_id: String = str(entry.get("id", ""))
+		gear_counts[gear_id] = int(entry.get("count", 0))
+	for slot_id: String in ["weapon", "relic"]:
+		var equipped_id: String = Equipment.equipped_id(slot_id)
+		if equipped_id != "":
+			gear_counts[equipped_id] = int(gear_counts.get(equipped_id, 0)) + 1
+	for gear_key: Variant in gear_counts.keys():
+		var iid: String = str(gear_key)
+		if not Backpack.matches_filter(iid, filter_id):
+			continue
+		rows.append({
+			"id": iid,
+			"count": int(gear_counts[gear_key]),
+			"display_name": Equipment.item_display_name(iid),
+			"unique": Equipment.is_unique_item(iid),
+		})
+	return rows
+
+
+func is_bench_open() -> bool:
+	return bench_panel != null and bench_panel.visible
+
+
+func open_bench_panel() -> void:
+	if EchoChamber.in_battle or welcome_panel.visible:
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
+	close_backpack()
+	close_character_sheet()
+	hide_care_menu()
+	hide_fruit_confirm()
+	hide_ascension_shop()
+	bench_panel.visible = true
+	_hold_world_for_backpack()
+	_rebuild_bench()
+	_refresh_dim()
+
+
+func close_bench() -> void:
+	if bench_panel == null or not bench_panel.visible:
+		return
+	bench_panel.visible = false
+	GameAudio.play_ui_close()
+	_release_world_if_allowed()
+	_refresh_dim()
+
+
+func _rebuild_bench() -> void:
+	bench_title.text = ContentStrings.get_text("bench_title")
+	bench_prompt.text = "%s  ·  %s" % [
+		ContentStrings.get_text("handcraft_title"),
+		ContentStrings.get_text("tool_never_gate"),
+	]
+	for child: Node in craft_list.get_children():
+		child.queue_free()
 	for entry: Variant in Backpack.recipes_data:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -1519,6 +1631,7 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 		btn.pressed.connect(_on_craft.bind(recipe_id))
 	row.add_child(info)
 	row.add_child(btn)
+	row.set_meta("recipe_id", recipe_id)
 	return row
 
 
@@ -1589,12 +1702,20 @@ func _craft_row_cost_text(recipe_id: String) -> String:
 
 func get_backpack_layout_metrics() -> Dictionary:
 	var panel_w: float = backpack_panel.size.x if backpack_panel else 0.0
-	var craft_scroll: ScrollContainer = get_node_or_null("BackpackPanel/CraftScroll") as ScrollContainer
+	return {
+		"panel_w": panel_w,
+		"fits": panel_w >= 630.0,
+	}
+
+
+func get_bench_layout_metrics() -> Dictionary:
+	var panel_w: float = bench_panel.size.x if bench_panel else 0.0
+	var craft_scroll: ScrollContainer = get_node_or_null("BenchPanel/CraftScroll") as ScrollContainer
 	var craft_w: float = craft_scroll.size.x if craft_scroll else 0.0
 	return {
 		"panel_w": panel_w,
 		"craft_scroll_w": craft_w,
-		"fits": craft_w <= panel_w + 1.0,
+		"fits": craft_w <= panel_w + 1.0 and craft_w > 0.0,
 	}
 
 
@@ -1612,6 +1733,7 @@ func _on_craft(recipe_id: String) -> void:
 		else:
 			_show_toast(ContentStrings.get_text("handcraft_ok", {"item": item_name}))
 		_rebuild_backpack()
+		_rebuild_bench()
 		_refresh_resources()
 		SaveService.save_game()
 		return
@@ -1623,6 +1745,7 @@ func _on_craft(recipe_id: String) -> void:
 			"costs": "  ".join(Backpack.recipe_ingredient_lines(recipe_id)),
 		}))
 	_rebuild_backpack()
+	_rebuild_bench()
 
 
 func _on_craft_gear(recipe_id: String) -> void:
@@ -1633,6 +1756,7 @@ func _on_craft_gear(recipe_id: String) -> void:
 		GameAudio.play_ui_confirm()
 		_show_toast(ContentStrings.get_text("weapon_craft_ok", {"item": item_name}))
 		_rebuild_backpack()
+		_rebuild_bench()
 		_refresh_resources()
 		SaveService.save_game()
 		return
@@ -1644,6 +1768,7 @@ func _on_craft_gear(recipe_id: String) -> void:
 			"costs": "  ".join(Equipment.recipe_ingredient_lines(recipe_id)),
 		}))
 	_rebuild_backpack()
+	_rebuild_bench()
 
 
 func _refresh_ascension_copy() -> void:

@@ -416,10 +416,13 @@ func _core_loop() -> void:
 	GS.set_resource(&"food", 80)
 	GS.set_resource(&"essence", 400)
 	GS.set_resource(&"manashards", 2500)
-	hud.call("open_backpack")
+	var bench: Node = main.get_node("World/KeepersBench")
+	keeper.global_position = bench.call("stand_global")
+	bench.set("_awaiting_arrival", true)
+	bench.call("_on_keeper_arrived")
 	await process_frame
 	var crafted: bool = false
-	var craft_list: Node = hud.get_node("BackpackPanel/CraftScroll/CraftList")
+	var craft_list: Node = hud.get_node("BenchPanel/CraftScroll/CraftList")
 	var crafted_row: bool = false
 	for child: Node in craft_list.get_children():
 		if not is_instance_valid(child):
@@ -452,8 +455,8 @@ func _core_loop() -> void:
 			if hit:
 				break
 	_shot("pt_backpack_craft.png")
-	_check("3 craft from backpack", crafted or BP.get_count("fertilizer") > 0 or BP.get_count("wooden_planks") > 0, "fert %d planks %d" % [BP.get_count("fertilizer"), BP.get_count("wooden_planks")])
-	hud.call("close_backpack")
+	_check("3 craft from bench", crafted or BP.get_count("fertilizer") > 0 or BP.get_count("wooden_planks") > 0, "fert %d planks %d" % [BP.get_count("fertilizer"), BP.get_count("wooden_planks")])
+	hud.call("close_bench")
 
 	BP.add_item("fertilizer", 50)
 	var stages: Array[StringName] = [&"sapling", &"young", &"mature", &"elder", &"ancient"]

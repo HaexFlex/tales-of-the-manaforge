@@ -13,7 +13,7 @@
   "examine_press": "The Bramble Press squeezes Food into Amberbind.",
   "examine_anvil": "The Anvil shapes weapons.",
   "examine_reliquary": "The Reliquary binds relics. Stats only.",
-  "examine_bench": "The Keeper's Bench is quiet for now.",
+  "examine_bench": "The Keeper's Bench. Handcraft is done here.",
   "wisp_counter": "Wisps: {count}",
   "queue_full": "That station already has four Wisps.",
   "already_owned": "You already carry that.",
