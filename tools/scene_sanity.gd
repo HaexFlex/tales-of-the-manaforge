@@ -141,6 +141,7 @@ func _run() -> void:
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
 	failed += _check(save_src.find("const SAVE_VERSION: int = 9") >= 0, "SAVE_VERSION 9")
 	failed += _gear_bonus_match()
+	failed += _scene_exit_audit()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -507,9 +508,11 @@ func _path_network(live: Node) -> int:
 	var parent: Dictionary = {}
 	var snap: float = 24.0
 	var knots: Array[Vector2] = []
+	var line_count: int = 0
 	for child: Node in paths_node.get_children():
 		if not (child is Line2D):
 			continue
+		line_count += 1
 		var line2: Line2D = child as Line2D
 		if line2.points.size() < 2:
 			continue
@@ -519,7 +522,6 @@ func _path_network(live: Node) -> int:
 	var roots: Dictionary = {}
 	for knot: Vector2 in knots:
 		roots[_find_knot(parent, knot)] = true
-	failed += _check(roots.size() == 1, "path graph is one piece (got %d)" % roots.size())
 	var landmarks: Array[Vector2] = [
 		Vector2(2160, 2106), Vector2(1200, 2100), Vector2(3300, 1900), Vector2(2480, 2780),
 		Vector2(2900, 1280), Vector2(1760, 2580), Vector2(2000, 1000), Vector2(3200, 1600),
@@ -532,7 +534,50 @@ func _path_network(live: Node) -> int:
 			if knot.distance_to(mark) <= snap:
 				covered += 1
 				break
+	print("PATH_GRAPH components %d lines %d landmarks %d/%d" % [roots.size(), line_count, covered, landmarks.size()])
+	failed += _check(roots.size() == 1, "path graph is one piece (got %d)" % roots.size())
 	failed += _check(covered == landmarks.size(), "paths reach every landmark (%d/%d)" % [covered, landmarks.size()])
+	return failed
+
+
+func _scene_exit_audit() -> int:
+	## Player scene changes: pause menu is the only path to the title.
+	## The Forge south door and Esc return to the hub. Echo battle is an overlay.
+	var failed: int = 0
+	var title_callers: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open("res://scripts")
+	if dir == null:
+		return _check(false, "scripts dir")
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".gd"):
+			var src: String = FileAccess.get_file_as_string("res://scripts/%s" % file_name)
+			var names_title: bool = src.find("title_screen.tscn") >= 0 or src.find("TITLE_SCENE") >= 0
+			var changes_scene: bool = src.find("change_scene_to_file") >= 0
+			if names_title and changes_scene:
+				title_callers.append(file_name)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	var allowed: Dictionary = {
+		"pause_menu.gd": true,
+		"main.gd": true,
+		"playtest_quit.gd": true,
+		"playtest_ship.gd": true,
+		"pass_f_playthrough.gd": true,
+	}
+	for caller: String in title_callers:
+		if not allowed.has(caller):
+			print("FAIL title exit in %s" % caller)
+			failed += 1
+	var forge_src: String = FileAccess.get_file_as_string("res://scripts/autoload/forge_jobs.gd")
+	var echo_src: String = FileAccess.get_file_as_string("res://scripts/autoload/echo_chamber.gd")
+	var forge_ok: bool = forge_src.find("boot_intent = \"forge_return\"") >= 0 and forge_src.find("change_scene_to_file(HUB_SCENE)") >= 0
+	var echo_ok: bool = echo_src.find("change_scene") < 0
+	failed += _check(title_callers.has("pause_menu.gd"), "pause menu can reach the title")
+	failed += _check(forge_ok, "forge exit returns to the hub")
+	failed += _check(echo_ok, "echo battle stays an overlay")
+	print("SCENE_EXITS title=%s forge_return=%s echo=overlay" % [",".join(title_callers), "yes" if forge_ok else "no"])
 	return failed
 
 

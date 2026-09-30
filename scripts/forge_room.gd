@@ -237,6 +237,8 @@ func _leave() -> void:
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.exit_forge()
 	else:
+		if has_node("/root/SaveService"):
+			SaveService.boot_intent = "forge_return"
 		get_tree().change_scene_to_file(HUB_SCENE)
 
 
