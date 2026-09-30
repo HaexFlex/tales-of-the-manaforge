@@ -1233,6 +1233,40 @@ func _run() -> void:
 		failed += _assert(abs(care_sz.x - 520.0) < 1.5 and abs(care_sz.y - 420.0) < 1.5, "care 520x420 (got %s)" % care_sz)
 		failed += _assert(abs(float(care_metrics.get("header_h", 0)) - 64.0) < 1.5, "care header 64")
 		failed += _assert(abs(float(care_metrics.get("action_band_h", 0)) - 56.0) < 1.5, "care action band 56")
+		game_state.call("set_resource", &"essence", 200)
+		backpack.call("set_count", "fertilizer", 45)
+		test_hud.call("show_care_menu")
+		await process_frame
+		var pay_young: Button = test_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
+		failed += _assert(pay_young != null and pay_young.visible and not pay_young.disabled, "sapling Grow is ready")
+		if pay_young:
+			pay_young.pressed.emit()
+		await process_frame
+		var confirm_early: Control = test_hud.get_node_or_null("AncientGrowConfirm") as Control
+		failed += _assert(str(game_state.get("stage_id")) == "young", "non-ancient Grow stays one click")
+		failed += _assert(confirm_early == null or not confirm_early.visible, "non-ancient Grow skips the Ancient dialog")
+		failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "direct grow to mature")
+		failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "direct grow to elder")
+		failed += _assert(str(game_state.get("stage_id")) == "elder", "staged at elder before Ancient confirm")
+		test_hud.call("show_care_menu")
+		await process_frame
+		var pay_elder: Button = test_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
+		failed += _assert(pay_elder != null and pay_elder.visible and not pay_elder.disabled, "elder Grow is ready")
+		if pay_elder:
+			pay_elder.pressed.emit()
+		await process_frame
+		var confirm: Control = test_hud.get_node_or_null("AncientGrowConfirm") as Control
+		failed += _assert(confirm != null and confirm.visible, "Ancient Grow opens the confirm")
+		failed += _assert(str(game_state.get("stage_id")) == "elder", "confirm does not grow yet")
+		var confirm_body: Label = test_hud.get_node_or_null("AncientGrowConfirm/Body") as Label
+		var minutes_ui: int = int(game_state.call("ancient_duration_minutes"))
+		failed += _assert(confirm_body != null and str(confirm_body.text).find("%d minutes" % minutes_ui) >= 0, "confirm body minutes from duration")
+		failed += _assert(confirm_body != null and str(confirm_body.text).find("{minutes}") < 0, "confirm body token filled")
+		var confirm_title: Label = test_hud.get_node_or_null("AncientGrowConfirm/Title") as Label
+		failed += _assert(confirm_title != null and str(confirm_title.text) == "Grow to Ancient?", "confirm title on the dialog")
+		test_hud.call("hide_ancient_grow_confirm")
+		await process_frame
+		failed += _assert(confirm != null and not confirm.visible, "confirm can close")
 		test_hud.call("hide_care_menu")
 		game_state.call("_set_stage", &"ancient")
 		failed += _assert(bool(game_state.get("fruit_ready")), "hud test fruit ready")
@@ -1253,7 +1287,11 @@ func _run() -> void:
 			failed += _assert(water_cta.position.x < harvest_cta.position.x, "action band Water left of Fruit")
 		var pre_hint: Label = test_hud.get_node_or_null("CarePanel/FruitReadyCard/PrecommitHint") as Label
 		failed += _assert(pre_hint != null and str(pre_hint.text).find("Keep watering") >= 0, "care hint tree_ancient_care_hint")
-		failed += _assert(pre_hint != null and str(pre_hint.text).find("still water") >= 0, "care hint tree_water_ancient_note")
+		failed += _assert(pre_hint != null and str(pre_hint.text).find("still water") < 0, "care hint hides tree_water_ancient_note")
+		failed += _assert(pre_hint != null and str(pre_hint.text).find("Fruit waits") < 0, "care hint does not say the Fruit waits")
+		var timer_label: Label = test_hud.get_node_or_null("AncientCountdown") as Label
+		failed += _assert(timer_label != null and str(timer_label.text).begins_with("Fruit falls in "), "HUD timer uses tree_ancient_timer_label (got %s)" % (str(timer_label.text) if timer_label else ""))
+		failed += _assert(timer_label != null and str(timer_label.text).find("PLACEHOLDER") < 0, "HUD timer is not the placeholder")
 		var ascend_pre: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
 		failed += _assert(ascend_pre != null and not ascend_pre.is_visible_in_tree(), "Ascend hidden pre-commit")
 		var e_pre_ui: int = int(game_state.get("essence"))
@@ -2685,8 +2723,21 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 		return _assert(false, "pass e forge jobs")
 	jobs.call("set_autosave_enabled", false)
 	jobs.call("set_dev_speed_override", 1.0)
-	var body: String = str(content_strings.call("get_text", "ancient_grow_confirm_body"))
-	failed += _assert(body.find("PLACEHOLDER") >= 0 and body.find("10 minutes") >= 0, "ancient confirm placeholder says 10 minutes")
+	var minutes: int = int(game_state.call("ancient_duration_minutes"))
+	var raw_body: String = str(content_strings.call("get_text", "tree_grow_ancient_confirm_body"))
+	failed += _assert(raw_body.find("{minutes}") >= 0 and raw_body.find("10") < 0, "minutes token is not hardcoded")
+	var body: String = str(content_strings.call("get_text", "tree_grow_ancient_confirm_body", {"minutes": minutes}))
+	failed += _assert(body.find("PLACEHOLDER") < 0 and body.find("%d minutes" % minutes) >= 0, "ancient confirm minutes come from duration")
+	failed += _assert(minutes == 10, "600s duration is 10 minutes")
+	failed += _assert(int(float(game_state.call("ancient_duration_sec")) / 60.0) == minutes, "minutes helper matches duration")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_ancient_confirm_title")) == "Grow to Ancient?", "ancient confirm title")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_ancient_confirm_yes")) == "Grow to Ancient", "ancient confirm yes")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_ancient_confirm_no")) == "Not yet", "ancient confirm no")
+	failed += _assert(str(content_strings.call("get_text", "tree_ancient_timer_label", {"time": "9:05"})) == "Fruit falls in 9:05", "timer label")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_confirm")) == "Grow into {next_stage}?", "generic grow confirm unchanged")
+	failed += _assert(str(content_strings.call("get_text", "tree_at_ancient_idle")).find("waiting") >= 0, "tree_at_ancient_idle kept")
+	failed += _assert(str(content_strings.call("get_text", "ancient_grow_confirm_body")).find("PLACEHOLDER") >= 0, "placeholder key kept unused")
+	failed += _assert(str(content_strings.call("get_text", "fruit_harvest_toast")).find("Primordial Fruit") >= 0, "timer end reuses fruit_harvest_toast")
 	failed += _assert(absf(float(game_state.call("ancient_duration_sec")) - 600.0) < 0.01, "ancient duration config is 600")
 	failed += _assert(absf(float(game_state.call("offline_reset_active_sec")) - 180.0) < 0.01, "offline reset active sec is 180")
 	var sight: Dictionary = game_state.call("get_upgrade_def", "shard_sight")

@@ -35,13 +35,15 @@ While the stage is Ancient, nothing progresses offline: harvest, watering, Wisps
 
 The HUD shows a countdown. At 0 the Fruit auto-harvests and the Ascension shop opens with no harvest confirm. Manual early harvest stays. Closing the shop still cancels the commit, the same as a manual harvest.
 
-Grow to Ancient asks first. The dialog copy is Content's. The keys ship with placeholder text:
+Grow to Ancient asks first. The dialog is HUD-only. Live copy is CONTENT_STRINGS v0.7.2 §13:
 
-- `ancient_grow_confirm_title`
-- `ancient_grow_confirm_body` (says 10 minutes)
-- `ancient_grow_confirm_yes`
-- `ancient_grow_confirm_no`
-- `ancient_countdown_hud`
+- `tree_grow_ancient_confirm_title`
+- `tree_grow_ancient_confirm_body` (`{minutes}` from `ancient_duration_sec`; 600 s is 10)
+- `tree_grow_ancient_confirm_yes`
+- `tree_grow_ancient_confirm_no`
+- `tree_ancient_timer_label` (`{time}` is a live m:ss countdown)
+
+The Pass E placeholder keys `ancient_grow_confirm_*` and `ancient_countdown_hud` stay in the string table and are not shown. When the timer ends, the toast is `fruit_harvest_toast`.
 
 `try_grow_stage` itself stays a direct call so tests can grow without the dialog. The confirm is on the HUD Grow button only.
 

@@ -963,7 +963,8 @@ func _join_cost_parts(parts: PackedStringArray) -> String:
 ## Care-menu / HUD helper: next-stage needs checklist, or Ancient fruit/ascend state.
 func get_care_next_stage_info() -> Dictionary:
 	if stage_id == &"ancient" or fruit_committed:
-		var ancient_line: String = ContentStrings.get_text("tree_at_ancient_idle")
+		## tree_at_ancient_idle stays in the string table and is not shown. "Waiting" fights the timed fall.
+		var ancient_line: String = ""
 		if fruit_committed:
 			ancient_line = ContentStrings.get_text("ascension_paused_body")
 		elif fruit_ready:
@@ -1048,6 +1049,11 @@ func try_advance() -> String:
 func ancient_duration_sec() -> float:
 	_ensure_idle_tuning()
 	return maxf(1.0, float(_idle_tuning.get("ancient_duration_sec", 600.0)))
+
+
+func ancient_duration_minutes() -> int:
+	## Whole minutes from ancient_duration_sec. 600 s is 10. Not a hardcoded label.
+	return maxi(1, int(ancient_duration_sec() / 60.0))
 
 
 func offline_reset_active_sec() -> float:

@@ -892,10 +892,9 @@ func _refresh_care_needs() -> void:
 	fruit_ready_card.visible = fruit_ready
 	precommit_hint.visible = fruit_ready
 	if fruit_ready:
-		precommit_hint.text = "%s\n%s" % [
-			ContentStrings.get_text("tree_ancient_care_hint"),
-			ContentStrings.get_text("tree_water_ancient_note"),
-		]
+		## Early harvest stays. tree_water_ancient_note stays in the table and is not shown:
+		## "The Fruit waits when you are ready" fights the timed fall.
+		precommit_hint.text = ContentStrings.get_text("tree_ancient_care_hint")
 
 
 func show_care_menu() -> void:
@@ -1512,7 +1511,7 @@ func _refresh_ancient_countdown() -> void:
 		return
 	var total: int = int(ceil(GameState.ancient_remaining_sec))
 	var label: String = "%d:%02d" % [int(total / 60), total % 60]
-	_ancient_countdown.text = ContentStrings.get_text("ancient_countdown_hud", {"time": label})
+	_ancient_countdown.text = ContentStrings.get_text("tree_ancient_timer_label", {"time": label})
 
 
 func open_ancient_grow_confirm() -> void:
@@ -1522,10 +1521,11 @@ func open_ancient_grow_confirm() -> void:
 	var body: Label = _ancient_confirm.get_node("Body") as Label
 	var yes: Button = _ancient_confirm.get_node("Yes") as Button
 	var no: Button = _ancient_confirm.get_node("No") as Button
-	title.text = ContentStrings.get_text("ancient_grow_confirm_title")
-	body.text = ContentStrings.get_text("ancient_grow_confirm_body")
-	yes.text = ContentStrings.get_text("ancient_grow_confirm_yes")
-	no.text = ContentStrings.get_text("ancient_grow_confirm_no")
+	var minutes: int = GameState.ancient_duration_minutes()
+	title.text = ContentStrings.get_text("tree_grow_ancient_confirm_title")
+	body.text = ContentStrings.get_text("tree_grow_ancient_confirm_body", {"minutes": minutes})
+	yes.text = ContentStrings.get_text("tree_grow_ancient_confirm_yes")
+	no.text = ContentStrings.get_text("tree_grow_ancient_confirm_no")
 	_ancient_confirm.visible = true
 	_refresh_dim()
 	GameAudio.play_ui_confirm()

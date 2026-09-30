@@ -176,10 +176,7 @@ func do_water() -> void:
 		return
 	k.start_water_channel(self)
 	if GameState.stage_id == &"ancient":
-		GameState.status_message.emit("%s\n%s" % [
-			ContentStrings.get_text("tree_water_ancient_note"),
-			ContentStrings.get_text("tree_water_ancient_ok"),
-		])
+		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
 
 
 func do_pay_stage() -> String:
@@ -246,10 +243,7 @@ func _refresh_label() -> void:
 	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
 	var ascension: String = ContentStrings.get_text("ascend_count_hud", {"count": GameState.ascensions})
 	if GameState.stage_id == &"ancient":
-		var note: String = ""
-		if GameState.fruit_ready:
-			note = "\n" + ContentStrings.get_text("tree_at_ancient_idle")
-		label.text = "%s  |  %s%s%s" % [stage_name, ascension, note, suffix]
+		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
 	else:
 		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
 	_apply_label_visibility()

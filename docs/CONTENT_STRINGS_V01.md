@@ -1,12 +1,12 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.7.1 — handcrafted fighter starter display is Flintblade (`stone_sword_name`). Id stays `stone_sword`.
+**Status:** v0.7.2 — Grow-to-Ancient confirm and the HUD timer use the live keys in §13. `{minutes}` comes from `ancient_duration_sec`.
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
 **Changelog note:** v0.6.0 Echo Chamber v1 string sheet (Haex GO).
 
-**Last updated:** 2026-09-22
+**Last updated:** 2026-09-30
 
 **Tone (Haex locked):** warm + lightly melancholic — never stressful.  
 **In-world rule:** *Manaforge* is **title-only** in v0.1 (window / itch blurb). Do not name the hidden forge or door in player strings yet.
@@ -31,6 +31,7 @@
 | **v0.6.1** | Haex Echo polish: Enter Forge **Elder/Ancient only**; `forge_not_built` → “Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”; Forge Key relic +2 Swiftness +2 Fate. |
 | **v0.6.2** | Haex GO Echo polish: brief flavour dialogue keys (`echo_01_*` intro/mercy/spare/defeat/flee/return); battle log labels; confirm Enter Forge Elder/Ancient + Stay tuned + Forge Key +2/+2. |
 | **v0.7.1** | Fighter starter display: `stone_sword_name` Flintblade. `stone_sword_tooltip` is the chipped flint line. Id `stone_sword` is unchanged. Craft cost stays Stone Fragments ×30, Weapon Rod ×1. |
+| **v0.7.2** | Grow to Ancient: `tree_grow_ancient_confirm_*` and `tree_ancient_timer_label`. `{minutes}` is `ancient_duration_sec / 60` (600 s → 10). `{time}` is a live m:ss countdown. Other Grow stays `tree_grow_confirm`. Timer end reuses `fruit_harvest_toast`. `tree_water_ancient_note` and `tree_at_ancient_idle` stay in the table and are hidden. `tree_ancient_care_hint` stays on the care card. |
 
 ---
 
@@ -135,6 +136,8 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_water_ancient_ok` | The Ancient Manatree still drinks — shards and Essence gather. |
 | `tree_ancient_care_hint` | Keep watering for Manashards. When ready, Harvest the Fruit to begin Ascension. |
 
+**Hidden (v0.7.2), key kept:** `tree_water_ancient_note` is not shown. “The Fruit waits when you are ready” says the player gates the fall. The Fruit falls when the timer ends. Watering while the game is open still uses `tree_water_ancient_ok`. `tree_ancient_care_hint` stays on the care card: early harvest and open-game watering are still true, and the line does not claim idle or offline progress.
+
 ### 5c. Needs checklist + Pay
 
 | key | string |
@@ -175,6 +178,8 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_at_ancient_idle` | Ancient and waiting. The Primordial Fruit hangs heavy. |
 
 **Retired (do not ship in UI):** growth X/Y keys; all `tree_offer_*` verbs; `tree_growth_hud`.
+
+**Hidden (v0.7.2), key kept:** `tree_at_ancient_idle` is not shown. “Ancient and waiting” is a player-gated wait. The HUD timer (`tree_ancient_timer_label`) is the status. Placeholder keys `ancient_grow_confirm_*` and `ancient_countdown_hud` stay in the table and are not shown. Live copy is §13.
 
 **Tokens:** `{next_stage}`, `{item}`, `{have}`, `{need}`, `{costs}` (joined need lines).  
 Design costs (§4): Young essence 20 → Mature 40+food 10 → Elder 60+food 20+wood 10 → Ancient 80+food 40+wood 20+stone 10.
@@ -861,6 +866,36 @@ Brief lines for the **top dialogue band**. Battle log (lower) uses short action 
 - Display name for `echo_keeper_01` is always **Elaia**.
 - Do not name Manaforge as a place on Forge/portal copy.
 - Flavour beats: `echo_01_*` for top dialogue band; short `battle_log_*` for lower log; outcome toasts still apply. Audio: hub stop/resume; no battle music.
+
+
+## 13. Grow to Ancient (v0.7.2 — LIVE)
+
+The Ancient confirm shows only when the next stage is Ancient. Every other Grow keeps `tree_grow_confirm` (`Grow into {next_stage}?`) and does not open this dialog. `try_grow_stage` stays a direct call.
+
+`{minutes}` is whole minutes from `ancient_duration_sec` (600 s → 10). The label does not hard-code 10.
+
+`{time}` is the live countdown, `m:ss`, while the game is open.
+
+When the timer ends, the toast reuses `fruit_harvest_toast`. Manual early harvest stays: `fruit_ready_prompt`, `fruit_precommit_cta`, and the §6 two-step Fruit confirm.
+
+| key | string |
+|-----|--------|
+| `tree_grow_ancient_confirm_title` | Grow to Ancient? |
+| `tree_grow_ancient_confirm_body` | The Ancient bloom lasts {minutes} minutes of play, and only passes while the game is open. When it ends, the Primordial Fruit falls on its own and the Ascension shop opens. |
+| `tree_grow_ancient_confirm_yes` | Grow to Ancient |
+| `tree_grow_ancient_confirm_no` | Not yet |
+| `tree_ancient_timer_label` | Fruit falls in {time} |
+
+**Hidden from the UI (keys kept):**
+
+| key | why |
+|-----|-----|
+| `tree_water_ancient_note` | “The Fruit waits when you are ready” says the player gates the fall. The Fruit falls when the timer ends. |
+| `tree_at_ancient_idle` | “Ancient and waiting” is a player-gated wait. The HUD timer is the status. |
+
+`tree_ancient_care_hint` stays shown. It does not claim idle or offline progress at Ancient.
+
+Placeholder keys kept and not shown: `ancient_grow_confirm_title`, `ancient_grow_confirm_body`, `ancient_grow_confirm_yes`, `ancient_grow_confirm_no`, `ancient_countdown_hud`.
 
 
 ## DEFERRED notes (historical + park)
