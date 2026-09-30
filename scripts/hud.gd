@@ -368,43 +368,10 @@ func _wire_sprite_hud() -> void:
 
 
 func _item_icon_path(item_id: String) -> String:
+	var from_art: String = Equipment.item_art_path(item_id)
+	if from_art != "":
+		return from_art
 	match item_id:
-		"wooden_planks":
-			return "res://assets/art/ui/icons/icon_wooden_planks.png"
-		"stone_fragments":
-			return "res://assets/art/ui/icons/icon_stone_fragments.png"
-		"wooden_tool_rod":
-			return "res://assets/art/ui/icons/icon_wooden_tool_rod.png"
-		"axe_head":
-			return "res://assets/art/ui/icons/icon_axe_head.png"
-		"pickaxe_head":
-			return "res://assets/art/ui/icons/icon_pickaxe_head.png"
-		"stone_axe":
-			return "res://assets/art/ui/icons/icon_stone_axe.png"
-		"stone_pickaxe":
-			return "res://assets/art/ui/icons/icon_stone_pickaxe.png"
-		"fertilizer":
-			return ICON_FERTILIZER_TEX
-		"weapon_rod":
-			return "res://assets/art/ui/icons/icon_weapon_rod.png"
-		"forge_key_relic":
-			return "res://assets/art/ui/icons/icon_forge_key.png"
-		"amberbind":
-			return "res://assets/art/ui/icon_amberbind.png"
-		"sapsteel":
-			return "res://assets/art/ui/icon_sapsteel.png"
-		"heartwood_bits":
-			return "res://assets/art/ui/icon_heartwood_bits.png"
-		"oakheart_knot":
-			return "res://assets/art/ui/icons/icon_oakheart_knot.png"
-		"shardlens":
-			return "res://assets/art/ui/icons/icon_shardlens.png"
-		"windthorn_bead":
-			return "res://assets/art/ui/icons/icon_windthorn_bead.png"
-		"sapstaff":
-			return "res://assets/art/ui/icon_sapstaff.png"
-		"thornbow":
-			return "res://assets/art/ui/icon_thornbow.png"
 		"wood":
 			return ICON_WOOD_TEX
 		"stone":
@@ -591,8 +558,7 @@ func _refresh_controls_hint() -> void:
 		help_button.tooltip_text = line
 
 
-const KEEPER_PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
-const WISP_PORTRAIT_PATH: String = "res://assets/art/ui/portrait_wisp.png"
+const SEL_PORTRAIT_SIZE: Vector2 = Vector2(72, 72)
 
 var _sel_panel: PanelContainer
 var _sel_portrait: TextureRect
@@ -607,8 +573,9 @@ func _build_selection_panel() -> void:
 	_sel_panel = PanelContainer.new()
 	_sel_panel.name = "SelectionPanel"
 	_sel_panel.position = Vector2(16, 78)
-	_sel_panel.custom_minimum_size = Vector2(280, 96)
-	_sel_panel.size = Vector2(280, 96)
+	_sel_panel.custom_minimum_size = Vector2(300, 112)
+	_sel_panel.size = Vector2(300, 112)
+	_sel_panel.z_index = 20
 	_sel_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.14, 0.1, 0.88)
@@ -618,13 +585,26 @@ func _build_selection_panel() -> void:
 	_sel_panel.add_theme_stylebox_override("panel", style)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
+	var portrait_host := Control.new()
+	portrait_host.custom_minimum_size = SEL_PORTRAIT_SIZE
+	portrait_host.size = SEL_PORTRAIT_SIZE
+	portrait_host.mouse_filter = Control.MOUSE_FILTER_STOP
+	portrait_host.gui_input.connect(_on_selection_portrait_input)
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0.10, 0.14, 0.11, 1.0)
+	backdrop.position = Vector2.ZERO
+	backdrop.size = SEL_PORTRAIT_SIZE
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_host.add_child(backdrop)
 	_sel_portrait = TextureRect.new()
-	_sel_portrait.custom_minimum_size = Vector2(48, 48)
+	_sel_portrait.custom_minimum_size = SEL_PORTRAIT_SIZE
+	_sel_portrait.position = Vector2.ZERO
+	_sel_portrait.size = SEL_PORTRAIT_SIZE
 	_sel_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_sel_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_sel_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_sel_portrait.mouse_filter = Control.MOUSE_FILTER_STOP
-	_sel_portrait.gui_input.connect(_on_selection_portrait_input)
+	_sel_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait_host.add_child(_sel_portrait)
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sel_name = Label.new()
@@ -637,7 +617,7 @@ func _build_selection_panel() -> void:
 	col.add_child(_sel_name)
 	col.add_child(_sel_count)
 	col.add_child(_sel_task)
-	row.add_child(_sel_portrait)
+	row.add_child(portrait_host)
 	row.add_child(col)
 	_sel_panel.add_child(row)
 	add_child(_sel_panel)
@@ -664,8 +644,8 @@ func _refresh_selection_panel() -> void:
 		_sel_panel.visible = false
 		return
 	_sel_panel.visible = true
-	var wisp_tex: Texture2D = load(WISP_PORTRAIT_PATH) as Texture2D
-	var keeper_tex: Texture2D = load(KEEPER_PORTRAIT_PATH) as Texture2D
+	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
+	var keeper_tex: Texture2D = load(CharacterSheet.PORTRAIT_PATH) as Texture2D
 	if ids.size() >= 2 or (ids.size() >= 1 and not show_keeper):
 		_sel_portrait.texture = wisp_tex
 	else:

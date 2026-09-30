@@ -2069,7 +2069,13 @@ func _run() -> void:
 		var sword_icon: TextureRect = null
 		if sword_row.get_child_count() > 0 and sword_row.get_child(0).get_child_count() > 0:
 			sword_icon = sword_row.get_child(0).get_child(0) as TextureRect
-		failed += _assert(sword_icon != null and sword_icon.texture == HudIcons.cell(HudIcons.STONE_SWORD), "gear bag sword uses sheet cell")
+		var flint_icon: Texture2D = load("res://assets/art/ui/icon_stone_sword.png") as Texture2D
+		failed += _assert(HudIcons.index_for_item("stone_sword") < 0, "stone_sword leaves sheet cell 6")
+		failed += _assert(CharacterSheet.gear_icon_path("stone_sword") == "res://assets/art/ui/icon_stone_sword.png", "flintblade icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("rootsteel_edge") == "res://assets/art/ui/icon_rootsteel_edge.png", "rootsteel icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("heartwand") == "res://assets/art/ui/icon_heartwand.png", "heartwand icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("switchshaft") == "res://assets/art/ui/icon_switchshaft.png", "switchshaft icon path")
+		failed += _assert(sword_icon != null and flint_icon != null and sword_icon.texture == flint_icon, "gear bag sword uses flintblade icon")
 		sheet_hud.get_node("CharacterSheet").call("request_equip", "stone_sword")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet click equips sword")
@@ -2079,7 +2085,7 @@ func _run() -> void:
 		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "equipped sword still adds +2 might")
 		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Flintblade", "equipped weapon shows the item name")
 		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
-		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.STONE_SWORD), "equipped sword shows sheet cell")
+		failed += _assert(weapon_square != null and flint_icon != null and weapon_square.texture == flint_icon, "equipped sword shows flintblade icon")
 		var slot_plate: Node = sheet_hud.get_node("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
 		sheet_hud.get_node("CharacterSheet").call("request_unequip", "weapon")
 		await process_frame

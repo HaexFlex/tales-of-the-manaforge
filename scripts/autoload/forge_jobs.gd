@@ -231,25 +231,11 @@ func _item_label(item_id: String) -> String:
 
 
 func _output_icon_path(item_id: String) -> String:
+	if has_node("/root/Equipment"):
+		var from_art: String = Equipment.item_art_path(item_id)
+		if from_art != "":
+			return from_art
 	match item_id:
-		"amberbind":
-			return "res://assets/art/ui/icon_amberbind.png"
-		"sapsteel":
-			return "res://assets/art/ui/icon_sapsteel.png"
-		"heartwood_bits":
-			return "res://assets/art/ui/icon_heartwood_bits.png"
-		"oakheart_knot":
-			return "res://assets/art/ui/icons/icon_oakheart_knot.png"
-		"shardlens":
-			return "res://assets/art/ui/icons/icon_shardlens.png"
-		"windthorn_bead":
-			return "res://assets/art/ui/icons/icon_windthorn_bead.png"
-		"rootsteel_edge":
-			return "res://assets/art/ui/icon_rootsteel_edge.png"
-		"heartwand":
-			return "res://assets/art/ui/icon_heartwand.png"
-		"switchshaft":
-			return "res://assets/art/ui/icon_switchshaft.png"
 		"wood":
 			return "res://assets/art/ui/icon_wood.png"
 		"stone":

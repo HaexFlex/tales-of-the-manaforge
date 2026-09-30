@@ -6,6 +6,7 @@ class_name CharacterSheet
 signal close_requested
 
 const PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
+const WISP_PORTRAIT_PATH: String = "res://assets/art/wisps/wisp_portrait.png"
 const SHEET_SIZE: Vector2 = Vector2(1272, 716)
 const HOST_POS: Vector2 = Vector2(12, 54)
 ## Paper-doll host. The sprite is inset; slots sit in the margins around the figure.
@@ -17,27 +18,7 @@ const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
 
 
 static func gear_icon_path(item_id: String) -> String:
-	match item_id:
-		"forge_key_relic":
-			return "res://assets/art/ui/icons/icon_forge_key.png"
-		"amberbind":
-			return "res://assets/art/ui/icon_amberbind.png"
-		"sapsteel":
-			return "res://assets/art/ui/icon_sapsteel.png"
-		"heartwood_bits":
-			return "res://assets/art/ui/icon_heartwood_bits.png"
-		"oakheart_knot":
-			return "res://assets/art/ui/icons/icon_oakheart_knot.png"
-		"shardlens":
-			return "res://assets/art/ui/icons/icon_shardlens.png"
-		"windthorn_bead":
-			return "res://assets/art/ui/icons/icon_windthorn_bead.png"
-		"sapstaff":
-			return "res://assets/art/ui/icon_sapstaff.png"
-		"thornbow":
-			return "res://assets/art/ui/icon_thornbow.png"
-		_:
-			return ""
+	return Equipment.item_art_path(item_id)
 
 
 static func make_item_icon(item_id: String) -> Control:
@@ -747,8 +728,9 @@ class SlotPlate extends Panel:
 		if gear_index >= 0:
 			_show_slot_icon(gear_index)
 			return
-		if item_id == "forge_key_relic" and ResourceLoader.exists("res://assets/art/ui/icons/icon_forge_key.png"):
-			_square.texture = load("res://assets/art/ui/icons/icon_forge_key.png") as Texture2D
+		var path: String = CharacterSheet.gear_icon_path(item_id)
+		if path != "" and ResourceLoader.exists(path):
+			_square.texture = load(path) as Texture2D
 			_square.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			_square.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			_square.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
