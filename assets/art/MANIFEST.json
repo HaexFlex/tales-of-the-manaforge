@@ -14,18 +14,18 @@
     "native": "keeper/native/"
   },
   "manatree": {
-    "dir": "manatree/",
-    "meta": "manatree/manatree_meta.json",
-    "version": "v0.1.7-animated",
-    "anim": "manatree/anim/"
+    "dir": "manatree/native/",
+    "meta": "manatree/native/manatree_meta.json",
+    "version": "v0.1.9-A2-native",
+    "anim": "manatree/native/anim/"
   },
   "title": {
     "file": "title/titlescreen.png",
     "source": "art_drop_c9fda76"
   },
   "decor": {
-    "dir": "decor/",
-    "meta": "decor/decor_meta.json"
+    "dir": "hub/",
+    "meta": "hub/hub_deco_meta.json"
   },
   "nodes": {
     "dir": "nodes/"
@@ -65,10 +65,9 @@
     "atlas": "tiles/tileset_grass_64.png"
   },
   "trees": {
-    "dir": "trees/",
-    "meta": "trees/trees_meta.json",
-    "inbox": "assets/library/",
-    "version": "v0.1.13-assets-upload",
+    "dir": "hub/trees/",
+    "meta": "hub/hub_deco_meta.json",
+    "version": "v0.3.0-hub-v3",
     "anchor": "base_center"
   },
   "overnight_sources": [
@@ -77,9 +76,9 @@
   ],
   "harvest_nodes": "props/harvest_nodes_meta.json",
   "bushes": {
-    "dir": "bushes/",
-    "meta": "bushes/bushes_meta.json",
-    "version": "v0.1.13-assets-upload",
+    "dir": "hub/bushes/",
+    "meta": "hub/hub_deco_meta.json",
+    "version": "v0.3.0-hub-v3",
     "anchor": "base_center"
   },
   "echo": {

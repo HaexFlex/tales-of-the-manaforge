@@ -20,7 +20,7 @@ signal care_menu_requested
 
 var _watering: bool = false
 var _hovered: bool = false
-## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/manatree_meta.json
+## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/native/manatree_meta.json
 var _meta_stages: Dictionary = {}
 var _anim_frames: int = 1
 var _anim_fps: float = 7.0

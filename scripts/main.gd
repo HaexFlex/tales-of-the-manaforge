@@ -14,23 +14,16 @@ const TILE: int = 64
 ## Match Area2D collision_layer on gatherable / manatree scenes.
 const INTERACT_PICK_MASK: int = 4
 const HUB_MAP_PATH: String = "res://data/hub_map.json"
-const TREES_META_PATH: String = "res://assets/art/trees/trees_meta.json"
-const BUSHES_META_PATH: String = "res://assets/art/bushes/bushes_meta.json"
 
 const ATLAS_GRASS: Array[Vector2i] = [
 	Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)
 ]
-## Flora tufts in the open glade. Far below the old 52×44 scatter.
-const DECOR_TARGET: int = 40
-const DECOR_MIN_SEP: float = 150.0
 ## Trunk and door, not the whole canopy. The rest of the clearing may hold flora.
 const MANATREE_DECOR_RADIUS: float = 200.0
 
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 const RUNESTONE_SCENE: PackedScene = preload("res://scenes/runestone.tscn")
 const PORTAL_SCENE: PackedScene = preload("res://scenes/echo_portal.tscn")
-const FOREST_SOLID_SCENE: PackedScene = preload("res://scenes/hub/forest_solid.tscn")
-const FOREST_VISUAL_SCENE: PackedScene = preload("res://scenes/hub/forest_visual.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
 var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
@@ -40,14 +33,10 @@ var glade: Rect2 = Rect2(760, 820, 1680, 1360)
 var clearing_center: Vector2 = Vector2(1600, 1500)
 var clearing_rx: float = 1200.0
 var clearing_ry: float = 980.0
-var scatter_seed: int = 20260924
-const DECOR_META_PATH: String = "res://assets/art/decor/decor_meta.json"
 var clear_points: Array[Vector2] = []
 var clear_radii: Array[float] = []
-var collision_cfg: Dictionary = {}
 var _cols: int = 40
 var _rows: int = 34
-var _prop_serial: int = 0
 const TITLE_SCENE: String = "res://scenes/title_screen.tscn"
 const CLICK_SLOP: float = 6.0
 var _boot_redirect: bool = false
@@ -81,18 +70,9 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group("main_root")
 	_load_hub_map()
-	# Layout lives in main.tscn. This path only rebuilds it for tools/bake_hub_layout.gd.
+	# Layout lives in scenes/main.tscn. Baking would rebuild the forest and wipe editor edits.
 	if OS.get_environment("MANAFORGE_BAKE") == "1":
-		_apply_landmarks()
-		_spawn_runestones()
-		_spawn_echo_portal()
-		_setup_camera(true)
-		_build_grass()
-		_spawn_forest_props()
-		click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		click_layer.position = Vector2.ZERO
-		click_layer.size = play_size
-		return
+		push_error("MANAFORGE_BAKE refused. The hub layout lives in scenes/main.tscn. Do not bake; it would wipe editor edits.")
 	_setup_camera(false)
 	_apply_forge_return()
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
@@ -123,7 +103,6 @@ func _load_hub_map() -> void:
 		float(hub_map.get("viewport_height", 720))
 	)
 	camera_pan_speed = float(hub_map.get("camera_pan_speed", 420.0))
-	scatter_seed = int(hub_map.get("scatter_seed", scatter_seed))
 	var clearing_v: Variant = hub_map.get("clearing", {})
 	if typeof(clearing_v) == TYPE_DICTIONARY:
 		var cd: Dictionary = clearing_v
@@ -137,7 +116,6 @@ func _load_hub_map() -> void:
 	var tile: int = int(hub_map.get("tile", TILE))
 	_cols = int(ceili(play_size.x / float(tile)))
 	_rows = int(ceili(play_size.y / float(tile)))
-	collision_cfg = hub_map.get("collision", {}) as Dictionary
 	clear_points.clear()
 	clear_radii.clear()
 	var marks: Dictionary = hub_map.get("landmarks", {}) as Dictionary
@@ -422,189 +400,6 @@ func _build_grass() -> void:
 			ground.set_cell(0, Vector2i(x, y), src_id, pick)
 
 
-func _spawn_forest_props() -> void:
-	## Dense Y-sorted decorative ring around a larger open glade. Not harvestable.
-	var trees_meta: Dictionary = _load_json_dict(TREES_META_PATH)
-	var bushes_meta: Dictionary = _load_json_dict(BUSHES_META_PATH)
-	var tree_items: Dictionary = trees_meta.get("items", {}) as Dictionary
-	var bush_items: Dictionary = bushes_meta.get("items", {}) as Dictionary
-	var tree_ids: Array = (trees_meta.get("spawn_catalog", {}) as Dictionary).get("tree", []) as Array
-	var bush_cat: Dictionary = bushes_meta.get("spawn_catalog", {}) as Dictionary
-	var tree_entries: Array[Dictionary] = _catalog_entries(tree_items, tree_ids, "res://assets/art/trees/")
-	var bush_ids: Array = bush_cat.get("bush", []) as Array
-	var tuft_ids: Array = bush_cat.get("tuft", []) as Array
-	var bush_pick: Array = []
-	for idv: Variant in bush_ids:
-		var bid: String = str(idv)
-		if bid.begins_with("bush_big_") or bid.begins_with("bush_native_") or bush_pick.size() < 36:
-			bush_pick.append(bid)
-	var bush_entries: Array[Dictionary] = _catalog_entries(bush_items, bush_pick, "res://assets/art/bushes/")
-	var tuft_entries: Array[Dictionary] = _catalog_entries(bush_items, tuft_ids, "res://assets/art/bushes/")
-	var rng := RandomNumberGenerator.new()
-	rng.seed = scatter_seed
-	var occupied: Array[Vector2] = []
-	_prop_serial = 0
-	var bands: Array = hub_map.get("scatter", []) as Array
-	if bands.is_empty():
-		_scatter_grid(rng, tree_entries, occupied, "tree", 22, 4, Rect2(24, 36, 2512, 300), 56.0, 16.0, 0.0)
-		_scatter_grid(rng, tree_entries, occupied, "tree", 22, 3, Rect2(24, 1820, 2512, 320), 56.0, 16.0, 0.0)
-		_scatter_grid(rng, tree_entries, occupied, "tree", 3, 14, Rect2(16, 320, 320, 1500), 54.0, 14.0, 0.0)
-		_scatter_grid(rng, tree_entries, occupied, "tree", 3, 14, Rect2(2224, 320, 320, 1500), 54.0, 14.0, 0.0)
-		_scatter_grid(rng, bush_entries, occupied, "bush", 18, 2, Rect2(280, 300, 2000, 70), 38.0, 10.0, 18.0)
-		_scatter_grid(rng, bush_entries, occupied, "bush", 18, 2, Rect2(280, 1780, 2000, 70), 36.0, 10.0, 18.0)
-		_scatter_grid(rng, tuft_entries, occupied, "tuft", 16, 1, Rect2(420, 340, 1720, 36), 24.0, 8.0, 28.0)
-		_seal_clearing_edge(rng, bush_entries, occupied)
-		_fill_outer_forest(tree_entries, bush_entries, occupied)
-		_spawn_ground_decor(rng, occupied)
-		return
-	for band_v: Variant in bands:
-		if typeof(band_v) != TYPE_DICTIONARY:
-			continue
-		var band: Dictionary = band_v
-		var kind: String = str(band.get("kind", "tree"))
-		var entries: Array[Dictionary] = tree_entries
-		if kind == "bush":
-			entries = bush_entries
-		elif kind == "tuft":
-			entries = tuft_entries
-		var rect_v: Variant = band.get("rect", [0, 0, 64, 64])
-		var rect := Rect2(0, 0, 64, 64)
-		if typeof(rect_v) == TYPE_ARRAY and (rect_v as Array).size() >= 4:
-			var ra: Array = rect_v
-			rect = Rect2(float(ra[0]), float(ra[1]), float(ra[2]), float(ra[3]))
-		_scatter_grid(
-			rng,
-			entries,
-			occupied,
-			kind,
-			int(band.get("cols", 1)),
-			int(band.get("rows", 1)),
-			rect,
-			float(band.get("min_sep", 40.0)),
-			float(band.get("jitter", 8.0)),
-			float(band.get("glade_inset", 0.0))
-		)
-	_seal_clearing_edge(rng, bush_entries, occupied)
-	_fill_outer_forest(tree_entries, bush_entries, occupied)
-	_spawn_ground_decor(rng, occupied)
-
-
-func _point_on_clearing(ang: float, target_norm: float) -> Vector2:
-	var lo: float = 0.0
-	var hi: float = maxf(play_size.x, play_size.y)
-	var pos: Vector2 = clearing_center
-	for _i: int in range(18):
-		var mid: float = (lo + hi) * 0.5
-		pos = clearing_center + Vector2(cos(ang), sin(ang)) * mid
-		if _ellipse_norm(pos) < target_norm:
-			lo = mid
-		else:
-			hi = mid
-	return pos
-
-
-func _fill_outer_forest(tree_entries: Array[Dictionary], bush_entries: Array[Dictionary], occupied: Array[Vector2]) -> void:
-	## Visual canopy past the walk wall, out to the play edge the camera can see.
-	## No extra colliders — the bush seal stays the wall.
-	if tree_entries.is_empty():
-		return
-	var rng := RandomNumberGenerator.new()
-	rng.seed = scatter_seed + 91
-	var n: int = 0
-	var step: float = 108.0
-	var y: float = 36.0
-	var row_i: int = 0
-	while y < play_size.y + 48.0:
-		var x: float = 24.0
-		if row_i % 2 == 1:
-			x += step * 0.5
-		while x < play_size.x + 48.0:
-			var pos := Vector2(x, y)
-			pos += Vector2(rng.randf_range(-14.0, 14.0), rng.randf_range(-12.0, 12.0))
-			pos.x = clampf(pos.x, 12.0, play_size.x + 24.0)
-			pos.y = clampf(pos.y, 28.0, play_size.y + 36.0)
-			if _ellipse_norm(pos) >= 1.02 and _skirt_clear(pos, occupied, 72.0):
-				var entry: Dictionary = tree_entries[n % tree_entries.size()].duplicate()
-				entry["visual_only"] = true
-				_plant_prop(entry, pos, "tree")
-				occupied.append(pos)
-				n += 1
-			x += step
-		y += step * 0.92
-		row_i += 1
-	if bush_entries.is_empty():
-		return
-	var bn: int = 0
-	var bstep: float = 54.0
-	y = 20.0
-	row_i = 0
-	while y < play_size.y + 28.0:
-		var x: float = 16.0
-		if row_i % 2 == 1:
-			x += bstep * 0.5
-		while x < play_size.x + 28.0:
-			var pos := Vector2(x, y)
-			pos += Vector2(rng.randf_range(-8.0, 8.0), rng.randf_range(-6.0, 6.0))
-			pos.x = clampf(pos.x, 8.0, play_size.x + 16.0)
-			pos.y = clampf(pos.y, 16.0, play_size.y + 20.0)
-			var norm: float = _ellipse_norm(pos)
-			var hem: bool = pos.x < 360.0 or pos.y < 280.0 or pos.x > play_size.x - 360.0 or pos.y > play_size.y - 340.0
-			if norm >= 1.06 and hem and _skirt_clear(pos, occupied, 34.0):
-				var entry: Dictionary = bush_entries[bn % bush_entries.size()].duplicate()
-				entry["visual_only"] = true
-				_plant_prop(entry, pos, "bush")
-				occupied.append(pos)
-				bn += 1
-			x += bstep
-		y += bstep
-		row_i += 1
-
-
-func _skirt_clear(pos: Vector2, occupied: Array[Vector2], min_sep: float) -> bool:
-	if not _clear_of_landmarks(pos, 0.0):
-		return false
-	for other: Vector2 in occupied:
-		if pos.distance_to(other) < min_sep:
-			return false
-	return true
-
-
-func _seal_clearing_edge(rng: RandomNumberGenerator, bush_entries: Array[Dictionary], occupied: Array[Vector2]) -> void:
-	## Two staggered bush rings just outside the wobbling tree line.
-	## Spacing overlaps the bush colliders so the Keeper cannot walk out.
-	if bush_entries.is_empty():
-		return
-	var targets: Array[float] = [1.025, 1.11]
-	var n: int = 0
-	for ring: int in range(targets.size()):
-		var sample: Vector2 = _point_on_clearing(0.2, targets[ring])
-		var radius: float = maxf(sample.distance_to(clearing_center), 400.0)
-		var count: int = maxi(64, int(ceil(TAU * radius / 24.0)))
-		var phase: float = 0.0 if ring == 0 else PI / float(count)
-		for i: int in range(count):
-			var ang: float = TAU * float(i) / float(count) + phase
-			var pos: Vector2 = _point_on_clearing(ang, targets[ring])
-			pos += Vector2(rng.randf_range(-3.0, 3.0), rng.randf_range(-2.0, 2.0))
-			pos.x = clampf(pos.x, 20.0, play_size.x - 20.0)
-			pos.y = clampf(pos.y, 20.0, play_size.y - 20.0)
-			if _ellipse_norm(pos) < 1.0:
-				continue
-			if not _clear_of_landmarks(pos, 0.0):
-				continue
-			var crowded: bool = false
-			for other: Vector2 in occupied:
-				if pos.distance_to(other) < 14.0:
-					crowded = true
-					break
-			if crowded:
-				continue
-			var entry: Dictionary = bush_entries[n % bush_entries.size()].duplicate()
-			entry["seal"] = true
-			_plant_prop(entry, pos, "bush")
-			occupied.append(pos)
-			n += 1
-
-
 func _load_json_dict(path: String) -> Dictionary:
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
@@ -615,170 +410,6 @@ func _load_json_dict(path: String) -> Dictionary:
 	if typeof(parsed) == TYPE_DICTIONARY:
 		return parsed
 	return {}
-
-
-func _catalog_entries(items: Dictionary, ids: Array, base_dir: String) -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	for idv: Variant in ids:
-		var id: String = str(idv)
-		if not items.has(id):
-			continue
-		var it: Dictionary = items[id]
-		var file: String = str(it.get("file", ""))
-		if file.is_empty():
-			continue
-		var path: String = file
-		if not path.begins_with("res://"):
-			path = base_dir + file
-		var sz := Vector2(64, 64)
-		var sz_v: Variant = it.get("size", [])
-		if typeof(sz_v) == TYPE_ARRAY and (sz_v as Array).size() >= 2:
-			sz = Vector2(float((sz_v as Array)[0]), float((sz_v as Array)[1]))
-		var scale_v: float = float(it.get("scale", 1.0))
-		out.append({"tex": path, "size": sz, "id": id, "scale": scale_v})
-	return out
-
-
-func _scatter_grid(
-	rng: RandomNumberGenerator,
-	entries: Array[Dictionary],
-	occupied: Array[Vector2],
-	kind: String,
-	cols: int,
-	rows: int,
-	rect: Rect2,
-	min_sep: float,
-	jitter: float,
-	glade_inset: float
-) -> void:
-	if entries.is_empty() or cols <= 0 or rows <= 0:
-		return
-	var n: int = occupied.size()
-	for row: int in range(rows):
-		for col: int in range(cols):
-			var u: float = (float(col) + 0.5) / float(cols)
-			var v: float = (float(row) + 0.5) / float(rows)
-			var pos := Vector2(
-				rect.position.x + u * rect.size.x + rng.randf_range(-jitter, jitter),
-				rect.position.y + v * rect.size.y + rng.randf_range(-jitter, jitter)
-			)
-			pos.x = clampf(pos.x, 16.0, play_size.x - 16.0)
-			pos.y = clampf(pos.y, 40.0, play_size.y - 16.0)
-			if not _can_plant(pos, occupied, min_sep, glade_inset):
-				continue
-			_plant_prop(entries[n % entries.size()], pos, kind)
-			occupied.append(pos)
-			n += 1
-
-
-func _plant_prop(entry: Dictionary, pos: Vector2, kind: String = "tree") -> void:
-	## Y-sorted visual at the foot; collision only on the trunk/base, never the canopy.
-	## Bake-only: instances a reusable scene so the editor can move each piece.
-	var visual_only: bool = kind == "decor" or bool(entry.get("visual_only", false))
-	var tex: Texture2D = load(str(entry.get("tex", ""))) as Texture2D
-	var sz: Vector2 = entry.get("size", Vector2(64, 64))
-	if tex != null:
-		sz = Vector2(float(tex.get_width()), float(tex.get_height()))
-	var spr_scale: float = float(entry.get("scale", 1.0))
-	if spr_scale <= 0.0:
-		spr_scale = 1.0
-	var packed: PackedScene = FOREST_VISUAL_SCENE if visual_only else FOREST_SOLID_SCENE
-	var prop: ForestProp = packed.instantiate() as ForestProp
-	if prop == null:
-		return
-	_prop_serial += 1
-	var prefix: String = "Decor"
-	if kind == "tree":
-		prefix = "Canopy" if visual_only else "Tree"
-	elif kind == "bush" or kind == "tuft":
-		prefix = "Hem" if visual_only else "Bush"
-	prop.name = "%s_%04d" % [prefix, _prop_serial]
-	prop.texture_path = str(entry.get("tex", ""))
-	prop.prop_kind = kind
-	prop.sprite_scale = spr_scale
-	prop.sprite_modulate = Color(1.15, 1.22, 1.06, 1.0) if kind == "decor" else Color.WHITE
-	if not visual_only:
-		prop.collider_size = _collider_size_for(kind, sz, bool(entry.get("seal", false)))
-	prop.position = pos
-	prop.z_index = 0
-	world.add_child(prop)
-
-
-func _collider_size_for(kind: String, sz: Vector2, seal: bool) -> Vector2:
-	if kind == "tree":
-		var trunk_h: float = maxf(18.0, sz.y * float(collision_cfg.get("tree_trunk_height_frac", 0.30)))
-		var col_h: float = maxf(8.0, trunk_h * float(collision_cfg.get("tree_collider_of_trunk_frac", 0.333)))
-		var col_w: float = clampf(
-			sz.x * float(collision_cfg.get("tree_width_frac", 0.16)),
-			float(collision_cfg.get("tree_width_min", 14)),
-			float(collision_cfg.get("tree_width_max", 36))
-		)
-		return Vector2(col_w, col_h)
-	if seal:
-		return Vector2(32.0, 24.0)
-	return Vector2(
-		float(collision_cfg.get("bush_width", 16)),
-		float(collision_cfg.get("bush_height", 10))
-	)
-
-
-func _can_plant(pos: Vector2, occupied: Array[Vector2], min_sep: float, glade_inset: float) -> bool:
-	## glade_inset lets bushes tuck a few pixels into the wobbling tree line.
-	var allow: float = glade_inset / maxf((clearing_rx + clearing_ry) * 0.5, 1.0)
-	if _ellipse_norm(pos) < 1.0 - allow:
-		return false
-	if not _clear_of_landmarks(pos, 0.0):
-		return false
-	for other: Vector2 in occupied:
-		if pos.distance_to(other) < min_sep:
-			return false
-	return true
-
-
-func _spawn_ground_decor(rng: RandomNumberGenerator, occupied: Array[Vector2]) -> void:
-	## Sporadic leaf / grass / fern tufts in the open glade, including the middle.
-	## Flora only — no stone scatter, no harvest-node frames. No collision.
-	var meta: Dictionary = _load_json_dict(DECOR_META_PATH)
-	var items: Array = meta.get("items", []) as Array
-	var flora: Array[Dictionary] = []
-	for entry_v: Variant in items:
-		if typeof(entry_v) != TYPE_DICTIONARY:
-			continue
-		var d: Dictionary = entry_v
-		if str(d.get("kind", "")) != "flora":
-			continue
-		var file: String = str(d.get("file", ""))
-		if not file.begins_with("grass_"):
-			continue
-		flora.append({
-			"tex": "res://assets/art/decor/%s" % file,
-			"size": Vector2(32, 32),
-			"id": str(d.get("id", "")),
-			"scale": 2.0,
-		})
-	if flora.is_empty():
-		return
-	var placed: int = 0
-	var tries: int = 0
-	while placed < DECOR_TARGET and tries < 800:
-		tries += 1
-		var ang: float = rng.randf() * TAU
-		var u: float = sqrt(rng.randf()) * 0.86
-		var pos := clearing_center + Vector2(cos(ang) * clearing_rx * u, sin(ang) * clearing_ry * u)
-		pos.x = clampf(pos.x, 24.0, play_size.x - 24.0)
-		pos.y = clampf(pos.y, 24.0, play_size.y - 24.0)
-		if not decor_spot_allowed(pos):
-			continue
-		var blocked: bool = false
-		for other: Vector2 in occupied:
-			if pos.distance_to(other) < DECOR_MIN_SEP:
-				blocked = true
-				break
-		if blocked:
-			continue
-		_plant_prop(flora[placed % flora.size()], pos, "decor")
-		occupied.append(pos)
-		placed += 1
 
 
 func decor_spot_allowed(pos: Vector2) -> bool:
@@ -816,14 +447,6 @@ func _landmark_radius(index: int) -> float:
 			return 160.0
 		_:
 			return 80.0
-
-
-func _clear_of_landmarks(pos: Vector2, min_dist: float) -> bool:
-	for i: int in range(clear_points.size()):
-		var need: float = min_dist if min_dist > 0.0 else _landmark_radius(i)
-		if pos.distance_to(clear_points[i]) < need:
-			return false
-	return true
 
 
 func world_input_blocked() -> bool:

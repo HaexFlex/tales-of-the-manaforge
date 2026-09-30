@@ -7,7 +7,7 @@
   "nodes": {
     "wood": "harvest_tree.png",
     "stone": "harvest_stone.png",
-    "food": "berry_harvest_node.png",
+    "food": "native/berry_harvest_node.png",
     "manashards": "prop_manashards.png"
   },
   "harvest_nodes": {
@@ -35,20 +35,20 @@
       "also": "prop_stone.png"
     },
     "food": {
-      "file": "berry_harvest_node.png",
-      "spent": "harvest_berry_spent.png",
+      "file": "native/berry_harvest_node.png",
+      "spent": "native/harvest_berry_spent.png",
       "size": [
-        64,
-        64
+        86,
+        128
       ],
       "native_size": [
-        784,
-        1168
+        86,
+        128
       ],
       "also": "prop_food.png",
       "spent_native_size": [
-        784,
-        1168
+        86,
+        128
       ]
     }
   }
