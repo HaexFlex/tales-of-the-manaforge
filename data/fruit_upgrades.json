@@ -2,6 +2,7 @@
   "upgrades": [
     {
       "id": "deep_roots",
+      "art_name": "icon_asc_deep_roots",
       "display_name": "Deep Roots",
       "description": "Every 2 ranks: watering grants +1 Essence per pulse.",
       "max_rank": 10,
@@ -12,6 +13,7 @@
     },
     {
       "id": "forager",
+      "art_name": "icon_asc_forager",
       "display_name": "Forager\u2019s Grace",
       "description": "Each rank: harvest channels yield a little more.",
       "max_rank": 10,
@@ -22,6 +24,7 @@
     },
     {
       "id": "green_thumb",
+      "art_name": "icon_asc_green_thumb",
       "display_name": "Green Thumb",
       "description": "Fertilizer craft asks for a little less.",
       "max_rank": 5,
@@ -32,6 +35,7 @@
     },
     {
       "id": "shard_sight",
+      "art_name": "icon_asc_shard_sight",
       "display_name": "Shard Sight",
       "description": "Each rank: watering yields +0.5 Manashards per second (25% of the base average of 2).",
       "max_rank": 5,
@@ -42,6 +46,7 @@
     },
     {
       "id": "keeper_stride",
+      "art_name": "icon_asc_keeper_stride",
       "display_name": "Keeper\u2019s Stride",
       "description": "Each rank: walk the fragment a little faster.",
       "max_rank": 5,
@@ -52,6 +57,7 @@
     },
     {
       "id": "wisp_haste",
+      "art_name": "icon_asc_wisp_haste",
       "display_name": "Swift Wisps",
       "description": "Assigned Wisps gather a little sooner.",
       "max_rank": 5,
@@ -62,6 +68,7 @@
     },
     {
       "id": "bonus_wisp",
+      "art_name": "icon_asc_bonus_wisp",
       "display_name": "Extra Wisp",
       "description": "Another Wisp walks with you from the Sapling.",
       "max_rank": 3,
@@ -72,6 +79,7 @@
     },
     {
       "id": "keep_tools",
+      "art_name": "icon_asc_keep_tools",
       "display_name": "Keep Tools",
       "description": "Finished tools survive Ascend and return with you.",
       "max_rank": 1,

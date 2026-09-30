@@ -39,6 +39,7 @@
   "ascend_upgrades": [
     {
       "id": "keep_forge_intermediates",
+      "art_name": "icon_asc_keep_forge_intermediates",
       "display_name": "Keep Forge Materials",
       "description": "Ascend keeps Sapsteel, Heartwood Bits, and Amberbind.",
       "max_rank": 1,
@@ -49,6 +50,7 @@
     },
     {
       "id": "keep_forge_jobs",
+      "art_name": "icon_asc_keep_forge_jobs",
       "display_name": "Keep Forge Jobs",
       "description": "Ascend keeps the job sitting on each station.",
       "max_rank": 1,

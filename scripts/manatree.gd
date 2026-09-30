@@ -26,13 +26,13 @@ var _anim_frames: int = 1
 var _anim_fps: float = 7.0
 var _anim_time: float = 0.0
 
-const META_PATH: String = "res://assets/art/manatree/manatree_meta.json"
+const META_PATH: String = "res://assets/art/manatree/native/manatree_meta.json"
 const STAGE_TEXTURES: Dictionary = {
-	&"sapling": "res://assets/art/manatree/manatree_sapling.png",
-	&"young": "res://assets/art/manatree/manatree_young.png",
-	&"mature": "res://assets/art/manatree/manatree_mature.png",
-	&"elder": "res://assets/art/manatree/manatree_elder.png",
-	&"ancient": "res://assets/art/manatree/manatree_ancient.png",
+	&"sapling": "res://assets/art/manatree/native/manatree_sapling.png",
+	&"young": "res://assets/art/manatree/native/manatree_young.png",
+	&"mature": "res://assets/art/manatree/native/manatree_mature.png",
+	&"elder": "res://assets/art/manatree/native/manatree_elder.png",
+	&"ancient": "res://assets/art/manatree/native/manatree_ancient.png",
 }
 
 

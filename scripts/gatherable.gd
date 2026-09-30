@@ -49,7 +49,7 @@ const BODY_WIDTH: float = 64.0
 const HARVEST_TEXTURES: Dictionary = {
 	"wood": "res://assets/art/props/harvest_tree.png",
 	"stone": "res://assets/art/props/harvest_stone.png",
-	"food": "res://assets/art/props/berry_harvest_node.png",
+	"food": "res://assets/art/props/native/berry_harvest_node.png",
 }
 const HARVEST_HEIGHT: Dictionary = {
 	"wood": 80.0,

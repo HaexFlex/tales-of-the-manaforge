@@ -443,7 +443,7 @@ func _landmark_rects(world: Node2D) -> Array[Rect2]:
 
 
 func _manatree_exclusion(origin: Vector2) -> Rect2:
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/art/manatree/manatree_meta.json"))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/art/manatree/native/manatree_meta.json"))
 	var union := Rect2()
 	var first: bool = true
 	for entry: Variant in (parsed as Dictionary).get("stages", []):

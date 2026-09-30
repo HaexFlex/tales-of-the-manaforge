@@ -2117,10 +2117,7 @@ func _rebuild_upgrades() -> void:
 		var inner := HBoxContainer.new()
 		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 		inner.add_theme_constant_override("separation", 8)
-		if uid == "keep_tools":
-			var keep_icon: TextureRect = HudIcons.make_icon(HudIcons.KEEP_TOOLS)
-			keep_icon.tooltip_text = ContentStrings.get_text("upgrade_keep_tools_name")
-			inner.add_child(keep_icon)
+		inner.add_child(_upgrade_icon(uid, d))
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -2173,6 +2170,25 @@ func _rebuild_upgrades() -> void:
 		row.add_child(inner)
 		upgrade_list.add_child(row)
 		stripe = not stripe
+
+
+func _upgrade_icon(upgrade_id: String, def: Dictionary) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.name = "AscIcon"
+	icon.custom_minimum_size = Vector2(32, 32)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var path: String = GameState.upgrade_art_path(upgrade_id)
+	if path != "":
+		icon.texture = load(path) as Texture2D
+	var tip: String = str(def.get("display_name", upgrade_id))
+	if upgrade_id == "keep_tools":
+		tip = ContentStrings.get_text("upgrade_keep_tools_name")
+	icon.tooltip_text = tip
+	return icon
 
 
 func _upgrade_keep_tools_cost_text(upgrade_id: String, cost: int) -> String:

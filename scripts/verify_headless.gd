@@ -105,13 +105,13 @@ func _run() -> void:
 	failed += _assert(str(thumb.get("effect", "")) == "fertilizer_craft_cost_mult", "green_thumb fertilizer_craft_cost_mult")
 
 	# Art stage textures + meta
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_sapling.png"), "sapling texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_young.png"), "young texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_mature.png"), "mature texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_elder.png"), "elder texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_ancient.png"), "ancient texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_meta.json"), "manatree_meta.json")
-	var meta_file := FileAccess.open("res://assets/art/manatree/manatree_meta.json", FileAccess.READ)
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_sapling.png"), "sapling texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_young.png"), "young texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_mature.png"), "mature texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_elder.png"), "elder texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_ancient.png"), "ancient texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_meta.json"), "manatree_meta.json")
+	var meta_file := FileAccess.open("res://assets/art/manatree/native/manatree_meta.json", FileAccess.READ)
 	failed += _assert(meta_file != null, "open manatree_meta")
 	if meta_file:
 		var meta_parsed: Variant = JSON.parse_string(meta_file.get_as_text())
@@ -119,7 +119,7 @@ func _run() -> void:
 		failed += _assert(typeof(meta_parsed) == TYPE_DICTIONARY, "meta dict")
 		if typeof(meta_parsed) == TYPE_DICTIONARY:
 			var mroot: Dictionary = meta_parsed
-			failed += _assert(str(mroot.get("version", "")) == "v0.1.8-A2", "meta version v0.1.8-A2")
+			failed += _assert(str(mroot.get("version", "")) == "v0.1.9-A2-native", "meta version v0.1.9-A2-native")
 			var stages_m: Variant = mroot.get("stages", [])
 			failed += _assert(typeof(stages_m) == TYPE_ARRAY and (stages_m as Array).size() == 5, "meta 5 stages")
 			if typeof(stages_m) == TYPE_ARRAY:
@@ -129,27 +129,32 @@ func _run() -> void:
 					var ed: Dictionary = entry
 					if str(ed.get("stage_id", "")) == "ancient":
 						var asz: Variant = ed.get("size", [])
-						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 256 and int((asz as Array)[1]) == 256, "meta ancient frame 256")
+						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 1024 and int((asz as Array)[1]) == 1024, "meta ancient frame 1024")
 						failed += _assert(int(ed.get("frames", 0)) == 8, "ancient strip has 8 frames")
+						failed += _assert(absf(float(ed.get("display_scale", 0.0)) - 1.0) < 0.01, "ancient display_scale 1")
+						var ancient_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_ancient_strip.png") as Texture2D
+						var elder_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_elder_strip.png") as Texture2D
+						failed += _assert(ancient_strip != null and ancient_strip.get_width() == 8192 and ancient_strip.get_height() == 1024, "ancient strip 8192x1024")
+						failed += _assert(elder_strip != null and elder_strip.get_width() == 8192 and elder_strip.get_height() == 1024, "elder strip 8192x1024")
 
 	# Art harvest nodes
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_tree.png"), "harvest_tree art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_stone.png"), "harvest_stone art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_berry.png"), "harvest_berry art")
-	failed += _assert(FileAccess.file_exists("res://assets/art/props/berry_harvest_node.png"), "berry_harvest_node art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/props/native/berry_harvest_node.png"), "berry_harvest_node art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/props/echo_portal_hub.png"), "echo_portal_hub art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/ui/manaforge_hud_icons_sheet.png"), "hud icon sheet")
 
 	# Art v0.1.13 — cleaned inbox forest + Keeper south walk
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_big_01.png"), "tree_big_01")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_big_04.png"), "tree_big_04")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_small_01.png"), "tree_small_01")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_small_03.png"), "tree_small_03 thin")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_big_01.png"), "bush_big_01")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_big_12.png"), "bush_big_12")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_small_01.png"), "bush_small_01")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_small_57.png"), "bush_small_57")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bushes_meta.json"), "bushes_meta.json")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_large_01.png"), "ring_tree_large_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_large_03.png"), "ring_tree_large_03")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_medium_01.png"), "ring_tree_medium_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_slim_01.png"), "ring_tree_slim_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_big_01.png"), "ring_bush_big_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_big_03.png"), "ring_bush_big_03")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_small_01.png"), "ring_bush_small_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_small_03.png"), "ring_bush_small_03")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/hub_deco_meta.json"), "hub_deco_meta.json")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south.png"), "keeper idle_south")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south_0000.png"), "keeper idle_south_0000")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0001.png"), "keeper walk_south 1")
@@ -159,8 +164,8 @@ func _run() -> void:
 	failed += _assert(walk_strip != null, "load walk_south strip")
 	if walk_strip:
 		failed += _assert(walk_strip.get_width() == 1152 and walk_strip.get_height() == 128, "walk strip 1152x128 (got %dx%d)" % [walk_strip.get_width(), walk_strip.get_height()])
-	var tree_big: Texture2D = load("res://assets/art/trees/tree_big_01.png") as Texture2D
-	failed += _assert(tree_big != null and tree_big.get_width() >= 400, "tree_big_01 full-size (got %s)" % (tree_big.get_width() if tree_big else 0))
+	var tree_big: Texture2D = load("res://assets/art/hub/trees/ring_tree_large_01.png") as Texture2D
+	failed += _assert(tree_big != null and tree_big.get_width() == 320 and tree_big.get_height() == 400, "ring_tree_large_01 is 320x400")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/native/keeper_idle_south_256.png"), "keeper native idle")
 	failed += _assert(FileAccess.file_exists("res://assets/library/Big Trees.png"), "library Big Trees.png")
 	failed += _assert(FileAccess.file_exists("res://assets/library/keeper_inbox/walk_south_09.png"), "library keeper walk_south_09")
@@ -235,30 +240,21 @@ func _run() -> void:
 		paused = false
 		save_service.set("boot_intent", "auto")
 		save_service.set("boot_slot", 0)
-	var trees_meta_f := FileAccess.open("res://assets/art/trees/trees_meta.json", FileAccess.READ)
-	failed += _assert(trees_meta_f != null, "open trees_meta")
-	if trees_meta_f:
-		var trees_meta_parsed: Variant = JSON.parse_string(trees_meta_f.get_as_text())
-		trees_meta_f.close()
-		failed += _assert(typeof(trees_meta_parsed) == TYPE_DICTIONARY, "trees meta dict")
-		if typeof(trees_meta_parsed) == TYPE_DICTIONARY:
-			var tm: Dictionary = trees_meta_parsed
-			failed += _assert(str(tm.get("version", "")) == "v0.1.13-assets-upload", "trees meta v0.1.13-assets-upload")
-			var spawn_c: Variant = tm.get("spawn_catalog", {})
-			failed += _assert(typeof(spawn_c) == TYPE_DICTIONARY, "spawn_catalog")
-			if typeof(spawn_c) == TYPE_DICTIONARY:
-				var trees_ids: Array = (spawn_c as Dictionary).get("tree", []) as Array
-				failed += _assert(trees_ids.size() >= 8, "spawn trees >= 8 (got %d)" % trees_ids.size())
-	var bushes_meta_f := FileAccess.open("res://assets/art/bushes/bushes_meta.json", FileAccess.READ)
-	failed += _assert(bushes_meta_f != null, "open bushes_meta")
-	if bushes_meta_f:
-		var bm_parsed: Variant = JSON.parse_string(bushes_meta_f.get_as_text())
-		bushes_meta_f.close()
-		failed += _assert(typeof(bm_parsed) == TYPE_DICTIONARY, "bushes meta dict")
-		if typeof(bm_parsed) == TYPE_DICTIONARY:
-			failed += _assert(str((bm_parsed as Dictionary).get("version", "")) == "v0.1.13-assets-upload", "bushes meta version")
-			var bitems: Variant = (bm_parsed as Dictionary).get("items", {})
-			failed += _assert(typeof(bitems) == TYPE_DICTIONARY and (bitems as Dictionary).size() >= 69, "69 bush frames (got %d)" % ((bitems as Dictionary).size() if typeof(bitems) == TYPE_DICTIONARY else 0))
+	var deco_meta_f := FileAccess.open("res://assets/art/hub/hub_deco_meta.json", FileAccess.READ)
+	failed += _assert(deco_meta_f != null, "open hub_deco_meta")
+	if deco_meta_f:
+		var deco_parsed: Variant = JSON.parse_string(deco_meta_f.get_as_text())
+		deco_meta_f.close()
+		failed += _assert(typeof(deco_parsed) == TYPE_DICTIONARY, "hub deco meta dict")
+		if typeof(deco_parsed) == TYPE_DICTIONARY:
+			var deco_root: Dictionary = deco_parsed
+			failed += _assert(str(deco_root.get("version", "")) == "v0.3.0-hub-v3", "hub deco meta v0.3.0-hub-v3")
+			var families: Dictionary = deco_root.get("families", {}) as Dictionary
+			var tree_n: int = (families.get("ring_tree_large", []) as Array).size() + (families.get("ring_tree_medium", []) as Array).size() + (families.get("ring_tree_slim", []) as Array).size()
+			var bush_n: int = (families.get("ring_bush_big", []) as Array).size() + (families.get("ring_bush_small", []) as Array).size()
+			failed += _assert(tree_n == 6, "hub deco trees 6 (got %d)" % tree_n)
+			failed += _assert(bush_n == 6, "hub deco bushes 6 (got %d)" % bush_n)
+			failed += _assert((families.get("grass_tuft", []) as Array).size() == 9, "hub deco grass tufts 9")
 	var keeper_meta_f := FileAccess.open("res://assets/art/keeper/keeper_meta.json", FileAccess.READ)
 	failed += _assert(keeper_meta_f != null, "open keeper_meta")
 	if keeper_meta_f:
@@ -1094,13 +1090,15 @@ func _run() -> void:
 			var dpath: String = ""
 			if dspr and dspr.texture:
 				dpath = str(dspr.texture.resource_path)
-			if dpath.find("/decor/grass_") < 0 or dpath.find("stone_") >= 0 or dpath.find("/nodes/") >= 0 or dpath.find("harvest") >= 0:
+			if dpath.find("/hub/ground/grass_tuft_") < 0 or dpath.find("stone_") >= 0 or dpath.find("/nodes/") >= 0 or dpath.find("harvest") >= 0:
 				decor_bad += 1
 			if decor_node is Node2D and live.has_method("decor_spot_allowed"):
 				if not bool(live.call("decor_spot_allowed", (decor_node as Node2D).global_position)):
 					decor_on_landmark += 1
 		failed += _assert(decor_bad == 0, "decor is flora grass only (bad %d)" % decor_bad)
 		failed += _assert(decor_on_landmark == 0, "decor stays off node footprints (hits %d)" % decor_on_landmark)
+		var ground_deco: Array[Node] = live.get_tree().get_nodes_in_group("hub_ground_deco")
+		failed += _assert(ground_deco.size() == 150, "hub ground deco count (got %d)" % ground_deco.size())
 		var live_keeper: Node = live.get_node_or_null("World/Keeper")
 		failed += _assert(live_keeper != null, "live Keeper")
 		if live_keeper:
@@ -1381,6 +1379,16 @@ func _run() -> void:
 				if child is Control and str((child as Control).tooltip_text) != "":
 					described += 1
 			failed += _assert(described == list_node.get_child_count(), "each blessing row has tooltip desc (%d/%d)" % [described, list_node.get_child_count()])
+			var icon_rows: int = 0
+			var sheet_keep: int = 0
+			for shop_row: Node in list_node.get_children():
+				var asc_icon: TextureRect = shop_row.find_child("AscIcon", true, false) as TextureRect
+				if asc_icon and asc_icon.texture and str(asc_icon.texture.resource_path).find("icon_asc_") >= 0 and asc_icon.custom_minimum_size == Vector2(32, 32):
+					icon_rows += 1
+				if asc_icon and asc_icon.texture and str(asc_icon.texture.resource_path).find("manaforge_hud_icons") >= 0:
+					sheet_keep += 1
+			failed += _assert(list_node.get_child_count() == 10 and icon_rows == 10, "every blessing row has a 32 icon (%d/%d)" % [icon_rows, list_node.get_child_count()])
+			failed += _assert(sheet_keep == 0, "Keep Tools is not HUD sheet cell 3")
 			failed += _assert(str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")
 		failed += _assert(not bool(w_post_ui.get("ok", true)), "water blocked after UI commit")
@@ -1527,6 +1535,9 @@ func _run() -> void:
 	game_state.call("_set_stage", &"ancient")
 	game_state.call("harvest_fruit")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 5000, "Keep Tools costs 5000 shards")
+	for asc_id: String in ["deep_roots", "forager", "green_thumb", "shard_sight", "keeper_stride", "wisp_haste", "bonus_wisp", "keep_tools", "keep_forge_intermediates", "keep_forge_jobs"]:
+		var asc_art: String = str(game_state.call("upgrade_art_path", asc_id))
+		failed += _assert(asc_art.ends_with("icon_asc_%s.png" % asc_id), "ascension icon %s" % asc_id)
 	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools unaffordable at 0 shards")
 	game_state.call("set_resource", &"manashards", 5000)
 	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 5000")
@@ -1929,15 +1940,24 @@ func _run() -> void:
 		failed += _assert(abs(float(scale_tree.call("visual_scale_for", &"elder")) - 2.0) < 0.01, "elder visual 2")
 		failed += _assert(abs(float(scale_tree.call("visual_scale_for", &"ancient")) - 1.5) < 0.01, "ancient visual 1.5")
 		var sap_sprite: Sprite2D = scale_tree.get_node_or_null("Sprite") as Sprite2D
-		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 2.0) < 0.01, "sapling sprite scale 2")
+		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 1.0) < 0.01, "sapling sprite scale 1")
 		failed += _assert(sap_sprite != null and sap_sprite.hframes == 8, "sapling anim 8 frames")
 		game_state.set("stage_id", &"ancient")
 		scale_tree.call("_refresh_visual")
-		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 4.0) < 0.01 and abs(sap_sprite.scale.y - 4.0) < 0.01, "ancient sprite scale 4")
+		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 1.0) < 0.01 and abs(sap_sprite.scale.y - 1.0) < 0.01, "ancient sprite scale 1")
 		for stage_name: String in ["sapling", "young", "mature", "elder", "ancient"]:
 			game_state.set("stage_id", StringName(stage_name))
 			scale_tree.call("_refresh_visual")
+			var expect_door: Dictionary = {
+				"sapling": Vector2(62, 102),
+				"young": Vector2(150, 255),
+				"mature": Vector2(368, 536),
+				"elder": Vector2(512, 916),
+				"ancient": Vector2(504, 936),
+			}
 			var door_px: Vector2 = scale_tree.call("door_floor_px")
+			failed += _assert(door_px.distance_to(expect_door[stage_name]) < 0.51, "door floor %s (got %s)" % [stage_name, door_px])
+			failed += _assert(abs(sap_sprite.scale.x - 1.0) < 0.01, "native scale 1 on %s" % stage_name)
 			var frame_sz: Vector2 = scale_tree.call("_stage_size", StringName(stage_name))
 			var anchor: Vector2 = scale_tree.call("door_anchor_offset")
 			failed += _assert(door_px.y < frame_sz.y - 1.0, "door sill above frame bottom on %s (y %.0f h %.0f)" % [stage_name, door_px.y, frame_sz.y])
@@ -2003,7 +2023,7 @@ func _run() -> void:
 		var live_sprite: Sprite2D = null
 		if live_tree:
 			live_sprite = live_tree.get_node_or_null("Sprite") as Sprite2D
-		failed += _assert(live_sprite != null and abs(live_sprite.scale.x - 2.0) < 0.01, "live sapling scale 2")
+		failed += _assert(live_sprite != null and abs(live_sprite.scale.x - 1.0) < 0.01, "live sapling scale 1")
 		var sheet_hud: Node = live_sheet.get_node_or_null("HUD")
 		failed += _assert(sheet_hud != null and sheet_hud.has_method("open_character_sheet"), "HUD character sheet")
 		var char_btn: Button = null

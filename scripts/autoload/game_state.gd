@@ -566,6 +566,20 @@ func get_upgrade_def(upgrade_id: String) -> Dictionary:
 	return {}
 
 
+func upgrade_art_path(upgrade_id: String) -> String:
+	## Same lookup as Equipment.item_art_path: ui/<art_name>.png, then ui/icons/.
+	var art_name: String = str(get_upgrade_def(upgrade_id).get("art_name", ""))
+	if art_name == "":
+		return ""
+	var direct: String = "res://assets/art/ui/%s.png" % art_name
+	if ResourceLoader.exists(direct):
+		return direct
+	var nested: String = "res://assets/art/ui/icons/%s.png" % art_name
+	if ResourceLoader.exists(nested):
+		return nested
+	return ""
+
+
 func get_effect_total(effect_name: String) -> float:
 	var total: float = 0.0
 	for entry: Variant in upgrades_data:

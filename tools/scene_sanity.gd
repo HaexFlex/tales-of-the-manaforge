@@ -112,11 +112,12 @@ func _run() -> void:
 		var dpath: String = ""
 		if dspr and dspr.texture:
 			dpath = str(dspr.texture.resource_path)
-		if dpath.find("/decor/grass_") < 0:
+		if dpath.find("/hub/ground/grass_tuft_") < 0:
 			decor_bad += 1
 		if decor_node is Node2D and not bool(live.call("decor_spot_allowed", (decor_node as Node2D).global_position)):
 			decor_hit += 1
 	failed += _check(decor_bad == 0 and decor_hit == 0, "decor grass off landmarks")
+	failed += _hub_ground_deco(live)
 	failed += _art_fit(live)
 	game.set("forge_key", false)
 	var forge_msg: String = str(live.get_node("HUD").call("open_forge_entry"))
@@ -354,7 +355,7 @@ func _art_fit(live: Node) -> int:
 	if berry and berry.texture:
 		var bw: float = float(berry.texture.get_width())
 		var bh: float = float(berry.texture.get_height())
-		failed += _check(bw == 784.0 and bh == 1168.0, "berry canvas 784x1168 (got %sx%s)" % [bw, bh])
+		failed += _check(bw == 86.0 and bh == 128.0, "berry canvas 86x128 (got %sx%s)" % [bw, bh])
 		failed += _check(not berry.centered, "berry bottom-anchored")
 		failed += _check(absf(berry.offset.x + bw * 0.5) < 0.5 and absf(berry.offset.y + bh) < 0.5, "berry offset bottom-center")
 	var marker: Sprite2D = live.get_node_or_null("World/EchoPortal/Visual/Marker") as Sprite2D
@@ -648,8 +649,91 @@ func _bonus_dict_equal(a: Variant, b: Variant) -> bool:
 	return not keys.is_empty()
 
 
+func _hub_ground_deco(live: Node) -> int:
+	var failed: int = 0
+	var nodes: Array = get_nodes_in_group("hub_ground_deco")
+	failed += _check(nodes.size() == 150, "hub ground deco %d" % nodes.size())
+	var world: Node2D = live.get_node("World") as Node2D
+	var exclusion: Rect2 = _manatree_exclusion((world.get_node("Manatree") as Node2D).position)
+	var bench: Vector2 = (world.get_node("KeepersBench") as Node2D).position
+	var bench_r: float = _bench_clear_radius()
+	var paths: Node = live.get_node("Paths")
+	var off: int = 0
+	var rock_body: int = 0
+	var glow_bad: int = 0
+	var glow_n: int = 0
+	var grass_files: Dictionary = {}
+	var families: Dictionary = {}
+	for node: Node in nodes:
+		if not (node is Node2D):
+			off += 1
+			continue
+		var at: Vector2 = (node as Node2D).global_position
+		if exclusion.has_point(at) or at.distance_to(bench) < bench_r:
+			off += 1
+		if not bool(live.call("decor_spot_allowed", at)) or _near_path(paths, at, 36.0):
+			off += 1
+		var tex_path: String = str(node.get("texture_path"))
+		var kind: String = "other"
+		if tex_path.find("grass_tuft_") >= 0:
+			kind = "grass"
+			grass_files[tex_path] = true
+		elif tex_path.find("fern_") >= 0:
+			kind = "fern"
+		elif tex_path.find("mushroom_glow_") >= 0:
+			kind = "glow"
+		elif tex_path.find("mushroom_plain_") >= 0:
+			kind = "plain"
+		elif tex_path.find("rock_mossy_") >= 0:
+			kind = "rock"
+		elif tex_path.find("flower_") >= 0:
+			kind = "flower"
+		families[kind] = int(families.get(kind, 0)) + 1
+		if kind == "rock" and node.get_node_or_null("Body") != null:
+			rock_body += 1
+		if kind == "glow":
+			glow_n += 1
+			var glow: Sprite2D = node.get_node_or_null("Glow") as Sprite2D
+			var mat: CanvasItemMaterial = glow.material as CanvasItemMaterial if glow else null
+			var gtex: Texture2D = glow.texture if glow else null
+			if glow == null or mat == null or mat.blend_mode != CanvasItemMaterial.BLEND_MODE_ADD:
+				glow_bad += 1
+			elif gtex == null or gtex.get_width() != 96 or not str(gtex.resource_path).ends_with("_glow.png"):
+				glow_bad += 1
+	failed += _check(off == 0, "ground deco off paths, exclusion, bench, and nodes (hits %d)" % off)
+	failed += _check(rock_body == 0, "rocks have no collision")
+	failed += _check(glow_n == 6 and glow_bad == 0, "glow mushrooms %d bad %d" % [glow_n, glow_bad])
+	failed += _check(grass_files.size() >= 4, "grass variants %d" % grass_files.size())
+	failed += _check(int(families.get("grass", 0)) == 60, "added grass %d" % int(families.get("grass", 0)))
+	failed += _check(int(families.get("fern", 0)) == 30, "ferns %d" % int(families.get("fern", 0)))
+	failed += _check(int(families.get("plain", 0)) == 10, "plain mushrooms %d" % int(families.get("plain", 0)))
+	failed += _check(int(families.get("rock", 0)) == 20, "rocks %d" % int(families.get("rock", 0)))
+	failed += _check(int(families.get("flower", 0)) == 24, "flowers %d" % int(families.get("flower", 0)))
+	return failed
+
+
+func _near_path(paths: Node, at: Vector2, limit: float) -> bool:
+	if paths == null:
+		return false
+	for child: Node in paths.get_children():
+		if not (child is Line2D):
+			continue
+		var pts: PackedVector2Array = (child as Line2D).points
+		for i: int in range(pts.size() - 1):
+			if _dist_seg(at, pts[i], pts[i + 1]) < limit:
+				return true
+	return false
+
+
+func _dist_seg(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab: Vector2 = b - a
+	var den: float = ab.length_squared()
+	var t: float = 0.0 if den <= 0.0001 else clampf((p - a).dot(ab) / den, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
+
 func _manatree_exclusion(origin: Vector2) -> Rect2:
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/art/manatree/manatree_meta.json"))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/art/manatree/native/manatree_meta.json"))
 	var union := Rect2()
 	var first: bool = true
 	for entry: Variant in (parsed as Dictionary).get("stages", []):

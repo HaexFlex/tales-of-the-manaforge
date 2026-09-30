@@ -54,7 +54,9 @@ func _run() -> void:
 	var status: Node = hud.get_node("Panel/StatusLabel")
 	_check(not status.visible, "toast faded before the hub shot")
 	var decor: int = get_nodes_in_group("forest_decor").size()
-	_check(decor >= 280, "decor scatter is present (got %d)" % decor)
+	_check(decor >= 20 and decor <= 60, "forest decor stays the grass tufts (got %d)" % decor)
+	var ground_deco: int = get_nodes_in_group("hub_ground_deco").size()
+	_check(ground_deco >= 140, "hub ground deco is present (got %d)" % ground_deco)
 
 	await _shot(live, "pt_newgame_fresh.png")
 	var fill_n: int = get_nodes_in_group("forest_fill").size()
