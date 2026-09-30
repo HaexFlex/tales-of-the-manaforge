@@ -1,6 +1,6 @@
 # Tales of the Manaforge — Content String Sheet v0.1
 **Owner:** Content & Lore  
-**Status:** v0.6.2 — Haex GO: Echo flavour dialogue (brief) + confirm Forge Key/+2/+2 + Enter Forge Elder/Ancient
+**Status:** v0.7.1 — handcrafted fighter starter display is Flintblade (`stone_sword_name`). Id stays `stone_sword`.
 **Source of truth:** `VISION_RESTART.md` + `SYSTEMS_V01.md` + `refs/`  
 **Non-canon:** Ashkiln / Ashwarden / idle-combat packs; forge-hub flavor; click-cooldown gather copy  
 **Audience:** Code wires keys; Art/Audio ignore lore depth beyond labels  
@@ -25,11 +25,12 @@
 | v0.2.2 | Haex: after Fruit, choose one free blessing (superseded). |
 | **v0.2.3** | Haex: Ascension shop spends **Manashards** on blessings; multi-buy OK; then Ascend. Not free-pick, not Essence. |
 | **v0.4.1** | Haex D6 live: Stone Axe/Pickaxe Head; costs-only Can+Fert rows; Keep Tools 3000; blessing tooltips; Grow Fert 3/6/12/24. |
-| **v0.5.0** | Haex GREENLIGHT: Character sheet, seven stats (VISION), Runestone spend (Manashards), locked Weapon/Relic slot hints, Weapon Rod + Stone Sword, equip tooltips. Manatree scale note bundled (visual — D7). |
+| **v0.5.0** | Haex GREENLIGHT: Character sheet, seven stats (VISION), Runestone spend (Manashards), locked Weapon/Relic slot hints, Weapon Rod + Flintblade, equip tooltips. Manatree scale note bundled (visual — D7). |
 | **v0.5.1** | Design id lock: slots `weapon`/`relic`/`head`/`body`/`hands`/`pants`/`feet`/`cape`/`ring1`/`ring2` (only weapon unlocked); item id `stone_sword`; gear inventory ≠ backpack; HUD+C; D7 scales live (visual). |
 | **v0.6.0** | Haex GO Echo Chamber v1: Elaia (`echo_keeper_01`); portal 30 Essence; Enter Forge care-menu (no-key / not-built); Strike/Flee/Spare; bare-fists toast; Key both endings; companion Spare-only; KO/Spare/Defeat silent. |
 | **v0.6.1** | Haex Echo polish: Enter Forge **Elder/Ancient only**; `forge_not_built` → “Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”; Forge Key relic +2 Swiftness +2 Fate. |
 | **v0.6.2** | Haex GO Echo polish: brief flavour dialogue keys (`echo_01_*` intro/mercy/spare/defeat/flee/return); battle log labels; confirm Enter Forge Elder/Ancient + Stay tuned + Forge Key +2/+2. |
+| **v0.7.1** | Fighter starter display: `stone_sword_name` Flintblade. `stone_sword_tooltip` is the chipped flint line. Id `stone_sword` is unchanged. Craft cost stays Stone Fragments ×30, Weapon Rod ×1. |
 
 ---
 
@@ -685,7 +686,7 @@ Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor
 | id | Display | Examine / equip tooltip |
 |----|---------|-------------------------|
 | `weapon_rod` | Weapon Rod | A simple wooden rod — your first lasting weapon. |
-| `stone_sword` | Stone Sword | A crude stone blade. Hits a little harder than a rod. |
+| `stone_sword` | Flintblade (`stone_sword_name`) | A chipped flint blade bound to a rod. Hits a little harder than bare wood. |
 | `sapstaff` | Sapstaff | A focus of living wood — light that remembers wards. |
 | `thornbow` | Thornbow | A switch-shaft bow. It chooses its bite. |
 
@@ -693,8 +694,8 @@ Crafted tools / Fertilizer / parts stay in **Backpack**. Weapons and later armor
 |-----|--------|
 | `weapon_rod_name` | Weapon Rod |
 | `weapon_rod_tooltip` | A simple wooden rod — your first lasting weapon. |
-| `stone_sword_name` | Stone Sword |
-| `stone_sword_tooltip` | A crude stone blade. Hits a little harder than a rod. |
+| `stone_sword_name` | Flintblade |
+| `stone_sword_tooltip` | A chipped flint blade bound to a rod. Hits a little harder than bare wood. |
 | `stone_sword_craft_cost` | Stone Fragments ×30, Weapon Rod ×1 |
 | `stone_sword_craft_cost_default` | Stone Fragments ×30, Weapon Rod ×1 |
 | `sapstaff_name` | Sapstaff |

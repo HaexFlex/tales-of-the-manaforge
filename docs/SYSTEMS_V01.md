@@ -34,7 +34,7 @@
 | v0.4.0 note | Playtest backlog was PARKED pending next coding session — **GREENLIT → live v0.4.1** (§11 D6). |
 | **v0.4.1** | **Haex D6 LIVE (coding session OPENED):** Can recipe = **20 Stone Fragments** only; Basket = **20 Wooden Planks**. Handcraft UI: Watering Can + Fertilizer rows **costs only**; fix scroll vs panel width. Rename heads → **Stone Axe Head**, **Stone Pickaxe Head**. `keep_tools` = **3000** Manashards flat (max 1). Ascension shop rows show **short description / tooltip**. Fert craft ~2× (`FERT_* = 10`); Grow Fertilizer **3 / 6 / 12 / 24**; Keep Essence **20 / 40 / 60 / 80**. Same PR Code notes: arrow-key camera clamped to play bounds; map ~**2×W × 3×H**; dense decorative trees + bushes; collision bottom-third trunks / bush bottom-center; no edge-scroll yet. `SAVE_VERSION` stays **6** (number-only retunes; no backpack schema change). |
 | v0.4.1 note | **PARK → LIVE in v0.5.0:** Manatree display scales (stage1 0.5×, stage2 default, stage3+4 2×, stage5 1.5×). See §4 + §11 D7. |
-| **v0.5.0** | **Haex GREENLIGHT 2026-09-21:** Character sheet / Stats / Equipment foundation + D7 Manatree scales **LIVE**. Seven combat stats via world Runestones (Manashards spend, steep exponential PLACEHOLDER curve); stats persist through Ascend. Equipment slots (weapon unlocked; others locked; relic locked until Forge Key — empty this ship). Gear inventory separate from backpack. Craftable: Weapon Rod + Stone Sword only. Character sheet UI (HUD + **C**). Persist equipped + gear inventory through Ascend (like stats). Soft mats + backpack still wipe; Keep Tools tools-only. D7 Manatree display scales live (visual only). `SAVE_VERSION` **7**. Full Echo combat / Forge Key / other gear recipes still deferred. |
+| **v0.5.0** | **Haex GREENLIGHT 2026-09-21:** Character sheet / Stats / Equipment foundation + D7 Manatree scales **LIVE**. Seven combat stats via world Runestones (Manashards spend, steep exponential PLACEHOLDER curve); stats persist through Ascend. Equipment slots (weapon unlocked; others locked; relic locked until Forge Key — empty this ship). Gear inventory separate from backpack. Craftable: Weapon Rod + Flintblade only. Character sheet UI (HUD + **C**). Persist equipped + gear inventory through Ascend (like stats). Soft mats + backpack still wipe; Keep Tools tools-only. D7 Manatree display scales live (visual only). `SAVE_VERSION` **7**. Full Echo combat / Forge Key / other gear recipes still deferred. |
 | v0.5.0 note | Out of scope this ship: combat, Forge Key, other equipment recipes, Runestone non-Manashard currency, Fate gather effects. |
 | **v0.5.1** | **Haex overnight polish:** All 7 combat stats **base start at 5**. Sheet display: `base = STAT_BASE_START + runestone_ranks` (+ gear = total). SAVE migrate: unset→5 / floor displayed base at 5. Character sheet UI polish only otherwise. `SAVE_VERSION` stays **7** (migrate rule). |
 | **v0.6.0** | **Haex GO 2026-09-22:** **Echo Chamber v1 LIVE.** Portal after first Ascension (30 Essence fee once until win or KO loss; flee keeps fee; Ascend-while-fee-paid free re-entry). 1v1 vs `echo_keeper_01` display **Elaia**; Strike / Flee / Spare (<10% HP, Spare+Strike only). Formulas LOCKED (reuse KeeperStats + Equipment; HP=10×Vitality; raw=(atk−def)×10; crit Fate×1%; mercy floor; T1 protection). Rewards: spare/defeat Manashard payouts from Runestone cost curve on **stored ranks**; both wins grant `forge_key` → unlock **relic** slot; Spare sets `echo_01_redeemed`. Enter Forge = Manatree care-menu button only (no key → popup; with key → “not built yet”). `SAVE_VERSION` **8**. Echo 2+ / companion body / Forge realm / Cast/items/Guard still Out. |
@@ -44,7 +44,7 @@
 
 ## v0.6 scope (systems only)
 
-**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **8**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Stone Sword), **D7 Manatree display scales**, **Echo Chamber v1** (portal + 1v1 battle + rewards), **Forge Key relic** (+2 Swift/+2 Fate), **Enter Forge** Elder/Ancient only (“Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”).
+**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **8**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Flintblade), **D7 Manatree display scales**, **Echo Chamber v1** (portal + 1v1 battle + rewards), **Forge Key relic** (+2 Swift/+2 Fate), **Enter Forge** Elder/Ancient only (“Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”).
 
 **Out:** needs-only soft-mat stage pay (**SUPERSEDED**), growth bar / offers, **Echo 2+**, **companion body / companion in combat**, **3v1**, **Cast / items / Guard**, **Forge interior / Forge realm**, other battle-gear recipes, Runestone non-Manashard currency, Fate gather effects, type chart, Wisps in combat, WASD, mobile/web, many duplicate harvestables. Tools never gate gather; tools never multiply wisp pulses.
 
@@ -219,7 +219,7 @@ Prestige craft-cost multiplier param name: `FERTILIZER_CRAFT_COST_MULT` (default
 | **Stone Watering Can** | **20 Stone Fragments** | tool (unique); v0.4.1 — fragments only (no Rod) |
 | **Fertilizer** | 10 Wood + 10 Stone + 10 Food | stackable; see above; v0.4.1 |
 
-All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipes. Battle-gear crafts (**Weapon Rod**, **Stone Sword**) live in **§4e** (gear inventory, not backpack).
+All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipes. Battle-gear crafts (**Weapon Rod**, **Flintblade**) live in **§4e** (gear inventory, not backpack).
 
 ### Handcraft UI (Code contract — v0.4.1)
 - **Watering Can** and **Fertilizer** rows: show **costs only** (shorten labels; drop long names if they overflow).
@@ -323,11 +323,11 @@ Rules:
 | Result | Ingredients | Notes |
 |--------|-------------|-------|
 | **Weapon Rod** | **10 Wooden Planks** | New intermediate (battle path; distinct from Wooden Tool Rod). PLACEHOLDER — Design lean 10 Planks. |
-| **Stone Sword** | **30 Stone Fragments + 1 Weapon Rod** | Equips to **`weapon`** slot; flat Might PLACEHOLDER e.g. **+2 Might**. |
+| **Flintblade** | **30 Stone Fragments + 1 Weapon Rod** | Equips to **`weapon`** slot; flat Might PLACEHOLDER e.g. **+2 Might**. |
 
 - **No other battle gear recipes** this ship.
 - Craft via handcraft (or same craft UI with gear results routing to **gear inventory**, not backpack). Code: grant `stone_sword` / `weapon_rod` into gear inventory (Weapon Rod may live as craft intermediate in gear bag or a craft-only staging key — prefer gear inventory / craft consume-on-Sword so bag stays battle-focused; Design lean: Weapon Rod is craft intermediate consumed into Sword; if held, store in gear inventory).
-- Equipped Stone Sword contributes `+2` Might (PLACEHOLDER) to gear side of sheet total.
+- Equipped Flintblade contributes `+2` Might (PLACEHOLDER) to gear side of sheet total.
 
 ```
 # PLACEHOLDER — Code data
@@ -729,7 +729,7 @@ LMB Keeper/Wisp → select | LMB empty → deselect
 RMB (Keeper selected) → walk / interact harvest, Manatree, Runestone, or Echo Portal (if unlocked)
 RMB (Wisp selected) → assign to node or Manatree (manashards); RMB ground → unassign → orbit Keeper
 Assigned wisps path to target then orbit it; pulse +1/10s (tools never boost)
-Craft: soft mats → backpack (intermediates / tools / Fertilizer); Weapon Rod / Stone Sword → gear inventory
+Craft: soft mats → backpack (intermediates / tools / Fertilizer); Weapon Rod / Flintblade → gear inventory
 Equip: drag gear inventory → unlocked slots (weapon at start; relic after forge_key)
 HUD / C → character sheet (Keeper + slots | gear bag | base+gear=total stats)
 Runestone: spend Manashards → +1 flat to that stat (steep exponential cost)
@@ -804,7 +804,7 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 | Runestone cost `BASE=100`, `GROWTH=1.65`, `floor(BASE*GROWTH^rank)` | **LOCKED Haex v0.5.0** (PLACEHOLDER tune later) |
 | Stats + equipped + gear inventory **persist** Ascend; shards wipe | **LOCKED Haex v0.5.0** |
 | Equipment slots order; weapon unlocked at start; relic unlocks via `forge_key` (Echo win) | **LOCKED Haex v0.5.0 / v0.6.0** |
-| Gear inventory ≠ backpack; Weapon Rod + Stone Sword only | **LOCKED Haex v0.5.0** (recipes PLACEHOLDER) |
+| Gear inventory ≠ backpack; Weapon Rod + Flintblade only | **LOCKED Haex v0.5.0** (recipes PLACEHOLDER) |
 | Character sheet: HUD + **C**; left Keeper/slots, mid gear, right base+gear=total | **LOCKED Haex v0.5.0** |
 | Manatree display scales (0.5 / 1 / 2 / 2 / 1.5) | **LOCKED / LIVE Haex D7 → v0.5.0** (§4 / §11 D7) |
 | Playtest backlog D6 (recipes / Grow / Keep Tools / UI / tooltips / camera-map) | **LOCKED / applied → live v0.4.1** (§11 D6) |
@@ -829,7 +829,7 @@ Live loop is **v0.6.0** (Fertilizer Grow + backpack/tools + D6 retunes + charact
 ~~Stage-advance button label Grow~~ → **LIVE:** CTA **Grow**, costs on control (Fertilizer + Essence). See §4. (Was deferred under needs-only Pay; greenlit with Fertilizer Grow.)
 
 ### D3. Equipment & Stats / Echo Chamber — GREENLIT foundation → live v0.5.0; **Echo Chamber v1 LIVE v0.6.0**
-**Foundation LIVE** — see **§4e**. Seven combat stats + Runestones (same Manashard pool, steep exponential PLACEHOLDER curve), equipment slots (weapon unlocked; **relic unlocks via Forge Key**), gear inventory ≠ backpack, Weapon Rod + Stone Sword, character sheet (HUD + **C**), Ascend persist stats + equipped + gear inventory.
+**Foundation LIVE** — see **§4e**. Seven combat stats + Runestones (same Manashard pool, steep exponential PLACEHOLDER curve), equipment slots (weapon unlocked; **relic unlocks via Forge Key**), gear inventory ≠ backpack, Weapon Rod + Flintblade, character sheet (HUD + **C**), Ascend persist stats + equipped + gear inventory.
 
 **Echo Chamber v1 LIVE** — see **§4f**. Portal + 1v1 Elaia + LOCKED formulas + spare/defeat rewards + `forge_key` → relic slot; Enter Forge stub; `SAVE_VERSION` **8**.
 

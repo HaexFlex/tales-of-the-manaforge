@@ -1704,7 +1704,7 @@ func _run() -> void:
 		await process_frame
 		game_state.call("reset_for_new_game")
 
-	# --- Character sheet, Runestones, Stone Sword, Manatree visual scale (Haex greenlight) ---
+	# --- Character sheet, Runestones, Flintblade, Manatree visual scale (Haex greenlight) ---
 	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
 	var equipment: Node = tree_root.get_node_or_null("Equipment")
 	failed += _assert(keeper_stats != null, "KeeperStats autoload missing")
@@ -1736,8 +1736,8 @@ func _run() -> void:
 		failed += _assert(str(content_strings.call("get_text", "equip_locked_hint")).find("not open") >= 0, "equip_locked_hint")
 		failed += _assert(str(content_strings.call("get_text", "equip_unequip_ok")).find("Put away") >= 0, "equip_unequip_ok")
 		failed += _assert(str(content_strings.call("get_text", "weapon_rod_name")) == "Weapon Rod", "weapon_rod_name")
-		failed += _assert(str(content_strings.call("get_text", "stone_sword_name")) == "Stone Sword", "stone_sword_name")
-		failed += _assert(str(content_strings.call("get_text", "stone_sword_tooltip")).find("crude") >= 0, "stone_sword_tooltip")
+		failed += _assert(str(content_strings.call("get_text", "stone_sword_name")) == "Flintblade", "stone_sword_name")
+		failed += _assert(str(content_strings.call("get_text", "stone_sword_tooltip")).find("flint") >= 0, "stone_sword_tooltip")
 		failed += _assert(str(content_strings.call("get_text", "weapon_rod")) == "Weapon Rod", "weapon_rod alias")
 		failed += _assert(str(content_strings.call("get_text", "stone_sword")) == "Stone Sword", "stone_sword id string")
 		var stat_order: Array = keeper_stats.get("STAT_ORDER")
@@ -1792,7 +1792,7 @@ func _run() -> void:
 		failed += _assert(str(equipment.call("slot_lock_short", "relic")) == "Locked", "relic lock chip")
 		failed += _assert(str(equipment.call("slot_lock_hint", "relic")) == "Relic locked — needs a Forge Key.", "relic lock hint")
 		failed += _assert(str(equipment.call("slot_lock_hint", "head")) == "Not yet — the Forge still sleeps.", "armor lock hint")
-		failed += _assert(str(equipment.call("item_display_name", "stone_sword")) == "Stone Sword", "stone_sword display id")
+		failed += _assert(str(equipment.call("item_display_name", "stone_sword")) == "Flintblade", "stone_sword display id")
 		failed += _assert(not backpack.call("is_known_item", "weapon_rod"), "weapon rod is not a backpack item")
 		failed += _assert((backpack.call("get_recipe_def", "weapon_rod") as Dictionary).is_empty(), "weapon rod recipe is not backpack")
 		var rod_ings: Dictionary = equipment.call("get_recipe_ingredients", "weapon_rod")
@@ -2077,7 +2077,7 @@ func _run() -> void:
 		weapon_hint = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/CaptionHost/Hint") as Label
 		failed += _assert(might_line != null and str(might_line.text).find("5 + 2 = 7") >= 0, "sheet shows 5 + 2 = 7")
 		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "equipped sword still adds +2 might")
-		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Stone Sword", "equipped weapon shows the item name")
+		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Flintblade", "equipped weapon shows the item name")
 		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
 		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.STONE_SWORD), "equipped sword shows sheet cell")
 		var slot_plate: Node = sheet_hud.get_node("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
@@ -2726,7 +2726,7 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 	for i: int in range(4):
 		var joined: String = str(game_state.call("try_assign_wisp", i, "crucible"))
 		failed += _assert(joined != "full" and joined != "invalid", "wisp %d can work the crucible" % i)
-	failed += _assert(absf(float(jobs.call("station_speed_mult", "crucible")) - 3.0) < 0.01, "four wisps are 3x")
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "crucible")) - 0.4) < 0.01, "four wisps are 0.4x")
 	game_state.set("wisp_count", 5)
 	game_state.call("_ensure_wisp_slots")
 	failed += _assert(str(game_state.call("try_assign_wisp", 4, "crucible")) == "full", "a fifth wisp is refused")
@@ -2837,7 +2837,8 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 			failed += _assert(stand != null and _on_forge_floor(floor, stand.global_position), "%s stand is on the floor" % station.name)
 			var sprite: Sprite2D = station.get_node_or_null("Sprite") as Sprite2D
 			failed += _assert(sprite != null and sprite.texture != null and sprite.texture.get_width() == 192 and sprite.texture.get_height() == 192, "%s frame is 192" % station.name)
-			failed += _assert(sprite != null and not sprite.centered and sprite.offset.distance_to(Vector2(-96, -192)) < 0.1 and sprite.scale.distance_to(Vector2.ONE) < 0.01, "%s sprite setup" % station.name)
+			var station_scale: float = 0.75 if str(station.name) == "Anvil" else 0.8
+			failed += _assert(sprite != null and not sprite.centered and sprite.offset.distance_to(Vector2(-96, -192)) < 0.1 and sprite.scale.distance_to(Vector2(station_scale, station_scale)) < 0.01, "%s sprite setup" % station.name)
 			failed += _assert(sprite != null and sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "%s nearest filter" % station.name)
 			failed += _assert(station.z_index > 0, "%s draws above the swirl" % station.name)
 			failed += _assert(station.get("idle_texture") != null and station.get("busy_texture") != null, "%s idle and busy textures" % station.name)

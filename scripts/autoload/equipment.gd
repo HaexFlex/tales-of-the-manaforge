@@ -1,6 +1,6 @@
 extends Node
 ## Battle gear inventory + paper-doll slots. Thin module beside GameState.
-## Backpack keeps forest crafts. This inventory keeps Weapon Rod and Stone Sword.
+## Backpack keeps forest crafts. This inventory keeps Weapon Rod and stone_sword (stone_sword_name).
 ## Equipped bonuses are flat. Relic unlocks when the Keeper holds a Forge Key.
 
 signal equipment_changed
@@ -312,7 +312,7 @@ func try_equip_to_slot(item_id: String, slot_id: String) -> String:
 		if has_node("/root/GameAudio"):
 			GameAudio.play(&"sfx_upgrade_buy")
 		if has_node("/root/ForgeJobs") and has_node("/root/GameState"):
-			var label: String = str(get_item_def(item_id).get("display_name", item_id))
+			var label: String = item_display_name(item_id)
 			GameState.status_message.emit(ForgeJobs.copy_text("relic_swap_confirm", {"item": label}))
 	return "ok"
 

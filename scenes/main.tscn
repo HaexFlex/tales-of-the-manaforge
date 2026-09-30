@@ -60,10 +60,10 @@ unique_name_in_owner = true
 script = ExtResource("3_gqmmt")
 path_texture = ExtResource("20_path")
 
-[node name="ToHarvestTree" type="Line2D" parent="Paths" unique_id=464354625]
+[node name="ToHarvestTree" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 1680.35, 2047.0011, 1200, 2100)
+points = PackedVector2Array(2160, 2106, 1920, 2070.8, 1680, 2058, 1440, 2067.8, 1200, 2100)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -71,10 +71,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToHarvestStone" type="Line2D" parent="Paths" unique_id=311628853]
+[node name="TreeToFate" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 2720.042, 1947.8925, 3300, 1900)
+points = PackedVector2Array(1200, 2100, 1145, 1961.2, 1110, 1815, 1095, 1661.2, 1100, 1500)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -82,10 +82,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToHarvestBerry" type="Line2D" parent="Paths" unique_id=597855622]
+[node name="FateToMight" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 2276.639, 2463.587, 2480, 2780)
+points = PackedVector2Array(1100, 1500, 1325, 1352.5, 1550, 1220, 1775, 1102.5, 2000, 1000)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -93,10 +93,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToEchoPortal" type="Line2D" parent="Paths" unique_id=1160769102]
+[node name="MightToPortal" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 2500.2073, 1666.3092, 2900, 1280)
+points = PackedVector2Array(2000, 1000, 2236.2, 1051.2, 2465, 1115, 2686.2, 1191.2, 2900, 1280)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -104,10 +104,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToMight" type="Line2D" parent="Paths" unique_id=1625475057]
+[node name="PortalToArcana" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 2131.4644, 1545.5549, 2000, 1000)
+points = PackedVector2Array(2900, 1280, 3001.2, 1363.8, 3085, 1445, 3151.2, 1523.8, 3200, 1600)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -115,10 +115,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToArcana" type="Line2D" parent="Paths" unique_id=1389587758]
+[node name="ArcanaToStone" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 2658.9998, 1809.8376, 3200, 1600)
+points = PackedVector2Array(3200, 1600, 3243.8, 1667.5, 3275, 1740, 3293.8, 1817.5, 3300, 1900)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -126,10 +126,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToResilience" type="Line2D" parent="Paths" unique_id=1757981152]
+[node name="StoneToResilience" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 2715.6272, 2344.5864, 3300, 2500)
+points = PackedVector2Array(3300, 1900, 3330, 2050, 3340, 2200, 3330, 2350, 3300, 2500)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -137,10 +137,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToWard" type="Line2D" parent="Paths" unique_id=853996248]
+[node name="ResilienceToWard" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 2473.802, 2499.975, 2700, 2950)
+points = PackedVector2Array(3300, 2500, 3161.2, 2631.2, 3015, 2750, 2861.2, 2856.2, 2700, 2950)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -148,10 +148,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToVitality" type="Line2D" parent="Paths" unique_id=1911209003]
+[node name="WardToBerry" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 1943.2072, 2512.3064, 1800, 2950)
+points = PackedVector2Array(2700, 2950, 2652.5, 2933.8, 2600, 2900, 2542.5, 2848.8, 2480, 2780)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -159,10 +159,10 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToSwiftness" type="Line2D" parent="Paths" unique_id=1677150273]
+[node name="BerryToManatree" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 1539.998, 2295.849, 900, 2400)
+points = PackedVector2Array(2480, 2780, 2452.5, 2622.8, 2390, 2458, 2292.5, 2285.8, 2160, 2106)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -170,10 +170,32 @@ joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
 
-[node name="ToFate" type="Line2D" parent="Paths" unique_id=1344185008]
+[node name="BerryToVitality" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 1647.8673, 1771.7468, 1100, 1500)
+points = PackedVector2Array(2480, 2780, 2310, 2848.8, 2140, 2900, 1970, 2933.8, 1800, 2950)
+width = 48.0
+texture = ExtResource("20_path")
+texture_mode = 1
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="TreeToSwift" type="Line2D" parent="Paths"]
+texture_filter = 1
+texture_repeat = 2
+points = PackedVector2Array(1200, 2100, 1106.2, 2190, 1025, 2270, 956.2, 2340, 900, 2400)
+width = 48.0
+texture = ExtResource("20_path")
+texture_mode = 1
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="SwiftToVitality" type="Line2D" parent="Paths"]
+texture_filter = 1
+texture_repeat = 2
+points = PackedVector2Array(900, 2400, 1125, 2571.2, 1350, 2720, 1575, 2846.2, 1800, 2950)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -184,7 +206,7 @@ end_cap_mode = 2
 [node name="ToBench" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(2160, 2106, 1780, 2320, 1760, 2580)
+points = PackedVector2Array(1800, 2950, 1808.8, 2861.2, 1805, 2770, 1788.8, 2676.2, 1760, 2580)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1

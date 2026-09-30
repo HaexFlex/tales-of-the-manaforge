@@ -27,8 +27,6 @@ func _ready() -> void:
 	input_pickable = true
 	monitoring = false
 	monitorable = true
-	if title and has_node("/root/ForgeJobs"):
-		title.text = ForgeJobs.station_display(station_id)
 	_refresh_visual()
 
 
@@ -69,6 +67,10 @@ func _refresh_visual() -> void:
 			placeholder.color = placeholder.color.lightened(0.15)
 	if badge:
 		badge.text = line
+	if title and has_node("/root/ForgeJobs") and station_id != "":
+		var named: String = ForgeJobs.station_display(station_id)
+		var speed: float = ForgeJobs.station_speed_mult(station_id)
+		title.text = named if speed <= 0.0 else "%s  %s" % [named, ForgeJobs.station_speed_text(speed)]
 	_apply_badge_art(worked)
 
 
@@ -105,8 +107,8 @@ func _on_left_click() -> void:
 
 func _on_right_click() -> void:
 	var room: Node = get_tree().get_first_node_in_group("forge_room")
-	if GameState.selected_wisp_id >= 0:
-		var result: String = GameState.try_assign_wisp(GameState.selected_wisp_id, station_id)
+	if not GameState.selected_wisp_list().is_empty():
+		var result: String = GameState.command_selected_wisps(station_id)
 		if result == "full":
 			if has_node("/root/ForgeJobs"):
 				GameState.status_message.emit(ForgeJobs.copy_text("queue_full"))

@@ -163,6 +163,105 @@ func recipe_ids_for(station_id: String) -> PackedStringArray:
 	return out
 
 
+func recipe_output_id(recipe_id: String) -> String:
+	var recipe: Dictionary = _recipe(recipe_id)
+	return str(recipe.get("output", recipe_id))
+
+
+func output_icon(item_id: String) -> Texture2D:
+	var path: String = _output_icon_path(item_id)
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	return load(path) as Texture2D
+
+
+func recipe_hover_bbcode(recipe_id: String) -> String:
+	var recipe: Dictionary = _recipe(recipe_id)
+	if recipe.is_empty():
+		return recipe_id
+	var lines: PackedStringArray = PackedStringArray()
+	var output: String = recipe_output_id(recipe_id)
+	lines.append("[b]%s[/b]" % _item_label(output))
+	if bool(recipe.get("output_gear", false)):
+		var bits: PackedStringArray = _bonus_bits(recipe)
+		if bits.size() > 0:
+			lines.append(" ".join(bits))
+	var inputs: Dictionary = _inputs(recipe)
+	for key: Variant in inputs.keys():
+		var need: int = int(inputs[key])
+		if need <= 0:
+			continue
+		var owned: int = _have(str(key))
+		var row: String = "%s %d / %d" % [_item_label(str(key)), owned, need]
+		if owned < need:
+			row = "[color=#e07050]%s[/color]" % row
+		lines.append(row)
+	return "\n".join(lines)
+
+
+func _bonus_bits(recipe: Dictionary) -> PackedStringArray:
+	var bits: PackedStringArray = PackedStringArray()
+	var bonuses: Variant = recipe.get("bonuses", {})
+	if typeof(bonuses) == TYPE_DICTIONARY:
+		for stat_id: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+			var amount: int = int((bonuses as Dictionary).get(stat_id, 0))
+			if amount == 0:
+				continue
+			var stat_name: String = stat_id.capitalize()
+			if has_node("/root/KeeperStats"):
+				stat_name = KeeperStats.stat_display_name(stat_id)
+			bits.append("%s %+d" % [stat_name, amount])
+	var kind: String = str(recipe.get("damage_kind", ""))
+	if kind != "":
+		bits.append(kind.capitalize())
+	return bits
+
+
+func _item_label(item_id: String) -> String:
+	if has_node("/root/ContentStrings"):
+		var hud_key: String = "hud_%s" % item_id
+		var labeled: String = ContentStrings.get_text(hud_key)
+		if labeled != hud_key and labeled != "":
+			return labeled
+	if has_node("/root/Equipment") and Equipment.is_known_item(item_id):
+		return Equipment.item_display_name(item_id)
+	if has_node("/root/Backpack") and Backpack.is_known_item(item_id):
+		return Backpack.item_display_name(item_id)
+	return item_id.capitalize().replace("_", " ")
+
+
+func _output_icon_path(item_id: String) -> String:
+	match item_id:
+		"amberbind":
+			return "res://assets/art/ui/icon_amberbind.png"
+		"sapsteel":
+			return "res://assets/art/ui/icon_sapsteel.png"
+		"heartwood_bits":
+			return "res://assets/art/ui/icon_heartwood_bits.png"
+		"oakheart_knot":
+			return "res://assets/art/ui/icons/icon_oakheart_knot.png"
+		"shardlens":
+			return "res://assets/art/ui/icons/icon_shardlens.png"
+		"windthorn_bead":
+			return "res://assets/art/ui/icons/icon_windthorn_bead.png"
+		"rootsteel_edge":
+			return "res://assets/art/ui/icon_rootsteel_edge.png"
+		"heartwand":
+			return "res://assets/art/ui/icon_heartwand.png"
+		"switchshaft":
+			return "res://assets/art/ui/icon_switchshaft.png"
+		"wood":
+			return "res://assets/art/ui/icon_wood.png"
+		"stone":
+			return "res://assets/art/ui/icon_stone.png"
+		"food":
+			return "res://assets/art/ui/icon_food.png"
+		"essence":
+			return "res://assets/art/ui/icon_essence.png"
+		_:
+			return ""
+
+
 func recipe_button_text(recipe_id: String) -> String:
 	var recipe: Dictionary = _recipe(recipe_id)
 	var output: String = str(recipe.get("output", recipe_id))
@@ -297,6 +396,8 @@ func exit_forge() -> void:
 	if has_node("/root/GameAudio"):
 		GameAudio.set_forge_room_mix(false)
 	if _allow_scene_change:
+		if has_node("/root/SaveService"):
+			SaveService.boot_intent = "forge_return"
 		get_tree().change_scene_to_file(HUB_SCENE)
 
 
@@ -328,9 +429,12 @@ func in_forge_scene() -> bool:
 
 
 func wisp_should_show(assigned_node: String, in_forge: bool) -> bool:
+	## Free Wisps follow the Keeper into the Forge and back out.
+	## A Wisp working a station stays there, in the Forge only.
 	var at_station: bool = is_forge_station(assigned_node)
+	var free: bool = assigned_node == ""
 	if in_forge:
-		return at_station
+		return free or at_station
 	return not at_station
 
 
@@ -422,12 +526,24 @@ func job_recipe(station_id: String) -> String:
 
 
 func station_speed_mult(station_id: String) -> float:
-	if not _someone_working(station_id):
-		return 0.0
+	## Additive. Keeper and a companion each count 1. Each Wisp counts 0.1, capped at 4.
+	## Displayed job time stays the recipe base. Actual time is base / this sum.
 	if has_node("/root/GameState") and GameState.fruit_committed:
 		return 0.0
+	var speed: float = 0.0
+	if _keeper_working and _keeper_station == station_id:
+		speed += float(_tuning.get("keeper_speed", 1.0))
+	if str(_companions.get(station_id, "")) != "":
+		speed += float(_tuning.get("companion_speed", 1.0))
 	var wisps: int = mini(_wisps_on(station_id), wisp_cap())
-	return 1.0 + float(_tuning.get("wisp_speed_bonus", 0.5)) * float(wisps)
+	speed += float(_tuning.get("wisp_speed", 0.1)) * float(wisps)
+	return speed
+
+
+func station_speed_text(mult: float) -> String:
+	if absf(mult - roundf(mult)) < 0.001:
+		return "%dx" % int(roundf(mult))
+	return "%.1fx" % mult
 
 
 func station_is_busy(station_id: String) -> bool:
@@ -437,12 +553,13 @@ func station_is_busy(station_id: String) -> bool:
 func station_badge(station_id: String) -> String:
 	if not has_job(station_id):
 		return ""
-	if station_speed_mult(station_id) <= 0.0:
+	var speed: float = station_speed_mult(station_id)
+	if speed <= 0.0:
 		return copy_text("station_paused")
 	var job: Dictionary = _jobs[station_id]
 	var duration: float = maxf(float(job.get("duration", 1.0)), 0.05)
 	var pct: int = int(clampf(float(job.get("progress", 0.0)) / duration, 0.0, 1.0) * 100.0)
-	return "%s %d%%" % [copy_text("station_busy"), pct]
+	return "%s %d%%  %s" % [copy_text("station_busy"), pct, station_speed_text(speed)]
 
 
 func advance_seconds(seconds: float) -> void:

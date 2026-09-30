@@ -140,6 +140,7 @@ func _run() -> void:
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
 	failed += _check(save_src.find("const SAVE_VERSION: int = 9") >= 0, "SAVE_VERSION 9")
+	failed += _gear_bonus_match()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -245,7 +246,7 @@ func _weapons() -> int:
 	var pack: Node = root.get_node("Backpack")
 	gear.call("reset_for_new_game")
 	game.call("reset_for_new_game")
-	failed += _check(str(gear.call("item_damage_kind", "stone_sword")) == "physical", "stone sword physical")
+	failed += _check(str(gear.call("item_damage_kind", "stone_sword")) == "physical", "stone_sword physical")
 	failed += _check(str(gear.call("item_damage_kind", "sapstaff")) == "magical", "sapstaff magical")
 	failed += _check(str(gear.call("item_damage_kind", "thornbow")) == "hybrid", "thornbow hybrid")
 	var staff_def: Dictionary = gear.call("get_item_def", "sapstaff")
@@ -468,7 +469,138 @@ func _spacing_pass(live: Node) -> int:
 		mark_ok = Vector2(float((bench_mark as Array)[0]), float((bench_mark as Array)[1])).distance_to(bench_node.position) < 1.0
 	failed += _check(mark_ok, "hub_map keepers_bench matches the scene")
 	failed += _check(live.get_node_or_null("Paths/ToBench") is Line2D, "path branch to the bench")
+	failed += _path_network(live)
 	return failed
+
+
+func _path_network(live: Node) -> int:
+	var failed: int = 0
+	var map_v: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/hub_map.json"))
+	var paths_v: Variant = (map_v as Dictionary).get("paths", []) if typeof(map_v) == TYPE_DICTIONARY else []
+	failed += _check(typeof(paths_v) == TYPE_ARRAY and (paths_v as Array).size() >= 11, "hub_map paths")
+	var paths_node: Node = live.get_node("Paths")
+	var seen: Dictionary = {}
+	if typeof(paths_v) == TYPE_ARRAY:
+		for entry_v: Variant in paths_v:
+			if typeof(entry_v) != TYPE_DICTIONARY:
+				failed += 1
+				continue
+			var entry: Dictionary = entry_v
+			var line_name: String = str(entry.get("name", ""))
+			var line: Line2D = paths_node.get_node_or_null(line_name) as Line2D
+			var pts_v: Variant = entry.get("points", [])
+			var match_ok: bool = line != null and typeof(pts_v) == TYPE_ARRAY
+			if match_ok:
+				var want: Array = pts_v
+				match_ok = line.points.size() == want.size()
+				if match_ok:
+					for i: int in range(want.size()):
+						var pair: Array = want[i]
+						var got: Vector2 = line.points[i]
+						if got.distance_to(Vector2(float(pair[0]), float(pair[1]))) > 1.0:
+							match_ok = false
+							break
+			if not match_ok:
+				print("FAIL path %s does not match hub_map" % line_name)
+				failed += 1
+			seen[line_name] = true
+	var parent: Dictionary = {}
+	var snap: float = 24.0
+	var knots: Array[Vector2] = []
+	for child: Node in paths_node.get_children():
+		if not (child is Line2D):
+			continue
+		var line2: Line2D = child as Line2D
+		if line2.points.size() < 2:
+			continue
+		var a: Vector2 = _snap_knot(knots, line2.points[0], snap)
+		var b: Vector2 = _snap_knot(knots, line2.points[line2.points.size() - 1], snap)
+		_union_knot(parent, a, b)
+	var roots: Dictionary = {}
+	for knot: Vector2 in knots:
+		roots[_find_knot(parent, knot)] = true
+	failed += _check(roots.size() == 1, "path graph is one piece (got %d)" % roots.size())
+	var landmarks: Array[Vector2] = [
+		Vector2(2160, 2106), Vector2(1200, 2100), Vector2(3300, 1900), Vector2(2480, 2780),
+		Vector2(2900, 1280), Vector2(1760, 2580), Vector2(2000, 1000), Vector2(3200, 1600),
+		Vector2(3300, 2500), Vector2(2700, 2950), Vector2(1800, 2950), Vector2(900, 2400),
+		Vector2(1100, 1500),
+	]
+	var covered: int = 0
+	for mark: Vector2 in landmarks:
+		for knot: Vector2 in knots:
+			if knot.distance_to(mark) <= snap:
+				covered += 1
+				break
+	failed += _check(covered == landmarks.size(), "paths reach every landmark (%d/%d)" % [covered, landmarks.size()])
+	return failed
+
+
+func _snap_knot(knots: Array[Vector2], point: Vector2, snap: float) -> Vector2:
+	for knot: Vector2 in knots:
+		if knot.distance_to(point) <= snap:
+			return knot
+	knots.append(point)
+	return point
+
+
+func _find_knot(parent: Dictionary, point: Vector2) -> Vector2:
+	var key: String = "%s,%s" % [point.x, point.y]
+	if not parent.has(key):
+		parent[key] = point
+		return point
+	var at: Vector2 = parent[key]
+	if at.distance_to(point) <= 0.01:
+		return point
+	var root: Vector2 = _find_knot(parent, at)
+	parent[key] = root
+	return root
+
+
+func _union_knot(parent: Dictionary, a: Vector2, b: Vector2) -> void:
+	var ra: Vector2 = _find_knot(parent, a)
+	var rb: Vector2 = _find_knot(parent, b)
+	parent["%s,%s" % [rb.x, rb.y]] = ra
+
+
+func _gear_bonus_match() -> int:
+	var failed: int = 0
+	var eq_v: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/equipment.json"))
+	var tune_v: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/forge_tuning.json"))
+	if typeof(eq_v) != TYPE_DICTIONARY or typeof(tune_v) != TYPE_DICTIONARY:
+		return _check(false, "gear json")
+	var by_id: Dictionary = {}
+	for item_v: Variant in (eq_v as Dictionary).get("items", []):
+		if typeof(item_v) == TYPE_DICTIONARY:
+			by_id[str((item_v as Dictionary).get("id", ""))] = item_v
+	var recipes: Dictionary = (tune_v as Dictionary).get("recipes", {})
+	var ids: Array[String] = ["rootsteel_edge", "heartwand", "switchshaft", "oakheart_knot", "shardlens", "windthorn_bead"]
+	for item_id: String in ids:
+		var item: Dictionary = by_id.get(item_id, {})
+		var recipe: Dictionary = recipes.get(item_id, {})
+		var same: bool = _bonus_dict_equal(item.get("bonuses", {}), recipe.get("bonuses", {}))
+		failed += _check(same, "%s bonuses match forge_tuning" % item_id)
+		var item_kind: String = str(item.get("damage_kind", ""))
+		var recipe_kind: String = str(recipe.get("damage_kind", ""))
+		if item_kind != "" or recipe_kind != "":
+			failed += _check(item_kind == recipe_kind, "%s damage_kind matches forge_tuning" % item_id)
+	return failed
+
+
+func _bonus_dict_equal(a: Variant, b: Variant) -> bool:
+	if typeof(a) != TYPE_DICTIONARY or typeof(b) != TYPE_DICTIONARY:
+		return false
+	var left: Dictionary = a
+	var right: Dictionary = b
+	var keys: Dictionary = {}
+	for key: Variant in left.keys():
+		keys[str(key)] = true
+	for key: Variant in right.keys():
+		keys[str(key)] = true
+	for key: Variant in keys.keys():
+		if int(left.get(key, 0)) != int(right.get(key, 0)):
+			return false
+	return not keys.is_empty()
 
 
 func _manatree_exclusion(origin: Vector2) -> Rect2:

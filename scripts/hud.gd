@@ -232,6 +232,7 @@ func _ready() -> void:
 	if toast_shade:
 		toast_shade.visible = false
 	_refresh_controls_hint()
+	_build_selection_panel()
 	_refresh_selection_hint()
 	_show_toast(ContentStrings.get_text("boot_line"))
 	_sync_ascension_from_state()
@@ -590,7 +591,163 @@ func _refresh_controls_hint() -> void:
 		help_button.tooltip_text = line
 
 
+const KEEPER_PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
+const WISP_PORTRAIT_PATH: String = "res://assets/art/ui/portrait_wisp.png"
+
+var _sel_panel: PanelContainer
+var _sel_portrait: TextureRect
+var _sel_name: Label
+var _sel_task: Label
+var _sel_count: Label
+
+
+func _build_selection_panel() -> void:
+	if _sel_panel != null:
+		return
+	_sel_panel = PanelContainer.new()
+	_sel_panel.name = "SelectionPanel"
+	_sel_panel.position = Vector2(16, 78)
+	_sel_panel.custom_minimum_size = Vector2(280, 96)
+	_sel_panel.size = Vector2(280, 96)
+	_sel_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.14, 0.1, 0.88)
+	style.border_color = Color(0.78, 0.92, 0.62, 0.45)
+	style.set_border_width_all(1)
+	style.set_content_margin_all(8)
+	_sel_panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	_sel_portrait = TextureRect.new()
+	_sel_portrait.custom_minimum_size = Vector2(48, 48)
+	_sel_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_sel_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_sel_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_sel_portrait.mouse_filter = Control.MOUSE_FILTER_STOP
+	_sel_portrait.gui_input.connect(_on_selection_portrait_input)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sel_name = Label.new()
+	_sel_name.add_theme_font_size_override("font_size", 16)
+	_sel_count = Label.new()
+	_sel_count.add_theme_font_size_override("font_size", 14)
+	_sel_task = Label.new()
+	_sel_task.add_theme_font_size_override("font_size", 13)
+	_sel_task.add_theme_color_override("font_color", Color(0.85, 0.9, 0.75))
+	col.add_child(_sel_name)
+	col.add_child(_sel_count)
+	col.add_child(_sel_task)
+	row.add_child(_sel_portrait)
+	row.add_child(col)
+	_sel_panel.add_child(row)
+	add_child(_sel_panel)
+	_sel_panel.visible = false
+
+
+func _on_selection_portrait_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if not mb.pressed or not mb.double_click or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	var scene: Node = get_tree().current_scene
+	if scene and scene.has_method("focus_selection"):
+		scene.call("focus_selection")
+
+
+func _refresh_selection_panel() -> void:
+	if _sel_panel == null:
+		return
+	var ids: Array[int] = GameState.selected_wisp_list()
+	var show_keeper: bool = GameState.keeper_selected
+	if not show_keeper and ids.is_empty():
+		_sel_panel.visible = false
+		return
+	_sel_panel.visible = true
+	var wisp_tex: Texture2D = load(WISP_PORTRAIT_PATH) as Texture2D
+	var keeper_tex: Texture2D = load(KEEPER_PORTRAIT_PATH) as Texture2D
+	if ids.size() >= 2 or (ids.size() >= 1 and not show_keeper):
+		_sel_portrait.texture = wisp_tex
+	else:
+		_sel_portrait.texture = keeper_tex
+	if ids.size() >= 2:
+		_sel_name.text = "Wisp"
+		_sel_count.text = "x%d" % ids.size()
+		_sel_count.visible = true
+		_sel_task.text = _group_task_text(ids, show_keeper)
+	elif show_keeper and ids.size() == 1:
+		_sel_name.text = "Keeper"
+		_sel_count.text = "+ Wisp"
+		_sel_count.visible = true
+		_sel_task.text = _keeper_task_text()
+	elif show_keeper:
+		_sel_name.text = "Keeper"
+		_sel_count.visible = false
+		_sel_task.text = _keeper_task_text()
+	else:
+		_sel_name.text = "Wisp"
+		_sel_count.visible = false
+		_sel_task.text = _wisp_task_text(ids[0])
+
+
+func _group_task_text(ids: Array[int], with_keeper: bool) -> String:
+	var first: String = _wisp_task_text(ids[0])
+	var same: bool = true
+	for id: int in ids:
+		if _wisp_task_text(id) != first:
+			same = false
+			break
+	if with_keeper:
+		return "Keeper + %s" % (first if same else "Mixed")
+	return first if same else "Mixed"
+
+
+func _keeper_task_text() -> String:
+	if not has_node("/root/ForgeJobs"):
+		return "Idle"
+	var task: Dictionary = ForgeJobs.keeper_task()
+	if not bool(task.get("working", false)):
+		return "Idle"
+	var kind: String = str(task.get("kind", ""))
+	var target: String = str(task.get("target", ""))
+	if kind == "forge":
+		return "Tending %s" % ForgeJobs.station_display(target)
+	if kind == "harvest":
+		match target:
+			"wood":
+				return "Gathering Wood"
+			"stone":
+				return "Gathering Stone"
+			"food":
+				return "Gathering Food"
+			_:
+				return "Gathering"
+	if kind == "water":
+		return "Tending the Manatree"
+	return "Idle"
+
+
+func _wisp_task_text(wisp_id: int) -> String:
+	var assigned: String = GameState.get_wisp_assignment(wisp_id)
+	if assigned == "":
+		return "Idle"
+	match assigned:
+		"harvest_tree":
+			return "Gathering Wood"
+		"harvest_stone":
+			return "Gathering Stone"
+		"harvest_berry":
+			return "Gathering Food"
+		"manatree":
+			return "Tending the Manatree"
+		_:
+			if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(assigned):
+				return "Tending %s" % ForgeJobs.station_display(assigned)
+			return GameState.assignment_target_display(assigned)
+
+
 func _refresh_selection_hint() -> void:
+	_refresh_selection_panel()
 	if selection_hint == null:
 		return
 	if GameState.selected_wisp_id >= 0:

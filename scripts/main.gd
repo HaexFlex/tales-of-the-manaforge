@@ -49,7 +49,11 @@ var _cols: int = 40
 var _rows: int = 34
 var _prop_serial: int = 0
 const TITLE_SCENE: String = "res://scenes/title_screen.tscn"
+const CLICK_SLOP: float = 6.0
 var _boot_redirect: bool = false
+var _drag_active: bool = false
+var _drag_from: Vector2 = Vector2.ZERO
+var _marquee: Line2D
 
 
 func _enter_tree() -> void:
@@ -246,6 +250,8 @@ func _apply_forge_return() -> void:
 	if keeper == null or manatree == null:
 		return
 	keeper.global_position = manatree.global_position + ForgeJobs.return_offset()
+	if keeper.has_method("face_out"):
+		keeper.face_out()
 	if camera:
 		camera.position = _clamped_camera_pos(keeper.global_position)
 
@@ -356,6 +362,8 @@ func _apply_boot_intent() -> void:
 	SaveService.boot_intent = "auto"
 	SaveService.boot_slot = 0
 	match intent:
+		"forge_return":
+			pass
 		"new":
 			GameState.reset_for_new_game()
 		"continue":
@@ -841,18 +849,27 @@ func world_input_blocked() -> bool:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion and _drag_active:
+		_update_marquee(get_global_mouse_position())
+		return
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
-	if not mb.pressed:
-		return
-	if world_input_blocked():
-		return
-	# Belt-and-suspenders: skip if an interactable Area2D is under the cursor.
-	if _interactable_under_point(get_global_mouse_position()):
-		return
 	if mb.button_index == MOUSE_BUTTON_LEFT:
-		handle_lmb_ground()
+		if mb.pressed:
+			if world_input_blocked():
+				return
+			if _interactable_under_point(get_global_mouse_position()):
+				return
+			_drag_active = true
+			_drag_from = get_global_mouse_position()
+			_update_marquee(_drag_from)
+		elif _drag_active:
+			_finish_marquee(get_global_mouse_position())
+		return
+	if not mb.pressed or world_input_blocked():
+		return
+	if _interactable_under_point(get_global_mouse_position()):
 		return
 	if mb.button_index == MOUSE_BUTTON_RIGHT:
 		handle_rmb_ground(get_global_mouse_position())
@@ -865,16 +882,83 @@ func handle_lmb_ground() -> void:
 
 
 func handle_rmb_ground(world_pos: Vector2) -> void:
-	## RMB empty ground: unassign selected wisp, or walk selected Keeper.
-	if GameState.selected_wisp_id >= 0:
-		var wid: int = GameState.selected_wisp_id
+	## RMB empty ground: unassign every selected wisp, and walk the Keeper if he is selected.
+	var ids: Array[int] = GameState.selected_wisp_list()
+	var unassigned: bool = false
+	for wid: int in ids:
 		if GameState.unassign_wisp(wid):
-			GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
-		return
+			unassigned = true
+	if unassigned:
+		GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
 	if GameState.keeper_selected:
 		keeper.move_to(world_pos, null)
 		return
-	GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
+	if ids.is_empty():
+		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
+
+
+func focus_selection() -> void:
+	if camera == null:
+		return
+	camera.position = _clamped_camera_pos(_selection_focus_point())
+
+
+func _selection_focus_point() -> Vector2:
+	if GameState.keeper_selected and keeper:
+		return keeper.global_position
+	var ids: Array[int] = GameState.selected_wisp_list()
+	if not ids.is_empty():
+		for node: Node in get_tree().get_nodes_in_group("wisp"):
+			if node is Node2D and int(node.get("wisp_id")) == ids[0]:
+				return (node as Node2D).global_position
+	return keeper.global_position if keeper else Vector2.ZERO
+
+
+func _ensure_marquee() -> Line2D:
+	if _marquee == null:
+		_marquee = Line2D.new()
+		_marquee.name = "Marquee"
+		_marquee.width = 2.0
+		_marquee.default_color = Color(0.85, 0.98, 0.7, 0.9)
+		_marquee.z_index = 20
+		_marquee.visible = false
+		add_child(_marquee)
+	return _marquee
+
+
+func _update_marquee(world_pos: Vector2) -> void:
+	var box: Line2D = _ensure_marquee()
+	if _drag_from.distance_to(world_pos) < CLICK_SLOP:
+		box.visible = false
+		return
+	var a: Vector2 = _drag_from
+	var b: Vector2 = world_pos
+	box.visible = true
+	box.points = PackedVector2Array([
+		a, Vector2(b.x, a.y), b, Vector2(a.x, b.y), a,
+	])
+
+
+func _finish_marquee(world_pos: Vector2) -> void:
+	_drag_active = false
+	if _marquee:
+		_marquee.visible = false
+	if _drag_from.distance_to(world_pos) < CLICK_SLOP:
+		handle_lmb_ground()
+		return
+	var rect := Rect2(_drag_from, Vector2.ZERO)
+	rect = rect.expand(world_pos)
+	var ids: Array[int] = []
+	for node: Node in get_tree().get_nodes_in_group("wisp"):
+		if not (node is Node2D) or not node.visible:
+			continue
+		if rect.has_point((node as Node2D).global_position):
+			ids.append(int(node.get("wisp_id")))
+	var keeper_in: bool = keeper != null and rect.has_point(keeper.global_position)
+	if ids.is_empty() and not keeper_in:
+		GameState.clear_selection()
+		return
+	GameState.select_group(ids, keeper_in)
 
 
 func _interactable_under_point(world_pos: Vector2) -> bool:

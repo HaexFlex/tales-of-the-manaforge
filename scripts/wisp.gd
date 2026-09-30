@@ -4,6 +4,7 @@ class_name WispOrb
 
 signal wisp_clicked(wisp_id: int)
 
+const OUTLINE_SHADER: Shader = preload("res://assets/art/ui/select_outline.gdshader")
 const KEEPER_ORBIT_RADIUS: float = 56.0
 const NODE_ORBIT_RADIUS: float = 28.0
 const KEEPER_ORBIT_SPEED: float = 1.15
@@ -35,6 +36,7 @@ var _placed: bool = false
 ## Cached when assigned (node_orbit_layout.follow_node = false).
 var _orbit_anchor: Vector2 = Vector2.ZERO
 var _hovered: bool = false
+var _outline_mat: ShaderMaterial
 
 
 func _ready() -> void:
@@ -218,7 +220,8 @@ func _process(delta: float) -> void:
 		_refresh_label()
 		return
 
-	var is_sel: bool = GameState.selected_wisp_id == wisp_id
+	var is_sel: bool = GameState.is_wisp_selected(wisp_id)
+	_apply_outline(is_sel)
 	if assigned_node != "":
 		_tick_node_orbit(assigned_node, delta)
 		_play_anim(&"node_orbit")
@@ -226,23 +229,20 @@ func _process(delta: float) -> void:
 		return
 
 	_at_assigned_orbit = false
-	_tick_keeper_orbit(delta, is_sel)
+	_tick_keeper_orbit(delta)
 	_refresh_label()
 
 
-func _tick_keeper_orbit(delta: float, is_sel: bool) -> void:
+func _tick_keeper_orbit(delta: float) -> void:
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 	if keepers.is_empty():
 		return
 	var k: Node2D = keepers[0] as Node2D
 	sprite.flip_h = false
-	if is_sel:
-		_play_anim(&"selected")
-	else:
-		_orbit_angle += KEEPER_ORBIT_SPEED * delta
-		_play_anim(&"orbit")
+	_orbit_angle += KEEPER_ORBIT_SPEED * delta
+	_play_anim(&"orbit")
 	var slot: float = _even_slot_angle()
-	var angle: float = slot if is_sel else (_orbit_angle + slot)
+	var angle: float = _orbit_angle + slot
 	var bob: float = sin(_bob_t * 2.8 + float(wisp_id)) * 3.0
 	var offset := Vector2(cos(angle), sin(angle) * 0.55) * KEEPER_ORBIT_RADIUS
 	global_position = k.global_position + KEEPER_CHEST_OFFSET + offset + Vector2(0, bob)
@@ -341,14 +341,26 @@ func _refresh_label() -> void:
 	if label == null:
 		return
 	var assigned: String = GameState.get_wisp_assignment(wisp_id)
-	if GameState.selected_wisp_id == wisp_id:
+	if GameState.is_wisp_selected(wisp_id):
 		label.text = ContentStrings.get_text("wisp_selected")
 	elif assigned != "":
 		var target: String = GameState.assignment_target_display(assigned)
 		label.text = ContentStrings.get_text("wisp_assigned_hud", {"target": target})
 	else:
 		label.text = ContentStrings.get_text("wisp_idle_hud")
-	label.visible = _hovered or GameState.selected_wisp_id == wisp_id
+	label.visible = _hovered or GameState.is_wisp_selected(wisp_id)
+
+
+func _apply_outline(show_outline: bool) -> void:
+	if sprite == null:
+		return
+	if show_outline:
+		if _outline_mat == null:
+			_outline_mat = ShaderMaterial.new()
+			_outline_mat.shader = OUTLINE_SHADER
+		sprite.material = _outline_mat
+	else:
+		sprite.material = null
 
 
 func _on_hover(inside: bool) -> void:

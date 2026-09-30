@@ -20,7 +20,9 @@ var _channel_kind: int = ChannelKind.NONE
 var _channel_target: Node = null
 var _channel_accum: float = 0.0
 var _hovered: bool = false
+var _outline_mat: ShaderMaterial
 
+const OUTLINE_SHADER: Shader = preload("res://assets/art/ui/select_outline.gdshader")
 const ARRIVE_DIST: float = 12.0
 const INTERACT_DIST: float = 64.0
 const BODY_SIZE: Vector2 = Vector2(128, 128)
@@ -340,9 +342,32 @@ func _on_hover(inside: bool) -> void:
 	_on_selection_changed()
 
 
+func _apply_outline(show_outline: bool) -> void:
+	if sprite == null:
+		return
+	if show_outline:
+		if _outline_mat == null:
+			_outline_mat = ShaderMaterial.new()
+			_outline_mat.shader = OUTLINE_SHADER
+		sprite.material = _outline_mat
+	else:
+		sprite.material = null
+
+
+func face_out() -> void:
+	## South door of the Manatree. Idle faces the clearing.
+	_moving = false
+	_pending_interact = null
+	_target = global_position
+	if sprite:
+		sprite.flip_h = false
+		sprite.play(&"idle_south")
+
+
 func _on_selection_changed() -> void:
 	if select_ring:
-		select_ring.visible = GameState.keeper_selected
+		select_ring.visible = false
+	_apply_outline(GameState.keeper_selected)
 	if label:
 		if GameState.keeper_selected:
 			label.text = ContentStrings.get_text("keeper_selected")

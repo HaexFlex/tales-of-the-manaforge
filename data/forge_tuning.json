@@ -1,7 +1,9 @@
 {
   "notes": "All Forge v2 numbers live here. Placeholder tuning until Haex signs off.",
   "dev_speed_multiplier": 60,
-  "wisp_speed_bonus": 0.5,
+  "keeper_speed": 1.0,
+  "companion_speed": 1.0,
+  "wisp_speed": 0.1,
   "wisp_cap": 4,
   "offline_tier1_hours": 8,
   "offline_tier2_hours": 24,
@@ -97,7 +99,7 @@
       "output": "rootsteel_edge",
       "output_gear": true,
       "damage_kind": "physical",
-      "bonuses": {},
+      "bonuses": { "might": 5 },
       "category": "weapon"
     },
     "heartwand": {
@@ -107,7 +109,7 @@
       "output": "heartwand",
       "output_gear": true,
       "damage_kind": "magical",
-      "bonuses": {},
+      "bonuses": { "arcana": 5 },
       "category": "weapon"
     },
     "switchshaft": {
@@ -117,7 +119,7 @@
       "output": "switchshaft",
       "output_gear": true,
       "damage_kind": "hybrid",
-      "bonuses": {},
+      "bonuses": { "might": 3, "arcana": 3 },
       "category": "weapon"
     },
     "oakheart_knot": {

@@ -2,9 +2,9 @@
   "version": "v0.5.0-character",
   "notes": [
     "Ten slots. Weapon starts unlocked. Relic unlocks when the Keeper holds a Forge Key.",
-    "Gear inventory is separate from the backpack. Weapon Rod and Stone Sword live here.",
-    "Weapon Rod is the battle-path intermediate (10 Wooden Planks), consumed into the Stone Sword.",
-    "Stone Sword: 30 Stone Fragments + 1 Weapon Rod, +2 Might while equipped.",
+    "Gear inventory is separate from the backpack. Weapon Rod and the fighter starter live here.",
+    "Weapon Rod is the battle-path intermediate (10 Wooden Planks), consumed into stone_sword.",
+    "stone_sword (stone_sword_name): 30 Stone Fragments + 1 Weapon Rod, +2 Might while equipped.",
     "Forge Key relic (`forge_key_relic`): unique Relic from Echo win — +2 Swiftness, +2 Fate. Auto-equip if relic empty.",
     "Anchors are slot centers on the 496×622 character-sheet host (3× Keeper portrait)."
   ],
@@ -85,7 +85,7 @@
     },
     {
       "id": "stone_sword",
-      "display_name": "Stone Sword",
+      "display_name": "Flintblade",
       "string_key": "stone_sword_name",
       "tooltip_key": "stone_sword_tooltip",
       "slot": "weapon",
@@ -142,7 +142,7 @@
       "slot": "weapon",
       "category": "weapon",
       "unique": true,
-      "bonuses": {},
+      "bonuses": { "might": 5 },
       "damage_kind": "physical",
       "color": "#6e8f62",
       "art_name": "icon_rootsteel_edge"
@@ -155,7 +155,7 @@
       "slot": "weapon",
       "category": "weapon",
       "unique": true,
-      "bonuses": {},
+      "bonuses": { "arcana": 5 },
       "damage_kind": "magical",
       "color": "#8a4a6a",
       "art_name": "icon_heartwand"
@@ -168,7 +168,7 @@
       "slot": "weapon",
       "category": "weapon",
       "unique": true,
-      "bonuses": {},
+      "bonuses": { "might": 3, "arcana": 3 },
       "damage_kind": "hybrid",
       "color": "#6a7a48",
       "art_name": "icon_switchshaft"
@@ -181,7 +181,7 @@
       "slot": "relic",
       "category": "relic",
       "unique": true,
-      "bonuses": {},
+      "bonuses": { "might": 3, "resilience": 2 },
       "color": "#7a5a32",
       "art_name": "icon_oakheart_knot"
     },
@@ -193,7 +193,7 @@
       "slot": "relic",
       "category": "relic",
       "unique": true,
-      "bonuses": {},
+      "bonuses": { "arcana": 3, "ward": 2 },
       "color": "#4a6a8a",
       "art_name": "icon_shardlens"
     },
@@ -205,7 +205,7 @@
       "slot": "relic",
       "category": "relic",
       "unique": true,
-      "bonuses": {},
+      "bonuses": { "might": 2, "arcana": 2, "swiftness": 1 },
       "color": "#5a8a62",
       "art_name": "icon_windthorn_bead"
     }

@@ -72,6 +72,8 @@ var wisp_pulse_accum: Dictionary = {}
 ## Wisp select does not require Keeper selected.
 var keeper_selected: bool = false
 var selected_wisp_id: int = -1
+## Drag-box set. A single click still replaces this with one id.
+var selected_wisp_ids: Array[int] = []
 
 var stages_data: Array = []
 var upgrades_data: Array = []
@@ -291,13 +293,13 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 				GameAudio.play(&"sfx_wisp_deny")
 			return "full"
 	if prev == node_id:
-		selected_wisp_id = -1
+		_forget_selected_wisp(wisp_id)
 		selection_changed.emit()
 		return "ok"
 	var joining: bool = count_wisps_on_node(node_id) > 0
 	wisp_assignments[key] = node_id
 	wisp_pulse_accum[key] = 0.0
-	selected_wisp_id = -1
+	_forget_selected_wisp(wisp_id)
 	wisps_changed.emit()
 	selection_changed.emit()
 	var result: String
@@ -385,10 +387,11 @@ func set_keeper_selected(value: bool) -> void:
 
 func select_keeper() -> void:
 	## LMB on Keeper: select Keeper, deselect any Wisp.
-	if keeper_selected and selected_wisp_id < 0:
+	if keeper_selected and selected_wisp_id < 0 and selected_wisp_ids.is_empty():
 		return
 	keeper_selected = true
 	selected_wisp_id = -1
+	selected_wisp_ids.clear()
 	selection_changed.emit()
 
 
@@ -403,27 +406,86 @@ func select_wisp(wisp_id: int) -> void:
 	## LMB on Wisp: select that wisp (does NOT require Keeper). Deselects Keeper.
 	if wisp_id < 0 or wisp_id >= wisp_count:
 		return
-	if selected_wisp_id == wisp_id and not keeper_selected:
+	if selected_wisp_id == wisp_id and not keeper_selected and selected_wisp_ids.size() <= 1:
 		return
 	keeper_selected = false
 	selected_wisp_id = wisp_id
+	selected_wisp_ids.clear()
+	selected_wisp_ids.append(wisp_id)
 	selection_changed.emit()
 
 
+func select_group(wisp_ids: Array, include_keeper: bool) -> void:
+	## Drag box. Replaces the current selection with whatever the box holds.
+	selected_wisp_ids.clear()
+	for raw: Variant in wisp_ids:
+		var id: int = int(raw)
+		if id < 0 or id >= wisp_count:
+			continue
+		if not selected_wisp_ids.has(id):
+			selected_wisp_ids.append(id)
+	selected_wisp_ids.sort()
+	selected_wisp_id = selected_wisp_ids[0] if not selected_wisp_ids.is_empty() else -1
+	keeper_selected = include_keeper
+	selection_changed.emit()
+
+
+func is_wisp_selected(wisp_id: int) -> bool:
+	if selected_wisp_ids.has(wisp_id):
+		return true
+	return selected_wisp_ids.is_empty() and selected_wisp_id == wisp_id
+
+
+func selected_wisp_list() -> Array[int]:
+	var out: Array[int] = []
+	if not selected_wisp_ids.is_empty():
+		for id: int in selected_wisp_ids:
+			if id >= 0 and id < wisp_count:
+				out.append(id)
+		return out
+	if selected_wisp_id >= 0 and selected_wisp_id < wisp_count:
+		out.append(selected_wisp_id)
+	return out
+
+
+func command_selected_wisps(node_id: String) -> String:
+	var ids: Array[int] = selected_wisp_list()
+	if ids.is_empty():
+		return ""
+	var last: String = "ok"
+	var assigned: int = 0
+	for id: int in ids:
+		last = try_assign_wisp(id, node_id)
+		if last == "full" or last == "invalid":
+			if assigned == 0:
+				return last
+			break
+		assigned += 1
+	return last
+
+
 func clear_wisp_selection() -> void:
-	if selected_wisp_id < 0:
+	if selected_wisp_id < 0 and selected_wisp_ids.is_empty():
 		return
 	selected_wisp_id = -1
+	selected_wisp_ids.clear()
 	selection_changed.emit()
 
 
 func clear_selection() -> bool:
-	var had: bool = keeper_selected or selected_wisp_id >= 0
+	var had: bool = keeper_selected or selected_wisp_id >= 0 or not selected_wisp_ids.is_empty()
 	keeper_selected = false
 	selected_wisp_id = -1
+	selected_wisp_ids.clear()
 	if had:
 		selection_changed.emit()
 	return had
+
+
+func _forget_selected_wisp(wisp_id: int) -> void:
+	selected_wisp_ids.erase(wisp_id)
+	if selected_wisp_id == wisp_id:
+		selected_wisp_id = selected_wisp_ids[0] if not selected_wisp_ids.is_empty() else -1
 
 
 func get_resource(resource_id: StringName) -> int:
@@ -1117,6 +1179,7 @@ func apply_save_dict(data: Dictionary) -> void:
 		ForgeJobs.apply_save_fields(data)
 	keeper_selected = false
 	selected_wisp_id = -1
+	selected_wisp_ids.clear()
 	wisps_changed.emit()
 	resources_changed.emit(&"wood", wood)
 	resources_changed.emit(&"stone", stone)
@@ -1175,6 +1238,7 @@ func reset_for_new_game() -> void:
 	wisp_pulse_accum.clear()
 	keeper_selected = false
 	selected_wisp_id = -1
+	selected_wisp_ids.clear()
 	run_time_sec = 0.0
 	portal_unlocked = false
 	portal_fee_paid = false

@@ -126,10 +126,14 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree (manashards pulse) OR Keeper walks + care/water as today.
-	if GameState.selected_wisp_id >= 0:
+	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
-		var result: String = GameState.try_assign_wisp(GameState.selected_wisp_id, node_id)
+		var result: String = GameState.command_selected_wisps(node_id)
 		GameState.toast_wisp_assign(result, node_id)
+		if GameState.keeper_selected:
+			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
+			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
+				(keepers_both[0] as Keeper).move_to(global_position + Vector2(0, 40), self)
 		return
 	if not GameState.keeper_selected:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))

@@ -41,7 +41,7 @@ Amberbind is a berry resin that sets like amber. Every Forge recipe uses it.
 - A station only progresses while someone is working it: the Keeper, a companion, or a Wisp. With nobody there, it pauses.
 - Keeper: progress only while he stands at the station. When he walks away the job pauses, unless a Wisp is also working it. The Keeper's time is the cost you pay.
 - Companions: same rule as the Keeper. For now only the Keeper tends; a hook is in place so Elaia can later.
-- Wisps: they stack on a station and orbit it. Each Wisp adds +50% speed, up to 4 Wisps for 3× speed. Every Wisp in the Forge is one fewer gathering in the hub.
+- Wisps: they stack on a station and orbit it. Speed is additive. The Keeper counts 1, a companion counts 1, and each Wisp counts 0.1, up to 4 Wisps. A station with only one Wisp takes 10× the shown time. The Keeper plus four Wisps is 1.4. The row still shows the Keeper's base time. Every Wisp in the Forge is one fewer gathering in the hub.
 - **Auto-repeat for upcycling (Crucible, Mill, Press):** when a job finishes, the next one starts automatically, as long as someone is still working the station and there's enough material to pay for it. Otherwise the station stops.
 - Anvil and Reliquary do not auto-repeat. Each craft is started deliberately.
 - Wisps are only visible in the scene where they work. Hub Wisps don't show in the Forge, and Forge Wisps don't show in the hub. The hub's Wisp counter still counts all of them.
@@ -74,7 +74,7 @@ Cost per relic: 6 Sapsteel, 6 Heartwood Bits, 6 Amberbind, 100 Essence. No Manas
 - Refined materials are Sapsteel, Heartwood Bits, and Amberbind.
 
 ## 9. Keeper's Bench and backpack
-- The Keeper's Bench is a workbench in the hub. You walk up to it and open it, and it replaces the handcraft panel in the backpack. Handcraft recipes (Stone Sword, Sapstaff, Thornbow, tools and so on) move there unchanged.
+- The Keeper's Bench is a workbench in the hub. You walk up to it and open it, and it replaces the handcraft panel in the backpack. Handcraft recipes (Flintblade, Sapstaff, Thornbow, tools and so on) move there unchanged.
 - The backpack becomes pure inventory and storage.
 - Backpack filters: All, Raw, Refined (Sapsteel, Heartwood Bits, Amberbind, Fertilizer, Rod), Tools, Weapons, Relics. Each item gets a category field.
 

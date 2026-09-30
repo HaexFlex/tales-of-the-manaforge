@@ -27,7 +27,7 @@ var last_keeper_crit: bool = false
 var log: PackedStringArray = PackedStringArray()
 ## 0 = never, 1 = always, -1 = roll Fate × 1%.
 var force_crit: int = -1
-## physical | magical | hybrid. Hybrid reads arrow_mode. Fists and the Stone Sword stay physical.
+## physical | magical | hybrid. Hybrid reads arrow_mode. Fists and stone_sword stay physical.
 var strike_kind: String = "physical"
 var arrow_mode: String = "physical"
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()

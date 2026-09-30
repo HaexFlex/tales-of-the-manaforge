@@ -4,6 +4,7 @@ extends Node2D
 
 const HUB_SCENE: String = "res://scenes/main.tscn"
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
+const RECIPE_BUTTON: Script = preload("res://scripts/forge_recipe_button.gd")
 
 @onready var camera: Camera2D = get_node_or_null("Camera2D") as Camera2D
 @onready var keeper: CharacterBody2D = get_node_or_null("Keeper") as CharacterBody2D
@@ -18,10 +19,14 @@ const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 @export var swirl_texture: Texture2D
 @export var floor_mask: Texture2D
 
+const CLICK_SLOP: float = 6.0
 var _wisp_nodes: Dictionary = {}
 var _dest_station: String = ""
 var _panel_station: String = ""
 var _leaving: bool = false
+var _drag_active: bool = false
+var _drag_from: Vector2 = Vector2.ZERO
+var _marquee: Line2D
 
 
 func _ready() -> void:
@@ -70,20 +75,29 @@ func _unhandled_input(event: InputEvent) -> void:
 			_on_escape()
 			get_viewport().set_input_as_handled()
 			return
+	if event is InputEventMouseMotion and _drag_active:
+		_update_marquee(get_global_mouse_position())
+		return
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
-	if not mb.pressed:
+	if mb.button_index == MOUSE_BUTTON_LEFT:
+		if mb.pressed:
+			if _ui_blocks():
+				return
+			if _interactable_under_point(get_global_mouse_position()):
+				return
+			_drag_active = true
+			_drag_from = get_global_mouse_position()
+			_update_marquee(_drag_from)
+		elif _drag_active:
+			_finish_marquee(get_global_mouse_position())
 		return
-	if _ui_blocks():
+	if not mb.pressed or _ui_blocks():
 		return
 	if _interactable_under_point(get_global_mouse_position()):
 		return
-	if mb.button_index == MOUSE_BUTTON_LEFT:
-		if GameState.clear_selection():
-			GameState.status_message.emit(ContentStrings.get_text("keeper_deselect_toast"))
-		_hide_recipes()
-	elif mb.button_index == MOUSE_BUTTON_RIGHT:
+	if mb.button_index == MOUSE_BUTTON_RIGHT:
 		_on_rmb_ground(get_global_mouse_position())
 
 
@@ -129,14 +143,84 @@ func _on_rmb_ground(world_pos: Vector2) -> void:
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.set_keeper_working("", false)
 	_hide_recipes()
-	if GameState.selected_wisp_id >= 0:
-		if GameState.unassign_wisp(GameState.selected_wisp_id):
-			GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
-		return
+	var ids: Array[int] = GameState.selected_wisp_list()
+	var unassigned: bool = false
+	for wid: int in ids:
+		if GameState.unassign_wisp(wid):
+			unassigned = true
+	if unassigned:
+		GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
 	if GameState.keeper_selected and keeper and keeper.has_method("move_to"):
 		keeper.call("move_to", world_pos, null)
 		return
-	GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
+	if ids.is_empty():
+		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
+
+
+func focus_selection() -> void:
+	if camera == null:
+		return
+	camera.position = _clamped_camera_pos(_selection_focus_point())
+
+
+func _selection_focus_point() -> Vector2:
+	if GameState.keeper_selected and keeper:
+		return keeper.global_position
+	var ids: Array[int] = GameState.selected_wisp_list()
+	if not ids.is_empty():
+		for node: Node in get_tree().get_nodes_in_group("wisp"):
+			if node is Node2D and int(node.get("wisp_id")) == ids[0]:
+				return (node as Node2D).global_position
+	return keeper.global_position if keeper else Vector2.ZERO
+
+
+func _ensure_marquee() -> Line2D:
+	if _marquee == null:
+		_marquee = Line2D.new()
+		_marquee.name = "Marquee"
+		_marquee.width = 2.0
+		_marquee.default_color = Color(0.85, 0.98, 0.7, 0.9)
+		_marquee.z_index = 20
+		_marquee.visible = false
+		add_child(_marquee)
+	return _marquee
+
+
+func _update_marquee(world_pos: Vector2) -> void:
+	var box: Line2D = _ensure_marquee()
+	if _drag_from.distance_to(world_pos) < CLICK_SLOP:
+		box.visible = false
+		return
+	var a: Vector2 = _drag_from
+	var b: Vector2 = world_pos
+	box.visible = true
+	box.points = PackedVector2Array([
+		a, Vector2(b.x, a.y), b, Vector2(a.x, b.y), a,
+	])
+
+
+func _finish_marquee(world_pos: Vector2) -> void:
+	_drag_active = false
+	if _marquee:
+		_marquee.visible = false
+	if _drag_from.distance_to(world_pos) < CLICK_SLOP:
+		if GameState.clear_selection():
+			GameState.status_message.emit(ContentStrings.get_text("keeper_deselect_toast"))
+		_hide_recipes()
+		return
+	var rect := Rect2(_drag_from, Vector2.ZERO)
+	rect = rect.expand(world_pos)
+	var picked: Array[int] = []
+	for node: Node in get_tree().get_nodes_in_group("wisp"):
+		if not (node is Node2D) or not node.visible:
+			continue
+		if rect.has_point((node as Node2D).global_position):
+			picked.append(int(node.get("wisp_id")))
+	var keeper_in: bool = keeper != null and rect.has_point(keeper.global_position)
+	if picked.is_empty() and not keeper_in:
+		GameState.clear_selection()
+		return
+	GameState.select_group(picked, keeper_in)
 
 
 func _on_exit_body(body: Node2D) -> void:
@@ -167,8 +251,14 @@ func _open_recipes(station_id: String) -> void:
 		child.queue_free()
 	var ids: PackedStringArray = ForgeJobs.recipe_ids_for(station_id)
 	for recipe_id: String in ids:
-		var btn := Button.new()
+		var btn: Button = RECIPE_BUTTON.new() as Button
+		btn.set("recipe_id", recipe_id)
 		btn.text = ForgeJobs.recipe_button_text(recipe_id)
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.icon = ForgeJobs.output_icon(ForgeJobs.recipe_output_id(recipe_id))
+		btn.expand_icon = false
+		btn.add_theme_constant_override("icon_max_width", 28)
+		btn.tooltip_text = recipe_id
 		btn.pressed.connect(_on_recipe_pressed.bind(station_id, recipe_id))
 		recipe_list.add_child(btn)
 

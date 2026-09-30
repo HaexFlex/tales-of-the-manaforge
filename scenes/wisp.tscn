@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/wisp.gd" id="1_wisp"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_wisp"]
-size = Vector2(40, 40)
+size = Vector2(80, 80)
 
 [node name="Wisp" type="Area2D"]
 collision_layer = 4

@@ -7,7 +7,7 @@
 [ext_resource type="Texture2D" path="res://assets/art/ui/badge_station_busy.png" id="5_busy"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_pick"]
-size = Vector2(93, 144)
+size = Vector2(74.4, 115.2)
 
 [node name="Press" type="Area2D"]
 z_index = 1
@@ -24,35 +24,36 @@ offset = Vector2(-96, -192)
 texture = ExtResource("2_idle")
 texture_filter = 1
 
+scale = Vector2(0.8, 0.8)
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, -80)
+position = Vector2(0, -64)
 shape = SubResource("RectangleShape2D_pick")
 
 [node name="KeeperStand" type="Marker2D" parent="."]
-position = Vector2(0, 44)
+position = Vector2(0, 35.2)
 
 [node name="WispOrbit" type="Marker2D" parent="."]
-position = Vector2(4, -108)
+position = Vector2(3.2, -86.4)
 
 [node name="Title" type="Label" parent="."]
-offset_left = -90.0
-offset_top = -190.0
-offset_right = 90.0
-offset_bottom = -166.0
+offset_left = -72.0
+offset_top = -152.0
+offset_right = 72.0
+offset_bottom = -132.8
 theme_override_colors/font_color = Color(0.93, 0.9, 0.78, 1)
 theme_override_font_sizes/font_size = 14
 text = "Bramble Press"
 horizontal_alignment = 1
 
 [node name="Badge" type="Label" parent="."]
-offset_left = -80.0
-offset_top = 6.0
-offset_right = 80.0
-offset_bottom = 28.0
+offset_left = -64.0
+offset_top = 4.8
+offset_right = 64.0
+offset_bottom = 22.4
 theme_override_colors/font_color = Color(0.85, 0.95, 0.88, 1)
 theme_override_font_sizes/font_size = 12
 horizontal_alignment = 1
 
 [node name="BadgeArt" type="Sprite2D" parent="."]
-position = Vector2(50, -152)
+position = Vector2(40, -121.6)
 texture_filter = 1
