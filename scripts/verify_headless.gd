@@ -981,7 +981,8 @@ func _run() -> void:
 	game_state.call("clear_selection")
 	failed += _assert(bool(game_state.get("keeper_selected")) == false and int(game_state.get("selected_wisp_id")) == -1, "LMB ground deselect")
 
-	# Manatree assign + pulse manashards @ 1/10s
+	# Two wisps share the manatree accumulator: 1 yield per 20s each.
+	# 9.9s × 2 = 0.99 (no bank). +0.2s crosses 1.0 → +1 shard.
 	failed += _assert(str(game_state.call("node_id_for_resource", &"manashards")) == "manatree", "manashards node id is manatree")
 	failed += _assert(str(content_strings.call("get_text", "wisp_assign_join_ok")).find("joins") >= 0, "wisp_assign_join_ok")
 	failed += _assert(str(content_strings.call("get_text", "wisp_node_shared_hint")).find("share") >= 0, "wisp_node_shared_hint")
@@ -999,9 +1000,9 @@ func _run() -> void:
 	failed += _assert(str(game_state.call("try_assign_wisp", 1, "manatree")) == "join", "Manatree stack join")
 	failed += _assert(int(game_state.call("count_wisps_on_node", "manatree")) == 2, "two wisps on manatree")
 	game_state.call("apply_wisp_pulses", 9.9)
-	failed += _assert(int(game_state.get("manashards")) == shards0, "no manashards before 10s")
+	failed += _assert(int(game_state.get("manashards")) == shards0, "no manashards before the shared unit")
 	game_state.call("apply_wisp_pulses", 0.2)
-	failed += _assert(int(game_state.get("manashards")) == shards0 + 2, "stacked manatree pulse +2 manashards")
+	failed += _assert(int(game_state.get("manashards")) == shards0 + 1, "two wisps bank 1 manashard near 10s")
 	failed += _assert(bool(game_state.call("unassign_wisp", 0)), "unassign from manatree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "manatree assignment cleared")
 
@@ -2006,8 +2007,8 @@ func _run() -> void:
 		failed += _assert(weapon_slot != null and relic_slot != null, "weapon and relic slots")
 		failed += _assert(relic_square != null and relic_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "relic slot uses locked chrome")
 		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "empty weapon slot uses empty chrome")
-		var relic_style: StyleBoxFlat = relic_slot.get_theme_stylebox("panel") as StyleBoxFlat
-		var weapon_style: StyleBoxFlat = weapon_slot.get_theme_stylebox("panel") as StyleBoxFlat
+		var relic_style: StyleBoxFlat = relic_slot.get_theme_stylebox("panel") as StyleBoxFlat if relic_slot != null else null
+		var weapon_style: StyleBoxFlat = weapon_slot.get_theme_stylebox("panel") as StyleBoxFlat if weapon_slot != null else null
 		failed += _assert(relic_style != null and relic_style.get_border_width(SIDE_LEFT) == 0, "locked slot has no gold border")
 		failed += _assert(weapon_style != null and weapon_style.get_border_width(SIDE_TOP) == 0, "weapon slot has no gold border")
 		failed += _assert(relic_slot.get_node_or_null("Lock") == null, "locked slot has no inner lock chip")
