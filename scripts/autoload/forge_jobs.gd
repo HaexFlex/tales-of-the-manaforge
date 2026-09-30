@@ -10,8 +10,6 @@ const STATION_IDS: PackedStringArray = ["crucible", "mill", "press", "anvil", "r
 const RESOURCE_IDS: PackedStringArray = ["wood", "stone", "food", "manashards", "essence"]
 const MAX_COMPLETIONS: int = 10000
 
-var OFFLINE_WATER_MULT: float = 0.2
-
 var _tuning: Dictionary = {}
 var _copy: Dictionary = {}
 var _jobs: Dictionary = {}
@@ -35,7 +33,6 @@ var _materials_snapshot: Dictionary = {}
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_load_files()
-	OFFLINE_WATER_MULT = float(_tuning.get("offline_water_mult", 0.2))
 	if has_node("/root/GameState"):
 		GameState.register_forge_upgrades(upgrade_defs())
 
@@ -569,33 +566,48 @@ func advance_seconds(seconds: float) -> void:
 
 
 func offline_effective_seconds(closed_sec: float) -> float:
-	if closed_sec <= 0.0:
-		return 0.0
-	var t1: float = float(_tuning.get("offline_tier1_hours", 8.0)) * 3600.0
-	var t2: float = float(_tuning.get("offline_tier2_hours", 24.0)) * 3600.0
-	var r1: float = float(_tuning.get("offline_rate_tier1", 0.05))
-	var r2: float = float(_tuning.get("offline_rate_tier2", 0.01))
-	var r3: float = float(_tuning.get("offline_rate_tier3", 0.001))
-	if closed_sec <= t1:
-		return closed_sec * r1
-	if closed_sec <= t2:
-		return t1 * r1 + (closed_sec - t1) * r2
-	return t1 * r1 + (t2 - t1) * r2 + (closed_sec - t2) * r3
+	if has_node("/root/GameState"):
+		return GameState.offline_effective_seconds(closed_sec)
+	return 0.0
 
 
 func apply_offline_seconds(closed_sec: float) -> Dictionary:
-	var result: Dictionary = {
+	## Fresh-curve closure. Tests and callers that pass a wall-clock gap from zero use this.
+	if closed_sec <= 0.0 or _offline_blocked():
+		return _empty_offline()
+	return _grant_offline(offline_effective_seconds(closed_sec))
+
+
+func apply_saved_offline_gap(gap_sec: float) -> Dictionary:
+	## Load path. Continues the curve unless this session already played offline_reset_active_sec.
+	if gap_sec <= 0.0 or not has_node("/root/GameState"):
+		return _empty_offline()
+	var eff: float = GameState.commit_offline_gap(gap_sec)
+	if eff <= 0.0:
+		return _empty_offline()
+	return _grant_offline(eff)
+
+
+func _offline_blocked() -> bool:
+	if not has_node("/root/GameState"):
+		return false
+	return GameState.fruit_committed or GameState.stage_id == &"ancient"
+
+
+func _empty_offline() -> Dictionary:
+	return {
 		"effective_sec": 0.0,
 		"shards": 0,
 		"essence": 0,
 		"harvest": 0,
 		"forge_completed": 0,
 	}
-	if closed_sec <= 0.0:
+
+
+func _grant_offline(eff: float) -> Dictionary:
+	var result: Dictionary = _empty_offline()
+	if eff <= 0.0 or _offline_blocked():
 		return result
-	if has_node("/root/GameState") and GameState.fruit_committed:
-		return result
-	var eff: float = offline_effective_seconds(closed_sec)
 	result["effective_sec"] = eff
 	var was_silent: bool = _silent
 	_silent = true
@@ -858,6 +870,7 @@ func _keeper_task_kind() -> String:
 
 
 func _offline_water(eff: float) -> Dictionary:
+	## Same pulse as online watering. No extra offline multiplier and no stage multiplier.
 	var pulse: float = maxf(GameState.get_channel_pulse_sec(), 0.05)
 	var pulses: int = int(floor(eff / pulse))
 	if pulses <= 0:
@@ -866,10 +879,10 @@ func _offline_water(eff: float) -> Dictionary:
 	var shard_max: int = GameState.param_int("WATER_SHARD_MAX", 3)
 	var mid: float = (float(shard_min) + float(shard_max)) * 0.5
 	var roll: float = (mid + GameState.get_effect_total("water_shard_bonus")) * float(GameState.get_water_shard_roll_mult())
-	var shards: int = int(floor(roll * OFFLINE_WATER_MULT * float(pulses)))
-	var essence: int = int(floor(float(GameState.get_water_essence_amount()) * OFFLINE_WATER_MULT * float(pulses)))
+	var shard_units: float = roll * float(pulses)
+	var shards: int = GameState.accumulate_harvest(&"manashards", shard_units)
+	var essence: int = int(floor(float(GameState.get_water_essence_amount()) * float(pulses)))
 	if shards > 0:
-		GameState.add_resource(&"manashards", shards)
 		GameState.lifetime_shards_from_water += shards
 	if essence > 0:
 		GameState.add_resource(&"essence", essence)
@@ -882,15 +895,7 @@ func _offline_harvest(eff: float, target: String) -> int:
 	var rid: StringName = _harvest_resource(target)
 	if rid == &"":
 		return 0
-	var pulse: float = maxf(GameState.get_keeper_harvest_pulse_sec(rid), 0.05)
-	var pulses: int = int(floor(eff / pulse))
-	if pulses <= 0:
-		return 0
-	var grant: int = GameState.get_harvest_grant(rid) * pulses
-	GameState.add_resource(rid, grant)
-	var key: String = String(rid)
-	GameState.lifetime_harvested[key] = int(GameState.lifetime_harvested.get(key, 0)) + grant
-	return grant
+	return GameState.apply_offline_keeper_harvest(eff, rid)
 
 
 func _harvest_resource(target: String) -> StringName:
@@ -903,13 +908,8 @@ func _harvest_resource(target: String) -> StringName:
 
 
 func _offline_wisp_grants(eff: float, result: Dictionary) -> void:
-	if not has_node("/root/GameState"):
+	if not has_node("/root/GameState") or eff <= 0.0:
 		return
-	var pulse: float = maxf(GameState.get_wisp_pulse_sec(), 0.05)
-	var pulses: int = int(floor(eff / pulse))
-	if pulses <= 0:
-		return
-	var grant: int = GameState.param_int("WISP_PULSE_GRANT", 1)
 	for i: int in range(GameState.wisp_count):
 		var nid: String = GameState.get_wisp_assignment(i)
 		if nid == "" or is_forge_station(nid):
@@ -917,10 +917,7 @@ func _offline_wisp_grants(eff: float, result: Dictionary) -> void:
 		var rid: StringName = GameState.resource_for_node_id(nid)
 		if rid == &"":
 			continue
-		var amount: int = grant * pulses
-		GameState.add_resource(rid, amount)
-		var key: String = String(rid)
-		GameState.lifetime_harvested[key] = int(GameState.lifetime_harvested.get(key, 0)) + amount
+		var amount: int = GameState.apply_offline_wisp_harvest(eff, rid)
 		if rid == &"manashards":
 			result["shards"] = int(result.get("shards", 0)) + amount
 

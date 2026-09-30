@@ -12,7 +12,9 @@
     "BASE_MOVE_SPEED": 180.0,
     "WISP_PER_NODE": 0,
     "WISP_PER_MANATREE": 0,
-    "WISP_PULSE_SEC": 10.0,
+    "KEEPER_HARVEST_SEC": 2.0,
+    "WISP_PULSE_SEC": 20.0,
+    "WISP_HARVEST_MIN_SEC": 10.0,
     "WISP_PULSE_GRANT": 1,
     "WISP_FROM_STAGES_MAX": 4,
     "GROW_YOUNG_FERTILIZER": 3,
@@ -55,7 +57,7 @@
       "cost_wood": 0,
       "cost_stone": 0,
       "cost_manashards": 0,
-      "gather_mult": 1.1,
+      "gather_mult": 1.15,
       "grants_fruit": false,
       "visual_scale": 1.0
     },
@@ -73,7 +75,7 @@
       "cost_wood": 0,
       "cost_stone": 0,
       "cost_manashards": 0,
-      "gather_mult": 1.25,
+      "gather_mult": 1.3,
       "grants_fruit": false,
       "visual_scale": 2.0
     },
@@ -91,7 +93,7 @@
       "cost_wood": 0,
       "cost_stone": 0,
       "cost_manashards": 0,
-      "gather_mult": 1.4,
+      "gather_mult": 1.5,
       "grants_fruit": false,
       "visual_scale": 2.0
     },
@@ -109,7 +111,7 @@
       "cost_wood": 0,
       "cost_stone": 0,
       "cost_manashards": 0,
-      "gather_mult": 1.6,
+      "gather_mult": 3.0,
       "grants_fruit": true,
       "visual_scale": 1.5
     }

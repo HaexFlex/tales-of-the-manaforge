@@ -573,7 +573,7 @@ func _run() -> void:
 	# Costs: SYSTEMS v0.2.5 SHOP_BASE=400 → cost = 400 * (rank + 1)
 	failed += _assert(int(game_state.call("get_upgrade_cost", "keeper_stride")) == 400, "stride cost 400*(rank+1)")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "green_thumb")) == 400, "thumb cost 400*(rank+1)")
-	failed += _assert(int(game_state.call("get_upgrade_cost", "shard_sight")) == 400, "sight cost 400*(rank+1)")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "shard_sight")) == 800, "sight cost 800*(rank+1)")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "deep_roots")) == 400, "roots cost 400 at rank 0")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "forager")) == 400, "forager cost 400 at rank 0")
 	game_state.call("ascend")
@@ -869,7 +869,7 @@ func _run() -> void:
 	failed += _assert(int(bonus_def.get("max_rank", 0)) == 3, "bonus_wisp max 3")
 	failed += _assert(int(game_state.call("param_int", "WISP_PER_NODE", -1)) == 0, "WISP_PER_NODE unlimited")
 	failed += _assert(int(game_state.call("param_int", "WISP_PER_MANATREE", -1)) == 0, "WISP_PER_MANATREE unlimited")
-	failed += _assert(int(game_state.call("param_float", "WISP_PULSE_SEC", 0.0)) == 10, "WISP_PULSE_SEC 10")
+	failed += _assert(int(game_state.call("param_float", "WISP_PULSE_SEC", 0.0)) == 20, "WISP_PULSE_SEC 20")
 	failed += _assert(int(game_state.call("param_int", "WISP_PULSE_GRANT", 0)) == 1, "WISP_PULSE_GRANT")
 
 	# Stage Grow grants +1 wisp
@@ -896,20 +896,20 @@ func _run() -> void:
 	game_state.call("_ensure_wisp_slots")
 	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_tree")) == "join", "stack join harvest_tree")
 	failed += _assert(int(game_state.call("count_wisps_on_node", "harvest_tree")) == 2, "two wisps on tree")
-	# Pulse accum — each wisp own timer → +2 wood after ~10s
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "pulse sec base 10")
-	game_state.call("apply_wisp_pulses", 9.9)
-	failed += _assert(int(game_state.get("wood")) == wood0, "no grant before 10s")
-	game_state.call("apply_wisp_pulses", 0.2)
-	failed += _assert(int(game_state.get("wood")) == wood0 + 2, "stacked wisps pulse +2 wood after ~10s")
-	# wisp_haste reduces interval
+	# Continuous: one wisp is 1/20s. Remainder stays under a whole unit until 20s.
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 20.0) < 0.01, "wisp interval base 20")
+	game_state.call("unassign_wisp", 1)
+	game_state.call("apply_wisp_pulses", 19.0)
+	failed += _assert(int(game_state.get("wood")) == wood0, "one wisp banks nothing before 20s")
+	game_state.call("apply_wisp_pulses", 1.0)
+	failed += _assert(int(game_state.get("wood")) == wood0 + 1, "one wisp banks 1 wood at 20s")
 	var ranks_h: Dictionary = game_state.get("upgrade_ranks")
 	ranks_h["wisp_haste"] = 3
 	game_state.set("upgrade_ranks", ranks_h)
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 7.0) < 0.01, "haste rank3 → 7s")
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 14.0) < 0.01, "haste rank3 → 14s")
 	ranks_h["wisp_haste"] = 5
 	game_state.set("upgrade_ranks", ranks_h)
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 5.0) < 0.01, "haste min 5s")
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "haste min 10s")
 	# Unassign
 	failed += _assert(bool(game_state.call("unassign_wisp", 0)), "unassign")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "cleared assignment")
@@ -1432,7 +1432,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_wooden_basket_short")).find("20") >= 0, "handcraft_row_wooden_basket_short")
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_fertilizer_short")).find("{wood}") >= 0, "handcraft_row_fertilizer_short")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_default")).find("10") >= 0, "fertilizer_craft_cost_default ×10")
-	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("3000") >= 0, "keep_tools cost default 3000")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("5000") >= 0, "keep_tools cost default 5000")
 	failed += _assert(str(content_strings.call("get_text", "tool_stone_watering_can_craft_cost")).find("20") >= 0, "tool_stone_watering_can_craft_cost")
 	failed += _assert(str(content_strings.call("get_text", "tool_wooden_basket_craft_cost")).find("20") >= 0, "tool_wooden_basket_craft_cost")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost")).find("{cost}") >= 0, "upgrade_keep_tools_cost token")
@@ -1487,10 +1487,10 @@ func _run() -> void:
 	game_state.call("reset_for_new_game")
 	game_state.call("_set_stage", &"ancient")
 	game_state.call("harvest_fruit")
-	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 3000, "Keep Tools ≈3000 shards")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 5000, "Keep Tools costs 5000 shards")
 	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools unaffordable at 0 shards")
-	game_state.call("set_resource", &"manashards", 3000)
-	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 3000")
+	game_state.call("set_resource", &"manashards", 5000)
+	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 5000")
 
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 3)
@@ -1517,9 +1517,9 @@ func _run() -> void:
 	failed += _assert(str(backpack.call("try_craft", "stone_axe")) == "unique", "second axe blocked")
 	failed += _assert(bool(backpack.call("owns_tool_for_resource", &"wood")), "axe boosts wood")
 	failed += _assert(not bool(backpack.call("owns_tool_for_resource", &"stone")), "axe does not boost stone")
-	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"wood")) - 0.5) < 0.01, "axe halves wood wait")
-	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"stone")) - 1.0) < 0.01, "no pickaxe: stone wait 1s")
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "tools do not change wisp pulse")
+	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"wood")) - 1.0) < 0.01, "axe sets wood interval to 1s")
+	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"stone")) - 2.0) < 0.01, "no pickaxe: stone interval 2s")
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 20.0) < 0.01, "tools do not change wisp interval")
 
 	var basket_def: Dictionary = backpack.call("get_recipe_def", "wooden_basket")
 	var basket_ings: Dictionary = basket_def.get("ingredients", {}) as Dictionary
@@ -1554,7 +1554,7 @@ func _run() -> void:
 		can_ok += 1
 		i_can += 1
 	failed += _assert(can_ok == 16, "16 can pulses checked")
-	# Can doubles (roll + shard_sight): U{1,3}+1 → {4,6,8}
+	# Can doubles (roll + 0.5): U{1,3}+0.5 → {3,5,7}
 	var ranks_ss: Dictionary = game_state.get("upgrade_ranks")
 	ranks_ss["shard_sight"] = 1
 	game_state.set("upgrade_ranks", ranks_ss)
@@ -1562,7 +1562,7 @@ func _run() -> void:
 	while ss_i < 12:
 		var ss_pulse: Dictionary = game_state.call("apply_water_pulse")
 		var ss_shards: int = int(ss_pulse.get("shards", 0))
-		failed += _assert(ss_shards == 4 or ss_shards == 6 or ss_shards == 8, "can*(roll+sight) in {4,6,8} got %d" % ss_shards)
+		failed += _assert(ss_shards == 3 or ss_shards == 5 or ss_shards == 7, "can*(roll+0.5) in {3,5,7} got %d" % ss_shards)
 		failed += _assert(int(ss_pulse.get("essence", 0)) == 1, "can+sight essence still +1")
 		ss_i += 1
 
@@ -1762,11 +1762,11 @@ func _run() -> void:
 		failed += _assert(not bool(keeper_stats.call("affects_gather", "fate")), "fate does not affect gather")
 		failed += _assert(not bool(keeper_stats.call("affects_wisps", "fate")), "fate does not affect wisps")
 		failed += _assert(not bool(keeper_stats.call("affects_craft", "fate")), "fate does not affect craft")
-		var grant_before: int = int(game_state.call("get_harvest_grant", &"wood"))
+		var grant_before: float = float(game_state.call("active_harvest_factor"))
 		var pulse_before: float = float(game_state.call("get_wisp_pulse_sec"))
 		var fert_before: float = float(backpack.call("get_fertilizer_craft_cost_mult"))
 		keeper_stats.call("set_rank", "fate", 12)
-		failed += _assert(int(game_state.call("get_harvest_grant", &"wood")) == grant_before, "fate rank leaves gather grant")
+		failed += _assert(abs(float(game_state.call("active_harvest_factor")) - grant_before) < 0.001, "fate rank leaves gather factor")
 		failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - pulse_before) < 0.01, "fate rank leaves wisp pulse")
 		failed += _assert(abs(float(backpack.call("get_fertilizer_craft_cost_mult")) - fert_before) < 0.01, "fate rank leaves craft mult")
 		keeper_stats.call("set_rank", "fate", 0)
@@ -2215,6 +2215,7 @@ func _run() -> void:
 
 	failed += await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
 	failed += _forge_pass_a(tree_root, game_state, save_service, backpack)
+	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
 
@@ -2676,6 +2677,114 @@ func _echo_totals(might: int, swift: int, ward: int = 5) -> Dictionary:
 	}
 
 
+func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	if jobs == null:
+		return _assert(false, "pass e forge jobs")
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	var body: String = str(content_strings.call("get_text", "ancient_grow_confirm_body"))
+	failed += _assert(body.find("PLACEHOLDER") >= 0 and body.find("10 minutes") >= 0, "ancient confirm placeholder says 10 minutes")
+	failed += _assert(absf(float(game_state.call("ancient_duration_sec")) - 600.0) < 0.01, "ancient duration config is 600")
+	failed += _assert(absf(float(game_state.call("offline_reset_active_sec")) - 180.0) < 0.01, "offline reset active sec is 180")
+	var sight: Dictionary = game_state.call("get_upgrade_def", "shard_sight")
+	failed += _assert(absf(float(sight.get("value_per_rank", 0.0)) - 0.5) < 0.001, "shard sight +0.5 per rank")
+	failed += _assert(int(sight.get("cost_base", 0)) == 800, "shard sight cost base 800")
+	game_state.call("reset_for_new_game")
+	var ranks_ss: Dictionary = game_state.get("upgrade_ranks")
+	ranks_ss["shard_sight"] = 1
+	game_state.set("upgrade_ranks", ranks_ss)
+	failed += _assert(int(game_state.call("get_upgrade_cost", "shard_sight")) == 1600, "shard sight rank 1 costs 1600")
+	var sight_pulse: Dictionary = game_state.call("apply_water_pulse")
+	var sight_shards: int = int(sight_pulse.get("shards", 0))
+	failed += _assert(sight_shards >= 1 and sight_shards <= 3, "sight rank 1 without can grants the whole part")
+	var sight_rem: float = float((game_state.get("harvest_accum") as Dictionary).get("manashards", -1.0))
+	failed += _assert(absf(sight_rem - 0.5) < 0.001, "sight rank 1 keeps a 0.5 remainder")
+	## Tier checkpoints.
+	var m30: float = 30.0 * 60.0
+	var h2: float = 2.0 * 3600.0
+	var h8: float = 8.0 * 3600.0
+	var h24: float = 24.0 * 3600.0
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", m30)) - 180.0) < 0.02, "tier 30min → 180")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h2)) - 270.0) < 0.02, "tier 2h → 270")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h8)) - 356.4) < 0.02, "tier 8h → 356.4")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h24)) - 452.4) < 0.02, "tier 24h → 452.4")
+	## Nothing moves offline while Ancient.
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 4)
+	game_state.call("set_resource", &"essence", 6)
+	game_state.call("set_resource", &"manashards", 8)
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	game_state.call("set_resource", &"stone", 40)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	var prog_before: float = float(jobs.call("job_progress", "crucible"))
+	game_state.call("_set_stage", &"ancient")
+	game_state.set("ancient_remaining_sec", 400.0)
+	game_state.set("offline_closed_sec", 50.0)
+	var blocked: Variant = jobs.call("apply_offline_seconds", h2)
+	failed += _assert(typeof(blocked) == TYPE_DICTIONARY and int((blocked as Dictionary).get("harvest", -1)) == 0, "ancient offline harvest is 0")
+	jobs.call("apply_saved_offline_gap", h2)
+	failed += _assert(int(game_state.get("wood")) == 4, "ancient offline does not bank wood")
+	failed += _assert(int(game_state.get("essence")) == 6, "ancient offline does not bank essence")
+	failed += _assert(int(game_state.get("manashards")) == 8, "ancient offline does not bank shards")
+	failed += _assert(absf(float(game_state.get("ancient_remaining_sec")) - 400.0) < 0.01, "ancient timer ignores offline")
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - prog_before) < 0.01, "ancient offline does not advance the forge")
+	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 50.0) < 0.01, "ancient offline does not consume the curve")
+	## Timer hits 0 → Fruit commits.
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	failed += _assert(absf(float(game_state.get("ancient_remaining_sec")) - 600.0) < 0.01, "grow to ancient starts at 600")
+	game_state.set("ancient_remaining_sec", 0.4)
+	game_state.call("tick_ancient", 0.2)
+	failed += _assert(not bool(game_state.get("fruit_committed")), "timer still running at 0.2s left")
+	game_state.call("tick_ancient", 0.3)
+	failed += _assert(bool(game_state.get("fruit_committed")), "timer at 0 auto-harvests")
+	failed += _assert(absf(float(game_state.get("ancient_remaining_sec"))) < 0.001, "timer stays at 0")
+	failed += _assert(int(game_state.get("lifetime_fruit_harvested")) >= 1, "auto-harvest counts the fruit")
+	## 1 wisp × 200s = 10 wood. Keeper with a tool × 10s = 10 wood.
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	game_state.call("apply_wisp_pulses", 200.0)
+	failed += _assert(int(game_state.get("wood")) == 10, "1 wisp for 200s gives 10 wood")
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "stone_axe", 1)
+	game_state.call("accumulate_keeper_harvest", &"wood", 10.0)
+	failed += _assert(int(game_state.get("wood")) == 10, "keeper with a tool for 10s gives 10 wood")
+	## v8 Ancient loads the full 600.
+	var v8: Dictionary = {"stage_id": "ancient", "fruit_ready": true}
+	var migrated: Dictionary = save_service.call("_migrate", 8, v8)
+	game_state.call("apply_save_dict", migrated)
+	failed += _assert(str(game_state.get("stage_id")) == "ancient", "v8 ancient stage")
+	failed += _assert(absf(float(game_state.get("ancient_remaining_sec")) - 600.0) < 0.01, "v8 ancient loads 600")
+	## Curve continues under 180s of play, and restarts at 180s.
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	game_state.set("offline_closed_sec", 1200.0)
+	game_state.set("active_since_load_sec", 60.0)
+	var continued: Variant = jobs.call("apply_saved_offline_gap", 1200.0)
+	failed += _assert(typeof(continued) == TYPE_DICTIONARY and int((continued as Dictionary).get("harvest", -1)) == 35, "reopen under 180s prices minutes 20-40")
+	failed += _assert(int(game_state.get("wood")) == 35, "continued curve banks 35 wood")
+	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 2400.0) < 0.01, "continued curve stores 40 minutes")
+	failed += _assert(absf(float(game_state.get("active_since_load_sec"))) < 0.01, "load clears active time")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	game_state.set("offline_closed_sec", 1200.0)
+	game_state.set("active_since_load_sec", 180.0)
+	var restarted: Variant = jobs.call("apply_saved_offline_gap", 1200.0)
+	failed += _assert(typeof(restarted) == TYPE_DICTIONARY and int((restarted as Dictionary).get("harvest", -1)) == 60, "180s of play restarts the curve")
+	failed += _assert(int(game_state.get("wood")) == 60, "reset curve banks 60 wood")
+	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 1200.0) < 0.01, "reset curve stores only the new closure")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	return failed
+
+
 func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, backpack: Node) -> int:
 	var failed: int = 0
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
@@ -2692,30 +2801,30 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 	game_state.call("reset_for_new_game")
 	var h8: float = 8.0 * 3600.0
 	var h24: float = 24.0 * 3600.0
+	var m30: float = 30.0 * 60.0
+	var h2: float = 2.0 * 3600.0
 	failed += _assert(absf(float(jobs.call("offline_effective_seconds", 0.0))) < 0.001, "offline zero")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h8)) - h8 * 0.05) < 0.05, "offline 0-8h is 1/20")
-	var at_24: float = h8 * 0.05 + (h24 - h8) * 0.01
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24)) - at_24) < 0.05, "offline 8-24h is 1/100")
-	var after: float = at_24 + 3600.0 * 0.001
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24 + 3600.0)) - after) < 0.05, "offline after 24h is 1/1000")
-	failed += _assert(absf(float(jobs.get("OFFLINE_WATER_MULT")) - 0.2) < 0.001, "OFFLINE_WATER_MULT is 0.2")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", m30)) - 180.0) < 0.02, "offline 30min is 180s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h2)) - 270.0) < 0.02, "offline 2h is 270s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h8)) - 356.4) < 0.02, "offline 8h is 356.4s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24)) - 452.4) < 0.02, "offline 24h is 452.4s")
 	jobs.call("set_keeper_task", "water", "manatree", true)
 	var water: Variant = jobs.call("apply_offline_seconds", h8)
-	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("shards", -1)) == 576, "offline water shards use the midpoint and 0.2")
-	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("essence", -1)) == 288, "offline water essence uses 0.2")
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("shards", -1)) == 712, "offline water shards use the midpoint")
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("essence", -1)) == 356, "offline water essence follows the curve")
 	var task: Variant = jobs.call("keeper_task")
 	failed += _assert(typeof(task) == TYPE_DICTIONARY and not bool((task as Dictionary).get("working", true)), "offline clears the keeper task")
 	game_state.call("reset_for_new_game")
 	jobs.call("set_keeper_task", "harvest", "wood", true)
 	var gathered: Variant = jobs.call("apply_offline_seconds", 20.0)
-	failed += _assert(typeof(gathered) == TYPE_DICTIONARY and int((gathered as Dictionary).get("harvest", -1)) == 1, "20s closed harvest is one pulse")
+	failed += _assert(typeof(gathered) == TYPE_DICTIONARY and int((gathered as Dictionary).get("harvest", -1)) == 1, "20s closed harvest banks one wood")
 	failed += _assert(int(game_state.get("wood")) == 1, "offline harvest banks wood")
 	game_state.call("reset_for_new_game")
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	game_state.call("try_assign_wisp", 0, "manatree")
 	var wisp_off: Variant = jobs.call("apply_offline_seconds", h8)
-	failed += _assert(typeof(wisp_off) == TYPE_DICTIONARY and int((wisp_off as Dictionary).get("shards", -1)) == 144, "wisp watering uses tiers only")
+	failed += _assert(typeof(wisp_off) == TYPE_DICTIONARY and int((wisp_off as Dictionary).get("shards", -1)) == 17, "manatree wisp 8h banks 17 shards")
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"stone", 40)
 	failed += _assert(str(jobs.call("try_begin_job", "crucible", "sapsteel")) == "ok", "crucible starts")

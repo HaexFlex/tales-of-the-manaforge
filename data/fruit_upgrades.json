@@ -33,12 +33,12 @@
     {
       "id": "shard_sight",
       "display_name": "Shard Sight",
-      "description": "Each rank: watering yields +1 manashard per pulse.",
+      "description": "Each rank: watering yields +0.5 Manashards per second (25% of the base average of 2).",
       "max_rank": 5,
-      "cost_base": 400,
-      "cost_per_rank": 400,
+      "cost_base": 800,
+      "cost_per_rank": 800,
       "effect": "water_shard_bonus",
-      "value_per_rank": 1.0
+      "value_per_rank": 0.5
     },
     {
       "id": "keeper_stride",
@@ -58,7 +58,7 @@
       "cost_base": 400,
       "cost_per_rank": 400,
       "effect": "wisp_pulse_reduce",
-      "value_per_rank": 1.0
+      "value_per_rank": 2.0
     },
     {
       "id": "bonus_wisp",
@@ -75,7 +75,7 @@
       "display_name": "Keep Tools",
       "description": "Finished tools survive Ascend and return with you.",
       "max_rank": 1,
-      "cost_base": 3000,
+      "cost_base": 5000,
       "cost_per_rank": 0,
       "effect": "keep_tools",
       "value_per_rank": 1.0

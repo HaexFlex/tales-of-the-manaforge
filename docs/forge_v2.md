@@ -2,6 +2,8 @@
 
 Status: APPROVED for implementation (Haex go 2026-09-29). Numbers are placeholders in one tuning config.
 
+Idle rates, the Ancient timer, and the shared offline curve live in [idle_rework.md](idle_rework.md). That document replaces the offline tiers below.
+
 ## 1. Scope and delivery
 - Builds on PR #16 (editor-visible scenes), or on main once #16 is merged. Everything is visible and adjustable in the Godot editor.
 - PR #15 (first Forge) is not merged. We reuse its good parts (station logic, camera clamp, weapon recipes).
@@ -79,16 +81,13 @@ Cost per relic: 6 Sapsteel, 6 Heartwood Bits, 6 Amberbind, 100 Essence. No Manas
 - Backpack filters: All, Raw, Refined (Sapsteel, Heartwood Bits, Amberbind, Fertilizer, Rod), Tools, Weapons, Relics. Each item gets a category field.
 
 ## 10. Offline and idle tiers (whole game loop)
-These apply to the entire idle loop (harvesting, Manatree, Forge), not just the Forge.
-- While the game is open, everything runs at full speed in any scene.
-- While the game is closed:
-  - 0 to 8 h: 1/20 speed
-  - 8 to 24 h: 1/100 speed
-  - after 24 h: 1/1000 speed
-- A Forge station keeps working offline if someone is working it when the game closes (Keeper, companion, or Wisp) and there's material to pay.
-- Offline speed is the station's normal online speed (whoever is working it, including Wisp bonuses) multiplied by the tier factor. Example: Keeper alone gives 1/20 of his pace for hours 0 to 8, 1/100 for hours 8 to 24, then 1/1000.
-- This replaces the current simple 8-hour catch-up.
-- LOCKED (Haex): Keeper watering offline gets an extra multiplier, OFFLINE_WATER_MULT = 0.2, on Manashards and Essence, on top of the tiers. Target: 24 h of idling yields about 2 basic Ascension upgrades, or about 1/4 of the 3,000 for keep basic tools (about 750 to 800 Manashards). Game Design tunes the exact numbers against that target.
+The live curve, Ancient timer, and harvest rates are in [idle_rework.md](idle_rework.md).
+- While the game is open, everything runs at full speed in any scene, except that Ancient time counts only while unpaused and nothing progresses offline during Ancient.
+- While the game is closed, one curve covers harvest, watering, Wisps, and the Forge: 1/10 for 0–30 min, 1/60 to 2 h, 1/250 to 8 h, 1/600 to 24 h, 1/3000 after. Tiers are `[end_hours, rate]` in `forge_tuning.json`.
+- The curve restarts at 1/10 only after 180 s of active play since the last load. A shorter reopen continues the cumulative closed time.
+- A Forge station keeps working offline if someone is working it when the game closes (Keeper, companion, or Wisp) and there's material to pay, and the stage is not Ancient.
+- Offline Forge time is the curved seconds times the station's additive speed (Keeper 1, companion 1, each Wisp 0.1, cap 4).
+- There is no extra offline watering multiplier.
 - The save records the Keeper's current task on every autosave, so a crash still counts it.
 
 ## 11. Ascension

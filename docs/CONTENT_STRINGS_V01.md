@@ -149,6 +149,11 @@ Interactive nodes only. Decorative forest trees have **no** strings / no prompts
 | `tree_next_stage_needs_none` | Nothing more — Pay |
 | `tree_pay_confirm` | Grow into {next_stage}? |
 | `tree_grow_confirm` | Grow into {next_stage}? |
+| `ancient_grow_confirm_title` | [PLACEHOLDER] Grow to Ancient? |
+| `ancient_grow_confirm_body` | [PLACEHOLDER] Ancient lasts 10 minutes while the game stays open. Nothing gathers while you are away. The Fruit harvests itself when the time ends. |
+| `ancient_grow_confirm_yes` | [PLACEHOLDER] Grow |
+| `ancient_grow_confirm_no` | [PLACEHOLDER] Not yet |
+| `ancient_countdown_hud` | [PLACEHOLDER] Ancient {time} |
 | `tree_pay_confirm_yes` | Grow |
 | `tree_grow_confirm_yes` | Grow |
 | `tree_pay_confirm_no` | Not yet |
@@ -230,7 +235,7 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | `deep_roots` | Deep Roots | Watering yields Essence a little sooner. |
 | `forager` | Forager’s Grace | Harvest channels yield a little more. |
 | `green_thumb` | Green Thumb | Fertilizer craft costs a little less. |
-| `shard_sight` | Shard Sight | Watering yields more Manashards. |
+| `shard_sight` | Shard Sight | Each rank: watering yields +0.5 Manashards per second (25% of the base average of 2). |
 | `keeper_stride` | Keeper’s Stride | Walk the fragment a little faster. |
 | `wisp_haste` | Swift Wisps | Assigned Wisps gather a little sooner. |
 | `bonus_wisp` | Extra Wisp | Another Wisp walks with you from the Sapling. |
@@ -251,7 +256,7 @@ Shop is **Ascension-only** after Fruit — not available mid-run. Not free-pick.
 | `upgrade_deep_roots_tooltip` | Watering yields a little more Essence over time. |
 | `upgrade_forager_tooltip` | Harvest channels yield a little more. |
 | `upgrade_green_thumb_tooltip` | Fertilizer craft ingredient costs drop a little each rank. |
-| `upgrade_shard_sight_tooltip` | Watering yields more Manashards each pulse. |
+| `upgrade_shard_sight_tooltip` | Each rank: watering yields +0.5 Manashards per second (25% of the base average of 2). |
 | `upgrade_keeper_stride_tooltip` | Walk the fragment a little faster. |
 | `upgrade_wisp_haste_tooltip` | Assigned Wisps gather a little sooner. |
 | `upgrade_bonus_wisp_tooltip` | Another Wisp walks with you from the Sapling. |
@@ -543,7 +548,7 @@ Primary stage-advance label is **Grow** (aliases `tree_pay*` → Grow).
 | `upgrade_keep_tools_name` | Keep Tools |
 | `upgrade_keep_tools_desc` | Finished tools survive Ascend and return with you. |
 | `upgrade_keep_tools_cost` | {cost} Manashards |
-| `upgrade_keep_tools_cost_default` | 3000 Manashards |
+| `upgrade_keep_tools_cost_default` | 5000 Manashards |
 | `upgrade_keep_tools_tooltip` | Finished tools survive Ascend and return with you. |
 | `upgrade_keep_tools_toast` | Your tools remember the path. |
 | `keep_tools_regrant_toast` | Familiar tools settle back into your backpack. |
@@ -886,7 +891,7 @@ Mirrors `SYSTEMS_V01` §11 D6. **PROMOTED to live in CONTENT v0.4.1** (Director 
 | 1 | Stone Watering Can = **20 Stone Fragments**; Wooden Basket = **20 Wooden Planks** | Cost-line drafts below (drop Rod from Can unless Haex clarifies). |
 | 2 | Handcraft UI overflow | Short **costs-only** row labels for Watering Can + Fertilizer (Code owns scroll/width). |
 | 3 | Rename heads → **Stone Axe Head**, **Stone Pickaxe Head** | Split `stone_head` display; draft ids/labels below. |
-| 4 | Keep Tools ≈ **3000** Manashards | Cost token draft; Design owns flat 3000. |
+| 4 | Keep Tools = **5000** Manashards (Pass E; was 3000) | Cost token draft. |
 | 5 | Ascension blessing tooltips / short descriptions | Draft `*_tooltip` keys; live `*_desc` stay until promote. |
 | 6 | Fertilizer steeper: craft **~2×**; Grow Fert **3 / 6 / 12 / 24** | Cost drafts; Essence curve TBD (keep live 20/40/60/80 until Haex). |
 
@@ -904,7 +909,7 @@ Mirrors `SYSTEMS_V01` §11 D6. **PROMOTED to live in CONTENT v0.4.1** (Director 
 | `part_stone_axe_head_examine` | A rough stone head for the Stone Axe. |
 | `part_stone_pickaxe_head_examine` | A rough stone head for the Stone Pickaxe. |
 | `upgrade_keep_tools_cost` | {cost} Manashards |
-| `upgrade_keep_tools_cost_default` | 3000 Manashards |
+| `upgrade_keep_tools_cost_default` | 5000 Manashards |
 | `upgrade_tooltip_hint` | {desc} |
 | `upgrade_keep_tools_tooltip` | Finished tools survive Ascend and return with you. |
 | `upgrade_wisp_haste_tooltip` | Assigned Wisps gather a little sooner. |

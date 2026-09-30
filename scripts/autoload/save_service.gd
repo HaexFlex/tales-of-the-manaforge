@@ -233,6 +233,18 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 				out["item_categories"] = ForgeJobs.item_categories()
 			else:
 				out["item_categories"] = {}
+		if not out.has("harvest_accum") or typeof(out.get("harvest_accum")) != TYPE_DICTIONARY:
+			out["harvest_accum"] = {}
+		if str(out.get("stage_id", "")) == "ancient" and not bool(out.get("fruit_committed", out.get("fruit_harvested_pending_ascend", false))):
+			if not out.has("ancient_remaining_sec"):
+				var full_ancient: float = 600.0
+				if has_node("/root/GameState"):
+					full_ancient = float(GameState.ancient_duration_sec())
+				out["ancient_remaining_sec"] = full_ancient
+		if not out.has("offline_closed_sec"):
+			out["offline_closed_sec"] = 0.0
+		if not out.has("active_since_load_sec"):
+			out["active_since_load_sec"] = 0.0
 	## v0.5.1 ranks stay purchases. Missing ranks become 0 (sheet base 5).
 	## An absolute already stored below 5 is kept as a rank so the sheet floors
 	## the base at 5. Ranks >= 5 are not reduced.
@@ -324,7 +336,7 @@ func _apply_offline_catchup(root: Dictionary) -> void:
 	var closed: float = Time.get_unix_time_from_system() - ts
 	if closed < 1.0:
 		return
-	ForgeJobs.apply_offline_seconds(closed)
+	ForgeJobs.apply_saved_offline_gap(closed)
 
 
 func _migrate_equipped_key_to_inventory(out: Dictionary) -> void:

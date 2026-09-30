@@ -179,8 +179,6 @@ func start_harvest_channel(node: Gatherable) -> void:
 	channel_changed.emit(&"harvest", true)
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.set_keeper_task("harvest", String(node.resource_id), true)
-	# Immediate first pulse so click feels responsive, then every CHANNEL_PULSE_SEC.
-	node.on_harvest_pulse()
 	_channel_accum = 0.0
 
 
@@ -281,14 +279,11 @@ func _tick_channel(delta: float) -> void:
 		else:
 			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
 		return
-	_channel_accum += delta
 	if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
 		var rid: StringName = (_channel_target as Gatherable).resource_id
-		var pulse: float = GameState.get_keeper_harvest_pulse_sec(rid)
-		while _channel_accum >= pulse:
-			_channel_accum -= pulse
-			(_channel_target as Gatherable).on_harvest_pulse()
+		GameState.accumulate_keeper_harvest(rid, delta)
 	elif _channel_kind == ChannelKind.WATER:
+		_channel_accum += delta
 		var pulse: float = GameState.get_water_essence_pulse_sec()
 		if pulse <= 0.0:
 			return

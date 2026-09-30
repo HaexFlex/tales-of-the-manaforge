@@ -127,6 +127,9 @@ var _confirm_pay: bool = false
 var _confirm_ascend: bool = false
 ## 0 = closed, 1 = Begin Ascension?, 2 = Commit the harvest.
 var _fruit_confirm_step: int = 0
+var _ancient_confirm: Panel
+var _ancient_countdown: Label
+var _ancient_countdown_bg: ColorRect
 var _highlight_ascend: bool = false
 var _backpack_tab: String = "all"
 var _sheet: CharacterSheet = null
@@ -212,6 +215,9 @@ func _ready() -> void:
 	pay_button.pressed.connect(_on_pay)
 	_ensure_forge_controls()
 	_ensure_wisp_counter()
+	_ensure_ancient_hud()
+	if not GameState.ancient_expired.is_connected(_on_ancient_expired):
+		GameState.ancient_expired.connect(_on_ancient_expired)
 	if not GameState.echo_flags_changed.is_connected(_refresh_forge_entry):
 		GameState.echo_flags_changed.connect(_refresh_forge_entry)
 	welcome_dismiss_button.pressed.connect(_on_welcome_dismiss)
@@ -436,10 +442,15 @@ func _apply_wood_chrome() -> void:
 	bench_panel.add_theme_stylebox_override("panel", _wood_style())
 
 
+func _process(_delta: float) -> void:
+	_refresh_ancient_countdown()
+
+
 func _refresh_dim() -> void:
 	if shop_dim == null:
 		return
-	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible
+	var ancient_open: bool = _ancient_confirm != null and _ancient_confirm.visible
+	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible or ancient_open
 	if backpack_dim:
 		backpack_dim.visible = backpack_panel.visible or bench_panel.visible
 
@@ -899,6 +910,7 @@ func show_care_menu() -> void:
 	close_character_sheet()
 	hide_ascension_shop()
 	hide_fruit_confirm()
+	hide_ancient_grow_confirm()
 	_confirm_pay = false
 	care_panel.visible = true
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -1403,11 +1415,18 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 
 
 func _on_pay() -> void:
-	## One-click Grow — no confirm. Spend Fertilizer + Essence when affordable.
+	## One-click Grow, except Ancient, which asks first. try_grow_stage itself stays direct.
 	if not GameState.can_grow_stage():
 		GameAudio.play_tree_deny()
 		_refresh_care_needs()
 		return
+	if String(GameState.get_next_stage_id()) == "ancient":
+		open_ancient_grow_confirm()
+		return
+	_commit_grow()
+
+
+func _commit_grow() -> void:
 	_confirm_pay = false
 	var result: String = "cant_afford"
 	if _manatree:
@@ -1417,6 +1436,130 @@ func _on_pay() -> void:
 	if result == "ok":
 		SaveService.save_game()
 	_refresh_all()
+
+
+func _ensure_ancient_hud() -> void:
+	_ancient_countdown_bg = ColorRect.new()
+	_ancient_countdown_bg.name = "AncientCountdownBg"
+	_ancient_countdown_bg.position = Vector2(390, 64)
+	_ancient_countdown_bg.size = Vector2(500, 40)
+	_ancient_countdown_bg.color = Color(0.05, 0.08, 0.06, 0.88)
+	_ancient_countdown_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ancient_countdown_bg.visible = false
+	add_child(_ancient_countdown_bg)
+	_ancient_countdown = Label.new()
+	_ancient_countdown.name = "AncientCountdown"
+	_ancient_countdown.position = Vector2(390, 64)
+	_ancient_countdown.size = Vector2(500, 40)
+	_ancient_countdown.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_ancient_countdown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_ancient_countdown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ancient_countdown.add_theme_font_size_override("font_size", 22)
+	_ancient_countdown.add_theme_color_override("font_color", GOLD)
+	_ancient_countdown.visible = false
+	add_child(_ancient_countdown)
+	_ancient_confirm = Panel.new()
+	_ancient_confirm.name = "AncientGrowConfirm"
+	_ancient_confirm.position = Vector2(280, 150)
+	_ancient_confirm.size = Vector2(720, 300)
+	_ancient_confirm.visible = false
+	_ancient_confirm.z_index = 40
+	_ancient_confirm.add_theme_stylebox_override("panel", _wood_style())
+	add_child(_ancient_confirm)
+	var title := Label.new()
+	title.name = "Title"
+	title.position = Vector2(24, 16)
+	title.size = Vector2(672, 36)
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", GOLD)
+	_ancient_confirm.add_child(title)
+	var body := Label.new()
+	body.name = "Body"
+	body.position = Vector2(24, 64)
+	body.size = Vector2(672, 140)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_font_size_override("font_size", 18)
+	body.add_theme_color_override("font_color", Color(0.93, 0.94, 0.86, 1))
+	_ancient_confirm.add_child(body)
+	var yes := Button.new()
+	yes.name = "Yes"
+	yes.position = Vector2(24, 220)
+	yes.size = Vector2(320, 52)
+	_apply_button_chrome(yes, LEAF, GOLD)
+	yes.pressed.connect(_on_ancient_grow_yes)
+	_ancient_confirm.add_child(yes)
+	var no := Button.new()
+	no.name = "No"
+	no.position = Vector2(376, 220)
+	no.size = Vector2(320, 52)
+	_apply_button_chrome(no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	no.pressed.connect(hide_ancient_grow_confirm)
+	_ancient_confirm.add_child(no)
+
+
+func _refresh_ancient_countdown() -> void:
+	if _ancient_countdown == null:
+		return
+	var show_timer: bool = (
+		GameState.stage_id == &"ancient"
+		and not GameState.fruit_committed
+		and GameState.ancient_remaining_sec > 0.0
+	)
+	_ancient_countdown.visible = show_timer
+	if _ancient_countdown_bg:
+		_ancient_countdown_bg.visible = show_timer
+	if not show_timer:
+		return
+	var total: int = int(ceil(GameState.ancient_remaining_sec))
+	var label: String = "%d:%02d" % [int(total / 60), total % 60]
+	_ancient_countdown.text = ContentStrings.get_text("ancient_countdown_hud", {"time": label})
+
+
+func open_ancient_grow_confirm() -> void:
+	if _ancient_confirm == null:
+		return
+	var title: Label = _ancient_confirm.get_node("Title") as Label
+	var body: Label = _ancient_confirm.get_node("Body") as Label
+	var yes: Button = _ancient_confirm.get_node("Yes") as Button
+	var no: Button = _ancient_confirm.get_node("No") as Button
+	title.text = ContentStrings.get_text("ancient_grow_confirm_title")
+	body.text = ContentStrings.get_text("ancient_grow_confirm_body")
+	yes.text = ContentStrings.get_text("ancient_grow_confirm_yes")
+	no.text = ContentStrings.get_text("ancient_grow_confirm_no")
+	_ancient_confirm.visible = true
+	_refresh_dim()
+	GameAudio.play_ui_confirm()
+
+
+func hide_ancient_grow_confirm() -> void:
+	if _ancient_confirm == null or not _ancient_confirm.visible:
+		return
+	_ancient_confirm.visible = false
+	_refresh_dim()
+	GameAudio.play_ui_close()
+
+
+func _on_ancient_grow_yes() -> void:
+	if _ancient_confirm:
+		_ancient_confirm.visible = false
+	_refresh_dim()
+	_commit_grow()
+
+
+func _on_ancient_expired() -> void:
+	## Timer hit 0. Fruit is already committed. Open the shop with no harvest confirm.
+	_cancel_world_channels()
+	hide_fruit_confirm()
+	hide_ancient_grow_confirm()
+	hide_care_menu()
+	GameAudio.play_fruit_harvest()
+	_show_toast("%s\n%s" % [
+		ContentStrings.get_text("fruit_harvest_toast"),
+		ContentStrings.get_text("fruit_flow_hint"),
+	])
+	_hold_world_for_ascension()
+	show_ascension_shop()
+	SaveService.save_game()
 
 
 func is_backpack_open() -> bool:

@@ -15,6 +15,7 @@ signal wisp_assign_failed(reason: String, node_id: String)
 signal wisp_unassigned(wisp_id: int)
 signal wisp_pulsed(resource_id: StringName)
 signal echo_flags_changed
+signal ancient_expired
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -52,6 +53,16 @@ var arrow_mode: String = "physical"
 
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
+## Fractional harvest remainders, one float per resource (wood/stone/food/manashards).
+var harvest_accum: Dictionary = {}
+## Counts down only while Ancient, the game is open, and the tree is unpaused.
+var ancient_remaining_sec: float = 0.0
+## Wall-clock seconds already priced on the offline curve. A short reopen continues from here.
+var offline_closed_sec: float = 0.0
+## Unpaused seconds since the last load. The curve restarts after offline_reset_active_sec.
+var active_since_load_sec: float = 0.0
+var _idle_tuning: Dictionary = {}
+var _idle_tuning_loaded: bool = false
 
 var ascensions: int = 0
 var lifetime_waters: int = 0
@@ -111,6 +122,8 @@ func _ensure_character_sheet_action() -> void:
 func _process(delta: float) -> void:
 	## Pausable by default — stops when get_tree().paused (pause menu).
 	run_time_sec += delta
+	active_since_load_sec += delta
+	tick_ancient(delta)
 	apply_wisp_pulses(delta)
 
 
@@ -165,10 +178,11 @@ func param_float(key: String, default_v: float = 0.0) -> float:
 
 
 func get_wisp_pulse_sec() -> float:
-	## Base 10s; wisp_haste −1s/rank; min 5s (SYSTEMS v0.3.0).
-	var base_s: float = param_float("WISP_PULSE_SEC", 10.0)
+	## A Wisp is 1/10 of a bare Keeper: 1 yield per 20s. Haste is −2s/rank, minimum 10s.
+	var base_s: float = param_float("WISP_PULSE_SEC", 20.0)
 	var haste: int = get_upgrade_rank("wisp_haste")
-	return maxf(5.0, base_s - float(haste))
+	var min_s: float = param_float("WISP_HARVEST_MIN_SEC", 10.0)
+	return maxf(min_s, base_s - 2.0 * float(haste))
 
 
 func get_wisp_capacity() -> int:
@@ -344,33 +358,23 @@ func unassign_wisp(wisp_id: int) -> bool:
 
 
 func apply_wisp_pulses(delta: float) -> void:
-	## AFK grant: +WISP_PULSE_GRANT of assigned resource every get_wisp_pulse_sec(). No gather_mult.
-	## Each wisp has its own timer. Audio: one quiet pulse SFX per node/Manatree per tick
-	## (not per wisp) when any grant fires on that target.
-	if fruit_committed:
+	## Continuous gather into the shared per-source accumulator. Stage + Forager apply while active.
+	## Forge-station wisps do not gather. One pulse signal per node that banks a whole unit.
+	if fruit_committed or delta <= 0.0:
 		return
-	var pulse: float = get_wisp_pulse_sec()
-	var grant: int = param_int("WISP_PULSE_GRANT", 1)
 	var pulsed_nodes: Dictionary = {}
 	for i: int in range(wisp_count):
 		var key: String = str(i)
 		var nid: String = str(wisp_assignments.get(key, ""))
 		if nid == "":
-			wisp_pulse_accum[key] = 0.0
 			continue
 		if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(nid):
-			wisp_pulse_accum[key] = 0.0
 			continue
-		var acc: float = float(wisp_pulse_accum.get(key, 0.0)) + delta
-		while acc >= pulse:
-			acc -= pulse
-			var rid: StringName = resource_for_node_id(nid)
-			if rid != &"":
-				add_resource(rid, grant)
-				var hk: String = String(rid)
-				lifetime_harvested[hk] = int(lifetime_harvested.get(hk, 0)) + grant
-				pulsed_nodes[nid] = rid
-		wisp_pulse_accum[key] = acc
+		var rid: StringName = resource_for_node_id(nid)
+		if rid == &"":
+			continue
+		if accumulate_wisp_harvest(rid, delta) > 0:
+			pulsed_nodes[nid] = rid
 	for nid2: Variant in pulsed_nodes.keys():
 		wisp_pulsed.emit(pulsed_nodes[nid2] as StringName)
 
@@ -587,9 +591,19 @@ func get_stage_gather_mult() -> float:
 	return float(def.get("gather_mult", 1.0))
 
 
+func active_harvest_factor() -> float:
+	## Active harvest only: stage multiplier plus Forager. Watering does not use this.
+	return get_stage_gather_mult() + get_effect_total("gather_mult_bonus")
+
+
+func offline_harvest_factor() -> float:
+	## Offline harvest drops the stage multiplier. Forager still adds.
+	return 1.0 + get_effect_total("gather_mult_bonus")
+
+
 func get_global_gather_mult() -> float:
 	## Fate and the other combat stats do not modify gather.
-	return get_stage_gather_mult() + get_effect_total("gather_mult_bonus")
+	return active_harvest_factor()
 
 
 func get_move_speed() -> float:
@@ -608,8 +622,8 @@ func _tool_speed_divisor() -> float:
 
 
 func get_keeper_harvest_pulse_sec(resource_id: StringName) -> float:
-	## Hands always work. Matching tool (Keeper only) halves wait. Wisps ignore this.
-	var base_s: float = get_channel_pulse_sec()
+	## Bare hands: one yield per KEEPER_HARVEST_SEC (2s). A matching tool halves that to 1s.
+	var base_s: float = param_float("KEEPER_HARVEST_SEC", 2.0)
 	if Backpack.owns_tool_for_resource(resource_id):
 		return base_s / _tool_speed_divisor()
 	return base_s
@@ -655,29 +669,76 @@ func get_harvest_range() -> float:
 	return param_float("HARVEST_RANGE_PX", 48.0)
 
 
-## Harvest channel pulse grant (wood/stone/food). Essence is NOT from harvest nodes.
-func get_harvest_grant(resource_id: StringName) -> int:
+func _harvest_base_units(resource_id: StringName) -> float:
 	var key: String = "HARVEST_%s_PER_SEC" % String(resource_id).to_upper()
-	var base_amt: int = param_int(key, 1)
-	var amount: float = float(base_amt) * get_global_gather_mult()
-	return maxi(1, int(floor(amount)))
+	return float(param_int(key, 1))
 
 
-## Alias kept for older call sites / verify.
-func get_gather_grant(resource_id: StringName) -> int:
-	return get_harvest_grant(resource_id)
-
-
-func apply_harvest_pulse(resource_id: StringName) -> int:
-	if fruit_committed:
+func accumulate_harvest(resource_id: StringName, units: float) -> int:
+	## Bank whole units and keep the fraction on this source. No per-pulse floor.
+	if fruit_committed or units <= 0.0:
 		return 0
+	if resource_id != &"manashards" and not resource_id in HARVEST_IDS:
+		return 0
+	var key: String = String(resource_id)
+	var acc: float = float(harvest_accum.get(key, 0.0)) + units
+	var grant: int = int(floor(acc))
+	if grant < 0:
+		grant = 0
+	harvest_accum[key] = acc - float(grant)
+	if grant > 0:
+		add_resource(resource_id, grant)
+		lifetime_harvested[key] = int(lifetime_harvested.get(key, 0)) + grant
+	return grant
+
+
+func accumulate_keeper_harvest(resource_id: StringName, delta: float) -> int:
+	if fruit_committed or delta <= 0.0 or not resource_id in HARVEST_IDS:
+		return 0
+	var interval: float = maxf(get_keeper_harvest_pulse_sec(resource_id), 0.05)
+	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor()
+	return accumulate_harvest(resource_id, units)
+
+
+func accumulate_wisp_harvest(resource_id: StringName, delta: float) -> int:
+	if fruit_committed or delta <= 0.0:
+		return 0
+	var interval: float = maxf(get_wisp_pulse_sec(), 0.05)
+	var grant_per: float = float(param_int("WISP_PULSE_GRANT", 1))
+	var units: float = (delta / interval) * grant_per * active_harvest_factor()
+	return accumulate_harvest(resource_id, units)
+
+
+func apply_offline_keeper_harvest(eff_sec: float, resource_id: StringName) -> int:
+	if eff_sec <= 0.0 or not resource_id in HARVEST_IDS:
+		return 0
+	var interval: float = maxf(get_keeper_harvest_pulse_sec(resource_id), 0.05)
+	var units: float = (eff_sec / interval) * _harvest_base_units(resource_id) * offline_harvest_factor()
+	return accumulate_harvest(resource_id, units)
+
+
+func apply_offline_wisp_harvest(eff_sec: float, resource_id: StringName) -> int:
+	if eff_sec <= 0.0:
+		return 0
+	var interval: float = maxf(get_wisp_pulse_sec(), 0.05)
+	var grant_per: float = float(param_int("WISP_PULSE_GRANT", 1))
+	var units: float = (eff_sec / interval) * grant_per * offline_harvest_factor()
+	return accumulate_harvest(resource_id, units)
+
+
+## One base yield at the active factor, remainder kept. Not a one-second pulse.
+func apply_harvest_pulse(resource_id: StringName) -> int:
 	if not resource_id in HARVEST_IDS:
 		return 0
-	var grant: int = get_harvest_grant(resource_id)
-	add_resource(resource_id, grant)
-	var key: String = String(resource_id)
-	lifetime_harvested[key] = int(lifetime_harvested.get(key, 0)) + grant
-	return grant
+	return accumulate_harvest(resource_id, _harvest_base_units(resource_id) * active_harvest_factor())
+
+
+func get_harvest_grant(resource_id: StringName) -> int:
+	return apply_harvest_pulse(resource_id)
+
+
+func get_gather_grant(resource_id: StringName) -> int:
+	return apply_harvest_pulse(resource_id)
 
 
 ## Water channel pulse: manashards U{1,3}×can + shard_sight, essence income only (no growth).
@@ -692,10 +753,10 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true) ->
 	if grant_shards:
 		var shard_min: int = param_int("WATER_SHARD_MIN", 1)
 		var shard_max: int = param_int("WATER_SHARD_MAX", 3)
-		## SYSTEMS v0.4.0: shard_roll = U{1,3} + shard_sight, then Can ×2.
-		var shard_roll: int = randi_range(shard_min, shard_max) + int(get_effect_total("water_shard_bonus"))
-		shards = shard_roll * get_water_shard_roll_mult()
-		add_resource(&"manashards", shards)
+		## U{1,3} plus Shard Sight (+0.5 per rank), then the Can ×2. Fractions stay in the accumulator.
+		var shard_roll: float = float(randi_range(shard_min, shard_max)) + get_effect_total("water_shard_bonus")
+		var units: float = shard_roll * float(get_water_shard_roll_mult())
+		shards = accumulate_harvest(&"manashards", units)
 		lifetime_shards_from_water += shards
 	if grant_essence:
 		ess = get_water_essence_amount()
@@ -984,8 +1045,111 @@ func try_advance() -> String:
 	return try_grow_stage()
 
 
+func ancient_duration_sec() -> float:
+	_ensure_idle_tuning()
+	return maxf(1.0, float(_idle_tuning.get("ancient_duration_sec", 600.0)))
+
+
+func offline_reset_active_sec() -> float:
+	_ensure_idle_tuning()
+	return maxf(0.0, float(_idle_tuning.get("offline_reset_active_sec", 180.0)))
+
+
+func tick_ancient(delta: float) -> void:
+	## Open and unpaused only — _process does not run while the tree is paused, and offline never calls this.
+	if stage_id != &"ancient" or fruit_committed or delta <= 0.0:
+		return
+	if ancient_remaining_sec <= 0.0:
+		return
+	ancient_remaining_sec = maxf(0.0, ancient_remaining_sec - delta)
+	if ancient_remaining_sec > 0.0:
+		return
+	ancient_remaining_sec = 0.0
+	if harvest_fruit() > 0:
+		ancient_expired.emit()
+
+
+func offline_effective_seconds(closed_sec: float) -> float:
+	## Shared curve from a fresh closure. Tiers are [end_hours, rate]; end_hours <= 0 runs to the end.
+	if closed_sec <= 0.0:
+		return 0.0
+	_ensure_idle_tuning()
+	var tiers_v: Variant = _idle_tuning.get("offline_tiers", [])
+	var tiers: Array = tiers_v if typeof(tiers_v) == TYPE_ARRAY else []
+	if tiers.is_empty():
+		tiers = _default_offline_tiers()
+	var cursor: float = 0.0
+	var total: float = 0.0
+	var remain: float = closed_sec
+	for entry: Variant in tiers:
+		if typeof(entry) != TYPE_ARRAY:
+			continue
+		var pair: Array = entry
+		if pair.size() < 2:
+			continue
+		var end_hours: float = float(pair[0])
+		var rate: float = float(pair[1])
+		var span: float = remain
+		if end_hours > 0.0:
+			var end_sec: float = end_hours * 3600.0
+			span = minf(remain, maxf(0.0, end_sec - cursor))
+			cursor = end_sec
+		if span > 0.0:
+			total += span * rate
+			remain -= span
+		if remain <= 0.0000001:
+			break
+	return total
+
+
+func commit_offline_gap(gap_sec: float) -> float:
+	## Price this closure on the curve. 180s of active play since load restarts at 1/10; a shorter reopen continues.
+	## Ancient (and a committed Fruit) grant nothing and do not consume curve time.
+	if gap_sec <= 0.0:
+		return 0.0
+	if stage_id == &"ancient" or fruit_committed:
+		active_since_load_sec = 0.0
+		return 0.0
+	var origin: float = offline_closed_sec
+	if active_since_load_sec + 0.0001 >= offline_reset_active_sec():
+		origin = 0.0
+	var end_sec: float = origin + gap_sec
+	var eff: float = offline_effective_seconds(end_sec) - offline_effective_seconds(origin)
+	offline_closed_sec = end_sec
+	active_since_load_sec = 0.0
+	return eff
+
+
+func _ensure_idle_tuning() -> void:
+	if _idle_tuning_loaded:
+		return
+	_idle_tuning_loaded = true
+	_idle_tuning = {}
+	var file := FileAccess.open("res://data/forge_tuning.json", FileAccess.READ)
+	if file == null:
+		return
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if typeof(parsed) == TYPE_DICTIONARY:
+		_idle_tuning = parsed
+
+
+func _default_offline_tiers() -> Array:
+	return [
+		[0.5, 0.1],
+		[2.0, 1.0 / 60.0],
+		[8.0, 1.0 / 250.0],
+		[24.0, 1.0 / 600.0],
+		[-1.0, 1.0 / 3000.0],
+	]
+
+
 func _set_stage(id: StringName) -> void:
 	stage_id = id
+	if id == &"ancient":
+		ancient_remaining_sec = ancient_duration_sec()
+	else:
+		ancient_remaining_sec = 0.0
 	var def: Dictionary = get_stage_def(id)
 	fruit_ready = bool(def.get("grants_fruit", false)) and not fruit_committed
 	stage_changed.emit(stage_id)
@@ -1041,6 +1205,7 @@ func ascend() -> void:
 	wisp_count = get_upgrade_rank("bonus_wisp")
 	wisp_assignments.clear()
 	wisp_pulse_accum.clear()
+	harvest_accum.clear()
 	_ensure_wisp_slots()
 	clear_selection()
 	wisps_changed.emit()
@@ -1088,6 +1253,10 @@ func to_save_dict() -> Dictionary:
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
 		"welcome_shown": welcome_shown,
 		"run_time_sec": run_time_sec,
+		"harvest_accum": harvest_accum.duplicate(true),
+		"ancient_remaining_sec": ancient_remaining_sec,
+		"offline_closed_sec": offline_closed_sec,
+		"active_since_load_sec": active_since_load_sec,
 		"ascensions": ascensions,
 		"lifetime_waters": lifetime_waters,
 		"lifetime_shards_from_water": lifetime_shards_from_water,
@@ -1129,6 +1298,20 @@ func apply_save_dict(data: Dictionary) -> void:
 	_set_fruit_committed(bool(data.get("fruit_committed", data.get("fruit_harvested_pending_ascend", false))))
 	if fruit_committed:
 		fruit_ready = false
+	var accum_v: Variant = data.get("harvest_accum", {})
+	if typeof(accum_v) == TYPE_DICTIONARY:
+		harvest_accum = (accum_v as Dictionary).duplicate(true)
+	else:
+		harvest_accum = {}
+	if stage_id == &"ancient" and not fruit_committed:
+		if data.has("ancient_remaining_sec"):
+			ancient_remaining_sec = maxf(0.0, float(data.get("ancient_remaining_sec", 0.0)))
+		else:
+			ancient_remaining_sec = ancient_duration_sec()
+	else:
+		ancient_remaining_sec = 0.0
+	offline_closed_sec = maxf(0.0, float(data.get("offline_closed_sec", 0.0)))
+	active_since_load_sec = maxf(0.0, float(data.get("active_since_load_sec", 0.0)))
 	welcome_shown = bool(data.get("welcome_shown", false))
 	run_time_sec = float(data.get("run_time_sec", 0.0))
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
@@ -1236,6 +1419,10 @@ func reset_for_new_game() -> void:
 	wisp_count = 0
 	wisp_assignments.clear()
 	wisp_pulse_accum.clear()
+	harvest_accum.clear()
+	ancient_remaining_sec = 0.0
+	offline_closed_sec = 0.0
+	active_since_load_sec = 0.0
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()
