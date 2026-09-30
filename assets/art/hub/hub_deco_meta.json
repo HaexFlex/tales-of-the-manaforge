@@ -1,0 +1,826 @@
+{
+ "version": "v0.3.0-hub-v3",
+ "filter": "nearest",
+ "density": "1 art px = 1 display px (scale 1), like the Keeper and harvest tree",
+ "note": "Additive hub v3 set. Code swaps: retexture baked ForestProps by position hash, add-only placement for new props, sprite_scale 1, no decor modulate. Colliders follow data/hub_map.json collision (trees trunk box, bushes 16x10); ground/props are visual only (rocks too, Haex).",
+ "offset_rule": "Sprite2D centered=false, offset = (-w//2, -h): node origin = base centre (the forest_prop.gd convention)",
+ "families": {
+  "ring_bush_big": [
+   {
+    "file": "hub/bushes/ring_bush_big_01.png",
+    "size": [
+     192,
+     144
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -96,
+     -144
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   },
+   {
+    "file": "hub/bushes/ring_bush_big_02.png",
+    "size": [
+     192,
+     144
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -96,
+     -144
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   },
+   {
+    "file": "hub/bushes/ring_bush_big_03.png",
+    "size": [
+     192,
+     144
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -96,
+     -144
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   }
+  ],
+  "ring_bush_small": [
+   {
+    "file": "hub/bushes/ring_bush_small_01.png",
+    "size": [
+     120,
+     72
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   },
+   {
+    "file": "hub/bushes/ring_bush_small_02.png",
+    "size": [
+     120,
+     72
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   },
+   {
+    "file": "hub/bushes/ring_bush_small_03.png",
+    "size": [
+     120,
+     72
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   }
+  ],
+  "fern": [
+   {
+    "file": "hub/ground/fern_01.png",
+    "size": [
+     64,
+     64
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -64
+    ],
+    "kind": "fern",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/fern_02.png",
+    "size": [
+     64,
+     64
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -64
+    ],
+    "kind": "fern",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/fern_03.png",
+    "size": [
+     64,
+     64
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -64
+    ],
+    "kind": "fern",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/fern_04.png",
+    "size": [
+     64,
+     64
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -64
+    ],
+    "kind": "fern",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/fern_05.png",
+    "size": [
+     64,
+     64
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -64
+    ],
+    "kind": "fern",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/fern_06.png",
+    "size": [
+     64,
+     64
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -64
+    ],
+    "kind": "fern",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   }
+  ],
+  "grass_tuft": [
+   {
+    "file": "hub/ground/grass_tuft_01.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/grass_tuft_02.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/grass_tuft_03.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/grass_tuft_04.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/grass_tuft_05.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/grass_tuft_06.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/grass_tuft_07.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/grass_tuft_08.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/ground/grass_tuft_09.png",
+    "size": [
+     64,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -32,
+     -48
+    ],
+    "kind": "grass_tuft",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   }
+  ],
+  "flower": [
+   {
+    "file": "hub/props/flower_01.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "flower",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/flower_02.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "flower",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/flower_03.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "flower",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/flower_04.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "flower",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/flower_05.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "flower",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/flower_06.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "flower",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   }
+  ],
+  "mushroom_glow": [
+   {
+    "file": "hub/props/mushroom_glow_01.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "mushroom_glow",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true,
+    "glow": true,
+    "glow_file": "hub/props/mushroom_glow_01_glow.png",
+    "glow_size": [
+     96,
+     96
+    ],
+    "glow_offset": [
+     -48,
+     -72
+    ],
+    "glow_blend": "add",
+    "glow_color": "#4de0cd",
+    "glow_pulse_hint": "alpha 0.55..1.0 sine, ~3-4 s period, desynced per node"
+   },
+   {
+    "file": "hub/props/mushroom_glow_02.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "mushroom_glow",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true,
+    "glow": true,
+    "glow_file": "hub/props/mushroom_glow_02_glow.png",
+    "glow_size": [
+     96,
+     96
+    ],
+    "glow_offset": [
+     -48,
+     -72
+    ],
+    "glow_blend": "add",
+    "glow_color": "#4de0cd",
+    "glow_pulse_hint": "alpha 0.55..1.0 sine, ~3-4 s period, desynced per node"
+   },
+   {
+    "file": "hub/props/mushroom_glow_03.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "mushroom_glow",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true,
+    "glow": true,
+    "glow_file": "hub/props/mushroom_glow_03_glow.png",
+    "glow_size": [
+     96,
+     96
+    ],
+    "glow_offset": [
+     -48,
+     -72
+    ],
+    "glow_blend": "add",
+    "glow_color": "#4de0cd",
+    "glow_pulse_hint": "alpha 0.55..1.0 sine, ~3-4 s period, desynced per node"
+   }
+  ],
+  "mushroom_plain": [
+   {
+    "file": "hub/props/mushroom_plain_01.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "mushroom_plain",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/mushroom_plain_02.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "mushroom_plain",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/mushroom_plain_03.png",
+    "size": [
+     48,
+     48
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -48
+    ],
+    "kind": "mushroom_plain",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   }
+  ],
+  "rock_mossy": [
+   {
+    "file": "hub/props/rock_mossy_01.png",
+    "size": [
+     48,
+     40
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -40
+    ],
+    "kind": "rock_mossy",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/rock_mossy_02.png",
+    "size": [
+     48,
+     40
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -40
+    ],
+    "kind": "rock_mossy",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/rock_mossy_03.png",
+    "size": [
+     48,
+     40
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -40
+    ],
+    "kind": "rock_mossy",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/rock_mossy_04.png",
+    "size": [
+     48,
+     40
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -40
+    ],
+    "kind": "rock_mossy",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/rock_mossy_05.png",
+    "size": [
+     48,
+     40
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -40
+    ],
+    "kind": "rock_mossy",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   },
+   {
+    "file": "hub/props/rock_mossy_06.png",
+    "size": [
+     48,
+     40
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -24,
+     -40
+    ],
+    "kind": "rock_mossy",
+    "collider": null,
+    "sprite_scale": 1,
+    "visual_only": true
+   }
+  ],
+  "ring_tree_large": [
+   {
+    "file": "hub/trees/ring_tree_large_01.png",
+    "size": [
+     320,
+     400
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -160,
+     -400
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   },
+   {
+    "file": "hub/trees/ring_tree_large_02.png",
+    "size": [
+     320,
+     400
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -160,
+     -400
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   },
+   {
+    "file": "hub/trees/ring_tree_large_03.png",
+    "size": [
+     320,
+     400
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -160,
+     -400
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   }
+  ],
+  "ring_tree_medium": [
+   {
+    "file": "hub/trees/ring_tree_medium_01.png",
+    "size": [
+     256,
+     288
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -128,
+     -288
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   },
+   {
+    "file": "hub/trees/ring_tree_medium_02.png",
+    "size": [
+     256,
+     288
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -128,
+     -288
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   }
+  ],
+  "ring_tree_slim": [
+   {
+    "file": "hub/trees/ring_tree_slim_01.png",
+    "size": [
+     160,
+     320
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -80,
+     -320
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "visual_only": false
+   }
+  ]
+ }
+}
