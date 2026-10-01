@@ -46,6 +46,10 @@ var portal_unlocked: bool = false
 var portal_fee_paid: bool = false
 var echo_01_resolved: bool = false
 var echo_01_redeemed: bool = false
+## Set when the first Reliquary relic lands in the gear inventory. Not the Forge Key.
+var first_relic_crafted: bool = false
+## v9 saves from before this gate already had her in the party after Spare alone.
+var elaia_legacy_joined: bool = false
 var forge_key: bool = false
 var echo_01_narrator_heard: bool = false
 ## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
@@ -423,9 +427,22 @@ func select_wisp(wisp_id: int) -> void:
 	selection_changed.emit()
 
 
+func elaia_in_party() -> bool:
+	## Spare is the story beat. The portrait waits for the first Reliquary relic,
+	## unless this save already had her from before that gate.
+	return echo_01_redeemed and (first_relic_crafted or elaia_legacy_joined)
+
+
+func note_first_relic_crafted() -> void:
+	if first_relic_crafted:
+		return
+	first_relic_crafted = true
+	echo_flags_changed.emit()
+
+
 func select_companion(companion_id: String) -> void:
-	## Portrait click. Elaia joins after Spare; she has no body in the clearing.
-	if companion_id != "elaia" or not echo_01_redeemed:
+	## Portrait click. She has no body in the clearing.
+	if companion_id != "elaia" or not elaia_in_party():
 		return
 	if selected_companion_id == companion_id and not keeper_selected and selected_wisp_ids.is_empty() and selected_wisp_id < 0:
 		return
@@ -1318,6 +1335,8 @@ func to_save_dict() -> Dictionary:
 		"portal_fee_paid": portal_fee_paid,
 		"echo_01_resolved": echo_01_resolved,
 		"echo_01_redeemed": echo_01_redeemed,
+		"first_relic_crafted": first_relic_crafted,
+		"elaia_legacy_joined": elaia_legacy_joined,
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
 		"arrow_mode": arrow_mode,
@@ -1358,6 +1377,15 @@ func apply_save_dict(data: Dictionary) -> void:
 	portal_fee_paid = bool(data.get("portal_fee_paid", false))
 	echo_01_resolved = bool(data.get("echo_01_resolved", false))
 	echo_01_redeemed = bool(data.get("echo_01_redeemed", false))
+	if data.has("first_relic_crafted"):
+		first_relic_crafted = bool(data.get("first_relic_crafted", false))
+	else:
+		first_relic_crafted = _save_holds_relic(data)
+	if data.has("elaia_legacy_joined"):
+		elaia_legacy_joined = bool(data.get("elaia_legacy_joined", false))
+	else:
+		## Missing gate: Spare had already put her in the party, even with no relic.
+		elaia_legacy_joined = echo_01_redeemed and not data.has("first_relic_crafted")
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
@@ -1417,6 +1445,32 @@ func apply_save_dict(data: Dictionary) -> void:
 	load_completed.emit()
 
 
+func _save_holds_relic(data: Dictionary) -> bool:
+	## Missing first_relic_crafted defaults true when the save already holds a relic.
+	## The Forge Key counts: it is a relic. A crafted Reliquary relic counts too.
+	if not has_node("/root/Equipment"):
+		return false
+	var ids: Array[String] = []
+	var bag: Variant = data.get("gear_inventory", {})
+	if typeof(bag) == TYPE_DICTIONARY:
+		for key: Variant in (bag as Dictionary).keys():
+			if int((bag as Dictionary)[key]) > 0:
+				ids.append(str(key))
+	var equipped: Variant = data.get("equipment_equipped", {})
+	if typeof(equipped) == TYPE_DICTIONARY:
+		for key: Variant in (equipped as Dictionary).keys():
+			var raw: Variant = (equipped as Dictionary)[key]
+			if raw == null:
+				continue
+			var iid: String = str(raw)
+			if iid != "" and iid != "Null":
+				ids.append(iid)
+	for iid: String in ids:
+		if str(Equipment.get_item_def(iid).get("category", "")) == "relic":
+			return true
+	return false
+
+
 func _equipment_save_field(key: String) -> Dictionary:
 	if not has_node("/root/Equipment"):
 		return {}
@@ -1472,6 +1526,8 @@ func reset_for_new_game() -> void:
 	portal_fee_paid = false
 	echo_01_resolved = false
 	echo_01_redeemed = false
+	first_relic_crafted = false
+	elaia_legacy_joined = false
 	forge_key = false
 	echo_01_narrator_heard = false
 	arrow_mode = "physical"

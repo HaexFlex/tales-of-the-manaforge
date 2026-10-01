@@ -783,8 +783,11 @@ func _grant_output(recipe: Dictionary) -> void:
 	if output == "":
 		return
 	if bool(recipe.get("output_gear", false)):
+		var granted: bool = false
 		if has_node("/root/Equipment"):
-			Equipment.add_gear(output, 1)
+			granted = Equipment.add_gear(output, 1)
+		if granted and str(recipe.get("category", "")) == "relic" and has_node("/root/GameState"):
+			GameState.note_first_relic_crafted()
 		return
 	if has_node("/root/Backpack"):
 		Backpack.add_item(output, 1)

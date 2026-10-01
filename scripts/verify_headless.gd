@@ -39,6 +39,16 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
+		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
+		if elaia_failed > 0:
+			print("ELAIA_FAIL: %d assertion(s) failed" % elaia_failed)
+			quit(1)
+		else:
+			print("ELAIA_OK")
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -2288,6 +2298,7 @@ func _run() -> void:
 	failed += _forge_pass_a(tree_root, game_state, save_service, backpack)
 	failed += _forge_duration_ticks(tree_root, game_state, backpack)
 	failed += await _party_bar_check(tree_root, game_state)
+	failed += await _elaia_join_check(tree_root, game_state, backpack)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
@@ -2980,6 +2991,76 @@ func _forge_tick(jobs: Node, seconds: float) -> void:
 		left -= step
 
 
+func _elaia_join_check(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(jobs != null and equipment != null, "elaia join nodes")
+	if jobs == null or equipment == null:
+		return failed
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(packed != null, "elaia party hud loads")
+	if packed == null:
+		return failed
+	var hud: Node = packed.instantiate()
+	tree_root.add_child(hud)
+	await process_frame
+	game_state.call("reset_for_new_game")
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", false)
+	game_state.set("elaia_legacy_joined", false)
+	hud.call("_refresh_party_bar")
+	var elaia_slot: Control = hud.get_node_or_null("PartyBar/Column/Elaia") as Control
+	var keeper_slot: Control = hud.get_node_or_null("PartyBar/Column/Keeper") as Control
+	var wisp_slot: Control = hud.get_node_or_null("PartyBar/Column/Wisps") as Control
+	failed += _assert(not bool(game_state.call("elaia_in_party")), "Spare with no Relic does not join Elaia")
+	failed += _assert(elaia_slot != null and not elaia_slot.visible, "no Elaia portrait after Spare with no Relic")
+	hud.call("party_click", "elaia")
+	failed += _assert(str(game_state.get("selected_companion_id")) == "", "Spare alone does not select Elaia")
+	_forge_stock(game_state, backpack, "reliquary")
+	jobs.call("set_keeper_working", "reliquary", true)
+	failed += _assert(str(jobs.call("try_begin_job", "reliquary", "oakheart_knot")) == "ok", "first relic job starts")
+	jobs.call("_process", 600.0)
+	failed += _assert(not bool(jobs.call("has_job", "reliquary")), "first relic craft completes")
+	failed += _assert(int(equipment.call("unequipped_count", "oakheart_knot")) == 1, "first relic is in the inventory")
+	failed += _assert(bool(game_state.get("first_relic_crafted")), "first relic sets the flag")
+	failed += _assert(bool(game_state.call("elaia_in_party")), "Elaia joins after the first Relic craft")
+	hud.call("_refresh_party_bar")
+	failed += _assert(elaia_slot.visible and keeper_slot.visible, "Elaia portrait shows under the Keeper")
+	failed += _assert(wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, then Elaia")
+	var old_save: Dictionary = {
+		"stage_id": "sapling",
+		"echo_01_redeemed": true,
+		"forge_key": false,
+		"gear_inventory": {},
+		"equipment_equipped": {},
+	}
+	game_state.call("apply_save_dict", old_save)
+	hud.call("_refresh_party_bar")
+	failed += _assert(bool(game_state.get("echo_01_redeemed")) and not bool(game_state.get("first_relic_crafted")), "old join does not invent a relic craft")
+	failed += _assert(bool(game_state.call("elaia_in_party")), "old save with Elaia joined and no Relic keeps her")
+	failed += _assert(elaia_slot.visible, "old save still shows her portrait")
+	var relic_save: Dictionary = {
+		"stage_id": "sapling",
+		"echo_01_redeemed": false,
+		"forge_key": false,
+		"gear_inventory": {"oakheart_knot": 1},
+		"equipment_equipped": {},
+	}
+	game_state.call("apply_save_dict", relic_save)
+	failed += _assert(bool(game_state.get("first_relic_crafted")), "missing flag defaults true when the save holds a relic")
+	failed += _assert(not bool(game_state.call("elaia_in_party")), "a relic without Spare does not join Elaia")
+	hud.queue_free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	jobs.call("set_dev_speed_override", 1.0)
+	if failed == 0:
+		print("ELAIA_JOIN_OK")
+	return failed
+
+
 func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	var failed: int = 0
 	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
@@ -3015,8 +3096,15 @@ func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(not wisp_slot.visible, "wisp portrait hides when selection clears")
 	failed += _assert(keeper_slot.visible, "keeper portrait stays when selection clears")
 	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", false)
+	game_state.set("elaia_legacy_joined", false)
 	hud.call("_refresh_party_bar")
-	failed += _assert(elaia_slot != null and elaia_slot.visible, "Elaia portrait after Spare")
+	failed += _assert(elaia_slot != null and not elaia_slot.visible, "no Elaia portrait after Spare without a Relic")
+	game_state.set("first_relic_crafted", true)
+	hud.call("_refresh_party_bar")
+	failed += _assert(elaia_slot.visible, "Elaia portrait after Spare and the first Relic")
+	var order_column: Node = hud.get_node_or_null("PartyBar/Column")
+	failed += _assert(order_column != null and wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, Elaia")
 	hud.call("party_click", "elaia")
 	failed += _assert(str(game_state.get("selected_companion_id")) == "elaia", "click Elaia portrait selects her")
 	hud.queue_free()

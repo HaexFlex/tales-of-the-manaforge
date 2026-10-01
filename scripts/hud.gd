@@ -611,8 +611,8 @@ func _build_party_bar() -> void:
 	_style_party_label(_wisp_count_label, 14, Color(0.95, 0.92, 0.78))
 	_slot_wisp.add_child(_wisp_count_label)
 	_party_column.add_child(_slot_wisp)
-	_party_column.add_child(_slot_elaia)
 	_party_column.add_child(_slot_keeper)
+	_party_column.add_child(_slot_elaia)
 	_party_info = VBoxContainer.new()
 	_party_info.name = "Info"
 	_party_info.position = Vector2(PARTY_SLOT + 10.0, 0)
@@ -724,7 +724,7 @@ func _refresh_party_bar() -> void:
 	var ids: Array[int] = GameState.selected_wisp_list()
 	var show_keeper: bool = GameState.keeper_selected
 	var companion_id: String = str(GameState.selected_companion_id)
-	var elaia_joined: bool = GameState.echo_01_redeemed
+	var elaia_joined: bool = GameState.elaia_in_party()
 	_party_bar.visible = true
 	_slot_keeper.visible = true
 	_slot_elaia.visible = elaia_joined
