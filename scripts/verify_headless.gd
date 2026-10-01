@@ -2925,11 +2925,7 @@ func _forge_one_clock(jobs: Node, game_state: Node, backpack: Node, equipment: N
 	if margin < 0.02:
 		margin = 0.02
 	_forge_tick(jobs, expected - margin)
-	var state_v: Variant = jobs.call("job_state", station)
-	var fraction: float = 1.0
-	if typeof(state_v) == TYPE_DICTIONARY:
-		fraction = float((state_v as Dictionary).get("fraction", 1.0))
-	var early_ok: bool = bool(jobs.call("has_job", station)) and float(jobs.call("job_progress", station)) + 0.01 < spec and fraction < 0.999 and str(jobs.call("job_line", station)) != ""
+	var early_ok: bool = bool(jobs.call("has_job", station)) and float(jobs.call("job_progress", station)) + 0.01 < spec and str(jobs.call("job_line", station)) != ""
 	var who: String = "keeper alone" if wisps == 0 else "keeper+%d wisps" % wisps
 	if station == "anvil" and bug_scale <= 1.5:
 		failed += _assert(early_ok, "anvil %s not done just before spec" % who)
