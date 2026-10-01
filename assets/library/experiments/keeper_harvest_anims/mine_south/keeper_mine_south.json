@@ -1,0 +1,58 @@
+{
+  "clip": "mine_south",
+  "canvas": [
+    192,
+    128
+  ],
+  "anchor": "feet_center",
+  "anchor_px": [
+    96,
+    128
+  ],
+  "sprite_offset": [
+    -96,
+    -128
+  ],
+  "filter": "nearest",
+  "frames": 6,
+  "strip": "keeper_mine_south.png",
+  "layout": "horizontal",
+  "files": [
+    "keeper_mine_south_0001.png",
+    "keeper_mine_south_0002.png",
+    "keeper_mine_south_0003.png",
+    "keeper_mine_south_0004.png",
+    "keeper_mine_south_0005.png",
+    "keeper_mine_south_0006.png"
+  ],
+  "hold_ms": [
+    240,
+    120,
+    120,
+    200,
+    160,
+    160
+  ],
+  "loop_ms": 1000,
+  "loop": true,
+  "strike_frame": 2,
+  "strike_frame_index0": 1,
+  "strike_at_ms": 240,
+  "pulse_sync": "harvest pulse (tool) = 1000 ms = one loop; start the loop 240 ms before the pulse so frame 0002 lands on it",
+  "body_h_ready_px": 122,
+  "sole_rows": [
+    122,
+    125
+  ],
+  "frame_roles": [
+    "K1 ready (pick on shoulder doubles as wind-up)",
+    "K3 strike + smear + sparks",
+    "K3 hold + sparks flying",
+    "K4 rebound + debris",
+    "K4 hold (doubled key)",
+    "K1 recover (doubled key)"
+  ],
+  "source": "raw/mine_south_A.png; Imagine key poses (raw/<clip>_A.png) ingested by tools/ingest_imagine.py, built by tools/build_harvest.py",
+  "notes": "",
+  "status": "experiment - not wired into the game"
+}

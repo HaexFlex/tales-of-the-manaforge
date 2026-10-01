@@ -1,0 +1,285 @@
+{
+  "note": "head_drift = mean RGB abs diff of a 40x48 head crop vs the live idle_south (vs_idle) / vs the sheet's own READY key (vs_key0). Calibration: live walk_south frames score 1-35 vs idle. East/west compare a profile head to the front idle, so vs_idle is not meaningful there.",
+  "canvas": [
+    192,
+    128
+  ],
+  "anchor_px": [
+    96,
+    128
+  ],
+  "clips": {
+    "chop_south": {
+      "raw": "raw/chop_south_A.png",
+      "scale": 0.3271,
+      "poses": [
+        {
+          "cell": 0,
+          "scale": 0.3271,
+          "head_drift_vs_idle": 45.1,
+          "head_drift_vs_key0": 0.0,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "overflow_px": {
+            "top": 0,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "ok"
+        },
+        {
+          "cell": 1,
+          "scale": 0.3271,
+          "head_drift_vs_idle": 49.0,
+          "head_drift_vs_key0": 39.4,
+          "body_h": 119,
+          "clipped_at_canvas_edge": true,
+          "overflow_px": {
+            "top": 5,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "FLAG clipped 5px top (axe head) -> repaired: axe rotated 18 deg about the grip"
+        },
+        {
+          "cell": 2,
+          "scale": 0.3271,
+          "head_drift_vs_idle": 49.6,
+          "head_drift_vs_key0": 32.9,
+          "body_h": 116,
+          "clipped_at_canvas_edge": false,
+          "overflow_px": {
+            "top": 0,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "ok (no chips in raw -> chips/flash added)"
+        },
+        {
+          "cell": 3,
+          "scale": 0.3271,
+          "head_drift_vs_idle": 47.6,
+          "head_drift_vs_key0": 35.3,
+          "body_h": 115,
+          "clipped_at_canvas_edge": false,
+          "overflow_px": {
+            "top": 0,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "ok (raw chips kept)"
+        }
+      ]
+    },
+    "chop_east": {
+      "raw": "raw/chop_east_A.png",
+      "scale": 0.3609,
+      "poses": [
+        {
+          "cell": 0,
+          "scale": 0.3609,
+          "head_drift_vs_idle": 58.4,
+          "head_drift_vs_key0": 0.0,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "overflow_px": {
+            "top": 0,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "ok"
+        },
+        {
+          "cell": 1,
+          "scale": 0.3609,
+          "head_drift_vs_idle": 59.3,
+          "head_drift_vs_key0": 15.8,
+          "body_h": 118,
+          "clipped_at_canvas_edge": true,
+          "overflow_px": {
+            "top": 4,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "FLAG clipped 4px top (axe head) -> repaired: axe rotated -28 deg about the grip; axe is a large double-bit axe, ~1.8x the south axe"
+        },
+        {
+          "cell": 2,
+          "scale": 0.3609,
+          "head_drift_vs_idle": 59.5,
+          "head_drift_vs_key0": 17.5,
+          "body_h": 113,
+          "clipped_at_canvas_edge": false,
+          "overflow_px": {
+            "top": 0,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "ok (raw dust/chips kept, flash + chips added)"
+        },
+        {
+          "cell": 3,
+          "scale": 0.3609,
+          "head_drift_vs_idle": 60.3,
+          "head_drift_vs_key0": 22.2,
+          "body_h": 117,
+          "clipped_at_canvas_edge": false,
+          "overflow_px": {
+            "top": 0,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "ok (raw chips kept)"
+        }
+      ]
+    },
+    "pluck_south": {
+      "raw": "raw/pluck_south_A.png",
+      "scale": 0.3152,
+      "poses": [
+        {
+          "cell": 0,
+          "scale": 0.3152,
+          "head_drift_vs_idle": 45.7,
+          "head_drift_vs_key0": 0.0,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "verdict": "ok"
+        },
+        {
+          "cell": 1,
+          "scale": 0.3152,
+          "head_drift_vs_idle": 47.1,
+          "head_drift_vs_key0": 28.0,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "verdict": "ok"
+        },
+        {
+          "cell": 2,
+          "scale": 0.3152,
+          "head_drift_vs_idle": 49.2,
+          "head_drift_vs_key0": 36.3,
+          "body_h": 120,
+          "clipped_at_canvas_edge": false,
+          "verdict": "ok (berry pop added)"
+        },
+        {
+          "cell": 3,
+          "scale": 0.3152,
+          "head_drift_vs_idle": 47.0,
+          "head_drift_vs_key0": 33.7,
+          "body_h": 121,
+          "clipped_at_canvas_edge": false,
+          "verdict": "ok"
+        }
+      ]
+    },
+    "pluck_east": {
+      "raw": "raw/pluck_east_A.png",
+      "scale": 0.3408,
+      "poses": [
+        {
+          "cell": 0,
+          "scale": 0.3408,
+          "head_drift_vs_idle": 54.7,
+          "head_drift_vs_key0": 0.0,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "verdict": "ok"
+        },
+        {
+          "cell": 1,
+          "scale": 0.3408,
+          "head_drift_vs_idle": 55.3,
+          "head_drift_vs_key0": 10.8,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "verdict": "ok"
+        },
+        {
+          "cell": 2,
+          "scale": 0.3408,
+          "head_drift_vs_idle": 55.5,
+          "head_drift_vs_key0": 9.6,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "verdict": "ok (berry pop added)"
+        },
+        {
+          "cell": 3,
+          "scale": 0.3408,
+          "head_drift_vs_idle": 55.3,
+          "head_drift_vs_key0": 11.9,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "verdict": "ok"
+        }
+      ]
+    },
+    "mine_south": {
+      "raw": "raw/mine_south_A.png",
+      "scale": 0.3361,
+      "poses": [
+        {
+          "cell": 0,
+          "scale": 0.3361,
+          "head_drift_vs_idle": 47.7,
+          "head_drift_vs_key0": 0.0,
+          "body_h": 122,
+          "clipped_at_canvas_edge": false,
+          "overflow_px": {
+            "top": 0,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "ok (doubles as wind-up)"
+        },
+        {
+          "cell": 1,
+          "scale": 0.3361,
+          "head_drift_vs_idle": 53.5,
+          "head_drift_vs_key0": 48.2,
+          "body_h": 118,
+          "clipped_at_canvas_edge": true,
+          "overflow_px": {
+            "top": 25,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "REJECTED: pick 25px above the 128px frame; rotating it to fit crosses the face"
+        },
+        {
+          "cell": 2,
+          "scale": 0.3361,
+          "head_drift_vs_idle": 50.8,
+          "head_drift_vs_key0": 35.2,
+          "body_h": 110,
+          "clipped_at_canvas_edge": false,
+          "overflow_px": {
+            "top": 0,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "ok (sparks added)"
+        },
+        {
+          "cell": 3,
+          "scale": 0.3361,
+          "head_drift_vs_idle": 50.8,
+          "head_drift_vs_key0": 39.3,
+          "body_h": 115,
+          "clipped_at_canvas_edge": true,
+          "overflow_px": {
+            "top": 1,
+            "left": 0,
+            "right": 0
+          },
+          "verdict": "FLAG 1px pick tip trimmed at top edge (accepted)"
+        }
+      ]
+    },
+    "chop_west": "horizontal mirror of chop_east (same flags)",
+    "pluck_west": "horizontal mirror of pluck_east (same flags)"
+  }
+}

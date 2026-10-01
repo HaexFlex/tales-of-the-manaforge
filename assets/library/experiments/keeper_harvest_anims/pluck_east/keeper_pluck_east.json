@@ -1,0 +1,58 @@
+{
+  "clip": "pluck_east",
+  "canvas": [
+    192,
+    128
+  ],
+  "anchor": "feet_center",
+  "anchor_px": [
+    96,
+    128
+  ],
+  "sprite_offset": [
+    -96,
+    -128
+  ],
+  "filter": "nearest",
+  "frames": 6,
+  "strip": "keeper_pluck_east.png",
+  "layout": "horizontal",
+  "files": [
+    "keeper_pluck_east_0001.png",
+    "keeper_pluck_east_0002.png",
+    "keeper_pluck_east_0003.png",
+    "keeper_pluck_east_0004.png",
+    "keeper_pluck_east_0005.png",
+    "keeper_pluck_east_0006.png"
+  ],
+  "hold_ms": [
+    160,
+    180,
+    140,
+    120,
+    220,
+    180
+  ],
+  "loop_ms": 1000,
+  "loop": true,
+  "strike_frame": 3,
+  "strike_frame_index0": 2,
+  "strike_at_ms": 340,
+  "pulse_sync": "harvest pulse (tool) = 1000 ms = one loop; start the loop 340 ms before the pulse so frame 0003 lands on it",
+  "body_h_ready_px": 122,
+  "sole_rows": [
+    122,
+    125
+  ],
+  "frame_roles": [
+    "K1 ready",
+    "K2 reach",
+    "K3 grab + berry pop",
+    "K3 hold + sparkle/leaves",
+    "K4 berry to chest",
+    "K1 recover (doubled key)"
+  ],
+  "source": "raw/pluck_east_A.png; Imagine key poses (raw/<clip>_A.png) ingested by tools/ingest_imagine.py, built by tools/build_harvest.py",
+  "notes": "",
+  "status": "experiment - not wired into the game"
+}
