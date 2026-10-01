@@ -27,6 +27,18 @@ func _run() -> void:
 		quit(1)
 		return
 
+	# Isolated Pass J clock. The full suite still runs this test near the end.
+	# MANAFORGE_DURATION_ONLY=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_DURATION_ONLY") == "1":
+		var dur_failed: int = _forge_duration_ticks(tree_root, game_state, backpack)
+		if dur_failed > 0:
+			print("DURATION_FAIL: %d assertion(s) failed" % dur_failed)
+			quit(1)
+		else:
+			print("DURATION_OK")
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
