@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name GameHUD
-## HUD + Manatree care + backpack/handcraft + Ascension shop. SYSTEMS v0.4.1.
+## HUD + Manatree care + backpack + Keeper's Bench + Ascension shop.
 
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
@@ -29,11 +29,17 @@ class_name GameHUD
 @onready var backpack_close_button: Button = $BackpackPanel/Header/BackpackCloseButton
 @onready var inventory_title: Label = $BackpackPanel/InventoryTitle
 @onready var backpack_tab_all: Button = $BackpackPanel/TabRow/TabAll
+@onready var backpack_tab_raw: Button = $BackpackPanel/TabRow/TabRaw
+@onready var backpack_tab_refined: Button = $BackpackPanel/TabRow/TabRefined
 @onready var backpack_tab_tools: Button = $BackpackPanel/TabRow/TabTools
-@onready var backpack_tab_parts: Button = $BackpackPanel/TabRow/TabParts
+@onready var backpack_tab_weapons: Button = $BackpackPanel/TabRow/TabWeapons
+@onready var backpack_tab_relics: Button = $BackpackPanel/TabRow/TabRelics
 @onready var inventory_list: VBoxContainer = $BackpackPanel/InventoryScroll/InventoryList
-@onready var handcraft_title: Label = $BackpackPanel/HandcraftTitle
-@onready var craft_list: VBoxContainer = $BackpackPanel/CraftScroll/CraftList
+@onready var bench_panel: Panel = $BenchPanel
+@onready var bench_title: Label = $BenchPanel/Header/BenchTitle
+@onready var bench_close_button: Button = $BenchPanel/Header/BenchCloseButton
+@onready var bench_prompt: Label = $BenchPanel/BenchPrompt
+@onready var craft_list: VBoxContainer = $BenchPanel/CraftScroll/CraftList
 @onready var care_grow_costs: HBoxContainer = $CarePanel/CareGrowCosts
 @onready var grow_fert_icon: TextureRect = $CarePanel/CareGrowCosts/FertilizerIcon
 @onready var grow_fert_need: Label = $CarePanel/CareGrowCosts/FertilizerNeed
@@ -121,6 +127,9 @@ var _confirm_pay: bool = false
 var _confirm_ascend: bool = false
 ## 0 = closed, 1 = Begin Ascension?, 2 = Commit the harvest.
 var _fruit_confirm_step: int = 0
+var _ancient_confirm: Panel
+var _ancient_countdown: Label
+var _ancient_countdown_bg: ColorRect
 var _highlight_ascend: bool = false
 var _backpack_tab: String = "all"
 var _sheet: CharacterSheet = null
@@ -153,14 +162,14 @@ func _ready() -> void:
 	backpack_button.tooltip_text = ContentStrings.get_text("backpack_open")
 	_wire_sprite_hud()
 	backpack_title.text = ContentStrings.get_text("backpack_title")
-	handcraft_title.text = "%s  ·  %s" % [
+	inventory_title.text = ContentStrings.get_text("backpack_hint")
+	_apply_filter_labels()
+	bench_title.text = ContentStrings.get_text("bench_title")
+	bench_prompt.text = "%s  ·  %s" % [
 		ContentStrings.get_text("handcraft_title"),
 		ContentStrings.get_text("tool_never_gate"),
 	]
-	inventory_title.text = ContentStrings.get_text("backpack_hint")
-	backpack_tab_all.text = ContentStrings.get_text("backpack_tab_all")
-	backpack_tab_tools.text = ContentStrings.get_text("backpack_tab_tools")
-	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
+	bench_panel.visible = false
 	close_button.text = ContentStrings.get_text("btn_close")
 	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -186,9 +195,13 @@ func _ready() -> void:
 	_sheet.close_requested.connect(close_character_sheet)
 	add_child(_sheet)
 	backpack_close_button.pressed.connect(close_backpack)
+	bench_close_button.pressed.connect(close_bench)
 	backpack_tab_all.pressed.connect(_on_backpack_tab.bind("all"))
+	backpack_tab_raw.pressed.connect(_on_backpack_tab.bind("raw"))
+	backpack_tab_refined.pressed.connect(_on_backpack_tab.bind("refined"))
 	backpack_tab_tools.pressed.connect(_on_backpack_tab.bind("tools"))
-	backpack_tab_parts.pressed.connect(_on_backpack_tab.bind("parts"))
+	backpack_tab_weapons.pressed.connect(_on_backpack_tab.bind("weapons"))
+	backpack_tab_relics.pressed.connect(_on_backpack_tab.bind("relics"))
 	if backpack_dim:
 		backpack_dim.gui_input.connect(_on_backpack_dim_input)
 	ascension_reopen_button.pressed.connect(show_ascension_shop)
@@ -201,6 +214,10 @@ func _ready() -> void:
 	water_button.pressed.connect(_on_water)
 	pay_button.pressed.connect(_on_pay)
 	_ensure_forge_controls()
+	_ensure_wisp_counter()
+	_ensure_ancient_hud()
+	if not GameState.ancient_expired.is_connected(_on_ancient_expired):
+		GameState.ancient_expired.connect(_on_ancient_expired)
 	if not GameState.echo_flags_changed.is_connected(_refresh_forge_entry):
 		GameState.echo_flags_changed.connect(_refresh_forge_entry)
 	welcome_dismiss_button.pressed.connect(_on_welcome_dismiss)
@@ -211,6 +228,8 @@ func _ready() -> void:
 	GameState.status_message.connect(_on_status)
 	GameState.fruit_ready_changed.connect(_on_fruit_ready_changed)
 	GameState.selection_changed.connect(_refresh_selection_hint)
+	GameState.wisps_changed.connect(_refresh_selection_hint)
+	GameState.echo_flags_changed.connect(_refresh_selection_hint)
 	GameState.load_completed.connect(_on_game_state_loaded)
 	Backpack.inventory_changed.connect(_on_backpack_inventory)
 	_refresh_all()
@@ -221,6 +240,7 @@ func _ready() -> void:
 	if toast_shade:
 		toast_shade.visible = false
 	_refresh_controls_hint()
+	_build_party_bar()
 	_refresh_selection_hint()
 	_show_toast(ContentStrings.get_text("boot_line"))
 	_sync_ascension_from_state()
@@ -356,31 +376,10 @@ func _wire_sprite_hud() -> void:
 
 
 func _item_icon_path(item_id: String) -> String:
+	var from_art: String = Equipment.item_art_path(item_id)
+	if from_art != "":
+		return from_art
 	match item_id:
-		"wooden_planks":
-			return "res://assets/art/ui/icons/icon_wooden_planks.png"
-		"stone_fragments":
-			return "res://assets/art/ui/icons/icon_stone_fragments.png"
-		"wooden_tool_rod":
-			return "res://assets/art/ui/icons/icon_wooden_tool_rod.png"
-		"axe_head":
-			return "res://assets/art/ui/icons/icon_axe_head.png"
-		"pickaxe_head":
-			return "res://assets/art/ui/icons/icon_pickaxe_head.png"
-		"stone_axe":
-			return "res://assets/art/ui/icons/icon_stone_axe.png"
-		"stone_pickaxe":
-			return "res://assets/art/ui/icons/icon_stone_pickaxe.png"
-		"fertilizer":
-			return ICON_FERTILIZER_TEX
-		"weapon_rod":
-			return "res://assets/art/ui/icons/icon_weapon_rod.png"
-		"forge_key_relic":
-			return "res://assets/art/ui/icons/icon_forge_key.png"
-		"sapstaff":
-			return "res://assets/art/ui/icon_sapstaff.png"
-		"thornbow":
-			return "res://assets/art/ui/icon_thornbow.png"
 		"wood":
 			return ICON_WOOD_TEX
 		"stone":
@@ -438,18 +437,26 @@ func _apply_wood_chrome() -> void:
 	_apply_icon_button(pause_button)
 	_apply_icon_button(ascension_reopen_button)
 	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(backpack_tab_all, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(backpack_tab_tools, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(backpack_tab_parts, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	_apply_button_chrome(bench_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	for tab: Button in [backpack_tab_all, backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
+		_apply_button_chrome(tab, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	backpack_panel.add_theme_stylebox_override("panel", _wood_style())
+	bench_panel.add_theme_stylebox_override("panel", _wood_style())
+
+
+func _process(_delta: float) -> void:
+	_refresh_ancient_countdown()
+	if _party_info != null and _party_info.visible:
+		_apply_selection_job()
 
 
 func _refresh_dim() -> void:
 	if shop_dim == null:
 		return
-	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible
+	var ancient_open: bool = _ancient_confirm != null and _ancient_confirm.visible
+	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible or ancient_open
 	if backpack_dim:
-		backpack_dim.visible = backpack_panel.visible
+		backpack_dim.visible = backpack_panel.visible or bench_panel.visible
 
 
 func bind_manatree(tree: Manatree) -> void:
@@ -566,7 +573,297 @@ func _refresh_controls_hint() -> void:
 		help_button.tooltip_text = line
 
 
+const PARTY_SLOT: float = 56.0
+const PARTY_OUTLINE: Color = Color(0.78, 0.92, 0.62, 1.0)
+
+var _party_bar: Control
+var _party_column: VBoxContainer
+var _party_info: VBoxContainer
+var _slot_wisp: Control
+var _slot_elaia: Control
+var _slot_keeper: Control
+var _wisp_count_label: Label
+var _sel_name: Label
+var _sel_task: Label
+var _sel_job: Label
+var _sel_extra: Label
+
+
+func _build_party_bar() -> void:
+	if _party_bar != null:
+		return
+	_party_bar = Control.new()
+	_party_bar.name = "PartyBar"
+	_party_bar.position = Vector2(12, 86)
+	_party_bar.z_index = 20
+	_party_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_column = VBoxContainer.new()
+	_party_column.name = "Column"
+	_party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_column.add_theme_constant_override("separation", 6)
+	_slot_wisp = _make_party_slot("Wisps", "wisp")
+	_slot_elaia = _make_party_slot("Elaia", "elaia")
+	_slot_keeper = _make_party_slot("Keeper", "keeper")
+	_wisp_count_label = Label.new()
+	_wisp_count_label.name = "Count"
+	_wisp_count_label.position = Vector2(24, 34)
+	_wisp_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_style_party_label(_wisp_count_label, 14, Color(0.95, 0.92, 0.78))
+	_slot_wisp.add_child(_wisp_count_label)
+	_party_column.add_child(_slot_wisp)
+	_party_column.add_child(_slot_keeper)
+	_party_column.add_child(_slot_elaia)
+	_party_info = VBoxContainer.new()
+	_party_info.name = "Info"
+	_party_info.position = Vector2(PARTY_SLOT + 10.0, 0)
+	_party_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_info.add_theme_constant_override("separation", 0)
+	_sel_name = Label.new()
+	_sel_name.name = "Name"
+	_style_party_label(_sel_name, 15, Color(0.96, 0.94, 0.86))
+	_sel_extra = Label.new()
+	_sel_extra.name = "Extra"
+	_style_party_label(_sel_extra, 13, Color(0.85, 0.9, 0.75))
+	_sel_task = Label.new()
+	_sel_task.name = "Task"
+	_style_party_label(_sel_task, 13, Color(0.85, 0.9, 0.75))
+	_sel_job = Label.new()
+	_sel_job.name = "JobLine"
+	_style_party_label(_sel_job, 13, Color(0.95, 0.86, 0.55))
+	_sel_job.visible = false
+	_party_info.add_child(_sel_name)
+	_party_info.add_child(_sel_extra)
+	_party_info.add_child(_sel_task)
+	_party_info.add_child(_sel_job)
+	_party_bar.add_child(_party_column)
+	_party_bar.add_child(_party_info)
+	add_child(_party_bar)
+	var keeper_tex: Texture2D = load(CharacterSheet.PORTRAIT_PATH) as Texture2D
+	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
+	var elaia_tex: Texture2D = load("res://assets/art/echo/elaia_front.png") as Texture2D
+	(_slot_keeper.get_node("Portrait") as TextureRect).texture = keeper_tex
+	(_slot_wisp.get_node("Portrait") as TextureRect).texture = wisp_tex
+	(_slot_elaia.get_node("Portrait") as TextureRect).texture = elaia_tex
+
+
+func _make_party_slot(slot_name: String, unit: String) -> Control:
+	var host := Control.new()
+	host.name = slot_name
+	host.custom_minimum_size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	host.size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	host.mouse_filter = Control.MOUSE_FILTER_STOP
+	host.gui_input.connect(_on_party_slot_input.bind(unit))
+	var frame := Panel.new()
+	frame.name = "Frame"
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.position = Vector2.ZERO
+	frame.size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	host.add_child(frame)
+	var portrait := TextureRect.new()
+	portrait.name = "Portrait"
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait.position = Vector2(2, 2)
+	portrait.size = Vector2(PARTY_SLOT - 4.0, PARTY_SLOT - 4.0)
+	host.add_child(portrait)
+	return host
+
+
+func _style_party_label(label: Label, size: int, color: Color) -> void:
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.03, 1.0))
+	label.add_theme_constant_override("outline_size", 4)
+
+
+func _set_party_outline(slot: Control, selected: bool) -> void:
+	var frame := slot.get_node("Frame") as Panel
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0)
+	style.border_color = PARTY_OUTLINE
+	style.set_border_width_all(2 if selected else 0)
+	frame.add_theme_stylebox_override("panel", style)
+
+
+func _on_party_slot_input(event: InputEvent, unit: String) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	party_click(unit)
+	if mb.double_click:
+		party_focus()
+
+
+func party_click(unit: String) -> void:
+	if unit == "keeper":
+		GameState.select_keeper()
+	elif unit == "elaia":
+		GameState.select_companion("elaia")
+	elif unit == "wisp":
+		var ids: Array[int] = GameState.selected_wisp_list()
+		if ids.is_empty():
+			if GameState.wisp_count > 0:
+				GameState.select_wisp(0)
+		else:
+			GameState.select_group(ids, false)
+
+
+func party_focus() -> void:
+	var scene: Node = get_tree().current_scene
+	if scene and scene.has_method("focus_selection"):
+		scene.call("focus_selection")
+
+
+func _refresh_party_bar() -> void:
+	if _party_bar == null:
+		return
+	var ids: Array[int] = GameState.selected_wisp_list()
+	var show_keeper: bool = GameState.keeper_selected
+	var companion_id: String = str(GameState.selected_companion_id)
+	var elaia_joined: bool = GameState.elaia_in_party()
+	_party_bar.visible = true
+	_slot_keeper.visible = true
+	_slot_elaia.visible = elaia_joined
+	_slot_wisp.visible = not ids.is_empty()
+	_set_party_outline(_slot_keeper, show_keeper)
+	_set_party_outline(_slot_elaia, companion_id == "elaia")
+	_set_party_outline(_slot_wisp, not ids.is_empty())
+	if ids.size() >= 2:
+		_wisp_count_label.text = "x%d" % ids.size()
+		_wisp_count_label.visible = true
+	else:
+		_wisp_count_label.text = ""
+		_wisp_count_label.visible = false
+	if not show_keeper and ids.is_empty() and companion_id == "":
+		_party_info.visible = false
+		_apply_selection_job()
+		return
+	_party_info.visible = true
+	_sel_extra.visible = false
+	if show_keeper and not ids.is_empty():
+		_sel_name.text = "Keeper"
+		_sel_extra.text = "+ Wisps"
+		_sel_extra.visible = true
+		_sel_task.text = _keeper_task_text()
+	elif show_keeper:
+		_sel_name.text = "Keeper"
+		_sel_task.text = _keeper_task_text()
+	elif companion_id == "elaia":
+		_sel_name.text = ContentStrings.get_text("echo_elaia_name")
+		_sel_task.text = "Idle"
+	elif ids.size() >= 2:
+		_sel_name.text = "Wisp"
+		_sel_task.text = _group_task_text(ids, false)
+	elif not ids.is_empty():
+		_sel_name.text = "Wisp"
+		_sel_task.text = _wisp_task_text(ids[0])
+	else:
+		_party_info.visible = false
+	_apply_selection_job()
+
+
+func _apply_selection_job() -> void:
+	if _sel_job == null:
+		return
+	if _party_info == null or not _party_info.visible:
+		_sel_job.visible = false
+		return
+	var station: String = _selection_job_station()
+	if station == "":
+		_sel_job.visible = false
+		_sel_job.text = ""
+		return
+	_sel_job.visible = true
+	_sel_job.text = ForgeJobs.job_line(station)
+
+
+func _selection_job_station() -> String:
+	if not has_node("/root/ForgeJobs"):
+		return ""
+	if GameState.keeper_selected:
+		var task: Dictionary = ForgeJobs.keeper_task()
+		if bool(task.get("working", false)) and str(task.get("kind", "")) == "forge":
+			var station: String = str(task.get("target", ""))
+			var keeper_state: Dictionary = ForgeJobs.job_state(station)
+			if not keeper_state.is_empty() and bool(keeper_state.get("working", false)):
+				return station
+	var ids: Array[int] = GameState.selected_wisp_list()
+	if ids.is_empty():
+		return ""
+	var shared: String = GameState.get_wisp_assignment(ids[0])
+	if not ForgeJobs.is_forge_station(shared):
+		return ""
+	for id: int in ids:
+		if GameState.get_wisp_assignment(id) != shared:
+			return ""
+	var state: Dictionary = ForgeJobs.job_state(shared)
+	if state.is_empty() or not bool(state.get("working", false)):
+		return ""
+	return shared
+
+
+func _group_task_text(ids: Array[int], with_keeper: bool) -> String:
+	var first: String = _wisp_task_text(ids[0])
+	var same: bool = true
+	for id: int in ids:
+		if _wisp_task_text(id) != first:
+			same = false
+			break
+	if with_keeper:
+		return "Keeper + %s" % (first if same else "Mixed")
+	return first if same else "Mixed"
+
+
+func _keeper_task_text() -> String:
+	if not has_node("/root/ForgeJobs"):
+		return "Idle"
+	var task: Dictionary = ForgeJobs.keeper_task()
+	if not bool(task.get("working", false)):
+		return "Idle"
+	var kind: String = str(task.get("kind", ""))
+	var target: String = str(task.get("target", ""))
+	if kind == "forge":
+		return "Tending %s" % ForgeJobs.station_display(target)
+	if kind == "harvest":
+		match target:
+			"wood":
+				return "Gathering Wood"
+			"stone":
+				return "Gathering Stone"
+			"food":
+				return "Gathering Food"
+			_:
+				return "Gathering"
+	if kind == "water":
+		return "Tending the Manatree"
+	return "Idle"
+
+
+func _wisp_task_text(wisp_id: int) -> String:
+	var assigned: String = GameState.get_wisp_assignment(wisp_id)
+	if assigned == "":
+		return "Idle"
+	match assigned:
+		"harvest_tree":
+			return "Gathering Wood"
+		"harvest_stone":
+			return "Gathering Stone"
+		"harvest_berry":
+			return "Gathering Food"
+		"manatree":
+			return "Tending the Manatree"
+		_:
+			if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(assigned):
+				return "Tending %s" % ForgeJobs.station_display(assigned)
+			return GameState.assignment_target_display(assigned)
+
+
 func _refresh_selection_hint() -> void:
+	_refresh_party_bar()
 	if selection_hint == null:
 		return
 	if GameState.selected_wisp_id >= 0:
@@ -720,10 +1017,9 @@ func _refresh_care_needs() -> void:
 	fruit_ready_card.visible = fruit_ready
 	precommit_hint.visible = fruit_ready
 	if fruit_ready:
-		precommit_hint.text = "%s\n%s" % [
-			ContentStrings.get_text("tree_ancient_care_hint"),
-			ContentStrings.get_text("tree_water_ancient_note"),
-		]
+		## Early harvest stays. tree_water_ancient_note stays in the table and is not shown:
+		## "The Fruit waits when you are ready" fights the timed fall.
+		precommit_hint.text = ContentStrings.get_text("tree_ancient_care_hint")
 
 
 func show_care_menu() -> void:
@@ -738,6 +1034,7 @@ func show_care_menu() -> void:
 	close_character_sheet()
 	hide_ascension_shop()
 	hide_fruit_confirm()
+	hide_ancient_grow_confirm()
 	_confirm_pay = false
 	care_panel.visible = true
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -768,6 +1065,29 @@ func show_prestige_menu(_focus_ascend: bool = false) -> void:
 
 func hide_prestige_menu() -> void:
 	hide_ascension_shop()
+
+
+func _ensure_wisp_counter() -> void:
+	var counter := Label.new()
+	counter.name = "WispCounter"
+	counter.position = Vector2(780, 14)
+	counter.size = Vector2(180, 28)
+	counter.add_theme_font_size_override("font_size", 15)
+	counter.add_theme_color_override("font_color", Color(0.86, 0.95, 0.9, 1))
+	add_child(counter)
+	if not GameState.wisps_changed.is_connected(_refresh_wisp_counter):
+		GameState.wisps_changed.connect(_refresh_wisp_counter)
+	_refresh_wisp_counter()
+
+
+func _refresh_wisp_counter() -> void:
+	var counter: Label = get_node_or_null("WispCounter") as Label
+	if counter == null:
+		return
+	var text: String = "Wisps: %d" % GameState.wisp_count
+	if has_node("/root/ForgeJobs"):
+		text = ForgeJobs.copy_text("wisp_counter", {"count": GameState.wisp_count})
+	counter.text = text
 
 
 func _ensure_forge_controls() -> void:
@@ -834,7 +1154,10 @@ func _refresh_forge_entry() -> void:
 		return
 	forge_button.text = ContentStrings.get_text("forge_enter")
 	forge_button.disabled = false
-	if GameState.forge_key:
+	var owns_key: bool = GameState.forge_key
+	if has_node("/root/ForgeJobs"):
+		owns_key = ForgeJobs.owns_forge_key()
+	if owns_key:
 		forge_button.modulate = Color.WHITE
 	else:
 		forge_button.modulate = Color(0.45, 0.47, 0.44, 1)
@@ -859,16 +1182,23 @@ func forge_popup_text() -> String:
 
 
 func open_forge_entry() -> String:
-	var msg: String = ContentStrings.get_text("forge_not_built" if GameState.forge_key else "forge_no_key")
-	if _forge_popup_body:
-		_forge_popup_body.text = msg
-	if care_panel and care_panel.visible:
-		_care_hidden_for_forge = true
-		care_panel.visible = false
-	if _forge_popup:
-		_forge_popup.visible = true
-	GameAudio.play_ui_confirm()
-	return msg
+	var owns_key: bool = GameState.forge_key
+	if has_node("/root/ForgeJobs"):
+		owns_key = ForgeJobs.owns_forge_key()
+	if not owns_key:
+		var msg: String = ContentStrings.get_text("forge_no_key")
+		if _forge_popup_body:
+			_forge_popup_body.text = msg
+		if care_panel and care_panel.visible:
+			_care_hidden_for_forge = true
+			care_panel.visible = false
+		if _forge_popup:
+			_forge_popup.visible = true
+		GameAudio.play_ui_confirm()
+		return msg
+	if has_node("/root/ForgeJobs") and ForgeJobs.can_enter_forge():
+		return ForgeJobs.try_enter_forge()
+	return "denied"
 
 
 func hide_forge_popup() -> void:
@@ -1034,6 +1364,8 @@ func _release_world_if_allowed() -> void:
 	if GameState.fruit_harvested_pending_ascend:
 		return
 	if is_backpack_open():
+		return
+	if is_bench_open():
 		return
 	if is_character_open():
 		return
@@ -1207,11 +1539,18 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 
 
 func _on_pay() -> void:
-	## One-click Grow — no confirm. Spend Fertilizer + Essence when affordable.
+	## One-click Grow, except Ancient, which asks first. try_grow_stage itself stays direct.
 	if not GameState.can_grow_stage():
 		GameAudio.play_tree_deny()
 		_refresh_care_needs()
 		return
+	if String(GameState.get_next_stage_id()) == "ancient":
+		open_ancient_grow_confirm()
+		return
+	_commit_grow()
+
+
+func _commit_grow() -> void:
 	_confirm_pay = false
 	var result: String = "cant_afford"
 	if _manatree:
@@ -1221,6 +1560,131 @@ func _on_pay() -> void:
 	if result == "ok":
 		SaveService.save_game()
 	_refresh_all()
+
+
+func _ensure_ancient_hud() -> void:
+	_ancient_countdown_bg = ColorRect.new()
+	_ancient_countdown_bg.name = "AncientCountdownBg"
+	_ancient_countdown_bg.position = Vector2(390, 64)
+	_ancient_countdown_bg.size = Vector2(500, 40)
+	_ancient_countdown_bg.color = Color(0.05, 0.08, 0.06, 0.88)
+	_ancient_countdown_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ancient_countdown_bg.visible = false
+	add_child(_ancient_countdown_bg)
+	_ancient_countdown = Label.new()
+	_ancient_countdown.name = "AncientCountdown"
+	_ancient_countdown.position = Vector2(390, 64)
+	_ancient_countdown.size = Vector2(500, 40)
+	_ancient_countdown.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_ancient_countdown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_ancient_countdown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ancient_countdown.add_theme_font_size_override("font_size", 22)
+	_ancient_countdown.add_theme_color_override("font_color", GOLD)
+	_ancient_countdown.visible = false
+	add_child(_ancient_countdown)
+	_ancient_confirm = Panel.new()
+	_ancient_confirm.name = "AncientGrowConfirm"
+	_ancient_confirm.position = Vector2(280, 150)
+	_ancient_confirm.size = Vector2(720, 300)
+	_ancient_confirm.visible = false
+	_ancient_confirm.z_index = 40
+	_ancient_confirm.add_theme_stylebox_override("panel", _wood_style())
+	add_child(_ancient_confirm)
+	var title := Label.new()
+	title.name = "Title"
+	title.position = Vector2(24, 16)
+	title.size = Vector2(672, 36)
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", GOLD)
+	_ancient_confirm.add_child(title)
+	var body := Label.new()
+	body.name = "Body"
+	body.position = Vector2(24, 64)
+	body.size = Vector2(672, 140)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_font_size_override("font_size", 18)
+	body.add_theme_color_override("font_color", Color(0.93, 0.94, 0.86, 1))
+	_ancient_confirm.add_child(body)
+	var yes := Button.new()
+	yes.name = "Yes"
+	yes.position = Vector2(24, 220)
+	yes.size = Vector2(320, 52)
+	_apply_button_chrome(yes, LEAF, GOLD)
+	yes.pressed.connect(_on_ancient_grow_yes)
+	_ancient_confirm.add_child(yes)
+	var no := Button.new()
+	no.name = "No"
+	no.position = Vector2(376, 220)
+	no.size = Vector2(320, 52)
+	_apply_button_chrome(no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
+	no.pressed.connect(hide_ancient_grow_confirm)
+	_ancient_confirm.add_child(no)
+
+
+func _refresh_ancient_countdown() -> void:
+	if _ancient_countdown == null:
+		return
+	var show_timer: bool = (
+		GameState.stage_id == &"ancient"
+		and not GameState.fruit_committed
+		and GameState.ancient_remaining_sec > 0.0
+	)
+	_ancient_countdown.visible = show_timer
+	if _ancient_countdown_bg:
+		_ancient_countdown_bg.visible = show_timer
+	if not show_timer:
+		return
+	var total: int = int(ceil(GameState.ancient_remaining_sec))
+	var label: String = "%d:%02d" % [int(total / 60), total % 60]
+	_ancient_countdown.text = ContentStrings.get_text("tree_ancient_timer_label", {"time": label})
+
+
+func open_ancient_grow_confirm() -> void:
+	if _ancient_confirm == null:
+		return
+	var title: Label = _ancient_confirm.get_node("Title") as Label
+	var body: Label = _ancient_confirm.get_node("Body") as Label
+	var yes: Button = _ancient_confirm.get_node("Yes") as Button
+	var no: Button = _ancient_confirm.get_node("No") as Button
+	var minutes: int = GameState.ancient_duration_minutes()
+	title.text = ContentStrings.get_text("tree_grow_ancient_confirm_title")
+	body.text = ContentStrings.get_text("tree_grow_ancient_confirm_body", {"minutes": minutes})
+	yes.text = ContentStrings.get_text("tree_grow_ancient_confirm_yes")
+	no.text = ContentStrings.get_text("tree_grow_ancient_confirm_no")
+	_ancient_confirm.visible = true
+	_refresh_dim()
+	GameAudio.play_ui_confirm()
+
+
+func hide_ancient_grow_confirm() -> void:
+	if _ancient_confirm == null or not _ancient_confirm.visible:
+		return
+	_ancient_confirm.visible = false
+	_refresh_dim()
+	GameAudio.play_ui_close()
+
+
+func _on_ancient_grow_yes() -> void:
+	if _ancient_confirm:
+		_ancient_confirm.visible = false
+	_refresh_dim()
+	_commit_grow()
+
+
+func _on_ancient_expired() -> void:
+	## Timer hit 0. Fruit is already committed. Open the shop with no harvest confirm.
+	_cancel_world_channels()
+	hide_fruit_confirm()
+	hide_ancient_grow_confirm()
+	hide_care_menu()
+	GameAudio.play_fruit_harvest()
+	_show_toast("%s\n%s" % [
+		ContentStrings.get_text("fruit_harvest_toast"),
+		ContentStrings.get_text("fruit_flow_hint"),
+	])
+	_hold_world_for_ascension()
+	show_ascension_shop()
+	SaveService.save_game()
 
 
 func is_backpack_open() -> bool:
@@ -1249,6 +1713,8 @@ func open_character_sheet() -> void:
 		return
 	if is_backpack_open():
 		close_backpack()
+	if is_bench_open():
+		close_bench()
 	hide_care_menu()
 	hide_fruit_confirm()
 	if _sheet == null:
@@ -1302,6 +1768,7 @@ func open_backpack() -> void:
 	if _pause_menu and _pause_menu.is_open():
 		return
 	close_character_sheet()
+	close_bench()
 	hide_care_menu()
 	hide_fruit_confirm()
 	hide_ascension_shop()
@@ -1331,12 +1798,17 @@ func _on_backpack_dim_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
 		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-			close_backpack()
+			if is_bench_open():
+				close_bench()
+			else:
+				close_backpack()
 
 
 func _on_backpack_inventory(_item_id: StringName, _amount: int) -> void:
 	if is_backpack_open():
 		_rebuild_backpack()
+	if is_bench_open():
+		_rebuild_bench()
 	if care_panel.visible:
 		_refresh_care_needs()
 
@@ -1346,45 +1818,136 @@ func _on_backpack_tab(tab_id: String) -> void:
 	_rebuild_backpack()
 
 
-func _stack_matches_tab(stack: Dictionary) -> bool:
-	if _backpack_tab == "tools":
-		return str(stack.get("kind", "")) == "tool"
-	if _backpack_tab == "parts":
-		var kind: String = str(stack.get("kind", ""))
-		return kind == "intermediate" or kind == "consumable"
-	return true
+func _apply_filter_labels() -> void:
+	backpack_tab_all.text = _filter_label("all")
+	backpack_tab_raw.text = _filter_label("raw")
+	backpack_tab_refined.text = _filter_label("refined")
+	backpack_tab_tools.text = _filter_label("tools")
+	backpack_tab_weapons.text = _filter_label("weapons")
+	backpack_tab_relics.text = _filter_label("relics")
+
+
+func _filter_label(filter_id: String) -> String:
+	match filter_id:
+		"all":
+			return ContentStrings.get_text("backpack_tab_all")
+		"raw":
+			return ContentStrings.get_text("backpack_tab_raw")
+		"refined":
+			return ContentStrings.get_text("backpack_tab_refined")
+		"tools":
+			return ContentStrings.get_text("backpack_tab_tools")
+		"weapons":
+			return ContentStrings.get_text("backpack_tab_weapons")
+		"relics":
+			return ContentStrings.get_text("backpack_tab_relics")
+		_:
+			return filter_id
 
 
 func _rebuild_backpack() -> void:
 	backpack_title.text = ContentStrings.get_text("backpack_title")
-	handcraft_title.text = "%s  ·  %s" % [
-		ContentStrings.get_text("handcraft_title"),
-		ContentStrings.get_text("tool_never_gate"),
-	]
 	inventory_title.text = ContentStrings.get_text("backpack_hint")
-	backpack_tab_all.text = ContentStrings.get_text("backpack_tab_all")
-	backpack_tab_tools.text = ContentStrings.get_text("backpack_tab_tools")
-	backpack_tab_parts.text = ContentStrings.get_text("backpack_tab_materials")
+	_apply_filter_labels()
 	for child: Node in inventory_list.get_children():
 		child.queue_free()
-	var stacks: Array[Dictionary] = Backpack.stacked_items()
-	var shown: int = 0
-	for stack: Dictionary in stacks:
-		if not _stack_matches_tab(stack):
-			continue
-		inventory_list.add_child(_make_item_row(stack, false))
-		shown += 1
-	if shown == 0:
+	var rows: Array[Dictionary] = _filtered_rows(_backpack_tab)
+	for row: Dictionary in rows:
+		inventory_list.add_child(_make_item_row(row, false))
+	if rows.is_empty():
 		var empty := Label.new()
 		empty.text = ContentStrings.get_text("backpack_empty")
-		if _backpack_tab != "all" and not stacks.is_empty():
-			empty.text = ContentStrings.get_text("backpack_hint")
 		empty.add_theme_font_size_override("font_size", 12)
 		empty.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inventory_list.add_child(empty)
-	for child2: Node in craft_list.get_children():
-		child2.queue_free()
+
+
+func filter_owned_counts() -> Dictionary:
+	var counts: Dictionary = {}
+	var filters: PackedStringArray = PackedStringArray(["all", "raw", "refined", "tools", "weapons", "relics"])
+	if has_node("/root/ForgeJobs"):
+		filters = ForgeJobs.backpack_filters()
+	for filter_id: String in filters:
+		counts[filter_id] = _filtered_rows(filter_id).size()
+	return counts
+
+
+func _filtered_rows(filter_id: String) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	var resources: Array[String] = ["wood", "stone", "food", "manashards", "essence"]
+	for resource_id: String in resources:
+		var count: int = int(GameState.get(resource_id))
+		if count <= 0 or not Backpack.matches_filter(resource_id, filter_id):
+			continue
+		rows.append({
+			"id": resource_id,
+			"count": count,
+			"display_name": ContentStrings.get_text("hud_%s" % resource_id),
+			"unique": false,
+		})
+	for stack: Dictionary in Backpack.stacked_items():
+		var stack_id: String = str(stack.get("id", ""))
+		if Backpack.matches_filter(stack_id, filter_id):
+			rows.append(stack)
+	var gear_counts: Dictionary = {}
+	for entry: Dictionary in Equipment.list_unequipped():
+		var gear_id: String = str(entry.get("id", ""))
+		gear_counts[gear_id] = int(entry.get("count", 0))
+	for slot_id: String in ["weapon", "relic"]:
+		var equipped_id: String = Equipment.equipped_id(slot_id)
+		if equipped_id != "":
+			gear_counts[equipped_id] = int(gear_counts.get(equipped_id, 0)) + 1
+	for gear_key: Variant in gear_counts.keys():
+		var iid: String = str(gear_key)
+		if not Backpack.matches_filter(iid, filter_id):
+			continue
+		rows.append({
+			"id": iid,
+			"count": int(gear_counts[gear_key]),
+			"display_name": Equipment.item_display_name(iid),
+			"unique": Equipment.is_unique_item(iid),
+		})
+	return rows
+
+
+func is_bench_open() -> bool:
+	return bench_panel != null and bench_panel.visible
+
+
+func open_bench_panel() -> void:
+	if EchoChamber.in_battle or welcome_panel.visible:
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
+	close_backpack()
+	close_character_sheet()
+	hide_care_menu()
+	hide_fruit_confirm()
+	hide_ascension_shop()
+	bench_panel.visible = true
+	_hold_world_for_backpack()
+	_rebuild_bench()
+	_refresh_dim()
+
+
+func close_bench() -> void:
+	if bench_panel == null or not bench_panel.visible:
+		return
+	bench_panel.visible = false
+	GameAudio.play_ui_close()
+	_release_world_if_allowed()
+	_refresh_dim()
+
+
+func _rebuild_bench() -> void:
+	bench_title.text = ContentStrings.get_text("bench_title")
+	bench_prompt.text = "%s  ·  %s" % [
+		ContentStrings.get_text("handcraft_title"),
+		ContentStrings.get_text("tool_never_gate"),
+	]
+	for child: Node in craft_list.get_children():
+		child.queue_free()
 	for entry: Variant in Backpack.recipes_data:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -1485,6 +2048,7 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 		btn.pressed.connect(_on_craft.bind(recipe_id))
 	row.add_child(info)
 	row.add_child(btn)
+	row.set_meta("recipe_id", recipe_id)
 	return row
 
 
@@ -1555,12 +2119,20 @@ func _craft_row_cost_text(recipe_id: String) -> String:
 
 func get_backpack_layout_metrics() -> Dictionary:
 	var panel_w: float = backpack_panel.size.x if backpack_panel else 0.0
-	var craft_scroll: ScrollContainer = get_node_or_null("BackpackPanel/CraftScroll") as ScrollContainer
+	return {
+		"panel_w": panel_w,
+		"fits": panel_w >= 630.0,
+	}
+
+
+func get_bench_layout_metrics() -> Dictionary:
+	var panel_w: float = bench_panel.size.x if bench_panel else 0.0
+	var craft_scroll: ScrollContainer = get_node_or_null("BenchPanel/CraftScroll") as ScrollContainer
 	var craft_w: float = craft_scroll.size.x if craft_scroll else 0.0
 	return {
 		"panel_w": panel_w,
 		"craft_scroll_w": craft_w,
-		"fits": craft_w <= panel_w + 1.0,
+		"fits": craft_w <= panel_w + 1.0 and craft_w > 0.0,
 	}
 
 
@@ -1578,6 +2150,7 @@ func _on_craft(recipe_id: String) -> void:
 		else:
 			_show_toast(ContentStrings.get_text("handcraft_ok", {"item": item_name}))
 		_rebuild_backpack()
+		_rebuild_bench()
 		_refresh_resources()
 		SaveService.save_game()
 		return
@@ -1589,6 +2162,7 @@ func _on_craft(recipe_id: String) -> void:
 			"costs": "  ".join(Backpack.recipe_ingredient_lines(recipe_id)),
 		}))
 	_rebuild_backpack()
+	_rebuild_bench()
 
 
 func _on_craft_gear(recipe_id: String) -> void:
@@ -1599,6 +2173,7 @@ func _on_craft_gear(recipe_id: String) -> void:
 		GameAudio.play_ui_confirm()
 		_show_toast(ContentStrings.get_text("weapon_craft_ok", {"item": item_name}))
 		_rebuild_backpack()
+		_rebuild_bench()
 		_refresh_resources()
 		SaveService.save_game()
 		return
@@ -1610,6 +2185,7 @@ func _on_craft_gear(recipe_id: String) -> void:
 			"costs": "  ".join(Equipment.recipe_ingredient_lines(recipe_id)),
 		}))
 	_rebuild_backpack()
+	_rebuild_bench()
 
 
 func _refresh_ascension_copy() -> void:
@@ -1666,10 +2242,7 @@ func _rebuild_upgrades() -> void:
 		var inner := HBoxContainer.new()
 		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 		inner.add_theme_constant_override("separation", 8)
-		if uid == "keep_tools":
-			var keep_icon: TextureRect = HudIcons.make_icon(HudIcons.KEEP_TOOLS)
-			keep_icon.tooltip_text = ContentStrings.get_text("upgrade_keep_tools_name")
-			inner.add_child(keep_icon)
+		inner.add_child(_upgrade_icon(uid, d))
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1724,6 +2297,25 @@ func _rebuild_upgrades() -> void:
 		stripe = not stripe
 
 
+func _upgrade_icon(upgrade_id: String, def: Dictionary) -> TextureRect:
+	var icon := TextureRect.new()
+	icon.name = "AscIcon"
+	icon.custom_minimum_size = Vector2(32, 32)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var path: String = GameState.upgrade_art_path(upgrade_id)
+	if path != "":
+		icon.texture = load(path) as Texture2D
+	var tip: String = str(def.get("display_name", upgrade_id))
+	if upgrade_id == "keep_tools":
+		tip = ContentStrings.get_text("upgrade_keep_tools_name")
+	icon.tooltip_text = tip
+	return icon
+
+
 func _upgrade_keep_tools_cost_text(upgrade_id: String, cost: int) -> String:
 	if upgrade_id != "keep_tools":
 		return ""
@@ -1765,8 +2357,14 @@ func _on_ascend() -> void:
 		return
 	if not _confirm_ascend:
 		_confirm_ascend = true
+		var confirm_line: String = ContentStrings.get_text("ascend_confirm")
+		if has_node("/root/ForgeJobs"):
+			var warn: String = ForgeJobs.ascend_warning()
+			if warn != "":
+				confirm_line = warn
+				ascend_button.tooltip_text = warn
 		_show_toast("%s\n%s" % [
-			ContentStrings.get_text("ascend_confirm"),
+			confirm_line,
 			ContentStrings.get_text("ascend_hint"),
 		])
 		ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")

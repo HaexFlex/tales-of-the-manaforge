@@ -27,9 +27,36 @@ func _run() -> void:
 		quit(1)
 		return
 
+	# Isolated Pass J clock. The full suite still runs this test near the end.
+	# MANAFORGE_DURATION_ONLY=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_DURATION_ONLY") == "1":
+		var dur_failed: int = _forge_duration_ticks(tree_root, game_state, backpack)
+		if dur_failed > 0:
+			print("DURATION_FAIL: %d assertion(s) failed" % dur_failed)
+			quit(1)
+		else:
+			print("DURATION_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
+		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
+		if elaia_failed > 0:
+			print("ELAIA_FAIL: %d assertion(s) failed" % elaia_failed)
+			quit(1)
+		else:
+			print("ELAIA_OK")
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
-	failed += _assert(int(game_state.get("upgrades_data").size()) == 8, "expected 8 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION should be 8")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	if jobs:
+		jobs.call("set_dev_speed_override", 1.0)
+		jobs.call("set_autosave_enabled", false)
+	failed += _assert(jobs != null, "ForgeJobs autoload missing")
+	failed += _assert(int(game_state.get("upgrades_data").size()) == 10, "expected 10 fruit upgrades")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION should be 9")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -100,13 +127,13 @@ func _run() -> void:
 	failed += _assert(str(thumb.get("effect", "")) == "fertilizer_craft_cost_mult", "green_thumb fertilizer_craft_cost_mult")
 
 	# Art stage textures + meta
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_sapling.png"), "sapling texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_young.png"), "young texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_mature.png"), "mature texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_elder.png"), "elder texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_ancient.png"), "ancient texture")
-	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/manatree_meta.json"), "manatree_meta.json")
-	var meta_file := FileAccess.open("res://assets/art/manatree/manatree_meta.json", FileAccess.READ)
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_sapling.png"), "sapling texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_young.png"), "young texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_mature.png"), "mature texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_elder.png"), "elder texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_ancient.png"), "ancient texture")
+	failed += _assert(FileAccess.file_exists("res://assets/art/manatree/native/manatree_meta.json"), "manatree_meta.json")
+	var meta_file := FileAccess.open("res://assets/art/manatree/native/manatree_meta.json", FileAccess.READ)
 	failed += _assert(meta_file != null, "open manatree_meta")
 	if meta_file:
 		var meta_parsed: Variant = JSON.parse_string(meta_file.get_as_text())
@@ -114,7 +141,7 @@ func _run() -> void:
 		failed += _assert(typeof(meta_parsed) == TYPE_DICTIONARY, "meta dict")
 		if typeof(meta_parsed) == TYPE_DICTIONARY:
 			var mroot: Dictionary = meta_parsed
-			failed += _assert(str(mroot.get("version", "")) == "v0.1.8-A2", "meta version v0.1.8-A2")
+			failed += _assert(str(mroot.get("version", "")) == "v0.1.9-A2-native", "meta version v0.1.9-A2-native")
 			var stages_m: Variant = mroot.get("stages", [])
 			failed += _assert(typeof(stages_m) == TYPE_ARRAY and (stages_m as Array).size() == 5, "meta 5 stages")
 			if typeof(stages_m) == TYPE_ARRAY:
@@ -124,27 +151,32 @@ func _run() -> void:
 					var ed: Dictionary = entry
 					if str(ed.get("stage_id", "")) == "ancient":
 						var asz: Variant = ed.get("size", [])
-						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 256 and int((asz as Array)[1]) == 256, "meta ancient frame 256")
+						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 1024 and int((asz as Array)[1]) == 1024, "meta ancient frame 1024")
 						failed += _assert(int(ed.get("frames", 0)) == 8, "ancient strip has 8 frames")
+						failed += _assert(absf(float(ed.get("display_scale", 0.0)) - 1.0) < 0.01, "ancient display_scale 1")
+						var ancient_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_ancient_strip.png") as Texture2D
+						var elder_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_elder_strip.png") as Texture2D
+						failed += _assert(ancient_strip != null and ancient_strip.get_width() == 8192 and ancient_strip.get_height() == 1024, "ancient strip 8192x1024")
+						failed += _assert(elder_strip != null and elder_strip.get_width() == 8192 and elder_strip.get_height() == 1024, "elder strip 8192x1024")
 
 	# Art harvest nodes
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_tree.png"), "harvest_tree art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_stone.png"), "harvest_stone art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_berry.png"), "harvest_berry art")
-	failed += _assert(FileAccess.file_exists("res://assets/art/props/berry_harvest_node.png"), "berry_harvest_node art")
+	failed += _assert(FileAccess.file_exists("res://assets/art/props/native/berry_harvest_node.png"), "berry_harvest_node art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/props/echo_portal_hub.png"), "echo_portal_hub art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/ui/manaforge_hud_icons_sheet.png"), "hud icon sheet")
 
 	# Art v0.1.13 — cleaned inbox forest + Keeper south walk
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_big_01.png"), "tree_big_01")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_big_04.png"), "tree_big_04")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_small_01.png"), "tree_small_01")
-	failed += _assert(FileAccess.file_exists("res://assets/art/trees/tree_small_03.png"), "tree_small_03 thin")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_big_01.png"), "bush_big_01")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_big_12.png"), "bush_big_12")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_small_01.png"), "bush_small_01")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bush_small_57.png"), "bush_small_57")
-	failed += _assert(FileAccess.file_exists("res://assets/art/bushes/bushes_meta.json"), "bushes_meta.json")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_large_01.png"), "ring_tree_large_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_large_03.png"), "ring_tree_large_03")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_medium_01.png"), "ring_tree_medium_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_slim_01.png"), "ring_tree_slim_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_big_01.png"), "ring_bush_big_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_big_03.png"), "ring_bush_big_03")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_small_01.png"), "ring_bush_small_01")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_small_03.png"), "ring_bush_small_03")
+	failed += _assert(FileAccess.file_exists("res://assets/art/hub/hub_deco_meta.json"), "hub_deco_meta.json")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south.png"), "keeper idle_south")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south_0000.png"), "keeper idle_south_0000")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0001.png"), "keeper walk_south 1")
@@ -154,8 +186,8 @@ func _run() -> void:
 	failed += _assert(walk_strip != null, "load walk_south strip")
 	if walk_strip:
 		failed += _assert(walk_strip.get_width() == 1152 and walk_strip.get_height() == 128, "walk strip 1152x128 (got %dx%d)" % [walk_strip.get_width(), walk_strip.get_height()])
-	var tree_big: Texture2D = load("res://assets/art/trees/tree_big_01.png") as Texture2D
-	failed += _assert(tree_big != null and tree_big.get_width() >= 400, "tree_big_01 full-size (got %s)" % (tree_big.get_width() if tree_big else 0))
+	var tree_big: Texture2D = load("res://assets/art/hub/trees/ring_tree_large_01.png") as Texture2D
+	failed += _assert(tree_big != null and tree_big.get_width() == 320 and tree_big.get_height() == 400, "ring_tree_large_01 is 320x400")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/native/keeper_idle_south_256.png"), "keeper native idle")
 	failed += _assert(FileAccess.file_exists("res://assets/library/Big Trees.png"), "library Big Trees.png")
 	failed += _assert(FileAccess.file_exists("res://assets/library/keeper_inbox/walk_south_09.png"), "library keeper walk_south_09")
@@ -230,30 +262,21 @@ func _run() -> void:
 		paused = false
 		save_service.set("boot_intent", "auto")
 		save_service.set("boot_slot", 0)
-	var trees_meta_f := FileAccess.open("res://assets/art/trees/trees_meta.json", FileAccess.READ)
-	failed += _assert(trees_meta_f != null, "open trees_meta")
-	if trees_meta_f:
-		var trees_meta_parsed: Variant = JSON.parse_string(trees_meta_f.get_as_text())
-		trees_meta_f.close()
-		failed += _assert(typeof(trees_meta_parsed) == TYPE_DICTIONARY, "trees meta dict")
-		if typeof(trees_meta_parsed) == TYPE_DICTIONARY:
-			var tm: Dictionary = trees_meta_parsed
-			failed += _assert(str(tm.get("version", "")) == "v0.1.13-assets-upload", "trees meta v0.1.13-assets-upload")
-			var spawn_c: Variant = tm.get("spawn_catalog", {})
-			failed += _assert(typeof(spawn_c) == TYPE_DICTIONARY, "spawn_catalog")
-			if typeof(spawn_c) == TYPE_DICTIONARY:
-				var trees_ids: Array = (spawn_c as Dictionary).get("tree", []) as Array
-				failed += _assert(trees_ids.size() >= 8, "spawn trees >= 8 (got %d)" % trees_ids.size())
-	var bushes_meta_f := FileAccess.open("res://assets/art/bushes/bushes_meta.json", FileAccess.READ)
-	failed += _assert(bushes_meta_f != null, "open bushes_meta")
-	if bushes_meta_f:
-		var bm_parsed: Variant = JSON.parse_string(bushes_meta_f.get_as_text())
-		bushes_meta_f.close()
-		failed += _assert(typeof(bm_parsed) == TYPE_DICTIONARY, "bushes meta dict")
-		if typeof(bm_parsed) == TYPE_DICTIONARY:
-			failed += _assert(str((bm_parsed as Dictionary).get("version", "")) == "v0.1.13-assets-upload", "bushes meta version")
-			var bitems: Variant = (bm_parsed as Dictionary).get("items", {})
-			failed += _assert(typeof(bitems) == TYPE_DICTIONARY and (bitems as Dictionary).size() >= 69, "69 bush frames (got %d)" % ((bitems as Dictionary).size() if typeof(bitems) == TYPE_DICTIONARY else 0))
+	var deco_meta_f := FileAccess.open("res://assets/art/hub/hub_deco_meta.json", FileAccess.READ)
+	failed += _assert(deco_meta_f != null, "open hub_deco_meta")
+	if deco_meta_f:
+		var deco_parsed: Variant = JSON.parse_string(deco_meta_f.get_as_text())
+		deco_meta_f.close()
+		failed += _assert(typeof(deco_parsed) == TYPE_DICTIONARY, "hub deco meta dict")
+		if typeof(deco_parsed) == TYPE_DICTIONARY:
+			var deco_root: Dictionary = deco_parsed
+			failed += _assert(str(deco_root.get("version", "")) == "v0.3.0-hub-v3", "hub deco meta v0.3.0-hub-v3")
+			var families: Dictionary = deco_root.get("families", {}) as Dictionary
+			var tree_n: int = (families.get("ring_tree_large", []) as Array).size() + (families.get("ring_tree_medium", []) as Array).size() + (families.get("ring_tree_slim", []) as Array).size()
+			var bush_n: int = (families.get("ring_bush_big", []) as Array).size() + (families.get("ring_bush_small", []) as Array).size()
+			failed += _assert(tree_n == 6, "hub deco trees 6 (got %d)" % tree_n)
+			failed += _assert(bush_n == 6, "hub deco bushes 6 (got %d)" % bush_n)
+			failed += _assert((families.get("grass_tuft", []) as Array).size() == 9, "hub deco grass tufts 9")
 	var keeper_meta_f := FileAccess.open("res://assets/art/keeper/keeper_meta.json", FileAccess.READ)
 	failed += _assert(keeper_meta_f != null, "open keeper_meta")
 	if keeper_meta_f:
@@ -389,7 +412,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 8, "written save_version 8")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 9, "written save_version 9")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -568,7 +591,7 @@ func _run() -> void:
 	# Costs: SYSTEMS v0.2.5 SHOP_BASE=400 → cost = 400 * (rank + 1)
 	failed += _assert(int(game_state.call("get_upgrade_cost", "keeper_stride")) == 400, "stride cost 400*(rank+1)")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "green_thumb")) == 400, "thumb cost 400*(rank+1)")
-	failed += _assert(int(game_state.call("get_upgrade_cost", "shard_sight")) == 400, "sight cost 400*(rank+1)")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "shard_sight")) == 800, "sight cost 800*(rank+1)")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "deep_roots")) == 400, "roots cost 400 at rank 0")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "forager")) == 400, "forager cost 400 at rank 0")
 	game_state.call("ascend")
@@ -622,7 +645,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION stays 8 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION stays 9 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -663,7 +686,11 @@ func _run() -> void:
 			failed += _assert(hud.get_node_or_null("Panel/BackpackButton") != null, "BackpackButton missing")
 			failed += _assert(hud.get_node_or_null("Panel/BackpackButton/BackpackIcon") != null, "BackpackIcon ColorRect missing")
 			failed += _assert(hud.get_node_or_null("BackpackPanel") != null, "BackpackPanel missing")
-			failed += _assert(hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") != null, "CraftList missing")
+			failed += _assert(hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") == null, "backpack has no handcraft list")
+			failed += _assert(hud.get_node_or_null("BackpackPanel/HandcraftTitle") == null, "backpack has no handcraft title")
+			failed += _assert(hud.get_node_or_null("BenchPanel/CraftScroll/CraftList") != null, "bench CraftList missing")
+			failed += _assert(inst.get_node_or_null("World/KeepersBench") != null, "KeepersBench missing")
+			failed += _assert(inst.get_node_or_null("Paths/ToBench") is Line2D, "ToBench path missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareGrowCosts/FertilizerIcon") != null, "Grow FertilizerIcon missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareGrowCosts/EssenceIcon") != null, "Grow EssenceIcon missing")
 			failed += _assert(FileAccess.file_exists("res://docs/ART_NEEDED_BACKPACK.md"), "ART_NEEDED_BACKPACK.md")
@@ -860,7 +887,7 @@ func _run() -> void:
 	failed += _assert(int(bonus_def.get("max_rank", 0)) == 3, "bonus_wisp max 3")
 	failed += _assert(int(game_state.call("param_int", "WISP_PER_NODE", -1)) == 0, "WISP_PER_NODE unlimited")
 	failed += _assert(int(game_state.call("param_int", "WISP_PER_MANATREE", -1)) == 0, "WISP_PER_MANATREE unlimited")
-	failed += _assert(int(game_state.call("param_float", "WISP_PULSE_SEC", 0.0)) == 10, "WISP_PULSE_SEC 10")
+	failed += _assert(int(game_state.call("param_float", "WISP_PULSE_SEC", 0.0)) == 20, "WISP_PULSE_SEC 20")
 	failed += _assert(int(game_state.call("param_int", "WISP_PULSE_GRANT", 0)) == 1, "WISP_PULSE_GRANT")
 
 	# Stage Grow grants +1 wisp
@@ -887,20 +914,20 @@ func _run() -> void:
 	game_state.call("_ensure_wisp_slots")
 	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_tree")) == "join", "stack join harvest_tree")
 	failed += _assert(int(game_state.call("count_wisps_on_node", "harvest_tree")) == 2, "two wisps on tree")
-	# Pulse accum — each wisp own timer → +2 wood after ~10s
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "pulse sec base 10")
-	game_state.call("apply_wisp_pulses", 9.9)
-	failed += _assert(int(game_state.get("wood")) == wood0, "no grant before 10s")
-	game_state.call("apply_wisp_pulses", 0.2)
-	failed += _assert(int(game_state.get("wood")) == wood0 + 2, "stacked wisps pulse +2 wood after ~10s")
-	# wisp_haste reduces interval
+	# Continuous: one wisp is 1/20s. Remainder stays under a whole unit until 20s.
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 20.0) < 0.01, "wisp interval base 20")
+	game_state.call("unassign_wisp", 1)
+	game_state.call("apply_wisp_pulses", 19.0)
+	failed += _assert(int(game_state.get("wood")) == wood0, "one wisp banks nothing before 20s")
+	game_state.call("apply_wisp_pulses", 1.0)
+	failed += _assert(int(game_state.get("wood")) == wood0 + 1, "one wisp banks 1 wood at 20s")
 	var ranks_h: Dictionary = game_state.get("upgrade_ranks")
 	ranks_h["wisp_haste"] = 3
 	game_state.set("upgrade_ranks", ranks_h)
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 7.0) < 0.01, "haste rank3 → 7s")
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 14.0) < 0.01, "haste rank3 → 14s")
 	ranks_h["wisp_haste"] = 5
 	game_state.set("upgrade_ranks", ranks_h)
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 5.0) < 0.01, "haste min 5s")
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "haste min 10s")
 	# Unassign
 	failed += _assert(bool(game_state.call("unassign_wisp", 0)), "unassign")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "cleared assignment")
@@ -972,7 +999,8 @@ func _run() -> void:
 	game_state.call("clear_selection")
 	failed += _assert(bool(game_state.get("keeper_selected")) == false and int(game_state.get("selected_wisp_id")) == -1, "LMB ground deselect")
 
-	# Manatree assign + pulse manashards @ 1/10s
+	# Two wisps share the manatree accumulator: 1 yield per 20s each.
+	# 9.9s × 2 = 0.99 (no bank). +0.2s crosses 1.0 → +1 shard.
 	failed += _assert(str(game_state.call("node_id_for_resource", &"manashards")) == "manatree", "manashards node id is manatree")
 	failed += _assert(str(content_strings.call("get_text", "wisp_assign_join_ok")).find("joins") >= 0, "wisp_assign_join_ok")
 	failed += _assert(str(content_strings.call("get_text", "wisp_node_shared_hint")).find("share") >= 0, "wisp_node_shared_hint")
@@ -990,9 +1018,9 @@ func _run() -> void:
 	failed += _assert(str(game_state.call("try_assign_wisp", 1, "manatree")) == "join", "Manatree stack join")
 	failed += _assert(int(game_state.call("count_wisps_on_node", "manatree")) == 2, "two wisps on manatree")
 	game_state.call("apply_wisp_pulses", 9.9)
-	failed += _assert(int(game_state.get("manashards")) == shards0, "no manashards before 10s")
+	failed += _assert(int(game_state.get("manashards")) == shards0, "no manashards before the shared unit")
 	game_state.call("apply_wisp_pulses", 0.2)
-	failed += _assert(int(game_state.get("manashards")) == shards0 + 2, "stacked manatree pulse +2 manashards")
+	failed += _assert(int(game_state.get("manashards")) == shards0 + 1, "two wisps bank 1 manashard near 10s")
 	failed += _assert(bool(game_state.call("unassign_wisp", 0)), "unassign from manatree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "manatree assignment cleared")
 
@@ -1084,13 +1112,15 @@ func _run() -> void:
 			var dpath: String = ""
 			if dspr and dspr.texture:
 				dpath = str(dspr.texture.resource_path)
-			if dpath.find("/decor/grass_") < 0 or dpath.find("stone_") >= 0 or dpath.find("/nodes/") >= 0 or dpath.find("harvest") >= 0:
+			if dpath.find("/hub/ground/grass_tuft_") < 0 or dpath.find("stone_") >= 0 or dpath.find("/nodes/") >= 0 or dpath.find("harvest") >= 0:
 				decor_bad += 1
 			if decor_node is Node2D and live.has_method("decor_spot_allowed"):
 				if not bool(live.call("decor_spot_allowed", (decor_node as Node2D).global_position)):
 					decor_on_landmark += 1
 		failed += _assert(decor_bad == 0, "decor is flora grass only (bad %d)" % decor_bad)
 		failed += _assert(decor_on_landmark == 0, "decor stays off node footprints (hits %d)" % decor_on_landmark)
+		var ground_deco: Array[Node] = live.get_tree().get_nodes_in_group("hub_ground_deco")
+		failed += _assert(ground_deco.size() == 150, "hub ground deco count (got %d)" % ground_deco.size())
 		var live_keeper: Node = live.get_node_or_null("World/Keeper")
 		failed += _assert(live_keeper != null, "live Keeper")
 		if live_keeper:
@@ -1223,6 +1253,40 @@ func _run() -> void:
 		failed += _assert(abs(care_sz.x - 520.0) < 1.5 and abs(care_sz.y - 420.0) < 1.5, "care 520x420 (got %s)" % care_sz)
 		failed += _assert(abs(float(care_metrics.get("header_h", 0)) - 64.0) < 1.5, "care header 64")
 		failed += _assert(abs(float(care_metrics.get("action_band_h", 0)) - 56.0) < 1.5, "care action band 56")
+		game_state.call("set_resource", &"essence", 200)
+		backpack.call("set_count", "fertilizer", 45)
+		test_hud.call("show_care_menu")
+		await process_frame
+		var pay_young: Button = test_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
+		failed += _assert(pay_young != null and pay_young.visible and not pay_young.disabled, "sapling Grow is ready")
+		if pay_young:
+			pay_young.pressed.emit()
+		await process_frame
+		var confirm_early: Control = test_hud.get_node_or_null("AncientGrowConfirm") as Control
+		failed += _assert(str(game_state.get("stage_id")) == "young", "non-ancient Grow stays one click")
+		failed += _assert(confirm_early == null or not confirm_early.visible, "non-ancient Grow skips the Ancient dialog")
+		failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "direct grow to mature")
+		failed += _assert(str(game_state.call("try_grow_stage")) == "ok", "direct grow to elder")
+		failed += _assert(str(game_state.get("stage_id")) == "elder", "staged at elder before Ancient confirm")
+		test_hud.call("show_care_menu")
+		await process_frame
+		var pay_elder: Button = test_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
+		failed += _assert(pay_elder != null and pay_elder.visible and not pay_elder.disabled, "elder Grow is ready")
+		if pay_elder:
+			pay_elder.pressed.emit()
+		await process_frame
+		var confirm: Control = test_hud.get_node_or_null("AncientGrowConfirm") as Control
+		failed += _assert(confirm != null and confirm.visible, "Ancient Grow opens the confirm")
+		failed += _assert(str(game_state.get("stage_id")) == "elder", "confirm does not grow yet")
+		var confirm_body: Label = test_hud.get_node_or_null("AncientGrowConfirm/Body") as Label
+		var minutes_ui: int = int(game_state.call("ancient_duration_minutes"))
+		failed += _assert(confirm_body != null and str(confirm_body.text).find("%d minutes" % minutes_ui) >= 0, "confirm body minutes from duration")
+		failed += _assert(confirm_body != null and str(confirm_body.text).find("{minutes}") < 0, "confirm body token filled")
+		var confirm_title: Label = test_hud.get_node_or_null("AncientGrowConfirm/Title") as Label
+		failed += _assert(confirm_title != null and str(confirm_title.text) == "Grow to Ancient?", "confirm title on the dialog")
+		test_hud.call("hide_ancient_grow_confirm")
+		await process_frame
+		failed += _assert(confirm != null and not confirm.visible, "confirm can close")
 		test_hud.call("hide_care_menu")
 		game_state.call("_set_stage", &"ancient")
 		failed += _assert(bool(game_state.get("fruit_ready")), "hud test fruit ready")
@@ -1243,7 +1307,11 @@ func _run() -> void:
 			failed += _assert(water_cta.position.x < harvest_cta.position.x, "action band Water left of Fruit")
 		var pre_hint: Label = test_hud.get_node_or_null("CarePanel/FruitReadyCard/PrecommitHint") as Label
 		failed += _assert(pre_hint != null and str(pre_hint.text).find("Keep watering") >= 0, "care hint tree_ancient_care_hint")
-		failed += _assert(pre_hint != null and str(pre_hint.text).find("still water") >= 0, "care hint tree_water_ancient_note")
+		failed += _assert(pre_hint != null and str(pre_hint.text).find("still water") < 0, "care hint hides tree_water_ancient_note")
+		failed += _assert(pre_hint != null and str(pre_hint.text).find("Fruit waits") < 0, "care hint does not say the Fruit waits")
+		var timer_label: Label = test_hud.get_node_or_null("AncientCountdown") as Label
+		failed += _assert(timer_label != null and str(timer_label.text).begins_with("Fruit falls in "), "HUD timer uses tree_ancient_timer_label (got %s)" % (str(timer_label.text) if timer_label else ""))
+		failed += _assert(timer_label != null and str(timer_label.text).find("PLACEHOLDER") < 0, "HUD timer is not the placeholder")
 		var ascend_pre: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
 		failed += _assert(ascend_pre != null and not ascend_pre.is_visible_in_tree(), "Ascend hidden pre-commit")
 		var e_pre_ui: int = int(game_state.get("essence"))
@@ -1333,6 +1401,16 @@ func _run() -> void:
 				if child is Control and str((child as Control).tooltip_text) != "":
 					described += 1
 			failed += _assert(described == list_node.get_child_count(), "each blessing row has tooltip desc (%d/%d)" % [described, list_node.get_child_count()])
+			var icon_rows: int = 0
+			var sheet_keep: int = 0
+			for shop_row: Node in list_node.get_children():
+				var asc_icon: TextureRect = shop_row.find_child("AscIcon", true, false) as TextureRect
+				if asc_icon and asc_icon.texture and str(asc_icon.texture.resource_path).find("icon_asc_") >= 0 and asc_icon.custom_minimum_size == Vector2(32, 32):
+					icon_rows += 1
+				if asc_icon and asc_icon.texture and str(asc_icon.texture.resource_path).find("manaforge_hud_icons") >= 0:
+					sheet_keep += 1
+			failed += _assert(list_node.get_child_count() == 10 and icon_rows == 10, "every blessing row has a 32 icon (%d/%d)" % [icon_rows, list_node.get_child_count()])
+			failed += _assert(sheet_keep == 0, "Keep Tools is not HUD sheet cell 3")
 			failed += _assert(str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")
 		failed += _assert(not bool(w_post_ui.get("ok", true)), "water blocked after UI commit")
@@ -1377,7 +1455,7 @@ func _run() -> void:
 
 	# --- SYSTEMS v0.4.0: backpack, handcraft, tools, Grow, Keep Tools, can shard_roll ×2 ---
 	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
-	failed += _assert(int((backpack.get("items_data") as Array).size()) == 10, "10 backpack items")
+	failed += _assert(int((backpack.get("items_data") as Array).size()) == 13, "13 backpack items")
 	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
 	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
 	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
@@ -1423,7 +1501,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_wooden_basket_short")).find("20") >= 0, "handcraft_row_wooden_basket_short")
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_fertilizer_short")).find("{wood}") >= 0, "handcraft_row_fertilizer_short")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_default")).find("10") >= 0, "fertilizer_craft_cost_default ×10")
-	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("3000") >= 0, "keep_tools cost default 3000")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("5000") >= 0, "keep_tools cost default 5000")
 	failed += _assert(str(content_strings.call("get_text", "tool_stone_watering_can_craft_cost")).find("20") >= 0, "tool_stone_watering_can_craft_cost")
 	failed += _assert(str(content_strings.call("get_text", "tool_wooden_basket_craft_cost")).find("20") >= 0, "tool_wooden_basket_craft_cost")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost")).find("{cost}") >= 0, "upgrade_keep_tools_cost token")
@@ -1478,10 +1556,13 @@ func _run() -> void:
 	game_state.call("reset_for_new_game")
 	game_state.call("_set_stage", &"ancient")
 	game_state.call("harvest_fruit")
-	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 3000, "Keep Tools ≈3000 shards")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 5000, "Keep Tools costs 5000 shards")
+	for asc_id: String in ["deep_roots", "forager", "green_thumb", "shard_sight", "keeper_stride", "wisp_haste", "bonus_wisp", "keep_tools", "keep_forge_intermediates", "keep_forge_jobs"]:
+		var asc_art: String = str(game_state.call("upgrade_art_path", asc_id))
+		failed += _assert(asc_art.ends_with("icon_asc_%s.png" % asc_id), "ascension icon %s" % asc_id)
 	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools unaffordable at 0 shards")
-	game_state.call("set_resource", &"manashards", 3000)
-	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 3000")
+	game_state.call("set_resource", &"manashards", 5000)
+	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 5000")
 
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 3)
@@ -1508,9 +1589,9 @@ func _run() -> void:
 	failed += _assert(str(backpack.call("try_craft", "stone_axe")) == "unique", "second axe blocked")
 	failed += _assert(bool(backpack.call("owns_tool_for_resource", &"wood")), "axe boosts wood")
 	failed += _assert(not bool(backpack.call("owns_tool_for_resource", &"stone")), "axe does not boost stone")
-	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"wood")) - 0.5) < 0.01, "axe halves wood wait")
-	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"stone")) - 1.0) < 0.01, "no pickaxe: stone wait 1s")
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "tools do not change wisp pulse")
+	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"wood")) - 1.0) < 0.01, "axe sets wood interval to 1s")
+	failed += _assert(abs(float(game_state.call("get_keeper_harvest_pulse_sec", &"stone")) - 2.0) < 0.01, "no pickaxe: stone interval 2s")
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 20.0) < 0.01, "tools do not change wisp interval")
 
 	var basket_def: Dictionary = backpack.call("get_recipe_def", "wooden_basket")
 	var basket_ings: Dictionary = basket_def.get("ingredients", {}) as Dictionary
@@ -1545,7 +1626,7 @@ func _run() -> void:
 		can_ok += 1
 		i_can += 1
 	failed += _assert(can_ok == 16, "16 can pulses checked")
-	# Can doubles (roll + shard_sight): U{1,3}+1 → {4,6,8}
+	# Can doubles (roll + 0.5): U{1,3}+0.5 → {3,5,7}
 	var ranks_ss: Dictionary = game_state.get("upgrade_ranks")
 	ranks_ss["shard_sight"] = 1
 	game_state.set("upgrade_ranks", ranks_ss)
@@ -1553,7 +1634,7 @@ func _run() -> void:
 	while ss_i < 12:
 		var ss_pulse: Dictionary = game_state.call("apply_water_pulse")
 		var ss_shards: int = int(ss_pulse.get("shards", 0))
-		failed += _assert(ss_shards == 4 or ss_shards == 6 or ss_shards == 8, "can*(roll+sight) in {4,6,8} got %d" % ss_shards)
+		failed += _assert(ss_shards == 3 or ss_shards == 5 or ss_shards == 7, "can*(roll+0.5) in {3,5,7} got %d" % ss_shards)
 		failed += _assert(int(ss_pulse.get("essence", 0)) == 1, "can+sight essence still +1")
 		ss_i += 1
 
@@ -1647,10 +1728,16 @@ func _run() -> void:
 		pack_hud.call("open_backpack")
 		await process_frame
 		failed += _assert(bool(pack_hud.call("is_backpack_open")), "backpack opens")
-		var craft_box: VBoxContainer = pack_hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") as VBoxContainer
-		failed += _assert(craft_box != null and craft_box.get_child_count() >= 10, "craft rows built (%d)" % (craft_box.get_child_count() if craft_box else 0))
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/CraftScroll/CraftList") == null, "open backpack stays inventory")
+		pack_hud.call("open_bench_panel")
+		await process_frame
+		failed += _assert(bool(pack_hud.call("is_bench_open")), "bench panel opens from the station")
+		failed += _assert(not bool(pack_hud.call("is_backpack_open")), "bench closes the backpack")
+		var craft_box: VBoxContainer = pack_hud.get_node_or_null("BenchPanel/CraftScroll/CraftList") as VBoxContainer
+		failed += _assert(craft_box != null and craft_box.get_child_count() >= 14, "bench craft rows built (%d)" % (craft_box.get_child_count() if craft_box else 0))
 		var pack_metrics: Dictionary = pack_hud.call("get_backpack_layout_metrics")
-		failed += _assert(bool(pack_metrics.get("fits", false)), "craft scroll width ≤ backpack panel")
+		var bench_metrics: Dictionary = pack_hud.call("get_bench_layout_metrics")
+		failed += _assert(bool(bench_metrics.get("fits", false)), "craft scroll width ≤ bench panel")
 		failed += _assert(float(pack_metrics.get("panel_w", 0)) >= 630.0, "backpack panel widened")
 		if craft_box:
 			var fluff: int = 0
@@ -1672,25 +1759,31 @@ func _run() -> void:
 		var grow_btn: Button = pack_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
 		failed += _assert(grow_btn != null and str(grow_btn.text) == "Grow", "care CTA Grow")
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabAll") != null, "backpack tab All")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabRaw") != null, "backpack tab Raw")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabRefined") != null, "backpack tab Refined")
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabTools") != null, "backpack tab Tools")
-		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabParts") != null, "backpack tab Parts")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabWeapons") != null, "backpack tab Weapons")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabRelics") != null, "backpack tab Relics")
+		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabParts") == null, "parts tab removed")
 		var pack_btn: Button = pack_hud.get_node_or_null("Panel/BackpackButton") as Button
 		failed += _assert(pack_btn != null and str(pack_btn.text) == "" and str(pack_btn.tooltip_text).find("Backpack") >= 0, "HUD backpack sprite button")
+		pack_hud.call("close_bench")
 		pack_hud.call("close_backpack")
 		await process_frame
 		failed += _assert(not bool(pack_hud.call("is_backpack_open")), "backpack closes")
+		failed += _assert(not bool(pack_hud.call("is_bench_open")), "bench closes")
 		pack_hud.queue_free()
 		await process_frame
 		game_state.call("reset_for_new_game")
 
-	# --- Character sheet, Runestones, Stone Sword, Manatree visual scale (Haex greenlight) ---
+	# --- Character sheet, Runestones, Flintblade, Manatree visual scale (Haex greenlight) ---
 	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
 	var equipment: Node = tree_root.get_node_or_null("Equipment")
 	failed += _assert(keeper_stats != null, "KeeperStats autoload missing")
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 8, "SAVE_VERSION is 8")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION is 9")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -1715,8 +1808,8 @@ func _run() -> void:
 		failed += _assert(str(content_strings.call("get_text", "equip_locked_hint")).find("not open") >= 0, "equip_locked_hint")
 		failed += _assert(str(content_strings.call("get_text", "equip_unequip_ok")).find("Put away") >= 0, "equip_unequip_ok")
 		failed += _assert(str(content_strings.call("get_text", "weapon_rod_name")) == "Weapon Rod", "weapon_rod_name")
-		failed += _assert(str(content_strings.call("get_text", "stone_sword_name")) == "Stone Sword", "stone_sword_name")
-		failed += _assert(str(content_strings.call("get_text", "stone_sword_tooltip")).find("crude") >= 0, "stone_sword_tooltip")
+		failed += _assert(str(content_strings.call("get_text", "stone_sword_name")) == "Flintblade", "stone_sword_name")
+		failed += _assert(str(content_strings.call("get_text", "stone_sword_tooltip")).find("flint") >= 0, "stone_sword_tooltip")
 		failed += _assert(str(content_strings.call("get_text", "weapon_rod")) == "Weapon Rod", "weapon_rod alias")
 		failed += _assert(str(content_strings.call("get_text", "stone_sword")) == "Stone Sword", "stone_sword id string")
 		var stat_order: Array = keeper_stats.get("STAT_ORDER")
@@ -1741,11 +1834,11 @@ func _run() -> void:
 		failed += _assert(not bool(keeper_stats.call("affects_gather", "fate")), "fate does not affect gather")
 		failed += _assert(not bool(keeper_stats.call("affects_wisps", "fate")), "fate does not affect wisps")
 		failed += _assert(not bool(keeper_stats.call("affects_craft", "fate")), "fate does not affect craft")
-		var grant_before: int = int(game_state.call("get_harvest_grant", &"wood"))
+		var grant_before: float = float(game_state.call("active_harvest_factor"))
 		var pulse_before: float = float(game_state.call("get_wisp_pulse_sec"))
 		var fert_before: float = float(backpack.call("get_fertilizer_craft_cost_mult"))
 		keeper_stats.call("set_rank", "fate", 12)
-		failed += _assert(int(game_state.call("get_harvest_grant", &"wood")) == grant_before, "fate rank leaves gather grant")
+		failed += _assert(abs(float(game_state.call("active_harvest_factor")) - grant_before) < 0.001, "fate rank leaves gather factor")
 		failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - pulse_before) < 0.01, "fate rank leaves wisp pulse")
 		failed += _assert(abs(float(backpack.call("get_fertilizer_craft_cost_mult")) - fert_before) < 0.01, "fate rank leaves craft mult")
 		keeper_stats.call("set_rank", "fate", 0)
@@ -1771,7 +1864,7 @@ func _run() -> void:
 		failed += _assert(str(equipment.call("slot_lock_short", "relic")) == "Locked", "relic lock chip")
 		failed += _assert(str(equipment.call("slot_lock_hint", "relic")) == "Relic locked — needs a Forge Key.", "relic lock hint")
 		failed += _assert(str(equipment.call("slot_lock_hint", "head")) == "Not yet — the Forge still sleeps.", "armor lock hint")
-		failed += _assert(str(equipment.call("item_display_name", "stone_sword")) == "Stone Sword", "stone_sword display id")
+		failed += _assert(str(equipment.call("item_display_name", "stone_sword")) == "Flintblade", "stone_sword display id")
 		failed += _assert(not backpack.call("is_known_item", "weapon_rod"), "weapon rod is not a backpack item")
 		failed += _assert((backpack.call("get_recipe_def", "weapon_rod") as Dictionary).is_empty(), "weapon rod recipe is not backpack")
 		var rod_ings: Dictionary = equipment.call("get_recipe_ingredients", "weapon_rod")
@@ -1869,15 +1962,24 @@ func _run() -> void:
 		failed += _assert(abs(float(scale_tree.call("visual_scale_for", &"elder")) - 2.0) < 0.01, "elder visual 2")
 		failed += _assert(abs(float(scale_tree.call("visual_scale_for", &"ancient")) - 1.5) < 0.01, "ancient visual 1.5")
 		var sap_sprite: Sprite2D = scale_tree.get_node_or_null("Sprite") as Sprite2D
-		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 2.0) < 0.01, "sapling sprite scale 2")
+		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 1.0) < 0.01, "sapling sprite scale 1")
 		failed += _assert(sap_sprite != null and sap_sprite.hframes == 8, "sapling anim 8 frames")
 		game_state.set("stage_id", &"ancient")
 		scale_tree.call("_refresh_visual")
-		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 4.0) < 0.01 and abs(sap_sprite.scale.y - 4.0) < 0.01, "ancient sprite scale 4")
+		failed += _assert(sap_sprite != null and abs(sap_sprite.scale.x - 1.0) < 0.01 and abs(sap_sprite.scale.y - 1.0) < 0.01, "ancient sprite scale 1")
 		for stage_name: String in ["sapling", "young", "mature", "elder", "ancient"]:
 			game_state.set("stage_id", StringName(stage_name))
 			scale_tree.call("_refresh_visual")
+			var expect_door: Dictionary = {
+				"sapling": Vector2(62, 102),
+				"young": Vector2(150, 255),
+				"mature": Vector2(368, 536),
+				"elder": Vector2(512, 916),
+				"ancient": Vector2(504, 936),
+			}
 			var door_px: Vector2 = scale_tree.call("door_floor_px")
+			failed += _assert(door_px.distance_to(expect_door[stage_name]) < 0.51, "door floor %s (got %s)" % [stage_name, door_px])
+			failed += _assert(abs(sap_sprite.scale.x - 1.0) < 0.01, "native scale 1 on %s" % stage_name)
 			var frame_sz: Vector2 = scale_tree.call("_stage_size", StringName(stage_name))
 			var anchor: Vector2 = scale_tree.call("door_anchor_offset")
 			failed += _assert(door_px.y < frame_sz.y - 1.0, "door sill above frame bottom on %s (y %.0f h %.0f)" % [stage_name, door_px.y, frame_sz.y])
@@ -1943,7 +2045,7 @@ func _run() -> void:
 		var live_sprite: Sprite2D = null
 		if live_tree:
 			live_sprite = live_tree.get_node_or_null("Sprite") as Sprite2D
-		failed += _assert(live_sprite != null and abs(live_sprite.scale.x - 2.0) < 0.01, "live sapling scale 2")
+		failed += _assert(live_sprite != null and abs(live_sprite.scale.x - 1.0) < 0.01, "live sapling scale 1")
 		var sheet_hud: Node = live_sheet.get_node_or_null("HUD")
 		failed += _assert(sheet_hud != null and sheet_hud.has_method("open_character_sheet"), "HUD character sheet")
 		var char_btn: Button = null
@@ -1985,8 +2087,8 @@ func _run() -> void:
 		failed += _assert(weapon_slot != null and relic_slot != null, "weapon and relic slots")
 		failed += _assert(relic_square != null and relic_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "relic slot uses locked chrome")
 		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "empty weapon slot uses empty chrome")
-		var relic_style: StyleBoxFlat = relic_slot.get_theme_stylebox("panel") as StyleBoxFlat
-		var weapon_style: StyleBoxFlat = weapon_slot.get_theme_stylebox("panel") as StyleBoxFlat
+		var relic_style: StyleBoxFlat = relic_slot.get_theme_stylebox("panel") as StyleBoxFlat if relic_slot != null else null
+		var weapon_style: StyleBoxFlat = weapon_slot.get_theme_stylebox("panel") as StyleBoxFlat if weapon_slot != null else null
 		failed += _assert(relic_style != null and relic_style.get_border_width(SIDE_LEFT) == 0, "locked slot has no gold border")
 		failed += _assert(weapon_style != null and weapon_style.get_border_width(SIDE_TOP) == 0, "weapon slot has no gold border")
 		failed += _assert(relic_slot.get_node_or_null("Lock") == null, "locked slot has no inner lock chip")
@@ -2048,7 +2150,13 @@ func _run() -> void:
 		var sword_icon: TextureRect = null
 		if sword_row.get_child_count() > 0 and sword_row.get_child(0).get_child_count() > 0:
 			sword_icon = sword_row.get_child(0).get_child(0) as TextureRect
-		failed += _assert(sword_icon != null and sword_icon.texture == HudIcons.cell(HudIcons.STONE_SWORD), "gear bag sword uses sheet cell")
+		var flint_icon: Texture2D = load("res://assets/art/ui/icon_stone_sword.png") as Texture2D
+		failed += _assert(HudIcons.index_for_item("stone_sword") < 0, "stone_sword leaves sheet cell 6")
+		failed += _assert(CharacterSheet.gear_icon_path("stone_sword") == "res://assets/art/ui/icon_stone_sword.png", "flintblade icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("rootsteel_edge") == "res://assets/art/ui/icon_rootsteel_edge.png", "rootsteel icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("heartwand") == "res://assets/art/ui/icon_heartwand.png", "heartwand icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("switchshaft") == "res://assets/art/ui/icon_switchshaft.png", "switchshaft icon path")
+		failed += _assert(sword_icon != null and flint_icon != null and sword_icon.texture == flint_icon, "gear bag sword uses flintblade icon")
 		sheet_hud.get_node("CharacterSheet").call("request_equip", "stone_sword")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet click equips sword")
@@ -2056,9 +2164,9 @@ func _run() -> void:
 		weapon_hint = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/CaptionHost/Hint") as Label
 		failed += _assert(might_line != null and str(might_line.text).find("5 + 2 = 7") >= 0, "sheet shows 5 + 2 = 7")
 		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "equipped sword still adds +2 might")
-		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Stone Sword", "equipped weapon shows the item name")
+		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Flintblade", "equipped weapon shows the item name")
 		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
-		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.STONE_SWORD), "equipped sword shows sheet cell")
+		failed += _assert(weapon_square != null and flint_icon != null and weapon_square.texture == flint_icon, "equipped sword shows flintblade icon")
 		var slot_plate: Node = sheet_hud.get_node("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
 		sheet_hud.get_node("CharacterSheet").call("request_unequip", "weapon")
 		await process_frame
@@ -2187,6 +2295,13 @@ func _run() -> void:
 		save_service.call("delete_save")
 
 	failed += await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
+	failed += _forge_pass_a(tree_root, game_state, save_service, backpack)
+	failed += _forge_duration_ticks(tree_root, game_state, backpack)
+	failed += await _party_bar_check(tree_root, game_state)
+	failed += await _elaia_join_check(tree_root, game_state, backpack)
+	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
+	failed += await _forge_pass_b(tree_root, game_state, backpack)
+	failed += await _forge_pass_c(tree_root, game_state, backpack)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2441,7 +2556,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 8, "slot writes save_version 8")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 9, "slot writes save_version 9")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -2506,7 +2621,8 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_state.set("forge_key", true)
 		game_state.emit_signal("echo_flags_changed")
 		failed += _assert(not bool(hud.call("is_forge_entry_gray")), "Enter Forge wakes up with the key")
-		failed += _assert(str(hud.call("open_forge_entry")) == "Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.", "key forge popup")
+		var forge_jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+		failed += _assert(forge_jobs != null and bool(forge_jobs.call("can_enter_forge")), "key can enter the forge")
 		hud.call("hide_forge_popup")
 		game_state.set("stage_id", &"ancient")
 		game_state.emit_signal("stage_changed", &"ancient")
@@ -2643,6 +2759,838 @@ func _echo_totals(might: int, swift: int, ward: int = 5) -> Dictionary:
 		"swiftness": swift,
 		"fate": 5,
 	}
+
+
+func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	if jobs == null:
+		return _assert(false, "pass e forge jobs")
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	var minutes: int = int(game_state.call("ancient_duration_minutes"))
+	var raw_body: String = str(content_strings.call("get_text", "tree_grow_ancient_confirm_body"))
+	failed += _assert(raw_body.find("{minutes}") >= 0 and raw_body.find("10") < 0, "minutes token is not hardcoded")
+	var body: String = str(content_strings.call("get_text", "tree_grow_ancient_confirm_body", {"minutes": minutes}))
+	failed += _assert(body.find("PLACEHOLDER") < 0 and body.find("%d minutes" % minutes) >= 0, "ancient confirm minutes come from duration")
+	failed += _assert(minutes == 10, "600s duration is 10 minutes")
+	failed += _assert(int(float(game_state.call("ancient_duration_sec")) / 60.0) == minutes, "minutes helper matches duration")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_ancient_confirm_title")) == "Grow to Ancient?", "ancient confirm title")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_ancient_confirm_yes")) == "Grow to Ancient", "ancient confirm yes")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_ancient_confirm_no")) == "Not yet", "ancient confirm no")
+	failed += _assert(str(content_strings.call("get_text", "tree_ancient_timer_label", {"time": "9:05"})) == "Fruit falls in 9:05", "timer label")
+	failed += _assert(str(content_strings.call("get_text", "tree_grow_confirm")) == "Grow into {next_stage}?", "generic grow confirm unchanged")
+	failed += _assert(str(content_strings.call("get_text", "tree_at_ancient_idle")).find("waiting") >= 0, "tree_at_ancient_idle kept")
+	failed += _assert(str(content_strings.call("get_text", "ancient_grow_confirm_body")).find("PLACEHOLDER") >= 0, "placeholder key kept unused")
+	failed += _assert(str(content_strings.call("get_text", "fruit_harvest_toast")).find("Primordial Fruit") >= 0, "timer end reuses fruit_harvest_toast")
+	failed += _assert(absf(float(game_state.call("ancient_duration_sec")) - 600.0) < 0.01, "ancient duration config is 600")
+	failed += _assert(absf(float(game_state.call("offline_reset_active_sec")) - 180.0) < 0.01, "offline reset active sec is 180")
+	var sight: Dictionary = game_state.call("get_upgrade_def", "shard_sight")
+	failed += _assert(absf(float(sight.get("value_per_rank", 0.0)) - 0.5) < 0.001, "shard sight +0.5 per rank")
+	failed += _assert(int(sight.get("cost_base", 0)) == 800, "shard sight cost base 800")
+	game_state.call("reset_for_new_game")
+	var ranks_ss: Dictionary = game_state.get("upgrade_ranks")
+	ranks_ss["shard_sight"] = 1
+	game_state.set("upgrade_ranks", ranks_ss)
+	failed += _assert(int(game_state.call("get_upgrade_cost", "shard_sight")) == 1600, "shard sight rank 1 costs 1600")
+	var sight_pulse: Dictionary = game_state.call("apply_water_pulse")
+	var sight_shards: int = int(sight_pulse.get("shards", 0))
+	failed += _assert(sight_shards >= 1 and sight_shards <= 3, "sight rank 1 without can grants the whole part")
+	var sight_rem: float = float((game_state.get("harvest_accum") as Dictionary).get("manashards", -1.0))
+	failed += _assert(absf(sight_rem - 0.5) < 0.001, "sight rank 1 keeps a 0.5 remainder")
+	## Tier checkpoints.
+	var m30: float = 30.0 * 60.0
+	var h2: float = 2.0 * 3600.0
+	var h8: float = 8.0 * 3600.0
+	var h24: float = 24.0 * 3600.0
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", m30)) - 180.0) < 0.02, "tier 30min → 180")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h2)) - 270.0) < 0.02, "tier 2h → 270")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h8)) - 356.4) < 0.02, "tier 8h → 356.4")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h24)) - 452.4) < 0.02, "tier 24h → 452.4")
+	## Nothing moves offline while Ancient.
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 4)
+	game_state.call("set_resource", &"essence", 6)
+	game_state.call("set_resource", &"manashards", 8)
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	game_state.call("set_resource", &"stone", 40)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	var prog_before: float = float(jobs.call("job_progress", "crucible"))
+	game_state.call("_set_stage", &"ancient")
+	game_state.set("ancient_remaining_sec", 400.0)
+	game_state.set("offline_closed_sec", 50.0)
+	var blocked: Variant = jobs.call("apply_offline_seconds", h2)
+	failed += _assert(typeof(blocked) == TYPE_DICTIONARY and int((blocked as Dictionary).get("harvest", -1)) == 0, "ancient offline harvest is 0")
+	jobs.call("apply_saved_offline_gap", h2)
+	failed += _assert(int(game_state.get("wood")) == 4, "ancient offline does not bank wood")
+	failed += _assert(int(game_state.get("essence")) == 6, "ancient offline does not bank essence")
+	failed += _assert(int(game_state.get("manashards")) == 8, "ancient offline does not bank shards")
+	failed += _assert(absf(float(game_state.get("ancient_remaining_sec")) - 400.0) < 0.01, "ancient timer ignores offline")
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - prog_before) < 0.01, "ancient offline does not advance the forge")
+	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 50.0) < 0.01, "ancient offline does not consume the curve")
+	## Timer hits 0 → Fruit commits.
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	failed += _assert(absf(float(game_state.get("ancient_remaining_sec")) - 600.0) < 0.01, "grow to ancient starts at 600")
+	game_state.set("ancient_remaining_sec", 0.4)
+	game_state.call("tick_ancient", 0.2)
+	failed += _assert(not bool(game_state.get("fruit_committed")), "timer still running at 0.2s left")
+	game_state.call("tick_ancient", 0.3)
+	failed += _assert(bool(game_state.get("fruit_committed")), "timer at 0 auto-harvests")
+	failed += _assert(absf(float(game_state.get("ancient_remaining_sec"))) < 0.001, "timer stays at 0")
+	failed += _assert(int(game_state.get("lifetime_fruit_harvested")) >= 1, "auto-harvest counts the fruit")
+	## 1 wisp × 200s = 10 wood. Keeper with a tool × 10s = 10 wood.
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	game_state.call("apply_wisp_pulses", 200.0)
+	failed += _assert(int(game_state.get("wood")) == 10, "1 wisp for 200s gives 10 wood")
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "stone_axe", 1)
+	game_state.call("accumulate_keeper_harvest", &"wood", 10.0)
+	failed += _assert(int(game_state.get("wood")) == 10, "keeper with a tool for 10s gives 10 wood")
+	## v8 Ancient loads the full 600.
+	var v8: Dictionary = {"stage_id": "ancient", "fruit_ready": true}
+	var migrated: Dictionary = save_service.call("_migrate", 8, v8)
+	game_state.call("apply_save_dict", migrated)
+	failed += _assert(str(game_state.get("stage_id")) == "ancient", "v8 ancient stage")
+	failed += _assert(absf(float(game_state.get("ancient_remaining_sec")) - 600.0) < 0.01, "v8 ancient loads 600")
+	## Curve continues under 180s of play, and restarts at 180s.
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	game_state.set("offline_closed_sec", 1200.0)
+	game_state.set("active_since_load_sec", 60.0)
+	var continued: Variant = jobs.call("apply_saved_offline_gap", 1200.0)
+	failed += _assert(typeof(continued) == TYPE_DICTIONARY and int((continued as Dictionary).get("harvest", -1)) == 35, "reopen under 180s prices minutes 20-40")
+	failed += _assert(int(game_state.get("wood")) == 35, "continued curve banks 35 wood")
+	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 2400.0) < 0.01, "continued curve stores 40 minutes")
+	failed += _assert(absf(float(game_state.get("active_since_load_sec"))) < 0.01, "load clears active time")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	game_state.set("offline_closed_sec", 1200.0)
+	game_state.set("active_since_load_sec", 180.0)
+	var restarted: Variant = jobs.call("apply_saved_offline_gap", 1200.0)
+	failed += _assert(typeof(restarted) == TYPE_DICTIONARY and int((restarted as Dictionary).get("harvest", -1)) == 60, "180s of play restarts the curve")
+	failed += _assert(int(game_state.get("wood")) == 60, "reset curve banks 60 wood")
+	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 1200.0) < 0.01, "reset curve stores only the new closure")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	return failed
+
+
+func _forge_duration_ticks(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(jobs != null and equipment != null, "duration nodes")
+	if jobs == null or equipment == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", -1.0)
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - 1.0) < 0.01, "duration playtest scale is 1")
+	var rows: Array = [
+		["crucible", "sapsteel", 60.0, false],
+		["mill", "heartwood_bits", 60.0, false],
+		["press", "amberbind", 45.0, false],
+		["anvil", "rootsteel_edge", 600.0, true],
+		["reliquary", "oakheart_knot", 600.0, true],
+	]
+	for row: Array in rows:
+		var station: String = str(row[0])
+		var recipe: String = str(row[1])
+		var spec: float = float(row[2])
+		var gear: bool = bool(row[3])
+		failed += _forge_one_clock(jobs, game_state, backpack, equipment, station, recipe, spec, gear, 1.0, 0)
+		failed += _forge_one_clock(jobs, game_state, backpack, equipment, station, recipe, spec, gear, 1.0, 2)
+		failed += _forge_one_clock(jobs, game_state, backpack, equipment, station, recipe, spec, gear, 60.0, 0)
+	jobs.call("set_dev_speed_override", 1.0)
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _forge_one_clock(jobs: Node, game_state: Node, backpack: Node, equipment: Node, station: String, recipe: String, spec: float, gear: bool, bug_scale: float, wisps: int) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	if bug_scale > 1.5:
+		jobs.call("set_dev_speed_override", bug_scale)
+	else:
+		jobs.call("set_dev_speed_override", -1.0)
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - bug_scale) < 0.05, "%s dev scale %.0f" % [station, bug_scale])
+	_forge_stock(game_state, backpack, station)
+	if wisps > 0:
+		game_state.set("wisp_count", wisps)
+		game_state.call("_ensure_wisp_slots")
+		for i: int in wisps:
+			var joined: String = str(game_state.call("try_assign_wisp", i, station))
+			failed += _assert(joined != "full" and joined != "invalid", "%s wisp %d joins" % [station, i])
+	jobs.call("set_keeper_working", station, true)
+	var worker: float = 1.0 + 0.1 * float(wisps)
+	failed += _assert(absf(float(jobs.call("station_speed_mult", station)) - worker) < 0.02, "%s speed with %d wisps" % [station, wisps])
+	failed += _assert(str(jobs.call("try_begin_job", station, recipe)) == "ok", "%s job starts" % station)
+	var expected: float = spec / (bug_scale * worker)
+	var margin: float = minf(0.5, expected * 0.25)
+	if margin < 0.02:
+		margin = 0.02
+	_forge_tick(jobs, expected - margin)
+	var early_ok: bool = bool(jobs.call("has_job", station)) and float(jobs.call("job_progress", station)) + 0.01 < spec and str(jobs.call("job_line", station)) != ""
+	var who: String = "keeper alone" if wisps == 0 else "keeper+%d wisps" % wisps
+	if station == "anvil" and bug_scale <= 1.5:
+		failed += _assert(early_ok, "anvil %s not done just before spec" % who)
+	else:
+		failed += _assert(early_ok, "%s %s not done just before duration" % [station, who])
+	var elapsed: float = expected - margin
+	var steps: int = 0
+	while bool(jobs.call("has_job", station)) and steps < 80:
+		jobs.call("_process", 0.05)
+		elapsed += 0.05
+		steps += 1
+	var finished: bool = not bool(jobs.call("has_job", station))
+	if station == "anvil" and bug_scale <= 1.5:
+		failed += _assert(finished, "anvil %s done just after spec" % who)
+	else:
+		failed += _assert(finished, "%s %s done just after duration" % [station, who])
+	if gear:
+		failed += _assert(int(equipment.call("unequipped_count", recipe)) == 1, "%s output" % station)
+	else:
+		failed += _assert(int(backpack.call("get_count", recipe)) == 1, "%s output" % station)
+	var factor: float = spec / maxf(elapsed, 0.01)
+	var want: float = bug_scale * worker
+	print("FORGE_DUR station=%s wisps=%d scale=%.0f spec=%.2f measured=%.2f factor=%.2f" % [station, wisps, bug_scale, spec, elapsed, factor])
+	failed += _assert(absf(factor - want) / want < 0.12, "%s factor %.2f vs %.2f" % [station, factor, want])
+	return failed
+
+
+func _forge_stock(game_state: Node, backpack: Node, station: String) -> void:
+	if station == "crucible":
+		game_state.call("set_resource", &"stone", 20)
+	elif station == "mill":
+		game_state.call("set_resource", &"wood", 20)
+	elif station == "press":
+		game_state.call("set_resource", &"food", 15)
+	elif station == "anvil":
+		backpack.call("set_count", "sapsteel", 12)
+		backpack.call("set_count", "heartwood_bits", 6)
+		backpack.call("set_count", "amberbind", 4)
+		game_state.call("set_resource", &"essence", 150)
+	else:
+		backpack.call("set_count", "sapsteel", 6)
+		backpack.call("set_count", "heartwood_bits", 6)
+		backpack.call("set_count", "amberbind", 6)
+		game_state.call("set_resource", &"essence", 100)
+
+
+func _forge_tick(jobs: Node, seconds: float) -> void:
+	var left: float = seconds
+	while left > 0.001:
+		var step: float = minf(0.25, left)
+		jobs.call("_process", step)
+		left -= step
+
+
+func _elaia_join_check(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(jobs != null and equipment != null, "elaia join nodes")
+	if jobs == null or equipment == null:
+		return failed
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(packed != null, "elaia party hud loads")
+	if packed == null:
+		return failed
+	var hud: Node = packed.instantiate()
+	tree_root.add_child(hud)
+	await process_frame
+	game_state.call("reset_for_new_game")
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", false)
+	game_state.set("elaia_legacy_joined", false)
+	hud.call("_refresh_party_bar")
+	var elaia_slot: Control = hud.get_node_or_null("PartyBar/Column/Elaia") as Control
+	var keeper_slot: Control = hud.get_node_or_null("PartyBar/Column/Keeper") as Control
+	var wisp_slot: Control = hud.get_node_or_null("PartyBar/Column/Wisps") as Control
+	failed += _assert(not bool(game_state.call("elaia_in_party")), "Spare with no Relic does not join Elaia")
+	failed += _assert(elaia_slot != null and not elaia_slot.visible, "no Elaia portrait after Spare with no Relic")
+	hud.call("party_click", "elaia")
+	failed += _assert(str(game_state.get("selected_companion_id")) == "", "Spare alone does not select Elaia")
+	_forge_stock(game_state, backpack, "reliquary")
+	jobs.call("set_keeper_working", "reliquary", true)
+	failed += _assert(str(jobs.call("try_begin_job", "reliquary", "oakheart_knot")) == "ok", "first relic job starts")
+	jobs.call("_process", 600.0)
+	failed += _assert(not bool(jobs.call("has_job", "reliquary")), "first relic craft completes")
+	failed += _assert(int(equipment.call("unequipped_count", "oakheart_knot")) == 1, "first relic is in the inventory")
+	failed += _assert(bool(game_state.get("first_relic_crafted")), "first relic sets the flag")
+	failed += _assert(bool(game_state.call("elaia_in_party")), "Elaia joins after the first Relic craft")
+	hud.call("_refresh_party_bar")
+	failed += _assert(elaia_slot.visible and keeper_slot.visible, "Elaia portrait shows under the Keeper")
+	failed += _assert(wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, then Elaia")
+	var old_save: Dictionary = {
+		"stage_id": "sapling",
+		"echo_01_redeemed": true,
+		"forge_key": false,
+		"gear_inventory": {},
+		"equipment_equipped": {},
+	}
+	game_state.call("apply_save_dict", old_save)
+	hud.call("_refresh_party_bar")
+	failed += _assert(bool(game_state.get("echo_01_redeemed")) and not bool(game_state.get("first_relic_crafted")), "old join does not invent a relic craft")
+	failed += _assert(bool(game_state.call("elaia_in_party")), "old save with Elaia joined and no Relic keeps her")
+	failed += _assert(elaia_slot.visible, "old save still shows her portrait")
+	var relic_save: Dictionary = {
+		"stage_id": "sapling",
+		"echo_01_redeemed": false,
+		"forge_key": false,
+		"gear_inventory": {"oakheart_knot": 1},
+		"equipment_equipped": {},
+	}
+	game_state.call("apply_save_dict", relic_save)
+	failed += _assert(bool(game_state.get("first_relic_crafted")), "missing flag defaults true when the save holds a relic")
+	failed += _assert(not bool(game_state.call("elaia_in_party")), "a relic without Spare does not join Elaia")
+	hud.queue_free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	jobs.call("set_dev_speed_override", 1.0)
+	if failed == 0:
+		print("ELAIA_JOIN_OK")
+	return failed
+
+
+func _party_bar_check(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(packed != null, "party bar hud loads")
+	if packed == null:
+		return failed
+	var hud: Node = packed.instantiate()
+	tree_root.add_child(hud)
+	await process_frame
+	game_state.call("reset_for_new_game")
+	game_state.call("clear_selection")
+	await process_frame
+	var bar: Control = hud.get_node_or_null("PartyBar") as Control
+	var keeper_slot: Control = hud.get_node_or_null("PartyBar/Column/Keeper") as Control
+	var wisp_slot: Control = hud.get_node_or_null("PartyBar/Column/Wisps") as Control
+	var elaia_slot: Control = hud.get_node_or_null("PartyBar/Column/Elaia") as Control
+	failed += _assert(bar != null and bar.visible, "party bar visible with nothing selected")
+	failed += _assert(keeper_slot != null and keeper_slot.visible, "keeper portrait with nothing selected")
+	failed += _assert(wisp_slot != null and not wisp_slot.visible, "wisp portrait hidden with nothing selected")
+	failed += _assert(hud.get_node_or_null("SelectionPanel") == null, "no gray selection box")
+	hud.call("party_click", "keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "click keeper portrait selects the keeper")
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("select_group", [0, 1], false)
+	await process_frame
+	var count_label: Label = wisp_slot.get_node_or_null("Count") as Label
+	failed += _assert(wisp_slot.visible, "wisp portrait while wisps are selected")
+	failed += _assert(count_label != null and count_label.text == "x2", "wisp stack shows xN")
+	failed += _assert(not bool(game_state.get("keeper_selected")), "wisp group does not keep the keeper")
+	game_state.call("clear_selection")
+	await process_frame
+	failed += _assert(not wisp_slot.visible, "wisp portrait hides when selection clears")
+	failed += _assert(keeper_slot.visible, "keeper portrait stays when selection clears")
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", false)
+	game_state.set("elaia_legacy_joined", false)
+	hud.call("_refresh_party_bar")
+	failed += _assert(elaia_slot != null and not elaia_slot.visible, "no Elaia portrait after Spare without a Relic")
+	game_state.set("first_relic_crafted", true)
+	hud.call("_refresh_party_bar")
+	failed += _assert(elaia_slot.visible, "Elaia portrait after Spare and the first Relic")
+	var order_column: Node = hud.get_node_or_null("PartyBar/Column")
+	failed += _assert(order_column != null and wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, Elaia")
+	hud.call("party_click", "elaia")
+	failed += _assert(str(game_state.get("selected_companion_id")) == "elaia", "click Elaia portrait selects her")
+	hud.queue_free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(jobs != null and equipment != null, "forge pass a nodes")
+	if jobs == null or equipment == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", -1.0)
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - 1.0) < 0.01, "playtest forge speed is 1")
+	jobs.call("set_dev_speed_override", 1.0)
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - 1.0) < 0.01, "verify pins forge speed at 1")
+	game_state.call("reset_for_new_game")
+	var h8: float = 8.0 * 3600.0
+	var h24: float = 24.0 * 3600.0
+	var m30: float = 30.0 * 60.0
+	var h2: float = 2.0 * 3600.0
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", 0.0))) < 0.001, "offline zero")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", m30)) - 180.0) < 0.02, "offline 30min is 180s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h2)) - 270.0) < 0.02, "offline 2h is 270s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h8)) - 356.4) < 0.02, "offline 8h is 356.4s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24)) - 452.4) < 0.02, "offline 24h is 452.4s")
+	jobs.call("set_keeper_task", "water", "manatree", true)
+	var water: Variant = jobs.call("apply_offline_seconds", h8)
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("shards", -1)) == 712, "offline water shards use the midpoint")
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("essence", -1)) == 356, "offline water essence follows the curve")
+	var task: Variant = jobs.call("keeper_task")
+	failed += _assert(typeof(task) == TYPE_DICTIONARY and not bool((task as Dictionary).get("working", true)), "offline clears the keeper task")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	var gathered: Variant = jobs.call("apply_offline_seconds", 20.0)
+	failed += _assert(typeof(gathered) == TYPE_DICTIONARY and int((gathered as Dictionary).get("harvest", -1)) == 1, "20s closed harvest banks one wood")
+	failed += _assert(int(game_state.get("wood")) == 1, "offline harvest banks wood")
+	game_state.call("reset_for_new_game")
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "manatree")
+	var wisp_off: Variant = jobs.call("apply_offline_seconds", h8)
+	failed += _assert(typeof(wisp_off) == TYPE_DICTIONARY and int((wisp_off as Dictionary).get("shards", -1)) == 17, "manatree wisp 8h banks 17 shards")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 40)
+	failed += _assert(str(jobs.call("try_begin_job", "crucible", "sapsteel")) == "ok", "crucible starts")
+	failed += _assert(int(game_state.get("stone")) == 20, "crucible spends 20 stone")
+	jobs.call("advance_seconds", 30.0)
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible"))) < 0.01, "paused job stays put")
+	jobs.call("set_keeper_working", "crucible", true)
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "crucible")) - 1.0) < 0.01, "keeper works at 1x")
+	jobs.call("advance_seconds", 30.0)
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - 30.0) < 0.01, "worked job advances")
+	jobs.call("set_keeper_working", "crucible", false)
+	game_state.set("wisp_count", 4)
+	game_state.call("_ensure_wisp_slots")
+	for i: int in range(4):
+		var joined: String = str(game_state.call("try_assign_wisp", i, "crucible"))
+		failed += _assert(joined != "full" and joined != "invalid", "wisp %d can work the crucible" % i)
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "crucible")) - 0.4) < 0.01, "four wisps are 0.4x")
+	game_state.set("wisp_count", 5)
+	game_state.call("_ensure_wisp_slots")
+	failed += _assert(str(game_state.call("try_assign_wisp", 4, "crucible")) == "full", "a fifth wisp is refused")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 40)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	jobs.call("advance_seconds", 120.0)
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 2, "crucible repeats while paid")
+	failed += _assert(int(game_state.get("stone")) == 0, "repeat spends the remaining stone")
+	failed += _assert(not bool(jobs.call("has_job", "crucible")), "repeat stops when it cannot pay")
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "sapsteel", 24)
+	backpack.call("set_count", "heartwood_bits", 12)
+	backpack.call("set_count", "amberbind", 8)
+	game_state.call("set_resource", &"essence", 300)
+	failed += _assert(str(jobs.call("try_begin_job", "anvil", "rootsteel_edge")) == "ok", "anvil starts")
+	jobs.call("set_keeper_working", "anvil", true)
+	jobs.call("advance_seconds", 1200.0)
+	failed += _assert(int(equipment.call("unequipped_count", "rootsteel_edge")) == 1, "anvil finishes one weapon")
+	failed += _assert(not bool(jobs.call("has_job", "anvil")), "anvil does not repeat")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 12, "anvil leaves the next batch")
+	failed += _assert(int(game_state.get("essence")) == 150, "anvil leaves the next essence")
+	failed += _assert(str(jobs.call("try_begin_job", "anvil", "rootsteel_edge")) == "owned", "a owned weapon is refused")
+	backpack.call("set_count", "sapsteel", 6)
+	backpack.call("set_count", "heartwood_bits", 6)
+	backpack.call("set_count", "amberbind", 6)
+	game_state.call("set_resource", &"essence", 100)
+	game_state.set("forge_key", true)
+	jobs.call("set_keeper_working", "reliquary", true)
+	failed += _assert(str(jobs.call("try_begin_job", "reliquary", "oakheart_knot")) == "ok", "reliquary starts")
+	jobs.call("advance_seconds", 600.0)
+	failed += _assert(str(equipment.call("try_equip", "oakheart_knot")) == "ok", "oakheart equips")
+	failed += _assert(int(equipment.call("gear_bonus", "might")) == 3, "oakheart +3 might")
+	failed += _assert(int(equipment.call("gear_bonus", "resilience")) == 2, "oakheart +2 resilience")
+	game_state.call("reset_for_new_game")
+	var v8: Dictionary = {
+		"forge_key": true,
+		"equipment_equipped": {"relic": "forge_key_relic", "weapon": null},
+		"gear_inventory": {},
+	}
+	var migrated: Dictionary = save_service.call("_migrate", 8, v8)
+	var eq: Dictionary = migrated.get("equipment_equipped", {})
+	failed += _assert(eq.get("relic", "stuck") == null, "v8 equipped key leaves the relic slot")
+	var bag: Dictionary = migrated.get("gear_inventory", {})
+	failed += _assert(int(bag.get("forge_key_relic", 0)) == 1, "v8 key moves into inventory")
+	failed += _assert(typeof(migrated.get("forge_jobs", null)) == TYPE_DICTIONARY, "v8 gains forge jobs")
+	failed += _assert(typeof(migrated.get("keeper_task", null)) == TYPE_DICTIONARY, "v8 gains the keeper task")
+	failed += _assert(typeof(migrated.get("item_categories", null)) == TYPE_DICTIONARY, "v8 gains item categories")
+	game_state.call("apply_save_dict", migrated)
+	failed += _assert(str(equipment.call("equipped_id", "relic")) == "", "loaded v8 key is not re-equipped")
+	failed += _assert(int(equipment.call("unequipped_count", "forge_key_relic")) == 1, "loaded v8 key sits in the bag")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	backpack.call("set_count", "sapsteel", 4)
+	failed += _assert(str(jobs.call("ascend_warning")) != "", "ascend warns about forge losses")
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.call("ascend")
+	failed += _assert(not bool(jobs.call("has_job", "crucible")), "ascend clears forge jobs")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 0, "ascend clears forge materials")
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "sapsteel", 7)
+	(game_state.get("upgrade_ranks") as Dictionary)["keep_forge_intermediates"] = 1
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.call("ascend")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 7, "keep materials holds sapsteel")
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	jobs.call("advance_seconds", 12.0)
+	var kept: float = float(jobs.call("job_progress", "crucible"))
+	(game_state.get("upgrade_ranks") as Dictionary)["keep_forge_jobs"] = 1
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.call("ascend")
+	failed += _assert(bool(jobs.call("has_job", "crucible")), "keep jobs holds the station")
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - kept) < 0.05, "kept job keeps its progress")
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "crucible"))) < 0.01, "a kept job waits for a worker")
+	var copy_src: String = FileAccess.get_file_as_string("res://data/forge_copy.json")
+	failed += _assert(copy_src.to_lower().find("companion") < 0, "player copy never says companion")
+	jobs.call("set_companion_working", "mill", "hook", true)
+	failed += _assert(absf(float(jobs.call("station_speed_mult", "mill")) - 1.0) < 0.01, "companion hook can work a station")
+	jobs.call("set_companion_working", "mill", "", false)
+	var packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
+	failed += _assert(packed != null, "forge room loads")
+	if packed:
+		var room: Node = packed.instantiate()
+		tree_root.add_child(room)
+		var poly: CollisionPolygon2D = room.get_node_or_null("Walls/CollisionPolygon2D") as CollisionPolygon2D
+		var point_count: int = poly.polygon.size() if poly != null else 0
+		failed += _assert(poly != null and point_count == 68, "round room wall has 68 points (got %d)" % point_count)
+		var floor: PackedVector2Array = poly.polygon.slice(0, point_count / 2) if poly != null else PackedVector2Array()
+		if floor.size() >= 2:
+			failed += _assert(floor[0].distance_to(Vector2(880, 1161)) < 0.5, "east door point is x880 y1161")
+			failed += _assert(floor[floor.size() - 1].distance_to(Vector2(720, 1161)) < 0.5, "west door point is x720 y1161")
+		var stations: int = 0
+		for node: Node in room.get_tree().get_nodes_in_group("forge_station"):
+			if str(node.get("station_id")) == "":
+				continue
+			stations += 1
+			var station: Node2D = node as Node2D
+			var stand: Node2D = station.get_node_or_null("KeeperStand") as Node2D
+			failed += _assert(_on_forge_floor(floor, station.global_position), "%s base is on the floor" % station.name)
+			failed += _assert(stand != null and _on_forge_floor(floor, stand.global_position), "%s stand is on the floor" % station.name)
+			var sprite: Sprite2D = station.get_node_or_null("Sprite") as Sprite2D
+			failed += _assert(sprite != null and sprite.texture != null and sprite.texture.get_width() == 192 and sprite.texture.get_height() == 192, "%s frame is 192" % station.name)
+			var station_scale: float = 0.75 if str(station.name) == "Anvil" else 0.8
+			failed += _assert(sprite != null and not sprite.centered and sprite.offset.distance_to(Vector2(-96, -192)) < 0.1 and sprite.scale.distance_to(Vector2(station_scale, station_scale)) < 0.01, "%s sprite setup" % station.name)
+			failed += _assert(sprite != null and sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "%s nearest filter" % station.name)
+			failed += _assert(station.z_index > 0, "%s draws above the swirl" % station.name)
+			failed += _assert(station.get("idle_texture") != null and station.get("busy_texture") != null, "%s idle and busy textures" % station.name)
+			failed += _assert(station.get("paused_badge") != null and station.get("busy_badge") != null, "%s badges" % station.name)
+			var badge_art: Sprite2D = station.get_node_or_null("BadgeArt") as Sprite2D
+			failed += _assert(badge_art != null, "%s badge anchor" % station.name)
+		failed += _assert(stations == 5, "five station scenes")
+		var keeper_spawn: Node2D = room.get_node_or_null("Keeper") as Node2D
+		failed += _assert(keeper_spawn != null and _on_forge_floor(floor, keeper_spawn.global_position), "spawn is on the floor")
+		failed += _assert(keeper_spawn != null and keeper_spawn.z_index > 0, "keeper draws above the swirl")
+		var exit_door: Node2D = room.get_node_or_null("ExitDoor") as Node2D
+		failed += _assert(exit_door != null, "south exit")
+		if exit_door:
+			var exit_shape: CollisionShape2D = exit_door.get_node_or_null("CollisionShape2D") as CollisionShape2D
+			var exit_rect: RectangleShape2D = null
+			if exit_shape:
+				exit_rect = exit_shape.shape as RectangleShape2D
+			failed += _assert(exit_rect != null and _on_forge_floor(floor, exit_door.global_position), "exit is on the floor")
+			failed += _assert(_on_forge_floor(floor, Vector2(800, 1100)) and _on_forge_floor(floor, Vector2(750, 1160)) and _on_forge_floor(floor, Vector2(850, 1160)), "door corridor stays walkable")
+			if exit_rect:
+				var half: Vector2 = exit_rect.size * 0.5
+				for corner: Vector2 in [Vector2(-half.x, -half.y), Vector2(half.x, -half.y), Vector2(-half.x, half.y), Vector2(half.x, half.y)]:
+					failed += _assert(_on_forge_floor(floor, exit_door.global_position + corner), "exit corner on the floor")
+		var swirl: Sprite2D = room.get_node_or_null("SwirlOverlay") as Sprite2D
+		failed += _assert(swirl != null and swirl.texture != null, "swirl texture loads")
+		failed += _assert(swirl != null and swirl.z_index == 0 and swirl.modulate.is_equal_approx(Color(1, 1, 1, 1)), "swirl draws full strength under the stations")
+		var plate: Sprite2D = room.get_node_or_null("FloorPlate") as Sprite2D
+		failed += _assert(plate != null and plate.texture != null and plate.texture.get_width() == 1600 and plate.texture.get_height() == 1200, "plate is 1600x1200")
+		failed += _assert(plate != null and plate.position.distance_to(Vector2(800, 600)) < 1.0 and plate.scale.distance_to(Vector2.ONE) < 0.01, "plate scale 1 at (800, 600)")
+		var cam: Camera2D = room.get_node_or_null("Camera2D") as Camera2D
+		failed += _assert(cam != null and cam.limit_left == 0 and cam.limit_top == 0 and cam.limit_right == 1600 and cam.limit_bottom == 1200, "camera limits fit the plate")
+		room.free()
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(jobs != null and equipment != null and audio != null, "pass b nodes")
+	if jobs == null or equipment == null or audio == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	var fresh: Dictionary = {}
+	var hud_probe: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if hud_probe:
+		var hud_node: Node = hud_probe.instantiate()
+		tree_root.add_child(hud_node)
+		await process_frame
+		fresh = hud_node.call("filter_owned_counts")
+		print("FRESH_FILTER_COUNTS %s" % str(fresh))
+		for key: Variant in fresh.keys():
+			failed += _assert(int(fresh[key]) == 0, "fresh %s count is 0" % str(key))
+		hud_node.queue_free()
+		await process_frame
+	var catalog: Dictionary = {
+		"raw": ["wood", "stone", "food", "manashards", "essence"],
+		"refined": ["fertilizer", "wooden_tool_rod", "sapsteel", "heartwood_bits", "amberbind", "weapon_rod"],
+		"tools": ["stone_axe", "stone_pickaxe", "wooden_basket", "stone_watering_can"],
+		"weapons": ["stone_sword", "sapstaff", "thornbow", "rootsteel_edge", "heartwand", "switchshaft"],
+		"relics": ["forge_key_relic", "oakheart_knot", "shardlens", "windthorn_bead"],
+	}
+	for filter_id: Variant in catalog.keys():
+		for item_id: String in catalog[filter_id]:
+			failed += _assert(bool(backpack.call("matches_filter", item_id, str(filter_id))), "%s is %s" % [item_id, filter_id])
+			failed += _assert(bool(backpack.call("matches_filter", item_id, "all")), "all matches %s" % item_id)
+	failed += _assert(bool(backpack.call("matches_filter", "wooden_planks", "all")), "planks are in all")
+	failed += _assert(not bool(backpack.call("matches_filter", "wooden_planks", "refined")), "planks are not refined")
+	failed += _assert(not bool(backpack.call("matches_filter", "wooden_planks", "tools")), "planks are not tools")
+	failed += _assert(not bool(backpack.call("matches_filter", "stone_sword", "tools")), "sword is not a tool")
+	failed += _assert(not bool(backpack.call("matches_filter", "fertilizer", "raw")), "fertilizer is not raw")
+	game_state.call("set_resource", &"wood", 4)
+	backpack.call("set_count", "fertilizer", 2)
+	backpack.call("set_count", "stone_axe", 1)
+	equipment.call("add_gear", "stone_sword", 1)
+	equipment.call("add_gear", "forge_key_relic", 1)
+	var hud_counts: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if hud_counts:
+		var hud_node2: Node = hud_counts.instantiate()
+		tree_root.add_child(hud_node2)
+		await process_frame
+		var owned: Dictionary = hud_node2.call("filter_owned_counts")
+		failed += _assert(int(owned.get("raw", 0)) == 1, "raw shows wood")
+		failed += _assert(int(owned.get("refined", 0)) == 1, "refined shows fertilizer")
+		failed += _assert(int(owned.get("tools", 0)) == 1, "tools shows the axe")
+		failed += _assert(int(owned.get("weapons", 0)) == 1, "weapons shows the sword")
+		failed += _assert(int(owned.get("relics", 0)) == 1, "relics shows the key")
+		failed += _assert(int(owned.get("all", 0)) >= 5, "all shows every granted stack")
+		hud_node2.call("open_bench_panel")
+		await process_frame
+		var craft_box: VBoxContainer = hud_node2.get_node_or_null("BenchPanel/CraftScroll/CraftList") as VBoxContainer
+		var seen: Dictionary = {}
+		if craft_box:
+			for row: Node in craft_box.get_children():
+				seen[str(row.get_meta("recipe_id", ""))] = true
+		var recipe_ids: PackedStringArray = PackedStringArray([
+			"wooden_planks", "stone_fragments", "wooden_tool_rod", "axe_head", "pickaxe_head",
+			"stone_axe", "stone_pickaxe", "wooden_basket", "stone_watering_can", "fertilizer",
+			"weapon_rod", "stone_sword", "sapstaff", "thornbow",
+		])
+		for recipe_id: String in recipe_ids:
+			failed += _assert(bool(seen.get(recipe_id, false)), "bench lists %s" % recipe_id)
+		var plank_before: int = int(backpack.call("get_count", "wooden_planks"))
+		for row2: Node in craft_box.get_children():
+			if str(row2.get_meta("recipe_id", "")) != "wooden_planks":
+				continue
+			for sub: Node in row2.get_children():
+				if sub is Button and not (sub as Button).disabled:
+					(sub as Button).emit_signal("pressed")
+		await process_frame
+		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == plank_before + 1, "bench crafts planks")
+		hud_node2.call("close_bench")
+		hud_node2.queue_free()
+		await process_frame
+	var bench_scene: PackedScene = load("res://scenes/keepers_bench.tscn") as PackedScene
+	var keeper_scene: PackedScene = load("res://scenes/keeper.tscn") as PackedScene
+	var bench_hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if bench_scene and keeper_scene and bench_hud_scene:
+		var bench: Node = bench_scene.instantiate()
+		var keeper: Node2D = keeper_scene.instantiate() as Node2D
+		var bench_hud: Node = bench_hud_scene.instantiate()
+		tree_root.add_child(bench)
+		tree_root.add_child(keeper)
+		tree_root.add_child(bench_hud)
+		await process_frame
+		keeper.global_position = (bench.call("stand_global") as Vector2) + Vector2(400, 0)
+		audio.call("clear_played_log")
+		bench.call("try_open")
+		await process_frame
+		failed += _assert(not bool(bench_hud.call("is_bench_open")), "bench stays shut away from the stand")
+		failed += _assert(not bool(audio.call("did_play", &"sfx_bench_open")), "bench_open waits for arrival")
+		keeper.global_position = bench.call("stand_global")
+		bench.set("_awaiting_arrival", false)
+		bench.call("_on_keeper_arrived")
+		await process_frame
+		failed += _assert(not bool(bench_hud.call("is_bench_open")), "arrival without a walk does not open")
+		bench.set("_awaiting_arrival", true)
+		bench.call("_on_keeper_arrived")
+		await process_frame
+		failed += _assert(bool(bench_hud.call("is_bench_open")), "bench opens when the keeper arrives")
+		failed += _assert(bool(audio.call("did_play", &"sfx_bench_open")), "sfx_bench_open plays")
+		bench_hud.call("close_bench")
+		bench.queue_free()
+		keeper.queue_free()
+		bench_hud.queue_free()
+		await process_frame
+	for cue_id: String in ["sfx_bench_open", "sfx_door_bark", "sfx_forge_big_done", "sfx_press_squeeze"]:
+		failed += _assert(FileAccess.file_exists("res://assets/audio/%s.ogg" % cue_id), "%s imported" % cue_id)
+	failed += _assert(str(audio.call("cue_bus", "sfx_forge_craft_start")) == "SFX_World", "craft_start on SFX_World")
+	failed += _assert(str(audio.call("cue_bus", "sfx_forge_craft_done")) == "SFX_World", "craft_done on SFX_World")
+	failed += _assert(str(audio.call("cue_bus", "sfx_press_squeeze")) == "SFX_World", "press_squeeze on SFX_World")
+	failed += _assert(str(audio.call("cue_bus", "sfx_forge_big_done")) == "SFX_Progress", "big_done on SFX_Progress")
+	failed += _assert(str(audio.call("cue_bus", "sfx_bench_open")) == "SFX_UI", "bench_open on SFX_UI")
+	failed += _assert(absf(float(jobs.call("audio_lowpass_hz")) - 1500.0) < 1.0, "forge low-pass is 1.5 kHz")
+	failed += _assert(absf(float(jobs.call("audio_music_db")) + 3.0) < 0.01, "forge music is -3 dB")
+	audio.call("set_forge_room_mix", false)
+	jobs.call("set_scene_changes_enabled", false)
+	game_state.call("reset_for_new_game")
+	game_state.set("stage_id", &"elder")
+	game_state.set("forge_key", true)
+	audio.call("clear_played_log")
+	failed += _assert(str(jobs.call("try_enter_forge")) == "entered", "door enter")
+	failed += _assert(bool(audio.call("did_play", &"sfx_door_bark")), "door bark on enter")
+	failed += _assert(bool(audio.call("forge_mix_on")), "forge mix on")
+	failed += _assert(absf(float(audio.call("forge_lowpass_hz")) - 1500.0) < 1.0, "live low-pass is 1.5 kHz")
+	failed += _assert(absf(float(audio.call("forge_music_offset_db")) + 3.0) < 0.01, "live music offset is -3 dB")
+	audio.call("clear_played_log")
+	jobs.call("exit_forge")
+	failed += _assert(bool(audio.call("did_play", &"sfx_door_bark")), "door bark on exit")
+	failed += _assert(not bool(audio.call("forge_mix_on")), "forge mix restored")
+	failed += _assert(absf(float(audio.call("forge_music_offset_db"))) < 0.01, "music offset restored")
+	failed += _assert(absf(float(audio.call("forge_lowpass_hz"))) < 0.01, "low-pass removed")
+	jobs.call("take_clearing_return")
+	jobs.call("set_in_forge_override", 0)
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 20)
+	jobs.call("set_keeper_working", "mill", true)
+	audio.call("clear_played_log")
+	jobs.call("try_begin_job", "mill", "heartwood_bits")
+	jobs.call("advance_seconds", 60.0)
+	failed += _assert(not bool(audio.call("did_play", &"sfx_forge_craft_done")), "upcycle is silent outside the forge")
+	jobs.call("set_in_forge_override", 1)
+	game_state.call("set_resource", &"wood", 20)
+	jobs.call("set_keeper_working", "mill", true)
+	audio.call("clear_played_log")
+	jobs.call("try_begin_job", "mill", "heartwood_bits")
+	jobs.call("advance_seconds", 60.0)
+	failed += _assert(bool(audio.call("did_play", &"sfx_forge_craft_done")), "upcycle plays craft_done inside")
+	failed += _assert(absf(float(audio.get("last_cue_volume_db")) + 8.0) < 0.51, "craft_done is about -8 dB")
+	game_state.call("set_resource", &"food", 15)
+	jobs.call("set_keeper_working", "press", true)
+	audio.call("clear_played_log")
+	failed += _assert(str(jobs.call("try_begin_job", "press", "amberbind")) == "ok", "press queues")
+	failed += _assert(bool(audio.call("did_play", &"sfx_press_squeeze")), "press squeeze on queue")
+	audio.call("clear_played_log")
+	jobs.call("advance_seconds", 45.0)
+	failed += _assert(bool(audio.call("did_play", &"sfx_forge_craft_done")), "press completion is craft_done")
+	failed += _assert(not bool(audio.call("did_play", &"sfx_forge_big_done")), "press is not big_done")
+	jobs.call("set_in_forge_override", -1)
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "sapsteel", 12)
+	backpack.call("set_count", "heartwood_bits", 6)
+	backpack.call("set_count", "amberbind", 4)
+	game_state.call("set_resource", &"essence", 150)
+	jobs.call("set_keeper_working", "anvil", true)
+	jobs.set("_last_big_done_msec", Time.get_ticks_msec() - 4000)
+	audio.call("clear_played_log")
+	jobs.call("try_begin_job", "anvil", "rootsteel_edge")
+	jobs.call("advance_seconds", 600.0)
+	failed += _assert(bool(audio.call("did_play", &"sfx_forge_big_done")), "anvil plays big_done outside the forge")
+	audio.call("clear_played_log")
+	jobs.call("_play_big_done")
+	failed += _assert(not bool(audio.call("did_play", &"sfx_forge_big_done")), "big_done throttles inside 3s")
+	jobs.set("_last_big_done_msec", Time.get_ticks_msec() - 4000)
+	jobs.call("_play_big_done")
+	failed += _assert(bool(audio.call("did_play", &"sfx_forge_big_done")), "big_done plays again after 3s")
+	var crucible_img := Image.new()
+	var img_err: Error = crucible_img.load(ProjectSettings.globalize_path("res://assets/art/forge/prop_crucible_idle.png"))
+	failed += _assert(img_err == OK and crucible_img.get_width() == 192 and crucible_img.get_height() == 192, "crucible frame is 192")
+	if img_err == OK:
+		var corner: Color = crucible_img.get_pixel(0, 0)
+		failed += _assert(corner.a < 0.05, "crucible frame corner is clear")
+	var reliquary: Node2D = null
+	var room_packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
+	if room_packed:
+		var room: Node = room_packed.instantiate()
+		reliquary = room.get_node_or_null("Reliquary") as Node2D
+		failed += _assert(reliquary != null and reliquary.position.distance_to(Vector2(420, 800)) < 1.0, "reliquary left the north doorway")
+		room.free()
+	audio.call("set_forge_room_mix", false)
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(equipment != null and backpack != null, "pass c nodes")
+	if equipment == null:
+		return failed
+	var art_paths: Dictionary = {
+		"res://assets/art/ui/icon_amberbind.png": Vector2i(32, 32),
+		"res://assets/art/ui/icon_sapsteel.png": Vector2i(32, 32),
+		"res://assets/art/ui/icon_heartwood_bits.png": Vector2i(32, 32),
+		"res://assets/art/ui/icons/icon_oakheart_knot.png": Vector2i(32, 32),
+		"res://assets/art/ui/icons/icon_shardlens.png": Vector2i(32, 32),
+		"res://assets/art/ui/icons/icon_windthorn_bead.png": Vector2i(32, 32),
+		"res://assets/art/ui/badge_station_paused.png": Vector2i(32, 32),
+		"res://assets/art/ui/badge_station_busy.png": Vector2i(32, 32),
+		"res://assets/art/ui/relic_slot_empty.png": Vector2i(44, 44),
+		"res://assets/art/forge/bench_idle.png": Vector2i(192, 192),
+		"res://assets/art/forge/bench_busy.png": Vector2i(192, 192),
+		"res://assets/art/forge/prop_press_idle.png": Vector2i(192, 192),
+		"res://assets/art/forge/prop_reliquary_idle.png": Vector2i(192, 192),
+	}
+	for path: String in art_paths.keys():
+		var tex: Texture2D = load(path) as Texture2D
+		var want: Vector2i = art_paths[path]
+		failed += _assert(tex != null and tex.get_width() == want.x and tex.get_height() == want.y, "texture %s" % path)
+	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if hud_scene:
+		var hud_node: Node = hud_scene.instantiate()
+		tree_root.add_child(hud_node)
+		await process_frame
+		for item_id: String in ["amberbind", "sapsteel", "heartwood_bits", "oakheart_knot", "shardlens", "windthorn_bead"]:
+			var icon: TextureRect = hud_node.call("_make_item_icon", item_id, item_id) as TextureRect
+			failed += _assert(icon != null and icon.texture != null and icon.texture.get_width() == 32, "%s icon is wired" % item_id)
+		game_state.set("forge_key", true)
+		equipment.call("try_unequip", "relic")
+		hud_node.call("open_character_sheet")
+		await process_frame
+		var relic_square: TextureRect = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
+		var empty_frame: Texture2D = load("res://assets/art/ui/relic_slot_empty.png") as Texture2D
+		failed += _assert(relic_square != null and relic_square.texture == empty_frame and relic_square.size.distance_to(Vector2(44, 44)) < 0.5, "empty relic slot uses the 44 frame")
+		equipment.call("grant_item", "oakheart_knot")
+		failed += _assert(str(equipment.call("try_equip", "oakheart_knot")) == "ok", "oakheart equips")
+		var relic_slot: Node = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic")
+		if relic_slot:
+			relic_slot.call("refresh")
+		var glyph: TextureRect = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square/RelicGlyph") as TextureRect
+		failed += _assert(glyph != null and glyph.visible and glyph.texture != null and glyph.texture.get_width() == 32, "relic icon is 32px")
+		failed += _assert(glyph != null and glyph.position.distance_to(Vector2(6, 6)) < 0.5 and glyph.size.distance_to(Vector2(32, 32)) < 0.5, "relic icon sits centred in the frame")
+		failed += _assert(relic_square != null and relic_square.texture == empty_frame, "equipped relic keeps the frame")
+		hud_node.call("close_character_sheet")
+		paused = false
+		hud_node.queue_free()
+		await process_frame
+	var bench_scene: PackedScene = load("res://scenes/keepers_bench.tscn") as PackedScene
+	if bench_scene:
+		var bench: Node2D = bench_scene.instantiate() as Node2D
+		var bench_sprite: Sprite2D = bench.get_node_or_null("Sprite") as Sprite2D
+		failed += _assert(bench_sprite != null and bench_sprite.texture != null and not bench_sprite.centered, "bench sprite")
+		failed += _assert(bench_sprite != null and bench_sprite.offset.distance_to(Vector2(-96, -192)) < 0.1 and bench_sprite.scale.distance_to(Vector2.ONE) < 0.01, "bench offset (-96,-192)")
+		failed += _assert(bench_sprite != null and bench_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "bench nearest")
+		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
+		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
+		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 44)) < 0.5, "bench stand")
+		bench.free()
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _on_forge_floor(floor: PackedVector2Array, point: Vector2) -> bool:
+	if floor.size() < 3:
+		return false
+	return Geometry2D.is_point_in_polygon(point, floor)
 
 
 func _assert(cond: bool, msg: String) -> int:

@@ -371,7 +371,7 @@ func _save_compat() -> void:
 	await process_frame
 	_shot("pt_save8_loaded_elder.png")
 	var sprite: Sprite2D = tree.get_node("Sprite") as Sprite2D
-	_check("2 loaded elder uses animated strip", sprite.hframes == 8 and absf(sprite.scale.x - 4.0) < 0.01 and sprite.texture != null and sprite.texture.get_width() == 256 * 8)
+	_check("2 loaded elder uses animated strip", sprite.hframes == 8 and absf(sprite.scale.x - 1.0) < 0.01 and sprite.texture != null and sprite.texture.get_width() == 1024 * 8)
 
 
 func _core_loop() -> void:
@@ -416,10 +416,13 @@ func _core_loop() -> void:
 	GS.set_resource(&"food", 80)
 	GS.set_resource(&"essence", 400)
 	GS.set_resource(&"manashards", 2500)
-	hud.call("open_backpack")
+	var bench: Node = main.get_node("World/KeepersBench")
+	keeper.global_position = bench.call("stand_global")
+	bench.set("_awaiting_arrival", true)
+	bench.call("_on_keeper_arrived")
 	await process_frame
 	var crafted: bool = false
-	var craft_list: Node = hud.get_node("BackpackPanel/CraftScroll/CraftList")
+	var craft_list: Node = hud.get_node("BenchPanel/CraftScroll/CraftList")
 	var crafted_row: bool = false
 	for child: Node in craft_list.get_children():
 		if not is_instance_valid(child):
@@ -452,13 +455,13 @@ func _core_loop() -> void:
 			if hit:
 				break
 	_shot("pt_backpack_craft.png")
-	_check("3 craft from backpack", crafted or BP.get_count("fertilizer") > 0 or BP.get_count("wooden_planks") > 0, "fert %d planks %d" % [BP.get_count("fertilizer"), BP.get_count("wooden_planks")])
-	hud.call("close_backpack")
+	_check("3 craft from bench", crafted or BP.get_count("fertilizer") > 0 or BP.get_count("wooden_planks") > 0, "fert %d planks %d" % [BP.get_count("fertilizer"), BP.get_count("wooden_planks")])
+	hud.call("close_bench")
 
 	BP.add_item("fertilizer", 50)
 	var stages: Array[StringName] = [&"sapling", &"young", &"mature", &"elder", &"ancient"]
-	var scales: Array[float] = [2.0, 3.0, 4.0, 4.0, 4.0]
-	var frames_w: Array[int] = [64, 96, 184, 256, 256]
+	var scales: Array[float] = [1.0, 1.0, 1.0, 1.0, 1.0]
+	var frames_w: Array[int] = [128, 288, 736, 1024, 1024]
 	for idx: int in range(stages.size()):
 		var sid: StringName = stages[idx]
 		_check("3 stage is %s" % sid, GS.stage_id == sid, "got %s" % str(GS.stage_id))
@@ -479,6 +482,10 @@ func _core_loop() -> void:
 			_check("3 Grow enabled at %s" % sid, grow != null and not grow.disabled, grow.text if grow else "missing")
 			await _click(grow)
 			await process_frame
+			var ancient_yes: Button = hud.get_node_or_null("AncientGrowConfirm/Yes") as Button
+			if ancient_yes and ancient_yes.visible:
+				await _click(ancient_yes)
+				await process_frame
 	_check("3 grew to ancient", GS.stage_id == &"ancient")
 	var wisps: int = int(GS.wisp_count)
 	_check("3 wisps from grows", wisps >= 1, "count %d" % wisps)

@@ -1,6 +1,6 @@
 extends Node
 ## Battle gear inventory + paper-doll slots. Thin module beside GameState.
-## Backpack keeps forest crafts. This inventory keeps Weapon Rod and Stone Sword.
+## Backpack keeps forest crafts. This inventory keeps Weapon Rod and stone_sword (stone_sword_name).
 ## Equipped bonuses are flat. Relic unlocks when the Keeper holds a Forge Key.
 
 signal equipment_changed
@@ -88,7 +88,31 @@ func get_slot_def(slot_id: String) -> Dictionary:
 
 func get_item_def(item_id: String) -> Dictionary:
 	var found: Variant = _item_index.get(item_id, {})
-	return found if typeof(found) == TYPE_DICTIONARY else {}
+	if typeof(found) != TYPE_DICTIONARY:
+		return {}
+	var base: Dictionary = found
+	if not has_node("/root/ForgeJobs"):
+		return base
+	var overlay: Dictionary = ForgeJobs.gear_overlay(item_id)
+	if overlay.is_empty():
+		return base
+	var merged: Dictionary = base.duplicate(true)
+	var changed: bool = false
+	var bonuses: Dictionary = {}
+	var bonuses_v: Variant = merged.get("bonuses", {})
+	if typeof(bonuses_v) == TYPE_DICTIONARY:
+		bonuses = bonuses_v
+	var extra_v: Variant = overlay.get("bonuses", {})
+	if bonuses.is_empty() and typeof(extra_v) == TYPE_DICTIONARY and not (extra_v as Dictionary).is_empty():
+		merged["bonuses"] = (extra_v as Dictionary).duplicate(true)
+		changed = true
+	if str(merged.get("damage_kind", "")) == "" and str(overlay.get("damage_kind", "")) != "":
+		merged["damage_kind"] = str(overlay.get("damage_kind", ""))
+		changed = true
+	if str(merged.get("category", "")) == "" and str(overlay.get("category", "")) != "":
+		merged["category"] = str(overlay.get("category", ""))
+		changed = true
+	return merged if changed else base
 
 
 func get_recipe_def(recipe_id: String) -> Dictionary:
@@ -133,6 +157,23 @@ func slot_anchor(slot_id: String) -> Vector2:
 		var arr: Array = raw
 		return Vector2(float(arr[0]), float(arr[1]))
 	return Vector2(0.5, 0.5)
+
+
+func item_art_path(item_id: String) -> String:
+	## Standalone icon from equipment.json or the backpack item's art_name.
+	## Files live either in ui/ or ui/icons/. The HUD sheet is a separate path.
+	var art_name: String = str(get_item_def(item_id).get("art_name", ""))
+	if art_name == "" and has_node("/root/Backpack"):
+		art_name = str(Backpack.get_item_def(item_id).get("art_name", ""))
+	if art_name == "":
+		return ""
+	var direct: String = "res://assets/art/ui/%s.png" % art_name
+	if ResourceLoader.exists(direct):
+		return direct
+	var nested: String = "res://assets/art/ui/icons/%s.png" % art_name
+	if ResourceLoader.exists(nested):
+		return nested
+	return ""
 
 
 func item_display_name(item_id: String) -> String:
@@ -284,6 +325,12 @@ func try_equip_to_slot(item_id: String, slot_id: String) -> String:
 		_add_unequipped(previous, 1)
 	equipped[sid] = item_id
 	equipment_changed.emit()
+	if sid == "relic" and previous != "" and previous != item_id:
+		if has_node("/root/GameAudio"):
+			GameAudio.play(&"sfx_upgrade_buy")
+		if has_node("/root/ForgeJobs") and has_node("/root/GameState"):
+			var label: String = item_display_name(item_id)
+			GameState.status_message.emit(ForgeJobs.copy_text("relic_swap_confirm", {"item": label}))
 	return "ok"
 
 
@@ -306,6 +353,17 @@ func grant_item(item_id: String) -> bool:
 
 ## Spare / Defeat (and load migration): unlock Relic, own the Key relic.
 ## Auto-equip only when the relic slot is empty; otherwise leave in gear inventory.
+func ensure_forge_key_from_load() -> void:
+	## Grant and auto-equip only when the Key item is missing. A migrated Key stays in the bag.
+	_migrate_legacy_forge_key_id()
+	if not owns_anywhere("forge_key_relic"):
+		grant_item("forge_key_relic")
+		if equipped_id("relic") == "" and unequipped_count("forge_key_relic") > 0:
+			try_equip("forge_key_relic")
+			return
+	equipment_changed.emit()
+
+
 func ensure_forge_key_equipped() -> void:
 	if has_node("/root/GameState"):
 		GameState.forge_key = true
@@ -481,8 +539,9 @@ func apply_save_dict(data: Variant) -> void:
 		_apply_inventory(src.get("gear_inventory", src.get("owned", {})))
 		_apply_equipped(src.get("equipment_equipped", src.get("equipped", {})))
 	## Armor unlocks stay on the data file. Relic follows GameState.forge_key.
+	## Load does not pull a Key that is already in the bag back onto the slot.
 	if has_node("/root/GameState") and GameState.forge_key:
-		ensure_forge_key_equipped()
+		ensure_forge_key_from_load()
 		return
 	equipment_changed.emit()
 

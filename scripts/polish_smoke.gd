@@ -1,9 +1,10 @@
 extends SceneTree
 ## Hover labels, one fading toast, Forge popup, Options help, and distinct shots.
-##   xvfb-run -a godot --display-driver x11 --rendering-driver opengl3 --path . -s res://scripts/polish_smoke.gd
+## Shots land in user://polish_smoke (the project user data folder), which exists
+## for any Godot checkout. Do not assume /opt/cursor/artifacts.
+##   godot --rendering-driver opengl3 --path . -s res://scripts/polish_smoke.gd
 
-const OUT: String = "/opt/cursor/artifacts"
-
+var _out: String = ""
 var _fails: int = 0
 
 
@@ -12,7 +13,9 @@ func _init() -> void:
 
 
 func _run() -> void:
-	DirAccess.make_dir_recursive_absolute(OUT)
+	_out = ProjectSettings.globalize_path("user://polish_smoke")
+	DirAccess.make_dir_recursive_absolute(_out)
+	print("POLISH_OUT ", _out)
 	var save_service: Node = root.get_node("SaveService")
 	var gs: Node = root.get_node("GameState")
 	save_service.set("boot_intent", "new")
@@ -54,7 +57,9 @@ func _run() -> void:
 	var status: Node = hud.get_node("Panel/StatusLabel")
 	_check(not status.visible, "toast faded before the hub shot")
 	var decor: int = get_nodes_in_group("forest_decor").size()
-	_check(decor >= 280, "decor scatter is present (got %d)" % decor)
+	_check(decor >= 20 and decor <= 60, "forest decor stays the grass tufts (got %d)" % decor)
+	var ground_deco: int = get_nodes_in_group("hub_ground_deco").size()
+	_check(ground_deco >= 140, "hub ground deco is present (got %d)" % ground_deco)
 
 	await _shot(live, "pt_newgame_fresh.png")
 	var fill_n: int = get_nodes_in_group("forest_fill").size()
@@ -80,11 +85,15 @@ func _run() -> void:
 
 	var tree: Node = live.get_node("World/HarvestTree")
 	var shape: Node2D = tree.get_node("CollisionShape2D") as Node2D
+	# The mid-game camera sits on the clearing. The harvest tree is below that
+	# frame, so a mouse event there never enters the Area2D.
+	_aim(live, shape.global_position)
+	await process_frame
 	await _hover_world(live, shape.global_position)
 	_check(_label_visible(live, "World/HarvestTree"), "harvest label shows on hover")
 	_check(not _label_visible(live, "World/HarvestStone"), "stone label stays hidden while hovering the tree")
 	await _shot(live, "pt_hover_label.png")
-	await _hover_world(live, Vector2(8, 8))
+	await _hover_world(live, shape.global_position + Vector2(420, 0))
 	_check(not _label_visible(live, "World/HarvestTree"), "harvest label hides when the pointer leaves")
 
 	gs.emit_signal("status_message", "Gathered a bundle of wood.")
@@ -106,13 +115,13 @@ func _run() -> void:
 	await process_frame
 
 	gs.call("_set_stage", &"elder")
-	gs.set("forge_key", true)
+	gs.set("forge_key", false)
 	hud.call("show_care_menu")
 	await process_frame
 	var care: Node = hud.get_node("CarePanel")
 	_check(care.visible, "care open before the forge popup")
 	var msg: String = str(hud.call("open_forge_entry"))
-	_check(msg.find("Congratulations") >= 0, "forge congratulations")
+	_check(msg == "You have no key.", "forge still asks for a key")
 	_check(not care.visible, "care hidden while the forge popup is open")
 	_check(bool(hud.call("is_forge_popup_open")), "forge popup open")
 	var popup: Control = hud.get_node("ForgePopup") as Control
@@ -124,6 +133,9 @@ func _run() -> void:
 	await process_frame
 	_check(care.visible, "care returns when the forge popup closes")
 	_check(not bool(hud.call("is_forge_popup_open")), "forge popup closed")
+	gs.set("forge_key", true)
+	var jobs: Node = root.get_node_or_null("ForgeJobs")
+	_check(jobs != null and bool(jobs.call("can_enter_forge")), "elder with a key can enter")
 	hud.call("hide_care_menu")
 
 	var win: Window = root as Window
@@ -170,7 +182,7 @@ func _run() -> void:
 	])
 	var seen: Dictionary = {}
 	for file_name: String in names:
-		var md5: String = FileAccess.get_md5(OUT + "/" + file_name)
+		var md5: String = FileAccess.get_md5(_out + "/" + file_name)
 		_check(md5 != "" and not seen.has(md5), "distinct " + file_name)
 		seen[md5] = file_name
 
@@ -212,6 +224,7 @@ func _hover_world(live: Node, world_pos: Vector2) -> void:
 	motion.global_position = screen
 	motion.relative = Vector2(2, 1)
 	root.warp_mouse(screen)
+	live.get_viewport().push_input(motion)
 	Input.parse_input_event(motion)
 	for _i: int in range(4):
 		await process_frame
@@ -219,14 +232,14 @@ func _hover_world(live: Node, world_pos: Vector2) -> void:
 
 
 func _check_corner_forest(tag: String) -> void:
-	_check(_file_edge_forest(OUT + "/pt_corner_nw.png", "top") > 0.01, "%s nw top is forest" % tag)
-	_check(_file_edge_forest(OUT + "/pt_corner_nw.png", "left") > 0.01, "%s nw left is forest" % tag)
-	_check(_file_edge_forest(OUT + "/pt_corner_ne.png", "top") > 0.01, "%s ne top is forest" % tag)
-	_check(_file_edge_forest(OUT + "/pt_corner_ne.png", "right") > 0.01, "%s ne right is forest" % tag)
-	_check(_file_edge_forest(OUT + "/pt_corner_sw.png", "bottom") > 0.01, "%s sw bottom is forest" % tag)
-	_check(_file_edge_forest(OUT + "/pt_corner_sw.png", "left") > 0.01, "%s sw left is forest" % tag)
-	_check(_file_edge_forest(OUT + "/pt_corner_se.png", "bottom") > 0.01, "%s se bottom is forest" % tag)
-	_check(_file_edge_forest(OUT + "/pt_corner_se.png", "right") > 0.01, "%s se right is forest" % tag)
+	_check(_file_edge_forest(_out + "/pt_corner_nw.png", "top") > 0.01, "%s nw top is forest" % tag)
+	_check(_file_edge_forest(_out + "/pt_corner_nw.png", "left") > 0.01, "%s nw left is forest" % tag)
+	_check(_file_edge_forest(_out + "/pt_corner_ne.png", "top") > 0.01, "%s ne top is forest" % tag)
+	_check(_file_edge_forest(_out + "/pt_corner_ne.png", "right") > 0.01, "%s ne right is forest" % tag)
+	_check(_file_edge_forest(_out + "/pt_corner_sw.png", "bottom") > 0.01, "%s sw bottom is forest" % tag)
+	_check(_file_edge_forest(_out + "/pt_corner_sw.png", "left") > 0.01, "%s sw left is forest" % tag)
+	_check(_file_edge_forest(_out + "/pt_corner_se.png", "bottom") > 0.01, "%s se bottom is forest" % tag)
+	_check(_file_edge_forest(_out + "/pt_corner_se.png", "right") > 0.01, "%s se right is forest" % tag)
 
 
 func _file_edge_forest(path: String, edge: String) -> float:
@@ -291,5 +304,5 @@ func _shot(live: Node, file_name: String) -> void:
 		_check(false, "capture " + file_name)
 		return
 	var copy: Image = img.duplicate()
-	var err: int = copy.save_png(OUT + "/" + file_name)
+	var err: int = copy.save_png(_out + "/" + file_name)
 	_check(err == OK, "saved " + file_name)

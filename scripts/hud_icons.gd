@@ -13,6 +13,7 @@ const ASCENSION: int = 2
 const KEEP_TOOLS: int = 3
 const WOODEN_BASKET: int = 4
 const WATERING_CAN: int = 5
+## Sheet cell 6 still holds the old sword art. Flintblade resolves through art_name instead.
 const STONE_SWORD: int = 6
 const WEAPON_ROD: int = 7
 const EQUIP_EMPTY: int = 8
@@ -47,8 +48,6 @@ static func index_for_item(item_id: String) -> int:
 			return WOODEN_BASKET
 		"stone_watering_can":
 			return WATERING_CAN
-		"stone_sword":
-			return STONE_SWORD
 		"weapon_rod":
 			return WEAPON_ROD
 		_:

@@ -1,5 +1,5 @@
 {
-  "canvas_note": "nodes v2 2026-09-29: tree + spent 288x384 at 1 art px = 1 world px (bottom-centre on the trunk base); stone 46x48 (x2 in code), spent 64x64; berry + spent 784x1168 (43x64 art grid, fit to the 64 box) \u2014 base_center anchor",
+  "canvas_note": "nodes v2 2026-09-29: tree + spent 288x384 at 1 art px = 1 world px (bottom-centre on the trunk base); stone 46x48 (x2 in code), spent 64x64; berry + spent native 86x128 at scale 1 \u2014 base_center anchor",
   "harvest_nodes": {
     "wood": {
       "file": "harvest_tree.png",
@@ -25,23 +25,23 @@
       "also": "prop_stone.png"
     },
     "food": {
-      "file": "berry_harvest_node.png",
-      "spent": "harvest_berry_spent.png",
+      "file": "native/berry_harvest_node.png",
+      "spent": "native/harvest_berry_spent.png",
       "size": [
-        64,
-        64
+        86,
+        128
       ],
       "native_size": [
-        784,
-        1168
+        86,
+        128
       ],
       "also": "prop_food.png",
       "spent_native_size": [
-        784,
-        1168
+        86,
+        128
       ]
     }
   },
-  "decorative_trees": "trees/tree_big_*, tree_small_* ; bushes/bush_big_*, bush_small_* (Art v0.1.13-assets-upload)",
-  "notes": "Harvestable tree is NOT Manatree and NOT decorative Haex oaks \u2014 smaller, chop-notch + nuts. Dense clearing uses trees/ + trees/bushes/ for scenery only."
+  "decorative_trees": "hub/trees/ring_tree_* ; hub/bushes/ring_bush_* ; hub/ground/* (hub v3)",
+  "notes": "Harvestable tree is NOT Manatree and NOT the ring trees. Dense clearing scenery is assets/art/hub/."
 }

@@ -10,6 +10,10 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var failed: int = 0
+	var jobs: Node = root.get_node_or_null("ForgeJobs")
+	if jobs:
+		jobs.call("set_dev_speed_override", 1.0)
+		jobs.call("set_autosave_enabled", false)
 	var game: Node = root.get_node("GameState")
 	var strings: Node = root.get_node("ContentStrings")
 	root.get_node("SaveService").set("boot_intent", "new")
@@ -88,6 +92,7 @@ func _run() -> void:
 	failed += _check(tree_cols >= 40, "tree colliders %d" % tree_cols)
 	failed += _check(bush_cols >= 20, "bush colliders %d" % bush_cols)
 	failed += _check(canopy_ok >= 20, "canopy colliders %d" % canopy_ok)
+	failed += await _forest_seal(live)
 	var ground: TileMap = live.get_node_or_null("Ground") as TileMap
 	var bad_tiles: int = 0
 	if ground:
@@ -108,15 +113,22 @@ func _run() -> void:
 		var dpath: String = ""
 		if dspr and dspr.texture:
 			dpath = str(dspr.texture.resource_path)
-		if dpath.find("/decor/grass_") < 0:
+		if dpath.find("/hub/ground/grass_tuft_") < 0:
 			decor_bad += 1
 		if decor_node is Node2D and not bool(live.call("decor_spot_allowed", (decor_node as Node2D).global_position)):
 			decor_hit += 1
 	failed += _check(decor_bad == 0 and decor_hit == 0, "decor grass off landmarks")
+	failed += _hub_ground_deco(live)
 	failed += _art_fit(live)
-	game.set("forge_key", true)
+	game.set("forge_key", false)
 	var forge_msg: String = str(live.get_node("HUD").call("open_forge_entry"))
-	failed += _check(forge_msg == str(strings.call("get_text", "forge_not_built")), "forge stub")
+	failed += _check(forge_msg == str(strings.call("get_text", "forge_no_key")), "forge needs a key")
+	failed += _check(FileAccess.file_exists("res://scenes/forge_room.tscn"), "forge room scene")
+	game.set("stage_id", &"elder")
+	game.set("forge_key", true)
+	failed += _check(jobs != null and bool(jobs.call("can_enter_forge")), "elder with a key can enter")
+	game.set("stage_id", &"sapling")
+	game.set("forge_key", false)
 	live.queue_free()
 	await process_frame
 
@@ -129,7 +141,9 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 8") >= 0, "SAVE_VERSION 8")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 9") >= 0, "SAVE_VERSION 9")
+	failed += _gear_bonus_match()
+	failed += _scene_exit_audit()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -235,7 +249,7 @@ func _weapons() -> int:
 	var pack: Node = root.get_node("Backpack")
 	gear.call("reset_for_new_game")
 	game.call("reset_for_new_game")
-	failed += _check(str(gear.call("item_damage_kind", "stone_sword")) == "physical", "stone sword physical")
+	failed += _check(str(gear.call("item_damage_kind", "stone_sword")) == "physical", "stone_sword physical")
 	failed += _check(str(gear.call("item_damage_kind", "sapstaff")) == "magical", "sapstaff magical")
 	failed += _check(str(gear.call("item_damage_kind", "thornbow")) == "hybrid", "thornbow hybrid")
 	var staff_def: Dictionary = gear.call("get_item_def", "sapstaff")
@@ -342,7 +356,7 @@ func _art_fit(live: Node) -> int:
 	if berry and berry.texture:
 		var bw: float = float(berry.texture.get_width())
 		var bh: float = float(berry.texture.get_height())
-		failed += _check(bw == 784.0 and bh == 1168.0, "berry canvas 784x1168 (got %sx%s)" % [bw, bh])
+		failed += _check(bw == 86.0 and bh == 128.0, "berry canvas 86x128 (got %sx%s)" % [bw, bh])
 		failed += _check(not berry.centered, "berry bottom-anchored")
 		failed += _check(absf(berry.offset.x + bw * 0.5) < 0.5 and absf(berry.offset.y + bh) < 0.5, "berry offset bottom-center")
 	var marker: Sprite2D = live.get_node_or_null("World/EchoPortal/Visual/Marker") as Sprite2D
@@ -391,11 +405,15 @@ func _spacing_pass(live: Node) -> int:
 	var failed: int = 0
 	var world: Node2D = live.get_node("World") as Node2D
 	var named: Dictionary = {}
-	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "Keeper"]:
+	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "Keeper", "KeepersBench"]:
 		named[mark_name] = _sprite_rect(world.get_node(mark_name))
 	var stones: Node2D = world.get_node("Runestones") as Node2D
 	for stone: Node in stones.get_children():
 		named[str(stone.name)] = _sprite_rect(stone)
+	var bench_canvas: Rect2 = named["KeepersBench"]
+	var bench_node: Node2D = world.get_node("KeepersBench") as Node2D
+	var bench_rect: Rect2 = _opaque_sprite_rect(bench_node)
+	named["KeepersBench"] = bench_rect
 	var keys: Array = named.keys()
 	var min_gap: float = 1.0e9
 	for i: int in range(keys.size()):
@@ -405,9 +423,10 @@ func _spacing_pass(live: Node) -> int:
 	var rune_gap: float = 1.0e9
 	for stone: Node in stones.get_children():
 		rune_gap = minf(rune_gap, _rect_gap(tree_rect, named[str(stone.name)]))
+	var bench_tree_gap: float = _rect_gap(tree_rect, bench_rect)
 	var exclusion: Rect2 = _manatree_exclusion((world.get_node("Manatree") as Node2D).position)
 	var hidden: int = 0
-	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal"]:
+	for mark_name: String in ["HarvestTree", "HarvestStone", "HarvestBerry", "EchoPortal", "KeepersBench"]:
 		if named[mark_name].intersects(exclusion):
 			hidden += 1
 			print("FAIL hidden by manatree %s" % mark_name)
@@ -415,19 +434,307 @@ func _spacing_pass(live: Node) -> int:
 		if named[str(stone.name)].intersects(exclusion):
 			hidden += 1
 			print("FAIL hidden by manatree %s" % stone.name)
+	var path_gap: float = 1.0e9
+	var paths: Node = live.get_node("Paths")
+	for child: Node in paths.get_children():
+		if not (child is Line2D) or str(child.name) == "ToBench":
+			continue
+		path_gap = minf(path_gap, _line_clearance(child as Line2D, bench_rect))
+	var clear_radius: float = _bench_clear_radius()
+	var footprint: float = _farthest_corner(bench_rect, bench_node.position)
 	print("MIN_PAIR_GAP %.2f" % min_gap)
 	print("RUNE_TREE_GAP %.2f" % rune_gap)
+	print("BENCH_TREE_GAP %.2f" % bench_tree_gap)
+	print("BENCH_RECT %.1f %.1f %.1f %.1f" % [
+		bench_rect.position.x, bench_rect.position.y, bench_rect.size.x, bench_rect.size.y,
+	])
+	print("BENCH_CANVAS %.1f %.1f %.1f %.1f" % [
+		bench_canvas.position.x, bench_canvas.position.y, bench_canvas.size.x, bench_canvas.size.y,
+	])
+	print("BENCH_PATH_GAP %.2f" % path_gap)
+	print("BENCH_CLEAR %.1f covers %.1f" % [clear_radius, footprint])
 	print("MANATREE_EXCLUSION %.1f %.1f %.1f %.1f" % [
 		exclusion.position.x, exclusion.position.y, exclusion.size.x, exclusion.size.y,
 	])
 	failed += _check(min_gap + 0.01 >= 64.0, "pairwise sprite gap >= 64")
 	failed += _check(rune_gap + 0.01 >= 160.0, "runestone to harvest tree >= 160")
+	failed += _check(bench_tree_gap + 0.01 >= 160.0, "bench to harvest tree >= 160")
 	failed += _check(hidden == 0, "nodes stay outside the grown manatree")
+	failed += _check(path_gap + 0.01 >= 16.0, "bench clears path ribbons")
+	failed += _check(clear_radius + 0.1 >= footprint, "bench clear radius covers the painted footprint")
+	failed += _check(bench_node.position.distance_to(Vector2(1760, 2580)) < 1.0, "bench position")
+	var map_text: String = FileAccess.get_file_as_string("res://data/hub_map.json")
+	var map_v: Variant = JSON.parse_string(map_text)
+	var marks: Dictionary = (map_v as Dictionary).get("landmarks", {}) if typeof(map_v) == TYPE_DICTIONARY else {}
+	var bench_mark: Variant = marks.get("keepers_bench", [])
+	var mark_ok: bool = typeof(bench_mark) == TYPE_ARRAY and (bench_mark as Array).size() >= 2
+	if mark_ok:
+		mark_ok = Vector2(float((bench_mark as Array)[0]), float((bench_mark as Array)[1])).distance_to(bench_node.position) < 1.0
+	failed += _check(mark_ok, "hub_map keepers_bench matches the scene")
+	failed += _check(live.get_node_or_null("Paths/ToBench") is Line2D, "path branch to the bench")
+	failed += _path_network(live)
 	return failed
 
 
+func _path_network(live: Node) -> int:
+	var failed: int = 0
+	var map_v: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/hub_map.json"))
+	var paths_v: Variant = (map_v as Dictionary).get("paths", []) if typeof(map_v) == TYPE_DICTIONARY else []
+	failed += _check(typeof(paths_v) == TYPE_ARRAY and (paths_v as Array).size() >= 11, "hub_map paths")
+	var paths_node: Node = live.get_node("Paths")
+	var seen: Dictionary = {}
+	if typeof(paths_v) == TYPE_ARRAY:
+		for entry_v: Variant in paths_v:
+			if typeof(entry_v) != TYPE_DICTIONARY:
+				failed += 1
+				continue
+			var entry: Dictionary = entry_v
+			var line_name: String = str(entry.get("name", ""))
+			var line: Line2D = paths_node.get_node_or_null(line_name) as Line2D
+			var pts_v: Variant = entry.get("points", [])
+			var match_ok: bool = line != null and typeof(pts_v) == TYPE_ARRAY
+			if match_ok:
+				var want: Array = pts_v
+				match_ok = line.points.size() == want.size()
+				if match_ok:
+					for i: int in range(want.size()):
+						var pair: Array = want[i]
+						var got: Vector2 = line.points[i]
+						if got.distance_to(Vector2(float(pair[0]), float(pair[1]))) > 1.0:
+							match_ok = false
+							break
+			if not match_ok:
+				print("FAIL path %s does not match hub_map" % line_name)
+				failed += 1
+			seen[line_name] = true
+	var parent: Dictionary = {}
+	var snap: float = 24.0
+	var knots: Array[Vector2] = []
+	var line_count: int = 0
+	for child: Node in paths_node.get_children():
+		if not (child is Line2D):
+			continue
+		line_count += 1
+		var line2: Line2D = child as Line2D
+		if line2.points.size() < 2:
+			continue
+		var a: Vector2 = _snap_knot(knots, line2.points[0], snap)
+		var b: Vector2 = _snap_knot(knots, line2.points[line2.points.size() - 1], snap)
+		_union_knot(parent, a, b)
+	var roots: Dictionary = {}
+	for knot: Vector2 in knots:
+		roots[_find_knot(parent, knot)] = true
+	var landmarks: Array[Vector2] = [
+		Vector2(2160, 2106), Vector2(1200, 2100), Vector2(3300, 1900), Vector2(2480, 2780),
+		Vector2(2900, 1280), Vector2(1760, 2580), Vector2(2000, 1000), Vector2(3200, 1600),
+		Vector2(3300, 2500), Vector2(2700, 2950), Vector2(1800, 2950), Vector2(900, 2400),
+		Vector2(1100, 1500),
+	]
+	var covered: int = 0
+	for mark: Vector2 in landmarks:
+		for knot: Vector2 in knots:
+			if knot.distance_to(mark) <= snap:
+				covered += 1
+				break
+	print("PATH_GRAPH components %d lines %d landmarks %d/%d" % [roots.size(), line_count, covered, landmarks.size()])
+	failed += _check(roots.size() == 1, "path graph is one piece (got %d)" % roots.size())
+	failed += _check(covered == landmarks.size(), "paths reach every landmark (%d/%d)" % [covered, landmarks.size()])
+	return failed
+
+
+func _scene_exit_audit() -> int:
+	## Player scene changes: pause menu is the only path to the title.
+	## The Forge south door and Esc return to the hub. Echo battle is an overlay.
+	var failed: int = 0
+	var title_callers: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open("res://scripts")
+	if dir == null:
+		return _check(false, "scripts dir")
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".gd"):
+			var src: String = FileAccess.get_file_as_string("res://scripts/%s" % file_name)
+			var names_title: bool = src.find("title_screen.tscn") >= 0 or src.find("TITLE_SCENE") >= 0
+			var changes_scene: bool = src.find("change_scene_to_file") >= 0
+			if names_title and changes_scene:
+				title_callers.append(file_name)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	var allowed: Dictionary = {
+		"pause_menu.gd": true,
+		"main.gd": true,
+		"playtest_quit.gd": true,
+		"playtest_ship.gd": true,
+		"pass_f_playthrough.gd": true,
+	}
+	for caller: String in title_callers:
+		if not allowed.has(caller):
+			print("FAIL title exit in %s" % caller)
+			failed += 1
+	var forge_src: String = FileAccess.get_file_as_string("res://scripts/autoload/forge_jobs.gd")
+	var echo_src: String = FileAccess.get_file_as_string("res://scripts/autoload/echo_chamber.gd")
+	var forge_ok: bool = forge_src.find("boot_intent = \"forge_return\"") >= 0 and forge_src.find("change_scene_to_file(HUB_SCENE)") >= 0
+	var echo_ok: bool = echo_src.find("change_scene") < 0
+	failed += _check(title_callers.has("pause_menu.gd"), "pause menu can reach the title")
+	failed += _check(forge_ok, "forge exit returns to the hub")
+	failed += _check(echo_ok, "echo battle stays an overlay")
+	print("SCENE_EXITS title=%s forge_return=%s echo=overlay" % [",".join(title_callers), "yes" if forge_ok else "no"])
+	return failed
+
+
+func _snap_knot(knots: Array[Vector2], point: Vector2, snap: float) -> Vector2:
+	for knot: Vector2 in knots:
+		if knot.distance_to(point) <= snap:
+			return knot
+	knots.append(point)
+	return point
+
+
+func _find_knot(parent: Dictionary, point: Vector2) -> Vector2:
+	var key: String = "%s,%s" % [point.x, point.y]
+	if not parent.has(key):
+		parent[key] = point
+		return point
+	var at: Vector2 = parent[key]
+	if at.distance_to(point) <= 0.01:
+		return point
+	var root: Vector2 = _find_knot(parent, at)
+	parent[key] = root
+	return root
+
+
+func _union_knot(parent: Dictionary, a: Vector2, b: Vector2) -> void:
+	var ra: Vector2 = _find_knot(parent, a)
+	var rb: Vector2 = _find_knot(parent, b)
+	parent["%s,%s" % [rb.x, rb.y]] = ra
+
+
+func _gear_bonus_match() -> int:
+	var failed: int = 0
+	var eq_v: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/equipment.json"))
+	var tune_v: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/forge_tuning.json"))
+	if typeof(eq_v) != TYPE_DICTIONARY or typeof(tune_v) != TYPE_DICTIONARY:
+		return _check(false, "gear json")
+	var by_id: Dictionary = {}
+	for item_v: Variant in (eq_v as Dictionary).get("items", []):
+		if typeof(item_v) == TYPE_DICTIONARY:
+			by_id[str((item_v as Dictionary).get("id", ""))] = item_v
+	var recipes: Dictionary = (tune_v as Dictionary).get("recipes", {})
+	var ids: Array[String] = ["rootsteel_edge", "heartwand", "switchshaft", "oakheart_knot", "shardlens", "windthorn_bead"]
+	for item_id: String in ids:
+		var item: Dictionary = by_id.get(item_id, {})
+		var recipe: Dictionary = recipes.get(item_id, {})
+		var same: bool = _bonus_dict_equal(item.get("bonuses", {}), recipe.get("bonuses", {}))
+		failed += _check(same, "%s bonuses match forge_tuning" % item_id)
+		var item_kind: String = str(item.get("damage_kind", ""))
+		var recipe_kind: String = str(recipe.get("damage_kind", ""))
+		if item_kind != "" or recipe_kind != "":
+			failed += _check(item_kind == recipe_kind, "%s damage_kind matches forge_tuning" % item_id)
+	return failed
+
+
+func _bonus_dict_equal(a: Variant, b: Variant) -> bool:
+	if typeof(a) != TYPE_DICTIONARY or typeof(b) != TYPE_DICTIONARY:
+		return false
+	var left: Dictionary = a
+	var right: Dictionary = b
+	var keys: Dictionary = {}
+	for key: Variant in left.keys():
+		keys[str(key)] = true
+	for key: Variant in right.keys():
+		keys[str(key)] = true
+	for key: Variant in keys.keys():
+		if int(left.get(key, 0)) != int(right.get(key, 0)):
+			return false
+	return not keys.is_empty()
+
+
+func _hub_ground_deco(live: Node) -> int:
+	var failed: int = 0
+	var nodes: Array = get_nodes_in_group("hub_ground_deco")
+	failed += _check(nodes.size() == 150, "hub ground deco %d" % nodes.size())
+	var world: Node2D = live.get_node("World") as Node2D
+	var exclusion: Rect2 = _manatree_exclusion((world.get_node("Manatree") as Node2D).position)
+	var bench: Vector2 = (world.get_node("KeepersBench") as Node2D).position
+	var bench_r: float = _bench_clear_radius()
+	var paths: Node = live.get_node("Paths")
+	var off: int = 0
+	var rock_body: int = 0
+	var glow_bad: int = 0
+	var glow_n: int = 0
+	var grass_files: Dictionary = {}
+	var families: Dictionary = {}
+	for node: Node in nodes:
+		if not (node is Node2D):
+			off += 1
+			continue
+		var at: Vector2 = (node as Node2D).global_position
+		if exclusion.has_point(at) or at.distance_to(bench) < bench_r:
+			off += 1
+		if not bool(live.call("decor_spot_allowed", at)) or _near_path(paths, at, 36.0):
+			off += 1
+		var tex_path: String = str(node.get("texture_path"))
+		var kind: String = "other"
+		if tex_path.find("grass_tuft_") >= 0:
+			kind = "grass"
+			grass_files[tex_path] = true
+		elif tex_path.find("fern_") >= 0:
+			kind = "fern"
+		elif tex_path.find("mushroom_glow_") >= 0:
+			kind = "glow"
+		elif tex_path.find("mushroom_plain_") >= 0:
+			kind = "plain"
+		elif tex_path.find("rock_mossy_") >= 0:
+			kind = "rock"
+		elif tex_path.find("flower_") >= 0:
+			kind = "flower"
+		families[kind] = int(families.get(kind, 0)) + 1
+		if kind == "rock" and node.get_node_or_null("Body") != null:
+			rock_body += 1
+		if kind == "glow":
+			glow_n += 1
+			var glow: Sprite2D = node.get_node_or_null("Glow") as Sprite2D
+			var mat: CanvasItemMaterial = glow.material as CanvasItemMaterial if glow else null
+			var gtex: Texture2D = glow.texture if glow else null
+			if glow == null or mat == null or mat.blend_mode != CanvasItemMaterial.BLEND_MODE_ADD:
+				glow_bad += 1
+			elif gtex == null or gtex.get_width() != 96 or not str(gtex.resource_path).ends_with("_glow.png"):
+				glow_bad += 1
+	failed += _check(off == 0, "ground deco off paths, exclusion, bench, and nodes (hits %d)" % off)
+	failed += _check(rock_body == 0, "rocks have no collision")
+	failed += _check(glow_n == 6 and glow_bad == 0, "glow mushrooms %d bad %d" % [glow_n, glow_bad])
+	failed += _check(grass_files.size() >= 4, "grass variants %d" % grass_files.size())
+	failed += _check(int(families.get("grass", 0)) == 60, "added grass %d" % int(families.get("grass", 0)))
+	failed += _check(int(families.get("fern", 0)) == 30, "ferns %d" % int(families.get("fern", 0)))
+	failed += _check(int(families.get("plain", 0)) == 10, "plain mushrooms %d" % int(families.get("plain", 0)))
+	failed += _check(int(families.get("rock", 0)) == 20, "rocks %d" % int(families.get("rock", 0)))
+	failed += _check(int(families.get("flower", 0)) == 24, "flowers %d" % int(families.get("flower", 0)))
+	return failed
+
+
+func _near_path(paths: Node, at: Vector2, limit: float) -> bool:
+	if paths == null:
+		return false
+	for child: Node in paths.get_children():
+		if not (child is Line2D):
+			continue
+		var pts: PackedVector2Array = (child as Line2D).points
+		for i: int in range(pts.size() - 1):
+			if _dist_seg(at, pts[i], pts[i + 1]) < limit:
+				return true
+	return false
+
+
+func _dist_seg(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab: Vector2 = b - a
+	var den: float = ab.length_squared()
+	var t: float = 0.0 if den <= 0.0001 else clampf((p - a).dot(ab) / den, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
+
+
 func _manatree_exclusion(origin: Vector2) -> Rect2:
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/art/manatree/manatree_meta.json"))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/art/manatree/native/manatree_meta.json"))
 	var union := Rect2()
 	var first: bool = true
 	for entry: Variant in (parsed as Dictionary).get("stages", []):
@@ -441,6 +748,65 @@ func _manatree_exclusion(origin: Vector2) -> Rect2:
 		union = rect if first else union.merge(rect)
 		first = false
 	return union.grow(96.0)
+
+
+func _opaque_sprite_rect(node: Node) -> Rect2:
+	var spr: Sprite2D = node.get_node_or_null("Sprite") as Sprite2D
+	if spr == null or spr.texture == null or spr.centered:
+		return _sprite_rect(node)
+	var image: Image = spr.texture.get_image()
+	if image == null:
+		return _sprite_rect(node)
+	var used: Rect2i = image.get_used_rect()
+	if used.size.x <= 0 or used.size.y <= 0:
+		return _sprite_rect(node)
+	var local := Rect2(spr.offset + Vector2(used.position), Vector2(used.size))
+	return _transformed_rect(spr.global_transform, local)
+
+
+func _bench_clear_radius() -> float:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/hub_map.json"))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return 0.0
+	var extras: Variant = (parsed as Dictionary).get("extra_clear", [])
+	if typeof(extras) != TYPE_ARRAY:
+		return 0.0
+	for extra_v: Variant in extras:
+		if typeof(extra_v) != TYPE_DICTIONARY:
+			continue
+		var extra: Dictionary = extra_v
+		var pos: Variant = extra.get("pos", [])
+		if typeof(pos) == TYPE_ARRAY and (pos as Array).size() >= 2:
+			var at := Vector2(float((pos as Array)[0]), float((pos as Array)[1]))
+			if at.distance_to(Vector2(1760, 2580)) < 1.0:
+				return float(extra.get("radius", 0.0))
+	return 0.0
+
+
+func _farthest_corner(rect: Rect2, origin: Vector2) -> float:
+	var far: float = 0.0
+	for corner: Vector2 in [rect.position, rect.end, Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.position.y)]:
+		far = maxf(far, origin.distance_to(corner))
+	return far
+
+
+func _line_clearance(line: Line2D, rect: Rect2) -> float:
+	var best: float = 1.0e9
+	var pts: PackedVector2Array = line.points
+	for i: int in range(pts.size() - 1):
+		best = minf(best, _segment_rect_distance(pts[i], pts[i + 1], rect))
+	return best - line.width * 0.5
+
+
+func _segment_rect_distance(a: Vector2, b: Vector2, rect: Rect2) -> float:
+	var best: float = 1.0e9
+	var steps: int = 64
+	for step: int in range(steps + 1):
+		var p: Vector2 = a.lerp(b, float(step) / float(steps))
+		var dx: float = maxf(rect.position.x - p.x, maxf(0.0, p.x - rect.end.x))
+		var dy: float = maxf(rect.position.y - p.y, maxf(0.0, p.y - rect.end.y))
+		best = minf(best, Vector2(dx, dy).length())
+	return best
 
 
 func _sprite_rect(node: Node) -> Rect2:
@@ -503,6 +869,138 @@ func _near(live: Node, path: String, want: Vector2) -> int:
 		print("FAIL %s at %s want %s" % [path, node.position, want])
 		return 1
 	return 0
+
+
+func _forest_seal(live: Node) -> int:
+	var failed: int = 0
+	var edge: Node = live.get_node_or_null("World/ForestEdge")
+	failed += _check(edge is StaticBody2D, "ForestEdge collision body")
+	var seg_count: int = 0
+	if edge:
+		for child: Node in edge.get_children():
+			if child is CollisionShape2D:
+				seg_count += 1
+	failed += _check(seg_count >= 40, "forest wall segments %d" % seg_count)
+	var tree_n: int = 0
+	var bush_n: int = 0
+	var rects: Array[Rect2] = []
+	for prop: Node in get_nodes_in_group("forest_prop"):
+		var kind: String = str(prop.get_meta("prop_kind", ""))
+		if kind != "tree" and kind != "bush":
+			continue
+		if kind == "tree":
+			tree_n += 1
+		else:
+			bush_n += 1
+		var spr: Sprite2D = prop.get_node_or_null("Sprite") as Sprite2D
+		if spr == null or spr.texture == null or not (prop is Node2D):
+			continue
+		var sc: float = absf(spr.scale.x)
+		var origin: Vector2 = (prop as Node2D).global_position
+		var w: float = float(spr.texture.get_width()) * sc
+		var h: float = float(spr.texture.get_height()) * sc
+		rects.append(Rect2(origin.x + spr.offset.x * sc, origin.y + spr.offset.y * sc, w, h))
+	print("FOREST_COUNTS trees=%d bushes=%d" % [tree_n, bush_n])
+	failed += _check(tree_n > bush_n and tree_n >= 200 and bush_n >= 40, "forest is mostly trees (%d trees, %d bushes)" % [tree_n, bush_n])
+	var cell: float = 32.0
+	var covered: Dictionary = {}
+	for rect: Rect2 in rects:
+		var x0: int = int(floor(rect.position.x / cell))
+		var y0: int = int(floor(rect.position.y / cell))
+		var x1: int = int(floor(rect.end.x / cell))
+		var y1: int = int(floor(rect.end.y / cell))
+		for gx: int in range(x0, x1 + 1):
+			for gy: int in range(y0, y1 + 1):
+				var cx: float = (float(gx) + 0.5) * cell
+				var cy: float = (float(gy) + 0.5) * cell
+				if cx >= rect.position.x and cy >= rect.position.y and cx <= rect.end.x and cy <= rect.end.y:
+					covered[Vector2i(gx, gy)] = true
+	var holes: int = 0
+	var sx: float = 180.0
+	while sx <= 4140.0:
+		var sy: float = 180.0
+		while sy <= 3600.0:
+			if float(live.call("_ellipse_norm", Vector2(sx, sy))) >= 0.97:
+				if not covered.has(Vector2i(int(floor(sx / cell)), int(floor(sy / cell)))):
+					holes += 1
+					if holes <= 6:
+						print("FOREST_HOLE %.1f %.1f" % [sx, sy])
+			sy += 32.0
+		sx += 32.0
+	var edge_pts: Array[Vector2] = [
+		Vector2(188, 188), Vector2(4132, 188), Vector2(188, 3592), Vector2(4132, 3592),
+		Vector2(2160, 188), Vector2(2160, 3592), Vector2(188, 1890), Vector2(4132, 1890),
+	]
+	for edge_pt: Vector2 in edge_pts:
+		var hit: bool = false
+		for rect: Rect2 in rects:
+			if edge_pt.x >= rect.position.x and edge_pt.y >= rect.position.y and edge_pt.x <= rect.end.x and edge_pt.y <= rect.end.y:
+				hit = true
+				break
+		if not hit:
+			holes += 1
+			print("FOREST_EDGE_HOLE %.1f %.1f" % [edge_pt.x, edge_pt.y])
+	failed += _check(holes == 0, "camera shows no void (%d holes)" % holes)
+	await process_frame
+	await physics_frame
+	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
+	failed += _check(space != null, "physics space")
+	if space == null:
+		return failed
+	var circle := CircleShape2D.new()
+	circle.radius = 18.0
+	var params := PhysicsShapeQueryParameters2D.new()
+	params.shape = circle
+	params.collision_mask = 1
+	params.collide_with_bodies = true
+	params.collide_with_areas = false
+	var step: float = 22.0
+	var origin := Vector2(2080, 2460)
+	var queue: Array[Vector2] = [origin]
+	var seen: Dictionary = {_forest_cell(origin, step): true}
+	var head: int = 0
+	var targets: Array[Vector2] = [
+		Vector2(1200, 2100), Vector2(3300, 1900), Vector2(2480, 2780),
+		Vector2(1760, 2580), Vector2(2160, 2106),
+	]
+	var names: PackedStringArray = ["harvest tree", "harvest stone", "harvest berry", "bench", "forge door"]
+	var reached: Array[bool] = [false, false, false, false, false]
+	var leaked: bool = false
+	var max_norm: float = 0.0
+	var guard: int = 0
+	while head < queue.size() and guard < 90000:
+		guard += 1
+		var at: Vector2 = queue[head]
+		head += 1
+		var here: float = float(live.call("_ellipse_norm", at))
+		if here > max_norm:
+			max_norm = here
+		if here > 1.0 or at.x < 140.0 or at.y < 140.0 or at.x > 4180.0 or at.y > 3640.0:
+			leaked = true
+			print("FOREST_LEAK %.1f %.1f norm %.3f" % [at.x, at.y, here])
+			break
+		for i: int in targets.size():
+			if at.distance_to(targets[i]) <= 42.0:
+				reached[i] = true
+		for dir: Vector2 in [Vector2(step, 0), Vector2(-step, 0), Vector2(0, step), Vector2(0, -step)]:
+			var nxt: Vector2 = at + dir
+			var key: Vector2i = _forest_cell(nxt, step)
+			if seen.has(key):
+				continue
+			seen[key] = true
+			params.transform = Transform2D(0.0, nxt)
+			if not space.intersect_shape(params, 1).is_empty():
+				continue
+			queue.append(nxt)
+	print("FOREST_SEAL leaked=%s max_norm=%.3f visited=%d" % ["yes" if leaked else "no", max_norm, queue.size()])
+	failed += _check(not leaked, "no walkable gap out of the clearing")
+	for i: int in names.size():
+		failed += _check(reached[i], "%s reachable inside the clearing" % names[i])
+	return failed
+
+
+func _forest_cell(p: Vector2, step: float) -> Vector2i:
+	return Vector2i(int(floor(p.x / step)), int(floor(p.y / step)))
 
 
 func _check(ok: bool, label: String) -> int:

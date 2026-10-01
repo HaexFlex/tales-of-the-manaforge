@@ -20,7 +20,9 @@ var _channel_kind: int = ChannelKind.NONE
 var _channel_target: Node = null
 var _channel_accum: float = 0.0
 var _hovered: bool = false
+var _outline_mat: ShaderMaterial
 
+const OUTLINE_SHADER: Shader = preload("res://assets/art/ui/select_outline.gdshader")
 const ARRIVE_DIST: float = 12.0
 const INTERACT_DIST: float = 64.0
 const BODY_SIZE: Vector2 = Vector2(128, 128)
@@ -175,8 +177,8 @@ func start_harvest_channel(node: Gatherable) -> void:
 	GameAudio.play_channel_start()
 	GameState.status_message.emit(ContentStrings.get_text("harvest_start"))
 	channel_changed.emit(&"harvest", true)
-	# Immediate first pulse so click feels responsive, then every CHANNEL_PULSE_SEC.
-	node.on_harvest_pulse()
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.set_keeper_task("harvest", String(node.resource_id), true)
 	_channel_accum = 0.0
 
 
@@ -191,6 +193,8 @@ func start_water_channel(tree: Manatree) -> void:
 	GameAudio.play_channel_start()
 	GameState.status_message.emit(ContentStrings.get_text("tree_water_start"))
 	channel_changed.emit(&"water", true)
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.set_keeper_task("water", "manatree", true)
 	_do_water_pulse()
 	_channel_accum = 0.0
 
@@ -216,6 +220,11 @@ func cancel_channel(emit_status: bool = true) -> void:
 		if emit_status:
 			GameState.status_message.emit(ContentStrings.get_text("tree_water_cancel"))
 		channel_changed.emit(&"water", false)
+	if has_node("/root/ForgeJobs"):
+		var task: Dictionary = ForgeJobs.keeper_task()
+		var task_kind: String = str(task.get("kind", ""))
+		if task_kind == "harvest" or task_kind == "water":
+			ForgeJobs.note_keeper_idle()
 
 
 func is_channeling() -> bool:
@@ -270,14 +279,11 @@ func _tick_channel(delta: float) -> void:
 		else:
 			GameState.status_message.emit(ContentStrings.get_text("tree_water_out_of_range"))
 		return
-	_channel_accum += delta
 	if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
 		var rid: StringName = (_channel_target as Gatherable).resource_id
-		var pulse: float = GameState.get_keeper_harvest_pulse_sec(rid)
-		while _channel_accum >= pulse:
-			_channel_accum -= pulse
-			(_channel_target as Gatherable).on_harvest_pulse()
+		GameState.accumulate_keeper_harvest(rid, delta)
 	elif _channel_kind == ChannelKind.WATER:
+		_channel_accum += delta
 		var pulse: float = GameState.get_water_essence_pulse_sec()
 		if pulse <= 0.0:
 			return
@@ -331,9 +337,32 @@ func _on_hover(inside: bool) -> void:
 	_on_selection_changed()
 
 
+func _apply_outline(show_outline: bool) -> void:
+	if sprite == null:
+		return
+	if show_outline:
+		if _outline_mat == null:
+			_outline_mat = ShaderMaterial.new()
+			_outline_mat.shader = OUTLINE_SHADER
+		sprite.material = _outline_mat
+	else:
+		sprite.material = null
+
+
+func face_out() -> void:
+	## South door of the Manatree. Idle faces the clearing.
+	_moving = false
+	_pending_interact = null
+	_target = global_position
+	if sprite:
+		sprite.flip_h = false
+		sprite.play(&"idle_south")
+
+
 func _on_selection_changed() -> void:
 	if select_ring:
-		select_ring.visible = GameState.keeper_selected
+		select_ring.visible = false
+	_apply_outline(GameState.keeper_selected)
 	if label:
 		if GameState.keeper_selected:
 			label.text = ContentStrings.get_text("keeper_selected")

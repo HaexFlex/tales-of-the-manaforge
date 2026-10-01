@@ -660,23 +660,35 @@ offset_bottom = 104.0
 theme_override_constants/separation = 8
 
 [node name="TabAll" type="Button" parent="BackpackPanel/TabRow"]
-custom_minimum_size = Vector2(88, 26)
+custom_minimum_size = Vector2(90, 26)
 text = "All"
 
+[node name="TabRaw" type="Button" parent="BackpackPanel/TabRow"]
+custom_minimum_size = Vector2(90, 26)
+text = "Raw"
+
+[node name="TabRefined" type="Button" parent="BackpackPanel/TabRow"]
+custom_minimum_size = Vector2(90, 26)
+text = "Refined"
+
 [node name="TabTools" type="Button" parent="BackpackPanel/TabRow"]
-custom_minimum_size = Vector2(88, 26)
+custom_minimum_size = Vector2(90, 26)
 text = "Tools"
 
-[node name="TabParts" type="Button" parent="BackpackPanel/TabRow"]
-custom_minimum_size = Vector2(88, 26)
-text = "Parts"
+[node name="TabWeapons" type="Button" parent="BackpackPanel/TabRow"]
+custom_minimum_size = Vector2(90, 26)
+text = "Weapons"
+
+[node name="TabRelics" type="Button" parent="BackpackPanel/TabRow"]
+custom_minimum_size = Vector2(90, 26)
+text = "Relics"
 
 [node name="InventoryScroll" type="ScrollContainer" parent="BackpackPanel"]
 clip_contents = true
 offset_left = 16.0
 offset_top = 108.0
 offset_right = 624.0
-offset_bottom = 220.0
+offset_bottom = 524.0
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
 
@@ -684,26 +696,64 @@ vertical_scroll_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="HandcraftTitle" type="Label" parent="BackpackPanel"]
+[node name="BenchPanel" type="Panel" parent="."]
+visible = false
+clip_contents = true
+custom_minimum_size = Vector2(640, 540)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -320.0
+offset_top = -270.0
+offset_right = 320.0
+offset_bottom = 270.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Header" type="Control" parent="BenchPanel"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 56.0
+grow_horizontal = 2
+
+[node name="BenchTitle" type="Label" parent="BenchPanel/Header"]
 offset_left = 16.0
-offset_top = 224.0
+offset_top = 12.0
+offset_right = 400.0
+offset_bottom = 44.0
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.92, 0.78, 0.38, 1)
+text = "Keeper's Bench"
+
+[node name="BenchCloseButton" type="Button" parent="BenchPanel/Header"]
+offset_left = 528.0
+offset_top = 12.0
 offset_right = 624.0
-offset_bottom = 250.0
+offset_bottom = 44.0
+text = "Close"
+
+[node name="BenchPrompt" type="Label" parent="BenchPanel"]
+offset_left = 16.0
+offset_top = 56.0
+offset_right = 624.0
+offset_bottom = 80.0
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(0.78, 0.72, 0.58, 1)
 text = "Handcraft"
-autowrap_mode = 3
 
-[node name="CraftScroll" type="ScrollContainer" parent="BackpackPanel"]
+[node name="CraftScroll" type="ScrollContainer" parent="BenchPanel"]
 clip_contents = true
 offset_left = 16.0
-offset_top = 252.0
+offset_top = 84.0
 offset_right = 624.0
 offset_bottom = 524.0
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 2
 
-[node name="CraftList" type="VBoxContainer" parent="BackpackPanel/CraftScroll"]
+[node name="CraftList" type="VBoxContainer" parent="BenchPanel/CraftScroll"]
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 

@@ -4,6 +4,7 @@ class_name WispOrb
 
 signal wisp_clicked(wisp_id: int)
 
+const OUTLINE_SHADER: Shader = preload("res://assets/art/ui/select_outline.gdshader")
 const KEEPER_ORBIT_RADIUS: float = 56.0
 const NODE_ORBIT_RADIUS: float = 28.0
 const KEEPER_ORBIT_SPEED: float = 1.15
@@ -35,6 +36,7 @@ var _placed: bool = false
 ## Cached when assigned (node_orbit_layout.follow_node = false).
 var _orbit_anchor: Vector2 = Vector2.ZERO
 var _hovered: bool = false
+var _outline_mat: ShaderMaterial
 
 
 func _ready() -> void:
@@ -197,10 +199,14 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 func _process(delta: float) -> void:
 	_bob_t += delta
+	var assigned_now: String = GameState.get_wisp_assignment(wisp_id)
+	if has_node("/root/ForgeJobs"):
+		var in_forge: bool = get_tree().get_first_node_in_group("forge_room") != null
+		visible = ForgeJobs.wisp_should_show(assigned_now, in_forge)
 	if not _placed:
 		global_position = _keeper_slot_pos()
 		_placed = true
-	var assigned_node: String = GameState.get_wisp_assignment(wisp_id)
+	var assigned_node: String = assigned_now
 	if assigned_node != _cached_assignment:
 		_cached_assignment = assigned_node
 		if assigned_node != "":
@@ -214,7 +220,8 @@ func _process(delta: float) -> void:
 		_refresh_label()
 		return
 
-	var is_sel: bool = GameState.selected_wisp_id == wisp_id
+	var is_sel: bool = GameState.is_wisp_selected(wisp_id)
+	_apply_outline(is_sel)
 	if assigned_node != "":
 		_tick_node_orbit(assigned_node, delta)
 		_play_anim(&"node_orbit")
@@ -222,23 +229,20 @@ func _process(delta: float) -> void:
 		return
 
 	_at_assigned_orbit = false
-	_tick_keeper_orbit(delta, is_sel)
+	_tick_keeper_orbit(delta)
 	_refresh_label()
 
 
-func _tick_keeper_orbit(delta: float, is_sel: bool) -> void:
+func _tick_keeper_orbit(delta: float) -> void:
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 	if keepers.is_empty():
 		return
 	var k: Node2D = keepers[0] as Node2D
 	sprite.flip_h = false
-	if is_sel:
-		_play_anim(&"selected")
-	else:
-		_orbit_angle += KEEPER_ORBIT_SPEED * delta
-		_play_anim(&"orbit")
+	_orbit_angle += KEEPER_ORBIT_SPEED * delta
+	_play_anim(&"orbit")
 	var slot: float = _even_slot_angle()
-	var angle: float = slot if is_sel else (_orbit_angle + slot)
+	var angle: float = _orbit_angle + slot
 	var bob: float = sin(_bob_t * 2.8 + float(wisp_id)) * 3.0
 	var offset := Vector2(cos(angle), sin(angle) * 0.55) * KEEPER_ORBIT_RADIUS
 	global_position = k.global_position + KEEPER_CHEST_OFFSET + offset + Vector2(0, bob)
@@ -307,6 +311,12 @@ func _kill_fly_tween() -> void:
 
 
 func _resolve_assignment_center(node_id: String) -> Vector2:
+	if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id):
+		var stations: Array[Node] = get_tree().get_nodes_in_group("forge_station")
+		for station: Node in stations:
+			if station is ForgeStation and (station as ForgeStation).station_id == node_id:
+				return (station as ForgeStation).orbit_global()
+		return global_position
 	if node_id == GameState.NODE_ID_MANATREE:
 		var trees: Array[Node] = get_tree().get_nodes_in_group("manatree")
 		for n: Node in trees:
@@ -331,14 +341,26 @@ func _refresh_label() -> void:
 	if label == null:
 		return
 	var assigned: String = GameState.get_wisp_assignment(wisp_id)
-	if GameState.selected_wisp_id == wisp_id:
+	if GameState.is_wisp_selected(wisp_id):
 		label.text = ContentStrings.get_text("wisp_selected")
 	elif assigned != "":
 		var target: String = GameState.assignment_target_display(assigned)
 		label.text = ContentStrings.get_text("wisp_assigned_hud", {"target": target})
 	else:
 		label.text = ContentStrings.get_text("wisp_idle_hud")
-	label.visible = _hovered or GameState.selected_wisp_id == wisp_id
+	label.visible = _hovered or GameState.is_wisp_selected(wisp_id)
+
+
+func _apply_outline(show_outline: bool) -> void:
+	if sprite == null:
+		return
+	if show_outline:
+		if _outline_mat == null:
+			_outline_mat = ShaderMaterial.new()
+			_outline_mat.shader = OUTLINE_SHADER
+		sprite.material = _outline_mat
+	else:
+		sprite.material = null
 
 
 func _on_hover(inside: bool) -> void:

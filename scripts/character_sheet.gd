@@ -6,6 +6,7 @@ class_name CharacterSheet
 signal close_requested
 
 const PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
+const WISP_PORTRAIT_PATH: String = "res://assets/art/wisps/wisp_portrait.png"
 const SHEET_SIZE: Vector2 = Vector2(1272, 716)
 const HOST_POS: Vector2 = Vector2(12, 54)
 ## Paper-doll host. The sprite is inset; slots sit in the margins around the figure.
@@ -16,21 +17,30 @@ const SPRITE_POS: Vector2 = Vector2(8, 70)
 const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
 
 
+## Autoload name is not in scope when this script reloads under a --script run.
+static func _auto(node_name: String):
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null(node_name)
+
+
+static func gear_icon_path(item_id: String) -> String:
+	var eq = CharacterSheet._auto("Equipment")
+	if eq == null:
+		return ""
+	return str(eq.call("item_art_path", item_id))
+
+
 static func make_item_icon(item_id: String) -> Control:
-	var tip: String = Equipment.item_display_name(item_id)
+	var eq = CharacterSheet._auto("Equipment")
+	var tip: String = str(eq.call("item_display_name", item_id)) if eq != null else item_id
 	var sheet_index: int = HudIcons.index_for_item(item_id)
 	if sheet_index >= 0:
 		var sheet_icon: TextureRect = HudIcons.make_icon(sheet_index)
 		sheet_icon.tooltip_text = tip
 		return sheet_icon
-	var path: String = ""
-	match item_id:
-		"forge_key_relic":
-			path = "res://assets/art/ui/icons/icon_forge_key.png"
-		"sapstaff":
-			path = "res://assets/art/ui/icon_sapstaff.png"
-		"thornbow":
-			path = "res://assets/art/ui/icon_thornbow.png"
+	var path: String = gear_icon_path(item_id)
 	if path != "" and ResourceLoader.exists(path):
 		var icon := TextureRect.new()
 		icon.custom_minimum_size = Vector2(32, 32)
@@ -94,10 +104,10 @@ func _ready() -> void:
 	visible = false
 	_build()
 	call_deferred("_center_stat_glyphs")
-	if not Equipment.equipment_changed.is_connected(_refresh):
-		Equipment.equipment_changed.connect(_refresh)
-	if not KeeperStats.ranks_changed.is_connected(_on_ranks):
-		KeeperStats.ranks_changed.connect(_on_ranks)
+	if not CharacterSheet._auto("Equipment").equipment_changed.is_connected(_refresh):
+		CharacterSheet._auto("Equipment").equipment_changed.connect(_refresh)
+	if not CharacterSheet._auto("KeeperStats").ranks_changed.is_connected(_on_ranks):
+		CharacterSheet._auto("KeeperStats").ranks_changed.connect(_on_ranks)
 	_refresh()
 
 
@@ -126,20 +136,20 @@ func request_close() -> void:
 
 
 func request_equip(item_id: String) -> String:
-	var result: String = Equipment.try_equip(item_id)
-	_toast(result, item_id, Equipment.item_slot(item_id))
+	var result: String = CharacterSheet._auto("Equipment").try_equip(item_id)
+	_toast(result, item_id, CharacterSheet._auto("Equipment").item_slot(item_id))
 	return result
 
 
 func request_equip_slot(item_id: String, slot_id: String) -> String:
-	var result: String = Equipment.try_equip_to_slot(item_id, slot_id)
+	var result: String = CharacterSheet._auto("Equipment").try_equip_to_slot(item_id, slot_id)
 	_toast(result, item_id, slot_id)
 	return result
 
 
 func request_unequip(slot_id: String) -> String:
-	var item_id: String = Equipment.equipped_id(slot_id)
-	var result: String = Equipment.try_unequip(slot_id)
+	var item_id: String = CharacterSheet._auto("Equipment").equipped_id(slot_id)
+	var result: String = CharacterSheet._auto("Equipment").try_unequip(slot_id)
 	_toast(result, item_id, slot_id)
 	return result
 
@@ -152,25 +162,25 @@ func set_hover_item(item_id: String) -> void:
 
 
 func _toast(result: String, item_id: String, slot_id: String) -> void:
-	var item_name: String = Equipment.item_display_name(item_id) if item_id != "" else ""
+	var item_name: String = CharacterSheet._auto("Equipment").item_display_name(item_id) if item_id != "" else ""
 	var text: String = ""
 	match result:
 		"ok":
-			if Equipment.equipped_id(slot_id) == item_id and item_id != "":
-				text = ContentStrings.get_text("equip_ok", {"item": item_name})
+			if CharacterSheet._auto("Equipment").equipped_id(slot_id) == item_id and item_id != "":
+				text = CharacterSheet._auto("ContentStrings").get_text("equip_ok", {"item": item_name})
 			else:
-				text = ContentStrings.get_text("equip_unequip_ok", {"item": item_name})
-			GameAudio.play_ui_confirm()
-			SaveService.save_game()
+				text = CharacterSheet._auto("ContentStrings").get_text("equip_unequip_ok", {"item": item_name})
+			CharacterSheet._auto("GameAudio").play_ui_confirm()
+			CharacterSheet._auto("SaveService").save_game()
 		"locked":
-			text = Equipment.slot_lock_hint(slot_id if slot_id != "" else Equipment.item_slot(item_id))
-			GameAudio.play_tree_deny()
+			text = CharacterSheet._auto("Equipment").slot_lock_hint(slot_id if slot_id != "" else CharacterSheet._auto("Equipment").item_slot(item_id))
+			CharacterSheet._auto("GameAudio").play_tree_deny()
 		"wrong_slot":
 			text = ""
-			GameAudio.play_tree_deny()
+			CharacterSheet._auto("GameAudio").play_tree_deny()
 		"missing":
-			text = ContentStrings.get_text("equip_no_item")
-			GameAudio.play_tree_deny()
+			text = CharacterSheet._auto("ContentStrings").get_text("equip_no_item")
+			CharacterSheet._auto("GameAudio").play_tree_deny()
 		"empty":
 			text = ""
 		_:
@@ -178,7 +188,7 @@ func _toast(result: String, item_id: String, slot_id: String) -> void:
 	if text != "":
 		if _footer:
 			_footer.text = text
-		GameState.status_message.emit(text)
+		CharacterSheet._auto("GameState").status_message.emit(text)
 
 
 func _build() -> void:
@@ -212,7 +222,7 @@ func _build() -> void:
 	title.name = "Title"
 	title.position = Vector2(20, 8)
 	title.size = Vector2(640, 26)
-	title.text = ContentStrings.get_text("char_sheet_title")
+	title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_title")
 	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", GOLD)
 	sheet.add_child(title)
@@ -221,13 +231,13 @@ func _build() -> void:
 	hint.name = "Hint"
 	hint.position = Vector2(20, 32)
 	hint.size = Vector2(960, 18)
-	hint.text = ContentStrings.get_text("char_sheet_hint")
+	hint.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hint")
 	var hotkey := Label.new()
 	hotkey.name = "HotkeyHint"
 	hotkey.position = Vector2(SHEET_SIZE.x - 250, 34)
 	hotkey.size = Vector2(120, 18)
 	hotkey.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	hotkey.text = ContentStrings.get_text("char_sheet_hotkey_hint")
+	hotkey.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hotkey_hint")
 	hotkey.add_theme_font_size_override("font_size", 11)
 	hotkey.add_theme_color_override("font_color", MUTED)
 	sheet.add_child(hotkey)
@@ -239,7 +249,7 @@ func _build() -> void:
 	close.name = "CloseButton"
 	close.position = Vector2(SHEET_SIZE.x - 116, 8)
 	close.size = Vector2(96, 36)
-	close.text = ContentStrings.get_text("char_sheet_close")
+	close.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_close")
 	close.pressed.connect(request_close)
 	_paint_button(close, Color(0.18, 0.14, 0.10, 1.0))
 	sheet.add_child(close)
@@ -272,7 +282,7 @@ func _build() -> void:
 	_portrait.texture = tex
 	host.add_child(_portrait)
 
-	for slot_name: StringName in Equipment.SLOT_ORDER:
+	for slot_name: StringName in CharacterSheet._auto("Equipment").SLOT_ORDER:
 		var sid: String = String(slot_name)
 		var plate := SlotPlate.new()
 		plate.name = "Slot_%s" % sid
@@ -284,7 +294,7 @@ func _build() -> void:
 		if placed is Vector2:
 			plate.position = placed as Vector2
 		else:
-			var anchor: Vector2 = Equipment.slot_anchor(sid)
+			var anchor: Vector2 = CharacterSheet._auto("Equipment").slot_anchor(sid)
 			plate.position = Vector2(
 				anchor.x * PORTRAIT_SIZE.x - SLOT_SIZE.x * 0.5,
 				anchor.y * PORTRAIT_SIZE.y - SLOT_SIZE.y * 0.5
@@ -305,7 +315,7 @@ func _build() -> void:
 	gear_title.name = "GearTitle"
 	gear_title.position = Vector2(0, 0)
 	gear_title.size = Vector2(360, 22)
-	gear_title.text = ContentStrings.get_text("gear_title")
+	gear_title.text = CharacterSheet._auto("ContentStrings").get_text("gear_title")
 	gear_title.add_theme_font_size_override("font_size", 15)
 	gear_title.add_theme_color_override("font_color", GOLD)
 	mid.add_child(gear_title)
@@ -314,12 +324,12 @@ func _build() -> void:
 	gear_hint.position = Vector2(0, 22)
 	gear_hint.size = Vector2(360, 30)
 	gear_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	gear_hint.text = ContentStrings.get_text("gear_hint")
+	gear_hint.text = CharacterSheet._auto("ContentStrings").get_text("gear_hint")
 	var persist := Label.new()
 	persist.name = "PersistHint"
 	persist.position = Vector2(0, 54)
 	persist.size = Vector2(360, 16)
-	persist.text = ContentStrings.get_text("weapon_persist_hint")
+	persist.text = CharacterSheet._auto("ContentStrings").get_text("weapon_persist_hint")
 	persist.add_theme_font_size_override("font_size", 11)
 	persist.add_theme_color_override("font_color", MUTED)
 	mid.add_child(persist)
@@ -331,14 +341,14 @@ func _build() -> void:
 	mid.add_child(tabs)
 	var tab_all := Button.new()
 	tab_all.name = "TabAll"
-	tab_all.text = ContentStrings.get_text("gear_tab_all")
+	tab_all.text = CharacterSheet._auto("ContentStrings").get_text("gear_tab_all")
 	tab_all.custom_minimum_size = Vector2(72, 26)
 	tab_all.pressed.connect(_set_gear_tab.bind("all"))
 	_paint_button(tab_all, Color(0.18, 0.14, 0.10, 1.0))
 	tabs.add_child(tab_all)
 	var tab_weapons := Button.new()
 	tab_weapons.name = "TabWeapons"
-	tab_weapons.text = ContentStrings.get_text("gear_tab_weapons")
+	tab_weapons.text = CharacterSheet._auto("ContentStrings").get_text("gear_tab_weapons")
 	tab_weapons.custom_minimum_size = Vector2(96, 26)
 	tab_weapons.pressed.connect(_set_gear_tab.bind("weapons"))
 	_paint_button(tab_weapons, Color(0.18, 0.14, 0.10, 1.0))
@@ -371,7 +381,7 @@ func _build() -> void:
 	stats_title.name = "StatsTitle"
 	stats_title.position = Vector2(0, 0)
 	stats_title.size = Vector2(360, 22)
-	stats_title.text = ContentStrings.get_text("char_sheet_stats_header")
+	stats_title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_stats_header")
 	stats_title.add_theme_font_size_override("font_size", 15)
 	stats_title.add_theme_color_override("font_color", GOLD)
 	right.add_child(stats_title)
@@ -379,7 +389,7 @@ func _build() -> void:
 	var stats_hint := Label.new()
 	stats_hint.position = Vector2(0, 22)
 	stats_hint.size = Vector2(360, 20)
-	stats_hint.text = ContentStrings.get_text("stat_persist_hint")
+	stats_hint.text = CharacterSheet._auto("ContentStrings").get_text("stat_persist_hint")
 	stats_hint.add_theme_font_size_override("font_size", 11)
 	stats_hint.add_theme_color_override("font_color", MUTED)
 	right.add_child(stats_hint)
@@ -388,7 +398,7 @@ func _build() -> void:
 	## The font line box is taller than the glyphs, so the role row overlaps the
 	## name row's empty descent and each label is centered in its host.
 	var y: float = STAT_TOP
-	for stat_name: StringName in KeeperStats.STAT_ORDER:
+	for stat_name: StringName in CharacterSheet._auto("KeeperStats").STAT_ORDER:
 		var sid: String = String(stat_name)
 		var block := Control.new()
 		block.name = "Stat_%s" % sid
@@ -399,8 +409,8 @@ func _build() -> void:
 		# Role overlaps the name row's empty descent so the words sit flush under the name.
 		var role_y: float = STAT_NAME_H - 8.0
 		var line_y: float = role_y + STAT_ROLE_H + STAT_GAP_SMALL
-		_add_stat_row(block, "Name", KeeperStats.stat_display_name(sid), 14, KeeperStats.stat_color(sid), 0.0, STAT_NAME_H)
-		_add_stat_row(block, "Role", KeeperStats.stat_role(sid), 11, MUTED, role_y, STAT_ROLE_H)
+		_add_stat_row(block, "Name", CharacterSheet._auto("KeeperStats").stat_display_name(sid), 14, CharacterSheet._auto("KeeperStats").stat_color(sid), 0.0, STAT_NAME_H)
+		_add_stat_row(block, "Role", CharacterSheet._auto("KeeperStats").stat_role(sid), 11, MUTED, role_y, STAT_ROLE_H)
 		_add_stat_row(block, "Line", "", 15, INK, line_y, STAT_NUM_H)
 		y += STAT_STRIDE
 	var stats_bottom: float = y - STAT_GAP_LARGE + 4.0
@@ -454,7 +464,7 @@ func _center_stat_glyphs() -> void:
 	var root: Node = get_node_or_null("Sheet/Stats")
 	if root == null:
 		return
-	for stat_name: StringName in KeeperStats.STAT_ORDER:
+	for stat_name: StringName in CharacterSheet._auto("KeeperStats").STAT_ORDER:
 		var block: Node = root.get_node_or_null("Stat_%s" % String(stat_name))
 		if block == null:
 			continue
@@ -498,7 +508,7 @@ func _refresh_slots() -> void:
 	var host: Control = get_node_or_null("Sheet/PortraitHost") as Control
 	if host == null:
 		return
-	for slot_name: StringName in Equipment.SLOT_ORDER:
+	for slot_name: StringName in CharacterSheet._auto("Equipment").SLOT_ORDER:
 		var sid: String = String(slot_name)
 		var plate: SlotPlate = host.get_node_or_null("Slot_%s" % sid) as SlotPlate
 		if plate:
@@ -517,15 +527,15 @@ func _refresh_inventory() -> void:
 		_inv_list.remove_child(child)
 		child.free()
 	var rows: Array[Dictionary] = []
-	for inst: Dictionary in Equipment.list_unequipped():
+	for inst: Dictionary in CharacterSheet._auto("Equipment").list_unequipped():
 		var iid: String = str(inst.get("id", ""))
-		if _gear_tab == "weapons" and Equipment.item_slot(iid) != "weapon":
+		if _gear_tab == "weapons" and CharacterSheet._auto("Equipment").item_slot(iid) != "weapon":
 			continue
 		rows.append(inst)
 	if rows.is_empty():
 		var empty := Label.new()
 		empty.name = "Empty"
-		empty.text = ContentStrings.get_text("gear_empty")
+		empty.text = CharacterSheet._auto("ContentStrings").get_text("gear_empty")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		empty.custom_minimum_size = Vector2(320, 48)
@@ -548,20 +558,20 @@ func _refresh_stats() -> void:
 	var root: Node = get_node_or_null("Sheet/Stats")
 	if root == null:
 		return
-	for stat_name: StringName in KeeperStats.STAT_ORDER:
+	for stat_name: StringName in CharacterSheet._auto("KeeperStats").STAT_ORDER:
 		var sid: String = String(stat_name)
 		var line: Label = root.get_node_or_null("Stat_%s/Line/Text" % sid) as Label
 		if line == null:
 			continue
-		var base: int = KeeperStats.get_base(sid)
-		var gear: int = Equipment.gear_bonus(sid)
+		var base: int = CharacterSheet._auto("KeeperStats").get_base(sid)
+		var gear: int = CharacterSheet._auto("Equipment").gear_bonus(sid)
 		var shown_gear: int = gear
 		if _hover_item_id != "":
-			shown_gear = Equipment.preview_gear_bonus(sid, _hover_item_id)
+			shown_gear = CharacterSheet._auto("Equipment").preview_gear_bonus(sid, _hover_item_id)
 		var total: int = base + shown_gear
 		## base = STAT_BASE_START + ranks. Line is base + gear = total.
 		var text: String = "%d + %d = %d" % [base, shown_gear, total]
-		line.tooltip_text = ContentStrings.get_text("stat_base_note")
+		line.tooltip_text = CharacterSheet._auto("ContentStrings").get_text("stat_base_note")
 		if _hover_item_id != "" and shown_gear != gear:
 			var delta: int = shown_gear - gear
 			var sign: String = "+" if delta > 0 else ""
@@ -607,6 +617,10 @@ class InvColumn extends Control:
 		host.call("request_unequip", str((data as Dictionary).get("from_slot", "")))
 
 
+const EMPTY_RELIC_FRAME_PATH: String = "res://assets/art/ui/relic_slot_empty.png"
+const RELIC_ICON_SIZE: Vector2 = Vector2(32, 32)
+const RELIC_ICON_INSET: Vector2 = Vector2(6, 6)
+
 class SlotPlate extends Panel:
 	var slot_id: String = ""
 	var host: Control = null
@@ -650,7 +664,34 @@ class SlotPlate extends Panel:
 		var cap_h: float = maxf(16.0, _caption.get_minimum_size().y)
 		_caption.size = Vector2(caption_host.size.x, cap_h)
 		_caption.position = Vector2(0, (caption_host.size.y - cap_h) * 0.5)
+		if slot_id == "relic":
+			var glyph := TextureRect.new()
+			glyph.name = "RelicGlyph"
+			glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			glyph.position = CharacterSheet.RELIC_ICON_INSET
+			glyph.size = CharacterSheet.RELIC_ICON_SIZE
+			glyph.visible = false
+			_square.add_child(glyph)
 		refresh()
+
+	func _apply_empty_relic_frame() -> bool:
+		var tex: Texture2D = null
+		if ResourceLoader.exists(CharacterSheet.EMPTY_RELIC_FRAME_PATH):
+			tex = load(CharacterSheet.EMPTY_RELIC_FRAME_PATH) as Texture2D
+		if tex == null:
+			return false
+		_square.texture = tex
+		_square.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_square.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_square.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_square.modulate = Color.WHITE
+		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
+		_square.size = SLOT_SQUARE
+		return true
+
 
 	func _show_slot_icon(index: int) -> void:
 		HudIcons.apply(_square, index)
@@ -658,13 +699,50 @@ class SlotPlate extends Panel:
 		_square.position = Vector2((SLOT_SIZE.x - SLOT_SQUARE.x) * 0.5, 0)
 		_square.size = SLOT_SQUARE
 
+	func _relic_glyph() -> TextureRect:
+		if _square == null:
+			return null
+		return _square.get_node_or_null("RelicGlyph") as TextureRect
+
+
+	func _hide_relic_glyph() -> void:
+		var glyph: TextureRect = _relic_glyph()
+		if glyph:
+			glyph.visible = false
+			glyph.texture = null
+
+
+	func _show_relic_in_frame(item_id: String) -> bool:
+		if not _apply_empty_relic_frame():
+			return false
+		var glyph: TextureRect = _relic_glyph()
+		if glyph == null:
+			return false
+		var path: String = CharacterSheet.gear_icon_path(item_id)
+		var tex: Texture2D = null
+		if path != "" and ResourceLoader.exists(path):
+			tex = load(path) as Texture2D
+		if tex == null:
+			_hide_relic_glyph()
+			return false
+		glyph.texture = tex
+		glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		glyph.position = CharacterSheet.RELIC_ICON_INSET
+		glyph.size = CharacterSheet.RELIC_ICON_SIZE
+		glyph.visible = true
+		return true
+
+
 	func _show_equipped_icon(item_id: String) -> void:
 		var gear_index: int = HudIcons.index_for_item(item_id)
 		if gear_index >= 0:
 			_show_slot_icon(gear_index)
 			return
-		if item_id == "forge_key_relic" and ResourceLoader.exists("res://assets/art/ui/icons/icon_forge_key.png"):
-			_square.texture = load("res://assets/art/ui/icons/icon_forge_key.png") as Texture2D
+		var path: String = CharacterSheet.gear_icon_path(item_id)
+		if path != "" and ResourceLoader.exists(path):
+			_square.texture = load(path) as Texture2D
 			_square.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			_square.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			_square.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -673,32 +751,43 @@ class SlotPlate extends Panel:
 			_square.size = SLOT_SQUARE
 			return
 		_show_slot_icon(HudIcons.EQUIP_EMPTY)
-		_square.modulate = Equipment.item_color(item_id)
+		_square.modulate = CharacterSheet._auto("Equipment").item_color(item_id)
 
 	func refresh() -> void:
 		if _square == null:
 			return
-		var unlocked: bool = Equipment.is_slot_unlocked(slot_id)
-		var iid: String = Equipment.equipped_id(slot_id)
+		var unlocked: bool = CharacterSheet._auto("Equipment").is_slot_unlocked(slot_id)
+		var iid: String = CharacterSheet._auto("Equipment").equipped_id(slot_id)
 		if not unlocked:
+			_hide_relic_glyph()
 			_show_slot_icon(HudIcons.EQUIP_LOCKED)
-			_caption.text = Equipment.slot_lock_short(slot_id)
-			tooltip_text = Equipment.slot_lock_hint(slot_id)
+			_caption.text = CharacterSheet._auto("Equipment").slot_lock_short(slot_id)
+			tooltip_text = CharacterSheet._auto("Equipment").slot_lock_hint(slot_id)
 			if slot_id == "relic":
-				tooltip_text = "%s %s" % [tooltip_text, ContentStrings.get_text("relic_locked_tooltip")]
+				tooltip_text = "%s %s" % [tooltip_text, CharacterSheet._auto("ContentStrings").get_text("relic_locked_tooltip")]
 			return
 		if iid == "":
+			_hide_relic_glyph()
+			if slot_id == "relic" and _apply_empty_relic_frame():
+				_caption.text = CharacterSheet._auto("ContentStrings").get_text("equip_empty")
+				tooltip_text = CharacterSheet._auto("ContentStrings").get_text("equip_empty")
+				return
 			_show_slot_icon(HudIcons.EQUIP_EMPTY)
 			if slot_id == "weapon":
-				_caption.text = Equipment.slot_display_name(slot_id)
-				tooltip_text = ContentStrings.get_text("equip_bare_stone_tooltip")
+				_caption.text = CharacterSheet._auto("Equipment").slot_display_name(slot_id)
+				tooltip_text = CharacterSheet._auto("ContentStrings").get_text("equip_bare_stone_tooltip")
 			else:
-				_caption.text = ContentStrings.get_text("equip_empty")
-				tooltip_text = ContentStrings.get_text("equip_empty")
+				_caption.text = CharacterSheet._auto("ContentStrings").get_text("equip_empty")
+				tooltip_text = CharacterSheet._auto("ContentStrings").get_text("equip_empty")
 		else:
+			if slot_id == "relic" and _show_relic_in_frame(iid):
+				_caption.text = CharacterSheet._auto("Equipment").item_display_name(iid)
+				tooltip_text = CharacterSheet._auto("Equipment").item_tooltip(iid)
+				return
+			_hide_relic_glyph()
 			_show_equipped_icon(iid)
-			_caption.text = Equipment.item_display_name(iid)
-			tooltip_text = Equipment.item_tooltip(iid)
+			_caption.text = CharacterSheet._auto("Equipment").item_display_name(iid)
+			tooltip_text = CharacterSheet._auto("Equipment").item_tooltip(iid)
 
 	func _gui_input(event: InputEvent) -> void:
 		if not (event is InputEventMouseButton):
@@ -717,21 +806,21 @@ class SlotPlate extends Panel:
 			return
 		if host == null:
 			return
-		if not Equipment.is_slot_unlocked(slot_id):
-			var hint: String = Equipment.slot_lock_hint(slot_id)
-			GameAudio.play_tree_deny()
-			GameState.status_message.emit(hint)
+		if not CharacterSheet._auto("Equipment").is_slot_unlocked(slot_id):
+			var hint: String = CharacterSheet._auto("Equipment").slot_lock_hint(slot_id)
+			CharacterSheet._auto("GameAudio").play_tree_deny()
+			CharacterSheet._auto("GameState").status_message.emit(hint)
 			var footer: Label = host.get_node_or_null("Sheet/Footer") as Label
 			if footer:
 				footer.text = hint
 			return
-		var iid: String = Equipment.equipped_id(slot_id)
+		var iid: String = CharacterSheet._auto("Equipment").equipped_id(slot_id)
 		if iid != "":
 			host.call("request_unequip", slot_id)
 
 	func _get_drag_data(_at: Vector2) -> Variant:
-		var iid: String = Equipment.equipped_id(slot_id)
-		if iid == "" or not Equipment.is_slot_unlocked(slot_id):
+		var iid: String = CharacterSheet._auto("Equipment").equipped_id(slot_id)
+		if iid == "" or not CharacterSheet._auto("Equipment").is_slot_unlocked(slot_id):
 			return null
 		_dragged = true
 		set_drag_preview(CharacterSheet.make_item_icon(iid))
@@ -740,7 +829,7 @@ class SlotPlate extends Panel:
 	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
 		if typeof(data) != TYPE_DICTIONARY:
 			return false
-		if not Equipment.is_slot_unlocked(slot_id):
+		if not CharacterSheet._auto("Equipment").is_slot_unlocked(slot_id):
 			return false
 		var d: Dictionary = data
 		if str(d.get("kind", "")) != "gear":
@@ -748,7 +837,7 @@ class SlotPlate extends Panel:
 		var iid: String = str(d.get("item_id", ""))
 		if str(d.get("from_slot", "")) == slot_id:
 			return false
-		return Equipment.item_fits_slot(iid, slot_id)
+		return CharacterSheet._auto("Equipment").item_fits_slot(iid, slot_id)
 
 	func _drop_data(_at: Vector2, data: Variant) -> void:
 		if typeof(data) != TYPE_DICTIONARY or host == null:
@@ -786,8 +875,8 @@ class GearRow extends Panel:
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(icon)
 		var lbl := Label.new()
-		var count: int = Equipment.unequipped_count(item_id)
-		var name: String = Equipment.item_display_name(item_id)
+		var count: int = CharacterSheet._auto("Equipment").unequipped_count(item_id)
+		var name: String = CharacterSheet._auto("Equipment").item_display_name(item_id)
 		lbl.text = name if count <= 1 else "%s  ×%d" % [name, count]
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -795,7 +884,7 @@ class GearRow extends Panel:
 		lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(lbl)
-		tooltip_text = "%s\n%s" % [Equipment.item_tooltip(item_id), ContentStrings.get_text("equip_equip")]
+		tooltip_text = "%s\n%s" % [CharacterSheet._auto("Equipment").item_tooltip(item_id), CharacterSheet._auto("ContentStrings").get_text("equip_equip")]
 
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseMotion and host != null:

@@ -1,7 +1,7 @@
 # Art needed — Backpack, Handcraft, Grow
 
 **Owner:** Haex (art)  
-**Status:** art drop c9fda76 wired the 32px icons that exist (wood, stone, food = fish, Manashards, Essence, Fertilizer, planks, fragments, rods, axe/pick heads, stone axe, stone pickaxe, backpack, pause). The HUD icon sheet now covers Character, Ascension reopen, Keep Tools, Wooden Basket, Stone Watering Can, Stone Sword, Weapon Rod, and empty/locked equip chrome. Still a **neutral placeholder square**: the Help button. Care action buttons (Water / Grow / Harvest) keep their words.
+**Status:** art drop c9fda76 wired the 32px icons that exist (wood, stone, food = fish, Manashards, Essence, Fertilizer, planks, fragments, rods, axe/pick heads, stone axe, stone pickaxe, backpack, pause). The HUD icon sheet now covers Character, Ascension reopen, Keep Tools, Wooden Basket, Stone Watering Can, Flintblade, Weapon Rod, and empty/locked equip chrome. Still a **neutral placeholder square**: the Help button. Care action buttons (Water / Grow / Harvest) keep their words.
 **Icon size:** **32×32** HUD / row icons, nearest-neighbor  
 **Code:** `scripts/autoload/backpack.gd` colors + `scenes/hud.tscn` / `scripts/hud.gd`
 
@@ -30,7 +30,7 @@ Resource HUD already has wood/stone/food/manashard textures — do **not** repla
 
 Battle-gear, Runestone, and character-sheet icons are listed in the next section. Do not invent Echo Chamber combat art here.
 
-## Art needed — Character sheet, Runestones, Stone Sword
+## Art needed — Character sheet, Runestones, Flintblade
 
 **Owner:** Haex (art)
 **Status:** placeholders shipped (ColorRect slot chrome, Polygon2D stones, Keeper idle frame for the portrait)
@@ -40,16 +40,16 @@ Battle-gear, Runestone, and character-sheet icons are listed in the next section
 |---------------------|------------------|------|-----------|---------|
 | `HUD/Panel/CharacterButton/CharacterIcon` | `icon_character.png` | 32×32 | `#c4a24a` gold | HUD Character button (left of Backpack). Key **C** opens the sheet |
 | Handcraft row / gear bag: Weapon Rod | `icon_weapon_rod.png` | 32×32 | `#6e4a32` dark wood | Gear-inventory intermediate. 10 Wooden Planks. Not the Wooden Tool Rod |
-| Equipment inventory / weapon slot: Stone Sword | `icon_stone_sword.png` | 32×32 | `#b7b1a8` pale stone | Only battle weapon. Lives in the equipment inventory, not the backpack |
+| Equipment inventory / weapon slot: Flintblade | `icon_stone_sword.png` | 32×32 | `#b7b1a8` pale stone | Only battle weapon. Lives in the equipment inventory, not the backpack |
 | Paper-doll empty slot | `icon_equip_slot.png` | 44×44 | half-transparent warm square, **no gold border** | Unlocked empty slot chrome (weapon, later armor) |
 | Paper-doll locked slot | `icon_equip_lock.png` | 44×44 | translucent grey square | Caption **Locked** sits under the square only. Relic tooltip: “Relic locked — needs a Forge Key.” Other slots: “Not yet — the Forge still sleeps.” |
-| Empty weapon slot | — | — | half-transparent square | Caption **Weapon** until a weapon is equipped; then the item name (Stone Sword) |
+| Empty weapon slot | — | — | half-transparent square | Caption **Weapon** until a weapon is equipped; then the item name (Flintblade) |
 | Hub Runestone (one per stat) | `runestone.png` (or seven tinted) | ~32×48 | stat tint (Might rust, Arcana violet, Resilience olive, Ward blue, Vitality green, Swiftness gold, Fate rose) | Keeper selected + right-click walks in range, then spends Manashards. Polygon2D stand-in |
 | Character portrait | existing `keeper_idle_south_0000.png` | 128×128 | — | Already in game. Do not replace in this pass |
 
 Suggested folder: `assets/art/ui/character/` for icons, `assets/art/props/` for the Runestone.
 
-Portrait slots already sit on the body (head above the head, chest on the chest, weapon at the right hand, and so on). Slot ids stay put. Empty and locked chrome, plus Stone Sword and Weapon Rod when equipped, read cells from `assets/art/ui/manaforge_hud_icons_sheet.png` (`scripts/hud_icons.gd`). The Forge Key relic still uses `icon_forge_key.png`.
+Portrait slots already sit on the body (head above the head, chest on the chest, weapon at the right hand, and so on). Slot ids stay put. Empty and locked chrome, plus Flintblade and Weapon Rod when equipped, read cells from `assets/art/ui/manaforge_hud_icons_sheet.png` (`scripts/hud_icons.gd`). The Forge Key relic still uses `icon_forge_key.png`.
 
 ## HUD icon sheet and hub props (wired)
 
@@ -63,7 +63,7 @@ Sheet: `assets/art/ui/manaforge_hud_icons_sheet.png` — **1280×512**, **5×2**
 | 3 | Keep Tools | Ascension shop row |
 | 4 | Wooden Basket | backpack and craft rows |
 | 5 | Stone Watering Can | backpack and craft rows |
-| 6 | Stone Sword | gear bag and weapon slot |
+| 6 | Flintblade | gear bag and weapon slot |
 | 7 | Weapon Rod | gear bag and craft rows |
 | 8 | Empty equip slot | unlocked empty paper-doll square |
 | 9 | Locked equip slot | locked paper-doll square |

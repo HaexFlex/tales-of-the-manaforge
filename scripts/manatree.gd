@@ -20,19 +20,19 @@ signal care_menu_requested
 
 var _watering: bool = false
 var _hovered: bool = false
-## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/manatree_meta.json
+## stage_id -> {file, size:[w,h], anchor, ...} from assets/art/manatree/native/manatree_meta.json
 var _meta_stages: Dictionary = {}
 var _anim_frames: int = 1
 var _anim_fps: float = 7.0
 var _anim_time: float = 0.0
 
-const META_PATH: String = "res://assets/art/manatree/manatree_meta.json"
+const META_PATH: String = "res://assets/art/manatree/native/manatree_meta.json"
 const STAGE_TEXTURES: Dictionary = {
-	&"sapling": "res://assets/art/manatree/manatree_sapling.png",
-	&"young": "res://assets/art/manatree/manatree_young.png",
-	&"mature": "res://assets/art/manatree/manatree_mature.png",
-	&"elder": "res://assets/art/manatree/manatree_elder.png",
-	&"ancient": "res://assets/art/manatree/manatree_ancient.png",
+	&"sapling": "res://assets/art/manatree/native/manatree_sapling.png",
+	&"young": "res://assets/art/manatree/native/manatree_young.png",
+	&"mature": "res://assets/art/manatree/native/manatree_mature.png",
+	&"elder": "res://assets/art/manatree/native/manatree_elder.png",
+	&"ancient": "res://assets/art/manatree/native/manatree_ancient.png",
 }
 
 
@@ -126,10 +126,14 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree (manashards pulse) OR Keeper walks + care/water as today.
-	if GameState.selected_wisp_id >= 0:
+	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
-		var result: String = GameState.try_assign_wisp(GameState.selected_wisp_id, node_id)
+		var result: String = GameState.command_selected_wisps(node_id)
 		GameState.toast_wisp_assign(result, node_id)
+		if GameState.keeper_selected:
+			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
+			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
+				(keepers_both[0] as Keeper).move_to(global_position + Vector2(0, 40), self)
 		return
 	if not GameState.keeper_selected:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
@@ -172,10 +176,7 @@ func do_water() -> void:
 		return
 	k.start_water_channel(self)
 	if GameState.stage_id == &"ancient":
-		GameState.status_message.emit("%s\n%s" % [
-			ContentStrings.get_text("tree_water_ancient_note"),
-			ContentStrings.get_text("tree_water_ancient_ok"),
-		])
+		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
 
 
 func do_pay_stage() -> String:
@@ -242,10 +243,7 @@ func _refresh_label() -> void:
 	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
 	var ascension: String = ContentStrings.get_text("ascend_count_hud", {"count": GameState.ascensions})
 	if GameState.stage_id == &"ancient":
-		var note: String = ""
-		if GameState.fruit_ready:
-			note = "\n" + ContentStrings.get_text("tree_at_ancient_idle")
-		label.text = "%s  |  %s%s%s" % [stage_name, ascension, note, suffix]
+		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
 	else:
 		label.text = "%s  |  %s%s" % [stage_name, ascension, suffix]
 	_apply_label_visibility()

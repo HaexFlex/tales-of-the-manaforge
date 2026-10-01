@@ -26,6 +26,7 @@
       "display_name": "Wood Plank",
       "string_key": "part_wood_plank",
       "kind": "intermediate",
+      "category": "part",
       "unique": false,
       "color": "#c4a574",
       "art_name": "icon_wooden_planks"
@@ -35,6 +36,7 @@
       "display_name": "Stone Fragment",
       "string_key": "part_stone_fragment",
       "kind": "intermediate",
+      "category": "part",
       "unique": false,
       "color": "#8a8e96",
       "art_name": "icon_stone_fragments"
@@ -44,6 +46,7 @@
       "display_name": "Wood Rod",
       "string_key": "part_wood_rod",
       "kind": "intermediate",
+      "category": "refined",
       "unique": false,
       "color": "#8b5a2b",
       "art_name": "icon_wooden_tool_rod"
@@ -53,6 +56,7 @@
       "display_name": "Stone Axe Head",
       "string_key": "part_stone_axe_head",
       "kind": "intermediate",
+      "category": "part",
       "unique": false,
       "color": "#6b7c8a",
       "art_name": "icon_axe_head"
@@ -62,6 +66,7 @@
       "display_name": "Stone Pickaxe Head",
       "string_key": "part_stone_pickaxe_head",
       "kind": "intermediate",
+      "category": "part",
       "unique": false,
       "color": "#5c6b73",
       "art_name": "icon_pickaxe_head"
@@ -71,6 +76,7 @@
       "display_name": "Stone Axe",
       "string_key": "tool_stone_axe",
       "kind": "tool",
+      "category": "tool",
       "unique": true,
       "boosts": "wood",
       "color": "#c46a2b",
@@ -81,6 +87,7 @@
       "display_name": "Stone Pickaxe",
       "string_key": "tool_stone_pickaxe",
       "kind": "tool",
+      "category": "tool",
       "unique": true,
       "boosts": "stone",
       "color": "#4a6d8c",
@@ -91,6 +98,7 @@
       "display_name": "Wooden Basket",
       "string_key": "tool_wooden_basket",
       "kind": "tool",
+      "category": "tool",
       "unique": true,
       "boosts": "food",
       "color": "#d4b84a",
@@ -101,6 +109,7 @@
       "display_name": "Stone Watering Can",
       "string_key": "tool_stone_watering_can",
       "kind": "tool",
+      "category": "tool",
       "unique": true,
       "boosts": "water_manashards",
       "color": "#3d8b8b",
@@ -111,9 +120,40 @@
       "display_name": "Fertilizer",
       "string_key": "fertilizer_name",
       "kind": "consumable",
+      "category": "refined",
       "unique": false,
       "color": "#6b5a24",
       "art_name": "icon_fertilizer"
+    },
+    {
+      "id": "sapsteel",
+      "display_name": "Sapsteel",
+      "string_key": "sapsteel_name",
+      "kind": "intermediate",
+      "category": "refined",
+      "unique": false,
+      "color": "#7a8f62",
+      "art_name": "icon_sapsteel"
+    },
+    {
+      "id": "heartwood_bits",
+      "display_name": "Heartwood Bits",
+      "string_key": "heartwood_bits_name",
+      "kind": "intermediate",
+      "category": "refined",
+      "unique": false,
+      "color": "#8b5a3c",
+      "art_name": "icon_heartwood_bits"
+    },
+    {
+      "id": "amberbind",
+      "display_name": "Amberbind",
+      "string_key": "amberbind_name",
+      "kind": "intermediate",
+      "category": "refined",
+      "unique": false,
+      "color": "#c47a2a",
+      "art_name": "icon_amberbind"
     }
   ],
   "recipes": [

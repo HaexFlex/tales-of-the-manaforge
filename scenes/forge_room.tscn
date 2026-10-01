@@ -1,0 +1,103 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/forge_room.gd" id="1_room"]
+[ext_resource type="Texture2D" path="res://assets/art/forge/forge_bark_chamber_bg.png" id="2_plate"]
+[ext_resource type="Texture2D" path="res://assets/art/forge/forge_room_swirls.png" id="11_swirl"]
+[ext_resource type="PackedScene" path="res://scenes/forge/crucible.tscn" id="3_crucible"]
+[ext_resource type="PackedScene" path="res://scenes/forge/mill.tscn" id="4_mill"]
+[ext_resource type="PackedScene" path="res://scenes/forge/press.tscn" id="5_press"]
+[ext_resource type="PackedScene" path="res://scenes/forge/anvil.tscn" id="6_anvil"]
+[ext_resource type="PackedScene" path="res://scenes/forge/reliquary.tscn" id="7_reliquary"]
+[ext_resource type="PackedScene" path="res://scenes/keeper.tscn" id="8_keeper"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="9_hud"]
+[ext_resource type="PackedScene" path="res://scenes/pause_menu.tscn" id="10_pause"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_door"]
+size = Vector2(150, 72)
+
+[node name="ForgeRoom" type="Node2D"]
+script = ExtResource("1_room")
+swirl_texture = ExtResource("11_swirl")
+
+[node name="FloorPlate" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(800, 600)
+texture = ExtResource("2_plate")
+
+[node name="SwirlOverlay" type="Sprite2D" parent="."]
+z_index = 0
+texture_filter = 1
+position = Vector2(800, 600)
+modulate = Color(1, 1, 1, 1)
+texture = ExtResource("11_swirl")
+
+[node name="Walls" type="StaticBody2D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="Walls"]
+polygon = PackedVector2Array(880.0, 1161.0, 974.0, 1005.0, 1043.0, 994.0, 1118.0, 971.0, 1200.0, 935.0, 1293.0, 884.0, 1371.0, 805.0, 1411.0, 705.0, 1379.0, 603.0, 1303.0, 522.0, 1221.0, 462.0, 1141.0, 419.0, 1062.0, 394.0, 988.0, 380.0, 923.0, 370.0, 861.0, 364.0, 801.0, 360.0, 741.0, 362.0, 677.0, 366.0, 610.0, 374.0, 534.0, 386.0, 454.0, 414.0, 376.0, 459.0, 290.0, 519.0, 230.0, 604.0, 206.0, 705.0, 244.0, 803.0, 312.0, 883.0, 394.0, 940.0, 478.0, 975.0, 556.0, 997.0, 625.0, 1009.0, 689.0, 1013.0, 720.0, 1161.0, 709.9, 1224.0, 667.0, 1073.1, 592.8, 1064.3, 514.8, 1046.0, 428.8, 1016.0, 338.5, 971.9, 251.8, 904.8, 181.0, 814.0, 142.0, 705.0, 167.0, 592.8, 229.9, 497.1, 320.6, 426.9, 405.0, 372.9, 492.9, 336.9, 578.0, 318.6, 655.0, 305.9, 729.9, 299.0, 800.9, 296.0, 872.0, 301.0, 944.8, 309.8, 1019.8, 324.5, 1103.1, 344.9, 1189.9, 377.7, 1276.4, 429.9, 1363.1, 500.0, 1442.0, 591.8, 1475.0, 705.0, 1434.0, 816.0, 1353.2, 905.9, 1255.5, 966.9, 1167.0, 1012.1, 1084.1, 1043.1, 1005.9, 1060.5, 933.9, 1069.1)
+
+[node name="Crucible" parent="." instance=ExtResource("3_crucible")]
+position = Vector2(500, 640)
+
+[node name="Mill" parent="." instance=ExtResource("4_mill")]
+position = Vector2(660, 480)
+
+[node name="Reliquary" parent="." instance=ExtResource("7_reliquary")]
+position = Vector2(420, 800)
+
+[node name="Press" parent="." instance=ExtResource("5_press")]
+position = Vector2(940, 480)
+
+[node name="Anvil" parent="." instance=ExtResource("6_anvil")]
+position = Vector2(1100, 640)
+
+[node name="ExitDoor" type="Area2D" parent="."]
+position = Vector2(800, 1124)
+collision_layer = 0
+collision_mask = 2
+monitoring = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ExitDoor"]
+shape = SubResource("RectangleShape2D_door")
+
+[node name="Keeper" parent="." instance=ExtResource("8_keeper")]
+z_index = 1
+position = Vector2(800, 860)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(800, 600)
+limit_left = 0
+limit_top = 0
+limit_right = 1600
+limit_bottom = 1200
+
+[node name="HUD" parent="." instance=ExtResource("9_hud")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("10_pause")]
+
+[node name="UI" type="CanvasLayer" parent="."]
+layer = 30
+
+[node name="RecipePanel" type="Panel" parent="UI"]
+visible = false
+offset_left = 860.0
+offset_top = 80.0
+offset_right = 1240.0
+offset_bottom = 420.0
+
+[node name="Title" type="Label" parent="UI/RecipePanel"]
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 360.0
+offset_bottom = 36.0
+theme_override_font_sizes/font_size = 16
+text = "Station"
+
+[node name="List" type="VBoxContainer" parent="UI/RecipePanel"]
+offset_left = 12.0
+offset_top = 44.0
+offset_right = 360.0
+offset_bottom = 320.0
+theme_override_constants/separation = 6

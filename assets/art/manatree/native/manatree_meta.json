@@ -1,0 +1,141 @@
+{
+ "version": "v0.1.9-A2-native",
+ "filter": "nearest",
+ "source": "Manatree set A2 re-exported at native display size (1 art px = 1 display px) from the same A2 raws/cutouts, crop and door anchor as v0.1.8-A2 (frame, door_floor, anchor_px and stills x the old display_scale 2/3/4/4/4; sway amplitude x the same factor). Built by hub_v3/tools/build_manatree_native.py. 8 frames horizontal.",
+ "fps": 7,
+ "haex_approved": true,
+ "stages": [
+  {
+   "stage_id": "sapling",
+   "file": "native/anim/manatree_sapling_strip.png",
+   "size": [
+    128,
+    128
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    64,
+    128
+   ],
+   "door_floor": [
+    62,
+    102
+   ],
+   "still": [
+    256,
+    384
+   ],
+   "still_file": "native/manatree_sapling.png",
+   "native_from_display_scale": 2
+  },
+  {
+   "stage_id": "young",
+   "file": "native/anim/manatree_young_strip.png",
+   "size": [
+    288,
+    288
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    144,
+    288
+   ],
+   "door_floor": [
+    150,
+    255
+   ],
+   "still": [
+    576,
+    864
+   ],
+   "still_file": "native/manatree_young.png",
+   "native_from_display_scale": 3
+  },
+  {
+   "stage_id": "mature",
+   "file": "native/anim/manatree_mature_strip.png",
+   "size": [
+    736,
+    736
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    368,
+    736
+   ],
+   "door_floor": [
+    368,
+    536
+   ],
+   "still": [
+    1024,
+    1536
+   ],
+   "still_file": "native/manatree_mature.png",
+   "native_from_display_scale": 4
+  },
+  {
+   "stage_id": "elder",
+   "file": "native/anim/manatree_elder_strip.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    512,
+    1024
+   ],
+   "door_floor": [
+    512,
+    916
+   ],
+   "still": [
+    1536,
+    2048
+   ],
+   "still_file": "native/manatree_elder.png",
+   "native_from_display_scale": 4
+  },
+  {
+   "stage_id": "ancient",
+   "file": "native/anim/manatree_ancient_strip.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    512,
+    1024
+   ],
+   "door_floor": [
+    504,
+    936
+   ],
+   "door": "visible_noninteractive",
+   "still": [
+    2048,
+    2560
+   ],
+   "still_file": "native/manatree_ancient.png",
+   "native_from_display_scale": 4
+  }
+ ],
+ "replaces": "assets/art/manatree/manatree_meta.json v0.1.8-A2 (swap by Code: paths + display_scale 1)"
+}

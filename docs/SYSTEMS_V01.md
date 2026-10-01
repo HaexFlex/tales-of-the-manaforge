@@ -34,7 +34,7 @@
 | v0.4.0 note | Playtest backlog was PARKED pending next coding session — **GREENLIT → live v0.4.1** (§11 D6). |
 | **v0.4.1** | **Haex D6 LIVE (coding session OPENED):** Can recipe = **20 Stone Fragments** only; Basket = **20 Wooden Planks**. Handcraft UI: Watering Can + Fertilizer rows **costs only**; fix scroll vs panel width. Rename heads → **Stone Axe Head**, **Stone Pickaxe Head**. `keep_tools` = **3000** Manashards flat (max 1). Ascension shop rows show **short description / tooltip**. Fert craft ~2× (`FERT_* = 10`); Grow Fertilizer **3 / 6 / 12 / 24**; Keep Essence **20 / 40 / 60 / 80**. Same PR Code notes: arrow-key camera clamped to play bounds; map ~**2×W × 3×H**; dense decorative trees + bushes; collision bottom-third trunks / bush bottom-center; no edge-scroll yet. `SAVE_VERSION` stays **6** (number-only retunes; no backpack schema change). |
 | v0.4.1 note | **PARK → LIVE in v0.5.0:** Manatree display scales (stage1 0.5×, stage2 default, stage3+4 2×, stage5 1.5×). See §4 + §11 D7. |
-| **v0.5.0** | **Haex GREENLIGHT 2026-09-21:** Character sheet / Stats / Equipment foundation + D7 Manatree scales **LIVE**. Seven combat stats via world Runestones (Manashards spend, steep exponential PLACEHOLDER curve); stats persist through Ascend. Equipment slots (weapon unlocked; others locked; relic locked until Forge Key — empty this ship). Gear inventory separate from backpack. Craftable: Weapon Rod + Stone Sword only. Character sheet UI (HUD + **C**). Persist equipped + gear inventory through Ascend (like stats). Soft mats + backpack still wipe; Keep Tools tools-only. D7 Manatree display scales live (visual only). `SAVE_VERSION` **7**. Full Echo combat / Forge Key / other gear recipes still deferred. |
+| **v0.5.0** | **Haex GREENLIGHT 2026-09-21:** Character sheet / Stats / Equipment foundation + D7 Manatree scales **LIVE**. Seven combat stats via world Runestones (Manashards spend, steep exponential PLACEHOLDER curve); stats persist through Ascend. Equipment slots (weapon unlocked; others locked; relic locked until Forge Key — empty this ship). Gear inventory separate from backpack. Craftable: Weapon Rod + Flintblade only. Character sheet UI (HUD + **C**). Persist equipped + gear inventory through Ascend (like stats). Soft mats + backpack still wipe; Keep Tools tools-only. D7 Manatree display scales live (visual only). `SAVE_VERSION` **7**. Full Echo combat / Forge Key / other gear recipes still deferred. |
 | v0.5.0 note | Out of scope this ship: combat, Forge Key, other equipment recipes, Runestone non-Manashard currency, Fate gather effects. |
 | **v0.5.1** | **Haex overnight polish:** All 7 combat stats **base start at 5**. Sheet display: `base = STAT_BASE_START + runestone_ranks` (+ gear = total). SAVE migrate: unset→5 / floor displayed base at 5. Character sheet UI polish only otherwise. `SAVE_VERSION` stays **7** (migrate rule). |
 | **v0.6.0** | **Haex GO 2026-09-22:** **Echo Chamber v1 LIVE.** Portal after first Ascension (30 Essence fee once until win or KO loss; flee keeps fee; Ascend-while-fee-paid free re-entry). 1v1 vs `echo_keeper_01` display **Elaia**; Strike / Flee / Spare (<10% HP, Spare+Strike only). Formulas LOCKED (reuse KeeperStats + Equipment; HP=10×Vitality; raw=(atk−def)×10; crit Fate×1%; mercy floor; T1 protection). Rewards: spare/defeat Manashard payouts from Runestone cost curve on **stored ranks**; both wins grant `forge_key` → unlock **relic** slot; Spare sets `echo_01_redeemed`. Enter Forge = Manatree care-menu button only (no key → popup; with key → “not built yet”). `SAVE_VERSION` **8**. Echo 2+ / companion body / Forge realm / Cast/items/Guard still Out. |
@@ -44,7 +44,7 @@
 
 ## v0.6 scope (systems only)
 
-**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **8**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Stone Sword), **D7 Manatree display scales**, **Echo Chamber v1** (portal + 1v1 battle + rewards), **Forge Key relic** (+2 Swift/+2 Fate), **Enter Forge** Elder/Ancient only (“Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”).
+**In:** select-then-move Keeper, **Fertilizer Grow** stages (Fertilizer + Essence), channelled harvest (3 nodes), Wisps (AFK node gather), water income (shards + essence), **backpack + handcrafting** (intermediates, tools, Fertilizer), **unique tools** (Keeper channel 2× only), Primordial Fruit / Manashard Ascension shop (incl. `keep_tools`), pause + 7 slots, versioned save (`SAVE_VERSION` **8**), minimal HUD (soft mats + shards + essence; backpack separate), **character sheet** (HUD + **C**), **seven combat stats** + **Runestones** (Manashard spend), **equipment foundation** (slots + gear inventory + Weapon Rod / Flintblade), **D7 Manatree display scales**, **Echo Chamber v1** (portal + 1v1 battle + rewards), **Forge Key relic** (+2 Swift/+2 Fate), **Enter Forge** Elder/Ancient only (“Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.”).
 
 **Out:** needs-only soft-mat stage pay (**SUPERSEDED**), growth bar / offers, **Echo 2+**, **companion body / companion in combat**, **3v1**, **Cast / items / Guard**, **Forge interior / Forge realm**, other battle-gear recipes, Runestone non-Manashard currency, Fate gather effects, type chart, Wisps in combat, WASD, mobile/web, many duplicate harvestables. Tools never gate gather; tools never multiply wisp pulses.
 
@@ -57,7 +57,7 @@
 | `wood` | Harvest Tree @ 1/sec (Keeper; 2× channel speed if Stone Axe owned) | **Fertilizer craft** (+ tool/intermediate craft) — **not** stage needs |
 | `stone` | Stone node @ 1/sec (Keeper; 2× if Stone Pickaxe) | **Fertilizer craft** (+ tool/intermediate craft) |
 | `food` | Berry bush @ 1/sec (Keeper; 2× if Wooden Basket) | **Fertilizer craft** (+ tool/intermediate craft) |
-| `manashards` | Water channel `U{1,3}` / sec (×2 amount/pulse if Stone Watering Can); **wisp on Manatree** @ 1/10s | **Blessing shop** (Ascension permanent upgrades) **and Runestones** (mid-run permanent combat stats — §4e). Same pool = bank-vs-spend dilemma |
+| `manashards` | Water channel `U{1,3}` / sec (×2 amount/pulse if Stone Watering Can); **wisp on Manatree** @ 1/20s | **Blessing shop** (Ascension permanent upgrades) **and Runestones** (mid-run permanent combat stats — §4e). Same pool = bank-vs-spend dilemma |
 | `essence` | Water channel `+1` / sec (base; Can does **not** boost); Fruit harvest bonus unused | **Grow** stage advance (with Fertilizer); **Echo Chamber portal fee** (30 once — §4f) — not blessing shop |
 | `fertilizer` | Handcraft (wood + stone + food) | **Grow** stage advance (with Essence) |
 
@@ -67,7 +67,7 @@ Soft mats live on the **resource HUD**. Fertilizer, intermediates, and tools liv
 
 ## 2. Harvest nodes (LOCKED — Haex)
 
-Exactly **three** interactive harvest nodes. Channel @ 1 resource/sec while in range (base). Owning the matching tool → **half Keeper channel wait** (effective 2/sec); yield per pulse unchanged. **Never gate gather** — nodes always usable without tools. **Tools never affect wisp pulses.**
+Exactly **three** interactive harvest nodes. The Keeper channels continuously: one yield per **2 s** with bare hands, or per **1 s** with the matching tool. Fractions accumulate per source. **Never gate gather** — nodes always usable without tools. **Tools never affect wisp rates.** Active harvest is multiplied by (stage + Forager). See `docs/idle_rework.md`.
 
 | node_id | Resource | Rate (base) | Matching tool |
 |---------|----------|-------------|---------------|
@@ -80,8 +80,9 @@ Layout: dense **decorative** trees; **one** of each harvest node; Manatree landm
 
 When matching tool owned (Keeper channel only):
 ```
-effective_pulse_sec = CHANNEL_PULSE_SEC * 0.5   # half wait between yields
-# yield per pulse unchanged (= 1 * gather_mult)
+KEEPER_HARVEST_SEC = 2.0
+# matching tool → 1.0s per yield. Remainder stays in harvest_accum.
+# active rate = (1 / interval) * (stage_mult + forager)
 ```
 
 ---
@@ -90,7 +91,7 @@ effective_pulse_sec = CHANNEL_PULSE_SEC * 0.5   # half wait between yields
 
 ```
 each CHANNEL_PULSE_SEC while watering and in range:
-  shard_roll = randi_range(WATER_SHARD_MIN, WATER_SHARD_MAX) + shard_sight_rank
+  shard_roll = randi_range(WATER_SHARD_MIN, WATER_SHARD_MAX) + 0.5 * shard_sight_rank
   if owns_stone_watering_can:
     shard_roll *= 2   # PLACEHOLDER — prefer double Manashard amount per pulse
   manashards += shard_roll
@@ -144,10 +145,10 @@ GROW_ANCIENT = { fertilizer: 24, essence: 80 }
 | stage_id | Bonus while here |
 |----------|------------------|
 | `sapling` | — |
-| `young` | `gather_mult = 1.1` |
-| `mature` | `gather_mult = 1.25` |
-| `elder` | `gather_mult = 1.4` |
-| `ancient` | `gather_mult = 1.6`; Fruit ready |
+| `young` | `gather_mult = 1.15` (active harvest only) |
+| `mature` | `gather_mult = 1.3` (active harvest only) |
+| `elder` | `gather_mult = 1.5` (active harvest only) |
+| `ancient` | `gather_mult = 3.0` (active harvest only); Fruit ready; **600 s** timer |
 
 ### Manatree display scales (LOCKED — Haex D7 LIVE v0.5.0)
 
@@ -219,7 +220,7 @@ Prestige craft-cost multiplier param name: `FERTILIZER_CRAFT_COST_MULT` (default
 | **Stone Watering Can** | **20 Stone Fragments** | tool (unique); v0.4.1 — fragments only (no Rod) |
 | **Fertilizer** | 10 Wood + 10 Stone + 10 Food | stackable; see above; v0.4.1 |
 
-All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipes. Battle-gear crafts (**Weapon Rod**, **Stone Sword**) live in **§4e** (gear inventory, not backpack).
+All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipes. Battle-gear crafts (**Weapon Rod**, **Flintblade**) live in **§4e** (gear inventory, not backpack).
 
 ### Handcraft UI (Code contract — v0.4.1)
 - **Watering Can** and **Fertilizer** rows: show **costs only** (shorten labels; drop long names if they overflow).
@@ -229,7 +230,7 @@ All PLACEHOLDER numbers — tune later. **No Manashards** in any of these recipe
 
 | tool_id | Matches | Effect when owned |
 |---------|---------|-------------------|
-| `stone_axe` | wood harvest | Keeper wood channel: half `CHANNEL_PULSE_SEC` (2× speed); yield/pulse unchanged |
+| `stone_axe` | wood harvest | Keeper wood channel: 1 s per yield (bare hands are 2 s) |
 | `stone_pickaxe` | stone harvest | same for stone |
 | `wooden_basket` | food harvest | same for food |
 | `stone_watering_can` | water | **double Manashard amount per water pulse**; Essence stays base |
@@ -323,11 +324,11 @@ Rules:
 | Result | Ingredients | Notes |
 |--------|-------------|-------|
 | **Weapon Rod** | **10 Wooden Planks** | New intermediate (battle path; distinct from Wooden Tool Rod). PLACEHOLDER — Design lean 10 Planks. |
-| **Stone Sword** | **30 Stone Fragments + 1 Weapon Rod** | Equips to **`weapon`** slot; flat Might PLACEHOLDER e.g. **+2 Might**. |
+| **Flintblade** | **30 Stone Fragments + 1 Weapon Rod** | Equips to **`weapon`** slot; flat Might PLACEHOLDER e.g. **+2 Might**. |
 
 - **No other battle gear recipes** this ship.
 - Craft via handcraft (or same craft UI with gear results routing to **gear inventory**, not backpack). Code: grant `stone_sword` / `weapon_rod` into gear inventory (Weapon Rod may live as craft intermediate in gear bag or a craft-only staging key — prefer gear inventory / craft consume-on-Sword so bag stays battle-focused; Design lean: Weapon Rod is craft intermediate consumed into Sword; if held, store in gear inventory).
-- Equipped Stone Sword contributes `+2` Might (PLACEHOLDER) to gear side of sheet total.
+- Equipped Flintblade contributes `+2` Might (PLACEHOLDER) to gear side of sheet total.
 
 ```
 # PLACEHOLDER — Code data
@@ -547,7 +548,7 @@ Valid targets: `harvest_tree` / `harvest_stone` / `harvest_berry` / **`manatree`
 3. Reassign: LMB wisp → RMB any valid target (including one that already has wisps).
 4. Unassign: LMB wisp → **RMB empty ground** → returns to **orbit Keeper**.
 
-Each assigned wisp pulses **independently** (own timer). Two wisps on wood ≈ 2 wood / `WISP_PULSE_SEC`. `wisp_haste` still reduces pulse interval per wisp. Orbit layout: even spacing around the target (`WISP_ORBIT_RADIUS_PX`).
+Each assigned wisp adds continuously to that source's accumulator (1 yield per 20 s at base, shared remainder). Two wisps on wood ≈ 2 wood / 20 s. `wisp_haste` is −2 s per rank, minimum 10 s. Orbit layout: even spacing around the target (`WISP_ORBIT_RADIUS_PX`).
 
 ### Gather pulse by target
 | Assignment | Resource pulsed | Rate |
@@ -555,22 +556,22 @@ Each assigned wisp pulses **independently** (own timer). Two wisps on wood ≈ 2
 | harvest_tree | `wood` | `WISP_PULSE_GRANT` / `WISP_PULSE_SEC` |
 | harvest_stone | `stone` | same |
 | harvest_berry | `food` | same |
-| **manatree** | **`manashards`** | same (default 1 / 10s) |
+| **manatree** | **`manashards`** | same (default 1 / 20s) |
 
 Keeper AFK / other work OK; assigned wisps keep pulsing. **Tools never multiply these pulses.**
 
 ### Gather pulse
 ```
-WISP_PULSE_SEC = 10.0          # base; wisp_haste blessing reduces
+WISP_PULSE_SEC = 20.0          # base; wisp_haste −2s/rank, minimum 10s
 WISP_RES_PER_PULSE = 1         # of the assigned node’s resource
-# effective rate = 0.1/sec at base (before gather_mult? — default: NO gather_mult on wisps; Keeper channel still uses gather_mult)
+# active rate = (1 / interval) * (stage_mult + forager). Offline drops stage_mult.
 ```
-Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_GRANT` (default 1). Stacks additively per wisp on that target.
+Wisps add into the shared per-source accumulator. `WISP_PULSE_GRANT` (default 1) is the yield per interval.
 
 | Param | Default |
 |-------|---------|
 | `WISP_PER_NODE` | `0` | # **0 = unlimited** (v0.3.4); was 1 |
-| `WISP_PULSE_SEC` | `10` |
+| `WISP_PULSE_SEC` | `20` |
 | `WISP_PULSE_GRANT` | `1` |
 | `WISP_FROM_STAGES_MAX` | `4` |
 | `WISP_ORBIT_RADIUS_PX` | `56` |
@@ -592,9 +593,12 @@ Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_
 ```
 
 ### Ancient pre-commit (world running)
-- Keeper can still **Water** (shards + essence income) and assign wisps — farm Manashards before committing.
+- Ancient lasts **600 s** (`ancient_duration_sec`), counting only while the game is open and unpaused. The HUD shows the countdown. At 0 the Fruit auto-harvests and the shop opens with no harvest confirm.
+- Grow to Ancient asks for confirmation first (placeholder Content keys).
+- Nothing progresses offline during Ancient (harvest, watering, Wisps, Forge).
+- Keeper can still **Water** (shards + essence income) and assign wisps while the game is open — farm Manashards before committing.
 - Manatree panel shows **Harvest Primordial Fruit** CTA (+ Grow done / Fruit ready). **No** blessing Buy rows on this panel.
-- Wisps / harvest nodes still work until commit.
+- Wisps / harvest nodes still work until commit, while the game is open.
 
 ### Two-step Fruit harvest
 1. **Intent:** RMB/interact Fruit CTA → confirm prompt (“Harvest the Primordial Fruit?”).
@@ -622,7 +626,8 @@ Each wisp on its own `WISP_PULSE_SEC` timer: `inventory[resource] += WISP_PULSE_
 SHOP_BASE = 400
 cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 # 0→1: 400 | 1→2: 800 | 2→3: 1200 | …
-# Exception v0.4.1: keep_tools cost = 3000 flat (max 1) — ignore formula above
+# Exception: keep_tools cost = 5000 flat (max 1) — ignore formula above
+# Exception: shard_sight cost = 800 * (rank + 1)
 ```
 
 | upgrade_id | Max | Cost (shards) | Effect (shop tooltip / short description) |
@@ -630,11 +635,11 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 | `deep_roots` | 10 | `400 * (rank + 1)` | `WATER_ESSENCE_PER_SEC` bonus `floor(rank / 2)` |
 | `forager` | 10 | `400 * (rank + 1)` | `gather_mult += 0.05` / rank |
 | `green_thumb` | 5 | `400 * (rank + 1)` | **Fertilizer craft ingredient costs −10%/rank** (floor 1 per ingredient). Was soft-mat needs −10% (SUPERSEDED with needs-only). |
-| `shard_sight` | 5 | `400 * (rank + 1)` | `+1` shards per water pulse / rank |
+| `shard_sight` | 5 | `800 * (rank + 1)` | `+0.5` shards per water pulse / rank (25% of the base average of 2) |
 | `keeper_stride` | 5 | `400 * (rank + 1)` | `MOVE_SPEED_MULT += 0.06` / rank |
-| `wisp_haste` | 5 | `400 * (rank + 1)` | `WISP_PULSE_SEC -= 1` / rank (base 10 → min **5**) |
+| `wisp_haste` | 5 | `400 * (rank + 1)` | `WISP_PULSE_SEC -= 2` / rank (base 20 → min **10**) |
 | `bonus_wisp` | 3 | `400 * (rank + 1)` | `+1` wisp at sapling / +1 capacity per rank (stacks with stage grants) |
-| **`keep_tools`** | **1** | **`3000` flat** | On Ascend: after backpack wipe, **re-grant the 4 finished tools** only (not Fertilizer / intermediates). Max 1. |
+| **`keep_tools`** | **1** | **`5000` flat** | On Ascend: after backpack wipe, **re-grant the 4 finished tools** only (not Fertilizer / intermediates). Max 1. |
 
 **Examples:** bank 400 → one rank; bank 800 → two rank-1 buys. Unspent shards **and essence** wipe on Ascend (`essence → 0`). Mid-run Runestone spends already converted to **persisting** stat ranks (§4e) — bank-vs-shop dilemma.
 
@@ -642,7 +647,7 @@ cost_manashards(current_rank) = SHOP_BASE * (current_rank + 1)
 
 **`green_thumb` (v0.4 retarget LOCKED):** pick = **Fertilizer craft ingredient costs −10%/rank** (each of wood/stone/food), floor 1 per ingredient. Does **not** change Grow Fertilizer *count* required. Documented choice over “Fertilizer units to Grow −10%/rank.”
 
-**`keep_tools` (v0.4.1 LOCKED):** max 1; cost **`3000` Manashards flat** — not `400 * (rank + 1)`.
+**`keep_tools` (Haex Pass E):** max 1; cost **`5000` Manashards flat** — not `400 * (rank + 1)`.
 
 **Code:** mirror in `fruit_upgrades.json` (or equivalent data file).
 
@@ -728,8 +733,8 @@ Migrate **v7→v8:** `portal_unlocked = (ascensions >= 1)`; `portal_fee_paid = f
 LMB Keeper/Wisp → select | LMB empty → deselect
 RMB (Keeper selected) → walk / interact harvest, Manatree, Runestone, or Echo Portal (if unlocked)
 RMB (Wisp selected) → assign to node or Manatree (manashards); RMB ground → unassign → orbit Keeper
-Assigned wisps path to target then orbit it; pulse +1/10s (tools never boost)
-Craft: soft mats → backpack (intermediates / tools / Fertilizer); Weapon Rod / Stone Sword → gear inventory
+Assigned wisps path to target then orbit it; gather +1/20s (tools never boost)
+Craft: soft mats → backpack (intermediates / tools / Fertilizer); Weapon Rod / Flintblade → gear inventory
 Equip: drag gear inventory → unlocked slots (weapon at start; relic after forge_key)
 HUD / C → character sheet (Keeper + slots | gear bag | base+gear=total stats)
 Runestone: spend Manashards → +1 flat to that stat (steep exponential cost)
@@ -774,17 +779,17 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 | `FERT_WOOD/STONE/FOOD = 10` | **LOCKED Haex v0.4.1** (PLACEHOLDER) |
 | Stone Watering Can = **20 Stone Fragments** only; Wooden Basket = **20 Wooden Planks** | **LOCKED Haex v0.4.1** |
 | Intermediate heads = **Stone Axe Head**, **Stone Pickaxe Head** | **LOCKED Haex v0.4.1** |
-| `keep_tools` = **3000** Manashards flat (max 1) | **LOCKED Haex v0.4.1** |
+| `keep_tools` = **5000** Manashards flat (max 1) | **Haex Pass E** |
 | Ascension shop rows: short description / tooltip | **LOCKED Haex v0.4.1** |
 | Handcraft UI: Can + Fert rows costs only; scroll vs panel width | **LOCKED Haex v0.4.1** (Code contract) |
 | Arrow-key camera clamp; map ~2×W×3×H; dense décor; trunk/bush collision; no edge-scroll | **LOCKED Haex v0.4.1** (same PR Code notes) |
-| 3 harvest nodes @ 1/sec base | **LOCKED** |
+| 3 harvest nodes @ 1/2s bare, 1/1s with tool | **Pass E** |
 | `SAVE_SLOT_COUNT = 7`; `SAVE_VERSION = 8` | **LOCKED Haex v0.6.0** (was 7 in v0.5.0) |
 | Offer-for-growth | **REMOVED** |
 | Ascension = Manashard blessing shop | **LOCKED Haex v0.2.3** |
 | Shop timing = Ascension-only after Fruit | **LOCKED Haex v0.2.4** |
 | Shop costs ~1–2 ranks/Ascension (`SHOP_BASE=400`) | **LOCKED Haex intent v0.2.5** |
-| Wisps: 1/stage advance, +1/10s | **LOCKED Haex v0.3.0** |
+| Wisps: 1/stage advance, +1/20s | **Pass E** (was +1/10s) |
 | Keeper select-then-move | **LOCKED Haex v0.3.0** |
 | Keeper must be selected for all actions | **LOCKED Haex v0.3.1** |
 | Unassigned wisps orbit Keeper | **LOCKED Haex v0.3.1** |
@@ -804,7 +809,7 @@ Ascend → wipe soft mats + essence + shards + backpack; Keep Tools → re-grant
 | Runestone cost `BASE=100`, `GROWTH=1.65`, `floor(BASE*GROWTH^rank)` | **LOCKED Haex v0.5.0** (PLACEHOLDER tune later) |
 | Stats + equipped + gear inventory **persist** Ascend; shards wipe | **LOCKED Haex v0.5.0** |
 | Equipment slots order; weapon unlocked at start; relic unlocks via `forge_key` (Echo win) | **LOCKED Haex v0.5.0 / v0.6.0** |
-| Gear inventory ≠ backpack; Weapon Rod + Stone Sword only | **LOCKED Haex v0.5.0** (recipes PLACEHOLDER) |
+| Gear inventory ≠ backpack; Weapon Rod + Flintblade only | **LOCKED Haex v0.5.0** (recipes PLACEHOLDER) |
 | Character sheet: HUD + **C**; left Keeper/slots, mid gear, right base+gear=total | **LOCKED Haex v0.5.0** |
 | Manatree display scales (0.5 / 1 / 2 / 2 / 1.5) | **LOCKED / LIVE Haex D7 → v0.5.0** (§4 / §11 D7) |
 | Playtest backlog D6 (recipes / Grow / Keep Tools / UI / tooltips / camera-map) | **LOCKED / applied → live v0.4.1** (§11 D6) |
@@ -829,7 +834,7 @@ Live loop is **v0.6.0** (Fertilizer Grow + backpack/tools + D6 retunes + charact
 ~~Stage-advance button label Grow~~ → **LIVE:** CTA **Grow**, costs on control (Fertilizer + Essence). See §4. (Was deferred under needs-only Pay; greenlit with Fertilizer Grow.)
 
 ### D3. Equipment & Stats / Echo Chamber — GREENLIT foundation → live v0.5.0; **Echo Chamber v1 LIVE v0.6.0**
-**Foundation LIVE** — see **§4e**. Seven combat stats + Runestones (same Manashard pool, steep exponential PLACEHOLDER curve), equipment slots (weapon unlocked; **relic unlocks via Forge Key**), gear inventory ≠ backpack, Weapon Rod + Stone Sword, character sheet (HUD + **C**), Ascend persist stats + equipped + gear inventory.
+**Foundation LIVE** — see **§4e**. Seven combat stats + Runestones (same Manashard pool, steep exponential PLACEHOLDER curve), equipment slots (weapon unlocked; **relic unlocks via Forge Key**), gear inventory ≠ backpack, Weapon Rod + Flintblade, character sheet (HUD + **C**), Ascend persist stats + equipped + gear inventory.
 
 **Echo Chamber v1 LIVE** — see **§4f**. Portal + 1v1 Elaia + LOCKED formulas + spare/defeat rewards + `forge_key` → relic slot; Enter Forge stub; `SAVE_VERSION` **8**.
 
@@ -853,7 +858,7 @@ Coding session **OPENED** (Director greenlight). Applied live in this brief — 
 | 1 | Can = **20 Stone Fragments**; Basket = **20 Wooden Planks** | §4d recipes |
 | 2 | Handcraft: Can + Fert **costs only**; scroll vs panel width | §4d Handcraft UI |
 | 3 | **Stone Axe Head**, **Stone Pickaxe Head** | §4d / save ids |
-| 4 | `keep_tools` = **3000** flat (max 1) | §5 |
+| 4 | `keep_tools` = **5000** flat (max 1) | §5 |
 | 5 | Ascension short description / tooltip | §5 shop layout |
 | 6 | `FERT_* = 10`; Grow Fert **3/6/12/24**; Essence **20/40/60/80** | §4 / §4d |
 | + | Camera clamp; map ~2×W×3×H; dense décor; collision; no edge-scroll | §4b (same PR) |

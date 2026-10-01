@@ -263,47 +263,17 @@ def process_keeper() -> None:
 
 
 def write_trees_meta(tree_items: dict, spawn: dict) -> None:
-    meta_path = TREES_DIR / "trees_meta.json"
-    old = json.loads(meta_path.read_text()) if meta_path.exists() else {}
-    items = {}
-    for k, v in (old.get("items") or {}).items():
-        if str(k).startswith("tree_haex") or str(k).startswith("bush_haex"):
-            continue
-        items[k] = v
-    items.update(tree_items)
-    meta = {
-        "filter": "nearest",
-        "anchor": "base_center",
-        "version": "v0.1.13-assets-upload",
-        "inbox": "assets/library/",
-        "notes": (
-            "v0.1.13 cleaned frames (bbox+2px, no downscale). "
-            "Decorative only — harvest nodes stay in props/. "
-            "Bushes live in assets/art/bushes/. Originals remain in assets/library/."
-        ),
-        "items": items,
-        "spawn_catalog": {"tree": spawn["tree"]},
-    }
-    meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+    """Retired. Live trees are assets/art/hub/hub_deco_meta.json."""
+    del tree_items, spawn
+    meta_path = ROOT / "assets" / "art" / "hub" / "hub_deco_meta.json"
+    print("slice: left %s unchanged (hub v3 catalog is not regenerated here)" % meta_path)
 
 
 def write_bushes_meta(bush_items: dict, spawn: dict) -> None:
-    meta = {
-        "filter": "nearest",
-        "anchor": "base_center",
-        "version": "v0.1.13-assets-upload",
-        "dir": "bushes/",
-        "inbox": "assets/library/",
-        "grid_decisions": {
-            "Big Bushes.png": "3x4 (gutters rows 261/498, cols 294/579/868) — not 2x2",
-            "small bushes.png": "4-connected components, min_area 80, row-banded, 57 frames",
-        },
-        "notes": "Decorative undergrowth. Variable bbox sizes. y-sort on base_center.",
-        "items": bush_items,
-        "spawn_catalog": {"bush": spawn["bush"], "tuft": spawn["tuft"]},
-    }
-    BUSHES_DIR.mkdir(parents=True, exist_ok=True)
-    (BUSHES_DIR / "bushes_meta.json").write_text(json.dumps(meta, indent=2) + "\n")
+    """Retired. Live bushes are assets/art/hub/hub_deco_meta.json."""
+    del bush_items, spawn
+    meta_path = ROOT / "assets" / "art" / "hub" / "hub_deco_meta.json"
+    print("slice: left %s unchanged (hub v3 catalog is not regenerated here)" % meta_path)
 
 
 def write_keeper_meta() -> None:
@@ -380,17 +350,26 @@ def write_manifest() -> None:
         "native": "keeper/native/",
     }
     man["trees"] = {
-        "dir": "trees/",
-        "meta": "trees/trees_meta.json",
-        "inbox": "assets/library/",
-        "version": "v0.1.13-assets-upload",
+        "dir": "hub/trees/",
+        "meta": "hub/hub_deco_meta.json",
+        "version": "v0.3.0-hub-v3",
         "anchor": "base_center",
     }
     man["bushes"] = {
-        "dir": "bushes/",
-        "meta": "bushes/bushes_meta.json",
-        "version": "v0.1.13-assets-upload",
+        "dir": "hub/bushes/",
+        "meta": "hub/hub_deco_meta.json",
+        "version": "v0.3.0-hub-v3",
         "anchor": "base_center",
+    }
+    man["decor"] = {
+        "dir": "hub/",
+        "meta": "hub/hub_deco_meta.json",
+    }
+    man["manatree"] = {
+        "dir": "manatree/native/",
+        "meta": "manatree/native/manatree_meta.json",
+        "version": "v0.1.9-A2-native",
+        "anim": "manatree/native/anim/",
     }
     path.write_text(json.dumps(man, indent=2) + "\n")
 

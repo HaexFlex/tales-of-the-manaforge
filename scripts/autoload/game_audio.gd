@@ -39,6 +39,13 @@ var _played_log: PackedStringArray = PackedStringArray()
 ## User linear volumes 0.0–1.0 (1.0 = mix-lock defaults).
 var music_volume_linear: float = 1.0
 var sfx_volume_linear: float = 1.0
+## Forge room mix: low-pass, small reverb, and a few dB off the Music bus. Cleared on exit.
+var _forge_mix_on: bool = false
+var _forge_music_offset_db: float = 0.0
+var _forge_lowpass: AudioEffectLowPassFilter
+var _forge_reverb: AudioEffectReverb
+## Last one-shot level. play() is 0 dB. play_quiet() keeps the requested offset.
+var last_cue_volume_db: float = 0.0
 
 
 func _ready() -> void:
@@ -180,7 +187,62 @@ func get_hub_stream() -> AudioStream:
 	return _music_player.stream
 
 
+func forge_mix_on() -> bool:
+	return _forge_mix_on
+
+
+func forge_lowpass_hz() -> float:
+	if _forge_lowpass == null:
+		return 0.0
+	return _forge_lowpass.cutoff_hz
+
+
+func forge_music_offset_db() -> float:
+	return _forge_music_offset_db
+
+
+func cue_bus(cue_id: String) -> String:
+	return _cue_bus(cue_id)
+
+
+func set_forge_room_mix(enabled: bool, lowpass_hz: float = 1500.0, room_size: float = 0.35, gain_db: float = -3.0) -> void:
+	var idx: int = AudioServer.get_bus_index("Music")
+	if idx < 0:
+		return
+	if enabled == _forge_mix_on:
+		return
+	if enabled:
+		_forge_lowpass = AudioEffectLowPassFilter.new()
+		_forge_lowpass.cutoff_hz = lowpass_hz
+		_forge_reverb = AudioEffectReverb.new()
+		_forge_reverb.room_size = room_size
+		AudioServer.add_bus_effect(idx, _forge_lowpass)
+		AudioServer.add_bus_effect(idx, _forge_reverb)
+		_forge_music_offset_db = gain_db
+		_forge_mix_on = true
+	else:
+		_remove_bus_effect("Music", _forge_lowpass)
+		_remove_bus_effect("Music", _forge_reverb)
+		_forge_lowpass = null
+		_forge_reverb = null
+		_forge_music_offset_db = 0.0
+		_forge_mix_on = false
+	apply_volumes()
+
+
+func _remove_bus_effect(bus_name: String, effect: AudioEffect) -> void:
+	if effect == null:
+		return
+	var idx: int = AudioServer.get_bus_index(bus_name)
+	if idx < 0:
+		return
+	for i: int in range(AudioServer.get_bus_effect_count(idx) - 1, -1, -1):
+		if AudioServer.get_bus_effect(idx, i) == effect:
+			AudioServer.remove_bus_effect(idx, i)
+
+
 func play(cue_id: StringName) -> void:
+	last_cue_volume_db = 0.0
 	var key: String = String(cue_id)
 	# Echo battle: no mus_* bed or Fruit/Ascend sting while the hub is suspended.
 	if _hub_suspended and _cue_bus(key) == "Music":
@@ -327,6 +389,7 @@ func _on_sting_finished() -> void:
 
 func play_quiet(cue_id: StringName, volume_db: float = -8.0) -> void:
 	## Soft SFX under mus_hub_forest (channel 1Hz ticks stay cozy).
+	last_cue_volume_db = volume_db
 	var key: String = String(cue_id)
 	if not _cues.has(key):
 		cue_missing.emit(cue_id)
@@ -572,7 +635,8 @@ func _apply_bus_volume(bus_name: String, linear: float, base_db: float) -> void:
 		AudioServer.set_bus_volume_db(idx, base_db)
 		return
 	AudioServer.set_bus_mute(idx, false)
-	AudioServer.set_bus_volume_db(idx, base_db + linear_to_db(linear))
+	var extra: float = _forge_music_offset_db if bus_name == "Music" else 0.0
+	AudioServer.set_bus_volume_db(idx, base_db + linear_to_db(linear) + extra)
 
 
 func load_settings() -> void:
