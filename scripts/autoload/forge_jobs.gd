@@ -73,11 +73,15 @@ func _read_dict(path: String) -> Dictionary:
 
 
 func dev_time_scale() -> float:
+	## Editor playtest runs at 1x. dev_speed_multiplier (60) is opt-in only:
+	## MANAFORGE_DEV_SPEED=1 in a debug build. A release build is always 1x.
 	if not OS.is_debug_build():
 		return 1.0
 	if _dev_override >= 0.0:
 		return _dev_override
-	return float(_tuning.get("dev_speed_multiplier", 1.0))
+	if OS.get_environment("MANAFORGE_DEV_SPEED") == "1":
+		return float(_tuning.get("dev_speed_multiplier", 1.0))
+	return 1.0
 
 
 func set_dev_speed_override(scale: float) -> void:
@@ -508,6 +512,43 @@ func job_recipe(station_id: String) -> String:
 	return str((_jobs[station_id] as Dictionary).get("recipe_id", ""))
 
 
+func job_state(station_id: String) -> Dictionary:
+	## One snapshot for the world bar, the station panel, and the selection HUD.
+	if not _jobs.has(station_id):
+		return {}
+	var job: Dictionary = _jobs[station_id]
+	var duration: float = maxf(float(job.get("duration", 1.0)), 0.05)
+	var progress: float = clampf(float(job.get("progress", 0.0)), 0.0, duration)
+	var speed: float = station_speed_mult(station_id)
+	var remain_work: float = maxf(duration - progress, 0.0)
+	var remain: float = remain_work / speed if speed > 0.0 else remain_work
+	var recipe_id: String = str(job.get("recipe_id", ""))
+	return {
+		"recipe_id": recipe_id,
+		"name": _item_label(recipe_output_id(recipe_id)),
+		"progress": progress,
+		"duration": duration,
+		"fraction": clampf(progress / duration, 0.0, 1.0),
+		"speed": speed,
+		"remaining_sec": remain,
+		"remaining_text": format_clock(remain),
+		"working": speed > 0.0,
+	}
+
+
+func job_line(station_id: String) -> String:
+	var state: Dictionary = job_state(station_id)
+	if state.is_empty():
+		return ""
+	var pct: int = int(round(clampf(float(state.get("fraction", 0.0)), 0.0, 1.0) * 100.0))
+	return "%s  %d%%  %s" % [str(state.get("name", "")), pct, str(state.get("remaining_text", ""))]
+
+
+func format_clock(seconds: float) -> String:
+	var total: int = maxi(0, int(ceil(maxf(seconds, 0.0) - 0.0001)))
+	return "%d:%02d" % [int(total / 60.0), total % 60]
+
+
 func station_speed_mult(station_id: String) -> float:
 	## Additive. Keeper and a companion each count 1. Each Wisp counts 0.1, capped at 4.
 	## Displayed job time stays the recipe base. Actual time is base / this sum.
@@ -534,14 +575,13 @@ func station_is_busy(station_id: String) -> bool:
 
 
 func station_badge(station_id: String) -> String:
-	if not has_job(station_id):
+	var state: Dictionary = job_state(station_id)
+	if state.is_empty():
 		return ""
-	var speed: float = station_speed_mult(station_id)
+	var speed: float = float(state.get("speed", 0.0))
 	if speed <= 0.0:
 		return copy_text("station_paused")
-	var job: Dictionary = _jobs[station_id]
-	var duration: float = maxf(float(job.get("duration", 1.0)), 0.05)
-	var pct: int = int(clampf(float(job.get("progress", 0.0)) / duration, 0.0, 1.0) * 100.0)
+	var pct: int = int(clampf(float(state.get("fraction", 0.0)), 0.0, 1.0) * 100.0)
 	return "%s %d%%  %s" % [copy_text("station_busy"), pct, station_speed_text(speed)]
 
 

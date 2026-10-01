@@ -534,6 +534,13 @@ func _selection_focus_point() -> Vector2:
 		for node: Node in get_tree().get_nodes_in_group("wisp"):
 			if node is Node2D and int(node.get("wisp_id")) == ids[0]:
 				return (node as Node2D).global_position
+	if str(GameState.selected_companion_id) != "":
+		var companion_id: String = str(GameState.selected_companion_id)
+		for node: Node in get_tree().get_nodes_in_group("companion"):
+			if node is Node2D and str(node.get("companion_id")) == companion_id:
+				return (node as Node2D).global_position
+		if camera:
+			return camera.position
 	return keeper.global_position if keeper else Vector2.ZERO
 
 

@@ -228,6 +228,8 @@ func _ready() -> void:
 	GameState.status_message.connect(_on_status)
 	GameState.fruit_ready_changed.connect(_on_fruit_ready_changed)
 	GameState.selection_changed.connect(_refresh_selection_hint)
+	GameState.wisps_changed.connect(_refresh_selection_hint)
+	GameState.echo_flags_changed.connect(_refresh_selection_hint)
 	GameState.load_completed.connect(_on_game_state_loaded)
 	Backpack.inventory_changed.connect(_on_backpack_inventory)
 	_refresh_all()
@@ -238,7 +240,7 @@ func _ready() -> void:
 	if toast_shade:
 		toast_shade.visible = false
 	_refresh_controls_hint()
-	_build_selection_panel()
+	_build_party_bar()
 	_refresh_selection_hint()
 	_show_toast(ContentStrings.get_text("boot_line"))
 	_sync_ascension_from_state()
@@ -444,6 +446,8 @@ func _apply_wood_chrome() -> void:
 
 func _process(_delta: float) -> void:
 	_refresh_ancient_countdown()
+	if _party_info != null and _party_info.visible:
+		_apply_selection_job()
 
 
 func _refresh_dim() -> void:
@@ -569,116 +573,237 @@ func _refresh_controls_hint() -> void:
 		help_button.tooltip_text = line
 
 
-const SEL_PORTRAIT_SIZE: Vector2 = Vector2(72, 72)
+const PARTY_SLOT: float = 56.0
+const PARTY_OUTLINE: Color = Color(0.78, 0.92, 0.62, 1.0)
 
-var _sel_panel: PanelContainer
-var _sel_portrait: TextureRect
+var _party_bar: Control
+var _party_column: VBoxContainer
+var _party_info: VBoxContainer
+var _slot_wisp: Control
+var _slot_elaia: Control
+var _slot_keeper: Control
+var _wisp_count_label: Label
 var _sel_name: Label
 var _sel_task: Label
-var _sel_count: Label
+var _sel_job: Label
+var _sel_extra: Label
 
 
-func _build_selection_panel() -> void:
-	if _sel_panel != null:
+func _build_party_bar() -> void:
+	if _party_bar != null:
 		return
-	_sel_panel = PanelContainer.new()
-	_sel_panel.name = "SelectionPanel"
-	_sel_panel.position = Vector2(16, 78)
-	_sel_panel.custom_minimum_size = Vector2(300, 112)
-	_sel_panel.size = Vector2(300, 112)
-	_sel_panel.z_index = 20
-	_sel_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.14, 0.1, 0.88)
-	style.border_color = Color(0.78, 0.92, 0.62, 0.45)
-	style.set_border_width_all(1)
-	style.set_content_margin_all(8)
-	_sel_panel.add_theme_stylebox_override("panel", style)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	var portrait_host := Control.new()
-	portrait_host.custom_minimum_size = SEL_PORTRAIT_SIZE
-	portrait_host.size = SEL_PORTRAIT_SIZE
-	portrait_host.mouse_filter = Control.MOUSE_FILTER_STOP
-	portrait_host.gui_input.connect(_on_selection_portrait_input)
-	var backdrop := ColorRect.new()
-	backdrop.color = Color(0.10, 0.14, 0.11, 1.0)
-	backdrop.position = Vector2.ZERO
-	backdrop.size = SEL_PORTRAIT_SIZE
-	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_host.add_child(backdrop)
-	_sel_portrait = TextureRect.new()
-	_sel_portrait.custom_minimum_size = SEL_PORTRAIT_SIZE
-	_sel_portrait.position = Vector2.ZERO
-	_sel_portrait.size = SEL_PORTRAIT_SIZE
-	_sel_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_sel_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_sel_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_sel_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait_host.add_child(_sel_portrait)
-	var col := VBoxContainer.new()
-	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_party_bar = Control.new()
+	_party_bar.name = "PartyBar"
+	_party_bar.position = Vector2(12, 86)
+	_party_bar.z_index = 20
+	_party_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_column = VBoxContainer.new()
+	_party_column.name = "Column"
+	_party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_column.add_theme_constant_override("separation", 6)
+	_slot_wisp = _make_party_slot("Wisps", "wisp")
+	_slot_elaia = _make_party_slot("Elaia", "elaia")
+	_slot_keeper = _make_party_slot("Keeper", "keeper")
+	_wisp_count_label = Label.new()
+	_wisp_count_label.name = "Count"
+	_wisp_count_label.position = Vector2(24, 34)
+	_wisp_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_style_party_label(_wisp_count_label, 14, Color(0.95, 0.92, 0.78))
+	_slot_wisp.add_child(_wisp_count_label)
+	_party_column.add_child(_slot_wisp)
+	_party_column.add_child(_slot_elaia)
+	_party_column.add_child(_slot_keeper)
+	_party_info = VBoxContainer.new()
+	_party_info.name = "Info"
+	_party_info.position = Vector2(PARTY_SLOT + 10.0, 0)
+	_party_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_info.add_theme_constant_override("separation", 0)
 	_sel_name = Label.new()
-	_sel_name.add_theme_font_size_override("font_size", 16)
-	_sel_count = Label.new()
-	_sel_count.add_theme_font_size_override("font_size", 14)
+	_sel_name.name = "Name"
+	_style_party_label(_sel_name, 15, Color(0.96, 0.94, 0.86))
+	_sel_extra = Label.new()
+	_sel_extra.name = "Extra"
+	_style_party_label(_sel_extra, 13, Color(0.85, 0.9, 0.75))
 	_sel_task = Label.new()
-	_sel_task.add_theme_font_size_override("font_size", 13)
-	_sel_task.add_theme_color_override("font_color", Color(0.85, 0.9, 0.75))
-	col.add_child(_sel_name)
-	col.add_child(_sel_count)
-	col.add_child(_sel_task)
-	row.add_child(portrait_host)
-	row.add_child(col)
-	_sel_panel.add_child(row)
-	add_child(_sel_panel)
-	_sel_panel.visible = false
+	_sel_task.name = "Task"
+	_style_party_label(_sel_task, 13, Color(0.85, 0.9, 0.75))
+	_sel_job = Label.new()
+	_sel_job.name = "JobLine"
+	_style_party_label(_sel_job, 13, Color(0.95, 0.86, 0.55))
+	_sel_job.visible = false
+	_party_info.add_child(_sel_name)
+	_party_info.add_child(_sel_extra)
+	_party_info.add_child(_sel_task)
+	_party_info.add_child(_sel_job)
+	_party_bar.add_child(_party_column)
+	_party_bar.add_child(_party_info)
+	add_child(_party_bar)
+	var keeper_tex: Texture2D = load(CharacterSheet.PORTRAIT_PATH) as Texture2D
+	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
+	var elaia_tex: Texture2D = load("res://assets/art/echo/elaia_front.png") as Texture2D
+	(_slot_keeper.get_node("Portrait") as TextureRect).texture = keeper_tex
+	(_slot_wisp.get_node("Portrait") as TextureRect).texture = wisp_tex
+	(_slot_elaia.get_node("Portrait") as TextureRect).texture = elaia_tex
 
 
-func _on_selection_portrait_input(event: InputEvent) -> void:
+func _make_party_slot(slot_name: String, unit: String) -> Control:
+	var host := Control.new()
+	host.name = slot_name
+	host.custom_minimum_size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	host.size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	host.mouse_filter = Control.MOUSE_FILTER_STOP
+	host.gui_input.connect(_on_party_slot_input.bind(unit))
+	var frame := Panel.new()
+	frame.name = "Frame"
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.position = Vector2.ZERO
+	frame.size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	host.add_child(frame)
+	var portrait := TextureRect.new()
+	portrait.name = "Portrait"
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	portrait.position = Vector2(2, 2)
+	portrait.size = Vector2(PARTY_SLOT - 4.0, PARTY_SLOT - 4.0)
+	host.add_child(portrait)
+	return host
+
+
+func _style_party_label(label: Label, size: int, color: Color) -> void:
+	label.add_theme_font_size_override("font_size", size)
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.03, 1.0))
+	label.add_theme_constant_override("outline_size", 4)
+
+
+func _set_party_outline(slot: Control, selected: bool) -> void:
+	var frame := slot.get_node("Frame") as Panel
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0)
+	style.border_color = PARTY_OUTLINE
+	style.set_border_width_all(2 if selected else 0)
+	frame.add_theme_stylebox_override("panel", style)
+
+
+func _on_party_slot_input(event: InputEvent, unit: String) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
-	if not mb.pressed or not mb.double_click or mb.button_index != MOUSE_BUTTON_LEFT:
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
+	party_click(unit)
+	if mb.double_click:
+		party_focus()
+
+
+func party_click(unit: String) -> void:
+	if unit == "keeper":
+		GameState.select_keeper()
+	elif unit == "elaia":
+		GameState.select_companion("elaia")
+	elif unit == "wisp":
+		var ids: Array[int] = GameState.selected_wisp_list()
+		if ids.is_empty():
+			if GameState.wisp_count > 0:
+				GameState.select_wisp(0)
+		else:
+			GameState.select_group(ids, false)
+
+
+func party_focus() -> void:
 	var scene: Node = get_tree().current_scene
 	if scene and scene.has_method("focus_selection"):
 		scene.call("focus_selection")
 
 
-func _refresh_selection_panel() -> void:
-	if _sel_panel == null:
+func _refresh_party_bar() -> void:
+	if _party_bar == null:
 		return
 	var ids: Array[int] = GameState.selected_wisp_list()
 	var show_keeper: bool = GameState.keeper_selected
-	if not show_keeper and ids.is_empty():
-		_sel_panel.visible = false
-		return
-	_sel_panel.visible = true
-	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
-	var keeper_tex: Texture2D = load(CharacterSheet.PORTRAIT_PATH) as Texture2D
-	if ids.size() >= 2 or (ids.size() >= 1 and not show_keeper):
-		_sel_portrait.texture = wisp_tex
-	else:
-		_sel_portrait.texture = keeper_tex
+	var companion_id: String = str(GameState.selected_companion_id)
+	var elaia_joined: bool = GameState.echo_01_redeemed
+	_party_bar.visible = true
+	_slot_keeper.visible = true
+	_slot_elaia.visible = elaia_joined
+	_slot_wisp.visible = not ids.is_empty()
+	_set_party_outline(_slot_keeper, show_keeper)
+	_set_party_outline(_slot_elaia, companion_id == "elaia")
+	_set_party_outline(_slot_wisp, not ids.is_empty())
 	if ids.size() >= 2:
-		_sel_name.text = "Wisp"
-		_sel_count.text = "x%d" % ids.size()
-		_sel_count.visible = true
-		_sel_task.text = _group_task_text(ids, show_keeper)
-	elif show_keeper and ids.size() == 1:
+		_wisp_count_label.text = "x%d" % ids.size()
+		_wisp_count_label.visible = true
+	else:
+		_wisp_count_label.text = ""
+		_wisp_count_label.visible = false
+	if not show_keeper and ids.is_empty() and companion_id == "":
+		_party_info.visible = false
+		_apply_selection_job()
+		return
+	_party_info.visible = true
+	_sel_extra.visible = false
+	if show_keeper and not ids.is_empty():
 		_sel_name.text = "Keeper"
-		_sel_count.text = "+ Wisp"
-		_sel_count.visible = true
+		_sel_extra.text = "+ Wisps"
+		_sel_extra.visible = true
 		_sel_task.text = _keeper_task_text()
 	elif show_keeper:
 		_sel_name.text = "Keeper"
-		_sel_count.visible = false
 		_sel_task.text = _keeper_task_text()
-	else:
+	elif companion_id == "elaia":
+		_sel_name.text = ContentStrings.get_text("echo_elaia_name")
+		_sel_task.text = "Idle"
+	elif ids.size() >= 2:
 		_sel_name.text = "Wisp"
-		_sel_count.visible = false
+		_sel_task.text = _group_task_text(ids, false)
+	elif not ids.is_empty():
+		_sel_name.text = "Wisp"
 		_sel_task.text = _wisp_task_text(ids[0])
+	else:
+		_party_info.visible = false
+	_apply_selection_job()
+
+
+func _apply_selection_job() -> void:
+	if _sel_job == null:
+		return
+	if _party_info == null or not _party_info.visible:
+		_sel_job.visible = false
+		return
+	var station: String = _selection_job_station()
+	if station == "":
+		_sel_job.visible = false
+		_sel_job.text = ""
+		return
+	_sel_job.visible = true
+	_sel_job.text = ForgeJobs.job_line(station)
+
+
+func _selection_job_station() -> String:
+	if not has_node("/root/ForgeJobs"):
+		return ""
+	if GameState.keeper_selected:
+		var task: Dictionary = ForgeJobs.keeper_task()
+		if bool(task.get("working", false)) and str(task.get("kind", "")) == "forge":
+			var station: String = str(task.get("target", ""))
+			var keeper_state: Dictionary = ForgeJobs.job_state(station)
+			if not keeper_state.is_empty() and bool(keeper_state.get("working", false)):
+				return station
+	var ids: Array[int] = GameState.selected_wisp_list()
+	if ids.is_empty():
+		return ""
+	var shared: String = GameState.get_wisp_assignment(ids[0])
+	if not ForgeJobs.is_forge_station(shared):
+		return ""
+	for id: int in ids:
+		if GameState.get_wisp_assignment(id) != shared:
+			return ""
+	var state: Dictionary = ForgeJobs.job_state(shared)
+	if state.is_empty() or not bool(state.get("working", false)):
+		return ""
+	return shared
 
 
 func _group_task_text(ids: Array[int], with_keeper: bool) -> String:
@@ -738,7 +863,7 @@ func _wisp_task_text(wisp_id: int) -> String:
 
 
 func _refresh_selection_hint() -> void:
-	_refresh_selection_panel()
+	_refresh_party_bar()
 	if selection_hint == null:
 		return
 	if GameState.selected_wisp_id >= 0:

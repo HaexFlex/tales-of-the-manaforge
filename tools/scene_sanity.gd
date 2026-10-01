@@ -92,6 +92,7 @@ func _run() -> void:
 	failed += _check(tree_cols >= 40, "tree colliders %d" % tree_cols)
 	failed += _check(bush_cols >= 20, "bush colliders %d" % bush_cols)
 	failed += _check(canopy_ok >= 20, "canopy colliders %d" % canopy_ok)
+	failed += await _forest_seal(live)
 	var ground: TileMap = live.get_node_or_null("Ground") as TileMap
 	var bad_tiles: int = 0
 	if ground:
@@ -868,6 +869,138 @@ func _near(live: Node, path: String, want: Vector2) -> int:
 		print("FAIL %s at %s want %s" % [path, node.position, want])
 		return 1
 	return 0
+
+
+func _forest_seal(live: Node) -> int:
+	var failed: int = 0
+	var edge: Node = live.get_node_or_null("World/ForestEdge")
+	failed += _check(edge is StaticBody2D, "ForestEdge collision body")
+	var seg_count: int = 0
+	if edge:
+		for child: Node in edge.get_children():
+			if child is CollisionShape2D:
+				seg_count += 1
+	failed += _check(seg_count >= 40, "forest wall segments %d" % seg_count)
+	var tree_n: int = 0
+	var bush_n: int = 0
+	var rects: Array[Rect2] = []
+	for prop: Node in get_nodes_in_group("forest_prop"):
+		var kind: String = str(prop.get_meta("prop_kind", ""))
+		if kind != "tree" and kind != "bush":
+			continue
+		if kind == "tree":
+			tree_n += 1
+		else:
+			bush_n += 1
+		var spr: Sprite2D = prop.get_node_or_null("Sprite") as Sprite2D
+		if spr == null or spr.texture == null or not (prop is Node2D):
+			continue
+		var sc: float = absf(spr.scale.x)
+		var origin: Vector2 = (prop as Node2D).global_position
+		var w: float = float(spr.texture.get_width()) * sc
+		var h: float = float(spr.texture.get_height()) * sc
+		rects.append(Rect2(origin.x + spr.offset.x * sc, origin.y + spr.offset.y * sc, w, h))
+	print("FOREST_COUNTS trees=%d bushes=%d" % [tree_n, bush_n])
+	failed += _check(tree_n > bush_n and tree_n >= 200 and bush_n >= 40, "forest is mostly trees (%d trees, %d bushes)" % [tree_n, bush_n])
+	var cell: float = 32.0
+	var covered: Dictionary = {}
+	for rect: Rect2 in rects:
+		var x0: int = int(floor(rect.position.x / cell))
+		var y0: int = int(floor(rect.position.y / cell))
+		var x1: int = int(floor(rect.end.x / cell))
+		var y1: int = int(floor(rect.end.y / cell))
+		for gx: int in range(x0, x1 + 1):
+			for gy: int in range(y0, y1 + 1):
+				var cx: float = (float(gx) + 0.5) * cell
+				var cy: float = (float(gy) + 0.5) * cell
+				if cx >= rect.position.x and cy >= rect.position.y and cx <= rect.end.x and cy <= rect.end.y:
+					covered[Vector2i(gx, gy)] = true
+	var holes: int = 0
+	var sx: float = 180.0
+	while sx <= 4140.0:
+		var sy: float = 180.0
+		while sy <= 3600.0:
+			if float(live.call("_ellipse_norm", Vector2(sx, sy))) >= 0.97:
+				if not covered.has(Vector2i(int(floor(sx / cell)), int(floor(sy / cell)))):
+					holes += 1
+					if holes <= 6:
+						print("FOREST_HOLE %.1f %.1f" % [sx, sy])
+			sy += 32.0
+		sx += 32.0
+	var edge_pts: Array[Vector2] = [
+		Vector2(188, 188), Vector2(4132, 188), Vector2(188, 3592), Vector2(4132, 3592),
+		Vector2(2160, 188), Vector2(2160, 3592), Vector2(188, 1890), Vector2(4132, 1890),
+	]
+	for edge_pt: Vector2 in edge_pts:
+		var hit: bool = false
+		for rect: Rect2 in rects:
+			if edge_pt.x >= rect.position.x and edge_pt.y >= rect.position.y and edge_pt.x <= rect.end.x and edge_pt.y <= rect.end.y:
+				hit = true
+				break
+		if not hit:
+			holes += 1
+			print("FOREST_EDGE_HOLE %.1f %.1f" % [edge_pt.x, edge_pt.y])
+	failed += _check(holes == 0, "camera shows no void (%d holes)" % holes)
+	await process_frame
+	await physics_frame
+	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
+	failed += _check(space != null, "physics space")
+	if space == null:
+		return failed
+	var circle := CircleShape2D.new()
+	circle.radius = 18.0
+	var params := PhysicsShapeQueryParameters2D.new()
+	params.shape = circle
+	params.collision_mask = 1
+	params.collide_with_bodies = true
+	params.collide_with_areas = false
+	var step: float = 22.0
+	var origin := Vector2(2080, 2460)
+	var queue: Array[Vector2] = [origin]
+	var seen: Dictionary = {_forest_cell(origin, step): true}
+	var head: int = 0
+	var targets: Array[Vector2] = [
+		Vector2(1200, 2100), Vector2(3300, 1900), Vector2(2480, 2780),
+		Vector2(1760, 2580), Vector2(2160, 2106),
+	]
+	var names: PackedStringArray = ["harvest tree", "harvest stone", "harvest berry", "bench", "forge door"]
+	var reached: Array[bool] = [false, false, false, false, false]
+	var leaked: bool = false
+	var max_norm: float = 0.0
+	var guard: int = 0
+	while head < queue.size() and guard < 90000:
+		guard += 1
+		var at: Vector2 = queue[head]
+		head += 1
+		var here: float = float(live.call("_ellipse_norm", at))
+		if here > max_norm:
+			max_norm = here
+		if here > 1.0 or at.x < 140.0 or at.y < 140.0 or at.x > 4180.0 or at.y > 3640.0:
+			leaked = true
+			print("FOREST_LEAK %.1f %.1f norm %.3f" % [at.x, at.y, here])
+			break
+		for i: int in targets.size():
+			if at.distance_to(targets[i]) <= 42.0:
+				reached[i] = true
+		for dir: Vector2 in [Vector2(step, 0), Vector2(-step, 0), Vector2(0, step), Vector2(0, -step)]:
+			var nxt: Vector2 = at + dir
+			var key: Vector2i = _forest_cell(nxt, step)
+			if seen.has(key):
+				continue
+			seen[key] = true
+			params.transform = Transform2D(0.0, nxt)
+			if not space.intersect_shape(params, 1).is_empty():
+				continue
+			queue.append(nxt)
+	print("FOREST_SEAL leaked=%s max_norm=%.3f visited=%d" % ["yes" if leaked else "no", max_norm, queue.size()])
+	failed += _check(not leaked, "no walkable gap out of the clearing")
+	for i: int in names.size():
+		failed += _check(reached[i], "%s reachable inside the clearing" % names[i])
+	return failed
+
+
+func _forest_cell(p: Vector2, step: float) -> Vector2i:
+	return Vector2i(int(floor(p.x / step)), int(floor(p.y / step)))
 
 
 func _check(ok: bool, label: String) -> int:

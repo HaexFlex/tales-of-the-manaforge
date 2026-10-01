@@ -85,6 +85,8 @@ var keeper_selected: bool = false
 var selected_wisp_id: int = -1
 ## Drag-box set. A single click still replaces this with one id.
 var selected_wisp_ids: Array[int] = []
+## Runtime only. "elaia" once the Spare brought her home. No companion body in the hub.
+var selected_companion_id: String = ""
 
 var stages_data: Array = []
 var upgrades_data: Array = []
@@ -391,11 +393,12 @@ func set_keeper_selected(value: bool) -> void:
 
 func select_keeper() -> void:
 	## LMB on Keeper: select Keeper, deselect any Wisp.
-	if keeper_selected and selected_wisp_id < 0 and selected_wisp_ids.is_empty():
+	if keeper_selected and selected_wisp_id < 0 and selected_wisp_ids.is_empty() and selected_companion_id == "":
 		return
 	keeper_selected = true
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()
+	selected_companion_id = ""
 	selection_changed.emit()
 
 
@@ -410,17 +413,32 @@ func select_wisp(wisp_id: int) -> void:
 	## LMB on Wisp: select that wisp (does NOT require Keeper). Deselects Keeper.
 	if wisp_id < 0 or wisp_id >= wisp_count:
 		return
-	if selected_wisp_id == wisp_id and not keeper_selected and selected_wisp_ids.size() <= 1:
+	if selected_wisp_id == wisp_id and not keeper_selected and selected_wisp_ids.size() <= 1 and selected_companion_id == "":
 		return
 	keeper_selected = false
+	selected_companion_id = ""
 	selected_wisp_id = wisp_id
 	selected_wisp_ids.clear()
 	selected_wisp_ids.append(wisp_id)
 	selection_changed.emit()
 
 
+func select_companion(companion_id: String) -> void:
+	## Portrait click. Elaia joins after Spare; she has no body in the clearing.
+	if companion_id != "elaia" or not echo_01_redeemed:
+		return
+	if selected_companion_id == companion_id and not keeper_selected and selected_wisp_ids.is_empty() and selected_wisp_id < 0:
+		return
+	keeper_selected = false
+	selected_wisp_id = -1
+	selected_wisp_ids.clear()
+	selected_companion_id = companion_id
+	selection_changed.emit()
+
+
 func select_group(wisp_ids: Array, include_keeper: bool) -> void:
 	## Drag box. Replaces the current selection with whatever the box holds.
+	selected_companion_id = ""
 	selected_wisp_ids.clear()
 	for raw: Variant in wisp_ids:
 		var id: int = int(raw)
@@ -477,10 +495,11 @@ func clear_wisp_selection() -> void:
 
 
 func clear_selection() -> bool:
-	var had: bool = keeper_selected or selected_wisp_id >= 0 or not selected_wisp_ids.is_empty()
+	var had: bool = keeper_selected or selected_wisp_id >= 0 or not selected_wisp_ids.is_empty() or selected_companion_id != ""
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()
+	selected_companion_id = ""
 	if had:
 		selection_changed.emit()
 	return had
@@ -1383,6 +1402,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()
+	selected_companion_id = ""
 	wisps_changed.emit()
 	resources_changed.emit(&"wood", wood)
 	resources_changed.emit(&"stone", stone)
@@ -1446,6 +1466,7 @@ func reset_for_new_game() -> void:
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()
+	selected_companion_id = ""
 	run_time_sec = 0.0
 	portal_unlocked = false
 	portal_fee_paid = false

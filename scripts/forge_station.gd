@@ -18,6 +18,8 @@ class_name ForgeStation
 @onready var badge_art: Sprite2D = get_node_or_null("BadgeArt") as Sprite2D
 @onready var title: Label = get_node_or_null("Title") as Label
 
+var _meter: JobMeter
+
 
 func _ready() -> void:
 	add_to_group("forge_station")
@@ -27,6 +29,11 @@ func _ready() -> void:
 	input_pickable = true
 	monitoring = false
 	monitorable = true
+	_meter = JobMeter.new()
+	_meter.name = "JobMeter"
+	_meter.z_index = 6
+	_meter.visible = false
+	add_child(_meter)
 	_refresh_visual()
 
 
@@ -72,6 +79,29 @@ func _refresh_visual() -> void:
 		var speed: float = ForgeJobs.station_speed_mult(station_id)
 		title.text = named if speed <= 0.0 else "%s  %s" % [named, ForgeJobs.station_speed_text(speed)]
 	_apply_badge_art(worked)
+	_refresh_meter()
+
+
+func _refresh_meter() -> void:
+	if _meter == null:
+		return
+	if station_id == "" or not has_node("/root/ForgeJobs"):
+		_meter.visible = false
+		return
+	var state: Dictionary = ForgeJobs.job_state(station_id)
+	if state.is_empty():
+		_meter.visible = false
+		return
+	var y: float = -160.0
+	if title:
+		y = title.offset_top - 12.0
+	if sprite:
+		var visual_top: float = sprite.position.y + sprite.offset.y * sprite.scale.y
+		y = minf(y, visual_top - 12.0)
+	_meter.position = Vector2(0, y)
+	_meter.fraction = float(state.get("fraction", 0.0))
+	_meter.visible = true
+	_meter.queue_redraw()
 
 
 func _apply_badge_art(worked: bool) -> void:
@@ -123,3 +153,17 @@ func _on_right_click() -> void:
 			room.call("walk_keeper_to_station", station_id)
 		return
 	GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
+
+
+class JobMeter extends Node2D:
+	var fraction: float = 0.0
+
+	func _draw() -> void:
+		var w := 72.0
+		var h := 6.0
+		var origin := Vector2(-36, 0)
+		draw_rect(Rect2(origin, Vector2(w, h)), Color(0.08, 0.06, 0.04, 0.95), true)
+		var fill_w: float = floorf(w * clampf(fraction, 0.0, 1.0))
+		if fill_w >= 1.0:
+			draw_rect(Rect2(origin, Vector2(fill_w, h)), Color(0.55, 0.78, 0.34, 1.0), true)
+		draw_rect(Rect2(origin, Vector2(w, h)), Color(0.82, 0.64, 0.28, 1.0), false, 1.0)

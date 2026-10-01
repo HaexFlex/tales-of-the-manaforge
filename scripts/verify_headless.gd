@@ -2274,6 +2274,8 @@ func _run() -> void:
 
 	failed += await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
 	failed += _forge_pass_a(tree_root, game_state, save_service, backpack)
+	failed += _forge_duration_ticks(tree_root, game_state, backpack)
+	failed += await _party_bar_check(tree_root, game_state)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
@@ -2857,6 +2859,164 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	return failed
 
 
+func _forge_duration_ticks(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(jobs != null and equipment != null, "duration nodes")
+	if jobs == null or equipment == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", -1.0)
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - 1.0) < 0.01, "duration playtest scale is 1")
+	var rows: Array = [
+		["crucible", "sapsteel", 60.0, false],
+		["mill", "heartwood_bits", 60.0, false],
+		["press", "amberbind", 45.0, false],
+		["anvil", "rootsteel_edge", 600.0, true],
+		["reliquary", "oakheart_knot", 600.0, true],
+	]
+	for row: Array in rows:
+		var station: String = str(row[0])
+		var recipe: String = str(row[1])
+		var spec: float = float(row[2])
+		var gear: bool = bool(row[3])
+		failed += _forge_one_clock(jobs, game_state, backpack, equipment, station, recipe, spec, gear, 1.0, 0)
+		failed += _forge_one_clock(jobs, game_state, backpack, equipment, station, recipe, spec, gear, 1.0, 2)
+		failed += _forge_one_clock(jobs, game_state, backpack, equipment, station, recipe, spec, gear, 60.0, 0)
+	jobs.call("set_dev_speed_override", 1.0)
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _forge_one_clock(jobs: Node, game_state: Node, backpack: Node, equipment: Node, station: String, recipe: String, spec: float, gear: bool, bug_scale: float, wisps: int) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	if bug_scale > 1.5:
+		jobs.call("set_dev_speed_override", bug_scale)
+	else:
+		jobs.call("set_dev_speed_override", -1.0)
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - bug_scale) < 0.05, "%s dev scale %.0f" % [station, bug_scale])
+	_forge_stock(game_state, backpack, station)
+	if wisps > 0:
+		game_state.set("wisp_count", wisps)
+		game_state.call("_ensure_wisp_slots")
+		for i: int in wisps:
+			var joined: String = str(game_state.call("try_assign_wisp", i, station))
+			failed += _assert(joined != "full" and joined != "invalid", "%s wisp %d joins" % [station, i])
+	jobs.call("set_keeper_working", station, true)
+	var worker: float = 1.0 + 0.1 * float(wisps)
+	failed += _assert(absf(float(jobs.call("station_speed_mult", station)) - worker) < 0.02, "%s speed with %d wisps" % [station, wisps])
+	failed += _assert(str(jobs.call("try_begin_job", station, recipe)) == "ok", "%s job starts" % station)
+	var expected: float = spec / (bug_scale * worker)
+	var margin: float = minf(0.5, expected * 0.25)
+	if margin < 0.02:
+		margin = 0.02
+	_forge_tick(jobs, expected - margin)
+	var state_v: Variant = jobs.call("job_state", station)
+	var fraction: float = 1.0
+	if typeof(state_v) == TYPE_DICTIONARY:
+		fraction = float((state_v as Dictionary).get("fraction", 1.0))
+	var early_ok: bool = bool(jobs.call("has_job", station)) and float(jobs.call("job_progress", station)) + 0.01 < spec and fraction < 0.999 and str(jobs.call("job_line", station)) != ""
+	var who: String = "keeper alone" if wisps == 0 else "keeper+%d wisps" % wisps
+	if station == "anvil" and bug_scale <= 1.5:
+		failed += _assert(early_ok, "anvil %s not done just before spec" % who)
+	else:
+		failed += _assert(early_ok, "%s %s not done just before duration" % [station, who])
+	var elapsed: float = expected - margin
+	var steps: int = 0
+	while bool(jobs.call("has_job", station)) and steps < 80:
+		jobs.call("_process", 0.05)
+		elapsed += 0.05
+		steps += 1
+	var finished: bool = not bool(jobs.call("has_job", station))
+	if station == "anvil" and bug_scale <= 1.5:
+		failed += _assert(finished, "anvil %s done just after spec" % who)
+	else:
+		failed += _assert(finished, "%s %s done just after duration" % [station, who])
+	if gear:
+		failed += _assert(int(equipment.call("unequipped_count", recipe)) == 1, "%s output" % station)
+	else:
+		failed += _assert(int(backpack.call("get_count", recipe)) == 1, "%s output" % station)
+	var factor: float = spec / maxf(elapsed, 0.01)
+	var want: float = bug_scale * worker
+	print("FORGE_DUR station=%s wisps=%d scale=%.0f spec=%.2f measured=%.2f factor=%.2f" % [station, wisps, bug_scale, spec, elapsed, factor])
+	failed += _assert(absf(factor - want) / want < 0.12, "%s factor %.2f vs %.2f" % [station, factor, want])
+	return failed
+
+
+func _forge_stock(game_state: Node, backpack: Node, station: String) -> void:
+	if station == "crucible":
+		game_state.call("set_resource", &"stone", 20)
+	elif station == "mill":
+		game_state.call("set_resource", &"wood", 20)
+	elif station == "press":
+		game_state.call("set_resource", &"food", 15)
+	elif station == "anvil":
+		backpack.call("set_count", "sapsteel", 12)
+		backpack.call("set_count", "heartwood_bits", 6)
+		backpack.call("set_count", "amberbind", 4)
+		game_state.call("set_resource", &"essence", 150)
+	else:
+		backpack.call("set_count", "sapsteel", 6)
+		backpack.call("set_count", "heartwood_bits", 6)
+		backpack.call("set_count", "amberbind", 6)
+		game_state.call("set_resource", &"essence", 100)
+
+
+func _forge_tick(jobs: Node, seconds: float) -> void:
+	var left: float = seconds
+	while left > 0.001:
+		var step: float = minf(0.25, left)
+		jobs.call("_process", step)
+		left -= step
+
+
+func _party_bar_check(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(packed != null, "party bar hud loads")
+	if packed == null:
+		return failed
+	var hud: Node = packed.instantiate()
+	tree_root.add_child(hud)
+	await process_frame
+	game_state.call("reset_for_new_game")
+	game_state.call("clear_selection")
+	await process_frame
+	var bar: Control = hud.get_node_or_null("PartyBar") as Control
+	var keeper_slot: Control = hud.get_node_or_null("PartyBar/Column/Keeper") as Control
+	var wisp_slot: Control = hud.get_node_or_null("PartyBar/Column/Wisps") as Control
+	var elaia_slot: Control = hud.get_node_or_null("PartyBar/Column/Elaia") as Control
+	failed += _assert(bar != null and bar.visible, "party bar visible with nothing selected")
+	failed += _assert(keeper_slot != null and keeper_slot.visible, "keeper portrait with nothing selected")
+	failed += _assert(wisp_slot != null and not wisp_slot.visible, "wisp portrait hidden with nothing selected")
+	failed += _assert(hud.get_node_or_null("SelectionPanel") == null, "no gray selection box")
+	hud.call("party_click", "keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "click keeper portrait selects the keeper")
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("select_group", [0, 1], false)
+	await process_frame
+	var count_label: Label = wisp_slot.get_node_or_null("Count") as Label
+	failed += _assert(wisp_slot.visible, "wisp portrait while wisps are selected")
+	failed += _assert(count_label != null and count_label.text == "x2", "wisp stack shows xN")
+	failed += _assert(not bool(game_state.get("keeper_selected")), "wisp group does not keep the keeper")
+	game_state.call("clear_selection")
+	await process_frame
+	failed += _assert(not wisp_slot.visible, "wisp portrait hides when selection clears")
+	failed += _assert(keeper_slot.visible, "keeper portrait stays when selection clears")
+	game_state.set("echo_01_redeemed", true)
+	hud.call("_refresh_party_bar")
+	failed += _assert(elaia_slot != null and elaia_slot.visible, "Elaia portrait after Spare")
+	hud.call("party_click", "elaia")
+	failed += _assert(str(game_state.get("selected_companion_id")) == "elaia", "click Elaia portrait selects her")
+	hud.queue_free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	return failed
+
+
 func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, backpack: Node) -> int:
 	var failed: int = 0
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
@@ -2866,8 +3026,7 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 		return failed
 	jobs.call("set_autosave_enabled", false)
 	jobs.call("set_dev_speed_override", -1.0)
-	var open_scale: float = 60.0 if OS.is_debug_build() else 1.0
-	failed += _assert(absf(float(jobs.call("dev_time_scale")) - open_scale) < 0.01, "dev speed is 60 in debug and 1 in release")
+	failed += _assert(absf(float(jobs.call("dev_time_scale")) - 1.0) < 0.01, "playtest forge speed is 1")
 	jobs.call("set_dev_speed_override", 1.0)
 	failed += _assert(absf(float(jobs.call("dev_time_scale")) - 1.0) < 0.01, "verify pins forge speed at 1")
 	game_state.call("reset_for_new_game")

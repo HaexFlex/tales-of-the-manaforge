@@ -27,6 +27,10 @@ var _leaving: bool = false
 var _drag_active: bool = false
 var _drag_from: Vector2 = Vector2.ZERO
 var _marquee: Line2D
+var _job_label: Label
+var _job_border: ColorRect
+var _job_track: ColorRect
+var _job_fill: ColorRect
 
 
 func _ready() -> void:
@@ -48,6 +52,7 @@ func _ready() -> void:
 	if swirl_overlay and swirl_texture != null:
 		swirl_overlay.texture = swirl_texture
 	_setup_camera()
+	_ensure_station_meter()
 	_hide_recipes()
 	GameState.wisps_changed.connect(_sync_wisps)
 	_sync_wisps()
@@ -66,6 +71,7 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	_pan_camera(delta)
 	_clamp_camera()
+	_refresh_station_job()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -171,6 +177,13 @@ func _selection_focus_point() -> Vector2:
 		for node: Node in get_tree().get_nodes_in_group("wisp"):
 			if node is Node2D and int(node.get("wisp_id")) == ids[0]:
 				return (node as Node2D).global_position
+	if str(GameState.selected_companion_id) != "":
+		var companion_id: String = str(GameState.selected_companion_id)
+		for node: Node in get_tree().get_nodes_in_group("companion"):
+			if node is Node2D and str(node.get("companion_id")) == companion_id:
+				return (node as Node2D).global_position
+		if camera:
+			return camera.position
 	return keeper.global_position if keeper else Vector2.ZERO
 
 
@@ -263,6 +276,7 @@ func _open_recipes(station_id: String) -> void:
 		btn.tooltip_text = recipe_id
 		btn.pressed.connect(_on_recipe_pressed.bind(station_id, recipe_id))
 		recipe_list.add_child(btn)
+	_refresh_station_job()
 
 
 func _on_recipe_pressed(station_id: String, recipe_id: String) -> void:
@@ -283,6 +297,62 @@ func _hide_recipes() -> void:
 	if recipe_panel:
 		recipe_panel.visible = false
 	_panel_station = ""
+	_refresh_station_job()
+
+
+func _ensure_station_meter() -> void:
+	if recipe_panel == null or _job_label != null:
+		return
+	_job_label = Label.new()
+	_job_label.name = "JobProgress"
+	_job_label.position = Vector2(12, 36)
+	_job_label.size = Vector2(348, 20)
+	_job_label.add_theme_font_size_override("font_size", 14)
+	_job_label.add_theme_color_override("font_color", Color(0.93, 0.9, 0.78, 1))
+	_job_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	recipe_panel.add_child(_job_label)
+	_job_border = ColorRect.new()
+	_job_border.name = "JobBorder"
+	_job_border.position = Vector2(11, 57)
+	_job_border.size = Vector2(350, 10)
+	_job_border.color = Color(0.82, 0.64, 0.28, 1)
+	_job_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	recipe_panel.add_child(_job_border)
+	_job_track = ColorRect.new()
+	_job_track.name = "JobTrack"
+	_job_track.position = Vector2(12, 58)
+	_job_track.size = Vector2(348, 8)
+	_job_track.color = Color(0.08, 0.06, 0.04, 1)
+	_job_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	recipe_panel.add_child(_job_track)
+	_job_fill = ColorRect.new()
+	_job_fill.name = "JobFill"
+	_job_fill.position = Vector2(12, 58)
+	_job_fill.size = Vector2(0, 8)
+	_job_fill.color = Color(0.55, 0.78, 0.34, 1)
+	_job_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	recipe_panel.add_child(_job_fill)
+	if recipe_list:
+		recipe_list.offset_top = 74.0
+
+
+func _refresh_station_job() -> void:
+	if _job_label == null:
+		return
+	var show: bool = recipe_panel != null and recipe_panel.visible and _panel_station != "" and has_node("/root/ForgeJobs")
+	var state: Dictionary = {}
+	if show:
+		state = ForgeJobs.job_state(_panel_station)
+	var live: bool = show and not state.is_empty()
+	_job_label.visible = live
+	_job_border.visible = live
+	_job_track.visible = live
+	_job_fill.visible = live
+	if not live:
+		return
+	_job_label.text = ForgeJobs.job_line(_panel_station)
+	var width: float = _job_track.size.x * clampf(float(state.get("fraction", 0.0)), 0.0, 1.0)
+	_job_fill.size = Vector2(width, _job_track.size.y)
 
 
 func _show_pending_toast() -> void:

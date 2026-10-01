@@ -1,5 +1,5 @@
 {
-  "notes": "All Forge v2 numbers live here. Placeholder tuning until Haex signs off.",
+  "notes": "All Forge v2 numbers live here. Placeholder tuning until Haex signs off. dev_speed_multiplier applies only when MANAFORGE_DEV_SPEED=1 in a debug build. Editor playtest stays at 1x.",
   "dev_speed_multiplier": 60,
   "keeper_speed": 1.0,
   "companion_speed": 1.0,
