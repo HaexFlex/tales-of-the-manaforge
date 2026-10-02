@@ -1,0 +1,178 @@
+{
+ "clip": "still_8dir",
+ "files": [
+  "keeper_still_s.png",
+  "keeper_still_se.png",
+  "keeper_still_e.png",
+  "keeper_still_ne.png",
+  "keeper_still_n.png",
+  "keeper_still_nw.png",
+  "keeper_still_w.png",
+  "keeper_still_sw.png"
+ ],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "source_sheet": "pyvqF.png",
+ "mapping": {
+  "S": {
+   "sheet_view": "row1 col1",
+   "mirrored": false
+  },
+  "SE": {
+   "sheet_view": "row1 col2",
+   "mirrored": false
+  },
+  "E": {
+   "sheet_view": "row1 col3",
+   "mirrored": false
+  },
+  "NE": {
+   "sheet_view": "row2 col2",
+   "mirrored": true
+  },
+  "N": {
+   "sheet_view": "row2 col1",
+   "mirrored": false
+  },
+  "NW": {
+   "sheet_view": "row2 col2",
+   "mirrored": false
+  },
+  "W": {
+   "sheet_view": "row2 col3",
+   "mirrored": false
+  },
+  "SW": {
+   "sheet_view": "row2 col4",
+   "mirrored": false
+  }
+ },
+ "defringed_px": {
+  "00": 157,
+  "01": 132,
+  "02": 158,
+  "10": 129,
+  "11": 159,
+  "12": 157,
+  "13": 140
+ },
+ "extent": {
+  "S": {
+   "top": 3,
+   "sole": 123,
+   "height": 121,
+   "width": 52
+  },
+  "SE": {
+   "top": 3,
+   "sole": 123,
+   "height": 121,
+   "width": 47
+  },
+  "E": {
+   "top": 3,
+   "sole": 123,
+   "height": 121,
+   "width": 43
+  },
+  "NE": {
+   "top": 3,
+   "sole": 123,
+   "height": 121,
+   "width": 48
+  },
+  "N": {
+   "top": 2,
+   "sole": 123,
+   "height": 122,
+   "width": 52
+  },
+  "NW": {
+   "top": 3,
+   "sole": 123,
+   "height": 121,
+   "width": 48
+  },
+  "W": {
+   "top": 2,
+   "sole": 123,
+   "height": 122,
+   "width": 44
+  },
+  "SW": {
+   "top": 1,
+   "sole": 123,
+   "height": 123,
+   "width": 46
+  }
+ },
+ "ingest": {
+  "sheet": "v3/raw/optB_pyvqF.png",
+  "bg_sampled": [
+   255,
+   0,
+   255
+  ],
+  "src_heights": {
+   "00": 482,
+   "01": 481,
+   "02": 481,
+   "03": 482,
+   "10": 488,
+   "11": 482,
+   "12": 485,
+   "13": 489
+  },
+  "shared_scale": 0.25153374233128833,
+  "views": {
+   "00": {
+    "height": 121,
+    "width": 52,
+    "clipped": false
+   },
+   "01": {
+    "height": 121,
+    "width": 47,
+    "clipped": false
+   },
+   "02": {
+    "height": 121,
+    "width": 43,
+    "clipped": false
+   },
+   "03": {
+    "height": 121,
+    "width": 49,
+    "clipped": false
+   },
+   "10": {
+    "height": 122,
+    "width": 52,
+    "clipped": false
+   },
+   "11": {
+    "height": 121,
+    "width": 48,
+    "clipped": false
+   },
+   "12": {
+    "height": 122,
+    "width": 44,
+    "clipped": false
+   },
+   "13": {
+    "height": 123,
+    "width": 46,
+    "clipped": false
+   }
+  }
+ }
+}

@@ -1,0 +1,178 @@
+{
+ "clip": "still_8dir",
+ "files": [
+  "keeper_still_s.png",
+  "keeper_still_se.png",
+  "keeper_still_e.png",
+  "keeper_still_ne.png",
+  "keeper_still_n.png",
+  "keeper_still_nw.png",
+  "keeper_still_w.png",
+  "keeper_still_sw.png"
+ ],
+ "directions": [
+  "S",
+  "SE",
+  "E",
+  "NE",
+  "N",
+  "NW",
+  "W",
+  "SW"
+ ],
+ "source_sheet": "yylTR.png",
+ "mapping": {
+  "S": {
+   "sheet_view": "row1 col1",
+   "mirrored": false
+  },
+  "SE": {
+   "sheet_view": "row1 col2",
+   "mirrored": false
+  },
+  "E": {
+   "sheet_view": "row1 col3",
+   "mirrored": false
+  },
+  "NE": {
+   "sheet_view": "row1 col4",
+   "mirrored": true
+  },
+  "N": {
+   "sheet_view": "row2 col1",
+   "mirrored": false
+  },
+  "NW": {
+   "sheet_view": "row1 col4",
+   "mirrored": false
+  },
+  "W": {
+   "sheet_view": "row2 col3",
+   "mirrored": false
+  },
+  "SW": {
+   "sheet_view": "row2 col4",
+   "mirrored": false
+  }
+ },
+ "defringed_px": {
+  "00": 136,
+  "01": 125,
+  "02": 79,
+  "03": 100,
+  "10": 108,
+  "12": 76,
+  "13": 117
+ },
+ "extent": {
+  "S": {
+   "top": 5,
+   "sole": 123,
+   "height": 119,
+   "width": 52
+  },
+  "SE": {
+   "top": 4,
+   "sole": 123,
+   "height": 120,
+   "width": 48
+  },
+  "E": {
+   "top": 5,
+   "sole": 123,
+   "height": 119,
+   "width": 45
+  },
+  "NE": {
+   "top": 6,
+   "sole": 123,
+   "height": 118,
+   "width": 45
+  },
+  "N": {
+   "top": 4,
+   "sole": 123,
+   "height": 120,
+   "width": 52
+  },
+  "NW": {
+   "top": 6,
+   "sole": 123,
+   "height": 118,
+   "width": 45
+  },
+  "W": {
+   "top": 2,
+   "sole": 123,
+   "height": 122,
+   "width": 45
+  },
+  "SW": {
+   "top": 1,
+   "sole": 123,
+   "height": 123,
+   "width": 46
+  }
+ },
+ "ingest": {
+  "sheet": "v3/raw/optA_yylTR.png",
+  "bg_sampled": [
+   255,
+   0,
+   255
+  ],
+  "src_heights": {
+   "00": 474,
+   "01": 478,
+   "02": 475,
+   "03": 472,
+   "10": 481,
+   "11": 485,
+   "12": 487,
+   "13": 490
+  },
+  "shared_scale": 0.2510204081632653,
+  "views": {
+   "00": {
+    "height": 119,
+    "width": 52,
+    "clipped": false
+   },
+   "01": {
+    "height": 120,
+    "width": 48,
+    "clipped": false
+   },
+   "02": {
+    "height": 119,
+    "width": 45,
+    "clipped": false
+   },
+   "03": {
+    "height": 118,
+    "width": 45,
+    "clipped": false
+   },
+   "10": {
+    "height": 120,
+    "width": 52,
+    "clipped": false
+   },
+   "11": {
+    "height": 121,
+    "width": 47,
+    "clipped": false
+   },
+   "12": {
+    "height": 122,
+    "width": 45,
+    "clipped": false
+   },
+   "13": {
+    "height": 123,
+    "width": 46,
+    "clipped": false
+   }
+  }
+ }
+}
