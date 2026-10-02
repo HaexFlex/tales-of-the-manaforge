@@ -1,5 +1,5 @@
 {
-  "canvas_note": "nodes v2 2026-09-29: tree + spent 288x384 at 1 art px = 1 world px (bottom-centre on the trunk base); stone 46x48 (x2 in code), spent 64x64; berry + spent native 86x128 at scale 1 \u2014 base_center anchor",
+  "canvas_note": "nodes v2 2026-09-29: tree + spent 288x384 at 1 art px = 1 world px (bottom-centre on the trunk base); stone native 92x96 at scale 1; berry + spent native 86x128 at scale 1 \u2014 base_center anchor",
   "harvest_nodes": {
     "wood": {
       "file": "harvest_tree.png",
@@ -16,12 +16,17 @@
       "anchor": "base_center (trunk base, bottom row 382, x centre 144)"
     },
     "stone": {
-      "file": "harvest_stone.png",
-      "spent": "harvest_stone_spent.png",
+      "file": "native/harvest_stone.png",
+      "spent": "native/harvest_stone_spent.png",
       "size": [
-        64,
-        64
+        92,
+        96
       ],
+      "spent_size": [
+        92,
+        96
+      ],
+      "scale": 1,
       "also": "prop_stone.png"
     },
     "food": {

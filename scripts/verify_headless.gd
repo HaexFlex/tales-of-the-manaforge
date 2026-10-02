@@ -190,9 +190,10 @@ func _run() -> void:
 	failed += _assert(tree_big != null and tree_big.get_width() == 320 and tree_big.get_height() == 400, "ring_tree_large_01 is 320x400")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/native/keeper_idle_south_256.png"), "keeper native idle")
 	## Big Trees.png and keeper_inbox/ move to legacy with Art. Do not assert them here.
-	failed += _assert(FileAccess.file_exists("res://assets/library/raw_refs/Big Trees.jpg"), "library raw_refs JPG")
-	failed += _assert(FileAccess.file_exists("res://docs/ASSETS_UPLOAD.md"), "ASSETS_UPLOAD docs")
-	var inbox_dir := DirAccess.open("res://Assets upload")
+	## docs/, Assets upload/, and assets/library/ are .gdignored, so res:// cannot see them.
+	failed += _assert(FileAccess.file_exists(ProjectSettings.globalize_path("res://assets/library/raw_refs/Big Trees.jpg")), "library raw_refs JPG")
+	failed += _assert(FileAccess.file_exists(ProjectSettings.globalize_path("res://docs/ASSETS_UPLOAD.md")), "ASSETS_UPLOAD docs")
+	var inbox_dir := DirAccess.open(ProjectSettings.globalize_path("res://Assets upload"))
 	failed += _assert(inbox_dir != null, "Assets upload dir")
 	if inbox_dir:
 		inbox_dir.list_dir_begin()
@@ -204,7 +205,7 @@ func _run() -> void:
 			entry = inbox_dir.get_next()
 		inbox_dir.list_dir_end()
 		failed += _assert(loose == 0, "Assets upload empty after ship (got %d loose)" % loose)
-	failed += _assert(FileAccess.file_exists("res://Assets upload/README.md"), "Assets upload README only")
+	failed += _assert(FileAccess.file_exists(ProjectSettings.globalize_path("res://Assets upload/README.md")), "Assets upload README only")
 	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
 	failed += _assert(project_text.find("res://scenes/title_screen.tscn") >= 0, "main scene is the title screen")
 	failed += _assert(
@@ -692,7 +693,7 @@ func _run() -> void:
 			failed += _assert(inst.get_node_or_null("Paths/ToBench") is Line2D, "ToBench path missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareGrowCosts/FertilizerIcon") != null, "Grow FertilizerIcon missing")
 			failed += _assert(hud.get_node_or_null("CarePanel/CareGrowCosts/EssenceIcon") != null, "Grow EssenceIcon missing")
-			failed += _assert(FileAccess.file_exists("res://docs/ART_NEEDED_BACKPACK.md"), "ART_NEEDED_BACKPACK.md")
+			failed += _assert(FileAccess.file_exists(ProjectSettings.globalize_path("res://docs/ART_NEEDED_BACKPACK.md")), "ART_NEEDED_BACKPACK.md")
 			failed += _assert(FileAccess.file_exists("res://data/handcraft_recipes.json"), "handcraft_recipes.json")
 			failed += _assert(FileAccess.file_exists("res://data/hub_map.json"), "hub_map.json")
 			var hub_file := FileAccess.open("res://data/hub_map.json", FileAccess.READ)

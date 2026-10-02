@@ -6,7 +6,7 @@
   "anchor": "base_center",
   "nodes": {
     "wood": "harvest_tree.png",
-    "stone": "harvest_stone.png",
+    "stone": "native/harvest_stone.png",
     "food": "native/berry_harvest_node.png",
     "manashards": "prop_manashards.png"
   },
@@ -26,12 +26,17 @@
       "anchor": "base_center (trunk base, bottom row 382, x centre 144)"
     },
     "stone": {
-      "file": "harvest_stone.png",
-      "spent": "harvest_stone_spent.png",
+      "file": "native/harvest_stone.png",
+      "spent": "native/harvest_stone_spent.png",
       "size": [
-        64,
-        64
+        92,
+        96
       ],
+      "spent_size": [
+        92,
+        96
+      ],
+      "scale": 1,
       "also": "prop_stone.png"
     },
     "food": {
