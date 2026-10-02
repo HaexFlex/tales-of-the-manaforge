@@ -1,0 +1,54 @@
+{
+  "clip": "chop_south",
+  "status": "experiment - not wired into the game",
+  "canvas": [
+    192,
+    128
+  ],
+  "anchor": "feet_center",
+  "anchor_px": [
+    96,
+    128
+  ],
+  "sprite_offset": [
+    -96,
+    -128
+  ],
+  "keeper_scale": "pixel-identical to keeper_walk_south_0001 (same NN x0.5 of the native 170x256 frame); in a 192 canvas the 128 walk frame sits at x+32",
+  "filter": "nearest",
+  "frames": 9,
+  "hold_ms": 100,
+  "loop_ms": 900,
+  "loop": true,
+  "strip": "keeper_chop_south.png",
+  "layout": "horizontal",
+  "files": [
+    "keeper_chop_south_0001.png",
+    "keeper_chop_south_0002.png",
+    "keeper_chop_south_0003.png",
+    "keeper_chop_south_0004.png",
+    "keeper_chop_south_0005.png",
+    "keeper_chop_south_0006.png",
+    "keeper_chop_south_0007.png",
+    "keeper_chop_south_0008.png",
+    "keeper_chop_south_0009.png"
+  ],
+  "strike_frame": 7,
+  "strike_frame_index0": 6,
+  "strike_at_ms": 600,
+  "pulse_sync": "walk timing (9 x 100 ms = 900 ms). The tool harvest pulse is 1000 ms: either restart the clip on each pulse 600 ms early (frame 9 then holds ~100 ms longer), or play at speed_scale 0.9 so one loop = 1000 ms.",
+  "tool": "axe",
+  "poses": [
+    "ready",
+    "lift",
+    "raise",
+    "windup",
+    "cocked",
+    "swing",
+    "impact",
+    "bite",
+    "recover"
+  ],
+  "source": "keeper_walk_south_0001 native (assets/art/keeper/native/keeper_walk_south_0001_256.png), cut-and-rotate rig (v2/tools/rig.py, build_v2.py)",
+  "palette": "every visible pixel RGB is a colour that occurs in keeper_walk_south_0001..0009"
+}
