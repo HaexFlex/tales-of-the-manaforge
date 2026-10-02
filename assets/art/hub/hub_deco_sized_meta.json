@@ -1,0 +1,1573 @@
+{
+ "version": "v0.3.1-hub-native-sizes",
+ "base_meta": "hub/hub_deco_meta.json (v0.3.0-hub-v3, unchanged; VERIFY asserts its version and counts)",
+ "filter": "nearest",
+ "density": "1 art px = 1 display px at sprite_scale 1",
+ "what": "Size variants of the hub v3 ring trees / bushes, re-rendered from the HD raw slices (/workspace/hub_v3/work/*/slices) with the v3 pipeline at factor x display_scale. They replace the sprite_scale jitter in main.tscn; mapping: assets/library/fix_pass_2026-10-02/hub_native_size_map.json. Buckets round UP to the next 0.05 so no tree gets smaller than today (scene_sanity forest-coverage check).",
+ "offset_rule": "Sprite2D centered=false, offset = (-w//2, -h) (forest_prop.gd computes (-w*0.5, -h); all widths are even, so identical)",
+ "collider_note": "colliders are the per-node collider_size in main.tscn and are not scaled by sprite_scale today, so they stay unchanged",
+ "families": {
+  "ring_bush_big": [
+   {
+    "file": "hub/bushes/sized/ring_bush_big_01_s080.png",
+    "variant_of": "hub/bushes/ring_bush_big_01.png",
+    "display_scale": 0.8,
+    "size": [
+     154,
+     115
+    ],
+    "content": [
+     98,
+     93
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -77,
+     -115
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.36456
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_01_s105.png",
+    "variant_of": "hub/bushes/ring_bush_big_01.png",
+    "display_scale": 1.05,
+    "size": [
+     202,
+     151
+    ],
+    "content": [
+     128,
+     122
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -101,
+     -151
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.47848
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_01_s110.png",
+    "variant_of": "hub/bushes/ring_bush_big_01.png",
+    "display_scale": 1.1,
+    "size": [
+     212,
+     158
+    ],
+    "content": [
+     134,
+     128
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -106,
+     -158
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.50127
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_01_s115.png",
+    "variant_of": "hub/bushes/ring_bush_big_01.png",
+    "display_scale": 1.15,
+    "size": [
+     220,
+     166
+    ],
+    "content": [
+     140,
+     134
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -110,
+     -166
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.52405
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_01_s155.png",
+    "variant_of": "hub/bushes/ring_bush_big_01.png",
+    "display_scale": 1.55,
+    "size": [
+     298,
+     223
+    ],
+    "content": [
+     189,
+     181
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -149,
+     -223
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.70634
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_02_s095.png",
+    "variant_of": "hub/bushes/ring_bush_big_02.png",
+    "display_scale": 0.95,
+    "size": [
+     182,
+     137
+    ],
+    "content": [
+     138,
+     89
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -91,
+     -137
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.43291
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_02_s105.png",
+    "variant_of": "hub/bushes/ring_bush_big_02.png",
+    "display_scale": 1.05,
+    "size": [
+     202,
+     151
+    ],
+    "content": [
+     152,
+     99
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -101,
+     -151
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.47848
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_02_s110.png",
+    "variant_of": "hub/bushes/ring_bush_big_02.png",
+    "display_scale": 1.1,
+    "size": [
+     212,
+     158
+    ],
+    "content": [
+     159,
+     103
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -106,
+     -158
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.50127
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_02_s115.png",
+    "variant_of": "hub/bushes/ring_bush_big_02.png",
+    "display_scale": 1.15,
+    "size": [
+     220,
+     166
+    ],
+    "content": [
+     167,
+     108
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -110,
+     -166
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.52405
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_03_s095.png",
+    "variant_of": "hub/bushes/ring_bush_big_03.png",
+    "display_scale": 0.95,
+    "size": [
+     182,
+     137
+    ],
+    "content": [
+     132,
+     92
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -91,
+     -137
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.43291
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_03_s105.png",
+    "variant_of": "hub/bushes/ring_bush_big_03.png",
+    "display_scale": 1.05,
+    "size": [
+     202,
+     151
+    ],
+    "content": [
+     145,
+     101
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -101,
+     -151
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.47848
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_03_s110.png",
+    "variant_of": "hub/bushes/ring_bush_big_03.png",
+    "display_scale": 1.1,
+    "size": [
+     212,
+     158
+    ],
+    "content": [
+     152,
+     106
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -106,
+     -158
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.50127
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_big_03_s115.png",
+    "variant_of": "hub/bushes/ring_bush_big_03.png",
+    "display_scale": 1.15,
+    "size": [
+     220,
+     166
+    ],
+    "content": [
+     159,
+     111
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -110,
+     -166
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.52405
+   }
+  ],
+  "ring_bush_small": [
+   {
+    "file": "hub/bushes/sized/ring_bush_small_01_s095.png",
+    "variant_of": "hub/bushes/ring_bush_small_01.png",
+    "display_scale": 0.95,
+    "size": [
+     114,
+     68
+    ],
+    "content": [
+     70,
+     67
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -57,
+     -68
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.4269
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_01_s105.png",
+    "variant_of": "hub/bushes/ring_bush_small_01.png",
+    "display_scale": 1.05,
+    "size": [
+     126,
+     76
+    ],
+    "content": [
+     77,
+     75
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -63,
+     -76
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.47184
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_01_s110.png",
+    "variant_of": "hub/bushes/ring_bush_small_01.png",
+    "display_scale": 1.1,
+    "size": [
+     132,
+     79
+    ],
+    "content": [
+     81,
+     78
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -66,
+     -79
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.49431
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_01_s115.png",
+    "variant_of": "hub/bushes/ring_bush_small_01.png",
+    "display_scale": 1.15,
+    "size": [
+     138,
+     83
+    ],
+    "content": [
+     85,
+     82
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -69,
+     -83
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.51678
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_02_s095.png",
+    "variant_of": "hub/bushes/ring_bush_small_02.png",
+    "display_scale": 0.95,
+    "size": [
+     114,
+     68
+    ],
+    "content": [
+     107,
+     61
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -57,
+     -68
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.43291
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_02_s105.png",
+    "variant_of": "hub/bushes/ring_bush_small_02.png",
+    "display_scale": 1.05,
+    "size": [
+     126,
+     76
+    ],
+    "content": [
+     119,
+     68
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -63,
+     -76
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.47848
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_02_s110.png",
+    "variant_of": "hub/bushes/ring_bush_small_02.png",
+    "display_scale": 1.1,
+    "size": [
+     132,
+     79
+    ],
+    "content": [
+     124,
+     71
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -66,
+     -79
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.50127
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_03_s095.png",
+    "variant_of": "hub/bushes/ring_bush_small_03.png",
+    "display_scale": 0.95,
+    "size": [
+     114,
+     68
+    ],
+    "content": [
+     100,
+     59
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -57,
+     -68
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.43291
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_03_s105.png",
+    "variant_of": "hub/bushes/ring_bush_small_03.png",
+    "display_scale": 1.05,
+    "size": [
+     126,
+     76
+    ],
+    "content": [
+     111,
+     66
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -63,
+     -76
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.47848
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_03_s110.png",
+    "variant_of": "hub/bushes/ring_bush_small_03.png",
+    "display_scale": 1.1,
+    "size": [
+     132,
+     79
+    ],
+    "content": [
+     116,
+     69
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -66,
+     -79
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.50127
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_small_03_s115.png",
+    "variant_of": "hub/bushes/ring_bush_small_03.png",
+    "display_scale": 1.15,
+    "size": [
+     138,
+     83
+    ],
+    "content": [
+     122,
+     72
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -69,
+     -83
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.52405
+   }
+  ],
+  "ring_tree_large": [
+   {
+    "file": "hub/trees/sized/ring_tree_large_01_s095.png",
+    "variant_of": "hub/trees/ring_tree_large_01.png",
+    "display_scale": 0.95,
+    "size": [
+     304,
+     380
+    ],
+    "content": [
+     284,
+     378
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -152,
+     -380
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.8068
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_01_s105.png",
+    "variant_of": "hub/trees/ring_tree_large_01.png",
+    "display_scale": 1.05,
+    "size": [
+     336,
+     420
+    ],
+    "content": [
+     314,
+     418
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -168,
+     -420
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.89172
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_01_s110.png",
+    "variant_of": "hub/trees/ring_tree_large_01.png",
+    "display_scale": 1.1,
+    "size": [
+     352,
+     440
+    ],
+    "content": [
+     329,
+     438
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -176,
+     -440
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.93419
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_01_s115.png",
+    "variant_of": "hub/trees/ring_tree_large_01.png",
+    "display_scale": 1.15,
+    "size": [
+     368,
+     460
+    ],
+    "content": [
+     344,
+     458
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -184,
+     -460
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.97665
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_02_s095.png",
+    "variant_of": "hub/trees/ring_tree_large_02.png",
+    "display_scale": 0.95,
+    "size": [
+     304,
+     380
+    ],
+    "content": [
+     268,
+     378
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -152,
+     -380
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.8068
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_02_s105.png",
+    "variant_of": "hub/trees/ring_tree_large_02.png",
+    "display_scale": 1.05,
+    "size": [
+     336,
+     420
+    ],
+    "content": [
+     296,
+     418
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -168,
+     -420
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.89172
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_02_s110.png",
+    "variant_of": "hub/trees/ring_tree_large_02.png",
+    "display_scale": 1.1,
+    "size": [
+     352,
+     440
+    ],
+    "content": [
+     310,
+     438
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -176,
+     -440
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.93419
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_02_s115.png",
+    "variant_of": "hub/trees/ring_tree_large_02.png",
+    "display_scale": 1.15,
+    "size": [
+     368,
+     460
+    ],
+    "content": [
+     324,
+     458
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -184,
+     -460
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.97665
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_02_s120.png",
+    "variant_of": "hub/trees/ring_tree_large_02.png",
+    "display_scale": 1.2,
+    "size": [
+     384,
+     480
+    ],
+    "content": [
+     338,
+     478
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -192,
+     -480
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 1.01911,
+    "note": "HD raw slice upscaled 1.9% at this size (largest fully raw-backed large-tree size is ~1.18)"
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_03_s095.png",
+    "variant_of": "hub/trees/ring_tree_large_03.png",
+    "display_scale": 0.95,
+    "size": [
+     304,
+     380
+    ],
+    "content": [
+     278,
+     379
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -152,
+     -380
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.80477
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_03_s105.png",
+    "variant_of": "hub/trees/ring_tree_large_03.png",
+    "display_scale": 1.05,
+    "size": [
+     336,
+     420
+    ],
+    "content": [
+     307,
+     419
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -168,
+     -420
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.88949
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_03_s110.png",
+    "variant_of": "hub/trees/ring_tree_large_03.png",
+    "display_scale": 1.1,
+    "size": [
+     352,
+     440
+    ],
+    "content": [
+     321,
+     439
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -176,
+     -440
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.93184
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_03_s115.png",
+    "variant_of": "hub/trees/ring_tree_large_03.png",
+    "display_scale": 1.15,
+    "size": [
+     368,
+     460
+    ],
+    "content": [
+     336,
+     459
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -184,
+     -460
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.9742
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_large_03_s125.png",
+    "variant_of": "hub/trees/ring_tree_large_03.png",
+    "display_scale": 1.25,
+    "size": [
+     400,
+     500
+    ],
+    "content": [
+     365,
+     499
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -200,
+     -500
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     40.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 1.05891,
+    "note": "HD raw slice upscaled 5.9% at this size (largest fully raw-backed large-tree size is ~1.18)"
+   }
+  ],
+  "ring_tree_medium": [
+   {
+    "file": "hub/trees/sized/ring_tree_medium_01_s095.png",
+    "variant_of": "hub/trees/ring_tree_medium_01.png",
+    "display_scale": 0.95,
+    "size": [
+     244,
+     274
+    ],
+    "content": [
+     157,
+     248
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -122,
+     -274
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.53521
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_01_s105.png",
+    "variant_of": "hub/trees/ring_tree_medium_01.png",
+    "display_scale": 1.05,
+    "size": [
+     268,
+     302
+    ],
+    "content": [
+     174,
+     274
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -134,
+     -302
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.59155
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_01_s110.png",
+    "variant_of": "hub/trees/ring_tree_medium_01.png",
+    "display_scale": 1.1,
+    "size": [
+     282,
+     317
+    ],
+    "content": [
+     182,
+     287
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -141,
+     -317
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.61972
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_01_s115.png",
+    "variant_of": "hub/trees/ring_tree_medium_01.png",
+    "display_scale": 1.15,
+    "size": [
+     294,
+     331
+    ],
+    "content": [
+     190,
+     300
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -147,
+     -331
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.64789
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_01_s125.png",
+    "variant_of": "hub/trees/ring_tree_medium_01.png",
+    "display_scale": 1.25,
+    "size": [
+     320,
+     360
+    ],
+    "content": [
+     207,
+     326
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -160,
+     -360
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.70422
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_01_s135.png",
+    "variant_of": "hub/trees/ring_tree_medium_01.png",
+    "display_scale": 1.35,
+    "size": [
+     346,
+     389
+    ],
+    "content": [
+     224,
+     352
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -173,
+     -389
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.76056
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_02_s095.png",
+    "variant_of": "hub/trees/ring_tree_medium_02.png",
+    "display_scale": 0.95,
+    "size": [
+     244,
+     274
+    ],
+    "content": [
+     174,
+     256
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -122,
+     -274
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.53521
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_02_s105.png",
+    "variant_of": "hub/trees/ring_tree_medium_02.png",
+    "display_scale": 1.05,
+    "size": [
+     268,
+     302
+    ],
+    "content": [
+     192,
+     283
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -134,
+     -302
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.59155
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_02_s110.png",
+    "variant_of": "hub/trees/ring_tree_medium_02.png",
+    "display_scale": 1.1,
+    "size": [
+     282,
+     317
+    ],
+    "content": [
+     201,
+     297
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -141,
+     -317
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.61972
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_02_s115.png",
+    "variant_of": "hub/trees/ring_tree_medium_02.png",
+    "display_scale": 1.15,
+    "size": [
+     294,
+     331
+    ],
+    "content": [
+     211,
+     310
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -147,
+     -331
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.64789
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_02_s120.png",
+    "variant_of": "hub/trees/ring_tree_medium_02.png",
+    "display_scale": 1.2,
+    "size": [
+     308,
+     346
+    ],
+    "content": [
+     220,
+     324
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -154,
+     -346
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.67606
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_02_s125.png",
+    "variant_of": "hub/trees/ring_tree_medium_02.png",
+    "display_scale": 1.25,
+    "size": [
+     320,
+     360
+    ],
+    "content": [
+     229,
+     337
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -160,
+     -360
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.70422
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_medium_02_s135.png",
+    "variant_of": "hub/trees/ring_tree_medium_02.png",
+    "display_scale": 1.35,
+    "size": [
+     346,
+     389
+    ],
+    "content": [
+     247,
+     364
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -173,
+     -389
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     28.8
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.76056
+   }
+  ],
+  "ring_tree_slim": [
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s080.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 0.8,
+    "size": [
+     128,
+     256
+    ],
+    "content": [
+     74,
+     255
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -64,
+     -256
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.4493
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s095.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 0.95,
+    "size": [
+     152,
+     304
+    ],
+    "content": [
+     88,
+     303
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -76,
+     -304
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.53354
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s105.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.05,
+    "size": [
+     168,
+     336
+    ],
+    "content": [
+     97,
+     335
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -84,
+     -336
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.5897
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s110.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.1,
+    "size": [
+     176,
+     352
+    ],
+    "content": [
+     101,
+     351
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -88,
+     -352
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.61778
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s115.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.15,
+    "size": [
+     184,
+     368
+    ],
+    "content": [
+     106,
+     367
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -92,
+     -368
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.64586
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s120.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.2,
+    "size": [
+     192,
+     384
+    ],
+    "content": [
+     111,
+     383
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -96,
+     -384
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.67394
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s125.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.25,
+    "size": [
+     200,
+     400
+    ],
+    "content": [
+     115,
+     399
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -100,
+     -400
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.70203
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s130.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.3,
+    "size": [
+     208,
+     416
+    ],
+    "content": [
+     120,
+     415
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -104,
+     -416
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.73011
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s135.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.35,
+    "size": [
+     216,
+     432
+    ],
+    "content": [
+     124,
+     431
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -108,
+     -432
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.75819
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s140.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.4,
+    "size": [
+     224,
+     448
+    ],
+    "content": [
+     129,
+     447
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -112,
+     -448
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.78627
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_slim_01_s150.png",
+    "variant_of": "hub/trees/ring_tree_slim_01.png",
+    "display_scale": 1.5,
+    "size": [
+     240,
+     480
+    ],
+    "content": [
+     138,
+     479
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -120,
+     -480
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     32.0
+    ],
+    "sprite_scale": 1,
+    "raw_px_factor": 0.84243
+   }
+  ]
+ }
+}
