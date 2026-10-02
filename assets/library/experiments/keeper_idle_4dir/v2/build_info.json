@@ -1,0 +1,109 @@
+{
+ "cand": "cand_A3v2",
+ "made": {
+  "S": "from the sheet",
+  "N": "from the sheet",
+  "E": "from the sheet",
+  "W": "mirror of E (every derived E frame flipped horizontally)"
+ },
+ "defringed_px": {
+  "S": 1,
+  "N": 0,
+  "E": 0
+ },
+ "dirs": {
+  "S": {
+   "regions": {
+    "top": 2,
+    "sole": 123,
+    "h": 122,
+    "head": 43,
+    "chest": 72,
+    "tips": 10,
+    "hem0": 98,
+    "hem1": 101
+   },
+   "eyes": [
+    [
+     55,
+     29,
+     60,
+     34,
+     33
+    ],
+    [
+     67,
+     29,
+     71,
+     34,
+     33
+    ]
+   ],
+   "made": "from the sheet",
+   "defringed_px": 1
+  },
+  "N": {
+   "regions": {
+    "top": 2,
+    "sole": 123,
+    "h": 122,
+    "head": 43,
+    "chest": 72,
+    "tips": 10,
+    "hem0": 99,
+    "hem1": 102
+   },
+   "eyes": [],
+   "made": "from the sheet",
+   "defringed_px": 0
+  },
+  "E": {
+   "regions": {
+    "top": 2,
+    "sole": 123,
+    "h": 122,
+    "head": 43,
+    "chest": 72,
+    "tips": 10,
+    "hem0": 99,
+    "hem1": 102
+   },
+   "eyes": [
+    [
+     65,
+     30,
+     69,
+     33,
+     32
+    ]
+   ],
+   "made": "from the sheet",
+   "defringed_px": 0
+  },
+  "W": {
+   "regions": {
+    "top": 2,
+    "sole": 123,
+    "h": 122,
+    "head": 43,
+    "chest": 72,
+    "tips": 10,
+    "hem0": 99,
+    "hem1": 102
+   },
+   "eyes": [
+    [
+     58,
+     30,
+     62,
+     33,
+     32
+    ]
+   ],
+   "made": "mirror of E (every derived E frame flipped horizontally)",
+   "defringed_px": 0
+  }
+ },
+ "frames": 12,
+ "hold_ms": 150
+}

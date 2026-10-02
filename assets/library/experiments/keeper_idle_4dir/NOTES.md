@@ -1,5 +1,7 @@
 # Keeper idle, 4 directions (S, N, E, W): phase 1 experiment
 
+> **v2 is in `v2/`** (live Keeper hair on all 4 directions, back rune at 70 %), see `v2/NOTES.md`. This page describes v1 (e3dff07); its files are unchanged.
+
 **Status:** experiment only. Not wired into the game; the live Keeper art in `assets/art/keeper/` is untouched.
 Branch `experiments/keeper-idle-4dir`, based on origin/main `25047b26ca3e75c9b934af7bce8db1b0699bf83f`.
 
