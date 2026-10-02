@@ -404,7 +404,7 @@ func _run() -> void:
 	game_state.set("lifetime_harvested", {"wood": 11, "stone": 7, "food": 5})
 
 	failed += _assert(bool(save_service.call("save_game", 1)), "save_game slot 1 failed")
-	# Confirm written save_version is 7 and no growth in payload
+	# Confirm written save_version is 10 and no growth in payload
 	var slot1_path: String = str(save_service.call("slot_path", 1))
 	var s1f := FileAccess.open(slot1_path, FileAccess.READ)
 	failed += _assert(s1f != null, "read slot 1")
@@ -412,7 +412,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 9, "written save_version 9")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 10, "written save_version 10")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -2035,7 +2035,7 @@ func _run() -> void:
 				var atlas_tex: AtlasTexture = rune_sprite2.texture as AtlasTexture if rune_sprite2 else null
 				failed += _assert(atlas_tex != null, "runestone uses the sheet atlas for %s" % sid)
 				if atlas_tex:
-					var expect := Rect2(cell.x * 32, cell.y * 32, 32, 32)
+					var expect := Rect2(cell.x * 64, cell.y * 64, 64, 64)
 					failed += _assert(atlas_tex.region == expect, "runestone region matches %s cell %s" % [sid, cell])
 			game_state.call("set_resource", &"manashards", 0)
 		var live_tree: Node = live_sheet.get_node_or_null("World/Manatree")
@@ -2554,7 +2554,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 9, "slot writes save_version 9")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 10, "slot writes save_version 10")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -2728,7 +2728,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_state.call("set_resource", &"manashards", 90)
 		game_state.set("forge_key", true)
 		echo.set("in_battle", true)
-		pause_menu.call("_do_load_slot", 1)
+		pause_menu.call("_do_load_slot", "manual", 1)
 		failed += _assert(not bool(echo.get("in_battle")), "load abandons the fight")
 		failed += _assert(int(game_state.get("manashards")) == 4 and not bool(game_state.get("forge_key")), "load does not keep battle rewards")
 		failed += _assert(bool(game_state.get("portal_fee_paid")), "loaded fee stays paid")
@@ -3627,6 +3627,8 @@ func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, bac
 	failed += _assert(absf(float(game_audio.get("last_cue_volume_db"))) < 0.01, "next play resets volume_db")
 	game_state.call("reset_for_new_game")
 	game_audio.call("clear_played_log")
+	# An earlier keeper harvest in this process can still be inside the 0.9s global gap.
+	await game_state.get_tree().create_timer(1.0, true).timeout
 	game_state.call("accumulate_keeper_harvest", &"wood", 2.0)
 	failed += _assert(bool(game_audio.call("did_play", &"sfx_gather_wood")), "keeper wood gather ticks")
 	game_audio.call("clear_played_log")
