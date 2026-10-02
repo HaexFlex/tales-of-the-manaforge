@@ -1,0 +1,37 @@
+{
+ "colors": [
+  [
+   100,
+   105,
+   108
+  ],
+  [
+   143,
+   151,
+   155
+  ],
+  [
+   187,
+   202,
+   205
+  ],
+  [
+   132,
+   10,
+   10
+  ],
+  [
+   186,
+   14,
+   12
+  ]
+ ],
+ "names": [
+  "iron_dark",
+  "iron_mid",
+  "iron_light",
+  "berry_dark",
+  "berry_red"
+ ],
+ "how": "iron: k-means(3) of off-palette (Lab dist>10) low-sat steel px over the axe f35-57 + pickaxe f38-64 downscaled frames; berry: 50th/70th lightness percentiles of saturated red px in berries f78-90 (k-means gave two near-identical reds); wood: Option A browns suffice (no extra)"
+}
