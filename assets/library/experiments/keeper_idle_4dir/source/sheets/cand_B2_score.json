@@ -1,0 +1,66 @@
+{
+ "sheet": "raw/cand_B2.png",
+ "bg_sampled": [
+  255,
+  0,
+  255
+ ],
+ "order": [
+  "S",
+  "N",
+  "E",
+  "W"
+ ],
+ "src_heights": {
+  "S": 591,
+  "N": 588,
+  "E": 590,
+  "W": 590
+ },
+ "shared_scale": 0.20643,
+ "views": {
+  "S": {
+   "skin_frac_head": 0.153,
+   "skin_offset_x": 0.8,
+   "width": 48,
+   "height": 122,
+   "clipped": false,
+   "scale": 0.20643
+  },
+  "N": {
+   "skin_frac_head": 0.004,
+   "skin_offset_x": -0.3,
+   "width": 48,
+   "height": 121,
+   "clipped": false,
+   "scale": 0.20643
+  },
+  "E": {
+   "skin_frac_head": 0.117,
+   "skin_offset_x": -4.5,
+   "width": 35,
+   "height": 122,
+   "clipped": false,
+   "scale": 0.20643
+  },
+  "W": {
+   "skin_frac_head": 0.116,
+   "skin_offset_x": -4.6,
+   "width": 35,
+   "height": 122,
+   "clipped": false,
+   "scale": 0.20643
+  }
+ },
+ "palette_overlap_pairs": {
+  "S-N": 0.668,
+  "S-E": 0.821,
+  "S-W": 0.834,
+  "N-E": 0.744,
+  "N-W": 0.738,
+  "E-W": 0.913
+ },
+ "palette_overlap_mean": 0.786,
+ "S_vs_live_idle_overlap": 0.465,
+ "game_height_spread_px": 1
+}

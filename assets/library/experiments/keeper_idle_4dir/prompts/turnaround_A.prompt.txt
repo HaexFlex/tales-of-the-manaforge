@@ -1,0 +1,7 @@
+Character turnaround sheet of the SAME character, "the Keeper", for a 2D top-down pixel-art game (Tales of the Manaforge).
+Exactly 4 full-body views in ONE horizontal row, left to right: FRONT (facing the viewer), BACK (facing away), facing RIGHT (side profile), facing LEFT (side profile).
+All 4 views: identical character, identical height and scale, feet standing on the same invisible baseline, evenly spaced with clear gaps, nothing overlapping, nothing cropped.
+Calm standing idle pose, arms relaxed at the sides, feet slightly apart, no weapon, no props.
+Design (match the attached reference exactly): young hero with bright green spiky hair, green eyes, long deep-blue coat to below the knees with orange-gold trim and a short shoulder cape, green tunic with a brown belt, brown trousers, brown leather boots. On the BACK view the coat shows the glowing cyan rune diamond like the attached back reference.
+Style: soft painted pixel art like the attached sprites, about 1 game pixel = 4-5 image pixels, soft dark outline, gentle top-left lighting, same lighting and same palette on all 4 views. Front view should look like the attached front sprite.
+Background: perfectly flat solid magenta #FF00FF everywhere, no gradient, no floor, no shadow, no text, no labels, no frame lines. Do not use any pink or magenta on the character.

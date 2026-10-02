@@ -1,0 +1,110 @@
+{
+  "clip": "idle_north",
+  "status": "experiment - not wired into the game",
+  "canvas": [
+    128,
+    128
+  ],
+  "anchor": "feet_center",
+  "anchor_px": [
+    64,
+    128
+  ],
+  "sprite_offset": [
+    -64,
+    -128
+  ],
+  "filter": "nearest",
+  "frames": 12,
+  "hold_ms": 150,
+  "loop_ms": 1800,
+  "loop": true,
+  "strip": "keeper_idle_north.png",
+  "layout": "horizontal",
+  "files": [
+    "keeper_idle_north_0001.png",
+    "keeper_idle_north_0002.png",
+    "keeper_idle_north_0003.png",
+    "keeper_idle_north_0004.png",
+    "keeper_idle_north_0005.png",
+    "keeper_idle_north_0006.png",
+    "keeper_idle_north_0007.png",
+    "keeper_idle_north_0008.png",
+    "keeper_idle_north_0009.png",
+    "keeper_idle_north_0010.png",
+    "keeper_idle_north_0011.png",
+    "keeper_idle_north_0012.png"
+  ],
+  "palette": "../palette.json",
+  "source": "cand_A3 key_N (from the sheet)",
+  "motion": {
+    "upper_dy": [
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      0,
+      0,
+      0
+    ],
+    "head_dy": [
+      0,
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      0,
+      0
+    ],
+    "hair_dx": [
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      0
+    ],
+    "hem_dx": [
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      0
+    ],
+    "blink_frame": null
+  },
+  "regions": {
+    "top": 3,
+    "sole": 123,
+    "h": 121,
+    "head": 44,
+    "chest": 73,
+    "tips": 11,
+    "hem0": 98,
+    "hem1": 101
+  },
+  "eyes": []
+}

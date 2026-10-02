@@ -1,0 +1,125 @@
+{
+  "clip": "idle_south",
+  "status": "experiment - not wired into the game",
+  "canvas": [
+    128,
+    128
+  ],
+  "anchor": "feet_center",
+  "anchor_px": [
+    64,
+    128
+  ],
+  "sprite_offset": [
+    -64,
+    -128
+  ],
+  "filter": "nearest",
+  "frames": 12,
+  "hold_ms": 150,
+  "loop_ms": 1800,
+  "loop": true,
+  "strip": "keeper_idle_south.png",
+  "layout": "horizontal",
+  "files": [
+    "keeper_idle_south_0001.png",
+    "keeper_idle_south_0002.png",
+    "keeper_idle_south_0003.png",
+    "keeper_idle_south_0004.png",
+    "keeper_idle_south_0005.png",
+    "keeper_idle_south_0006.png",
+    "keeper_idle_south_0007.png",
+    "keeper_idle_south_0008.png",
+    "keeper_idle_south_0009.png",
+    "keeper_idle_south_0010.png",
+    "keeper_idle_south_0011.png",
+    "keeper_idle_south_0012.png"
+  ],
+  "palette": "../palette.json",
+  "source": "cand_A3 key_S (from the sheet)",
+  "motion": {
+    "upper_dy": [
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      0,
+      0,
+      0
+    ],
+    "head_dy": [
+      0,
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      0,
+      0
+    ],
+    "hair_dx": [
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      0
+    ],
+    "hem_dx": [
+      0,
+      1,
+      1,
+      1,
+      1,
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      0
+    ],
+    "blink_frame": 10
+  },
+  "regions": {
+    "top": 2,
+    "sole": 123,
+    "h": 122,
+    "head": 43,
+    "chest": 72,
+    "tips": 10,
+    "hem0": 97,
+    "hem1": 100
+  },
+  "eyes": [
+    [
+      55,
+      24,
+      60,
+      30,
+      28
+    ],
+    [
+      67,
+      24,
+      72,
+      30,
+      28
+    ]
+  ]
+}

@@ -1,0 +1,4 @@
+Pixel-art sprite turnaround of the attached character (the Keeper), 4 views side by side in a single row on a flat solid magenta #FF00FF background: front, back, right side, left side.
+Same character, same size, same proportions, same colours in every view; full body, standing still with arms down (idle), feet on one shared ground line, wide even gaps between views.
+Keep his look from the attached front sprite: spiky bright-green hair, long blue coat with gold trim and shoulder cape, green tunic, brown belt and trousers, brown boots; back view shows the cyan rune on the coat like the attached back sprite.
+Soft painterly pixel art, soft dark outlines, top-left light. No pink or magenta on the character, no shadow, no ground, no text.
