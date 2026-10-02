@@ -1,0 +1,33 @@
+{
+ "clip": "walk_north",
+ "files": [
+  "walk_north_0000.png",
+  "walk_north_0001.png",
+  "walk_north_0002.png",
+  "walk_north_0003.png",
+  "walk_north_0004.png",
+  "walk_north_0005.png",
+  "walk_north_0006.png",
+  "walk_north_0007.png"
+ ],
+ "hold_ms": 100,
+ "loop": true,
+ "strip": "walk_north.png",
+ "assembly": {
+  "sheet": "back",
+  "frames": [
+   "04",
+   "01",
+   "00 +1px bob",
+   "01",
+   "07",
+   "01 legs-mirrored",
+   "00 legs-mirrored +1px bob",
+   "01 legs-mirrored"
+  ],
+  "leg_mirror_from_row": 97,
+  "body_cut_row": 102,
+  "base_top_row": 4,
+  "upper_body_locked_to": "04 (rows 0..96)"
+ }
+}

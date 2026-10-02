@@ -1,0 +1,32 @@
+{
+ "clip": "walk_east",
+ "files": [
+  "walk_east_0000.png",
+  "walk_east_0001.png",
+  "walk_east_0002.png",
+  "walk_east_0003.png",
+  "walk_east_0004.png",
+  "walk_east_0005.png",
+  "walk_east_0006.png",
+  "walk_east_0007.png"
+ ],
+ "hold_ms": 100,
+ "loop": true,
+ "strip": "walk_east.png",
+ "assembly": {
+  "sheet": "right",
+  "frames": [
+   "00",
+   "01",
+   "02",
+   "04",
+   "06",
+   "05",
+   "07",
+   "03"
+  ],
+  "base_top_row": 6,
+  "body_cut_row": 112,
+  "note": "all 8 source frames are the same mid-stride pose: no contact/passing alternation -> slides; regenerate"
+ }
+}
