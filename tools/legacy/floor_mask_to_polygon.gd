@@ -1,7 +1,7 @@
 extends SceneTree
 ## Manual only. Turns a floor-mask PNG into a wall CollisionPolygon2D for the Forge room.
 ## Not an autoload. Do not run from MANAFORGE_BAKE or bake_hub_layout.
-##   godot --headless --path . -s res://tools/floor_mask_to_polygon.gd -- res://path/mask.png
+##   godot --headless --path . -s res://tools/legacy/floor_mask_to_polygon.gd -- res://path/mask.png
 ## Prints a PackedVector2Array. Paste it onto scenes/forge_room.tscn Walls/CollisionPolygon2D.
 
 const BINS: int = 36

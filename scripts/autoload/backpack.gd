@@ -1,5 +1,5 @@
 extends Node
-## Crafted-item backpack + handcraft recipes. Thin module beside GameState (SYSTEMS v0.4.0).
+## Crafted-item backpack, handcraft recipes, and flavour tooltips.
 ## Resources stay on GameState. Backpack holds intermediates, tools, Fertilizer only.
 
 signal inventory_changed(item_id: StringName, new_amount: int)
@@ -147,6 +147,19 @@ func item_string_key(item_id: String) -> String:
 			return "item_%s" % item_id
 
 
+func item_tooltip(item_id: String) -> String:
+	if has_node("/root/Equipment") and Equipment.is_known_item(item_id):
+		return Equipment.item_tooltip(item_id)
+	var key: String = "%s_tooltip" % item_id
+	var labeled: String = ContentStrings.get_text(key)
+	if labeled != key and labeled != "":
+		return labeled
+	var named: String = item_display_name(item_id)
+	if named == item_id:
+		return ""
+	return named
+
+
 func item_display_name(item_id: String) -> String:
 	var key: String = item_string_key(item_id)
 	var labeled: String = ContentStrings.get_text(key)
@@ -269,7 +282,7 @@ func recipe_has_manashards(recipe_id: String) -> bool:
 
 
 func get_fertilizer_craft_cost_mult() -> float:
-	## SYSTEMS v0.4.0: floor(base * FERTILIZER_CRAFT_COST_MULT * green_thumb_mult), min 1.
+	## Backpack stacks, tool flags, and flavour tooltips.: floor(base * FERTILIZER_CRAFT_COST_MULT * green_thumb_mult), min 1.
 	var prestige: float = param_float("FERTILIZER_CRAFT_COST_MULT", 1.0)
 	var rank: int = GameState.get_upgrade_rank("green_thumb")
 	var thumb: float = maxf(0.0, 1.0 - 0.1 * float(rank))

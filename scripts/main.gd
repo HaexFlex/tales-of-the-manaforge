@@ -337,22 +337,30 @@ func _apply_boot_intent() -> void:
 	## Title sets continue / new / load. A direct main.tscn launch (verify) stays on auto.
 	var intent: String = str(SaveService.boot_intent)
 	var slot: int = int(SaveService.boot_slot)
+	var kind: String = str(SaveService.boot_slot_kind)
 	SaveService.boot_intent = "auto"
 	SaveService.boot_slot = 0
+	SaveService.boot_slot_kind = "manual"
 	match intent:
 		"forge_return":
-			pass
+			SaveService.note_session_started()
 		"new":
 			GameState.reset_for_new_game()
+			SaveService.note_session_started()
 		"continue":
 			if SaveService.has_save():
 				SaveService.load_game()
+			SaveService.note_session_started()
 		"load":
-			if slot >= 1 and SaveService.has_slot(slot):
+			if kind == "autosave" and SaveService.has_autosave(slot):
+				SaveService.load_autosave(slot)
+			elif slot >= 1 and SaveService.has_slot(slot):
 				SaveService.load_game(slot)
+			SaveService.note_session_started()
 		_:
 			if SaveService.has_save():
 				SaveService.load_game()
+			SaveService.note_session_started()
 
 
 func _ellipse_norm(pos: Vector2) -> float:
@@ -505,6 +513,9 @@ func handle_lmb_ground() -> void:
 
 
 func handle_rmb_ground(world_pos: Vector2) -> void:
+	if GameState.is_world_frozen():
+		GameState.note_frozen_deny()
+		return
 	## RMB empty ground: unassign every selected wisp, and walk the Keeper if he is selected.
 	var ids: Array[int] = GameState.selected_wisp_list()
 	var unassigned: bool = false

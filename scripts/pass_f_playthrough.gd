@@ -421,7 +421,7 @@ func _controls(main: Node) -> void:
 	var icon: TextureRect = hud.get_node("Panel/HelpButton/HelpIcon") as TextureRect
 	var expected: String = str(hud.call("_controls_line"))
 	_check("controls", "tooltip text is the controls line", str(btn.tooltip_text) == expected and expected.find("Right-click: command") >= 0, str(btn.tooltip_text))
-	var help_cell: AtlasTexture = HudIcons.cell(HudIcons.HELP)
+	var help_cell: Texture2D = HudIcons.cell(HudIcons.HELP)
 	_check("controls", "icon is the help sheet cell", icon.texture == help_cell and icon.texture != null)
 	var rect: Rect2 = btn.get_global_rect()
 	var view_w: float = root.get_viewport().get_visible_rect().size.x

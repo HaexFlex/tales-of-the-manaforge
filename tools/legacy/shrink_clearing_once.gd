@@ -2,7 +2,7 @@ extends SceneTree
 ## One-shot: shrink the 98ec4c3 clearing by 10% and close forest-ring gaps.
 ## Starts from the current scene. Does not restore an older layout and does not bake.
 ## Refuses to run again once play_width is already the tighter clearing.
-##   godot --headless --path . --script res://tools/shrink_clearing_once.gd
+##   godot --headless --path . --script res://tools/legacy/shrink_clearing_once.gd
 
 const SCALE: float = 0.9
 const PLAY: Vector2 = Vector2(4320, 3780)

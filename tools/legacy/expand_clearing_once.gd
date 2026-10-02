@@ -2,7 +2,7 @@ extends SceneTree
 ## One-shot layout pass: scale the baked forest ring by 1.5 and place the wide clearing.
 ## Does not set MANAFORGE_BAKE and does not call tools/bake_hub_layout.gd.
 ## Refuses to run again once Camera2D.limit_right is already the wide clearing.
-##   godot --headless --path . --script res://tools/expand_clearing_once.gd
+##   godot --headless --path . --script res://tools/legacy/expand_clearing_once.gd
 
 const SCALE: float = 1.5
 const SKIP: Array[String] = [

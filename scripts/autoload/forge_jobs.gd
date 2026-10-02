@@ -48,11 +48,9 @@ func _process(delta: float) -> void:
 	if _autosave_accum < every:
 		return
 	_autosave_accum = 0.0
-	if EchoChamber.in_battle or not SaveService.has_save():
+	if EchoChamber.in_battle or not SaveService.session_active:
 		return
-	var slot: int = SaveService.get_most_recent_slot()
-	if slot >= 1:
-		SaveService.save_game(slot)
+	SaveService.save_autosave(true)
 
 
 func _load_files() -> void:
@@ -358,7 +356,30 @@ func can_enter_forge() -> bool:
 
 
 func try_enter_forge() -> String:
+	if has_node("/root/GameState") and GameState.is_world_frozen():
+		return "denied"
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return "denied"
 	if not can_enter_forge():
+		return "denied"
+	if _keeper_task_kind() == "water" or _keeper_task_kind() == "harvest":
+		note_keeper_idle()
+	_return_to_clearing = false
+	_play(&"sfx_door_bark")
+	if has_node("/root/GameState"):
+		GameState.forge_visited = true
+	if has_node("/root/GameAudio"):
+		GameAudio.set_forge_room_mix(true, audio_lowpass_hz(), audio_reverb_room(), audio_music_db())
+	if _allow_scene_change:
+		get_tree().change_scene_to_file(FORGE_SCENE)
+	return "entered"
+
+
+func travel_to_forge() -> String:
+	## After the first visit the HUD button skips the Elder/Ancient gate. The door bark plays once.
+	if not has_node("/root/GameState") or not GameState.forge_visited:
+		return try_enter_forge()
+	if GameState.is_world_frozen() or (has_node("/root/EchoChamber") and EchoChamber.in_battle):
 		return "denied"
 	if _keeper_task_kind() == "water" or _keeper_task_kind() == "harvest":
 		note_keeper_idle()
@@ -376,6 +397,10 @@ func note_entered_forge() -> void:
 
 
 func exit_forge() -> void:
+	if has_node("/root/GameState") and GameState.is_world_frozen():
+		return
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return
 	if _keeper_station != "":
 		set_keeper_working("", false)
 	_return_to_clearing = true
@@ -490,9 +515,10 @@ func try_begin_job(station_id: String, recipe_id: String) -> String:
 		"progress": 0.0,
 		"duration": _duration(recipe),
 	}
-	_play(&"sfx_forge_craft_start")
-	if station_id == "press":
-		_play(&"sfx_press_squeeze")
+	if in_forge_scene():
+		_play(&"sfx_forge_craft_start")
+		if station_id == "press":
+			_play(&"sfx_press_squeeze")
 	return "ok"
 
 
@@ -587,6 +613,8 @@ func station_badge(station_id: String) -> String:
 
 func advance_seconds(seconds: float) -> void:
 	if seconds <= 0.0:
+		return
+	if has_node("/root/GameState") and GameState.is_world_frozen():
 		return
 	for station_id: String in STATION_IDS:
 		if not _jobs.has(station_id):
@@ -771,8 +799,6 @@ func _complete_job(station_id: String) -> bool:
 	if repeat and still and _can_pay(recipe):
 		_pay(recipe)
 		job["progress"] = float(job.get("progress", 0.0)) - duration
-		if not _silent:
-			_play(&"sfx_forge_craft_start")
 		return true
 	_jobs.erase(station_id)
 	return false

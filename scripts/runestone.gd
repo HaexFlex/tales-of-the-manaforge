@@ -14,8 +14,8 @@ class_name Runestone
 @onready var stone: Sprite2D = $Stone
 @onready var label: Label = $Label
 
-const RUNE_SHEET: String = "res://assets/art/props/runestones/runestones_sheet.png"
-const RUNE_CELL: int = 32
+const RUNE_SHEET: String = "res://assets/art/props/runestones/native/runestones_sheet.png"
+const RUNE_CELL: int = 64
 
 static var _layer: CanvasLayer
 static var _panel: Panel
@@ -57,8 +57,8 @@ func _ready() -> void:
 		stone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		stone.centered = false
 		stone.hframes = 1
-		stone.scale = Vector2(2, 2)
-		stone.offset = Vector2(-16, -32)
+		stone.scale = Vector2(1, 1)
+		stone.offset = Vector2(-32, -64)
 		_apply_sheet_frame()
 	_refresh()
 
@@ -71,8 +71,8 @@ func _apply_editor_preview() -> void:
 		stone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		stone.centered = false
 		stone.hframes = 1
-		stone.scale = Vector2(2, 2)
-		stone.offset = Vector2(-16, -32)
+		stone.scale = Vector2(1, 1)
+		stone.offset = Vector2(-32, -64)
 		_apply_sheet_frame()
 	if label:
 		label.text = String(stat_id).capitalize()
@@ -165,6 +165,9 @@ func is_spend_confirm_open() -> bool:
 
 
 func begin_spend() -> String:
+	if GameState.is_world_frozen():
+		GameState.note_frozen_deny()
+		return "blocked"
 	if _world_blocked():
 		return "blocked"
 	var sid: String = String(stat_id)

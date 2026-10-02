@@ -1,6 +1,6 @@
 extends SceneTree
 const EchoBattleScript := preload("res://scripts/echo_battle.gd")
-## Headless verification per SYSTEMS_V01 v0.6.1 — Echo Chamber v1, SAVE_VERSION 8.
+## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -56,7 +56,7 @@ func _run() -> void:
 		jobs.call("set_autosave_enabled", false)
 	failed += _assert(jobs != null, "ForgeJobs autoload missing")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 10, "expected 10 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION should be 9")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 10, "SAVE_VERSION should be 10")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -161,11 +161,11 @@ func _run() -> void:
 
 	# Art harvest nodes
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_tree.png"), "harvest_tree art")
-	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_stone.png"), "harvest_stone art")
+	failed += _assert(ResourceLoader.exists("res://assets/art/props/native/harvest_stone.png"), "harvest_stone art")
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_berry.png"), "harvest_berry art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/props/native/berry_harvest_node.png"), "berry_harvest_node art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/props/echo_portal_hub.png"), "echo_portal_hub art")
-	failed += _assert(FileAccess.file_exists("res://assets/art/ui/manaforge_hud_icons_sheet.png"), "hud icon sheet")
+	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icons/hud_character.png"), "hud character icon")
 
 	# Art v0.1.13 — cleaned inbox forest + Keeper south walk
 	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_large_01.png"), "ring_tree_large_01")
@@ -189,8 +189,7 @@ func _run() -> void:
 	var tree_big: Texture2D = load("res://assets/art/hub/trees/ring_tree_large_01.png") as Texture2D
 	failed += _assert(tree_big != null and tree_big.get_width() == 320 and tree_big.get_height() == 400, "ring_tree_large_01 is 320x400")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/native/keeper_idle_south_256.png"), "keeper native idle")
-	failed += _assert(FileAccess.file_exists("res://assets/library/Big Trees.png"), "library Big Trees.png")
-	failed += _assert(FileAccess.file_exists("res://assets/library/keeper_inbox/walk_south_09.png"), "library keeper walk_south_09")
+	## Big Trees.png and keeper_inbox/ move to legacy with Art. Do not assert them here.
 	failed += _assert(FileAccess.file_exists("res://assets/library/raw_refs/Big Trees.jpg"), "library raw_refs JPG")
 	failed += _assert(FileAccess.file_exists("res://docs/ASSETS_UPLOAD.md"), "ASSETS_UPLOAD docs")
 	var inbox_dir := DirAccess.open("res://Assets upload")
@@ -645,7 +644,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION stays 9 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 10, "SAVE_VERSION stays 10 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -747,8 +746,9 @@ func _run() -> void:
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_stage_up.ogg"), "sfx_stage_up missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_channel_start.ogg"), "sfx_channel_start missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex.mp3"), "hub haex.mp3 missing")
-	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex_loop.ogg"), "hub haex_loop.ogg fallback missing")
-	# Cue primary = Haex MP3 (Director); ogg haex_loop is GameAudio fallback
+	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex.mp3"), "hub bed mp3")
+	var legacy_ignore: String = ProjectSettings.globalize_path("res://assets/library/legacy/.gdignore")
+	failed += _assert(FileAccess.file_exists(legacy_ignore), "legacy folder is gdignored")
 	var hub_cues_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
 	var hub_root: Dictionary = hub_cues_raw as Dictionary
 	var hub_cues_tbl: Dictionary = hub_root.get("cues", {}) as Dictionary
@@ -1402,15 +1402,11 @@ func _run() -> void:
 					described += 1
 			failed += _assert(described == list_node.get_child_count(), "each blessing row has tooltip desc (%d/%d)" % [described, list_node.get_child_count()])
 			var icon_rows: int = 0
-			var sheet_keep: int = 0
 			for shop_row: Node in list_node.get_children():
 				var asc_icon: TextureRect = shop_row.find_child("AscIcon", true, false) as TextureRect
 				if asc_icon and asc_icon.texture and str(asc_icon.texture.resource_path).find("icon_asc_") >= 0 and asc_icon.custom_minimum_size == Vector2(32, 32):
 					icon_rows += 1
-				if asc_icon and asc_icon.texture and str(asc_icon.texture.resource_path).find("manaforge_hud_icons") >= 0:
-					sheet_keep += 1
 			failed += _assert(list_node.get_child_count() == 10 and icon_rows == 10, "every blessing row has a 32 icon (%d/%d)" % [icon_rows, list_node.get_child_count()])
-			failed += _assert(sheet_keep == 0, "Keep Tools is not HUD sheet cell 3")
 			failed += _assert(str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")
 		failed += _assert(not bool(w_post_ui.get("ok", true)), "water blocked after UI commit")
@@ -1783,7 +1779,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 9, "SAVE_VERSION is 9")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 10, "SAVE_VERSION is 10")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -2302,6 +2298,7 @@ func _run() -> void:
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
+	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2347,9 +2344,9 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(content_strings.call("get_text", "echo_01_mercy")).find("worth following") >= 0, "echo_01_mercy full line")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_spare")).find("Then I stay") >= 0, "echo_01_spare")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_defeat")).find("I can sleep") >= 0, "echo_01_defeat")
-	failed += _assert(str(content_strings.call("get_text", "echo_01_flee")).find("glade still needs you") >= 0, "echo_01_flee")
+	failed += _assert(str(content_strings.call("get_text", "echo_01_flee")).find("clearing still needs you") >= 0, "echo_01_flee")
 	failed += _assert(str(content_strings.call("get_text", "forge_key_relic_name")) == "Forge Key", "forge_key_relic_name")
-	failed += _assert(str(content_strings.call("get_text", "forge_key_relic_tooltip")).find("+2 Swiftness") >= 0, "forge_key_relic_tooltip")
+	failed += _assert(str(equipment.call("item_tooltip", "forge_key_relic")).find("+2 Swiftness") >= 0, "forge_key relic tooltip stats")
 	failed += _assert(str(content_strings.call("get_text", "forge_key_relic_grant")).find("settles with you") >= 0, "forge_key_relic_grant")
 	failed += _assert(str(content_strings.call("get_text", "battle_log_title")) == "Battle", "battle_log_title")
 	failed += _assert(str(content_strings.call("get_text", "battle_log_strike_you")) == "You strike.", "battle_log_strike_you")
@@ -3598,3 +3595,124 @@ func _assert(cond: bool, msg: String) -> int:
 		return 0
 	printerr("ASSERT FAIL: %s" % msg)
 	return 1
+
+
+func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node("ForgeJobs")
+	var equipment: Node = tree_root.get_node("Equipment")
+	game_state.call("reset_for_new_game")
+	failed += _assert(int(game_state.call("get_water_essence_amount")) == 1, "deep roots rank 0 → 1")
+	var ranks: Dictionary = game_state.get("upgrade_ranks")
+	ranks["deep_roots"] = 1
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(int(game_state.call("get_water_essence_amount")) == 1, "deep roots rank 1 → 1")
+	ranks["deep_roots"] = 2
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(int(game_state.call("get_water_essence_amount")) == 2, "deep roots rank 2 → 2")
+	ranks["deep_roots"] = 10
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(int(game_state.call("get_water_essence_amount")) == 6, "deep roots rank 10 → 6")
+	var deep: Dictionary = game_state.call("get_upgrade_def", "deep_roots")
+	failed += _assert(absf(float(deep.get("value_per_rank", 0.0)) - 0.5) < 0.001, "deep roots value_per_rank 0.5")
+	failed += _assert(absf(float(game_audio.call("duck_amount_db")) + 5.0) < 0.01, "duck amount -5")
+	failed += _assert(absf(float(game_audio.call("duck_attack_sec")) - 0.05) < 0.001, "duck attack 0.05")
+	failed += _assert(absf(float(game_audio.call("duck_release_sec")) - 0.6) < 0.001, "duck release 0.6")
+	failed += _assert(str(game_audio.call("duck_hold")) == "while_playing", "duck holds while playing")
+	game_audio.call("clear_played_log")
+	game_audio.call("play_quiet", &"sfx_ui_confirm", -14.0)
+	failed += _assert(absf(float(game_audio.get("last_cue_volume_db")) + 14.0) < 0.01, "quiet sets its own dB")
+	game_audio.call("play", &"sfx_ui_cancel")
+	failed += _assert(absf(float(game_audio.get("last_cue_volume_db"))) < 0.01, "next play resets volume_db")
+	game_state.call("reset_for_new_game")
+	game_audio.call("clear_played_log")
+	game_state.call("accumulate_keeper_harvest", &"wood", 2.0)
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_gather_wood")), "keeper wood gather ticks")
+	game_audio.call("clear_played_log")
+	game_state.call("accumulate_keeper_harvest", &"stone", 2.0)
+	failed += _assert(not bool(game_audio.call("did_play", &"sfx_gather_stone")), "gather gap skips the next tick")
+	game_audio.call("clear_played_log")
+	game_state.call("accumulate_wisp_harvest", &"food", 20.0)
+	failed += _assert(not bool(game_audio.call("did_play", &"sfx_gather_food")), "wisp harvest stays silent")
+	game_audio.call("clear_played_log")
+	game_state.call("apply_save_dict", {"stage_id": "young", "wood": 3})
+	await game_state.get_tree().process_frame
+	failed += _assert(not bool(game_audio.call("did_play", &"sfx_stage_up")), "load does not play stage_up")
+	failed += _assert(not bool(game_audio.call("did_play", &"sfx_fruit_ready")), "load does not play fruit_ready")
+	game_audio.call("clear_played_log")
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_stage_up")), "ancient plays stage_up now")
+	failed += _assert(not bool(game_audio.call("did_play", &"sfx_fruit_ready")), "fruit_ready waits")
+	await game_state.get_tree().create_timer(0.85, true).timeout
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_fruit_ready")), "fruit_ready follows stage_up")
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	game_state.set("ancient_remaining_sec", 0.2)
+	game_state.call("tick_ancient", 0.3)
+	failed += _assert(bool(game_state.get("ancient_frozen")), "timeout freezes the clearing")
+	failed += _assert(bool(game_state.get("fruit_committed")), "timeout keeps the fruit committed")
+	game_state.call("cancel_fruit_commit")
+	failed += _assert(bool(game_state.get("fruit_committed")), "frozen commit cannot be cancelled")
+	game_state.call("reset_for_new_game")
+	game_state.call("_set_stage", &"ancient")
+	game_state.call("harvest_fruit")
+	failed += _assert(not bool(game_state.get("ancient_frozen")), "manual harvest stays cancelable")
+	game_state.call("cancel_fruit_commit")
+	failed += _assert(not bool(game_state.get("fruit_committed")), "manual close clears the commit")
+	var frozen_save: Dictionary = save_service.call("_migrate", 9, {
+		"stage_id": "ancient",
+		"ancient_remaining_sec": 0.0,
+		"fruit_committed": false,
+	})
+	failed += _assert(bool(frozen_save.get("ancient_frozen", false)), "v9 timer at 0 becomes frozen")
+	failed += _assert(bool(frozen_save.get("fruit_committed", false)), "v9 timer at 0 commits the fruit")
+	var open_save: Dictionary = save_service.call("_migrate", 9, {
+		"stage_id": "ancient",
+		"ancient_remaining_sec": 40.0,
+		"fruit_committed": true,
+	})
+	failed += _assert(not bool(open_save.get("ancient_frozen", true)), "v9 live timer is not frozen")
+	var visited: Dictionary = save_service.call("_migrate", 9, {"forge_key": true, "stage_id": "sapling"})
+	failed += _assert(bool(visited.get("forge_visited", false)), "old forge key infers a visit")
+	save_service.call("delete_save")
+	save_service.set("session_active", true)
+	failed += _assert(bool(save_service.call("save_game", 2)), "manual slot 2 writes")
+	failed += _assert(bool(save_service.call("has_slot", 2)), "manual slot 2 exists")
+	failed += _assert(bool(save_service.call("save_autosave", true)), "autosave 1")
+	failed += _assert(bool(save_service.call("save_autosave", true)), "autosave 2")
+	failed += _assert(bool(save_service.call("save_autosave", true)), "autosave 3")
+	var before: Dictionary = save_service.call("get_autosave_info", 1)
+	failed += _assert(bool(save_service.call("save_autosave", true)), "autosave rotates")
+	var after: Dictionary = save_service.call("get_autosave_info", 1)
+	failed += _assert(float(after.get("timestamp", 0.0)) >= float(before.get("timestamp", 1.0)), "oldest autosave was replaced")
+	failed += _assert(bool(save_service.call("has_slot", 2)), "autosave left the manual slot")
+	failed += _assert(not bool(save_service.call("has_slot", 1)), "new game path did not write slot 1")
+	var recent: Dictionary = save_service.call("get_most_recent_record")
+	failed += _assert(str(recent.get("kind", "")) == "autosave", "continue sees the newest autosave")
+	jobs.call("set_scene_changes_enabled", false)
+	jobs.call("set_in_forge_override", 1)
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 80)
+	jobs.call("set_keeper_working", "mill", true)
+	game_audio.call("clear_played_log")
+	failed += _assert(str(jobs.call("try_begin_job", "mill", "heartwood_bits")) == "ok", "manual mill start")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_forge_craft_start")), "manual start plays craft_start")
+	game_audio.call("clear_played_log")
+	jobs.call("advance_seconds", 60.0)
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_forge_craft_done")), "repeat still finishes with craft_done")
+	failed += _assert(not bool(game_audio.call("did_play", &"sfx_forge_craft_start")), "auto-repeat does not replay craft_start")
+	var tip: String = str(equipment.call("item_tooltip", "rootsteel_edge"))
+	failed += _assert(tip.find("Rootsteel") < 0 or tip.find("blade") >= 0, "rootsteel flavour")
+	failed += _assert(tip.find("+5") >= 0 and tip != "rootsteel_edge", "rootsteel tooltip is not the id")
+	var mat: String = str(backpack.call("item_tooltip", "sapsteel"))
+	failed += _assert(mat.find("Sapsteel") >= 0 or mat.find("Stone warmed") >= 0, "sapsteel flavour")
+	failed += _assert(mat != "sapsteel", "sapsteel tooltip is not the id")
+	failed += _assert(str(content_strings.call("get_text", "ascend_frozen_button")) == "Ascend", "frozen button label")
+	failed += _assert(str(content_strings.call("get_text", "nav_to_clearing")) == "To the Clearing", "clearing nav label")
+	save_service.call("delete_save")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	jobs.call("set_scene_changes_enabled", true)
+	save_service.set("session_active", false)
+	return failed

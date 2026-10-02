@@ -25,7 +25,13 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		_fit_marker()
 		if label:
-			label.text = "Echo"
+			var shown := "Echo"
+			var cs: Node = get_tree().root.get_node_or_null("ContentStrings") if get_tree() else null
+			if cs != null and cs.has_method("get_text"):
+				var labeled: String = str(cs.call("get_text", "portal_label"))
+				if labeled != "":
+					shown = labeled
+			label.text = shown
 			label.visible = true
 		return
 	add_to_group("echo_portal")
@@ -133,6 +139,9 @@ func on_interact(_keeper: Node) -> void:
 
 
 func begin_entry() -> String:
+	if GameState.is_world_frozen():
+		GameState.note_frozen_deny()
+		return "blocked"
 	if EchoChamber.in_battle:
 		return "blocked"
 	if not EchoChamber.portal_visible():

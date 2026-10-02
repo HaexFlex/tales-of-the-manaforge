@@ -6,7 +6,7 @@ class_name PauseMenu
 signal status_toast(text: String)
 signal new_game_started
 signal game_loaded
-signal standalone_load_requested(slot: int)
+signal standalone_load_requested(slot: int, kind: String)
 
 enum SlotMode { NONE, SAVE, LOAD }
 
@@ -108,16 +108,7 @@ func _apply_strings() -> void:
 
 
 func _build_slot_buttons() -> void:
-	for child: Node in slot_buttons.get_children():
-		child.queue_free()
-	_slot_btns.clear()
-	for slot: int in range(1, SaveService.SAVE_SLOT_COUNT + 1):
-		var btn := Button.new()
-		btn.name = "Slot%d" % slot
-		btn.custom_minimum_size = Vector2(400, 36)
-		btn.pressed.connect(_on_slot_pressed.bind(slot))
-		slot_buttons.add_child(btn)
-		_slot_btns.append(btn)
+	_rebuild_slot_rows(false)
 
 
 func open_load_standalone() -> void:
@@ -299,6 +290,7 @@ func _on_exit_pressed() -> void:
 
 func _show_slots(title: String) -> void:
 	slots_title.text = title
+	_rebuild_slot_rows(_slot_mode == SlotMode.LOAD)
 	_refresh_slot_labels()
 	slots_panel.visible = true
 	GameAudio.play_ui_open()
@@ -317,29 +309,68 @@ func _hide_slots() -> void:
 	_slot_mode = SlotMode.NONE
 
 
+func _rebuild_slot_rows(include_autosave: bool) -> void:
+	for child: Node in slot_buttons.get_children():
+		child.queue_free()
+	_slot_btns.clear()
+	if include_autosave:
+		_add_slot_header("AutosaveHeader", ContentStrings.get_text("load_autosave_header"))
+		for slot: int in range(1, SaveService.AUTOSAVE_SLOT_COUNT + 1):
+			_add_slot_button("autosave", slot)
+		_add_slot_header("ManualHeader", ContentStrings.get_text("load_manual_header"))
+	for slot: int in range(1, SaveService.SAVE_SLOT_COUNT + 1):
+		_add_slot_button("manual", slot)
+
+
+func _add_slot_header(node_name: String, text: String) -> void:
+	var header := Label.new()
+	header.name = node_name
+	header.text = text
+	header.add_theme_font_size_override("font_size", 16)
+	header.add_theme_color_override("font_color", Color(0.93, 0.86, 0.62, 1))
+	slot_buttons.add_child(header)
+
+
+func _add_slot_button(kind: String, slot: int) -> void:
+	var btn := Button.new()
+	btn.name = "%s%d" % [kind.capitalize(), slot]
+	btn.custom_minimum_size = Vector2(400, 28 if _slot_mode == SlotMode.LOAD else 36)
+	btn.set_meta("slot_kind", kind)
+	btn.set_meta("slot_index", slot)
+	btn.pressed.connect(_on_slot_pressed.bind(kind, slot))
+	slot_buttons.add_child(btn)
+	_slot_btns.append(btn)
+
+
 func _refresh_slot_labels() -> void:
-	for i: int in range(_slot_btns.size()):
-		var slot: int = i + 1
-		var btn: Button = _slot_btns[i]
-		var info: Dictionary = SaveService.get_slot_info(slot)
+	for btn: Button in _slot_btns:
+		var kind: String = str(btn.get_meta("slot_kind", "manual"))
+		var slot: int = int(btn.get_meta("slot_index", 0))
+		var info: Dictionary = SaveService.get_autosave_info(slot) if kind == "autosave" else SaveService.get_slot_info(slot)
 		var line: String
 		if bool(info.get("filled", false)):
-			line = "Slot %d — %s" % [
-				slot,
-				ContentStrings.get_text("pause_slot_filled", {
-					"ascensions": int(info.get("ascensions", 0)),
-					"stage_display": str(info.get("stage_display", "")),
-				}),
-			]
+			var filled: String = ContentStrings.get_text("pause_slot_filled", {
+				"ascensions": int(info.get("ascensions", 0)),
+				"stage_display": str(info.get("stage_display", "")),
+			})
+			if kind == "autosave":
+				line = "%s — %s" % [ContentStrings.get_text("load_autosave_slot", {"n": slot}), filled]
+			else:
+				line = "Slot %d — %s" % [slot, filled]
 			var essence: int = int(info.get("essence", 0))
 			if essence > 0:
 				line += " · %s %d" % [ContentStrings.get_text("hud_essence"), essence]
+		elif kind == "autosave":
+			line = "%s — %s" % [
+				ContentStrings.get_text("load_autosave_slot", {"n": slot}),
+				ContentStrings.get_text("pause_slot_empty"),
+			]
 		else:
 			line = "Slot %d — %s" % [slot, ContentStrings.get_text("pause_slot_empty")]
 		btn.text = line
 
 
-func _on_slot_pressed(slot: int) -> void:
+func _on_slot_pressed(kind: String, slot: int) -> void:
 	if _slot_mode == SlotMode.SAVE:
 		var info: Dictionary = SaveService.get_slot_info(slot)
 		if bool(info.get("filled", false)):
@@ -353,7 +384,7 @@ func _on_slot_pressed(slot: int) -> void:
 		else:
 			_do_save_slot(slot)
 	elif _slot_mode == SlotMode.LOAD:
-		_do_load_slot(slot)
+		_do_load_slot(kind, slot)
 
 
 func _do_save_slot(slot: int) -> void:
@@ -367,20 +398,20 @@ func _do_save_slot(slot: int) -> void:
 		status_toast.emit(ContentStrings.get_text("pause_save_fail"))
 
 
-func _do_load_slot(slot: int) -> void:
+func _do_load_slot(kind: String, slot: int) -> void:
+	var filled: bool = SaveService.has_autosave(slot) if kind == "autosave" else SaveService.has_slot(slot)
 	if standalone:
-		if not SaveService.has_slot(slot):
+		if not filled:
 			status_toast.emit(ContentStrings.get_text("pause_load_empty"))
 			return
-		var chosen: int = slot
 		close_standalone()
-		standalone_load_requested.emit(chosen)
+		standalone_load_requested.emit(slot, kind)
 		return
-	if not SaveService.has_slot(slot):
+	if not filled:
 		status_toast.emit(ContentStrings.get_text("pause_load_empty"))
 		return
 	var was_echo: bool = EchoChamber.in_battle
-	var ok: bool = SaveService.load_game(slot)
+	var ok: bool = SaveService.load_autosave(slot) if kind == "autosave" else SaveService.load_game(slot)
 	if ok:
 		if was_echo:
 			EchoChamber.dismiss_battle_without_reward()
@@ -432,6 +463,9 @@ func _on_confirm_yes() -> void:
 		&"new_game":
 			_do_new_game()
 		&"exit":
+			if not EchoChamber.in_battle:
+				SaveService.save_on_quit()
+			SaveService.note_session_ended()
 			get_tree().paused = false
 			if EchoChamber.in_battle:
 				EchoChamber.dismiss_battle_without_reward()

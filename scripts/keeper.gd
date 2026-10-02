@@ -118,6 +118,13 @@ func _add_anim(frames: SpriteFrames, anim: StringName, paths: Array, hold_ms: fl
 
 
 func _physics_process(delta: float) -> void:
+	if GameState.is_world_frozen():
+		if _moving or _channel_kind != ChannelKind.NONE:
+			halt()
+		velocity = Vector2.ZERO
+		move_and_slide()
+		_update_anim()
+		return
 	if _moving:
 		var speed: float = GameState.get_move_speed()
 		var to_target: Vector2 = _target - global_position
@@ -157,6 +164,9 @@ func halt() -> void:
 
 
 func move_to(world_pos: Vector2, interact: Node = null) -> void:
+	if GameState.is_world_frozen():
+		GameState.note_frozen_deny()
+		return
 	# New move / other interact cancels active channel.
 	if _channel_kind != ChannelKind.NONE:
 		if interact != _channel_target:
@@ -167,6 +177,9 @@ func move_to(world_pos: Vector2, interact: Node = null) -> void:
 
 
 func start_harvest_channel(node: Gatherable) -> void:
+	if GameState.is_world_frozen():
+		GameState.note_frozen_deny()
+		return
 	if node == null:
 		return
 	cancel_channel()
@@ -183,6 +196,9 @@ func start_harvest_channel(node: Gatherable) -> void:
 
 
 func start_water_channel(tree: Manatree) -> void:
+	if GameState.is_world_frozen():
+		GameState.note_frozen_deny()
+		return
 	if tree == null:
 		return
 	cancel_channel()

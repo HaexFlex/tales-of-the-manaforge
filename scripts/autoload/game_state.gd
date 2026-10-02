@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.4.0 — Grow (Fertilizer+Essence), backpack via Backpack autoload. Fully typed.
+## Run state: Grow, Ancient timeout freeze, Forge visit, wisps, and Echo flags.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -16,6 +16,7 @@ signal wisp_unassigned(wisp_id: int)
 signal wisp_pulsed(resource_id: StringName)
 signal echo_flags_changed
 signal ancient_expired
+signal keeper_harvested(resource_id: StringName, amount: int)
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -54,6 +55,13 @@ var forge_key: bool = false
 var echo_01_narrator_heard: bool = false
 ## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
 var arrow_mode: String = "physical"
+## True after the Ancient timer hits 0. The Fruit stays committed and the clearing holds still.
+var ancient_frozen: bool = false
+## Set on the first successful Forge entry. Old saves infer it in the v10 migrate.
+var forge_visited: bool = false
+## True while apply_save_dict is writing state. Milestone cues stay silent.
+var applying_save: bool = false
+var _frozen_deny_msec: int = -100000000
 
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
@@ -127,6 +135,9 @@ func _ensure_character_sheet_action() -> void:
 
 func _process(delta: float) -> void:
 	## Pausable by default — stops when get_tree().paused (pause menu).
+	## A frozen Ancient does not bank run time, so staring at Ascend does not reset the offline curve.
+	if ancient_frozen:
+		return
 	run_time_sec += delta
 	active_since_load_sec += delta
 	tick_ancient(delta)
@@ -630,10 +641,11 @@ func get_effect_total(effect_name: String) -> float:
 
 
 func get_water_essence_amount() -> int:
-	## Base + floor(deep_roots_rank / 2) per SYSTEMS v0.2.0.
+	## Base + floor(value_per_rank × rank). Deep Roots is 0.5, so +1 Essence every 2 ranks.
 	var base_amt: int = param_int("WATER_ESSENCE_PER_SEC", 1)
 	var deep_rank: int = get_upgrade_rank("deep_roots")
-	return base_amt + int(floor(float(deep_rank) / 2.0))
+	var per: float = float(get_upgrade_def("deep_roots").get("value_per_rank", 0.5))
+	return base_amt + int(floor(per * float(deep_rank)))
 
 
 func get_stage_gather_mult() -> float:
@@ -743,11 +755,14 @@ func accumulate_harvest(resource_id: StringName, units: float) -> int:
 
 
 func accumulate_keeper_harvest(resource_id: StringName, delta: float) -> int:
-	if fruit_committed or delta <= 0.0 or not resource_id in HARVEST_IDS:
+	if fruit_committed or ancient_frozen or delta <= 0.0 or not resource_id in HARVEST_IDS:
 		return 0
 	var interval: float = maxf(get_keeper_harvest_pulse_sec(resource_id), 0.05)
 	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor()
-	return accumulate_harvest(resource_id, units)
+	var grant: int = accumulate_harvest(resource_id, units)
+	if grant > 0:
+		keeper_harvested.emit(resource_id, grant)
+	return grant
 
 
 func accumulate_wisp_harvest(resource_id: StringName, delta: float) -> int:
@@ -1122,6 +1137,7 @@ func tick_ancient(delta: float) -> void:
 		return
 	ancient_remaining_sec = 0.0
 	if harvest_fruit() > 0:
+		ancient_frozen = true
 		ancient_expired.emit()
 
 
@@ -1257,6 +1273,7 @@ func ascend() -> void:
 	manashards = 0
 	essence = 0
 	_set_fruit_committed(false)
+	ancient_frozen = false
 	fruit_ready = false
 	wisp_count = get_upgrade_rank("bonus_wisp")
 	wisp_assignments.clear()
@@ -1340,10 +1357,13 @@ func to_save_dict() -> Dictionary:
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
 		"arrow_mode": arrow_mode,
+		"ancient_frozen": ancient_frozen,
+		"forge_visited": forge_visited,
 	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {})
 
 
 func apply_save_dict(data: Dictionary) -> void:
+	applying_save = true
 	wood = int(data.get("wood", 0))
 	stone = int(data.get("stone", 0))
 	food = int(data.get("food", 0))
@@ -1389,6 +1409,12 @@ func apply_save_dict(data: Dictionary) -> void:
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
+	ancient_frozen = bool(data.get("ancient_frozen", false))
+	forge_visited = bool(data.get("forge_visited", false))
+	if ancient_frozen:
+		_set_fruit_committed(true)
+		fruit_ready = false
+		ancient_remaining_sec = 0.0
 	lifetime_waters = int(data.get("lifetime_waters", 0))
 	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
 	lifetime_essence_from_water = int(data.get("lifetime_essence_from_water", 0))
@@ -1443,6 +1469,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	upgrades_changed.emit()
 	echo_flags_changed.emit()
 	load_completed.emit()
+	applying_save = false
 
 
 func _save_holds_relic(data: Dictionary) -> bool:
@@ -1531,6 +1558,8 @@ func reset_for_new_game() -> void:
 	forge_key = false
 	echo_01_narrator_heard = false
 	arrow_mode = "physical"
+	ancient_frozen = false
+	forge_visited = false
 	echo_flags_changed.emit()
 	Backpack.reset_for_new_game()
 	if has_node("/root/KeeperStats"):
@@ -1552,9 +1581,21 @@ func reset_for_new_game() -> void:
 	upgrades_changed.emit()
 
 
+func is_world_frozen() -> bool:
+	return ancient_frozen
+
+
+func note_frozen_deny() -> void:
+	var now: int = Time.get_ticks_msec()
+	if now - _frozen_deny_msec < 1600:
+		return
+	_frozen_deny_msec = now
+	status_message.emit(ContentStrings.get_text("ascend_frozen_deny"))
+
+
 func cancel_fruit_commit() -> void:
-	## Close on the Ascension shop. Harvest does not lock the run; Ascend does.
-	if not fruit_committed:
+	## A manual harvest can still be cancelled. The Ancient timeout cannot.
+	if ancient_frozen or not fruit_committed:
 		return
 	_set_fruit_committed(false)
 	var def: Dictionary = get_stage_def(stage_id)

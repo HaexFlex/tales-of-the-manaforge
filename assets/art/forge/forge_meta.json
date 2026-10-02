@@ -449,7 +449,7 @@
     "walkable_to_y": 1161,
     "painted_arch_px": "~160 interior, ~182 incl. jamb shadows"
    },
-   "tool_note": "tools/floor_mask_to_polygon.gd gives ~70 points (verify expects 74) and a ~110 px door; drag the two door points to x720/x880"
+   "tool_note": "tools/legacy/floor_mask_to_polygon.gd gives ~70 points (verify expects 74) and a ~110 px door; drag the two door points to x720/x880"
   },
   "checks": {
    "crucible": {

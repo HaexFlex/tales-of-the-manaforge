@@ -190,12 +190,48 @@ func item_display_name(item_id: String) -> String:
 
 func item_tooltip(item_id: String) -> String:
 	var def: Dictionary = get_item_def(item_id)
+	var flavor: String = ""
 	var key: String = str(def.get("tooltip_key", ""))
 	if key != "":
 		var labeled: String = ContentStrings.get_text(key)
 		if labeled != key and labeled != "":
-			return labeled
-	return item_display_name(item_id)
+			flavor = labeled
+	var stats: String = _generated_stat_lines(def)
+	if flavor != "" and stats != "":
+		return "%s\n%s" % [flavor, stats]
+	if flavor != "":
+		return flavor
+	if stats != "":
+		return stats
+	var named: String = item_display_name(item_id)
+	if named == item_id:
+		return ""
+	return named
+
+
+func _generated_stat_lines(def: Dictionary) -> String:
+	var lines: PackedStringArray = PackedStringArray()
+	var bonuses_v: Variant = def.get("bonuses", {})
+	if typeof(bonuses_v) == TYPE_DICTIONARY:
+		for stat_id: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+			var amount: int = int((bonuses_v as Dictionary).get(stat_id, 0))
+			if amount == 0:
+				continue
+			var stat_name: String = stat_id.capitalize()
+			if has_node("/root/KeeperStats"):
+				stat_name = KeeperStats.stat_display_name(stat_id)
+			var sign: String = "+" if amount > 0 else ""
+			lines.append("%s%d %s" % [sign, amount, stat_name])
+	var kind: String = str(def.get("damage_kind", ""))
+	if kind != "":
+		lines.append(kind.capitalize())
+	var damage: int = int(def.get("damage", 0))
+	if damage > 0:
+		if kind != "":
+			lines[lines.size() - 1] = "%d %s" % [damage, kind.capitalize()]
+		else:
+			lines.append(str(damage))
+	return "\n".join(lines)
 
 
 func item_color(item_id: String) -> Color:

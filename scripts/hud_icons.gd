@@ -1,11 +1,20 @@
 class_name HudIcons
 extends RefCounted
-## Atlas slices of manaforge_hud_icons_sheet.png (1280×512, 5×2 cells of 256).
-## Cell order is left to right, then the next row. Nearest-neighbor only.
+## Single 32×32 HUD icons. Cell order matches the old sheet (left to right, then the next row).
+## Nearest-neighbor only. The 1280×512 sheet is no longer read.
 
-const SHEET_PATH: String = "res://assets/art/ui/manaforge_hud_icons_sheet.png"
-const CELL: int = 256
-const COLS: int = 5
+const CELL_PATHS: PackedStringArray = [
+	"res://assets/art/ui/icons/hud_character.png",
+	"res://assets/art/ui/icons/hud_help.png",
+	"res://assets/art/ui/icons/hud_ascension.png",
+	"res://assets/art/ui/icons/hud_keep_tools.png",
+	"res://assets/art/ui/icons/hud_wooden_basket.png",
+	"res://assets/art/ui/icons/hud_watering_can.png",
+	"res://assets/art/ui/icons/hud_stone_sword_old.png",
+	"res://assets/art/ui/icons/icon_weapon_rod.png",
+	"res://assets/art/ui/icons/hud_equip_empty.png",
+	"res://assets/art/ui/icons/hud_equip_locked.png",
+]
 
 const CHARACTER: int = 0
 const HELP: int = 1
@@ -13,33 +22,28 @@ const ASCENSION: int = 2
 const KEEP_TOOLS: int = 3
 const WOODEN_BASKET: int = 4
 const WATERING_CAN: int = 5
-## Sheet cell 6 still holds the old sword art. Flintblade resolves through art_name instead.
+## Cell 6 is the old sword art. Flintblade resolves through art_name instead.
 const STONE_SWORD: int = 6
 const WEAPON_ROD: int = 7
 const EQUIP_EMPTY: int = 8
 const EQUIP_LOCKED: int = 9
 
-static var _sheet: Texture2D
 static var _cache: Dictionary = {}
 
 
-static func sheet() -> Texture2D:
-	if _sheet == null:
-		_sheet = load(SHEET_PATH) as Texture2D
-	return _sheet
+static func path_for(index: int) -> String:
+	if index < 0 or index >= CELL_PATHS.size():
+		return ""
+	return CELL_PATHS[index]
 
 
-static func cell(index: int) -> AtlasTexture:
+static func cell(index: int) -> Texture2D:
 	if _cache.has(index):
-		return _cache[index] as AtlasTexture
-	var atlas := AtlasTexture.new()
-	atlas.atlas = sheet()
-	var col: int = posmod(index, COLS)
-	var row: int = int(index / COLS)
-	atlas.region = Rect2(col * CELL, row * CELL, CELL, CELL)
-	atlas.filter_clip = true
-	_cache[index] = atlas
-	return atlas
+		return _cache[index] as Texture2D
+	var path: String = path_for(index)
+	var tex: Texture2D = load(path) as Texture2D if path != "" else null
+	_cache[index] = tex
+	return tex
 
 
 static func index_for_item(item_id: String) -> int:

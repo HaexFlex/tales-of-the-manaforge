@@ -130,6 +130,9 @@ var _fruit_confirm_step: int = 0
 var _ancient_confirm: Panel
 var _ancient_countdown: Label
 var _ancient_countdown_bg: ColorRect
+var _frozen_button: Button
+var _frozen_hint: Label
+var _nav_button: Button
 var _highlight_ascend: bool = false
 var _backpack_tab: String = "all"
 var _sheet: CharacterSheet = null
@@ -216,6 +219,8 @@ func _ready() -> void:
 	_ensure_forge_controls()
 	_ensure_wisp_counter()
 	_ensure_ancient_hud()
+	_ensure_frozen_banner()
+	_ensure_nav_button()
 	if not GameState.ancient_expired.is_connected(_on_ancient_expired):
 		GameState.ancient_expired.connect(_on_ancient_expired)
 	if not GameState.echo_flags_changed.is_connected(_refresh_forge_entry):
@@ -446,6 +451,8 @@ func _apply_wood_chrome() -> void:
 
 func _process(_delta: float) -> void:
 	_refresh_ancient_countdown()
+	_refresh_nav_button()
+	_refresh_frozen_banner()
 	if _party_info != null and _party_info.visible:
 		_apply_selection_job()
 
@@ -745,21 +752,21 @@ func _refresh_party_bar() -> void:
 	_party_info.visible = true
 	_sel_extra.visible = false
 	if show_keeper and not ids.is_empty():
-		_sel_name.text = "Keeper"
-		_sel_extra.text = "+ Wisps"
+		_sel_name.text = ContentStrings.get_text("hud_sel_keeper")
+		_sel_extra.text = ContentStrings.get_text("hud_sel_plus_wisps")
 		_sel_extra.visible = true
 		_sel_task.text = _keeper_task_text()
 	elif show_keeper:
-		_sel_name.text = "Keeper"
+		_sel_name.text = ContentStrings.get_text("hud_sel_keeper")
 		_sel_task.text = _keeper_task_text()
 	elif companion_id == "elaia":
 		_sel_name.text = ContentStrings.get_text("echo_elaia_name")
-		_sel_task.text = "Idle"
+		_sel_task.text = ContentStrings.get_text("hud_task_idle")
 	elif ids.size() >= 2:
-		_sel_name.text = "Wisp"
+		_sel_name.text = ContentStrings.get_text("hud_sel_wisp_group")
 		_sel_task.text = _group_task_text(ids, false)
 	elif not ids.is_empty():
-		_sel_name.text = "Wisp"
+		_sel_name.text = ContentStrings.get_text("hud_sel_wisp")
 		_sel_task.text = _wisp_task_text(ids[0])
 	else:
 		_party_info.visible = false
@@ -814,16 +821,16 @@ func _group_task_text(ids: Array[int], with_keeper: bool) -> String:
 			same = false
 			break
 	if with_keeper:
-		return "Keeper + %s" % (first if same else "Mixed")
+		return "%s + %s" % [ContentStrings.get_text("hud_sel_keeper"), first if same else "Mixed"]
 	return first if same else "Mixed"
 
 
 func _keeper_task_text() -> String:
 	if not has_node("/root/ForgeJobs"):
-		return "Idle"
+		return ContentStrings.get_text("hud_task_idle")
 	var task: Dictionary = ForgeJobs.keeper_task()
 	if not bool(task.get("working", false)):
-		return "Idle"
+		return ContentStrings.get_text("hud_task_idle")
 	var kind: String = str(task.get("kind", ""))
 	var target: String = str(task.get("target", ""))
 	if kind == "forge":
@@ -840,13 +847,13 @@ func _keeper_task_text() -> String:
 				return "Gathering"
 	if kind == "water":
 		return "Tending the Manatree"
-	return "Idle"
+	return ContentStrings.get_text("hud_task_idle")
 
 
 func _wisp_task_text(wisp_id: int) -> String:
 	var assigned: String = GameState.get_wisp_assignment(wisp_id)
 	if assigned == "":
-		return "Idle"
+		return ContentStrings.get_text("hud_task_idle")
 	match assigned:
 		"harvest_tree":
 			return "Gathering Wood"
@@ -932,6 +939,8 @@ func _refresh_all() -> void:
 	_refresh_controls_hint()
 	_refresh_selection_hint()
 	_refresh_reopen_button()
+	_refresh_frozen_banner()
+	_refresh_nav_button()
 	if care_panel.visible:
 		_refresh_care_needs()
 
@@ -969,9 +978,9 @@ func _refresh_care_needs() -> void:
 	var stage_name: String = str(GameState.get_stage_def().get("display_name", GameState.stage_id))
 	var fruit_ready: bool = GameState.fruit_ready and not GameState.fruit_committed
 	if fruit_ready:
-		care_stage_label.text = "Stage: %s · Fruit ready" % stage_name
+		care_stage_label.text = ContentStrings.get_text("hud_stage_label_fruit_ready", {"stage": stage_name})
 	else:
-		care_stage_label.text = "Stage: %s" % stage_name
+		care_stage_label.text = ContentStrings.get_text("hud_stage_label", {"stage": stage_name})
 	var lines: PackedStringArray = info.get("needs_lines", PackedStringArray()) as PackedStringArray
 	var header: String = str(info.get("needs_header", ""))
 	var status: String = str(info.get("needs_status", ""))
@@ -1301,6 +1310,7 @@ func show_ascension_shop() -> void:
 	_rebuild_upgrades()
 	_refresh_ascension_copy()
 	_refresh_reopen_button()
+	_refresh_frozen_banner()
 	_refresh_dim()
 	_apply_ascend_highlight()
 
@@ -1313,13 +1323,14 @@ func hide_ascension_shop() -> void:
 	_highlight_ascend = false
 	_clear_ascend_highlight()
 	_refresh_reopen_button()
+	_refresh_frozen_banner()
 	_refresh_dim()
 
 
 func _on_shop_close() -> void:
 	## Close cancels the harvest lock. Play resumes; Fruit can be harvested again.
 	## The run locks only when Ascend actually commits.
-	var cancelled_commit: bool = GameState.fruit_committed
+	var cancelled_commit: bool = GameState.fruit_committed and not GameState.ancient_frozen
 	if cancelled_commit:
 		GameState.cancel_fruit_commit()
 	hide_ascension_shop()
@@ -1333,7 +1344,9 @@ func _refresh_reopen_button() -> void:
 	if ascension_reopen_button == null:
 		return
 	ascension_reopen_button.visible = (
-		GameState.fruit_harvested_pending_ascend and not ascension_panel.visible
+		GameState.fruit_harvested_pending_ascend
+		and not GameState.ancient_frozen
+		and not ascension_panel.visible
 	)
 	ascension_reopen_button.text = ""
 	ascension_reopen_button.tooltip_text = ContentStrings.get_text("ascension_paused_title")
@@ -1341,6 +1354,15 @@ func _refresh_reopen_button() -> void:
 
 func _sync_ascension_from_state() -> void:
 	hide_fruit_confirm()
+	if GameState.ancient_frozen:
+		if ascension_panel.visible:
+			_hold_world_for_ascension()
+		else:
+			hide_ascension_shop()
+			_release_world_if_allowed()
+		_refresh_frozen_banner()
+		_refresh_nav_button()
+		return
 	if GameState.fruit_harvested_pending_ascend:
 		_hold_world_for_ascension()
 		if not welcome_panel.visible:
@@ -1361,7 +1383,7 @@ func _hold_world_for_ascension() -> void:
 
 
 func _release_world_if_allowed() -> void:
-	if GameState.fruit_harvested_pending_ascend:
+	if GameState.fruit_harvested_pending_ascend and not GameState.ancient_frozen:
 		return
 	if is_backpack_open():
 		return
@@ -1619,6 +1641,72 @@ func _ensure_ancient_hud() -> void:
 	_apply_button_chrome(no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	no.pressed.connect(hide_ancient_grow_confirm)
 	_ancient_confirm.add_child(no)
+
+
+func _ensure_frozen_banner() -> void:
+	_frozen_button = Button.new()
+	_frozen_button.name = "AscendFrozenButton"
+	_frozen_button.position = Vector2(430, 250)
+	_frozen_button.size = Vector2(420, 64)
+	_frozen_button.add_theme_font_size_override("font_size", 28)
+	_apply_button_chrome(_frozen_button, LEAF, GOLD)
+	_frozen_button.pressed.connect(show_ascension_shop)
+	_frozen_button.visible = false
+	add_child(_frozen_button)
+	_frozen_hint = Label.new()
+	_frozen_hint.name = "AscendFrozenHint"
+	_frozen_hint.position = Vector2(360, 322)
+	_frozen_hint.size = Vector2(560, 64)
+	_frozen_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_frozen_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_frozen_hint.add_theme_font_size_override("font_size", 16)
+	_frozen_hint.add_theme_color_override("font_color", GOLD)
+	_frozen_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frozen_hint.visible = false
+	add_child(_frozen_hint)
+
+
+func _refresh_frozen_banner() -> void:
+	if _frozen_button == null:
+		return
+	var show_banner: bool = GameState.ancient_frozen and not ascension_panel.visible
+	_frozen_button.visible = show_banner
+	_frozen_button.text = ContentStrings.get_text("ascend_frozen_button")
+	if _frozen_hint:
+		_frozen_hint.visible = show_banner
+		_frozen_hint.text = ContentStrings.get_text("ascend_frozen_hint")
+
+
+func _ensure_nav_button() -> void:
+	_nav_button = Button.new()
+	_nav_button.name = "HubForgeNav"
+	_nav_button.position = Vector2(16, 64)
+	_nav_button.size = Vector2(180, 36)
+	_apply_button_chrome(_nav_button, Color(0.16, 0.18, 0.14, 1.0), GOLD)
+	_nav_button.pressed.connect(_on_nav_pressed)
+	_nav_button.visible = false
+	add_child(_nav_button)
+
+
+func _refresh_nav_button() -> void:
+	if _nav_button == null or not has_node("/root/ForgeJobs"):
+		return
+	var in_battle: bool = has_node("/root/EchoChamber") and EchoChamber.in_battle
+	var show_nav: bool = GameState.forge_visited and not in_battle and not GameState.is_world_frozen()
+	_nav_button.visible = show_nav
+	if not show_nav:
+		return
+	var in_forge: bool = ForgeJobs.in_forge_scene()
+	_nav_button.text = ContentStrings.get_text("nav_to_clearing" if in_forge else "nav_to_forge")
+
+
+func _on_nav_pressed() -> void:
+	if not has_node("/root/ForgeJobs"):
+		return
+	if ForgeJobs.in_forge_scene():
+		ForgeJobs.exit_forge()
+		return
+	ForgeJobs.travel_to_forge()
 
 
 func _refresh_ancient_countdown() -> void:
@@ -2059,7 +2147,12 @@ func _item_examine_text(item_id: String) -> String:
 		"pickaxe_head":
 			return _content_line("part_stone_pickaxe_head_examine")
 		_:
-			return ""
+			pass
+	if has_node("/root/Equipment") and Equipment.is_known_item(item_id):
+		return Equipment.item_tooltip(item_id)
+	if has_node("/root/Backpack"):
+		return Backpack.item_tooltip(item_id)
+	return ""
 
 
 func _content_line(key: String, tokens: Dictionary = {}) -> String:

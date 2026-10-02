@@ -240,7 +240,7 @@ func _keeper_strike() -> void:
 	var dealt: int = _rolled_damage(
 		int(offense.get("attack", 0)),
 		int(offense.get("defense", 0)),
-		int(keeper["fate"]),
+		keeper_fate(),
 		KEEPER_CRIT_MULT,
 		true
 	)
@@ -268,7 +268,7 @@ func _strike_to_finish() -> void:
 	var dealt: int = _rolled_damage(
 		int(offense.get("attack", 0)),
 		int(offense.get("defense", 0)),
-		int(keeper["fate"]),
+		keeper_fate(),
 		KEEPER_CRIT_MULT,
 		true
 	)
@@ -309,6 +309,10 @@ func _rolled_damage(attack: int, defense: int, fate: int, crit_mult: float, trac
 	if raw <= 0 or not crit:
 		return raw
 	return int(floor(float(raw) * crit_mult + 0.0000001))
+
+
+func keeper_fate() -> int:
+	return int(keeper.get("fate", 0))
 
 
 func _is_crit(fate: int) -> bool:

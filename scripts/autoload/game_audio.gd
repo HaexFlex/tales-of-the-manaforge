@@ -1,8 +1,6 @@
 extends Node
-## Audio cue router per AUDIO_RESTART_V01 + Haex hub mix lock.
-## Buses: Music / SFX_UI / SFX_World / SFX_Progress. Music ducks under Progress.
-## Hub bed (_music_player) never yields to stings — stings use a second Music player.
-## Missing assets → silent TODO hooks (scaffold never blocks on files).
+## Audio cue router. Buses: Music / SFX_UI / SFX_World / SFX_Progress.
+## Every play sets volume_db and pitch_scale on its own voice. Progress ducks the hub bed only.
 
 signal cue_played(cue_id: StringName)
 signal cue_missing(cue_id: StringName)
@@ -11,56 +9,72 @@ signal volumes_changed(music_linear: float, sfx_linear: float)
 const MANIFEST_PATH: String = "res://data/audio_cues.json"
 const SETTINGS_PATH: String = "user://manaforge_settings.cfg"
 const SETTINGS_SECTION: String = "audio"
-## Haex bed is hot — Music sits under SFX (CUE_NOTES_HAEX_HUB).
 const MUSIC_BUS_DEFAULT_DB: float = -9.0
 const SFX_BUS_DEFAULT_DB: float = 0.0
 const SFX_BUS_NAMES: PackedStringArray = ["SFX_UI", "SFX_World", "SFX_Progress"]
-## Director: MP3 primary; ogg haex_loop fallback; wav last resort.
+const SFX_POOL_SIZE: int = 4
+const PROGRESS_POOL_SIZE: int = 2
+## JSON path first, then this shipped MP3. Legacy beds live under assets/library/legacy/.
 const HUB_STREAM_CANDIDATES: PackedStringArray = [
 	"res://assets/audio/mus_hub_forest_haex.mp3",
-	"res://assets/audio/mus_hub_forest_haex_loop.ogg",
-	"res://assets/audio/mus_hub_forest_haex_loop.wav",
 ]
-## Bugfix: music_volume 0 muted hub while SFX worked — treat as reset-to-default once.
+const FORGE_JOB_CUES: PackedStringArray = [
+	"sfx_forge_craft_start",
+	"sfx_forge_craft_done",
+	"sfx_press_squeeze",
+	"sfx_forge_big_done",
+]
 const MUSIC_VOLUME_ZERO_MEANS_DEFAULT: bool = true
 
 var _cues: Dictionary = {}
-var _players: Dictionary = {}
 var _music_player: AudioStreamPlayer
 var _sting_player: AudioStreamPlayer
-var _sfx_player: AudioStreamPlayer
-var _progress_player: AudioStreamPlayer
+var _sfx_pool: Array[AudioStreamPlayer] = []
+var _progress_pool: Array[AudioStreamPlayer] = []
 var _hub_playing: bool = false
-## Echo battle stops the bed. It is not ducked, and it does not restart until exit.
 var _hub_suspended: bool = false
 var _fruit_ready_played_cycle: bool = false
-## Recent cue ids (verify / Haex Ascension audio lock).
+var _fruit_ready_after_stage: bool = false
+var _fruit_delay_token: int = 0
 var _played_log: PackedStringArray = PackedStringArray()
-## User linear volumes 0.0–1.0 (1.0 = mix-lock defaults).
 var music_volume_linear: float = 1.0
 var sfx_volume_linear: float = 1.0
-## Forge room mix: low-pass, small reverb, and a few dB off the Music bus. Cleared on exit.
 var _forge_mix_on: bool = false
 var _forge_music_offset_db: float = 0.0
 var _forge_lowpass: AudioEffectLowPassFilter
 var _forge_reverb: AudioEffectReverb
-## Last one-shot level. play() is 0 dB. play_quiet() keeps the requested offset.
 var last_cue_volume_db: float = 0.0
+var _duck_amount_db: float = -5.0
+var _duck_attack_sec: float = 0.05
+var _duck_release_sec: float = 0.6
+var _duck_hold: String = "while_playing"
+var _duck_db: float = 0.0
+var _duck_tween: Tween
+var _progress_holds: int = 0
+var _gather_offset_db: float = -12.0
+var _gather_pitch_min: float = 0.96
+var _gather_pitch_max: float = 1.04
+var _gather_gap_sec: float = 0.9
+var _fruit_ready_delay_sec: float = 0.7
+var _last_gather_msec: int = -100000000
 
 
 func _ready() -> void:
-	# Keep mus_hub_forest (and UI SFX) alive while pause freezes the world.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_ensure_buses()
 	_load_manifest()
 	_music_player = _make_player("MusicPlayer", "Music")
 	_sting_player = _make_player("StingPlayer", "Music")
-	_sfx_player = _make_player("SfxPlayer", "SFX_World")
-	_progress_player = _make_player("ProgressPlayer", "SFX_Progress")
+	for i: int in SFX_POOL_SIZE:
+		var sfx: AudioStreamPlayer = _make_player("SfxVoice%d" % i, "SFX_World")
+		_sfx_pool.append(sfx)
+	for i: int in PROGRESS_POOL_SIZE:
+		var progress: AudioStreamPlayer = _make_player("ProgressVoice%d" % i, "SFX_Progress")
+		progress.finished.connect(_on_progress_finished.bind(progress))
+		_progress_pool.append(progress)
 	_sting_player.finished.connect(_on_sting_finished)
 	load_settings()
 	apply_volumes()
-	# Hub bed stays on through gather/walk/tend (no combat crossfade).
 	call_deferred("play_hub_music")
 	call_deferred("_connect_game_signals")
 	if not cue_played.is_connected(_on_cue_logged):
@@ -77,29 +91,17 @@ func _make_player(node_name: String, bus_name: String) -> AudioStreamPlayer:
 
 
 func _ensure_buses() -> void:
-	# Master is always index 0. Add named buses if missing.
 	_add_bus_if_missing("Music")
 	_add_bus_if_missing("SFX_UI")
 	_add_bus_if_missing("SFX_World")
 	_add_bus_if_missing("SFX_Progress")
+	## Duck is a bed-player envelope. A sidechain compressor would also duck the stings.
 	var music_idx: int = AudioServer.get_bus_index("Music")
-	var progress_idx: int = AudioServer.get_bus_index("SFX_Progress")
-	if music_idx < 0 or progress_idx < 0:
+	if music_idx < 0:
 		return
-	# Light music duck when Progress SFX fire (~5 dB). Not for World 1Hz pulses.
-	var has_comp: bool = false
-	for i: int in range(AudioServer.get_bus_effect_count(music_idx)):
+	for i: int in range(AudioServer.get_bus_effect_count(music_idx) - 1, -1, -1):
 		if AudioServer.get_bus_effect(music_idx, i) is AudioEffectCompressor:
-			has_comp = true
-			break
-	if not has_comp:
-		var comp := AudioEffectCompressor.new()
-		comp.threshold = -12.0
-		comp.ratio = 4.0
-		comp.attack_us = 150000.0
-		comp.release_ms = 1200.0
-		comp.sidechain = "SFX_Progress"
-		AudioServer.add_bus_effect(music_idx, comp)
+			AudioServer.remove_bus_effect(music_idx, i)
 
 
 func _add_bus_if_missing(bus_name: String) -> void:
@@ -124,6 +126,43 @@ func _load_manifest() -> void:
 	var cues: Variant = root.get("cues", {})
 	if typeof(cues) == TYPE_DICTIONARY:
 		_cues = cues
+	var duck_v: Variant = root.get("duck", {})
+	if typeof(duck_v) == TYPE_DICTIONARY:
+		var duck: Dictionary = duck_v
+		_duck_amount_db = float(duck.get("amount_db", -5.0))
+		_duck_attack_sec = float(duck.get("attack_sec", 0.05))
+		_duck_release_sec = float(duck.get("release_sec", 0.6))
+		_duck_hold = str(duck.get("hold", "while_playing"))
+	var gather_v: Variant = root.get("gather_tick", {})
+	if typeof(gather_v) == TYPE_DICTIONARY:
+		var gather: Dictionary = gather_v
+		_gather_offset_db = float(gather.get("offset_db", -12.0))
+		_gather_pitch_min = float(gather.get("pitch_min", 0.96))
+		_gather_pitch_max = float(gather.get("pitch_max", 1.04))
+		_gather_gap_sec = float(gather.get("gap_sec", 0.9))
+	_fruit_ready_delay_sec = float(root.get("fruit_ready_delay_sec", 0.7))
+
+
+func duck_amount_db() -> float:
+	return _duck_amount_db
+
+
+func duck_attack_sec() -> float:
+	return _duck_attack_sec
+
+
+func duck_release_sec() -> float:
+	return _duck_release_sec
+
+
+func duck_hold() -> String:
+	return _duck_hold
+
+
+func music_bed_volume_db() -> float:
+	if _music_player == null:
+		return 0.0
+	return _music_player.volume_db
 
 
 func _connect_game_signals() -> void:
@@ -131,6 +170,8 @@ func _connect_game_signals() -> void:
 		return
 	GameState.stage_changed.connect(_on_stage_changed)
 	GameState.fruit_ready_changed.connect(_on_fruit_ready)
+	if GameState.has_signal("keeper_harvested") and not GameState.keeper_harvested.is_connected(_on_keeper_harvested):
+		GameState.keeper_harvested.connect(_on_keeper_harvested)
 	if GameState.has_signal("wisp_assigned"):
 		GameState.wisp_assigned.connect(_on_wisp_assigned)
 	if GameState.has_signal("wisp_assign_failed"):
@@ -149,7 +190,6 @@ func play_hub_music() -> void:
 
 
 func suspend_hub_for_battle() -> void:
-	## Pause the bed in place (no duck). Battle stays silent; resume continues the loop.
 	_hub_suspended = true
 	_hub_playing = false
 	if _music_player and _music_player.playing and not _music_player.stream_paused:
@@ -241,25 +281,27 @@ func _remove_bus_effect(bus_name: String, effect: AudioEffect) -> void:
 			AudioServer.remove_bus_effect(idx, i)
 
 
-func play(cue_id: StringName) -> void:
-	last_cue_volume_db = 0.0
+func play(cue_id: StringName, offset_db: float = 0.0, pitch: float = 1.0) -> void:
 	var key: String = String(cue_id)
-	# Echo battle: no mus_* bed or Fruit/Ascend sting while the hub is suspended.
-	if _hub_suspended and _cue_bus(key) == "Music":
+	var bus: String = _cue_bus(key)
+	var base_db: float = 0.0
+	if _cues.has(key) and typeof(_cues[key]) == TYPE_DICTIONARY:
+		base_db = float((_cues[key] as Dictionary).get("volume_db", 0.0))
+	var effective_db: float = base_db + offset_db
+	if _hub_suspended and bus == "Music":
+		return
+	if _held_while_fruit_committed(key, bus):
 		return
 	if not _cues.has(key):
-		# Still emit for wiring tests even if unknown.
 		cue_missing.emit(cue_id)
 		cue_played.emit(cue_id)
 		return
 	var meta: Dictionary = _cues[key]
 	var path: String = str(meta.get("path", ""))
-	var bus: String = str(meta.get("bus", "Master"))
+	bus = str(meta.get("bus", "Master"))
 	var looping: bool = bool(meta.get("loop", false))
-	# Music bed vs Music stings: never steal hub player with a one-shot.
 	if bus == "Music":
 		if looping or key == "mus_hub_forest":
-			# Hub: mp3 primary with ogg/wav fallback — do not bail if cue path missing.
 			var hub_stream: AudioStream = null
 			if key == "mus_hub_forest":
 				hub_stream = _resolve_hub_stream(path)
@@ -276,11 +318,13 @@ func play(cue_id: StringName) -> void:
 			cue_missing.emit(cue_id)
 			cue_played.emit(cue_id)
 			return
-		var stream: AudioStream = load(path) as AudioStream
-		if stream == null:
+		var sting: AudioStream = load(path) as AudioStream
+		if sting == null:
 			cue_missing.emit(cue_id)
 			return
-		_play_sting_stream(stream, bus)
+		_sting_player.volume_db = effective_db
+		_sting_player.pitch_scale = pitch
+		_play_sting_stream(sting, bus)
 		cue_played.emit(cue_id)
 		return
 	if path == "" or not ResourceLoader.exists(path):
@@ -291,22 +335,85 @@ func play(cue_id: StringName) -> void:
 	if stream == null:
 		cue_missing.emit(cue_id)
 		return
-	var player: AudioStreamPlayer = _sfx_player
-	if bus == "SFX_Progress":
-		player = _progress_player
-	elif bus == "SFX_UI":
-		player = _sfx_player
-		player.bus = "SFX_UI"
-	else:
-		player.bus = bus
+	var progress: bool = bus == "SFX_Progress"
+	var player: AudioStreamPlayer = _claim_voice(_progress_pool if progress else _sfx_pool, progress)
 	player.stream = stream
 	player.bus = bus
+	player.volume_db = effective_db
+	player.pitch_scale = pitch
+	if bus != "Music":
+		last_cue_volume_db = effective_db
 	player.play()
+	if progress:
+		_note_progress_started()
 	cue_played.emit(cue_id)
 
 
+func _held_while_fruit_committed(key: String, bus: String) -> bool:
+	if not has_node("/root/GameState") or not GameState.fruit_committed:
+		return false
+	if key in FORGE_JOB_CUES:
+		return true
+	return bus == "SFX_World"
+
+
+func _claim_voice(pool: Array[AudioStreamPlayer], is_progress: bool) -> AudioStreamPlayer:
+	var idle: AudioStreamPlayer = null
+	var oldest: AudioStreamPlayer = pool[0]
+	var oldest_msec: int = 2147483647
+	for voice: AudioStreamPlayer in pool:
+		if not voice.playing:
+			idle = voice
+			break
+		var started: int = int(voice.get_meta("started_msec", 0))
+		if started < oldest_msec:
+			oldest_msec = started
+			oldest = voice
+	var chosen: AudioStreamPlayer = idle if idle != null else oldest
+	if chosen.playing and bool(chosen.get_meta("is_progress", false)):
+		chosen.set_meta("is_progress", false)
+		_note_progress_ended()
+	chosen.set_meta("is_progress", is_progress)
+	chosen.set_meta("started_msec", Time.get_ticks_msec())
+	return chosen
+
+
+func _note_progress_started() -> void:
+	_progress_holds += 1
+	_tween_duck(_duck_amount_db, _duck_attack_sec)
+
+
+func _note_progress_ended() -> void:
+	_progress_holds = maxi(0, _progress_holds - 1)
+	if _progress_holds == 0:
+		_tween_duck(0.0, _duck_release_sec)
+
+
+func _on_progress_finished(voice: AudioStreamPlayer) -> void:
+	if not bool(voice.get_meta("is_progress", false)):
+		return
+	voice.set_meta("is_progress", false)
+	_note_progress_ended()
+
+
+func _tween_duck(target_db: float, seconds: float) -> void:
+	if _duck_tween != null and _duck_tween.is_valid():
+		_duck_tween.kill()
+	var span: float = maxf(seconds, 0.0)
+	if span <= 0.0001 or is_equal_approx(_duck_db, target_db):
+		_apply_duck_db(target_db)
+		return
+	_duck_tween = create_tween()
+	_duck_tween.tween_method(_apply_duck_db, _duck_db, target_db, span)
+
+
+func _apply_duck_db(value: float) -> void:
+	_duck_db = value
+	if _music_player:
+		_music_player.volume_db = _duck_db
+
+
 func _resolve_hub_stream(primary_path: String) -> AudioStream:
-	## Try cue path first, then MP3 → ogg → wav candidates.
 	var tried: Dictionary = {}
 	var ordered: PackedStringArray = PackedStringArray()
 	if primary_path != "":
@@ -336,7 +443,6 @@ func _force_stream_loop(stream: AudioStream) -> void:
 
 
 func _ensure_music_bus_audible() -> void:
-	## Unmute Music; keep MUSIC_BUS_DEFAULT_DB mix lock (~-9).
 	var idx: int = AudioServer.get_bus_index("Music")
 	if idx < 0:
 		return
@@ -348,21 +454,22 @@ func _ensure_music_bus_audible() -> void:
 
 func _play_hub_stream(stream: AudioStream, bus: String) -> void:
 	var player: AudioStreamPlayer = _music_player
-	# Keep hub bed through gather/walk; do not restart if same stream already playing.
 	if player.playing and player.stream == stream:
 		_hub_playing = true
 		_ensure_music_bus_audible()
+		player.volume_db = _duck_db
 		return
 	_force_stream_loop(stream)
 	_ensure_music_bus_audible()
 	player.stream = stream
 	player.bus = bus
+	player.volume_db = _duck_db
+	player.pitch_scale = 1.0
 	player.play()
 	_hub_playing = true
 
 
 func _play_sting_stream(stream: AudioStream, bus: String) -> void:
-	## One-shot Music sting on second player — hub bed keeps looping underneath.
 	if stream is AudioStreamOggVorbis:
 		(stream as AudioStreamOggVorbis).loop = false
 	elif stream is AudioStreamWAV:
@@ -370,7 +477,6 @@ func _play_sting_stream(stream: AudioStream, bus: String) -> void:
 	_sting_player.stream = stream
 	_sting_player.bus = bus
 	_sting_player.play()
-	# Ensure hub bed is still under the sting (volume only — never stop for SFX).
 	if _hub_suspended:
 		return
 	if not _music_player.playing:
@@ -378,7 +484,6 @@ func _play_sting_stream(stream: AudioStream, bus: String) -> void:
 
 
 func _on_sting_finished() -> void:
-	## Restore hub bed if somehow silenced; otherwise leave looping bed alone.
 	if _hub_suspended:
 		return
 	if not _music_player.playing:
@@ -388,55 +493,44 @@ func _on_sting_finished() -> void:
 
 
 func play_quiet(cue_id: StringName, volume_db: float = -8.0) -> void:
-	## Soft SFX under mus_hub_forest (channel 1Hz ticks stay cozy).
-	last_cue_volume_db = volume_db
-	var key: String = String(cue_id)
-	if not _cues.has(key):
-		cue_missing.emit(cue_id)
-		cue_played.emit(cue_id)
-		return
-	var meta: Dictionary = _cues[key]
-	var path: String = str(meta.get("path", ""))
-	var bus: String = str(meta.get("bus", "Master"))
-	if path == "" or not ResourceLoader.exists(path):
-		cue_missing.emit(cue_id)
-		cue_played.emit(cue_id)
-		return
-	var stream: AudioStream = load(path) as AudioStream
-	if stream == null:
-		cue_missing.emit(cue_id)
-		return
-	var player: AudioStreamPlayer = _sfx_player
-	player.stream = stream
-	player.bus = bus
-	player.volume_db = volume_db
-	player.play()
-	# Reset so other SFX stay full level
-	call_deferred("_reset_sfx_volume")
-	cue_played.emit(cue_id)
-
-
-func _reset_sfx_volume() -> void:
-	if _sfx_player and not _sfx_player.playing:
-		_sfx_player.volume_db = 0.0
+	play(cue_id, volume_db, 1.0)
 
 
 func play_gather(resource_id: StringName) -> void:
+	if has_node("/root/ForgeJobs") and ForgeJobs.in_forge_scene():
+		return
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return
+	var tree: SceneTree = get_tree()
+	if tree != null and tree.paused:
+		return
+	if has_node("/root/GameState") and GameState.fruit_committed:
+		return
+	var cue: StringName = &""
 	match resource_id:
 		&"wood":
-			play_quiet(&"sfx_gather_wood", -8.0)
+			cue = &"sfx_gather_wood"
 		&"stone":
-			play_quiet(&"sfx_gather_stone", -8.0)
+			cue = &"sfx_gather_stone"
 		&"food":
-			play_quiet(&"sfx_gather_food", -8.0)
-		&"manashards":
-			play_quiet(&"sfx_gather_manashards", -8.0)
+			cue = &"sfx_gather_food"
 		_:
-			play_quiet(&"sfx_gather_wood", -8.0)
+			return
+	var now: int = Time.get_ticks_msec()
+	if now - _last_gather_msec < int(_gather_gap_sec * 1000.0):
+		return
+	_last_gather_msec = now
+	var pitch: float = randf_range(_gather_pitch_min, _gather_pitch_max)
+	play(cue, _gather_offset_db, pitch)
+
+
+func _on_keeper_harvested(resource_id: StringName, amount: int) -> void:
+	if amount <= 0:
+		return
+	play_gather(resource_id)
 
 
 func play_tree_water_ok() -> void:
-	## Legacy one-shot water; channel pulses use play_water_pulse.
 	play(&"sfx_tree_water")
 
 
@@ -461,13 +555,11 @@ func play_stage_up() -> void:
 
 
 func play_fruit_harvest() -> void:
-	## Fruit commit lock: sfx_fruit_harvest + mus_fruit_sting (hub bed keeps looping).
 	play(&"sfx_fruit_harvest")
 	play(&"mus_fruit_sting")
 
 
 func play_ascend() -> void:
-	## Ascend lock: sfx_ascend + mus_ascend_sting. Hub bed stays on (_sting_player).
 	play(&"sfx_ascend")
 	play(&"mus_ascend_sting")
 
@@ -477,7 +569,6 @@ func play_upgrade_buy() -> void:
 
 
 func play_ui_confirm() -> void:
-	## Fruit intent (and other confirms) — sfx_ui_confirm.
 	play(&"sfx_ui_confirm")
 
 
@@ -486,7 +577,6 @@ func play_ui_cancel() -> void:
 
 
 func play_ui_deny() -> void:
-	## Portal fee deny. Soft UI only — not the tree deny or a Fruit/Ascend sting.
 	play(&"sfx_ui_deny")
 
 
@@ -533,26 +623,55 @@ func _on_wisp_pulsed(_resource_id: StringName) -> void:
 
 
 func _on_stage_changed(stage_id: StringName) -> void:
+	if has_node("/root/GameState") and GameState.applying_save:
+		_fruit_ready_played_cycle = GameState.fruit_ready or GameState.fruit_committed
+		_fruit_ready_after_stage = false
+		return
 	if stage_id != &"sapling":
-		# Prefer stage sting over water SFX on the same advance frame.
 		play_stage_up()
 	if stage_id == &"ancient":
 		_fruit_ready_played_cycle = false
+		_fruit_ready_after_stage = true
 
 
 func _on_fruit_ready(ready: bool) -> void:
-	if ready and not _fruit_ready_played_cycle:
+	if has_node("/root/GameState") and GameState.applying_save:
+		_fruit_ready_played_cycle = GameState.fruit_ready or GameState.fruit_committed
+		_fruit_ready_after_stage = false
+		return
+	if not ready:
+		return
+	if _fruit_ready_after_stage:
+		_fruit_ready_after_stage = false
 		_fruit_ready_played_cycle = true
+		_fruit_delay_token += 1
+		_play_fruit_ready_later(_fruit_delay_token)
+		return
+	if not _fruit_ready_played_cycle:
+		_fruit_ready_played_cycle = true
+		play(&"sfx_fruit_ready")
+
+
+func _play_fruit_ready_later(token: int) -> void:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return
+	await tree.create_timer(_fruit_ready_delay_sec, true).timeout
+	if token != _fruit_delay_token or not is_inside_tree():
+		return
+	if not has_node("/root/GameState"):
+		return
+	if GameState.fruit_ready and not GameState.fruit_committed and GameState.stage_id == &"ancient":
 		play(&"sfx_fruit_ready")
 
 
 func reset_cycle_flags() -> void:
 	_fruit_ready_played_cycle = false
+	_fruit_ready_after_stage = false
+	_fruit_delay_token += 1
 
 
 func ensure_hub_playing() -> void:
-	## Pause / Ascension shop must never stop mus_hub_forest. Resume in place if dropped.
-	## Echo battle is the exception: the bed stays stopped until the fight ends.
 	if _hub_suspended:
 		return
 	if is_hub_music_playing():
@@ -565,7 +684,6 @@ func is_hub_player_always() -> bool:
 
 
 func is_hub_stream_playing() -> bool:
-	## Paused bed is silent. Godot keeps `playing` true while stream_paused.
 	if _music_player == null or _music_player.stream_paused:
 		return false
 	return _music_player.playing
@@ -620,7 +738,6 @@ func reset_volumes_to_defaults() -> void:
 
 
 func apply_volumes() -> void:
-	## Volume only — never stop/restart mus_hub_forest.
 	_apply_bus_volume("Music", music_volume_linear, MUSIC_BUS_DEFAULT_DB)
 	for bus_name: String in SFX_BUS_NAMES:
 		_apply_bus_volume(bus_name, sfx_volume_linear, SFX_BUS_DEFAULT_DB)
@@ -648,8 +765,6 @@ func load_settings() -> void:
 		return
 	music_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "music_volume", 1.0)), 0.0, 1.0)
 	sfx_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "sfx_volume", 1.0)), 0.0, 1.0)
-	# Bugfix: music_volume 0 muted hub bed while SFX still worked. Treat 0 as
-	# reset-to-default once and persist so silent settings do not stick.
 	if MUSIC_VOLUME_ZERO_MEANS_DEFAULT and music_volume_linear <= 0.001:
 		music_volume_linear = 1.0
 		save_settings()
@@ -657,7 +772,7 @@ func load_settings() -> void:
 
 func save_settings() -> void:
 	var cfg := ConfigFile.new()
-	cfg.load(SETTINGS_PATH)  # keep other sections if any
+	cfg.load(SETTINGS_PATH)
 	cfg.set_value(SETTINGS_SECTION, "music_volume", music_volume_linear)
 	cfg.set_value(SETTINGS_SECTION, "sfx_volume", sfx_volume_linear)
 	cfg.save(SETTINGS_PATH)

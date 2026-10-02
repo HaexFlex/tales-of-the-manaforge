@@ -141,7 +141,8 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 9") >= 0, "SAVE_VERSION 9")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 10") >= 0, "SAVE_VERSION 10")
+	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()
 
@@ -367,8 +368,10 @@ func _art_fit(live: Node) -> int:
 		failed += _check(pw == 784.0 and ph == 1168.0, "portal canvas 784x1168 (got %sx%s)" % [pw, ph])
 		failed += _check(not marker.centered, "portal bottom-anchored")
 		failed += _check(absf(marker.offset.x + pw * 0.5) < 0.5 and absf(marker.offset.y + ph) < 0.5, "portal offset bottom-center")
-	var sheet: Texture2D = load("res://assets/art/ui/manaforge_hud_icons_sheet.png") as Texture2D
-	failed += _check(sheet != null and sheet.get_width() == 1280 and sheet.get_height() == 512, "hud icon sheet 1280x512")
+	for index: int in range(10):
+		var icon: Texture2D = HudIcons.cell(index)
+		var label: String = "hud icon %d" % index
+		failed += _check(icon != null and icon.get_width() == 32 and icon.get_height() == 32, label)
 	return failed
 
 
@@ -1001,6 +1004,39 @@ func _forest_seal(live: Node) -> int:
 
 func _forest_cell(p: Vector2, step: float) -> Vector2i:
 	return Vector2i(int(floor(p.x / step)), int(floor(p.y / step)))
+
+
+func _content_keys() -> int:
+	var failed: int = 0
+	var strings: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/strings_v01.json"))
+	var forge: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/forge_copy.json"))
+	if typeof(strings) != TYPE_DICTIONARY or typeof(forge) != TYPE_DICTIONARY:
+		return _check(false, "string tables parse")
+	var story: PackedStringArray = PackedStringArray([
+		"rootsteel_edge_name", "rootsteel_edge_tooltip", "heartwand_name", "heartwand_tooltip",
+		"switchshaft_name", "switchshaft_tooltip", "oakheart_knot_name", "oakheart_knot_tooltip",
+		"shardlens_name", "shardlens_tooltip", "windthorn_bead_name", "windthorn_bead_tooltip",
+		"sapsteel_name", "sapsteel_tooltip", "heartwood_bits_name", "heartwood_bits_tooltip",
+		"amberbind_name", "amberbind_tooltip", "forge_key_relic_tooltip", "welcome_body",
+		"welcome_body_short", "wisp_node_shared_hint", "ascend_confirm", "ascend_confirm_essence_wipe",
+		"ascend_hint", "tree_water_ancient_block", "echo_01_intro", "echo_01_flee",
+		"ascend_frozen_button", "ascend_frozen_hint", "ascend_frozen_deny", "nav_to_forge",
+		"nav_to_clearing", "load_autosave_header", "load_autosave_slot", "load_manual_header",
+		"title_continue_hint", "title_new_game_confirm", "pause_new_game_confirm",
+		"hud_sel_keeper", "hud_sel_wisp", "hud_sel_wisp_group", "hud_sel_plus_wisps",
+		"hud_task_idle", "hud_stage_label", "hud_stage_label_fruit_ready",
+	])
+	var shop: PackedStringArray = PackedStringArray([
+		"station_busy", "station_paused", "not_enough_material", "job_done", "jobs_finished_away",
+		"wisp_speed_hint", "relic_swap_confirm", "ascend_warning_materials", "ascend_warning_jobs",
+		"examine_crucible", "examine_mill", "examine_press", "examine_anvil", "examine_reliquary",
+		"examine_bench", "wisp_counter", "queue_full", "already_owned", "job_started",
+	])
+	for key: String in story:
+		failed += _check((strings as Dictionary).has(key) and str((strings as Dictionary)[key]) != key, key)
+	for key: String in shop:
+		failed += _check((forge as Dictionary).has(key) and str((forge as Dictionary)[key]) != key, key)
+	return failed
 
 
 func _check(ok: bool, label: String) -> int:

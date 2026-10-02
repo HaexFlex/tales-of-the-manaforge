@@ -13,11 +13,11 @@ Flat files: each `cue_id.ogg` sits directly in this folder. See `MANIFEST.json` 
 1. Copy all `*.ogg` into the Godot project at `assets/audio/` (same filenames).
 2. Fill `data/audio_cues.json` (or equivalent) with paths like:
    ```json
-   "mus_hub_forest": "res://assets/audio/mus_hub_forest.wav"
+   "mus_hub_forest": "res://assets/audio/mus_hub_forest_haex.mp3"
    ```
    Or use `MANIFEST.json` `cues.*.file` → `res://assets/audio/<file>`.
 3. Buses: `Music`, `SFX_UI`, `SFX_World`, `SFX_Progress`. Duck Music ~4–6 dB under Progress stings.
-4. `mus_hub_forest` is a 16.0s @ 44100 / 80 BPM seamless loop (`loop: true`); load `.wav` for click-free loop (`.ogg` kept alongside).
+4. `mus_hub_forest` is Haex's MP3 bed (`mus_hub_forest_haex.mp3`, loop on). Older WAV/OGG beds are in `assets/library/legacy/` and are not shipped.
 
 ## Motif
 
