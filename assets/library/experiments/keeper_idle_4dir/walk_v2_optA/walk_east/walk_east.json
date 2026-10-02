@@ -1,0 +1,41 @@
+{
+ "clip": "walk_east",
+ "files": [
+  "walk_east_0000.png",
+  "walk_east_0001.png",
+  "walk_east_0002.png",
+  "walk_east_0003.png",
+  "walk_east_0004.png",
+  "walk_east_0005.png",
+  "walk_east_0006.png",
+  "walk_east_0007.png"
+ ],
+ "hold_ms": 100,
+ "loop": true,
+ "strip": "walk_east.png",
+ "assembly": {
+  "sheet": "side_b",
+  "frames": [
+   "02 legs",
+   "05 legs",
+   "01 legs +1px bob (narrowest stride)",
+   "05 legs",
+   "07 legs",
+   "05 legs",
+   "01 legs +1px bob (narrowest stride)",
+   "05 legs"
+  ],
+  "shell": "side_b frame 00 with its legs removed (head, hair, torso, arms, coat fixed)",
+  "loop_leg_diffs": [
+   521,
+   577,
+   577,
+   517,
+   517,
+   577,
+   577,
+   521
+  ],
+  "note": "neither side sheet has a passing (legs-together) pose; stride only narrows 66 -> 54 px. Not a real walk."
+ }
+}

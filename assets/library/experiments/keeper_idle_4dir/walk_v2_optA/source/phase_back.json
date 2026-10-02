@@ -1,0 +1,129 @@
+{
+ "scale": 0.26905829596412556,
+ "calib": "hmed",
+ "calib_target": 120,
+ "calib_src": 446.0,
+ "anchor_x": 63.244852386146015,
+ "frames": [
+  {
+   "sole": 123,
+   "fx0": 52,
+   "fx1": 73,
+   "feet_cx": 62.5,
+   "lowL": 123,
+   "lowR": 121,
+   "i": 0,
+   "top": 4,
+   "height": 120,
+   "defringed": 116
+  },
+  {
+   "sole": 123,
+   "fx0": 53,
+   "fx1": 74,
+   "feet_cx": 63.5,
+   "lowL": 123,
+   "lowR": 122,
+   "i": 1,
+   "top": 4,
+   "height": 120,
+   "defringed": 105
+  },
+  {
+   "sole": 123,
+   "fx0": 53,
+   "fx1": 73,
+   "feet_cx": 63.0,
+   "lowL": 121,
+   "lowR": 123,
+   "i": 2,
+   "top": 4,
+   "height": 120,
+   "defringed": 94
+  },
+  {
+   "sole": 123,
+   "fx0": 53,
+   "fx1": 73,
+   "feet_cx": 63.0,
+   "lowL": 120,
+   "lowR": 123,
+   "i": 3,
+   "top": 4,
+   "height": 120,
+   "defringed": 73
+  },
+  {
+   "sole": 123,
+   "fx0": 53,
+   "fx1": 74,
+   "feet_cx": 63.5,
+   "lowL": 123,
+   "lowR": 122,
+   "i": 4,
+   "top": 3,
+   "height": 121,
+   "defringed": 120
+  },
+  {
+   "sole": 123,
+   "fx0": 54,
+   "fx1": 73,
+   "feet_cx": 63.5,
+   "lowL": 123,
+   "lowR": 122,
+   "i": 5,
+   "top": 3,
+   "height": 121,
+   "defringed": 96
+  },
+  {
+   "sole": 123,
+   "fx0": 54,
+   "fx1": 73,
+   "feet_cx": 63.5,
+   "lowL": 123,
+   "lowR": 122,
+   "i": 6,
+   "top": 3,
+   "height": 121,
+   "defringed": 95
+  },
+  {
+   "sole": 123,
+   "fx0": 54,
+   "fx1": 73,
+   "feet_cx": 63.5,
+   "lowL": 123,
+   "lowR": 122,
+   "i": 7,
+   "top": 4,
+   "height": 120,
+   "defringed": 95
+  },
+  {
+   "sole": 123,
+   "fx0": 54,
+   "fx1": 73,
+   "feet_cx": 63.5,
+   "lowL": 123,
+   "lowR": 122,
+   "i": 8,
+   "top": 3,
+   "height": 121,
+   "defringed": 90
+  },
+  {
+   "sole": 123,
+   "fx0": 54,
+   "fx1": 73,
+   "feet_cx": 63.5,
+   "lowL": 123,
+   "lowR": 123,
+   "i": 9,
+   "top": 5,
+   "height": 119,
+   "defringed": 95
+  }
+ ]
+}

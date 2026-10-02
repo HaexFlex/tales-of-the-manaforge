@@ -1,0 +1,42 @@
+{
+ "clip": "walk_north",
+ "files": [
+  "walk_north_0000.png",
+  "walk_north_0001.png",
+  "walk_north_0002.png",
+  "walk_north_0003.png",
+  "walk_north_0004.png",
+  "walk_north_0005.png",
+  "walk_north_0006.png",
+  "walk_north_0007.png"
+ ],
+ "hold_ms": 100,
+ "loop": true,
+ "strip": "walk_north.png",
+ "assembly": {
+  "sheet": "back",
+  "frames": [
+   "09 +1px bob (passing)",
+   "06",
+   "08",
+   "00",
+   "04 +1px bob (passing)",
+   "02",
+   "03",
+   "02"
+  ],
+  "upper_body_locked_to": "09 (rows 0..98)",
+  "body_cut_row": 104,
+  "base_top_row": 4,
+  "loop_leg_diffs": [
+   295,
+   177,
+   199,
+   372,
+   455,
+   197,
+   197,
+   448
+  ]
+ }
+}
