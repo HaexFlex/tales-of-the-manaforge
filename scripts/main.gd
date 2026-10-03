@@ -390,15 +390,21 @@ func _in_clearing(pos: Vector2) -> bool:
 const FOREST_FLOOR_INNER: float = 1.04
 const FOREST_FLOOR_SOLID: float = 1.08
 ## Hem tiles in front of the trunks read as dark boxes. Past this norm the
-## shade stays, including gaps between trunks. Inside it, a tile is kept only
-## when tree canopy covers at least half of it.
+## shade stays, including gaps between trunks, unless that gap faces bright
+## grass. Inside it, a tile is kept only when canopy covers it and no 32px
+## sample block is open grass.
 const FOREST_FLOOR_CANOPY_NORM: float = 1.12
 const FOREST_FLOOR_COVER_NEED: int = 8
+## Sides of a shaded tile that face bright grass. 0 up, 1 right, 2 down, 3 left.
+const FOREST_RIM_DIRS: Array[Vector2i] = [
+	Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)
+]
 
 const FOREST_FLOOR_SHADER: String = "
 shader_type canvas_item;
 uniform sampler2D mask : filter_nearest, repeat_disable;
-uniform vec2 play_size = vec2(4320.0, 3780.0);
+uniform vec2 grid = vec2(68.0, 60.0);
+uniform float tile_px = 64.0;
 varying vec2 world_pos;
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
@@ -411,7 +417,11 @@ void fragment() {
 	if (dx * dx + dy * dy < 0.56) {
 		COLOR = tex;
 	} else {
-		float m = texture(mask, world_pos / play_size).r;
+		// play_size is not a multiple of the tile, so world/play_size shifts
+		// each texel up-left of the tile it was chosen for and paints the
+		// cleared grass in front of the canopy. Sample the tile itself.
+		vec2 cell = floor(world_pos / tile_px);
+		float m = texture(mask, (cell + vec2(0.5)) / grid).r;
 		if (m > 0.5) {
 			tex.rgb *= vec3(0.96, 0.87, 1.35);
 		}
@@ -459,14 +469,81 @@ func _forest_canopy_trees() -> Array[ForestCanopyTree]:
 
 
 func _forest_tile_under_canopy(cell: Vector2i, trees: Array[ForestCanopyTree]) -> bool:
+	var covered: Array[bool] = []
+	covered.resize(16)
 	var hits: int = 0
+	var i: int = 0
 	for oy: int in [8, 24, 40, 56]:
 		for ox: int in [8, 24, 40, 56]:
-			if _forest_canopy_pixel(float(cell.x * TILE + ox), float(cell.y * TILE + oy), trees):
+			var hit := _forest_canopy_pixel(float(cell.x * TILE + ox), float(cell.y * TILE + oy), trees)
+			covered[i] = hit
+			if hit:
 				hits += 1
-				if hits >= FOREST_FLOOR_COVER_NEED:
-					return true
-	return false
+			i += 1
+	if hits < FOREST_FLOOR_COVER_NEED:
+		return false
+	# Four open samples in a 2x2 are a hard ~32px square of dark grass.
+	for row: int in range(3):
+		for col: int in range(3):
+			var open := 0
+			for dy: int in range(2):
+				for dx: int in range(2):
+					if not covered[(row + dy) * 4 + col + dx]:
+						open += 1
+			if open == 4:
+				return false
+	return true
+
+
+func _forest_rim_covered(cell: Vector2i, side: int, trees: Array[ForestCanopyTree]) -> bool:
+	## The outer pixel row. Inset samples miss a bare strip that still reads as a box.
+	var hits := 0
+	for i: int in range(8):
+		var along := float(4 + i * 8)
+		var wx := float(cell.x * TILE)
+		var wy := float(cell.y * TILE)
+		match side:
+			0:
+				wx += along
+				wy += 1.0
+			1:
+				wx += 63.0
+				wy += along
+			2:
+				wx += along
+				wy += 63.0
+			_:
+				wx += 1.0
+				wy += along
+		if _forest_canopy_pixel(wx, wy, trees):
+			hits += 1
+	return hits >= 7
+
+
+func _forest_peel_open_rims(mask: Image, trees: Array[ForestCanopyTree]) -> void:
+	for _pass: int in range(12):
+		var drop: Array[Vector2i] = []
+		for y: int in range(_rows):
+			for x: int in range(_cols):
+				if mask.get_pixel(x, y).r < 0.5:
+					continue
+				var cell := Vector2i(x, y)
+				var exposed := false
+				for side: int in range(4):
+					var n: Vector2i = cell + FOREST_RIM_DIRS[side]
+					if n.x < 0 or n.y < 0 or n.x >= _cols or n.y >= _rows:
+						continue
+					if mask.get_pixel(n.x, n.y).r >= 0.5:
+						continue
+					if not _forest_rim_covered(cell, side, trees):
+						exposed = true
+						break
+				if exposed:
+					drop.append(cell)
+		if drop.is_empty():
+			return
+		for cell: Vector2i in drop:
+			mask.set_pixel(cell.x, cell.y, Color(0, 0, 0))
 
 
 func _forest_canopy_pixel(wx: float, wy: float, trees: Array[ForestCanopyTree]) -> bool:
@@ -503,13 +580,17 @@ func _build_forest_floor() -> void:
 		if _ellipse_norm(center) < FOREST_FLOOR_CANOPY_NORM and not _forest_tile_under_canopy(cell, trees):
 			continue
 		mask.set_pixel(cell.x, cell.y, Color(1, 1, 1))
+	# Deep tiles used to stay shaded in gaps. Where that gap faces the clearing
+	# the tile edge is a hard dark rectangle. Peel until the rim is under leaves.
+	_forest_peel_open_rims(mask, trees)
 	var tex := ImageTexture.create_from_image(mask)
 	var shader := Shader.new()
 	shader.code = FOREST_FLOOR_SHADER
 	var mat := ShaderMaterial.new()
 	mat.shader = shader
 	mat.set_shader_parameter("mask", tex)
-	mat.set_shader_parameter("play_size", play_size)
+	mat.set_shader_parameter("grid", Vector2(float(_cols), float(_rows)))
+	mat.set_shader_parameter("tile_px", float(TILE))
 	ground.material = mat
 
 
