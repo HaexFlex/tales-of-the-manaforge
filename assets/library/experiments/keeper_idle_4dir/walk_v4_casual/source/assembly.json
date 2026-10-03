@@ -1,0 +1,95 @@
+{
+ "video": "keeper_walk_casual_front.mp4",
+ "video_frames_1based": [
+  36,
+  40,
+  44,
+  48,
+  52,
+  56,
+  60,
+  64
+ ],
+ "time_s": [
+  1.458,
+  1.625,
+  1.792,
+  1.958,
+  2.125,
+  2.292,
+  2.458,
+  2.625
+ ],
+ "phase": [
+  "his L foot (screen right) lifted, peak",
+  "L foot setting down",
+  "double support",
+  "weight shift, R heel starting",
+  "his R foot (screen left) lifted, peak",
+  "R foot setting down",
+  "double support",
+  "weight shift, L heel starting"
+ ],
+ "natural_height_px": [
+  118,
+  116,
+  118,
+  117,
+  118,
+  118,
+  118,
+  119
+ ],
+ "bob_px": [
+  2,
+  1,
+  0,
+  1,
+  2,
+  1,
+  0,
+  1
+ ],
+ "ms": [
+  130,
+  120,
+  120,
+  130,
+  130,
+  120,
+  120,
+  130
+ ],
+ "loop_ms": 1000,
+ "still_height": 119,
+ "lock": [
+  36,
+  34
+ ],
+ "chest_lock_rows_x": [
+  34,
+  64,
+  53,
+  73
+ ],
+ "maroon_remapped_px": [
+  17,
+  21,
+  21,
+  17,
+  22,
+  25,
+  17,
+  18
+ ],
+ "head_x_shift": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ]
+}

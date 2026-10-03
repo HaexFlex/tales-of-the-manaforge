@@ -1,0 +1,543 @@
+{
+ "v4_casual": {
+  "label": "walk_v4 casual",
+  "hip_row": 79.6,
+  "leg_len_px": 43.4,
+  "per_frame": [
+   {
+    "k": 0,
+    "hands": {
+     "screen_left": {
+      "cx": 43.30555555555556,
+      "cy": 83.97222222222223,
+      "outer": 41,
+      "low": 88,
+      "px": 36
+     },
+     "screen_right": {
+      "cx": 81.5,
+      "cy": 82.51315789473684,
+      "outer": 86,
+      "low": 89,
+      "px": 76
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 8
+    },
+    "belt_row": 72.5,
+    "hem_row": 103,
+    "hem_minus_belt": 30.5
+   },
+   {
+    "k": 1,
+    "hands": {
+     "screen_left": {
+      "cx": 40.869565217391305,
+      "cy": 84.08695652173913,
+      "outer": 37,
+      "low": 90,
+      "px": 69
+     },
+     "screen_right": {
+      "cx": 87.72881355932203,
+      "cy": 83.50847457627118,
+      "outer": 91,
+      "low": 89,
+      "px": 59
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 2
+    },
+    "belt_row": 72.5,
+    "hem_row": 104,
+    "hem_minus_belt": 31.5
+   },
+   {
+    "k": 2,
+    "hands": {
+     "screen_left": {
+      "cx": 40.708333333333336,
+      "cy": 82.04166666666667,
+      "outer": 37,
+      "low": 88,
+      "px": 72
+     },
+     "screen_right": {
+      "cx": 89.95081967213115,
+      "cy": 83.34426229508196,
+      "outer": 94,
+      "low": 88,
+      "px": 61
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 75.0,
+    "hem_row": 105,
+    "hem_minus_belt": 30.0
+   },
+   {
+    "k": 3,
+    "hands": {
+     "screen_left": {
+      "cx": 45.86046511627907,
+      "cy": 82.01162790697674,
+      "outer": 41,
+      "low": 88,
+      "px": 86
+     },
+     "screen_right": {
+      "cx": 85.41509433962264,
+      "cy": 83.39622641509433,
+      "outer": 89,
+      "low": 88,
+      "px": 53
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 73.5,
+    "hem_row": 104,
+    "hem_minus_belt": 30.5
+   },
+   {
+    "k": 4,
+    "hands": {
+     "screen_left": {
+      "cx": 44.45238095238095,
+      "cy": 83.44047619047619,
+      "outer": 40,
+      "low": 90,
+      "px": 84
+     },
+     "screen_right": {
+      "cx": 83.75,
+      "cy": 83.92307692307692,
+      "outer": 87,
+      "low": 89,
+      "px": 52
+     }
+    },
+    "foot_lift": {
+     "screen_left": 7,
+     "screen_right": 0
+    },
+    "belt_row": 73.0,
+    "hem_row": 104,
+    "hem_minus_belt": 31.0
+   },
+   {
+    "k": 5,
+    "hands": {
+     "screen_left": {
+      "cx": 38.878787878787875,
+      "cy": 83.45454545454545,
+      "outer": 35,
+      "low": 89,
+      "px": 66
+     },
+     "screen_right": {
+      "cx": 86.98507462686567,
+      "cy": 84.41791044776119,
+      "outer": 91,
+      "low": 90,
+      "px": 67
+     }
+    },
+    "foot_lift": {
+     "screen_left": 4,
+     "screen_right": 0
+    },
+    "belt_row": 73.5,
+    "hem_row": 103,
+    "hem_minus_belt": 29.5
+   },
+   {
+    "k": 6,
+    "hands": {
+     "screen_left": {
+      "cx": 37.333333333333336,
+      "cy": 82.87037037037037,
+      "outer": 34,
+      "low": 87,
+      "px": 54
+     },
+     "screen_right": {
+      "cx": 87.67532467532467,
+      "cy": 82.76623376623377,
+      "outer": 92,
+      "low": 89,
+      "px": 77
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 74.5,
+    "hem_row": 104,
+    "hem_minus_belt": 29.5
+   },
+   {
+    "k": 7,
+    "hands": {
+     "screen_left": {
+      "cx": 42.224489795918366,
+      "cy": 83.26530612244898,
+      "outer": 39,
+      "low": 87,
+      "px": 49
+     },
+     "screen_right": {
+      "cx": 81.73493975903614,
+      "cy": 81.13253012048193,
+      "outer": 86,
+      "low": 87,
+      "px": 83
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 74.5,
+    "hem_row": 104,
+    "hem_minus_belt": 29.5
+   }
+  ],
+  "hem_minus_belt_range": [
+   29.5,
+   31.5
+  ],
+  "hand_screen_left": {
+   "x_range_px": 8.5,
+   "y_range_px": 2.1,
+   "max_out_from_centre_px": 29.5,
+   "min_out_from_centre_px": 22.5
+  },
+  "hand_screen_right": {
+   "x_range_px": 8.5,
+   "y_range_px": 3.3,
+   "max_out_from_centre_px": 30.5,
+   "min_out_from_centre_px": 22.5
+  },
+  "max_foot_lift_px": 8,
+  "angle_straight_leg_deg": 35.3,
+  "angle_single_segment_deg": 50.9,
+  "lift_at_45deg_px": {
+   "straight_leg": 12.7,
+   "single_segment": 6.4
+  },
+  "note": "foot lift = how far a foot leaves the ground line (rear heel/foot lifts are visible from the front). angle_straight_leg = hip-to-foot line angle for that lift = UPPER bound for a bent knee too. angle_single_segment = the angle if only the shin (or only the thigh) rotated = knee-bend estimate, not leg lift.",
+  "knee_rise_proxy_px": 1.0,
+  "thigh_angle_est_deg": 17.5,
+  "knee_rise_at_45deg_px": 6.4
+ },
+ "v3_march": {
+  "label": "walk_v3 march",
+  "hip_row": 77.2,
+  "leg_len_px": 45.8,
+  "per_frame": [
+   {
+    "k": 0,
+    "hands": {
+     "screen_left": {
+      "cx": 32.56944444444444,
+      "cy": 70.23611111111111,
+      "outer": 27,
+      "low": 75,
+      "px": 72
+     },
+     "screen_right": {
+      "cx": 83.28,
+      "cy": 72.4,
+      "outer": 89,
+      "low": 74,
+      "px": 25
+     }
+    },
+    "foot_lift": {
+     "screen_left": 1,
+     "screen_right": 0
+    },
+    "belt_row": 73.5,
+    "hem_row": 104,
+    "hem_minus_belt": 30.5
+   },
+   {
+    "k": 1,
+    "hands": {
+     "screen_left": {
+      "cx": 33.6,
+      "cy": 71.08333333333333,
+      "outer": 29,
+      "low": 75,
+      "px": 60
+     },
+     "screen_right": {
+      "cx": 84.0,
+      "cy": 66.5625,
+      "outer": 88,
+      "low": 68,
+      "px": 16
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 70.5,
+    "hem_row": 100,
+    "hem_minus_belt": 29.5
+   },
+   {
+    "k": 2,
+    "hands": {
+     "screen_left": {
+      "cx": 38.41304347826087,
+      "cy": 80.80434782608695,
+      "outer": 35,
+      "low": 85,
+      "px": 46
+     },
+     "screen_right": {
+      "cx": 75.25333333333333,
+      "cy": 89.94666666666667,
+      "outer": 78,
+      "low": 100,
+      "px": 75
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 70.5,
+    "hem_row": 100,
+    "hem_minus_belt": 29.5
+   },
+   {
+    "k": 3,
+    "hands": {
+     "screen_left": {
+      "cx": 40.37096774193548,
+      "cy": 78.35483870967742,
+      "outer": 36,
+      "low": 83,
+      "px": 62
+     },
+     "screen_right": {
+      "cx": 76.2867132867133,
+      "cy": 87.36363636363636,
+      "outer": 80,
+      "low": 100,
+      "px": 143
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 70.5,
+    "hem_row": 101,
+    "hem_minus_belt": 30.5
+   },
+   {
+    "k": 4,
+    "hands": {
+     "screen_left": {
+      "cx": 44.66,
+      "cy": 70.28,
+      "outer": 38,
+      "low": 74,
+      "px": 50
+     },
+     "screen_right": {
+      "cx": 94.74,
+      "cy": 72.26,
+      "outer": 99,
+      "low": 77,
+      "px": 50
+     }
+    },
+    "foot_lift": {
+     "screen_left": 1,
+     "screen_right": 0
+    },
+    "belt_row": 72.5,
+    "hem_row": 104,
+    "hem_minus_belt": 31.5
+   },
+   {
+    "k": 5,
+    "hands": {
+     "screen_left": {
+      "cx": 43.9811320754717,
+      "cy": 68.54716981132076,
+      "outer": 38,
+      "low": 73,
+      "px": 53
+     },
+     "screen_right": {
+      "cx": 95.24193548387096,
+      "cy": 71.25806451612904,
+      "outer": 100,
+      "low": 76,
+      "px": 62
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 71.5,
+    "hem_row": 101,
+    "hem_minus_belt": 29.5
+   },
+   {
+    "k": 6,
+    "hands": {
+     "screen_left": {
+      "cx": 51.20168067226891,
+      "cy": 86.82352941176471,
+      "outer": 48,
+      "low": 100,
+      "px": 119
+     },
+     "screen_right": {
+      "cx": 89.91803278688525,
+      "cy": 74.55737704918033,
+      "outer": 95,
+      "low": 79,
+      "px": 61
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 70.5,
+    "hem_row": 99,
+    "hem_minus_belt": 28.5
+   },
+   {
+    "k": 7,
+    "hands": {
+     "screen_left": {
+      "cx": 51.1025641025641,
+      "cy": 88.53846153846153,
+      "outer": 46,
+      "low": 100,
+      "px": 117
+     },
+     "screen_right": {
+      "cx": 89.55,
+      "cy": 76.3,
+      "outer": 92,
+      "low": 80,
+      "px": 20
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 70.5,
+    "hem_row": 100,
+    "hem_minus_belt": 29.5
+   }
+  ],
+  "hem_minus_belt_range": [
+   28.5,
+   31.5
+  ],
+  "hand_screen_left": {
+   "x_range_px": 18.6,
+   "y_range_px": 20.0,
+   "max_out_from_centre_px": 36.5,
+   "min_out_from_centre_px": 15.5
+  },
+  "hand_screen_right": {
+   "x_range_px": 20.0,
+   "y_range_px": 23.4,
+   "max_out_from_centre_px": 36.5,
+   "min_out_from_centre_px": 14.5
+  },
+  "max_foot_lift_px": 1,
+  "angle_straight_leg_deg": 12.0,
+  "angle_single_segment_deg": 17.0,
+  "lift_at_45deg_px": {
+   "straight_leg": 13.4,
+   "single_segment": 6.7
+  },
+  "note": "foot lift = how far a foot leaves the ground line (rear heel/foot lifts are visible from the front). angle_straight_leg = hip-to-foot line angle for that lift = UPPER bound for a bent knee too. angle_single_segment = the angle if only the shin (or only the thigh) rotated = knee-bend estimate, not leg lift.",
+  "knee_rise_proxy_px": 2.0,
+  "thigh_angle_est_deg": 24.1,
+  "knee_rise_at_45deg_px": 6.7
+ },
+ "still_s": {
+  "label": "Option A S still",
+  "hip_row": 78.5,
+  "leg_len_px": 44.5,
+  "per_frame": [
+   {
+    "k": 0,
+    "hands": {
+     "screen_left": {
+      "cx": 42.4,
+      "cy": 84.54545454545455,
+      "outer": 39,
+      "low": 90,
+      "px": 55
+     },
+     "screen_right": {
+      "cx": 83.96551724137932,
+      "cy": 84.43103448275862,
+      "outer": 88,
+      "low": 90,
+      "px": 58
+     }
+    },
+    "foot_lift": {
+     "screen_left": 0,
+     "screen_right": 0
+    },
+    "belt_row": 72.5,
+    "hem_row": 103,
+    "hem_minus_belt": 30.5
+   }
+  ],
+  "hem_minus_belt_range": [
+   30.5,
+   30.5
+  ],
+  "hand_screen_left": {
+   "x_range_px": 0.0,
+   "y_range_px": 0.0,
+   "max_out_from_centre_px": 24.5,
+   "min_out_from_centre_px": 24.5
+  },
+  "hand_screen_right": {
+   "x_range_px": 0.0,
+   "y_range_px": 0.0,
+   "max_out_from_centre_px": 24.5,
+   "min_out_from_centre_px": 24.5
+  },
+  "max_foot_lift_px": 0,
+  "angle_straight_leg_deg": 0.0,
+  "angle_single_segment_deg": 0.0,
+  "lift_at_45deg_px": {
+   "straight_leg": 13.0,
+   "single_segment": 6.5
+  },
+  "note": "foot lift = how far a foot leaves the ground line (rear heel/foot lifts are visible from the front). angle_straight_leg = hip-to-foot line angle for that lift = UPPER bound for a bent knee too. angle_single_segment = the angle if only the shin (or only the thigh) rotated = knee-bend estimate, not leg lift."
+ }
+}

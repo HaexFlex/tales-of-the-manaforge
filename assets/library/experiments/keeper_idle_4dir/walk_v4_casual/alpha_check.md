@@ -1,0 +1,16 @@
+# Frame / alpha check (tools/check_frames.py)
+
+Hard 0/255 alpha; reference anchor = live keeper_walk_south / idle_south (sole row 123, feet x 63.5, height 122).
+
+| frame | RGBA | 128x128 | border clear | alpha0 RGB!=0 | semi px | magenta on edge | magenta anywhere | purple tint on edge | light fringe | non-palette | sole/feet x/height | PASS |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| walk_south/walk_south_0000.png | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 123/60.0/119 | PASS |
+| walk_south/walk_south_0001.png | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 123/65.5/118 | PASS |
+| walk_south/walk_south_0002.png | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 123/65.0/117 | PASS |
+| walk_south/walk_south_0003.png | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 123/65.0/118 | PASS |
+| walk_south/walk_south_0004.png | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 123/66.5/119 | PASS |
+| walk_south/walk_south_0005.png | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 123/63.0/118 | PASS |
+| walk_south/walk_south_0006.png | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 123/64.0/117 | PASS |
+| walk_south/walk_south_0007.png | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 123/60.0/118 | PASS |
+
+ALL PASS: True (8/8)
