@@ -13426,9 +13426,9 @@ prop_kind = "bush"
 metadata/prop_kind = "bush"
 [node name="ArtBush_0099" type="Node2D" parent="World" unique_id=1610001224 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(624.0000, 2129.6000)
+position = Vector2(588.0000, 2129.6000)
 script = ExtResource("14_2f3dj")
-texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+texture_path = "res://assets/art/hub/bushes/ring_bush_low_01.png"
 sprite_scale = 1.0
 prop_kind = "bush"
 metadata/prop_kind = "bush"
@@ -13550,3 +13550,11 @@ texture_path = "res://assets/art/hub/bushes/ring_bush_round_01.png"
 sprite_scale = 1.0
 prop_kind = "bush"
 metadata/prop_kind = "bush"
+[node name="ArtTree_0066" type="Node2D" parent="World" unique_id=1610001238 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(548.0000, 2176.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_old_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"

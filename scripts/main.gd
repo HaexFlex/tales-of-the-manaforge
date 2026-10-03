@@ -389,6 +389,11 @@ func _in_clearing(pos: Vector2) -> bool:
 ## One mask texel per tile, sampled in the ground pass, so the ring is not drawn twice.
 const FOREST_FLOOR_INNER: float = 1.04
 const FOREST_FLOOR_SOLID: float = 1.08
+## Hem tiles in front of the trunks read as dark boxes. Past this norm the
+## shade stays, including gaps between trunks. Inside it, a tile is kept only
+## when tree canopy covers at least half of it.
+const FOREST_FLOOR_CANOPY_NORM: float = 1.12
+const FOREST_FLOOR_COVER_NEED: int = 8
 
 const FOREST_FLOOR_SHADER: String = "
 shader_type canvas_item;
@@ -416,16 +421,88 @@ void fragment() {
 "
 
 
+class ForestCanopyTree:
+	var origin: Vector2
+	var tex_w: int
+	var tex_h: int
+	var flip: bool
+	var scale: float
+	var image: Image
+
+
+func _forest_canopy_trees() -> Array[ForestCanopyTree]:
+	var trees: Array[ForestCanopyTree] = []
+	if world == null:
+		return trees
+	for child: Node in world.get_children():
+		if str(child.get_meta("prop_kind", "")) != "tree":
+			continue
+		var spr: Sprite2D = child.get_node_or_null("Sprite") as Sprite2D
+		if spr == null or spr.texture == null:
+			continue
+		var img: Image = spr.texture.get_image()
+		if img == null:
+			continue
+		if img.is_compressed():
+			img.decompress()
+		var tree := ForestCanopyTree.new()
+		tree.origin = (child as Node2D).global_position
+		tree.tex_w = img.get_width()
+		tree.tex_h = img.get_height()
+		tree.flip = spr.flip_h
+		tree.scale = absf(spr.scale.x)
+		if tree.scale <= 0.0:
+			tree.scale = 1.0
+		tree.image = img
+		trees.append(tree)
+	return trees
+
+
+func _forest_tile_under_canopy(cell: Vector2i, trees: Array[ForestCanopyTree]) -> bool:
+	var hits: int = 0
+	for oy: int in [8, 24, 40, 56]:
+		for ox: int in [8, 24, 40, 56]:
+			if _forest_canopy_pixel(float(cell.x * TILE + ox), float(cell.y * TILE + oy), trees):
+				hits += 1
+				if hits >= FOREST_FLOOR_COVER_NEED:
+					return true
+	return false
+
+
+func _forest_canopy_pixel(wx: float, wy: float, trees: Array[ForestCanopyTree]) -> bool:
+	for tree: ForestCanopyTree in trees:
+		var local_x: float = (wx - tree.origin.x) / tree.scale
+		var local_y: float = (wy - tree.origin.y) / tree.scale
+		if local_x < float(-tree.tex_w) * 0.5 or local_x > float(tree.tex_w) * 0.5:
+			continue
+		if local_y < float(-tree.tex_h) or local_y > 0.0:
+			continue
+		var ix: int = int(local_x + float(tree.tex_w) * 0.5)
+		var iy: int = int(local_y + float(tree.tex_h))
+		if tree.flip:
+			ix = tree.tex_w - 1 - ix
+		if ix < 0 or iy < 0 or ix >= tree.tex_w or iy >= tree.tex_h:
+			continue
+		if tree.image.get_pixel(ix, iy).a >= 0.5:
+			return true
+	return false
+
+
 func _build_forest_floor() -> void:
 	if ground == null or ground.tile_set == null:
 		return
 	var mask := Image.create(_cols, _rows, false, Image.FORMAT_R8)
 	mask.fill(Color(0, 0, 0))
+	var trees: Array[ForestCanopyTree] = _forest_canopy_trees()
 	for cell: Vector2i in ground.get_used_cells(0):
 		if cell.x < 0 or cell.y < 0 or cell.x >= _cols or cell.y >= _rows:
 			continue
-		if _forest_floor_cell(cell):
-			mask.set_pixel(cell.x, cell.y, Color(1, 1, 1))
+		if not _forest_floor_cell(cell):
+			continue
+		var center := Vector2(float(cell.x * TILE + TILE / 2), float(cell.y * TILE + TILE / 2))
+		if _ellipse_norm(center) < FOREST_FLOOR_CANOPY_NORM and not _forest_tile_under_canopy(cell, trees):
+			continue
+		mask.set_pixel(cell.x, cell.y, Color(1, 1, 1))
 	var tex := ImageTexture.create_from_image(mask)
 	var shader := Shader.new()
 	shader.code = FOREST_FLOOR_SHADER
