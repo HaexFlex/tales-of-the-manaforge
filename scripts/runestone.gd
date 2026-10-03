@@ -229,21 +229,16 @@ func work_footprint() -> Rect2:
 
 
 func apply_player_command() -> void:
-	## RMB: Keeper walks in range, then the spend confirm. Wisps do not assign here.
+	## RMB: the selected hero walks in range, then the spend confirm. Wisps do not assign here.
 	if _world_blocked():
 		return
-	if GameState.selected_wisp_id >= 0:
+	if not GameState.selected_wisp_list().is_empty():
 		GameState.status_message.emit(ContentStrings.get_text("wisp_assign_hint"))
 		return
-	if not GameState.keeper_selected:
+	if GameState.selected_hero_id() == "":
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 		return
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k:
-		k.command_work(self, "runestone")
+	GameState.command_selected_hero(self, "runestone", "runestone:%s" % String(stat_id))
 
 
 func on_interact(keeper: Node) -> void:

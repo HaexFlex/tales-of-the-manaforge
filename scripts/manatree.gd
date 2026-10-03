@@ -125,30 +125,23 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 
 
 func work_footprint() -> Rect2:
-	## Door sill is the node origin. Watering measures from that base center.
+	## Door sill is the node origin at every stage. Watering uses this point, not the grown sprite.
 	return Rect2(global_position, Vector2.ZERO)
 
 
 func apply_player_command() -> void:
-	## RMB: wisp assign to Manatree (manashards pulse) OR Keeper walks + care/water as today.
+	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
 		var result: String = GameState.command_selected_wisps(node_id)
 		GameState.toast_wisp_assign(result, node_id)
-		if GameState.keeper_selected:
-			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
-			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
-				(keepers_both[0] as Keeper).command_work(self, "manatree")
+		if GameState.selected_hero_id() != "":
+			GameState.command_selected_hero(self, "manatree")
 		return
-	if not GameState.keeper_selected:
+	if GameState.selected_hero_id() == "":
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
 		return
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k:
-		k.command_work(self, "manatree")
+	GameState.command_selected_hero(self, "manatree")
 
 
 func on_interact(_keeper: Node) -> void:
@@ -169,17 +162,20 @@ func set_watering(active: bool) -> void:
 
 
 func do_water() -> void:
-	## Start / continue water channel via Keeper (income only).
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k == null:
-		return
+	## Start / continue water channel on the selected hero (income only).
 	if GameState.fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
-	k.start_water_channel(self)
+	var hero: Node = null
+	if GameState.selected_hero_id() == "elaia":
+		hero = get_tree().get_first_node_in_group("elaia")
+	if hero == null:
+		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+		if not keepers.is_empty():
+			hero = keepers[0]
+	if hero == null or not hero.has_method("start_water_channel"):
+		return
+	hero.call("start_water_channel", self)
 	if GameState.stage_id == &"ancient":
 		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
 

@@ -61,6 +61,97 @@ var _fallback_logged: Dictionary = {}
 
 static var _spots_cache: Dictionary = {}
 
+## Empty on the Keeper. Elaia sets "elaia" so focus can find her without the keeper group.
+var companion_id: String = ""
+
+
+func actor_id() -> String:
+	return "keeper"
+
+
+func actor_idle_uses_facing() -> bool:
+	return false
+
+
+func _join_groups() -> void:
+	add_to_group("keeper")
+
+
+func actor_selected() -> bool:
+	return GameState.keeper_selected
+
+
+func actor_select() -> void:
+	GameState.select_keeper()
+
+
+func actor_label_idle() -> String:
+	return ContentStrings.get_text("keeper_select")
+
+
+func actor_label_selected() -> String:
+	return ContentStrings.get_text("keeper_selected")
+
+
+func walk_reference_speed() -> float:
+	## Art reference px/s. Keeper is 80 in data/companions.json. Stride changes velocity, not this.
+	if has_node("/root/GameState"):
+		return GameState.actor_walk_ref_speed(actor_id())
+	return WALK_REF_SPEED
+
+
+func actor_move_speed() -> float:
+	var mult: float = 1.0
+	if has_node("/root/GameState"):
+		mult = GameState.actor_move_mult(actor_id())
+	return GameState.get_move_speed() * mult
+
+
+func actor_work_rate(station_id: String = "") -> float:
+	if has_node("/root/GameState"):
+		return GameState.actor_work_rate(actor_id(), station_id)
+	return 1.0
+
+
+func actor_water_mult() -> float:
+	if has_node("/root/GameState"):
+		return GameState.actor_water_mult(actor_id())
+	return 1.0
+
+
+func work_actor_id() -> String:
+	return actor_id()
+
+
+func publish_task(kind: String, target: String, working: bool) -> void:
+	if not has_node("/root/ForgeJobs"):
+		return
+	if actor_id() == "keeper":
+		ForgeJobs.set_keeper_task(kind, target, working)
+	else:
+		ForgeJobs.set_elaia_task(kind, target, working)
+
+
+func clear_published_task() -> void:
+	if not has_node("/root/ForgeJobs"):
+		return
+	ForgeJobs.release_hero_claim(actor_id())
+	if actor_id() == "keeper":
+		var task: Dictionary = ForgeJobs.keeper_task()
+		var task_kind: String = str(task.get("kind", ""))
+		if task_kind == "harvest" or task_kind == "water" or task_kind == "forge" or task_kind == "runestone":
+			ForgeJobs.note_keeper_idle()
+	else:
+		ForgeJobs.note_elaia_idle()
+
+
+func read_published_task() -> Dictionary:
+	if not has_node("/root/ForgeJobs"):
+		return {}
+	if actor_id() == "keeper":
+		return ForgeJobs.keeper_task()
+	return ForgeJobs.elaia_task()
+
 
 class WorkSpotGate:
 	var block_west_of: float = -1.0e12
@@ -80,9 +171,9 @@ func _ready() -> void:
 	sprite.flip_h = false
 	sprite.sprite_frames = _build_frames()
 	sprite.play(&"idle_south")
-	label.text = ContentStrings.get_text("keeper_select")
+	label.text = actor_label_idle()
 	label.position = Vector2(-40, -148)
-	add_to_group("keeper")
+	_join_groups()
 	if select_ring:
 		select_ring.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		select_ring.centered = true
@@ -176,7 +267,7 @@ func _physics_process(delta: float) -> void:
 		_update_anim(Vector2.ZERO)
 		return
 	if _moving:
-		var speed: float = GameState.get_move_speed()
+		var speed: float = actor_move_speed()
 		var to_target: Vector2 = _target - global_position
 		if to_target.length() <= ARRIVE_DIST:
 			_moving = false
@@ -213,14 +304,23 @@ func _update_anim(intended: Vector2) -> void:
 	sprite.flip_h = false
 	if _moving and intended.length_squared() > 0.01:
 		_facing = facing_for_velocity(intended, _facing)
-		var scale: float = walk_speed_scale_for(velocity.length())
+		## speed_scale is actual velocity / the actor's reference speed.
+		## Keeper's Stride is already inside get_move_speed(), so it changes this velocity.
+		var scale: float = walk_speed_scale_for(velocity.length(), walk_reference_speed())
+		if actor_id() == "keeper":
+			assert(is_equal_approx(scale, velocity.length() / WALK_REF_SPEED))
+			var stride_speed: float = GameState.get_move_speed()
+			assert(is_equal_approx(walk_speed_scale_for(stride_speed), stride_speed / WALK_REF_SPEED))
 		_play_loop(StringName("walk_%s" % _facing), scale, OFFSET_BODY)
 		return
 	if _should_work_loop():
 		var anim := StringName(work_anim_for(_work_tool, _work_facing))
 		_play_loop(anim, 1.0, _offset_for_anim(String(anim)))
 		return
-	_play_loop(&"idle_south", 1.0, OFFSET_BODY)
+	if actor_idle_uses_facing():
+		_play_loop(StringName("idle_%s" % _facing), 1.0, OFFSET_BODY)
+	else:
+		_play_loop(&"idle_south", 1.0, OFFSET_BODY)
 
 
 func _play_loop(anim: StringName, speed_scale: float, offset: Vector2) -> void:
@@ -260,7 +360,7 @@ func _station_task_matches() -> bool:
 		return false
 	if not has_node("/root/ForgeJobs"):
 		return false
-	var task: Dictionary = ForgeJobs.keeper_task()
+	var task: Dictionary = read_published_task()
 	return str(task.get("kind", "")) == "forge" and bool(task.get("working", false)) and str(task.get("target", "")) == _work_station_id
 
 
@@ -276,8 +376,10 @@ static func walk_anim_for_velocity(vel: Vector2, current: String = "south") -> S
 	return "walk_%s" % facing_for_velocity(vel, current)
 
 
-static func walk_speed_scale_for(speed: float) -> float:
-	return speed / WALK_REF_SPEED
+static func walk_speed_scale_for(speed: float, ref_speed: float = -1.0) -> float:
+	## ref_speed <= 0 keeps the Keeper's 80 px/s art reference.
+	var ref: float = WALK_REF_SPEED if ref_speed <= 0.0 else ref_speed
+	return speed / ref
 
 
 static func work_anim_for(tool: String, facing: String) -> String:
@@ -310,7 +412,7 @@ static func work_spot_table() -> Dictionary:
 	return _spots_cache
 
 
-static func work_spot_spec(type_id: String, station_id: String = "") -> Dictionary:
+static func work_spot_spec(type_id: String, station_id: String = "", actor_id: String = "keeper") -> Dictionary:
 	var types: Dictionary = work_spot_table().get("types", {}) as Dictionary
 	var spec: Dictionary = (types.get(type_id, {}) as Dictionary).duplicate(true)
 	if station_id != "" and spec.get("overrides") is Dictionary:
@@ -319,6 +421,13 @@ static func work_spot_spec(type_id: String, station_id: String = "") -> Dictiona
 			var extra: Dictionary = overrides.get(station_id) as Dictionary
 			for key: Variant in extra.keys():
 				spec[key] = extra[key]
+	if actor_id != "" and actor_id != "keeper":
+		var actors: Dictionary = work_spot_table().get("actors", {}) as Dictionary
+		var actor_types: Dictionary = actors.get(actor_id, {}) as Dictionary
+		if actor_types.get(type_id) is Dictionary:
+			var actor_extra: Dictionary = actor_types.get(type_id) as Dictionary
+			for key: Variant in actor_extra.keys():
+				spec[key] = actor_extra[key]
 	return spec
 
 
@@ -344,9 +453,10 @@ static func distance_to_rect(point: Vector2, rect: Rect2) -> float:
 	return point.distance_to(closest)
 
 
-static func solve_work_spot(footprint: Rect2, approach: Vector2, type_id: String, blocked: Callable, station_id: String = "") -> Dictionary:
-	var spec: Dictionary = work_spot_spec(type_id, station_id)
-	var sides: Array = spec.get("sides", ["west", "east"]) as Array
+static func solve_work_spot(footprint: Rect2, approach: Vector2, type_id: String, blocked: Callable, station_id: String = "", actor_id: String = "keeper") -> Dictionary:
+	var spec: Dictionary = work_spot_spec(type_id, station_id, actor_id)
+	var forced: String = str(spec.get("force_side", ""))
+	var sides: Array = [forced] if forced != "" else (spec.get("sides", ["west", "east"]) as Array)
 	var cands: Array[Dictionary] = []
 	for side_v: Variant in sides:
 		cands.append(_spot_for_side(footprint, str(side_v), spec))
@@ -497,11 +607,14 @@ func has_station_work_spot() -> bool:
 	return _has_work_spot and _work_tool == "station"
 
 
-func command_work(target: Node2D, type_id: String) -> void:
+func command_work(target: Node2D, type_id: String, claim_key: String = "") -> void:
 	if target == null:
 		return
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
+		return
+	var key: String = claim_key if claim_key != "" else type_id
+	if not _claim_target(key):
 		return
 	var solved: Dictionary = _solve_for(target, type_id)
 	_apply_solved(target, type_id, solved)
@@ -519,11 +632,28 @@ func command_station(station: Node2D) -> void:
 	var sid := ""
 	if "station_id" in station:
 		sid = str(station.get("station_id"))
+	if not _claim_target(sid):
+		return
 	var solved: Dictionary = _solve_for(station, "station", sid)
 	_apply_solved(station, "station", solved)
 	_suppress_work_clear = true
 	move_to(_work_spot, null)
 	_suppress_work_clear = false
+
+
+func _claim_target(key: String) -> bool:
+	## One hero per node or station. Wisps are not heroes and can still stack on it.
+	if key == "":
+		return true
+	if not has_node("/root/ForgeJobs"):
+		return true
+	var blocker: String = ForgeJobs.hero_block_name(actor_id(), key)
+	if blocker != "":
+		GameState.status_message.emit(ContentStrings.get_text("hud_companion_target_busy", {"name": blocker}))
+		return false
+	clear_published_task()
+	ForgeJobs.claim_hero_target(actor_id(), key)
+	return true
 
 
 func begin_work_loop() -> void:
@@ -561,20 +691,19 @@ func preview_station_work(station_id: String) -> void:
 	_work_target = null
 	_work_loop = false
 	if has_node("/root/ForgeJobs"):
-		ForgeJobs.set_keeper_working(station_id, true)
+		publish_task("forge", station_id, true)
 
 
 func clear_work_preview() -> void:
 	_clear_work_order()
-	if has_node("/root/ForgeJobs"):
-		ForgeJobs.set_keeper_working("", false)
+	clear_published_task()
 	_update_anim(Vector2.ZERO)
 
 
 func _solve_for(target: Node2D, type_id: String, station_id: String = "") -> Dictionary:
 	var footprint: Rect2 = _footprint_of(target)
 	var blocked := Callable(self, "_spot_blocked").bind(target)
-	return solve_work_spot(footprint, global_position, type_id, blocked, station_id)
+	return solve_work_spot(footprint, global_position, type_id, blocked, station_id, work_actor_id())
 
 
 func _footprint_of(target: Node2D) -> Rect2:
@@ -669,6 +798,7 @@ func halt() -> void:
 	_water_pending = false
 	velocity = Vector2.ZERO
 	_clear_work_order()
+	clear_published_task()
 	cancel_channel(false)
 
 
@@ -681,6 +811,7 @@ func move_to(world_pos: Vector2, interact: Node = null) -> void:
 			cancel_channel()
 	if not _suppress_work_clear:
 		_clear_work_order()
+		clear_published_task()
 		_water_pending = false
 	_target = world_pos
 	_pending_interact = interact
@@ -693,6 +824,8 @@ func start_harvest_channel(node: Gatherable) -> void:
 		return
 	if node == null:
 		return
+	if not _claim_target(String(node.resource_id)):
+		return
 	cancel_channel()
 	_ensure_work_spot(node, String(node.resource_id))
 	_channel_kind = ChannelKind.HARVEST
@@ -702,8 +835,7 @@ func start_harvest_channel(node: Gatherable) -> void:
 	GameAudio.play_channel_start()
 	GameState.status_message.emit(ContentStrings.get_text("harvest_start"))
 	channel_changed.emit(&"harvest", true)
-	if has_node("/root/ForgeJobs"):
-		ForgeJobs.set_keeper_task("harvest", String(node.resource_id), true)
+	publish_task("harvest", String(node.resource_id), true)
 	_channel_accum = 0.0
 
 
@@ -712,6 +844,8 @@ func start_water_channel(tree: Manatree) -> void:
 		GameState.note_frozen_deny()
 		return
 	if tree == null:
+		return
+	if not _claim_target("manatree"):
 		return
 	var spot: Vector2 = _ensure_work_spot(tree, "manatree")
 	if global_position.distance_to(spot) > ARRIVE_DIST + WORK_ARRIVE_SLACK:
@@ -735,8 +869,7 @@ func _begin_water_channel(tree: Manatree) -> void:
 	GameAudio.play_channel_start()
 	GameState.status_message.emit(ContentStrings.get_text("tree_water_start"))
 	channel_changed.emit(&"water", true)
-	if has_node("/root/ForgeJobs"):
-		ForgeJobs.set_keeper_task("water", "manatree", true)
+	publish_task("water", "manatree", true)
 	_do_water_pulse()
 	_channel_accum = 0.0
 
@@ -762,11 +895,8 @@ func cancel_channel(emit_status: bool = true) -> void:
 		if emit_status:
 			GameState.status_message.emit(ContentStrings.get_text("tree_water_cancel"))
 		channel_changed.emit(&"water", false)
-	if has_node("/root/ForgeJobs"):
-		var task: Dictionary = ForgeJobs.keeper_task()
-		var task_kind: String = str(task.get("kind", ""))
-		if task_kind == "harvest" or task_kind == "water":
-			ForgeJobs.note_keeper_idle()
+	if not _suppress_work_clear:
+		clear_published_task()
 
 
 func is_channeling() -> bool:
@@ -825,7 +955,7 @@ func _tick_channel(delta: float) -> void:
 		return
 	if _channel_kind == ChannelKind.HARVEST and _channel_target is Gatherable:
 		var rid: StringName = (_channel_target as Gatherable).resource_id
-		GameState.accumulate_keeper_harvest(rid, delta)
+		GameState.accumulate_keeper_harvest(rid, delta, actor_work_rate())
 	elif _channel_kind == ChannelKind.WATER:
 		_channel_accum += delta
 		var pulse: float = GameState.get_water_essence_pulse_sec()
@@ -837,7 +967,7 @@ func _tick_channel(delta: float) -> void:
 
 
 func _do_water_pulse() -> void:
-	var result: Dictionary = GameState.apply_water_pulse()
+	var result: Dictionary = GameState.apply_water_pulse(true, true, actor_water_mult())
 	if not bool(result.get("ok", false)):
 		cancel_channel(false)
 		return
@@ -869,8 +999,11 @@ func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			GameState.select_keeper()
-			GameState.status_message.emit(ContentStrings.get_text("keeper_select_hint"))
+			actor_select()
+			if actor_id() == "keeper":
+				GameState.status_message.emit(ContentStrings.get_text("keeper_select_hint"))
+			else:
+				GameState.status_message.emit(ContentStrings.get_text("echo_elaia_name"))
 			get_viewport().set_input_as_handled()
 		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			get_viewport().set_input_as_handled()
@@ -909,12 +1042,12 @@ func face_out() -> void:
 func _on_selection_changed() -> void:
 	if select_ring:
 		select_ring.visible = false
-	_apply_outline(GameState.keeper_selected)
+	_apply_outline(actor_selected())
 	if label:
-		if GameState.keeper_selected:
-			label.text = ContentStrings.get_text("keeper_selected")
+		if actor_selected():
+			label.text = actor_label_selected()
 			modulate = Color(1.08, 1.12, 1.0, 1.0)
 		else:
-			label.text = ContentStrings.get_text("keeper_select")
+			label.text = actor_label_idle()
 			modulate = Color.WHITE
 		label.visible = _hovered

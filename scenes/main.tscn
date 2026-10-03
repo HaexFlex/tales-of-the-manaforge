@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="5_hud"]
 [ext_resource type="PackedScene" path="res://scenes/pause_menu.tscn" id="6_pause"]
 [ext_resource type="Script" path="res://scripts/keeper.gd" id="6_yc10j"]
+[ext_resource type="Script" path="res://scripts/elaia.gd" id="28_elaia"]
 [ext_resource type="Script" path="res://scripts/gatherable.gd" id="8_jscy8"]
 [ext_resource type="PackedScene" path="res://scenes/runestone.tscn" id="9_pm3ni"]
 [ext_resource type="Script" path="res://scripts/runestone.gd" id="10_y6deb"]
@@ -659,6 +660,12 @@ y_sort_enabled = true
 position = Vector2(2080, 2460)
 collision_layer = 2
 script = ExtResource("6_yc10j")
+[node name="Elaia" type="CharacterBody2D" parent="World" instance=ExtResource("2_keeper")]
+y_sort_enabled = true
+position = Vector2(2144, 2460)
+collision_layer = 2
+script = ExtResource("28_elaia")
+home_area = "clearing"
 [node name="KeepersBench" type="Area2D" parent="World" instance=ExtResource("27_bench")]
 y_sort_enabled = true
 position = Vector2(1760, 2580)

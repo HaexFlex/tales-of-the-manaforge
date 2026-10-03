@@ -90,6 +90,8 @@ func _ready() -> void:
 	_sync_wisps()
 	# First load / new save: show Keeper welcome once (flag in save).
 	hud.maybe_show_welcome()
+	if hud.has_method("maybe_show_elaia_join"):
+		hud.call("maybe_show_elaia_join")
 
 
 func _load_hub_map() -> void:
@@ -472,6 +474,8 @@ func world_input_blocked() -> bool:
 		return true
 	if hud.has_method("is_forge_popup_open") and bool(hud.call("is_forge_popup_open")):
 		return true
+	if hud.has_method("is_elaia_join_open") and bool(hud.call("is_elaia_join_open")):
+		return true
 	if EchoPortal.is_fee_confirm_open():
 		return true
 	if EchoChamber.in_battle:
@@ -516,7 +520,7 @@ func handle_rmb_ground(world_pos: Vector2) -> void:
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return
-	## RMB empty ground: unassign every selected wisp, and walk the Keeper if he is selected.
+	## RMB empty ground: unassign every selected wisp, and walk the selected hero.
 	var ids: Array[int] = GameState.selected_wisp_list()
 	var unassigned: bool = false
 	for wid: int in ids:
@@ -524,6 +528,11 @@ func handle_rmb_ground(world_pos: Vector2) -> void:
 			unassigned = true
 	if unassigned:
 		GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
+	if GameState.selected_hero_id() == "elaia":
+		var elaia: Node = get_tree().get_first_node_in_group("elaia")
+		if elaia and elaia.has_method("command_move"):
+			elaia.call("command_move", world_pos)
+		return
 	if GameState.keeper_selected:
 		keeper.move_to(world_pos, null)
 		return
@@ -595,6 +604,7 @@ func _finish_marquee(world_pos: Vector2) -> void:
 			continue
 		if rect.has_point((node as Node2D).global_position):
 			ids.append(int(node.get("wisp_id")))
+	## Box-select is Wisps and the Keeper only. Elaia is never inside the marquee.
 	var keeper_in: bool = keeper != null and rect.has_point(keeper.global_position)
 	if ids.is_empty() and not keeper_in:
 		GameState.clear_selection()

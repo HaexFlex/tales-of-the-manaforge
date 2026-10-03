@@ -183,25 +183,18 @@ func approach_point() -> Vector2:
 
 
 func apply_player_command() -> void:
-	## RMB: wisp assign (no Keeper gate) OR Keeper walks + harvest channel.
+	## RMB: wisp assign, and the selected hero (Keeper or Elaia) walks to harvest.
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.node_id_for_resource(resource_id)
 		var result: String = GameState.command_selected_wisps(node_id)
 		GameState.toast_wisp_assign(result, node_id)
-		if GameState.keeper_selected:
-			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
-			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
-				(keepers_both[0] as Keeper).command_work(self, String(resource_id))
+		if GameState.selected_hero_id() != "":
+			GameState.command_selected_hero(self, String(resource_id))
 		return
-	if not GameState.keeper_selected:
+	if GameState.selected_hero_id() == "":
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_harvest"))
 		return
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k:
-		k.command_work(self, String(resource_id))
+	GameState.command_selected_hero(self, String(resource_id))
 
 
 func on_interact(keeper: Node) -> void:

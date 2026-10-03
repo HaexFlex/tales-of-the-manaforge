@@ -129,6 +129,7 @@ func _run() -> void:
 	failed += _check(jobs != null and bool(jobs.call("can_enter_forge")), "elder with a key can enter")
 	game.set("stage_id", &"sapling")
 	game.set("forge_key", false)
+	failed += _elaia_portrait_gate(live)
 	live.queue_free()
 	await process_frame
 
@@ -1006,6 +1007,40 @@ func _forest_cell(p: Vector2, step: float) -> Vector2i:
 	return Vector2i(int(floor(p.x / step)), int(floor(p.y / step)))
 
 
+func _elaia_portrait_gate(live: Node) -> int:
+	## Fresh save: no portrait and no sprite. Joined save (spared + first relic): both show.
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var hud: Node = live.get_node_or_null("HUD")
+	var slot: CanvasItem = live.get_node_or_null("HUD/PartyBar/Column/Elaia") as CanvasItem
+	var body: CanvasItem = live.get_node_or_null("World/Elaia") as CanvasItem
+	if hud:
+		hud.call("_refresh_party_bar")
+	failed += _check(not bool(game.call("elaia_in_party")), "fresh save has not joined Elaia")
+	failed += _check(slot != null and not slot.visible, "fresh save hides the Elaia portrait")
+	failed += _check(body != null and not body.visible, "fresh save hides the Elaia sprite")
+	game.set("echo_01_redeemed", true)
+	game.set("first_relic_crafted", true)
+	if hud:
+		hud.call("_refresh_party_bar")
+	if body and body.has_method("_apply_presence"):
+		body.call("_apply_presence")
+	failed += _check(bool(game.call("elaia_in_party")), "joined save has Elaia")
+	failed += _check(slot != null and slot.visible, "joined save shows the Elaia portrait")
+	var portrait: TextureRect = live.get_node_or_null("HUD/PartyBar/Column/Elaia/Portrait") as TextureRect
+	failed += _check(portrait != null and portrait.texture != null, "joined portrait has a texture")
+	failed += _check(body != null and body.visible, "joined save shows the Elaia sprite")
+	game.set("echo_01_redeemed", false)
+	game.set("first_relic_crafted", false)
+	game.set("elaia_has_pos", false)
+	game.set("elaia_join_seen", false)
+	if hud:
+		hud.call("_refresh_party_bar")
+	if body and body.has_method("_apply_presence"):
+		body.call("_apply_presence")
+	return failed
+
+
 func _content_keys() -> int:
 	var failed: int = 0
 	var strings: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/strings_v01.json"))
@@ -1025,6 +1060,8 @@ func _content_keys() -> int:
 		"title_continue_hint", "title_new_game_confirm", "pause_new_game_confirm",
 		"hud_sel_keeper", "hud_sel_wisp", "hud_sel_wisp_group", "hud_sel_plus_wisps",
 		"hud_task_idle", "hud_stage_label", "hud_stage_label_fruit_ready",
+		"elaia_join_1", "elaia_join_2", "elaia_join_3", "elaia_join_4", "elaia_join_5",
+		"elaia_join_toast", "hud_elaia_portrait_tooltip", "hud_companion_target_busy",
 	])
 	var shop: PackedStringArray = PackedStringArray([
 		"station_busy", "station_paused", "not_enough_material", "job_done", "jobs_finished_away",

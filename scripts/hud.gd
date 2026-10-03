@@ -501,6 +501,7 @@ func _on_welcome_dismiss() -> void:
 	GameAudio.play_ui_confirm()
 	_show_toast(ContentStrings.get_text("boot_line"))
 	SaveService.save_game()
+	maybe_show_elaia_join()
 
 
 func _on_resources(_id: StringName, _amount: int) -> void:
@@ -594,6 +595,10 @@ var _sel_name: Label
 var _sel_task: Label
 var _sel_job: Label
 var _sel_extra: Label
+var _join_band: Panel
+var _join_name: Label
+var _join_line: Label
+var _join_index: int = 0
 
 
 func _build_party_bar() -> void:
@@ -601,7 +606,15 @@ func _build_party_bar() -> void:
 		return
 	_party_bar = Control.new()
 	_party_bar.name = "PartyBar"
-	_party_bar.position = Vector2(12, 86)
+	## Top-left anchors. The column stays in the gutter the character sheet leaves open.
+	_party_bar.anchor_left = 0.0
+	_party_bar.anchor_top = 0.0
+	_party_bar.anchor_right = 0.0
+	_party_bar.anchor_bottom = 0.0
+	_party_bar.offset_left = 12.0
+	_party_bar.offset_top = 86.0
+	_party_bar.offset_right = 12.0 + PARTY_SLOT
+	_party_bar.offset_bottom = 86.0 + PARTY_SLOT * 3.0 + 24.0
 	_party_bar.z_index = 20
 	_party_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_party_column = VBoxContainer.new()
@@ -647,10 +660,23 @@ func _build_party_bar() -> void:
 	add_child(_party_bar)
 	var keeper_tex: Texture2D = load(CharacterSheet.PORTRAIT_PATH) as Texture2D
 	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
-	var elaia_tex: Texture2D = load("res://assets/art/echo/elaia_front.png") as Texture2D
 	(_slot_keeper.get_node("Portrait") as TextureRect).texture = keeper_tex
 	(_slot_wisp.get_node("Portrait") as TextureRect).texture = wisp_tex
-	(_slot_elaia.get_node("Portrait") as TextureRect).texture = elaia_tex
+	(_slot_elaia.get_node("Portrait") as TextureRect).texture = _elaia_portrait_texture()
+	_slot_elaia.tooltip_text = ContentStrings.get_text("hud_elaia_portrait_tooltip")
+	_slot_elaia.visible = false
+	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _elaia_portrait_texture() -> Texture2D:
+	## Head crop of the Echo bust. The full plate is a black-backed full figure.
+	var src: Texture2D = load("res://assets/art/echo/elaia_front.png") as Texture2D
+	if src == null:
+		return null
+	var atlas := AtlasTexture.new()
+	atlas.atlas = src
+	atlas.region = Rect2(200, 140, 380, 380)
+	return atlas
 
 
 func _make_party_slot(slot_name: String, unit: String) -> Control:
@@ -706,6 +732,10 @@ func _on_party_slot_input(event: InputEvent, unit: String) -> void:
 
 
 func party_click(unit: String) -> void:
+	if unit == "elaia" and not GameState.elaia_in_party():
+		return
+	if is_character_open() and (unit == "keeper" or unit == "elaia") and _sheet != null:
+		_sheet.show_actor(unit)
 	if unit == "keeper":
 		GameState.select_keeper()
 	elif unit == "elaia":
@@ -735,6 +765,7 @@ func _refresh_party_bar() -> void:
 	_party_bar.visible = true
 	_slot_keeper.visible = true
 	_slot_elaia.visible = elaia_joined
+	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
 	_slot_wisp.visible = not ids.is_empty()
 	_set_party_outline(_slot_keeper, show_keeper)
 	_set_party_outline(_slot_elaia, companion_id == "elaia")
@@ -748,6 +779,7 @@ func _refresh_party_bar() -> void:
 	if not show_keeper and ids.is_empty() and companion_id == "":
 		_party_info.visible = false
 		_apply_selection_job()
+		_hide_party_info_for_sheet()
 		return
 	_party_info.visible = true
 	_sel_extra.visible = false
@@ -759,9 +791,9 @@ func _refresh_party_bar() -> void:
 	elif show_keeper:
 		_sel_name.text = ContentStrings.get_text("hud_sel_keeper")
 		_sel_task.text = _keeper_task_text()
-	elif companion_id == "elaia":
+	elif companion_id == "elaia" and elaia_joined:
 		_sel_name.text = ContentStrings.get_text("echo_elaia_name")
-		_sel_task.text = ContentStrings.get_text("hud_task_idle")
+		_sel_task.text = _hero_task_text(ForgeJobs.elaia_task() if has_node("/root/ForgeJobs") else {})
 	elif ids.size() >= 2:
 		_sel_name.text = ContentStrings.get_text("hud_sel_wisp_group")
 		_sel_task.text = _group_task_text(ids, false)
@@ -771,6 +803,13 @@ func _refresh_party_bar() -> void:
 	else:
 		_party_info.visible = false
 	_apply_selection_job()
+	_hide_party_info_for_sheet()
+
+
+func _hide_party_info_for_sheet() -> void:
+	## The name line sits beside the portraits and would cover the sheet.
+	if is_character_open() and _party_info:
+		_party_info.visible = false
 
 
 func _apply_selection_job() -> void:
@@ -798,6 +837,13 @@ func _selection_job_station() -> String:
 			var keeper_state: Dictionary = ForgeJobs.job_state(station)
 			if not keeper_state.is_empty() and bool(keeper_state.get("working", false)):
 				return station
+	if str(GameState.selected_companion_id) == "elaia" and GameState.elaia_in_party():
+		var elaia_task: Dictionary = ForgeJobs.elaia_task()
+		if bool(elaia_task.get("working", false)) and str(elaia_task.get("kind", "")) == "forge":
+			var elaia_station: String = str(elaia_task.get("target", ""))
+			var elaia_state: Dictionary = ForgeJobs.job_state(elaia_station)
+			if not elaia_state.is_empty() and bool(elaia_state.get("working", false)):
+				return elaia_station
 	var ids: Array[int] = GameState.selected_wisp_list()
 	if ids.is_empty():
 		return ""
@@ -828,7 +874,10 @@ func _group_task_text(ids: Array[int], with_keeper: bool) -> String:
 func _keeper_task_text() -> String:
 	if not has_node("/root/ForgeJobs"):
 		return ContentStrings.get_text("hud_task_idle")
-	var task: Dictionary = ForgeJobs.keeper_task()
+	return _hero_task_text(ForgeJobs.keeper_task())
+
+
+func _hero_task_text(task: Dictionary) -> String:
 	if not bool(task.get("working", false)):
 		return ContentStrings.get_text("hud_task_idle")
 	var kind: String = str(task.get("kind", ""))
@@ -883,6 +932,7 @@ func _refresh_selection_hint() -> void:
 	else:
 		selection_hint.text = ContentStrings.get_text("keeper_select_hint")
 	selection_hint.visible = false
+	maybe_show_elaia_join()
 
 
 var _pause_menu: PauseMenu = null
@@ -1807,7 +1857,10 @@ func open_character_sheet() -> void:
 	hide_fruit_confirm()
 	if _sheet == null:
 		return
-	_sheet.open_sheet()
+	var actor: String = "elaia" if GameState.selected_hero_id() == "elaia" else "keeper"
+	_sheet.open_sheet(actor)
+	if _party_info:
+		_party_info.visible = false
 	if not GameState.fruit_committed:
 		_hold_world_for_backpack()
 	GameAudio.play_ui_open()
@@ -1817,8 +1870,103 @@ func close_character_sheet() -> void:
 	if _sheet == null or not _sheet.visible:
 		return
 	_sheet.close_sheet()
+	_refresh_party_bar()
 	GameAudio.play_ui_close()
 	_release_world_if_allowed()
+
+
+func is_elaia_join_open() -> bool:
+	return _join_band != null and _join_band.visible
+
+
+func maybe_show_elaia_join() -> void:
+	## Once, in the Clearing, after she has joined. Migrated saves set the flag and skip this.
+	if not GameState.elaia_join_pending():
+		return
+	if welcome_panel != null and welcome_panel.visible:
+		return
+	if is_elaia_join_open():
+		return
+	var scene: Node = get_tree().current_scene if get_tree() else null
+	if scene == null or not scene.is_in_group("main_root"):
+		return
+	_ensure_join_band()
+	_join_index = 0
+	_show_join_line()
+	_join_band.visible = true
+
+
+func _ensure_join_band() -> void:
+	if _join_band != null:
+		return
+	_join_band = Panel.new()
+	_join_band.name = "ElaiaJoinBand"
+	_join_band.anchor_left = 0.5
+	_join_band.anchor_right = 0.5
+	_join_band.anchor_top = 1.0
+	_join_band.anchor_bottom = 1.0
+	_join_band.offset_left = -260.0
+	_join_band.offset_right = 260.0
+	_join_band.offset_top = -196.0
+	_join_band.offset_bottom = -16.0
+	_join_band.mouse_filter = Control.MOUSE_FILTER_STOP
+	_join_band.z_index = 30
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.09, 0.15, 0.13, 0.94)
+	style.set_corner_radius_all(2)
+	_join_band.add_theme_stylebox_override("panel", style)
+	_join_band.gui_input.connect(_on_join_band_input)
+	_join_name = Label.new()
+	_join_name.name = "Speaker"
+	_join_name.position = Vector2(16, 10)
+	_join_name.size = Vector2(488, 22)
+	_join_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_join_name.add_theme_font_size_override("font_size", 15)
+	_join_name.add_theme_color_override("font_color", Color(0.88, 0.92, 0.86))
+	_join_band.add_child(_join_name)
+	_join_line = Label.new()
+	_join_line.name = "Line"
+	_join_line.position = Vector2(16, 36)
+	_join_line.size = Vector2(488, 120)
+	_join_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_join_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_join_line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_join_line.add_theme_font_size_override("font_size", 12)
+	_join_line.add_theme_color_override("font_color", Color(0.86, 0.91, 0.84))
+	_join_band.add_child(_join_line)
+	add_child(_join_band)
+	_join_band.visible = false
+
+
+func _show_join_line() -> void:
+	if _join_name == null or _join_line == null:
+		return
+	_join_name.text = ContentStrings.get_text("echo_elaia_name")
+	var key: String = "elaia_join_%d" % (_join_index + 1)
+	_join_line.text = ContentStrings.get_text(key)
+
+
+func _on_join_band_input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	_advance_join_line()
+
+
+func _advance_join_line() -> void:
+	if _join_band == null or not _join_band.visible:
+		return
+	_join_index += 1
+	if _join_index < 5:
+		_show_join_line()
+		return
+	_join_band.visible = false
+	GameState.elaia_join_seen = true
+	_show_toast(ContentStrings.get_text("elaia_join_toast"))
+	if has_node("/root/SaveService"):
+		SaveService.save_game()
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -22,6 +22,8 @@ const RECIPE_BUTTON: Script = preload("res://scripts/forge_recipe_button.gd")
 const CLICK_SLOP: float = 6.0
 var _wisp_nodes: Dictionary = {}
 var _dest_station: String = ""
+## "keeper" or "elaia". Station arrival must not clear the other hero's job.
+var _station_actor: String = ""
 var _panel_station: String = ""
 var _leaving: bool = false
 var _drag_active: bool = false
@@ -40,6 +42,9 @@ func _ready() -> void:
 		keeper.add_to_group("keeper")
 		if not keeper.arrived.is_connected(_on_keeper_arrived):
 			keeper.arrived.connect(_on_keeper_arrived)
+	var elaia: Node = get_node_or_null("Elaia")
+	if elaia and elaia.has_signal("arrived") and not elaia.arrived.is_connected(_on_elaia_arrived):
+		elaia.arrived.connect(_on_elaia_arrived)
 	if exit_area and not exit_area.body_entered.is_connected(_on_exit_body):
 		exit_area.body_entered.connect(_on_exit_body)
 	if pause_menu:
@@ -129,13 +134,21 @@ func _on_escape() -> void:
 
 func walk_keeper_to_station(station_id: String) -> void:
 	_dest_station = station_id
+	_station_actor = "keeper"
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.set_keeper_working("", false)
 	_open_recipes(station_id)
 
 
+func present_elaia_at_station(station_id: String) -> void:
+	## Opens the same recipe list. Does not clear the Keeper's station job.
+	_dest_station = station_id
+	_station_actor = "elaia"
+	_open_recipes(station_id)
+
+
 func _on_keeper_arrived() -> void:
-	if _dest_station == "" or not has_node("/root/ForgeJobs"):
+	if _station_actor != "keeper" or _dest_station == "" or not has_node("/root/ForgeJobs"):
 		return
 	var station: ForgeStation = _find_station(_dest_station)
 	if station == null or keeper == null:
@@ -147,9 +160,25 @@ func _on_keeper_arrived() -> void:
 		ForgeJobs.set_keeper_working(_dest_station, true)
 
 
+func _on_elaia_arrived() -> void:
+	if _station_actor != "elaia" or _dest_station == "" or not has_node("/root/ForgeJobs"):
+		return
+	var elaia: Node2D = get_node_or_null("Elaia") as Node2D
+	var station: ForgeStation = _find_station(_dest_station)
+	if station == null or elaia == null:
+		return
+	var stand: Vector2 = station.stand_global()
+	if elaia.has_method("has_station_work_spot") and bool(elaia.call("has_station_work_spot")):
+		stand = elaia.call("work_spot_position")
+	if elaia.global_position.distance_to(stand) <= ForgeJobs.stand_radius():
+		ForgeJobs.set_elaia_working(_dest_station, true)
+
+
 func _on_rmb_ground(world_pos: Vector2) -> void:
 	_dest_station = ""
-	if has_node("/root/ForgeJobs"):
+	_station_actor = ""
+	var elaia_selected: bool = GameState.selected_hero_id() == "elaia"
+	if has_node("/root/ForgeJobs") and not elaia_selected:
 		ForgeJobs.set_keeper_working("", false)
 	_hide_recipes()
 	var ids: Array[int] = GameState.selected_wisp_list()
@@ -159,6 +188,11 @@ func _on_rmb_ground(world_pos: Vector2) -> void:
 			unassigned = true
 	if unassigned:
 		GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
+	if elaia_selected:
+		var elaia: Node = get_node_or_null("Elaia")
+		if elaia and elaia.has_method("command_move"):
+			elaia.call("command_move", world_pos)
+		return
 	if GameState.keeper_selected and keeper and keeper.has_method("move_to"):
 		keeper.call("move_to", world_pos, null)
 		return
@@ -232,6 +266,7 @@ func _finish_marquee(world_pos: Vector2) -> void:
 			continue
 		if rect.has_point((node as Node2D).global_position):
 			picked.append(int(node.get("wisp_id")))
+	## Marquee is Wisps + the Keeper. Elaia stays out of the box; select_group clears her.
 	var keeper_in: bool = keeper != null and rect.has_point(keeper.global_position)
 	if picked.is_empty() and not keeper_in:
 		GameState.clear_selection()

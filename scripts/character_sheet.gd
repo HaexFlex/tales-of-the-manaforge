@@ -91,6 +91,7 @@ var _footer: Label
 var _hover_item_id: String = ""
 var _gear_tab: String = "all"
 var _built: bool = false
+var _actor_id: String = "keeper"
 
 
 func _ready() -> void:
@@ -120,10 +121,20 @@ func is_open() -> bool:
 	return visible
 
 
-func open_sheet() -> void:
+func open_sheet(actor_id: String = "keeper") -> void:
 	visible = true
 	_hover_item_id = ""
+	show_actor(actor_id if actor_id != "" else "keeper")
+
+
+func show_actor(actor_id: String) -> void:
+	## Clicking the other party portrait switches this sheet. Elaia has no gear or combat ranks.
+	if actor_id == "elaia" and not CharacterSheet._auto("GameState").call("elaia_in_party"):
+		actor_id = "keeper"
+	_actor_id = actor_id if actor_id == "elaia" else "keeper"
+	_apply_actor_chrome()
 	_refresh()
+	_fit_sheet()
 
 
 func close_sheet() -> void:
@@ -203,20 +214,25 @@ func _build() -> void:
 	dim.gui_input.connect(_on_dim_input)
 	add_child(dim)
 
+	## Gutter for the party column. Anchors track every window size; the paper doll scales inside.
+	var fit := Control.new()
+	fit.name = "SheetFit"
+	fit.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fit.offset_left = 88.0
+	fit.offset_top = 8.0
+	fit.offset_right = -12.0
+	fit.offset_bottom = -12.0
+	fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fit)
+	fit.resized.connect(_fit_sheet)
+
 	var sheet := Panel.new()
 	sheet.name = "Sheet"
 	sheet.custom_minimum_size = SHEET_SIZE
-	sheet.anchor_left = 0.5
-	sheet.anchor_top = 0.5
-	sheet.anchor_right = 0.5
-	sheet.anchor_bottom = 0.5
-	sheet.offset_left = -SHEET_SIZE.x * 0.5
-	sheet.offset_top = -SHEET_SIZE.y * 0.5
-	sheet.offset_right = SHEET_SIZE.x * 0.5
-	sheet.offset_bottom = SHEET_SIZE.y * 0.5
+	sheet.size = SHEET_SIZE
 	sheet.mouse_filter = Control.MOUSE_FILTER_STOP
 	sheet.add_theme_stylebox_override("panel", _wood_style())
-	add_child(sheet)
+	fit.add_child(sheet)
 
 	var title := Label.new()
 	title.name = "Title"
@@ -420,8 +436,7 @@ func _build() -> void:
 		right.size.y = stats_bottom
 		sheet_h = minf(688.0, SHEET_SIZE.y + extra)
 		sheet.custom_minimum_size = Vector2(SHEET_SIZE.x, sheet_h)
-		sheet.offset_top = -sheet_h * 0.5
-		sheet.offset_bottom = sheet_h * 0.5
+		sheet.size = sheet.custom_minimum_size
 
 	var fate_note := Label.new()
 	fate_note.name = "FateNote"
@@ -439,6 +454,8 @@ func _build() -> void:
 	_footer.add_theme_font_size_override("font_size", 12)
 	_footer.add_theme_color_override("font_color", INK)
 	sheet.add_child(_footer)
+	_build_elaia_panels(sheet)
+	call_deferred("_fit_sheet")
 
 
 func _add_stat_row(block: Control, node_name: String, text: String, font_size: int, color: Color, y: float, row_h: float) -> void:
@@ -461,7 +478,7 @@ func _add_stat_row(block: Control, node_name: String, text: String, font_size: i
 
 
 func _center_stat_glyphs() -> void:
-	var root: Node = get_node_or_null("Sheet/Stats")
+	var root: Node = get_node_or_null("SheetFit/Sheet/Stats")
 	if root == null:
 		return
 	for stat_name: StringName in CharacterSheet._auto("KeeperStats").STAT_ORDER:
@@ -489,6 +506,149 @@ func _center_glyph_label(host: Control, lbl: Label) -> void:
 	lbl.position = Vector2(0, (host.size.y - need) * 0.5)
 
 
+func _fit_sheet() -> void:
+	var fit: Control = get_node_or_null("SheetFit") as Control
+	var sheet: Control = get_node_or_null("SheetFit/Sheet") as Control
+	if fit == null or sheet == null:
+		return
+	var avail: Vector2 = fit.size
+	if avail.x < 32.0 or avail.y < 32.0:
+		return
+	var design: Vector2 = sheet.custom_minimum_size
+	if design.x < 1.0 or design.y < 1.0:
+		design = SHEET_SIZE
+	var sc: float = minf(1.0, minf(avail.x / design.x, avail.y / design.y))
+	sheet.scale = Vector2(sc, sc)
+	sheet.pivot_offset = Vector2.ZERO
+	var drawn: Vector2 = design * sc
+	sheet.position = (avail - drawn) * 0.5
+	sheet.size = design
+
+
+func _build_elaia_panels(sheet: Control) -> void:
+	var mid := Control.new()
+	mid.name = "ElaiaGear"
+	mid.visible = false
+	mid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mid.position = Vector2(524, 64)
+	mid.size = Vector2(360, 600)
+	sheet.add_child(mid)
+	var gear_title := Label.new()
+	gear_title.name = "Title"
+	gear_title.position = Vector2(0, 0)
+	gear_title.size = Vector2(360, 22)
+	gear_title.add_theme_font_size_override("font_size", 15)
+	gear_title.add_theme_color_override("font_color", GOLD)
+	mid.add_child(gear_title)
+	var note := Label.new()
+	note.name = "Note"
+	note.position = Vector2(0, 36)
+	note.size = Vector2(340, 80)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.add_theme_font_size_override("font_size", 13)
+	note.add_theme_color_override("font_color", MUTED)
+	mid.add_child(note)
+
+	var right := Control.new()
+	right.name = "ElaiaStats"
+	right.visible = false
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.position = Vector2(896, 64)
+	right.size = Vector2(360, 620)
+	sheet.add_child(right)
+	var stats_title := Label.new()
+	stats_title.name = "Title"
+	stats_title.position = Vector2(0, 0)
+	stats_title.size = Vector2(360, 22)
+	stats_title.add_theme_font_size_override("font_size", 15)
+	stats_title.add_theme_color_override("font_color", GOLD)
+	right.add_child(stats_title)
+	var y: float = STAT_TOP
+	for row_name: String in ["Work", "Reliquary", "Water", "Pace"]:
+		var block := Control.new()
+		block.name = "Row_%s" % row_name
+		block.position = Vector2(0, y)
+		block.size = Vector2(360, STAT_STRIDE)
+		block.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		right.add_child(block)
+		var role_y: float = STAT_NAME_H - 8.0
+		var line_y: float = role_y + STAT_ROLE_H + STAT_GAP_SMALL
+		_add_stat_row(block, "Name", "", 14, INK, 0.0, STAT_NAME_H)
+		_add_stat_row(block, "Role", "", 11, MUTED, role_y, STAT_ROLE_H)
+		_add_stat_row(block, "Line", "", 15, INK, line_y, STAT_NUM_H)
+		y += STAT_STRIDE
+
+
+func _apply_actor_chrome() -> void:
+	var sheet: Node = get_node_or_null("SheetFit/Sheet")
+	if sheet == null:
+		return
+	var elaia: bool = _actor_id == "elaia"
+	var strings = CharacterSheet._auto("ContentStrings")
+	var title: Label = sheet.get_node_or_null("Title") as Label
+	if title:
+		title.text = strings.get_text("char_sheet_elaia_title") if elaia else strings.get_text("char_sheet_title")
+	var host: Node = sheet.get_node_or_null("PortraitHost")
+	if host:
+		for child: Node in host.get_children():
+			if str(child.name).begins_with("Slot_"):
+				child.visible = not elaia
+	var gear: CanvasItem = sheet.get_node_or_null("GearColumn") as CanvasItem
+	if gear:
+		gear.visible = not elaia
+	var stats: CanvasItem = sheet.get_node_or_null("Stats") as CanvasItem
+	if stats:
+		stats.visible = not elaia
+	var elaia_gear: CanvasItem = sheet.get_node_or_null("ElaiaGear") as CanvasItem
+	var elaia_stats: CanvasItem = sheet.get_node_or_null("ElaiaStats") as CanvasItem
+	if elaia_gear:
+		elaia_gear.visible = elaia
+	if elaia_stats:
+		elaia_stats.visible = elaia
+	if _portrait:
+		_portrait.texture = _elaia_sheet_portrait() if elaia else load(PORTRAIT_PATH) as Texture2D
+	if not elaia:
+		return
+	var gear_title: Label = sheet.get_node_or_null("ElaiaGear/Title") as Label
+	var note: Label = sheet.get_node_or_null("ElaiaGear/Note") as Label
+	if gear_title:
+		gear_title.text = strings.get_text("char_sheet_elaia_tending")
+	if note:
+		note.text = "%s\n%s" % [strings.get_text("char_sheet_elaia_role"), strings.get_text("char_sheet_elaia_no_gear")]
+	var gs = CharacterSheet._auto("GameState")
+	var work: float = float(gs.call("actor_work_rate", "elaia", ""))
+	var relic: float = float(gs.call("actor_work_rate", "elaia", "reliquary"))
+	var water: float = float(gs.call("actor_water_mult", "elaia"))
+	var pace: float = float(gs.call("actor_move_mult", "elaia"))
+	_set_elaia_row(sheet, "Work", "char_sheet_elaia_work_rate", "char_sheet_elaia_work_role", work)
+	_set_elaia_row(sheet, "Reliquary", "char_sheet_elaia_reliquary", "char_sheet_elaia_reliquary_role", relic)
+	_set_elaia_row(sheet, "Water", "char_sheet_elaia_water", "char_sheet_elaia_water_role", water)
+	_set_elaia_row(sheet, "Pace", "char_sheet_elaia_move", "char_sheet_elaia_move_role", pace)
+
+
+func _set_elaia_row(sheet: Node, row_name: String, name_key: String, role_key: String, value: float) -> void:
+	var strings = CharacterSheet._auto("ContentStrings")
+	var name_lbl: Label = sheet.get_node_or_null("ElaiaStats/Row_%s/Name/Text" % row_name) as Label
+	var role_lbl: Label = sheet.get_node_or_null("ElaiaStats/Row_%s/Role/Text" % row_name) as Label
+	var line_lbl: Label = sheet.get_node_or_null("ElaiaStats/Row_%s/Line/Text" % row_name) as Label
+	if name_lbl:
+		name_lbl.text = strings.get_text(name_key)
+	if role_lbl:
+		role_lbl.text = strings.get_text(role_key)
+	if line_lbl:
+		line_lbl.text = String.num(value, 1) + "×"
+
+
+func _elaia_sheet_portrait() -> Texture2D:
+	var src: Texture2D = load("res://assets/art/echo/elaia_front.png") as Texture2D
+	if src == null:
+		return null
+	var atlas := AtlasTexture.new()
+	atlas.atlas = src
+	atlas.region = Rect2(200, 140, 380, 380)
+	return atlas
+
+
 func _on_dim_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event
@@ -499,13 +659,16 @@ func _on_dim_input(event: InputEvent) -> void:
 func _refresh() -> void:
 	if not _built:
 		return
+	if _actor_id == "elaia":
+		_apply_actor_chrome()
+		return
 	_refresh_slots()
 	_refresh_inventory()
 	_refresh_stats()
 
 
 func _refresh_slots() -> void:
-	var host: Control = get_node_or_null("Sheet/PortraitHost") as Control
+	var host: Control = get_node_or_null("SheetFit/Sheet/PortraitHost") as Control
 	if host == null:
 		return
 	for slot_name: StringName in CharacterSheet._auto("Equipment").SLOT_ORDER:
@@ -555,7 +718,7 @@ func _refresh_inventory() -> void:
 
 
 func _refresh_stats() -> void:
-	var root: Node = get_node_or_null("Sheet/Stats")
+	var root: Node = get_node_or_null("SheetFit/Sheet/Stats")
 	if root == null:
 		return
 	for stat_name: StringName in CharacterSheet._auto("KeeperStats").STAT_ORDER:
@@ -810,7 +973,7 @@ class SlotPlate extends Panel:
 			var hint: String = CharacterSheet._auto("Equipment").slot_lock_hint(slot_id)
 			CharacterSheet._auto("GameAudio").play_tree_deny()
 			CharacterSheet._auto("GameState").status_message.emit(hint)
-			var footer: Label = host.get_node_or_null("Sheet/Footer") as Label
+			var footer: Label = host.get_node_or_null("SheetFit/Sheet/Footer") as Label
 			if footer:
 				footer.text = hint
 			return

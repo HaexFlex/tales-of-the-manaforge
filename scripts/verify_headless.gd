@@ -27,6 +27,16 @@ func _run() -> void:
 		quit(1)
 		return
 
+	if _wants_check_only():
+		failed += _check_only_load()
+		if failed > 0:
+			print("CHECK_ONLY_FAIL: %d" % failed)
+			quit(1)
+		else:
+			print("CHECK_ONLY_OK")
+			quit(0)
+		return
+
 	# Isolated Pass J clock. The full suite still runs this test near the end.
 	# MANAFORGE_DURATION_ONLY=1 skips every other assertion.
 	if OS.get_environment("MANAFORGE_DURATION_ONLY") == "1":
@@ -2308,6 +2318,7 @@ func _run() -> void:
 	failed += _forge_duration_ticks(tree_root, game_state, backpack)
 	failed += await _party_bar_check(tree_root, game_state)
 	failed += await _elaia_join_check(tree_root, game_state, backpack)
+	failed += _elaia_companion_asserts(tree_root, game_state, backpack)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
@@ -3001,6 +3012,137 @@ func _forge_tick(jobs: Node, seconds: float) -> void:
 		left -= step
 
 
+func _wants_check_only() -> bool:
+	if OS.get_environment("MANAFORGE_CHECK_ONLY") == "1":
+		return true
+	var args: PackedStringArray = OS.get_cmdline_user_args()
+	args.append_array(OS.get_cmdline_args())
+	return args.has("--check-only")
+
+
+func _check_only_load() -> int:
+	## Compile and load the companion scripts. Does not run the suite.
+	var failed: int = 0
+	var paths: PackedStringArray = PackedStringArray([
+		"res://scripts/keeper.gd",
+		"res://scripts/elaia.gd",
+		"res://scripts/character_sheet.gd",
+		"res://scripts/hud.gd",
+		"res://scripts/main.gd",
+		"res://scripts/forge_room.gd",
+		"res://scripts/gatherable.gd",
+		"res://scripts/manatree.gd",
+		"res://scripts/forge_station.gd",
+		"res://scripts/runestone.gd",
+		"res://scripts/autoload/game_state.gd",
+		"res://scripts/autoload/forge_jobs.gd",
+	])
+	for path: String in paths:
+		var loaded: Resource = load(path)
+		failed += _assert(loaded != null, "check-only loads %s" % path)
+	var gs: Node = root.get_node_or_null("GameState")
+	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "")), 0.8), "check-only elaia work rate")
+	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "reliquary")), 1.5), "check-only elaia reliquary rate")
+	return failed
+
+
+func _elaia_companion_asserts(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "elaia companion jobs")
+	if jobs == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	jobs.call("set_autosave_enabled", false)
+	var keeper_cls = load("res://scripts/keeper.gd")
+	var bare: float = float(game_state.call("get_move_speed"))
+	failed += _assert(is_equal_approx(keeper_cls.walk_speed_scale_for(bare), bare / 80.0), "walk scale is velocity / 80 before Stride")
+	var ranks: Dictionary = game_state.get("upgrade_ranks")
+	ranks["keeper_stride"] = 1
+	game_state.set("upgrade_ranks", ranks)
+	var strode: float = float(game_state.call("get_move_speed"))
+	failed += _assert(strode > bare, "Keeper's Stride raises get_move_speed")
+	failed += _assert(is_equal_approx(keeper_cls.walk_speed_scale_for(strode), strode / 80.0), "walk scale follows Stride")
+	failed += _assert(is_equal_approx(float(game_state.call("actor_walk_ref_speed", "elaia")), 88.0), "elaia walk reference is 88")
+	failed += _assert(is_equal_approx(float(game_state.call("actor_move_mult", "elaia")), 1.0), "elaia move_speed_mult is 1")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.set("harvest_accum", {})
+	var full: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 4.0, 1.0))
+	failed += _assert(full == 2, "4s harvest at rate 1 grants 2 wood")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.set("harvest_accum", {})
+	var scaled: int = int(game_state.call("accumulate_keeper_harvest", &"wood", 4.0, 0.8))
+	var accum: Dictionary = game_state.get("harvest_accum")
+	failed += _assert(scaled == 1, "4s harvest at 0.8 grants 1 wood")
+	failed += _assert(is_equal_approx(float(accum.get("wood", -1.0)), 0.6), "0.8 harvest banks the 0.6 remainder")
+	jobs.call("set_elaia_working", "mill", true)
+	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "mill")), 0.8), "elaia mill speed is 0.8")
+	jobs.call("note_elaia_idle")
+	jobs.call("set_elaia_working", "reliquary", true)
+	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "reliquary")), 1.5), "elaia reliquary speed is 1.5")
+	game_state.set("wisp_count", 5)
+	game_state.call("_ensure_wisp_slots")
+	for i: int in range(4):
+		game_state.call("try_assign_wisp", i, "mill")
+	var with_wisps: float = float(jobs.call("station_speed_mult", "mill"))
+	failed += _assert(is_equal_approx(with_wisps, 0.8 + 0.4), "four wisps add 0.4 on her mill")
+	failed += _assert(str(game_state.call("try_assign_wisp", 4, "mill")) == "full", "fifth wisp on her target is full")
+	jobs.call("note_elaia_idle")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_elaia_task", "harvest", "wood", true)
+	var elaia_off: Dictionary = jobs.call("apply_offline_seconds", 1800.0)
+	var elaia_wood: int = int(elaia_off.get("harvest", -1))
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	var keeper_off: Dictionary = jobs.call("apply_offline_seconds", 1800.0)
+	var keeper_wood: int = int(keeper_off.get("harvest", -1))
+	failed += _assert(elaia_wood > 0 and elaia_wood < keeper_wood, "offline elaia harvest is the reduced rate")
+	game_state.call("reset_for_new_game")
+	game_state.set("stage_id", &"ancient")
+	game_state.set("fruit_committed", true)
+	jobs.call("set_elaia_task", "harvest", "wood", true)
+	var blocked: Dictionary = jobs.call("apply_offline_seconds", 1800.0)
+	failed += _assert(int(blocked.get("harvest", -1)) == 0, "ancient or frozen offline yields nothing")
+	game_state.call("reset_for_new_game")
+	jobs.call("note_elaia_idle")
+	var idle: Dictionary = jobs.call("elaia_task")
+	failed += _assert(not bool(idle.get("working", true)), "no job leaves Elaia idle")
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	jobs.call("set_elaia_task", "harvest", "wood", true)
+	jobs.call("prepare_ascend")
+	var after: Dictionary = jobs.call("elaia_task")
+	failed += _assert(not bool(after.get("working", true)), "ascension clears her job")
+	failed += _assert(bool(game_state.call("elaia_in_party")), "ascension keeps her in the party")
+	game_state.set("elaia_area", "forge")
+	game_state.set("elaia_pos", Vector2(120.0, 340.0))
+	game_state.set("elaia_has_pos", true)
+	game_state.set("elaia_facing", "east")
+	jobs.call("set_elaia_task", "forge", "reliquary", true)
+	var blob: Dictionary = game_state.call("to_save_dict")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob)
+	failed += _assert(str(game_state.get("elaia_area")) == "forge", "save round-trip area")
+	failed += _assert(bool(game_state.get("elaia_has_pos")), "save round-trip has pos")
+	var loaded_pos: Vector2 = game_state.get("elaia_pos")
+	failed += _assert(is_equal_approx(loaded_pos.x, 120.0) and is_equal_approx(loaded_pos.y, 340.0), "save round-trip position")
+	failed += _assert(str(game_state.get("elaia_facing")) == "east", "save round-trip facing")
+	var loaded_task: Dictionary = jobs.call("elaia_task")
+	failed += _assert(bool(loaded_task.get("working", false)) and str(loaded_task.get("target", "")) == "reliquary", "save round-trip job")
+	var spared_only: Dictionary = {"stage_id": "sapling", "echo_01_redeemed": true}
+	game_state.call("apply_save_dict", spared_only)
+	failed += _assert(bool(game_state.call("elaia_in_party")), "v9 spared save infers the join")
+	failed += _assert(bool(game_state.get("elaia_join_seen")), "migrated join does not replay the dialogue")
+	var fresh: Dictionary = {"stage_id": "sapling", "echo_01_redeemed": false, "first_relic_crafted": false, "elaia_join_seen": false}
+	game_state.call("apply_save_dict", fresh)
+	failed += _assert(not bool(game_state.call("elaia_in_party")), "explicit unjoined save stays unjoined")
+	failed += _assert(not bool(game_state.call("elaia_join_pending")), "unjoined save has no dialogue")
+	game_state.call("reset_for_new_game")
+	return failed
+
+
 func _elaia_join_check(tree_root: Window, game_state: Node, backpack: Node) -> int:
 	var failed: int = 0
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
@@ -3665,27 +3807,41 @@ func _keeper_work_spot_asserts() -> int:
 	var open_gate = keeper_cls.WorkSpotGate.new()
 	var wood_fp := Rect2(Vector2(100, -30), Vector2(40, 30))
 	var from_west: Dictionary = keeper_cls.solve_work_spot(wood_fp, Vector2(0, 0), "wood", Callable(open_gate, "gate"))
-	failed += _assert(str(from_west.get("side", "")) == "west" and str(from_west.get("facing", "")) == "east", "approach from the west stands on the west and faces the tree")
-	failed += _assert(bool(from_west.get("fallback", true)) == false, "open west side is not a fallback")
+	var from_east: Dictionary = keeper_cls.solve_work_spot(wood_fp, Vector2(400, 0), "wood", Callable(open_gate, "gate"))
+	failed += _assert(str(from_west.get("side", "")) == "east" and str(from_west.get("facing", "")) == "west", "wood is forced to the right side, facing left")
+	failed += _assert(str(from_east.get("side", "")) == "east" and str(from_east.get("facing", "")) == "west", "wood ignores the nearer left side")
+	failed += _assert(bool(from_west.get("fallback", true)) == false, "forced wood side is not a fallback")
 	var wood_contact: Vector2 = from_west.get("contact", Vector2.ZERO)
+	var wood_feet: Vector2 = from_west.get("position", Vector2.ZERO)
 	failed += _assert(keeper_cls.distance_to_rect(wood_contact, wood_fp) <= keeper_cls.REACH_SLACK, "axe contact reaches the trunk (dist %s)" % str(keeper_cls.distance_to_rect(wood_contact, wood_fp)))
-	failed += _assert(wood_contact.x > (from_west.get("position", Vector2.ZERO) as Vector2).x, "east facing points at the target")
+	failed += _assert(wood_contact.x < wood_feet.x, "west facing points back at the tree")
+	var elaia_wood: Dictionary = keeper_cls.solve_work_spot(wood_fp, Vector2(0, 0), "wood", Callable(open_gate, "gate"), "", "elaia")
+	failed += _assert(str(elaia_wood.get("side", "")) == "east" and str(elaia_wood.get("facing", "")) == "west", "elaia wood uses the same forced side")
+	var stone_fp := Rect2(Vector2(100, -30), Vector2(40, 30))
+	var stone_from_west: Dictionary = keeper_cls.solve_work_spot(stone_fp, Vector2(0, 0), "stone", Callable(open_gate, "gate"))
+	failed += _assert(str(stone_from_west.get("side", "")) == "west" and str(stone_from_west.get("facing", "")) == "east", "stone still picks the near side")
 	var blocked_west = keeper_cls.WorkSpotGate.new()
-	blocked_west.block_west_of = wood_fp.position.x
-	var other_side: Dictionary = keeper_cls.solve_work_spot(wood_fp, Vector2(0, 0), "wood", Callable(blocked_west, "gate"))
+	blocked_west.block_west_of = stone_fp.position.x
+	var other_side: Dictionary = keeper_cls.solve_work_spot(stone_fp, Vector2(0, 0), "stone", Callable(blocked_west, "gate"))
 	failed += _assert(str(other_side.get("side", "")) == "east" and str(other_side.get("facing", "")) == "west", "blocked west side picks east")
 	failed += _assert(bool(other_side.get("fallback", true)) == false, "the open side is a real spot")
 	failed += _assert((other_side.get("contact", Vector2.ZERO) as Vector2).x < (other_side.get("position", Vector2.ZERO) as Vector2).x, "west facing points back at the target")
 	var block_all = keeper_cls.WorkSpotGate.new()
 	block_all.block_all = true
 	var fallback: Dictionary = keeper_cls.solve_work_spot(wood_fp, Vector2(0, 0), "wood", Callable(block_all, "gate"))
-	failed += _assert(bool(fallback.get("fallback", false)), "both sides blocked sets fallback")
+	failed += _assert(bool(fallback.get("fallback", false)), "blocked forced side sets fallback")
+	failed += _assert(str(fallback.get("side", "")) == "east", "blocked wood stays on the forced side")
 	var tree_fp := Rect2(Vector2(200, 0), Vector2.ZERO)
 	var water: Dictionary = keeper_cls.solve_work_spot(tree_fp, Vector2(0, 0), "manatree", Callable(open_gate, "gate"))
+	var water_far: Dictionary = keeper_cls.solve_work_spot(tree_fp, Vector2(900, 40), "manatree", Callable(open_gate, "gate"))
 	var water_feet: Vector2 = water.get("position", Vector2(9999, 9999))
-	failed += _assert(is_equal_approx(water_feet.x, 143.0) and is_equal_approx(water_feet.y, 0.0), "watering stands 57 px from the trunk center")
-	failed += _assert(str(water.get("facing", "")) == "east", "watering faces the trunk")
+	failed += _assert(is_equal_approx(water_feet.x, 98.0) and is_equal_approx(water_feet.y, 13.0), "watering stands so the stream ends on the soil in front of the base")
+	failed += _assert(str(water.get("facing", "")) == "east" and str(water.get("side", "")) == "west", "watering uses the single west stand")
+	failed += _assert((water_far.get("position", Vector2.ZERO) as Vector2).is_equal_approx(water_feet), "watering ignores approach and stage size")
 	failed += _assert(keeper_cls.distance_to_rect(water.get("contact", Vector2(9999, 9999)), tree_fp) <= keeper_cls.REACH_SLACK, "spout reaches the trunk base")
+	var elaia_water: Dictionary = keeper_cls.solve_work_spot(tree_fp, Vector2(0, 0), "manatree", Callable(open_gate, "gate"), "", "elaia")
+	var elaia_water_feet: Vector2 = elaia_water.get("position", Vector2(9999, 9999))
+	failed += _assert(is_equal_approx(elaia_water_feet.x, 118.0) and is_equal_approx(elaia_water_feet.y, 13.0), "elaia stream also ends on that soil")
 	var station_fp := Rect2(Vector2(-80, -160), Vector2(160, 160))
 	var station: Dictionary = keeper_cls.solve_work_spot(station_fp, Vector2(0, 200), "station", Callable(open_gate, "gate"), "anvil")
 	var station_feet: Vector2 = station.get("position", Vector2(9999, 9999))
