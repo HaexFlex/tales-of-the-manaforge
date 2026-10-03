@@ -1,0 +1,139 @@
+{
+ "frames": [
+  {
+   "k": 0,
+   "components": 1,
+   "height": 117,
+   "top": 7,
+   "pinholes": 0,
+   "gaps_between_legs_px": 0,
+   "upper_rows_0_83_diff_vs_v4": 0,
+   "v4_pants_rows_78_83_replaced_by_v3_legs": 0
+  },
+  {
+   "k": 1,
+   "components": 1,
+   "height": 119,
+   "top": 5,
+   "pinholes": 0,
+   "gaps_between_legs_px": 0,
+   "upper_rows_0_83_diff_vs_v4": 0,
+   "v4_pants_rows_78_83_replaced_by_v3_legs": 11
+  },
+  {
+   "k": 2,
+   "components": 1,
+   "height": 118,
+   "top": 6,
+   "pinholes": 0,
+   "gaps_between_legs_px": 23,
+   "upper_rows_0_83_diff_vs_v4": 0,
+   "v4_pants_rows_78_83_replaced_by_v3_legs": 1
+  },
+  {
+   "k": 3,
+   "components": 1,
+   "height": 118,
+   "top": 6,
+   "pinholes": 0,
+   "gaps_between_legs_px": 12,
+   "upper_rows_0_83_diff_vs_v4": 0,
+   "v4_pants_rows_78_83_replaced_by_v3_legs": 2
+  },
+  {
+   "k": 4,
+   "components": 1,
+   "height": 117,
+   "top": 7,
+   "pinholes": 0,
+   "gaps_between_legs_px": 0,
+   "upper_rows_0_83_diff_vs_v4": 0,
+   "v4_pants_rows_78_83_replaced_by_v3_legs": 0
+  },
+  {
+   "k": 5,
+   "components": 1,
+   "height": 119,
+   "top": 5,
+   "pinholes": 0,
+   "gaps_between_legs_px": 6,
+   "upper_rows_0_83_diff_vs_v4": 0,
+   "v4_pants_rows_78_83_replaced_by_v3_legs": 1
+  },
+  {
+   "k": 6,
+   "components": 1,
+   "height": 118,
+   "top": 6,
+   "pinholes": 0,
+   "gaps_between_legs_px": 23,
+   "upper_rows_0_83_diff_vs_v4": 0,
+   "v4_pants_rows_78_83_replaced_by_v3_legs": 3
+  },
+  {
+   "k": 7,
+   "components": 1,
+   "height": 118,
+   "top": 6,
+   "pinholes": 0,
+   "gaps_between_legs_px": 18,
+   "upper_rows_0_83_diff_vs_v4": 0,
+   "v4_pants_rows_78_83_replaced_by_v3_legs": 0
+  }
+ ],
+ "bob_px": [
+  0,
+  2,
+  1,
+  1,
+  0,
+  2,
+  1,
+  1
+ ],
+ "bob_range": 2,
+ "step_changed_px": [
+  4093,
+  3618,
+  2162,
+  3632,
+  3991,
+  3540,
+  2261,
+  3475
+ ],
+ "seam_changed_px": 3475,
+ "head_rows_diff_vs_frame0": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "ms": [
+  120,
+  125,
+  130,
+  125,
+  120,
+  125,
+  130,
+  125
+ ],
+ "loop_ms": 1000,
+ "ok": {
+  "one_component": true,
+  "height_117_119": true,
+  "bob_le_2": true,
+  "ms_100_130": true,
+  "loop_900_1100": true,
+  "loop_seam_within_steps": true,
+  "upper_unchanged_vs_v4": true,
+  "head_locked": true,
+  "no_pinholes": true
+ },
+ "all_ok": true
+}

@@ -1,0 +1,125 @@
+{
+ "method": "lifted boot = run of leg columns (leg-colour pixels connected to the boots) whose lowest row is 95-117 next to the planted foot (lowest row >= 119); lift = 123 - lowest row of that boot. Knee-lift frames = v3 k1,k2,k3,k5,k6,k7 (k0/k4 are foot-plant frames whose trailing leg is mostly hidden; not counted).",
+ "knee_lift_frames": [
+  1,
+  2,
+  3,
+  5,
+  6,
+  7
+ ],
+ "v3_march": {
+  "lift_px_k1_k2_k3_k5_k6_k7": [
+   10,
+   16,
+   16,
+   11,
+   18,
+   15
+  ],
+  "max": 18,
+  "mean": 14.3
+ },
+ "v5A_55": {
+  "lift_px_k1_k2_k3_k5_k6_k7": [
+   6,
+   9,
+   9,
+   6,
+   10,
+   8
+  ],
+  "max": 10,
+  "mean": 8.0,
+  "pct_of_v3_mean": 56
+ },
+ "v5B_70": {
+  "lift_px_k1_k2_k3_k5_k6_k7": [
+   7,
+   11,
+   11,
+   8,
+   13,
+   10
+  ],
+  "max": 13,
+  "mean": 10.0,
+  "pct_of_v3_mean": 70
+ },
+ "v4_casual": {
+  "note": "different motion (rear heel peel, the forward foot slides along the ground); peak lifts from walk_v4 measurements.json (lowest opaque row per screen half)",
+  "peak_lift_px": [
+   8,
+   7
+  ]
+ },
+ "arms_phase": {
+  "method": "visible glove area (px, 672x448 video) per side in the v4 source frame: the arm swinging FORWARD (toward camera) shows a bigger, higher glove; the back arm is hidden behind the coat.",
+  "rows": [
+   {
+    "j": 0,
+    "v4": "f36",
+    "his_R_glove": 177,
+    "his_L_glove": 434,
+    "arm_forward": "L",
+    "legs_v3": "k0: his R foot planting forward"
+   },
+   {
+    "j": 1,
+    "v4": "f40",
+    "his_R_glove": 323,
+    "his_L_glove": 354,
+    "arm_forward": "crossing",
+    "legs_v3": "k1: his L knee starting up"
+   },
+   {
+    "j": 2,
+    "v4": "f44",
+    "his_R_glove": 463,
+    "his_L_glove": 316,
+    "arm_forward": "R",
+    "legs_v3": "k2: his L knee up"
+   },
+   {
+    "j": 3,
+    "v4": "f48",
+    "his_R_glove": 458,
+    "his_L_glove": 269,
+    "arm_forward": "R",
+    "legs_v3": "k3: his L knee up"
+   },
+   {
+    "j": 4,
+    "v4": "f52",
+    "his_R_glove": 453,
+    "his_L_glove": 207,
+    "arm_forward": "R",
+    "legs_v3": "k4: his L foot planting forward"
+   },
+   {
+    "j": 5,
+    "v4": "f56",
+    "his_R_glove": 351,
+    "his_L_glove": 320,
+    "arm_forward": "crossing",
+    "legs_v3": "k5: his R knee starting up"
+   },
+   {
+    "j": 6,
+    "v4": "f60",
+    "his_R_glove": 308,
+    "his_L_glove": 367,
+    "arm_forward": "L",
+    "legs_v3": "k6: his R knee up"
+   },
+   {
+    "j": 7,
+    "v4": "f64",
+    "his_R_glove": 301,
+    "his_L_glove": 471,
+    "arm_forward": "L",
+    "legs_v3": "k7: his R knee up"
+   }
+  ]
+ }
+}

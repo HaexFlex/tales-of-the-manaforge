@@ -1,0 +1,157 @@
+{
+ "factor": 0.55,
+ "frames": [
+  {
+   "j": 0,
+   "v4_frame": 0,
+   "v3_frame": 0,
+   "bob": 0,
+   "v4_shift_up": -2,
+   "lift": {
+    "cols": [
+     73,
+     76
+    ],
+    "boot_low_row_v3": 108,
+    "lift_v3": 15,
+    "delta": 7,
+    "lift_new": 8,
+    "knee_row": 85
+   },
+   "holes_filled": 5
+  },
+  {
+   "j": 1,
+   "v4_frame": 1,
+   "v3_frame": 1,
+   "bob": 2,
+   "v4_shift_up": 1,
+   "lift": {
+    "cols": [
+     67,
+     76
+    ],
+    "boot_low_row_v3": 113,
+    "lift_v3": 10,
+    "delta": 4,
+    "lift_new": 6,
+    "knee_row": 88
+   },
+   "holes_filled": 10
+  },
+  {
+   "j": 2,
+   "v4_frame": 2,
+   "v3_frame": 2,
+   "bob": 1,
+   "v4_shift_up": 1,
+   "lift": {
+    "cols": [
+     68,
+     77
+    ],
+    "boot_low_row_v3": 107,
+    "lift_v3": 16,
+    "delta": 7,
+    "lift_new": 9,
+    "knee_row": 85
+   },
+   "holes_filled": 8
+  },
+  {
+   "j": 3,
+   "v4_frame": 3,
+   "v3_frame": 3,
+   "bob": 1,
+   "v4_shift_up": 0,
+   "lift": {
+    "cols": [
+     68,
+     79
+    ],
+    "boot_low_row_v3": 107,
+    "lift_v3": 16,
+    "delta": 7,
+    "lift_new": 9,
+    "knee_row": 85
+   },
+   "holes_filled": 4
+  },
+  {
+   "j": 4,
+   "v4_frame": 4,
+   "v3_frame": 4,
+   "bob": 0,
+   "v4_shift_up": -2,
+   "lift": {
+    "cols": [
+     52,
+     55
+    ],
+    "boot_low_row_v3": 108,
+    "lift_v3": 15,
+    "delta": 7,
+    "lift_new": 8,
+    "knee_row": 86
+   },
+   "holes_filled": 0
+  },
+  {
+   "j": 5,
+   "v4_frame": 5,
+   "v3_frame": 5,
+   "bob": 2,
+   "v4_shift_up": 1,
+   "lift": {
+    "cols": [
+     53,
+     60
+    ],
+    "boot_low_row_v3": 112,
+    "lift_v3": 11,
+    "delta": 5,
+    "lift_new": 6,
+    "knee_row": 87
+   },
+   "holes_filled": 5
+  },
+  {
+   "j": 6,
+   "v4_frame": 6,
+   "v3_frame": 6,
+   "bob": 1,
+   "v4_shift_up": 1,
+   "lift": {
+    "cols": [
+     49,
+     60
+    ],
+    "boot_low_row_v3": 105,
+    "lift_v3": 18,
+    "delta": 8,
+    "lift_new": 10,
+    "knee_row": 84
+   },
+   "holes_filled": 7
+  },
+  {
+   "j": 7,
+   "v4_frame": 7,
+   "v3_frame": 7,
+   "bob": 1,
+   "v4_shift_up": 0,
+   "lift": {
+    "cols": [
+     46,
+     60
+    ],
+    "boot_low_row_v3": 108,
+    "lift_v3": 15,
+    "delta": 7,
+    "lift_new": 8,
+    "knee_row": 85
+   },
+   "holes_filled": 3
+  }
+ ]
+}
