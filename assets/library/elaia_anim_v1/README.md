@@ -18,7 +18,7 @@ Measured contact (right edge of the impact / pour pixels, minus the feet x):
 - Axe impact frame 3: 41 px
 - Pickaxe impact frame 7: 41 px
 - Berries pluck frame 4: 43 px
-- Water held pour frames 5–6: 83 px (stream end)
+- Water held pour frames 5–6: 82 px (stream end, 5 px above the feet)
 - Station: no impact frame; hands stay hidden. She uses the Keeper station stand.
 
-Keeper water held pour frames 4–6: stream end is 103 px ahead of the feet. Manatree `side_px` / `contact_px` are 103 so that end lands on the door-sill soil (the node origin at every stage).
+Keeper water held pour frames 4–6: stream end is 102 px ahead of the feet and 5 px above them. Manatree `side_px` / `contact_px` match that reach (Keeper 102, Elaia 82). `y_px` 35 drops the end 30 px south of the door sill, on the soil in front of the trunk. One stand for every growth stage.

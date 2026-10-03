@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "side_px is how far the feet stand outside the footprint edge, or from the base center when measure is center. contact_px is how far the tool, hand, or spout reaches from the feet along facing. y_px shifts the ground line. overrides may replace any field for one station id. actors.<id> replaces fields for that hero. force_side skips the nearest-side pick. Wood is always the east stand (right of the trunk, facing west, W axe clip). Manatree is one west stand for every growth stage. The door sill is the node origin. The pour ends 5px above the feet, so y_px 13 puts that end 8px south of the sill, on the soil just in front of the trunk. No per-stage offset.",
+  "notes": "side_px is how far the feet stand outside the footprint edge, or from the base center when measure is center. contact_px is how far the tool, hand, or spout reaches from the feet along facing. y_px shifts the ground line. overrides may replace any field for one station id. actors.<id> replaces fields for that hero. force_side skips the nearest-side pick. Wood is always the east stand (right of the trunk, facing west, W axe clip). Manatree is one west stand for every growth stage. The door sill is the node origin. The pour ends 5px above the feet, so y_px 35 puts that end 30px south of the sill, on the soil in front of the trunk. No per-stage offset.",
   "types": {
     "wood": {
       "sides": ["east"],
@@ -40,7 +40,7 @@
       "force_side": "west",
       "measure": "center",
       "side_px": 102,
-      "y_px": 13,
+      "y_px": 35,
       "contact_px": 102,
       "tool": "water"
     },
@@ -60,7 +60,7 @@
       "stone": {"side_px": 35, "contact_px": 41},
       "food": {"side_px": 37, "contact_px": 43},
       "runestone": {"side_px": 35, "contact_px": 41},
-      "manatree": {"side_px": 82, "y_px": 13, "contact_px": 82, "sides": ["west"], "force_side": "west"}
+      "manatree": {"side_px": 82, "y_px": 35, "contact_px": 82, "sides": ["west"], "force_side": "west"}
     }
   }
 }
