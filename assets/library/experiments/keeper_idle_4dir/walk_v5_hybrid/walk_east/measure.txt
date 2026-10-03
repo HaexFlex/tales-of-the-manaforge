@@ -1,0 +1,8 @@
+{"k": 0, "top": 5, "bob": 0, "boot_runs_x0_x1_lift": [[49, 73, 0]], "ground_x": [61, 72], "feet_centre": 61.0}
+{"k": 1, "top": 6, "bob": 1, "boot_runs_x0_x1_lift": [[44, 62, 0], [68, 86, 5]], "ground_x": [51, 62], "feet_centre": 65.0}
+{"k": 2, "top": 7, "bob": 2, "boot_runs_x0_x1_lift": [[36, 54, 0], [74, 94, 0]], "ground_x": [43, 81], "feet_centre": 65.0}
+{"k": 3, "top": 6, "bob": 1, "boot_runs_x0_x1_lift": [[42, 51, 5], [64, 83, 0]], "ground_x": [64, 83], "feet_centre": 62.5}
+{"k": 4, "top": 5, "bob": 0, "boot_runs_x0_x1_lift": [[44, 74, 0]], "ground_x": [56, 74], "feet_centre": 59.0}
+{"k": 5, "top": 6, "bob": 1, "boot_runs_x0_x1_lift": [[45, 63, 0], [67, 86, 5]], "ground_x": [52, 63], "feet_centre": 65.5}
+{"k": 6, "top": 7, "bob": 2, "boot_runs_x0_x1_lift": [[36, 54, 0], [73, 93, 0]], "ground_x": [44, 79], "feet_centre": 64.5}
+{"k": 7, "top": 6, "bob": 1, "boot_runs_x0_x1_lift": [[44, 53, 5], [63, 82, 0]], "ground_x": [71, 81], "feet_centre": 63.0}
