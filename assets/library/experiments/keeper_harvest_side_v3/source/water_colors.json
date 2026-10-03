@@ -1,0 +1,57 @@
+{
+ "water": [
+  [
+   44,
+   118,
+   214
+  ],
+  [
+   64,
+   196,
+   240
+  ],
+  [
+   150,
+   240,
+   252
+  ]
+ ],
+ "water_names": [
+  "water_dark",
+  "water_mid",
+  "water_light"
+ ],
+ "can": [],
+ "how": "water: 3 tones set from the water-px lightness percentiles (5/30 -> dark (44,118,214), 70 -> mid (64,196,240), 85-95 -> light (150,240,252)); k-means gave a magenta-blended periwinkle (100,117,218) as the dark tone, rejected. can: tested with Option A browns only first",
+ "kmeans_raw": {
+  "water": [
+   [
+    100,
+    117,
+    218
+   ],
+   [
+    45,
+    185,
+    236
+   ],
+   [
+    94,
+    226,
+    241
+   ]
+  ],
+  "can": [
+   [
+    102,
+    60,
+    25
+   ],
+   [
+    164,
+    133,
+    87
+   ]
+  ]
+ }
+}

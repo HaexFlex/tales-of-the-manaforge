@@ -56,5 +56,25 @@ Hard 0/255 alpha, transparent background; feet anchor from each clip meta (192x1
 | harvest_pickaxe_west/harvest_pickaxe_west_0006.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 96.0 / 109 / 23 / [30, 130] | PASS |
 | harvest_pickaxe_west/harvest_pickaxe_west_0007.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 96.0 / 105 / 27 / [36, 133] | PASS |
 | harvest_pickaxe_west/harvest_pickaxe_west_0008.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 96.0 / 107 / 25 / [36, 132] | PASS |
+| harvest_water_east/harvest_water_east_0000.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 154] | PASS |
+| harvest_water_east/harvest_water_east_0001.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 165] | PASS |
+| harvest_water_east/harvest_water_east_0002.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 187] | PASS |
+| harvest_water_east/harvest_water_east_0003.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 200] | PASS |
+| harvest_water_east/harvest_water_east_0004.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 206] | PASS |
+| harvest_water_east/harvest_water_east_0005.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 206] | PASS |
+| harvest_water_east/harvest_water_east_0006.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 206] | PASS |
+| harvest_water_east/harvest_water_east_0007.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 204] | PASS |
+| harvest_water_east/harvest_water_east_0008.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 201] | PASS |
+| harvest_water_east/harvest_water_east_0009.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [79, 195] | PASS |
+| harvest_water_west/harvest_water_west_0000.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [53, 128] | PASS |
+| harvest_water_west/harvest_water_west_0001.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [42, 128] | PASS |
+| harvest_water_west/harvest_water_west_0002.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [20, 128] | PASS |
+| harvest_water_west/harvest_water_west_0003.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [7, 128] | PASS |
+| harvest_water_west/harvest_water_west_0004.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [1, 128] | PASS |
+| harvest_water_west/harvest_water_west_0005.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [1, 128] | PASS |
+| harvest_water_west/harvest_water_west_0006.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [1, 128] | PASS |
+| harvest_water_west/harvest_water_west_0007.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [3, 128] | PASS |
+| harvest_water_west/harvest_water_west_0008.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [6, 128] | PASS |
+| harvest_water_west/harvest_water_west_0009.png | RGBA | True | True | True | 0 | 0 | 0 | 0 | 0 | 0 | 131 / 104.0 / 119 / 13 / [12, 128] | PASS |
 
-ALL PASS: True (52/52)
+ALL PASS: True (72/72)

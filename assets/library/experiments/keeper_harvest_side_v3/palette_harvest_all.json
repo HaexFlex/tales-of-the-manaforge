@@ -254,6 +254,21 @@
 187,
 202,
 205
+],
+[
+44,
+118,
+214
+],
+[
+64,
+196,
+240
+],
+[
+150,
+240,
+252
 ]
 ],
 "extra": {
@@ -271,6 +286,21 @@
 187,
 202,
 205
+],
+"water_dark": [
+44,
+118,
+214
+],
+"water_mid": [
+64,
+196,
+240
+],
+"water_light": [
+150,
+240,
+252
 ]
 },
 "how": "iron: k-means(3) of off-palette (Lab dist>10) low-sat steel px over the axe f35-57 + pickaxe f38-64 downscaled frames; berry: 50th/70th lightness percentiles of saturated red px in berries f78-90 (k-means gave two near-identical reds); wood: Option A browns suffice (no extra)",

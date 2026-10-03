@@ -25,6 +25,21 @@
    187,
    202,
    205
+  ],
+  "water_dark": [
+   44,
+   118,
+   214
+  ],
+  "water_mid": [
+   64,
+   196,
+   240
+  ],
+  "water_light": [
+   150,
+   240,
+   252
   ]
  },
  "wood": "Option A browns (no extra)",
@@ -88,7 +103,15 @@
     2.167,
     2.25
    ],
-   "palette": "palette_iron.json"
+   "palette": "palette_iron.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
   },
   "harvest_axe_west": {
    "files": [
@@ -149,7 +172,15 @@
     2.167,
     2.25
    ],
-   "palette": "palette_iron.json"
+   "palette": "palette_iron.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
   },
   "harvest_berries_east": {
    "files": [
@@ -205,7 +236,15 @@
     3.833,
     4.083
    ],
-   "palette": "palette_berries.json"
+   "palette": "palette_berries.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
   },
   "harvest_berries_west": {
    "files": [
@@ -261,7 +300,15 @@
     3.833,
     4.083
    ],
-   "palette": "palette_berries.json"
+   "palette": "palette_berries.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
   },
   "harvest_pickaxe_east": {
    "files": [
@@ -322,7 +369,15 @@
     2.5,
     2.625
    ],
-   "palette": "palette_iron.json"
+   "palette": "palette_iron.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
   },
   "harvest_pickaxe_west": {
    "files": [
@@ -383,7 +438,197 @@
     2.5,
     2.625
    ],
-   "palette": "palette_iron.json"
+   "palette": "palette_iron.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
+  },
+  "harvest_water_east": {
+   "files": [
+    "harvest_water_east_0000.png",
+    "harvest_water_east_0001.png",
+    "harvest_water_east_0002.png",
+    "harvest_water_east_0003.png",
+    "harvest_water_east_0004.png",
+    "harvest_water_east_0005.png",
+    "harvest_water_east_0006.png",
+    "harvest_water_east_0007.png",
+    "harvest_water_east_0008.png",
+    "harvest_water_east_0009.png"
+   ],
+   "durations_ms": [
+    170,
+    100,
+    90,
+    90,
+    110,
+    250,
+    250,
+    100,
+    90,
+    100
+   ],
+   "loop_ms": 1350,
+   "impact_frame": 5,
+   "phases": [
+    "rest (can level, held out)",
+    "tilt start",
+    "tilt - stream leaves the spout (POUR START)",
+    "stream arcs down",
+    "stream reaches the ground",
+    "POUR hold A",
+    "POUR hold B",
+    "tilt back - stream detaches (POUR END)",
+    "stream tail falling",
+    "last drops land, can levelling"
+   ],
+   "source_video": "keeper_harvest_water.mp4",
+   "source_frames_1based": [
+    113,
+    123,
+    129,
+    133,
+    137,
+    59,
+    75,
+    91,
+    95,
+    101
+   ],
+   "source_time_s": [
+    4.667,
+    5.083,
+    5.333,
+    5.5,
+    5.667,
+    2.417,
+    3.083,
+    3.75,
+    3.917,
+    4.167
+   ],
+   "palette": "palette_water.json",
+   "frame_size": [
+    208,
+    136
+   ],
+   "feet_anchor": [
+    104,
+    132
+   ],
+   "pour_start": 2,
+   "stream_at_ground": [
+    4,
+    5,
+    6
+   ],
+   "pour_end": 7,
+   "water_visible": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  "harvest_water_west": {
+   "files": [
+    "harvest_water_west_0000.png",
+    "harvest_water_west_0001.png",
+    "harvest_water_west_0002.png",
+    "harvest_water_west_0003.png",
+    "harvest_water_west_0004.png",
+    "harvest_water_west_0005.png",
+    "harvest_water_west_0006.png",
+    "harvest_water_west_0007.png",
+    "harvest_water_west_0008.png",
+    "harvest_water_west_0009.png"
+   ],
+   "durations_ms": [
+    170,
+    100,
+    90,
+    90,
+    110,
+    250,
+    250,
+    100,
+    90,
+    100
+   ],
+   "loop_ms": 1350,
+   "impact_frame": 5,
+   "phases": [
+    "rest (can level, held out)",
+    "tilt start",
+    "tilt - stream leaves the spout (POUR START)",
+    "stream arcs down",
+    "stream reaches the ground",
+    "POUR hold A",
+    "POUR hold B",
+    "tilt back - stream detaches (POUR END)",
+    "stream tail falling",
+    "last drops land, can levelling"
+   ],
+   "source_video": "keeper_harvest_water.mp4",
+   "source_frames_1based": [
+    113,
+    123,
+    129,
+    133,
+    137,
+    59,
+    75,
+    91,
+    95,
+    101
+   ],
+   "source_time_s": [
+    4.667,
+    5.083,
+    5.333,
+    5.5,
+    5.667,
+    2.417,
+    3.083,
+    3.75,
+    3.917,
+    4.167
+   ],
+   "palette": "palette_water.json",
+   "frame_size": [
+    208,
+    136
+   ],
+   "feet_anchor": [
+    104,
+    132
+   ],
+   "pour_start": 2,
+   "stream_at_ground": [
+    4,
+    5,
+    6
+   ],
+   "pour_end": 7,
+   "water_visible": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
   }
  },
  "dropped_v1b": {
@@ -408,5 +653,42 @@
   12,
   13,
   14
- ]
+ ],
+ "canvas_by_clip": {
+  "axe": [
+   192,
+   136
+  ],
+  "pickaxe": [
+   192,
+   136
+  ],
+  "berries": [
+   192,
+   136
+  ],
+  "water": [
+   208,
+   136
+  ]
+ },
+ "feet_anchor_by_clip": {
+  "axe": [
+   96,
+   132
+  ],
+  "pickaxe": [
+   96,
+   132
+  ],
+  "berries": [
+   96,
+   132
+  ],
+  "water": [
+   104,
+   132
+  ]
+ },
+ "water_note": "water is 208x136 (stream lands 102 px right of the feet); feet horizontally centred (x 104) so centred sprites line up with the 192-wide clips; can uses Option A colours only"
 }

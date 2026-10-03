@@ -600,5 +600,257 @@
    "anchor": "planted",
    "scale": "video px * 119/344 (standing body 344 video px = Option A E still 119 px)"
   }
+ },
+ "water": {
+  "dropped_island_px": [
+   0,
+   0,
+   0,
+   0,
+   16,
+   9,
+   8,
+   10,
+   3,
+   0
+  ],
+  "hair_edge_fixed_px": [
+   13,
+   16,
+   11,
+   14,
+   14,
+   13,
+   17,
+   19,
+   19,
+   18
+  ],
+  "head_lock_px": [
+   0,
+   121,
+   153,
+   171,
+   159,
+   242,
+   210,
+   192,
+   181,
+   162
+  ],
+  "east": {
+   "clip": "harvest_water_east",
+   "files": [
+    "harvest_water_east_0000.png",
+    "harvest_water_east_0001.png",
+    "harvest_water_east_0002.png",
+    "harvest_water_east_0003.png",
+    "harvest_water_east_0004.png",
+    "harvest_water_east_0005.png",
+    "harvest_water_east_0006.png",
+    "harvest_water_east_0007.png",
+    "harvest_water_east_0008.png",
+    "harvest_water_east_0009.png"
+   ],
+   "frame_size": [
+    208,
+    136
+   ],
+   "feet_anchor": [
+    104,
+    132
+   ],
+   "feet_anchor_note": "bottom-centre of the planted feet = pixel edge x 104, y 132; soles on row 131; same 4 px bottom margin as the 192x128 / 128x128 conventions (canvas is 136 tall because the overhead swings reach ~row 2 when the body is 119 px); 208 wide (not 192) because the stream lands 102 px right of the feet; feet stay horizontally centred, so a centred sprite lines up with the 192-wide clips",
+   "durations_ms": [
+    170,
+    100,
+    90,
+    90,
+    110,
+    250,
+    250,
+    100,
+    90,
+    100
+   ],
+   "loop_ms": 1350,
+   "fps_equivalent": 7.41,
+   "loop": true,
+   "impact_frame": 5,
+   "impact_note": "index (0-based) of the main held pour pose (key pose)",
+   "phases": [
+    "rest (can level, held out)",
+    "tilt start",
+    "tilt - stream leaves the spout (POUR START)",
+    "stream arcs down",
+    "stream reaches the ground",
+    "POUR hold A",
+    "POUR hold B",
+    "tilt back - stream detaches (POUR END)",
+    "stream tail falling",
+    "last drops land, can levelling"
+   ],
+   "source_video": "keeper_harvest_water.mp4",
+   "source_fps": 24,
+   "source_frames_1based": [
+    113,
+    123,
+    129,
+    133,
+    137,
+    59,
+    75,
+    91,
+    95,
+    101
+   ],
+   "source_time_s": [
+    4.667,
+    5.083,
+    5.333,
+    5.5,
+    5.667,
+    2.417,
+    3.083,
+    3.75,
+    3.917,
+    4.167
+   ],
+   "mirrored_from": null,
+   "palette": "palette_water.json",
+   "anchor": "planted",
+   "scale": "video px * 119/344 (standing body 344 video px = Option A E still 119 px)",
+   "pour_start": 2,
+   "stream_at_ground": [
+    4,
+    5,
+    6
+   ],
+   "pour_end": 7,
+   "water_visible": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "pour_note": "pour_start = first frame with the stream leaving the spout; stream_at_ground = frames where the stream reaches the ground (held: 110+250+250 ms); pour_end = frame where the stream detaches from the spout (tilt back); water_visible = frames with any water px",
+   "loop_note": "loop 1350 ms = 1.5 x the 900 ms harvest loops (keeps the combined preview short: LCM 2700 ms)"
+  },
+  "west": {
+   "clip": "harvest_water_west",
+   "files": [
+    "harvest_water_west_0000.png",
+    "harvest_water_west_0001.png",
+    "harvest_water_west_0002.png",
+    "harvest_water_west_0003.png",
+    "harvest_water_west_0004.png",
+    "harvest_water_west_0005.png",
+    "harvest_water_west_0006.png",
+    "harvest_water_west_0007.png",
+    "harvest_water_west_0008.png",
+    "harvest_water_west_0009.png"
+   ],
+   "frame_size": [
+    208,
+    136
+   ],
+   "feet_anchor": [
+    104,
+    132
+   ],
+   "feet_anchor_note": "bottom-centre of the planted feet = pixel edge x 104, y 132; soles on row 131; same 4 px bottom margin as the 192x128 / 128x128 conventions (canvas is 136 tall because the overhead swings reach ~row 2 when the body is 119 px); 208 wide (not 192) because the stream lands 102 px right of the feet; feet stay horizontally centred, so a centred sprite lines up with the 192-wide clips",
+   "durations_ms": [
+    170,
+    100,
+    90,
+    90,
+    110,
+    250,
+    250,
+    100,
+    90,
+    100
+   ],
+   "loop_ms": 1350,
+   "fps_equivalent": 7.41,
+   "loop": true,
+   "impact_frame": 5,
+   "impact_note": "index (0-based) of the main held pour pose (key pose)",
+   "phases": [
+    "rest (can level, held out)",
+    "tilt start",
+    "tilt - stream leaves the spout (POUR START)",
+    "stream arcs down",
+    "stream reaches the ground",
+    "POUR hold A",
+    "POUR hold B",
+    "tilt back - stream detaches (POUR END)",
+    "stream tail falling",
+    "last drops land, can levelling"
+   ],
+   "source_video": "keeper_harvest_water.mp4",
+   "source_fps": 24,
+   "source_frames_1based": [
+    113,
+    123,
+    129,
+    133,
+    137,
+    59,
+    75,
+    91,
+    95,
+    101
+   ],
+   "source_time_s": [
+    4.667,
+    5.083,
+    5.333,
+    5.5,
+    5.667,
+    2.417,
+    3.083,
+    3.75,
+    3.917,
+    4.167
+   ],
+   "mirrored_from": "harvest_water_east (x -> 207 - x)",
+   "palette": "palette_water.json",
+   "anchor": "planted",
+   "scale": "video px * 119/344 (standing body 344 video px = Option A E still 119 px)",
+   "pour_start": 2,
+   "stream_at_ground": [
+    4,
+    5,
+    6
+   ],
+   "pour_end": 7,
+   "water_visible": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "pour_note": "pour_start = first frame with the stream leaving the spout; stream_at_ground = frames where the stream reaches the ground (held: 110+250+250 ms); pour_end = frame where the stream detaches from the spout (tilt back); water_visible = frames with any water px",
+   "loop_note": "loop 1350 ms = 1.5 x the 900 ms harvest loops (keeps the combined preview short: LCM 2700 ms)"
+  }
+ },
+ "combined_gif": {
+  "timeline_ms": 2700,
+  "frames": 65,
+  "order": [
+   "axe",
+   "pickaxe",
+   "berries",
+   "water"
+  ]
  }
 }
