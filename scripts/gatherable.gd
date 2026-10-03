@@ -160,6 +160,19 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			get_viewport().set_input_as_handled()
 
 
+func work_footprint() -> Rect2:
+	## Wood uses the trunk collider. Stone and berries use the sprite rect.
+	var trunk: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
+	var shape_node: CollisionShape2D = get_node_or_null("Trunk/CollisionShape2D") as CollisionShape2D
+	if stand_height > 0.0 and trunk != null and shape_node != null and not shape_node.disabled and shape_node.shape is RectangleShape2D:
+		var rect: RectangleShape2D = shape_node.shape as RectangleShape2D
+		var center: Vector2 = trunk.to_global(shape_node.position)
+		return Rect2(center - rect.size * 0.5, rect.size)
+	if sprite:
+		return Keeper.sprite_footprint(sprite)
+	return Rect2(global_position, Vector2(BODY_WIDTH, BODY_WIDTH))
+
+
 func approach_point() -> Vector2:
 	## Feet stay on this node. The trunk collider sits on those feet (it does not
 	## hang south of y=0), so a wider trunk does not move this stop. The Keeper
@@ -178,7 +191,7 @@ func apply_player_command() -> void:
 		if GameState.keeper_selected:
 			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
 			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
-				(keepers_both[0] as Keeper).move_to(approach_point(), self)
+				(keepers_both[0] as Keeper).command_work(self, String(resource_id))
 		return
 	if not GameState.keeper_selected:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_harvest"))
@@ -188,7 +201,7 @@ func apply_player_command() -> void:
 		return
 	var k: Keeper = keepers[0] as Keeper
 	if k:
-		k.move_to(approach_point(), self)
+		k.command_work(self, String(resource_id))
 
 
 func on_interact(keeper: Node) -> void:

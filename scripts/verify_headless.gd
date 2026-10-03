@@ -1133,8 +1133,9 @@ func _run() -> void:
 				if sframes:
 					failed += _assert(sframes.has_animation(&"walk_south"), "walk_south anim")
 					failed += _assert(sframes.has_animation(&"idle_south"), "idle_south anim")
-					failed += _assert(sframes.get_frame_count(&"walk_south") == 9, "walk_south frame count")
+					failed += _assert(sframes.get_frame_count(&"walk_south") == 8, "walk_south frame count")
 					failed += _assert(sframes.get_frame_count(&"idle_south") == 1, "idle_south frame count")
+					failed += _keeper_clip_asserts(sframes)
 				failed += _assert(str(kspr.get("animation")) == "idle_south", "idle faces south at boot")
 			if live_keeper.has_method("move_to"):
 				var kpos: Vector2 = live_keeper.get("global_position") as Vector2
@@ -1143,6 +1144,17 @@ func _run() -> void:
 					await physics_frame
 				if kspr:
 					failed += _assert(str(kspr.get("animation")) == "walk_south", "south move uses walk_south (got %s)" % str(kspr.get("animation")))
+					failed += _assert((kspr.get("offset") as Vector2).distance_to(Vector2(-64, -128)) < 0.5, "walk keeps the idle foot offset")
+			if live_keeper.has_method("preview_station_work"):
+				live_keeper.call("preview_station_work", "anvil")
+				await physics_frame
+				if kspr:
+					failed += _assert(str(kspr.get("animation")) == "station_work_north", "station work faces north (got %s)" % str(kspr.get("animation")))
+				if live_keeper.has_method("clear_work_preview"):
+					live_keeper.call("clear_work_preview")
+				if live_keeper.has_method("halt"):
+					live_keeper.call("halt")
+			failed += _keeper_work_spot_asserts()
 		failed += _assert(live.has_method("handle_lmb_ground"), "Main.handle_lmb_ground")
 		failed += _assert(live.has_method("handle_rmb_ground"), "Main.handle_rmb_ground")
 		if live.has_method("handle_lmb_ground") and live.has_method("handle_rmb_ground"):
@@ -3589,6 +3601,117 @@ func _on_forge_floor(floor: PackedVector2Array, point: Vector2) -> bool:
 	if floor.size() < 3:
 		return false
 	return Geometry2D.is_point_in_polygon(point, floor)
+
+
+func _keeper_clip_asserts(sframes: SpriteFrames) -> int:
+	var failed: int = 0
+	failed += _assert(sframes.has_animation(&"walk_north") and sframes.has_animation(&"walk_east") and sframes.has_animation(&"walk_west"), "walk four directions")
+	failed += _assert(sframes.has_animation(&"walk_back") and sframes.get_frame_count(&"walk_back") == 6, "walk_back kept")
+	failed += _assert(sframes.has_animation(&"run_south") and sframes.get_frame_count(&"run_south") == 8, "run placeholder clip is loaded")
+	failed += _assert(sframes.has_animation(&"run_north") and sframes.has_animation(&"run_east") and sframes.has_animation(&"run_west"), "run four directions unused")
+	var walk_ms: Array[float] = [120.0, 125.0, 130.0, 125.0, 120.0, 125.0, 130.0, 125.0]
+	var run_ms: Array[float] = [100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0]
+	var axe_ms: Array[float] = [140.0, 70.0, 60.0, 180.0, 90.0, 90.0, 90.0, 90.0, 90.0]
+	var pick_ms: Array[float] = [100.0, 90.0, 90.0, 150.0, 70.0, 60.0, 60.0, 180.0, 100.0]
+	var berry_ms: Array[float] = [160.0, 90.0, 90.0, 100.0, 160.0, 100.0, 90.0, 110.0]
+	var water_ms: Array[float] = [170.0, 100.0, 90.0, 90.0, 110.0, 250.0, 250.0, 100.0, 90.0, 100.0]
+	var station_ms: Array[float] = [110.0, 110.0, 80.0, 80.0, 80.0, 110.0, 80.0, 110.0, 90.0, 90.0]
+	failed += _assert(_timed_clip(sframes, &"walk_south", walk_ms), "walk_south durations")
+	failed += _assert(_timed_clip(sframes, &"walk_east", walk_ms), "walk_east durations")
+	failed += _assert(_timed_clip(sframes, &"run_east", run_ms), "run_east durations")
+	failed += _assert(_timed_clip(sframes, &"harvest_axe_east", axe_ms), "axe east durations")
+	failed += _assert(_timed_clip(sframes, &"harvest_axe_west", axe_ms), "axe west durations")
+	failed += _assert(_timed_clip(sframes, &"harvest_pickaxe_west", pick_ms), "pickaxe west durations")
+	failed += _assert(_timed_clip(sframes, &"harvest_berries_east", berry_ms), "berries east durations")
+	failed += _assert(_timed_clip(sframes, &"harvest_water_east", water_ms), "water east durations")
+	failed += _assert(_timed_clip(sframes, &"harvest_water_west", water_ms), "water west durations")
+	failed += _assert(_timed_clip(sframes, &"station_work_north", station_ms), "station durations")
+	failed += _assert(is_equal_approx(_duration_sum(sframes, &"walk_north"), 1000.0), "walk loop is 1000 ms")
+	failed += _assert(is_equal_approx(_duration_sum(sframes, &"run_south"), 800.0), "run loop is 800 ms")
+	failed += _assert(is_equal_approx(_duration_sum(sframes, &"harvest_axe_east"), 900.0), "axe loop is 900 ms")
+	failed += _assert(is_equal_approx(_duration_sum(sframes, &"harvest_pickaxe_east"), 900.0), "pickaxe loop is 900 ms")
+	failed += _assert(is_equal_approx(_duration_sum(sframes, &"harvest_berries_west"), 900.0), "berries loop is 900 ms")
+	failed += _assert(is_equal_approx(_duration_sum(sframes, &"harvest_water_west"), 1350.0), "water loop is 1350 ms")
+	failed += _assert(is_equal_approx(_duration_sum(sframes, &"station_work_north"), 940.0), "station loop is 940 ms")
+	return failed
+
+
+func _timed_clip(sframes: SpriteFrames, anim: StringName, expected: Array[float]) -> bool:
+	if not sframes.has_animation(anim):
+		return false
+	if not is_equal_approx(sframes.get_animation_speed(anim), 1000.0):
+		return false
+	if sframes.get_frame_count(anim) != expected.size():
+		return false
+	for i: int in range(expected.size()):
+		if not is_equal_approx(sframes.get_frame_duration(anim, i), expected[i]):
+			return false
+	return true
+
+
+func _duration_sum(sframes: SpriteFrames, anim: StringName) -> float:
+	var total := 0.0
+	if not sframes.has_animation(anim):
+		return -1.0
+	for i: int in range(sframes.get_frame_count(anim)):
+		total += sframes.get_frame_duration(anim, i)
+	return total
+
+
+func _keeper_work_spot_asserts() -> int:
+	var failed: int = 0
+	# Loaded at runtime so this SceneTree script does not compile keeper.gd before autoloads exist.
+	var keeper_cls = load("res://scripts/keeper.gd")
+	var open_gate = keeper_cls.WorkSpotGate.new()
+	var wood_fp := Rect2(Vector2(100, -30), Vector2(40, 30))
+	var from_west: Dictionary = keeper_cls.solve_work_spot(wood_fp, Vector2(0, 0), "wood", Callable(open_gate, "gate"))
+	failed += _assert(str(from_west.get("side", "")) == "west" and str(from_west.get("facing", "")) == "east", "approach from the west stands on the west and faces the tree")
+	failed += _assert(bool(from_west.get("fallback", true)) == false, "open west side is not a fallback")
+	var wood_contact: Vector2 = from_west.get("contact", Vector2.ZERO)
+	failed += _assert(keeper_cls.distance_to_rect(wood_contact, wood_fp) <= keeper_cls.REACH_SLACK, "axe contact reaches the trunk (dist %s)" % str(keeper_cls.distance_to_rect(wood_contact, wood_fp)))
+	failed += _assert(wood_contact.x > (from_west.get("position", Vector2.ZERO) as Vector2).x, "east facing points at the target")
+	var blocked_west = keeper_cls.WorkSpotGate.new()
+	blocked_west.block_west_of = wood_fp.position.x
+	var other_side: Dictionary = keeper_cls.solve_work_spot(wood_fp, Vector2(0, 0), "wood", Callable(blocked_west, "gate"))
+	failed += _assert(str(other_side.get("side", "")) == "east" and str(other_side.get("facing", "")) == "west", "blocked west side picks east")
+	failed += _assert(bool(other_side.get("fallback", true)) == false, "the open side is a real spot")
+	failed += _assert((other_side.get("contact", Vector2.ZERO) as Vector2).x < (other_side.get("position", Vector2.ZERO) as Vector2).x, "west facing points back at the target")
+	var block_all = keeper_cls.WorkSpotGate.new()
+	block_all.block_all = true
+	var fallback: Dictionary = keeper_cls.solve_work_spot(wood_fp, Vector2(0, 0), "wood", Callable(block_all, "gate"))
+	failed += _assert(bool(fallback.get("fallback", false)), "both sides blocked sets fallback")
+	var tree_fp := Rect2(Vector2(200, 0), Vector2.ZERO)
+	var water: Dictionary = keeper_cls.solve_work_spot(tree_fp, Vector2(0, 0), "manatree", Callable(open_gate, "gate"))
+	var water_feet: Vector2 = water.get("position", Vector2(9999, 9999))
+	failed += _assert(is_equal_approx(water_feet.x, 143.0) and is_equal_approx(water_feet.y, 0.0), "watering stands 57 px from the trunk center")
+	failed += _assert(str(water.get("facing", "")) == "east", "watering faces the trunk")
+	failed += _assert(keeper_cls.distance_to_rect(water.get("contact", Vector2(9999, 9999)), tree_fp) <= keeper_cls.REACH_SLACK, "spout reaches the trunk base")
+	var station_fp := Rect2(Vector2(-80, -160), Vector2(160, 160))
+	var station: Dictionary = keeper_cls.solve_work_spot(station_fp, Vector2(0, 200), "station", Callable(open_gate, "gate"), "anvil")
+	var station_feet: Vector2 = station.get("position", Vector2(9999, 9999))
+	failed += _assert(str(station.get("side", "")) == "south" and str(station.get("facing", "")) == "north", "station work stands south and faces north")
+	failed += _assert(is_equal_approx(station_feet.y, 28.0), "station feet are 28 px south of the sprite")
+	failed += _assert(keeper_cls.distance_to_rect(station.get("contact", Vector2(0, 99)), station_fp) <= keeper_cls.REACH_SLACK, "station hands reach the work surface")
+	for pair: Array in [["wood", "axe"], ["stone", "pickaxe"], ["food", "berries"], ["runestone", "pickaxe"], ["manatree", "water"], ["station", "station"]]:
+		failed += _assert(keeper_cls.tool_for_type(str(pair[0])) == str(pair[1]), "%s uses %s" % [str(pair[0]), str(pair[1])])
+	failed += _assert(keeper_cls.work_anim_for("axe", "west") == "harvest_axe_west", "axe west clip")
+	failed += _assert(keeper_cls.work_anim_for("berries", "east") == "harvest_berries_east", "berries east clip")
+	failed += _assert(keeper_cls.work_anim_for("water", "west") == "harvest_water_west", "water west clip")
+	failed += _assert(keeper_cls.work_anim_for("station", "north") == "station_work_north", "station clip")
+	failed += _assert(keeper_cls.work_anim_for("unknown", "east") == "idle_south", "unmatched work falls back to idle")
+	failed += _assert(keeper_cls.facing_for_velocity(Vector2.ZERO, "west") == "west", "zero velocity keeps the last facing")
+	failed += _assert(keeper_cls.facing_for_velocity(Vector2(1, 1), "south") == "east", "equal axes prefer horizontal")
+	failed += _assert(keeper_cls.facing_for_velocity(Vector2(0, 4), "east") == "south", "south velocity")
+	failed += _assert(keeper_cls.facing_for_velocity(Vector2(-3, 1), "south") == "west", "west velocity")
+	failed += _assert(keeper_cls.facing_for_velocity(Vector2(1, -4), "south") == "north", "north velocity")
+	failed += _assert(keeper_cls.walk_anim_for_velocity(Vector2(0, 4), "east") == "walk_south", "south walk clip")
+	failed += _assert(is_equal_approx(keeper_cls.walk_speed_scale_for(180.0), 2.25), "default walk speed_scale is 180/80")
+	var stone: Dictionary = keeper_cls.solve_work_spot(Rect2(Vector2(0, -96), Vector2(92, 96)), Vector2(-200, 0), "stone", Callable(open_gate, "gate"))
+	failed += _assert(keeper_cls.distance_to_rect(stone.get("contact", Vector2(9999, 9999)), Rect2(Vector2(0, -96), Vector2(92, 96))) <= keeper_cls.REACH_SLACK, "pickaxe reaches stone")
+	var food: Dictionary = keeper_cls.solve_work_spot(Rect2(Vector2(0, -128), Vector2(86, 128)), Vector2(400, 0), "food", Callable(open_gate, "gate"))
+	failed += _assert(str(food.get("facing", "")) == "west", "berries approached from the east face west")
+	failed += _assert(keeper_cls.distance_to_rect(food.get("contact", Vector2(-999, 0)), Rect2(Vector2(0, -128), Vector2(86, 128))) <= keeper_cls.REACH_SLACK, "hands reach the bush")
+	return failed
 
 
 func _assert(cond: bool, msg: String) -> int:

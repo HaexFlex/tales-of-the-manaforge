@@ -140,7 +140,10 @@ func _on_keeper_arrived() -> void:
 	var station: ForgeStation = _find_station(_dest_station)
 	if station == null or keeper == null:
 		return
-	if keeper.global_position.distance_to(station.stand_global()) <= ForgeJobs.stand_radius():
+	var stand: Vector2 = station.stand_global()
+	if keeper.has_method("has_station_work_spot") and bool(keeper.call("has_station_work_spot")):
+		stand = keeper.call("work_spot_position")
+	if keeper.global_position.distance_to(stand) <= ForgeJobs.stand_radius():
 		ForgeJobs.set_keeper_working(_dest_station, true)
 
 

@@ -222,6 +222,12 @@ func cancel_spend() -> void:
 	GameAudio.play_ui_cancel()
 
 
+func work_footprint() -> Rect2:
+	if stone:
+		return Keeper.sprite_footprint(stone)
+	return Rect2(global_position + Vector2(-32, -64), Vector2(64, 64))
+
+
 func apply_player_command() -> void:
 	## RMB: Keeper walks in range, then the spend confirm. Wisps do not assign here.
 	if _world_blocked():
@@ -237,11 +243,18 @@ func apply_player_command() -> void:
 		return
 	var k: Keeper = keepers[0] as Keeper
 	if k:
-		k.move_to(global_position, self)
+		k.command_work(self, "runestone")
 
 
-func on_interact(_keeper: Node) -> void:
-	begin_spend()
+func on_interact(keeper: Node) -> void:
+	## Runestones are a stat confirm, not a harvest. The pickaxe loop is only the pose.
+	var result: String = begin_spend()
+	if result == "confirm" or result == "cant_afford":
+		if keeper and keeper.has_method("begin_work_loop"):
+			keeper.call("begin_work_loop")
+		return
+	if keeper and keeper.has_method("end_work_loop"):
+		keeper.call("end_work_loop")
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -280,6 +293,10 @@ func _close_confirm() -> void:
 		_panel.visible = false
 	if _layer:
 		_layer.visible = false
+	if is_inside_tree():
+		for node: Node in get_tree().get_nodes_in_group("keeper"):
+			if node.has_method("end_work_loop"):
+				node.call("end_work_loop")
 
 
 func _ensure_confirm() -> void:

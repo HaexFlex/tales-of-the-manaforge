@@ -1,0 +1,694 @@
+{
+ "frame_size": [
+  192,
+  136
+ ],
+ "feet_anchor": [
+  96,
+  132
+ ],
+ "sole_row": 131,
+ "feet_anchor_note": "bottom-centre of the planted feet (pixel edge x 96 / y 132); west = mirror x -> 191-x keeps it",
+ "canvas_note": "192x128 does not fit: overhead axe/pickaxe frames reach row 2 at body height 119 (+8 rows). 192x136 = smallest even height that fits with a clear 1 px border; berries also delivered at 192x136 for one uniform harvest canvas (crop the top 8 rows for 192x128 if wanted: its top row is 13).",
+ "extra_colors": {
+  "iron_dark": [
+   100,
+   105,
+   108
+  ],
+  "iron_mid": [
+   143,
+   151,
+   155
+  ],
+  "iron_light": [
+   187,
+   202,
+   205
+  ],
+  "water_dark": [
+   44,
+   118,
+   214
+  ],
+  "water_mid": [
+   64,
+   196,
+   240
+  ],
+  "water_light": [
+   150,
+   240,
+   252
+  ]
+ },
+ "wood": "Option A browns (no extra)",
+ "clips": {
+  "harvest_axe_east": {
+   "files": [
+    "harvest_axe_east_0000.png",
+    "harvest_axe_east_0001.png",
+    "harvest_axe_east_0002.png",
+    "harvest_axe_east_0003.png",
+    "harvest_axe_east_0004.png",
+    "harvest_axe_east_0005.png",
+    "harvest_axe_east_0006.png",
+    "harvest_axe_east_0007.png",
+    "harvest_axe_east_0008.png"
+   ],
+   "durations_ms": [
+    140,
+    70,
+    60,
+    180,
+    90,
+    90,
+    90,
+    90,
+    90
+   ],
+   "loop_ms": 900,
+   "impact_frame": 3,
+   "phases": [
+    "raise (anticipation, axe behind head)",
+    "swing",
+    "swing (low)",
+    "IMPACT",
+    "recoil",
+    "recoil",
+    "lift",
+    "lift (axe up front)",
+    "re-raise"
+   ],
+   "source_video": "keeper_harvest_axe.mp4",
+   "source_frames_1based": [
+    35,
+    37,
+    38,
+    39,
+    41,
+    45,
+    49,
+    53,
+    55
+   ],
+   "source_time_s": [
+    1.417,
+    1.5,
+    1.542,
+    1.583,
+    1.667,
+    1.833,
+    2.0,
+    2.167,
+    2.25
+   ],
+   "palette": "palette_iron.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
+  },
+  "harvest_axe_west": {
+   "files": [
+    "harvest_axe_west_0000.png",
+    "harvest_axe_west_0001.png",
+    "harvest_axe_west_0002.png",
+    "harvest_axe_west_0003.png",
+    "harvest_axe_west_0004.png",
+    "harvest_axe_west_0005.png",
+    "harvest_axe_west_0006.png",
+    "harvest_axe_west_0007.png",
+    "harvest_axe_west_0008.png"
+   ],
+   "durations_ms": [
+    140,
+    70,
+    60,
+    180,
+    90,
+    90,
+    90,
+    90,
+    90
+   ],
+   "loop_ms": 900,
+   "impact_frame": 3,
+   "phases": [
+    "raise (anticipation, axe behind head)",
+    "swing",
+    "swing (low)",
+    "IMPACT",
+    "recoil",
+    "recoil",
+    "lift",
+    "lift (axe up front)",
+    "re-raise"
+   ],
+   "source_video": "keeper_harvest_axe.mp4",
+   "source_frames_1based": [
+    35,
+    37,
+    38,
+    39,
+    41,
+    45,
+    49,
+    53,
+    55
+   ],
+   "source_time_s": [
+    1.417,
+    1.5,
+    1.542,
+    1.583,
+    1.667,
+    1.833,
+    2.0,
+    2.167,
+    2.25
+   ],
+   "palette": "palette_iron.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
+  },
+  "harvest_berries_east": {
+   "files": [
+    "harvest_berries_east_0000.png",
+    "harvest_berries_east_0001.png",
+    "harvest_berries_east_0002.png",
+    "harvest_berries_east_0003.png",
+    "harvest_berries_east_0004.png",
+    "harvest_berries_east_0005.png",
+    "harvest_berries_east_0006.png",
+    "harvest_berries_east_0007.png"
+   ],
+   "durations_ms": [
+    160,
+    90,
+    90,
+    100,
+    160,
+    100,
+    90,
+    110
+   ],
+   "loop_ms": 900,
+   "impact_frame": 4,
+   "phases": [
+    "rest (hand at pouch)",
+    "reach start",
+    "reach",
+    "reach full (at bush)",
+    "PLUCK (hand closes at the bush; no berry pixels since v1b)",
+    "close hand / pull",
+    "retract",
+    "drop into hip pouch"
+   ],
+   "source_video": "keeper_harvest_berries.mp4",
+   "source_frames_1based": [
+    66,
+    71,
+    75,
+    79,
+    82,
+    86,
+    93,
+    99
+   ],
+   "source_time_s": [
+    2.708,
+    2.917,
+    3.083,
+    3.25,
+    3.375,
+    3.542,
+    3.833,
+    4.083
+   ],
+   "palette": "palette_berries.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
+  },
+  "harvest_berries_west": {
+   "files": [
+    "harvest_berries_west_0000.png",
+    "harvest_berries_west_0001.png",
+    "harvest_berries_west_0002.png",
+    "harvest_berries_west_0003.png",
+    "harvest_berries_west_0004.png",
+    "harvest_berries_west_0005.png",
+    "harvest_berries_west_0006.png",
+    "harvest_berries_west_0007.png"
+   ],
+   "durations_ms": [
+    160,
+    90,
+    90,
+    100,
+    160,
+    100,
+    90,
+    110
+   ],
+   "loop_ms": 900,
+   "impact_frame": 4,
+   "phases": [
+    "rest (hand at pouch)",
+    "reach start",
+    "reach",
+    "reach full (at bush)",
+    "PLUCK (hand closes at the bush; no berry pixels since v1b)",
+    "close hand / pull",
+    "retract",
+    "drop into hip pouch"
+   ],
+   "source_video": "keeper_harvest_berries.mp4",
+   "source_frames_1based": [
+    66,
+    71,
+    75,
+    79,
+    82,
+    86,
+    93,
+    99
+   ],
+   "source_time_s": [
+    2.708,
+    2.917,
+    3.083,
+    3.25,
+    3.375,
+    3.542,
+    3.833,
+    4.083
+   ],
+   "palette": "palette_berries.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
+  },
+  "harvest_pickaxe_east": {
+   "files": [
+    "harvest_pickaxe_east_0000.png",
+    "harvest_pickaxe_east_0001.png",
+    "harvest_pickaxe_east_0002.png",
+    "harvest_pickaxe_east_0003.png",
+    "harvest_pickaxe_east_0004.png",
+    "harvest_pickaxe_east_0005.png",
+    "harvest_pickaxe_east_0006.png",
+    "harvest_pickaxe_east_0007.png",
+    "harvest_pickaxe_east_0008.png"
+   ],
+   "durations_ms": [
+    100,
+    90,
+    90,
+    150,
+    70,
+    60,
+    60,
+    180,
+    100
+   ],
+   "loop_ms": 900,
+   "impact_frame": 7,
+   "phases": [
+    "settle (pick at ground)",
+    "lift",
+    "raise",
+    "wind-up peak (anticipation, pick behind head)",
+    "swing over head",
+    "swing",
+    "swing (low)",
+    "IMPACT (tip at ground)",
+    "recoil"
+   ],
+   "source_video": "keeper_harvest_pickaxe.mp4",
+   "source_frames_1based": [
+    40,
+    43,
+    47,
+    50,
+    54,
+    57,
+    59,
+    61,
+    64
+   ],
+   "source_time_s": [
+    1.625,
+    1.75,
+    1.917,
+    2.042,
+    2.208,
+    2.333,
+    2.417,
+    2.5,
+    2.625
+   ],
+   "palette": "palette_iron.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
+  },
+  "harvest_pickaxe_west": {
+   "files": [
+    "harvest_pickaxe_west_0000.png",
+    "harvest_pickaxe_west_0001.png",
+    "harvest_pickaxe_west_0002.png",
+    "harvest_pickaxe_west_0003.png",
+    "harvest_pickaxe_west_0004.png",
+    "harvest_pickaxe_west_0005.png",
+    "harvest_pickaxe_west_0006.png",
+    "harvest_pickaxe_west_0007.png",
+    "harvest_pickaxe_west_0008.png"
+   ],
+   "durations_ms": [
+    100,
+    90,
+    90,
+    150,
+    70,
+    60,
+    60,
+    180,
+    100
+   ],
+   "loop_ms": 900,
+   "impact_frame": 7,
+   "phases": [
+    "settle (pick at ground)",
+    "lift",
+    "raise",
+    "wind-up peak (anticipation, pick behind head)",
+    "swing over head",
+    "swing",
+    "swing (low)",
+    "IMPACT (tip at ground)",
+    "recoil"
+   ],
+   "source_video": "keeper_harvest_pickaxe.mp4",
+   "source_frames_1based": [
+    40,
+    43,
+    47,
+    50,
+    54,
+    57,
+    59,
+    61,
+    64
+   ],
+   "source_time_s": [
+    1.625,
+    1.75,
+    1.917,
+    2.042,
+    2.208,
+    2.333,
+    2.417,
+    2.5,
+    2.625
+   ],
+   "palette": "palette_iron.json",
+   "frame_size": [
+    192,
+    136
+   ],
+   "feet_anchor": [
+    96,
+    132
+   ]
+  },
+  "harvest_water_east": {
+   "files": [
+    "harvest_water_east_0000.png",
+    "harvest_water_east_0001.png",
+    "harvest_water_east_0002.png",
+    "harvest_water_east_0003.png",
+    "harvest_water_east_0004.png",
+    "harvest_water_east_0005.png",
+    "harvest_water_east_0006.png",
+    "harvest_water_east_0007.png",
+    "harvest_water_east_0008.png",
+    "harvest_water_east_0009.png"
+   ],
+   "durations_ms": [
+    170,
+    100,
+    90,
+    90,
+    110,
+    250,
+    250,
+    100,
+    90,
+    100
+   ],
+   "loop_ms": 1350,
+   "impact_frame": 5,
+   "phases": [
+    "rest (can level, held out)",
+    "tilt start",
+    "tilt - stream leaves the spout (POUR START)",
+    "stream arcs down",
+    "stream reaches the ground",
+    "POUR hold A",
+    "POUR hold B",
+    "tilt back - stream detaches (POUR END)",
+    "stream tail falling",
+    "last drops land, can levelling"
+   ],
+   "source_video": "keeper_harvest_water.mp4",
+   "source_frames_1based": [
+    113,
+    123,
+    129,
+    133,
+    137,
+    59,
+    75,
+    91,
+    95,
+    101
+   ],
+   "source_time_s": [
+    4.667,
+    5.083,
+    5.333,
+    5.5,
+    5.667,
+    2.417,
+    3.083,
+    3.75,
+    3.917,
+    4.167
+   ],
+   "palette": "palette_water.json",
+   "frame_size": [
+    208,
+    136
+   ],
+   "feet_anchor": [
+    104,
+    132
+   ],
+   "pour_start": 2,
+   "stream_at_ground": [
+    4,
+    5,
+    6
+   ],
+   "pour_end": 7,
+   "water_visible": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  },
+  "harvest_water_west": {
+   "files": [
+    "harvest_water_west_0000.png",
+    "harvest_water_west_0001.png",
+    "harvest_water_west_0002.png",
+    "harvest_water_west_0003.png",
+    "harvest_water_west_0004.png",
+    "harvest_water_west_0005.png",
+    "harvest_water_west_0006.png",
+    "harvest_water_west_0007.png",
+    "harvest_water_west_0008.png",
+    "harvest_water_west_0009.png"
+   ],
+   "durations_ms": [
+    170,
+    100,
+    90,
+    90,
+    110,
+    250,
+    250,
+    100,
+    90,
+    100
+   ],
+   "loop_ms": 1350,
+   "impact_frame": 5,
+   "phases": [
+    "rest (can level, held out)",
+    "tilt start",
+    "tilt - stream leaves the spout (POUR START)",
+    "stream arcs down",
+    "stream reaches the ground",
+    "POUR hold A",
+    "POUR hold B",
+    "tilt back - stream detaches (POUR END)",
+    "stream tail falling",
+    "last drops land, can levelling"
+   ],
+   "source_video": "keeper_harvest_water.mp4",
+   "source_frames_1based": [
+    113,
+    123,
+    129,
+    133,
+    137,
+    59,
+    75,
+    91,
+    95,
+    101
+   ],
+   "source_time_s": [
+    4.667,
+    5.083,
+    5.333,
+    5.5,
+    5.667,
+    2.417,
+    3.083,
+    3.75,
+    3.917,
+    4.167
+   ],
+   "palette": "palette_water.json",
+   "frame_size": [
+    208,
+    136
+   ],
+   "feet_anchor": [
+    104,
+    132
+   ],
+   "pour_start": 2,
+   "stream_at_ground": [
+    4,
+    5,
+    6
+   ],
+   "pour_end": 7,
+   "water_visible": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ]
+  }
+ },
+ "dropped_v1b": {
+  "berry_dark": [
+   132,
+   10,
+   10
+  ],
+  "berry_red": [
+   186,
+   14,
+   12
+  ],
+  "why": "Haex 2026-10-03: red berries read as putting berries ON the bush; all berry pixels removed from harvest_berries_{east,west}; berries clip palette = Option A 48 only"
+ },
+ "berries_v1b_changed_px_per_frame": [
+  3,
+  12,
+  17,
+  17,
+  38,
+  12,
+  13,
+  14
+ ],
+ "canvas_by_clip": {
+  "axe": [
+   192,
+   136
+  ],
+  "pickaxe": [
+   192,
+   136
+  ],
+  "berries": [
+   192,
+   136
+  ],
+  "water": [
+   208,
+   136
+  ]
+ },
+ "feet_anchor_by_clip": {
+  "axe": [
+   96,
+   132
+  ],
+  "pickaxe": [
+   96,
+   132
+  ],
+  "berries": [
+   96,
+   132
+  ],
+  "water": [
+   104,
+   132
+  ]
+ },
+ "water_note": "water is 208x136 (stream lands 102 px right of the feet); feet horizontally centred (x 104) so centred sprites line up with the 192-wide clips; can uses Option A colours only"
+}

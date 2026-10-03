@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "notes": "side_px is how far the feet stand outside the footprint edge, or from the base center when measure is center. contact_px is how far the tool, hand, or spout reaches from the feet along facing. y_px shifts the ground line. overrides may replace any field for one station id.",
+  "types": {
+    "wood": {
+      "sides": ["west", "east"],
+      "measure": "edge",
+      "side_px": 40,
+      "y_px": 0,
+      "contact_px": 46,
+      "tool": "axe"
+    },
+    "stone": {
+      "sides": ["west", "east"],
+      "measure": "edge",
+      "side_px": 46,
+      "y_px": 0,
+      "contact_px": 53,
+      "tool": "pickaxe"
+    },
+    "food": {
+      "sides": ["west", "east"],
+      "measure": "edge",
+      "side_px": 36,
+      "y_px": 0,
+      "contact_px": 45,
+      "tool": "berries"
+    },
+    "runestone": {
+      "sides": ["west", "east"],
+      "measure": "edge",
+      "side_px": 40,
+      "y_px": 0,
+      "contact_px": 53,
+      "tool": "pickaxe"
+    },
+    "manatree": {
+      "sides": ["west", "east"],
+      "measure": "center",
+      "side_px": 57,
+      "y_px": 0,
+      "contact_px": 57,
+      "tool": "water"
+    },
+    "station": {
+      "sides": ["south"],
+      "measure": "edge",
+      "side_px": 28,
+      "y_px": 0,
+      "contact_px": 36,
+      "tool": "station",
+      "overrides": {}
+    }
+  }
+}

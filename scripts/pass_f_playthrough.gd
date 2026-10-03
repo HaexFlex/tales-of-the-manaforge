@@ -225,8 +225,8 @@ func _hits_node(space: PhysicsDirectSpaceState2D, point: Vector2, node: Node) ->
 
 func _harvest(keeper: CharacterBody2D, node: Node, resource_id: StringName, before: int) -> bool:
 	GS.call("select_keeper")
-	var dest: Vector2 = node.call("approach_point")
-	keeper.call("move_to", dest, node)
+	keeper.call("command_work", node, String(resource_id))
+	var dest: Vector2 = keeper.call("work_spot_position")
 	var arrived: bool = await _wait_near(keeper, dest, 16.0, 20.0)
 	if not arrived:
 		print("harvest miss %s at %s want %s" % [resource_id, str(keeper.global_position), str(dest)])
@@ -247,10 +247,10 @@ func _manatree(main: Node) -> void:
 	var tree: Node2D = main.get_node("World/Manatree") as Node2D
 	var hud: Node = main.get_node("HUD")
 	GS.call("select_keeper")
-	var water_at: Vector2 = tree.global_position + Vector2(0, 40)
+	var water_at: Vector2 = keeper.call("work_destination", tree, "manatree")
 	keeper.call("move_to", water_at, null)
 	var at_tree: bool = await _wait_near(keeper, water_at, 16.0, 20.0)
-	_check("manatree", "Keeper reaches the door sill", at_tree, str(keeper.global_position))
+	_check("manatree", "Keeper reaches the watering spot", at_tree, str(keeper.global_position))
 	var ess0: int = int(GS.get("essence"))
 	var shards0: int = int(GS.get("manashards"))
 	keeper.call("start_water_channel", tree)

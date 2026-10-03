@@ -124,6 +124,11 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			get_viewport().set_input_as_handled()
 
 
+func work_footprint() -> Rect2:
+	## Door sill is the node origin. Watering measures from that base center.
+	return Rect2(global_position, Vector2.ZERO)
+
+
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree (manashards pulse) OR Keeper walks + care/water as today.
 	if not GameState.selected_wisp_list().is_empty():
@@ -133,7 +138,7 @@ func apply_player_command() -> void:
 		if GameState.keeper_selected:
 			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
 			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
-				(keepers_both[0] as Keeper).move_to(global_position + Vector2(0, 40), self)
+				(keepers_both[0] as Keeper).command_work(self, "manatree")
 		return
 	if not GameState.keeper_selected:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
@@ -143,7 +148,7 @@ func apply_player_command() -> void:
 		return
 	var k: Keeper = keepers[0] as Keeper
 	if k:
-		k.move_to(global_position + Vector2(0, 40), self)
+		k.command_work(self, "manatree")
 
 
 func on_interact(_keeper: Node) -> void:

@@ -1,0 +1,33 @@
+{
+ "clip": "walk_west",
+ "files": [
+  "walk_west_0000.png",
+  "walk_west_0001.png",
+  "walk_west_0002.png",
+  "walk_west_0003.png",
+  "walk_west_0004.png",
+  "walk_west_0005.png",
+  "walk_west_0006.png",
+  "walk_west_0007.png"
+ ],
+ "durations_ms": [
+  120,
+  125,
+  130,
+  125,
+  120,
+  125,
+  130,
+  125
+ ],
+ "loop_ms": 1000,
+ "hold_ms": 125,
+ "loop": true,
+ "anchor": "loop",
+ "strip": "walk_west.png",
+ "style": "v5: exact horizontal mirror of walk_east (x -> 127 - x)",
+ "suggested_move_speed_px_s": 80,
+ "build": {
+  "mirror_of": "walk_east"
+ }
+}

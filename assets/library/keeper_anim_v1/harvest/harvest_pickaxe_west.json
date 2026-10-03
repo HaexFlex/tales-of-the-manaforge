@@ -1,0 +1,78 @@
+{
+ "clip": "harvest_pickaxe_west",
+ "files": [
+  "harvest_pickaxe_west_0000.png",
+  "harvest_pickaxe_west_0001.png",
+  "harvest_pickaxe_west_0002.png",
+  "harvest_pickaxe_west_0003.png",
+  "harvest_pickaxe_west_0004.png",
+  "harvest_pickaxe_west_0005.png",
+  "harvest_pickaxe_west_0006.png",
+  "harvest_pickaxe_west_0007.png",
+  "harvest_pickaxe_west_0008.png"
+ ],
+ "frame_size": [
+  192,
+  136
+ ],
+ "feet_anchor": [
+  96,
+  132
+ ],
+ "feet_anchor_note": "bottom-centre of the planted feet = pixel edge x 96, y 132; soles on row 131; same 4 px bottom margin as the 192x128 / 128x128 conventions (canvas is 136 tall because the overhead swings reach ~row 2 when the body is 119 px)",
+ "durations_ms": [
+  100,
+  90,
+  90,
+  150,
+  70,
+  60,
+  60,
+  180,
+  100
+ ],
+ "loop_ms": 900,
+ "fps_equivalent": 10.0,
+ "loop": true,
+ "impact_frame": 7,
+ "impact_note": "index into files (0-based); its duration is the held impact/key pose",
+ "phases": [
+  "settle (pick at ground)",
+  "lift",
+  "raise",
+  "wind-up peak (anticipation, pick behind head)",
+  "swing over head",
+  "swing",
+  "swing (low)",
+  "IMPACT (tip at ground)",
+  "recoil"
+ ],
+ "source_video": "keeper_harvest_pickaxe.mp4",
+ "source_fps": 24,
+ "source_frames_1based": [
+  40,
+  43,
+  47,
+  50,
+  54,
+  57,
+  59,
+  61,
+  64
+ ],
+ "source_time_s": [
+  1.625,
+  1.75,
+  1.917,
+  2.042,
+  2.208,
+  2.333,
+  2.417,
+  2.5,
+  2.625
+ ],
+ "mirrored_from": "harvest_pickaxe_east (x -> 191 - x)",
+ "palette": "palette_iron.json",
+ "anchor": "planted",
+ "scale": "video px * 119/344 (standing body 344 video px = Option A E still 119 px)"
+}
