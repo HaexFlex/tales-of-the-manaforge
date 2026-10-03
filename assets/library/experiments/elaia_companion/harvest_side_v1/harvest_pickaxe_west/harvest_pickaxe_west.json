@@ -1,0 +1,67 @@
+{
+ "clip": "harvest_pickaxe_west",
+ "files": [
+  "harvest_pickaxe_west_0000.png",
+  "harvest_pickaxe_west_0001.png",
+  "harvest_pickaxe_west_0002.png",
+  "harvest_pickaxe_west_0003.png",
+  "harvest_pickaxe_west_0004.png",
+  "harvest_pickaxe_west_0005.png",
+  "harvest_pickaxe_west_0006.png",
+  "harvest_pickaxe_west_0007.png",
+  "harvest_pickaxe_west_0008.png"
+ ],
+ "frame_size": [
+  192,
+  136
+ ],
+ "feet_anchor": [
+  96,
+  132
+ ],
+ "feet_anchor_note": "bottom-centre of the planted feet = pixel edge x 96, y 132; soles on row 131",
+ "durations_ms": [
+  100,
+  90,
+  90,
+  150,
+  70,
+  60,
+  60,
+  180,
+  100
+ ],
+ "loop_ms": 900,
+ "loop": true,
+ "impact_frame": 7,
+ "phases": [
+  "ready (pick in front)",
+  "raise",
+  "raise high",
+  "wind-up behind head (hold)",
+  "rise",
+  "swing over",
+  "swing forward",
+  "IMPACT (tip in the ground)",
+  "recover (pick lifted from the ground)"
+ ],
+ "source_video": "elaia_harvest_pickaxe.mp4",
+ "source_fps": 24,
+ "source_frames_1based": [
+  89,
+  94,
+  101,
+  105,
+  110,
+  117,
+  121,
+  125,
+  133
+ ],
+ "scale": "115/334 (Elaia still height / standing body height in the clip)",
+ "palette": "palette_elaia40.json",
+ "build": {
+  "mirror_of": "harvest_pickaxe_east",
+  "x_map": "x -> 191 - x"
+ }
+}

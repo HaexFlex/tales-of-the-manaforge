@@ -1,0 +1,118 @@
+{
+ "clip": "station_work_north",
+ "files": [
+  "station_work_north_0000.png",
+  "station_work_north_0001.png",
+  "station_work_north_0002.png",
+  "station_work_north_0003.png",
+  "station_work_north_0004.png",
+  "station_work_north_0005.png",
+  "station_work_north_0006.png",
+  "station_work_north_0007.png",
+  "station_work_north_0008.png",
+  "station_work_north_0009.png"
+ ],
+ "frame_size": [
+  128,
+  128
+ ],
+ "feet_anchor": [
+  64,
+  124
+ ],
+ "feet_anchor_note": "bottom-centre of the planted feet = pixel edge x 64, y 124; soles on row 123",
+ "durations_ms": [
+  80,
+  120,
+  85,
+  85,
+  120,
+  85,
+  85,
+  80,
+  120,
+  80
+ ],
+ "loop_ms": 940,
+ "loop": true,
+ "impact_frame": null,
+ "phases": [
+  "work: elbows in",
+  "right elbow out",
+  "elbows working",
+  "left elbow out",
+  "both elbows out",
+  "elbows in",
+  "right elbow out",
+  "shoulders down",
+  "left elbow out",
+  "settle"
+ ],
+ "source_video": "elaia_station_generic.mp4",
+ "source_fps": 24,
+ "source_frames_1based": [
+  101,
+  103,
+  106,
+  58,
+  60,
+  63,
+  89,
+  91,
+  115,
+  118
+ ],
+ "scale": "115/334 (Elaia still height / standing body height in the clip)",
+ "palette": "palette.json",
+ "build": {
+  "ops": [],
+  "bench_cleared_px": [
+   210,
+   214,
+   209,
+   204,
+   246,
+   227,
+   230,
+   223,
+   220,
+   225
+  ],
+  "hair_lock_px": [
+   0,
+   888,
+   908,
+   927,
+   907,
+   840,
+   882,
+   877,
+   895,
+   860
+  ],
+  "shoulder_object_cleared_px": [
+   2,
+   2,
+   6,
+   24,
+   2,
+   2,
+   2,
+   2,
+   8,
+   2
+  ],
+  "islands_dropped_px": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ }
+}
