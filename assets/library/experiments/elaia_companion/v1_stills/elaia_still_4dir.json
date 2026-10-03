@@ -1,0 +1,132 @@
+{
+ "sheet": "elaia_turnaround_1.jpg (1792x1008)",
+ "order_on_sheet": "S, N, L1 (left profile), L2 (left profile)",
+ "west": "L1 as-is",
+ "east": "horizontal mirror of L1 (x -> 127 - x)",
+ "canvas": 128,
+ "sole_row": 123,
+ "target_height_S": 116,
+ "feet_x": 64,
+ "palette_colours": 40,
+ "ingest": {
+  "sheet": "sheets/elaia_turnaround_1.jpg",
+  "bg": [
+   255,
+   0,
+   249
+  ],
+  "src_heights": {
+   "S": 802,
+   "N": 797,
+   "L1": 797,
+   "L2": 797
+  },
+  "scale": 0.14463840399002495,
+  "views": {
+   "S": {
+    "clipped": false,
+    "defringed": 98,
+    "top": 8,
+    "height": 116,
+    "x": [
+     42,
+     84
+    ]
+   },
+   "N": {
+    "clipped": false,
+    "defringed": 91,
+    "top": 9,
+    "height": 115,
+    "x": [
+     42,
+     85
+    ]
+   },
+   "L1": {
+    "clipped": false,
+    "defringed": 85,
+    "top": 9,
+    "height": 115,
+    "x": [
+     50,
+     82
+    ]
+   },
+   "L2": {
+    "clipped": false,
+    "defringed": 82,
+    "top": 9,
+    "height": 115,
+    "x": [
+     50,
+     83
+    ]
+   }
+  }
+ },
+ "stills": {
+  "s": {
+   "specks_removed": 0,
+   "top": 8,
+   "sole_row": 123,
+   "height": 116,
+   "feet_cx": 63.5,
+   "x": [
+    42,
+    84
+   ],
+   "colours": 40,
+   "semi_alpha_px": 0,
+   "tint_px": 0
+  },
+  "n": {
+   "specks_removed": 0,
+   "top": 9,
+   "sole_row": 123,
+   "height": 115,
+   "feet_cx": 64.0,
+   "x": [
+    42,
+    85
+   ],
+   "colours": 40,
+   "semi_alpha_px": 0,
+   "tint_px": 0
+  },
+  "w": {
+   "specks_removed": 0,
+   "top": 9,
+   "sole_row": 123,
+   "height": 115,
+   "feet_cx": 64.0,
+   "x": [
+    50,
+    82
+   ],
+   "colours": 40,
+   "semi_alpha_px": 0,
+   "tint_px": 0
+  },
+  "e": {
+   "top": 9,
+   "sole_row": 123,
+   "height": 115,
+   "feet_cx": 64.0,
+   "x": [
+    45,
+    77
+   ],
+   "colours": 40,
+   "semi_alpha_px": 0,
+   "tint_px": 0
+  }
+ },
+ "files": [
+  "elaia_still_s.png",
+  "elaia_still_n.png",
+  "elaia_still_e.png",
+  "elaia_still_w.png"
+ ],
+ "clip": "elaia_still_4dir"
+}
