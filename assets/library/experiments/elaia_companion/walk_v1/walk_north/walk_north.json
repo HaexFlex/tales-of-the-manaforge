@@ -1,0 +1,105 @@
+{
+ "clip": "walk_north",
+ "files": [
+  "walk_north_0000.png",
+  "walk_north_0001.png",
+  "walk_north_0002.png",
+  "walk_north_0003.png",
+  "walk_north_0004.png",
+  "walk_north_0005.png",
+  "walk_north_0006.png",
+  "walk_north_0007.png"
+ ],
+ "durations_ms": [
+  120,
+  125,
+  130,
+  125,
+  120,
+  125,
+  130,
+  125
+ ],
+ "loop_ms": 1000,
+ "hold_ms": 125,
+ "loop": true,
+ "anchor": "loop",
+ "strip": "walk_north.png",
+ "canvas": [
+  128,
+  128
+ ],
+ "soles_row": 123,
+ "style": "v1: 8 of 11 unique poses of elaia_walk_north.mp4 (26-frame loop, nearest to uniform spacing), bob clamped to 0..2 (fit_top, hip 0.70), head + back hair lock (sway tested, locked)",
+ "build": {
+  "video_frames_1based": [
+   39,
+   42,
+   44,
+   48,
+   51,
+   54,
+   32,
+   34
+  ],
+  "natural_top": [
+   13,
+   10,
+   9,
+   10,
+   14,
+   12,
+   9,
+   10
+  ],
+  "bob_px": [
+   2,
+   1,
+   0,
+   1,
+   2,
+   2,
+   0,
+   1
+  ],
+  "base_top": 9,
+  "hip_frac": 0.7,
+  "head_lock": {
+   "ref_k": 0,
+   "rows": 30
+  },
+  "hair_boxes": [
+   {
+    "rows_from_top": [
+     30,
+     46
+    ],
+    "x": [
+     49,
+     80
+    ],
+    "ref_k": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   }
+  ],
+  "holes_filled_px": [
+   3,
+   4,
+   3,
+   3,
+   3,
+   3,
+   3,
+   3
+  ],
+  "source": "elaia_walk_north.mp4"
+ }
+}

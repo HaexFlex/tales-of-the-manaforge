@@ -1,0 +1,155 @@
+{
+ "clip": "walk_east",
+ "files": [
+  "walk_east_0000.png",
+  "walk_east_0001.png",
+  "walk_east_0002.png",
+  "walk_east_0003.png",
+  "walk_east_0004.png",
+  "walk_east_0005.png",
+  "walk_east_0006.png",
+  "walk_east_0007.png"
+ ],
+ "durations_ms": [
+  120,
+  125,
+  130,
+  125,
+  120,
+  125,
+  130,
+  125
+ ],
+ "loop_ms": 1000,
+ "hold_ms": 125,
+ "loop": true,
+ "anchor": "loop",
+ "strip": "walk_east.png",
+ "canvas": [
+  128,
+  128
+ ],
+ "soles_row": 123,
+ "style": "v1: own legs/arms from elaia_walk_east.mp4 (24-frame loop sampled every 3), per-step bob 0/1/2/1, swing boots raised to 5 px, robe-slit bare thigh recoloured to inner-robe blue, head + back-hair lock",
+ "build": {
+  "video_frames_1based": [
+   40,
+   43,
+   46,
+   49,
+   52,
+   31,
+   34,
+   37
+  ],
+  "natural_top": [
+   10,
+   11,
+   12,
+   10,
+   9,
+   10,
+   12,
+   11
+  ],
+  "bob_px": [
+   0,
+   1,
+   2,
+   1,
+   0,
+   1,
+   2,
+   1
+  ],
+  "base_top": 9,
+  "hip_frac": 0.7,
+  "slit_skin_recoloured_px": [
+   0,
+   0,
+   0,
+   0,
+   17,
+   102,
+   132,
+   31
+  ],
+  "boot_raises": [
+   {
+    "k": 1,
+    "x": [
+     72,
+     95
+    ],
+    "px": 3,
+    "boot_px": 136
+   },
+   {
+    "k": 5,
+    "x": [
+     72,
+     95
+    ],
+    "px": 2,
+    "boot_px": 159
+   },
+   {
+    "k": 3,
+    "x": [
+     34,
+     49
+    ],
+    "px": 2,
+    "boot_px": 110
+   },
+   {
+    "k": 7,
+    "x": [
+     34,
+     49
+    ],
+    "px": 3,
+    "boot_px": 123
+   }
+  ],
+  "head_lock": {
+   "ref_k": 4,
+   "rows": 34
+  },
+  "hair_boxes": [
+   {
+    "rows_from_top": [
+     34,
+     39
+    ],
+    "x": [
+     36,
+     51
+    ],
+    "ref_k": [
+     4,
+     4,
+     4,
+     4,
+     4,
+     4,
+     4,
+     4
+    ]
+   }
+  ],
+  "holes_filled_px": [
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1
+  ],
+  "source": "elaia_walk_east.mp4"
+ },
+ "suggested_move_speed_px_s": 88,
+ "playback_rate_at_180_px_s": 2.05
+}

@@ -1,0 +1,83 @@
+{
+ "clip": "walk_south",
+ "files": [
+  "walk_south_0000.png",
+  "walk_south_0001.png",
+  "walk_south_0002.png",
+  "walk_south_0003.png",
+  "walk_south_0004.png",
+  "walk_south_0005.png",
+  "walk_south_0006.png",
+  "walk_south_0007.png"
+ ],
+ "durations_ms": [
+  120,
+  125,
+  130,
+  125,
+  120,
+  125,
+  130,
+  125
+ ],
+ "loop_ms": 1000,
+ "hold_ms": 125,
+ "loop": true,
+ "anchor": "loop",
+ "strip": "walk_south.png",
+ "canvas": [
+  128,
+  128
+ ],
+ "soles_row": 123,
+ "style": "v1: the 8 unique 3-frame holds of elaia_walk_south.mp4 (24-frame loop), natural bob 0..2, head + side-hair + shoulders lock (top 56 rows)",
+ "build": {
+  "video_frames_1based": [
+   88,
+   91,
+   94,
+   97,
+   100,
+   103,
+   82,
+   85
+  ],
+  "natural_top": [
+   10,
+   9,
+   8,
+   9,
+   10,
+   9,
+   9,
+   9
+  ],
+  "bob_px": [
+   2,
+   1,
+   0,
+   1,
+   2,
+   1,
+   1,
+   1
+  ],
+  "base_top": 8,
+  "hip_frac": 0.7,
+  "head_lock": {
+   "ref_k": 0,
+   "rows": 56
+  },
+  "holes_filled_px": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "source": "elaia_walk_south.mp4"
+ }
+}
