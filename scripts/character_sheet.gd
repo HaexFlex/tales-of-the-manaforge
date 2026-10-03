@@ -80,9 +80,12 @@ const STAT_GAP_SMALL: float = 4.0
 const STAT_NUM_H: float = 24.0
 const STAT_GAP_LARGE: float = 10.0
 const STAT_STRIDE: float = STAT_NAME_H + STAT_ROLE_H + STAT_GAP_SMALL + STAT_NUM_H + STAT_GAP_LARGE
-## Elaia role lines wrap. Two font-11 lines fit without covering the multiplier.
-const ELAIA_ROLE_H: float = 36.0
-const ELAIA_STAT_STRIDE: float = STAT_NAME_H + ELAIA_ROLE_H + STAT_GAP_SMALL + STAT_NUM_H + STAT_GAP_LARGE
+## Extra pixels under the measured line box so descenders are not clipped.
+const ELAIA_ROLE_DESCENT: float = 6.0
+const ELAIA_VALUE_GAP: float = 2.0
+const ELAIA_ROW_GAP: float = 12.0
+## Face crop of elaia_front.png. The golden key sits on the left below y=360.
+const ELAIA_PORTRAIT_REGION: Rect2 = Rect2(286, 137, 220, 220)
 const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
 const INK: Color = Color(0.92, 0.86, 0.72, 1.0)
@@ -249,7 +252,7 @@ func _build() -> void:
 	var hint := Label.new()
 	hint.name = "Hint"
 	hint.position = Vector2(20, 32)
-	hint.size = Vector2(960, 18)
+	hint.size = Vector2(700, 22)
 	hint.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hint")
 	var hotkey := Label.new()
 	hotkey.name = "HotkeyHint"
@@ -573,22 +576,13 @@ func _build_elaia_panels(sheet: Control) -> void:
 		var block := Control.new()
 		block.name = "Row_%s" % row_name
 		block.position = Vector2(0, y)
-		block.size = Vector2(360, ELAIA_STAT_STRIDE)
+		block.size = Vector2(360, STAT_STRIDE)
 		block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		right.add_child(block)
-		var role_y: float = STAT_NAME_H - 8.0
-		var line_y: float = role_y + ELAIA_ROLE_H + STAT_GAP_SMALL
 		_add_stat_row(block, "Name", "", 14, INK, 0.0, STAT_NAME_H)
-		_add_stat_row(block, "Role", "", 11, MUTED, role_y, ELAIA_ROLE_H)
-		_add_stat_row(block, "Line", "", 15, INK, line_y, STAT_NUM_H)
-		var role_lbl: Label = block.get_node_or_null("Role/Text") as Label
-		if role_lbl:
-			role_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			role_lbl.clip_text = false
-			role_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-			role_lbl.position = Vector2.ZERO
-			role_lbl.size = Vector2(348, ELAIA_ROLE_H)
-		y += ELAIA_STAT_STRIDE
+		_add_stat_row(block, "Role", "", 11, MUTED, STAT_NAME_H, 24.0)
+		_add_stat_row(block, "Line", "", 15, INK, STAT_NAME_H + 24.0, STAT_NUM_H)
+		y += STAT_STRIDE
 
 
 func _apply_actor_chrome() -> void:
@@ -600,6 +594,10 @@ func _apply_actor_chrome() -> void:
 	var title: Label = sheet.get_node_or_null("Title") as Label
 	if title:
 		title.text = strings.get_text("char_sheet_elaia_title") if elaia else strings.get_text("char_sheet_title")
+	var hint: Label = sheet.get_node_or_null("Hint") as Label
+	if hint:
+		hint.text = strings.get_text("char_sheet_elaia_role") if elaia else strings.get_text("char_sheet_hint")
+		hint.visible = true
 	var host: Node = sheet.get_node_or_null("PortraitHost")
 	if host:
 		for child: Node in host.get_children():
@@ -626,7 +624,7 @@ func _apply_actor_chrome() -> void:
 	if gear_title:
 		gear_title.text = strings.get_text("char_sheet_elaia_tending")
 	if note:
-		note.text = "%s\n%s" % [strings.get_text("char_sheet_elaia_role"), strings.get_text("char_sheet_elaia_no_gear")]
+		note.text = strings.get_text("char_sheet_elaia_no_gear")
 	var gs = CharacterSheet._auto("GameState")
 	var work: float = float(gs.call("actor_work_rate", "elaia", ""))
 	var relic: float = float(gs.call("actor_work_rate", "elaia", "reliquary"))
@@ -636,6 +634,7 @@ func _apply_actor_chrome() -> void:
 	_set_elaia_row(sheet, "Reliquary", "char_sheet_elaia_reliquary", "char_sheet_elaia_reliquary_role", relic)
 	_set_elaia_row(sheet, "Water", "char_sheet_elaia_water", "char_sheet_elaia_water_role", water)
 	_set_elaia_row(sheet, "Pace", "char_sheet_elaia_move", "char_sheet_elaia_move_role", pace)
+	_layout_elaia_stats(sheet)
 
 
 func _set_elaia_row(sheet: Node, row_name: String, name_key: String, role_key: String, value: float) -> void:
@@ -647,23 +646,76 @@ func _set_elaia_row(sheet: Node, row_name: String, name_key: String, role_key: S
 		name_lbl.text = strings.get_text(name_key)
 	if role_lbl:
 		role_lbl.text = strings.get_text(role_key)
-		role_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		role_lbl.clip_text = false
-		role_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-		role_lbl.position = Vector2.ZERO
-		role_lbl.size = Vector2(348, ELAIA_ROLE_H)
 	if line_lbl:
 		line_lbl.text = String.num(value, 1) + "×"
 
 
-func _elaia_sheet_portrait() -> Texture2D:
+func _layout_elaia_stats(sheet: Node) -> void:
+	## Size each role to its wrapped text, with room for descenders, then sit the value just under it.
+	var right: Control = sheet.get_node_or_null("ElaiaStats") as Control
+	if right == null:
+		return
+	var y: float = STAT_TOP
+	for row_name: String in ["Work", "Reliquary", "Water", "Pace"]:
+		var block: Control = right.get_node_or_null("Row_%s" % row_name) as Control
+		if block == null:
+			continue
+		var name_host: Control = block.get_node_or_null("Name") as Control
+		var role_host: Control = block.get_node_or_null("Role") as Control
+		var line_host: Control = block.get_node_or_null("Line") as Control
+		var role_lbl: Label = role_host.get_node_or_null("Text") as Label if role_host else null
+		var line_lbl: Label = line_host.get_node_or_null("Text") as Label if line_host else null
+		if name_host == null or role_host == null or line_host == null or role_lbl == null:
+			continue
+		var width: float = 348.0
+		var text_h: float = 18.0
+		var font: Font = role_lbl.get_theme_font("font")
+		if font != null:
+			var measured: Vector2 = font.get_multiline_string_size(role_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, width, role_lbl.get_theme_font_size("font_size"))
+			text_h = measured.y
+		var role_h: float = text_h + ELAIA_ROLE_DESCENT
+		name_host.position = Vector2.ZERO
+		name_host.clip_contents = false
+		name_host.size.y = STAT_NAME_H + 4.0
+		var name_lbl: Label = name_host.get_node_or_null("Text") as Label
+		if name_lbl:
+			name_lbl.clip_text = false
+			name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+			name_lbl.position = Vector2.ZERO
+			name_lbl.size = Vector2(name_host.size.x, name_host.size.y)
+		role_host.position = Vector2(0, name_host.size.y)
+		role_host.size = Vector2(360, role_h)
+		role_host.clip_contents = false
+		role_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		role_lbl.clip_text = false
+		role_lbl.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		role_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		role_lbl.position = Vector2.ZERO
+		role_lbl.size = Vector2(width, role_h)
+		role_lbl.custom_minimum_size = role_lbl.size
+		var line_y: float = role_host.position.y + role_h + ELAIA_VALUE_GAP
+		line_host.position = Vector2(0, line_y)
+		if line_lbl:
+			line_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+			line_lbl.position = Vector2.ZERO
+			line_lbl.size = Vector2(line_host.size.x, line_host.size.y)
+		block.position = Vector2(0, y)
+		block.size = Vector2(360, line_y + line_host.size.y)
+		y += block.size.y + ELAIA_ROW_GAP
+
+
+static func elaia_portrait_texture() -> Texture2D:
 	var src: Texture2D = load("res://assets/art/echo/elaia_front.png") as Texture2D
 	if src == null:
 		return null
 	var atlas := AtlasTexture.new()
 	atlas.atlas = src
-	atlas.region = Rect2(200, 140, 380, 380)
+	atlas.region = ELAIA_PORTRAIT_REGION
 	return atlas
+
+
+func _elaia_sheet_portrait() -> Texture2D:
+	return CharacterSheet.elaia_portrait_texture()
 
 
 func _on_dim_input(event: InputEvent) -> void:

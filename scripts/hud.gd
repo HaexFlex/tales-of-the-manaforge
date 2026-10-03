@@ -195,6 +195,7 @@ func _ready() -> void:
 	_sheet = CharacterSheet.new()
 	_sheet.name = "CharacterSheet"
 	_sheet.visible = false
+	_sheet.z_index = 10
 	_sheet.close_requested.connect(close_character_sheet)
 	add_child(_sheet)
 	backpack_close_button.pressed.connect(close_backpack)
@@ -669,14 +670,8 @@ func _build_party_bar() -> void:
 
 
 func _elaia_portrait_texture() -> Texture2D:
-	## Head crop of the Echo bust. The full plate is a black-backed full figure.
-	var src: Texture2D = load("res://assets/art/echo/elaia_front.png") as Texture2D
-	if src == null:
-		return null
-	var atlas := AtlasTexture.new()
-	atlas.atlas = src
-	atlas.region = Rect2(200, 140, 380, 380)
-	return atlas
+	## Same face crop as the character sheet. The key stays outside the region.
+	return CharacterSheet.elaia_portrait_texture()
 
 
 func _make_party_slot(slot_name: String, unit: String) -> Control:
@@ -1137,6 +1132,12 @@ func _ensure_wisp_counter() -> void:
 	if not GameState.wisps_changed.is_connected(_refresh_wisp_counter):
 		GameState.wisps_changed.connect(_refresh_wisp_counter)
 	_refresh_wisp_counter()
+
+
+func _set_wisp_counter_visible(show_counter: bool) -> void:
+	var counter: CanvasItem = get_node_or_null("WispCounter") as CanvasItem
+	if counter:
+		counter.visible = show_counter
 
 
 func _refresh_wisp_counter() -> void:
@@ -1861,6 +1862,7 @@ func open_character_sheet() -> void:
 	_sheet.open_sheet(actor)
 	if _party_info:
 		_party_info.visible = false
+	_set_wisp_counter_visible(false)
 	if not GameState.fruit_committed:
 		_hold_world_for_backpack()
 	GameAudio.play_ui_open()
@@ -1870,6 +1872,7 @@ func close_character_sheet() -> void:
 	if _sheet == null or not _sheet.visible:
 		return
 	_sheet.close_sheet()
+	_set_wisp_counter_visible(true)
 	_refresh_party_bar()
 	GameAudio.play_ui_close()
 	_release_world_if_allowed()
