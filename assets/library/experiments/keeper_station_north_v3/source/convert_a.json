@@ -1,0 +1,342 @@
+{
+"1": {
+"bench_px_removed_video": 669,
+"defringed": 65,
+"maroon": 28,
+"dropped": 0,
+"top": 4,
+"bottom": 123,
+"x0": 38,
+"x1": 89
+},
+"106": {
+"bench_px_removed_video": 1205,
+"defringed": 87,
+"maroon": 12,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"107": {
+"bench_px_removed_video": 1203,
+"defringed": 86,
+"maroon": 12,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"108": {
+"bench_px_removed_video": 1203,
+"defringed": 86,
+"maroon": 12,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"109": {
+"bench_px_removed_video": 1203,
+"defringed": 81,
+"maroon": 13,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"110": {
+"bench_px_removed_video": 1194,
+"defringed": 81,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 39,
+"x1": 87
+},
+"111": {
+"bench_px_removed_video": 1194,
+"defringed": 82,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 39,
+"x1": 87
+},
+"112": {
+"bench_px_removed_video": 1240,
+"defringed": 75,
+"maroon": 7,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 35,
+"x1": 89
+},
+"113": {
+"bench_px_removed_video": 1235,
+"defringed": 77,
+"maroon": 8,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 35,
+"x1": 89
+},
+"114": {
+"bench_px_removed_video": 1224,
+"defringed": 78,
+"maroon": 9,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 35,
+"x1": 90
+},
+"115": {
+"bench_px_removed_video": 1232,
+"defringed": 77,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 35,
+"x1": 90
+},
+"116": {
+"bench_px_removed_video": 1198,
+"defringed": 84,
+"maroon": 12,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 39,
+"x1": 87
+},
+"117": {
+"bench_px_removed_video": 1205,
+"defringed": 81,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 39,
+"x1": 87
+},
+"118": {
+"bench_px_removed_video": 1210,
+"defringed": 83,
+"maroon": 11,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"119": {
+"bench_px_removed_video": 1210,
+"defringed": 82,
+"maroon": 8,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"120": {
+"bench_px_removed_video": 1230,
+"defringed": 81,
+"maroon": 9,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 38,
+"x1": 89
+},
+"121": {
+"bench_px_removed_video": 1230,
+"defringed": 82,
+"maroon": 11,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 38,
+"x1": 89
+},
+"122": {
+"bench_px_removed_video": 1219,
+"defringed": 75,
+"maroon": 9,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 90
+},
+"123": {
+"bench_px_removed_video": 1215,
+"defringed": 77,
+"maroon": 9,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 90
+},
+"124": {
+"bench_px_removed_video": 1229,
+"defringed": 79,
+"maroon": 7,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 88
+},
+"125": {
+"bench_px_removed_video": 1229,
+"defringed": 82,
+"maroon": 7,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 88
+},
+"126": {
+"bench_px_removed_video": 1206,
+"defringed": 83,
+"maroon": 7,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 38,
+"x1": 87
+},
+"127": {
+"bench_px_removed_video": 1206,
+"defringed": 85,
+"maroon": 11,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 38,
+"x1": 87
+},
+"128": {
+"bench_px_removed_video": 1197,
+"defringed": 77,
+"maroon": 11,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 35,
+"x1": 87
+},
+"129": {
+"bench_px_removed_video": 1199,
+"defringed": 77,
+"maroon": 12,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 35,
+"x1": 87
+},
+"130": {
+"bench_px_removed_video": 1242,
+"defringed": 78,
+"maroon": 11,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 35,
+"x1": 88
+},
+"131": {
+"bench_px_removed_video": 1248,
+"defringed": 76,
+"maroon": 11,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 35,
+"x1": 89
+},
+"132": {
+"bench_px_removed_video": 1238,
+"defringed": 76,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 37,
+"x1": 90
+},
+"133": {
+"bench_px_removed_video": 1236,
+"defringed": 79,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 37,
+"x1": 90
+},
+"134": {
+"bench_px_removed_video": 1189,
+"defringed": 80,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"135": {
+"bench_px_removed_video": 1191,
+"defringed": 88,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"136": {
+"bench_px_removed_video": 1197,
+"defringed": 86,
+"maroon": 10,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"137": {
+"bench_px_removed_video": 1200,
+"defringed": 85,
+"maroon": 11,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 40,
+"x1": 87
+},
+"138": {
+"bench_px_removed_video": 1210,
+"defringed": 81,
+"maroon": 9,
+"dropped": 0,
+"top": 17,
+"bottom": 123,
+"x0": 39,
+"x1": 87
+}
+}
