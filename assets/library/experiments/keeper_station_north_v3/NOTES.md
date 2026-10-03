@@ -52,7 +52,7 @@ The check covers everything from v2: RGBA, alpha only 0/255, transparent corners
 | 6 | f126 | 5.208 | left elbow out, right in | 80 |
 | 7 | f128 | 5.292 | left elbow wide | 110 |
 | 8 | f132 | 5.458 | right elbow out, left in | 90 |
-| 9 | f134 | 5.500 | settle | 90 |
+| 9 | f134 | 5.542 | settle | 90 |
 
 Elbow travel is about 7 px left and 5 px right at 128 px.
 
