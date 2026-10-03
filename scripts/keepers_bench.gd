@@ -89,10 +89,14 @@ func _on_right_click() -> void:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 		return
 	var keeper: Node = get_tree().get_first_node_in_group("keeper")
-	if keeper == null or not keeper.has_method("move_to"):
+	if keeper == null:
 		return
 	_awaiting_arrival = true
-	keeper.call("move_to", stand_global(), null)
+	if keeper.has_method("command_work"):
+		keeper.call("command_work", self, "bench")
+		return
+	if keeper.has_method("move_to"):
+		keeper.call("move_to", stand_global(), null)
 
 
 func _on_keeper_arrived() -> void:

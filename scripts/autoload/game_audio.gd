@@ -38,6 +38,7 @@ var _fruit_ready_after_stage: bool = false
 var _fruit_delay_token: int = 0
 var _played_log: PackedStringArray = PackedStringArray()
 var music_volume_linear: float = 1.0
+var use_speedup_button: bool = false
 var sfx_volume_linear: float = 1.0
 var _forge_mix_on: bool = false
 var _forge_music_offset_db: float = 0.0
@@ -765,6 +766,7 @@ func load_settings() -> void:
 		return
 	music_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "music_volume", 1.0)), 0.0, 1.0)
 	sfx_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "sfx_volume", 1.0)), 0.0, 1.0)
+	use_speedup_button = bool(cfg.get_value(SETTINGS_SECTION, "use_speedup_button", false))
 	if MUSIC_VOLUME_ZERO_MEANS_DEFAULT and music_volume_linear <= 0.001:
 		music_volume_linear = 1.0
 		save_settings()
@@ -775,7 +777,15 @@ func save_settings() -> void:
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value(SETTINGS_SECTION, "music_volume", music_volume_linear)
 	cfg.set_value(SETTINGS_SECTION, "sfx_volume", sfx_volume_linear)
+	cfg.set_value(SETTINGS_SECTION, "use_speedup_button", use_speedup_button)
 	cfg.save(SETTINGS_PATH)
+
+
+func set_use_speedup_button(enabled: bool) -> void:
+	use_speedup_button = enabled
+	if not enabled:
+		Engine.time_scale = 1.0
+	save_settings()
 
 
 func get_music_bus_volume_db() -> float:

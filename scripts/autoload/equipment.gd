@@ -582,6 +582,8 @@ func recipe_ingredient_lines(recipe_id: String) -> PackedStringArray:
 		else:
 			have = gear_count_anywhere(iid)
 			name = item_display_name(iid)
+		if has_node("/root/Backpack") and Backpack.has_method("counted_item_name"):
+			name = Backpack.counted_item_name(iid, need, name)
 		lines.append("%s %d/%d" % [name, have, need])
 	return lines
 

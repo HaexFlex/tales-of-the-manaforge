@@ -32,7 +32,7 @@ func start_water_channel(tree: Manatree) -> void:
 	if not GameState.elaia_in_party():
 		return
 	if GameState.elaia_area != home_area:
-		bring_to_this_area(_entry_point())
+		return
 	super.start_water_channel(tree)
 
 
@@ -126,10 +126,13 @@ func _apply_presence() -> void:
 
 
 func _spawn_beside_keeper() -> void:
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper") if is_inside_tree() else []
 	var spot := global_position
-	if not keepers.is_empty() and keepers[0] is Node2D:
-		spot = (keepers[0] as Node2D).global_position + Vector2(64, 12)
+	if has_node("/root/ForgeJobs"):
+		spot = ForgeJobs.elaia_join_stand()
+	else:
+		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper") if is_inside_tree() else []
+		if not keepers.is_empty() and keepers[0] is Node2D:
+			spot = (keepers[0] as Node2D).global_position + Vector2(84, 6)
 	global_position = spot
 	_target = spot
 	GameState.elaia_has_pos = true
@@ -172,7 +175,7 @@ func command_move(world_pos: Vector2) -> void:
 	if not GameState.elaia_in_party():
 		return
 	if GameState.elaia_area != home_area:
-		bring_to_this_area(_entry_point())
+		return
 	move_to(world_pos, null)
 
 
@@ -180,7 +183,7 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 	if not GameState.elaia_in_party():
 		return
 	if GameState.elaia_area != home_area:
-		bring_to_this_area(_entry_point())
+		return
 	super.command_work(target, type_id, claim_key)
 
 
@@ -188,16 +191,17 @@ func command_station(station: Node2D) -> void:
 	if not GameState.elaia_in_party():
 		return
 	if GameState.elaia_area != home_area:
-		bring_to_this_area(_entry_point())
+		return
 	super.command_station(station)
 
 
 func _entry_point() -> Vector2:
+	if has_node("/root/ForgeJobs"):
+		if home_area == "forge":
+			return ForgeJobs.forge_arch_spawn()
+		return ForgeJobs.clearing_door_stand()
 	if home_area == "forge":
-		return Vector2(800, 860)
-	var trees: Array[Node] = get_tree().get_nodes_in_group("manatree") if is_inside_tree() else []
-	if not trees.is_empty() and trees[0] is Node2D and has_node("/root/ForgeJobs"):
-		return (trees[0] as Node2D).global_position + ForgeJobs.return_offset()
+		return Vector2(800, 1048)
 	return global_position
 
 

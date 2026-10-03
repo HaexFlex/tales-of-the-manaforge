@@ -154,22 +154,25 @@ func _paths_ok(main: Node) -> bool:
 	var paths: Node = main.get_node_or_null("Paths")
 	if paths == null:
 		return false
-	var berry: Node2D = main.get_node("World/HarvestBerry") as Node2D
-	var line: Line2D = paths.get_node_or_null("ToHarvestBerry") as Line2D
-	if line == null or line.get_point_count() < 2:
-		return false
-	if line.get_point_position(line.get_point_count() - 1).distance_to(berry.position) > 1.5:
-		return false
-	if absf(line.width - 48.0) > 0.5:
-		return false
-	if line.texture == null or line.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
-		return false
-	if line.texture_repeat != CanvasItem.TEXTURE_REPEAT_ENABLED:
-		return false
-	var needed: Array[String] = ["ToHarvestTree", "ToHarvestStone", "ToHarvestBerry", "ToEchoPortal"]
-	for name: String in needed:
-		var other: Line2D = paths.get_node_or_null(name) as Line2D
-		if other == null or other.get_point_count() < 2 or other.texture == null:
+	var ends: Array = [
+		["ToHarvestTree", "World/HarvestTree"],
+		["ArcanaToStone", "World/HarvestStone"],
+		["WardToBerry", "World/HarvestBerry"],
+		["MightToPortal", "World/EchoPortal"],
+		["ToBench", "World/KeepersBench"],
+	]
+	for row: Array in ends:
+		var line: Line2D = paths.get_node_or_null(str(row[0])) as Line2D
+		var mark: Node2D = main.get_node_or_null(str(row[1])) as Node2D
+		if line == null or mark == null or line.get_point_count() < 2:
+			return false
+		if line.get_point_position(line.get_point_count() - 1).distance_to(mark.position) > 1.5:
+			return false
+		if absf(line.width - 48.0) > 0.5:
+			return false
+		if line.texture == null or line.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
+			return false
+		if line.texture_repeat != CanvasItem.TEXTURE_REPEAT_ENABLED:
 			return false
 	return true
 
@@ -271,6 +274,11 @@ func _manatree(main: Node) -> void:
 		var grow: Button = hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
 		_check("manatree", "Grow enabled at %s" % sid, grow != null and not grow.disabled)
 		await _click(grow)
+		if sid == "elder":
+			var ancient_yes: Button = hud.get_node_or_null("AncientGrowConfirm/Yes") as Button
+			var ancient_box: CanvasItem = hud.get_node_or_null("AncientGrowConfirm") as CanvasItem
+			_check("manatree", "Ancient grow asks first", ancient_yes != null and ancient_box != null and ancient_box.visible)
+			await _click(ancient_yes)
 		await process_frame
 	_check("manatree", "grew to Ancient", str(GS.get("stage_id")) == "ancient")
 	var ess1: int = int(GS.get("essence"))

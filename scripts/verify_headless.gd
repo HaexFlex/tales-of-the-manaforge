@@ -151,7 +151,7 @@ func _run() -> void:
 		failed += _assert(typeof(meta_parsed) == TYPE_DICTIONARY, "meta dict")
 		if typeof(meta_parsed) == TYPE_DICTIONARY:
 			var mroot: Dictionary = meta_parsed
-			failed += _assert(str(mroot.get("version", "")) == "v0.1.9-A2-native", "meta version v0.1.9-A2-native")
+			failed += _assert(str(mroot.get("version", "")) == "v0.1.9-A2-native-glow-only", "meta version v0.1.9-A2-native-glow-only")
 			var stages_m: Variant = mroot.get("stages", [])
 			failed += _assert(typeof(stages_m) == TYPE_ARRAY and (stages_m as Array).size() == 5, "meta 5 stages")
 			if typeof(stages_m) == TYPE_ARRAY:
@@ -1240,8 +1240,8 @@ func _run() -> void:
 			failed += _assert(found_orbit_assign, "assigned wisp reports orbit-assigned state")
 			failed += _assert(not found_parked_anim, "assigned wisp must not use parked anim")
 			failed += _assert(found_fly_or_node, "assigned wisp uses fly or node_orbit clip")
-			# Two stacked on Manatree → base 28 + 10 per extra = 38
-			failed += _assert(abs(node_r - 38.0) < 0.01, "stacked node orbit radius 38 (got %s)" % node_r)
+			# Two stacked on Manatree → forge_tuning wisp_work_radius 34 + 12 per extra = 46
+			failed += _assert(abs(node_r - 46.0) < 0.01, "stacked node orbit radius 46 (got %s)" % node_r)
 			# RMB ground unassign
 			game_state.call("select_wisp", 1)
 			live.call("handle_rmb_ground", Vector2(80, 80))
@@ -1345,33 +1345,26 @@ func _run() -> void:
 		game_audio.call("clear_played_log")
 		test_hud.call("open_fruit_confirm")
 		await process_frame
-		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "fruit modal step 1")
-		failed += _assert(not bool(game_state.get("fruit_committed")), "step 1 does not commit")
-		failed += _assert(paused == false, "world running during fruit step 1")
+		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "fruit modal is one step")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "opening the box does not commit")
+		failed += _assert(paused == false, "world running during fruit confirm")
 		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "shop closed during fruit modal")
 		failed += _assert(not bool(test_hud.call("is_care_open")), "care closed during fruit confirm")
 		failed += _assert(bool(game_audio.call("did_play", &"sfx_ui_confirm")), "fruit intent plays sfx_ui_confirm")
 		failed += _assert(not bool(game_audio.call("did_play", &"sfx_fruit_harvest")), "intent does not harvest")
 		var harvest_modal: Button = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmYes") as Button
 		var cancel_modal: Button = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmNo") as Button
-		failed += _assert(harvest_modal != null and str(harvest_modal.text) == "Continue", "step 1 Continue")
-		failed += _assert(cancel_modal != null and str(cancel_modal.text).find("watering") >= 0, "step 1 Keep watering")
+		var fruit_body: Label = test_hud.get_node_or_null("FruitConfirmPanel/ConfirmBody") as Label
+		failed += _assert(harvest_modal != null and str(harvest_modal.text) == "Harvest", "one box Harvest")
+		failed += _assert(cancel_modal != null and str(cancel_modal.text).find("watering") >= 0, "one box Keep watering")
+		failed += _assert(fruit_body != null and str(fruit_body.text).find("still water") >= 0 and str(fruit_body.text).find("must Ascend") >= 0, "one box holds both copies")
 		failed += _assert(test_hud.get_node_or_null("FruitConfirmPanel/UpgradeList") == null, "no Buy list on fruit modal")
-		test_hud.call("confirm_fruit_step")
-		await process_frame
-		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 2, "fruit modal step 2")
-		failed += _assert(not bool(game_state.get("fruit_committed")), "step 2 prompt does not commit")
-		failed += _assert(paused == false, "world running during fruit step 2")
-		failed += _assert(not bool(test_hud.call("is_ascension_shop_open")), "shop still closed at step 2")
-		failed += _assert(harvest_modal != null and str(harvest_modal.text) == "Harvest", "step 2 Harvest")
-		failed += _assert(cancel_modal != null and str(cancel_modal.text) == "Not yet", "step 2 Not yet")
 		test_hud.call("cancel_fruit_confirm")
 		await process_frame
-		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 1, "Not yet returns to step 1")
-		failed += _assert(not bool(game_state.get("fruit_committed")), "Not yet does not commit")
-		test_hud.call("confirm_fruit_step")
+		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 0, "Keep watering closes the box")
+		failed += _assert(not bool(game_state.get("fruit_committed")), "Keep watering does not commit")
+		test_hud.call("open_fruit_confirm")
 		await process_frame
-		failed += _assert(int(test_hud.call("get_fruit_confirm_step")) == 2, "Continue again reaches step 2")
 		test_hud.call("confirm_fruit_step")
 		await process_frame
 		await process_frame
@@ -1486,8 +1479,9 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_name")) == "Fertilizer", "fertilizer_name")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_hint")).find("Wood") >= 0, "fertilizer_hint")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_ok")).find("Fertilizer") >= 0, "fertilizer_craft_ok")
-	failed += _assert(str(content_strings.call("get_text", "btn_backpack")) == "Backpack", "btn_backpack")
-	failed += _assert(str(content_strings.call("get_text", "backpack_open")) == "Backpack", "backpack_open")
+	failed += _assert(str(content_strings.call("get_text", "btn_backpack")) == "Inventory", "btn_backpack")
+	failed += _assert(str(content_strings.call("get_text", "backpack_open")) == "Inventory", "backpack_open")
+	failed += _assert(str(content_strings.call("get_text", "backpack_title")) == "Inventory", "backpack_title")
 	failed += _assert(str(content_strings.call("get_text", "backpack_empty")) == "Nothing crafted yet.", "backpack_empty")
 	failed += _assert(str(content_strings.call("get_text", "backpack_hint")).find("Fertilizer") >= 0, "backpack_hint")
 	failed += _assert(str(content_strings.call("get_text", "backpack_tab_all")) == "All", "backpack_tab_all")
@@ -1501,6 +1495,11 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "handcraft_owned_unique")).find("already") >= 0, "handcraft_owned_unique")
 	failed += _assert(str(content_strings.call("get_text", "part_wood_plank")) == "Wood Plank", "part_wood_plank")
 	failed += _assert(str(content_strings.call("get_text", "part_stone_fragment")) == "Stone Fragment", "part_stone_fragment")
+	failed += _assert(str(content_strings.call("get_text", "thornbow_craft_cost")).find("Stone Fragments") >= 0, "thornbow cost says Stone Fragments")
+	var bow_eq: Node = tree_root.get_node_or_null("Equipment")
+	var bow_lines: PackedStringArray = bow_eq.call("recipe_ingredient_lines", "thornbow") if bow_eq else PackedStringArray()
+	var bow_text: String = ", ".join(bow_lines)
+	failed += _assert(bow_text.find("Stone Fragments") >= 0 and bow_text.find("Wood Planks") >= 0, "thornbow row have/need (%s)" % bow_text)
 	failed += _assert(str(content_strings.call("get_text", "part_wood_rod")) == "Wood Rod", "part_wood_rod")
 	failed += _assert(str(content_strings.call("get_text", "part_stone_head")) == "Stone Head", "part_stone_head")
 	failed += _assert(str(content_strings.call("get_text", "part_stone_axe_head")) == "Stone Axe Head", "part_stone_axe_head")
@@ -1785,7 +1784,7 @@ func _run() -> void:
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabRelics") != null, "backpack tab Relics")
 		failed += _assert(pack_hud.get_node_or_null("BackpackPanel/TabRow/TabParts") == null, "parts tab removed")
 		var pack_btn: Button = pack_hud.get_node_or_null("Panel/BackpackButton") as Button
-		failed += _assert(pack_btn != null and str(pack_btn.text) == "" and str(pack_btn.tooltip_text).find("Backpack") >= 0, "HUD backpack sprite button")
+		failed += _assert(pack_btn != null and str(pack_btn.text) == "" and str(pack_btn.tooltip_text).find("Inventory") >= 0, "HUD inventory sprite button")
 		pack_hud.call("close_bench")
 		pack_hud.call("close_backpack")
 		await process_frame
@@ -2096,13 +2095,13 @@ func _run() -> void:
 		sheet_hud.call("open_character_sheet")
 		await process_frame
 		failed += _assert(bool(sheet_hud.call("is_character_open")), "character sheet opens")
-		var portrait: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Portrait") as TextureRect
+		var portrait: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Portrait") as TextureRect
 		failed += _assert(portrait != null and portrait.texture != null, "keeper portrait")
 		failed += _assert(portrait != null and str(portrait.texture.resource_path).find("keeper_idle_south") >= 0, "portrait uses idle_south")
-		var weapon_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
-		var relic_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic")
-		var relic_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
-		var weapon_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
+		var weapon_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon")
+		var relic_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic")
+		var relic_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
+		var weapon_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
 		failed += _assert(weapon_slot != null and relic_slot != null, "weapon and relic slots")
 		failed += _assert(relic_square != null and relic_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "relic slot uses locked chrome")
 		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "empty weapon slot uses empty chrome")
@@ -2111,35 +2110,35 @@ func _run() -> void:
 		failed += _assert(relic_style != null and relic_style.get_border_width(SIDE_LEFT) == 0, "locked slot has no gold border")
 		failed += _assert(weapon_style != null and weapon_style.get_border_width(SIDE_TOP) == 0, "weapon slot has no gold border")
 		failed += _assert(relic_slot.get_node_or_null("Lock") == null, "locked slot has no inner lock chip")
-		var relic_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/CaptionHost/Hint") as Label
-		var relic_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/CaptionHost") as Control
+		var relic_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/CaptionHost/Hint") as Label
+		var relic_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/CaptionHost") as Control
 		failed += _assert(relic_hint != null and str(relic_hint.text) == "Locked", "relic lock caption")
 		failed += _assert(relic_cap != null and relic_square != null and relic_cap.position.y >= relic_square.position.y + relic_square.size.y - 0.5, "Locked sits under the square")
 		failed += _assert(str(relic_slot.get("tooltip_text")).find("Forge Key") >= 0, "relic tooltip names Forge Key")
-		var weapon_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/CaptionHost/Hint") as Label
-		var weapon_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/CaptionHost") as Control
+		var weapon_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon/CaptionHost/Hint") as Label
+		var weapon_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon/CaptionHost") as Control
 		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Weapon", "empty weapon reads Weapon")
 		failed += _assert(weapon_cap != null and weapon_square != null and weapon_cap.position.y >= weapon_square.position.y + weapon_square.size.y - 0.5, "weapon caption sits under the square")
-		var head_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/CaptionHost/Hint") as Label
-		var head_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/CaptionHost") as Control
-		var head_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_head/Square") as TextureRect
+		var head_hint: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_head/CaptionHost/Hint") as Label
+		var head_cap: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_head/CaptionHost") as Control
+		var head_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_head/Square") as TextureRect
 		failed += _assert(head_square != null and head_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "locked head slot uses locked chrome")
 		failed += _assert(head_hint != null and str(head_hint.text) == "Locked", "locked slot caption")
 		failed += _assert(head_square != null and head_cap != null and head_cap.position.y >= head_square.position.y + head_square.size.y - 0.5, "head Locked sits under the square")
-		var hotkey_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/HotkeyHint") as Label
+		var hotkey_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/HotkeyHint") as Label
 		failed += _assert(hotkey_lbl != null and str(hotkey_lbl.text) == "C — Character", "sheet hotkey hint")
 		failed += _assert(char_btn != null and str(char_btn.tooltip_text) == "C — Character", "HUD hotkey hint")
-		var gear_title_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/GearColumn/GearTitle") as Label
+		var gear_title_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearTitle") as Label
 		failed += _assert(gear_title_lbl != null and str(gear_title_lbl.text) == "Gear", "gear column title")
-		var gear_empty: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/GearColumn/GearScroll/GearList/Empty") as Label
+		var gear_empty: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearScroll/GearList/Empty") as Label
 		failed += _assert(gear_empty != null and str(gear_empty.text) == "No gear yet.", "gear empty copy")
-		var might_line: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line/Text") as Label
-		var might_name: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Name") as Control
-		var might_role: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Role") as Control
-		var might_nums: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line") as Control
-		var arcana_name: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_arcana/Name/Text") as Label
-		var might_block: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might") as Control
-		var arcana_block: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_arcana") as Control
+		var might_line: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_might/Line/Text") as Label
+		var might_name: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_might/Name") as Control
+		var might_role: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_might/Role") as Control
+		var might_nums: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_might/Line") as Control
+		var arcana_name: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_arcana/Name/Text") as Label
+		var might_block: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_might") as Control
+		var arcana_block: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_arcana") as Control
 		failed += _assert(might_line != null and str(might_line.text) == "5 + 0 = 5", "new game might is 5 + 0 = 5")
 		failed += _assert(might_line != null and str(might_line.tooltip_text).find("Starts at 5") >= 0, "stat line notes the base of 5")
 		failed += _assert(might_name != null and might_role != null and might_nums != null, "stat name, role, and numbers")
@@ -2154,13 +2153,13 @@ func _run() -> void:
 			var gap_small: float = might_nums.position.y - (might_role.position.y + might_role.size.y)
 			var gap_large: float = arcana_block.position.y - (might_block.position.y + might_nums.position.y + might_nums.size.y)
 			failed += _assert(gap_large > gap_small + 4.0, "larger gap before the next stat")
-			var fate_block: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_fate") as Control
-			var stats_root: Control = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats") as Control
+			var fate_block: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_fate") as Control
+			var stats_root: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats") as Control
 			failed += _assert(fate_block != null and stats_root != null and fate_block.position.y + might_nums.position.y + might_nums.size.y <= stats_root.size.y, "seven stats fit the panel")
-		var arcana_line: Label = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_arcana/Line/Text") as Label
+		var arcana_line: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_arcana/Line/Text") as Label
 		failed += _assert(arcana_line != null and str(arcana_line.text) == "5 + 0 = 5", "new game arcana is 5 + 0 = 5")
 		failed += _assert(arcana_name != null and str(arcana_name.text) == "Arcana", "arcana name")
-		var gear_list: Node = sheet_hud.get_node_or_null("CharacterSheet/Sheet/GearColumn/GearScroll/GearList")
+		var gear_list: Node = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearScroll/GearList")
 		failed += _assert(gear_list != null, "equipment inventory column")
 		equipment.call("grant_item", "stone_sword")
 		await process_frame
@@ -2179,25 +2178,25 @@ func _run() -> void:
 		sheet_hud.get_node("CharacterSheet").call("request_equip", "stone_sword")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet click equips sword")
-		might_line = sheet_hud.get_node_or_null("CharacterSheet/Sheet/Stats/Stat_might/Line/Text") as Label
-		weapon_hint = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/CaptionHost/Hint") as Label
+		might_line = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_might/Line/Text") as Label
+		weapon_hint = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon/CaptionHost/Hint") as Label
 		failed += _assert(might_line != null and str(might_line.text).find("5 + 2 = 7") >= 0, "sheet shows 5 + 2 = 7")
 		failed += _assert(int(equipment.call("gear_bonus", "might")) == 2, "equipped sword still adds +2 might")
 		failed += _assert(weapon_hint != null and str(weapon_hint.text) == "Flintblade", "equipped weapon shows the item name")
-		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
+		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
 		failed += _assert(weapon_square != null and flint_icon != null and weapon_square.texture == flint_icon, "equipped sword shows flintblade icon")
-		var slot_plate: Node = sheet_hud.get_node("CharacterSheet/Sheet/PortraitHost/Slot_weapon")
+		var slot_plate: Node = sheet_hud.get_node("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon")
 		sheet_hud.get_node("CharacterSheet").call("request_unequip", "weapon")
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "sheet unequip")
-		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
+		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
 		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "unequipped weapon returns to empty chrome")
 		slot_plate.call("_drop_data", Vector2.ZERO, {"kind": "gear", "item_id": "stone_sword", "from_slot": ""})
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet drag-drop equips")
-		var head_plate: Node = sheet_hud.get_node("CharacterSheet/Sheet/PortraitHost/Slot_head")
+		var head_plate: Node = sheet_hud.get_node("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_head")
 		failed += _assert(not bool(head_plate.call("_can_drop_data", Vector2.ZERO, {"kind": "gear", "item_id": "stone_sword", "from_slot": ""})), "locked head rejects drop")
-		var gear_col: Node = sheet_hud.get_node("CharacterSheet/Sheet/GearColumn")
+		var gear_col: Node = sheet_hud.get_node("CharacterSheet/SheetFit/Sheet/GearColumn")
 		failed += _assert(bool(gear_col.call("_can_drop_data", Vector2.ZERO, {"kind": "gear", "item_id": "stone_sword", "from_slot": "weapon"})), "gear column accepts an unequip drag")
 		gear_col.call("_drop_data", Vector2.ZERO, {"kind": "gear", "item_id": "stone_sword", "from_slot": "weapon"})
 		await process_frame
@@ -2473,9 +2472,10 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(view.call("speech_text")).find("worth following") >= 0, "mercy uses the full line")
 	var psize: Vector2 = view.call("portrait_size")
 	failed += _assert(abs(psize.x - 384.0) < 0.5 and abs(psize.y - 384.0) < 0.5, "portraits 384x384")
-	failed += _assert(bool(view.call("keeper_uses_idle_texture")), "keeper portrait uses idle_south")
-	failed += _assert(bool(view.call("echo_uses_elaia_texture")), "echo portrait uses elaia_front")
-	failed += _assert(FileAccess.file_exists("res://assets/art/echo/elaia_front.png"), "elaia_front.png shipped")
+	failed += _assert(bool(view.call("keeper_uses_idle_texture")), "keeper portrait uses battle_keeper_idle_e")
+	failed += _assert(bool(view.call("echo_uses_key_texture")), "spare window uses battle_elaia_key_w")
+	failed += _assert(FileAccess.file_exists("res://assets/art/echo/battle_elaia_idle_w.png"), "battle_elaia_idle_w.png shipped")
+	failed += _assert(FileAccess.file_exists("res://assets/art/echo/battle_elaia_key_w.png"), "battle_elaia_key_w.png shipped")
 	failed += _assert(float(view.call("speech_top")) < float(view.call("log_top")), "flavour above battle log")
 	failed += _assert(bool(view.call("speech_between_portraits")), "flavour box sits between the portraits")
 	var ssize: Vector2 = view.call("speech_band_size")
@@ -2500,6 +2500,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	await process_frame
 	failed += _assert(str(open_view.call("speech_text")).find("does not raise her voice") >= 0, "narrator on first enter")
 	failed += _assert(str(open_view.call("speech_text")).find("should not have opened this") >= 0, "intro on first enter")
+	failed += _assert(bool(open_view.call("echo_uses_elaia_texture")) and not bool(open_view.call("echo_uses_key_texture")), "opening face-off uses battle_elaia_idle_w")
 	open_view.free()
 	echo.set("reentry", true)
 	var reentry_view: Node = view_packed.instantiate()
@@ -2606,14 +2607,17 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(portal != null and not portal.visible, "portal hidden before the first Ascend")
 	if portal:
 		var portal_marker: Sprite2D = portal.get_node_or_null("Visual/Marker") as Sprite2D
-		var portal_shape: CollisionShape2D = portal.get_node_or_null("CollisionShape2D") as CollisionShape2D
-		var portal_rect: RectangleShape2D = portal_shape.shape as RectangleShape2D if portal_shape else null
-		failed += _assert(portal_marker != null and portal_marker.texture != null and str(portal_marker.texture.resource_path).ends_with("echo_portal_hub.png"), "portal uses echo_portal_hub")
+		failed += _assert(portal_marker != null and portal_marker.texture != null and str(portal_marker.texture.resource_path).ends_with("echo_portal_hub_v2.png"), "portal uses echo_portal_hub_v2")
 		if portal_marker and portal_marker.texture:
 			var portal_disp: Vector2 = portal_marker.texture.get_size() * portal_marker.scale
-			failed += _assert(abs(maxf(portal_disp.x, portal_disp.y) - 96.0) < 1.0, "portal art fits the 96 box")
+			failed += _assert(abs(portal_disp.x - 160.0) < 1.0 and abs(portal_disp.y - 200.0) < 1.0, "portal art is native 160x200")
+			failed += _assert(portal_marker.offset.distance_to(Vector2(-80, -200)) < 0.5, "portal offset (-80,-200)")
 			failed += _assert(portal_marker.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "portal nearest filter")
-		failed += _assert(portal_rect != null and abs(portal_rect.size.x - 96.0) < 0.5 and abs(portal_rect.size.y - 96.0) < 0.5, "portal collision stays 96x96")
+		var walk: CollisionShape2D = portal.get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
+		var walk_rect: RectangleShape2D = walk.shape as RectangleShape2D if walk else null
+		failed += _assert(walk_rect != null and abs(walk_rect.size.x - 120.0) < 0.5 and abs(walk_rect.size.y - 60.0) < 0.5, "portal base collision is 120x60")
+		var portal_label: Label = portal.get_node_or_null("Label") as Label
+		failed += _assert(portal_label != null and abs(portal_label.offset_top + 228.0) < 1.0, "portal label sits near -228")
 	failed += _assert(hud != null and pause_menu != null, "hud and pause for echo")
 	if hud and portal and pause_menu:
 		if hud.has_method("hide_welcome"):
@@ -3082,12 +3086,13 @@ func _elaia_companion_asserts(tree_root: Window, game_state: Node, backpack: Nod
 	jobs.call("note_elaia_idle")
 	jobs.call("set_elaia_working", "reliquary", true)
 	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "reliquary")), 1.5), "elaia reliquary speed is 1.5")
+	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "mill")), 0.0), "mill is idle after Elaia moves to the Reliquary")
 	game_state.set("wisp_count", 5)
 	game_state.call("_ensure_wisp_slots")
 	for i: int in range(4):
 		game_state.call("try_assign_wisp", i, "mill")
 	var with_wisps: float = float(jobs.call("station_speed_mult", "mill"))
-	failed += _assert(is_equal_approx(with_wisps, 0.8 + 0.4), "four wisps add 0.4 on her mill")
+	failed += _assert(is_equal_approx(with_wisps, 0.4), "four wisps add 0.4 on the mill (got %s)" % with_wisps)
 	failed += _assert(str(game_state.call("try_assign_wisp", 4, "mill")) == "full", "fifth wisp on her target is full")
 	jobs.call("note_elaia_idle")
 	game_state.call("reset_for_new_game")
@@ -3180,7 +3185,11 @@ func _elaia_join_check(tree_root: Window, game_state: Node, backpack: Node) -> i
 	failed += _assert(bool(game_state.get("first_relic_crafted")), "first relic sets the flag")
 	failed += _assert(bool(game_state.call("elaia_in_party")), "Elaia joins after the first Relic craft")
 	hud.call("_refresh_party_bar")
-	failed += _assert(elaia_slot.visible and keeper_slot.visible, "Elaia portrait shows under the Keeper")
+	failed += _assert(not elaia_slot.visible and keeper_slot.visible, "Elaia portrait waits for the Clearing dialogue")
+	failed += _assert(bool(game_state.call("elaia_in_party")), "her body is in the party before the dialogue")
+	game_state.set("elaia_join_seen", true)
+	hud.call("_refresh_party_bar")
+	failed += _assert(elaia_slot.visible and keeper_slot.visible, "Elaia portrait shows after the dialogue")
 	failed += _assert(wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, then Elaia")
 	var old_save: Dictionary = {
 		"stage_id": "sapling",
@@ -3254,7 +3263,10 @@ func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(elaia_slot != null and not elaia_slot.visible, "no Elaia portrait after Spare without a Relic")
 	game_state.set("first_relic_crafted", true)
 	hud.call("_refresh_party_bar")
-	failed += _assert(elaia_slot.visible, "Elaia portrait after Spare and the first Relic")
+	failed += _assert(not elaia_slot.visible, "Elaia portrait waits for the Clearing dialogue")
+	game_state.set("elaia_join_seen", true)
+	hud.call("_refresh_party_bar")
+	failed += _assert(elaia_slot.visible, "Elaia portrait after the Clearing dialogue")
 	var order_column: Node = hud.get_node_or_null("PartyBar/Column")
 	failed += _assert(order_column != null and wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, Elaia")
 	hud.call("party_click", "elaia")
@@ -3708,15 +3720,15 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		equipment.call("try_unequip", "relic")
 		hud_node.call("open_character_sheet")
 		await process_frame
-		var relic_square: TextureRect = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
+		var relic_square: TextureRect = hud_node.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
 		var empty_frame: Texture2D = load("res://assets/art/ui/relic_slot_empty.png") as Texture2D
 		failed += _assert(relic_square != null and relic_square.texture == empty_frame and relic_square.size.distance_to(Vector2(44, 44)) < 0.5, "empty relic slot uses the 44 frame")
 		equipment.call("grant_item", "oakheart_knot")
 		failed += _assert(str(equipment.call("try_equip", "oakheart_knot")) == "ok", "oakheart equips")
-		var relic_slot: Node = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic")
+		var relic_slot: Node = hud_node.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic")
 		if relic_slot:
 			relic_slot.call("refresh")
-		var glyph: TextureRect = hud_node.get_node_or_null("CharacterSheet/Sheet/PortraitHost/Slot_relic/Square/RelicGlyph") as TextureRect
+		var glyph: TextureRect = hud_node.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/Square/RelicGlyph") as TextureRect
 		failed += _assert(glyph != null and glyph.visible and glyph.texture != null and glyph.texture.get_width() == 32, "relic icon is 32px")
 		failed += _assert(glyph != null and glyph.position.distance_to(Vector2(6, 6)) < 0.5 and glyph.size.distance_to(Vector2(32, 32)) < 0.5, "relic icon sits centred in the frame")
 		failed += _assert(relic_square != null and relic_square.texture == empty_frame, "equipped relic keeps the frame")
@@ -3733,7 +3745,7 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(bench_sprite != null and bench_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "bench nearest")
 		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
 		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
-		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 44)) < 0.5, "bench stand")
+		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, -210)) < 0.5, "bench stand is north of the bench")
 		bench.free()
 	game_state.call("reset_for_new_game")
 	return failed
@@ -3775,6 +3787,8 @@ func _keeper_clip_asserts(sframes: SpriteFrames) -> int:
 	failed += _assert(is_equal_approx(_duration_sum(sframes, &"harvest_berries_west"), 900.0), "berries loop is 900 ms")
 	failed += _assert(is_equal_approx(_duration_sum(sframes, &"harvest_water_west"), 1350.0), "water loop is 1350 ms")
 	failed += _assert(is_equal_approx(_duration_sum(sframes, &"station_work_north"), 940.0), "station loop is 940 ms")
+	var jobs: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null and is_equal_approx(float(jobs.call("station_work_anim_speed")), 0.5), "station_work_anim_speed is 0.5")
 	return failed
 
 
@@ -3850,7 +3864,7 @@ func _keeper_work_spot_asserts() -> int:
 	failed += _assert(str(station.get("side", "")) == "south" and str(station.get("facing", "")) == "north", "station work stands south and faces north")
 	failed += _assert(is_equal_approx(station_feet.y, 28.0), "station feet are 28 px south of the sprite")
 	failed += _assert(keeper_cls.distance_to_rect(station.get("contact", Vector2(0, 99)), station_fp) <= keeper_cls.REACH_SLACK, "station hands reach the work surface")
-	for pair: Array in [["wood", "axe"], ["stone", "pickaxe"], ["food", "berries"], ["runestone", "pickaxe"], ["manatree", "water"], ["station", "station"]]:
+	for pair: Array in [["wood", "axe"], ["stone", "pickaxe"], ["food", "berries"], ["runestone", "berries"], ["manatree", "water"], ["station", "station"]]:
 		failed += _assert(keeper_cls.tool_for_type(str(pair[0])) == str(pair[1]), "%s uses %s" % [str(pair[0]), str(pair[1])])
 	failed += _assert(keeper_cls.work_anim_for("axe", "west") == "harvest_axe_west", "axe west clip")
 	failed += _assert(keeper_cls.work_anim_for("berries", "east") == "harvest_berries_east", "berries east clip")
@@ -3961,15 +3975,25 @@ func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, bac
 	failed += _assert(bool(visited.get("forge_visited", false)), "old forge key infers a visit")
 	save_service.call("delete_save")
 	save_service.set("session_active", true)
+	save_service.call("set_autosave_coalesce", 0.0)
 	failed += _assert(bool(save_service.call("save_game", 2)), "manual slot 2 writes")
 	failed += _assert(bool(save_service.call("has_slot", 2)), "manual slot 2 exists")
 	failed += _assert(bool(save_service.call("save_autosave", true)), "autosave 1")
 	failed += _assert(bool(save_service.call("save_autosave", true)), "autosave 2")
 	failed += _assert(bool(save_service.call("save_autosave", true)), "autosave 3")
+	var ts1: float = float(save_service.call("get_autosave_info", 1).get("timestamp", 0.0))
+	var ts2: float = float(save_service.call("get_autosave_info", 2).get("timestamp", 0.0))
+	var ts3: float = float(save_service.call("get_autosave_info", 3).get("timestamp", 0.0))
+	failed += _assert(ts1 > 0.0 and ts2 > ts1 and ts3 > ts2, "three autosaves keep distinct timestamps")
 	var before: Dictionary = save_service.call("get_autosave_info", 1)
 	failed += _assert(bool(save_service.call("save_autosave", true)), "autosave rotates")
 	var after: Dictionary = save_service.call("get_autosave_info", 1)
-	failed += _assert(float(after.get("timestamp", 0.0)) >= float(before.get("timestamp", 1.0)), "oldest autosave was replaced")
+	failed += _assert(float(after.get("timestamp", 0.0)) > float(before.get("timestamp", 1.0)), "oldest autosave was replaced")
+	save_service.call("set_autosave_coalesce", 1.2)
+	var burst_before: float = float(save_service.call("get_autosave_info", 2).get("timestamp", 0.0))
+	save_service.call("save_autosave", true)
+	save_service.call("save_autosave", true)
+	failed += _assert(is_equal_approx(float(save_service.call("get_autosave_info", 2).get("timestamp", 0.0)), burst_before), "a burst writes one autosave slot")
 	failed += _assert(bool(save_service.call("has_slot", 2)), "autosave left the manual slot")
 	failed += _assert(not bool(save_service.call("has_slot", 1)), "new game path did not write slot 1")
 	var recent: Dictionary = save_service.call("get_most_recent_record")

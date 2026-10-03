@@ -75,7 +75,11 @@ func _ready() -> void:
 		push_error("MANAFORGE_BAKE refused. The hub layout lives in scenes/main.tscn. Do not bake; it would wipe editor edits.")
 	_setup_camera(false)
 	_build_forest_floor()
+	_seat_forest()
 	_apply_forge_return()
+	if keeper and keeper.has_method("apply_keeper_presence"):
+		keeper.apply_keeper_presence()
+	_focus_pending_actor()
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
 	click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	click_layer.position = Vector2.ZERO
@@ -226,15 +230,34 @@ func _setup_camera(snap_to_tree: bool) -> void:
 
 
 func _apply_forge_return() -> void:
-	if not has_node("/root/ForgeJobs") or not ForgeJobs.take_clearing_return():
+	## The return flag is consumed so an old exit does not drop the Keeper on the default spawn.
+	## Positions now live on GameState. The door writes the Manatree stand before the scene change.
+	if not has_node("/root/ForgeJobs"):
 		return
-	if keeper == null or manatree == null:
+	ForgeJobs.take_clearing_return()
+
+
+func focus_actor(actor_id: String) -> void:
+	if camera == null:
 		return
-	keeper.global_position = manatree.global_position + ForgeJobs.return_offset()
-	if keeper.has_method("face_out"):
-		keeper.face_out()
-	if camera:
-		camera.position = _clamped_camera_pos(keeper.global_position)
+	var node: Node2D = null
+	if actor_id == "elaia":
+		node = get_tree().get_first_node_in_group("elaia") as Node2D
+	elif actor_id == "keeper":
+		node = keeper
+	if node == null or not node.visible:
+		return
+	camera.position = _clamped_camera_pos(node.global_position)
+
+
+func _focus_pending_actor() -> void:
+	if not has_node("/root/GameState"):
+		return
+	var who: String = str(GameState.pending_focus_actor)
+	if who == "":
+		return
+	GameState.pending_focus_actor = ""
+	focus_actor(who)
 
 
 func focus_manatree() -> void:
@@ -737,11 +760,22 @@ func world_input_blocked() -> bool:
 		return true
 	if hud.has_method("is_elaia_join_open") and bool(hud.call("is_elaia_join_open")):
 		return true
+	if hud.has_method("is_footsteps_open") and bool(hud.call("is_footsteps_open")):
+		return true
 	if EchoPortal.is_fee_confirm_open():
 		return true
 	if EchoChamber.in_battle:
 		return true
 	return pause_menu.is_open()
+
+
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if mb.button_index != MOUSE_BUTTON_LEFT or mb.pressed or not _drag_active:
+		return
+	_finish_marquee(get_global_mouse_position())
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -754,6 +788,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		if mb.pressed:
 			if world_input_blocked():
+				return
+			if _gui_blocks_drag():
 				return
 			if _interactable_under_point(get_global_mouse_position()):
 				return
@@ -795,6 +831,8 @@ func handle_rmb_ground(world_pos: Vector2) -> void:
 			elaia.call("command_move", world_pos)
 		return
 	if GameState.keeper_selected:
+		if keeper.has_method("scene_home") and GameState.keeper_area != keeper.scene_home():
+			return
 		keeper.move_to(world_pos, null)
 		return
 	if ids.is_empty():
@@ -863,7 +901,9 @@ func _finish_marquee(world_pos: Vector2) -> void:
 	for node: Node in get_tree().get_nodes_in_group("wisp"):
 		if not (node is Node2D) or not node.visible:
 			continue
-		if rect.has_point((node as Node2D).global_position):
+		var wisp_pos: Vector2 = (node as Node2D).global_position
+		var wisp_rect := Rect2(wisp_pos - Vector2(40, 40), Vector2(80, 80))
+		if rect.intersects(wisp_rect):
 			ids.append(int(node.get("wisp_id")))
 	## Box-select is Wisps and the Keeper only. Elaia is never inside the marquee.
 	var keeper_in: bool = keeper != null and rect.has_point(keeper.global_position)
@@ -871,6 +911,47 @@ func _finish_marquee(world_pos: Vector2) -> void:
 		GameState.clear_selection()
 		return
 	GameState.select_group(ids, keeper_in)
+
+
+func _gui_blocks_drag() -> bool:
+	var hovered: Control = get_viewport().gui_get_hovered_control()
+	return hovered != null and hovered.mouse_filter != Control.MOUSE_FILTER_IGNORE
+
+
+func _seat_forest() -> void:
+	## Push the one safety wall into the trees, and give visual trunks a small base.
+	if world == null:
+		return
+	var edge: Node = world.get_node_or_null("ForestEdge")
+	if edge:
+		for child: Node in edge.get_children():
+			if not (child is CollisionShape2D):
+				continue
+			var seg: CollisionShape2D = child as CollisionShape2D
+			var away: Vector2 = seg.position - clearing_center
+			if away.length() < 8.0:
+				continue
+			seg.position = seg.position + away.normalized() * 96.0
+	var bases := StaticBody2D.new()
+	bases.name = "ForestBases"
+	bases.collision_layer = 1
+	bases.collision_mask = 0
+	world.add_child(bases)
+	for prop: Node in get_tree().get_nodes_in_group("forest_fill"):
+		if not (prop is Node2D):
+			continue
+		var kind: String = str(prop.get_meta("prop_kind", ""))
+		if kind != "tree" and kind != "bush":
+			continue
+		var at: Vector2 = (prop as Node2D).global_position
+		if _ellipse_norm(at) < 0.84:
+			continue
+		var shape_node := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		rect.size = Vector2(18, 12) if kind == "tree" else Vector2(14, 10)
+		shape_node.shape = rect
+		shape_node.position = at + Vector2(0, -6)
+		bases.add_child(shape_node)
 
 
 func _interactable_under_point(world_pos: Vector2) -> bool:

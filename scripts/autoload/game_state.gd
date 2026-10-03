@@ -107,6 +107,15 @@ var elaia_area: String = "clearing"
 var elaia_pos: Vector2 = Vector2.ZERO
 var elaia_has_pos: bool = false
 var elaia_facing: String = "south"
+## Shown once in the Forge when the first Relic finishes and she is waiting outside.
+var elaia_footsteps_seen: bool = false
+## The Keeper's scene, same idea as elaia_area. The view switch does not change it.
+var keeper_area: String = "clearing"
+var keeper_pos: Vector2 = Vector2.ZERO
+var keeper_has_pos: bool = false
+var keeper_facing: String = "south"
+## Set by a portrait double-click so the destination scene centres the camera.
+var pending_focus_actor: String = ""
 ## Fractional essence from her 0.8 watering gift so the integer grant does not drop to 0.
 var elaia_water_essence_frac: float = 0.0
 var _hero_water_accum: Dictionary = {}
@@ -264,7 +273,7 @@ func elaia_join_pending() -> bool:
 
 func selected_hero_id() -> String:
 	## Elaia and the Keeper are exclusive. Wisps are not heroes.
-	if selected_companion_id == "elaia" and elaia_in_party():
+	if selected_companion_id == "elaia" and elaia_portrait_visible():
 		return "elaia"
 	if keeper_selected:
 		return "keeper"
@@ -573,21 +582,43 @@ func select_wisp(wisp_id: int) -> void:
 
 
 func elaia_in_party() -> bool:
-	## Spare is the story beat. The portrait waits for the first Reliquary relic,
+	## Spare is the story beat. Her body waits after the first Reliquary relic,
 	## unless this save already had her from before that gate.
 	return echo_01_redeemed and (first_relic_crafted or elaia_legacy_joined)
+
+
+func elaia_portrait_visible() -> bool:
+	## Portrait, selection and companion status wait until the Clearing dialogue.
+	return elaia_in_party() and elaia_join_seen
+
+
+func elaia_footsteps_pending() -> bool:
+	return echo_01_redeemed and first_relic_crafted and not elaia_join_seen and not elaia_footsteps_seen
 
 
 func note_first_relic_crafted() -> void:
 	if first_relic_crafted:
 		return
 	first_relic_crafted = true
+	if echo_01_redeemed and not elaia_join_seen:
+		elaia_footsteps_seen = false
+		_place_elaia_at_door()
 	echo_flags_changed.emit()
 
 
+func _place_elaia_at_door() -> void:
+	elaia_area = "clearing"
+	elaia_has_pos = true
+	elaia_facing = "south"
+	if has_node("/root/ForgeJobs"):
+		elaia_pos = ForgeJobs.elaia_join_stand()
+	else:
+		elaia_pos = Vector2(2244, 2140)
+
+
 func select_companion(companion_id: String) -> void:
-	## Portrait or sprite click. Refused until elaia_in_party() — the same flag as the portrait.
-	if companion_id != "elaia" or not elaia_in_party():
+	## Portrait or sprite click. Refused until the join dialogue has played.
+	if companion_id != "elaia" or not elaia_portrait_visible():
 		return
 	if selected_companion_id == companion_id and not keeper_selected and selected_wisp_ids.is_empty() and selected_wisp_id < 0:
 		return
@@ -989,6 +1020,23 @@ func get_upgrade_cost(upgrade_id: String) -> int:
 		return 999999
 	var rank: int = get_upgrade_rank(upgrade_id)
 	return int(def.get("cost_base", 1)) + int(def.get("cost_per_rank", 1)) * rank
+
+
+func can_afford_any_ascension() -> bool:
+	## True when leftover Manashards can still buy at least one blessing.
+	for entry: Variant in upgrades_data:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var upgrade_id: String = str((entry as Dictionary).get("id", ""))
+		if upgrade_id == "":
+			continue
+		var def: Dictionary = entry as Dictionary
+		var max_rank: int = int(def.get("max_rank", 1))
+		if get_upgrade_rank(upgrade_id) >= max_rank:
+			continue
+		if manashards >= get_upgrade_cost(upgrade_id):
+			return true
+	return false
 
 
 func can_buy_upgrade(upgrade_id: String) -> bool:
@@ -1499,11 +1547,17 @@ func to_save_dict() -> Dictionary:
 		"first_relic_crafted": first_relic_crafted,
 		"elaia_legacy_joined": elaia_legacy_joined,
 		"elaia_join_seen": elaia_join_seen,
+		"elaia_footsteps_seen": elaia_footsteps_seen,
 		"elaia_area": elaia_area,
 		"elaia_pos_x": elaia_pos.x,
 		"elaia_pos_y": elaia_pos.y,
 		"elaia_has_pos": elaia_has_pos,
 		"elaia_facing": elaia_facing,
+		"keeper_area": keeper_area,
+		"keeper_pos_x": keeper_pos.x,
+		"keeper_pos_y": keeper_pos.y,
+		"keeper_has_pos": keeper_has_pos,
+		"keeper_facing": keeper_facing,
 		"elaia_water_essence_frac": elaia_water_essence_frac,
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
@@ -1570,6 +1624,20 @@ func apply_save_dict(data: Dictionary) -> void:
 	elaia_facing = str(data.get("elaia_facing", "south"))
 	if elaia_facing != "north" and elaia_facing != "east" and elaia_facing != "west":
 		elaia_facing = "south"
+	if data.has("elaia_footsteps_seen"):
+		elaia_footsteps_seen = bool(data.get("elaia_footsteps_seen", false))
+	else:
+		## Already joined, or she is not waiting: do not replay the Forge popup.
+		## Mid-way (relic done, dialogue not seen) still owes the popup.
+		elaia_footsteps_seen = not (first_relic_crafted and echo_01_redeemed and not elaia_join_seen)
+	if elaia_footsteps_pending() and not elaia_has_pos:
+		_place_elaia_at_door()
+	keeper_area = str(data.get("keeper_area", "clearing"))
+	if keeper_area != "forge":
+		keeper_area = "clearing"
+	keeper_has_pos = bool(data.get("keeper_has_pos", false))
+	keeper_pos = Vector2(float(data.get("keeper_pos_x", 0.0)), float(data.get("keeper_pos_y", 0.0)))
+	keeper_facing = str(data.get("keeper_facing", "south"))
 	elaia_water_essence_frac = maxf(0.0, float(data.get("elaia_water_essence_frac", 0.0)))
 	_hero_water_accum.clear()
 	forge_key = bool(data.get("forge_key", false))
@@ -1725,7 +1793,13 @@ func reset_for_new_game() -> void:
 	first_relic_crafted = false
 	elaia_legacy_joined = false
 	elaia_join_seen = false
+	elaia_footsteps_seen = false
 	elaia_area = "clearing"
+	keeper_area = "clearing"
+	keeper_pos = Vector2.ZERO
+	keeper_has_pos = false
+	keeper_facing = "south"
+	pending_focus_actor = ""
 	elaia_pos = Vector2.ZERO
 	elaia_has_pos = false
 	elaia_facing = "south"

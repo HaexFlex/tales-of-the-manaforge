@@ -14,7 +14,7 @@
     "stone": {
       "sides": ["west", "east"],
       "measure": "edge",
-      "side_px": 46,
+      "side_px": 18,
       "y_px": 0,
       "contact_px": 53,
       "tool": "pickaxe"
@@ -22,7 +22,7 @@
     "food": {
       "sides": ["west", "east"],
       "measure": "edge",
-      "side_px": 36,
+      "side_px": 14,
       "y_px": 0,
       "contact_px": 45,
       "tool": "berries"
@@ -30,10 +30,10 @@
     "runestone": {
       "sides": ["west", "east"],
       "measure": "edge",
-      "side_px": 40,
+      "side_px": 28,
       "y_px": 0,
-      "contact_px": 53,
-      "tool": "pickaxe"
+      "contact_px": 40,
+      "tool": "berries"
     },
     "manatree": {
       "sides": ["west"],
@@ -52,15 +52,34 @@
       "contact_px": 36,
       "tool": "station",
       "overrides": {}
+    },
+    "door": {
+      "sides": ["south"],
+      "force_side": "south",
+      "measure": "center",
+      "side_px": 28,
+      "y_px": 0,
+      "contact_px": 8,
+      "tool": ""
+    },
+    "bench": {
+      "sides": ["north"],
+      "force_side": "north",
+      "measure": "edge",
+      "side_px": 18,
+      "y_px": 0,
+      "contact_px": 24,
+      "tool": "station"
     }
   },
   "actors": {
     "elaia": {
       "wood": {"side_px": 35, "contact_px": 41, "sides": ["east"], "force_side": "east"},
-      "stone": {"side_px": 35, "contact_px": 41},
-      "food": {"side_px": 37, "contact_px": 43},
-      "runestone": {"side_px": 35, "contact_px": 41},
-      "manatree": {"side_px": 82, "y_px": 35, "contact_px": 82, "sides": ["west"], "force_side": "west"}
+      "stone": {"side_px": 16, "contact_px": 41},
+      "food": {"side_px": 14, "contact_px": 43},
+      "runestone": {"side_px": 26, "contact_px": 38},
+      "manatree": {"side_px": 82, "y_px": 35, "contact_px": 82, "sides": ["west"], "force_side": "west"},
+      "door": {"side_px": 28, "y_px": 0, "contact_px": 8, "sides": ["south"], "force_side": "south"}
     }
   }
 }

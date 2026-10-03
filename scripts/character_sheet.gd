@@ -464,7 +464,7 @@ func _build() -> void:
 	trait_btn.add_theme_font_size_override("font_size", 13)
 	_paint_trait_button(trait_btn)
 	trait_btn.mouse_entered.connect(open_trait_popup)
-	trait_btn.pressed.connect(open_trait_popup)
+	trait_btn.mouse_exited.connect(close_trait_popup)
 	trait_row.add_child(trait_btn)
 
 	## Name, role flush under it, a small gap, the numbers, then a larger gap.
@@ -653,14 +653,14 @@ func _build_trait_popup() -> void:
 	pop.visible = false
 	pop.z_index = 40
 	pop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	pop.color = Color(0.02, 0.03, 0.02, 0.55)
-	pop.mouse_filter = Control.MOUSE_FILTER_STOP
+	pop.color = Color(0, 0, 0, 0)
+	pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pop.gui_input.connect(_on_trait_dim_input)
 	add_child(pop)
 	var panel := Panel.new()
 	panel.name = "Panel"
 	panel.size = Vector2(520, 280)
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override("panel", _wood_style())
 	pop.add_child(panel)
 	var title := Label.new()
@@ -709,6 +709,7 @@ func _build_trait_popup() -> void:
 	close.position = Vector2(400, 232)
 	close.size = Vector2(96, 32)
 	close.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_close")
+	close.visible = false
 	close.pressed.connect(close_trait_popup)
 	_paint_button(close, Color(0.18, 0.14, 0.10, 1.0))
 	panel.add_child(close)
@@ -749,10 +750,13 @@ func _place_trait_popup() -> void:
 	var panel: Control = get_node_or_null("TraitPopup/Panel") as Control
 	if panel == null:
 		return
-	var panel_size := Vector2(520, 280)
+	var panel_size := Vector2(360, 220)
 	panel.size = panel_size
-	var origin: Vector2 = (size - panel_size) * 0.5
-	panel.position = Vector2(maxf(8.0, origin.x), maxf(8.0, origin.y))
+	var btn: Control = find_child("TraitButton", true, false) as Control
+	var origin := Vector2(16, 16)
+	if btn:
+		origin = btn.global_position - global_position + Vector2(0, btn.size.y + 6)
+	panel.position = Vector2(clampf(origin.x, 8.0, maxf(8.0, size.x - panel_size.x - 8.0)), clampf(origin.y, 8.0, maxf(8.0, size.y - panel_size.y - 8.0)))
 
 
 func _on_trait_dim_input(event: InputEvent) -> void:

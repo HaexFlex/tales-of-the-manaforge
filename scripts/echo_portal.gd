@@ -3,8 +3,11 @@ extends Area2D
 class_name EchoPortal
 ## Hub portal. Same command as a Runestone: Keeper selected, right-click, walk in range, confirm.
 
-const PORTAL_ART: String = "res://assets/art/props/echo_portal_hub.png"
-const PORTAL_BOX: float = 96.0
+const PORTAL_ART: String = "res://assets/art/props/echo_portal_hub_v2.png"
+## Native 160×200, bottom-centre anchor (80, 200). Five empty rows sit above the arch.
+const PORTAL_OFFSET: Vector2 = Vector2(-80, -200)
+const WALK_SIZE: Vector2 = Vector2(120, 60)
+const ENTRY_OFFSET: Vector2 = Vector2(0, 50)
 
 @onready var marker: Sprite2D = $Visual/Marker
 @onready var label: Label = $Label
@@ -48,6 +51,7 @@ func _ready() -> void:
 	mouse_entered.connect(_on_hover.bind(true))
 	mouse_exited.connect(_on_hover.bind(false))
 	_fit_marker()
+	_ensure_walk_body()
 	input_event.connect(_on_input_event)
 	if not GameState.echo_flags_changed.is_connected(refresh_visibility):
 		GameState.echo_flags_changed.connect(refresh_visibility)
@@ -63,16 +67,38 @@ func _fit_marker() -> void:
 	marker.centered = false
 	var tex: Texture2D = load(PORTAL_ART) as Texture2D
 	marker.texture = tex
-	var tw: float = PORTAL_BOX
-	var th: float = PORTAL_BOX
-	if tex != null:
-		tw = float(tex.get_width())
-		th = float(tex.get_height())
-	var fit: float = 1.0
-	if tw > 0.0 and th > 0.0:
-		fit = minf(PORTAL_BOX / tw, PORTAL_BOX / th)
-	marker.scale = Vector2(fit, fit)
-	marker.offset = Vector2(-tw * 0.5, -th)
+	marker.scale = Vector2.ONE
+	marker.offset = PORTAL_OFFSET
+	if label:
+		label.offset_left = -80.0
+		label.offset_right = 80.0
+		label.offset_top = -228.0
+		label.offset_bottom = -204.0
+	var pick: CollisionShape2D = get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if pick and pick.shape is RectangleShape2D:
+		var rect: RectangleShape2D = (pick.shape as RectangleShape2D).duplicate() as RectangleShape2D
+		rect.size = Vector2(160, 180)
+		pick.shape = rect
+		pick.position = Vector2(0, -100)
+
+
+func _ensure_walk_body() -> void:
+	if get_node_or_null("WalkBody") != null:
+		return
+	var body := StaticBody2D.new()
+	body.name = "WalkBody"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.input_pickable = false
+	var shape_node := CollisionShape2D.new()
+	shape_node.name = "CollisionShape2D"
+	var rect := RectangleShape2D.new()
+	rect.size = WALK_SIZE
+	shape_node.shape = rect
+	## Base of the arch only, so the Keeper can walk up into the opening.
+	shape_node.position = Vector2(0, -WALK_SIZE.y * 0.5)
+	body.add_child(shape_node)
+	add_child(body)
 
 
 func _process(delta: float) -> void:
@@ -131,7 +157,7 @@ func apply_player_command() -> void:
 		return
 	var k: Keeper = keepers[0] as Keeper
 	if k:
-		k.move_to(global_position, self)
+		k.move_to(global_position + ENTRY_OFFSET, self)
 
 
 func on_interact(_keeper: Node) -> void:

@@ -131,7 +131,7 @@ func _add_anim(frames: SpriteFrames, anim: StringName, paths: Array, hold_ms: fl
 
 func setup(id: int) -> void:
 	wisp_id = id
-	_orbit_angle = _even_slot_angle()
+	_orbit_angle = 0.0
 	_at_assigned_orbit = false
 	_cached_assignment = ""
 	if is_inside_tree():
@@ -150,9 +150,11 @@ func _even_slot_angle() -> float:
 
 
 func _orbit_radius_for_assignment(node_id: String) -> float:
-	## Art: reuse node_orbit/orbit; base r≈28, +10px per extra wisp on this target.
+	## Even circle. Radius grows with the count on this node.
 	var n: int = maxi(1, GameState.count_wisps_on_node(node_id))
-	return NODE_ORBIT_RADIUS + 10.0 * float(n - 1)
+	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("wisp_work_radius"):
+		return ForgeJobs.wisp_work_radius(n)
+	return 34.0 + 12.0 * float(n - 1)
 
 
 func get_node_orbit_radius() -> float:
@@ -257,9 +259,10 @@ func _tick_node_orbit(_node_id: String, delta: float) -> void:
 
 
 func _slot_around(center: Vector2, radius: float) -> Vector2:
-	var angle: float = _orbit_angle + _even_slot_angle()
+	## One even slot. Do not add _orbit_angle: setup used to store the slot there too.
+	var angle: float = _even_slot_angle()
 	var bob: float = sin(_bob_t * 2.8 + float(wisp_id)) * 2.0
-	var offset := Vector2(cos(angle), sin(angle) * 0.55) * radius
+	var offset := Vector2(cos(angle), sin(angle)) * radius
 	return center + offset + Vector2(0, bob)
 
 

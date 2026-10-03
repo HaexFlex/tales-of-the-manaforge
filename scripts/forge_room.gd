@@ -64,6 +64,14 @@ func _ready() -> void:
 	_show_pending_toast()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.note_entered_forge()
+	if keeper and keeper.has_method("apply_keeper_presence"):
+		keeper.apply_keeper_presence()
+	var elaia_body: Node = get_node_or_null("Elaia")
+	if elaia_body and elaia_body.has_method("_apply_presence"):
+		elaia_body.call("_apply_presence")
+	_focus_pending_actor()
+	if hud and hud.has_method("maybe_show_elaia_footsteps"):
+		hud.call("maybe_show_elaia_footsteps")
 
 
 func _exit_tree() -> void:
@@ -77,6 +85,14 @@ func _process(delta: float) -> void:
 	_pan_camera(delta)
 	_clamp_camera()
 	_refresh_station_job()
+
+
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var released: InputEventMouseButton = event
+	if released.button_index == MOUSE_BUTTON_LEFT and not released.pressed and _drag_active:
+		_finish_marquee(get_global_mouse_position())
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -95,6 +111,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		if mb.pressed:
 			if _ui_blocks():
+				return
+			if _gui_blocks_drag():
 				return
 			if _interactable_under_point(get_global_mouse_position()):
 				return
@@ -264,7 +282,8 @@ func _finish_marquee(world_pos: Vector2) -> void:
 	for node: Node in get_tree().get_nodes_in_group("wisp"):
 		if not (node is Node2D) or not node.visible:
 			continue
-		if rect.has_point((node as Node2D).global_position):
+		var wisp_pos: Vector2 = (node as Node2D).global_position
+		if rect.intersects(Rect2(wisp_pos - Vector2(40, 40), Vector2(80, 80))):
 			picked.append(int(node.get("wisp_id")))
 	## Marquee is Wisps + the Keeper. Elaia stays out of the box; select_group clears her.
 	var keeper_in: bool = keeper != null and rect.has_point(keeper.global_position)
@@ -275,8 +294,20 @@ func _finish_marquee(world_pos: Vector2) -> void:
 
 
 func _on_exit_body(body: Node2D) -> void:
-	if body == keeper:
-		_leave()
+	if body == null or not body.has_method("actor_id"):
+		return
+	var actor: String = str(body.call("actor_id"))
+	if actor != "keeper" and actor != "elaia":
+		return
+	if not (body as CanvasItem).visible:
+		return
+	if _leaving:
+		return
+	_leaving = true
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.commit_actor_exit(actor)
+		return
+	_leave()
 
 
 func _leave() -> void:
@@ -286,7 +317,7 @@ func _leave() -> void:
 	if has_node("/root/GameAudio"):
 		GameAudio.set_forge_room_mix(false)
 	if has_node("/root/ForgeJobs"):
-		ForgeJobs.exit_forge()
+		ForgeJobs.switch_view(false)
 	else:
 		if has_node("/root/SaveService"):
 			SaveService.boot_intent = "forge_return"
@@ -314,6 +345,7 @@ func _open_recipes(station_id: String) -> void:
 		btn.tooltip_text = recipe_id
 		btn.pressed.connect(_on_recipe_pressed.bind(station_id, recipe_id))
 		recipe_list.add_child(btn)
+	_ensure_repeat_toggle(station_id)
 	_refresh_station_job()
 
 
@@ -329,6 +361,68 @@ func _on_recipe_pressed(station_id: String, recipe_id: String) -> void:
 		GameState.status_message.emit(ForgeJobs.copy_text("already_owned"))
 	elif result == "busy":
 		GameState.status_message.emit(ForgeJobs.copy_text("station_busy"))
+
+
+func _ensure_repeat_toggle(station_id: String) -> void:
+	var existing: Button = recipe_panel.get_node_or_null("RepeatToggle") as Button
+	var show: bool = ForgeJobs.station_supports_repeat(station_id)
+	if not show:
+		if existing:
+			existing.visible = false
+		return
+	if existing == null:
+		existing = Button.new()
+		existing.name = "RepeatToggle"
+		existing.position = Vector2(240, 8)
+		existing.size = Vector2(120, 28)
+		existing.pressed.connect(_on_repeat_toggled)
+		recipe_panel.add_child(existing)
+	existing.visible = true
+	var on: bool = ForgeJobs.station_repeat_enabled(station_id)
+	existing.text = ContentStrings.get_text("forge_repeat_on" if on else "forge_repeat_off")
+	existing.set_meta("station_id", station_id)
+
+
+func _on_repeat_toggled() -> void:
+	if recipe_panel == null:
+		return
+	var btn: Button = recipe_panel.get_node_or_null("RepeatToggle") as Button
+	if btn == null:
+		return
+	var station_id: String = str(btn.get_meta("station_id", ""))
+	if station_id == "":
+		return
+	var nxt: bool = not ForgeJobs.station_repeat_enabled(station_id)
+	ForgeJobs.set_station_repeat(station_id, nxt)
+	btn.text = ContentStrings.get_text("forge_repeat_on" if nxt else "forge_repeat_off")
+
+
+func focus_actor(actor_id: String) -> void:
+	if camera == null:
+		return
+	var node: Node2D = null
+	if actor_id == "elaia":
+		node = get_node_or_null("Elaia") as Node2D
+	else:
+		node = keeper
+	if node == null or not node.visible:
+		return
+	camera.position = node.global_position
+
+
+func _focus_pending_actor() -> void:
+	if not has_node("/root/GameState"):
+		return
+	var who: String = str(GameState.pending_focus_actor)
+	if who == "":
+		return
+	GameState.pending_focus_actor = ""
+	focus_actor(who)
+
+
+func _gui_blocks_drag() -> bool:
+	var hovered: Control = get_viewport().gui_get_hovered_control()
+	return hovered != null and hovered.mouse_filter != Control.MOUSE_FILTER_IGNORE
 
 
 func _hide_recipes() -> void:
@@ -499,6 +593,8 @@ func _ui_blocks() -> bool:
 	if hud and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 		return true
 	if hud and hud.has_method("is_character_open") and bool(hud.call("is_character_open")):
+		return true
+	if hud and hud.has_method("is_footsteps_open") and bool(hud.call("is_footsteps_open")):
 		return true
 	return false
 

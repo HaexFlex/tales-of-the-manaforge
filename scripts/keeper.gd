@@ -58,6 +58,10 @@ var _work_loop: bool = false
 var _water_pending: bool = false
 var _suppress_work_clear: bool = false
 var _fallback_logged: Dictionary = {}
+var _pose_hold: bool = false
+var _pose_finish_left: float = 0.0
+## Runestone pluck pauses on this berry frame (hand extended). Data-free: the long mid hold.
+const BERRY_REACH_FRAME: int = 4
 
 static var _spots_cache: Dictionary = {}
 
@@ -194,6 +198,8 @@ func _ready() -> void:
 		click_area.add_to_group("interactable")
 	GameState.selection_changed.connect(_on_selection_changed)
 	_on_selection_changed()
+	if actor_id() == "keeper":
+		apply_keeper_presence()
 
 
 func _build_frames() -> SpriteFrames:
@@ -265,6 +271,7 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2.ZERO
 		move_and_slide()
 		_update_anim(Vector2.ZERO)
+		_remember_keeper_pose()
 		return
 	if _moving:
 		var speed: float = actor_move_speed()
@@ -290,12 +297,15 @@ func _physics_process(delta: float) -> void:
 			move_and_slide()
 			_update_anim(intended)
 			_check_channel_range()
+		_remember_keeper_pose()
 		return
 
 	velocity = Vector2.ZERO
 	move_and_slide()
+	_tick_pose_finish(delta)
 	_update_anim(Vector2.ZERO)
 	_tick_channel(delta)
+	_remember_keeper_pose()
 
 
 func _update_anim(intended: Vector2) -> void:
@@ -313,9 +323,15 @@ func _update_anim(intended: Vector2) -> void:
 			assert(is_equal_approx(walk_speed_scale_for(stride_speed), stride_speed / WALK_REF_SPEED))
 		_play_loop(StringName("walk_%s" % _facing), scale, OFFSET_BODY)
 		return
+	if _pose_hold or _pose_finish_left > 0.0:
+		return
 	if _should_work_loop():
 		var anim := StringName(work_anim_for(_work_tool, _work_facing))
-		_play_loop(anim, 1.0, _offset_for_anim(String(anim)))
+		var scale: float = 1.0
+		if _work_tool == "station":
+			## Walk speed_scale must not drive station work. Engine.time_scale still scales playback.
+			scale = station_work_anim_speed()
+		_play_loop(anim, scale, _offset_for_anim(String(anim)))
 		return
 	if actor_idle_uses_facing():
 		_play_loop(StringName("idle_%s" % _facing), 1.0, OFFSET_BODY)
@@ -374,6 +390,65 @@ static func facing_for_velocity(vel: Vector2, current: String = "south") -> Stri
 
 static func walk_anim_for_velocity(vel: Vector2, current: String = "south") -> String:
 	return "walk_%s" % facing_for_velocity(vel, current)
+
+
+func scene_home() -> String:
+	if is_inside_tree() and get_tree().get_first_node_in_group("forge_room") != null:
+		return "forge"
+	return "clearing"
+
+
+func _actor_in_this_scene() -> bool:
+	if actor_id() != "keeper":
+		return true
+	if not has_node("/root/GameState"):
+		return true
+	return GameState.keeper_area == scene_home()
+
+
+func _remember_keeper_pose() -> void:
+	if actor_id() != "keeper" or not visible:
+		return
+	if not has_node("/root/GameState"):
+		return
+	if GameState.keeper_area != scene_home():
+		return
+	GameState.keeper_pos = global_position
+	GameState.keeper_has_pos = true
+	GameState.keeper_facing = _facing
+
+
+func apply_keeper_presence() -> void:
+	if actor_id() != "keeper":
+		return
+	var here: bool = GameState.keeper_area == scene_home()
+	visible = here
+	set_physics_process(here)
+	var body_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if body_shape:
+		body_shape.disabled = not here
+	if click_area:
+		click_area.monitorable = here
+		var click_shape := click_area.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		if click_shape:
+			click_shape.disabled = not here
+	if not here:
+		_moving = false
+		velocity = Vector2.ZERO
+		return
+	if GameState.keeper_has_pos:
+		global_position = GameState.keeper_pos
+		_target = global_position
+	if GameState.keeper_facing != "":
+		_facing = GameState.keeper_facing
+	_update_anim(Vector2.ZERO)
+
+
+func station_work_anim_speed() -> float:
+	## forge_tuning.json station_work_anim_speed. Not crafting speed. Not walk speed_scale.
+	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("station_work_anim_speed"):
+		return ForgeJobs.station_work_anim_speed()
+	return 0.5
 
 
 static func walk_speed_scale_for(speed: float, ref_speed: float = -1.0) -> float:
@@ -613,11 +688,16 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return
+	if not _actor_in_this_scene():
+		GameState.status_message.emit(ContentStrings.get_text("hud_activity_idle"))
+		return
 	var key: String = claim_key if claim_key != "" else type_id
 	if not _claim_target(key):
 		return
-	var solved: Dictionary = _solve_for(target, type_id)
-	_apply_solved(target, type_id, solved)
+	## The Manatree click stands at the front door. Watering is a separate spot.
+	var solve_type: String = "door" if type_id == "manatree" else type_id
+	var solved: Dictionary = _solve_for(target, solve_type)
+	_apply_solved(target, solve_type, solved)
 	_suppress_work_clear = true
 	move_to(_work_spot, target)
 	_suppress_work_clear = false
@@ -662,6 +742,56 @@ func begin_work_loop() -> void:
 
 func end_work_loop() -> void:
 	_work_loop = false
+
+
+func begin_reach_pose() -> void:
+	## Berry pluck, frozen on the hand-extended frame while a confirm is open.
+	_pose_finish_left = 0.0
+	_pose_hold = true
+	var anim := StringName(work_anim_for("berries", _work_facing if _work_facing != "" else "east"))
+	hold_contact_pose(anim, BERRY_REACH_FRAME)
+
+
+func finish_reach_pose() -> void:
+	## Play the rest of the pluck, then return to idle. Does not loop.
+	if sprite == null or sprite.sprite_frames == null:
+		_pose_hold = false
+		_pose_finish_left = 0.0
+		set_physics_process(true)
+		return
+	var anim: StringName = sprite.animation
+	if not sprite.sprite_frames.has_animation(anim):
+		anim = StringName(work_anim_for("berries", _work_facing if _work_facing != "" else "east"))
+	var start: int = BERRY_REACH_FRAME
+	var count: int = sprite.sprite_frames.get_frame_count(anim)
+	var ms: float = 0.0
+	for i: int in range(start, count):
+		ms += sprite.sprite_frames.get_frame_duration(anim, i)
+	_pose_hold = false
+	_pose_finish_left = maxf(0.05, ms / 1000.0)
+	set_physics_process(true)
+	sprite.speed_scale = 1.0
+	sprite.offset = _offset_for_anim(String(anim))
+	if sprite.sprite_frames.has_animation(anim):
+		sprite.play(anim)
+		sprite.frame = mini(start, count - 1)
+	_tick_pose_finish(0.0)
+
+
+func cancel_reach_pose() -> void:
+	_pose_hold = false
+	_pose_finish_left = 0.0
+	set_physics_process(true)
+	end_work_loop()
+	_update_anim(Vector2.ZERO)
+
+
+func _tick_pose_finish(delta: float) -> void:
+	if _pose_finish_left <= 0.0:
+		return
+	_pose_finish_left = maxf(0.0, _pose_finish_left - delta)
+	if _pose_finish_left <= 0.0:
+		_update_anim(Vector2.ZERO)
 
 
 func hold_contact_pose(anim: StringName, frame_idx: int) -> void:

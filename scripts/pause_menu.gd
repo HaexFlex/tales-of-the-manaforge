@@ -81,6 +81,7 @@ func _ready() -> void:
 	_audio_sliders_ready = true
 	_sync_audio_sliders_from_game()
 	_build_slot_buttons()
+	_ensure_speedup_toggle()
 
 
 func _apply_strings() -> void:
@@ -109,6 +110,28 @@ func _apply_strings() -> void:
 
 func _build_slot_buttons() -> void:
 	_rebuild_slot_rows(false)
+
+
+func _ensure_speedup_toggle() -> void:
+	if options_panel == null or options_panel.get_node_or_null("SpeedupToggle") != null:
+		return
+	var box := CheckButton.new()
+	box.name = "SpeedupToggle"
+	box.position = Vector2(36, 248)
+	box.size = Vector2(440, 32)
+	box.text = ContentStrings.get_text("options_speedup_toggle")
+	box.button_pressed = GameAudio.use_speedup_button
+	box.toggled.connect(_on_speedup_toggled)
+	options_panel.add_child(box)
+	if options_controls:
+		options_controls.position.y += 36.0
+	options_reset.position.y += 28.0
+	options_close.position.y += 28.0
+	options_panel.offset_bottom += 40.0
+
+
+func _on_speedup_toggled(on: bool) -> void:
+	GameAudio.set_use_speedup_button(on)
 
 
 func open_load_standalone() -> void:

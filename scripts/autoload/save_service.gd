@@ -25,6 +25,8 @@ const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
 const AUTOSAVE_PATH_FMT: String = "user://manaforge_autosave_%d.json"
 
 var _last_autosave_msec: int = -100000000
+var _autosave_coalesce_sec: float = 1.2
+var _autosave_serial: int = 0
 
 
 func _ready() -> void:
@@ -96,6 +98,10 @@ func save_game(slot: int = 0) -> bool:
 	return ok
 
 
+func set_autosave_coalesce(seconds: float) -> void:
+	_autosave_coalesce_sec = maxf(0.0, seconds)
+
+
 func save_autosave(force: bool = false) -> bool:
 	if not session_active:
 		return false
@@ -103,11 +109,18 @@ func save_autosave(force: bool = false) -> bool:
 		save_completed.emit(false)
 		return false
 	var now: int = Time.get_ticks_msec()
-	if not force and now - _last_autosave_msec < int(AUTOSAVE_THROTTLE_SEC * 1000.0):
+	## Event, timer, and quit saves in the same moment write one slot.
+	## force used to skip the throttle and stamp all three slots with one clock second.
+	var window: float = _autosave_coalesce_sec
+	if not force:
+		window = maxf(window, AUTOSAVE_THROTTLE_SEC)
+	if now - _last_autosave_msec < int(window * 1000.0):
 		save_completed.emit(true)
 		return true
-	var slot: int = _oldest_autosave_slot()
-	var ok: bool = _write_payload(autosave_path(slot), slot, "autosave")
+	var slot: int = _next_autosave_slot()
+	_autosave_serial += 1
+	var stamped: float = Time.get_unix_time_from_system() + float(_autosave_serial) * 0.001
+	var ok: bool = _write_payload(autosave_path(slot), slot, "autosave", stamped)
 	if ok:
 		_last_autosave_msec = now
 	save_completed.emit(ok)
@@ -124,10 +137,11 @@ func _battle_blocks_save() -> bool:
 	return has_node("/root/EchoChamber") and EchoChamber.in_battle
 
 
-func _write_payload(path: String, slot: int, kind: String) -> bool:
+func _write_payload(path: String, slot: int, kind: String, stamped: float = -1.0) -> bool:
+	var when: float = stamped if stamped >= 0.0 else Time.get_unix_time_from_system()
 	var payload: Dictionary = {
 		"save_version": SAVE_VERSION,
-		"timestamp": Time.get_unix_time_from_system(),
+		"timestamp": when,
 		"slot": slot,
 		"kind": kind,
 		"state": GameState.to_save_dict(),
@@ -325,6 +339,31 @@ func get_most_recent_record() -> Dictionary:
 			best_ts = ts
 			best = {"path": autosave_path(slot), "kind": "autosave", "slot": slot, "timestamp": ts}
 	return best
+
+
+func _next_autosave_slot() -> int:
+	## Fill an empty slot first. Otherwise write the slot after the newest, so three saves stay distinct.
+	var empty_slot: int = 0
+	var newest_slot: int = 0
+	var newest_ts: float = -1.0
+	for slot: int in range(1, AUTOSAVE_SLOT_COUNT + 1):
+		var info: Dictionary = get_autosave_info(slot)
+		if not bool(info.get("filled", false)):
+			if empty_slot == 0:
+				empty_slot = slot
+			continue
+		var ts: float = float(info.get("timestamp", 0))
+		if ts > newest_ts:
+			newest_ts = ts
+			newest_slot = slot
+	if empty_slot != 0:
+		return empty_slot
+	if newest_slot <= 0:
+		return 1
+	var nxt: int = newest_slot + 1
+	if nxt > AUTOSAVE_SLOT_COUNT:
+		nxt = 1
+	return nxt
 
 
 func _oldest_autosave_slot() -> int:

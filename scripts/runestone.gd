@@ -38,6 +38,7 @@ func _ready() -> void:
 		return
 	add_to_group("runestone")
 	add_to_group("interactable")
+	_ensure_walk_body()
 	y_sort_enabled = true
 	input_pickable = true
 	monitoring = false
@@ -61,6 +62,23 @@ func _ready() -> void:
 		stone.offset = Vector2(-32, -64)
 		_apply_sheet_frame()
 	_refresh()
+
+
+func _ensure_walk_body() -> void:
+	if get_node_or_null("WalkBody") != null:
+		return
+	var body := StaticBody2D.new()
+	body.name = "WalkBody"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.input_pickable = false
+	var shape_node := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(28, 16)
+	shape_node.shape = rect
+	shape_node.position = Vector2(0, -8)
+	body.add_child(shape_node)
+	add_child(body)
 
 
 ## Column, row on the 8×8 runestone sheet. Chosen from separate silhouette groups.
@@ -245,11 +263,11 @@ func on_interact(keeper: Node) -> void:
 	## Runestones are a stat confirm, not a harvest. The pickaxe loop is only the pose.
 	var result: String = begin_spend()
 	if result == "confirm" or result == "cant_afford":
-		if keeper and keeper.has_method("begin_work_loop"):
-			keeper.call("begin_work_loop")
+		if keeper and keeper.has_method("begin_reach_pose"):
+			keeper.call("begin_reach_pose")
 		return
-	if keeper and keeper.has_method("end_work_loop"):
-		keeper.call("end_work_loop")
+	if keeper and keeper.has_method("cancel_reach_pose"):
+		keeper.call("cancel_reach_pose")
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -289,9 +307,10 @@ func _close_confirm() -> void:
 	if _layer:
 		_layer.visible = false
 	if is_inside_tree():
-		for node: Node in get_tree().get_nodes_in_group("keeper"):
-			if node.has_method("end_work_loop"):
-				node.call("end_work_loop")
+		for group_name: String in ["keeper", "elaia"]:
+			for node: Node in get_tree().get_nodes_in_group(group_name):
+				if node.has_method("finish_reach_pose"):
+					node.call("finish_reach_pose")
 
 
 func _ensure_confirm() -> void:

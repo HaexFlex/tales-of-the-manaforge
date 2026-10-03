@@ -92,6 +92,11 @@ func _run() -> void:
 	failed += _check(tree_cols >= 40, "tree colliders %d" % tree_cols)
 	failed += _check(bush_cols >= 20, "bush colliders %d" % bush_cols)
 	failed += _check(canopy_ok >= 20, "canopy colliders %d" % canopy_ok)
+	var base_n: int = 0
+	var bases: Node = live.get_node_or_null("World/ForestBases")
+	if bases:
+		base_n = bases.get_child_count()
+	print("FOREST_COLLIDERS trees=%d bushes=%d canopy=%d bases=%d" % [tree_cols, bush_cols, canopy_ok, base_n])
 	failed += await _forest_seal(live)
 	var ground: TileMap = live.get_node_or_null("Ground") as TileMap
 	var bad_tiles: int = 0
@@ -366,7 +371,7 @@ func _art_fit(live: Node) -> int:
 	if marker and marker.texture:
 		var pw: float = float(marker.texture.get_width())
 		var ph: float = float(marker.texture.get_height())
-		failed += _check(pw == 784.0 and ph == 1168.0, "portal canvas 784x1168 (got %sx%s)" % [pw, ph])
+		failed += _check(pw == 160.0 and ph == 200.0, "portal canvas 160x200 (got %sx%s)" % [pw, ph])
 		failed += _check(not marker.centered, "portal bottom-anchored")
 		failed += _check(absf(marker.offset.x + pw * 0.5) < 0.5 and absf(marker.offset.y + ph) < 0.5, "portal offset bottom-center")
 	for index: int in range(10):
@@ -1000,7 +1005,118 @@ func _forest_seal(live: Node) -> int:
 	failed += _check(not leaked, "no walkable gap out of the clearing")
 	for i: int in names.size():
 		failed += _check(reached[i], "%s reachable inside the clearing" % names[i])
+	failed += _work_reach(live)
+	await _frame_times(live)
 	return failed
+
+
+func _work_reach(live: Node) -> int:
+	var blocked_n: int = 0
+	var rows: Array = [
+		["World/HarvestBerry", "food", "berry"],
+		["World/HarvestStone", "stone", "stone"],
+		["World/HarvestTree", "wood", "wood"],
+		["World/KeepersBench", "bench", "bench"],
+		["World/Manatree", "door", "manatree door"],
+		["World/Manatree", "manatree", "manatree water"],
+	]
+	for row: Array in rows:
+		var node: Node2D = live.get_node_or_null(str(row[0])) as Node2D
+		if node == null:
+			print("WORK_REACH missing %s" % str(row[2]))
+			blocked_n += 1
+			continue
+		blocked_n += _reach_one(live, node, str(row[1]), str(row[2]), "keeper")
+		if str(row[1]) != "bench":
+			blocked_n += _reach_one(live, node, str(row[1]), "%s elaia" % str(row[2]), "elaia")
+	for stone: Node in get_nodes_in_group("runestone"):
+		if stone is Node2D:
+			blocked_n += _reach_one(live, stone as Node2D, "runestone", stone.name, "keeper")
+			blocked_n += _reach_one(live, stone as Node2D, "runestone", "%s elaia" % stone.name, "elaia")
+	var portal: Node2D = live.get_node_or_null("World/EchoPortal") as Node2D
+	if portal == null:
+		print("WORK_REACH missing portal")
+		blocked_n += 1
+	else:
+		var entry: Vector2 = portal.global_position + Vector2(0, 50)
+		if _spot_hits(live, entry, portal) or not bool(live.call("_in_clearing", entry)):
+			print("WORK_REACH blocked portal entry %s" % entry)
+			blocked_n += 1
+	print("WORK_REACH blocked=%d" % blocked_n)
+	return 1 if blocked_n != 0 else 0
+
+
+func _reach_one(live: Node, node: Node2D, type_id: String, label: String, actor_id: String) -> int:
+	var footprint: Rect2 = Rect2(node.global_position, Vector2(32, 32))
+	var api = load("res://scripts/keeper.gd")
+	if node.has_method("work_footprint"):
+		footprint = node.call("work_footprint")
+	else:
+		var spr: Sprite2D = node.get_node_or_null("Sprite") as Sprite2D
+		if spr:
+			footprint = api.sprite_footprint(spr)
+	var solved: Dictionary = api.solve_work_spot(
+		footprint,
+		node.global_position,
+		type_id,
+		Callable(self, "_reach_blocked").bind(live, node),
+		"",
+		actor_id
+	)
+	var pos: Vector2 = solved.get("position", Vector2.ZERO)
+	var bad: bool = bool(solved.get("fallback", false)) or _spot_hits(live, pos, node)
+	if bad:
+		print("WORK_REACH blocked %s %s at %s fallback=%s" % [label, type_id, pos, bool(solved.get("fallback", false))])
+		return 1
+	return 0
+
+
+func _reach_blocked(pos: Vector2, live: Node, target: Node) -> bool:
+	if live.has_method("_in_clearing") and not bool(live.call("_in_clearing", pos)):
+		return true
+	return _spot_hits(live, pos, target)
+
+
+func _spot_hits(live: Node, pos: Vector2, target: Node) -> bool:
+	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
+	if space == null:
+		return true
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(36, 48)
+	var params := PhysicsShapeQueryParameters2D.new()
+	params.shape = shape
+	params.transform = Transform2D(0.0, pos + Vector2(0, -24))
+	params.collision_mask = 1
+	params.collide_with_areas = false
+	params.collide_with_bodies = true
+	var exclude: Array[RID] = []
+	for body_path: String in ["World/Keeper", "World/Elaia"]:
+		var body: CollisionObject2D = live.get_node_or_null(body_path) as CollisionObject2D
+		if body:
+			exclude.append(body.get_rid())
+	if target:
+		var trunk: StaticBody2D = target.get_node_or_null("Trunk") as StaticBody2D
+		if trunk:
+			exclude.append(trunk.get_rid())
+	params.exclude = exclude
+	return not space.intersect_shape(params, 1).is_empty()
+
+
+func _frame_times(live: Node) -> void:
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		print("FRAME_MS center n/a")
+		print("FRAME_MS north n/a")
+		return
+	for spot: Array in [["center", Vector2(2160, 2025)], ["north", Vector2(2160, 900)]]:
+		cam.position = live.call("_clamped_camera_pos", spot[1])
+		await process_frame
+		var acc: int = 0
+		for _i: int in 6:
+			var t0: int = Time.get_ticks_usec()
+			await process_frame
+			acc += Time.get_ticks_usec() - t0
+		print("FRAME_MS %s %.2f" % [str(spot[0]), float(acc) / 6000.0])
 
 
 func _forest_cell(p: Vector2, step: float) -> Vector2i:
@@ -1026,6 +1142,10 @@ func _elaia_portrait_gate(live: Node) -> int:
 	if body and body.has_method("_apply_presence"):
 		body.call("_apply_presence")
 	failed += _check(bool(game.call("elaia_in_party")), "joined save has Elaia")
+	failed += _check(slot != null and not slot.visible, "portrait waits until the Clearing dialogue")
+	game.set("elaia_join_seen", true)
+	if hud:
+		hud.call("_refresh_party_bar")
 	failed += _check(slot != null and slot.visible, "joined save shows the Elaia portrait")
 	var portrait: TextureRect = live.get_node_or_null("HUD/PartyBar/Column/Elaia/Portrait") as TextureRect
 	failed += _check(portrait != null and portrait.texture != null, "joined portrait has a texture")

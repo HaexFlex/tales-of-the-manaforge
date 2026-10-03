@@ -133,6 +133,11 @@ var _ancient_countdown_bg: ColorRect
 var _frozen_button: Button
 var _frozen_hint: Label
 var _nav_button: Button
+var _speed_button: TextureButton
+var _speed_index: int = 0
+var _footsteps_popup: Panel
+var _keeper_activity: Label
+var _elaia_activity: Label
 var _highlight_ascend: bool = false
 var _backpack_tab: String = "all"
 var _sheet: CharacterSheet = null
@@ -222,6 +227,7 @@ func _ready() -> void:
 	_ensure_ancient_hud()
 	_ensure_frozen_banner()
 	_ensure_nav_button()
+	_ensure_speed_button()
 	if not GameState.ancient_expired.is_connected(_on_ancient_expired):
 		GameState.ancient_expired.connect(_on_ancient_expired)
 	if not GameState.echo_flags_changed.is_connected(_refresh_forge_entry):
@@ -454,8 +460,11 @@ func _process(_delta: float) -> void:
 	_refresh_ancient_countdown()
 	_refresh_nav_button()
 	_refresh_frozen_banner()
+	_refresh_speed_button()
 	if _party_info != null and _party_info.visible:
 		_apply_selection_job()
+	if _keeper_activity != null:
+		_refresh_actor_activities(GameState.elaia_portrait_visible(), GameState.keeper_selected, str(GameState.selected_companion_id))
 
 
 func _refresh_dim() -> void:
@@ -658,6 +667,11 @@ func _build_party_bar() -> void:
 	_party_info.add_child(_sel_job)
 	_party_bar.add_child(_party_column)
 	_party_bar.add_child(_party_info)
+	_keeper_activity = _make_activity_label("KeeperActivity", 62.0)
+	_elaia_activity = _make_activity_label("ElaiaActivity", 124.0)
+	_party_bar.add_child(_keeper_activity)
+	_party_bar.add_child(_elaia_activity)
+	_party_bar.offset_right = 280.0
 	add_child(_party_bar)
 	var keeper_tex: Texture2D = _actor_portrait_texture("keeper")
 	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
@@ -729,11 +743,11 @@ func _on_party_slot_input(event: InputEvent, unit: String) -> void:
 		return
 	party_click(unit)
 	if mb.double_click:
-		party_focus()
+		party_focus(unit)
 
 
 func party_click(unit: String) -> void:
-	if unit == "elaia" and not GameState.elaia_in_party():
+	if unit == "elaia" and not GameState.elaia_portrait_visible():
 		return
 	if is_character_open() and (unit == "keeper" or unit == "elaia") and _sheet != null:
 		_sheet.show_actor(unit)
@@ -750,8 +764,19 @@ func party_click(unit: String) -> void:
 			GameState.select_group(ids, false)
 
 
-func party_focus() -> void:
+func party_focus(unit: String = "") -> void:
+	## Double-click centres that character. Switch the view if they are in the other place. Do not move them.
+	if unit == "keeper" or unit == "elaia":
+		var area: String = GameState.keeper_area if unit == "keeper" else GameState.elaia_area
+		var want_forge: bool = area == "forge"
+		if has_node("/root/ForgeJobs") and ForgeJobs.in_forge_scene() != want_forge:
+			GameState.pending_focus_actor = unit
+			ForgeJobs.switch_view(want_forge)
+			return
 	var scene: Node = get_tree().current_scene
+	if unit != "" and scene and scene.has_method("focus_actor"):
+		scene.call("focus_actor", unit)
+		return
 	if scene and scene.has_method("focus_selection"):
 		scene.call("focus_selection")
 
@@ -762,11 +787,12 @@ func _refresh_party_bar() -> void:
 	var ids: Array[int] = GameState.selected_wisp_list()
 	var show_keeper: bool = GameState.keeper_selected
 	var companion_id: String = str(GameState.selected_companion_id)
-	var elaia_joined: bool = GameState.elaia_in_party()
+	var elaia_joined: bool = GameState.elaia_portrait_visible()
 	_party_bar.visible = true
 	_slot_keeper.visible = true
 	_slot_elaia.visible = elaia_joined
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
+	_refresh_actor_activities(elaia_joined, show_keeper, companion_id)
 	_slot_wisp.visible = not ids.is_empty()
 	_set_party_outline(_slot_keeper, show_keeper)
 	_set_party_outline(_slot_elaia, companion_id == "elaia")
@@ -1264,8 +1290,8 @@ func open_forge_entry() -> String:
 			_forge_popup.visible = true
 		GameAudio.play_ui_confirm()
 		return msg
-	if has_node("/root/ForgeJobs") and ForgeJobs.can_enter_forge():
-		return ForgeJobs.try_enter_forge()
+	if has_node("/root/ForgeJobs") and (ForgeJobs.can_enter_forge() or GameState.forge_visited):
+		return ForgeJobs.request_door_walk()
 	return "denied"
 
 
@@ -1495,23 +1521,13 @@ func open_fruit_confirm() -> void:
 
 
 func confirm_fruit_step() -> void:
-	if _fruit_confirm_step == 1:
-		_fruit_confirm_step = 2
-		_show_fruit_confirm_step()
-		GameAudio.play_ui_confirm()
-		return
-	if _fruit_confirm_step != 2:
+	## One box. Yes harvests. There is no second prompt.
+	if _fruit_confirm_step != 1:
 		return
 	_commit_primordial_fruit()
 
 
 func cancel_fruit_confirm() -> void:
-	## Step 2 "Go back" returns to intent. Step 1 "Keep watering" closes without commit.
-	if _fruit_confirm_step == 2:
-		_fruit_confirm_step = 1
-		_show_fruit_confirm_step()
-		GameAudio.play_ui_close()
-		return
 	hide_fruit_confirm()
 	GameAudio.play_ui_close()
 	if GameState.fruit_ready and not GameState.fruit_harvested_pending_ascend:
@@ -1526,20 +1542,16 @@ func hide_fruit_confirm() -> void:
 
 
 func _show_fruit_confirm_step() -> void:
-	## Two-step Content keys. Modal never includes Buy list or Ascend.
+	## One confirmation. Both the intent and the commit copy sit in the same box.
 	fruit_confirm_panel.visible = true
-	if _fruit_confirm_step == 1:
-		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step1_title")
-		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step1")
-		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step1_yes")
-		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step1_no")
-		_show_toast(ContentStrings.get_text("fruit_confirm_step1"))
-	else:
-		fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step2_title")
-		fruit_confirm_body.text = ContentStrings.get_text("fruit_confirm_step2")
-		fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step2_yes")
-		fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step2_no")
-		_show_toast(ContentStrings.get_text("fruit_confirm_step2"))
+	fruit_confirm_title.text = ContentStrings.get_text("fruit_confirm_step2_title")
+	fruit_confirm_body.text = "%s\n\n%s" % [
+		ContentStrings.get_text("fruit_confirm_step1"),
+		ContentStrings.get_text("fruit_confirm_step2"),
+	]
+	fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step2_yes")
+	fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step1_no")
+	_show_toast(fruit_confirm_body.text)
 	_refresh_dim()
 
 
@@ -1739,11 +1751,27 @@ func _refresh_frozen_banner() -> void:
 func _ensure_nav_button() -> void:
 	_nav_button = Button.new()
 	_nav_button.name = "HubForgeNav"
-	_nav_button.position = Vector2(16, 64)
-	_nav_button.size = Vector2(180, 36)
-	_apply_button_chrome(_nav_button, Color(0.16, 0.18, 0.14, 1.0), GOLD)
+	_nav_button.anchor_left = 1.0
+	_nav_button.anchor_top = 1.0
+	_nav_button.anchor_right = 1.0
+	_nav_button.anchor_bottom = 1.0
+	_nav_button.offset_left = -56.0
+	_nav_button.offset_top = -56.0
+	_nav_button.offset_right = -16.0
+	_nav_button.offset_bottom = -16.0
+	_nav_button.flat = true
+	_nav_button.focus_mode = Control.FOCUS_NONE
 	_nav_button.pressed.connect(_on_nav_pressed)
 	_nav_button.visible = false
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.position = Vector2(4, 4)
+	icon.size = Vector2(32, 32)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_nav_button.add_child(icon)
 	add_child(_nav_button)
 
 
@@ -1756,16 +1784,124 @@ func _refresh_nav_button() -> void:
 	if not show_nav:
 		return
 	var in_forge: bool = ForgeJobs.in_forge_scene()
-	_nav_button.text = ContentStrings.get_text("nav_to_clearing" if in_forge else "nav_to_forge")
+	var tip_key: String = "nav_to_clearing" if in_forge else "nav_to_forge"
+	_nav_button.text = ""
+	_nav_button.tooltip_text = ContentStrings.get_text(tip_key)
+	var icon: TextureRect = _nav_button.get_node_or_null("Icon") as TextureRect
+	if icon:
+		var path: String = "res://assets/art/ui/icons/hud_scene_clearing.png" if in_forge else "res://assets/art/ui/icons/hud_scene_forge.png"
+		icon.texture = load(path) as Texture2D
 
 
 func _on_nav_pressed() -> void:
 	if not has_node("/root/ForgeJobs"):
 		return
-	if ForgeJobs.in_forge_scene():
-		ForgeJobs.exit_forge()
+	## The icon only changes the view. Walking through a door moves a character.
+	ForgeJobs.switch_view(not ForgeJobs.in_forge_scene())
+
+
+func _ensure_speed_button() -> void:
+	_speed_button = TextureButton.new()
+	_speed_button.name = "SpeedButton"
+	_speed_button.position = Vector2(1020, 6)
+	_speed_button.size = Vector2(40, 40)
+	_speed_button.custom_minimum_size = Vector2(40, 40)
+	_speed_button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_speed_button.ignore_texture_size = true
+	_speed_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	_speed_button.focus_mode = Control.FOCUS_NONE
+	_speed_button.visible = false
+	_speed_button.pressed.connect(_on_speed_pressed)
+	var host: Node = get_node_or_null("Panel")
+	if host:
+		host.add_child(_speed_button)
+	else:
+		add_child(_speed_button)
+	_apply_speed_textures()
+
+
+func _refresh_speed_button() -> void:
+	if _speed_button == null:
 		return
-	ForgeJobs.travel_to_forge()
+	var show: bool = has_node("/root/GameAudio") and GameAudio.use_speedup_button
+	_speed_button.visible = show
+	if not show:
+		if not is_equal_approx(Engine.time_scale, 1.0):
+			Engine.time_scale = 1.0
+		_speed_index = 0
+		_apply_speed_textures()
+
+
+func _on_speed_pressed() -> void:
+	var steps: Array[int] = [1, 2, 4, 8, 16]
+	_speed_index = (_speed_index + 1) % steps.size()
+	Engine.time_scale = float(steps[_speed_index])
+	_apply_speed_textures()
+
+
+func _apply_speed_textures() -> void:
+	if _speed_button == null:
+		return
+	var steps: Array[int] = [1, 2, 4, 8, 16]
+	var n: int = steps[_speed_index]
+	var stem: String = "res://assets/art/ui/buttons/speed_%dx_" % n
+	_speed_button.texture_normal = load(stem + "normal.png") as Texture2D
+	_speed_button.texture_hover = load(stem + "hover.png") as Texture2D
+	_speed_button.texture_pressed = load(stem + "pressed.png") as Texture2D
+	_speed_button.tooltip_text = "%dx" % n
+
+
+func _make_activity_label(node_name: String, y: float) -> Label:
+	var lbl := Label.new()
+	lbl.name = node_name
+	lbl.position = Vector2(PARTY_SLOT + 8.0, y)
+	lbl.size = Vector2(210, 52)
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_style_party_label(lbl, 13, Color(0.9, 0.94, 0.82))
+	return lbl
+
+
+func _refresh_actor_activities(elaia_visible: bool, keeper_selected: bool, companion_id: String) -> void:
+	if _keeper_activity:
+		_keeper_activity.visible = true
+		_keeper_activity.text = _actor_status_text("keeper", keeper_selected)
+	if _elaia_activity:
+		_elaia_activity.visible = elaia_visible
+		if elaia_visible:
+			_elaia_activity.text = _actor_status_text("elaia", companion_id == "elaia")
+
+
+func _actor_status_text(actor: String, selected: bool) -> String:
+	var activity: String = _activity_line(actor)
+	if selected:
+		return "%s\n%s" % [ContentStrings.get_text("hud_activity_selected"), activity]
+	return activity
+
+
+func _activity_line(actor: String) -> String:
+	if not has_node("/root/ForgeJobs"):
+		return ContentStrings.get_text("hud_activity_idle")
+	var task: Dictionary = ForgeJobs.keeper_task() if actor == "keeper" else ForgeJobs.elaia_task()
+	if not bool(task.get("working", false)):
+		return ContentStrings.get_text("hud_activity_idle")
+	var kind: String = str(task.get("kind", ""))
+	var target: String = str(task.get("target", ""))
+	if kind == "harvest":
+		match target:
+			"wood":
+				return ContentStrings.get_text("hud_activity_harvest_wood")
+			"stone":
+				return ContentStrings.get_text("hud_activity_harvest_stone")
+			"food":
+				return ContentStrings.get_text("hud_activity_harvest_food")
+	if kind == "water":
+		return ContentStrings.get_text("hud_activity_water")
+	if kind == "runestone":
+		return ContentStrings.get_text("hud_activity_runestone")
+	if kind == "forge":
+		return ContentStrings.get_text("hud_activity_station", {"station": ForgeJobs.station_display(target)})
+	return ContentStrings.get_text("hud_activity_idle")
 
 
 func _refresh_ancient_countdown() -> void:
@@ -1890,8 +2026,75 @@ func is_elaia_join_open() -> bool:
 	return _join_band != null and _join_band.visible
 
 
+func maybe_show_elaia_footsteps() -> void:
+	if not GameState.elaia_footsteps_pending():
+		return
+	if not has_node("/root/ForgeJobs") or not ForgeJobs.in_forge_scene():
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
+	_ensure_footsteps_popup()
+	_footsteps_popup.visible = true
+
+
+func _ensure_footsteps_popup() -> void:
+	if _footsteps_popup != null and is_instance_valid(_footsteps_popup):
+		return
+	_footsteps_popup = Panel.new()
+	_footsteps_popup.name = "ElaiaFootsteps"
+	_footsteps_popup.anchor_left = 0.5
+	_footsteps_popup.anchor_right = 0.5
+	_footsteps_popup.anchor_top = 0.5
+	_footsteps_popup.anchor_bottom = 0.5
+	_footsteps_popup.offset_left = -240.0
+	_footsteps_popup.offset_top = -90.0
+	_footsteps_popup.offset_right = 240.0
+	_footsteps_popup.offset_bottom = 90.0
+	_footsteps_popup.mouse_filter = Control.MOUSE_FILTER_STOP
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.08, 0.13, 0.11, 0.96)
+	sb.border_color = Color(0.45, 0.58, 0.48, 1)
+	sb.set_border_width_all(2)
+	_footsteps_popup.add_theme_stylebox_override("panel", sb)
+	var body := Label.new()
+	body.name = "Body"
+	body.position = Vector2(16, 16)
+	body.size = Vector2(448, 80)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.text = ContentStrings.get_text("forge_elaia_footsteps")
+	body.add_theme_font_size_override("font_size", 16)
+	body.add_theme_color_override("font_color", Color(0.88, 0.92, 0.84, 1))
+	_footsteps_popup.add_child(body)
+	var go := Button.new()
+	go.name = "Go"
+	go.position = Vector2(150, 110)
+	go.size = Vector2(180, 40)
+	go.text = ContentStrings.get_text("forge_elaia_footsteps_ok")
+	go.pressed.connect(_on_footsteps_go)
+	_footsteps_popup.add_child(go)
+	_footsteps_popup.visible = false
+	add_child(_footsteps_popup)
+
+
+func _on_footsteps_go() -> void:
+	GameState.elaia_footsteps_seen = true
+	if _footsteps_popup:
+		_footsteps_popup.visible = false
+	if has_node("/root/SaveService"):
+		SaveService.save_game()
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.switch_view(false)
+
+
+func is_footsteps_open() -> bool:
+	return _footsteps_popup != null and _footsteps_popup.visible
+
+
 func maybe_show_elaia_join() -> void:
-	## Once, in the Clearing, after she has joined. Migrated saves set the flag and skip this.
+	## Once, in the Clearing, after the Forge footsteps have been acknowledged.
+	if GameState.elaia_footsteps_pending():
+		return
 	if not GameState.elaia_join_pending():
 		return
 	if welcome_panel != null and welcome_panel.visible:
@@ -1985,6 +2188,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key: InputEventKey = event
 	if not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_I and not key.ctrl_pressed and not key.alt_pressed and not key.meta_pressed:
+		if welcome_panel.visible:
+			return
+		if _pause_menu and _pause_menu.is_open():
+			return
+		toggle_backpack()
+		get_viewport().set_input_as_handled()
 		return
 	var sheet_key: bool = key.keycode == KEY_C or key.is_action_pressed("character_sheet")
 	if not sheet_key or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
@@ -2322,51 +2533,13 @@ func _content_line(key: String, tokens: Dictionary = {}) -> String:
 
 
 func _craft_row_cost_text(recipe_id: String) -> String:
-	## Prefer Content v0.4.1 shorts, then craft-cost keys, then live ingredient lines.
-	if Equipment.has_recipe(recipe_id):
-		var gear_costs: String = ""
-		if recipe_id == "stone_sword":
-			gear_costs = _content_line("stone_sword_craft_cost")
-		elif recipe_id == "weapon_rod":
-			gear_costs = _content_line("handcraft_row_weapon_rod_short")
-		elif recipe_id == "sapstaff":
-			gear_costs = _content_line("sapstaff_craft_cost")
-		elif recipe_id == "thornbow":
-			gear_costs = _content_line("thornbow_craft_cost")
-		if gear_costs == "":
-			gear_costs = "  ".join(Equipment.recipe_ingredient_lines(recipe_id))
-		var gear_wrapped: String = _content_line("handcraft_row_costs_only", {"costs": gear_costs})
-		if gear_wrapped != "":
-			return gear_wrapped
-		return gear_costs
-	var costs: String = ""
-	match recipe_id:
-		"stone_watering_can":
-			costs = _content_line("handcraft_row_watering_can_short")
-			if costs == "":
-				costs = _content_line("tool_stone_watering_can_craft_cost")
-		"wooden_basket":
-			costs = _content_line("handcraft_row_wooden_basket_short")
-			if costs == "":
-				costs = _content_line("tool_wooden_basket_craft_cost")
-		"fertilizer":
-			var ings: Dictionary = Backpack.get_recipe_ingredients(recipe_id)
-			var toks: Dictionary = {
-				"wood": int(ings.get("wood", 10)),
-				"stone": int(ings.get("stone", 10)),
-				"food": int(ings.get("food", 10)),
-			}
-			costs = _content_line("handcraft_row_fertilizer_short", toks)
-			if costs == "":
-				costs = _content_line("fertilizer_craft_cost", toks)
-			if costs == "":
-				costs = _content_line("fertilizer_craft_cost_default")
-	if costs == "":
-		costs = "  ".join(Backpack.recipe_ingredient_lines(recipe_id))
-	var wrapped: String = _content_line("handcraft_row_costs_only", {"costs": costs})
-	if wrapped != "":
-		return wrapped
-	return costs
+	## Every recipe row is have/need from the recipe data. Static × strings stay for tooltips.
+	var lines: PackedStringArray = PackedStringArray()
+	if has_node("/root/Equipment") and Equipment.has_recipe(recipe_id):
+		lines = Equipment.recipe_ingredient_lines(recipe_id)
+	elif has_node("/root/Backpack"):
+		lines = Backpack.recipe_ingredient_lines(recipe_id)
+	return ", ".join(lines)
 
 
 func get_backpack_layout_metrics() -> Dictionary:
@@ -2607,7 +2780,8 @@ func _on_buy(upgrade_id: String) -> void:
 func _on_ascend() -> void:
 	if not GameState.can_ascend():
 		return
-	if not _confirm_ascend:
+	## Ask only when leftover Manashards can still buy a blessing.
+	if GameState.can_afford_any_ascension() and not _confirm_ascend:
 		_confirm_ascend = true
 		var confirm_line: String = ContentStrings.get_text("ascend_confirm")
 		if has_node("/root/ForgeJobs"):

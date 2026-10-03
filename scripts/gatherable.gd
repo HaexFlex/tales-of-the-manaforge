@@ -130,13 +130,21 @@ func _apply_trunk(vis: Vector2) -> void:
 	if trunk == null or shape_node == null:
 		return
 	trunk.input_pickable = false
-	var use_trunk: bool = stand_height > 0.0 and vis.y > 1.0
+	var use_trunk: bool = vis.y > 1.0
 	shape_node.disabled = not use_trunk
 	if not use_trunk:
 		return
+	var width_ratio: float = trunk_width_ratio
+	var height_ratio: float = trunk_height_ratio
+	if node_key == "stone":
+		width_ratio = 0.42
+		height_ratio = 0.22
+	elif node_key == "food":
+		width_ratio = 0.46
+		height_ratio = 0.2
 	var trunk_size := Vector2(
-		maxf(18.0, vis.x * trunk_width_ratio),
-		maxf(12.0, vis.y * trunk_height_ratio)
+		maxf(18.0, vis.x * width_ratio),
+		maxf(12.0, vis.y * height_ratio)
 	)
 	var rect := RectangleShape2D.new()
 	if shape_node.shape is RectangleShape2D:
