@@ -1,0 +1,95 @@
+{
+ "keeper_portrait.png": {
+  "size": [
+   52,
+   52
+  ],
+  "mode": "RGBA",
+  "size_ok": true,
+  "hard_alpha": true,
+  "clear_rgb_zero": true,
+  "magenta": 0,
+  "purple": 0,
+  "purple_edge": 0,
+  "off_palette": 0,
+  "colours": 42,
+  "opaque": 2272,
+  "bbox": [
+   0,
+   0,
+   52,
+   52
+  ],
+  "pass": true
+ },
+ "keeper_portrait_sheet.png": {
+  "size": [
+   160,
+   160
+  ],
+  "mode": "RGBA",
+  "size_ok": true,
+  "hard_alpha": true,
+  "clear_rgb_zero": true,
+  "magenta": 0,
+  "purple": 0,
+  "purple_edge": 0,
+  "off_palette": 0,
+  "colours": 45,
+  "opaque": 20800,
+  "bbox": [
+   0,
+   0,
+   160,
+   160
+  ],
+  "pass": true
+ },
+ "elaia_portrait.png": {
+  "size": [
+   52,
+   52
+  ],
+  "mode": "RGBA",
+  "size_ok": true,
+  "hard_alpha": true,
+  "clear_rgb_zero": true,
+  "magenta": 0,
+  "purple": 0,
+  "purple_edge": 0,
+  "off_palette": 0,
+  "colours": 40,
+  "opaque": 2364,
+  "bbox": [
+   3,
+   0,
+   52,
+   52
+  ],
+  "pass": true
+ },
+ "elaia_portrait_sheet.png": {
+  "size": [
+   160,
+   160
+  ],
+  "mode": "RGBA",
+  "size_ok": true,
+  "hard_alpha": true,
+  "clear_rgb_zero": true,
+  "magenta": 0,
+  "purple": 0,
+  "purple_edge": 0,
+  "off_palette": 0,
+  "colours": 40,
+  "opaque": 21892,
+  "bbox": [
+   10,
+   0,
+   160,
+   160
+  ],
+  "pass": true
+ }
+}
+ALL PASS
