@@ -1,0 +1,140 @@
+{
+ "version": "v0.1.9-A2-native-glow-only",
+ "filter": "nearest",
+ "source": "Glow-only variant of v0.1.9-A2-native: frame 0 silhouette/colours held static, only the teal vein-glow pixels pulse (dim f0 -> peak f4 -> dim). No crown sway. Built by assets/library/playtest_batch_v1/tools/manatree_glow_only.py. Swap META_PATH to this file (or copy its file entries) to use it.",
+ "fps": 7,
+ "stages": [
+  {
+   "stage_id": "sapling",
+   "file": "native/anim/glow/manatree_sapling_strip_glow.png",
+   "size": [
+    128,
+    128
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    64,
+    128
+   ],
+   "door_floor": [
+    62,
+    102
+   ],
+   "still": [
+    256,
+    384
+   ],
+   "still_file": "native/manatree_sapling.png",
+   "native_from_display_scale": 2
+  },
+  {
+   "stage_id": "young",
+   "file": "native/anim/glow/manatree_young_strip_glow.png",
+   "size": [
+    288,
+    288
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    144,
+    288
+   ],
+   "door_floor": [
+    150,
+    255
+   ],
+   "still": [
+    576,
+    864
+   ],
+   "still_file": "native/manatree_young.png",
+   "native_from_display_scale": 3
+  },
+  {
+   "stage_id": "mature",
+   "file": "native/anim/glow/manatree_mature_strip_glow.png",
+   "size": [
+    736,
+    736
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    368,
+    736
+   ],
+   "door_floor": [
+    368,
+    536
+   ],
+   "still": [
+    1024,
+    1536
+   ],
+   "still_file": "native/manatree_mature.png",
+   "native_from_display_scale": 4
+  },
+  {
+   "stage_id": "elder",
+   "file": "native/anim/glow/manatree_elder_strip_glow.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    512,
+    1024
+   ],
+   "door_floor": [
+    512,
+    916
+   ],
+   "still": [
+    1536,
+    2048
+   ],
+   "still_file": "native/manatree_elder.png",
+   "native_from_display_scale": 4
+  },
+  {
+   "stage_id": "ancient",
+   "file": "native/anim/glow/manatree_ancient_strip_glow.png",
+   "size": [
+    1024,
+    1024
+   ],
+   "frames": 8,
+   "fps": 7,
+   "display_scale": 1,
+   "anchor": "door_floor",
+   "anchor_px": [
+    512,
+    1024
+   ],
+   "door_floor": [
+    504,
+    936
+   ],
+   "door": "visible_noninteractive",
+   "still": [
+    2048,
+    2560
+   ],
+   "still_file": "native/manatree_ancient.png",
+   "native_from_display_scale": 4
+  }
+ ],
+ "replaces": "assets/art/manatree/manatree_meta.json v0.1.8-A2 (swap by Code: paths + display_scale 1)"
+}

@@ -1,0 +1,182 @@
+{
+ "sapling": {
+  "file": "manatree_sapling_strip_glow.png",
+  "size": [
+   1024,
+   128
+  ],
+  "frame": [
+   128,
+   128
+  ],
+  "frames": 8,
+  "glow_px": 56,
+  "non_glow_residual_px_dropped": 62,
+  "max_crown_shift_px": [
+   0,
+   1,
+   2,
+   1,
+   0,
+   -1,
+   -2,
+   -1
+  ],
+  "new_colours": 0,
+  "silhouette_identical": true,
+  "per_frame_glow_changed": [
+   0,
+   34,
+   56,
+   56,
+   56,
+   56,
+   56,
+   34
+  ]
+ },
+ "young": {
+  "file": "manatree_young_strip_glow.png",
+  "size": [
+   2304,
+   288
+  ],
+  "frame": [
+   288,
+   288
+  ],
+  "frames": 8,
+  "glow_px": 810,
+  "non_glow_residual_px_dropped": 206,
+  "max_crown_shift_px": [
+   0,
+   2,
+   3,
+   2,
+   0,
+   -2,
+   -3,
+   -2
+  ],
+  "new_colours": 0,
+  "silhouette_identical": true,
+  "per_frame_glow_changed": [
+   0,
+   810,
+   810,
+   810,
+   810,
+   810,
+   810,
+   810
+  ]
+ },
+ "mature": {
+  "file": "manatree_mature_strip_glow.png",
+  "size": [
+   5888,
+   736
+  ],
+  "frame": [
+   736,
+   736
+  ],
+  "frames": 8,
+  "glow_px": 13017,
+  "non_glow_residual_px_dropped": 694,
+  "max_crown_shift_px": [
+   0,
+   3,
+   4,
+   3,
+   0,
+   -3,
+   -4,
+   -3
+  ],
+  "new_colours": 0,
+  "silhouette_identical": true,
+  "per_frame_glow_changed": [
+   0,
+   13017,
+   13017,
+   13017,
+   13017,
+   13017,
+   13017,
+   13017
+  ]
+ },
+ "elder": {
+  "file": "manatree_elder_strip_glow.png",
+  "size": [
+   8192,
+   1024
+  ],
+  "frame": [
+   1024,
+   1024
+  ],
+  "frames": 8,
+  "glow_px": 33185,
+  "non_glow_residual_px_dropped": 409,
+  "max_crown_shift_px": [
+   0,
+   3,
+   4,
+   3,
+   0,
+   -3,
+   -4,
+   -3
+  ],
+  "new_colours": 0,
+  "silhouette_identical": true,
+  "per_frame_glow_changed": [
+   0,
+   33185,
+   33185,
+   33185,
+   33185,
+   33185,
+   33185,
+   33185
+  ]
+ },
+ "ancient": {
+  "file": "manatree_ancient_strip_glow.png",
+  "size": [
+   8192,
+   1024
+  ],
+  "frame": [
+   1024,
+   1024
+  ],
+  "frames": 8,
+  "glow_px": 47212,
+  "non_glow_residual_px_dropped": 1631,
+  "max_crown_shift_px": [
+   0,
+   3,
+   4,
+   3,
+   0,
+   -3,
+   -4,
+   -3
+  ],
+  "new_colours": 0,
+  "silhouette_identical": true,
+  "per_frame_glow_changed": [
+   0,
+   47212,
+   47212,
+   47212,
+   47212,
+   47212,
+   47212,
+   47212
+  ]
+ }
+}
