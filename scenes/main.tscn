@@ -10885,3 +10885,4691 @@ prop_kind = "tree"
 collider_size = Vector2(28, 16)
 metadata/prop_kind = "tree"
 metadata/collider_size = Vector2(28, 16)
+
+
+[node name="ThickTree_0001" type="Node2D" parent="World" unique_id=1610000001 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(395.9803, 1899.4599)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s135.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0002" type="Node2D" parent="World" unique_id=1610000002 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(67.5271, 1779.3999)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0002" index="0"]
+flip_h = true
+
+[node name="ThickTree_0003" type="Node2D" parent="World" unique_id=1610000003 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(393.7705, 1771.2883)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0004" type="Node2D" parent="World" unique_id=1610000004 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(175.6884, 1591.6258)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0004" index="0"]
+flip_h = true
+
+[node name="ThickTree_0005" type="Node2D" parent="World" unique_id=1610000005 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(37.4617, 1535.5394)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s080.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0006" type="Node2D" parent="World" unique_id=1610000006 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(320.1813, 1471.1261)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0006" index="0"]
+flip_h = true
+
+[node name="ThickTree_0007" type="Node2D" parent="World" unique_id=1610000007 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(59.3866, 1267.1290)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0008" type="Node2D" parent="World" unique_id=1610000008 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(402.8084, 1346.5212)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s135.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0008" index="0"]
+flip_h = true
+
+[node name="ThickTree_0009" type="Node2D" parent="World" unique_id=1610000009 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(455.5145, 1230.1333)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s080.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0010" type="Node2D" parent="World" unique_id=1610000010 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(198.7691, 1025.5954)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0010" index="0"]
+flip_h = true
+
+[node name="ThickTree_0011" type="Node2D" parent="World" unique_id=1610000011 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(564.2756, 1119.7511)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0011" index="0"]
+flip_h = true
+
+[node name="ThickTree_0012" type="Node2D" parent="World" unique_id=1610000012 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(424.9697, 842.0093)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0012" index="0"]
+flip_h = true
+
+[node name="ThickTree_0013" type="Node2D" parent="World" unique_id=1610000013 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(699.7180, 1022.2199)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s080.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0013" index="0"]
+flip_h = true
+
+[node name="ThickTree_0014" type="Node2D" parent="World" unique_id=1610000014 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(848.1268, 951.3339)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0015" type="Node2D" parent="World" unique_id=1610000015 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(988.8524, 893.0295)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0015" index="0"]
+flip_h = true
+
+[node name="ThickTree_0016" type="Node2D" parent="World" unique_id=1610000016 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1080.0692, 890.5359)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0017" type="Node2D" parent="World" unique_id=1610000017 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(999.9406, 727.9537)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0017" index="0"]
+flip_h = true
+
+[node name="ThickTree_0018" type="Node2D" parent="World" unique_id=1610000018 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1153.9527, 900.0560)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s135.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0019" type="Node2D" parent="World" unique_id=1610000019 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1176.7464, 839.9786)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0019" index="0"]
+flip_h = true
+
+[node name="ThickTree_0020" type="Node2D" parent="World" unique_id=1610000020 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1262.5611, 845.7161)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0021" type="Node2D" parent="World" unique_id=1610000021 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1174.9390, 636.4460)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0022" type="Node2D" parent="World" unique_id=1610000022 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1305.4385, 819.6773)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0022" index="0"]
+flip_h = true
+
+[node name="ThickTree_0023" type="Node2D" parent="World" unique_id=1610000023 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1333.7450, 755.8315)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0024" type="Node2D" parent="World" unique_id=1610000024 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1260.3764, 580.5730)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0024" index="0"]
+flip_h = true
+
+[node name="ThickTree_0025" type="Node2D" parent="World" unique_id=1610000025 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1189.3888, 395.0059)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0025" index="0"]
+flip_h = true
+
+[node name="ThickTree_0026" type="Node2D" parent="World" unique_id=1610000026 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1409.2582, 759.5036)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0026" index="0"]
+flip_h = true
+
+[node name="ThickTree_0027" type="Node2D" parent="World" unique_id=1610000027 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1306.2753, 471.2358)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0028" type="Node2D" parent="World" unique_id=1610000028 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1452.4619, 732.0352)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_03.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0029" type="Node2D" parent="World" unique_id=1610000029 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1488.0384, 640.0939)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0029" index="0"]
+flip_h = true
+
+[node name="ThickTree_0030" type="Node2D" parent="World" unique_id=1610000030 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1418.3848, 454.0513)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0031" type="Node2D" parent="World" unique_id=1610000031 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1542.2379, 650.7727)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0031" index="0"]
+flip_h = true
+
+[node name="ThickTree_0032" type="Node2D" parent="World" unique_id=1610000032 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1575.4839, 575.4922)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0033" type="Node2D" parent="World" unique_id=1610000033 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1451.4358, 261.6576)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0034" type="Node2D" parent="World" unique_id=1610000034 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1482.7681, 305.5824)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_slim_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0035" type="Node2D" parent="World" unique_id=1610000035 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1648.9552, 587.1110)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0035" index="0"]
+flip_h = true
+
+[node name="ThickTree_0036" type="Node2D" parent="World" unique_id=1610000036 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1595.1528, 336.4324)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0036" index="0"]
+flip_h = true
+
+[node name="ThickTree_0037" type="Node2D" parent="World" unique_id=1610000037 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1700.4372, 557.7235)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0037" index="0"]
+flip_h = true
+
+[node name="ThickTree_0038" type="Node2D" parent="World" unique_id=1610000038 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1698.1960, 276.6861)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0039" type="Node2D" parent="World" unique_id=1610000039 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1771.5508, 529.2160)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0039" index="0"]
+flip_h = true
+
+[node name="ThickTree_0040" type="Node2D" parent="World" unique_id=1610000040 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1748.5080, 118.0108)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0041" type="Node2D" parent="World" unique_id=1610000041 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1827.0357, 444.2000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0042" type="Node2D" parent="World" unique_id=1610000042 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1887.7598, 481.8701)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_slim_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0042" index="0"]
+flip_h = true
+
+[node name="ThickTree_0043" type="Node2D" parent="World" unique_id=1610000043 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1957.7209, 464.3992)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0043" index="0"]
+flip_h = true
+
+[node name="ThickTree_0044" type="Node2D" parent="World" unique_id=1610000044 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1924.2007, 165.6079)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0045" type="Node2D" parent="World" unique_id=1610000045 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2029.2865, 456.2130)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0046" type="Node2D" parent="World" unique_id=1610000046 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2043.1977, 195.0174)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0047" type="Node2D" parent="World" unique_id=1610000047 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2085.5860, 438.0841)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0048" type="Node2D" parent="World" unique_id=1610000048 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2083.8020, 41.2089)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0048" index="0"]
+flip_h = true
+
+[node name="ThickTree_0049" type="Node2D" parent="World" unique_id=1610000049 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2151.5971, 190.2673)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0049" index="0"]
+flip_h = true
+
+[node name="ThickTree_0050" type="Node2D" parent="World" unique_id=1610000050 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2166.3527, 443.1834)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0050" index="0"]
+flip_h = true
+
+[node name="ThickTree_0051" type="Node2D" parent="World" unique_id=1610000051 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2233.4219, 442.8515)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_slim_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0052" type="Node2D" parent="World" unique_id=1610000052 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2269.2232, 201.8454)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0052" index="0"]
+flip_h = true
+
+[node name="ThickTree_0053" type="Node2D" parent="World" unique_id=1610000053 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2297.5062, 464.3051)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0054" type="Node2D" parent="World" unique_id=1610000054 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2385.7498, 226.3360)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0055" type="Node2D" parent="World" unique_id=1610000055 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2362.9208, 466.3730)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0055" index="0"]
+flip_h = true
+
+[node name="ThickTree_0056" type="Node2D" parent="World" unique_id=1610000056 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2430.9821, 486.9371)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0057" type="Node2D" parent="World" unique_id=1610000057 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2484.5879, 501.9957)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0057" index="0"]
+flip_h = true
+
+[node name="ThickTree_0058" type="Node2D" parent="World" unique_id=1610000058 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2616.8567, 245.8072)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0059" type="Node2D" parent="World" unique_id=1610000059 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2553.0061, 535.6834)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0059" index="0"]
+flip_h = true
+
+[node name="ThickTree_0060" type="Node2D" parent="World" unique_id=1610000060 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2720.2451, 193.1535)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0061" type="Node2D" parent="World" unique_id=1610000061 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2617.4684, 549.3576)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s135.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0062" type="Node2D" parent="World" unique_id=1610000062 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2715.2322, 340.2743)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0062" index="0"]
+flip_h = true
+
+[node name="ThickTree_0063" type="Node2D" parent="World" unique_id=1610000063 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2663.6606, 579.6104)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0064" type="Node2D" parent="World" unique_id=1610000064 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2715.0924, 611.1205)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0065" type="Node2D" parent="World" unique_id=1610000065 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2776.6833, 646.9681)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0066" type="Node2D" parent="World" unique_id=1610000066 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2826.6181, 666.6560)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0066" index="0"]
+flip_h = true
+
+[node name="ThickTree_0067" type="Node2D" parent="World" unique_id=1610000067 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2871.9650, 705.1912)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s125.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0068" type="Node2D" parent="World" unique_id=1610000068 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2990.3742, 486.0755)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0068" index="0"]
+flip_h = true
+
+[node name="ThickTree_0069" type="Node2D" parent="World" unique_id=1610000069 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2924.3018, 742.8555)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0070" type="Node2D" parent="World" unique_id=1610000070 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3072.6492, 554.7283)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s125.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0070" index="0"]
+flip_h = true
+
+[node name="ThickTree_0071" type="Node2D" parent="World" unique_id=1610000071 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2983.6645, 768.8818)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s125.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0071" index="0"]
+flip_h = true
+
+[node name="ThickTree_0072" type="Node2D" parent="World" unique_id=1610000072 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3183.7502, 565.6964)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0072" index="0"]
+flip_h = true
+
+[node name="ThickTree_0073" type="Node2D" parent="World" unique_id=1610000073 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3234.1116, 498.4686)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s125.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0073" index="0"]
+flip_h = true
+
+[node name="ThickTree_0074" type="Node2D" parent="World" unique_id=1610000074 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3030.6582, 807.3432)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s135.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0074" index="0"]
+flip_h = true
+
+[node name="ThickTree_0075" type="Node2D" parent="World" unique_id=1610000075 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3068.2510, 835.4264)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0076" type="Node2D" parent="World" unique_id=1610000076 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3240.0358, 658.4553)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s080.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0076" index="0"]
+flip_h = true
+
+[node name="ThickTree_0077" type="Node2D" parent="World" unique_id=1610000077 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3120.7280, 868.4766)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0078" type="Node2D" parent="World" unique_id=1610000078 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3179.9769, 861.6654)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_03.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0078" index="0"]
+flip_h = true
+
+[node name="ThickTree_0079" type="Node2D" parent="World" unique_id=1610000079 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3308.2289, 726.3317)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_slim_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0080" type="Node2D" parent="World" unique_id=1610000080 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3458.7996, 664.6115)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0081" type="Node2D" parent="World" unique_id=1610000081 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3233.1697, 912.0349)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0081" index="0"]
+flip_h = true
+
+[node name="ThickTree_0082" type="Node2D" parent="World" unique_id=1610000082 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3303.2250, 925.6837)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0083" type="Node2D" parent="World" unique_id=1610000083 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3384.2961, 1015.7921)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0083" index="0"]
+flip_h = true
+
+[node name="ThickTree_0084" type="Node2D" parent="World" unique_id=1610000084 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3649.6125, 855.0627)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0084" index="0"]
+flip_h = true
+
+[node name="ThickTree_0085" type="Node2D" parent="World" unique_id=1610000085 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3479.2588, 1111.6889)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0086" type="Node2D" parent="World" unique_id=1610000086 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3833.4975, 1038.0482)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0087" type="Node2D" parent="World" unique_id=1610000087 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3592.8005, 1207.0887)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0087" index="0"]
+flip_h = true
+
+[node name="ThickTree_0088" type="Node2D" parent="World" unique_id=1610000088 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3731.3054, 1273.9686)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0089" type="Node2D" parent="World" unique_id=1610000089 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4028.4744, 1210.2077)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0090" type="Node2D" parent="World" unique_id=1610000090 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3806.8601, 1395.4365)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0090" index="0"]
+flip_h = true
+
+[node name="ThickTree_0091" type="Node2D" parent="World" unique_id=1610000091 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4280.2737, 1387.6585)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0092" type="Node2D" parent="World" unique_id=1610000092 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3956.8424, 1495.1946)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0093" type="Node2D" parent="World" unique_id=1610000093 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4096.5522, 1607.6104)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0093" index="0"]
+flip_h = true
+
+[node name="ThickTree_0094" type="Node2D" parent="World" unique_id=1610000094 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4216.8365, 1722.0758)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0095" type="Node2D" parent="World" unique_id=1610000095 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4319.8827, 1871.4050)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s095.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0096" type="Node2D" parent="World" unique_id=1610000096 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4348.0916, 2026.9618)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0096" index="0"]
+flip_h = true
+
+[node name="ThickTree_0097" type="Node2D" parent="World" unique_id=1610000097 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4336.1625, 2185.3795)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0098" type="Node2D" parent="World" unique_id=1610000098 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4269.9461, 2330.2397)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0099" type="Node2D" parent="World" unique_id=1610000099 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4160.1586, 2468.3154)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_slim_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0099" index="0"]
+flip_h = true
+
+[node name="ThickTree_0100" type="Node2D" parent="World" unique_id=1610000100 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4095.5876, 2591.7420)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0100" index="0"]
+flip_h = true
+
+[node name="ThickTree_0101" type="Node2D" parent="World" unique_id=1610000101 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4379.3997, 2688.8592)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s135.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0101" index="0"]
+flip_h = true
+
+[node name="ThickTree_0102" type="Node2D" parent="World" unique_id=1610000102 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4022.7211, 2728.6739)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0102" index="0"]
+flip_h = true
+
+[node name="ThickTree_0103" type="Node2D" parent="World" unique_id=1610000103 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4145.3551, 2890.2745)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0104" type="Node2D" parent="World" unique_id=1610000104 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3946.7821, 2864.1136)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0104" index="0"]
+flip_h = true
+
+[node name="ThickTree_0105" type="Node2D" parent="World" unique_id=1610000105 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3751.8699, 2926.8107)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0106" type="Node2D" parent="World" unique_id=1610000106 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4052.7376, 3147.1363)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0106" index="0"]
+flip_h = true
+
+[node name="ThickTree_0107" type="Node2D" parent="World" unique_id=1610000107 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3782.9267, 3128.2585)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0107" index="0"]
+flip_h = true
+
+[node name="ThickTree_0108" type="Node2D" parent="World" unique_id=1610000108 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3791.6965, 3309.9229)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0109" type="Node2D" parent="World" unique_id=1610000109 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3520.6289, 3129.5572)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0110" type="Node2D" parent="World" unique_id=1610000110 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3484.9799, 3305.4931)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0110" index="0"]
+flip_h = true
+
+[node name="ThickTree_0111" type="Node2D" parent="World" unique_id=1610000111 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3572.1849, 3515.4898)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0112" type="Node2D" parent="World" unique_id=1610000112 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3366.9929, 3432.9750)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0113" type="Node2D" parent="World" unique_id=1610000113 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3211.6494, 3502.5937)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0114" type="Node2D" parent="World" unique_id=1610000114 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3324.8268, 3674.5275)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0115" type="Node2D" parent="World" unique_id=1610000115 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3033.1392, 3571.1440)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_03.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0115" index="0"]
+flip_h = true
+
+[node name="ThickTree_0116" type="Node2D" parent="World" unique_id=1610000116 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2983.1688, 3702.2669)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0116" index="0"]
+flip_h = true
+
+[node name="ThickTree_0117" type="Node2D" parent="World" unique_id=1610000117 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2907.3879, 3689.0600)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0118" type="Node2D" parent="World" unique_id=1610000118 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2647.9514, 3500.2135)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0118" index="0"]
+flip_h = true
+
+[node name="ThickTree_0119" type="Node2D" parent="World" unique_id=1610000119 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2660.2473, 3636.8917)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0119" index="0"]
+flip_h = true
+
+[node name="ThickTree_0120" type="Node2D" parent="World" unique_id=1610000120 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2500.1328, 3571.2883)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s125.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0121" type="Node2D" parent="World" unique_id=1610000121 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2359.5380, 3652.2271)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0121" index="0"]
+flip_h = true
+
+[node name="ThickTree_0122" type="Node2D" parent="World" unique_id=1610000122 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2328.4239, 3671.9781)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0123" type="Node2D" parent="World" unique_id=1610000123 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2168.8797, 3522.0995)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_slim_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0124" type="Node2D" parent="World" unique_id=1610000124 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2080.8036, 3693.1996)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0125" type="Node2D" parent="World" unique_id=1610000125 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1997.7753, 3538.3296)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_slim_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0126" type="Node2D" parent="World" unique_id=1610000126 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1813.4846, 3671.8244)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_03.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0126" index="0"]
+flip_h = true
+
+[node name="ThickTree_0127" type="Node2D" parent="World" unique_id=1610000127 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1825.6602, 3523.2794)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0128" type="Node2D" parent="World" unique_id=1610000128 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1674.6667, 3514.2591)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_medium_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0128" index="0"]
+flip_h = true
+
+[node name="ThickTree_0129" type="Node2D" parent="World" unique_id=1610000129 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1499.2209, 3708.6892)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0130" type="Node2D" parent="World" unique_id=1610000130 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1436.6989, 3660.6154)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0130" index="0"]
+flip_h = true
+
+[node name="ThickTree_0131" type="Node2D" parent="World" unique_id=1610000131 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1335.0517, 3490.9110)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0131" index="0"]
+flip_h = true
+
+[node name="ThickTree_0132" type="Node2D" parent="World" unique_id=1610000132 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1164.1073, 3702.0502)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_02.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0132" index="0"]
+flip_h = true
+
+[node name="ThickTree_0133" type="Node2D" parent="World" unique_id=1610000133 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1106.3834, 3508.6974)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0133" index="0"]
+flip_h = true
+
+[node name="ThickTree_0134" type="Node2D" parent="World" unique_id=1610000134 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(749.8330, 3727.5223)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s125.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0134" index="0"]
+flip_h = true
+
+[node name="ThickTree_0135" type="Node2D" parent="World" unique_id=1610000135 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(884.2824, 3509.8471)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s120.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0135" index="0"]
+flip_h = true
+
+[node name="ThickTree_0136" type="Node2D" parent="World" unique_id=1610000136 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(791.0511, 3362.3510)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s130.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0137" type="Node2D" parent="World" unique_id=1610000137 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(447.2211, 3574.6818)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0137" index="0"]
+flip_h = true
+
+[node name="ThickTree_0138" type="Node2D" parent="World" unique_id=1610000138 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(654.3893, 3253.8941)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0138" index="0"]
+flip_h = true
+
+[node name="ThickTree_0139" type="Node2D" parent="World" unique_id=1610000139 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(196.2078, 3379.2416)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0139" index="0"]
+flip_h = true
+
+[node name="ThickTree_0140" type="Node2D" parent="World" unique_id=1610000140 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(495.1608, 3168.3497)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0141" type="Node2D" parent="World" unique_id=1610000141 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(376.9360, 3047.0284)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0142" type="Node2D" parent="World" unique_id=1610000142 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(-37.7862, 3141.2447)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s135.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0142" index="0"]
+flip_h = true
+
+[node name="ThickTree_0143" type="Node2D" parent="World" unique_id=1610000143 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(280.5049, 2918.9264)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0144" type="Node2D" parent="World" unique_id=1610000144 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(236.0737, 2765.8918)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0144" index="0"]
+flip_h = true
+
+[node name="ThickTree_0145" type="Node2D" parent="World" unique_id=1610000145 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(219.1322, 2593.0908)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_slim_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0146" type="Node2D" parent="World" unique_id=1610000146 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(-116.7319, 2564.3219)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0147" type="Node2D" parent="World" unique_id=1610000147 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(258.8928, 2448.9376)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_slim_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0148" type="Node2D" parent="World" unique_id=1610000148 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(239.4389, 2301.0533)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+[node name="Sprite" parent="World/ThickTree_0148" index="0"]
+flip_h = true
+
+[node name="ThickTree_0149" type="Node2D" parent="World" unique_id=1610000149 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(-14.1708, 2276.4923)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0150" type="Node2D" parent="World" unique_id=1610000150 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(361.3251, 2156.1877)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0151" type="Node2D" parent="World" unique_id=1610000151 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(388.3106, 2025.3933)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0152" type="Node2D" parent="World" unique_id=1610000152 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(64.6027, 2025.1862)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_medium_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickBush_0001" type="Node2D" parent="World" unique_id=1610000153 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(225.1034, 2018.9866)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0002" type="Node2D" parent="World" unique_id=1610000154 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(525.6763, 2017.0789)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0003" type="Node2D" parent="World" unique_id=1610000155 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(190.0541, 1985.5072)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0003" index="0"]
+flip_h = true
+
+[node name="ThickBush_0004" type="Node2D" parent="World" unique_id=1610000156 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(459.7763, 1950.9311)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0004" index="0"]
+flip_h = true
+
+[node name="ThickBush_0005" type="Node2D" parent="World" unique_id=1610000157 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(526.0063, 1952.2331)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0006" type="Node2D" parent="World" unique_id=1610000158 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(474.3977, 1886.2421)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0007" type="Node2D" parent="World" unique_id=1610000159 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(277.4336, 1859.1890)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0007" index="0"]
+flip_h = true
+
+[node name="ThickBush_0008" type="Node2D" parent="World" unique_id=1610000160 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(254.9409, 1809.9805)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0009" type="Node2D" parent="World" unique_id=1610000161 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(526.4463, 1809.1167)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0009" index="0"]
+flip_h = true
+
+[node name="ThickBush_0010" type="Node2D" parent="World" unique_id=1610000162 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(210.7296, 1750.4271)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0011" type="Node2D" parent="World" unique_id=1610000163 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(308.4970, 1613.8771)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0012" type="Node2D" parent="World" unique_id=1610000164 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(517.4544, 1592.9175)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0012" index="0"]
+flip_h = true
+
+[node name="ThickBush_0013" type="Node2D" parent="World" unique_id=1610000165 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(135.8285, 1492.2234)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0013" index="0"]
+flip_h = true
+
+[node name="ThickBush_0014" type="Node2D" parent="World" unique_id=1610000166 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(514.3049, 1501.9036)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0015" type="Node2D" parent="World" unique_id=1610000167 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(152.1339, 1351.0679)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0015" index="0"]
+flip_h = true
+
+[node name="ThickBush_0016" type="Node2D" parent="World" unique_id=1610000168 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(534.1561, 1432.9886)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0017" type="Node2D" parent="World" unique_id=1610000169 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(171.3857, 1295.8028)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0018" type="Node2D" parent="World" unique_id=1610000170 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(128.9416, 1256.7418)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0018" index="0"]
+flip_h = true
+
+[node name="ThickBush_0019" type="Node2D" parent="World" unique_id=1610000171 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(67.1987, 1161.8672)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0019" index="0"]
+flip_h = true
+
+[node name="ThickBush_0020" type="Node2D" parent="World" unique_id=1610000172 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(554.7725, 1357.1775)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0020" index="0"]
+flip_h = true
+
+[node name="ThickBush_0021" type="Node2D" parent="World" unique_id=1610000173 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(-10.7010, 1058.5931)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0021" index="0"]
+flip_h = true
+
+[node name="ThickBush_0022" type="Node2D" parent="World" unique_id=1610000174 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(587.8215, 1291.0370)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0022" index="0"]
+flip_h = true
+
+[node name="ThickBush_0023" type="Node2D" parent="World" unique_id=1610000175 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(615.3732, 1301.7710)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0023" index="0"]
+flip_h = true
+
+[node name="ThickBush_0024" type="Node2D" parent="World" unique_id=1610000176 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(104.5297, 1043.8693)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0024" index="0"]
+flip_h = true
+
+[node name="ThickBush_0025" type="Node2D" parent="World" unique_id=1610000177 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(639.1771, 1222.3056)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0026" type="Node2D" parent="World" unique_id=1610000178 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(623.5737, 1123.7539)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0027" type="Node2D" parent="World" unique_id=1610000179 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(477.9804, 1031.7683)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0028" type="Node2D" parent="World" unique_id=1610000180 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(720.0165, 1157.2307)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0028" index="0"]
+flip_h = true
+
+[node name="ThickBush_0029" type="Node2D" parent="World" unique_id=1610000181 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(786.5356, 1111.0164)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0030" type="Node2D" parent="World" unique_id=1610000182 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(819.2412, 1103.4267)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0030" index="0"]
+flip_h = true
+
+[node name="ThickBush_0031" type="Node2D" parent="World" unique_id=1610000183 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(446.9339, 769.9785)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0032" type="Node2D" parent="World" unique_id=1610000184 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(867.3643, 1070.2225)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0033" type="Node2D" parent="World" unique_id=1610000185 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(930.2289, 1107.1891)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0033" index="0"]
+flip_h = true
+
+[node name="ThickBush_0034" type="Node2D" parent="World" unique_id=1610000186 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(960.7810, 1081.9217)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0034" index="0"]
+flip_h = true
+
+[node name="ThickBush_0035" type="Node2D" parent="World" unique_id=1610000187 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(945.4344, 1033.2615)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0036" type="Node2D" parent="World" unique_id=1610000188 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(938.1244, 966.8307)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0037" type="Node2D" parent="World" unique_id=1610000189 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(850.4820, 840.3788)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0037" index="0"]
+flip_h = true
+
+[node name="ThickBush_0038" type="Node2D" parent="World" unique_id=1610000190 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1037.5333, 1004.0822)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0038" index="0"]
+flip_h = true
+
+[node name="ThickBush_0039" type="Node2D" parent="World" unique_id=1610000191 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1133.8326, 1026.0595)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0039" index="0"]
+flip_h = true
+
+[node name="ThickBush_0040" type="Node2D" parent="World" unique_id=1610000192 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1113.7648, 965.8052)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0041" type="Node2D" parent="World" unique_id=1610000193 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1163.5648, 992.9213)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0041" index="0"]
+flip_h = true
+
+[node name="ThickBush_0042" type="Node2D" parent="World" unique_id=1610000194 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1143.6618, 968.1601)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0042" index="0"]
+flip_h = true
+
+[node name="ThickBush_0043" type="Node2D" parent="World" unique_id=1610000195 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1182.7095, 970.9978)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0043" index="0"]
+flip_h = true
+
+[node name="ThickBush_0044" type="Node2D" parent="World" unique_id=1610000196 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1224.8884, 971.2389)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0044" index="0"]
+flip_h = true
+
+[node name="ThickBush_0045" type="Node2D" parent="World" unique_id=1610000197 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1248.5366, 949.1249)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0045" index="0"]
+flip_h = true
+
+[node name="ThickBush_0046" type="Node2D" parent="World" unique_id=1610000198 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1256.9656, 934.9764)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0046" index="0"]
+flip_h = true
+
+[node name="ThickBush_0047" type="Node2D" parent="World" unique_id=1610000199 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1291.7091, 926.8866)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0048" type="Node2D" parent="World" unique_id=1610000200 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1304.9937, 915.2797)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0048" index="0"]
+flip_h = true
+
+[node name="ThickBush_0049" type="Node2D" parent="World" unique_id=1610000201 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1347.2543, 892.3420)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0050" type="Node2D" parent="World" unique_id=1610000202 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1382.4636, 865.7732)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0051" type="Node2D" parent="World" unique_id=1610000203 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1402.3100, 851.7643)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0052" type="Node2D" parent="World" unique_id=1610000204 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1426.6840, 848.3709)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0052" index="0"]
+flip_h = true
+
+[node name="ThickBush_0053" type="Node2D" parent="World" unique_id=1610000205 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1444.4267, 824.8190)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0054" type="Node2D" parent="World" unique_id=1610000206 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1465.5268, 817.6887)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0055" type="Node2D" parent="World" unique_id=1610000207 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1444.3480, 707.3077)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0056" type="Node2D" parent="World" unique_id=1610000208 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1519.1510, 771.0160)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0057" type="Node2D" parent="World" unique_id=1610000209 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1498.5523, 679.6161)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0058" type="Node2D" parent="World" unique_id=1610000210 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1526.2388, 661.2964)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0058" index="0"]
+flip_h = true
+
+[node name="ThickBush_0059" type="Node2D" parent="World" unique_id=1610000211 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1611.2853, 707.9497)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0060" type="Node2D" parent="World" unique_id=1610000212 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1622.4862, 692.5200)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0061" type="Node2D" parent="World" unique_id=1610000213 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1574.3201, 538.0659)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0062" type="Node2D" parent="World" unique_id=1610000214 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1629.0000, 639.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0062" index="0"]
+flip_h = true
+
+[node name="ThickBush_0063" type="Node2D" parent="World" unique_id=1610000215 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1655.8113, 673.8725)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0064" type="Node2D" parent="World" unique_id=1610000216 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1678.8981, 664.6212)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0065" type="Node2D" parent="World" unique_id=1610000217 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1529.1159, 232.1218)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0066" type="Node2D" parent="World" unique_id=1610000218 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1704.0280, 649.0028)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0066" index="0"]
+flip_h = true
+
+[node name="ThickBush_0067" type="Node2D" parent="World" unique_id=1610000219 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1583.1372, 154.8107)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0068" type="Node2D" parent="World" unique_id=1610000220 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1628.8049, 260.7581)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0068" index="0"]
+flip_h = true
+
+[node name="ThickBush_0069" type="Node2D" parent="World" unique_id=1610000221 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1773.0000, 651.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0070" type="Node2D" parent="World" unique_id=1610000222 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1797.0000, 651.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0070" index="0"]
+flip_h = true
+
+[node name="ThickBush_0071" type="Node2D" parent="World" unique_id=1610000223 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1744.8575, 437.1208)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0072" type="Node2D" parent="World" unique_id=1610000224 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1794.6445, 598.6322)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0073" type="Node2D" parent="World" unique_id=1610000225 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1809.0000, 631.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0073" index="0"]
+flip_h = true
+
+[node name="ThickBush_0074" type="Node2D" parent="World" unique_id=1610000226 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1820.7107, 598.4552)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0074" index="0"]
+flip_h = true
+
+[node name="ThickBush_0075" type="Node2D" parent="World" unique_id=1610000227 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1838.6983, 537.0365)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0075" index="0"]
+flip_h = true
+
+[node name="ThickBush_0076" type="Node2D" parent="World" unique_id=1610000228 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1812.9327, 413.1895)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0077" type="Node2D" parent="World" unique_id=1610000229 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1869.9022, 525.4720)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0077" index="0"]
+flip_h = true
+
+[node name="ThickBush_0078" type="Node2D" parent="World" unique_id=1610000230 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1903.1778, 510.8618)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0079" type="Node2D" parent="World" unique_id=1610000231 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1929.1913, 554.6111)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0080" type="Node2D" parent="World" unique_id=1610000232 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1940.9332, 574.2502)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0081" type="Node2D" parent="World" unique_id=1610000233 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1979.2862, 537.0931)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0081" index="0"]
+flip_h = true
+
+[node name="ThickBush_0082" type="Node2D" parent="World" unique_id=1610000234 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2000.6564, 530.3305)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0083" type="Node2D" parent="World" unique_id=1610000235 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2014.6948, 478.4372)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0084" type="Node2D" parent="World" unique_id=1610000236 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2039.2860, 535.6966)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0084" index="0"]
+flip_h = true
+
+[node name="ThickBush_0085" type="Node2D" parent="World" unique_id=1610000237 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2055.0000, 585.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0086" type="Node2D" parent="World" unique_id=1610000238 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2071.7222, 532.3696)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0087" type="Node2D" parent="World" unique_id=1610000239 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2098.5225, 365.3193)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0088" type="Node2D" parent="World" unique_id=1610000240 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2104.8366, 530.6635)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0089" type="Node2D" parent="World" unique_id=1610000241 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2099.7112, 185.4411)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0089" index="0"]
+flip_h = true
+
+[node name="ThickBush_0090" type="Node2D" parent="World" unique_id=1610000242 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2117.8503, 475.4241)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0091" type="Node2D" parent="World" unique_id=1610000243 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2139.0000, 579.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0091" index="0"]
+flip_h = true
+
+[node name="ThickBush_0092" type="Node2D" parent="World" unique_id=1610000244 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2145.0000, 565.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0093" type="Node2D" parent="World" unique_id=1610000245 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2152.8820, 103.8511)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0093" index="0"]
+flip_h = true
+
+[node name="ThickBush_0094" type="Node2D" parent="World" unique_id=1610000246 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2157.0000, 579.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0095" type="Node2D" parent="World" unique_id=1610000247 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2163.0450, 525.8303)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0096" type="Node2D" parent="World" unique_id=1610000248 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2166.9434, 142.4684)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0097" type="Node2D" parent="World" unique_id=1610000249 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2181.0000, 571.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0098" type="Node2D" parent="World" unique_id=1610000250 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2188.5591, 477.2729)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0099" type="Node2D" parent="World" unique_id=1610000251 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2229.3942, 531.8758)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0099" index="0"]
+flip_h = true
+
+[node name="ThickBush_0100" type="Node2D" parent="World" unique_id=1610000252 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2238.9351, 362.3901)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0100" index="0"]
+flip_h = true
+
+[node name="ThickBush_0101" type="Node2D" parent="World" unique_id=1610000253 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2253.2638, 540.6998)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0102" type="Node2D" parent="World" unique_id=1610000254 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2292.7735, 538.1102)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0103" type="Node2D" parent="World" unique_id=1610000255 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2309.3073, 370.0641)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0103" index="0"]
+flip_h = true
+
+[node name="ThickBush_0104" type="Node2D" parent="World" unique_id=1610000256 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2326.6114, 553.4050)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0104" index="0"]
+flip_h = true
+
+[node name="ThickBush_0105" type="Node2D" parent="World" unique_id=1610000257 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2393.3820, 144.5246)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0105" index="0"]
+flip_h = true
+
+[node name="ThickBush_0106" type="Node2D" parent="World" unique_id=1610000258 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2343.0000, 583.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0106" index="0"]
+flip_h = true
+
+[node name="ThickBush_0107" type="Node2D" parent="World" unique_id=1610000259 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2390.9231, 282.5876)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0107" index="0"]
+flip_h = true
+
+[node name="ThickBush_0108" type="Node2D" parent="World" unique_id=1610000260 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2356.7714, 551.0458)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0109" type="Node2D" parent="World" unique_id=1610000261 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2396.2640, 519.4946)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0110" type="Node2D" parent="World" unique_id=1610000262 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2441.9021, 268.2666)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0110" index="0"]
+flip_h = true
+
+[node name="ThickBush_0111" type="Node2D" parent="World" unique_id=1610000263 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2431.9182, 397.1887)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0112" type="Node2D" parent="World" unique_id=1610000264 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2404.8410, 565.2703)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0113" type="Node2D" parent="World" unique_id=1610000265 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2446.0143, 584.0781)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0114" type="Node2D" parent="World" unique_id=1610000266 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2451.0000, 637.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0114" index="0"]
+flip_h = true
+
+[node name="ThickBush_0115" type="Node2D" parent="World" unique_id=1610000267 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2532.4898, 282.2063)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0115" index="0"]
+flip_h = true
+
+[node name="ThickBush_0116" type="Node2D" parent="World" unique_id=1610000268 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2481.7012, 547.8665)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0116" index="0"]
+flip_h = true
+
+[node name="ThickBush_0117" type="Node2D" parent="World" unique_id=1610000269 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2511.0000, 507.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0118" type="Node2D" parent="World" unique_id=1610000270 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2499.7680, 606.1690)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0118" index="0"]
+flip_h = true
+
+[node name="ThickBush_0119" type="Node2D" parent="World" unique_id=1610000271 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2508.0197, 623.7700)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0120" type="Node2D" parent="World" unique_id=1610000272 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2523.4817, 606.4769)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0120" index="0"]
+flip_h = true
+
+[node name="ThickBush_0121" type="Node2D" parent="World" unique_id=1610000273 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2656.4506, 113.7911)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0122" type="Node2D" parent="World" unique_id=1610000274 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2671.6548, 82.9054)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0123" type="Node2D" parent="World" unique_id=1610000275 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2550.4105, 624.2274)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0123" index="0"]
+flip_h = true
+
+[node name="ThickBush_0124" type="Node2D" parent="World" unique_id=1610000276 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2598.3833, 517.0875)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0125" type="Node2D" parent="World" unique_id=1610000277 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2579.9602, 642.9130)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0126" type="Node2D" parent="World" unique_id=1610000278 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2763.0686, 61.4501)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0126" index="0"]
+flip_h = true
+
+[node name="ThickBush_0127" type="Node2D" parent="World" unique_id=1610000279 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2632.8893, 608.4102)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0128" type="Node2D" parent="World" unique_id=1610000280 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2655.8449, 608.4038)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0129" type="Node2D" parent="World" unique_id=1610000281 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2658.7310, 667.6101)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0130" type="Node2D" parent="World" unique_id=1610000282 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2754.8914, 536.8984)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0131" type="Node2D" parent="World" unique_id=1610000283 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2699.0515, 684.2641)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0132" type="Node2D" parent="World" unique_id=1610000284 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2718.8243, 707.5221)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0132" index="0"]
+flip_h = true
+
+[node name="ThickBush_0133" type="Node2D" parent="World" unique_id=1610000285 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2800.1788, 568.6726)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0133" index="0"]
+flip_h = true
+
+[node name="ThickBush_0134" type="Node2D" parent="World" unique_id=1610000286 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2746.4389, 717.9735)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0135" type="Node2D" parent="World" unique_id=1610000287 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2766.4966, 722.8357)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0135" index="0"]
+flip_h = true
+
+[node name="ThickBush_0136" type="Node2D" parent="World" unique_id=1610000288 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2860.4298, 595.5554)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0136" index="0"]
+flip_h = true
+
+[node name="ThickBush_0137" type="Node2D" parent="World" unique_id=1610000289 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2835.5206, 662.2743)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0137" index="0"]
+flip_h = true
+
+[node name="ThickBush_0138" type="Node2D" parent="World" unique_id=1610000290 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2801.1797, 749.0431)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0139" type="Node2D" parent="World" unique_id=1610000291 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2825.3776, 752.4853)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0140" type="Node2D" parent="World" unique_id=1610000292 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2914.6831, 627.6353)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0141" type="Node2D" parent="World" unique_id=1610000293 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2974.6369, 543.6525)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0141" index="0"]
+flip_h = true
+
+[node name="ThickBush_0142" type="Node2D" parent="World" unique_id=1610000294 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2850.3489, 782.4984)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0143" type="Node2D" parent="World" unique_id=1610000295 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2875.2742, 784.4933)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0144" type="Node2D" parent="World" unique_id=1610000296 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3010.8696, 588.4679)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0145" type="Node2D" parent="World" unique_id=1610000297 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2893.1253, 811.4729)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0145" index="0"]
+flip_h = true
+
+[node name="ThickBush_0146" type="Node2D" parent="World" unique_id=1610000298 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2919.5316, 823.9907)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0147" type="Node2D" parent="World" unique_id=1610000299 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3023.8839, 702.0827)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0147" index="0"]
+flip_h = true
+
+[node name="ThickBush_0148" type="Node2D" parent="World" unique_id=1610000300 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2993.1512, 752.7614)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0149" type="Node2D" parent="World" unique_id=1610000301 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2968.4487, 799.9662)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0149" index="0"]
+flip_h = true
+
+[node name="ThickBush_0150" type="Node2D" parent="World" unique_id=1610000302 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2961.1829, 852.9633)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0150" index="0"]
+flip_h = true
+
+[node name="ThickBush_0151" type="Node2D" parent="World" unique_id=1610000303 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3127.1992, 654.7796)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0152" type="Node2D" parent="World" unique_id=1610000304 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3072.4184, 735.4659)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0153" type="Node2D" parent="World" unique_id=1610000305 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3093.4109, 708.3649)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0154" type="Node2D" parent="World" unique_id=1610000306 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2996.4170, 884.1215)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0155" type="Node2D" parent="World" unique_id=1610000307 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3308.3718, 459.9147)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0155" index="0"]
+flip_h = true
+
+[node name="ThickBush_0156" type="Node2D" parent="World" unique_id=1610000308 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3058.5101, 853.6136)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0157" type="Node2D" parent="World" unique_id=1610000309 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3182.2789, 695.8764)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0157" index="0"]
+flip_h = true
+
+[node name="ThickBush_0158" type="Node2D" parent="World" unique_id=1610000310 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3077.2773, 872.2275)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0158" index="0"]
+flip_h = true
+
+[node name="ThickBush_0159" type="Node2D" parent="World" unique_id=1610000311 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3167.9872, 804.5113)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0159" index="0"]
+flip_h = true
+
+[node name="ThickBush_0160" type="Node2D" parent="World" unique_id=1610000312 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3155.4559, 822.1152)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0161" type="Node2D" parent="World" unique_id=1610000313 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3233.4510, 771.3572)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0162" type="Node2D" parent="World" unique_id=1610000314 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3461.7744, 557.6834)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0162" index="0"]
+flip_h = true
+
+[node name="ThickBush_0163" type="Node2D" parent="World" unique_id=1610000315 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3506.2663, 514.9713)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0164" type="Node2D" parent="World" unique_id=1610000316 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3104.5083, 968.3083)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0165" type="Node2D" parent="World" unique_id=1610000317 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3123.4571, 987.4381)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0165" index="0"]
+flip_h = true
+
+[node name="ThickBush_0166" type="Node2D" parent="World" unique_id=1610000318 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3323.2822, 813.1227)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0167" type="Node2D" parent="World" unique_id=1610000319 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3150.3981, 1002.9332)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0167" index="0"]
+flip_h = true
+
+[node name="ThickBush_0168" type="Node2D" parent="World" unique_id=1610000320 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3302.1634, 862.7471)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0168" index="0"]
+flip_h = true
+
+[node name="ThickBush_0169" type="Node2D" parent="World" unique_id=1610000321 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3195.0243, 983.1389)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0170" type="Node2D" parent="World" unique_id=1610000322 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3199.7291, 1065.8929)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0170" index="0"]
+flip_h = true
+
+[node name="ThickBush_0171" type="Node2D" parent="World" unique_id=1610000323 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3245.2508, 1033.3184)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0172" type="Node2D" parent="World" unique_id=1610000324 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3407.5347, 893.8697)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0173" type="Node2D" parent="World" unique_id=1610000325 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3293.3668, 1096.4310)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0173" index="0"]
+flip_h = true
+
+[node name="ThickBush_0174" type="Node2D" parent="World" unique_id=1610000326 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3528.8698, 1010.3674)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0175" type="Node2D" parent="World" unique_id=1610000327 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3346.3527, 1152.3596)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0176" type="Node2D" parent="World" unique_id=1610000328 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3442.1521, 1128.0629)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0177" type="Node2D" parent="World" unique_id=1610000329 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3414.2315, 1199.2476)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0177" index="0"]
+flip_h = true
+
+[node name="ThickBush_0178" type="Node2D" parent="World" unique_id=1610000330 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3658.2931, 1134.8519)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0178" index="0"]
+flip_h = true
+
+[node name="ThickBush_0179" type="Node2D" parent="World" unique_id=1610000331 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3460.4439, 1260.1338)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0180" type="Node2D" parent="World" unique_id=1610000332 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3506.6264, 1274.5885)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0181" type="Node2D" parent="World" unique_id=1610000333 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3510.3305, 1314.1019)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0182" type="Node2D" parent="World" unique_id=1610000334 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3605.0180, 1337.8091)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0183" type="Node2D" parent="World" unique_id=1610000335 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3790.6386, 1254.1663)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0184" type="Node2D" parent="World" unique_id=1610000336 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3578.0163, 1355.2251)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0184" index="0"]
+flip_h = true
+
+[node name="ThickBush_0185" type="Node2D" parent="World" unique_id=1610000337 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3640.7846, 1415.9830)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0185" index="0"]
+flip_h = true
+
+[node name="ThickBush_0186" type="Node2D" parent="World" unique_id=1610000338 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4029.4240, 1268.7817)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0186" index="0"]
+flip_h = true
+
+[node name="ThickBush_0187" type="Node2D" parent="World" unique_id=1610000339 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3707.9440, 1458.4540)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0188" type="Node2D" parent="World" unique_id=1610000340 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3961.6629, 1366.2592)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0188" index="0"]
+flip_h = true
+
+[node name="ThickBush_0189" type="Node2D" parent="World" unique_id=1610000341 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3656.4156, 1480.2332)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0189" index="0"]
+flip_h = true
+
+[node name="ThickBush_0190" type="Node2D" parent="World" unique_id=1610000342 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3813.8043, 1423.0136)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0190" index="0"]
+flip_h = true
+
+[node name="ThickBush_0191" type="Node2D" parent="World" unique_id=1610000343 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3854.0314, 1477.9593)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0192" type="Node2D" parent="World" unique_id=1610000344 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3841.2448, 1491.2485)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0193" type="Node2D" parent="World" unique_id=1610000345 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3850.5130, 1562.9715)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0193" index="0"]
+flip_h = true
+
+[node name="ThickBush_0194" type="Node2D" parent="World" unique_id=1610000346 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4125.9432, 1496.6293)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0195" type="Node2D" parent="World" unique_id=1610000347 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3857.4952, 1579.8930)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0195" index="0"]
+flip_h = true
+
+[node name="ThickBush_0196" type="Node2D" parent="World" unique_id=1610000348 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3945.8935, 1641.1160)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0196" index="0"]
+flip_h = true
+
+[node name="ThickBush_0197" type="Node2D" parent="World" unique_id=1610000349 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4009.0256, 1708.5708)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0197" index="0"]
+flip_h = true
+
+[node name="ThickBush_0198" type="Node2D" parent="World" unique_id=1610000350 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4314.2154, 1657.6561)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0199" type="Node2D" parent="World" unique_id=1610000351 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4048.1558, 1713.0313)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0200" type="Node2D" parent="World" unique_id=1610000352 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4070.6903, 1769.6543)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0200" index="0"]
+flip_h = true
+
+[node name="ThickBush_0201" type="Node2D" parent="World" unique_id=1610000353 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4129.9266, 1807.1368)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0202" type="Node2D" parent="World" unique_id=1610000354 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4129.0736, 1853.4509)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0202" index="0"]
+flip_h = true
+
+[node name="ThickBush_0203" type="Node2D" parent="World" unique_id=1610000355 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4146.9183, 1875.6963)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0203" index="0"]
+flip_h = true
+
+[node name="ThickBush_0204" type="Node2D" parent="World" unique_id=1610000356 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4165.9659, 1936.8139)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0205" type="Node2D" parent="World" unique_id=1610000357 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4311.3264, 2027.6845)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0205" index="0"]
+flip_h = true
+
+[node name="ThickBush_0206" type="Node2D" parent="World" unique_id=1610000358 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4251.3031, 2056.9218)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0206" index="0"]
+flip_h = true
+
+[node name="ThickBush_0207" type="Node2D" parent="World" unique_id=1610000359 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4189.6106, 2117.3622)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0207" index="0"]
+flip_h = true
+
+[node name="ThickBush_0208" type="Node2D" parent="World" unique_id=1610000360 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4183.1411, 2192.7411)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0208" index="0"]
+flip_h = true
+
+[node name="ThickBush_0209" type="Node2D" parent="World" unique_id=1610000361 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4166.2767, 2204.8145)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0210" type="Node2D" parent="World" unique_id=1610000362 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4185.0000, 2229.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0211" type="Node2D" parent="World" unique_id=1610000363 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4223.5028, 2257.0549)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0212" type="Node2D" parent="World" unique_id=1610000364 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4129.8894, 2282.8285)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0212" index="0"]
+flip_h = true
+
+[node name="ThickBush_0213" type="Node2D" parent="World" unique_id=1610000365 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4371.7085, 2413.6861)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0213" index="0"]
+flip_h = true
+
+[node name="ThickBush_0214" type="Node2D" parent="World" unique_id=1610000366 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4197.9901, 2384.1807)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0214" index="0"]
+flip_h = true
+
+[node name="ThickBush_0215" type="Node2D" parent="World" unique_id=1610000367 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4210.7580, 2407.3567)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0215" index="0"]
+flip_h = true
+
+[node name="ThickBush_0216" type="Node2D" parent="World" unique_id=1610000368 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4065.6342, 2447.7848)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0217" type="Node2D" parent="World" unique_id=1610000369 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4119.5477, 2495.1039)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0218" type="Node2D" parent="World" unique_id=1610000370 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3948.6889, 2495.3071)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0218" index="0"]
+flip_h = true
+
+[node name="ThickBush_0219" type="Node2D" parent="World" unique_id=1610000371 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4214.3140, 2565.9654)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0219" index="0"]
+flip_h = true
+
+[node name="ThickBush_0220" type="Node2D" parent="World" unique_id=1610000372 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4125.8520, 2613.8762)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0220" index="0"]
+flip_h = true
+
+[node name="ThickBush_0221" type="Node2D" parent="World" unique_id=1610000373 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4080.5371, 2626.3193)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0221" index="0"]
+flip_h = true
+
+[node name="ThickBush_0222" type="Node2D" parent="World" unique_id=1610000374 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3791.7718, 2627.9592)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0223" type="Node2D" parent="World" unique_id=1610000375 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3737.9011, 2684.1758)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0223" index="0"]
+flip_h = true
+
+[node name="ThickBush_0224" type="Node2D" parent="World" unique_id=1610000376 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3844.9183, 2925.5152)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0224" index="0"]
+flip_h = true
+
+[node name="ThickBush_0225" type="Node2D" parent="World" unique_id=1610000377 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3566.6182, 2854.1951)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0226" type="Node2D" parent="World" unique_id=1610000378 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3790.9326, 2986.7343)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0226" index="0"]
+flip_h = true
+
+[node name="ThickBush_0227" type="Node2D" parent="World" unique_id=1610000379 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3510.2594, 2924.3479)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0227" index="0"]
+flip_h = true
+
+[node name="ThickBush_0228" type="Node2D" parent="World" unique_id=1610000380 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3619.7733, 3050.7575)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0229" type="Node2D" parent="World" unique_id=1610000381 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3468.9242, 2985.8323)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0229" index="0"]
+flip_h = true
+
+[node name="ThickBush_0230" type="Node2D" parent="World" unique_id=1610000382 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3667.8110, 3141.4391)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0231" type="Node2D" parent="World" unique_id=1610000383 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3577.7746, 3126.5613)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0232" type="Node2D" parent="World" unique_id=1610000384 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3565.9045, 3149.7387)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0232" index="0"]
+flip_h = true
+
+[node name="ThickBush_0233" type="Node2D" parent="World" unique_id=1610000385 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3412.6269, 3042.4186)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0234" type="Node2D" parent="World" unique_id=1610000386 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3358.2597, 3026.7321)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0234" index="0"]
+flip_h = true
+
+[node name="ThickBush_0235" type="Node2D" parent="World" unique_id=1610000387 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3345.7181, 3101.4811)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0235" index="0"]
+flip_h = true
+
+[node name="ThickBush_0236" type="Node2D" parent="World" unique_id=1610000388 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3530.2464, 3276.0276)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0237" type="Node2D" parent="World" unique_id=1610000389 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3331.3475, 3200.0242)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0237" index="0"]
+flip_h = true
+
+[node name="ThickBush_0238" type="Node2D" parent="World" unique_id=1610000390 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3280.8514, 3291.3633)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0238" index="0"]
+flip_h = true
+
+[node name="ThickBush_0239" type="Node2D" parent="World" unique_id=1610000391 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3371.1296, 3398.5267)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0239" index="0"]
+flip_h = true
+
+[node name="ThickBush_0240" type="Node2D" parent="World" unique_id=1610000392 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3479.2959, 3669.0848)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0240" index="0"]
+flip_h = true
+
+[node name="ThickBush_0241" type="Node2D" parent="World" unique_id=1610000393 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3341.8238, 3521.2642)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0241" index="0"]
+flip_h = true
+
+[node name="ThickBush_0242" type="Node2D" parent="World" unique_id=1610000394 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3074.2165, 3313.5719)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0242" index="0"]
+flip_h = true
+
+[node name="ThickBush_0243" type="Node2D" parent="World" unique_id=1610000395 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3202.8963, 3511.4524)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0243" index="0"]
+flip_h = true
+
+[node name="ThickBush_0244" type="Node2D" parent="World" unique_id=1610000396 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2997.2487, 3382.0662)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0244" index="0"]
+flip_h = true
+
+[node name="ThickBush_0245" type="Node2D" parent="World" unique_id=1610000397 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2924.2146, 3418.0561)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0246" type="Node2D" parent="World" unique_id=1610000398 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(3002.2048, 3574.1809)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0246" index="0"]
+flip_h = true
+
+[node name="ThickBush_0247" type="Node2D" parent="World" unique_id=1610000399 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2807.0605, 3375.7794)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0247" index="0"]
+flip_h = true
+
+[node name="ThickBush_0248" type="Node2D" parent="World" unique_id=1610000400 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2752.0553, 3483.8582)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0248" index="0"]
+flip_h = true
+
+[node name="ThickBush_0249" type="Node2D" parent="World" unique_id=1610000401 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2711.1117, 3420.5111)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0249" index="0"]
+flip_h = true
+
+[node name="ThickBush_0250" type="Node2D" parent="World" unique_id=1610000402 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2566.6197, 3279.2893)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0251" type="Node2D" parent="World" unique_id=1610000403 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2601.9093, 3699.2975)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0251" index="0"]
+flip_h = true
+
+[node name="ThickBush_0252" type="Node2D" parent="World" unique_id=1610000404 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2420.4945, 3377.1745)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0252" index="0"]
+flip_h = true
+
+[node name="ThickBush_0253" type="Node2D" parent="World" unique_id=1610000405 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2356.4094, 3607.9688)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0254" type="Node2D" parent="World" unique_id=1610000406 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2165.1361, 3777.5987)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0254" index="0"]
+flip_h = true
+
+[node name="ThickBush_0255" type="Node2D" parent="World" unique_id=1610000407 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2151.0496, 3293.1631)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0256" type="Node2D" parent="World" unique_id=1610000408 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2085.2209, 3317.5768)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0257" type="Node2D" parent="World" unique_id=1610000409 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1967.6892, 3566.4619)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0257" index="0"]
+flip_h = true
+
+[node name="ThickBush_0258" type="Node2D" parent="World" unique_id=1610000410 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1960.0320, 3605.5756)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0259" type="Node2D" parent="World" unique_id=1610000411 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1870.5789, 3493.9900)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0259" index="0"]
+flip_h = true
+
+[node name="ThickBush_0260" type="Node2D" parent="World" unique_id=1610000412 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1748.9072, 3595.2498)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0261" type="Node2D" parent="World" unique_id=1610000413 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1757.4727, 3555.8948)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0262" type="Node2D" parent="World" unique_id=1610000414 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1718.1352, 3364.5790)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0262" index="0"]
+flip_h = true
+
+[node name="ThickBush_0263" type="Node2D" parent="World" unique_id=1610000415 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1561.7114, 3533.5538)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0264" type="Node2D" parent="World" unique_id=1610000416 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1590.5491, 3456.9519)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0264" index="0"]
+flip_h = true
+
+[node name="ThickBush_0265" type="Node2D" parent="World" unique_id=1610000417 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1468.4157, 3717.6196)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0265" index="0"]
+flip_h = true
+
+[node name="ThickBush_0266" type="Node2D" parent="World" unique_id=1610000418 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1492.9570, 3464.9825)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0266" index="0"]
+flip_h = true
+
+[node name="ThickBush_0267" type="Node2D" parent="World" unique_id=1610000419 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1431.4618, 3494.7015)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0267" index="0"]
+flip_h = true
+
+[node name="ThickBush_0268" type="Node2D" parent="World" unique_id=1610000420 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1248.2956, 3714.2180)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0268" index="0"]
+flip_h = true
+
+[node name="ThickBush_0269" type="Node2D" parent="World" unique_id=1610000421 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1346.8494, 3510.2892)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0270" type="Node2D" parent="World" unique_id=1610000422 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1168.9300, 3708.4922)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0271" type="Node2D" parent="World" unique_id=1610000423 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1296.2641, 3418.3525)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0272" type="Node2D" parent="World" unique_id=1610000424 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1029.6381, 3666.2868)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0272" index="0"]
+flip_h = true
+
+[node name="ThickBush_0273" type="Node2D" parent="World" unique_id=1610000425 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(967.0073, 3728.7716)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0273" index="0"]
+flip_h = true
+
+[node name="ThickBush_0274" type="Node2D" parent="World" unique_id=1610000426 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1224.4661, 3352.5372)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0275" type="Node2D" parent="World" unique_id=1610000427 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(772.6350, 3748.2590)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0276" type="Node2D" parent="World" unique_id=1610000428 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(708.3905, 3666.4445)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0276" index="0"]
+flip_h = true
+
+[node name="ThickBush_0277" type="Node2D" parent="World" unique_id=1610000429 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(1012.5750, 3306.8834)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0277" index="0"]
+flip_h = true
+
+[node name="ThickBush_0278" type="Node2D" parent="World" unique_id=1610000430 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(688.0501, 3611.7905)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0279" type="Node2D" parent="World" unique_id=1610000431 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(760.5315, 3434.9695)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0280" type="Node2D" parent="World" unique_id=1610000432 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(766.4109, 3311.0164)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0280" index="0"]
+flip_h = true
+
+[node name="ThickBush_0281" type="Node2D" parent="World" unique_id=1610000433 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(665.5606, 3387.4117)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0281" index="0"]
+flip_h = true
+
+[node name="ThickBush_0282" type="Node2D" parent="World" unique_id=1610000434 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(861.0138, 3208.7116)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0283" type="Node2D" parent="World" unique_id=1610000435 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(776.9135, 3160.2062)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0284" type="Node2D" parent="World" unique_id=1610000436 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(723.6325, 3168.0033)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0285" type="Node2D" parent="World" unique_id=1610000437 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(309.8744, 3396.8158)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s115.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0286" type="Node2D" parent="World" unique_id=1610000438 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(220.3258, 3458.5272)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0286" index="0"]
+flip_h = true
+
+[node name="ThickBush_0287" type="Node2D" parent="World" unique_id=1610000439 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(118.1945, 3245.1681)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0288" type="Node2D" parent="World" unique_id=1610000440 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(123.3281, 3229.4521)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0288" index="0"]
+flip_h = true
+
+[node name="ThickBush_0289" type="Node2D" parent="World" unique_id=1610000441 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(205.5004, 3066.2131)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0290" type="Node2D" parent="World" unique_id=1610000442 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(126.3449, 3073.9331)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0291" type="Node2D" parent="World" unique_id=1610000443 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(60.4767, 3019.8356)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0291" index="0"]
+flip_h = true
+
+[node name="ThickBush_0292" type="Node2D" parent="World" unique_id=1610000444 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(149.7928, 2965.3706)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0292" index="0"]
+flip_h = true
+
+[node name="ThickBush_0293" type="Node2D" parent="World" unique_id=1610000445 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(417.3929, 2837.7649)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0293" index="0"]
+flip_h = true
+
+[node name="ThickBush_0294" type="Node2D" parent="World" unique_id=1610000446 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(221.7595, 2839.9716)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0295" type="Node2D" parent="World" unique_id=1610000447 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(135.5393, 2855.3801)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0295" index="0"]
+flip_h = true
+
+[node name="ThickBush_0296" type="Node2D" parent="World" unique_id=1610000448 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(201.0351, 2740.5660)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0297" type="Node2D" parent="World" unique_id=1610000449 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(163.0278, 2754.4367)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0298" type="Node2D" parent="World" unique_id=1610000450 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(95.1811, 2773.5346)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0299" type="Node2D" parent="World" unique_id=1610000451 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(365.6879, 2583.4336)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0299" index="0"]
+flip_h = true
+
+[node name="ThickBush_0300" type="Node2D" parent="World" unique_id=1610000452 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(171.1507, 2627.1106)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0301" type="Node2D" parent="World" unique_id=1610000453 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(383.1558, 2497.9097)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0302" type="Node2D" parent="World" unique_id=1610000454 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(99.3937, 2567.1573)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0303" type="Node2D" parent="World" unique_id=1610000455 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(344.8141, 2467.7910)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_02_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0303" index="0"]
+flip_h = true
+
+[node name="ThickBush_0304" type="Node2D" parent="World" unique_id=1610000456 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(403.0867, 2410.1015)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0305" type="Node2D" parent="World" unique_id=1610000457 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(344.0183, 2387.4410)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s095.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0306" type="Node2D" parent="World" unique_id=1610000458 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(33.9155, 2398.8348)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_02_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0306" index="0"]
+flip_h = true
+
+[node name="ThickBush_0307" type="Node2D" parent="World" unique_id=1610000459 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(419.0820, 2326.4196)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0307" index="0"]
+flip_h = true
+
+[node name="ThickBush_0308" type="Node2D" parent="World" unique_id=1610000460 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(174.1856, 2319.4994)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0309" type="Node2D" parent="World" unique_id=1610000461 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(450.0557, 2249.8304)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_01.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0310" type="Node2D" parent="World" unique_id=1610000462 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(473.2941, 2173.3376)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0311" type="Node2D" parent="World" unique_id=1610000463 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(24.3627, 2210.8760)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_small_01_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0312" type="Node2D" parent="World" unique_id=1610000464 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(117.1062, 2194.9344)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s110.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0312" index="0"]
+flip_h = true
+
+[node name="ThickBush_0313" type="Node2D" parent="World" unique_id=1610000465 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(118.4053, 2177.3014)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+
+[node name="ThickBush_0314" type="Node2D" parent="World" unique_id=1610000466 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(75.8521, 2131.7173)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/sized/ring_bush_big_03_s105.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0314" index="0"]
+flip_h = true
+
+[node name="ThickBush_0315" type="Node2D" parent="World" unique_id=1610000467 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(513.7181, 2098.4674)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/bushes/ring_bush_small_03.png"
+sprite_scale = 1.0
+prop_kind = "bush"
+metadata/prop_kind = "bush"
+[node name="Sprite" parent="World/ThickBush_0315" index="0"]
+flip_h = true
+[node name="ThickTree_0153" type="Node2D" parent="World" unique_id=1610000468 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4246.0000, 2694.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/sized/ring_tree_large_03_s125.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0154" type="Node2D" parent="World" unique_id=1610000469 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(4206.0000, 2332.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_01.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
+
+[node name="ThickTree_0155" type="Node2D" parent="World" unique_id=1610000470 instance=ExtResource("15_yq6so")]
+y_sort_enabled = true
+position = Vector2(2446.0000, 538.0000)
+script = ExtResource("14_2f3dj")
+texture_path = "res://assets/art/hub/trees/ring_tree_large_03.png"
+sprite_scale = 1.0
+prop_kind = "tree"
+metadata/prop_kind = "tree"
