@@ -218,6 +218,29 @@ func actor_water_mult(actor: String) -> float:
 	return float(_companion_row(actor).get("water_reward_mult", 1.0))
 
 
+func actor_portrait_texture(actor: String) -> Texture2D:
+	## HUD portrait. Path and optional region live in companions.json.
+	var row: Dictionary = _companion_row(actor)
+	var path: String = str(row.get("portrait_path", ""))
+	if path == "" or not ResourceLoader.exists(path):
+		path = CharacterSheet.ELAIA_PARTY_PORTRAIT_PATH if actor == "elaia" else CharacterSheet.KEEPER_PARTY_PORTRAIT_PATH
+	var tex: Texture2D = load(path) as Texture2D
+	if tex == null:
+		return null
+	var region_v: Variant = row.get("portrait_region", null)
+	if typeof(region_v) != TYPE_ARRAY or (region_v as Array).size() < 4:
+		return tex
+	var reg: Array = region_v
+	var rect := Rect2i(int(reg[0]), int(reg[1]), int(reg[2]), int(reg[3]))
+	var img: Image = tex.get_image()
+	if img == null:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = tex
+		atlas.region = Rect2(rect)
+		return atlas
+	return ImageTexture.create_from_image(img.get_region(rect))
+
+
 func hero_display_name(actor: String) -> String:
 	## Display name from companions.json. "The Keeper" only when that string is missing.
 	var row: Dictionary = _companion_row(actor)
@@ -1468,6 +1491,7 @@ func to_save_dict() -> Dictionary:
 		"equipment_unlocked": _equipment_save_field("equipment_unlocked"),
 		"equipment_equipped": _equipment_save_field("equipment_equipped"),
 		"gear_inventory": _equipment_save_field("gear_inventory"),
+		"elaia_equipped": Equipment.elaia_equipped_to_save() if has_node("/root/Equipment") else {},
 		"portal_unlocked": portal_unlocked,
 		"portal_fee_paid": portal_fee_paid,
 		"echo_01_resolved": echo_01_resolved,
@@ -1593,6 +1617,9 @@ func apply_save_dict(data: Dictionary) -> void:
 		KeeperStats.apply_save_dict(data.get("keeper_stats", {}))
 	if has_node("/root/Equipment"):
 		Equipment.apply_save_dict(_equipment_payload(data))
+		Equipment.apply_elaia_equipped(data.get("elaia_equipped", {}))
+		if forge_key:
+			Equipment.ensure_forge_key_from_load()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.apply_save_fields(data)
 	keeper_selected = false

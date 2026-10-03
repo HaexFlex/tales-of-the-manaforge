@@ -82,6 +82,8 @@ func _run() -> void:
 	var win: Window = root
 	win.size = Vector2i(1280, 720)
 	await process_frame
+	await process_frame
+	_shot("%s/hud_party_portraits.png" % OUT)
 	if hud.has_method("open_character_sheet"):
 		hud.call("open_character_sheet")
 	var sheet: Node = hud.get_node_or_null("CharacterSheet")
@@ -90,10 +92,33 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_shot("%s/sheet_keeper_both_portraits.png" % OUT)
+	if sheet and sheet.has_method("open_trait_popup"):
+		sheet.call("open_trait_popup")
+	await process_frame
+	_shot("%s/sheet_keeper_trait.png" % OUT)
+	if sheet and sheet.has_method("close_trait_popup"):
+		sheet.call("close_trait_popup")
+	var gear: Node = root.get_node_or_null("Equipment")
+	if gear:
+		gear.call("grant_item", "stone_sword")
+		gear.call("try_equip_to_slot", "stone_sword", "weapon", "elaia")
 	if sheet and sheet.has_method("show_actor"):
 		sheet.call("show_actor", "elaia")
 	await process_frame
+	for sid: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+		var line: Label = sheet.get_node_or_null("SheetFit/Sheet/Stats/Stat_%s/Line/Text" % sid) as Label
+		if line:
+			print("elaia_stat %s %s" % [sid, line.text])
+	if gear:
+		print("elaia_weapon %s" % str(gear.call("equipped_id_for", "elaia", "weapon")))
 	_shot("%s/sheet_elaia_both_portraits.png" % OUT)
+	if sheet and sheet.has_method("open_trait_popup"):
+		sheet.call("open_trait_popup")
+	await process_frame
+	_shot("%s/sheet_elaia_trait.png" % OUT)
+	if sheet and sheet.has_method("close_trait_popup"):
+		sheet.call("close_trait_popup")
+	await process_frame
 	win.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
 	win.size = Vector2i(960, 540)
 	for _s: int in range(4):

@@ -3,6 +3,7 @@
   "notes": "Per-actor movement and work rates. walk_ref_speed is the art's reference px/s: walk speed_scale = actual velocity / walk_ref_speed. move_speed_mult scales GameState.get_move_speed(), which already includes Keeper's Stride. work_rate scales harvest output, watering rewards, and Forge station speed. reliquary_work_rate replaces work_rate at the Reliquary.",
   "keeper": {
     "display_name_key": "hud_sel_keeper",
+    "portrait_path": "res://assets/art/portraits/keeper_portrait.png",
     "walk_ref_speed": 80,
     "move_speed_mult": 1.0,
     "work_rate": 1.0,
@@ -11,6 +12,7 @@
   },
   "elaia": {
     "display_name_key": "echo_elaia_name",
+    "portrait_path": "res://assets/art/portraits/elaia_portrait.png",
     "walk_ref_speed": 88,
     "move_speed_mult": 1.0,
     "work_rate": 0.8,

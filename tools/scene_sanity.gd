@@ -1067,6 +1067,9 @@ func _content_keys() -> int:
 		"char_sheet_elaia_reliquary", "char_sheet_elaia_reliquary_role",
 		"char_sheet_elaia_water", "char_sheet_elaia_water_role",
 		"char_sheet_elaia_move", "char_sheet_elaia_move_role",
+		"char_sheet_trait_label", "char_sheet_keeper_trait", "char_sheet_elaia_trait",
+		"char_sheet_trait_popup_title", "char_sheet_trait_work", "char_sheet_trait_reliquary",
+		"char_sheet_trait_water", "char_sheet_trait_move",
 	])
 	var shop: PackedStringArray = PackedStringArray([
 		"station_busy", "station_paused", "not_enough_material", "job_done", "jobs_finished_away",

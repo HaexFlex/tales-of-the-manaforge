@@ -659,19 +659,25 @@ func _build_party_bar() -> void:
 	_party_bar.add_child(_party_column)
 	_party_bar.add_child(_party_info)
 	add_child(_party_bar)
-	var keeper_tex: Texture2D = load(CharacterSheet.PORTRAIT_PATH) as Texture2D
+	var keeper_tex: Texture2D = _actor_portrait_texture("keeper")
 	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
 	(_slot_keeper.get_node("Portrait") as TextureRect).texture = keeper_tex
 	(_slot_wisp.get_node("Portrait") as TextureRect).texture = wisp_tex
-	(_slot_elaia.get_node("Portrait") as TextureRect).texture = _elaia_portrait_texture()
+	(_slot_elaia.get_node("Portrait") as TextureRect).texture = _actor_portrait_texture("elaia")
 	_slot_elaia.tooltip_text = ContentStrings.get_text("hud_elaia_portrait_tooltip")
 	_slot_elaia.visible = false
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
-func _elaia_portrait_texture() -> Texture2D:
-	## Same face crop as the character sheet. The key stays outside the region.
-	return CharacterSheet.elaia_portrait_texture()
+func _actor_portrait_texture(actor: String) -> Texture2D:
+	## Path and optional crop live in companions.json. The sheet uses the full idle figure.
+	if has_node("/root/GameState") and GameState.has_method("actor_portrait_texture"):
+		var tex: Texture2D = GameState.actor_portrait_texture(actor)
+		if tex != null:
+			return tex
+	if actor == "elaia":
+		return load(CharacterSheet.ELAIA_PARTY_PORTRAIT_PATH) as Texture2D
+	return load(CharacterSheet.KEEPER_PARTY_PORTRAIT_PATH) as Texture2D
 
 
 func _make_party_slot(slot_name: String, unit: String) -> Control:

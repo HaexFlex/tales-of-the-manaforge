@@ -16,10 +16,12 @@ var recipes_data: Array = []
 var _slot_index: Dictionary = {}
 var _item_index: Dictionary = {}
 var _recipe_index: Dictionary = {}
-## Unequipped battle items: item_id -> count.
+## Unequipped battle items: item_id -> count. Shared bag.
 var gear_inventory: Dictionary = {}
-## slot_id -> item_id. Missing key means bare.
+## slot_id -> item_id. Missing key means bare. Keeper doll.
 var equipped: Dictionary = {}
+## Elaia's doll. Same shape. One item instance sits on one doll.
+var elaia_equipped: Dictionary = {}
 
 
 func _ready() -> void:
@@ -275,8 +277,26 @@ func item_fits_slot(item_id: String, slot_id: String) -> bool:
 	return is_known_item(item_id) and slot != "" and slot == _canonical_slot(slot_id)
 
 
+func _normalize_actor(actor: String) -> String:
+	return "elaia" if actor == "elaia" else "keeper"
+
+
+func _other_actor(actor: String) -> String:
+	return "keeper" if _normalize_actor(actor) == "elaia" else "elaia"
+
+
+func _doll(actor: String) -> Dictionary:
+	if _normalize_actor(actor) == "elaia":
+		return elaia_equipped
+	return equipped
+
+
+func equipped_id_for(actor: String, slot_id: String) -> String:
+	return str(_doll(actor).get(_canonical_slot(slot_id), ""))
+
+
 func equipped_id(slot_id: String) -> String:
-	return str(equipped.get(_canonical_slot(slot_id), ""))
+	return equipped_id_for("keeper", slot_id)
 
 
 func unequipped_count(item_id: String) -> int:
@@ -286,7 +306,10 @@ func unequipped_count(item_id: String) -> int:
 func gear_count_anywhere(item_id: String) -> int:
 	var n: int = unequipped_count(item_id)
 	for slot_id: StringName in SLOT_ORDER:
-		if equipped_id(String(slot_id)) == item_id:
+		var key: String = String(slot_id)
+		if equipped_id_for("keeper", key) == item_id:
+			n += 1
+		if equipped_id_for("elaia", key) == item_id:
 			n += 1
 	return n
 
@@ -305,6 +328,24 @@ func list_unequipped() -> Array[Dictionary]:
 	return out
 
 
+## Bag plus anything worn by the other character, so this sheet can take it.
+func list_for_sheet(actor: String) -> Array[Dictionary]:
+	var counts: Dictionary = {}
+	for inst: Dictionary in list_unequipped():
+		counts[str(inst.get("id", ""))] = int(inst.get("count", 0))
+	var other: String = _other_actor(actor)
+	for slot_id: StringName in SLOT_ORDER:
+		var iid: String = equipped_id_for(other, String(slot_id))
+		if iid != "" and is_known_item(iid):
+			counts[iid] = int(counts.get(iid, 0)) + 1
+	var out: Array[Dictionary] = []
+	for key: Variant in counts.keys():
+		var n: int = int(counts[key])
+		if n > 0:
+			out.append({"id": str(key), "count": n})
+	return out
+
+
 func _item_bonus(item_id: String, stat_id: String) -> int:
 	var bonuses: Variant = get_item_def(item_id).get("bonuses", {})
 	if typeof(bonuses) != TYPE_DICTIONARY:
@@ -312,13 +353,17 @@ func _item_bonus(item_id: String, stat_id: String) -> int:
 	return int((bonuses as Dictionary).get(stat_id, 0))
 
 
-func gear_bonus(stat_id: String) -> int:
+func gear_bonus_for(actor: String, stat_id: String) -> int:
 	var total: int = 0
 	for slot_id: StringName in SLOT_ORDER:
-		var iid: String = equipped_id(String(slot_id))
+		var iid: String = equipped_id_for(actor, String(slot_id))
 		if iid != "":
 			total += _item_bonus(iid, stat_id)
 	return total
+
+
+func gear_bonus(stat_id: String) -> int:
+	return gear_bonus_for("keeper", stat_id)
 
 
 func total_for(stat_id: String) -> int:
@@ -326,24 +371,28 @@ func total_for(stat_id: String) -> int:
 
 
 ## Gear column if `item_id` replaced whatever is in its slot. Empty item_id = current.
-func preview_gear_bonus(stat_id: String, item_id: String) -> int:
+func preview_gear_bonus_for(actor: String, stat_id: String, item_id: String) -> int:
 	if item_id == "" or not is_known_item(item_id):
-		return gear_bonus(stat_id)
+		return gear_bonus_for(actor, stat_id)
 	var slot_id: String = item_slot(item_id)
 	var total: int = 0
 	for sid: StringName in SLOT_ORDER:
 		var slot: String = String(sid)
-		var iid: String = item_id if slot == slot_id else equipped_id(slot)
+		var iid: String = item_id if slot == slot_id else equipped_id_for(actor, slot)
 		if iid != "":
 			total += _item_bonus(iid, stat_id)
 	return total
 
 
-func try_equip(item_id: String) -> String:
-	return try_equip_to_slot(item_id, item_slot(item_id))
+func preview_gear_bonus(stat_id: String, item_id: String) -> int:
+	return preview_gear_bonus_for("keeper", stat_id, item_id)
 
 
-func try_equip_to_slot(item_id: String, slot_id: String) -> String:
+func try_equip(item_id: String, actor: String = "keeper") -> String:
+	return try_equip_to_slot(item_id, item_slot(item_id), actor)
+
+
+func try_equip_to_slot(item_id: String, slot_id: String, actor: String = "keeper") -> String:
 	if not is_known_item(item_id):
 		return "missing"
 	var sid: String = _canonical_slot(slot_id)
@@ -353,13 +402,15 @@ func try_equip_to_slot(item_id: String, slot_id: String) -> String:
 		return "locked"
 	if not item_fits_slot(item_id, sid):
 		return "wrong_slot"
-	if unequipped_count(item_id) <= 0:
+	var who: String = _normalize_actor(actor)
+	var doll: Dictionary = _doll(who)
+	var took: bool = _take_for_equip(who, doll, sid, item_id)
+	if not took:
 		return "missing"
-	_take_unequipped(item_id, 1)
-	var previous: String = equipped_id(sid)
+	var previous: String = str(doll.get(sid, ""))
 	if previous != "":
 		_add_unequipped(previous, 1)
-	equipped[sid] = item_id
+	doll[sid] = item_id
 	equipment_changed.emit()
 	if sid == "relic" and previous != "" and previous != item_id:
 		if has_node("/root/GameAudio"):
@@ -370,15 +421,37 @@ func try_equip_to_slot(item_id: String, slot_id: String) -> String:
 	return "ok"
 
 
-func try_unequip(slot_id: String) -> String:
+func _take_for_equip(who: String, doll: Dictionary, sid: String, item_id: String) -> bool:
+	## Shared bag first, so a spare does not pull gear off the other character.
+	## Then the other doll. A second copy on this doll moves only when nothing else is free.
+	if unequipped_count(item_id) > 0:
+		return _take_unequipped(item_id, 1)
+	var other: Dictionary = _doll(_other_actor(who))
+	for slot_name: StringName in SLOT_ORDER:
+		var key: String = String(slot_name)
+		if str(other.get(key, "")) == item_id:
+			other.erase(key)
+			return true
+	for slot_name: StringName in SLOT_ORDER:
+		var key: String = String(slot_name)
+		if key == sid:
+			continue
+		if str(doll.get(key, "")) == item_id:
+			doll.erase(key)
+			return true
+	return false
+
+
+func try_unequip(slot_id: String, actor: String = "keeper") -> String:
 	var sid: String = _canonical_slot(slot_id)
 	if not is_known_slot(sid):
 		return "missing"
-	var iid: String = equipped_id(sid)
+	var doll: Dictionary = _doll(actor)
+	var iid: String = str(doll.get(sid, ""))
 	if iid == "":
 		return "empty"
 	_add_unequipped(iid, 1)
-	equipped.erase(sid)
+	doll.erase(sid)
 	equipment_changed.emit()
 	return "ok"
 
@@ -419,6 +492,8 @@ func _migrate_legacy_forge_key_id() -> void:
 	## Pre-v0.6.1 drafts used item id `forge_key`. Rename in place; no SAVE_VERSION bump.
 	if equipped_id("relic") == "forge_key":
 		equipped["relic"] = "forge_key_relic"
+	if equipped_id_for("elaia", "relic") == "forge_key":
+		elaia_equipped["relic"] = "forge_key_relic"
 	var n: int = int(gear_inventory.get("forge_key", 0))
 	if n > 0:
 		gear_inventory.erase("forge_key")
@@ -532,13 +607,14 @@ func try_craft(recipe_id: String) -> String:
 
 
 func on_ascend() -> void:
-	## Equipped gear and the gear inventory stay. Backpack still wipes.
+	## Equipped gear, both dolls, and the gear inventory stay. Backpack still wipes.
 	pass
 
 
 func reset_for_new_game() -> void:
 	gear_inventory.clear()
 	equipped.clear()
+	elaia_equipped.clear()
 	equipment_changed.emit()
 
 
@@ -564,6 +640,15 @@ func to_save_dict() -> Dictionary:
 	}
 
 
+func elaia_equipped_to_save() -> Dictionary:
+	var eq_out: Dictionary = {}
+	for slot_id: StringName in SLOT_ORDER:
+		var key: String = String(slot_id)
+		var iid: String = equipped_id_for("elaia", key)
+		eq_out[key] = iid if iid != "" else null
+	return eq_out
+
+
 func apply_save_dict(data: Variant) -> void:
 	gear_inventory.clear()
 	equipped.clear()
@@ -574,11 +659,28 @@ func apply_save_dict(data: Variant) -> void:
 	if src.has("gear_inventory") or src.has("equipment_equipped") or src.has("owned"):
 		_apply_inventory(src.get("gear_inventory", src.get("owned", {})))
 		_apply_equipped(src.get("equipment_equipped", src.get("equipped", {})))
-	## Armor unlocks stay on the data file. Relic follows GameState.forge_key.
-	## Load does not pull a Key that is already in the bag back onto the slot.
-	if has_node("/root/GameState") and GameState.forge_key:
-		ensure_forge_key_from_load()
+	## Forge Key auto-equip runs after Elaia's doll is loaded. See GameState.apply_save_dict.
+	equipment_changed.emit()
+
+
+func apply_elaia_equipped(raw: Variant) -> void:
+	elaia_equipped.clear()
+	if typeof(raw) != TYPE_DICTIONARY:
+		equipment_changed.emit()
 		return
+	for slot_id: StringName in SLOT_ORDER:
+		var key: String = String(slot_id)
+		var found: Variant = (raw as Dictionary).get(key, null)
+		if found == null and key == "ring1":
+			found = (raw as Dictionary).get("ring_1", null)
+		elif found == null and key == "ring2":
+			found = (raw as Dictionary).get("ring_2", null)
+		var iid: String = _item_id_of(found)
+		if iid == "" or not item_fits_slot(iid, key):
+			continue
+		if is_unique_item(iid) and owns_anywhere(iid):
+			continue
+		elaia_equipped[key] = iid
 	equipment_changed.emit()
 
 
@@ -653,14 +755,18 @@ func _spend_gear_anywhere(item_id: String, need: int) -> bool:
 		need -= from_bag
 	if need <= 0:
 		return true
-	for slot_id: StringName in SLOT_ORDER:
+	for actor_name: String in ["keeper", "elaia"]:
 		if need <= 0:
 			break
-		var key: String = String(slot_id)
-		if equipped_id(key) != item_id:
-			continue
-		equipped.erase(key)
-		need -= 1
+		var doll: Dictionary = _doll(actor_name)
+		for slot_id: StringName in SLOT_ORDER:
+			if need <= 0:
+				break
+			var key: String = String(slot_id)
+			if str(doll.get(key, "")) != item_id:
+				continue
+			doll.erase(key)
+			need -= 1
 	return need <= 0
 
 

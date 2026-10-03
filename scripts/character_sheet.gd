@@ -7,6 +7,12 @@ signal close_requested
 
 const PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
 const WISP_PORTRAIT_PATH: String = "res://assets/art/wisps/wisp_portrait.png"
+## HUD party slots. 52×52, drawn 1:1. companions.json points at these.
+const KEEPER_PARTY_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_portrait.png"
+const ELAIA_PARTY_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_portrait.png"
+## 160×160 busts. Header icon only. The sheet figure stays the idle-south frame.
+const KEEPER_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_portrait_sheet.png"
+const ELAIA_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_portrait_sheet.png"
 const SHEET_SIZE: Vector2 = Vector2(1272, 716)
 const HOST_POS: Vector2 = Vector2(12, 54)
 ## Paper-doll host. The sprite is inset; slots sit in the margins around the figure.
@@ -73,18 +79,15 @@ const SLOT_POS: Dictionary = {
 const SLOT_SIZE: Vector2 = Vector2(56, 66)
 const SLOT_SQUARE: Vector2 = Vector2(44, 44)
 ## Empty and locked chrome come from the HUD icon sheet. No gold edge — the caption sits under the square.
-const STAT_TOP: float = 30.0
+## Below the persist hint and the trait line, so Might does not sit on the hint.
+const STAT_TOP: float = 76.0
 const STAT_NAME_H: float = 22.0
 const STAT_ROLE_H: float = 18.0
 const STAT_GAP_SMALL: float = 4.0
 const STAT_NUM_H: float = 24.0
 const STAT_GAP_LARGE: float = 10.0
 const STAT_STRIDE: float = STAT_NAME_H + STAT_ROLE_H + STAT_GAP_SMALL + STAT_NUM_H + STAT_GAP_LARGE
-## Pixels of clear wood between a role line's lowest glyph and the value glyphs.
-const ELAIA_VALUE_GAP: float = 2.0
-const ELAIA_ROW_GAP: float = 12.0
-## Face crop of elaia_front.png. The golden key sits on the left below y=360.
-const ELAIA_PORTRAIT_REGION: Rect2 = Rect2(286, 137, 220, 220)
+const ELAIA_SHEET_FIGURE: String = "res://assets/art/elaia/anim/idle/south.png"
 const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
 const INK: Color = Color(0.92, 0.86, 0.72, 1.0)
@@ -132,8 +135,12 @@ func open_sheet(actor_id: String = "keeper") -> void:
 	show_actor(actor_id if actor_id != "" else "keeper")
 
 
+func sheet_actor() -> String:
+	return _actor_id
+
+
 func show_actor(actor_id: String) -> void:
-	## Clicking the other party portrait switches this sheet. Elaia has no gear or combat ranks.
+	## Clicking the other party portrait switches this sheet. Gear follows the open sheet.
 	if actor_id == "elaia" and not CharacterSheet._auto("GameState").call("elaia_in_party"):
 		actor_id = "keeper"
 	_actor_id = actor_id if actor_id == "elaia" else "keeper"
@@ -143,6 +150,7 @@ func show_actor(actor_id: String) -> void:
 
 
 func close_sheet() -> void:
+	close_trait_popup()
 	visible = false
 	_hover_item_id = ""
 
@@ -152,20 +160,20 @@ func request_close() -> void:
 
 
 func request_equip(item_id: String) -> String:
-	var result: String = CharacterSheet._auto("Equipment").try_equip(item_id)
+	var result: String = CharacterSheet._auto("Equipment").try_equip(item_id, _actor_id)
 	_toast(result, item_id, CharacterSheet._auto("Equipment").item_slot(item_id))
 	return result
 
 
 func request_equip_slot(item_id: String, slot_id: String) -> String:
-	var result: String = CharacterSheet._auto("Equipment").try_equip_to_slot(item_id, slot_id)
+	var result: String = CharacterSheet._auto("Equipment").try_equip_to_slot(item_id, slot_id, _actor_id)
 	_toast(result, item_id, slot_id)
 	return result
 
 
 func request_unequip(slot_id: String) -> String:
-	var item_id: String = CharacterSheet._auto("Equipment").equipped_id(slot_id)
-	var result: String = CharacterSheet._auto("Equipment").try_unequip(slot_id)
+	var item_id: String = CharacterSheet._auto("Equipment").equipped_id_for(_actor_id, slot_id)
+	var result: String = CharacterSheet._auto("Equipment").try_unequip(slot_id, _actor_id)
 	_toast(result, item_id, slot_id)
 	return result
 
@@ -182,7 +190,7 @@ func _toast(result: String, item_id: String, slot_id: String) -> void:
 	var text: String = ""
 	match result:
 		"ok":
-			if CharacterSheet._auto("Equipment").equipped_id(slot_id) == item_id and item_id != "":
+			if CharacterSheet._auto("Equipment").equipped_id_for(_actor_id, slot_id) == item_id and item_id != "":
 				text = CharacterSheet._auto("ContentStrings").get_text("equip_ok", {"item": item_name})
 			else:
 				text = CharacterSheet._auto("ContentStrings").get_text("equip_unequip_ok", {"item": item_name})
@@ -239,10 +247,21 @@ func _build() -> void:
 	sheet.add_theme_stylebox_override("panel", _wood_style())
 	fit.add_child(sheet)
 
+	var header_icon := TextureRect.new()
+	header_icon.name = "HeaderPortrait"
+	header_icon.position = Vector2(16, 4)
+	header_icon.size = Vector2(32, 32)
+	header_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	header_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	header_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	header_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header_icon.texture = load(KEEPER_SHEET_PORTRAIT_PATH) as Texture2D
+	sheet.add_child(header_icon)
+
 	var title := Label.new()
 	title.name = "Title"
-	title.position = Vector2(20, 8)
-	title.size = Vector2(640, 26)
+	title.position = Vector2(54, 8)
+	title.size = Vector2(600, 26)
 	title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_title")
 	title.add_theme_font_size_override("font_size", 20)
 	title.add_theme_color_override("font_color", GOLD)
@@ -250,8 +269,8 @@ func _build() -> void:
 
 	var hint := Label.new()
 	hint.name = "Hint"
-	hint.position = Vector2(20, 32)
-	hint.size = Vector2(700, 22)
+	hint.position = Vector2(54, 32)
+	hint.size = Vector2(660, 22)
 	hint.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hint")
 	var hotkey := Label.new()
 	hotkey.name = "HotkeyHint"
@@ -408,12 +427,45 @@ func _build() -> void:
 	right.add_child(stats_title)
 
 	var stats_hint := Label.new()
+	stats_hint.name = "PersistHint"
 	stats_hint.position = Vector2(0, 22)
 	stats_hint.size = Vector2(360, 20)
+	stats_hint.clip_text = false
+	stats_hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	stats_hint.text = CharacterSheet._auto("ContentStrings").get_text("stat_persist_hint")
 	stats_hint.add_theme_font_size_override("font_size", 11)
 	stats_hint.add_theme_color_override("font_color", MUTED)
 	right.add_child(stats_hint)
+
+	var trait_row := Control.new()
+	trait_row.name = "TraitRow"
+	trait_row.position = Vector2(0, 44)
+	trait_row.size = Vector2(360, 28)
+	trait_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.add_child(trait_row)
+	var trait_label := Label.new()
+	trait_label.name = "TraitLabel"
+	trait_label.position = Vector2(0, 4)
+	trait_label.size = Vector2(52, 20)
+	trait_label.clip_text = false
+	trait_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	trait_label.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_trait_label")
+	trait_label.add_theme_font_size_override("font_size", 12)
+	trait_label.add_theme_color_override("font_color", MUTED)
+	trait_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	trait_row.add_child(trait_label)
+	var trait_btn := Button.new()
+	trait_btn.name = "TraitButton"
+	trait_btn.position = Vector2(52, 0)
+	trait_btn.size = Vector2(304, 28)
+	trait_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	trait_btn.clip_text = false
+	trait_btn.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_keeper_trait")
+	trait_btn.add_theme_font_size_override("font_size", 13)
+	_paint_trait_button(trait_btn)
+	trait_btn.mouse_entered.connect(open_trait_popup)
+	trait_btn.pressed.connect(open_trait_popup)
+	trait_row.add_child(trait_btn)
 
 	## Name, role flush under it, a small gap, the numbers, then a larger gap.
 	## The font line box is taller than the glyphs, so the role row overlaps the
@@ -452,6 +504,7 @@ func _build() -> void:
 	fate_note.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.add_child(fate_note)
 
+	_build_trait_popup()
 	_footer = Label.new()
 	_footer.name = "Footer"
 	_footer.position = Vector2(524, sheet_h - 32.0)
@@ -459,7 +512,6 @@ func _build() -> void:
 	_footer.add_theme_font_size_override("font_size", 12)
 	_footer.add_theme_color_override("font_color", INK)
 	sheet.add_child(_footer)
-	_build_elaia_panels(sheet)
 	call_deferred("_fit_sheet")
 
 
@@ -530,60 +582,6 @@ func _fit_sheet() -> void:
 	sheet.size = design
 
 
-func _build_elaia_panels(sheet: Control) -> void:
-	var mid := Control.new()
-	mid.name = "ElaiaGear"
-	mid.visible = false
-	mid.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mid.position = Vector2(524, 64)
-	mid.size = Vector2(360, 600)
-	sheet.add_child(mid)
-	var gear_title := Label.new()
-	gear_title.name = "Title"
-	gear_title.position = Vector2(0, 0)
-	gear_title.size = Vector2(360, 22)
-	gear_title.add_theme_font_size_override("font_size", 15)
-	gear_title.add_theme_color_override("font_color", GOLD)
-	mid.add_child(gear_title)
-	var note := Label.new()
-	note.name = "Note"
-	note.position = Vector2(0, 36)
-	note.size = Vector2(340, 120)
-	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	note.clip_text = false
-	note.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	note.add_theme_font_size_override("font_size", 13)
-	note.add_theme_color_override("font_color", MUTED)
-	mid.add_child(note)
-
-	var right := Control.new()
-	right.name = "ElaiaStats"
-	right.visible = false
-	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right.position = Vector2(896, 64)
-	right.size = Vector2(360, 620)
-	sheet.add_child(right)
-	var stats_title := Label.new()
-	stats_title.name = "Title"
-	stats_title.position = Vector2(0, 0)
-	stats_title.size = Vector2(360, 22)
-	stats_title.add_theme_font_size_override("font_size", 15)
-	stats_title.add_theme_color_override("font_color", GOLD)
-	right.add_child(stats_title)
-	var y: float = STAT_TOP
-	for row_name: String in ["Work", "Reliquary", "Water", "Pace"]:
-		var block := Control.new()
-		block.name = "Row_%s" % row_name
-		block.position = Vector2(0, y)
-		block.size = Vector2(360, STAT_STRIDE)
-		block.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		right.add_child(block)
-		_add_stat_row(block, "Name", "", 14, INK, 0.0, STAT_NAME_H)
-		_add_stat_row(block, "Role", "", 11, MUTED, STAT_NAME_H, 24.0)
-		_add_stat_row(block, "Line", "", 15, INK, STAT_NAME_H + 24.0, STAT_NUM_H)
-		y += STAT_STRIDE
-
-
 func _apply_actor_chrome() -> void:
 	var sheet: Node = get_node_or_null("SheetFit/Sheet")
 	if sheet == null:
@@ -601,170 +599,186 @@ func _apply_actor_chrome() -> void:
 	if host:
 		for child: Node in host.get_children():
 			if str(child.name).begins_with("Slot_"):
-				child.visible = not elaia
+				child.visible = true
 	var gear: CanvasItem = sheet.get_node_or_null("GearColumn") as CanvasItem
 	if gear:
-		gear.visible = not elaia
+		gear.visible = true
 	var stats: CanvasItem = sheet.get_node_or_null("Stats") as CanvasItem
 	if stats:
-		stats.visible = not elaia
-	var elaia_gear: CanvasItem = sheet.get_node_or_null("ElaiaGear") as CanvasItem
-	var elaia_stats: CanvasItem = sheet.get_node_or_null("ElaiaStats") as CanvasItem
-	if elaia_gear:
-		elaia_gear.visible = elaia
-	if elaia_stats:
-		elaia_stats.visible = elaia
+		stats.visible = true
 	if _portrait:
-		_portrait.texture = _elaia_sheet_portrait() if elaia else load(PORTRAIT_PATH) as Texture2D
-	if not elaia:
+		var figure_path: String = _sheet_figure_path()
+		_portrait.texture = load(figure_path) as Texture2D
+		_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_portrait.position = SPRITE_POS
+		_portrait.size = SPRITE_SIZE
+	var header_icon: TextureRect = sheet.get_node_or_null("HeaderPortrait") as TextureRect
+	if header_icon:
+		var bust_path: String = ELAIA_SHEET_PORTRAIT_PATH if elaia else KEEPER_SHEET_PORTRAIT_PATH
+		header_icon.texture = load(bust_path) as Texture2D
+		header_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var trait_btn: Button = sheet.get_node_or_null("Stats/TraitRow/TraitButton") as Button
+	if trait_btn:
+		var trait_key: String = "char_sheet_elaia_trait" if elaia else "char_sheet_keeper_trait"
+		trait_btn.text = strings.get_text(trait_key)
+
+
+func _sheet_figure_path() -> String:
+	return ELAIA_SHEET_FIGURE if _actor_id == "elaia" else PORTRAIT_PATH
+
+
+func open_trait_popup() -> void:
+	var pop: Control = get_node_or_null("TraitPopup") as Control
+	if pop == null:
 		return
-	var gear_title: Label = sheet.get_node_or_null("ElaiaGear/Title") as Label
-	var note: Label = sheet.get_node_or_null("ElaiaGear/Note") as Label
-	if gear_title:
-		gear_title.text = strings.get_text("char_sheet_elaia_tending")
-	if note:
-		note.text = strings.get_text("char_sheet_elaia_no_gear")
-	var gs = CharacterSheet._auto("GameState")
-	var work: float = float(gs.call("actor_work_rate", "elaia", ""))
-	var relic: float = float(gs.call("actor_work_rate", "elaia", "reliquary"))
-	var water: float = float(gs.call("actor_water_mult", "elaia"))
-	var pace: float = float(gs.call("actor_move_mult", "elaia"))
-	_set_elaia_row(sheet, "Work", "char_sheet_elaia_work_rate", "char_sheet_elaia_work_role", work)
-	_set_elaia_row(sheet, "Reliquary", "char_sheet_elaia_reliquary", "char_sheet_elaia_reliquary_role", relic)
-	_set_elaia_row(sheet, "Water", "char_sheet_elaia_water", "char_sheet_elaia_water_role", water)
-	_set_elaia_row(sheet, "Pace", "char_sheet_elaia_move", "char_sheet_elaia_move_role", pace)
-	_layout_elaia_stats(sheet)
+	_fill_trait_popup()
+	_place_trait_popup()
+	pop.visible = true
 
 
-func _set_elaia_row(sheet: Node, row_name: String, name_key: String, role_key: String, value: float) -> void:
-	var strings = CharacterSheet._auto("ContentStrings")
-	var name_lbl: Label = sheet.get_node_or_null("ElaiaStats/Row_%s/Name/Text" % row_name) as Label
-	var role_lbl: Label = sheet.get_node_or_null("ElaiaStats/Row_%s/Role/Text" % row_name) as Label
-	var line_lbl: Label = sheet.get_node_or_null("ElaiaStats/Row_%s/Line/Text" % row_name) as Label
-	if name_lbl:
-		name_lbl.text = strings.get_text(name_key)
-	if role_lbl:
-		role_lbl.text = strings.get_text(role_key)
-	if line_lbl:
-		line_lbl.text = String.num(value, 1) + "×"
+func close_trait_popup() -> void:
+	var pop: CanvasItem = get_node_or_null("TraitPopup") as CanvasItem
+	if pop:
+		pop.visible = false
 
 
-func _text_ink_span(font: Font, font_size: int, text: String) -> Vector2:
-	## Top and bottom of the glyph bitmaps, relative to a top-aligned label.
-	## x is the top, y is the bottom. Empty bearing above the ink is x.
-	if font == null or font_size <= 0:
-		return Vector2(0, 16)
-	var ascent: float = font.get_ascent(font_size)
-	var fallback := Vector2(0, font.get_height(font_size))
-	var rids: Array = font.get_rids()
-	if rids.is_empty() or text.is_empty():
-		return fallback
-	var ts: TextServer = TextServerManager.get_primary_interface()
-	var rid: RID = rids[0]
-	var top: float = ascent
-	var bottom: float = ascent
-	var any: bool = false
-	for i: int in text.length():
-		var gl: int = ts.font_get_glyph_index(rid, font_size, text.unicode_at(i), 0)
-		if gl == 0:
-			continue
-		var off: Vector2 = ts.font_get_glyph_offset(rid, Vector2i(font_size, 0), gl)
-		var sz: Vector2 = ts.font_get_glyph_size(rid, Vector2i(font_size, 0), gl)
-		if sz.y <= 0.0:
-			continue
-		var gtop: float = ascent + off.y
-		var gbot: float = gtop + sz.y
-		if not any or gtop < top:
-			top = gtop
-		if not any or gbot > bottom:
-			bottom = gbot
-		any = true
-	if not any:
-		return fallback
-	return Vector2(top, bottom)
+func _trait_sentence() -> String:
+	var key: String = "char_sheet_elaia_trait" if _actor_id == "elaia" else "char_sheet_keeper_trait"
+	return CharacterSheet._auto("ContentStrings").get_text(key)
 
 
-func _layout_elaia_stats(sheet: Node) -> void:
-	## Size each role to its wrapped text, with room for descenders, then sit the value just under it.
-	var right: Control = sheet.get_node_or_null("ElaiaStats") as Control
-	if right == null:
-		return
-	var y: float = STAT_TOP
+func _build_trait_popup() -> void:
+	var pop := ColorRect.new()
+	pop.name = "TraitPopup"
+	pop.visible = false
+	pop.z_index = 40
+	pop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pop.color = Color(0.02, 0.03, 0.02, 0.55)
+	pop.mouse_filter = Control.MOUSE_FILTER_STOP
+	pop.gui_input.connect(_on_trait_dim_input)
+	add_child(pop)
+	var panel := Panel.new()
+	panel.name = "Panel"
+	panel.size = Vector2(520, 280)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.add_theme_stylebox_override("panel", _wood_style())
+	pop.add_child(panel)
+	var title := Label.new()
+	title.name = "Title"
+	title.position = Vector2(20, 16)
+	title.size = Vector2(400, 28)
+	title.add_theme_font_size_override("font_size", 18)
+	title.add_theme_color_override("font_color", GOLD)
+	panel.add_child(title)
+	var sub := Label.new()
+	sub.name = "Subtitle"
+	sub.position = Vector2(20, 48)
+	sub.size = Vector2(480, 28)
+	sub.clip_text = false
+	sub.add_theme_font_size_override("font_size", 14)
+	sub.add_theme_color_override("font_color", INK)
+	panel.add_child(sub)
+	var y: float = 92.0
 	for row_name: String in ["Work", "Reliquary", "Water", "Pace"]:
-		var block: Control = right.get_node_or_null("Row_%s" % row_name) as Control
-		if block == null:
-			continue
-		var name_host: Control = block.get_node_or_null("Name") as Control
-		var role_host: Control = block.get_node_or_null("Role") as Control
-		var line_host: Control = block.get_node_or_null("Line") as Control
-		var role_lbl: Label = role_host.get_node_or_null("Text") as Label if role_host else null
-		var line_lbl: Label = line_host.get_node_or_null("Text") as Label if line_host else null
-		if name_host == null or role_host == null or line_host == null or role_lbl == null:
-			continue
-		var width: float = 348.0
-		var font: Font = role_lbl.get_theme_font("font")
-		var font_size: int = role_lbl.get_theme_font_size("font_size")
-		var text_h: float = 16.0
-		if font != null:
-			text_h = font.get_multiline_string_size(role_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, width, font_size).y
-		## Fit the control to the wrapped line, then sit the value on the real glyph bottoms.
-		## Label line boxes include empty bearing, which was leaving a wide gap and clipping the last descent pixel when the box was short.
-		var role_span: Vector2 = _text_ink_span(font, font_size, role_lbl.text)
-		var line_font: Font = line_lbl.get_theme_font("font") if line_lbl else font
-		var line_size: int = line_lbl.get_theme_font_size("font_size") if line_lbl else 15
-		var line_span: Vector2 = _text_ink_span(line_font, line_size, line_lbl.text if line_lbl else "")
-		var lines: int = 1
-		if font != null and font.get_height(font_size) > 0.0:
-			lines = maxi(1, int(round(text_h / font.get_height(font_size))))
-		var ink_bottom: float = role_span.y + float(lines - 1) * (font.get_height(font_size) if font != null else text_h)
-		## The label stays taller than the ink so fractional scale does not slice the descent.
-		## The value is placed from the ink bottom, so that extra room is not an empty gap.
-		var role_h: float = maxf(ink_bottom, text_h) + 8.0
-		name_host.position = Vector2.ZERO
-		name_host.clip_contents = false
-		name_host.size.y = STAT_NAME_H + 4.0
-		var name_lbl: Label = name_host.get_node_or_null("Text") as Label
-		if name_lbl:
-			name_lbl.clip_text = false
-			name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-			name_lbl.position = Vector2.ZERO
-			name_lbl.size = Vector2(name_host.size.x, name_host.size.y)
-		role_host.position = Vector2(0, name_host.size.y)
-		role_host.size = Vector2(360, role_h)
-		role_host.clip_contents = false
-		block.clip_contents = false
-		role_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		role_lbl.clip_text = false
-		role_lbl.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-		role_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-		role_lbl.position = Vector2.ZERO
-		role_lbl.size = Vector2(width, role_h)
-		role_lbl.custom_minimum_size = role_lbl.size
-		var line_y: float = role_host.position.y + ink_bottom + ELAIA_VALUE_GAP - line_span.x
-		line_host.position = Vector2(0, line_y)
-		line_host.clip_contents = false
-		if line_lbl:
-			line_lbl.clip_text = false
-			line_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-			line_lbl.position = Vector2.ZERO
-			line_lbl.size = Vector2(line_host.size.x, maxf(line_host.size.y, line_span.y + 2.0))
-		block.position = Vector2(0, y)
-		block.size = Vector2(360, line_y + line_host.size.y)
-		y += block.size.y + ELAIA_ROW_GAP
+		var row := Control.new()
+		row.name = "Row%s" % row_name
+		row.position = Vector2(20, y)
+		row.size = Vector2(480, 32)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(row)
+		var name_lbl := Label.new()
+		name_lbl.name = "Name"
+		name_lbl.position = Vector2(0, 0)
+		name_lbl.size = Vector2(280, 32)
+		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		name_lbl.add_theme_font_size_override("font_size", 15)
+		name_lbl.add_theme_color_override("font_color", INK)
+		row.add_child(name_lbl)
+		var value_lbl := Label.new()
+		value_lbl.name = "Value"
+		value_lbl.position = Vector2(280, 0)
+		value_lbl.size = Vector2(180, 32)
+		value_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		value_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		value_lbl.add_theme_font_size_override("font_size", 15)
+		value_lbl.add_theme_color_override("font_color", GOLD)
+		row.add_child(value_lbl)
+		y += 36.0
+	var close := Button.new()
+	close.name = "CloseButton"
+	close.position = Vector2(400, 232)
+	close.size = Vector2(96, 32)
+	close.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_close")
+	close.pressed.connect(close_trait_popup)
+	_paint_button(close, Color(0.18, 0.14, 0.10, 1.0))
+	panel.add_child(close)
 
 
-static func elaia_portrait_texture() -> Texture2D:
-	var src: Texture2D = load("res://assets/art/echo/elaia_front.png") as Texture2D
-	if src == null:
-		return null
-	var atlas := AtlasTexture.new()
-	atlas.atlas = src
-	atlas.region = ELAIA_PORTRAIT_REGION
-	return atlas
+func _fill_trait_popup() -> void:
+	var panel: Node = get_node_or_null("TraitPopup/Panel")
+	if panel == null:
+		return
+	var strings = CharacterSheet._auto("ContentStrings")
+	var gs = CharacterSheet._auto("GameState")
+	var title: Label = panel.get_node_or_null("Title") as Label
+	var sub: Label = panel.get_node_or_null("Subtitle") as Label
+	if title:
+		title.text = strings.get_text("char_sheet_trait_popup_title")
+	if sub:
+		sub.text = _trait_sentence()
+	var work: float = float(gs.call("actor_work_rate", _actor_id, ""))
+	var relic: float = float(gs.call("actor_work_rate", _actor_id, "reliquary"))
+	var water: float = float(gs.call("actor_water_mult", _actor_id))
+	var pace: float = float(gs.call("actor_move_mult", _actor_id))
+	_set_trait_row(panel, "Work", "char_sheet_trait_work", work)
+	_set_trait_row(panel, "Reliquary", "char_sheet_trait_reliquary", relic)
+	_set_trait_row(panel, "Water", "char_sheet_trait_water", water)
+	_set_trait_row(panel, "Pace", "char_sheet_trait_move", pace)
 
 
-func _elaia_sheet_portrait() -> Texture2D:
-	return CharacterSheet.elaia_portrait_texture()
+func _set_trait_row(panel: Node, row_name: String, key: String, value: float) -> void:
+	var name_lbl: Label = panel.get_node_or_null("Row%s/Name" % row_name) as Label
+	var value_lbl: Label = panel.get_node_or_null("Row%s/Value" % row_name) as Label
+	if name_lbl:
+		name_lbl.text = CharacterSheet._auto("ContentStrings").get_text(key)
+	if value_lbl:
+		value_lbl.text = String.num(value, 1) + "×"
+
+
+func _place_trait_popup() -> void:
+	var panel: Control = get_node_or_null("TraitPopup/Panel") as Control
+	if panel == null:
+		return
+	var panel_size := Vector2(520, 280)
+	panel.size = panel_size
+	var origin: Vector2 = (size - panel_size) * 0.5
+	panel.position = Vector2(maxf(8.0, origin.x), maxf(8.0, origin.y))
+
+
+func _on_trait_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			var panel: Control = get_node_or_null("TraitPopup/Panel") as Control
+			if panel and panel.get_global_rect().has_point(mb.global_position):
+				return
+			close_trait_popup()
+
+
+func _paint_trait_button(btn: Button) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0, 0, 0, 0)
+	normal.set_content_margin_all(2.0)
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color(0.82, 0.64, 0.28, 0.18)
+	hover.set_content_margin_all(2.0)
+	hover.set_corner_radius_all(3)
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", hover)
+	btn.add_theme_stylebox_override("focus", hover)
+	btn.add_theme_color_override("font_color", INK)
+	btn.add_theme_color_override("font_hover_color", GOLD)
 
 
 func _on_dim_input(event: InputEvent) -> void:
@@ -777,12 +791,13 @@ func _on_dim_input(event: InputEvent) -> void:
 func _refresh() -> void:
 	if not _built:
 		return
-	if _actor_id == "elaia":
-		_apply_actor_chrome()
-		return
+	_apply_actor_chrome()
 	_refresh_slots()
 	_refresh_inventory()
 	_refresh_stats()
+	var pop: CanvasItem = get_node_or_null("TraitPopup") as CanvasItem
+	if pop and pop.visible:
+		_fill_trait_popup()
 
 
 func _refresh_slots() -> void:
@@ -808,7 +823,7 @@ func _refresh_inventory() -> void:
 		_inv_list.remove_child(child)
 		child.free()
 	var rows: Array[Dictionary] = []
-	for inst: Dictionary in CharacterSheet._auto("Equipment").list_unequipped():
+	for inst: Dictionary in CharacterSheet._auto("Equipment").list_for_sheet(_actor_id):
 		var iid: String = str(inst.get("id", ""))
 		if _gear_tab == "weapons" and CharacterSheet._auto("Equipment").item_slot(iid) != "weapon":
 			continue
@@ -828,6 +843,7 @@ func _refresh_inventory() -> void:
 		var row := GearRow.new()
 		row.host = self
 		row.item_id = str(inst.get("id", ""))
+		row.shown_count = int(inst.get("count", 1))
 		row.custom_minimum_size = Vector2(320, 48)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -844,15 +860,18 @@ func _refresh_stats() -> void:
 		var line: Label = root.get_node_or_null("Stat_%s/Line/Text" % sid) as Label
 		if line == null:
 			continue
-		var base: int = CharacterSheet._auto("KeeperStats").get_base(sid)
-		var gear: int = CharacterSheet._auto("Equipment").gear_bonus(sid)
+		var base: int = CharacterSheet._auto("KeeperStats").get_base_for(_actor_id, sid)
+		var gear: int = CharacterSheet._auto("Equipment").gear_bonus_for(_actor_id, sid)
 		var shown_gear: int = gear
 		if _hover_item_id != "":
-			shown_gear = CharacterSheet._auto("Equipment").preview_gear_bonus(sid, _hover_item_id)
+			shown_gear = CharacterSheet._auto("Equipment").preview_gear_bonus_for(_actor_id, sid, _hover_item_id)
 		var total: int = base + shown_gear
 		## base = STAT_BASE_START + ranks. Line is base + gear = total.
 		var text: String = "%d + %d = %d" % [base, shown_gear, total]
-		line.tooltip_text = CharacterSheet._auto("ContentStrings").get_text("stat_base_note")
+		if _actor_id == "elaia":
+			line.tooltip_text = ""
+		else:
+			line.tooltip_text = CharacterSheet._auto("ContentStrings").get_text("stat_base_note")
 		if _hover_item_id != "" and shown_gear != gear:
 			var delta: int = shown_gear - gear
 			var sign: String = "+" if delta > 0 else ""
@@ -1038,7 +1057,7 @@ class SlotPlate extends Panel:
 		if _square == null:
 			return
 		var unlocked: bool = CharacterSheet._auto("Equipment").is_slot_unlocked(slot_id)
-		var iid: String = CharacterSheet._auto("Equipment").equipped_id(slot_id)
+		var iid: String = CharacterSheet._auto("Equipment").equipped_id_for(_actor(), slot_id)
 		if not unlocked:
 			_hide_relic_glyph()
 			_show_slot_icon(HudIcons.EQUIP_LOCKED)
@@ -1095,12 +1114,17 @@ class SlotPlate extends Panel:
 			if footer:
 				footer.text = hint
 			return
-		var iid: String = CharacterSheet._auto("Equipment").equipped_id(slot_id)
+		var iid: String = CharacterSheet._auto("Equipment").equipped_id_for(_actor(), slot_id)
 		if iid != "":
 			host.call("request_unequip", slot_id)
 
+	func _actor() -> String:
+		if host != null and host.has_method("sheet_actor"):
+			return str(host.call("sheet_actor"))
+		return "keeper"
+
 	func _get_drag_data(_at: Vector2) -> Variant:
-		var iid: String = CharacterSheet._auto("Equipment").equipped_id(slot_id)
+		var iid: String = CharacterSheet._auto("Equipment").equipped_id_for(_actor(), slot_id)
 		if iid == "" or not CharacterSheet._auto("Equipment").is_slot_unlocked(slot_id):
 			return null
 		_dragged = true
@@ -1134,6 +1158,7 @@ class SlotPlate extends Panel:
 class GearRow extends Panel:
 	var item_id: String = ""
 	var host: Control = null
+	var shown_count: int = -1
 	var _pressed: bool = false
 	var _dragged: bool = false
 
@@ -1156,7 +1181,7 @@ class GearRow extends Panel:
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(icon)
 		var lbl := Label.new()
-		var count: int = CharacterSheet._auto("Equipment").unequipped_count(item_id)
+		var count: int = shown_count if shown_count >= 0 else CharacterSheet._auto("Equipment").unequipped_count(item_id)
 		var name: String = CharacterSheet._auto("Equipment").item_display_name(item_id)
 		lbl.text = name if count <= 1 else "%s  ×%d" % [name, count]
 		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL

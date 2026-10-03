@@ -114,6 +114,38 @@ func get_base(stat_id: String) -> int:
 	return stat_base_start() + get_rank(stat_id) * power_per_rank()
 
 
+## Elaia's sheet base is the Echo 1 enemy block, not a Runestone rank.
+## A sheet row with no Echo stat is 0. Her gear is added by Equipment.
+func get_base_for(actor: String, stat_id: String) -> int:
+	if actor == "elaia":
+		return elaia_echo_base(stat_id)
+	return get_base(stat_id)
+
+
+func elaia_echo_base(stat_id: String) -> int:
+	var stats: Dictionary = _echo_elaia_stats()
+	if not stats.has(stat_id):
+		return 0
+	return int(stats[stat_id])
+
+
+func _echo_elaia_stats() -> Dictionary:
+	## Same file the Echo Chamber fight uses. Numbers are not copied here.
+	if has_node("/root/EchoChamber"):
+		var live: Variant = EchoChamber.echo_def().get("stats", {})
+		if typeof(live) == TYPE_DICTIONARY and not (live as Dictionary).is_empty():
+			return live
+	var file := FileAccess.open("res://data/echo_keeper_01.json", FileAccess.READ)
+	if file == null:
+		return {}
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	var stats: Variant = (parsed as Dictionary).get("stats", {})
+	return stats if typeof(stats) == TYPE_DICTIONARY else {}
+
+
 ## Next purchase cost. -1 when the rank cap is reached.
 ## Rank 0 still costs BASE. The curve is not shifted by STAT_BASE_START.
 func get_next_cost(stat_id: String) -> int:
@@ -176,7 +208,8 @@ func affects_craft(_stat_id: String) -> bool:
 
 
 func on_ascend() -> void:
-	## Ranks stay. GameState still wipes the soft Manashard bank.
+	## Ranks stay. Elaia's base is the Echo file, so it stays too.
+	## GameState still wipes the soft Manashard bank.
 	pass
 
 
