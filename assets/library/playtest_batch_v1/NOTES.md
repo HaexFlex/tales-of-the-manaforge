@@ -4,20 +4,24 @@ Branch `art/playtest-batch-1004` (off `38816ac`). **Everything here is a new fil
 All runtime art is native size at scale 1, hard alpha (0/255), transparent RGB = 0, with no magenta or pink fringe. Every texture loads in a headless Godot load check.
 `.import` files use the project's 4.7 `[params]` block (no mipmaps, lossless, `fix_alpha_border`). Use nearest filtering.
 Contact sheet: `assets/library/playtest_batch_v1/playtest_batch_contact.png` (green backdrop).
+Update 2026-10-03 23:2x: portal v2 and `battle_elaia_key_w` added from the Imagine results. Raw outputs are in `imagine/out/`, snapped and candidate images in `source/`, and the scripts are `tools/portal_v2.py` and `tools/elaia_w_key.py`.
 Tools: `assets/library/playtest_batch_v1/tools/`. Manatree diff report: `reports/glow_only_report.json`.
 Code may rename the files. These are proposed names.
 
-## 1) Echo portal: NEEDS IMAGINE (not delivered)
-Current: `assets/art/props/echo_portal_hub.png` is 784x1168, but it is really 64x95 pixel art drawn at a ~12.25 px grid.
-`echo_portal.gd` fits it into `PORTAL_BOX=96`, so it shows at about 64x95 (visible arch about 64x78). That is shorter than the Keeper (about 118 px).
-Upscaling the 64-px art 2.5x would give chunky, uneven pixels, so a regen is prepared instead. Prompt and refs: `imagine/portal_prompt.md`, `imagine/portal_ref_*.png`.
-- Target: **160x200 canvas**, visible arch about 160x195, bottom-centre anchor. This is 2.5x the current visible size and about 1.6x the Keeper's height.
-- Name when it lands: `assets/art/props/echo_portal_hub_v2.png`.
-- Code then needs to:
-  - draw it at native scale 1 with offset (-80,-200), or raise `PORTAL_BOX` to 200;
-  - resize the CollisionShape2D (now 96x96 at (0,-48));
-  - move the Label up (now offset_top -124, about -228 after).
-- **Interim for the playtest with no art:** set `PORTAL_BOX` to about 240. The existing texture then shows at about 160x240 canvas (visible about 160x195). It looks soft and chunky, but the size reads right.
+## 1) Echo portal: `assets/art/props/echo_portal_hub_v2.png` (DONE, from Imagine `portal_v1_a`)
+- **Size:** 160x200 canvas; visible bbox x 0..159, y 5..199, so **160x195**. Hard alpha, 28 colours.
+- **Anchor:** bottom-centre, at canvas (80,200). The base touches the bottom row.
+- **How it was made:** Imagine drew on a clean grid of about 17.0 x 17.2 px cells, which is only **64x78 real pixels**, the same detail level as the old portal.
+  - Straight downscaling to 160 wide (or nearest-upscaling the snapped grid) gives uneven 2/3-px doubled blocks. Candidates A, B and D are in `source/`.
+  - So the final build snaps to Imagine's native grid (`source/portal_v1a_native.png`, 64x78) and resamples smoothly to 158x193. It is then re-quantised to 32 colours (28 used) with sharpen 0.5 and given a 1 px dark outer outline. Result: crisp 1-px pixels with no doubling, a little softer and more painterly than hand-pixelled art.
+  - Stone greys were snapped to the current portal's 11-grey stone palette (#37393e … #9a9893). Runes and vortex are Imagine's teal and blue.
+- **Old portal** `echo_portal_hub.png` is untouched (784x1168, about 64x95 real pixels).
+- **Code wiring** in `scripts/echo_portal.gd` / `scenes/echo_portal.tscn`:
+  - Set `PORTAL_ART` to v2.
+  - Draw at scale 1 with `centered=false` and offset (-80,-200), or set `PORTAL_BOX=200`, which with `_fit_marker` gives a fit of 1.0.
+  - CollisionShape2D: now 96x96 at (0,-48). Suggest 160x200 at (0,-100), or a base-only hitbox around 120x48 at (0,-24).
+  - Label: offset_top -124, move to about -228.
+- Prompt and refs used: `imagine/portal_prompt.md`, `imagine/portal_ref_*.png`. Raw output: `imagine/out/portal_v1_a.png`.
 
 ## 2) Echo battle sprites (`assets/art/echo/`)
 | file | size | content | anchor |
@@ -27,9 +31,13 @@ Upscaling the 64-px art 2.5x would give chunky, uneven pixels, so a regen is pre
 | `battle_elaia_idle_s.png` | 128x128 | Elaia companion v1 still, front | same |
 | `battle_elaia_idle_w.png` | 128x128 | Elaia v1 still, **facing left** (toward the Keeper) | same |
 | `battle_elaia_key_s.png` | 128x128 | Elaia front **holding the golden key**, remapped to her companion palette (key golds kept) | same, feet x≈66 |
+| `battle_elaia_key_w.png` | 128x128 | Elaia **facing left holding the golden key** (from Imagine `elaia_w_key_v1_a`) | bbox 36,9–82,123 (115 tall, same as idle W), feet x≈64, sole y=123 |
 
 - These are drop-ins for `KEEPER_IDLE` and `ELAIA_FRONT` in `echo_battle_view.gd`. A 128 canvas scales exactly 3x into the 384 portrait rects (stretch_mode keep-aspect-centred, nearest).
-- Suggested pairing: `battle_keeper_idle_e` on the left vs `battle_elaia_idle_w` on the right for side-on stances. If the key matters in the fight, use `battle_elaia_key_s` (there is no side-facing key version yet; it is an optional Imagine item, `imagine/elaia_w_key_prompt.md`).
+- Suggested pairing: `battle_keeper_idle_e` on the left vs `battle_elaia_idle_w` on the right for side-on stances. If the key matters in the fight, use `battle_elaia_key_w` (side-on) or `battle_elaia_key_s` (front).
+- How `battle_elaia_key_w` was built: Imagine's output snapped to its about 10.7 px grid gives 47x115 native, already the idle-W height. Aligned to `battle_elaia_idle_w` by silhouette, its body matched that sprite pixel for pixel outside the arm.
+  - So everything is **locked to `battle_elaia_idle_w`** (face, hair, robe and boots are identical) except the forward hand and forearm and the key. That is 715 px, taken from Imagine.
+  - The hand and sleeve were remapped to Elaia's 40-colour companion palette. The key golds were remapped to the 12 gold colours used by `battle_elaia_key_s`, so both key sprites share one gold set. 49 colours total.
 - The old `elaia_front.png` is RGB with a black background. These are true RGBA.
 - **Code:** `verify_headless.gd` checks the path substrings `keeper_idle_south` and `elaia_front`. Update those checks when the constants change.
 
@@ -105,6 +113,8 @@ The glow bboxes these come from, relative to the door sill:
 - Elaia: companion v1 stills, plus the box-only key sprite `elaia_anims/work/elaia_s_key_128.png` (from `elaia_front.png`).
 - Icons and buttons: built from the existing `pause_*`, `prop_anvil_idle` and the mature Manatree strip.
 - Scripts in `tools/`:
+  - `portal_v2.py`
+  - `elaia_w_key.py`
   - `battle_sprites.py`
   - `hud_scene_icons.py`
   - `speed_buttons.py`

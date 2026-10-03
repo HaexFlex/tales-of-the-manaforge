@@ -4,18 +4,21 @@ F=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',18);
 W=1800; cv=Image.new('RGBA',(W,1500),BG); d=ImageDraw.Draw(cv)
 def up(im,s): return im.resize((im.width*s,im.height*s),Image.NEAREST)
 def lab(x,y,t,small=False): d.text((x,y),t,fill=(240,240,220,255),font=f2 if small else F)
-y=10; lab(10,y,'1) Portal (current, in-game size 64x95, shown x2) next to the Keeper; dashed box = 160x200 target for the Imagine regen'); y+=34
+y=10; lab(10,y,'1) Portal: old (in-game 64x95) | Keeper | NEW echo_portal_hub_v2 160x200 (visible 160x195). Left group at x2, right group at native x1'); y+=34
 portal=Image.open('work/portal_native_64x95.png'); keeper=Image.open('/workspace/keeper_idle/repo/assets/library/experiments/keeper_idle_4dir/v3_stills_8dir/option_a/keeper_still_s.png').convert('RGBA')
+newp=Image.open(R+'props/echo_portal_hub_v2.png')
 base=y+200*2+10
-cv.alpha_composite(up(portal,2),(40,base-95*2)); cv.alpha_composite(up(keeper,2),(40+64*2+10,base-123*2-2))
-bx=520; 
-for i in range(0,400,12): d.line((bx,base-i,bx,base-i-6),fill=(255,255,255,255),width=2); d.line((bx+320,base-i,bx+320,base-i-6),fill=(255,255,255,255),width=2)
-for i in range(0,320,12): d.line((bx+i,base,bx+i+6,base),fill=(255,255,255,255),width=2); d.line((bx+i,base-400,bx+i+6,base-400),fill=(255,255,255,255),width=2)
-vis=portal.crop(portal.getbbox()).resize((320,390),Image.NEAREST); cv.alpha_composite(vis,(bx,base-390))
-cv.alpha_composite(up(keeper,2),(bx+330,base-123*2-2)); lab(bx,base+4,'target 160x200 (x2), current art blown up 2.5x as a guide only, vs Keeper',True); lab(40,base+4,'current 64x95 vs Keeper',True)
-y=base+30; lab(10,y,'2) Echo battle sprites 128x128 (x2): keeper S, keeper E, elaia S, elaia W, elaia S + key'); y+=30
-for i,n in enumerate(['battle_keeper_idle_s','battle_keeper_idle_e','battle_elaia_idle_s','battle_elaia_idle_w','battle_elaia_key_s']):
-    cv.alpha_composite(up(Image.open(R+f'echo/{n}.png'),2),(40+i*270,y)); lab(40+i*270,y+258,n+'.png',True)
+x=40
+cv.alpha_composite(up(portal,2),(x,base-95*2)); x+=64*2+10
+cv.alpha_composite(up(keeper,2),(x,base-124*2)); x+=100*2
+cv.alpha_composite(up(newp,2),(x,base-200*2)); x+=160*2+20
+lab(40,base+4,'x2: old portal | Keeper | new portal (same scale)',True)
+x1=x+60
+cv.alpha_composite(portal,(x1,base-95)); cv.alpha_composite(keeper,(x1+70,base-124)); cv.alpha_composite(newp,(x1+170,base-200))
+lab(x1,base+4,'x1 native: old | Keeper | new',True)
+y=base+30; lab(10,y,'2) Echo battle sprites 128x128 (x2): keeper S, keeper E, elaia S, elaia W, elaia S + key, elaia W + key (new)'); y+=30
+for i,n in enumerate(['battle_keeper_idle_s','battle_keeper_idle_e','battle_elaia_idle_s','battle_elaia_idle_w','battle_elaia_key_s','battle_elaia_key_w']):
+    cv.alpha_composite(up(Image.open(R+f'echo/{n}.png'),2),(30+i*262,y)); lab(30+i*262,y+258,n+'.png',True)
 y+=285; lab(10,y,'3) HUD scene icons, speed buttons (normal/hover/pressed), baked 1x-16x, glyphs (x4)'); y+=30
 x=40
 for n in ['icons/hud_scene_clearing','icons/hud_scene_forge']: cv.alpha_composite(up(Image.open(R+f'ui/{n}.png'),4),(x,y)); x+=140
