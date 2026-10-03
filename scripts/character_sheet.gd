@@ -80,6 +80,9 @@ const STAT_GAP_SMALL: float = 4.0
 const STAT_NUM_H: float = 24.0
 const STAT_GAP_LARGE: float = 10.0
 const STAT_STRIDE: float = STAT_NAME_H + STAT_ROLE_H + STAT_GAP_SMALL + STAT_NUM_H + STAT_GAP_LARGE
+## Elaia role lines wrap. Two font-11 lines fit without covering the multiplier.
+const ELAIA_ROLE_H: float = 36.0
+const ELAIA_STAT_STRIDE: float = STAT_NAME_H + ELAIA_ROLE_H + STAT_GAP_SMALL + STAT_NUM_H + STAT_GAP_LARGE
 const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
 const INK: Color = Color(0.92, 0.86, 0.72, 1.0)
@@ -543,8 +546,10 @@ func _build_elaia_panels(sheet: Control) -> void:
 	var note := Label.new()
 	note.name = "Note"
 	note.position = Vector2(0, 36)
-	note.size = Vector2(340, 80)
+	note.size = Vector2(340, 120)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.clip_text = false
+	note.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	note.add_theme_font_size_override("font_size", 13)
 	note.add_theme_color_override("font_color", MUTED)
 	mid.add_child(note)
@@ -568,15 +573,22 @@ func _build_elaia_panels(sheet: Control) -> void:
 		var block := Control.new()
 		block.name = "Row_%s" % row_name
 		block.position = Vector2(0, y)
-		block.size = Vector2(360, STAT_STRIDE)
+		block.size = Vector2(360, ELAIA_STAT_STRIDE)
 		block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		right.add_child(block)
 		var role_y: float = STAT_NAME_H - 8.0
-		var line_y: float = role_y + STAT_ROLE_H + STAT_GAP_SMALL
+		var line_y: float = role_y + ELAIA_ROLE_H + STAT_GAP_SMALL
 		_add_stat_row(block, "Name", "", 14, INK, 0.0, STAT_NAME_H)
-		_add_stat_row(block, "Role", "", 11, MUTED, role_y, STAT_ROLE_H)
+		_add_stat_row(block, "Role", "", 11, MUTED, role_y, ELAIA_ROLE_H)
 		_add_stat_row(block, "Line", "", 15, INK, line_y, STAT_NUM_H)
-		y += STAT_STRIDE
+		var role_lbl: Label = block.get_node_or_null("Role/Text") as Label
+		if role_lbl:
+			role_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			role_lbl.clip_text = false
+			role_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+			role_lbl.position = Vector2.ZERO
+			role_lbl.size = Vector2(348, ELAIA_ROLE_H)
+		y += ELAIA_STAT_STRIDE
 
 
 func _apply_actor_chrome() -> void:
@@ -635,6 +647,11 @@ func _set_elaia_row(sheet: Node, row_name: String, name_key: String, role_key: S
 		name_lbl.text = strings.get_text(name_key)
 	if role_lbl:
 		role_lbl.text = strings.get_text(role_key)
+		role_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		role_lbl.clip_text = false
+		role_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		role_lbl.position = Vector2.ZERO
+		role_lbl.size = Vector2(348, ELAIA_ROLE_H)
 	if line_lbl:
 		line_lbl.text = String.num(value, 1) + "×"
 

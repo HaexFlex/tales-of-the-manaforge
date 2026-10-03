@@ -1062,6 +1062,11 @@ func _content_keys() -> int:
 		"hud_task_idle", "hud_stage_label", "hud_stage_label_fruit_ready",
 		"elaia_join_1", "elaia_join_2", "elaia_join_3", "elaia_join_4", "elaia_join_5",
 		"elaia_join_toast", "hud_elaia_portrait_tooltip", "hud_companion_target_busy",
+		"char_sheet_elaia_title", "char_sheet_elaia_role", "char_sheet_elaia_no_gear",
+		"char_sheet_elaia_tending", "char_sheet_elaia_work_rate", "char_sheet_elaia_work_role",
+		"char_sheet_elaia_reliquary", "char_sheet_elaia_reliquary_role",
+		"char_sheet_elaia_water", "char_sheet_elaia_water_role",
+		"char_sheet_elaia_move", "char_sheet_elaia_move_role",
 	])
 	var shop: PackedStringArray = PackedStringArray([
 		"station_busy", "station_paused", "not_enough_material", "job_done", "jobs_finished_away",
