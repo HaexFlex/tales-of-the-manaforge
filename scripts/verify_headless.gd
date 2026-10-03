@@ -3271,9 +3271,65 @@ func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(order_column != null and wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, Elaia")
 	hud.call("party_click", "elaia")
 	failed += _assert(str(game_state.get("selected_companion_id")) == "elaia", "click Elaia portrait selects her")
+	failed += await _party_activity_check(hud, game_state, tree_root)
 	hud.queue_free()
 	await process_frame
 	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _party_activity_check(hud: Node, game_state: Node, tree_root: Window) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	var keeper_slot: Control = hud.get_node_or_null("PartyBar/Column/Keeper") as Control
+	var elaia_slot: Control = hud.get_node_or_null("PartyBar/Column/Elaia") as Control
+	var keeper_act: Label = hud.get_node_or_null("PartyBar/KeeperActivity") as Label
+	var elaia_act: Label = hud.get_node_or_null("PartyBar/ElaiaActivity") as Label
+	var info: Control = hud.get_node_or_null("PartyBar/Info") as Control
+	var task: Label = hud.get_node_or_null("PartyBar/Info/Task") as Label
+	failed += _assert(jobs != null and keeper_act != null and elaia_act != null and info != null and task != null, "activity labels exist")
+	if jobs == null or keeper_act == null or elaia_act == null or info == null or task == null:
+		return failed
+	var selected_word: String = str(strings.call("get_text", "hud_activity_selected"))
+	var idle_word: String = str(strings.call("get_text", "hud_activity_idle"))
+	var stone_word: String = str(strings.call("get_text", "hud_activity_harvest_stone"))
+	var berry_word: String = str(strings.call("get_text", "hud_activity_harvest_food"))
+	game_state.set("elaia_join_seen", false)
+	game_state.call("clear_selection")
+	hud.call("_refresh_party_bar")
+	await process_frame
+	failed += _assert(not elaia_slot.visible and not elaia_act.visible and elaia_act.text == "", "no Elaia activity before she joins")
+	failed += _assert(keeper_act.visible and is_equal_approx(keeper_act.position.y, keeper_slot.position.y), "keeper activity stays on the keeper row before Elaia joins — y %s slot %s" % [keeper_act.position.y, keeper_slot.position.y])
+	failed += _assert(not info.visible and task.text == "", "shared info box shows no activity before Elaia joins")
+	game_state.set("elaia_join_seen", true)
+	jobs.call("set_keeper_task", "harvest", "stone", true)
+	jobs.call("set_elaia_task", "harvest", "food", true)
+	game_state.call("select_keeper")
+	hud.call("_refresh_party_bar")
+	await process_frame
+	failed += _assert(is_equal_approx(keeper_act.position.y, keeper_slot.position.y), "keeper activity row matches the portrait when selected — y %s slot %s" % [keeper_act.position.y, keeper_slot.position.y])
+	failed += _assert(is_equal_approx(elaia_act.position.y, elaia_slot.position.y), "elaia activity row matches the portrait when the keeper is selected — y %s slot %s" % [elaia_act.position.y, elaia_slot.position.y])
+	failed += _assert(keeper_act.text == "%s\n%s" % [selected_word, stone_word], "selected keeper activity is beside the keeper — %s" % keeper_act.text)
+	failed += _assert(elaia_act.text == " \n%s" % berry_word, "elaia activity stays on her row while the keeper is selected — %s" % elaia_act.text)
+	failed += _assert(not info.visible and task.text == "", "shared info box shows no activity while someone is selected")
+	var keeper_y: float = keeper_act.position.y
+	var elaia_y: float = elaia_act.position.y
+	game_state.call("clear_selection")
+	hud.call("_refresh_party_bar")
+	await process_frame
+	failed += _assert(is_equal_approx(keeper_act.position.y, keeper_y) and is_equal_approx(elaia_act.position.y, elaia_y), "activity rows do not shift when selection clears")
+	failed += _assert(keeper_act.text == " \n%s" % stone_word, "keeper keeps harvesting stone with nobody selected — %s" % keeper_act.text)
+	failed += _assert(elaia_act.text == " \n%s" % berry_word, "elaia keeps harvesting berries with nobody selected — %s" % elaia_act.text)
+	failed += _assert(keeper_act.text.find(selected_word) < 0 and elaia_act.text.find(selected_word) < 0, "nobody selected means no Selected line")
+	failed += _assert(not info.visible and task.text == "", "shared info box shows no activity with nobody selected")
+	game_state.call("select_keeper")
+	hud.call("_refresh_party_bar")
+	failed += _assert(keeper_act.text.begins_with(selected_word) and elaia_act.text.find(idle_word) < 0, "selecting the keeper does not rewrite Elaia's activity")
+	jobs.call("set_keeper_task", "harvest", "stone", false)
+	jobs.call("set_elaia_task", "harvest", "food", false)
+	game_state.call("clear_selection")
+	game_state.set("elaia_join_seen", true)
 	return failed
 
 

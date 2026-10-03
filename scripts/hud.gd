@@ -461,10 +461,9 @@ func _process(_delta: float) -> void:
 	_refresh_nav_button()
 	_refresh_frozen_banner()
 	_refresh_speed_button()
-	if _party_info != null and _party_info.visible:
-		_apply_selection_job()
 	if _keeper_activity != null:
 		_refresh_actor_activities(GameState.elaia_portrait_visible(), GameState.keeper_selected, str(GameState.selected_companion_id))
+	_settle_world_labels()
 
 
 func _refresh_dim() -> void:
@@ -792,7 +791,6 @@ func _refresh_party_bar() -> void:
 	_slot_keeper.visible = true
 	_slot_elaia.visible = elaia_joined
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
-	_refresh_actor_activities(elaia_joined, show_keeper, companion_id)
 	_slot_wisp.visible = not ids.is_empty()
 	_set_party_outline(_slot_keeper, show_keeper)
 	_set_party_outline(_slot_elaia, companion_id == "elaia")
@@ -803,40 +801,29 @@ func _refresh_party_bar() -> void:
 	else:
 		_wisp_count_label.text = ""
 		_wisp_count_label.visible = false
-	if not show_keeper and ids.is_empty() and companion_id == "":
+	_refresh_actor_activities(elaia_joined, show_keeper, companion_id)
+	_clear_shared_activity()
+
+
+func _clear_shared_activity() -> void:
+	## Activity lives on each portrait. The old shared box stays in the tree for lookups and stays blank.
+	if _sel_name:
+		_sel_name.text = ""
+	if _sel_extra:
+		_sel_extra.text = ""
+		_sel_extra.visible = false
+	if _sel_task:
+		_sel_task.text = ""
+		_sel_task.visible = false
+	if _sel_job:
+		_sel_job.text = ""
+		_sel_job.visible = false
+	if _party_info:
 		_party_info.visible = false
-		_apply_selection_job()
-		_hide_party_info_for_sheet()
-		return
-	_party_info.visible = true
-	_sel_extra.visible = false
-	if show_keeper and not ids.is_empty():
-		_sel_name.text = ContentStrings.get_text("hud_sel_keeper")
-		_sel_extra.text = ContentStrings.get_text("hud_sel_plus_wisps")
-		_sel_extra.visible = true
-		_sel_task.text = _keeper_task_text()
-	elif show_keeper:
-		_sel_name.text = ContentStrings.get_text("hud_sel_keeper")
-		_sel_task.text = _keeper_task_text()
-	elif companion_id == "elaia" and elaia_joined:
-		_sel_name.text = ContentStrings.get_text("echo_elaia_name")
-		_sel_task.text = _hero_task_text(ForgeJobs.elaia_task() if has_node("/root/ForgeJobs") else {})
-	elif ids.size() >= 2:
-		_sel_name.text = ContentStrings.get_text("hud_sel_wisp_group")
-		_sel_task.text = _group_task_text(ids, false)
-	elif not ids.is_empty():
-		_sel_name.text = ContentStrings.get_text("hud_sel_wisp")
-		_sel_task.text = _wisp_task_text(ids[0])
-	else:
-		_party_info.visible = false
-	_apply_selection_job()
-	_hide_party_info_for_sheet()
 
 
 func _hide_party_info_for_sheet() -> void:
-	## The name line sits beside the portraits and would cover the sheet.
-	if is_character_open() and _party_info:
-		_party_info.visible = false
+	_clear_shared_activity()
 
 
 func _apply_selection_job() -> void:
@@ -1856,27 +1843,70 @@ func _make_activity_label(node_name: String, y: float) -> Label:
 	lbl.name = node_name
 	lbl.position = Vector2(PARTY_SLOT + 8.0, y)
 	lbl.size = Vector2(210, 52)
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_style_party_label(lbl, 13, Color(0.9, 0.94, 0.82))
 	return lbl
 
 
+func _portrait_row_y(which: String) -> float:
+	## Matches Column: 56px slots, 6px separation, hidden rows take no space.
+	var step: float = PARTY_SLOT + 6.0
+	var y: float = 0.0
+	if _slot_wisp != null and _slot_wisp.visible:
+		if which == "wisp":
+			return y
+		y += step
+	if which == "keeper":
+		return y
+	return y + step
+
+
+func _place_activity_label(label: Label, which: String) -> void:
+	label.position = Vector2(PARTY_SLOT + 8.0, _portrait_row_y(which))
+
+
 func _refresh_actor_activities(elaia_visible: bool, keeper_selected: bool, companion_id: String) -> void:
 	if _keeper_activity:
 		_keeper_activity.visible = true
+		_place_activity_label(_keeper_activity, "keeper")
 		_keeper_activity.text = _actor_status_text("keeper", keeper_selected)
 	if _elaia_activity:
 		_elaia_activity.visible = elaia_visible
+		_place_activity_label(_elaia_activity, "elaia")
 		if elaia_visible:
 			_elaia_activity.text = _actor_status_text("elaia", companion_id == "elaia")
+		else:
+			_elaia_activity.text = ""
 
 
 func _actor_status_text(actor: String, selected: bool) -> String:
-	var activity: String = _activity_line(actor)
-	if selected:
-		return "%s\n%s" % [ContentStrings.get_text("hud_activity_selected"), activity]
-	return activity
+	## Line 1 is always reserved, so the activity line does not jump when selection changes.
+	var head: String = ContentStrings.get_text("hud_activity_selected") if selected else " "
+	return "%s\n%s" % [head, _activity_line(actor)]
+
+
+func _settle_world_labels() -> void:
+	## The resource bar is translucent, so a world Label in that band would show through it.
+	var scene: Node = get_tree().current_scene
+	if scene == null:
+		return
+	var band := Rect2(0, 0, get_viewport().get_visible_rect().size.x, 82.0)
+	_fade_world_labels(scene, band, false)
+
+
+func _fade_world_labels(node: Node, band: Rect2, in_layer: bool) -> void:
+	var layer: bool = in_layer or node is CanvasLayer
+	if not layer and node is Label:
+		var lbl: Label = node as Label
+		if lbl.visible:
+			var screen: Transform2D = lbl.get_global_transform_with_canvas()
+			var rect := Rect2(screen.origin, lbl.size * screen.get_scale())
+			var mod: Color = lbl.modulate
+			mod.a = 0.0 if rect.intersects(band) else 1.0
+			lbl.modulate = mod
+	for child: Node in node.get_children():
+		_fade_world_labels(child, band, layer)
 
 
 func _activity_line(actor: String) -> String:
