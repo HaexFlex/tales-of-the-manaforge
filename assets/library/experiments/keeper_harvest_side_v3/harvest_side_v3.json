@@ -25,16 +25,6 @@
    187,
    202,
    205
-  ],
-  "berry_dark": [
-   132,
-   10,
-   10
-  ],
-  "berry_red": [
-   186,
-   14,
-   12
   ]
  },
  "wood": "Option A browns (no extra)",
@@ -189,7 +179,7 @@
     "reach start",
     "reach",
     "reach full (at bush)",
-    "PLUCK (berries in hand)",
+    "PLUCK (hand closes at the bush; no berry pixels since v1b)",
     "close hand / pull",
     "retract",
     "drop into hip pouch"
@@ -215,7 +205,7 @@
     3.833,
     4.083
    ],
-   "palette": "palette_berry.json"
+   "palette": "palette_berries.json"
   },
   "harvest_berries_west": {
    "files": [
@@ -245,7 +235,7 @@
     "reach start",
     "reach",
     "reach full (at bush)",
-    "PLUCK (berries in hand)",
+    "PLUCK (hand closes at the bush; no berry pixels since v1b)",
     "close hand / pull",
     "retract",
     "drop into hip pouch"
@@ -271,7 +261,7 @@
     3.833,
     4.083
    ],
-   "palette": "palette_berry.json"
+   "palette": "palette_berries.json"
   },
   "harvest_pickaxe_east": {
    "files": [
@@ -395,5 +385,28 @@
    ],
    "palette": "palette_iron.json"
   }
- }
+ },
+ "dropped_v1b": {
+  "berry_dark": [
+   132,
+   10,
+   10
+  ],
+  "berry_red": [
+   186,
+   14,
+   12
+  ],
+  "why": "Haex 2026-10-03: red berries read as putting berries ON the bush; all berry pixels removed from harvest_berries_{east,west}; berries clip palette = Option A 48 only"
+ },
+ "berries_v1b_changed_px_per_frame": [
+  3,
+  12,
+  17,
+  17,
+  38,
+  12,
+  13,
+  14
+ ]
 }

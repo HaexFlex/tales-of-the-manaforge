@@ -6,9 +6,24 @@ Experiment only. **Not wired into the game.** Three right-facing (east) harvest 
 |---|---|---|---|---|---|
 | harvest_axe_{east,west} | 9 | 140,70,60,**180**,90,90,90,90,90 | 900 ms | **3** (axe blade at ground) | 35,37,38,39,41,45,49,53,55 (t = 1.417 … 2.250 s) |
 | harvest_pickaxe_{east,west} | 9 | 100,90,90,150,70,60,60,**180**,100 | 900 ms | **7** (tip at ground) | 40,43,47,50,54,57,59,61,64 (t = 1.625 … 2.625 s) |
-| harvest_berries_{east,west} | 8 | 160,90,90,100,**160**,100,90,110 | 900 ms | **4** (pluck, berries in hand) | 66,71,75,79,82,86,93,99 (t = 2.708 … 4.083 s) |
+| harvest_berries_{east,west} | 8 | 160,90,90,100,**160**,100,90,110 | 900 ms | **4** (pluck: hand closes at the bush; no berry pixels since v1b) | 66,71,75,79,82,86,93,99 (t = 2.708 … 4.083 s) |
 
 Phases are listed per frame in each clip JSON (`phases`). `impact_frame` is a 0-based index into `files`. Per-frame durations are in `durations_ms`.
+
+## v1b (2026-10-03): berries without berries
+Haex's feedback: the movement is OK, but the red berry pixels made it look like he puts berries ON the bush instead of picking them. Every berry pixel is now removed from `harvest_berries_{east,west}`, including the berries in the pouch, so there is no red anywhere.
+- **Motion, timing, frame choice, anchor and canvas are unchanged.** Axe and pickaxe frames are byte-for-byte unchanged (pixel diff 0).
+- `build_harvest.deberry()`, applied after the head and pouch locks:
+  - All berry_dark (132,10,10) and berry_red (186,14,12) pixels are found.
+  - Each is filled from its 8 neighbours, working from the outside in. If it has more opaque than transparent neighbours, it takes the most common neighbour colour (glove/hand, pouch interior, coat). Otherwise it becomes transparent.
+  - The berry cluster hanging on its stem below the hand in frame 4 (f82; box rows 62–67, x 133–141), and the berry tip under the fingers in frame 3 (f79; (62,136)), are cleared to transparent.
+  - Light specks left in the pouch opening (berry highlights that had been mapped to browns) become the pouch-interior dark brown, so the pouch reads empty.
+  - West is re-mirrored from east.
+- Pixels changed per frame (east; west identical): 3, 12, 17, 17, 38, 12, 13, 14. Details are in `assembly.json` → `berries.deberry_v1b`.
+- The berries palette is now **Option A 48 only** (`palette_berries.json`). The berry colours are gone from the berries meta, `palette_harvest_all.json` (51 = 48 + 3 iron) and `harvest_side_v3.json`. `palette_berry.json` is deleted. `source/extra_colors.json` keeps the original derivation for history.
+- Check: 52/52 frames pass (alpha 0/255, transparent corners and border, no magenta or tint, 0 off-palette against the 48-colour palette). 0 berry-colour pixels and 0 saturated-red pixels remain in all 16 berries frames.
+  - The 8 maroon (80,21,33) pixels per frame are the Option A hair/face outline colour (the still has 25). They sit in the locked head, rows 13–52, and are not berries.
+- Frame 4 is now "the hand closes at the bush". The pluck reads only from the motion (reach, close the hand, retract to the pouch).
 
 ## Canvas / anchor
 - **Canvas: 192×136 RGBA.** The 192×128 spec does not fit. At the matched body height of 119 px, the overhead axe and pickaxe frames reach row 2, which is 8 rows above a 128 canvas. 136 is the smallest even height that fits with a clear 1 px border.
@@ -42,9 +57,9 @@ Phases are listed per frame in each clip JSON (`phases`). `impact_frame` is a 0-
 ## Palette
 Option A 48 colours (`palette_optionA_base48.json`) plus only these extras:
 - **axe / pickaxe** (`palette_iron.json`, 51): iron_dark (100,105,108), iron_mid (143,151,155), iron_light (187,202,205).
-- **berries** (`palette_berry.json`, 50): berry_dark (132,10,10), berry_red (186,14,12).
+- **berries** (`palette_berries.json`, 48): Option A only since v1b. The berry_dark (132,10,10) and berry_red (186,14,12) used in v1 were dropped.
 - Wood: the existing Option A browns were enough, so no wood colour was added.
-- `palette_harvest_all.json` holds the union (53).
+- `palette_harvest_all.json` holds the union (51).
 
 ## Transparency check (`alpha_check.md`)
 **52/52 frames PASS.** Every frame:
@@ -62,7 +77,7 @@ Option A 48 colours (`palette_optionA_base48.json`) plus only these extras:
   - Impact (7) and recoil (8/0) look alike because the pick rests at the ground for about 380 ms. The impact accent is weaker than the axe's.
   - Rock removal also trims the bottom tip of the pick a little at impact.
   - Loops cleanly. The pick head shape varies slightly between frames (video), but colours are consistent after the hue fix.
-- **Berries:** subtle but readable: reach to the right, berries visible in hand on the pluck frame, retract, hand to pouch.
+- **Berries:** (v1 verdict; see v1b above for the berry removal) subtle but readable: reach to the right, berries visible in hand on the pluck frame, retract, hand to pouch.
   - The berries are only ~3–6 px and only frames 2–4 show red at the hand, so the pluck is small at 1×.
   - No flicker (head and pouch locked, the body is static). Loops seamlessly. On-model.
 

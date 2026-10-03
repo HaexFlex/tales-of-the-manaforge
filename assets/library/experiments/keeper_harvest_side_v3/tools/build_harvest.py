@@ -21,7 +21,7 @@ SPEC = {   # act: (source video frames 1-based, ms per frame, impact index, phas
  'pickaxe': ([40, 43, 47, 50, 54, 57, 59, 61, 64], [100, 90, 90, 150, 70, 60, 60, 180, 100], 7,
              ['settle (pick at ground)', 'lift', 'raise', 'wind-up peak (anticipation, pick behind head)', 'swing over head', 'swing', 'swing (low)', 'IMPACT (tip at ground)', 'recoil']),
  'berries': ([66, 71, 75, 79, 82, 86, 93, 99], [160, 90, 90, 100, 160, 100, 90, 110], 4,
-             ['rest (hand at pouch)', 'reach start', 'reach', 'reach full (at bush)', 'PLUCK (berries in hand)', 'close hand / pull', 'retract', 'drop into hip pouch']),
+             ['rest (hand at pouch)', 'reach start', 'reach', 'reach full (at bush)', 'PLUCK (hand closes at the bush; no berry pixels since v1b)', 'close hand / pull', 'retract', 'drop into hip pouch']),
 }
 LOCK = {'berries': (66, 40)}
 POUCH = {'berries': (3, (76, 97, 82, 100), [1, 2, 4, 5, 6])}   # (ref frame index, rows y0:y1, cols x0:x1, frames)
@@ -71,6 +71,53 @@ def hair_edge(f):
     gn = ndimage.convolve(green.astype(int), k, mode='constant'); bn = ndimage.convolve(blue.astype(int), k, mode='constant')
     m = edge & blue & (gn >= 2) & (gn > bn); g[m, :3] = HAIR_OUTLINE; return g, int(m.sum())
 
+BERRY = [(132, 10, 10), (186, 14, 12)]
+# v1b (Haex 2026-10-03): the red berries read as putting berries ON the bush -> remove every berry pixel from the berries clip.
+# Hanging berry clusters below the hand (berry + stem + its outline) are cleared by box -> transparent (nothing behind them):
+BERRY_AIR = {4: [(62, 68, 133, 142)], 3: [(62, 63, 136, 138)]}   # frame index: [(y0, y1, x0, x1)] (f82 cluster on its stem, f79 berry tip)
+def deberry(f, k):
+    """remove berry pixels: berry colours + boxes in BERRY_AIR. Each berry pixel is then decided from its 8 neighbours
+    (iteratively, so clusters fill from the outside in): more opaque than transparent known neighbours -> the most common
+    opaque neighbour colour (hand / glove / pouch interior / coat), otherwise transparent (outside the body)."""
+    g = f.copy(); op = g[..., 3] > 0
+    bad = op & np.any([(g[..., :3] == c).all(-1) for c in BERRY], 0); n_col = int(bad.sum()); n_air = 0
+    for (y0, y1, x0, x1) in BERRY_AIR.get(k, []):
+        n_air += int((op[y0:y1, x0:x1] & ~bad[y0:y1, x0:x1]).sum()); g[y0:y1, x0:x1] = 0; bad[y0:y1, x0:x1] = False
+    unknown = bad.copy(); H_, W_ = unknown.shape; filled = transp = 0
+    while unknown.any():
+        decided = []; cand = []
+        for y, x in zip(*np.nonzero(unknown)):
+            nb_op, nb_tr, cols = 0, 0, []
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    if (dy or dx) and 0 <= y + dy < H_ and 0 <= x + dx < W_ and not unknown[y + dy, x + dx]:
+                        if g[y + dy, x + dx, 3] > 0: nb_op += 1; cols.append(tuple(g[y + dy, x + dx, :3]))
+                        else: nb_tr += 1
+            cand.append((nb_op + nb_tr, (y, x, nb_op, nb_tr, cols)))
+        decided = [c for n, c in cand if n >= 3]
+        if not decided:   # deep inside a cluster: decide the pixels with the most known neighbours first
+            m = max(n for n, c in cand)
+            if m == 0: break
+            decided = [c for n, c in cand if n == m]
+        for y, x, no, nt, cols in decided:
+            if no > nt:
+                vals, cnt = np.unique(np.array(cols), axis=0, return_counts=True); g[y, x, :3] = vals[np.argmax(cnt)]; g[y, x, 3] = 255; filled += 1
+            else: g[y, x] = 0; transp += 1
+            unknown[y, x] = False
+    # pouch opening (rows 85-86, x 87-94): leftover light specks there are berry highlights quantised to browns ->
+    # pouch-interior dark brown if >= 3 of their 4 neighbours are dark interior/outline browns (so the pouch reads empty)
+    DARKS = [(54, 26, 12), (37, 16, 8), (71, 36, 16)]; spk = 0
+    for _ in range(2):
+        for y in range(85, 87):
+            for x in range(87, 95):
+                c = tuple(int(v) for v in g[y, x, :3])
+                if g[y, x, 3] == 0 or c in DARKS: continue
+                nd = sum(tuple(int(v) for v in g[y + dy, x + dx, :3]) in DARKS for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)))
+                if nd >= 3: g[y, x, :3] = DARKS[0]; spk += 1
+    g, d = islands(g, 4)    # anything left floating after a cluster was removed
+    return g, {'berry_colour_px': n_col, 'filled_px': filled, 'to_transparent_px': transp, 'air_box_px_cleared': n_air, 'pouch_specks_darkened': spk, 'islands_dropped_px': d,
+               'changed_px_total': int((g != f).any(-1).sum())}
+
 def hair_top(f):
     g = f[..., :3].astype(int); m = (f[..., 3] > 0) & (g[..., 1] > g[..., 0] + 25) & (g[..., 1] > g[..., 2] + 25)
     return int(np.nonzero(m.any(1))[0].min())
@@ -94,16 +141,22 @@ def build():
         if act in POUCH:   # pouch lock (berries frames where the hand is away from the pouch): removes berry-pixel shimmer
             ref_k, (y0, y1, x0, x1), ks = POUCH[act]; seg = fr[ref_k][y0:y1, x0:x1].copy()
             for k in ks: fr[k][y0:y1, x0:x1] = seg
+        if act == 'berries':
+            db = [deberry(f, k) for k, f in enumerate(fr)]; fr = [x[0] for x in db]
         res[act] = fr; log[act] = {'dropped_island_px': drop, 'hair_edge_fixed_px': hfix}
+        if act == 'berries': log[act]['deberry_v1b'] = [x[1] for x in db]
     return res, log
 
 def main():
     res, log = build(); OUT.mkdir(parents=True, exist_ok=True); PV = OUT / 'preview'; PV.mkdir(exist_ok=True)
     base = json.loads((A / 'palette.json').read_text())['colors']; ex = json.loads((R / 'harv/extra_colors.json').read_text())
-    pals = {'iron': [list(c[:3]) for c in base] + ex['colors'][0:3], 'berry': [list(c[:3]) for c in base] + ex['colors'][3:5]}
+    # v1b: berry colours dropped (berries clip = Option A 48 only)
+    pals = {'iron': [list(c[:3]) for c in base] + ex['colors'][0:3], 'berries': [list(c[:3]) for c in base]}
     for k, p in pals.items(): (OUT / f'palette_{k}.json').write_text(json.dumps({'colors': p, 'base': 'Option A 48 (v3_stills_8dir/option_a/palette.json)',
-                                                                                 'extra': ex['colors'][0:3] if k == 'iron' else ex['colors'][3:5]}))
-    (OUT / 'palette_harvest_all.json').write_text(json.dumps({'colors': [list(c[:3]) for c in base] + ex['colors'], 'extra': dict(zip(ex['names'], ex['colors'])), 'how': ex['how']}, indent=0))
+                                                                                 'extra': ex['colors'][0:3] if k == 'iron' else []}))
+    (OUT / 'palette_berry.json').unlink(missing_ok=True)
+    (OUT / 'palette_harvest_all.json').write_text(json.dumps({'colors': [list(c[:3]) for c in base] + ex['colors'][0:3], 'extra': dict(zip(ex['names'][0:3], ex['colors'][0:3])),
+        'how': ex['how'], 'dropped_v1b': {'berry_dark': ex['colors'][3], 'berry_red': ex['colors'][4], 'why': 'Haex 2026-10-03: red berries read as putting berries on the bush; all berry pixels removed from the berries clip'}}, indent=0))
     still = np.array(Image.open(A / 'keeper_still_e.png'))
     for act, fr in res.items():
         seq, ms, imp, names = SPEC[act]
@@ -118,7 +171,7 @@ def main():
                     'phases': names, 'source_video': SRC[act], 'source_fps': FPS_SRC, 'source_frames_1based': seq,
                     'source_time_s': [round((i - 1) / FPS_SRC, 3) for i in seq],
                     'mirrored_from': f'harvest_{act}_east (x -> {W - 1} - x)' if d == 'west' else None,
-                    'palette': 'palette_berry.json' if act == 'berries' else 'palette_iron.json', 'anchor': 'planted',
+                    'palette': 'palette_berries.json' if act == 'berries' else 'palette_iron.json', 'anchor': 'planted',
                     'scale': 'video px * 119/344 (standing body 344 video px = Option A E still 119 px)'}
             (cd / f'{clip}.json').write_text(json.dumps(meta, indent=1))
             # strip + x3 gif on green

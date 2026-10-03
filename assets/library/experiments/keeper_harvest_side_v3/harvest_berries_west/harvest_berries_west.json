@@ -39,7 +39,7 @@
   "reach start",
   "reach",
   "reach full (at bush)",
-  "PLUCK (berries in hand)",
+  "PLUCK (hand closes at the bush; no berry pixels since v1b)",
   "close hand / pull",
   "retract",
   "drop into hip pouch"
@@ -67,7 +67,7 @@
   4.083
  ],
  "mirrored_from": "harvest_berries_east (x -> 191 - x)",
- "palette": "palette_berry.json",
+ "palette": "palette_berries.json",
  "anchor": "planted",
  "scale": "video px * 119/344 (standing body 344 video px = Option A E still 119 px)"
 }
