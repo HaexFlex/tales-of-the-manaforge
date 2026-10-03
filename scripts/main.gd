@@ -74,6 +74,7 @@ func _ready() -> void:
 	if OS.get_environment("MANAFORGE_BAKE") == "1":
 		push_error("MANAFORGE_BAKE refused. The hub layout lives in scenes/main.tscn. Do not bake; it would wipe editor edits.")
 	_setup_camera(false)
+	_build_forest_floor()
 	_apply_forge_return()
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
 	click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -382,6 +383,108 @@ func _ellipse_norm(pos: Vector2) -> float:
 
 func _in_clearing(pos: Vector2) -> bool:
 	return _ellipse_norm(pos) < 1.0
+
+
+## Darker floor under the ring only. Average grass (~#73b131) times (0.96, 0.87, 1.35) lands near #6f9a4a.
+## One mask texel per tile, sampled in the ground pass, so the ring is not drawn twice.
+const FOREST_FLOOR_INNER: float = 1.04
+const FOREST_FLOOR_SOLID: float = 1.08
+
+const FOREST_FLOOR_SHADER: String = "
+shader_type canvas_item;
+uniform sampler2D mask : filter_nearest, repeat_disable;
+uniform vec2 play_size = vec2(4320.0, 3780.0);
+varying vec2 world_pos;
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+}
+void fragment() {
+	vec4 tex = texture(TEXTURE, UV);
+	float dx = (world_pos.x - 2160.0) / 1620.0;
+	float dy = (world_pos.y - 2025.0) / 1323.0;
+	// Deep glade never reaches the hem, even at the tightest wobble.
+	if (dx * dx + dy * dy < 0.56) {
+		COLOR = tex;
+	} else {
+		float m = texture(mask, world_pos / play_size).r;
+		if (m > 0.5) {
+			tex.rgb *= vec3(0.96, 0.87, 1.35);
+		}
+		COLOR = tex;
+	}
+}
+"
+
+
+func _build_forest_floor() -> void:
+	if ground == null or ground.tile_set == null:
+		return
+	var mask := Image.create(_cols, _rows, false, Image.FORMAT_R8)
+	mask.fill(Color(0, 0, 0))
+	for cell: Vector2i in ground.get_used_cells(0):
+		if cell.x < 0 or cell.y < 0 or cell.x >= _cols or cell.y >= _rows:
+			continue
+		if _forest_floor_cell(cell):
+			mask.set_pixel(cell.x, cell.y, Color(1, 1, 1))
+	var tex := ImageTexture.create_from_image(mask)
+	var shader := Shader.new()
+	shader.code = FOREST_FLOOR_SHADER
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("mask", tex)
+	mat.set_shader_parameter("play_size", play_size)
+	ground.material = mat
+
+
+func _forest_floor_cell(cell: Vector2i) -> bool:
+	var pos := Vector2(float(cell.x * TILE + TILE / 2), float(cell.y * TILE + TILE / 2))
+	var nrm: float = _ellipse_norm(pos)
+	if nrm < FOREST_FLOOR_INNER:
+		return false
+	if _forest_floor_carved(pos):
+		return false
+	if nrm >= FOREST_FLOOR_SOLID:
+		return true
+	# One-tile dither on the inner hem so the shade doesn't cut a hard oval.
+	return (cell.x + cell.y) % 2 == 0
+
+
+func _forest_floor_carved(pos: Vector2) -> bool:
+	for i: int in range(clear_points.size()):
+		var rad: float = _forest_floor_keep_radius(i)
+		if pos.distance_to(clear_points[i]) < rad:
+			return true
+	var paths: Node = get_node_or_null("Paths")
+	if paths == null:
+		return false
+	for child: Node in paths.get_children():
+		var line: Line2D = child as Line2D
+		if line == null:
+			continue
+		var count: int = line.get_point_count()
+		for i: int in range(count - 1):
+			if _dist_to_segment(pos, line.get_point_position(i), line.get_point_position(i + 1)) < 56.0:
+				return true
+	return false
+
+
+func _forest_floor_keep_radius(index: int) -> float:
+	## Wider than decor clearance so a stand just outside a node stays on bright grass.
+	var rad: float = 140.0
+	if index >= 0 and index < clear_radii.size():
+		rad = maxf(clear_radii[index], 140.0)
+	if index == 0:
+		rad = maxf(rad, 360.0)
+	return rad + 48.0
+
+
+func _dist_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab: Vector2 = b - a
+	var den: float = ab.length_squared()
+	if den <= 0.001:
+		return p.distance_to(a)
+	var t: float = clampf((p - a).dot(ab) / den, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
 
 
 func _build_grass() -> void:
