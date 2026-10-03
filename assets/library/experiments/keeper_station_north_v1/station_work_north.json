@@ -1,0 +1,248 @@
+{
+ "clip": "station_work_north",
+ "facing": "north (seen from behind)",
+ "use": "generic working-at-a-station loop for all crafting stations",
+ "frame_size": [
+  128,
+  128
+ ],
+ "feet_anchor": [
+  64,
+  124
+ ],
+ "soles_row": 123,
+ "anchor": "planted",
+ "loop": true,
+ "frame_count": 9,
+ "durations_ms": [
+  120,
+  100,
+  100,
+  100,
+  120,
+  100,
+  70,
+  70,
+  130
+ ],
+ "loop_ms": 910,
+ "files": [
+  "station_work_north_0000.png",
+  "station_work_north_0001.png",
+  "station_work_north_0002.png",
+  "station_work_north_0003.png",
+  "station_work_north_0004.png",
+  "station_work_north_0005.png",
+  "station_work_north_0006.png",
+  "station_work_north_0007.png",
+  "station_work_north_0008.png"
+ ],
+ "palette": "palette.json",
+ "extra_colors": [
+  [
+   100,
+   105,
+   108
+  ],
+  [
+   143,
+   151,
+   155
+  ]
+ ],
+ "source": {
+  "clip": "source/keeper_station_north_b.mp4",
+  "fps": 24,
+  "frames_used": [
+   114,
+   115,
+   116,
+   117,
+   118,
+   119,
+   120,
+   121,
+   122
+  ],
+  "time_window_s": [
+   4.7083,
+   5.0833
+  ],
+  "loop_seam": "f122 -> f114 (f123 ~= f114, alpha diff 37 px)"
+ },
+ "scale": "120/348 video px (fixed, = Option A N still height)",
+ "held_tool": "hammer (right hand) kept; bench, paper, items removed",
+ "frames": [
+  {
+   "index": 0,
+   "file": "station_work_north_0000.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 114,
+   "source_time_s": 4.7083,
+   "phase": "contact / rebound",
+   "ms": 120,
+   "cleanup": {
+    "rune_px_refilled": 80,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 48,
+    "sleeve_teal_px_to_blue": 2,
+    "paper_px_removed": 1,
+    "waist_px_added": 28,
+    "dropped": 0,
+    "body_lock_px_changed": 231
+   }
+  },
+  {
+   "index": 1,
+   "file": "station_work_north_0001.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 115,
+   "source_time_s": 4.75,
+   "phase": "lift",
+   "ms": 100,
+   "cleanup": {
+    "rune_px_refilled": 83,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 73,
+    "sleeve_teal_px_to_blue": 4,
+    "paper_px_removed": 5,
+    "waist_px_added": 22,
+    "dropped": 0,
+    "body_lock_px_changed": 200
+   }
+  },
+  {
+   "index": 2,
+   "file": "station_work_north_0002.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 116,
+   "source_time_s": 4.7917,
+   "phase": "lift",
+   "ms": 100,
+   "cleanup": {
+    "rune_px_refilled": 82,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 45,
+    "sleeve_teal_px_to_blue": 5,
+    "paper_px_removed": 5,
+    "waist_px_added": 22,
+    "dropped": 0,
+    "body_lock_px_changed": 198
+   }
+  },
+  {
+   "index": 3,
+   "file": "station_work_north_0003.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 117,
+   "source_time_s": 4.8333,
+   "phase": "raise",
+   "ms": 100,
+   "cleanup": {
+    "rune_px_refilled": 83,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 36,
+    "sleeve_teal_px_to_blue": 4,
+    "paper_px_removed": 6,
+    "waist_px_added": 28,
+    "dropped": 0,
+    "body_lock_px_changed": 121
+   }
+  },
+  {
+   "index": 4,
+   "file": "station_work_north_0004.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 118,
+   "source_time_s": 4.875,
+   "phase": "top",
+   "ms": 120,
+   "cleanup": {
+    "rune_px_refilled": 84,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 7,
+    "sleeve_teal_px_to_blue": 9,
+    "paper_px_removed": 7,
+    "waist_px_added": 22,
+    "dropped": 0,
+    "body_lock_px_changed": 0
+   }
+  },
+  {
+   "index": 5,
+   "file": "station_work_north_0005.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 119,
+   "source_time_s": 4.9167,
+   "phase": "top / start down",
+   "ms": 100,
+   "cleanup": {
+    "rune_px_refilled": 84,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 27,
+    "sleeve_teal_px_to_blue": 3,
+    "paper_px_removed": 5,
+    "waist_px_added": 22,
+    "dropped": 0,
+    "body_lock_px_changed": 46
+   }
+  },
+  {
+   "index": 6,
+   "file": "station_work_north_0006.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 120,
+   "source_time_s": 4.9583,
+   "phase": "down-swing",
+   "ms": 70,
+   "cleanup": {
+    "rune_px_refilled": 85,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 46,
+    "sleeve_teal_px_to_blue": 5,
+    "paper_px_removed": 5,
+    "waist_px_added": 22,
+    "dropped": 0,
+    "body_lock_px_changed": 103
+   }
+  },
+  {
+   "index": 7,
+   "file": "station_work_north_0007.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 121,
+   "source_time_s": 5.0,
+   "phase": "down-swing",
+   "ms": 70,
+   "cleanup": {
+    "rune_px_refilled": 82,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 43,
+    "sleeve_teal_px_to_blue": 3,
+    "paper_px_removed": 3,
+    "waist_px_added": 22,
+    "dropped": 0,
+    "body_lock_px_changed": 165
+   }
+  },
+  {
+   "index": 8,
+   "file": "station_work_north_0008.png",
+   "source_clip": "keeper_station_north_b.mp4",
+   "source_frame": 122,
+   "source_time_s": 5.0417,
+   "phase": "impact",
+   "ms": 130,
+   "cleanup": {
+    "rune_px_refilled": 84,
+    "still_rune_px_pasted": 96,
+    "hammer_tint_px_to_grey": 57,
+    "sleeve_teal_px_to_blue": 1,
+    "paper_px_removed": 1,
+    "waist_px_added": 28,
+    "dropped": 0,
+    "body_lock_px_changed": 198
+   }
+  }
+ ]
+}

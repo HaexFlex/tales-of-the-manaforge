@@ -1,0 +1,1133 @@
+{
+ "all_pass": true,
+ "frames": [
+  {
+   "file": "station_work_north_0000.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12141,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    101
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       92
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  },
+  {
+   "file": "station_work_north_0001.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12110,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    101
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       79
+      ],
+      [
+       84,
+       84
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  },
+  {
+   "file": "station_work_north_0002.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12085,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    101
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       79
+      ],
+      [
+       85,
+       85
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  },
+  {
+   "file": "station_work_north_0003.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12070,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    101
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  },
+  {
+   "file": "station_work_north_0004.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12061,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    100
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  },
+  {
+   "file": "station_work_north_0005.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12059,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    100
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  },
+  {
+   "file": "station_work_north_0006.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12093,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    100
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  },
+  {
+   "file": "station_work_north_0007.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12119,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    101
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       79
+      ],
+      [
+       84,
+       88
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  },
+  {
+   "file": "station_work_north_0008.png",
+   "mode": "RGBA",
+   "rgba": true,
+   "size_ok": true,
+   "corners_alpha0": true,
+   "bg_clear": true,
+   "alpha_not_0_255": 0,
+   "transparent_px": 12185,
+   "zero_rgb": 0,
+   "magenta_any": 0,
+   "tint_edge": 0,
+   "light_fringe": 0,
+   "non_palette": 0,
+   "sole_row": 123,
+   "feet_cx_edge": 64.5,
+   "hair_top": 6,
+   "body_h": 118,
+   "top_row": 6,
+   "x_range": [
+    43,
+    101
+   ],
+   "anchor_ok": true,
+   "bench_band_ok": true,
+   "bench_band_runs": [
+    [
+     69,
+     [
+      [
+       47,
+       91
+      ]
+     ]
+    ],
+    [
+     70,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     71,
+     [
+      [
+       47,
+       79
+      ]
+     ]
+    ],
+    [
+     72,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     73,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     74,
+     [
+      [
+       47,
+       80
+      ]
+     ]
+    ],
+    [
+     75,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     76,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     77,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ],
+    [
+     78,
+     [
+      [
+       47,
+       81
+      ]
+     ]
+    ]
+   ],
+   "white_px": 0,
+   "stray_cyan": 0,
+   "components": 1,
+   "lone_px": 0,
+   "clip_upright_h": 118,
+   "pass": true
+  }
+ ]
+}
