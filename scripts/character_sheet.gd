@@ -80,8 +80,7 @@ const STAT_GAP_SMALL: float = 4.0
 const STAT_NUM_H: float = 24.0
 const STAT_GAP_LARGE: float = 10.0
 const STAT_STRIDE: float = STAT_NAME_H + STAT_ROLE_H + STAT_GAP_SMALL + STAT_NUM_H + STAT_GAP_LARGE
-## Extra pixels under the measured line box so descenders are not clipped.
-const ELAIA_ROLE_DESCENT: float = 6.0
+## Pixels of clear wood between a role line's lowest glyph and the value glyphs.
 const ELAIA_VALUE_GAP: float = 2.0
 const ELAIA_ROW_GAP: float = 12.0
 ## Face crop of elaia_front.png. The golden key sits on the left below y=360.
@@ -650,6 +649,41 @@ func _set_elaia_row(sheet: Node, row_name: String, name_key: String, role_key: S
 		line_lbl.text = String.num(value, 1) + "×"
 
 
+func _text_ink_span(font: Font, font_size: int, text: String) -> Vector2:
+	## Top and bottom of the glyph bitmaps, relative to a top-aligned label.
+	## x is the top, y is the bottom. Empty bearing above the ink is x.
+	if font == null or font_size <= 0:
+		return Vector2(0, 16)
+	var ascent: float = font.get_ascent(font_size)
+	var fallback := Vector2(0, font.get_height(font_size))
+	var rids: Array = font.get_rids()
+	if rids.is_empty() or text.is_empty():
+		return fallback
+	var ts: TextServer = TextServerManager.get_primary_interface()
+	var rid: RID = rids[0]
+	var top: float = ascent
+	var bottom: float = ascent
+	var any: bool = false
+	for i: int in text.length():
+		var gl: int = ts.font_get_glyph_index(rid, font_size, text.unicode_at(i), 0)
+		if gl == 0:
+			continue
+		var off: Vector2 = ts.font_get_glyph_offset(rid, Vector2i(font_size, 0), gl)
+		var sz: Vector2 = ts.font_get_glyph_size(rid, Vector2i(font_size, 0), gl)
+		if sz.y <= 0.0:
+			continue
+		var gtop: float = ascent + off.y
+		var gbot: float = gtop + sz.y
+		if not any or gtop < top:
+			top = gtop
+		if not any or gbot > bottom:
+			bottom = gbot
+		any = true
+	if not any:
+		return fallback
+	return Vector2(top, bottom)
+
+
 func _layout_elaia_stats(sheet: Node) -> void:
 	## Size each role to its wrapped text, with room for descenders, then sit the value just under it.
 	var right: Control = sheet.get_node_or_null("ElaiaStats") as Control
@@ -668,12 +702,24 @@ func _layout_elaia_stats(sheet: Node) -> void:
 		if name_host == null or role_host == null or line_host == null or role_lbl == null:
 			continue
 		var width: float = 348.0
-		var text_h: float = 18.0
 		var font: Font = role_lbl.get_theme_font("font")
+		var font_size: int = role_lbl.get_theme_font_size("font_size")
+		var text_h: float = 16.0
 		if font != null:
-			var measured: Vector2 = font.get_multiline_string_size(role_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, width, role_lbl.get_theme_font_size("font_size"))
-			text_h = measured.y
-		var role_h: float = text_h + ELAIA_ROLE_DESCENT
+			text_h = font.get_multiline_string_size(role_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, width, font_size).y
+		## Fit the control to the wrapped line, then sit the value on the real glyph bottoms.
+		## Label line boxes include empty bearing, which was leaving a wide gap and clipping the last descent pixel when the box was short.
+		var role_span: Vector2 = _text_ink_span(font, font_size, role_lbl.text)
+		var line_font: Font = line_lbl.get_theme_font("font") if line_lbl else font
+		var line_size: int = line_lbl.get_theme_font_size("font_size") if line_lbl else 15
+		var line_span: Vector2 = _text_ink_span(line_font, line_size, line_lbl.text if line_lbl else "")
+		var lines: int = 1
+		if font != null and font.get_height(font_size) > 0.0:
+			lines = maxi(1, int(round(text_h / font.get_height(font_size))))
+		var ink_bottom: float = role_span.y + float(lines - 1) * (font.get_height(font_size) if font != null else text_h)
+		## The label stays taller than the ink so fractional scale does not slice the descent.
+		## The value is placed from the ink bottom, so that extra room is not an empty gap.
+		var role_h: float = maxf(ink_bottom, text_h) + 8.0
 		name_host.position = Vector2.ZERO
 		name_host.clip_contents = false
 		name_host.size.y = STAT_NAME_H + 4.0
@@ -686,6 +732,7 @@ func _layout_elaia_stats(sheet: Node) -> void:
 		role_host.position = Vector2(0, name_host.size.y)
 		role_host.size = Vector2(360, role_h)
 		role_host.clip_contents = false
+		block.clip_contents = false
 		role_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		role_lbl.clip_text = false
 		role_lbl.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
@@ -693,12 +740,14 @@ func _layout_elaia_stats(sheet: Node) -> void:
 		role_lbl.position = Vector2.ZERO
 		role_lbl.size = Vector2(width, role_h)
 		role_lbl.custom_minimum_size = role_lbl.size
-		var line_y: float = role_host.position.y + role_h + ELAIA_VALUE_GAP
+		var line_y: float = role_host.position.y + ink_bottom + ELAIA_VALUE_GAP - line_span.x
 		line_host.position = Vector2(0, line_y)
+		line_host.clip_contents = false
 		if line_lbl:
+			line_lbl.clip_text = false
 			line_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 			line_lbl.position = Vector2.ZERO
-			line_lbl.size = Vector2(line_host.size.x, line_host.size.y)
+			line_lbl.size = Vector2(line_host.size.x, maxf(line_host.size.y, line_span.y + 2.0))
 		block.position = Vector2(0, y)
 		block.size = Vector2(360, line_y + line_host.size.y)
 		y += block.size.y + ELAIA_ROW_GAP

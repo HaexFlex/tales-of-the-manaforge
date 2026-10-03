@@ -1144,6 +1144,8 @@ func _refresh_wisp_counter() -> void:
 	var counter: Label = get_node_or_null("WispCounter") as Label
 	if counter == null:
 		return
+	if is_character_open():
+		counter.visible = false
 	var text: String = "Wisps: %d" % GameState.wisp_count
 	if has_node("/root/ForgeJobs"):
 		text = ForgeJobs.copy_text("wisp_counter", {"count": GameState.wisp_count})
