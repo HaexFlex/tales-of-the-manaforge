@@ -27,6 +27,7 @@ var _confirm_action: String = ""
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().paused = false
+	Engine.time_scale = 1.0
 	GameAudio.play_hub_music()
 	_style_button(btn_continue)
 	_style_button(btn_new)
@@ -219,9 +220,10 @@ func _on_quit() -> void:
 	)
 
 
-func _on_slot_chosen(slot: int) -> void:
+func _on_slot_chosen(slot: int, kind: String) -> void:
 	SaveService.boot_intent = "load"
 	SaveService.boot_slot = slot
+	SaveService.boot_slot_kind = kind
 	GameAudio.play_ui_confirm()
 	get_tree().change_scene_to_file(MAIN_SCENE)
 
@@ -249,4 +251,5 @@ func _on_confirm_yes() -> void:
 		"new":
 			_start_new_game()
 		"quit":
+			SaveService.save_on_quit()
 			get_tree().quit()

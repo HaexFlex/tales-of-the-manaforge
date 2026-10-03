@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/forge_room.gd" id="1_room"]
 [ext_resource type="Texture2D" path="res://assets/art/forge/forge_bark_chamber_bg.png" id="2_plate"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://scenes/forge/anvil.tscn" id="6_anvil"]
 [ext_resource type="PackedScene" path="res://scenes/forge/reliquary.tscn" id="7_reliquary"]
 [ext_resource type="PackedScene" path="res://scenes/keeper.tscn" id="8_keeper"]
+[ext_resource type="Script" path="res://scripts/elaia.gd" id="12_elaia"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="9_hud"]
 [ext_resource type="PackedScene" path="res://scenes/pause_menu.tscn" id="10_pause"]
 
@@ -65,6 +66,12 @@ shape = SubResource("RectangleShape2D_door")
 [node name="Keeper" parent="." instance=ExtResource("8_keeper")]
 z_index = 1
 position = Vector2(800, 860)
+
+[node name="Elaia" parent="." instance=ExtResource("8_keeper")]
+z_index = 1
+position = Vector2(864, 860)
+script = ExtResource("12_elaia")
+home_area = "forge"
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(800, 600)

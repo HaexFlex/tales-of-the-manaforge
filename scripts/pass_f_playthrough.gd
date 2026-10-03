@@ -154,22 +154,25 @@ func _paths_ok(main: Node) -> bool:
 	var paths: Node = main.get_node_or_null("Paths")
 	if paths == null:
 		return false
-	var berry: Node2D = main.get_node("World/HarvestBerry") as Node2D
-	var line: Line2D = paths.get_node_or_null("ToHarvestBerry") as Line2D
-	if line == null or line.get_point_count() < 2:
-		return false
-	if line.get_point_position(line.get_point_count() - 1).distance_to(berry.position) > 1.5:
-		return false
-	if absf(line.width - 48.0) > 0.5:
-		return false
-	if line.texture == null or line.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
-		return false
-	if line.texture_repeat != CanvasItem.TEXTURE_REPEAT_ENABLED:
-		return false
-	var needed: Array[String] = ["ToHarvestTree", "ToHarvestStone", "ToHarvestBerry", "ToEchoPortal"]
-	for name: String in needed:
-		var other: Line2D = paths.get_node_or_null(name) as Line2D
-		if other == null or other.get_point_count() < 2 or other.texture == null:
+	var ends: Array = [
+		["ToHarvestTree", "World/HarvestTree"],
+		["ArcanaToStone", "World/HarvestStone"],
+		["WardToBerry", "World/HarvestBerry"],
+		["MightToPortal", "World/EchoPortal"],
+		["ToBench", "World/KeepersBench"],
+	]
+	for row: Array in ends:
+		var line: Line2D = paths.get_node_or_null(str(row[0])) as Line2D
+		var mark: Node2D = main.get_node_or_null(str(row[1])) as Node2D
+		if line == null or mark == null or line.get_point_count() < 2:
+			return false
+		if line.get_point_position(line.get_point_count() - 1).distance_to(mark.position) > 1.5:
+			return false
+		if absf(line.width - 48.0) > 0.5:
+			return false
+		if line.texture == null or line.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
+			return false
+		if line.texture_repeat != CanvasItem.TEXTURE_REPEAT_ENABLED:
 			return false
 	return true
 
@@ -225,8 +228,8 @@ func _hits_node(space: PhysicsDirectSpaceState2D, point: Vector2, node: Node) ->
 
 func _harvest(keeper: CharacterBody2D, node: Node, resource_id: StringName, before: int) -> bool:
 	GS.call("select_keeper")
-	var dest: Vector2 = node.call("approach_point")
-	keeper.call("move_to", dest, node)
+	keeper.call("command_work", node, String(resource_id))
+	var dest: Vector2 = keeper.call("work_spot_position")
 	var arrived: bool = await _wait_near(keeper, dest, 16.0, 20.0)
 	if not arrived:
 		print("harvest miss %s at %s want %s" % [resource_id, str(keeper.global_position), str(dest)])
@@ -247,10 +250,10 @@ func _manatree(main: Node) -> void:
 	var tree: Node2D = main.get_node("World/Manatree") as Node2D
 	var hud: Node = main.get_node("HUD")
 	GS.call("select_keeper")
-	var water_at: Vector2 = tree.global_position + Vector2(0, 40)
+	var water_at: Vector2 = keeper.call("work_destination", tree, "manatree")
 	keeper.call("move_to", water_at, null)
 	var at_tree: bool = await _wait_near(keeper, water_at, 16.0, 20.0)
-	_check("manatree", "Keeper reaches the door sill", at_tree, str(keeper.global_position))
+	_check("manatree", "Keeper reaches the watering spot", at_tree, str(keeper.global_position))
 	var ess0: int = int(GS.get("essence"))
 	var shards0: int = int(GS.get("manashards"))
 	keeper.call("start_water_channel", tree)
@@ -271,6 +274,11 @@ func _manatree(main: Node) -> void:
 		var grow: Button = hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
 		_check("manatree", "Grow enabled at %s" % sid, grow != null and not grow.disabled)
 		await _click(grow)
+		if sid == "elder":
+			var ancient_yes: Button = hud.get_node_or_null("AncientGrowConfirm/Yes") as Button
+			var ancient_box: CanvasItem = hud.get_node_or_null("AncientGrowConfirm") as CanvasItem
+			_check("manatree", "Ancient grow asks first", ancient_yes != null and ancient_box != null and ancient_box.visible)
+			await _click(ancient_yes)
 		await process_frame
 	_check("manatree", "grew to Ancient", str(GS.get("stage_id")) == "ancient")
 	var ess1: int = int(GS.get("essence"))
@@ -421,7 +429,7 @@ func _controls(main: Node) -> void:
 	var icon: TextureRect = hud.get_node("Panel/HelpButton/HelpIcon") as TextureRect
 	var expected: String = str(hud.call("_controls_line"))
 	_check("controls", "tooltip text is the controls line", str(btn.tooltip_text) == expected and expected.find("Right-click: command") >= 0, str(btn.tooltip_text))
-	var help_cell: AtlasTexture = HudIcons.cell(HudIcons.HELP)
+	var help_cell: Texture2D = HudIcons.cell(HudIcons.HELP)
 	_check("controls", "icon is the help sheet cell", icon.texture == help_cell and icon.texture != null)
 	var rect: Rect2 = btn.get_global_rect()
 	var view_w: float = root.get_viewport().get_visible_rect().size.x

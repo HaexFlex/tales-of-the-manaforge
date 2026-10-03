@@ -12,8 +12,10 @@ const LOG_SIZE: Vector2 = Vector2(1040, 100)
 const LOG_BG_POS: Vector2 = Vector2(120, 500)
 const SPEECH_POS: Vector2 = Vector2(456, 256)
 const SPEECH_SIZE: Vector2 = Vector2(368, 100)
-const KEEPER_IDLE: String = "res://assets/art/keeper/keeper_idle_south.png"
-const ELAIA_FRONT: String = "res://assets/art/echo/elaia_front.png"
+const KEEPER_IDLE: String = "res://assets/art/echo/battle_keeper_idle_e.png"
+const ELAIA_IDLE: String = "res://assets/art/echo/battle_elaia_idle_w.png"
+const ELAIA_KEY: String = "res://assets/art/echo/battle_elaia_key_w.png"
+const ELAIA_FRONT: String = ELAIA_IDLE
 ## Opaque 1280×720 plate. Background + Ground stay underneath until this file exists.
 const CHAMBER_BG: String = "res://assets/art/echo/echo_chamber_bg.png"
 
@@ -48,12 +50,70 @@ var _pulse: float = 0.0
 
 func _ready() -> void:
 	_apply_chamber_plate()
+	_apply_portraits()
+	_raise_names()
+	_lighten_panels()
 	if Engine.is_editor_hint():
 		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 50
 	_apply_button_copy()
 	_bind()
+
+
+func _apply_portraits() -> void:
+	var keeper_tex: Texture2D = load(KEEPER_IDLE) as Texture2D
+	if _keeper_portrait and keeper_tex:
+		_keeper_portrait.texture = keeper_tex
+		_keeper_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_keeper_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_keeper_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_apply_elaia_portrait()
+
+
+func _elaia_holds_key() -> bool:
+	if _battle == null:
+		return false
+	if _battle.outcome == "spare":
+		return true
+	if _battle.spare_window and _battle.outcome == "":
+		return true
+	return false
+
+
+func _apply_elaia_portrait() -> void:
+	if _echo_portrait == null:
+		return
+	var path: String = ELAIA_KEY if _elaia_holds_key() else ELAIA_IDLE
+	var tex: Texture2D = load(path) as Texture2D
+	if tex:
+		_echo_portrait.texture = tex
+	_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+
+
+func _raise_names() -> void:
+	for node_name: String in ["KeeperName", "EchoName"]:
+		var lbl: Label = get_node_or_null(node_name) as Label
+		if lbl == null:
+			continue
+		lbl.offset_top = 70.0
+		lbl.offset_bottom = 90.0
+
+
+func _lighten_panels() -> void:
+	var panels: Dictionary = {
+		"SpeechBg": Color(0.16, 0.24, 0.20, 0.50),
+		"LogBg": Color(0.16, 0.22, 0.18, 0.50),
+		"CommandBand": Color(0.14, 0.22, 0.18, 0.52),
+		"KeeperPortraitFrame": Color(0.10, 0.16, 0.14, 0.48),
+		"EchoPortraitFrame": Color(0.10, 0.16, 0.14, 0.48),
+	}
+	for node_name: String in panels.keys():
+		var rect: ColorRect = get_node_or_null(node_name) as ColorRect
+		if rect:
+			rect.color = panels[node_name]
 
 
 func _apply_chamber_plate() -> void:
@@ -119,12 +179,19 @@ func portrait_size() -> Vector2:
 
 func keeper_uses_idle_texture() -> bool:
 	return _keeper_portrait != null and _keeper_portrait.texture != null \
-		and str(_keeper_portrait.texture.resource_path).find(KEEPER_IDLE.get_file()) >= 0
+		and str(_keeper_portrait.texture.resource_path).find("battle_keeper_idle_e") >= 0
 
 
 func echo_uses_elaia_texture() -> bool:
+	if _echo_portrait == null or _echo_portrait.texture == null:
+		return false
+	var path: String = str(_echo_portrait.texture.resource_path)
+	return path.find("battle_elaia_idle_w") >= 0 or path.find("battle_elaia_key_w") >= 0
+
+
+func echo_uses_key_texture() -> bool:
 	return _echo_portrait != null and _echo_portrait.texture != null \
-		and str(_echo_portrait.texture.resource_path).find(ELAIA_FRONT.get_file()) >= 0
+		and str(_echo_portrait.texture.resource_path).find("battle_elaia_key_w") >= 0
 
 
 func command_band_size() -> Vector2:
@@ -195,6 +262,7 @@ func _bind() -> void:
 		echo_name.text = _enemy_name()
 	_refresh_bars(false)
 	_refresh_log()
+	_apply_elaia_portrait()
 	if _battle.spare_window and _battle.outcome == "":
 		_show_mercy()
 		_refresh_actions()
@@ -268,12 +336,14 @@ func _choose(action: String) -> void:
 		return
 	_refresh_bars(true)
 	_refresh_log()
+	_apply_elaia_portrait()
 	if _battle.spare_window and outcome == "":
 		if not _mercy_shown:
 			_show_mercy()
 		_refresh_actions()
 		return
 	if outcome == "flee" or outcome == "spare" or outcome == "defeat":
+		_apply_elaia_portrait()
 		_offer_return(outcome)
 		return
 	_speech.text = ContentStrings.get_text("battle_your_turn")

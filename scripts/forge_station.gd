@@ -37,6 +37,12 @@ func _ready() -> void:
 	_refresh_visual()
 
 
+func work_footprint() -> Rect2:
+	if sprite:
+		return Keeper.sprite_footprint(sprite)
+	return Rect2(global_position, Vector2(64, 64))
+
+
 func stand_global() -> Vector2:
 	if keeper_stand:
 		return keeper_stand.global_position
@@ -145,9 +151,18 @@ func _on_right_click() -> void:
 			return
 		GameState.toast_wisp_assign(result, station_id)
 		return
+	if GameState.selected_hero_id() == "elaia":
+		var elaia: Node = get_tree().get_first_node_in_group("elaia")
+		if elaia and elaia.has_method("command_station"):
+			elaia.call("command_station", self)
+		if room and room.has_method("present_elaia_at_station"):
+			room.call("present_elaia_at_station", station_id)
+		return
 	if GameState.keeper_selected:
 		var keeper: Node = get_tree().get_first_node_in_group("keeper")
-		if keeper and keeper.has_method("move_to"):
+		if keeper and keeper.has_method("command_station"):
+			keeper.call("command_station", self)
+		elif keeper and keeper.has_method("move_to"):
 			keeper.call("move_to", stand_global(), null)
 		if room and room.has_method("walk_keeper_to_station"):
 			room.call("walk_keeper_to_station", station_id)

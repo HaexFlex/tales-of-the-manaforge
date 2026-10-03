@@ -9,7 +9,7 @@
       "cost_base": 400,
       "cost_per_rank": 400,
       "effect": "water_essence_bonus",
-      "value_per_rank": 1.0
+      "value_per_rank": 0.5
     },
     {
       "id": "forager",

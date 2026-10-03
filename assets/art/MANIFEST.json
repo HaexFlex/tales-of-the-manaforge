@@ -10,7 +10,7 @@
     ],
     "meta": "keeper/keeper_meta.json",
     "version": "v0.1.13-assets-upload",
-    "inbox": "assets/library/keeper_inbox/",
+    "inbox": "assets/library/legacy/library_tidy_2026-10-02/keeper_inbox/",
     "native": "keeper/native/"
   },
   "manatree": {
@@ -84,7 +84,7 @@
   "echo": {
     "dir": "echo/",
     "portrait": "echo/elaia_front.png",
-    "source": "assets/library/art_drop_c9fda76/Elaia front.png",
+    "source": "assets/library/legacy/library_tidy_2026-10-02/art_drop_c9fda76/Elaia front.png",
     "display": [
       384,
       384

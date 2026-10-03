@@ -57,10 +57,13 @@ func _ready() -> void:
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
 	GameState.needs_changed.connect(_refresh_label)
 	GameState.selection_changed.connect(_refresh_label)
-	_refresh_visual()
-	_on_fruit_changed(GameState.fruit_ready)
 	add_to_group("manatree")
 	add_to_group("interactable")
+	_ensure_trunk()
+	_ensure_door_trigger()
+	_ensure_veins()
+	_refresh_visual()
+	_on_fruit_changed(GameState.fruit_ready)
 
 
 func _load_meta() -> void:
@@ -124,26 +127,24 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			get_viewport().set_input_as_handled()
 
 
+func work_footprint() -> Rect2:
+	## Door sill is the node origin at every stage. Watering uses this point, not the grown sprite.
+	return Rect2(global_position, Vector2.ZERO)
+
+
 func apply_player_command() -> void:
-	## RMB: wisp assign to Manatree (manashards pulse) OR Keeper walks + care/water as today.
+	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
 		var result: String = GameState.command_selected_wisps(node_id)
 		GameState.toast_wisp_assign(result, node_id)
-		if GameState.keeper_selected:
-			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
-			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
-				(keepers_both[0] as Keeper).move_to(global_position + Vector2(0, 40), self)
+		if GameState.selected_hero_id() != "":
+			GameState.command_selected_hero(self, "manatree")
 		return
-	if not GameState.keeper_selected:
+	if GameState.selected_hero_id() == "":
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
 		return
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k:
-		k.move_to(global_position + Vector2(0, 40), self)
+	GameState.command_selected_hero(self, "manatree")
 
 
 func on_interact(_keeper: Node) -> void:
@@ -164,17 +165,20 @@ func set_watering(active: bool) -> void:
 
 
 func do_water() -> void:
-	## Start / continue water channel via Keeper (income only).
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k == null:
-		return
+	## Start / continue water channel on the selected hero (income only).
 	if GameState.fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
-	k.start_water_channel(self)
+	var hero: Node = null
+	if GameState.selected_hero_id() == "elaia":
+		hero = get_tree().get_first_node_in_group("elaia")
+	if hero == null:
+		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+		if not keepers.is_empty():
+			hero = keepers[0]
+	if hero == null or not hero.has_method("start_water_channel"):
+		return
+	hero.call("start_water_channel", self)
 	if GameState.stage_id == &"ancient":
 		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
 
@@ -351,3 +355,130 @@ func _refresh_visual() -> void:
 		_refresh_label()
 	label.position = Vector2(-80, -door.y * scale_v - 36)
 	fruit_hint.position = Vector2(-140, 12)
+	_apply_trunk(String(stage))
+	_apply_veins(String(stage))
+
+
+const TRUNK_SIZE: Dictionary = {
+	"sapling": Vector2(28, 40),
+	"young": Vector2(40, 90),
+	"mature": Vector2(56, 160),
+	"elder": Vector2(72, 220),
+	"ancient": Vector2(88, 260),
+}
+const VEIN_AMOUNT: Dictionary = {
+	"sapling": 3, "young": 5, "mature": 8, "elder": 12, "ancient": 14,
+}
+const VEIN_POS: Dictionary = {
+	"sapling": Vector2(0, -45), "young": Vector2(8, -110), "mature": Vector2(0, -250),
+	"elder": Vector2(0, -440), "ancient": Vector2(0, -450),
+}
+const VEIN_EXTENT: Dictionary = {
+	"sapling": Vector2(10, 30), "young": Vector2(12, 90), "mature": Vector2(120, 230),
+	"elder": Vector2(200, 400), "ancient": Vector2(200, 410),
+}
+const VEIN_TEX: String = "res://assets/art/fx/fx_vein_mote_strip.png"
+## Collision stops above the doorway so the care stand (y=28) and the entry (y=8) stay reachable.
+const DOOR_GAP: float = 70.0
+var _door_latched: bool = false
+
+
+func _physics_process(_delta: float) -> void:
+	if Engine.is_editor_hint() or not is_inside_tree():
+		return
+	_check_door_feet()
+
+
+func _ensure_trunk() -> void:
+	if get_node_or_null("Trunk") != null:
+		return
+	var body := StaticBody2D.new()
+	body.name = "Trunk"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.input_pickable = false
+	var shape_node := CollisionShape2D.new()
+	shape_node.name = "CollisionShape2D"
+	shape_node.shape = RectangleShape2D.new()
+	body.add_child(shape_node)
+	add_child(body)
+
+
+func _apply_trunk(stage: String) -> void:
+	var body: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
+	if body == null:
+		return
+	var shape_node: CollisionShape2D = body.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if shape_node == null or not (shape_node.shape is RectangleShape2D):
+		return
+	var sz: Vector2 = TRUNK_SIZE.get(stage, Vector2(28, 40))
+	var rect: RectangleShape2D = (shape_node.shape as RectangleShape2D).duplicate() as RectangleShape2D
+	rect.size = sz
+	shape_node.shape = rect
+	shape_node.position = Vector2(0, -DOOR_GAP - sz.y * 0.5)
+
+
+func _ensure_door_trigger() -> void:
+	set_physics_process(not Engine.is_editor_hint())
+
+
+func _check_door_feet() -> void:
+	if not has_node("/root/ForgeJobs"):
+		return
+	var occupied: bool = false
+	for group_name: String in ["keeper", "elaia"]:
+		for node: Node in get_tree().get_nodes_in_group(group_name):
+			if not (node is Node2D) or not (node as CanvasItem).visible:
+				continue
+			if node.has_method("actor_id") == false:
+				continue
+			var rel: Vector2 = (node as Node2D).global_position - global_position
+			if absf(rel.x) > 22.0 or rel.y < -4.0 or rel.y > 16.0:
+				continue
+			occupied = true
+			if _door_latched:
+				return
+			_door_latched = true
+			ForgeJobs.try_door_entry(str(node.call("actor_id")))
+			return
+	if not occupied:
+		_door_latched = false
+
+
+func _ensure_veins() -> void:
+	if get_node_or_null("VeinMotes") != null:
+		return
+	var motes := CPUParticles2D.new()
+	motes.name = "VeinMotes"
+	motes.texture = load(VEIN_TEX) as Texture2D
+	motes.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	motes.local_coords = true
+	motes.explosiveness = 0.0
+	motes.randomness = 0.3
+	motes.lifetime = 1.8
+	motes.direction = Vector2(0, -1)
+	motes.spread = 20.0
+	motes.gravity = Vector2(0, -4)
+	motes.initial_velocity_min = 6.0
+	motes.initial_velocity_max = 14.0
+	motes.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	motes.z_index = 1
+	var mat := CanvasItemMaterial.new()
+	mat.particles_animation = true
+	mat.particles_anim_h_frames = 3
+	mat.particles_anim_v_frames = 1
+	mat.particles_anim_loop = false
+	motes.material = mat
+	motes.anim_speed_min = 1.0
+	motes.anim_speed_max = 1.0
+	add_child(motes)
+
+
+func _apply_veins(stage: String) -> void:
+	var motes: CPUParticles2D = get_node_or_null("VeinMotes") as CPUParticles2D
+	if motes == null:
+		return
+	motes.amount = int(VEIN_AMOUNT.get(stage, 3))
+	motes.position = VEIN_POS.get(stage, Vector2(0, -45))
+	motes.emission_rect_extents = VEIN_EXTENT.get(stage, Vector2(10, 30))
+	motes.emitting = true

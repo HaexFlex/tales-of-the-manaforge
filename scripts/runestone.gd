@@ -14,8 +14,8 @@ class_name Runestone
 @onready var stone: Sprite2D = $Stone
 @onready var label: Label = $Label
 
-const RUNE_SHEET: String = "res://assets/art/props/runestones/runestones_sheet.png"
-const RUNE_CELL: int = 32
+const RUNE_SHEET: String = "res://assets/art/props/runestones/native/runestones_sheet.png"
+const RUNE_CELL: int = 64
 
 static var _layer: CanvasLayer
 static var _panel: Panel
@@ -38,6 +38,7 @@ func _ready() -> void:
 		return
 	add_to_group("runestone")
 	add_to_group("interactable")
+	_ensure_walk_body()
 	y_sort_enabled = true
 	input_pickable = true
 	monitoring = false
@@ -57,10 +58,27 @@ func _ready() -> void:
 		stone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		stone.centered = false
 		stone.hframes = 1
-		stone.scale = Vector2(2, 2)
-		stone.offset = Vector2(-16, -32)
+		stone.scale = Vector2(1, 1)
+		stone.offset = Vector2(-32, -64)
 		_apply_sheet_frame()
 	_refresh()
+
+
+func _ensure_walk_body() -> void:
+	if get_node_or_null("WalkBody") != null:
+		return
+	var body := StaticBody2D.new()
+	body.name = "WalkBody"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.input_pickable = false
+	var shape_node := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(28, 16)
+	shape_node.shape = rect
+	shape_node.position = Vector2(0, -8)
+	body.add_child(shape_node)
+	add_child(body)
 
 
 ## Column, row on the 8×8 runestone sheet. Chosen from separate silhouette groups.
@@ -71,8 +89,8 @@ func _apply_editor_preview() -> void:
 		stone.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		stone.centered = false
 		stone.hframes = 1
-		stone.scale = Vector2(2, 2)
-		stone.offset = Vector2(-16, -32)
+		stone.scale = Vector2(1, 1)
+		stone.offset = Vector2(-32, -64)
 		_apply_sheet_frame()
 	if label:
 		label.text = String(stat_id).capitalize()
@@ -165,6 +183,9 @@ func is_spend_confirm_open() -> bool:
 
 
 func begin_spend() -> String:
+	if GameState.is_world_frozen():
+		GameState.note_frozen_deny()
+		return "blocked"
 	if _world_blocked():
 		return "blocked"
 	var sid: String = String(stat_id)
@@ -219,26 +240,34 @@ func cancel_spend() -> void:
 	GameAudio.play_ui_cancel()
 
 
+func work_footprint() -> Rect2:
+	if stone:
+		return Keeper.sprite_footprint(stone)
+	return Rect2(global_position + Vector2(-32, -64), Vector2(64, 64))
+
+
 func apply_player_command() -> void:
-	## RMB: Keeper walks in range, then the spend confirm. Wisps do not assign here.
+	## RMB: the selected hero walks in range, then the spend confirm. Wisps do not assign here.
 	if _world_blocked():
 		return
-	if GameState.selected_wisp_id >= 0:
+	if not GameState.selected_wisp_list().is_empty():
 		GameState.status_message.emit(ContentStrings.get_text("wisp_assign_hint"))
 		return
-	if not GameState.keeper_selected:
+	if GameState.selected_hero_id() == "":
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 		return
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
+	GameState.command_selected_hero(self, "runestone", "runestone:%s" % String(stat_id))
+
+
+func on_interact(keeper: Node) -> void:
+	## Runestones are a stat confirm, not a harvest. The pickaxe loop is only the pose.
+	var result: String = begin_spend()
+	if result == "confirm" or result == "cant_afford":
+		if keeper and keeper.has_method("begin_reach_pose"):
+			keeper.call("begin_reach_pose")
 		return
-	var k: Keeper = keepers[0] as Keeper
-	if k:
-		k.move_to(global_position, self)
-
-
-func on_interact(_keeper: Node) -> void:
-	begin_spend()
+	if keeper and keeper.has_method("cancel_reach_pose"):
+		keeper.call("cancel_reach_pose")
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -277,6 +306,11 @@ func _close_confirm() -> void:
 		_panel.visible = false
 	if _layer:
 		_layer.visible = false
+	if is_inside_tree():
+		for group_name: String in ["keeper", "elaia"]:
+			for node: Node in get_tree().get_nodes_in_group(group_name):
+				if node.has_method("finish_reach_pose"):
+					node.call("finish_reach_pose")
 
 
 func _ensure_confirm() -> void:

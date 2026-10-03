@@ -40,7 +40,7 @@ Expect `VERIFY_OK` and exit code `0`.
 
 ## Hub BGM (after pull)
 
-Cue `mus_hub_forest` plays **`assets/audio/mus_hub_forest_haex.mp3`** (Director primary) on the **Music** bus with loop. Fallback chain in `GameAudio`: **mp3 → ogg (`mus_hub_forest_haex_loop.ogg`) → wav**. After `git pull`, **reopen the project in Godot** so assets reimport. If the hub is silent, delete `.godot/imported/*haex*` (mp3/ogg/wav imports) and let Godot reimport — do not point the cue back at the short legacy `mus_hub_forest.wav`.
+Cue `mus_hub_forest` plays **`assets/audio/mus_hub_forest_haex.mp3`** on the **Music** bus with loop. The fallback is that JSON path, then the shipped MP3 only. Older beds live in `assets/library/legacy/` and are not imported. After `git pull`, **reopen the project in Godot** so the MP3 reimports.
 
 Music stings (`mus_fruit_sting`, `mus_ascend_sting`) use a second Music player so the hub bed never stops. Music bus defaults ~−9 dB; SFX buses 0 dB; Progress→Music duck only. Runtime forces `AudioStreamMP3.loop` / Ogg loop / WAV `LOOP_FORWARD`. If saved `music_volume` is `0` (bug: silent Music, SFX still OK), load treats it as reset-to-default once.
 

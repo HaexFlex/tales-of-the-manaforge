@@ -84,7 +84,10 @@ func snapshot_payout(kind: String) -> int:
 		ranks[sid] = KeeperStats.get_rank(sid)
 	var base: int = int(KeeperStats.params.get("cost_base", 100))
 	var growth: float = float(KeeperStats.params.get("cost_growth", 1.65))
-	return EchoBattle.payout(kind, ranks, Equipment.total_for("fate"), base, growth)
+	var fate_total: int = Equipment.total_for("fate")
+	if battle != null:
+		fate_total = battle.keeper_fate()
+	return EchoBattle.payout(kind, ranks, fate_total, base, growth)
 
 
 func apply_outcome(outcome: String) -> Dictionary:

@@ -1,0 +1,72 @@
+{
+ "clip": "walk_north",
+ "files": [
+  "walk_north_0000.png",
+  "walk_north_0001.png",
+  "walk_north_0002.png",
+  "walk_north_0003.png",
+  "walk_north_0004.png",
+  "walk_north_0005.png",
+  "walk_north_0006.png",
+  "walk_north_0007.png"
+ ],
+ "hold_ms": 100,
+ "loop": true,
+ "anchor": "loop",
+ "strip": "walk_north.png",
+ "assembly": {
+  "maroon_remapped_px": [
+   19,
+   30,
+   16,
+   24,
+   25,
+   25,
+   7,
+   20
+  ],
+  "video": "keeper_walkvid_back.mp4",
+  "video_frames_1based": [
+   16,
+   18,
+   20,
+   24,
+   26,
+   30,
+   32,
+   36
+  ],
+  "time_s": [
+   0.625,
+   0.708,
+   0.792,
+   0.958,
+   1.042,
+   1.208,
+   1.292,
+   1.458
+  ],
+  "natural_height_px": [
+   115,
+   117,
+   120,
+   117,
+   117,
+   117,
+   119,
+   118
+  ],
+  "bob_px": [
+   0,
+   1,
+   2,
+   1,
+   0,
+   1,
+   2,
+   1
+  ],
+  "still_height": 120,
+  "lock": null
+ }
+}

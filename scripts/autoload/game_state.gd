@@ -1,5 +1,5 @@
 extends Node
-## Run + prestige state per SYSTEMS_V01 v0.4.0 — Grow (Fertilizer+Essence), backpack via Backpack autoload. Fully typed.
+## Run state: Grow, Ancient timeout freeze, Forge visit, wisps, and Echo flags.
 
 signal resources_changed(resource_id: StringName, new_amount: int)
 signal stage_changed(stage_id: StringName)
@@ -16,6 +16,7 @@ signal wisp_unassigned(wisp_id: int)
 signal wisp_pulsed(resource_id: StringName)
 signal echo_flags_changed
 signal ancient_expired
+signal keeper_harvested(resource_id: StringName, amount: int)
 
 const STAGE_ORDER: Array[StringName] = [
 	&"sapling", &"young", &"mature", &"elder", &"ancient"
@@ -54,6 +55,13 @@ var forge_key: bool = false
 var echo_01_narrator_heard: bool = false
 ## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
 var arrow_mode: String = "physical"
+## True after the Ancient timer hits 0. The Fruit stays committed and the clearing holds still.
+var ancient_frozen: bool = false
+## Set on the first successful Forge entry. Old saves infer it in the v10 migrate.
+var forge_visited: bool = false
+## True while apply_save_dict is writing state. Milestone cues stay silent.
+var applying_save: bool = false
+var _frozen_deny_msec: int = -100000000
 
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
@@ -89,8 +97,29 @@ var keeper_selected: bool = false
 var selected_wisp_id: int = -1
 ## Drag-box set. A single click still replaces this with one id.
 var selected_wisp_ids: Array[int] = []
-## Runtime only. "elaia" once the Spare brought her home. No companion body in the hub.
+## "elaia" when her portrait or sprite is selected. The marquee never sets this:
+## box-select is Wisps plus the Keeper. Click her sprite or HUD portrait to select her.
 var selected_companion_id: String = ""
+## One-time Clearing dialogue. Migrated saves that already had her set this true.
+var elaia_join_seen: bool = false
+## Persisted body. Only the instance whose home matches elaia_area simulates.
+var elaia_area: String = "clearing"
+var elaia_pos: Vector2 = Vector2.ZERO
+var elaia_has_pos: bool = false
+var elaia_facing: String = "south"
+## Shown once in the Forge when the first Relic finishes and she is waiting outside.
+var elaia_footsteps_seen: bool = false
+## The Keeper's scene, same idea as elaia_area. The view switch does not change it.
+var keeper_area: String = "clearing"
+var keeper_pos: Vector2 = Vector2.ZERO
+var keeper_has_pos: bool = false
+var keeper_facing: String = "south"
+## Set by a portrait double-click so the destination scene centres the camera.
+var pending_focus_actor: String = ""
+## Fractional essence from her 0.8 watering gift so the integer grant does not drop to 0.
+var elaia_water_essence_frac: float = 0.0
+var _hero_water_accum: Dictionary = {}
+var _companions: Dictionary = {}
 
 var stages_data: Array = []
 var upgrades_data: Array = []
@@ -127,6 +156,9 @@ func _ensure_character_sheet_action() -> void:
 
 func _process(delta: float) -> void:
 	## Pausable by default — stops when get_tree().paused (pause menu).
+	## A frozen Ancient does not bank run time, so staring at Ascend does not reset the offline curve.
+	if ancient_frozen:
+		return
 	run_time_sec += delta
 	active_since_load_sec += delta
 	tick_ancient(delta)
@@ -155,6 +187,128 @@ func _load_tables() -> void:
 		var uroot: Dictionary = up
 		var arr: Variant = uroot.get("upgrades", [])
 		upgrades_data = arr if typeof(arr) == TYPE_ARRAY else []
+	_load_companions()
+
+
+func _load_companions() -> void:
+	var file := FileAccess.open("res://data/companions.json", FileAccess.READ)
+	if file == null:
+		push_error("GameState: cannot open companions.json")
+		return
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if typeof(parsed) == TYPE_DICTIONARY:
+		_companions = parsed
+
+
+func _companion_row(actor: String) -> Dictionary:
+	var found: Variant = _companions.get(actor, {})
+	return found if typeof(found) == TYPE_DICTIONARY else {}
+
+
+func actor_walk_ref_speed(actor: String) -> float:
+	var fallback: float = 88.0 if actor == "elaia" else 80.0
+	return float(_companion_row(actor).get("walk_ref_speed", fallback))
+
+
+func actor_move_mult(actor: String) -> float:
+	return float(_companion_row(actor).get("move_speed_mult", 1.0))
+
+
+func actor_work_rate(actor: String, station_id: String = "") -> float:
+	## Reliquary replaces the shared work rate. It is not stacked on top of it.
+	var row: Dictionary = _companion_row(actor)
+	if station_id == "reliquary":
+		return float(row.get("reliquary_work_rate", row.get("work_rate", 1.0)))
+	return float(row.get("work_rate", 1.0))
+
+
+func actor_water_mult(actor: String) -> float:
+	return float(_companion_row(actor).get("water_reward_mult", 1.0))
+
+
+func actor_portrait_texture(actor: String) -> Texture2D:
+	## HUD portrait. Path and optional region live in companions.json.
+	var row: Dictionary = _companion_row(actor)
+	var path: String = str(row.get("portrait_path", ""))
+	if path == "" or not ResourceLoader.exists(path):
+		path = CharacterSheet.ELAIA_PARTY_PORTRAIT_PATH if actor == "elaia" else CharacterSheet.KEEPER_PARTY_PORTRAIT_PATH
+	var tex: Texture2D = load(path) as Texture2D
+	if tex == null:
+		return null
+	var region_v: Variant = row.get("portrait_region", null)
+	if typeof(region_v) != TYPE_ARRAY or (region_v as Array).size() < 4:
+		return tex
+	var reg: Array = region_v
+	var rect := Rect2i(int(reg[0]), int(reg[1]), int(reg[2]), int(reg[3]))
+	var img: Image = tex.get_image()
+	if img == null:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = tex
+		atlas.region = Rect2(rect)
+		return atlas
+	return ImageTexture.create_from_image(img.get_region(rect))
+
+
+func hero_display_name(actor: String) -> String:
+	## Display name from companions.json. "The Keeper" only when that string is missing.
+	var row: Dictionary = _companion_row(actor)
+	var key: String = str(row.get("display_name_key", ""))
+	var fallback: String = "The Keeper" if actor == "keeper" else "Elaia"
+	if key == "":
+		return fallback
+	var text: String = ContentStrings.get_text(key)
+	if text == "" or text == key:
+		return fallback
+	return text
+
+
+func elaia_join_pending() -> bool:
+	if not elaia_in_party() or elaia_join_seen:
+		return false
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return false
+	return true
+
+
+func selected_hero_id() -> String:
+	## Elaia and the Keeper are exclusive. Wisps are not heroes.
+	if selected_companion_id == "elaia" and elaia_portrait_visible():
+		return "elaia"
+	if keeper_selected:
+		return "keeper"
+	return ""
+
+
+func find_selected_hero() -> Node:
+	var hero_id: String = selected_hero_id()
+	var tree: SceneTree = get_tree()
+	if hero_id == "" or tree == null:
+		return null
+	if hero_id == "elaia":
+		return tree.get_first_node_in_group("elaia")
+	return tree.get_first_node_in_group("keeper")
+
+
+func command_selected_hero(target: Node2D, type_id: String, claim_key: String = "") -> void:
+	var hero: Node = find_selected_hero()
+	if hero != null and hero.has_method("command_work"):
+		hero.call("command_work", target, type_id, claim_key)
+
+
+func tick_hero_water(actor: String, delta: float) -> void:
+	## Same pulse as the Keeper's channel, used when her body is not in the current view.
+	if fruit_committed or ancient_frozen or delta <= 0.0:
+		return
+	var acc: float = float(_hero_water_accum.get(actor, 0.0)) + delta
+	var pulse: float = get_water_essence_pulse_sec()
+	if pulse <= 0.0:
+		_hero_water_accum[actor] = acc
+		return
+	while acc >= pulse:
+		acc -= pulse
+		apply_water_pulse(true, true, actor_water_mult(actor))
+	_hero_water_accum[actor] = acc
 
 
 func _ensure_upgrade_keys() -> void:
@@ -428,21 +582,43 @@ func select_wisp(wisp_id: int) -> void:
 
 
 func elaia_in_party() -> bool:
-	## Spare is the story beat. The portrait waits for the first Reliquary relic,
+	## Spare is the story beat. Her body waits after the first Reliquary relic,
 	## unless this save already had her from before that gate.
 	return echo_01_redeemed and (first_relic_crafted or elaia_legacy_joined)
+
+
+func elaia_portrait_visible() -> bool:
+	## Portrait, selection and companion status wait until the Clearing dialogue.
+	return elaia_in_party() and elaia_join_seen
+
+
+func elaia_footsteps_pending() -> bool:
+	return echo_01_redeemed and first_relic_crafted and not elaia_join_seen and not elaia_footsteps_seen
 
 
 func note_first_relic_crafted() -> void:
 	if first_relic_crafted:
 		return
 	first_relic_crafted = true
+	if echo_01_redeemed and not elaia_join_seen:
+		elaia_footsteps_seen = false
+		_place_elaia_at_door()
 	echo_flags_changed.emit()
 
 
+func _place_elaia_at_door() -> void:
+	elaia_area = "clearing"
+	elaia_has_pos = true
+	elaia_facing = "south"
+	if has_node("/root/ForgeJobs"):
+		elaia_pos = ForgeJobs.elaia_join_stand()
+	else:
+		elaia_pos = Vector2(2244, 2140)
+
+
 func select_companion(companion_id: String) -> void:
-	## Portrait click. She has no body in the clearing.
-	if companion_id != "elaia" or not elaia_in_party():
+	## Portrait or sprite click. Refused until the join dialogue has played.
+	if companion_id != "elaia" or not elaia_portrait_visible():
 		return
 	if selected_companion_id == companion_id and not keeper_selected and selected_wisp_ids.is_empty() and selected_wisp_id < 0:
 		return
@@ -454,7 +630,8 @@ func select_companion(companion_id: String) -> void:
 
 
 func select_group(wisp_ids: Array, include_keeper: bool) -> void:
-	## Drag box. Replaces the current selection with whatever the box holds.
+	## Drag box. Wisps, and the Keeper when his sprite is inside the box.
+	## Elaia is not part of the marquee; a box-select clears her selection.
 	selected_companion_id = ""
 	selected_wisp_ids.clear()
 	for raw: Variant in wisp_ids:
@@ -630,10 +807,11 @@ func get_effect_total(effect_name: String) -> float:
 
 
 func get_water_essence_amount() -> int:
-	## Base + floor(deep_roots_rank / 2) per SYSTEMS v0.2.0.
+	## Base + floor(value_per_rank × rank). Deep Roots is 0.5, so +1 Essence every 2 ranks.
 	var base_amt: int = param_int("WATER_ESSENCE_PER_SEC", 1)
 	var deep_rank: int = get_upgrade_rank("deep_roots")
-	return base_amt + int(floor(float(deep_rank) / 2.0))
+	var per: float = float(get_upgrade_def("deep_roots").get("value_per_rank", 0.5))
+	return base_amt + int(floor(per * float(deep_rank)))
 
 
 func get_stage_gather_mult() -> float:
@@ -742,12 +920,15 @@ func accumulate_harvest(resource_id: StringName, units: float) -> int:
 	return grant
 
 
-func accumulate_keeper_harvest(resource_id: StringName, delta: float) -> int:
-	if fruit_committed or delta <= 0.0 or not resource_id in HARVEST_IDS:
+func accumulate_keeper_harvest(resource_id: StringName, delta: float, rate: float = 1.0) -> int:
+	if fruit_committed or ancient_frozen or delta <= 0.0 or not resource_id in HARVEST_IDS:
 		return 0
 	var interval: float = maxf(get_keeper_harvest_pulse_sec(resource_id), 0.05)
-	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor()
-	return accumulate_harvest(resource_id, units)
+	var units: float = (delta / interval) * _harvest_base_units(resource_id) * active_harvest_factor() * rate
+	var grant: int = accumulate_harvest(resource_id, units)
+	if grant > 0:
+		keeper_harvested.emit(resource_id, grant)
+	return grant
 
 
 func accumulate_wisp_harvest(resource_id: StringName, delta: float) -> int:
@@ -759,11 +940,11 @@ func accumulate_wisp_harvest(resource_id: StringName, delta: float) -> int:
 	return accumulate_harvest(resource_id, units)
 
 
-func apply_offline_keeper_harvest(eff_sec: float, resource_id: StringName) -> int:
+func apply_offline_keeper_harvest(eff_sec: float, resource_id: StringName, rate: float = 1.0) -> int:
 	if eff_sec <= 0.0 or not resource_id in HARVEST_IDS:
 		return 0
 	var interval: float = maxf(get_keeper_harvest_pulse_sec(resource_id), 0.05)
-	var units: float = (eff_sec / interval) * _harvest_base_units(resource_id) * offline_harvest_factor()
+	var units: float = (eff_sec / interval) * _harvest_base_units(resource_id) * offline_harvest_factor() * rate
 	return accumulate_harvest(resource_id, units)
 
 
@@ -793,7 +974,7 @@ func get_gather_grant(resource_id: StringName) -> int:
 
 ## Water channel pulse: manashards U{1,3}×can + shard_sight, essence income only (no growth).
 ## At Ancient: still pays shards+essence. Split flags are test-only; Keeper grants both.
-func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true) -> Dictionary:
+func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, reward_mult: float = 1.0) -> Dictionary:
 	if fruit_committed:
 		return {"ok": false, "reason": "pending_ascend", "shards": 0, "essence": 0}
 	if not grant_shards and not grant_essence:
@@ -805,12 +986,20 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true) ->
 		var shard_max: int = param_int("WATER_SHARD_MAX", 3)
 		## U{1,3} plus Shard Sight (+0.5 per rank), then the Can ×2. Fractions stay in the accumulator.
 		var shard_roll: float = float(randi_range(shard_min, shard_max)) + get_effect_total("water_shard_bonus")
-		var units: float = shard_roll * float(get_water_shard_roll_mult())
+		var units: float = shard_roll * float(get_water_shard_roll_mult()) * reward_mult
 		shards = accumulate_harvest(&"manashards", units)
 		lifetime_shards_from_water += shards
 	if grant_essence:
-		ess = get_water_essence_amount()
-		add_resource(&"essence", ess)
+		## A 1.0 Keeper pulse stays a whole Essence. Her 0.8 banks the fraction.
+		if is_equal_approx(reward_mult, 1.0):
+			ess = get_water_essence_amount()
+			add_resource(&"essence", ess)
+		else:
+			elaia_water_essence_frac += float(get_water_essence_amount()) * reward_mult
+			ess = int(floor(elaia_water_essence_frac))
+			elaia_water_essence_frac -= float(ess)
+			if ess > 0:
+				add_resource(&"essence", ess)
 		lifetime_essence_from_water += ess
 	lifetime_waters += 1
 	return {"ok": true, "reason": "ok", "shards": shards, "essence": ess}
@@ -831,6 +1020,23 @@ func get_upgrade_cost(upgrade_id: String) -> int:
 		return 999999
 	var rank: int = get_upgrade_rank(upgrade_id)
 	return int(def.get("cost_base", 1)) + int(def.get("cost_per_rank", 1)) * rank
+
+
+func can_afford_any_ascension() -> bool:
+	## True when leftover Manashards can still buy at least one blessing.
+	for entry: Variant in upgrades_data:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var upgrade_id: String = str((entry as Dictionary).get("id", ""))
+		if upgrade_id == "":
+			continue
+		var def: Dictionary = entry as Dictionary
+		var max_rank: int = int(def.get("max_rank", 1))
+		if get_upgrade_rank(upgrade_id) >= max_rank:
+			continue
+		if manashards >= get_upgrade_cost(upgrade_id):
+			return true
+	return false
 
 
 func can_buy_upgrade(upgrade_id: String) -> bool:
@@ -1122,6 +1328,7 @@ func tick_ancient(delta: float) -> void:
 		return
 	ancient_remaining_sec = 0.0
 	if harvest_fruit() > 0:
+		ancient_frozen = true
 		ancient_expired.emit()
 
 
@@ -1257,6 +1464,7 @@ func ascend() -> void:
 	manashards = 0
 	essence = 0
 	_set_fruit_committed(false)
+	ancient_frozen = false
 	fruit_ready = false
 	wisp_count = get_upgrade_rank("bonus_wisp")
 	wisp_assignments.clear()
@@ -1331,19 +1539,36 @@ func to_save_dict() -> Dictionary:
 		"equipment_unlocked": _equipment_save_field("equipment_unlocked"),
 		"equipment_equipped": _equipment_save_field("equipment_equipped"),
 		"gear_inventory": _equipment_save_field("gear_inventory"),
+		"elaia_equipped": Equipment.elaia_equipped_to_save() if has_node("/root/Equipment") else {},
 		"portal_unlocked": portal_unlocked,
 		"portal_fee_paid": portal_fee_paid,
 		"echo_01_resolved": echo_01_resolved,
 		"echo_01_redeemed": echo_01_redeemed,
 		"first_relic_crafted": first_relic_crafted,
 		"elaia_legacy_joined": elaia_legacy_joined,
+		"elaia_join_seen": elaia_join_seen,
+		"elaia_footsteps_seen": elaia_footsteps_seen,
+		"elaia_area": elaia_area,
+		"elaia_pos_x": elaia_pos.x,
+		"elaia_pos_y": elaia_pos.y,
+		"elaia_has_pos": elaia_has_pos,
+		"elaia_facing": elaia_facing,
+		"keeper_area": keeper_area,
+		"keeper_pos_x": keeper_pos.x,
+		"keeper_pos_y": keeper_pos.y,
+		"keeper_has_pos": keeper_has_pos,
+		"keeper_facing": keeper_facing,
+		"elaia_water_essence_frac": elaia_water_essence_frac,
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
 		"arrow_mode": arrow_mode,
+		"ancient_frozen": ancient_frozen,
+		"forge_visited": forge_visited,
 	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {})
 
 
 func apply_save_dict(data: Dictionary) -> void:
+	applying_save = true
 	wood = int(data.get("wood", 0))
 	stone = int(data.get("stone", 0))
 	food = int(data.get("food", 0))
@@ -1386,9 +1611,44 @@ func apply_save_dict(data: Dictionary) -> void:
 	else:
 		## Missing gate: Spare had already put her in the party, even with no relic.
 		elaia_legacy_joined = echo_01_redeemed and not data.has("first_relic_crafted")
+	## A save that already had her joined never replays the first-join lines.
+	if data.has("elaia_join_seen"):
+		elaia_join_seen = bool(data.get("elaia_join_seen", false))
+	else:
+		elaia_join_seen = elaia_in_party()
+	elaia_area = str(data.get("elaia_area", "clearing"))
+	if elaia_area != "forge":
+		elaia_area = "clearing"
+	elaia_has_pos = bool(data.get("elaia_has_pos", false))
+	elaia_pos = Vector2(float(data.get("elaia_pos_x", 0.0)), float(data.get("elaia_pos_y", 0.0)))
+	elaia_facing = str(data.get("elaia_facing", "south"))
+	if elaia_facing != "north" and elaia_facing != "east" and elaia_facing != "west":
+		elaia_facing = "south"
+	if data.has("elaia_footsteps_seen"):
+		elaia_footsteps_seen = bool(data.get("elaia_footsteps_seen", false))
+	else:
+		## Already joined, or she is not waiting: do not replay the Forge popup.
+		## Mid-way (relic done, dialogue not seen) still owes the popup.
+		elaia_footsteps_seen = not (first_relic_crafted and echo_01_redeemed and not elaia_join_seen)
+	if elaia_footsteps_pending() and not elaia_has_pos:
+		_place_elaia_at_door()
+	keeper_area = str(data.get("keeper_area", "clearing"))
+	if keeper_area != "forge":
+		keeper_area = "clearing"
+	keeper_has_pos = bool(data.get("keeper_has_pos", false))
+	keeper_pos = Vector2(float(data.get("keeper_pos_x", 0.0)), float(data.get("keeper_pos_y", 0.0)))
+	keeper_facing = str(data.get("keeper_facing", "south"))
+	elaia_water_essence_frac = maxf(0.0, float(data.get("elaia_water_essence_frac", 0.0)))
+	_hero_water_accum.clear()
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
+	ancient_frozen = bool(data.get("ancient_frozen", false))
+	forge_visited = bool(data.get("forge_visited", false))
+	if ancient_frozen:
+		_set_fruit_committed(true)
+		fruit_ready = false
+		ancient_remaining_sec = 0.0
 	lifetime_waters = int(data.get("lifetime_waters", 0))
 	lifetime_shards_from_water = int(data.get("lifetime_shards_from_water", 0))
 	lifetime_essence_from_water = int(data.get("lifetime_essence_from_water", 0))
@@ -1425,6 +1685,9 @@ func apply_save_dict(data: Dictionary) -> void:
 		KeeperStats.apply_save_dict(data.get("keeper_stats", {}))
 	if has_node("/root/Equipment"):
 		Equipment.apply_save_dict(_equipment_payload(data))
+		Equipment.apply_elaia_equipped(data.get("elaia_equipped", {}))
+		if forge_key:
+			Equipment.ensure_forge_key_from_load()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.apply_save_fields(data)
 	keeper_selected = false
@@ -1443,6 +1706,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	upgrades_changed.emit()
 	echo_flags_changed.emit()
 	load_completed.emit()
+	applying_save = false
 
 
 func _save_holds_relic(data: Dictionary) -> bool:
@@ -1528,9 +1792,24 @@ func reset_for_new_game() -> void:
 	echo_01_redeemed = false
 	first_relic_crafted = false
 	elaia_legacy_joined = false
+	elaia_join_seen = false
+	elaia_footsteps_seen = false
+	elaia_area = "clearing"
+	keeper_area = "clearing"
+	keeper_pos = Vector2.ZERO
+	keeper_has_pos = false
+	keeper_facing = "south"
+	pending_focus_actor = ""
+	elaia_pos = Vector2.ZERO
+	elaia_has_pos = false
+	elaia_facing = "south"
+	elaia_water_essence_frac = 0.0
+	_hero_water_accum.clear()
 	forge_key = false
 	echo_01_narrator_heard = false
 	arrow_mode = "physical"
+	ancient_frozen = false
+	forge_visited = false
 	echo_flags_changed.emit()
 	Backpack.reset_for_new_game()
 	if has_node("/root/KeeperStats"):
@@ -1552,9 +1831,21 @@ func reset_for_new_game() -> void:
 	upgrades_changed.emit()
 
 
+func is_world_frozen() -> bool:
+	return ancient_frozen
+
+
+func note_frozen_deny() -> void:
+	var now: int = Time.get_ticks_msec()
+	if now - _frozen_deny_msec < 1600:
+		return
+	_frozen_deny_msec = now
+	status_message.emit(ContentStrings.get_text("ascend_frozen_deny"))
+
+
 func cancel_fruit_commit() -> void:
-	## Close on the Ascension shop. Harvest does not lock the run; Ascend does.
-	if not fruit_committed:
+	## A manual harvest can still be cancelled. The Ancient timeout cannot.
+	if ancient_frozen or not fruit_committed:
 		return
 	_set_fruit_committed(false)
 	var def: Dictionary = get_stage_def(stage_id)

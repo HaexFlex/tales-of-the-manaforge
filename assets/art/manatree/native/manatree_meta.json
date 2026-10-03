@@ -1,13 +1,13 @@
 {
- "version": "v0.1.9-A2-native",
+ "version": "v0.1.9-A2-native-glow-only",
  "filter": "nearest",
- "source": "Manatree set A2 re-exported at native display size (1 art px = 1 display px) from the same A2 raws/cutouts, crop and door anchor as v0.1.8-A2 (frame, door_floor, anchor_px and stills x the old display_scale 2/3/4/4/4; sway amplitude x the same factor). Built by hub_v3/tools/build_manatree_native.py. 8 frames horizontal.",
+ "source": "Glow-only strips: frame 0 silhouette held, veins pulse. No crown sway. Original sway strips stay in native/anim/.",
  "fps": 7,
  "haex_approved": true,
  "stages": [
   {
    "stage_id": "sapling",
-   "file": "native/anim/manatree_sapling_strip.png",
+   "file": "native/anim/glow/manatree_sapling_strip_glow.png",
    "size": [
     128,
     128
@@ -33,7 +33,7 @@
   },
   {
    "stage_id": "young",
-   "file": "native/anim/manatree_young_strip.png",
+   "file": "native/anim/glow/manatree_young_strip_glow.png",
    "size": [
     288,
     288
@@ -59,7 +59,7 @@
   },
   {
    "stage_id": "mature",
-   "file": "native/anim/manatree_mature_strip.png",
+   "file": "native/anim/glow/manatree_mature_strip_glow.png",
    "size": [
     736,
     736
@@ -85,7 +85,7 @@
   },
   {
    "stage_id": "elder",
-   "file": "native/anim/manatree_elder_strip.png",
+   "file": "native/anim/glow/manatree_elder_strip_glow.png",
    "size": [
     1024,
     1024
@@ -111,7 +111,7 @@
   },
   {
    "stage_id": "ancient",
-   "file": "native/anim/manatree_ancient_strip.png",
+   "file": "native/anim/glow/manatree_ancient_strip_glow.png",
    "size": [
     1024,
     1024
