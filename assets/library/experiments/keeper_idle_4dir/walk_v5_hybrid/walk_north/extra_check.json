@@ -1,0 +1,103 @@
+{
+ "frames": [
+  {
+   "k": 0,
+   "components": 1,
+   "height": 118,
+   "top": 6
+  },
+  {
+   "k": 1,
+   "components": 1,
+   "height": 119,
+   "top": 5
+  },
+  {
+   "k": 2,
+   "components": 1,
+   "height": 120,
+   "top": 4
+  },
+  {
+   "k": 3,
+   "components": 1,
+   "height": 119,
+   "top": 5
+  },
+  {
+   "k": 4,
+   "components": 1,
+   "height": 118,
+   "top": 6
+  },
+  {
+   "k": 5,
+   "components": 1,
+   "height": 119,
+   "top": 5
+  },
+  {
+   "k": 6,
+   "components": 1,
+   "height": 120,
+   "top": 4
+  },
+  {
+   "k": 7,
+   "components": 1,
+   "height": 119,
+   "top": 5
+  }
+ ],
+ "bob_px": [
+  0,
+  1,
+  2,
+  1,
+  0,
+  1,
+  2,
+  1
+ ],
+ "step_changed_px": [
+  2946,
+  2827,
+  3206,
+  2871,
+  3197,
+  2736,
+  3071,
+  2903
+ ],
+ "head_rows_diff_vs_frame0": [
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0
+ ],
+ "ms": [
+  120,
+  125,
+  130,
+  125,
+  120,
+  125,
+  130,
+  125
+ ],
+ "loop_ms": 1000,
+ "ok": {
+  "one_component": true,
+  "height_117_120": true,
+  "bob_le_2": true,
+  "ms_100_130": true,
+  "loop_900_1100": true,
+  "loop_seam_within_steps": true,
+  "head_locked": true
+ },
+ "all_ok": true
+}
