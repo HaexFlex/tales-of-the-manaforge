@@ -17,6 +17,11 @@ var _keeper_station: String = ""
 var _keeper_working: bool = false
 var _companions: Dictionary = {}
 var _keeper_task: Dictionary = {"kind": "none", "target": "", "working": false}
+var _elaia_task: Dictionary = {"kind": "none", "target": "", "working": false}
+var _elaia_station: String = ""
+var _elaia_working: bool = false
+## Target key held while a hero is walking, before the job is marked working.
+var _hero_claims: Dictionary = {}
 var _silent: bool = false
 var _pending_toast: String = ""
 var _return_to_clearing: bool = false
@@ -28,6 +33,9 @@ var _allow_scene_change: bool = true
 ## -1 follows the live scene. 0/1 forces the upcycle tick inside or outside the Forge.
 var _in_forge_override: int = -1
 var _materials_snapshot: Dictionary = {}
+var _repeat_override: Dictionary = {}
+## One phase for every wisp on every target. Advanced once per frame, not once per wisp.
+var _wisp_orbit_phase: float = 0.0
 
 
 func _ready() -> void:
@@ -38,21 +46,28 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	step_jobs(delta)
+
+
+func step_jobs(delta: float) -> void:
+	## Shared by the live frame and the jobs-survive check. One clock for income.
+	var speed: float = float(_tuning.get("wisp_orbit_speed", 1.45))
+	_wisp_orbit_phase = fposmod(_wisp_orbit_phase + speed * delta, TAU)
 	advance_seconds(delta * dev_time_scale())
+	_tick_absent_elaia(delta)
+	_tick_absent_keeper(delta)
 	if not _autosave_enabled:
 		return
-	var every: float = float(_tuning.get("autosave_sec", 30.0))
+	var every: float = float(_tuning.get("autosave_sec", 300.0))
 	if every <= 0.0 or not has_node("/root/SaveService"):
 		return
 	_autosave_accum += delta
 	if _autosave_accum < every:
 		return
 	_autosave_accum = 0.0
-	if EchoChamber.in_battle or not SaveService.has_save():
+	if EchoChamber.in_battle or not SaveService.session_active:
 		return
-	var slot: int = SaveService.get_most_recent_slot()
-	if slot >= 1:
-		SaveService.save_game(slot)
+	SaveService.save_autosave(true)
 
 
 func _load_files() -> void:
@@ -193,7 +208,7 @@ func recipe_hover_bbcode(recipe_id: String) -> String:
 		if need <= 0:
 			continue
 		var owned: int = _have(str(key))
-		var row: String = "%s %d / %d" % [_item_label(str(key)), owned, need]
+		var row: String = "%s %d/%d" % [_counted_name(str(key), need), owned, need]
 		if owned < need:
 			row = "[color=#e07050]%s[/color]" % row
 		lines.append(row)
@@ -216,6 +231,13 @@ func _bonus_bits(recipe: Dictionary) -> PackedStringArray:
 	if kind != "":
 		bits.append(kind.capitalize())
 	return bits
+
+
+func _counted_name(item_id: String, need: int) -> String:
+	var base: String = _item_label(item_id)
+	if has_node("/root/Backpack") and Backpack.has_method("counted_item_name"):
+		return Backpack.counted_item_name(item_id, need, base)
+	return base
 
 
 func _item_label(item_id: String) -> String:
@@ -358,16 +380,24 @@ func can_enter_forge() -> bool:
 
 
 func try_enter_forge() -> String:
+	if has_node("/root/GameState") and GameState.is_world_frozen():
+		return "denied"
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return "denied"
 	if not can_enter_forge():
 		return "denied"
 	if _keeper_task_kind() == "water" or _keeper_task_kind() == "harvest":
 		note_keeper_idle()
-	_return_to_clearing = false
-	_play(&"sfx_door_bark")
-	if has_node("/root/GameAudio"):
-		GameAudio.set_forge_room_mix(true, audio_lowpass_hz(), audio_reverb_room(), audio_music_db())
-	if _allow_scene_change:
-		get_tree().change_scene_to_file(FORGE_SCENE)
+	return commit_actor_enter("keeper")
+
+
+func travel_to_forge() -> String:
+	## View switch. Walking through the door is what moves a character.
+	if not has_node("/root/GameState") or not GameState.forge_visited:
+		return try_enter_forge()
+	if GameState.is_world_frozen() or (has_node("/root/EchoChamber") and EchoChamber.in_battle):
+		return "denied"
+	switch_view(true)
 	return "entered"
 
 
@@ -376,6 +406,10 @@ func note_entered_forge() -> void:
 
 
 func exit_forge() -> void:
+	if has_node("/root/GameState") and GameState.is_world_frozen():
+		return
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return
 	if _keeper_station != "":
 		set_keeper_working("", false)
 	_return_to_clearing = true
@@ -401,6 +435,179 @@ func return_offset() -> Vector2:
 	return Vector2(-80, 354)
 
 
+func station_work_anim_speed() -> float:
+	## data/forge_tuning.json station_work_anim_speed. Animation playback only.
+	return maxf(0.05, float(_tuning.get("station_work_anim_speed", 0.5)))
+
+
+func _tuning_vec(key: String, fallback: Vector2) -> Vector2:
+	var raw: Variant = _tuning.get(key, [])
+	if typeof(raw) == TYPE_ARRAY and (raw as Array).size() >= 2:
+		return Vector2(float((raw as Array)[0]), float((raw as Array)[1]))
+	return fallback
+
+
+func manatree_origin() -> Vector2:
+	if get_tree() != null:
+		var nodes: Array[Node] = get_tree().get_nodes_in_group("manatree")
+		if not nodes.is_empty() and nodes[0] is Node2D:
+			return (nodes[0] as Node2D).global_position
+	return Vector2(2160, 2106)
+
+
+func forge_arch_spawn() -> Vector2:
+	return _tuning_vec("forge_arch_spawn", Vector2(800, 1048))
+
+
+func clearing_door_stand() -> Vector2:
+	return manatree_origin() + _tuning_vec("clearing_door_stand", Vector2(0, 28))
+
+
+func elaia_join_stand() -> Vector2:
+	return clearing_door_stand() + _tuning_vec("elaia_join_east", Vector2(84, 6))
+
+
+func door_entry_point() -> Vector2:
+	## Inside the sill trigger, closer than the care stand at clearing_door_stand.
+	return manatree_origin() + Vector2(0, 8)
+
+
+func wisp_work_radius(count: int) -> float:
+	## Legacy count ramp. Orbits no longer use this; harvest rates never did.
+	var base: float = float(_tuning.get("wisp_work_radius", 34.0))
+	var step: float = float(_tuning.get("wisp_work_radius_step", 12.0))
+	return base + step * float(maxi(0, count - 1))
+
+
+func wisp_orbit_phase() -> float:
+	return _wisp_orbit_phase
+
+
+func debug_set_wisp_orbit_phase(phase: float) -> void:
+	_wisp_orbit_phase = fposmod(phase, TAU)
+
+
+func wisp_orbit_pad() -> float:
+	return float(_tuning.get("wisp_orbit_pad", 14.0))
+
+
+func wisp_orbit_radius_for_size(size: Vector2) -> float:
+	## Half the footprint's long side, plus a data pad. Larger trunks orbit wider.
+	var scale: float = float(_tuning.get("wisp_orbit_foot_scale", 0.5))
+	return maxf(size.x, size.y) * scale + wisp_orbit_pad()
+
+
+func station_supports_repeat(station_id: String) -> bool:
+	return station_id == "crucible" or station_id == "mill" or station_id == "press"
+
+
+func station_repeat_enabled(station_id: String) -> bool:
+	if _repeat_override.has(station_id):
+		return bool(_repeat_override[station_id])
+	return bool(_station_def(station_id).get("auto_repeat", false))
+
+
+func set_station_repeat(station_id: String, enabled: bool) -> void:
+	if not station_supports_repeat(station_id):
+		return
+	_repeat_override[station_id] = enabled
+
+
+func switch_view(to_forge: bool) -> void:
+	## Scene and camera only. Does not move the Keeper, Elaia, or any Wisp.
+	if has_node("/root/GameState") and GameState.is_world_frozen():
+		return
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return
+	_return_to_clearing = false
+	_play(&"sfx_door_bark")
+	if to_forge:
+		if has_node("/root/GameAudio"):
+			GameAudio.set_forge_room_mix(true, audio_lowpass_hz(), audio_reverb_room(), audio_music_db())
+		if _allow_scene_change and get_tree() != null:
+			get_tree().change_scene_to_file(FORGE_SCENE)
+		return
+	if has_node("/root/GameAudio"):
+		GameAudio.set_forge_room_mix(false)
+	if _allow_scene_change and get_tree() != null:
+		get_tree().change_scene_to_file(HUB_SCENE)
+
+
+func commit_actor_enter(actor_id: String) -> String:
+	var spot: Vector2 = forge_arch_spawn()
+	if has_node("/root/GameState"):
+		if actor_id == "elaia":
+			GameState.elaia_area = "forge"
+			GameState.elaia_has_pos = true
+			GameState.elaia_pos = spot
+			GameState.elaia_facing = "north"
+		else:
+			GameState.keeper_area = "forge"
+			GameState.keeper_has_pos = true
+			GameState.keeper_pos = spot
+			GameState.keeper_facing = "north"
+		GameState.forge_visited = true
+	_return_to_clearing = false
+	_play(&"sfx_door_bark")
+	if has_node("/root/GameAudio"):
+		GameAudio.set_forge_room_mix(true, audio_lowpass_hz(), audio_reverb_room(), audio_music_db())
+	if _allow_scene_change and get_tree() != null:
+		get_tree().change_scene_to_file(FORGE_SCENE)
+	return "entered"
+
+
+func commit_actor_exit(actor_id: String) -> void:
+	var spot: Vector2 = clearing_door_stand()
+	if has_node("/root/GameState"):
+		if actor_id == "elaia":
+			GameState.elaia_area = "clearing"
+			GameState.elaia_has_pos = true
+			GameState.elaia_pos = spot
+			GameState.elaia_facing = "south"
+		else:
+			GameState.keeper_area = "clearing"
+			GameState.keeper_has_pos = true
+			GameState.keeper_pos = spot
+			GameState.keeper_facing = "south"
+	switch_view(false)
+
+
+func try_door_entry(actor_id: String) -> String:
+	if has_node("/root/GameState") and GameState.is_world_frozen():
+		return "denied"
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return "denied"
+	var visited: bool = has_node("/root/GameState") and GameState.forge_visited
+	if not visited and not can_enter_forge():
+		return "denied"
+	## Door entry changes the scene. It does not clear the job the hero was doing.
+	return commit_actor_enter(actor_id)
+
+
+func request_door_walk() -> String:
+	## The selected hero walks into the sill. The other stays where they are.
+	if not has_node("/root/GameState"):
+		return "denied"
+	var actor: String = GameState.selected_hero_id()
+	if actor == "":
+		actor = "keeper"
+	var area: String = GameState.elaia_area if actor == "elaia" else GameState.keeper_area
+	if area != "clearing" or in_forge_scene():
+		return "away"
+	var hero: Node = null
+	if actor == "elaia":
+		hero = get_tree().get_first_node_in_group("elaia") if get_tree() != null else null
+	else:
+		hero = get_tree().get_first_node_in_group("keeper") if get_tree() != null else null
+	if hero == null or not hero.has_method("move_to"):
+		return "denied"
+	var dest: Vector2 = door_entry_point()
+	if hero is Node2D and (hero as Node2D).global_position.distance_to(dest) <= 18.0:
+		return try_door_entry(actor)
+	hero.call("move_to", dest, null)
+	return "walking"
+
+
 func set_scene_changes_enabled(enabled: bool) -> void:
 	_allow_scene_change = enabled
 
@@ -416,17 +623,20 @@ func in_forge_scene() -> bool:
 
 
 func wisp_should_show(assigned_node: String, in_forge: bool) -> bool:
-	## Free Wisps follow the Keeper into the Forge and back out.
-	## A Wisp working a station stays there, in the Forge only.
-	var at_station: bool = is_forge_station(assigned_node)
-	var free: bool = assigned_node == ""
-	if in_forge:
-		return free or at_station
-	return not at_station
+	## Station Wisps stay in the Forge. Clearing jobs stay in the clearing.
+	## Free Wisps follow the Keeper's area, not whichever scene the camera is showing.
+	if is_forge_station(assigned_node):
+		return in_forge
+	if assigned_node != "":
+		return not in_forge
+	var keeper_in_forge: bool = has_node("/root/GameState") and GameState.keeper_area == "forge"
+	return keeper_in_forge == in_forge
 
 
 func set_keeper_task(kind: String, target: String, working: bool) -> void:
 	_keeper_task = {"kind": kind, "target": target, "working": working}
+	if working and target != "":
+		_hero_claims["keeper"] = target
 	if kind == "forge":
 		_keeper_station = target if working else ""
 		_keeper_working = working
@@ -439,6 +649,7 @@ func note_keeper_idle() -> void:
 	_keeper_working = false
 	_keeper_station = ""
 	_keeper_task = {"kind": "none", "target": "", "working": false}
+	_hero_claims.erase("keeper")
 
 
 func set_keeper_working(station_id: String, working: bool) -> void:
@@ -455,6 +666,134 @@ func set_keeper_working(station_id: String, working: bool) -> void:
 
 func set_keeper_present(station_id: String, present: bool) -> void:
 	set_keeper_working(station_id, present)
+
+
+func set_elaia_task(kind: String, target: String, working: bool) -> void:
+	_elaia_task = {"kind": kind, "target": target, "working": working}
+	if working and target != "":
+		_hero_claims["elaia"] = target
+	if kind == "forge":
+		_elaia_station = target if working else ""
+		_elaia_working = working
+	elif working:
+		_elaia_station = ""
+		_elaia_working = false
+
+
+func note_elaia_idle() -> void:
+	_elaia_working = false
+	_elaia_station = ""
+	_elaia_task = {"kind": "none", "target": "", "working": false}
+	_hero_claims.erase("elaia")
+
+
+func set_elaia_working(station_id: String, working: bool) -> void:
+	if working and station_id != "":
+		set_elaia_task("forge", station_id, true)
+		return
+	if station_id == "" or station_id == _elaia_station:
+		if str(_elaia_task.get("kind", "")) == "forge":
+			note_elaia_idle()
+		else:
+			_elaia_working = false
+			_elaia_station = ""
+
+
+func elaia_task() -> Dictionary:
+	return _elaia_task.duplicate(true)
+
+
+func _tick_absent_elaia(delta: float) -> void:
+	## Her body only simulates in the area she is standing in. The job keeps going in the other view.
+	if delta <= 0.0 or not bool(_elaia_task.get("working", false)):
+		return
+	if not has_node("/root/GameState"):
+		return
+	if GameState.is_world_frozen() or GameState.fruit_committed:
+		return
+	if _elaia_body_simulating():
+		return
+	var kind: String = str(_elaia_task.get("kind", ""))
+	var target: String = str(_elaia_task.get("target", ""))
+	if kind == "harvest":
+		var rid: StringName = _harvest_resource(target)
+		if rid != &"":
+			GameState.accumulate_keeper_harvest(rid, delta, GameState.actor_work_rate("elaia"))
+	elif kind == "water":
+		GameState.tick_hero_water("elaia", delta)
+
+
+func _elaia_body_simulating() -> bool:
+	return _hero_body_simulating("elaia")
+
+
+func _tick_absent_keeper(delta: float) -> void:
+	## His body only simulates in the area he is standing in. Water and harvest keep paying in the other view.
+	if delta <= 0.0 or not bool(_keeper_task.get("working", false)):
+		return
+	if not has_node("/root/GameState"):
+		return
+	if GameState.is_world_frozen() or GameState.fruit_committed:
+		return
+	if _keeper_body_simulating():
+		return
+	var kind: String = str(_keeper_task.get("kind", ""))
+	var target: String = str(_keeper_task.get("target", ""))
+	if kind == "harvest":
+		var rid: StringName = _harvest_resource(target)
+		if rid != &"":
+			GameState.accumulate_keeper_harvest(rid, delta, GameState.actor_work_rate("keeper"))
+	elif kind == "water":
+		GameState.tick_hero_water("keeper", delta)
+
+
+func _keeper_body_simulating() -> bool:
+	return _hero_body_simulating("keeper")
+
+
+func _hero_body_simulating(group_name: String) -> bool:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return false
+	var node: Node = tree.get_first_node_in_group(group_name)
+	return node != null and node.visible and node.is_physics_processing()
+
+
+func claim_hero_target(actor: String, key: String) -> void:
+	if actor == "" or key == "":
+		return
+	_hero_claims[actor] = key
+
+
+func release_hero_claim(actor: String) -> void:
+	_hero_claims.erase(actor)
+
+
+func hero_claim(actor: String) -> String:
+	return str(_hero_claims.get(actor, ""))
+
+
+func hero_block_name(asker: String, key: String) -> String:
+	## Empty when the target is free. Wisps never block a hero.
+	if key == "":
+		return ""
+	for other: String in ["keeper", "elaia"]:
+		if other == asker:
+			continue
+		if str(_hero_claims.get(other, "")) == key:
+			return _hero_name(other)
+		var task: Dictionary = _keeper_task if other == "keeper" else _elaia_task
+		if bool(task.get("working", false)) and str(task.get("target", "")) == key:
+			return _hero_name(other)
+	return ""
+
+
+func _hero_name(actor: String) -> String:
+	if has_node("/root/GameState"):
+		return GameState.hero_display_name(actor)
+	if actor == "keeper":
+		return "The Keeper"
+	return "Elaia"
 
 
 func set_companion_working(station_id: String, companion_id: String, working: bool) -> void:
@@ -490,9 +829,10 @@ func try_begin_job(station_id: String, recipe_id: String) -> String:
 		"progress": 0.0,
 		"duration": _duration(recipe),
 	}
-	_play(&"sfx_forge_craft_start")
-	if station_id == "press":
-		_play(&"sfx_press_squeeze")
+	if in_forge_scene():
+		_play(&"sfx_forge_craft_start")
+		if station_id == "press":
+			_play(&"sfx_press_squeeze")
 	return "ok"
 
 
@@ -557,6 +897,11 @@ func station_speed_mult(station_id: String) -> float:
 	var speed: float = 0.0
 	if _keeper_working and _keeper_station == station_id:
 		speed += float(_tuning.get("keeper_speed", 1.0))
+	if _elaia_working and _elaia_station == station_id:
+		var elaia_rate: float = 0.8
+		if has_node("/root/GameState"):
+			elaia_rate = GameState.actor_work_rate("elaia", station_id)
+		speed += elaia_rate
 	if str(_companions.get(station_id, "")) != "":
 		speed += float(_tuning.get("companion_speed", 1.0))
 	var wisps: int = mini(_wisps_on(station_id), wisp_cap())
@@ -587,6 +932,8 @@ func station_badge(station_id: String) -> String:
 
 func advance_seconds(seconds: float) -> void:
 	if seconds <= 0.0:
+		return
+	if has_node("/root/GameState") and GameState.is_world_frozen():
 		return
 	for station_id: String in STATION_IDS:
 		if not _jobs.has(station_id):
@@ -666,12 +1013,32 @@ func _grant_offline(eff: float) -> Dictionary:
 			if is_forge_station(station):
 				_keeper_station = station
 				_keeper_working = true
+	if bool(_elaia_task.get("working", false)):
+		var elaia_kind: String = str(_elaia_task.get("kind", ""))
+		var elaia_rate: float = 0.8
+		if has_node("/root/GameState"):
+			elaia_rate = GameState.actor_work_rate("elaia", str(_elaia_task.get("target", "")) if elaia_kind == "forge" else "")
+		if elaia_kind == "water":
+			var elaia_water: Dictionary = _offline_water(eff, GameState.actor_water_mult("elaia") if has_node("/root/GameState") else elaia_rate)
+			result["shards"] = int(result.get("shards", 0)) + int(elaia_water.get("shards", 0))
+			result["essence"] = int(result.get("essence", 0)) + int(elaia_water.get("essence", 0))
+		elif elaia_kind == "harvest":
+			result["harvest"] = int(result.get("harvest", 0)) + _offline_harvest(eff, str(_elaia_task.get("target", "")), elaia_rate)
+		elif elaia_kind == "forge":
+			var elaia_station: String = str(_elaia_task.get("target", ""))
+			if is_forge_station(elaia_station):
+				_elaia_station = elaia_station
+				_elaia_working = true
 	result["forge_completed"] = _count_after_advance(eff)
 	_offline_wisp_grants(eff, result)
 	_silent = was_silent
 	_keeper_working = false
 	_keeper_station = ""
 	_keeper_task["working"] = false
+	_elaia_working = false
+	_elaia_station = ""
+	_elaia_task["working"] = false
+	_hero_claims.clear()
 	if keeper_was and keeper_station_was != "" and _keeper_task_kind() == "forge":
 		pass
 	_queue_offline_toast(result)
@@ -696,6 +1063,7 @@ func prepare_ascend() -> Dictionary:
 		_jobs.clear()
 	_companions.clear()
 	note_keeper_idle()
+	note_elaia_idle()
 	_materials_snapshot = snap
 	return snap
 
@@ -714,8 +1082,10 @@ func capture_save_fields() -> Dictionary:
 		"forge_jobs": _jobs.duplicate(true),
 		"forge_workers": _workers_blob(),
 		"keeper_task": _keeper_task.duplicate(true),
+		"elaia_task": _elaia_task.duplicate(true),
 		"idle_timestamp": Time.get_unix_time_from_system(),
 		"item_categories": item_categories(),
+		"station_repeat": _repeat_override.duplicate(true),
 	}
 
 
@@ -741,15 +1111,41 @@ func apply_save_fields(data: Dictionary) -> void:
 		_keeper_working = false
 		if _keeper_task_kind() != "forge":
 			_keeper_station = ""
+	var elaia_v: Variant = data.get("elaia_task", {})
+	if typeof(elaia_v) == TYPE_DICTIONARY:
+		var elaia_task: Dictionary = elaia_v
+		_elaia_task = {
+			"kind": str(elaia_task.get("kind", "none")),
+			"target": str(elaia_task.get("target", "")),
+			"working": bool(elaia_task.get("working", false)),
+		}
+	else:
+		note_elaia_idle()
+	if bool(_elaia_task.get("working", false)) and str(_elaia_task.get("kind", "")) == "forge":
+		_elaia_station = str(_elaia_task.get("target", ""))
+		_elaia_working = true
+	else:
+		_elaia_working = false
+		if str(_elaia_task.get("kind", "")) != "forge":
+			_elaia_station = ""
+	_hero_claims.clear()
+	if bool(_keeper_task.get("working", false)):
+		_hero_claims["keeper"] = str(_keeper_task.get("target", ""))
+	if bool(_elaia_task.get("working", false)):
+		_hero_claims["elaia"] = str(_elaia_task.get("target", ""))
+	var repeat_v: Variant = data.get("station_repeat", {})
+	_repeat_override = (repeat_v as Dictionary).duplicate(true) if typeof(repeat_v) == TYPE_DICTIONARY else {}
 
 
 func reset_for_new_game() -> void:
 	_jobs.clear()
 	_companions.clear()
 	note_keeper_idle()
+	note_elaia_idle()
 	_pending_toast = ""
 	_return_to_clearing = false
 	_materials_snapshot.clear()
+	_repeat_override.clear()
 
 
 func take_offline_toast() -> String:
@@ -766,13 +1162,11 @@ func _complete_job(station_id: String) -> bool:
 	var duration: float = maxf(float(job.get("duration", 1.0)), 0.05)
 	_grant_output(recipe)
 	_play_completion(station_id, recipe)
-	var repeat: bool = bool(_station_def(station_id).get("auto_repeat", false))
+	var repeat: bool = station_repeat_enabled(station_id)
 	var still: bool = _someone_working(station_id)
 	if repeat and still and _can_pay(recipe):
 		_pay(recipe)
 		job["progress"] = float(job.get("progress", 0.0)) - duration
-		if not _silent:
-			_play(&"sfx_forge_craft_start")
 		return true
 	_jobs.erase(station_id)
 	return false
@@ -824,6 +1218,8 @@ func _play(cue: StringName) -> void:
 
 func _someone_working(station_id: String) -> bool:
 	if _keeper_working and _keeper_station == station_id:
+		return true
+	if _elaia_working and _elaia_station == station_id:
 		return true
 	if str(_companions.get(station_id, "")) != "":
 		return true
@@ -912,7 +1308,7 @@ func _keeper_task_kind() -> String:
 	return str(_keeper_task.get("kind", "none"))
 
 
-func _offline_water(eff: float) -> Dictionary:
+func _offline_water(eff: float, reward_mult: float = 1.0) -> Dictionary:
 	## Same pulse as online watering. No extra offline multiplier and no stage multiplier.
 	var pulse: float = maxf(GameState.get_channel_pulse_sec(), 0.05)
 	var pulses: int = int(floor(eff / pulse))
@@ -922,9 +1318,16 @@ func _offline_water(eff: float) -> Dictionary:
 	var shard_max: int = GameState.param_int("WATER_SHARD_MAX", 3)
 	var mid: float = (float(shard_min) + float(shard_max)) * 0.5
 	var roll: float = (mid + GameState.get_effect_total("water_shard_bonus")) * float(GameState.get_water_shard_roll_mult())
-	var shard_units: float = roll * float(pulses)
+	var shard_units: float = roll * float(pulses) * reward_mult
 	var shards: int = GameState.accumulate_harvest(&"manashards", shard_units)
-	var essence: int = int(floor(float(GameState.get_water_essence_amount()) * float(pulses)))
+	var essence: int = 0
+	if is_equal_approx(reward_mult, 1.0):
+		essence = int(floor(float(GameState.get_water_essence_amount()) * float(pulses)))
+	else:
+		var ess_units: float = float(GameState.get_water_essence_amount()) * float(pulses) * reward_mult
+		GameState.elaia_water_essence_frac += ess_units
+		essence = int(floor(GameState.elaia_water_essence_frac))
+		GameState.elaia_water_essence_frac -= float(essence)
 	if shards > 0:
 		GameState.lifetime_shards_from_water += shards
 	if essence > 0:
@@ -934,11 +1337,11 @@ func _offline_water(eff: float) -> Dictionary:
 	return {"shards": shards, "essence": essence}
 
 
-func _offline_harvest(eff: float, target: String) -> int:
+func _offline_harvest(eff: float, target: String, rate: float = 1.0) -> int:
 	var rid: StringName = _harvest_resource(target)
 	if rid == &"":
 		return 0
-	return GameState.apply_offline_keeper_harvest(eff, rid)
+	return GameState.apply_offline_keeper_harvest(eff, rid, rate)
 
 
 func _harvest_resource(target: String) -> StringName:

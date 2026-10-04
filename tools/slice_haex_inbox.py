@@ -18,9 +18,10 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 INBOX = ROOT / "Assets upload"
 LIBRARY = ROOT / "assets" / "library"
-KEEPER_INBOX = LIBRARY / "keeper_inbox"
-TREES_DIR = ROOT / "assets" / "art" / "trees"
-BUSHES_DIR = ROOT / "assets" / "art" / "bushes"
+LEGACY_TIDY = LIBRARY / "legacy" / "library_tidy_2026-10-02"
+KEEPER_INBOX = LEGACY_TIDY / "keeper_inbox"
+TREES_DIR = ROOT / "assets" / "art" / "hub" / "trees"
+BUSHES_DIR = ROOT / "assets" / "art" / "hub" / "bushes"
 KEEPER_DIR = ROOT / "assets" / "art" / "keeper"
 NATIVE_DIR = KEEPER_DIR / "native"
 BG_THRESH = 18
@@ -151,8 +152,8 @@ def process_trees_bushes() -> tuple[dict, dict]:
     bush_items: dict = {}
     spawn = {"tree": [], "bush": [], "tuft": []}
 
-    big_src = LIBRARY / "Big Trees.png"
-    small_src = LIBRARY / "Small Trees.png"
+    big_src = LEGACY_TIDY / "Big Trees.png"
+    small_src = LEGACY_TIDY / "Small Trees.png"
     big_frames = slice_grid(key_alpha(Image.open(big_src)), 2, 2)
     small_frames = slice_grid(key_alpha(Image.open(small_src)), 2, 2)
     print(f"Big Trees {len(big_frames)}  Small Trees {len(small_frames)}")
@@ -163,7 +164,7 @@ def process_trees_bushes() -> tuple[dict, dict]:
             "file": f"{name}.png",
             "size": [fr.size[0], fr.size[1]],
             "role": "tree",
-            "source": "assets/library/Big Trees.png",
+            "source": "assets/library/legacy/library_tidy_2026-10-02/Big Trees.png",
         }
         spawn["tree"].append(name)
         print(f"  {name} {fr.size[0]}x{fr.size[1]}")
@@ -174,12 +175,12 @@ def process_trees_bushes() -> tuple[dict, dict]:
             "file": f"{name}.png",
             "size": [fr.size[0], fr.size[1]],
             "role": "tree",
-            "source": "assets/library/Small Trees.png",
+            "source": "assets/library/legacy/library_tidy_2026-10-02/Small Trees.png",
         }
         spawn["tree"].append(name)
         print(f"  {name} {fr.size[0]}x{fr.size[1]}")
 
-    bush_rgba = key_alpha(Image.open(LIBRARY / "Big Bushes.png"))
+    bush_rgba = key_alpha(Image.open(LEGACY_TIDY / "Big Bushes.png"))
     # Handoff gutters: rows ~261/498, cols ~294/579/868
     big_bush_frames = slice_grid(
         bush_rgba,
@@ -196,12 +197,12 @@ def process_trees_bushes() -> tuple[dict, dict]:
             "file": f"{name}.png",
             "size": [fr.size[0], fr.size[1]],
             "role": "bush",
-            "source": "assets/library/Big Bushes.png",
+            "source": "assets/library/legacy/library_tidy_2026-10-02/Big Bushes.png",
         }
         spawn["bush"].append(name)
         print(f"  {name} {fr.size[0]}x{fr.size[1]}")
 
-    small_rgba = key_alpha(Image.open(LIBRARY / "small bushes.png"))
+    small_rgba = key_alpha(Image.open(LEGACY_TIDY / "small bushes.png"))
     comps = components(small_rgba, 80)[:64]
     print(f"small bushes {len(comps)}")
     for i, (x0, y0, x1, y1, _area) in enumerate(comps, start=1):
@@ -213,7 +214,7 @@ def process_trees_bushes() -> tuple[dict, dict]:
             "file": f"{name}.png",
             "size": [fr.size[0], fr.size[1]],
             "role": role,
-            "source": "assets/library/small bushes.png",
+            "source": "assets/library/legacy/library_tidy_2026-10-02/small bushes.png",
         }
         spawn[role].append(name)
 
@@ -332,7 +333,7 @@ def write_keeper_meta() -> None:
         "feet bottom-center, walk hold_ms 100. Native 170x256 under keeper/native/. "
         "Back clips unchanged."
     )
-    meta["inbox"] = "assets/library/keeper_inbox/"
+    meta["inbox"] = "assets/library/legacy/library_tidy_2026-10-02/keeper_inbox/"
     meta_path.write_text(json.dumps(meta, indent=2) + "\n")
 
 
@@ -346,7 +347,7 @@ def write_manifest() -> None:
         "canvas": [128, 128],
         "meta": "keeper/keeper_meta.json",
         "version": "v0.1.13-assets-upload",
-        "inbox": "assets/library/keeper_inbox/",
+        "inbox": "assets/library/legacy/library_tidy_2026-10-02/keeper_inbox/",
         "native": "keeper/native/",
     }
     man["trees"] = {

@@ -9,9 +9,17 @@
     "from_bus": "SFX_Progress",
     "to_bus": "Music",
     "amount_db": -5.0,
-    "attack_sec": 0.15,
-    "release_sec": 1.2
+    "attack_sec": 0.05,
+    "hold": "while_playing",
+    "release_sec": 0.6
   },
+  "gather_tick": {
+    "offset_db": -12.0,
+    "pitch_min": 0.96,
+    "pitch_max": 1.04,
+    "gap_sec": 0.9
+  },
+  "fruit_ready_delay_sec": 0.7,
   "cues": {
     "mus_hub_forest": {
       "bus": "Music",

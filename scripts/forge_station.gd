@@ -34,7 +34,65 @@ func _ready() -> void:
 	_meter.z_index = 6
 	_meter.visible = false
 	add_child(_meter)
+	_ensure_walk_body()
+	if title:
+		title.visible = false
+	mouse_entered.connect(_on_title_hover.bind(true))
+	mouse_exited.connect(_on_title_hover.bind(false))
 	_refresh_visual()
+
+
+func _on_title_hover(inside: bool) -> void:
+	if title:
+		title.visible = inside
+
+
+func _ensure_walk_body() -> void:
+	## Walk collision is the bottom third of the sprite. The pick shape stays the larger click.
+	if get_node_or_null("WalkBody") != null or sprite == null or sprite.texture == null:
+		return
+	var frame := Vector2(sprite.texture.get_width(), sprite.texture.get_height())
+	var sc: Vector2 = sprite.scale
+	var shown := Vector2(frame.x * absf(sc.x), frame.y * absf(sc.y))
+	var height: float = maxf(12.0, shown.y / 3.0)
+	var width: float = maxf(24.0, shown.x * 0.55)
+	var bottom: float = sprite.offset.y * sc.y + shown.y
+	var body := StaticBody2D.new()
+	body.name = "WalkBody"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.input_pickable = false
+	var shape_node := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(width, height)
+	shape_node.shape = rect
+	shape_node.position = Vector2(sprite.position.x, bottom - height * 0.5)
+	body.add_child(shape_node)
+	add_child(body)
+
+
+func _walk_rect() -> Rect2:
+	var shape_node: CollisionShape2D = get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
+	if shape_node == null or not (shape_node.shape is RectangleShape2D):
+		return Rect2(global_position, Vector2(32, 16))
+	var rect: RectangleShape2D = shape_node.shape as RectangleShape2D
+	var center: Vector2 = to_global(shape_node.position)
+	return Rect2(center - rect.size * 0.5, rect.size)
+
+
+func work_footprint() -> Rect2:
+	return _walk_rect()
+
+
+func wisp_orbit_center() -> Vector2:
+	return _walk_rect().get_center()
+
+
+func wisp_orbit_radius() -> float:
+	var size: Vector2 = _walk_rect().size
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.wisp_orbit_radius_for_size(size)
+	return maxf(size.x, size.y) * 0.5 + 14.0
 
 
 func stand_global() -> Vector2:
@@ -145,9 +203,18 @@ func _on_right_click() -> void:
 			return
 		GameState.toast_wisp_assign(result, station_id)
 		return
+	if GameState.selected_hero_id() == "elaia":
+		var elaia: Node = get_tree().get_first_node_in_group("elaia")
+		if elaia and elaia.has_method("command_station"):
+			elaia.call("command_station", self)
+		if room and room.has_method("present_elaia_at_station"):
+			room.call("present_elaia_at_station", station_id)
+		return
 	if GameState.keeper_selected:
 		var keeper: Node = get_tree().get_first_node_in_group("keeper")
-		if keeper and keeper.has_method("move_to"):
+		if keeper and keeper.has_method("command_station"):
+			keeper.call("command_station", self)
+		elif keeper and keeper.has_method("move_to"):
 			keeper.call("move_to", stand_global(), null)
 		if room and room.has_method("walk_keeper_to_station"):
 			room.call("walk_keeper_to_station", station_id)

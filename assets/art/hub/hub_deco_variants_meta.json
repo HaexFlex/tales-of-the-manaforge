@@ -1,0 +1,2856 @@
+{
+ "version": "v0.4.0-forest-variants",
+ "base_meta": "hub/hub_deco_meta.json (v0.3.0-hub-v3, untouched; verify_headless asserts its 6 trees + 6 bushes)",
+ "filter": "nearest",
+ "density": "1 art px = 1 display px at sprite_scale 1 (same as the hub v3 ring set)",
+ "offset_rule": "Sprite2D centered=false, offset = (-w/2, -h): node origin = trunk base centre (forest_prop.gd convention; every width is even)",
+ "anchor_note": "the trunk base (midpoint of the bottom 3% band of the silhouette) is centred on the canvas, base on the bottom row",
+ "collider_rule": "data/hub_map.json collision: trees [clamp(0.16 * canvas_w, 14, 36), 16]; bushes [16, 10]. Ring fill (ThickTree_/ThickBush_) uses forest_visual.tscn with no collider; edge pieces use forest_solid.tscn with collider_size.",
+ "pools": {
+  "tree": [
+   "hub/trees/ring_tree_conifer_01.png",
+   "hub/trees/ring_tree_conifer_02.png",
+   "hub/trees/ring_tree_old_01.png",
+   "hub/trees/ring_tree_old_02.png",
+   "hub/trees/ring_tree_old_03.png",
+   "hub/trees/ring_tree_old_04.png",
+   "hub/trees/ring_tree_tall_01.png",
+   "hub/trees/ring_tree_tall_02.png",
+   "hub/trees/ring_tree_wide_01.png"
+  ],
+  "bush": [
+   "hub/bushes/ring_bush_bloom_01.png",
+   "hub/bushes/ring_bush_bloom_02.png",
+   "hub/bushes/ring_bush_low_01.png",
+   "hub/bushes/ring_bush_low_02.png",
+   "hub/bushes/ring_bush_round_01.png",
+   "hub/bushes/ring_bush_round_02.png",
+   "hub/bushes/ring_bush_spiky_01.png",
+   "hub/bushes/ring_bush_spiky_02.png",
+   "hub/bushes/ring_bush_spiky_03.png",
+   "hub/bushes/ring_bush_spiky_04.png"
+  ]
+ },
+ "families": {
+  "ring_tree_conifer": [
+   {
+    "file": "hub/trees/ring_tree_conifer_01.png",
+    "size": [
+     232,
+     400
+    ],
+    "content": [
+     226,
+     398
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -116,
+     -400
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.5467
+   },
+   {
+    "file": "hub/trees/ring_tree_conifer_02.png",
+    "size": [
+     224,
+     352
+    ],
+    "content": [
+     215,
+     351
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -112,
+     -352
+    ],
+    "kind": "tree",
+    "collider": [
+     35.8,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.5467
+   }
+  ],
+  "ring_tree_tall": [
+   {
+    "file": "hub/trees/ring_tree_tall_01.png",
+    "size": [
+     128,
+     400
+    ],
+    "content": [
+     118,
+     397
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -64,
+     -400
+    ],
+    "kind": "tree",
+    "collider": [
+     20.5,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.5467
+   },
+   {
+    "file": "hub/trees/ring_tree_tall_02.png",
+    "size": [
+     136,
+     400
+    ],
+    "content": [
+     120,
+     398
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -68,
+     -400
+    ],
+    "kind": "tree",
+    "collider": [
+     21.8,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_3.jpg",
+    "raw_px_factor": 0.56938
+   }
+  ],
+  "ring_tree_old": [
+   {
+    "file": "hub/trees/ring_tree_old_01.png",
+    "size": [
+     344,
+     368
+    ],
+    "content": [
+     333,
+     360
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -172,
+     -368
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.57143
+   },
+   {
+    "file": "hub/trees/ring_tree_old_02.png",
+    "size": [
+     296,
+     336
+    ],
+    "content": [
+     282,
+     334
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -148,
+     -336
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.57143
+   },
+   {
+    "file": "hub/trees/ring_tree_old_03.png",
+    "size": [
+     344,
+     344
+    ],
+    "content": [
+     332,
+     340
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -172,
+     -344
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.50595
+   },
+   {
+    "file": "hub/trees/ring_tree_old_04.png",
+    "size": [
+     272,
+     312
+    ],
+    "content": [
+     260,
+     308
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -136,
+     -312
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.50595
+   }
+  ],
+  "ring_tree_wide": [
+   {
+    "file": "hub/trees/ring_tree_wide_01.png",
+    "size": [
+     368,
+     280
+    ],
+    "content": [
+     357,
+     272
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -184,
+     -280
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.57143
+   }
+  ],
+  "ring_bush_round": [
+   {
+    "file": "hub/bushes/ring_bush_round_01.png",
+    "size": [
+     120,
+     120
+    ],
+    "content": [
+     116,
+     118
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -120
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.33908
+   },
+   {
+    "file": "hub/bushes/ring_bush_round_02.png",
+    "size": [
+     88,
+     80
+    ],
+    "content": [
+     76,
+     72
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -80
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 21,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.33908
+   }
+  ],
+  "ring_bush_low": [
+   {
+    "file": "hub/bushes/ring_bush_low_01.png",
+    "size": [
+     136,
+     96
+    ],
+    "content": [
+     125,
+     89
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -68,
+     -96
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 21,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.33908
+   },
+   {
+    "file": "hub/bushes/ring_bush_low_02.png",
+    "size": [
+     96,
+     64
+    ],
+    "content": [
+     89,
+     58
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -48,
+     -64
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 19,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.33908
+   }
+  ],
+  "ring_bush_spiky": [
+   {
+    "file": "hub/bushes/ring_bush_spiky_01.png",
+    "size": [
+     128,
+     112
+    ],
+    "content": [
+     116,
+     105
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -64,
+     -112
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.33908
+   },
+   {
+    "file": "hub/bushes/ring_bush_spiky_02.png",
+    "size": [
+     88,
+     72
+    ],
+    "content": [
+     81,
+     66
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 22,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.33908
+   },
+   {
+    "file": "hub/bushes/ring_bush_spiky_03.png",
+    "size": [
+     120,
+     104
+    ],
+    "content": [
+     114,
+     103
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -104
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.33428
+   },
+   {
+    "file": "hub/bushes/ring_bush_spiky_04.png",
+    "size": [
+     104,
+     80
+    ],
+    "content": [
+     97,
+     73
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -52,
+     -80
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 21,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.33428
+   }
+  ],
+  "ring_bush_bloom": [
+   {
+    "file": "hub/bushes/ring_bush_bloom_01.png",
+    "size": [
+     112,
+     96
+    ],
+    "content": [
+     101,
+     90
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -56,
+     -96
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 24,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.33428
+   },
+   {
+    "file": "hub/bushes/ring_bush_bloom_02.png",
+    "size": [
+     80,
+     64
+    ],
+    "content": [
+     72,
+     60
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -40,
+     -64
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.33428
+   }
+  ]
+ },
+ "sized_buckets": {
+  "tree": [
+   0.95,
+   1.05,
+   1.1,
+   1.15,
+   1.25
+  ],
+  "bush": [
+   0.95,
+   1.05,
+   1.1,
+   1.15
+  ]
+ },
+ "sized_note": "sized/<name>_sNNN.png = the same cell re-rendered from its raw slice at factor x NNN/100 (not an upscale of the 1x PNG), base-centred, for height jitter at sprite_scale 1 like assets/art/hub/*/sized/. Bucket 1.00 = the base file.",
+ "sized": {
+  "ring_tree_conifer": [
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_01_s095.png",
+    "size": [
+     224,
+     384
+    ],
+    "content": [
+     215,
+     378
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -112,
+     -384
+    ],
+    "kind": "tree",
+    "collider": [
+     35.8,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.51937,
+    "variant_of": "hub/trees/ring_tree_conifer_01.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_01_s105.png",
+    "size": [
+     248,
+     424
+    ],
+    "content": [
+     238,
+     418
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -124,
+     -424
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.57404,
+    "variant_of": "hub/trees/ring_tree_conifer_01.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_01_s110.png",
+    "size": [
+     256,
+     440
+    ],
+    "content": [
+     249,
+     438
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -128,
+     -440
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.60137,
+    "variant_of": "hub/trees/ring_tree_conifer_01.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_01_s115.png",
+    "size": [
+     264,
+     464
+    ],
+    "content": [
+     260,
+     458
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -132,
+     -464
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.62871,
+    "variant_of": "hub/trees/ring_tree_conifer_01.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_01_s125.png",
+    "size": [
+     288,
+     504
+    ],
+    "content": [
+     283,
+     497
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -144,
+     -504
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.68338,
+    "variant_of": "hub/trees/ring_tree_conifer_01.png",
+    "display_scale": 1.25
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_02_s095.png",
+    "size": [
+     216,
+     336
+    ],
+    "content": [
+     205,
+     333
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -108,
+     -336
+    ],
+    "kind": "tree",
+    "collider": [
+     34.6,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.51937,
+    "variant_of": "hub/trees/ring_tree_conifer_02.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_02_s105.png",
+    "size": [
+     232,
+     376
+    ],
+    "content": [
+     226,
+     369
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -116,
+     -376
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.57404,
+    "variant_of": "hub/trees/ring_tree_conifer_02.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_02_s110.png",
+    "size": [
+     248,
+     392
+    ],
+    "content": [
+     237,
+     386
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -124,
+     -392
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.60137,
+    "variant_of": "hub/trees/ring_tree_conifer_02.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_02_s115.png",
+    "size": [
+     256,
+     408
+    ],
+    "content": [
+     248,
+     404
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -128,
+     -408
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.62871,
+    "variant_of": "hub/trees/ring_tree_conifer_02.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_conifer_02_s125.png",
+    "size": [
+     280,
+     440
+    ],
+    "content": [
+     269,
+     439
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -140,
+     -440
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.68338,
+    "variant_of": "hub/trees/ring_tree_conifer_02.png",
+    "display_scale": 1.25
+   }
+  ],
+  "ring_tree_tall": [
+   {
+    "file": "hub/trees/sized/ring_tree_tall_01_s095.png",
+    "size": [
+     120,
+     384
+    ],
+    "content": [
+     112,
+     378
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -384
+    ],
+    "kind": "tree",
+    "collider": [
+     19.2,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.51937,
+    "variant_of": "hub/trees/ring_tree_tall_01.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_01_s105.png",
+    "size": [
+     136,
+     424
+    ],
+    "content": [
+     123,
+     417
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -68,
+     -424
+    ],
+    "kind": "tree",
+    "collider": [
+     21.8,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.57404,
+    "variant_of": "hub/trees/ring_tree_tall_01.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_01_s110.png",
+    "size": [
+     144,
+     440
+    ],
+    "content": [
+     129,
+     437
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -440
+    ],
+    "kind": "tree",
+    "collider": [
+     23.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.60137,
+    "variant_of": "hub/trees/ring_tree_tall_01.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_01_s115.png",
+    "size": [
+     144,
+     464
+    ],
+    "content": [
+     135,
+     457
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -464
+    ],
+    "kind": "tree",
+    "collider": [
+     23.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.62871,
+    "variant_of": "hub/trees/ring_tree_tall_01.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_01_s125.png",
+    "size": [
+     160,
+     504
+    ],
+    "content": [
+     147,
+     497
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -80,
+     -504
+    ],
+    "kind": "tree",
+    "collider": [
+     25.6,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_1.jpg",
+    "raw_px_factor": 0.68338,
+    "variant_of": "hub/trees/ring_tree_tall_01.png",
+    "display_scale": 1.25
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_02_s095.png",
+    "size": [
+     128,
+     384
+    ],
+    "content": [
+     114,
+     378
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -64,
+     -384
+    ],
+    "kind": "tree",
+    "collider": [
+     20.5,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_3.jpg",
+    "raw_px_factor": 0.54092,
+    "variant_of": "hub/trees/ring_tree_tall_02.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_02_s105.png",
+    "size": [
+     144,
+     424
+    ],
+    "content": [
+     126,
+     418
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -424
+    ],
+    "kind": "tree",
+    "collider": [
+     23.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_3.jpg",
+    "raw_px_factor": 0.59785,
+    "variant_of": "hub/trees/ring_tree_tall_02.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_02_s110.png",
+    "size": [
+     144,
+     440
+    ],
+    "content": [
+     132,
+     438
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -440
+    ],
+    "kind": "tree",
+    "collider": [
+     23.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 35,
+    "source": "library/forest_variants_v1/source/forest_trees_A_3.jpg",
+    "raw_px_factor": 0.62632,
+    "variant_of": "hub/trees/ring_tree_tall_02.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_02_s115.png",
+    "size": [
+     152,
+     464
+    ],
+    "content": [
+     138,
+     458
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -76,
+     -464
+    ],
+    "kind": "tree",
+    "collider": [
+     24.3,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_3.jpg",
+    "raw_px_factor": 0.65479,
+    "variant_of": "hub/trees/ring_tree_tall_02.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_tall_02_s125.png",
+    "size": [
+     168,
+     504
+    ],
+    "content": [
+     149,
+     498
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -84,
+     -504
+    ],
+    "kind": "tree",
+    "collider": [
+     26.9,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_A_3.jpg",
+    "raw_px_factor": 0.71173,
+    "variant_of": "hub/trees/ring_tree_tall_02.png",
+    "display_scale": 1.25
+   }
+  ],
+  "ring_tree_old": [
+   {
+    "file": "hub/trees/sized/ring_tree_old_01_s095.png",
+    "size": [
+     328,
+     344
+    ],
+    "content": [
+     316,
+     342
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -164,
+     -344
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.54286,
+    "variant_of": "hub/trees/ring_tree_old_01.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_01_s105.png",
+    "size": [
+     360,
+     384
+    ],
+    "content": [
+     350,
+     378
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -180,
+     -384
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.6,
+    "variant_of": "hub/trees/ring_tree_old_01.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_01_s110.png",
+    "size": [
+     376,
+     400
+    ],
+    "content": [
+     366,
+     396
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -188,
+     -400
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.62857,
+    "variant_of": "hub/trees/ring_tree_old_01.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_01_s115.png",
+    "size": [
+     400,
+     416
+    ],
+    "content": [
+     383,
+     414
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -200,
+     -416
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.65714,
+    "variant_of": "hub/trees/ring_tree_old_01.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_01_s125.png",
+    "size": [
+     432,
+     456
+    ],
+    "content": [
+     416,
+     450
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -216,
+     -456
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.71429,
+    "variant_of": "hub/trees/ring_tree_old_01.png",
+    "display_scale": 1.25
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_02_s095.png",
+    "size": [
+     296,
+     320
+    ],
+    "content": [
+     268,
+     317
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -148,
+     -320
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.54286,
+    "variant_of": "hub/trees/ring_tree_old_02.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_02_s105.png",
+    "size": [
+     304,
+     352
+    ],
+    "content": [
+     296,
+     350
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -152,
+     -352
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.6,
+    "variant_of": "hub/trees/ring_tree_old_02.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_02_s110.png",
+    "size": [
+     344,
+     368
+    ],
+    "content": [
+     310,
+     367
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -172,
+     -368
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.62857,
+    "variant_of": "hub/trees/ring_tree_old_02.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_02_s115.png",
+    "size": [
+     360,
+     392
+    ],
+    "content": [
+     324,
+     384
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -180,
+     -392
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.65714,
+    "variant_of": "hub/trees/ring_tree_old_02.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_02_s125.png",
+    "size": [
+     384,
+     424
+    ],
+    "content": [
+     352,
+     417
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -192,
+     -424
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.71429,
+    "variant_of": "hub/trees/ring_tree_old_02.png",
+    "display_scale": 1.25
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_03_s095.png",
+    "size": [
+     328,
+     328
+    ],
+    "content": [
+     316,
+     323
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -164,
+     -328
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.48065,
+    "variant_of": "hub/trees/ring_tree_old_03.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_03_s105.png",
+    "size": [
+     360,
+     360
+    ],
+    "content": [
+     349,
+     357
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -180,
+     -360
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.53125,
+    "variant_of": "hub/trees/ring_tree_old_03.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_03_s110.png",
+    "size": [
+     376,
+     376
+    ],
+    "content": [
+     366,
+     374
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -188,
+     -376
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.55655,
+    "variant_of": "hub/trees/ring_tree_old_03.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_03_s115.png",
+    "size": [
+     392,
+     392
+    ],
+    "content": [
+     382,
+     391
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -196,
+     -392
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.58185,
+    "variant_of": "hub/trees/ring_tree_old_03.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_03_s125.png",
+    "size": [
+     432,
+     432
+    ],
+    "content": [
+     416,
+     425
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -216,
+     -432
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.63244,
+    "variant_of": "hub/trees/ring_tree_old_03.png",
+    "display_scale": 1.25
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_04_s095.png",
+    "size": [
+     264,
+     296
+    ],
+    "content": [
+     247,
+     293
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -132,
+     -296
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.48065,
+    "variant_of": "hub/trees/ring_tree_old_04.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_04_s105.png",
+    "size": [
+     288,
+     328
+    ],
+    "content": [
+     273,
+     324
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -144,
+     -328
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.53125,
+    "variant_of": "hub/trees/ring_tree_old_04.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_04_s110.png",
+    "size": [
+     304,
+     344
+    ],
+    "content": [
+     286,
+     339
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -152,
+     -344
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.55655,
+    "variant_of": "hub/trees/ring_tree_old_04.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_04_s115.png",
+    "size": [
+     312,
+     360
+    ],
+    "content": [
+     299,
+     354
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -156,
+     -360
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.58185,
+    "variant_of": "hub/trees/ring_tree_old_04.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_old_04_s125.png",
+    "size": [
+     344,
+     392
+    ],
+    "content": [
+     325,
+     385
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -172,
+     -392
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_1.jpg",
+    "raw_px_factor": 0.63244,
+    "variant_of": "hub/trees/ring_tree_old_04.png",
+    "display_scale": 1.25
+   }
+  ],
+  "ring_tree_wide": [
+   {
+    "file": "hub/trees/sized/ring_tree_wide_01_s095.png",
+    "size": [
+     352,
+     264
+    ],
+    "content": [
+     339,
+     258
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -176,
+     -264
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.54286,
+    "variant_of": "hub/trees/ring_tree_wide_01.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_wide_01_s105.png",
+    "size": [
+     384,
+     288
+    ],
+    "content": [
+     374,
+     286
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -192,
+     -288
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.6,
+    "variant_of": "hub/trees/ring_tree_wide_01.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_wide_01_s110.png",
+    "size": [
+     400,
+     304
+    ],
+    "content": [
+     392,
+     299
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -200,
+     -304
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.62857,
+    "variant_of": "hub/trees/ring_tree_wide_01.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_wide_01_s115.png",
+    "size": [
+     416,
+     320
+    ],
+    "content": [
+     410,
+     313
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -208,
+     -320
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.65714,
+    "variant_of": "hub/trees/ring_tree_wide_01.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/trees/sized/ring_tree_wide_01_s125.png",
+    "size": [
+     456,
+     344
+    ],
+    "content": [
+     446,
+     340
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -228,
+     -344
+    ],
+    "kind": "tree",
+    "collider": [
+     36.0,
+     16.0
+    ],
+    "sprite_scale": 1,
+    "colors": 34,
+    "source": "library/forest_variants_v1/source/forest_trees_B_3.jpg",
+    "raw_px_factor": 0.71429,
+    "variant_of": "hub/trees/ring_tree_wide_01.png",
+    "display_scale": 1.25
+   }
+  ],
+  "ring_bush_round": [
+   {
+    "file": "hub/bushes/sized/ring_bush_round_01_s095.png",
+    "size": [
+     120,
+     120
+    ],
+    "content": [
+     110,
+     112
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -120
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.32213,
+    "variant_of": "hub/bushes/ring_bush_round_01.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_round_01_s105.png",
+    "size": [
+     136,
+     128
+    ],
+    "content": [
+     122,
+     124
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -68,
+     -128
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.35603,
+    "variant_of": "hub/bushes/ring_bush_round_01.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_round_01_s110.png",
+    "size": [
+     144,
+     136
+    ],
+    "content": [
+     128,
+     130
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -136
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.37299,
+    "variant_of": "hub/bushes/ring_bush_round_01.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_round_01_s115.png",
+    "size": [
+     144,
+     144
+    ],
+    "content": [
+     134,
+     136
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -144
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.38994,
+    "variant_of": "hub/bushes/ring_bush_round_01.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_round_02_s095.png",
+    "size": [
+     80,
+     72
+    ],
+    "content": [
+     72,
+     68
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -40,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.32213,
+    "variant_of": "hub/bushes/ring_bush_round_02.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_round_02_s105.png",
+    "size": [
+     88,
+     80
+    ],
+    "content": [
+     80,
+     75
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -80
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 21,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.35603,
+    "variant_of": "hub/bushes/ring_bush_round_02.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_round_02_s110.png",
+    "size": [
+     88,
+     80
+    ],
+    "content": [
+     84,
+     79
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -80
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 22,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.37299,
+    "variant_of": "hub/bushes/ring_bush_round_02.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_round_02_s115.png",
+    "size": [
+     96,
+     88
+    ],
+    "content": [
+     87,
+     83
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -48,
+     -88
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 22,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.38994,
+    "variant_of": "hub/bushes/ring_bush_round_02.png",
+    "display_scale": 1.15
+   }
+  ],
+  "ring_bush_low": [
+   {
+    "file": "hub/bushes/sized/ring_bush_low_01_s095.png",
+    "size": [
+     136,
+     88
+    ],
+    "content": [
+     119,
+     84
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -68,
+     -88
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.32213,
+    "variant_of": "hub/bushes/ring_bush_low_01.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_low_01_s105.png",
+    "size": [
+     144,
+     96
+    ],
+    "content": [
+     132,
+     93
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -96
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.35603,
+    "variant_of": "hub/bushes/ring_bush_low_01.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_low_01_s110.png",
+    "size": [
+     152,
+     104
+    ],
+    "content": [
+     138,
+     98
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -76,
+     -104
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.37299,
+    "variant_of": "hub/bushes/ring_bush_low_01.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_low_01_s115.png",
+    "size": [
+     160,
+     104
+    ],
+    "content": [
+     144,
+     102
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -80,
+     -104
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.38994,
+    "variant_of": "hub/bushes/ring_bush_low_01.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_low_02_s095.png",
+    "size": [
+     88,
+     56
+    ],
+    "content": [
+     84,
+     55
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -56
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 19,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.32213,
+    "variant_of": "hub/bushes/ring_bush_low_02.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_low_02_s105.png",
+    "size": [
+     104,
+     64
+    ],
+    "content": [
+     93,
+     61
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -52,
+     -64
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 19,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.35603,
+    "variant_of": "hub/bushes/ring_bush_low_02.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_low_02_s110.png",
+    "size": [
+     112,
+     72
+    ],
+    "content": [
+     98,
+     64
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -56,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 19,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.37299,
+    "variant_of": "hub/bushes/ring_bush_low_02.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_low_02_s115.png",
+    "size": [
+     112,
+     72
+    ],
+    "content": [
+     102,
+     67
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -56,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.38994,
+    "variant_of": "hub/bushes/ring_bush_low_02.png",
+    "display_scale": 1.15
+   }
+  ],
+  "ring_bush_spiky": [
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_01_s095.png",
+    "size": [
+     120,
+     104
+    ],
+    "content": [
+     110,
+     100
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -104
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.32213,
+    "variant_of": "hub/bushes/ring_bush_spiky_01.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_01_s105.png",
+    "size": [
+     136,
+     112
+    ],
+    "content": [
+     122,
+     110
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -68,
+     -112
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.35603,
+    "variant_of": "hub/bushes/ring_bush_spiky_01.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_01_s110.png",
+    "size": [
+     144,
+     120
+    ],
+    "content": [
+     128,
+     115
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -120
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 24,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.37299,
+    "variant_of": "hub/bushes/ring_bush_spiky_01.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_01_s115.png",
+    "size": [
+     144,
+     128
+    ],
+    "content": [
+     133,
+     120
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -72,
+     -128
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.38994,
+    "variant_of": "hub/bushes/ring_bush_spiky_01.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_02_s095.png",
+    "size": [
+     88,
+     64
+    ],
+    "content": [
+     77,
+     63
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -64
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 22,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.32213,
+    "variant_of": "hub/bushes/ring_bush_spiky_02.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_02_s105.png",
+    "size": [
+     96,
+     72
+    ],
+    "content": [
+     85,
+     70
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -48,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 21,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.35603,
+    "variant_of": "hub/bushes/ring_bush_spiky_02.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_02_s110.png",
+    "size": [
+     96,
+     80
+    ],
+    "content": [
+     89,
+     73
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -48,
+     -80
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 21,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.37299,
+    "variant_of": "hub/bushes/ring_bush_spiky_02.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_02_s115.png",
+    "size": [
+     104,
+     80
+    ],
+    "content": [
+     93,
+     76
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -52,
+     -80
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 21,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_1.jpg",
+    "raw_px_factor": 0.38994,
+    "variant_of": "hub/bushes/ring_bush_spiky_02.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_03_s095.png",
+    "size": [
+     120,
+     104
+    ],
+    "content": [
+     108,
+     97
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -104
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.31756,
+    "variant_of": "hub/bushes/ring_bush_spiky_03.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_03_s105.png",
+    "size": [
+     128,
+     112
+    ],
+    "content": [
+     119,
+     108
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -64,
+     -112
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.35099,
+    "variant_of": "hub/bushes/ring_bush_spiky_03.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_03_s110.png",
+    "size": [
+     136,
+     120
+    ],
+    "content": [
+     125,
+     113
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -68,
+     -120
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.36771,
+    "variant_of": "hub/bushes/ring_bush_spiky_03.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_03_s115.png",
+    "size": [
+     136,
+     120
+    ],
+    "content": [
+     131,
+     118
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -68,
+     -120
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 23,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.38442,
+    "variant_of": "hub/bushes/ring_bush_spiky_03.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_04_s095.png",
+    "size": [
+     104,
+     72
+    ],
+    "content": [
+     92,
+     69
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -52,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.31756,
+    "variant_of": "hub/bushes/ring_bush_spiky_04.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_04_s105.png",
+    "size": [
+     112,
+     80
+    ],
+    "content": [
+     102,
+     76
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -56,
+     -80
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.35099,
+    "variant_of": "hub/bushes/ring_bush_spiky_04.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_04_s110.png",
+    "size": [
+     120,
+     88
+    ],
+    "content": [
+     107,
+     80
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -88
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.36771,
+    "variant_of": "hub/bushes/ring_bush_spiky_04.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_spiky_04_s115.png",
+    "size": [
+     120,
+     88
+    ],
+    "content": [
+     112,
+     83
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -88
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 21,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.38442,
+    "variant_of": "hub/bushes/ring_bush_spiky_04.png",
+    "display_scale": 1.15
+   }
+  ],
+  "ring_bush_bloom": [
+   {
+    "file": "hub/bushes/sized/ring_bush_bloom_01_s095.png",
+    "size": [
+     104,
+     88
+    ],
+    "content": [
+     96,
+     85
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -52,
+     -88
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 24,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.31756,
+    "variant_of": "hub/bushes/ring_bush_bloom_01.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_bloom_01_s105.png",
+    "size": [
+     112,
+     96
+    ],
+    "content": [
+     106,
+     94
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -56,
+     -96
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 24,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.35099,
+    "variant_of": "hub/bushes/ring_bush_bloom_01.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_bloom_01_s110.png",
+    "size": [
+     120,
+     104
+    ],
+    "content": [
+     111,
+     99
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -60,
+     -104
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 24,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.36771,
+    "variant_of": "hub/bushes/ring_bush_bloom_01.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_bloom_01_s115.png",
+    "size": [
+     128,
+     104
+    ],
+    "content": [
+     116,
+     103
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -64,
+     -104
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 24,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.38442,
+    "variant_of": "hub/bushes/ring_bush_bloom_01.png",
+    "display_scale": 1.15
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_bloom_02_s095.png",
+    "size": [
+     80,
+     64
+    ],
+    "content": [
+     68,
+     57
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -40,
+     -64
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.31756,
+    "variant_of": "hub/bushes/ring_bush_bloom_02.png",
+    "display_scale": 0.95
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_bloom_02_s105.png",
+    "size": [
+     88,
+     64
+    ],
+    "content": [
+     75,
+     62
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -64
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.35099,
+    "variant_of": "hub/bushes/ring_bush_bloom_02.png",
+    "display_scale": 1.05
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_bloom_02_s110.png",
+    "size": [
+     88,
+     72
+    ],
+    "content": [
+     79,
+     65
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.36771,
+    "variant_of": "hub/bushes/ring_bush_bloom_02.png",
+    "display_scale": 1.1
+   },
+   {
+    "file": "hub/bushes/sized/ring_bush_bloom_02_s115.png",
+    "size": [
+     88,
+     72
+    ],
+    "content": [
+     82,
+     68
+    ],
+    "anchor": "base_centre",
+    "offset": [
+     -44,
+     -72
+    ],
+    "kind": "bush",
+    "collider": [
+     16.0,
+     10.0
+    ],
+    "sprite_scale": 1,
+    "colors": 20,
+    "source": "library/forest_variants_v1/source/forest_bushes_A_3.jpg",
+    "raw_px_factor": 0.38442,
+    "variant_of": "hub/bushes/ring_bush_bloom_02.png",
+    "display_scale": 1.15
+   }
+  ]
+ }
+}

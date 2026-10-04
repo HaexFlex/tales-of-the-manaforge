@@ -48,7 +48,7 @@ const BODY_WIDTH: float = 64.0
 
 const HARVEST_TEXTURES: Dictionary = {
 	"wood": "res://assets/art/props/harvest_tree.png",
-	"stone": "res://assets/art/props/harvest_stone.png",
+	"stone": "res://assets/art/props/native/harvest_stone.png",
 	"food": "res://assets/art/props/native/berry_harvest_node.png",
 }
 const HARVEST_HEIGHT: Dictionary = {
@@ -60,7 +60,7 @@ const HARVEST_HEIGHT: Dictionary = {
 
 const HARVEST_SCALE: Dictionary = {
 	"wood": 1.0,
-	"stone": 2.0,
+	"stone": 1.0,
 	"food": 1.0,
 }
 
@@ -130,13 +130,21 @@ func _apply_trunk(vis: Vector2) -> void:
 	if trunk == null or shape_node == null:
 		return
 	trunk.input_pickable = false
-	var use_trunk: bool = stand_height > 0.0 and vis.y > 1.0
+	var use_trunk: bool = vis.y > 1.0
 	shape_node.disabled = not use_trunk
 	if not use_trunk:
 		return
+	var width_ratio: float = trunk_width_ratio
+	var height_ratio: float = trunk_height_ratio
+	if node_key == "stone":
+		width_ratio = 0.42
+		height_ratio = 0.22
+	elif node_key == "food":
+		width_ratio = 0.46
+		height_ratio = 0.2
 	var trunk_size := Vector2(
-		maxf(18.0, vis.x * trunk_width_ratio),
-		maxf(12.0, vis.y * trunk_height_ratio)
+		maxf(18.0, vis.x * width_ratio),
+		maxf(12.0, vis.y * height_ratio)
 	)
 	var rect := RectangleShape2D.new()
 	if shape_node.shape is RectangleShape2D:
@@ -160,6 +168,19 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			get_viewport().set_input_as_handled()
 
 
+func work_footprint() -> Rect2:
+	## Wood uses the trunk collider. Stone and berries use the sprite rect.
+	var trunk: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
+	var shape_node: CollisionShape2D = get_node_or_null("Trunk/CollisionShape2D") as CollisionShape2D
+	if stand_height > 0.0 and trunk != null and shape_node != null and not shape_node.disabled and shape_node.shape is RectangleShape2D:
+		var rect: RectangleShape2D = shape_node.shape as RectangleShape2D
+		var center: Vector2 = trunk.to_global(shape_node.position)
+		return Rect2(center - rect.size * 0.5, rect.size)
+	if sprite:
+		return Keeper.sprite_footprint(sprite)
+	return Rect2(global_position, Vector2(BODY_WIDTH, BODY_WIDTH))
+
+
 func approach_point() -> Vector2:
 	## Feet stay on this node. The trunk collider sits on those feet (it does not
 	## hang south of y=0), so a wider trunk does not move this stop. The Keeper
@@ -170,25 +191,18 @@ func approach_point() -> Vector2:
 
 
 func apply_player_command() -> void:
-	## RMB: wisp assign (no Keeper gate) OR Keeper walks + harvest channel.
+	## RMB: wisp assign, and the selected hero (Keeper or Elaia) walks to harvest.
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.node_id_for_resource(resource_id)
 		var result: String = GameState.command_selected_wisps(node_id)
 		GameState.toast_wisp_assign(result, node_id)
-		if GameState.keeper_selected:
-			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
-			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
-				(keepers_both[0] as Keeper).move_to(approach_point(), self)
+		if GameState.selected_hero_id() != "":
+			GameState.command_selected_hero(self, String(resource_id))
 		return
-	if not GameState.keeper_selected:
+	if GameState.selected_hero_id() == "":
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_harvest"))
 		return
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k:
-		k.move_to(approach_point(), self)
+	GameState.command_selected_hero(self, String(resource_id))
 
 
 func on_interact(keeper: Node) -> void:
@@ -231,12 +245,25 @@ func _on_hover(inside: bool) -> void:
 
 
 func _label_should_show() -> bool:
-	if _hovered or _channeling:
-		return true
-	if GameState.selected_wisp_id < 0:
-		return false
-	var assigned: String = GameState.get_wisp_assignment(GameState.selected_wisp_id)
-	return assigned != "" and assigned == GameState.node_id_for_resource(resource_id)
+	return _hovered
+
+
+func wisp_orbit_center() -> Vector2:
+	var shape_node: CollisionShape2D = get_node_or_null("Trunk/CollisionShape2D") as CollisionShape2D
+	var trunk: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
+	if trunk != null and shape_node != null and shape_node.shape is RectangleShape2D:
+		return trunk.to_global(shape_node.position)
+	return global_position + Vector2(0, -16)
+
+
+func wisp_orbit_radius() -> float:
+	var shape_node: CollisionShape2D = get_node_or_null("Trunk/CollisionShape2D") as CollisionShape2D
+	var size := Vector2(28, 16)
+	if shape_node != null and shape_node.shape is RectangleShape2D:
+		size = (shape_node.shape as RectangleShape2D).size
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.wisp_orbit_radius_for_size(size)
+	return maxf(size.x, size.y) * 0.5 + 14.0
 
 
 func _apply_label_visibility() -> void:

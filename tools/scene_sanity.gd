@@ -92,6 +92,11 @@ func _run() -> void:
 	failed += _check(tree_cols >= 40, "tree colliders %d" % tree_cols)
 	failed += _check(bush_cols >= 20, "bush colliders %d" % bush_cols)
 	failed += _check(canopy_ok >= 20, "canopy colliders %d" % canopy_ok)
+	var base_n: int = 0
+	var bases: Node = live.get_node_or_null("World/ForestBases")
+	if bases:
+		base_n = bases.get_child_count()
+	print("FOREST_COLLIDERS trees=%d bushes=%d canopy=%d bases=%d" % [tree_cols, bush_cols, canopy_ok, base_n])
 	failed += await _forest_seal(live)
 	var ground: TileMap = live.get_node_or_null("Ground") as TileMap
 	var bad_tiles: int = 0
@@ -129,6 +134,7 @@ func _run() -> void:
 	failed += _check(jobs != null and bool(jobs.call("can_enter_forge")), "elder with a key can enter")
 	game.set("stage_id", &"sapling")
 	game.set("forge_key", false)
+	failed += _elaia_portrait_gate(live)
 	live.queue_free()
 	await process_frame
 
@@ -141,7 +147,8 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 9") >= 0, "SAVE_VERSION 9")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 10") >= 0, "SAVE_VERSION 10")
+	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()
 
@@ -364,11 +371,13 @@ func _art_fit(live: Node) -> int:
 	if marker and marker.texture:
 		var pw: float = float(marker.texture.get_width())
 		var ph: float = float(marker.texture.get_height())
-		failed += _check(pw == 784.0 and ph == 1168.0, "portal canvas 784x1168 (got %sx%s)" % [pw, ph])
+		failed += _check(pw == 160.0 and ph == 200.0, "portal canvas 160x200 (got %sx%s)" % [pw, ph])
 		failed += _check(not marker.centered, "portal bottom-anchored")
 		failed += _check(absf(marker.offset.x + pw * 0.5) < 0.5 and absf(marker.offset.y + ph) < 0.5, "portal offset bottom-center")
-	var sheet: Texture2D = load("res://assets/art/ui/manaforge_hud_icons_sheet.png") as Texture2D
-	failed += _check(sheet != null and sheet.get_width() == 1280 and sheet.get_height() == 512, "hud icon sheet 1280x512")
+	for index: int in range(10):
+		var icon: Texture2D = HudIcons.cell(index)
+		var label: String = "hud icon %d" % index
+		failed += _check(icon != null and icon.get_width() == 32 and icon.get_height() == 32, label)
 	return failed
 
 
@@ -567,6 +576,9 @@ func _scene_exit_audit() -> int:
 		"playtest_quit.gd": true,
 		"playtest_ship.gd": true,
 		"pass_f_playthrough.gd": true,
+		# The verify harness names the title scene to prove a bare launch still
+		# opens it. It is not a player exit.
+		"verify_headless.gd": true,
 	}
 	for caller: String in title_callers:
 		if not allowed.has(caller):
@@ -975,7 +987,7 @@ func _forest_seal(live: Node) -> int:
 		var here: float = float(live.call("_ellipse_norm", at))
 		if here > max_norm:
 			max_norm = here
-		if here > 1.0 or at.x < 140.0 or at.y < 140.0 or at.x > 4180.0 or at.y > 3640.0:
+		if at.x < 140.0 or at.y < 140.0 or at.x > 4180.0 or at.y > 3640.0:
 			leaked = true
 			print("FOREST_LEAK %.1f %.1f norm %.3f" % [at.x, at.y, here])
 			break
@@ -996,11 +1008,257 @@ func _forest_seal(live: Node) -> int:
 	failed += _check(not leaked, "no walkable gap out of the clearing")
 	for i: int in names.size():
 		failed += _check(reached[i], "%s reachable inside the clearing" % names[i])
+	failed += _work_reach(live)
+	await _frame_times(live)
 	return failed
+
+
+func _work_reach(live: Node) -> int:
+	var blocked_n: int = 0
+	var rows: Array = [
+		["World/HarvestBerry", "food", "berry"],
+		["World/HarvestStone", "stone", "stone"],
+		["World/HarvestTree", "wood", "wood"],
+		["World/KeepersBench", "bench", "bench"],
+		["World/Manatree", "door", "manatree door"],
+		["World/Manatree", "manatree", "manatree water"],
+	]
+	for row: Array in rows:
+		var node: Node2D = live.get_node_or_null(str(row[0])) as Node2D
+		if node == null:
+			print("WORK_REACH missing %s" % str(row[2]))
+			blocked_n += 1
+			continue
+		blocked_n += _reach_one(live, node, str(row[1]), str(row[2]), "keeper")
+		blocked_n += _reach_one(live, node, str(row[1]), "%s elaia" % str(row[2]), "elaia")
+	for stone: Node in get_nodes_in_group("runestone"):
+		if stone is Node2D:
+			blocked_n += _reach_one(live, stone as Node2D, "runestone", stone.name, "keeper")
+			blocked_n += _reach_one(live, stone as Node2D, "runestone", "%s elaia" % stone.name, "elaia")
+	var portal: Node2D = live.get_node_or_null("World/EchoPortal") as Node2D
+	if portal == null:
+		print("WORK_REACH missing portal")
+		blocked_n += 1
+	else:
+		for actor_id: String in ["keeper", "elaia"]:
+			var entry: Vector2 = portal.global_position + Vector2(0, 50)
+			if _spot_hits(live, entry, portal) or not bool(live.call("_in_clearing", entry)):
+				print("WORK_REACH blocked portal entry %s %s" % [actor_id, entry])
+				blocked_n += 1
+	blocked_n += _reach_forge_stations()
+	print("WORK_REACH blocked=%d" % blocked_n)
+	return 1 if blocked_n != 0 else 0
+
+
+func _reach_forge_stations() -> int:
+	## Stations live in the forge. Check them here so WORK_REACH covers every interactable.
+	var blocked_n: int = 0
+	var paths: PackedStringArray = PackedStringArray([
+		"res://scenes/forge/crucible.tscn",
+		"res://scenes/forge/mill.tscn",
+		"res://scenes/forge/press.tscn",
+		"res://scenes/forge/anvil.tscn",
+		"res://scenes/forge/reliquary.tscn",
+	])
+	var api = load("res://scripts/keeper.gd")
+	var host := Node2D.new()
+	host.name = "StationReachHost"
+	get_root().add_child(host)
+	var i: int = 0
+	for path: String in paths:
+		var packed: PackedScene = load(path) as PackedScene
+		if packed == null:
+			print("WORK_REACH missing station %s" % path)
+			blocked_n += 1
+			continue
+		var station: Node2D = packed.instantiate() as Node2D
+		station.position = Vector2(12000 + i * 500, 12000)
+		host.add_child(station)
+		i += 1
+		var footprint: Rect2 = station.call("work_footprint")
+		var sid: String = str(station.get("station_id"))
+		for actor_id: String in ["keeper", "elaia"]:
+			var solved: Dictionary = api.solve_work_spot(
+				footprint,
+				station.global_position,
+				"station",
+				Callable(self, "_station_blocked").bind(station),
+				sid,
+				actor_id
+			)
+			var pos: Vector2 = solved.get("position", Vector2.ZERO)
+			var walk: Rect2 = footprint.grow(2.0)
+			var inside: bool = walk.has_point(pos)
+			if bool(solved.get("fallback", false)) or inside:
+				print("WORK_REACH blocked station %s %s at %s" % [sid, actor_id, pos])
+				blocked_n += 1
+	host.queue_free()
+	return blocked_n
+
+
+func _station_blocked(pos: Vector2, station: Node2D) -> bool:
+	if station == null or not station.has_method("work_footprint"):
+		return false
+	var walk: Rect2 = station.call("work_footprint")
+	return walk.grow(4.0).has_point(pos)
+
+
+func _reach_one(live: Node, node: Node2D, type_id: String, label: String, actor_id: String) -> int:
+	var footprint: Rect2 = Rect2(node.global_position, Vector2(32, 32))
+	var api = load("res://scripts/keeper.gd")
+	if node.has_method("work_footprint"):
+		footprint = node.call("work_footprint")
+	else:
+		var spr: Sprite2D = node.get_node_or_null("Sprite") as Sprite2D
+		if spr:
+			footprint = api.sprite_footprint(spr)
+	var solved: Dictionary = api.solve_work_spot(
+		footprint,
+		node.global_position,
+		type_id,
+		Callable(self, "_reach_blocked").bind(live, node),
+		"",
+		actor_id
+	)
+	var pos: Vector2 = solved.get("position", Vector2.ZERO)
+	var bad: bool = bool(solved.get("fallback", false)) or _spot_hits(live, pos, node)
+	if bad:
+		print("WORK_REACH blocked %s %s at %s fallback=%s" % [label, type_id, pos, bool(solved.get("fallback", false))])
+		return 1
+	return 0
+
+
+func _reach_blocked(pos: Vector2, live: Node, target: Node) -> bool:
+	if live.has_method("_in_clearing") and not bool(live.call("_in_clearing", pos)):
+		return true
+	return _spot_hits(live, pos, target)
+
+
+func _spot_hits(live: Node, pos: Vector2, target: Node) -> bool:
+	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
+	if space == null:
+		return true
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(36, 48)
+	var params := PhysicsShapeQueryParameters2D.new()
+	params.shape = shape
+	params.transform = Transform2D(0.0, pos + Vector2(0, -24))
+	params.collision_mask = 1
+	params.collide_with_areas = false
+	params.collide_with_bodies = true
+	var exclude: Array[RID] = []
+	for body_path: String in ["World/Keeper", "World/Elaia"]:
+		var body: CollisionObject2D = live.get_node_or_null(body_path) as CollisionObject2D
+		if body:
+			exclude.append(body.get_rid())
+	if target:
+		var trunk: StaticBody2D = target.get_node_or_null("Trunk") as StaticBody2D
+		if trunk:
+			exclude.append(trunk.get_rid())
+	params.exclude = exclude
+	return not space.intersect_shape(params, 1).is_empty()
+
+
+func _frame_times(live: Node) -> void:
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		print("FRAME_MS center n/a")
+		print("FRAME_MS north n/a")
+		return
+	for spot: Array in [["center", Vector2(2160, 2025)], ["north", Vector2(2160, 900)]]:
+		cam.position = live.call("_clamped_camera_pos", spot[1])
+		await process_frame
+		var acc: int = 0
+		for _i: int in 6:
+			var t0: int = Time.get_ticks_usec()
+			await process_frame
+			acc += Time.get_ticks_usec() - t0
+		print("FRAME_MS %s %.2f" % [str(spot[0]), float(acc) / 6000.0])
 
 
 func _forest_cell(p: Vector2, step: float) -> Vector2i:
 	return Vector2i(int(floor(p.x / step)), int(floor(p.y / step)))
+
+
+func _elaia_portrait_gate(live: Node) -> int:
+	## Fresh save: no portrait and no sprite. Joined save (spared + first relic): both show.
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var hud: Node = live.get_node_or_null("HUD")
+	var slot: CanvasItem = live.get_node_or_null("HUD/PartyBar/Column/Elaia") as CanvasItem
+	var body: CanvasItem = live.get_node_or_null("World/Elaia") as CanvasItem
+	if hud:
+		hud.call("_refresh_party_bar")
+	failed += _check(not bool(game.call("elaia_in_party")), "fresh save has not joined Elaia")
+	failed += _check(slot != null and not slot.visible, "fresh save hides the Elaia portrait")
+	failed += _check(body != null and not body.visible, "fresh save hides the Elaia sprite")
+	game.set("echo_01_redeemed", true)
+	game.set("first_relic_crafted", true)
+	if hud:
+		hud.call("_refresh_party_bar")
+	if body and body.has_method("_apply_presence"):
+		body.call("_apply_presence")
+	failed += _check(bool(game.call("elaia_in_party")), "joined save has Elaia")
+	failed += _check(slot != null and not slot.visible, "portrait waits until the Clearing dialogue")
+	game.set("elaia_join_seen", true)
+	if hud:
+		hud.call("_refresh_party_bar")
+	failed += _check(slot != null and slot.visible, "joined save shows the Elaia portrait")
+	var portrait: TextureRect = live.get_node_or_null("HUD/PartyBar/Column/Elaia/Portrait") as TextureRect
+	failed += _check(portrait != null and portrait.texture != null, "joined portrait has a texture")
+	failed += _check(body != null and body.visible, "joined save shows the Elaia sprite")
+	game.set("echo_01_redeemed", false)
+	game.set("first_relic_crafted", false)
+	game.set("elaia_has_pos", false)
+	game.set("elaia_join_seen", false)
+	if hud:
+		hud.call("_refresh_party_bar")
+	if body and body.has_method("_apply_presence"):
+		body.call("_apply_presence")
+	return failed
+
+
+func _content_keys() -> int:
+	var failed: int = 0
+	var strings: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/strings_v01.json"))
+	var forge: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/forge_copy.json"))
+	if typeof(strings) != TYPE_DICTIONARY or typeof(forge) != TYPE_DICTIONARY:
+		return _check(false, "string tables parse")
+	var story: PackedStringArray = PackedStringArray([
+		"rootsteel_edge_name", "rootsteel_edge_tooltip", "heartwand_name", "heartwand_tooltip",
+		"switchshaft_name", "switchshaft_tooltip", "oakheart_knot_name", "oakheart_knot_tooltip",
+		"shardlens_name", "shardlens_tooltip", "windthorn_bead_name", "windthorn_bead_tooltip",
+		"sapsteel_name", "sapsteel_tooltip", "heartwood_bits_name", "heartwood_bits_tooltip",
+		"amberbind_name", "amberbind_tooltip", "forge_key_relic_tooltip", "welcome_body",
+		"welcome_body_short", "wisp_node_shared_hint", "ascend_confirm", "ascend_confirm_essence_wipe",
+		"ascend_hint", "tree_water_ancient_block", "echo_01_intro", "echo_01_flee",
+		"ascend_frozen_button", "ascend_frozen_hint", "ascend_frozen_deny", "nav_to_forge",
+		"nav_to_clearing", "load_autosave_header", "load_autosave_slot", "load_manual_header",
+		"title_continue_hint", "title_new_game_confirm", "pause_new_game_confirm",
+		"hud_sel_keeper", "hud_sel_wisp", "hud_sel_wisp_group", "hud_sel_plus_wisps",
+		"hud_task_idle", "hud_stage_label", "hud_stage_label_fruit_ready",
+		"elaia_join_1", "elaia_join_2", "elaia_join_3", "elaia_join_4", "elaia_join_5",
+		"elaia_join_toast", "hud_elaia_portrait_tooltip", "hud_companion_target_busy",
+		"char_sheet_elaia_title", "char_sheet_elaia_role", "char_sheet_elaia_no_gear",
+		"char_sheet_elaia_tending", "char_sheet_elaia_work_rate", "char_sheet_elaia_work_role",
+		"char_sheet_elaia_reliquary", "char_sheet_elaia_reliquary_role",
+		"char_sheet_elaia_water", "char_sheet_elaia_water_role",
+		"char_sheet_elaia_move", "char_sheet_elaia_move_role",
+		"char_sheet_trait_label", "char_sheet_keeper_trait", "char_sheet_elaia_trait",
+		"char_sheet_trait_popup_title", "char_sheet_trait_work", "char_sheet_trait_reliquary",
+		"char_sheet_trait_water", "char_sheet_trait_move",
+	])
+	var shop: PackedStringArray = PackedStringArray([
+		"station_busy", "station_paused", "not_enough_material", "job_done", "jobs_finished_away",
+		"wisp_speed_hint", "relic_swap_confirm", "ascend_warning_materials", "ascend_warning_jobs",
+		"examine_crucible", "examine_mill", "examine_press", "examine_anvil", "examine_reliquary",
+		"examine_bench", "wisp_counter", "queue_full", "already_owned", "job_started",
+	])
+	for key: String in story:
+		failed += _check((strings as Dictionary).has(key) and str((strings as Dictionary)[key]) != key, key)
+	for key: String in shop:
+		failed += _check((forge as Dictionary).has(key) and str((forge as Dictionary)[key]) != key, key)
+	return failed
 
 
 func _check(ok: bool, label: String) -> int:

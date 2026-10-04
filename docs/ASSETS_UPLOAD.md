@@ -8,9 +8,9 @@ Agents and humans drop new sheets / frames here. **After every coding ship, the 
 
 | Drop | Permanent home |
 |------|----------------|
-| Tree / bush PNG sheets | `assets/library/` (sliced gameplay frames already under `assets/art/trees/`, `assets/art/bushes/`) |
+| Tree / bush PNG sheets | `assets/library/legacy/library_tidy_2026-10-02/` (gameplay frames under `assets/art/hub/trees/`, `assets/art/hub/bushes/`) |
 | JPG duplicates of those sheets | `assets/library/raw_refs/` |
-| Keeper source frames | `assets/library/keeper_inbox/` (gameplay copies under `assets/art/keeper/`) |
+| Keeper source frames | `assets/library/legacy/library_tidy_2026-10-02/keeper_inbox/` (gameplay copies under `assets/art/keeper/`) |
 | Ready-to-use game art | `assets/art/...` directly |
 
 ## Rebuild

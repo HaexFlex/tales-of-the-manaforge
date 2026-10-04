@@ -45,7 +45,7 @@ Battle-gear, Runestone, and character-sheet icons are listed in the next section
 | Paper-doll locked slot | `icon_equip_lock.png` | 44×44 | translucent grey square | Caption **Locked** sits under the square only. Relic tooltip: “Relic locked — needs a Forge Key.” Other slots: “Not yet — the Forge still sleeps.” |
 | Empty weapon slot | — | — | half-transparent square | Caption **Weapon** until a weapon is equipped; then the item name (Flintblade) |
 | Hub Runestone (one per stat) | `runestone.png` (or seven tinted) | ~32×48 | stat tint (Might rust, Arcana violet, Resilience olive, Ward blue, Vitality green, Swiftness gold, Fate rose) | Keeper selected + right-click walks in range, then spends Manashards. Polygon2D stand-in |
-| Character portrait | existing `keeper_idle_south_0000.png` | 128×128 | — | Already in game. Do not replace in this pass |
+| Character portrait | `assets/art/keeper/idle/south/` (12 frames) | 128×128 | — | Live idle. The previous single south still is archived. |
 
 Suggested folder: `assets/art/ui/character/` for icons, `assets/art/props/` for the Runestone.
 

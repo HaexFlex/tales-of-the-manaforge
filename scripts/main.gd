@@ -33,6 +33,8 @@ var glade: Rect2 = Rect2(760, 820, 1680, 1360)
 var clearing_center: Vector2 = Vector2(1600, 1500)
 var clearing_rx: float = 1200.0
 var clearing_ry: float = 980.0
+## Invisible safety wall. Norm 1 is the first tree line; ~1.11 is the third row.
+const FOREST_WALL_NORM: float = 1.11
 var clear_points: Array[Vector2] = []
 var clear_radii: Array[float] = []
 var _cols: int = 40
@@ -47,15 +49,34 @@ var _marquee: Line2D
 
 func _enter_tree() -> void:
 	# Apply before child _ready so the HUD does not paint the previous run.
-	# A bare launch of this scene (Run Project / Run Current Scene) is the title.
+	# Run Current Scene on the hub is a bare launch and still opens the title.
+	# change_scene_to_file also sets current_scene before _enter_tree, and the
+	# boot below clears boot_intent back to "auto". Together those used to make
+	# every later return from the Forge look like that bare launch.
 	if _bare_boot_to_title():
 		_boot_redirect = true
+		return
+	if _return_to_live_hub():
 		return
 	_apply_boot_intent()
 
 
 func _bare_boot_to_title() -> bool:
+	## Only a process that has not started play yet. A live session must not
+	## bounce to the title just because the hub was loaded again.
 	if str(SaveService.boot_intent) != "auto":
+		return false
+	if SaveService.session_active:
+		return false
+	var tree: SceneTree = get_tree()
+	return tree != null and tree.current_scene == self
+
+
+func _return_to_live_hub() -> bool:
+	## Play has started, and nobody asked for new / continue / load / forge_return.
+	## "auto" here means the previous boot was already consumed. Reloading the
+	## newest save, or opening the title, would throw away the trip in progress.
+	if not SaveService.session_active or str(SaveService.boot_intent) != "auto":
 		return false
 	var tree: SceneTree = get_tree()
 	return tree != null and tree.current_scene == self
@@ -74,7 +95,15 @@ func _ready() -> void:
 	if OS.get_environment("MANAFORGE_BAKE") == "1":
 		push_error("MANAFORGE_BAKE refused. The hub layout lives in scenes/main.tscn. Do not bake; it would wipe editor edits.")
 	_setup_camera(false)
+	_build_forest_floor()
+	_seat_forest()
 	_apply_forge_return()
+	if keeper and keeper.has_method("apply_keeper_presence"):
+		keeper.apply_keeper_presence()
+	var elaia_body: Node = world.get_node_or_null("Elaia") if world else null
+	if elaia_body and elaia_body.has_method("_apply_presence"):
+		elaia_body.call("_apply_presence")
+	_focus_pending_actor()
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
 	click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	click_layer.position = Vector2.ZERO
@@ -90,6 +119,8 @@ func _ready() -> void:
 	_sync_wisps()
 	# First load / new save: show Keeper welcome once (flag in save).
 	hud.maybe_show_welcome()
+	if hud.has_method("maybe_show_elaia_join"):
+		hud.call("maybe_show_elaia_join")
 
 
 func _load_hub_map() -> void:
@@ -223,15 +254,34 @@ func _setup_camera(snap_to_tree: bool) -> void:
 
 
 func _apply_forge_return() -> void:
-	if not has_node("/root/ForgeJobs") or not ForgeJobs.take_clearing_return():
+	## The return flag is consumed so an old exit does not drop the Keeper on the default spawn.
+	## Positions now live on GameState. The door writes the Manatree stand before the scene change.
+	if not has_node("/root/ForgeJobs"):
 		return
-	if keeper == null or manatree == null:
+	ForgeJobs.take_clearing_return()
+
+
+func focus_actor(actor_id: String) -> void:
+	if camera == null:
 		return
-	keeper.global_position = manatree.global_position + ForgeJobs.return_offset()
-	if keeper.has_method("face_out"):
-		keeper.face_out()
-	if camera:
-		camera.position = _clamped_camera_pos(keeper.global_position)
+	var node: Node2D = null
+	if actor_id == "elaia":
+		node = get_tree().get_first_node_in_group("elaia") as Node2D
+	elif actor_id == "keeper":
+		node = keeper
+	if node == null or not node.visible:
+		return
+	camera.position = _clamped_camera_pos(node.global_position)
+
+
+func _focus_pending_actor() -> void:
+	if not has_node("/root/GameState"):
+		return
+	var who: String = str(GameState.pending_focus_actor)
+	if who == "":
+		return
+	GameState.pending_focus_actor = ""
+	focus_actor(who)
 
 
 func focus_manatree() -> void:
@@ -337,22 +387,30 @@ func _apply_boot_intent() -> void:
 	## Title sets continue / new / load. A direct main.tscn launch (verify) stays on auto.
 	var intent: String = str(SaveService.boot_intent)
 	var slot: int = int(SaveService.boot_slot)
+	var kind: String = str(SaveService.boot_slot_kind)
 	SaveService.boot_intent = "auto"
 	SaveService.boot_slot = 0
+	SaveService.boot_slot_kind = "manual"
 	match intent:
 		"forge_return":
-			pass
+			SaveService.note_session_started()
 		"new":
 			GameState.reset_for_new_game()
+			SaveService.note_session_started()
 		"continue":
 			if SaveService.has_save():
 				SaveService.load_game()
+			SaveService.note_session_started()
 		"load":
-			if slot >= 1 and SaveService.has_slot(slot):
+			if kind == "autosave" and SaveService.has_autosave(slot):
+				SaveService.load_autosave(slot)
+			elif slot >= 1 and SaveService.has_slot(slot):
 				SaveService.load_game(slot)
+			SaveService.note_session_started()
 		_:
 			if SaveService.has_save():
 				SaveService.load_game()
+			SaveService.note_session_started()
 
 
 func _ellipse_norm(pos: Vector2) -> float:
@@ -372,6 +430,266 @@ func _ellipse_norm(pos: Vector2) -> float:
 
 func _in_clearing(pos: Vector2) -> bool:
 	return _ellipse_norm(pos) < 1.0
+
+
+## Darker floor under the ring only. Average grass (~#73b131) times (0.96, 0.87, 1.35) lands near #6f9a4a.
+## One mask texel per tile, sampled in the ground pass, so the ring is not drawn twice.
+const FOREST_FLOOR_INNER: float = 1.04
+const FOREST_FLOOR_SOLID: float = 1.08
+## Hem tiles in front of the trunks read as dark boxes. Past this norm the
+## shade stays, including gaps between trunks, unless that gap faces bright
+## grass. Inside it, a tile is kept only when canopy covers it and no 32px
+## sample block is open grass.
+const FOREST_FLOOR_CANOPY_NORM: float = 1.12
+const FOREST_FLOOR_COVER_NEED: int = 8
+## Sides of a shaded tile that face bright grass. 0 up, 1 right, 2 down, 3 left.
+const FOREST_RIM_DIRS: Array[Vector2i] = [
+	Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)
+]
+
+const FOREST_FLOOR_SHADER: String = "
+shader_type canvas_item;
+uniform sampler2D mask : filter_nearest, repeat_disable;
+uniform vec2 grid = vec2(68.0, 60.0);
+uniform float tile_px = 64.0;
+varying vec2 world_pos;
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+}
+void fragment() {
+	vec4 tex = texture(TEXTURE, UV);
+	float dx = (world_pos.x - 2160.0) / 1620.0;
+	float dy = (world_pos.y - 2025.0) / 1323.0;
+	// Deep glade never reaches the hem, even at the tightest wobble.
+	if (dx * dx + dy * dy < 0.56) {
+		COLOR = tex;
+	} else {
+		// play_size is not a multiple of the tile, so world/play_size shifts
+		// each texel up-left of the tile it was chosen for and paints the
+		// cleared grass in front of the canopy. Sample the tile itself.
+		vec2 cell = floor(world_pos / tile_px);
+		float m = texture(mask, (cell + vec2(0.5)) / grid).r;
+		if (m > 0.5) {
+			tex.rgb *= vec3(0.96, 0.87, 1.35);
+		}
+		COLOR = tex;
+	}
+}
+"
+
+
+class ForestCanopyTree:
+	var origin: Vector2
+	var tex_w: int
+	var tex_h: int
+	var flip: bool
+	var scale: float
+	var image: Image
+
+
+func _forest_canopy_trees() -> Array[ForestCanopyTree]:
+	var trees: Array[ForestCanopyTree] = []
+	if world == null:
+		return trees
+	for child: Node in world.get_children():
+		if str(child.get_meta("prop_kind", "")) != "tree":
+			continue
+		var spr: Sprite2D = child.get_node_or_null("Sprite") as Sprite2D
+		if spr == null or spr.texture == null:
+			continue
+		var img: Image = spr.texture.get_image()
+		if img == null:
+			continue
+		if img.is_compressed():
+			img.decompress()
+		var tree := ForestCanopyTree.new()
+		tree.origin = (child as Node2D).global_position
+		tree.tex_w = img.get_width()
+		tree.tex_h = img.get_height()
+		tree.flip = spr.flip_h
+		tree.scale = absf(spr.scale.x)
+		if tree.scale <= 0.0:
+			tree.scale = 1.0
+		tree.image = img
+		trees.append(tree)
+	return trees
+
+
+func _forest_tile_under_canopy(cell: Vector2i, trees: Array[ForestCanopyTree]) -> bool:
+	var covered: Array[bool] = []
+	covered.resize(16)
+	var hits: int = 0
+	var i: int = 0
+	for oy: int in [8, 24, 40, 56]:
+		for ox: int in [8, 24, 40, 56]:
+			var hit := _forest_canopy_pixel(float(cell.x * TILE + ox), float(cell.y * TILE + oy), trees)
+			covered[i] = hit
+			if hit:
+				hits += 1
+			i += 1
+	if hits < FOREST_FLOOR_COVER_NEED:
+		return false
+	# Four open samples in a 2x2 are a hard ~32px square of dark grass.
+	for row: int in range(3):
+		for col: int in range(3):
+			var open := 0
+			for dy: int in range(2):
+				for dx: int in range(2):
+					if not covered[(row + dy) * 4 + col + dx]:
+						open += 1
+			if open == 4:
+				return false
+	return true
+
+
+func _forest_rim_covered(cell: Vector2i, side: int, trees: Array[ForestCanopyTree]) -> bool:
+	## The outer pixel row. Inset samples miss a bare strip that still reads as a box.
+	var hits := 0
+	for i: int in range(8):
+		var along := float(4 + i * 8)
+		var wx := float(cell.x * TILE)
+		var wy := float(cell.y * TILE)
+		match side:
+			0:
+				wx += along
+				wy += 1.0
+			1:
+				wx += 63.0
+				wy += along
+			2:
+				wx += along
+				wy += 63.0
+			_:
+				wx += 1.0
+				wy += along
+		if _forest_canopy_pixel(wx, wy, trees):
+			hits += 1
+	return hits >= 7
+
+
+func _forest_peel_open_rims(mask: Image, trees: Array[ForestCanopyTree]) -> void:
+	for _pass: int in range(12):
+		var drop: Array[Vector2i] = []
+		for y: int in range(_rows):
+			for x: int in range(_cols):
+				if mask.get_pixel(x, y).r < 0.5:
+					continue
+				var cell := Vector2i(x, y)
+				var exposed := false
+				for side: int in range(4):
+					var n: Vector2i = cell + FOREST_RIM_DIRS[side]
+					if n.x < 0 or n.y < 0 or n.x >= _cols or n.y >= _rows:
+						continue
+					if mask.get_pixel(n.x, n.y).r >= 0.5:
+						continue
+					if not _forest_rim_covered(cell, side, trees):
+						exposed = true
+						break
+				if exposed:
+					drop.append(cell)
+		if drop.is_empty():
+			return
+		for cell: Vector2i in drop:
+			mask.set_pixel(cell.x, cell.y, Color(0, 0, 0))
+
+
+func _forest_canopy_pixel(wx: float, wy: float, trees: Array[ForestCanopyTree]) -> bool:
+	for tree: ForestCanopyTree in trees:
+		var local_x: float = (wx - tree.origin.x) / tree.scale
+		var local_y: float = (wy - tree.origin.y) / tree.scale
+		if local_x < float(-tree.tex_w) * 0.5 or local_x > float(tree.tex_w) * 0.5:
+			continue
+		if local_y < float(-tree.tex_h) or local_y > 0.0:
+			continue
+		var ix: int = int(local_x + float(tree.tex_w) * 0.5)
+		var iy: int = int(local_y + float(tree.tex_h))
+		if tree.flip:
+			ix = tree.tex_w - 1 - ix
+		if ix < 0 or iy < 0 or ix >= tree.tex_w or iy >= tree.tex_h:
+			continue
+		if tree.image.get_pixel(ix, iy).a >= 0.5:
+			return true
+	return false
+
+
+func _build_forest_floor() -> void:
+	if ground == null or ground.tile_set == null:
+		return
+	var mask := Image.create(_cols, _rows, false, Image.FORMAT_R8)
+	mask.fill(Color(0, 0, 0))
+	var trees: Array[ForestCanopyTree] = _forest_canopy_trees()
+	for cell: Vector2i in ground.get_used_cells(0):
+		if cell.x < 0 or cell.y < 0 or cell.x >= _cols or cell.y >= _rows:
+			continue
+		if not _forest_floor_cell(cell):
+			continue
+		var center := Vector2(float(cell.x * TILE + TILE / 2), float(cell.y * TILE + TILE / 2))
+		if _ellipse_norm(center) < FOREST_FLOOR_CANOPY_NORM and not _forest_tile_under_canopy(cell, trees):
+			continue
+		mask.set_pixel(cell.x, cell.y, Color(1, 1, 1))
+	# Deep tiles used to stay shaded in gaps. Where that gap faces the clearing
+	# the tile edge is a hard dark rectangle. Peel until the rim is under leaves.
+	_forest_peel_open_rims(mask, trees)
+	var tex := ImageTexture.create_from_image(mask)
+	var shader := Shader.new()
+	shader.code = FOREST_FLOOR_SHADER
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	mat.set_shader_parameter("mask", tex)
+	mat.set_shader_parameter("grid", Vector2(float(_cols), float(_rows)))
+	mat.set_shader_parameter("tile_px", float(TILE))
+	ground.material = mat
+
+
+func _forest_floor_cell(cell: Vector2i) -> bool:
+	var pos := Vector2(float(cell.x * TILE + TILE / 2), float(cell.y * TILE + TILE / 2))
+	var nrm: float = _ellipse_norm(pos)
+	if nrm < FOREST_FLOOR_INNER:
+		return false
+	if _forest_floor_carved(pos):
+		return false
+	if nrm >= FOREST_FLOOR_SOLID:
+		return true
+	# One-tile dither on the inner hem so the shade doesn't cut a hard oval.
+	return (cell.x + cell.y) % 2 == 0
+
+
+func _forest_floor_carved(pos: Vector2) -> bool:
+	for i: int in range(clear_points.size()):
+		var rad: float = _forest_floor_keep_radius(i)
+		if pos.distance_to(clear_points[i]) < rad:
+			return true
+	var paths: Node = get_node_or_null("Paths")
+	if paths == null:
+		return false
+	for child: Node in paths.get_children():
+		var line: Line2D = child as Line2D
+		if line == null:
+			continue
+		var count: int = line.get_point_count()
+		for i: int in range(count - 1):
+			if _dist_to_segment(pos, line.get_point_position(i), line.get_point_position(i + 1)) < 56.0:
+				return true
+	return false
+
+
+func _forest_floor_keep_radius(index: int) -> float:
+	## Wider than decor clearance so a stand just outside a node stays on bright grass.
+	var rad: float = 140.0
+	if index >= 0 and index < clear_radii.size():
+		rad = maxf(clear_radii[index], 140.0)
+	if index == 0:
+		rad = maxf(rad, 360.0)
+	return rad + 48.0
+
+
+func _dist_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab: Vector2 = b - a
+	var den: float = ab.length_squared()
+	if den <= 0.001:
+		return p.distance_to(a)
+	var t: float = clampf((p - a).dot(ab) / den, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
 
 
 func _build_grass() -> void:
@@ -464,11 +782,24 @@ func world_input_blocked() -> bool:
 		return true
 	if hud.has_method("is_forge_popup_open") and bool(hud.call("is_forge_popup_open")):
 		return true
+	if hud.has_method("is_elaia_join_open") and bool(hud.call("is_elaia_join_open")):
+		return true
+	if hud.has_method("is_footsteps_open") and bool(hud.call("is_footsteps_open")):
+		return true
 	if EchoPortal.is_fee_confirm_open():
 		return true
 	if EchoChamber.in_battle:
 		return true
 	return pause_menu.is_open()
+
+
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if mb.button_index != MOUSE_BUTTON_LEFT or mb.pressed or not _drag_active:
+		return
+	_finish_marquee(get_global_mouse_position())
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -481,6 +812,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		if mb.pressed:
 			if world_input_blocked():
+				return
+			if _gui_blocks_drag():
 				return
 			if _interactable_under_point(get_global_mouse_position()):
 				return
@@ -505,7 +838,10 @@ func handle_lmb_ground() -> void:
 
 
 func handle_rmb_ground(world_pos: Vector2) -> void:
-	## RMB empty ground: unassign every selected wisp, and walk the Keeper if he is selected.
+	if GameState.is_world_frozen():
+		GameState.note_frozen_deny()
+		return
+	## RMB empty ground: unassign every selected wisp, and walk the selected hero.
 	var ids: Array[int] = GameState.selected_wisp_list()
 	var unassigned: bool = false
 	for wid: int in ids:
@@ -513,7 +849,14 @@ func handle_rmb_ground(world_pos: Vector2) -> void:
 			unassigned = true
 	if unassigned:
 		GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
+	if GameState.selected_hero_id() == "elaia":
+		var elaia: Node = get_tree().get_first_node_in_group("elaia")
+		if elaia and elaia.has_method("command_move"):
+			elaia.call("command_move", world_pos)
+		return
 	if GameState.keeper_selected:
+		if keeper.has_method("scene_home") and GameState.keeper_area != keeper.scene_home():
+			return
 		keeper.move_to(world_pos, null)
 		return
 	if ids.is_empty():
@@ -582,13 +925,58 @@ func _finish_marquee(world_pos: Vector2) -> void:
 	for node: Node in get_tree().get_nodes_in_group("wisp"):
 		if not (node is Node2D) or not node.visible:
 			continue
-		if rect.has_point((node as Node2D).global_position):
+		var wisp_pos: Vector2 = (node as Node2D).global_position
+		var wisp_rect := Rect2(wisp_pos - Vector2(40, 40), Vector2(80, 80))
+		if rect.intersects(wisp_rect):
 			ids.append(int(node.get("wisp_id")))
+	## Box-select is Wisps and the Keeper only. Elaia is never inside the marquee.
 	var keeper_in: bool = keeper != null and rect.has_point(keeper.global_position)
 	if ids.is_empty() and not keeper_in:
 		GameState.clear_selection()
 		return
 	GameState.select_group(ids, keeper_in)
+
+
+func _gui_blocks_drag() -> bool:
+	var hovered: Control = get_viewport().gui_get_hovered_control()
+	return hovered != null and hovered.mouse_filter != Control.MOUSE_FILTER_IGNORE
+
+
+func _seat_forest() -> void:
+	## Push the one safety wall into the trees, and give visual trunks a small base.
+	if world == null:
+		return
+	var edge: Node = world.get_node_or_null("ForestEdge")
+	if edge:
+		for child: Node in edge.get_children():
+			if not (child is CollisionShape2D):
+				continue
+			var seg: CollisionShape2D = child as CollisionShape2D
+			var n: float = _ellipse_norm(seg.position)
+			if n < 0.05 or n >= FOREST_WALL_NORM:
+				continue
+			## Authored on the first tree line. Scale out to the third row so the clearing stays open.
+			seg.position = clearing_center + (seg.position - clearing_center) * (FOREST_WALL_NORM / n)
+	var bases := StaticBody2D.new()
+	bases.name = "ForestBases"
+	bases.collision_layer = 1
+	bases.collision_mask = 0
+	world.add_child(bases)
+	for prop: Node in get_tree().get_nodes_in_group("forest_fill"):
+		if not (prop is Node2D):
+			continue
+		var kind: String = str(prop.get_meta("prop_kind", ""))
+		if kind != "tree" and kind != "bush":
+			continue
+		var at: Vector2 = (prop as Node2D).global_position
+		if _ellipse_norm(at) < 0.84:
+			continue
+		var shape_node := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		rect.size = Vector2(18, 12) if kind == "tree" else Vector2(14, 10)
+		shape_node.shape = rect
+		shape_node.position = at + Vector2(0, -6)
+		bases.add_child(shape_node)
 
 
 func _interactable_under_point(world_pos: Vector2) -> bool:

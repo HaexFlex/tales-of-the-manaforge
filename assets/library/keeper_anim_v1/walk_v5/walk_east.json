@@ -1,0 +1,162 @@
+{
+ "clip": "walk_east",
+ "files": [
+  "walk_east_0000.png",
+  "walk_east_0001.png",
+  "walk_east_0002.png",
+  "walk_east_0003.png",
+  "walk_east_0004.png",
+  "walk_east_0005.png",
+  "walk_east_0006.png",
+  "walk_east_0007.png"
+ ],
+ "durations_ms": [
+  120,
+  125,
+  130,
+  125,
+  120,
+  125,
+  130,
+  125
+ ],
+ "loop_ms": 1000,
+ "hold_ms": 125,
+ "loop": true,
+ "anchor": "loop",
+ "strip": "walk_east.png",
+ "style": "v5: own legs + arms from keeper_walk_casual_east.mp4 (relaxed side walk), per-step bob 0/1/2/1, swing boots raised to 5 px, head + mane lock",
+ "suggested_move_speed_px_s": 80,
+ "build": {
+  "source": "keeper_walk_casual_east.mp4 (24-frame loop) f48,28,30,34,36,40,42,46 at scale 0.3439, anchor_x 59.98",
+  "natural_top": [
+   5,
+   6,
+   7,
+   8,
+   7,
+   7,
+   8,
+   6
+  ],
+  "bob_px": [
+   0,
+   1,
+   2,
+   1,
+   0,
+   1,
+   2,
+   1
+  ],
+  "base_top": 5,
+  "head_lock": {
+   "ref_frame": 0,
+   "rows": 34,
+   "mane_rows": [
+    34,
+    57
+   ],
+   "mane_x": [
+    42,
+    61
+   ]
+  },
+  "maroon_remapped_px": [
+   15,
+   13,
+   53,
+   18,
+   10,
+   15,
+   26,
+   24
+  ],
+  "boot_fringe_fixed_px": [
+   16,
+   28,
+   27,
+   20,
+   11,
+   34,
+   15,
+   17
+  ],
+  "specks_removed_px": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   1,
+   0,
+   0
+  ],
+  "leg_edits": {
+   "k2_heel_down": {
+    "cols": [
+     74,
+     94
+    ],
+    "boot_low_row": 121,
+    "lift": 2,
+    "lower": 2,
+    "lift_new": 0,
+    "R0": 109,
+    "rigid_top": 112
+   },
+   "k6_heel_down": {
+    "cols": [
+     34,
+     56
+    ],
+    "boot_low_row": 122,
+    "lift": 1,
+    "lower": 1,
+    "lift_new": 0,
+    "R0": 110,
+    "rigid_top": 113
+   },
+   "k3_raise": {
+    "cols": [
+     36,
+     55
+    ],
+    "boot_low_row": 122,
+    "lift": 1,
+    "raise": 4,
+    "lift_new": 5,
+    "R0": 105,
+    "rigid_top": 113
+   },
+   "k5_raise": {
+    "cols": [
+     66,
+     88
+    ],
+    "boot_low_row": 120,
+    "lift": 3,
+    "raise": 2,
+    "lift_new": 5,
+    "R0": 111,
+    "rigid_top": 111
+   },
+   "k7_raise": {
+    "cols": [
+     38,
+     56
+    ],
+    "boot_low_row": 120,
+    "lift": 3,
+    "raise": 2,
+    "lift_new": 5,
+    "R0": 105,
+    "rigid_top": 111
+   },
+   "leg_shift_rows_ge_107": {
+    "0": -2,
+    "4": -2
+   }
+  }
+ }
+}

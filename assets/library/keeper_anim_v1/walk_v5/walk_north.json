@@ -1,0 +1,138 @@
+{
+ "clip": "walk_north",
+ "files": [
+  "walk_north_0000.png",
+  "walk_north_0001.png",
+  "walk_north_0002.png",
+  "walk_north_0003.png",
+  "walk_north_0004.png",
+  "walk_north_0005.png",
+  "walk_north_0006.png",
+  "walk_north_0007.png"
+ ],
+ "durations_ms": [
+  120,
+  125,
+  130,
+  125,
+  120,
+  125,
+  130,
+  125
+ ],
+ "loop_ms": 1000,
+ "hold_ms": 125,
+ "loop": true,
+ "anchor": "loop",
+ "strip": "walk_north.png",
+ "style": "v5: walk_v3 north legs with lift 55%, v3 back arms (already opposite the legs, amplitude ~ south v5A), head lock",
+ "build": {
+  "source": "walk_v3_optA/walk_north (keeper_walkvid_back.mp4 f16,18,20,24,26,30,32,36)",
+  "factor": 0.55,
+  "lift": [
+   null,
+   {
+    "cols": [
+     66,
+     81
+    ],
+    "boot_low_row": 114,
+    "lift": 9,
+    "delta": 4,
+    "lift_new": 5,
+    "R0": 101,
+    "rigid_top": 105
+   },
+   {
+    "cols": [
+     70,
+     86
+    ],
+    "boot_low_row": 109,
+    "lift": 14,
+    "delta": 6,
+    "lift_new": 8,
+    "R0": 101,
+    "rigid_top": 101
+   },
+   {
+    "cols": [
+     64,
+     79
+    ],
+    "boot_low_row": 119,
+    "lift": 4,
+    "delta": 2,
+    "lift_new": 2,
+    "R0": 103,
+    "rigid_top": 110
+   },
+   null,
+   {
+    "cols": [
+     43,
+     58
+    ],
+    "boot_low_row": 113,
+    "lift": 10,
+    "delta": 4,
+    "lift_new": 6,
+    "R0": 99,
+    "rigid_top": 104
+   },
+   {
+    "cols": [
+     41,
+     56
+    ],
+    "boot_low_row": 111,
+    "lift": 12,
+    "delta": 5,
+    "lift_new": 7,
+    "R0": 101,
+    "rigid_top": 102
+   },
+   {
+    "cols": [
+     46,
+     60
+    ],
+    "boot_low_row": 119,
+    "lift": 4,
+    "delta": 2,
+    "lift_new": 2,
+    "R0": 104,
+    "rigid_top": 110
+   }
+  ],
+  "bob_px_from_v3": [
+   0,
+   1,
+   2,
+   1,
+   0,
+   1,
+   2,
+   1
+  ],
+  "head_lock": {
+   "ref_frame": 0,
+   "rows": 34,
+   "hair_rows": 48,
+   "hair_x": [
+    50,
+    77
+   ]
+  },
+  "maroon_remapped_px": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ }
+}

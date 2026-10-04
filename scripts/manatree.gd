@@ -57,10 +57,13 @@ func _ready() -> void:
 	GameState.fruit_ready_changed.connect(_on_fruit_changed)
 	GameState.needs_changed.connect(_refresh_label)
 	GameState.selection_changed.connect(_refresh_label)
-	_refresh_visual()
-	_on_fruit_changed(GameState.fruit_ready)
 	add_to_group("manatree")
 	add_to_group("interactable")
+	_ensure_trunk()
+	_ensure_door_trigger()
+	_ensure_veins()
+	_refresh_visual()
+	_on_fruit_changed(GameState.fruit_ready)
 
 
 func _load_meta() -> void:
@@ -116,6 +119,8 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if _click_is_door():
+				_request_door()
 			# LMB on the tree is not empty ground — swallow so Main does not deselect.
 			get_viewport().set_input_as_handled()
 			return
@@ -124,26 +129,35 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			get_viewport().set_input_as_handled()
 
 
+func _click_is_door() -> bool:
+	var local: Vector2 = to_local(get_global_mouse_position())
+	return absf(local.x) <= DOOR_HALF_W and local.y >= -20.0 and local.y <= 24.0
+
+
+func _request_door() -> void:
+	## One click: the selected hero walks to the sill and the feet trigger enters.
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.request_door_walk()
+
+
+func work_footprint() -> Rect2:
+	## Door sill is the node origin at every stage. Watering uses this point, not the grown sprite.
+	return Rect2(global_position, Vector2.ZERO)
+
+
 func apply_player_command() -> void:
-	## RMB: wisp assign to Manatree (manashards pulse) OR Keeper walks + care/water as today.
+	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
 		var result: String = GameState.command_selected_wisps(node_id)
 		GameState.toast_wisp_assign(result, node_id)
-		if GameState.keeper_selected:
-			var keepers_both: Array[Node] = get_tree().get_nodes_in_group("keeper")
-			if not keepers_both.is_empty() and keepers_both[0] is Keeper:
-				(keepers_both[0] as Keeper).move_to(global_position + Vector2(0, 40), self)
+		if GameState.selected_hero_id() != "":
+			GameState.command_selected_hero(self, "manatree")
 		return
-	if not GameState.keeper_selected:
+	if GameState.selected_hero_id() == "":
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
 		return
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k:
-		k.move_to(global_position + Vector2(0, 40), self)
+	GameState.command_selected_hero(self, "manatree")
 
 
 func on_interact(_keeper: Node) -> void:
@@ -164,17 +178,20 @@ func set_watering(active: bool) -> void:
 
 
 func do_water() -> void:
-	## Start / continue water channel via Keeper (income only).
-	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
-	if keepers.is_empty():
-		return
-	var k: Keeper = keepers[0] as Keeper
-	if k == null:
-		return
+	## Start / continue water channel on the selected hero (income only).
 	if GameState.fruit_harvested_pending_ascend:
 		fruit_menu_requested.emit()
 		return
-	k.start_water_channel(self)
+	var hero: Node = null
+	if GameState.selected_hero_id() == "elaia":
+		hero = get_tree().get_first_node_in_group("elaia")
+	if hero == null:
+		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+		if not keepers.is_empty():
+			hero = keepers[0]
+	if hero == null or not hero.has_method("start_water_channel"):
+		return
+	hero.call("start_water_channel", self)
 	if GameState.stage_id == &"ancient":
 		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
 
@@ -250,12 +267,9 @@ func _refresh_label() -> void:
 
 
 func _apply_label_visibility() -> void:
-	var show_label := _hovered or _watering
-	if not show_label and GameState.selected_wisp_id >= 0:
-		var assigned: String = GameState.get_wisp_assignment(GameState.selected_wisp_id)
-		show_label = assigned == GameState.NODE_ID_MANATREE
+	## The name shows on hover only. Watering and wisp text stay in the same label.
 	if label:
-		label.visible = show_label
+		label.visible = _hovered
 	if fruit_hint:
 		fruit_hint.visible = _hovered and fruit_hint.text != ""
 
@@ -326,23 +340,12 @@ func _refresh_visual() -> void:
 	sprite.texture = tex
 	sprite.frame = 0
 	_anim_time = 0.0
-	var sz: Vector2 = _stage_size(stage)
 	var scale_v: float = _display_scale(stage)
 	sprite.scale = Vector2(scale_v, scale_v)
-	var w: float = sz.x
-	var h: float = sz.y
 	# Door sill is the world anchor. Offset is in frame pixels; scale grows the crown up from that point.
 	var door: Vector2 = door_floor_px(stage)
 	sprite.offset = Vector2(-door.x, -door.y)
-	var vis_h: float = h * scale_v
-	var vis_w: float = w * scale_v
-	var cs: CollisionShape2D = $CollisionShape2D
-	if cs and cs.shape is RectangleShape2D:
-		# Hitbox follows the visual scale so the grown canopy stays clickable.
-		var rect_shape: RectangleShape2D = (cs.shape as RectangleShape2D).duplicate() as RectangleShape2D
-		rect_shape.size = Vector2(vis_w, vis_h)
-		cs.shape = rect_shape
-		cs.position = (Vector2(w * 0.5, h * 0.5) - door) * scale_v
+	_apply_click_shape()
 	if Engine.is_editor_hint():
 		if label:
 			label.text = String(stage).capitalize()
@@ -351,3 +354,287 @@ func _refresh_visual() -> void:
 		_refresh_label()
 	label.position = Vector2(-80, -door.y * scale_v - 36)
 	fruit_hint.position = Vector2(-140, 12)
+	_apply_trunk(String(stage))
+	_apply_veins(String(stage))
+
+
+const TRUNK_SIZE: Dictionary = {
+	"sapling": Vector2(28, 40),
+	"young": Vector2(40, 90),
+	"mature": Vector2(56, 160),
+	"elder": Vector2(72, 220),
+	"ancient": Vector2(88, 260),
+}
+const VEIN_AMOUNT: Dictionary = {
+	"sapling": 3, "young": 5, "mature": 8, "elder": 12, "ancient": 14,
+}
+const VEIN_POS: Dictionary = {
+	"sapling": Vector2(0, -45), "young": Vector2(8, -110), "mature": Vector2(0, -250),
+	"elder": Vector2(0, -440), "ancient": Vector2(0, -450),
+}
+const VEIN_EXTENT: Dictionary = {
+	"sapling": Vector2(10, 30), "young": Vector2(12, 90), "mature": Vector2(120, 230),
+	"elder": Vector2(200, 400), "ancient": Vector2(200, 410),
+}
+const VEIN_TEX: String = "res://assets/art/fx/fx_vein_mote_strip.png"
+## Body is 48 wide. The cutout is wider than that so the sill at local y=8 stays walkable.
+const DOOR_HALF_W: float = 32.0
+## Feet at the sill put the body top near local y=-56. Collision above this line can be solid.
+const DOOR_CLEAR_Y: float = -64.0
+var _door_latched: bool = false
+
+
+func _physics_process(_delta: float) -> void:
+	if Engine.is_editor_hint() or not is_inside_tree():
+		return
+	_check_door_feet()
+
+
+func _ensure_trunk() -> void:
+	if get_node_or_null("Trunk") != null:
+		return
+	var body := StaticBody2D.new()
+	body.name = "Trunk"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.input_pickable = false
+	var shape_node := CollisionShape2D.new()
+	shape_node.name = "CollisionShape2D"
+	shape_node.shape = RectangleShape2D.new()
+	body.add_child(shape_node)
+	add_child(body)
+
+
+func _apply_click_shape() -> void:
+	var cs: CollisionShape2D = get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if cs == null:
+		return
+	var bounds: Rect2 = _opaque_local_rect()
+	var rect_shape := RectangleShape2D.new()
+	rect_shape.size = bounds.size
+	cs.shape = rect_shape
+	cs.position = bounds.get_center()
+	_ensure_door_click()
+
+
+func _opaque_local_rect() -> Rect2:
+	## Alpha bounds of the current frame, so the click does not stick out beside the sprite.
+	if sprite == null or sprite.texture == null:
+		return Rect2(-24, -48, 48, 48)
+	var tex: Texture2D = sprite.texture
+	var img: Image = tex.get_image()
+	var frame_w: int = int(tex.get_width() / maxi(sprite.hframes, 1))
+	var frame_h: int = int(tex.get_height() / maxi(sprite.vframes, 1))
+	var origin_x: int = sprite.frame * frame_w
+	var min_x: int = frame_w
+	var min_y: int = frame_h
+	var max_x: int = 0
+	var max_y: int = 0
+	var found: bool = false
+	if img != null:
+		var step: int = 2
+		for py: int in range(0, frame_h, step):
+			for px: int in range(0, frame_w, step):
+				if img.get_pixel(origin_x + px, py).a <= 0.12:
+					continue
+				found = true
+				min_x = mini(min_x, px)
+				min_y = mini(min_y, py)
+				max_x = maxi(max_x, px + step)
+				max_y = maxi(max_y, py + step)
+	if not found:
+		min_x = 0
+		min_y = 0
+		max_x = frame_w
+		max_y = frame_h
+	var sc: Vector2 = sprite.scale
+	var local_pos: Vector2 = (sprite.offset + Vector2(min_x, min_y)) * sc
+	var local_size: Vector2 = Vector2(max_x - min_x, max_y - min_y) * sc
+	return Rect2(local_pos, local_size)
+
+
+func _root_band_local(stage: String) -> Rect2:
+	## Roots sit on the sill. The canopy is wider and must not become walk collision.
+	var door: Vector2 = door_floor_px(StringName(stage))
+	var sz: Vector2 = TRUNK_SIZE.get(stage, Vector2(28, 40))
+	var fallback := Rect2(-sz.x * 0.9, -8.0, sz.x * 1.8, 18.0)
+	if sprite == null or sprite.texture == null:
+		return fallback
+	var tex: Texture2D = sprite.texture
+	var img: Image = tex.get_image()
+	if img == null:
+		return fallback
+	var frame_w: int = int(tex.get_width() / maxi(sprite.hframes, 1))
+	var frame_h: int = int(tex.get_height() / maxi(sprite.vframes, 1))
+	var y0: int = clampi(int(door.y) - 16, 0, maxi(frame_h - 1, 0))
+	var origin_x: int = sprite.frame * frame_w
+	var min_x: int = frame_w
+	var min_y: int = frame_h
+	var max_x: int = 0
+	var max_y: int = 0
+	var found: bool = false
+	for py: int in range(y0, frame_h, 2):
+		for px: int in range(0, frame_w, 2):
+			if img.get_pixel(origin_x + px, py).a <= 0.12:
+				continue
+			found = true
+			min_x = mini(min_x, px)
+			min_y = mini(min_y, py)
+			max_x = maxi(max_x, px + 2)
+			max_y = maxi(max_y, py + 2)
+	if not found:
+		return fallback
+	var sc: Vector2 = sprite.scale
+	return Rect2((sprite.offset + Vector2(min_x, min_y)) * sc, Vector2(max_x - min_x, max_y - min_y) * sc)
+
+
+func _ensure_door_click() -> void:
+	var door: Area2D = get_node_or_null("DoorHit") as Area2D
+	if door == null:
+		door = Area2D.new()
+		door.name = "DoorHit"
+		door.collision_layer = 4
+		door.collision_mask = 0
+		door.monitoring = false
+		door.monitorable = true
+		door.input_pickable = true
+		door.z_index = 2
+		var shape_node := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		rect.size = Vector2(DOOR_HALF_W * 2.0, 36.0)
+		shape_node.shape = rect
+		shape_node.position = Vector2(0, 8)
+		door.add_child(shape_node)
+		door.input_event.connect(_on_door_input)
+		add_child(door)
+
+
+func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
+		return
+	_request_door()
+	get_viewport().set_input_as_handled()
+
+
+func wisp_orbit_center() -> Vector2:
+	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
+	var third: float = sz.y / 3.0
+	return global_position + Vector2(0, -third * 0.5)
+
+
+func wisp_orbit_radius() -> float:
+	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
+	return sz.x * 0.5 + 14.0
+
+
+func _apply_trunk(stage: String) -> void:
+	## Bottom third of the trunk, plus the roots, with the door corridor cut out.
+	var body: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
+	if body == null:
+		return
+	for child: Node in body.get_children():
+		child.queue_free()
+	var sz: Vector2 = TRUNK_SIZE.get(stage, Vector2(28, 40))
+	var third: float = sz.y / 3.0
+	var top_y: float = -third
+	var trunk_left: float = -sz.x * 0.5
+	var trunk_right: float = sz.x * 0.5
+	var root: Rect2 = _root_band_local(stage)
+	## The painted mound is soil the hero stands on. Solid roots stay a flare
+	## around the trunk so the west water stand (about 100px out) stays clear.
+	var half_cap: float = minf(64.0, maxf(sz.x * 0.65, 30.0))
+	var root_left: float = maxf(minf(trunk_left, root.position.x), -half_cap)
+	var root_right: float = minf(maxf(trunk_right, root.end.x), half_cap)
+	var root_bottom: float = clampf(maxf(0.0, root.end.y), 10.0, 22.0)
+	# Solid cap of the bottom third, above the body that stands in the doorway.
+	if top_y < DOOR_CLEAR_Y:
+		_add_trunk_rect(body, Rect2(trunk_left, top_y, sz.x, DOOR_CLEAR_Y - top_y))
+	# Roots and the lower trunk, split around the door.
+	var side_top: float = maxf(top_y, DOOR_CLEAR_Y)
+	var side_bot: float = maxf(side_top + 8.0, root_bottom)
+	if root_left < -DOOR_HALF_W:
+		_add_trunk_rect(body, Rect2(root_left, side_top, -DOOR_HALF_W - root_left, side_bot - side_top))
+	if root_right > DOOR_HALF_W:
+		_add_trunk_rect(body, Rect2(DOOR_HALF_W, side_top, root_right - DOOR_HALF_W, side_bot - side_top))
+
+
+func _add_trunk_rect(body: StaticBody2D, local_rect: Rect2) -> void:
+	if local_rect.size.x < 4.0 or local_rect.size.y < 4.0:
+		return
+	var shape_node := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = local_rect.size
+	shape_node.shape = rect
+	shape_node.position = local_rect.get_center()
+	body.add_child(shape_node)
+
+
+func _ensure_door_trigger() -> void:
+	set_physics_process(not Engine.is_editor_hint())
+
+
+func _check_door_feet() -> void:
+	if not has_node("/root/ForgeJobs"):
+		return
+	var occupied: bool = false
+	for group_name: String in ["keeper", "elaia"]:
+		for node: Node in get_tree().get_nodes_in_group(group_name):
+			if not (node is Node2D) or not (node as CanvasItem).visible:
+				continue
+			if node.has_method("actor_id") == false:
+				continue
+			var rel: Vector2 = (node as Node2D).global_position - global_position
+			if absf(rel.x) > 22.0 or rel.y < -4.0 or rel.y > 16.0:
+				continue
+			occupied = true
+			if _door_latched:
+				return
+			_door_latched = true
+			ForgeJobs.try_door_entry(str(node.call("actor_id")))
+			return
+	if not occupied:
+		_door_latched = false
+
+
+func _ensure_veins() -> void:
+	if get_node_or_null("VeinMotes") != null:
+		return
+	var motes := CPUParticles2D.new()
+	motes.name = "VeinMotes"
+	motes.texture = load(VEIN_TEX) as Texture2D
+	motes.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	motes.local_coords = true
+	motes.explosiveness = 0.0
+	motes.randomness = 0.3
+	motes.lifetime = 1.8
+	motes.direction = Vector2(0, -1)
+	motes.spread = 20.0
+	motes.gravity = Vector2(0, -4)
+	motes.initial_velocity_min = 6.0
+	motes.initial_velocity_max = 14.0
+	motes.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	motes.z_index = 1
+	var mat := CanvasItemMaterial.new()
+	mat.particles_animation = true
+	mat.particles_anim_h_frames = 3
+	mat.particles_anim_v_frames = 1
+	mat.particles_anim_loop = false
+	motes.material = mat
+	motes.anim_speed_min = 1.0
+	motes.anim_speed_max = 1.0
+	add_child(motes)
+
+
+func _apply_veins(stage: String) -> void:
+	var motes: CPUParticles2D = get_node_or_null("VeinMotes") as CPUParticles2D
+	if motes == null:
+		return
+	motes.amount = int(VEIN_AMOUNT.get(stage, 3))
+	motes.position = VEIN_POS.get(stage, Vector2(0, -45))
+	motes.emission_rect_extents = VEIN_EXTENT.get(stage, Vector2(10, 30))
+	motes.emitting = true

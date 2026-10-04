@@ -26,13 +26,30 @@ func _ready() -> void:
 	monitoring = false
 	monitorable = true
 	_apply_frame(false)
+	var title: Label = get_node_or_null("Title") as Label
+	if title:
+		title.visible = false
+	mouse_entered.connect(_on_title_hover.bind(true))
+	mouse_exited.connect(_on_title_hover.bind(false))
 	call_deferred("_bind_keeper")
+
+
+func _on_title_hover(inside: bool) -> void:
+	var title: Label = get_node_or_null("Title") as Label
+	if title:
+		title.visible = inside
 
 
 func stand_global() -> Vector2:
 	if keeper_stand:
 		return keeper_stand.global_position
 	return global_position + Vector2(0, 40)
+
+
+func work_footprint() -> Rect2:
+	## Back edge of the tabletop. The stand sits south of this line, waist-deep in the bench.
+	var local := Rect2(-88.0, -112.0, 176.0, 104.0)
+	return Rect2(global_position + local.position, local.size)
 
 
 func set_busy(busy: bool) -> void:
@@ -89,10 +106,14 @@ func _on_right_click() -> void:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 		return
 	var keeper: Node = get_tree().get_first_node_in_group("keeper")
-	if keeper == null or not keeper.has_method("move_to"):
+	if keeper == null:
 		return
 	_awaiting_arrival = true
-	keeper.call("move_to", stand_global(), null)
+	if keeper.has_method("command_work"):
+		keeper.call("command_work", self, "bench")
+		return
+	if keeper.has_method("move_to"):
+		keeper.call("move_to", stand_global(), null)
 
 
 func _on_keeper_arrived() -> void:

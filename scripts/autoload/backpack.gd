@@ -1,5 +1,5 @@
 extends Node
-## Crafted-item backpack + handcraft recipes. Thin module beside GameState (SYSTEMS v0.4.0).
+## Crafted-item backpack, handcraft recipes, and flavour tooltips.
 ## Resources stay on GameState. Backpack holds intermediates, tools, Fertilizer only.
 
 signal inventory_changed(item_id: StringName, new_amount: int)
@@ -147,6 +147,19 @@ func item_string_key(item_id: String) -> String:
 			return "item_%s" % item_id
 
 
+func item_tooltip(item_id: String) -> String:
+	if has_node("/root/Equipment") and Equipment.is_known_item(item_id):
+		return Equipment.item_tooltip(item_id)
+	var key: String = "%s_tooltip" % item_id
+	var labeled: String = ContentStrings.get_text(key)
+	if labeled != key and labeled != "":
+		return labeled
+	var named: String = item_display_name(item_id)
+	if named == item_id:
+		return ""
+	return named
+
+
 func item_display_name(item_id: String) -> String:
 	var key: String = item_string_key(item_id)
 	var labeled: String = ContentStrings.get_text(key)
@@ -269,7 +282,7 @@ func recipe_has_manashards(recipe_id: String) -> bool:
 
 
 func get_fertilizer_craft_cost_mult() -> float:
-	## SYSTEMS v0.4.0: floor(base * FERTILIZER_CRAFT_COST_MULT * green_thumb_mult), min 1.
+	## Backpack stacks, tool flags, and flavour tooltips.: floor(base * FERTILIZER_CRAFT_COST_MULT * green_thumb_mult), min 1.
 	var prestige: float = param_float("FERTILIZER_CRAFT_COST_MULT", 1.0)
 	var rank: int = GameState.get_upgrade_rank("green_thumb")
 	var thumb: float = maxf(0.0, 1.0 - 0.1 * float(rank))
@@ -311,7 +324,17 @@ func try_craft(recipe_id: String) -> String:
 	return "ok"
 
 
-func format_ingredient_line(ing_id: String, need: int, recipe_id: String = "") -> String:
+func counted_item_name(item_id: String, need: int, base_name: String) -> String:
+	if need == 1:
+		return base_name
+	if item_id == "wooden_planks" or base_name == "Wood Plank":
+		return "Wood Planks"
+	if item_id == "stone_fragments" or base_name == "Stone Fragment":
+		return "Stone Fragments"
+	return base_name
+
+
+func format_ingredient_line(ing_id: String, need: int, _recipe_id: String = "") -> String:
 	var have: int
 	var name: String
 	if StringName(ing_id) in RESOURCE_IDS:
@@ -320,13 +343,7 @@ func format_ingredient_line(ing_id: String, need: int, recipe_id: String = "") -
 	else:
 		have = get_count(ing_id)
 		name = item_display_name(ing_id)
-	if recipe_id == "fertilizer":
-		var key: String = "fertilizer_craft_cost_%s" % ing_id
-		var labeled: String = ContentStrings.get_text(key, {"have": have, "need": need, "item": name})
-		if labeled != key:
-			return labeled
-		return ContentStrings.get_text("fertilizer_craft_cost_line", {"have": have, "need": need, "item": name})
-	return "%s %d/%d" % [name, have, need]
+	return "%s %d/%d" % [counted_item_name(ing_id, need, name), have, need]
 
 
 func recipe_ingredient_lines(recipe_id: String) -> PackedStringArray:

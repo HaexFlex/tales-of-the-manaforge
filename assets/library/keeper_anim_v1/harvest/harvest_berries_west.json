@@ -1,0 +1,73 @@
+{
+ "clip": "harvest_berries_west",
+ "files": [
+  "harvest_berries_west_0000.png",
+  "harvest_berries_west_0001.png",
+  "harvest_berries_west_0002.png",
+  "harvest_berries_west_0003.png",
+  "harvest_berries_west_0004.png",
+  "harvest_berries_west_0005.png",
+  "harvest_berries_west_0006.png",
+  "harvest_berries_west_0007.png"
+ ],
+ "frame_size": [
+  192,
+  136
+ ],
+ "feet_anchor": [
+  96,
+  132
+ ],
+ "feet_anchor_note": "bottom-centre of the planted feet = pixel edge x 96, y 132; soles on row 131; same 4 px bottom margin as the 192x128 / 128x128 conventions (canvas is 136 tall because the overhead swings reach ~row 2 when the body is 119 px)",
+ "durations_ms": [
+  160,
+  90,
+  90,
+  100,
+  160,
+  100,
+  90,
+  110
+ ],
+ "loop_ms": 900,
+ "fps_equivalent": 8.89,
+ "loop": true,
+ "impact_frame": 4,
+ "impact_note": "index into files (0-based); its duration is the held impact/key pose",
+ "phases": [
+  "rest (hand at pouch)",
+  "reach start",
+  "reach",
+  "reach full (at bush)",
+  "PLUCK (hand closes at the bush; no berry pixels since v1b)",
+  "close hand / pull",
+  "retract",
+  "drop into hip pouch"
+ ],
+ "source_video": "keeper_harvest_berries.mp4",
+ "source_fps": 24,
+ "source_frames_1based": [
+  66,
+  71,
+  75,
+  79,
+  82,
+  86,
+  93,
+  99
+ ],
+ "source_time_s": [
+  2.708,
+  2.917,
+  3.083,
+  3.25,
+  3.375,
+  3.542,
+  3.833,
+  4.083
+ ],
+ "mirrored_from": "harvest_berries_east (x -> 191 - x)",
+ "palette": "palette_berries.json",
+ "anchor": "planted",
+ "scale": "video px * 119/344 (standing body 344 video px = Option A E still 119 px)"
+}

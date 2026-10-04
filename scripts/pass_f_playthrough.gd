@@ -154,22 +154,25 @@ func _paths_ok(main: Node) -> bool:
 	var paths: Node = main.get_node_or_null("Paths")
 	if paths == null:
 		return false
-	var berry: Node2D = main.get_node("World/HarvestBerry") as Node2D
-	var line: Line2D = paths.get_node_or_null("ToHarvestBerry") as Line2D
-	if line == null or line.get_point_count() < 2:
-		return false
-	if line.get_point_position(line.get_point_count() - 1).distance_to(berry.position) > 1.5:
-		return false
-	if absf(line.width - 48.0) > 0.5:
-		return false
-	if line.texture == null or line.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
-		return false
-	if line.texture_repeat != CanvasItem.TEXTURE_REPEAT_ENABLED:
-		return false
-	var needed: Array[String] = ["ToHarvestTree", "ToHarvestStone", "ToHarvestBerry", "ToEchoPortal"]
-	for name: String in needed:
-		var other: Line2D = paths.get_node_or_null(name) as Line2D
-		if other == null or other.get_point_count() < 2 or other.texture == null:
+	var ends: Array = [
+		["ToHarvestTree", "World/HarvestTree"],
+		["ArcanaToStone", "World/HarvestStone"],
+		["WardToBerry", "World/HarvestBerry"],
+		["MightToPortal", "World/EchoPortal"],
+		["ToBench", "World/KeepersBench"],
+	]
+	for row: Array in ends:
+		var line: Line2D = paths.get_node_or_null(str(row[0])) as Line2D
+		var mark: Node2D = main.get_node_or_null(str(row[1])) as Node2D
+		if line == null or mark == null or line.get_point_count() < 2:
+			return false
+		if line.get_point_position(line.get_point_count() - 1).distance_to(mark.position) > 1.5:
+			return false
+		if absf(line.width - 48.0) > 0.5:
+			return false
+		if line.texture == null or line.texture_filter != CanvasItem.TEXTURE_FILTER_NEAREST:
+			return false
+		if line.texture_repeat != CanvasItem.TEXTURE_REPEAT_ENABLED:
 			return false
 	return true
 
@@ -225,8 +228,8 @@ func _hits_node(space: PhysicsDirectSpaceState2D, point: Vector2, node: Node) ->
 
 func _harvest(keeper: CharacterBody2D, node: Node, resource_id: StringName, before: int) -> bool:
 	GS.call("select_keeper")
-	var dest: Vector2 = node.call("approach_point")
-	keeper.call("move_to", dest, node)
+	keeper.call("command_work", node, String(resource_id))
+	var dest: Vector2 = keeper.call("work_spot_position")
 	var arrived: bool = await _wait_near(keeper, dest, 16.0, 20.0)
 	if not arrived:
 		print("harvest miss %s at %s want %s" % [resource_id, str(keeper.global_position), str(dest)])
@@ -247,10 +250,10 @@ func _manatree(main: Node) -> void:
 	var tree: Node2D = main.get_node("World/Manatree") as Node2D
 	var hud: Node = main.get_node("HUD")
 	GS.call("select_keeper")
-	var water_at: Vector2 = tree.global_position + Vector2(0, 40)
+	var water_at: Vector2 = keeper.call("work_destination", tree, "manatree")
 	keeper.call("move_to", water_at, null)
 	var at_tree: bool = await _wait_near(keeper, water_at, 16.0, 20.0)
-	_check("manatree", "Keeper reaches the door sill", at_tree, str(keeper.global_position))
+	_check("manatree", "Keeper reaches the watering spot", at_tree, str(keeper.global_position))
 	var ess0: int = int(GS.get("essence"))
 	var shards0: int = int(GS.get("manashards"))
 	keeper.call("start_water_channel", tree)
@@ -271,6 +274,11 @@ func _manatree(main: Node) -> void:
 		var grow: Button = hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
 		_check("manatree", "Grow enabled at %s" % sid, grow != null and not grow.disabled)
 		await _click(grow)
+		if sid == "elder":
+			var ancient_yes: Button = hud.get_node_or_null("AncientGrowConfirm/Yes") as Button
+			var ancient_box: CanvasItem = hud.get_node_or_null("AncientGrowConfirm") as CanvasItem
+			_check("manatree", "Ancient grow asks first", ancient_yes != null and ancient_box != null and ancient_box.visible)
+			await _click(ancient_yes)
 		await process_frame
 	_check("manatree", "grew to Ancient", str(GS.get("stage_id")) == "ancient")
 	var ess1: int = int(GS.get("essence"))
@@ -421,7 +429,7 @@ func _controls(main: Node) -> void:
 	var icon: TextureRect = hud.get_node("Panel/HelpButton/HelpIcon") as TextureRect
 	var expected: String = str(hud.call("_controls_line"))
 	_check("controls", "tooltip text is the controls line", str(btn.tooltip_text) == expected and expected.find("Right-click: command") >= 0, str(btn.tooltip_text))
-	var help_cell: AtlasTexture = HudIcons.cell(HudIcons.HELP)
+	var help_cell: Texture2D = HudIcons.cell(HudIcons.HELP)
 	_check("controls", "icon is the help sheet cell", icon.texture == help_cell and icon.texture != null)
 	var rect: Rect2 = btn.get_global_rect()
 	var view_w: float = root.get_viewport().get_visible_rect().size.x
@@ -504,13 +512,22 @@ func _save_from_main() -> void:
 		return
 	out.store_string(JSON.stringify(root_d, "\t"))
 	out.close()
+	## Load pays one offline gap from the file timestamp. A v8 file has no
+	## offline_closed_sec, so the curve starts at 0. Wisps are 1 yield / 20s
+	## (1/10 of a bare Keeper's 2s pulse), Forager still adds, the stage
+	## multiplier does not, and Ancient or a committed Fruit pays nothing.
+	## The hub boot loads this same file again, so it pays that gap once
+	## from the file baseline rather than stacking a second grant.
+	var grants: Dictionary = _offline_wisp_grants_for_file(root_d, original as Dictionary)
+	var expected: Dictionary = _state_after_offline_wisps(original as Dictionary, grants)
+	print("save offline wisp grants %s" % JSON.stringify(grants))
 	GS.call("reset_for_new_game")
 	var loaded: bool = bool(SS.call("load_game", 1))
 	_check("save", "load_game accepts the main save", loaded)
 	if not loaded:
 		return
 	var now: Dictionary = GS.call("to_save_dict")
-	var missing: PackedStringArray = _missing(original, now, "state")
+	var missing: PackedStringArray = _missing(expected, now, "state")
 	_check("save", "no data loss against the main payload", missing.is_empty(), "\n".join(missing))
 	_check("save", "missing arrow mode defaults to physical", str(now.get("arrow_mode", "")) == "physical")
 	SS.set("boot_intent", "load")
@@ -521,10 +538,111 @@ func _save_from_main() -> void:
 	var main: Node = current_scene
 	var stage_ok: bool = main != null and main.name == "Main" and str(GS.get("stage_id")) == str((original as Dictionary).get("stage_id", ""))
 	_check("save", "loaded game boots that stage", stage_ok, str(GS.get("stage_id")))
-	_check("save", "loaded wood", int(GS.get("wood")) == int((original as Dictionary).get("wood", -1)))
+	var life_exp: Dictionary = {}
+	var life_exp_v: Variant = expected.get("lifetime_harvested", {})
+	if typeof(life_exp_v) == TYPE_DICTIONARY:
+		life_exp = life_exp_v
+	var life_got: Dictionary = {}
+	var life_got_v: Variant = GS.get("lifetime_harvested")
+	if typeof(life_got_v) == TYPE_DICTIONARY:
+		life_got = life_got_v
+	_check("save", "loaded wood", int(GS.get("wood")) == int(expected.get("wood", -1)))
+	_check("save", "loaded manashards", int(GS.get("manashards")) == int(expected.get("manashards", -1)))
+	_check("save", "loaded lifetime wood", int(life_got.get("wood", -1)) == int(life_exp.get("wood", -2)))
 	_check("save", "loaded essence", int(GS.get("essence")) == int((original as Dictionary).get("essence", -1)))
 	_check("save", "loaded wisps", int(GS.get("wisp_count")) == int((original as Dictionary).get("wisp_count", -1)))
 	_check("save", "loaded forge key", bool(GS.get("forge_key")) == bool((original as Dictionary).get("forge_key", false)))
+
+
+func _state_after_offline_wisps(original: Dictionary, grants: Dictionary) -> Dictionary:
+	var expected: Dictionary = original.duplicate(true)
+	for rid: Variant in grants.keys():
+		var key: String = str(rid)
+		var n: int = int(grants[rid])
+		if n <= 0:
+			continue
+		if expected.has(key):
+			expected[key] = float(expected[key]) + float(n)
+		var life_v: Variant = expected.get("lifetime_harvested", {})
+		if typeof(life_v) == TYPE_DICTIONARY and (life_v as Dictionary).has(key):
+			(life_v as Dictionary)[key] = float((life_v as Dictionary)[key]) + float(n)
+	return expected
+
+
+func _offline_wisp_grants_for_file(file_root: Dictionary, original: Dictionary) -> Dictionary:
+	## Same rules as ForgeJobs._offline_wisp_grants after commit_offline_gap.
+	var out: Dictionary = {}
+	var ts: float = float(file_root.get("timestamp", 0.0))
+	if ts <= 1.0:
+		return out
+	var closed: float = Time.get_unix_time_from_system() - ts
+	if closed < 1.0:
+		return out
+	var stage: String = str(original.get("stage_id", ""))
+	var fruit: bool = bool(original.get("fruit_committed", original.get("fruit_harvested_pending_ascend", false)))
+	if stage == "ancient" or fruit:
+		return out
+	var origin: float = maxf(0.0, float(original.get("offline_closed_sec", 0.0)))
+	var active: float = maxf(0.0, float(original.get("active_since_load_sec", 0.0)))
+	if active + 0.0001 >= float(GS.call("offline_reset_active_sec")):
+		origin = 0.0
+	var eff: float = float(GS.call("offline_effective_seconds", origin + closed)) - float(GS.call("offline_effective_seconds", origin))
+	if eff <= 0.0:
+		return out
+	var haste: int = _file_upgrade_rank(original, "wisp_haste")
+	var interval: float = maxf(
+		float(GS.call("param_float", "WISP_HARVEST_MIN_SEC", 10.0)),
+		float(GS.call("param_float", "WISP_PULSE_SEC", 20.0)) - 2.0 * float(haste)
+	)
+	var grant_per: float = float(GS.call("param_int", "WISP_PULSE_GRANT", 1))
+	var factor: float = 1.0 + _file_effect_total(original, "gather_mult_bonus")
+	var units_each: float = (eff / maxf(interval, 0.05)) * grant_per * factor
+	var fj: Node = root.get_node_or_null("ForgeJobs")
+	var assigns_v: Variant = original.get("wisp_assignments", {})
+	var assigns: Dictionary = assigns_v if typeof(assigns_v) == TYPE_DICTIONARY else {}
+	var accum: Dictionary = {}
+	var accum_v: Variant = original.get("harvest_accum", {})
+	if typeof(accum_v) == TYPE_DICTIONARY:
+		accum = (accum_v as Dictionary).duplicate(true)
+	for i: int in range(int(original.get("wisp_count", 0))):
+		var nid: String = str(assigns.get(str(i), ""))
+		if nid == "":
+			continue
+		if fj != null and bool(fj.call("is_forge_station", nid)):
+			continue
+		var rid: String = String(GS.call("resource_for_node_id", nid))
+		if rid == "":
+			continue
+		var acc: float = float(accum.get(rid, 0.0)) + units_each
+		var whole: int = int(floor(acc))
+		if whole < 0:
+			whole = 0
+		accum[rid] = acc - float(whole)
+		out[rid] = int(out.get(rid, 0)) + whole
+	return out
+
+
+func _file_upgrade_rank(original: Dictionary, upgrade_id: String) -> int:
+	var ups_v: Variant = original.get("upgrades", {})
+	if typeof(ups_v) != TYPE_DICTIONARY:
+		return 0
+	return maxi(0, int((ups_v as Dictionary).get(upgrade_id, 0)))
+
+
+func _file_effect_total(original: Dictionary, effect_name: String) -> float:
+	var total: float = 0.0
+	var data: Variant = GS.get("upgrades_data")
+	if typeof(data) != TYPE_ARRAY:
+		return 0.0
+	var rows: Array = data
+	for entry: Variant in rows:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var d: Dictionary = entry
+		if str(d.get("effect", "")) != effect_name:
+			continue
+		total += float(d.get("value_per_rank", 0.0)) * float(_file_upgrade_rank(original, str(d.get("id", ""))))
+	return total
 
 
 func _missing(original: Variant, loaded: Variant, path: String) -> PackedStringArray:

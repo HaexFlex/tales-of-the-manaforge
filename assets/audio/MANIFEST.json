@@ -1,15 +1,17 @@
 {
   "owner": "Audio",
-  "version": "v0.1.3-haex-hub",
-  "source_brief": "AUDIO_RESTART_V01.md",
+  "version": "v0.2.0-fixpass",
+  "date": "2026-10-02",
+  "source_spec": "CUE_NOTES_FIXPASS.md (box audio_restart/); supersedes AUDIO_RESTART_V01.md and CUE_NOTES_FORGE_V2.md where they differ",
+  "mirrors": "data/audio_cues.json after the fix pass: same cue ids, files (path) and buses. 37 cues. This file is documentation; code reads audio_cues.json only.",
   "sample_rate": 44100,
-  "format": "ogg",
+  "format": "ogg (SFX/stings: Vorbis 44.1 kHz mono); hub bed mp3 48 kHz stereo",
   "layout": "flat",
   "godot_target": "res://assets/audio/",
   "sonic_identity": {
     "mood": "cozy magical contemplative lightly melancholic",
     "motif": "mana sigil C-Eb-F-G",
-    "era": "Secret of Mana\u2013leaning chip-orchestral"
+    "era": "Secret of Mana–leaning chip-orchestral"
   },
   "buses": [
     "Music",
@@ -17,166 +19,488 @@
     "SFX_World",
     "SFX_Progress"
   ],
+  "bus_rules": {
+    "Music": "Hub bed + stings. Default -9 dB (MUSIC_BUS_DEFAULT_DB). Forge: 1500 Hz low-pass + reverb 0.35 + -3 dB.",
+    "SFX_UI": "Menus/panels. Never ducks.",
+    "SFX_World": "Anything that repeats (gather, wisps, water, Forge jobs, door). Never ducks.",
+    "SFX_Progress": "Rare milestones only; ducks the bed. Final set: sfx_stage_up, sfx_fruit_ready, sfx_fruit_harvest, sfx_ascend, sfx_upgrade_buy, sfx_forge_big_done. No bus changes in the fix pass."
+  },
+  "duck": {
+    "from_bus": "SFX_Progress",
+    "to_bus": "Music",
+    "amount_db": -5.0,
+    "attack_sec": 0.05,
+    "hold": "while_playing",
+    "release_sec": 0.6,
+    "notes": "Gain envelope on the hub bed (MusicPlayer.volume_db), not a compressor. Overlapping Progress cues extend the hold, never stack below -5 dB. Stings are not ducked. audio_cues.json duck block must change to attack_sec 0.05 / release_sec 0.6 (was 0.15 / 1.2)."
+  },
+  "volume_model": "Every play sets volume_db = base_db + play_offset_db and pitch_scale explicitly (1.0 unless noted); nothing carries over from the previous play. base_db is 0.0 for all cues this pass. Voices: SFX pool of 4 (SFX_UI + SFX_World), Progress pool of 2; MusicPlayer and StingPlayer unchanged.",
+  "rulings": [
+    "Post-Ancient freeze / Fruit-commit hold (GameState.fruit_committed): only the music bed plays. No gather ticks, no SFX_World, no Forge job cues (craft_start, craft_done, press_squeeze, big_done). SFX_UI (Ascend button, shop) and the freeze's own fruit_harvest/ascend cues + stings are fine.",
+    "Milestone cues (stage_up, fruit_ready, ...) play on live transitions only, never on save load or scene restore.",
+    "Hub/Forge switch buttons reuse sfx_door_bark (no new asset).",
+    "Autosave and offline results are silent.",
+    "New sound assets need Haex's explicit go (not only the Director's)."
+  ],
   "cues": {
     "mus_hub_forest": {
-      "file": "mus_hub_forest_haex_loop.wav",
+      "file": "mus_hub_forest_haex.mp3",
+      "path": "res://assets/audio/mus_hub_forest_haex.mp3",
       "bus": "Music",
       "loop": true,
-      "fallback": "mus_hub_forest_haex_loop.ogg",
-      "source_mp3": "mus_hub_forest_haex.mp3",
-      "legacy_procedural": [
-        "mus_hub_forest.wav",
-        "mus_hub_forest.ogg"
-      ],
-      "notes": "Haex hub bed. Prefer *_loop.wav (2s end\u2192start crossfade). Raw MP3 fades to silence \u2014 do not hard-loop. cue_id mus_hub_forest. Procedural wav/ogg = legacy only."
+      "duration_sec": 178.3,
+      "file_peak_dbfs": 0.0,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Hub bed. Haex's raw MP3 (48 kHz stereo, 178.3 s, peak 0 dBFS), loop on; the fade-out loop join is ACCEPTED (Haex lock), do not crossfade or fix. Fallback chain: JSON path, then this shipped MP3 only. Music bus default -9 dB. Ducked -5 dB (bed only) while any SFX_Progress voice plays. Plays through the post-Ancient freeze."
     },
     "mus_fruit_sting": {
       "file": "mus_fruit_sting.ogg",
+      "path": "res://assets/audio/mus_fruit_sting.ogg",
       "bus": "Music",
-      "loop": false
+      "loop": false,
+      "duration_sec": 5.2,
+      "file_peak_dbfs": -4.7,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "With sfx_fruit_harvest (Fruit commit or Ancient timeout). StingPlayer over the bed; not ducked."
     },
     "mus_ascend_sting": {
       "file": "mus_ascend_sting.ogg",
+      "path": "res://assets/audio/mus_ascend_sting.ogg",
       "bus": "Music",
-      "loop": false
+      "loop": false,
+      "duration_sec": 4.0,
+      "file_peak_dbfs": -10.7,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "With sfx_ascend on Ascend confirm. StingPlayer over the bed; not ducked."
     },
     "mus_title": {
       "file": "mus_title.ogg",
+      "path": "res://assets/audio/mus_title.ogg",
       "bus": "Music",
       "loop": true,
       "duration_sec": 10.0,
-      "bpm": 80
+      "file_peak_dbfs": -15.3,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Unused (title plays the hub bed). Kept: cue references it."
     },
     "sfx_ui_confirm": {
       "file": "sfx_ui_confirm.ogg",
+      "path": "res://assets/audio/sfx_ui_confirm.ogg",
       "bus": "SFX_UI",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.1,
+      "file_peak_dbfs": -8.8,
+      "base_db": 0.0,
+      "play_offset_db": 0.0
     },
     "sfx_ui_cancel": {
       "file": "sfx_ui_cancel.ogg",
+      "path": "res://assets/audio/sfx_ui_cancel.ogg",
       "bus": "SFX_UI",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.08,
+      "file_peak_dbfs": -9.6,
+      "base_db": 0.0,
+      "play_offset_db": 0.0
+    },
+    "sfx_ui_deny": {
+      "file": "sfx_ui_cancel.ogg",
+      "path": "res://assets/audio/sfx_ui_cancel.ogg",
+      "bus": "SFX_UI",
+      "loop": false,
+      "alias_of": "sfx_ui_cancel",
+      "duration_sec": 0.08,
+      "file_peak_dbfs": -9.6,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Alias: reuses sfx_ui_cancel.ogg. Echo portal fee denied."
     },
     "sfx_ui_open": {
       "file": "sfx_ui_open.ogg",
+      "path": "res://assets/audio/sfx_ui_open.ogg",
       "bus": "SFX_UI",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.18,
+      "file_peak_dbfs": -18.8,
+      "base_db": 0.0,
+      "play_offset_db": 0.0
     },
     "sfx_ui_close": {
       "file": "sfx_ui_close.ogg",
+      "path": "res://assets/audio/sfx_ui_close.ogg",
       "bus": "SFX_UI",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.15,
+      "file_peak_dbfs": -20.8,
+      "base_db": 0.0,
+      "play_offset_db": 0.0
     },
     "sfx_ui_hover": {
       "file": "sfx_ui_hover.ogg",
+      "path": "res://assets/audio/sfx_ui_hover.ogg",
       "bus": "SFX_UI",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.04,
+      "file_peak_dbfs": -22.1,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Unused."
     },
     "sfx_gather_wood": {
       "file": "sfx_gather_wood.ogg",
+      "path": "res://assets/audio/sfx_gather_wood.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.22,
+      "file_peak_dbfs": -10.1,
+      "base_db": 0.0,
+      "play_offset_db": -12.0,
+      "notes": "Keeper gains wood (keeper_harvested); pitch 0.96-1.04; global 0.9 s gap, skip not queue; Keeper only, hub only, not frozen"
     },
     "sfx_gather_stone": {
       "file": "sfx_gather_stone.ogg",
+      "path": "res://assets/audio/sfx_gather_stone.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.2,
+      "file_peak_dbfs": -7.8,
+      "base_db": 0.0,
+      "play_offset_db": -12.0,
+      "notes": "Keeper gains stone (keeper_harvested); same rules as sfx_gather_wood"
     },
     "sfx_gather_food": {
       "file": "sfx_gather_food.ogg",
+      "path": "res://assets/audio/sfx_gather_food.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.18,
+      "file_peak_dbfs": -17.8,
+      "base_db": 0.0,
+      "play_offset_db": -12.0,
+      "notes": "Keeper gains food (keeper_harvested); same rules as sfx_gather_wood; softest file (-17.8 dBFS), watch in playtest"
     },
     "sfx_gather_manashards": {
       "file": "sfx_gather_manashards.ogg",
+      "path": "res://assets/audio/sfx_gather_manashards.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.35,
+      "file_peak_dbfs": -7.7,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Unmapped: Keeper harvest is wood/stone/food only; shards come from the water channel (sfx_water_pulse). Would be -12 dB if ever used."
     },
     "sfx_gather_cooldown": {
       "file": "sfx_gather_cooldown.ogg",
+      "path": "res://assets/audio/sfx_gather_cooldown.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.06,
+      "file_peak_dbfs": -25.0,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Unused."
     },
     "sfx_tree_water": {
       "file": "sfx_tree_water.ogg",
+      "path": "res://assets/audio/sfx_tree_water.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.4,
+      "file_peak_dbfs": -14.2,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Legacy one-shot water (play_tree_water_ok, no caller)."
     },
     "sfx_tree_deny": {
       "file": "sfx_tree_deny.ogg",
+      "path": "res://assets/audio/sfx_tree_deny.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.18,
+      "file_peak_dbfs": -12.5,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Can't afford / blocked: Grow pay, Runestones, Bench craft."
     },
     "sfx_stage_up": {
       "file": "sfx_stage_up.ogg",
+      "path": "res://assets/audio/sfx_stage_up.ogg",
       "bus": "SFX_Progress",
-      "loop": false
+      "loop": false,
+      "duration_sec": 1.2,
+      "file_peak_dbfs": -9.0,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Live stage_changed only (not sapling); never on save load or scene restore. At Ancient plays first; sfx_fruit_ready follows 0.7 s later on a separate voice."
     },
     "sfx_fruit_ready": {
       "file": "sfx_fruit_ready.ogg",
+      "path": "res://assets/audio/sfx_fruit_ready.ogg",
       "bus": "SFX_Progress",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.7,
+      "file_peak_dbfs": -13.7,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Live fruit_ready_changed(true), once per cycle; never on load. At Ancient: 0.7 s after sfx_stage_up, separate Progress voice."
     },
     "sfx_fruit_harvest": {
       "file": "sfx_fruit_harvest.ogg",
+      "path": "res://assets/audio/sfx_fruit_harvest.ogg",
       "bus": "SFX_Progress",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.9,
+      "file_peak_dbfs": -6.6,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "With mus_fruit_sting (Fruit commit or Ancient timeout)."
     },
     "sfx_ascend": {
       "file": "sfx_ascend.ogg",
+      "path": "res://assets/audio/sfx_ascend.ogg",
       "bus": "SFX_Progress",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.85,
+      "file_peak_dbfs": -14.7,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "With mus_ascend_sting on Ascend confirm."
     },
     "sfx_footstep": {
       "file": "sfx_footstep.ogg",
+      "path": "res://assets/audio/sfx_footstep.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.12,
+      "file_peak_dbfs": -21.0,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Unused."
     },
     "sfx_interact_arrive": {
       "file": "sfx_interact_arrive.ogg",
+      "path": "res://assets/audio/sfx_interact_arrive.ogg",
       "bus": "SFX_World",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.1,
+      "file_peak_dbfs": -18.2,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Unused."
     },
     "sfx_upgrade_buy": {
       "file": "sfx_upgrade_buy.ogg",
+      "path": "res://assets/audio/sfx_upgrade_buy.ogg",
       "bus": "SFX_Progress",
-      "loop": false
+      "loop": false,
+      "duration_sec": 0.35,
+      "file_peak_dbfs": -9.1,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Shop buy, Runestone rank, relic swap (one per player click)."
+    },
+    "sfx_tree_offer": {
+      "file": "sfx_tree_water.ogg",
+      "path": "res://assets/audio/sfx_tree_water.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "alias_of": "sfx_tree_water",
+      "duration_sec": 0.4,
+      "file_peak_dbfs": -14.2,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Alias: reuses sfx_tree_water.ogg (play_tree_offer, no caller)."
     },
     "sfx_water_pulse": {
       "file": "sfx_water_pulse.ogg",
+      "path": "res://assets/audio/sfx_water_pulse.ogg",
       "bus": "SFX_World",
       "loop": false,
-      "notes": "1/sec water channel pulse (shards+essence)"
+      "duration_sec": 0.35,
+      "file_peak_dbfs": -7.9,
+      "base_db": 0.0,
+      "play_offset_db": -10.0,
+      "notes": "play_water_pulse(): each water channel pulse (keeper.gd)"
     },
     "sfx_channel_start": {
       "file": "sfx_channel_start.ogg",
+      "path": "res://assets/audio/sfx_channel_start.ogg",
       "bus": "SFX_UI",
       "loop": false,
-      "notes": "optional on channel begin"
+      "duration_sec": 0.2,
+      "file_peak_dbfs": -11.5,
+      "base_db": 0.0,
+      "play_offset_db": -6.0,
+      "notes": "play_channel_start(): harvest/water channel begins"
     },
     "sfx_wisp_assign": {
       "file": "sfx_wisp_assign.ogg",
+      "path": "res://assets/audio/sfx_wisp_assign.ogg",
       "bus": "SFX_World",
       "loop": false,
-      "notes": "wisp assigned to harvest node or Manatree"
+      "duration_sec": 0.28,
+      "file_peak_dbfs": -9.9,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "wisp_assigned ok/reassign/join."
     },
     "sfx_wisp_deny": {
       "file": "sfx_wisp_deny.ogg",
+      "path": "res://assets/audio/sfx_wisp_deny.ogg",
       "bus": "SFX_World",
       "loop": false,
-      "notes": "WISP_PER_NODE / Manatree slot full"
+      "duration_sec": 0.2,
+      "file_peak_dbfs": -10.9,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Forge station full / queue on busy station."
     },
     "sfx_wisp_unassign": {
       "file": "sfx_wisp_unassign.ogg",
+      "path": "res://assets/audio/sfx_wisp_unassign.ogg",
       "bus": "SFX_World",
       "loop": false,
-      "notes": "wisp recalled to Keeper orbit"
+      "duration_sec": 0.22,
+      "file_peak_dbfs": -12.1,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "wisp_unassigned."
     },
     "sfx_wisp_pulse": {
       "file": "sfx_wisp_pulse.ogg",
+      "path": "res://assets/audio/sfx_wisp_pulse.ogg",
       "bus": "SFX_World",
       "loop": false,
-      "notes": "assigned wisp pulse grant (quiet under hub)"
+      "duration_sec": 0.18,
+      "file_peak_dbfs": -18.4,
+      "base_db": 0.0,
+      "play_offset_db": -8.0,
+      "notes": "play_wisp_pulse(): wisp_pulsed (node banks a unit)"
+    },
+    "sfx_forge_craft_start": {
+      "file": "sfx_forge_craft_start.ogg",
+      "path": "res://assets/audio/sfx_forge_craft_start.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "duration_sec": 0.28,
+      "file_peak_dbfs": -10.2,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Manual queue/start by the player only (try_begin_job). NEVER on auto-repeat cycles."
+    },
+    "sfx_forge_craft_done": {
+      "file": "sfx_forge_craft_done.ogg",
+      "path": "res://assets/audio/sfx_forge_craft_done.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "duration_sec": 0.55,
+      "file_peak_dbfs": -9.8,
+      "base_db": 0.0,
+      "play_offset_db": -8.0,
+      "notes": "Upcycle (crucible/mill/press) cycle done, in the Forge scene only; silent elsewhere (upcycle_tick_db)"
+    },
+    "sfx_press_squeeze": {
+      "file": "sfx_press_squeeze.ogg",
+      "path": "res://assets/audio/sfx_press_squeeze.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "duration_sec": 0.46,
+      "file_peak_dbfs": -13.3,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Manual Bramble Press (press) queue only, with craft_start; never per cycle."
+    },
+    "sfx_forge_big_done": {
+      "file": "sfx_forge_big_done.ogg",
+      "path": "res://assets/audio/sfx_forge_big_done.ogg",
+      "bus": "SFX_Progress",
+      "loop": false,
+      "duration_sec": 1.45,
+      "file_peak_dbfs": -9.4,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Anvil and Reliquary completion only, any scene, throttle 3 s (big_done_min_interval_sec). Dropped during the freeze."
+    },
+    "sfx_bench_open": {
+      "file": "sfx_bench_open.ogg",
+      "path": "res://assets/audio/sfx_bench_open.ogg",
+      "bus": "SFX_UI",
+      "loop": false,
+      "duration_sec": 0.3,
+      "file_peak_dbfs": -15.1,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Keeper's Bench opened."
+    },
+    "sfx_door_bark": {
+      "file": "sfx_door_bark.ogg",
+      "path": "res://assets/audio/sfx_door_bark.ogg",
+      "bus": "SFX_World",
+      "loop": false,
+      "duration_sec": 0.64,
+      "file_peak_dbfs": -11.9,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Forge enter/exit, and the Hub/Forge switch buttons (via try_enter_forge/exit_forge; no extra cue)."
     }
-  }
+  },
+  "legacy": [
+    {
+      "file": "mus_hub_forest_haex_loop.wav",
+      "from_path": "assets/audio/mus_hub_forest_haex_loop.wav",
+      "to_path": "assets/library/legacy/mus_hub_forest_haex_loop.wav",
+      "bytes": 31443964,
+      "exported": false,
+      "referenced_by_cue": false,
+      "reason": "2 s end-to-start crossfade backup of the hub bed; superseded by the raw-MP3 lock"
+    },
+    {
+      "file": "mus_hub_forest_haex_loop.ogg",
+      "from_path": "assets/audio/mus_hub_forest_haex_loop.ogg",
+      "to_path": "assets/library/legacy/mus_hub_forest_haex_loop.ogg",
+      "bytes": 4163182,
+      "exported": false,
+      "referenced_by_cue": false,
+      "reason": "OGG of the crossfade backup; superseded by the raw-MP3 lock"
+    },
+    {
+      "file": "mus_hub_forest.wav",
+      "from_path": "assets/audio/mus_hub_forest.wav",
+      "to_path": "assets/library/legacy/mus_hub_forest.wav",
+      "bytes": 1411244,
+      "exported": false,
+      "referenced_by_cue": false,
+      "reason": "old 16 s procedural hub bed (WAV twin of the .ogg); no cue"
+    },
+    {
+      "file": "mus_hub_forest.ogg",
+      "from_path": "assets/audio/mus_hub_forest.ogg",
+      "to_path": "assets/library/legacy/mus_hub_forest.ogg",
+      "bytes": 104235,
+      "exported": false,
+      "referenced_by_cue": false,
+      "reason": "old 16 s procedural hub bed; no cue"
+    }
+  ],
+  "legacy_total_bytes": 37122625,
+  "legacy_export": "assets/library/legacy/ carries an empty .gdignore (not imported, not res://, never exported) plus export_presets.cfg exclude_filter=\"assets/library/legacy/*\" as a backstop. Moved with git mv, not deleted.",
+  "local_pack_only_legacy": [
+    {
+      "file": "mus_hub_forest_haex.ogg",
+      "where": "box audio_restart/ only (not in repo)",
+      "exported": false,
+      "reason": "OGG transcode of the raw MP3; not used"
+    },
+    {
+      "file": "mus_hub_forest_haex.wav",
+      "where": "box audio_restart/ only (not in repo)",
+      "exported": false,
+      "reason": "WAV of the raw MP3; not used"
+    }
+  ]
 }

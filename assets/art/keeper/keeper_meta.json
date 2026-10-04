@@ -11,16 +11,17 @@
   "filter": "nearest",
   "clips": {
     "idle_front": {
-      "frames": 4,
-      "hold_ms": 140,
-      "strip": "keeper_idle_front.png",
-      "layout": "horizontal"
+      "frames": 12,
+      "hold_ms": 150,
+      "files": [
+        "idle/south/keeper_idle_south_0001.png"
+      ]
     },
     "idle_back": {
-      "frames": 1,
-      "hold_ms": 140,
+      "frames": 12,
+      "hold_ms": 150,
       "files": [
-        "keeper_idle_back_0000.png"
+        "idle/north/keeper_idle_north_0001.png"
       ]
     },
     "walk_back": {
@@ -30,16 +31,10 @@
       "layout": "horizontal"
     },
     "idle_south": {
-      "frames": 1,
-      "hold_ms": 140,
+      "frames": 12,
+      "hold_ms": 150,
       "files": [
-        "keeper_idle_south_0000.png"
-      ],
-      "file": "keeper_idle_south.png",
-      "native": "native/keeper_idle_south_256.png",
-      "source_size": [
-        170,
-        256
+        "idle/south/keeper_idle_south_0001.png"
       ]
     },
     "walk_south": {
@@ -73,5 +68,5 @@
   },
   "notes": "South idle+walk from Art v0.1.13 pack. Primary canvas 128x128 NN fit, feet bottom-center, walk hold_ms 100. Native 170x256 under keeper/native/. Back clips unchanged.",
   "version": "v0.1.13-assets-upload",
-  "inbox": "assets/library/keeper_inbox/"
+  "inbox": "assets/library/legacy/library_tidy_2026-10-02/keeper_inbox/"
 }
