@@ -5,7 +5,7 @@ class_name CharacterSheet
 
 signal close_requested
 
-const PORTRAIT_PATH: String = "res://assets/art/keeper/keeper_idle_south_0000.png"
+const PORTRAIT_PATH: String = "res://assets/art/keeper/idle/south/keeper_idle_south_0001.png"
 const WISP_PORTRAIT_PATH: String = "res://assets/art/wisps/wisp_portrait.png"
 ## HUD party slots. 52×52, drawn 1:1. companions.json points at these.
 const KEEPER_PARTY_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_portrait.png"

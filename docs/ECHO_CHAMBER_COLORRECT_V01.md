@@ -8,7 +8,7 @@
 
 | Region | Spec |
 |--------|------|
-| **Keeper** | **Left** — `assets/art/keeper/keeper_idle_south.png` (128² source). Display **large** (same idea as sheet ×3; target draw ~**384×384** or fill left third). Warm. |
+| **Keeper** | **Left** — south frame from `assets/art/keeper/idle/south/` (128²). Display **large** (same idea as sheet ×3; target draw ~**384×384** or fill left third). Warm. |
 | **Elaia** | **Right** — `assets/art/echo/elaia_front.png`. Display **384×384**, nearest, keep-aspect centered (same box as the Keeper). |
 | **Flavour dialogue** | **Top** band (~full width × 80–100px) — Content brief lines |
 | **Battle log** | **Lower** band above commands (~full width × 100–140px) |

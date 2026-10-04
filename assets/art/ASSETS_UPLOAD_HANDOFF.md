@@ -56,7 +56,7 @@ Source: `keeper/idle_south.png` + `walk_south_01`…`09` each **170×256** RGBA.
 
 | Output | Size | Notes |
 |--------|------|-------|
-| `keeper_idle_south.png` + `_0000` | **128×128** | Primary for Code (bible lock) |
+| `idle/south/` … `idle/west/` (12 frames each) | **128×128** | Live four-direction idle. The earlier single south still is archived. |
 | `keeper_walk_south_0001`…`0009` | **128×128** | Individual frames |
 | `keeper_walk_south.png` | **1152×128** | Horizontal strip of 9 |
 | `keeper/native/*_256.png` (+ strip) | **170×256** | Native canvas retained |
