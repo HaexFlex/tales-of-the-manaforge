@@ -47,15 +47,34 @@ var _marquee: Line2D
 
 func _enter_tree() -> void:
 	# Apply before child _ready so the HUD does not paint the previous run.
-	# A bare launch of this scene (Run Project / Run Current Scene) is the title.
+	# Run Current Scene on the hub is a bare launch and still opens the title.
+	# change_scene_to_file also sets current_scene before _enter_tree, and the
+	# boot below clears boot_intent back to "auto". Together those used to make
+	# every later return from the Forge look like that bare launch.
 	if _bare_boot_to_title():
 		_boot_redirect = true
+		return
+	if _return_to_live_hub():
 		return
 	_apply_boot_intent()
 
 
 func _bare_boot_to_title() -> bool:
+	## Only a process that has not started play yet. A live session must not
+	## bounce to the title just because the hub was loaded again.
 	if str(SaveService.boot_intent) != "auto":
+		return false
+	if SaveService.session_active:
+		return false
+	var tree: SceneTree = get_tree()
+	return tree != null and tree.current_scene == self
+
+
+func _return_to_live_hub() -> bool:
+	## Play has started, and nobody asked for new / continue / load / forge_return.
+	## "auto" here means the previous boot was already consumed. Reloading the
+	## newest save, or opening the title, would throw away the trip in progress.
+	if not SaveService.session_active or str(SaveService.boot_intent) != "auto":
 		return false
 	var tree: SceneTree = get_tree()
 	return tree != null and tree.current_scene == self

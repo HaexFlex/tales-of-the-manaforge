@@ -1,6 +1,7 @@
 extends SceneTree
 const EchoBattleScript := preload("res://scripts/echo_battle.gd")
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
+## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 
@@ -34,6 +35,17 @@ func _run() -> void:
 			quit(1)
 		else:
 			print("CHECK_ONLY_OK")
+			quit(0)
+		return
+
+	# Same hub↔Forge check the full suite runs near the end.
+	# MANAFORGE_SCENE_TRANSITIONS=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_SCENE_TRANSITIONS") == "1":
+		var hop_failed: int = await _scene_transitions(tree_root, game_state, save_service)
+		if hop_failed > 0:
+			print("SCENE_TRANSITIONS_FAIL: %d" % hop_failed)
+			quit(1)
+		else:
 			quit(0)
 		return
 
@@ -2322,6 +2334,7 @@ func _run() -> void:
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
+	failed += await _scene_transitions(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -4080,3 +4093,448 @@ func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, bac
 	jobs.call("set_scene_changes_enabled", true)
 	save_service.set("session_active", false)
 	return failed
+
+
+const _HUB_SCENE: String = "res://scenes/main.tscn"
+const _FORGE_SCENE: String = "res://scenes/forge_room.tscn"
+const _TITLE_SCENE: String = "res://scenes/title_screen.tscn"
+
+
+func _scene_transitions(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Every way between the Clearing and the Forge. The active scene must never
+	## become the title screen unless this process is actually starting.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	failed += _assert(jobs != null, "ForgeJobs for scene transitions")
+	if jobs == null:
+		return failed
+	failed += _export_strip_keeps_scenes()
+	if echo:
+		echo.set("in_battle", false)
+	game_state.set("ancient_frozen", false)
+	jobs.call("set_in_forge_override", -1)
+	jobs.call("set_scene_changes_enabled", true)
+	paused = false
+	var party: Array[bool] = [false, true]
+	for joined: bool in party:
+		for round_i: int in 3:
+			failed += await _transition_round(game_state, save_service, jobs, joined, round_i)
+			if failed > 0:
+				break
+		if failed > 0:
+			break
+	if failed == 0:
+		failed += await _transition_footsteps_popup(game_state, save_service, jobs)
+	if failed == 0:
+		failed += await _transition_after_continue(game_state, save_service, jobs)
+	if failed == 0:
+		failed += await _transition_bare_launch_still_title(game_state, save_service)
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	save_service.set("boot_slot", 0)
+	save_service.call("delete_save")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	jobs.call("set_scene_changes_enabled", true)
+	paused = false
+	if failed == 0:
+		print("SCENE_TRANSITIONS_OK")
+	return failed
+
+
+func _export_strip_keeps_scenes() -> int:
+	var failed: int = 0
+	var preset: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	var paths: PackedStringArray = PackedStringArray([
+		"res://scenes/main.tscn",
+		"res://scenes/forge_room.tscn",
+		"res://scenes/title_screen.tscn",
+		"res://scenes/hud.tscn",
+		"res://scripts/main.gd",
+		"res://scripts/forge_room.gd",
+		"res://scripts/hud.gd",
+		"res://scripts/autoload/forge_jobs.gd",
+		"res://scripts/autoload/save_service.gd",
+	])
+	for path: String in paths:
+		failed += _assert(ResourceLoader.exists(path), "scene transition resource %s" % path)
+		failed += _assert(preset.find(path.trim_prefix("res://")) < 0, "export strip leaves %s" % path)
+	failed += _assert(preset.find("exclude_filter") >= 0, "export preset has a strip list")
+	return failed
+
+
+func _transition_round(game_state: Node, save_service: Node, jobs: Node, joined: bool, round_i: int) -> int:
+	var tag: String = "joined" if joined else "solo"
+	var failed: int = await _boot_play(game_state, save_service, joined)
+	if failed > 0:
+		return failed
+	var wood_before: int = 19 + round_i
+	game_state.call("set_resource", &"wood", wood_before)
+	var keeper_spot: Vector2 = Vector2(800, 1048)
+	var elaia_forge: Vector2 = Vector2(860, 1040)
+	var elaia_clear: Vector2 = Vector2(560, 540)
+	var keeper_clear: Vector2 = Vector2(480, 520)
+	_place_actor(game_state, "keeper", "forge", keeper_spot)
+	if joined:
+		_place_actor(game_state, "elaia", "clearing", elaia_clear)
+	failed += await _enter_forge_view()
+	if failed > 0:
+		return failed
+	failed += await _press_nav("nav_hub/%s/%d" % [tag, round_i], _HUB_SCENE)
+	failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, wood_before)
+	if joined:
+		failed += _live_unchanged(game_state, "elaia", "clearing", elaia_clear, wood_before)
+	failed += await _bodies_where(game_state, joined)
+	if failed > 0:
+		return failed
+	failed += await _press_nav("nav_forge/%s/%d" % [tag, round_i], _FORGE_SCENE)
+	failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, wood_before)
+	failed += await _bodies_where(game_state, joined)
+	if failed > 0:
+		return failed
+	failed += await _press_escape("escape_hub/%s/%d" % [tag, round_i], _HUB_SCENE)
+	failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, wood_before)
+	failed += await _bodies_where(game_state, joined)
+	if failed > 0:
+		return failed
+	# Hub Escape opens the pause menu. It must not dump the player on the title.
+	failed += await _press_hub_escape("escape_stays/%s/%d" % [tag, round_i])
+	if failed > 0:
+		return failed
+	failed += await _enter_forge_view()
+	failed += await _press_footsteps("footsteps_hub/%s/%d" % [tag, round_i])
+	failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, wood_before)
+	failed += _assert(not _scene_path().ends_with("title_screen.tscn"), "footsteps avoided the title")
+	if failed > 0:
+		return failed
+	_place_actor(game_state, "keeper", "forge", keeper_spot)
+	if joined:
+		_place_actor(game_state, "elaia", "clearing", elaia_clear)
+	failed += await _enter_forge_view()
+	var stand: Vector2 = jobs.call("clearing_door_stand")
+	failed += await _walk_out("door_keeper/%s/%d" % [tag, round_i], "keeper", stand)
+	failed += _assert(int(game_state.get("wood")) == wood_before, "door keeps wood")
+	if joined:
+		failed += _live_unchanged(game_state, "elaia", "clearing", elaia_clear, wood_before)
+	failed += await _bodies_where(game_state, joined)
+	if failed > 0:
+		return failed
+	if joined:
+		_place_actor(game_state, "keeper", "clearing", keeper_clear)
+		_place_actor(game_state, "elaia", "forge", elaia_forge)
+		failed += await _enter_forge_view()
+		stand = jobs.call("clearing_door_stand")
+		failed += await _walk_out("door_elaia/%s/%d" % [tag, round_i], "elaia", stand)
+		failed += _live_unchanged(game_state, "keeper", "clearing", keeper_clear, wood_before)
+		failed += await _bodies_where(game_state, joined)
+		if failed > 0:
+			return failed
+	# Portraits follow whoever is in the other scene, and they do not move that character.
+	if _scene_path() != _HUB_SCENE:
+		failed += await _press_nav("portrait_setup_hub/%s/%d" % [tag, round_i], _HUB_SCENE)
+	_place_actor(game_state, "keeper", "forge", keeper_spot)
+	failed += await _portrait("portrait_keeper_to_forge/%s/%d" % [tag, round_i], "keeper", _FORGE_SCENE)
+	failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, wood_before)
+	failed += await _bodies_where(game_state, joined)
+	_place_actor(game_state, "keeper", "clearing", keeper_clear)
+	failed += await _portrait("portrait_keeper_to_hub/%s/%d" % [tag, round_i], "keeper", _HUB_SCENE)
+	failed += _live_unchanged(game_state, "keeper", "clearing", keeper_clear, wood_before)
+	failed += await _bodies_where(game_state, joined)
+	if joined:
+		_place_actor(game_state, "elaia", "forge", elaia_forge)
+		failed += await _portrait("portrait_elaia_to_forge/%s/%d" % [tag, round_i], "elaia", _FORGE_SCENE)
+		failed += _live_unchanged(game_state, "elaia", "forge", elaia_forge, wood_before)
+		failed += _live_unchanged(game_state, "keeper", "clearing", keeper_clear, wood_before)
+		failed += await _bodies_where(game_state, joined)
+		_place_actor(game_state, "elaia", "clearing", elaia_clear)
+		failed += await _portrait("portrait_elaia_to_hub/%s/%d" % [tag, round_i], "elaia", _HUB_SCENE)
+		failed += _live_unchanged(game_state, "elaia", "clearing", elaia_clear, wood_before)
+		failed += _live_unchanged(game_state, "keeper", "clearing", keeper_clear, wood_before)
+		failed += await _bodies_where(game_state, joined)
+	# The old door path still has to land in the clearing, not on the title.
+	_place_actor(game_state, "keeper", "forge", keeper_spot)
+	failed += await _enter_forge_view()
+	jobs.call("exit_forge")
+	failed += await _expect_scene("exit_forge/%s/%d" % [tag, round_i], _HUB_SCENE)
+	failed += _assert(int(game_state.get("wood")) == wood_before, "exit_forge keeps wood")
+	return failed
+
+
+func _transition_footsteps_popup(game_state: Node, save_service: Node, _jobs: Node) -> int:
+	var failed: int = await _boot_play(game_state, save_service, false)
+	if failed > 0:
+		return failed
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", false)
+	game_state.set("elaia_footsteps_seen", false)
+	game_state.set("forge_visited", true)
+	_place_actor(game_state, "keeper", "forge", Vector2(800, 1048))
+	failed += await _enter_forge_view()
+	var hud: Node = current_scene.get_node_or_null("HUD") if current_scene else null
+	var popup: Node = hud.get_node_or_null("ElaiaFootsteps") if hud else null
+	var go: Button = popup.get_node_or_null("Go") as Button if popup else null
+	failed += _assert(popup != null and popup.visible and go != null, "footsteps popup offers Go and see")
+	if go == null:
+		return failed
+	go.emit_signal("pressed")
+	failed += await _expect_scene("footsteps_popup", _HUB_SCENE)
+	failed += _assert(bool(game_state.get("elaia_footsteps_seen")), "Go and see marks the footsteps seen")
+	failed += _assert(str(game_state.get("keeper_area")) == "forge", "Go and see leaves the Keeper in the Forge")
+	return failed
+
+
+func _transition_after_continue(game_state: Node, save_service: Node, _jobs: Node) -> int:
+	var failed: int = await _boot_play(game_state, save_service, true)
+	if failed > 0:
+		return failed
+	var keeper_spot: Vector2 = Vector2(811, 1048)
+	var elaia_spot: Vector2 = Vector2(333, 222)
+	_place_actor(game_state, "keeper", "forge", keeper_spot)
+	_place_actor(game_state, "elaia", "clearing", elaia_spot)
+	game_state.set("forge_visited", true)
+	game_state.call("set_resource", &"wood", 17)
+	failed += _assert(bool(save_service.call("save_game")), "transition continue save")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "continue")
+	save_service.set("boot_slot", 0)
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("continue_load", _HUB_SCENE)
+	failed += _assert(int(game_state.get("wood")) == 17, "continue restored wood")
+	failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, 17)
+	failed += _live_unchanged(game_state, "elaia", "clearing", elaia_spot, 17)
+	failed += await _bodies_where(game_state, true)
+	game_state.call("set_resource", &"wood", 21)
+	for round_i: int in 3:
+		failed += await _portrait("continue_keeper/%d" % round_i, "keeper", _FORGE_SCENE)
+		failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, 21)
+		failed += await _press_nav("continue_nav_hub/%d" % round_i, _HUB_SCENE)
+		failed += _live_unchanged(game_state, "elaia", "clearing", elaia_spot, 21)
+		failed += await _portrait("continue_elaia/%d" % round_i, "elaia", _HUB_SCENE)
+		failed += await _bodies_where(game_state, true)
+		if failed > 0:
+			return failed
+	return failed
+
+
+func _transition_bare_launch_still_title(game_state: Node, save_service: Node) -> int:
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	save_service.set("boot_slot", 0)
+	change_scene_to_file(_HUB_SCENE)
+	var failed: int = await _expect_scene("bare_launch", _TITLE_SCENE)
+	save_service.set("boot_intent", "new")
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("explicit_new", _HUB_SCENE)
+	failed += _assert(int(game_state.get("wood")) == 0, "explicit new game still clears wood")
+	failed += _assert(bool(save_service.get("session_active")), "explicit new game starts a session")
+	return failed
+
+
+func _boot_play(game_state: Node, save_service: Node, joined: bool) -> int:
+	save_service.call("note_session_ended")
+	save_service.call("delete_save")
+	save_service.set("boot_intent", "new")
+	save_service.set("boot_slot", 0)
+	change_scene_to_file(_HUB_SCENE)
+	var failed: int = await _expect_scene("boot", _HUB_SCENE)
+	if failed > 0:
+		return failed
+	game_state.set("forge_visited", true)
+	game_state.set("ancient_frozen", false)
+	if joined:
+		game_state.set("echo_01_redeemed", true)
+		game_state.set("first_relic_crafted", true)
+		game_state.set("elaia_legacy_joined", false)
+		game_state.set("elaia_join_seen", true)
+		game_state.set("elaia_footsteps_seen", true)
+		_place_actor(game_state, "elaia", "clearing", Vector2(640, 640))
+	else:
+		game_state.set("echo_01_redeemed", false)
+		game_state.set("first_relic_crafted", false)
+		game_state.set("elaia_legacy_joined", false)
+		game_state.set("elaia_join_seen", false)
+		game_state.set("elaia_footsteps_seen", false)
+	failed += _assert(bool(save_service.get("session_active")), "boot started a session")
+	return failed
+
+
+func _enter_forge_view() -> int:
+	if _scene_path() == _FORGE_SCENE:
+		return 0
+	return await _press_nav("enter_forge", _FORGE_SCENE)
+
+
+func _press_nav(label: String, expect: String) -> int:
+	var hud: Node = current_scene.get_node_or_null("HUD") if current_scene else null
+	if hud == null or not hud.has_method("_on_nav_pressed"):
+		printerr("ASSERT FAIL: %s nav button missing on %s" % [label, _scene_path()])
+		return 1
+	hud.call("_on_nav_pressed")
+	return await _expect_scene(label, expect)
+
+
+func _press_escape(label: String, expect: String) -> int:
+	if _scene_path() != _FORGE_SCENE:
+		var entered: int = await _enter_forge_view()
+		if entered > 0:
+			return entered
+	var room: Node = current_scene
+	if room == null or not room.has_method("_on_escape"):
+		printerr("ASSERT FAIL: %s escape missing" % label)
+		return 1
+	room.call("_on_escape")
+	return await _expect_scene(label, expect)
+
+
+func _press_hub_escape(label: String) -> int:
+	if _scene_path() != _HUB_SCENE:
+		var back: int = await _press_nav(label + "_setup", _HUB_SCENE)
+		if back > 0:
+			return back
+	var event := InputEventKey.new()
+	event.keycode = KEY_ESCAPE
+	event.pressed = true
+	Input.parse_input_event(event)
+	var failed: int = await _expect_scene(label, _HUB_SCENE)
+	var pause_menu: Node = current_scene.get_node_or_null("PauseMenu") if current_scene else null
+	if pause_menu and pause_menu.has_method("is_open") and bool(pause_menu.call("is_open")):
+		pause_menu.call("resume_game")
+		await process_frame
+	return failed
+
+
+func _press_footsteps(label: String) -> int:
+	if _scene_path() != _FORGE_SCENE:
+		var entered: int = await _enter_forge_view()
+		if entered > 0:
+			return entered
+	var hud: Node = current_scene.get_node_or_null("HUD") if current_scene else null
+	if hud == null or not hud.has_method("_on_footsteps_go"):
+		printerr("ASSERT FAIL: %s footsteps missing" % label)
+		return 1
+	hud.call("_on_footsteps_go")
+	return await _expect_scene(label, _HUB_SCENE)
+
+
+func _walk_out(label: String, actor: String, stand: Vector2) -> int:
+	var room: Node = current_scene
+	var body: Node2D = null
+	if room:
+		body = room.get_node_or_null("Keeper") as Node2D if actor == "keeper" else room.get_node_or_null("Elaia") as Node2D
+	if room == null or body == null or not room.has_method("_on_exit_body"):
+		printerr("ASSERT FAIL: %s door missing" % label)
+		return 1
+	room.call("_on_exit_body", body)
+	var failed: int = await _expect_scene(label, _HUB_SCENE)
+	var game_state: Node = root.get_node("GameState")
+	var area_name: String = "keeper_area" if actor == "keeper" else "elaia_area"
+	var pos_name: String = "keeper_pos" if actor == "keeper" else "elaia_pos"
+	failed += _assert(str(game_state.get(area_name)) == "clearing", "%s area is the clearing" % label)
+	var got: Variant = game_state.get(pos_name)
+	var dist: float = (got as Vector2).distance_to(stand) if typeof(got) == TYPE_VECTOR2 else 9999.0
+	failed += _assert(dist <= 1.0, "%s stands at the Manatree door (off by %.1f)" % [label, dist])
+	return failed
+
+
+func _portrait(label: String, unit: String, expect: String) -> int:
+	var hud: Node = current_scene.get_node_or_null("HUD") if current_scene else null
+	if hud == null or not hud.has_method("party_focus"):
+		printerr("ASSERT FAIL: %s portrait missing on %s" % [label, _scene_path()])
+		return 1
+	hud.call("party_focus", unit)
+	return await _expect_scene(label, expect)
+
+
+func _expect_scene(label: String, expect: String) -> int:
+	var got: String = await _await_stable_scene()
+	var title: bool = got.ends_with("title_screen.tscn")
+	var unwanted_title: bool = title and expect != _TITLE_SCENE
+	if got != expect or unwanted_title:
+		printerr("ASSERT FAIL: %s scene %s, expected %s" % [label, got, expect])
+		return 1
+	return 0
+
+
+func _await_stable_scene() -> String:
+	var stable: String = ""
+	var same: int = 0
+	for _i: int in 90:
+		await process_frame
+		var got: String = _scene_path()
+		if got == "" or got == "<null>":
+			stable = ""
+			same = 0
+			continue
+		if got == stable:
+			same += 1
+			if same >= 3:
+				return got
+		else:
+			stable = got
+			same = 1
+	return _scene_path()
+
+
+func _scene_path() -> String:
+	if current_scene == null:
+		return "<null>"
+	return str(current_scene.scene_file_path)
+
+
+func _place_actor(game_state: Node, actor: String, area: String, pos: Vector2) -> void:
+	if actor == "keeper":
+		game_state.set("keeper_area", area)
+		game_state.set("keeper_has_pos", true)
+		game_state.set("keeper_pos", pos)
+		game_state.set("keeper_facing", "south" if area == "clearing" else "north")
+	else:
+		game_state.set("elaia_area", area)
+		game_state.set("elaia_has_pos", true)
+		game_state.set("elaia_pos", pos)
+		game_state.set("elaia_facing", "south" if area == "clearing" else "north")
+
+
+func _live_unchanged(game_state: Node, actor: String, area: String, pos: Vector2, wood: int) -> int:
+	var area_name: String = "keeper_area" if actor == "keeper" else "elaia_area"
+	var pos_name: String = "keeper_pos" if actor == "keeper" else "elaia_pos"
+	var failed: int = _assert(str(game_state.get(area_name)) == area, "%s stays in the %s" % [actor, area])
+	var got: Variant = game_state.get(pos_name)
+	var dist: float = (got as Vector2).distance_to(pos) if typeof(got) == TYPE_VECTOR2 else 9999.0
+	failed += _assert(dist <= 1.0, "%s stays put (off by %.1f)" % [actor, dist])
+	failed += _assert(int(game_state.get("wood")) == wood, "wood stays %d (got %d)" % [wood, int(game_state.get("wood"))])
+	failed += _assert(not _scene_path().ends_with("title_screen.tscn"), "play did not return to the title")
+	return failed
+
+
+func _bodies_where(game_state: Node, joined: bool) -> int:
+	var failed: int = 0
+	var home: String = "forge" if _scene_path() == _FORGE_SCENE else "clearing"
+	var keeper: Node2D = get_first_node_in_group("keeper") as Node2D
+	failed += _assert(keeper != null, "keeper body in %s" % home)
+	if keeper:
+		var show_keeper: bool = str(game_state.get("keeper_area")) == home
+		failed += _assert(keeper.visible == show_keeper, "keeper visibility in the %s" % home)
+		if show_keeper and bool(game_state.get("keeper_has_pos")):
+			var want: Vector2 = game_state.get("keeper_pos")
+			failed += _assert(keeper.global_position.distance_to(want) <= 2.0, "keeper body matches his spot in the %s" % home)
+	var elaia: Node2D = get_first_node_in_group("elaia") as Node2D
+	if elaia == null and current_scene:
+		elaia = current_scene.get_node_or_null("Elaia") as Node2D
+	if elaia:
+		var show_elaia: bool = joined and str(game_state.get("elaia_area")) == home
+		failed += _assert(elaia.visible == show_elaia, "elaia visibility in the %s" % home)
+		if show_elaia and bool(game_state.get("elaia_has_pos")):
+			var elaia_want: Vector2 = game_state.get("elaia_pos")
+			failed += _assert(elaia.global_position.distance_to(elaia_want) <= 2.0, "elaia body matches her spot in the %s" % home)
+	return failed
+
+
+func _drop_current_scene() -> void:
+	var scene: Node = current_scene
+	if scene == null:
+		return
+	current_scene = null
+	scene.free()
