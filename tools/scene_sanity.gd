@@ -576,6 +576,9 @@ func _scene_exit_audit() -> int:
 		"playtest_quit.gd": true,
 		"playtest_ship.gd": true,
 		"pass_f_playthrough.gd": true,
+		# The verify harness names the title scene to prove a bare launch still
+		# opens it. It is not a player exit.
+		"verify_headless.gd": true,
 	}
 	for caller: String in title_callers:
 		if not allowed.has(caller):
