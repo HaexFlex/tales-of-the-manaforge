@@ -100,6 +100,9 @@ func _ready() -> void:
 	_apply_forge_return()
 	if keeper and keeper.has_method("apply_keeper_presence"):
 		keeper.apply_keeper_presence()
+	var elaia_body: Node = world.get_node_or_null("Elaia") if world else null
+	if elaia_body and elaia_body.has_method("_apply_presence"):
+		elaia_body.call("_apply_presence")
 	_focus_pending_actor()
 	# Pass clicks through so Area2D harvest / Manatree can receive them.
 	click_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
