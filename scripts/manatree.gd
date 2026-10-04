@@ -545,9 +545,12 @@ func _apply_trunk(stage: String) -> void:
 	var trunk_left: float = -sz.x * 0.5
 	var trunk_right: float = sz.x * 0.5
 	var root: Rect2 = _root_band_local(stage)
-	var root_left: float = minf(trunk_left, root.position.x)
-	var root_right: float = maxf(trunk_right, root.end.x)
-	var root_bottom: float = maxf(0.0, root.end.y)
+	## The painted mound is soil the hero stands on. Solid roots stay a flare
+	## around the trunk so the west water stand (about 100px out) stays clear.
+	var half_cap: float = minf(64.0, maxf(sz.x * 0.65, 30.0))
+	var root_left: float = maxf(minf(trunk_left, root.position.x), -half_cap)
+	var root_right: float = minf(maxf(trunk_right, root.end.x), half_cap)
+	var root_bottom: float = clampf(maxf(0.0, root.end.y), 10.0, 22.0)
 	# Solid cap of the bottom third, above the body that stands in the doorway.
 	if top_y < DOOR_CLEAR_Y:
 		_add_trunk_rect(body, Rect2(trunk_left, top_y, sz.x, DOOR_CLEAR_Y - top_y))
