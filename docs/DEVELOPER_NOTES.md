@@ -71,6 +71,16 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 
 SANITY's `pause menu can reach the title` check (inside `SCENE_EXITS`) reads `.gd` source. A release pck ships compiled scripts, so that scan cannot run against the pack. On a packed build, rely on `SCENE_TRANSITIONS_OK` for that path. The suite does not print an `EXPORT_PLAY_OK` token.
 
+## Animation preview
+
+Debug only. Keeper and Elaia stand side by side at an integer scale with nearest filtering, in every clip their SpriteFrames carry (idle and walk in N/E/S/W, run when it exists, harvest, water, station work, and anything added later).
+
+```bash
+godot --path . res://tools/AnimPreview.tscn
+```
+
+In a debug build, **F9** opens the same scene from the title, the clearing, or the Forge. The key checks `OS.is_debug_build()` and does nothing in a release export. The scene lives in `tools/`, which the export strip already excludes (`tools/*`, and the scene and script by name), so a packed build does not contain it.
+
 ## Hub BGM (after pull)
 
 Cue `mus_hub_forest` plays **`assets/audio/mus_hub_forest_haex.mp3`** on the **Music** bus with loop. The fallback is that JSON path, then the shipped MP3 only. Older beds live in `assets/library/legacy/` and are not imported. After `git pull`, **reopen the project in Godot** so the MP3 reimports.

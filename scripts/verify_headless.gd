@@ -3093,6 +3093,8 @@ func _check_only_load() -> int:
 		"res://scripts/runestone.gd",
 		"res://scripts/autoload/game_state.gd",
 		"res://scripts/autoload/forge_jobs.gd",
+		"res://scripts/autoload/anim_preview_hotkey.gd",
+		"res://tools/anim_preview.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
