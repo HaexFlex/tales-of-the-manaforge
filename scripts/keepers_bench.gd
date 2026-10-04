@@ -35,6 +35,12 @@ func stand_global() -> Vector2:
 	return global_position + Vector2(0, 40)
 
 
+func work_footprint() -> Rect2:
+	## Back edge of the tabletop. The stand sits south of this line, waist-deep in the bench.
+	var local := Rect2(-88.0, -112.0, 176.0, 104.0)
+	return Rect2(global_position + local.position, local.size)
+
+
 func set_busy(busy: bool) -> void:
 	_busy = busy
 	_apply_frame(busy)

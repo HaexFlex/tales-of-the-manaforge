@@ -38,6 +38,17 @@ func _run() -> void:
 			quit(0)
 		return
 
+	# Workbench stand. The full suite still runs this near the end.
+	# MANAFORGE_WORKBENCH=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_WORKBENCH") == "1":
+		var bench_failed: int = await _workbench_reach(tree_root, save_service)
+		if bench_failed > 0:
+			print("WORKBENCH_REACH_FAIL: %d" % bench_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# Same hub↔Forge check the full suite runs near the end.
 	# MANAFORGE_SCENE_TRANSITIONS=1 skips every other assertion.
 	if OS.get_environment("MANAFORGE_SCENE_TRANSITIONS") == "1":
@@ -2335,6 +2346,7 @@ func _run() -> void:
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
 	failed += await _scene_transitions(tree_root, game_state, save_service)
+	failed += await _workbench_reach(tree_root, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -3814,7 +3826,7 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(bench_sprite != null and bench_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "bench nearest")
 		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
 		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
-		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, -210)) < 0.5, "bench stand is north of the bench")
+		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, -61)) < 0.5, "bench stand is just north of the tabletop")
 		bench.free()
 	game_state.call("reset_for_new_game")
 	return failed
@@ -3881,6 +3893,83 @@ func _duration_sum(sframes: SpriteFrames, anim: StringName) -> float:
 	for i: int in range(sframes.get_frame_count(anim)):
 		total += sframes.get_frame_duration(anim, i)
 	return total
+
+
+func _workbench_reach(tree_root: Window, save_service: Node) -> int:
+	## Both heroes can stand just north of the bench, inside the click area and clear of the legs.
+	var failed: int = 0
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed else null
+	if live == null:
+		return _assert(false, "workbench hub loads")
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+	failed += _assert(bench != null, "workbench is in the clearing")
+	if bench == null:
+		live.free()
+		return failed
+	var keeper_cls = load("res://scripts/keeper.gd")
+	var footprint: Rect2 = Rect2(bench.global_position, Vector2(32, 32))
+	if bench.has_method("work_footprint"):
+		footprint = bench.call("work_footprint")
+	var pick: CollisionShape2D = bench.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var walk: CollisionShape2D = bench.get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
+	failed += _assert(pick != null and walk != null, "workbench has a click area and a leg collision")
+	for actor_id: String in ["keeper", "elaia"]:
+		var solved: Dictionary = keeper_cls.solve_work_spot(
+			footprint, bench.global_position, "bench", Callable(), "", actor_id
+		)
+		var pos: Vector2 = solved.get("position", Vector2.ZERO)
+		var facing: String = str(solved.get("facing", ""))
+		var inside_click: bool = _rect_shape_contains(pick, pos)
+		var inside_legs: bool = _rect_shape_contains(walk, pos)
+		var body_blocked: bool = _workbench_body_blocked(live, pos)
+		failed += _assert(facing == "south", "%s faces south at the bench (got %s)" % [actor_id, facing])
+		failed += _assert(inside_click, "%s bench spot is inside the interaction area %s" % [actor_id, pos])
+		failed += _assert(not inside_legs, "%s bench spot is outside the collision %s" % [actor_id, pos])
+		failed += _assert(not body_blocked and not bool(solved.get("fallback", false)), "%s can stand at the bench %s" % [actor_id, pos])
+	live.free()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("WORKBENCH_REACH_OK")
+	return failed
+
+
+func _rect_shape_contains(shape_node: CollisionShape2D, point: Vector2) -> bool:
+	if shape_node == null or not (shape_node.shape is RectangleShape2D):
+		return false
+	var rect: RectangleShape2D = shape_node.shape as RectangleShape2D
+	var local: Vector2 = shape_node.global_transform.affine_inverse() * point
+	var half: Vector2 = rect.size * 0.5
+	return absf(local.x) <= half.x + 0.5 and absf(local.y) <= half.y + 0.5
+
+
+func _workbench_body_blocked(live: Node, pos: Vector2) -> bool:
+	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
+	if space == null:
+		return true
+	if live.has_method("_in_clearing") and not bool(live.call("_in_clearing", pos)):
+		return true
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(48, 64)
+	var params := PhysicsShapeQueryParameters2D.new()
+	params.shape = shape
+	params.transform = Transform2D(0.0, pos + Vector2(0, -32))
+	params.collision_mask = 1
+	params.collide_with_areas = false
+	params.collide_with_bodies = true
+	var exclude: Array[RID] = []
+	for body_path: String in ["World/Keeper", "World/Elaia"]:
+		var body: CollisionObject2D = live.get_node_or_null(body_path) as CollisionObject2D
+		if body:
+			exclude.append(body.get_rid())
+	params.exclude = exclude
+	return not space.intersect_shape(params, 1).is_empty()
 
 
 func _keeper_work_spot_asserts() -> int:
