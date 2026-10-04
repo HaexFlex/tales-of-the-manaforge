@@ -38,6 +38,39 @@ godot --headless --path . -s res://scripts/verify_headless.gd
 
 Expect `VERIFY_OK` and exit code `0`.
 
+### Regression rule
+
+Every bug Haex reports that has been fixed before, or that comes back, gets a permanent named test in the default VERIFY suite (named like `SCENE_TRANSITIONS_OK`). The test drives the real user path and must fail on the old buggy build.
+
+### Permanent named tests
+
+Tokens below are printed by the run that owns them. Listed only where the code prints them.
+
+**Default VERIFY** (`scripts/verify_headless.gd`):
+
+| Token | What it guards |
+| --- | --- |
+| `VERIFY_OK` | The whole default suite passed. |
+| `SCENE_TRANSITIONS_OK` | Hub and Forge hops (nav, Escape, door, portraits, footsteps, `exit_forge`), solo and with Elaia, stay off the title screen and keep wood and positions. A bare launch still opens the title. The export strip still ships the play scenes. |
+| `WORKBENCH_REACH_OK` | Keeper and Elaia can stand just north of the bench, facing south, inside the click area and clear of the legs. |
+| `NO_OLD_KEEPER_IDLE_OK` | Old Keeper idle filenames are not referenced. The same check prints `IDLE_MISSING` (`none`, or the facings that have no idle frames). |
+| `JOBS_SURVIVE_SWITCH_OK` | Watering, Elaia's stone harvest, the wood wisp, and station jobs keep paying across a hub/Forge switch, and the work animations are still playing on the way back. |
+| `AUTOSAVE_THROTTLE_OK` | An event autosave waits 60 seconds before it writes again. Closing the window still saves inside that window. |
+| `ELAIA_JOIN_OK` | Spare without a relic does not bring Elaia in. The first relic craft does. Her portrait waits for the clearing dialogue. An old save that already had her keeps her, and a relic without Spare does not. |
+
+`CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
+
+**SANITY** (`tools/scene_sanity.gd`), the short load check beside VERIFY:
+
+| Token | What it guards |
+| --- | --- |
+| `SANITY_OK` | The hub load, Echo view, gear, content keys, and scene-exit audit all passed. |
+| `FOREST_SEAL` | A walk from the Keeper's spawn cannot leak out of the clearing. The harvest nodes, the bench, and the Forge door stay reachable inside the seal. |
+| `WORK_REACH` | Keeper and Elaia each have a stand at the harvest nodes, the bench, the Manatree door and water spot, every runestone, the portal, and the five Forge stations. |
+| `SCENE_EXITS` | The only scripts that both name the title scene and change to it are the allow-list, and that list includes the pause menu. The Forge exit returns to the hub. Echo battle stays an overlay. |
+
+SANITY's `pause menu can reach the title` check (inside `SCENE_EXITS`) reads `.gd` source. A release pck ships compiled scripts, so that scan cannot run against the pack. On a packed build, rely on `SCENE_TRANSITIONS_OK` for that path. The suite does not print an `EXPORT_PLAY_OK` token.
+
 ## Hub BGM (after pull)
 
 Cue `mus_hub_forest` plays **`assets/audio/mus_hub_forest_haex.mp3`** on the **Music** bus with loop. The fallback is that JSON path, then the shipped MP3 only. Older beds live in `assets/library/legacy/` and are not imported. After `git pull`, **reopen the project in Godot** so the MP3 reimports.

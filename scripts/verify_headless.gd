@@ -2,6 +2,10 @@ extends SceneTree
 const EchoBattleScript := preload("res://scripts/echo_battle.gd")
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
+## Regression rule: every bug Haex reports that has been fixed before, or that
+## comes back, gets a permanent named test in this default suite (named like
+## SCENE_TRANSITIONS_OK). The test drives the real user path and must fail on
+## the old buggy build. The living list is in docs/DEVELOPER_NOTES.md.
 ##   godot --headless --path . -s res://scripts/verify_headless.gd
 
 

@@ -47,4 +47,4 @@ Built with [Godot 4](https://godotengine.org/).
 
 ---
 
-<sub>Developer notes (run, headless verify, assets workflow) live in [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md).</sub>
+<sub>Developer notes (run, headless verify, regression tests, assets workflow) live in [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md).</sub>

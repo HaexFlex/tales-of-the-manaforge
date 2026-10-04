@@ -588,6 +588,8 @@ func _scene_exit_audit() -> int:
 	var echo_src: String = FileAccess.get_file_as_string("res://scripts/autoload/echo_chamber.gd")
 	var forge_ok: bool = forge_src.find("boot_intent = \"forge_return\"") >= 0 and forge_src.find("change_scene_to_file(HUB_SCENE)") >= 0
 	var echo_ok: bool = echo_src.find("change_scene") < 0
+	## Reads .gd source. A release pck ships compiled scripts, so this scan cannot
+	## run against the pack. Packed builds cover this path with SCENE_TRANSITIONS_OK.
 	failed += _check(title_callers.has("pause_menu.gd"), "pause menu can reach the title")
 	failed += _check(forge_ok, "forge exit returns to the hub")
 	failed += _check(echo_ok, "echo battle stays an overlay")
