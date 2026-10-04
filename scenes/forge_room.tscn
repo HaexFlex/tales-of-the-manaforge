@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/forge_room.gd" id="1_room"]
 [ext_resource type="Texture2D" path="res://assets/art/forge/forge_bark_chamber_bg.png" id="2_plate"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/elaia.gd" id="12_elaia"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="9_hud"]
 [ext_resource type="PackedScene" path="res://scenes/pause_menu.tscn" id="10_pause"]
+[ext_resource type="Texture2D" path="res://assets/art/forge/forge_arch_front.png" id="13_arch"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_door"]
 size = Vector2(150, 72)
@@ -24,6 +25,12 @@ swirl_texture = ExtResource("11_swirl")
 texture_filter = 1
 position = Vector2(800, 600)
 texture = ExtResource("2_plate")
+
+[node name="ArchFront" type="Sprite2D" parent="."]
+z_index = 2
+texture_filter = 1
+position = Vector2(800, 600)
+texture = ExtResource("13_arch")
 
 [node name="SwirlOverlay" type="Sprite2D" parent="."]
 z_index = 0
