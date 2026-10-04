@@ -248,6 +248,7 @@ func _snap_and_channel(target: Node2D, type_id: String) -> void:
 		start_water_channel(target as Manatree)
 	elif target is Gatherable:
 		start_harvest_channel(target as Gatherable)
+	_update_anim(Vector2.ZERO)
 
 
 func _find_gatherable(resource_id: String) -> Gatherable:

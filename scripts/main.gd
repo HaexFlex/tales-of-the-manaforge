@@ -33,6 +33,8 @@ var glade: Rect2 = Rect2(760, 820, 1680, 1360)
 var clearing_center: Vector2 = Vector2(1600, 1500)
 var clearing_rx: float = 1200.0
 var clearing_ry: float = 980.0
+## Invisible safety wall. Norm 1 is the first tree line; ~1.11 is the third row.
+const FOREST_WALL_NORM: float = 1.11
 var clear_points: Array[Vector2] = []
 var clear_radii: Array[float] = []
 var _cols: int = 40
@@ -947,10 +949,11 @@ func _seat_forest() -> void:
 			if not (child is CollisionShape2D):
 				continue
 			var seg: CollisionShape2D = child as CollisionShape2D
-			var away: Vector2 = seg.position - clearing_center
-			if away.length() < 8.0:
+			var n: float = _ellipse_norm(seg.position)
+			if n < 0.05 or n >= FOREST_WALL_NORM:
 				continue
-			seg.position = seg.position + away.normalized() * 96.0
+			## Authored on the first tree line. Scale out to the third row so the clearing stays open.
+			seg.position = clearing_center + (seg.position - clearing_center) * (FOREST_WALL_NORM / n)
 	var bases := StaticBody2D.new()
 	bases.name = "ForestBases"
 	bases.collision_layer = 1

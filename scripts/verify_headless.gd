@@ -210,8 +210,10 @@ func _run() -> void:
 	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_small_01.png"), "ring_bush_small_01")
 	failed += _assert(FileAccess.file_exists("res://assets/art/hub/bushes/ring_bush_small_03.png"), "ring_bush_small_03")
 	failed += _assert(FileAccess.file_exists("res://assets/art/hub/hub_deco_meta.json"), "hub_deco_meta.json")
-	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south.png"), "keeper idle_south")
-	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_idle_south_0000.png"), "keeper idle_south_0000")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/idle/south/keeper_idle_south_0001.png"), "keeper idle south frame")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/idle/north/keeper_idle_north_0001.png"), "keeper idle north frame")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/idle/east/keeper_idle_east_0001.png"), "keeper idle east frame")
+	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/idle/west/keeper_idle_west_0001.png"), "keeper idle west frame")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0001.png"), "keeper walk_south 1")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south_0009.png"), "keeper walk_south 9")
 	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/keeper_walk_south.png"), "keeper walk_south strip")
@@ -221,7 +223,8 @@ func _run() -> void:
 		failed += _assert(walk_strip.get_width() == 1152 and walk_strip.get_height() == 128, "walk strip 1152x128 (got %dx%d)" % [walk_strip.get_width(), walk_strip.get_height()])
 	var tree_big: Texture2D = load("res://assets/art/hub/trees/ring_tree_large_01.png") as Texture2D
 	failed += _assert(tree_big != null and tree_big.get_width() == 320 and tree_big.get_height() == 400, "ring_tree_large_01 is 320x400")
-	failed += _assert(FileAccess.file_exists("res://assets/art/keeper/native/keeper_idle_south_256.png"), "keeper native idle")
+	var old_live_idle := "res://assets/art/keeper/" + "keeper_idle_" + "south.png"
+	failed += _assert(not FileAccess.file_exists(old_live_idle), "old keeper idle left the live art folder")
 	## Big Trees.png and keeper_inbox/ move to legacy with Art. Do not assert them here.
 	## docs/, Assets upload/, and assets/library/ are .gdignored, so res:// cannot see them.
 	failed += _assert(FileAccess.file_exists(ProjectSettings.globalize_path("res://assets/library/raw_refs/Big Trees.jpg")), "library raw_refs JPG")
@@ -1167,7 +1170,10 @@ func _run() -> void:
 					failed += _assert(sframes.has_animation(&"walk_south"), "walk_south anim")
 					failed += _assert(sframes.has_animation(&"idle_south"), "idle_south anim")
 					failed += _assert(sframes.get_frame_count(&"walk_south") == 8, "walk_south frame count")
-					failed += _assert(sframes.get_frame_count(&"idle_south") == 1, "idle_south frame count")
+					failed += _assert(sframes.get_frame_count(&"idle_south") == 12, "idle_south frame count")
+					failed += _assert(sframes.has_animation(&"idle_north") and sframes.get_frame_count(&"idle_north") == 12, "idle_north frames")
+					failed += _assert(sframes.has_animation(&"idle_east") and sframes.get_frame_count(&"idle_east") == 12, "idle_east frames")
+					failed += _assert(sframes.has_animation(&"idle_west") and sframes.get_frame_count(&"idle_west") == 12, "idle_west frames")
 					failed += _keeper_clip_asserts(sframes)
 				failed += _assert(str(kspr.get("animation")) == "idle_south", "idle faces south at boot")
 			if live_keeper.has_method("move_to"):
@@ -1263,8 +1269,23 @@ func _run() -> void:
 			failed += _assert(found_orbit_assign, "assigned wisp reports orbit-assigned state")
 			failed += _assert(not found_parked_anim, "assigned wisp must not use parked anim")
 			failed += _assert(found_fly_or_node, "assigned wisp uses fly or node_orbit clip")
-			# Two stacked on Manatree → forge_tuning wisp_work_radius 34 + 12 per extra = 46
-			failed += _assert(abs(node_r - 46.0) < 0.01, "stacked node orbit radius 46 (got %s)" % node_r)
+			var expect_r: float = 0.0
+			if mana and mana.has_method("wisp_orbit_radius"):
+				expect_r = float(mana.call("wisp_orbit_radius"))
+			failed += _assert(abs(node_r - expect_r) < 0.01, "stacked orbit uses the trunk radius (got %s want %s)" % [node_r, expect_r])
+			var orbit_jobs: Node = get_root().get_node_or_null("ForgeJobs")
+			if orbit_jobs:
+				orbit_jobs.call("debug_set_wisp_orbit_phase", 0.4)
+			var behind: int = 0
+			var front: int = 0
+			for wo2: Node in wisp_orbs:
+				if wo2.has_method("place_on_shared_orbit"):
+					wo2.call("place_on_shared_orbit")
+				if int(wo2.get("z_index")) < 0:
+					behind += 1
+				elif int(wo2.get("z_index")) > 0:
+					front += 1
+			failed += _assert(behind == 1 and front == 1, "shared orbit puts one wisp behind and one in front")
 			# RMB ground unassign
 			game_state.call("select_wisp", 1)
 			live.call("handle_rmb_ground", Vector2(80, 80))
@@ -2120,7 +2141,7 @@ func _run() -> void:
 		failed += _assert(bool(sheet_hud.call("is_character_open")), "character sheet opens")
 		var portrait: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Portrait") as TextureRect
 		failed += _assert(portrait != null and portrait.texture != null, "keeper portrait")
-		failed += _assert(portrait != null and str(portrait.texture.resource_path).find("keeper_idle_south") >= 0, "portrait uses idle_south")
+		failed += _assert(portrait != null and str(portrait.texture.resource_path).find("keeper/idle/south") >= 0, "portrait uses the new south idle")
 		var weapon_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon")
 		var relic_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic")
 		var relic_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
@@ -2347,6 +2368,9 @@ func _run() -> void:
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
 	failed += await _scene_transitions(tree_root, game_state, save_service)
 	failed += await _workbench_reach(tree_root, save_service)
+	failed += _no_old_keeper_idle()
+	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
+	failed += _autosave_event_throttle(save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -3893,6 +3917,213 @@ func _duration_sum(sframes: SpriteFrames, anim: StringName) -> float:
 	for i: int in range(sframes.get_frame_count(anim)):
 		total += sframes.get_frame_duration(anim, i)
 	return total
+
+
+func _no_old_keeper_idle() -> int:
+	## Built in pieces so this file does not itself contain the old paths.
+	var stem := "keeper_idle_"
+	var banned: PackedStringArray = PackedStringArray([
+		stem + "south.png",
+		stem + "south_0000",
+		stem + "front",
+		stem + "back",
+		stem + "south_256",
+	])
+	var hits: PackedStringArray = PackedStringArray()
+	_scan_old_idle(ProjectSettings.globalize_path("res://"), banned, hits)
+	var failed: int = _assert(hits.is_empty(), "old keeper idle still referenced (%s)" % ", ".join(hits))
+	var keeper_script = load("res://scripts/keeper.gd")
+	var missing: PackedStringArray = keeper_script.idle_missing_directions()
+	var missing_text: String = "none" if missing.is_empty() else ", ".join(missing)
+	print("IDLE_MISSING %s" % missing_text)
+	if failed == 0:
+		print("NO_OLD_KEEPER_IDLE_OK")
+	return failed
+
+
+func _scan_old_idle(dir_path: String, banned: PackedStringArray, hits: PackedStringArray) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		if name == "." or name == ".." or name == ".git":
+			name = dir.get_next()
+			continue
+		var full := dir_path.path_join(name)
+		if dir.current_is_dir():
+			if name != "_archive":
+				_scan_old_idle(full, banned, hits)
+		else:
+			var ext := name.get_extension()
+			if ext in ["gd", "tscn", "json", "cfg", "md"]:
+				var text := FileAccess.get_file_as_string(full)
+				for needle: String in banned:
+					if text.find(needle) >= 0:
+						hits.append("%s (%s)" % [full, needle])
+						break
+		name = dir.get_next()
+	dir.list_dir_end()
+
+
+func _autosave_event_throttle(save_service: Node) -> int:
+	var failed: int = 0
+	failed += _assert(is_equal_approx(float(save_service.get("AUTOSAVE_THROTTLE_SEC")), 60.0), "event autosave throttle is 60s")
+	var tuning := FileAccess.get_file_as_string("res://data/forge_tuning.json")
+	failed += _assert(tuning.find("\"autosave_sec\": 300") >= 0, "autosave_sec is 300")
+	save_service.call("note_session_started")
+	save_service.call("set_autosave_coalesce", 0.0)
+	save_service.call("debug_set_last_autosave_age", 999.0)
+	save_service.call("save_autosave", false)
+	var first: float = _autosave_stamp_sum(save_service)
+	save_service.call("debug_set_last_autosave_age", 3.0)
+	save_service.call("save_autosave", false)
+	var held: float = _autosave_stamp_sum(save_service)
+	failed += _assert(is_equal_approx(held, first), "an event save inside 60s does not take another slot")
+	save_service.call("debug_set_last_autosave_age", 61.0)
+	save_service.call("save_autosave", false)
+	var later: float = _autosave_stamp_sum(save_service)
+	failed += _assert(later > first + 0.0001, "an event save after 60s writes")
+	save_service.call("debug_set_last_autosave_age", 1.0)
+	var before_quit: float = _autosave_stamp_sum(save_service)
+	save_service.call("save_on_quit")
+	var after_quit: float = _autosave_stamp_sum(save_service)
+	failed += _assert(after_quit > before_quit + 0.0001, "window close saves inside the throttle")
+	save_service.call("set_autosave_coalesce", 1.2)
+	if failed == 0:
+		print("AUTOSAVE_THROTTLE_OK")
+	return failed
+
+
+func _autosave_stamp_sum(save_service: Node) -> float:
+	var total: float = 0.0
+	for slot: int in range(1, 4):
+		var info: Dictionary = save_service.call("get_autosave_info", slot)
+		total += float(info.get("timestamp", 0.0))
+	return total
+
+
+func _jobs_survive_switch(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for job survival")
+	if jobs == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	failed += await _boot_play(game_state, save_service, true)
+	if failed > 0:
+		return failed
+	var hub: Node = current_scene
+	var elaia: Node = hub.get_node_or_null("World/Elaia")
+	if elaia and elaia.has_method("_apply_presence"):
+		elaia.call("_apply_presence")
+	var keeper: Node = hub.get_node_or_null("World/Keeper")
+	var tree: Node = hub.get_node_or_null("World/Manatree")
+	var stone: Node = hub.get_node_or_null("World/HarvestStone")
+	failed += _assert(keeper != null and tree != null and elaia != null and stone != null, "clearing workers exist")
+	if failed > 0:
+		return failed
+	var water_spot: Dictionary = keeper.call("plan_work", tree, "manatree")
+	keeper.set("global_position", water_spot.get("position", keeper.get("global_position")))
+	keeper.call("start_water_channel", tree)
+	var stone_spot: Dictionary = elaia.call("plan_work", stone, "stone")
+	elaia.set("global_position", stone_spot.get("position", elaia.get("global_position")))
+	elaia.call("start_harvest_channel", stone)
+	game_state.set("wisp_count", 1)
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "harvest_tree")) == "ok", "wisp takes the tree")
+	var keeper_task: Dictionary = jobs.call("keeper_task")
+	var elaia_task: Dictionary = jobs.call("elaia_task")
+	failed += _assert(str(keeper_task.get("kind", "")) == "water" and bool(keeper_task.get("working", false)), "keeper is watering")
+	failed += _assert(str(elaia_task.get("kind", "")) == "harvest" and str(elaia_task.get("target", "")) == "stone", "elaia is on stone")
+	var essence_0: int = int(game_state.get("essence"))
+	var shards_0: int = int(game_state.get("manashards"))
+	var stone_0: int = int(game_state.get("stone"))
+	var wood_0: int = int(game_state.get("wood"))
+	failed += await _enter_forge_view()
+	if failed > 0:
+		return failed
+	await process_frame
+	for wisp: Node in get_nodes_in_group("wisp"):
+		if str(game_state.call("get_wisp_assignment", int(wisp.get("wisp_id")))) == "harvest_tree":
+			failed += _assert(not bool(wisp.get("visible")), "clearing wisp stays out of the forge")
+	jobs.call("step_jobs", 20.0)
+	game_state.call("apply_wisp_pulses", 20.0)
+	failed += _assert(int(game_state.get("essence")) > essence_0, "essence keeps accruing in the forge")
+	failed += _assert(int(game_state.get("manashards")) > shards_0, "mana shards keep accruing in the forge")
+	failed += _assert(int(game_state.get("stone")) > stone_0, "elaia stone keeps accruing in the forge")
+	failed += _assert(int(game_state.get("wood")) > wood_0, "wisp wood keeps accruing in the forge")
+	failed += await _press_nav("jobs_back_clearing", _HUB_SCENE)
+	if failed > 0:
+		return failed
+	keeper = current_scene.get_node_or_null("World/Keeper")
+	elaia = current_scene.get_node_or_null("World/Elaia")
+	keeper_task = jobs.call("keeper_task")
+	elaia_task = jobs.call("elaia_task")
+	failed += _assert(str(keeper_task.get("kind", "")) == "water" and bool(keeper_task.get("working", false)), "watering survives the round trip")
+	failed += _assert(str(elaia_task.get("target", "")) == "stone" and bool(elaia_task.get("working", false)), "stone job survives the round trip")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "harvest_tree", "wisp job survives the round trip")
+	failed += _work_anim_playing(keeper, "harvest_water", "keeper watering")
+	failed += _work_anim_playing(elaia, "harvest_pickaxe", "elaia stone")
+	var essence_1: int = int(game_state.get("essence"))
+	if keeper and keeper.has_method("step_channel"):
+		keeper.call("step_channel", 8.0)
+	failed += _assert(int(game_state.get("essence")) > essence_1, "watering still pays after the return")
+	game_state.call("set_resource", &"stone", 80)
+	game_state.call("set_resource", &"wood", 80)
+	game_state.call("set_resource", &"food", 80)
+	_place_actor(game_state, "keeper", "forge", Vector2(520, 700))
+	_place_actor(game_state, "elaia", "forge", Vector2(680, 540))
+	jobs.call("set_keeper_task", "forge", "crucible", true)
+	jobs.call("set_elaia_task", "forge", "mill", true)
+	failed += await _enter_forge_view()
+	if failed > 0:
+		return failed
+	failed += _assert(str(jobs.call("try_begin_job", "crucible", "sapsteel")) == "ok", "crucible job starts")
+	failed += _assert(str(jobs.call("try_begin_job", "mill", "heartwood_bits")) == "ok", "mill job starts")
+	keeper = current_scene.get_node_or_null("Keeper")
+	elaia = current_scene.get_node_or_null("Elaia")
+	if keeper and keeper.has_method("apply_keeper_presence"):
+		keeper.call("apply_keeper_presence")
+	if elaia and elaia.has_method("_apply_presence"):
+		elaia.call("_apply_presence")
+	var crucible_0: float = float(jobs.call("job_state", "crucible").get("progress", 0.0))
+	var mill_0: float = float(jobs.call("job_state", "mill").get("progress", 0.0))
+	failed += await _press_nav("jobs_forge_to_clearing", _HUB_SCENE)
+	jobs.call("step_jobs", 10.0)
+	var crucible_1: float = float(jobs.call("job_state", "crucible").get("progress", 0.0))
+	var mill_1: float = float(jobs.call("job_state", "mill").get("progress", 0.0))
+	failed += _assert(crucible_1 > crucible_0, "crucible keeps running in the clearing")
+	failed += _assert(mill_1 > mill_0, "mill keeps running in the clearing")
+	failed += _assert(str(jobs.call("keeper_task").get("target", "")) == "crucible", "keeper stays on the crucible")
+	failed += _assert(str(jobs.call("elaia_task").get("target", "")) == "mill", "elaia stays on the mill")
+	failed += await _enter_forge_view()
+	keeper = current_scene.get_node_or_null("Keeper")
+	elaia = current_scene.get_node_or_null("Elaia")
+	failed += _work_anim_playing(keeper, "station_work", "keeper crucible")
+	failed += _work_anim_playing(elaia, "station_work", "elaia mill")
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_autosave_enabled", true)
+	if failed == 0:
+		print("JOBS_SURVIVE_SWITCH_OK")
+	return failed
+
+
+func _work_anim_playing(body: Node, prefix: String, label: String) -> int:
+	if body == null:
+		printerr("ASSERT FAIL: %s body missing" % label)
+		return 1
+	var sprite: Node = body.get_node_or_null("Sprite")
+	if sprite == null:
+		printerr("ASSERT FAIL: %s sprite missing" % label)
+		return 1
+	var anim: String = str(sprite.get("animation"))
+	var playing: bool = bool(sprite.call("is_playing"))
+	var failed: int = _assert(anim.begins_with(prefix), "%s plays %s (got %s)" % [label, prefix, anim])
+	failed += _assert(playing, "%s animation is playing" % label)
+	return failed
 
 
 func _workbench_reach(tree_root: Window, save_service: Node) -> int:

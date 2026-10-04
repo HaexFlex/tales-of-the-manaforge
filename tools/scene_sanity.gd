@@ -987,7 +987,7 @@ func _forest_seal(live: Node) -> int:
 		var here: float = float(live.call("_ellipse_norm", at))
 		if here > max_norm:
 			max_norm = here
-		if here > 1.0 or at.x < 140.0 or at.y < 140.0 or at.x > 4180.0 or at.y > 3640.0:
+		if at.x < 140.0 or at.y < 140.0 or at.x > 4180.0 or at.y > 3640.0:
 			leaked = true
 			print("FOREST_LEAK %.1f %.1f norm %.3f" % [at.x, at.y, here])
 			break
@@ -1030,8 +1030,7 @@ func _work_reach(live: Node) -> int:
 			blocked_n += 1
 			continue
 		blocked_n += _reach_one(live, node, str(row[1]), str(row[2]), "keeper")
-		if str(row[1]) != "bench":
-			blocked_n += _reach_one(live, node, str(row[1]), "%s elaia" % str(row[2]), "elaia")
+		blocked_n += _reach_one(live, node, str(row[1]), "%s elaia" % str(row[2]), "elaia")
 	for stone: Node in get_nodes_in_group("runestone"):
 		if stone is Node2D:
 			blocked_n += _reach_one(live, stone as Node2D, "runestone", stone.name, "keeper")
@@ -1041,12 +1040,67 @@ func _work_reach(live: Node) -> int:
 		print("WORK_REACH missing portal")
 		blocked_n += 1
 	else:
-		var entry: Vector2 = portal.global_position + Vector2(0, 50)
-		if _spot_hits(live, entry, portal) or not bool(live.call("_in_clearing", entry)):
-			print("WORK_REACH blocked portal entry %s" % entry)
-			blocked_n += 1
+		for actor_id: String in ["keeper", "elaia"]:
+			var entry: Vector2 = portal.global_position + Vector2(0, 50)
+			if _spot_hits(live, entry, portal) or not bool(live.call("_in_clearing", entry)):
+				print("WORK_REACH blocked portal entry %s %s" % [actor_id, entry])
+				blocked_n += 1
+	blocked_n += _reach_forge_stations()
 	print("WORK_REACH blocked=%d" % blocked_n)
 	return 1 if blocked_n != 0 else 0
+
+
+func _reach_forge_stations() -> int:
+	## Stations live in the forge. Check them here so WORK_REACH covers every interactable.
+	var blocked_n: int = 0
+	var paths: PackedStringArray = PackedStringArray([
+		"res://scenes/forge/crucible.tscn",
+		"res://scenes/forge/mill.tscn",
+		"res://scenes/forge/press.tscn",
+		"res://scenes/forge/anvil.tscn",
+		"res://scenes/forge/reliquary.tscn",
+	])
+	var api = load("res://scripts/keeper.gd")
+	var host := Node2D.new()
+	host.name = "StationReachHost"
+	get_root().add_child(host)
+	var i: int = 0
+	for path: String in paths:
+		var packed: PackedScene = load(path) as PackedScene
+		if packed == null:
+			print("WORK_REACH missing station %s" % path)
+			blocked_n += 1
+			continue
+		var station: Node2D = packed.instantiate() as Node2D
+		station.position = Vector2(12000 + i * 500, 12000)
+		host.add_child(station)
+		i += 1
+		var footprint: Rect2 = station.call("work_footprint")
+		var sid: String = str(station.get("station_id"))
+		for actor_id: String in ["keeper", "elaia"]:
+			var solved: Dictionary = api.solve_work_spot(
+				footprint,
+				station.global_position,
+				"station",
+				Callable(self, "_station_blocked").bind(station),
+				sid,
+				actor_id
+			)
+			var pos: Vector2 = solved.get("position", Vector2.ZERO)
+			var walk: Rect2 = footprint.grow(2.0)
+			var inside: bool = walk.has_point(pos)
+			if bool(solved.get("fallback", false)) or inside:
+				print("WORK_REACH blocked station %s %s at %s" % [sid, actor_id, pos])
+				blocked_n += 1
+	host.queue_free()
+	return blocked_n
+
+
+func _station_blocked(pos: Vector2, station: Node2D) -> bool:
+	if station == null or not station.has_method("work_footprint"):
+		return false
+	var walk: Rect2 = station.call("work_footprint")
+	return walk.grow(4.0).has_point(pos)
 
 
 func _reach_one(live: Node, node: Node2D, type_id: String, label: String, actor_id: String) -> int:

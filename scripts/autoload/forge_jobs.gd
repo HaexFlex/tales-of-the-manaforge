@@ -34,6 +34,8 @@ var _allow_scene_change: bool = true
 var _in_forge_override: int = -1
 var _materials_snapshot: Dictionary = {}
 var _repeat_override: Dictionary = {}
+## One phase for every wisp on every target. Advanced once per frame, not once per wisp.
+var _wisp_orbit_phase: float = 0.0
 
 
 func _ready() -> void:
@@ -44,11 +46,19 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	step_jobs(delta)
+
+
+func step_jobs(delta: float) -> void:
+	## Shared by the live frame and the jobs-survive check. One clock for income.
+	var speed: float = float(_tuning.get("wisp_orbit_speed", 1.45))
+	_wisp_orbit_phase = fposmod(_wisp_orbit_phase + speed * delta, TAU)
 	advance_seconds(delta * dev_time_scale())
 	_tick_absent_elaia(delta)
+	_tick_absent_keeper(delta)
 	if not _autosave_enabled:
 		return
-	var every: float = float(_tuning.get("autosave_sec", 30.0))
+	var every: float = float(_tuning.get("autosave_sec", 300.0))
 	if every <= 0.0 or not has_node("/root/SaveService"):
 		return
 	_autosave_accum += delta
@@ -463,9 +473,28 @@ func door_entry_point() -> Vector2:
 
 
 func wisp_work_radius(count: int) -> float:
+	## Legacy count ramp. Orbits no longer use this; harvest rates never did.
 	var base: float = float(_tuning.get("wisp_work_radius", 34.0))
 	var step: float = float(_tuning.get("wisp_work_radius_step", 12.0))
 	return base + step * float(maxi(0, count - 1))
+
+
+func wisp_orbit_phase() -> float:
+	return _wisp_orbit_phase
+
+
+func debug_set_wisp_orbit_phase(phase: float) -> void:
+	_wisp_orbit_phase = fposmod(phase, TAU)
+
+
+func wisp_orbit_pad() -> float:
+	return float(_tuning.get("wisp_orbit_pad", 14.0))
+
+
+func wisp_orbit_radius_for_size(size: Vector2) -> float:
+	## Half the footprint's long side, plus a data pad. Larger trunks orbit wider.
+	var scale: float = float(_tuning.get("wisp_orbit_foot_scale", 0.5))
+	return maxf(size.x, size.y) * scale + wisp_orbit_pad()
 
 
 func station_supports_repeat(station_id: String) -> bool:
@@ -551,8 +580,7 @@ func try_door_entry(actor_id: String) -> String:
 	var visited: bool = has_node("/root/GameState") and GameState.forge_visited
 	if not visited and not can_enter_forge():
 		return "denied"
-	if actor_id == "keeper" and _keeper_task_kind() == "water" or (actor_id == "keeper" and _keeper_task_kind() == "harvest"):
-		note_keeper_idle()
+	## Door entry changes the scene. It does not clear the job the hero was doing.
 	return commit_actor_enter(actor_id)
 
 
@@ -595,10 +623,12 @@ func in_forge_scene() -> bool:
 
 
 func wisp_should_show(assigned_node: String, in_forge: bool) -> bool:
-	## Station Wisps stay in the Forge scene only.
+	## Station Wisps stay in the Forge. Clearing jobs stay in the clearing.
 	## Free Wisps follow the Keeper's area, not whichever scene the camera is showing.
 	if is_forge_station(assigned_node):
 		return in_forge
+	if assigned_node != "":
+		return not in_forge
 	var keeper_in_forge: bool = has_node("/root/GameState") and GameState.keeper_area == "forge"
 	return keeper_in_forge == in_forge
 
@@ -694,10 +724,38 @@ func _tick_absent_elaia(delta: float) -> void:
 
 
 func _elaia_body_simulating() -> bool:
+	return _hero_body_simulating("elaia")
+
+
+func _tick_absent_keeper(delta: float) -> void:
+	## His body only simulates in the area he is standing in. Water and harvest keep paying in the other view.
+	if delta <= 0.0 or not bool(_keeper_task.get("working", false)):
+		return
+	if not has_node("/root/GameState"):
+		return
+	if GameState.is_world_frozen() or GameState.fruit_committed:
+		return
+	if _keeper_body_simulating():
+		return
+	var kind: String = str(_keeper_task.get("kind", ""))
+	var target: String = str(_keeper_task.get("target", ""))
+	if kind == "harvest":
+		var rid: StringName = _harvest_resource(target)
+		if rid != &"":
+			GameState.accumulate_keeper_harvest(rid, delta, GameState.actor_work_rate("keeper"))
+	elif kind == "water":
+		GameState.tick_hero_water("keeper", delta)
+
+
+func _keeper_body_simulating() -> bool:
+	return _hero_body_simulating("keeper")
+
+
+func _hero_body_simulating(group_name: String) -> bool:
 	var tree: SceneTree = get_tree()
 	if tree == null:
 		return false
-	var node: Node = tree.get_first_node_in_group("elaia")
+	var node: Node = tree.get_first_node_in_group(group_name)
 	return node != null and node.visible and node.is_physics_processing()
 
 

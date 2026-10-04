@@ -245,12 +245,25 @@ func _on_hover(inside: bool) -> void:
 
 
 func _label_should_show() -> bool:
-	if _hovered or _channeling:
-		return true
-	if GameState.selected_wisp_id < 0:
-		return false
-	var assigned: String = GameState.get_wisp_assignment(GameState.selected_wisp_id)
-	return assigned != "" and assigned == GameState.node_id_for_resource(resource_id)
+	return _hovered
+
+
+func wisp_orbit_center() -> Vector2:
+	var shape_node: CollisionShape2D = get_node_or_null("Trunk/CollisionShape2D") as CollisionShape2D
+	var trunk: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
+	if trunk != null and shape_node != null and shape_node.shape is RectangleShape2D:
+		return trunk.to_global(shape_node.position)
+	return global_position + Vector2(0, -16)
+
+
+func wisp_orbit_radius() -> float:
+	var shape_node: CollisionShape2D = get_node_or_null("Trunk/CollisionShape2D") as CollisionShape2D
+	var size := Vector2(28, 16)
+	if shape_node != null and shape_node.shape is RectangleShape2D:
+		size = (shape_node.shape as RectangleShape2D).size
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.wisp_orbit_radius_for_size(size)
+	return maxf(size.x, size.y) * 0.5 + 14.0
 
 
 func _apply_label_visibility() -> void:

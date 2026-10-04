@@ -53,7 +53,7 @@ func _ready() -> void:
 	label.visible = false
 	add_to_group("wisp")
 	add_to_group("interactable")
-	z_index = 2
+	z_index = 1
 	_orbit_angle = _even_slot_angle()
 	_refresh_label()
 
@@ -150,11 +150,16 @@ func _even_slot_angle() -> float:
 
 
 func _orbit_radius_for_assignment(node_id: String) -> float:
-	## Even circle. Radius grows with the count on this node.
-	var n: int = maxi(1, GameState.count_wisps_on_node(node_id))
-	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("wisp_work_radius"):
-		return ForgeJobs.wisp_work_radius(n)
-	return 34.0 + 12.0 * float(n - 1)
+	## One radius for everyone on this target, from the trunk footprint. Count only changes spacing.
+	var node: Node2D = _find_assignment_node(node_id)
+	if node != null and node.has_method("wisp_orbit_radius"):
+		return float(node.call("wisp_orbit_radius"))
+	if node != null and node.has_method("work_footprint") and has_node("/root/ForgeJobs"):
+		var fp: Rect2 = node.call("work_footprint")
+		return ForgeJobs.wisp_orbit_radius_for_size(fp.size)
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.wisp_orbit_pad() + NODE_ORBIT_RADIUS
+	return NODE_ORBIT_RADIUS
 
 
 func get_node_orbit_radius() -> float:
@@ -218,6 +223,7 @@ func _process(delta: float) -> void:
 			_begin_fly_to(_keeper_slot_pos())
 
 	if _motion == MotionKind.FLY:
+		z_index = 2
 		_play_anim(&"fly")
 		_refresh_label()
 		return
@@ -241,6 +247,7 @@ func _tick_keeper_orbit(delta: float) -> void:
 		return
 	var k: Node2D = keepers[0] as Node2D
 	sprite.flip_h = false
+	z_index = 2
 	_orbit_angle += KEEPER_ORBIT_SPEED * delta
 	_play_anim(&"orbit")
 	var slot: float = _even_slot_angle()
@@ -250,18 +257,43 @@ func _tick_keeper_orbit(delta: float) -> void:
 	global_position = k.global_position + KEEPER_CHEST_OFFSET + offset + Vector2(0, bob)
 
 
-func _tick_node_orbit(_node_id: String, delta: float) -> void:
+func _shared_orbit_angle(node_id: String) -> float:
+	## Same phase for every wisp. Slots are 360/n and jump when the count changes.
+	var n: int = maxi(1, GameState.count_wisps_on_node(node_id))
+	var slot: int = GameState.wisp_slot_index_on_node(wisp_id, node_id)
+	var phase: float = 0.0
+	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("wisp_orbit_phase"):
+		phase = ForgeJobs.wisp_orbit_phase()
+	return phase + TAU * float(slot) / float(n)
+
+
+func _tick_node_orbit(node_id: String, _delta: float) -> void:
 	sprite.flip_h = false
-	_orbit_angle += NODE_ORBIT_SPEED * delta
-	var r: float = _orbit_radius_for_assignment(_node_id) if _node_id != "" else NODE_ORBIT_RADIUS
-	global_position = _slot_around(_orbit_anchor, r)
+	var r: float = _orbit_radius_for_assignment(node_id) if node_id != "" else NODE_ORBIT_RADIUS
+	_orbit_anchor = _resolve_assignment_center(node_id)
+	var angle: float = _shared_orbit_angle(node_id)
+	## One bob for the whole ring so the spacing stays even.
+	var bob: float = sin(_bob_t * 2.8) * 2.0
+	var offset := Vector2(cos(angle), sin(angle)) * r
+	global_position = _orbit_anchor + offset + Vector2(0, bob)
+	## Back half (above the trunk on screen) draws behind the target. Front half draws in front.
+	z_index = -1 if sin(angle) < 0.0 else 1
 	_at_assigned_orbit = true
 
 
+func place_on_shared_orbit() -> void:
+	var assigned: String = GameState.get_wisp_assignment(wisp_id)
+	if assigned == "":
+		return
+	_motion = MotionKind.NODE_ORBIT
+	_kill_fly_tween()
+	_tick_node_orbit(assigned, 0.0)
+
+
 func _slot_around(center: Vector2, radius: float) -> Vector2:
-	## One even slot. Do not add _orbit_angle: setup used to store the slot there too.
-	var angle: float = _even_slot_angle()
-	var bob: float = sin(_bob_t * 2.8 + float(wisp_id)) * 2.0
+	var assigned: String = GameState.get_wisp_assignment(wisp_id)
+	var angle: float = _shared_orbit_angle(assigned) if assigned != "" else _even_slot_angle()
+	var bob: float = sin(_bob_t * 2.8) * 2.0
 	var offset := Vector2(cos(angle), sin(angle)) * radius
 	return center + offset + Vector2(0, bob)
 
@@ -313,26 +345,38 @@ func _kill_fly_tween() -> void:
 		_fly_tween = null
 
 
-func _resolve_assignment_center(node_id: String) -> Vector2:
+func _find_assignment_node(node_id: String) -> Node2D:
+	if node_id == "":
+		return null
 	if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id):
 		var stations: Array[Node] = get_tree().get_nodes_in_group("forge_station")
 		for station: Node in stations:
 			if station is ForgeStation and (station as ForgeStation).station_id == node_id:
-				return (station as ForgeStation).orbit_global()
-		return global_position
+				return station as Node2D
+		return null
 	if node_id == GameState.NODE_ID_MANATREE:
 		var trees: Array[Node] = get_tree().get_nodes_in_group("manatree")
 		for n: Node in trees:
 			if n is Node2D:
-				return (n as Node2D).global_position + TARGET_CHEST_OFFSET
-		return global_position
+				return n as Node2D
+		return null
 	var nodes: Array[Node] = get_tree().get_nodes_in_group("harvest_node")
 	for n: Node in nodes:
 		if n is Node2D and n.get("resource_id") != null:
 			var rid: StringName = n.get("resource_id") as StringName
 			if GameState.node_id_for_resource(rid) == node_id:
-				return (n as Node2D).global_position + TARGET_CHEST_OFFSET
-	return global_position
+				return n as Node2D
+	return null
+
+
+func _resolve_assignment_center(node_id: String) -> Vector2:
+	## Trunk / base, not the chest. Every wisp on this target shares the point.
+	var node: Node2D = _find_assignment_node(node_id)
+	if node == null:
+		return global_position
+	if node.has_method("wisp_orbit_center"):
+		return node.call("wisp_orbit_center")
+	return node.global_position
 
 
 func _play_anim(anim: StringName) -> void:

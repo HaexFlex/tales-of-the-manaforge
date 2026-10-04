@@ -26,7 +26,18 @@ func _ready() -> void:
 	monitoring = false
 	monitorable = true
 	_apply_frame(false)
+	var title: Label = get_node_or_null("Title") as Label
+	if title:
+		title.visible = false
+	mouse_entered.connect(_on_title_hover.bind(true))
+	mouse_exited.connect(_on_title_hover.bind(false))
 	call_deferred("_bind_keeper")
+
+
+func _on_title_hover(inside: bool) -> void:
+	var title: Label = get_node_or_null("Title") as Label
+	if title:
+		title.visible = inside
 
 
 func stand_global() -> Vector2:

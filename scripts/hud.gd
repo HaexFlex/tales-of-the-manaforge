@@ -699,7 +699,7 @@ func _make_party_slot(slot_name: String, unit: String) -> Control:
 	host.custom_minimum_size = Vector2(PARTY_SLOT, PARTY_SLOT)
 	host.size = Vector2(PARTY_SLOT, PARTY_SLOT)
 	host.mouse_filter = Control.MOUSE_FILTER_STOP
-	host.gui_input.connect(_on_party_slot_input.bind(unit))
+	host.gui_input.connect(_on_party_slot_input.bind(unit, host))
 	var frame := Panel.new()
 	frame.name = "Frame"
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -734,7 +734,7 @@ func _set_party_outline(slot: Control, selected: bool) -> void:
 	frame.add_theme_stylebox_override("panel", style)
 
 
-func _on_party_slot_input(event: InputEvent, unit: String) -> void:
+func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
@@ -743,6 +743,9 @@ func _on_party_slot_input(event: InputEvent, unit: String) -> void:
 	party_click(unit)
 	if mb.double_click:
 		party_focus(unit)
+	## The click is the portrait, not a ground order. Do not walk or clear the job.
+	slot.accept_event()
+	get_viewport().set_input_as_handled()
 
 
 func party_click(unit: String) -> void:

@@ -19,7 +19,7 @@ const SAVE_VERSION: int = 10
 const SAVE_VERSION_MAX_READ: int = 11
 const SAVE_SLOT_COUNT: int = 7
 const AUTOSAVE_SLOT_COUNT: int = 3
-const AUTOSAVE_THROTTLE_SEC: float = 2.0
+const AUTOSAVE_THROTTLE_SEC: float = 60.0
 const LEGACY_SAVE_PATH: String = "user://manaforge_save.json"
 const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
 const AUTOSAVE_PATH_FMT: String = "user://manaforge_autosave_%d.json"
@@ -130,7 +130,13 @@ func save_autosave(force: bool = false) -> bool:
 func save_on_quit() -> bool:
 	if not session_active or _battle_blocks_save():
 		return false
+	## Window close always writes, even inside the event-save throttle.
+	_last_autosave_msec = -100000000
 	return save_autosave(true)
+
+
+func debug_set_last_autosave_age(seconds: float) -> void:
+	_last_autosave_msec = Time.get_ticks_msec() - int(seconds * 1000.0)
 
 
 func _battle_blocks_save() -> bool:

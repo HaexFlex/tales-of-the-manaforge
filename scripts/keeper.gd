@@ -74,7 +74,7 @@ func actor_id() -> String:
 
 
 func actor_idle_uses_facing() -> bool:
-	return false
+	return true
 
 
 func _join_groups() -> void:
@@ -202,18 +202,28 @@ func _ready() -> void:
 		apply_keeper_presence()
 
 
+const IDLE_FRAME_MS: float = 150.0
+const IDLE_FRAME_COUNT: int = 12
+const IDLE_FALLBACK: Dictionary = {
+	"south": ["east", "west", "north"],
+	"north": ["south", "east", "west"],
+	"east": ["west", "south", "north"],
+	"west": ["east", "south", "north"],
+}
+
+
 func _build_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
 	frames.remove_animation(&"default")
-	_add_anim(frames, &"idle_front", [
-		"res://assets/art/keeper/keeper_idle_south.png",
-	], IDLE_HOLD_MS)
-	_add_anim(frames, &"idle_south", [
-		"res://assets/art/keeper/keeper_idle_south.png",
-	], IDLE_HOLD_MS)
-	_add_anim(frames, &"idle_back", [
-		"res://assets/art/keeper/keeper_idle_back_0000.png",
-	], IDLE_HOLD_MS)
+	var south_paths: Array = _idle_frame_paths("south")
+	var north_paths: Array = _idle_frame_paths("north")
+	_add_anim(frames, &"idle_south", south_paths, IDLE_FRAME_MS)
+	_add_anim(frames, &"idle_north", _idle_frame_paths("north"), IDLE_FRAME_MS)
+	_add_anim(frames, &"idle_east", _idle_frame_paths("east"), IDLE_FRAME_MS)
+	_add_anim(frames, &"idle_west", _idle_frame_paths("west"), IDLE_FRAME_MS)
+	## Older callers still ask for these names. They play the facing clip, not a drawn extra.
+	_add_anim(frames, &"idle_front", south_paths, IDLE_FRAME_MS)
+	_add_anim(frames, &"idle_back", north_paths, IDLE_FRAME_MS)
 	# walk_front stays as the south clip so older callers still resolve.
 	_add_timed(frames, &"walk_front", "walk/south", WALK_MS)
 	_add_timed(frames, &"walk_south", "walk/south", WALK_MS)
@@ -243,6 +253,42 @@ func _build_frames() -> SpriteFrames:
 		"res://assets/art/keeper/keeper_walk_back_0005.png",
 	], WALK_HOLD_MS)
 	return frames
+
+
+static func _idle_dir_has_frames(dir_name: String) -> bool:
+	var path := "res://assets/art/keeper/idle/%s/keeper_idle_%s_0001.png" % [dir_name, dir_name]
+	return ResourceLoader.exists(path)
+
+
+static func idle_missing_directions() -> PackedStringArray:
+	var missing := PackedStringArray()
+	for dir_name: String in ["south", "north", "east", "west"]:
+		if not _idle_dir_has_frames(dir_name):
+			missing.append(dir_name)
+	return missing
+
+
+func _idle_frame_paths(facing: String) -> Array:
+	## Use that direction's clip. If it was never drawn, the nearest clip that exists.
+	var order: Array[String] = [facing]
+	var extra: Variant = IDLE_FALLBACK.get(facing, [])
+	if typeof(extra) == TYPE_ARRAY:
+		for entry: Variant in extra:
+			order.append(str(entry))
+	for dir_name: String in order:
+		if not _idle_dir_has_frames(dir_name):
+			continue
+		var paths: Array = []
+		var complete := true
+		for i: int in range(1, IDLE_FRAME_COUNT + 1):
+			var path := "res://assets/art/keeper/idle/%s/keeper_idle_%s_%04d.png" % [dir_name, dir_name, i]
+			if not ResourceLoader.exists(path):
+				complete = false
+				break
+			paths.append(path)
+		if complete:
+			return paths
+	return []
 
 
 func _add_anim(frames: SpriteFrames, anim: StringName, paths: Array, hold_ms: float) -> void:
@@ -441,7 +487,86 @@ func apply_keeper_presence() -> void:
 		_target = global_position
 	if GameState.keeper_facing != "":
 		_facing = GameState.keeper_facing
+	_resume_saved_task()
+
+
+func step_channel(delta: float) -> void:
+	_tick_channel(delta)
+
+
+func _resume_saved_task() -> void:
+	## The scene node is new after a view switch. The job lives on ForgeJobs and starts again here.
+	if not has_node("/root/ForgeJobs"):
+		_update_anim(Vector2.ZERO)
+		return
+	var task: Dictionary = read_published_task()
+	if not bool(task.get("working", false)):
+		_update_anim(Vector2.ZERO)
+		return
+	var kind: String = str(task.get("kind", ""))
+	var target_id: String = str(task.get("target", ""))
+	var here: String = scene_home()
+	if kind == "harvest" and here == "clearing":
+		var node := _find_gatherable(target_id)
+		if node:
+			_snap_and_channel(node, target_id)
+		return
+	if kind == "water" and here == "clearing":
+		var tree := _find_manatree()
+		if tree:
+			_snap_and_channel(tree, "manatree")
+		return
+	if kind == "forge" and here == "forge":
+		var station := _find_station(target_id)
+		if station:
+			var solved: Dictionary = _solve_for(station, "station", target_id)
+			global_position = solved.get("position", global_position)
+			_target = global_position
+			_apply_solved(station, "station", solved)
+			_work_loop = true
+			publish_task("forge", target_id, true)
+			_update_anim(Vector2.ZERO)
+		return
 	_update_anim(Vector2.ZERO)
+
+
+func _snap_and_channel(target: Node2D, type_id: String) -> void:
+	var solved: Dictionary = _solve_for(target, type_id)
+	global_position = solved.get("position", global_position)
+	_target = global_position
+	_apply_solved(target, type_id, solved)
+	if type_id == "manatree" and target is Manatree:
+		start_water_channel(target as Manatree)
+	elif target is Gatherable:
+		start_harvest_channel(target as Gatherable)
+	_update_anim(Vector2.ZERO)
+
+
+func _find_gatherable(resource_id: String) -> Gatherable:
+	if not is_inside_tree():
+		return null
+	for node: Node in get_tree().get_nodes_in_group("gatherable"):
+		if node is Gatherable and String((node as Gatherable).resource_id) == resource_id:
+			return node as Gatherable
+	return null
+
+
+func _find_manatree() -> Manatree:
+	if not is_inside_tree():
+		return null
+	var nodes: Array[Node] = get_tree().get_nodes_in_group("manatree")
+	if nodes.is_empty():
+		return null
+	return nodes[0] as Manatree
+
+
+func _find_station(station_id: String) -> Node2D:
+	if not is_inside_tree():
+		return null
+	for node: Node in get_tree().get_nodes_in_group("forge_station"):
+		if node is Node2D and str(node.get("station_id")) == station_id:
+			return node as Node2D
+	return null
 
 
 func station_work_anim_speed() -> float:

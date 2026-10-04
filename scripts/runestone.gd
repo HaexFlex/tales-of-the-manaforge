@@ -159,8 +159,7 @@ func _refresh() -> void:
 		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_maxed")]
 	else:
 		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_cost", {"cost": cost})]
-	var confirming: bool = is_spend_confirm_open() and _pending_stat == sid
-	label.visible = _hovered or confirming
+	label.visible = _hovered
 
 
 func _on_hover(inside: bool) -> void:
