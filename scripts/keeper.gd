@@ -818,8 +818,17 @@ func has_station_work_spot() -> bool:
 	return _has_work_spot and _work_tool == "station"
 
 
+func _away_on_reach() -> bool:
+	if not has_node("/root/Adventure") or not Adventure.actor_is_away(actor_id()):
+		return false
+	GameState.status_message.emit(ContentStrings.get_text("adventure_away"))
+	return true
+
+
 func command_work(target: Node2D, type_id: String, claim_key: String = "") -> void:
 	if target == null:
+		return
+	if _away_on_reach():
 		return
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
@@ -841,6 +850,8 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 
 func command_station(station: Node2D) -> void:
 	if station == null:
+		return
+	if _away_on_reach():
 		return
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
@@ -1086,6 +1097,8 @@ func move_to(world_pos: Vector2, interact: Node = null) -> void:
 
 
 func start_harvest_channel(node: Gatherable) -> void:
+	if _away_on_reach():
+		return
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return
@@ -1107,6 +1120,8 @@ func start_harvest_channel(node: Gatherable) -> void:
 
 
 func start_water_channel(tree: Manatree) -> void:
+	if _away_on_reach():
+		return
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return

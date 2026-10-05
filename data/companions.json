@@ -18,5 +18,17 @@
     "work_rate": 0.8,
     "reliquary_work_rate": 1.5,
     "water_reward_mult": 0.8
+  },
+  "corvane": {
+    "display_name_key": "corvane_name",
+    "portrait_path": "res://assets/art/portraits/corvane_portrait.png",
+    "sheet_portrait_path": "res://assets/art/portraits/corvane_portrait_sheet.png",
+    "battle_art_path": "res://assets/art/echo/battle_corvane_idle.png",
+    "walk_ref_speed": 80,
+    "move_speed_mult": 1.0,
+    "work_rate": 0.0,
+    "reliquary_work_rate": 0.0,
+    "water_reward_mult": 0.0,
+    "notes": "Phase 0 companion. Portrait and selection only. No Forge tending and no adventure slot."
   }
 }

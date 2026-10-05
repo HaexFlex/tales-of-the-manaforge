@@ -21,6 +21,7 @@ static var _wired: bool = false
 
 var _pulse: float = 0.0
 var _hovered: bool = false
+var _confirm_door: String = "echo1"
 
 
 func _ready() -> void:
@@ -110,13 +111,23 @@ func _process(delta: float) -> void:
 	marker.modulate = Color(glow, glow, glow, 1.0)
 
 
+func _active_door() -> String:
+	if EchoChamber.portal_visible():
+		return "echo1"
+	if has_node("/root/Adventure") and Adventure.echo2_portal_visible():
+		return "echo2"
+	return ""
+
+
 func refresh_visibility() -> void:
-	var show_it: bool = EchoChamber.portal_visible()
+	var door: String = _active_door()
+	var show_it: bool = door != ""
 	visible = show_it
 	input_pickable = show_it
 	monitorable = show_it
 	if label:
-		label.text = ContentStrings.get_text("portal_label")
+		var key: String = "portal_label_echo2" if door == "echo2" else "portal_label"
+		label.text = ContentStrings.get_text(key)
 		label.visible = _hovered
 
 
@@ -169,12 +180,30 @@ func begin_entry() -> String:
 		return "blocked"
 	if EchoChamber.in_battle:
 		return "blocked"
-	if not EchoChamber.portal_visible():
+	var door: String = _active_door()
+	if door == "":
 		return "closed"
+	if door == "echo2":
+		return _begin_echo2()
 	if GameState.portal_fee_paid:
 		EchoChamber.open_battle(true)
 		return "enter"
 	var can_pay: bool = GameState.essence >= EchoChamber.FEE
+	_confirm_door = "echo1"
+	_open_confirm(can_pay)
+	if not can_pay:
+		GameAudio.play_ui_deny()
+		return "reject"
+	return "confirm"
+
+
+func _begin_echo2() -> String:
+	if Adventure.echo2_fee_paid:
+		_close_confirm()
+		Adventure.open_echo2_battle(true)
+		return "enter"
+	var can_pay: bool = GameState.essence >= Adventure.ECHO2_FEE
+	_confirm_door = "echo2"
 	_open_confirm(can_pay)
 	if not can_pay:
 		GameAudio.play_ui_deny()
@@ -183,6 +212,8 @@ func begin_entry() -> String:
 
 
 func confirm_fee() -> String:
+	if _confirm_door == "echo2":
+		return _confirm_echo2()
 	var already: bool = GameState.portal_fee_paid
 	if not already:
 		var paid: String = EchoChamber.try_pay_fee()
@@ -192,6 +223,19 @@ func confirm_fee() -> String:
 	_close_confirm()
 	GameState.status_message.emit(ContentStrings.get_text("portal_enter_ok"))
 	EchoChamber.open_battle(already)
+	return "enter"
+
+
+func _confirm_echo2() -> String:
+	var already: bool = Adventure.echo2_fee_paid
+	if not already:
+		var paid: String = Adventure.try_pay_echo2()
+		if paid != "paid":
+			return paid
+		SaveService.save_game()
+	_close_confirm()
+	GameState.status_message.emit(ContentStrings.get_text("portal_enter_ok"))
+	Adventure.open_echo2_battle(already)
 	return "enter"
 
 
@@ -218,19 +262,23 @@ func _open_confirm(can_pay: bool) -> void:
 	_ensure_confirm()
 	_layout_confirm()
 	_rebind_confirm()
+	var echo2: bool = _confirm_door == "echo2"
 	_title.text = ContentStrings.get_text("portal_title")
-	var cost: int = EchoChamber.FEE
+	var cost: int = Adventure.ECHO2_FEE if echo2 else EchoChamber.FEE
+	var prompt_key: String = "portal_prompt_echo2" if echo2 else "portal_prompt"
+	var confirm_key: String = "portal_confirm_echo2" if echo2 else "portal_confirm"
+	var hint_key: String = "portal_hint_echo2" if echo2 else "portal_hint"
 	if can_pay:
 		_body.text = "%s\n%s\n%s" % [
-			ContentStrings.get_text("portal_prompt"),
-			ContentStrings.get_text("portal_confirm", {"cost": cost}),
-			ContentStrings.get_text("portal_hint"),
+			ContentStrings.get_text(prompt_key),
+			ContentStrings.get_text(confirm_key, {"cost": cost}),
+			ContentStrings.get_text(hint_key),
 		]
 		_yes.disabled = false
 	else:
 		_body.text = "%s\n%s" % [
 			ContentStrings.get_text("portal_cant_afford", {"cost": cost}),
-			ContentStrings.get_text("portal_confirm", {"cost": cost}),
+			ContentStrings.get_text(confirm_key, {"cost": cost}),
 		]
 		_yes.disabled = true
 	_yes.text = ContentStrings.get_text("portal_confirm_yes")

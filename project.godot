@@ -24,6 +24,7 @@ SaveService="*res://scripts/autoload/save_service.gd"
 EchoChamber="*res://scripts/autoload/echo_chamber.gd"
 ForgeJobs="*res://scripts/autoload/forge_jobs.gd"
 AnimPreviewHotkey="*res://scripts/autoload/anim_preview_hotkey.gd"
+Adventure="*res://scripts/autoload/adventure.gd"
 
 [display]
 
