@@ -93,14 +93,9 @@ func _apply_visual() -> void:
 	var col: CollisionShape2D = body.get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if col == null:
 		return
-	## Authored width is the trunk. Height is a third of the sprite, on the feet.
-	var shown := Vector2(collider_size.x, maxf(collider_size.y / FeetBox.HEIGHT_RATIO, collider_size.y))
-	if spr.texture != null:
-		var tex_h: float = float(spr.texture.get_height()) * absf(spr.scale.y)
-		shown.y = maxf(shown.y, tex_h)
-	var box: Vector2 = FeetBox.size_for(shown)
-	box.x = collider_size.x
-	FeetBox.apply_size(col, box, Vector2.ZERO)
+	## The crown is paint. The authored size is already the trunk's feet box,
+	## so a third of the canvas would wall off the clearing under the leaves.
+	FeetBox.apply_size(col, collider_size, Vector2.ZERO)
 
 
 func _glow_texture_path() -> String:
