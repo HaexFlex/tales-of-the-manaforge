@@ -1,5 +1,5 @@
 extends CanvasLayer
-## Testing-build debug panel. F8, or Options → Show debug tools.
+## Testing-build debug panel. Ctrl+F8, or Options → Show debug tools.
 ## Stable exports exclude this scene, this script, and tools/debug/snapshots/.
 
 
@@ -23,11 +23,16 @@ var _resource_ids: PackedStringArray = PackedStringArray([
 
 var _status: Label
 var _recipes: Dictionary = {}
+var _search: LineEdit
+var _qty: SpinBox
+var _list: ItemList
+var _rows: Array[Dictionary] = []
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_load_recipes()
+	_load_catalogue()
 	_build_ui()
 
 
@@ -44,9 +49,9 @@ func _build_ui() -> void:
 	panel.color = Color(0.09, 0.12, 0.11, 0.97)
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.offset_left = -270.0
-	panel.offset_top = -340.0
+	panel.offset_top = -356.0
 	panel.offset_right = 270.0
-	panel.offset_bottom = 340.0
+	panel.offset_bottom = 356.0
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
 
@@ -67,7 +72,7 @@ func _build_ui() -> void:
 	box.add_child(title)
 
 	var subtitle := Label.new()
-	subtitle.text = "F8  ·  testing build"
+	subtitle.text = "Ctrl+F8  ·  testing build"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_size_override("font_size", 13)
 	subtitle.add_theme_color_override("font_color", Color(0.78, 0.86, 0.74, 1))
@@ -86,8 +91,8 @@ func _build_ui() -> void:
 	_add_button(box, "Free Amberbind", _on_free_craft_pressed.bind("amberbind"))
 	_add_button(box, "Skip station work", _on_skip_pressed)
 
-	_add_section(box, "Inventory")
-	_add_button(box, "Add resources and crafted bits", _on_add_items_pressed)
+	_add_section(box, "Add items")
+	_build_catalogue(box)
 
 	_add_section(box, "Jumps")
 	_add_button(box, "Jump to Echo", _on_echo_pressed)
@@ -120,7 +125,7 @@ func _add_section(parent: VBoxContainer, text: String) -> void:
 func _add_button(parent: VBoxContainer, text: String, callback: Callable) -> void:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(0, 28)
+	button.custom_minimum_size = Vector2(0, 24)
 	button.pressed.connect(callback)
 	parent.add_child(button)
 
@@ -211,14 +216,146 @@ func _on_skip_pressed() -> void:
 		_set_status("Finished %d station job(s)." % finished)
 
 
-func _on_add_items_pressed() -> void:
-	GameState.add_resource(&"wood", 40)
-	GameState.add_resource(&"stone", 40)
-	GameState.add_resource(&"essence", 40)
-	GameState.add_resource(&"manashards", 40)
-	Backpack.add_item("wooden_planks", 8)
-	Backpack.add_item("fertilizer", 4)
-	_set_status("Added 40 wood, stone, essence, and shards, plus 8 planks and 4 fertilizer.")
+func _build_catalogue(parent: VBoxContainer) -> void:
+	var search := LineEdit.new()
+	search.name = "ItemSearch"
+	search.placeholder_text = "Search items and materials"
+	search.custom_minimum_size = Vector2(0, 28)
+	search.text_changed.connect(_on_catalogue_filter)
+	parent.add_child(search)
+	_search = search
+	var qty_row := HBoxContainer.new()
+	qty_row.add_theme_constant_override("separation", 8)
+	parent.add_child(qty_row)
+	var qty_label := Label.new()
+	qty_label.text = "Quantity"
+	qty_label.custom_minimum_size = Vector2(88, 0)
+	qty_row.add_child(qty_label)
+	var qty := SpinBox.new()
+	qty.name = "ItemQuantity"
+	qty.min_value = 1
+	qty.max_value = 999
+	qty.value = 1
+	qty.rounded = true
+	qty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	qty_row.add_child(qty)
+	_qty = qty
+	var list := ItemList.new()
+	list.name = "ItemCatalogue"
+	list.custom_minimum_size = Vector2(0, 132)
+	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list.select_mode = ItemList.SELECT_SINGLE
+	parent.add_child(list)
+	_list = list
+	var add := Button.new()
+	add.name = "AddItem"
+	add.text = "Add selected"
+	add.custom_minimum_size = Vector2(0, 28)
+	add.pressed.connect(_on_catalogue_add)
+	parent.add_child(add)
+	_fill_catalogue()
+
+
+func _load_catalogue() -> void:
+	_rows.clear()
+	var seen: Dictionary = {}
+	var raw_names: Dictionary = {
+		"wood": "Wood",
+		"stone": "Stone",
+		"food": "Food",
+		"manashards": "Manashards",
+		"essence": "Essence",
+	}
+	for id: String in ["wood", "stone", "food", "manashards", "essence"]:
+		_rows.append({"id": id, "label": str(raw_names[id]), "kind": "resource"})
+		seen[id] = true
+	_append_table("res://data/handcraft_recipes.json", "items", "item", seen)
+	_append_table("res://data/equipment.json", "items", "gear", seen)
+	var forge: Variant = _read_json("res://data/forge_tuning.json")
+	if typeof(forge) != TYPE_DICTIONARY:
+		return
+	var recipes: Variant = (forge as Dictionary).get("recipes", {})
+	if typeof(recipes) != TYPE_DICTIONARY:
+		return
+	for key: Variant in (recipes as Dictionary).keys():
+		var output: String = str(key)
+		if output == "" or seen.has(output):
+			continue
+		_rows.append({"id": output, "label": _pretty(output), "kind": "item"})
+		seen[output] = true
+
+
+func _append_table(path: String, key: String, kind: String, seen: Dictionary) -> void:
+	var parsed: Variant = _read_json(path)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	var items: Variant = (parsed as Dictionary).get(key, [])
+	if typeof(items) != TYPE_ARRAY:
+		return
+	for entry: Variant in items:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var row: Dictionary = entry
+		var id: String = str(row.get("id", ""))
+		if id == "" or seen.has(id):
+			continue
+		var label: String = str(row.get("display_name", id))
+		_rows.append({"id": id, "label": label, "kind": kind})
+		seen[id] = true
+
+
+func _read_json(path: String) -> Variant:
+	if not FileAccess.file_exists(path):
+		return {}
+	return JSON.parse_string(FileAccess.get_file_as_string(path))
+
+
+func _fill_catalogue() -> void:
+	if _list == null:
+		return
+	_list.clear()
+	var query: String = ""
+	if _search != null:
+		query = _search.text.strip_edges().to_lower()
+	for row: Dictionary in _rows:
+		var label: String = str(row.get("label", ""))
+		var id: String = str(row.get("id", ""))
+		if query != "" and label.to_lower().find(query) < 0 and id.to_lower().find(query) < 0:
+			continue
+		var kind: String = str(row.get("kind", "item"))
+		var index: int = _list.add_item("%s   %s" % [label, kind])
+		_list.set_item_metadata(index, row)
+
+
+func _on_catalogue_filter(_text: String) -> void:
+	_fill_catalogue()
+
+
+func _on_catalogue_add() -> void:
+	if _list == null:
+		return
+	var selected: PackedInt32Array = _list.get_selected_items()
+	if selected.is_empty():
+		_set_status("Pick an item from the list.")
+		return
+	var meta: Variant = _list.get_item_metadata(selected[0])
+	if typeof(meta) != TYPE_DICTIONARY:
+		return
+	var row: Dictionary = meta
+	var qty: int = 1
+	if _qty != null:
+		qty = maxi(1, int(_qty.value))
+	var id: String = str(row.get("id", ""))
+	var kind: String = str(row.get("kind", "item"))
+	if kind == "resource":
+		GameState.add_resource(StringName(id), qty)
+	elif kind == "gear":
+		if not Equipment.add_gear(id, qty):
+			_set_status("Could not add %s." % str(row.get("label", id)))
+			return
+	else:
+		Backpack.add_item(id, qty)
+	_set_status("Added %d %s." % [qty, str(row.get("label", id))])
 
 
 func _on_echo_pressed() -> void:
