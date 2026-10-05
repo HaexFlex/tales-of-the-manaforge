@@ -740,12 +740,17 @@ func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> voi
 	var mb: InputEventMouseButton = event
 	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
+	## Grab the viewport before a view swap. The swap is deferred, and this node
+	## can already be leaving the tree by the time the handler finishes.
+	var viewport: Viewport = get_viewport()
 	party_click(unit)
 	if mb.double_click:
 		party_focus(unit)
 	## The click is the portrait, not a ground order. Do not walk or clear the job.
-	slot.accept_event()
-	get_viewport().set_input_as_handled()
+	if is_instance_valid(slot):
+		slot.accept_event()
+	if viewport != null and is_instance_valid(viewport):
+		viewport.set_input_as_handled()
 
 
 func party_click(unit: String) -> void:

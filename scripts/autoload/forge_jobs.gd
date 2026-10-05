@@ -36,6 +36,9 @@ var _materials_snapshot: Dictionary = {}
 var _repeat_override: Dictionary = {}
 ## One phase for every wisp on every target. Advanced once per frame, not once per wisp.
 var _wisp_orbit_phase: float = 0.0
+## Set while a hero is walking to the Manatree sill. Cleared when they enter or give up.
+var _door_walk_actor: String = ""
+var _door_stuck_frames: int = 0
 
 
 func _ready() -> void:
@@ -51,6 +54,7 @@ func _process(delta: float) -> void:
 
 func step_jobs(delta: float) -> void:
 	## Shared by the live frame and the jobs-survive check. One clock for income.
+	_tick_door_walk()
 	var speed: float = float(_tuning.get("wisp_orbit_speed", 1.45))
 	_wisp_orbit_phase = fposmod(_wisp_orbit_phase + speed * delta, TAU)
 	advance_seconds(delta * dev_time_scale())
@@ -524,13 +528,11 @@ func switch_view(to_forge: bool) -> void:
 	if to_forge:
 		if has_node("/root/GameAudio"):
 			GameAudio.set_forge_room_mix(true, audio_lowpass_hz(), audio_reverb_room(), audio_music_db())
-		if _allow_scene_change and get_tree() != null:
-			get_tree().change_scene_to_file(FORGE_SCENE)
+		_defer_scene(FORGE_SCENE)
 		return
 	if has_node("/root/GameAudio"):
 		GameAudio.set_forge_room_mix(false)
-	if _allow_scene_change and get_tree() != null:
-		get_tree().change_scene_to_file(HUB_SCENE)
+	_defer_scene(HUB_SCENE)
 
 
 func commit_actor_enter(actor_id: String) -> String:
@@ -551,8 +553,7 @@ func commit_actor_enter(actor_id: String) -> String:
 	_play(&"sfx_door_bark")
 	if has_node("/root/GameAudio"):
 		GameAudio.set_forge_room_mix(true, audio_lowpass_hz(), audio_reverb_room(), audio_music_db())
-	if _allow_scene_change and get_tree() != null:
-		get_tree().change_scene_to_file(FORGE_SCENE)
+	_defer_scene(FORGE_SCENE)
 	return "entered"
 
 
@@ -603,9 +604,63 @@ func request_door_walk() -> String:
 		return "denied"
 	var dest: Vector2 = door_entry_point()
 	if hero is Node2D and (hero as Node2D).global_position.distance_to(dest) <= 18.0:
+		_clear_door_walk()
 		return try_door_entry(actor)
+	## One click walks to the sill. Entry happens when they arrive, not on a second click.
+	_door_walk_actor = actor
+	_door_stuck_frames = 0
 	hero.call("move_to", dest, null)
 	return "walking"
+
+
+func _defer_scene(path: String) -> void:
+	## change_scene frees CollisionObjects. Portrait clicks and the door trigger
+	## both run inside the physics step, so the swap has to wait until it ends.
+	if not _allow_scene_change or get_tree() == null:
+		return
+	get_tree().call_deferred("change_scene_to_file", path)
+
+
+func _clear_door_walk() -> void:
+	_door_walk_actor = ""
+	_door_stuck_frames = 0
+
+
+func _door_hero(actor: String) -> Node:
+	if get_tree() == null:
+		return null
+	if actor == "elaia":
+		return get_tree().get_first_node_in_group("elaia")
+	return get_tree().get_first_node_in_group("keeper")
+
+
+func _tick_door_walk() -> void:
+	## The walk stops within arrive distance of the sill, which can sit just
+	## outside the feet trigger. Enter from that stop. A second click is not required.
+	if _door_walk_actor == "":
+		return
+	var actor: String = _door_walk_actor
+	var hero: Node = _door_hero(actor)
+	if hero == null or not (hero is Node2D):
+		_clear_door_walk()
+		return
+	var dist: float = (hero as Node2D).global_position.distance_to(door_entry_point())
+	if dist <= 22.0:
+		_clear_door_walk()
+		try_door_entry(actor)
+		return
+	var stopped: bool = true
+	if hero is CharacterBody2D:
+		stopped = (hero as CharacterBody2D).velocity.length() < 12.0
+	if stopped and dist <= 72.0:
+		_door_stuck_frames += 1
+		if _door_stuck_frames >= 6:
+			_clear_door_walk()
+			try_door_entry(actor)
+		return
+	_door_stuck_frames = 0
+	if stopped and dist > 72.0:
+		_clear_door_walk()
 
 
 func set_scene_changes_enabled(enabled: bool) -> void:
