@@ -213,6 +213,8 @@ func _apply_body_box() -> void:
 
 const IDLE_FRAME_MS: float = 150.0
 const IDLE_FRAME_COUNT: int = 12
+## Walk-matched idle. The older Imagine set stays in idle/ until it is retired.
+const IDLE_ART: String = "res://assets/art/keeper/idle_walkmatch"
 const IDLE_FALLBACK: Dictionary = {
 	"south": ["east", "west", "north"],
 	"north": ["south", "east", "west"],
@@ -265,7 +267,7 @@ func _build_frames() -> SpriteFrames:
 
 
 static func _idle_dir_has_frames(dir_name: String) -> bool:
-	var path := "res://assets/art/keeper/idle/%s/keeper_idle_%s_0001.png" % [dir_name, dir_name]
+	var path := "%s/%s/keeper_idle_%s_0001.png" % [IDLE_ART, dir_name, dir_name]
 	return ResourceLoader.exists(path)
 
 
@@ -290,7 +292,7 @@ func _idle_frame_paths(facing: String) -> Array:
 		var paths: Array = []
 		var complete := true
 		for i: int in range(1, IDLE_FRAME_COUNT + 1):
-			var path := "res://assets/art/keeper/idle/%s/keeper_idle_%s_%04d.png" % [dir_name, dir_name, i]
+			var path := "%s/%s/keeper_idle_%s_%04d.png" % [IDLE_ART, dir_name, dir_name, i]
 			if not ResourceLoader.exists(path):
 				complete = false
 				break
