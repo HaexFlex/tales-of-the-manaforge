@@ -1,7 +1,8 @@
 extends Control
 ## Debug preview of Keeper and Elaia. Clips come from their SpriteFrames.
 ##   godot --path . res://tools/AnimPreview.tscn
-## Export strips tools/, so a packed build does not contain this scene.
+## Windows Release / Stable strips tools/, so that pack does not contain this scene.
+## Windows Testing / Experimental keeps it. F9 opens it only on the testing path.
 
 const PREVIEW_SCALE: int = 2
 const FEET_Y: float = 478.0

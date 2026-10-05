@@ -1235,6 +1235,7 @@ func _content_keys() -> int:
 		"welcome_body_short", "wisp_node_shared_hint", "ascend_confirm", "ascend_confirm_essence_wipe",
 		"ascend_hint", "tree_water_ancient_block", "echo_01_intro", "echo_01_flee",
 		"ascend_frozen_button", "ascend_frozen_hint", "ascend_frozen_deny", "nav_to_forge",
+		"options_speedup_toggle", "options_speedup_toggle_hint", "options_debug_tools_toggle",
 		"nav_to_clearing", "load_autosave_header", "load_autosave_slot", "load_manual_header",
 		"title_continue_hint", "title_new_game_confirm", "pause_new_game_confirm",
 		"hud_sel_keeper", "hud_sel_wisp", "hud_sel_wisp_group", "hud_sel_plus_wisps",
