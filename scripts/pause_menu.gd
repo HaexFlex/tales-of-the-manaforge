@@ -140,7 +140,7 @@ func _ensure_speedup_toggle() -> void:
 		debug_box.position = Vector2(28, next_y)
 		debug_box.size = Vector2(464, 32)
 		debug_box.text = ContentStrings.get_text("options_debug_tools_toggle")
-		debug_box.tooltip_text = "F8"
+		debug_box.tooltip_text = "Ctrl+F8"
 		debug_box.button_pressed = AnimPreviewHotkey.debug_panel_open()
 		debug_box.toggled.connect(_on_debug_tools_toggled)
 		options_panel.add_child(debug_box)

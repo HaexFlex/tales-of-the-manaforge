@@ -1,5 +1,5 @@
 extends Node
-## F9 opens AnimPreview. F8 opens the debug panel.
+## F9 opens AnimPreview. Ctrl+F8 opens the debug panel. Bare F8 does nothing.
 ## Both stay on the testing path: the manaforge_debug feature, or an editor
 ## debug run. Windows Release / Stable sets manaforge_stable and strips the
 ## scenes, so neither key opens anything there.
@@ -71,9 +71,20 @@ func _input(event: InputEvent) -> void:
 
 
 func _is_panel_key(event: InputEvent) -> bool:
+	## Ctrl+F8 only. Bare F8 is the Godot editor's Stop shortcut, so it must not
+	## open the panel and must not be marked handled.
 	if not debug_panel_available():
 		return false
-	return _plain_key(event, KEY_F8)
+	if not (event is InputEventKey):
+		return false
+	var key: InputEventKey = event as InputEventKey
+	if not key.pressed or key.echo:
+		return false
+	if key.keycode != KEY_F8:
+		return false
+	if key.alt_pressed or key.meta_pressed:
+		return false
+	return key.ctrl_pressed
 
 
 func _is_preview_key(event: InputEvent) -> bool:
