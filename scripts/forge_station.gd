@@ -48,27 +48,38 @@ func _on_title_hover(inside: bool) -> void:
 
 
 func _ensure_walk_body() -> void:
-	## Walk collision is the bottom third of the sprite. The pick shape stays the larger click.
+	## Width is the opaque sprite, not the empty PNG canvas. Height and the
+	## upward extent stay the feet-box third of the full canvas. The pick shape
+	## on this Area2D is a different CollisionShape2D and is left alone.
 	if get_node_or_null("WalkBody") != null or sprite == null or sprite.texture == null:
 		return
-	var frame := Vector2(sprite.texture.get_width(), sprite.texture.get_height())
+	var tex: Texture2D = sprite.texture
+	var frame := Vector2(tex.get_width(), tex.get_height())
 	var sc: Vector2 = sprite.scale
 	var shown := Vector2(frame.x * absf(sc.x), frame.y * absf(sc.y))
-	var height: float = maxf(12.0, shown.y / 3.0)
-	var width: float = maxf(24.0, shown.x * 0.55)
-	var bottom: float = sprite.offset.y * sc.y + shown.y
+	var span_x: float = shown.x
+	var mid_px: float = frame.x * 0.5
+	var img: Image = tex.get_image()
+	if img != null:
+		if img.is_compressed():
+			img.decompress()
+		var used: Rect2i = img.get_used_rect()
+		if used.size.x >= 4:
+			span_x = float(used.size.x) * absf(sc.x)
+			mid_px = float(used.position.x) + float(used.size.x) * 0.5
+	var center_x: float = sprite.position.x + (sprite.offset.x + mid_px) * sc.x
+	var feet_y: float = sprite.offset.y * sc.y + shown.y
+	var box_h: float = maxf(8.0, shown.y * FeetBox.HEIGHT_RATIO)
 	var body := StaticBody2D.new()
 	body.name = "WalkBody"
 	body.collision_layer = 1
 	body.collision_mask = 0
 	body.input_pickable = false
 	var shape_node := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(width, height)
-	shape_node.shape = rect
-	shape_node.position = Vector2(sprite.position.x, bottom - height * 0.5)
+	shape_node.name = "CollisionShape2D"
 	body.add_child(shape_node)
 	add_child(body)
+	FeetBox.apply_size(shape_node, Vector2(maxf(8.0, span_x), box_h), Vector2(center_x, feet_y))
 
 
 func _walk_rect() -> Rect2:

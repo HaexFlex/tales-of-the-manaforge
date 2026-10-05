@@ -580,6 +580,8 @@
   "forge_elaia_footsteps": "Soft footsteps sound outside the Forge. Someone is waiting in the clearing.",
   "forge_elaia_footsteps_ok": "Go and see",
   "options_speedup_toggle": "Show speed-up button",
+  "options_speedup_toggle_hint": "Test only. Cycles 1× → 2× → 4× → 8× → 16×. Speeds harvest, growth, Ancient, crafting and Wisps. Turning the option off resets to 1×.",
+  "options_debug_tools_toggle": "Show debug tools",
   "hud_activity_idle": "Idle",
   "hud_activity_selected": "Selected",
   "hud_activity_harvest_wood": "Harvesting Wood…",

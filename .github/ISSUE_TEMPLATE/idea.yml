@@ -1,0 +1,24 @@
+name: Idea / feels off
+description: A thought, a wish, or something that just felt wrong.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A sentence or two is enough. There is no wrong way to say it.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What's on your mind?
+      description: An idea, a feeling, or something that felt off while you played.
+      placeholder: The clearing feels empty once the tree is grown.
+    validations:
+      required: true
+  - type: input
+    id: build
+    attributes:
+      label: Which build were you playing?
+      description: Optional. The zip name or the release tag, if you know it.
+      placeholder: playtest-2026-10-04-feedback-batch
+    validations:
+      required: false

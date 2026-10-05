@@ -18,6 +18,7 @@
 size = Vector2(150, 72)
 
 [node name="ForgeRoom" type="Node2D"]
+y_sort_enabled = true
 script = ExtResource("1_room")
 swirl_texture = ExtResource("11_swirl")
 
@@ -27,7 +28,7 @@ position = Vector2(800, 600)
 texture = ExtResource("2_plate")
 
 [node name="ArchFront" type="Sprite2D" parent="."]
-z_index = 2
+z_index = 10
 texture_filter = 1
 position = Vector2(800, 600)
 texture = ExtResource("13_arch")

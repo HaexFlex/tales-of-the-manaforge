@@ -51,6 +51,7 @@ var _audio_sliders_ready: bool = false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	add_to_group("pause_menu")
 	visible = false
 	backdrop.visible = false
 	panel.visible = false
@@ -117,21 +118,59 @@ func _ensure_speedup_toggle() -> void:
 		return
 	var box := CheckButton.new()
 	box.name = "SpeedupToggle"
-	box.position = Vector2(36, 248)
-	box.size = Vector2(440, 32)
+	box.position = Vector2(28, 248)
+	box.size = Vector2(464, 32)
 	box.text = ContentStrings.get_text("options_speedup_toggle")
 	box.button_pressed = GameAudio.use_speedup_button
 	box.toggled.connect(_on_speedup_toggled)
 	options_panel.add_child(box)
+	var hint := Label.new()
+	hint.name = "SpeedupHint"
+	hint.position = Vector2(36, 282)
+	hint.size = Vector2(448, 72)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.add_theme_font_size_override("font_size", 12)
+	hint.add_theme_color_override("font_color", Color(0.78, 0.86, 0.74, 1))
+	hint.text = ContentStrings.get_text("options_speedup_toggle_hint")
+	options_panel.add_child(hint)
+	var next_y: float = 360.0
+	if _debug_tools_available():
+		var debug_box := CheckButton.new()
+		debug_box.name = "DebugToolsToggle"
+		debug_box.position = Vector2(28, next_y)
+		debug_box.size = Vector2(464, 32)
+		debug_box.text = ContentStrings.get_text("options_debug_tools_toggle")
+		debug_box.tooltip_text = "Ctrl+F8"
+		debug_box.button_pressed = AnimPreviewHotkey.debug_panel_open()
+		debug_box.toggled.connect(_on_debug_tools_toggled)
+		options_panel.add_child(debug_box)
+		next_y += 40.0
 	if options_controls:
-		options_controls.position.y += 36.0
-	options_reset.position.y += 28.0
-	options_close.position.y += 28.0
-	options_panel.offset_bottom += 40.0
+		options_controls.position = Vector2(options_controls.position.x, next_y)
+		next_y += 84.0
+	options_reset.position = Vector2(options_reset.position.x, next_y)
+	options_close.position = Vector2(options_close.position.x, next_y)
+	options_panel.offset_bottom = -240.0 + next_y + 56.0
+
+
+func _debug_tools_available() -> bool:
+	return AnimPreviewHotkey.debug_panel_available()
 
 
 func _on_speedup_toggled(on: bool) -> void:
 	GameAudio.set_use_speedup_button(on)
+
+
+func _on_debug_tools_toggled(on: bool) -> void:
+	AnimPreviewHotkey.set_debug_panel(on)
+
+
+func sync_debug_toggle(open: bool) -> void:
+	if options_panel == null:
+		return
+	var box: CheckButton = options_panel.get_node_or_null("DebugToolsToggle") as CheckButton
+	if box:
+		box.set_pressed_no_signal(open)
 
 
 func open_load_standalone() -> void:

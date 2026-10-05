@@ -6,7 +6,6 @@ class_name EchoPortal
 const PORTAL_ART: String = "res://assets/art/props/echo_portal_hub_v2.png"
 ## Native 160×200, bottom-centre anchor (80, 200). Five empty rows sit above the arch.
 const PORTAL_OFFSET: Vector2 = Vector2(-80, -200)
-const WALK_SIZE: Vector2 = Vector2(120, 60)
 const ENTRY_OFFSET: Vector2 = Vector2(0, 50)
 
 @onready var marker: Sprite2D = $Visual/Marker
@@ -92,13 +91,13 @@ func _ensure_walk_body() -> void:
 	body.input_pickable = false
 	var shape_node := CollisionShape2D.new()
 	shape_node.name = "CollisionShape2D"
-	var rect := RectangleShape2D.new()
-	rect.size = WALK_SIZE
-	shape_node.shape = rect
-	## Base of the arch only, so the Keeper can walk up into the opening.
-	shape_node.position = Vector2(0, -WALK_SIZE.y * 0.5)
 	body.add_child(shape_node)
 	add_child(body)
+	var shown := Vector2(160, 200)
+	if marker != null and marker.texture != null:
+		shown = marker.texture.get_size() * Vector2(absf(marker.scale.x), absf(marker.scale.y))
+	## Base of the arch only, so the Keeper can walk up into the opening.
+	FeetBox.apply(shape_node, shown, Vector2.ZERO)
 
 
 func _process(delta: float) -> void:

@@ -328,22 +328,30 @@ func list_unequipped() -> Array[Dictionary]:
 	return out
 
 
-## Bag plus anything worn by the other character, so this sheet can take it.
+## Bag rows this character can wear. The other doll's kit stays off this sheet.
 func list_for_sheet(actor: String) -> Array[Dictionary]:
-	var counts: Dictionary = {}
-	for inst: Dictionary in list_unequipped():
-		counts[str(inst.get("id", ""))] = int(inst.get("count", 0))
-	var other: String = _other_actor(actor)
-	for slot_id: StringName in SLOT_ORDER:
-		var iid: String = equipped_id_for(other, String(slot_id))
-		if iid != "" and is_known_item(iid):
-			counts[iid] = int(counts.get(iid, 0)) + 1
 	var out: Array[Dictionary] = []
-	for key: Variant in counts.keys():
-		var n: int = int(counts[key])
-		if n > 0:
-			out.append({"id": str(key), "count": n})
+	for inst: Dictionary in list_unequipped():
+		var iid: String = str(inst.get("id", ""))
+		var n: int = int(inst.get("count", 0))
+		if n > 0 and usable_by(iid, actor):
+			out.append({"id": iid, "count": n})
 	return out
+
+
+## Empty users means either character. Gear items set this explicitly.
+func usable_by(item_id: String, actor: String) -> bool:
+	var raw: Variant = get_item_def(item_id).get("users", [])
+	if typeof(raw) != TYPE_ARRAY:
+		return true
+	var users: Array = raw
+	if users.is_empty():
+		return true
+	var who: String = _normalize_actor(actor)
+	for entry: Variant in users:
+		if str(entry) == who:
+			return true
+	return false
 
 
 func _item_bonus(item_id: String, stat_id: String) -> int:
@@ -403,6 +411,8 @@ func try_equip_to_slot(item_id: String, slot_id: String, actor: String = "keeper
 	if not item_fits_slot(item_id, sid):
 		return "wrong_slot"
 	var who: String = _normalize_actor(actor)
+	if not usable_by(item_id, who):
+		return "wrong_user"
 	var doll: Dictionary = _doll(who)
 	var took: bool = _take_for_equip(who, doll, sid, item_id)
 	if not took:

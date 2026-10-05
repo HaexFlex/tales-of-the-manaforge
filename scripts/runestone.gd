@@ -73,12 +73,9 @@ func _ensure_walk_body() -> void:
 	body.collision_mask = 0
 	body.input_pickable = false
 	var shape_node := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(28, 16)
-	shape_node.shape = rect
-	shape_node.position = Vector2(0, -8)
 	body.add_child(shape_node)
 	add_child(body)
+	FeetBox.apply(shape_node, Vector2(RUNE_CELL, RUNE_CELL), Vector2.ZERO)
 
 
 ## Column, row on the 8×8 runestone sheet. Chosen from separate silhouette groups.

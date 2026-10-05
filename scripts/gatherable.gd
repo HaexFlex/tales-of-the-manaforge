@@ -135,23 +135,15 @@ func _apply_trunk(vis: Vector2) -> void:
 	if not use_trunk:
 		return
 	var width_ratio: float = trunk_width_ratio
-	var height_ratio: float = trunk_height_ratio
 	if node_key == "stone":
 		width_ratio = 0.42
-		height_ratio = 0.22
 	elif node_key == "food":
 		width_ratio = 0.46
-		height_ratio = 0.2
-	var trunk_size := Vector2(
-		maxf(18.0, vis.x * width_ratio),
-		maxf(12.0, vis.y * height_ratio)
-	)
-	var rect := RectangleShape2D.new()
-	if shape_node.shape is RectangleShape2D:
-		rect = (shape_node.shape as RectangleShape2D).duplicate() as RectangleShape2D
-	rect.size = trunk_size
-	shape_node.shape = rect
-	shape_node.position = Vector2(0, -trunk_size.y * 0.5)
+	## Trunk width stays the solid base. Height is the feet third of the sprite.
+	var trunk_size := Vector2(maxf(18.0, vis.x * width_ratio), vis.y)
+	trunk_size = FeetBox.size_for(trunk_size)
+	trunk_size.x = maxf(18.0, vis.x * width_ratio)
+	FeetBox.apply_size(shape_node, trunk_size, Vector2.ZERO)
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:

@@ -1,0 +1,86 @@
+name: Bug report
+description: Something went wrong while you were playing.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for telling us. Plain words are perfect. You do not need to know how the game is built.
+  - type: input
+    id: build
+    attributes:
+      label: Which build were you playing?
+      description: The name on the download, if you have it. Look at the zip name or the Releases page.
+      placeholder: playtest-2026-10-04-feedback-batch
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you see or hear?
+      placeholder: I clicked the tree and the Keeper walked into the forest and got stuck.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: What did you think would happen instead?
+      placeholder: The Keeper should have stopped at the tree and started gathering.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we see it too?
+      description: The clicks you made, in order. Short is fine.
+      placeholder: |
+        1. New Game
+        2. Walk to the stone
+        3. Click it
+    validations:
+      required: true
+  - type: dropdown
+    id: tree-stage
+    attributes:
+      label: How far had the Manatree grown?
+      description: Whatever stage you remember. Not sure is fine.
+      options:
+        - Not sure
+        - Sapling
+        - Young
+        - Mature
+        - Elder
+        - Ancient
+    validations:
+      required: false
+  - type: dropdown
+    id: forge-visited
+    attributes:
+      label: Had you been inside the Forge?
+      description: Yes, no, or not sure.
+      options:
+        - Not sure
+        - "No"
+        - "Yes"
+    validations:
+      required: false
+  - type: dropdown
+    id: elaia-joined
+    attributes:
+      label: Had Elaia joined you?
+      description: Yes, no, or not sure.
+      options:
+        - Not sure
+        - "No"
+        - "Yes"
+    validations:
+      required: false
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot
+      description: Drag a picture into this box, or paste one. Optional, and very helpful.
+    validations:
+      required: false

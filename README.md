@@ -47,4 +47,6 @@ Built with [Godot 4](https://godotengine.org/).
 
 ---
 
-<sub>Developer notes (run, headless verify, assets workflow) live in [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md).</sub>
+<sub>Developer notes (run, headless verify, regression tests, animation preview, assets workflow) live in [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md).</sub>
+
+Debug animation preview: `godot --path . res://tools/AnimPreview.tscn` (or F9 in a testing build). Testing builds also open the debug panel with Ctrl+F8. The two Windows export presets (Experimental with debug tools, Stable with them stripped) are in [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md).

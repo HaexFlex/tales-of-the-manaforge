@@ -5,12 +5,12 @@ class_name CharacterSheet
 
 signal close_requested
 
-const PORTRAIT_PATH: String = "res://assets/art/keeper/idle/south/keeper_idle_south_0001.png"
+const PORTRAIT_PATH: String = "res://assets/art/keeper/stills/keeper_still_south_frame0.png"
 const WISP_PORTRAIT_PATH: String = "res://assets/art/wisps/wisp_portrait.png"
 ## HUD party slots. 52×52, drawn 1:1. companions.json points at these.
 const KEEPER_PARTY_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_portrait.png"
 const ELAIA_PARTY_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_portrait.png"
-## 160×160 busts. Header icon only. The sheet figure stays the idle-south frame.
+## 160×160 busts. Header icon only. The sheet figure is idle v4 south, frame 0.
 const KEEPER_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_portrait_sheet.png"
 const ELAIA_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_portrait_sheet.png"
 const SHEET_SIZE: Vector2 = Vector2(1272, 716)

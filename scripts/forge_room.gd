@@ -26,6 +26,8 @@ var _dest_station: String = ""
 var _station_actor: String = ""
 var _panel_station: String = ""
 var _leaving: bool = false
+## body_entered during _ready is the spawn overlap, not a step through the door.
+var _exit_primed: bool = false
 var _drag_active: bool = false
 var _drag_from: Vector2 = Vector2.ZERO
 var _marquee: Line2D
@@ -47,6 +49,7 @@ func _ready() -> void:
 		elaia.arrived.connect(_on_elaia_arrived)
 	if exit_area and not exit_area.body_entered.is_connected(_on_exit_body):
 		exit_area.body_entered.connect(_on_exit_body)
+	call_deferred("_prime_exit")
 	if pause_menu:
 		pause_menu.set("suppress_pause_hotkey", true)
 	if hud and hud.has_method("bind_pause_menu") and pause_menu:
@@ -293,7 +296,13 @@ func _finish_marquee(world_pos: Vector2) -> void:
 	GameState.select_group(picked, keeper_in)
 
 
+func _prime_exit() -> void:
+	_exit_primed = true
+
+
 func _on_exit_body(body: Node2D) -> void:
+	if not _exit_primed:
+		return
 	if body == null or not body.has_method("actor_id"):
 		return
 	var actor: String = str(body.call("actor_id"))
@@ -306,6 +315,8 @@ func _on_exit_body(body: Node2D) -> void:
 	_leaving = true
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.commit_actor_exit(actor)
+		if not ForgeJobs.scene_change_pending():
+			_leaving = false
 		return
 	_leave()
 

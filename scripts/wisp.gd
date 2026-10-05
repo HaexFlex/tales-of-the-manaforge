@@ -18,7 +18,11 @@ const FLY_MIN_SEC: float = 0.12
 const FLY_MAX_SEC: float = 1.15
 const ARRIVE_DIST: float = 10.0
 const TARGET_CHEST_OFFSET: Vector2 = Vector2(0, -48)
-const KEEPER_CHEST_OFFSET: Vector2 = Vector2(0, -48)
+## South still: offset (-64, -128), arm span starts at texture row 72.
+## That row is local y -56 on the feet origin. Both rings sit on that line.
+const KEEPER_SHOULDER_OFFSET: Vector2 = Vector2(0, -56)
+## Was five sprite heights (-160). The ring now matches the shoulder line above.
+const HOVER_LIFT: float = -56.0
 
 enum MotionKind { KEEPER_ORBIT, FLY, NODE_ORBIT }
 
@@ -254,7 +258,7 @@ func _tick_keeper_orbit(delta: float) -> void:
 	var angle: float = _orbit_angle + slot
 	var bob: float = sin(_bob_t * 2.8 + float(wisp_id)) * 3.0
 	var offset := Vector2(cos(angle), sin(angle) * 0.55) * KEEPER_ORBIT_RADIUS
-	global_position = k.global_position + KEEPER_CHEST_OFFSET + offset + Vector2(0, bob)
+	global_position = k.global_position + KEEPER_SHOULDER_OFFSET + offset + Vector2(0, bob)
 
 
 func _shared_orbit_angle(node_id: String) -> float:
@@ -275,7 +279,7 @@ func _tick_node_orbit(node_id: String, _delta: float) -> void:
 	## One bob for the whole ring so the spacing stays even.
 	var bob: float = sin(_bob_t * 2.8) * 2.0
 	var offset := Vector2(cos(angle), sin(angle)) * r
-	global_position = _orbit_anchor + offset + Vector2(0, bob)
+	global_position = _orbit_anchor + offset + Vector2(0, bob) + Vector2(0, HOVER_LIFT)
 	## Back half (above the trunk on screen) draws behind the target. Front half draws in front.
 	z_index = -1 if sin(angle) < 0.0 else 1
 	_at_assigned_orbit = true
@@ -295,7 +299,7 @@ func _slot_around(center: Vector2, radius: float) -> Vector2:
 	var angle: float = _shared_orbit_angle(assigned) if assigned != "" else _even_slot_angle()
 	var bob: float = sin(_bob_t * 2.8) * 2.0
 	var offset := Vector2(cos(angle), sin(angle)) * radius
-	return center + offset + Vector2(0, bob)
+	return center + offset + Vector2(0, bob) + Vector2(0, HOVER_LIFT)
 
 
 func _keeper_slot_pos() -> Vector2:
@@ -305,7 +309,7 @@ func _keeper_slot_pos() -> Vector2:
 	var k: Node2D = keepers[0] as Node2D
 	var angle: float = _orbit_angle + _even_slot_angle()
 	var offset := Vector2(cos(angle), sin(angle) * 0.55) * KEEPER_ORBIT_RADIUS
-	return k.global_position + KEEPER_CHEST_OFFSET + offset
+	return k.global_position + KEEPER_SHOULDER_OFFSET + offset
 
 
 func _begin_fly_to(dest: Vector2) -> void:

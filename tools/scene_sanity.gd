@@ -277,9 +277,9 @@ func _weapons() -> int:
 	game.call("set_resource", &"food", 20)
 	failed += _check(bool(gear.call("grant_item", "weapon_rod")), "grant rod")
 	failed += _check(str(gear.call("try_craft", "sapstaff")) == "ok", "craft sapstaff")
-	failed += _check(str(gear.call("try_equip", "sapstaff")) == "ok", "equip sapstaff")
-	failed += _check(str(gear.call("equipped_strike_kind")) == "magical", "equipped magical")
-	failed += _check(int(gear.call("gear_bonus", "arcana")) == 2, "equipped arcana")
+	failed += _check(str(gear.call("try_equip", "sapstaff")) == "wrong_user", "keeper cannot wear sapstaff")
+	failed += _check(str(gear.call("try_equip", "sapstaff", "elaia")) == "ok", "elaia equips sapstaff")
+	failed += _check(int(gear.call("gear_bonus_for", "elaia", "arcana")) == 2, "elaia equipped arcana")
 	failed += _check(str(gear.call("try_craft", "thornbow")) == "ok", "craft thornbow")
 	failed += _check(str(gear.call("try_equip", "thornbow")) == "ok", "equip thornbow")
 	failed += _check(str(gear.call("equipped_strike_kind")) == "hybrid", "equipped hybrid")
@@ -588,6 +588,8 @@ func _scene_exit_audit() -> int:
 	var echo_src: String = FileAccess.get_file_as_string("res://scripts/autoload/echo_chamber.gd")
 	var forge_ok: bool = forge_src.find("boot_intent = \"forge_return\"") >= 0 and forge_src.find("change_scene_to_file(HUB_SCENE)") >= 0
 	var echo_ok: bool = echo_src.find("change_scene") < 0
+	## Reads .gd source. A release pck ships compiled scripts, so this scan cannot
+	## run against the pack. Packed builds cover this path with SCENE_TRANSITIONS_OK.
 	failed += _check(title_callers.has("pause_menu.gd"), "pause menu can reach the title")
 	failed += _check(forge_ok, "forge exit returns to the hub")
 	failed += _check(echo_ok, "echo battle stays an overlay")
@@ -1139,10 +1141,11 @@ func _spot_hits(live: Node, pos: Vector2, target: Node) -> bool:
 	if space == null:
 		return true
 	var shape := RectangleShape2D.new()
-	shape.size = Vector2(36, 48)
+	var box: Vector2 = FeetBox.actor_box("keeper")
+	shape.size = box
 	var params := PhysicsShapeQueryParameters2D.new()
 	params.shape = shape
-	params.transform = Transform2D(0.0, pos + Vector2(0, -24))
+	params.transform = Transform2D(0.0, pos + Vector2(0.0, -box.y * 0.5))
 	params.collision_mask = 1
 	params.collide_with_areas = false
 	params.collide_with_bodies = true
@@ -1233,6 +1236,7 @@ func _content_keys() -> int:
 		"welcome_body_short", "wisp_node_shared_hint", "ascend_confirm", "ascend_confirm_essence_wipe",
 		"ascend_hint", "tree_water_ancient_block", "echo_01_intro", "echo_01_flee",
 		"ascend_frozen_button", "ascend_frozen_hint", "ascend_frozen_deny", "nav_to_forge",
+		"options_speedup_toggle", "options_speedup_toggle_hint", "options_debug_tools_toggle",
 		"nav_to_clearing", "load_autosave_header", "load_autosave_slot", "load_manual_header",
 		"title_continue_hint", "title_new_game_confirm", "pause_new_game_confirm",
 		"hud_sel_keeper", "hud_sel_wisp", "hud_sel_wisp_group", "hud_sel_plus_wisps",

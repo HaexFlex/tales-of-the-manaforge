@@ -310,6 +310,9 @@ Warm + lightly melancholic. Options is a stub until later.
 | `options_audio_back` | Back |
 | `options_audio_hint` | Soften the forest, or let it sing. |
 | `options_audio_reset` | Reset |
+| `options_speedup_toggle` | Show speed-up button |
+| `options_speedup_toggle_hint` | Test only. Cycles 1× → 2× → 4× → 8× → 16×. Speeds harvest, growth, Ancient, crafting and Wisps. Turning the option off resets to 1×. |
+| `options_debug_tools_toggle` | Show debug tools |
 | `options_music_volume_full` | Music volume |
 | `options_sfx_volume_full` | SFX volume |
 | `pause_exit` | Exit |

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Download a playtest build
+    url: https://github.com/HaexFlex/tales-of-the-manaforge/releases
+    about: Windows builds live on the Releases page. Unpack the zip and play.
