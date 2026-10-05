@@ -41,6 +41,8 @@ var _battle: EchoBattle
 @onready var _spare: Button = $SpareButton
 @onready var _return_btn: Button = $ReturnButton
 @onready var _arrow: Button = $ArrowToggle
+var _salve: Button
+var _bile: Button
 var _mercy_shown: bool = false
 var _waiting_return: bool = false
 var _pending_outcome: String = ""
@@ -57,6 +59,7 @@ func _ready() -> void:
 		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 50
+	_ensure_potion_buttons()
 	_apply_button_copy()
 	_bind()
 
@@ -84,6 +87,14 @@ func _elaia_holds_key() -> bool:
 func _apply_elaia_portrait() -> void:
 	if _echo_portrait == null:
 		return
+	if _battle != null and _battle.echo_id == "echo_corvane" and ResourceLoader.exists(Adventure.ART_CORVANE_BATTLE):
+		var corvane_tex: Texture2D = load(Adventure.ART_CORVANE_BATTLE) as Texture2D
+		if corvane_tex:
+			_echo_portrait.texture = corvane_tex
+			_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			return
 	var path: String = ELAIA_KEY if _elaia_holds_key() else ELAIA_IDLE
 	var tex: Texture2D = load(path) as Texture2D
 	if tex:
@@ -234,7 +245,15 @@ func log_top() -> float:
 
 
 func _enemy_name() -> String:
+	if _battle != null and _battle.echo_name != "":
+		return _battle.echo_name
 	return EchoChamber.echo_display_name()
+
+
+func _battle_context() -> String:
+	if not has_node("/root/EchoChamber"):
+		return ""
+	return str(EchoChamber.battle_context)
 
 
 func _apply_button_copy() -> void:
@@ -272,6 +291,15 @@ func _bind() -> void:
 
 
 func _show_opening() -> void:
+	var ctx: String = _battle_context()
+	if ctx == "echo2":
+		_speech.text = ContentStrings.get_text("echo_02_return" if EchoChamber.reentry else "echo_02_intro")
+		_set_mercy_visible(false)
+		return
+	if ctx == "manual":
+		_speech.text = ContentStrings.get_text("adventure_manual_intro")
+		_set_mercy_visible(false)
+		return
 	if EchoChamber.reentry:
 		_speech.text = ContentStrings.get_text("echo_01_return")
 	elif not GameState.echo_01_narrator_heard:
@@ -287,7 +315,10 @@ func _show_opening() -> void:
 
 func _show_mercy() -> void:
 	_mercy_shown = true
-	_speech.text = ContentStrings.get_text("echo_01_mercy")
+	var key: String = "echo_02_mercy" if _battle_context() == "echo2" else "echo_01_mercy"
+	if _battle_context() == "manual":
+		key = "adventure_manual_intro"
+	_speech.text = ContentStrings.get_text(key)
 	_set_mercy_visible(true)
 
 
@@ -322,12 +353,30 @@ func _on_arrow() -> void:
 	_refresh_log()
 
 
+func _on_salve() -> void:
+	_choose("salve")
+
+
+func _on_bile() -> void:
+	_choose("bile")
+
+
 func _choose(action: String) -> void:
 	if _battle == null or _waiting_return:
 		return
+	if action == "salve" and (not has_node("/root/Adventure") or Adventure.potion_count("heart_salve") <= 0):
+		return
+	if action == "bile" and (not has_node("/root/Adventure") or Adventure.potion_count("bile_vial") <= 0):
+		return
 	GameAudio.play_ui_confirm()
 	var before_echo: int = _battle.echo_hp
+	_battle.last_item_used = ""
 	_battle.choose(action)
+	if _battle != null and has_node("/root/Adventure"):
+		if _battle.last_item_used == "salve":
+			Adventure.spend_potion("heart_salve")
+		elif _battle.last_item_used == "bile":
+			Adventure.spend_potion("bile_vial")
 	var outcome: String = _battle.outcome
 	if action == "strike" and _battle.last_keeper_damage == 0 and before_echo == _battle.echo_hp and outcome == "":
 		_speech.text = ContentStrings.get_text("battle_log_fists")
@@ -361,12 +410,28 @@ func _offer_return(outcome: String) -> void:
 	_spare.visible = false
 	if _arrow:
 		_arrow.visible = false
+	if _salve:
+		_salve.visible = false
+	if _bile:
+		_bile.visible = false
 	_return_btn.visible = true
 	if _log:
 		_log.text = _pending_toast
 
 
 func _flavour_for_outcome(outcome: String) -> String:
+	var ctx: String = _battle_context()
+	if ctx == "echo2":
+		match outcome:
+			"flee":
+				return ContentStrings.get_text("echo_02_flee")
+			"spare":
+				return ContentStrings.get_text("echo_02_spare")
+			"defeat":
+				return ContentStrings.get_text("echo_02_defeat")
+		return ""
+	if ctx == "manual":
+		return ContentStrings.get_text("adventure_manual_intro")
 	match outcome:
 		"flee":
 			return ContentStrings.get_text("echo_01_flee")
@@ -378,6 +443,21 @@ func _flavour_for_outcome(outcome: String) -> String:
 
 
 func _outcome_toast(outcome: String) -> String:
+	var ctx: String = _battle_context()
+	if ctx == "echo2":
+		if outcome == "spare":
+			return ContentStrings.get_text("adventure_echo2_toast_spare")
+		if outcome == "defeat":
+			return ContentStrings.get_text("adventure_echo2_toast_defeat")
+		if outcome == "flee":
+			return ContentStrings.get_text("echo_02_flee")
+		return ""
+	if ctx == "manual":
+		if outcome == "spare" or outcome == "defeat":
+			return ContentStrings.get_text("adventure_manual_win")
+		if outcome == "ko":
+			return ContentStrings.get_text("adventure_manual_fail")
+		return ContentStrings.get_text("adventure_cancelled")
 	var enemy: String = _enemy_name()
 	var parts: PackedStringArray = PackedStringArray()
 	match outcome:
@@ -418,6 +498,7 @@ func _refresh_actions() -> void:
 	_return_btn.visible = false
 	if _strike:
 		_strike.text = ContentStrings.get_text("battle_strike")
+	_refresh_potion_buttons()
 	if _arrow:
 		var hybrid: bool = _battle.strike_kind == "hybrid" and _battle.outcome == ""
 		_arrow.visible = hybrid
@@ -425,6 +506,39 @@ func _refresh_actions() -> void:
 			var magical: bool = _battle.arrow_mode == "magical"
 			_arrow.text = ContentStrings.get_text("battle_toggle_mag" if magical else "battle_toggle_phys")
 			_arrow.tooltip_text = ContentStrings.get_text("battle_mode_hint")
+
+
+func _ensure_potion_buttons() -> void:
+	if _salve != null:
+		return
+	_salve = Button.new()
+	_salve.name = "SalveButton"
+	_salve.position = Vector2(984, 636)
+	_salve.size = Vector2(130, 40)
+	_salve.focus_mode = Control.FOCUS_NONE
+	_salve.visible = false
+	_salve.pressed.connect(_on_salve)
+	add_child(_salve)
+	_bile = Button.new()
+	_bile.name = "BileButton"
+	_bile.position = Vector2(1124, 636)
+	_bile.size = Vector2(130, 40)
+	_bile.focus_mode = Control.FOCUS_NONE
+	_bile.visible = false
+	_bile.pressed.connect(_on_bile)
+	add_child(_bile)
+
+
+func _refresh_potion_buttons() -> void:
+	if _salve == null or _bile == null:
+		return
+	var fighting: bool = _battle != null and _battle.outcome == "" and not _waiting_return
+	var salves: int = Adventure.potion_count("heart_salve") if has_node("/root/Adventure") else 0
+	var biles: int = Adventure.potion_count("bile_vial") if has_node("/root/Adventure") else 0
+	_salve.visible = fighting and salves > 0
+	_bile.visible = fighting and biles > 0
+	_salve.text = "%s %d" % [ContentStrings.get_text("battle_salve"), salves]
+	_bile.text = "%s %d" % [ContentStrings.get_text("battle_bile"), biles]
 
 
 func _refresh_bars(flash: bool) -> void:

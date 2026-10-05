@@ -121,6 +121,8 @@ func _ready() -> void:
 	hud.maybe_show_welcome()
 	if hud.has_method("maybe_show_elaia_join"):
 		hud.call("maybe_show_elaia_join")
+	if has_node("/root/Adventure"):
+		Adventure.attach_brewing_stand(world)
 
 
 func _load_hub_map() -> void:
