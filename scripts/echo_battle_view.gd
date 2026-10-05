@@ -1,7 +1,7 @@
 @tool
 extends CanvasLayer
 class_name EchoBattleView
-## Separate battle surface. Big Keeper idle (same sheet frame) left; Elaia front right.
+## Separate battle surface. Keeper stands on idle v4 east frame 0; Elaia front right.
 ## Flavour text box sits between the portraits and above the battle log.
 
 const PORTRAIT: Vector2 = Vector2(384, 384)

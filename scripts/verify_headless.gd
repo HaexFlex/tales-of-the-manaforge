@@ -2182,7 +2182,7 @@ func _run() -> void:
 		failed += _assert(bool(sheet_hud.call("is_character_open")), "character sheet opens")
 		var portrait: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Portrait") as TextureRect
 		failed += _assert(portrait != null and portrait.texture != null, "keeper portrait")
-		failed += _assert(portrait != null and str(portrait.texture.resource_path).find("keeper/idle/south") >= 0, "portrait uses the new south idle")
+		failed += _assert(portrait != null and str(portrait.texture.resource_path).find("keeper_still_south_frame0") >= 0, "portrait uses the v4 south still")
 		var weapon_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon")
 		var relic_slot: Node = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic")
 		var relic_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
