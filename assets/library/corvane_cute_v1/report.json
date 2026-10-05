@@ -1,0 +1,26 @@
+{
+  "size": [
+    128,
+    128
+  ],
+  "bbox": [
+    40,
+    8,
+    87,
+    123
+  ],
+  "height": 116,
+  "feet_cx": 64.7,
+  "sole_y": 123,
+  "colours": 37,
+  "alpha": [
+    0,
+    255
+  ],
+  "clear_rgb0": true,
+  "magenta": 0,
+  "pinkish": 0,
+  "facing": "west (left)",
+  "source": "imagine/out/corvane_battle_cute_v1_a.png",
+  "note": "Imagine native ~21\u00d785 cells (~29px @116h); scaled to 48\u00d7116 to sit next to Keeper (~45 wide). Soft cute palette."
+}
