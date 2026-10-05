@@ -19,6 +19,8 @@ const FLY_MAX_SEC: float = 1.15
 const ARRIVE_DIST: float = 10.0
 const TARGET_CHEST_OFFSET: Vector2 = Vector2(0, -48)
 const KEEPER_CHEST_OFFSET: Vector2 = Vector2(0, -48)
+## Node-orbit ring sits five sprite heights above the floor. Art is 32×32.
+const HOVER_LIFT: float = -160.0
 
 enum MotionKind { KEEPER_ORBIT, FLY, NODE_ORBIT }
 
@@ -275,7 +277,7 @@ func _tick_node_orbit(node_id: String, _delta: float) -> void:
 	## One bob for the whole ring so the spacing stays even.
 	var bob: float = sin(_bob_t * 2.8) * 2.0
 	var offset := Vector2(cos(angle), sin(angle)) * r
-	global_position = _orbit_anchor + offset + Vector2(0, bob)
+	global_position = _orbit_anchor + offset + Vector2(0, bob) + Vector2(0, HOVER_LIFT)
 	## Back half (above the trunk on screen) draws behind the target. Front half draws in front.
 	z_index = -1 if sin(angle) < 0.0 else 1
 	_at_assigned_orbit = true
@@ -295,7 +297,7 @@ func _slot_around(center: Vector2, radius: float) -> Vector2:
 	var angle: float = _shared_orbit_angle(assigned) if assigned != "" else _even_slot_angle()
 	var bob: float = sin(_bob_t * 2.8) * 2.0
 	var offset := Vector2(cos(angle), sin(angle)) * radius
-	return center + offset + Vector2(0, bob)
+	return center + offset + Vector2(0, bob) + Vector2(0, HOVER_LIFT)
 
 
 func _keeper_slot_pos() -> Vector2:
