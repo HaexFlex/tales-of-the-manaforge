@@ -28,11 +28,9 @@ const SCRAPE_RATIO: float = 0.75
 const IDLE_DAMAGE_SUCCESS: int = 8
 const IDLE_DAMAGE_SCRAPE: int = 22
 const IDLE_DAMAGE_FAIL: int = 36
-const FORGE_WEAPONS: PackedStringArray = PackedStringArray([
-	"rootsteel_edge", "heartwand", "switchshaft",
-])
-const RAW_IDS: PackedStringArray = PackedStringArray(["wood", "stone", "food"])
-const RAW_WEIGHTS: PackedInt32Array = PackedInt32Array([1, 1, 1])
+const FORGE_WEAPONS: PackedStringArray = ["rootsteel_edge", "heartwand", "switchshaft"]
+const RAW_IDS: PackedStringArray = ["wood", "stone", "food"]
+const RAW_WEIGHTS: PackedInt32Array = [1, 1, 1]
 const ART_CORVANE_PORTRAIT: String = "res://assets/art/portraits/corvane_portrait.png"
 const ART_CORVANE_SHEET: String = "res://assets/art/portraits/corvane_portrait_sheet.png"
 const ART_CORVANE_BATTLE: String = "res://assets/art/echo/battle_corvane_idle.png"
