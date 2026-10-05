@@ -198,8 +198,17 @@ func _ready() -> void:
 		click_area.add_to_group("interactable")
 	GameState.selection_changed.connect(_on_selection_changed)
 	_on_selection_changed()
+	_apply_body_box()
 	if actor_id() == "keeper":
 		apply_keeper_presence()
+
+
+func _apply_body_box() -> void:
+	## Feet only: the visible figure, not the empty 128 canvas around it.
+	var shape_node := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if shape_node == null:
+		return
+	FeetBox.apply(shape_node, FeetBox.actor_sprite(actor_id()))
 
 
 const IDLE_FRAME_MS: float = 150.0
@@ -1007,10 +1016,11 @@ func _spot_blocked(pos: Vector2, target: Node) -> bool:
 	if space == null:
 		return false
 	var shape := RectangleShape2D.new()
-	shape.size = Vector2(36, 48)
+	var box: Vector2 = FeetBox.actor_box(actor_id())
+	shape.size = box
 	var params := PhysicsShapeQueryParameters2D.new()
 	params.shape = shape
-	params.transform = Transform2D(0.0, pos + Vector2(0, -24))
+	params.transform = Transform2D(0.0, pos + Vector2(0.0, -box.y * 0.5))
 	params.collision_mask = 1
 	params.collide_with_areas = false
 	params.collide_with_bodies = true

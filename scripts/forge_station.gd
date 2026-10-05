@@ -48,27 +48,22 @@ func _on_title_hover(inside: bool) -> void:
 
 
 func _ensure_walk_body() -> void:
-	## Walk collision is the bottom third of the sprite. The pick shape stays the larger click.
+	## Feet box of the whole station sprite. The pick shape stays the larger click.
 	if get_node_or_null("WalkBody") != null or sprite == null or sprite.texture == null:
 		return
 	var frame := Vector2(sprite.texture.get_width(), sprite.texture.get_height())
 	var sc: Vector2 = sprite.scale
 	var shown := Vector2(frame.x * absf(sc.x), frame.y * absf(sc.y))
-	var height: float = maxf(12.0, shown.y / 3.0)
-	var width: float = maxf(24.0, shown.x * 0.55)
-	var bottom: float = sprite.offset.y * sc.y + shown.y
+	var feet := Vector2(sprite.position.x + sprite.offset.x * sc.x + shown.x * 0.5, sprite.offset.y * sc.y + shown.y)
 	var body := StaticBody2D.new()
 	body.name = "WalkBody"
 	body.collision_layer = 1
 	body.collision_mask = 0
 	body.input_pickable = false
 	var shape_node := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = Vector2(width, height)
-	shape_node.shape = rect
-	shape_node.position = Vector2(sprite.position.x, bottom - height * 0.5)
 	body.add_child(shape_node)
 	add_child(body)
+	FeetBox.apply(shape_node, shown, feet)
 
 
 func _walk_rect() -> Rect2:

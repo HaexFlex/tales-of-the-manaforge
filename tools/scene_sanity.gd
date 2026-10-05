@@ -1141,10 +1141,11 @@ func _spot_hits(live: Node, pos: Vector2, target: Node) -> bool:
 	if space == null:
 		return true
 	var shape := RectangleShape2D.new()
-	shape.size = Vector2(36, 48)
+	var box: Vector2 = FeetBox.actor_box("keeper")
+	shape.size = box
 	var params := PhysicsShapeQueryParameters2D.new()
 	params.shape = shape
-	params.transform = Transform2D(0.0, pos + Vector2(0, -24))
+	params.transform = Transform2D(0.0, pos + Vector2(0.0, -box.y * 0.5))
 	params.collision_mask = 1
 	params.collide_with_areas = false
 	params.collide_with_bodies = true

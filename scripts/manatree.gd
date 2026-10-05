@@ -377,10 +377,10 @@ const VEIN_EXTENT: Dictionary = {
 	"elder": Vector2(200, 400), "ancient": Vector2(200, 410),
 }
 const VEIN_TEX: String = "res://assets/art/fx/fx_vein_mote_strip.png"
-## Body is 48 wide. The cutout is wider than that so the sill at local y=8 stays walkable.
+## Wider than the Keeper's feet box (48) so the sill at local y=8 stays walkable.
 const DOOR_HALF_W: float = 32.0
-## Feet at the sill put the body top near local y=-56. Collision above this line can be solid.
-const DOOR_CLEAR_Y: float = -64.0
+## Below this line the door corridor is open. Collision never continues south of the sill.
+const DOOR_CLEAR_Y: float = -48.0
 var _door_latched: bool = false
 
 
@@ -453,41 +453,6 @@ func _opaque_local_rect() -> Rect2:
 	return Rect2(local_pos, local_size)
 
 
-func _root_band_local(stage: String) -> Rect2:
-	## Roots sit on the sill. The canopy is wider and must not become walk collision.
-	var door: Vector2 = door_floor_px(StringName(stage))
-	var sz: Vector2 = TRUNK_SIZE.get(stage, Vector2(28, 40))
-	var fallback := Rect2(-sz.x * 0.9, -8.0, sz.x * 1.8, 18.0)
-	if sprite == null or sprite.texture == null:
-		return fallback
-	var tex: Texture2D = sprite.texture
-	var img: Image = tex.get_image()
-	if img == null:
-		return fallback
-	var frame_w: int = int(tex.get_width() / maxi(sprite.hframes, 1))
-	var frame_h: int = int(tex.get_height() / maxi(sprite.vframes, 1))
-	var y0: int = clampi(int(door.y) - 16, 0, maxi(frame_h - 1, 0))
-	var origin_x: int = sprite.frame * frame_w
-	var min_x: int = frame_w
-	var min_y: int = frame_h
-	var max_x: int = 0
-	var max_y: int = 0
-	var found: bool = false
-	for py: int in range(y0, frame_h, 2):
-		for px: int in range(0, frame_w, 2):
-			if img.get_pixel(origin_x + px, py).a <= 0.12:
-				continue
-			found = true
-			min_x = mini(min_x, px)
-			min_y = mini(min_y, py)
-			max_x = maxi(max_x, px + 2)
-			max_y = maxi(max_y, py + 2)
-	if not found:
-		return fallback
-	var sc: Vector2 = sprite.scale
-	return Rect2((sprite.offset + Vector2(min_x, min_y)) * sc, Vector2(max_x - min_x, max_y - min_y) * sc)
-
-
 func _ensure_door_click() -> void:
 	var door: Area2D = get_node_or_null("DoorHit") as Area2D
 	if door == null:
@@ -533,34 +498,26 @@ func wisp_orbit_radius() -> float:
 
 
 func _apply_trunk(stage: String) -> void:
-	## Bottom third of the trunk, plus the roots, with the door corridor cut out.
+	## Feet box of the trunk. The bottom edge is the Forge door sill (local y=0).
+	## Painted roots south of that line are soil, so they stay walkable, and the
+	## west watering stand (about 100px out, 35px south) is clear at every stage.
 	var body: StaticBody2D = get_node_or_null("Trunk") as StaticBody2D
 	if body == null:
 		return
 	for child: Node in body.get_children():
 		child.queue_free()
 	var sz: Vector2 = TRUNK_SIZE.get(stage, Vector2(28, 40))
-	var third: float = sz.y / 3.0
-	var top_y: float = -third
-	var trunk_left: float = -sz.x * 0.5
-	var trunk_right: float = sz.x * 0.5
-	var root: Rect2 = _root_band_local(stage)
-	## The painted mound is soil the hero stands on. Solid roots stay a flare
-	## around the trunk so the west water stand (about 100px out) stays clear.
-	var half_cap: float = minf(64.0, maxf(sz.x * 0.65, 30.0))
-	var root_left: float = maxf(minf(trunk_left, root.position.x), -half_cap)
-	var root_right: float = minf(maxf(trunk_right, root.end.x), half_cap)
-	var root_bottom: float = clampf(maxf(0.0, root.end.y), 10.0, 22.0)
-	# Solid cap of the bottom third, above the body that stands in the doorway.
-	if top_y < DOOR_CLEAR_Y:
-		_add_trunk_rect(body, Rect2(trunk_left, top_y, sz.x, DOOR_CLEAR_Y - top_y))
-	# Roots and the lower trunk, split around the door.
-	var side_top: float = maxf(top_y, DOOR_CLEAR_Y)
-	var side_bot: float = maxf(side_top + 8.0, root_bottom)
-	if root_left < -DOOR_HALF_W:
-		_add_trunk_rect(body, Rect2(root_left, side_top, -DOOR_HALF_W - root_left, side_bot - side_top))
-	if root_right > DOOR_HALF_W:
-		_add_trunk_rect(body, Rect2(DOOR_HALF_W, side_top, root_right - DOOR_HALF_W, side_bot - side_top))
+	var box: Vector2 = FeetBox.size_for(sz)
+	var half_w: float = box.x * 0.5
+	var cap_top: float = -maxf(box.y, 56.0)
+	# Crown of the feet box, above a hero standing in the doorway.
+	if cap_top < DOOR_CLEAR_Y:
+		_add_trunk_rect(body, Rect2(-half_w, cap_top, box.x, DOOR_CLEAR_Y - cap_top))
+	# Jambs down to the sill. Nothing continues below y=0.
+	if half_w > DOOR_HALF_W:
+		var jamb_h: float = -DOOR_CLEAR_Y
+		_add_trunk_rect(body, Rect2(-half_w, DOOR_CLEAR_Y, half_w - DOOR_HALF_W, jamb_h))
+		_add_trunk_rect(body, Rect2(DOOR_HALF_W, DOOR_CLEAR_Y, half_w - DOOR_HALF_W, jamb_h))
 
 
 func _add_trunk_rect(body: StaticBody2D, local_rect: Rect2) -> void:

@@ -61,7 +61,11 @@ func _ready() -> void:
 		add_to_group("forest_fill")
 	if body and not ground_deco:
 		body.add_to_group("forest_collision")
-		set_meta("collider_size", collider_size)
+		var applied: Vector2 = collider_size
+		var walk_col: CollisionShape2D = body.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		if walk_col != null and walk_col.shape is RectangleShape2D:
+			applied = (walk_col.shape as RectangleShape2D).size
+		set_meta("collider_size", applied)
 
 
 func _apply_visual() -> void:
@@ -89,10 +93,14 @@ func _apply_visual() -> void:
 	var col: CollisionShape2D = body.get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if col == null:
 		return
-	var shape := RectangleShape2D.new()
-	shape.size = collider_size
-	col.shape = shape
-	col.position = Vector2(0.0, -collider_size.y * 0.5)
+	## Authored width is the trunk. Height is a third of the sprite, on the feet.
+	var shown := Vector2(collider_size.x, maxf(collider_size.y / FeetBox.HEIGHT_RATIO, collider_size.y))
+	if spr.texture != null:
+		var tex_h: float = float(spr.texture.get_height()) * absf(spr.scale.y)
+		shown.y = maxf(shown.y, tex_h)
+	var box: Vector2 = FeetBox.size_for(shown)
+	box.x = collider_size.x
+	FeetBox.apply_size(col, box, Vector2.ZERO)
 
 
 func _glow_texture_path() -> String:

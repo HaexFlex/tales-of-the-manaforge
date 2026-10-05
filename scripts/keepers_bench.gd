@@ -32,6 +32,22 @@ func _ready() -> void:
 	mouse_entered.connect(_on_title_hover.bind(true))
 	mouse_exited.connect(_on_title_hover.bind(false))
 	call_deferred("_bind_keeper")
+	_apply_walk_box()
+
+
+func _apply_walk_box() -> void:
+	var shape_node: CollisionShape2D = get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
+	if shape_node == null or sprite == null or sprite.texture == null:
+		return
+	var frame := Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
+	var shown := frame * Vector2(absf(sprite.scale.x), absf(sprite.scale.y))
+	var box: Vector2 = FeetBox.size_for(shown)
+	## The stand is just north of the legs. Keep that point outside the box.
+	if keeper_stand != null:
+		var limit: float = maxf(12.0, -keeper_stand.position.y - 6.0)
+		if box.y > limit:
+			box.y = limit
+	FeetBox.apply_size(shape_node, box, Vector2.ZERO)
 
 
 func _on_title_hover(inside: bool) -> void:
