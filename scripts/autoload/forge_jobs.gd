@@ -645,21 +645,28 @@ func _tick_door_walk() -> void:
 		_clear_door_walk()
 		return
 	var dist: float = (hero as Node2D).global_position.distance_to(door_entry_point())
+	## Arrival can sit just outside the feet trigger. Enter from that stop.
 	if dist <= 22.0:
 		_clear_door_walk()
 		try_door_entry(actor)
 		return
-	var stopped: bool = true
+	## move_to raises _moving before the body has a velocity. That first
+	## zero-velocity sample is the start of the walk, not a blocked path.
+	var still_pathing: bool = bool(hero.get("_moving"))
+	var speed_now: float = 0.0
 	if hero is CharacterBody2D:
-		stopped = (hero as CharacterBody2D).velocity.length() < 12.0
-	if stopped and dist <= 72.0:
+		speed_now = (hero as CharacterBody2D).velocity.length()
+	if still_pathing or speed_now >= 12.0:
+		_door_stuck_frames = 0
+		return
+	if dist <= 72.0:
 		_door_stuck_frames += 1
 		if _door_stuck_frames >= 6:
 			_clear_door_walk()
 			try_door_entry(actor)
 		return
-	_door_stuck_frames = 0
-	if stopped and dist > 72.0:
+	_door_stuck_frames += 1
+	if _door_stuck_frames >= 30:
 		_clear_door_walk()
 
 

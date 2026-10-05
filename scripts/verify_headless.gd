@@ -5201,6 +5201,8 @@ func _portrait_switch_forge(tree_root: Window, game_state: Node, save_service: N
 	game_state.set("stage_id", &"elder")
 	jobs.call("set_in_forge_override", -1)
 	jobs.call("set_scene_changes_enabled", true)
+	save_service.set("boot_intent", "auto")
+	save_service.call("note_session_started")
 	paused = false
 	failed += await _portrait_direction(game_state, "keeper", "clearing", "elaia", "forge")
 	failed += await _portrait_direction(game_state, "elaia", "clearing", "keeper", "forge")
