@@ -382,6 +382,9 @@ const DOOR_HALF_W: float = 32.0
 ## Below this line the door corridor is open. Collision never continues south of the sill.
 const DOOR_CLEAR_Y: float = -48.0
 var _door_latched: bool = false
+## Spawn can sit inside the feet trigger. Latch that overlap and do not enter
+## until they have been seen clear of it, or the new scene bounces straight back.
+var _door_seen_clear: bool = false
 
 
 func _physics_process(_delta: float) -> void:
@@ -510,14 +513,10 @@ func _apply_trunk(stage: String) -> void:
 	var box: Vector2 = FeetBox.size_for(sz)
 	var half_w: float = box.x * 0.5
 	var cap_top: float = -maxf(box.y, 56.0)
-	# Crown of the feet box, above a hero standing in the doorway.
+	## Crown only. The band from the cap down through the sill, and everything
+	## south of the sill, stays open. Side jambs used to pinch that corridor.
 	if cap_top < DOOR_CLEAR_Y:
 		_add_trunk_rect(body, Rect2(-half_w, cap_top, box.x, DOOR_CLEAR_Y - cap_top))
-	# Jambs down to the sill. Nothing continues below y=0.
-	if half_w > DOOR_HALF_W:
-		var jamb_h: float = -DOOR_CLEAR_Y
-		_add_trunk_rect(body, Rect2(-half_w, DOOR_CLEAR_Y, half_w - DOOR_HALF_W, jamb_h))
-		_add_trunk_rect(body, Rect2(DOOR_HALF_W, DOOR_CLEAR_Y, half_w - DOOR_HALF_W, jamb_h))
 
 
 func _add_trunk_rect(body: StaticBody2D, local_rect: Rect2) -> void:
@@ -539,6 +538,7 @@ func _check_door_feet() -> void:
 	if not has_node("/root/ForgeJobs"):
 		return
 	var occupied: bool = false
+	var occupant: Node = null
 	for group_name: String in ["keeper", "elaia"]:
 		for node: Node in get_tree().get_nodes_in_group(group_name):
 			if not (node is Node2D) or not (node as CanvasItem).visible:
@@ -549,13 +549,22 @@ func _check_door_feet() -> void:
 			if absf(rel.x) > 22.0 or rel.y < -4.0 or rel.y > 16.0:
 				continue
 			occupied = true
-			if _door_latched:
-				return
+			occupant = node
+			break
+		if occupied:
+			break
+	if not _door_seen_clear:
+		if occupied:
 			_door_latched = true
-			ForgeJobs.try_door_entry(str(node.call("actor_id")))
 			return
+		_door_seen_clear = true
 	if not occupied:
 		_door_latched = false
+		return
+	if _door_latched or occupant == null:
+		return
+	_door_latched = true
+	ForgeJobs.try_door_entry(str(occupant.call("actor_id")))
 
 
 func _ensure_veins() -> void:

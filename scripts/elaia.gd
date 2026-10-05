@@ -279,7 +279,13 @@ func _find_station(station_id: String) -> Node2D:
 
 
 func _remember_pose() -> void:
+	## Area is written only by the door transfer. This used to stamp home_area
+	## every physics frame, and the deferred scene swap let that stamp land
+	## after the door had already moved her, so the next scene hid her.
+	if not has_node("/root/GameState"):
+		return
+	if GameState.elaia_area != home_area:
+		return
 	GameState.elaia_pos = global_position
 	GameState.elaia_has_pos = true
 	GameState.elaia_facing = _facing
-	GameState.elaia_area = home_area

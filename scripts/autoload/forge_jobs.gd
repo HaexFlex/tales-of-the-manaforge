@@ -39,6 +39,9 @@ var _wisp_orbit_phase: float = 0.0
 ## Set while a hero is walking to the Manatree sill. Cleared when they enter or give up.
 var _door_walk_actor: String = ""
 var _door_stuck_frames: int = 0
+## One deferred scene swap. A second request before it runs replaces the path.
+var _pending_scene: String = ""
+var _scene_swap_queued: bool = false
 
 
 func _ready() -> void:
@@ -423,6 +426,7 @@ func exit_forge() -> void:
 	if _allow_scene_change:
 		if has_node("/root/SaveService"):
 			SaveService.boot_intent = "forge_return"
+		_pending_scene = ""
 		get_tree().change_scene_to_file(HUB_SCENE)
 
 
@@ -536,18 +540,8 @@ func switch_view(to_forge: bool) -> void:
 
 
 func commit_actor_enter(actor_id: String) -> String:
-	var spot: Vector2 = forge_arch_spawn()
+	_move_door_party(actor_id, "clearing", "forge")
 	if has_node("/root/GameState"):
-		if actor_id == "elaia":
-			GameState.elaia_area = "forge"
-			GameState.elaia_has_pos = true
-			GameState.elaia_pos = spot
-			GameState.elaia_facing = "north"
-		else:
-			GameState.keeper_area = "forge"
-			GameState.keeper_has_pos = true
-			GameState.keeper_pos = spot
-			GameState.keeper_facing = "north"
 		GameState.forge_visited = true
 	_return_to_clearing = false
 	_play(&"sfx_door_bark")
@@ -558,19 +552,41 @@ func commit_actor_enter(actor_id: String) -> String:
 
 
 func commit_actor_exit(actor_id: String) -> void:
-	var spot: Vector2 = clearing_door_stand()
-	if has_node("/root/GameState"):
-		if actor_id == "elaia":
-			GameState.elaia_area = "clearing"
-			GameState.elaia_has_pos = true
-			GameState.elaia_pos = spot
-			GameState.elaia_facing = "south"
-		else:
-			GameState.keeper_area = "clearing"
-			GameState.keeper_has_pos = true
-			GameState.keeper_pos = spot
-			GameState.keeper_facing = "south"
+	_move_door_party(actor_id, "forge", "clearing")
 	switch_view(false)
+
+
+func _move_door_party(leader: String, from_area: String, to_area: String) -> void:
+	## The hero who touched the door, plus whoever is already in that same area.
+	## A hero already on the other side stays there. Portrait hops do not call this.
+	if not has_node("/root/GameState"):
+		return
+	var to_forge: bool = to_area == "forge"
+	var lead_spot: Vector2 = forge_arch_spawn() if to_forge else clearing_door_stand()
+	var beside: Vector2 = Vector2(64, 0) if to_forge else Vector2(72, 0)
+	var facing: String = "north" if to_forge else "south"
+	_place_transferred(leader, to_area, lead_spot, facing)
+	var other: String = "keeper" if leader == "elaia" else "elaia"
+	var bring: bool = false
+	if other == "elaia":
+		bring = GameState.elaia_in_party() and GameState.elaia_area == from_area
+	else:
+		bring = GameState.keeper_area == from_area
+	if bring:
+		_place_transferred(other, to_area, lead_spot + beside, facing)
+
+
+func _place_transferred(actor_id: String, area: String, spot: Vector2, facing: String) -> void:
+	if actor_id == "elaia":
+		GameState.elaia_area = area
+		GameState.elaia_has_pos = true
+		GameState.elaia_pos = spot
+		GameState.elaia_facing = facing
+	else:
+		GameState.keeper_area = area
+		GameState.keeper_has_pos = true
+		GameState.keeper_pos = spot
+		GameState.keeper_facing = facing
 
 
 func try_door_entry(actor_id: String) -> String:
@@ -586,7 +602,8 @@ func try_door_entry(actor_id: String) -> String:
 
 
 func request_door_walk() -> String:
-	## The selected hero walks into the sill. The other stays where they are.
+	## The selected hero walks into the sill. On arrival, anyone already in the
+	## same area comes through too. A hero in the other area is left there.
 	if not has_node("/root/GameState"):
 		return "denied"
 	var actor: String = GameState.selected_hero_id()
@@ -616,9 +633,28 @@ func request_door_walk() -> String:
 func _defer_scene(path: String) -> void:
 	## change_scene frees CollisionObjects. Portrait clicks and the door trigger
 	## both run inside the physics step, so the swap has to wait until it ends.
+	## Two calls in one frame used to queue two swaps and dump the player in the
+	## scene they had just left.
 	if not _allow_scene_change or get_tree() == null:
 		return
-	get_tree().call_deferred("change_scene_to_file", path)
+	_pending_scene = path
+	if _scene_swap_queued:
+		return
+	_scene_swap_queued = true
+	call_deferred("_apply_pending_scene")
+
+
+func _apply_pending_scene() -> void:
+	_scene_swap_queued = false
+	var path: String = _pending_scene
+	_pending_scene = ""
+	if path == "" or not _allow_scene_change or get_tree() == null:
+		return
+	get_tree().change_scene_to_file(path)
+
+
+func scene_change_pending() -> bool:
+	return _scene_swap_queued or _pending_scene != ""
 
 
 func _clear_door_walk() -> void:
@@ -1206,6 +1242,8 @@ func reset_for_new_game() -> void:
 	note_elaia_idle()
 	_pending_toast = ""
 	_return_to_clearing = false
+	_pending_scene = ""
+	_scene_swap_queued = false
 	_materials_snapshot.clear()
 	_repeat_override.clear()
 
