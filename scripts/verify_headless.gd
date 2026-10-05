@@ -95,6 +95,33 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_PORTRAIT_SWITCH") == "1":
+		var portrait_failed: int = await _portrait_switch_forge(tree_root, game_state, save_service)
+		if portrait_failed > 0:
+			print("PORTRAIT_SWITCH_FORGE_FAIL: %d" % portrait_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_FORGE_ARCH") == "1":
+		var arch_failed: int = await _forge_arch_draw_order(tree_root)
+		if arch_failed > 0:
+			print("FORGE_ARCH_DRAW_ORDER_FAIL: %d" % arch_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_FORGE_ENTRY") == "1":
+		var entry_failed: int = await _forge_entry_one_click(tree_root, game_state, save_service)
+		if entry_failed > 0:
+			print("FORGE_ENTRY_ONE_CLICK_FAIL: %d" % entry_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -2382,6 +2409,9 @@ func _run() -> void:
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
 	failed += await _scene_transitions(tree_root, game_state, save_service)
 	failed += await _workbench_reach(tree_root, save_service)
+	failed += await _portrait_switch_forge(tree_root, game_state, save_service)
+	failed += await _forge_arch_draw_order(tree_root)
+	failed += await _forge_entry_one_click(tree_root, game_state, save_service)
 	failed += _no_old_keeper_idle()
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
@@ -2678,7 +2708,8 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 			failed += _assert(portal_marker.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "portal nearest filter")
 		var walk: CollisionShape2D = portal.get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
 		var walk_rect: RectangleShape2D = walk.shape as RectangleShape2D if walk else null
-		failed += _assert(walk_rect != null and abs(walk_rect.size.x - 120.0) < 0.5 and abs(walk_rect.size.y - 60.0) < 0.5, "portal base collision is 120x60")
+		var portal_box: Vector2 = FeetBox.size_for(Vector2(160, 200))
+		failed += _assert(walk_rect != null and walk_rect.size.distance_to(portal_box) < 0.5, "portal base collision is the feet box %s" % portal_box)
 		var portal_label: Label = portal.get_node_or_null("Label") as Label
 		failed += _assert(portal_label != null and abs(portal_label.offset_top + 228.0) < 1.0, "portal label sits near -228")
 	failed += _assert(hud != null and pause_menu != null, "hud and pause for echo")
@@ -3091,6 +3122,7 @@ func _check_only_load() -> int:
 	## Compile and load the companion scripts. Does not run the suite.
 	var failed: int = 0
 	var paths: PackedStringArray = PackedStringArray([
+		"res://scripts/feet_box.gd",
 		"res://scripts/keeper.gd",
 		"res://scripts/elaia.gd",
 		"res://scripts/character_sheet.gd",
@@ -4207,10 +4239,11 @@ func _workbench_body_blocked(live: Node, pos: Vector2) -> bool:
 	if live.has_method("_in_clearing") and not bool(live.call("_in_clearing", pos)):
 		return true
 	var shape := RectangleShape2D.new()
-	shape.size = Vector2(48, 64)
+	var box: Vector2 = FeetBox.actor_box("keeper")
+	shape.size = box
 	var params := PhysicsShapeQueryParameters2D.new()
 	params.shape = shape
-	params.transform = Transform2D(0.0, pos + Vector2(0, -32))
+	params.transform = Transform2D(0.0, pos + Vector2(0.0, -box.y * 0.5))
 	params.collision_mask = 1
 	params.collide_with_areas = false
 	params.collide_with_bodies = true
@@ -5145,3 +5178,200 @@ func _drop_current_scene() -> void:
 		return
 	current_scene = null
 	scene.free()
+
+
+func _portrait_switch_forge(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Double-clicking the other hero's portrait swaps the view. Both directions
+	## used to free the HUD inside the click and remove a CollisionObject mid-physics.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for portrait switch")
+	if jobs == null:
+		return failed
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo:
+		echo.set("in_battle", false)
+	game_state.call("reset_for_new_game")
+	game_state.set("ancient_frozen", false)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	game_state.set("forge_key", true)
+	game_state.set("forge_visited", true)
+	game_state.set("stage_id", &"elder")
+	jobs.call("set_in_forge_override", -1)
+	jobs.call("set_scene_changes_enabled", true)
+	paused = false
+	failed += await _portrait_direction(game_state, "keeper", "clearing", "elaia", "forge")
+	failed += await _portrait_direction(game_state, "elaia", "clearing", "keeper", "forge")
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("PORTRAIT_SWITCH_FORGE_OK")
+	return failed
+
+
+func _portrait_direction(game_state: Node, unit: String, unit_area: String, other: String, other_area: String) -> int:
+	## The clicked portrait's hero is in unit_area. The camera is in the Forge.
+	var failed: int = 0
+	_place_actor(game_state, unit, unit_area, Vector2(2160, 2140) if unit_area == "clearing" else Vector2(800, 1048))
+	_place_actor(game_state, other, other_area, Vector2(800, 1048) if other_area == "forge" else Vector2(2200, 2140))
+	change_scene_to_file(_FORGE_SCENE)
+	var stable: String = await _await_stable_scene()
+	failed += _assert(stable == _FORGE_SCENE, "portrait setup opens the forge for %s (got %s)" % [unit, stable])
+	if current_scene == null:
+		return failed + 1
+	var hud: Node = current_scene.get_node_or_null("HUD")
+	var slot: Control = null
+	if hud != null:
+		slot = hud.find_child(unit.capitalize(), true, false) as Control
+	if hud == null or slot == null or not hud.has_method("_on_party_slot_input"):
+		printerr("ASSERT FAIL: portrait slot missing for %s" % unit)
+		return failed + 1
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	click.double_click = true
+	hud.call("_on_party_slot_input", click, unit, slot)
+	failed += _assert(is_instance_valid(hud), "double-click %s does not free the HUD inside the handler" % unit)
+	failed += await _expect_scene("portrait %s to the clearing" % unit, _HUB_SCENE)
+	var area_name: String = "keeper_area" if unit == "keeper" else "elaia_area"
+	failed += _assert(str(game_state.get(area_name)) == unit_area, "portrait switch leaves %s in the %s" % [unit, unit_area])
+	return failed
+
+
+func _forge_arch_draw_order(tree_root: Window) -> int:
+	## Keeper and Elaia draw under the Forge entrance arch while they stand in it.
+	var failed: int = 0
+	var packed: PackedScene = load(_FORGE_SCENE) as PackedScene
+	failed += _assert(packed != null, "forge room for the arch")
+	if packed == null:
+		return failed
+	change_scene_to_packed(packed)
+	var stable: String = await _await_stable_scene()
+	failed += _assert(stable == _FORGE_SCENE, "arch check is in the forge")
+	var room: Node2D = current_scene as Node2D
+	if room == null:
+		return failed + 1
+	var arch: CanvasItem = room.get_node_or_null("ArchFront") as CanvasItem
+	var keeper: CanvasItem = room.get_node_or_null("Keeper") as CanvasItem
+	var elaia: CanvasItem = room.get_node_or_null("Elaia") as CanvasItem
+	failed += _assert(arch != null and keeper != null and elaia != null, "arch, keeper, and elaia exist")
+	if arch == null or keeper == null or elaia == null:
+		_drop_current_scene()
+		return failed
+	var mouth := Vector2(800, 1124)
+	(keeper as Node2D).global_position = mouth + Vector2(-24, 0)
+	(elaia as Node2D).global_position = mouth + Vector2(36, 0)
+	await process_frame
+	failed += _assert(not room.y_sort_enabled, "forge room does not y-sort the arch over the heroes")
+	failed += _assert(arch.z_index > keeper.z_index, "keeper draws under the forge arch (arch %d keeper %d)" % [arch.z_index, keeper.z_index])
+	failed += _assert(arch.z_index > elaia.z_index, "elaia draws under the forge arch (arch %d elaia %d)" % [arch.z_index, elaia.z_index])
+	var arch_sprite: Sprite2D = arch as Sprite2D
+	failed += _assert(arch_sprite != null and arch_sprite.texture != null, "arch texture is on ArchFront")
+	_drop_current_scene()
+	if failed == 0:
+		print("FORGE_ARCH_DRAW_ORDER_OK")
+	return failed
+
+
+func _forge_entry_one_click(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## One click on the door walks to the sill and enters. A second click must not be required.
+	## Also checks the watering stand is clear of the trunk at every growth stage.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for one-click entry")
+	if jobs == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	change_scene_to_file(_HUB_SCENE)
+	var stable: String = await _await_stable_scene()
+	failed += _assert(stable == _HUB_SCENE, "entry check starts in the clearing")
+	var live: Node = current_scene
+	if live == null:
+		return failed + 1
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	var tree: Node2D = live.get_node_or_null("World/Manatree") as Node2D
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(tree != null and keeper != null, "tree and keeper for the door")
+	if tree == null or keeper == null:
+		_drop_current_scene()
+		return failed
+	var keeper_cls = load("res://scripts/keeper.gd")
+	for stage_name: String in ["sapling", "young", "mature", "elder", "ancient"]:
+		game_state.set("stage_id", StringName(stage_name))
+		game_state.emit_signal("stage_changed", StringName(stage_name))
+		await process_frame
+		var footprint: Rect2 = tree.call("work_footprint")
+		for actor_id: String in ["keeper", "elaia"]:
+			var solved: Dictionary = keeper_cls.solve_work_spot(footprint, tree.global_position, "manatree", Callable(), "", actor_id)
+			var pos: Vector2 = solved.get("position", Vector2.ZERO)
+			var blocked: bool = _actor_box_hits(live, pos, actor_id)
+			failed += _assert(not blocked and not bool(solved.get("fallback", false)), "%s watering stand is reachable at %s (%s)" % [actor_id, stage_name, pos])
+		var door: Vector2 = tree.global_position + Vector2(0, 8)
+		failed += _assert(not _actor_box_hits(live, door, "keeper"), "forge sill is walkable at %s" % stage_name)
+	game_state.set("stage_id", &"elder")
+	game_state.emit_signal("stage_changed", &"elder")
+	game_state.set("forge_key", true)
+	game_state.set("forge_visited", true)
+	game_state.call("select_keeper")
+	await process_frame
+	var far: Vector2 = tree.global_position + Vector2(0, 240)
+	keeper.global_position = far
+	game_state.set("keeper_area", "clearing")
+	game_state.set("keeper_has_pos", true)
+	game_state.set("keeper_pos", far)
+	var started: String = str(jobs.call("request_door_walk"))
+	failed += _assert(started == "walking", "one click from the south starts the walk (got %s)" % started)
+	var entered: bool = false
+	for _step: int in 240:
+		await physics_frame
+		await process_frame
+		if _scene_path() == _FORGE_SCENE or str(game_state.get("keeper_area")) == "forge":
+			entered = true
+			break
+	if str(game_state.get("keeper_area")) == "forge" and _scene_path() != _FORGE_SCENE:
+		var hopped: String = await _await_stable_scene()
+		entered = hopped == _FORGE_SCENE
+	failed += _assert(entered and _scene_path() == _FORGE_SCENE, "one door click enters the forge (scene %s area %s)" % [_scene_path(), str(game_state.get("keeper_area"))])
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("FORGE_ENTRY_ONE_CLICK_OK")
+	return failed
+
+
+func _actor_box_hits(live: Node, pos: Vector2, actor_id: String) -> bool:
+	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
+	if space == null:
+		return true
+	var shape := RectangleShape2D.new()
+	var box: Vector2 = FeetBox.actor_box(actor_id)
+	shape.size = box
+	var params := PhysicsShapeQueryParameters2D.new()
+	params.shape = shape
+	params.transform = Transform2D(0.0, pos + Vector2(0.0, -box.y * 0.5))
+	params.collision_mask = 1
+	params.collide_with_areas = false
+	params.collide_with_bodies = true
+	var exclude: Array[RID] = []
+	for body_path: String in ["World/Keeper", "World/Elaia"]:
+		var body: CollisionObject2D = live.get_node_or_null(body_path) as CollisionObject2D
+		if body:
+			exclude.append(body.get_rid())
+	params.exclude = exclude
+	return not space.intersect_shape(params, 1).is_empty()

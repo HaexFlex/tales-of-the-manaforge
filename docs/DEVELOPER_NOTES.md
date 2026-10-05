@@ -60,6 +60,9 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `AUTOSAVE_THROTTLE_OK` | An event autosave waits 60 seconds before it writes again. Closing the window still saves inside that window. |
 | `ELAIA_JOIN_OK` | Spare without a relic does not bring Elaia in. The first relic craft does. Her portrait waits for the clearing dialogue. An old save that already had her keeps her, and a relic without Spare does not. |
 | `DEBUG_STRIPPED_OK` | The Windows Release / Stable preset strips the debug panel, the four debug snapshots, and AnimPreview. When `builds/stable/TalesOfTheManaforge.pck` and the experimental pack are on disk, the check reads those file tables. `MANAFORGE_DEBUG_STRIP=1` requires both packs. |
+| `PORTRAIT_SWITCH_FORGE_OK` | With Elaia joined, a double-click on the Keeper portrait while she is in the Forge (and the reverse, Elaia's portrait while the Keeper is in the Forge) changes view without freeing the HUD inside the click. `MANAFORGE_PORTRAIT_SWITCH=1` runs it alone. |
+| `FORGE_ARCH_DRAW_ORDER_OK` | The Keeper and Elaia draw under ArchFront while standing in the Forge entrance. `MANAFORGE_FORGE_ARCH=1` runs it alone. |
+| `FORGE_ENTRY_ONE_CLICK_OK` | One click on the Manatree door walks to the sill and enters the Forge. The same run checks the watering stand at every growth stage. `MANAFORGE_FORGE_ENTRY=1` runs it alone. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 
@@ -80,7 +83,7 @@ Same tip, two presets in `export_presets.cfg`. Both keep `binary_format/embed_pc
 
 | Preset | Feature tag | What the pack contains |
 | --- | --- | --- |
-| `Windows Testing / Experimental` | `manaforge_debug` | Debug panel, four snapshot saves, AnimPreview, F8 and F9. Docs, archive, library, verify, and capture scripts stay out. `tools/*` is **not** excluded; the baker, scene sanity, and `tools/legacy/*` still are. |
+| `Windows Testing / Experimental` | `manaforge_debug` | Debug panel, four snapshot saves, AnimPreview, Ctrl+F8 and F9. Docs, archive, library, verify, and capture scripts stay out. `tools/*` is **not** excluded; the baker, scene sanity, and `tools/legacy/*` still are. |
 | `Windows Release / Stable` | `manaforge_stable` | Today's stripped playtest. `tools/*` plus AnimPreview, the debug panel, and `tools/debug/snapshots/` by name. No debug panel, snapshots, or AnimPreview in the pack file table. |
 
 ```bash
@@ -100,11 +103,11 @@ Expect `DEBUG_STRIPPED_OK`.
 
 ## Debug panel
 
-Testing builds only. **F8**, or Options → **Show debug tools**. The row and the key stay hidden when `manaforge_stable` is set or the panel scene is missing.
+Testing builds only. **Ctrl+F8**, or Options → **Show debug tools**. Bare F8 does nothing (that key stops the game in the Godot editor). The row and the key stay hidden when `manaforge_stable` is set or the panel scene is missing.
 
 - **Load snapshots:** Pre-Echo, Forge unlocked, Elaia joined, Ancient ready. Real save-version 10 fixtures under `tools/debug/snapshots/`, excluded from Stable.
 - **Forge:** free Sapsteel, Heartwood, and Amberbind (no cost, no wait) and **Skip station work** (finishes the current station timers).
-- **Add resources and crafted bits:** wood, stone, essence, shards, planks, fertilizer.
+- **Add items:** a search box, a quantity, and every raw material, handcraft item, and piece of gear from the data tables. Raw materials go to the resource counts. Gear goes to the equipment bag. Everything else goes to the backpack.
 - Options **Show speed-up button** stays. Its hint is `options_speedup_toggle_hint`.
 - **Jump to Echo** and **Open Ascension shop** are optional shortcuts.
 
