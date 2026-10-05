@@ -15,7 +15,7 @@
 | **North** | Imagine idle video (usable after settle) | ~2.0–4.0 s |
 | **East** | Imagine idle video (planted after ~0.5 s) | ~1.0–3.0 s |
 | **West** | Mirror of east | — |
-| **South** | Imagine kept marching the front view (2 attempts). **Plant still + vertical bob** from that video’s head motion; legs forced identical to walk plant below hem. | bob from rejected south clips |
+| **South** | Imagine idle from a planted still (short “stand still and breathe” prompt). | ~1.0–3.0 s |
 
 ## Timing
 12 frames × 160 ms = 1920 ms loop (same family as prior idle_walkmatch packs). Game currently uses 150 ms — Code can match either when wiring.

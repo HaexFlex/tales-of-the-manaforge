@@ -1,79 +1,96 @@
 {
-  "method": "plant_still + bob upper; legs forced from paletted plant below hem84",
-  "bobs": [
-    -1,
-    1,
-    0,
-    -1,
-    -1,
-    0,
-    1,
-    0,
-    -1,
-    -1,
-    0,
-    2
+  "dir": "south",
+  "first": 25,
+  "last": 73,
+  "idxs": [
+    25,
+    29,
+    34,
+    38,
+    42,
+    47,
+    51,
+    56,
+    60,
+    64,
+    69,
+    73
   ],
+  "scale": 0.23151750972762647,
+  "target_h": 119,
+  "source": "idle_south_v4c.mp4 from planted still + short prompt",
   "frames": {
     "1": {
-      "top": 4,
-      "h": 120,
-      "bob": -1
+      "src": 25,
+      "top": 5,
+      "h": 119,
+      "sole_w": 25
     },
     "2": {
+      "src": 29,
       "top": 6,
       "h": 118,
-      "bob": 1
+      "sole_w": 25
     },
     "3": {
+      "src": 34,
       "top": 5,
       "h": 119,
-      "bob": 0
+      "sole_w": 25
     },
     "4": {
-      "top": 4,
-      "h": 120,
-      "bob": -1
+      "src": 38,
+      "top": 5,
+      "h": 119,
+      "sole_w": 25
     },
     "5": {
-      "top": 4,
-      "h": 120,
-      "bob": -1
+      "src": 42,
+      "top": 5,
+      "h": 119,
+      "sole_w": 25
     },
     "6": {
+      "src": 47,
       "top": 5,
       "h": 119,
-      "bob": 0
+      "sole_w": 25
     },
     "7": {
-      "top": 6,
-      "h": 118,
-      "bob": 1
+      "src": 51,
+      "top": 5,
+      "h": 119,
+      "sole_w": 25
     },
     "8": {
-      "top": 5,
-      "h": 119,
-      "bob": 0
+      "src": 56,
+      "top": 6,
+      "h": 118,
+      "sole_w": 25
     },
     "9": {
-      "top": 4,
-      "h": 120,
-      "bob": -1
-    },
-    "10": {
-      "top": 4,
-      "h": 120,
-      "bob": -1
-    },
-    "11": {
+      "src": 60,
       "top": 5,
       "h": 119,
-      "bob": 0
+      "sole_w": 25
+    },
+    "10": {
+      "src": 64,
+      "top": 5,
+      "h": 119,
+      "sole_w": 25
+    },
+    "11": {
+      "src": 69,
+      "top": 6,
+      "h": 118,
+      "sole_w": 25
     },
     "12": {
-      "top": 7,
-      "h": 117,
-      "bob": 2
+      "src": 73,
+      "top": 6,
+      "h": 118,
+      "sole_w": 25
     }
   }
 }
