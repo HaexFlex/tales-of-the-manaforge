@@ -245,8 +245,8 @@ func _run() -> void:
 		var loose: int = 0
 		var entry: String = inbox_dir.get_next()
 		while entry != "":
-		if entry != "." and entry != ".." and entry != "README.md" and entry != ".gdignore":
-			loose += 1
+			if entry != "." and entry != ".." and entry != "README.md" and entry != ".gdignore":
+				loose += 1
 			entry = inbox_dir.get_next()
 		inbox_dir.list_dir_end()
 		failed += _assert(loose == 0, "Assets upload empty after ship (got %d loose)" % loose)
