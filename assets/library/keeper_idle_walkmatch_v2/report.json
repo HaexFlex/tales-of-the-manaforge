@@ -1,0 +1,148 @@
+[
+  {
+    "dir": "south",
+    "cyan": 0,
+    "cyan_walk_plant": 0,
+    "boots": [
+      [
+        53.1,
+        43,
+        62,
+        226,
+        13
+      ],
+      [
+        72.9,
+        64,
+        83,
+        226,
+        13
+      ]
+    ],
+    "sole_y": 123,
+    "cols": 47,
+    "foot_gap_118": 1,
+    "shared_walk_colours": 47,
+    "new_colours": 0,
+    "meta": {
+      "torso": 0,
+      "tcx": 63.41,
+      "L": [
+        5,
+        65.1,
+        13
+      ],
+      "R": [
+        "mirror(5)",
+        61.9,
+        13
+      ],
+      "sep": 16.0
+    },
+    "frames": 12,
+    "hold_ms": 160,
+    "loop_ms": 1920,
+    "hard_alpha": true
+  },
+  {
+    "dir": "north",
+    "cyan": 56,
+    "cyan_walk_plant": 58,
+    "boots": [
+      [
+        55.6,
+        49,
+        62,
+        166,
+        12
+      ],
+      [
+        69.6,
+        63,
+        76,
+        161,
+        6
+      ]
+    ],
+    "sole_y": 123,
+    "cols": 43,
+    "foot_gap_118": 1,
+    "shared_walk_colours": 43,
+    "new_colours": 0,
+    "meta": {
+      "torso": 0,
+      "tcx": 62.14,
+      "L": [
+        3,
+        55.6,
+        12
+      ],
+      "R": [
+        0,
+        73.6,
+        0
+      ],
+      "sep": 16.0
+    },
+    "frames": 12,
+    "hold_ms": 160,
+    "loop_ms": 1920,
+    "hard_alpha": true
+  },
+  {
+    "dir": "east",
+    "cyan": 0,
+    "cyan_walk_plant": 0,
+    "boots": [
+      [
+        61.1,
+        48,
+        73,
+        246,
+        12
+      ]
+    ],
+    "sole_y": 123,
+    "cols": 46,
+    "foot_gap_118": 0,
+    "shared_walk_colours": 46,
+    "new_colours": 0,
+    "meta": {
+      "frame": 0,
+      "mode": "as-is",
+      "span": 26
+    },
+    "frames": 12,
+    "hold_ms": 160,
+    "loop_ms": 1920,
+    "hard_alpha": true
+  },
+  {
+    "dir": "west",
+    "cyan": 0,
+    "cyan_walk_plant": 0,
+    "boots": [
+      [
+        65.9,
+        54,
+        79,
+        246,
+        12
+      ]
+    ],
+    "sole_y": 123,
+    "cols": 46,
+    "foot_gap_118": 0,
+    "shared_walk_colours": 46,
+    "new_colours": 0,
+    "meta": {
+      "frame": 0,
+      "mode": "as-is",
+      "span": 26
+    },
+    "frames": 12,
+    "hold_ms": 160,
+    "loop_ms": 1920,
+    "hard_alpha": true
+  }
+]
