@@ -87,21 +87,33 @@ func _elaia_holds_key() -> bool:
 func _apply_elaia_portrait() -> void:
 	if _echo_portrait == null:
 		return
-	if _battle != null and _battle.echo_id == "echo_corvane" and ResourceLoader.exists(Adventure.ART_CORVANE_BATTLE):
-		var corvane_tex: Texture2D = load(Adventure.ART_CORVANE_BATTLE) as Texture2D
-		if corvane_tex:
-			_echo_portrait.texture = corvane_tex
-			_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-			_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	var foe_path: String = ""
+	var facing: String = ""
+	if _battle != null:
+		foe_path = _battle.foe_art_path
+		facing = _battle.foe_facing
+		if foe_path == "" and _battle.echo_id == "echo_corvane":
+			foe_path = Adventure.ART_CORVANE_BATTLE
+			facing = "west"
+	if foe_path != "" and ResourceLoader.exists(foe_path):
+		var foe_tex: Texture2D = Adventure.frame_slice(foe_path, Adventure.BATTLE_CANVAS)
+		if foe_tex:
+			_set_battle_portrait(_echo_portrait, foe_tex, facing)
 			return
 	var path: String = ELAIA_KEY if _elaia_holds_key() else ELAIA_IDLE
 	var tex: Texture2D = load(path) as Texture2D
 	if tex:
-		_echo_portrait.texture = tex
-	_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_set_battle_portrait(_echo_portrait, tex, "")
+
+
+func _set_battle_portrait(rect: TextureRect, tex: Texture2D, facing: String) -> void:
+	## Full 128 canvas in the 384 frame is 3×. Sole y=123 then sits on the same ground as Elaia.
+	rect.texture = tex
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.pivot_offset = rect.size * 0.5
+	rect.scale = Vector2(-1.0 if facing == "east" else 1.0, 1.0)
 
 
 func _raise_names() -> void:
