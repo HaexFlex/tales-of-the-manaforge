@@ -42,6 +42,8 @@ Expect `VERIFY_OK` and exit code `0`.
 
 Every bug Haex reports that has been fixed before, or that comes back, gets a permanent named test in the default VERIFY suite (named like `SCENE_TRANSITIONS_OK`). The test drives the real user path and must fail on the old buggy build.
 
+**Two Windows zips, one release page.** After VERIFY is green and Haex says merge, ship to `main`, then refresh the **EXPERIMENTAL** zip (debug tools on). Refresh the **Stable** zip (debug tools off) only when Haex says the experimental build feels solid. Both assets live on the same GitHub release page once both exist. Do not replace Stable with an experimental pack.
+
 ### Permanent named tests
 
 Tokens below are printed by the run that owns them. Listed only where the code prints them.
@@ -57,6 +59,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `JOBS_SURVIVE_SWITCH_OK` | Watering, Elaia's stone harvest, the wood wisp, and station jobs keep paying across a hub/Forge switch, and the work animations are still playing on the way back. |
 | `AUTOSAVE_THROTTLE_OK` | An event autosave waits 60 seconds before it writes again. Closing the window still saves inside that window. |
 | `ELAIA_JOIN_OK` | Spare without a relic does not bring Elaia in. The first relic craft does. Her portrait waits for the clearing dialogue. An old save that already had her keeps her, and a relic without Spare does not. |
+| `DEBUG_STRIPPED_OK` | The Windows Release / Stable preset strips the debug panel, the four debug snapshots, and AnimPreview. When `builds/stable/TalesOfTheManaforge.pck` and the experimental pack are on disk, the check reads those file tables. `MANAFORGE_DEBUG_STRIP=1` requires both packs. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 
@@ -71,15 +74,49 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 
 SANITY's `pause menu can reach the title` check (inside `SCENE_EXITS`) reads `.gd` source. A release pck ships compiled scripts, so that scan cannot run against the pack. On a packed build, rely on `SCENE_TRANSITIONS_OK` for that path. The suite does not print an `EXPORT_PLAY_OK` token.
 
+## Two Windows exports
+
+Same tip, two presets in `export_presets.cfg`. Both keep `binary_format/embed_pck=false`, so a playtest zip is the `.exe` plus the sibling `.pck`. Do not turn embed on for those zips.
+
+| Preset | Feature tag | What the pack contains |
+| --- | --- | --- |
+| `Windows Testing / Experimental` | `manaforge_debug` | Debug panel, four snapshot saves, AnimPreview, F8 and F9. Docs, archive, library, verify, and capture scripts stay out. `tools/*` is **not** excluded; the baker, scene sanity, and `tools/legacy/*` still are. |
+| `Windows Release / Stable` | `manaforge_stable` | Today's stripped playtest. `tools/*` plus AnimPreview, the debug panel, and `tools/debug/snapshots/` by name. No debug panel, snapshots, or AnimPreview in the pack file table. |
+
+```bash
+godot --headless --path . --export-release "Windows Testing / Experimental" builds/experimental/TalesOfTheManaforge.exe
+godot --headless --path . --export-release "Windows Release / Stable" builds/stable/TalesOfTheManaforge.exe
+```
+
+Each command writes the exe and `TalesOfTheManaforge.pck` in that folder. Zip those two files together. The editor and the Testing preset run debug tools. The Stable preset does not, even if it was exported with the debug template.
+
+Pack check (also part of default VERIFY; this form requires the two `.pck` files above):
+
+```bash
+MANAFORGE_DEBUG_STRIP=1 godot --headless --path . -s res://scripts/verify_headless.gd
+```
+
+Expect `DEBUG_STRIPPED_OK`.
+
+## Debug panel
+
+Testing builds only. **F8**, or Options → **Show debug tools**. The row and the key stay hidden when `manaforge_stable` is set or the panel scene is missing.
+
+- **Load snapshots:** Pre-Echo, Forge unlocked, Elaia joined, Ancient ready. Real save-version 10 fixtures under `tools/debug/snapshots/`, excluded from Stable.
+- **Forge:** free Sapsteel, Heartwood, and Amberbind (no cost, no wait) and **Skip station work** (finishes the current station timers).
+- **Add resources and crafted bits:** wood, stone, essence, shards, planks, fertilizer.
+- Options **Show speed-up button** stays. Its hint is `options_speedup_toggle_hint`.
+- **Jump to Echo** and **Open Ascension shop** are optional shortcuts.
+
 ## Animation preview
 
-Debug only. Keeper and Elaia stand side by side at an integer scale with nearest filtering, in every clip their SpriteFrames carry (idle and walk in N/E/S/W, run when it exists, harvest, water, station work, and anything added later).
+Debug / testing only. Keeper and Elaia stand side by side at an integer scale with nearest filtering, in every clip their SpriteFrames carry (idle and walk in N/E/S/W, run when it exists, harvest, water, station work, and anything added later).
 
 ```bash
 godot --path . res://tools/AnimPreview.tscn
 ```
 
-In a debug build, **F9** opens the same scene from the title, the clearing, or the Forge. The key checks `OS.is_debug_build()` and does nothing in a release export. The scene lives in `tools/`, which the export strip already excludes (`tools/*`, and the scene and script by name), so a packed build does not contain it.
+**F9** opens the same scene from the title, the clearing, or the Forge when debug tools are on (`manaforge_debug`, or an editor debug run). Windows Release / Stable sets `manaforge_stable` and excludes `tools/*`, `tools/AnimPreview.tscn`, and `tools/anim_preview.gd`, so the packed Stable build does not contain it.
 
 ## Hub BGM (after pull)
 

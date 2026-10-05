@@ -76,6 +76,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_DEBUG_STRIP") == "1":
+		var strip_failed: int = _debug_stripped_ok()
+		if strip_failed > 0:
+			print("DEBUG_STRIPPED_FAIL: %d" % strip_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
 		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
 		if elaia_failed > 0:
@@ -132,6 +141,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "options_audio_back")) == "Back", "options_audio_back")
 	failed += _assert(str(content_strings.call("get_text", "options_audio_hint")).find("forest") >= 0, "options_audio_hint")
 	failed += _assert(str(content_strings.call("get_text", "options_audio_reset")) == "Reset", "options_audio_reset")
+	failed += _debug_stripped_ok()
 	failed += _assert(str(content_strings.call("get_text", "options_music_volume_full")).find("Music") >= 0, "options_music_volume_full")
 	failed += _assert(str(content_strings.call("get_text", "options_sfx_volume_full")).find("SFX") >= 0, "options_sfx_volume_full")
 	failed += _assert(str(content_strings.call("get_text", "pause_slot_empty")).find("Empty") >= 0, "pause_slot_empty")
@@ -3095,10 +3105,14 @@ func _check_only_load() -> int:
 		"res://scripts/autoload/forge_jobs.gd",
 		"res://scripts/autoload/anim_preview_hotkey.gd",
 		"res://tools/anim_preview.gd",
+		"res://tools/debug/debug_panel.gd",
+		"res://scripts/pause_menu.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
 		failed += _assert(loaded != null, "check-only loads %s" % path)
+		if loaded is GDScript:
+			failed += _assert((loaded as GDScript).can_instantiate(), "check-only compiles %s" % path)
 	var gs: Node = root.get_node_or_null("GameState")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "")), 0.8), "check-only elaia work rate")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "reliquary")), 1.5), "check-only elaia reliquary rate")
@@ -4468,6 +4482,273 @@ func _scene_transitions(tree_root: Window, game_state: Node, save_service: Node)
 	if failed == 0:
 		print("SCENE_TRANSITIONS_OK")
 	return failed
+
+
+const _STABLE_PRESET: String = "Windows Release / Stable"
+const _TESTING_PRESET: String = "Windows Testing / Experimental"
+const _SPEED_HINT: String = "Test only. Cycles 1× → 2× → 4× → 8× → 16×. Speeds harvest, growth, Ancient, crafting and Wisps. Turning the option off resets to 1×."
+
+
+func _stripped_paths() -> PackedStringArray:
+	return PackedStringArray([
+		"tools/AnimPreview.tscn",
+		"tools/anim_preview.gd",
+		"tools/debug/debug_panel.tscn",
+		"tools/debug/debug_panel.gd",
+		"tools/debug/snapshots/pre_echo.json",
+		"tools/debug/snapshots/forge_unlocked.json",
+		"tools/debug/snapshots/elaia_joined.json",
+		"tools/debug/snapshots/ancient_ready.json",
+	])
+
+
+func _debug_stripped_ok() -> int:
+	## Stable pack must not contain the debug panel, its snapshots, or AnimPreview.
+	## The file table is read when the exported .pck is on disk. Preset excludes
+	## are always checked, the same way the play-scene strip is checked.
+	var failed: int = 0
+	var content: Node = get_root().get_node_or_null("ContentStrings")
+	var game_state: Node = get_root().get_node_or_null("GameState")
+	failed += _assert(content != null, "ContentStrings for debug strip")
+	if content != null:
+		failed += _assert(str(content.call("get_text", "options_speedup_toggle")) == "Show speed-up button", "options_speedup_toggle")
+		failed += _assert(str(content.call("get_text", "options_speedup_toggle_hint")) == _SPEED_HINT, "options_speedup_toggle_hint")
+		failed += _assert(str(content.call("get_text", "options_debug_tools_toggle")) == "Show debug tools", "options_debug_tools_toggle")
+	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
+	var stable: Dictionary = presets.get(_STABLE_PRESET, {}) as Dictionary
+	var testing: Dictionary = presets.get(_TESTING_PRESET, {}) as Dictionary
+	failed += _assert(not stable.is_empty(), "stable preset present")
+	failed += _assert(not testing.is_empty(), "testing preset present")
+	failed += _assert(not presets.has("Windows Desktop"), "old Windows Desktop preset is gone")
+	if stable.is_empty() or testing.is_empty():
+		return failed
+	var stable_exclude: PackedStringArray = _exclude_tokens(str(stable.get("exclude", "")))
+	var testing_exclude: PackedStringArray = _exclude_tokens(str(testing.get("exclude", "")))
+	failed += _assert(stable_exclude.has("tools/*"), "stable excludes tools/*")
+	failed += _assert(not testing_exclude.has("tools/*"), "testing keeps tools for the debug pack")
+	failed += _assert(str(stable.get("features", "")) == "manaforge_stable", "stable feature manaforge_stable")
+	failed += _assert(str(testing.get("features", "")) == "manaforge_debug", "testing feature manaforge_debug")
+	failed += _assert(bool(stable.get("embed_pck", true)) == false, "stable embed_pck false")
+	failed += _assert(bool(testing.get("embed_pck", true)) == false, "testing embed_pck false")
+	var stripped_paths: PackedStringArray = _stripped_paths()
+	for path: String in stripped_paths:
+		failed += _assert(stable_exclude.has(path), "stable exclude lists %s" % path)
+		failed += _assert(not testing_exclude.has(path), "testing exclude leaves %s" % path)
+		failed += _assert(FileAccess.file_exists("res://%s" % path), "debug resource exists %s" % path)
+	failed += _assert(testing_exclude.has("tools/bake_hub_layout.gd"), "testing still excludes the baker")
+	failed += _assert(testing_exclude.has("scripts/verify_headless.gd"), "testing still excludes verify")
+	failed += _assert(stable_exclude.has("docs/*"), "stable excludes docs")
+	var stable_pck: String = _preset_pck_path(str(stable.get("export_path", "")))
+	var testing_pck: String = _preset_pck_path(str(testing.get("export_path", "")))
+	var require_pck: bool = OS.get_environment("MANAFORGE_DEBUG_STRIP") == "1"
+	if stable_pck != "" and FileAccess.file_exists(stable_pck):
+		var stable_files: PackedStringArray = _read_pck_paths(stable_pck)
+		failed += _assert(stable_files.size() > 0, "stable pck has a file table")
+		for path: String in stripped_paths:
+			failed += _assert(not _pck_has(stable_files, path), "stable pck omits %s" % path)
+		print("DEBUG_STRIPPED_PCK %s files=%d" % [stable_pck, stable_files.size()])
+	elif require_pck:
+		failed += _assert(false, "stable pck missing at %s" % stable_pck)
+	if testing_pck != "" and FileAccess.file_exists(testing_pck):
+		var testing_files: PackedStringArray = _read_pck_paths(testing_pck)
+		failed += _assert(testing_files.size() > 0, "testing pck has a file table")
+		failed += _assert(_pck_has(testing_files, "tools/debug/debug_panel.tscn"), "testing pck keeps the debug panel")
+		failed += _assert(_pck_has(testing_files, "tools/AnimPreview.tscn"), "testing pck keeps AnimPreview")
+		failed += _assert(_pck_has(testing_files, "tools/debug/snapshots/pre_echo.json"), "testing pck keeps snapshots")
+		print("DEBUG_KEPT_PCK %s files=%d" % [testing_pck, testing_files.size()])
+	elif require_pck:
+		failed += _assert(false, "testing pck missing at %s" % testing_pck)
+	if game_state != null:
+		failed += _probe_debug_snapshots(game_state)
+	if failed == 0:
+		print("DEBUG_STRIPPED_OK")
+	return failed
+
+
+func _probe_debug_snapshots(game_state: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = get_root().get_node_or_null("ForgeJobs")
+	failed += _probe_one(game_state, "res://tools/debug/snapshots/pre_echo.json")
+	failed += _assert(bool(game_state.get("portal_unlocked")), "pre-echo portal is up")
+	failed += _assert(not bool(game_state.get("echo_01_resolved")), "pre-echo is not resolved")
+	failed += _assert(not bool(game_state.call("elaia_in_party")), "pre-echo has no Elaia")
+	failed += _assert(String(game_state.get("stage_id")) == "sapling", "pre-echo is a sapling")
+	failed += _assert(int(game_state.get("essence")) >= 30, "pre-echo can pay the Echo fee")
+	failed += _probe_one(game_state, "res://tools/debug/snapshots/forge_unlocked.json")
+	failed += _assert(String(game_state.get("stage_id")) == "elder", "forge snapshot is elder")
+	failed += _assert(bool(game_state.get("forge_key")), "forge snapshot has the key")
+	failed += _assert(bool(game_state.get("echo_01_resolved")), "forge snapshot finished the echo")
+	failed += _assert(not bool(game_state.get("echo_01_redeemed")), "forge snapshot did not spare")
+	failed += _assert(not bool(game_state.call("elaia_in_party")), "forge snapshot has no Elaia")
+	if jobs != null:
+		failed += _assert(bool(jobs.call("can_enter_forge")), "forge snapshot can enter")
+	failed += _probe_one(game_state, "res://tools/debug/snapshots/elaia_joined.json")
+	failed += _assert(bool(game_state.call("elaia_in_party")), "elaia snapshot joined")
+	failed += _assert(bool(game_state.get("elaia_join_seen")), "elaia snapshot saw the join")
+	failed += _assert(bool(game_state.get("first_relic_crafted")), "elaia snapshot crafted a relic")
+	failed += _probe_one(game_state, "res://tools/debug/snapshots/ancient_ready.json")
+	failed += _assert(String(game_state.get("stage_id")) == "ancient", "ancient snapshot stage")
+	failed += _assert(bool(game_state.get("fruit_ready")), "ancient snapshot fruit is ready")
+	failed += _assert(not bool(game_state.get("fruit_committed")), "ancient snapshot has not committed")
+	failed += _assert(not bool(game_state.get("ancient_frozen")), "ancient snapshot is not frozen")
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _probe_one(game_state: Node, path: String) -> int:
+	var failed: int = 0
+	failed += _assert(FileAccess.file_exists(path), "snapshot file %s" % path)
+	if not FileAccess.file_exists(path):
+		return failed
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "snapshot json %s" % path)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return failed
+	var root: Dictionary = parsed
+	failed += _assert(int(root.get("save_version", 0)) == 10, "snapshot save_version 10 %s" % path)
+	var state_v: Variant = root.get("state", {})
+	failed += _assert(typeof(state_v) == TYPE_DICTIONARY, "snapshot state %s" % path)
+	if typeof(state_v) != TYPE_DICTIONARY:
+		return failed
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", state_v)
+	return failed
+
+
+func _parse_export_presets(text: String) -> Dictionary:
+	var by_index: Dictionary = {}
+	var current := ""
+	var in_options := false
+	for raw_line: String in text.split("\n"):
+		var line := raw_line.strip_edges()
+		if line.begins_with("[") and line.ends_with("]"):
+			var body := line.substr(1, line.length() - 2)
+			if body.begins_with("preset.") and body.ends_with(".options"):
+				in_options = true
+				current = body.trim_prefix("preset.").trim_suffix(".options")
+			elif body.begins_with("preset."):
+				in_options = false
+				current = body.trim_prefix("preset.")
+				if not by_index.has(current):
+					by_index[current] = {
+						"name": "",
+						"exclude": "",
+						"export_path": "",
+						"features": "",
+						"embed_pck": true,
+					}
+			else:
+				in_options = false
+				current = ""
+			continue
+		if current == "" or not by_index.has(current):
+			continue
+		var row: Dictionary = by_index[current]
+		if not in_options:
+			if line.begins_with("name="):
+				row["name"] = _cfg_string(line)
+			elif line.begins_with("exclude_filter="):
+				row["exclude"] = _cfg_string(line)
+			elif line.begins_with("export_path="):
+				row["export_path"] = _cfg_string(line)
+			elif line.begins_with("custom_features="):
+				row["features"] = _cfg_string(line)
+		elif line.begins_with("binary_format/embed_pck="):
+			row["embed_pck"] = line.ends_with("true")
+		by_index[current] = row
+	var named: Dictionary = {}
+	for key: Variant in by_index.keys():
+		var row: Dictionary = by_index[key]
+		var preset_name: String = str(row.get("name", ""))
+		if preset_name != "":
+			named[preset_name] = row
+	return named
+
+
+func _cfg_string(line: String) -> String:
+	var value := line.substr(line.find("=") + 1).strip_edges()
+	if value.begins_with("\"") and value.ends_with("\"") and value.length() >= 2:
+		value = value.substr(1, value.length() - 2)
+	return value
+
+
+func _exclude_tokens(filter: String) -> PackedStringArray:
+	var out := PackedStringArray()
+	for part: String in filter.split(","):
+		var token := part.strip_edges()
+		if token != "":
+			out.append(token)
+	return out
+
+
+func _preset_pck_path(export_path: String) -> String:
+	if export_path == "":
+		return ""
+	var root_path := ProjectSettings.globalize_path("res://")
+	return root_path.path_join(export_path).get_basename() + ".pck"
+
+
+func _pck_has(files: PackedStringArray, path: String) -> bool:
+	## Export writes res://scripts/foo.gd plus foo.gdc, and scenes as foo.tscn.remap.
+	var needle := path.trim_prefix("res://").replace("\\", "/")
+	var needle_base := needle.get_basename()
+	for entry: String in files:
+		var cleaned := entry.trim_prefix("res://").replace("\\", "/")
+		var bare := cleaned.trim_suffix(".remap")
+		if cleaned == needle or bare == needle or bare.get_basename() == needle_base:
+			return true
+	return false
+
+
+func _read_pck_paths(path: String) -> PackedStringArray:
+	## Godot 4.7 pack directory (format v2, v3, or v4). Paths only.
+	var out := PackedStringArray()
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return out
+	var magic := file.get_32()
+	if magic != 0x43504447:
+		file.close()
+		return out
+	var version := file.get_32()
+	file.get_32()
+	file.get_32()
+	file.get_32()
+	var pack_flags := file.get_32()
+	file.get_64()
+	if version == 3 or version == 4:
+		var dir_offset := file.get_64()
+		if (pack_flags & 1) != 0:
+			file.close()
+			push_error("encrypted pck directory is not inspected: %s" % path)
+			return out
+		file.seek(dir_offset)
+	elif version == 2:
+		for _pad: int in 16:
+			file.get_32()
+	else:
+		file.close()
+		push_error("unsupported pck version %d in %s" % [version, path])
+		return out
+	var count := file.get_32()
+	if count < 0 or count > 200000:
+		file.close()
+		return out
+	for _i: int in count:
+		var length := int(file.get_32())
+		if length < 0 or length > 4096:
+			break
+		var raw := file.get_buffer(length)
+		while raw.size() > 0 and raw[raw.size() - 1] == 0:
+			raw.resize(raw.size() - 1)
+		var entry := raw.get_string_from_utf8()
+		file.get_64()
+		file.get_64()
+		file.get_buffer(16)
+		file.get_32()
+		out.append(entry)
+	file.close()
+	return out
 
 
 func _export_strip_keeps_scenes() -> int:
