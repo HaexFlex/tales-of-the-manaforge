@@ -122,6 +122,33 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_FORGE_YSORT") == "1":
+		var ysort_failed: int = await _forge_ysort(tree_root)
+		if ysort_failed > 0:
+			print("FORGE_YSORT_FAIL: %d" % ysort_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MANATREE_DOOR") == "1":
+		var door_clear_failed: int = await _manatree_door_clear(tree_root, game_state, save_service)
+		if door_clear_failed > 0:
+			print("MANATREE_DOOR_CLEAR_FAIL: %d" % door_clear_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_COMPANION_DOOR") == "1":
+		var companion_failed: int = await _companion_door_transfer(tree_root, game_state, save_service)
+		if companion_failed > 0:
+			print("COMPANION_DOOR_TRANSFER_FAIL: %d" % companion_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -2411,6 +2438,9 @@ func _run() -> void:
 	failed += await _workbench_reach(tree_root, save_service)
 	failed += await _portrait_switch_forge(tree_root, game_state, save_service)
 	failed += await _forge_arch_draw_order(tree_root)
+	failed += await _forge_ysort(tree_root)
+	failed += await _manatree_door_clear(tree_root, game_state, save_service)
+	failed += await _companion_door_transfer(tree_root, game_state, save_service)
 	failed += await _forge_entry_one_click(tree_root, game_state, save_service)
 	failed += _no_old_keeper_idle()
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
@@ -5246,38 +5276,477 @@ func _portrait_direction(game_state: Node, unit: String, unit_area: String, othe
 
 
 func _forge_arch_draw_order(tree_root: Window) -> int:
-	## Keeper and Elaia draw under the Forge entrance arch while they stand in it.
+	## The playtest spawn is the arch mouth after a door transfer, not a pose
+	## parked on the root lip. ArchFront has to cover the body there, and its
+	## draw key has to stay above the heroes on the live scene.
+	var failed: int = 0
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var save_service: Node = tree_root.get_node_or_null("SaveService")
+	failed += _assert(game_state != null and jobs != null, "arch transfer needs GameState and ForgeJobs")
+	if game_state == null or jobs == null:
+		return failed
+	var packed: PackedScene = load(_FORGE_SCENE) as PackedScene
+	failed += _assert(packed != null, "forge room packed scene")
+	if packed != null:
+		var cold: Node2D = packed.instantiate() as Node2D
+		var cold_arch: Sprite2D = cold.get_node_or_null("ArchFront") as Sprite2D
+		var cold_keeper: CanvasItem = cold.get_node_or_null("Keeper") as CanvasItem
+		failed += _assert(cold.y_sort_enabled, "packed forge y-sorts heroes against stations")
+		failed += _assert(cold_arch != null and cold_keeper != null, "packed forge has ArchFront and Keeper")
+		if cold_arch != null and cold_keeper != null:
+			failed += _assert(_effective_z(cold_arch) > _effective_z(cold_keeper), "packed ArchFront draws above the Keeper")
+			failed += _assert(cold_arch.texture != null and str(cold_arch.texture.resource_path).find("forge_arch_front") >= 0, "packed arch uses forge_arch_front")
+		cold.free()
+	game_state.call("reset_for_new_game")
+	if save_service != null:
+		save_service.call("note_session_ended")
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	game_state.set("forge_visited", true)
+	game_state.set("forge_key", true)
+	_place_actor(game_state, "keeper", "clearing", Vector2(2160, 2200))
+	var entered: String = str(jobs.call("commit_actor_enter", "keeper"))
+	failed += _assert(entered == "entered", "door transfer queues the forge (got %s)" % entered)
+	var stable: String = await _await_stable_scene()
+	failed += _assert(stable == _FORGE_SCENE, "door transfer opens the forge (got %s)" % stable)
+	var room: Node2D = current_scene as Node2D
+	if room == null:
+		return failed + 1
+	var arch: Sprite2D = room.get_node_or_null("ArchFront") as Sprite2D
+	var keeper: Node2D = room.get_node_or_null("Keeper") as Node2D
+	var elaia: Node2D = room.get_node_or_null("Elaia") as Node2D
+	failed += _assert(arch != null and keeper != null and elaia != null, "live forge has arch, keeper, and elaia")
+	if arch == null or keeper == null or elaia == null:
+		_drop_current_scene()
+		return failed
+	await process_frame
+	var spawn: Vector2 = jobs.call("forge_arch_spawn")
+	failed += _assert(keeper.global_position.distance_to(spawn) <= 2.0, "keeper stands at the post-transfer spawn")
+	failed += _assert(keeper.get_parent() == room, "keeper stays on the forge room after the transfer")
+	failed += _assert(_canvas_layer_above(keeper) == null, "keeper is not reparented onto a CanvasLayer")
+	failed += _assert(room.y_sort_enabled, "forge room y-sorts stations and heroes")
+	var keeper_item: CanvasItem = keeper as CanvasItem
+	var elaia_item: CanvasItem = elaia as CanvasItem
+	failed += _assert(_effective_z(arch) > _effective_z(keeper_item), "live arch z stays above the keeper")
+	failed += _assert(_effective_z(arch) > _effective_z(elaia_item), "live arch z stays above elaia")
+	var covered: int = _arch_body_overlap(arch, keeper.global_position)
+	failed += _assert(covered > 40, "arch frame covers the keeper at the door spawn (opaque samples %d)" % covered)
+	var deep: int = _arch_body_overlap(arch, Vector2(800, 700))
+	failed += _assert(deep == 0, "arch frame does not cover a keeper deep in the room (samples %d)" % deep)
+	var lip: int = _arch_body_overlap(arch, Vector2(800, 1160))
+	failed += _assert(lip > 40, "arch lip still covers a keeper in the doorway (samples %d)" % lip)
+	failed += _assert(_draws_over(arch, keeper_item), "rendered order keeps the arch over the keeper at the spawn")
+	_drop_current_scene()
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("FORGE_ARCH_DRAW_ORDER_OK")
+	return failed
+
+
+func _forge_ysort(tree_root: Window) -> int:
+	## Feet order against stations. The arch is a higher z, so it still wins
+	## when a hero stands under it (south of the arch node's origin).
 	var failed: int = 0
 	var packed: PackedScene = load(_FORGE_SCENE) as PackedScene
-	failed += _assert(packed != null, "forge room for the arch")
+	failed += _assert(packed != null, "forge room for y-sort")
 	if packed == null:
 		return failed
 	change_scene_to_packed(packed)
 	var stable: String = await _await_stable_scene()
-	failed += _assert(stable == _FORGE_SCENE, "arch check is in the forge")
+	failed += _assert(stable == _FORGE_SCENE, "y-sort check is in the forge")
 	var room: Node2D = current_scene as Node2D
 	if room == null:
 		return failed + 1
+	failed += _assert(room.y_sort_enabled, "forge room y-sort is on")
 	var arch: CanvasItem = room.get_node_or_null("ArchFront") as CanvasItem
-	var keeper: CanvasItem = room.get_node_or_null("Keeper") as CanvasItem
-	var elaia: CanvasItem = room.get_node_or_null("Elaia") as CanvasItem
-	failed += _assert(arch != null and keeper != null and elaia != null, "arch, keeper, and elaia exist")
-	if arch == null or keeper == null or elaia == null:
+	var keeper: Node2D = room.get_node_or_null("Keeper") as Node2D
+	var elaia: Node2D = room.get_node_or_null("Elaia") as Node2D
+	var station: Node2D = room.get_node_or_null("Reliquary") as Node2D
+	failed += _assert(arch != null and keeper != null and elaia != null and station != null, "y-sort nodes exist")
+	if arch == null or keeper == null or elaia == null or station == null:
 		_drop_current_scene()
 		return failed
-	var mouth := Vector2(800, 1124)
-	(keeper as Node2D).global_position = mouth + Vector2(-24, 0)
-	(elaia as Node2D).global_position = mouth + Vector2(36, 0)
+	var station_sprite: CanvasItem = station.get_node_or_null("Sprite") as CanvasItem
+	var keeper_sprite: CanvasItem = keeper.get_node_or_null("Sprite") as CanvasItem
+	var elaia_sprite: CanvasItem = elaia.get_node_or_null("Sprite") as CanvasItem
+	failed += _assert(station_sprite != null and keeper_sprite != null and elaia_sprite != null, "station and hero sprites")
+	if station_sprite == null or keeper_sprite == null or elaia_sprite == null:
+		_drop_current_scene()
+		return failed
+	var feet_y: float = station.global_position.y
+	keeper.global_position = Vector2(station.global_position.x, feet_y + 48.0)
+	elaia.global_position = Vector2(station.global_position.x + 36.0, feet_y + 48.0)
 	await process_frame
-	failed += _assert(not room.y_sort_enabled, "forge room does not y-sort the arch over the heroes")
-	failed += _assert(arch.z_index > keeper.z_index, "keeper draws under the forge arch (arch %d keeper %d)" % [arch.z_index, keeper.z_index])
-	failed += _assert(arch.z_index > elaia.z_index, "elaia draws under the forge arch (arch %d elaia %d)" % [arch.z_index, elaia.z_index])
-	var arch_sprite: Sprite2D = arch as Sprite2D
-	failed += _assert(arch_sprite != null and arch_sprite.texture != null, "arch texture is on ArchFront")
+	failed += _assert(_draws_over(keeper_sprite, station_sprite), "keeper south of the Reliquary draws over it")
+	failed += _assert(_draws_over(elaia_sprite, station_sprite), "elaia south of the Reliquary draws over it")
+	failed += _assert(_draws_over(arch, keeper_sprite), "arch still draws over a hero who is south of the arch node")
+	keeper.global_position = Vector2(station.global_position.x, feet_y - 48.0)
+	elaia.global_position = Vector2(station.global_position.x + 36.0, feet_y - 48.0)
+	await process_frame
+	failed += _assert(_draws_over(station_sprite, keeper_sprite), "keeper north of the Reliquary draws under it")
+	failed += _assert(_draws_over(station_sprite, elaia_sprite), "elaia north of the Reliquary draws under it")
+	for station_node: Node in room.get_children():
+		if not station_node.is_in_group("forge_station"):
+			continue
+		failed += _assert_station_walk_width(station_node)
 	_drop_current_scene()
 	if failed == 0:
-		print("FORGE_ARCH_DRAW_ORDER_OK")
+		print("FORGE_YSORT_OK")
 	return failed
+
+
+func _assert_station_walk_width(station_node: Node) -> int:
+	var failed: int = 0
+	var sprite: Sprite2D = station_node.get_node_or_null("Sprite") as Sprite2D
+	var shape_node: CollisionShape2D = station_node.get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
+	var pick: CollisionShape2D = station_node.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	failed += _assert(sprite != null and sprite.texture != null and shape_node != null, "%s walk box exists" % station_node.name)
+	if sprite == null or sprite.texture == null or shape_node == null or not (shape_node.shape is RectangleShape2D):
+		return failed + 1
+	var rect: RectangleShape2D = shape_node.shape as RectangleShape2D
+	var shown_w: float = float(sprite.texture.get_width()) * absf(sprite.scale.x)
+	var shown_h: float = float(sprite.texture.get_height()) * absf(sprite.scale.y)
+	var img: Image = sprite.texture.get_image()
+	var opaque_w: float = shown_w
+	if img != null:
+		if img.is_compressed():
+			img.decompress()
+		var used: Rect2i = img.get_used_rect()
+		if used.size.x >= 4:
+			opaque_w = float(used.size.x) * absf(sprite.scale.x)
+	failed += _assert(absf(rect.size.x - opaque_w) <= 1.5, "%s walk width is the opaque span (got %.1f want %.1f)" % [station_node.name, rect.size.x, opaque_w])
+	failed += _assert(rect.size.x < shown_w - 8.0, "%s walk width is narrower than the PNG canvas" % station_node.name)
+	var want_h: float = maxf(8.0, shown_h / 3.0)
+	failed += _assert(absf(rect.size.y - want_h) <= 1.5, "%s walk height stays a third of the canvas" % station_node.name)
+	var bottom: float = shape_node.position.y + rect.size.y * 0.5
+	failed += _assert(absf(bottom) <= 1.5, "%s walk box still sits on the station feet" % station_node.name)
+	if pick != null and pick.shape is RectangleShape2D:
+		var pick_rect: RectangleShape2D = pick.shape as RectangleShape2D
+		failed += _assert(absf(pick_rect.size.x - rect.size.x) > 1.0 or absf(pick_rect.size.y - rect.size.y) > 1.0, "%s pick shape stays separate from the walk box" % station_node.name)
+	return failed
+
+
+func _manatree_door_clear(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for the manatree door")
+	if jobs == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	jobs.call("set_scene_changes_enabled", true)
+	paused = false
+	change_scene_to_file(_HUB_SCENE)
+	var stable: String = await _await_stable_scene()
+	failed += _assert(stable == _HUB_SCENE, "manatree door check starts in the clearing")
+	var live: Node = current_scene
+	if live == null:
+		return failed + 1
+	var tree: Node2D = live.get_node_or_null("World/Manatree") as Node2D
+	failed += _assert(tree != null, "manatree exists")
+	if tree == null:
+		_drop_current_scene()
+		return failed
+	var keeper_cls = load("res://scripts/keeper.gd")
+	for stage_name: String in ["sapling", "young", "mature", "elder", "ancient"]:
+		game_state.set("stage_id", StringName(stage_name))
+		game_state.emit_signal("stage_changed", StringName(stage_name))
+		await process_frame
+		var trunk: Node = tree.get_node_or_null("Trunk")
+		failed += _assert(trunk != null, "%s trunk body" % stage_name)
+		if trunk == null:
+			continue
+		var blocked_south: bool = false
+		var blocked_side: bool = false
+		var cap_hit: bool = false
+		for child: Node in trunk.get_children():
+			var shape_node: CollisionShape2D = child as CollisionShape2D
+			if shape_node == null or not (shape_node.shape is RectangleShape2D):
+				continue
+			var rect: RectangleShape2D = shape_node.shape as RectangleShape2D
+			var south_edge: float = shape_node.position.y + rect.size.y * 0.5
+			if south_edge > 0.5:
+				blocked_south = true
+		failed += _assert(not blocked_south, "%s has no collision south of the sill" % stage_name)
+		var probes: Array[Vector2] = [
+			Vector2(0, 8), Vector2(0, 36), Vector2(48, 20), Vector2(-48, 20),
+			Vector2(36, -24), Vector2(-36, -24), Vector2(0, -20),
+		]
+		for probe: Vector2 in probes:
+			if _trunk_contains(trunk, probe):
+				blocked_side = true
+		failed += _assert(not blocked_side, "%s corridor to the door is open" % stage_name)
+		cap_hit = _trunk_contains(trunk, Vector2(0, -52))
+		failed += _assert(cap_hit, "%s trunk still blocks above the doorway" % stage_name)
+		var footprint: Rect2 = tree.call("work_footprint")
+		for actor_id: String in ["keeper", "elaia"]:
+			var solved: Dictionary = keeper_cls.solve_work_spot(footprint, tree.global_position, "manatree", Callable(), "", actor_id)
+			var pos: Vector2 = solved.get("position", Vector2.ZERO)
+			var hit: bool = _actor_box_hits(live, pos, actor_id)
+			failed += _assert(not hit and not bool(solved.get("fallback", false)), "%s watering stays reachable at %s" % [actor_id, stage_name])
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("MANATREE_DOOR_CLEAR_OK")
+	return failed
+
+
+func _trunk_contains(trunk: Node, local: Vector2) -> bool:
+	for child: Node in trunk.get_children():
+		var shape_node: CollisionShape2D = child as CollisionShape2D
+		if shape_node == null or not (shape_node.shape is RectangleShape2D):
+			continue
+		var rect: RectangleShape2D = shape_node.shape as RectangleShape2D
+		var half: Vector2 = rect.size * 0.5
+		var delta: Vector2 = local - shape_node.position
+		if absf(delta.x) <= half.x and absf(delta.y) <= half.y:
+			return true
+	return false
+
+
+func _companion_door_transfer(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Both heroes, both directions, twice. The old bug hid Elaia during the
+	## deferred swap and left the door able to bounce the new scene.
+	var failed: int = _sheet_users(tree_root)
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for companion transfer")
+	if jobs == null:
+		return failed
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	failed += await _boot_play(game_state, save_service, true)
+	if failed > 0:
+		return failed
+	for trip_i: int in 2:
+		var tag: String = "trip %d" % (trip_i + 1)
+		failed += await _party_ready_in_clearing(game_state, tag)
+		if failed > 0:
+			return failed
+		var hopped: String = str(jobs.call("try_door_entry", "keeper"))
+		failed += _assert(hopped == "entered", "%s door entry (got %s)" % [tag, hopped])
+		failed += await _expect_scene("%s forge" % tag, _FORGE_SCENE)
+		failed += await _hold_scene("%s stays in the forge" % tag, _FORGE_SCENE)
+		var forge_spot: Vector2 = jobs.call("forge_arch_spawn")
+		failed += _party_present(game_state, "forge", forge_spot, forge_spot + Vector2(64, 0))
+		failed += await _party_can_walk("forge")
+		if failed > 0:
+			return failed
+		var room: Node = current_scene
+		var leader: Node2D = null
+		if room != null:
+			leader = room.get_node_or_null("Keeper") as Node2D
+		if room == null or leader == null or not room.has_method("_on_exit_body"):
+			failed += _assert(false, "%s forge exit missing" % tag)
+			return failed
+		room.call("_on_exit_body", leader)
+		failed += await _expect_scene("%s clearing" % tag, _HUB_SCENE)
+		failed += await _hold_scene("%s stays in the clearing" % tag, _HUB_SCENE)
+		var stand: Vector2 = jobs.call("clearing_door_stand")
+		failed += _party_present(game_state, "clearing", stand, stand + Vector2(72, 0))
+		failed += await _party_can_walk("clearing")
+		if failed > 0:
+			return failed
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("COMPANION_DOOR_TRANSFER_OK")
+	return failed
+
+
+func _sheet_users(tree_root: Window) -> int:
+	var failed: int = 0
+	var gear: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(gear != null, "Equipment for the character sheet")
+	if gear == null:
+		return failed
+	gear.call("reset_for_new_game")
+	failed += _assert(bool(gear.call("add_gear", "stone_sword", 1)), "bag sword")
+	failed += _assert(bool(gear.call("add_gear", "sapstaff", 1)), "bag staff")
+	failed += _assert(bool(gear.call("add_gear", "thornbow", 1)), "bag bow")
+	var keeper_ids: PackedStringArray = _sheet_ids(gear, "keeper")
+	var elaia_ids: PackedStringArray = _sheet_ids(gear, "elaia")
+	failed += _assert(keeper_ids.has("stone_sword") and keeper_ids.has("thornbow"), "keeper sheet lists his weapons")
+	failed += _assert(not keeper_ids.has("sapstaff"), "keeper sheet hides Elaia's staff")
+	failed += _assert(elaia_ids.has("sapstaff") and elaia_ids.has("thornbow"), "elaia sheet lists her weapons")
+	failed += _assert(not elaia_ids.has("stone_sword"), "elaia sheet hides the Keeper's sword")
+	failed += _assert(str(gear.call("try_equip", "sapstaff", "keeper")) == "wrong_user", "equipping the staff on the keeper is refused")
+	gear.call("reset_for_new_game")
+	return failed
+
+
+func _sheet_ids(gear: Node, actor: String) -> PackedStringArray:
+	var ids := PackedStringArray()
+	var rows: Array = gear.call("list_for_sheet", actor)
+	for row: Variant in rows:
+		if typeof(row) == TYPE_DICTIONARY:
+			ids.append(str((row as Dictionary).get("id", "")))
+	return ids
+
+
+func _party_ready_in_clearing(game_state: Node, tag: String) -> int:
+	var failed: int = 0
+	if _scene_path() != _HUB_SCENE:
+		failed += await _expect_scene(tag + " hub", _HUB_SCENE)
+	var live: Node = current_scene
+	var tree: Node2D = null
+	var keeper: Node = null
+	var elaia: Node = null
+	if live != null:
+		tree = live.get_node_or_null("World/Manatree") as Node2D
+		keeper = live.get_node_or_null("World/Keeper")
+		elaia = live.get_node_or_null("World/Elaia")
+	failed += _assert(tree != null and keeper != null and elaia != null, "%s clearing bodies" % tag)
+	if tree == null or keeper == null or elaia == null:
+		return failed
+	var origin: Vector2 = tree.global_position
+	_place_actor(game_state, "keeper", "clearing", origin + Vector2(-16, 90))
+	_place_actor(game_state, "elaia", "clearing", origin + Vector2(56, 96))
+	if keeper.has_method("apply_keeper_presence"):
+		keeper.call("apply_keeper_presence")
+	if elaia.has_method("_apply_presence"):
+		elaia.call("_apply_presence")
+	await process_frame
+	failed += _assert((keeper as CanvasItem).visible and (elaia as CanvasItem).visible, "%s both visible before the door" % tag)
+	return failed
+
+
+func _party_present(game_state: Node, area: String, keeper_spot: Vector2, elaia_spot: Vector2) -> int:
+	var failed: int = 0
+	var keeper: Node2D = get_first_node_in_group("keeper") as Node2D
+	var elaia: Node2D = get_first_node_in_group("elaia") as Node2D
+	if elaia == null and current_scene != null:
+		elaia = current_scene.find_child("Elaia", true, false) as Node2D
+	failed += _assert(keeper != null and elaia != null, "%s bodies exist" % area)
+	if keeper == null or elaia == null:
+		return failed
+	failed += _assert(str(game_state.get("keeper_area")) == area and str(game_state.get("elaia_area")) == area, "%s session areas" % area)
+	failed += _assert(keeper.visible and elaia.visible, "%s both visible" % area)
+	failed += _assert(keeper.is_physics_processing() and elaia.is_physics_processing(), "%s both simulate" % area)
+	failed += _assert(keeper.global_position.distance_to(keeper_spot) <= 24.0, "%s keeper beside the door (off %.1f)" % [area, keeper.global_position.distance_to(keeper_spot)])
+	failed += _assert(elaia.global_position.distance_to(elaia_spot) <= 24.0, "%s elaia beside the keeper (off %.1f)" % [area, elaia.global_position.distance_to(elaia_spot)])
+	return failed
+
+
+func _party_can_walk(area: String) -> int:
+	var failed: int = 0
+	var keeper: Node2D = get_first_node_in_group("keeper") as Node2D
+	var elaia: Node2D = get_first_node_in_group("elaia") as Node2D
+	if keeper == null or elaia == null:
+		return failed + 1
+	var step: Vector2 = Vector2(0, -70) if area == "forge" else Vector2(0, 80)
+	var keeper_from: Vector2 = keeper.global_position
+	var elaia_from: Vector2 = elaia.global_position
+	if keeper.has_method("move_to"):
+		keeper.call("move_to", keeper_from + step, null)
+	if elaia.has_method("move_to"):
+		elaia.call("move_to", elaia_from + step, null)
+	for _step_i: int in 25:
+		await physics_frame
+	failed += _assert(keeper.global_position.distance_to(keeper_from) > 8.0, "%s keeper can walk" % area)
+	failed += _assert(elaia.global_position.distance_to(elaia_from) > 8.0, "%s elaia can walk" % area)
+	return failed
+
+
+func _hold_scene(label: String, expect: String) -> int:
+	for _hold_i: int in 10:
+		await process_frame
+		await physics_frame
+		if _scene_path() != expect:
+			printerr("ASSERT FAIL: %s bounced to %s" % [label, _scene_path()])
+			return 1
+	return 0
+
+
+func _effective_z(item: CanvasItem) -> int:
+	var z: int = item.z_index
+	if not item.z_as_relative:
+		return z
+	var parent: Node = item.get_parent()
+	while parent is CanvasItem:
+		var canvas: CanvasItem = parent as CanvasItem
+		z += canvas.z_index
+		if not canvas.z_as_relative:
+			break
+		parent = parent.get_parent()
+	return z
+
+
+func _canvas_layer_above(node: Node) -> Node:
+	var parent: Node = node.get_parent()
+	while parent != null:
+		if parent is CanvasLayer:
+			return parent
+		parent = parent.get_parent()
+	return null
+
+
+func _draws_over(front: CanvasItem, back: CanvasItem) -> bool:
+	var front_z: int = _effective_z(front)
+	var back_z: int = _effective_z(back)
+	if front_z != back_z:
+		return front_z > back_z
+	var front_body: Node2D = front as Node2D
+	var back_body: Node2D = back as Node2D
+	if front_body != null and back_body != null and _under_ysort(front_body) and _under_ysort(back_body):
+		if absf(front_body.global_position.y - back_body.global_position.y) > 0.5:
+			return front_body.global_position.y > back_body.global_position.y
+	return front.get_index() > back.get_index()
+
+
+func _under_ysort(node: Node) -> bool:
+	var parent: Node = node.get_parent()
+	while parent != null:
+		if parent is CanvasItem and (parent as CanvasItem).y_sort_enabled:
+			return true
+		parent = parent.get_parent()
+	return false
+
+
+func _arch_body_overlap(arch: Sprite2D, feet: Vector2) -> int:
+	if arch.texture == null:
+		return 0
+	var arch_img: Image = arch.texture.get_image()
+	var still: Texture2D = load("res://assets/art/keeper/stills/keeper_still_south_frame0.png") as Texture2D
+	if arch_img == null or still == null:
+		return 0
+	var body: Image = still.get_image()
+	if body == null:
+		return 0
+	if arch_img.is_compressed():
+		arch_img.decompress()
+	if body.is_compressed():
+		body.decompress()
+	var arch_size: Vector2 = arch.texture.get_size()
+	var arch_origin: Vector2 = arch.global_position - arch_size * 0.5
+	if not arch.centered:
+		arch_origin = arch.global_position + arch.offset
+	var body_origin: Vector2 = feet + Vector2(-64, -128)
+	var hits: int = 0
+	var step: int = 2
+	for py: int in range(0, body.get_height(), step):
+		for px: int in range(0, body.get_width(), step):
+			if body.get_pixel(px, py).a < 0.2:
+				continue
+			var world: Vector2 = body_origin + Vector2(px, py)
+			var tex: Vector2 = world - arch_origin
+			var tx: int = int(tex.x)
+			var ty: int = int(tex.y)
+			if tx < 0 or ty < 0 or tx >= arch_img.get_width() or ty >= arch_img.get_height():
+				continue
+			if arch_img.get_pixel(tx, ty).a > 0.2:
+				hits += 1
+	return hits
 
 
 func _forge_entry_one_click(tree_root: Window, game_state: Node, save_service: Node) -> int:

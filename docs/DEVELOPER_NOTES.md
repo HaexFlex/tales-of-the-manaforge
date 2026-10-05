@@ -61,7 +61,10 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `ELAIA_JOIN_OK` | Spare without a relic does not bring Elaia in. The first relic craft does. Her portrait waits for the clearing dialogue. An old save that already had her keeps her, and a relic without Spare does not. |
 | `DEBUG_STRIPPED_OK` | The Windows Release / Stable preset strips the debug panel, the four debug snapshots, and AnimPreview. When `builds/stable/TalesOfTheManaforge.pck` and the experimental pack are on disk, the check reads those file tables. `MANAFORGE_DEBUG_STRIP=1` requires both packs. |
 | `PORTRAIT_SWITCH_FORGE_OK` | With Elaia joined, a double-click on the Keeper portrait while she is in the Forge (and the reverse, Elaia's portrait while the Keeper is in the Forge) changes view without freeing the HUD inside the click. `MANAFORGE_PORTRAIT_SWITCH=1` runs it alone. |
-| `FORGE_ARCH_DRAW_ORDER_OK` | The Keeper and Elaia draw under ArchFront while standing in the Forge entrance. `MANAFORGE_FORGE_ARCH=1` runs it alone. |
+| `FORGE_ARCH_DRAW_ORDER_OK` | After a real door transfer, ArchFront's opaque frame covers the Keeper at the Forge spawn and its draw z stays above the heroes. `MANAFORGE_FORGE_ARCH=1` runs it alone. |
+| `FORGE_YSORT_OK` | In the Forge, a hero south of a station draws over it and a hero north of it draws under it. The arch stays above both. Station walk boxes use the opaque sprite width. `MANAFORGE_FORGE_YSORT=1` runs it alone. |
+| `MANATREE_DOOR_CLEAR_OK` | At every growth stage, no Manatree walk box sits south of the door sill and the corridor up to the door is open. `MANAFORGE_MANATREE_DOOR=1` runs it alone. |
+| `COMPANION_DOOR_TRANSFER_OK` | Keeper and Elaia go clearing → Forge → clearing twice. Both stay visible and can walk after each hop. `MANAFORGE_COMPANION_DOOR=1` runs it alone. |
 | `FORGE_ENTRY_ONE_CLICK_OK` | One click on the Manatree door walks to the sill and enters the Forge. The same run checks the watering stand at every growth stage. `MANAFORGE_FORGE_ENTRY=1` runs it alone. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
