@@ -27,6 +27,10 @@ var echo_hp: int = 60
 var keeper: Dictionary = {}
 var echo: Dictionary = {}
 var echo_crit_mult: float = 1.2
+## Empty path keeps the Elaia portrait. West and front are not mirrored.
+var foe_art_path: String = ""
+var foe_facing: String = ""
+var foe_sole_y: int = 123
 var spare_window: bool = false
 var outcome: String = ""
 var enemy_attacks: int = 0
@@ -129,6 +133,9 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 	}
 	echo_name = str(echo_def.get("display_name", "Elaia"))
 	echo_id = str(echo_def.get("id", ""))
+	foe_art_path = str(echo_def.get("battle_art_path", ""))
+	foe_facing = str(echo_def.get("facing", ""))
+	foe_sole_y = int(echo_def.get("sole_y", 123))
 	echo_crit_mult = float(echo_def.get("crit_multiplier", 1.2))
 	if str(echo_def.get("attack_profile", "magical")) == "physical":
 		foe_attack_stat = "might"

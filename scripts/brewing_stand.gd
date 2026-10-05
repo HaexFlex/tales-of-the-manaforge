@@ -1,6 +1,6 @@
 extends Area2D
-## Hub brewing stand. Unlocks when Corvane joins. Placeholder art until Art ships the prop.
-## ID: res://assets/art/props/brewing_stand.png
+## Hub brewing stand. Unlocks when Corvane joins.
+## Art is 64×80, bottom-centre, base on the node origin.
 
 const STAND_SIZE: Vector2 = Vector2(64, 80)
 
@@ -41,7 +41,10 @@ func _build_visual() -> void:
 		tex = load(Adventure.ART_BREWING_STAND) as Texture2D
 	if tex != null:
 		sprite.texture = tex
-		sprite.offset = Vector2(-tex.get_width() * 0.5, -tex.get_height())
+		var native := Vector2(tex.get_width(), tex.get_height())
+		if native.x > 0.0 and native.y > 0.0:
+			sprite.scale = STAND_SIZE / native
+		sprite.offset = Vector2(-native.x * 0.5, -native.y)
 	else:
 		sprite.offset = Vector2(-STAND_SIZE.x * 0.5, -STAND_SIZE.y)
 	add_child(sprite)

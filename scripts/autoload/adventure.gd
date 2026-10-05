@@ -39,6 +39,16 @@ const ART_GLOWCAP: String = "res://assets/art/ui/icon_glowcap.png"
 const ART_BITTERROOT: String = "res://assets/art/ui/icon_bitterroot.png"
 const ART_HEART_SALVE: String = "res://assets/art/ui/icon_heart_salve.png"
 const ART_BILE_VIAL: String = "res://assets/art/ui/icon_bile_vial.png"
+## Phase 0 reach foe. West-facing, same 128 canvas and sole line as Corvane.
+const ART_BRIAR_WARDEN: String = "res://assets/art/echo/battle_briar_warden_idle.png"
+## Banked Phase 1 roster art. No Phase 0 foe uses these. Do not mirror the front-facing sheets.
+const ART_WILT_WISP: String = "res://assets/art/echo/battle_wilt_wisp_idle.png"
+const ART_ROOT_SNAPPER: String = "res://assets/art/echo/battle_root_snapper_idle.png"
+const ART_MOSS_BRUTE: String = "res://assets/art/echo/battle_moss_brute_idle.png"
+const BATTLE_CANVAS: Vector2i = Vector2i(128, 128)
+const BATTLE_SOLE_Y: int = 123
+const PORTRAIT_FRAME: Vector2i = Vector2i(52, 52)
+const SHEET_FRAME: Vector2i = Vector2i(160, 160)
 const BREWING_STAND_POS: Vector2 = Vector2(2420, 2220)
 
 var adventure_unlocked: bool = false
@@ -155,6 +165,9 @@ func reach_foe_def() -> Dictionary:
 			"display_name": "Briar Warden",
 			"crit_multiplier": 1.2,
 			"attack_profile": "physical",
+			"battle_art_path": ART_BRIAR_WARDEN,
+			"facing": "west",
+			"sole_y": BATTLE_SOLE_Y,
 			"stats": {
 				"might": 6, "arcana": 3, "resilience": 5, "ward": 4,
 				"vitality": 6, "swiftness": 4, "fate": 5,
@@ -167,6 +180,26 @@ func reach_foe_def() -> Dictionary:
 		if labeled != "" and labeled != key:
 			def["display_name"] = labeled
 	return def
+
+
+static func frame_slice(path: String, frame: Vector2i) -> Texture2D:
+	## One frame from the top-left. A file that is already that size is the whole frame.
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	var tex: Texture2D = load(path) as Texture2D
+	if tex == null:
+		return null
+	if tex.get_width() == frame.x and tex.get_height() == frame.y:
+		return tex
+	var atlas := AtlasTexture.new()
+	atlas.atlas = tex
+	atlas.region = Rect2(0, 0, mini(frame.x, tex.get_width()), mini(frame.y, tex.get_height()))
+	return atlas
+
+
+static func mirror_battle_facing(facing: String) -> bool:
+	## West already looks toward the Keeper. Front-facing sheets stay as drawn.
+	return facing == "east"
 
 
 func owns_forge_weapon() -> bool:

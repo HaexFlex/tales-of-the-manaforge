@@ -698,7 +698,7 @@ func _actor_portrait_texture(actor: String) -> Texture2D:
 	if actor == "elaia":
 		return load(CharacterSheet.ELAIA_PARTY_PORTRAIT_PATH) as Texture2D
 	if actor == "corvane" and ResourceLoader.exists(Adventure.ART_CORVANE_PORTRAIT):
-		return load(Adventure.ART_CORVANE_PORTRAIT) as Texture2D
+		return Adventure.frame_slice(Adventure.ART_CORVANE_PORTRAIT, Adventure.PORTRAIT_FRAME)
 	return load(CharacterSheet.KEEPER_PARTY_PORTRAIT_PATH) as Texture2D
 
 

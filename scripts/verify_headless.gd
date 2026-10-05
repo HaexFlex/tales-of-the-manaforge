@@ -4402,7 +4402,50 @@ func _adventure_echo2(game_state: Node) -> int:
 	failed += _assert(fight.last_echo_damage == 30, "Corvane might 8 vs resilience 5 is 30 (got %d)" % fight.last_echo_damage)
 	var elaia_def: Dictionary = echo.call("echo_def")
 	failed += _assert(str(elaia_def.get("id", "")) == "echo_keeper_01", "echo 1 id unchanged")
+	failed += _assert(str(elaia_def.get("battle_art_path", "")) == "", "echo 1 has no foe art path")
+	failed += _assert(str(sheet.get("battle_art_path", "")).ends_with("battle_corvane_idle.png"), "corvane battle art")
+	failed += _assert(str(sheet.get("facing", "")) == "west", "corvane faces west")
+	failed += _assert(int(sheet.get("sole_y", 0)) == 123, "corvane sole y=123")
+	failed += _assert(not bool(adventure.call("mirror_battle_facing", "west")), "west battle art is not mirrored")
+	failed += _assert(not bool(adventure.call("mirror_battle_facing", "front")), "front battle art is not mirrored")
+	var foe: Dictionary = adventure.call("reach_foe_def")
+	failed += _assert(str(foe.get("id", "")) == "reach_foe", "phase 0 has one reach foe")
+	failed += _assert(str(foe.get("battle_art_path", "")).ends_with("battle_briar_warden_idle.png"), "briar warden art on the reach foe")
+	failed += _assert(str(foe.get("facing", "")) == "west", "briar faces west")
+	failed += _assert(int(foe.get("sole_y", 0)) == 123, "briar sole y=123")
+	failed += _assert(str(adventure.get("ART_WILT_WISP")).ends_with("battle_wilt_wisp_idle.png"), "wilt wisp path declared")
+	failed += _assert(str(adventure.get("ART_ROOT_SNAPPER")).ends_with("battle_root_snapper_idle.png"), "root snapper path declared")
+	failed += _assert(str(adventure.get("ART_MOSS_BRUTE")).ends_with("battle_moss_brute_idle.png"), "moss brute path declared")
+	if typeof(tuning) == TYPE_DICTIONARY:
+		var bank: Variant = (tuning as Dictionary).get("banked_battle_art", {})
+		failed += _assert(typeof(bank) == TYPE_DICTIONARY and not (bank as Dictionary).has("stats"), "banked art is not a foe")
+		var snap: Variant = (bank as Dictionary).get("root_snapper", {}) if typeof(bank) == TYPE_DICTIONARY else {}
+		failed += _assert(str((snap as Dictionary).get("facing", "")) == "front", "root snapper stays front-facing")
+	var stand_tex: Texture2D = load(str(adventure.get("ART_BREWING_STAND"))) as Texture2D
+	failed += _assert(stand_tex != null and stand_tex.get_width() == 64 and stand_tex.get_height() == 80, "brewing stand is 64x80")
+	var portrait_tex: Texture2D = adventure.call("frame_slice", str(adventure.get("ART_CORVANE_PORTRAIT")), Vector2i(52, 52))
+	var sheet_tex: Texture2D = adventure.call("frame_slice", str(adventure.get("ART_CORVANE_SHEET")), Vector2i(160, 160))
+	failed += _assert(portrait_tex != null and portrait_tex.get_width() == 52 and portrait_tex.get_height() == 52, "corvane portrait frame is 52")
+	failed += _assert(sheet_tex != null and sheet_tex.get_width() == 160 and sheet_tex.get_height() == 160, "corvane sheet frame is 160")
+	var corvane_tex: Texture2D = load(str(adventure.get("ART_CORVANE_BATTLE"))) as Texture2D
+	var briar_tex: Texture2D = load(str(foe.get("battle_art_path", ""))) as Texture2D
+	failed += _assert(corvane_tex != null and corvane_tex.get_width() == 128 and corvane_tex.get_height() == 128, "corvane battle canvas 128")
+	failed += _assert(briar_tex != null and briar_tex.get_width() == 128 and briar_tex.get_height() == 128, "briar battle canvas 128")
+	failed += _assert(_sole_y(corvane_tex) == 123 and _sole_y(briar_tex) == 123, "corvane and briar soles sit on y=123")
 	return failed
+
+
+func _sole_y(tex: Texture2D) -> int:
+	if tex == null:
+		return -1
+	var img: Image = tex.get_image()
+	if img == null:
+		return -1
+	for y: int in range(img.get_height() - 1, -1, -1):
+		for x: int in img.get_width():
+			if img.get_pixel(x, y).a > 0.0:
+				return y
+	return -1
 
 
 func _adventure_ancient_pause(tree_root: Window, game_state: Node) -> int:
