@@ -1,0 +1,29 @@
+{
+  "id": "echo_corvane",
+  "display_name_key": "corvane_name",
+  "display_name": "Corvane",
+  "subtitle_key": "corvane_subtitle",
+  "portrait_id": "corvane_portrait",
+  "battle_art_id": "battle_corvane_idle",
+  "battle_art_path": "res://assets/art/echo/battle_corvane_idle.png",
+  "facing": "west",
+  "sole_y": 123,
+  "crit_multiplier": 1.2,
+  "attack_profile": "physical",
+  "swift_tie_favors_foe": true,
+  "notes": [
+    "Locked placeholder sheet. Phase 0 Echo 2.",
+    "Every turn is one Might-vs-Resilience attack. No hybrid.",
+    "Vitality 8 is 80 HP. Swiftness 5 ties a default Keeper; the foe wins that tie unless Key or gear raises Swiftness.",
+    "Art ids: portraits/corvane_portrait.png, echo/battle_corvane_idle.png."
+  ],
+  "stats": {
+    "might": 8,
+    "arcana": 4,
+    "resilience": 6,
+    "ward": 5,
+    "vitality": 8,
+    "swiftness": 5,
+    "fate": 5
+  }
+}

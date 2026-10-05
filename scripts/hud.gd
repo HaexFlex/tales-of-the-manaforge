@@ -599,6 +599,7 @@ var _party_info: VBoxContainer
 var _slot_wisp: Control
 var _slot_elaia: Control
 var _slot_keeper: Control
+var _slot_corvane: Control
 var _wisp_count_label: Label
 var _sel_name: Label
 var _sel_task: Label
@@ -623,7 +624,7 @@ func _build_party_bar() -> void:
 	_party_bar.offset_left = 12.0
 	_party_bar.offset_top = 86.0
 	_party_bar.offset_right = 12.0 + PARTY_SLOT
-	_party_bar.offset_bottom = 86.0 + PARTY_SLOT * 3.0 + 24.0
+	_party_bar.offset_bottom = 86.0 + PARTY_SLOT * 4.0 + 32.0
 	_party_bar.z_index = 20
 	_party_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_party_column = VBoxContainer.new()
@@ -633,6 +634,7 @@ func _build_party_bar() -> void:
 	_slot_wisp = _make_party_slot("Wisps", "wisp")
 	_slot_elaia = _make_party_slot("Elaia", "elaia")
 	_slot_keeper = _make_party_slot("Keeper", "keeper")
+	_slot_corvane = _make_party_slot("Corvane", "corvane")
 	_wisp_count_label = Label.new()
 	_wisp_count_label.name = "Count"
 	_wisp_count_label.position = Vector2(24, 34)
@@ -642,6 +644,7 @@ func _build_party_bar() -> void:
 	_party_column.add_child(_slot_wisp)
 	_party_column.add_child(_slot_keeper)
 	_party_column.add_child(_slot_elaia)
+	_party_column.add_child(_slot_corvane)
 	_party_info = VBoxContainer.new()
 	_party_info.name = "Info"
 	_party_info.position = Vector2(PARTY_SLOT + 10.0, 0)
@@ -680,6 +683,10 @@ func _build_party_bar() -> void:
 	_slot_elaia.tooltip_text = ContentStrings.get_text("hud_elaia_portrait_tooltip")
 	_slot_elaia.visible = false
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	(_slot_corvane.get_node("Portrait") as TextureRect).texture = _actor_portrait_texture("corvane")
+	_slot_corvane.tooltip_text = ContentStrings.get_text("hud_corvane_portrait_tooltip")
+	_slot_corvane.visible = false
+	_slot_corvane.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _actor_portrait_texture(actor: String) -> Texture2D:
@@ -690,6 +697,8 @@ func _actor_portrait_texture(actor: String) -> Texture2D:
 			return tex
 	if actor == "elaia":
 		return load(CharacterSheet.ELAIA_PARTY_PORTRAIT_PATH) as Texture2D
+	if actor == "corvane" and ResourceLoader.exists(Adventure.ART_CORVANE_PORTRAIT):
+		return Adventure.frame_slice(Adventure.ART_CORVANE_PORTRAIT, Adventure.PORTRAIT_FRAME)
 	return load(CharacterSheet.KEEPER_PARTY_PORTRAIT_PATH) as Texture2D
 
 
@@ -751,12 +760,16 @@ func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> voi
 func party_click(unit: String) -> void:
 	if unit == "elaia" and not GameState.elaia_portrait_visible():
 		return
+	if unit == "corvane" and (not has_node("/root/Adventure") or not Adventure.corvane_selectable()):
+		return
 	if is_character_open() and (unit == "keeper" or unit == "elaia") and _sheet != null:
 		_sheet.show_actor(unit)
 	if unit == "keeper":
 		GameState.select_keeper()
 	elif unit == "elaia":
 		GameState.select_companion("elaia")
+	elif unit == "corvane":
+		GameState.select_companion("corvane")
 	elif unit == "wisp":
 		var ids: Array[int] = GameState.selected_wisp_list()
 		if ids.is_empty():
@@ -790,10 +803,19 @@ func _refresh_party_bar() -> void:
 	var show_keeper: bool = GameState.keeper_selected
 	var companion_id: String = str(GameState.selected_companion_id)
 	var elaia_joined: bool = GameState.elaia_portrait_visible()
+	var corvane_joined: bool = has_node("/root/Adventure") and Adventure.corvane_selectable()
 	_party_bar.visible = true
 	_slot_keeper.visible = true
 	_slot_elaia.visible = elaia_joined
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
+	if _slot_corvane:
+		_slot_corvane.visible = corvane_joined
+		_slot_corvane.mouse_filter = Control.MOUSE_FILTER_STOP if corvane_joined else Control.MOUSE_FILTER_IGNORE
+		var corvane_tex: Texture2D = _actor_portrait_texture("corvane")
+		var corvane_portrait: TextureRect = _slot_corvane.get_node_or_null("Portrait") as TextureRect
+		if corvane_portrait and corvane_tex:
+			corvane_portrait.texture = corvane_tex
+		_set_party_outline(_slot_corvane, companion_id == "corvane")
 	_slot_wisp.visible = not ids.is_empty()
 	_set_party_outline(_slot_keeper, show_keeper)
 	_set_party_outline(_slot_elaia, companion_id == "elaia")

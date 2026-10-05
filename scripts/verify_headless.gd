@@ -82,6 +82,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ADVENTURE_ONLY") == "1":
+		var adventure_failed: int = _adventure_phase0(tree_root, game_state, backpack)
+		if adventure_failed > 0:
+			print("ADVENTURE_FAIL: %d assertion(s) failed" % adventure_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -236,12 +245,13 @@ func _run() -> void:
 		var loose: int = 0
 		var entry: String = inbox_dir.get_next()
 		while entry != "":
-			if entry != "." and entry != ".." and entry != "README.md":
+			if entry != "." and entry != ".." and entry != "README.md" and entry != ".gdignore":
 				loose += 1
 			entry = inbox_dir.get_next()
 		inbox_dir.list_dir_end()
 		failed += _assert(loose == 0, "Assets upload empty after ship (got %d loose)" % loose)
 	failed += _assert(FileAccess.file_exists(ProjectSettings.globalize_path("res://Assets upload/README.md")), "Assets upload README only")
+	failed += _assert(FileAccess.file_exists(ProjectSettings.globalize_path("res://Assets upload/.gdignore")), "Assets upload gdignore")
 	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
 	failed += _assert(project_text.find("res://scenes/title_screen.tscn") >= 0, "main scene is the title screen")
 	failed += _assert(
@@ -2371,6 +2381,7 @@ func _run() -> void:
 	failed += _no_old_keeper_idle()
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
+	failed += _adventure_phase0(tree_root, game_state, backpack)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -3089,6 +3100,10 @@ func _check_only_load() -> int:
 		"res://scripts/runestone.gd",
 		"res://scripts/autoload/game_state.gd",
 		"res://scripts/autoload/forge_jobs.gd",
+		"res://scripts/autoload/adventure.gd",
+		"res://scripts/adventure_panel.gd",
+		"res://scripts/brewing_stand.gd",
+		"res://scripts/echo_battle.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -3096,6 +3111,11 @@ func _check_only_load() -> int:
 	var gs: Node = root.get_node_or_null("GameState")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "")), 0.8), "check-only elaia work rate")
 	failed += _assert(gs != null and is_equal_approx(float(gs.call("actor_work_rate", "elaia", "reliquary")), 1.5), "check-only elaia reliquary rate")
+	var adventure: Node = root.get_node_or_null("Adventure")
+	failed += _assert(adventure != null, "check-only Adventure autoload")
+	failed += _assert(adventure != null and int(adventure.get("ECHO2_FEE")) == 50, "check-only echo 2 fee")
+	failed += _assert(adventure != null and is_equal_approx(float(adventure.get("IDLE_REACH_SEC")), 720.0), "check-only idle reach")
+	failed += _assert(adventure != null and is_equal_approx(float(adventure.get("MANUAL_REACH_SEC")), 240.0), "check-only manual reach")
 	return failed
 
 
@@ -4272,6 +4292,307 @@ func _keeper_work_spot_asserts() -> int:
 	var food: Dictionary = keeper_cls.solve_work_spot(Rect2(Vector2(0, -128), Vector2(86, 128)), Vector2(400, 0), "food", Callable(open_gate, "gate"))
 	failed += _assert(str(food.get("facing", "")) == "west", "berries approached from the east face west")
 	failed += _assert(keeper_cls.distance_to_rect(food.get("contact", Vector2(-999, 0)), Rect2(Vector2(0, -128), Vector2(86, 128))) <= keeper_cls.REACH_SLACK, "hands reach the bush")
+	return failed
+
+
+func _adventure_phase0(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var echo_failed: int = _adventure_echo2(game_state)
+	if echo_failed == 0:
+		print("ADVENTURE_ECHO2_OK")
+	var pause_failed: int = _adventure_ancient_pause(tree_root, game_state)
+	if pause_failed == 0:
+		print("ADVENTURE_ANCIENT_PAUSE_OK")
+	var wipe_failed: int = _adventure_ascend_wipe(game_state, backpack)
+	if wipe_failed == 0:
+		print("ADVENTURE_ASCEND_WIPE_OK")
+	var join_failed: int = _adventure_join20(game_state)
+	if join_failed == 0:
+		print("ADVENTURE_JOIN20_OK")
+	paused = false
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	return echo_failed + pause_failed + wipe_failed + join_failed
+
+
+func _adventure_echo2(game_state: Node) -> int:
+	var failed: int = 0
+	var adventure: Node = root.get_node("Adventure")
+	var equipment: Node = root.get_node("Equipment")
+	var echo: Node = root.get_node("EchoChamber")
+	game_state.call("reset_for_new_game")
+	var tuning: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/adventure.json"))
+	var corvane_file: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/echo_corvane.json"))
+	failed += _assert(typeof(tuning) == TYPE_DICTIONARY, "adventure.json parses")
+	failed += _assert(typeof(corvane_file) == TYPE_DICTIONARY, "echo_corvane.json parses")
+	if typeof(tuning) == TYPE_DICTIONARY:
+		var tune: Dictionary = tuning
+		failed += _assert(int(tune.get("echo2_fee", 0)) == 50, "json echo2 fee 50")
+		failed += _assert(int(tune.get("idle_reach_sec", 0)) == 720, "json idle 12 min")
+		failed += _assert(int(tune.get("manual_reach_sec", 0)) == 240, "json manual 4 min")
+		failed += _assert(int(tune.get("join_reaches", 0)) == 20, "json join 20")
+		failed += _assert(is_equal_approx(float(tune.get("herb_chance", 0.0)), 0.30), "json herb 30%")
+		failed += _assert(int(tune.get("success_essence", 0)) == 3, "json essence +3")
+	failed += _assert(int(adventure.get("ECHO2_FEE")) == 50, "ECHO2_FEE 50")
+	failed += _assert(str(adventure.call("try_pay_echo2")) == "closed", "echo 2 closed with no weapon")
+	failed += _assert(bool(equipment.call("grant_item", "stone_sword")), "grant bench sword")
+	failed += _assert(not bool(adventure.call("echo2_gate_open")), "bench weapon is not the echo 2 gate")
+	failed += _assert(bool(equipment.call("grant_item", "sapstaff")), "grant sapstaff")
+	failed += _assert(not bool(adventure.call("echo2_gate_open")), "handcraft staff is not the echo 2 gate")
+	for weapon_id: String in ["rootsteel_edge", "heartwand", "switchshaft"]:
+		game_state.call("reset_for_new_game")
+		failed += _assert(not bool(adventure.call("echo2_gate_open")), "gate shut before %s" % weapon_id)
+		failed += _assert(bool(equipment.call("grant_item", weapon_id)), "grant %s" % weapon_id)
+		failed += _assert(bool(adventure.call("owns_forge_weapon")), "owns %s" % weapon_id)
+		failed += _assert(bool(adventure.call("echo2_gate_open")), "gate opens for %s" % weapon_id)
+		game_state.call("set_resource", &"essence", 49)
+		failed += _assert(str(adventure.call("try_pay_echo2")) == "reject", "%s rejects 49 essence" % weapon_id)
+		failed += _assert(int(game_state.get("essence")) == 49, "%s fee not taken early" % weapon_id)
+		game_state.call("set_resource", &"essence", 50)
+		failed += _assert(str(adventure.call("try_pay_echo2")) == "paid", "%s pays 50" % weapon_id)
+		failed += _assert(int(game_state.get("essence")) == 0, "%s spends 50 essence" % weapon_id)
+		failed += _assert(bool(adventure.get("echo2_fee_paid")), "%s fee sticks" % weapon_id)
+	game_state.set("portal_unlocked", true)
+	game_state.set("echo_01_resolved", false)
+	failed += _assert(not bool(adventure.call("echo2_portal_visible")), "echo 1 keeps the arch")
+	game_state.set("echo_01_resolved", true)
+	failed += _assert(bool(adventure.call("echo2_portal_visible")), "echo 2 uses the arch after echo 1")
+	adventure.call("apply_echo2_outcome", "ko")
+	failed += _assert(not bool(adventure.get("echo2_fee_paid")), "ko clears the echo 2 fee")
+	failed += _assert(not bool(adventure.get("adventure_unlocked")), "ko does not open adventure")
+	game_state.call("set_resource", &"essence", 50)
+	adventure.call("try_pay_echo2")
+	adventure.call("apply_echo2_outcome", "flee")
+	failed += _assert(bool(adventure.get("echo2_fee_paid")), "flee keeps the echo 2 fee")
+	failed += _assert(not bool(adventure.get("adventure_unlocked")), "flee does not scar")
+	adventure.call("apply_echo2_outcome", "spare")
+	failed += _assert(bool(adventure.get("adventure_unlocked")), "spare opens adventure")
+	failed += _assert(bool(adventure.get("corvane_promised")), "spare promises Corvane")
+	failed += _assert(not bool(adventure.get("corvane_joined")), "spare does not join Corvane yet")
+	failed += _assert(str(adventure.get("corvane_outcome")) == "spare", "spare story flag")
+	game_state.call("reset_for_new_game")
+	equipment.call("grant_item", "heartwand")
+	game_state.call("set_resource", &"essence", 50)
+	adventure.call("try_pay_echo2")
+	adventure.call("apply_echo2_outcome", "defeat")
+	failed += _assert(bool(adventure.get("adventure_unlocked")), "defeat opens adventure")
+	failed += _assert(bool(adventure.get("corvane_promised")) and not bool(adventure.get("corvane_joined")), "defeat promises Corvane")
+	failed += _assert(str(adventure.get("corvane_outcome")) == "defeat", "defeat story flag")
+	var sheet: Dictionary = adventure.call("corvane_def")
+	var stats: Dictionary = sheet.get("stats", {})
+	failed += _assert(int(stats.get("might", 0)) == 8, "Corvane might 8")
+	failed += _assert(int(stats.get("arcana", 0)) == 4, "Corvane arcana 4")
+	failed += _assert(int(stats.get("resilience", 0)) == 6, "Corvane resilience 6")
+	failed += _assert(int(stats.get("ward", 0)) == 5, "Corvane ward 5")
+	failed += _assert(int(stats.get("vitality", 0)) == 8, "Corvane vitality 8")
+	failed += _assert(int(stats.get("swiftness", 0)) == 5, "Corvane swiftness 5")
+	failed += _assert(int(stats.get("fate", 0)) == 5, "Corvane fate 5")
+	failed += _assert(is_equal_approx(float(sheet.get("crit_multiplier", 0.0)), 1.2), "Corvane crit 1.2")
+	failed += _assert(str(sheet.get("attack_profile", "")) == "physical", "Corvane physical profile")
+	var fight := EchoBattleScript.new()
+	fight.force_crit = 0
+	fight.configure(
+		{"might": 5, "arcana": 5, "resilience": 5, "ward": 5, "vitality": 5, "swiftness": 5, "fate": 5},
+		sheet
+	)
+	failed += _assert(not fight.keeper_acts_first(), "swift 5 does not act before Corvane")
+	fight.keeper["swiftness"] = 7
+	failed += _assert(fight.keeper_acts_first(), "swift 7 acts before Corvane")
+	fight.keeper["swiftness"] = 5
+	fight.choose("strike")
+	failed += _assert(fight.last_echo_damage == 30, "Corvane might 8 vs resilience 5 is 30 (got %d)" % fight.last_echo_damage)
+	var elaia_def: Dictionary = echo.call("echo_def")
+	failed += _assert(str(elaia_def.get("id", "")) == "echo_keeper_01", "echo 1 id unchanged")
+	failed += _assert(str(elaia_def.get("battle_art_path", "")) == "", "echo 1 has no foe art path")
+	failed += _assert(str(sheet.get("battle_art_path", "")).ends_with("battle_corvane_idle.png"), "corvane battle art")
+	failed += _assert(str(sheet.get("facing", "")) == "west", "corvane faces west")
+	failed += _assert(int(sheet.get("sole_y", 0)) == 123, "corvane sole y=123")
+	failed += _assert(not bool(adventure.call("mirror_battle_facing", "west")), "west battle art is not mirrored")
+	failed += _assert(not bool(adventure.call("mirror_battle_facing", "front")), "front battle art is not mirrored")
+	var foe: Dictionary = adventure.call("reach_foe_def")
+	failed += _assert(str(foe.get("id", "")) == "reach_foe", "phase 0 has one reach foe")
+	failed += _assert(str(foe.get("battle_art_path", "")).ends_with("battle_briar_warden_idle.png"), "briar warden art on the reach foe")
+	failed += _assert(str(foe.get("facing", "")) == "west", "briar faces west")
+	failed += _assert(int(foe.get("sole_y", 0)) == 123, "briar sole y=123")
+	failed += _assert(str(adventure.get("ART_WILT_WISP")).ends_with("battle_wilt_wisp_idle.png"), "wilt wisp path declared")
+	failed += _assert(str(adventure.get("ART_ROOT_SNAPPER")).ends_with("battle_root_snapper_idle.png"), "root snapper path declared")
+	failed += _assert(str(adventure.get("ART_MOSS_BRUTE")).ends_with("battle_moss_brute_idle.png"), "moss brute path declared")
+	if typeof(tuning) == TYPE_DICTIONARY:
+		var bank: Variant = (tuning as Dictionary).get("banked_battle_art", {})
+		failed += _assert(typeof(bank) == TYPE_DICTIONARY and not (bank as Dictionary).has("stats"), "banked art is not a foe")
+		var snap: Variant = (bank as Dictionary).get("root_snapper", {}) if typeof(bank) == TYPE_DICTIONARY else {}
+		failed += _assert(str((snap as Dictionary).get("facing", "")) == "front", "root snapper stays front-facing")
+	var stand_tex: Texture2D = load(str(adventure.get("ART_BREWING_STAND"))) as Texture2D
+	failed += _assert(stand_tex != null and stand_tex.get_width() == 64 and stand_tex.get_height() == 80, "brewing stand is 64x80")
+	var portrait_tex: Texture2D = adventure.call("frame_slice", str(adventure.get("ART_CORVANE_PORTRAIT")), Vector2i(52, 52))
+	var sheet_tex: Texture2D = adventure.call("frame_slice", str(adventure.get("ART_CORVANE_SHEET")), Vector2i(160, 160))
+	failed += _assert(portrait_tex != null and portrait_tex.get_width() == 52 and portrait_tex.get_height() == 52, "corvane portrait frame is 52")
+	failed += _assert(sheet_tex != null and sheet_tex.get_width() == 160 and sheet_tex.get_height() == 160, "corvane sheet frame is 160")
+	var corvane_tex: Texture2D = load(str(adventure.get("ART_CORVANE_BATTLE"))) as Texture2D
+	var briar_tex: Texture2D = load(str(foe.get("battle_art_path", ""))) as Texture2D
+	failed += _assert(corvane_tex != null and corvane_tex.get_width() == 128 and corvane_tex.get_height() == 128, "corvane battle canvas 128")
+	failed += _assert(briar_tex != null and briar_tex.get_width() == 128 and briar_tex.get_height() == 128, "briar battle canvas 128")
+	failed += _assert(_sole_y(corvane_tex) == 123 and _sole_y(briar_tex) == 123, "corvane and briar soles sit on y=123")
+	return failed
+
+
+func _sole_y(tex: Texture2D) -> int:
+	if tex == null:
+		return -1
+	var img: Image = tex.get_image()
+	if img == null:
+		return -1
+	for y: int in range(img.get_height() - 1, -1, -1):
+		for x: int in img.get_width():
+			if img.get_pixel(x, y).a > 0.0:
+				return y
+	return -1
+
+
+func _adventure_ancient_pause(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var adventure: Node = root.get_node("Adventure")
+	game_state.call("reset_for_new_game")
+	adventure.set("adventure_unlocked", true)
+	adventure.set("present_battles", false)
+	failed += _assert(str(adventure.call("try_start_reach", "idle")) == "ok", "idle reach starts")
+	game_state.set("stage_id", &"ancient")
+	adventure.call("advance_open_time", 1000.0)
+	failed += _assert(is_equal_approx(float(adventure.get("reach_elapsed")), 0.0), "ancient stage does not advance the reach")
+	var wood_before: int = int(game_state.get("wood"))
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	var assignments: Dictionary = game_state.get("wisp_assignments")
+	assignments["0"] = "harvest_tree"
+	game_state.set("wisp_assignments", assignments)
+	game_state.call("apply_wisp_pulses", 20.0)
+	failed += _assert(int(game_state.get("wood")) > wood_before, "wisps still clear while the party is out during Ancient")
+	game_state.set("stage_id", &"sapling")
+	adventure.call("advance_open_time", 10.0)
+	failed += _assert(is_equal_approx(float(adventure.get("reach_elapsed")), 10.0), "reach resumes off Ancient")
+	paused = true
+	adventure.call("advance_open_time", 25.0)
+	failed += _assert(is_equal_approx(float(adventure.get("reach_elapsed")), 10.0), "paused tree does not advance the reach")
+	paused = false
+	game_state.set("fruit_committed", true)
+	adventure.call("advance_open_time", 25.0)
+	failed += _assert(is_equal_approx(float(adventure.get("reach_elapsed")), 10.0), "committed fruit pauses the reach")
+	game_state.set("fruit_committed", false)
+	var reaches: int = int(adventure.get("cumulative_reaches"))
+	var crates: int = int(adventure.call("crate_count"))
+	failed += _assert(str(adventure.call("cancel_reach")) == "cancelled", "cancel discards the reach")
+	failed += _assert(not bool(adventure.get("reach_active")), "cancel clears the timer")
+	failed += _assert(int(adventure.get("cumulative_reaches")) == reaches, "cancel does not count a reach")
+	failed += _assert(int(adventure.call("crate_count")) == crates, "cancel pays nothing")
+	failed += _assert(is_equal_approx(float(adventure.get("IDLE_REACH_SEC")), 720.0), "idle reach is 12 min")
+	failed += _assert(is_equal_approx(float(adventure.get("MANUAL_REACH_SEC")), 240.0), "manual reach is 4 min")
+	return failed
+
+
+func _adventure_ascend_wipe(game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var adventure: Node = root.get_node("Adventure")
+	game_state.call("reset_for_new_game")
+	var full: Dictionary = adventure.call("build_success_crate", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5)
+	failed += _assert(int(full.get("wood", 0)) == 8, "primary low roll is 8 wood")
+	failed += _assert(int(full.get("stone", 0)) == 2, "second raw low roll is 2")
+	failed += _assert(int(full.get("food", 0)) == 0, "third raw stays empty")
+	failed += _assert(int(full.get("essence", 0)) == 3, "success crate essence +3")
+	failed += _assert(int(full.get("glowcap", 0)) == 0 and int(full.get("bitterroot", 0)) == 0, "reach 5 has no herb")
+	var high: Dictionary = adventure.call("build_success_crate", 0.0, 0.999, 0.0, 0.999, 0.0, 0.0, 5)
+	failed += _assert(int(high.get("wood", 0)) == 12, "primary high roll is 12")
+	failed += _assert(int(high.get("stone", 0)) == 4, "second raw high roll is 4")
+	var herbed: Dictionary = adventure.call("build_success_crate", 0.67, 0.0, 0.0, 0.0, 0.0, 0.0, 6)
+	failed += _assert(int(herbed.get("glowcap", 0)) == 1, "reach 6 can drop a glowcap")
+	failed += _assert(not bool(adventure.call("herb_drops", 5, 0.0)), "herb gate is reach 6")
+	failed += _assert(bool(adventure.call("herb_drops", 6, 0.29)), "30% herb roll hits")
+	failed += _assert(not bool(adventure.call("herb_drops", 6, 0.30)), "30% herb roll misses on the boundary")
+	var scrap: Dictionary = adventure.call("consolation_of", full)
+	failed += _assert(int(scrap.get("wood", 0)) == 4, "consolation halves 8 wood to 4")
+	failed += _assert(int(scrap.get("stone", 0)) == 1, "consolation halves 2 stone to 1")
+	failed += _assert(int(scrap.get("essence", 0)) == 0, "consolation has no essence")
+	failed += _assert(int(scrap.get("glowcap", 0)) == 0, "consolation has no herb")
+	var herbed_scrap: Dictionary = adventure.call("consolation_of", herbed)
+	failed += _assert(int(herbed_scrap.get("glowcap", 0)) == 0 and int(herbed_scrap.get("essence", 0)) == 0, "consolation strips herb and essence")
+	failed += _assert(str(adventure.call("special_kind", 0.0)) == "nothing", "special 50% nothing")
+	failed += _assert(str(adventure.call("special_kind", 0.50)) == "herb", "special 30% herb")
+	failed += _assert(str(adventure.call("special_kind", 0.80)) == "fertilizer", "special 15% fertilizer")
+	failed += _assert(str(adventure.call("special_kind", 0.95)) == "amberbind", "special 5% amberbind")
+	failed += _assert(str(adventure.call("idle_band", 20)) == "fail", "low power fails")
+	failed += _assert(str(adventure.call("idle_band", 21)) == "scrape", "scrape band starts at 75%")
+	failed += _assert(str(adventure.call("idle_band", 25)) == "scrape", "all-5s keeper scrapes a reach")
+	failed += _assert(str(adventure.call("idle_band", 28)) == "success", "threat power succeeds")
+	failed += _assert(str(adventure.call("idle_band", 30)) == "success", "forge weapon power succeeds")
+	adventure.set("adventure_unlocked", true)
+	adventure.set("cumulative_reaches", 7)
+	adventure.call("set_herb", "glowcap", 4)
+	adventure.call("set_herb", "bitterroot", 2)
+	adventure.call("set_potion", "heart_salve", 2)
+	adventure.call("set_potion", "bile_vial", 1)
+	adventure.call("store_crate", full)
+	var blob: Dictionary = adventure.call("capture_save_fields")
+	adventure.call("reset_for_new_game")
+	failed += _assert(int(adventure.call("crate_count")) == 0, "reset clears crates")
+	adventure.call("apply_save_fields", blob)
+	failed += _assert(int(adventure.get("cumulative_reaches")) == 7, "reaches round-trip")
+	failed += _assert(int(adventure.call("crate_count")) == 1, "crate round-trip")
+	failed += _assert(int(adventure.call("herb_count", "glowcap")) == 4, "herb round-trip")
+	failed += _assert(int(adventure.call("potion_count", "bile_vial")) == 1, "potion round-trip")
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	game_state.call("ascend")
+	failed += _assert(int(adventure.call("crate_count")) == 0, "ascend wipes crates")
+	failed += _assert(int(adventure.call("herb_count", "glowcap")) == 0, "ascend wipes glowcap")
+	failed += _assert(int(adventure.call("herb_count", "bitterroot")) == 0, "ascend wipes bitterroot")
+	failed += _assert(int(adventure.call("potion_count", "heart_salve")) == 0, "ascend wipes heart salve")
+	failed += _assert(int(adventure.call("potion_count", "bile_vial")) == 0, "ascend wipes bile")
+	failed += _assert(int(adventure.get("cumulative_reaches")) == 7, "ascend keeps reaches")
+	failed += _assert(bool(adventure.get("adventure_unlocked")), "ascend keeps the scar")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "ascend still wipes backpack fertilizer")
+	return failed
+
+
+func _adventure_join20(game_state: Node) -> int:
+	var failed: int = 0
+	var adventure: Node = root.get_node("Adventure")
+	game_state.call("reset_for_new_game")
+	adventure.set("adventure_unlocked", true)
+	adventure.set("corvane_promised", true)
+	adventure.set("cumulative_reaches", 19)
+	adventure.set("present_battles", false)
+	adventure.call("refresh_milestones")
+	failed += _assert(not bool(adventure.get("corvane_joined")), "19 reaches do not join Corvane")
+	failed += _assert(not bool(adventure.get("brewing_unlocked")), "brewing stays shut before 20")
+	failed += _assert(str(adventure.call("try_brew", "heart_salve")) == "locked", "brew locked before Corvane joins")
+	failed += _assert(str(adventure.call("try_start_reach", "idle")) == "ok", "20th reach starts")
+	adventure.call("advance_open_time", 719.0)
+	failed += _assert(int(adventure.get("cumulative_reaches")) == 19, "reach waits out the full 12 min")
+	adventure.call("advance_open_time", 1.0)
+	failed += _assert(int(adventure.get("cumulative_reaches")) == 20, "20th reach counts")
+	failed += _assert(bool(adventure.get("corvane_joined")), "Corvane joins at 20")
+	failed += _assert(bool(adventure.get("brewing_unlocked")), "brewing stand unlocks at 20")
+	failed += _assert(not bool(adventure.get("reach_active")), "finished reach returns the party")
+	game_state.call("set_resource", &"essence", 10)
+	adventure.call("set_herb", "glowcap", 3)
+	failed += _assert(str(adventure.call("try_brew", "heart_salve")) == "ok", "heart salve brews")
+	failed += _assert(int(adventure.call("potion_count", "heart_salve")) == 1, "one heart salve")
+	failed += _assert(int(adventure.call("herb_count", "glowcap")) == 0, "brew spends 3 glowcap")
+	failed += _assert(int(game_state.get("essence")) == 0, "brew spends 10 essence")
+	adventure.call("set_potion", "bile_vial", 1)
+	adventure.set("party_hp", 50)
+	adventure.set("party_max_hp", 50)
+	var hit: Dictionary = adventure.call("apply_idle_hit", "fail")
+	failed += _assert(bool(hit.get("salve", false)), "idle uses heart salve under 40% hp")
+	failed += _assert(int(hit.get("hp", 0)) == 39, "salve heals 25 after the fail hit (got %d)" % int(hit.get("hp", 0)))
+	failed += _assert(int(adventure.call("potion_count", "heart_salve")) == 0, "one salve spent")
+	failed += _assert(int(adventure.call("potion_count", "bile_vial")) == 1, "idle does not throw bile")
+	adventure.call("set_potion", "heart_salve", 1)
+	adventure.set("party_hp", 50)
+	adventure.set("party_max_hp", 50)
+	var light: Dictionary = adventure.call("apply_idle_hit", "success")
+	failed += _assert(not bool(light.get("salve", true)), "success hit stays above 40%")
+	failed += _assert(int(adventure.call("potion_count", "heart_salve")) == 1, "success does not spend a salve")
+	failed += _assert(int(EchoBattleScript.SALVE_HEAL) == 25, "battle salve heals 25")
+	failed += _assert(int(EchoBattleScript.BILE_FLAT) == 15, "bile is 15 flat")
 	return failed
 
 
