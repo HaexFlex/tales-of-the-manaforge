@@ -575,24 +575,15 @@ func commit_actor_exit(actor_id: String) -> void:
 	switch_view(false)
 
 
-func _move_door_party(leader: String, from_area: String, to_area: String) -> void:
-	## The hero who touched the door, plus whoever is already in that same area.
-	## A hero already on the other side stays there. Portrait hops do not call this.
+func _move_door_party(leader: String, _from_area: String, to_area: String) -> void:
+	## Only the hero who used the door changes scene. The other stays put and
+	## keeps the job they were doing. Portrait hops do not call this.
 	if not has_node("/root/GameState"):
 		return
 	var to_forge: bool = to_area == "forge"
 	var lead_spot: Vector2 = forge_arch_spawn() if to_forge else clearing_door_stand()
-	var beside: Vector2 = Vector2(64, 0) if to_forge else Vector2(72, 0)
 	var facing: String = "north" if to_forge else "south"
 	_place_transferred(leader, to_area, lead_spot, facing)
-	var other: String = "keeper" if leader == "elaia" else "elaia"
-	var bring: bool = false
-	if other == "elaia":
-		bring = GameState.elaia_in_party() and GameState.elaia_area == from_area
-	else:
-		bring = GameState.keeper_area == from_area
-	if bring:
-		_place_transferred(other, to_area, lead_spot + beside, facing)
 
 
 func _place_transferred(actor_id: String, area: String, spot: Vector2, facing: String) -> void:
@@ -621,8 +612,7 @@ func try_door_entry(actor_id: String) -> String:
 
 
 func request_door_walk() -> String:
-	## The selected hero walks into the sill. On arrival, anyone already in the
-	## same area comes through too. A hero in the other area is left there.
+	## The selected hero walks into the sill. Only that hero changes scene.
 	if not has_node("/root/GameState"):
 		return "denied"
 	var actor: String = GameState.selected_hero_id()
@@ -1393,6 +1383,20 @@ func recipe_display_name(recipe_id: String) -> String:
 	var info: Dictionary = _recipe_info(recipe_id)
 	var named: String = str(info.get("name", ""))
 	return named if named != "" else recipe_id
+
+
+func recipe_item_seconds(recipe_id: String) -> float:
+	var info: Dictionary = _recipe_info(recipe_id)
+	return maxf(0.05, float(info.get("item_time", 1.0)))
+
+
+func craft_duration_seconds(spot_id: String, recipe_id: String, count: int) -> float:
+	## Shown on the slider. Nobody working still reads as one worker, so the
+	## label stays a craft time instead of an endless wait.
+	var speed: float = station_speed_mult(spot_id)
+	if speed <= 0.0:
+		speed = 1.0
+	return recipe_item_seconds(recipe_id) * float(maxi(count, 0)) / speed
 
 
 func format_duration_words(seconds: float) -> String:

@@ -17,7 +17,7 @@ func _ready() -> void:
 	layer = 15
 	_root = Control.new()
 	_root.name = "Bars"
-	_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.custom_minimum_size = Vector2(72, 16)
 	_root.size = Vector2(72, 16)
 	_root.gui_input.connect(_on_gui_input)

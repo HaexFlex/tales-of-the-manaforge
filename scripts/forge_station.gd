@@ -95,15 +95,33 @@ func work_footprint() -> Rect2:
 	return _walk_rect()
 
 
+func wisp_orbit_draws_in_front() -> bool:
+	return true
+
+
 func wisp_orbit_center() -> Vector2:
-	return _walk_rect().get_center()
+	## Around the painted station, not the feet box. The south arc then clears the sprite.
+	if sprite == null or sprite.texture == null:
+		return global_position
+	var shown: Vector2 = _sprite_shown_size()
+	var top_left: Vector2 = sprite.position
+	if sprite.centered:
+		top_left -= shown * 0.5
+	else:
+		top_left += sprite.offset * sprite.scale
+	return to_global(top_left + shown * 0.5)
 
 
 func wisp_orbit_radius() -> float:
-	var size: Vector2 = _walk_rect().size
-	if has_node("/root/ForgeJobs"):
-		return ForgeJobs.wisp_orbit_radius_for_size(size)
-	return maxf(size.x, size.y) * 0.5 + 14.0
+	var shown: Vector2 = _sprite_shown_size()
+	return maxf(shown.x, shown.y) * 0.5 + 40.0
+
+
+func _sprite_shown_size() -> Vector2:
+	if sprite == null or sprite.texture == null:
+		return Vector2(128, 128)
+	var frame := Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
+	return Vector2(frame.x * absf(sprite.scale.x), frame.y * absf(sprite.scale.y))
 
 
 func stand_global() -> Vector2:

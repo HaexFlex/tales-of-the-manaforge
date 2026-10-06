@@ -276,12 +276,9 @@ func _tick_node_orbit(node_id: String, _delta: float) -> void:
 	var r: float = _orbit_radius_for_assignment(node_id) if node_id != "" else NODE_ORBIT_RADIUS
 	_orbit_anchor = _resolve_assignment_center(node_id)
 	var angle: float = _shared_orbit_angle(node_id)
-	## One bob for the whole ring so the spacing stays even.
-	var bob: float = sin(_bob_t * 2.8) * 2.0
-	var offset := Vector2(cos(angle), sin(angle)) * r
-	global_position = _orbit_anchor + offset + Vector2(0, bob) + Vector2(0, HOVER_LIFT)
-	## Back half (above the trunk on screen) draws behind the target. Front half draws in front.
-	z_index = -1 if sin(angle) < 0.0 else 1
+	var node: Node2D = _find_assignment_node(node_id)
+	global_position = _orbit_anchor + _ring_offset(node, angle, r)
+	z_index = _ring_z(node, angle)
 	_at_assigned_orbit = true
 
 
@@ -297,9 +294,31 @@ func place_on_shared_orbit() -> void:
 func _slot_around(center: Vector2, radius: float) -> Vector2:
 	var assigned: String = GameState.get_wisp_assignment(wisp_id)
 	var angle: float = _shared_orbit_angle(assigned) if assigned != "" else _even_slot_angle()
+	var node: Node2D = _find_assignment_node(assigned)
+	return center + _ring_offset(node, angle, radius)
+
+
+func _ring_draws_clear(node: Node2D) -> bool:
+	## Stations and the workbench. Resource rings keep the old hover and depth.
+	return node != null and node.has_method("wisp_orbit_draws_in_front") and bool(node.call("wisp_orbit_draws_in_front"))
+
+
+func _ring_offset(node: Node2D, angle: float, radius: float) -> Vector2:
+	## One bob for the whole ring so the spacing stays even.
 	var bob: float = sin(_bob_t * 2.8) * 2.0
 	var offset := Vector2(cos(angle), sin(angle)) * radius
-	return center + offset + Vector2(0, bob) + Vector2(0, HOVER_LIFT)
+	## The shoulder lift pulls a station ring up into the sprite, so the south
+	## arc sorts behind it. Craft rings sit on the painted center instead.
+	var lift: float = 0.0 if _ring_draws_clear(node) else HOVER_LIFT
+	return offset + Vector2(0, bob + lift)
+
+
+func _ring_z(node: Node2D, angle: float) -> int:
+	if _ring_draws_clear(node):
+		## Behind only once the wisp is on the north side of the art.
+		## Sides and the south arc stay in front of the station.
+		return -1 if sin(angle) < -0.45 else 2
+	return -1 if sin(angle) < 0.0 else 1
 
 
 func _keeper_slot_pos() -> Vector2:
@@ -351,6 +370,12 @@ func _kill_fly_tween() -> void:
 
 func _find_assignment_node(node_id: String) -> Node2D:
 	if node_id == "":
+		return null
+	if has_node("/root/ForgeJobs") and node_id == ForgeJobs.WORKBENCH_ID:
+		var benches: Array[Node] = get_tree().get_nodes_in_group("keepers_bench")
+		for bench: Node in benches:
+			if bench is Node2D:
+				return bench as Node2D
 		return null
 	if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id):
 		var stations: Array[Node] = get_tree().get_nodes_in_group("forge_station")

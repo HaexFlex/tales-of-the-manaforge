@@ -494,6 +494,9 @@ func wisp_orbit_center() -> Vector2:
 
 
 func wisp_orbit_radius() -> float:
+	## Elder canopy is far wider than the trunk. The ring has to match the tree.
+	if String(GameState.stage_id) == "elder":
+		return 280.0
 	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
 	if has_node("/root/ForgeJobs"):
 		return ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))

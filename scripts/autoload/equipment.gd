@@ -432,16 +432,16 @@ func try_equip_to_slot(item_id: String, slot_id: String, actor: String = "keeper
 
 
 func _take_for_equip(who: String, doll: Dictionary, sid: String, item_id: String) -> bool:
-	## Shared bag first, so a spare does not pull gear off the other character.
-	## Then the other doll. A second copy on this doll moves only when nothing else is free.
+	## Shared bag first. A copy the other character is wearing stays on them.
+	## A second copy on this doll moves only when nothing else is free.
 	if unequipped_count(item_id) > 0:
 		return _take_unequipped(item_id, 1)
+	## A copy someone is already wearing stays on them.
 	var other: Dictionary = _doll(_other_actor(who))
 	for slot_name: StringName in SLOT_ORDER:
 		var key: String = String(slot_name)
 		if str(other.get(key, "")) == item_id:
-			other.erase(key)
-			return true
+			return false
 	for slot_name: StringName in SLOT_ORDER:
 		var key: String = String(slot_name)
 		if key == sid:

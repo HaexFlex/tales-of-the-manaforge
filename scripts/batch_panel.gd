@@ -195,8 +195,15 @@ func _line(key: String, tokens: Dictionary = {}) -> String:
 	return ContentStrings.get_text(key, tokens)
 
 
-func _on_slider(value: float) -> void:
-	_count_label.text = str(int(value))
+func _count_text(count: int) -> String:
+	if _recipe_id == "" or not has_node("/root/ForgeJobs"):
+		return str(count)
+	var seconds: float = ForgeJobs.craft_duration_seconds(_spot_id, _recipe_id, count)
+	return "%d · %s" % [count, ForgeJobs.format_duration_words(seconds)]
+
+
+func _on_slider(_value: float) -> void:
+	_refresh()
 
 
 func _on_max() -> void:
@@ -262,7 +269,7 @@ func _refresh() -> void:
 	elif _slider.value > float(limit):
 		_slider.set_value_no_signal(float(limit))
 	var shown: int = int(_slider.value)
-	_count_label.text = str(shown)
+	_count_label.text = _count_text(shown)
 	var show_slider: bool = not running and limit > 0
 	_slider.visible = show_slider
 	_amount_label.visible = not running
@@ -282,10 +289,17 @@ func _refresh() -> void:
 		var batch_fraction: float = clampf(float(state.get("batch_fraction", 0.0)), 0.0, 1.0)
 		_current_bar.value = fraction
 		_total_bar.value = batch_fraction
-		_total_label.text = _line("batch_bar_total", {
-			"done": int(state.get("done", 0)),
-			"total": int(state.get("total", 0)),
-		})
+		_current_label.text = "%s · %s" % [
+			_line("batch_bar_current"),
+			ForgeJobs.format_duration_words(float(state.get("remaining_sec", 0.0))),
+		]
+		_total_label.text = "%s · %s" % [
+			_line("batch_bar_total", {
+				"done": int(state.get("done", 0)),
+				"total": int(state.get("total", 0)),
+			}),
+			ForgeJobs.format_duration_words(float(state.get("batch_remaining_sec", 0.0))),
+		]
 		var bits: PackedStringArray = PackedStringArray()
 		bits.append(str(state.get("name", "")))
 		bits.append(ForgeJobs.staff_line(_spot_id))
@@ -295,6 +309,7 @@ func _refresh() -> void:
 		else:
 			_status.text = _line("batch_busy")
 	else:
+		_current_label.text = _line("batch_bar_current")
 		var info_name: String = ""
 		if _recipe_id != "":
 			info_name = ForgeJobs.recipe_display_name(_recipe_id)

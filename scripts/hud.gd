@@ -1479,8 +1479,6 @@ func _release_world_if_allowed() -> void:
 		return
 	if is_backpack_open():
 		return
-	if is_bench_open():
-		return
 	if is_character_open():
 		return
 	if _pause_menu and _pause_menu.is_open():
@@ -2434,7 +2432,6 @@ func open_bench_panel() -> void:
 	hide_fruit_confirm()
 	hide_ascension_shop()
 	bench_panel.visible = true
-	_hold_world_for_backpack()
 	_rebuild_bench()
 	_refresh_dim()
 

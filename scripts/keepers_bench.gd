@@ -49,8 +49,8 @@ func _apply_walk_box() -> void:
 	var frame := Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
 	var shown := frame * Vector2(absf(sprite.scale.x), absf(sprite.scale.y))
 	var box: Vector2 = FeetBox.size_for(shown)
-	## The stand is just north of the legs. Keep that point outside the box.
-	if keeper_stand != null:
+	## A north stand has to stay outside the legs. The south stand already does.
+	if keeper_stand != null and keeper_stand.position.y < 0.0:
 		var limit: float = maxf(12.0, -keeper_stand.position.y - 6.0)
 		if box.y > limit:
 			box.y = limit
@@ -67,6 +67,38 @@ func stand_global() -> Vector2:
 	if keeper_stand:
 		return keeper_stand.global_position
 	return global_position + Vector2(0, 40)
+
+
+func wisp_orbit_draws_in_front() -> bool:
+	return true
+
+
+func wisp_orbit_center() -> Vector2:
+	return _sprite_visual_center()
+
+
+func wisp_orbit_radius() -> float:
+	var shown: Vector2 = _sprite_shown_size()
+	return maxf(shown.x, shown.y) * 0.5 + 40.0
+
+
+func _sprite_shown_size() -> Vector2:
+	if sprite == null or sprite.texture == null:
+		return Vector2(192, 192)
+	var frame := Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
+	return Vector2(frame.x * absf(sprite.scale.x), frame.y * absf(sprite.scale.y))
+
+
+func _sprite_visual_center() -> Vector2:
+	if sprite == null or sprite.texture == null:
+		return global_position
+	var shown: Vector2 = _sprite_shown_size()
+	var top_left: Vector2 = sprite.position
+	if sprite.centered:
+		top_left -= shown * 0.5
+	else:
+		top_left += sprite.offset * sprite.scale
+	return to_global(top_left + shown * 0.5)
 
 
 func work_footprint() -> Rect2:
@@ -123,8 +155,7 @@ func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> vo
 
 
 func _on_left_click() -> void:
-	if has_node("/root/ForgeJobs"):
-		GameState.status_message.emit(ForgeJobs.copy_text("examine_bench"))
+	_open_panel()
 
 
 func _on_right_click() -> void:
