@@ -5,6 +5,8 @@ extends Node2D
 const HUB_SCENE: String = "res://scenes/main.tscn"
 const WISP_SCENE: PackedScene = preload("res://scenes/wisp.tscn")
 const RECIPE_BUTTON: Script = preload("res://scripts/forge_recipe_button.gd")
+const BATCH_PANEL_SCENE: PackedScene = preload("res://scenes/ui/batch_panel.tscn")
+const BatchPanel := preload("res://scripts/batch_panel.gd")
 
 @onready var camera: Camera2D = get_node_or_null("Camera2D") as Camera2D
 @onready var keeper: CharacterBody2D = get_node_or_null("Keeper") as CharacterBody2D
@@ -60,7 +62,6 @@ func _ready() -> void:
 	if swirl_overlay and swirl_texture != null:
 		swirl_overlay.texture = swirl_texture
 	_setup_camera()
-	_ensure_station_meter()
 	_hide_recipes()
 	GameState.wisps_changed.connect(_sync_wisps)
 	_sync_wisps()
@@ -151,6 +152,10 @@ func _on_escape() -> void:
 		_hide_recipes()
 		return
 	_leave()
+
+
+func open_station_panel(station_id: String) -> void:
+	_open_recipes(station_id)
 
 
 func walk_keeper_to_station(station_id: String) -> void:
@@ -356,22 +361,40 @@ func _open_recipes(station_id: String) -> void:
 		btn.tooltip_text = recipe_id
 		btn.pressed.connect(_on_recipe_pressed.bind(station_id, recipe_id))
 		recipe_list.add_child(btn)
-	_ensure_repeat_toggle(station_id)
+	if recipe_list:
+		recipe_list.offset_bottom = 180.0
+	var panel: BatchPanel = _ensure_batch_panel()
+	if panel:
+		panel.setup(station_id)
+		if panel.selected_recipe() == "" and ids.size() > 0:
+			panel.bind_recipe(ids[0])
+	if recipe_panel:
+		recipe_panel.offset_bottom = 760.0
 	_refresh_station_job()
 
 
 func _on_recipe_pressed(station_id: String, recipe_id: String) -> void:
-	if not has_node("/root/ForgeJobs"):
+	var panel: BatchPanel = _ensure_batch_panel()
+	if panel == null:
 		return
-	var result: String = ForgeJobs.try_begin_job(station_id, recipe_id)
-	if result == "ok":
-		GameState.status_message.emit(ForgeJobs.copy_text("job_started"))
-	elif result == "cant_afford":
-		GameState.status_message.emit(ForgeJobs.copy_text("not_enough_material"))
-	elif result == "owned":
-		GameState.status_message.emit(ForgeJobs.copy_text("already_owned"))
-	elif result == "busy":
-		GameState.status_message.emit(ForgeJobs.copy_text("station_busy"))
+	panel.setup(station_id)
+	panel.bind_recipe(recipe_id)
+
+
+func _ensure_batch_panel() -> BatchPanel:
+	if recipe_panel == null:
+		return null
+	var existing: BatchPanel = recipe_panel.get_node_or_null("BatchPanel") as BatchPanel
+	if existing:
+		return existing
+	var panel: BatchPanel = BATCH_PANEL_SCENE.instantiate() as BatchPanel
+	if panel == null:
+		return null
+	panel.name = "BatchPanel"
+	panel.position = Vector2(8, 188)
+	panel.size = Vector2(364, 280)
+	recipe_panel.add_child(panel)
+	return panel
 
 
 func _ensure_repeat_toggle(station_id: String) -> void:

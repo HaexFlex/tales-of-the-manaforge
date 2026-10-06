@@ -143,7 +143,7 @@ func clear_published_task() -> void:
 	if actor_id() == "keeper":
 		var task: Dictionary = ForgeJobs.keeper_task()
 		var task_kind: String = str(task.get("kind", ""))
-		if task_kind == "harvest" or task_kind == "water" or task_kind == "forge" or task_kind == "runestone":
+		if task_kind == "harvest" or task_kind == "water" or task_kind == "forge" or task_kind == "bench" or task_kind == "runestone":
 			ForgeJobs.note_keeper_idle()
 	else:
 		ForgeJobs.note_elaia_idle()
@@ -429,12 +429,17 @@ func _should_work_loop() -> bool:
 
 
 func _station_task_matches() -> bool:
-	if _work_tool != "station" or _work_station_id == "":
-		return false
-	if not has_node("/root/ForgeJobs"):
+	if _work_tool != "station" or not has_node("/root/ForgeJobs"):
 		return false
 	var task: Dictionary = read_published_task()
-	return str(task.get("kind", "")) == "forge" and bool(task.get("working", false)) and str(task.get("target", "")) == _work_station_id
+	if not bool(task.get("working", false)):
+		return false
+	var kind: String = str(task.get("kind", ""))
+	if kind == "bench" and _work_type == "bench":
+		return str(task.get("target", "")) == "workbench"
+	if _work_station_id == "":
+		return false
+	return kind == "forge" and str(task.get("target", "")) == _work_station_id
 
 
 static func facing_for_velocity(vel: Vector2, current: String = "south") -> String:
@@ -536,6 +541,17 @@ func _resume_saved_task() -> void:
 			_apply_solved(station, "station", solved)
 			_work_loop = true
 			publish_task("forge", target_id, true)
+			_update_anim(Vector2.ZERO)
+		return
+	if kind == "bench" and here == "clearing":
+		var bench := get_tree().get_first_node_in_group("keepers_bench") as Node2D
+		if bench:
+			var solved_bench: Dictionary = _solve_for(bench, "bench")
+			global_position = solved_bench.get("position", global_position)
+			_target = global_position
+			_apply_solved(bench, "bench", solved_bench)
+			_work_loop = true
+			publish_task("bench", "workbench", true)
 			_update_anim(Vector2.ZERO)
 		return
 	_update_anim(Vector2.ZERO)

@@ -1,5 +1,6 @@
 extends Area2D
 class_name KeepersBench
+const BatchWorldBars := preload("res://scripts/batch_world_bars.gd")
 ## Hub handcraft station. The Keeper walks to KeeperStand, then the bench opens.
 ## Idle and busy frames are the 192px bench art, feet on the node origin.
 
@@ -14,7 +15,9 @@ class_name KeepersBench
 @onready var badge_art: Sprite2D = get_node_or_null("BadgeArt") as Sprite2D
 
 var _awaiting_arrival: bool = false
+var _awaiting_actor: String = ""
 var _busy: bool = false
+var _bars: BatchWorldBars
 
 
 func _ready() -> void:
@@ -26,6 +29,10 @@ func _ready() -> void:
 	monitoring = false
 	monitorable = true
 	_apply_frame(false)
+	_bars = BatchWorldBars.new()
+	_bars.name = "BatchBars"
+	add_child(_bars)
+	_bars.bind(self, "workbench")
 	var title: Label = get_node_or_null("Title") as Label
 	if title:
 		title.visible = false
@@ -77,6 +84,9 @@ func _bind_keeper() -> void:
 	var keeper: Node = get_tree().get_first_node_in_group("keeper")
 	if keeper and keeper.has_signal("arrived") and not keeper.arrived.is_connected(_on_keeper_arrived):
 		keeper.arrived.connect(_on_keeper_arrived)
+	var elaia: Node = get_tree().get_first_node_in_group("elaia")
+	if elaia and elaia.has_signal("arrived") and not elaia.arrived.is_connected(_on_elaia_arrived):
+		elaia.arrived.connect(_on_elaia_arrived)
 
 
 func _apply_frame(busy: bool) -> void:
@@ -118,6 +128,20 @@ func _on_left_click() -> void:
 
 
 func _on_right_click() -> void:
+	if not GameState.selected_wisp_list().is_empty():
+		var result: String = GameState.command_selected_wisps("workbench")
+		if result == "full":
+			return
+		GameState.toast_wisp_assign(result, "workbench")
+		return
+	if GameState.selected_hero_id() == "elaia":
+		var elaia: Node = get_tree().get_first_node_in_group("elaia")
+		if elaia == null or not elaia.has_method("command_work"):
+			return
+		_awaiting_arrival = true
+		_awaiting_actor = "elaia"
+		elaia.call("command_work", self, "bench", "workbench")
+		return
 	if not GameState.keeper_selected:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 		return
@@ -125,18 +149,36 @@ func _on_right_click() -> void:
 	if keeper == null:
 		return
 	_awaiting_arrival = true
+	_awaiting_actor = "keeper"
 	if keeper.has_method("command_work"):
-		keeper.call("command_work", self, "bench")
+		keeper.call("command_work", self, "bench", "workbench")
 		return
 	if keeper.has_method("move_to"):
 		keeper.call("move_to", stand_global(), null)
 
 
 func _on_keeper_arrived() -> void:
-	if not _awaiting_arrival:
+	if not _awaiting_arrival or (_awaiting_actor != "" and _awaiting_actor != "keeper"):
 		return
 	_awaiting_arrival = false
+	_awaiting_actor = ""
+	if not keeper_at_stand():
+		return
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.set_keeper_working("workbench", true)
 	try_open()
+
+
+func _on_elaia_arrived() -> void:
+	if not _awaiting_arrival or _awaiting_actor != "elaia":
+		return
+	_awaiting_arrival = false
+	_awaiting_actor = ""
+	if not elaia_at_stand():
+		return
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.set_elaia_working("workbench", true)
+	_open_panel()
 
 
 func keeper_at_stand() -> bool:
@@ -149,9 +191,23 @@ func keeper_at_stand() -> bool:
 	return keeper.global_position.distance_to(stand_global()) <= radius
 
 
+func elaia_at_stand() -> bool:
+	var elaia: Node2D = get_tree().get_first_node_in_group("elaia") as Node2D
+	if elaia == null:
+		return false
+	var radius: float = 56.0
+	if has_node("/root/ForgeJobs"):
+		radius = ForgeJobs.stand_radius()
+	return elaia.global_position.distance_to(stand_global()) <= radius
+
+
 func try_open() -> bool:
 	if not keeper_at_stand():
 		return false
+	return _open_panel()
+
+
+func _open_panel() -> bool:
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.open_bench_hook()
 	var hud: Node = get_tree().get_first_node_in_group("game_hud")
