@@ -254,7 +254,11 @@ func hero_display_name(actor: String) -> String:
 	## Display name from companions.json. "The Keeper" only when that string is missing.
 	var row: Dictionary = _companion_row(actor)
 	var key: String = str(row.get("display_name_key", ""))
-	var fallback: String = "The Keeper" if actor == "keeper" else "Elaia"
+	var fallback: String = "The Keeper"
+	if actor == "elaia":
+		fallback = "Elaia"
+	elif actor == "puff":
+		fallback = "Puff"
 	if key == "":
 		return fallback
 	var text: String = ContentStrings.get_text(key)
@@ -617,8 +621,11 @@ func _place_elaia_at_door() -> void:
 
 
 func select_companion(companion_id: String) -> void:
-	## Portrait or sprite click. Refused until the join dialogue has played.
-	if companion_id != "elaia" or not elaia_portrait_visible():
+	## Portrait or sprite click. Elaia waits for her join dialogue. Puff waits for reach 20.
+	if companion_id == "puff":
+		if not has_node("/root/Adventure") or not Adventure.puff_selectable():
+			return
+	elif companion_id != "elaia" or not elaia_portrait_visible():
 		return
 	if selected_companion_id == companion_id and not keeper_selected and selected_wisp_ids.is_empty() and selected_wisp_id < 0:
 		return
@@ -1487,6 +1494,8 @@ func ascend() -> void:
 		KeeperStats.on_ascend()
 	if has_node("/root/Equipment"):
 		Equipment.on_ascend()
+	if has_node("/root/Adventure"):
+		Adventure.on_ascend()
 	needs_changed.emit()
 	status_message.emit(ContentStrings.get_text("ascend_toast"))
 	status_message.emit(ContentStrings.get_text("ascend_essence_reset_toast"))
@@ -1564,7 +1573,9 @@ func to_save_dict() -> Dictionary:
 		"arrow_mode": arrow_mode,
 		"ancient_frozen": ancient_frozen,
 		"forge_visited": forge_visited,
-	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {})
+	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {}).merged(
+		Adventure.capture_save_fields() if has_node("/root/Adventure") else {}
+	)
 
 
 func apply_save_dict(data: Dictionary) -> void:
@@ -1690,6 +1701,8 @@ func apply_save_dict(data: Dictionary) -> void:
 			Equipment.ensure_forge_key_from_load()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.apply_save_fields(data)
+	if has_node("/root/Adventure"):
+		Adventure.apply_save_fields(data)
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()
@@ -1818,6 +1831,8 @@ func reset_for_new_game() -> void:
 		Equipment.reset_for_new_game()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.reset_for_new_game()
+	if has_node("/root/Adventure"):
+		Adventure.reset_for_new_game()
 	wisps_changed.emit()
 	selection_changed.emit()
 	resources_changed.emit(&"wood", wood)

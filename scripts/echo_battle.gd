@@ -6,11 +6,20 @@ extends RefCounted
 const ECHO_ID: String = "echo_keeper_01"
 const MERCY_FRACTION: float = 0.10
 const KEEPER_CRIT_MULT: float = 2.0
+const SALVE_HEAL: int = 25
+const BILE_FLAT: int = 15
 const STAT_ORDER: Array[String] = [
 	"might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"
 ]
 
 var echo_name: String = "Elaia"
+var echo_id: String = ""
+## Foe strike. Echo 1 stays Arcana vs Ward. Puff is Might vs Resilience.
+var foe_attack_stat: String = "arcana"
+var foe_vs_stat: String = "ward"
+## Echo 1 ties go to the Keeper. Puff wins a Swiftness tie.
+var keeper_wins_swift_tie: bool = true
+var last_item_used: String = ""
 var keeper_max_hp: int = 50
 var echo_max_hp: int = 60
 var keeper_hp: int = 50
@@ -18,6 +27,10 @@ var echo_hp: int = 60
 var keeper: Dictionary = {}
 var echo: Dictionary = {}
 var echo_crit_mult: float = 1.2
+## Empty path keeps the Elaia portrait. West and front are not mirrored.
+var foe_art_path: String = ""
+var foe_facing: String = ""
+var foe_sole_y: int = 123
 var spare_window: bool = false
 var outcome: String = ""
 var enemy_attacks: int = 0
@@ -119,7 +132,19 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 		"fate": int(estats.get("fate", 5)),
 	}
 	echo_name = str(echo_def.get("display_name", "Elaia"))
+	echo_id = str(echo_def.get("id", ""))
+	foe_art_path = str(echo_def.get("battle_art_path", ""))
+	foe_facing = str(echo_def.get("facing", ""))
+	foe_sole_y = int(echo_def.get("sole_y", 123))
 	echo_crit_mult = float(echo_def.get("crit_multiplier", 1.2))
+	if str(echo_def.get("attack_profile", "magical")) == "physical":
+		foe_attack_stat = "might"
+		foe_vs_stat = "resilience"
+	else:
+		foe_attack_stat = "arcana"
+		foe_vs_stat = "ward"
+	keeper_wins_swift_tie = not bool(echo_def.get("swift_tie_favors_foe", false))
+	last_item_used = ""
 	keeper_max_hp = hp_max_for(int(keeper["vitality"]))
 	echo_max_hp = hp_max_for(int(echo["vitality"]))
 	keeper_hp = keeper_max_hp
@@ -134,7 +159,11 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 
 
 func keeper_acts_first() -> bool:
-	return int(keeper.get("swiftness", 5)) >= int(echo.get("swiftness", 6))
+	var ks: int = int(keeper.get("swiftness", 5))
+	var es: int = int(echo.get("swiftness", 6))
+	if ks == es:
+		return keeper_wins_swift_tie
+	return ks > es
 
 
 func available_actions() -> PackedStringArray:
@@ -148,6 +177,9 @@ func available_actions() -> PackedStringArray:
 func choose(action: String) -> String:
 	if outcome != "":
 		return "resolved"
+	last_item_used = ""
+	if action == "salve" or action == "bile":
+		return _item_round(action)
 	if spare_window:
 		if action == "flee":
 			return "no_flee"
@@ -279,12 +311,65 @@ func _strike_to_finish() -> void:
 	_log_line("battle_log_defeat", {"enemy": echo_name})
 
 
+func _item_round(action: String) -> String:
+	if spare_window:
+		_apply_item(action)
+		if outcome != "":
+			return outcome
+		return "spare_window"
+	if keeper_acts_first():
+		_apply_item(action)
+		if outcome != "" or spare_window:
+			return "spare_window" if spare_window and outcome == "" else outcome
+		_echo_attack()
+		if outcome != "":
+			return outcome
+		return "continue"
+	_echo_attack()
+	if outcome != "":
+		return outcome
+	_apply_item(action)
+	if spare_window and outcome == "":
+		return "spare_window"
+	if outcome != "":
+		return outcome
+	return "continue"
+
+
+func _apply_item(action: String) -> void:
+	last_item_used = action
+	if action == "salve":
+		var before: int = keeper_hp
+		keeper_hp = mini(keeper_max_hp, keeper_hp + SALVE_HEAL)
+		last_keeper_damage = 0
+		last_keeper_crit = false
+		_log_line("battle_log_salve", {"amount": keeper_hp - before})
+		return
+	var dealt: int = BILE_FLAT
+	last_keeper_damage = dealt
+	last_keeper_crit = false
+	var above_mercy: bool = float(echo_hp) > MERCY_FRACTION * float(echo_max_hp)
+	var next_hp: int = echo_hp - dealt
+	if above_mercy and next_hp <= 0:
+		echo_hp = 1
+		_log_line("battle_log_mercy_floor", {"enemy": echo_name})
+	else:
+		echo_hp = maxi(0, next_hp)
+		_log_line("battle_log_bile", {"enemy": echo_name, "amount": dealt})
+	if echo_hp <= 0:
+		_finish("defeat")
+		_log_line("battle_log_defeat", {"enemy": echo_name})
+		return
+	if float(echo_hp) < MERCY_FRACTION * float(echo_max_hp):
+		spare_window = true
+
+
 func _echo_attack() -> void:
 	var first_hit: bool = enemy_attacks == 0
 	var dealt: int = _rolled_damage(
-		int(echo["arcana"]),
-		int(keeper["ward"]),
-		int(echo["fate"]),
+		int(echo.get(foe_attack_stat, 0)),
+		int(keeper.get(foe_vs_stat, 0)),
+		int(echo.get("fate", 0)),
 		echo_crit_mult,
 		false
 	)

@@ -8,6 +8,8 @@ const BATTLE_SCENE: String = "res://scenes/echo_battle.tscn"
 
 var in_battle: bool = false
 var reentry: bool = false
+## "" and "echo1" are Elaia. "echo2" is Puff. "manual" is a reach fight.
+var battle_context: String = ""
 var battle: EchoBattle = null
 var _battle_ui: Node = null
 var _echo_def: Dictionary = {}
@@ -58,13 +60,18 @@ func try_pay_fee() -> String:
 
 
 func open_battle(already_paid: bool) -> void:
+	open_context(_echo_def, "echo1", _keeper_totals(), Equipment.equipped_strike_kind(), already_paid)
+
+
+func open_context(def: Dictionary, context: String, totals: Dictionary, strike_kind: String, already_paid: bool) -> void:
 	if in_battle:
 		return
+	battle_context = context
 	reentry = already_paid
 	battle = EchoBattle.new()
 	battle.force_crit = -1
-	battle.configure(_keeper_totals(), _echo_def)
-	battle.strike_kind = Equipment.equipped_strike_kind()
+	battle.configure(totals, def)
+	battle.strike_kind = strike_kind if strike_kind != "" else "physical"
 	battle.arrow_mode = "magical" if GameState.arrow_mode == "magical" else "physical"
 	in_battle = true
 	GameAudio.suspend_hub_for_battle()
@@ -72,6 +79,7 @@ func open_battle(already_paid: bool) -> void:
 	if packed == null:
 		push_error("EchoChamber: battle scene missing")
 		in_battle = false
+		battle_context = ""
 		return
 	_battle_ui = packed.instantiate()
 	get_tree().root.add_child(_battle_ui)
@@ -91,6 +99,12 @@ func snapshot_payout(kind: String) -> int:
 
 
 func apply_outcome(outcome: String) -> Dictionary:
+	var ctx: String = battle_context
+	battle_context = ""
+	if ctx == "echo2" and has_node("/root/Adventure"):
+		return Adventure.apply_echo2_outcome(outcome)
+	if ctx == "manual" and has_node("/root/Adventure"):
+		return Adventure.apply_manual_battle(outcome)
 	var shards: int = 0
 	if outcome == "spare" or outcome == "defeat":
 		shards = snapshot_payout(outcome)
@@ -109,9 +123,11 @@ func apply_outcome(outcome: String) -> Dictionary:
 
 
 func finish_battle(outcome: String) -> void:
+	var ctx: String = battle_context
 	apply_outcome(outcome)
 	_teardown_view()
-	_wake_at_tree()
+	if ctx != "manual":
+		_wake_at_tree()
 	GameAudio.resume_hub_after_battle()
 	if get_tree() != null:
 		get_tree().paused = GameState.fruit_committed
@@ -120,6 +136,9 @@ func finish_battle(outcome: String) -> void:
 
 func dismiss_battle_without_reward() -> void:
 	## Load / new game / quit abandon the fight. Disk state is the flee-equivalent.
+	if battle_context == "manual" and has_node("/root/Adventure"):
+		Adventure.abandon_manual_battle()
+	battle_context = ""
 	_teardown_view()
 	GameAudio.resume_hub_after_battle()
 	if get_tree() != null:
@@ -130,6 +149,7 @@ func _teardown_view() -> void:
 	in_battle = false
 	reentry = false
 	battle = null
+	battle_context = ""
 	if _battle_ui != null and is_instance_valid(_battle_ui):
 		_battle_ui.queue_free()
 	_battle_ui = null
