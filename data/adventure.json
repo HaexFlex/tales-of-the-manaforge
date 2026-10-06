@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "notes": "Phase 0 locked numbers (ADVENTURE_V01 rev 5). Idle threat bands are the structure the spec names; loot, fees, timers, herbs, potions, and Corvane are locked. Wilt Wisp, Root Snapper, and Moss Brute art is banked for Phase 1 — they are not foes.",
+  "notes": "Phase 0 locked numbers (ADVENTURE_V01 rev 5). Idle threat bands are the structure the spec names; loot, fees, timers, herbs, potions, and Puff are locked. Wilt Wisp, Root Snapper, and Moss Brute art is banked for Phase 1 — they are not foes.",
   "echo2_fee": 50,
   "idle_reach_sec": 720,
   "manual_reach_sec": 240,
@@ -25,9 +25,9 @@
   "idle_damage": { "success": 8, "scrape": 22, "fail": 36 },
   "forge_weapons": ["rootsteel_edge", "heartwand", "switchshaft"],
   "art": {
-    "corvane_portrait": "res://assets/art/portraits/corvane_portrait.png",
-    "corvane_portrait_sheet": "res://assets/art/portraits/corvane_portrait_sheet.png",
-    "battle_corvane_idle": "res://assets/art/echo/battle_corvane_idle.png",
+    "puff_portrait": "res://assets/art/portraits/corvane_portrait.png",
+    "puff_portrait_sheet": "res://assets/art/portraits/corvane_portrait_sheet.png",
+    "battle_puff_idle": "res://assets/art/echo/battle_corvane_idle.png",
     "brewing_stand": "res://assets/art/props/brewing_stand.png",
     "icon_glowcap": "res://assets/art/ui/icon_glowcap.png",
     "icon_bitterroot": "res://assets/art/ui/icon_bitterroot.png",

@@ -92,8 +92,8 @@ func _apply_elaia_portrait() -> void:
 	if _battle != null:
 		foe_path = _battle.foe_art_path
 		facing = _battle.foe_facing
-		if foe_path == "" and _battle.echo_id == "echo_corvane":
-			foe_path = Adventure.ART_CORVANE_BATTLE
+		if foe_path == "" and _battle.echo_id == "echo_puff":
+			foe_path = Adventure.ART_PUFF_BATTLE
 			facing = "west"
 	if foe_path != "" and ResourceLoader.exists(foe_path):
 		var foe_tex: Texture2D = Adventure.frame_slice(foe_path, Adventure.BATTLE_CANVAS)

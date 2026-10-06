@@ -4399,14 +4399,15 @@ func _adventure_phase0(tree_root: Window, game_state: Node, backpack: Node) -> i
 
 func _adventure_echo2(game_state: Node) -> int:
 	var failed: int = 0
+	failed += _player_strings_name_puff()
 	var adventure: Node = root.get_node("Adventure")
 	var equipment: Node = root.get_node("Equipment")
 	var echo: Node = root.get_node("EchoChamber")
 	game_state.call("reset_for_new_game")
 	var tuning: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/adventure.json"))
-	var corvane_file: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/echo_corvane.json"))
+	var puff_file: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/echo_puff.json"))
 	failed += _assert(typeof(tuning) == TYPE_DICTIONARY, "adventure.json parses")
-	failed += _assert(typeof(corvane_file) == TYPE_DICTIONARY, "echo_corvane.json parses")
+	failed += _assert(typeof(puff_file) == TYPE_DICTIONARY, "echo_puff.json parses")
 	if typeof(tuning) == TYPE_DICTIONARY:
 		var tune: Dictionary = tuning
 		failed += _assert(int(tune.get("echo2_fee", 0)) == 50, "json echo2 fee 50")
@@ -4449,46 +4450,46 @@ func _adventure_echo2(game_state: Node) -> int:
 	failed += _assert(not bool(adventure.get("adventure_unlocked")), "flee does not scar")
 	adventure.call("apply_echo2_outcome", "spare")
 	failed += _assert(bool(adventure.get("adventure_unlocked")), "spare opens adventure")
-	failed += _assert(bool(adventure.get("corvane_promised")), "spare promises Corvane")
-	failed += _assert(not bool(adventure.get("corvane_joined")), "spare does not join Corvane yet")
-	failed += _assert(str(adventure.get("corvane_outcome")) == "spare", "spare story flag")
+	failed += _assert(bool(adventure.get("puff_promised")), "spare promises Puff")
+	failed += _assert(not bool(adventure.get("puff_joined")), "spare does not join Puff yet")
+	failed += _assert(str(adventure.get("puff_outcome")) == "spare", "spare story flag")
 	game_state.call("reset_for_new_game")
 	equipment.call("grant_item", "heartwand")
 	game_state.call("set_resource", &"essence", 50)
 	adventure.call("try_pay_echo2")
 	adventure.call("apply_echo2_outcome", "defeat")
 	failed += _assert(bool(adventure.get("adventure_unlocked")), "defeat opens adventure")
-	failed += _assert(bool(adventure.get("corvane_promised")) and not bool(adventure.get("corvane_joined")), "defeat promises Corvane")
-	failed += _assert(str(adventure.get("corvane_outcome")) == "defeat", "defeat story flag")
-	var sheet: Dictionary = adventure.call("corvane_def")
+	failed += _assert(bool(adventure.get("puff_promised")) and not bool(adventure.get("puff_joined")), "defeat promises Puff")
+	failed += _assert(str(adventure.get("puff_outcome")) == "defeat", "defeat story flag")
+	var sheet: Dictionary = adventure.call("puff_def")
 	var stats: Dictionary = sheet.get("stats", {})
-	failed += _assert(int(stats.get("might", 0)) == 8, "Corvane might 8")
-	failed += _assert(int(stats.get("arcana", 0)) == 4, "Corvane arcana 4")
-	failed += _assert(int(stats.get("resilience", 0)) == 6, "Corvane resilience 6")
-	failed += _assert(int(stats.get("ward", 0)) == 5, "Corvane ward 5")
-	failed += _assert(int(stats.get("vitality", 0)) == 8, "Corvane vitality 8")
-	failed += _assert(int(stats.get("swiftness", 0)) == 5, "Corvane swiftness 5")
-	failed += _assert(int(stats.get("fate", 0)) == 5, "Corvane fate 5")
-	failed += _assert(is_equal_approx(float(sheet.get("crit_multiplier", 0.0)), 1.2), "Corvane crit 1.2")
-	failed += _assert(str(sheet.get("attack_profile", "")) == "physical", "Corvane physical profile")
+	failed += _assert(int(stats.get("might", 0)) == 8, "Puff might 8")
+	failed += _assert(int(stats.get("arcana", 0)) == 4, "Puff arcana 4")
+	failed += _assert(int(stats.get("resilience", 0)) == 6, "Puff resilience 6")
+	failed += _assert(int(stats.get("ward", 0)) == 5, "Puff ward 5")
+	failed += _assert(int(stats.get("vitality", 0)) == 8, "Puff vitality 8")
+	failed += _assert(int(stats.get("swiftness", 0)) == 5, "Puff swiftness 5")
+	failed += _assert(int(stats.get("fate", 0)) == 5, "Puff fate 5")
+	failed += _assert(is_equal_approx(float(sheet.get("crit_multiplier", 0.0)), 1.2), "Puff crit 1.2")
+	failed += _assert(str(sheet.get("attack_profile", "")) == "physical", "Puff physical profile")
 	var fight := EchoBattleScript.new()
 	fight.force_crit = 0
 	fight.configure(
 		{"might": 5, "arcana": 5, "resilience": 5, "ward": 5, "vitality": 5, "swiftness": 5, "fate": 5},
 		sheet
 	)
-	failed += _assert(not fight.keeper_acts_first(), "swift 5 does not act before Corvane")
+	failed += _assert(not fight.keeper_acts_first(), "swift 5 does not act before Puff")
 	fight.keeper["swiftness"] = 7
-	failed += _assert(fight.keeper_acts_first(), "swift 7 acts before Corvane")
+	failed += _assert(fight.keeper_acts_first(), "swift 7 acts before Puff")
 	fight.keeper["swiftness"] = 5
 	fight.choose("strike")
-	failed += _assert(fight.last_echo_damage == 30, "Corvane might 8 vs resilience 5 is 30 (got %d)" % fight.last_echo_damage)
+	failed += _assert(fight.last_echo_damage == 30, "Puff might 8 vs resilience 5 is 30 (got %d)" % fight.last_echo_damage)
 	var elaia_def: Dictionary = echo.call("echo_def")
 	failed += _assert(str(elaia_def.get("id", "")) == "echo_keeper_01", "echo 1 id unchanged")
 	failed += _assert(str(elaia_def.get("battle_art_path", "")) == "", "echo 1 has no foe art path")
-	failed += _assert(str(sheet.get("battle_art_path", "")).ends_with("battle_corvane_idle.png"), "corvane battle art")
-	failed += _assert(str(sheet.get("facing", "")) == "west", "corvane faces west")
-	failed += _assert(int(sheet.get("sole_y", 0)) == 123, "corvane sole y=123")
+	failed += _assert(str(sheet.get("battle_art_path", "")).ends_with("battle_corvane_idle.png"), "puff battle art")
+	failed += _assert(str(sheet.get("facing", "")) == "west", "puff faces west")
+	failed += _assert(int(sheet.get("sole_y", 0)) == 123, "puff sole y=123")
 	failed += _assert(not bool(adventure.call("mirror_battle_facing", "west")), "west battle art is not mirrored")
 	failed += _assert(not bool(adventure.call("mirror_battle_facing", "front")), "front battle art is not mirrored")
 	var foe: Dictionary = adventure.call("reach_foe_def")
@@ -4506,15 +4507,30 @@ func _adventure_echo2(game_state: Node) -> int:
 		failed += _assert(str((snap as Dictionary).get("facing", "")) == "front", "root snapper stays front-facing")
 	var stand_tex: Texture2D = load(str(adventure.get("ART_BREWING_STAND"))) as Texture2D
 	failed += _assert(stand_tex != null and stand_tex.get_width() == 64 and stand_tex.get_height() == 80, "brewing stand is 64x80")
-	var portrait_tex: Texture2D = adventure.call("frame_slice", str(adventure.get("ART_CORVANE_PORTRAIT")), Vector2i(52, 52))
-	var sheet_tex: Texture2D = adventure.call("frame_slice", str(adventure.get("ART_CORVANE_SHEET")), Vector2i(160, 160))
-	failed += _assert(portrait_tex != null and portrait_tex.get_width() == 52 and portrait_tex.get_height() == 52, "corvane portrait frame is 52")
-	failed += _assert(sheet_tex != null and sheet_tex.get_width() == 160 and sheet_tex.get_height() == 160, "corvane sheet frame is 160")
-	var corvane_tex: Texture2D = load(str(adventure.get("ART_CORVANE_BATTLE"))) as Texture2D
+	var portrait_tex: Texture2D = adventure.call("frame_slice", str(adventure.get("ART_PUFF_PORTRAIT")), Vector2i(52, 52))
+	var sheet_tex: Texture2D = adventure.call("frame_slice", str(adventure.get("ART_PUFF_SHEET")), Vector2i(160, 160))
+	failed += _assert(portrait_tex != null and portrait_tex.get_width() == 52 and portrait_tex.get_height() == 52, "puff portrait frame is 52")
+	failed += _assert(sheet_tex != null and sheet_tex.get_width() == 160 and sheet_tex.get_height() == 160, "puff sheet frame is 160")
+	var puff_tex: Texture2D = load(str(adventure.get("ART_PUFF_BATTLE"))) as Texture2D
 	var briar_tex: Texture2D = load(str(foe.get("battle_art_path", ""))) as Texture2D
-	failed += _assert(corvane_tex != null and corvane_tex.get_width() == 128 and corvane_tex.get_height() == 128, "corvane battle canvas 128")
+	failed += _assert(puff_tex != null and puff_tex.get_width() == 128 and puff_tex.get_height() == 128, "puff battle canvas 128")
 	failed += _assert(briar_tex != null and briar_tex.get_width() == 128 and briar_tex.get_height() == 128, "briar battle canvas 128")
-	failed += _assert(_sole_y(corvane_tex) == 123 and _sole_y(briar_tex) == 123, "corvane and briar soles sit on y=123")
+	failed += _assert(_sole_y(puff_tex) == 123 and _sole_y(briar_tex) == 123, "puff and briar soles sit on y=123")
+	return failed
+
+
+func _player_strings_name_puff() -> int:
+	## Player-facing copy must not call the Adventure companion Corvane.
+	var failed: int = 0
+	var raw: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	var parsed: Variant = JSON.parse_string(raw)
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "strings_v01.json parses for the Puff name check")
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return failed
+	for key: Variant in (parsed as Dictionary).keys():
+		var value: String = str((parsed as Dictionary)[key])
+		if value.to_lower().find("corvane") >= 0:
+			failed += _assert(false, "player string %s names Corvane" % str(key))
 	return failed
 
 
@@ -4639,19 +4655,19 @@ func _adventure_join20(game_state: Node) -> int:
 	var adventure: Node = root.get_node("Adventure")
 	game_state.call("reset_for_new_game")
 	adventure.set("adventure_unlocked", true)
-	adventure.set("corvane_promised", true)
+	adventure.set("puff_promised", true)
 	adventure.set("cumulative_reaches", 19)
 	adventure.set("present_battles", false)
 	adventure.call("refresh_milestones")
-	failed += _assert(not bool(adventure.get("corvane_joined")), "19 reaches do not join Corvane")
+	failed += _assert(not bool(adventure.get("puff_joined")), "19 reaches do not join Puff")
 	failed += _assert(not bool(adventure.get("brewing_unlocked")), "brewing stays shut before 20")
-	failed += _assert(str(adventure.call("try_brew", "heart_salve")) == "locked", "brew locked before Corvane joins")
+	failed += _assert(str(adventure.call("try_brew", "heart_salve")) == "locked", "brew locked before Puff joins")
 	failed += _assert(str(adventure.call("try_start_reach", "idle")) == "ok", "20th reach starts")
 	adventure.call("advance_open_time", 719.0)
 	failed += _assert(int(adventure.get("cumulative_reaches")) == 19, "reach waits out the full 12 min")
 	adventure.call("advance_open_time", 1.0)
 	failed += _assert(int(adventure.get("cumulative_reaches")) == 20, "20th reach counts")
-	failed += _assert(bool(adventure.get("corvane_joined")), "Corvane joins at 20")
+	failed += _assert(bool(adventure.get("puff_joined")), "Puff joins at 20")
 	failed += _assert(bool(adventure.get("brewing_unlocked")), "brewing stand unlocks at 20")
 	failed += _assert(not bool(adventure.get("reach_active")), "finished reach returns the party")
 	game_state.call("set_resource", &"essence", 10)

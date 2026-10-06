@@ -19,8 +19,8 @@
     "reliquary_work_rate": 1.5,
     "water_reward_mult": 0.8
   },
-  "corvane": {
-    "display_name_key": "corvane_name",
+  "puff": {
+    "display_name_key": "puff_name",
     "portrait_path": "res://assets/art/portraits/corvane_portrait.png",
     "sheet_portrait_path": "res://assets/art/portraits/corvane_portrait_sheet.png",
     "battle_art_path": "res://assets/art/echo/battle_corvane_idle.png",

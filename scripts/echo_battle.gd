@@ -14,10 +14,10 @@ const STAT_ORDER: Array[String] = [
 
 var echo_name: String = "Elaia"
 var echo_id: String = ""
-## Foe strike. Echo 1 stays Arcana vs Ward. Corvane is Might vs Resilience.
+## Foe strike. Echo 1 stays Arcana vs Ward. Puff is Might vs Resilience.
 var foe_attack_stat: String = "arcana"
 var foe_vs_stat: String = "ward"
-## Echo 1 ties go to the Keeper. Corvane wins a Swiftness tie.
+## Echo 1 ties go to the Keeper. Puff wins a Swiftness tie.
 var keeper_wins_swift_tie: bool = true
 var last_item_used: String = ""
 var keeper_max_hp: int = 50

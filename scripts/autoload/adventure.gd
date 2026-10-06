@@ -5,7 +5,7 @@ extends Node
 signal adventure_changed
 
 const DATA_PATH: String = "res://data/adventure.json"
-const CORVANE_PATH: String = "res://data/echo_corvane.json"
+const PUFF_PATH: String = "res://data/echo_puff.json"
 const ECHO2_FEE: int = 50
 const IDLE_REACH_SEC: float = 720.0
 const MANUAL_REACH_SEC: float = 240.0
@@ -31,15 +31,15 @@ const IDLE_DAMAGE_FAIL: int = 36
 const FORGE_WEAPONS: PackedStringArray = ["rootsteel_edge", "heartwand", "switchshaft"]
 const RAW_IDS: PackedStringArray = ["wood", "stone", "food"]
 const RAW_WEIGHTS: PackedInt32Array = [1, 1, 1]
-const ART_CORVANE_PORTRAIT: String = "res://assets/art/portraits/corvane_portrait.png"
-const ART_CORVANE_SHEET: String = "res://assets/art/portraits/corvane_portrait_sheet.png"
-const ART_CORVANE_BATTLE: String = "res://assets/art/echo/battle_corvane_idle.png"
+const ART_PUFF_PORTRAIT: String = "res://assets/art/portraits/corvane_portrait.png"
+const ART_PUFF_SHEET: String = "res://assets/art/portraits/corvane_portrait_sheet.png"
+const ART_PUFF_BATTLE: String = "res://assets/art/echo/battle_corvane_idle.png"
 const ART_BREWING_STAND: String = "res://assets/art/props/brewing_stand.png"
 const ART_GLOWCAP: String = "res://assets/art/ui/icon_glowcap.png"
 const ART_BITTERROOT: String = "res://assets/art/ui/icon_bitterroot.png"
 const ART_HEART_SALVE: String = "res://assets/art/ui/icon_heart_salve.png"
 const ART_BILE_VIAL: String = "res://assets/art/ui/icon_bile_vial.png"
-## Phase 0 reach foe. West-facing, same 128 canvas and sole line as Corvane.
+## Phase 0 reach foe. West-facing, same 128 canvas and sole line as Puff.
 const ART_BRIAR_WARDEN: String = "res://assets/art/echo/battle_briar_warden_idle.png"
 ## Banked Phase 1 roster art. No Phase 0 foe uses these. Do not mirror the front-facing sheets.
 const ART_WILT_WISP: String = "res://assets/art/echo/battle_wilt_wisp_idle.png"
@@ -52,9 +52,9 @@ const SHEET_FRAME: Vector2i = Vector2i(160, 160)
 const BREWING_STAND_POS: Vector2 = Vector2(2420, 2220)
 
 var adventure_unlocked: bool = false
-var corvane_outcome: String = ""
-var corvane_promised: bool = false
-var corvane_joined: bool = false
+var puff_outcome: String = ""
+var puff_promised: bool = false
+var puff_joined: bool = false
 var brewing_unlocked: bool = false
 var echo2_fee_paid: bool = false
 var echo2_resolved: bool = false
@@ -72,7 +72,7 @@ var party_hp: int = 0
 var party_max_hp: int = 0
 ## Headless tests set this false so a finished manual reach does not open the battle scene.
 var present_battles: bool = true
-var _corvane_def: Dictionary = {}
+var _puff_def: Dictionary = {}
 var _reach_foe_def: Dictionary = {}
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _panel: Node = null
@@ -98,9 +98,9 @@ func _load_tables() -> void:
 		var foe: Variant = (adv as Dictionary).get("reach_foe", {})
 		if typeof(foe) == TYPE_DICTIONARY:
 			_reach_foe_def = (foe as Dictionary).duplicate(true)
-	var corv: Variant = _read_json(CORVANE_PATH)
+	var corv: Variant = _read_json(PUFF_PATH)
 	if typeof(corv) == TYPE_DICTIONARY:
-		_corvane_def = (corv as Dictionary).duplicate(true)
+		_puff_def = (corv as Dictionary).duplicate(true)
 
 
 func _read_json(path: String) -> Variant:
@@ -154,8 +154,8 @@ func open_panel() -> void:
 		_panel.call("open")
 
 
-func corvane_def() -> Dictionary:
-	return _corvane_def.duplicate(true)
+func puff_def() -> Dictionary:
+	return _puff_def.duplicate(true)
 
 
 func reach_foe_def() -> Dictionary:
@@ -241,10 +241,10 @@ func try_pay_echo2() -> String:
 func open_echo2_battle(already_paid: bool) -> void:
 	if not has_node("/root/EchoChamber"):
 		return
-	var def: Dictionary = corvane_def()
+	var def: Dictionary = puff_def()
 	if has_node("/root/ContentStrings"):
-		var labeled: String = ContentStrings.get_text("corvane_name")
-		if labeled != "" and labeled != "corvane_name":
+		var labeled: String = ContentStrings.get_text("puff_name")
+		if labeled != "" and labeled != "puff_name":
 			def["display_name"] = labeled
 	EchoChamber.open_context(def, "echo2", _keeper_totals(), _strike_kind_for("keeper"), already_paid)
 
@@ -254,8 +254,8 @@ func apply_echo2_outcome(outcome: String) -> Dictionary:
 		echo2_resolved = true
 		echo2_fee_paid = false
 		adventure_unlocked = true
-		corvane_promised = true
-		corvane_outcome = outcome
+		puff_promised = true
+		puff_outcome = outcome
 		refresh_milestones()
 		if has_node("/root/GameState"):
 			var key: String = "adventure_scar_spare" if outcome == "spare" else "adventure_scar_defeat"
@@ -442,20 +442,20 @@ func abandon_manual_battle() -> void:
 
 func refresh_milestones() -> void:
 	var joined: bool = adventure_unlocked and cumulative_reaches >= JOIN_REACHES
-	if joined and not corvane_joined:
-		corvane_joined = true
+	if joined and not puff_joined:
+		puff_joined = true
 		brewing_unlocked = true
 		if has_node("/root/GameState"):
 			GameState.status_message.emit(ContentStrings.get_text("adventure_joined"))
 			GameState.echo_flags_changed.emit()
 	elif joined:
-		corvane_joined = true
+		puff_joined = true
 		brewing_unlocked = true
 	_refresh_stand()
 
 
-func corvane_selectable() -> bool:
-	return corvane_joined
+func puff_selectable() -> bool:
+	return puff_joined
 
 
 func crate_count() -> int:
@@ -649,9 +649,9 @@ func capture_save_fields() -> Dictionary:
 		stored.append(crate.duplicate(true))
 	return {
 		"adventure_unlocked": adventure_unlocked,
-		"corvane_outcome": corvane_outcome,
-		"corvane_promised": corvane_promised,
-		"corvane_joined": corvane_joined,
+		"puff_outcome": puff_outcome,
+		"puff_promised": puff_promised,
+		"puff_joined": puff_joined,
 		"brewing_unlocked": brewing_unlocked,
 		"echo2_fee_paid": echo2_fee_paid,
 		"echo2_resolved": echo2_resolved,
@@ -672,10 +672,10 @@ func capture_save_fields() -> Dictionary:
 
 func apply_save_fields(data: Dictionary) -> void:
 	adventure_unlocked = bool(data.get("adventure_unlocked", false))
-	corvane_outcome = str(data.get("corvane_outcome", ""))
-	corvane_promised = bool(data.get("corvane_promised", false))
-	corvane_joined = bool(data.get("corvane_joined", false))
-	brewing_unlocked = bool(data.get("brewing_unlocked", false)) or corvane_joined
+	puff_outcome = str(data.get("puff_outcome", ""))
+	puff_promised = bool(data.get("puff_promised", false))
+	puff_joined = bool(data.get("puff_joined", false))
+	brewing_unlocked = bool(data.get("brewing_unlocked", false)) or puff_joined
 	echo2_fee_paid = bool(data.get("echo2_fee_paid", false))
 	echo2_resolved = bool(data.get("echo2_resolved", false))
 	cumulative_reaches = maxi(0, int(data.get("cumulative_reaches", 0)))
@@ -705,9 +705,9 @@ func apply_save_fields(data: Dictionary) -> void:
 
 func reset_for_new_game() -> void:
 	adventure_unlocked = false
-	corvane_outcome = ""
-	corvane_promised = false
-	corvane_joined = false
+	puff_outcome = ""
+	puff_promised = false
+	puff_joined = false
 	brewing_unlocked = false
 	echo2_fee_paid = false
 	echo2_resolved = false

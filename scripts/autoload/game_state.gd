@@ -257,8 +257,8 @@ func hero_display_name(actor: String) -> String:
 	var fallback: String = "The Keeper"
 	if actor == "elaia":
 		fallback = "Elaia"
-	elif actor == "corvane":
-		fallback = "Corvane"
+	elif actor == "puff":
+		fallback = "Puff"
 	if key == "":
 		return fallback
 	var text: String = ContentStrings.get_text(key)
@@ -621,9 +621,9 @@ func _place_elaia_at_door() -> void:
 
 
 func select_companion(companion_id: String) -> void:
-	## Portrait or sprite click. Elaia waits for her join dialogue. Corvane waits for reach 20.
-	if companion_id == "corvane":
-		if not has_node("/root/Adventure") or not Adventure.corvane_selectable():
+	## Portrait or sprite click. Elaia waits for her join dialogue. Puff waits for reach 20.
+	if companion_id == "puff":
+		if not has_node("/root/Adventure") or not Adventure.puff_selectable():
 			return
 	elif companion_id != "elaia" or not elaia_portrait_visible():
 		return

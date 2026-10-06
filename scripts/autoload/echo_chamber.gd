@@ -8,7 +8,7 @@ const BATTLE_SCENE: String = "res://scenes/echo_battle.tscn"
 
 var in_battle: bool = false
 var reentry: bool = false
-## "" and "echo1" are Elaia. "echo2" is Corvane. "manual" is a reach fight.
+## "" and "echo1" are Elaia. "echo2" is Puff. "manual" is a reach fight.
 var battle_context: String = ""
 var battle: EchoBattle = null
 var _battle_ui: Node = null

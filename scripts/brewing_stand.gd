@@ -1,5 +1,5 @@
 extends Area2D
-## Hub brewing stand. Unlocks when Corvane joins.
+## Hub brewing stand. Unlocks when Puff joins.
 ## Art is 64×80, bottom-centre, base on the node origin.
 
 const STAND_SIZE: Vector2 = Vector2(64, 80)

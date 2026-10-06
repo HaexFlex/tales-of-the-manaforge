@@ -4,7 +4,9 @@ Branch `cursor/adventure-phase-0-0148`. Replaces opaque brown/cream placeholders
 
 Imagine sources and prompts: `/workspace/adventure_p0_art/imagine/` (QUEUE.md, prompt md files, `out/*_v1_a.png`). Prep brief: `/workspace/adventure_p0_art/PREP.md`.
 
-## Corvane (Echo 2 + companion)
+## Puff (Echo 2 + companion)
+
+These files are the placeholder companion art for **Puff**. Filenames stay `corvane_*` until Art renames them. `ART_PUFF_*` points at those paths. Corvane the Unfallen is not this character.
 
 | Path | Size | Anchor / framing | Notes |
 |---|---|---|---|
@@ -12,7 +14,7 @@ Imagine sources and prompts: `/workspace/adventure_p0_art/imagine/` (QUEUE.md, p
 | `assets/art/portraits/corvane_portrait.png` | 52×52 | Eye line ≈ row 24; chin ~36–38; shoulders at bottom | Same face as battle; cheek scar + cyan gem at collar |
 | `assets/art/portraits/corvane_portrait_sheet.png` | 160×160 | Same framing ×(160/52) | Palette shares ~37 colours with battle |
 
-Code already points here (`Adventure.ART_CORVANE_*`, `companions.json`, `echo_corvane.json`). Character sheet UI still Keeper/Elaia-only — sheet art is ready when Code wires Corvane.
+Code already points here (`Adventure.ART_PUFF_*`, `companions.json`, `echo_puff.json`). Character sheet UI still Keeper/Elaia-only — sheet art is ready when Code wires Puff.
 
 ## Brewing stand
 
@@ -20,7 +22,7 @@ Code already points here (`Adventure.ART_CORVANE_*`, `companions.json`, `echo_co
 |---|---|---|
 | `assets/art/props/brewing_stand.png` | **64×80** | Bottom-centre; base on bottom edge (sole y=79). `STAND_SIZE` locked |
 
-Stump table, teal cauldron glow, vials, mortar, herb bunch. ~29 colours. Unlocks when Corvane joins (`brewing_stand.gd`).
+Stump table, teal cauldron glow, vials, mortar, herb bunch. ~29 colours. Unlocks when Puff joins (`brewing_stand.gd`).
 
 ## Herbs & potions (32×32 HUD icons)
 
@@ -48,10 +50,10 @@ Phase 0 data today has a single `reach_foe` (“Briar Warden”) with no `battle
 
 ## Face / style notes
 
-- Corvane battle (profile) ↔ portraits (front): same leather / hair / cyan accent language; scar clearer on portrait.
+- Puff battle (profile) ↔ portraits (front): same leather / hair / cyan accent language; scar clearer on portrait.
 - Root Snapper & Moss Brute are **front-facing** by Imagine design — fine for Echo portrait boxes (stretch keep-aspect). Not forced to west.
 - Heart Salve icon is a **pouch + heart**, not a jar.
-- Corvane / foes are slightly gritier than hand-pixelled Keeper/Elaia (Imagine downscale); still readable at battle 3× (384 rects).
+- Puff / foes are slightly gritier than hand-pixelled Keeper/Elaia (Imagine downscale); still readable at battle 3× (384 rects).
 
 ## Checks
 

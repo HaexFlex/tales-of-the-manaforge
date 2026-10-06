@@ -78,7 +78,7 @@ func sync() -> void:
 	_root_count.text = str(Adventure.herb_count("bitterroot"))
 	_salve_count.text = str(Adventure.potion_count("heart_salve"))
 	_bile_count.text = str(Adventure.potion_count("bile_vial"))
-	_sheet_bust.visible = Adventure.corvane_promised or Adventure.corvane_joined
+	_sheet_bust.visible = Adventure.puff_promised or Adventure.puff_joined
 	_keeper_btn.text = _party_label("keeper", "adventure_party_keeper")
 	_elaia_btn.text = _party_label("elaia", "adventure_party_elaia")
 	_elaia_btn.disabled = not GameState.elaia_in_party() or Adventure.reach_active or Adventure.awaiting_manual
@@ -105,7 +105,7 @@ func _write_body() -> void:
 		lines.append(ContentStrings.get_text("adventure_locked_ancient"))
 	if Adventure.cumulative_reaches >= 6 and not Adventure.brewing_unlocked:
 		lines.append(ContentStrings.get_text("adventure_brew_preview"))
-	if Adventure.corvane_promised and not Adventure.corvane_joined:
+	if Adventure.puff_promised and not Adventure.puff_joined:
 		lines.append(ContentStrings.get_text("adventure_promised"))
 	lines.append(ContentStrings.get_text("adventure_herbs", {
 		"glowcap": Adventure.herb_count("glowcap"),
@@ -139,8 +139,8 @@ func _build() -> void:
 	_panel.add_theme_stylebox_override("panel", sb)
 	_root.add_child(_panel)
 	_body = _label(Vector2(16, 12), Vector2(340, 112))
-	_sheet_bust = _art_icon(Adventure.ART_CORVANE_SHEET, Adventure.SHEET_FRAME, Vector2(364, 12), Vector2(40, 40))
-	_sheet_bust.tooltip_text = ContentStrings.get_text("corvane_name")
+	_sheet_bust = _art_icon(Adventure.ART_PUFF_SHEET, Adventure.SHEET_FRAME, Vector2(364, 12), Vector2(40, 40))
+	_sheet_bust.tooltip_text = ContentStrings.get_text("puff_name")
 	_glow_icon = _art_icon(Adventure.ART_GLOWCAP, Vector2i(32, 32), Vector2(16, 128), Vector2(32, 32))
 	_glow_count = _count_label(Vector2(50, 132))
 	_glow_icon.tooltip_text = ContentStrings.get_text("glowcap_name")
