@@ -149,6 +149,109 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_DOOR_ACTIVE") == "1":
+		var active_failed: int = await _door_transfer_active_only(tree_root, game_state, save_service)
+		if active_failed > 0:
+			print("DOOR_TRANSFER_ACTIVE_ONLY_FAIL: %d" % active_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WORKBENCH_CLICK") == "1":
+		var click_failed: int = await _workbench_click_panel(tree_root)
+		if click_failed > 0:
+			print("WORKBENCH_CLICK_PANEL_FAIL: %d" % click_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WORKBENCH_PAUSE") == "1":
+		var pause_failed: int = await _workbench_panel_no_pause(tree_root, game_state)
+		if pause_failed > 0:
+			print("WORKBENCH_PANEL_NO_PAUSE_FAIL: %d" % pause_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WORKBENCH_WISP") == "1":
+		var wisp_vis_failed: int = await _workbench_wisp_visible(tree_root, game_state, save_service)
+		if wisp_vis_failed > 0:
+			print("WORKBENCH_WISP_VISIBLE_FAIL: %d" % wisp_vis_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_FORGED_ITEM") == "1":
+		var forged_failed: int = _forged_item_any_character(tree_root)
+		if forged_failed > 0:
+			print("FORGED_ITEM_ANY_CHARACTER_FAIL: %d" % forged_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WORKBENCH_ROUTE") == "1":
+		var route_failed: int = _workbench_north_route()
+		if route_failed > 0:
+			print("WORKBENCH_NORTH_ROUTE_FAIL: %d" % route_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_CRAFT_DURATION") == "1":
+		var duration_label_failed: int = await _craft_duration_labels(tree_root, game_state, backpack)
+		if duration_label_failed > 0:
+			print("CRAFT_DURATION_LABEL_FAIL: %d" % duration_label_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATCH_REFUND") == "1":
+		var refund_failed: int = await _batch_refund(tree_root, game_state, save_service, backpack, content_strings)
+		if refund_failed > 0:
+			print("BATCH_REFUND_FAIL: %d" % refund_failed)
+			quit(1)
+		else:
+			print("BATCH_REFUND_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATCH_OFFLINE") == "1":
+		var offline_failed: int = await _batch_offline(tree_root, game_state, save_service, backpack, content_strings)
+		if offline_failed > 0:
+			print("BATCH_OFFLINE_FAIL: %d" % offline_failed)
+			quit(1)
+		else:
+			print("BATCH_OFFLINE_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATCH_ASCEND") == "1":
+		var ascend_failed: int = await _batch_ascend_wipe(tree_root, game_state, save_service, backpack, content_strings)
+		if ascend_failed > 0:
+			print("BATCH_ASCEND_WIPE_FAIL: %d" % ascend_failed)
+			quit(1)
+		else:
+			print("BATCH_ASCEND_WIPE_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATCH_MIGRATION") == "1":
+		var migration_failed: int = await _batch_migration(tree_root, game_state, save_service, backpack)
+		if migration_failed > 0:
+			print("BATCH_MIGRATION_FAIL: %d" % migration_failed)
+			quit(1)
+		else:
+			print("BATCH_MIGRATION_OK")
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -156,7 +259,7 @@ func _run() -> void:
 		jobs.call("set_autosave_enabled", false)
 	failed += _assert(jobs != null, "ForgeJobs autoload missing")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 10, "expected 10 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 10, "SAVE_VERSION should be 10")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 11, "SAVE_VERSION should be 11")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -516,7 +619,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 10, "written save_version 10")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 11, "written save_version 11")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -749,7 +852,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 10, "SAVE_VERSION stays 10 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 11, "SAVE_VERSION stays 11 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -1913,7 +2016,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 10, "SAVE_VERSION is 10")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 11, "SAVE_VERSION is 11")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -2441,7 +2544,18 @@ func _run() -> void:
 	failed += await _forge_ysort(tree_root)
 	failed += await _manatree_door_clear(tree_root, game_state, save_service)
 	failed += await _companion_door_transfer(tree_root, game_state, save_service)
+	failed += await _door_transfer_active_only(tree_root, game_state, save_service)
+	failed += await _workbench_click_panel(tree_root)
+	failed += await _workbench_panel_no_pause(tree_root, game_state)
+	failed += await _workbench_wisp_visible(tree_root, game_state, save_service)
+	failed += _forged_item_any_character(tree_root)
+	failed += _workbench_north_route()
+	failed += await _craft_duration_labels(tree_root, game_state, backpack)
 	failed += await _forge_entry_one_click(tree_root, game_state, save_service)
+	failed += await _batch_refund(tree_root, game_state, save_service, backpack, content_strings)
+	failed += await _batch_offline(tree_root, game_state, save_service, backpack, content_strings)
+	failed += await _batch_ascend_wipe(tree_root, game_state, save_service, backpack, content_strings)
+	failed += await _batch_migration(tree_root, game_state, save_service, backpack)
 	failed += _no_old_keeper_idle()
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
@@ -2701,7 +2815,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 10, "slot writes save_version 10")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 11, "slot writes save_version 11")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -3165,6 +3279,10 @@ func _check_only_load() -> int:
 		"res://scripts/runestone.gd",
 		"res://scripts/autoload/game_state.gd",
 		"res://scripts/autoload/forge_jobs.gd",
+		"res://scripts/batch_job.gd",
+		"res://scripts/batch_panel.gd",
+		"res://scripts/batch_world_bars.gd",
+		"res://scripts/keepers_bench.gd",
 		"res://scripts/autoload/anim_preview_hotkey.gd",
 		"res://tools/anim_preview.gd",
 		"res://tools/debug/debug_panel.gd",
@@ -3213,10 +3331,10 @@ func _elaia_companion_asserts(tree_root: Window, game_state: Node, backpack: Nod
 	failed += _assert(scaled == 1, "4s harvest at 0.8 grants 1 wood")
 	failed += _assert(is_equal_approx(float(accum.get("wood", -1.0)), 0.6), "0.8 harvest banks the 0.6 remainder")
 	jobs.call("set_elaia_working", "mill", true)
-	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "mill")), 0.8), "elaia mill speed is 0.8")
+	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "mill")), 1.0), "elaia mill crafting speed is 1.0")
 	jobs.call("note_elaia_idle")
 	jobs.call("set_elaia_working", "reliquary", true)
-	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "reliquary")), 1.5), "elaia reliquary speed is 1.5")
+	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "reliquary")), 1.0), "elaia reliquary crafting speed is 1.0")
 	failed += _assert(is_equal_approx(float(jobs.call("station_speed_mult", "mill")), 0.0), "mill is idle after Elaia moves to the Reliquary")
 	game_state.set("wisp_count", 5)
 	game_state.call("_ensure_wisp_slots")
@@ -3528,9 +3646,9 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 	jobs.call("try_begin_job", "crucible", "sapsteel")
 	jobs.call("set_keeper_working", "crucible", true)
 	jobs.call("advance_seconds", 120.0)
-	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 2, "crucible repeats while paid")
-	failed += _assert(int(game_state.get("stone")) == 0, "repeat spends the remaining stone")
-	failed += _assert(not bool(jobs.call("has_job", "crucible")), "repeat stops when it cannot pay")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 1, "a batch of 1 finishes one sapsteel")
+	failed += _assert(int(game_state.get("stone")) == 20, "a batch of 1 leaves the unpaid stone")
+	failed += _assert(not bool(jobs.call("has_job", "crucible")), "a finished batch clears the station")
 	game_state.call("reset_for_new_game")
 	backpack.call("set_count", "sapsteel", 24)
 	backpack.call("set_count", "heartwood_bits", 12)
@@ -3744,7 +3862,9 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 				if sub is Button and not (sub as Button).disabled:
 					(sub as Button).emit_signal("pressed")
 		await process_frame
-		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == plank_before + 1, "bench crafts planks")
+		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == plank_before, "bench row selects a batch instead of crafting immediately")
+		var bench_panel: Node = hud_node2.get_node_or_null("BenchPanel/BatchPanel")
+		failed += _assert(bench_panel != null and str(bench_panel.call("selected_recipe")) == "wooden_planks", "bench row binds the plank recipe")
 		hud_node2.call("close_bench")
 		hud_node2.queue_free()
 		await process_frame
@@ -3932,7 +4052,7 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(bench_sprite != null and bench_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "bench nearest")
 		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
 		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
-		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, -61)) < 0.5, "bench stand is just north of the tabletop")
+		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 48)) < 0.5, "bench stand is just south of the tabletop")
 		bench.free()
 	game_state.call("reset_for_new_game")
 	return failed
@@ -4209,7 +4329,7 @@ func _work_anim_playing(body: Node, prefix: String, label: String) -> int:
 
 
 func _workbench_reach(tree_root: Window, save_service: Node) -> int:
-	## Both heroes can stand just north of the bench, inside the click area and clear of the legs.
+	## Both heroes stand south of the bench, inside the click area and clear of the legs.
 	var failed: int = 0
 	save_service.call("note_session_ended")
 	save_service.set("boot_intent", "new")
@@ -4241,7 +4361,8 @@ func _workbench_reach(tree_root: Window, save_service: Node) -> int:
 		var inside_click: bool = _rect_shape_contains(pick, pos)
 		var inside_legs: bool = _rect_shape_contains(walk, pos)
 		var body_blocked: bool = _workbench_body_blocked(live, pos)
-		failed += _assert(facing == "south", "%s faces south at the bench (got %s)" % [actor_id, facing])
+		failed += _assert(facing == "north", "%s faces the bench from the south (got %s)" % [actor_id, facing])
+		failed += _assert(pos.y > footprint.position.y + footprint.size.y - 1.0, "%s stands south of the bench" % actor_id)
 		failed += _assert(inside_click, "%s bench spot is inside the interaction area %s" % [actor_id, pos])
 		failed += _assert(not inside_legs, "%s bench spot is outside the collision %s" % [actor_id, pos])
 		failed += _assert(not body_blocked and not bool(solved.get("fallback", false)), "%s can stand at the bench %s" % [actor_id, pos])
@@ -5338,6 +5459,7 @@ func _forge_arch_draw_order(tree_root: Window) -> int:
 	var lip: int = _arch_body_overlap(arch, Vector2(800, 1160))
 	failed += _assert(lip > 40, "arch lip still covers a keeper in the doorway (samples %d)" % lip)
 	failed += _assert(_draws_over(arch, keeper_item), "rendered order keeps the arch over the keeper at the spawn")
+	failed += _arch_fill_and_floor(arch)
 	_drop_current_scene()
 	game_state.call("reset_for_new_game")
 	jobs.call("set_in_forge_override", -1)
@@ -5512,8 +5634,7 @@ func _trunk_contains(trunk: Node, local: Vector2) -> bool:
 
 
 func _companion_door_transfer(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## Both heroes, both directions, twice. The old bug hid Elaia during the
-	## deferred swap and left the door able to bounce the new scene.
+	## Only the hero who uses the door changes scene. The other stays and keeps working.
 	var failed: int = _sheet_users(tree_root)
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	failed += _assert(jobs != null, "ForgeJobs for companion transfer")
@@ -5530,13 +5651,23 @@ func _companion_door_transfer(tree_root: Window, game_state: Node, save_service:
 		failed += await _party_ready_in_clearing(game_state, tag)
 		if failed > 0:
 			return failed
+		var elaia_before: Vector2 = game_state.get("elaia_pos") as Vector2
+		jobs.call("set_elaia_task", "harvest", "wood", true)
 		var hopped: String = str(jobs.call("try_door_entry", "keeper"))
 		failed += _assert(hopped == "entered", "%s door entry (got %s)" % [tag, hopped])
 		failed += await _expect_scene("%s forge" % tag, _FORGE_SCENE)
 		failed += await _hold_scene("%s stays in the forge" % tag, _FORGE_SCENE)
 		var forge_spot: Vector2 = jobs.call("forge_arch_spawn")
-		failed += _party_present(game_state, "forge", forge_spot, forge_spot + Vector2(64, 0))
-		failed += await _party_can_walk("forge")
+		var keeper_body: Node2D = get_first_node_in_group("keeper") as Node2D
+		var elaia_body: Node2D = get_first_node_in_group("elaia") as Node2D
+		failed += _assert(str(game_state.get("keeper_area")) == "forge", "%s keeper entered" % tag)
+		failed += _assert(str(game_state.get("elaia_area")) == "clearing", "%s elaia stays in the clearing" % tag)
+		failed += _assert(keeper_body != null and keeper_body.visible and keeper_body.global_position.distance_to(forge_spot) <= 24.0, "%s keeper is at the forge door" % tag)
+		failed += _assert(elaia_body != null and not elaia_body.visible, "%s elaia is not shown in the forge" % tag)
+		var stayed: Dictionary = jobs.call("elaia_task")
+		failed += _assert(bool(stayed.get("working", false)) and str(stayed.get("target", "")) == "wood", "%s elaia keeps her job" % tag)
+		var elaia_pos_now: Vector2 = game_state.get("elaia_pos") as Vector2
+		failed += _assert(elaia_pos_now.distance_to(elaia_before) <= 1.0, "%s elaia was not moved" % tag)
 		if failed > 0:
 			return failed
 		var room: Node = current_scene
@@ -5550,8 +5681,15 @@ func _companion_door_transfer(tree_root: Window, game_state: Node, save_service:
 		failed += await _expect_scene("%s clearing" % tag, _HUB_SCENE)
 		failed += await _hold_scene("%s stays in the clearing" % tag, _HUB_SCENE)
 		var stand: Vector2 = jobs.call("clearing_door_stand")
-		failed += _party_present(game_state, "clearing", stand, stand + Vector2(72, 0))
-		failed += await _party_can_walk("clearing")
+		keeper_body = get_first_node_in_group("keeper") as Node2D
+		elaia_body = get_first_node_in_group("elaia") as Node2D
+		failed += _assert(str(game_state.get("keeper_area")) == "clearing" and str(game_state.get("elaia_area")) == "clearing", "%s both session areas are the clearing" % tag)
+		failed += _assert(keeper_body != null and keeper_body.visible and keeper_body.global_position.distance_to(stand) <= 24.0, "%s keeper is back at the door" % tag)
+		failed += _assert(elaia_body != null and elaia_body.visible, "%s elaia is still in the clearing" % tag)
+		elaia_pos_now = game_state.get("elaia_pos") as Vector2
+		failed += _assert(elaia_pos_now.distance_to(stand + Vector2(72, 0)) > 48.0, "%s elaia did not follow the keeper out" % tag)
+		stayed = jobs.call("elaia_task")
+		failed += _assert(bool(stayed.get("working", false)) and str(stayed.get("target", "")) == "wood", "%s elaia is still on her job" % tag)
 		if failed > 0:
 			return failed
 	_drop_current_scene()
@@ -5749,6 +5887,28 @@ func _arch_body_overlap(arch: Sprite2D, feet: Vector2) -> int:
 	return hits
 
 
+func _arch_fill_and_floor(arch: Sprite2D) -> int:
+	## The mouth is opaque black. Floor that used to sit above the arch is gone.
+	var failed: int = 0
+	if arch.texture == null:
+		return _assert(false, "arch texture for the fill check")
+	var img: Image = arch.texture.get_image()
+	if img == null:
+		return _assert(false, "arch image")
+	if img.is_compressed():
+		img.decompress()
+	var mouth: Color = img.get_pixel(800, 1050)
+	var side_l: Color = img.get_pixel(760, 1080)
+	var side_r: Color = img.get_pixel(840, 1080)
+	var floor_px: Color = img.get_pixel(800, 964)
+	var lip: Color = img.get_pixel(800, 1172)
+	failed += _assert(mouth.a > 0.9 and mouth.r < 0.08 and mouth.g < 0.08 and mouth.b < 0.08, "arch mouth is opaque black")
+	failed += _assert(side_l.a > 0.9 and side_l.r < 0.08 and side_r.a > 0.9 and side_r.r < 0.08, "arch mouth stays black toward the jambs")
+	failed += _assert(floor_px.a < 0.05, "floor above the arch is not painted into the foreground")
+	failed += _assert(lip.a > 0.9 and lip.r + lip.g + lip.b > 0.05, "arch lip is still the wooden frame")
+	return failed
+
+
 func _forge_entry_one_click(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	## One click on the door walks to the sill and enters. A second click must not be required.
 	## Also checks the watering stand is clear of the trunk at every growth stage.
@@ -5846,3 +6006,668 @@ func _actor_box_hits(live: Node, pos: Vector2, actor_id: String) -> bool:
 			exclude.append(body.get_rid())
 	params.exclude = exclude
 	return not space.intersect_shape(params, 1).is_empty()
+
+
+func _batch_string_table() -> Dictionary:
+	return {
+		"batch_make": "Make",
+		"batch_max": "Max",
+		"batch_cancel": "Cancel",
+		"batch_amount": "Amount",
+		"batch_bar_current": "Current",
+		"batch_bar_total": "Batch {done}/{total}",
+		"batch_tooltip_current": "Current: {percent}% · {time} left",
+		"batch_tooltip_total": "Batch {done}/{total}: {percent}% · {time} left",
+		"batch_tooltip_paused": "{percent}% · paused, no one is working here",
+		"batch_busy": "This station is already working. Cancel the batch to start a new one.",
+		"batch_unstaffed": "No one is working here.",
+		"batch_done_toast": "{item} ×{count} finished.",
+		"batch_away_note": "Batches keep working while you're away, if someone is working the station.",
+		"batch_cancel_confirm_title": "Cancel this batch?",
+		"batch_cancel_confirm_body": "Finished items stay in your inventory. Half the materials for the rest come back ({refund}).",
+		"batch_cancel_confirm_yes": "Cancel batch",
+		"batch_cancel_confirm_no": "Keep working",
+		"ascend_warning_batches": "Running batches stop on Ascend, and their materials return to the forest.",
+	}
+
+
+func _batch_refund(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(jobs != null and equipment != null and content_strings != null, "batch refund nodes")
+	if jobs == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	var expected: Dictionary = _batch_string_table()
+	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/strings_v01.json"))
+	failed += _assert(typeof(raw) == TYPE_DICTIONARY, "strings table parses")
+	var table: Dictionary = raw if typeof(raw) == TYPE_DICTIONARY else {}
+	failed += _assert(expected.size() == 18, "FINAL copy has 18 keys")
+	failed += _assert(not table.has("batch_cant_afford"), "no batch_cant_afford key")
+	for key: Variant in expected.keys():
+		var id: String = str(key)
+		failed += _assert(str(table.get(id, "")) == str(expected[id]), "strings_v01 %s matches FINAL" % id)
+		failed += _assert(str(content_strings.call("get_text", id)) == str(expected[id]), "ContentStrings %s matches FINAL" % id)
+	var batch_script: GDScript = load("res://scripts/batch_job.gd") as GDScript
+	failed += _assert(batch_script != null, "batch job script loads")
+	if batch_script != null:
+		failed += _assert(int(batch_script.call("refund_qty", 1, 1)) == 1, "odd 1 rounds up to 1")
+		failed += _assert(int(batch_script.call("refund_qty", 3, 1)) == 2, "odd 3 rounds up to 2")
+		failed += _assert(int(batch_script.call("refund_qty", 1, 20)) == 10, "half of 20 is 10")
+		failed += _assert(int(batch_script.call("refund_qty", 3, 20)) == 30, "half of 60 rounds up to 30")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 40)
+	failed += _assert(int(jobs.call("slider_limit", "sapsteel")) == 2, "slider max is the affordable count")
+	failed += _assert(str(jobs.call("try_begin_batch", "crucible", "sapsteel", 3)) == "cant_afford", "a count past affordable is refused")
+	game_state.call("set_resource", &"stone", 20 * 1000)
+	failed += _assert(int(jobs.call("slider_limit", "sapsteel")) == 999, "slider max hard-caps at 999")
+	game_state.call("set_resource", &"stone", 0)
+	failed += _assert(int(jobs.call("slider_limit", "sapsteel")) == 0, "nothing affordable keeps the slider at 0")
+	var panel_scene: PackedScene = load("res://scenes/ui/batch_panel.tscn") as PackedScene
+	var panel: Node = panel_scene.instantiate() if panel_scene != null else null
+	failed += _assert(panel != null, "batch panel scene loads")
+	if panel != null:
+		tree_root.add_child(panel)
+		panel.call("setup", "crucible")
+		panel.call("bind_recipe", "sapsteel")
+		await process_frame
+		var slider: HSlider = panel.find_child("Slider", true, false) as HSlider
+		var make: Button = panel.find_child("Make", true, false) as Button
+		failed += _assert(slider != null and make != null, "panel has a slider and Make")
+		if slider != null and make != null:
+			failed += _assert(is_equal_approx(slider.max_value, 0.0), "unaffordable slider stays at 0")
+			failed += _assert(slider.value <= slider.max_value + 0.001, "slider value never passes its max")
+			failed += _assert(make.disabled, "Make is disabled when nothing is affordable")
+		game_state.call("set_resource", &"stone", 40)
+		panel.call("bind_recipe", "heartwood_bits")
+		panel.call("bind_recipe", "sapsteel")
+		await process_frame
+		if slider != null:
+			failed += _assert(is_equal_approx(slider.max_value, 2.0), "panel slider max is 2 when 40 stone buys 2")
+			failed += _assert(slider.value <= slider.max_value + 0.001, "panel slider stays within affordable")
+		panel.free()
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 9)
+	failed += _assert(str(jobs.call("try_begin_batch", "workbench", "wooden_planks", 3)) == "ok", "three planks are paid up front")
+	failed += _assert(int(game_state.get("wood")) == 0, "plank batch spends 9 wood")
+	failed += _assert(str(jobs.call("cancel_batch", "workbench")) == "ok", "cancel returns materials")
+	failed += _assert(int(game_state.get("wood")) == 5, "odd plank wood refund rounds up to 5")
+	failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "cancel grants no finished planks")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 6)
+	jobs.call("try_begin_batch", "workbench", "wooden_planks", 2)
+	jobs.call("set_keeper_working", "workbench", true)
+	jobs.call("advance_seconds", 6.0)
+	failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 1, "the finished plank is already in the inventory")
+	var state: Dictionary = jobs.call("job_state", "workbench")
+	failed += _assert(int(state.get("done", -1)) == 1 and int(state.get("remaining_count", -1)) == 1, "the in-progress plank is unfinished")
+	jobs.call("cancel_batch", "workbench")
+	failed += _assert(int(game_state.get("wood")) == 2, "refund uses the unfinished item, not the finished one")
+	failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 1, "cancel keeps the finished plank")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 10)
+	game_state.call("set_resource", &"stone", 10)
+	game_state.call("set_resource", &"food", 10)
+	failed += _assert(str(jobs.call("try_begin_batch", "workbench", "fertilizer", 1)) == "ok", "fertilizer batch starts")
+	jobs.call("advance_seconds", 1.0)
+	jobs.call("cancel_batch", "workbench")
+	failed += _assert(int(game_state.get("wood")) == 5 and int(game_state.get("stone")) == 5 and int(game_state.get("food")) == 5, "refund is per material")
+	var refund_line: String = str(jobs.call("refund_text", "workbench"))
+	failed += _assert(refund_line == "", "a cleared batch has no refund left")
+	game_state.call("set_resource", &"wood", 10)
+	game_state.call("set_resource", &"stone", 10)
+	game_state.call("set_resource", &"food", 10)
+	jobs.call("try_begin_batch", "workbench", "fertilizer", 1)
+	var live_refund: String = str(jobs.call("refund_text", "workbench"))
+	failed += _assert(live_refund.find("5") >= 0 and live_refund.find(",") >= 0, "refund text lists each material (%s)" % live_refund)
+	jobs.call("cancel_batch", "workbench")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	save_service.call("delete_save")
+	return failed
+
+
+func _batch_offline(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null and content_strings != null, "batch offline nodes")
+	if jobs == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	failed += _assert(str(jobs.call("format_duration_words", 5.0)) == "0m 05s", "short waits still show minutes")
+	failed += _assert(str(jobs.call("format_duration_words", 125.0)) == "2m 05s", "minutes plus zero-padded seconds")
+	failed += _assert(str(jobs.call("format_duration_words", 3725.0)) == "1h 02m 05s", "hours join the clock")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	jobs.call("advance_seconds", 17.0)
+	var before: float = float(jobs.call("job_progress", "crucible"))
+	var zero: Dictionary = jobs.call("apply_offline_seconds", 0.0)
+	failed += _assert(int(zero.get("forge_completed", -1)) == 0, "zero seconds completes nothing")
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - before) < 0.01, "zero seconds leaves the item where it was")
+	failed += _assert(bool((jobs.call("keeper_task") as Dictionary).get("working", false)), "zero seconds does not clear the worker")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	var one: Dictionary = jobs.call("apply_offline_seconds", 60.0)
+	failed += _assert(int(one.get("forge_completed", -1)) == 1, "exactly one item finishes")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 1, "the finished item is granted")
+	failed += _assert(not bool(jobs.call("has_job", "crucible")), "an exact finish clears the batch")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 40)
+	jobs.call("try_begin_batch", "crucible", "sapsteel", 2)
+	jobs.call("set_keeper_working", "crucible", true)
+	var mid: Dictionary = jobs.call("apply_offline_seconds", 90.0)
+	var mid_state: Dictionary = jobs.call("job_state", "crucible")
+	failed += _assert(int(mid.get("forge_completed", -1)) == 1, "ninety seconds finishes the first item")
+	failed += _assert(int(mid_state.get("done", -1)) == 1 and int(mid_state.get("total", -1)) == 2, "the batch still has its second item")
+	failed += _assert(absf(float(mid_state.get("progress", -1.0)) - 30.0) < 0.05, "the second item is 30 seconds in")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 1, "only the finished item was granted")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 100)
+	jobs.call("try_begin_batch", "crucible", "sapsteel", 5)
+	jobs.call("set_keeper_working", "crucible", true)
+	var month: float = 30.0 * 86400.0
+	var long_gap: Dictionary = jobs.call("apply_offline_seconds", month)
+	failed += _assert(int(long_gap.get("forge_completed", -1)) == 5, "a 30 day absence clamps to the remaining count")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 5, "the clamp grants only the batch")
+	failed += _assert(not bool(jobs.call("has_job", "crucible")), "the clamped batch is finished")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	jobs.call("advance_seconds", 10.0)
+	var ancient_before: float = float(jobs.call("job_progress", "crucible"))
+	game_state.call("_set_stage", &"ancient")
+	game_state.set("ancient_remaining_sec", 400.0)
+	var frozen: Dictionary = jobs.call("apply_offline_seconds", 3600.0)
+	failed += _assert(int(frozen.get("forge_completed", -1)) == 0, "ancient offline finishes nothing")
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - ancient_before) < 0.01, "ancient offline freezes the batch")
+	game_state.set("ancient_frozen", false)
+	game_state.set("fruit_committed", false)
+	jobs.call("set_keeper_working", "crucible", true)
+	jobs.call("advance_seconds", 8.0)
+	failed += _assert(float(jobs.call("job_progress", "crucible")) > ancient_before + 7.0, "an open Ancient still runs the batch")
+	game_state.set("fruit_committed", true)
+	var committed_at: float = float(jobs.call("job_progress", "crucible"))
+	jobs.call("advance_seconds", 20.0)
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - committed_at) < 0.01, "a committed Fruit sets station speed to 0")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("note_keeper_idle")
+	var idle_gap: Dictionary = jobs.call("apply_offline_seconds", 3600.0)
+	failed += _assert(int(idle_gap.get("forge_completed", -1)) == 0, "an unstaffed batch finishes nothing offline")
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible"))) < 0.01, "an unstaffed batch does not move")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 0, "unstaffed offline grants nothing")
+	var paused_tip: String = str(jobs.call("bar_tooltip", "crucible", "current"))
+	failed += _assert(paused_tip.find("paused") >= 0, "the paused tooltip names the unstaffed state")
+	var panel_scene: PackedScene = load("res://scenes/ui/batch_panel.tscn") as PackedScene
+	var panel: Node = panel_scene.instantiate() if panel_scene != null else null
+	if panel != null:
+		tree_root.add_child(panel)
+		panel.call("setup", "crucible")
+		await process_frame
+		var status: Label = panel.find_child("Status", true, false) as Label
+		var want: String = str(content_strings.call("get_text", "batch_unstaffed"))
+		failed += _assert(status != null and str(status.text) == want, "the panel shows the unstaffed line")
+		jobs.call("advance_seconds", 30.0)
+		failed += _assert(absf(float(jobs.call("job_progress", "crucible"))) < 0.01, "the unstaffed panel's bars do not move")
+		panel.free()
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	save_service.call("delete_save")
+	return failed
+
+
+func _batch_ascend_wipe(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null and content_strings != null, "batch ascend nodes")
+	if jobs == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 60)
+	failed += _assert(str(jobs.call("try_begin_batch", "crucible", "sapsteel", 3)) == "ok", "ascend sample batch starts")
+	failed += _assert(int(game_state.get("stone")) == 0, "the sample batch was paid")
+	var warning: String = str(content_strings.call("get_text", "ascend_warning_batches"))
+	var confirm: String = str(jobs.call("ascend_confirm_text"))
+	failed += _assert(confirm.find(warning) >= 0, "the confirm includes the batch warning")
+	failed += _assert(confirm.find("Sapsteel") >= 0 and confirm.find("3") >= 0, "the confirm lists the item and the remaining count")
+	game_state.set("fruit_committed", true)
+	game_state.set("fruit_harvested_pending_ascend", true)
+	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var hud: Node = hud_scene.instantiate() if hud_scene != null else null
+	failed += _assert(hud != null, "ascend dialog hud loads")
+	if hud != null:
+		tree_root.add_child(hud)
+		await process_frame
+		hud.call("show_ascension_shop")
+		hud.call("_on_ascend")
+		await process_frame
+		var dialog: Node = hud.find_child("AscendBatchDialog", true, false)
+		var body: Label = dialog.find_child("Body", true, false) as Label if dialog != null else null
+		failed += _assert(dialog != null and dialog.visible, "ascend confirm dialog is visible")
+		failed += _assert(body != null and str(body.text).find(warning) >= 0, "dialog shows the batch warning")
+		failed += _assert(body != null and str(body.text).find("Sapsteel") >= 0 and str(body.text).find("3") >= 0, "dialog lists the running batch")
+		hud.free()
+	var stone_paid: int = int(game_state.get("stone"))
+	jobs.call("prepare_ascend")
+	failed += _assert(not bool(jobs.call("has_job", "crucible")), "ascend wipes the batch")
+	failed += _assert(int(game_state.get("stone")) == stone_paid, "ascend does not refund the batch")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 0, "a wiped batch grants nothing")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"stone", 20)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	jobs.call("advance_seconds", 12.0)
+	var kept: float = float(jobs.call("job_progress", "crucible"))
+	(game_state.get("upgrade_ranks") as Dictionary)["keep_forge_jobs"] = 1
+	failed += _assert(str(jobs.call("ascend_confirm_text")) == "", "Keep Forge Jobs does not list batches it will hold")
+	jobs.call("prepare_ascend")
+	failed += _assert(bool(jobs.call("has_job", "crucible")), "Keep Forge Jobs keeps the batch")
+	failed += _assert(absf(float(jobs.call("job_progress", "crucible")) - kept) < 0.05, "Keep Forge Jobs keeps the progress")
+	failed += _assert(int(game_state.get("stone")) == 0, "keeping the job still does not refund it")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	save_service.call("delete_save")
+	return failed
+
+
+func _batch_migration(tree_root: Window, game_state: Node, save_service: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null and backpack != null, "batch migration nodes")
+	if jobs == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	game_state.call("reset_for_new_game")
+	var fixture: String = FileAccess.get_file_as_string("res://tests/fixtures/batch_migration_6efbcab.json")
+	var parsed: Variant = JSON.parse_string(fixture)
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "6efbcab fixture parses")
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return failed
+	var root: Dictionary = parsed
+	root["timestamp"] = Time.get_unix_time_from_system()
+	var path: String = str(save_service.call("slot_path", 1))
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	failed += _assert(file != null, "fixture slot writes")
+	if file == null:
+		return failed
+	file.store_string(JSON.stringify(root))
+	file.close()
+	failed += _assert(bool(save_service.call("load_game", 1)), "6efbcab fixture loads")
+	var state: Dictionary = jobs.call("job_state", "crucible")
+	failed += _assert(str(state.get("recipe_id", "")) == "sapsteel", "migrated job is still sapsteel")
+	failed += _assert(int(state.get("total", -1)) == 1 and int(state.get("done", -1)) == 0, "a Keep-going job becomes a batch of 1")
+	failed += _assert(absf(float(state.get("progress", -1.0)) - 17.0) < 0.05, "migration keeps the 17 seconds already worked")
+	failed += _assert(int(game_state.get("stone")) == 20, "migration does not spend the stone again")
+	failed += _assert(int(backpack.call("get_count", "sapsteel")) == 0, "the in-progress item is not granted on load")
+	var task: Dictionary = jobs.call("keeper_task")
+	failed += _assert(bool(task.get("working", false)) and str(task.get("target", "")) == "crucible", "the loaded keeper is still on the Crucible")
+	save_service.call("delete_save")
+	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _door_transfer_active_only(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Either hero can use the door. The one who did not stays in their scene and keeps their job.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for active-only transfer")
+	if jobs == null:
+		return failed
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	failed += await _boot_play(game_state, save_service, true)
+	if failed > 0:
+		return failed
+	failed += await _party_ready_in_clearing(game_state, "active door")
+	jobs.call("set_keeper_working", "workbench", true)
+	var keeper_pos: Vector2 = game_state.get("keeper_pos") as Vector2
+	var entered: String = str(jobs.call("try_door_entry", "elaia"))
+	failed += _assert(entered == "entered", "elaia door entry (got %s)" % entered)
+	failed += await _expect_scene("elaia forge", _FORGE_SCENE)
+	failed += _assert(str(game_state.get("elaia_area")) == "forge", "elaia entered the forge")
+	failed += _assert(str(game_state.get("keeper_area")) == "clearing", "keeper stays in the clearing")
+	var keeper_now: Vector2 = game_state.get("keeper_pos") as Vector2
+	failed += _assert(keeper_now.distance_to(keeper_pos) <= 1.0, "keeper was not pulled through the door")
+	var keeper_task: Dictionary = jobs.call("keeper_task")
+	failed += _assert(bool(keeper_task.get("working", false)) and str(keeper_task.get("target", "")) == "workbench", "keeper keeps the workbench")
+	var forge_keeper: CanvasItem = get_first_node_in_group("keeper") as CanvasItem
+	var forge_elaia: CanvasItem = get_first_node_in_group("elaia") as CanvasItem
+	failed += _assert(forge_elaia != null and forge_elaia.visible, "elaia is shown in the forge")
+	failed += _assert(forge_keeper != null and not forge_keeper.visible, "keeper is not shown in the forge")
+	_place_actor(game_state, "keeper", "forge", Vector2(900, 860))
+	_place_actor(game_state, "elaia", "forge", Vector2(660, 524))
+	if forge_keeper != null and forge_keeper.has_method("apply_keeper_presence"):
+		forge_keeper.call("apply_keeper_presence")
+	if forge_elaia != null and forge_elaia.has_method("_apply_presence"):
+		forge_elaia.call("_apply_presence")
+	jobs.call("set_elaia_working", "mill", true)
+	var elaia_pos: Vector2 = game_state.get("elaia_pos") as Vector2
+	jobs.call("commit_actor_exit", "keeper")
+	failed += await _expect_scene("keeper clearing", _HUB_SCENE)
+	failed += _assert(str(game_state.get("keeper_area")) == "clearing", "keeper left the forge")
+	failed += _assert(str(game_state.get("elaia_area")) == "forge", "elaia stays in the forge")
+	var elaia_now: Vector2 = game_state.get("elaia_pos") as Vector2
+	failed += _assert(elaia_now.distance_to(elaia_pos) <= 1.0, "elaia was not pulled out of the forge")
+	var elaia_task: Dictionary = jobs.call("elaia_task")
+	failed += _assert(bool(elaia_task.get("working", false)) and str(elaia_task.get("target", "")) == "mill", "elaia keeps the mill")
+	var hub_keeper: CanvasItem = get_first_node_in_group("keeper") as CanvasItem
+	var hub_elaia: CanvasItem = get_first_node_in_group("elaia") as CanvasItem
+	failed += _assert(hub_keeper != null and hub_keeper.visible, "keeper is shown in the clearing")
+	failed += _assert(hub_elaia != null and not hub_elaia.visible, "elaia is not shown in the clearing")
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	game_state.call("reset_for_new_game")
+	jobs.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("DOOR_TRANSFER_ACTIVE_ONLY_OK")
+	return failed
+
+
+func _workbench_click_panel(tree_root: Window) -> int:
+	var failed: int = 0
+	var bench_scene: PackedScene = load("res://scenes/keepers_bench.tscn") as PackedScene
+	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(bench_scene != null and hud_scene != null, "bench click scenes")
+	if bench_scene == null or hud_scene == null:
+		return failed
+	var bench: Node = bench_scene.instantiate()
+	var hud: Node = hud_scene.instantiate()
+	tree_root.add_child(bench)
+	tree_root.add_child(hud)
+	await process_frame
+	paused = false
+	bench.call("_on_left_click")
+	await process_frame
+	failed += _assert(bool(hud.call("is_bench_open")), "left click opens the workbench batch panel")
+	failed += _assert(not paused, "clicking the workbench does not pause")
+	var panel: Node = hud.get_node_or_null("BenchPanel/BatchPanel")
+	failed += _assert(panel != null and str(panel.call("spot_id")) == "workbench", "the opened panel is the workbench batch")
+	hud.call("close_bench")
+	bench.free()
+	hud.free()
+	paused = false
+	if failed == 0:
+		print("WORKBENCH_CLICK_PANEL_OK")
+	return failed
+
+
+func _workbench_panel_no_pause(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(hud_scene != null, "hud for the pause check")
+	if hud_scene == null:
+		return failed
+	var hud: Node = hud_scene.instantiate()
+	tree_root.add_child(hud)
+	await process_frame
+	paused = false
+	var before: float = float(game_state.get("run_time_sec"))
+	hud.call("open_bench_panel")
+	await process_frame
+	failed += _assert(bool(hud.call("is_bench_open")), "workbench panel is open")
+	failed += _assert(not paused, "the workbench panel leaves the tree running")
+	for _tick: int in 6:
+		await process_frame
+	var after: float = float(game_state.get("run_time_sec"))
+	failed += _assert(after > before + 0.01, "game time advances while the workbench panel is open (%.3f -> %.3f)" % [before, after])
+	hud.call("close_bench")
+	hud.call("open_backpack")
+	await process_frame
+	failed += _assert(paused, "the backpack still pauses")
+	hud.call("close_backpack")
+	await process_frame
+	failed += _assert(not paused, "closing the backpack resumes")
+	hud.free()
+	paused = false
+	if failed == 0:
+		print("WORKBENCH_PANEL_NO_PAUSE_OK")
+	return failed
+
+
+func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for wisp orbits")
+	if jobs == null:
+		return failed
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("wisp hub", _HUB_SCENE)
+	var live: Node = current_scene
+	if live == null:
+		return failed + 1
+	game_state.set("wisp_count", 1)
+	if live.has_method("_sync_wisps"):
+		live.call("_sync_wisps")
+	await process_frame
+	await process_frame
+	var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
+	failed += _assert(bench != null, "workbench for the wisp")
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "workbench")) == "ok", "wisp assigns to the workbench")
+	await process_frame
+	var wisp: Node2D = get_first_node_in_group("wisp") as Node2D
+	failed += _assert(wisp != null and wisp.visible, "workbench wisp is in the clearing")
+	if wisp != null and wisp.has_method("place_on_shared_orbit"):
+		wisp.call("place_on_shared_orbit")
+	var center: Vector2 = bench.call("wisp_orbit_center") if bench != null else Vector2.ZERO
+	var radius: float = float(bench.call("wisp_orbit_radius")) if bench != null else 0.0
+	if wisp != null:
+		var gap: float = wisp.global_position.distance_to(center)
+		failed += _assert(absf(gap - radius) < 20.0, "workbench wisp orbits the bench (off %.1f radius %.1f)" % [gap, radius])
+		failed += _assert(wisp.visible, "workbench wisp stays visible on the ring")
+	var mana: Node = live.get_node_or_null("World/Manatree")
+	failed += _assert(mana != null and mana.has_method("wisp_orbit_radius"), "manatree orbit")
+	if mana != null:
+		game_state.set("stage_id", StringName("mature"))
+		var mature_r: float = float(mana.call("wisp_orbit_radius"))
+		game_state.set("stage_id", StringName("elder"))
+		var elder_r: float = float(mana.call("wisp_orbit_radius"))
+		game_state.set("stage_id", StringName("ancient"))
+		var ancient_r: float = float(mana.call("wisp_orbit_radius"))
+		game_state.set("stage_id", StringName("sapling"))
+		failed += _assert(elder_r >= 280.0 and elder_r >= mature_r * 3.0, "elder manatree orbit is much larger (%.1f vs mature %.1f)" % [elder_r, mature_r])
+		failed += _assert(ancient_r < 120.0 and absf(ancient_r - elder_r) > 100.0, "ancient keeps the trunk orbit (%.1f)" % ancient_r)
+	jobs.call("set_in_forge_override", -1)
+	change_scene_to_file(_FORGE_SCENE)
+	failed += await _expect_scene("wisp forge", _FORGE_SCENE)
+	var room: Node = current_scene
+	if room != null and room.has_method("_sync_wisps"):
+		room.call("_sync_wisps")
+	await process_frame
+	var station: Node2D = room.get_node_or_null("Crucible") as Node2D if room != null else null
+	failed += _assert(station != null, "crucible for the station orbit")
+	game_state.call("unassign_wisp", 0)
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "crucible")) == "ok", "wisp assigns to the crucible")
+	await process_frame
+	wisp = get_first_node_in_group("wisp") as Node2D
+	failed += _assert(wisp != null and wisp.visible, "station wisp is in the forge")
+	if station != null and wisp != null:
+		var shown: Vector2 = station.call("_sprite_shown_size")
+		var half_w: float = shown.x * 0.5
+		jobs.call("debug_set_wisp_orbit_phase", 0.0)
+		wisp.call("place_on_shared_orbit")
+		failed += _assert(int(wisp.z_index) >= 1, "east side stays in front")
+		failed += _assert(wisp.global_position.x > station.global_position.x + half_w, "east side clears the sprite")
+		jobs.call("debug_set_wisp_orbit_phase", PI)
+		wisp.call("place_on_shared_orbit")
+		failed += _assert(int(wisp.z_index) >= 1, "west side stays in front")
+		failed += _assert(wisp.global_position.x < station.global_position.x - half_w, "west side clears the sprite")
+		jobs.call("debug_set_wisp_orbit_phase", PI * 0.5)
+		wisp.call("place_on_shared_orbit")
+		failed += _assert(int(wisp.z_index) >= 2, "south side draws in front of the station")
+		failed += _assert(wisp.global_position.y > station.global_position.y, "south side is in front of the station feet")
+		failed += _assert(wisp.visible, "south side stays visible")
+	_drop_current_scene()
+	game_state.call("reset_for_new_game")
+	jobs.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("WORKBENCH_WISP_VISIBLE_OK")
+		print("STATION_WISP_ORBIT_OK")
+		print("MANATREE_ELDER_ORBIT_OK")
+	return failed
+
+
+func _forged_item_any_character(tree_root: Window) -> int:
+	var failed: int = 0
+	var gear: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(gear != null, "Equipment for forged items")
+	if gear == null:
+		return failed
+	gear.call("reset_for_new_game")
+	var forged: PackedStringArray = PackedStringArray(["rootsteel_edge", "heartwand", "oakheart_knot", "shardlens", "switchshaft", "windthorn_bead"])
+	for item_id: String in forged:
+		failed += _assert(bool(gear.call("add_gear", item_id, 1)), "bag %s" % item_id)
+		failed += _assert(bool(gear.call("usable_by", item_id, "keeper")) and bool(gear.call("usable_by", item_id, "elaia")), "%s has no character lock" % item_id)
+	var keeper_ids: PackedStringArray = _sheet_ids(gear, "keeper")
+	var elaia_ids: PackedStringArray = _sheet_ids(gear, "elaia")
+	for item_id: String in forged:
+		failed += _assert(keeper_ids.has(item_id) and elaia_ids.has(item_id), "%s is on both sheets" % item_id)
+	failed += _assert(str(gear.call("try_equip", "rootsteel_edge", "keeper")) == "ok", "keeper equips the edge")
+	elaia_ids = _sheet_ids(gear, "elaia")
+	failed += _assert(not elaia_ids.has("rootsteel_edge"), "elaia does not see the edge while the keeper wears it")
+	failed += _assert(str(gear.call("try_equip", "rootsteel_edge", "elaia")) == "missing", "elaia cannot take the worn edge")
+	failed += _assert(str(gear.call("try_unequip", "weapon", "keeper")) == "ok", "keeper puts the edge down")
+	failed += _assert(str(gear.call("try_equip", "rootsteel_edge", "elaia")) == "ok", "elaia equips the edge once it is free")
+	keeper_ids = _sheet_ids(gear, "keeper")
+	failed += _assert(not keeper_ids.has("rootsteel_edge"), "keeper does not see the edge while elaia wears it")
+	gear.call("reset_for_new_game")
+	gear.call("add_gear", "stone_sword", 1)
+	gear.call("add_gear", "sapstaff", 1)
+	failed += _assert(not bool(gear.call("usable_by", "stone_sword", "elaia")), "handcraft sword stays keeper-only")
+	failed += _assert(not bool(gear.call("usable_by", "sapstaff", "keeper")), "handcraft staff stays elaia-only")
+	gear.call("reset_for_new_game")
+	if failed == 0:
+		print("FORGED_ITEM_ANY_CHARACTER_OK")
+	return failed
+
+
+func _workbench_north_route() -> int:
+	var failed: int = 0
+	var keeper_cls: GDScript = load("res://scripts/keeper.gd") as GDScript
+	failed += _assert(keeper_cls != null, "keeper script for the bench route")
+	if keeper_cls == null:
+		return failed
+	var footprint := Rect2(Vector2(100, 100), Vector2(176, 104))
+	var spot := Vector2(footprint.get_center().x, footprint.position.y + footprint.size.y + 28.0)
+	var from_west: Array = keeper_cls.call("bench_approach_route", Vector2(120, 40), spot, footprint)
+	var from_east: Array = keeper_cls.call("bench_approach_route", Vector2(280, 40), spot, footprint)
+	var from_south: Array = keeper_cls.call("bench_approach_route", Vector2(spot.x, spot.y + 40.0), spot, footprint)
+	failed += _assert(from_west.size() >= 2, "north-west approach has a waypoint")
+	failed += _assert(from_east.size() >= 2, "north-east approach has a waypoint")
+	if from_west.size() >= 2 and from_east.size() >= 2:
+		var west_pt: Vector2 = from_west[0]
+		var east_pt: Vector2 = from_east[0]
+		var west_end: Vector2 = from_west[from_west.size() - 1]
+		var east_end: Vector2 = from_east[from_east.size() - 1]
+		failed += _assert(west_pt.x < footprint.position.x, "north-west route uses the west side")
+		failed += _assert(east_pt.x > footprint.position.x + footprint.size.x, "north-east route uses the east side")
+		failed += _assert(west_end.distance_to(spot) <= 0.1 and east_end.distance_to(spot) <= 0.1, "both routes end on the south stand")
+	failed += _assert(from_south.size() == 1, "a south approach goes straight to the stand")
+	if failed == 0:
+		print("WORKBENCH_NORTH_ROUTE_OK")
+	return failed
+
+
+func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null and backpack != null, "duration label nodes")
+	if jobs == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 6)
+	var panel_scene: PackedScene = load("res://scenes/ui/batch_panel.tscn") as PackedScene
+	var panel: Node = panel_scene.instantiate() if panel_scene != null else null
+	failed += _assert(panel != null, "duration panel")
+	if panel == null:
+		return failed
+	tree_root.add_child(panel)
+	panel.call("setup", "workbench")
+	panel.call("bind_recipe", "wooden_planks")
+	await process_frame
+	var count: Label = panel.find_child("Count", true, false) as Label
+	failed += _assert(count != null and count.text.find("0m 12s") >= 0, "workbench slider shows the craft duration (got %s)" % (count.text if count else ""))
+	failed += _assert(str(jobs.call("try_begin_batch", "workbench", "wooden_planks", 2)) == "ok", "plank batch starts")
+	jobs.call("set_keeper_working", "workbench", true)
+	await process_frame
+	var current: Label = panel.find_child("CurrentLabel", true, false) as Label
+	var total: Label = panel.find_child("TotalLabel", true, false) as Label
+	failed += _assert(current != null and current.text.find("0m 06s") >= 0, "workbench current bar shows the item time (got %s)" % (current.text if current else ""))
+	failed += _assert(total != null and total.text.find("0m 12s") >= 0, "workbench batch bar shows the remaining time (got %s)" % (total.text if total else ""))
+	jobs.call("cancel_batch", "workbench")
+	jobs.call("note_keeper_idle")
+	game_state.call("set_resource", &"stone", 20)
+	panel.call("setup", "crucible")
+	panel.call("bind_recipe", "sapsteel")
+	await process_frame
+	count = panel.find_child("Count", true, false) as Label
+	failed += _assert(count != null and count.text.find("1m 00s") >= 0, "forge slider shows the craft duration (got %s)" % (count.text if count else ""))
+	failed += _assert(str(jobs.call("try_begin_batch", "crucible", "sapsteel", 1)) == "ok", "sapsteel batch starts")
+	jobs.call("set_keeper_working", "crucible", true)
+	await process_frame
+	current = panel.find_child("CurrentLabel", true, false) as Label
+	total = panel.find_child("TotalLabel", true, false) as Label
+	failed += _assert(current != null and current.text.find("1m 00s") >= 0, "forge current bar shows the item time (got %s)" % (current.text if current else ""))
+	failed += _assert(total != null and total.text.find("1m 00s") >= 0, "forge batch bar shows the remaining time (got %s)" % (total.text if total else ""))
+	var tip: String = str(jobs.call("bar_tooltip", "crucible", "current"))
+	game_state.call("set_resource", &"wood", 6)
+	jobs.call("note_keeper_idle")
+	failed += _assert(str(jobs.call("try_begin_batch", "workbench", "wooden_planks", 1)) == "ok", "tooltip plank batch starts")
+	jobs.call("set_keeper_working", "workbench", true)
+	var bench_tip: String = str(jobs.call("bar_tooltip", "workbench", "current"))
+	failed += _assert(tip.find("%") >= 0 and tip.find("left") >= 0, "station bar tooltip has percent and time")
+	failed += _assert(bench_tip.find("%") >= 0 and bench_tip.find("left") >= 0, "workbench bar tooltip has percent and time")
+	var host := Node2D.new()
+	tree_root.add_child(host)
+	var bars: Node = load("res://scripts/batch_world_bars.gd").new()
+	host.add_child(bars)
+	bars.call("bind", host, "workbench")
+	await process_frame
+	var bar: Control = bars.find_child("CurrentBar", true, false) as Control
+	failed += _assert(bar != null and bar.tooltip_text == bench_tip and bench_tip != "", "workbench in-world bar uses the station tooltip")
+	host.free()
+	panel.free()
+	jobs.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	if failed == 0:
+		print("CRAFT_DURATION_LABEL_OK")
+		print("WORKBENCH_BAR_TOOLTIP_OK")
+	return failed

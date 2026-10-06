@@ -2,6 +2,9 @@ extends CanvasLayer
 class_name GameHUD
 ## HUD + Manatree care + backpack + Keeper's Bench + Ascension shop.
 
+const BATCH_PANEL_SCENE: PackedScene = preload("res://scenes/ui/batch_panel.tscn")
+const BatchPanel := preload("res://scripts/batch_panel.gd")
+
 @onready var panel: ColorRect = $Panel
 @onready var resources_label: Label = $Panel/ResourcesLabel
 @onready var num_wood: Label = $Panel/IconRow/WoodChip/NumWood
@@ -139,6 +142,10 @@ var _footsteps_popup: Panel
 var _keeper_activity: Label
 var _elaia_activity: Label
 var _highlight_ascend: bool = false
+var _confirm_batches: bool = false
+var _ascend_batch_dialog: PanelContainer
+var _ascend_batch_body: Label
+var _bench_batch: BatchPanel
 var _backpack_tab: String = "all"
 var _sheet: CharacterSheet = null
 var _toast_tween: Tween
@@ -172,6 +179,7 @@ func _ready() -> void:
 	backpack_title.text = ContentStrings.get_text("backpack_title")
 	inventory_title.text = ContentStrings.get_text("backpack_hint")
 	_apply_filter_labels()
+	_ensure_bench_batch()
 	bench_title.text = ContentStrings.get_text("bench_title")
 	bench_prompt.text = "%s  ·  %s" % [
 		ContentStrings.get_text("handcraft_title"),
@@ -1386,6 +1394,8 @@ func show_ascension_shop() -> void:
 	_confirm_ascend = false
 	_highlight_ascend = true
 	ascension_panel.visible = true
+	_confirm_batches = false
+	_hide_ascend_batch_dialog()
 	GameAudio.play_ui_open()
 	_rebuild_upgrades()
 	_refresh_ascension_copy()
@@ -1400,6 +1410,8 @@ func hide_ascension_shop() -> void:
 		GameAudio.play_ui_close()
 	ascension_panel.visible = false
 	_confirm_ascend = false
+	_confirm_batches = false
+	_hide_ascend_batch_dialog()
 	_highlight_ascend = false
 	_clear_ascend_highlight()
 	_refresh_reopen_button()
@@ -1466,8 +1478,6 @@ func _release_world_if_allowed() -> void:
 	if GameState.fruit_harvested_pending_ascend and not GameState.ancient_frozen:
 		return
 	if is_backpack_open():
-		return
-	if is_bench_open():
 		return
 	if is_character_open():
 		return
@@ -2422,7 +2432,6 @@ func open_bench_panel() -> void:
 	hide_fruit_confirm()
 	hide_ascension_shop()
 	bench_panel.visible = true
-	_hold_world_for_backpack()
 	_rebuild_bench()
 	_refresh_dim()
 
@@ -2436,7 +2445,27 @@ func close_bench() -> void:
 	_refresh_dim()
 
 
+func _ensure_bench_batch() -> BatchPanel:
+	if _bench_batch != null and is_instance_valid(_bench_batch):
+		return _bench_batch
+	if bench_panel == null:
+		return null
+	var existing: BatchPanel = bench_panel.get_node_or_null("BatchPanel") as BatchPanel
+	if existing == null:
+		existing = BATCH_PANEL_SCENE.instantiate() as BatchPanel
+		if existing == null:
+			return null
+		existing.name = "BatchPanel"
+		bench_panel.add_child(existing)
+	existing.position = Vector2(12, 300)
+	existing.size = Vector2(616, 224)
+	existing.setup(ForgeJobs.WORKBENCH_ID if has_node("/root/ForgeJobs") else "workbench")
+	_bench_batch = existing
+	return existing
+
+
 func _rebuild_bench() -> void:
+	_ensure_bench_batch()
 	bench_title.text = ContentStrings.get_text("bench_title")
 	bench_prompt.text = "%s  ·  %s" % [
 		ContentStrings.get_text("handcraft_title"),
@@ -2541,7 +2570,7 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	else:
 		btn.text = ContentStrings.get_text("handcraft_prompt")
 		_apply_button_chrome(btn, BUY_CAN, GOLD)
-		btn.pressed.connect(_on_craft.bind(recipe_id))
+		btn.pressed.connect(_on_bench_recipe_selected.bind(recipe_id))
 	row.add_child(info)
 	row.add_child(btn)
 	row.set_meta("recipe_id", recipe_id)
@@ -2597,6 +2626,13 @@ func get_bench_layout_metrics() -> Dictionary:
 		"craft_scroll_w": craft_w,
 		"fits": craft_w <= panel_w + 1.0 and craft_w > 0.0,
 	}
+
+
+func _on_bench_recipe_selected(recipe_id: String) -> void:
+	var panel: BatchPanel = _ensure_bench_batch()
+	if panel == null:
+		return
+	panel.bind_recipe(recipe_id)
 
 
 func _on_craft(recipe_id: String) -> void:
@@ -2818,6 +2854,12 @@ func _on_buy(upgrade_id: String) -> void:
 func _on_ascend() -> void:
 	if not GameState.can_ascend():
 		return
+	var batch_note: String = ""
+	if has_node("/root/ForgeJobs"):
+		batch_note = ForgeJobs.ascend_confirm_text()
+	if batch_note != "" and not _confirm_batches:
+		_show_ascend_batch_dialog(batch_note)
+		return
 	## Ask only when leftover Manashards can still buy a blessing.
 	if GameState.can_afford_any_ascension() and not _confirm_ascend:
 		_confirm_ascend = true
@@ -2835,6 +2877,8 @@ func _on_ascend() -> void:
 		_refresh_ascension_copy()
 		return
 	_confirm_ascend = false
+	_confirm_batches = false
+	_hide_ascend_batch_dialog()
 	GameAudio.play_ascend()
 	GameAudio.reset_cycle_flags()
 	GameState.ascend()
@@ -2843,3 +2887,64 @@ func _on_ascend() -> void:
 	_release_world_if_allowed()
 	_refresh_all()
 	SaveService.save_game()
+
+
+func _show_ascend_batch_dialog(body: String) -> void:
+	_ensure_ascend_batch_dialog()
+	if _ascend_batch_body:
+		_ascend_batch_body.text = body
+	if _ascend_batch_dialog:
+		_ascend_batch_dialog.visible = true
+
+
+func _hide_ascend_batch_dialog() -> void:
+	if _ascend_batch_dialog:
+		_ascend_batch_dialog.visible = false
+
+
+func _ensure_ascend_batch_dialog() -> void:
+	if _ascend_batch_dialog != null and is_instance_valid(_ascend_batch_dialog):
+		return
+	var dialog := PanelContainer.new()
+	dialog.name = "AscendBatchDialog"
+	dialog.position = Vector2(280, 160)
+	dialog.size = Vector2(720, 360)
+	dialog.z_index = 40
+	dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	var body := Label.new()
+	body.name = "Body"
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size = Vector2(680, 220)
+	body.add_theme_font_size_override("font_size", 16)
+	body.add_theme_color_override("font_color", Color(0.93, 0.9, 0.78, 1))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	var yes := Button.new()
+	yes.name = "Yes"
+	yes.text = ContentStrings.get_text("ascend_confirm_yes")
+	yes.pressed.connect(_on_ascend_batch_yes)
+	var no := Button.new()
+	no.name = "No"
+	no.text = ContentStrings.get_text("ascend_confirm_no")
+	no.pressed.connect(_on_ascend_batch_no)
+	row.add_child(yes)
+	row.add_child(no)
+	box.add_child(body)
+	box.add_child(row)
+	dialog.add_child(box)
+	add_child(dialog)
+	_ascend_batch_dialog = dialog
+	_ascend_batch_body = body
+
+
+func _on_ascend_batch_yes() -> void:
+	_confirm_batches = true
+	_hide_ascend_batch_dialog()
+	_on_ascend()
+
+
+func _on_ascend_batch_no() -> void:
+	_confirm_batches = false
+	_hide_ascend_batch_dialog()

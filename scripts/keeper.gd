@@ -14,6 +14,7 @@ signal channel_changed(kind: StringName, active: bool)
 
 var _target: Vector2 = Vector2.ZERO
 var _moving: bool = false
+var _route_points: Array[Vector2] = []
 var _pending_interact: Node = null
 
 enum ChannelKind { NONE, HARVEST, WATER }
@@ -143,7 +144,7 @@ func clear_published_task() -> void:
 	if actor_id() == "keeper":
 		var task: Dictionary = ForgeJobs.keeper_task()
 		var task_kind: String = str(task.get("kind", ""))
-		if task_kind == "harvest" or task_kind == "water" or task_kind == "forge" or task_kind == "runestone":
+		if task_kind == "harvest" or task_kind == "water" or task_kind == "forge" or task_kind == "bench" or task_kind == "runestone":
 			ForgeJobs.note_keeper_idle()
 	else:
 		ForgeJobs.note_elaia_idle()
@@ -334,6 +335,14 @@ func _physics_process(delta: float) -> void:
 		var speed: float = actor_move_speed()
 		var to_target: Vector2 = _target - global_position
 		if to_target.length() <= ARRIVE_DIST:
+			if not _route_points.is_empty():
+				_target = _route_points.pop_front()
+				_moving = true
+				velocity = Vector2.ZERO
+				move_and_slide()
+				_update_anim(_target - global_position)
+				_remember_keeper_pose()
+				return
 			_moving = false
 			velocity = Vector2.ZERO
 			move_and_slide()
@@ -429,12 +438,17 @@ func _should_work_loop() -> bool:
 
 
 func _station_task_matches() -> bool:
-	if _work_tool != "station" or _work_station_id == "":
-		return false
-	if not has_node("/root/ForgeJobs"):
+	if _work_tool != "station" or not has_node("/root/ForgeJobs"):
 		return false
 	var task: Dictionary = read_published_task()
-	return str(task.get("kind", "")) == "forge" and bool(task.get("working", false)) and str(task.get("target", "")) == _work_station_id
+	if not bool(task.get("working", false)):
+		return false
+	var kind: String = str(task.get("kind", ""))
+	if kind == "bench" and _work_type == "bench":
+		return str(task.get("target", "")) == "workbench"
+	if _work_station_id == "":
+		return false
+	return kind == "forge" and str(task.get("target", "")) == _work_station_id
 
 
 static func facing_for_velocity(vel: Vector2, current: String = "south") -> String:
@@ -536,6 +550,17 @@ func _resume_saved_task() -> void:
 			_apply_solved(station, "station", solved)
 			_work_loop = true
 			publish_task("forge", target_id, true)
+			_update_anim(Vector2.ZERO)
+		return
+	if kind == "bench" and here == "clearing":
+		var bench := get_tree().get_first_node_in_group("keepers_bench") as Node2D
+		if bench:
+			var solved_bench: Dictionary = _solve_for(bench, "bench")
+			global_position = solved_bench.get("position", global_position)
+			_target = global_position
+			_apply_solved(bench, "bench", solved_bench)
+			_work_loop = true
+			publish_task("bench", "workbench", true)
 			_update_anim(Vector2.ZERO)
 		return
 	_update_anim(Vector2.ZERO)
@@ -835,7 +860,11 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 	var solved: Dictionary = _solve_for(target, solve_type)
 	_apply_solved(target, solve_type, solved)
 	_suppress_work_clear = true
-	move_to(_work_spot, target)
+	if solve_type == "bench" and target.has_method("work_footprint"):
+		var route: Array[Vector2] = bench_approach_route(global_position, _work_spot, target.call("work_footprint"))
+		move_along(route, target)
+	else:
+		move_to(_work_spot, target)
 	_suppress_work_clear = false
 
 
@@ -1061,6 +1090,7 @@ func _ensure_work_spot(target: Node2D, type_id: String) -> Vector2:
 
 func halt() -> void:
 	_moving = false
+	_route_points.clear()
 	_pending_interact = null
 	_water_pending = false
 	velocity = Vector2.ZERO
@@ -1080,9 +1110,42 @@ func move_to(world_pos: Vector2, interact: Node = null) -> void:
 		_clear_work_order()
 		clear_published_task()
 		_water_pending = false
+	_route_points.clear()
 	_target = world_pos
 	_pending_interact = interact
 	_moving = true
+
+
+func move_along(points: Array[Vector2], interact: Node = null) -> void:
+	if points.is_empty():
+		return
+	var rest: Array[Vector2] = []
+	for i: int in range(1, points.size()):
+		rest.append(points[i])
+	move_to(points[0], interact)
+	_route_points = rest
+
+
+static func bench_approach_route(from: Vector2, spot: Vector2, footprint: Rect2) -> Array[Vector2]:
+	## The bench is worked from the south. A straight line from the north runs
+	## into the legs, so the walk goes out to the side the hero came from, then south.
+	var points: Array[Vector2] = []
+	var south_edge: float = footprint.position.y + footprint.size.y
+	if from.y >= south_edge - 4.0:
+		points.append(spot)
+		return points
+	var center_x: float = footprint.get_center().x
+	var margin: float = 36.0
+	var side_x: float = footprint.position.x - margin if from.x <= center_x else footprint.position.x + footprint.size.x + margin
+	var north_y: float = minf(from.y, footprint.position.y - 16.0)
+	var flank := Vector2(side_x, north_y)
+	var drop := Vector2(side_x, spot.y)
+	if from.distance_to(flank) > 8.0:
+		points.append(flank)
+	if drop.distance_to(spot) > 8.0 and (points.is_empty() or points[points.size() - 1].distance_to(drop) > 8.0):
+		points.append(drop)
+	points.append(spot)
+	return points
 
 
 func start_harvest_channel(node: Gatherable) -> void:

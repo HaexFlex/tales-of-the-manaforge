@@ -147,7 +147,7 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 10") >= 0, "SAVE_VERSION 10")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 11") >= 0, "SAVE_VERSION 11")
 	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()
@@ -1251,6 +1251,13 @@ func _content_keys() -> int:
 		"char_sheet_trait_label", "char_sheet_keeper_trait", "char_sheet_elaia_trait",
 		"char_sheet_trait_popup_title", "char_sheet_trait_work", "char_sheet_trait_reliquary",
 		"char_sheet_trait_water", "char_sheet_trait_move",
+		"batch_make", "batch_max", "batch_cancel", "batch_amount",
+		"batch_bar_current", "batch_bar_total",
+		"batch_tooltip_current", "batch_tooltip_total", "batch_tooltip_paused",
+		"batch_busy", "batch_unstaffed", "batch_done_toast", "batch_away_note",
+		"batch_cancel_confirm_title", "batch_cancel_confirm_body",
+		"batch_cancel_confirm_yes", "batch_cancel_confirm_no",
+		"ascend_warning_batches",
 	])
 	var shop: PackedStringArray = PackedStringArray([
 		"station_busy", "station_paused", "not_enough_material", "job_done", "jobs_finished_away",

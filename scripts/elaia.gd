@@ -236,6 +236,17 @@ func _resume_saved_task() -> void:
 			ForgeJobs.set_elaia_working(target_id, true)
 			_update_anim(Vector2.ZERO)
 		return
+	if kind == "bench" and home_area == "clearing":
+		var bench := get_tree().get_first_node_in_group("keepers_bench") as Node2D
+		if bench:
+			var solved_bench: Dictionary = _solve_for(bench, "bench")
+			global_position = solved_bench.get("position", global_position)
+			_target = global_position
+			_apply_solved(bench, "bench", solved_bench)
+			_work_loop = true
+			ForgeJobs.set_elaia_working("workbench", true)
+			_update_anim(Vector2.ZERO)
+		return
 	_update_anim(Vector2.ZERO)
 
 
