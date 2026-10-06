@@ -392,6 +392,8 @@ func assignment_target_display(node_id: String) -> String:
 		NODE_ID_MANATREE:
 			return ContentStrings.get_text("tree_menu_title")
 		_:
+			if node_id == "workbench":
+				return ContentStrings.get_text("bench_title")
 			if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id):
 				return ForgeJobs.station_display(node_id)
 			return node_id
@@ -400,7 +402,7 @@ func assignment_target_display(node_id: String) -> String:
 func is_valid_wisp_node_id(node_id: String) -> bool:
 	if resource_for_node_id(node_id) != &"":
 		return true
-	return has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id)
+	return has_node("/root/ForgeJobs") and ForgeJobs.is_craft_spot(node_id)
 
 
 func _ensure_wisp_slots() -> void:
@@ -460,8 +462,8 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 		return "invalid"
 	var key: String = str(wisp_id)
 	var prev: String = str(wisp_assignments.get(key, ""))
-	if has_node("/root/ForgeJobs") and ForgeJobs.is_forge_station(node_id) and prev != node_id:
-		if count_wisps_on_node(node_id) >= ForgeJobs.wisp_cap():
+	if has_node("/root/ForgeJobs") and ForgeJobs.is_craft_spot(node_id) and prev != node_id:
+		if count_wisps_on_node(node_id) >= ForgeJobs.wisp_cap_for(node_id):
 			wisp_assign_failed.emit("full", node_id)
 			if has_node("/root/GameAudio"):
 				GameAudio.play(&"sfx_wisp_deny")

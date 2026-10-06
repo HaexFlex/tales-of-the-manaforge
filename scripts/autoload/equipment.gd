@@ -510,6 +510,10 @@ func _migrate_legacy_forge_key_id() -> void:
 		gear_inventory["forge_key_relic"] = int(gear_inventory.get("forge_key_relic", 0)) + n
 
 
+func spend_known_gear(item_id: String, amount: int) -> bool:
+	return _spend_gear_anywhere(item_id, amount)
+
+
 func add_gear(item_id: String, count: int) -> bool:
 	if not is_known_item(item_id) or count <= 0:
 		return false

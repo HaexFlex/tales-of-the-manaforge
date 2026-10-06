@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 10 — ancient freeze and forge-visited. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 11 — crafting batches. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -14,9 +14,9 @@ var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
 
-const SAVE_VERSION: int = 10
-## Accept one write ahead of this schema (plus legacy 4–9).
-const SAVE_VERSION_MAX_READ: int = 11
+const SAVE_VERSION: int = 11
+## Accept one write ahead of this schema (plus legacy 4–10).
+const SAVE_VERSION_MAX_READ: int = 12
 const SAVE_SLOT_COUNT: int = 7
 const AUTOSAVE_SLOT_COUNT: int = 3
 const AUTOSAVE_THROTTLE_SEC: float = 60.0
@@ -457,6 +457,8 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 			out["active_since_load_sec"] = 0.0
 	if from_version < 10:
 		_migrate_v10(out)
+	if from_version < 11:
+		_migrate_v11(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -479,6 +481,18 @@ func _migrate_v10(out: Dictionary) -> void:
 			out["fruit_harvested_pending_ascend"] = true
 	if not bool(out.get("forge_visited", false)):
 		out["forge_visited"] = _infer_forge_visited(out)
+
+
+func _migrate_v11(out: Dictionary) -> void:
+	## A running Keep-going job becomes one prepaid batch so the item in progress is kept.
+	var jobs_v: Variant = out.get("forge_jobs", {})
+	if typeof(jobs_v) != TYPE_DICTIONARY:
+		out["forge_jobs"] = {}
+		return
+	var workers_v: Variant = out.get("forge_workers", {})
+	var workers: Dictionary = workers_v if typeof(workers_v) == TYPE_DICTIONARY else {}
+	if has_node("/root/ForgeJobs"):
+		out["forge_jobs"] = ForgeJobs.migrate_saved_jobs(jobs_v as Dictionary, workers)
 
 
 func _infer_forge_visited(out: Dictionary) -> bool:
