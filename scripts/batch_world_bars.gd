@@ -33,6 +33,7 @@ func _make_bar(node_name: String, y: float) -> Control:
 	bar.position = Vector2(0, y)
 	bar.size = Vector2(72, 6)
 	bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	bar.gui_input.connect(_on_gui_input)
 	_root.add_child(bar)
 	return bar
 
