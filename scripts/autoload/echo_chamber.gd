@@ -3,14 +3,20 @@ extends Node
 ## Mid-fight HP is never written. Save is refused while a battle view is open.
 
 const FEE: int = 30
+const BRAMBLE_FEE: int = 50
 const DATA_PATH: String = "res://data/echo_keeper_01.json"
+const BRAMBLE_PATH: String = "res://data/echo_bramble_02.json"
 const BATTLE_SCENE: String = "res://scenes/echo_battle.tscn"
+const FORGE_WEAPONS: PackedStringArray = ["rootsteel_edge", "heartwand", "switchshaft"]
 
 var in_battle: bool = false
 var reentry: bool = false
+## "" and "echo1" are Elaia. "echo2" is Bramble.
+var battle_context: String = ""
 var battle: EchoBattle = null
 var _battle_ui: Node = null
 var _echo_def: Dictionary = {}
+var _bramble_def: Dictionary = {}
 
 
 func _ready() -> void:
@@ -27,10 +33,48 @@ func _load_def() -> void:
 	file.close()
 	if typeof(parsed) == TYPE_DICTIONARY:
 		_echo_def = parsed
+	var bramble := FileAccess.open(BRAMBLE_PATH, FileAccess.READ)
+	if bramble == null:
+		push_error("EchoChamber: missing echo_bramble_02.json")
+		return
+	var bramble_parsed: Variant = JSON.parse_string(bramble.get_as_text())
+	bramble.close()
+	if typeof(bramble_parsed) == TYPE_DICTIONARY:
+		_bramble_def = bramble_parsed
 
 
 func echo_def() -> Dictionary:
 	return _echo_def
+
+
+func bramble_def() -> Dictionary:
+	return _bramble_def
+
+
+func owns_anvil_weapon() -> bool:
+	if not has_node("/root/Equipment"):
+		return false
+	for item_id: String in FORGE_WEAPONS:
+		if Equipment.owns_anywhere(item_id):
+			return true
+	return false
+
+
+func bramble_gate_open() -> bool:
+	return owns_anvil_weapon() and not GameState.echo_02_resolved
+
+
+func try_pay_bramble() -> String:
+	if not bramble_gate_open():
+		return "closed"
+	if GameState.echo_02_fee_paid:
+		return "already_paid"
+	if GameState.essence < BRAMBLE_FEE:
+		return "reject"
+	GameState.add_resource(&"essence", -BRAMBLE_FEE)
+	GameState.echo_02_fee_paid = true
+	GameState.echo_flags_changed.emit()
+	return "paid"
 
 
 func echo_display_name() -> String:
@@ -58,13 +102,26 @@ func try_pay_fee() -> String:
 
 
 func open_battle(already_paid: bool) -> void:
+	open_context(_echo_def, "echo1", _keeper_totals(), Equipment.equipped_strike_kind(), already_paid)
+
+
+func open_bramble(already_paid: bool) -> void:
+	var def: Dictionary = _bramble_def.duplicate(true)
+	var labeled: String = ContentStrings.get_text("bramble_name")
+	if labeled != "" and labeled != "bramble_name":
+		def["display_name"] = labeled
+	open_context(def, "echo2", _keeper_totals(), Equipment.equipped_strike_kind(), already_paid)
+
+
+func open_context(def: Dictionary, context: String, totals: Dictionary, strike_kind: String, already_paid: bool) -> void:
 	if in_battle:
 		return
+	battle_context = context
 	reentry = already_paid
 	battle = EchoBattle.new()
 	battle.force_crit = -1
-	battle.configure(_keeper_totals(), _echo_def)
-	battle.strike_kind = Equipment.equipped_strike_kind()
+	battle.configure(totals, def)
+	battle.strike_kind = strike_kind if strike_kind != "" else "physical"
 	battle.arrow_mode = "magical" if GameState.arrow_mode == "magical" else "physical"
 	in_battle = true
 	GameAudio.suspend_hub_for_battle()
@@ -72,6 +129,7 @@ func open_battle(already_paid: bool) -> void:
 	if packed == null:
 		push_error("EchoChamber: battle scene missing")
 		in_battle = false
+		battle_context = ""
 		return
 	_battle_ui = packed.instantiate()
 	get_tree().root.add_child(_battle_ui)
@@ -91,6 +149,10 @@ func snapshot_payout(kind: String) -> int:
 
 
 func apply_outcome(outcome: String) -> Dictionary:
+	var ctx: String = battle_context
+	battle_context = ""
+	if ctx == "echo2":
+		return _apply_bramble(outcome)
 	var shards: int = 0
 	if outcome == "spare" or outcome == "defeat":
 		shards = snapshot_payout(outcome)
@@ -108,6 +170,25 @@ func apply_outcome(outcome: String) -> Dictionary:
 	return {"outcome": outcome, "shards": shards}
 
 
+func _apply_bramble(outcome: String) -> Dictionary:
+	if outcome == "spare" or outcome == "defeat":
+		GameState.echo_02_resolved = true
+		GameState.echo_02_fee_paid = false
+		GameState.echo_02_outcome = outcome
+		var toast_key: String = "adventure_echo2_toast_spare" if outcome == "spare" else "adventure_echo2_toast_defeat"
+		var scar_key: String = "adventure_scar_spare" if outcome == "spare" else "adventure_scar_defeat"
+		GameState.status_message.emit(ContentStrings.get_text(toast_key))
+		GameState.status_message.emit(ContentStrings.get_text("path_east_open_toast"))
+		GameState.status_message.emit(ContentStrings.get_text(scar_key))
+	elif outcome == "ko":
+		GameState.echo_02_fee_paid = false
+		GameState.echo_02_outcome = "ko"
+	elif outcome == "flee":
+		GameState.echo_02_outcome = "flee"
+	GameState.echo_flags_changed.emit()
+	return {"outcome": outcome, "shards": 0}
+
+
 func finish_battle(outcome: String) -> void:
 	apply_outcome(outcome)
 	_teardown_view()
@@ -120,6 +201,10 @@ func finish_battle(outcome: String) -> void:
 
 func dismiss_battle_without_reward() -> void:
 	## Load / new game / quit abandon the fight. Disk state is the flee-equivalent.
+	if battle_context == "echo2" and GameState.echo_02_fee_paid and not GameState.echo_02_resolved:
+		GameState.echo_02_outcome = "flee"
+		GameState.echo_flags_changed.emit()
+	battle_context = ""
 	_teardown_view()
 	GameAudio.resume_hub_after_battle()
 	if get_tree() != null:
@@ -130,6 +215,7 @@ func _teardown_view() -> void:
 	in_battle = false
 	reentry = false
 	battle = null
+	battle_context = ""
 	if _battle_ui != null and is_instance_valid(_battle_ui):
 		_battle_ui.queue_free()
 	_battle_ui = null

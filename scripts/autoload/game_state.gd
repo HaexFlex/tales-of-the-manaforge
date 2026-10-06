@@ -53,6 +53,14 @@ var first_relic_crafted: bool = false
 var elaia_legacy_joined: bool = false
 var forge_key: bool = false
 var echo_01_narrator_heard: bool = false
+## Echo 2 (Bramble). Fee, resolution, and the last ending stay through Ascend.
+var echo_02_fee_paid: bool = false
+var echo_02_resolved: bool = false
+## "" | spare | defeat | flee | ko. Spare and defeat open the east road.
+var echo_02_outcome: String = ""
+var echo_02_narrator_heard: bool = false
+## Expedition board lantern. dark | amber | cyan. The shell does not start a reach.
+var expedition_lantern: String = "dark"
 ## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
 var arrow_mode: String = "physical"
 ## True after the Ancient timer hits 0. The Fruit stays committed and the clearing holds still.
@@ -1563,6 +1571,11 @@ func to_save_dict() -> Dictionary:
 		"elaia_water_essence_frac": elaia_water_essence_frac,
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
+		"echo_02_fee_paid": echo_02_fee_paid,
+		"echo_02_resolved": echo_02_resolved,
+		"echo_02_outcome": echo_02_outcome,
+		"echo_02_narrator_heard": echo_02_narrator_heard,
+		"expedition_lantern": expedition_lantern,
 		"arrow_mode": arrow_mode,
 		"ancient_frozen": ancient_frozen,
 		"forge_visited": forge_visited,
@@ -1644,6 +1657,12 @@ func apply_save_dict(data: Dictionary) -> void:
 	_hero_water_accum.clear()
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
+	echo_02_fee_paid = bool(data.get("echo_02_fee_paid", false))
+	echo_02_resolved = bool(data.get("echo_02_resolved", false))
+	echo_02_outcome = str(data.get("echo_02_outcome", ""))
+	echo_02_narrator_heard = bool(data.get("echo_02_narrator_heard", false))
+	var lantern: String = str(data.get("expedition_lantern", "dark"))
+	expedition_lantern = lantern if lantern == "amber" or lantern == "cyan" else "dark"
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
 	ancient_frozen = bool(data.get("ancient_frozen", false))
 	forge_visited = bool(data.get("forge_visited", false))
@@ -1809,6 +1828,11 @@ func reset_for_new_game() -> void:
 	_hero_water_accum.clear()
 	forge_key = false
 	echo_01_narrator_heard = false
+	echo_02_fee_paid = false
+	echo_02_resolved = false
+	echo_02_outcome = ""
+	echo_02_narrator_heard = false
+	expedition_lantern = "dark"
 	arrow_mode = "physical"
 	ancient_frozen = false
 	forge_visited = false

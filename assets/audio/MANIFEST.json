@@ -3,7 +3,7 @@
   "version": "v0.2.0-fixpass",
   "date": "2026-10-02",
   "source_spec": "CUE_NOTES_FIXPASS.md (box audio_restart/); supersedes AUDIO_RESTART_V01.md and CUE_NOTES_FORGE_V2.md where they differ",
-  "mirrors": "data/audio_cues.json after the fix pass: same cue ids, files (path) and buses. 37 cues. This file is documentation; code reads audio_cues.json only.",
+  "mirrors": "data/audio_cues.json after the fix pass: same cue ids, files (path) and buses. 38 cues. This file is documentation; code reads audio_cues.json only.",
   "sample_rate": 44100,
   "format": "ogg (SFX/stings: Vorbis 44.1 kHz mono); hub bed mp3 48 kHz stereo",
   "layout": "flat",
@@ -23,7 +23,7 @@
     "Music": "Hub bed + stings. Default -9 dB (MUSIC_BUS_DEFAULT_DB). Forge: 1500 Hz low-pass + reverb 0.35 + -3 dB.",
     "SFX_UI": "Menus/panels. Never ducks.",
     "SFX_World": "Anything that repeats (gather, wisps, water, Forge jobs, door). Never ducks.",
-    "SFX_Progress": "Rare milestones only; ducks the bed. Final set: sfx_stage_up, sfx_fruit_ready, sfx_fruit_harvest, sfx_ascend, sfx_upgrade_buy, sfx_forge_big_done. No bus changes in the fix pass."
+    "SFX_Progress": "Rare milestones only; ducks the bed. Final set: sfx_stage_up, sfx_fruit_ready, sfx_fruit_harvest, sfx_ascend, sfx_upgrade_buy, sfx_forge_big_done, sfx_path_open. No bus changes in the fix pass."
   },
   "duck": {
     "from_bus": "SFX_Progress",
@@ -447,6 +447,17 @@
       "base_db": 0.0,
       "play_offset_db": 0.0,
       "notes": "Forge enter/exit, and the Hub/Forge switch buttons (via try_enter_forge/exit_forge; no extra cue)."
+    },
+    "sfx_path_open": {
+      "file": "sfx_path_open.ogg",
+      "path": "res://assets/audio/sfx_path_open.ogg",
+      "bus": "SFX_Progress",
+      "loop": false,
+      "duration_sec": 1.55,
+      "file_peak_dbfs": 0.0,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Thorn path opens after Bramble is spared or defeated. Live transition only; not on save load. Haex may tweak the sound later."
     }
   },
   "legacy": [

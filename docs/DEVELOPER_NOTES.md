@@ -66,6 +66,11 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `MANATREE_DOOR_CLEAR_OK` | At every growth stage, no Manatree walk box sits south of the door sill and the corridor up to the door is open. `MANAFORGE_MANATREE_DOOR=1` runs it alone. |
 | `COMPANION_DOOR_TRANSFER_OK` | Keeper and Elaia go clearing → Forge → clearing twice. Both stay visible and can walk after each hop. `MANAFORGE_COMPANION_DOOR=1` runs it alone. |
 | `FORGE_ENTRY_ONE_CLICK_OK` | One click on the Manatree door walks to the sill and enters the Forge. The same run checks the watering stand at every growth stage. `MANAFORGE_FORGE_ENTRY=1` runs it alone. |
+| `KEEP_TOOLS_COST_OK` | Keep Tools costs 4000 Manashards, and the shop fallback string says 4000. |
+| `THORN_PATH_LOCKED_OK` | The east thorn wall blocks the road until Bramble is passed. An early click shows the tease line. |
+| `THORN_PATH_OPENS_OK` | Spare and defeat both open the road, play `sfx_path_open`, and drop the wall's feet collider. |
+| `BRAMBLE_ECHO_FEE_OK` | Bramble's fee is an Anvil weapon plus 50 Essence. Flee keeps the fee. A loss clears it. |
+| `EXPEDITION_BOARD_SHELL_OK` | The trailhead board picks a party and a road. Depart stays disabled and does not start a reach. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 
@@ -74,7 +79,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | Token | What it guards |
 | --- | --- |
 | `SANITY_OK` | The hub load, Echo view, gear, content keys, and scene-exit audit all passed. |
-| `FOREST_SEAL` | A walk from the Keeper's spawn cannot leak out of the clearing. The harvest nodes, the bench, and the Forge door stay reachable inside the seal. |
+| `FOREST_SEAL` | A walk from the Keeper's spawn cannot leak out of the clearing. The harvest nodes, the bench, and the Forge door stay reachable inside the seal. The east thorn-path mouth is an exception: the corridor is walkable in that check, and it still cannot reach the map edge. |
 | `WORK_REACH` | Keeper and Elaia each have a stand at the harvest nodes, the bench, the Manatree door and water spot, every runestone, the portal, and the five Forge stations. |
 | `SCENE_EXITS` | The only scripts that both name the title scene and change to it are the allow-list, and that list includes the pause menu. The Forge exit returns to the hub. Echo battle stays an overlay. |
 

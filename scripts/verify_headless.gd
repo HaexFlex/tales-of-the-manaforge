@@ -1734,7 +1734,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_wooden_basket_short")).find("20") >= 0, "handcraft_row_wooden_basket_short")
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_fertilizer_short")).find("{wood}") >= 0, "handcraft_row_fertilizer_short")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_default")).find("10") >= 0, "fertilizer_craft_cost_default ×10")
-	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("5000") >= 0, "keep_tools cost default 5000")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("4000") >= 0, "keep_tools cost default 4000")
 	failed += _assert(str(content_strings.call("get_text", "tool_stone_watering_can_craft_cost")).find("20") >= 0, "tool_stone_watering_can_craft_cost")
 	failed += _assert(str(content_strings.call("get_text", "tool_wooden_basket_craft_cost")).find("20") >= 0, "tool_wooden_basket_craft_cost")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost")).find("{cost}") >= 0, "upgrade_keep_tools_cost token")
@@ -1789,13 +1789,15 @@ func _run() -> void:
 	game_state.call("reset_for_new_game")
 	game_state.call("_set_stage", &"ancient")
 	game_state.call("harvest_fruit")
-	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 5000, "Keep Tools costs 5000 shards")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 4000, "Keep Tools costs 4000 shards")
 	for asc_id: String in ["deep_roots", "forager", "green_thumb", "shard_sight", "keeper_stride", "wisp_haste", "bonus_wisp", "keep_tools", "keep_forge_intermediates", "keep_forge_jobs"]:
 		var asc_art: String = str(game_state.call("upgrade_art_path", asc_id))
 		failed += _assert(asc_art.ends_with("icon_asc_%s.png" % asc_id), "ascension icon %s" % asc_id)
 	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools unaffordable at 0 shards")
-	game_state.call("set_resource", &"manashards", 5000)
-	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 5000")
+	game_state.call("set_resource", &"manashards", 4000)
+	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 4000")
+	if int(game_state.call("get_upgrade_cost", "keep_tools")) == 4000 and str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("4000") >= 0 and bool(game_state.call("can_buy_upgrade", "keep_tools")):
+		print("KEEP_TOOLS_COST_OK")
 
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 3)
@@ -2559,6 +2561,7 @@ func _run() -> void:
 	failed += _no_old_keeper_idle()
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
+	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -6670,4 +6673,147 @@ func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node)
 	if failed == 0:
 		print("CRAFT_DURATION_LABEL_OK")
 		print("WORKBENCH_BAR_TOOLTIP_OK")
+	return failed
+
+
+func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, content_strings: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(echo != null and equipment != null, "echo and equipment autoloads")
+	if echo == null or equipment == null:
+		return failed
+	var exact: Dictionary = {
+		"path_east_tease": "The thorns are knotted tight. Something is holding them shut.",
+		"path_east_open_toast": "The knots slip loose. The road is open.",
+		"echo_02_intro": "Stop there. Every road out of this place, I tied shut. The rot was running them, so I snared them all, one knot at a time. The groves behind me starved quietly instead. You want them open? With that axe? I have seen better tools left out in the rain.",
+		"echo_02_mercy": "Enough. You are quicker than you look, even with tools like those. Cut me down, and the snares fall with me. Spare me, and I will untie the roads myself. Knot by knot.",
+		"adventure_echo2_toast_spare": "Bramble is spared. The snares go slack. The road is open.",
+		"expedition_board_hint": "Choose who goes, and which road.",
+		"lantern_done": "The lantern flickers. They are home, and they brought something back.",
+		"bramble_join_3": "Then I will run with you. Someone should know where the old roads went.",
+	}
+	for key: String in exact.keys():
+		failed += _assert(str(content_strings.call("get_text", key)) == str(exact[key]), "draft line %s" % key)
+	var bramble: Dictionary = echo.call("bramble_def")
+	var stats: Dictionary = bramble.get("stats", {}) as Dictionary
+	failed += _assert(str(bramble.get("attack_profile", "")) == "hybrid", "Bramble is hybrid")
+	failed += _assert(int(stats.get("resilience", 9)) <= 3 and int(stats.get("ward", 9)) <= 3, "Bramble is not a tank")
+	failed += _assert(int(stats.get("swiftness", 0)) >= 8 and int(stats.get("vitality", 9)) <= 5, "Bramble is nimble")
+	var scrap: Variant = EchoBattleScript.new()
+	scrap.force_crit = 0
+	scrap.configure({"might": 5, "arcana": 5, "resilience": 5, "ward": 5, "vitality": 5, "swiftness": 5, "fate": 5}, bramble)
+	failed += _assert(not scrap.keeper_acts_first(), "Bramble acts before a default Keeper")
+	failed += _assert(scrap.choose("strike") == "continue", "snare does not end the fight")
+	failed += _assert(str(scrap.last_foe_swing) == "snare", "first hybrid swing is a snare")
+	failed += _assert(scrap.choose("strike") == "continue", "knot does not end the fight")
+	failed += _assert(str(scrap.last_foe_swing) == "knot", "second hybrid swing is a knot")
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	var before_fee: int = failed
+	failed += _assert(str(echo.call("try_pay_bramble")) == "closed", "no fee without an Anvil weapon")
+	failed += _assert(bool(equipment.call("grant_item", "rootsteel_edge")), "grant first Anvil weapon")
+	game_state.call("set_resource", &"essence", 49)
+	failed += _assert(str(echo.call("try_pay_bramble")) == "reject", "49 Essence is short")
+	failed += _assert(int(game_state.get("essence")) == 49, "rejected Bramble fee spends nothing")
+	game_state.call("set_resource", &"essence", 50)
+	failed += _assert(str(echo.call("try_pay_bramble")) == "paid", "50 Essence pays the Bramble fee")
+	failed += _assert(int(game_state.get("essence")) == 0 and bool(game_state.get("echo_02_fee_paid")), "fee flag after 50")
+	echo.set("battle_context", "echo2")
+	echo.call("apply_outcome", "flee")
+	failed += _assert(bool(game_state.get("echo_02_fee_paid")) and str(game_state.get("echo_02_outcome")) == "flee", "flee keeps the Bramble fee")
+	failed += _assert(not bool(game_state.get("echo_02_resolved")), "flee does not open the road")
+	echo.set("battle_context", "echo2")
+	echo.call("apply_outcome", "ko")
+	failed += _assert(not bool(game_state.get("echo_02_fee_paid")) and str(game_state.get("echo_02_outcome")) == "ko", "a loss clears the Bramble fee")
+	game_state.set("forge_key", false)
+	echo.set("battle_context", "echo2")
+	var spare_pay: Dictionary = echo.call("apply_outcome", "spare")
+	failed += _assert(int(spare_pay.get("shards", -1)) == 0, "Bramble spare pays no shards")
+	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "spare", "spare opens the road")
+	failed += _assert(not bool(game_state.get("forge_key")), "Bramble spare does not grant the Forge Key")
+	game_state.set("echo_02_resolved", false)
+	game_state.set("echo_02_outcome", "")
+	echo.set("battle_context", "echo2")
+	echo.call("apply_outcome", "defeat")
+	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "defeat", "defeat opens the road")
+	if failed == before_fee:
+		print("BRAMBLE_ECHO_FEE_OK")
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	game_state.set("welcome_shown", true)
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	failed += _assert(packed != null, "main scene")
+	if packed == null:
+		return failed
+	var live: Node = packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	var wall: Node2D = live.get_node_or_null("World/ThornWall") as Node2D
+	var board: Node2D = live.get_node_or_null("World/ExpeditionBoard") as Node2D
+	var warden: Node2D = live.get_node_or_null("World/BrambleWarden") as Node2D
+	var trail: Line2D = live.get_node_or_null("Paths/ThornTrail") as Line2D
+	var fork: Line2D = live.get_node_or_null("Paths/StoneToThornFork") as Line2D
+	var south: Line2D = live.get_node_or_null("Paths/ThornForkToResilience") as Line2D
+	var decor: Node2D = live.get_node_or_null("World/Decor_1985") as Node2D
+	var before_locked: int = failed
+	failed += _assert(wall != null and wall.position.distance_to(Vector2(3720, 2090)) < 0.5, "thorn wall feet")
+	failed += _assert(bool(wall.call("collider_enabled")), "closed wall blocks feet")
+	var box_v: Variant = wall.call("walk_box_size") if wall else Vector2.ZERO
+	var box: Vector2 = box_v
+	failed += _assert(abs(box.x - 192.0) < 0.5 and abs(box.y - 53.0) < 0.5, "wall walk box 192x53 (got %s)" % box)
+	failed += _assert(str(wall.call("begin_entry")) == "tease", "early click teases")
+	failed += _assert(trail != null and trail.get_point_count() == 4, "thorn trail points")
+	if trail:
+		failed += _assert(trail.get_point_position(0).distance_to(Vector2(3340, 2200)) < 0.5, "trail start")
+		failed += _assert(trail.get_point_position(3).distance_to(Vector2(3620, 2083)) < 0.5, "trail end")
+	failed += _assert(fork != null and south != null and live.get_node_or_null("Paths/StoneToResilience") == null, "StoneToResilience is split")
+	failed += _assert(decor != null and decor.position.distance_to(Vector2(3552.3508, 2030.2993)) > 20.0, "Decor_1985 moved off the board")
+	failed += _assert(not bool(game_state.get("echo_02_resolved")), "path starts closed")
+	if failed == before_locked:
+		print("THORN_PATH_LOCKED_OK")
+	var before_board: int = failed
+	failed += _assert(board != null and board.position.distance_to(Vector2(3570, 2035)) < 0.5, "board feet")
+	var board_box_v: Variant = board.call("walk_box_size") if board else Vector2.ZERO
+	var board_box: Vector2 = board_box_v
+	failed += _assert(abs(board_box.x - 64.0) < 0.5 and abs(board_box.y - 27.0) < 1.0, "board walk box")
+	board.call("open_shell")
+	failed += _assert(bool(board.call("shell_open")), "expedition shell opens")
+	failed += _assert(bool(board.call("depart_disabled")), "Depart stays disabled")
+	failed += _assert(str(board.call("try_depart")) == "later", "Depart does not start a reach")
+	failed += _assert(not bool(board.call("shell_starts_reach")), "no reach gameplay")
+	failed += _assert(str(board.call("lantern_state")) == "dark", "lantern starts dark")
+	board.call("set_lantern", "amber")
+	failed += _assert(str(board.call("lantern_state")) == "amber" and not bool(board.call("exclaim_visible")), "amber lantern, no mark")
+	board.call("set_lantern", "cyan")
+	failed += _assert(str(board.call("lantern_state")) == "cyan" and bool(board.call("exclaim_visible")), "cyan lantern shows the mark")
+	board.call("set_lantern", "dark")
+	var party: Variant = board.call("selected_party") if board else []
+	failed += _assert(party is Array and (party as Array).has("keeper") and not (party as Array).has("bramble"), "party shell has no Bramble join")
+	board.call("close_shell")
+	if failed == before_board:
+		print("EXPEDITION_BOARD_SHELL_OK")
+	var before_open: int = failed
+	failed += _assert(bool(equipment.call("grant_item", "heartwand")), "second Anvil weapon still counts")
+	game_state.call("set_resource", &"essence", 50)
+	game_audio.call("clear_played_log")
+	failed += _assert(str(wall.call("begin_entry")) == "confirm", "weapon opens the Echo confirm")
+	wall.call("cancel_fee")
+	failed += _assert(str(echo.call("try_pay_bramble")) == "paid", "scene pays 50")
+	failed += _assert(str(wall.call("begin_entry")) == "enter", "paid fee re-enters")
+	echo.call("finish_battle", "spare")
+	await process_frame
+	failed += _assert(bool(game_state.get("echo_02_resolved")), "spare resolved in the clearing")
+	failed += _assert(not bool(wall.call("collider_enabled")), "open wall drops the feet collider")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_path_open")), "path open plays sfx_path_open")
+	failed += _assert(warden != null and warden.visible, "spared Bramble watches the trailhead")
+	warden.call("on_interact", null)
+	failed += _assert(str(content_strings.call("get_text", "adventure_promised")).find("Not yet at your side") >= 0, "spared Bramble is not a companion yet")
+	if failed == before_open:
+		print("THORN_PATH_OPENS_OK")
+	live.free()
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
 	return failed

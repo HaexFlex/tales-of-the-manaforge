@@ -1008,11 +1008,66 @@ func _forest_seal(live: Node) -> int:
 			queue.append(nxt)
 	print("FOREST_SEAL leaked=%s max_norm=%.3f visited=%d" % ["yes" if leaked else "no", max_norm, queue.size()])
 	failed += _check(not leaked, "no walkable gap out of the clearing")
+	failed += _path_opening_exception(space, params)
 	for i: int in names.size():
 		failed += _check(reached[i], "%s reachable inside the clearing" % names[i])
 	failed += _work_reach(live)
 	await _frame_times(live)
 	return failed
+
+
+func _on_thorn_corridor(at: Vector2) -> bool:
+	## The east road is an allowed mouth. It stops short of the map edge.
+	if at.x > 3860.0 or at.x < 3300.0 or at.y < 2000.0 or at.y > 2260.0:
+		return false
+	var pts: PackedVector2Array = PackedVector2Array([
+		Vector2(3340, 2200), Vector2(3450, 2110), Vector2(3560, 2085),
+		Vector2(3620, 2083), Vector2(3720, 2090),
+	])
+	for i: int in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var ab: Vector2 = b - a
+		var den: float = ab.length_squared()
+		var t: float = 0.0
+		if den > 0.001:
+			t = clampf(((at - a).dot(ab)) / den, 0.0, 1.0)
+		if at.distance_to(a + ab * t) <= 40.0:
+			return true
+	return false
+
+
+func _path_opening_exception(space: PhysicsDirectSpaceState2D, params: PhysicsShapeQueryParameters2D) -> int:
+	## Walk the clearing again, but the thorn corridor does not count as a wall.
+	## Reaching the map border through that mouth is still a leak.
+	var step: float = 22.0
+	var origin := Vector2(2080, 2460)
+	var queue: Array[Vector2] = [origin]
+	var seen: Dictionary = {_forest_cell(origin, step): true}
+	var head: int = 0
+	var leaked: bool = false
+	var guard: int = 0
+	while head < queue.size() and guard < 90000:
+		guard += 1
+		var at: Vector2 = queue[head]
+		head += 1
+		if at.x < 140.0 or at.y < 140.0 or at.x > 4180.0 or at.y > 3640.0:
+			leaked = true
+			print("FOREST_SEAL path_opening leak %.1f %.1f" % [at.x, at.y])
+			break
+		for dir: Vector2 in [Vector2(step, 0), Vector2(-step, 0), Vector2(0, step), Vector2(0, -step)]:
+			var nxt: Vector2 = at + dir
+			var key: Vector2i = _forest_cell(nxt, step)
+			if seen.has(key):
+				continue
+			seen[key] = true
+			if not _on_thorn_corridor(nxt):
+				params.transform = Transform2D(0.0, nxt)
+				if not space.intersect_shape(params, 1).is_empty():
+					continue
+			queue.append(nxt)
+	print("FOREST_SEAL path_opening=excepted leaked=%s visited=%d" % ["yes" if leaked else "no", queue.size()])
+	return _check(not leaked, "thorn path opening stays inside the map")
 
 
 func _work_reach(live: Node) -> int:

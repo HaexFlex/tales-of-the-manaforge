@@ -29,6 +29,9 @@
 [ext_resource type="Texture2D" path="res://assets/art/props/native/harvest_berry_spent.png" id="25_berry_spent"]
 [ext_resource type="Texture2D" path="res://assets/art/props/native/harvest_stone_spent.png" id="26_stone_spent"]
 [ext_resource type="PackedScene" path="res://scenes/keepers_bench.tscn" id="27_bench"]
+[ext_resource type="PackedScene" path="res://scenes/thorn_wall.tscn" id="29_thorn"]
+[ext_resource type="PackedScene" path="res://scenes/expedition_board.tscn" id="30_board"]
+[ext_resource type="PackedScene" path="res://scenes/bramble_warden.tscn" id="31_warden"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_vxglm"]
 texture = ExtResource("2_0ld40")
@@ -433,10 +436,30 @@ texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
-[node name="StoneToResilience" type="Line2D" parent="Paths"]
+[node name="StoneToThornFork" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(3300, 1900, 3330, 2050, 3340, 2200, 3330, 2350, 3300, 2500)
+points = PackedVector2Array(3300, 1900, 3330, 2050, 3340, 2200)
+width = 48.0
+texture = ExtResource("20_path")
+texture_mode = 1
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+[node name="ThornTrail" type="Line2D" parent="Paths"]
+texture_filter = 1
+texture_repeat = 2
+points = PackedVector2Array(3340, 2200, 3450, 2110, 3560, 2085, 3620, 2083)
+width = 48.0
+texture = ExtResource("20_path")
+texture_mode = 1
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+[node name="ThornForkToResilience" type="Line2D" parent="Paths"]
+texture_filter = 1
+texture_repeat = 2
+points = PackedVector2Array(3340, 2200, 3330, 2350, 3300, 2500)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -772,6 +795,15 @@ collision_mask = 0
 monitoring = false
 monitorable = false
 script = ExtResource("12_2wyq8")
+[node name="ThornWall" type="Area2D" parent="World" instance=ExtResource("29_thorn")]
+y_sort_enabled = true
+position = Vector2(3720, 2090)
+[node name="ExpeditionBoard" type="Area2D" parent="World" instance=ExtResource("30_board")]
+y_sort_enabled = true
+position = Vector2(3570, 2035)
+[node name="BrambleWarden" type="Area2D" parent="World" instance=ExtResource("31_warden")]
+y_sort_enabled = true
+position = Vector2(3448, 2068)
 [node name="Decor_1976" type="Node2D" parent="World" unique_id=2131868752 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
 position = Vector2(3450.1714, 1752.4275)
@@ -846,7 +878,7 @@ sprite_scale = 1.0
 metadata/prop_kind = "decor"
 [node name="Decor_1985" type="Node2D" parent="World" unique_id=619265586 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(3552.3508, 2030.2993)
+position = Vector2(3488, 1992)
 script = ExtResource("14_2f3dj")
 texture_path = "res://assets/art/hub/ground/grass_tuft_02.png"
 prop_kind = "decor"

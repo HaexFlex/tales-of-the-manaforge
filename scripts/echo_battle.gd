@@ -11,6 +11,13 @@ const STAT_ORDER: Array[String] = [
 ]
 
 var echo_name: String = "Elaia"
+## magical | physical | hybrid. Echo 1 stays magical (Arcana vs Ward).
+var foe_attack_profile: String = "magical"
+## snare (Might vs Resilience) or knot (Arcana vs Ward) on a hybrid foe.
+var last_foe_swing: String = ""
+var foe_art_path: String = ""
+## Echo 1 ties go to the Keeper. Bramble wins a Swiftness tie.
+var keeper_wins_swift_tie: bool = true
 var keeper_max_hp: int = 50
 var echo_max_hp: int = 60
 var keeper_hp: int = 50
@@ -120,6 +127,14 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 	}
 	echo_name = str(echo_def.get("display_name", "Elaia"))
 	echo_crit_mult = float(echo_def.get("crit_multiplier", 1.2))
+	foe_art_path = str(echo_def.get("battle_art_path", ""))
+	var profile: String = str(echo_def.get("attack_profile", "magical"))
+	if profile == "physical" or profile == "hybrid":
+		foe_attack_profile = profile
+	else:
+		foe_attack_profile = "magical"
+	keeper_wins_swift_tie = not bool(echo_def.get("swift_tie_favors_foe", false))
+	last_foe_swing = ""
 	keeper_max_hp = hp_max_for(int(keeper["vitality"]))
 	echo_max_hp = hp_max_for(int(echo["vitality"]))
 	keeper_hp = keeper_max_hp
@@ -134,7 +149,11 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 
 
 func keeper_acts_first() -> bool:
-	return int(keeper.get("swiftness", 5)) >= int(echo.get("swiftness", 6))
+	var ks: int = int(keeper.get("swiftness", 5))
+	var es: int = int(echo.get("swiftness", 6))
+	if ks == es:
+		return keeper_wins_swift_tie
+	return ks > es
 
 
 func available_actions() -> PackedStringArray:
@@ -281,10 +300,27 @@ func _strike_to_finish() -> void:
 
 func _echo_attack() -> void:
 	var first_hit: bool = enemy_attacks == 0
+	var atk_stat: String = "arcana"
+	var vs_stat: String = "ward"
+	if foe_attack_profile == "physical":
+		atk_stat = "might"
+		vs_stat = "resilience"
+		last_foe_swing = "might"
+	elif foe_attack_profile == "hybrid":
+		if enemy_attacks % 2 == 0:
+			atk_stat = "might"
+			vs_stat = "resilience"
+			last_foe_swing = "snare"
+		else:
+			atk_stat = "arcana"
+			vs_stat = "ward"
+			last_foe_swing = "knot"
+	else:
+		last_foe_swing = "arcana"
 	var dealt: int = _rolled_damage(
-		int(echo["arcana"]),
-		int(keeper["ward"]),
-		int(echo["fate"]),
+		int(echo.get(atk_stat, 0)),
+		int(keeper.get(vs_stat, 0)),
+		int(echo.get("fate", 0)),
 		echo_crit_mult,
 		false
 	)
