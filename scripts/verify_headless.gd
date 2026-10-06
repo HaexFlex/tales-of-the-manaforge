@@ -4052,7 +4052,7 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(bench_sprite != null and bench_sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "bench nearest")
 		failed += _assert(bench.get("idle_texture") != null and bench.get("busy_texture") != null, "bench idle and busy")
 		var stand: Node2D = bench.get_node_or_null("KeeperStand") as Node2D
-		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, -61)) < 0.5, "bench stand is just north of the tabletop")
+		failed += _assert(stand != null and stand.position.distance_to(Vector2(0, 48)) < 0.5, "bench stand is just south of the tabletop")
 		bench.free()
 	game_state.call("reset_for_new_game")
 	return failed
