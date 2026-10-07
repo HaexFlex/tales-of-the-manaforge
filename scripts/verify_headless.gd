@@ -117,6 +117,17 @@ func _run() -> void:
 			quit(0)
 		return
 
+	# Experimental reach snapshots. The full suite still runs this near the end.
+	# MANAFORGE_DEBUG_SNAPSHOTS=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_DEBUG_SNAPSHOTS") == "1":
+		var snaps_only: int = await _debug_snapshots_reach(tree_root, game_state, save_service)
+		if snaps_only > 0:
+			print("DEBUG_SNAPSHOTS_REACH_FAIL: %d" % snaps_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH") == "1":
 		var reach_only: int = _reach_checks(tree_root, game_state, save_service)
 		if reach_only > 0:
@@ -2605,6 +2616,7 @@ func _run() -> void:
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
 	failed += await _echo2_portal_visible(tree_root, game_state, save_service)
 	failed += await _expedition_board_tease(tree_root, game_state, save_service)
+	failed += await _debug_snapshots_reach(tree_root, game_state, save_service)
 	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 	failed += _reach_checks(tree_root, game_state, save_service)
 
@@ -4731,6 +4743,10 @@ func _stripped_paths() -> PackedStringArray:
 		"tools/debug/snapshots/forge_unlocked.json",
 		"tools/debug/snapshots/elaia_joined.json",
 		"tools/debug/snapshots/ancient_ready.json",
+		"tools/debug/snapshots/echo2_ready.json",
+		"tools/debug/snapshots/north_road_open.json",
+		"tools/debug/snapshots/pre_boss.json",
+		"tools/debug/snapshots/veteran_reacher.json",
 	])
 
 
@@ -4787,6 +4803,8 @@ func _debug_stripped_ok() -> int:
 		failed += _assert(_pck_has(testing_files, "tools/debug/debug_panel.tscn"), "testing pck keeps the debug panel")
 		failed += _assert(_pck_has(testing_files, "tools/AnimPreview.tscn"), "testing pck keeps AnimPreview")
 		failed += _assert(_pck_has(testing_files, "tools/debug/snapshots/pre_echo.json"), "testing pck keeps snapshots")
+		for reach_snap: String in _REACH_SNAPSHOTS.values():
+			failed += _assert(_pck_has(testing_files, reach_snap.trim_prefix("res://")), "testing pck keeps %s" % reach_snap)
 		print("DEBUG_KEPT_PCK %s files=%d" % [testing_pck, testing_files.size()])
 	elif require_pck:
 		failed += _assert(false, "testing pck missing at %s" % testing_pck)
@@ -4827,7 +4845,7 @@ func _probe_debug_snapshots(game_state: Node) -> int:
 	return failed
 
 
-func _probe_one(game_state: Node, path: String) -> int:
+func _probe_one(game_state: Node, path: String, want_version: int = 10) -> int:
 	var failed: int = 0
 	failed += _assert(FileAccess.file_exists(path), "snapshot file %s" % path)
 	if not FileAccess.file_exists(path):
@@ -4837,7 +4855,7 @@ func _probe_one(game_state: Node, path: String) -> int:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return failed
 	var root: Dictionary = parsed
-	failed += _assert(int(root.get("save_version", 0)) == 10, "snapshot save_version 10 %s" % path)
+	failed += _assert(int(root.get("save_version", 0)) == want_version, "snapshot save_version %d %s" % [want_version, path])
 	var state_v: Variant = root.get("state", {})
 	failed += _assert(typeof(state_v) == TYPE_DICTIONARY, "snapshot state %s" % path)
 	if typeof(state_v) != TYPE_DICTIONARY:
@@ -7103,6 +7121,123 @@ func _board_click(board: Area2D, keeper: Node2D, game_state: Node, tree_root: Wi
 				await process_frame
 			return bool(board.call("shell_open"))
 	return bool(board.call("shell_open"))
+
+
+## Experimental-only snapshots for Bramble / reach playtests. Menu label -> file.
+## Stable strips them (see _stripped_paths). The debug panel lists the same labels.
+const _REACH_SNAPSHOTS: Dictionary = {
+	"Echo 2 ready": "res://tools/debug/snapshots/echo2_ready.json",
+	"North road open": "res://tools/debug/snapshots/north_road_open.json",
+	"Pre-boss": "res://tools/debug/snapshots/pre_boss.json",
+	"Veteran reacher": "res://tools/debug/snapshots/veteran_reacher.json",
+}
+
+
+func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Each of the four reach snapshots loads the way the debug panel loads it
+	## (apply_save_dict on the state, then the hub) and lands in a valid state.
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(echo != null and reach != null and equipment != null, "autoloads for the reach snapshots")
+	if failed > 0:
+		return failed
+	var want_version: int = int(save_service.get("SAVE_VERSION"))
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	for label: String in _REACH_SNAPSHOTS.keys():
+		var path: String = str(_REACH_SNAPSHOTS[label])
+		failed += _assert(panel_src.find("\"%s\": \"%s\"" % [label, path]) >= 0, "debug panel lists %s" % label)
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if typeof(parsed) == TYPE_DICTIONARY:
+			failed += _assert(str((parsed as Dictionary).get("label", "")) == label, "snapshot label %s" % label)
+	# a. Echo 2 ready: first Anvil weapon, 50 Essence, hub arch open for Bramble.
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Echo 2 ready"]), want_version)
+	failed += _assert(bool(echo.call("owns_anvil_weapon")), "echo2 ready owns an Anvil weapon")
+	failed += _assert(int(game_state.get("essence")) == 50, "echo2 ready has 50 Essence")
+	failed += _assert(bool(game_state.get("echo_01_resolved")) and not bool(game_state.get("echo_02_resolved")), "echo2 ready: Elaia done, Bramble open")
+	failed += _assert(bool(echo.call("bramble_gate_open")) and str(echo.call("hub_portal_context")) == "echo2", "echo2 ready opens the hub arch for Bramble")
+	failed += _assert(not bool(game_state.get("echo_02_fee_paid")), "echo2 ready has not paid yet")
+	failed += _assert(not bool(reach.get("running")) and int(reach.get("deepest_depth")) == 0, "echo2 ready has no reach yet")
+	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Echo 2 ready")
+	# b. North road open: Bramble spared, board live, no runs.
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["North road open"]), want_version)
+	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "spare", "north road: Bramble spared")
+	failed += _assert(str(echo.call("hub_portal_context")) == "", "north road: the hub arch is closed")
+	failed += _assert(not bool(reach.get("running")) and int(reach.get("reaches_cleared")) == 0 and int(reach.get("deepest_depth")) == 0, "north road: no runs yet")
+	failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "north road: lantern dark")
+	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "North road open")
+	# c. Pre-boss: room 9 of the run in progress, the next room is the boss.
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version)
+	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "pre-boss: an idle room is running")
+	failed += _assert(int(reach.get("rooms_attempted")) == 9 and not bool(reach.call("is_boss_room")), "pre-boss: room 9, not the boss yet")
+	failed += _assert(int(reach.call("rooms_until_boss")) == 1, "pre-boss: rooms until boss is 1 (got %d)" % int(reach.call("rooms_until_boss")))
+	failed += _assert(float(reach.get("room_left")) > 0.0 and float(reach.call("_length_left")) > float(reach.get("room_left")) + 720.0, "pre-boss: the run is long enough to reach the boss")
+	failed += _assert(str(game_state.get("expedition_lantern")) == "amber", "pre-boss: lantern amber")
+	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Pre-boss")
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version)
+	reach.call("push_faces", [20])
+	reach.call("advance_clock", float(reach.get("room_left")) + 0.001)
+	failed += _assert(bool(reach.get("running")) and int(reach.get("rooms_attempted")) == 10 and bool(reach.call("is_boss_room")), "pre-boss: finishing room 9 opens the boss room")
+	failed += _assert(int(reach.call("rooms_until_boss")) == 0, "pre-boss: board shows the boss room")
+	# d. Veteran reacher: depth 25, mats, dojo exp, counter 19.
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Veteran reacher"]), want_version)
+	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.call("max_start_depth")) == 25, "veteran: deepest depth 25")
+	failed += _assert(int(reach.get("reaches_cleared")) == 19, "veteran: reach counter 19")
+	failed += _assert(int(reach.get("briarwood")) > 0 and int(reach.get("herbs")) > 0 and int(reach.get("dojo_exp")) > 0, "veteran: Briarwood, herbs and dojo exp")
+	failed += _assert(not bool(reach.get("running")) and bool(game_state.get("echo_02_resolved")), "veteran: idle at home with the road open")
+	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Veteran reacher")
+	# Round trip: the veteran state survives a save and load.
+	var blob: Dictionary = game_state.call("to_save_dict")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob)
+	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.get("reaches_cleared")) == 19, "veteran survives a save round trip")
+	paused = false
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("DEBUG_SNAPSHOTS_REACH_OK")
+	return failed
+
+
+func _snapshot_hub_check(tree_root: Window, game_state: Node, save_service: Node, label: String) -> int:
+	## The debug panel applies the state, starts the session, and swaps to the hub, which
+	## keeps the live state. A child hub here would read "auto" as a bare boot and load the
+	## newest disk save, so use the boot that keeps state without loading.
+	var failed: int = 0
+	var before: Dictionary = game_state.call("to_save_dict")
+	save_service.call("note_session_started")
+	save_service.set("boot_intent", "forge_return")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "%s loads the hub" % label)
+	if live == null:
+		return failed
+	var after: Dictionary = game_state.call("to_save_dict")
+	for key: String in ["essence", "echo_01_resolved", "echo_02_resolved", "echo_02_outcome", "expedition_lantern", "gear_inventory"]:
+		failed += _assert(str(after.get(key)) == str(before.get(key)), "%s hub keeps %s" % [label, key])
+	var reach_before: Dictionary = before.get("reach", {}) as Dictionary
+	var reach_after: Dictionary = after.get("reach", {}) as Dictionary
+	for key: String in ["deepest_depth", "reaches_cleared", "running", "rooms_attempted", "phase"]:
+		failed += _assert(str(reach_after.get(key)) == str(reach_before.get(key)), "%s hub keeps reach %s" % [label, key])
+	var portal: Node = live.get_node_or_null("World/EchoPortal")
+	var board: Node = live.get_node_or_null("World/ExpeditionBoard")
+	var wall: Node = live.get_node_or_null("World/ThornWall")
+	failed += _assert(portal != null and board != null and wall != null, "%s hub has portal, board and wall" % label)
+	if portal != null and board != null and wall != null:
+		var reach: Node = tree_root.get_node_or_null("Reach")
+		var road: bool = bool(game_state.get("echo_02_resolved"))
+		failed += _assert(portal.visible == (str(tree_root.get_node("EchoChamber").call("hub_portal_context")) != ""), "%s arch matches its state" % label)
+		failed += _assert(bool(wall.call("collider_enabled")) == (not road), "%s wall matches the road" % label)
+		var running: bool = reach != null and bool(reach.get("running"))
+		failed += _assert(bool(board.call("depart_disabled")) == (not road or running), "%s Depart matches the road and run" % label)
+		if label == "Echo 2 ready":
+			failed += _assert(portal.visible and bool(portal.call("serves_bramble")), "Echo 2 ready shows Bramble's arch")
+		if label == "Pre-boss":
+			board.call("open_shell")
+			failed += _assert(bool(board.call("shell_open")), "Pre-boss board shell opens")
+			board.call("close_shell")
+	live.free()
+	await process_frame
+	return failed
 
 
 func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, game_audio: Node) -> int:

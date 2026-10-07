@@ -8,7 +8,15 @@ const SNAPSHOTS: Dictionary = {
 	"Forge unlocked": "res://tools/debug/snapshots/forge_unlocked.json",
 	"Elaia joined": "res://tools/debug/snapshots/elaia_joined.json",
 	"Ancient ready": "res://tools/debug/snapshots/ancient_ready.json",
+	"Echo 2 ready": "res://tools/debug/snapshots/echo2_ready.json",
+	"North road open": "res://tools/debug/snapshots/north_road_open.json",
+	"Pre-boss": "res://tools/debug/snapshots/pre_boss.json",
+	"Veteran reacher": "res://tools/debug/snapshots/veteran_reacher.json",
 }
+const SNAPSHOT_ORDER: PackedStringArray = [
+	"Pre-Echo", "Forge unlocked", "Elaia joined", "Ancient ready",
+	"Echo 2 ready", "North road open", "Pre-boss", "Veteran reacher",
+]
 var _free_crafts: PackedStringArray = PackedStringArray([
 	"sapsteel",
 	"heartwood_bits",
@@ -79,11 +87,16 @@ func _build_ui() -> void:
 	box.add_child(subtitle)
 
 	_add_section(box, "Load snapshots")
-	var snapshot_labels: PackedStringArray = PackedStringArray([
-		"Pre-Echo", "Forge unlocked", "Elaia joined", "Ancient ready",
-	])
-	for label: String in snapshot_labels:
-		_add_button(box, label, _on_snapshot_pressed.bind(str(SNAPSHOTS[label]), label))
+	## Two columns, so eight snapshots take the height the first four did.
+	var snapshot_grid := GridContainer.new()
+	snapshot_grid.name = "SnapshotGrid"
+	snapshot_grid.columns = 2
+	snapshot_grid.add_theme_constant_override("h_separation", 6)
+	snapshot_grid.add_theme_constant_override("v_separation", 4)
+	box.add_child(snapshot_grid)
+	for label: String in SNAPSHOT_ORDER:
+		var snap_button: Button = _add_button(snapshot_grid, label, _on_snapshot_pressed.bind(str(SNAPSHOTS[label]), label))
+		snap_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	_add_section(box, "Forge")
 	_add_button(box, "Free Sapsteel", _on_free_craft_pressed.bind("sapsteel"))
@@ -122,12 +135,13 @@ func _add_section(parent: VBoxContainer, text: String) -> void:
 	parent.add_child(label)
 
 
-func _add_button(parent: VBoxContainer, text: String, callback: Callable) -> void:
+func _add_button(parent: Container, text: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = Vector2(0, 24)
 	button.pressed.connect(callback)
 	parent.add_child(button)
+	return button
 
 
 func _on_close_pressed() -> void:
