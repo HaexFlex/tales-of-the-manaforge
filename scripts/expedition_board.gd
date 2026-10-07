@@ -1,6 +1,6 @@
 extends Area2D
 ## Trailhead board. Lantern art can show dark, amber, or cyan.
-## The shell picks a party and a road. Depart does not start a reach.
+## Depart starts a reach once the north road is open. Party is the Keeper alone.
 
 const DARK_ART: String = "res://assets/art/props/expedition_board/expedition_board_dark.png"
 const AMBER_FRAMES: PackedStringArray = [
@@ -32,8 +32,12 @@ var _frame_i: int = 0
 var _frame_t: float = 0.0
 var _hovered: bool = false
 var _party: Array[String] = ["keeper"]
-var _route: String = ""
+var _route: String = "north"
 var _walk: CollisionShape2D
+var _start_depth: int = 1
+var _hours: int = 1
+var _pace: String = "hold"
+var _control: String = "idle"
 
 var _layer: CanvasLayer
 var _panel: Panel
@@ -42,6 +46,15 @@ var _route_btn: Button
 var _keeper_btn: Button
 var _elaia_btn: Button
 var _lantern_lbl: Label
+var _depth_lbl: Label
+var _hours_btn: Button
+var _hold_btn: Button
+var _push_btn: Button
+var _idle_btn: Button
+var _manual_btn: Button
+var _odds_lbl: Label
+var _skip_btn: Button
+var _rush_btn: Button
 
 
 func _ready() -> void:
@@ -64,7 +77,15 @@ func _ready() -> void:
 	input_event.connect(_on_input_event)
 	if not GameState.echo_flags_changed.is_connected(_apply_lantern):
 		GameState.echo_flags_changed.connect(_apply_lantern)
+	if has_node("/root/Reach") and not Reach.changed.is_connected(_on_reach_changed):
+		Reach.changed.connect(_on_reach_changed)
 	_apply_lantern()
+
+
+func _exit_tree() -> void:
+	if _layer != null and is_instance_valid(_layer):
+		_layer.queue_free()
+	_layer = null
 
 
 func _fit_art() -> void:
@@ -197,11 +218,15 @@ func exclaim_visible() -> bool:
 
 
 func shell_starts_reach() -> bool:
-	return false
+	return true
 
 
 func depart_disabled() -> bool:
-	return true
+	if not GameState.echo_02_resolved:
+		return true
+	if has_node("/root/Reach") and Reach.running:
+		return true
+	return false
 
 
 func selected_party() -> Array[String]:
@@ -213,8 +238,14 @@ func selected_route() -> String:
 
 
 func try_depart() -> String:
-	## Shell only. Reaches are not in this batch.
-	return "later"
+	if not GameState.echo_02_resolved:
+		return "closed"
+	if not has_node("/root/Reach"):
+		return "closed"
+	if Reach.running:
+		return "busy"
+	_start_depth = clampi(_start_depth, 1, Reach.max_start_depth())
+	return Reach.depart(_start_depth, float(_hours), _pace, _control)
 
 
 func _on_hover(inside: bool) -> void:
@@ -293,10 +324,10 @@ func _ensure_shell() -> void:
 	_panel.anchor_top = 0.5
 	_panel.anchor_right = 0.5
 	_panel.anchor_bottom = 0.5
-	_panel.offset_left = -250.0
-	_panel.offset_top = -180.0
-	_panel.offset_right = 250.0
-	_panel.offset_bottom = 180.0
+	_panel.offset_left = -280.0
+	_panel.offset_top = -280.0
+	_panel.offset_right = 280.0
+	_panel.offset_bottom = 280.0
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.10, 0.09, 0.98)
 	sb.border_color = Color(0.45, 0.55, 0.42, 1.0)
@@ -319,16 +350,61 @@ func _ensure_shell() -> void:
 	_depart = Button.new()
 	_depart.name = "Depart"
 	_depart.text = "Depart"
-	_depart.position = Vector2(16, 252)
+	_depart.position = Vector2(16, 448)
 	_depart.size = Vector2(200, 40)
 	_depart.disabled = true
 	_panel.add_child(_depart)
 	_depart.pressed.connect(_on_depart)
+	_depth_lbl = _make_label(_panel, "Depth", Vector2(16, 248), Vector2(200, 32), 15, Color(0.9, 0.88, 0.78, 1))
+	var depth_down := Button.new()
+	depth_down.name = "DepthDown"
+	depth_down.text = "-"
+	depth_down.position = Vector2(220, 244)
+	depth_down.size = Vector2(48, 36)
+	_panel.add_child(depth_down)
+	depth_down.pressed.connect(_on_depth.bind(-1))
+	var depth_up := Button.new()
+	depth_up.name = "DepthUp"
+	depth_up.text = "+"
+	depth_up.position = Vector2(276, 244)
+	depth_up.size = Vector2(48, 36)
+	_panel.add_child(depth_up)
+	depth_up.pressed.connect(_on_depth.bind(1))
+	_hours_btn = Button.new()
+	_hours_btn.name = "Hours"
+	_hours_btn.position = Vector2(340, 244)
+	_hours_btn.size = Vector2(180, 36)
+	_panel.add_child(_hours_btn)
+	_hours_btn.pressed.connect(_on_hours)
+	_hold_btn = _party_button("Hold", Vector2(16, 292), "Hold")
+	_push_btn = _party_button("Push", Vector2(180, 292), "Push")
+	_idle_btn = _party_button("Idle", Vector2(16, 336), "Idle")
+	_manual_btn = _party_button("Manual", Vector2(180, 336), "Manual")
+	_hold_btn.pressed.connect(_on_pace.bind("hold"))
+	_push_btn.pressed.connect(_on_pace.bind("push"))
+	_idle_btn.pressed.connect(_on_control.bind("idle"))
+	_manual_btn.pressed.connect(_on_control.bind("manual"))
+	_odds_lbl = _make_label(_panel, "Odds", Vector2(16, 384), Vector2(500, 56), 15, Color(0.95, 0.9, 0.72, 1))
+	_skip_btn = Button.new()
+	_skip_btn.name = "SkipRoom"
+	_skip_btn.text = "Skip room"
+	_skip_btn.position = Vector2(16, 492)
+	_skip_btn.size = Vector2(160, 36)
+	_panel.add_child(_skip_btn)
+	_skip_btn.pressed.connect(_on_skip)
+	_rush_btn = Button.new()
+	_rush_btn.name = "Rush"
+	_rush_btn.text = "Rush"
+	_rush_btn.position = Vector2(188, 492)
+	_rush_btn.size = Vector2(120, 36)
+	_rush_btn.toggle_mode = true
+	_panel.add_child(_rush_btn)
+	_rush_btn.pressed.connect(_on_rush)
 	var back := Button.new()
 	back.name = "Back"
 	back.text = ContentStrings.get_text("portal_confirm_no")
-	back.position = Vector2(240, 252)
-	back.size = Vector2(200, 40)
+	back.position = Vector2(340, 448)
+	back.size = Vector2(180, 40)
 	_panel.add_child(back)
 	back.pressed.connect(close_shell)
 	_keeper_btn.pressed.connect(_on_keeper)
@@ -350,59 +426,114 @@ func _party_button(node_name: String, pos: Vector2, text: String) -> Button:
 func _refresh_shell() -> void:
 	if _keeper_btn == null:
 		return
-	_keeper_btn.button_pressed = _party.has("keeper")
-	var elaia_ok: bool = GameState.elaia_in_party()
-	_elaia_btn.disabled = not elaia_ok
-	if not elaia_ok and _party.has("elaia"):
-		_party.erase("elaia")
-	_elaia_btn.button_pressed = _party.has("elaia")
+	_party = ["keeper"]
+	_keeper_btn.button_pressed = true
+	_keeper_btn.disabled = true
+	_elaia_btn.disabled = true
+	_elaia_btn.button_pressed = false
 	var road_open: bool = GameState.echo_02_resolved
+	_route = "north" if road_open else ""
 	if road_open:
 		_route_btn.text = ContentStrings.get_text("path_east_examine_open")
-		_route_btn.disabled = false
+		_route_btn.disabled = true
+		_route_btn.button_pressed = true
 	else:
 		_route_btn.text = ContentStrings.get_text("path_east_tease")
 		_route_btn.disabled = true
-		_route = ""
-	_route_btn.button_pressed = _route == "east"
-	_depart.disabled = true
+		_route_btn.button_pressed = false
+	var cap := 1
+	if has_node("/root/Reach"):
+		cap = Reach.max_start_depth()
+	_start_depth = clampi(_start_depth, 1, cap)
+	if _depth_lbl:
+		_depth_lbl.text = "Depth %d" % _start_depth
+	if _hours_btn:
+		_hours_btn.text = "%d hour" % _hours if _hours == 1 else "%d hours" % _hours
+	if _hold_btn:
+		_hold_btn.button_pressed = _pace == "hold"
+		_push_btn.button_pressed = _pace == "push"
+		_idle_btn.button_pressed = _control == "idle"
+		_manual_btn.button_pressed = _control == "manual"
+	if _odds_lbl and has_node("/root/Reach"):
+		var shown := _start_depth
+		if Reach.running:
+			shown = Reach.depth
+		_odds_lbl.text = Reach.preview_line(shown)
+	_depart.disabled = depart_disabled()
 	_depart.text = "Depart"
+	var debug := has_node("/root/Reach") and Reach.debug_tools()
+	if _skip_btn:
+		_skip_btn.visible = debug
+		_rush_btn.visible = debug
+		_rush_btn.button_pressed = Reach.rush if debug else false
 	_lantern_lbl.text = _lantern_line()
 
 
+func _on_reach_changed() -> void:
+	if shell_open():
+		_refresh_shell()
+	_apply_lantern()
+
+
 func _on_keeper() -> void:
-	if _party.has("keeper") and _party.size() > 1:
-		_party.erase("keeper")
-	elif not _party.has("keeper"):
-		_party.append("keeper")
+	_party = ["keeper"]
 	_refresh_shell()
 
 
 func _on_elaia() -> void:
-	if not GameState.elaia_in_party():
-		_refresh_shell()
-		return
-	if _party.has("elaia"):
-		if _party.size() > 1:
-			_party.erase("elaia")
-	else:
-		_party.append("elaia")
+	_party = ["keeper"]
 	_refresh_shell()
 
 
 func _on_route() -> void:
-	if not GameState.echo_02_resolved:
-		_route = ""
-	elif _route == "east":
-		_route = ""
-	else:
-		_route = "east"
+	_refresh_shell()
+
+
+func _on_depth(step: int) -> void:
+	var cap := 1
+	if has_node("/root/Reach"):
+		cap = Reach.max_start_depth()
+	_start_depth = clampi(_start_depth + step, 1, cap)
+	_refresh_shell()
+
+
+func _on_hours() -> void:
+	var steps: Array[int] = [1, 2, 4, 8]
+	var idx := steps.find(_hours)
+	_hours = steps[(idx + 1) % steps.size()] if idx >= 0 else 1
+	_refresh_shell()
+
+
+func _on_pace(mode: String) -> void:
+	if has_node("/root/Reach") and Reach.running:
+		Reach.pace = "push" if mode == "push" else "hold"
+	_pace = "push" if mode == "push" else "hold"
+	_refresh_shell()
+
+
+func _on_control(mode: String) -> void:
+	_control = "manual" if mode == "manual" else "idle"
+	if has_node("/root/Reach") and Reach.running:
+		Reach.set_control(_control)
+	_refresh_shell()
+
+
+func _on_skip() -> void:
+	if has_node("/root/Reach"):
+		Reach.debug_skip_room()
+	_refresh_shell()
+
+
+func _on_rush() -> void:
+	if has_node("/root/Reach"):
+		Reach.set_rush(_rush_btn.button_pressed if _rush_btn else false)
 	_refresh_shell()
 
 
 func _on_depart() -> void:
-	## The button stays disabled. A direct call still does not leave the clearing.
-	try_depart()
+	var result := try_depart()
+	if result == "ok":
+		close_shell()
 
 
 func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, font_size: int, color: Color) -> Label:

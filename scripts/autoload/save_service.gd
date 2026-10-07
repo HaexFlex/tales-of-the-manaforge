@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 11 — crafting batches. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 12 — reach rooms. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -14,9 +14,9 @@ var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
 
-const SAVE_VERSION: int = 11
-## Accept one write ahead of this schema (plus legacy 4–10).
-const SAVE_VERSION_MAX_READ: int = 12
+const SAVE_VERSION: int = 12
+## Accept one write ahead of this schema (plus legacy 4–11).
+const SAVE_VERSION_MAX_READ: int = 13
 const SAVE_SLOT_COUNT: int = 7
 const AUTOSAVE_SLOT_COUNT: int = 3
 const AUTOSAVE_THROTTLE_SEC: float = 60.0
@@ -459,6 +459,8 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v10(out)
 	if from_version < 11:
 		_migrate_v11(out)
+	if from_version < 12:
+		_migrate_v12(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -493,6 +495,37 @@ func _migrate_v11(out: Dictionary) -> void:
 	var workers: Dictionary = workers_v if typeof(workers_v) == TYPE_DICTIONARY else {}
 	if has_node("/root/ForgeJobs"):
 		out["forge_jobs"] = ForgeJobs.migrate_saved_jobs(jobs_v as Dictionary, workers)
+
+
+func _migrate_v12(out: Dictionary) -> void:
+	## Reach rooms. Missing block is a fresh road: nothing cleared, nobody out.
+	var reach_v: Variant = out.get("reach", {})
+	if typeof(reach_v) == TYPE_DICTIONARY and (reach_v as Dictionary).has("reaches_cleared"):
+		return
+	var blank: Dictionary = {}
+	if has_node("/root/Reach"):
+		blank = Reach.default_save_fields()
+	else:
+		blank = {
+			"deepest_depth": 0,
+			"reaches_cleared": 0,
+			"dojo_exp": 0,
+			"briarwood": 0,
+			"herbs": 0,
+			"heart_salve": 0,
+			"bile_vial": 0,
+			"running": false,
+			"pace": "hold",
+			"control": "idle",
+			"depth": 1,
+			"hours": 1.0,
+			"elapsed": 0.0,
+			"room_left": 0.0,
+			"phase": "home",
+			"run_clears": 0,
+			"salve_used": false,
+		}
+	out["reach"] = blank
 
 
 func _infer_forge_visited(out: Dictionary) -> bool:
@@ -629,7 +662,11 @@ func _apply_offline_catchup(root: Dictionary) -> void:
 	var closed: float = Time.get_unix_time_from_system() - ts
 	if closed < 1.0:
 		return
-	ForgeJobs.apply_saved_offline_gap(closed)
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.apply_saved_offline_gap(closed)
+	## Road time is the raw gap. Play speed does not stretch a closed game.
+	if has_node("/root/Reach"):
+		Reach.apply_offline_seconds(closed)
 
 
 func _migrate_equipped_key_to_inventory(out: Dictionary) -> void:

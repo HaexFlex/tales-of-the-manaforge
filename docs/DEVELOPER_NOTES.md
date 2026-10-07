@@ -70,7 +70,14 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `THORN_PATH_LOCKED_OK` | The north thorn wall blocks the road until Bramble is passed. An early click shows the tease line. |
 | `THORN_PATH_OPENS_OK` | Spare and defeat both open the road, play `sfx_path_open`, and drop the centre gate. The side hedges stay. |
 | `BRAMBLE_ECHO_FEE_OK` | Bramble's fee is an Anvil weapon plus 50 Essence. Flee keeps the fee. A loss clears it. |
-| `EXPEDITION_BOARD_SHELL_OK` | The trailhead board picks a party and a road. Depart stays disabled and does not start a reach. |
+| `EXPEDITION_BOARD_SHELL_OK` | The trailhead board picks the Keeper and the open road. Depart stays disabled while the road is shut. |
+| `REACH_IDLE_ROLL_OK` | Idle rooms roll d20 + bonus against 6. Natural 20 clears, natural 1 fails. Offline catch-up of a run stays at 1× while the speed button is at 8×. |
+| `REACH_FAIL_REST_OK` | A failed room grants nothing, then rests 24 minutes, then opens the next room. |
+| `REACH_PUSH_STOP_OK` | Push stops and switches to Hold when the next room's clear chance drops below 75%. |
+| `REACH_DEPTH_ASCEND_OK` | Deepest depth, the lifetime reach counter, and the dojo pool survive Ascension. A new game clears them. |
+| `REACH_MANUAL_DEFEAT_OK` | A manual defeat loses the room and returns to the trailhead with no rest and no reward. |
+| `REACH_REWARDS_OK` | Briarwood and herbs are 0–1 at 50% and do not scale with depth. Exp goes to the dojo pool. Rooms grant no Essence. |
+| `REACH_MIGRATION_OK` | A version 11 save gains an empty reach block. New saves write version 12. |
 | `SPEED_BUTTON_OK` | The player speed button is 1×, 2×, 4×, 8× during an open session, including the Stable HUD. Offline and idle catch-up stay on the 1× curve at 8×. The value is not in the save. Launch resets it. The debug 16× button is unchanged. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.

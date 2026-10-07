@@ -59,7 +59,7 @@ var echo_02_resolved: bool = false
 ## "" | spare | defeat | flee | ko. Spare and defeat open the east road.
 var echo_02_outcome: String = ""
 var echo_02_narrator_heard: bool = false
-## Expedition board lantern. dark | amber | cyan. The shell does not start a reach.
+## Expedition board lantern. dark | amber | cyan. Amber is a run out, cyan is done.
 var expedition_lantern: String = "dark"
 ## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
 var arrow_mode: String = "physical"
@@ -1548,6 +1548,8 @@ func ascend() -> void:
 	Backpack.on_ascend()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.finish_ascend(forge_snap)
+	if has_node("/root/Reach"):
+		Reach.on_ascend()
 	## Combat ranks and battle gear persist. The soft Manashard bank above is already 0.
 	if has_node("/root/KeeperStats"):
 		KeeperStats.on_ascend()
@@ -1635,7 +1637,9 @@ func to_save_dict() -> Dictionary:
 		"arrow_mode": arrow_mode,
 		"ancient_frozen": ancient_frozen,
 		"forge_visited": forge_visited,
-	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {})
+	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {}).merged(
+		Reach.capture_save_fields() if has_node("/root/Reach") else {}
+	)
 
 
 func apply_save_dict(data: Dictionary) -> void:
@@ -1767,6 +1771,9 @@ func apply_save_dict(data: Dictionary) -> void:
 			Equipment.ensure_forge_key_from_load()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.apply_save_fields(data)
+	if has_node("/root/Reach"):
+		var reach_v: Variant = data.get("reach", {})
+		Reach.apply_save_fields(reach_v if typeof(reach_v) == TYPE_DICTIONARY else {})
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()
@@ -1900,6 +1907,8 @@ func reset_for_new_game() -> void:
 		Equipment.reset_for_new_game()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.reset_for_new_game()
+	if has_node("/root/Reach"):
+		Reach.reset_for_new_game()
 	wisps_changed.emit()
 	selection_changed.emit()
 	resources_changed.emit(&"wood", wood)
