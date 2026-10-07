@@ -76,7 +76,7 @@ func refresh() -> void:
 	var snap: Dictionary = Reach.fight_snapshot()
 	if snap.is_empty():
 		return
-	_title.text = "Depth %d" % int(snap.get("depth", 1))
+	_title.text = "Depth %d    %s" % [int(snap.get("depth", 1)), Reach.boss_line()]
 	_keeper_hp.text = "Keeper  %d / %d" % [int(snap.get("keeper_hp", 0)), int(snap.get("keeper_max", 1))]
 	var note := str(snap.get("telegraph", ""))
 	_telegraph.text = note if note != "" else " "

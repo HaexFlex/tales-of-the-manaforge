@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 12 — reach rooms. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 13 — reach boss room counter. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -14,9 +14,9 @@ var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
 
-const SAVE_VERSION: int = 12
-## Accept one write ahead of this schema (plus legacy 4–11).
-const SAVE_VERSION_MAX_READ: int = 13
+const SAVE_VERSION: int = 13
+## Accept one write ahead of this schema (plus legacy 4–12).
+const SAVE_VERSION_MAX_READ: int = 14
 const SAVE_SLOT_COUNT: int = 7
 const AUTOSAVE_SLOT_COUNT: int = 3
 const AUTOSAVE_THROTTLE_SEC: float = 60.0
@@ -461,6 +461,8 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v11(out)
 	if from_version < 12:
 		_migrate_v12(out)
+	if from_version < 13:
+		_migrate_v13(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -523,9 +525,26 @@ func _migrate_v12(out: Dictionary) -> void:
 			"room_left": 0.0,
 			"phase": "home",
 			"run_clears": 0,
+			"rooms_attempted": 0,
 			"salve_used": false,
 		}
 	out["reach"] = blank
+
+
+func _migrate_v13(out: Dictionary) -> void:
+	## Boss rooms are every 10th attempt of an expedition, not every 10th depth.
+	## An in-progress room counts as the first attempt. Older saves did not track the counter.
+	var reach_v: Variant = out.get("reach", {})
+	if typeof(reach_v) != TYPE_DICTIONARY:
+		return
+	var reach: Dictionary = (reach_v as Dictionary).duplicate(true)
+	if reach.has("rooms_attempted"):
+		return
+	var guessed := 0
+	if bool(reach.get("running", false)) and str(reach.get("phase", "")) == "idle_room":
+		guessed = 1
+	reach["rooms_attempted"] = guessed
+	out["reach"] = reach
 
 
 func _infer_forge_visited(out: Dictionary) -> bool:

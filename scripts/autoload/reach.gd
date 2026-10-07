@@ -2,7 +2,7 @@ extends Node
 ## Endless reach rooms. Idle rolls and manual fights share one outing.
 ## Offline catch-up of an open run uses raw closed seconds. Play speed never multiplies it.
 ## The locked draft's Fate term, every-5 start checkpoints, room twists, crates, and Amberbind are not in this pass.
-## Any unlocked depth can be started. Every 10th depth is still a champion room.
+## Any unlocked depth can be started. Every 10th room attempted in an expedition is a boss at that room's depth.
 
 signal changed
 
@@ -32,6 +32,8 @@ var elapsed: float = 0.0
 var room_left: float = 0.0
 var phase: String = "home"
 var run_clears: int = 0
+## Rooms begun this expedition, cleared or failed. Room 10, 20, 30… is the boss. A new Depart starts at 0.
+var rooms_attempted: int = 0
 var salve_used: bool = false
 var rush: bool = false
 var test_pp: float = -1.0
@@ -164,6 +166,26 @@ func push_would_stop(room_depth: int) -> bool:
 	return clear_chance(preview_bonus(room_depth)) < PUSH_STOP
 
 
+func is_boss_room() -> bool:
+	return rooms_attempted > 0 and rooms_attempted % 10 == 0
+
+
+func rooms_until_boss() -> int:
+	## While the boss room is open this is 0. Otherwise it is how many rooms remain through that boss.
+	var entered := rooms_attempted
+	if running and (phase == "idle_room" or phase == "manual") and is_boss_room():
+		return 0
+	if entered % 10 == 0:
+		return 10
+	return 10 - (entered % 10)
+
+
+func boss_line() -> String:
+	if rooms_until_boss() == 0:
+		return "Boss room"
+	return "Rooms until boss: %d" % rooms_until_boss()
+
+
 func set_test_pp(value: float) -> void:
 	test_pp = value
 
@@ -197,6 +219,7 @@ func depart(start_depth: int, length_hours: float, pace_mode: String, control_mo
 	running = true
 	elapsed = 0.0
 	run_clears = 0
+	rooms_attempted = 0
 	_home_after_fight = false
 	salve_used = false
 	_begin_room()
@@ -352,6 +375,7 @@ func capture_save_fields() -> Dictionary:
 			"room_left": room_left,
 			"phase": saved_phase,
 			"run_clears": run_clears,
+			"rooms_attempted": rooms_attempted,
 			"salve_used": salve_used,
 		}
 	}
@@ -375,6 +399,7 @@ func apply_save_fields(data: Dictionary) -> void:
 	elapsed = maxf(0.0, float(data.get("elapsed", 0.0)))
 	room_left = maxf(0.0, float(data.get("room_left", 0.0)))
 	run_clears = maxi(0, int(data.get("run_clears", 0)))
+	rooms_attempted = maxi(0, int(data.get("rooms_attempted", 0)))
 	salve_used = bool(data.get("salve_used", false))
 	var saved_phase := str(data.get("phase", "home"))
 	running = bool(data.get("running", false))
@@ -407,6 +432,7 @@ func default_save_fields() -> Dictionary:
 		"room_left": 0.0,
 		"phase": "home",
 		"run_clears": 0,
+		"rooms_attempted": 0,
 		"salve_used": false,
 	}
 
@@ -441,7 +467,7 @@ func _roll_idle() -> bool:
 
 
 func _grant_room() -> void:
-	var mult := 2 if depth % 10 == 0 else 1
+	var mult := 2 if is_boss_room() else 1
 	briarwood += _next_drop() * mult
 	herbs += _next_drop() * mult
 	dojo_exp += room_exp(depth) * mult
@@ -462,6 +488,7 @@ func _advance_depth() -> void:
 
 
 func _begin_room() -> void:
+	rooms_attempted += 1
 	salve_used = false
 	mix = _roll_mix(SOLO_BUDGET if party_size <= 1 else 4.0)
 	room_left = ROOM_SEC
@@ -509,6 +536,7 @@ func _end_run(lantern: String) -> void:
 	running = false
 	phase = "home"
 	room_left = 0.0
+	rooms_attempted = 0
 	_home_after_fight = false
 	_fight = null
 	mix.clear()
@@ -539,7 +567,7 @@ func _roll_mix(budget: float) -> Array[String]:
 
 
 func _champion_index() -> int:
-	if depth % 10 != 0 or mix.is_empty():
+	if not is_boss_room() or mix.is_empty():
 		return -1
 	return 0
 

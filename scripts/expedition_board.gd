@@ -458,7 +458,7 @@ func _refresh_shell() -> void:
 		var shown := _start_depth
 		if Reach.running:
 			shown = Reach.depth
-		_odds_lbl.text = Reach.preview_line(shown)
+		_odds_lbl.text = "%s\n%s" % [Reach.preview_line(shown), Reach.boss_line()]
 	_depart.disabled = depart_disabled()
 	_depart.text = "Depart"
 	var debug := has_node("/root/Reach") and Reach.debug_tools()
