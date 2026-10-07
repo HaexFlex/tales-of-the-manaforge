@@ -95,6 +95,17 @@ func _run() -> void:
 			quit(0)
 		return
 
+	# Echo 2 hub arch regression. The full suite still runs it after the adventure batch.
+	# MANAFORGE_ECHO2_PORTAL=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_ECHO2_PORTAL") == "1":
+		var echo2_only: int = await _echo2_portal_visible(tree_root, game_state, save_service)
+		if echo2_only > 0:
+			print("ECHO2_PORTAL_VISIBLE_FAIL: %d" % echo2_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH") == "1":
 		var reach_only: int = _reach_checks(tree_root, game_state, save_service)
 		if reach_only > 0:
@@ -2581,6 +2592,7 @@ func _run() -> void:
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+	failed += await _echo2_portal_visible(tree_root, game_state, save_service)
 	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 	failed += _reach_checks(tree_root, game_state, save_service)
 
@@ -6837,6 +6849,164 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	live.free()
 	game_state.call("reset_for_new_game")
 	equipment.call("reset_for_new_game")
+	return failed
+
+
+const _ECHO2_SAVE_SLOT: int = 6
+
+
+func _echo2_portal_visible(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Haex playtest at 247121f: after the first Anvil weapon, Echo 2's portal was an
+	## invisible, unclickable collision box. The hub arch hid itself after Elaia's Echo
+	## (it only knew Echo 1) and never came back for Bramble, while its walk body kept
+	## colliding. Drives the real path: Elaia done, Anvil job finishes, save + reload,
+	## right-click the arch, the Keeper walks in, the fee confirm opens, Yes enters Bramble.
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(echo != null and equipment != null and jobs != null and backpack != null and content_strings != null, "echo2 portal autoloads")
+	if failed > 0:
+		return failed
+	jobs.call("set_dev_speed_override", 1.0)
+	jobs.call("set_autosave_enabled", false)
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", _ECHO2_SAVE_SLOT)
+	save_service.set("boot_intent", "new")
+	game_state.set("welcome_shown", true)
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var portal: Area2D = live.get_node_or_null("World/EchoPortal") as Area2D if live else null
+	failed += _assert(portal != null, "hub has the Echo portal")
+	if portal == null:
+		if live:
+			live.free()
+		return failed
+	# State right after Elaia's Echo (Echo 1): Forge Key, no Anvil weapon yet.
+	game_state.set("ascensions", 1)
+	game_state.set("portal_unlocked", true)
+	game_state.set("portal_fee_paid", false)
+	game_state.set("echo_01_resolved", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("forge_key", true)
+	game_state.emit_signal("echo_flags_changed")
+	failed += _assert(not portal.visible and not portal.input_pickable, "arch is closed between Elaia and the first Anvil weapon")
+	failed += _assert(not bool(portal.call("walk_collision_enabled")), "a closed arch leaves no bare walk box")
+	failed += _assert(str(portal.call("begin_entry")) == "closed", "a closed arch does not open an Echo")
+	# First Anvil weapon through the real Anvil job.
+	backpack.call("set_count", "sapsteel", 24)
+	backpack.call("set_count", "heartwood_bits", 12)
+	backpack.call("set_count", "amberbind", 8)
+	game_state.call("set_resource", &"essence", 300)
+	failed += _assert(str(jobs.call("try_begin_job", "anvil", "rootsteel_edge")) == "ok", "first Anvil craft starts")
+	jobs.call("set_keeper_working", "anvil", true)
+	jobs.call("advance_seconds", 1200.0)
+	failed += _assert(bool(echo.call("owns_anvil_weapon")), "first Anvil craft finishes a weapon")
+	game_state.call("set_resource", &"essence", 50)
+	await physics_frame
+	await process_frame
+	failed += await _echo2_arch_ready(live, portal, "after the first Anvil craft")
+	# A save that is already portal-ready must restore the arch, live and on a fresh boot.
+	failed += _assert(bool(save_service.call("save_game", _ECHO2_SAVE_SLOT)), "save the portal-ready state")
+	game_state.call("reset_for_new_game")
+	failed += _assert(not portal.visible and not bool(portal.call("walk_collision_enabled")), "a new game closes the arch")
+	failed += _assert(bool(save_service.call("load_game", _ECHO2_SAVE_SLOT)), "load the portal-ready save")
+	await physics_frame
+	await process_frame
+	failed += await _echo2_arch_ready(live, portal, "after loading the save")
+	live.free()
+	save_service.set("boot_intent", "load")
+	save_service.set("boot_slot", _ECHO2_SAVE_SLOT)
+	save_service.set("boot_slot_kind", "manual")
+	live = await _echo2_boot_hub(tree_root)
+	portal = live.get_node_or_null("World/EchoPortal") as Area2D if live else null
+	failed += _assert(portal != null, "booted hub has the Echo portal")
+	if portal == null:
+		if live:
+			live.free()
+		save_service.call("delete_slot", _ECHO2_SAVE_SLOT)
+		game_state.call("reset_for_new_game")
+		return failed
+	failed += await _echo2_arch_ready(live, portal, "on a boot from the save")
+	failed += _assert(int(game_state.get("essence")) == 50 and not bool(game_state.get("echo_02_fee_paid")), "save kept 50 Essence and no Bramble fee")
+	# Right-click the arch with the Keeper selected. The Keeper walks in and the fee confirm opens.
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(keeper != null, "keeper for the arch walk")
+	if keeper != null:
+		keeper.global_position = portal.global_position + Vector2(0, 110)
+		game_state.call("select_keeper")
+		await process_frame
+		var rmb := InputEventMouseButton.new()
+		rmb.button_index = MOUSE_BUTTON_RIGHT
+		rmb.pressed = true
+		portal.input_event.emit(tree_root, rmb, 0)
+		var opened: bool = false
+		for _step: int in 360:
+			await physics_frame
+			await process_frame
+			if bool(portal.call("is_fee_confirm_open")):
+				opened = true
+				break
+		failed += _assert(opened, "right-click walks the Keeper in and opens the fee confirm")
+		var title: Label = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Title") as Label
+		var yes_btn: Button = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Yes") as Button
+		var bramble_title: String = str(content_strings.call("get_text", "bramble_name"))
+		failed += _assert(title != null and title.text == bramble_title, "the arch confirm is Bramble's (got %s)" % (title.text if title else "none"))
+		failed += _assert(yes_btn != null and not yes_btn.disabled, "50 Essence enables Yes")
+		if opened and yes_btn != null:
+			yes_btn.pressed.emit()
+			await process_frame
+		failed += _assert(bool(echo.get("in_battle")) and str(echo.get("battle_context")) == "echo2", "Yes enters Bramble's Echo")
+		failed += _assert(int(game_state.get("essence")) == 0 and bool(game_state.get("echo_02_fee_paid")), "entry spends the 50 Essence Bramble fee")
+		failed += _assert(not bool(game_state.get("portal_fee_paid")), "Bramble entry does not touch Elaia's fee")
+		if bool(echo.get("in_battle")):
+			echo.call("dismiss_battle_without_reward")
+		await process_frame
+		failed += _assert(portal.visible and bool(portal.call("serves_bramble")), "arch stays open for a paid Bramble re-entry")
+		game_state.set("echo_02_resolved", true)
+		game_state.emit_signal("echo_flags_changed")
+		failed += _assert(not portal.visible and not bool(portal.call("walk_collision_enabled")), "arch closes once Bramble is resolved")
+	paused = false
+	live.free()
+	save_service.call("delete_slot", _ECHO2_SAVE_SLOT)
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("ECHO2_PORTAL_VISIBLE_OK")
+	return failed
+
+
+func _echo2_boot_hub(tree_root: Window) -> Node:
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed == null:
+		return null
+	var live: Node = packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	await physics_frame
+	return live
+
+
+func _echo2_arch_ready(live: Node, portal: Area2D, when: String) -> int:
+	var failed: int = 0
+	failed += _assert(portal.visible and portal.is_visible_in_tree(), "arch is visible %s" % when)
+	var marker: Sprite2D = portal.get_node_or_null("Visual/Marker") as Sprite2D
+	failed += _assert(marker != null and marker.texture != null and marker.is_visible_in_tree(), "arch sprite draws %s" % when)
+	if marker != null:
+		failed += _assert(marker.modulate.a > 0.5 and portal.modulate.a > 0.5, "arch sprite is opaque %s" % when)
+	failed += _assert(portal.input_pickable, "arch takes clicks %s" % when)
+	var pick: CollisionShape2D = portal.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var pick_rect: RectangleShape2D = pick.shape as RectangleShape2D if pick else null
+	failed += _assert(pick != null and not pick.disabled and pick_rect != null and pick_rect.size.x >= 100.0, "arch click area is live %s" % when)
+	failed += _assert(bool(portal.call("walk_collision_enabled")), "arch base still blocks walking %s" % when)
+	failed += _assert(bool(portal.call("serves_bramble")), "arch serves Bramble %s" % when)
+	var arch_mid: Vector2 = portal.global_position + Vector2(0, -100)
+	failed += _assert(bool(live.call("_interactable_under_point", arch_mid)), "a click on the arch hits it %s" % when)
 	return failed
 
 

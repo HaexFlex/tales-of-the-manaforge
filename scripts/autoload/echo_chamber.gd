@@ -85,7 +85,23 @@ func echo_display_name() -> String:
 
 
 func portal_visible() -> bool:
+	## Elaia's half of the hub portal. Use hub_portal_context() for the arch itself.
 	return GameState.portal_unlocked and not GameState.echo_01_resolved
+
+
+func hub_portal_context() -> String:
+	## Which Echo the hub portal arch opens right now. One arch serves both:
+	## "echo1" while Elaia is unresolved, then "echo2" once the first Anvil weapon
+	## exists and Bramble is unresolved. "" hides the arch (and its walk box).
+	if portal_visible():
+		return "echo1"
+	if GameState.echo_01_resolved and bramble_gate_open():
+		return "echo2"
+	return ""
+
+
+func hub_portal_open() -> bool:
+	return hub_portal_context() != ""
 
 
 func try_pay_fee() -> String:

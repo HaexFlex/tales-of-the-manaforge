@@ -70,6 +70,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `THORN_PATH_LOCKED_OK` | The north thorn wall blocks the road until Bramble is passed. An early click shows the tease line. |
 | `THORN_PATH_OPENS_OK` | Spare and defeat both open the road, play `sfx_path_open`, and drop the centre gate. The side hedges stay. |
 | `BRAMBLE_ECHO_FEE_OK` | Bramble's fee is an Anvil weapon plus 50 Essence. Flee keeps the fee. A loss clears it. |
+| `ECHO2_PORTAL_VISIBLE_OK` | The hub portal arch closes after Elaia's Echo and leaves no bare walk box. After the first Anvil craft it comes back for Bramble: visible sprite, live click area, and a right-click walks the Keeper in, opens Bramble's 50 Essence confirm, and enters Echo 2. A save already in that state restores the arch, both on load and on a fresh boot. `MANAFORGE_ECHO2_PORTAL=1` runs it alone. |
 | `EXPEDITION_BOARD_SHELL_OK` | The trailhead board picks the Keeper and the open road. Depart stays disabled while the road is shut. |
 | `REACH_IDLE_ROLL_OK` | Idle rooms roll d20 + bonus against 6. Natural 20 clears, natural 1 fails. Offline catch-up of a run stays at 1× while the speed button is at 8×. |
 | `REACH_FAIL_REST_OK` | A failed room grants nothing, then rests 24 minutes, then opens the next room. |
