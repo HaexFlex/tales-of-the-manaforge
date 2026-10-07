@@ -85,6 +85,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_SPEED_BUTTON") == "1":
+		var speed_only: int = await _speed_button_ok(tree_root, game_state, save_service, game_audio)
+		if speed_only > 0:
+			print("SPEED_BUTTON_FAIL: %d" % speed_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
 		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
 		if elaia_failed > 0:
@@ -2562,6 +2571,7 @@ func _run() -> void:
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -6817,3 +6827,113 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	game_state.call("reset_for_new_game")
 	equipment.call("reset_for_new_game")
 	return failed
+
+
+func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, game_audio: Node) -> int:
+	## Player speed is 1/2/4/8 during an open session. Offline and idle catch-up stay on the 1x curve.
+	var failed: int = 0
+	var session_was: bool = bool(save_service.get("session_active"))
+	var scale_was: float = Engine.time_scale
+	var run0: float = float(game_state.get("run_time_sec"))
+	var idle0: float = float(game_state.get("active_since_load_sec"))
+	game_state.call("reset_play_speed")
+	failed += _assert(int(game_state.get("play_speed")) == 1, "launch speed is 1x")
+	game_state.call("set_play_speed", 16)
+	failed += _assert(int(game_state.get("play_speed")) == 1, "play speed has no 16x step")
+	game_state.call("set_play_speed", 8)
+	failed += _assert(int(game_state.get("play_speed")) == 8, "button reaches 8x")
+	failed += _assert(is_equal_approx(Engine.time_scale, scale_was), "play speed leaves the debug time scale alone")
+	save_service.set("session_active", false)
+	failed += _assert(is_equal_approx(float(game_state.call("active_play_delta", 1.0)), 1.0), "a closed session stays 1x at 8x")
+	save_service.set("session_active", true)
+	failed += _assert(is_equal_approx(float(game_state.call("active_play_delta", 1.0)), 8.0), "open play uses 8x")
+	game_state.call("advance_open_play", 1.0)
+	failed += _assert(is_equal_approx(float(game_state.get("run_time_sec")) - run0, 8.0), "open frame advances play at 8x")
+	failed += _assert(is_equal_approx(float(game_state.get("active_since_load_sec")) - idle0, 1.0), "idle clock stays 1x at 8x")
+	var curve: float = float(game_state.call("offline_effective_seconds", 1800.0))
+	var idle: float = float(game_state.call("idle_catch_up_seconds", 1800.0))
+	failed += _assert(is_equal_approx(curve, 180.0), "30 min offline curve is 180s at 1x (got %s)" % curve)
+	failed += _assert(is_equal_approx(idle, curve), "idle catch-up matches the 1x curve")
+	var eight_hours: float = float(game_state.call("offline_effective_seconds", 1800.0 * 8.0))
+	failed += _assert(not is_equal_approx(curve, eight_hours), "8x must not stretch the offline curve")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for offline catch-up")
+	if jobs != null:
+		var off: Dictionary = jobs.call("apply_offline_seconds", 1800.0)
+		failed += _assert(is_equal_approx(float(off.get("effective_sec", -1.0)), curve), "offline catch-up stays 1x at 8x")
+		var fields: Dictionary = jobs.call("capture_save_fields")
+		failed += _assert(not fields.has("play_speed"), "forge save has no play speed")
+	var blob: Dictionary = game_state.call("to_save_dict")
+	failed += _assert(not blob.has("play_speed"), "play speed is not in the save")
+	failed += _assert(JSON.stringify(blob).find("play_speed") < 0, "save text has no play speed")
+	game_audio.call("save_settings")
+	var cfg := ConfigFile.new()
+	var cfg_err: Error = cfg.load("user://manaforge_settings.cfg")
+	failed += _assert(cfg_err == OK, "settings file loads")
+	if cfg_err == OK:
+		failed += _assert(not cfg.has_section_key("audio", "play_speed"), "settings do not store play speed")
+	var title_src: String = FileAccess.get_file_as_string("res://scripts/title_screen.gd")
+	var state_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_state.gd")
+	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _assert(title_src.find("reset_play_speed()") >= 0, "title launch resets play speed")
+	failed += _assert(state_src.find("reset_play_speed()") >= 0, "autoload launch resets play speed")
+	failed += _assert(hud_src.find("[1, 2, 4, 8, 16]") >= 0, "debug speed still cycles to 16x")
+	failed += _assert(bool(game_state.call("play_speed_in_stable")), "play speed ships in Stable")
+	var stable_body: String = _func_body(state_src, "func play_speed_in_stable")
+	failed += _assert(stable_body.find("manaforge") < 0, "stable inclusion is not feature-gated")
+	var ensure_body: String = _func_body(hud_src, "func _ensure_play_speed_button")
+	failed += _assert(ensure_body.find("PlaySpeedButton") >= 0, "HUD builds the play speed button")
+	failed += _assert(ensure_body.find("manaforge") < 0, "play speed button is not stripped for Stable")
+	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
+	var stable: Dictionary = presets.get(_STABLE_PRESET, {}) as Dictionary
+	var stable_exclude: PackedStringArray = _exclude_tokens(str(stable.get("exclude", "")))
+	for shipped: String in ["scripts/hud.gd", "scenes/hud.tscn", "scripts/autoload/game_state.gd", "assets/art/ui/buttons/speed_1x_normal.png", "assets/art/ui/buttons/speed_8x_normal.png"]:
+		failed += _assert(not _preset_excludes(stable_exclude, shipped), "stable ships %s" % shipped)
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(packed != null, "hud scene")
+	if packed != null:
+		var hud: Node = packed.instantiate()
+		tree_root.add_child(hud)
+		await process_frame
+		var btn: TextureButton = hud.find_child("PlaySpeedButton", true, false) as TextureButton
+		failed += _assert(btn != null and btn.visible, "play speed button is on the HUD")
+		if btn != null:
+			failed += _assert(btn.tooltip_text == "8x", "button shows 8x (got %s)" % btn.tooltip_text)
+			btn.pressed.emit()
+			failed += _assert(int(game_state.get("play_speed")) == 1, "8x cycles back to 1x")
+		var debug_btn: TextureButton = hud.find_child("SpeedButton", true, false) as TextureButton
+		failed += _assert(debug_btn != null and debug_btn != btn, "debug speed button stays separate")
+		hud.free()
+	game_state.set("run_time_sec", run0)
+	game_state.set("active_since_load_sec", idle0)
+	game_state.call("reset_play_speed")
+	save_service.set("session_active", session_was)
+	Engine.time_scale = scale_was
+	if failed == 0:
+		print("SPEED_BUTTON_OK")
+	return failed
+
+
+func _func_body(source: String, signature: String) -> String:
+	var at: int = source.find(signature)
+	if at < 0:
+		return ""
+	var nxt: int = source.find("\nfunc ", at + signature.length())
+	if nxt < 0:
+		return source.substr(at)
+	return source.substr(at, nxt - at)
+
+
+func _preset_excludes(tokens: PackedStringArray, res_path: String) -> bool:
+	var path: String = res_path.trim_prefix("res://")
+	for token: String in tokens:
+		if token == path:
+			return true
+		if token.begins_with("*."):
+			if path.ends_with(token.substr(1)):
+				return true
+		elif token.ends_with("/*"):
+			var prefix: String = token.trim_suffix("*")
+			if path.begins_with(prefix):
+				return true
+	return false

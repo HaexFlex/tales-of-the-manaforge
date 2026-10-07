@@ -71,6 +71,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `THORN_PATH_OPENS_OK` | Spare and defeat both open the road, play `sfx_path_open`, and drop the centre gate. The side hedges stay. |
 | `BRAMBLE_ECHO_FEE_OK` | Bramble's fee is an Anvil weapon plus 50 Essence. Flee keeps the fee. A loss clears it. |
 | `EXPEDITION_BOARD_SHELL_OK` | The trailhead board picks a party and a road. Depart stays disabled and does not start a reach. |
+| `SPEED_BUTTON_OK` | The player speed button is 1×, 2×, 4×, 8× during an open session, including the Stable HUD. Offline and idle catch-up stay on the 1× curve at 8×. The value is not in the save. Launch resets it. The debug 16× button is unchanged. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 

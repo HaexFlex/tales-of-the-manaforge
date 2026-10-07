@@ -28,6 +28,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().paused = false
 	Engine.time_scale = 1.0
+	GameState.reset_play_speed()
 	GameAudio.play_hub_music()
 	_style_button(btn_continue)
 	_style_button(btn_new)
