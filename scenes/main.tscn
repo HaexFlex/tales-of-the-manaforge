@@ -436,10 +436,10 @@ texture_mode = 1
 joint_mode = 2
 begin_cap_mode = 2
 end_cap_mode = 2
-[node name="StoneToThornFork" type="Line2D" parent="Paths"]
+[node name="StoneToResilience" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(3300, 1900, 3330, 2050, 3340, 2200)
+points = PackedVector2Array(3300, 1900, 3330, 2050, 3340, 2200, 3330, 2350, 3300, 2500)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -449,17 +449,7 @@ end_cap_mode = 2
 [node name="ThornTrail" type="Line2D" parent="Paths"]
 texture_filter = 1
 texture_repeat = 2
-points = PackedVector2Array(3340, 2200, 3450, 2110, 3560, 2085, 3620, 2083)
-width = 48.0
-texture = ExtResource("20_path")
-texture_mode = 1
-joint_mode = 2
-begin_cap_mode = 2
-end_cap_mode = 2
-[node name="ThornForkToResilience" type="Line2D" parent="Paths"]
-texture_filter = 1
-texture_repeat = 2
-points = PackedVector2Array(3340, 2200, 3330, 2350, 3300, 2500)
+points = PackedVector2Array(2000, 1000, 2060, 880, 2108, 760, 2140, 690)
 width = 48.0
 texture = ExtResource("20_path")
 texture_mode = 1
@@ -797,13 +787,13 @@ monitorable = false
 script = ExtResource("12_2wyq8")
 [node name="ThornWall" type="Area2D" parent="World" instance=ExtResource("29_thorn")]
 y_sort_enabled = true
-position = Vector2(3720, 2090)
+position = Vector2(2140, 620)
 [node name="ExpeditionBoard" type="Area2D" parent="World" instance=ExtResource("30_board")]
 y_sort_enabled = true
-position = Vector2(3570, 2035)
+position = Vector2(2304, 780)
 [node name="BrambleWarden" type="Area2D" parent="World" instance=ExtResource("31_warden")]
 y_sort_enabled = true
-position = Vector2(3448, 2068)
+position = Vector2(1968, 920)
 [node name="Decor_1976" type="Node2D" parent="World" unique_id=2131868752 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
 position = Vector2(3450.1714, 1752.4275)
@@ -878,7 +868,7 @@ sprite_scale = 1.0
 metadata/prop_kind = "decor"
 [node name="Decor_1985" type="Node2D" parent="World" unique_id=619265586 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(3488, 1992)
+position = Vector2(3552.3508, 2030.2993)
 script = ExtResource("14_2f3dj")
 texture_path = "res://assets/art/hub/ground/grass_tuft_02.png"
 prop_kind = "decor"
@@ -1480,7 +1470,7 @@ ground_deco = true
 metadata/prop_kind = "ground"
 [node name="GroundDeco_0044" type="Node2D" parent="World" unique_id=2146319893 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(2079.7457, 813.4414)
+position = Vector2(2010, 790)
 script = ExtResource("14_2f3dj")
 texture_path = "res://assets/art/hub/ground/grass_tuft_08.png"
 prop_kind = "ground"
@@ -7310,32 +7300,6 @@ prop_kind = "tree"
 collider_size = Vector2(25.6, 16)
 metadata/prop_kind = "tree"
 metadata/collider_size = Vector2(25.6, 16)
-[node name="EdgeTree_0419" type="Node2D" parent="World" unique_id=2146320572 instance=ExtResource("13_vxglm")]
-y_sort_enabled = true
-position = Vector2(2252.0000, 621.9200)
-script = ExtResource("14_2f3dj")
-texture_path = "res://assets/art/hub/trees/sized/ring_tree_tall_02_s095.png"
-sprite_scale = 1.0
-sprite_modulate = Color(1.03, 1.03, 1.03, 1)
-prop_kind = "tree"
-collider_size = Vector2(20.5, 16)
-metadata/prop_kind = "tree"
-metadata/collider_size = Vector2(20.5, 16)
-[node name="Sprite" parent="World/EdgeTree_0419" index="0"]
-flip_h = true
-[node name="EdgeTree_0420" type="Node2D" parent="World" unique_id=2146320573 instance=ExtResource("13_vxglm")]
-y_sort_enabled = true
-position = Vector2(2139.0346, 583.5472)
-script = ExtResource("14_2f3dj")
-texture_path = "res://assets/art/hub/trees/ring_tree_conifer_01.png"
-sprite_scale = 1.0
-sprite_modulate = Color(1.03, 1.03, 1.03, 1)
-prop_kind = "tree"
-collider_size = Vector2(36, 16)
-metadata/prop_kind = "tree"
-metadata/collider_size = Vector2(36, 16)
-[node name="Sprite" parent="World/EdgeTree_0420" index="0"]
-flip_h = true
 [node name="EdgeTree_0421" type="Node2D" parent="World" unique_id=2146320574 instance=ExtResource("13_vxglm")]
 y_sort_enabled = true
 position = Vector2(3656.9529, 1485.8843)
@@ -12151,7 +12115,7 @@ prop_kind = "bush"
 metadata/prop_kind = "bush"
 [node name="ArtBush_0020" type="Node2D" parent="World" unique_id=1610001020 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(2090.7045, 633.4477)
+position = Vector2(2040, 740)
 script = ExtResource("14_2f3dj")
 texture_path = "res://assets/art/hub/bushes/ring_bush_bloom_01.png"
 sprite_scale = 1.0
@@ -12159,7 +12123,7 @@ prop_kind = "bush"
 metadata/prop_kind = "bush"
 [node name="ArtBush_0021" type="Node2D" parent="World" unique_id=1610001021 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(2156.1615, 651.3869)
+position = Vector2(2520, 720)
 script = ExtResource("14_2f3dj")
 texture_path = "res://assets/art/hub/bushes/ring_bush_big_01.png"
 sprite_scale = 1.0
@@ -12167,7 +12131,7 @@ prop_kind = "bush"
 metadata/prop_kind = "bush"
 [node name="ArtBush_0022" type="Node2D" parent="World" unique_id=1610001022 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(2134.6698, 642.6572)
+position = Vector2(1920, 780)
 script = ExtResource("14_2f3dj")
 texture_path = "res://assets/art/hub/bushes/ring_bush_big_02.png"
 sprite_scale = 1.0
@@ -12175,7 +12139,7 @@ prop_kind = "bush"
 metadata/prop_kind = "bush"
 [node name="ArtBush_0023" type="Node2D" parent="World" unique_id=1610001023 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(2206.9366, 685.6226)
+position = Vector2(2460, 860)
 script = ExtResource("14_2f3dj")
 texture_path = "res://assets/art/hub/bushes/ring_bush_low_01.png"
 sprite_scale = 1.0

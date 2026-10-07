@@ -15,8 +15,9 @@ const CYAN_FRAMES: PackedStringArray = [
 	"res://assets/art/props/expedition_board/expedition_board_cyan_0004.png",
 ]
 const EXCLAIM_ART: String = "res://assets/art/props/expedition_board/board_exclaim.png"
-const SPRITE_SIZE: Vector2 = Vector2(64, 80)
-const WALK_BOX: Vector2 = Vector2(64, 27)
+const FEET: Vector2 = Vector2(64, 135)
+const WALK_BOX: Vector2 = Vector2(128, 45)
+const EXCLAIM_OFFSET: Vector2 = Vector2(-5, -151)
 const AMBER_FRAME_SEC: float = 0.10
 const CYAN_FRAME_SEC: float = 0.15
 const ENTRY_OFFSET: Vector2 = Vector2(0, 28)
@@ -70,21 +71,21 @@ func _fit_art() -> void:
 	if sprite:
 		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		sprite.centered = false
-		sprite.offset = Vector2(-SPRITE_SIZE.x * 0.5, -SPRITE_SIZE.y)
+		sprite.offset = Vector2(-FEET.x, -FEET.y)
 	if exclaim:
 		exclaim.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		exclaim.centered = false
-		## Top-left sits 3px left of the feet and 6px above the roof peak.
-		exclaim.position = Vector2(-3, -86)
+		## Top-left of the mark, from the feet. board_info_v2.
+		exclaim.position = EXCLAIM_OFFSET
 		if ResourceLoader.exists(EXCLAIM_ART):
 			exclaim.texture = load(EXCLAIM_ART) as Texture2D
 		exclaim.visible = false
 	var pick: CollisionShape2D = get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if pick and pick.shape is RectangleShape2D:
 		var rect: RectangleShape2D = (pick.shape as RectangleShape2D).duplicate() as RectangleShape2D
-		rect.size = Vector2(64, 70)
+		rect.size = Vector2(118, 129)
 		pick.shape = rect
-		pick.position = Vector2(0, -40)
+		pick.position = Vector2(0, -63.5)
 
 
 func _load_frames() -> void:
@@ -131,7 +132,7 @@ func _process(delta: float) -> void:
 	_frame_i = (_frame_i + 1) % frames.size()
 	sprite.texture = frames[_frame_i]
 	if exclaim and lantern_state() == "cyan":
-		exclaim.position = Vector2(-3, -86 - sin(_frame_i * 1.4))
+		exclaim.position = EXCLAIM_OFFSET + Vector2(0, -sin(_frame_i * 1.4))
 
 
 func lantern_state() -> String:

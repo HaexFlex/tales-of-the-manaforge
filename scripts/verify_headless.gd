@@ -6755,30 +6755,29 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	var board: Node2D = live.get_node_or_null("World/ExpeditionBoard") as Node2D
 	var warden: Node2D = live.get_node_or_null("World/BrambleWarden") as Node2D
 	var trail: Line2D = live.get_node_or_null("Paths/ThornTrail") as Line2D
-	var fork: Line2D = live.get_node_or_null("Paths/StoneToThornFork") as Line2D
-	var south: Line2D = live.get_node_or_null("Paths/ThornForkToResilience") as Line2D
-	var decor: Node2D = live.get_node_or_null("World/Decor_1985") as Node2D
+	var stone_path: Line2D = live.get_node_or_null("Paths/StoneToResilience") as Line2D
 	var before_locked: int = failed
-	failed += _assert(wall != null and wall.position.distance_to(Vector2(3720, 2090)) < 0.5, "thorn wall feet")
-	failed += _assert(bool(wall.call("collider_enabled")), "closed wall blocks feet")
+	failed += _assert(wall != null and wall.position.distance_to(Vector2(2140, 620)) < 0.5, "thorn wall feet")
+	failed += _assert(bool(wall.call("collider_enabled")), "closed wall blocks the centre")
+	failed += _assert(bool(wall.call("sides_blocked")), "hedge sides stay solid")
 	var box_v: Variant = wall.call("walk_box_size") if wall else Vector2.ZERO
 	var box: Vector2 = box_v
-	failed += _assert(abs(box.x - 192.0) < 0.5 and abs(box.y - 53.0) < 0.5, "wall walk box 192x53 (got %s)" % box)
+	failed += _assert(abs(box.x - 62.0) < 0.5 and abs(box.y - 19.0) < 0.5, "centre gate 62x19 (got %s)" % box)
 	failed += _assert(str(wall.call("begin_entry")) == "tease", "early click teases")
 	failed += _assert(trail != null and trail.get_point_count() == 4, "thorn trail points")
 	if trail:
-		failed += _assert(trail.get_point_position(0).distance_to(Vector2(3340, 2200)) < 0.5, "trail start")
-		failed += _assert(trail.get_point_position(3).distance_to(Vector2(3620, 2083)) < 0.5, "trail end")
-	failed += _assert(fork != null and south != null and live.get_node_or_null("Paths/StoneToResilience") == null, "StoneToResilience is split")
-	failed += _assert(decor != null and decor.position.distance_to(Vector2(3552.3508, 2030.2993)) > 20.0, "Decor_1985 moved off the board")
+		failed += _assert(trail.get_point_position(0).distance_to(Vector2(2000, 1000)) < 0.5, "trail start")
+		failed += _assert(trail.get_point_position(3).distance_to(Vector2(2140, 690)) < 0.5, "trail end")
+	failed += _assert(stone_path != null and stone_path.get_point_count() == 5, "StoneToResilience is one path again")
+	failed += _assert(live.get_node_or_null("Paths/StoneToThornFork") == null, "east fork is gone")
 	failed += _assert(not bool(game_state.get("echo_02_resolved")), "path starts closed")
 	if failed == before_locked:
 		print("THORN_PATH_LOCKED_OK")
 	var before_board: int = failed
-	failed += _assert(board != null and board.position.distance_to(Vector2(3570, 2035)) < 0.5, "board feet")
+	failed += _assert(board != null and board.position.distance_to(Vector2(2304, 780)) < 0.5, "board feet")
 	var board_box_v: Variant = board.call("walk_box_size") if board else Vector2.ZERO
 	var board_box: Vector2 = board_box_v
-	failed += _assert(abs(board_box.x - 64.0) < 0.5 and abs(board_box.y - 27.0) < 1.0, "board walk box")
+	failed += _assert(abs(board_box.x - 128.0) < 0.5 and abs(board_box.y - 45.0) < 1.0, "board walk box")
 	board.call("open_shell")
 	failed += _assert(bool(board.call("shell_open")), "expedition shell opens")
 	failed += _assert(bool(board.call("depart_disabled")), "Depart stays disabled")
@@ -6806,7 +6805,8 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	echo.call("finish_battle", "spare")
 	await process_frame
 	failed += _assert(bool(game_state.get("echo_02_resolved")), "spare resolved in the clearing")
-	failed += _assert(not bool(wall.call("collider_enabled")), "open wall drops the feet collider")
+	failed += _assert(not bool(wall.call("collider_enabled")), "open wall drops the centre gate")
+	failed += _assert(bool(wall.call("sides_blocked")), "open wall keeps the side hedges")
 	failed += _assert(bool(game_audio.call("did_play", &"sfx_path_open")), "path open plays sfx_path_open")
 	failed += _assert(warden != null and warden.visible, "spared Bramble watches the trailhead")
 	warden.call("on_interact", null)

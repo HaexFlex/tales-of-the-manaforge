@@ -1,6 +1,7 @@
 extends Area2D
-## East thorn gate. Closed until Bramble is spared or defeated.
-## Feet sit on the node origin. The walk box is the sprite width by a third of its height.
+## North thorn gate. Closed until Bramble is spared or defeated.
+## Feet sit on the node origin at canvas (110, 158). The side hedges always block.
+## The centre gap blocks only while the road is shut.
 
 const CLOSED_ART: String = "res://assets/art/props/thorn/thorn_wall_closed.png"
 const OPEN_ART: String = "res://assets/art/props/thorn/thorn_wall_open.png"
@@ -11,10 +12,9 @@ const RETREAT_FRAMES: PackedStringArray = [
 	"res://assets/art/props/thorn/thorn_wall_retreat_0004.png",
 	"res://assets/art/props/thorn/thorn_wall_retreat_0005.png",
 ]
-const SPRITE_SIZE: Vector2 = Vector2(192, 160)
-const WALK_BOX: Vector2 = Vector2(192, 53)
+const FEET: Vector2 = Vector2(110, 158)
 const FRAME_SEC: float = 0.1
-const ENTRY_OFFSET: Vector2 = Vector2(-78, 10)
+const ENTRY_OFFSET: Vector2 = Vector2(0, 36)
 
 @onready var sprite: Sprite2D = $Visual/Sprite
 @onready var label: Label = $Label
@@ -26,7 +26,9 @@ var _retreat_t: float = 0.0
 var _shown_open: bool = false
 var _booted: bool = false
 var _hovered: bool = false
-var _walk: CollisionShape2D
+var _left: CollisionShape2D
+var _right: CollisionShape2D
+var _centre: CollisionShape2D
 
 static var _layer: CanvasLayer
 static var _panel: Panel
@@ -65,13 +67,13 @@ func _fit_sprite() -> void:
 		return
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.centered = false
-	sprite.offset = Vector2(-SPRITE_SIZE.x * 0.5, -SPRITE_SIZE.y)
+	sprite.offset = Vector2(-FEET.x, -FEET.y)
 	var pick: CollisionShape2D = get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if pick and pick.shape is RectangleShape2D:
 		var rect: RectangleShape2D = (pick.shape as RectangleShape2D).duplicate() as RectangleShape2D
-		rect.size = Vector2(SPRITE_SIZE.x, 140)
+		rect.size = Vector2(209, 142)
 		pick.shape = rect
-		pick.position = Vector2(0, -80)
+		pick.position = Vector2(0.5, -70)
 
 
 func _load_retreat() -> void:
@@ -84,20 +86,33 @@ func _load_retreat() -> void:
 
 
 func _ensure_walk_body() -> void:
-	if get_node_or_null("WalkBody") != null:
-		_walk = get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
-		return
-	var body := StaticBody2D.new()
-	body.name = "WalkBody"
-	body.collision_layer = 1
-	body.collision_mask = 0
-	body.input_pickable = false
-	var shape_node := CollisionShape2D.new()
-	shape_node.name = "CollisionShape2D"
-	body.add_child(shape_node)
-	add_child(body)
-	FeetBox.apply_size(shape_node, WALK_BOX, Vector2.ZERO)
-	_walk = shape_node
+	var body: StaticBody2D = get_node_or_null("WalkBody") as StaticBody2D
+	if body == null:
+		body = StaticBody2D.new()
+		body.name = "WalkBody"
+		body.collision_layer = 1
+		body.collision_mask = 0
+		body.input_pickable = false
+		add_child(body)
+	_left = _foot_box(body, "Left", 6, 140, 83, 158)
+	_right = _foot_box(body, "Right", 146, 140, 214, 158)
+	_centre = _foot_box(body, "Centre", 84, 140, 145, 158)
+
+
+func _foot_box(body: StaticBody2D, node_name: String, x0: int, y0: int, x1: int, y1: int) -> CollisionShape2D:
+	var shape_node: CollisionShape2D = body.get_node_or_null(node_name) as CollisionShape2D
+	if shape_node == null:
+		shape_node = CollisionShape2D.new()
+		shape_node.name = node_name
+		body.add_child(shape_node)
+	var rect := RectangleShape2D.new()
+	var w: float = float(x1 - x0 + 1)
+	var h: float = float(y1 - y0 + 1)
+	rect.size = Vector2(w, h)
+	shape_node.shape = rect
+	shape_node.position = Vector2(float(x0) + w * 0.5 - FEET.x, float(y0) + h * 0.5 - FEET.y)
+	shape_node.disabled = false
+	return shape_node
 
 
 func _process(delta: float) -> void:
@@ -158,8 +173,9 @@ func _show_still(open: bool) -> void:
 
 
 func _set_walk_blocked(blocked: bool) -> void:
-	if _walk:
-		_walk.disabled = not blocked
+	## Left and right hedges stay. Only the centre knot drops when the road opens.
+	if _centre:
+		_centre.disabled = not blocked
 
 
 func path_is_open() -> bool:
@@ -167,13 +183,17 @@ func path_is_open() -> bool:
 
 
 func collider_enabled() -> bool:
-	return _walk != null and not _walk.disabled
+	return _centre != null and not _centre.disabled
+
+
+func sides_blocked() -> bool:
+	return _left != null and not _left.disabled and _right != null and not _right.disabled
 
 
 func walk_box_size() -> Vector2:
-	if _walk == null or not (_walk.shape is RectangleShape2D):
+	if _centre == null or not (_centre.shape is RectangleShape2D):
 		return Vector2.ZERO
-	return (_walk.shape as RectangleShape2D).size
+	return (_centre.shape as RectangleShape2D).size
 
 
 func _on_hover(inside: bool) -> void:

@@ -929,6 +929,22 @@ func _forest_seal(live: Node) -> int:
 				var cy: float = (float(gy) + 0.5) * cell
 				if cx >= rect.position.x and cy >= rect.position.y and cx <= rect.end.x and cy <= rect.end.y:
 					covered[Vector2i(gx, gy)] = true
+	var thorn: Node2D = live.get_node_or_null("World/ThornWall") as Node2D
+	if thorn:
+		## The north hedge stands in the gap left by the trees it replaced.
+		## The feet row shares a sample cell with the ground just south of the canvas.
+		rects.append(Rect2(thorn.position.x - 110.0, thorn.position.y - 158.0, 220.0, 176.0))
+		var tw: Rect2 = rects[rects.size() - 1]
+		var tx0: int = int(floor(tw.position.x / cell))
+		var ty0: int = int(floor(tw.position.y / cell))
+		var tx1: int = int(floor(tw.end.x / cell))
+		var ty1: int = int(floor(tw.end.y / cell))
+		for gx: int in range(tx0, tx1 + 1):
+			for gy: int in range(ty0, ty1 + 1):
+				var tx: float = (float(gx) + 0.5) * cell
+				var ty: float = (float(gy) + 0.5) * cell
+				if tx >= tw.position.x and ty >= tw.position.y and tx <= tw.end.x and ty <= tw.end.y:
+					covered[Vector2i(gx, gy)] = true
 	var holes: int = 0
 	var sx: float = 180.0
 	while sx <= 4140.0:
@@ -1017,12 +1033,12 @@ func _forest_seal(live: Node) -> int:
 
 
 func _on_thorn_corridor(at: Vector2) -> bool:
-	## The east road is an allowed mouth. It stops short of the map edge.
-	if at.x > 3860.0 or at.x < 3300.0 or at.y < 2000.0 or at.y > 2260.0:
+	## The north road is an allowed mouth. It stops short of the map edge.
+	if at.y < 540.0 or at.y > 1080.0 or at.x < 1880.0 or at.x > 2320.0:
 		return false
 	var pts: PackedVector2Array = PackedVector2Array([
-		Vector2(3340, 2200), Vector2(3450, 2110), Vector2(3560, 2085),
-		Vector2(3620, 2083), Vector2(3720, 2090),
+		Vector2(2000, 1000), Vector2(2060, 880), Vector2(2108, 760),
+		Vector2(2140, 690), Vector2(2140, 620),
 	])
 	for i: int in range(pts.size() - 1):
 		var a: Vector2 = pts[i]
