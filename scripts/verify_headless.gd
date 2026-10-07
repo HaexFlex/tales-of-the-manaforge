@@ -106,6 +106,17 @@ func _run() -> void:
 			quit(0)
 		return
 
+	# Board tease. The full suite still runs it after the Echo 2 arch check.
+	# MANAFORGE_BOARD_TEASE=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_BOARD_TEASE") == "1":
+		var tease_only: int = await _expedition_board_tease(tree_root, game_state, save_service)
+		if tease_only > 0:
+			print("EXPEDITION_BOARD_TEASE_FAIL: %d" % tease_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH") == "1":
 		var reach_only: int = _reach_checks(tree_root, game_state, save_service)
 		if reach_only > 0:
@@ -2593,6 +2604,7 @@ func _run() -> void:
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
 	failed += await _echo2_portal_visible(tree_root, game_state, save_service)
+	failed += await _expedition_board_tease(tree_root, game_state, save_service)
 	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 	failed += _reach_checks(tree_root, game_state, save_service)
 
@@ -7008,6 +7020,89 @@ func _echo2_arch_ready(live: Node, portal: Area2D, when: String) -> int:
 	var arch_mid: Vector2 = portal.global_position + Vector2(0, -100)
 	failed += _assert(bool(live.call("_interactable_under_point", arch_mid)), "a click on the arch hits it %s" % when)
 	return failed
+
+
+func _expedition_board_tease(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Haex playtest at 247121f: clicking the north board before Bramble was passed
+	## opened the shell silently. It must tease the shut road like the thorn wall
+	## (path_east_tease), and open the shell once the road is open.
+	var failed: int = 0
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(content_strings != null, "strings for the board tease")
+	if content_strings == null:
+		return failed
+	var tease: String = str(content_strings.call("get_text", "path_east_tease"))
+	failed += _assert(tease == "The thorns are knotted tight. Something is holding them shut.", "board reuses the wall tease line")
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	game_state.set("welcome_shown", true)
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var board: Area2D = live.get_node_or_null("World/ExpeditionBoard") as Area2D if live else null
+	var wall: Node = live.get_node_or_null("World/ThornWall") if live else null
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live else null
+	failed += _assert(board != null and wall != null and keeper != null, "board, wall and keeper in the hub")
+	if board == null or wall == null or keeper == null:
+		if live:
+			live.free()
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	var seen: Array[String] = []
+	var grab := func(text: String) -> void:
+		seen.append(text)
+	game_state.status_message.connect(grab)
+	failed += _assert(not bool(game_state.get("echo_02_resolved")), "road starts shut")
+	failed += _assert(str(wall.call("begin_entry")) == "tease" and seen.has(tease), "the wall teases with path_east_tease")
+	seen.clear()
+	# Right-click the board with the Keeper selected. The Keeper walks over and the tease shows.
+	var opened: bool = await _board_click(board, keeper, game_state, tree_root, seen, tease)
+	failed += _assert(seen.has(tease), "a shut-road board click shows path_east_tease (got %s)" % [seen])
+	failed += _assert(not opened and not bool(board.call("shell_open")), "a shut-road board click does not open the shell")
+	failed += _assert(str(board.call("begin_entry")) == "tease", "board begin_entry teases while the road is shut")
+	if bool(board.call("shell_open")):
+		board.call("close_shell")
+	# Bramble spared: the same click opens the shell, with no tease.
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "spare")
+	game_state.emit_signal("echo_flags_changed")
+	seen.clear()
+	opened = await _board_click(board, keeper, game_state, tree_root, seen, tease)
+	failed += _assert(opened and bool(board.call("shell_open")), "an open-road board click opens the shell")
+	failed += _assert(not seen.has(tease), "an open-road board click does not tease")
+	failed += _assert(not bool(board.call("depart_disabled")), "Depart is live once the road is open")
+	board.call("close_shell")
+	game_state.status_message.disconnect(grab)
+	live.free()
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("EXPEDITION_BOARD_TEASE_OK")
+	return failed
+
+
+func _board_click(board: Area2D, keeper: Node2D, game_state: Node, tree_root: Window, seen: Array[String], tease: String) -> bool:
+	## Returns true when the shell opened. Stops early on the tease line.
+	keeper.global_position = board.global_position + Vector2(0, 110)
+	if keeper.has_method("halt"):
+		keeper.call("halt")
+	game_state.call("select_keeper")
+	await process_frame
+	var rmb := InputEventMouseButton.new()
+	rmb.button_index = MOUSE_BUTTON_RIGHT
+	rmb.pressed = true
+	board.input_event.emit(tree_root, rmb, 0)
+	for _step: int in 360:
+		await physics_frame
+		await process_frame
+		if bool(board.call("shell_open")):
+			return true
+		if seen.has(tease):
+			# Give a wrong shell open a few frames to show up.
+			for _extra: int in 5:
+				await process_frame
+			return bool(board.call("shell_open"))
+	return bool(board.call("shell_open"))
 
 
 func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, game_audio: Node) -> int:

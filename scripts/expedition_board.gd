@@ -20,7 +20,10 @@ const WALK_BOX: Vector2 = Vector2(128, 45)
 const EXCLAIM_OFFSET: Vector2 = Vector2(-5, -151)
 const AMBER_FRAME_SEC: float = 0.10
 const CYAN_FRAME_SEC: float = 0.15
-const ENTRY_OFFSET: Vector2 = Vector2(0, 28)
+## Stand point south of the feet. The Keeper's feet box (41 px tall) stops against the
+## board's walk box at +41, so the stand must sit within ARRIVE_DIST of that contact.
+## At +28 the Keeper stopped 13 px short and never arrived, so a click did nothing.
+const ENTRY_OFFSET: Vector2 = Vector2(0, 44)
 
 @onready var sprite: Sprite2D = $Visual/Sprite
 @onready var exclaim: Sprite2D = $Visual/Exclaim
@@ -284,7 +287,23 @@ func apply_player_command() -> void:
 
 
 func on_interact(_keeper: Node) -> void:
+	begin_entry()
+
+
+func road_open() -> bool:
+	return GameState.echo_02_resolved
+
+
+func begin_entry() -> String:
+	## The click path. Until Bramble is spared or defeated the board teases the
+	## shut road, the same way the thorn wall does, instead of opening the shell.
+	if EchoChamber.in_battle:
+		return "blocked"
+	if not road_open():
+		GameState.status_message.emit(ContentStrings.get_text("path_east_tease"))
+		return "tease"
 	open_shell()
+	return "open"
 
 
 func open_shell() -> void:
