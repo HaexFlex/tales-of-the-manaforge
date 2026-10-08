@@ -103,7 +103,7 @@ Same tip, two presets in `export_presets.cfg`. Both keep `binary_format/embed_pc
 
 | Preset | Feature tag | What the pack contains |
 | --- | --- | --- |
-| `Windows Testing / Experimental` | `manaforge_debug` | Debug panel, four snapshot saves, AnimPreview, Ctrl+F8 and F9. Docs, archive, library, verify, and capture scripts stay out. `tools/*` is **not** excluded; the baker, scene sanity, and `tools/legacy/*` still are. |
+| `Windows Testing / Experimental` | `manaforge_debug` | Debug panel, eight snapshot saves, AnimPreview, Ctrl+F8 and F9. Docs, archive, library, verify, and capture scripts stay out. `tools/*` is **not** excluded; the baker, scene sanity, and `tools/legacy/*` still are. |
 | `Windows Release / Stable` | `manaforge_stable` | Today's stripped playtest. `tools/*` plus AnimPreview, the debug panel, and `tools/debug/snapshots/` by name. No debug panel, snapshots, or AnimPreview in the pack file table. |
 
 ```bash
