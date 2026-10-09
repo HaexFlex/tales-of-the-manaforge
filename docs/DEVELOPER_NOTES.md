@@ -86,6 +86,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `SAVE_NEWER_REFUSED_OK` | A save newer than this build is refused with a message naming both versions and leaves the game untouched. Continue skips it, and autosave never overwrites a newer autosave. `MANAFORGE_SAVE_NEWER=1` runs it alone. |
 | `REACH_TURN_ORDER_OK` | Manual turn order is Swiftness first, the Keeper on ties, then slot, even with 24 equal-speed foes and float noise. `MANAFORGE_TURN_ORDER=1` runs it alone. |
 | `DEBUG_SNAPSHOTS_MIGRATE_OK` | All eight debug snapshots load through `SaveService.migrate_state`, so the version 10 ones gain a current reach block. A newer snapshot is refused. `MANAFORGE_SNAPSHOT_MIGRATE=1` runs it alone. |
+| `BEAST_DATA_OK` | `data/beasts.json` holds the ten §10 species plus the dark imp and dark moth. Threat and roles recompute from the stats, HP is 10 + 3 × Vitality, variants follow the variant rule (tier 1 about +30%), every name has a string, and Briar Warden is now Briar Hulk. `MANAFORGE_BEAST_DATA=1` runs it alone. |
 | `SPEED_BUTTON_OK` | The player speed button is 1×, 2×, 4×, 8× during an open session, including the Stable HUD. Offline and idle catch-up stay on the 1× curve at 8×. The value is not in the save. Launch resets it. The debug 16× button is unchanged. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.

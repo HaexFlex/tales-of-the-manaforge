@@ -654,5 +654,17 @@
   "lantern_lit": "The lantern burns. Someone is out on the road.",
   "lantern_done": "The lantern flickers. They are home, and they brought something back.",
   "lantern_dark": "The lantern is dark. No one is out.",
-  "adventure_away": "They are out on the road. The Wisps keep the clearing."
+  "adventure_away": "They are out on the road. The Wisps keep the clearing.",
+  "beast_acorn_imp_name": "Acorn imp",
+  "beast_spore_moth_name": "Spore moth",
+  "beast_wilt_wisp_name": "Wilt Wisp",
+  "beast_root_snapper_name": "Root Snapper",
+  "beast_thorn_boar_name": "Thorn boar",
+  "beast_vine_serpent_name": "Vine serpent",
+  "beast_briar_hulk_name": "Briar Hulk",
+  "beast_moss_brute_name": "Moss Brute",
+  "beast_stump_ogre_name": "Stump ogre",
+  "beast_stag_spirit_name": "Stag spirit",
+  "beast_acorn_imp_dark_name": "Dark acorn imp",
+  "beast_spore_moth_dark_name": "Dark spore moth"
 }

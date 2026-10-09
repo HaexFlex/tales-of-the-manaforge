@@ -129,6 +129,16 @@ func _run() -> void:
 		return
 
 	# Bundle 1 regressions. The full suite runs them after the reach checks.
+	# Battle Bundle 2 data checks. The full suite runs them after the Bundle 1 regressions.
+	if OS.get_environment("MANAFORGE_BEAST_DATA") == "1":
+		var _beast_data_only: int = _beast_data(tree_root)
+		if _beast_data_only > 0:
+			print("BEAST_DATA_FAIL: %d" % _beast_data_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH_MIX") == "1":
 		var mix_only: int = _reach_mix_reload(tree_root, game_state, save_service)
 		if mix_only > 0:
@@ -2660,6 +2670,7 @@ func _run() -> void:
 	failed += _save_newer_refused(tree_root, game_state, save_service)
 	failed += _reach_turn_order()
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
+	failed += _beast_data(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -7913,4 +7924,115 @@ func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service:
 	game_state.call("reset_for_new_game")
 	if failed == 0:
 		print("DEBUG_SNAPSHOTS_MIGRATE_OK")
+	return failed
+
+
+func _json_dict(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+func _half_up(x: float) -> int:
+	## The battle draft rounds half up. Values here are never negative.
+	return floori(x + 0.5 + 0.000001)
+
+
+func _beast_threat(row: Dictionary, rule: Dictionary) -> Dictionary:
+	## Recompute a beast's roles and threat from its stats with the §10 rule in beasts.json.
+	var raw: int = 0
+	for stat_v: Variant in rule.get("stats", []) as Array:
+		raw += int(row.get(str(stat_v), 0)) * int(rule.get("per_stat_point", 1))
+	var roles: Array[String] = ["damage"]
+	var vit: int = int(row.get("vitality", 0))
+	var res_ward: float = float(int(row.get("resilience", 0)) + int(row.get("ward", 0))) / 2.0
+	if vit >= 12 or res_ward >= 8.0:
+		roles.append("tank")
+	var move: Variant = row.get("move", null)
+	if move is Dictionary:
+		var kind: String = str((move as Dictionary).get("kind", ""))
+		var level: int = 1
+		if kind == "poison":
+			level = maxi(1, _half_up(float((move as Dictionary).get("total", 0)) / 6.0))
+			roles.append("utility")
+		elif kind == "heavy":
+			level = maxi(1, _half_up(float((move as Dictionary).get("mult", 0.0))))
+		raw += int(rule.get("move_base", 5)) + level
+	var mult: float = pow(float(rule.get("role_mult", 1.1)), roles.size() - 1)
+	return {"threat": maxi(1, _half_up(float(raw) * mult)), "roles": roles}
+
+
+func _beast_data(_tree_root: Window) -> int:
+	## data/beasts.json carries the BATTLE_SCENE_DRAFT v4 §10 table. Threat recomputes to the table,
+	## HP is 10 + 3 x Vitality, the dark imp and moth follow the tier-1 variant rule, and every name
+	## has a string. Briar Warden is now Briar Hulk.
+	var failed: int = 0
+	var path: String = "res://data/beasts.json"
+	var data: Dictionary = _json_dict(path)
+	failed += _assert(not data.is_empty(), "beasts.json parses")
+	if data.is_empty():
+		return failed
+	var strings: Dictionary = _json_dict("res://data/strings_v01.json")
+	var rule: Dictionary = data.get("threat_rule", {}) as Dictionary
+	var hp_rule: Dictionary = data.get("hp_rule", {}) as Dictionary
+	# The §10 table, as Haex reviewed it: id -> [tier, from depth, threat, hp].
+	var table: Dictionary = {
+		"acorn_imp": [1, 1, 33, 37], "spore_moth": [1, 1, 45, 40],
+		"wilt_wisp": [2, 3, 47, 40], "root_snapper": [2, 3, 46, 43],
+		"thorn_boar": [3, 12, 54, 46], "vine_serpent": [3, 12, 58, 43],
+		"briar_hulk": [4, 18, 61, 49], "moss_brute": [4, 18, 63, 52],
+		"stump_ogre": [5, 22, 67, 55], "stag_spirit": [5, 22, 74, 52],
+	}
+	var by_id: Dictionary = {}
+	var species: Array = data.get("species", []) as Array
+	failed += _assert(species.size() == table.size(), "beasts.json lists the ten §10 species (got %d)" % species.size())
+	for row_v: Variant in species:
+		var row: Dictionary = row_v as Dictionary
+		var bid: String = str(row.get("id", ""))
+		by_id[bid] = row
+		failed += _assert(table.has(bid), "known species id %s" % bid)
+		if not table.has(bid):
+			continue
+		var want: Array = table[bid]
+		failed += _assert(int(row.get("tier", 0)) == int(want[0]) and int(row.get("from_depth", 0)) == int(want[1]), "%s tier and first depth" % bid)
+		failed += _assert(int(row.get("threat", 0)) == int(want[2]), "%s threat is the table's %d" % [bid, int(want[2])])
+		failed += _assert(int(row.get("hp", 0)) == int(want[3]), "%s HP is the table's %d" % [bid, int(want[3])])
+		failed += _assert(int(row.get("hp", 0)) == int(hp_rule.get("base", 10)) + int(hp_rule.get("per_vitality", 3)) * int(row.get("vitality", 0)), "%s HP = 10 + 3 x Vitality" % bid)
+		failed += _assert(int(row.get("fate", -1)) == 0, "%s has Fate 0" % bid)
+		failed += _assert(["physical", "magic"].has(str(row.get("attack", ""))), "%s attack type" % bid)
+		var re: Dictionary = _beast_threat(row, rule)
+		failed += _assert(int(re["threat"]) == int(row.get("threat", 0)), "%s threat recomputes (%d vs %d)" % [bid, int(re["threat"]), int(row.get("threat", 0))])
+		failed += _assert(str(re["roles"]) == str(row.get("roles", [])), "%s roles recompute" % bid)
+		failed += _assert(strings.has(str(row.get("name_key", ""))), "%s name string" % bid)
+	failed += _assert(str((by_id.get("briar_hulk", {}) as Dictionary).get("name", "")) == "Briar Hulk", "Briar Hulk is the name")
+	failed += _assert(FileAccess.get_file_as_string(path).to_lower().find("warden") < 0, "no Briar Warden left in beasts.json")
+	# Variants: tier 1 is about +30% (at least +1), poison x1.3 (at least +2). Others +50% / +2.
+	var vrule: Dictionary = data.get("variant_rule", {}) as Dictionary
+	var dark_want: Dictionary = {"acorn_imp_dark": [48, 46, 5], "spore_moth_dark": [62, 49, 5]}
+	var variants: Array = data.get("variants", []) as Array
+	failed += _assert(variants.size() == dark_want.size(), "two dark variants by depth 15 (got %d)" % variants.size())
+	for var_v: Variant in variants:
+		var vrow: Dictionary = var_v as Dictionary
+		var vid: String = str(vrow.get("id", ""))
+		var base: Dictionary = by_id.get(str(vrow.get("variant_of", "")), {}) as Dictionary
+		failed += _assert(not base.is_empty() and dark_want.has(vid), "variant %s has a known base" % vid)
+		if base.is_empty() or not dark_want.has(vid):
+			continue
+		var tier_rule: Dictionary = (vrule.get("tier_1", {}) if int(base.get("tier", 0)) == 1 else vrule.get("default", {})) as Dictionary
+		for stat_v: Variant in vrule.get("stats", []) as Array:
+			var b: int = int(base.get(str(stat_v), 0))
+			var want_stat: int = maxi(b + int(tier_rule.get("stat_min_add", 0)), _half_up(float(b) * float(tier_rule.get("stat_mult", 1.0))))
+			failed += _assert(int(vrow.get(str(stat_v), 0)) == want_stat, "%s %s follows the variant rule" % [vid, str(stat_v)])
+		var bmove: Variant = base.get("move", null)
+		if bmove is Dictionary and str((bmove as Dictionary).get("kind", "")) == "poison":
+			var bt: int = int((bmove as Dictionary).get("total", 0))
+			var want_p: int = maxi(bt + int(tier_rule.get("poison_min_add", 0)), _half_up(float(bt) * float(tier_rule.get("poison_mult", 1.0))))
+			failed += _assert(int(((vrow.get("move", {}) as Dictionary)).get("total", 0)) == want_p, "%s poison follows the variant rule" % vid)
+		failed += _assert(int(_beast_threat(vrow, rule)["threat"]) == int(vrow.get("threat", 0)), "%s threat recomputes" % vid)
+		failed += _assert(int(vrow.get("threat", 0)) == int(dark_want[vid][0]) and int(vrow.get("hp", 0)) == int(dark_want[vid][1]), "%s matches the §10 note" % vid)
+		failed += _assert(int(vrow.get("from_depth", 0)) == int(dark_want[vid][2]), "%s first spawns at depth 5" % vid)
+		failed += _assert(strings.has(str(vrow.get("name_key", ""))), "%s name string" % vid)
+	if failed == 0:
+		print("BEAST_DATA_OK")
 	return failed
