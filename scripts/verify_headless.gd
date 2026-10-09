@@ -202,6 +202,33 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_SAVE_V14_INVENTORY") == "1":
+		var inv_only: int = _save_v14_inventory_merge(tree_root, game_state, save_service)
+		if inv_only > 0:
+			print("SAVE_V14_INVENTORY_MERGE_FAIL: %d" % inv_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_V14_HOME") == "1":
+		var home_only: int = _save_v14_home(tree_root, game_state, save_service)
+		if home_only > 0:
+			print("SAVE_V14_HOME_FAIL: %d" % home_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_V14_FROM_MAIN") == "1":
+		var from_main_only: int = _save_v14_from_main(tree_root, game_state, save_service)
+		if from_main_only > 0:
+			print("SAVE_V14_FROM_MAIN_FAIL: %d" % from_main_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
 		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
 		if elaia_failed > 0:
@@ -376,7 +403,7 @@ func _run() -> void:
 		jobs.call("set_autosave_enabled", false)
 	failed += _assert(jobs != null, "ForgeJobs autoload missing")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 10, "expected 10 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION should be 13")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION should be 14")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -736,7 +763,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 13, "written save_version 13")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 14, "written save_version 14")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -969,7 +996,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION stays 13 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION stays 14 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -1799,7 +1826,7 @@ func _run() -> void:
 
 	# --- SYSTEMS v0.4.0: backpack, handcraft, tools, Grow, Keep Tools, can shard_roll ×2 ---
 	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
-	failed += _assert(int((backpack.get("items_data") as Array).size()) == 13, "13 backpack items")
+	failed += _assert(int((backpack.get("items_data") as Array).size()) == 17, "17 backpack items")
 	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
 	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
 	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
@@ -2135,7 +2162,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION is 13")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION is 14")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -2691,6 +2718,9 @@ func _run() -> void:
 	failed += _beast_data(tree_root)
 	failed += _spawn_data(tree_root)
 	failed += _strings_adventure_v4(tree_root)
+	failed += _save_v14_inventory_merge(tree_root, game_state, save_service)
+	failed += _save_v14_home(tree_root, game_state, save_service)
+	failed += _save_v14_from_main(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2947,7 +2977,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 13, "slot writes save_version 13")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 14, "slot writes save_version 14")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -7221,10 +7251,13 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	var echo: Node = tree_root.get_node_or_null("EchoChamber")
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	var equipment: Node = tree_root.get_node_or_null("Equipment")
-	failed += _assert(echo != null and reach != null and equipment != null, "autoloads for the reach snapshots")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(echo != null and reach != null and equipment != null and pack != null, "autoloads for the reach snapshots")
 	if failed > 0:
 		return failed
-	var want_version: int = int(save_service.get("SAVE_VERSION"))
+	## The four reach files stay version 13. migrate_state applies v14; do not re-save them.
+	var want_version: int = 13
+	failed += _assert(int(save_service.get("SAVE_VERSION")) > want_version, "v13 reach snapshots migrate forward")
 	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
 	for label: String in _REACH_SNAPSHOTS.keys():
 		var path: String = str(_REACH_SNAPSHOTS[label])
@@ -7265,7 +7298,7 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Veteran reacher"]), want_version, true)
 	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.call("max_start_depth")) == 25, "veteran: deepest depth 25")
 	failed += _assert(int(reach.get("reaches_cleared")) == 19, "veteran: reach counter 19")
-	failed += _assert(int(reach.get("briarwood")) > 0 and int(reach.get("herbs")) > 0 and int(reach.get("dojo_exp")) > 0, "veteran: Briarwood, herbs and dojo exp")
+	failed += _assert(int(pack.call("get_count", "briarwood")) > 0 and int(pack.call("get_count", "herbs")) > 0 and int(reach.get("dojo_exp")) > 0, "veteran: Briarwood, herbs and dojo exp")
 	failed += _assert(not bool(reach.get("running")) and bool(game_state.get("echo_02_resolved")), "veteran: idle at home with the road open")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Veteran reacher")
 	# Round trip: the veteran state survives a save and load.
@@ -7435,8 +7468,10 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	## Idle d20 rooms, Push's 75% stop, Ascension memory, manual defeat, flat rewards.
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
 	failed += _assert(reach != null, "Reach autoload")
-	if reach == null:
+	failed += _assert(pack != null, "Backpack autoload")
+	if reach == null or pack == null:
 		return failed
 	var session_was: bool = bool(save_service.get("session_active"))
 	var scale_was: float = Engine.time_scale
@@ -7463,15 +7498,15 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "idle depart")
 	reach.call("advance_clock", 720.0)
 	failed += _assert(int(reach.get("reaches_cleared")) == 1, "one salve reroll clears a natural 1")
-	failed += _assert(int(reach.get("heart_salve")) == 0, "the reroll drinks the salve")
+	failed += _assert(int(pack.call("get_count", "heart_salve")) == 0, "the reroll drinks the salve")
 	reach.call("reset_for_new_game")
 	reach.call("grant_salve", 1)
 	reach.call("push_faces", [1, 1])
 	reach.call("depart", 1, 1, "hold", "idle")
 	reach.call("advance_clock", 720.0)
 	failed += _assert(int(reach.get("reaches_cleared")) == 0, "a second salve is not spent in the same room")
-	failed += _assert(int(reach.get("heart_salve")) == 0, "the one salve was the reroll")
-	failed += _assert(int(reach.get("briarwood")) == 0, "a failed room grants nothing")
+	failed += _assert(int(pack.call("get_count", "heart_salve")) == 0, "the one salve was the reroll")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 0, "a failed room grants nothing")
 	failed += _assert(str(reach.get("phase")) == "rest", "a failed roll rests")
 	reach.call("reset_for_new_game")
 	game_state.call("set_play_speed", 8)
@@ -7494,7 +7529,7 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	reach.call("depart", 1, 1, "hold", "idle")
 	reach.call("advance_clock", 720.0)
 	failed += _assert(int(reach.get("reaches_cleared")) == 0, "a natural 1 clears nothing")
-	failed += _assert(int(reach.get("briarwood")) == 0, "a natural 1 grants no briarwood")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 0, "a natural 1 grants no briarwood")
 	failed += _assert(str(reach.get("phase")) == "rest", "fail opens the 24 min rest")
 	failed += _assert(is_equal_approx(float(reach.get("room_left")), 1440.0), "rest is 24 minutes")
 	reach.call("advance_clock", 1440.0)
@@ -7540,16 +7575,16 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		print("REACH_DEPTH_ASCEND_OK")
 	var before_manual: int = failed
 	reach.call("reset_for_new_game")
-	var before_briar: int = int(reach.get("briarwood"))
+	var before_briar: int = int(pack.call("get_count", "briarwood"))
 	reach.call("depart", 1, 1, "hold", "idle")
 	reach.call("set_control", "manual")
 	failed += _assert(bool(reach.call("fight_active")), "switching to manual opens the room's fight")
 	reach.call("set_control", "idle")
 	failed += _assert(bool(reach.call("fight_active")) == false, "switching back leaves the fight")
 	failed += _assert(bool(reach.get("running")), "switching control keeps the outing")
-	failed += _assert(int(reach.get("briarwood")) == before_briar, "leaving a fight grants nothing")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == before_briar, "leaving a fight grants nothing")
 	reach.call("reset_for_new_game")
-	var briar_before: int = int(reach.get("briarwood"))
+	var briar_before: int = int(pack.call("get_count", "briarwood"))
 	var clears_before: int = int(reach.get("reaches_cleared"))
 	reach.call("depart", 1, 1, "hold", "manual")
 	failed += _assert(bool(reach.call("fight_active")), "manual depart opens a fight")
@@ -7559,7 +7594,7 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(str(reach.get("phase")) == "home", "defeat returns to the trailhead")
 	failed += _assert(is_equal_approx(float(reach.get("room_left")), 0.0), "defeat does not start a rest")
 	failed += _assert(int(reach.get("reaches_cleared")) == clears_before, "defeat does not count a reach")
-	failed += _assert(int(reach.get("briarwood")) == briar_before, "defeat grants no briarwood")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == briar_before, "defeat grants no briarwood")
 	failed += _assert(str(game_state.get("expedition_lantern")) != "amber", "the lantern is no longer out")
 	failed += _assert(ResourceLoader.exists("res://assets/art/echo/battle_root_snapper_idle.png"), "thornling art is packed")
 	if failed == before_manual:
@@ -7572,22 +7607,22 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	reach.call("depart", 1, 1, "hold", "idle")
 	reach.call("advance_clock", 720.0)
 	var exp1: int = int(reach.call("room_exp", 1))
-	failed += _assert(int(reach.get("briarwood")) == 1, "solo briarwood is the 0-1 roll")
-	failed += _assert(int(reach.get("herbs")) == 0, "herbs use the same 0-1 roll")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 1, "solo briarwood is the 0-1 roll")
+	failed += _assert(int(pack.call("get_count", "herbs")) == 0, "herbs use the same 0-1 roll")
 	failed += _assert(int(reach.get("dojo_exp")) == exp1, "exp goes to the dojo pool")
 	failed += _assert(int(game_state.get("essence")) == 40, "a room grants no essence")
 	reach.call("on_ascend")
 	reach.set("deepest_depth", 11)
-	var briar_deep: int = int(reach.get("briarwood"))
-	var herb_deep: int = int(reach.get("herbs"))
+	var briar_deep: int = int(pack.call("get_count", "briarwood"))
+	var herb_deep: int = int(pack.call("get_count", "herbs"))
 	var dojo_deep: int = int(reach.get("dojo_exp"))
 	reach.call("push_faces", [20])
 	reach.call("push_drops", [1, 1])
 	reach.call("depart", 11, 1, "hold", "idle")
 	reach.call("advance_clock", 720.0)
 	var exp11: int = int(reach.call("room_exp", 11))
-	failed += _assert(int(reach.get("briarwood")) == briar_deep + 1, "briarwood stays 0-1 at a deeper room")
-	failed += _assert(int(reach.get("herbs")) == herb_deep + 1, "herbs stay 0-1 at a deeper room")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == briar_deep + 1, "briarwood stays 0-1 at a deeper room")
+	failed += _assert(int(pack.call("get_count", "herbs")) == herb_deep + 1, "herbs stay 0-1 at a deeper room")
 	failed += _assert(int(reach.get("dojo_exp")) == dojo_deep + exp11, "deeper rooms pay their own exp")
 	failed += _assert(exp11 != exp1, "exp changes with depth")
 	failed += _assert(int(game_state.get("essence")) == 40, "a deep room grants no essence")
@@ -7625,11 +7660,11 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		failed += _assert(str(boss_row.get("name", "")).find("Champion") >= 0, "the first foe is the champion")
 		failed += _assert(int(boss_row.get("max_hp", 0)) == champ_hp, "the champion has 50 percent more HP (got %s, want %d)" % [str(boss_row.get("max_hp", 0)), champ_hp])
 	reach.call("set_control", "idle")
-	var briar_before_boss: int = int(reach.get("briarwood"))
+	var briar_before_boss: int = int(pack.call("get_count", "briarwood"))
 	var dojo_before_boss: int = int(reach.get("dojo_exp"))
 	var exp4: int = int(reach.call("room_exp", 4))
 	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("briarwood")) == briar_before_boss + 2, "the boss doubles the material roll")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == briar_before_boss + 2, "the boss doubles the material roll")
 	failed += _assert(int(reach.get("dojo_exp")) == dojo_before_boss + exp4 * 2, "the boss doubles dojo exp")
 	reach.call("on_ascend")
 	failed += _assert(int(reach.get("rooms_attempted")) == 0, "ending the expedition clears the room counter")
@@ -7639,9 +7674,9 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	reach.call("push_drops", [1, 0])
 	reach.call("depart", 10, 1, "hold", "idle")
 	failed += _assert(bool(reach.call("is_boss_room")) == false, "depth 10's first room is not a boss")
-	var briar_depth10: int = int(reach.get("briarwood"))
+	var briar_depth10: int = int(pack.call("get_count", "briarwood"))
 	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("briarwood")) == briar_depth10 + 1, "depth 10's first room pays a single drop")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == briar_depth10 + 1, "depth 10's first room pays a single drop")
 	reach.call("reset_for_new_game")
 	for _fail: int in range(9):
 		reach.call("push_faces", [1])
@@ -7651,12 +7686,12 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	reach.call("advance_clock", 720.0)
 	failed += _assert(str(reach.get("phase")) == "rest", "a failed attempt still spends the room")
 	failed += _assert(int(reach.get("rooms_attempted")) == 1, "a failed room counts")
-	failed += _assert(int(reach.get("briarwood")) == 0, "a failed boss-counter room grants nothing")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 0, "a failed boss-counter room grants nothing")
 	reach.call("advance_clock", 1440.0 + 2160.0 * 8.0)
 	failed += _assert(int(reach.get("rooms_attempted")) == 10, "nine failures make the next room the boss")
 	failed += _assert(bool(reach.call("is_boss_room")), "the 10th attempt is the boss after failures")
 	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("briarwood")) == 2, "a boss clear after failures still doubles")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 2, "a boss clear after failures still doubles")
 	reach.call("on_ascend")
 	reach.call("push_faces", [20])
 	reach.call("push_drops", [1, 0])
@@ -7688,7 +7723,7 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		var mid_reach: Variant = (mid_run as Dictionary).get("reach", {})
 		if mid_reach is Dictionary:
 			failed += _assert(int((mid_reach as Dictionary).get("rooms_attempted", -1)) == 1, "an in-progress v12 room counts as the first attempt")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "saves write version 13")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "saves write version 14")
 	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
 	failed += _assert(project_text.find("Reach=\"*res://scripts/autoload/reach.gd\"") >= 0, "Reach autoload is registered")
 	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
@@ -8273,4 +8308,294 @@ func _strings_adventure_v4(tree_root: Window) -> int:
 	failed += _assert(checked >= 30, "adventure strings were checked (%d)" % checked)
 	if failed == 0:
 		print("STRINGS_ADVENTURE_V4_OK")
+	return failed
+
+
+func _write_versioned_slot(save_service: Node, slot: int, version: int, state: Dictionary) -> bool:
+	var root: Dictionary = {
+		"save_version": version,
+		"timestamp": Time.get_unix_time_from_system(),
+		"slot": slot,
+		"kind": "manual",
+		"state": state,
+	}
+	var path: String = str(save_service.call("slot_path", slot))
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(root))
+	file.close()
+	return true
+
+
+func _read_slot_root(save_service: Node, slot: int) -> Dictionary:
+	var path: String = str(save_service.call("slot_path", slot))
+	if not FileAccess.file_exists(path):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+func _reach_item_keys_gone(reach_block: Dictionary) -> bool:
+	for item_id: String in ["briarwood", "herbs", "heart_salve", "bile_vial"]:
+		if reach_block.has(item_id):
+			return false
+	return true
+
+
+func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A v13 reach's items add into a backpack that already holds some, then the live
+	## idle reward, manual Salve and Ascend all use that one backpack.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
+	var gear: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(reach != null and pack != null and gear != null, "v14 inventory nodes")
+	if reach == null or pack == null or gear == null:
+		return failed
+	failed += _assert(bool(pack.call("is_known_item", "briarwood")) and bool(pack.call("is_known_item", "herbs")), "road materials are backpack items")
+	failed += _assert(bool(pack.call("is_known_item", "heart_salve")) and bool(pack.call("is_known_item", "bile_vial")), "potions are backpack items")
+	failed += _assert(str(pack.call("item_display_name", "heart_salve")) == "Heart Salve", "Heart Salve name")
+	failed += _assert(str(pack.call("item_display_name", "bile_vial")) == "Bile Vial", "Bile Vial name")
+	failed += _assert(str(pack.call("item_display_name", "briarwood")) == "Briarwood", "Briarwood name")
+	failed += _assert(str(pack.call("item_display_name", "herbs")) == "Herbs", "Herbs name")
+	failed += _assert(str(pack.call("item_kind", "heart_salve")) == "consumable" and str(pack.call("item_kind", "bile_vial")) == "consumable", "potions are consumable")
+	failed += _assert(str(gear.call("item_art_path", "heart_salve")).ends_with("icon_heart_salve.png"), "salve icon")
+	failed += _assert(str(gear.call("item_art_path", "bile_vial")).ends_with("icon_bile_vial.png"), "vial icon")
+	failed += _assert(str(gear.call("item_art_path", "briarwood")) == "" and str(gear.call("item_art_path", "herbs")) == "", "materials use the colour fallback")
+	var clamped: Dictionary = save_service.call("migrate_state", 13, {
+		"stage_id": "sapling",
+		"backpack": {"heart_salve": -2, "herbs": 4},
+		"reach": {
+			"briarwood": -3,
+			"heart_salve": 1,
+			"running": false,
+			"reaches_cleared": 0,
+			"rooms_attempted": 0,
+		},
+	})
+	var clamped_pack: Dictionary = clamped.get("backpack", {}) as Dictionary
+	var clamped_reach: Dictionary = clamped.get("reach", {}) as Dictionary
+	failed += _assert(int(clamped_pack.get("heart_salve", -1)) == 1, "a negative backpack count becomes 0 before the add")
+	failed += _assert(int(clamped_pack.get("briarwood", -1)) == 0, "a negative reach count adds nothing")
+	failed += _assert(int(clamped_pack.get("herbs", -1)) == 4, "a backpack count with nothing to move stays")
+	failed += _assert(_reach_item_keys_gone(clamped_reach), "clamped migration removes the item keys")
+	save_service.call("delete_slot", 7)
+	var state: Dictionary = {
+		"wood": 12,
+		"stage_id": "sapling",
+		"backpack": {"heart_salve": 1},
+		"reach": {
+			"briarwood": 3,
+			"herbs": 2,
+			"heart_salve": 4,
+			"bile_vial": 1,
+			"running": false,
+			"reaches_cleared": 0,
+			"deepest_depth": 0,
+			"rooms_attempted": 0,
+			"dojo_exp": 0,
+		},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, state), "v13 inventory fixture writes slot 7")
+	failed += _assert(bool(save_service.call("load_game", 7)), "v13 inventory fixture loads")
+	failed += _assert(int(pack.call("get_count", "heart_salve")) == 5, "salves add (1 already in the backpack)")
+	failed += _assert(int(pack.call("get_count", "bile_vial")) == 1, "bile moves across")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 3, "briarwood moves across")
+	failed += _assert(int(pack.call("get_count", "herbs")) == 2, "herbs move across")
+	failed += _assert(bool(save_service.call("save_game", 7)), "re-save the merged inventory")
+	var written: Dictionary = _read_slot_root(save_service, 7)
+	var written_state: Dictionary = written.get("state", {}) as Dictionary
+	var written_reach: Dictionary = written_state.get("reach", {}) as Dictionary
+	var written_pack: Dictionary = written_state.get("backpack", {}) as Dictionary
+	failed += _assert(int(written.get("save_version", 0)) == 14, "the re-save is version 14")
+	failed += _assert(_reach_item_keys_gone(written_reach), "the re-saved reach block has no item keys")
+	failed += _assert(int(written_pack.get("heart_salve", 0)) == 5, "re-saved salve count")
+	failed += _assert(int(written_pack.get("briarwood", 0)) == 3, "re-saved briarwood count")
+	reach.call("push_faces", [20])
+	reach.call("push_drops", [1, 0])
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "idle depart after the merge")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 4, "an idle room grants Briarwood into the backpack")
+	var salve_before: int = int(pack.call("get_count", "heart_salve"))
+	reach.call("set_control", "manual")
+	failed += _assert(bool(reach.call("fight_active")), "manual opens the fight")
+	var spent: String = str(reach.call("fight_choose", "salve", 0))
+	failed += _assert(spent != "empty" and spent != "invalid", "the fight accepts the salve (got %s)" % spent)
+	failed += _assert(int(pack.call("get_count", "heart_salve")) == salve_before - 1, "a manual Salve spends one from the backpack")
+	pack.call("set_count", "fertilizer", 3)
+	var kept_salve: int = int(pack.call("get_count", "heart_salve"))
+	var kept_bile: int = int(pack.call("get_count", "bile_vial"))
+	var kept_briar: int = int(pack.call("get_count", "briarwood"))
+	var kept_herbs: int = int(pack.call("get_count", "herbs"))
+	var ascensions_before: int = int(game_state.get("ascensions"))
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	failed += _assert(int(game_state.get("ascensions")) == ascensions_before + 1, "ascend runs")
+	failed += _assert(int(pack.call("get_count", "fertilizer")) == 0, "ascend still wipes other backpack stacks")
+	failed += _assert(int(pack.call("get_count", "heart_salve")) == kept_salve, "ascend keeps Heart Salve")
+	failed += _assert(int(pack.call("get_count", "bile_vial")) == kept_bile, "ascend keeps Bile Vial")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == kept_briar, "ascend keeps Briarwood")
+	failed += _assert(int(pack.call("get_count", "herbs")) == kept_herbs, "ascend keeps Herbs")
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	if failed == 0:
+		print("SAVE_V14_INVENTORY_MERGE_OK")
+	return failed
+
+
+func _save_v14_home(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## No run is home. A cyan lantern with no run is an unseen finish. A running v13 run stays out.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "v14 home needs Reach")
+	if reach == null:
+		return failed
+	save_service.call("delete_slot", 7)
+	var home_state: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"expedition_lantern": "dark",
+		"reach": {"running": false, "reaches_cleared": 0, "rooms_attempted": 0, "deepest_depth": 0},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, home_state), "home v13 writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "home v13 loads")
+	var home_exp: Dictionary = reach.get("expedition") as Dictionary
+	failed += _assert(str(home_exp.get("status", "")) == "home", "no run migrates to home")
+	failed += _assert(not home_exp.has("summary"), "home has no summary")
+	var cyan_state: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"expedition_lantern": "cyan",
+		"reach": {"running": false, "reaches_cleared": 2, "rooms_attempted": 0, "deepest_depth": 1},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, cyan_state), "cyan v13 writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "cyan v13 loads")
+	var cyan_exp: Dictionary = reach.get("expedition") as Dictionary
+	failed += _assert(str(cyan_exp.get("status", "")) == "finished_unseen", "a cyan lantern with no run is finished unseen")
+	failed += _assert(str(cyan_exp.get("summary", "")) == "from an older save", "the unseen summary text")
+	var resaved: Dictionary = game_state.call("to_save_dict")
+	var resaved_exp: Dictionary = resaved.get("expedition", {}) as Dictionary
+	failed += _assert(str(resaved_exp.get("status", "")) == "finished_unseen", "a re-save keeps finished unseen")
+	failed += _assert(str(resaved_exp.get("summary", "")) == "from an older save", "a re-save keeps the summary")
+	var out_state: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"expedition_lantern": "amber",
+		"reach": {
+			"running": true,
+			"phase": "idle_room",
+			"rooms_attempted": 6,
+			"reaches_cleared": 4,
+			"deepest_depth": 3,
+			"depth": 2,
+			"hours": 4.0,
+			"elapsed": 100.0,
+			"room_left": 400.0,
+			"dojo_exp": 20,
+			"briarwood": 1,
+			"herbs": 1,
+			"heart_salve": 0,
+			"bile_vial": 0,
+		},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, out_state), "running v13 writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "running v13 loads")
+	var out_exp: Dictionary = reach.get("expedition") as Dictionary
+	failed += _assert(str(out_exp.get("status", "")) == "out_legacy", "a running run is out_legacy")
+	failed += _assert(not out_exp.has("summary"), "out_legacy has no summary")
+	failed += _assert(bool(reach.get("running")), "the old run is still running")
+	failed += _assert(int(reach.get("rooms_attempted")) == 6, "rooms_attempted is kept")
+	failed += _assert(str(reach.get("phase")) == "idle_room", "the idle room is still open")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("save_game", 7)), "a fresh v14 save writes")
+	var fresh: Dictionary = _read_slot_root(save_service, 7)
+	var fresh_state: Dictionary = fresh.get("state", {}) as Dictionary
+	var fresh_exp: Dictionary = fresh_state.get("expedition", {}) as Dictionary
+	var fresh_reach: Dictionary = fresh_state.get("reach", {}) as Dictionary
+	failed += _assert(int(fresh.get("save_version", 0)) == 14, "new saves write version 14")
+	failed += _assert(str(fresh_exp.get("status", "")) == "home", "a new game expedition is home")
+	failed += _assert(_reach_item_keys_gone(fresh_reach), "a new save's reach block has no item keys")
+	reach.call("depart", 1, 1, "hold", "idle")
+	failed += _assert(bool(save_service.call("save_game", 7)), "a running v14 save writes")
+	var running_save: Dictionary = _read_slot_root(save_service, 7)
+	var running_state: Dictionary = running_save.get("state", {}) as Dictionary
+	var running_exp: Dictionary = running_state.get("expedition", {}) as Dictionary
+	var running_reach: Dictionary = running_state.get("reach", {}) as Dictionary
+	failed += _assert(str(running_exp.get("status", "")) == "out_legacy", "a fresh running save is out_legacy")
+	failed += _assert(bool(running_reach.get("running", false)), "the fresh save still has the run")
+	failed += _assert(_reach_item_keys_gone(running_reach), "the running save has no item keys in reach")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	if failed == 0:
+		print("SAVE_V14_HOME_OK")
+	return failed
+
+
+func _save_v14_from_main(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A real v11 main save, and the v10 batch fixture, both arrive at v14 with the road still at home.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and pack != null, "v14 from-main nodes")
+	if reach == null or pack == null:
+		return failed
+	save_service.call("delete_slot", 7)
+	var fixture: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/save_v11_main.json"))
+	failed += _assert(fixture is Dictionary, "v11 main fixture parses")
+	if fixture is Dictionary:
+		var root: Dictionary = (fixture as Dictionary).duplicate(true)
+		failed += _assert(int(root.get("save_version", 0)) == 11, "fixture is a v11 save")
+		failed += _assert(not (root.get("state", {}) as Dictionary).has("reach"), "v11 main has no reach block")
+		root["timestamp"] = Time.get_unix_time_from_system()
+		root["slot"] = 7
+		var path: String = str(save_service.call("slot_path", 7))
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		failed += _assert(file != null, "v11 fixture slot writes")
+		if file != null:
+			file.store_string(JSON.stringify(root))
+			file.close()
+			failed += _assert(bool(save_service.call("load_game", 7)), "v11 main fixture loads")
+			failed += _assert(int(game_state.get("wood")) == 37, "v11 wood survives")
+			failed += _assert(int(game_state.get("stone")) == 11, "v11 stone survives")
+			failed += _assert(int(game_state.get("food")) == 4, "v11 food survives")
+			failed += _assert(int(game_state.get("essence")) == 8, "v11 essence survives")
+			failed += _assert(int(game_state.get("manashards")) == 6, "v11 manashards survive")
+			failed += _assert(int(pack.call("get_count", "wooden_planks")) == 6, "v11 planks survive")
+			failed += _assert(int(pack.call("get_count", "fertilizer")) == 2, "v11 fertilizer survives")
+			var blob: Dictionary = game_state.call("to_save_dict")
+			var reach_block: Dictionary = blob.get("reach", {}) as Dictionary
+			var exp: Dictionary = blob.get("expedition", {}) as Dictionary
+			failed += _assert(not reach_block.is_empty(), "v11 gains a reach block")
+			failed += _assert(int(reach_block.get("reaches_cleared", -1)) == 0 and bool(reach_block.get("running", true)) == false, "the migrated reach is empty")
+			failed += _assert(_reach_item_keys_gone(reach_block), "the empty reach has no item keys")
+			failed += _assert(str(exp.get("status", "")) == "home", "a v11 save is home")
+			failed += _assert(int(reach.get("deepest_depth")) == 0 and int(reach.get("dojo_exp")) == 0, "v11 did not invent a run")
+			failed += _assert(int(pack.call("get_count", "briarwood")) == 0 and int(pack.call("get_count", "heart_salve")) == 0, "v11 had no reach items to move")
+	var v10: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/batch_migration_6efbcab.json"))
+	failed += _assert(v10 is Dictionary, "v10 fixture parses")
+	if v10 is Dictionary:
+		var old: Dictionary = (v10 as Dictionary).duplicate(true)
+		old["timestamp"] = Time.get_unix_time_from_system()
+		old["slot"] = 7
+		var old_path: String = str(save_service.call("slot_path", 7))
+		var old_file := FileAccess.open(old_path, FileAccess.WRITE)
+		failed += _assert(old_file != null, "v10 fixture slot writes")
+		if old_file != null:
+			old_file.store_string(JSON.stringify(old))
+			old_file.close()
+			failed += _assert(bool(save_service.call("load_game", 7)), "v10 fixture loads through to v14")
+			failed += _assert(int(game_state.get("wood")) == 20 and int(game_state.get("stone")) == 20, "v10 resources survive")
+			failed += _assert(int(pack.call("get_count", "sapsteel")) == 0, "v10 does not grant the in-progress sapsteel")
+			var old_blob: Dictionary = game_state.call("to_save_dict")
+			var old_reach: Dictionary = old_blob.get("reach", {}) as Dictionary
+			var old_exp: Dictionary = old_blob.get("expedition", {}) as Dictionary
+			failed += _assert(old_reach.has("rooms_attempted") and int(old_reach.get("reaches_cleared", -1)) == 0, "v10 gains an empty reach block")
+			failed += _assert(_reach_item_keys_gone(old_reach), "v10 reach has no item keys")
+			failed += _assert(str(old_exp.get("status", "")) == "home", "v10 expedition is home")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	if failed == 0:
+		print("SAVE_V14_FROM_MAIN_OK")
 	return failed

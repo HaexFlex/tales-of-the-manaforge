@@ -79,9 +79,9 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `REACH_PUSH_STOP_OK` | Push stops and switches to Hold when the next room's clear chance drops below 75%. |
 | `REACH_DEPTH_ASCEND_OK` | Deepest depth, the lifetime reach counter, and the dojo pool survive Ascension. A new game clears them. |
 | `REACH_MANUAL_DEFEAT_OK` | A manual defeat loses the room and returns to the trailhead with no rest and no reward. |
-| `REACH_REWARDS_OK` | Briarwood and herbs are 0–1 at 50% and do not scale with depth. Exp goes to the dojo pool. Rooms grant no Essence. |
+| `REACH_REWARDS_OK` | Briarwood and herbs are 0–1 at 50% and do not scale with depth. They land in the Backpack. Exp goes to the dojo pool. Rooms grant no Essence. |
 | `REACH_BOSS_ROOM_OK` | The 10th room attempted in an expedition is the boss at that depth, cleared or failed. A new expedition starts the counter over. Depth 10's first room is not a boss. |
-| `REACH_MIGRATION_OK` | A version 11 save gains an empty reach block. A version 12 save gains `rooms_attempted`. New saves write version 13. |
+| `REACH_MIGRATION_OK` | A version 11 save gains an empty reach block. A version 12 save gains `rooms_attempted`. New saves write version 14. |
 | `REACH_MIX_RELOAD_OK` | A mid-run save keeps the room's beasts, so Join manual after a load shows them and the first Strike does not win. A save without the mix rerolls one. A fight with no beasts refuses Strike and is never a victory. `MANAFORGE_REACH_MIX=1` runs it alone. |
 | `SAVE_NEWER_REFUSED_OK` | A save newer than this build is refused with a message naming both versions and leaves the game untouched. Continue skips it, and autosave never overwrites a newer autosave. `MANAFORGE_SAVE_NEWER=1` runs it alone. |
 | `REACH_TURN_ORDER_OK` | Manual turn order is Swiftness first, the Keeper on ties, then slot, even with 24 equal-speed foes and float noise. `MANAFORGE_TURN_ORDER=1` runs it alone. |
@@ -90,6 +90,9 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `SPAWN_DATA_OK` | `data/spawn_tables.json` matches the §10 budget (90 / 108 / 138 at depth 1 / 10 / 15) and weights. Every beast exists and may spawn at that depth, and each depth has the draft's number of different rooms, room for room the same as the sim's `compositions()` in `tests/fixtures/resolver_compositions.json`. Amberbind is the manual jackpot and never a bonus drop. Bonus-drop contents and herbs by depth stay empty until Haex approves them. `MANAFORGE_SPAWN_DATA=1` runs it alone. |
 | `STRINGS_ADVENTURE_V4_OK` | The BATTLE_SCENE_DRAFT v4 `adv_*` strings exist and read right (Overwhelmed, Calmed, trailhead, Strike for me, None packed, the ability tooltip, item loadout, 20 Essence, the pre-departure warning). Adventure copy never says slain, killed, or (for `adv_*` / `beast_*`) defeat, and no string says Rootweave. `MANAFORGE_STRINGS_V4=1` runs it alone. |
 | `SPEED_BUTTON_OK` | The player speed button is 1×, 2×, 4×, 8× during an open session, including the Stable HUD. Offline and idle catch-up stay on the 1× curve at 8×. The value is not in the save. Launch resets it. The debug 16× button is unchanged. |
+| `SAVE_V14_INVENTORY_MERGE_OK` | A v13 reach's Briarwood, herbs, Heart Salve and Bile Vial add into the Backpack (they do not overwrite a stack already there) and leave the reach block. An idle room grants Briarwood into the Backpack, a manual fight spends a Salve from it, and Ascend keeps the four. `MANAFORGE_SAVE_V14_INVENTORY=1` runs it alone. |
+| `SAVE_V14_HOME_OK` | A v13 save with no run migrates to `expedition.status` home. Cyan with no run is `finished_unseen` ("from an older save"). A running v13 run stays running as `out_legacy`, with `rooms_attempted` kept. A new save writes version 14 and an expedition block. `MANAFORGE_SAVE_V14_HOME=1` runs it alone. |
+| `SAVE_V14_FROM_MAIN_OK` | A v11 main-save fixture and the v10 batch fixture both load through to v14: resources and Backpack intact, an empty reach block, expedition home. `MANAFORGE_SAVE_V14_FROM_MAIN=1` runs it alone. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 

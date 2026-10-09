@@ -154,6 +154,44 @@
       "unique": false,
       "color": "#c47a2a",
       "art_name": "icon_amberbind"
+    },
+    {
+      "id": "briarwood",
+      "display_name": "Briarwood",
+      "string_key": "item_briarwood",
+      "kind": "intermediate",
+      "category": "raw",
+      "unique": false,
+      "color": "#6e4b32"
+    },
+    {
+      "id": "herbs",
+      "display_name": "Herbs",
+      "string_key": "item_herbs",
+      "kind": "intermediate",
+      "category": "raw",
+      "unique": false,
+      "color": "#6f8f45"
+    },
+    {
+      "id": "heart_salve",
+      "display_name": "Heart Salve",
+      "string_key": "item_heart_salve",
+      "kind": "consumable",
+      "category": "refined",
+      "unique": false,
+      "color": "#c4546a",
+      "art_name": "icon_heart_salve"
+    },
+    {
+      "id": "bile_vial",
+      "display_name": "Bile Vial",
+      "string_key": "item_bile_vial",
+      "kind": "consumable",
+      "category": "refined",
+      "unique": false,
+      "color": "#8a9a32",
+      "art_name": "icon_bile_vial"
     }
   ],
   "recipes": [
