@@ -768,6 +768,9 @@ func _landmark_radius(index: int) -> float:
 
 
 func world_input_blocked() -> bool:
+	## The arena overlay sits above the clearing. Clicks and world hotkeys stop here.
+	if BattleView.is_open():
+		return true
 	if hud == null or pause_menu == null:
 		return false
 	if hud.care_panel.visible or hud.ascension_panel.visible or hud.welcome_panel.visible:

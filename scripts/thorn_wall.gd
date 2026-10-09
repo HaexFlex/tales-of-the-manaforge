@@ -265,7 +265,7 @@ func begin_entry() -> String:
 	if GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return "blocked"
-	if EchoChamber.in_battle:
+	if EchoChamber.in_battle or BattleView.is_open():
 		return "blocked"
 	if path_is_open():
 		if GameState.echo_02_outcome == "defeat":
@@ -288,6 +288,8 @@ func begin_entry() -> String:
 
 
 func confirm_fee() -> String:
+	if BattleView.is_open():
+		return "blocked"
 	var already: bool = GameState.echo_02_fee_paid
 	if not already:
 		var paid: String = EchoChamber.try_pay_bramble()

@@ -109,6 +109,7 @@ func _build_ui() -> void:
 
 	_add_section(box, "Jumps")
 	_add_button(box, "Jump to Echo", _on_echo_pressed)
+	_add_button(box, "Battle arena (test)", _on_battle_arena_pressed)
 	_add_button(box, "Open Ascension shop", _on_ascension_pressed)
 
 	_status = Label.new()
@@ -394,6 +395,9 @@ func _on_echo_pressed() -> void:
 	if EchoChamber.in_battle:
 		_set_status("Echo is already open.")
 		return
+	if BattleView.is_open():
+		_set_status("Close the battle arena first.")
+		return
 	GameState.portal_unlocked = true
 	if GameState.ascensions < 1:
 		GameState.ascensions = 1
@@ -406,6 +410,15 @@ func _on_echo_pressed() -> void:
 	get_tree().paused = false
 	AnimPreviewHotkey.set_debug_panel(false)
 	EchoChamber.open_battle(true)
+
+
+func _on_battle_arena_pressed() -> void:
+	## Same open_arena() the headless shell test calls. Refuse leaves the panel up.
+	if not BattleView.open_arena():
+		_set_status("Battle arena stays closed while Echo or a reach fight is open.")
+		return
+	_dismiss_pause()
+	AnimPreviewHotkey.set_debug_panel(false)
 
 
 func _on_ascension_pressed() -> void:

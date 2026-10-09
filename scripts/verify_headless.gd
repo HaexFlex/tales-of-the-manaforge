@@ -4,6 +4,7 @@ const ReachFightScript := preload("res://scripts/reach_fight.gd")
 const FightStateScript := preload("res://scripts/battle/fight_state.gd")
 const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
+const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ## Regression rule: every bug Haex reports that has been fixed before, or that
@@ -282,6 +283,25 @@ func _run() -> void:
 		var resolver_all_only: int = _resolver_all()
 		if resolver_all_only > 0:
 			print("RESOLVER_FAIL: %d" % resolver_all_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Battle arena shell. The full suite runs these at the end.
+	if OS.get_environment("MANAFORGE_BATTLE_SHELL") == "1":
+		var battle_shell_only: int = await _battle_shell(tree_root, game_state, save_service)
+		if battle_shell_only > 0:
+			print("BATTLE_SHELL_FAIL: %d" % battle_shell_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_ECHO") == "1":
+		var battle_echo_only: int = await _battle_echo_exclusive(tree_root, game_state, save_service)
+		if battle_echo_only > 0:
+			print("BATTLE_ECHO_EXCLUSIVE_FAIL: %d" % battle_echo_only)
 			quit(1)
 		else:
 			quit(0)
@@ -2784,6 +2804,8 @@ func _run() -> void:
 	failed += _resolver_die_table()
 	failed += _resolver_seed()
 	failed += _resolver_state_roundtrip()
+	failed += await _battle_shell(tree_root, game_state, save_service)
+	failed += await _battle_echo_exclusive(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -3512,6 +3534,7 @@ func _check_only_load() -> int:
 		"res://tools/anim_preview.gd",
 		"res://tools/debug/debug_panel.gd",
 		"res://scripts/pause_menu.gd",
+		"res://scripts/battle/battle_view.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -9101,3 +9124,295 @@ func _resolver_fighter_row(state: Dictionary, fighter_id: String) -> Dictionary:
 			if str(row.get("id", "")) == fighter_id:
 				return row
 	return {}
+
+
+const _BATTLE_SHELL_SLOT: int = 6
+
+
+func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## The arena is a fullscreen shell over a live hub. It opens only through
+	## BattleView.open_arena, the call the debug button makes.
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	save_service.call("delete_slot", _BATTLE_SHELL_SLOT)
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for the arena shell")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(not bool(BattleViewScript.is_open()), "arena is closed at boot")
+	failed += _assert(get_nodes_in_group("battle_overlay").is_empty(), "boot does not add an arena")
+	failed += _assert(not bool(live.call("world_input_blocked")), "hub input is open before the arena")
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	var pause_menu: Node = live.get_node_or_null("PauseMenu")
+	failed += _assert(keeper != null and pause_menu != null, "hub has a Keeper and a pause menu")
+	if keeper == null or pause_menu == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena opens the shell")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	failed += _assert(views.size() == 1, "one arena overlay")
+	var view: CanvasLayer = null
+	if views.size() == 1:
+		view = views[0] as CanvasLayer
+	failed += _assert(view != null, "arena is a CanvasLayer")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	var pause_layer: int = int(pause_menu.get("layer"))
+	var arena_layer: int = int(view.layer)
+	failed += _assert(view.visible, "arena layer is visible")
+	failed += _assert(arena_layer > 50 and arena_layer < pause_layer, "arena layer is above Echo and below pause (got %d, pause %d)" % [arena_layer, pause_layer])
+	failed += _assert(not paused, "opening the arena does not pause the tree")
+	var bg: ColorRect = view.get_node_or_null("Background") as ColorRect
+	failed += _assert(bg != null and bg.is_visible_in_tree(), "arena backdrop is on screen")
+	if bg != null:
+		var col: Color = bg.color
+		failed += _assert(col.g > col.r and col.g > col.b and col.g < 0.35 and col.a > 0.9, "arena backdrop is dark green")
+	var placeholder: Label = view.get_node_or_null("Arena/Placeholder") as Label
+	failed += _assert(placeholder != null and placeholder.text == "Forest arena: art coming", "placeholder reads the draft line")
+	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
+	failed += _assert(close_btn != null and close_btn.visible and close_btn.text == "Close", "Close is visible")
+	failed += _assert(get_nodes_in_group("battle_slot_outline").size() == 12, "front and back rows mark twelve slots")
+	var slot_root: Node = view.get_node_or_null("Arena/Slots")
+	var slot_nodes: Array[Node] = slot_root.get_children() if slot_root != null else []
+	failed += _assert(slot_nodes.size() == 12, "slot outlines live under the arena")
+	if slot_nodes.size() == 12:
+		var party_front: Control = slot_nodes[0] as Control
+		var party_back: Control = slot_nodes[3] as Control
+		var beast_front: Control = slot_nodes[6] as Control
+		var beast_back: Control = slot_nodes[9] as Control
+		failed += _assert(party_front != null and party_back != null and beast_front != null and beast_back != null, "row outlines are controls")
+		if party_front != null and party_back != null and beast_front != null and beast_back != null:
+			failed += _assert(is_equal_approx(party_back.position.x - party_front.position.x, party_front.size.x * 0.5), "party back row is offset by half a slot")
+			failed += _assert(party_back.position.y < party_front.position.y, "party back row sits behind the front row")
+			failed += _assert(is_equal_approx(beast_front.position.x - beast_back.position.x, beast_front.size.x * 0.5), "beast back row is offset by half a slot")
+			failed += _assert(beast_back.position.y < beast_front.position.y, "beast back row sits behind the front row")
+			failed += _assert(beast_front.position.x > party_front.position.x + 400.0, "beasts stand on the right")
+	var clock_before: float = float(game_state.get("run_time_sec"))
+	for _frame: int in 60:
+		await process_frame
+	var clock_after: float = float(game_state.get("run_time_sec"))
+	failed += _assert(clock_after > clock_before, "hub clock moves while the arena is open (%.4f -> %.4f)" % [clock_before, clock_after])
+	failed += _assert(not paused, "the hub is still running after a minute of frames")
+	game_state.call("select_keeper")
+	if keeper.has_method("halt"):
+		keeper.call("halt")
+	var origin: Vector2 = keeper.global_position
+	var point: Vector2 = _battle_walk_point(live, origin)
+	_battle_click(live, point, MOUSE_BUTTON_LEFT)
+	_battle_click(live, point, MOUSE_BUTTON_RIGHT)
+	for _blocked: int in 8:
+		await physics_frame
+	failed += _assert(keeper.global_position.distance_to(origin) < 1.0, "clicks do not move the Keeper")
+	failed += _assert(not bool(keeper.get("_moving")), "clicks do not command the Keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "a blocked left click does not deselect the Keeper")
+	_battle_escape(live)
+	await process_frame
+	failed += _assert(not bool(BattleViewScript.is_open()), "Escape closes the arena")
+	failed += _assert(get_nodes_in_group("battle_overlay").is_empty(), "Escape frees the overlay")
+	failed += _assert(not bool(pause_menu.call("is_open")), "Escape does not open the pause menu")
+	failed += _assert(not paused, "closing the arena leaves the hub running")
+	var still: Vector2 = keeper.global_position
+	_battle_click(live, point, MOUSE_BUTTON_RIGHT)
+	for _walk: int in 20:
+		await physics_frame
+	var moved: float = keeper.global_position.distance_to(still)
+	failed += _assert(bool(keeper.get("_moving")) or moved > 4.0, "the same right-click moves the Keeper after Escape (moved %.1f)" % moved)
+	if keeper.has_method("halt"):
+		keeper.call("halt")
+	failed += _assert(bool(BattleViewScript.open_arena()), "the arena opens again")
+	failed += _assert(bool(BattleViewScript.open_arena()), "a second open is the same overlay")
+	failed += _assert(get_nodes_in_group("battle_overlay").size() == 1, "opening twice does not stack")
+	failed += _assert(get_nodes_in_group("battle_slot_outline").size() == 12, "a second open adds no rows")
+	var wood_before: int = int(game_state.get("wood"))
+	failed += _assert(bool(save_service.call("save_game", _BATTLE_SHELL_SLOT)), "save works while the arena is open")
+	var slot_text: String = FileAccess.get_file_as_string(str(save_service.call("slot_path", _BATTLE_SHELL_SLOT)))
+	failed += _assert(slot_text.find("BattleArena") < 0 and slot_text.find("battle_overlay") < 0, "the save does not store the arena")
+	failed += _assert(bool(save_service.call("load_game", _BATTLE_SHELL_SLOT)), "load the arena save")
+	await process_frame
+	failed += _assert(not bool(BattleViewScript.is_open()), "load closes the arena")
+	failed += _assert(get_nodes_in_group("battle_overlay").is_empty(), "load frees the overlay")
+	failed += _assert(int(game_state.get("wood")) == wood_before, "load keeps the hub wood")
+	failed += _assert(not paused, "load does not leave the tree paused")
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", _BATTLE_SHELL_SLOT)
+	paused = false
+	if failed == 0:
+		print("BATTLE_SHELL_OK")
+	return failed
+
+
+func _battle_echo_exclusive(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Echo and the arena refuse each other. A manual reach fight refuses the arena.
+	## The debug button is the only Experimental opener.
+	var failed: int = 0
+	paused = false
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(echo != null and reach != null, "Echo and Reach are loaded")
+	if echo == null or reach == null:
+		return failed
+	if bool(echo.get("in_battle")):
+		echo.call("dismiss_battle_without_reward")
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for the arena lock")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "arena opens before the Echo check")
+	var echo_before: int = _echo_battle_count(tree_root)
+	echo.call("open_battle", true)
+	failed += _assert(not bool(echo.get("in_battle")), "an open arena keeps Echo closed")
+	failed += _assert(_echo_battle_count(tree_root) == echo_before, "an open arena adds no Echo view")
+	failed += _assert(not paused, "a refused Echo does not pause the hub")
+	BattleViewScript.close_arena()
+	await process_frame
+	echo.call("open_battle", true)
+	failed += _assert(bool(echo.get("in_battle")), "Echo opens once the arena is closed")
+	failed += _assert(_echo_battle_count(tree_root) == 1, "Echo adds one battle view")
+	failed += _assert(not bool(BattleViewScript.open_arena()), "Echo refuses the arena")
+	failed += _assert(not bool(BattleViewScript.is_open()), "Echo leaves the arena closed")
+	failed += _assert(_echo_battle_count(tree_root) == 1, "a refused arena does not add a second Echo")
+	echo.call("dismiss_battle_without_reward")
+	await process_frame
+	paused = false
+	failed += _assert(not bool(echo.get("in_battle")), "dismiss leaves Echo")
+	failed += _assert(_echo_battle_count(tree_root) == 0, "dismiss removes the Echo view")
+	failed += _assert(bool(BattleViewScript.open_arena()), "the arena opens again after Echo")
+	BattleViewScript.close_arena()
+	await process_frame
+	failed += _assert(str(reach.call("depart", 1, 1.0, "hold", "manual")) == "ok", "manual depart for the arena lock")
+	failed += _assert(bool(reach.call("fight_active")), "manual depart opened a reach fight")
+	failed += _assert(not bool(BattleViewScript.open_arena()), "a reach fight refuses the arena")
+	failed += _assert(not bool(BattleViewScript.is_open()), "a refused arena adds no overlay")
+	game_state.call("reset_for_new_game")
+	await process_frame
+	paused = false
+	failed += _assert(not bool(reach.call("fight_active")), "reset leaves the reach fight")
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	var echo_at: int = panel_src.find("\"Jump to Echo\"")
+	var arena_at: int = panel_src.find("\"Battle arena (test)\"")
+	failed += _assert(echo_at >= 0 and arena_at > echo_at, "the test button sits with Jump to Echo")
+	var panel_packed: PackedScene = load("res://tools/debug/debug_panel.tscn") as PackedScene
+	failed += _assert(panel_packed != null, "debug panel scene loads")
+	if panel_packed == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	var panel: Node = panel_packed.instantiate()
+	tree_root.add_child(panel)
+	await process_frame
+	var arena_button: Button = null
+	for node: Node in panel.find_children("*", "Button", true, false):
+		var button: Button = node as Button
+		if button != null and button.text == "Battle arena (test)":
+			arena_button = button
+			break
+	failed += _assert(arena_button != null, "debug panel has Battle arena (test)")
+	if arena_button != null:
+		arena_button.pressed.emit()
+	failed += _assert(bool(BattleViewScript.is_open()), "the test button opens the arena")
+	await process_frame
+	BattleViewScript.close_arena()
+	await process_frame
+	var leftover: Node = tree_root.get_node_or_null("DebugToolsPanel")
+	if leftover != null and is_instance_valid(leftover):
+		leftover.free()
+	var echo_left: Node = tree_root.get_node_or_null("EchoBattle")
+	if echo_left != null:
+		echo_left.free()
+	if bool(echo.get("in_battle")):
+		echo.call("dismiss_battle_without_reward")
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_ECHO_EXCLUSIVE_OK")
+	return failed
+
+
+func _echo_battle_count(tree_root: Window) -> int:
+	var count: int = 0
+	for child: Node in tree_root.get_children():
+		if str(child.name).begins_with("EchoBattle"):
+			count += 1
+	return count
+
+
+func _battle_walk_point(live: Node, origin: Vector2) -> Vector2:
+	## A clearing point on screen, off the Keeper, and off any clickable node.
+	var camera: Node2D = live.get_node_or_null("Camera2D") as Node2D
+	var center: Vector2 = camera.global_position if camera != null else origin
+	var offsets: Array[Vector2] = [
+		Vector2(280, 160),
+		Vector2(-260, 140),
+		Vector2(220, -180),
+		Vector2(-200, 200),
+		Vector2(0, 220),
+	]
+	for off: Vector2 in offsets:
+		var point: Vector2 = center + off
+		if point.distance_to(origin) < 80.0:
+			continue
+		if not bool(live.call("_in_clearing", point)):
+			continue
+		if bool(live.call("_interactable_under_point", point)):
+			continue
+		var screen: Vector2 = live.get_viewport().get_canvas_transform() * point
+		if screen.x < 160.0 or screen.x > 1120.0 or screen.y < 120.0 or screen.y > 600.0:
+			continue
+		return point
+	return center + Vector2(280, 160)
+
+
+func _battle_click(live: Node, world_pos: Vector2, button: int) -> void:
+	## The hub's real click path: a viewport mouse event, not a direct move_to.
+	var vp: Viewport = live.get_viewport()
+	var screen: Vector2 = vp.get_canvas_transform() * world_pos
+	vp.warp_mouse(screen)
+	var motion := InputEventMouseMotion.new()
+	motion.position = screen
+	motion.global_position = screen
+	vp.push_input(motion)
+	var down := InputEventMouseButton.new()
+	down.button_index = button
+	down.pressed = true
+	down.position = screen
+	down.global_position = screen
+	vp.push_input(down)
+	if button != MOUSE_BUTTON_LEFT:
+		return
+	var up := InputEventMouseButton.new()
+	up.button_index = button
+	up.pressed = false
+	up.position = screen
+	up.global_position = screen
+	vp.push_input(up)
+
+
+func _battle_escape(live: Node) -> void:
+	var key := InputEventKey.new()
+	key.keycode = KEY_ESCAPE
+	key.pressed = true
+	live.get_viewport().push_input(key)

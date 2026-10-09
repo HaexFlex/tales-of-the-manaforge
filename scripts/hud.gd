@@ -2292,6 +2292,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	var key: InputEventKey = event
 	if not key.pressed or key.echo:
 		return
+	if BattleView.is_open():
+		return
 	if key.keycode == KEY_I and not key.ctrl_pressed and not key.alt_pressed and not key.meta_pressed:
 		if welcome_panel.visible:
 			return
