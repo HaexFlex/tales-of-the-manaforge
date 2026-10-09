@@ -153,6 +153,7 @@
   "pause_load_ok": "Welcome back, Keeper.",
   "pause_load_empty": "Nothing grows in that slot yet.",
   "pause_load_fail": "Could not load — try again.",
+  "save_newer_build": "This save is from a newer version of the game (v{found}). This build reads saves up to v{max}.",
   "btn_pause": "Pause",
   "tree_care_title": "Care",
   "tree_pay": "Grow",

@@ -92,6 +92,9 @@ func snapshot() -> Dictionary:
 func choose(action: String, target: int) -> String:
 	if outcome != "":
 		return outcome
+	if enemies.is_empty():
+		## A room with no beasts is not a fight and never a free victory.
+		return "invalid"
 	if action != "strike" and action != "brace" and action != "salve" and action != "bile" and action != "retreat":
 		return "invalid"
 	if action == "retreat":
@@ -166,14 +169,24 @@ func _turn_order() -> Array[Dictionary]:
 		if int(enemies[i].get("hp", 0)) <= 0:
 			continue
 		rows.append({"side": "foe", "index": i, "swift": float(enemies[i].get("swift", 0.0))})
+	## Total order: Swiftness (highest first, snapped so float noise is a tie), then the keeper, then slot.
+	## sort_custom is not stable, so every tie must be broken by the key.
 	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var sa := float(a.get("swift", 0.0))
-		var sb := float(b.get("swift", 0.0))
-		if not is_equal_approx(sa, sb):
+		var sa: int = _swift_key(float(a.get("swift", 0.0)))
+		var sb: int = _swift_key(float(b.get("swift", 0.0)))
+		if sa != sb:
 			return sa > sb
-		return str(a.get("side", "")) == "keeper"
+		var ka: int = 0 if str(a.get("side", "")) == "keeper" else 1
+		var kb: int = 0 if str(b.get("side", "")) == "keeper" else 1
+		if ka != kb:
+			return ka < kb
+		return int(a.get("index", 0)) < int(b.get("index", 0))
 	)
 	return rows
+
+
+static func _swift_key(swift: float) -> int:
+	return roundi(swift * 1000.0)
 
 
 func _player_act(action: String, target: int) -> void:

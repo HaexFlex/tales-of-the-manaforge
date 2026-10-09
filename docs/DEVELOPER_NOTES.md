@@ -82,6 +82,10 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `REACH_REWARDS_OK` | Briarwood and herbs are 0–1 at 50% and do not scale with depth. Exp goes to the dojo pool. Rooms grant no Essence. |
 | `REACH_BOSS_ROOM_OK` | The 10th room attempted in an expedition is the boss at that depth, cleared or failed. A new expedition starts the counter over. Depth 10's first room is not a boss. |
 | `REACH_MIGRATION_OK` | A version 11 save gains an empty reach block. A version 12 save gains `rooms_attempted`. New saves write version 13. |
+| `REACH_MIX_RELOAD_OK` | A mid-run save keeps the room's beasts, so Join manual after a load shows them and the first Strike does not win. A save without the mix rerolls one. A fight with no beasts refuses Strike and is never a victory. `MANAFORGE_REACH_MIX=1` runs it alone. |
+| `SAVE_NEWER_REFUSED_OK` | A save newer than this build is refused with a message naming both versions and leaves the game untouched. Continue skips it, and autosave never overwrites a newer autosave. `MANAFORGE_SAVE_NEWER=1` runs it alone. |
+| `REACH_TURN_ORDER_OK` | Manual turn order is Swiftness first, the Keeper on ties, then slot, even with 24 equal-speed foes and float noise. `MANAFORGE_TURN_ORDER=1` runs it alone. |
+| `DEBUG_SNAPSHOTS_MIGRATE_OK` | All eight debug snapshots load through `SaveService.migrate_state`, so the version 10 ones gain a current reach block. A newer snapshot is refused. `MANAFORGE_SNAPSHOT_MIGRATE=1` runs it alone. |
 | `SPEED_BUTTON_OK` | The player speed button is 1×, 2×, 4×, 8× during an open session, including the Stable HUD. Offline and idle catch-up stay on the 1× curve at 8×. The value is not in the save. Launch resets it. The debug 16× button is unchanged. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.

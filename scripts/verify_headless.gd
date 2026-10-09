@@ -128,6 +128,43 @@ func _run() -> void:
 			quit(0)
 		return
 
+	# Bundle 1 regressions. The full suite runs them after the reach checks.
+	if OS.get_environment("MANAFORGE_REACH_MIX") == "1":
+		var mix_only: int = _reach_mix_reload(tree_root, game_state, save_service)
+		if mix_only > 0:
+			print("REACH_MIX_RELOAD_FAIL: %d" % mix_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_NEWER") == "1":
+		var newer_only: int = _save_newer_refused(tree_root, game_state, save_service)
+		if newer_only > 0:
+			print("SAVE_NEWER_REFUSED_FAIL: %d" % newer_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TURN_ORDER") == "1":
+		var order_only: int = _reach_turn_order()
+		if order_only > 0:
+			print("REACH_TURN_ORDER_FAIL: %d" % order_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SNAPSHOT_MIGRATE") == "1":
+		var snap_mig_only: int = _debug_snapshots_migrate(tree_root, game_state, save_service)
+		if snap_mig_only > 0:
+			print("DEBUG_SNAPSHOTS_MIGRATE_FAIL: %d" % snap_mig_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH") == "1":
 		var reach_only: int = _reach_checks(tree_root, game_state, save_service)
 		if reach_only > 0:
@@ -2619,6 +2656,10 @@ func _run() -> void:
 	failed += await _debug_snapshots_reach(tree_root, game_state, save_service)
 	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 	failed += _reach_checks(tree_root, game_state, save_service)
+	failed += _reach_mix_reload(tree_root, game_state, save_service)
+	failed += _save_newer_refused(tree_root, game_state, save_service)
+	failed += _reach_turn_order()
+	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -4845,7 +4886,7 @@ func _probe_debug_snapshots(game_state: Node) -> int:
 	return failed
 
 
-func _probe_one(game_state: Node, path: String, want_version: int = 10) -> int:
+func _probe_one(game_state: Node, path: String, want_version: int = 10, through_panel: bool = false) -> int:
 	var failed: int = 0
 	failed += _assert(FileAccess.file_exists(path), "snapshot file %s" % path)
 	if not FileAccess.file_exists(path):
@@ -4861,6 +4902,15 @@ func _probe_one(game_state: Node, path: String, want_version: int = 10) -> int:
 	if typeof(state_v) != TYPE_DICTIONARY:
 		return failed
 	game_state.call("reset_for_new_game")
+	if through_panel:
+		## Same path as the debug panel button: read, migrate, then apply.
+		var panel_script: Script = load("res://tools/debug/debug_panel.gd") as Script
+		var loaded: Dictionary = panel_script.call("load_snapshot_state", path) if panel_script != null else {}
+		var migrated: Dictionary = loaded.get("state", {}) as Dictionary
+		failed += _assert(not migrated.is_empty(), "panel loader migrates %s (%s)" % [path, str(loaded.get("error", ""))])
+		if not migrated.is_empty():
+			game_state.call("apply_save_dict", migrated)
+		return failed
 	game_state.call("apply_save_dict", state_v)
 	return failed
 
@@ -7135,7 +7185,7 @@ const _REACH_SNAPSHOTS: Dictionary = {
 
 func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	## Each of the four reach snapshots loads the way the debug panel loads it
-	## (apply_save_dict on the state, then the hub) and lands in a valid state.
+	## (migrate, apply_save_dict on the state, then the hub) and lands in a valid state.
 	var failed: int = 0
 	var echo: Node = tree_root.get_node_or_null("EchoChamber")
 	var reach: Node = tree_root.get_node_or_null("Reach")
@@ -7152,7 +7202,7 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 		if typeof(parsed) == TYPE_DICTIONARY:
 			failed += _assert(str((parsed as Dictionary).get("label", "")) == label, "snapshot label %s" % label)
 	# a. Echo 2 ready: first Anvil weapon, 50 Essence, hub arch open for Bramble.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Echo 2 ready"]), want_version)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Echo 2 ready"]), want_version, true)
 	failed += _assert(bool(echo.call("owns_anvil_weapon")), "echo2 ready owns an Anvil weapon")
 	failed += _assert(int(game_state.get("essence")) == 50, "echo2 ready has 50 Essence")
 	failed += _assert(bool(game_state.get("echo_01_resolved")) and not bool(game_state.get("echo_02_resolved")), "echo2 ready: Elaia done, Bramble open")
@@ -7161,27 +7211,27 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(not bool(reach.get("running")) and int(reach.get("deepest_depth")) == 0, "echo2 ready has no reach yet")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Echo 2 ready")
 	# b. North road open: Bramble spared, board live, no runs.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["North road open"]), want_version)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["North road open"]), want_version, true)
 	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "spare", "north road: Bramble spared")
 	failed += _assert(str(echo.call("hub_portal_context")) == "", "north road: the hub arch is closed")
 	failed += _assert(not bool(reach.get("running")) and int(reach.get("reaches_cleared")) == 0 and int(reach.get("deepest_depth")) == 0, "north road: no runs yet")
 	failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "north road: lantern dark")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "North road open")
 	# c. Pre-boss: room 9 of the run in progress, the next room is the boss.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
 	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "pre-boss: an idle room is running")
 	failed += _assert(int(reach.get("rooms_attempted")) == 9 and not bool(reach.call("is_boss_room")), "pre-boss: room 9, not the boss yet")
 	failed += _assert(int(reach.call("rooms_until_boss")) == 1, "pre-boss: rooms until boss is 1 (got %d)" % int(reach.call("rooms_until_boss")))
 	failed += _assert(float(reach.get("room_left")) > 0.0 and float(reach.call("_length_left")) > float(reach.get("room_left")) + 720.0, "pre-boss: the run is long enough to reach the boss")
 	failed += _assert(str(game_state.get("expedition_lantern")) == "amber", "pre-boss: lantern amber")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Pre-boss")
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
 	reach.call("push_faces", [20])
 	reach.call("advance_clock", float(reach.get("room_left")) + 0.001)
 	failed += _assert(bool(reach.get("running")) and int(reach.get("rooms_attempted")) == 10 and bool(reach.call("is_boss_room")), "pre-boss: finishing room 9 opens the boss room")
 	failed += _assert(int(reach.call("rooms_until_boss")) == 0, "pre-boss: board shows the boss room")
 	# d. Veteran reacher: depth 25, mats, dojo exp, counter 19.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Veteran reacher"]), want_version)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Veteran reacher"]), want_version, true)
 	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.call("max_start_depth")) == 25, "veteran: deepest depth 25")
 	failed += _assert(int(reach.get("reaches_cleared")) == 19, "veteran: reach counter 19")
 	failed += _assert(int(reach.get("briarwood")) > 0 and int(reach.get("herbs")) > 0 and int(reach.get("dojo_exp")) > 0, "veteran: Briarwood, herbs and dojo exp")
@@ -7655,4 +7705,212 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	game_state.set("fruit_committed", fruit_was)
 	game_state.call("set_resource", &"essence", essence_was)
 	game_state.set("expedition_lantern", lantern_was)
+	return failed
+
+
+
+func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Haex bug: a mid-run save lost the room's beasts, so Join manual after a load opened an
+	## empty fight and the first Strike won it for free. The mix is saved, an old save rerolls
+	## it, and a fight never starts or wins with no beasts.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "Reach autoload for the mix reload")
+	if reach == null:
+		return failed
+	var session_was: bool = bool(save_service.get("session_active"))
+	var lantern_was: String = str(game_state.get("expedition_lantern"))
+	reach.call("reset_for_new_game")
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "mix reload: idle depart")
+	var picked: Array[String] = ["brute", "minion"]
+	reach.set("mix", picked.duplicate())
+	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload: save mid-run to slot 7")
+	reach.call("reset_for_new_game")
+	failed += _assert((reach.get("mix") as Array).is_empty(), "mix reload: reset clears the mix")
+	failed += _assert(bool(save_service.call("load_game", 7)), "mix reload: load slot 7")
+	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "mix reload: the run is still out")
+	var loaded_mix: Array = reach.get("mix") as Array
+	failed += _assert(str(loaded_mix) == str(picked), "mix reload: the room keeps its beasts (got %s)" % str(loaded_mix))
+	reach.call("set_control", "manual")
+	failed += _assert(bool(reach.call("fight_active")), "mix reload: Join manual opens the fight")
+	var snap: Dictionary = reach.call("fight_snapshot")
+	failed += _assert((snap.get("enemies", []) as Array).size() == 2, "mix reload: Join manual shows both beasts")
+	var first: String = str(reach.call("fight_choose", "strike", 0))
+	failed += _assert(first != "victory", "mix reload: the first Strike does not win the room (got %s)" % first)
+	failed += _assert(bool(reach.get("running")), "mix reload: the run continues after one Strike")
+	# An older save without the mix field rerolls a real room instead of an empty one.
+	reach.call("set_control", "idle")
+	var blob: Dictionary = game_state.call("to_save_dict")
+	var reach_blob: Dictionary = (blob.get("reach", {}) as Dictionary).duplicate(true)
+	reach_blob.erase("mix")
+	blob["reach"] = reach_blob
+	reach.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob)
+	failed += _assert(not (reach.get("mix") as Array).is_empty(), "mix reload: a save without a mix rerolls one")
+	reach.call("set_control", "manual")
+	var old_snap: Dictionary = reach.call("fight_snapshot")
+	failed += _assert((old_snap.get("enemies", []) as Array).size() >= 1, "mix reload: the rerolled room has beasts")
+	failed += _assert(str(reach.call("fight_choose", "strike", 0)) != "victory", "mix reload: no free win after an old load")
+	# The fight itself refuses an empty room.
+	var empty_fight: RefCounted = ReachFightScript.new()
+	empty_fight.call("setup", 1, 5.2, {"vitality": 5, "swiftness": 5, "offense": 10.0}, [], -1, {}, {})
+	failed += _assert(str(empty_fight.call("choose", "strike", 0)) == "invalid", "an empty fight refuses a Strike")
+	failed += _assert(str(empty_fight.get("outcome")) == "", "an empty fight is never a victory")
+	reach.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	save_service.set("session_active", session_was)
+	game_state.set("expedition_lantern", lantern_was)
+	if failed == 0:
+		print("REACH_MIX_RELOAD_OK")
+	return failed
+
+
+func _save_newer_refused(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A build never loads a save newer than its own version (unknown fields would be lost),
+	## says why, skips it for Continue, and never rotates an autosave over it.
+	var failed: int = 0
+	var version: int = int(save_service.get("SAVE_VERSION"))
+	failed += _assert(int(save_service.get("SAVE_VERSION_MAX_READ")) == version, "the read cap equals SAVE_VERSION")
+	var wood_was: int = int(game_state.get("wood"))
+	var newer_root: Dictionary = {
+		"save_version": version + 1,
+		"timestamp": Time.get_unix_time_from_system() + 100000.0,
+		"slot": 7,
+		"kind": "manual",
+		"state": {"wood": 987654, "stage_id": "sapling", "future_field": {"pack": {"briarwood": 3}}},
+	}
+	var slot_file: String = str(save_service.call("slot_path", 7))
+	var fh := FileAccess.open(slot_file, FileAccess.WRITE)
+	fh.store_string(JSON.stringify(newer_root))
+	fh.close()
+	var info: Dictionary = save_service.call("get_slot_info", 7)
+	failed += _assert(bool(info.get("newer", false)), "slot info flags the newer save")
+	var record: Dictionary = save_service.call("get_most_recent_record")
+	failed += _assert(str(record.get("path", "")) != slot_file, "Continue skips a save from a newer build")
+	failed += _assert(not bool(save_service.call("load_game", 7)), "a newer save is refused")
+	failed += _assert(int(game_state.get("wood")) == wood_was, "a refused load leaves the game untouched")
+	var why: String = str(save_service.get("last_load_error"))
+	failed += _assert(why.find("v%d" % (version + 1)) >= 0 and why.find("newer") >= 0, "the refusal says why (got %s)" % why)
+	failed += _assert(str(tree_root.get_node("ContentStrings").call("get_text", "save_newer_build")).find("{found}") >= 0, "save_newer_build string")
+	save_service.call("delete_slot", 7)
+	# Autosave rotation never writes over a newer build's autosave.
+	var backups: Dictionary = {}
+	for slot: int in range(1, 4):
+		var path: String = str(save_service.call("autosave_path", slot))
+		backups[path] = FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else null
+		var newer_auto: Dictionary = newer_root.duplicate(true)
+		newer_auto["slot"] = slot
+		newer_auto["kind"] = "autosave"
+		var ah := FileAccess.open(path, FileAccess.WRITE)
+		ah.store_string(JSON.stringify(newer_auto))
+		ah.close()
+	var session_was: bool = bool(save_service.get("session_active"))
+	save_service.set("session_active", true)
+	failed += _assert(int(save_service.call("_next_autosave_slot")) == 0, "no autosave slot is writable over newer saves")
+	failed += _assert(not bool(save_service.call("save_autosave", true)), "autosave refuses to overwrite newer saves")
+	for path: String in backups.keys():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		failed += _assert(typeof(parsed) == TYPE_DICTIONARY and int((parsed as Dictionary).get("save_version", 0)) == version + 1, "newer autosave kept %s" % path)
+		if backups[path] == null:
+			DirAccess.remove_absolute(path)
+		else:
+			var rh := FileAccess.open(path, FileAccess.WRITE)
+			rh.store_string(str(backups[path]))
+			rh.close()
+	save_service.set("session_active", session_was)
+	save_service.call("debug_set_last_autosave_age", 0.0)
+	if failed == 0:
+		print("SAVE_NEWER_REFUSED_OK")
+	return failed
+
+
+func _reach_turn_order() -> int:
+	## Turn order is a total order: Swiftness first, the keeper wins ties, then slot. sort_custom is not
+	## stable, so a big room of equal-speed foes must still come out in slot order every time.
+	var failed: int = 0
+	var fight: RefCounted = ReachFightScript.new()
+	fight.call("setup", 1, 5.0, {"vitality": 5, "swiftness": 5, "offense": 10.0}, ["minion"], -1, {}, {})
+	var rows: Array[Dictionary] = []
+	for i: int in range(24):
+		var row: Dictionary = (fight.get("enemies") as Array)[0].duplicate()
+		row["swift"] = 5.0
+		row["hp"] = 10
+		rows.append(row)
+	rows[20]["swift"] = 9.0
+	rows[3]["swift"] = 1.0
+	fight.set("enemies", rows)
+	var keeper: Dictionary = fight.get("keeper")
+	keeper["swiftness"] = 5
+	fight.set("keeper", keeper)
+	for _attempt: int in range(5):
+		var order: Array = fight.call("_turn_order")
+		failed += _assert(order.size() == 25, "turn order lists the keeper and 24 foes")
+		if order.size() != 25:
+			break
+		failed += _assert(str((order[0] as Dictionary).get("side")) == "foe" and int((order[0] as Dictionary).get("index")) == 20, "the fastest foe acts first")
+		failed += _assert(str((order[1] as Dictionary).get("side")) == "keeper", "the keeper wins the Swiftness tie")
+		var want: Array[int] = []
+		for i: int in range(24):
+			if i != 20 and i != 3:
+				want.append(i)
+		var got: Array[int] = []
+		for k: int in range(2, 24):
+			got.append(int((order[k] as Dictionary).get("index")))
+		failed += _assert(str(got) == str(want), "tied foes act in slot order (got %s)" % str(got))
+		failed += _assert(int((order[24] as Dictionary).get("index")) == 3, "the slowest foe acts last")
+	# Float noise on Swiftness is still a tie that goes to the keeper.
+	rows = []
+	for i: int in range(3):
+		var r2: Dictionary = (fight.get("enemies") as Array)[0].duplicate()
+		r2["swift"] = 5.0000001
+		rows.append(r2)
+	fight.set("enemies", rows)
+	var near: Array = fight.call("_turn_order")
+	failed += _assert(near.size() == 4 and str((near[0] as Dictionary).get("side")) == "keeper", "float noise still ties to the keeper")
+	if failed == 0:
+		print("REACH_TURN_ORDER_OK")
+	return failed
+
+
+func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Every debug snapshot loads through SaveService migration, the same path as a slot load.
+	## An old snapshot gains the fields its migration adds; a newer one is refused.
+	var failed: int = 0
+	var panel_script: Script = load("res://tools/debug/debug_panel.gd") as Script
+	failed += _assert(panel_script != null, "debug panel script loads")
+	if panel_script == null:
+		return failed
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	var press_body: String = _func_body(panel_src, "func _on_snapshot_pressed")
+	failed += _assert(press_body.find("load_snapshot_state(") >= 0, "the snapshot button uses the migrating loader")
+	failed += _assert(_func_body(panel_src, "static func load_snapshot_state").find("migrate_state") >= 0, "the loader calls SaveService.migrate_state")
+	var snapshots: Dictionary = panel_script.get_script_constant_map().get("SNAPSHOTS", {}) as Dictionary
+	failed += _assert(snapshots.size() == 8, "eight debug snapshots (got %d)" % snapshots.size())
+	for label: String in snapshots.keys():
+		var path: String = str(snapshots[label])
+		var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		var raw_state: Dictionary = (raw as Dictionary).get("state", {}) as Dictionary if typeof(raw) == TYPE_DICTIONARY else {}
+		var raw_version: int = int((raw as Dictionary).get("save_version", 0)) if typeof(raw) == TYPE_DICTIONARY else 0
+		var loaded: Dictionary = panel_script.call("load_snapshot_state", path)
+		var state: Dictionary = loaded.get("state", {}) as Dictionary
+		failed += _assert(not state.is_empty(), "%s migrates (%s)" % [label, str(loaded.get("error", ""))])
+		if state.is_empty():
+			continue
+		var reach_v: Variant = state.get("reach", null)
+		failed += _assert(reach_v is Dictionary and (reach_v as Dictionary).has("rooms_attempted"), "%s has a current reach block" % label)
+		if raw_version < 12:
+			failed += _assert(not raw_state.has("reach"), "%s file is an old schema (no reach block)" % label)
+		game_state.call("reset_for_new_game")
+		game_state.call("apply_save_dict", state)
+	var newer_path: String = "user://verify_newer_snapshot.json"
+	var nh := FileAccess.open(newer_path, FileAccess.WRITE)
+	nh.store_string(JSON.stringify({"save_version": int(save_service.get("SAVE_VERSION")) + 1, "state": {"wood": 1}}))
+	nh.close()
+	var refused: Dictionary = panel_script.call("load_snapshot_state", newer_path)
+	failed += _assert((refused.get("state", {}) as Dictionary).is_empty(), "a newer snapshot is refused")
+	failed += _assert(str(refused.get("error", "")).find("newer") >= 0, "the refusal names the newer build")
+	DirAccess.remove_absolute(newer_path)
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("DEBUG_SNAPSHOTS_MIGRATE_OK")
 	return failed

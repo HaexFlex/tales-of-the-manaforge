@@ -148,21 +148,39 @@ func _on_close_pressed() -> void:
 	AnimPreviewHotkey.set_debug_panel(false)
 
 
-func _on_snapshot_pressed(path: String, label: String) -> void:
+static func load_snapshot_state(path: String) -> Dictionary:
+	## Reads a snapshot and runs it through SaveService migration, like a slot load.
+	## {"state": migrated, "error": ""} on success; "state" is empty when the file cannot be used.
 	if not FileAccess.file_exists(path):
-		_set_status("Missing snapshot %s." % label)
-		return
+		return {"state": {}, "error": "missing"}
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if typeof(parsed) != TYPE_DICTIONARY:
-		_set_status("Snapshot %s is not a save." % label)
-		return
-	var state_v: Variant = (parsed as Dictionary).get("state", {})
+		return {"state": {}, "error": "not a save"}
+	var root: Dictionary = parsed
+	var state_v: Variant = root.get("state", {})
 	if typeof(state_v) != TYPE_DICTIONARY:
-		_set_status("Snapshot %s has no state." % label)
+		return {"state": {}, "error": "no state"}
+	var save_service: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("SaveService")
+	if save_service == null:
+		return {"state": {}, "error": "no SaveService"}
+	var version: int = int(root.get("save_version", 0))
+	if bool(save_service.call("is_newer_than_build", version)):
+		return {"state": {}, "error": str(save_service.call("newer_save_message", version))}
+	var migrated: Dictionary = save_service.call("migrate_state", version, state_v as Dictionary)
+	if migrated.is_empty():
+		return {"state": {}, "error": "migration failed"}
+	return {"state": migrated, "error": ""}
+
+
+func _on_snapshot_pressed(path: String, label: String) -> void:
+	var loaded: Dictionary = load_snapshot_state(path)
+	var state: Dictionary = loaded.get("state", {}) as Dictionary
+	if state.is_empty():
+		_set_status("Snapshot %s: %s." % [label, str(loaded.get("error", "unusable"))])
 		return
 	if EchoChamber.in_battle:
 		EchoChamber.dismiss_battle_without_reward()
-	GameState.apply_save_dict(state_v as Dictionary)
+	GameState.apply_save_dict(state)
 	SaveService.note_session_started()
 	SaveService.boot_intent = "auto"
 	SaveService.boot_slot = 0

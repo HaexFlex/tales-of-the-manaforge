@@ -236,7 +236,8 @@ func set_control(mode: String) -> void:
 		changed.emit()
 		return
 	if phase == "idle_room" and mode == "manual":
-		_start_fight()
+		if not _start_fight():
+			control = "idle"
 	elif phase == "manual" and mode == "idle":
 		_fight = null
 		_close_view()
@@ -377,6 +378,7 @@ func capture_save_fields() -> Dictionary:
 			"run_clears": run_clears,
 			"rooms_attempted": rooms_attempted,
 			"salve_used": salve_used,
+			"mix": mix.duplicate(),
 		}
 	}
 
@@ -401,6 +403,7 @@ func apply_save_fields(data: Dictionary) -> void:
 	run_clears = maxi(0, int(data.get("run_clears", 0)))
 	rooms_attempted = maxi(0, int(data.get("rooms_attempted", 0)))
 	salve_used = bool(data.get("salve_used", false))
+	mix = _clean_mix(data.get("mix", []))
 	var saved_phase := str(data.get("phase", "home"))
 	running = bool(data.get("running", false))
 	if not running:
@@ -409,6 +412,9 @@ func apply_save_fields(data: Dictionary) -> void:
 	if saved_phase != "rest" and saved_phase != "idle_room":
 		saved_phase = "idle_room"
 	phase = saved_phase
+	## Saves from before the mix was stored come back empty. Reroll so Join manual has beasts.
+	if mix.is_empty():
+		mix = _roll_mix(_mix_budget())
 	_fight = null
 	_close_view()
 	changed.emit()
@@ -434,6 +440,7 @@ func default_save_fields() -> Dictionary:
 		"run_clears": 0,
 		"rooms_attempted": 0,
 		"salve_used": false,
+		"mix": [],
 	}
 
 
@@ -490,22 +497,32 @@ func _advance_depth() -> void:
 func _begin_room() -> void:
 	rooms_attempted += 1
 	salve_used = false
-	mix = _roll_mix(SOLO_BUDGET if party_size <= 1 else 4.0)
+	mix = _roll_mix(_mix_budget())
 	room_left = ROOM_SEC
-	if control == "manual":
-		_start_fight()
+	if control == "manual" and _start_fight():
 		return
 	phase = "idle_room"
 	_fight = null
 	_close_view()
 
 
-func _start_fight() -> void:
+func _start_fight() -> bool:
+	## Never open a fight with no beasts: an empty room used to count as a free victory.
+	if mix.is_empty():
+		mix = _roll_mix(_mix_budget())
+	if mix.is_empty():
+		push_error("Reach: refusing to start a fight with no enemies")
+		return false
+	var fight := ReachFight.new()
+	fight.force_miss = 0
+	fight.setup(depth, room_level(depth), _keeper_block(), mix, _champion_index(), _names(), _arts())
+	if fight.enemies.is_empty():
+		push_error("Reach: refusing to start a fight with no enemies")
+		return false
 	phase = "manual"
-	_fight = ReachFight.new()
-	_fight.force_miss = 0
-	_fight.setup(depth, room_level(depth), _keeper_block(), mix, _champion_index(), _names(), _arts())
+	_fight = fight
 	_open_view()
+	return true
 
 
 func _after_fight() -> void:
@@ -563,6 +580,21 @@ func _roll_mix(budget: float) -> Array[String]:
 		left -= float(costs[pick])
 	if out.is_empty():
 		out.append("minion")
+	return out
+
+
+func _mix_budget() -> float:
+	return SOLO_BUDGET if party_size <= 1 else 4.0
+
+
+func _clean_mix(raw: Variant) -> Array[String]:
+	var out: Array[String] = []
+	if typeof(raw) != TYPE_ARRAY:
+		return out
+	for entry: Variant in raw as Array:
+		var role := str(entry)
+		if role == "minion" or role == "caster" or role == "brute":
+			out.append(role)
 	return out
 
 
