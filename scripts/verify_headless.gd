@@ -1,6 +1,9 @@
 extends SceneTree
 const EchoBattleScript := preload("res://scripts/echo_battle.gd")
 const ReachFightScript := preload("res://scripts/reach_fight.gd")
+const FightStateScript := preload("res://scripts/battle/fight_state.gd")
+const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
+const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ## Regression rule: every bug Haex reports that has been fixed before, or that
@@ -224,6 +227,61 @@ func _run() -> void:
 		var from_main_only: int = _save_v14_from_main(tree_root, game_state, save_service)
 		if from_main_only > 0:
 			print("SAVE_V14_FROM_MAIN_FAIL: %d" % from_main_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Bundle 3 resolver. The full suite runs these at the end.
+	if OS.get_environment("MANAFORGE_RESOLVER_DICE") == "1":
+		var resolver_dice_only: int = _resolver_dice()
+		if resolver_dice_only > 0:
+			print("RESOLVER_DICE_FAIL: %d" % resolver_dice_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_MARGIN") == "1":
+		var resolver_margin_only: int = _resolver_margin()
+		if resolver_margin_only > 0:
+			print("RESOLVER_MARGIN_FAIL: %d" % resolver_margin_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_DIE_TABLE") == "1":
+		var resolver_die_only: int = _resolver_die_table()
+		if resolver_die_only > 0:
+			print("RESOLVER_DIE_TABLE_FAIL: %d" % resolver_die_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_SEED") == "1":
+		var resolver_seed_only: int = _resolver_seed()
+		if resolver_seed_only > 0:
+			print("RESOLVER_SEED_FAIL: %d" % resolver_seed_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_STATE") == "1":
+		var resolver_state_only: int = _resolver_state_roundtrip()
+		if resolver_state_only > 0:
+			print("RESOLVER_STATE_ROUNDTRIP_FAIL: %d" % resolver_state_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER") == "1":
+		var resolver_all_only: int = _resolver_all()
+		if resolver_all_only > 0:
+			print("RESOLVER_FAIL: %d" % resolver_all_only)
 			quit(1)
 		else:
 			quit(0)
@@ -2721,6 +2779,11 @@ func _run() -> void:
 	failed += _save_v14_inventory_merge(tree_root, game_state, save_service)
 	failed += _save_v14_home(tree_root, game_state, save_service)
 	failed += _save_v14_from_main(tree_root, game_state, save_service)
+	failed += _resolver_dice()
+	failed += _resolver_margin()
+	failed += _resolver_die_table()
+	failed += _resolver_seed()
+	failed += _resolver_state_roundtrip()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8599,3 +8662,442 @@ func _save_v14_from_main(tree_root: Window, game_state: Node, save_service: Node
 	if failed == 0:
 		print("SAVE_V14_FROM_MAIN_OK")
 	return failed
+
+
+func _resolver_all() -> int:
+	return _resolver_dice() + _resolver_margin() + _resolver_die_table() + _resolver_seed() + _resolver_state_roundtrip()
+
+
+func _resolver_dice() -> int:
+	## §4 worked example through FightState.strike, plus a beast that must not eat a Fate roll.
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var by_id: Dictionary = {}
+	for case_v: Variant in cases.get("strikes", []) as Array:
+		var c: Dictionary = case_v as Dictionary
+		by_id[str(c.get("id", ""))] = c
+	var want_damage: Dictionary = {"s4_line1": 24, "s4_line2": 4, "s4_line4": 52}
+	var want_crit: Dictionary = {"s4_line1": false, "s4_line2": false, "s4_line4": true}
+	var want_band: Dictionary = {"s4_line1": "crush", "s4_line2": "graze", "s4_line4": "crush"}
+	for cid: String in ["s4_line1", "s4_line2", "s4_line4"]:
+		failed += _assert(by_id.has(cid), "fixture %s" % cid)
+		if not by_id.has(cid):
+			continue
+		var case: Dictionary = by_id[cid] as Dictionary
+		var packed: Dictionary = _resolver_run_case(case, [])
+		var result: Dictionary = packed["result"] as Dictionary
+		var expect: Dictionary = case.get("expect", {}) as Dictionary
+		failed += _resolver_expect(cid, result, expect, packed["fight"])
+		failed += _assert(int(result.get("damage", -1)) == int(want_damage[cid]), "%s damage is the worked example" % cid)
+		failed += _assert(bool(result.get("fate_crit", false)) == bool(want_crit[cid]), "%s crit flag" % cid)
+		failed += _assert(str(result.get("band", "")) == str(want_band[cid]), "%s band" % cid)
+		failed += _assert(int(packed["remaining"]) == 0, "%s used every injected face" % cid)
+		failed += _assert(int(packed["underrun"]) == 0, "%s did not read past the injected faces" % cid)
+	if by_id.has("s4_line2"):
+		var beast_case: Dictionary = by_id["s4_line2"] as Dictionary
+		var extra: Array[int] = [77]
+		var packed_beast: Dictionary = _resolver_run_case(beast_case, extra)
+		var expect_beast: Dictionary = beast_case.get("expect", {}) as Dictionary
+		failed += _resolver_expect("s4_line2 fate", packed_beast["result"], expect_beast, packed_beast["fight"])
+		failed += _assert(int(packed_beast["remaining"]) == 1, "beast attacker leaves the Fate roll unconsumed")
+		failed += _assert(int(packed_beast["underrun"]) == 0, "beast attacker did not underrun")
+		var left: Array = packed_beast["queue"] as Array
+		failed += _assert(left.size() == 1 and int(left[0]) == 77, "the unconsumed face is the Fate roll")
+	if failed == 0:
+		print("RESOLVER_DICE_OK")
+	return failed
+
+
+func _resolver_margin() -> int:
+	## Every fixed-dice strike, plus the 10% KO / Calmed line on both sides.
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var strikes: Array = cases.get("strikes", []) as Array
+	failed += _assert(strikes.size() >= 12, "fixture strikes (got %d)" % strikes.size())
+	var checked: int = 0
+	for case_v: Variant in strikes:
+		var case: Dictionary = case_v as Dictionary
+		var cid: String = str(case.get("id", ""))
+		var packed: Dictionary = _resolver_run_case(case, [])
+		var result: Dictionary = packed["result"] as Dictionary
+		var expect: Dictionary = case.get("expect", {}) as Dictionary
+		failed += _resolver_expect(cid, result, expect, packed["fight"])
+		failed += _assert(int(packed["remaining"]) == 0, "%s left injected faces unused" % cid)
+		failed += _assert(int(packed["underrun"]) == 0, "%s consumed a die the fixture does not roll" % cid)
+		var att: Dictionary = case.get("attacker", {}) as Dictionary
+		var attack_type: String = str(case.get("attack_type", "physical"))
+		var offense: int = int(att.get("arc", att.get("arcana", 0))) if attack_type == "magic" else int(att.get("mig", att.get("might", 0)))
+		var die_block: Dictionary = case.get("dice", {}) as Dictionary
+		failed += _assert(int(BattleResolverScript.die_size(offense)) == int(die_block.get("damage_die", -1)), "%s damage die" % cid)
+		var card: Dictionary = (packed["fight"] as FightState).fighter_dict("defender")
+		var hp_after: int = int(result.get("defender_hp_after", 0))
+		var max_hp: int = int(card.get("max_hp", 0))
+		var want_status: String = "active"
+		if hp_after * 10 <= max_hp:
+			want_status = "ko" if str(packed["defender_side"]) == "party" else "calmed"
+		failed += _assert(str(result.get("defender_status", "")) == want_status, "%s status %s vs %s (hp %d / %d)" % [cid, str(result.get("defender_status", "")), want_status, hp_after, max_hp])
+		failed += _assert(str(card.get("status", "")) == want_status, "%s stored status" % cid)
+		checked += 1
+	failed += _assert(checked == strikes.size() and checked > 0, "ran every strike")
+	# min-damage graze (1) across the threshold. vit 10 => max 40, so 4 HP is exactly 10%.
+	var bounds: Array = [
+		["party", 6, 3, "ko"],
+		["party", 6, 4, "active"],
+		["beast", 9, 4, "calmed"],
+		["beast", 9, 5, "active"],
+		["party", 10, 5, "ko"],
+		["party", 10, 6, "active"],
+		["beast", 10, 5, "calmed"],
+		["beast", 10, 6, "active"],
+	]
+	for row_v: Variant in bounds:
+		var row: Array = row_v as Array
+		var side: String = str(row[0])
+		var vit: int = int(row[1])
+		var hp_before: int = int(row[2])
+		var want: String = str(row[3])
+		var hit: Dictionary = _resolver_threshold_hit(side, vit, hp_before)
+		var result_b: Dictionary = hit["result"] as Dictionary
+		failed += _assert(int(result_b.get("damage", 0)) == 1, "threshold probe deals 1 (%s vit %d)" % [side, vit])
+		failed += _assert(int(result_b.get("defender_hp_after", 0)) == hp_before - 1, "threshold hp (%s vit %d)" % [side, vit])
+		failed += _assert(str(result_b.get("defender_status", "")) == want, "%s vit %d from %d -> %s, got %s" % [side, vit, hp_before, want, str(result_b.get("defender_status", ""))])
+		failed += _assert(int(hit["max_hp"]) == 10 + 3 * vit, "threshold max hp")
+		failed += _assert(int(hit["underrun"]) == 0 and int(hit["remaining"]) == 0, "threshold dice")
+	if failed == 0:
+		print("RESOLVER_MARGIN_OK")
+	return failed
+
+
+func _resolver_die_table() -> int:
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var table: Array = cases.get("die_table", []) as Array
+	var rounding: Array = cases.get("round_half_up", []) as Array
+	failed += _assert(not table.is_empty() and not rounding.is_empty(), "die fixture rows")
+	for row_v: Variant in table:
+		var row: Dictionary = row_v as Dictionary
+		var offense: int = int(row.get("offense", 0))
+		var got: int = int(BattleResolverScript.die_size(offense))
+		failed += _assert(got == int(row.get("die", -1)), "die %d -> %d, want %s" % [offense, got, str(row.get("die"))])
+	for round_row_v: Variant in rounding:
+		var row2: Dictionary = round_row_v as Dictionary
+		var got2: int = int(BattleResolverScript.round_half_up_number(float(row2.get("x", 0.0))))
+		failed += _assert(got2 == int(row2.get("rounded", -1)), "round %s -> %d, want %s" % [str(row2.get("x")), got2, str(row2.get("rounded"))])
+	var ratios: Array = [[1, 2], [3, 2], [2, 1]]
+	var sweep_bad: int = 0
+	var sample: String = ""
+	for raw: int in range(0, 401):
+		for ratio_v: Variant in ratios:
+			var ratio: Array = ratio_v as Array
+			var num: int = int(ratio[0])
+			var den: int = int(ratio[1])
+			var got3: int = int(BattleResolverScript.round_half_up(raw, num, den))
+			var x: float = float(raw) * float(num) / float(den)
+			var want: int = floori(x + 0.5)
+			if got3 != want:
+				sweep_bad += 1
+				if sample == "":
+					sample = "raw %d x %d/%d -> %d vs floor %d" % [raw, num, den, got3, want]
+	failed += _assert(sweep_bad == 0, "half-up sweep mismatches %d (%s)" % [sweep_bad, sample])
+	if failed == 0:
+		print("RESOLVER_DIE_TABLE_OK")
+	return failed
+
+
+func _resolver_seed() -> int:
+	## FNV-1a 32 of "1000:<stream>", then & 0x7FFFFFFF. These pins are the mix,
+	## not Godot's hash(); do not retune them to follow an engine change.
+	var failed: int = 0
+	var samples: Array = [0, 1, 2, 42, 0x7FFFFFFF, -1, -50, 1 << 40, 9999999999]
+	for sample_v: Variant in samples:
+		var masked: int = int(BattleRngScript.mask_seed(int(sample_v)))
+		failed += _assert(masked >= 0 and masked <= 0x7FFFFFFF, "seed %s masks into 31 bits (%d)" % [str(sample_v), masked])
+	var neg: BattleRng = BattleRngScript.new()
+	neg.set_seed(-1)
+	var pos: BattleRng = BattleRngScript.new()
+	pos.set_seed(0x7FFFFFFF)
+	failed += _assert(neg.seed_value() == 0x7FFFFFFF, "negative seeds mask to 31 bits")
+	var masked_match: bool = true
+	for _i: int in 8:
+		if neg.roll_die(6) != pos.roll_die(6):
+			masked_match = false
+	failed += _assert(masked_match, "a masked seed draws the same sequence")
+	var zero_rng: BattleRng = BattleRngScript.new()
+	zero_rng.set_seed(0)
+	var zero_face: int = zero_rng.roll_die(6)
+	failed += _assert(zero_face >= 1 and zero_face <= 6, "seed 0 rolls a d6")
+	var left: BattleRng = BattleRngScript.new()
+	var right: BattleRng = BattleRngScript.new()
+	left.set_seed(42)
+	right.set_seed(42)
+	var same: bool = true
+	for _j: int in 16:
+		if left.roll_die(6) != right.roll_die(6) or left.roll_fate() != right.roll_fate():
+			same = false
+	for _k: int in 8:
+		if left.roll_die(20) != right.roll_die(20):
+			same = false
+	failed += _assert(same, "the same seed repeats")
+	var pinned: Dictionary = {"spawn": 1141270305, "combat": 1745004102, "loot": 1908542868}
+	var seen: Dictionary = {}
+	var streams: Array = BattleRngScript.STREAMS
+	failed += _assert(streams.size() == 4, "four streams")
+	for stream_v: Variant in streams:
+		var stream: String = str(stream_v)
+		var once: int = int(BattleRngScript.mix_stream(1000, stream))
+		var twice: int = int(BattleRngScript.mix_stream(1000, stream))
+		failed += _assert(once == twice, "%s mix is stable" % stream)
+		failed += _assert(once >= 0 and once <= 0x7FFFFFFF, "%s mix stays in 31 bits" % stream)
+		seen[stream] = once
+		if pinned.has(stream):
+			failed += _assert(once == int(pinned[stream]), "%s mix is the pinned FNV value (got %d)" % [stream, once])
+	var unique: Dictionary = {}
+	for stream_key: Variant in seen.keys():
+		unique[seen[stream_key]] = true
+	failed += _assert(unique.size() == 4, "the four streams from room 1000 differ")
+	failed += _assert(int(BattleRngScript.mix_stream(1, "spawn")) != int(seen["spawn"]), "a different room seed mixes differently")
+	var rng: BattleRng = BattleRngScript.new()
+	rng.set_seed(99)
+	for _n: int in 7:
+		rng.roll_die(12)
+	var saved: String = rng.state_string()
+	failed += _assert(saved.is_valid_int(), "rng state string is an integer (%s)" % saved)
+	var wrapped: String = JSON.stringify({"rng_combat_state": saved})
+	var parsed: Variant = JSON.parse_string(wrapped)
+	failed += _assert(parsed is Dictionary, "rng state json")
+	if parsed is Dictionary:
+		var body: Dictionary = parsed as Dictionary
+		failed += _assert(typeof(body.get("rng_combat_state")) == TYPE_STRING, "json keeps rng state as a string")
+		failed += _assert(str(body.get("rng_combat_state", "")) == saved, "json state string is unchanged")
+		var restored: BattleRng = BattleRngScript.new()
+		restored.set_seed(99)
+		restored.set_state_string(str(body.get("rng_combat_state", "")))
+		var twin: BattleRng = BattleRngScript.new()
+		twin.set_seed(99)
+		twin.set_state_string(saved)
+		var draws_match: bool = true
+		for _m: int in 12:
+			var die_a: int = rng.roll_die(8)
+			var die_b: int = restored.roll_die(8)
+			var die_c: int = twin.roll_die(8)
+			var fate_a: int = rng.roll_fate()
+			var fate_b: int = restored.roll_fate()
+			var fate_c: int = twin.roll_fate()
+			if die_a != die_b or die_b != die_c or fate_a != fate_b or fate_b != fate_c:
+				draws_match = false
+		failed += _assert(draws_match, "restoring the state string repeats the next draws")
+	if failed == 0:
+		print("RESOLVER_SEED_OK")
+	return failed
+
+
+func _resolver_state_roundtrip() -> int:
+	## Keeper at the unlock line (the §4 example) versus the catalog imp and moth.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.set_combat_seed(20261009)
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	failed += _assert(fight.add_member("keeper", keeper_stats, 0, "front") == "keeper", "keeper id")
+	failed += _assert(fight.add_beast("acorn_imp", 0, "front") == "acorn_imp", "imp id")
+	failed += _assert(fight.add_beast("spore_moth", 1, "back") == "spore_moth", "moth id")
+	var beasts: Dictionary = _resolver_beast_rows()
+	var fresh: Dictionary = fight.to_dict()
+	var keeper_row: Dictionary = _resolver_fighter_row(fresh, "keeper")
+	var imp_row: Dictionary = _resolver_fighter_row(fresh, "acorn_imp")
+	var moth_row: Dictionary = _resolver_fighter_row(fresh, "spore_moth")
+	var imp_spec: Dictionary = beasts.get("acorn_imp", {}) as Dictionary
+	var moth_spec: Dictionary = beasts.get("spore_moth", {}) as Dictionary
+	failed += _assert(not imp_spec.is_empty() and not moth_spec.is_empty(), "catalog has the imp and the moth")
+	failed += _assert(int(keeper_row.get("might", 0)) == 11 and int(keeper_row.get("resilience", 0)) == 6, "keeper might and resilience")
+	failed += _assert(int(keeper_row.get("swiftness", 0)) == 7 and int(keeper_row.get("vitality", 0)) == 6 and int(keeper_row.get("fate", 0)) == 7, "keeper swift, vit, fate")
+	failed += _assert(int(keeper_row.get("weave", 0)) == 30 and str(keeper_row.get("side", "")) == "party", "party weave is 30")
+	failed += _assert(int(keeper_row.get("max_hp", 0)) == 10 + 3 * 6, "keeper max hp")
+	failed += _assert(int(imp_row.get("might", -1)) == int(imp_spec.get("might", -2)), "imp might comes from beasts.json")
+	failed += _assert(int(imp_row.get("hp", -1)) == int(imp_spec.get("hp", -2)), "imp hp comes from beasts.json")
+	failed += _assert(int(imp_row.get("max_hp", 0)) == 10 + 3 * int(imp_spec.get("vitality", 0)), "imp max hp is 10 + 3 x Vitality")
+	failed += _assert(str(imp_row.get("attack", "")) == str(imp_spec.get("attack", "")), "imp attack comes from beasts.json")
+	failed += _assert(int(imp_row.get("fate", -1)) == int(imp_spec.get("fate", -2)) and int(imp_row.get("weave", -1)) == 0, "beasts have Fate from the file and no weave")
+	failed += _assert(int(moth_row.get("arcana", -1)) == int(moth_spec.get("arcana", -2)), "moth arcana comes from beasts.json")
+	failed += _assert(str(moth_row.get("attack", "")) == "magic" and str(moth_row.get("row", "")) == "back" and int(moth_row.get("slot", -1)) == 1, "moth is the back-row caster")
+	failed += _assert(int(moth_row.get("weave", -1)) == 0, "moth has no weave")
+	failed += _assert(str(fresh.get("controller", "")) == "manual" and int(fresh.get("resolver_version", 0)) == 1, "manual controller, resolver version 1")
+	failed += _assert(typeof(fresh.get("rng_combat_state")) == TYPE_STRING, "rng state is stored as a string")
+	var ids: Array = fresh.get("order", []) as Array
+	failed += _assert(ids.size() == 3 and str(ids[0]) == "keeper" and str(ids[1]) == "acorn_imp" and str(ids[2]) == "spore_moth", "order is keeper, imp, moth")
+	var pairs: Array = [["keeper", "acorn_imp"], ["spore_moth", "keeper"], ["keeper", "spore_moth"]]
+	for pair_v: Variant in pairs:
+		var pair: Array = pair_v as Array
+		fight.strike(str(pair[0]), str(pair[1]), 0, 1)
+	var snap: Dictionary = fight.to_dict()
+	failed += _assert(str(snap.get("rng_combat_state", "")) != str(fresh.get("rng_combat_state", "")), "strikes advance the combat rng")
+	var parsed: Variant = JSON.parse_string(JSON.stringify(snap))
+	failed += _assert(parsed is Dictionary, "fight json")
+	if parsed is Dictionary:
+		var copy: FightState = FightStateScript.from_dict(parsed)
+		var again: Dictionary = copy.to_dict()
+		if again != snap:
+			print("STATE A ", JSON.stringify(snap))
+			print("STATE B ", JSON.stringify(again))
+		failed += _assert(again == snap, "fight dict survives json")
+		for n: int in 4:
+			var pair_n: Array = pairs[n % pairs.size()] as Array
+			var left: Dictionary = fight.strike(str(pair_n[0]), str(pair_n[1]), 0, 1)
+			var right: Dictionary = copy.strike(str(pair_n[0]), str(pair_n[1]), 0, 1)
+			if left != right:
+				print("STRIKE A ", JSON.stringify(left))
+				print("STRIKE B ", JSON.stringify(right))
+			failed += _assert(left == right, "strike %d matches after reload" % n)
+		var kept: Dictionary = copy.to_dict()
+		failed += _assert(int(_resolver_fighter_row(kept, "keeper").get("weave", 0)) == 30, "weave is still 30 after the reload")
+		var schema: Dictionary = snap.duplicate(true)
+		schema["round"] = 3
+		schema["turn_cursor"] = 2
+		schema["ambush"] = true
+		schema["twist"] = "briar"
+		schema["salves_used"] = 2
+		schema["log_tail"] = [{"note": "tail"}]
+		var schema_keeper: Dictionary = _resolver_fighter_row(schema, "keeper")
+		schema_keeper["shield"] = 4
+		schema_keeper["brace"] = true
+		schema_keeper["turns"] = 1
+		schema_keeper["weave"] = 22
+		schema_keeper["status"] = "ko"
+		schema_keeper["poison"] = {"ticks": [2, 2], "left": 2}
+		schema_keeper["intent"] = {"move": "heavy", "mult": 2}
+		var schema_imp: Dictionary = _resolver_fighter_row(schema, "acorn_imp")
+		schema_imp["boss"] = true
+		var schema_parsed: Variant = JSON.parse_string(JSON.stringify(schema))
+		if schema_parsed is Dictionary:
+			var schema_back: Dictionary = FightStateScript.from_dict(schema_parsed).to_dict()
+			if schema_back != schema:
+				print("SCHEMA A ", JSON.stringify(schema))
+				print("SCHEMA B ", JSON.stringify(schema_back))
+			failed += _assert(schema_back == schema, "schema fields survive json")
+		var cap_state: Dictionary = snap.duplicate(true)
+		var tail: Array = []
+		for i: int in 25:
+			tail.append({"i": i})
+		cap_state["log_tail"] = tail
+		var cap_parsed: Variant = JSON.parse_string(JSON.stringify(cap_state))
+		if cap_parsed is Dictionary:
+			var capped: Dictionary = FightStateScript.from_dict(cap_parsed).to_dict()
+			var got_tail: Array = capped.get("log_tail", []) as Array
+			failed += _assert(got_tail.size() == 20, "log tail caps at 20 (got %d)" % got_tail.size())
+			if got_tail.size() == 20:
+				failed += _assert(int((got_tail[0] as Dictionary).get("i", -1)) == 5, "log tail keeps the latest 20")
+				failed += _assert(int((got_tail[19] as Dictionary).get("i", -1)) == 24, "log tail ends at the latest entry")
+	if failed == 0:
+		print("RESOLVER_STATE_ROUNDTRIP_OK")
+	return failed
+
+
+func _resolver_run_case(case: Dictionary, extra: Array[int]) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	var att: Dictionary = case.get("attacker", {}) as Dictionary
+	var dfn: Dictionary = case.get("defender", {}) as Dictionary
+	var attack_type: String = str(case.get("attack_type", "physical"))
+	var att_side: String = _resolver_side(str(att.get("name", "")))
+	var dfn_side: String = _resolver_side(str(dfn.get("name", "")))
+	var att_member: String = ""
+	var dfn_member: String = ""
+	if att_side == "party":
+		att_member = "elaia" if str(att.get("name", "")) == "Elaia" else "keeper"
+	if dfn_side == "party":
+		dfn_member = "elaia" if str(dfn.get("name", "")) == "Elaia" else "keeper"
+	var dfn_kind: String = str(dfn.get("kind", "phys"))
+	var dfn_attack: String = "magic" if dfn_kind == "mag" else "physical"
+	fight.add_fighter("attacker", att_side, att, 0, "front", attack_type, "", att_member)
+	fight.add_fighter("defender", dfn_side, dfn, 0, "front", dfn_attack, "", dfn_member)
+	var faces: Array[int] = _resolver_faces(case)
+	for face: int in extra:
+		faces.append(face)
+	fight.set_scripted_dice(faces)
+	var result: Dictionary = fight.strike("attacker", "defender", int(case.get("to_hit_mod", 0)), case.get("telegraph_mult", 1))
+	return {
+		"result": result,
+		"remaining": fight.scripted_remaining(),
+		"underrun": fight.scripted_underrun(),
+		"queue": fight.scripted_queue(),
+		"fight": fight,
+		"defender_side": dfn_side,
+	}
+
+
+func _resolver_expect(cid: String, result: Dictionary, expect: Dictionary, fight: FightState) -> int:
+	var failed: int = 0
+	for key: String in ["attack_total", "defense_total", "margin", "damage", "defender_hp_after"]:
+		failed += _assert(int(result.get(key, -99999)) == int(expect.get(key, -88888)), "%s %s got %s want %s" % [cid, key, str(result.get(key)), str(expect.get(key))])
+	failed += _assert(str(result.get("band", "")) == str(expect.get("band", "")), "%s band got %s want %s" % [cid, str(result.get("band")), str(expect.get("band"))])
+	failed += _assert(bool(result.get("fate_crit", false)) == bool(expect.get("fate_crit", false)), "%s fate_crit got %s want %s" % [cid, str(result.get("fate_crit")), str(expect.get("fate_crit"))])
+	var card: Dictionary = fight.fighter_dict("defender")
+	failed += _assert(int(card.get("hp", 99999)) == int(expect.get("defender_hp_after", -88888)), "%s defender hp stored" % cid)
+	return failed
+
+
+func _resolver_faces(case: Dictionary) -> Array[int]:
+	var dice: Dictionary = case.get("dice", {}) as Dictionary
+	var faces: Array[int] = []
+	for key: String in ["attack_2d6", "defense_2d6"]:
+		var rolls: Variant = dice.get(key, [])
+		if rolls is Array:
+			for face_v: Variant in rolls:
+				faces.append(int(face_v))
+	if dice.get("damage_face", null) != null:
+		faces.append(int(dice.get("damage_face")))
+	if dice.get("fate_roll_0_100", null) != null:
+		faces.append(int(dice.get("fate_roll_0_100")))
+	return faces
+
+
+func _resolver_side(fighter_name: String) -> String:
+	if fighter_name == "Keeper" or fighter_name == "Elaia":
+		return "party"
+	return "beast"
+
+
+func _resolver_threshold_hit(side: String, vitality: int, hp: int) -> Dictionary:
+	## The min_damage_1 dice: graze for exactly 1, no Fate roll.
+	var fight: FightState = FightStateScript.new()
+	var att: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 7, "ward": 3, "vitality": 9,
+		"swiftness": 6, "fate": 0,
+	}
+	var dfn: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 12, "ward": 5, "vitality": vitality,
+		"swiftness": 7, "fate": 7, "hp": hp,
+	}
+	var member: String = "keeper" if side == "party" else ""
+	var species: String = "" if side == "party" else "acorn_imp"
+	fight.add_fighter("attacker", "beast", att, 0, "front", "physical", "", "")
+	fight.add_fighter("defender", side, dfn, 0, "front", "physical", species, member)
+	fight.set_scripted_dice([6, 6, 1, 1, 1])
+	var result: Dictionary = fight.strike("attacker", "defender", 0, 1)
+	return {
+		"result": result,
+		"max_hp": int(fight.fighter_dict("defender").get("max_hp", 0)),
+		"remaining": fight.scripted_remaining(),
+		"underrun": fight.scripted_underrun(),
+	}
+
+
+func _resolver_beast_rows() -> Dictionary:
+	var data: Dictionary = _json_dict("res://data/beasts.json")
+	var by_id: Dictionary = {}
+	for key: String in ["species", "variants"]:
+		for row_v: Variant in data.get(key, []) as Array:
+			if row_v is Dictionary:
+				var row: Dictionary = row_v as Dictionary
+				by_id[str(row.get("id", ""))] = row
+	return by_id
+
+
+func _resolver_fighter_row(state: Dictionary, fighter_id: String) -> Dictionary:
+	for row_v: Variant in state.get("fighters", []) as Array:
+		if row_v is Dictionary:
+			var row: Dictionary = row_v as Dictionary
+			if str(row.get("id", "")) == fighter_id:
+				return row
+	return {}
