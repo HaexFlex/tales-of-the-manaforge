@@ -53,6 +53,7 @@ This is a fast index for coding agents. It says where things live and which func
 | `echo_keeper_01.json`, `echo_bramble_02.json` | EchoChamber |
 | `audio_cues.json` | GameAudio |
 | `beasts.json` (BATTLE_SCENE_DRAFT v4 §10: species, threat rule, variant rule) | nothing in the game yet; VERIFY `BEAST_DATA_OK` |
+| `spawn_tables.json` (§10 room budget, per-depth weights, loot rules; bonus-drop contents and herbs by depth left empty until approved) | nothing in the game yet; VERIFY `SPAWN_DATA_OK` |
 
 - **Art:** `assets/art/` (subfolders `bramble echo elaia forge fx hub keeper manatree nodes portraits props tiles title trees ui wisps`; manifest in `assets/art/MANIFEST.json`). Hub props are in `assets/art/props/` (e.g. `thorn/`, `expedition_board/`, `echo_portal_hub_v2.png`). Kept-but-unused sheets go in `assets/library/` and refs in `assets/refs/`. Both are `.gdignore`d, as is `docs/`.
 - **Audio:** `assets/audio/*.ogg|mp3`. Cue ids map to files in `data/audio_cues.json`.

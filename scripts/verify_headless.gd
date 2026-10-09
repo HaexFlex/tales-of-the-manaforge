@@ -139,6 +139,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_SPAWN_DATA") == "1":
+		var _spawn_data_only: int = _spawn_data(tree_root)
+		if _spawn_data_only > 0:
+			print("SPAWN_DATA_FAIL: %d" % _spawn_data_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH_MIX") == "1":
 		var mix_only: int = _reach_mix_reload(tree_root, game_state, save_service)
 		if mix_only > 0:
@@ -2671,6 +2680,7 @@ func _run() -> void:
 	failed += _reach_turn_order()
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
 	failed += _beast_data(tree_root)
+	failed += _spawn_data(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8035,4 +8045,125 @@ func _beast_data(_tree_root: Window) -> int:
 		failed += _assert(strings.has(str(vrow.get("name_key", ""))), "%s name string" % vid)
 	if failed == 0:
 		print("BEAST_DATA_OK")
+	return failed
+
+
+func _room_budget(depth: int, budget: Dictionary) -> int:
+	if depth <= 10:
+		return int(budget.get("base", 0)) + int(budget.get("per_depth_to_10", 0)) * (depth - 1)
+	return int(budget.get("at_10", 0)) + int(budget.get("per_depth_after_10", 0)) * (depth - 10)
+
+
+func _spawn_table_for(depth: int, tables: Array) -> Array:
+	## The latest table at or below the depth.
+	var best: Array = []
+	for t_v: Variant in tables:
+		var t: Dictionary = t_v as Dictionary
+		if int(t.get("depth", 0)) <= depth:
+			best = t.get("weights", []) as Array
+	return best
+
+
+func _room_compositions(pool: Array[Dictionary], budget: int, max_beasts: int) -> Array[String]:
+	## Distinct maximal rooms: nothing else fits, or the room is full. Same rule as compositions().
+	var found: Dictionary = {}
+	_room_rec(pool, budget, max_beasts, 0, [], 0, found)
+	var keys: Array[String] = []
+	for k: Variant in found.keys():
+		keys.append(str(k))
+	keys.sort()
+	return keys
+
+
+func _room_rec(pool: Array[Dictionary], budget: int, max_beasts: int, start: int, chosen: Array, total: int, found: Dictionary) -> void:
+	var rem: int = budget - total
+	if not chosen.is_empty():
+		var nothing_fits: bool = true
+		for b: Dictionary in pool:
+			if int(b["threat"]) <= rem:
+				nothing_fits = false
+		if chosen.size() == max_beasts or nothing_fits:
+			var ids: Array = chosen.duplicate()
+			ids.sort()
+			found[",".join(PackedStringArray(ids))] = true
+			return
+	for i: int in range(start, pool.size()):
+		var b: Dictionary = pool[i]
+		if total + int(b["threat"]) <= budget:
+			var next: Array = chosen.duplicate()
+			next.append(str(b["id"]))
+			_room_rec(pool, budget, max_beasts, i, next, total + int(b["threat"]), found)
+
+
+func _spawn_data(_tree_root: Window) -> int:
+	## data/spawn_tables.json carries the §10 budget curve and per-depth weights. Every beast exists and
+	## may spawn at that depth, the room counts match the draft, and Amberbind is never a bonus drop.
+	var failed: int = 0
+	var data: Dictionary = _json_dict("res://data/spawn_tables.json")
+	var beasts: Dictionary = _json_dict("res://data/beasts.json")
+	failed += _assert(not data.is_empty() and not beasts.is_empty(), "spawn_tables.json and beasts.json parse")
+	if data.is_empty() or beasts.is_empty():
+		return failed
+	var by_id: Dictionary = {}
+	for row_v: Variant in (beasts.get("species", []) as Array) + (beasts.get("variants", []) as Array):
+		by_id[str((row_v as Dictionary).get("id", ""))] = row_v
+	var budget: Dictionary = data.get("budget", {}) as Dictionary
+	var fill: Dictionary = data.get("fill", {}) as Dictionary
+	var max_beasts: int = int(fill.get("max_beasts", 0))
+	failed += _assert(max_beasts == 6, "rooms hold up to 6 beasts")
+	failed += _assert(is_equal_approx(float(fill.get("variety_bias", 0.0)), 2.0), "variety bias x2")
+	# The §10 table: depth -> [budget, weights, different rooms].
+	var want: Dictionary = {
+		1: [90, "acorn_imp:1,spore_moth:1", 3],
+		3: [94, "acorn_imp:8,spore_moth:8,wilt_wisp:1,root_snapper:1", 10],
+		5: [98, "acorn_imp:12,spore_moth:12,wilt_wisp:4,root_snapper:4,acorn_imp_dark:1,spore_moth_dark:1", 16],
+		8: [104, "acorn_imp:4,spore_moth:4,wilt_wisp:6,root_snapper:6,acorn_imp_dark:1,spore_moth_dark:1", 16],
+		10: [108, "acorn_imp:2,spore_moth:2,wilt_wisp:6,root_snapper:6,acorn_imp_dark:2,spore_moth_dark:1", 18],
+		12: [120, "wilt_wisp:4,root_snapper:4,acorn_imp_dark:2,spore_moth_dark:1,thorn_boar:1,vine_serpent:1", 20],
+		15: [138, "wilt_wisp:3,root_snapper:3,acorn_imp_dark:2,spore_moth_dark:2,thorn_boar:2,vine_serpent:2", 21],
+	}
+	var tables: Array = data.get("tables", []) as Array
+	failed += _assert(tables.size() == want.size(), "seven spawn tables (got %d)" % tables.size())
+	var last_depth: int = 0
+	for t_v: Variant in tables:
+		var t: Dictionary = t_v as Dictionary
+		var depth: int = int(t.get("depth", 0))
+		failed += _assert(depth > last_depth, "tables are in depth order (%d)" % depth)
+		last_depth = depth
+		failed += _assert(want.has(depth), "table at depth %d is in the draft" % depth)
+		if not want.has(depth):
+			continue
+		var b: int = _room_budget(depth, budget)
+		failed += _assert(b == int(want[depth][0]), "budget at depth %d is %d (got %d)" % [depth, int(want[depth][0]), b])
+		var parts: PackedStringArray = []
+		var pool: Array[Dictionary] = []
+		var cheapest: int = 1 << 30
+		for w_v: Variant in t.get("weights", []) as Array:
+			var w: Dictionary = w_v as Dictionary
+			var bid: String = str(w.get("beast", ""))
+			parts.append("%s:%d" % [bid, int(w.get("weight", 0))])
+			failed += _assert(int(w.get("weight", 0)) > 0, "depth %d weight for %s is positive" % [depth, bid])
+			failed += _assert(by_id.has(bid), "depth %d beast %s is in beasts.json" % [depth, bid])
+			if not by_id.has(bid):
+				continue
+			var row: Dictionary = by_id[bid]
+			failed += _assert(int(row.get("from_depth", 99)) <= depth, "%s may spawn at depth %d" % [bid, depth])
+			cheapest = mini(cheapest, int(row.get("threat", 0)))
+			pool.append({"id": bid, "threat": int(row.get("threat", 0))})
+		failed += _assert(",".join(parts) == str(want[depth][1]), "depth %d weights match the draft (%s)" % [depth, ",".join(parts)])
+		failed += _assert(cheapest <= b, "a beast fits the depth %d budget" % depth)
+		var rooms: Array[String] = _room_compositions(pool, b, max_beasts)
+		failed += _assert(rooms.size() == int(want[depth][2]), "depth %d has %d different rooms (got %d)" % [depth, int(want[depth][2]), rooms.size()])
+	failed += _assert(_room_budget(1, budget) == 90 and _room_budget(10, budget) == 108 and _room_budget(15, budget) == 138, "budget 90 / 108 / 138 at depth 1 / 10 / 15")
+	failed += _assert(_spawn_table_for(2, tables).size() == 2 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
+	# Loot: Amberbind stays the manual jackpot; job 23 numbers are not approved, so they stay empty.
+	var loot: Dictionary = data.get("loot", {}) as Dictionary
+	failed += _assert(is_equal_approx(float(loot.get("bonus_drop_chance", 0.0)), 0.10), "bonus drop chance stays 10%")
+	failed += _assert(str(loot.get("manual_jackpot", "")) == "amberbind", "Amberbind is the manual jackpot")
+	failed += _assert((loot.get("bonus_drop_never", []) as Array).has("amberbind"), "Amberbind is listed as never a bonus drop")
+	var contents: Variant = loot.get("bonus_drop_contents", null)
+	failed += _assert(contents == null or JSON.stringify(contents).find("amberbind") < 0, "bonus-drop contents carry no Amberbind")
+	failed += _assert(contents == null and loot.get("herbs_by_depth", null) == null, "unapproved job 23 numbers stay empty")
+	if failed == 0:
+		print("SPAWN_DATA_OK")
 	return failed

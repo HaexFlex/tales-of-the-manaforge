@@ -1,0 +1,207 @@
+{
+ "status": "DRAFT data from BATTLE_SCENE_DRAFT v4 §10 (weights and budget tweakable). Nothing in the game reads this file yet; the spawn roller (job 15) will.",
+ "budget": {
+  "base": 90,
+  "per_depth_to_10": 2,
+  "at_10": 108,
+  "per_depth_after_10": 6,
+  "note": "B(D) = 90 + 2 x (D - 1) through depth 10, then 108 + 6 x (D - 10). Depth 1 = 90, 10 = 108, 15 = 138."
+ },
+ "fill": {
+  "max_beasts": 6,
+  "variety_bias": 2.0,
+  "note": "Fill the budget until nothing else fits, up to 6 beasts, drawing by the depth's weights. A species not yet in the room has its weight x2. Melee in front, ranged behind, 3 per row."
+ },
+ "table_rule": "A depth uses the latest table at or below it. Weights are relative.",
+ "tables": [
+  {
+   "depth": 1,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 1
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 3,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 8
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 8
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 1
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 5,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 12
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 12
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 4
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 4
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 1
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 8,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 4
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 4
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 6
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 6
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 1
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 10,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 2
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 2
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 6
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 6
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 2
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 12,
+   "weights": [
+    {
+     "beast": "wilt_wisp",
+     "weight": 4
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 4
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 2
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 1
+    },
+    {
+     "beast": "thorn_boar",
+     "weight": 1
+    },
+    {
+     "beast": "vine_serpent",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 15,
+   "weights": [
+    {
+     "beast": "wilt_wisp",
+     "weight": 3
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 3
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 2
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 2
+    },
+    {
+     "beast": "thorn_boar",
+     "weight": 2
+    },
+    {
+     "beast": "vine_serpent",
+     "weight": 2
+    }
+   ]
+  }
+ ],
+ "loot": {
+  "bonus_drop_chance": 0.1,
+  "bonus_drop_contents": null,
+  "bonus_drop_never": [
+   "amberbind"
+  ],
+  "manual_jackpot": "amberbind",
+  "herbs_by_depth": null,
+  "note": "Bonus-drop contents and the herb rise with depth are job 23 numbers, not approved yet: left empty on purpose. Amberbind stays the manual jackpot and is never a bonus drop (Haex 2026-10-09). Briarwood counts are locked elsewhere and twists never change them."
+ }
+}
