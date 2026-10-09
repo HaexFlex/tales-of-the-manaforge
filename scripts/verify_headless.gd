@@ -148,6 +148,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_STRINGS_V4") == "1":
+		var _strings_adventure_v4_only: int = _strings_adventure_v4(tree_root)
+		if _strings_adventure_v4_only > 0:
+			print("STRINGS_ADVENTURE_V4_FAIL: %d" % _strings_adventure_v4_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH_MIX") == "1":
 		var mix_only: int = _reach_mix_reload(tree_root, game_state, save_service)
 		if mix_only > 0:
@@ -2681,6 +2690,7 @@ func _run() -> void:
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
 	failed += _beast_data(tree_root)
 	failed += _spawn_data(tree_root)
+	failed += _strings_adventure_v4(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8166,4 +8176,61 @@ func _spawn_data(_tree_root: Window) -> int:
 	failed += _assert(contents == null and loot.get("herbs_by_depth", null) == null, "unapproved job 23 numbers stay empty")
 	if failed == 0:
 		print("SPAWN_DATA_OK")
+	return failed
+
+
+func _strings_adventure_v4(tree_root: Window) -> int:
+	## The BATTLE_SCENE_DRAFT v4 strings (DRAFT copy) exist and read right through ContentStrings.
+	## Beasts are Calmed and the party is Overwhelmed: no "slain", "killed" or "defeat" in adventure
+	## copy, and "Rootweave" nowhere in the game.
+	var failed: int = 0
+	var cs: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null, "ContentStrings autoload")
+	if cs == null:
+		return failed
+	var exact: Dictionary = {
+		"adv_overwhelmed_title": "Overwhelmed",
+		"adv_knocked_out": "Knocked out",
+		"adv_calmed": "Calmed",
+		"adv_trailhead": "Trailhead",
+		"adv_strike_for_me": "Strike for me",
+		"adv_item_none_packed": "None packed",
+		"adv_ability_empty_tip": "Abilities draw on Weave. You have none yet.",
+		"adv_loadout_title": "Item loadout",
+	}
+	for key: String in exact.keys():
+		failed += _assert(str(cs.call("get_text", key)) == str(exact[key]), "%s reads \"%s\"" % [key, str(exact[key])])
+	var present: Array[String] = ["adv_overwhelmed_body", "adv_overwhelmed_log", "adv_knocked_out_log", "adv_calmed_log",
+		"adv_calmed_tip", "adv_back_at_trailhead", "adv_strike_for_me_tip", "adv_item_count", "adv_loadout_hint",
+		"adv_loadout_empty_slot", "adv_depart_cost", "adv_predeparture_warning"]
+	for key: String in present:
+		var text: String = str(cs.call("get_text", key))
+		failed += _assert(text != key and not text.strip_edges().is_empty(), "%s exists" % key)
+	failed += _assert(str(cs.call("get_text", "adv_calmed_log", {"beast": "Acorn imp"})) == "Acorn imp is Calmed.", "Calmed log line fills the beast name")
+	failed += _assert(str(cs.call("get_text", "adv_item_count", {"item": "Heart Salve", "count": 0})) == "Heart Salve ×0", "item count reads Heart Salve ×0")
+	failed += _assert(str(cs.call("get_text", "adv_depart_cost")).find("20 Essence") >= 0, "departure cost names 20 Essence")
+	failed += _assert(str(cs.call("get_text", "adv_predeparture_warning")).find("no Cancel") >= 0, "pre-departure warning says there is no Cancel")
+	failed += _assert(str(cs.call("get_text", "adv_strike_for_me_tip")).find("1×") >= 0, "Strike for me plays at 1×")
+	var table: Dictionary = _json_dict("res://data/strings_v01.json")
+	var raw: String = FileAccess.get_file_as_string("res://data/strings_v01.json").to_lower()
+	failed += _assert(raw.find("rootweave") < 0, "no Rootweave in any string")
+	var prefixes: Array[String] = ["adv_", "beast_", "adventure_", "expedition_", "path_east_", "lantern_", "reach_"]
+	var checked: int = 0
+	for key_v: Variant in table.keys():
+		var key: String = str(key_v)
+		var adventure: bool = false
+		for pre: String in prefixes:
+			if key.begins_with(pre):
+				adventure = true
+		if not adventure:
+			continue
+		checked += 1
+		var text: String = str(table[key_v]).to_lower()
+		for banned: String in ["slain", "slay", "killed", "kill "]:
+			failed += _assert(text.find(banned) < 0, "%s avoids \"%s\"" % [key, banned])
+		if key.begins_with("adv_") or key.begins_with("beast_"):
+			failed += _assert(text.find("defeat") < 0, "%s says Overwhelmed or Calmed, not defeat" % key)
+	failed += _assert(checked >= 30, "adventure strings were checked (%d)" % checked)
+	if failed == 0:
+		print("STRINGS_ADVENTURE_V4_OK")
 	return failed
