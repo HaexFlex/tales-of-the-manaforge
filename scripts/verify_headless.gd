@@ -9235,6 +9235,29 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(bool(BattleViewScript.open_arena()), "a second open is the same overlay")
 	failed += _assert(get_nodes_in_group("battle_overlay").size() == 1, "opening twice does not stack")
 	failed += _assert(get_nodes_in_group("battle_slot_outline").size() == 12, "a second open adds no rows")
+	# A real mouse click on Close (GUI path, not close_overlay()) closes the arena.
+	var again: Array[Node] = get_nodes_in_group("battle_overlay")
+	var close_again: Button = (again[0] as Node).get_node_or_null("Arena/CloseButton") as Button if again.size() == 1 else null
+	failed += _assert(close_again != null, "Close button exists on the reopened arena")
+	if close_again != null:
+		var vp_close: Viewport = live.get_viewport()
+		var at: Vector2 = close_again.get_global_rect().get_center()
+		vp_close.warp_mouse(at)
+		var hover := InputEventMouseMotion.new()
+		hover.position = at
+		hover.global_position = at
+		vp_close.push_input(hover, true)
+		for pressed_v: bool in [true, false]:
+			var press := InputEventMouseButton.new()
+			press.button_index = MOUSE_BUTTON_LEFT
+			press.pressed = pressed_v
+			press.position = at
+			press.global_position = at
+			vp_close.push_input(press, true)
+		await process_frame
+		failed += _assert(not bool(BattleViewScript.is_open()), "a mouse click on Close closes the arena")
+	if not bool(BattleViewScript.is_open()):
+		failed += _assert(bool(BattleViewScript.open_arena()), "the arena opens after Close")
 	var wood_before: int = int(game_state.get("wood"))
 	failed += _assert(bool(save_service.call("save_game", _BATTLE_SHELL_SLOT)), "save works while the arena is open")
 	var slot_text: String = FileAccess.get_file_as_string(str(save_service.call("slot_path", _BATTLE_SHELL_SLOT)))

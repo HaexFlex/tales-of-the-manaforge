@@ -201,11 +201,13 @@ func _add_row(side: String, back: bool) -> void:
 func _input(event: InputEvent) -> void:
 	## Swallow world clicks even when the full-rect control is not the hovered
 	## GUI (headless has no pointer). Escape closes this overlay before the
-	## pause menu's unhandled key sees it. Already-handled GUI clicks, including
-	## Close, are not delivered here.
+	## pause menu's unhandled key sees it. _input runs BEFORE GUI input, so a
+	## pointer event over the Close button is let through to reach the button.
 	if is_queued_for_deletion():
 		return
 	if event is InputEventMouseButton or event is InputEventMouseMotion:
+		if _over_close(event as InputEventMouse):
+			return
 		get_viewport().set_input_as_handled()
 		return
 	if not (event is InputEventKey):
@@ -215,3 +217,9 @@ func _input(event: InputEvent) -> void:
 		return
 	close_overlay()
 	get_viewport().set_input_as_handled()
+
+
+func _over_close(event: InputEventMouse) -> bool:
+	if _close_button == null or not _close_button.is_visible_in_tree():
+		return false
+	return _close_button.get_global_rect().has_point(event.position)
