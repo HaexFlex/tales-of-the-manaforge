@@ -1,5 +1,6 @@
 extends SceneTree
 const EchoBattleScript := preload("res://scripts/echo_battle.gd")
+const ReachFightScript := preload("res://scripts/reach_fight.gd")
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ## Regression rule: every bug Haex reports that has been fixed before, or that
@@ -80,6 +81,94 @@ func _run() -> void:
 		var strip_failed: int = _debug_stripped_ok()
 		if strip_failed > 0:
 			print("DEBUG_STRIPPED_FAIL: %d" % strip_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SPEED_BUTTON") == "1":
+		var speed_only: int = await _speed_button_ok(tree_root, game_state, save_service, game_audio)
+		if speed_only > 0:
+			print("SPEED_BUTTON_FAIL: %d" % speed_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Echo 2 hub arch regression. The full suite still runs it after the adventure batch.
+	# MANAFORGE_ECHO2_PORTAL=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_ECHO2_PORTAL") == "1":
+		var echo2_only: int = await _echo2_portal_visible(tree_root, game_state, save_service)
+		if echo2_only > 0:
+			print("ECHO2_PORTAL_VISIBLE_FAIL: %d" % echo2_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Board tease. The full suite still runs it after the Echo 2 arch check.
+	# MANAFORGE_BOARD_TEASE=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_BOARD_TEASE") == "1":
+		var tease_only: int = await _expedition_board_tease(tree_root, game_state, save_service)
+		if tease_only > 0:
+			print("EXPEDITION_BOARD_TEASE_FAIL: %d" % tease_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Experimental reach snapshots. The full suite still runs this near the end.
+	# MANAFORGE_DEBUG_SNAPSHOTS=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_DEBUG_SNAPSHOTS") == "1":
+		var snaps_only: int = await _debug_snapshots_reach(tree_root, game_state, save_service)
+		if snaps_only > 0:
+			print("DEBUG_SNAPSHOTS_REACH_FAIL: %d" % snaps_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Bundle 1 regressions. The full suite runs them after the reach checks.
+	if OS.get_environment("MANAFORGE_REACH_MIX") == "1":
+		var mix_only: int = _reach_mix_reload(tree_root, game_state, save_service)
+		if mix_only > 0:
+			print("REACH_MIX_RELOAD_FAIL: %d" % mix_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_NEWER") == "1":
+		var newer_only: int = _save_newer_refused(tree_root, game_state, save_service)
+		if newer_only > 0:
+			print("SAVE_NEWER_REFUSED_FAIL: %d" % newer_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TURN_ORDER") == "1":
+		var order_only: int = _reach_turn_order()
+		if order_only > 0:
+			print("REACH_TURN_ORDER_FAIL: %d" % order_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SNAPSHOT_MIGRATE") == "1":
+		var snap_mig_only: int = _debug_snapshots_migrate(tree_root, game_state, save_service)
+		if snap_mig_only > 0:
+			print("DEBUG_SNAPSHOTS_MIGRATE_FAIL: %d" % snap_mig_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_REACH") == "1":
+		var reach_only: int = _reach_checks(tree_root, game_state, save_service)
+		if reach_only > 0:
+			print("REACH_FAIL: %d" % reach_only)
 			quit(1)
 		else:
 			quit(0)
@@ -259,7 +348,7 @@ func _run() -> void:
 		jobs.call("set_autosave_enabled", false)
 	failed += _assert(jobs != null, "ForgeJobs autoload missing")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 10, "expected 10 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 11, "SAVE_VERSION should be 11")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION should be 13")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -619,7 +708,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 11, "written save_version 11")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 13, "written save_version 13")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -852,7 +941,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 11, "SAVE_VERSION stays 11 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION stays 13 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -1734,7 +1823,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_wooden_basket_short")).find("20") >= 0, "handcraft_row_wooden_basket_short")
 	failed += _assert(str(content_strings.call("get_text", "handcraft_row_fertilizer_short")).find("{wood}") >= 0, "handcraft_row_fertilizer_short")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_default")).find("10") >= 0, "fertilizer_craft_cost_default ×10")
-	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("5000") >= 0, "keep_tools cost default 5000")
+	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("4000") >= 0, "keep_tools cost default 4000")
 	failed += _assert(str(content_strings.call("get_text", "tool_stone_watering_can_craft_cost")).find("20") >= 0, "tool_stone_watering_can_craft_cost")
 	failed += _assert(str(content_strings.call("get_text", "tool_wooden_basket_craft_cost")).find("20") >= 0, "tool_wooden_basket_craft_cost")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_keep_tools_cost")).find("{cost}") >= 0, "upgrade_keep_tools_cost token")
@@ -1789,13 +1878,15 @@ func _run() -> void:
 	game_state.call("reset_for_new_game")
 	game_state.call("_set_stage", &"ancient")
 	game_state.call("harvest_fruit")
-	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 5000, "Keep Tools costs 5000 shards")
+	failed += _assert(int(game_state.call("get_upgrade_cost", "keep_tools")) == 4000, "Keep Tools costs 4000 shards")
 	for asc_id: String in ["deep_roots", "forager", "green_thumb", "shard_sight", "keeper_stride", "wisp_haste", "bonus_wisp", "keep_tools", "keep_forge_intermediates", "keep_forge_jobs"]:
 		var asc_art: String = str(game_state.call("upgrade_art_path", asc_id))
 		failed += _assert(asc_art.ends_with("icon_asc_%s.png" % asc_id), "ascension icon %s" % asc_id)
 	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools unaffordable at 0 shards")
-	game_state.call("set_resource", &"manashards", 5000)
-	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 5000")
+	game_state.call("set_resource", &"manashards", 4000)
+	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 4000")
+	if int(game_state.call("get_upgrade_cost", "keep_tools")) == 4000 and str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("4000") >= 0 and bool(game_state.call("can_buy_upgrade", "keep_tools")):
+		print("KEEP_TOOLS_COST_OK")
 
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 3)
@@ -2016,7 +2107,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 11, "SAVE_VERSION is 11")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION is 13")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -2559,6 +2650,16 @@ func _run() -> void:
 	failed += _no_old_keeper_idle()
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
+	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+	failed += await _echo2_portal_visible(tree_root, game_state, save_service)
+	failed += await _expedition_board_tease(tree_root, game_state, save_service)
+	failed += await _debug_snapshots_reach(tree_root, game_state, save_service)
+	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
+	failed += _reach_checks(tree_root, game_state, save_service)
+	failed += _reach_mix_reload(tree_root, game_state, save_service)
+	failed += _save_newer_refused(tree_root, game_state, save_service)
+	failed += _reach_turn_order()
+	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2815,7 +2916,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 11, "slot writes save_version 11")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 13, "slot writes save_version 13")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -4683,6 +4784,10 @@ func _stripped_paths() -> PackedStringArray:
 		"tools/debug/snapshots/forge_unlocked.json",
 		"tools/debug/snapshots/elaia_joined.json",
 		"tools/debug/snapshots/ancient_ready.json",
+		"tools/debug/snapshots/echo2_ready.json",
+		"tools/debug/snapshots/north_road_open.json",
+		"tools/debug/snapshots/pre_boss.json",
+		"tools/debug/snapshots/veteran_reacher.json",
 	])
 
 
@@ -4739,6 +4844,8 @@ func _debug_stripped_ok() -> int:
 		failed += _assert(_pck_has(testing_files, "tools/debug/debug_panel.tscn"), "testing pck keeps the debug panel")
 		failed += _assert(_pck_has(testing_files, "tools/AnimPreview.tscn"), "testing pck keeps AnimPreview")
 		failed += _assert(_pck_has(testing_files, "tools/debug/snapshots/pre_echo.json"), "testing pck keeps snapshots")
+		for reach_snap: String in _REACH_SNAPSHOTS.values():
+			failed += _assert(_pck_has(testing_files, reach_snap.trim_prefix("res://")), "testing pck keeps %s" % reach_snap)
 		print("DEBUG_KEPT_PCK %s files=%d" % [testing_pck, testing_files.size()])
 	elif require_pck:
 		failed += _assert(false, "testing pck missing at %s" % testing_pck)
@@ -4779,7 +4886,7 @@ func _probe_debug_snapshots(game_state: Node) -> int:
 	return failed
 
 
-func _probe_one(game_state: Node, path: String) -> int:
+func _probe_one(game_state: Node, path: String, want_version: int = 10, through_panel: bool = false) -> int:
 	var failed: int = 0
 	failed += _assert(FileAccess.file_exists(path), "snapshot file %s" % path)
 	if not FileAccess.file_exists(path):
@@ -4789,12 +4896,21 @@ func _probe_one(game_state: Node, path: String) -> int:
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return failed
 	var root: Dictionary = parsed
-	failed += _assert(int(root.get("save_version", 0)) == 10, "snapshot save_version 10 %s" % path)
+	failed += _assert(int(root.get("save_version", 0)) == want_version, "snapshot save_version %d %s" % [want_version, path])
 	var state_v: Variant = root.get("state", {})
 	failed += _assert(typeof(state_v) == TYPE_DICTIONARY, "snapshot state %s" % path)
 	if typeof(state_v) != TYPE_DICTIONARY:
 		return failed
 	game_state.call("reset_for_new_game")
+	if through_panel:
+		## Same path as the debug panel button: read, migrate, then apply.
+		var panel_script: Script = load("res://tools/debug/debug_panel.gd") as Script
+		var loaded: Dictionary = panel_script.call("load_snapshot_state", path) if panel_script != null else {}
+		var migrated: Dictionary = loaded.get("state", {}) as Dictionary
+		failed += _assert(not migrated.is_empty(), "panel loader migrates %s (%s)" % [path, str(loaded.get("error", ""))])
+		if not migrated.is_empty():
+			game_state.call("apply_save_dict", migrated)
+		return failed
 	game_state.call("apply_save_dict", state_v)
 	return failed
 
@@ -6670,4 +6786,1131 @@ func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node)
 	if failed == 0:
 		print("CRAFT_DURATION_LABEL_OK")
 		print("WORKBENCH_BAR_TOOLTIP_OK")
+	return failed
+
+
+func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, content_strings: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(echo != null and equipment != null, "echo and equipment autoloads")
+	if echo == null or equipment == null:
+		return failed
+	var exact: Dictionary = {
+		"path_east_tease": "The thorns are knotted tight. Something is holding them shut.",
+		"path_east_open_toast": "The knots slip loose. The road is open.",
+		"echo_02_intro": "Stop there. Every road out of this place, I tied shut. The rot was running them, so I snared them all, one knot at a time. The groves behind me starved quietly instead. You want them open? With that axe? I have seen better tools left out in the rain.",
+		"echo_02_mercy": "Enough. You are quicker than you look, even with tools like those. Cut me down, and the snares fall with me. Spare me, and I will untie the roads myself. Knot by knot.",
+		"adventure_echo2_toast_spare": "Bramble is spared. The snares go slack. The road is open.",
+		"expedition_board_hint": "Choose who goes, and which road.",
+		"lantern_done": "The lantern flickers. They are home, and they brought something back.",
+		"bramble_join_3": "Then I will run with you. Someone should know where the old roads went.",
+	}
+	for key: String in exact.keys():
+		failed += _assert(str(content_strings.call("get_text", key)) == str(exact[key]), "draft line %s" % key)
+	var bramble: Dictionary = echo.call("bramble_def")
+	var stats: Dictionary = bramble.get("stats", {}) as Dictionary
+	failed += _assert(str(bramble.get("attack_profile", "")) == "hybrid", "Bramble is hybrid")
+	failed += _assert(int(stats.get("resilience", 9)) <= 3 and int(stats.get("ward", 9)) <= 3, "Bramble is not a tank")
+	failed += _assert(int(stats.get("swiftness", 0)) >= 8 and int(stats.get("vitality", 9)) <= 5, "Bramble is nimble")
+	var scrap: Variant = EchoBattleScript.new()
+	scrap.force_crit = 0
+	scrap.configure({"might": 5, "arcana": 5, "resilience": 5, "ward": 5, "vitality": 5, "swiftness": 5, "fate": 5}, bramble)
+	failed += _assert(not scrap.keeper_acts_first(), "Bramble acts before a default Keeper")
+	failed += _assert(scrap.choose("strike") == "continue", "snare does not end the fight")
+	failed += _assert(str(scrap.last_foe_swing) == "snare", "first hybrid swing is a snare")
+	failed += _assert(scrap.choose("strike") == "continue", "knot does not end the fight")
+	failed += _assert(str(scrap.last_foe_swing) == "knot", "second hybrid swing is a knot")
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	var before_fee: int = failed
+	failed += _assert(str(echo.call("try_pay_bramble")) == "closed", "no fee without an Anvil weapon")
+	failed += _assert(bool(equipment.call("grant_item", "rootsteel_edge")), "grant first Anvil weapon")
+	game_state.call("set_resource", &"essence", 49)
+	failed += _assert(str(echo.call("try_pay_bramble")) == "reject", "49 Essence is short")
+	failed += _assert(int(game_state.get("essence")) == 49, "rejected Bramble fee spends nothing")
+	game_state.call("set_resource", &"essence", 50)
+	failed += _assert(str(echo.call("try_pay_bramble")) == "paid", "50 Essence pays the Bramble fee")
+	failed += _assert(int(game_state.get("essence")) == 0 and bool(game_state.get("echo_02_fee_paid")), "fee flag after 50")
+	echo.set("battle_context", "echo2")
+	echo.call("apply_outcome", "flee")
+	failed += _assert(bool(game_state.get("echo_02_fee_paid")) and str(game_state.get("echo_02_outcome")) == "flee", "flee keeps the Bramble fee")
+	failed += _assert(not bool(game_state.get("echo_02_resolved")), "flee does not open the road")
+	echo.set("battle_context", "echo2")
+	echo.call("apply_outcome", "ko")
+	failed += _assert(not bool(game_state.get("echo_02_fee_paid")) and str(game_state.get("echo_02_outcome")) == "ko", "a loss clears the Bramble fee")
+	game_state.set("forge_key", false)
+	echo.set("battle_context", "echo2")
+	var spare_pay: Dictionary = echo.call("apply_outcome", "spare")
+	failed += _assert(int(spare_pay.get("shards", -1)) == 0, "Bramble spare pays no shards")
+	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "spare", "spare opens the road")
+	failed += _assert(not bool(game_state.get("forge_key")), "Bramble spare does not grant the Forge Key")
+	game_state.set("echo_02_resolved", false)
+	game_state.set("echo_02_outcome", "")
+	echo.set("battle_context", "echo2")
+	echo.call("apply_outcome", "defeat")
+	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "defeat", "defeat opens the road")
+	if failed == before_fee:
+		print("BRAMBLE_ECHO_FEE_OK")
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	game_state.set("welcome_shown", true)
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	failed += _assert(packed != null, "main scene")
+	if packed == null:
+		return failed
+	var live: Node = packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	var wall: Node2D = live.get_node_or_null("World/ThornWall") as Node2D
+	var board: Node2D = live.get_node_or_null("World/ExpeditionBoard") as Node2D
+	var warden: Node2D = live.get_node_or_null("World/BrambleWarden") as Node2D
+	var trail: Line2D = live.get_node_or_null("Paths/ThornTrail") as Line2D
+	var stone_path: Line2D = live.get_node_or_null("Paths/StoneToResilience") as Line2D
+	var before_locked: int = failed
+	failed += _assert(wall != null and wall.position.distance_to(Vector2(2140, 620)) < 0.5, "thorn wall feet")
+	failed += _assert(bool(wall.call("collider_enabled")), "closed wall blocks the centre")
+	failed += _assert(bool(wall.call("sides_blocked")), "hedge sides stay solid")
+	var box_v: Variant = wall.call("walk_box_size") if wall else Vector2.ZERO
+	var box: Vector2 = box_v
+	failed += _assert(abs(box.x - 62.0) < 0.5 and abs(box.y - 19.0) < 0.5, "centre gate 62x19 (got %s)" % box)
+	failed += _assert(str(wall.call("begin_entry")) == "tease", "early click teases")
+	failed += _assert(trail != null and trail.get_point_count() == 4, "thorn trail points")
+	if trail:
+		failed += _assert(trail.get_point_position(0).distance_to(Vector2(2000, 1000)) < 0.5, "trail start")
+		failed += _assert(trail.get_point_position(3).distance_to(Vector2(2140, 690)) < 0.5, "trail end")
+	failed += _assert(stone_path != null and stone_path.get_point_count() == 5, "StoneToResilience is one path again")
+	failed += _assert(live.get_node_or_null("Paths/StoneToThornFork") == null, "east fork is gone")
+	failed += _assert(not bool(game_state.get("echo_02_resolved")), "path starts closed")
+	if failed == before_locked:
+		print("THORN_PATH_LOCKED_OK")
+	var before_board: int = failed
+	failed += _assert(board != null and board.position.distance_to(Vector2(2304, 780)) < 0.5, "board feet")
+	var board_box_v: Variant = board.call("walk_box_size") if board else Vector2.ZERO
+	var board_box: Vector2 = board_box_v
+	failed += _assert(abs(board_box.x - 128.0) < 0.5 and abs(board_box.y - 45.0) < 1.0, "board walk box")
+	board.call("open_shell")
+	failed += _assert(bool(board.call("shell_open")), "expedition shell opens")
+	failed += _assert(bool(board.call("depart_disabled")), "Depart stays disabled while the road is shut")
+	failed += _assert(str(board.call("try_depart")) == "closed", "a shut road does not depart")
+	failed += _assert(bool(board.call("shell_starts_reach")), "the board can start a reach")
+	failed += _assert(str(board.call("lantern_state")) == "dark", "lantern starts dark")
+	board.call("set_lantern", "amber")
+	failed += _assert(str(board.call("lantern_state")) == "amber" and not bool(board.call("exclaim_visible")), "amber lantern, no mark")
+	board.call("set_lantern", "cyan")
+	failed += _assert(str(board.call("lantern_state")) == "cyan" and bool(board.call("exclaim_visible")), "cyan lantern shows the mark")
+	board.call("set_lantern", "dark")
+	var party: Variant = board.call("selected_party") if board else []
+	failed += _assert(party is Array and (party as Array).has("keeper") and not (party as Array).has("bramble"), "party shell has no Bramble join")
+	board.call("close_shell")
+	if failed == before_board:
+		print("EXPEDITION_BOARD_SHELL_OK")
+	var before_open: int = failed
+	failed += _assert(bool(equipment.call("grant_item", "heartwand")), "second Anvil weapon still counts")
+	game_state.call("set_resource", &"essence", 50)
+	game_audio.call("clear_played_log")
+	failed += _assert(str(wall.call("begin_entry")) == "confirm", "weapon opens the Echo confirm")
+	wall.call("cancel_fee")
+	failed += _assert(str(echo.call("try_pay_bramble")) == "paid", "scene pays 50")
+	failed += _assert(str(wall.call("begin_entry")) == "enter", "paid fee re-enters")
+	echo.call("finish_battle", "spare")
+	await process_frame
+	failed += _assert(bool(game_state.get("echo_02_resolved")), "spare resolved in the clearing")
+	failed += _assert(not bool(wall.call("collider_enabled")), "open wall drops the centre gate")
+	failed += _assert(bool(wall.call("sides_blocked")), "open wall keeps the side hedges")
+	failed += _assert(bool(game_audio.call("did_play", &"sfx_path_open")), "path open plays sfx_path_open")
+	failed += _assert(warden != null and warden.visible, "spared Bramble watches the trailhead")
+	warden.call("on_interact", null)
+	failed += _assert(str(content_strings.call("get_text", "adventure_promised")).find("Not yet at your side") >= 0, "spared Bramble is not a companion yet")
+	if failed == before_open:
+		print("THORN_PATH_OPENS_OK")
+	live.free()
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	return failed
+
+
+const _ECHO2_SAVE_SLOT: int = 6
+
+
+func _echo2_portal_visible(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Haex playtest at 247121f: after the first Anvil weapon, Echo 2's portal was an
+	## invisible, unclickable collision box. The hub arch hid itself after Elaia's Echo
+	## (it only knew Echo 1) and never came back for Bramble, while its walk body kept
+	## colliding. Drives the real path: Elaia done, Anvil job finishes, save + reload,
+	## right-click the arch, the Keeper walks in, the fee confirm opens, Yes enters Bramble.
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(echo != null and equipment != null and jobs != null and backpack != null and content_strings != null, "echo2 portal autoloads")
+	if failed > 0:
+		return failed
+	jobs.call("set_dev_speed_override", 1.0)
+	jobs.call("set_autosave_enabled", false)
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", _ECHO2_SAVE_SLOT)
+	save_service.set("boot_intent", "new")
+	game_state.set("welcome_shown", true)
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var portal: Area2D = live.get_node_or_null("World/EchoPortal") as Area2D if live else null
+	failed += _assert(portal != null, "hub has the Echo portal")
+	if portal == null:
+		if live:
+			live.free()
+		return failed
+	# State right after Elaia's Echo (Echo 1): Forge Key, no Anvil weapon yet.
+	game_state.set("ascensions", 1)
+	game_state.set("portal_unlocked", true)
+	game_state.set("portal_fee_paid", false)
+	game_state.set("echo_01_resolved", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("forge_key", true)
+	game_state.emit_signal("echo_flags_changed")
+	failed += _assert(not portal.visible and not portal.input_pickable, "arch is closed between Elaia and the first Anvil weapon")
+	failed += _assert(not bool(portal.call("walk_collision_enabled")), "a closed arch leaves no bare walk box")
+	failed += _assert(str(portal.call("begin_entry")) == "closed", "a closed arch does not open an Echo")
+	# First Anvil weapon through the real Anvil job.
+	backpack.call("set_count", "sapsteel", 24)
+	backpack.call("set_count", "heartwood_bits", 12)
+	backpack.call("set_count", "amberbind", 8)
+	game_state.call("set_resource", &"essence", 300)
+	failed += _assert(str(jobs.call("try_begin_job", "anvil", "rootsteel_edge")) == "ok", "first Anvil craft starts")
+	jobs.call("set_keeper_working", "anvil", true)
+	jobs.call("advance_seconds", 1200.0)
+	failed += _assert(bool(echo.call("owns_anvil_weapon")), "first Anvil craft finishes a weapon")
+	game_state.call("set_resource", &"essence", 50)
+	await physics_frame
+	await process_frame
+	failed += await _echo2_arch_ready(live, portal, "after the first Anvil craft")
+	# A save that is already portal-ready must restore the arch, live and on a fresh boot.
+	failed += _assert(bool(save_service.call("save_game", _ECHO2_SAVE_SLOT)), "save the portal-ready state")
+	game_state.call("reset_for_new_game")
+	failed += _assert(not portal.visible and not bool(portal.call("walk_collision_enabled")), "a new game closes the arch")
+	failed += _assert(bool(save_service.call("load_game", _ECHO2_SAVE_SLOT)), "load the portal-ready save")
+	await physics_frame
+	await process_frame
+	failed += await _echo2_arch_ready(live, portal, "after loading the save")
+	live.free()
+	save_service.set("boot_intent", "load")
+	save_service.set("boot_slot", _ECHO2_SAVE_SLOT)
+	save_service.set("boot_slot_kind", "manual")
+	live = await _echo2_boot_hub(tree_root)
+	portal = live.get_node_or_null("World/EchoPortal") as Area2D if live else null
+	failed += _assert(portal != null, "booted hub has the Echo portal")
+	if portal == null:
+		if live:
+			live.free()
+		save_service.call("delete_slot", _ECHO2_SAVE_SLOT)
+		game_state.call("reset_for_new_game")
+		return failed
+	failed += await _echo2_arch_ready(live, portal, "on a boot from the save")
+	failed += _assert(int(game_state.get("essence")) == 50 and not bool(game_state.get("echo_02_fee_paid")), "save kept 50 Essence and no Bramble fee")
+	# Right-click the arch with the Keeper selected. The Keeper walks in and the fee confirm opens.
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(keeper != null, "keeper for the arch walk")
+	if keeper != null:
+		keeper.global_position = portal.global_position + Vector2(0, 110)
+		game_state.call("select_keeper")
+		await process_frame
+		var rmb := InputEventMouseButton.new()
+		rmb.button_index = MOUSE_BUTTON_RIGHT
+		rmb.pressed = true
+		portal.input_event.emit(tree_root, rmb, 0)
+		var opened: bool = false
+		for _step: int in 360:
+			await physics_frame
+			await process_frame
+			if bool(portal.call("is_fee_confirm_open")):
+				opened = true
+				break
+		failed += _assert(opened, "right-click walks the Keeper in and opens the fee confirm")
+		var title: Label = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Title") as Label
+		var yes_btn: Button = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Yes") as Button
+		var bramble_title: String = str(content_strings.call("get_text", "bramble_name"))
+		failed += _assert(title != null and title.text == bramble_title, "the arch confirm is Bramble's (got %s)" % (title.text if title else "none"))
+		failed += _assert(yes_btn != null and not yes_btn.disabled, "50 Essence enables Yes")
+		if opened and yes_btn != null:
+			yes_btn.pressed.emit()
+			await process_frame
+		failed += _assert(bool(echo.get("in_battle")) and str(echo.get("battle_context")) == "echo2", "Yes enters Bramble's Echo")
+		failed += _assert(int(game_state.get("essence")) == 0 and bool(game_state.get("echo_02_fee_paid")), "entry spends the 50 Essence Bramble fee")
+		failed += _assert(not bool(game_state.get("portal_fee_paid")), "Bramble entry does not touch Elaia's fee")
+		if bool(echo.get("in_battle")):
+			echo.call("dismiss_battle_without_reward")
+		await process_frame
+		failed += _assert(portal.visible and bool(portal.call("serves_bramble")), "arch stays open for a paid Bramble re-entry")
+		game_state.set("echo_02_resolved", true)
+		game_state.emit_signal("echo_flags_changed")
+		failed += _assert(not portal.visible and not bool(portal.call("walk_collision_enabled")), "arch closes once Bramble is resolved")
+	paused = false
+	live.free()
+	save_service.call("delete_slot", _ECHO2_SAVE_SLOT)
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("ECHO2_PORTAL_VISIBLE_OK")
+	return failed
+
+
+func _echo2_boot_hub(tree_root: Window) -> Node:
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed == null:
+		return null
+	var live: Node = packed.instantiate()
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	await physics_frame
+	return live
+
+
+func _echo2_arch_ready(live: Node, portal: Area2D, when: String) -> int:
+	var failed: int = 0
+	failed += _assert(portal.visible and portal.is_visible_in_tree(), "arch is visible %s" % when)
+	var marker: Sprite2D = portal.get_node_or_null("Visual/Marker") as Sprite2D
+	failed += _assert(marker != null and marker.texture != null and marker.is_visible_in_tree(), "arch sprite draws %s" % when)
+	if marker != null:
+		failed += _assert(marker.modulate.a > 0.5 and portal.modulate.a > 0.5, "arch sprite is opaque %s" % when)
+	failed += _assert(portal.input_pickable, "arch takes clicks %s" % when)
+	var pick: CollisionShape2D = portal.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var pick_rect: RectangleShape2D = pick.shape as RectangleShape2D if pick else null
+	failed += _assert(pick != null and not pick.disabled and pick_rect != null and pick_rect.size.x >= 100.0, "arch click area is live %s" % when)
+	failed += _assert(bool(portal.call("walk_collision_enabled")), "arch base still blocks walking %s" % when)
+	failed += _assert(bool(portal.call("serves_bramble")), "arch serves Bramble %s" % when)
+	var arch_mid: Vector2 = portal.global_position + Vector2(0, -100)
+	failed += _assert(bool(live.call("_interactable_under_point", arch_mid)), "a click on the arch hits it %s" % when)
+	return failed
+
+
+func _expedition_board_tease(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Haex playtest at 247121f: clicking the north board before Bramble was passed
+	## opened the shell silently. It must tease the shut road like the thorn wall
+	## (path_east_tease), and open the shell once the road is open.
+	var failed: int = 0
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(content_strings != null, "strings for the board tease")
+	if content_strings == null:
+		return failed
+	var tease: String = str(content_strings.call("get_text", "path_east_tease"))
+	failed += _assert(tease == "The thorns are knotted tight. Something is holding them shut.", "board reuses the wall tease line")
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	game_state.set("welcome_shown", true)
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var board: Area2D = live.get_node_or_null("World/ExpeditionBoard") as Area2D if live else null
+	var wall: Node = live.get_node_or_null("World/ThornWall") if live else null
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live else null
+	failed += _assert(board != null and wall != null and keeper != null, "board, wall and keeper in the hub")
+	if board == null or wall == null or keeper == null:
+		if live:
+			live.free()
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	var seen: Array[String] = []
+	var grab := func(text: String) -> void:
+		seen.append(text)
+	game_state.status_message.connect(grab)
+	failed += _assert(not bool(game_state.get("echo_02_resolved")), "road starts shut")
+	failed += _assert(str(wall.call("begin_entry")) == "tease" and seen.has(tease), "the wall teases with path_east_tease")
+	seen.clear()
+	# Right-click the board with the Keeper selected. The Keeper walks over and the tease shows.
+	var opened: bool = await _board_click(board, keeper, game_state, tree_root, seen, tease)
+	failed += _assert(seen.has(tease), "a shut-road board click shows path_east_tease (got %s)" % [seen])
+	failed += _assert(not opened and not bool(board.call("shell_open")), "a shut-road board click does not open the shell")
+	failed += _assert(str(board.call("begin_entry")) == "tease", "board begin_entry teases while the road is shut")
+	if bool(board.call("shell_open")):
+		board.call("close_shell")
+	# Bramble spared: the same click opens the shell, with no tease.
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "spare")
+	game_state.emit_signal("echo_flags_changed")
+	seen.clear()
+	opened = await _board_click(board, keeper, game_state, tree_root, seen, tease)
+	failed += _assert(opened and bool(board.call("shell_open")), "an open-road board click opens the shell")
+	failed += _assert(not seen.has(tease), "an open-road board click does not tease")
+	failed += _assert(not bool(board.call("depart_disabled")), "Depart is live once the road is open")
+	board.call("close_shell")
+	game_state.status_message.disconnect(grab)
+	live.free()
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("EXPEDITION_BOARD_TEASE_OK")
+	return failed
+
+
+func _board_click(board: Area2D, keeper: Node2D, game_state: Node, tree_root: Window, seen: Array[String], tease: String) -> bool:
+	## Returns true when the shell opened. Stops early on the tease line.
+	keeper.global_position = board.global_position + Vector2(0, 110)
+	if keeper.has_method("halt"):
+		keeper.call("halt")
+	game_state.call("select_keeper")
+	await process_frame
+	var rmb := InputEventMouseButton.new()
+	rmb.button_index = MOUSE_BUTTON_RIGHT
+	rmb.pressed = true
+	board.input_event.emit(tree_root, rmb, 0)
+	for _step: int in 360:
+		await physics_frame
+		await process_frame
+		if bool(board.call("shell_open")):
+			return true
+		if seen.has(tease):
+			# Give a wrong shell open a few frames to show up.
+			for _extra: int in 5:
+				await process_frame
+			return bool(board.call("shell_open"))
+	return bool(board.call("shell_open"))
+
+
+## Experimental-only snapshots for Bramble / reach playtests. Menu label -> file.
+## Stable strips them (see _stripped_paths). The debug panel lists the same labels.
+const _REACH_SNAPSHOTS: Dictionary = {
+	"Echo 2 ready": "res://tools/debug/snapshots/echo2_ready.json",
+	"North road open": "res://tools/debug/snapshots/north_road_open.json",
+	"Pre-boss": "res://tools/debug/snapshots/pre_boss.json",
+	"Veteran reacher": "res://tools/debug/snapshots/veteran_reacher.json",
+}
+
+
+func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Each of the four reach snapshots loads the way the debug panel loads it
+	## (migrate, apply_save_dict on the state, then the hub) and lands in a valid state.
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(echo != null and reach != null and equipment != null, "autoloads for the reach snapshots")
+	if failed > 0:
+		return failed
+	var want_version: int = int(save_service.get("SAVE_VERSION"))
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	for label: String in _REACH_SNAPSHOTS.keys():
+		var path: String = str(_REACH_SNAPSHOTS[label])
+		failed += _assert(panel_src.find("\"%s\": \"%s\"" % [label, path]) >= 0, "debug panel lists %s" % label)
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if typeof(parsed) == TYPE_DICTIONARY:
+			failed += _assert(str((parsed as Dictionary).get("label", "")) == label, "snapshot label %s" % label)
+	# a. Echo 2 ready: first Anvil weapon, 50 Essence, hub arch open for Bramble.
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Echo 2 ready"]), want_version, true)
+	failed += _assert(bool(echo.call("owns_anvil_weapon")), "echo2 ready owns an Anvil weapon")
+	failed += _assert(int(game_state.get("essence")) == 50, "echo2 ready has 50 Essence")
+	failed += _assert(bool(game_state.get("echo_01_resolved")) and not bool(game_state.get("echo_02_resolved")), "echo2 ready: Elaia done, Bramble open")
+	failed += _assert(bool(echo.call("bramble_gate_open")) and str(echo.call("hub_portal_context")) == "echo2", "echo2 ready opens the hub arch for Bramble")
+	failed += _assert(not bool(game_state.get("echo_02_fee_paid")), "echo2 ready has not paid yet")
+	failed += _assert(not bool(reach.get("running")) and int(reach.get("deepest_depth")) == 0, "echo2 ready has no reach yet")
+	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Echo 2 ready")
+	# b. North road open: Bramble spared, board live, no runs.
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["North road open"]), want_version, true)
+	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "spare", "north road: Bramble spared")
+	failed += _assert(str(echo.call("hub_portal_context")) == "", "north road: the hub arch is closed")
+	failed += _assert(not bool(reach.get("running")) and int(reach.get("reaches_cleared")) == 0 and int(reach.get("deepest_depth")) == 0, "north road: no runs yet")
+	failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "north road: lantern dark")
+	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "North road open")
+	# c. Pre-boss: room 9 of the run in progress, the next room is the boss.
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
+	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "pre-boss: an idle room is running")
+	failed += _assert(int(reach.get("rooms_attempted")) == 9 and not bool(reach.call("is_boss_room")), "pre-boss: room 9, not the boss yet")
+	failed += _assert(int(reach.call("rooms_until_boss")) == 1, "pre-boss: rooms until boss is 1 (got %d)" % int(reach.call("rooms_until_boss")))
+	failed += _assert(float(reach.get("room_left")) > 0.0 and float(reach.call("_length_left")) > float(reach.get("room_left")) + 720.0, "pre-boss: the run is long enough to reach the boss")
+	failed += _assert(str(game_state.get("expedition_lantern")) == "amber", "pre-boss: lantern amber")
+	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Pre-boss")
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
+	reach.call("push_faces", [20])
+	reach.call("advance_clock", float(reach.get("room_left")) + 0.001)
+	failed += _assert(bool(reach.get("running")) and int(reach.get("rooms_attempted")) == 10 and bool(reach.call("is_boss_room")), "pre-boss: finishing room 9 opens the boss room")
+	failed += _assert(int(reach.call("rooms_until_boss")) == 0, "pre-boss: board shows the boss room")
+	# d. Veteran reacher: depth 25, mats, dojo exp, counter 19.
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Veteran reacher"]), want_version, true)
+	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.call("max_start_depth")) == 25, "veteran: deepest depth 25")
+	failed += _assert(int(reach.get("reaches_cleared")) == 19, "veteran: reach counter 19")
+	failed += _assert(int(reach.get("briarwood")) > 0 and int(reach.get("herbs")) > 0 and int(reach.get("dojo_exp")) > 0, "veteran: Briarwood, herbs and dojo exp")
+	failed += _assert(not bool(reach.get("running")) and bool(game_state.get("echo_02_resolved")), "veteran: idle at home with the road open")
+	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Veteran reacher")
+	# Round trip: the veteran state survives a save and load.
+	var blob: Dictionary = game_state.call("to_save_dict")
+	game_state.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob)
+	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.get("reaches_cleared")) == 19, "veteran survives a save round trip")
+	paused = false
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("DEBUG_SNAPSHOTS_REACH_OK")
+	return failed
+
+
+func _snapshot_hub_check(tree_root: Window, game_state: Node, save_service: Node, label: String) -> int:
+	## The debug panel applies the state, starts the session, and swaps to the hub, which
+	## keeps the live state. A child hub here would read "auto" as a bare boot and load the
+	## newest disk save, so use the boot that keeps state without loading.
+	var failed: int = 0
+	var before: Dictionary = game_state.call("to_save_dict")
+	save_service.call("note_session_started")
+	save_service.set("boot_intent", "forge_return")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "%s loads the hub" % label)
+	if live == null:
+		return failed
+	var after: Dictionary = game_state.call("to_save_dict")
+	for key: String in ["essence", "echo_01_resolved", "echo_02_resolved", "echo_02_outcome", "expedition_lantern", "gear_inventory"]:
+		failed += _assert(str(after.get(key)) == str(before.get(key)), "%s hub keeps %s" % [label, key])
+	var reach_before: Dictionary = before.get("reach", {}) as Dictionary
+	var reach_after: Dictionary = after.get("reach", {}) as Dictionary
+	for key: String in ["deepest_depth", "reaches_cleared", "running", "rooms_attempted", "phase"]:
+		failed += _assert(str(reach_after.get(key)) == str(reach_before.get(key)), "%s hub keeps reach %s" % [label, key])
+	var portal: Node = live.get_node_or_null("World/EchoPortal")
+	var board: Node = live.get_node_or_null("World/ExpeditionBoard")
+	var wall: Node = live.get_node_or_null("World/ThornWall")
+	failed += _assert(portal != null and board != null and wall != null, "%s hub has portal, board and wall" % label)
+	if portal != null and board != null and wall != null:
+		var reach: Node = tree_root.get_node_or_null("Reach")
+		var road: bool = bool(game_state.get("echo_02_resolved"))
+		failed += _assert(portal.visible == (str(tree_root.get_node("EchoChamber").call("hub_portal_context")) != ""), "%s arch matches its state" % label)
+		failed += _assert(bool(wall.call("collider_enabled")) == (not road), "%s wall matches the road" % label)
+		var running: bool = reach != null and bool(reach.get("running"))
+		failed += _assert(bool(board.call("depart_disabled")) == (not road or running), "%s Depart matches the road and run" % label)
+		if label == "Echo 2 ready":
+			failed += _assert(portal.visible and bool(portal.call("serves_bramble")), "Echo 2 ready shows Bramble's arch")
+		if label == "Pre-boss":
+			board.call("open_shell")
+			failed += _assert(bool(board.call("shell_open")), "Pre-boss board shell opens")
+			board.call("close_shell")
+	live.free()
+	await process_frame
+	return failed
+
+
+func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, game_audio: Node) -> int:
+	## Player speed is 1/2/4/8 during an open session. Offline and idle catch-up stay on the 1x curve.
+	var failed: int = 0
+	var session_was: bool = bool(save_service.get("session_active"))
+	var scale_was: float = Engine.time_scale
+	var run0: float = float(game_state.get("run_time_sec"))
+	var idle0: float = float(game_state.get("active_since_load_sec"))
+	game_state.call("reset_play_speed")
+	failed += _assert(int(game_state.get("play_speed")) == 1, "launch speed is 1x")
+	game_state.call("set_play_speed", 16)
+	failed += _assert(int(game_state.get("play_speed")) == 1, "play speed has no 16x step")
+	game_state.call("set_play_speed", 8)
+	failed += _assert(int(game_state.get("play_speed")) == 8, "button reaches 8x")
+	failed += _assert(is_equal_approx(Engine.time_scale, scale_was), "play speed leaves the debug time scale alone")
+	save_service.set("session_active", false)
+	failed += _assert(is_equal_approx(float(game_state.call("active_play_delta", 1.0)), 1.0), "a closed session stays 1x at 8x")
+	save_service.set("session_active", true)
+	failed += _assert(is_equal_approx(float(game_state.call("active_play_delta", 1.0)), 8.0), "open play uses 8x")
+	game_state.call("advance_open_play", 1.0)
+	failed += _assert(is_equal_approx(float(game_state.get("run_time_sec")) - run0, 8.0), "open frame advances play at 8x")
+	failed += _assert(is_equal_approx(float(game_state.get("active_since_load_sec")) - idle0, 1.0), "idle clock stays 1x at 8x")
+	var curve: float = float(game_state.call("offline_effective_seconds", 1800.0))
+	var idle: float = float(game_state.call("idle_catch_up_seconds", 1800.0))
+	failed += _assert(is_equal_approx(curve, 180.0), "30 min offline curve is 180s at 1x (got %s)" % curve)
+	failed += _assert(is_equal_approx(idle, curve), "idle catch-up matches the 1x curve")
+	var eight_hours: float = float(game_state.call("offline_effective_seconds", 1800.0 * 8.0))
+	failed += _assert(not is_equal_approx(curve, eight_hours), "8x must not stretch the offline curve")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for offline catch-up")
+	if jobs != null:
+		var off: Dictionary = jobs.call("apply_offline_seconds", 1800.0)
+		failed += _assert(is_equal_approx(float(off.get("effective_sec", -1.0)), curve), "offline catch-up stays 1x at 8x")
+		var fields: Dictionary = jobs.call("capture_save_fields")
+		failed += _assert(not fields.has("play_speed"), "forge save has no play speed")
+	var blob: Dictionary = game_state.call("to_save_dict")
+	failed += _assert(not blob.has("play_speed"), "play speed is not in the save")
+	failed += _assert(JSON.stringify(blob).find("play_speed") < 0, "save text has no play speed")
+	game_audio.call("save_settings")
+	var cfg := ConfigFile.new()
+	var cfg_err: Error = cfg.load("user://manaforge_settings.cfg")
+	failed += _assert(cfg_err == OK, "settings file loads")
+	if cfg_err == OK:
+		failed += _assert(not cfg.has_section_key("audio", "play_speed"), "settings do not store play speed")
+	var title_src: String = FileAccess.get_file_as_string("res://scripts/title_screen.gd")
+	var state_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_state.gd")
+	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _assert(title_src.find("reset_play_speed()") >= 0, "title launch resets play speed")
+	failed += _assert(state_src.find("reset_play_speed()") >= 0, "autoload launch resets play speed")
+	failed += _assert(hud_src.find("[1, 2, 4, 8, 16]") >= 0, "debug speed still cycles to 16x")
+	failed += _assert(bool(game_state.call("play_speed_in_stable")), "play speed ships in Stable")
+	var stable_body: String = _func_body(state_src, "func play_speed_in_stable")
+	failed += _assert(stable_body.find("manaforge") < 0, "stable inclusion is not feature-gated")
+	var ensure_body: String = _func_body(hud_src, "func _ensure_play_speed_button")
+	failed += _assert(ensure_body.find("PlaySpeedButton") >= 0, "HUD builds the play speed button")
+	failed += _assert(ensure_body.find("manaforge") < 0, "play speed button is not stripped for Stable")
+	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
+	var stable: Dictionary = presets.get(_STABLE_PRESET, {}) as Dictionary
+	var stable_exclude: PackedStringArray = _exclude_tokens(str(stable.get("exclude", "")))
+	for shipped: String in ["scripts/hud.gd", "scenes/hud.tscn", "scripts/autoload/game_state.gd", "assets/art/ui/buttons/speed_1x_normal.png", "assets/art/ui/buttons/speed_8x_normal.png"]:
+		failed += _assert(not _preset_excludes(stable_exclude, shipped), "stable ships %s" % shipped)
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(packed != null, "hud scene")
+	if packed != null:
+		var hud: Node = packed.instantiate()
+		tree_root.add_child(hud)
+		await process_frame
+		var btn: TextureButton = hud.find_child("PlaySpeedButton", true, false) as TextureButton
+		failed += _assert(btn != null and btn.visible, "play speed button is on the HUD")
+		if btn != null:
+			failed += _assert(btn.tooltip_text == "8x", "button shows 8x (got %s)" % btn.tooltip_text)
+			btn.pressed.emit()
+			failed += _assert(int(game_state.get("play_speed")) == 1, "8x cycles back to 1x")
+		var debug_btn: TextureButton = hud.find_child("SpeedButton", true, false) as TextureButton
+		failed += _assert(debug_btn != null and debug_btn != btn, "debug speed button stays separate")
+		hud.free()
+	game_state.set("run_time_sec", run0)
+	game_state.set("active_since_load_sec", idle0)
+	game_state.call("reset_play_speed")
+	save_service.set("session_active", session_was)
+	Engine.time_scale = scale_was
+	if failed == 0:
+		print("SPEED_BUTTON_OK")
+	return failed
+
+
+func _func_body(source: String, signature: String) -> String:
+	var at: int = source.find(signature)
+	if at < 0:
+		return ""
+	var nxt: int = source.find("\nfunc ", at + signature.length())
+	if nxt < 0:
+		return source.substr(at)
+	return source.substr(at, nxt - at)
+
+
+func _preset_excludes(tokens: PackedStringArray, res_path: String) -> bool:
+	var path: String = res_path.trim_prefix("res://")
+	for token: String in tokens:
+		if token == path:
+			return true
+		if token.begins_with("*."):
+			if path.ends_with(token.substr(1)):
+				return true
+		elif token.ends_with("/*"):
+			var prefix: String = token.trim_suffix("*")
+			if path.begins_with(prefix):
+				return true
+	return false
+
+
+func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Idle d20 rooms, Push's 75% stop, Ascension memory, manual defeat, flat rewards.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "Reach autoload")
+	if reach == null:
+		return failed
+	var session_was: bool = bool(save_service.get("session_active"))
+	var scale_was: float = Engine.time_scale
+	var speed_was: int = int(game_state.get("play_speed"))
+	var echo_was: bool = bool(game_state.get("echo_02_resolved"))
+	var essence_was: int = int(game_state.get("essence"))
+	var lantern_was: String = str(game_state.get("expedition_lantern"))
+	var fruit_was: bool = bool(game_state.get("fruit_committed"))
+	var before_idle: int = failed
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(reach.call("idle_clears", 1, 10)) == false, "natural 1 fails")
+	failed += _assert(bool(reach.call("idle_clears", 20, -10)), "natural 20 clears")
+	failed += _assert(bool(reach.call("idle_clears", 5, 0)) == false, "5 + 0 misses DC 6")
+	failed += _assert(bool(reach.call("idle_clears", 6, 0)), "6 + 0 clears")
+	failed += _assert(is_equal_approx(float(reach.call("clear_chance", 0)), 0.75), "bonus 0 is 75%")
+	failed += _assert(is_equal_approx(float(reach.call("clear_chance", 3)), 0.90), "bonus +3 is 90%")
+	var level1: float = float(reach.call("room_level", 1))
+	failed += _assert(int(reach.call("idle_bonus", 5.2, level1)) == 0, "matched depth 1 bonus is 0")
+	failed += _assert(int(reach.call("idle_bonus", 100.0, 1.0)) == 10, "bonus clamps at +10")
+	failed += _assert(int(reach.call("idle_bonus", 0.0, 100.0)) == -10, "bonus clamps at -10")
+	failed += _assert(str(reach.call("odds_line", 3)) == "Clear chance 90% (d20 +3 vs 6)", "odds line")
+	reach.call("grant_salve", 1)
+	reach.call("push_faces", [1, 20])
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "idle depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("reaches_cleared")) == 1, "one salve reroll clears a natural 1")
+	failed += _assert(int(reach.get("heart_salve")) == 0, "the reroll drinks the salve")
+	reach.call("reset_for_new_game")
+	reach.call("grant_salve", 1)
+	reach.call("push_faces", [1, 1])
+	reach.call("depart", 1, 1, "hold", "idle")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("reaches_cleared")) == 0, "a second salve is not spent in the same room")
+	failed += _assert(int(reach.get("heart_salve")) == 0, "the one salve was the reroll")
+	failed += _assert(int(reach.get("briarwood")) == 0, "a failed room grants nothing")
+	failed += _assert(str(reach.get("phase")) == "rest", "a failed roll rests")
+	reach.call("reset_for_new_game")
+	game_state.call("set_play_speed", 8)
+	save_service.set("session_active", true)
+	var scale_at_speed: float = Engine.time_scale
+	reach.call("push_faces", [20])
+	reach.call("push_drops", [1, 0])
+	reach.call("depart", 1, 8, "hold", "idle")
+	reach.call("apply_offline_seconds", 720.0)
+	failed += _assert(int(reach.get("reaches_cleared")) == 1, "offline catch-up clears one room")
+	failed += _assert(is_equal_approx(float(reach.get("elapsed")), 720.0), "offline room time stays 720s at 8x (got %s)" % str(reach.get("elapsed")))
+	failed += _assert(is_equal_approx(Engine.time_scale, scale_at_speed), "reach catch-up leaves the debug time scale alone")
+	game_state.call("reset_play_speed")
+	save_service.set("session_active", session_was)
+	if failed == before_idle:
+		print("REACH_IDLE_ROLL_OK")
+	var before_rest: int = failed
+	reach.call("reset_for_new_game")
+	reach.call("push_faces", [1])
+	reach.call("depart", 1, 1, "hold", "idle")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("reaches_cleared")) == 0, "a natural 1 clears nothing")
+	failed += _assert(int(reach.get("briarwood")) == 0, "a natural 1 grants no briarwood")
+	failed += _assert(str(reach.get("phase")) == "rest", "fail opens the 24 min rest")
+	failed += _assert(is_equal_approx(float(reach.get("room_left")), 1440.0), "rest is 24 minutes")
+	reach.call("advance_clock", 1440.0)
+	failed += _assert(str(reach.get("phase")) == "idle_room", "rest opens the next room")
+	failed += _assert(int(reach.get("depth")) == 1, "hold stays on the farmed depth")
+	if failed == before_rest:
+		print("REACH_FAIL_REST_OK")
+	var before_push: int = failed
+	reach.call("reset_for_new_game")
+	reach.call("set_test_pp", 5.2)
+	failed += _assert(float(reach.call("clear_chance", int(reach.call("preview_bonus", 1)))) >= 0.75, "depth 1 at matched power stays at 75% or better")
+	failed += _assert(float(reach.call("clear_chance", int(reach.call("preview_bonus", 2)))) < 0.75, "depth 2 drops below 75%")
+	reach.call("push_faces", [20])
+	reach.call("depart", 1, 1, "push", "idle")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(str(reach.get("pace")) == "hold", "push switches to hold")
+	failed += _assert(int(reach.get("depth")) == 1, "push stops on the last safe depth")
+	failed += _assert(int(reach.get("reaches_cleared")) == 1, "the safe room still counts")
+	reach.call("set_test_pp", -1.0)
+	if failed == before_push:
+		print("REACH_PUSH_STOP_OK")
+	var before_ascend: int = failed
+	reach.call("reset_for_new_game")
+	reach.set("deepest_depth", 7)
+	failed += _assert(str(reach.call("depart", 3, 1, "hold", "idle")) == "ok", "depart an unlocked depth")
+	failed += _assert(int(reach.get("depth")) == 3, "any unlocked depth can be farmed")
+	reach.call("on_ascend")
+	reach.set("reaches_cleared", 4)
+	reach.set("dojo_exp", 100)
+	reach.set("deepest_depth", 7)
+	reach.call("depart", 7, 1, "hold", "idle")
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	failed += _assert(int(reach.get("deepest_depth")) == 7, "deepest depth survives ascension")
+	failed += _assert(int(reach.get("reaches_cleared")) == 4, "the reach counter survives ascension")
+	failed += _assert(int(reach.get("dojo_exp")) == 100, "dojo exp survives ascension")
+	failed += _assert(bool(reach.get("running")) == false, "ascension cancels the outing")
+	game_state.call("reset_for_new_game")
+	failed += _assert(int(reach.get("deepest_depth")) == 0, "a new game clears deepest depth")
+	failed += _assert(int(reach.get("reaches_cleared")) == 0, "a new game clears the reach counter")
+	failed += _assert(int(reach.get("dojo_exp")) == 0, "a new game clears dojo exp")
+	if failed == before_ascend:
+		print("REACH_DEPTH_ASCEND_OK")
+	var before_manual: int = failed
+	reach.call("reset_for_new_game")
+	var before_briar: int = int(reach.get("briarwood"))
+	reach.call("depart", 1, 1, "hold", "idle")
+	reach.call("set_control", "manual")
+	failed += _assert(bool(reach.call("fight_active")), "switching to manual opens the room's fight")
+	reach.call("set_control", "idle")
+	failed += _assert(bool(reach.call("fight_active")) == false, "switching back leaves the fight")
+	failed += _assert(bool(reach.get("running")), "switching control keeps the outing")
+	failed += _assert(int(reach.get("briarwood")) == before_briar, "leaving a fight grants nothing")
+	reach.call("reset_for_new_game")
+	var briar_before: int = int(reach.get("briarwood"))
+	var clears_before: int = int(reach.get("reaches_cleared"))
+	reach.call("depart", 1, 1, "hold", "manual")
+	failed += _assert(bool(reach.call("fight_active")), "manual depart opens a fight")
+	failed += _assert(int(ReachFightScript.road_damage(1.0, 10.0, 10.0, 0.0, 1.0)) == 5, "road damage is k*A^2/(A+D)")
+	failed += _assert(str(reach.call("debug_wound", 10000)) == "defeat", "a lethal hit is a defeat")
+	failed += _assert(bool(reach.get("running")) == false, "defeat ends the outing")
+	failed += _assert(str(reach.get("phase")) == "home", "defeat returns to the trailhead")
+	failed += _assert(is_equal_approx(float(reach.get("room_left")), 0.0), "defeat does not start a rest")
+	failed += _assert(int(reach.get("reaches_cleared")) == clears_before, "defeat does not count a reach")
+	failed += _assert(int(reach.get("briarwood")) == briar_before, "defeat grants no briarwood")
+	failed += _assert(str(game_state.get("expedition_lantern")) != "amber", "the lantern is no longer out")
+	failed += _assert(ResourceLoader.exists("res://assets/art/echo/battle_root_snapper_idle.png"), "thornling art is packed")
+	if failed == before_manual:
+		print("REACH_MANUAL_DEFEAT_OK")
+	var before_rewards: int = failed
+	reach.call("reset_for_new_game")
+	game_state.call("set_resource", &"essence", 40)
+	reach.call("push_faces", [20])
+	reach.call("push_drops", [1, 0])
+	reach.call("depart", 1, 1, "hold", "idle")
+	reach.call("advance_clock", 720.0)
+	var exp1: int = int(reach.call("room_exp", 1))
+	failed += _assert(int(reach.get("briarwood")) == 1, "solo briarwood is the 0-1 roll")
+	failed += _assert(int(reach.get("herbs")) == 0, "herbs use the same 0-1 roll")
+	failed += _assert(int(reach.get("dojo_exp")) == exp1, "exp goes to the dojo pool")
+	failed += _assert(int(game_state.get("essence")) == 40, "a room grants no essence")
+	reach.call("on_ascend")
+	reach.set("deepest_depth", 11)
+	var briar_deep: int = int(reach.get("briarwood"))
+	var herb_deep: int = int(reach.get("herbs"))
+	var dojo_deep: int = int(reach.get("dojo_exp"))
+	reach.call("push_faces", [20])
+	reach.call("push_drops", [1, 1])
+	reach.call("depart", 11, 1, "hold", "idle")
+	reach.call("advance_clock", 720.0)
+	var exp11: int = int(reach.call("room_exp", 11))
+	failed += _assert(int(reach.get("briarwood")) == briar_deep + 1, "briarwood stays 0-1 at a deeper room")
+	failed += _assert(int(reach.get("herbs")) == herb_deep + 1, "herbs stay 0-1 at a deeper room")
+	failed += _assert(int(reach.get("dojo_exp")) == dojo_deep + exp11, "deeper rooms pay their own exp")
+	failed += _assert(exp11 != exp1, "exp changes with depth")
+	failed += _assert(int(game_state.get("essence")) == 40, "a deep room grants no essence")
+	if failed == before_rewards:
+		print("REACH_REWARDS_OK")
+	var before_boss: int = failed
+	reach.call("reset_for_new_game")
+	failed += _assert(str(reach.call("boss_line")) == "Rooms until boss: 10", "a new expedition is 10 rooms from a boss")
+	reach.set("deepest_depth", 4)
+	for _room: int in range(10):
+		reach.call("push_faces", [20])
+		reach.call("push_drops", [1, 0])
+	reach.call("depart", 4, 4, "hold", "idle")
+	failed += _assert(int(reach.get("rooms_attempted")) == 1, "depart counts the first room")
+	failed += _assert(int(reach.call("rooms_until_boss")) == 9, "room 1 leaves 9 through the boss")
+	failed += _assert(bool(reach.call("is_boss_room")) == false, "room 1 is not a boss")
+	reach.call("advance_clock", 720.0 * 8.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 9, "eight more clears reach room 9")
+	failed += _assert(bool(reach.call("is_boss_room")) == false, "room 9 is not a boss")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 10, "the next clear is room 10")
+	failed += _assert(bool(reach.call("is_boss_room")), "room 10 is the boss")
+	failed += _assert(str(reach.call("boss_line")) == "Boss room", "the board names the boss room")
+	failed += _assert(int(reach.get("depth")) == 4, "the boss stays at the run's depth")
+	var only_minion: Array[String] = ["minion"]
+	reach.set("mix", only_minion)
+	reach.call("set_control", "manual")
+	var boss_snap: Dictionary = reach.call("fight_snapshot")
+	var boss_rows: Array = boss_snap.get("enemies", []) as Array
+	var boss_level: float = float(reach.call("room_level", 4))
+	var champ_hp: int = int(round(float(int(round(2.9 * boss_level))) * 1.5))
+	failed += _assert(boss_rows.size() == 1, "the boss check uses one minion")
+	if boss_rows.size() == 1:
+		var boss_row: Dictionary = boss_rows[0]
+		failed += _assert(str(boss_row.get("name", "")).find("Champion") >= 0, "the first foe is the champion")
+		failed += _assert(int(boss_row.get("max_hp", 0)) == champ_hp, "the champion has 50 percent more HP (got %s, want %d)" % [str(boss_row.get("max_hp", 0)), champ_hp])
+	reach.call("set_control", "idle")
+	var briar_before_boss: int = int(reach.get("briarwood"))
+	var dojo_before_boss: int = int(reach.get("dojo_exp"))
+	var exp4: int = int(reach.call("room_exp", 4))
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("briarwood")) == briar_before_boss + 2, "the boss doubles the material roll")
+	failed += _assert(int(reach.get("dojo_exp")) == dojo_before_boss + exp4 * 2, "the boss doubles dojo exp")
+	reach.call("on_ascend")
+	failed += _assert(int(reach.get("rooms_attempted")) == 0, "ending the expedition clears the room counter")
+	failed += _assert(str(reach.call("boss_line")) == "Rooms until boss: 10", "the next expedition starts 10 rooms out")
+	reach.set("deepest_depth", 10)
+	reach.call("push_faces", [20])
+	reach.call("push_drops", [1, 0])
+	reach.call("depart", 10, 1, "hold", "idle")
+	failed += _assert(bool(reach.call("is_boss_room")) == false, "depth 10's first room is not a boss")
+	var briar_depth10: int = int(reach.get("briarwood"))
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("briarwood")) == briar_depth10 + 1, "depth 10's first room pays a single drop")
+	reach.call("reset_for_new_game")
+	for _fail: int in range(9):
+		reach.call("push_faces", [1])
+	reach.call("push_faces", [20])
+	reach.call("push_drops", [1, 0])
+	reach.call("depart", 1, 8, "hold", "idle")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(str(reach.get("phase")) == "rest", "a failed attempt still spends the room")
+	failed += _assert(int(reach.get("rooms_attempted")) == 1, "a failed room counts")
+	failed += _assert(int(reach.get("briarwood")) == 0, "a failed boss-counter room grants nothing")
+	reach.call("advance_clock", 1440.0 + 2160.0 * 8.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 10, "nine failures make the next room the boss")
+	failed += _assert(bool(reach.call("is_boss_room")), "the 10th attempt is the boss after failures")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("briarwood")) == 2, "a boss clear after failures still doubles")
+	reach.call("on_ascend")
+	reach.call("push_faces", [20])
+	reach.call("push_drops", [1, 0])
+	reach.call("depart", 1, 1, "hold", "idle")
+	failed += _assert(int(reach.get("rooms_attempted")) == 1 and bool(reach.call("is_boss_room")) == false, "a new expedition does not inherit the boss counter")
+	if failed == before_boss:
+		print("REACH_BOSS_ROOM_OK")
+	var before_mig: int = failed
+	var migrated: Variant = save_service.call("_migrate", 11, {"wood": 3, "stage_id": "sapling"})
+	failed += _assert(migrated is Dictionary, "v11 migration returns a state")
+	if migrated is Dictionary:
+		var state: Dictionary = migrated
+		var reach_block: Variant = state.get("reach", null)
+		failed += _assert(reach_block is Dictionary, "a v11 save gains a reach block")
+		if reach_block is Dictionary:
+			var block: Dictionary = reach_block
+			failed += _assert(int(block.get("reaches_cleared", -1)) == 0, "migrated reaches start at 0")
+			failed += _assert(int(block.get("deepest_depth", -1)) == 0, "migrated depth starts at 0")
+			failed += _assert(bool(block.get("running", true)) == false, "migration does not send the party out")
+			failed += _assert(int(block.get("rooms_attempted", -1)) == 0, "a v11 save starts with no rooms attempted")
+	var kept: Variant = save_service.call("_migrate", 12, {"wood": 1, "stage_id": "sapling", "reach": {"reaches_cleared": 9, "deepest_depth": 4, "running": false}})
+	if kept is Dictionary:
+		var kept_reach: Variant = (kept as Dictionary).get("reach", {})
+		if kept_reach is Dictionary:
+			failed += _assert(int((kept_reach as Dictionary).get("reaches_cleared", -1)) == 9, "a v12 reach block is kept")
+			failed += _assert(int((kept_reach as Dictionary).get("rooms_attempted", -1)) == 0, "a finished v12 run gains a zero room counter")
+	var mid_run: Variant = save_service.call("_migrate", 12, {"wood": 1, "stage_id": "sapling", "reach": {"reaches_cleared": 2, "running": true, "phase": "idle_room"}})
+	if mid_run is Dictionary:
+		var mid_reach: Variant = (mid_run as Dictionary).get("reach", {})
+		if mid_reach is Dictionary:
+			failed += _assert(int((mid_reach as Dictionary).get("rooms_attempted", -1)) == 1, "an in-progress v12 room counts as the first attempt")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "saves write version 13")
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("Reach=\"*res://scripts/autoload/reach.gd\"") >= 0, "Reach autoload is registered")
+	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
+	var stable: Dictionary = presets.get(_STABLE_PRESET, {}) as Dictionary
+	var stable_exclude: PackedStringArray = _exclude_tokens(str(stable.get("exclude", "")))
+	for shipped: String in ["scripts/autoload/reach.gd", "scripts/reach_fight.gd", "scripts/reach_fight_view.gd", "scripts/expedition_board.gd"]:
+		failed += _assert(not _preset_excludes(stable_exclude, shipped), "stable ships %s" % shipped)
+	if failed == before_mig:
+		print("REACH_MIGRATION_OK")
+	var before_board: int = failed
+	reach.call("reset_for_new_game")
+	game_state.set("echo_02_resolved", true)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	failed += _assert(packed != null, "expedition board scene")
+	if packed != null:
+		var board: Node = packed.instantiate()
+		tree_root.add_child(board)
+		board.call("open_shell")
+		failed += _assert(bool(board.call("depart_disabled")) == false, "Depart is enabled once the road is open")
+		var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+		var odds: Label = shell.find_child("Odds", true, false) as Label if shell != null else null
+		failed += _assert(odds != null and str(odds.text).find("Clear chance") >= 0 and str(odds.text).find("vs 6") >= 0, "the board shows per-room odds")
+		failed += _assert(odds != null and str(odds.text).find("Rooms until boss: 10") >= 0, "the board shows rooms until boss")
+		var hours_btn: Button = shell.find_child("Hours", true, false) as Button if shell != null else null
+		failed += _assert(hours_btn != null and hours_btn.text == "1 hour", "length starts at 1 hour")
+		failed += _assert(str(board.call("try_depart")) == "ok", "Depart starts the reach")
+		failed += _assert(bool(reach.get("running")), "the party is out")
+		failed += _assert(str(game_state.get("expedition_lantern")) == "amber", "the lantern shows a run out")
+		board.free()
+		shell = tree_root.get_node_or_null("ExpeditionShell")
+		if shell != null and is_instance_valid(shell):
+			shell.free()
+	reach.call("reset_for_new_game")
+	if failed == before_board:
+		print("REACH_BOARD_OK")
+	reach.call("set_test_pp", -1.0)
+	reach.call("reset_for_new_game")
+	if speed_was == 1:
+		game_state.call("reset_play_speed")
+	else:
+		game_state.call("set_play_speed", speed_was)
+	save_service.set("session_active", session_was)
+	Engine.time_scale = scale_was
+	game_state.set("echo_02_resolved", echo_was)
+	game_state.set("fruit_committed", fruit_was)
+	game_state.call("set_resource", &"essence", essence_was)
+	game_state.set("expedition_lantern", lantern_was)
+	return failed
+
+
+
+func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Haex bug: a mid-run save lost the room's beasts, so Join manual after a load opened an
+	## empty fight and the first Strike won it for free. The mix is saved, an old save rerolls
+	## it, and a fight never starts or wins with no beasts.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "Reach autoload for the mix reload")
+	if reach == null:
+		return failed
+	var session_was: bool = bool(save_service.get("session_active"))
+	var lantern_was: String = str(game_state.get("expedition_lantern"))
+	reach.call("reset_for_new_game")
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "mix reload: idle depart")
+	var picked: Array[String] = ["brute", "minion"]
+	reach.set("mix", picked.duplicate())
+	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload: save mid-run to slot 7")
+	reach.call("reset_for_new_game")
+	failed += _assert((reach.get("mix") as Array).is_empty(), "mix reload: reset clears the mix")
+	failed += _assert(bool(save_service.call("load_game", 7)), "mix reload: load slot 7")
+	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "mix reload: the run is still out")
+	var loaded_mix: Array = reach.get("mix") as Array
+	failed += _assert(str(loaded_mix) == str(picked), "mix reload: the room keeps its beasts (got %s)" % str(loaded_mix))
+	reach.call("set_control", "manual")
+	failed += _assert(bool(reach.call("fight_active")), "mix reload: Join manual opens the fight")
+	var snap: Dictionary = reach.call("fight_snapshot")
+	failed += _assert((snap.get("enemies", []) as Array).size() == 2, "mix reload: Join manual shows both beasts")
+	var first: String = str(reach.call("fight_choose", "strike", 0))
+	failed += _assert(first != "victory", "mix reload: the first Strike does not win the room (got %s)" % first)
+	failed += _assert(bool(reach.get("running")), "mix reload: the run continues after one Strike")
+	# An older save without the mix field rerolls a real room instead of an empty one.
+	reach.call("set_control", "idle")
+	var blob: Dictionary = game_state.call("to_save_dict")
+	var reach_blob: Dictionary = (blob.get("reach", {}) as Dictionary).duplicate(true)
+	reach_blob.erase("mix")
+	blob["reach"] = reach_blob
+	reach.call("reset_for_new_game")
+	game_state.call("apply_save_dict", blob)
+	failed += _assert(not (reach.get("mix") as Array).is_empty(), "mix reload: a save without a mix rerolls one")
+	reach.call("set_control", "manual")
+	var old_snap: Dictionary = reach.call("fight_snapshot")
+	failed += _assert((old_snap.get("enemies", []) as Array).size() >= 1, "mix reload: the rerolled room has beasts")
+	failed += _assert(str(reach.call("fight_choose", "strike", 0)) != "victory", "mix reload: no free win after an old load")
+	# The fight itself refuses an empty room.
+	var empty_fight: RefCounted = ReachFightScript.new()
+	empty_fight.call("setup", 1, 5.2, {"vitality": 5, "swiftness": 5, "offense": 10.0}, [], -1, {}, {})
+	failed += _assert(str(empty_fight.call("choose", "strike", 0)) == "invalid", "an empty fight refuses a Strike")
+	failed += _assert(str(empty_fight.get("outcome")) == "", "an empty fight is never a victory")
+	reach.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	save_service.set("session_active", session_was)
+	game_state.set("expedition_lantern", lantern_was)
+	if failed == 0:
+		print("REACH_MIX_RELOAD_OK")
+	return failed
+
+
+func _save_newer_refused(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A build never loads a save newer than its own version (unknown fields would be lost),
+	## says why, skips it for Continue, and never rotates an autosave over it.
+	var failed: int = 0
+	var version: int = int(save_service.get("SAVE_VERSION"))
+	failed += _assert(int(save_service.get("SAVE_VERSION_MAX_READ")) == version, "the read cap equals SAVE_VERSION")
+	var wood_was: int = int(game_state.get("wood"))
+	var newer_root: Dictionary = {
+		"save_version": version + 1,
+		"timestamp": Time.get_unix_time_from_system() + 100000.0,
+		"slot": 7,
+		"kind": "manual",
+		"state": {"wood": 987654, "stage_id": "sapling", "future_field": {"pack": {"briarwood": 3}}},
+	}
+	var slot_file: String = str(save_service.call("slot_path", 7))
+	var fh := FileAccess.open(slot_file, FileAccess.WRITE)
+	fh.store_string(JSON.stringify(newer_root))
+	fh.close()
+	var info: Dictionary = save_service.call("get_slot_info", 7)
+	failed += _assert(bool(info.get("newer", false)), "slot info flags the newer save")
+	var record: Dictionary = save_service.call("get_most_recent_record")
+	failed += _assert(str(record.get("path", "")) != slot_file, "Continue skips a save from a newer build")
+	failed += _assert(not bool(save_service.call("load_game", 7)), "a newer save is refused")
+	failed += _assert(int(game_state.get("wood")) == wood_was, "a refused load leaves the game untouched")
+	var why: String = str(save_service.get("last_load_error"))
+	failed += _assert(why.find("v%d" % (version + 1)) >= 0 and why.find("newer") >= 0, "the refusal says why (got %s)" % why)
+	failed += _assert(str(tree_root.get_node("ContentStrings").call("get_text", "save_newer_build")).find("{found}") >= 0, "save_newer_build string")
+	save_service.call("delete_slot", 7)
+	# Autosave rotation never writes over a newer build's autosave.
+	var backups: Dictionary = {}
+	for slot: int in range(1, 4):
+		var path: String = str(save_service.call("autosave_path", slot))
+		backups[path] = FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else null
+		var newer_auto: Dictionary = newer_root.duplicate(true)
+		newer_auto["slot"] = slot
+		newer_auto["kind"] = "autosave"
+		var ah := FileAccess.open(path, FileAccess.WRITE)
+		ah.store_string(JSON.stringify(newer_auto))
+		ah.close()
+	var session_was: bool = bool(save_service.get("session_active"))
+	save_service.set("session_active", true)
+	failed += _assert(int(save_service.call("_next_autosave_slot")) == 0, "no autosave slot is writable over newer saves")
+	failed += _assert(not bool(save_service.call("save_autosave", true)), "autosave refuses to overwrite newer saves")
+	for path: String in backups.keys():
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		failed += _assert(typeof(parsed) == TYPE_DICTIONARY and int((parsed as Dictionary).get("save_version", 0)) == version + 1, "newer autosave kept %s" % path)
+		if backups[path] == null:
+			DirAccess.remove_absolute(path)
+		else:
+			var rh := FileAccess.open(path, FileAccess.WRITE)
+			rh.store_string(str(backups[path]))
+			rh.close()
+	save_service.set("session_active", session_was)
+	save_service.call("debug_set_last_autosave_age", 0.0)
+	if failed == 0:
+		print("SAVE_NEWER_REFUSED_OK")
+	return failed
+
+
+func _reach_turn_order() -> int:
+	## Turn order is a total order: Swiftness first, the keeper wins ties, then slot. sort_custom is not
+	## stable, so a big room of equal-speed foes must still come out in slot order every time.
+	var failed: int = 0
+	var fight: RefCounted = ReachFightScript.new()
+	fight.call("setup", 1, 5.0, {"vitality": 5, "swiftness": 5, "offense": 10.0}, ["minion"], -1, {}, {})
+	var rows: Array[Dictionary] = []
+	for i: int in range(24):
+		var row: Dictionary = (fight.get("enemies") as Array)[0].duplicate()
+		row["swift"] = 5.0
+		row["hp"] = 10
+		rows.append(row)
+	rows[20]["swift"] = 9.0
+	rows[3]["swift"] = 1.0
+	fight.set("enemies", rows)
+	var keeper: Dictionary = fight.get("keeper")
+	keeper["swiftness"] = 5
+	fight.set("keeper", keeper)
+	for _attempt: int in range(5):
+		var order: Array = fight.call("_turn_order")
+		failed += _assert(order.size() == 25, "turn order lists the keeper and 24 foes")
+		if order.size() != 25:
+			break
+		failed += _assert(str((order[0] as Dictionary).get("side")) == "foe" and int((order[0] as Dictionary).get("index")) == 20, "the fastest foe acts first")
+		failed += _assert(str((order[1] as Dictionary).get("side")) == "keeper", "the keeper wins the Swiftness tie")
+		var want: Array[int] = []
+		for i: int in range(24):
+			if i != 20 and i != 3:
+				want.append(i)
+		var got: Array[int] = []
+		for k: int in range(2, 24):
+			got.append(int((order[k] as Dictionary).get("index")))
+		failed += _assert(str(got) == str(want), "tied foes act in slot order (got %s)" % str(got))
+		failed += _assert(int((order[24] as Dictionary).get("index")) == 3, "the slowest foe acts last")
+	# Float noise on Swiftness is still a tie that goes to the keeper.
+	rows = []
+	for i: int in range(3):
+		var r2: Dictionary = (fight.get("enemies") as Array)[0].duplicate()
+		r2["swift"] = 5.0000001
+		rows.append(r2)
+	fight.set("enemies", rows)
+	var near: Array = fight.call("_turn_order")
+	failed += _assert(near.size() == 4 and str((near[0] as Dictionary).get("side")) == "keeper", "float noise still ties to the keeper")
+	if failed == 0:
+		print("REACH_TURN_ORDER_OK")
+	return failed
+
+
+func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Every debug snapshot loads through SaveService migration, the same path as a slot load.
+	## An old snapshot gains the fields its migration adds; a newer one is refused.
+	var failed: int = 0
+	var panel_script: Script = load("res://tools/debug/debug_panel.gd") as Script
+	failed += _assert(panel_script != null, "debug panel script loads")
+	if panel_script == null:
+		return failed
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	var press_body: String = _func_body(panel_src, "func _on_snapshot_pressed")
+	failed += _assert(press_body.find("load_snapshot_state(") >= 0, "the snapshot button uses the migrating loader")
+	failed += _assert(_func_body(panel_src, "static func load_snapshot_state").find("migrate_state") >= 0, "the loader calls SaveService.migrate_state")
+	var snapshots: Dictionary = panel_script.get_script_constant_map().get("SNAPSHOTS", {}) as Dictionary
+	failed += _assert(snapshots.size() == 8, "eight debug snapshots (got %d)" % snapshots.size())
+	for label: String in snapshots.keys():
+		var path: String = str(snapshots[label])
+		var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		var raw_state: Dictionary = (raw as Dictionary).get("state", {}) as Dictionary if typeof(raw) == TYPE_DICTIONARY else {}
+		var raw_version: int = int((raw as Dictionary).get("save_version", 0)) if typeof(raw) == TYPE_DICTIONARY else 0
+		var loaded: Dictionary = panel_script.call("load_snapshot_state", path)
+		var state: Dictionary = loaded.get("state", {}) as Dictionary
+		failed += _assert(not state.is_empty(), "%s migrates (%s)" % [label, str(loaded.get("error", ""))])
+		if state.is_empty():
+			continue
+		var reach_v: Variant = state.get("reach", null)
+		failed += _assert(reach_v is Dictionary and (reach_v as Dictionary).has("rooms_attempted"), "%s has a current reach block" % label)
+		if raw_version < 12:
+			failed += _assert(not raw_state.has("reach"), "%s file is an old schema (no reach block)" % label)
+		game_state.call("reset_for_new_game")
+		game_state.call("apply_save_dict", state)
+	var newer_path: String = "user://verify_newer_snapshot.json"
+	var nh := FileAccess.open(newer_path, FileAccess.WRITE)
+	nh.store_string(JSON.stringify({"save_version": int(save_service.get("SAVE_VERSION")) + 1, "state": {"wood": 1}}))
+	nh.close()
+	var refused: Dictionary = panel_script.call("load_snapshot_state", newer_path)
+	failed += _assert((refused.get("state", {}) as Dictionary).is_empty(), "a newer snapshot is refused")
+	failed += _assert(str(refused.get("error", "")).find("newer") >= 0, "the refusal names the newer build")
+	DirAccess.remove_absolute(newer_path)
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("DEBUG_SNAPSHOTS_MIGRATE_OK")
 	return failed

@@ -2,6 +2,8 @@
 extends Area2D
 class_name EchoPortal
 ## Hub portal. Same command as a Runestone: Keeper selected, right-click, walk in range, confirm.
+## One arch serves Elaia's Echo (Echo 1), then Bramble's Echo (Echo 2) after the first
+## Anvil weapon. EchoChamber.hub_portal_context() decides which, or hides it.
 
 const PORTAL_ART: String = "res://assets/art/props/echo_portal_hub_v2.png"
 ## Native 160×200, bottom-centre anchor (80, 200). Five empty rows sit above the arch.
@@ -56,6 +58,9 @@ func _ready() -> void:
 		GameState.echo_flags_changed.connect(refresh_visibility)
 	if not GameState.load_completed.is_connected(refresh_visibility):
 		GameState.load_completed.connect(refresh_visibility)
+	## Crafting the first Anvil weapon only changes Equipment, not the echo flags.
+	if has_node("/root/Equipment") and not Equipment.equipment_changed.is_connected(refresh_visibility):
+		Equipment.equipment_changed.connect(refresh_visibility)
 	refresh_visibility()
 
 
@@ -111,13 +116,37 @@ func _process(delta: float) -> void:
 
 
 func refresh_visibility() -> void:
-	var show_it: bool = EchoChamber.portal_visible()
+	## Sprite, click area, and walk box always move together. A hidden arch must not
+	## leave a bare collision box behind, and a shown arch must be clickable.
+	var show_it: bool = EchoChamber.hub_portal_open()
 	visible = show_it
 	input_pickable = show_it
 	monitorable = show_it
+	_set_walk_enabled(show_it)
+	if not show_it:
+		_hovered = false
 	if label:
 		label.text = ContentStrings.get_text("portal_label")
-		label.visible = _hovered
+		label.visible = _hovered and show_it
+
+
+func _set_walk_enabled(on: bool) -> void:
+	var shape_node: CollisionShape2D = get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
+	if shape_node == null:
+		return
+	if Engine.is_in_physics_frame():
+		shape_node.set_deferred("disabled", not on)
+	else:
+		shape_node.disabled = not on
+
+
+func walk_collision_enabled() -> bool:
+	var shape_node: CollisionShape2D = get_node_or_null("WalkBody/CollisionShape2D") as CollisionShape2D
+	return shape_node != null and not shape_node.disabled
+
+
+func serves_bramble() -> bool:
+	return EchoChamber.hub_portal_context() == "echo2"
 
 
 func _on_hover(inside: bool) -> void:
@@ -169,12 +198,18 @@ func begin_entry() -> String:
 		return "blocked"
 	if EchoChamber.in_battle:
 		return "blocked"
-	if not EchoChamber.portal_visible():
+	var ctx: String = EchoChamber.hub_portal_context()
+	if ctx == "":
 		return "closed"
-	if GameState.portal_fee_paid:
+	if ctx == "echo2":
+		if GameState.echo_02_fee_paid:
+			EchoChamber.open_bramble(true)
+			return "enter"
+	elif GameState.portal_fee_paid:
 		EchoChamber.open_battle(true)
 		return "enter"
-	var can_pay: bool = GameState.essence >= EchoChamber.FEE
+	var fee: int = EchoChamber.BRAMBLE_FEE if ctx == "echo2" else EchoChamber.FEE
+	var can_pay: bool = GameState.essence >= fee
 	_open_confirm(can_pay)
 	if not can_pay:
 		GameAudio.play_ui_deny()
@@ -183,15 +218,19 @@ func begin_entry() -> String:
 
 
 func confirm_fee() -> String:
-	var already: bool = GameState.portal_fee_paid
+	var bramble: bool = serves_bramble()
+	var already: bool = GameState.echo_02_fee_paid if bramble else GameState.portal_fee_paid
 	if not already:
-		var paid: String = EchoChamber.try_pay_fee()
+		var paid: String = EchoChamber.try_pay_bramble() if bramble else EchoChamber.try_pay_fee()
 		if paid != "paid":
 			return paid
 		SaveService.save_game()
 	_close_confirm()
 	GameState.status_message.emit(ContentStrings.get_text("portal_enter_ok"))
-	EchoChamber.open_battle(already)
+	if bramble:
+		EchoChamber.open_bramble(already)
+	else:
+		EchoChamber.open_battle(already)
 	return "enter"
 
 
@@ -218,6 +257,38 @@ func _open_confirm(can_pay: bool) -> void:
 	_ensure_confirm()
 	_layout_confirm()
 	_rebind_confirm()
+	if serves_bramble():
+		_fill_bramble_confirm(can_pay)
+	else:
+		_fill_elaia_confirm(can_pay)
+	_yes.text = ContentStrings.get_text("portal_confirm_yes")
+	_no.text = ContentStrings.get_text("portal_confirm_no")
+	_panel.visible = true
+	_layer.visible = true
+	if can_pay:
+		GameAudio.play_ui_confirm()
+
+
+func _fill_bramble_confirm(can_pay: bool) -> void:
+	## Same copy as the thorn wall's Bramble confirm.
+	var cost: int = EchoChamber.BRAMBLE_FEE
+	_title.text = ContentStrings.get_text("bramble_name")
+	if can_pay:
+		_body.text = "%s\n%s\n%s" % [
+			ContentStrings.get_text("echo_bramble_examine"),
+			ContentStrings.get_text("portal_confirm", {"cost": cost}),
+			ContentStrings.get_text("portal_fee", {"cost": cost}),
+		]
+		_yes.disabled = false
+	else:
+		_body.text = "%s\n%s" % [
+			ContentStrings.get_text("portal_cant_afford", {"cost": cost}),
+			ContentStrings.get_text("echo_bramble_examine"),
+		]
+		_yes.disabled = true
+
+
+func _fill_elaia_confirm(can_pay: bool) -> void:
 	_title.text = ContentStrings.get_text("portal_title")
 	var cost: int = EchoChamber.FEE
 	if can_pay:
@@ -233,12 +304,6 @@ func _open_confirm(can_pay: bool) -> void:
 			ContentStrings.get_text("portal_confirm", {"cost": cost}),
 		]
 		_yes.disabled = true
-	_yes.text = ContentStrings.get_text("portal_confirm_yes")
-	_no.text = ContentStrings.get_text("portal_confirm_no")
-	_panel.visible = true
-	_layer.visible = true
-	if can_pay:
-		GameAudio.play_ui_confirm()
 
 
 func _close_confirm() -> void:

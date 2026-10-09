@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 11 — crafting batches. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 13 — reach boss room counter. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -14,9 +14,9 @@ var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
 
-const SAVE_VERSION: int = 11
-## Accept one write ahead of this schema (plus legacy 4–10).
-const SAVE_VERSION_MAX_READ: int = 12
+const SAVE_VERSION: int = 13
+## Never read a save newer than this build writes: unknown fields would be dropped silently.
+const SAVE_VERSION_MAX_READ: int = SAVE_VERSION
 const SAVE_SLOT_COUNT: int = 7
 const AUTOSAVE_SLOT_COUNT: int = 3
 const AUTOSAVE_THROTTLE_SEC: float = 60.0
@@ -27,6 +27,8 @@ const AUTOSAVE_PATH_FMT: String = "user://manaforge_autosave_%d.json"
 var _last_autosave_msec: int = -100000000
 var _autosave_coalesce_sec: float = 1.2
 var _autosave_serial: int = 0
+## Player-facing reason the last load failed ("" after a good load).
+var last_load_error: String = ""
 
 
 func _ready() -> void:
@@ -118,6 +120,10 @@ func save_autosave(force: bool = false) -> bool:
 		save_completed.emit(true)
 		return true
 	var slot: int = _next_autosave_slot()
+	if slot <= 0:
+		push_warning("SaveService: every autosave slot holds a newer build's save; autosave skipped")
+		save_completed.emit(false)
+		return false
 	_autosave_serial += 1
 	var stamped: float = Time.get_unix_time_from_system() + float(_autosave_serial) * 0.001
 	var ok: bool = _write_payload(autosave_path(slot), slot, "autosave", stamped)
@@ -228,13 +234,17 @@ func load_autosave(slot: int) -> bool:
 
 
 func _load_path(path: String) -> bool:
+	last_load_error = ""
 	var root: Dictionary = _read_root(path)
 	if root.is_empty():
 		load_completed.emit(false)
 		return false
 	var version: int = int(root.get("save_version", 0))
 	if version > SAVE_VERSION_MAX_READ:
-		push_error("SaveService: save v%d newer than %d" % [version, SAVE_VERSION_MAX_READ])
+		last_load_error = newer_save_message(version)
+		push_error("SaveService: refused %s, save v%d is newer than this build (reads up to v%d)" % [path, version, SAVE_VERSION_MAX_READ])
+		if has_node("/root/GameState"):
+			GameState.status_message.emit(last_load_error)
 		load_completed.emit(false)
 		return false
 	var state: Variant = root.get("state", {})
@@ -245,6 +255,28 @@ func _load_path(path: String) -> bool:
 	_apply_offline_catchup(root)
 	load_completed.emit(true)
 	return true
+
+
+func newer_save_message(version: int) -> String:
+	var fallback: String = "This save is from a newer version of the game (v%d). This build reads saves up to v%d." % [version, SAVE_VERSION_MAX_READ]
+	if not has_node("/root/ContentStrings"):
+		return fallback
+	var text: String = ContentStrings.get_text("save_newer_build", {"found": version, "max": SAVE_VERSION_MAX_READ})
+	if text == "" or text == "save_newer_build":
+		return fallback
+	return text
+
+
+func is_newer_than_build(version: int) -> bool:
+	return version > SAVE_VERSION_MAX_READ
+
+
+func migrate_state(version: int, state: Dictionary) -> Dictionary:
+	## Public migration path (debug snapshots use it). Refuses saves newer than this build with {}.
+	if is_newer_than_build(version):
+		push_error("SaveService: refused state v%d, newer than this build (reads up to v%d)" % [version, SAVE_VERSION_MAX_READ])
+		return {}
+	return _migrate(version, state)
 
 
 func _read_slot_root(slot: int) -> Dictionary:
@@ -307,6 +339,7 @@ func _info_from_root(slot: int, kind: String, root: Dictionary) -> Dictionary:
 		"essence": int(state.get("essence", 0)),
 		"wood": int(state.get("wood", 0)),
 		"save_version": int(root.get("save_version", 0)),
+		"newer": is_newer_than_build(int(root.get("save_version", 0))),
 	}
 
 
@@ -316,7 +349,7 @@ func get_most_recent_slot() -> int:
 	var best_ts: float = -1.0
 	for slot: int in range(1, SAVE_SLOT_COUNT + 1):
 		var info: Dictionary = get_slot_info(slot)
-		if not bool(info.get("filled", false)):
+		if not bool(info.get("filled", false)) or bool(info.get("newer", false)):
 			continue
 		var ts: float = float(info.get("timestamp", 0))
 		if ts >= best_ts:
@@ -326,11 +359,12 @@ func get_most_recent_slot() -> int:
 
 
 func get_most_recent_record() -> Dictionary:
+	## Continue skips saves from a newer build; this build cannot read them.
 	var best: Dictionary = {}
 	var best_ts: float = -1.0
 	for slot: int in range(1, SAVE_SLOT_COUNT + 1):
 		var info: Dictionary = get_slot_info(slot)
-		if not bool(info.get("filled", false)):
+		if not bool(info.get("filled", false)) or bool(info.get("newer", false)):
 			continue
 		var ts: float = float(info.get("timestamp", 0))
 		if ts >= best_ts:
@@ -338,7 +372,7 @@ func get_most_recent_record() -> Dictionary:
 			best = {"path": slot_path(slot), "kind": "manual", "slot": slot, "timestamp": ts}
 	for slot: int in range(1, AUTOSAVE_SLOT_COUNT + 1):
 		var info: Dictionary = get_autosave_info(slot)
-		if not bool(info.get("filled", false)):
+		if not bool(info.get("filled", false)) or bool(info.get("newer", false)):
 			continue
 		var ts: float = float(info.get("timestamp", 0))
 		if ts >= best_ts:
@@ -349,11 +383,16 @@ func get_most_recent_record() -> Dictionary:
 
 func _next_autosave_slot() -> int:
 	## Fill an empty slot first. Otherwise write the slot after the newest, so three saves stay distinct.
+	## A slot holding a newer build's save is never overwritten. 0 means no slot may be written.
 	var empty_slot: int = 0
 	var newest_slot: int = 0
 	var newest_ts: float = -1.0
+	var writable: Array[int] = []
 	for slot: int in range(1, AUTOSAVE_SLOT_COUNT + 1):
 		var info: Dictionary = get_autosave_info(slot)
+		if bool(info.get("newer", false)):
+			continue
+		writable.append(slot)
 		if not bool(info.get("filled", false)):
 			if empty_slot == 0:
 				empty_slot = slot
@@ -362,14 +401,14 @@ func _next_autosave_slot() -> int:
 		if ts > newest_ts:
 			newest_ts = ts
 			newest_slot = slot
+	if writable.is_empty():
+		return 0
 	if empty_slot != 0:
 		return empty_slot
 	if newest_slot <= 0:
-		return 1
-	var nxt: int = newest_slot + 1
-	if nxt > AUTOSAVE_SLOT_COUNT:
-		nxt = 1
-	return nxt
+		return writable[0]
+	var at: int = writable.find(newest_slot)
+	return writable[(at + 1) % writable.size()]
 
 
 func _oldest_autosave_slot() -> int:
@@ -459,6 +498,10 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v10(out)
 	if from_version < 11:
 		_migrate_v11(out)
+	if from_version < 12:
+		_migrate_v12(out)
+	if from_version < 13:
+		_migrate_v13(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -493,6 +536,54 @@ func _migrate_v11(out: Dictionary) -> void:
 	var workers: Dictionary = workers_v if typeof(workers_v) == TYPE_DICTIONARY else {}
 	if has_node("/root/ForgeJobs"):
 		out["forge_jobs"] = ForgeJobs.migrate_saved_jobs(jobs_v as Dictionary, workers)
+
+
+func _migrate_v12(out: Dictionary) -> void:
+	## Reach rooms. Missing block is a fresh road: nothing cleared, nobody out.
+	var reach_v: Variant = out.get("reach", {})
+	if typeof(reach_v) == TYPE_DICTIONARY and (reach_v as Dictionary).has("reaches_cleared"):
+		return
+	var blank: Dictionary = {}
+	if has_node("/root/Reach"):
+		blank = Reach.default_save_fields()
+	else:
+		blank = {
+			"deepest_depth": 0,
+			"reaches_cleared": 0,
+			"dojo_exp": 0,
+			"briarwood": 0,
+			"herbs": 0,
+			"heart_salve": 0,
+			"bile_vial": 0,
+			"running": false,
+			"pace": "hold",
+			"control": "idle",
+			"depth": 1,
+			"hours": 1.0,
+			"elapsed": 0.0,
+			"room_left": 0.0,
+			"phase": "home",
+			"run_clears": 0,
+			"rooms_attempted": 0,
+			"salve_used": false,
+		}
+	out["reach"] = blank
+
+
+func _migrate_v13(out: Dictionary) -> void:
+	## Boss rooms are every 10th attempt of an expedition, not every 10th depth.
+	## An in-progress room counts as the first attempt. Older saves did not track the counter.
+	var reach_v: Variant = out.get("reach", {})
+	if typeof(reach_v) != TYPE_DICTIONARY:
+		return
+	var reach: Dictionary = (reach_v as Dictionary).duplicate(true)
+	if reach.has("rooms_attempted"):
+		return
+	var guessed := 0
+	if bool(reach.get("running", false)) and str(reach.get("phase", "")) == "idle_room":
+		guessed = 1
+	reach["rooms_attempted"] = guessed
+	out["reach"] = reach
 
 
 func _infer_forge_visited(out: Dictionary) -> bool:
@@ -629,7 +720,11 @@ func _apply_offline_catchup(root: Dictionary) -> void:
 	var closed: float = Time.get_unix_time_from_system() - ts
 	if closed < 1.0:
 		return
-	ForgeJobs.apply_saved_offline_gap(closed)
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.apply_saved_offline_gap(closed)
+	## Road time is the raw gap. Play speed does not stretch a closed game.
+	if has_node("/root/Reach"):
+		Reach.apply_offline_seconds(closed)
 
 
 func _migrate_equipped_key_to_inventory(out: Dictionary) -> void:

@@ -138,6 +138,7 @@ var _frozen_hint: Label
 var _nav_button: Button
 var _speed_button: TextureButton
 var _speed_index: int = 0
+var _play_speed_button: TextureButton
 var _footsteps_popup: Panel
 var _keeper_activity: Label
 var _elaia_activity: Label
@@ -236,6 +237,7 @@ func _ready() -> void:
 	_ensure_frozen_banner()
 	_ensure_nav_button()
 	_ensure_speed_button()
+	_ensure_play_speed_button()
 	if not GameState.ancient_expired.is_connected(_on_ancient_expired):
 		GameState.ancient_expired.connect(_on_ancient_expired)
 	if not GameState.echo_flags_changed.is_connected(_refresh_forge_entry):
@@ -469,6 +471,7 @@ func _process(_delta: float) -> void:
 	_refresh_nav_button()
 	_refresh_frozen_banner()
 	_refresh_speed_button()
+	_refresh_play_speed_button()
 	if _keeper_activity != null:
 		_refresh_actor_activities(GameState.elaia_portrait_visible(), GameState.keeper_selected, str(GameState.selected_companion_id))
 	_settle_world_labels()
@@ -1854,6 +1857,53 @@ func _apply_speed_textures() -> void:
 	_speed_button.texture_hover = load(stem + "hover.png") as Texture2D
 	_speed_button.texture_pressed = load(stem + "pressed.png") as Texture2D
 	_speed_button.tooltip_text = "%dx" % n
+
+
+func _ensure_play_speed_button() -> void:
+	## Player control. Stable ships this. The debug SpeedButton above stays opt-in and reaches 16×.
+	_play_speed_button = TextureButton.new()
+	_play_speed_button.name = "PlaySpeedButton"
+	_play_speed_button.position = Vector2(924, 6)
+	_play_speed_button.size = Vector2(40, 40)
+	_play_speed_button.custom_minimum_size = Vector2(40, 40)
+	_play_speed_button.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_play_speed_button.ignore_texture_size = true
+	_play_speed_button.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	_play_speed_button.focus_mode = Control.FOCUS_NONE
+	_play_speed_button.visible = true
+	_play_speed_button.pressed.connect(_on_play_speed_pressed)
+	var host: Node = get_node_or_null("Panel")
+	if host:
+		host.add_child(_play_speed_button)
+	else:
+		add_child(_play_speed_button)
+	_apply_play_speed_textures()
+
+
+func _refresh_play_speed_button() -> void:
+	if _play_speed_button == null:
+		return
+	_play_speed_button.visible = true
+	_apply_play_speed_textures()
+
+
+func _on_play_speed_pressed() -> void:
+	if has_node("/root/GameState"):
+		GameState.cycle_play_speed()
+	_apply_play_speed_textures()
+
+
+func _apply_play_speed_textures() -> void:
+	if _play_speed_button == null:
+		return
+	var n: int = 1
+	if has_node("/root/GameState"):
+		n = int(GameState.play_speed)
+	var stem: String = "res://assets/art/ui/buttons/speed_%dx_" % n
+	_play_speed_button.texture_normal = load(stem + "normal.png") as Texture2D
+	_play_speed_button.texture_hover = load(stem + "hover.png") as Texture2D
+	_play_speed_button.texture_pressed = load(stem + "pressed.png") as Texture2D
+	_play_speed_button.tooltip_text = "%dx" % n
 
 
 func _make_activity_label(node_name: String, y: float) -> Label:

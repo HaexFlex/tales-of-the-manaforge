@@ -483,7 +483,8 @@ func _do_load_slot(kind: String, slot: int) -> void:
 		resume_game()
 		game_loaded.emit()
 	else:
-		status_toast.emit(ContentStrings.get_text("pause_load_fail"))
+		var why: String = str(SaveService.last_load_error)
+		status_toast.emit(why if why != "" else ContentStrings.get_text("pause_load_fail"))
 
 
 func _show_confirm(action: StringName, body: String, yes: String, no: String) -> void:

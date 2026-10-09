@@ -59,13 +59,34 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `JOBS_SURVIVE_SWITCH_OK` | Watering, Elaia's stone harvest, the wood wisp, and station jobs keep paying across a hub/Forge switch, and the work animations are still playing on the way back. |
 | `AUTOSAVE_THROTTLE_OK` | An event autosave waits 60 seconds before it writes again. Closing the window still saves inside that window. |
 | `ELAIA_JOIN_OK` | Spare without a relic does not bring Elaia in. The first relic craft does. Her portrait waits for the clearing dialogue. An old save that already had her keeps her, and a relic without Spare does not. |
-| `DEBUG_STRIPPED_OK` | The Windows Release / Stable preset strips the debug panel, the four debug snapshots, and AnimPreview. When `builds/stable/TalesOfTheManaforge.pck` and the experimental pack are on disk, the check reads those file tables. `MANAFORGE_DEBUG_STRIP=1` requires both packs. |
+| `DEBUG_STRIPPED_OK` | The Windows Release / Stable preset strips the debug panel, all eight debug snapshots, and AnimPreview. When `builds/stable/TalesOfTheManaforge.pck` and the experimental pack are on disk, the check reads those file tables. `MANAFORGE_DEBUG_STRIP=1` requires both packs. |
+| `DEBUG_SNAPSHOTS_REACH_OK` | The four Experimental reach snapshots (Echo 2 ready, North road open, Pre-boss, Veteran reacher) are listed in the debug panel, load into a valid state through the panel's path, and boot the hub with the arch, wall, and Depart matching that state. Pre-boss is room 9 of a run and finishing it opens the boss room. Stable strips them (`DEBUG_STRIPPED_OK`). `MANAFORGE_DEBUG_SNAPSHOTS=1` runs it alone. |
 | `PORTRAIT_SWITCH_FORGE_OK` | With Elaia joined, a double-click on the Keeper portrait while she is in the Forge (and the reverse, Elaia's portrait while the Keeper is in the Forge) changes view without freeing the HUD inside the click. `MANAFORGE_PORTRAIT_SWITCH=1` runs it alone. |
 | `FORGE_ARCH_DRAW_ORDER_OK` | After a real door transfer, ArchFront's opaque frame covers the Keeper at the Forge spawn and its draw z stays above the heroes. `MANAFORGE_FORGE_ARCH=1` runs it alone. |
 | `FORGE_YSORT_OK` | In the Forge, a hero south of a station draws over it and a hero north of it draws under it. The arch stays above both. Station walk boxes use the opaque sprite width. `MANAFORGE_FORGE_YSORT=1` runs it alone. |
 | `MANATREE_DOOR_CLEAR_OK` | At every growth stage, no Manatree walk box sits south of the door sill and the corridor up to the door is open. `MANAFORGE_MANATREE_DOOR=1` runs it alone. |
 | `COMPANION_DOOR_TRANSFER_OK` | Keeper and Elaia go clearing → Forge → clearing twice. Both stay visible and can walk after each hop. `MANAFORGE_COMPANION_DOOR=1` runs it alone. |
 | `FORGE_ENTRY_ONE_CLICK_OK` | One click on the Manatree door walks to the sill and enters the Forge. The same run checks the watering stand at every growth stage. `MANAFORGE_FORGE_ENTRY=1` runs it alone. |
+| `KEEP_TOOLS_COST_OK` | Keep Tools costs 4000 Manashards, and the shop fallback string says 4000. |
+| `THORN_PATH_LOCKED_OK` | The north thorn wall blocks the road until Bramble is passed. An early click shows the tease line. |
+| `THORN_PATH_OPENS_OK` | Spare and defeat both open the road, play `sfx_path_open`, and drop the centre gate. The side hedges stay. |
+| `BRAMBLE_ECHO_FEE_OK` | Bramble's fee is an Anvil weapon plus 50 Essence. Flee keeps the fee. A loss clears it. |
+| `ECHO2_PORTAL_VISIBLE_OK` | The hub portal arch closes after Elaia's Echo and leaves no bare walk box. After the first Anvil craft it comes back for Bramble: visible sprite, live click area, and a right-click walks the Keeper in, opens Bramble's 50 Essence confirm, and enters Echo 2. A save already in that state restores the arch, both on load and on a fresh boot. `MANAFORGE_ECHO2_PORTAL=1` runs it alone. |
+| `EXPEDITION_BOARD_SHELL_OK` | The trailhead board picks the Keeper and the open road. Depart stays disabled while the road is shut. |
+| `EXPEDITION_BOARD_TEASE_OK` | Right-clicking the north board with the Keeper selected walks him to its stand point and, while the road is shut, shows the wall's `path_east_tease` line without opening the shell. Once Bramble is spared the same click opens the shell. `MANAFORGE_BOARD_TEASE=1` runs it alone. |
+| `REACH_IDLE_ROLL_OK` | Idle rooms roll d20 + bonus against 6. Natural 20 clears, natural 1 fails. Offline catch-up of a run stays at 1× while the speed button is at 8×. |
+| `REACH_FAIL_REST_OK` | A failed room grants nothing, then rests 24 minutes, then opens the next room. |
+| `REACH_PUSH_STOP_OK` | Push stops and switches to Hold when the next room's clear chance drops below 75%. |
+| `REACH_DEPTH_ASCEND_OK` | Deepest depth, the lifetime reach counter, and the dojo pool survive Ascension. A new game clears them. |
+| `REACH_MANUAL_DEFEAT_OK` | A manual defeat loses the room and returns to the trailhead with no rest and no reward. |
+| `REACH_REWARDS_OK` | Briarwood and herbs are 0–1 at 50% and do not scale with depth. Exp goes to the dojo pool. Rooms grant no Essence. |
+| `REACH_BOSS_ROOM_OK` | The 10th room attempted in an expedition is the boss at that depth, cleared or failed. A new expedition starts the counter over. Depth 10's first room is not a boss. |
+| `REACH_MIGRATION_OK` | A version 11 save gains an empty reach block. A version 12 save gains `rooms_attempted`. New saves write version 13. |
+| `REACH_MIX_RELOAD_OK` | A mid-run save keeps the room's beasts, so Join manual after a load shows them and the first Strike does not win. A save without the mix rerolls one. A fight with no beasts refuses Strike and is never a victory. `MANAFORGE_REACH_MIX=1` runs it alone. |
+| `SAVE_NEWER_REFUSED_OK` | A save newer than this build is refused with a message naming both versions and leaves the game untouched. Continue skips it, and autosave never overwrites a newer autosave. `MANAFORGE_SAVE_NEWER=1` runs it alone. |
+| `REACH_TURN_ORDER_OK` | Manual turn order is Swiftness first, the Keeper on ties, then slot, even with 24 equal-speed foes and float noise. `MANAFORGE_TURN_ORDER=1` runs it alone. |
+| `DEBUG_SNAPSHOTS_MIGRATE_OK` | All eight debug snapshots load through `SaveService.migrate_state`, so the version 10 ones gain a current reach block. A newer snapshot is refused. `MANAFORGE_SNAPSHOT_MIGRATE=1` runs it alone. |
+| `SPEED_BUTTON_OK` | The player speed button is 1×, 2×, 4×, 8× during an open session, including the Stable HUD. Offline and idle catch-up stay on the 1× curve at 8×. The value is not in the save. Launch resets it. The debug 16× button is unchanged. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 
@@ -74,7 +95,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | Token | What it guards |
 | --- | --- |
 | `SANITY_OK` | The hub load, Echo view, gear, content keys, and scene-exit audit all passed. |
-| `FOREST_SEAL` | A walk from the Keeper's spawn cannot leak out of the clearing. The harvest nodes, the bench, and the Forge door stay reachable inside the seal. |
+| `FOREST_SEAL` | A walk from the Keeper's spawn cannot leak out of the clearing. The harvest nodes, the bench, and the Forge door stay reachable inside the seal. The north thorn-path mouth is an exception: the corridor is walkable in that check, and it still cannot reach the map edge. |
 | `WORK_REACH` | Keeper and Elaia each have a stand at the harvest nodes, the bench, the Manatree door and water spot, every runestone, the portal, and the five Forge stations. |
 | `SCENE_EXITS` | The only scripts that both name the title scene and change to it are the allow-list, and that list includes the pause menu. The Forge exit returns to the hub. Echo battle stays an overlay. |
 
@@ -86,7 +107,7 @@ Same tip, two presets in `export_presets.cfg`. Both keep `binary_format/embed_pc
 
 | Preset | Feature tag | What the pack contains |
 | --- | --- | --- |
-| `Windows Testing / Experimental` | `manaforge_debug` | Debug panel, four snapshot saves, AnimPreview, Ctrl+F8 and F9. Docs, archive, library, verify, and capture scripts stay out. `tools/*` is **not** excluded; the baker, scene sanity, and `tools/legacy/*` still are. |
+| `Windows Testing / Experimental` | `manaforge_debug` | Debug panel, eight snapshot saves, AnimPreview, Ctrl+F8 and F9. Docs, archive, library, verify, and capture scripts stay out. `tools/*` is **not** excluded; the baker, scene sanity, and `tools/legacy/*` still are. |
 | `Windows Release / Stable` | `manaforge_stable` | Today's stripped playtest. `tools/*` plus AnimPreview, the debug panel, and `tools/debug/snapshots/` by name. No debug panel, snapshots, or AnimPreview in the pack file table. |
 
 ```bash

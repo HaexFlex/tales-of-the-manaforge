@@ -63,9 +63,10 @@ func step_jobs(delta: float) -> void:
 	_tick_door_walk()
 	var speed: float = float(_tuning.get("wisp_orbit_speed", 1.45))
 	_wisp_orbit_phase = fposmod(_wisp_orbit_phase + speed * delta, TAU)
-	advance_seconds(delta * dev_time_scale())
-	_tick_absent_elaia(delta)
-	_tick_absent_keeper(delta)
+	var play_delta: float = _active_play_delta(delta)
+	advance_seconds(play_delta * dev_time_scale())
+	_tick_absent_elaia(play_delta)
+	_tick_absent_keeper(play_delta)
 	if not _autosave_enabled:
 		return
 	var every: float = float(_tuning.get("autosave_sec", 300.0))
@@ -95,6 +96,12 @@ func _read_dict(path: String) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func _active_play_delta(delta: float) -> float:
+	if has_node("/root/GameState"):
+		return GameState.active_play_delta(delta)
+	return delta
 
 
 func dev_time_scale() -> float:

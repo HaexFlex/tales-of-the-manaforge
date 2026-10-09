@@ -1,0 +1,77 @@
+{
+	"save_version": 13,
+	"timestamp": 1760000010,
+	"slot": 0,
+	"kind": "debug",
+	"label": "Echo 2 ready",
+	"state": {
+		"wood": 80,
+		"stone": 80,
+		"food": 40,
+		"manashards": 120,
+		"essence": 50,
+		"stage_id": "elder",
+		"fruit_ready": false,
+		"fruit_committed": false,
+		"fruit_harvested_pending_ascend": false,
+		"welcome_shown": true,
+		"ascensions": 1,
+		"portal_unlocked": true,
+		"portal_fee_paid": false,
+		"echo_01_resolved": true,
+		"echo_01_redeemed": false,
+		"first_relic_crafted": false,
+		"elaia_legacy_joined": false,
+		"elaia_join_seen": false,
+		"elaia_footsteps_seen": true,
+		"forge_key": true,
+		"ancient_frozen": false,
+		"ancient_remaining_sec": 0,
+		"forge_visited": true,
+		"backpack": {},
+		"equipment_equipped": {
+			"relic": "forge_key_relic"
+		},
+		"gear_inventory": {
+			"rootsteel_edge": 1
+		},
+		"keeper_stats": {},
+		"forge_jobs": {},
+		"forge_workers": {},
+		"keeper_task": {
+			"kind": "none",
+			"target": "",
+			"working": false
+		},
+		"elaia_task": {
+			"kind": "none",
+			"target": "",
+			"working": false
+		},
+		"echo_02_fee_paid": false,
+		"echo_02_resolved": false,
+		"echo_02_outcome": "",
+		"echo_02_narrator_heard": false,
+		"expedition_lantern": "dark",
+		"reach": {
+			"deepest_depth": 0,
+			"reaches_cleared": 0,
+			"dojo_exp": 0,
+			"briarwood": 0,
+			"herbs": 0,
+			"heart_salve": 0,
+			"bile_vial": 0,
+			"running": false,
+			"pace": "hold",
+			"control": "idle",
+			"depth": 1,
+			"hours": 1.0,
+			"elapsed": 0.0,
+			"room_left": 0.0,
+			"phase": "home",
+			"run_clears": 0,
+			"rooms_attempted": 0,
+			"salve_used": false
+		}
+	}
+}

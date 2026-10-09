@@ -8,7 +8,15 @@ const SNAPSHOTS: Dictionary = {
 	"Forge unlocked": "res://tools/debug/snapshots/forge_unlocked.json",
 	"Elaia joined": "res://tools/debug/snapshots/elaia_joined.json",
 	"Ancient ready": "res://tools/debug/snapshots/ancient_ready.json",
+	"Echo 2 ready": "res://tools/debug/snapshots/echo2_ready.json",
+	"North road open": "res://tools/debug/snapshots/north_road_open.json",
+	"Pre-boss": "res://tools/debug/snapshots/pre_boss.json",
+	"Veteran reacher": "res://tools/debug/snapshots/veteran_reacher.json",
 }
+const SNAPSHOT_ORDER: PackedStringArray = [
+	"Pre-Echo", "Forge unlocked", "Elaia joined", "Ancient ready",
+	"Echo 2 ready", "North road open", "Pre-boss", "Veteran reacher",
+]
 var _free_crafts: PackedStringArray = PackedStringArray([
 	"sapsteel",
 	"heartwood_bits",
@@ -79,11 +87,16 @@ func _build_ui() -> void:
 	box.add_child(subtitle)
 
 	_add_section(box, "Load snapshots")
-	var snapshot_labels: PackedStringArray = PackedStringArray([
-		"Pre-Echo", "Forge unlocked", "Elaia joined", "Ancient ready",
-	])
-	for label: String in snapshot_labels:
-		_add_button(box, label, _on_snapshot_pressed.bind(str(SNAPSHOTS[label]), label))
+	## Two columns, so eight snapshots take the height the first four did.
+	var snapshot_grid := GridContainer.new()
+	snapshot_grid.name = "SnapshotGrid"
+	snapshot_grid.columns = 2
+	snapshot_grid.add_theme_constant_override("h_separation", 6)
+	snapshot_grid.add_theme_constant_override("v_separation", 4)
+	box.add_child(snapshot_grid)
+	for label: String in SNAPSHOT_ORDER:
+		var snap_button: Button = _add_button(snapshot_grid, label, _on_snapshot_pressed.bind(str(SNAPSHOTS[label]), label))
+		snap_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	_add_section(box, "Forge")
 	_add_button(box, "Free Sapsteel", _on_free_craft_pressed.bind("sapsteel"))
@@ -122,33 +135,52 @@ func _add_section(parent: VBoxContainer, text: String) -> void:
 	parent.add_child(label)
 
 
-func _add_button(parent: VBoxContainer, text: String, callback: Callable) -> void:
+func _add_button(parent: Container, text: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = Vector2(0, 24)
 	button.pressed.connect(callback)
 	parent.add_child(button)
+	return button
 
 
 func _on_close_pressed() -> void:
 	AnimPreviewHotkey.set_debug_panel(false)
 
 
-func _on_snapshot_pressed(path: String, label: String) -> void:
+static func load_snapshot_state(path: String) -> Dictionary:
+	## Reads a snapshot and runs it through SaveService migration, like a slot load.
+	## {"state": migrated, "error": ""} on success; "state" is empty when the file cannot be used.
 	if not FileAccess.file_exists(path):
-		_set_status("Missing snapshot %s." % label)
-		return
+		return {"state": {}, "error": "missing"}
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if typeof(parsed) != TYPE_DICTIONARY:
-		_set_status("Snapshot %s is not a save." % label)
-		return
-	var state_v: Variant = (parsed as Dictionary).get("state", {})
+		return {"state": {}, "error": "not a save"}
+	var root: Dictionary = parsed
+	var state_v: Variant = root.get("state", {})
 	if typeof(state_v) != TYPE_DICTIONARY:
-		_set_status("Snapshot %s has no state." % label)
+		return {"state": {}, "error": "no state"}
+	var save_service: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("SaveService")
+	if save_service == null:
+		return {"state": {}, "error": "no SaveService"}
+	var version: int = int(root.get("save_version", 0))
+	if bool(save_service.call("is_newer_than_build", version)):
+		return {"state": {}, "error": str(save_service.call("newer_save_message", version))}
+	var migrated: Dictionary = save_service.call("migrate_state", version, state_v as Dictionary)
+	if migrated.is_empty():
+		return {"state": {}, "error": "migration failed"}
+	return {"state": migrated, "error": ""}
+
+
+func _on_snapshot_pressed(path: String, label: String) -> void:
+	var loaded: Dictionary = load_snapshot_state(path)
+	var state: Dictionary = loaded.get("state", {}) as Dictionary
+	if state.is_empty():
+		_set_status("Snapshot %s: %s." % [label, str(loaded.get("error", "unusable"))])
 		return
 	if EchoChamber.in_battle:
 		EchoChamber.dismiss_battle_without_reward()
-	GameState.apply_save_dict(state_v as Dictionary)
+	GameState.apply_save_dict(state)
 	SaveService.note_session_started()
 	SaveService.boot_intent = "auto"
 	SaveService.boot_slot = 0

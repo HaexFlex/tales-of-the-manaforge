@@ -81,8 +81,25 @@ func _elaia_holds_key() -> bool:
 	return false
 
 
+func _is_bramble() -> bool:
+	return EchoChamber.battle_context == "echo2"
+
+
+func _echo_line(suffix: String) -> String:
+	var prefix: String = "echo_02_" if _is_bramble() else "echo_01_"
+	return ContentStrings.get_text(prefix + suffix)
+
+
 func _apply_elaia_portrait() -> void:
 	if _echo_portrait == null:
+		return
+	if _is_bramble() and _battle != null and _battle.foe_art_path != "":
+		var foe_tex: Texture2D = load(_battle.foe_art_path) as Texture2D
+		if foe_tex:
+			_echo_portrait.texture = foe_tex
+		_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		return
 	var path: String = ELAIA_KEY if _elaia_holds_key() else ELAIA_IDLE
 	var tex: Texture2D = load(path) as Texture2D
@@ -189,6 +206,11 @@ func echo_uses_elaia_texture() -> bool:
 	return path.find("battle_elaia_idle_w") >= 0 or path.find("battle_elaia_key_w") >= 0
 
 
+func echo_uses_bramble_texture() -> bool:
+	return _echo_portrait != null and _echo_portrait.texture != null \
+		and str(_echo_portrait.texture.resource_path).find("battle_bramble_idle") >= 0
+
+
 func echo_uses_key_texture() -> bool:
 	return _echo_portrait != null and _echo_portrait.texture != null \
 		and str(_echo_portrait.texture.resource_path).find("battle_elaia_key_w") >= 0
@@ -234,6 +256,10 @@ func log_top() -> float:
 
 
 func _enemy_name() -> String:
+	if _is_bramble():
+		var labeled: String = ContentStrings.get_text("bramble_name")
+		if labeled != "" and labeled != "bramble_name":
+			return labeled
 	return EchoChamber.echo_display_name()
 
 
@@ -272,6 +298,9 @@ func _bind() -> void:
 
 
 func _show_opening() -> void:
+	if _is_bramble():
+		_show_bramble_opening()
+		return
 	if EchoChamber.reentry:
 		_speech.text = ContentStrings.get_text("echo_01_return")
 	elif not GameState.echo_01_narrator_heard:
@@ -285,9 +314,30 @@ func _show_opening() -> void:
 	_set_mercy_visible(false)
 
 
+func _show_bramble_opening() -> void:
+	if EchoChamber.reentry:
+		if GameState.echo_02_outcome == "flee":
+			_speech.text = ContentStrings.get_text("echo_02_return_flee")
+		elif GameState.echo_02_outcome == "ko":
+			_speech.text = ContentStrings.get_text("echo_02_return_lost")
+		else:
+			_speech.text = ContentStrings.get_text("echo_02_return")
+	elif GameState.echo_02_outcome == "ko":
+		_speech.text = ContentStrings.get_text("echo_02_return_lost")
+	elif not GameState.echo_02_narrator_heard:
+		_speech.text = "%s\n%s" % [
+			ContentStrings.get_text("echo_02_narrator"),
+			ContentStrings.get_text("echo_02_intro"),
+		]
+		GameState.echo_02_narrator_heard = true
+	else:
+		_speech.text = ContentStrings.get_text("echo_02_intro")
+	_set_mercy_visible(false)
+
+
 func _show_mercy() -> void:
 	_mercy_shown = true
-	_speech.text = ContentStrings.get_text("echo_01_mercy")
+	_speech.text = _echo_line("mercy")
 	_set_mercy_visible(true)
 
 
@@ -369,17 +419,26 @@ func _offer_return(outcome: String) -> void:
 func _flavour_for_outcome(outcome: String) -> String:
 	match outcome:
 		"flee":
-			return ContentStrings.get_text("echo_01_flee")
+			return _echo_line("flee")
 		"spare":
-			return ContentStrings.get_text("echo_01_spare")
+			return _echo_line("spare")
 		"defeat":
-			return ContentStrings.get_text("echo_01_defeat")
+			return _echo_line("defeat")
 	return ""
 
 
 func _outcome_toast(outcome: String) -> String:
 	var enemy: String = _enemy_name()
 	var parts: PackedStringArray = PackedStringArray()
+	if _is_bramble():
+		match outcome:
+			"flee":
+				parts.append(ContentStrings.get_text("battle_flee_ok"))
+			"spare":
+				parts.append(ContentStrings.get_text("adventure_echo2_toast_spare"))
+			"defeat":
+				parts.append(ContentStrings.get_text("adventure_echo2_toast_defeat"))
+		return "\n".join(parts)
 	match outcome:
 		"flee":
 			parts.append(ContentStrings.get_text("battle_flee_ok"))

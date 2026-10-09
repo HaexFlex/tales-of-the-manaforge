@@ -53,6 +53,14 @@ var first_relic_crafted: bool = false
 var elaia_legacy_joined: bool = false
 var forge_key: bool = false
 var echo_01_narrator_heard: bool = false
+## Echo 2 (Bramble). Fee, resolution, and the last ending stay through Ascend.
+var echo_02_fee_paid: bool = false
+var echo_02_resolved: bool = false
+## "" | spare | defeat | flee | ko. Spare and defeat open the east road.
+var echo_02_outcome: String = ""
+var echo_02_narrator_heard: bool = false
+## Expedition board lantern. dark | amber | cyan. Amber is a run out, cyan is done.
+var expedition_lantern: String = "dark"
 ## Hybrid bows: "physical" or "magical". Optional on old saves — missing means physical.
 var arrow_mode: String = "physical"
 ## True after the Ancient timer hits 0. The Fruit stays committed and the clearing holds still.
@@ -63,6 +71,9 @@ var forge_visited: bool = false
 var applying_save: bool = false
 var _frozen_deny_msec: int = -100000000
 
+## Session play speed. 1, 2, 4, or 8. Launch resets it. It is not a save field.
+const PLAY_SPEEDS: Array[int] = [1, 2, 4, 8]
+var play_speed: int = 1
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
 ## Fractional harvest remainders, one float per resource (wood/stone/food/manashards).
@@ -129,6 +140,7 @@ var params: Dictionary = {}
 func _ready() -> void:
 	# Autoloads inherit root ALWAYS — force pausable so pause freezes run_time / logic.
 	process_mode = Node.PROCESS_MODE_PAUSABLE
+	reset_play_speed()
 	_load_tables()
 	_ensure_upgrade_keys()
 	_ensure_harvest_keys()
@@ -157,12 +169,64 @@ func _ensure_character_sheet_action() -> void:
 func _process(delta: float) -> void:
 	## Pausable by default — stops when get_tree().paused (pause menu).
 	## A frozen Ancient does not bank run time, so staring at Ascend does not reset the offline curve.
+	advance_open_play(delta)
+
+
+func reset_play_speed() -> void:
+	play_speed = 1
+
+
+func set_play_speed(step: int) -> void:
+	play_speed = step if PLAY_SPEEDS.has(step) else 1
+
+
+func cycle_play_speed() -> int:
+	var idx: int = PLAY_SPEEDS.find(play_speed)
+	if idx < 0:
+		play_speed = 1
+		return play_speed
+	play_speed = PLAY_SPEEDS[(idx + 1) % PLAY_SPEEDS.size()]
+	return play_speed
+
+
+func play_speed_scale() -> float:
+	if not PLAY_SPEEDS.has(play_speed):
+		return 1.0
+	return float(play_speed)
+
+
+func play_speed_in_stable() -> bool:
+	## The control lives on the HUD, which the Stable export keeps.
+	return true
+
+
+func active_play_delta(delta: float) -> float:
+	## Live session only. Offline grants and idle catch-up pass raw seconds instead.
+	if delta <= 0.0:
+		return 0.0
+	if not _play_session_open():
+		return delta
+	return delta * play_speed_scale()
+
+
+func _play_session_open() -> bool:
+	return has_node("/root/SaveService") and SaveService.session_active
+
+
+func advance_open_play(delta: float) -> void:
 	if ancient_frozen:
 		return
-	run_time_sec += delta
+	var play_delta: float = active_play_delta(delta)
+	run_time_sec += play_delta
+	## The idle-curve reset stays on the wall clock, whatever the speed button says.
 	active_since_load_sec += delta
-	tick_ancient(delta)
-	apply_wisp_pulses(delta)
+	tick_ancient(play_delta)
+	apply_wisp_pulses(play_delta)
+
+
+func idle_catch_up_seconds(gap_sec: float) -> float:
+	## Same 1× curve as a closed game. Play speed is not a factor.
+	return offline_effective_seconds(gap_sec)
 
 
 func _load_tables() -> void:
@@ -1484,6 +1548,8 @@ func ascend() -> void:
 	Backpack.on_ascend()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.finish_ascend(forge_snap)
+	if has_node("/root/Reach"):
+		Reach.on_ascend()
 	## Combat ranks and battle gear persist. The soft Manashard bank above is already 0.
 	if has_node("/root/KeeperStats"):
 		KeeperStats.on_ascend()
@@ -1563,10 +1629,17 @@ func to_save_dict() -> Dictionary:
 		"elaia_water_essence_frac": elaia_water_essence_frac,
 		"forge_key": forge_key,
 		"echo_01_narrator_heard": echo_01_narrator_heard,
+		"echo_02_fee_paid": echo_02_fee_paid,
+		"echo_02_resolved": echo_02_resolved,
+		"echo_02_outcome": echo_02_outcome,
+		"echo_02_narrator_heard": echo_02_narrator_heard,
+		"expedition_lantern": expedition_lantern,
 		"arrow_mode": arrow_mode,
 		"ancient_frozen": ancient_frozen,
 		"forge_visited": forge_visited,
-	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {})
+	}.merged(ForgeJobs.capture_save_fields() if has_node("/root/ForgeJobs") else {}).merged(
+		Reach.capture_save_fields() if has_node("/root/Reach") else {}
+	)
 
 
 func apply_save_dict(data: Dictionary) -> void:
@@ -1644,6 +1717,12 @@ func apply_save_dict(data: Dictionary) -> void:
 	_hero_water_accum.clear()
 	forge_key = bool(data.get("forge_key", false))
 	echo_01_narrator_heard = bool(data.get("echo_01_narrator_heard", false))
+	echo_02_fee_paid = bool(data.get("echo_02_fee_paid", false))
+	echo_02_resolved = bool(data.get("echo_02_resolved", false))
+	echo_02_outcome = str(data.get("echo_02_outcome", ""))
+	echo_02_narrator_heard = bool(data.get("echo_02_narrator_heard", false))
+	var lantern: String = str(data.get("expedition_lantern", "dark"))
+	expedition_lantern = lantern if lantern == "amber" or lantern == "cyan" else "dark"
 	arrow_mode = "magical" if str(data.get("arrow_mode", "physical")) == "magical" else "physical"
 	ancient_frozen = bool(data.get("ancient_frozen", false))
 	forge_visited = bool(data.get("forge_visited", false))
@@ -1692,6 +1771,9 @@ func apply_save_dict(data: Dictionary) -> void:
 			Equipment.ensure_forge_key_from_load()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.apply_save_fields(data)
+	if has_node("/root/Reach"):
+		var reach_v: Variant = data.get("reach", {})
+		Reach.apply_save_fields(reach_v if typeof(reach_v) == TYPE_DICTIONARY else {})
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()
@@ -1809,6 +1891,11 @@ func reset_for_new_game() -> void:
 	_hero_water_accum.clear()
 	forge_key = false
 	echo_01_narrator_heard = false
+	echo_02_fee_paid = false
+	echo_02_resolved = false
+	echo_02_outcome = ""
+	echo_02_narrator_heard = false
+	expedition_lantern = "dark"
 	arrow_mode = "physical"
 	ancient_frozen = false
 	forge_visited = false
@@ -1820,6 +1907,8 @@ func reset_for_new_game() -> void:
 		Equipment.reset_for_new_game()
 	if has_node("/root/ForgeJobs"):
 		ForgeJobs.reset_for_new_game()
+	if has_node("/root/Reach"):
+		Reach.reset_for_new_game()
 	wisps_changed.emit()
 	selection_changed.emit()
 	resources_changed.emit(&"wood", wood)

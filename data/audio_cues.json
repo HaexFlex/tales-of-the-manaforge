@@ -205,6 +205,11 @@
       "bus": "SFX_World",
       "loop": false,
       "path": "res://assets/audio/sfx_door_bark.ogg"
+    },
+    "sfx_path_open": {
+      "bus": "SFX_Progress",
+      "loop": false,
+      "path": "res://assets/audio/sfx_path_open.ogg"
     }
   }
 }
