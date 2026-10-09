@@ -1,0 +1,1173 @@
+{
+ "source": {
+  "sim": "combat_sim.py",
+  "sim_sha256": "9c2a650ab5ec14f4ad434a0c0acca092c915730b13517b3a7c79c54f2a4c7b6f",
+  "rules": "BATTLE_SCENE_DRAFT v4",
+  "exporter": "tools/sim/export_resolver_fixtures.py",
+  "poison": "refresh (one per target, 3 ticks, stronger total kept)"
+ },
+ "max_foes": 6,
+ "variety_bias": 2.0,
+ "note": "Distinct maximal rooms (nothing else fits, up to 6) per depth, from compositions(). Beast ids as in data/beasts.json.",
+ "depths": [
+  {
+   "depth": 1,
+   "budget": 90,
+   "count": 3,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp"
+     ],
+     "threat": 66
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth"
+     ],
+     "threat": 78
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth"
+     ],
+     "threat": 90
+    }
+   ]
+  },
+  {
+   "depth": 2,
+   "budget": 92,
+   "count": 3,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp"
+     ],
+     "threat": 66
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth"
+     ],
+     "threat": 78
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth"
+     ],
+     "threat": 90
+    }
+   ]
+  },
+  {
+   "depth": 3,
+   "budget": 94,
+   "count": 10,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp"
+     ],
+     "threat": 66
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "root_snapper"
+     ],
+     "threat": 79
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth"
+     ],
+     "threat": 78
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "wilt_wisp"
+     ],
+     "threat": 80
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth"
+     ],
+     "threat": 91
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth"
+     ],
+     "threat": 90
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "wilt_wisp"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  },
+  {
+   "depth": 4,
+   "budget": 96,
+   "count": 10,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp"
+     ],
+     "threat": 66
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "root_snapper"
+     ],
+     "threat": 79
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth"
+     ],
+     "threat": 78
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "wilt_wisp"
+     ],
+     "threat": 80
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth"
+     ],
+     "threat": 91
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth"
+     ],
+     "threat": 90
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "wilt_wisp"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  },
+  {
+   "depth": 5,
+   "budget": 98,
+   "count": 16,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp"
+     ],
+     "threat": 66
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp_dark"
+     ],
+     "threat": 81
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "root_snapper"
+     ],
+     "threat": 79
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth"
+     ],
+     "threat": 78
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth_dark"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "wilt_wisp"
+     ],
+     "threat": 80
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "acorn_imp_dark"
+     ],
+     "threat": 96
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "root_snapper"
+     ],
+     "threat": 94
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "spore_moth"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "wilt_wisp"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth"
+     ],
+     "threat": 91
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth"
+     ],
+     "threat": 90
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "wilt_wisp"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  },
+  {
+   "depth": 8,
+   "budget": 104,
+   "count": 16,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp",
+      "acorn_imp"
+     ],
+     "threat": 99
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp_dark"
+     ],
+     "threat": 81
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "root_snapper"
+     ],
+     "threat": 79
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth"
+     ],
+     "threat": 78
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth_dark"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "wilt_wisp"
+     ],
+     "threat": 80
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "acorn_imp_dark"
+     ],
+     "threat": 96
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "root_snapper"
+     ],
+     "threat": 94
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "spore_moth"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "wilt_wisp"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth"
+     ],
+     "threat": 91
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth"
+     ],
+     "threat": 90
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "wilt_wisp"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  },
+  {
+   "depth": 9,
+   "budget": 106,
+   "count": 16,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp",
+      "acorn_imp"
+     ],
+     "threat": 99
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp_dark"
+     ],
+     "threat": 81
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "root_snapper"
+     ],
+     "threat": 79
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth"
+     ],
+     "threat": 78
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth_dark"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "wilt_wisp"
+     ],
+     "threat": 80
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "acorn_imp_dark"
+     ],
+     "threat": 96
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "root_snapper"
+     ],
+     "threat": 94
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "spore_moth"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "wilt_wisp"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth"
+     ],
+     "threat": 91
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth"
+     ],
+     "threat": 90
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "wilt_wisp"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  },
+  {
+   "depth": 10,
+   "budget": 108,
+   "count": 18,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp",
+      "acorn_imp"
+     ],
+     "threat": 99
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "acorn_imp_dark"
+     ],
+     "threat": 81
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "root_snapper"
+     ],
+     "threat": 79
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth"
+     ],
+     "threat": 78
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "spore_moth_dark"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "acorn_imp",
+      "wilt_wisp"
+     ],
+     "threat": 80
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "acorn_imp_dark"
+     ],
+     "threat": 96
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "root_snapper"
+     ],
+     "threat": 94
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "spore_moth"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "wilt_wisp"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth"
+     ],
+     "threat": 91
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth_dark"
+     ],
+     "threat": 108
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth"
+     ],
+     "threat": 90
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth_dark"
+     ],
+     "threat": 107
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "wilt_wisp"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  },
+  {
+   "depth": 12,
+   "budget": 120,
+   "count": 20,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "acorn_imp_dark"
+     ],
+     "threat": 96
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "root_snapper"
+     ],
+     "threat": 94
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "spore_moth_dark"
+     ],
+     "threat": 110
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "thorn_boar"
+     ],
+     "threat": 102
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "vine_serpent"
+     ],
+     "threat": 106
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "wilt_wisp"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth_dark"
+     ],
+     "threat": 108
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "thorn_boar"
+     ],
+     "threat": 100
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "vine_serpent"
+     ],
+     "threat": 104
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "thorn_boar"
+     ],
+     "threat": 116
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "vine_serpent"
+     ],
+     "threat": 120
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "wilt_wisp"
+     ],
+     "threat": 109
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "thorn_boar"
+     ],
+     "threat": 108
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "vine_serpent"
+     ],
+     "threat": 112
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "wilt_wisp"
+     ],
+     "threat": 101
+    },
+    {
+     "beasts": [
+      "vine_serpent",
+      "vine_serpent"
+     ],
+     "threat": 116
+    },
+    {
+     "beasts": [
+      "vine_serpent",
+      "wilt_wisp"
+     ],
+     "threat": 105
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  },
+  {
+   "depth": 14,
+   "budget": 132,
+   "count": 21,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "acorn_imp_dark"
+     ],
+     "threat": 96
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "root_snapper"
+     ],
+     "threat": 94
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "spore_moth_dark"
+     ],
+     "threat": 110
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "thorn_boar"
+     ],
+     "threat": 102
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "vine_serpent"
+     ],
+     "threat": 106
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "wilt_wisp"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 92
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth_dark"
+     ],
+     "threat": 108
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "thorn_boar"
+     ],
+     "threat": 100
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "vine_serpent"
+     ],
+     "threat": 104
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "spore_moth_dark"
+     ],
+     "threat": 124
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "thorn_boar"
+     ],
+     "threat": 116
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "vine_serpent"
+     ],
+     "threat": 120
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "wilt_wisp"
+     ],
+     "threat": 109
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "thorn_boar"
+     ],
+     "threat": 108
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "vine_serpent"
+     ],
+     "threat": 112
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "wilt_wisp"
+     ],
+     "threat": 101
+    },
+    {
+     "beasts": [
+      "vine_serpent",
+      "vine_serpent"
+     ],
+     "threat": 116
+    },
+    {
+     "beasts": [
+      "vine_serpent",
+      "wilt_wisp"
+     ],
+     "threat": 105
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  },
+  {
+   "depth": 15,
+   "budget": 138,
+   "count": 21,
+   "rooms": [
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "acorn_imp_dark"
+     ],
+     "threat": 96
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "root_snapper"
+     ],
+     "threat": 94
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "spore_moth_dark"
+     ],
+     "threat": 110
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "thorn_boar"
+     ],
+     "threat": 102
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "vine_serpent"
+     ],
+     "threat": 106
+    },
+    {
+     "beasts": [
+      "acorn_imp_dark",
+      "wilt_wisp"
+     ],
+     "threat": 95
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "root_snapper",
+      "root_snapper"
+     ],
+     "threat": 138
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "spore_moth_dark"
+     ],
+     "threat": 108
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "thorn_boar"
+     ],
+     "threat": 100
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "vine_serpent"
+     ],
+     "threat": 104
+    },
+    {
+     "beasts": [
+      "root_snapper",
+      "wilt_wisp"
+     ],
+     "threat": 93
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "spore_moth_dark"
+     ],
+     "threat": 124
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "thorn_boar"
+     ],
+     "threat": 116
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "vine_serpent"
+     ],
+     "threat": 120
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "wilt_wisp"
+     ],
+     "threat": 109
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "thorn_boar"
+     ],
+     "threat": 108
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "vine_serpent"
+     ],
+     "threat": 112
+    },
+    {
+     "beasts": [
+      "thorn_boar",
+      "wilt_wisp"
+     ],
+     "threat": 101
+    },
+    {
+     "beasts": [
+      "vine_serpent",
+      "vine_serpent"
+     ],
+     "threat": 116
+    },
+    {
+     "beasts": [
+      "vine_serpent",
+      "wilt_wisp"
+     ],
+     "threat": 105
+    },
+    {
+     "beasts": [
+      "wilt_wisp",
+      "wilt_wisp"
+     ],
+     "threat": 94
+    }
+   ]
+  }
+ ]
+}

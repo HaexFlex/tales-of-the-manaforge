@@ -8053,6 +8053,28 @@ func _beast_data(_tree_root: Window) -> int:
 		failed += _assert(int(vrow.get("threat", 0)) == int(dark_want[vid][0]) and int(vrow.get("hp", 0)) == int(dark_want[vid][1]), "%s matches the §10 note" % vid)
 		failed += _assert(int(vrow.get("from_depth", 0)) == int(dark_want[vid][2]), "%s first spawns at depth 5" % vid)
 		failed += _assert(strings.has(str(vrow.get("name_key", ""))), "%s name string" % vid)
+	# Resolver fixtures (job 8): exported from the poison-refresh sim, and the §4 example uses this imp.
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	failed += _assert(not cases.is_empty(), "tests/fixtures/resolver_cases.json parses")
+	if not cases.is_empty():
+		failed += _assert(str((cases.get("source", {}) as Dictionary).get("poison", "")).begins_with("refresh"), "fixtures come from the poison-refresh sim")
+		var imp: Dictionary = by_id.get("acorn_imp", {}) as Dictionary
+		var seen_example: bool = false
+		for case_v: Variant in cases.get("strikes", []) as Array:
+			var c: Dictionary = case_v as Dictionary
+			var ex: Dictionary = c.get("expect", {}) as Dictionary
+			failed += _assert(ex.has("band") and ex.has("damage") and ex.has("margin"), "fixture %s has an expected result" % str(c.get("id", "")))
+			if str(c.get("id", "")) == "s4_line1":
+				seen_example = true
+				var d: Dictionary = c.get("defender", {}) as Dictionary
+				failed += _assert(int(d.get("mig", 0)) == int(imp.get("might", -1)) and int(d.get("res", 0)) == int(imp.get("resilience", -1)) and int(d.get("hp", 0)) == int(imp.get("hp", -1)), "the §4 example imp matches beasts.json")
+				failed += _assert(str(ex.get("band", "")) == "crush" and int(ex.get("damage", 0)) == 24, "the §4 example opens with a crushing blow for 24")
+		failed += _assert(seen_example, "the §4 worked example is in the fixtures")
+		var one_poison: bool = true
+		for step_v: Variant in cases.get("poison_refresh", []) as Array:
+			if ((step_v as Dictionary).get("ticks_left", []) as Array).size() > 3:
+				one_poison = false
+		failed += _assert(one_poison and (cases.get("poison_refresh", []) as Array).size() > 0, "fixture poison never stacks past one 3-tick poison")
 	if failed == 0:
 		print("BEAST_DATA_OK")
 	return failed
@@ -8164,6 +8186,24 @@ func _spawn_data(_tree_root: Window) -> int:
 		failed += _assert(cheapest <= b, "a beast fits the depth %d budget" % depth)
 		var rooms: Array[String] = _room_compositions(pool, b, max_beasts)
 		failed += _assert(rooms.size() == int(want[depth][2]), "depth %d has %d different rooms (got %d)" % [depth, int(want[depth][2]), rooms.size()])
+	# Spawn-roller oracle (job 8): the sim's compositions() per depth match this data exactly.
+	var comps: Dictionary = _json_dict("res://tests/fixtures/resolver_compositions.json")
+	failed += _assert(not comps.is_empty() and (comps.get("depths", []) as Array).size() >= 7, "tests/fixtures/resolver_compositions.json parses")
+	for dep_v: Variant in comps.get("depths", []) as Array:
+		var dep: Dictionary = dep_v as Dictionary
+		var depth: int = int(dep.get("depth", 0))
+		var b: int = _room_budget(depth, budget)
+		failed += _assert(b == int(dep.get("budget", -1)), "fixture budget at depth %d" % depth)
+		var pool: Array[Dictionary] = []
+		for w_v: Variant in _spawn_table_for(depth, tables):
+			var bid: String = str((w_v as Dictionary).get("beast", ""))
+			pool.append({"id": bid, "threat": int((by_id.get(bid, {}) as Dictionary).get("threat", 0))})
+		var mine: Array[String] = _room_compositions(pool, b, max_beasts)
+		var theirs: Array[String] = []
+		for room_v: Variant in dep.get("rooms", []) as Array:
+			theirs.append(",".join(PackedStringArray((room_v as Dictionary).get("beasts", []) as Array)))
+		theirs.sort()
+		failed += _assert(str(mine) == str(theirs) and int(dep.get("count", -1)) == theirs.size(), "depth %d rooms match the sim's compositions() (%d vs %d)" % [depth, mine.size(), theirs.size()])
 	failed += _assert(_room_budget(1, budget) == 90 and _room_budget(10, budget) == 108 and _room_budget(15, budget) == 138, "budget 90 / 108 / 138 at depth 1 / 10 / 15")
 	failed += _assert(_spawn_table_for(2, tables).size() == 2 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
 	# Loot: Amberbind stays the manual jackpot; job 23 numbers are not approved, so they stay empty.

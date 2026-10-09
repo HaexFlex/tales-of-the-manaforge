@@ -55,6 +55,8 @@ This is a fast index for coding agents. It says where things live and which func
 | `beasts.json` (BATTLE_SCENE_DRAFT v4 §10: species, threat rule, variant rule) | nothing in the game yet; VERIFY `BEAST_DATA_OK` |
 | `spawn_tables.json` (§10 room budget, per-depth weights, loot rules; bonus-drop contents and herbs by depth left empty until approved) | nothing in the game yet; VERIFY `SPAWN_DATA_OK` |
 
+- **Resolver fixtures:** `tests/fixtures/resolver_cases.json` (fixed-dice strikes including the §4 example, die table, rounding, poison refresh, turn order, beast targeting) and `tests/fixtures/resolver_compositions.json` (distinct rooms per depth). Both are exported from the Director's `combat_sim.py` by `python3 tools/sim/export_resolver_fixtures.py <path to combat_sim.py>`; re-export when the sim changes. Test data only: the resolver (job 10) and spawn roller (job 15) test against them.
+
 - **Art:** `assets/art/` (subfolders `bramble echo elaia forge fx hub keeper manatree nodes portraits props tiles title trees ui wisps`; manifest in `assets/art/MANIFEST.json`). Hub props are in `assets/art/props/` (e.g. `thorn/`, `expedition_board/`, `echo_portal_hub_v2.png`). Kept-but-unused sheets go in `assets/library/` and refs in `assets/refs/`. Both are `.gdignore`d, as is `docs/`.
 - **Audio:** `assets/audio/*.ogg|mp3`. Cue ids map to files in `data/audio_cues.json`.
 - **`Assets upload/` is a drop folder only.** Haex drops art here. Sort it into the folders above. Every ship must leave it holding only `README.md` and `.gdignore`. See `Assets upload/README.md` and [ASSETS_UPLOAD.md](ASSETS_UPLOAD.md).
