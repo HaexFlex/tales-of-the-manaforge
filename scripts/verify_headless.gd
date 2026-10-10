@@ -11698,6 +11698,26 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	return failed
 
 
+func _battle_menu_clear_of_party_bar(view: Node, label: String) -> int:
+	var failed: int = 0
+	var bar: Control = view.get_node_or_null("Arena/PartyBar") as Control
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
+	failed += _assert(bar != null and menu != null, "%s: party bar and menu exist" % label)
+	if bar == null or menu == null:
+		return failed
+	var bar_top: float = bar.get_global_rect().position.y
+	var seen: int = 0
+	for node: Node in menu.find_children("*", "Button", true, false):
+		var button: Button = node as Button
+		if not button.is_visible_in_tree():
+			continue
+		seen += 1
+		var rect: Rect2 = button.get_global_rect()
+		failed += _assert(rect.end.y <= bar_top and rect.position.y >= 0.0, "%s: %s sits above the party bar (%.0f > %.0f)" % [label, button.name, rect.end.y, bar_top])
+	failed += _assert(seen > 0, "%s: menu has visible buttons" % label)
+	return failed
+
+
 func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	paused = false
@@ -11741,6 +11761,10 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 		failed += _assert(ab != null and ab.tooltip_text.find("Weave") >= 0, "ability %d tooltip" % (n + 1))
 	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
 	failed += _assert(salve_btn != null and salve_btn.text.find("Heart Salve") >= 0 and salve_btn.text.find("×2") >= 0, "salve shows ×2")
+	failed += _assert(ability_row != null and not (ability_row as CanvasItem).is_visible_in_tree(), "no empty ability row is visible")
+	failed += _battle_menu_clear_of_party_bar(view, "first party turn")
+	var sfm_toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
+	failed += _assert(sfm_toggle != null and sfm_toggle.is_visible_in_tree(), "Strike for me toggle shows in the menu")
 	var brace_btn: Button = view.get_node_or_null("Arena/ActionMenu/BraceButton") as Button
 	failed += _assert(brace_btn != null, "Brace button")
 	if brace_btn != null:

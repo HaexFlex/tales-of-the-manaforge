@@ -62,6 +62,7 @@ const TARGET_MARK_PATH: String = ART_DIR + "arena/slot_mark_target.png"
 const TARGET_BUTTON_SIZE: Vector2 = Vector2(80.0, 110.0)
 const LOG_PANEL_RECT: Rect2 = Rect2(960.0, 64.0, 304.0, 236.0)
 const ACTION_MENU_POS: Vector2 = Vector2(16.0, 468.0)
+const ACTION_MENU_GAP: float = 8.0
 const SHADOW_M_PATH: String = ART_DIR + "arena/shadow_m.png"
 const BACKDROP: Color = Color(0.05, 0.14, 0.08, 1.0)
 const PARTY_BAR_TOP: float = 608.0
@@ -101,6 +102,7 @@ var _flee_button: Button = null
 var _idle_button: Button = null
 var _cancel_target_button: Button = null
 var _ability_buttons: Array[Button] = []
+var _ability_row: HBoxContainer = null
 var _log_panel: VBoxContainer = null
 var _log_labels: Array[Label] = []
 var _result_label: Label = null
@@ -938,6 +940,7 @@ func _build_fight_hud() -> void:
 	ability_row.name = "AbilityRow"
 	ability_row.add_theme_constant_override("separation", 4)
 	_action_menu.add_child(ability_row)
+	_ability_row = ability_row
 	for n: int in 4:
 		var ab := _ui_button("—", ability_row)
 		ab.name = "AbilityButton%d" % (n + 1)
@@ -1097,6 +1100,7 @@ func _show_strike_for_me_toggle_only() -> void:
 	for child: Node in _action_menu.get_children():
 		if child is CanvasItem:
 			(child as CanvasItem).visible = child == _strike_for_me_toggle
+	_place_action_menu()
 
 
 func _show_action_menu(actor_id: String) -> void:
@@ -1115,14 +1119,31 @@ func _show_action_menu(actor_id: String) -> void:
 	for button: Button in [_strike_button, _salve_button, _brace_button, _flee_button, _idle_button]:
 		if button != null:
 			button.visible = _target_mode == ""
-	if _target_mode != "":
-		for ab: Button in _ability_buttons:
-			ab.visible = false
-	else:
-		for ab: Button in _ability_buttons:
-			ab.visible = true
+	var show_abilities: bool = _target_mode == "" and _has_abilities()
+	for ab: Button in _ability_buttons:
+		ab.visible = show_abilities
+	if _ability_row != null:
+		_ability_row.visible = show_abilities
 	if _strike_for_me_toggle != null:
 		_strike_for_me_toggle.visible = true
+	_place_action_menu()
+
+
+func _has_abilities() -> bool:
+	## No abilities exist yet: every slot is a disabled "—". Hide the row until one is real.
+	for ab: Button in _ability_buttons:
+		if not ab.disabled:
+			return true
+	return false
+
+
+func _place_action_menu() -> void:
+	## Bottom-anchor the menu so every visible button sits above the party bar.
+	if _action_menu == null:
+		return
+	_action_menu.reset_size()
+	var height: float = _action_menu.get_combined_minimum_size().y
+	_action_menu.position = Vector2(ACTION_MENU_POS.x, PARTY_BAR_TOP - ACTION_MENU_GAP - height)
 
 
 func _strike_for_me_party_step(actor_id: String) -> void:
