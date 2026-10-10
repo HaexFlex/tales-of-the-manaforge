@@ -71,10 +71,40 @@
 			"phase": "idle_room",
 			"run_clears": 7,
 			"rooms_attempted": 9,
-			"salve_used": false
+			"salve_used": false,
+			"run_id": 424242,
+			"run_seed": 424242,
+			"room_seed": 0,
+			"slots_total": 20,
+			"slots_used": 8,
+			"rest_slots_left": 0,
+			"room_clock": 600.0,
+			"party": [
+				{
+					"member": "keeper",
+					"row": "front",
+					"stats": {
+						"might": 5,
+						"arcana": 5,
+						"resilience": 5,
+						"ward": 5,
+						"vitality": 5,
+						"swiftness": 7,
+						"fate": 7,
+						"attack": "physical"
+					}
+				}
+			],
+			"loadout": {},
+			"pack": {
+				"items": {
+					"briarwood": 3
+				}
+			},
+			"boss_paid": []
 		},
 		"expedition": {
-			"status": "out_legacy"
+			"status": "out"
 		}
 	}
 }

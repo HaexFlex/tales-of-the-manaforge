@@ -1,0 +1,122 @@
+class_name SlotEngine
+extends RefCounted
+## Pure slot helpers. No autoload writes. Idle rooms resolve through FightState.
+
+
+const ROOM_SEC: float = 720.0
+const REST_SLOTS: int = 2
+const BOSS_EVERY: int = 10
+const BOSS_ESSENCE: int = 15
+const ROOMS_PER_HOUR: int = 5
+
+const _KEEPER_STATS: Array[String] = [
+	"might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate",
+]
+
+
+static func room_seed_for(run_seed: int, room_index: int) -> int:
+	return BattleRng.mix_stream(run_seed, "room:%d" % room_index)
+
+
+static func is_boss_index(room_index: int) -> bool:
+	return room_index > 0 and room_index % BOSS_EVERY == 0
+
+
+static func build_room(depth: int, room_seed: int, boss: bool) -> Array[Dictionary]:
+	return SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(room_seed), boss)
+
+
+static func member_stats(member: String) -> Dictionary:
+	if member == "elaia":
+		return {
+			"might": 4,
+			"arcana": 7,
+			"resilience": 5,
+			"ward": 7,
+			"vitality": 6,
+			"swiftness": 6,
+			"fate": 5,
+			"attack": "magic",
+		}
+	if member != "keeper":
+		push_error("SlotEngine: unknown member %s" % member)
+		return {}
+	var stats: Dictionary = {}
+	var equipment: Node = _autoload("Equipment")
+	var keeper_stats: Node = _autoload("KeeperStats")
+	for stat_id: String in _KEEPER_STATS:
+		var value: int = 5
+		if equipment != null:
+			value = int(equipment.call("total_for", stat_id))
+		elif keeper_stats != null:
+			value = int(keeper_stats.call("get_base", stat_id))
+		stats[stat_id] = value
+	var attack: String = "physical"
+	if equipment != null:
+		var weapon_id: String = str(equipment.call("equipped_id", "weapon"))
+		var item_def: Dictionary = equipment.call("get_item_def", weapon_id)
+		if str(item_def.get("damage_kind", "")) == "magical":
+			attack = "magic"
+	stats["attack"] = attack
+	return stats
+
+
+static func fight_for_room(party: Array, loadout: Dictionary, room: Array[Dictionary], room_seed: int) -> FightState:
+	var fight: FightState = FightState.new()
+	var index: int = 0
+	for entry_v: Variant in party:
+		if typeof(entry_v) != TYPE_DICTIONARY:
+			index += 1
+			continue
+		var entry: Dictionary = entry_v
+		var who: String = str(entry.get("member", ""))
+		var row: String = str(entry.get("row", "front"))
+		var stats_v: Variant = entry.get("stats", {})
+		var stats: Dictionary = stats_v if typeof(stats_v) == TYPE_DICTIONARY else {}
+		fight.add_member(who, stats, index, row, who)
+		index += 1
+	for beast_row: Dictionary in room:
+		var beast_id: String = fight.add_beast(
+			str(beast_row.get("beast", "")),
+			int(beast_row.get("slot", 0)),
+			str(beast_row.get("row", "front"))
+		)
+		if bool(beast_row.get("boss", false)) and beast_id != "":
+			fight.set_boss(beast_id)
+	fight.set_combat_seed(BattleRng.mix_stream(room_seed, "combat"))
+	fight.loadout = loadout.duplicate()
+	return fight
+
+
+static func resolve_idle_room(party: Array, loadout: Dictionary, depth: int, room_index: int, room_seed: int) -> Dictionary:
+	var boss: bool = is_boss_index(room_index)
+	var room: Array[Dictionary] = build_room(depth, room_seed, boss)
+	var fight: FightState = fight_for_room(party, loadout, room, room_seed)
+	fight.controller = "idle"
+	var outcome: String = AutoPolicy.run_idle(fight)
+	if outcome != "win" and outcome != "flee" and outcome != "overwhelmed":
+		push_error("SlotEngine: unexpected outcome %s" % outcome)
+		outcome = "overwhelmed"
+	var loot: Dictionary = {}
+	var exp_mult: int = 1
+	if outcome == "win":
+		loot = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
+		if boss:
+			exp_mult = 2
+	return {
+		"outcome": outcome,
+		"boss": boss,
+		"loot": loot,
+		"exp_mult": exp_mult,
+		"loadout_after": fight.loadout.duplicate(),
+		"salves_used": fight.salves_used,
+		"rounds": fight.round,
+		"fight": fight,
+	}
+
+
+static func _autoload(node_name: String) -> Node:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+	return tree.root.get_node_or_null(node_name)

@@ -80,8 +80,9 @@ func banked_share(pct: int) -> Dictionary:
 
 
 func bank(pct: int) -> Dictionary:
-	clear()
-	return {}
+	return _bank_real(pct)
+
+
 func _bank_real(pct: int) -> Dictionary:
 	var banked: Dictionary = banked_share(pct)
 	var tree_root: Window = Engine.get_main_loop().root as Window

@@ -251,7 +251,13 @@ func _load_path(path: String) -> bool:
 	if typeof(state) != TYPE_DICTIONARY:
 		load_completed.emit(false)
 		return false
-	GameState.apply_save_dict(_migrate(version, state as Dictionary))
+	var migrated: Dictionary = _migrate(version, state as Dictionary)
+	var reach_v: Variant = migrated.get("reach", {})
+	if typeof(reach_v) == TYPE_DICTIONARY:
+		var reach_block: Dictionary = reach_v
+		if bool(reach_block.get("running", false)) and not reach_block.has("slots_total"):
+			clear_legacy_run(migrated)
+	GameState.apply_save_dict(migrated)
 	_apply_offline_catchup(root)
 	load_completed.emit(true)
 	return true
