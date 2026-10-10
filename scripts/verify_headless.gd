@@ -325,6 +325,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BATTLE_PLATES") == "1":
+		var battle_plates_only: int = await _battle_plates(tree_root, game_state, save_service)
+		if battle_plates_only > 0:
+			print("BATTLE_PLATES_FAIL: %d" % battle_plates_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
 		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
 		if elaia_failed > 0:
@@ -2826,6 +2835,7 @@ func _run() -> void:
 	failed += _resolver_state_roundtrip()
 	failed += await _battle_shell(tree_root, game_state, save_service)
 	failed += await _battle_echo_exclusive(tree_root, game_state, save_service)
+	failed += await _battle_plates(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -9478,6 +9488,116 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 	paused = false
 	if failed == 0:
 		print("BATTLE_SHELL_OK")
+	return failed
+
+
+func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Formation, party bar, beast plates, and intent markers on the live arena shell.
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for battle plates")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for plates")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	failed += _assert(views.size() == 1, "one arena overlay for plates")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "arena is a BattleView")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
+	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(448, 512), "placeholder Keeper on front middle")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(328, 482), "placeholder Elaia on back middle")
+	var fight: FightState = FightStateScript.new()
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	failed += _assert(fight.add_member("keeper", keeper_stats, 0, "front") == "keeper", "keeper joins the fight")
+	var elaia_stats: Dictionary = {
+		"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
+		"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+	}
+	failed += _assert(fight.add_member("elaia", elaia_stats, 1, "back", "elaia") == "elaia", "elaia joins the fight")
+	failed += _assert(fight.add_beast("acorn_imp", 0, "front") == "acorn_imp", "first imp")
+	failed += _assert(fight.add_beast("spore_moth", 1, "back") == "spore_moth", "moth")
+	failed += _assert(fight.add_beast("acorn_imp", 1, "front") == "acorn_imp_2", "second imp")
+	view.call("show_fight", fight)
+	await process_frame
+	var imp_a: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp") as Control
+	var imp_b: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp_2") as Control
+	var keeper_f: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
+	failed += _assert(keeper_f != null and keeper_f.position == Vector2(448, 512), "Keeper alone uses front middle sole")
+	failed += _assert(imp_a != null and imp_b != null, "both imps spawned")
+	if imp_a != null and imp_b != null:
+		var front_soles: Array = BattleViewScript.SLOT_SOLES["beast_front"]
+		failed += _assert(imp_a.position == front_soles[0] and imp_b.position == front_soles[2], "front imps on soles 0 and 2")
+	var keeper_sprite: TextureRect = keeper_f.get_node_or_null("Sprite") as TextureRect if keeper_f != null else null
+	failed += _assert(keeper_sprite != null and keeper_sprite.texture != null and keeper_sprite.texture.get_size() == Vector2(128, 128), "keeper idle 128x128")
+	failed += _assert(bool(view.call("set_fighter_pose", "keeper", "brace")), "keeper brace pose")
+	var party_bar: PanelContainer = view.get_node_or_null("Arena/PartyBar") as PanelContainer
+	failed += _assert(party_bar != null, "PartyBar exists")
+	if party_bar != null:
+		var keeper_plate: Node = party_bar.find_child("PartyPlate_keeper", true, false)
+		var elaia_plate: Node = party_bar.find_child("PartyPlate_elaia", true, false)
+		failed += _assert(keeper_plate != null and elaia_plate != null, "two party plates")
+		if keeper_plate != null:
+			var hp_label: Label = keeper_plate.find_child("HpLabel", true, false) as Label
+			failed += _assert(hp_label != null and hp_label.text == "HP 28/28", "keeper HP line on the bar")
+	for beast_id: String in ["acorn_imp", "acorn_imp_2", "spore_moth"]:
+		var plate: Control = view.get_node_or_null("Arena/BeastPlate_%s" % beast_id) as Control
+		failed += _assert(plate != null, "beast plate %s" % beast_id)
+		if plate != null:
+			var intent: Control = plate.get_node_or_null("IntentMarker") as Control
+			failed += _assert(intent != null, "intent marker on %s" % beast_id)
+	var imp_a_plate: Control = view.get_node_or_null("Arena/BeastPlate_acorn_imp") as Control
+	var imp_b_plate: Control = view.get_node_or_null("Arena/BeastPlate_acorn_imp_2") as Control
+	if imp_a_plate != null and imp_b_plate != null:
+		var name_a: Label = imp_a_plate.get_node_or_null("NameLabel") as Label
+		var name_b: Label = imp_b_plate.get_node_or_null("NameLabel") as Label
+		failed += _assert(name_a != null and name_b != null and name_a.text == "Acorn imp A" and name_b.text == "Acorn imp B", "imp plate names")
+	view.call("set_active", "elaia")
+	await process_frame
+	var outlines: Array[Node] = get_nodes_in_group("battle_plate_outline")
+	failed += _assert(outlines.size() == 1, "one active outline")
+	if outlines.size() == 1:
+		var on_plate: Node = outlines[0].get_parent()
+		failed += _assert(on_plate != null and on_plate.name == "PartyPlate_elaia", "outline on Elaia's plate")
+	fight.set_hp("acorn_imp", 1)
+	view.call("refresh_fight", fight)
+	await process_frame
+	if imp_a != null:
+		var imp_sprite: CanvasItem = imp_a.get_node_or_null("Sprite") as CanvasItem
+		failed += _assert(imp_sprite != null and is_equal_approx(imp_sprite.modulate.a, 0.35), "calmed imp fades")
+	if imp_a_plate != null:
+		var calm: Label = imp_a_plate.get_node_or_null("StatusLabel") as Label
+		failed += _assert(calm != null and calm.text == "Calmed", "imp plate shows Calmed")
+	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
+	failed += _assert(close_btn != null, "Close button present")
+	if close_btn != null:
+		failed += _assert(is_equal_approx(close_btn.offset_left, 1140.0) and is_equal_approx(close_btn.offset_top, 16.0), "Close sits top-right")
+		failed += _assert(is_equal_approx(close_btn.offset_right, 1264.0) and is_equal_approx(close_btn.offset_bottom, 52.0), "Close rect matches art")
+	BattleViewScript.close_arena()
+	await process_frame
+	failed += _assert(not bool(BattleViewScript.is_open()), "close_arena still closes")
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_PLATES_OK")
 	return failed
 
 

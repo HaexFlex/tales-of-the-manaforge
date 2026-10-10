@@ -691,5 +691,8 @@
   "adv_loadout_empty_slot": "Empty slot",
   "adv_depart_cost": "Departure costs 20 Essence. Each boss beaten pays back 15.",
   "adv_predeparture_warning": "Once you depart there is no Cancel. The pack is banked only when the run ends at the trailhead: Head home or the last room bank it all, Flee banks half, and if the party is Overwhelmed the pack is lost.",
-  "adv_arena_placeholder": "Forest arena: art coming"
+  "adv_arena_placeholder": "Forest arena: art coming",
+  "adv_boss_mark": "Boss",
+  "adv_plate_hp": "HP {hp}/{max}",
+  "adv_plate_weave": "Weave {weave}"
 }

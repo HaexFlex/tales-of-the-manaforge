@@ -78,8 +78,8 @@ texture = ExtResource("3_fg")
 stretch_mode = 0
 
 [node name="CloseButton" type="Button" parent="Arena"]
-offset_left = 540.0
-offset_top = 640.0
-offset_right = 740.0
-offset_bottom = 684.0
+offset_left = 1140.0
+offset_top = 16.0
+offset_right = 1264.0
+offset_bottom = 52.0
 text = "Close"
