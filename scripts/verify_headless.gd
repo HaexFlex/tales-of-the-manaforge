@@ -152,6 +152,24 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_SPAWN_ROLLER") == "1":
+		var _spawn_roller_only: int = _spawn_roller(tree_root)
+		if _spawn_roller_only > 0:
+			print("SPAWN_ROLLER_FAIL: %d" % _spawn_roller_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SPAWN_SEED") == "1":
+		var _spawn_seed_only: int = _spawn_seed(tree_root)
+		if _spawn_seed_only > 0:
+			print("SPAWN_SEED_FAIL: %d" % _spawn_seed_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_STRINGS_V4") == "1":
 		var _strings_adventure_v4_only: int = _strings_adventure_v4(tree_root)
 		if _strings_adventure_v4_only > 0:
@@ -2795,6 +2813,8 @@ func _run() -> void:
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
 	failed += _beast_data(tree_root)
 	failed += _spawn_data(tree_root)
+	failed += _spawn_roller(tree_root)
+	failed += _spawn_seed(tree_root)
 	failed += _strings_adventure_v4(tree_root)
 	failed += _save_v14_inventory_merge(tree_root, game_state, save_service)
 	failed += _save_v14_home(tree_root, game_state, save_service)
@@ -3535,6 +3555,8 @@ func _check_only_load() -> int:
 		"res://tools/debug/debug_panel.gd",
 		"res://scripts/pause_menu.gd",
 		"res://scripts/battle/battle_view.gd",
+		"res://scripts/battle/battle_rng.gd",
+		"res://scripts/battle/spawn_roller.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -8337,6 +8359,166 @@ func _spawn_data(_tree_root: Window) -> int:
 	failed += _assert(contents == null and loot.get("herbs_by_depth", null) == null, "unapproved job 23 numbers stay empty")
 	if failed == 0:
 		print("SPAWN_DATA_OK")
+	return failed
+
+
+func _spawn_room_key(room: Array) -> String:
+	var ids: PackedStringArray = PackedStringArray()
+	for e_v: Variant in room:
+		var e: Dictionary = e_v as Dictionary
+		ids.append(str(e.get("beast", "")))
+	ids.sort()
+	return ",".join(ids)
+
+
+func _spawn_room_threat(room: Array) -> int:
+	var total: int = 0
+	for e_v: Variant in room:
+		total += int((e_v as Dictionary).get("threat", 0))
+	return total
+
+
+func _spawn_attack_by_id() -> Dictionary:
+	var beasts: Dictionary = _json_dict("res://data/beasts.json")
+	var by_id: Dictionary = {}
+	for row_v: Variant in (beasts.get("species", []) as Array) + (beasts.get("variants", []) as Array):
+		var row: Dictionary = row_v as Dictionary
+		by_id[str(row.get("id", ""))] = str(row.get("attack", "physical"))
+	return by_id
+
+
+func _spawn_roller(_tree_root: Window) -> int:
+	## SpawnRoller matches the sim oracle in tests/fixtures/resolver_compositions.json and roll_room rows.
+	var failed: int = 0
+	var fixture: Dictionary = _json_dict("res://tests/fixtures/resolver_compositions.json")
+	failed += _assert(not fixture.is_empty(), "resolver_compositions.json parses")
+	if fixture.is_empty():
+		return failed
+	var by_attack: Dictionary = _spawn_attack_by_id()
+	var beasts: Dictionary = _json_dict("res://data/beasts.json")
+	var threat_by_id: Dictionary = {}
+	for row_v: Variant in (beasts.get("species", []) as Array) + (beasts.get("variants", []) as Array):
+		var row: Dictionary = row_v as Dictionary
+		threat_by_id[str(row.get("id", ""))] = int(row.get("threat", 0))
+	var depths: Array = fixture.get("depths", []) as Array
+	for dep_v: Variant in depths:
+		var dep: Dictionary = dep_v as Dictionary
+		var depth: int = int(dep.get("depth", 0))
+		failed += _assert(SpawnRoller.budget(depth) == int(dep.get("budget", -1)), "budget at depth %d" % depth)
+		var mine: Array = SpawnRoller.compositions(depth)
+		var theirs: Array = []
+		for room_v: Variant in dep.get("rooms", []) as Array:
+			var room: Dictionary = room_v as Dictionary
+			theirs.append(room.get("beasts", []))
+			var threat_sum: int = 0
+			for id_v: Variant in room.get("beasts", []) as Array:
+				threat_sum += int(threat_by_id.get(str(id_v), 0))
+			failed += _assert(threat_sum == int(room.get("threat", -1)), "fixture threat at depth %d" % depth)
+		failed += _assert(str(mine) == str(theirs) and mine.size() == int(dep.get("count", -1)), "compositions at depth %d" % depth)
+	var oracle_depths: Array[int] = [1, 3, 8, 15]
+	for depth: int in oracle_depths:
+		var allowed: Dictionary = {}
+		for dep_v: Variant in depths:
+			var dep: Dictionary = dep_v as Dictionary
+			if int(dep.get("depth", 0)) != depth:
+				continue
+			for room_v: Variant in dep.get("rooms", []) as Array:
+				var beast_ids: Array = (room_v as Dictionary).get("beasts", []) as Array
+				var key_parts: PackedStringArray = PackedStringArray()
+				for b_v: Variant in beast_ids:
+					key_parts.append(str(b_v))
+				key_parts.sort()
+				allowed[",".join(key_parts)] = true
+		var room_budget: int = SpawnRoller.budget(depth)
+		for seed: int in range(300):
+			var room: Array = SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(seed))
+			failed += _assert(room.size() <= 6, "depth %d seed %d at most 6 beasts" % [depth, seed])
+			failed += _assert(_spawn_room_threat(room) <= room_budget, "depth %d seed %d within budget" % [depth, seed])
+			failed += _assert(allowed.has(_spawn_room_key(room)), "depth %d seed %d is a fixture room" % [depth, seed])
+			var phys: int = 0
+			var mag: int = 0
+			for e_v: Variant in room:
+				var e: Dictionary = e_v as Dictionary
+				var atk: String = str(by_attack.get(str(e.get("beast", "")), "physical"))
+				if atk == "magic":
+					mag += 1
+				else:
+					phys += 1
+				failed += _assert(int(e.get("slot", -1)) >= 0 and int(e.get("slot", -1)) < room.size(), "slot in range depth %d" % depth)
+			for e_v: Variant in room:
+				var e: Dictionary = e_v as Dictionary
+				var atk: String = str(by_attack.get(str(e.get("beast", "")), "physical"))
+				var row: String = str(e.get("row", ""))
+				if atk != "magic" and phys <= 3:
+					failed += _assert(row == "front", "physical in front depth %d seed %d" % [depth, seed])
+				if atk == "magic" and mag <= 3:
+					failed += _assert(row == "back", "magic in back depth %d seed %d" % [depth, seed])
+			for i: int in range(room.size()):
+				var found: bool = false
+				for e_v: Variant in room:
+					if int((e_v as Dictionary).get("slot", -1)) == i:
+						found = true
+				failed += _assert(found, "slot %d present depth %d seed %d" % [i, depth, seed])
+	var saw_rare: bool = false
+	for seed: int in range(2000):
+		var room: Array = SpawnRoller.roll_room(3, SpawnRoller.room_seed_rng(seed))
+		for e_v: Variant in room:
+			var bid: String = str((e_v as Dictionary).get("beast", ""))
+			if bid == "wilt_wisp" or bid == "root_snapper":
+				saw_rare = true
+	failed += _assert(saw_rare, "depth 3 draws wilt_wisp or root_snapper over 2000 seeds")
+	if failed == 0:
+		print("SPAWN_ROLLER_OK")
+	return failed
+
+
+func _spawn_seed(_tree_root: Window) -> int:
+	var failed: int = 0
+	for seed: int in range(3):
+		var a: Array = SpawnRoller.roll_room(3, SpawnRoller.room_seed_rng(42))
+		var b: Array = SpawnRoller.roll_room(3, SpawnRoller.room_seed_rng(42))
+		failed += _assert(str(a) == str(b), "room seed 42 repeats")
+	var keys: Dictionary = {}
+	for seed: int in range(50):
+		keys[_spawn_room_key(SpawnRoller.roll_room(3, SpawnRoller.room_seed_rng(seed)))] = true
+	failed += _assert(keys.size() >= 2, "depth 3 varies across 50 consecutive room seeds")
+	for seed: int in range(20):
+		var room: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(500 + seed), true)
+		var bosses: int = 0
+		var best_i: int = -1
+		for i: int in room.size():
+			if bool((room[i] as Dictionary).get("boss", false)):
+				bosses += 1
+		for i: int in room.size():
+			var cur: Dictionary = room[i] as Dictionary
+			if best_i < 0:
+				best_i = i
+				continue
+			var best: Dictionary = room[best_i] as Dictionary
+			if int(cur.get("threat", 0)) > int(best.get("threat", 0)):
+				best_i = i
+			elif int(cur.get("threat", 0)) == int(best.get("threat", 0)) and int(cur.get("slot", 0)) < int(best.get("slot", 0)):
+				best_i = i
+		failed += _assert(bosses == 1, "exactly one boss flag")
+		failed += _assert(bool((room[best_i] as Dictionary).get("boss", false)), "boss is highest threat (lowest slot on ties)")
+	const PIN_DEPTH: int = 5
+	var pin_1: Array = [
+		{"beast": "root_snapper", "row": "front", "slot": 0, "boss": false, "threat": 46},
+		{"beast": "acorn_imp", "row": "front", "slot": 1, "boss": false, "threat": 33},
+	]
+	var pin_2: Array = [
+		{"beast": "spore_moth", "row": "back", "slot": 0, "boss": false, "threat": 45},
+		{"beast": "wilt_wisp", "row": "back", "slot": 1, "boss": false, "threat": 47},
+	]
+	var pin_1000: Array = [
+		{"beast": "acorn_imp", "row": "front", "slot": 0, "boss": false, "threat": 33},
+		{"beast": "spore_moth_dark", "row": "back", "slot": 1, "boss": false, "threat": 62},
+	]
+	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1))) == str(pin_1), "pinned room seed 1 depth 5")
+	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(2))) == str(pin_2), "pinned room seed 2 depth 5")
+	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1000))) == str(pin_1000), "pinned room seed 1000 depth 5")
+	if failed == 0:
+		print("SPAWN_SEED_OK")
 	return failed
 
 
