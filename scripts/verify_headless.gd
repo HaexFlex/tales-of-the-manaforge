@@ -12423,6 +12423,34 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	while playback.is_busy():
 		playback.advance(0.05)
 	failed += _assert(playback.clock_sec - t0 >= 0.75, "status pause")
+	# Real-speed fight where a beast acts first: the menu must come back after
+	# each beast turn's playback (it used to stall with the menu hidden).
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = false
+	playback.instant = false
+	view.call("start_test_fight", 1, false, true, 4242)
+	await process_frame
+	var paced: FightState = view._fight
+	failed += _assert(paced.order.size() > 0 and str(paced.fighter_dict(paced.order[0]).get("side", "")) == "beast", "paced fight opens on a beast")
+	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+	for turn: int in 3:
+		if paced.outcome() != "":
+			break
+		var shown: bool = false
+		for _tick: int in 400:
+			if strike_btn.is_visible_in_tree():
+				shown = true
+				break
+			playback.advance(0.05)
+			await process_frame
+		failed += _assert(shown, "paced fight: menu returns for party turn %d" % (turn + 1))
+		if not shown:
+			break
+		var who: String = paced.current_actor()
+		var picks: Array[String] = paced.legal_targets(who)
+		view._target_mode = "strike"
+		view.call("_on_target_pressed", picks[0])
+		await process_frame
 	BattleViewScript.close_arena()
 	live.free()
 	game_state.call("reset_for_new_game")

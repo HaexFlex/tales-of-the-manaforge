@@ -1245,12 +1245,15 @@ func _advance_core() -> void:
 			if strike_for_me_on():
 				_enqueue_step(_strike_for_me_party_step_packet(actor_id))
 				if _playback != null and _playback.is_busy():
+					_advance_after_playback = true
 					_show_strike_for_me_toggle_only()
 					return
 				continue
 			break
 		_enqueue_step(_fight.step())
 		if _playback != null and _playback.is_busy():
+			# Resume when this beast's playback ends, or the fight stalls.
+			_advance_after_playback = true
 			if strike_for_me_on():
 				_show_strike_for_me_toggle_only()
 			return
