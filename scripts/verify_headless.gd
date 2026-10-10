@@ -3,6 +3,7 @@ const EchoBattleScript := preload("res://scripts/echo_battle.gd")
 const ReachFightScript := preload("res://scripts/reach_fight.gd")
 const FightStateScript := preload("res://scripts/battle/fight_state.gd")
 const AutoPolicyScript := preload("res://scripts/battle/auto_policy.gd")
+const BatchSimScript := preload("res://scripts/battle/batch_sim.gd")
 const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
@@ -410,6 +411,24 @@ func _run() -> void:
 		var auto_policy_only: int = _auto_policy()
 		if auto_policy_only > 0:
 			print("AUTO_POLICY_FAIL: %d" % auto_policy_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SIM_PARITY") == "1":
+		var sim_parity_only: int = _sim_parity()
+		if sim_parity_only > 0:
+			print("SIM_PARITY_FAIL: %d" % sim_parity_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_PERF") == "1":
+		var resolver_perf_only: int = _resolver_perf()
+		if resolver_perf_only > 0:
+			print("RESOLVER_PERF_FAIL: %d" % resolver_perf_only)
 			quit(1)
 		else:
 			quit(0)
@@ -2977,6 +2996,8 @@ func _run() -> void:
 	failed += _auto_flee_ko_zero()
 	failed += _resolver_log()
 	failed += _auto_policy()
+	# SIM_PARITY is switch-only (~31 s for 12k idle fights); see MANAFORGE_SIM_PARITY.
+	failed += _resolver_perf()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -10862,6 +10883,76 @@ func _auto_policy() -> int:
 
 	if failed == 0:
 		print("AUTO_POLICY_OK")
+	return failed
+
+
+func _sim_parity() -> int:
+	var failed: int = 0
+	# Source: Director sim MILESTONES, 20,000 fights per cell, box run 2026-10-10.
+	var cells: Array[Dictionary] = [
+		{"sheet": "unlock", "depth": 1, "win": 15.5, "flee": 62.1, "overwhelmed": 22.4},
+		{"sheet": "unlock", "depth": 8, "win": 5.7, "flee": 64.6, "overwhelmed": 29.7},
+		{"sheet": "duo", "depth": 1, "win": 73.4, "flee": 23.2, "overwhelmed": 3.4},
+		{"sheet": "duo", "depth": 8, "win": 44.0, "flee": 47.9, "overwhelmed": 8.1},
+	]
+	const BATCH_N: int = 3000
+	const BASE_SEED: int = 20261010
+	const TOL: float = 3.0
+	for cell: Dictionary in cells:
+		var sheet: String = str(cell["sheet"])
+		var depth: int = int(cell["depth"])
+		var measured_a: Dictionary = BatchSimScript.run_batch(sheet, depth, BATCH_N, BASE_SEED)
+		var measured_b: Dictionary = BatchSimScript.run_batch(sheet, depth, BATCH_N, BASE_SEED)
+		print(
+			"SIM_PARITY %s depth %d: win=%.1f flee=%.1f overwhelmed=%.1f (n=%d)"
+			% [
+				sheet,
+				depth,
+				float(measured_a["win"]),
+				float(measured_a["flee"]),
+				float(measured_a["overwhelmed"]),
+				int(measured_a["n"]),
+			]
+		)
+		failed += _assert(measured_a == measured_b, "batch determinism %s depth %d" % [sheet, depth])
+		for key: String in ["win", "flee", "overwhelmed"]:
+			var got: float = float(measured_a[key])
+			var want: float = float(cell[key])
+			var delta: float = absf(got - want)
+			if delta > TOL:
+				failed += _assert(
+					false,
+					"%s depth %d %s %.1f vs target %.1f (off by %.1f)"
+					% [sheet, depth, key, got, want, delta]
+				)
+	if failed == 0:
+		print("SIM_PARITY_OK")
+	return failed
+
+
+func _resolver_perf() -> int:
+	var failed: int = 0
+	var times_usec: Array[int] = []
+	for _run: int in 3:
+		var t0: int = Time.get_ticks_usec()
+		BatchSimScript.run_batch("duo", 8, 50, 20261010)
+		times_usec.append(Time.get_ticks_usec() - t0)
+	var best_usec: int = times_usec[0]
+	for t: int in times_usec:
+		if t < best_usec:
+			best_usec = t
+	print(
+		"RESOLVER_PERF trio ms: %.2f %.2f %.2f (best %.2f)"
+		% [
+			float(times_usec[0]) / 1000.0,
+			float(times_usec[1]) / 1000.0,
+			float(times_usec[2]) / 1000.0,
+			float(best_usec) / 1000.0,
+		]
+	)
+	failed += _assert(best_usec < 100_000, "50 duo depth-8 rooms under 100 ms (best %d us)" % best_usec)
+	if failed == 0:
+		print("RESOLVER_PERF_OK")
 	return failed
 
 
