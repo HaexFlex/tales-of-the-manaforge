@@ -10699,6 +10699,30 @@ func _resolver_log() -> int:
 		var braced_blow: Dictionary = brace_fight.step({})
 		_resolver_log_collect_events(braced_blow.get("events", []) as Array, seen_kinds)
 		failed += _assert(_resolver_log_has_line(brace_fight, "[6,5,1 → 6+5]"), "braced miss shows kept dice")
+		failed += _assert(_resolver_log_has_line(brace_fight, "Keeper braces (3d6 keep 2, damage halved)"), "brace line uses the §4 wording")
+	var hit_fight: FightState = FightStateScript.new()
+	hit_fight.add_member("keeper", {
+		"might": 1, "arcana": 1, "resilience": 6, "ward": 5,
+		"vitality": 8, "swiftness": 7, "fate": 0,
+	}, 0, "front", "keeper")
+	hit_fight.add_beast("acorn_imp", 0, "front", "imp")
+	hit_fight.start_fight()
+	hit_fight.set_scripted_dice([6, 6, 2, 1, 1, 4, 99, 99])
+	hit_fight.step({"kind": "brace"})
+	var hp_before: int = int(hit_fight.fighter_dict("keeper").get("hp", 0))
+	var braced_hit: Dictionary = hit_fight.step({})
+	var hit_ev: Dictionary = {}
+	for ev_v: Variant in braced_hit.get("events", []) as Array:
+		if ev_v is Dictionary and str((ev_v as Dictionary).get("kind", "")) == "strike":
+			hit_ev = ev_v as Dictionary
+	var raw: int = int(hit_ev.get("resolver_damage", -1))
+	var landed: int = int(hit_ev.get("damage", -1))
+	var hp_lost: int = hp_before - int(hit_fight.fighter_dict("keeper").get("hp", 0))
+	failed += _assert(bool(hit_ev.get("braced", false)) and str(hit_ev.get("band", "miss")) != "miss", "braced hit lands")
+	failed += _assert(raw > 1 and landed == maxi(1, BattleResolver.round_half_up(raw, 1, 2)), "braced hit: damage is resolver_damage halved (%d from %d)" % [landed, raw])
+	failed += _assert(hp_lost + int(hit_ev.get("shield_absorbed", 0)) == landed, "braced hit: damage is what lands before the shield")
+	failed += _assert(_resolver_log_has_line(hit_fight, "[2,1,1 → 2+1]") and _resolver_log_has_line(hit_fight, " for %d" % landed), "braced hit line: bracketed dice, halved damage")
+	print("RESOLVER_LOG braced hit line: ", hit_fight.log_tail[hit_fight.log_tail.size() - 1])
 	var salve_fight: FightState = FightStateScript.new()
 	salve_fight.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")
 	salve_fight.add_member("elaia", _resolver_tank(2), 1, "front", "elaia")

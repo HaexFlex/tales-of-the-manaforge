@@ -630,8 +630,10 @@ func _strike_event_from_blow(actor_id: String, target_id: String, blow: Dictiona
 	]:
 		if blow.has(key):
 			event[key] = blow[key]
-	var resolver_damage: int = int(blow.get("resolver_damage", blow.get("damage", 0)))
-	event["damage"] = resolver_damage
+	# damage = what lands after Brace, before the shield (the log's "for N");
+	# resolver_damage = the raw resolver number before Brace.
+	event["resolver_damage"] = int(blow.get("resolver_damage", blow.get("damage", 0)))
+	event["damage"] = int(blow.get("damage", 0))
 	return event
 
 

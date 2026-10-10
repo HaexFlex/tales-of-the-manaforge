@@ -702,7 +702,7 @@
   "adv_band_crush": "crushing blow",
   "adv_log_crit_suffix": " (Fate crit)",
   "adv_log_shield_suffix": " ({amount} absorbed by the shield)",
-  "adv_log_brace": "{name} braces.",
+  "adv_log_brace": "{name} braces (3d6 keep 2, damage halved)",
   "adv_log_salve": "{name} uses a Heart Salve on {target}: +{amount} HP.",
   "adv_log_heavy_reveal": "{beast} winds up a heavy blow (×{mult}).",
   "adv_log_poison_apply": "{beast} poisons {target} ({total} over 3 turns).",
