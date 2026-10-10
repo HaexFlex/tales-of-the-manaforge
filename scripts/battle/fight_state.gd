@@ -2,8 +2,8 @@ class_name FightState
 extends RefCounted
 ## Stepwise, serializable fight. One action per step. No scene calls this yet.
 ## Weave is a flat 30 on party fighters and 0 on beasts (they have none yet).
-## Job 12 fills effective_swiftness, _on_turn_start, _beast_action and
-## _apply_landed_damage. This job leaves those as the single call sites.
+## Statuses: Brace, Heart Salve, refreshing poison, beast intents, the boss,
+## and one twist (Thicket, Fog, Ambush, Sap Spring, Rich Hollow).
 
 
 const RESOLVER_VERSION: int = 1
@@ -17,8 +17,13 @@ var turn_cursor: int = 0
 var order: Array[String] = []
 var ambush: bool = false
 var _outcome: String = ""
-var twist: String = ""
+var twist: String = "":
+	set(value):
+		twist = value
+		if value == "ambush":
+			ambush = true
 var salves_used: int = 0
+var loadout: Dictionary = {}
 var controller: String = "manual"
 var resolver_version: int = RESOLVER_VERSION
 var rng_combat_seed: int = 1
@@ -35,6 +40,7 @@ static var _catalog_ready: bool = false
 
 func _init() -> void:
 	_rng = BattleRng.new()
+	loadout = {}
 	set_combat_seed(1)
 
 
@@ -89,7 +95,9 @@ func add_fighter(fighter_id: String, side: String, stats: Dictionary, slot: int 
 	who.poison_left = 0
 	who.turns = 0
 	who.intent_move = ""
-	who.intent_mult = 1
+	who.intent_num = 1
+	who.intent_den = 1
+	who.poison_total = 0
 	who.boss = false
 	who.status = BattleResolver.status_for(who.side, who.hp, who.max_hp)
 	_fighters[id] = who
@@ -152,10 +160,15 @@ func strike(attacker: String, defender: String, to_hit_mod: int = 0, telegraph_m
 		return _empty_strike(dfn)
 	var ratio: Vector2i = telegraph_ratio(telegraph_mult)
 	var dice: BattleRng = _scripted_dice if _scripted_dice != null else _rng
-	var result: Dictionary = BattleResolver.resolve(atk.to_dict(), dfn.to_dict(), to_hit_mod, ratio.x, ratio.y, dice)
+	var defender_row: Dictionary = dfn.to_dict()
+	defender_row["swiftness"] = effective_swiftness(defender)
+	var mod: int = to_hit_mod
+	if twist == "fog":
+		mod -= 2
+	var result: Dictionary = BattleResolver.resolve(atk.to_dict(), defender_row, mod, ratio.x, ratio.y, dice)
 	var damage: int = int(result["damage"])
 	if damage > 0:
-		_apply_landed_damage(dfn, damage)
+		result["damage"] = _apply_landed_damage(dfn, damage)
 	else:
 		dfn.status = BattleResolver.status_for(dfn.side, dfn.hp, dfn.max_hp)
 	result["defender_hp_after"] = dfn.hp
@@ -167,8 +180,14 @@ func strike(attacker: String, defender: String, to_hit_mod: int = 0, telegraph_m
 
 func start_fight() -> void:
 	## Round 1, order rebuilt (Ambush applies this round only), cursor on the first active actor.
+	## Boss HP, Sap Spring shields, and the first intents are applied here.
 	_outcome = ""
+	if twist == "ambush":
+		ambush = true
+	_apply_boss_hp()
+	_apply_sap_spring()
 	_begin_round(1)
+	_refresh_intents()
 	_resolve_outcome(false)
 
 
@@ -188,10 +207,13 @@ func outcome() -> String:
 
 
 func effective_swiftness(id: String) -> int:
-	## Job 12's Thicket change lands here. Ordering reads Swiftness only through this.
+	## Thicket takes 2 Swiftness off everyone, floored at 0. Ordering and defense
+	## both read Swiftness only through this, so the stored stat stays put.
 	var who := _fighter(id)
 	if who == null:
 		return 0
+	if twist == "thicket":
+		return maxi(0, who.swiftness - 2)
 	return who.swiftness
 
 
@@ -240,8 +262,77 @@ func beast_target(beast_id: String) -> String:
 	return best
 
 
+func flee_check() -> Dictionary:
+	## KO members count as 0. The Sap Spring shield is not counted.
+	## should_flee when the party is under half and the beasts are over a third.
+	var party_hp: int = 0
+	var party_max: int = 0
+	var beast_hp: int = 0
+	var beast_max: int = 0
+	for key: Variant in _fighters.keys():
+		var who := _fighter(str(key))
+		if who == null:
+			continue
+		if who.side == "party":
+			party_max += who.max_hp
+			if who.status == "active":
+				party_hp += who.hp
+		else:
+			beast_max += who.max_hp
+			if who.status != "calmed":
+				beast_hp += who.hp
+	var should_flee: bool = party_hp * 2 < party_max and beast_hp * 3 > beast_max
+	return {
+		"party_hp": party_hp,
+		"party_max": party_max,
+		"beast_hp": beast_hp,
+		"beast_max": beast_max,
+		"should_flee": should_flee,
+	}
+
+
+func apply_poison(fighter_id: String, total: int) -> void:
+	## One poison per target. A new one resets the duration to 3 and keeps the
+	## stronger total. Bile will call this same function.
+	var who := _fighter(fighter_id)
+	if who == null:
+		return
+	var kept: int = maxi(0, total)
+	if who.poison_left > 0 and not who.poison_ticks.is_empty():
+		kept = maxi(kept, who.poison_total)
+	who.poison_total = kept
+	who.poison_ticks = BattleResolver.poison_schedule(kept)
+	who.poison_left = who.poison_ticks.size()
+
+
+func tick_poison(fighter_id: String) -> void:
+	## The next tick. The shield absorbs it first; the rest comes off HP.
+	var who := _fighter(fighter_id)
+	if who == null:
+		return
+	if who.poison_ticks.is_empty():
+		who.poison_left = 0
+		who.poison_total = 0
+		return
+	var tick: int = who.poison_ticks[0]
+	who.poison_ticks.remove_at(0)
+	who.poison_left = who.poison_ticks.size()
+	if who.poison_ticks.is_empty():
+		who.poison_total = 0
+	_absorb(who, tick)
+
+
+func set_boss(fighter_id: String, on: bool = true) -> void:
+	## Set before start_fight(). The HP bonus is applied when the fight starts.
+	var who := _fighter(fighter_id)
+	if who == null:
+		return
+	who.boss = on
+
+
 func step(action: Dictionary = {}) -> Dictionary:
-	## One action. Beasts ignore `action`. An illegal party action spends no turn and no dice.
+	## One action. Beasts ignore `action` and play their intent. An illegal party
+	## action spends no turn and no dice.
 	if _outcome != "":
 		return _step_packet("", "", "", {}, round, "fight over")
 	if round <= 0:
@@ -258,48 +349,181 @@ func step(action: Dictionary = {}) -> Dictionary:
 	if actor == null:
 		return _step_packet("", "", "", {}, round, "no actor")
 	var action_round: int = round
-	var chosen: Dictionary = _beast_action(actor_id) if actor.side == "beast" else action
-	var kind: String = str(chosen.get("kind", ""))
-	var target_v: Variant = chosen.get("target", "")
+	if actor.side == "beast":
+		return _step_beast(actor, action_round)
+	return _step_party(actor, action, action_round)
+
+
+func _step_party(actor: Fighter, action: Dictionary, action_round: int) -> Dictionary:
+	var kind: String = str(action.get("kind", ""))
+	var target_v: Variant = action.get("target", "")
 	var target_id: String = "" if target_v == null else str(target_v)
-	if kind != "strike" or not legal_targets(actor_id).has(target_id):
-		if actor.side == "beast":
-			_advance_cursor()
-			if _outcome == "":
-				_roll_round_if_spent()
-			var beast_error: String = "no target" if kind == "strike" else "illegal action"
-			return _step_packet(actor_id, kind, target_id, {}, action_round, beast_error)
-		var party_error: String = "illegal target" if kind == "strike" else "illegal action"
-		return _step_packet(actor_id, kind, target_id, {}, action_round, party_error)
+	if kind == "strike":
+		if not legal_targets(actor.id).has(target_id):
+			return _step_packet(actor.id, kind, target_id, {}, action_round, "illegal target")
+		return _act_strike(actor, target_id, to_hit_mod_for(actor.id, target_id), 1, action_round)
+	if kind == "brace":
+		return _act_brace(actor, action_round)
+	if kind == "item":
+		return _act_item(actor, action, action_round)
+	return _step_packet(actor.id, kind, target_id, {}, action_round, "illegal action")
+
+
+func _step_beast(actor: Fighter, action_round: int) -> Dictionary:
+	var chosen: Dictionary = _beast_action(actor.id)
+	var kind: String = str(chosen.get("kind", ""))
+	var target_id: String = str(chosen.get("target", ""))
+	if kind == "poison":
+		if target_id == "" or not legal_targets(actor.id).has(target_id):
+			return _skip_beast(actor.id, kind, target_id, action_round, "no target")
+		return _act_poison(actor, target_id, int(chosen.get("total", 0)), action_round)
+	var mult: Variant = chosen.get("mult", 1)
+	if kind != "strike" or not legal_targets(actor.id).has(target_id):
+		var beast_error: String = "no target" if kind == "strike" else "illegal action"
+		return _skip_beast(actor.id, kind, target_id, action_round, beast_error)
+	return _act_strike(actor, target_id, to_hit_mod_for(actor.id, target_id), mult, action_round)
+
+
+func _skip_beast(actor_id: String, kind: String, target_id: String, action_round: int, error: String) -> Dictionary:
+	_advance_cursor()
+	if _outcome == "":
+		_roll_round_if_spent()
+	return _step_packet(actor_id, kind, target_id, {}, action_round, error)
+
+
+func _act_strike(actor: Fighter, target_id: String, mod: int, mult: Variant, action_round: int) -> Dictionary:
+	var actor_id: String = actor.id
 	_on_turn_start(actor_id)
 	if not _is_active(_fighter(actor_id)):
-		_advance_cursor()
-		if _outcome == "":
-			_roll_round_if_spent()
-		return _step_packet(actor_id, "", "", {}, action_round, "")
-	var blow: Dictionary = strike(actor_id, target_id, to_hit_mod_for(actor_id, target_id), 1)
-	actor.turns += 1
+		return _lost_turn(actor_id, action_round)
+	var blow: Dictionary = strike(actor_id, target_id, mod, mult)
+	var acted := _fighter(actor_id)
+	if acted != null:
+		acted.turns += 1
+		if acted.side == "beast":
+			_set_intent(acted)
+	_commit_turn()
+	return _step_packet(actor_id, "strike", target_id, blow, action_round, "")
+
+
+func _act_brace(actor: Fighter, action_round: int) -> Dictionary:
+	var actor_id: String = actor.id
+	_on_turn_start(actor_id)
+	if not _is_active(_fighter(actor_id)):
+		return _lost_turn(actor_id, action_round)
+	var acted := _fighter(actor_id)
+	if acted != null:
+		acted.brace = true
+		acted.turns += 1
+	_commit_turn()
+	return _step_packet(actor_id, "brace", "", {}, action_round, "")
+
+
+func _act_poison(actor: Fighter, target_id: String, total: int, action_round: int) -> Dictionary:
+	var actor_id: String = actor.id
+	_on_turn_start(actor_id)
+	if not _is_active(_fighter(actor_id)):
+		return _lost_turn(actor_id, action_round)
+	apply_poison(target_id, total)
+	var acted := _fighter(actor_id)
+	if acted != null:
+		acted.turns += 1
+		_set_intent(acted)
+	_commit_turn()
+	return _step_packet(actor_id, "poison", target_id, {}, action_round, "")
+
+
+func _act_item(actor: Fighter, action: Dictionary, action_round: int) -> Dictionary:
+	var actor_id: String = actor.id
+	var target_v: Variant = action.get("target", "")
+	var target_id: String = "" if target_v == null else str(target_v)
+	if not _salve_ok(action, target_id):
+		return _step_packet(actor_id, "item", target_id, {}, action_round, "illegal action")
+	_on_turn_start(actor_id)
+	if not _is_active(_fighter(actor_id)):
+		return _lost_turn(actor_id, action_round)
+	var target := _fighter(target_id)
+	if target == null:
+		return _step_packet(actor_id, "item", target_id, {}, action_round, "illegal action")
+	var heal: int = BattleResolver.round_half_up(target.max_hp, 3, 10)
+	target.hp = mini(target.max_hp, target.hp + heal)
+	target.status = BattleResolver.status_for(target.side, target.hp, target.max_hp)
+	salves_used += 1
+	loadout["heart_salve"] = maxi(0, int(loadout.get("heart_salve", 0)) - 1)
+	var acted := _fighter(actor_id)
+	if acted != null:
+		acted.turns += 1
+	_commit_turn()
+	return _step_packet(actor_id, "item", target_id, {}, action_round, "")
+
+
+func _salve_ok(action: Dictionary, target_id: String) -> bool:
+	## Heart Salve only. Bile is not defined yet. Active party, stock, and the cap of 2.
+	if str(action.get("item", "")) != "heart_salve":
+		return false
+	if salves_used >= 2:
+		return false
+	if int(loadout.get("heart_salve", 0)) < 1:
+		return false
+	var target := _fighter(target_id)
+	return target != null and target.side == "party" and _is_active(target)
+
+
+func _commit_turn() -> void:
 	_resolve_outcome(false)
 	_advance_cursor()
 	if _outcome == "":
 		_roll_round_if_spent()
-	return _step_packet(actor_id, "strike", target_id, blow, action_round, "")
 
 
-func _on_turn_start(_id: String) -> void:
-	## Job 12: poison ticks and Brace expiring, before the action.
-	pass
+func _lost_turn(actor_id: String, action_round: int) -> Dictionary:
+	## A poison tick knocked them out or Calmed them before they could act.
+	_resolve_outcome(false)
+	if _outcome == "":
+		_advance_cursor()
+		_roll_round_if_spent()
+	return _step_packet(actor_id, "", "", {}, action_round, "")
+
+
+func _on_turn_start(id: String) -> void:
+	## Brace ends as their turn starts, then poison ticks. The tick is not a
+	## landed blow, so Brace does not halve it. The shield still absorbs it.
+	var who := _fighter(id)
+	if who == null:
+		return
+	who.brace = false
+	if who.poison_left > 0 and not who.poison_ticks.is_empty():
+		tick_poison(id)
 
 
 func _beast_action(beast_id: String) -> Dictionary:
-	## Job 12: a telegraphed intent replaces this plain Strike.
-	return {"kind": "strike", "target": beast_target(beast_id)}
+	## Whatever the intent already shows. Poison deals no strike.
+	var who := _fighter(beast_id)
+	var target_id: String = beast_target(beast_id)
+	if who == null:
+		return {"kind": "strike", "target": target_id, "mult": 1}
+	if who.intent_move == "poison":
+		return {"kind": "poison", "target": target_id, "total": _poison_total(who)}
+	if who.intent_move == "heavy":
+		return {"kind": "strike", "target": target_id, "mult": Vector2i(who.intent_num, maxi(1, who.intent_den))}
+	return {"kind": "strike", "target": target_id, "mult": 1}
 
 
-func _apply_landed_damage(defender: Fighter, damage: int) -> void:
-	## Job 12: Brace halves this, then the shield absorbs the rest.
-	defender.hp -= damage
-	defender.status = BattleResolver.status_for(defender.side, defender.hp, defender.max_hp)
+func _apply_landed_damage(defender: Fighter, damage: int) -> int:
+	## Brace halves first (round half up, minimum 1), then the shield absorbs the rest.
+	var amount: int = damage
+	if defender.brace:
+		amount = maxi(1, BattleResolver.round_half_up(amount, 1, 2))
+	_absorb(defender, amount)
+	return amount
+
+
+func _absorb(who: Fighter, amount: int) -> void:
+	var spent: int = maxi(0, amount)
+	var absorbed: int = mini(maxi(0, who.shield), spent)
+	who.shield -= absorbed
+	who.hp -= spent - absorbed
+	who.status = BattleResolver.status_for(who.side, who.hp, who.max_hp)
 
 
 func to_dict() -> Dictionary:
@@ -328,6 +552,7 @@ func to_dict() -> Dictionary:
 		"outcome": _outcome,
 		"twist": twist,
 		"salves_used": salves_used,
+		"loadout": loadout.duplicate(),
 		"controller": controller,
 		"resolver_version": resolver_version,
 		"rng_combat_seed": rng_combat_seed,
@@ -354,6 +579,12 @@ static func from_dict(data: Dictionary) -> FightState:
 		fight._outcome = ""
 	fight.twist = str(data.get("twist", ""))
 	fight.salves_used = _as_int(data.get("salves_used", 0))
+	fight.loadout = {}
+	var load_v: Variant = data.get("loadout", {})
+	if load_v is Dictionary:
+		var load: Dictionary = load_v
+		for load_key: Variant in load.keys():
+			fight.loadout[str(load_key)] = _as_int(load[load_key])
 	var saved_controller: String = str(data.get("controller", "manual"))
 	fight.controller = saved_controller if saved_controller != "" else "manual"
 	fight.resolver_version = _as_int(data.get("resolver_version", RESOLVER_VERSION))
@@ -433,6 +664,80 @@ static func _as_bool(v: Variant, fallback: bool = false) -> bool:
 	if v is int or v is float:
 		return int(v) != 0
 	return fallback
+
+
+func _apply_boss_hp() -> void:
+	for key: Variant in _fighters.keys():
+		var who := _fighter(str(key))
+		if who == null or who.side != "beast" or not who.boss:
+			continue
+		var boosted: int = BattleResolver.round_half_up(who.max_hp, 3, 2)
+		who.max_hp = boosted
+		who.hp = boosted
+		who.status = BattleResolver.status_for(who.side, who.hp, who.max_hp)
+
+
+func _apply_sap_spring() -> void:
+	if twist != "sap_spring":
+		return
+	for key: Variant in _fighters.keys():
+		var who := _fighter(str(key))
+		if who == null or who.side != "party":
+			continue
+		who.shield = BattleResolver.round_half_up(who.max_hp, 1, 5)
+
+
+func _refresh_intents() -> void:
+	for fighter_id: String in order:
+		var who := _fighter(fighter_id)
+		if who != null and who.side == "beast":
+			_set_intent(who)
+
+
+func _set_intent(who: Fighter) -> void:
+	## The turn about to be taken is turns + 1. A boss with a move uses it
+	## every 2nd own turn; everyone else specials on every 3rd.
+	var upcoming: int = who.turns + 1
+	var move: Dictionary = _move_spec(who)
+	var period: int = 3
+	if who.boss and not move.is_empty():
+		period = 2
+	var special: bool = period > 0 and upcoming % period == 0
+	who.intent_num = 1
+	who.intent_den = 1
+	if not special:
+		who.intent_move = "strike"
+		return
+	var kind: String = str(move.get("kind", ""))
+	if kind == "poison":
+		who.intent_move = "poison"
+		return
+	if kind == "heavy":
+		who.intent_move = "heavy"
+		var ratio: Vector2i = telegraph_ratio(move.get("mult", 1))
+		who.intent_num = ratio.x
+		who.intent_den = maxi(1, ratio.y)
+		return
+	if who.boss and move.is_empty():
+		who.intent_move = "heavy"
+		who.intent_num = 3
+		who.intent_den = 2
+		return
+	who.intent_move = "strike"
+
+
+func _move_spec(who: Fighter) -> Dictionary:
+	if who.species == "":
+		return {}
+	var spec: Dictionary = beast_row(who.species)
+	var move_v: Variant = spec.get("move", null)
+	if move_v is Dictionary:
+		return move_v
+	return {}
+
+
+func _poison_total(who: Fighter) -> int:
+	return int(_move_spec(who).get("total", 0))
 
 
 func _begin_round(next_round: int) -> void:
@@ -692,12 +997,33 @@ class Fighter extends RefCounted:
 	var poison_left: int = 0
 	var turns: int = 0
 	var intent_move: String = ""
-	var intent_mult: int = 1
+	var intent_num: int = 1
+	var intent_den: int = 1
+	var poison_total: int = 0
 	var boss: bool = false
 	var status: String = "active"
 
-	func to_dict() -> Dictionary:
+	func _intent_mult() -> Variant:
+		if intent_den <= 1:
+			return intent_num
+		if intent_den == 2:
+			return float(intent_num) / 2.0
+		return {"num": intent_num, "den": intent_den}
+
+	func _poison_body() -> Dictionary:
+		## `total` is kept only when a tick has spent part of it. A fresh
+		## schedule sums to the total, so the old {ticks, left} shape still
+		## round-trips and the stronger total survives a mid-fight save.
 		var ticks: Array[int] = poison_ticks.duplicate()
+		var tick_sum: int = 0
+		for tick: int in ticks:
+			tick_sum += tick
+		var body: Dictionary = {"ticks": ticks, "left": poison_left}
+		if poison_total != tick_sum:
+			body["total"] = poison_total
+		return body
+
+	func to_dict() -> Dictionary:
 		return {
 			"id": id,
 			"side": side,
@@ -718,9 +1044,9 @@ class Fighter extends RefCounted:
 			"weave": weave,
 			"shield": shield,
 			"brace": brace,
-			"poison": {"ticks": ticks, "left": poison_left},
+			"poison": _poison_body(),
 			"turns": turns,
-			"intent": {"move": intent_move, "mult": intent_mult},
+			"intent": {"move": intent_move, "mult": _intent_mult()},
 			"boss": boss,
 			"status": status,
 		}
@@ -752,15 +1078,24 @@ class Fighter extends RefCounted:
 		var poison_v: Variant = data.get("poison", {})
 		var poison: Dictionary = poison_v as Dictionary if poison_v is Dictionary else {}
 		var ticks_v: Variant = poison.get("ticks", [])
+		var tick_sum: int = 0
 		if ticks_v is Array:
 			for tick_v: Variant in ticks_v:
-				who.poison_ticks.append(int(tick_v))
-		who.poison_left = FightState._as_int(poison.get("left", 0))
+				var tick_n: int = int(tick_v)
+				who.poison_ticks.append(tick_n)
+				tick_sum += tick_n
+		who.poison_left = FightState._as_int(poison.get("left", who.poison_ticks.size()))
+		if poison.has("total"):
+			who.poison_total = FightState._as_int(poison.get("total", 0))
+		else:
+			who.poison_total = tick_sum
 		who.turns = FightState._as_int(data.get("turns", 0))
 		var intent_v: Variant = data.get("intent", {})
 		var intent: Dictionary = intent_v as Dictionary if intent_v is Dictionary else {}
 		who.intent_move = str(intent.get("move", ""))
-		who.intent_mult = FightState._as_int(intent.get("mult", 1))
+		var ratio: Vector2i = FightState.telegraph_ratio(intent.get("mult", 1))
+		who.intent_num = ratio.x
+		who.intent_den = maxi(1, ratio.y)
 		who.boss = FightState._as_bool(data.get("boss", false))
 		var saved_status: String = str(data.get("status", "active"))
 		if saved_status == "ko" or saved_status == "calmed" or saved_status == "active":

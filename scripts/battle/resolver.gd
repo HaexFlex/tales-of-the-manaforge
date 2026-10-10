@@ -1,14 +1,16 @@
 class_name BattleResolver
 extends RefCounted
-## One strike of BATTLE_SCENE_DRAFT v4 §4. No turn loop, no statuses beyond
-## the HP threshold, no log. Damage stays integer: multipliers are rationals
+## One strike of BATTLE_SCENE_DRAFT v4 §4. No turn loop and no log.
+## Brace's extra defense die and the poison tick split are pure helpers.
+## Damage stays integer: multipliers are rationals
 ## and half-up is floor((2 * raw * num + den) / (2 * den)).
 ##
-## Dice, in order: attack 2d6, defense 2d6, the damage die only if the blow
-## landed, then a Fate roll 0–99 only if it landed and Fate > 0. A crit is
-## that roll < Fate, applied as ×2 after rounding (it stacks with crushing).
-## A miss rolls neither the damage die nor Fate. Beasts have Fate 0, so they
-## roll no Fate die. HP is not clamped; a killing blow may leave it negative.
+## Dice, in order: attack 2d6, defense 2d6 (3d6 keep the best 2 while the
+## defender is braced), the damage die only if the blow landed, then a Fate
+## roll 0–99 only if it landed and Fate > 0. A crit is that roll < Fate,
+## applied as ×2 after rounding (it stacks with crushing). A miss rolls
+## neither the damage die nor Fate. Beasts have Fate 0, so they roll no Fate
+## die. HP is not clamped; a killing blow may leave it negative.
 
 
 const HP_BASE: int = 10
@@ -64,6 +66,15 @@ static func round_half_up_number(x: float) -> int:
 	return floori(x + 0.5)
 
 
+static func poison_schedule(total: int) -> Array[int]:
+	## One poison, three ticks. Remainder sits on the first tick: [t/3 + t%3, t/3, t/3].
+	var t: int = maxi(0, total)
+	var base: int = int(t / 3)
+	var rem: int = t % 3
+	var ticks: Array[int] = [base + rem, base, base]
+	return ticks
+
+
 static func resolve(attacker: Dictionary, defender: Dictionary, to_hit_mod: int, tel_num: int, tel_den: int, dice: BattleRng) -> Dictionary:
 	var magic: bool = str(attacker.get("attack", "physical")) == "magic"
 	var offense: int = int(attacker.get("arcana", 0)) if magic else int(attacker.get("might", 0))
@@ -71,7 +82,7 @@ static func resolve(attacker: Dictionary, defender: Dictionary, to_hit_mod: int,
 	var guard: int = soak
 	var swift: int = int(defender.get("swiftness", 0))
 	var attack_total: int = dice.roll_die(6) + dice.roll_die(6) + offense + to_hit_mod
-	var defense_total: int = dice.roll_die(6) + dice.roll_die(6) + int((guard + swift) / 2)
+	var defense_total: int = _defense_roll(defender, dice) + int((guard + swift) / 2)
 	var margin: int = attack_total - defense_total
 	var band: String = "miss"
 	var mult_num: int = 0
@@ -119,3 +130,23 @@ static func resolve(attacker: Dictionary, defender: Dictionary, to_hit_mod: int,
 		"defender_hp_after": hp,
 		"defender_status": status_for(side, hp, max_hp),
 	}
+
+
+static func _defense_roll(defender: Dictionary, dice: BattleRng) -> int:
+	## Two d6, or three while braced. The third die is consumed in this same
+	## slot, and the best two are kept. A miss still spends the defense dice.
+	var first: int = dice.roll_die(6)
+	var second: int = dice.roll_die(6)
+	if not _flag(defender.get("brace", false)):
+		return first + second
+	var third: int = dice.roll_die(6)
+	var lowest: int = mini(first, mini(second, third))
+	return first + second + third - lowest
+
+
+static func _flag(v: Variant) -> bool:
+	if v is bool:
+		return v
+	if v is int or v is float:
+		return int(v) != 0
+	return false

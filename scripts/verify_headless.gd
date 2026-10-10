@@ -333,6 +333,69 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_RESOLVER_BRACE") == "1":
+		var resolver_brace_only: int = _resolver_brace()
+		if resolver_brace_only > 0:
+			print("RESOLVER_BRACE_FAIL: %d" % resolver_brace_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_SHIELD_ORDER") == "1":
+		var resolver_shield_only: int = _resolver_shield_order()
+		if resolver_shield_only > 0:
+			print("RESOLVER_SHIELD_ORDER_FAIL: %d" % resolver_shield_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_POISON") == "1":
+		var resolver_poison_only: int = _resolver_poison_refresh()
+		if resolver_poison_only > 0:
+			print("RESOLVER_POISON_REFRESH_FAIL: %d" % resolver_poison_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_TWISTS") == "1":
+		var resolver_twists_only: int = _resolver_twists()
+		if resolver_twists_only > 0:
+			print("RESOLVER_TWISTS_FAIL: %d" % resolver_twists_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_BOSS") == "1":
+		var resolver_boss_only: int = _resolver_boss()
+		if resolver_boss_only > 0:
+			print("RESOLVER_BOSS_FAIL: %d" % resolver_boss_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_SALVE") == "1":
+		var resolver_salve_only: int = _resolver_salve()
+		if resolver_salve_only > 0:
+			print("RESOLVER_SALVE_FAIL: %d" % resolver_salve_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_AUTO_FLEE_KO_ZERO") == "1":
+		var auto_flee_only: int = _auto_flee_ko_zero()
+		if auto_flee_only > 0:
+			print("AUTO_FLEE_KO_ZERO_FAIL: %d" % auto_flee_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# Battle arena shell. The full suite runs these at the end.
 	if OS.get_environment("MANAFORGE_BATTLE_SHELL") == "1":
 		var battle_shell_only: int = await _battle_shell(tree_root, game_state, save_service)
@@ -2866,6 +2929,13 @@ func _run() -> void:
 	failed += _resolver_turn_order()
 	failed += _resolver_rows()
 	failed += _resolver_targeting()
+	failed += _resolver_brace()
+	failed += _resolver_shield_order()
+	failed += _resolver_poison_refresh()
+	failed += _resolver_twists()
+	failed += _resolver_boss()
+	failed += _resolver_salve()
+	failed += _auto_flee_ko_zero()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8911,7 +8981,7 @@ func _save_v14_from_main(tree_root: Window, game_state: Node, save_service: Node
 
 
 func _resolver_all() -> int:
-	return _resolver_dice() + _resolver_margin() + _resolver_die_table() + _resolver_seed() + _resolver_state_roundtrip() + _resolver_turn_order() + _resolver_rows() + _resolver_targeting()
+	return _resolver_dice() + _resolver_margin() + _resolver_die_table() + _resolver_seed() + _resolver_state_roundtrip() + _resolver_turn_order() + _resolver_rows() + _resolver_targeting() + _resolver_brace() + _resolver_shield_order() + _resolver_poison_refresh() + _resolver_twists() + _resolver_boss() + _resolver_salve() + _auto_flee_ko_zero()
 
 
 func _resolver_dice() -> int:
@@ -9544,8 +9614,8 @@ func _resolver_rows() -> int:
 	failed += _assert(fight.scripted_remaining() == before and fight.scripted_underrun() == 0, "an illegal target consumes no dice")
 	failed += _assert(int(fight.fighter_dict("melee").get("turns", -1)) == 0, "an illegal target spends no turn")
 	failed += _assert(fight.current_actor() == "melee" and fight.turn_cursor == cursor and fight.round == 1, "an illegal target leaves the cursor")
-	var bad_kind: Dictionary = fight.step({"kind": "brace"})
-	failed += _assert(str(bad_kind.get("error", "")) == "illegal action", "only strike exists in this job")
+	var bad_kind: Dictionary = fight.step({"kind": "focus"})
+	failed += _assert(str(bad_kind.get("error", "")) == "illegal action", "an unknown action is refused")
 	var bad_ally: Dictionary = fight.step({"kind": "strike", "target": "ranged"})
 	failed += _assert(str(bad_ally.get("error", "")) == "illegal target", "an ally is not a target")
 	var bad_asleep: Dictionary = fight.step({"kind": "strike", "target": "asleep"})
@@ -9750,6 +9820,856 @@ func _resolver_miss_faces(actions: int) -> Array:
 	return faces
 
 
+func _resolver_brace() -> int:
+	## Braced defense through a real step, halving, and the die that exists only while braced.
+	var failed: int = 0
+	failed += _resolver_brace_fixture()
+	failed += _resolver_brace_best_two()
+	failed += _resolver_brace_halve()
+	failed += _resolver_brace_minimum()
+	if failed == 0:
+		print("RESOLVER_BRACE_OK")
+	return failed
+
+
+func _resolver_brace_fixture() -> int:
+	## s4_line3 through Brace, then the same keeper's next turn drops it.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 6, "ward": 5,
+		"vitality": 8, "swiftness": 7, "fate": 0,
+	}
+	fight.add_member("Keeper", keeper, 0, "front", "Keeper")
+	fight.add_beast("acorn_imp", 0, "front", "Acorn imp A")
+	fight.start_fight()
+	failed += _assert(fight.current_actor() == "Keeper", "the keeper braces before the imp swings")
+	var queued: Array = [4, 5, 6, 5, 1, 1, 1, 6, 6, 1, 1, 6, 6, 9]
+	fight.set_scripted_dice(queued)
+	var braced: Dictionary = fight.step({"kind": "brace"})
+	failed += _assert(str(braced.get("error", "")) == "" and str(braced.get("kind", "")) == "brace", "brace spends the turn")
+	failed += _assert(bool(fight.fighter_dict("Keeper").get("brace", false)), "brace is up after the action")
+	failed += _assert(int(fight.fighter_dict("Keeper").get("turns", -1)) == 1, "brace counts as the keeper's turn")
+	failed += _assert(fight.scripted_remaining() == queued.size() and fight.scripted_underrun() == 0, "brace consumes no dice")
+	var blow_step: Dictionary = fight.step({})
+	var blow: Dictionary = blow_step.get("strike", {}) as Dictionary
+	failed += _assert(str(blow_step.get("actor", "")) == "Acorn imp A" and str(blow_step.get("error", "")) == "", "the imp strikes the braced keeper")
+	failed += _assert(int(blow.get("attack_total", -1)) == 16, "brace example attack total (got %s)" % str(blow.get("attack_total", "")))
+	failed += _assert(int(blow.get("defense_total", -1)) == 17, "brace example defense total (got %s)" % str(blow.get("defense_total", "")))
+	failed += _assert(str(blow.get("band", "")) == "miss" and int(blow.get("damage", -1)) == 0, "keeping 6+5 misses the attack of 16")
+	failed += _assert(bool(fight.fighter_dict("Keeper").get("brace", false)), "brace holds through the enemies' turns")
+	failed += _assert(fight.scripted_remaining() == 9 and fight.scripted_underrun() == 0, "the braced defense consumed the third die")
+	var keeper_turn: Dictionary = fight.step({"kind": "strike", "target": "Acorn imp A"})
+	failed += _assert(str(keeper_turn.get("error", "")) == "", "the keeper's next turn resolves (%s)" % str(keeper_turn.get("error", "")))
+	failed += _assert(not bool(fight.fighter_dict("Keeper").get("brace", true)), "brace clears when that turn starts")
+	var open_step: Dictionary = fight.step({})
+	var open_blow: Dictionary = open_step.get("strike", {}) as Dictionary
+	failed += _assert(str(open_step.get("error", "")) == "" and str(open_blow.get("band", "")) == "miss", "the later swing is an ordinary miss")
+	failed += _assert(fight.scripted_remaining() == 1 and fight.scripted_underrun() == 0, "an unbraced defense leaves the extra die")
+	var left: Array = fight.scripted_queue()
+	failed += _assert(left.size() == 1 and int(left[0]) == 9, "the spare face is the die Brace would have rolled")
+	return failed
+
+
+func _resolver_brace_best_two() -> int:
+	## [1, 2, 6] keeps 8. The first two alone would be a graze and would roll damage.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 6, "ward": 1,
+		"vitality": 8, "swiftness": 7, "fate": 0,
+	}
+	var imp: Dictionary = {
+		"might": 7, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 8, "swiftness": 1, "fate": 0,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_fighter("imp", "beast", imp, 0, "front", "physical")
+	fight.start_fight()
+	var setup: Dictionary = fight.step({"kind": "brace"})
+	failed += _assert(str(setup.get("error", "")) == "", "best-two setup braces")
+	fight.set_scripted_dice([1, 1, 1, 2, 6])
+	var stepped: Dictionary = fight.step({})
+	var blow: Dictionary = stepped.get("strike", {}) as Dictionary
+	failed += _assert(int(blow.get("attack_total", -1)) == 9, "best-two attack total")
+	failed += _assert(int(blow.get("defense_total", -1)) == 14, "best two of 1,2,6 is 8 plus guard 6 (got %s)" % str(blow.get("defense_total", "")))
+	failed += _assert(str(blow.get("band", "")) == "miss" and int(blow.get("damage", -1)) == 0, "the kept third die is a miss, not a graze")
+	failed += _assert(fight.scripted_remaining() == 0 and fight.scripted_underrun() == 0, "best-two consumes three defense dice and no damage die")
+	return failed
+
+
+func _resolver_brace_halve() -> int:
+	## Same graze: 3 unbraced, 2 braced (3 / 2 rounds half up).
+	var failed: int = 0
+	var open: Dictionary = _resolver_fixed_blow(false, 4, 0, [4, 4, 6, 6, 1])
+	var shut: Dictionary = _resolver_fixed_blow(true, 4, 0, [4, 4, 6, 6, 1, 1])
+	failed += _assert(int(open.get("damage", -1)) == 3, "unbraced graze of raw 5 is 3 (got %s)" % str(open.get("damage", "")))
+	failed += _assert(int(shut.get("damage", -1)) == 2, "brace halves 3 to 2 (got %s)" % str(shut.get("damage", "")))
+	failed += _assert(int(open.get("hp", -1)) == int(open.get("max_hp", 0)) - 3, "unbraced HP drops by 3")
+	failed += _assert(int(shut.get("hp", -1)) == int(shut.get("max_hp", 0)) - 2, "braced HP drops by 2")
+	failed += _assert(int(shut.get("underrun", -1)) == 0 and int(shut.get("remaining", -1)) == 0, "halve probe dice")
+	return failed
+
+
+func _resolver_brace_minimum() -> int:
+	## Half of 1 rounds to 1, so a braced chip still lands.
+	var failed: int = 0
+	var shut: Dictionary = _resolver_fixed_blow(true, 1, 12, [6, 6, 1, 1, 1, 1])
+	failed += _assert(int(shut.get("damage", -1)) == 1, "brace keeps a minimum of 1 (got %s)" % str(shut.get("damage", "")))
+	failed += _assert(int(shut.get("hp", -1)) == int(shut.get("max_hp", 0)) - 1, "the minimum chip still comes off HP")
+	failed += _assert(int(shut.get("underrun", -1)) == 0 and int(shut.get("remaining", -1)) == 0, "minimum probe dice")
+	return failed
+
+
+func _resolver_fixed_blow(use_brace: bool, might: int, resilience: int, faces: Array) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": resilience, "ward": 0,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	var imp: Dictionary = {
+		"might": might, "arcana": 1, "resilience": 40, "ward": 40,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_fighter("imp", "beast", imp, 0, "front", "physical")
+	fight.start_fight()
+	if use_brace:
+		var setup: Dictionary = fight.step({"kind": "brace"})
+		if str(setup.get("error", "")) != "":
+			return {"damage": -1, "hp": -1, "max_hp": 0, "underrun": 1, "remaining": 1}
+		fight.set_scripted_dice(faces)
+		var stepped: Dictionary = fight.step({})
+		var blow: Dictionary = stepped.get("strike", {}) as Dictionary
+		var card: Dictionary = fight.fighter_dict("keeper")
+		return {
+			"damage": blow.get("damage", -1),
+			"hp": card.get("hp", -1),
+			"max_hp": card.get("max_hp", 0),
+			"underrun": fight.scripted_underrun(),
+			"remaining": fight.scripted_remaining(),
+		}
+	fight.set_scripted_dice(faces)
+	var direct: Dictionary = fight.strike("imp", "keeper", 0, 1)
+	var open_card: Dictionary = fight.fighter_dict("keeper")
+	return {
+		"damage": direct.get("damage", -1),
+		"hp": open_card.get("hp", -1),
+		"max_hp": open_card.get("max_hp", 0),
+		"underrun": fight.scripted_underrun(),
+		"remaining": fight.scripted_remaining(),
+	}
+
+
+func _resolver_shield_order() -> int:
+	## Brace halves, then the shield absorbs. The other order leaves a different HP.
+	var failed: int = 0
+	failed += _resolver_sap_amounts()
+	var soft: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 1, "swiftness": 0, "fate": 0,
+	}
+	var hitter: Dictionary = {
+		"might": 8, "arcana": 1, "resilience": 40, "ward": 40,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	var control: FightState = FightStateScript.new()
+	control.twist = "sap_spring"
+	control.add_member("keeper", soft, 0, "front", "keeper")
+	control.add_fighter("imp", "beast", hitter, 0, "front", "physical")
+	control.start_fight()
+	failed += _assert(int(control.fighter_dict("keeper").get("shield", -1)) == 3, "the order probe starts with shield 3")
+	control.set_scripted_dice([3, 3, 6, 6, 1])
+	var open: Dictionary = control.strike("imp", "keeper", 0, 1)
+	failed += _assert(int(open.get("damage", -1)) == 5, "unbraced blow is 5 (got %s)" % str(open.get("damage", "")))
+	failed += _assert(int(control.fighter_dict("keeper").get("hp", -1)) == 11, "shield 3 of 5 leaves HP 11 (got %s)" % str(control.fighter_dict("keeper").get("hp", "")))
+	failed += _assert(int(control.fighter_dict("keeper").get("shield", -1)) == 0, "the unbraced shield is spent")
+	failed += _assert(control.scripted_underrun() == 0 and control.scripted_remaining() == 0, "unbraced shield dice")
+	var braced: FightState = FightStateScript.new()
+	braced.twist = "sap_spring"
+	braced.add_member("keeper", soft, 0, "front", "keeper")
+	braced.add_fighter("imp", "beast", hitter, 0, "front", "physical")
+	braced.start_fight()
+	var setup: Dictionary = braced.step({"kind": "brace"})
+	failed += _assert(str(setup.get("error", "")) == "", "shield-order brace")
+	braced.set_scripted_dice([3, 3, 6, 6, 1, 1])
+	var shut_step: Dictionary = braced.step({})
+	var shut: Dictionary = shut_step.get("strike", {}) as Dictionary
+	failed += _assert(int(shut.get("damage", -1)) == 3, "brace halves 5 to 3 before the shield (got %s)" % str(shut.get("damage", "")))
+	failed += _assert(int(braced.fighter_dict("keeper").get("hp", -1)) == 13, "halve-then-shield leaves HP full (shield-then-halve would leave 12)")
+	failed += _assert(int(braced.fighter_dict("keeper").get("shield", -1)) == 0, "the shield absorbed the halved 3")
+	failed += _assert(braced.scripted_underrun() == 0 and braced.scripted_remaining() == 0, "braced shield dice")
+	braced.set_scripted_dice([3, 3, 6, 6, 1, 1])
+	braced.strike("imp", "keeper", 0, 1)
+	failed += _assert(int(braced.fighter_dict("keeper").get("shield", -1)) == 0, "a spent shield stays at 0")
+	failed += _assert(int(braced.fighter_dict("keeper").get("hp", -1)) == 10, "the next blow lands on HP once the shield is gone")
+	var ticked: FightState = FightStateScript.new()
+	ticked.twist = "sap_spring"
+	var bulky: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 40, "ward": 40,
+		"vitality": 5, "swiftness": 5, "fate": 0,
+	}
+	ticked.add_member("keeper", bulky, 0, "front", "keeper")
+	ticked.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	ticked.start_fight()
+	failed += _assert(int(ticked.fighter_dict("keeper").get("shield", -1)) == 5, "poison shield starts at 5")
+	ticked.apply_poison("keeper", 9)
+	ticked.set_scripted_dice([1, 1, 6, 6])
+	var poisoned: Dictionary = ticked.step({"kind": "strike", "target": "imp"})
+	failed += _assert(str(poisoned.get("error", "")) == "", "a covered tick still lets them strike")
+	failed += _assert(int(ticked.fighter_dict("keeper").get("hp", -1)) == 25, "the shield absorbs the poison tick")
+	failed += _assert(int(ticked.fighter_dict("keeper").get("shield", -1)) == 2, "tick 3 leaves shield 2 (got %s)" % str(ticked.fighter_dict("keeper").get("shield", "")))
+	failed += _assert(int(ticked.fighter_dict("keeper").get("turns", -1)) == 1, "the absorbed tick did not cost the turn")
+	failed += _assert(ticked.scripted_remaining() == 0 and ticked.scripted_underrun() == 0, "poison-shield strike dice")
+	if failed == 0:
+		print("RESOLVER_SHIELD_ORDER_OK")
+	return failed
+
+
+func _resolver_sap_amounts() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.twist = "sap_spring"
+	var small: Dictionary = _resolver_tank(3)
+	small["vitality"] = 1
+	var large: Dictionary = _resolver_tank(2)
+	large["vitality"] = 9
+	fight.add_member("small", small, 0, "front", "small")
+	fight.add_member("large", large, 1, "front", "large")
+	fight.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	fight.start_fight()
+	failed += _assert(int(fight.fighter_dict("small").get("max_hp", 0)) == 13, "sap small max")
+	failed += _assert(int(fight.fighter_dict("small").get("shield", -1)) == 3, "round_half_up(13 / 5) is 3")
+	failed += _assert(int(fight.fighter_dict("large").get("max_hp", 0)) == 37, "sap large max")
+	failed += _assert(int(fight.fighter_dict("large").get("shield", -1)) == 7, "round_half_up(37 / 5) is 7")
+	failed += _assert(int(fight.fighter_dict("imp").get("shield", -1)) == 0, "Sap Spring does not shield beasts")
+	return failed
+
+
+func _resolver_poison_refresh() -> int:
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var ops: Array = cases.get("poison_refresh", []) as Array
+	failed += _assert(ops.size() == 11, "poison_refresh has 11 ops (got %d)" % ops.size())
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 30, "swiftness": 1, "fate": 0, "hp": 100,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	var index: int = 0
+	for op_v: Variant in ops:
+		var op: Dictionary = op_v as Dictionary
+		var name: String = str(op.get("op", ""))
+		if name == "apply":
+			fight.apply_poison("keeper", int(op.get("total", 0)))
+		else:
+			fight.tick_poison("keeper")
+		var card: Dictionary = fight.fighter_dict("keeper")
+		failed += _assert(int(card.get("hp", -1)) == int(op.get("hp_after", -2)), "poison op %d hp %s vs %s" % [index, str(card.get("hp", "")), str(op.get("hp_after", ""))])
+		var want_ticks: Array = op.get("ticks_left", []) as Array
+		failed += _resolver_same_ints(_resolver_ticks(fight, "keeper"), want_ticks, "poison op %d ticks" % index)
+		failed += _assert(_resolver_kept(card) == int(op.get("kept_total", -1)), "poison op %d kept %d vs %s" % [index, _resolver_kept(card), str(op.get("kept_total", ""))])
+		index += 1
+	failed += _resolver_poison_turn_start()
+	failed += _resolver_poison_move()
+	failed += _resolver_poison_continuation()
+	if failed == 0:
+		print("RESOLVER_POISON_REFRESH_OK")
+	return failed
+
+
+func _resolver_poison_turn_start() -> int:
+	var failed: int = 0
+	var ko: FightState = FightStateScript.new()
+	var fragile: Dictionary = {
+		"might": 30, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 10, "swiftness": 9, "fate": 0,
+	}
+	var bystander: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 8, "swiftness": 1, "fate": 0, "hp": 20,
+	}
+	ko.add_member("keeper", fragile, 0, "front", "keeper")
+	ko.add_fighter("imp", "beast", bystander, 0, "front", "physical")
+	ko.start_fight()
+	ko.set_hp("keeper", 5)
+	ko.apply_poison("keeper", 9)
+	ko.set_scripted_dice([6, 6, 1, 1, 8])
+	var lost: Dictionary = ko.step({"kind": "strike", "target": "imp"})
+	failed += _assert(str(ko.fighter_dict("keeper").get("status", "")) == "ko", "a tick can knock a member out")
+	failed += _assert(int(ko.fighter_dict("keeper").get("hp", -1)) == 2, "the tick landed before the action (got %s)" % str(ko.fighter_dict("keeper").get("hp", "")))
+	failed += _assert(int(ko.fighter_dict("keeper").get("turns", -1)) == 0, "the knocked-out member loses that turn")
+	failed += _assert(ko.outcome() == "overwhelmed", "the tick can end the fight (got %s)" % ko.outcome())
+	failed += _assert(int(ko.fighter_dict("imp").get("hp", -1)) == 20, "the lost turn deals no strike")
+	failed += _assert(str(lost.get("outcome", "")) == "overwhelmed", "the step reports overwhelmed")
+	failed += _assert(ko.scripted_remaining() == 5 and ko.scripted_underrun() == 0, "a lost turn consumes no dice")
+	var calm: FightState = FightStateScript.new()
+	var sturdy: Dictionary = _resolver_tank(1)
+	sturdy["hp"] = 40
+	var weak: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 1, "swiftness": 9, "fate": 0, "hp": 4,
+	}
+	calm.add_member("keeper", sturdy, 0, "front", "keeper")
+	calm.add_fighter("imp", "beast", weak, 0, "front", "physical")
+	calm.start_fight()
+	calm.apply_poison("imp", 9)
+	var keeper_hp: int = int(calm.fighter_dict("keeper").get("hp", -1))
+	calm.set_scripted_dice([6, 6, 1, 1, 8])
+	var ended: Dictionary = calm.step({})
+	failed += _assert(str(calm.fighter_dict("imp").get("status", "")) == "calmed", "a tick can Calm a beast")
+	failed += _assert(int(calm.fighter_dict("imp").get("hp", -1)) == 1, "beast tick hp (got %s)" % str(calm.fighter_dict("imp").get("hp", "")))
+	failed += _assert(int(calm.fighter_dict("imp").get("turns", -1)) == 0, "a Calmed beast loses that turn")
+	failed += _assert(calm.outcome() == "win" and str(ended.get("outcome", "")) == "win", "Calming the last beast wins")
+	failed += _assert(int(calm.fighter_dict("keeper").get("hp", -2)) == keeper_hp, "the Calmed beast dealt no strike")
+	failed += _assert(calm.scripted_remaining() == 5 and calm.scripted_underrun() == 0, "a Calmed turn consumes no dice")
+	return failed
+
+
+func _resolver_poison_move() -> int:
+	## A magic poison move picks the lowest Ward it can reach and rolls no strike.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var front: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 4, "ward": 8,
+		"vitality": 10, "swiftness": 1, "fate": 0,
+	}
+	var back: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 9, "ward": 2,
+		"vitality": 10, "swiftness": 1, "fate": 0,
+	}
+	fight.add_member("front", front, 0, "front", "front")
+	fight.add_member("back", back, 1, "back", "back")
+	fight.add_beast("spore_moth", 0, "front", "moth")
+	fight.set_boss("moth")
+	fight.start_fight()
+	failed += _assert(fight.beast_target("moth") == "back", "the moth's target is the lower Ward, in the back row")
+	fight.set_scripted_dice(_resolver_miss_faces(5))
+	var opening: Dictionary = fight.step({})
+	failed += _assert(str(opening.get("kind", "")) == "strike" and str(opening.get("error", "")) == "", "turn 1 is still a strike")
+	var front_step: Dictionary = fight.step({"kind": "strike", "target": "moth"})
+	var back_step: Dictionary = fight.step({"kind": "strike", "target": "moth"})
+	failed += _assert(str(front_step.get("error", "")) == "" and str(back_step.get("error", "")) == "", "the party answers the opening strike")
+	var intent: Dictionary = _resolver_intent(fight, "moth")
+	failed += _assert(str(intent.get("move", "")) == "poison", "a poison boss shows the move before turn 2")
+	var back_hp: int = int(fight.fighter_dict("back").get("hp", -1))
+	var front_hp: int = int(fight.fighter_dict("front").get("hp", -1))
+	var before: int = fight.scripted_remaining()
+	var poisoned: Dictionary = fight.step({})
+	failed += _assert(str(poisoned.get("kind", "")) == "poison" and str(poisoned.get("target", "")) == "back", "the move poisons the Ward-weakest reachable member")
+	failed += _assert(int(fight.fighter_dict("back").get("hp", -2)) == back_hp, "a poison move deals no strike")
+	failed += _assert(int(fight.fighter_dict("front").get("hp", -2)) == front_hp, "the higher Ward is not the target")
+	failed += _resolver_same_ids(_resolver_ticks(fight, "back"), [3, 3, 3], "spore moth poison is 9, split 3/3/3")
+	failed += _assert(_resolver_ticks(fight, "front").is_empty(), "the other member stays clean")
+	failed += _assert(fight.scripted_remaining() == before and fight.scripted_underrun() == 0, "a poison move consumes no dice")
+	return failed
+
+
+func _resolver_poison_continuation() -> int:
+	## A ticked poison keeps its total across a save, and the next step matches.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.twist = "sap_spring"
+	fight.loadout = {"heart_salve": 2}
+	var keeper: Dictionary = _resolver_tank(9)
+	keeper["vitality"] = 10
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_beast("acorn_imp", 0, "front", "imp")
+	fight.set_boss("imp")
+	fight.start_fight()
+	fight.apply_poison("keeper", 12)
+	fight.tick_poison("keeper")
+	var braced: Dictionary = fight.step({"kind": "brace"})
+	failed += _assert(str(braced.get("error", "")) == "", "continuation brace")
+	var card: Dictionary = fight.fighter_dict("keeper")
+	failed += _assert(bool(card.get("brace", false)), "continuation brace flag")
+	failed += _assert(_resolver_kept(card) == 12, "the kept total survives the tick")
+	failed += _resolver_same_ids(_resolver_ticks(fight, "keeper"), [4], "one tick of 12 remains")
+	failed += _assert(int(card.get("shield", -1)) == 0, "two ticks of 4 spent the shield of 8")
+	failed += _assert(int(fight.fighter_dict("imp").get("max_hp", 0)) == 56, "the boss max is in the save")
+	var snap: Dictionary = fight.to_dict()
+	var parsed: Variant = JSON.parse_string(JSON.stringify(snap))
+	failed += _assert(parsed is Dictionary, "continuation json")
+	if parsed is Dictionary:
+		var copy: FightState = FightStateScript.from_dict(parsed)
+		var again: Dictionary = copy.to_dict()
+		if again != snap:
+			print("POISON A ", JSON.stringify(snap))
+			print("POISON B ", JSON.stringify(again))
+		failed += _assert(again == snap, "poison, brace, shield, loadout, boss and twist survive json")
+		fight.set_scripted_dice([1, 1, 6, 6, 1])
+		copy.set_scripted_dice([1, 1, 6, 6, 1])
+		var left: Dictionary = fight.step({})
+		var right: Dictionary = copy.step({})
+		if left != right:
+			print("POISON STEP A ", JSON.stringify(left))
+			print("POISON STEP B ", JSON.stringify(right))
+		failed += _assert(left == right, "the next step matches after the reload")
+		failed += _assert(copy.to_dict() == fight.to_dict(), "the fights still match after that step")
+		failed += _assert(fight.scripted_underrun() == 0 and fight.scripted_remaining() == 0, "continuation dice")
+	return failed
+
+
+func _resolver_twists() -> int:
+	var failed: int = 0
+	failed += _resolver_thicket()
+	failed += _resolver_fog()
+	failed += _resolver_twist_ambush()
+	failed += _resolver_sap_amounts()
+	failed += _resolver_rich_hollow()
+	if failed == 0:
+		print("RESOLVER_TWISTS_OK")
+	return failed
+
+
+func _resolver_thicket() -> int:
+	var failed: int = 0
+	var plain: FightState = FightStateScript.new()
+	plain.add_member("keeper", _resolver_tank(0), 0, "front", "keeper")
+	plain.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	plain.start_fight()
+	failed += _resolver_same_ids(plain.order, ["imp", "keeper"], "without Thicket the swifter beast goes first")
+	var thick: FightState = FightStateScript.new()
+	thick.twist = "thicket"
+	thick.add_member("keeper", _resolver_tank(0), 0, "front", "keeper")
+	thick.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	thick.start_fight()
+	failed += _assert(thick.effective_swiftness("keeper") == 0 and thick.effective_swiftness("imp") == 0, "Thicket floors both at 0")
+	failed += _resolver_same_ids(thick.order, ["keeper", "imp"], "the new tie goes to the party")
+	failed += _assert(int(thick.fighter_dict("imp").get("swiftness", -1)) == 1, "Thicket does not rewrite the stored Swiftness")
+	var open: Dictionary = _resolver_guard_blow(false, 7)
+	var shut: Dictionary = _resolver_guard_blow(true, 7)
+	failed += _assert(int(open.get("defense_total", -1)) == 8, "unguarded defense is 8 (got %s)" % str(open.get("defense_total", "")))
+	failed += _assert(int(shut.get("defense_total", -1)) == 7, "Thicket drops that defense by 1 (got %s)" % str(shut.get("defense_total", "")))
+	failed += _assert(int(open.get("attack_total", -1)) == int(shut.get("attack_total", -2)), "Thicket does not change the attack total")
+	var clamped: Dictionary = _resolver_guard_blow(true, 1)
+	failed += _assert(int(clamped.get("defense_total", -1)) == 4, "Swiftness 1 floored at 0 still guards with Resilience 4 (got %s)" % str(clamped.get("defense_total", "")))
+	return failed
+
+
+func _resolver_guard_blow(use_thicket: bool, swiftness: int) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	if use_thicket:
+		fight.twist = "thicket"
+	var attacker: Dictionary = {
+		"might": 4, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 4, "swiftness": 1, "fate": 0,
+	}
+	var resilience: int = 6 if swiftness >= 2 else 4
+	var defender: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": resilience, "ward": 1,
+		"vitality": 8, "swiftness": swiftness, "fate": 0,
+	}
+	fight.add_fighter("attacker", "beast", attacker, 0, "front", "physical")
+	fight.add_fighter("defender", "party", defender, 0, "front", "physical", "", "keeper")
+	fight.set_scripted_dice([1, 1, 1, 1])
+	return fight.strike("attacker", "defender", 0, 1)
+
+
+func _resolver_fog() -> int:
+	var failed: int = 0
+	var open_party: Dictionary = _resolver_fog_blow(false, "party")
+	var fog_party: Dictionary = _resolver_fog_blow(true, "party")
+	var open_beast: Dictionary = _resolver_fog_blow(false, "beast")
+	var fog_beast: Dictionary = _resolver_fog_blow(true, "beast")
+	failed += _assert(int(open_party.get("attack_total", -1)) == 18 and int(fog_party.get("attack_total", -1)) == 16, "Fog takes 2 off a party attack")
+	failed += _assert(int(open_beast.get("attack_total", -1)) == 18 and int(fog_beast.get("attack_total", -1)) == 16, "Fog takes 2 off a beast attack")
+	failed += _assert(int(open_party.get("defense_total", -1)) == int(fog_party.get("defense_total", -2)), "Fog leaves party defense alone")
+	failed += _assert(int(open_beast.get("defense_total", -1)) == int(fog_beast.get("defense_total", -2)), "Fog leaves beast defense alone")
+	failed += _assert(str(open_party.get("band", "")) == "crush" and str(fog_party.get("band", "")) == "crush", "a solid hit stays a hit")
+	failed += _assert(int(open_party.get("damage", -1)) == int(fog_party.get("damage", -2)) and int(open_party.get("damage", 0)) > 0, "Fog is not a flat miss")
+	var graze: Dictionary = _resolver_fog_edge(false)
+	var miss: Dictionary = _resolver_fog_edge(true)
+	failed += _assert(str(graze.get("band", "")) == "graze" and int(graze.get("damage", 0)) > 0, "without Fog the edge is a graze")
+	failed += _assert(str(miss.get("band", "")) == "miss" and int(miss.get("damage", -1)) == 0, "Fog's -2 turns that graze into a miss")
+	failed += _assert(int(miss.get("underrun", -1)) == 0 and int(miss.get("remaining", -1)) == 0, "the Fog miss does not roll a damage die")
+	return failed
+
+
+func _resolver_fog_blow(use_fog: bool, attacker_side: String) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	if use_fog:
+		fight.twist = "fog"
+	var big: Dictionary = {
+		"might": 11, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 8, "swiftness": 1, "fate": 0,
+	}
+	var soft: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	if attacker_side == "party":
+		fight.add_member("attacker", big, 0, "front", "attacker")
+		fight.add_fighter("defender", "beast", soft, 0, "front", "physical")
+	else:
+		fight.add_fighter("attacker", "beast", big, 0, "front", "physical")
+		fight.add_member("defender", soft, 0, "front", "defender")
+	fight.set_scripted_dice([3, 4, 2, 2, 3])
+	return fight.strike("attacker", "defender", 0, 1)
+
+
+func _resolver_fog_edge(use_fog: bool) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	if use_fog:
+		fight.twist = "fog"
+	var attacker: Dictionary = {
+		"might": 4, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 4, "swiftness": 1, "fate": 0,
+	}
+	var defender: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	fight.add_fighter("attacker", "beast", attacker, 0, "front", "physical")
+	fight.add_member("defender", defender, 0, "front", "defender")
+	var faces: Array = [4, 4, 6, 6]
+	if not use_fog:
+		faces.append(1)
+	fight.set_scripted_dice(faces)
+	var blow: Dictionary = fight.strike("attacker", "defender", 0, 1)
+	blow["underrun"] = fight.scripted_underrun()
+	blow["remaining"] = fight.scripted_remaining()
+	return blow
+
+
+func _resolver_twist_ambush() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.twist = "ambush"
+	failed += _assert(fight.ambush, "twist ambush sets the ambush flag")
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var block: Dictionary = cases.get("turn_order", {}) as Dictionary
+	for row_v: Variant in block.get("fighters", []) as Array:
+		var row: Dictionary = row_v as Dictionary
+		var fighter_name: String = str(row.get("name", ""))
+		var stats: Dictionary = _resolver_tank(int(row.get("swiftness", 0)))
+		var slot: int = int(row.get("slot", 0))
+		if str(row.get("side", "")) == "party":
+			fight.add_member(fighter_name, stats, slot, "front", fighter_name)
+		else:
+			fight.add_fighter(fighter_name, "beast", stats, slot, "front", "physical")
+	fight.start_fight()
+	var ambush_expect: Array = ["Spore moth A", "Wilt Wisp A", "Acorn imp A", "Root Snapper A", "Keeper", "Elaia"]
+	failed += _resolver_same_ids(fight.order, ambush_expect, "twist ambush puts beasts first in round 1")
+	fight.set_scripted_dice(_resolver_miss_faces(6))
+	for _i: int in 6:
+		var stepped: Dictionary = _resolver_step_auto(fight)
+		failed += _assert(str(stepped.get("error", "")) == "", "ambush twist step %s" % str(stepped.get("error", "")))
+	failed += _resolver_same_ids(fight.order, block.get("expect", []) as Array, "round 2 drops the ambush order")
+	failed += _assert(fight.scripted_underrun() == 0 and fight.scripted_remaining() == 0, "ambush twist dice")
+	return failed
+
+
+func _resolver_rich_hollow() -> int:
+	var failed: int = 0
+	var plain: FightState = _resolver_seeded_pair("")
+	var rich: FightState = _resolver_seeded_pair("rich_hollow")
+	failed += _assert(rich.twist == "rich_hollow" and plain.twist == "", "Rich Hollow is stored")
+	failed += _resolver_same_ids(rich.order, plain.order, "Rich Hollow does not reorder")
+	for _i: int in 4:
+		var left: Dictionary = _resolver_step_auto(plain)
+		var right: Dictionary = _resolver_step_auto(rich)
+		if left != right:
+			print("HOLLOW A ", JSON.stringify(left))
+			print("HOLLOW B ", JSON.stringify(right))
+		failed += _assert(left == right, "Rich Hollow changes no roll")
+	failed += _assert(int(rich.fighter_dict("keeper").get("hp", -1)) == int(plain.fighter_dict("keeper").get("hp", -2)), "Rich Hollow HP matches")
+	failed += _assert(int(rich.fighter_dict("keeper").get("shield", -1)) == 0 and int(rich.fighter_dict("imp").get("shield", -1)) == 0, "Rich Hollow grants no shield")
+	failed += _assert(int(rich.fighter_dict("keeper").get("swiftness", -1)) == int(plain.fighter_dict("keeper").get("swiftness", -2)), "Rich Hollow leaves Swiftness")
+	failed += _assert(str(rich.to_dict().get("rng_combat_state", "")) == str(plain.to_dict().get("rng_combat_state", "x")), "Rich Hollow leaves the combat rng")
+	return failed
+
+
+func _resolver_seeded_pair(twist_name: String) -> FightState:
+	var fight: FightState = FightStateScript.new()
+	fight.set_combat_seed(424242)
+	if twist_name != "":
+		fight.twist = twist_name
+	fight.add_member("keeper", _resolver_tank(7), 0, "front", "keeper")
+	fight.add_fighter("imp", "beast", _resolver_tank(6), 0, "front", "physical")
+	fight.start_fight()
+	return fight
+
+
+func _resolver_boss() -> int:
+	var failed: int = 0
+	failed += _resolver_boss_hp()
+	var heavy: Array = ["strike", "strike", "heavy", "strike", "strike", "heavy"]
+	failed += _resolver_walk_moves("acorn_imp", true, heavy, 27)
+	var poison_boss: Array = ["strike", "poison", "strike", "poison", "strike", "poison"]
+	failed += _resolver_walk_moves("spore_moth", true, poison_boss, -1)
+	var poison_plain: Array = ["strike", "strike", "poison", "strike", "strike", "poison"]
+	failed += _resolver_walk_moves("spore_moth", false, poison_plain, -1)
+	if failed == 0:
+		print("RESOLVER_BOSS_OK")
+	return failed
+
+
+func _resolver_boss_hp() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.add_beast("acorn_imp", 0, "front", "boss")
+	fight.set_boss("boss")
+	fight.add_beast("acorn_imp", 1, "front", "plain")
+	fight.add_member("keeper", _resolver_tank(1), 0, "front", "keeper")
+	fight.start_fight()
+	failed += _assert(int(fight.fighter_dict("boss").get("max_hp", 0)) == 56, "boss max is round_half_up(37 * 3 / 2)")
+	failed += _assert(int(fight.fighter_dict("boss").get("hp", 0)) == 56, "boss HP is filled to the new max")
+	failed += _assert(int(fight.fighter_dict("plain").get("max_hp", 0)) == 37, "a normal imp keeps 37")
+	fight.set_hp("boss", 6)
+	failed += _assert(str(fight.fighter_dict("boss").get("status", "")) == "active", "6 HP is above 10% of 56")
+	fight.set_hp("boss", 5)
+	failed += _assert(str(fight.fighter_dict("boss").get("status", "")) == "calmed", "5 HP is Calmed on the boosted max")
+	fight.set_hp("plain", 5)
+	failed += _assert(str(fight.fighter_dict("plain").get("status", "")) == "active", "5 HP is still active on the unboosted max")
+	fight.set_hp("plain", 3)
+	failed += _assert(str(fight.fighter_dict("plain").get("status", "")) == "calmed", "3 HP Calms the unboosted imp")
+	return failed
+
+
+func _resolver_walk_moves(species: String, as_boss: bool, moves: Array, heavy_damage: int) -> int:
+	## Intents are read before the beast acts, and again the moment its turn ends.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 40,
+		"vitality": 30, "swiftness": 0, "fate": 0,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_beast(species, 0, "front", "beast")
+	if as_boss:
+		fight.set_boss("beast")
+	fight.start_fight()
+	var faces: Array = []
+	for move_v: Variant in moves:
+		var move_name: String = str(move_v)
+		if move_name == "heavy":
+			faces.append_array([3, 3, 1, 1, 2])
+		elif move_name == "strike":
+			faces.append_array([1, 1, 6, 6])
+		faces.append_array([1, 1, 6, 6])
+	fight.set_scripted_dice(faces)
+	var label: String = species
+	if as_boss:
+		label = "%s boss" % species
+	for i: int in moves.size():
+		var expect: String = str(moves[i])
+		failed += _assert(fight.current_actor() == "beast", "%s turn %d is the beast" % [label, i + 1])
+		var intent: Dictionary = _resolver_intent(fight, "beast")
+		failed += _assert(str(intent.get("move", "")) == expect, "%s intent before turn %d is %s (got %s)" % [label, i + 1, expect, str(intent.get("move", ""))])
+		if expect == "heavy":
+			var ratio: Vector2i = FightStateScript.telegraph_ratio(intent.get("mult", 1))
+			failed += _assert(ratio == Vector2i(3, 2), "%s heavy is x1.5 before turn %d" % [label, i + 1])
+		var before: int = fight.scripted_remaining()
+		var hp_before: int = int(fight.fighter_dict("keeper").get("hp", -1))
+		var stepped: Dictionary = fight.step({})
+		failed += _assert(str(stepped.get("error", "")) == "", "%s turn %d error %s" % [label, i + 1, str(stepped.get("error", ""))])
+		if expect == "poison":
+			failed += _assert(str(stepped.get("kind", "")) == "poison", "%s uses poison on turn %d" % [label, i + 1])
+			failed += _assert(fight.scripted_remaining() == before, "%s poison spends no dice on turn %d" % [label, i + 1])
+			failed += _assert(int(fight.fighter_dict("keeper").get("hp", -2)) == hp_before, "%s poison deals no strike on turn %d" % [label, i + 1])
+		elif expect == "heavy":
+			var blow: Dictionary = stepped.get("strike", {}) as Dictionary
+			failed += _assert(str(stepped.get("kind", "")) == "strike", "%s heavy is a strike" % label)
+			if heavy_damage > 0:
+				failed += _assert(int(blow.get("damage", -1)) == heavy_damage, "%s heavy damage %s vs %d" % [label, str(blow.get("damage", "")), heavy_damage])
+		else:
+			failed += _assert(str(stepped.get("kind", "")) == "strike", "%s turn %d is a plain strike" % [label, i + 1])
+		if i + 1 < moves.size():
+			var nxt: Dictionary = _resolver_intent(fight, "beast")
+			failed += _assert(str(nxt.get("move", "")) == str(moves[i + 1]), "%s shows the next intent before it acts again" % label)
+		var answer: Dictionary = fight.step({"kind": "strike", "target": "beast"})
+		failed += _assert(str(answer.get("error", "")) == "", "%s party answer %s" % [label, str(answer.get("error", ""))])
+	failed += _assert(fight.scripted_underrun() == 0 and fight.scripted_remaining() == 0, "%s dice" % label)
+	return failed
+
+
+func _resolver_salve() -> int:
+	## Heart Salve. Its own token so Brace stays about the stance.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 30, "swiftness": 8, "fate": 0, "hp": 100,
+	}
+	var elaia: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 30, "swiftness": 2, "fate": 0, "hp": 50,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_member("elaia", elaia, 1, "front", "elaia")
+	fight.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	fight.loadout = {"heart_salve": 1, "bile_vial": 1}
+	fight.start_fight()
+	fight.set_scripted_dice([7])
+	var healed: Dictionary = fight.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
+	failed += _assert(str(healed.get("error", "")) == "" and str(healed.get("kind", "")) == "item", "salve spends the turn")
+	failed += _assert(int(fight.fighter_dict("elaia").get("hp", -1)) == 80, "30% of 100 is 30 (got %s)" % str(fight.fighter_dict("elaia").get("hp", "")))
+	failed += _assert(int(fight.fighter_dict("keeper").get("hp", -1)) == 100, "the salve does not heal the user unless targeted")
+	failed += _assert(fight.salves_used == 1, "salves_used counts the dose")
+	failed += _assert(int(fight.loadout.get("heart_salve", -1)) == 0, "the dose leaves the loadout")
+	failed += _assert(fight.scripted_remaining() == 1 and fight.scripted_underrun() == 0, "a salve consumes no dice")
+	var empty: Dictionary = fight.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
+	failed += _assert(str(empty.get("error", "")) == "illegal action", "a second dose needs stock")
+	failed += _assert(fight.current_actor() == "elaia", "no stock leaves the next actor waiting")
+	failed += _assert(int(fight.fighter_dict("keeper").get("turns", -1)) == 1, "the spent dose still counts")
+	failed += _assert(int(fight.fighter_dict("elaia").get("turns", -1)) == 0, "the refused salve spends no turn")
+	var capped: FightState = FightStateScript.new()
+	var low: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 30, "swiftness": 8, "fate": 0, "hp": 90,
+	}
+	capped.add_member("keeper", low, 0, "front", "keeper")
+	capped.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	capped.loadout = {"heart_salve": 5}
+	capped.start_fight()
+	capped.set_scripted_dice(_resolver_miss_faces(2))
+	var first: Dictionary = capped.step({"kind": "item", "item": "heart_salve", "target": "keeper"})
+	failed += _assert(str(first.get("error", "")) == "" and int(capped.fighter_dict("keeper").get("hp", -1)) == 100, "the heal caps at max HP")
+	var beast_one: Dictionary = capped.step({})
+	failed += _assert(str(beast_one.get("error", "")) == "", "the beast acts between salves")
+	var second: Dictionary = capped.step({"kind": "item", "item": "heart_salve", "target": "keeper"})
+	failed += _assert(str(second.get("error", "")) == "" and capped.salves_used == 2, "the second salve is the last")
+	var beast_two: Dictionary = capped.step({})
+	failed += _assert(str(beast_two.get("error", "")) == "", "the beast acts again")
+	var third: Dictionary = capped.step({"kind": "item", "item": "heart_salve", "target": "keeper"})
+	failed += _assert(str(third.get("error", "")) == "illegal action", "the third salve is refused")
+	failed += _assert(capped.salves_used == 2 and int(capped.fighter_dict("keeper").get("turns", -1)) == 2, "the refused salve spends no turn and no dose")
+	failed += _assert(capped.current_actor() == "keeper", "the refused salve leaves the cursor")
+	failed += _assert(capped.scripted_underrun() == 0 and capped.scripted_remaining() == 0, "salve cap dice")
+	var blocked: FightState = FightStateScript.new()
+	blocked.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")
+	blocked.add_member("elaia", _resolver_tank(2), 1, "front", "elaia")
+	blocked.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	blocked.start_fight()
+	blocked.set_hp("elaia", 0)
+	var no_stock: Dictionary = blocked.step({"kind": "item", "item": "heart_salve", "target": "keeper"})
+	failed += _assert(str(no_stock.get("error", "")) == "illegal action", "salve without a loadout is refused")
+	var bile: Dictionary = blocked.step({"kind": "item", "item": "bile_vial", "target": "imp"})
+	failed += _assert(str(bile.get("error", "")) == "illegal action", "Bile Vial is refused")
+	blocked.loadout = {"heart_salve": 1}
+	var down: Dictionary = blocked.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
+	failed += _assert(str(down.get("error", "")) == "illegal action", "a knocked-out target is refused")
+	var beast_target: Dictionary = blocked.step({"kind": "item", "item": "heart_salve", "target": "imp"})
+	failed += _assert(str(beast_target.get("error", "")) == "illegal action", "a beast is not a salve target")
+	failed += _assert(blocked.salves_used == 0 and int(blocked.fighter_dict("keeper").get("turns", -1)) == 0, "refused salves spend nothing")
+	failed += _assert(int(blocked.loadout.get("heart_salve", -1)) == 1, "a refused salve keeps the stock")
+	if failed == 0:
+		print("RESOLVER_SALVE_OK")
+	return failed
+
+
+func _auto_flee_ko_zero() -> int:
+	var failed: int = 0
+	var ko: FightState = FightStateScript.new()
+	var down: Dictionary = _resolver_tank(1)
+	down["vitality"] = 10
+	down["hp"] = 4
+	var up: Dictionary = _resolver_tank(2)
+	up["vitality"] = 30
+	up["hp"] = 50
+	ko.add_member("down", down, 0, "front", "down")
+	ko.add_member("up", up, 1, "front", "up")
+	ko.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	var ko_row: Dictionary = ko.flee_check()
+	failed += _assert(str(ko.fighter_dict("down").get("status", "")) == "ko", "4 HP on max 40 is knocked out")
+	failed += _assert(int(ko_row.get("party_hp", -1)) == 50, "a KO member with leftover HP counts as 0 (got %s)" % str(ko_row.get("party_hp", "")))
+	failed += _assert(int(ko_row.get("party_max", -1)) == 140, "party max still sums the knocked-out member")
+	var shielded: FightState = FightStateScript.new()
+	shielded.twist = "sap_spring"
+	var body: Dictionary = _resolver_tank(3)
+	body["vitality"] = 30
+	body["hp"] = 40
+	shielded.add_member("keeper", body, 0, "front", "keeper")
+	var healthy: Dictionary = _resolver_tank(1)
+	healthy["vitality"] = 7
+	healthy["hp"] = 31
+	shielded.add_fighter("imp", "beast", healthy, 0, "front", "physical")
+	shielded.start_fight()
+	var shield_row: Dictionary = shielded.flee_check()
+	failed += _assert(int(shielded.fighter_dict("keeper").get("shield", -1)) == 20, "the flee probe is wearing a shield of 20")
+	failed += _assert(int(shield_row.get("party_hp", -1)) == 40, "the shield is not added to party HP")
+	failed += _assert(bool(shield_row.get("should_flee", false)), "40/100 and a healthy beast should flee; counting the shield would not")
+	var half: FightState = FightStateScript.new()
+	var even: Dictionary = _resolver_tank(1)
+	even["vitality"] = 30
+	even["hp"] = 50
+	half.add_member("keeper", even, 0, "front", "keeper")
+	var foe: Dictionary = _resolver_tank(1)
+	foe["vitality"] = 7
+	foe["hp"] = 31
+	half.add_fighter("imp", "beast", foe, 0, "front", "physical")
+	var even_row: Dictionary = half.flee_check()
+	failed += _assert(int(even_row.get("party_hp", -1)) == 50 and int(even_row.get("party_max", -1)) == 100, "the 50% probe")
+	failed += _assert(not bool(even_row.get("should_flee", true)), "exactly half does not flee")
+	half.set_hp("keeper", 49)
+	var under: Dictionary = half.flee_check()
+	failed += _assert(bool(under.get("should_flee", false)), "one HP under half does flee")
+	var third: FightState = FightStateScript.new()
+	var hurting: Dictionary = _resolver_tank(1)
+	hurting["vitality"] = 30
+	hurting["hp"] = 40
+	third.add_member("keeper", hurting, 0, "front", "keeper")
+	for i: int in 3:
+		var beast: Dictionary = _resolver_tank(1)
+		beast["vitality"] = 7
+		beast["hp"] = 31 if i == 0 else 0
+		third.add_fighter("b%d" % i, "beast", beast, i, "front", "physical")
+	var third_row: Dictionary = third.flee_check()
+	failed += _assert(int(third_row.get("beast_hp", -1)) == 31 and int(third_row.get("beast_max", -1)) == 93, "exactly one third of the beasts")
+	failed += _assert(not bool(third_row.get("should_flee", true)), "exactly one third does not flee")
+	third.set_hp("b0", 32)
+	var over: Dictionary = third.flee_check()
+	failed += _assert(bool(over.get("should_flee", false)), "one HP over one third does flee")
+	var bossed: FightState = FightStateScript.new()
+	bossed.add_member("keeper", hurting, 0, "front", "keeper")
+	bossed.add_beast("acorn_imp", 0, "front", "boss")
+	bossed.set_boss("boss")
+	bossed.start_fight()
+	bossed.set_hp("boss", 5)
+	var boss_row: Dictionary = bossed.flee_check()
+	failed += _assert(int(boss_row.get("beast_max", -1)) == 56, "beast max includes the boss max")
+	failed += _assert(int(boss_row.get("beast_hp", -1)) == 0, "a Calmed boss adds no HP")
+	failed += _assert(not bool(boss_row.get("should_flee", true)), "Calmed beasts cannot force a flee by themselves")
+	if failed == 0:
+		print("AUTO_FLEE_KO_ZERO_OK")
+	return failed
+
+
+func _resolver_intent(fight: FightState, fighter_id: String) -> Dictionary:
+	var card: Dictionary = fight.fighter_dict(fighter_id)
+	var intent_v: Variant = card.get("intent", {})
+	if intent_v is Dictionary:
+		return intent_v
+	return {}
+
+
+func _resolver_ticks(fight: FightState, fighter_id: String) -> Array:
+	var card: Dictionary = fight.fighter_dict(fighter_id)
+	var poison_v: Variant = card.get("poison", {})
+	if poison_v is Dictionary:
+		var ticks_v: Variant = (poison_v as Dictionary).get("ticks", [])
+		if ticks_v is Array:
+			return ticks_v
+	return []
+
+
+func _resolver_kept(card: Dictionary) -> int:
+	var poison_v: Variant = card.get("poison", {})
+	if not (poison_v is Dictionary):
+		return 0
+	var poison: Dictionary = poison_v
+	var ticks_v: Variant = poison.get("ticks", [])
+	var tick_sum: int = 0
+	if ticks_v is Array:
+		for tick_v: Variant in ticks_v:
+			tick_sum += int(tick_v)
+	if poison.has("total"):
+		return int(poison.get("total", 0))
+	return tick_sum
+
+
 func _resolver_step_auto(fight: FightState) -> Dictionary:
 	var actor_id: String = fight.current_actor()
 	if actor_id == "":
@@ -9759,6 +10679,15 @@ func _resolver_step_auto(fight: FightState) -> Dictionary:
 	var targets: Array[String] = fight.legal_targets(actor_id)
 	var target_id: String = targets[0] if not targets.is_empty() else ""
 	return fight.step({"kind": "strike", "target": target_id})
+
+
+func _resolver_same_ints(got: Array, expect: Array, label: String) -> int:
+	var failed: int = 0
+	failed += _assert(got.size() == expect.size(), "%s size %d vs %d (%s vs %s)" % [label, got.size(), expect.size(), str(got), str(expect)])
+	if got.size() == expect.size():
+		for i: int in got.size():
+			failed += _assert(int(got[i]) == int(expect[i]), "%s [%d] %s vs %s" % [label, i, str(got[i]), str(expect[i])])
+	return failed
 
 
 func _resolver_same_ids(got: Variant, expect: Variant, label: String) -> int:
