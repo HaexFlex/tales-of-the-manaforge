@@ -10715,9 +10715,12 @@ func _resolver_log() -> int:
 	poison_fight.add_member("keeper", slow_keeper, 0, "front", "keeper")
 	poison_fight.add_fighter("moth", "beast", quick_moth, 0, "front", "physical", "spore_moth", "")
 	poison_fight.start_fight()
-	for _i: int in 2:
-		poison_fight.step({"kind": "brace"})
-		var poisoned: Dictionary = poison_fight.step({})
+	# The moth's poison move comes on its 3rd own turn. Keeper braces on his turns.
+	for _i: int in 12:
+		if poison_fight.outcome() != "" or seen_kinds.has("poison_apply"):
+			break
+		var poison_action: Dictionary = {"kind": "brace"} if poison_fight.current_actor() == "keeper" else {}
+		var poisoned: Dictionary = poison_fight.step(poison_action)
 		_resolver_log_collect_events(poisoned.get("events", []) as Array, seen_kinds)
 	poison_fight.apply_poison("keeper", 6)
 	var tick_fight: FightState = FightStateScript.new()
@@ -10807,7 +10810,7 @@ func _resolver_log() -> int:
 			break
 		spam.step({})
 	failed += _assert(spam.log_tail.size() <= 20, "log_tail stays capped at 20 (got %d)" % spam.log_tail.size())
-	var tree_root: Window = get_tree().root as Window
+	var tree_root: Window = root as Window
 	var cs: Node = tree_root.get_node_or_null("ContentStrings")
 	failed += _assert(cs != null, "ContentStrings for log strings")
 	var log_keys: Array[String] = [
@@ -10832,8 +10835,9 @@ func _resolver_log_case_fight(case: Dictionary, imp_first: bool) -> FightState:
 	var att: Dictionary = (case.get("attacker", {}) as Dictionary).duplicate(true)
 	var dfn: Dictionary = (case.get("defender", {}) as Dictionary).duplicate(true)
 	if imp_first:
+		# Faster than the Keeper's 7 so the imp acts first; the Keeper's own
+		# Swiftness stays as in the fixture because it feeds his defense.
 		att["swi"] = 10
-		dfn["swi"] = 0
 	var attack_type: String = str(case.get("attack_type", "physical"))
 	var att_side: String = _resolver_side(str(att.get("name", "")))
 	var dfn_side: String = _resolver_side(str(dfn.get("name", "")))
