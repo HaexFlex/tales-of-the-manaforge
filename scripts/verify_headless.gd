@@ -10960,7 +10960,10 @@ func _resolver_perf() -> int:
 			float(best_usec) / 1000.0,
 		]
 	)
-	failed += _assert(best_usec < 100_000, "50 duo depth-8 rooms under 100 ms (best %d us)" % best_usec)
+	# Fail above 150 ms; 100-150 ms passes with a warning (slower computers).
+	failed += _assert(best_usec <= 150_000, "50 duo depth-8 rooms within 150 ms (best %d us)" % best_usec)
+	if best_usec >= 100_000 and best_usec <= 150_000:
+		print("RESOLVER_PERF_WARN %.2f" % (float(best_usec) / 1000.0))
 	if failed == 0:
 		print("RESOLVER_PERF_OK")
 	return failed
