@@ -1,5 +1,5 @@
 {
- "status": "DRAFT data from BATTLE_SCENE_DRAFT v4 §10 (weights and budget tweakable). Nothing in the game reads this file yet; the spawn roller (job 15) will.",
+ "status": "DRAFT data from BATTLE_SCENE_DRAFT v4 §10 (weights and budget tweakable). The spawn roller (job 15) reads the budget, fill and tables; the loot block waits for jobs 23b/24.",
  "budget": {
   "base": 90,
   "per_depth_to_10": 2,
@@ -195,13 +195,149 @@
   }
  ],
  "loot": {
+  "status": "Job 23 numbers, approved by Haex 2026-10-10 (go 22:51). Nothing reads this yet; the pack (job 23b) and the slot engine (job 24) will.",
+  "depth_curve": {
+   "formula": "g(D) = 1 + a * log2(D)",
+   "a": 0.25,
+   "note": "g(1) = 1, g(2) = 1.25, g(4) = 1.5, g(16) = 2."
+  },
+  "herbs_by_depth": {
+   "per": "cleared room",
+   "base": {
+    "solo": {
+     "guaranteed": 0,
+     "bonus_chance": 0.5,
+     "avg": 0.5
+    },
+    "duo": {
+     "guaranteed": 1,
+     "bonus_chance": 0.5,
+     "avg": 1.5
+    }
+   },
+   "party_size_rule": "1 member = solo; 2 or more = duo (current default).",
+   "extra_rule": "x = base avg * (g(D) - 1); extra herbs = floor(x), plus one more with probability frac(x). Added on top of the base roll.",
+   "types": [
+    "glowcap",
+    "bitterroot"
+   ],
+   "type_weights": [
+    50,
+    50
+   ],
+   "type_rule": "Each herb is rolled on its own: Glowcap or Bitterroot, 50/50.",
+   "boss_mult": 1,
+   "note": "Boss rooms already double room loot in the slot engine (job 24); this table adds no extra multiplier."
+  },
+  "briarwood": {
+   "base": {
+    "solo": {
+     "guaranteed": 0,
+     "bonus_chance": 0.5
+    },
+    "duo": {
+     "guaranteed": 1,
+     "bonus_chance": 0.5
+    }
+   },
+   "scales_with_depth": false,
+   "note": "Locked drop rates; flat by depth. Twists never change them."
+  },
   "bonus_drop_chance": 0.1,
-  "bonus_drop_contents": null,
+  "bonus_drop_contents": {
+   "per": "cleared room, one bundle at most",
+   "depth_bands": [
+    {
+     "min_depth": 1,
+     "max_depth": 4
+    },
+    {
+     "min_depth": 5,
+     "max_depth": 14
+    },
+    {
+     "min_depth": 15,
+     "max_depth": null
+    }
+   ],
+   "groups": [
+    {
+     "id": "raw",
+     "items": [
+      "wood",
+      "stone",
+      "food"
+     ],
+     "base_qty": 15,
+     "weights": [
+      50,
+      30,
+      15
+     ]
+    },
+    {
+     "id": "refined",
+     "items": [
+      "wooden_planks",
+      "stone_fragments"
+     ],
+     "base_qty": 3,
+     "weights": [
+      25,
+      30,
+      30
+     ]
+    },
+    {
+     "id": "fertilizer",
+     "items": [
+      "fertilizer"
+     ],
+     "base_qty": 1,
+     "weights": [
+      15,
+      15,
+      15
+     ]
+    },
+    {
+     "id": "forge_material",
+     "items": [
+      "sapsteel",
+      "heartwood_bits"
+     ],
+     "base_qty": 1,
+     "weights": [
+      0,
+      15,
+      25
+     ]
+    },
+    {
+     "id": "herbs",
+     "items": [
+      "glowcap",
+      "bitterroot"
+     ],
+     "base_qty": 2,
+     "weights": [
+      10,
+      10,
+      15
+     ]
+    }
+   ],
+   "weights_rule": "weights[i] is the group's weight in depth_bands[i]; each band sums to 100.",
+   "item_rule": "One item from the chosen group, uniform (the herbs bundle is one type).",
+   "qty_rule": "qty = round_half_up(base_qty * g(D)).",
+   "boss_mult": 2,
+   "party_size_scales": false
+  },
   "bonus_drop_never": [
-   "amberbind"
+   "amberbind",
+   "essence"
   ],
   "manual_jackpot": "amberbind",
-  "herbs_by_depth": null,
-  "note": "Bonus-drop contents and the herb rise with depth are job 23 numbers, not approved yet: left empty on purpose. Amberbind stays the manual jackpot and is never a bonus drop (Haex 2026-10-09). Briarwood counts are locked elsewhere and twists never change them."
+  "note": "Amberbind stays the manual jackpot and is never a bonus drop (Haex 2026-10-09). No Essence in bonus drops; the only adventure Essence is the 15 boss payback into the balance."
  }
 }

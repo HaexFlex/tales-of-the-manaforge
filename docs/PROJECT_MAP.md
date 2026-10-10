@@ -55,7 +55,7 @@ This is a fast index for coding agents. It says where things live and which func
 | `echo_keeper_01.json`, `echo_bramble_02.json` | EchoChamber |
 | `audio_cues.json` | GameAudio |
 | `beasts.json` (BATTLE_SCENE_DRAFT v4 §10: species, threat rule, variant rule) | `FightState.add_beast` (no scene reads it yet). VERIFY `BEAST_DATA_OK` |
-| `spawn_tables.json` (§10 room budget, per-depth weights, loot rules; bonus-drop contents and herbs by depth left empty until approved) | `SpawnRoller` (headless); VERIFY `SPAWN_DATA_OK`, `SPAWN_ROLLER_OK`, `SPAWN_SEED_OK` |
+| `spawn_tables.json` (§10 room budget, per-depth weights, loot rules; the approved job 23 depth curve, herbs by depth and bonus-drop tables in `loot`, read by the pack / slot engine from jobs 23b and 24) | `SpawnRoller` (headless); VERIFY `SPAWN_DATA_OK`, `SPAWN_ROLLER_OK`, `SPAWN_SEED_OK` |
 
 - **Resolver fixtures:** `tests/fixtures/resolver_cases.json` (fixed-dice strikes including the §4 example, die table, rounding, poison refresh, turn order, beast targeting, and the braced §4 line in `doc_cases`) and `tests/fixtures/resolver_compositions.json` (distinct rooms per depth). Both are exported from the Director's `combat_sim.py` by `python3 tools/sim/export_resolver_fixtures.py <path to combat_sim.py>`; re-export when the sim changes. Test data only: `RESOLVER_*` checks the strike rows, die table, rounding, turn order, beast targeting, poison refresh, and the braced line. `SpawnRoller` tests the compositions file. `tests/fixtures/save_v11_main.json` is a v11 main-save fixture (no reach block) for `SAVE_V14_FROM_MAIN_OK`.
 

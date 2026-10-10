@@ -8572,16 +8572,77 @@ func _spawn_data(_tree_root: Window) -> int:
 		failed += _assert(str(mine) == str(theirs) and int(dep.get("count", -1)) == theirs.size(), "depth %d rooms match the sim's compositions() (%d vs %d)" % [depth, mine.size(), theirs.size()])
 	failed += _assert(_room_budget(1, budget) == 90 and _room_budget(10, budget) == 108 and _room_budget(15, budget) == 138, "budget 90 / 108 / 138 at depth 1 / 10 / 15")
 	failed += _assert(_spawn_table_for(2, tables).size() == 2 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
-	# Loot: Amberbind stays the manual jackpot; job 23 numbers are not approved, so they stay empty.
+	# Loot: Amberbind stays the manual jackpot. Job 23 numbers (approved 2026-10-10) are checked below.
 	var loot: Dictionary = data.get("loot", {}) as Dictionary
 	failed += _assert(is_equal_approx(float(loot.get("bonus_drop_chance", 0.0)), 0.10), "bonus drop chance stays 10%")
 	failed += _assert(str(loot.get("manual_jackpot", "")) == "amberbind", "Amberbind is the manual jackpot")
 	failed += _assert((loot.get("bonus_drop_never", []) as Array).has("amberbind"), "Amberbind is listed as never a bonus drop")
 	var contents: Variant = loot.get("bonus_drop_contents", null)
 	failed += _assert(contents == null or JSON.stringify(contents).find("amberbind") < 0, "bonus-drop contents carry no Amberbind")
-	failed += _assert(contents == null and loot.get("herbs_by_depth", null) == null, "unapproved job 23 numbers stay empty")
+	failed += _spawn_data_job23(loot)
 	if failed == 0:
 		print("SPAWN_DATA_OK")
+	return failed
+
+
+func _spawn_int_list(values: Variant) -> Array[int]:
+	var out: Array[int] = []
+	if values is Array:
+		for v: Variant in values as Array:
+			out.append(int(v))
+	return out
+
+
+func _spawn_data_job23(loot: Dictionary) -> int:
+	## Job 23a: the approved depth curve, herbs by depth and bonus-drop tables.
+	var failed: int = 0
+	var curve: Dictionary = loot.get("depth_curve", {}) as Dictionary
+	var a: float = float(curve.get("a", -1.0))
+	failed += _assert(is_equal_approx(a, 0.25), "depth curve g(D) = 1 + 0.25 log2(D)")
+	var g16: float = 1.0 + a * (log(16.0) / log(2.0))
+	failed += _assert(is_equal_approx(g16, 2.0), "g(16) = 2")
+	var herbs: Dictionary = loot.get("herbs_by_depth", {}) as Dictionary
+	var base: Dictionary = herbs.get("base", {}) as Dictionary
+	var solo: Dictionary = base.get("solo", {}) as Dictionary
+	var duo: Dictionary = base.get("duo", {}) as Dictionary
+	failed += _assert(int(solo.get("guaranteed", -1)) == 0 and is_equal_approx(float(solo.get("bonus_chance", 0.0)), 0.5) and is_equal_approx(float(solo.get("avg", 0.0)), 0.5), "herbs solo 0-1 at 50%")
+	failed += _assert(int(duo.get("guaranteed", -1)) == 1 and is_equal_approx(float(duo.get("bonus_chance", 0.0)), 0.5) and is_equal_approx(float(duo.get("avg", 0.0)), 1.5), "herbs duo 1-2")
+	failed += _assert(str(herbs.get("types", [])) == str(["glowcap", "bitterroot"]) and _spawn_int_list(herbs.get("type_weights", [])) == [50, 50], "each herb is Glowcap or Bitterroot, 50/50")
+	failed += _assert(str(herbs.get("extra_rule", "")).find("frac(x)") >= 0, "herb extra rule: floor(x) plus frac(x) chance")
+	var briar: Dictionary = loot.get("briarwood", {}) as Dictionary
+	failed += _assert(briar.has("scales_with_depth") and not bool(briar.get("scales_with_depth", true)), "Briarwood stays flat by depth")
+	var bonus: Dictionary = loot.get("bonus_drop_contents", {}) as Dictionary
+	failed += _assert(int(bonus.get("boss_mult", 0)) == 2 and bonus.has("party_size_scales") and not bool(bonus.get("party_size_scales", true)), "boss rooms double the bundle; party size doesn't change it")
+	var bands: Array = bonus.get("depth_bands", []) as Array
+	failed += _assert(bands.size() == 3 and int((bands[0] as Dictionary).get("max_depth", 0)) == 4 and int((bands[1] as Dictionary).get("min_depth", 0)) == 5 and int((bands[1] as Dictionary).get("max_depth", 0)) == 14 and int((bands[2] as Dictionary).get("min_depth", 0)) == 15 and (bands[2] as Dictionary).get("max_depth", 0) == null, "bands D1-4 / D5-14 / D15+")
+	var want: Dictionary = {
+		"raw": [["wood", "stone", "food"], 15, [50, 30, 15]],
+		"refined": [["wooden_planks", "stone_fragments"], 3, [25, 30, 30]],
+		"fertilizer": [["fertilizer"], 1, [15, 15, 15]],
+		"forge_material": [["sapsteel", "heartwood_bits"], 1, [0, 15, 25]],
+		"herbs": [["glowcap", "bitterroot"], 2, [10, 10, 15]],
+	}
+	var groups: Array = bonus.get("groups", []) as Array
+	failed += _assert(groups.size() == want.size(), "five bonus-drop groups")
+	var sums: Array[int] = [0, 0, 0]
+	for group_v: Variant in groups:
+		var group: Dictionary = group_v as Dictionary
+		var gid: String = str(group.get("id", ""))
+		failed += _assert(want.has(gid), "known bonus group %s" % gid)
+		if not want.has(gid):
+			continue
+		var row: Array = want[gid] as Array
+		failed += _assert(str(group.get("items", [])) == str(row[0]) and int(group.get("base_qty", -1)) == int(row[1]) and _spawn_int_list(group.get("weights", [])) == _spawn_int_list(row[2]), "bonus group %s items, base and weights" % gid)
+		var weights: Array = group.get("weights", []) as Array
+		for i: int in mini(3, weights.size()):
+			sums[i] += int(weights[i])
+	failed += _assert(sums == [100, 100, 100], "each depth band's weights sum to 100 (%s)" % str(sums))
+	# qty = round_half_up(base * g(D)): raw at depth 1 = 15, depth 4 = 23 (22.5 rounds up), depth 16 = 30.
+	var qty: Callable = func(b: int, depth: int) -> int: return int(floor(float(b) * (1.0 + a * (log(float(depth)) / log(2.0))) + 0.5))
+	failed += _assert(qty.call(15, 1) == 15 and qty.call(15, 4) == 23 and qty.call(15, 16) == 30 and qty.call(1, 4) == 2, "bundle qty rounds half up on g(D)")
+	var never: Array = loot.get("bonus_drop_never", []) as Array
+	failed += _assert(never.has("amberbind") and never.has("essence"), "no Amberbind and no Essence in bonus drops")
+	failed += _assert(JSON.stringify(bonus).find("essence") < 0, "bonus-drop contents carry no Essence")
 	return failed
 
 
