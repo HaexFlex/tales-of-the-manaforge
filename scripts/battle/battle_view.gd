@@ -67,7 +67,7 @@ const SHADOW_M_PATH: String = ART_DIR + "arena/shadow_m.png"
 const BACKDROP: Color = Color(0.05, 0.14, 0.08, 1.0)
 const PARTY_BAR_TOP: float = 608.0
 const PARTY_BAR_HEIGHT: float = 112.0
-const BEAST_PLATE_SIZE: Vector2 = Vector2(96.0, 34.0)
+const BEAST_PLATE_SIZE: Vector2 = Vector2(96.0, 38.0)
 const BEAST_PLATE_LIFT: float = 132.0
 const INTENT_MARKER_SIZE: Vector2 = Vector2(16.0, 16.0)
 const BEAST_PLACEHOLDER_SIZE: Vector2 = Vector2(40.0, 56.0)
@@ -108,6 +108,12 @@ var _log_labels: Array[Label] = []
 var _result_label: Label = null
 var _target_layer: Control = null
 var _strike_for_me_toggle: Button = null
+var _playback: BattlePlayback = null
+var _speed_bar: HBoxContainer = null
+var _speed_buttons: Dictionary = {}
+var _battle_speed: int = 1
+var _log_reveal_count: int = 0
+var _advance_after_playback: bool = false
 
 
 static func is_open() -> bool:
@@ -189,7 +195,12 @@ func _ready() -> void:
 	if _close_button:
 		_close_button.add_to_group("battle_ui")
 	_build_test_fight_bar()
+	_build_speed_bar()
 	_build_fight_hud()
+	_playback = BattlePlayback.new()
+	_playback.name = "BattlePlayback"
+	add_child(_playback)
+	_playback.queue_empty.connect(_on_playback_queue_empty)
 	_bind_load()
 
 
@@ -335,6 +346,108 @@ func set_fighter_pose(fighter_id: String, pose: String) -> bool:
 	return true
 
 
+func get_playback() -> BattlePlayback:
+	return _playback
+
+
+func playback_fighter_root(fighter_id: String) -> Control:
+	return _fighters.get_node_or_null("Fighter_%s" % fighter_id) as Control if _fighters != null else null
+
+
+func playback_sprite_for(fighter_id: String) -> CanvasItem:
+	var root: Control = playback_fighter_root(fighter_id)
+	return root.get_node_or_null("Sprite") as CanvasItem if root != null else null
+
+
+func playback_set_beast_hurt(fighter_id: String, species: String) -> bool:
+	var sprite: TextureRect = playback_sprite_for(fighter_id) as TextureRect
+	if sprite == null:
+		return false
+	var base: String = _beast_base_species(species)
+	if not BEAST_HURT.has(base):
+		return false
+	var tex: Texture2D = load(str(BEAST_HURT[base])) as Texture2D
+	if tex == null:
+		return false
+	sprite.texture = tex
+	if species != base:
+		sprite.modulate = VARIANT_MODULATE
+	return true
+
+
+func playback_set_beast_idle(fighter_id: String) -> void:
+	if _fight == null:
+		return
+	var row: Dictionary = _fight.fighter_dict(fighter_id)
+	var species: String = str(row.get("species", ""))
+	var root: Control = playback_fighter_root(fighter_id)
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect if root != null else null
+	if sprite == null:
+		return
+	var base: String = _beast_base_species(species)
+	var idle_path: String = ECHO_BEAST_IDLE % base
+	if ResourceLoader.exists(idle_path):
+		sprite.texture = load(idle_path) as Texture2D
+		sprite.size = FIGHTER_FRAME
+		sprite.position = -FIGHTER_SOLE
+	var alpha: float = 0.35 if str(row.get("status", "")) == "calmed" else 1.0
+	var mod: Color = sprite.modulate
+	mod.a = alpha
+	sprite.modulate = mod
+
+
+func playback_refresh_intent(fighter_id: String) -> void:
+	if _arena == null or _fight == null:
+		return
+	var plate: Control = _arena.get_node_or_null("BeastPlate_%s" % fighter_id) as Control
+	var intent: Control = plate.get_node_or_null("IntentMarker") as Control if plate != null else null
+	if intent != null:
+		_fill_intent_marker(intent, _fight.fighter_dict(fighter_id))
+
+
+func refresh_fighter_row(fighter_id: String) -> void:
+	if _fight != null:
+		refresh_fight(_fight)
+		set_active(_active_fighter_id)
+
+
+func playback_reveal_log(event: Dictionary) -> void:
+	if _fight == null:
+		return
+	var line: String = BattleLog.line_for(event, _fight)
+	if line != "":
+		_log_reveal_count = mini(_log_reveal_count + 1, _fight.log_tail.size())
+	_update_log_panel()
+
+
+func playback_show_float(event: Dictionary) -> void:
+	if _arena == null:
+		return
+	var target_id: String = str(event.get("target", ""))
+	var root: Control = playback_fighter_root(target_id)
+	if root == null:
+		return
+	var text: String = ""
+	match str(event.get("kind", "")):
+		"strike":
+			text = "miss" if str(event.get("band", "")) == "miss" else str(int(event.get("damage", 0)))
+		"item":
+			text = "+%d" % int(event.get("healed", 0))
+	if text == "":
+		return
+	var label := Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.set_meta("battle_float", true)
+	label.set_meta("base_y", -FIGHTER_SOLE.y - 8.0)
+	label.set_meta("age", 0.0)
+	label.set_meta("dur", 0.8)
+	label.position = Vector2(-24.0, -FIGHTER_SOLE.y - 8.0)
+	_arena.add_child(label)
+	if _playback != null:
+		_playback.register_float(label)
+
+
 func show_fight(fight: FightState) -> void:
 	if _fighters == null or _arena == null:
 		return
@@ -417,6 +530,9 @@ func _clear_fight_ui() -> void:
 	_exit_target_mode()
 	if _result_label != null:
 		_result_label.text = ""
+	_log_reveal_count = 0
+	if _playback != null:
+		_playback.reset_for_fight()
 	_hide_action_menu()
 	if _fighters != null:
 		for child: Node in _fighters.get_children():
@@ -615,11 +731,21 @@ func _build_beast_plate(row: Dictionary, sole: Vector2, suffix: String) -> void:
 	hp_bar.max_value = maxi(1, int(row.get("max_hp", 1)))
 	hp_bar.value = int(row.get("hp", 0))
 	plate.add_child(hp_bar)
+	var hp_label := Label.new()
+	hp_label.name = "HpLabel"
+	hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_label.position = Vector2(52.0, 14.0)
+	hp_label.size = Vector2(BEAST_PLATE_SIZE.x - INTENT_MARKER_SIZE.x - 52.0, 12.0)
+	hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hp_label.add_theme_font_size_override("font_size", 9)
+	hp_label.text = _beast_hp_pct(int(row.get("hp", 0)), int(row.get("max_hp", 1)))
+	plate.add_child(hp_label)
 	var status := Label.new()
 	status.name = "StatusLabel"
 	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	status.position = Vector2(0.0, 26.0)
-	status.size = Vector2(BEAST_PLATE_SIZE.x - INTENT_MARKER_SIZE.x, 8.0)
+	status.position = Vector2(0.0, 28.0)
+	status.size = Vector2(BEAST_PLATE_SIZE.x - INTENT_MARKER_SIZE.x, 10.0)
+	status.clip_text = true
 	status.add_theme_font_size_override("font_size", 10)
 	status.text = _beast_status_text(str(row.get("status", "active")))
 	plate.add_child(status)
@@ -702,6 +828,7 @@ func _refresh_beast_plate(row: Dictionary) -> void:
 	if plate == null:
 		return
 	var hp_bar: ProgressBar = plate.get_node_or_null("HpBar") as ProgressBar
+	var hp_label: Label = plate.get_node_or_null("HpLabel") as Label
 	var status: Label = plate.get_node_or_null("StatusLabel") as Label
 	var intent: Control = plate.get_node_or_null("IntentMarker") as Control
 	var hp: int = int(row.get("hp", 0))
@@ -709,6 +836,8 @@ func _refresh_beast_plate(row: Dictionary) -> void:
 	if hp_bar != null:
 		hp_bar.max_value = maxi(1, max_hp)
 		hp_bar.value = hp
+	if hp_label != null:
+		hp_label.text = _beast_hp_pct(hp, max_hp)
 	if status != null:
 		status.text = _beast_status_text(str(row.get("status", "active")))
 	if intent != null:
@@ -812,6 +941,10 @@ func _hp_line(hp: int, max_hp: int) -> String:
 	return _text("adv_plate_hp", "HP %d/%d" % [hp, max_hp], {"hp": hp, "max": max_hp})
 
 
+func _beast_hp_pct(hp: int, max_hp: int) -> String:
+	return "%d%%" % int(roundf(100.0 * float(hp) / float(maxi(1, max_hp))))
+
+
 func _weave_line(weave: int) -> String:
 	return _text("adv_plate_weave", "Weave %d" % weave, {"weave": weave})
 
@@ -901,6 +1034,58 @@ func _build_test_fight_bar() -> void:
 	if not _start_fight_button.pressed.is_connected(_on_start_fight_pressed):
 		_start_fight_button.pressed.connect(_on_start_fight_pressed)
 	_arena.add_child(_test_fight_bar)
+
+
+func _build_speed_bar() -> void:
+	if _arena == null:
+		return
+	_speed_bar = HBoxContainer.new()
+	_speed_bar.name = "SpeedBar"
+	_speed_bar.position = Vector2(420.0, 12.0)
+	for label_speed: int in [1, 2, 4]:
+		var btn := Button.new()
+		btn.name = "Speed%dx" % label_speed
+		btn.toggle_mode = true
+		btn.text = "%d×" % label_speed
+		btn.add_to_group("battle_ui")
+		btn.button_pressed = label_speed == 1
+		btn.pressed.connect(_on_speed_pressed.bind(label_speed))
+		_speed_buttons[label_speed] = btn
+		_speed_bar.add_child(btn)
+	_arena.add_child(_speed_bar)
+
+
+func _on_speed_pressed(chosen: int) -> void:
+	if not strike_for_me_on():
+		_apply_battle_speed(chosen)
+
+
+func _apply_battle_speed(chosen: int) -> void:
+	_battle_speed = chosen
+	if _playback != null:
+		_playback.speed = chosen
+	for speed_key: int in _speed_buttons.keys():
+		var btn: Button = _speed_buttons[speed_key] as Button
+		if btn != null:
+			btn.button_pressed = speed_key == chosen
+	_refresh_speed_buttons()
+
+
+func _refresh_speed_buttons() -> void:
+	var locked: bool = strike_for_me_on()
+	for speed_key: int in _speed_buttons.keys():
+		var btn: Button = _speed_buttons[speed_key] as Button
+		if btn == null:
+			continue
+		if locked:
+			btn.disabled = speed_key != 1
+			btn.button_pressed = speed_key == 1
+			if speed_key == 1:
+				_battle_speed = 1
+				if _playback != null:
+					_playback.speed = 1
+		else:
+			btn.disabled = false
 
 
 func _build_fight_hud() -> void:
@@ -1024,7 +1209,12 @@ func start_test_fight(depth: int, boss: bool, with_elaia: bool, room_seed: int) 
 	fight.set_combat_seed(BattleRng.mix_stream(room_seed, "combat"))
 	fight.loadout = {"heart_salve": 2}
 	fight.start_fight()
+	fight.controller = "manual"
 	_fight = fight
+	_log_reveal_count = 0
+	if _playback != null:
+		_playback.bind_view(self, fight)
+		_playback.reset_for_fight()
 	show_fight(fight)
 	_advance()
 
@@ -1036,19 +1226,55 @@ func strike_for_me_on() -> bool:
 func _advance() -> void:
 	if _fight == null:
 		return
-	while _fight.outcome() == "":
+	if _playback != null and _playback.is_busy():
+		_advance_after_playback = true
+		return
+	_advance_after_playback = false
+	_advance_core()
+
+
+func _advance_core() -> void:
+	while _fight != null and _fight.outcome() == "":
 		var actor_id: String = _fight.current_actor()
 		if actor_id == "":
 			break
-		var actor: Dictionary = _fight.fighter_dict(actor_id)
-		if str(actor.get("side", "")) != "beast":
+		if str(_fight.fighter_dict(actor_id).get("side", "")) != "beast":
 			if strike_for_me_on():
-				_strike_for_me_party_step(actor_id)
+				_enqueue_step(_strike_for_me_party_step_packet(actor_id))
+				if _playback != null and _playback.is_busy():
+					_show_strike_for_me_toggle_only()
+					return
 				continue
 			break
-		_fight.step()
+		_enqueue_step(_fight.step())
+		if _playback != null and _playback.is_busy():
+			if strike_for_me_on():
+				_show_strike_for_me_toggle_only()
+			return
 		if strike_for_me_on():
 			_show_strike_for_me_toggle_only()
+	_finish_turn_ui()
+
+
+func _enqueue_step(packet: Dictionary) -> void:
+	if packet.is_empty():
+		return
+	var events: Array = packet.get("events", []) as Array
+	if events.size() > 0 and _playback != null and not _playback.instant:
+		_hide_action_menu()
+	if _playback != null:
+		_playback.enqueue_events(events)
+		if _playback.instant and _fight != null:
+			_log_reveal_count = _fight.log_tail.size()
+	elif events.size() > 0:
+		for entry: Variant in events:
+			if entry is Dictionary:
+				playback_reveal_log(entry as Dictionary)
+
+
+func _finish_turn_ui() -> void:
+	if _fight == null:
+		return
 	_exit_target_mode()
 	refresh_fight(_fight)
 	_update_log_panel()
@@ -1058,9 +1284,18 @@ func _advance() -> void:
 		if _start_fight_button != null:
 			_start_fight_button.disabled = false
 		return
-	var party_actor: String = _fight.current_actor()
-	set_active(party_actor)
-	_show_action_menu(party_actor)
+	set_active(_fight.current_actor())
+	_show_action_menu(_fight.current_actor())
+
+
+func _on_playback_queue_empty() -> void:
+	if _fight == null:
+		return
+	refresh_fight(_fight)
+	_update_log_panel()
+	if _advance_after_playback:
+		_advance_after_playback = false
+		call_deferred("_advance_core")
 
 
 func _show_fight_result() -> void:
@@ -1082,8 +1317,11 @@ func _update_log_panel() -> void:
 	if _fight == null or _log_labels.is_empty():
 		return
 	var tail: Array = _fight.log_tail
-	var start: int = maxi(0, tail.size() - _log_labels.size())
-	var slice: Array = tail.slice(start, tail.size())
+	var visible: int = tail.size()
+	if _playback != null and not _playback.instant:
+		visible = mini(_log_reveal_count, tail.size())
+	var start: int = maxi(0, visible - _log_labels.size())
+	var slice: Array = tail.slice(start, visible)
 	for i: int in _log_labels.size():
 		_log_labels[i].text = str(slice[i]) if i < slice.size() else ""
 
@@ -1127,6 +1365,8 @@ func _show_action_menu(actor_id: String) -> void:
 	if _strike_for_me_toggle != null:
 		_strike_for_me_toggle.visible = true
 	_place_action_menu()
+	if _playback != null:
+		_playback.notify_party_turn()
 
 
 func _has_abilities() -> bool:
@@ -1147,12 +1387,18 @@ func _place_action_menu() -> void:
 
 
 func _strike_for_me_party_step(actor_id: String) -> void:
+	var packet: Dictionary = _strike_for_me_party_step_packet(actor_id)
+	if not packet.is_empty():
+		_notify_strike_for_me_party(packet)
+
+
+func _strike_for_me_party_step_packet(actor_id: String) -> Dictionary:
 	if _fight == null or actor_id == "":
-		return
+		return {}
 	var action: Dictionary = AutoPolicy.strike_for_me_action(_fight, actor_id)
 	var packet: Dictionary = _fight.step(action)
 	packet["strike_for_me_target"] = str(action.get("target", ""))
-	_notify_strike_for_me_party(packet)
+	return packet
 
 
 func _notify_strike_for_me_party(packet: Dictionary) -> void:
@@ -1167,15 +1413,15 @@ func _notify_strike_for_me_party(packet: Dictionary) -> void:
 
 
 func _on_strike_for_me_toggled(pressed: bool) -> void:
+	_refresh_speed_buttons()
 	if not pressed or _fight == null or _fight.outcome() != "":
 		return
 	var actor_id: String = _fight.current_actor()
-	if actor_id == "":
+	if actor_id == "" or str(_fight.fighter_dict(actor_id).get("side", "")) != "party":
 		return
-	var actor: Dictionary = _fight.fighter_dict(actor_id)
-	if str(actor.get("side", "")) != "party":
-		return
-	_strike_for_me_party_step(actor_id)
+	var packet: Dictionary = _strike_for_me_party_step_packet(actor_id)
+	_notify_strike_for_me_party(packet)
+	_enqueue_step(packet)
 	_advance()
 
 
@@ -1194,24 +1440,32 @@ func _update_salve_button() -> void:
 
 
 func _on_strike_pressed() -> void:
+	if _playback != null:
+		_playback.play_battle_select()
 	_enter_target_mode("strike")
 
 
 func _on_salve_pressed() -> void:
+	if _playback != null:
+		_playback.play_battle_select()
 	_enter_target_mode("salve")
 
 
 func _on_brace_pressed() -> void:
 	if _fight == null:
 		return
-	_fight.step({"kind": "brace"})
+	if _playback != null:
+		_playback.play_battle_select()
+	_enqueue_step(_fight.step({"kind": "brace"}))
 	_advance()
 
 
 func _on_flee_pressed() -> void:
 	if _fight == null:
 		return
-	_fight.step({"kind": "flee"})
+	if _playback != null:
+		_playback.play_battle_select()
+	_enqueue_step(_fight.step({"kind": "flee"}))
 	_advance()
 
 
@@ -1288,10 +1542,14 @@ func _on_target_pressed(target_id: String) -> void:
 		return
 	var mode: String = _target_mode
 	_exit_target_mode()
+	if _playback != null:
+		_playback.play_battle_confirm()
+	var packet: Dictionary = {}
 	if mode == "strike":
-		_fight.step({"kind": "strike", "target": target_id})
+		packet = _fight.step({"kind": "strike", "target": target_id})
 	elif mode == "salve":
-		_fight.step({"kind": "item", "item": "heart_salve", "target": target_id})
+		packet = _fight.step({"kind": "item", "item": "heart_salve", "target": target_id})
+	_enqueue_step(packet)
 	_advance()
 
 

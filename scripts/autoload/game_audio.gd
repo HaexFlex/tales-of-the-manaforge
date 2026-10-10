@@ -711,6 +711,14 @@ func _on_cue_logged(cue_id: StringName) -> void:
 	_played_log.append(String(cue_id))
 
 
+func busy_voices(bus: String) -> int:
+	var count: int = 0
+	for voice: AudioStreamPlayer in _sfx_pool:
+		if voice.playing and voice.bus == bus:
+			count += 1
+	return count
+
+
 func list_cue_ids() -> PackedStringArray:
 	var out := PackedStringArray()
 	for k: Variant in _cues.keys():

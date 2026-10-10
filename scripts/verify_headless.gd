@@ -7,6 +7,7 @@ const BatchSimScript := preload("res://scripts/battle/batch_sim.gd")
 const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
+const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ## Regression rule: every bug Haex reports that has been fixed before, or that
@@ -484,6 +485,42 @@ func _run() -> void:
 		var battle_strike_only: int = await _battle_strike_for_me(tree_root, game_state, save_service)
 		if battle_strike_only > 0:
 			print("BATTLE_STRIKE_FOR_ME_FAIL: %d" % battle_strike_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_PLAYBACK") == "1":
+		var battle_playback_only: int = await _battle_playback(tree_root, game_state, save_service)
+		if battle_playback_only > 0:
+			print("BATTLE_PLAYBACK_FAIL: %d" % battle_playback_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_ART") == "1":
+		var battle_art_only: int = await _battle_art(tree_root, game_state, save_service)
+		if battle_art_only > 0:
+			print("BATTLE_ART_FAIL: %d" % battle_art_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_AUDIO_SOLE_CALLER") == "1":
+		var battle_audio_only: int = _battle_audio_sole_caller(tree_root, game_audio)
+		if battle_audio_only > 0:
+			print("BATTLE_AUDIO_SOLE_CALLER_FAIL: %d" % battle_audio_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HEADLESS_SILENT") == "1":
+		var headless_silent_only: int = await _headless_silent(tree_root, game_state, save_service, game_audio)
+		if headless_silent_only > 0:
+			print("HEADLESS_SILENT_FAIL: %d" % headless_silent_only)
 			quit(1)
 		else:
 			quit(0)
@@ -2994,6 +3031,10 @@ func _run() -> void:
 	failed += await _battle_menu(tree_root, game_state, save_service)
 	failed += await _battle_target_reach(tree_root, game_state, save_service)
 	failed += await _battle_strike_for_me(tree_root, game_state, save_service)
+	failed += await _battle_playback(tree_root, game_state, save_service)
+	failed += await _battle_art(tree_root, game_state, save_service)
+	failed += _battle_audio_sole_caller(tree_root, game_audio)
+	failed += await _headless_silent(tree_root, game_state, save_service, game_audio)
 	failed += _resolver_turn_order()
 	failed += _resolver_rows()
 	failed += _resolver_targeting()
@@ -12304,3 +12345,219 @@ func _battle_escape(live: Node) -> void:
 	key.keycode = KEY_ESCAPE
 	key.pressed = true
 	live.get_viewport().push_input(key)
+
+
+func _battle_strike_event(packet: Dictionary) -> Dictionary:
+	for ev: Variant in packet.get("events", []):
+		if ev is Dictionary and str((ev as Dictionary).get("kind", "")) == "strike":
+			return ev as Dictionary
+	return {}
+
+
+func _battle_wait_fight_actor(fight: FightState, actor_id: String, max_steps: int) -> bool:
+	for _i: int in max_steps:
+		if fight.outcome() != "":
+			return false
+		if fight.current_actor() == actor_id:
+			return true
+		fight.step()
+	return false
+
+
+func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	if live == null:
+		return failed + 1
+	BattleViewScript.open_arena()
+	await process_frame
+	var view: BattleView = get_nodes_in_group("battle_overlay")[0] as BattleView
+	var playback: BattlePlayback = view.get_playback()
+	playback.instant = false
+	view.call("start_test_fight", 1, false, true, 88001)
+	await process_frame
+	var fight: FightState = view._fight
+	var actor: String = fight.current_actor()
+	var targets: Array = fight.legal_targets(actor)
+	var packet: Dictionary = fight.step({"kind": "strike", "target": str(targets[0])})
+	var strike_ev: Dictionary = _battle_strike_event(packet)
+	failed += _assert(not strike_ev.is_empty(), "strike event")
+	var menu: VBoxContainer = view.get_node_or_null("Arena/ActionMenu") as VBoxContainer
+	menu.visible = false
+	playback.enqueue_events([strike_ev])
+	failed += _assert(playback.is_busy(), "one event playing")
+	for row: Dictionary in [{"speed": 1, "pre": 1.99, "post": 0.2}, {"speed": 2, "pre": 0.99, "post": 0.2}, {"speed": 4, "pre": 0.49, "post": 0.1}]:
+		playback.speed = int(row["speed"])
+		view.call("_apply_battle_speed", int(row["speed"]))
+		playback.reset_for_fight()
+		playback.bind_view(view, fight)
+		playback.enqueue_events([strike_ev])
+		playback.advance(float(row["pre"]))
+		failed += _assert(playback.is_busy(), "%dx gap timing" % int(row["speed"]))
+		playback.advance(float(row["post"]))
+		failed += _assert(not playback.is_busy(), "%dx gap ends" % int(row["speed"]))
+	view.call("_apply_battle_speed", 4)
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = true
+	view.call("_refresh_speed_buttons")
+	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
+	failed += _assert(bool(view.call("strike_for_me_on")) and int(playback.speed) == 1 and speed2.disabled, "strike for me locks 1x")
+	playback.reset_for_fight()
+	playback.enqueue_events([strike_ev])
+	playback.advance(0.45)
+	var floats: int = 0
+	for child: Node in view.get_node_or_null("Arena").get_children():
+		if child is Label and child.has_meta("battle_float"):
+			floats += 1
+	failed += _assert(floats > 0, "floating number")
+	playback.advance(1.0)
+	await process_frame
+	await process_frame
+	var ko_ev: Dictionary = {"kind": "calmed", "target": "x"}
+	playback.reset_for_fight()
+	var t0: float = playback.clock_sec
+	playback.enqueue_events([ko_ev])
+	while playback.is_busy():
+		playback.advance(0.05)
+	failed += _assert(playback.clock_sec - t0 >= 0.75, "status pause")
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_PLAYBACK_OK")
+	return failed
+
+
+func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	for beast_id: String in BattleViewScript.BEAST_HURT.keys():
+		var tex: Texture2D = load(str(BattleViewScript.BEAST_HURT[beast_id])) as Texture2D
+		failed += _assert(tex != null and tex.get_size() == Vector2(128, 128), "hurt %s" % beast_id)
+	for member: String in ["keeper", "elaia"]:
+		for pose: String in ["attack", "brace", "hurt", "ko"]:
+			var path: String = str((BattleViewScript.PARTY_POSES.get(member, {}) as Dictionary).get(pose, ""))
+			if path == "":
+				continue
+			var ptex: Texture2D = load(path) as Texture2D
+			failed += _assert(ptex != null and ptex.get_size() == Vector2(128, 128), "%s %s" % [member, pose])
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	BattleViewScript.open_arena()
+	var view: BattleView = get_nodes_in_group("battle_overlay")[0] as BattleView
+	var playback: BattlePlayback = view.get_playback()
+	playback.instant = false
+	var stats: Dictionary = {"might": 11, "arcana": 5, "resilience": 6, "ward": 5, "vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical"}
+	var fight: FightState = FightStateScript.new()
+	fight.add_member("keeper", stats, 0, "front", "keeper")
+	fight.add_beast("moss_brute", 0, "front")
+	fight.start_fight()
+	view.call("show_fight", fight)
+	view._fight = fight
+	playback.bind_view(view, fight)
+	var strike_ev: Dictionary = {"kind": "strike", "actor": "keeper", "target": "moss_brute", "band": "hit", "damage": 1, "target_side": "beast"}
+	playback.enqueue_events([strike_ev])
+	playback.advance(0.5)
+	var sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_moss_brute/Sprite") as TextureRect
+	failed += _assert(sprite != null and str(sprite.texture.resource_path).ends_with("battle_moss_brute_hurt.png"), "beast hurt")
+	playback.advance(0.35)
+	failed += _assert(str(sprite.texture.resource_path).ends_with("battle_moss_brute_idle.png"), "beast idle")
+	var dark_species: String = "acorn_imp_dark"
+	var dark_base: String = dark_species.substr(0, dark_species.length() - 5) if dark_species.ends_with("_dark") else dark_species
+	failed += _assert(dark_base == "acorn_imp", "dark variant base species")
+	failed += _assert(str(BattleViewScript.BEAST_HURT.get(dark_base, "")).ends_with("battle_acorn_imp_hurt.png"), "dark uses base hurt art")
+	strike_ev = {"kind": "strike", "actor": "moss_brute", "target": "keeper", "band": "hit", "damage": 1, "target_side": "party"}
+	playback.reset_for_fight()
+	playback.enqueue_events([strike_ev])
+	playback.advance(0.5)
+	var keeper_sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_keeper/Sprite") as TextureRect
+	failed += _assert(keeper_sprite != null and str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_hurt.png"), "party hurt")
+	playback.advance(0.35)
+	failed += _assert(str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_idle_e.png") or str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_idle.png"), "party idle")
+	view.call("set_fighter_pose", "keeper", "ko")
+	failed += _assert(str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_ko.png"), "ko pose")
+	BattleViewScript.close_arena()
+	live.free()
+	if failed == 0:
+		print("BATTLE_ART_OK")
+	return failed
+
+
+func _battle_audio_sole_caller(tree_root: Window, game_audio: Node) -> int:
+	var failed: int = 0
+	failed += _scan_battle_sfx_refs("res://scripts")
+	failed += _scan_battle_sfx_refs("res://tools")
+	var strike: Dictionary = {"kind": "strike", "band": "graze", "fate_crit": true, "damage": 2, "target_side": "beast"}
+	var cues: Array[Dictionary] = BattlePlaybackScript.cues_for_event(strike, 1)
+	var ids: Array[String] = []
+	for c: Dictionary in cues:
+		ids.append(str(c.get("id", "")))
+	failed += _assert(ids.has("sfx_battle_graze") and ids.has("sfx_battle_crit"), "impact+crit")
+	var fast_crit: bool = false
+	for c2: Dictionary in BattlePlaybackScript.cues_for_event(strike, 2):
+		if str(c2.get("id", "")) == "sfx_battle_crit":
+			fast_crit = true
+	failed += _assert(not fast_crit, "no crit at 2x")
+	failed += _assert(BattlePlaybackScript.cues_for_event({"kind": "poison_tick"}, 1).is_empty(), "poison silent")
+	for c: Dictionary in cues:
+		failed += _assert(game_audio.list_cue_ids().has(str(c.get("id", ""))), "cue id")
+	var pb: BattlePlayback = BattlePlaybackScript.new()
+	pb._load_rules()
+	pb._throttle_last["sfx_battle_turn"] = 0.0
+	failed += _assert(not pb.throttle_allows("sfx_battle_turn"), "turn throttle")
+	pb.clock_sec = 0.31
+	failed += _assert(pb.throttle_allows("sfx_battle_turn"), "turn gap")
+	if failed == 0:
+		print("BATTLE_AUDIO_SOLE_CALLER_OK")
+	return failed
+
+
+func _scan_battle_sfx_refs(dir_path: String) -> int:
+	var failed: int = 0
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return 0
+	dir.list_dir_begin()
+	while true:
+		var name: String = dir.get_next()
+		if name == "":
+			break
+		if name.begins_with("."):
+			continue
+		var full: String = "%s/%s" % [dir_path, name]
+		if dir.current_is_dir():
+			failed += _scan_battle_sfx_refs(full)
+		elif name.ends_with(".gd") and full != "res://scripts/verify_headless.gd":
+			var text: String = FileAccess.get_file_as_string(full)
+			if text.find("sfx_battle_") >= 0:
+				failed += _assert(full == "res://scripts/battle/battle_playback.gd", "sole caller %s" % full)
+	dir.list_dir_end()
+	return failed
+
+
+func _headless_silent(tree_root: Window, game_state: Node, save_service: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	game_audio.clear_played_log()
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	BattleViewScript.open_arena()
+	var view: BattleView = get_nodes_in_group("battle_overlay")[0] as BattleView
+	view.call("start_test_fight", 1, false, true, 88003)
+	for _i: int in 600:
+		if view._fight == null or view._fight.outcome() != "":
+			break
+		view.call("_advance")
+		await process_frame
+	var prefix: String = "sfx_battle_"
+	for suffix: String in ["hit", "graze", "crush", "crit", "miss", "brace", "salve", "flee", "beast_hurt", "ko", "overwhelmed", "victory", "turn", "select", "confirm"]:
+		failed += _assert(not game_audio.did_play(prefix + suffix), "silent %s" % suffix)
+	BattleViewScript.close_arena()
+	live.free()
+	if failed == 0:
+		print("HEADLESS_SILENT_OK")
+	return failed
