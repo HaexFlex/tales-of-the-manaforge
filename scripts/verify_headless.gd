@@ -306,6 +306,33 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_RESOLVER_TURN_ORDER") == "1":
+		var resolver_order_only: int = _resolver_turn_order()
+		if resolver_order_only > 0:
+			print("RESOLVER_TURN_ORDER_FAIL: %d" % resolver_order_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_ROWS") == "1":
+		var resolver_rows_only: int = _resolver_rows()
+		if resolver_rows_only > 0:
+			print("RESOLVER_ROWS_FAIL: %d" % resolver_rows_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_TARGETING") == "1":
+		var resolver_targeting_only: int = _resolver_targeting()
+		if resolver_targeting_only > 0:
+			print("RESOLVER_TARGETING_FAIL: %d" % resolver_targeting_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# Battle arena shell. The full suite runs these at the end.
 	if OS.get_environment("MANAFORGE_BATTLE_SHELL") == "1":
 		var battle_shell_only: int = await _battle_shell(tree_root, game_state, save_service)
@@ -2836,6 +2863,9 @@ func _run() -> void:
 	failed += await _battle_shell(tree_root, game_state, save_service)
 	failed += await _battle_echo_exclusive(tree_root, game_state, save_service)
 	failed += await _battle_plates(tree_root, game_state, save_service)
+	failed += _resolver_turn_order()
+	failed += _resolver_rows()
+	failed += _resolver_targeting()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8881,7 +8911,7 @@ func _save_v14_from_main(tree_root: Window, game_state: Node, save_service: Node
 
 
 func _resolver_all() -> int:
-	return _resolver_dice() + _resolver_margin() + _resolver_die_table() + _resolver_seed() + _resolver_state_roundtrip()
+	return _resolver_dice() + _resolver_margin() + _resolver_die_table() + _resolver_seed() + _resolver_state_roundtrip() + _resolver_turn_order() + _resolver_rows() + _resolver_targeting()
 
 
 func _resolver_dice() -> int:
@@ -9207,6 +9237,539 @@ func _resolver_state_roundtrip() -> int:
 				failed += _assert(int((got_tail[19] as Dictionary).get("i", -1)) == 24, "log tail ends at the latest entry")
 	if failed == 0:
 		print("RESOLVER_STATE_ROUNDTRIP_OK")
+	return failed
+
+
+class _ResolverSwiftHook extends FightState:
+	var bumped_id: String = ""
+	var bonus: int = 0
+
+	func effective_swiftness(id: String) -> int:
+		var base: int = super.effective_swiftness(id)
+		if id == bumped_id:
+			return base + bonus
+		return base
+
+
+func _resolver_turn_order() -> int:
+	## Fixture order, tie-breaks, the Swiftness hook, Ambush, skips, the round cap, and a mid-round save.
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var block: Dictionary = cases.get("turn_order", {}) as Dictionary
+	var expect: Array = block.get("expect", []) as Array
+	failed += _assert(expect.size() == 6, "turn_order fixture has six names")
+	var plain: FightState = _resolver_order_fight(false)
+	failed += _resolver_same_ids(plain.order, expect, "fixture order")
+	failed += _assert(plain.current_actor() == str(expect[0]) if expect.size() == 6 else false, "first actor is the head of the order")
+	failed += _assert(plain.round == 1 and plain.outcome() == "", "a fresh fight is round 1 with no outcome")
+	var ambush_expect: Array = ["Spore moth A", "Wilt Wisp A", "Acorn imp A", "Root Snapper A", "Keeper", "Elaia"]
+	var ambush: FightState = _resolver_order_fight(true)
+	failed += _resolver_same_ids(ambush.order, ambush_expect, "ambush round 1")
+	ambush.set_scripted_dice(_resolver_miss_faces(6))
+	var ambush_actors: Array[String] = []
+	for _step_i: int in 6:
+		var ambush_step: Dictionary = _resolver_step_auto(ambush)
+		failed += _assert(str(ambush_step.get("error", "")) == "", "ambush step error %s" % str(ambush_step.get("error", "")))
+		ambush_actors.append(str(ambush_step.get("actor", "")))
+	failed += _resolver_same_ids(ambush_actors, ambush_expect, "ambush actors")
+	failed += _assert(ambush.scripted_underrun() == 0 and ambush.scripted_remaining() == 0, "ambush round used one miss per actor")
+	failed += _assert(ambush.round == 2 and ambush.outcome() == "", "ambush ends after round 1")
+	failed += _resolver_same_ids(ambush.order, expect, "ambush round 2 is the normal order")
+	failed += _assert(ambush.current_actor() == str(expect[0]) if expect.size() == 6 else false, "round 2 starts at the normal head")
+	for name_v: Variant in ambush_expect:
+		failed += _assert(int(ambush.fighter_dict(str(name_v)).get("turns", -1)) == 1, "%s acted once in the ambush round" % str(name_v))
+	failed += _resolver_tie_order()
+	failed += _resolver_swift_hook()
+	failed += _resolver_skip_ko()
+	failed += _resolver_round_cap()
+	failed += _resolver_midround_save()
+	failed += _resolver_fight_ends()
+	if failed == 0:
+		print("RESOLVER_TURN_ORDER_OK")
+	return failed
+
+
+func _resolver_tie_order() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.add_fighter("b0", "beast", _resolver_tank(4), 0, "front", "physical")
+	fight.add_fighter("p2", "party", _resolver_tank(4), 2, "front", "physical", "", "keeper")
+	fight.add_fighter("p0", "party", _resolver_tank(4), 0, "front", "physical", "", "elaia")
+	fight.add_fighter("b1", "beast", _resolver_tank(4), 1, "front", "physical")
+	fight.add_fighter("pfast", "party", _resolver_tank(9), 1, "front", "physical", "", "keeper")
+	fight.start_fight()
+	failed += _resolver_same_ids(fight.order, ["pfast", "p0", "p2", "b0", "b1"], "ties: party, then slot")
+	return failed
+
+
+func _resolver_swift_hook() -> int:
+	## The bonus is applied after round 1 is built, so only the next rebuild sees it.
+	var failed: int = 0
+	var fight := _ResolverSwiftHook.new()
+	fight.add_fighter("brute", "beast", _resolver_tank(5), 0, "front", "physical")
+	fight.add_fighter("keeper", "party", _resolver_tank(4), 0, "front", "physical", "", "keeper")
+	fight.start_fight()
+	var round1: Array = fight.order.duplicate()
+	failed += _resolver_same_ids(round1, ["brute", "keeper"], "hook fight round 1")
+	fight.bumped_id = "keeper"
+	fight.bonus = 10
+	failed += _resolver_same_ids(fight.order, round1, "swiftness hook does not rebuild the current round")
+	fight.set_scripted_dice(_resolver_miss_faces(2))
+	var actors: Array[String] = []
+	for _i: int in 2:
+		var stepped: Dictionary = _resolver_step_auto(fight)
+		failed += _assert(str(stepped.get("error", "")) == "", "hook step error")
+		actors.append(str(stepped.get("actor", "")))
+	failed += _resolver_same_ids(actors, ["brute", "keeper"], "round 1 actors stay on the old order")
+	failed += _assert(fight.round == 2, "hook fight reached round 2 (got %d)" % fight.round)
+	failed += _resolver_same_ids(fight.order, ["keeper", "brute"], "next round uses effective_swiftness")
+	failed += _assert(fight.current_actor() == "keeper", "round 2 opens on the hooked fighter")
+	failed += _assert(fight.scripted_underrun() == 0 and fight.scripted_remaining() == 0, "hook fight dice")
+	return failed
+
+
+func _resolver_skip_ko() -> int:
+	var failed: int = 0
+	var already: FightState = FightStateScript.new()
+	already.add_fighter("down", "party", _resolver_tank(20), 0, "front", "physical", "", "keeper")
+	already.add_fighter("up", "party", _resolver_tank(5), 1, "front", "physical", "", "elaia")
+	already.add_fighter("mob", "beast", _resolver_tank(1), 0, "front", "physical")
+	already.set_hp("down", 0)
+	already.start_fight()
+	already.set_scripted_dice(_resolver_miss_faces(2))
+	var already_actors: Array[String] = []
+	for _i: int in 2:
+		var stepped: Dictionary = _resolver_step_auto(already)
+		failed += _assert(str(stepped.get("error", "")) == "", "pre-ko step error %s" % str(stepped.get("error", "")))
+		already_actors.append(str(stepped.get("actor", "")))
+	failed += _resolver_same_ids(already_actors, ["up", "mob"], "a fighter who starts knocked out never acts")
+	failed += _assert(int(already.fighter_dict("down").get("turns", -1)) == 0, "knocked-out fighter gains no turns")
+	failed += _assert(str(already.fighter_dict("down").get("status", "")) == "ko", "party at the threshold is knocked out")
+	failed += _assert(already.scripted_remaining() == 0 and already.scripted_underrun() == 0, "skipped fighter consumes no dice")
+	var mid: FightState = FightStateScript.new()
+	var striker: Dictionary = _resolver_tank(10)
+	striker["might"] = 30
+	mid.add_fighter("striker", "party", striker, 0, "front", "physical", "", "keeper")
+	var victim: Dictionary = _resolver_tank(5)
+	victim["resilience"] = 0
+	victim["ward"] = 0
+	victim["vitality"] = 1
+	mid.add_fighter("victim", "beast", victim, 0, "front", "physical")
+	mid.add_fighter("other", "beast", _resolver_tank(3), 1, "front", "physical")
+	var mid_faces: Array = [6, 6, 1, 1, 10]
+	mid_faces.append_array(_resolver_miss_faces(1))
+	mid.set_scripted_dice(mid_faces)
+	mid.start_fight()
+	var mid_actors: Array[String] = []
+	for _j: int in 2:
+		var mid_step: Dictionary = _resolver_step_auto(mid)
+		failed += _assert(str(mid_step.get("error", "")) == "", "mid-round step error %s" % str(mid_step.get("error", "")))
+		mid_actors.append(str(mid_step.get("actor", "")))
+	failed += _resolver_same_ids(mid_actors, ["striker", "other"], "a beast calmed mid-round loses that turn")
+	failed += _assert(str(mid.fighter_dict("victim").get("status", "")) == "calmed", "the dropped beast is Calmed")
+	failed += _assert(int(mid.fighter_dict("victim").get("turns", -1)) == 0, "calmed beast gains no turns")
+	failed += _assert(mid.outcome() == "" and mid.round == 2, "the other beast keeps the fight going")
+	failed += _assert(mid.scripted_underrun() == 0 and mid.scripted_remaining() == 0, "mid-round skip dice")
+	var party_drop: FightState = FightStateScript.new()
+	var bruiser: Dictionary = _resolver_tank(10)
+	bruiser["might"] = 30
+	party_drop.add_fighter("bruiser", "beast", bruiser, 0, "front", "physical")
+	var keeper_stats: Dictionary = _resolver_tank(5)
+	keeper_stats["resilience"] = 0
+	keeper_stats["ward"] = 0
+	keeper_stats["vitality"] = 1
+	party_drop.add_fighter("keeper", "party", keeper_stats, 0, "front", "physical", "", "keeper")
+	party_drop.add_fighter("elaia", "party", _resolver_tank(1), 1, "front", "physical", "", "elaia")
+	var drop_faces: Array = [6, 6, 1, 1, 10]
+	drop_faces.append_array(_resolver_miss_faces(1))
+	party_drop.set_scripted_dice(drop_faces)
+	party_drop.start_fight()
+	var drop_actors: Array[String] = []
+	for _k: int in 2:
+		var drop_step: Dictionary = _resolver_step_auto(party_drop)
+		failed += _assert(str(drop_step.get("error", "")) == "", "party drop step error %s" % str(drop_step.get("error", "")))
+		drop_actors.append(str(drop_step.get("actor", "")))
+	failed += _resolver_same_ids(drop_actors, ["bruiser", "elaia"], "a party member knocked out mid-round loses that turn")
+	failed += _assert(str(party_drop.fighter_dict("keeper").get("status", "")) == "ko", "the dropped party member is knocked out")
+	failed += _assert(int(party_drop.fighter_dict("keeper").get("turns", -1)) == 0, "knocked-out member gains no turns")
+	failed += _assert(party_drop.scripted_underrun() == 0 and party_drop.scripted_remaining() == 0, "party drop dice")
+	return failed
+
+
+func _resolver_round_cap() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.set_combat_seed(60)
+	fight.add_fighter("a", "party", _resolver_tank(3), 0, "front", "physical", "", "keeper")
+	fight.add_fighter("b", "beast", _resolver_tank(2), 0, "front", "physical")
+	fight.start_fight()
+	var seen_at: int = -1
+	var seen_outcome: String = ""
+	var closing: Dictionary = {}
+	for n: int in range(1, 130):
+		var stepped: Dictionary = _resolver_step_auto(fight)
+		if fight.outcome() != "":
+			seen_at = n
+			seen_outcome = fight.outcome()
+			closing = stepped
+			break
+		failed += _assert(str(stepped.get("error", "")) == "", "cap step %d error %s" % [n, str(stepped.get("error", ""))])
+		failed += _assert(fight.round <= 60, "round stayed within the cap during step %d" % n)
+	failed += _assert(seen_outcome == "flee", "round cap outcome is flee (got %s at step %d)" % [seen_outcome, seen_at])
+	failed += _assert(seen_at == 120, "flee after both fighters have acted for 60 rounds (step %d)" % seen_at)
+	failed += _assert(fight.round == 60, "flee leaves the round at 60 (got %d)" % fight.round)
+	failed += _assert(str(closing.get("round", "")) == "60" and str(closing.get("outcome", "")) == "flee", "the closing step reports round 60 and flee")
+	failed += _assert(str(closing.get("actor", "")) != "" and str(closing.get("error", "")) == "", "the closing step still resolved an action")
+	failed += _assert(fight.current_actor() == "", "no actor after flee")
+	var hp_a: int = int(fight.fighter_dict("a").get("hp", -1))
+	var hp_b: int = int(fight.fighter_dict("b").get("hp", -1))
+	failed += _assert(hp_a == int(fight.fighter_dict("a").get("max_hp", -2)) and hp_b == int(fight.fighter_dict("b").get("max_hp", -2)), "the cap pair never hurt each other")
+	var state_before: String = str(fight.to_dict().get("rng_combat_state", ""))
+	var extra: Dictionary = fight.step({})
+	failed += _assert(str(extra.get("error", "")) == "fight over" and str(extra.get("outcome", "")) == "flee", "no step runs after flee")
+	failed += _assert(str(fight.to_dict().get("rng_combat_state", "")) == state_before, "a step after flee consumes no dice")
+	var parsed: Variant = JSON.parse_string(JSON.stringify(fight.to_dict()))
+	failed += _assert(parsed is Dictionary, "flee save json")
+	if parsed is Dictionary:
+		var copy: FightState = FightStateScript.from_dict(parsed)
+		failed += _assert(copy.outcome() == "flee" and copy.current_actor() == "" and copy.round == 60, "a flee save resumes ended")
+		var copy_step: Dictionary = copy.step({})
+		failed += _assert(str(copy_step.get("error", "")) == "fight over", "a loaded flee save does not take another step")
+		failed += _assert(int(copy.fighter_dict("a").get("hp", -1)) == hp_a, "loading the flee save does not change hp")
+	return failed
+
+
+func _resolver_midround_save() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.set_combat_seed(20261010)
+	fight.add_fighter("keeper", "party", _resolver_tank(9), 0, "front", "physical", "", "keeper")
+	fight.add_fighter("imp", "beast", _resolver_tank(6), 0, "front", "physical")
+	fight.add_fighter("moth", "beast", _resolver_tank(7), 1, "front", "physical")
+	fight.start_fight()
+	var first: Dictionary = _resolver_step_auto(fight)
+	failed += _assert(str(first.get("error", "")) == "" and str(first.get("actor", "")) == "keeper", "save setup acts as the keeper")
+	failed += _assert(fight.current_actor() == "moth" and fight.round == 1, "the save is mid-round")
+	var snap: Dictionary = fight.to_dict()
+	var parsed: Variant = JSON.parse_string(JSON.stringify(snap))
+	failed += _assert(parsed is Dictionary, "mid-round json")
+	if parsed is not Dictionary:
+		return failed + 1
+	var copy: FightState = FightStateScript.from_dict(parsed)
+	failed += _assert(copy.current_actor() == fight.current_actor(), "reloaded next actor")
+	failed += _assert(copy.round == fight.round and copy.turn_cursor == fight.turn_cursor, "reloaded round and cursor")
+	failed += _assert(copy.outcome() == "", "reloaded fight is still going")
+	failed += _resolver_same_ids(copy.order, fight.order, "reloaded order")
+	for n: int in 4:
+		var left: Dictionary = _resolver_step_auto(fight)
+		var right: Dictionary = _resolver_step_auto(copy)
+		if left != right:
+			print("STEP A ", JSON.stringify(left))
+			print("STEP B ", JSON.stringify(right))
+		failed += _assert(left == right, "step %d matches after a mid-round reload" % n)
+	var again: Dictionary = copy.to_dict()
+	var live: Dictionary = fight.to_dict()
+	if again != live:
+		print("SAVE A ", JSON.stringify(live))
+		print("SAVE B ", JSON.stringify(again))
+	failed += _assert(again == live, "fight dict matches after the reloaded steps")
+	return failed
+
+
+func _resolver_fight_ends() -> int:
+	var failed: int = 0
+	var win: FightState = FightStateScript.new()
+	var keeper: Dictionary = _resolver_tank(10)
+	keeper["might"] = 30
+	win.add_fighter("keeper", "party", keeper, 0, "front", "physical", "", "keeper")
+	var imp: Dictionary = _resolver_tank(1)
+	imp["resilience"] = 0
+	imp["ward"] = 0
+	imp["vitality"] = 1
+	win.add_fighter("imp", "beast", imp, 0, "front", "physical")
+	win.set_scripted_dice([6, 6, 1, 1, 10])
+	win.start_fight()
+	var won: Dictionary = win.step({"kind": "strike", "target": "imp"})
+	failed += _assert(str(won.get("outcome", "")) == "win" and win.outcome() == "win", "all beasts Calmed is a win")
+	failed += _assert(str(win.fighter_dict("imp").get("status", "")) == "calmed", "win calms the beast")
+	failed += _assert(win.current_actor() == "", "win has no next actor")
+	failed += _assert(int(win.fighter_dict("imp").get("turns", -1)) == 0, "a calmed beast does not act after the winning blow")
+	failed += _assert(win.scripted_underrun() == 0 and win.scripted_remaining() == 0, "winning blow dice")
+	var idle: Dictionary = win.step({})
+	failed += _assert(str(idle.get("error", "")) == "fight over" and win.scripted_remaining() == 0 and win.scripted_underrun() == 0, "no step runs after a win")
+	var loss: FightState = FightStateScript.new()
+	var bruiser: Dictionary = _resolver_tank(10)
+	bruiser["might"] = 30
+	loss.add_fighter("bruiser", "beast", bruiser, 0, "front", "physical")
+	var fallen: Dictionary = _resolver_tank(1)
+	fallen["resilience"] = 0
+	fallen["ward"] = 0
+	fallen["vitality"] = 1
+	loss.add_fighter("keeper", "party", fallen, 0, "front", "physical", "", "keeper")
+	loss.set_scripted_dice([6, 6, 1, 1, 10, 9])
+	loss.start_fight()
+	var lost: Dictionary = loss.step({})
+	failed += _assert(str(lost.get("actor", "")) == "bruiser" and str(lost.get("outcome", "")) == "overwhelmed", "all party knocked out is overwhelmed")
+	failed += _assert(str(loss.fighter_dict("keeper").get("status", "")) == "ko", "overwhelmed knocks the party out")
+	failed += _assert(loss.current_actor() == "" and int(loss.fighter_dict("keeper").get("turns", -1)) == 0, "overwhelmed ends before the party acts")
+	failed += _assert(loss.scripted_remaining() == 1 and loss.scripted_underrun() == 0, "overwhelmed does not roll a die past the blow")
+	var idle_loss: Dictionary = loss.step({"kind": "strike", "target": "bruiser"})
+	failed += _assert(str(idle_loss.get("error", "")) == "fight over" and loss.scripted_remaining() == 1, "no step runs after overwhelmed")
+	return failed
+
+
+func _resolver_rows() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.add_fighter("melee", "party", _resolver_tank(9), 0, "front", "physical", "", "keeper")
+	var ranged_stats: Dictionary = _resolver_tank(8)
+	ranged_stats["arcana"] = 8
+	fight.add_fighter("ranged", "party", ranged_stats, 1, "back", "magic", "", "elaia")
+	fight.add_fighter("front", "beast", _resolver_tank(2), 0, "front", "physical")
+	fight.add_fighter("back", "beast", _resolver_tank(1), 1, "back", "physical")
+	fight.add_fighter("asleep", "beast", _resolver_tank(1), 2, "front", "physical")
+	fight.set_hp("asleep", 0)
+	fight.start_fight()
+	failed += _resolver_same_ids(fight.legal_targets("melee"), ["front"], "melee reaches only the standing front row")
+	failed += _resolver_same_ids(fight.legal_targets("ranged"), ["front", "back"], "ranged reaches both rows")
+	failed += _assert(fight.to_hit_mod_for("ranged", "front") == 0, "ranged into the front row is +0")
+	failed += _assert(fight.to_hit_mod_for("ranged", "back") == -2, "ranged into the back row is -2 while the front stands")
+	failed += _assert(fight.to_hit_mod_for("melee", "back") == 0, "melee carries no row penalty")
+	failed += _assert(not fight.legal_targets("melee").has("asleep") and not fight.legal_targets("ranged").has("asleep"), "a Calmed beast is not a target")
+	fight.set_scripted_dice([1, 1, 6, 6, 2, 2])
+	var before: int = fight.scripted_remaining()
+	var cursor: int = fight.turn_cursor
+	var bad: Dictionary = fight.step({"kind": "strike", "target": "back"})
+	failed += _assert(str(bad.get("error", "")) == "illegal target", "melee into the back row is refused (got %s)" % str(bad.get("error", "")))
+	failed += _assert(fight.scripted_remaining() == before and fight.scripted_underrun() == 0, "an illegal target consumes no dice")
+	failed += _assert(int(fight.fighter_dict("melee").get("turns", -1)) == 0, "an illegal target spends no turn")
+	failed += _assert(fight.current_actor() == "melee" and fight.turn_cursor == cursor and fight.round == 1, "an illegal target leaves the cursor")
+	var bad_kind: Dictionary = fight.step({"kind": "brace"})
+	failed += _assert(str(bad_kind.get("error", "")) == "illegal action", "only strike exists in this job")
+	var bad_ally: Dictionary = fight.step({"kind": "strike", "target": "ranged"})
+	failed += _assert(str(bad_ally.get("error", "")) == "illegal target", "an ally is not a target")
+	var bad_asleep: Dictionary = fight.step({"kind": "strike", "target": "asleep"})
+	failed += _assert(str(bad_asleep.get("error", "")) == "illegal target", "a Calmed beast is refused")
+	var bad_missing: Dictionary = fight.step({"kind": "strike", "target": "nobody"})
+	failed += _assert(str(bad_missing.get("error", "")) == "illegal target", "a missing id is refused")
+	failed += _assert(fight.scripted_remaining() == before and fight.current_actor() == "melee", "refused actions leave the dice and the turn")
+	var good: Dictionary = fight.step({"kind": "strike", "target": "front"})
+	failed += _assert(str(good.get("error", "")) == "" and str(good.get("target", "")) == "front", "melee can strike the front row")
+	failed += _assert(fight.scripted_remaining() == 2 and fight.scripted_underrun() == 0, "the legal strike consumes the miss and nothing more")
+	failed += _assert(int(fight.fighter_dict("melee").get("turns", -1)) == 1, "the legal strike spends the turn")
+	fight.set_hp("front", 0)
+	failed += _resolver_same_ids(fight.legal_targets("melee"), ["back"], "melee reaches the back row once the front is empty")
+	failed += _resolver_same_ids(fight.legal_targets("ranged"), ["back"], "ranged no longer lists the Calmed front")
+	failed += _assert(fight.to_hit_mod_for("ranged", "back") == 0, "the back-row penalty drops once the front is empty")
+	var opened: FightState = FightStateScript.new()
+	opened.add_fighter("melee", "party", _resolver_tank(9), 0, "front", "physical", "", "keeper")
+	opened.add_fighter("front", "beast", _resolver_tank(1), 0, "front", "physical")
+	opened.add_fighter("back", "beast", _resolver_tank(1), 1, "back", "physical")
+	opened.set_hp("front", 0)
+	opened.start_fight()
+	opened.set_scripted_dice(_resolver_miss_faces(1))
+	var opened_step: Dictionary = opened.step({"kind": "strike", "target": "back"})
+	failed += _assert(str(opened_step.get("error", "")) == "" and str(opened_step.get("target", "")) == "back", "melee can strike the back row once the front is empty")
+	failed += _assert(opened.scripted_remaining() == 0 and opened.scripted_underrun() == 0, "that back-row strike consumes the miss")
+	failed += _resolver_ranged_penalty(true, 15)
+	failed += _resolver_ranged_penalty(false, 17)
+	failed += _resolver_back_row_beast()
+	if failed == 0:
+		print("RESOLVER_ROWS_OK")
+	return failed
+
+
+func _resolver_ranged_penalty(front_alive: bool, want_total: int) -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var ranged: Dictionary = _resolver_tank(10)
+	ranged["arcana"] = 8
+	fight.add_fighter("ranged", "party", ranged, 0, "front", "magic", "", "keeper")
+	var beast: Dictionary = _resolver_tank(1)
+	beast["ward"] = 3
+	beast["resilience"] = 1
+	fight.add_fighter("front", "beast", beast, 0, "front", "physical")
+	fight.add_fighter("back", "beast", beast.duplicate(), 1, "back", "physical")
+	if not front_alive:
+		fight.set_hp("front", 0)
+	fight.start_fight()
+	failed += _assert(fight.to_hit_mod_for("ranged", "back") == (-2 if front_alive else 0), "row penalty flag")
+	fight.set_scripted_dice([4, 5, 1, 1, 3])
+	var stepped: Dictionary = fight.step({"kind": "strike", "target": "back"})
+	var blow: Dictionary = stepped.get("strike", {}) as Dictionary
+	var label: String = "front standing" if front_alive else "front empty"
+	failed += _assert(str(stepped.get("error", "")) == "", "ranged shot (%s) error %s" % [label, str(stepped.get("error", ""))])
+	failed += _assert(int(blow.get("attack_total", -1)) == want_total, "ranged attack total %s got %s want %d" % [label, str(blow.get("attack_total")), want_total])
+	failed += _assert(fight.scripted_remaining() == 0 and fight.scripted_underrun() == 0, "ranged shot dice (%s)" % label)
+	return failed
+
+
+func _resolver_back_row_beast() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var lurker: Dictionary = _resolver_tank(10)
+	lurker["might"] = 12
+	fight.add_fighter("lurker", "beast", lurker, 0, "back", "physical")
+	var keeper: Dictionary = _resolver_tank(1)
+	keeper["resilience"] = 4
+	fight.add_fighter("keeper", "party", keeper, 0, "front", "physical", "", "keeper")
+	var elaia: Dictionary = _resolver_tank(1)
+	elaia["resilience"] = 1
+	fight.add_fighter("elaia", "party", elaia, 1, "back", "physical", "", "elaia")
+	fight.start_fight()
+	failed += _assert(str(fight.fighter_dict("lurker").get("row", "")) == "back", "the melee beast stands in the back row")
+	failed += _resolver_same_ids(fight.legal_targets("lurker"), ["keeper"], "a back-row melee beast reaches the front row")
+	failed += _assert(fight.beast_target("lurker") == "keeper", "the back-row beast does not skip the fight to hit a softer back row")
+	fight.set_scripted_dice([6, 6, 1, 1, 4])
+	var elaia_hp: int = int(fight.fighter_dict("elaia").get("hp", -1))
+	var stepped: Dictionary = fight.step({"kind": "strike", "target": "elaia"})
+	failed += _assert(str(stepped.get("error", "")) == "" and str(stepped.get("kind", "")) == "strike", "a back-row melee beast can attack")
+	failed += _assert(str(stepped.get("actor", "")) == "lurker" and str(stepped.get("target", "")) == "keeper", "the beast ignores the passed target and strikes the front")
+	failed += _assert(int((stepped.get("strike", {}) as Dictionary).get("damage", 0)) > 0, "the back-row attack lands")
+	failed += _assert(int(fight.fighter_dict("elaia").get("hp", -2)) == elaia_hp, "the unreachable back row is untouched")
+	failed += _assert(int(fight.fighter_dict("lurker").get("turns", -1)) == 1, "the beast's attack spends its turn")
+	failed += _assert(fight.scripted_remaining() == 0 and fight.scripted_underrun() == 0, "back-row beast dice")
+	return failed
+
+
+func _resolver_targeting() -> int:
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var rows: Array = cases.get("beast_targeting", []) as Array
+	failed += _assert(rows.size() == 2, "beast_targeting fixture has two cases")
+	for row_v: Variant in rows:
+		var row: Dictionary = row_v as Dictionary
+		var built: Dictionary = _resolver_targeting_case(row)
+		var fight: FightState = built.get("fight") as FightState
+		var beast_id: String = str(built.get("beast_id", ""))
+		failed += _resolver_same_ids(fight.legal_targets(beast_id), row.get("reachable", []) as Array, "%s reachable" % beast_id)
+		failed += _assert(fight.beast_target(beast_id) == str(row.get("expect_target", "")), "%s targets %s, got %s" % [beast_id, str(row.get("expect_target", "")), fight.beast_target(beast_id)])
+	failed += _resolver_target_ties()
+	failed += _resolver_beast_ignores_action()
+	if failed == 0:
+		print("RESOLVER_TARGETING_OK")
+	return failed
+
+
+func _resolver_target_ties() -> int:
+	var failed: int = 0
+	var physical: FightState = FightStateScript.new()
+	physical.add_fighter("imp", "beast", _resolver_tank(4), 0, "front", "physical")
+	physical.add_member("p1", _resolver_target_stats(5, 9), 2, "front", "p1")
+	physical.add_member("p0", _resolver_target_stats(5, 9), 0, "front", "p0")
+	physical.add_member("pb", _resolver_target_stats(5, 9), 0, "back", "pb")
+	physical.add_member("pweak", _resolver_target_stats(1, 1), 1, "back", "pweak")
+	physical.start_fight()
+	failed += _resolver_same_ids(physical.legal_targets("imp"), ["p0", "p1"], "melee tie reach is the front row only")
+	failed += _assert(physical.beast_target("imp") == "p0", "equal Resilience breaks to the front row, then the lower slot")
+	physical.set_hp("p0", 0)
+	physical.set_hp("p1", 0)
+	failed += _resolver_same_ids(physical.legal_targets("imp"), ["pb", "pweak"], "once the front drops, the back row is reachable")
+	failed += _assert(physical.beast_target("imp") == "pweak", "the newly reachable weaker member is picked")
+	var magic: FightState = FightStateScript.new()
+	var moth: Dictionary = _resolver_tank(8)
+	moth["attack"] = "magic"
+	magic.add_fighter("moth", "beast", moth, 0, "front", "magic")
+	magic.add_member("front_hi", _resolver_target_stats(1, 4), 2, "front", "front_hi")
+	magic.add_member("front_lo", _resolver_target_stats(9, 4), 0, "front", "front_lo")
+	magic.add_member("back_lo", _resolver_target_stats(1, 4), 0, "back", "back_lo")
+	magic.start_fight()
+	failed += _resolver_same_ids(magic.legal_targets("moth"), ["front_lo", "front_hi", "back_lo"], "magic reach lists both rows")
+	failed += _assert(magic.beast_target("moth") == "front_lo", "equal Ward breaks to the front row, then slot")
+	return failed
+
+
+func _resolver_beast_ignores_action() -> int:
+	var failed: int = 0
+	var fight: FightState = _resolver_targeting_case({"beast": "acorn_imp", "party": [{"name": "Keeper", "row": "front", "res": 6, "ward": 5}, {"name": "Elaia", "row": "back", "res": 5, "ward": 7}]})["fight"] as FightState
+	fight.set_scripted_dice([6, 6, 1, 1, 6])
+	var elaia_hp: int = int(fight.fighter_dict("Elaia").get("hp", -1))
+	failed += _assert(fight.current_actor() == "acorn_imp", "the imp acts first in the ignore-action setup")
+	var stepped: Dictionary = fight.step({"kind": "strike", "target": "Elaia"})
+	failed += _assert(str(stepped.get("error", "")) == "", "beast step error %s" % str(stepped.get("error", "")))
+	failed += _assert(str(stepped.get("target", "")) == "Keeper", "a beast strikes its own target, not the passed one")
+	failed += _assert(int(fight.fighter_dict("Elaia").get("hp", -2)) == elaia_hp, "the passed target is not struck")
+	failed += _assert(int(fight.fighter_dict("Keeper").get("hp", 999)) < int(fight.fighter_dict("Keeper").get("max_hp", 0)), "the chosen target lost HP")
+	failed += _assert(fight.scripted_remaining() == 0 and fight.scripted_underrun() == 0, "beast strike dice")
+	return failed
+
+
+func _resolver_targeting_case(row: Dictionary) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	var party: Array = row.get("party", []) as Array
+	var slot: int = 0
+	for member_v: Variant in party:
+		var member: Dictionary = member_v as Dictionary
+		var stats: Dictionary = _resolver_target_stats(int(member.get("res", 0)), int(member.get("ward", 0)))
+		stats["swiftness"] = 1
+		var member_name: String = str(member.get("name", ""))
+		fight.add_member(member_name, stats, slot, str(member.get("row", "front")), member_name)
+		slot += 1
+	var beast_id: String = str(row.get("beast", ""))
+	fight.add_beast(beast_id, 0, "front")
+	fight.start_fight()
+	return {"fight": fight, "beast_id": beast_id}
+
+
+func _resolver_target_stats(resilience: int, ward: int) -> Dictionary:
+	return {
+		"might": 1, "arcana": 1, "resilience": resilience, "ward": ward,
+		"vitality": 8, "swiftness": 4, "fate": 0,
+	}
+
+
+func _resolver_order_fight(use_ambush: bool) -> FightState:
+	var fight: FightState = FightStateScript.new()
+	fight.ambush = use_ambush
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var block: Dictionary = cases.get("turn_order", {}) as Dictionary
+	for row_v: Variant in block.get("fighters", []) as Array:
+		var row: Dictionary = row_v as Dictionary
+		var fighter_name: String = str(row.get("name", ""))
+		var stats: Dictionary = _resolver_tank(int(row.get("swiftness", 0)))
+		var slot: int = int(row.get("slot", 0))
+		if str(row.get("side", "")) == "party":
+			fight.add_member(fighter_name, stats, slot, "front", fighter_name)
+		else:
+			fight.add_fighter(fighter_name, "beast", stats, slot, "front", "physical")
+	fight.start_fight()
+	return fight
+
+
+func _resolver_tank(swiftness: int) -> Dictionary:
+	return {
+		"might": 1, "arcana": 1, "resilience": 40, "ward": 40,
+		"vitality": 8, "swiftness": swiftness, "fate": 0,
+	}
+
+
+func _resolver_miss_faces(actions: int) -> Array:
+	var faces: Array = []
+	for _i: int in actions:
+		faces.append_array([1, 1, 6, 6])
+	return faces
+
+
+func _resolver_step_auto(fight: FightState) -> Dictionary:
+	var actor_id: String = fight.current_actor()
+	if actor_id == "":
+		return fight.step({})
+	if str(fight.fighter_dict(actor_id).get("side", "")) == "beast":
+		return fight.step({})
+	var targets: Array[String] = fight.legal_targets(actor_id)
+	var target_id: String = targets[0] if not targets.is_empty() else ""
+	return fight.step({"kind": "strike", "target": target_id})
+
+
+func _resolver_same_ids(got: Variant, expect: Variant, label: String) -> int:
+	var failed: int = 0
+	var got_ids: Array = got as Array if got is Array else []
+	var expect_ids: Array = expect as Array if expect is Array else []
+	failed += _assert(got is Array and expect is Array, "%s ids are lists" % label)
+	failed += _assert(got_ids.size() == expect_ids.size(), "%s size %d vs %d (%s vs %s)" % [label, got_ids.size(), expect_ids.size(), str(got_ids), str(expect_ids)])
+	if got_ids.size() == expect_ids.size():
+		for i: int in got_ids.size():
+			failed += _assert(str(got_ids[i]) == str(expect_ids[i]), "%s [%d] %s vs %s" % [label, i, str(got_ids[i]), str(expect_ids[i])])
 	return failed
 
 

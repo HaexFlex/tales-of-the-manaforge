@@ -1,19 +1,22 @@
 class_name FightState
 extends RefCounted
-## Stepwise, serializable fight. One strike at a time. No scene calls this yet.
-## Round and turn_cursor stay put here; the step loop is a later job.
+## Stepwise, serializable fight. One action per step. No scene calls this yet.
 ## Weave is a flat 30 on party fighters and 0 on beasts (they have none yet).
+## Job 12 fills effective_swiftness, _on_turn_start, _beast_action and
+## _apply_landed_damage. This job leaves those as the single call sites.
 
 
 const RESOLVER_VERSION: int = 1
 const WEAVE_BASE: int = 30
 const LOG_TAIL_MAX: int = 20
+const ROUND_CAP: int = 60
 const BEASTS_PATH: String = "res://data/beasts.json"
 
 var round: int = 0
 var turn_cursor: int = 0
 var order: Array[String] = []
 var ambush: bool = false
+var _outcome: String = ""
 var twist: String = ""
 var salves_used: int = 0
 var controller: String = "manual"
@@ -139,7 +142,7 @@ func fighter_dict(fighter_id: String) -> Dictionary:
 
 
 func strike(attacker: String, defender: String, to_hit_mod: int = 0, telegraph_mult: Variant = 1) -> Dictionary:
-	## The unit a later step loop calls. Ids are the refs stored in `order`.
+	## The blow `step` resolves. Ids are the refs stored in `order`.
 	## telegraph_mult is an int (n/1), a Vector2i(num, den), or a float on a
 	## half step (JSON 1.5 is 3/2). Damage itself never uses a float.
 	var atk := _fighter(attacker)
@@ -150,11 +153,153 @@ func strike(attacker: String, defender: String, to_hit_mod: int = 0, telegraph_m
 	var ratio: Vector2i = telegraph_ratio(telegraph_mult)
 	var dice: BattleRng = _scripted_dice if _scripted_dice != null else _rng
 	var result: Dictionary = BattleResolver.resolve(atk.to_dict(), dfn.to_dict(), to_hit_mod, ratio.x, ratio.y, dice)
-	dfn.hp = int(result["defender_hp_after"])
-	dfn.status = str(result["defender_status"])
+	var damage: int = int(result["damage"])
+	if damage > 0:
+		_apply_landed_damage(dfn, damage)
+	else:
+		dfn.status = BattleResolver.status_for(dfn.side, dfn.hp, dfn.max_hp)
+	result["defender_hp_after"] = dfn.hp
+	result["defender_status"] = dfn.status
 	if _scripted_dice == null:
 		rng_combat_state = _rng.state_string()
 	return result
+
+
+func start_fight() -> void:
+	## Round 1, order rebuilt (Ambush applies this round only), cursor on the first active actor.
+	_outcome = ""
+	_begin_round(1)
+	_resolve_outcome(false)
+
+
+func current_actor() -> String:
+	if _outcome != "":
+		return ""
+	if turn_cursor < 0 or turn_cursor >= order.size():
+		return ""
+	var actor_id: String = order[turn_cursor]
+	if not _is_active(_fighter(actor_id)):
+		return ""
+	return actor_id
+
+
+func outcome() -> String:
+	return _outcome
+
+
+func effective_swiftness(id: String) -> int:
+	## Job 12's Thicket change lands here. Ordering reads Swiftness only through this.
+	var who := _fighter(id)
+	if who == null:
+		return 0
+	return who.swiftness
+
+
+func legal_targets(actor_id: String) -> Array[String]:
+	var actor := _fighter(actor_id)
+	var found: Array[String] = []
+	if actor == null:
+		return found
+	var enemy: String = "beast" if actor.side == "party" else "party"
+	var front_up: bool = _front_standing(enemy)
+	var melee: bool = actor.attack != "magic"
+	for key: Variant in _fighters.keys():
+		var target_id: String = str(key)
+		var foe := _fighter(target_id)
+		if foe == null or foe.side != enemy or not _is_active(foe):
+			continue
+		if melee and front_up and foe.row != "front":
+			continue
+		found.append(target_id)
+	return _sort_targets(found)
+
+
+func to_hit_mod_for(actor_id: String, target_id: String) -> int:
+	## Ranged into a back row while that side's front still stands is −2. Melee is 0.
+	var actor := _fighter(actor_id)
+	var target := _fighter(target_id)
+	if actor == null or target == null or actor.side == target.side:
+		return 0
+	if actor.attack != "magic":
+		return 0
+	if target.row == "back" and _front_standing(target.side):
+		return -2
+	return 0
+
+
+func beast_target(beast_id: String) -> String:
+	## Weakest defense the beast can reach. Physical uses Resilience, magic uses Ward.
+	## Ties: front row, then slot.
+	var who := _fighter(beast_id)
+	if who == null:
+		return ""
+	var best: String = ""
+	for target_id: String in legal_targets(beast_id):
+		if best == "" or _beast_prefers(who, target_id, best):
+			best = target_id
+	return best
+
+
+func step(action: Dictionary = {}) -> Dictionary:
+	## One action. Beasts ignore `action`. An illegal party action spends no turn and no dice.
+	if _outcome != "":
+		return _step_packet("", "", "", {}, round, "fight over")
+	if round <= 0:
+		return _step_packet("", "", "", {}, round, "not started")
+	_advance_to_active()
+	if turn_cursor >= order.size():
+		_roll_round_if_spent()
+		if _outcome != "":
+			return _step_packet("", "", "", {}, round, "fight over")
+	var actor_id: String = current_actor()
+	if actor_id == "":
+		return _step_packet("", "", "", {}, round, "no actor")
+	var actor := _fighter(actor_id)
+	if actor == null:
+		return _step_packet("", "", "", {}, round, "no actor")
+	var action_round: int = round
+	var chosen: Dictionary = _beast_action(actor_id) if actor.side == "beast" else action
+	var kind: String = str(chosen.get("kind", ""))
+	var target_v: Variant = chosen.get("target", "")
+	var target_id: String = "" if target_v == null else str(target_v)
+	if kind != "strike" or not legal_targets(actor_id).has(target_id):
+		if actor.side == "beast":
+			_advance_cursor()
+			if _outcome == "":
+				_roll_round_if_spent()
+			var beast_error: String = "no target" if kind == "strike" else "illegal action"
+			return _step_packet(actor_id, kind, target_id, {}, action_round, beast_error)
+		var party_error: String = "illegal target" if kind == "strike" else "illegal action"
+		return _step_packet(actor_id, kind, target_id, {}, action_round, party_error)
+	_on_turn_start(actor_id)
+	if not _is_active(_fighter(actor_id)):
+		_advance_cursor()
+		if _outcome == "":
+			_roll_round_if_spent()
+		return _step_packet(actor_id, "", "", {}, action_round, "")
+	var blow: Dictionary = strike(actor_id, target_id, to_hit_mod_for(actor_id, target_id), 1)
+	actor.turns += 1
+	_resolve_outcome(false)
+	_advance_cursor()
+	if _outcome == "":
+		_roll_round_if_spent()
+	return _step_packet(actor_id, "strike", target_id, blow, action_round, "")
+
+
+func _on_turn_start(_id: String) -> void:
+	## Job 12: poison ticks and Brace expiring, before the action.
+	pass
+
+
+func _beast_action(beast_id: String) -> Dictionary:
+	## Job 12: a telegraphed intent replaces this plain Strike.
+	return {"kind": "strike", "target": beast_target(beast_id)}
+
+
+func _apply_landed_damage(defender: Fighter, damage: int) -> void:
+	## Job 12: Brace halves this, then the shield absorbs the rest.
+	defender.hp -= damage
+	defender.status = BattleResolver.status_for(defender.side, defender.hp, defender.max_hp)
 
 
 func to_dict() -> Dictionary:
@@ -180,6 +325,7 @@ func to_dict() -> Dictionary:
 		"turn_cursor": turn_cursor,
 		"order": order.duplicate(),
 		"ambush": ambush,
+		"outcome": _outcome,
 		"twist": twist,
 		"salves_used": salves_used,
 		"controller": controller,
@@ -201,6 +347,11 @@ static func from_dict(data: Dictionary) -> FightState:
 		for item: Variant in order_v:
 			fight.order.append(str(item))
 	fight.ambush = _as_bool(data.get("ambush", false))
+	var saved_outcome: String = str(data.get("outcome", ""))
+	if saved_outcome == "win" or saved_outcome == "overwhelmed" or saved_outcome == "flee":
+		fight._outcome = saved_outcome
+	else:
+		fight._outcome = ""
 	fight.twist = str(data.get("twist", ""))
 	fight.salves_used = _as_int(data.get("salves_used", 0))
 	var saved_controller: String = str(data.get("controller", "manual"))
@@ -282,6 +433,174 @@ static func _as_bool(v: Variant, fallback: bool = false) -> bool:
 	if v is int or v is float:
 		return int(v) != 0
 	return fallback
+
+
+func _begin_round(next_round: int) -> void:
+	round = next_round
+	order = _sorted_ids()
+	turn_cursor = 0
+	_advance_to_active()
+
+
+func _sorted_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for key: Variant in _fighters.keys():
+		ids.append(str(key))
+	var sorted: Array[String] = []
+	for fighter_id: String in ids:
+		var placed: bool = false
+		for i: int in sorted.size():
+			if _order_before(fighter_id, sorted[i]):
+				sorted.insert(i, fighter_id)
+				placed = true
+				break
+		if not placed:
+			sorted.append(fighter_id)
+	return sorted
+
+
+func _order_before(a: String, b: String) -> bool:
+	var ka: Array[int] = _order_key(a)
+	var kb: Array[int] = _order_key(b)
+	var n: int = ka.size()
+	if kb.size() < n:
+		n = kb.size()
+	for i: int in n:
+		if ka[i] < kb[i]:
+			return true
+		if ka[i] > kb[i]:
+			return false
+	return false
+
+
+func _order_key(id: String) -> Array[int]:
+	var who := _fighter(id)
+	if who == null:
+		return [1, 0, 0]
+	var swift: int = effective_swiftness(id)
+	var slot: int = who.slot
+	if ambush and round == 1:
+		var ambush_rank: int = 0 if who.side == "beast" else 1
+		return [ambush_rank, -swift, slot]
+	var side_rank: int = 0 if who.side == "party" else 1
+	return [-swift, side_rank, slot]
+
+
+func _advance_to_active() -> void:
+	while turn_cursor < order.size():
+		if _is_active(_fighter(order[turn_cursor])):
+			return
+		turn_cursor += 1
+
+
+func _advance_cursor() -> void:
+	turn_cursor += 1
+	_advance_to_active()
+
+
+func _roll_round_if_spent() -> void:
+	_advance_to_active()
+	if _outcome != "" or turn_cursor < order.size():
+		return
+	_resolve_outcome(true)
+	if _outcome != "":
+		return
+	_begin_round(round + 1)
+	_resolve_outcome(false)
+
+
+func _resolve_outcome(round_finished: bool) -> void:
+	## Win before overwhelmed. Flee only once round 60 has been played out.
+	if _outcome != "":
+		return
+	if not _side_has_active("beast"):
+		_outcome = "win"
+		return
+	if not _side_has_active("party"):
+		_outcome = "overwhelmed"
+		return
+	if round_finished and round >= ROUND_CAP:
+		_outcome = "flee"
+
+
+func _side_has_active(side: String) -> bool:
+	for key: Variant in _fighters.keys():
+		var who := _fighter(str(key))
+		if who != null and who.side == side and _is_active(who):
+			return true
+	return false
+
+
+func _front_standing(side: String) -> bool:
+	for key: Variant in _fighters.keys():
+		var who := _fighter(str(key))
+		if who != null and who.side == side and who.row == "front" and _is_active(who):
+			return true
+	return false
+
+
+func _is_active(who: Fighter) -> bool:
+	return who != null and who.status == "active"
+
+
+func _sort_targets(ids: Array[String]) -> Array[String]:
+	var sorted: Array[String] = []
+	for fighter_id: String in ids:
+		var placed: bool = false
+		for i: int in sorted.size():
+			if _target_list_before(fighter_id, sorted[i]):
+				sorted.insert(i, fighter_id)
+				placed = true
+				break
+		if not placed:
+			sorted.append(fighter_id)
+	return sorted
+
+
+func _target_list_before(a: String, b: String) -> bool:
+	var fa := _fighter(a)
+	var fb := _fighter(b)
+	var a_row: int = 0 if fa != null and fa.row == "front" else 1
+	var b_row: int = 0 if fb != null and fb.row == "front" else 1
+	if a_row != b_row:
+		return a_row < b_row
+	var a_slot: int = fa.slot if fa != null else 0
+	var b_slot: int = fb.slot if fb != null else 0
+	if a_slot != b_slot:
+		return a_slot < b_slot
+	return a < b
+
+
+func _beast_prefers(who: Fighter, candidate: String, current: String) -> bool:
+	var a := _fighter(candidate)
+	var b := _fighter(current)
+	if a == null:
+		return false
+	if b == null:
+		return true
+	var a_stat: int = a.ward if who.attack == "magic" else a.resilience
+	var b_stat: int = b.ward if who.attack == "magic" else b.resilience
+	if a_stat != b_stat:
+		return a_stat < b_stat
+	var a_row: int = 0 if a.row == "front" else 1
+	var b_row: int = 0 if b.row == "front" else 1
+	if a_row != b_row:
+		return a_row < b_row
+	if a.slot != b.slot:
+		return a.slot < b.slot
+	return candidate < current
+
+
+func _step_packet(actor_id: String, kind: String, target_id: String, blow: Dictionary, action_round: int, error: String) -> Dictionary:
+	return {
+		"actor": actor_id,
+		"kind": kind,
+		"target": target_id,
+		"strike": blow,
+		"round": action_round,
+		"outcome": _outcome,
+		"error": error,
+	}
 
 
 func _sync_rng_state() -> void:
