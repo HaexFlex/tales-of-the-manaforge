@@ -81,8 +81,17 @@ static func resolve(attacker: Dictionary, defender: Dictionary, to_hit_mod: int,
 	var soak: int = int(defender.get("ward", 0)) if magic else int(defender.get("resilience", 0))
 	var guard: int = soak
 	var swift: int = int(defender.get("swiftness", 0))
-	var attack_total: int = dice.roll_die(6) + dice.roll_die(6) + offense + to_hit_mod
-	var defense_total: int = _defense_roll(defender, dice) + int((guard + swift) / 2)
+	var atk_face_a: int = dice.roll_die(6)
+	var atk_face_b: int = dice.roll_die(6)
+	var attack_dice: int = atk_face_a + atk_face_b
+	var attack_stat: int = offense
+	var attack_mod: int = to_hit_mod
+	var attack_total: int = attack_dice + attack_stat + attack_mod
+	var defense_stat: int = int((guard + swift) / 2)
+	var defense_block: Dictionary = _defense_roll(defender, dice)
+	var defense_dice: int = int(defense_block.get("dice_sum", 0))
+	var defense_faces: Array[int] = defense_block.get("faces", []) as Array[int]
+	var defense_total: int = defense_dice + defense_stat
 	var margin: int = attack_total - defense_total
 	var band: String = "miss"
 	var mult_num: int = 0
@@ -102,10 +111,12 @@ static func resolve(attacker: Dictionary, defender: Dictionary, to_hit_mod: int,
 		mult_num = 2
 		mult_den = 1
 	var damage: int = 0
+	var damage_face: int = 0
 	var fate_crit: bool = false
 	var hp: int = int(defender.get("hp", 0))
 	if band != "miss":
 		var face: int = dice.roll_die(die_size(offense))
+		damage_face = face
 		var raw: int = face + offense - int(soak / 2)
 		if raw < 1:
 			raw = 1
@@ -122,26 +133,35 @@ static func resolve(attacker: Dictionary, defender: Dictionary, to_hit_mod: int,
 	var max_hp: int = int(defender.get("max_hp", 0))
 	return {
 		"attack_total": attack_total,
+		"attack_dice": attack_dice,
+		"attack_stat": attack_stat,
+		"attack_mod": attack_mod,
 		"defense_total": defense_total,
+		"defense_dice": defense_dice,
+		"defense_stat": defense_stat,
+		"defense_faces": defense_faces,
 		"margin": margin,
 		"band": band,
 		"damage": damage,
+		"damage_face": damage_face,
 		"fate_crit": fate_crit,
 		"defender_hp_after": hp,
 		"defender_status": status_for(side, hp, max_hp),
 	}
 
 
-static func _defense_roll(defender: Dictionary, dice: BattleRng) -> int:
+static func _defense_roll(defender: Dictionary, dice: BattleRng) -> Dictionary:
 	## Two d6, or three while braced. The third die is consumed in this same
 	## slot, and the best two are kept. A miss still spends the defense dice.
 	var first: int = dice.roll_die(6)
 	var second: int = dice.roll_die(6)
+	var faces: Array[int] = [first, second]
 	if not _flag(defender.get("brace", false)):
-		return first + second
+		return {"dice_sum": first + second, "faces": faces}
 	var third: int = dice.roll_die(6)
+	faces.append(third)
 	var lowest: int = mini(first, mini(second, third))
-	return first + second + third - lowest
+	return {"dice_sum": first + second + third - lowest, "faces": faces}
 
 
 static func _flag(v: Variant) -> bool:

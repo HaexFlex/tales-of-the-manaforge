@@ -694,5 +694,19 @@
   "adv_arena_placeholder": "Forest arena: art coming",
   "adv_boss_mark": "Boss",
   "adv_plate_hp": "HP {hp}/{max}",
-  "adv_plate_weave": "Weave {weave}"
+  "adv_plate_weave": "Weave {weave}",
+  "adv_log_strike": "{attacker} {atk} vs {defender} {def} → {result} for {damage}",
+  "adv_log_miss": "{attacker} {atk} vs {defender} {def} → miss",
+  "adv_band_graze": "graze",
+  "adv_band_hit": "hit",
+  "adv_band_crush": "crushing blow",
+  "adv_log_crit_suffix": " (Fate crit)",
+  "adv_log_shield_suffix": " ({amount} absorbed by the shield)",
+  "adv_log_brace": "{name} braces.",
+  "adv_log_salve": "{name} uses a Heart Salve on {target}: +{amount} HP.",
+  "adv_log_heavy_reveal": "{beast} winds up a heavy blow (×{mult}).",
+  "adv_log_poison_apply": "{beast} poisons {target} ({total} over 3 turns).",
+  "adv_log_poison_tick": "{name} takes {amount} poison.",
+  "adv_log_round": "Round {round}",
+  "adv_log_victory": "All beasts are Calmed."
 }

@@ -396,6 +396,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_RESOLVER_LOG") == "1":
+		var resolver_log_only: int = _resolver_log()
+		if resolver_log_only > 0:
+			print("RESOLVER_LOG_FAIL: %d" % resolver_log_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# Battle arena shell. The full suite runs these at the end.
 	if OS.get_environment("MANAFORGE_BATTLE_SHELL") == "1":
 		var battle_shell_only: int = await _battle_shell(tree_root, game_state, save_service)
@@ -2936,6 +2945,7 @@ func _run() -> void:
 	failed += _resolver_boss()
 	failed += _resolver_salve()
 	failed += _auto_flee_ko_zero()
+	failed += _resolver_log()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8981,7 +8991,7 @@ func _save_v14_from_main(tree_root: Window, game_state: Node, save_service: Node
 
 
 func _resolver_all() -> int:
-	return _resolver_dice() + _resolver_margin() + _resolver_die_table() + _resolver_seed() + _resolver_state_roundtrip() + _resolver_turn_order() + _resolver_rows() + _resolver_targeting() + _resolver_brace() + _resolver_shield_order() + _resolver_poison_refresh() + _resolver_twists() + _resolver_boss() + _resolver_salve() + _auto_flee_ko_zero()
+	return _resolver_dice() + _resolver_margin() + _resolver_die_table() + _resolver_seed() + _resolver_state_roundtrip() + _resolver_turn_order() + _resolver_rows() + _resolver_targeting() + _resolver_brace() + _resolver_shield_order() + _resolver_poison_refresh() + _resolver_twists() + _resolver_boss() + _resolver_salve() + _auto_flee_ko_zero() + _resolver_log()
 
 
 func _resolver_dice() -> int:
@@ -10634,6 +10644,254 @@ func _auto_flee_ko_zero() -> int:
 	failed += _assert(not bool(boss_row.get("should_flee", true)), "Calmed beasts cannot force a flee by themselves")
 	if failed == 0:
 		print("AUTO_FLEE_KO_ZERO_OK")
+	return failed
+
+
+func _resolver_log() -> int:
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var by_id: Dictionary = {}
+	for case_v: Variant in cases.get("strikes", []) as Array:
+		var row: Dictionary = case_v as Dictionary
+		by_id[str(row.get("id", ""))] = row
+	for doc_v: Variant in cases.get("doc_cases", []) as Array:
+		var doc: Dictionary = doc_v as Dictionary
+		by_id[str(doc.get("id", ""))] = doc
+	var line1: String = "Keeper 7+11=18 vs Acorn imp 5+6=11 → crushing blow for 24"
+	var line2: String = "Acorn imp 6+7=13 vs Keeper 7+6=13 → graze for 4"
+	var line4_suffix: String = "crushing blow for 52 (Fate crit)"
+	var seen_kinds: Dictionary = {}
+	for cid: String in ["s4_line1", "s4_line2", "s4_line4"]:
+		failed += _assert(by_id.has(cid), "fixture %s" % cid)
+		if not by_id.has(cid):
+			continue
+		var case: Dictionary = by_id[cid] as Dictionary
+		var fight: FightState = _resolver_log_case_fight(case, cid == "s4_line2")
+		fight.set_scripted_dice(_resolver_faces(case))
+		var actor_id: String = fight.current_actor()
+		var stepped: Dictionary = {}
+		if cid == "s4_line2":
+			failed += _assert(actor_id == "attacker", "s4_line2 lets the imp act first")
+			stepped = fight.step({})
+		else:
+			failed += _assert(actor_id == "attacker", "%s lets the keeper act first" % cid)
+			stepped = fight.step({"kind": "strike", "target": "defender"})
+		_resolver_log_collect_events(stepped.get("events", []) as Array, seen_kinds)
+		failed += _resolver_log_assert_sums(stepped.get("events", []) as Array, cid)
+		var want_line: String = line1 if cid == "s4_line1" else (line2 if cid == "s4_line2" else "")
+		if want_line != "":
+			failed += _assert(_resolver_log_has_line(fight, want_line), "%s log line" % cid)
+		if cid == "s4_line4":
+			failed += _assert(_resolver_log_has_line(fight, line4_suffix), "s4_line4 fate suffix")
+	var brace_case: Dictionary = by_id.get("s4_line3_brace", {}) as Dictionary
+	if not brace_case.is_empty():
+		var brace_fight: FightState = FightStateScript.new()
+		var keeper: Dictionary = {
+			"might": 1, "arcana": 1, "resilience": 6, "ward": 5,
+			"vitality": 8, "swiftness": 7, "fate": 0,
+		}
+		brace_fight.add_member("keeper", keeper, 0, "front", "keeper")
+		brace_fight.add_beast("acorn_imp", 0, "front", "imp")
+		brace_fight.start_fight()
+		brace_fight.set_scripted_dice([4, 5, 6, 5, 1])
+		var braced: Dictionary = brace_fight.step({"kind": "brace"})
+		_resolver_log_collect_events(braced.get("events", []) as Array, seen_kinds)
+		var braced_blow: Dictionary = brace_fight.step({})
+		_resolver_log_collect_events(braced_blow.get("events", []) as Array, seen_kinds)
+		failed += _assert(_resolver_log_has_line(brace_fight, "[6,5,1 → 6+5]"), "braced miss shows kept dice")
+	var salve_fight: FightState = FightStateScript.new()
+	salve_fight.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")
+	salve_fight.add_member("elaia", _resolver_tank(2), 1, "front", "elaia")
+	salve_fight.add_beast("acorn_imp", 0, "front", "imp")
+	salve_fight.loadout = {"heart_salve": 1}
+	salve_fight.start_fight()
+	var salve: Dictionary = salve_fight.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
+	_resolver_log_collect_events(salve.get("events", []) as Array, seen_kinds)
+	var poison_fight: FightState = FightStateScript.new()
+	var slow_keeper: Dictionary = _resolver_tank(0)
+	slow_keeper["swiftness"] = 0
+	var quick_moth: Dictionary = _resolver_tank(1)
+	quick_moth["swiftness"] = 10
+	poison_fight.add_member("keeper", slow_keeper, 0, "front", "keeper")
+	poison_fight.add_fighter("moth", "beast", quick_moth, 0, "front", "physical", "spore_moth", "")
+	poison_fight.start_fight()
+	for _i: int in 2:
+		poison_fight.step({"kind": "brace"})
+		var poisoned: Dictionary = poison_fight.step({})
+		_resolver_log_collect_events(poisoned.get("events", []) as Array, seen_kinds)
+	poison_fight.apply_poison("keeper", 6)
+	var tick_fight: FightState = FightStateScript.new()
+	tick_fight.add_member("keeper", _resolver_tank(9), 0, "front", "keeper")
+	tick_fight.add_beast("acorn_imp", 0, "front", "imp")
+	tick_fight.start_fight()
+	tick_fight.apply_poison("keeper", 3)
+	var ticked: Dictionary = tick_fight.step({"kind": "brace"})
+	_resolver_log_collect_events(ticked.get("events", []) as Array, seen_kinds)
+	var win_fight: FightState = FightStateScript.new()
+	var smasher: Dictionary = _resolver_tank(10)
+	smasher["might"] = 30
+	win_fight.add_member("keeper", smasher, 0, "front", "keeper")
+	var prey: Dictionary = _resolver_tank(1)
+	prey["resilience"] = 0
+	prey["ward"] = 0
+	prey["vitality"] = 1
+	win_fight.add_beast("acorn_imp", 0, "front", "imp")
+	win_fight.set_scripted_dice([6, 6, 1, 1, 10])
+	win_fight.start_fight()
+	var won: Dictionary = win_fight.step({"kind": "strike", "target": "imp"})
+	_resolver_log_collect_events(won.get("events", []) as Array, seen_kinds)
+	var loss_fight: FightState = FightStateScript.new()
+	var bruiser: Dictionary = _resolver_tank(10)
+	bruiser["might"] = 30
+	loss_fight.add_beast("acorn_imp", 0, "front", "imp")
+	var fallen: Dictionary = _resolver_tank(1)
+	fallen["resilience"] = 0
+	fallen["ward"] = 0
+	fallen["vitality"] = 1
+	loss_fight.add_member("keeper", fallen, 0, "front", "keeper")
+	loss_fight.set_scripted_dice([6, 6, 1, 1, 10, 9])
+	loss_fight.start_fight()
+	var lost: Dictionary = loss_fight.step({})
+	_resolver_log_collect_events(lost.get("events", []) as Array, seen_kinds)
+	var cap: FightState = FightStateScript.new()
+	cap.set_combat_seed(60)
+	cap.add_member("keeper", _resolver_tank(3), 0, "front", "keeper")
+	cap.add_beast("acorn_imp", 0, "front", "imp")
+	cap.start_fight()
+	for _n: int in range(1, 130):
+		var cap_step: Dictionary = _resolver_step_auto(cap)
+		if cap.outcome() == "flee":
+			_resolver_log_collect_events(cap_step.get("events", []) as Array, seen_kinds)
+			break
+	var need: Array[String] = [
+		"round_start", "poison_tick", "brace", "item", "intent_reveal", "poison_apply",
+		"strike", "knocked_out", "calmed", "outcome",
+	]
+	for kind: String in need:
+		failed += _assert(seen_kinds.has(kind), "event kind %s appeared" % kind)
+		if seen_kinds.has(kind):
+			var sample: Dictionary = seen_kinds[kind] as Dictionary
+			match kind:
+				"round_start":
+					failed += _assert(sample.has("round"), "round_start.round")
+				"poison_tick":
+					for key: String in ["target", "amount", "shield_absorbed", "hp_after"]:
+						failed += _assert(sample.has(key), "poison_tick.%s" % key)
+				"brace":
+					failed += _assert(sample.has("actor"), "brace.actor")
+				"item":
+					for key: String in ["actor", "item", "target", "healed"]:
+						failed += _assert(sample.has(key), "item.%s" % key)
+				"intent_reveal":
+					for key: String in ["actor", "move", "mult"]:
+						failed += _assert(sample.has(key), "intent_reveal.%s" % key)
+				"poison_apply":
+					for key: String in ["actor", "target", "total"]:
+						failed += _assert(sample.has(key), "poison_apply.%s" % key)
+				"strike":
+					for key: String in ["actor", "target", "attack_total", "attack_dice", "attack_stat", "attack_mod", "defense_total", "defense_dice", "defense_stat", "defense_faces", "damage", "damage_face", "band", "to_hit_mod", "telegraph_mult", "braced", "shield_absorbed", "hp_after", "target_side"]:
+						failed += _assert(sample.has(key), "strike.%s" % key)
+				"knocked_out", "calmed":
+					failed += _assert(sample.has("target"), "%s.target" % kind)
+				"outcome":
+					failed += _assert(sample.has("result"), "outcome.result")
+	var spam: FightState = FightStateScript.new()
+	spam.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")
+	spam.add_beast("acorn_imp", 0, "front", "imp")
+	spam.start_fight()
+	for _spam: int in 30:
+		if spam.outcome() != "":
+			break
+		spam.step({"kind": "brace"})
+		if spam.outcome() != "":
+			break
+		spam.step({})
+	failed += _assert(spam.log_tail.size() <= 20, "log_tail stays capped at 20 (got %d)" % spam.log_tail.size())
+	var tree_root: Window = get_tree().root as Window
+	var cs: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null, "ContentStrings for log strings")
+	var log_keys: Array[String] = [
+		"adv_log_strike", "adv_log_miss", "adv_band_graze", "adv_band_hit", "adv_band_crush",
+		"adv_log_crit_suffix", "adv_log_shield_suffix", "adv_log_brace", "adv_log_salve",
+		"adv_log_heavy_reveal", "adv_log_poison_apply", "adv_log_poison_tick", "adv_log_round",
+		"adv_log_victory",
+	]
+	for key: String in log_keys:
+		var text: String = str(cs.call("get_text", key))
+		failed += _assert(text != key and not text.strip_edges().is_empty(), "%s resolves" % key)
+		var lower: String = text.to_lower()
+		for banned: String in ["slain", "killed", "rootweave"]:
+			failed += _assert(lower.find(banned) < 0, "%s avoids %s" % [key, banned])
+	if failed == 0:
+		print("RESOLVER_LOG_OK")
+	return failed
+
+
+func _resolver_log_case_fight(case: Dictionary, imp_first: bool) -> FightState:
+	var fight: FightState = FightStateScript.new()
+	var att: Dictionary = (case.get("attacker", {}) as Dictionary).duplicate(true)
+	var dfn: Dictionary = (case.get("defender", {}) as Dictionary).duplicate(true)
+	if imp_first:
+		att["swi"] = 10
+		dfn["swi"] = 0
+	var attack_type: String = str(case.get("attack_type", "physical"))
+	var att_side: String = _resolver_side(str(att.get("name", "")))
+	var dfn_side: String = _resolver_side(str(dfn.get("name", "")))
+	var att_member: String = ""
+	var dfn_member: String = ""
+	var att_species: String = ""
+	var dfn_species: String = ""
+	if att_side == "party":
+		att_member = "elaia" if str(att.get("name", "")) == "Elaia" else "keeper"
+	else:
+		att_species = "acorn_imp"
+	if dfn_side == "party":
+		dfn_member = "elaia" if str(dfn.get("name", "")) == "Elaia" else "keeper"
+	else:
+		dfn_species = "acorn_imp"
+	var dfn_kind: String = str(dfn.get("kind", "phys"))
+	var dfn_attack: String = "magic" if dfn_kind == "mag" else "physical"
+	fight.add_fighter("attacker", att_side, att, 0, "front", attack_type, att_species, att_member)
+	fight.add_fighter("defender", dfn_side, dfn, 0, "front", dfn_attack, dfn_species, dfn_member)
+	if dfn.has("hp"):
+		fight.set_hp("defender", int(dfn["hp"]))
+	fight.start_fight()
+	return fight
+
+
+func _resolver_log_has_line(fight: FightState, fragment: String) -> bool:
+	for entry: Variant in fight.log_tail:
+		if str(entry).find(fragment) >= 0:
+			return true
+	return false
+
+
+func _resolver_log_collect_events(events: Array, seen: Dictionary) -> void:
+	for entry: Variant in events:
+		if entry is Dictionary:
+			var ev: Dictionary = entry as Dictionary
+			var kind: String = str(ev.get("kind", ""))
+			if kind != "" and not seen.has(kind):
+				seen[kind] = ev
+
+
+func _resolver_log_assert_sums(events: Array, label: String) -> int:
+	var failed: int = 0
+	for entry: Variant in events:
+		if not (entry is Dictionary):
+			continue
+		var ev: Dictionary = entry as Dictionary
+		if str(ev.get("kind", "")) != "strike":
+			continue
+		var total: int = int(ev.get("attack_total", -1))
+		var dice: int = int(ev.get("attack_dice", -1))
+		var stat: int = int(ev.get("attack_stat", -1))
+		var mod: int = int(ev.get("attack_mod", -1))
+		failed += _assert(total == dice + stat + mod, "%s attack_total splits (%d vs %d+%d+%d)" % [label, total, dice, stat, mod])
+		var def_total: int = int(ev.get("defense_total", -1))
+		var def_dice: int = int(ev.get("defense_dice", -1))
+		var def_stat: int = int(ev.get("defense_stat", -1))
+		failed += _assert(def_total == def_dice + def_stat, "%s defense_total splits" % label)
 	return failed
 
 
