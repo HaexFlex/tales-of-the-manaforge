@@ -443,6 +443,24 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BATTLE_MENU") == "1":
+		var battle_menu_only: int = await _battle_menu(tree_root, game_state, save_service)
+		if battle_menu_only > 0:
+			print("BATTLE_MENU_FAIL: %d" % battle_menu_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_TARGET_REACH") == "1":
+		var battle_target_only: int = await _battle_target_reach(tree_root, game_state, save_service)
+		if battle_target_only > 0:
+			print("BATTLE_TARGET_REACH_FAIL: %d" % battle_target_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
 		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
 		if elaia_failed > 0:
@@ -2945,6 +2963,8 @@ func _run() -> void:
 	failed += await _battle_shell(tree_root, game_state, save_service)
 	failed += await _battle_echo_exclusive(tree_root, game_state, save_service)
 	failed += await _battle_plates(tree_root, game_state, save_service)
+	failed += await _battle_menu(tree_root, game_state, save_service)
+	failed += await _battle_target_reach(tree_root, game_state, save_service)
 	failed += _resolver_turn_order()
 	failed += _resolver_rows()
 	failed += _resolver_targeting()
@@ -11575,6 +11595,271 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	if failed == 0:
 		print("BATTLE_PLATES_OK")
 	return failed
+
+
+func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null and backpack != null, "hub boots for battle menu")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	var wood_before: int = int(game_state.get("wood"))
+	var salve_before: int = int(backpack.call("get_count", "heart_salve"))
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for menu")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	failed += _assert(views.size() == 1, "one arena overlay for menu")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "arena is a BattleView")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	view.call("start_test_fight", 1, false, true, 12345)
+	await process_frame
+	var menu: VBoxContainer = view.get_node_or_null("Arena/ActionMenu") as VBoxContainer
+	failed += _assert(menu != null and menu.visible, "menu on first party turn")
+	var idle_btn: Button = view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+	failed += _assert(idle_btn != null and idle_btn.disabled, "Idle is disabled")
+	var ability_row: Node = menu.get_node_or_null("AbilityRow")
+	for n: int in 4:
+		var ab: Button = null
+		if ability_row != null:
+			ab = ability_row.get_node_or_null("AbilityButton%d" % (n + 1)) as Button
+		failed += _assert(ab != null and ab.disabled and ab.text == "—", "ability %d empty" % (n + 1))
+		failed += _assert(ab != null and ab.tooltip_text.find("Weave") >= 0, "ability %d tooltip" % (n + 1))
+	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+	failed += _assert(salve_btn != null and salve_btn.text.find("Heart Salve") >= 0 and salve_btn.text.find("×2") >= 0, "salve shows ×2")
+	var brace_btn: Button = view.get_node_or_null("Arena/ActionMenu/BraceButton") as Button
+	failed += _assert(brace_btn != null, "Brace button")
+	if brace_btn != null:
+		brace_btn.emit_signal("pressed")
+	await process_frame
+	var fight: FightState = view._fight
+	failed += _assert(fight != null, "fight state")
+	if fight != null:
+		var braced: bool = false
+		for line: Variant in fight.log_tail:
+			if str(line).find("braces") >= 0:
+				braced = true
+				break
+		failed += _assert(braced, "brace log line")
+	var salve_done: bool = false
+	var strike_presses: int = 0
+	while fight != null and fight.outcome() == "" and strike_presses < 300:
+		await process_frame
+		var actor: String = fight.current_actor()
+		if actor == "":
+			view.call("_advance")
+			continue
+		if str(fight.fighter_dict(actor).get("side", "")) != "party":
+			view.call("_advance")
+			continue
+		if actor == "keeper" and not salve_done:
+			fight.set_hp("keeper", 5)
+			view.call("refresh_fight", fight)
+			salve_btn = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+			if salve_btn != null:
+				salve_btn.emit_signal("pressed")
+			await process_frame
+			var salve_target: Button = view.get_node_or_null("Arena/TargetLayer/TargetButton_keeper") as Button
+			failed += _assert(salve_target != null, "salve target on Keeper")
+			if salve_target != null:
+				salve_target.emit_signal("pressed")
+			await process_frame
+			salve_btn = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+			failed += _assert(salve_btn != null and salve_btn.text.find("×1") >= 0, "salve count drops to ×1")
+			var keeper_hp: int = int(fight.fighter_dict("keeper").get("hp", 0))
+			failed += _assert(keeper_hp > 5, "salve heals Keeper")
+			salve_done = true
+			continue
+		var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+		if strike_btn != null and strike_btn.visible:
+			strike_btn.emit_signal("pressed")
+		await process_frame
+		var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+		var picked: Button = null
+		if target_layer != null:
+			for child: Node in target_layer.get_children():
+				if str(child.name).begins_with("TargetButton_"):
+					picked = child as Button
+					break
+		if picked != null:
+			picked.emit_signal("pressed")
+			strike_presses += 1
+		await process_frame
+	var result: Label = view.get_node_or_null("Arena/ResultLabel") as Label
+	failed += _assert(fight != null and fight.outcome() != "", "fight reaches an outcome")
+	failed += _assert(result != null and result.text != "", "ResultLabel shows a result")
+	failed += _assert(strike_presses < 300, "fight ends within 300 strikes")
+	var start_btn: Button = view.get_node_or_null("Arena/TestFightBar/StartFightButton") as Button
+	failed += _assert(start_btn != null and not start_btn.disabled, "Start fight is enabled after the fight")
+	if start_btn != null:
+		var vp: Viewport = live.get_viewport()
+		var at: Vector2 = start_btn.get_global_rect().get_center()
+		vp.warp_mouse(at)
+		var hover := InputEventMouseMotion.new()
+		hover.position = at
+		hover.global_position = at
+		vp.push_input(hover, true)
+		for pressed_v: bool in [true, false]:
+			var press := InputEventMouseButton.new()
+			press.button_index = MOUSE_BUTTON_LEFT
+			press.pressed = pressed_v
+			press.position = at
+			press.global_position = at
+			vp.push_input(press, true)
+		await process_frame
+	view.call("start_test_fight", 1, false, true, 54321)
+	await process_frame
+	var flee_btn: Button = view.get_node_or_null("Arena/ActionMenu/FleeButton") as Button
+	if flee_btn != null:
+		flee_btn.emit_signal("pressed")
+	await process_frame
+	failed += _assert(view._fight != null and view._fight.outcome() == "flee", "flee outcome")
+	result = view.get_node_or_null("Arena/ResultLabel") as Label
+	var trail: String = str(content_strings.call("get_text", "adv_back_at_trailhead"))
+	failed += _assert(result != null and result.text == trail, "flee ResultLabel")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == salve_before, "backpack salve unchanged")
+	failed += _assert(int(game_state.get("wood")) == wood_before, "wood unchanged")
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_MENU_OK")
+	return failed
+
+
+func _battle_target_reach(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for target reach")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for target reach")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "BattleView")
+	if view == null:
+		live.free()
+		paused = false
+		return failed
+	var fight: FightState = FightStateScript.new()
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	fight.add_member("keeper", keeper_stats, 0, "front", "keeper")
+	var elaia_stats: Dictionary = {
+		"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
+		"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+	}
+	fight.add_member("elaia", elaia_stats, 1, "back", "elaia")
+	fight.add_beast("acorn_imp", 0, "front", "acorn_imp")
+	fight.add_beast("spore_moth", 1, "back", "spore_moth")
+	fight.loadout = {"heart_salve": 2}
+	fight.start_fight()
+	view._fight = fight
+	view.call("show_fight", fight)
+	view.call("_advance")
+	await process_frame
+	failed += _assert(await _battle_wait_actor(view, fight, "keeper", 120), "reach keeper turn")
+	view.call("_on_strike_pressed")
+	await process_frame
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_acorn_imp") != null, "keeper melee targets front imp")
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_spore_moth") == null, "keeper cannot reach back moth yet")
+	view.call("_exit_target_mode")
+	failed += _assert(await _battle_wait_actor(view, fight, "elaia", 120), "reach Elaia turn")
+	view.call("_on_strike_pressed")
+	await process_frame
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_acorn_imp") != null, "Elaia sees imp")
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_spore_moth") != null, "Elaia sees moth")
+	var layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	if layer != null:
+		for child: Node in layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				var tid: String = str(child.name).substr(13)
+				failed += _assert(fight.legal_targets("elaia").has(tid), "target %s is legal for Elaia" % tid)
+	view.call("_exit_target_mode")
+	fight.set_hp("acorn_imp", 0)
+	view.call("refresh_fight", fight)
+	failed += _assert(await _battle_wait_actor(view, fight, "keeper", 120), "keeper turn after Calmed imp")
+	view.call("_on_strike_pressed")
+	await process_frame
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_spore_moth") != null, "keeper can target moth after imp Calmed")
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_acorn_imp") == null, "no target on Calmed imp")
+	view.call("_exit_target_mode")
+	var steps_before: int = fight.round
+	view.call("_on_strike_pressed")
+	await process_frame
+	var imp_sprite: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp") as Control
+	if imp_sprite != null:
+		var at: Vector2 = imp_sprite.get_global_rect().get_center()
+		var vp: Viewport = live.get_viewport()
+		vp.warp_mouse(at)
+		var press := InputEventMouseButton.new()
+		press.button_index = MOUSE_BUTTON_LEFT
+		press.pressed = true
+		press.position = at
+		press.global_position = at
+		vp.push_input(press, true)
+		press.pressed = false
+		vp.push_input(press, true)
+		await process_frame
+	failed += _assert(fight.round == steps_before, "click on non-target sprite does not step")
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	if keeper != null and keeper.has_method("halt"):
+		keeper.call("halt")
+	var origin: Vector2 = keeper.global_position if keeper != null else Vector2.ZERO
+	var point: Vector2 = _battle_walk_point(live, origin)
+	_battle_click(live, point, MOUSE_BUTTON_RIGHT)
+	for _blocked: int in 8:
+		await physics_frame
+	failed += _assert(keeper != null and keeper.global_position.distance_to(origin) < 1.0, "world click still blocked with arena open")
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_TARGET_REACH_OK")
+	return failed
+
+
+func _battle_wait_actor(view: BattleView, fight: FightState, actor_id: String, max_steps: int) -> bool:
+	for _step: int in max_steps:
+		if fight.outcome() != "":
+			return false
+		if fight.current_actor() == actor_id:
+			return true
+		var cur: String = fight.current_actor()
+		if cur == "":
+			view.call("_advance")
+		elif str(fight.fighter_dict(cur).get("side", "")) == "beast":
+			view.call("_advance")
+		else:
+			fight.step({"kind": "brace"})
+			view.call("_advance")
+		await process_frame
+	return false
 
 
 func _battle_echo_exclusive(tree_root: Window, game_state: Node, save_service: Node) -> int:

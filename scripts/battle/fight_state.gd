@@ -410,6 +410,8 @@ func _step_party(actor: Fighter, action: Dictionary, action_round: int) -> Dicti
 		return _act_strike(actor, target_id, to_hit_mod_for(actor.id, target_id), 1, action_round)
 	if kind == "brace":
 		return _act_brace(actor, action_round)
+	if kind == "flee":
+		return _act_flee(actor, action_round)
 	if kind == "item":
 		return _act_item(actor, action, action_round)
 	return _step_packet(actor.id, kind, target_id, {}, action_round, "illegal action", [])
@@ -478,6 +480,22 @@ func _act_brace(actor: Fighter, action_round: int) -> Dictionary:
 	_commit_turn()
 	_outcome_events(outcome_before, events)
 	return _step_packet(actor_id, "brace", "", {}, action_round, "", events)
+
+
+func _act_flee(actor: Fighter, action_round: int) -> Dictionary:
+	var actor_id: String = actor.id
+	var events: Array = []
+	_maybe_round_start(events, action_round)
+	_poison_ticks_at_turn_start(actor_id, events)
+	if not _is_active(_fighter(actor_id)):
+		return _lost_turn(actor_id, action_round, events)
+	var acted := _fighter(actor_id)
+	if acted != null:
+		acted.turns += 1
+	_outcome = "flee"
+	events.append({"kind": "flee", "actor": actor_id})
+	_outcome_events("", events)
+	return _step_packet(actor_id, "flee", "", {}, action_round, "", events)
 
 
 func _act_poison(actor: Fighter, target_id: String, total: int, action_round: int) -> Dictionary:
@@ -655,10 +673,24 @@ func _outcome_events(before: String, events: Array) -> void:
 func _record_log(events: Array) -> void:
 	for entry: Variant in events:
 		if entry is Dictionary:
-			var line: String = BattleLog.line_for(entry as Dictionary, self)
+			var ev: Dictionary = entry as Dictionary
+			var line: String = BattleLog.line_for(ev, self)
+			if line == "" and str(ev.get("kind", "")) == "flee":
+				line = _log_text("adv_log_flee", "The party flees.")
 			if line != "":
 				log_tail.append(line)
 	_trim_log()
+
+
+func _log_text(key: String, fallback: String) -> String:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var cs: Node = tree.root.get_node_or_null("ContentStrings")
+		if cs != null:
+			var line: String = str(cs.call("get_text", key))
+			if line != "" and line != key:
+				return line
+	return fallback
 
 
 func _beast_action(beast_id: String) -> Dictionary:

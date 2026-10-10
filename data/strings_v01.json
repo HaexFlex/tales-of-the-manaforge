@@ -708,5 +708,12 @@
   "adv_log_poison_apply": "{beast} poisons {target} ({total} over 3 turns).",
   "adv_log_poison_tick": "{name} takes {amount} poison.",
   "adv_log_round": "Round {round}",
-  "adv_log_victory": "All beasts are Calmed."
+  "adv_log_victory": "All beasts are Calmed.",
+  "adv_log_flee": "The party flees.",
+  "adv_menu_strike": "Strike",
+  "adv_menu_brace": "Brace",
+  "adv_menu_flee": "Flee",
+  "adv_menu_idle": "Idle",
+  "adv_menu_cancel": "Back",
+  "adv_menu_idle_later": "Hands the fight to idle Auto. Not in the test fight yet."
 }

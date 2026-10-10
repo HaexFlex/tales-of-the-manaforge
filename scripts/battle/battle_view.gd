@@ -56,6 +56,10 @@ const BEAST_HURT: Dictionary = {
 	"wilt_wisp": ART_DIR + "beasts/battle_wilt_wisp_hurt.png",
 }
 const SLOT_MARK_PATH: String = ART_DIR + "arena/slot_mark.png"
+const TARGET_MARK_PATH: String = ART_DIR + "arena/slot_mark_target.png"
+const TARGET_BUTTON_SIZE: Vector2 = Vector2(80.0, 110.0)
+const LOG_PANEL_RECT: Rect2 = Rect2(960.0, 64.0, 304.0, 236.0)
+const ACTION_MENU_POS: Vector2 = Vector2(16.0, 468.0)
 const SHADOW_M_PATH: String = ART_DIR + "arena/shadow_m.png"
 const BACKDROP: Color = Color(0.05, 0.14, 0.08, 1.0)
 const PARTY_BAR_TOP: float = 608.0
@@ -80,6 +84,25 @@ static var _current: Node = null
 
 var _party_bar: PanelContainer = null
 var _active_fighter_id: String = ""
+var _fight: FightState = null
+var _target_mode: String = ""
+var _test_fight_bar: HBoxContainer = null
+var _depth_spin: SpinBox = null
+var _boss_check: CheckBox = null
+var _elaia_check: CheckBox = null
+var _start_fight_button: Button = null
+var _action_menu: VBoxContainer = null
+var _strike_button: Button = null
+var _salve_button: Button = null
+var _brace_button: Button = null
+var _flee_button: Button = null
+var _idle_button: Button = null
+var _cancel_target_button: Button = null
+var _ability_buttons: Array[Button] = []
+var _log_panel: VBoxContainer = null
+var _log_labels: Array[Label] = []
+var _result_label: Label = null
+var _target_layer: Control = null
 
 
 static func is_open() -> bool:
@@ -158,6 +181,10 @@ func _ready() -> void:
 	_place_party()
 	if _close_button and not _close_button.pressed.is_connected(close_overlay):
 		_close_button.pressed.connect(close_overlay)
+	if _close_button:
+		_close_button.add_to_group("battle_ui")
+	_build_test_fight_bar()
+	_build_fight_hud()
 	_bind_load()
 
 
@@ -382,6 +409,10 @@ func set_active(fighter_id: String) -> void:
 
 
 func _clear_fight_ui() -> void:
+	_exit_target_mode()
+	if _result_label != null:
+		_result_label.text = ""
+	_hide_action_menu()
 	if _fighters != null:
 		for child: Node in _fighters.get_children():
 			_fighters.remove_child(child)
@@ -823,6 +854,356 @@ func _text(key: String, fallback: String, params: Dictionary = {}) -> String:
 	return line
 
 
+func _ui_button(text: String, parent: Control) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.add_to_group("battle_ui")
+	parent.add_child(button)
+	return button
+
+
+func _build_test_fight_bar() -> void:
+	if _arena == null:
+		return
+	_test_fight_bar = HBoxContainer.new()
+	_test_fight_bar.name = "TestFightBar"
+	_test_fight_bar.position = Vector2(16.0, 12.0)
+	_test_fight_bar.add_theme_constant_override("separation", 8)
+	var depth_label := Label.new()
+	depth_label.text = "Depth"
+	depth_label.add_to_group("battle_ui")
+	_test_fight_bar.add_child(depth_label)
+	_depth_spin = SpinBox.new()
+	_depth_spin.name = "DepthSpin"
+	_depth_spin.min_value = 1.0
+	_depth_spin.max_value = 15.0
+	_depth_spin.value = 1.0
+	_depth_spin.add_to_group("battle_ui")
+	_test_fight_bar.add_child(_depth_spin)
+	_boss_check = CheckBox.new()
+	_boss_check.name = "BossCheck"
+	_boss_check.text = "Boss room"
+	_boss_check.add_to_group("battle_ui")
+	_test_fight_bar.add_child(_boss_check)
+	_elaia_check = CheckBox.new()
+	_elaia_check.name = "ElaiaCheck"
+	_elaia_check.text = "With Elaia"
+	_elaia_check.button_pressed = true
+	_elaia_check.add_to_group("battle_ui")
+	_test_fight_bar.add_child(_elaia_check)
+	_start_fight_button = _ui_button("Start fight", _test_fight_bar)
+	_start_fight_button.name = "StartFightButton"
+	if not _start_fight_button.pressed.is_connected(_on_start_fight_pressed):
+		_start_fight_button.pressed.connect(_on_start_fight_pressed)
+	_arena.add_child(_test_fight_bar)
+
+
+func _build_fight_hud() -> void:
+	if _arena == null:
+		return
+	_result_label = Label.new()
+	_result_label.name = "ResultLabel"
+	_result_label.position = Vector2(400.0, 12.0)
+	_result_label.size = Vector2(480.0, 28.0)
+	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_result_label.add_to_group("battle_ui")
+	_arena.add_child(_result_label)
+	_log_panel = VBoxContainer.new()
+	_log_panel.name = "LogPanel"
+	_log_panel.position = LOG_PANEL_RECT.position
+	_log_panel.size = LOG_PANEL_RECT.size
+	_log_panel.add_to_group("battle_ui")
+	_arena.add_child(_log_panel)
+	for i: int in 6:
+		var line := Label.new()
+		line.name = "LogLine%d" % i
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		line.add_to_group("battle_ui")
+		_log_panel.add_child(line)
+		_log_labels.append(line)
+	_action_menu = VBoxContainer.new()
+	_action_menu.name = "ActionMenu"
+	_action_menu.position = ACTION_MENU_POS
+	_action_menu.add_theme_constant_override("separation", 4)
+	_action_menu.visible = false
+	_arena.add_child(_action_menu)
+	_strike_button = _ui_button(_text("adv_menu_strike", "Strike"), _action_menu)
+	_strike_button.name = "StrikeButton"
+	_strike_button.pressed.connect(_on_strike_pressed)
+	var ability_row := HBoxContainer.new()
+	ability_row.name = "AbilityRow"
+	ability_row.add_theme_constant_override("separation", 4)
+	_action_menu.add_child(ability_row)
+	for n: int in 4:
+		var ab := _ui_button("—", ability_row)
+		ab.name = "AbilityButton%d" % (n + 1)
+		ab.disabled = true
+		ab.tooltip_text = _text("adv_ability_empty_tip", "Abilities draw on Weave. You have none yet.")
+		_ability_buttons.append(ab)
+	_salve_button = _ui_button("", _action_menu)
+	_salve_button.name = "SalveButton"
+	_salve_button.pressed.connect(_on_salve_pressed)
+	_brace_button = _ui_button(_text("adv_menu_brace", "Brace"), _action_menu)
+	_brace_button.name = "BraceButton"
+	_brace_button.pressed.connect(_on_brace_pressed)
+	_flee_button = _ui_button(_text("adv_menu_flee", "Flee"), _action_menu)
+	_flee_button.name = "FleeButton"
+	_flee_button.pressed.connect(_on_flee_pressed)
+	_idle_button = _ui_button(_text("adv_menu_idle", "Idle"), _action_menu)
+	_idle_button.name = "IdleButton"
+	_idle_button.disabled = true
+	_idle_button.tooltip_text = _text("adv_menu_idle_later", "Hands the fight to idle Auto. Not in the test fight yet.")
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(8.0, 0.0)
+	_action_menu.add_child(spacer)
+	_cancel_target_button = _ui_button(_text("adv_menu_cancel", "Back"), _action_menu)
+	_cancel_target_button.name = "CancelTargetButton"
+	_cancel_target_button.visible = false
+	_cancel_target_button.pressed.connect(_on_cancel_target_pressed)
+	_target_layer = Control.new()
+	_target_layer.name = "TargetLayer"
+	_target_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_target_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_arena.add_child(_target_layer)
+	_update_salve_button()
+
+
+func _on_start_fight_pressed() -> void:
+	var depth: int = int(_depth_spin.value) if _depth_spin != null else 1
+	var boss: bool = _boss_check.button_pressed if _boss_check != null else false
+	var with_elaia: bool = _elaia_check.button_pressed if _elaia_check != null else true
+	var room_seed: int = BattleRng.mask_seed(Time.get_ticks_usec())
+	start_test_fight(depth, boss, with_elaia, room_seed)
+
+
+func start_test_fight(depth: int, boss: bool, with_elaia: bool, room_seed: int) -> void:
+	if _start_fight_button != null:
+		_start_fight_button.disabled = true
+	if _result_label != null:
+		_result_label.text = ""
+	_exit_target_mode()
+	var fight := FightState.new()
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	fight.add_member("keeper", keeper_stats, 0, "front", "keeper")
+	if with_elaia:
+		var elaia_stats: Dictionary = {
+			"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
+			"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+		}
+		fight.add_member("elaia", elaia_stats, 1, "back", "elaia")
+	var spawn_rng: BattleRng = SpawnRoller.room_seed_rng(room_seed)
+	var room: Array[Dictionary] = SpawnRoller.roll_room(depth, spawn_rng, boss)
+	for entry: Dictionary in room:
+		var beast_id: String = fight.add_beast(str(entry.get("beast", "")), int(entry.get("slot", 0)), str(entry.get("row", "front")))
+		if bool(entry.get("boss", false)) and beast_id != "":
+			fight.set_boss(beast_id)
+	fight.set_combat_seed(BattleRng.mix_stream(room_seed, "combat"))
+	fight.loadout = {"heart_salve": 2}
+	fight.start_fight()
+	_fight = fight
+	show_fight(fight)
+	_advance()
+
+
+func _advance() -> void:
+	if _fight == null:
+		return
+	while _fight.outcome() == "":
+		var actor_id: String = _fight.current_actor()
+		if actor_id == "":
+			break
+		var actor: Dictionary = _fight.fighter_dict(actor_id)
+		if str(actor.get("side", "")) != "beast":
+			break
+		_fight.step()
+	_exit_target_mode()
+	refresh_fight(_fight)
+	_update_log_panel()
+	if _fight.outcome() != "":
+		_show_fight_result()
+		_hide_action_menu()
+		if _start_fight_button != null:
+			_start_fight_button.disabled = false
+		return
+	var party_actor: String = _fight.current_actor()
+	set_active(party_actor)
+	_show_action_menu(party_actor)
+
+
+func _show_fight_result() -> void:
+	if _result_label == null or _fight == null:
+		return
+	var outcome: String = _fight.outcome()
+	match outcome:
+		"win":
+			_result_label.text = _text("adv_log_victory", "All beasts are Calmed.")
+		"overwhelmed":
+			_result_label.text = _text("adv_overwhelmed_title", "Overwhelmed")
+		"flee":
+			_result_label.text = _text("adv_back_at_trailhead", "Back at the trailhead.")
+		_:
+			_result_label.text = outcome
+
+
+func _update_log_panel() -> void:
+	if _fight == null or _log_labels.is_empty():
+		return
+	var tail: Array = _fight.log_tail
+	var start: int = maxi(0, tail.size() - _log_labels.size())
+	var slice: Array = tail.slice(start, tail.size())
+	for i: int in _log_labels.size():
+		_log_labels[i].text = str(slice[i]) if i < slice.size() else ""
+
+
+func _hide_action_menu() -> void:
+	if _action_menu != null:
+		_action_menu.visible = false
+
+
+func _show_action_menu(actor_id: String) -> void:
+	if _action_menu == null or _fight == null:
+		return
+	if actor_id == "":
+		_hide_action_menu()
+		return
+	var actor: Dictionary = _fight.fighter_dict(actor_id)
+	if str(actor.get("side", "")) != "party":
+		_hide_action_menu()
+		return
+	_action_menu.visible = true
+	_update_salve_button()
+	_cancel_target_button.visible = _target_mode != ""
+	for button: Button in [_strike_button, _salve_button, _brace_button, _flee_button, _idle_button]:
+		if button != null:
+			button.visible = _target_mode == ""
+	if _target_mode != "":
+		for ab: Button in _ability_buttons:
+			ab.visible = false
+	else:
+		for ab: Button in _ability_buttons:
+			ab.visible = true
+
+
+func _update_salve_button() -> void:
+	if _salve_button == null or _fight == null:
+		return
+	var salve_name: String = _text("item_heart_salve", "Heart Salve")
+	var count: int = int(_fight.loadout.get("heart_salve", 0))
+	_salve_button.text = _text("adv_item_count", "%s ×%d" % [salve_name, count], {"item": salve_name, "count": count})
+	var cap_hit: bool = _fight.salves_used >= 2
+	_salve_button.disabled = count < 1 or cap_hit
+	if count < 1:
+		_salve_button.tooltip_text = _text("adv_item_none_packed", "None packed")
+	else:
+		_salve_button.tooltip_text = ""
+
+
+func _on_strike_pressed() -> void:
+	_enter_target_mode("strike")
+
+
+func _on_salve_pressed() -> void:
+	_enter_target_mode("salve")
+
+
+func _on_brace_pressed() -> void:
+	if _fight == null:
+		return
+	_fight.step({"kind": "brace"})
+	_advance()
+
+
+func _on_flee_pressed() -> void:
+	if _fight == null:
+		return
+	_fight.step({"kind": "flee"})
+	_advance()
+
+
+func _on_cancel_target_pressed() -> void:
+	_exit_target_mode()
+	var actor_id: String = _fight.current_actor() if _fight != null else ""
+	_show_action_menu(actor_id)
+
+
+func _enter_target_mode(mode: String) -> void:
+	if _fight == null:
+		return
+	_exit_target_mode()
+	_target_mode = mode
+	var actor_id: String = _fight.current_actor()
+	var ids: Array[String] = []
+	if mode == "salve":
+		ids = _active_party_ids()
+	else:
+		ids = _fight.legal_targets(actor_id)
+	_build_target_buttons(ids)
+	_show_action_menu(actor_id)
+
+
+func _exit_target_mode() -> void:
+	_target_mode = ""
+	if _target_layer == null:
+		return
+	for child: Node in _target_layer.get_children():
+		if is_instance_valid(child):
+			child.queue_free()
+
+
+func _active_party_ids() -> Array[String]:
+	var found: Array[String] = []
+	if _fight == null:
+		return found
+	for fighter_id: String in _fight.order:
+		var row: Dictionary = _fight.fighter_dict(fighter_id)
+		if str(row.get("side", "")) == "party" and str(row.get("status", "")) == "active":
+			found.append(fighter_id)
+	return found
+
+
+func _build_target_buttons(target_ids: Array[String]) -> void:
+	if _target_layer == null or _fighters == null:
+		return
+	var mark_tex: Texture2D = load(TARGET_MARK_PATH) as Texture2D
+	for fighter_id: String in target_ids:
+		var root: Control = _fighters.get_node_or_null("Fighter_%s" % fighter_id) as Control
+		if root == null:
+			continue
+		var sole: Vector2 = root.position
+		if mark_tex != null:
+			var mark := TextureRect.new()
+			mark.name = "TargetMark_%s" % fighter_id
+			mark.texture = mark_tex
+			mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			mark.size = mark_tex.get_size()
+			mark.position = sole - mark.size * 0.5
+			_target_layer.add_child(mark)
+		var button := Button.new()
+		button.name = "TargetButton_%s" % fighter_id
+		button.modulate = Color(1.0, 1.0, 1.0, 0.01)
+		button.size = TARGET_BUTTON_SIZE
+		button.position = sole - Vector2(TARGET_BUTTON_SIZE.x * 0.5, TARGET_BUTTON_SIZE.y - 16.0)
+		button.add_to_group("battle_ui")
+		button.pressed.connect(_on_target_pressed.bind(fighter_id))
+		_target_layer.add_child(button)
+
+
+func _on_target_pressed(target_id: String) -> void:
+	if _fight == null or _target_mode == "":
+		return
+	var mode: String = _target_mode
+	_exit_target_mode()
+	if mode == "strike":
+		_fight.step({"kind": "strike", "target": target_id})
+	elif mode == "salve":
+		_fight.step({"kind": "item", "item": "heart_salve", "target": target_id})
+	_advance()
+
+
 func _input(event: InputEvent) -> void:
 	## Swallow world clicks even when the full-rect control is not the hovered
 	## GUI (headless has no pointer). Escape closes this overlay before the
@@ -831,7 +1212,7 @@ func _input(event: InputEvent) -> void:
 	if is_queued_for_deletion():
 		return
 	if event is InputEventMouseButton or event is InputEventMouseMotion:
-		if _over_close(event as InputEventMouse):
+		if _over_arena_control(event as InputEventMouse):
 			return
 		get_viewport().set_input_as_handled()
 		return
@@ -844,7 +1225,14 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
-func _over_close(event: InputEventMouse) -> bool:
-	if _close_button == null or not _close_button.is_visible_in_tree():
-		return false
-	return _close_button.get_global_rect().has_point(event.position)
+func _over_arena_control(event: InputEventMouse) -> bool:
+	if _close_button != null and _close_button.is_visible_in_tree():
+		if _close_button.get_global_rect().has_point(event.position):
+			return true
+	for node: Node in get_tree().get_nodes_in_group("battle_ui"):
+		var control: Control = node as Control
+		if control == null or not control.is_visible_in_tree():
+			continue
+		if control.get_global_rect().has_point(event.position):
+			return true
+	return false
