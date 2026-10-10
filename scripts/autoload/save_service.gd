@@ -607,6 +607,8 @@ func _migrate_v14(out: Dictionary) -> void:
 			pack.erase(item_id)
 	out["backpack"] = pack
 	out["reach"] = reach
+	## Job 25 is cut (Haex 2026-10-10): a v13-era run that is still out is cleared, never converted.
+	clear_legacy_run(out)
 	var exp_v: Variant = out.get("expedition", {})
 	var exp: Dictionary = (exp_v as Dictionary).duplicate(true) if typeof(exp_v) == TYPE_DICTIONARY else {}
 	if str(exp.get("status", "")) == "":
@@ -618,6 +620,36 @@ func _migrate_v14(out: Dictionary) -> void:
 		else:
 			exp["status"] = "home"
 	out["expedition"] = exp
+
+
+func clear_legacy_run(out: Dictionary) -> bool:
+	## Ends a run from the old (pre-slot) engine in a save state, with no conversion.
+	## Kept: deepest_depth, reaches_cleared, dojo_exp, and everything already banked
+	## (the four reach items are in the backpack by now). The lantern goes dark and the
+	## expedition is home, marked legacy_run_cleared. Returns true when a run was cleared.
+	## The v14 migration calls it for v13-era saves; the slot engine (job 24) calls it for a
+	## v14 save whose expedition is still out_legacy.
+	var reach_v: Variant = out.get("reach", {})
+	if typeof(reach_v) != TYPE_DICTIONARY or not bool((reach_v as Dictionary).get("running", false)):
+		return false
+	var reach: Dictionary = (reach_v as Dictionary).duplicate(true)
+	var blank: Dictionary = {
+		"running": false, "pace": "hold", "control": "idle", "depth": 1, "hours": 1.0,
+		"elapsed": 0.0, "room_left": 0.0, "phase": "home", "run_clears": 0,
+		"rooms_attempted": 0, "salve_used": false, "mix": [],
+	}
+	for key: String in blank.keys():
+		reach[key] = blank[key]
+	out["reach"] = reach
+	if str(out.get("expedition_lantern", "dark")) == "amber":
+		out["expedition_lantern"] = "dark"
+	var exp_v: Variant = out.get("expedition", {})
+	var exp: Dictionary = (exp_v as Dictionary).duplicate(true) if typeof(exp_v) == TYPE_DICTIONARY else {}
+	exp["status"] = "home"
+	exp.erase("summary")
+	exp["legacy_run_cleared"] = true
+	out["expedition"] = exp
+	return true
 
 
 func _infer_forge_visited(out: Dictionary) -> bool:

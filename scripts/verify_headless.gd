@@ -245,6 +245,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_SAVE_V14_LEGACY_RUN") == "1":
+		var legacy_only: int = _save_v14_legacy_run_cleared(tree_root, game_state, save_service)
+		if legacy_only > 0:
+			print("SAVE_V14_LEGACY_RUN_CLEARED_FAIL: %d" % legacy_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_SAVE_V14_FROM_MAIN") == "1":
 		var from_main_only: int = _save_v14_from_main(tree_root, game_state, save_service)
 		if from_main_only > 0:
@@ -3049,6 +3058,7 @@ func _run() -> void:
 	failed += _auto_policy()
 	# SIM_PARITY is switch-only (~31 s for 12k idle fights); see MANAFORGE_SIM_PARITY.
 	failed += _resolver_perf()
+	failed += _save_v14_legacy_run_cleared(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -7613,14 +7623,14 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "north road: lantern dark")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "North road open")
 	# c. Pre-boss: room 9 of the run in progress, the next room is the boss.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), 14, true)
 	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "pre-boss: an idle room is running")
 	failed += _assert(int(reach.get("rooms_attempted")) == 9 and not bool(reach.call("is_boss_room")), "pre-boss: room 9, not the boss yet")
 	failed += _assert(int(reach.call("rooms_until_boss")) == 1, "pre-boss: rooms until boss is 1 (got %d)" % int(reach.call("rooms_until_boss")))
 	failed += _assert(float(reach.get("room_left")) > 0.0 and float(reach.call("_length_left")) > float(reach.get("room_left")) + 720.0, "pre-boss: the run is long enough to reach the boss")
 	failed += _assert(str(game_state.get("expedition_lantern")) == "amber", "pre-boss: lantern amber")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Pre-boss")
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), 14, true)
 	reach.call("push_faces", [20])
 	reach.call("advance_clock", float(reach.get("room_left")) + 0.001)
 	failed += _assert(bool(reach.get("running")) and int(reach.get("rooms_attempted")) == 10 and bool(reach.call("is_boss_room")), "pre-boss: finishing room 9 opens the boss room")
@@ -8049,7 +8059,9 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		if kept_reach is Dictionary:
 			failed += _assert(int((kept_reach as Dictionary).get("reaches_cleared", -1)) == 9, "a v12 reach block is kept")
 			failed += _assert(int((kept_reach as Dictionary).get("rooms_attempted", -1)) == 0, "a finished v12 run gains a zero room counter")
-	var mid_run: Variant = save_service.call("_migrate", 12, {"wood": 1, "stage_id": "sapling", "reach": {"reaches_cleared": 2, "running": true, "phase": "idle_room"}})
+	# The v13 step alone: the full chain clears a running pre-v14 run (job 25 cut).
+	var mid_run: Dictionary = {"wood": 1, "stage_id": "sapling", "reach": {"reaches_cleared": 2, "running": true, "phase": "idle_room"}}
+	save_service.call("_migrate_v13", mid_run)
 	if mid_run is Dictionary:
 		var mid_reach: Variant = (mid_run as Dictionary).get("reach", {})
 		if mid_reach is Dictionary:
@@ -8999,7 +9011,8 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 
 
 func _save_v14_home(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## No run is home. A cyan lantern with no run is an unseen finish. A running v13 run stays out.
+	## No run is home. A cyan lantern with no run is an unseen finish. A running v13 run is cleared
+	## (job 25 cut; SAVE_V14_LEGACY_RUN_CLEARED_OK has the details).
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	failed += _assert(reach != null, "v14 home needs Reach")
@@ -9056,11 +9069,9 @@ func _save_v14_home(tree_root: Window, game_state: Node, save_service: Node) -> 
 	failed += _assert(_write_versioned_slot(save_service, 7, 13, out_state), "running v13 writes")
 	failed += _assert(bool(save_service.call("load_game", 7)), "running v13 loads")
 	var out_exp: Dictionary = reach.get("expedition") as Dictionary
-	failed += _assert(str(out_exp.get("status", "")) == "out_legacy", "a running run is out_legacy")
-	failed += _assert(not out_exp.has("summary"), "out_legacy has no summary")
-	failed += _assert(bool(reach.get("running")), "the old run is still running")
-	failed += _assert(int(reach.get("rooms_attempted")) == 6, "rooms_attempted is kept")
-	failed += _assert(str(reach.get("phase")) == "idle_room", "the idle room is still open")
+	failed += _assert(str(out_exp.get("status", "")) == "home", "a running v13 run comes home")
+	failed += _assert(not out_exp.has("summary"), "a cleared run has no summary")
+	failed += _assert(not bool(reach.get("running")), "the old run is cleared")
 	game_state.call("reset_for_new_game")
 	failed += _assert(bool(save_service.call("save_game", 7)), "a fresh v14 save writes")
 	var fresh: Dictionary = _read_slot_root(save_service, 7)
@@ -9083,6 +9094,65 @@ func _save_v14_home(tree_root: Window, game_state: Node, save_service: Node) -> 
 	save_service.call("delete_slot", 7)
 	if failed == 0:
 		print("SAVE_V14_HOME_OK")
+	return failed
+
+
+func _save_v14_legacy_run_cleared(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Job 25 is cut (Haex 2026-10-10). A v13-era run still out is cleared on load with no
+	## conversion; progress, banked items and the rest of the v14 conversion stay. A v14 save
+	## of a live old-engine run (out_legacy) still resumes: no forced restart until job 24.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and pack != null, "legacy run nodes")
+	if reach == null or pack == null:
+		return failed
+	for phase: String in ["idle_room", "rest", "manual"]:
+		save_service.call("delete_slot", 7)
+		game_state.call("reset_for_new_game")
+		var state: Dictionary = {
+			"wood": 3,
+			"stage_id": "sapling",
+			"essence": 40,
+			"expedition_lantern": "amber",
+			"backpack": {"herbs": 2},
+			"reach": {
+				"running": true, "phase": "idle_room" if phase == "manual" else phase,
+				"control": "manual" if phase == "manual" else "idle",
+				"rooms_attempted": 6, "reaches_cleared": 4, "deepest_depth": 3, "depth": 2,
+				"hours": 4.0, "elapsed": 1900.0, "room_left": 400.0, "run_clears": 3,
+				"dojo_exp": 20, "pace": "push", "salve_used": true, "mix": ["minion"],
+				"briarwood": 1, "herbs": 1, "heart_salve": 0, "bile_vial": 0,
+			},
+		}
+		failed += _assert(_write_versioned_slot(save_service, 7, 13, state), "%s v13 writes" % phase)
+		failed += _assert(bool(save_service.call("load_game", 7)), "%s v13 loads" % phase)
+		var exp: Dictionary = reach.get("expedition") as Dictionary
+		failed += _assert(not bool(reach.get("running")) and str(reach.get("phase")) == "home", "%s: the v13 run is cleared" % phase)
+		failed += _assert(str(exp.get("status", "")) == "home" and bool(exp.get("legacy_run_cleared", false)), "%s: expedition home, marked legacy_run_cleared" % phase)
+		failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "%s: the lantern goes dark" % phase)
+		failed += _assert(int(reach.get("rooms_attempted")) == 0 and int(reach.get("run_clears")) == 0 and float(reach.get("elapsed")) == 0.0, "%s: no run counters survive" % phase)
+		failed += _assert(int(reach.get("deepest_depth")) == 3 and int(reach.get("reaches_cleared")) == 4 and int(reach.get("dojo_exp")) == 20, "%s: depth, clears and dojo exp are kept" % phase)
+		failed += _assert(int(pack.call("get_count", "herbs")) == 3 and int(pack.call("get_count", "briarwood")) == 1, "%s: banked reach items still merge into the Backpack" % phase)
+		failed += _assert(int(game_state.get("essence")) == 40, "%s: no Essence refund or charge" % phase)
+		failed += _assert(bool(save_service.call("save_game", 7)), "%s: re-save writes" % phase)
+		var resaved: Dictionary = (_read_slot_root(save_service, 7).get("state", {}) as Dictionary)
+		var re_exp: Dictionary = resaved.get("expedition", {}) as Dictionary
+		failed += _assert(str(re_exp.get("status", "")) == "home" and not bool((resaved.get("reach", {}) as Dictionary).get("running", true)), "%s: the re-save stays home" % phase)
+	# A v14 out_legacy save (today's live old engine) is not cleared: it resumes as before.
+	game_state.call("reset_for_new_game")
+	reach.call("depart", 1, 1, "hold", "idle")
+	failed += _assert(bool(save_service.call("save_game", 7)), "a running v14 save writes")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "the running v14 save loads")
+	failed += _assert(bool(reach.get("running")) and str((reach.get("expedition") as Dictionary).get("status", "")) == "out_legacy", "a v14 out_legacy run still resumes (no forced restart)")
+	# The helper is a no-op without a run.
+	var idle_state: Dictionary = {"reach": {"running": false, "deepest_depth": 2}, "expedition_lantern": "cyan"}
+	failed += _assert(not bool(save_service.call("clear_legacy_run", idle_state)) and str(idle_state.get("expedition_lantern")) == "cyan", "clear_legacy_run leaves a save with no run alone")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	if failed == 0:
+		print("SAVE_V14_LEGACY_RUN_CLEARED_OK")
 	return failed
 
 

@@ -1,5 +1,5 @@
 {
-	"save_version": 13,
+	"save_version": 14,
 	"timestamp": 1760000012,
 	"slot": 0,
 	"kind": "debug",
@@ -28,7 +28,11 @@
 		"ancient_frozen": false,
 		"ancient_remaining_sec": 0,
 		"forge_visited": true,
-		"backpack": {},
+		"backpack": {
+			"briarwood": 4,
+			"herbs": 3,
+			"heart_salve": 1
+		},
 		"equipment_equipped": {
 			"relic": "forge_key_relic"
 		},
@@ -57,10 +61,6 @@
 			"deepest_depth": 3,
 			"reaches_cleared": 7,
 			"dojo_exp": 168,
-			"briarwood": 4,
-			"herbs": 3,
-			"heart_salve": 1,
-			"bile_vial": 0,
 			"running": true,
 			"pace": "hold",
 			"control": "idle",
@@ -72,6 +72,9 @@
 			"run_clears": 7,
 			"rooms_attempted": 9,
 			"salve_used": false
+		},
+		"expedition": {
+			"status": "out_legacy"
 		}
 	}
 }
