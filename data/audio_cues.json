@@ -210,6 +210,169 @@
       "bus": "SFX_Progress",
       "loop": false,
       "path": "res://assets/audio/sfx_path_open.ogg"
+    },
+    "sfx_battle_hit": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_hit.ogg",
+      "volume_db": -3.0
+    },
+    "sfx_battle_graze": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_graze.ogg",
+      "volume_db": -6.0
+    },
+    "sfx_battle_crush": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_crush.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_battle_crit": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_crit.ogg",
+      "volume_db": -4.0
+    },
+    "sfx_battle_miss": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_miss.ogg",
+      "volume_db": -3.0
+    },
+    "sfx_battle_brace": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_brace.ogg",
+      "volume_db": -3.0
+    },
+    "sfx_battle_salve": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_salve.ogg",
+      "volume_db": -2.0
+    },
+    "sfx_battle_flee": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_flee.ogg",
+      "volume_db": -2.0
+    },
+    "sfx_battle_beast_hurt": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_beast_hurt.ogg",
+      "volume_db": -4.0
+    },
+    "sfx_battle_ko": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_ko.ogg",
+      "volume_db": -2.0
+    },
+    "sfx_battle_overwhelmed": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_overwhelmed.ogg",
+      "volume_db": -2.0
+    },
+    "sfx_battle_victory": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_victory.ogg",
+      "volume_db": -2.0
+    },
+    "sfx_battle_turn": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_turn.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_battle_select": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_select.ogg",
+      "volume_db": 0.0
+    },
+    "sfx_battle_confirm": {
+      "bus": "SFX_UI",
+      "loop": false,
+      "path": "res://assets/audio/sfx_battle_confirm.ogg",
+      "volume_db": 0.0
     }
+  },
+  "battle_playback": {
+    "status": "Rules for battle playback (job 21, the only caller). Nothing reads this yet. Source: CUE_NOTES_BATTLE_V1 (audio v0.3.0-battle, Haex go 2026-10-10).",
+    "cues": [
+      "sfx_battle_hit",
+      "sfx_battle_graze",
+      "sfx_battle_crush",
+      "sfx_battle_crit",
+      "sfx_battle_miss",
+      "sfx_battle_brace",
+      "sfx_battle_salve",
+      "sfx_battle_flee",
+      "sfx_battle_beast_hurt",
+      "sfx_battle_ko",
+      "sfx_battle_overwhelmed",
+      "sfx_battle_victory",
+      "sfx_battle_turn",
+      "sfx_battle_select",
+      "sfx_battle_confirm"
+    ],
+    "impact_by_band": {
+      "miss": "sfx_battle_miss",
+      "graze": "sfx_battle_graze",
+      "hit": "sfx_battle_hit",
+      "crush": "sfx_battle_crush"
+    },
+    "crit_layer": {
+      "cue": "sfx_battle_crit",
+      "same_frame_as_impact": true,
+      "at_fast_speed": "skip",
+      "at_fast_speed_alt_db": -6.0
+    },
+    "beast_hurt": {
+      "cue": "sfx_battle_beast_hurt",
+      "delay_sec": 0.06,
+      "beast_targets_only": true,
+      "skip_if_pool_full": true
+    },
+    "jitter": {
+      "pitch_min": 0.96,
+      "pitch_max": 1.04,
+      "gain_db": 1.0,
+      "note": "Fixed pitch plus random jitter on every play. Never pitch_scale for 2x/4x. Set volume_db and pitch_scale explicitly."
+    },
+    "fast_speeds": {
+      "speeds": [
+        2,
+        4
+      ],
+      "note": "Only while the player picks every action; Strike for me and Auto are 1x only. Drop the crit layer (or -6 dB) and skip beast_hurt when the pool is full."
+    },
+    "voices": {
+      "pool": 4,
+      "world_max": 3,
+      "keep_free_for": "SFX_UI",
+      "when_full": "drop the new World cue; never steal a UI voice"
+    },
+    "throttle_sec": {
+      "sfx_battle_turn": 0.3,
+      "sfx_battle_victory": 1.0
+    },
+    "victory_once_per_room": true,
+    "silent_in": [
+      "idle",
+      "offline",
+      "simulate",
+      "load",
+      "scene_restore",
+      "headless"
+    ],
+    "duck": false,
+    "never_bus": "SFX_Progress",
+    "music": "none yet; the hub bed continues"
   }
 }
