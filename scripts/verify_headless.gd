@@ -480,6 +480,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BATTLE_STRIKE_FOR_ME") == "1":
+		var battle_strike_only: int = await _battle_strike_for_me(tree_root, game_state, save_service)
+		if battle_strike_only > 0:
+			print("BATTLE_STRIKE_FOR_ME_FAIL: %d" % battle_strike_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
 		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
 		if elaia_failed > 0:
@@ -2984,6 +2993,7 @@ func _run() -> void:
 	failed += await _battle_plates(tree_root, game_state, save_service)
 	failed += await _battle_menu(tree_root, game_state, save_service)
 	failed += await _battle_target_reach(tree_root, game_state, save_service)
+	failed += await _battle_strike_for_me(tree_root, game_state, save_service)
 	failed += _resolver_turn_order()
 	failed += _resolver_rows()
 	failed += _resolver_targeting()
@@ -11829,6 +11839,159 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 	paused = false
 	if failed == 0:
 		print("BATTLE_MENU_OK")
+	return failed
+
+
+func _battle_click_control(live: Node, control: Control) -> void:
+	if control == null:
+		return
+	var vp: Viewport = live.get_viewport()
+	var at: Vector2 = control.get_global_rect().get_center()
+	vp.warp_mouse(at)
+	var hover := InputEventMouseMotion.new()
+	hover.position = at
+	hover.global_position = at
+	vp.push_input(hover, true)
+	for pressed_v: bool in [true, false]:
+		var press := InputEventMouseButton.new()
+		press.button_index = MOUSE_BUTTON_LEFT
+		press.pressed = pressed_v
+		press.position = at
+		press.global_position = at
+		vp.push_input(press, true)
+
+
+func _battle_strike_for_me(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	const ROOM_SEED: int = 482901
+	const ROOM_SEED_OFF: int = 918273
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for strike for me")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for strike for me")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "BattleView for strike for me")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	var toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
+	failed += _assert(toggle != null and toggle.toggle_mode, "StrikeForMeToggle exists")
+	if toggle != null:
+		failed += _assert(toggle.text.find("Strike for me") >= 0, "toggle text adv_strike_for_me")
+		failed += _assert(toggle.tooltip_text.find("1×") >= 0, "toggle tooltip adv_strike_for_me_tip")
+	var party_packets: Array[Dictionary] = []
+	var on_party_step := func(packet: Dictionary) -> void:
+		party_packets.append(packet)
+	view.strike_for_me_party_stepped.connect(on_party_step)
+	view.call("start_test_fight", 1, false, true, ROOM_SEED)
+	await process_frame
+	failed += _assert(not bool(view.call("strike_for_me_on")), "toggle starts off on new fight")
+	var fight: FightState = view._fight
+	failed += _assert(fight != null and fight.outcome() == "", "fight begins")
+	if fight != null:
+		var keeper_row: Dictionary = fight.fighter_dict("keeper")
+		var low_hp: int = maxi(1, int(keeper_row.get("max_hp", 1)) / 5)
+		fight.set_hp("keeper", low_hp)
+	if toggle != null:
+		_battle_click_control(live, toggle)
+		toggle.emit_signal("pressed")
+		toggle.set_block_signals(true)
+		toggle.button_pressed = true
+		toggle.set_block_signals(false)
+		view.call("_on_strike_for_me_toggled", true)
+	var frames: int = 0
+	fight = view._fight
+	while fight != null and fight.outcome() == "" and frames < 600:
+		await process_frame
+		frames += 1
+		fight = view._fight
+	failed += _assert(fight != null and fight.outcome() != "", "strike for me reaches an outcome")
+	failed += _assert(frames < 600, "strike for me finishes within frame budget")
+	failed += _assert(party_packets.size() > 0, "party steps recorded")
+	for packet: Dictionary in party_packets:
+		var kind: String = str(packet.get("kind", ""))
+		failed += _assert(kind == "strike", "party only strikes (got %s)" % kind)
+		for ev: Variant in packet.get("events", []):
+			var ev_kind: String = str((ev as Dictionary).get("kind", ""))
+			failed += _assert(ev_kind != "brace" and ev_kind != "flee" and ev_kind != "item", "no brace/flee/item events")
+		failed += _assert(
+			str(packet.get("target", "")) == str(packet.get("strike_for_me_target", "")),
+			"strike targets front row then slot (got %s want %s)" % [str(packet.get("target", "")), str(packet.get("strike_for_me_target", ""))],
+		)
+	failed += _assert(bool(view.call("strike_for_me_on")), "toggle still on after auto fight")
+	view.strike_for_me_party_stepped.disconnect(on_party_step)
+	view.call("start_test_fight", 1, false, true, ROOM_SEED_OFF)
+	await process_frame
+	failed += _assert(not bool(view.call("strike_for_me_on")), "new fight resets toggle off")
+	failed += _assert(toggle != null and not toggle.button_pressed, "toggle button reset")
+	party_packets.clear()
+	var off_party_steps: Array[int] = [0]
+	var count_party_step := func(_packet: Dictionary) -> void:
+		off_party_steps[0] += 1
+	view.call("start_test_fight", 1, false, true, ROOM_SEED)
+	await process_frame
+	fight = view._fight
+	view.strike_for_me_party_stepped.connect(count_party_step)
+	var party_actor: String = fight.current_actor() if fight != null else ""
+	failed += _assert(
+		party_actor != "" and str(fight.fighter_dict(party_actor).get("side", "")) == "party",
+		"party turn before strike-for-me off test",
+	)
+	var steps_at_party_turn: int = off_party_steps[0]
+	if toggle != null:
+		toggle.set_block_signals(true)
+		toggle.button_pressed = true
+		toggle.set_block_signals(false)
+	if party_actor != "":
+		view.call("_strike_for_me_party_step", party_actor)
+	failed += _assert(
+		off_party_steps[0] == steps_at_party_turn + 1,
+		"one party strike while strike for me is on (got %d want %d)" % [off_party_steps[0], steps_at_party_turn + 1],
+	)
+	if toggle != null:
+		toggle.set_block_signals(true)
+		toggle.button_pressed = false
+		toggle.set_block_signals(false)
+	view.call("_advance")
+	var off_frames: int = 0
+	while fight != null and fight.outcome() == "" and off_frames < 400:
+		await process_frame
+		off_frames += 1
+		fight = view._fight
+		if not bool(view.call("strike_for_me_on")):
+			break
+	failed += _assert(
+		off_party_steps[0] == steps_at_party_turn + 1,
+		"exactly one party action before toggle off (got %d)" % off_party_steps[0],
+	)
+	failed += _assert(fight != null and fight.outcome() == "", "fight continues after turning strike for me off")
+	var menu: VBoxContainer = view.get_node_or_null("Arena/ActionMenu") as VBoxContainer
+	failed += _assert(menu != null and menu.visible, "menu visible for manual party turn")
+	var next_actor: String = fight.current_actor() if fight != null else ""
+	failed += _assert(next_actor != "" and str(fight.fighter_dict(next_actor).get("side", "")) == "party", "next actor is party")
+	failed += _assert(bool(view.call("strike_for_me_on")) == (toggle != null and toggle.button_pressed), "strike_for_me_on matches toggle")
+	if view.strike_for_me_party_stepped.is_connected(on_party_step):
+		view.strike_for_me_party_stepped.disconnect(on_party_step)
+	if view.strike_for_me_party_stepped.is_connected(count_party_step):
+		view.strike_for_me_party_stepped.disconnect(count_party_step)
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_STRIKE_FOR_ME_OK")
 	return failed
 
 

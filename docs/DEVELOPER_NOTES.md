@@ -119,6 +119,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `BATTLE_PLATES_OK` | `BattleView.show_fight` places fighters on the arena sole points, builds the party bar and compact beast plates with intent markers, and `set_active` / `refresh_fight` update outlines and Calmed visuals. Placeholder Keeper and Elaia stay until a fight is shown. Close sits top-right. `MANAFORGE_BATTLE_PLATES=1` runs it alone. |
 | `BATTLE_MENU_OK` | Experimental arena test fight: `start_test_fight`, action menu (Strike, Brace, Salve, Flee), target mode, log panel, instant `_advance`, and no backpack / save spend. `MANAFORGE_BATTLE_MENU=1` runs it alone. |
 | `BATTLE_TARGET_REACH_OK` | Melee vs magic targeting overlays match `legal_targets`; illegal clicks do not step; hub clicks stay blocked. `MANAFORGE_BATTLE_TARGET_REACH=1` runs it alone. |
+| `BATTLE_STRIKE_FOR_ME_OK` | Test fight `StrikeForMeToggle`: auto Strike only via `AutoPolicy.strike_for_me_action`, front-row targeting, toggle reset, off after one action returns the menu, and `strike_for_me_on()`. `MANAFORGE_BATTLE_STRIKE_FOR_ME=1` runs it alone. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 

@@ -1,6 +1,8 @@
 extends CanvasLayer
 class_name BattleView
 ## Empty fullscreen arena. Later jobs fill the rows. This shell does not pause the tree.
+
+signal strike_for_me_party_stepped(packet: Dictionary)
 ## Layer 75 sits above Echo (50) and the HUD (20), and below the pause menu (100).
 ## One instance, parented to the hub, so a scene change drops it. A load closes it
 ## because loading does not rebuild the hub. No autoload: the debug button and
@@ -103,6 +105,7 @@ var _log_panel: VBoxContainer = null
 var _log_labels: Array[Label] = []
 var _result_label: Label = null
 var _target_layer: Control = null
+var _strike_for_me_toggle: Button = null
 
 
 static func is_open() -> bool:
@@ -961,6 +964,18 @@ func _build_fight_hud() -> void:
 	_cancel_target_button.name = "CancelTargetButton"
 	_cancel_target_button.visible = false
 	_cancel_target_button.pressed.connect(_on_cancel_target_pressed)
+	_strike_for_me_toggle = Button.new()
+	_strike_for_me_toggle.name = "StrikeForMeToggle"
+	_strike_for_me_toggle.toggle_mode = true
+	_strike_for_me_toggle.text = _text("adv_strike_for_me", "Strike for me")
+	_strike_for_me_toggle.tooltip_text = _text(
+		"adv_strike_for_me_tip",
+		"Your fighters only Strike: front row first, then slot order. Plays at 1×. Turn it off any time.",
+	)
+	_strike_for_me_toggle.add_to_group("battle_ui")
+	_action_menu.add_child(_strike_for_me_toggle)
+	if not _strike_for_me_toggle.toggled.is_connected(_on_strike_for_me_toggled):
+		_strike_for_me_toggle.toggled.connect(_on_strike_for_me_toggled)
 	_target_layer = Control.new()
 	_target_layer.name = "TargetLayer"
 	_target_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -982,6 +997,8 @@ func start_test_fight(depth: int, boss: bool, with_elaia: bool, room_seed: int) 
 		_start_fight_button.disabled = true
 	if _result_label != null:
 		_result_label.text = ""
+	if _strike_for_me_toggle != null:
+		_strike_for_me_toggle.button_pressed = false
 	_exit_target_mode()
 	var fight := FightState.new()
 	var keeper_stats: Dictionary = {
@@ -1009,6 +1026,10 @@ func start_test_fight(depth: int, boss: bool, with_elaia: bool, room_seed: int) 
 	_advance()
 
 
+func strike_for_me_on() -> bool:
+	return _strike_for_me_toggle != null and _strike_for_me_toggle.button_pressed
+
+
 func _advance() -> void:
 	if _fight == null:
 		return
@@ -1018,8 +1039,13 @@ func _advance() -> void:
 			break
 		var actor: Dictionary = _fight.fighter_dict(actor_id)
 		if str(actor.get("side", "")) != "beast":
+			if strike_for_me_on():
+				_strike_for_me_party_step(actor_id)
+				continue
 			break
 		_fight.step()
+		if strike_for_me_on():
+			_show_strike_for_me_toggle_only()
 	_exit_target_mode()
 	refresh_fight(_fight)
 	_update_log_panel()
@@ -1064,6 +1090,15 @@ func _hide_action_menu() -> void:
 		_action_menu.visible = false
 
 
+func _show_strike_for_me_toggle_only() -> void:
+	if _action_menu == null or _strike_for_me_toggle == null:
+		return
+	_action_menu.visible = true
+	for child: Node in _action_menu.get_children():
+		if child is CanvasItem:
+			(child as CanvasItem).visible = child == _strike_for_me_toggle
+
+
 func _show_action_menu(actor_id: String) -> void:
 	if _action_menu == null or _fight == null:
 		return
@@ -1086,6 +1121,41 @@ func _show_action_menu(actor_id: String) -> void:
 	else:
 		for ab: Button in _ability_buttons:
 			ab.visible = true
+	if _strike_for_me_toggle != null:
+		_strike_for_me_toggle.visible = true
+
+
+func _strike_for_me_party_step(actor_id: String) -> void:
+	if _fight == null or actor_id == "":
+		return
+	var action: Dictionary = AutoPolicy.strike_for_me_action(_fight, actor_id)
+	var packet: Dictionary = _fight.step(action)
+	packet["strike_for_me_target"] = str(action.get("target", ""))
+	_notify_strike_for_me_party(packet)
+
+
+func _notify_strike_for_me_party(packet: Dictionary) -> void:
+	if packet.is_empty():
+		return
+	var actor_id: String = str(packet.get("actor", ""))
+	if actor_id == "" or _fight == null:
+		return
+	if str(_fight.fighter_dict(actor_id).get("side", "")) != "party":
+		return
+	strike_for_me_party_stepped.emit(packet)
+
+
+func _on_strike_for_me_toggled(pressed: bool) -> void:
+	if not pressed or _fight == null or _fight.outcome() != "":
+		return
+	var actor_id: String = _fight.current_actor()
+	if actor_id == "":
+		return
+	var actor: Dictionary = _fight.fighter_dict(actor_id)
+	if str(actor.get("side", "")) != "party":
+		return
+	_strike_for_me_party_step(actor_id)
+	_advance()
 
 
 func _update_salve_button() -> void:
