@@ -2,6 +2,7 @@ extends SceneTree
 const EchoBattleScript := preload("res://scripts/echo_battle.gd")
 const ReachFightScript := preload("res://scripts/reach_fight.gd")
 const FightStateScript := preload("res://scripts/battle/fight_state.gd")
+const AutoPolicyScript := preload("res://scripts/battle/auto_policy.gd")
 const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
@@ -400,6 +401,15 @@ func _run() -> void:
 		var resolver_log_only: int = _resolver_log()
 		if resolver_log_only > 0:
 			print("RESOLVER_LOG_FAIL: %d" % resolver_log_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_AUTO_POLICY") == "1":
+		var auto_policy_only: int = _auto_policy()
+		if auto_policy_only > 0:
+			print("AUTO_POLICY_FAIL: %d" % auto_policy_only)
 			quit(1)
 		else:
 			quit(0)
@@ -2946,6 +2956,7 @@ func _run() -> void:
 	failed += _resolver_salve()
 	failed += _auto_flee_ko_zero()
 	failed += _resolver_log()
+	failed += _auto_policy()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -10644,6 +10655,193 @@ func _auto_flee_ko_zero() -> int:
 	failed += _assert(not bool(boss_row.get("should_flee", true)), "Calmed beasts cannot force a flee by themselves")
 	if failed == 0:
 		print("AUTO_FLEE_KO_ZERO_OK")
+	return failed
+
+
+func _auto_policy_keeper_unlock_stats() -> Dictionary:
+	return {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+
+
+func _auto_policy_strike_fight() -> FightState:
+	var fight: FightState = FightStateScript.new()
+	fight.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	fight.add_beast("acorn_imp", 2, "front", "imp_hi")
+	fight.add_beast("acorn_imp", 0, "front", "imp_lo")
+	fight.add_beast("acorn_imp", 1, "back", "imp_back")
+	fight.start_fight()
+	return fight
+
+
+func _auto_policy() -> int:
+	var failed: int = 0
+	var strike_fight: FightState = _auto_policy_strike_fight()
+	var strike_act: Dictionary = AutoPolicyScript.strike_for_me_action(strike_fight, "keeper")
+	failed += _assert(str(strike_act.get("kind", "")) == "strike", "strike for me is always a strike")
+	failed += _assert(str(strike_act.get("target", "")) == "imp_lo", "front row, lowest slot first (got %s)" % str(strike_act.get("target", "")))
+	var back_only: FightState = FightStateScript.new()
+	back_only.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	back_only.add_beast("acorn_imp", 1, "back", "imp_back")
+	back_only.start_fight()
+	var back_act: Dictionary = AutoPolicyScript.strike_for_me_action(back_only, "keeper")
+	failed += _assert(str(back_act.get("target", "")) == "imp_back", "empty front row reaches the back")
+	var hurt: FightState = FightStateScript.new()
+	hurt.add_member("keeper", {"vitality": 10, "hp": 3, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	hurt.add_beast("acorn_imp", 0, "front", "imp")
+	hurt.loadout = {"heart_salve": 2}
+	hurt.start_fight()
+	var hurt_act: Dictionary = AutoPolicyScript.strike_for_me_action(hurt, "keeper")
+	failed += _assert(str(hurt_act.get("kind", "")) == "strike", "strike for me never salves even below 40%")
+
+	var salve_base: FightState = FightStateScript.new()
+	salve_base.add_member("keeper", {"vitality": 30, "hp": 39, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	salve_base.add_beast("acorn_imp", 0, "front", "imp")
+	salve_base.loadout = {"heart_salve": 1}
+	salve_base.start_fight()
+	var at_39: Dictionary = AutoPolicyScript.idle_action(salve_base, "keeper")
+	failed += _assert(str(at_39.get("kind", "")) == "item" and str(at_39.get("item", "")) == "heart_salve", "39% drinks a salve")
+	failed += _assert(str(at_39.get("target", "")) == "keeper", "salve targets the lowest-ratio active member")
+
+	var at_40: FightState = FightStateScript.new()
+	at_40.add_member("keeper", {"vitality": 30, "hp": 40, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	at_40.add_beast("acorn_imp", 0, "front", "imp")
+	at_40.loadout = {"heart_salve": 1}
+	at_40.start_fight()
+	var forty: Dictionary = AutoPolicyScript.idle_action(at_40, "keeper")
+	failed += _assert(str(forty.get("kind", "")) == "strike", "exactly 40% does not salve")
+
+	var cap: FightState = FightStateScript.new()
+	cap.add_member("keeper", {"vitality": 30, "hp": 10, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	cap.add_beast("acorn_imp", 0, "front", "imp")
+	cap.salves_used = 2
+	cap.loadout = {"heart_salve": 1}
+	cap.start_fight()
+	failed += _assert(str(AutoPolicyScript.idle_action(cap, "keeper").get("kind", "")) == "strike", "two salves already used")
+
+	var empty_load: FightState = FightStateScript.new()
+	empty_load.add_member("keeper", {"vitality": 30, "hp": 10, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	empty_load.add_beast("acorn_imp", 0, "front", "imp")
+	empty_load.loadout = {"heart_salve": 0}
+	empty_load.start_fight()
+	failed += _assert(str(AutoPolicyScript.idle_action(empty_load, "keeper").get("kind", "")) == "strike", "zero salves in loadout")
+
+	var ko_pick: FightState = FightStateScript.new()
+	ko_pick.add_member("keeper", {"vitality": 10, "hp": 4, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	ko_pick.add_member("elaia", {"vitality": 30, "hp": 39, "swiftness": 6, "attack": "physical"}, 1, "front", "elaia")
+	ko_pick.add_beast("acorn_imp", 0, "front", "imp")
+	ko_pick.loadout = {"heart_salve": 1}
+	ko_pick.start_fight()
+	var ko_act: Dictionary = AutoPolicyScript.idle_action(ko_pick, "keeper")
+	failed += _assert(str(ko_act.get("target", "")) == "elaia", "a knocked-out member is never the salve target (got %s)" % str(ko_act.get("target", "")))
+
+	var ratio_pick: FightState = FightStateScript.new()
+	ratio_pick.add_member("keeper", {"vitality": 30, "hp": 35, "swiftness": 7, "attack": "physical"}, 1, "front", "keeper")
+	ratio_pick.add_member("elaia", {"vitality": 30, "hp": 40, "swiftness": 6, "attack": "physical"}, 0, "front", "elaia")
+	ratio_pick.add_beast("acorn_imp", 0, "front", "imp")
+	ratio_pick.loadout = {"heart_salve": 1}
+	ratio_pick.start_fight()
+	var ratio_act: Dictionary = AutoPolicyScript.idle_action(ratio_pick, "keeper")
+	failed += _assert(str(ratio_act.get("target", "")) == "keeper", "lowest HP ratio wins over slot (got %s)" % str(ratio_act.get("target", "")))
+
+	var flee_early: FightState = FightStateScript.new()
+	var hurting: Dictionary = _resolver_tank(1)
+	hurting["vitality"] = 30
+	hurting["hp"] = 40
+	flee_early.add_member("keeper", hurting, 0, "front", "keeper")
+	var foe: Dictionary = _resolver_tank(1)
+	foe["vitality"] = 7
+	foe["hp"] = 31
+	flee_early.add_fighter("imp", "beast", foe, 0, "front", "physical")
+	flee_early.start_fight()
+	failed += _assert(not AutoPolicyScript.should_flee(flee_early), "should_flee is false in round 1 even when the numbers say flee")
+
+	var flee_late: FightState = FightStateScript.new()
+	var party_49: Dictionary = _resolver_tank(1)
+	party_49["vitality"] = 30
+	party_49["hp"] = 49
+	flee_late.add_member("keeper", party_49, 0, "front", "keeper")
+	var beast_34: Dictionary = _resolver_tank(1)
+	beast_34["vitality"] = 7
+	beast_34["hp"] = 34
+	flee_late.add_fighter("imp", "beast", beast_34, 0, "front", "physical")
+	flee_late.start_fight()
+	var late_snap: Dictionary = flee_late.to_dict()
+	late_snap["round"] = 2
+	flee_late = FightStateScript.from_dict(late_snap)
+	failed += _assert(AutoPolicyScript.should_flee(flee_late), "should_flee is true in round 2 at party 49% / beasts 34%")
+
+	var flee_half: FightState = FightStateScript.new()
+	var even: Dictionary = _resolver_tank(1)
+	even["vitality"] = 30
+	even["hp"] = 50
+	flee_half.add_member("keeper", even, 0, "front", "keeper")
+	var beast_half: Dictionary = _resolver_tank(1)
+	beast_half["vitality"] = 7
+	beast_half["hp"] = 31
+	flee_half.add_fighter("imp", "beast", beast_half, 0, "front", "physical")
+	var half_snap: Dictionary = flee_half.to_dict()
+	half_snap["round"] = 2
+	flee_half = FightStateScript.from_dict(half_snap)
+	failed += _assert(not AutoPolicyScript.should_flee(flee_half), "exactly 50% party does not flee in round 2")
+
+	var flee_third: FightState = FightStateScript.new()
+	flee_third.add_member("keeper", hurting, 0, "front", "keeper")
+	for i: int in 3:
+		var beast: Dictionary = _resolver_tank(1)
+		beast["vitality"] = 7
+		beast["hp"] = 31 if i == 0 else 0
+		flee_third.add_fighter("b%d" % i, "beast", beast, i, "front", "physical")
+	var third_snap: Dictionary = flee_third.to_dict()
+	third_snap["round"] = 2
+	flee_third = FightStateScript.from_dict(third_snap)
+	failed += _assert(not AutoPolicyScript.should_flee(flee_third), "exactly one third beast HP does not flee in round 2")
+
+	var seeded_a: FightState = FightStateScript.new()
+	seeded_a.set_combat_seed(31415926)
+	seeded_a.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	seeded_a.add_beast("acorn_imp", 0, "front", "acorn_imp")
+	var out_a: String = AutoPolicyScript.run_idle(seeded_a)
+	var seeded_b: FightState = FightStateScript.new()
+	seeded_b.set_combat_seed(31415926)
+	seeded_b.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	seeded_b.add_beast("acorn_imp", 0, "front", "acorn_imp")
+	var out_b: String = AutoPolicyScript.run_idle(seeded_b)
+	failed += _assert(out_a != "" and out_a == out_b, "seeded keeper vs imp is deterministic (%s vs %s)" % [out_a, out_b])
+
+	var easy: FightState = FightStateScript.new()
+	easy.set_combat_seed(7)
+	var titan: Dictionary = _auto_policy_keeper_unlock_stats()
+	titan["might"] = 99
+	titan["vitality"] = 30
+	easy.add_member("keeper", titan, 0, "front", "keeper")
+	var crumb: Dictionary = _resolver_tank(1)
+	crumb["vitality"] = 1
+	crumb["hp"] = 1
+	easy.add_fighter("imp", "beast", crumb, 0, "front", "physical")
+	failed += _assert(AutoPolicyScript.run_idle(easy) == "win", "an overpowered party wins idle auto")
+
+	var grim: FightState = FightStateScript.new()
+	grim.set_combat_seed(99)
+	var glass: Dictionary = _resolver_tank(1)
+	glass["vitality"] = 1
+	glass["hp"] = 1
+	grim.add_member("keeper", glass, 0, "front", "keeper")
+	for slot: int in 4:
+		grim.add_beast("acorn_imp", slot, "front", "imp_%d" % slot)
+	var grim_out: String = AutoPolicyScript.run_idle(grim)
+	failed += _assert(grim_out == "flee" or grim_out == "overwhelmed", "a hopeless fight flees or is overwhelmed (got %s)" % grim_out)
+
+	var guard_fight: FightState = FightStateScript.new()
+	guard_fight.set_combat_seed(12345)
+	guard_fight.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	guard_fight.add_beast("acorn_imp", 0, "front", "acorn_imp")
+	AutoPolicyScript.run_idle(guard_fight)
+	failed += _assert(guard_fight.outcome() != "" or guard_fight.round > 0, "run_idle finishes a normal fight without tripping the guard")
+
+	if failed == 0:
+		print("AUTO_POLICY_OK")
 	return failed
 
 
