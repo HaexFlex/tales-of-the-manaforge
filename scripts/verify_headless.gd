@@ -9181,7 +9181,25 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 		var col: Color = bg.color
 		failed += _assert(col.g > col.r and col.g > col.b and col.g < 0.35 and col.a > 0.9, "arena backdrop is dark green")
 	var placeholder: Label = view.get_node_or_null("Arena/Placeholder") as Label
-	failed += _assert(placeholder != null and placeholder.text == "Forest arena: art coming", "placeholder reads the draft line")
+	failed += _assert(placeholder != null and not placeholder.visible, "the art-coming line is hidden now that the arena art is in")
+	var backdrop: TextureRect = view.get_node_or_null("Arena/Backdrop") as TextureRect
+	var foreground: TextureRect = view.get_node_or_null("Arena/Foreground") as TextureRect
+	failed += _assert(backdrop != null and backdrop.texture != null and backdrop.texture.get_size() == Vector2(1600, 900), "the forest backdrop is the 1600x900 arena art")
+	failed += _assert(foreground != null and foreground.texture != null and foreground.get_index() > (view.get_node("Arena/Fighters") as Node).get_index(), "the foreground draws over the fighters")
+	failed += _assert(backdrop != null and backdrop.mouse_filter == Control.MOUSE_FILTER_IGNORE and foreground != null and foreground.mouse_filter == Control.MOUSE_FILTER_IGNORE, "arena art takes no clicks")
+	for member: String in ["keeper", "elaia"]:
+		var fighter: Node = view.get_node_or_null("Arena/Fighters/Fighter_%s" % member)
+		var sprite: TextureRect = fighter.get_node_or_null("Sprite") as TextureRect if fighter != null else null
+		failed += _assert(sprite != null and sprite.texture != null and sprite.texture.get_size() == Vector2(128, 128), "%s stands in the arena in a battle pose" % member)
+		for pose: String in ["attack", "brace", "hurt", "ko"]:
+			failed += _assert(bool(view.call("set_fighter_pose", member, pose)), "%s %s pose loads" % [member, pose])
+		view.call("set_fighter_pose", member, "idle")
+	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
+	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(448, 512), "Keeper stands on the front middle slot")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(328, 482), "Elaia stands on the back middle slot")
+	for beast_id: String in BattleViewScript.BEAST_HURT.keys():
+		failed += _assert(ResourceLoader.exists(str(BattleViewScript.BEAST_HURT[beast_id])), "%s hurt frame is imported" % beast_id)
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
 	failed += _assert(close_btn != null and close_btn.visible and close_btn.text == "Close", "Close is visible")
 	failed += _assert(get_nodes_in_group("battle_slot_outline").size() == 12, "front and back rows mark twelve slots")
@@ -9195,11 +9213,13 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 		var beast_back: Control = slot_nodes[9] as Control
 		failed += _assert(party_front != null and party_back != null and beast_front != null and beast_back != null, "row outlines are controls")
 		if party_front != null and party_back != null and beast_front != null and beast_back != null:
-			failed += _assert(is_equal_approx(party_back.position.x - party_front.position.x, party_front.size.x * 0.5), "party back row is offset by half a slot")
+			var half: Vector2 = party_front.size * 0.5
+			failed += _assert(party_front.position + half == Vector2(448, 452) and beast_back.position + half == Vector2(952, 422), "slot marks sit on the arena art's sole points")
+			failed += _assert(party_back.position.x < party_front.position.x, "party back column stands behind the front")
 			failed += _assert(party_back.position.y < party_front.position.y, "party back row sits behind the front row")
-			failed += _assert(is_equal_approx(beast_front.position.x - beast_back.position.x, beast_front.size.x * 0.5), "beast back row is offset by half a slot")
+			failed += _assert(beast_back.position.x > beast_front.position.x, "beast back column stands behind the front")
 			failed += _assert(beast_back.position.y < beast_front.position.y, "beast back row sits behind the front row")
-			failed += _assert(beast_front.position.x > party_front.position.x + 400.0, "beasts stand on the right")
+			failed += _assert(beast_front.position.x > party_front.position.x + 300.0, "beasts stand on the right")
 	var clock_before: float = float(game_state.get("run_time_sec"))
 	for _frame: int in 60:
 		await process_frame

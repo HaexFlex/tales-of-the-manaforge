@@ -10,13 +10,54 @@ class_name BattleView
 const SCENE_PATH: String = "res://scenes/battle/battle_scene.tscn"
 const ARENA_LAYER: int = 75
 const ARENA_SIZE: Vector2 = Vector2(1280.0, 720.0)
-const SLOT_SIZE: Vector2 = Vector2(84.0, 108.0)
-const SLOT_GAP: float = 12.0
-const ROW_GAP: float = 24.0
-const SIDE_MARGIN: float = 72.0
-const FRONT_Y: float = 392.0
+const ART_DIR: String = "res://assets/art/battle/"
+## Sole points (feet on the ground) in the 1280x720 arena view, from the approved arena
+## art (battle_b1 arena_info.json). Each side has a front and a back column of three;
+## the back column stands further from the centre and 30 px higher.
+const SLOT_SOLES: Dictionary = {
+	"party_front": [Vector2(448, 452), Vector2(448, 512), Vector2(448, 572)],
+	"party_back": [Vector2(328, 422), Vector2(328, 482), Vector2(328, 542)],
+	"beast_front": [Vector2(832, 452), Vector2(832, 512), Vector2(832, 572)],
+	"beast_back": [Vector2(952, 422), Vector2(952, 482), Vector2(952, 542)],
+}
+const SLOT_ORDER: Array[String] = ["party_front", "party_back", "beast_front", "beast_back"]
+const SLOT_MARK_SIZE: Vector2 = Vector2(56.0, 16.0)
+## 128x128 fighter frames: soles on row 123, feet centred on x 63.5.
+const FIGHTER_FRAME: Vector2 = Vector2(128.0, 128.0)
+const FIGHTER_SOLE: Vector2 = Vector2(64.0, 123.0)
+## Placeholder lineup until job 18's formation: Keeper front middle, Elaia back middle.
+const PARTY_LINEUP: Dictionary = {"keeper": ["party_front", 1], "elaia": ["party_back", 1]}
+## Battle poses (east-facing). Only idle is shown; the rest wait for jobs 18/21.
+const PARTY_POSES: Dictionary = {
+	"keeper": {
+		"idle": "res://assets/art/echo/battle_keeper_idle_e.png",
+		"attack": ART_DIR + "party/battle_keeper_attack.png",
+		"brace": ART_DIR + "party/battle_keeper_brace.png",
+		"hurt": ART_DIR + "party/battle_keeper_hurt.png",
+		"ko": ART_DIR + "party/battle_keeper_ko.png",
+	},
+	"elaia": {
+		"idle": ART_DIR + "party/battle_elaia_idle_e.png",
+		"attack": ART_DIR + "party/battle_elaia_attack.png",
+		"brace": ART_DIR + "party/battle_elaia_brace.png",
+		"hurt": ART_DIR + "party/battle_elaia_hurt.png",
+		"ko": ART_DIR + "party/battle_elaia_ko.png",
+	},
+}
+## West-facing beast hurt frames, imported for playback (job 21). Not wired yet.
+const BEAST_HURT: Dictionary = {
+	"acorn_imp": ART_DIR + "beasts/battle_acorn_imp_hurt.png",
+	"briar_hulk": ART_DIR + "beasts/battle_briar_hulk_hurt.png",
+	"moss_brute": ART_DIR + "beasts/battle_moss_brute_hurt.png",
+	"root_snapper": ART_DIR + "beasts/battle_root_snapper_hurt.png",
+	"spore_moth": ART_DIR + "beasts/battle_spore_moth_hurt.png",
+	"thorn_boar": ART_DIR + "beasts/battle_thorn_boar_hurt.png",
+	"vine_serpent": ART_DIR + "beasts/battle_vine_serpent_hurt.png",
+	"wilt_wisp": ART_DIR + "beasts/battle_wilt_wisp_hurt.png",
+}
+const SLOT_MARK_PATH: String = ART_DIR + "arena/slot_mark.png"
+const SHADOW_M_PATH: String = ART_DIR + "arena/shadow_m.png"
 const BACKDROP: Color = Color(0.05, 0.14, 0.08, 1.0)
-const OUTLINE: Color = Color(0.75, 0.86, 0.7, 0.38)
 
 static var _current: Node = null
 
@@ -24,6 +65,7 @@ static var _current: Node = null
 @onready var _placeholder: Label = $Arena/Placeholder
 @onready var _close_button: Button = $Arena/CloseButton
 @onready var _slots: Control = $Arena/Slots
+@onready var _fighters: Control = $Arena/Fighters
 
 
 static func is_open() -> bool:
@@ -99,6 +141,7 @@ func _ready() -> void:
 		_background.mouse_filter = Control.MOUSE_FILTER_STOP
 	_apply_copy()
 	_build_slot_outlines()
+	_place_party()
 	if _close_button and not _close_button.pressed.is_connected(close_overlay):
 		_close_button.pressed.connect(close_overlay)
 	_bind_load()
@@ -162,40 +205,82 @@ func _apply_copy() -> void:
 
 
 func _build_slot_outlines() -> void:
-	## Party on the left, beasts on the right. Front row, then a back row of
-	## three, shifted half a slot toward the center so the rows don't stack.
+	## Twelve ground marks in the art's slots: party front 0-2, party back 3-5,
+	## beast front 6-8, beast back 9-11. Each Control is the mark, centred on its sole point.
 	if _slots == null:
 		return
-	_add_row("party", false)
-	_add_row("party", true)
-	_add_row("beast", false)
-	_add_row("beast", true)
+	var mark_tex: Texture2D = load(SLOT_MARK_PATH) as Texture2D
+	for column: String in SLOT_ORDER:
+		var soles: Array = SLOT_SOLES[column]
+		for i: int in soles.size():
+			var sole: Vector2 = soles[i]
+			var slot := Control.new()
+			slot.name = "%s_%d" % [column, i]
+			slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slot.position = sole - SLOT_MARK_SIZE * 0.5
+			slot.size = SLOT_MARK_SIZE
+			slot.set_meta("sole", sole)
+			slot.add_to_group("battle_slot_outline")
+			var mark := TextureRect.new()
+			mark.name = "Mark"
+			mark.texture = mark_tex
+			mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			mark.size = SLOT_MARK_SIZE
+			slot.add_child(mark)
+			_slots.add_child(slot)
 
 
-func _add_row(side: String, back: bool) -> void:
-	var step: float = SLOT_SIZE.x + SLOT_GAP
-	var row_w: float = step * 2.0 + SLOT_SIZE.x
-	var x: float = SIDE_MARGIN
-	var y: float = FRONT_Y
-	if side == "beast":
-		x = ARENA_SIZE.x - SIDE_MARGIN - row_w
-	if back:
-		y = FRONT_Y - SLOT_SIZE.y - ROW_GAP
-		if side == "party":
-			x += SLOT_SIZE.x * 0.5
-		else:
-			x -= SLOT_SIZE.x * 0.5
-	for i: int in 3:
-		var mark := ReferenceRect.new()
-		mark.name = "SlotOutline"
-		mark.editor_only = false
-		mark.border_color = OUTLINE
-		mark.border_width = 2.0
-		mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		mark.position = Vector2(x + step * float(i), y)
-		mark.size = SLOT_SIZE
-		mark.add_to_group("battle_slot_outline")
-		_slots.add_child(mark)
+static func slot_sole(column: String, index: int) -> Vector2:
+	var soles: Array = SLOT_SOLES.get(column, [])
+	if index < 0 or index >= soles.size():
+		return Vector2.ZERO
+	return soles[index]
+
+
+func _place_party() -> void:
+	## Keeper and Elaia idle poses on their placeholder slots. Job 18 replaces this
+	## with the real formation; set_fighter_pose swaps frames for later playback.
+	if _fighters == null:
+		return
+	var shadow_tex: Texture2D = load(SHADOW_M_PATH) as Texture2D
+	for member: String in ["elaia", "keeper"]:
+		var spot: Array = PARTY_LINEUP[member]
+		var sole: Vector2 = slot_sole(str(spot[0]), int(spot[1]))
+		var root := Control.new()
+		root.name = "Fighter_%s" % member
+		root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.position = sole
+		root.add_to_group("battle_fighter")
+		if shadow_tex != null:
+			var shadow := TextureRect.new()
+			shadow.name = "Shadow"
+			shadow.texture = shadow_tex
+			shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			shadow.size = shadow_tex.get_size()
+			shadow.position = -shadow_tex.get_size() * 0.5
+			root.add_child(shadow)
+		var sprite := TextureRect.new()
+		sprite.name = "Sprite"
+		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sprite.size = FIGHTER_FRAME
+		sprite.position = -FIGHTER_SOLE
+		root.add_child(sprite)
+		_fighters.add_child(root)
+		set_fighter_pose(member, "idle")
+
+
+func set_fighter_pose(member: String, pose: String) -> bool:
+	var root: Node = _fighters.get_node_or_null("Fighter_%s" % member) if _fighters != null else null
+	var poses: Dictionary = PARTY_POSES.get(member, {})
+	if root == null or not poses.has(pose):
+		return false
+	var tex: Texture2D = load(str(poses[pose])) as Texture2D
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
+	if tex == null or sprite == null:
+		return false
+	sprite.texture = tex
+	root.set_meta("pose", pose)
+	return true
 
 
 func _input(event: InputEvent) -> void:

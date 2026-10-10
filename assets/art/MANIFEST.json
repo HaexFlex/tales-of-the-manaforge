@@ -90,5 +90,59 @@
       384
     ],
     "filter": "nearest"
+  },
+  "battle": {
+    "dir": "battle/",
+    "source": "/workspace/battle_b1/out (approved Oct 9)",
+    "arena": {
+      "backdrop": "battle/arena/arena_forest_bg_a.png",
+      "backdrop_alt": "battle/arena/arena_forest_bg_b.png",
+      "foreground": "battle/arena/arena_forest_fg.png",
+      "canvas": [
+        1600,
+        900
+      ],
+      "view_offset": [
+        160,
+        90
+      ],
+      "mirror": "flip_h (the _mirror files are exact flips, not shipped)",
+      "slot_mark": "battle/arena/slot_mark.png",
+      "slot_mark_target": "battle/arena/slot_mark_target.png",
+      "shadows": [
+        "battle/arena/shadow_s.png",
+        "battle/arena/shadow_m.png",
+        "battle/arena/shadow_l.png"
+      ]
+    },
+    "party": {
+      "dir": "battle/party/",
+      "facing": "east",
+      "frame": [
+        128,
+        128
+      ],
+      "sole_row": 123,
+      "poses": [
+        "attack",
+        "brace",
+        "hurt",
+        "ko"
+      ],
+      "elaia_idle": "battle/party/battle_elaia_idle_e.png",
+      "keeper_idle": "echo/battle_keeper_idle_e.png"
+    },
+    "beasts_hurt": {
+      "dir": "battle/beasts/",
+      "facing": "west",
+      "frame": [
+        128,
+        128
+      ],
+      "sole_row": 123,
+      "wired": false,
+      "note": "idle drafts for acorn imp, spore moth, thorn boar, vine serpent are not approved and not shipped"
+    },
+    "filter": "nearest"
   }
 }
