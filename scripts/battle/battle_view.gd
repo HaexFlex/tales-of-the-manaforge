@@ -452,6 +452,9 @@ func show_fight(fight: FightState) -> void:
 	if _fighters == null or _arena == null:
 		return
 	_clear_fight_ui()
+	if _playback != null:
+		# Any fight shown here gets playback bound, not just start_test_fight's.
+		_playback.bind_view(self, fight)
 	var snapshot: Dictionary = fight.to_dict()
 	var rows: Array = snapshot.get("fighters", []) as Array
 	var by_column: Dictionary = {}
