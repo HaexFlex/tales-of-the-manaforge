@@ -1044,7 +1044,11 @@ func _build_speed_bar() -> void:
 		return
 	_speed_bar = HBoxContainer.new()
 	_speed_bar.name = "SpeedBar"
-	_speed_bar.position = Vector2(420.0, 12.0)
+	# Sit right of the test fight bar (Depth, Boss, Elaia, Start fight), never over it.
+	var speed_x: float = 560.0
+	if _test_fight_bar != null:
+		speed_x = _test_fight_bar.position.x + _test_fight_bar.get_combined_minimum_size().x + 24.0
+	_speed_bar.position = Vector2(speed_x, 12.0)
 	for label_speed: int in [1, 2, 4]:
 		var btn := Button.new()
 		btn.name = "Speed%dx" % label_speed

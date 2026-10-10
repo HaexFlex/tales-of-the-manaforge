@@ -12423,6 +12423,9 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	while playback.is_busy():
 		playback.advance(0.05)
 	failed += _assert(playback.clock_sec - t0 >= 0.75, "status pause")
+	var test_bar: Control = view.get_node_or_null("Arena/TestFightBar") as Control
+	var speed_bar: Control = view.get_node_or_null("Arena/SpeedBar") as Control
+	failed += _assert(test_bar != null and speed_bar != null and not test_bar.get_global_rect().intersects(speed_bar.get_global_rect()), "speed bar does not cover the test fight bar")
 	# Real-speed fight where a beast acts first: the menu must come back after
 	# each beast turn's playback (it used to stall with the menu hidden).
 	if view._strike_for_me_toggle != null:
