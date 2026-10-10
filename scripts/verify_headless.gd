@@ -8463,7 +8463,8 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	var clamped_pack: Dictionary = clamped.get("backpack", {}) as Dictionary
 	var clamped_reach: Dictionary = clamped.get("reach", {}) as Dictionary
 	failed += _assert(int(clamped_pack.get("heart_salve", -1)) == 1, "a negative backpack count becomes 0 before the add")
-	failed += _assert(int(clamped_pack.get("briarwood", -1)) == 0, "a negative reach count adds nothing")
+	failed += _assert(not clamped_pack.has("briarwood"), "a negative reach count adds no stack")
+	failed += _assert(not clamped_pack.has("bile_vial"), "a zero total adds no stack")
 	failed += _assert(int(clamped_pack.get("herbs", -1)) == 4, "a backpack count with nothing to move stays")
 	failed += _assert(_reach_item_keys_gone(clamped_reach), "clamped migration removes the item keys")
 	save_service.call("delete_slot", 7)

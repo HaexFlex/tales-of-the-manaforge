@@ -585,7 +585,8 @@ func _migrate_v13(out: Dictionary) -> void:
 
 
 func _migrate_v14(out: Dictionary) -> void:
-	## Reach's four counters join the backpack (add, never overwrite). expedition is only a status
+	## Reach's four counters join the backpack (add, never overwrite; a zero total adds no stack,
+	## so players never see empty stacks). expedition is only a status
 	## marker here. Later jobs add fields on that dictionary, each with a default, and must not
 	## replace a status that is already set.
 	var reach_v: Variant = out.get("reach", {})
@@ -600,7 +601,10 @@ func _migrate_v14(out: Dictionary) -> void:
 		if reach.has(item_id):
 			moved = maxi(0, int(reach[item_id]))
 			reach.erase(item_id)
-		pack[item_id] = have + moved
+		if have + moved > 0:
+			pack[item_id] = have + moved
+		else:
+			pack.erase(item_id)
 	out["backpack"] = pack
 	out["reach"] = reach
 	var exp_v: Variant = out.get("expedition", {})
