@@ -1,0 +1,357 @@
+{
+ "status": "DRAFT data from BATTLE_SCENE_DRAFT v4 §10 (numbers tweakable). Fixed stats per species; depth only raises the room budget (data/spawn_tables.json). Nothing in the game reads this file yet.",
+ "hp_rule": {
+  "base": 10,
+  "per_vitality": 3,
+  "note": "HP = 10 + 3 x Vitality, same as the party."
+ },
+ "threat_rule": {
+  "per_stat_point": 1,
+  "stats": [
+   "might",
+   "arcana",
+   "resilience",
+   "ward",
+   "vitality",
+   "swiftness",
+   "fate"
+  ],
+  "move_base": 5,
+  "poison_level": "round(total / 6), at least 1",
+  "heavy_level": "round(mult)",
+  "role_mult": 1.1,
+  "role_mult_note": "x1.1 per role past the first, then round half up",
+  "roles": {
+   "damage": "every beast",
+   "tank": "vitality >= 12 or (resilience + ward) / 2 >= 8",
+   "utility": "a non-damage move (poison counts, heavy does not)",
+   "healer": "none yet"
+  }
+ },
+ "variant_rule": {
+  "note": "The stronger version of a species (internally B): darker palette plus one menacing accessory, same frames. Stats round half up.",
+  "default": {
+   "stat_mult": 1.5,
+   "stat_min_add": 2,
+   "poison_mult": 1.5,
+   "poison_min_add": 3,
+   "heavy_add": 0.5
+  },
+  "tier_1": {
+   "stat_mult": 1.3,
+   "stat_min_add": 1,
+   "poison_mult": 1.3,
+   "poison_min_add": 2,
+   "heavy_add": 0.5
+  },
+  "stats": [
+   "might",
+   "arcana",
+   "resilience",
+   "ward",
+   "vitality",
+   "swiftness"
+  ]
+ },
+ "species": [
+  {
+   "id": "acorn_imp",
+   "name_key": "beast_acorn_imp_name",
+   "name": "Acorn imp",
+   "tier": 1,
+   "from_depth": 1,
+   "attack": "physical",
+   "might": 7,
+   "arcana": 1,
+   "resilience": 7,
+   "ward": 3,
+   "vitality": 9,
+   "swiftness": 6,
+   "fate": 0,
+   "hp": 37,
+   "move": null,
+   "roles": [
+    "damage"
+   ],
+   "threat": 33
+  },
+  {
+   "id": "spore_moth",
+   "name_key": "beast_spore_moth_name",
+   "name": "Spore moth",
+   "tier": 1,
+   "from_depth": 1,
+   "attack": "magic",
+   "might": 2,
+   "arcana": 8,
+   "resilience": 3,
+   "ward": 3,
+   "vitality": 10,
+   "swiftness": 8,
+   "fate": 0,
+   "hp": 40,
+   "move": {
+    "kind": "poison",
+    "total": 9
+   },
+   "roles": [
+    "damage",
+    "utility"
+   ],
+   "threat": 45
+  },
+  {
+   "id": "wilt_wisp",
+   "name_key": "beast_wilt_wisp_name",
+   "name": "Wilt Wisp",
+   "tier": 2,
+   "from_depth": 3,
+   "attack": "magic",
+   "might": 2,
+   "arcana": 8,
+   "resilience": 4,
+   "ward": 4,
+   "vitality": 10,
+   "swiftness": 8,
+   "fate": 0,
+   "hp": 40,
+   "move": {
+    "kind": "poison",
+    "total": 9
+   },
+   "roles": [
+    "damage",
+    "utility"
+   ],
+   "threat": 47
+  },
+  {
+   "id": "root_snapper",
+   "name_key": "beast_root_snapper_name",
+   "name": "Root Snapper",
+   "tier": 2,
+   "from_depth": 3,
+   "attack": "physical",
+   "might": 8,
+   "arcana": 2,
+   "resilience": 8,
+   "ward": 4,
+   "vitality": 11,
+   "swiftness": 6,
+   "fate": 0,
+   "hp": 43,
+   "move": {
+    "kind": "heavy",
+    "mult": 1.5
+   },
+   "roles": [
+    "damage"
+   ],
+   "threat": 46
+  },
+  {
+   "id": "thorn_boar",
+   "name_key": "beast_thorn_boar_name",
+   "name": "Thorn boar",
+   "tier": 3,
+   "from_depth": 12,
+   "attack": "physical",
+   "might": 9,
+   "arcana": 2,
+   "resilience": 9,
+   "ward": 4,
+   "vitality": 12,
+   "swiftness": 6,
+   "fate": 0,
+   "hp": 46,
+   "move": {
+    "kind": "heavy",
+    "mult": 1.5
+   },
+   "roles": [
+    "damage",
+    "tank"
+   ],
+   "threat": 54
+  },
+  {
+   "id": "vine_serpent",
+   "name_key": "beast_vine_serpent_name",
+   "name": "Vine serpent",
+   "tier": 3,
+   "from_depth": 12,
+   "attack": "physical",
+   "might": 8,
+   "arcana": 9,
+   "resilience": 5,
+   "ward": 5,
+   "vitality": 11,
+   "swiftness": 8,
+   "fate": 0,
+   "hp": 43,
+   "move": {
+    "kind": "poison",
+    "total": 10
+   },
+   "roles": [
+    "damage",
+    "utility"
+   ],
+   "threat": 58
+  },
+  {
+   "id": "briar_hulk",
+   "name_key": "beast_briar_hulk_name",
+   "name": "Briar Hulk",
+   "tier": 4,
+   "from_depth": 18,
+   "attack": "physical",
+   "might": 10,
+   "arcana": 3,
+   "resilience": 10,
+   "ward": 5,
+   "vitality": 13,
+   "swiftness": 7,
+   "fate": 0,
+   "hp": 49,
+   "move": {
+    "kind": "heavy",
+    "mult": 1.5
+   },
+   "roles": [
+    "damage",
+    "tank"
+   ],
+   "threat": 61
+  },
+  {
+   "id": "moss_brute",
+   "name_key": "beast_moss_brute_name",
+   "name": "Moss Brute",
+   "tier": 4,
+   "from_depth": 18,
+   "attack": "physical",
+   "might": 11,
+   "arcana": 2,
+   "resilience": 11,
+   "ward": 6,
+   "vitality": 14,
+   "swiftness": 6,
+   "fate": 0,
+   "hp": 52,
+   "move": {
+    "kind": "heavy",
+    "mult": 2.0
+   },
+   "roles": [
+    "damage",
+    "tank"
+   ],
+   "threat": 63
+  },
+  {
+   "id": "stump_ogre",
+   "name_key": "beast_stump_ogre_name",
+   "name": "Stump ogre",
+   "tier": 5,
+   "from_depth": 22,
+   "attack": "physical",
+   "might": 12,
+   "arcana": 3,
+   "resilience": 12,
+   "ward": 6,
+   "vitality": 15,
+   "swiftness": 6,
+   "fate": 0,
+   "hp": 55,
+   "move": {
+    "kind": "heavy",
+    "mult": 2.0
+   },
+   "roles": [
+    "damage",
+    "tank"
+   ],
+   "threat": 67
+  },
+  {
+   "id": "stag_spirit",
+   "name_key": "beast_stag_spirit_name",
+   "name": "Stag spirit",
+   "tier": 5,
+   "from_depth": 22,
+   "attack": "magic",
+   "might": 5,
+   "arcana": 10,
+   "resilience": 8,
+   "ward": 8,
+   "vitality": 14,
+   "swiftness": 9,
+   "fate": 0,
+   "hp": 52,
+   "move": {
+    "kind": "poison",
+    "total": 12
+   },
+   "roles": [
+    "damage",
+    "tank",
+    "utility"
+   ],
+   "threat": 74
+  }
+ ],
+ "variants": [
+  {
+   "id": "acorn_imp_dark",
+   "variant_of": "acorn_imp",
+   "name_key": "beast_acorn_imp_dark_name",
+   "name": "Dark acorn imp",
+   "tier": 1,
+   "from_depth": 5,
+   "attack": "physical",
+   "might": 9,
+   "arcana": 2,
+   "resilience": 9,
+   "ward": 4,
+   "vitality": 12,
+   "swiftness": 8,
+   "fate": 0,
+   "hp": 46,
+   "move": null,
+   "roles": [
+    "damage",
+    "tank"
+   ],
+   "threat": 48
+  },
+  {
+   "id": "spore_moth_dark",
+   "variant_of": "spore_moth",
+   "name_key": "beast_spore_moth_dark_name",
+   "name": "Dark spore moth",
+   "tier": 1,
+   "from_depth": 5,
+   "attack": "magic",
+   "might": 3,
+   "arcana": 10,
+   "resilience": 4,
+   "ward": 4,
+   "vitality": 13,
+   "swiftness": 10,
+   "fate": 0,
+   "hp": 49,
+   "move": {
+    "kind": "poison",
+    "total": 12
+   },
+   "roles": [
+    "damage",
+    "tank",
+    "utility"
+   ],
+   "threat": 62
+  }
+ ],
+ "variants_note": "Only the dark imp and dark moth spawn by depth 15. Other dark variants come after depth 15 and are not listed yet."
+}

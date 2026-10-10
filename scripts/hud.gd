@@ -436,7 +436,12 @@ func _make_item_icon(item_id: String, tip: String) -> Control:
 		if item_id == "essence":
 			icon.modulate = ESSENCE_TINT
 		return icon
-	var placeholder := _placeholder_icon(PLACEHOLDER_SWATCH)
+	var swatch: Color = PLACEHOLDER_SWATCH
+	if has_node("/root/Backpack") and Backpack.is_known_item(item_id):
+		var hex: String = str(Backpack.get_item_def(item_id).get("color", ""))
+		if hex != "":
+			swatch = Backpack.item_color(item_id)
+	var placeholder := _placeholder_icon(swatch)
 	placeholder.tooltip_text = tip
 	return placeholder
 
@@ -2286,6 +2291,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key: InputEventKey = event
 	if not key.pressed or key.echo:
+		return
+	if BattleView.is_open():
 		return
 	if key.keycode == KEY_I and not key.ctrl_pressed and not key.alt_pressed and not key.meta_pressed:
 		if welcome_panel.visible:

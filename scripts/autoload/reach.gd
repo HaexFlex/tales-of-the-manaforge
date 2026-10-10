@@ -1,5 +1,6 @@
 extends Node
 ## Endless reach rooms. Idle rolls and manual fights share one outing.
+## Briarwood, herbs, Heart Salve and Bile Vial live in the Backpack.
 ## Offline catch-up of an open run uses raw closed seconds. Play speed never multiplies it.
 ## The locked draft's Fate term, every-5 start checkpoints, room twists, crates, and Amberbind are not in this pass.
 ## Any unlocked depth can be started. Every 10th room attempted in an expedition is a boss at that room's depth.
@@ -16,13 +17,13 @@ const ART_MINION := "res://assets/art/echo/battle_root_snapper_idle.png"
 const ART_CASTER := "res://assets/art/echo/battle_wilt_wisp_idle.png"
 const ART_BRUTE := "res://assets/art/echo/battle_moss_brute_idle.png"
 
+const PACK_ITEM_IDS: Array[String] = ["briarwood", "herbs", "heart_salve", "bile_vial"]
+
 var deepest_depth: int = 0
 var reaches_cleared: int = 0
 var dojo_exp: int = 0
-var briarwood: int = 0
-var herbs: int = 0
-var heart_salve: int = 0
-var bile_vial: int = 0
+## Marker for the outing. Later jobs add fields here with defaults.
+var expedition: Dictionary = {"status": "home"}
 var running: bool = false
 var pace: String = "hold"
 var control: String = "idle"
@@ -79,10 +80,7 @@ func reset_for_new_game() -> void:
 	deepest_depth = 0
 	reaches_cleared = 0
 	dojo_exp = 0
-	briarwood = 0
-	herbs = 0
-	heart_salve = 0
-	bile_vial = 0
+	_clear_pack_items()
 	_end_run("dark")
 	pace = "hold"
 	control = "idle"
@@ -201,11 +199,11 @@ func push_drops(drops: Array) -> void:
 
 
 func grant_salve(n: int) -> void:
-	heart_salve = maxi(0, heart_salve + n)
+	_item_add("heart_salve", n)
 
 
 func grant_vial(n: int) -> void:
-	bile_vial = maxi(0, bile_vial + n)
+	_item_add("bile_vial", n)
 
 
 func depart(start_depth: int, length_hours: float, pace_mode: String, control_mode: String) -> String:
@@ -224,6 +222,7 @@ func depart(start_depth: int, length_hours: float, pace_mode: String, control_mo
 	salve_used = false
 	_begin_room()
 	_set_lantern("amber")
+	_remember_expedition()
 	changed.emit()
 	return "ok"
 
@@ -317,28 +316,26 @@ func fight_snapshot() -> Dictionary:
 	if _fight == null:
 		return {}
 	var snap: Dictionary = _fight.snapshot()
-	snap["salve"] = heart_salve
-	snap["vial"] = bile_vial
+	snap["salve"] = _item_count("heart_salve")
+	snap["vial"] = _item_count("bile_vial")
 	return snap
 
 
 func fight_choose(action: String, target: int = 0) -> String:
 	if _fight == null:
 		return "none"
-	if action == "salve" and heart_salve <= 0:
-		return "empty"
-	if action == "bile" and bile_vial <= 0:
-		return "empty"
+	var spent := ""
 	if action == "salve":
-		heart_salve -= 1
+		spent = "heart_salve"
 	elif action == "bile":
-		bile_vial -= 1
+		spent = "bile_vial"
+	if spent != "" and _item_count(spent) <= 0:
+		return "empty"
+	if spent != "":
+		_item_add(spent, -1)
 	var result := _fight.choose(action, target)
-	if result == "invalid":
-		if action == "salve":
-			heart_salve += 1
-		elif action == "bile":
-			bile_vial += 1
+	if result == "invalid" and spent != "":
+		_item_add(spent, 1)
 		return result
 	_after_fight()
 	changed.emit()
@@ -363,10 +360,6 @@ func capture_save_fields() -> Dictionary:
 			"deepest_depth": deepest_depth,
 			"reaches_cleared": reaches_cleared,
 			"dojo_exp": dojo_exp,
-			"briarwood": briarwood,
-			"herbs": herbs,
-			"heart_salve": heart_salve,
-			"bile_vial": bile_vial,
 			"running": running,
 			"pace": pace,
 			"control": control,
@@ -379,7 +372,8 @@ func capture_save_fields() -> Dictionary:
 			"rooms_attempted": rooms_attempted,
 			"salve_used": salve_used,
 			"mix": mix.duplicate(),
-		}
+		},
+		"expedition": _capture_expedition(),
 	}
 
 
@@ -390,10 +384,6 @@ func apply_save_fields(data: Dictionary) -> void:
 	deepest_depth = maxi(0, int(data.get("deepest_depth", 0)))
 	reaches_cleared = maxi(0, int(data.get("reaches_cleared", 0)))
 	dojo_exp = maxi(0, int(data.get("dojo_exp", 0)))
-	briarwood = maxi(0, int(data.get("briarwood", 0)))
-	herbs = maxi(0, int(data.get("herbs", 0)))
-	heart_salve = maxi(0, int(data.get("heart_salve", 0)))
-	bile_vial = maxi(0, int(data.get("bile_vial", 0)))
 	pace = "push" if str(data.get("pace", "hold")) == "push" else "hold"
 	control = "manual" if str(data.get("control", "idle")) == "manual" else "idle"
 	depth = maxi(1, int(data.get("depth", 1)))
@@ -425,10 +415,6 @@ func default_save_fields() -> Dictionary:
 		"deepest_depth": 0,
 		"reaches_cleared": 0,
 		"dojo_exp": 0,
-		"briarwood": 0,
-		"herbs": 0,
-		"heart_salve": 0,
-		"bile_vial": 0,
 		"running": false,
 		"pace": "hold",
 		"control": "idle",
@@ -442,6 +428,70 @@ func default_save_fields() -> Dictionary:
 		"salve_used": false,
 		"mix": [],
 	}
+
+
+func apply_expedition(data: Dictionary) -> void:
+	## Empty means "derive it from the run we just applied". A saved block wins, including its summary.
+	if data.is_empty():
+		expedition = {}
+		_remember_expedition()
+		return
+	expedition = data.duplicate(true)
+	if str(expedition.get("status", "")) == "":
+		_remember_expedition()
+
+
+func _capture_expedition() -> Dictionary:
+	## Status follows the live run. Other keys stay so later jobs can add defaults.
+	var out: Dictionary = expedition.duplicate(true)
+	if running:
+		out["status"] = "out_legacy"
+		out.erase("summary")
+	elif _lantern() == "cyan":
+		out["status"] = "finished_unseen"
+	else:
+		out["status"] = "home"
+		out.erase("summary")
+	return out
+
+
+func _remember_expedition() -> void:
+	expedition = _capture_expedition()
+
+
+func _lantern() -> String:
+	if not has_node("/root/GameState"):
+		return "dark"
+	var state := str(GameState.expedition_lantern)
+	if state != "amber" and state != "cyan":
+		return "dark"
+	return state
+
+
+func _item_count(item_id: String) -> int:
+	if not has_node("/root/Backpack"):
+		return 0
+	return Backpack.get_count(item_id)
+
+
+func _item_add(item_id: String, amount: int) -> void:
+	if amount == 0 or not has_node("/root/Backpack"):
+		return
+	if amount > 0:
+		Backpack.add_item(item_id, amount)
+	else:
+		Backpack.try_spend(item_id, -amount)
+
+
+func _item_set(item_id: String, amount: int) -> void:
+	if not has_node("/root/Backpack"):
+		return
+	Backpack.set_count(item_id, maxi(0, amount))
+
+
+func _clear_pack_items() -> void:
+	for item_id: String in PACK_ITEM_IDS:
+		_item_set(item_id, 0)
 
 
 func _resolve_idle() -> void:
@@ -465,8 +515,8 @@ func _roll_idle() -> bool:
 	var bonus := preview_bonus(depth)
 	var face := _next_face()
 	var cleared := idle_clears(face, bonus)
-	if not cleared and heart_salve > 0 and not salve_used:
-		heart_salve -= 1
+	if not cleared and _item_count("heart_salve") > 0 and not salve_used:
+		_item_add("heart_salve", -1)
 		salve_used = true
 		face = _next_face()
 		cleared = idle_clears(face, bonus)
@@ -475,8 +525,8 @@ func _roll_idle() -> bool:
 
 func _grant_room() -> void:
 	var mult := 2 if is_boss_room() else 1
-	briarwood += _next_drop() * mult
-	herbs += _next_drop() * mult
+	_item_add("briarwood", _next_drop() * mult)
+	_item_add("herbs", _next_drop() * mult)
 	dojo_exp += room_exp(depth) * mult
 	reaches_cleared += 1
 	run_clears += 1
@@ -559,6 +609,7 @@ func _end_run(lantern: String) -> void:
 	mix.clear()
 	_close_view()
 	_set_lantern(lantern)
+	_remember_expedition()
 
 
 func _roll_mix(budget: float) -> Array[String]:

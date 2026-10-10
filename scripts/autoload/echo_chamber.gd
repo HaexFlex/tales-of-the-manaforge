@@ -117,6 +117,16 @@ func try_pay_fee() -> String:
 	return "paid"
 
 
+func _arena_overlay_open() -> bool:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return false
+	for node: Node in tree.get_nodes_in_group("battle_overlay"):
+		if is_instance_valid(node) and not node.is_queued_for_deletion():
+			return true
+	return false
+
+
 func open_battle(already_paid: bool) -> void:
 	open_context(_echo_def, "echo1", _keeper_totals(), Equipment.equipped_strike_kind(), already_paid)
 
@@ -131,6 +141,11 @@ func open_bramble(already_paid: bool) -> void:
 
 func open_context(def: Dictionary, context: String, totals: Dictionary, strike_kind: String, already_paid: bool) -> void:
 	if in_battle:
+		return
+	## The arena overlay and Echo never open together. Portal, thorn, and the
+	## debug jump all come through here. The group avoids a script cycle with
+	## BattleView, which already calls this autoload.
+	if _arena_overlay_open():
 		return
 	battle_context = context
 	reentry = already_paid

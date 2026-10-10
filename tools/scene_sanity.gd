@@ -147,7 +147,7 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 13") >= 0, "SAVE_VERSION 13")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 14") >= 0, "SAVE_VERSION 14")
 	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()

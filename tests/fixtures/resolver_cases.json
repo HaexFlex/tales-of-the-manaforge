@@ -1,0 +1,1145 @@
+{
+ "source": {
+  "sim": "combat_sim.py",
+  "sim_sha256": "9c2a650ab5ec14f4ad434a0c0acca092c915730b13517b3a7c79c54f2a4c7b6f",
+  "rules": "BATTLE_SCENE_DRAFT v4",
+  "exporter": "tools/sim/export_resolver_fixtures.py",
+  "poison": "refresh (one per target, 3 ticks, stronger total kept)"
+ },
+ "notes": [
+  "Bands: margin < 0 miss, 0-2 graze x0.5, 3-5 hit x1, 6+ crushing x2. Damage rounds half up, minimum 1.",
+  "Fate crit: a landed blow crits when fate_roll_0_100 < attacker Fate. Beasts have Fate 0 and roll no crit.",
+  "Dice are consumed in this order: attack 2d6, defense 2d6, damage die (only on a landed blow), Fate roll (only when Fate > 0).",
+  "The sim has no Brace, Sap Spring, twists or boss telegraph yet; doc_cases holds the §4 Brace line by hand.",
+  "No loot here. Amberbind stays the manual jackpot and is never a bonus drop."
+ ],
+ "strikes": [
+  {
+   "id": "s4_line1",
+   "note": "BATTLE_SCENE_DRAFT v4 §4 example, line 1",
+   "attacker": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys",
+    "hp": 37
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     3,
+     4
+    ],
+    "defense_2d6": [
+     2,
+     3
+    ],
+    "damage_die": 6,
+    "damage_face": 4,
+    "fate_roll_0_100": 50
+   },
+   "expect": {
+    "attack_total": 18,
+    "defense_total": 11,
+    "margin": 7,
+    "band": "crush",
+    "damage": 24,
+    "fate_crit": false,
+    "defender_hp_after": 13
+   }
+  },
+  {
+   "id": "s4_line2",
+   "note": "§4 example, line 2 (tie goes to the attacker: graze)",
+   "attacker": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys",
+    "hp": 28
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     2,
+     4
+    ],
+    "defense_2d6": [
+     3,
+     4
+    ],
+    "damage_die": 4,
+    "damage_face": 3,
+    "fate_roll_0_100": null
+   },
+   "expect": {
+    "attack_total": 13,
+    "defense_total": 13,
+    "margin": 0,
+    "band": "graze",
+    "damage": 4,
+    "fate_crit": false,
+    "defender_hp_after": 24
+   }
+  },
+  {
+   "id": "s4_line4",
+   "note": "§4 example, line 4 (crushing + Fate crit = x4). The draft prints 48; the rule gives 13 x2 x2 = 52",
+   "attacker": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys",
+    "hp": 13
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     4,
+     5
+    ],
+    "defense_2d6": [
+     3,
+     3
+    ],
+    "damage_die": 6,
+    "damage_face": 5,
+    "fate_roll_0_100": 3
+   },
+   "expect": {
+    "attack_total": 20,
+    "defense_total": 12,
+    "margin": 8,
+    "band": "crush",
+    "damage": 52,
+    "fate_crit": true,
+    "defender_hp_after": -39
+   }
+  },
+  {
+   "id": "miss_margin_minus1",
+   "note": "margin -1 is a miss, no damage die rolled",
+   "attacker": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys",
+    "hp": 37
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     1,
+     1
+    ],
+    "defense_2d6": [
+     4,
+     4
+    ],
+    "damage_die": 6,
+    "damage_face": null,
+    "fate_roll_0_100": null
+   },
+   "expect": {
+    "attack_total": 13,
+    "defense_total": 14,
+    "margin": -1,
+    "band": "miss",
+    "damage": 0,
+    "fate_crit": false,
+    "defender_hp_after": 37
+   }
+  },
+  {
+   "id": "graze_margin2_half_up",
+   "note": "margin 2 is a graze; x0.5 rounds half up (9 x 0.5 = 4.5 -> 5)",
+   "attacker": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys",
+    "hp": 37
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     1,
+     2
+    ],
+    "defense_2d6": [
+     3,
+     3
+    ],
+    "damage_die": 6,
+    "damage_face": 1,
+    "fate_roll_0_100": 99
+   },
+   "expect": {
+    "attack_total": 14,
+    "defense_total": 12,
+    "margin": 2,
+    "band": "graze",
+    "damage": 5,
+    "fate_crit": false,
+    "defender_hp_after": 32
+   }
+  },
+  {
+   "id": "hit_margin3",
+   "note": "margin 3 is a hit (x1)",
+   "attacker": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys",
+    "hp": 37
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     1,
+     2
+    ],
+    "defense_2d6": [
+     2,
+     3
+    ],
+    "damage_die": 6,
+    "damage_face": 1,
+    "fate_roll_0_100": 99
+   },
+   "expect": {
+    "attack_total": 14,
+    "defense_total": 11,
+    "margin": 3,
+    "band": "hit",
+    "damage": 9,
+    "fate_crit": false,
+    "defender_hp_after": 28
+   }
+  },
+  {
+   "id": "hit_margin5",
+   "note": "margin 5 is still a hit",
+   "attacker": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys",
+    "hp": 37
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     2,
+     3
+    ],
+    "defense_2d6": [
+     2,
+     3
+    ],
+    "damage_die": 6,
+    "damage_face": 6,
+    "fate_roll_0_100": 99
+   },
+   "expect": {
+    "attack_total": 16,
+    "defense_total": 11,
+    "margin": 5,
+    "band": "hit",
+    "damage": 14,
+    "fate_crit": false,
+    "defender_hp_after": 23
+   }
+  },
+  {
+   "id": "crush_margin6",
+   "note": "margin 6 is a crushing blow (x2)",
+   "attacker": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys",
+    "hp": 37
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     3,
+     3
+    ],
+    "defense_2d6": [
+     2,
+     3
+    ],
+    "damage_die": 6,
+    "damage_face": 1,
+    "fate_roll_0_100": 99
+   },
+   "expect": {
+    "attack_total": 17,
+    "defense_total": 11,
+    "margin": 6,
+    "band": "crush",
+    "damage": 18,
+    "fate_crit": false,
+    "defender_hp_after": 19
+   }
+  },
+  {
+   "id": "min_damage_1",
+   "note": "raw damage floors at 1, graze of 1 rounds to 1",
+   "attacker": {
+    "name": "Acorn imp A",
+    "mig": 1,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 12,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys",
+    "hp": 28
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     6,
+     6
+    ],
+    "defense_2d6": [
+     1,
+     1
+    ],
+    "damage_die": 4,
+    "damage_face": 1,
+    "fate_roll_0_100": null
+   },
+   "expect": {
+    "attack_total": 13,
+    "defense_total": 11,
+    "margin": 2,
+    "band": "graze",
+    "damage": 1,
+    "fate_crit": false,
+    "defender_hp_after": 27
+   }
+  },
+  {
+   "id": "magic_vs_ward",
+   "note": "Arcana against Ward + Swiftness, Ward soaks (hit, margin 4)",
+   "attacker": {
+    "name": "Spore moth A",
+    "mig": 2,
+    "arc": 8,
+    "res": 3,
+    "ward": 3,
+    "vit": 10,
+    "swi": 8,
+    "fate": 0,
+    "kind": "mag"
+   },
+   "defender": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys",
+    "hp": 28
+   },
+   "attack_type": "magic",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     3,
+     3
+    ],
+    "defense_2d6": [
+     2,
+     2
+    ],
+    "damage_die": 4,
+    "damage_face": 3,
+    "fate_roll_0_100": null
+   },
+   "expect": {
+    "attack_total": 14,
+    "defense_total": 10,
+    "margin": 4,
+    "band": "hit",
+    "damage": 9,
+    "fate_crit": false,
+    "defender_hp_after": 19
+   }
+  },
+  {
+   "id": "heavy_telegraph_x1_5",
+   "note": "telegraph x1.5 before rounding (7 x 1.5 = 10.5 -> 11)",
+   "attacker": {
+    "name": "Root Snapper A",
+    "mig": 8,
+    "arc": 2,
+    "res": 8,
+    "ward": 4,
+    "vit": 11,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys",
+    "hp": 28
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.5,
+   "dice": {
+    "attack_2d6": [
+     2,
+     3
+    ],
+    "defense_2d6": [
+     2,
+     2
+    ],
+    "damage_die": 4,
+    "damage_face": 2,
+    "fate_roll_0_100": null
+   },
+   "expect": {
+    "attack_total": 13,
+    "defense_total": 10,
+    "margin": 3,
+    "band": "hit",
+    "damage": 11,
+    "fate_crit": false,
+    "defender_hp_after": 17
+   }
+  },
+  {
+   "id": "ranged_back_row_minus2",
+   "note": "ranged into the back row while the front stands: -2 turns a hit into a graze",
+   "attacker": {
+    "name": "Elaia",
+    "mig": 4,
+    "arc": 7,
+    "res": 5,
+    "ward": 7,
+    "vit": 6,
+    "swi": 6,
+    "fate": 5,
+    "kind": "mag"
+   },
+   "defender": {
+    "name": "Spore moth A",
+    "mig": 2,
+    "arc": 8,
+    "res": 3,
+    "ward": 3,
+    "vit": 10,
+    "swi": 8,
+    "fate": 0,
+    "kind": "mag",
+    "hp": 40
+   },
+   "attack_type": "magic",
+   "to_hit_mod": -2,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     4,
+     4
+    ],
+    "defense_2d6": [
+     3,
+     3
+    ],
+    "damage_die": 4,
+    "damage_face": 4,
+    "fate_roll_0_100": 99
+   },
+   "expect": {
+    "attack_total": 13,
+    "defense_total": 11,
+    "margin": 2,
+    "band": "graze",
+    "damage": 5,
+    "fate_crit": false,
+    "defender_hp_after": 35
+   }
+  },
+  {
+   "id": "fate_crit_on_graze",
+   "note": "a Fate crit doubles a graze too (14 x 0.5 x 2)",
+   "attacker": {
+    "name": "Keeper",
+    "mig": 11,
+    "arc": 5,
+    "res": 6,
+    "ward": 5,
+    "vit": 6,
+    "swi": 7,
+    "fate": 7,
+    "kind": "phys"
+   },
+   "defender": {
+    "name": "Acorn imp A",
+    "mig": 7,
+    "arc": 1,
+    "res": 7,
+    "ward": 3,
+    "vit": 9,
+    "swi": 6,
+    "fate": 0,
+    "kind": "phys",
+    "hp": 37
+   },
+   "attack_type": "physical",
+   "to_hit_mod": 0,
+   "telegraph_mult": 1.0,
+   "dice": {
+    "attack_2d6": [
+     1,
+     2
+    ],
+    "defense_2d6": [
+     4,
+     4
+    ],
+    "damage_die": 6,
+    "damage_face": 6,
+    "fate_roll_0_100": 0
+   },
+   "expect": {
+    "attack_total": 14,
+    "defense_total": 14,
+    "margin": 0,
+    "band": "graze",
+    "damage": 14,
+    "fate_crit": true,
+    "defender_hp_after": 23
+   }
+  }
+ ],
+ "doc_cases": [
+  {
+   "id": "s4_line3_brace",
+   "source": "BATTLE_SCENE_DRAFT v4 §4 example, line 3. Not from the sim: the sim has no Brace yet.",
+   "rule": "A braced defender rolls 3d6 and keeps the best 2.",
+   "attacker": {
+    "name": "Acorn imp A",
+    "mig": 7
+   },
+   "defender": {
+    "name": "Keeper",
+    "res": 6,
+    "swi": 7
+   },
+   "dice": {
+    "attack_2d6": [
+     4,
+     5
+    ],
+    "defense_3d6": [
+     6,
+     5,
+     1
+    ]
+   },
+   "expect": {
+    "attack_total": 16,
+    "defense_total": 17,
+    "band": "miss",
+    "damage": 0
+   }
+  }
+ ],
+ "die_table": [
+  {
+   "offense": 1,
+   "die": 4
+  },
+  {
+   "offense": 2,
+   "die": 4
+  },
+  {
+   "offense": 3,
+   "die": 4
+  },
+  {
+   "offense": 4,
+   "die": 4
+  },
+  {
+   "offense": 5,
+   "die": 4
+  },
+  {
+   "offense": 6,
+   "die": 4
+  },
+  {
+   "offense": 7,
+   "die": 4
+  },
+  {
+   "offense": 8,
+   "die": 4
+  },
+  {
+   "offense": 9,
+   "die": 6
+  },
+  {
+   "offense": 10,
+   "die": 6
+  },
+  {
+   "offense": 11,
+   "die": 6
+  },
+  {
+   "offense": 12,
+   "die": 6
+  },
+  {
+   "offense": 13,
+   "die": 8
+  },
+  {
+   "offense": 14,
+   "die": 8
+  },
+  {
+   "offense": 15,
+   "die": 8
+  },
+  {
+   "offense": 16,
+   "die": 8
+  },
+  {
+   "offense": 17,
+   "die": 10
+  },
+  {
+   "offense": 18,
+   "die": 10
+  },
+  {
+   "offense": 19,
+   "die": 10
+  },
+  {
+   "offense": 20,
+   "die": 10
+  },
+  {
+   "offense": 21,
+   "die": 12
+  },
+  {
+   "offense": 22,
+   "die": 12
+  },
+  {
+   "offense": 23,
+   "die": 12
+  },
+  {
+   "offense": 24,
+   "die": 12
+  },
+  {
+   "offense": 25,
+   "die": 20
+  },
+  {
+   "offense": 26,
+   "die": 20
+  },
+  {
+   "offense": 27,
+   "die": 20
+  },
+  {
+   "offense": 28,
+   "die": 20
+  },
+  {
+   "offense": 29,
+   "die": 20
+  },
+  {
+   "offense": 30,
+   "die": 20
+  },
+  {
+   "offense": 31,
+   "die": 20
+  },
+  {
+   "offense": 32,
+   "die": 20
+  },
+  {
+   "offense": 33,
+   "die": 20
+  },
+  {
+   "offense": 34,
+   "die": 20
+  },
+  {
+   "offense": 35,
+   "die": 20
+  },
+  {
+   "offense": 36,
+   "die": 20
+  },
+  {
+   "offense": 37,
+   "die": 20
+  },
+  {
+   "offense": 38,
+   "die": 20
+  },
+  {
+   "offense": 39,
+   "die": 20
+  },
+  {
+   "offense": 40,
+   "die": 20
+  },
+  {
+   "offense": 41,
+   "die": 21
+  },
+  {
+   "offense": 42,
+   "die": 21
+  },
+  {
+   "offense": 45,
+   "die": 23
+  },
+  {
+   "offense": 50,
+   "die": 25
+  },
+  {
+   "offense": 61,
+   "die": 31
+  }
+ ],
+ "round_half_up": [
+  {
+   "x": 0.5,
+   "rounded": 1
+  },
+  {
+   "x": 1.5,
+   "rounded": 2
+  },
+  {
+   "x": 2.5,
+   "rounded": 3
+  },
+  {
+   "x": 3.5,
+   "rounded": 4
+  },
+  {
+   "x": 4.4,
+   "rounded": 4
+  },
+  {
+   "x": 4.5,
+   "rounded": 5
+  },
+  {
+   "x": 10.5,
+   "rounded": 11
+  },
+  {
+   "x": 36.0,
+   "rounded": 36
+  }
+ ],
+ "poison_refresh": [
+  {
+   "op": "apply",
+   "total": 9,
+   "hp_after": 100,
+   "ticks_left": [
+    3,
+    3,
+    3
+   ],
+   "kept_total": 9
+  },
+  {
+   "op": "tick",
+   "total": null,
+   "hp_after": 97,
+   "ticks_left": [
+    3,
+    3
+   ],
+   "kept_total": 9
+  },
+  {
+   "op": "apply",
+   "total": 12,
+   "hp_after": 97,
+   "ticks_left": [
+    4,
+    4,
+    4
+   ],
+   "kept_total": 12
+  },
+  {
+   "op": "tick",
+   "total": null,
+   "hp_after": 93,
+   "ticks_left": [
+    4,
+    4
+   ],
+   "kept_total": 12
+  },
+  {
+   "op": "apply",
+   "total": 9,
+   "hp_after": 93,
+   "ticks_left": [
+    4,
+    4,
+    4
+   ],
+   "kept_total": 12
+  },
+  {
+   "op": "tick",
+   "total": null,
+   "hp_after": 89,
+   "ticks_left": [
+    4,
+    4
+   ],
+   "kept_total": 12
+  },
+  {
+   "op": "tick",
+   "total": null,
+   "hp_after": 85,
+   "ticks_left": [
+    4
+   ],
+   "kept_total": 12
+  },
+  {
+   "op": "tick",
+   "total": null,
+   "hp_after": 81,
+   "ticks_left": [],
+   "kept_total": 0
+  },
+  {
+   "op": "tick",
+   "total": null,
+   "hp_after": 81,
+   "ticks_left": [],
+   "kept_total": 0
+  },
+  {
+   "op": "apply",
+   "total": 10,
+   "hp_after": 81,
+   "ticks_left": [
+    4,
+    3,
+    3
+   ],
+   "kept_total": 10
+  },
+  {
+   "op": "tick",
+   "total": null,
+   "hp_after": 77,
+   "ticks_left": [
+    3,
+    3
+   ],
+   "kept_total": 10
+  }
+ ],
+ "turn_order": {
+  "fighters": [
+   {
+    "name": "Keeper",
+    "swiftness": 7,
+    "side": "party",
+    "slot": 0
+   },
+   {
+    "name": "Elaia",
+    "swiftness": 6,
+    "side": "party",
+    "slot": 1
+   },
+   {
+    "name": "Acorn imp A",
+    "swiftness": 6,
+    "side": "beast",
+    "slot": 0
+   },
+   {
+    "name": "Spore moth A",
+    "swiftness": 8,
+    "side": "beast",
+    "slot": 1
+   },
+   {
+    "name": "Root Snapper A",
+    "swiftness": 6,
+    "side": "beast",
+    "slot": 2
+   },
+   {
+    "name": "Wilt Wisp A",
+    "swiftness": 8,
+    "side": "beast",
+    "slot": 3
+   }
+  ],
+  "expect": [
+   "Spore moth A",
+   "Wilt Wisp A",
+   "Keeper",
+   "Elaia",
+   "Acorn imp A",
+   "Root Snapper A"
+  ]
+ },
+ "beast_targeting": [
+  {
+   "beast": "acorn_imp",
+   "party": [
+    {
+     "name": "Keeper",
+     "row": "front",
+     "res": 6,
+     "ward": 5
+    },
+    {
+     "name": "Elaia",
+     "row": "back",
+     "res": 5,
+     "ward": 7
+    }
+   ],
+   "reachable": [
+    "Keeper"
+   ],
+   "expect_target": "Keeper"
+  },
+  {
+   "beast": "spore_moth",
+   "party": [
+    {
+     "name": "Keeper",
+     "row": "front",
+     "res": 6,
+     "ward": 5
+    },
+    {
+     "name": "Elaia",
+     "row": "back",
+     "res": 5,
+     "ward": 7
+    }
+   ],
+   "reachable": [
+    "Keeper",
+    "Elaia"
+   ],
+   "expect_target": "Keeper"
+  }
+ ]
+}

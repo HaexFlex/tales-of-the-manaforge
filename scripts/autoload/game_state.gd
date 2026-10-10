@@ -1774,6 +1774,8 @@ func apply_save_dict(data: Dictionary) -> void:
 	if has_node("/root/Reach"):
 		var reach_v: Variant = data.get("reach", {})
 		Reach.apply_save_fields(reach_v if typeof(reach_v) == TYPE_DICTIONARY else {})
+		var exp_v: Variant = data.get("expedition", {})
+		Reach.apply_expedition(exp_v if typeof(exp_v) == TYPE_DICTIONARY else {})
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()

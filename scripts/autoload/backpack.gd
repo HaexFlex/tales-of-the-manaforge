@@ -9,6 +9,10 @@ const RESOURCE_IDS: Array[StringName] = [&"wood", &"stone", &"food", &"manashard
 const KEPT_TOOL_IDS: Array[StringName] = [
 	&"stone_axe", &"stone_pickaxe", &"wooden_basket", &"stone_watering_can"
 ]
+## Road materials and potions used to live on Reach and survived Ascend. They still do.
+const KEPT_REACH_ITEM_IDS: Array[StringName] = [
+	&"briarwood", &"herbs", &"heart_salve", &"bile_vial"
+]
 
 var items: Dictionary = {}
 var items_data: Array = []
@@ -387,10 +391,17 @@ func grant_kept_tools() -> void:
 
 
 func on_ascend() -> void:
+	var kept_reach: Dictionary = {}
+	for iid: StringName in KEPT_REACH_ITEM_IDS:
+		kept_reach[String(iid)] = get_count(String(iid))
 	var keep: bool = GameState.get_upgrade_rank("keep_tools") > 0
 	wipe_all()
 	if keep:
 		grant_kept_tools()
+	for key: Variant in kept_reach.keys():
+		var n: int = int(kept_reach[key])
+		if n > 0:
+			set_count(str(key), n)
 
 
 func reset_for_new_game() -> void:

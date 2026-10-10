@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 13 — reach boss room counter. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 14 — one backpack, expedition marker. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -14,7 +14,7 @@ var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
 
-const SAVE_VERSION: int = 13
+const SAVE_VERSION: int = 14
 ## Never read a save newer than this build writes: unknown fields would be dropped silently.
 const SAVE_VERSION_MAX_READ: int = SAVE_VERSION
 const SAVE_SLOT_COUNT: int = 7
@@ -502,6 +502,8 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v12(out)
 	if from_version < 13:
 		_migrate_v13(out)
+	if from_version < 14:
+		_migrate_v14(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -551,10 +553,6 @@ func _migrate_v12(out: Dictionary) -> void:
 			"deepest_depth": 0,
 			"reaches_cleared": 0,
 			"dojo_exp": 0,
-			"briarwood": 0,
-			"herbs": 0,
-			"heart_salve": 0,
-			"bile_vial": 0,
 			"running": false,
 			"pace": "hold",
 			"control": "idle",
@@ -584,6 +582,42 @@ func _migrate_v13(out: Dictionary) -> void:
 		guessed = 1
 	reach["rooms_attempted"] = guessed
 	out["reach"] = reach
+
+
+func _migrate_v14(out: Dictionary) -> void:
+	## Reach's four counters join the backpack (add, never overwrite; a zero total adds no stack,
+	## so players never see empty stacks). expedition is only a status
+	## marker here. Later jobs add fields on that dictionary, each with a default, and must not
+	## replace a status that is already set.
+	var reach_v: Variant = out.get("reach", {})
+	var reach: Dictionary = (reach_v as Dictionary).duplicate(true) if typeof(reach_v) == TYPE_DICTIONARY else {}
+	var pack_v: Variant = out.get("backpack", {})
+	var pack: Dictionary = (pack_v as Dictionary).duplicate(true) if typeof(pack_v) == TYPE_DICTIONARY else {}
+	for item_id: String in ["briarwood", "herbs", "heart_salve", "bile_vial"]:
+		var have := 0
+		if pack.has(item_id):
+			have = maxi(0, int(pack[item_id]))
+		var moved := 0
+		if reach.has(item_id):
+			moved = maxi(0, int(reach[item_id]))
+			reach.erase(item_id)
+		if have + moved > 0:
+			pack[item_id] = have + moved
+		else:
+			pack.erase(item_id)
+	out["backpack"] = pack
+	out["reach"] = reach
+	var exp_v: Variant = out.get("expedition", {})
+	var exp: Dictionary = (exp_v as Dictionary).duplicate(true) if typeof(exp_v) == TYPE_DICTIONARY else {}
+	if str(exp.get("status", "")) == "":
+		if bool(reach.get("running", false)):
+			exp["status"] = "out_legacy"
+		elif str(out.get("expedition_lantern", "")) == "cyan":
+			exp["status"] = "finished_unseen"
+			exp["summary"] = "from an older save"
+		else:
+			exp["status"] = "home"
+	out["expedition"] = exp
 
 
 func _infer_forge_visited(out: Dictionary) -> bool:
