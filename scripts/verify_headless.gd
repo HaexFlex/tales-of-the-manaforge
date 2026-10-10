@@ -263,6 +263,24 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_PACK_BANKING") == "1":
+		var pack_bank_only: int = _pack_banking(tree_root, game_state, save_service)
+		if pack_bank_only > 0:
+			print("PACK_BANKING_FAIL: %d" % pack_bank_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PACK_LOOT_TABLE") == "1":
+		var pack_loot_only: int = _pack_loot_table(tree_root)
+		if pack_loot_only > 0:
+			print("PACK_LOOT_TABLE_FAIL: %d" % pack_loot_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# Bundle 3 resolver. The full suite runs these at the end.
 	if OS.get_environment("MANAFORGE_RESOLVER_DICE") == "1":
 		var resolver_dice_only: int = _resolver_dice()
@@ -3059,6 +3077,8 @@ func _run() -> void:
 	# SIM_PARITY is switch-only (~31 s for 12k idle fights); see MANAFORGE_SIM_PARITY.
 	failed += _resolver_perf()
 	failed += _save_v14_legacy_run_cleared(tree_root, game_state, save_service)
+	failed += _pack_banking(tree_root, game_state, save_service)
+	failed += _pack_loot_table(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -3790,6 +3810,8 @@ func _check_only_load() -> int:
 		"res://scripts/battle/battle_view.gd",
 		"res://scripts/battle/battle_rng.gd",
 		"res://scripts/battle/spawn_roller.gd",
+		"res://scripts/battle/pack.gd",
+		"res://scripts/battle/room_loot.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -12722,4 +12744,140 @@ func _headless_silent(tree_root: Window, game_state: Node, save_service: Node, g
 	live.free()
 	if failed == 0:
 		print("HEADLESS_SILENT_OK")
+	return failed
+
+
+func _pack_banking(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "pack banking autoloads")
+	if reach == null or backpack == null:
+		return failed
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	backpack.call("reset_for_new_game")
+	var essence_before: int = int(game_state.get("essence"))
+	var p: Pack = Pack.new()
+	p.add("wood", 15)
+	p.add("briarwood", 7)
+	p.add("glowcap", 3)
+	p.add("fertilizer", 1)
+	var banked: Dictionary = p.bank(100)
+	failed += _assert(int(banked.get("wood", 0)) == 15 and int(banked.get("briarwood", 0)) == 7, "bank 100 dict")
+	failed += _assert(int(game_state.get("wood")) == 15, "bank 100 wood")
+	failed += _assert(int(backpack.call("get_count", "briarwood")) == 7, "bank 100 briarwood")
+	failed += _assert(int(backpack.call("get_count", "glowcap")) == 3, "bank 100 glowcap")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 1, "bank 100 fertilizer")
+	failed += _assert(p.is_empty(), "pack empty after bank 100")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	p = Pack.new()
+	p.add("wood", 15)
+	p.add("briarwood", 7)
+	p.add("glowcap", 3)
+	p.add("fertilizer", 1)
+	banked = p.bank(50)
+	failed += _assert(int(game_state.get("wood")) == 7, "bank 50 wood")
+	failed += _assert(int(backpack.call("get_count", "briarwood")) == 3, "bank 50 briarwood")
+	failed += _assert(int(backpack.call("get_count", "glowcap")) == 1, "bank 50 glowcap")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "bank 50 fertilizer")
+	failed += _assert(p.is_empty(), "pack empty after bank 50")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	p = Pack.new()
+	p.add("wood", 15)
+	banked = p.bank(0)
+	failed += _assert(int(game_state.get("wood")) == 0, "bank 0 wood")
+	failed += _assert(p.is_empty(), "pack empty after bank 0")
+	p = Pack.new()
+	p.add("briarwood", 7)
+	p.add("glowcap", 1)
+	var lost: Dictionary = p.halve()
+	failed += _assert(int(p.count("briarwood")) == 3 and int(p.count("glowcap")) == 0, "halve keeps")
+	failed += _assert(int(lost.get("briarwood", 0)) == 4 and int(lost.get("glowcap", 0)) == 1, "halve lost")
+	p = Pack.new()
+	p.add("essence", 5)
+	p.add("exp", 5)
+	failed += _assert(p.is_empty(), "essence and exp never sit in the pack")
+	p.bank(100)
+	failed += _assert(int(game_state.get("essence")) == essence_before, "bank does not move essence from pack")
+	var roundtrip: Pack = Pack.new()
+	roundtrip.add("briarwood", 2)
+	roundtrip.add("glowcap", 1)
+	var blob: String = JSON.stringify(roundtrip.to_dict())
+	var parsed: Variant = JSON.parse_string(blob)
+	var back: Pack = Pack.from_dict(parsed as Dictionary)
+	failed += _assert(int(back.count("briarwood")) == 2 and int(back.count("glowcap")) == 1, "pack dict roundtrip")
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	if failed == 0:
+		print("PACK_BANKING_OK")
+	return failed
+
+
+func _pack_loot_table(tree_root: Window) -> int:
+	var failed: int = 0
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(backpack != null, "pack loot Backpack")
+	if backpack == null:
+		return failed
+	failed += _assert(is_equal_approx(RoomLoot.depth_g(1), 1.0), "depth_g(1)")
+	failed += _assert(is_equal_approx(RoomLoot.depth_g(16), 2.0), "depth_g(16)")
+	var first: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(42))
+	var second: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(42))
+	failed += _assert(str(first) == str(second), "loot determinism same seed")
+	var distinct: Dictionary = {}
+	for seed: int in range(1, 21):
+		distinct[str(RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(seed)))] = true
+	failed += _assert(distinct.size() > 1, "loot varies across seeds 1..20")
+	var briar_sum: float = 0.0
+	var herb_sum: float = 0.0
+	for seed: int in range(1, 2001):
+		var loot: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(seed))
+		briar_sum += float(int(loot.get("briarwood", 0)))
+		herb_sum += float(int(loot.get("glowcap", 0)) + int(loot.get("bitterroot", 0)))
+		failed += _assert(not loot.has("amberbind") and not loot.has("essence"), "solo d1 no jackpot ids")
+	failed += _assert(briar_sum / 2000.0 >= 0.45 and briar_sum / 2000.0 <= 0.55, "solo d1 briarwood mean")
+	failed += _assert(herb_sum / 2000.0 >= 0.45 and herb_sum / 2000.0 <= 0.55, "solo d1 herbs mean")
+	var duo_briar: float = 0.0
+	for seed: int in range(1, 2001):
+		duo_briar += float(int(RoomLoot.roll(1, 2, false, RoomLoot.loot_rng(seed)).get("briarwood", 0)))
+	failed += _assert(duo_briar / 2000.0 >= 1.45 and duo_briar / 2000.0 <= 1.55, "duo d1 briarwood mean")
+	var duo_herb_sum: float = 0.0
+	for seed: int in range(1, 2001):
+		var loot16: Dictionary = RoomLoot.roll(16, 2, false, RoomLoot.loot_rng(seed))
+		duo_herb_sum += float(int(loot16.get("glowcap", 0)) + int(loot16.get("bitterroot", 0)))
+	var expect16: float = RoomLoot.expected_herbs(16, 2)
+	failed += _assert(is_equal_approx(expect16, 3.0), "expected_herbs(16,2)")
+	failed += _assert(absf(duo_herb_sum / 2000.0 - expect16) <= 0.08, "duo d16 herbs mean")
+	var bonus_hits: int = 0
+	for seed: int in range(1, 5001):
+		var loot_b: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(seed))
+		var has_bonus: bool = false
+		for k: Variant in loot_b.keys():
+			var id: String = str(k)
+			if id != "briarwood" and id != "glowcap" and id != "bitterroot":
+				has_bonus = true
+				failed += _assert(id != "sapsteel", "no sapsteel at depth 1 band")
+		if has_bonus:
+			bonus_hits += 1
+	var bonus_rate: float = float(bonus_hits) / 5000.0
+	failed += _assert(bonus_rate >= 0.08 and bonus_rate <= 0.12, "bonus drop rate depth 1")
+	for seed: int in range(1, 51):
+		var rng_boss: BattleRng = RoomLoot.loot_rng(seed)
+		var rng_norm: BattleRng = RoomLoot.loot_rng(seed)
+		var boss_loot: Dictionary = RoomLoot.roll(4, 2, true, rng_boss)
+		var norm_loot: Dictionary = RoomLoot.roll(4, 2, false, rng_norm)
+		var boss_b: int = int(boss_loot.get("briarwood", 0))
+		var norm_b: int = int(norm_loot.get("briarwood", 0))
+		failed += _assert(boss_b == norm_b * 2, "boss doubles briarwood seed %d" % seed)
+		var boss_h: int = int(boss_loot.get("glowcap", 0)) + int(boss_loot.get("bitterroot", 0))
+		var norm_h: int = int(norm_loot.get("glowcap", 0)) + int(norm_loot.get("bitterroot", 0))
+		failed += _assert(boss_h == norm_h * 2, "boss doubles herbs seed %d" % seed)
+	failed += _assert(bool(backpack.call("is_known_item", "glowcap")) and bool(backpack.call("is_known_item", "bitterroot")), "herb items known")
+	if failed == 0:
+		print("PACK_LOOT_TABLE_OK")
 	return failed
