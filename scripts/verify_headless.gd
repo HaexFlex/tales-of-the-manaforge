@@ -362,10 +362,28 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_SIMULATE") == "1":
+		var simulate_only: int = await _simulate_ok(tree_root, game_state, save_service)
+		if simulate_only > 0:
+			print("SIMULATE_FAIL: %d" % simulate_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_PARTY_LOCK_SAVE") == "1":
 		var party_lock_only: int = await _party_lock_save_ok(tree_root, game_state, save_service)
 		if party_lock_only > 0:
 			print("PARTY_LOCK_SAVE_FAIL: %d" % party_lock_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SIMULATE_NO_SIDE_EFFECTS") == "1":
+		var sim_side_only: int = await _simulate_no_side_effects_ok(tree_root, game_state, save_service)
+		if sim_side_only > 0:
+			print("SIMULATE_NO_SIDE_EFFECTS_FAIL: %d" % sim_side_only)
 			quit(1)
 		else:
 			quit(0)
@@ -3180,6 +3198,8 @@ func _run() -> void:
 	failed += await _manual_overwhelmed_ok(tree_root, game_state, save_service)
 	failed += _depart_essence_ok(tree_root, game_state, save_service)
 	failed += await _party_lock_save_ok(tree_root, game_state, save_service)
+	failed += await _simulate_ok(tree_root, game_state, save_service)
+	failed += await _simulate_no_side_effects_ok(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -13809,4 +13829,223 @@ func _party_lock_save_ok(tree_root: Window, game_state: Node, save_service: Node
 	save_svc.set("session_active", session_was)
 	if failed == 0:
 		print("PARTY_LOCK_SAVE_OK")
+	return failed
+
+
+func _sim_outcome_list(sim: Dictionary) -> Array[String]:
+	var fought: int = int(sim.get("rooms_fought", 0))
+	var lost_v: Variant = sim.get("lost", [])
+	var by_room: Dictionary = {}
+	if lost_v is Array:
+		for entry_v: Variant in lost_v as Array:
+			if typeof(entry_v) != TYPE_DICTIONARY:
+				continue
+			var entry: Dictionary = entry_v
+			by_room[int(entry.get("room", 0))] = str(entry.get("outcome", ""))
+	var out: Array[String] = []
+	for room_i: int in range(1, fought + 1):
+		out.append(str(by_room.get(room_i, "win")))
+	return out
+
+
+func _reach_outcome_list(reach: Node) -> Array[String]:
+	var out: Array[String] = []
+	var log_v: Variant = reach.get("room_log")
+	if not (log_v is Array):
+		return out
+	for entry_v: Variant in log_v as Array:
+		if typeof(entry_v) != TYPE_DICTIONARY:
+			continue
+		out.append(str((entry_v as Dictionary).get("outcome", "")))
+	return out
+
+
+func _simulate_dict_equal(a: Dictionary, b: Dictionary) -> bool:
+	var keys: Dictionary = {}
+	for key_v: Variant in a.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in b.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		if key == "ms":
+			continue
+		if JSON.stringify(a.get(key)) != JSON.stringify(b.get(key)):
+			return false
+	return true
+
+
+func _simulate_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and content_strings != null, "simulate Reach")
+	if reach == null or content_strings == null:
+		return failed
+	var seed: int = 1234
+	var cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 20,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	var first: Dictionary = RunSim.simulate(cfg, seed)
+	var second: Dictionary = RunSim.simulate(cfg, seed)
+	failed += _assert(_simulate_dict_equal(first, second), "simulate deterministic")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 40)
+	game_state.set("echo_02_resolved", true)
+	var sim_before: Dictionary = RunSim.simulate(cfg, seed)
+	var sim_outcomes: Array[String] = _sim_outcome_list(sim_before)
+	reach.call("set_test_run_seed", seed)
+	failed += _assert(str(reach.call("depart_slots", cfg)) == "ok", "parity depart")
+	while bool(reach.get("running")):
+		reach.call("advance_clock", 720.0)
+	failed += _assert(str(sim_outcomes) == str(_reach_outcome_list(reach)), "parity room outcomes")
+	var reason_templates: Array[String] = [
+		str(content_strings.call("get_text", "sim_reason_flee_half")).replace("{n}", "1"),
+		str(content_strings.call("get_text", "sim_reason_flee_rounds")).replace("{n}", "1"),
+		str(content_strings.call("get_text", "sim_reason_overwhelmed")).replace("{n}", "1").replace("{beast}", "x"),
+	]
+	var lost_v: Variant = sim_before.get("lost", [])
+	if lost_v is Array and (lost_v as Array).size() > 0:
+		var reason: String = str((lost_v as Array)[0].get("reason", ""))
+		var matched: bool = false
+		for template: String in reason_templates:
+			var parts: PackedStringArray = template.split("x")
+			if parts.size() == 2 and reason.begins_with(parts[0]) and reason.ends_with(parts[1]):
+				matched = true
+				break
+			if reason == template:
+				matched = true
+				break
+		if not matched:
+			for template2: String in [
+				str(content_strings.call("get_text", "sim_reason_flee_half")),
+				str(content_strings.call("get_text", "sim_reason_flee_rounds")),
+				str(content_strings.call("get_text", "sim_reason_overwhelmed")),
+			]:
+				if reason.find("Room ") == 0 and (
+					reason.ends_with("party below half")
+					or reason.ends_with("the fight dragged on")
+					or reason.find("Overwhelmed,") > 0
+				):
+					matched = true
+					break
+		failed += _assert(matched, "lost room reason template (%s)" % reason)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	failed += _assert(packed != null, "simulate board scene")
+	if packed != null:
+		var board: Node = packed.instantiate()
+		tree_root.add_child(board)
+		game_state.call("set_resource", &"essence", 40)
+		board.call("open_shell")
+		var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+		var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
+		var sim_lbl: Label = shell.find_child("SimulateResult", true, false) as Label if shell != null else null
+		failed += _assert(sim_btn != null and sim_lbl != null, "simulate controls")
+		if sim_btn != null:
+			sim_btn.emit_signal("pressed")
+			board.call("_refresh_shell")
+			failed += _assert(sim_lbl.text.find("rooms cleared") >= 0, "simulate summary line")
+			failed += _assert(sim_lbl.text.find("%") < 0, "simulate result has no percent")
+		_reset_reach_test(tree_root, game_state, save_service)
+		game_state.call("set_resource", &"essence", 40)
+		game_state.set("echo_02_resolved", true)
+		reach.call("set_test_run_seed", seed)
+		reach.call("depart_slots", cfg)
+		failed += _assert(bool(reach.get("running")), "seed test run active")
+		var run_seed: int = int(reach.get("run_seed"))
+		board.call("open_shell")
+		sim_btn = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
+		if sim_btn != null:
+			sim_btn.emit_signal("pressed")
+			var last_v: Variant = board.get("last_sim")
+			failed += _assert(last_v is Dictionary and not (last_v as Dictionary).is_empty(), "last_sim filled")
+			if last_v is Dictionary:
+				failed += _assert(int((last_v as Dictionary).get("sim_seed", -1)) != run_seed, "sim seed != run seed")
+		reach.call("reset_for_new_game")
+		board.free()
+		if shell != null and is_instance_valid(shell):
+			shell.free()
+	var perf_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 50,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	}
+	var perf: Dictionary = RunSim.simulate(perf_cfg, 99)
+	var perf_ms: int = int(perf.get("ms", 0))
+	print("SIMULATE_MS %d" % perf_ms)
+	if perf_ms > 400:
+		failed += _assert(false, "simulate perf over 400 ms (%d)" % perf_ms)
+	elif perf_ms > 100:
+		print("SIMULATE_PERF_WARN")
+	if failed == 0:
+		print("SIMULATE_OK")
+	return failed
+
+
+func _save_mtime(path: String) -> int:
+	if not FileAccess.file_exists(path):
+		return -1
+	return int(FileAccess.get_modified_time(path))
+
+
+func _stable_game_state_json(game_state: Node) -> String:
+	var d: Dictionary = (game_state.call("to_save_dict") as Dictionary).duplicate(true)
+	d.erase("run_time_sec")
+	d.erase("active_since_load_sec")
+	d.erase("reach")
+	d.erase("expedition")
+	d.erase("idle_timestamp")
+	return JSON.stringify(d)
+
+
+func _simulate_no_side_effects_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "simulate side effects autoloads")
+	if reach == null or backpack == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 50)
+	save_service.call("save_game", 1)
+	var slot_path: String = "user://manaforge_save_slot_1.json"
+	var auto_path: String = "user://manaforge_autosave_1.json"
+	var mtime_slot: int = _save_mtime(slot_path)
+	var mtime_auto: int = _save_mtime(auto_path)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	failed += _assert(packed != null, "side effects board scene")
+	if packed == null:
+		return failed
+	var board: Node = packed.instantiate()
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
+	failed += _assert(sim_btn != null, "SimulateButton")
+	var gs_before: String = _stable_game_state_json(game_state)
+	var reach_before: String = JSON.stringify(reach.call("capture_save_fields"))
+	var bag_before: String = JSON.stringify(backpack.get("items"))
+	var essence_before: int = int(game_state.get("essence"))
+	if sim_btn != null:
+		for _press: int in 5:
+			sim_btn.emit_signal("pressed")
+	failed += _assert(_stable_game_state_json(game_state) == gs_before, "GameState unchanged")
+	failed += _assert(JSON.stringify(reach.call("capture_save_fields")) == reach_before, "Reach unchanged")
+	failed += _assert(JSON.stringify(backpack.get("items")) == bag_before, "Backpack unchanged")
+	failed += _assert(int(game_state.get("essence")) == essence_before, "essence unchanged")
+	failed += _assert(not bool(reach.get("running")), "Reach still not running")
+	failed += _assert(_save_mtime(slot_path) == mtime_slot, "save slot mtime")
+	failed += _assert(_save_mtime(auto_path) == mtime_auto, "autosave mtime")
+	board.free()
+	if shell != null and is_instance_valid(shell):
+		shell.free()
+	if failed == 0:
+		print("SIMULATE_NO_SIDE_EFFECTS_OK")
 	return failed

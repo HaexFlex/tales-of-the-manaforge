@@ -71,6 +71,10 @@ var _party_title: Label
 var _setup_nodes: Array[Control] = []
 var _skip_btn: Button
 var _rush_btn: Button
+var _simulate_btn: Button
+var _simulate_result: Label
+var _sim_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var last_sim: Dictionary = {}
 
 
 func _ready() -> void:
@@ -95,6 +99,7 @@ func _ready() -> void:
 		GameState.echo_flags_changed.connect(_apply_lantern)
 	if has_node("/root/Reach") and not Reach.changed.is_connected(_on_reach_changed):
 		Reach.changed.connect(_on_reach_changed)
+	_sim_rng.randomize()
 	_apply_lantern()
 
 
@@ -429,7 +434,7 @@ func _ensure_shell() -> void:
 	_panel.offset_left = -300.0
 	_panel.offset_top = -300.0
 	_panel.offset_right = 300.0
-	_panel.offset_bottom = 300.0
+	_panel.offset_bottom = 360.0
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.08, 0.10, 0.09, 0.98)
 	sb.border_color = Color(0.45, 0.55, 0.42, 1.0)
@@ -509,13 +514,22 @@ func _ensure_shell() -> void:
 		_loadout_plus_btns.append(plus_btn)
 	_cost_lbl = _make_label(_panel, "CostLabel", Vector2(16, 396), Vector2(540, 24), 13, Color(0.82, 0.88, 0.9, 1))
 	_warning_lbl = _make_label(_panel, "WarningLabel", Vector2(16, 420), Vector2(540, 52), 12, Color(0.92, 0.82, 0.7, 1))
+	_simulate_btn = Button.new()
+	_simulate_btn.name = "SimulateButton"
+	_simulate_btn.text = ContentStrings.get_text("board_simulate")
+	_simulate_btn.position = Vector2(16, 476)
+	_simulate_btn.size = Vector2(120, 32)
+	_panel.add_child(_simulate_btn)
+	_simulate_btn.pressed.connect(_on_simulate)
+	_simulate_result = _make_label(_panel, "SimulateResult", Vector2(16, 512), Vector2(540, 96), 12, Color(0.82, 0.88, 0.9, 1))
+	_simulate_result.max_lines_visible = 8
 	_progress_lbl = _make_label(_panel, "ProgressLabel", Vector2(16, 180), Vector2(540, 28), 15, Color(0.9, 0.88, 0.78, 1))
 	_pack_lbl = _make_label(_panel, "PackLabel", Vector2(16, 212), Vector2(540, 24), 14, Color(0.78, 0.84, 0.88, 1))
 	_loadout_left_lbl = _make_label(_panel, "LoadoutLeftLabel", Vector2(16, 240), Vector2(540, 24), 14, Color(0.78, 0.84, 0.88, 1))
 	_depart = Button.new()
 	_depart.name = "Depart"
 	_depart.text = "Depart"
-	_depart.position = Vector2(16, 480)
+	_depart.position = Vector2(16, 616)
 	_depart.size = Vector2(200, 40)
 	_depart.disabled = true
 	_panel.add_child(_depart)
@@ -538,7 +552,7 @@ func _ensure_shell() -> void:
 	_setup_nodes = [
 		_party_title, _member_keeper, _row_keeper, _member_elaia, _row_elaia,
 		_depth_lbl, _depth_minus, _depth_plus, _rooms_btn, _duration_lbl, _boss_lbl,
-		_cost_lbl, _warning_lbl, _depart,
+		_cost_lbl, _warning_lbl, _simulate_btn, _simulate_result, _depart,
 	]
 	for btn: Button in _loadout_item_btns:
 		_setup_nodes.append(btn)
@@ -617,6 +631,10 @@ func _refresh_shell() -> void:
 		_pack_lbl.text = ContentStrings.get_text("board_pack").replace("{n}", str(pack.total() if pack != null else 0))
 		var list: String = _format_loadout_list(Reach.loadout)
 		_loadout_left_lbl.text = ContentStrings.get_text("board_loadout_left").replace("{list}", list)
+	if _simulate_btn != null:
+		_simulate_btn.disabled = _members.is_empty()
+	if _simulate_result != null and not running and last_sim.is_empty():
+		_simulate_result.text = ""
 	var blocked: bool = depart_disabled() or _members.is_empty() or GameState.essence < DEPART_ESSENCE_COST
 	_depart.disabled = blocked
 	if GameState.essence < DEPART_ESSENCE_COST and not depart_disabled() and not running:
@@ -783,6 +801,67 @@ func _on_depart() -> void:
 	var result := try_depart()
 	if result == "ok":
 		close_shell()
+
+
+func _on_simulate() -> void:
+	if _members.is_empty():
+		return
+	var sim_seed: int = _sim_rng.randi() & 0x7FFFFFFF
+	if has_node("/root/Reach"):
+		while sim_seed == int(Reach.run_seed):
+			sim_seed = _sim_rng.randi() & 0x7FFFFFFF
+	last_sim = RunSim.simulate(board_config(), sim_seed)
+	last_sim["sim_seed"] = sim_seed
+	_refresh_simulate_result()
+
+
+func _refresh_simulate_result() -> void:
+	if _simulate_result == null or last_sim.is_empty():
+		return
+	var lines: PackedStringArray = []
+	var summary: String = ContentStrings.get_text("sim_summary")
+	summary = summary.replace("{cleared}", str(int(last_sim.get("rooms_cleared", 0))))
+	summary = summary.replace("{rooms}", str(int(last_sim.get("rooms_total", 0))))
+	summary = summary.replace("{exp}", str(int(last_sim.get("exp", 0))))
+	lines.append(summary)
+	var lost_v: Variant = last_sim.get("lost", [])
+	if lost_v is Array:
+		for entry_v: Variant in lost_v as Array:
+			if typeof(entry_v) != TYPE_DICTIONARY:
+				continue
+			lines.append(str((entry_v as Dictionary).get("reason", "")))
+	var banked_v: Variant = last_sim.get("banked", {})
+	var banked: Dictionary = banked_v if typeof(banked_v) == TYPE_DICTIONARY else {}
+	var bank_line: String = ContentStrings.get_text("sim_banked").replace("{list}", _format_item_dict(banked))
+	lines.append(bank_line)
+	var used_v: Variant = last_sim.get("items_used", {})
+	var used: Dictionary = used_v if typeof(used_v) == TYPE_DICTIONARY else {}
+	if used.is_empty():
+		lines.append(ContentStrings.get_text("sim_items_none"))
+	else:
+		lines.append(ContentStrings.get_text("sim_items_used").replace("{list}", _format_item_dict(used)))
+	var essence_back: int = int(last_sim.get("essence_payback", 0))
+	if essence_back > 0:
+		lines.append(ContentStrings.get_text("sim_essence").replace("{n}", str(essence_back)))
+	_simulate_result.text = "\n".join(lines)
+
+
+func _format_item_dict(items: Dictionary) -> String:
+	if items.is_empty():
+		return ContentStrings.get_text("adv_item_none_packed")
+	var parts: PackedStringArray = []
+	for key_v: Variant in items.keys():
+		var item_id: String = str(key_v)
+		var count: int = int(items.get(item_id, 0))
+		if count <= 0:
+			continue
+		var line: String = ContentStrings.get_text("adv_item_count")
+		line = line.replace("{item}", Backpack.item_display_name(item_id))
+		line = line.replace("{count}", str(count))
+		parts.append(line)
+	if parts.is_empty():
+		return ContentStrings.get_text("adv_item_none_packed")
+	return ", ".join(parts)
 
 
 func _member_index(member: String) -> int:
