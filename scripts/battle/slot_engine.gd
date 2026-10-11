@@ -28,35 +28,41 @@ static func build_room(depth: int, room_seed: int, boss: bool) -> Array[Dictiona
 
 static func member_stats(member: String) -> Dictionary:
 	if member == "elaia":
-		return {
-			"might": 4,
-			"arcana": 7,
-			"resilience": 5,
-			"ward": 7,
-			"vitality": 6,
-			"swiftness": 6,
-			"fate": 5,
-			"attack": "magic",
-		}
+		return _sheet_stats_for("elaia")
 	if member != "keeper":
 		push_error("SlotEngine: unknown member %s" % member)
 		return {}
+	return _sheet_stats_for("keeper")
+
+
+static func _sheet_stats_for(actor: String) -> Dictionary:
 	var stats: Dictionary = {}
 	var equipment: Node = _autoload("Equipment")
 	var keeper_stats: Node = _autoload("KeeperStats")
 	for stat_id: String in _KEEPER_STATS:
 		var value: int = 5
-		if equipment != null:
-			value = int(equipment.call("total_for", stat_id))
-		elif keeper_stats != null:
-			value = int(keeper_stats.call("get_base", stat_id))
+		if actor == "keeper":
+			if equipment != null:
+				value = int(equipment.call("total_for", stat_id))
+			elif keeper_stats != null:
+				value = int(keeper_stats.call("get_base", stat_id))
+		else:
+			var base: int = 0
+			if keeper_stats != null:
+				base = int(keeper_stats.call("get_base_for", actor, stat_id))
+			var gear: int = 0
+			if equipment != null:
+				gear = int(equipment.call("gear_bonus_for", actor, stat_id))
+			value = base + gear
 		stats[stat_id] = value
-	var attack: String = "physical"
+	var attack: String = "magic" if actor == "elaia" else "physical"
 	if equipment != null:
-		var weapon_id: String = str(equipment.call("equipped_id", "weapon"))
+		var weapon_id: String = str(equipment.call("equipped_id_for", actor, "weapon"))
 		var item_def: Dictionary = equipment.call("get_item_def", weapon_id)
 		if str(item_def.get("damage_kind", "")) == "magical":
 			attack = "magic"
+		elif str(item_def.get("damage_kind", "")) == "physical":
+			attack = "physical"
 	stats["attack"] = attack
 	return stats
 

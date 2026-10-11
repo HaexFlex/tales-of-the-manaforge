@@ -770,6 +770,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ELAIA_REAL_STATS") == "1":
+		var elaia_stats_only: int = _elaia_real_stats_ok(tree_root, game_state)
+		if elaia_stats_only > 0:
+			print("ELAIA_REAL_STATS_FAIL: %d" % elaia_stats_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BOARD_CLOSE") == "1":
 		var board_close_only: int = await _board_close_ok(tree_root, game_state, save_service)
 		if board_close_only > 0:
@@ -3422,6 +3431,7 @@ func _run() -> void:
 	failed += await _battle_strike_for_me(tree_root, game_state, save_service)
 	failed += await _battle_playback(tree_root, game_state, save_service)
 	failed += await _battle_pose_reset(tree_root, game_state, save_service)
+	failed += _elaia_real_stats_ok(tree_root, game_state)
 	failed += await _battle_art(tree_root, game_state, save_service)
 	failed += _battle_audio_sole_caller(tree_root, game_audio)
 	failed += await _headless_silent(tree_root, game_state, save_service, game_audio)
@@ -7855,6 +7865,56 @@ func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node)
 	if failed == 0:
 		print("CRAFT_DURATION_LABEL_OK")
 		print("WORKBENCH_BAR_TOOLTIP_OK")
+	return failed
+
+
+func _elaia_expected_stats(equipment: Node, keeper_stats: Node) -> Dictionary:
+	var out: Dictionary = {}
+	for stat_id: String in SlotEngine._KEEPER_STATS:
+		var base: int = int(keeper_stats.call("get_base_for", "elaia", stat_id))
+		var gear: int = int(equipment.call("gear_bonus_for", "elaia", stat_id)) if equipment != null else 0
+		out[stat_id] = base + gear
+	var attack: String = "magic"
+	if equipment != null:
+		var weapon_id: String = str(equipment.call("equipped_id_for", "elaia", "weapon"))
+		var item_def: Dictionary = equipment.call("get_item_def", weapon_id)
+		if str(item_def.get("damage_kind", "")) == "physical":
+			attack = "physical"
+	out["attack"] = attack
+	return out
+
+
+func _stats_dict_match(a: Dictionary, b: Dictionary) -> bool:
+	for key: String in SlotEngine._KEEPER_STATS:
+		if int(a.get(key, -999)) != int(b.get(key, -999)):
+			return false
+	return str(a.get("attack", "")) == str(b.get("attack", ""))
+
+
+func _elaia_real_stats_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
+	failed += _assert(equipment != null and keeper_stats != null, "elaia stats autoloads")
+	if equipment == null or keeper_stats == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	var fresh_expected: Dictionary = _elaia_expected_stats(equipment, keeper_stats)
+	var fresh_live: Dictionary = SlotEngine.member_stats("elaia")
+	failed += _assert(_stats_dict_match(fresh_live, fresh_expected), "fresh elaia matches sheet")
+	failed += _assert(int(fresh_live.get("arcana", 0)) == 6, "fresh elaia arcana from echo sheet")
+	failed += _assert(int(fresh_live.get("fate", 0)) == 30, "fresh elaia fate from echo sheet")
+	failed += _assert(bool(equipment.call("grant_item", "sapstaff")), "grant sapstaff")
+	failed += _assert(str(equipment.call("try_equip", "sapstaff", "elaia")) == "ok", "elaia wears sapstaff")
+	var geared_expected: Dictionary = _elaia_expected_stats(equipment, keeper_stats)
+	var geared_live: Dictionary = SlotEngine.member_stats("elaia")
+	failed += _assert(_stats_dict_match(geared_live, geared_expected), "geared elaia matches sheet plus gear")
+	failed += _assert(int(geared_live.get("arcana", 0)) == int(geared_expected.get("arcana", 0)), "geared arcana")
+	equipment.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("ELAIA_REAL_STATS_OK")
 	return failed
 
 
