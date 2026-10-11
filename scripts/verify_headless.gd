@@ -222,6 +222,38 @@ func _run() -> void:
 		return
 
 	# ==== MG JOB B: switches (begin) ====
+	if OS.get_environment("MANAFORGE_MG_RIPE_CATCH") == "1":
+		var rc: int = _mg_b_ripe_catch_logic_ok()
+		if rc > 0:
+			print("RIPE_CATCH_LOGIC_FAIL: %d" % rc)
+			quit(1)
+		else:
+			quit(0)
+		return
+	if OS.get_environment("MANAFORGE_MG_SPLITTING_STONE") == "1":
+		var ss: int = _mg_b_splitting_stone_logic_ok()
+		if ss > 0:
+			print("SPLITTING_STONE_LOGIC_FAIL: %d" % ss)
+			quit(1)
+		else:
+			quit(0)
+		return
+	if OS.get_environment("MANAFORGE_MG_WOODSONG") == "1":
+		var ws: int = _mg_b_woodsong_logic_ok()
+		if ws > 0:
+			print("WOODSONG_LOGIC_FAIL: %d" % ws)
+			quit(1)
+		else:
+			quit(0)
+		return
+	if OS.get_environment("MANAFORGE_MG_JUST_ENOUGH") == "1":
+		var je: int = _mg_b_just_enough_logic_ok()
+		if je > 0:
+			print("JUST_ENOUGH_LOGIC_FAIL: %d" % je)
+			quit(1)
+		else:
+			quit(0)
+		return
 	# ==== MG JOB B: switches (end) ====
 	# (spacer: job B above, job C below; keep these three comment lines)
 	# (spacer)
@@ -2731,6 +2763,10 @@ func _run() -> void:
 	failed += await _minigame_exclusive_ok(tree_root, game_state, save_service)
 	failed += await _minigame_no_payout_ok(tree_root, game_state, save_service)
 	# ==== MG JOB B: suite (begin) ====
+	failed += _mg_b_ripe_catch_logic_ok()
+	failed += _mg_b_splitting_stone_logic_ok()
+	failed += _mg_b_woodsong_logic_ok()
+	failed += _mg_b_just_enough_logic_ok()
 	# ==== MG JOB B: suite (end) ====
 	# (spacer)
 	# (spacer)
@@ -3473,6 +3509,14 @@ func _check_only_load() -> int:
 		"res://scripts/minigames/games/tap_test_view.gd",
 	])
 	# ==== MG JOB B: check-only paths (begin) ====
+	paths.append("res://scripts/minigames/games/ripe_catch_core.gd")
+	paths.append("res://scripts/minigames/games/ripe_catch_view.gd")
+	paths.append("res://scripts/minigames/games/splitting_stone_core.gd")
+	paths.append("res://scripts/minigames/games/splitting_stone_view.gd")
+	paths.append("res://scripts/minigames/games/woodsong_core.gd")
+	paths.append("res://scripts/minigames/games/woodsong_view.gd")
+	paths.append("res://scripts/minigames/games/just_enough_core.gd")
+	paths.append("res://scripts/minigames/games/just_enough_view.gd")
 	# ==== MG JOB B: check-only paths (end) ====
 	# (spacer)
 	# (spacer)
@@ -8585,6 +8629,320 @@ func _scan_dir_forbidden(dir_path: String, needles: PackedStringArray) -> int:
 
 
 # ==== MG JOB B: functions (begin) ====
+
+const _MG_B_DT: float = 1.0 / 60.0
+static var _mg_b_golden_printed: Dictionary = {}
+
+
+func _mg_b_cfg(game_id: String) -> Dictionary:
+	var cfg: Dictionary = MinigameCatalog.game_cfg(game_id)
+	cfg["_game_id"] = game_id
+	cfg["_max_pace"] = float(MinigameCatalog.data().get("max_pace", 3.0))
+	return cfg
+
+
+func _mg_b_start(game_id: String, seed: int) -> MinigameCore:
+	var core: MinigameCore = MinigameCatalog.new_core(game_id)
+	core.start(_mg_b_cfg(game_id), seed)
+	return core
+
+
+func _mg_b_advance_seconds(core: MinigameCore, seconds: float, tick: Callable = Callable()) -> void:
+	var steps: int = int(seconds / _MG_B_DT)
+	for i: int in steps:
+		if tick.is_valid():
+			tick.call(core, i)
+		core.advance(_MG_B_DT)
+
+
+func _mg_b_collect_spawns(core: MinigameCore, limit: int) -> Array:
+	var out: Array = []
+	core.spawned.connect(func(_tid: int, info: Dictionary) -> void:
+		if out.size() < limit:
+			out.append(info.duplicate(true))
+	)
+	return out
+
+
+func _mg_b_print_golden(game_id: String, spawns: Array) -> void:
+	if _mg_b_golden_printed.get(game_id, false):
+		return
+	_mg_b_golden_printed[game_id] = true
+	print("MG_B_GOLDEN_%s: %s" % [game_id, str(spawns)])
+
+
+func _mg_b_common_suite(game_id: String, perfect_tick: Callable, miss_tick: Callable = Callable()) -> int:
+	var failed: int = 0
+	var cfg: Dictionary = _mg_b_cfg(game_id)
+	var seed: int = int(MinigameCatalog.data().get("test_seed", 12345))
+	var r: float = float(cfg.get("r", 0.0))
+	var k: float = float(cfg.get("k", 0.0))
+	var tpc: float = float(cfg.get("tokens_per_cycle", 1.0))
+	var max_w: int = maxi(1, int(cfg.get("heavy_weight", 1)))
+	var minutes: float = 3.0
+	var core_a: MinigameCore = _mg_b_start(game_id, seed)
+	var golden: Array = []
+	core_a.spawned.connect(func(_tid: int, info: Dictionary) -> void:
+		if golden.size() < 10:
+			golden.append(info.duplicate(true))
+	)
+	_mg_b_advance_seconds(core_a, minutes * 60.0, perfect_tick)
+	var min_succ: int = int(r * minutes - tpc)
+	var max_succ: int = int(r * minutes)
+	failed += _assert(core_a.successes >= min_succ and core_a.successes <= max_succ, "%s perfect successes %d in [%d,%d]" % [game_id, core_a.successes, min_succ, max_succ])
+	var w_lo: float = 120.0 * minutes - k * tpc * float(max_w)
+	var w_hi: float = 120.0 * minutes + k * tpc * float(max_w)
+	if game_id == "woodsong":
+		w_hi += k * 2.0
+	var bonus: float = float(core_a.weight_sum) * k
+	failed += _assert(bonus >= w_lo - 0.5 and bonus <= w_hi + 0.5, "%s perfect bonus %.2f in [%.2f,%.2f]" % [game_id, bonus, w_lo, w_hi])
+	var core_miss: MinigameCore = _mg_b_start(game_id, seed)
+	var avoid := func(c: MinigameCore, _i: int) -> void:
+		c.input({"type": "move", "x": 0.93, "y": 0.0, "key": ""})
+	if miss_tick.is_valid():
+		_mg_b_advance_seconds(core_miss, minutes * 60.0, miss_tick)
+	else:
+		_mg_b_advance_seconds(core_miss, minutes * 60.0, avoid)
+	failed += _assert(core_miss.successes == 0, "%s all-miss successes got %d" % [game_id, core_miss.successes])
+	failed += _assert(is_equal_approx(core_miss.pace(), 1.0), "%s all-miss pace got %.4f" % [game_id, core_miss.pace()])
+	var core_b: MinigameCore = _mg_b_start(game_id, seed)
+	var golden_b: Array = []
+	core_b.spawned.connect(func(_tid: int, info: Dictionary) -> void:
+		if golden_b.size() < 10:
+			golden_b.append(info.duplicate(true))
+	)
+	_mg_b_advance_seconds(core_b, 35.0)
+	var golden_n: int = mini(10, mini(golden.size(), golden_b.size()))
+	failed += _assert(golden.size() >= 10 and golden_b.size() >= 10, "%s golden count %d/%d" % [game_id, golden.size(), golden_b.size()])
+	for i: int in range(golden_n):
+		failed += _assert(str(golden[i]) == str(golden_b[i]), "%s golden spawn %d" % [game_id, i])
+	_mg_b_print_golden(game_id, golden)
+	return failed
+
+
+func _mg_b_ripe_catch_logic_ok() -> int:
+	var failed: int = 0
+	var game_id: String = "ripe_catch"
+	if not MinigameCatalog.is_built(game_id):
+		return failed
+	failed += _assert(_mg_b_start(game_id, 12345) != null, "ripe core")
+	var move_basket := func(core: MinigameCore, _i: int) -> void:
+		var x: float = 0.5
+		var best_dt: float = 1e9
+		for tid: Variant in core._live.keys():
+			var info: Dictionary = core._live[tid] as Dictionary
+			if str(info.get("kind", "")) != "ripe":
+				continue
+			var rem: float = float(info.get("catch_at", 0.0)) - core.clock_sec
+			if rem < best_dt:
+				best_dt = rem
+				x = float(info.get("x", x))
+		core.input({"type": "move", "x": x, "y": 0.0, "key": ""})
+	var miss_basket := func(core: MinigameCore, _i: int) -> void:
+		var aim: float = 0.93
+		var best_dt: float = 1e9
+		var hw: float = float(_mg_b_cfg(game_id).get("basket_half_w", 0.07))
+		for tid: Variant in core._live.keys():
+			var info: Dictionary = core._live[tid] as Dictionary
+			if str(info.get("kind", "")) != "ripe":
+				continue
+			var rem: float = float(info.get("catch_at", 0.0)) - core.clock_sec
+			if rem < best_dt:
+				best_dt = rem
+				var bx: float = float(info.get("x", 0.5))
+				aim = 0.07 if bx > 0.5 else 0.93
+				if absf(bx - aim) <= hw:
+					aim = 0.93 if bx > 0.5 else 0.07
+		core.input({"type": "move", "x": aim, "y": 0.0, "key": ""})
+	failed += _mg_b_common_suite(game_id, move_basket, miss_basket)
+	var probe: RipeCatchCore = _mg_b_start(game_id, 12345) as RipeCatchCore
+	_mg_b_advance_seconds(probe, 180.0, move_basket)
+	var ticks: int = probe.spawn_tick_count()
+	var rotten: int = probe.rotten_spawn_ticks()
+	failed += _assert(ticks > 0, "ripe spawn ticks")
+	var frac: float = float(rotten) / float(ticks)
+	failed += _assert(frac >= 0.05 and frac <= 0.25, "rotten rate %.3f" % frac)
+	var succ_before: int = probe.successes
+	var fail_before: int = probe.fails
+	probe._streak = 5
+	var rotten_x: float = 0.5
+	probe._spawn_rotten_berry()
+	for b: Dictionary in probe._berries:
+		if str(b.get("kind", "")) == "rotten":
+			rotten_x = float(b.get("x", 0.5))
+			b["catch_at"] = probe.clock_sec
+	probe.input({"type": "move", "x": rotten_x, "y": 0.0, "key": ""})
+	probe._tick_berries()
+	failed += _assert(probe._streak == 0, "rotten catch clears streak")
+	failed += _assert(probe.successes == succ_before and probe.fails == fail_before, "rotten not token")
+	if failed == 0:
+		print("RIPE_CATCH_LOGIC_OK")
+	return failed
+
+
+func _mg_b_splitting_stone_logic_ok() -> int:
+	var failed: int = 0
+	var game_id: String = "splitting_stone"
+	if not MinigameCatalog.is_built(game_id):
+		return failed
+	var cfg: Dictionary = _mg_b_cfg(game_id)
+	var cycle: float = float(cfg.get("cycle_sec", 6.0))
+	var preview: float = float(cfg.get("preview_sec", 0.6))
+	var win: float = float(cfg.get("window_sec", 0.8))
+	var perfect := func(core: MinigameCore, _i: int) -> void:
+		var st: Dictionary = core.state()
+		var lit: int = int(st.get("lit_index", -1))
+		if lit >= 0:
+			var spots: Array = st.get("spots", [])
+			if lit < spots.size():
+				var p: Vector2 = spots[lit] as Vector2
+				core.input({"type": "press", "x": p.x, "y": p.y, "key": ""})
+	failed += _mg_b_common_suite(game_id, perfect)
+	var core: SplittingStoneCore = _mg_b_start(game_id, 12345) as SplittingStoneCore
+	failed += _assert(core != null, "stone core")
+	var st0: Dictionary = core.state()
+	var spots: Array = st0.get("spots", [])
+	failed += _assert(spots.size() >= 3, "spots seeded")
+	var press_preview: int = core.fails
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": ""})
+	failed += _assert(core.fails == press_preview, "preview press noop")
+	core.advance(preview + win - 0.01 - core.clock_sec)
+	var lit_id: int = core._lit_token_id()
+	failed += _assert(lit_id >= 0, "lit before close")
+	var info: Dictionary = core._live[lit_id] as Dictionary
+	var px: float = float(info.get("x", 0.0))
+	var py: float = float(info.get("y", 0.0))
+	core.input({"type": "press", "x": px, "y": py, "key": ""})
+	failed += _assert(core.successes >= 1, "press before close succeeds")
+	var late: SplittingStoneCore = _mg_b_start(game_id, 99999) as SplittingStoneCore
+	_mg_b_advance_seconds(late, preview + win + 0.05)
+	failed += _assert(late.fails >= 1, "press after window fails")
+	core = _mg_b_start(game_id, 4242) as SplittingStoneCore
+	core.advance(preview + 0.05)
+	lit_id = core._lit_token_id()
+	if lit_id >= 0 and spots.size() >= 2:
+		var wrong: Vector2 = (core.state().get("spots", []) as Array)[1] as Vector2
+		var fails_before: int = core.fails
+		core.input({"type": "press", "x": wrong.x, "y": wrong.y, "key": ""})
+		failed += _assert(core.fails == fails_before + 1, "wrong spot fails lit only")
+	core = _mg_b_start(game_id, 7777) as SplittingStoneCore
+	core.advance(preview + 0.1)
+	var ordered: Array = core.state().get("spots", [])
+	if ordered.size() >= 2:
+		var left_idx: int = core._spot_order_index(0)
+		core.input({"type": "press", "x": 0.0, "y": 0.0, "key": str(left_idx + 1)})
+		failed += _assert(core.successes >= 1 or core.fails >= 1, "key maps L-R")
+	if failed == 0:
+		print("SPLITTING_STONE_LOGIC_OK")
+	return failed
+
+
+func _mg_b_woodsong_logic_ok() -> int:
+	var failed: int = 0
+	var game_id: String = "woodsong"
+	if not MinigameCatalog.is_built(game_id):
+		return failed
+	var cfg: Dictionary = _mg_b_cfg(game_id)
+	var bpm: float = float(cfg.get("bpm", 48.0))
+	var win_ms: float = float(cfg.get("window_ms", 180.0))
+	var beat_t: float = 60.0 / bpm
+	var tap := func(core: MinigameCore, _i: int) -> void:
+		for tid: Variant in core._live.keys():
+			var info: Dictionary = core._live[tid] as Dictionary
+			var t: float = float(info.get("beat_time", 0.0))
+			if core.clock_sec >= t - _MG_B_DT and core.clock_sec <= t + _MG_B_DT:
+				core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _mg_b_common_suite(game_id, tap)
+	var core: WoodsongCore = _mg_b_start(game_id, 12345) as WoodsongCore
+	var t1: float = beat_t
+	core.advance(t1 - win_ms / 1000.0 + 0.001)
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _assert(core.successes >= 1, "woodsong -179ms hit")
+	core = _mg_b_start(game_id, 12345) as WoodsongCore
+	core.advance(t1 + win_ms / 1000.0 + 0.001)
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _assert(core.successes == 0, "woodsong +181ms miss")
+	core = _mg_b_start(game_id, 12345) as WoodsongCore
+	_mg_b_advance_seconds(core, 60.0 + _MG_B_DT, tap)
+	failed += _assert(core.successes == 48, "woodsong minute successes %d" % core.successes)
+	failed += _assert(core.weight_sum == 54, "woodsong minute weight %d" % core.weight_sum)
+	for beat_i: int in [8, 16, 24]:
+		core = _mg_b_start(game_id, 12345) as WoodsongCore
+		var bt: float = float(beat_i) * beat_t
+		core.advance(bt - 0.01)
+		for tid: Variant in core._live.keys():
+			var info: Dictionary = core._live[tid] as Dictionary
+			if int(info.get("beat_index", 0)) == beat_i:
+				failed += _assert(int(info.get("weight", 1)) == 2, "heavy beat %d" % beat_i)
+	core = _mg_b_start(game_id, 12345) as WoodsongCore
+	var t2: float = beat_t * 2.0
+	core.advance(t2 - 0.01)
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	var succ_one: int = core.successes
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _assert(core.successes == succ_one, "one press one beat")
+	var gap_core: WoodsongCore = _mg_b_start(game_id, 12345) as WoodsongCore
+	var gap_t: float = beat_t + win_ms / 1000.0 + 0.04
+	gap_core.advance(gap_t)
+	failed += _assert(gap_core._live.is_empty(), "between beats no live token")
+	var gap_fails: int = gap_core.fails
+	gap_core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _assert(gap_core.fails == gap_fails, "extra press no fail")
+	if failed == 0:
+		print("WOODSONG_LOGIC_OK")
+	return failed
+
+
+func _mg_b_just_enough_logic_ok() -> int:
+	var failed: int = 0
+	var game_id: String = "just_enough"
+	if not MinigameCatalog.is_built(game_id):
+		return failed
+	var cfg: Dictionary = _mg_b_cfg(game_id)
+	var fill: float = float(cfg.get("fill_sec", 1.8))
+	var band: Array = cfg.get("band", [0.62, 0.82])
+	var perfect := func(core: MinigameCore, _i: int) -> void:
+		var mid: float = (float(band[0]) + float(band[1])) * 0.5
+		var st: Dictionary = core.state()
+		if str(st.get("phase", "")) == "fill" and not bool(st.get("holding", false)):
+			core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+		if bool(st.get("holding", false)) and float(st.get("level", 0.0)) >= mid:
+			core.input({"type": "release", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _mg_b_common_suite(game_id, perfect)
+	var core: JustEnoughCore = _mg_b_start(game_id, 12345) as JustEnoughCore
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	core.advance(0.61 * fill)
+	core.input({"type": "release", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _assert(core.fails >= 1, "0.61 level fail")
+	core = _mg_b_start(game_id, 12345) as JustEnoughCore
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	core.advance(0.63 * fill)
+	core.input({"type": "release", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _assert(core.successes >= 1, "0.63 level success")
+	core = _mg_b_start(game_id, 12345) as JustEnoughCore
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	core.advance(0.81 * fill)
+	core.input({"type": "release", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _assert(core.successes >= 1, "0.81 success")
+	core = _mg_b_start(game_id, 12345) as JustEnoughCore
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	core.advance(0.83 * fill)
+	core.input({"type": "release", "x": 0.5, "y": 0.5, "key": "space"})
+	failed += _assert(core.fails >= 1, "0.83 fail")
+	core = _mg_b_start(game_id, 12345) as JustEnoughCore
+	core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+	core.advance(fill + 0.05)
+	var fails_after_overflow: int = core.fails
+	core.advance(0.5)
+	failed += _assert(fails_after_overflow >= 1, "overflow fail once")
+	failed += _assert(core.fails == fails_after_overflow, "no second overflow fail")
+	core = _mg_b_start(game_id, 12345) as JustEnoughCore
+	core.advance(float(cfg.get("cycle_sec", 3.0)))
+	failed += _assert(core.fails >= 1, "no release cycle fail")
+	if failed == 0:
+		print("JUST_ENOUGH_LOGIC_OK")
+	return failed
+
 # ==== MG JOB B: functions (end) ====
 # (spacer)
 # (spacer)

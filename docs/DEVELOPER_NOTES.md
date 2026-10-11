@@ -93,6 +93,10 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `MINIGAME_INPUT_SWALLOW_OK` | Live hub with host open: world drag, RMB, I/C, arrows blocked; Esc closes without pause; I works after close. `MANAFORGE_MINIGAME_INPUT=1` runs it alone. |
 | `MINIGAME_EXCLUSIVE_OK` | `can_open` frozen/battle/busy/not_built; running host closes when frozen/battle flips. `MANAFORGE_MINIGAME_EXCLUSIVE=1` runs it alone. |
 | `MINIGAME_NO_PAYOUT_OK` | Perfect tap_test minute via `host.step` only leaves harvest, resources, and station jobs unchanged; minigame scripts scan clean. `MANAFORGE_MINIGAME_NO_PAYOUT=1` runs it alone. |
+| `RIPE_CATCH_LOGIC_OK` | Ripe Catch core: rotten berries (~1/8 spawn ticks), streak reset, seeded spawns, perfect/all-miss bots. `MANAFORGE_MG_RIPE_CATCH=1` runs it alone. |
+| `SPLITTING_STONE_LOGIC_OK` | Splitting Stone core: preview noop, window edge hits, wrong-spot/key mapping, perfect/all-miss bots. `MANAFORGE_MG_SPLITTING_STONE=1` runs it alone. |
+| `WOODSONG_LOGIC_OK` | Woodsong core: ±180 ms window, heavy every 8th beat, one-minute weight 54, single-press scoring. `MANAFORGE_MG_WOODSONG=1` runs it alone. |
+| `JUST_ENOUGH_LOGIC_OK` | Just Enough core: band edges, overflow once, cycle-end fail, perfect/all-miss bots. `MANAFORGE_MG_JUST_ENOUGH=1` runs it alone. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 
