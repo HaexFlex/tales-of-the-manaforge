@@ -12924,7 +12924,7 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	var elaia_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_elaia") as Control
 	failed += _assert(keeper_plate != null and elaia_plate != null, "two party plates")
 	if keeper_plate != null:
-		var keeper_hp: ProgressBar = keeper_plate.get_node_or_null("HpBar") as ProgressBar
+		var keeper_hp: TextureProgressBar = keeper_plate.get_node_or_null("HpBar") as TextureProgressBar
 		failed += _assert(keeper_hp != null and int(keeper_hp.value) == 28 and int(keeper_hp.max_value) == 28, "keeper HP on the plate")
 		failed += _assert(keeper_plate.tooltip_text.find("HP 28/28") >= 0, "keeper plate tooltip has the HP line")
 		failed += _assert(keeper_plate.position == Vector2(380, 424) + Vector2(-28, 10), "keeper plate under his feet")
@@ -12942,11 +12942,12 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 		failed += _assert(name_a != null and name_b != null and name_a.text == "Acorn imp A" and name_b.text == "Acorn imp B", "imp plate names")
 	view.call("set_active", "elaia")
 	await process_frame
-	var outlines: Array[Node] = get_nodes_in_group("battle_plate_outline")
-	failed += _assert(outlines.size() == 1, "one active outline")
-	if outlines.size() == 1:
-		var on_plate: Node = outlines[0].get_parent()
-		failed += _assert(on_plate != null and on_plate.name == "PartyPlate_elaia", "outline on Elaia's plate")
+	failed += _assert(get_nodes_in_group("battle_plate_outline").is_empty(), "no gold plate outline ColorRect")
+	var elaia_plate_active: Control = view.get_node_or_null("Arena/Plates/PartyPlate_elaia") as Control
+	if elaia_plate_active != null:
+		var elaia_bg: TextureRect = elaia_plate_active.get_node_or_null("Bg") as TextureRect
+		var active_path: String = elaia_bg.texture.resource_path if elaia_bg != null and elaia_bg.texture != null else ""
+		failed += _assert(active_path.find("plate_party_active_56x24.png") >= 0, "active fighter uses active plate texture")
 	fight.set_hp("acorn_imp", 1)
 	view.call("refresh_fight", fight)
 	await process_frame
@@ -13081,11 +13082,12 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 		failed += _assert(plate != null, "%s has a plate" % fid)
 		if plate == null:
 			continue
-		failed += _assert(plate.position == expect + Vector2(-28, 10) and plate.size == Vector2(56, 24), "%s plate centred under the feet" % fid)
+		var want_size: Vector2 = Vector2(56, 24) if side == "Party" else Vector2(56, 20)
+		failed += _assert(plate.position == expect + Vector2(-28, 10) and plate.size == want_size, "%s plate centred under the feet" % fid)
 		var name_label: Label = plate.get_node_or_null("NameLabel") as Label
 		var level_label: Label = plate.get_node_or_null("LevelLabel") as Label
-		var hp_bar: ProgressBar = plate.get_node_or_null("HpBar") as ProgressBar
-		var weave_bar: ProgressBar = plate.get_node_or_null("WeaveBar") as ProgressBar
+		var hp_bar: TextureProgressBar = plate.get_node_or_null("HpBar") as TextureProgressBar
+		var weave_bar: TextureProgressBar = plate.get_node_or_null("WeaveBar") as TextureProgressBar
 		failed += _assert(name_label != null and name_label.text != "" and level_label != null, "%s plate shows a name and a level slot" % fid)
 		failed += _assert(hp_bar != null and hp_bar.is_visible_in_tree() and int(hp_bar.max_value) == int(fight.fighter_dict(fid).get("max_hp", 0)), "%s plate HP bar" % fid)
 		if side == "Party":
@@ -13111,15 +13113,44 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	var keeper_mid: Control = view.get_node_or_null("Arena/Fighters/Fighter_ally_2") as Control
 	var keeper_low: Control = view.get_node_or_null("Arena/Fighters/Fighter_ally_4") as Control
 	failed += _assert(keeper_mid != null and keeper_low != null and keeper_mid.get_index() < keeper_low.get_index(), "the middle fighter is drawn behind the bottom fighter")
-	# 5. The old big HP bars are gone; every ProgressBar left is a plate bar.
+	# 5. The old big HP bars are gone; plate fills are TextureProgressBars only.
 	failed += _assert(view.get_node_or_null("Arena/PartyBar") == null and view.find_child("PartyBar", true, false) == null, "no PartyBar")
 	var stray_bars: int = 0
-	for bar_v: Node in view.find_children("*", "ProgressBar", true, false):
-		var bar: ProgressBar = bar_v as ProgressBar
+	for bar_v: Node in view.find_children("*", "TextureProgressBar", true, false):
+		var bar: TextureProgressBar = bar_v as TextureProgressBar
 		var parent: Node = bar.get_parent()
 		if parent == null or parent.get_parent() != plates_root or bar.size.x > 56.0:
 			stray_bars += 1
-	failed += _assert(stray_bars == 0, "no HP bar outside the plates (%d stray)" % stray_bars)
+	failed += _assert(stray_bars == 0, "no fill bar outside the plates (%d stray)" % stray_bars)
+	failed += _assert(str(BattleViewScript.UI_ART_DIR).ends_with("ui/"), "UI_ART_DIR uses final ui/")
+	var ui_files: Array[String] = [
+		"plate_party_56x24.png", "plate_beast_56x20.png", "plate_party_active_56x24.png",
+		"plate_beast_active_56x20.png", "bottom_panel_1280x136.png", "log_panel_732x108.png",
+		"active_arrow_13x9.png", "intent_bubble_22x26.png", "action_button_normal_160x44.png",
+		"depth_plate_120x28.png", "round_banner_324x38.png", "speed_1x_selected.png",
+	]
+	for ui_file: String in ui_files:
+		failed += _assert(ResourceLoader.exists(BattleViewScript.UI_ART_DIR + ui_file), "final ui texture %s" % ui_file)
+	var depth_plate: Control = view.get_node_or_null("Arena/DepthPlate") as Control
+	failed += _assert(depth_plate != null and depth_plate.position == Vector2(16, 12) and depth_plate.size == Vector2(120, 28), "depth plate top bar")
+	var round_banner: Control = view.get_node_or_null("Arena/RoundBanner") as Control
+	failed += _assert(round_banner != null and round_banner.position == Vector2(478, 8) and round_banner.size == Vector2(324, 38), "round banner top bar")
+	for i: int in 3:
+		var speed_n: int = [1, 2, 4][i]
+		var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
+		var want_pos: Vector2 = Vector2(1124 + i * 36, 12)
+		failed += _assert(speed_btn != null and speed_btn.position == want_pos, "speed %dx at %s" % [speed_n, want_pos])
+	view.call("_apply_battle_speed", 2)
+	await process_frame
+	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
+	var speed2_box: StyleBoxTexture = speed2.get_theme_stylebox("normal") as StyleBoxTexture if speed2 != null else null
+	var speed2_path: String = speed2_box.texture.resource_path if speed2_box != null and speed2_box.texture != null else ""
+	failed += _assert(speed2_path.find("speed_2x_selected.png") >= 0, "current speed uses selected texture (%s)" % speed2_path)
+	view.call("set_active", party_ids[0])
+	await process_frame
+	failed += _assert(get_nodes_in_group("battle_plate_outline").is_empty(), "no gold plate outline ColorRect")
+	failed += _assert(not DirAccess.dir_exists_absolute("res://assets/art/battle/ui_placeholder/"), "ui_placeholder folder removed")
+	failed += _assert(not FileAccess.file_exists("res://assets/art/battle/ui_placeholder/plate_bg.png"), "ui_placeholder plate_bg gone")
 	# 6. Bottom bar: exactly six action buttons + the log, nothing else.
 	var actor: String = fight.current_actor()
 	if str(fight.fighter_dict(actor).get("side", "")) != "party":
