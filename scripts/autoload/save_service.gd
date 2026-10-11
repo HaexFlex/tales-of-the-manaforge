@@ -29,6 +29,10 @@ var _autosave_coalesce_sec: float = 1.2
 var _autosave_serial: int = 0
 ## Player-facing reason the last load failed ("" after a good load).
 var last_load_error: String = ""
+## True for the whole load pass (Forge, then the expedition). Saves refuse.
+var catchup_running: bool = false
+## Set when a load pass runs: "forge" then "reach".
+var last_catchup_order: Array[String] = []
 
 
 func _ready() -> void:
@@ -146,6 +150,10 @@ func debug_set_last_autosave_age(seconds: float) -> void:
 
 
 func _battle_blocks_save() -> bool:
+	if catchup_running:
+		return true
+	if has_node("/root/Reach") and Reach.catching_up:
+		return true
 	return has_node("/root/EchoChamber") and EchoChamber.in_battle
 
 
@@ -792,11 +800,17 @@ func _apply_offline_catchup(root: Dictionary) -> void:
 	var closed: float = Time.get_unix_time_from_system() - ts
 	if closed < 1.0:
 		return
-	if has_node("/root/ForgeJobs"):
-		ForgeJobs.apply_saved_offline_gap(closed)
-	## Road time is the raw gap. Play speed does not stretch a closed game.
+	## Forge first, then the expedition. Saves stay blocked until both return.
+	catchup_running = true
+	var order: Array[String] = []
+	ForgeJobs.apply_saved_offline_gap(closed)
+	order.append("forge")
+	## Road time is the raw gap. Play speed and Rush do not stretch a closed game.
 	if has_node("/root/Reach"):
 		Reach.apply_offline_seconds(closed)
+		order.append("reach")
+	last_catchup_order = order
+	catchup_running = false
 
 
 func _migrate_equipped_key_to_inventory(out: Dictionary) -> void:

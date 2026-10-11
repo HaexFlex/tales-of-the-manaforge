@@ -2,15 +2,19 @@ extends Node
 ## Endless reach rooms. Idle slots and manual fights share one outing.
 ## An idle room is a real fight, resolved at the end of its 12 minutes. Loot stays in the pack until the run ends.
 ## Briarwood, herbs, Heart Salve and Bile Vial live in the Backpack once the pack is banked.
-## Offline catch-up of an open run uses raw closed seconds. Play speed never multiplies it.
+## Offline catch-up of an open run is one pass over raw closed seconds. Play speed never multiplies it.
 ## The locked draft's Fate term, every-5 start checkpoints, room twists, crates, and Amberbind are not in this pass.
 ## Any unlocked depth can be started. Every 10th room attempted in an expedition is a boss at that room's depth.
 
 signal changed
 signal party_changed
+## One dictionary per resolved room: room, depth, outcome, boss.
+signal room_resolved(entry: Dictionary)
 
 const DEPART_ESSENCE: int = 20
 const ROOM_SEC: float = 720.0
+## A live frame longer than this (after play speed, before Rush) resolves in one pass.
+const BIG_DELTA_SEC: float = 5.0
 const REST_SEC: float = 1440.0
 const DC: int = 6
 const PUSH_STOP: float = 0.75
@@ -59,8 +63,20 @@ var last_summary: Dictionary = {}
 var exp_gained: int = 0
 var essence_payback: int = 0
 var last_room_exp: int = 0
+## True while catch_up is inside advance_clock. Run actions and saves change nothing.
+var catching_up: bool = false
+## Last one-pass result: source, seconds_in, seconds_used, rooms, ms.
+var last_catchup: Dictionary = {
+	"source": "",
+	"seconds_in": 0.0,
+	"seconds_used": 0.0,
+	"rooms": 0,
+	"ms": 0,
+}
 
 var _faces: Array[int] = []
+## catch_up sets this so advance_clock does not emit changed per slot.
+var _quiet: bool = false
 var _forced_outcomes: Array[String] = []
 var _test_run_seed: int = -1
 var _drops: Array[int] = []
@@ -83,9 +99,7 @@ func _process(delta: float) -> void:
 	var step := delta
 	if has_node("/root/GameState"):
 		step = GameState.active_play_delta(delta)
-	if rush and debug_tools():
-		step *= 60.0
-	advance_clock(step)
+	process_frame_delta(step)
 
 
 func debug_tools() -> bool:
@@ -274,6 +288,8 @@ func set_test_run_seed(seed: int) -> void:
 
 
 func depart_slots(cfg: Dictionary) -> String:
+	if catching_up:
+		return "busy"
 	if running:
 		return "busy"
 	var party_err: String = _party_cfg_error(cfg)
@@ -383,6 +399,8 @@ func debug_force_outcomes(list: Array) -> void:
 
 
 func set_control(mode: String) -> void:
+	if catching_up:
+		return
 	if mode != "idle" and mode != "manual":
 		return
 	control = mode
@@ -403,6 +421,8 @@ func set_control(mode: String) -> void:
 
 
 func set_rush(on: bool) -> void:
+	if catching_up:
+		return
 	if not debug_tools():
 		rush = false
 		return
@@ -410,6 +430,8 @@ func set_rush(on: bool) -> void:
 
 
 func debug_skip_room() -> void:
+	if catching_up:
+		return
 	if not debug_tools() or not running:
 		return
 	if phase == "manual":
@@ -422,12 +444,48 @@ func apply_offline_seconds(closed_sec: float) -> void:
 	## Wall-clock seconds only. The play-speed button and Rush do not apply.
 	if closed_sec <= 0.0 or not running:
 		return
-	advance_clock(closed_sec)
+	catch_up(closed_sec, "load")
+
+
+func process_frame_delta(step: float) -> void:
+	## The frame step after play speed and before Rush. Tests drive this directly.
+	if step > BIG_DELTA_SEC:
+		catch_up(step, "frame")
+		return
+	var clock_step: float = step
+	if rush and debug_tools():
+		clock_step *= 60.0
+	advance_clock(clock_step)
+
+
+func catch_up(seconds: float, source: String) -> Dictionary:
+	## One pass. changed fires once at the end. Time after the run ends is dropped.
+	var started_ms: int = Time.get_ticks_msec()
+	var elapsed_before: float = elapsed
+	var rooms_before: int = room_log.size()
+	catching_up = true
+	_quiet = true
+	advance_clock(maxf(0.0, seconds))
+	_quiet = false
+	catching_up = false
+	var used: float = maxf(0.0, elapsed - elapsed_before)
+	if used > seconds and seconds >= 0.0:
+		used = seconds
+	last_catchup = {
+		"source": source,
+		"seconds_in": seconds,
+		"seconds_used": used,
+		"rooms": room_log.size() - rooms_before,
+		"ms": Time.get_ticks_msec() - started_ms,
+	}
+	changed.emit()
+	return last_catchup
 
 
 func advance_clock(seconds: float) -> void:
 	## One slot at a time. Idle rooms resolve only when the 12 minutes are up.
 	## Manual rooms ignore the clock. Elapsed is display only and never ends a run.
+	## _quiet (set by catch_up) skips the closing changed emit.
 	var left: float = maxf(0.0, seconds)
 	var guard: int = 0
 	while left > 0.0000001 and running and guard < 10000:
@@ -448,7 +506,8 @@ func advance_clock(seconds: float) -> void:
 		left -= step
 		if room_clock + 0.0000001 >= SlotEngine.ROOM_SEC:
 			_complete_slot()
-	changed.emit()
+	if not _quiet:
+		changed.emit()
 
 
 func fight_active() -> bool:
@@ -543,12 +602,14 @@ func on_manual_outcome(outcome: String) -> void:
 			var exp_mult: int = 2 if boss else 1
 			last_room_exp = room_exp(depth) * exp_mult
 			_apply_room_win(boss, loot)
-			room_log.append({
+			var entry := {
 				"room": rooms_attempted,
 				"depth": depth,
 				"outcome": "win",
 				"boss": boss,
-			})
+			}
+			room_log.append(entry)
+			room_resolved.emit(entry.duplicate())
 		"flee":
 			slots_used += 1
 			_finish_run("flee")
@@ -562,6 +623,8 @@ func on_manual_outcome(outcome: String) -> void:
 
 
 func manual_choice(choice: String) -> String:
+	if catching_up:
+		return "busy"
 	if not running or phase != "manual":
 		return "invalid"
 	if room_log.is_empty() or str(room_log[room_log.size() - 1].get("outcome", "")) != "win":
@@ -815,7 +878,8 @@ func _begin_room() -> void:
 	room_clock = 0.0
 	room_left = ROOM_SEC
 	mix = _roll_mix(_mix_budget())
-	if control == "manual" and _start_fight():
+	## A catch-up pass keeps the room idle, including a fight that was saved as manual.
+	if control == "manual" and not catching_up and _start_fight():
 		return
 	phase = "idle_room"
 	_manual = null
@@ -865,12 +929,13 @@ func _resolve_slot_room() -> void:
 		loadout = (after_v as Dictionary).duplicate()
 	var outcome: String = str(result.get("outcome", "overwhelmed"))
 	var boss: bool = bool(result.get("boss", is_boss_room()))
-	room_log.append({
+	var entry := {
 		"room": rooms_attempted,
 		"depth": depth,
 		"outcome": outcome,
 		"boss": boss,
-	})
+	}
+	room_log.append(entry)
 	if outcome == "win":
 		var loot_v: Variant = result.get("loot", {})
 		var loot: Dictionary = loot_v if typeof(loot_v) == TYPE_DICTIONARY else {}
@@ -890,6 +955,7 @@ func _resolve_slot_room() -> void:
 			_close_view()
 		else:
 			_finish_run("overwhelmed")
+	room_resolved.emit(entry.duplicate())
 
 
 func _forced_room_result(outcome: String) -> Dictionary:

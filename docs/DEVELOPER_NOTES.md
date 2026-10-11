@@ -95,6 +95,9 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `WISP_MISCLICK_KEEPS_JOB_OK` | Keeper away: RMB ground in the clearing and Forge keeps wisp jobs and toasts; at home RMB unassigns again. `MANAFORGE_WISP_MISCLICK_KEEPS_JOB=1` runs it alone. |
 | `WISP_REASSIGN_SAME_SCENE_OK` | Keeper away: wisps reassign within the clearing or within Forge craft spots. `MANAFORGE_WISP_REASSIGN_SAME_SCENE=1` runs it alone. |
 | `WISP_NO_CROSS_SCENE_OK` | Keeper away: cross-scene wisp sends are blocked; unassigned wisps may go anywhere; at home cross-scene works. `MANAFORGE_WISP_NO_CROSS_SCENE=1` runs it alone. |
+| `OFFLINE_REACH_ONEPASS_OK` | A closed expedition resolves in one pass: Forge, then the run. Ten forced wins over a 3-hour gap emit `room_resolved` ten times, `changed` once, finish the run, and bank the pack. Time past the last slot is dropped. The same seed without forced outcomes matches a live clock stepped by 720s. An Overwhelmed plus wins spends the rest slots. `MANAFORGE_OFFLINE_REACH_ONEPASS=1` runs it alone. |
+| `OFFLINE_SAVE_BLOCKED_OK` | During that pass `save_game` and `save_autosave` return false and `set_control` changes nothing. After the load, a save writes the finished run. `MANAFORGE_OFFLINE_SAVE_BLOCKED=1` runs it alone. |
+| `BIG_DELTA_CATCHUP_OK` | A live frame over 5s uses `catch_up` (`source` frame). Three slot-lengths resolve three rooms. A 1s frame does not. The same span as one-second frames matches `slots_used` and `room_log`. `MANAFORGE_BIG_DELTA_CATCHUP=1` runs it alone. |
 
 `REACH_MANUAL_DEFEAT_OK` retired by job 26, replaced by `MANUAL_OVERWHELMED_OK`.
 | `SAVE_NEWER_REFUSED_OK` | A save newer than this build is refused with a message naming both versions and leaves the game untouched. Continue skips it, and autosave never overwrites a newer autosave. `MANAFORGE_SAVE_NEWER=1` runs it alone. |
@@ -143,6 +146,10 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `HEADLESS_SILENT_OK` | Full test fight headless plays no battle SFX. `MANAFORGE_HEADLESS_SILENT=1` runs it alone. |
 
 `REACH_IDLE_ROLL_OK`, `REACH_FAIL_REST_OK`, `REACH_PUSH_STOP_OK`, `REACH_REWARDS_OK`, and `REACH_BOSS_ROOM_OK` retired by job 24, replaced by `IDLE_SLOTS_OK`, `IDLE_RESOLVE_AT_END_OK`, `IDLE_REST_SLOTS_OK`, and `IDLE_BOSS_PAYBACK_OK`.
+
+### Offline order
+
+Loading a save whose expedition is still out resolves the closed gap in one pass. Forge jobs run first (`ForgeJobs.apply_saved_offline_gap`), then the expedition (`Reach.catch_up`: real headless fights on the raw gap, no play speed and no Rush). Time after the run's last slot is dropped. `save_game`, `save_autosave`, and `save_on_quit` refuse until that pass finishes, then saves unblock. A live frame longer than 5 seconds of game time uses the same pass.
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 

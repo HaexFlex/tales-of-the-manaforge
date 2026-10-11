@@ -443,6 +443,33 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_OFFLINE_REACH_ONEPASS") == "1":
+		var onepass_only: int = _offline_reach_onepass(tree_root, game_state, save_service)
+		if onepass_only > 0:
+			print("OFFLINE_REACH_ONEPASS_FAIL: %d" % onepass_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_OFFLINE_SAVE_BLOCKED") == "1":
+		var blocked_only: int = _offline_save_blocked(tree_root, game_state, save_service)
+		if blocked_only > 0:
+			print("OFFLINE_SAVE_BLOCKED_FAIL: %d" % blocked_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BIG_DELTA_CATCHUP") == "1":
+		var big_delta_only: int = _big_delta_catchup(tree_root, game_state, save_service)
+		if big_delta_only > 0:
+			print("BIG_DELTA_CATCHUP_FAIL: %d" % big_delta_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# Bundle 3 resolver. The full suite runs these at the end.
 	if OS.get_environment("MANAFORGE_RESOLVER_DICE") == "1":
 		var resolver_dice_only: int = _resolver_dice()
@@ -3260,6 +3287,9 @@ func _run() -> void:
 	failed += _wisp_no_cross_scene_ok(tree_root, game_state, save_service)
 	failed += await _simulate_ok(tree_root, game_state, save_service)
 	failed += await _simulate_no_side_effects_ok(tree_root, game_state, save_service)
+	failed += _offline_reach_onepass(tree_root, game_state, save_service)
+	failed += _offline_save_blocked(tree_root, game_state, save_service)
+	failed += _big_delta_catchup(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -14439,4 +14469,297 @@ func _simulate_no_side_effects_ok(tree_root: Window, game_state: Node, save_serv
 		shell.free()
 	if failed == 0:
 		print("SIMULATE_NO_SIDE_EFFECTS_OK")
+	return failed
+
+
+func _reach_wins(n: int) -> Array[String]:
+	var out: Array[String] = []
+	for _i: int in n:
+		out.append("win")
+	return out
+
+
+func _stamp_slot_age(save_service: Node, slot: int, age_sec: float) -> bool:
+	var root: Dictionary = _read_slot_root(save_service, slot)
+	if root.is_empty():
+		return false
+	root["timestamp"] = Time.get_unix_time_from_system() - age_sec
+	var path: String = str(save_service.call("slot_path", slot))
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(root))
+	file.close()
+	return true
+
+
+func _res_snapshot(game_state: Node) -> Dictionary:
+	return {
+		"wood": int(game_state.get("wood")),
+		"stone": int(game_state.get("stone")),
+		"food": int(game_state.get("food")),
+	}
+
+
+func _offline_loot_landed(before_bag: Dictionary, before_res: Dictionary, backpack: Node, game_state: Node, banked: Dictionary) -> bool:
+	var after_bag: Dictionary = _bag_snapshot(backpack)
+	var resources: Array[String] = ["wood", "stone", "food"]
+	var keys: Dictionary = {}
+	for key_v: Variant in banked.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in before_bag.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in after_bag.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		var want: int = int(banked.get(key, 0))
+		if resources.has(key):
+			if int(game_state.get(key)) - int(before_res.get(key, 0)) != want:
+				return false
+		elif int(after_bag.get(key, 0)) - int(before_bag.get(key, 0)) != want:
+			return false
+	return true
+
+
+func _catchup_same(a: Dictionary, b: Dictionary) -> bool:
+	if str(a.get("source", "")) != str(b.get("source", "")):
+		return false
+	if int(a.get("rooms", -1)) != int(b.get("rooms", -2)):
+		return false
+	if int(a.get("ms", -1)) != int(b.get("ms", -2)):
+		return false
+	if not is_equal_approx(float(a.get("seconds_in", -1.0)), float(b.get("seconds_in", -2.0))):
+		return false
+	return is_equal_approx(float(a.get("seconds_used", -1.0)), float(b.get("seconds_used", -2.0)))
+
+
+func _room_log_key(reach: Node) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	var log: Array = reach.get("room_log")
+	for entry_v: Variant in log:
+		if entry_v is Dictionary:
+			var entry: Dictionary = entry_v
+			parts.append("%d:%d:%s:%s" % [int(entry.get("room", 0)), int(entry.get("depth", 0)), str(entry.get("outcome", "")), str(bool(entry.get("boss", false)))])
+	return "|".join(parts)
+
+
+func _offline_reach_onepass(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Load resolves Forge then the expedition in one pass. Forced outcomes are debug memory, so they are queued again after reset.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "onepass autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var session_was: bool = bool(save_service.get("session_active"))
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var echo_was: bool = echo != null and bool(echo.get("in_battle"))
+	if echo != null:
+		echo.set("in_battle", false)
+	failed += _assert(reach.has_signal("room_resolved") and reach.has_method("catch_up"), "catch-up API")
+	failed += _assert(save_service.get("last_catchup_order") != null, "last_catchup_order")
+	if failed > 0:
+		save_service.set("session_active", session_was)
+		if echo != null:
+			echo.set("in_battle", echo_was)
+		return failed
+	var wins: Array[String] = _reach_wins(10)
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("debug_force_outcomes", wins)
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 2, "hold", "idle")) == "ok", "ten-room idle depart")
+	failed += _assert(int(reach.get("slots_total")) == 10, "depart opens 10 slots")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save the open run to slot 7")
+	failed += _assert(_stamp_slot_age(save_service, 7, 10800.0), "stamp slot 7 three hours ago")
+	game_state.call("reset_for_new_game")
+	reach.call("debug_force_outcomes", wins)
+	var view_before: bool = BattleView.is_open()
+	var counts: Array[int] = [0, 0]
+	var on_room := func(_entry: Dictionary) -> void:
+		counts[0] += 1
+	var on_changed := func() -> void:
+		if counts[0] > 0:
+			counts[1] += 1
+	reach.connect("room_resolved", on_room)
+	reach.connect("changed", on_changed)
+	var bag_before: Dictionary = _bag_snapshot(backpack)
+	var res_before: Dictionary = _res_snapshot(game_state)
+	var loaded: bool = bool(save_service.call("load_game", 7))
+	reach.disconnect("room_resolved", on_room)
+	reach.disconnect("changed", on_changed)
+	failed += _assert(loaded, "load slot 7")
+	failed += _assert(counts[0] == 10, "exactly 10 room_resolved (got %d)" % counts[0])
+	failed += _assert(counts[1] == 1, "changed once during catch-up (got %d)" % counts[1])
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	failed += _assert(not bool(reach.get("running")) and str(summary.get("reason", "")) == "finished", "the run finished (%s)" % str(summary.get("reason", "")))
+	var banked: Dictionary = summary.get("banked", {}) as Dictionary
+	failed += _assert(_offline_loot_landed(bag_before, res_before, backpack, game_state, banked), "backpack gained banked %s" % str(banked))
+	var info: Dictionary = reach.get("last_catchup") as Dictionary
+	var used: float = float(info.get("seconds_used", -1.0))
+	failed += _assert(used <= 10.0 * 720.0 + 1.0 and used + 1.0 >= 10.0 * 720.0, "seconds_used is 10 slots (got %s)" % used)
+	failed += _assert(int(info.get("rooms", -1)) == 10, "last_catchup.rooms is 10")
+	failed += _assert(str(info.get("source", "")) == "load", "last_catchup source is load")
+	var order: Array = save_service.get("last_catchup_order") as Array
+	failed += _assert(order.size() == 2 and str(order[0]) == "forge" and str(order[1]) == "reach", "catch-up order %s" % str(order))
+	failed += _assert(BattleView.is_open() == view_before, "catch-up does not open BattleView")
+	failed += _assert(str(game_state.get("expedition_lantern")) == "cyan", "a finished run lights the board cyan")
+	game_state.call("reset_for_new_game")
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 2, "hold", "idle")) == "ok", "live seed depart")
+	for _step: int in 10:
+		reach.call("advance_clock", 720.0)
+	var live_line: String = _outcome_line(reach)
+	game_state.call("reset_for_new_game")
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 2, "hold", "idle")) == "ok", "offline seed depart")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save the unforced run")
+	failed += _assert(_stamp_slot_age(save_service, 7, 10800.0), "stamp the unforced run")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "load the unforced run")
+	failed += _assert(_outcome_line(reach) == live_line and not live_line.is_empty(), "offline outcomes match the live clock (%s vs %s)" % [_outcome_line(reach), live_line])
+	var rest_queue: Array[String] = ["overwhelmed"]
+	rest_queue.append_array(_reach_wins(17))
+	game_state.call("reset_for_new_game")
+	reach.call("debug_force_outcomes", rest_queue)
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 4, "hold", "idle")) == "ok", "twenty-room depart")
+	failed += _assert(int(reach.get("slots_total")) == 20, "four hours is 20 slots")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save the rest run")
+	failed += _assert(_stamp_slot_age(save_service, 7, 9.0 * 3600.0), "stamp nine hours")
+	game_state.call("reset_for_new_game")
+	reach.call("debug_force_outcomes", rest_queue)
+	var rest_counts: Array[int] = [0]
+	var on_rest := func(_entry: Dictionary) -> void:
+		rest_counts[0] += 1
+	reach.connect("room_resolved", on_rest)
+	failed += _assert(bool(save_service.call("load_game", 7)), "load the rest run")
+	reach.disconnect("room_resolved", on_rest)
+	failed += _assert(int(reach.get("slots_used")) == 20, "rest run uses 20 slots (got %d)" % int(reach.get("slots_used")))
+	failed += _assert(rest_counts[0] == 18, "rest run resolves 18 rooms (got %d)" % rest_counts[0])
+	failed += _assert(int((reach.get("last_catchup") as Dictionary).get("rooms", -1)) == 18, "last_catchup.rooms counts the 18")
+	game_state.call("reset_for_new_game")
+	reach.call("set_test_run_seed", 424242)
+	if str(reach.call("depart", 1, 8, "hold", "idle")) == "ok":
+		reach.call("catch_up", 40.0 * 720.0, "load")
+		print("OFFLINE_REACH_MS %d" % int((reach.get("last_catchup") as Dictionary).get("ms", -1)))
+	else:
+		print("OFFLINE_REACH_MS -1")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	save_service.set("session_active", session_was)
+	if echo != null:
+		echo.set("in_battle", echo_was)
+	if failed == 0:
+		print("OFFLINE_REACH_ONEPASS_OK")
+	return failed
+
+
+func _offline_save_blocked(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "save-blocked Reach")
+	if reach == null:
+		return failed
+	var session_was: bool = bool(save_service.get("session_active"))
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var echo_was: bool = echo != null and bool(echo.get("in_battle"))
+	if echo != null:
+		echo.set("in_battle", false)
+	failed += _assert(reach.has_signal("room_resolved"), "room_resolved for the save block")
+	if failed > 0:
+		save_service.set("session_active", session_was)
+		if echo != null:
+			echo.set("in_battle", echo_was)
+		return failed
+	var wins: Array[String] = _reach_wins(10)
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("debug_force_outcomes", wins)
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 2, "hold", "idle")) == "ok", "blocked-save depart")
+	failed += _assert(bool(save_service.call("save_game", 7)), "blocked-save writes slot 7")
+	failed += _assert(_stamp_slot_age(save_service, 7, 10800.0), "blocked-save stamps three hours")
+	game_state.call("reset_for_new_game")
+	reach.call("debug_force_outcomes", wins)
+	save_service.set("session_active", true)
+	var box := {"leaked": false, "manual": false, "mid_file": false, "fired": false}
+	var slot6: String = str(save_service.call("slot_path", 6))
+	var on_room := func(_entry: Dictionary) -> void:
+		box["fired"] = true
+		if bool(save_service.call("save_game", 6)):
+			box["leaked"] = true
+		if bool(save_service.call("save_autosave", true)):
+			box["leaked"] = true
+		if bool(save_service.call("save_on_quit")):
+			box["leaked"] = true
+		reach.call("set_control", "manual")
+		if str(reach.get("phase")) == "manual" or str(reach.get("control")) == "manual":
+			box["manual"] = true
+		if FileAccess.file_exists(slot6):
+			box["mid_file"] = true
+	reach.connect("room_resolved", on_room)
+	var loaded: bool = bool(save_service.call("load_game", 7))
+	reach.disconnect("room_resolved", on_room)
+	failed += _assert(loaded, "blocked-save load")
+	failed += _assert(bool(box["fired"]), "the handler ran")
+	failed += _assert(not bool(box["leaked"]), "saves return false during the pass")
+	failed += _assert(not bool(box["manual"]), "set_control changes nothing during the pass")
+	failed += _assert(not bool(box["mid_file"]), "slot 6 is not written mid-pass")
+	failed += _assert(not bool(save_service.call("has_slot", 6)), "slot 6 still missing after load")
+	failed += _assert(bool(save_service.call("save_game", 6)), "save_game works after the pass")
+	var saved: Dictionary = _read_slot_root(save_service, 6)
+	var state: Dictionary = saved.get("state", {}) as Dictionary
+	var reach_block: Dictionary = state.get("reach", {}) as Dictionary
+	var summary: Dictionary = reach_block.get("last_summary", {}) as Dictionary
+	failed += _assert(not bool(reach_block.get("running", true)), "slot 6 holds a finished run")
+	failed += _assert(str(summary.get("reason", "")) == "finished", "slot 6 reason is finished (got %s)" % str(summary.get("reason", "")))
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	save_service.set("session_active", session_was)
+	if echo != null:
+		echo.set("in_battle", echo_was)
+	if failed == 0:
+		print("OFFLINE_SAVE_BLOCKED_OK")
+	return failed
+
+
+func _big_delta_catchup(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null and reach.has_method("process_frame_delta"), "process_frame_delta")
+	if reach == null or not reach.has_method("process_frame_delta"):
+		return failed
+	var wins: Array[String] = _reach_wins(5)
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("debug_force_outcomes", wins)
+	reach.call("set_test_run_seed", 11)
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "five-room live depart")
+	var counts: Array[int] = [0]
+	var on_room := func(_entry: Dictionary) -> void:
+		counts[0] += 1
+	reach.connect("room_resolved", on_room)
+	reach.call("process_frame_delta", 3.0 * 720.0)
+	reach.disconnect("room_resolved", on_room)
+	failed += _assert(counts[0] == 3, "three slot-lengths resolve three rooms (got %d)" % counts[0])
+	var info: Dictionary = reach.get("last_catchup") as Dictionary
+	failed += _assert(str(info.get("source", "")) == "frame", "big frame source is frame")
+	failed += _assert(int(reach.get("slots_used")) == 3, "big frame uses 3 slots")
+	var big_key: String = _room_log_key(reach)
+	var big_slots: int = int(reach.get("slots_used"))
+	var snap: Dictionary = info.duplicate(true)
+	reach.call("process_frame_delta", 1.0)
+	failed += _assert(_catchup_same(snap, reach.get("last_catchup") as Dictionary), "a 1s frame leaves last_catchup alone")
+	failed += _assert(_room_log_key(reach) == big_key and int(reach.get("slots_used")) == big_slots, "a 1s frame resolves nothing")
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("debug_force_outcomes", wins)
+	reach.call("set_test_run_seed", 11)
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "one-second depart")
+	for _frame: int in 2160:
+		reach.call("process_frame_delta", 1.0)
+	failed += _assert(int(reach.get("slots_used")) == big_slots, "one-second frames use the same slots (got %d)" % int(reach.get("slots_used")))
+	failed += _assert(_room_log_key(reach) == big_key, "one-second frames match the room log")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	if failed == 0:
+		print("BIG_DELTA_CATCHUP_OK")
 	return failed
