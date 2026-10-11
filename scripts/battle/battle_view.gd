@@ -13,14 +13,16 @@ const SCENE_PATH: String = "res://scenes/battle/battle_scene.tscn"
 const ARENA_LAYER: int = 75
 const ARENA_SIZE: Vector2 = Vector2(1280.0, 720.0)
 const ART_DIR: String = "res://assets/art/battle/"
-## Sole points (feet on the ground) in the 1280x720 arena view, from the approved arena
-## art (battle_b1 arena_info.json). Each side has a front and a back column of three;
-## the back column stands further from the centre and 30 px higher.
+## v7 formation (Haex approved 2026-10-11; minigames_art scaffold battle_ui_scaffold_v7_layout.json).
+## Sole points (feet on the ground) in the 1280x720 arena view. Each side has a front and a
+## back column of three: 0 = top, 1 = middle (steps toward the enemy, feet at the head height
+## of the fighter behind), 2 = bottom. Beast slots are wider apart and are not a mirror.
+## Presentation only: the resolver's front/back rows and slots are unchanged.
 const SLOT_SOLES: Dictionary = {
-	"party_front": [Vector2(448, 452), Vector2(448, 512), Vector2(448, 572)],
-	"party_back": [Vector2(328, 422), Vector2(328, 482), Vector2(328, 542)],
-	"beast_front": [Vector2(832, 452), Vector2(832, 512), Vector2(832, 572)],
-	"beast_back": [Vector2(952, 422), Vector2(952, 482), Vector2(952, 542)],
+	"party_front": [Vector2(300, 360), Vector2(380, 424), Vector2(300, 536)],
+	"party_back": [Vector2(80, 360), Vector2(160, 424), Vector2(80, 536)],
+	"beast_front": [Vector2(920, 360), Vector2(792, 424), Vector2(920, 536)],
+	"beast_back": [Vector2(1176, 360), Vector2(1048, 424), Vector2(1176, 536)],
 }
 const SLOT_ORDER: Array[String] = ["party_front", "party_back", "beast_front", "beast_back"]
 const SLOT_MARK_SIZE: Vector2 = Vector2(56.0, 16.0)
@@ -60,23 +62,51 @@ const BEAST_HURT: Dictionary = {
 const SLOT_MARK_PATH: String = ART_DIR + "arena/slot_mark.png"
 const TARGET_MARK_PATH: String = ART_DIR + "arena/slot_mark_target.png"
 const TARGET_BUTTON_SIZE: Vector2 = Vector2(80.0, 110.0)
-const LOG_PANEL_RECT: Rect2 = Rect2(960.0, 64.0, 304.0, 236.0)
-const ACTION_MENU_POS: Vector2 = Vector2(16.0, 468.0)
-const ACTION_MENU_GAP: float = 8.0
+const SHADOW_PATHS: Dictionary = {
+	"s": ART_DIR + "arena/shadow_s.png",
+	"m": ART_DIR + "arena/shadow_m.png",
+	"l": ART_DIR + "arena/shadow_l.png",
+}
 const SHADOW_M_PATH: String = ART_DIR + "arena/shadow_m.png"
 const BACKDROP: Color = Color(0.05, 0.14, 0.08, 1.0)
-const PARTY_BAR_TOP: float = 608.0
-const PARTY_BAR_HEIGHT: float = 112.0
-const BEAST_PLATE_SIZE: Vector2 = Vector2(96.0, 38.0)
-const BEAST_PLATE_LIFT: float = 132.0
-const INTENT_MARKER_SIZE: Vector2 = Vector2(16.0, 16.0)
+## v7 UI. Art that is not drawn yet uses scaffold pieces from ui_placeholder/.
+const UI_ART_DIR: String = ART_DIR + "ui_placeholder/"
+## 56x24 parchment plate centred under every fighter's feet: (x - 28, y + 10).
+const PLATE_SIZE: Vector2 = Vector2(56.0, 24.0)
+const PLATE_OFFSET: Vector2 = Vector2(-28.0, 10.0)
+const PLATE_INK: Color = Color(0.17, 0.11, 0.06, 1.0)
+const PLATE_LEVEL_INK: Color = Color(0.36, 0.23, 0.12, 1.0)
+const PLATE_BAR_BACK: Color = Color(0.74, 0.64, 0.43, 1.0)
+const PLATE_BAR_EDGE: Color = Color(0.12, 0.08, 0.05, 1.0)
+const PLATE_HP_COLOR: Color = Color(0.42, 0.72, 0.29, 1.0)
+const PLATE_HP_MID: Color = Color(0.89, 0.63, 0.24, 1.0)
+const PLATE_HP_LOW: Color = Color(0.78, 0.31, 0.24, 1.0)
+const PLATE_WEAVE_COLOR: Color = Color(0.31, 0.78, 0.82, 1.0)
+## Intent bubble above a beast's visible head: (visible centre x - 10, visible top - 28).
+const INTENT_BUBBLE_SIZE: Vector2 = Vector2(22.0, 26.0)
+const INTENT_BUBBLE_WIDE: Vector2 = Vector2(40.0, 26.0)
+const INTENT_LIFT: float = 28.0
+const INTENT_CENTRE_SHIFT: float = 10.0
+const ACTIVE_ARROW_LIFT: float = 14.0
+## Bottom bar: the six action buttons (3 x 2) and the battle log. Nothing else.
+const BOTTOM_BAR_RECT: Rect2 = Rect2(0.0, 584.0, 1280.0, 136.0)
+const ACTION_MENU_POS: Vector2 = Vector2(24.0, 600.0)
+const ACTION_BUTTON_SIZE: Vector2 = Vector2(160.0, 44.0)
+const ACTION_BUTTON_PITCH: Vector2 = Vector2(168.0, 52.0)
+const LOG_PANEL_RECT: Rect2 = Rect2(528.0, 600.0, 728.0, 104.0)
+const LOG_LINE_COUNT: int = 5
+const LOG_INK: Color = Color(0.17, 0.11, 0.06, 1.0)
+const BUTTON_TEXT: Color = Color(0.98, 0.93, 0.8, 1.0)
+const BUTTON_TEXT_DISABLED: Color = Color(0.71, 0.66, 0.59, 1.0)
 const BEAST_PLACEHOLDER_SIZE: Vector2 = Vector2(40.0, 56.0)
 const ACTIVE_OUTLINE_COLOR: Color = Color(1.0, 0.84, 0.3)
-const ACTIVE_OUTLINE_WIDTH: float = 2.0
+const ACTIVE_OUTLINE_WIDTH: float = 1.0
 const VARIANT_MODULATE: Color = Color(0.62, 0.55, 0.7, 1.0)
 const ECHO_BEAST_IDLE: String = "res://assets/art/echo/battle_%s_idle.png"
 
 static var _current: Node = null
+## Visible (non-transparent) rect of each fighter texture, by resource path.
+static var _used_rect_cache: Dictionary = {}
 
 @onready var _background: ColorRect = $Background
 @onready var _placeholder: Label = $Arena/Placeholder
@@ -85,7 +115,10 @@ static var _current: Node = null
 @onready var _slots: Control = $Arena/Slots
 @onready var _fighters: Control = $Arena/Fighters
 
-var _party_bar: PanelContainer = null
+var _plates: Control = null
+var _bottom_bar: TextureRect = null
+var _side_actions: VBoxContainer = null
+var _ability_button: Button = null
 var _active_fighter_id: String = ""
 var _fight: FightState = null
 var _target_mode: String = ""
@@ -94,7 +127,7 @@ var _depth_spin: SpinBox = null
 var _boss_check: CheckBox = null
 var _elaia_check: CheckBox = null
 var _start_fight_button: Button = null
-var _action_menu: VBoxContainer = null
+var _action_menu: Control = null
 var _strike_button: Button = null
 var _salve_button: Button = null
 var _brace_button: Button = null
@@ -103,7 +136,7 @@ var _idle_button: Button = null
 var _cancel_target_button: Button = null
 var _ability_buttons: Array[Button] = []
 var _ability_row: HBoxContainer = null
-var _log_panel: VBoxContainer = null
+var _log_panel: Control = null
 var _log_labels: Array[Label] = []
 var _result_label: Label = null
 var _target_layer: Control = null
@@ -240,6 +273,7 @@ func _ready() -> void:
 		_background.mouse_filter = Control.MOUSE_FILTER_STOP
 	_apply_copy()
 	_build_slot_outlines()
+	_build_plate_layer()
 	_place_party()
 	if _close_button and not _close_button.pressed.is_connected(close_overlay):
 		_close_button.pressed.connect(close_overlay)
@@ -375,31 +409,30 @@ static func slot_sole(column: String, index: int) -> Vector2:
 	return soles[index]
 
 
+func _build_plate_layer() -> void:
+	## UI layer above every sprite and the arena foreground: plates, intent bubbles, active arrow.
+	if _arena == null:
+		return
+	_plates = Control.new()
+	_plates.name = "Plates"
+	_plates.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plates.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_arena.add_child(_plates)
+	var foreground: Node = _arena.get_node_or_null("Foreground")
+	if foreground != null:
+		_arena.move_child(_plates, foreground.get_index() + 1)
+
+
 func _place_party() -> void:
-	## Keeper and Elaia idle poses on their placeholder slots. Job 18 replaces this
-	## with the real formation; set_fighter_pose swaps frames for later playback.
+	## Keeper and Elaia idle poses on their placeholder slots before a fight starts.
+	## set_fighter_pose swaps frames for later playback.
 	if _fighters == null:
 		return
-	var shadow_tex: Texture2D = load(SHADOW_M_PATH) as Texture2D
 	for member: String in ["elaia", "keeper"]:
 		var spot: Array = PARTY_LINEUP[member]
 		var sole: Vector2 = slot_sole(str(spot[0]), int(spot[1]))
-		var root := Control.new()
-		root.name = "Fighter_%s" % member
-		root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		root.position = sole
-		root.add_to_group("battle_fighter")
-		root.set_meta("fighter_id", member)
-		root.set_meta("side", "party")
+		var root: Control = _new_fighter_root(member, "party", sole)
 		root.set_meta("member", member)
-		if shadow_tex != null:
-			var shadow := TextureRect.new()
-			shadow.name = "Shadow"
-			shadow.texture = shadow_tex
-			shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			shadow.size = shadow_tex.get_size()
-			shadow.position = -shadow_tex.get_size() * 0.5
-			root.add_child(shadow)
 		var sprite := TextureRect.new()
 		sprite.name = "Sprite"
 		sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -408,6 +441,101 @@ func _place_party() -> void:
 		root.add_child(sprite)
 		_fighters.add_child(root)
 		set_fighter_pose(member, "idle")
+		_finish_fighter_root(root)
+	_sort_fighters_by_feet()
+
+
+func _new_fighter_root(fighter_id: String, side: String, sole: Vector2) -> Control:
+	## Feet-anchored root: the 128x128 frame's top-left is (x - 64, y - 123) for every fighter.
+	var root := Control.new()
+	root.name = "Fighter_%s" % fighter_id
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.position = sole
+	root.add_to_group("battle_fighter")
+	root.set_meta("fighter_id", fighter_id)
+	root.set_meta("side", side)
+	root.set_meta("sole", sole)
+	var shadow := TextureRect.new()
+	shadow.name = "Shadow"
+	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(shadow)
+	return root
+
+
+func _finish_fighter_root(root: Control) -> void:
+	## Records the idle sprite's visible rect (arena space) and sizes the shadow to it.
+	var sprite: Control = root.get_node_or_null("Sprite") as Control
+	var local := Rect2(-FIGHTER_SOLE, FIGHTER_FRAME)
+	if sprite is TextureRect and (sprite as TextureRect).texture != null:
+		var used: Rect2 = texture_used_rect((sprite as TextureRect).texture)
+		local = Rect2(sprite.position + used.position, used.size)
+	elif sprite != null:
+		local = Rect2(sprite.position, sprite.size)
+	root.set_meta("visible_rect", Rect2(root.position + local.position, local.size))
+	var shadow: TextureRect = root.get_node_or_null("Shadow") as TextureRect
+	if shadow == null:
+		return
+	var key: String = "s" if local.size.x <= 48.0 else ("m" if local.size.x <= 80.0 else "l")
+	var tex: Texture2D = load(str(SHADOW_PATHS[key])) as Texture2D
+	if tex == null:
+		tex = load(SHADOW_M_PATH) as Texture2D
+	if tex != null:
+		shadow.texture = tex
+		shadow.size = tex.get_size()
+		shadow.position = -(tex.get_size() * 0.5).floor()
+
+
+func _sort_fighters_by_feet() -> void:
+	## Draw order: plain ascending feet y (ties: ascending x), so the middle fighter
+	## (feet 424) is drawn behind the bottom fighter (feet 536).
+	if _fighters == null:
+		return
+	var roots: Array[Control] = []
+	for child: Node in _fighters.get_children():
+		if child is Control:
+			roots.append(child as Control)
+	roots.sort_custom(func(a: Control, b: Control) -> bool:
+		var sa: Vector2 = a.get_meta("sole", a.position) as Vector2
+		var sb: Vector2 = b.get_meta("sole", b.position) as Vector2
+		if not is_equal_approx(sa.y, sb.y):
+			return sa.y < sb.y
+		return sa.x < sb.x
+	)
+	for i: int in roots.size():
+		_fighters.move_child(roots[i], i)
+
+
+static func texture_used_rect(tex: Texture2D) -> Rect2:
+	## Pixel bounds of a fighter frame's non-transparent part, cached by path.
+	## Headless has no texture readback, so fall back to the source PNG.
+	if tex == null:
+		return Rect2()
+	var key: String = tex.resource_path
+	if key != "" and _used_rect_cache.has(key):
+		return _used_rect_cache[key] as Rect2
+	var rect := Rect2(Vector2.ZERO, tex.get_size())
+	var image: Image = tex.get_image()
+	if (image == null or image.is_empty()) and key != "" and FileAccess.file_exists(key):
+		image = Image.new()
+		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(key)) != OK:
+			image = null
+	if image != null and not image.is_empty():
+		if image.is_compressed():
+			image.decompress()
+		var used: Rect2i = image.get_used_rect()
+		if used.size.x > 0 and used.size.y > 0:
+			rect = Rect2(used)
+	if key != "":
+		_used_rect_cache[key] = rect
+	return rect
+
+
+func fighter_visible_rect(fighter_id: String) -> Rect2:
+	## Arena-space rect of the fighter's visible idle pixels, taken at spawn.
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return Rect2()
+	return root.get_meta("visible_rect", Rect2(root.position, Vector2.ZERO)) as Rect2
 
 
 func set_fighter_pose(fighter_id: String, pose: String) -> bool:
@@ -478,9 +606,9 @@ func playback_set_beast_idle(fighter_id: String) -> void:
 
 
 func playback_refresh_intent(fighter_id: String) -> void:
-	if _arena == null or _fight == null:
+	if _plates == null or _fight == null:
 		return
-	var plate: Control = _arena.get_node_or_null("BeastPlate_%s" % fighter_id) as Control
+	var plate: Control = _plates.get_node_or_null("BeastPlate_%s" % fighter_id) as Control
 	var intent: Control = plate.get_node_or_null("IntentMarker") as Control if plate != null else null
 	if intent != null:
 		_fill_intent_marker(intent, _fight.fighter_dict(fighter_id))
@@ -557,17 +685,14 @@ func show_fight(fight: FightState) -> void:
 			var fighter_row: Dictionary = group[i] as Dictionary
 			var sole: Vector2 = slot_sole(column, indices[i])
 			_spawn_fighter_node(fighter_row, sole)
+	_sort_fighters_by_feet()
 	var beast_suffixes: Dictionary = _beast_suffix_map(rows)
-	_build_party_bar(rows)
 	for row_v: Variant in rows:
 		if not row_v is Dictionary:
 			continue
 		var row: Dictionary = row_v as Dictionary
-		if str(row.get("side", "")) != "beast":
-			continue
 		var fighter_id: String = str(row.get("id", ""))
-		var sole: Vector2 = _fighter_sole(fighter_id)
-		_build_beast_plate(row, sole, str(beast_suffixes.get(fighter_id, "")))
+		_build_plate(row, _fighter_sole(fighter_id), str(beast_suffixes.get(fighter_id, "")))
 	set_active("")
 
 
@@ -578,12 +703,9 @@ func refresh_fight(fight: FightState) -> void:
 		if not row_v is Dictionary:
 			continue
 		var row: Dictionary = row_v as Dictionary
-		var fighter_id: String = str(row.get("id", ""))
 		var side: String = str(row.get("side", ""))
-		if side == "party":
-			_refresh_party_plate(row)
-		elif side == "beast":
-			_refresh_beast_plate(row)
+		if side == "party" or side == "beast":
+			_refresh_plate(row)
 		_refresh_fighter_visual(row)
 
 
@@ -591,21 +713,40 @@ func set_active(fighter_id: String) -> void:
 	_active_fighter_id = fighter_id
 	for node: Node in get_tree().get_nodes_in_group("battle_plate_outline"):
 		node.queue_free()
-	if fighter_id == "" or _arena == null:
+	for node: Node in get_tree().get_nodes_in_group("battle_active_arrow"):
+		node.queue_free()
+	if _plates != null:
+		for plate_node: Node in _plates.get_children():
+			var bg: TextureRect = plate_node.get_node_or_null("Bg") as TextureRect
+			if bg != null:
+				bg.texture = load(UI_ART_DIR + "plate_bg.png") as Texture2D
+	if fighter_id == "" or _plates == null:
 		return
-	var plate: Control = _arena.get_node_or_null("BeastPlate_%s" % fighter_id) as Control
-	if plate == null and _party_bar != null:
-		plate = _party_bar.find_child("PartyPlate_%s" % fighter_id, true, false) as Control
+	var plate: Control = _plate_for(fighter_id)
 	if plate == null:
 		return
+	var active_bg: TextureRect = plate.get_node_or_null("Bg") as TextureRect
+	if active_bg != null:
+		active_bg.texture = load(UI_ART_DIR + "plate_bg_active.png") as Texture2D
+	var arrow_tex: Texture2D = load(UI_ART_DIR + "active_arrow.png") as Texture2D
+	var shown: Rect2 = fighter_visible_rect(fighter_id)
+	if arrow_tex != null and shown.size.y > 0.0:
+		var arrow := TextureRect.new()
+		arrow.name = "ActiveArrow"
+		arrow.texture = arrow_tex
+		arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		arrow.size = arrow_tex.get_size()
+		arrow.position = Vector2(floorf(shown.get_center().x) - floorf(arrow_tex.get_size().x * 0.5), shown.position.y - ACTIVE_ARROW_LIFT)
+		arrow.add_to_group("battle_active_arrow")
+		_plates.add_child(arrow)
 	var outline := ReferenceRect.new()
 	outline.name = "ActiveOutline"
 	outline.editor_only = false
 	outline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	outline.border_color = ACTIVE_OUTLINE_COLOR
 	outline.border_width = ACTIVE_OUTLINE_WIDTH
-	outline.position = Vector2(-ACTIVE_OUTLINE_WIDTH, -ACTIVE_OUTLINE_WIDTH)
-	outline.size = plate.size + Vector2(ACTIVE_OUTLINE_WIDTH * 2.0, ACTIVE_OUTLINE_WIDTH * 2.0)
+	outline.position = Vector2.ZERO
+	outline.size = PLATE_SIZE
 	outline.add_to_group("battle_plate_outline")
 	plate.add_child(outline)
 
@@ -622,15 +763,9 @@ func _clear_fight_ui() -> void:
 		for child: Node in _fighters.get_children():
 			_fighters.remove_child(child)
 			child.free()
-	if _party_bar != null and is_instance_valid(_party_bar):
-		_arena.remove_child(_party_bar)
-		_party_bar.free()
-		_party_bar = null
-	if _arena == null:
-		return
-	for child: Node in _arena.get_children():
-		if child.name.begins_with("BeastPlate_"):
-			_arena.remove_child(child)
+	if _plates != null:
+		for child: Node in _plates.get_children():
+			_plates.remove_child(child)
 			child.free()
 	set_active("")
 
@@ -654,22 +789,7 @@ static func _sole_indices(count: int) -> Array[int]:
 func _spawn_fighter_node(row: Dictionary, sole: Vector2) -> void:
 	var fighter_id: String = str(row.get("id", ""))
 	var side: String = str(row.get("side", ""))
-	var root := Control.new()
-	root.name = "Fighter_%s" % fighter_id
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.position = sole
-	root.add_to_group("battle_fighter")
-	root.set_meta("fighter_id", fighter_id)
-	root.set_meta("side", side)
-	var shadow_tex: Texture2D = load(SHADOW_M_PATH) as Texture2D
-	if shadow_tex != null:
-		var shadow := TextureRect.new()
-		shadow.name = "Shadow"
-		shadow.texture = shadow_tex
-		shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		shadow.size = shadow_tex.get_size()
-		shadow.position = -shadow_tex.get_size() * 0.5
-		root.add_child(shadow)
+	var root: Control = _new_fighter_root(fighter_id, side, sole)
 	if side == "party":
 		var member: String = str(row.get("member", fighter_id))
 		root.set_meta("member", member)
@@ -681,11 +801,13 @@ func _spawn_fighter_node(row: Dictionary, sole: Vector2) -> void:
 		root.add_child(sprite)
 		_fighters.add_child(root)
 		set_fighter_pose(fighter_id, "idle")
+		_finish_fighter_root(root)
 	else:
 		var species: String = str(row.get("species", ""))
 		root.set_meta("species", species)
 		_build_beast_sprite(root, species)
 		_fighters.add_child(root)
+		_finish_fighter_root(root)
 		_refresh_fighter_visual(row)
 
 
@@ -722,208 +844,217 @@ func _build_beast_sprite(root: Control, species: String) -> void:
 	root.add_child(label)
 
 
-func _build_party_bar(rows: Array) -> void:
-	var party_rows: Array[Dictionary] = []
-	for row_v: Variant in rows:
-		if row_v is Dictionary and str((row_v as Dictionary).get("side", "")) == "party":
-			party_rows.append(row_v as Dictionary)
-	party_rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return int(a.get("slot", 0)) < int(b.get("slot", 0))
-	)
-	if party_rows.is_empty():
-		return
-	_party_bar = PanelContainer.new()
-	_party_bar.name = "PartyBar"
-	_party_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_party_bar.position = Vector2(0.0, PARTY_BAR_TOP)
-	_party_bar.size = Vector2(ARENA_SIZE.x, PARTY_BAR_HEIGHT)
-	var row_box := HBoxContainer.new()
-	row_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row_box.add_theme_constant_override("separation", 12)
-	_party_bar.add_child(row_box)
-	for row: Dictionary in party_rows:
-		row_box.add_child(_make_party_plate(row))
-	_arena.add_child(_party_bar)
-
-
-func _make_party_plate(row: Dictionary) -> Control:
-	var fighter_id: String = str(row.get("id", ""))
-	var plate := VBoxContainer.new()
-	plate.name = "PartyPlate_%s" % fighter_id
-	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var member: String = str(row.get("member", fighter_id))
-	var title := Label.new()
-	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	title.text = _party_display_name(member)
-	plate.add_child(title)
-	var hp_row := HBoxContainer.new()
-	hp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var hp_bar := ProgressBar.new()
-	hp_bar.name = "HpBar"
-	hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hp_bar.custom_minimum_size = Vector2(80.0, 14.0)
-	hp_bar.max_value = maxi(1, int(row.get("max_hp", 1)))
-	hp_bar.value = int(row.get("hp", 0))
-	hp_row.add_child(hp_bar)
-	var hp_label := Label.new()
-	hp_label.name = "HpLabel"
-	hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_label.text = _hp_line(int(row.get("hp", 0)), int(row.get("max_hp", 1)))
-	hp_row.add_child(hp_label)
-	plate.add_child(hp_row)
-	var weave := Label.new()
-	weave.name = "WeaveLabel"
-	weave.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	weave.text = _weave_line(int(row.get("weave", 0)))
-	plate.add_child(weave)
-	var status := Label.new()
-	status.name = "StatusLabel"
-	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	status.text = _party_status_text(str(row.get("status", "active")))
-	plate.add_child(status)
-	var shield := Label.new()
-	shield.name = "ShieldLabel"
-	shield.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	shield.text = _shield_text(int(row.get("shield", 0)))
-	plate.add_child(shield)
+func _plate_for(fighter_id: String) -> Control:
+	if _plates == null:
+		return null
+	var plate: Control = _plates.get_node_or_null("PartyPlate_%s" % fighter_id) as Control
+	if plate == null:
+		plate = _plates.get_node_or_null("BeastPlate_%s" % fighter_id) as Control
 	return plate
 
 
-func _build_beast_plate(row: Dictionary, sole: Vector2, suffix: String) -> void:
+func _plate_label(label_name: String, text: String, pos: Vector2, width: float, align: HorizontalAlignment, ink: Color) -> Label:
+	var label := Label.new()
+	label.name = label_name
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.text = text
+	label.clip_text = true
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_CHAR
+	label.horizontal_alignment = align
+	label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_color_override("font_color", ink)
+	label.add_theme_constant_override("line_spacing", 0)
+	label.position = pos
+	label.size = Vector2(width, 12.0)
+	return label
+
+
+func _plate_bar(bar_name: String, y: float, height: float, fill: Color, max_value: int, value: int) -> ProgressBar:
+	## A thin bar inside a plate, framed like the scaffold: dark edge, worn-parchment track.
+	var bar := ProgressBar.new()
+	bar.name = bar_name
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.show_percentage = false
+	bar.position = Vector2(2.0, y)
+	bar.custom_minimum_size = Vector2.ZERO
+	bar.size = Vector2(PLATE_SIZE.x - 4.0, height + 2.0)
+	var back := StyleBoxFlat.new()
+	back.bg_color = PLATE_BAR_BACK
+	back.border_color = PLATE_BAR_EDGE
+	back.set_border_width_all(1)
+	back.set_content_margin_all(0)
+	var front := StyleBoxFlat.new()
+	front.bg_color = fill
+	front.set_expand_margin_all(-1.0)
+	front.set_content_margin_all(0)
+	bar.add_theme_stylebox_override("background", back)
+	bar.add_theme_stylebox_override("fill", front)
+	bar.max_value = maxi(1, max_value)
+	bar.value = value
+	return bar
+
+
+static func hp_fill_color(hp: int, max_hp: int) -> Color:
+	var frac: float = float(hp) / float(maxi(1, max_hp))
+	if frac > 0.5:
+		return PLATE_HP_COLOR
+	if frac > 0.25:
+		return PLATE_HP_MID
+	return PLATE_HP_LOW
+
+
+func _build_plate(row: Dictionary, sole: Vector2, suffix: String) -> void:
+	## Every fighter gets the same 56x24 parchment plate under its feet: name, level,
+	## HP bar and (party only: beasts have no Weave) a Weave bar.
+	if _plates == null:
+		return
 	var fighter_id: String = str(row.get("id", ""))
-	var species: String = str(row.get("species", ""))
+	var side: String = str(row.get("side", ""))
 	var plate := Control.new()
-	plate.name = "BeastPlate_%s" % fighter_id
-	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	plate.size = BEAST_PLATE_SIZE
-	var center: Vector2 = sole + Vector2(0.0, -BEAST_PLATE_LIFT)
-	plate.position = center - BEAST_PLATE_SIZE * 0.5
-	var name_label := Label.new()
-	name_label.name = "NameLabel"
-	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	name_label.text = _beast_display_name(species) + suffix
-	name_label.position = Vector2(0.0, 0.0)
-	name_label.size = Vector2(BEAST_PLATE_SIZE.x - INTENT_MARKER_SIZE.x, 14.0)
-	plate.add_child(name_label)
-	var hp_bar := ProgressBar.new()
-	hp_bar.name = "HpBar"
-	hp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_bar.position = Vector2(0.0, 14.0)
-	hp_bar.size = Vector2(BEAST_PLATE_SIZE.x - INTENT_MARKER_SIZE.x, 12.0)
-	hp_bar.max_value = maxi(1, int(row.get("max_hp", 1)))
-	hp_bar.value = int(row.get("hp", 0))
-	plate.add_child(hp_bar)
-	var hp_label := Label.new()
-	hp_label.name = "HpLabel"
-	hp_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	hp_label.position = Vector2(52.0, 14.0)
-	hp_label.size = Vector2(BEAST_PLATE_SIZE.x - INTENT_MARKER_SIZE.x - 52.0, 12.0)
-	hp_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	hp_label.add_theme_font_size_override("font_size", 9)
-	hp_label.text = _beast_hp_pct(int(row.get("hp", 0)), int(row.get("max_hp", 1)))
-	plate.add_child(hp_label)
-	var status := Label.new()
-	status.name = "StatusLabel"
-	status.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	status.position = Vector2(0.0, 28.0)
-	status.size = Vector2(BEAST_PLATE_SIZE.x - INTENT_MARKER_SIZE.x, 10.0)
-	status.clip_text = true
-	status.add_theme_font_size_override("font_size", 10)
-	status.text = _beast_status_text(str(row.get("status", "active")))
+	plate.name = ("PartyPlate_%s" if side == "party" else "BeastPlate_%s") % fighter_id
+	plate.mouse_filter = Control.MOUSE_FILTER_PASS
+	plate.position = sole + PLATE_OFFSET
+	plate.size = PLATE_SIZE
+	plate.set_meta("fighter_id", fighter_id)
+	plate.set_meta("side", side)
+	plate.add_to_group("battle_plate")
+	plate.add_to_group("battle_ui")
+	var bg := TextureRect.new()
+	bg.name = "Bg"
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.texture = load(UI_ART_DIR + "plate_bg.png") as Texture2D
+	bg.size = PLATE_SIZE
+	plate.add_child(bg)
+	var display: String = ""
+	if side == "party":
+		display = _party_display_name(str(row.get("member", fighter_id)))
+	else:
+		display = _beast_display_name(str(row.get("species", ""))) + suffix
+	var hp: int = int(row.get("hp", 0))
+	var max_hp: int = int(row.get("max_hp", 1))
+	plate.add_child(_plate_bar("HpBar", 12.0, 4.0, hp_fill_color(hp, max_hp), max_hp, hp))
+	if side == "party":
+		var weave_max: int = maxi(1, int(row.get("max_weave", maxi(1, int(row.get("weave", 0))))))
+		plate.add_child(_plate_bar("WeaveBar", 18.0, 2.0, PLATE_WEAVE_COLOR, weave_max, int(row.get("weave", 0))))
+	plate.add_child(_plate_label("NameLabel", display, Vector2(3.0, 0.0), 40.0, HORIZONTAL_ALIGNMENT_LEFT, PLATE_INK))
+	plate.add_child(_plate_label("LevelLabel", _level_text(row), Vector2(40.0, 0.0), 13.0, HORIZONTAL_ALIGNMENT_RIGHT, PLATE_LEVEL_INK))
+	var status := _plate_label("StatusLabel", "", Vector2(2.0, 11.0), PLATE_SIZE.x - 4.0, HORIZONTAL_ALIGNMENT_CENTER, PLATE_INK)
+	status.visible = false
 	plate.add_child(status)
-	var intent_root := Control.new()
-	intent_root.name = "IntentMarker"
-	intent_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	intent_root.position = Vector2(BEAST_PLATE_SIZE.x - INTENT_MARKER_SIZE.x, 0.0)
-	intent_root.size = INTENT_MARKER_SIZE
-	plate.add_child(intent_root)
-	_fill_intent_marker(intent_root, row)
+	var shield := _plate_label("ShieldLabel", "", Vector2(PLATE_SIZE.x + 1.0, 7.0), 22.0, HORIZONTAL_ALIGNMENT_LEFT, Color(0.98, 0.93, 0.8, 1.0))
+	shield.add_theme_color_override("font_outline_color", PLATE_BAR_EDGE)
+	shield.add_theme_constant_override("outline_size", 3)
+	plate.add_child(shield)
 	if bool(row.get("boss", false)):
-		var boss := Label.new()
-		boss.name = "BossLabel"
-		boss.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		boss.text = _text("adv_boss_mark", "Boss")
-		boss.position = Vector2(0.0, -14.0)
-		boss.size = Vector2(BEAST_PLATE_SIZE.x, 12.0)
-		boss.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		var boss := _plate_label("BossLabel", _text("adv_boss_mark", "Boss"), Vector2(0.0, PLATE_SIZE.y), PLATE_SIZE.x, HORIZONTAL_ALIGNMENT_CENTER, Color(0.98, 0.84, 0.3, 1.0))
+		boss.add_theme_color_override("font_outline_color", PLATE_BAR_EDGE)
+		boss.add_theme_constant_override("outline_size", 3)
 		plate.add_child(boss)
-	_arena.add_child(plate)
+	if side == "beast":
+		var intent_root := Control.new()
+		intent_root.name = "IntentMarker"
+		intent_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		plate.add_child(intent_root)
+	_plates.add_child(plate)
+	_refresh_plate(row)
+
+
+func _level_text(row: Dictionary) -> String:
+	## Fighters carry no level yet; the slot stays empty until one does.
+	if row.has("level"):
+		return str(int(row.get("level", 0)))
+	return ""
+
+
+func intent_bubble_rect(fighter_id: String, wide: bool) -> Rect2:
+	## (visible centre x - 10, visible top - 28), 22x26 (40x26 with a multiplier).
+	var shown: Rect2 = fighter_visible_rect(fighter_id)
+	var bubble_size: Vector2 = INTENT_BUBBLE_WIDE if wide else INTENT_BUBBLE_SIZE
+	var x: float = floorf(shown.position.x + shown.size.x * 0.5) - INTENT_CENTRE_SHIFT
+	return Rect2(Vector2(x, shown.position.y - INTENT_LIFT), bubble_size)
 
 
 func _fill_intent_marker(intent_root: Control, row: Dictionary) -> void:
 	for child: Node in intent_root.get_children():
+		intent_root.remove_child(child)
 		child.queue_free()
 	var intent_v: Variant = row.get("intent", {})
 	var intent: Dictionary = intent_v as Dictionary if intent_v is Dictionary else {}
 	var move: String = str(intent.get("move", ""))
 	var mult: int = int(intent.get("mult", 1))
-	var letter := Label.new()
-	letter.name = "Letter"
-	letter.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	letter.text = _intent_letter(move)
-	letter.size = INTENT_MARKER_SIZE
-	letter.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	letter.add_theme_font_size_override("font_size", 10)
-	intent_root.add_child(letter)
-	if mult != 1:
+	var wide: bool = mult != 1
+	var fighter_id: String = str(row.get("id", ""))
+	var rect: Rect2 = intent_bubble_rect(fighter_id, wide)
+	var plate: Control = intent_root.get_parent() as Control
+	intent_root.position = rect.position - (plate.position if plate != null else Vector2.ZERO)
+	intent_root.size = rect.size
+	intent_root.visible = str(row.get("status", "active")) == "active"
+	intent_root.set_meta("move", move)
+	var bubble := TextureRect.new()
+	bubble.name = "Bubble"
+	bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bubble.texture = load(UI_ART_DIR + ("intent_bubble_wide.png" if wide else "intent_bubble.png")) as Texture2D
+	bubble.size = rect.size
+	intent_root.add_child(bubble)
+	var icon := TextureRect.new()
+	icon.name = "Icon"
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.texture = load(UI_ART_DIR + "icon_%s.png" % _intent_kind(move)) as Texture2D
+	icon.position = Vector2(3.0, 2.0)
+	icon.size = Vector2(16.0, 16.0)
+	intent_root.add_child(icon)
+	if wide:
 		var mult_label := Label.new()
 		mult_label.name = "Mult"
 		mult_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		mult_label.text = "×%s" % _intent_mult_text(mult)
-		mult_label.position = Vector2(INTENT_MARKER_SIZE.x, 0.0)
-		mult_label.size = Vector2(28.0, INTENT_MARKER_SIZE.y)
-		mult_label.add_theme_font_size_override("font_size", 9)
+		mult_label.position = Vector2(19.0, 0.0)
+		mult_label.size = Vector2(20.0, 20.0)
+		mult_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		mult_label.add_theme_font_size_override("font_size", 8)
+		mult_label.add_theme_color_override("font_color", Color(0.63, 0.2, 0.12, 1.0))
 		intent_root.add_child(mult_label)
 
 
-func _refresh_party_plate(row: Dictionary) -> void:
-	if _party_bar == null:
-		return
-	var plate: Node = _party_bar.find_child("PartyPlate_%s" % str(row.get("id", "")), true, false)
+func _refresh_plate(row: Dictionary) -> void:
+	var plate: Control = _plate_for(str(row.get("id", "")))
 	if plate == null:
 		return
-	var hp_bar: ProgressBar = plate.find_child("HpBar", true, false) as ProgressBar
-	var hp_label: Label = plate.find_child("HpLabel", true, false) as Label
-	var weave: Label = plate.find_child("WeaveLabel", true, false) as Label
-	var status: Label = plate.find_child("StatusLabel", true, false) as Label
-	var shield: Label = plate.find_child("ShieldLabel", true, false) as Label
+	var side: String = str(row.get("side", ""))
 	var hp: int = int(row.get("hp", 0))
 	var max_hp: int = int(row.get("max_hp", 1))
+	var status_id: String = str(row.get("status", "active"))
+	var hp_bar: ProgressBar = plate.get_node_or_null("HpBar") as ProgressBar
 	if hp_bar != null:
 		hp_bar.max_value = maxi(1, max_hp)
 		hp_bar.value = hp
-	if hp_label != null:
-		hp_label.text = _hp_line(hp, max_hp)
-	if weave != null:
-		weave.text = _weave_line(int(row.get("weave", 0)))
+		var fill: StyleBoxFlat = hp_bar.get_theme_stylebox("fill") as StyleBoxFlat
+		if fill != null:
+			fill.bg_color = hp_fill_color(hp, max_hp)
+	var weave_bar: ProgressBar = plate.get_node_or_null("WeaveBar") as ProgressBar
+	var weave: int = int(row.get("weave", 0))
+	if weave_bar != null:
+		weave_bar.max_value = maxi(weave_bar.max_value, weave)
+		weave_bar.value = weave
+	var status_text: String = _party_status_text(status_id) if side == "party" else _beast_status_text(status_id)
+	var status: Label = plate.get_node_or_null("StatusLabel") as Label
 	if status != null:
-		status.text = _party_status_text(str(row.get("status", "active")))
+		status.text = status_text
+		status.visible = status_text != ""
+	if hp_bar != null:
+		hp_bar.visible = status_text == ""
+	if weave_bar != null:
+		weave_bar.visible = status_text == ""
+	var shield: Label = plate.get_node_or_null("ShieldLabel") as Label
 	if shield != null:
 		shield.text = _shield_text(int(row.get("shield", 0)))
-
-
-func _refresh_beast_plate(row: Dictionary) -> void:
-	if _arena == null:
-		return
-	var plate: Control = _arena.get_node_or_null("BeastPlate_%s" % str(row.get("id", ""))) as Control
-	if plate == null:
-		return
-	var hp_bar: ProgressBar = plate.get_node_or_null("HpBar") as ProgressBar
-	var hp_label: Label = plate.get_node_or_null("HpLabel") as Label
-	var status: Label = plate.get_node_or_null("StatusLabel") as Label
+	var name_label: Label = plate.get_node_or_null("NameLabel") as Label
+	var tip: String = "%s · %s" % [name_label.text if name_label != null else "", _hp_line(hp, max_hp)]
+	if side == "party":
+		tip += " · " + _weave_line(weave)
+	plate.tooltip_text = tip
 	var intent: Control = plate.get_node_or_null("IntentMarker") as Control
-	var hp: int = int(row.get("hp", 0))
-	var max_hp: int = int(row.get("max_hp", 1))
-	if hp_bar != null:
-		hp_bar.max_value = maxi(1, max_hp)
-		hp_bar.value = hp
-	if hp_label != null:
-		hp_label.text = _beast_hp_pct(hp, max_hp)
-	if status != null:
-		status.text = _beast_status_text(str(row.get("status", "active")))
 	if intent != null:
 		_fill_intent_marker(intent, row)
 
@@ -956,7 +1087,7 @@ func _fighter_sole(fighter_id: String) -> Vector2:
 	var root: Control = _fighters.get_node_or_null("Fighter_%s" % fighter_id) as Control
 	if root == null:
 		return Vector2.ZERO
-	return root.position
+	return root.get_meta("sole", root.position) as Vector2
 
 
 static func _beast_base_species(species: String) -> String:
@@ -1049,15 +1180,13 @@ func _shield_text(shield: int) -> String:
 	return "+%d" % shield if shield > 0 else ""
 
 
-func _intent_letter(move: String) -> String:
+func _intent_kind(move: String) -> String:
 	var lowered: String = move.to_lower()
-	if lowered == "" or lowered == "strike":
-		return "S"
 	if lowered.find("heavy") >= 0:
-		return "H"
+		return "heavy"
 	if lowered.find("poison") >= 0:
-		return "P"
-	return "S"
+		return "poison"
+	return "strike"
 
 
 func _intent_mult_text(mult: int) -> String:
@@ -1082,6 +1211,49 @@ func _ui_button(text: String, parent: Control) -> Button:
 	button.add_to_group("battle_ui")
 	parent.add_child(button)
 	return button
+
+
+func _action_button(slot: int, button_name: String, label: String, icon_path: String) -> Button:
+	## One of the six bottom-bar slots (160x44 wood button, scaffold placeholder art).
+	var button := Button.new()
+	button.name = button_name
+	button.text = label
+	button.position = Vector2(float(slot % 3) * ACTION_BUTTON_PITCH.x, floorf(float(slot) / 3.0) * ACTION_BUTTON_PITCH.y)
+	button.size = ACTION_BUTTON_SIZE
+	button.custom_minimum_size = ACTION_BUTTON_SIZE
+	button.clip_text = true
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.focus_mode = Control.FOCUS_NONE
+	if ResourceLoader.exists(icon_path):
+		button.icon = load(icon_path) as Texture2D
+	button.add_theme_constant_override("h_separation", 6)
+	button.add_theme_font_size_override("font_size", 14)
+	for state: String in ["normal", "hover", "pressed", "disabled"]:
+		var box := StyleBoxTexture.new()
+		box.texture = load(UI_ART_DIR + "action_button_%s.png" % state) as Texture2D
+		box.set_texture_margin_all(4.0)
+		box.content_margin_left = 8.0
+		box.content_margin_right = 8.0
+		button.add_theme_stylebox_override(state, box)
+	var hover_pressed := StyleBoxTexture.new()
+	hover_pressed.texture = load(UI_ART_DIR + "action_button_pressed.png") as Texture2D
+	hover_pressed.set_texture_margin_all(4.0)
+	hover_pressed.content_margin_left = 8.0
+	button.add_theme_stylebox_override("hover_pressed", hover_pressed)
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	for color_name: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		button.add_theme_color_override(color_name, BUTTON_TEXT)
+	button.add_theme_color_override("font_disabled_color", BUTTON_TEXT_DISABLED)
+	button.add_theme_color_override("font_outline_color", Color(0.12, 0.08, 0.05, 1.0))
+	button.add_theme_constant_override("outline_size", 3)
+	button.add_to_group("battle_ui")
+	_action_menu.add_child(button)
+	return button
+
+
+func _on_ability_pressed() -> void:
+	if _ability_row != null and _has_abilities():
+		_ability_row.visible = not _ability_row.visible
 
 
 func _build_test_fight_bar() -> void:
@@ -1186,33 +1358,76 @@ func _build_fight_hud() -> void:
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_result_label.add_to_group("battle_ui")
 	_arena.add_child(_result_label)
-	_log_panel = VBoxContainer.new()
+	_bottom_bar = TextureRect.new()
+	_bottom_bar.name = "BottomBar"
+	_bottom_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bottom_bar.texture = load(UI_ART_DIR + "bottom_bar.png") as Texture2D
+	_bottom_bar.position = BOTTOM_BAR_RECT.position
+	_bottom_bar.size = BOTTOM_BAR_RECT.size
+	_arena.add_child(_bottom_bar)
+	_log_panel = Control.new()
 	_log_panel.name = "LogPanel"
+	_log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_log_panel.position = LOG_PANEL_RECT.position
 	_log_panel.size = LOG_PANEL_RECT.size
 	_log_panel.add_to_group("battle_ui")
 	_arena.add_child(_log_panel)
-	for i: int in 6:
+	var parchment := TextureRect.new()
+	parchment.name = "Parchment"
+	parchment.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parchment.texture = load(UI_ART_DIR + "log_parchment.png") as Texture2D
+	parchment.position = Vector2(-2.0, -2.0)
+	parchment.size = LOG_PANEL_RECT.size + Vector2(4.0, 4.0)
+	_log_panel.add_child(parchment)
+	for i: int in LOG_LINE_COUNT:
 		var line := Label.new()
 		line.name = "LogLine%d" % i
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		line.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		line.add_to_group("battle_ui")
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.clip_text = true
+		line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		line.position = Vector2(10.0, 3.0 + 19.0 * float(i))
+		line.size = Vector2(LOG_PANEL_RECT.size.x - 20.0, 19.0)
+		line.add_theme_font_size_override("font_size", 12)
+		line.add_theme_color_override("font_color", LOG_INK)
 		_log_panel.add_child(line)
 		_log_labels.append(line)
-	_action_menu = VBoxContainer.new()
+	_action_menu = Control.new()
 	_action_menu.name = "ActionMenu"
+	_action_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_action_menu.position = ACTION_MENU_POS
-	_action_menu.add_theme_constant_override("separation", 4)
+	_action_menu.size = Vector2(ACTION_BUTTON_PITCH.x * 2.0 + ACTION_BUTTON_SIZE.x, ACTION_BUTTON_PITCH.y + ACTION_BUTTON_SIZE.y)
 	_action_menu.visible = false
 	_arena.add_child(_action_menu)
-	_strike_button = _ui_button(_text("adv_menu_strike", "Strike"), _action_menu)
-	_strike_button.name = "StrikeButton"
+	# Exactly six fixed slots, 3 x 2: Strike, Ability, Items / Brace, Flee, Strike for me.
+	_strike_button = _action_button(0, "StrikeButton", _text("adv_menu_strike", "Strike"), "res://assets/art/ui/icon_stone_sword.png")
 	_strike_button.pressed.connect(_on_strike_pressed)
+	_ability_button = _action_button(1, "AbilityButton", _text("adv_menu_ability", "Ability"), UI_ART_DIR + "icon_ability.png")
+	_ability_button.disabled = true
+	_ability_button.tooltip_text = _text("adv_ability_empty_tip", "Abilities draw on Weave. You have none yet.")
+	_ability_button.pressed.connect(_on_ability_pressed)
+	_salve_button = _action_button(2, "SalveButton", "", "res://assets/art/ui/icon_heart_salve.png")
+	_salve_button.pressed.connect(_on_salve_pressed)
+	_brace_button = _action_button(3, "BraceButton", _text("adv_menu_brace", "Brace"), UI_ART_DIR + "icon_brace.png")
+	_brace_button.pressed.connect(_on_brace_pressed)
+	_flee_button = _action_button(4, "FleeButton", _text("adv_menu_flee", "Flee"), UI_ART_DIR + "icon_flee.png")
+	_flee_button.pressed.connect(_on_flee_pressed)
+	_strike_for_me_toggle = _action_button(5, "StrikeForMeToggle", _text("adv_strike_for_me", "Strike for me"), "res://assets/art/ui/icons/hud_character.png")
+	_strike_for_me_toggle.toggle_mode = true
+	_strike_for_me_toggle.tooltip_text = _text(
+		"adv_strike_for_me_tip",
+		"Your fighters only Strike: front row first, then slot order. Plays at 1×. Turn it off any time.",
+	)
+	if not _strike_for_me_toggle.toggled.is_connected(_on_strike_for_me_toggled):
+		_strike_for_me_toggle.toggled.connect(_on_strike_for_me_toggled)
+	# Not part of the bottom bar: the ability picker pops up over the arena above the
+	# Ability button, and Idle / Back sit top-left under the test fight bar.
 	var ability_row := HBoxContainer.new()
 	ability_row.name = "AbilityRow"
 	ability_row.add_theme_constant_override("separation", 4)
-	_action_menu.add_child(ability_row)
+	ability_row.position = ACTION_MENU_POS + Vector2(ACTION_BUTTON_PITCH.x, -40.0)
+	ability_row.visible = false
+	_arena.add_child(ability_row)
 	_ability_row = ability_row
 	for n: int in 4:
 		var ab := _ui_button("—", ability_row)
@@ -1220,40 +1435,22 @@ func _build_fight_hud() -> void:
 		ab.disabled = true
 		ab.tooltip_text = _text("adv_ability_empty_tip", "Abilities draw on Weave. You have none yet.")
 		_ability_buttons.append(ab)
-	_salve_button = _ui_button("", _action_menu)
-	_salve_button.name = "SalveButton"
-	_salve_button.pressed.connect(_on_salve_pressed)
-	_brace_button = _ui_button(_text("adv_menu_brace", "Brace"), _action_menu)
-	_brace_button.name = "BraceButton"
-	_brace_button.pressed.connect(_on_brace_pressed)
-	_flee_button = _ui_button(_text("adv_menu_flee", "Flee"), _action_menu)
-	_flee_button.name = "FleeButton"
-	_flee_button.pressed.connect(_on_flee_pressed)
-	_idle_button = _ui_button(_text("adv_menu_idle", "Idle"), _action_menu)
+	_side_actions = VBoxContainer.new()
+	_side_actions.name = "SideActions"
+	_side_actions.position = Vector2(16.0, 52.0)
+	_side_actions.add_theme_constant_override("separation", 4)
+	_side_actions.visible = false
+	_arena.add_child(_side_actions)
+	_idle_button = _ui_button(_text("adv_menu_idle", "Idle"), _side_actions)
 	_idle_button.name = "IdleButton"
 	_idle_button.disabled = true
 	_idle_button.tooltip_text = _text("adv_menu_idle_later", "Hands the fight to idle Auto. Not in the test fight yet.")
 	if not _idle_button.pressed.is_connected(_on_idle_pressed):
 		_idle_button.pressed.connect(_on_idle_pressed)
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(8.0, 0.0)
-	_action_menu.add_child(spacer)
-	_cancel_target_button = _ui_button(_text("adv_menu_cancel", "Back"), _action_menu)
+	_cancel_target_button = _ui_button(_text("adv_menu_cancel", "Back"), _side_actions)
 	_cancel_target_button.name = "CancelTargetButton"
 	_cancel_target_button.visible = false
 	_cancel_target_button.pressed.connect(_on_cancel_target_pressed)
-	_strike_for_me_toggle = Button.new()
-	_strike_for_me_toggle.name = "StrikeForMeToggle"
-	_strike_for_me_toggle.toggle_mode = true
-	_strike_for_me_toggle.text = _text("adv_strike_for_me", "Strike for me")
-	_strike_for_me_toggle.tooltip_text = _text(
-		"adv_strike_for_me_tip",
-		"Your fighters only Strike: front row first, then slot order. Plays at 1×. Turn it off any time.",
-	)
-	_strike_for_me_toggle.add_to_group("battle_ui")
-	_action_menu.add_child(_strike_for_me_toggle)
-	if not _strike_for_me_toggle.toggled.is_connected(_on_strike_for_me_toggled):
-		_strike_for_me_toggle.toggled.connect(_on_strike_for_me_toggled)
 	_target_layer = Control.new()
 	_target_layer.name = "TargetLayer"
 	_target_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1437,6 +1634,10 @@ func _update_log_panel() -> void:
 func _hide_action_menu() -> void:
 	if _action_menu != null:
 		_action_menu.visible = false
+	if _side_actions != null:
+		_side_actions.visible = false
+	if _ability_row != null:
+		_ability_row.visible = false
 
 
 func _show_strike_for_me_toggle_only() -> void:
@@ -1446,7 +1647,10 @@ func _show_strike_for_me_toggle_only() -> void:
 	for child: Node in _action_menu.get_children():
 		if child is CanvasItem:
 			(child as CanvasItem).visible = child == _strike_for_me_toggle
-	_place_action_menu()
+	if _side_actions != null:
+		_side_actions.visible = false
+	if _ability_row != null:
+		_ability_row.visible = false
 
 
 func _show_action_menu(actor_id: String) -> void:
@@ -1461,38 +1665,33 @@ func _show_action_menu(actor_id: String) -> void:
 		return
 	_action_menu.visible = true
 	_update_salve_button()
-	_cancel_target_button.visible = _target_mode != ""
-	for button: Button in [_strike_button, _salve_button, _brace_button, _flee_button, _idle_button]:
+	var choosing: bool = _target_mode == ""
+	for button: Button in [_strike_button, _ability_button, _salve_button, _brace_button, _flee_button]:
 		if button != null:
-			button.visible = _target_mode == ""
+			button.visible = choosing
+	var show_abilities: bool = choosing and _has_abilities()
+	if _ability_button != null:
+		_ability_button.disabled = not show_abilities
+	if _ability_row != null and not show_abilities:
+		_ability_row.visible = false
+	if _side_actions != null:
+		_side_actions.visible = true
+	if _idle_button != null:
+		_idle_button.visible = choosing
+	_cancel_target_button.visible = not choosing
 	_refresh_idle_button()
-	var show_abilities: bool = _target_mode == "" and _has_abilities()
-	for ab: Button in _ability_buttons:
-		ab.visible = show_abilities
-	if _ability_row != null:
-		_ability_row.visible = show_abilities
 	if _strike_for_me_toggle != null:
 		_strike_for_me_toggle.visible = true
-	_place_action_menu()
 	if _playback != null:
 		_playback.notify_party_turn()
 
 
 func _has_abilities() -> bool:
-	## No abilities exist yet: every slot is a disabled "—". Hide the row until one is real.
+	## No abilities exist yet: every slot is a disabled "—". The picker stays shut until one is real.
 	for ab: Button in _ability_buttons:
 		if not ab.disabled:
 			return true
 	return false
-
-
-func _place_action_menu() -> void:
-	## Bottom-anchor the menu so every visible button sits above the party bar.
-	if _action_menu == null:
-		return
-	_action_menu.reset_size()
-	var height: float = _action_menu.get_combined_minimum_size().y
-	_action_menu.position = Vector2(ACTION_MENU_POS.x, PARTY_BAR_TOP - ACTION_MENU_GAP - height)
 
 
 func _strike_for_me_party_step(actor_id: String) -> void:
@@ -1762,7 +1961,7 @@ func _show_end_panel(outcome: String) -> void:
 	panel.add_to_group("battle_ui")
 	var panel_w: float = 520.0
 	var panel_h: float = 280.0
-	panel.position = Vector2((ARENA_SIZE.x - panel_w) * 0.5, PARTY_BAR_TOP - 8.0 - panel_h)
+	panel.position = Vector2((ARENA_SIZE.x - panel_w) * 0.5, BOTTOM_BAR_RECT.position.y - 8.0 - panel_h)
 	panel.size = Vector2(panel_w, panel_h)
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

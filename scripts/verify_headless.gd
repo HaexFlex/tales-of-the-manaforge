@@ -12749,8 +12749,8 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 		view.call("set_fighter_pose", member, "idle")
 	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
 	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
-	failed += _assert(keeper_node != null and keeper_node.position == Vector2(448, 512), "Keeper stands on the front middle slot")
-	failed += _assert(elaia_node != null and elaia_node.position == Vector2(328, 482), "Elaia stands on the back middle slot")
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(380, 424), "Keeper stands on the front middle slot")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(160, 424), "Elaia stands on the back middle slot")
 	for beast_id: String in BattleViewScript.BEAST_HURT.keys():
 		failed += _assert(ResourceLoader.exists(str(BattleViewScript.BEAST_HURT[beast_id])), "%s hurt frame is imported" % beast_id)
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
@@ -12767,11 +12767,11 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 		failed += _assert(party_front != null and party_back != null and beast_front != null and beast_back != null, "row outlines are controls")
 		if party_front != null and party_back != null and beast_front != null and beast_back != null:
 			var half: Vector2 = party_front.size * 0.5
-			failed += _assert(party_front.position + half == Vector2(448, 452) and beast_back.position + half == Vector2(952, 422), "slot marks sit on the arena art's sole points")
+			failed += _assert(party_front.position + half == Vector2(300, 360) and beast_back.position + half == Vector2(1176, 360), "slot marks sit on the v7 sole points")
 			failed += _assert(party_back.position.x < party_front.position.x, "party back column stands behind the front")
-			failed += _assert(party_back.position.y < party_front.position.y, "party back row sits behind the front row")
+			failed += _assert(is_equal_approx(party_back.position.y, party_front.position.y), "party columns share the v7 foot lines")
 			failed += _assert(beast_back.position.x > beast_front.position.x, "beast back column stands behind the front")
-			failed += _assert(beast_back.position.y < beast_front.position.y, "beast back row sits behind the front row")
+			failed += _assert(is_equal_approx(beast_back.position.y, beast_front.position.y), "beast columns share the v7 foot lines")
 			failed += _assert(beast_front.position.x > party_front.position.x + 300.0, "beasts stand on the right")
 	var clock_before: float = float(game_state.get("run_time_sec"))
 	for _frame: int in 60:
@@ -12879,8 +12879,8 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 		return failed
 	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
 	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
-	failed += _assert(keeper_node != null and keeper_node.position == Vector2(448, 512), "placeholder Keeper on front middle")
-	failed += _assert(elaia_node != null and elaia_node.position == Vector2(328, 482), "placeholder Elaia on back middle")
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(380, 424), "placeholder Keeper on front middle")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(160, 424), "placeholder Elaia on back middle")
 	var fight: FightState = FightStateScript.new()
 	var keeper_stats: Dictionary = {
 		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
@@ -12900,7 +12900,7 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	var imp_a: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp") as Control
 	var imp_b: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp_2") as Control
 	var keeper_f: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
-	failed += _assert(keeper_f != null and keeper_f.position == Vector2(448, 512), "Keeper alone uses front middle sole")
+	failed += _assert(keeper_f != null and keeper_f.position == Vector2(380, 424), "Keeper alone uses front middle sole")
 	failed += _assert(imp_a != null and imp_b != null, "both imps spawned")
 	if imp_a != null and imp_b != null:
 		var front_soles: Array = BattleViewScript.SLOT_SOLES["beast_front"]
@@ -12908,23 +12908,24 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	var keeper_sprite: TextureRect = keeper_f.get_node_or_null("Sprite") as TextureRect if keeper_f != null else null
 	failed += _assert(keeper_sprite != null and keeper_sprite.texture != null and keeper_sprite.texture.get_size() == Vector2(128, 128), "keeper idle 128x128")
 	failed += _assert(bool(view.call("set_fighter_pose", "keeper", "brace")), "keeper brace pose")
-	var party_bar: PanelContainer = view.get_node_or_null("Arena/PartyBar") as PanelContainer
-	failed += _assert(party_bar != null, "PartyBar exists")
-	if party_bar != null:
-		var keeper_plate: Node = party_bar.find_child("PartyPlate_keeper", true, false)
-		var elaia_plate: Node = party_bar.find_child("PartyPlate_elaia", true, false)
-		failed += _assert(keeper_plate != null and elaia_plate != null, "two party plates")
-		if keeper_plate != null:
-			var hp_label: Label = keeper_plate.find_child("HpLabel", true, false) as Label
-			failed += _assert(hp_label != null and hp_label.text == "HP 28/28", "keeper HP line on the bar")
+	# v7: the big party bar is gone; every fighter has a plate under its feet.
+	failed += _assert(view.get_node_or_null("Arena/PartyBar") == null, "the old PartyBar is gone")
+	var keeper_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_keeper") as Control
+	var elaia_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_elaia") as Control
+	failed += _assert(keeper_plate != null and elaia_plate != null, "two party plates")
+	if keeper_plate != null:
+		var keeper_hp: ProgressBar = keeper_plate.get_node_or_null("HpBar") as ProgressBar
+		failed += _assert(keeper_hp != null and int(keeper_hp.value) == 28 and int(keeper_hp.max_value) == 28, "keeper HP on the plate")
+		failed += _assert(keeper_plate.tooltip_text.find("HP 28/28") >= 0, "keeper plate tooltip has the HP line")
+		failed += _assert(keeper_plate.position == Vector2(380, 424) + Vector2(-28, 10), "keeper plate under his feet")
 	for beast_id: String in ["acorn_imp", "acorn_imp_2", "spore_moth"]:
-		var plate: Control = view.get_node_or_null("Arena/BeastPlate_%s" % beast_id) as Control
+		var plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % beast_id) as Control
 		failed += _assert(plate != null, "beast plate %s" % beast_id)
 		if plate != null:
 			var intent: Control = plate.get_node_or_null("IntentMarker") as Control
 			failed += _assert(intent != null, "intent marker on %s" % beast_id)
-	var imp_a_plate: Control = view.get_node_or_null("Arena/BeastPlate_acorn_imp") as Control
-	var imp_b_plate: Control = view.get_node_or_null("Arena/BeastPlate_acorn_imp_2") as Control
+	var imp_a_plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_acorn_imp") as Control
+	var imp_b_plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_acorn_imp_2") as Control
 	if imp_a_plate != null and imp_b_plate != null:
 		var name_a: Label = imp_a_plate.get_node_or_null("NameLabel") as Label
 		var name_b: Label = imp_b_plate.get_node_or_null("NameLabel") as Label
@@ -12962,14 +12963,15 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	return failed
 
 
-func _battle_menu_clear_of_party_bar(view: Node, label: String) -> int:
+func _battle_menu_in_bottom_bar(view: Node, label: String) -> int:
+	## v7: the action buttons live in the bottom bar, below every fighter plate.
 	var failed: int = 0
-	var bar: Control = view.get_node_or_null("Arena/PartyBar") as Control
+	var bar: Control = view.get_node_or_null("Arena/BottomBar") as Control
 	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
-	failed += _assert(bar != null and menu != null, "%s: party bar and menu exist" % label)
+	failed += _assert(bar != null and menu != null, "%s: bottom bar and menu exist" % label)
 	if bar == null or menu == null:
 		return failed
-	var bar_top: float = bar.get_global_rect().position.y
+	var bar_rect: Rect2 = bar.get_global_rect()
 	var seen: int = 0
 	for node: Node in menu.find_children("*", "Button", true, false):
 		var button: Button = node as Button
@@ -12977,7 +12979,7 @@ func _battle_menu_clear_of_party_bar(view: Node, label: String) -> int:
 			continue
 		seen += 1
 		var rect: Rect2 = button.get_global_rect()
-		failed += _assert(rect.end.y <= bar_top and rect.position.y >= 0.0, "%s: %s sits above the party bar (%.0f > %.0f)" % [label, button.name, rect.end.y, bar_top])
+		failed += _assert(bar_rect.encloses(rect), "%s: %s sits inside the bottom bar" % [label, button.name])
 	failed += _assert(seen > 0, "%s: menu has visible buttons" % label)
 	return failed
 
@@ -13012,11 +13014,13 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 		return failed
 	view.call("start_test_fight", 1, false, true, 12345)
 	await process_frame
-	var menu: VBoxContainer = view.get_node_or_null("Arena/ActionMenu") as VBoxContainer
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
 	failed += _assert(menu != null and menu.visible, "menu on first party turn")
-	var idle_btn: Button = view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+	var idle_btn: Button = view.get_node_or_null("Arena/SideActions/IdleButton") as Button
 	failed += _assert(idle_btn != null and idle_btn.disabled, "Idle is disabled")
-	var ability_row: Node = menu.get_node_or_null("AbilityRow")
+	var ability_row: Node = view.get_node_or_null("Arena/AbilityRow")
+	var ability_btn: Button = view.get_node_or_null("Arena/ActionMenu/AbilityButton") as Button
+	failed += _assert(ability_btn != null and ability_btn.disabled and ability_btn.tooltip_text.find("Weave") >= 0, "Ability slot is disabled with the Weave tooltip")
 	for n: int in 4:
 		var ab: Button = null
 		if ability_row != null:
@@ -13026,7 +13030,7 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
 	failed += _assert(salve_btn != null and salve_btn.text.find("Heart Salve") >= 0 and salve_btn.text.find("×2") >= 0, "salve shows ×2")
 	failed += _assert(ability_row != null and not (ability_row as CanvasItem).is_visible_in_tree(), "no empty ability row is visible")
-	failed += _battle_menu_clear_of_party_bar(view, "first party turn")
+	failed += _battle_menu_in_bottom_bar(view, "first party turn")
 	var sfm_toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
 	failed += _assert(sfm_toggle != null and sfm_toggle.is_visible_in_tree(), "Strike for me toggle shows in the menu")
 	var brace_btn: Button = view.get_node_or_null("Arena/ActionMenu/BraceButton") as Button
@@ -13265,7 +13269,7 @@ func _battle_strike_for_me(tree_root: Window, game_state: Node, save_service: No
 		"exactly one party action before toggle off (got %d)" % off_party_steps[0],
 	)
 	failed += _assert(fight != null and fight.outcome() == "", "fight continues after turning strike for me off")
-	var menu: VBoxContainer = view.get_node_or_null("Arena/ActionMenu") as VBoxContainer
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
 	failed += _assert(menu != null and menu.visible, "menu visible for manual party turn")
 	var next_actor: String = fight.current_actor() if fight != null else ""
 	failed += _assert(next_actor != "" and str(fight.fighter_dict(next_actor).get("side", "")) == "party", "next actor is party")
@@ -13610,7 +13614,7 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	var packet: Dictionary = fight.step({"kind": "strike", "target": str(targets[0])})
 	var strike_ev: Dictionary = _battle_strike_event(packet)
 	failed += _assert(not strike_ev.is_empty(), "strike event")
-	var menu: VBoxContainer = view.get_node_or_null("Arena/ActionMenu") as VBoxContainer
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
 	menu.visible = false
 	playback.enqueue_events([strike_ev])
 	failed += _assert(playback.is_busy(), "one event playing")
@@ -16244,7 +16248,7 @@ func _handoff_wait_party(view: BattleView, fight: FightState) -> bool:
 			return false
 		if _handoff_on_party(fight):
 			view.call("_show_action_menu", fight.current_actor())
-			var idle_btn: Button = view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+			var idle_btn: Button = view.get_node_or_null("Arena/SideActions/IdleButton") as Button
 			if idle_btn != null and idle_btn.visible and not idle_btn.disabled:
 				return true
 		view.call("_advance")
@@ -16255,7 +16259,7 @@ func _handoff_wait_party(view: BattleView, fight: FightState) -> bool:
 func _handoff_press_idle(view: BattleView) -> bool:
 	if view == null or not is_instance_valid(view):
 		return false
-	var idle_btn: Button = view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+	var idle_btn: Button = view.get_node_or_null("Arena/SideActions/IdleButton") as Button
 	if idle_btn == null or idle_btn.disabled or not idle_btn.visible:
 		return false
 	idle_btn.emit_signal("pressed")
@@ -16626,7 +16630,7 @@ func _handoff_idle(tree_root: Window, game_state: Node, save_service: Node) -> i
 	if test_view != null:
 		test_view.call("start_test_fight", 1, false, true, 12345)
 		await process_frame
-		var test_idle: Button = test_view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+		var test_idle: Button = test_view.get_node_or_null("Arena/SideActions/IdleButton") as Button
 		failed += _assert(test_idle != null and test_idle.disabled, "IdleButton is disabled in the test fight")
 		failed += _assert(test_idle != null and test_idle.tooltip_text.find("Not in the test fight") >= 0, "test fight keeps the later tooltip")
 	BattleViewScript.close_arena()
@@ -16641,7 +16645,7 @@ func _handoff_idle(tree_root: Window, game_state: Node, save_service: Node) -> i
 		reach.call("reset_for_new_game")
 		return failed
 	failed += _assert(await _handoff_wait_party(view, fight), "reach party turn")
-	var reach_idle: Button = view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+	var reach_idle: Button = view.get_node_or_null("Arena/SideActions/IdleButton") as Button
 	var tip: String = str(strings.call("get_text", "adv_menu_idle_tip"))
 	failed += _assert(tip == "Hand this fight to idle Auto. It finishes in 12 minutes. Join again before then to pick it back up.", "adv_menu_idle_tip copy")
 	failed += _assert(reach_idle != null and not reach_idle.disabled and reach_idle.tooltip_text == tip, "IdleButton is enabled on a reach party turn")
