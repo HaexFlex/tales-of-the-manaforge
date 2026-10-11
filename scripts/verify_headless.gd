@@ -770,6 +770,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BRAMBLE_HIDDEN") == "1":
+		var bramble_hidden_only: int = await _bramble_hidden_until_join_ok(tree_root, game_state, save_service)
+		if bramble_hidden_only > 0:
+			print("BRAMBLE_HIDDEN_UNTIL_JOIN_FAIL: %d" % bramble_hidden_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BATTLE_ART") == "1":
 		var battle_art_only: int = await _battle_art(tree_root, game_state, save_service)
 		if battle_art_only > 0:
@@ -3374,6 +3383,7 @@ func _run() -> void:
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+	failed += await _bramble_hidden_until_join_ok(tree_root, game_state, save_service)
 	failed += await _echo2_portal_visible(tree_root, game_state, save_service)
 	failed += await _expedition_board_tease(tree_root, game_state, save_service)
 	failed += await _debug_snapshots_reach(tree_root, game_state, save_service)
@@ -7838,6 +7848,79 @@ func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node)
 	return failed
 
 
+func _bramble_warden_hidden_ok(warden: Node) -> bool:
+	if warden == null:
+		return false
+	return not warden.visible and not bool(warden.get("input_pickable")) and not bool(warden.get("monitorable"))
+
+
+func _bramble_hidden_until_join_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "Reach for bramble gate")
+	if reach == null:
+		return failed
+	for clears: int in [0, 29]:
+		game_state.call("reset_for_new_game")
+		reach.call("reset_for_new_game")
+		reach.set("reaches_cleared", clears)
+		game_state.set("echo_02_resolved", true)
+		game_state.set("echo_02_outcome", "spare")
+		var live: Node = await _echo2_boot_hub(tree_root)
+		var warden: Node2D = live.get_node_or_null("World/BrambleWarden") as Node2D
+		failed += _assert(_bramble_warden_hidden_ok(warden), "spare at %d clears stays hidden" % clears)
+		live.free()
+	reach.set("reaches_cleared", 30)
+	game_state.set("echo_02_outcome", "spare")
+	var live_show: Node = await _echo2_boot_hub(tree_root)
+	var warden_show: Node2D = live_show.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(warden_show != null and warden_show.visible, "30 clears shows Bramble")
+	failed += _assert(bool(save_service.call("save_game", 7)), "bramble gate save")
+	live_show.free()
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "bramble gate load")
+	var live_load: Node = tree_root.get_node_or_null("Main") as Node
+	if live_load == null:
+		live_load = await _echo2_boot_hub(tree_root)
+	var warden_load: Node2D = live_load.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(warden_load != null and warden_load.visible, "30 clears visible after load")
+	live_load.free()
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	reach.set("reaches_cleared", 30)
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "spare")
+	save_service.set("boot_intent", "load")
+	save_service.call("save_game", 7)
+	var live_boot: Node = await _echo2_boot_hub(tree_root)
+	var warden_boot: Node2D = live_boot.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(warden_boot != null and warden_boot.visible, "30 clears visible after fresh boot")
+	live_boot.free()
+	save_service.call("delete_slot", 7)
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	reach.set("reaches_cleared", 30)
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "defeat")
+	var live_def: Node = await _echo2_boot_hub(tree_root)
+	var warden_def: Node2D = live_def.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(_bramble_warden_hidden_ok(warden_def), "defeat at 30 clears stays hidden")
+	live_def.free()
+	game_state.call("reset_for_new_game")
+	reach.call("reset_for_new_game")
+	game_state.set("echo_02_outcome", "")
+	var live_none: Node = await _echo2_boot_hub(tree_root)
+	var warden_none: Node2D = live_none.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(_bramble_warden_hidden_ok(warden_none), "no outcome stays hidden")
+	live_none.free()
+	game_state.call("reset_for_new_game")
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("BRAMBLE_HIDDEN_UNTIL_JOIN_OK")
+	return failed
+
+
 func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, content_strings: Node, game_audio: Node) -> int:
 	var failed: int = 0
 	var echo: Node = tree_root.get_node_or_null("EchoChamber")
@@ -7982,7 +8065,7 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	failed += _assert(not bool(wall.call("collider_enabled")), "open wall drops the centre gate")
 	failed += _assert(bool(wall.call("sides_blocked")), "open wall keeps the side hedges")
 	failed += _assert(bool(game_audio.call("did_play", &"sfx_path_open")), "path open plays sfx_path_open")
-	failed += _assert(warden != null and warden.visible, "spared Bramble watches the trailhead")
+	failed += _assert(warden != null and not warden.visible, "spared Bramble stays hidden until 30 clears")
 	warden.call("on_interact", null)
 	failed += _assert(str(content_strings.call("get_text", "adventure_promised")).find("Not yet at your side") >= 0, "spared Bramble is not a companion yet")
 	if failed == before_open:

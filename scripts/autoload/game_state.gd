@@ -58,6 +58,8 @@ var echo_02_fee_paid: bool = false
 var echo_02_resolved: bool = false
 ## "" | spare | defeat | flee | ko. Spare and defeat open the east road.
 var echo_02_outcome: String = ""
+## Lifetime reach room wins before spared Bramble appears in the clearing (companion gate).
+const BRAMBLE_JOIN_CLEARS: int = 30
 var echo_02_narrator_heard: bool = false
 ## Expedition board lantern. dark | amber | cyan. Amber is a run out, cyan is done.
 var expedition_lantern: String = "dark"
@@ -814,6 +816,14 @@ func get_resource(resource_id: StringName) -> int:
 			return essence
 		_:
 			return 0
+
+
+func bramble_joined() -> bool:
+	if echo_02_outcome != "spare":
+		return false
+	if not has_node("/root/Reach"):
+		return false
+	return Reach.reaches_cleared >= BRAMBLE_JOIN_CLEARS
 
 
 func set_resource(resource_id: StringName, amount: int) -> void:
