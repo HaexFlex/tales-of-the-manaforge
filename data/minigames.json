@@ -171,7 +171,8 @@
       "cues": {
         "success": "sfx_water_pulse"
       },
-      "play_bg": "res://assets/art/ui/minigames/placeholder/play/just_enough_play_ref.png"
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/just_enough_play_ref.png",
+      "play_bg_in_view": true
     },
     "forge_glow": {
       "order": 5,
@@ -227,7 +228,8 @@
         "success": "sfx_press_squeeze",
         "vent": "sfx_gather_cooldown"
       },
-      "play_bg": "res://assets/art/ui/minigames/placeholder/play/steady_press_play_ref.png"
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/steady_press_play_ref.png",
+      "play_bg_in_view": true
     },
     "with_the_grain": {
       "order": 7,

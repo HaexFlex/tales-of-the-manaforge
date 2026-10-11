@@ -51,8 +51,6 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if core == null:
 		return
-	if _bg != null:
-		draw_texture_rect(_bg, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, 0.45))
 	var st: Dictionary = core.state()
 	var lane_y0: float = float(st.get("lane_y0", 0.04)) * size.y
 	var lane_y1: float = float(st.get("lane_y1", 0.16)) * size.y

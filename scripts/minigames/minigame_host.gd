@@ -21,7 +21,11 @@ var _world_dim_layer: CanvasLayer
 var _frame: Control
 var _success_label: Label
 var _pace_value_label: Label
+var _pace_caption: Label
+var _pace_track: TextureRect
 var _pace_fill: TextureRect
+var _pip_box: HBoxContainer
+var _feel_tag: Label
 var _fx_layer: Control
 var _pip_nodes: Array[TextureRect] = []
 var _play_area: Control
@@ -114,7 +118,9 @@ func _begin(seed: int) -> bool:
 	_core.resolved.connect(_on_resolved)
 	_core.start(_cfg, seed)
 	_view.bind(_core)
+	_view.z_index = 1
 	_play_area.add_child(_view)
+	_play_area.move_child(_view, _play_area.get_child_count() - 1)
 	var open_cue: String = str(_root_data.get("cues", {}).get("open", "sfx_ui_open"))
 	_play_cue(open_cue)
 	opened.emit(_game_id)
@@ -241,13 +247,6 @@ func _build_ui() -> void:
 	title_lbl.size = title_plate_rect.size
 	_frame.add_child(title_lbl)
 	var header_rect: Rect2 = _rect("header", offset)
-	var flavour: String = _flavour_text()
-	if flavour != "":
-		var flavour_lbl := _make_label("Flavour", flavour, 13, Color(0.28, 0.22, 0.18, 0.92))
-		flavour_lbl.position = header_rect.position + Vector2(180, 8)
-		flavour_lbl.size = Vector2(header_rect.size.x - 360, 22)
-		flavour_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_frame.add_child(flavour_lbl)
 	var header := Control.new()
 	header.name = "Header"
 	header.position = header_rect.position
@@ -259,20 +258,19 @@ func _build_ui() -> void:
 	_success_label.size = Vector2(88, 24)
 	header.add_child(_success_label)
 	_build_pips(header, offset)
-	var pace_lbl := _make_label("PaceCaption", MinigameCatalog.text("mg_pace"), 14, MinigameKit.INK)
-	pace_lbl.position = Vector2(320, 6)
-	pace_lbl.size = Vector2(177, 24)
-	pace_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	header.add_child(pace_lbl)
+	_pace_caption = _make_label("PaceCaption", MinigameCatalog.text("mg_pace"), 14, MinigameKit.INK)
+	_pace_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_pace_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	header.add_child(_pace_caption)
 	var pace_rect: Rect2 = _rect("pace_meter", offset)
 	var pace_local: Vector2 = pace_rect.position - header_rect.position
-	var track := TextureRect.new()
-	track.name = "PaceMeter"
-	track.texture = load(_MG_TEX("pace_track_136x18.png")) as Texture2D
-	track.position = pace_local
-	track.size = pace_rect.size
-	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header.add_child(track)
+	_pace_track = TextureRect.new()
+	_pace_track.name = "PaceMeter"
+	_pace_track.texture = load(_MG_TEX("pace_track_136x18.png")) as Texture2D
+	_pace_track.position = pace_local
+	_pace_track.size = pace_rect.size
+	_pace_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header.add_child(_pace_track)
 	_pace_fill = TextureRect.new()
 	_pace_fill.name = "PaceFill"
 	_pace_fill.texture = MinigameKit.load_tex("pace_fill_good_132x8.png")
@@ -282,8 +280,9 @@ func _build_ui() -> void:
 	_pace_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header.add_child(_pace_fill)
 	_pace_value_label = _make_label("PaceValue", "1.0×", 14, MinigameKit.INK)
-	_pace_value_label.position = pace_local + Vector2(pace_rect.size.x + 6, -2)
+	_pace_value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_child(_pace_value_label)
+	_layout_header_controls(header)
 	_play_area = Control.new()
 	_play_area.name = "PlayArea"
 	var pa: Rect2 = _rect("play_area", offset)
@@ -301,23 +300,27 @@ func _build_ui() -> void:
 		parchment.color = Color(0.86, 0.78, 0.62, 0.35)
 		parchment.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_play_area.add_child(parchment)
-	else:
+	elif _uses_host_play_bg():
 		var bg_path: String = str(_cfg.get("play_bg", ""))
 		if bg_path != "" and ResourceLoader.exists(bg_path):
 			var bg := TextureRect.new()
+			bg.name = "PlayBgDim"
 			bg.texture = load(bg_path) as Texture2D
 			bg.modulate.a = 0.35
 			bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 			bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bg.z_index = 0
 			_play_area.add_child(bg)
 	var footer_rect: Rect2 = _rect("footer", offset)
-	_build_footer_hint(footer_rect)
-	var tag := _make_label("FeelTag", MinigameCatalog.text("mg_feel_test_tag"), 12, MinigameKit.INK)
-	tag.position = footer_rect.position + Vector2(footer_rect.size.x - 220, 10)
-	tag.size = Vector2(200, 20)
-	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_frame.add_child(tag)
-	_build_stop_button(_rect("stop_button", offset))
+	var stop_rect: Rect2 = _rect("stop_button", offset)
+	_build_footer_hint(footer_rect, stop_rect)
+	_feel_tag = _make_label("FeelTag", MinigameCatalog.text("mg_feel_test_tag"), 12, MinigameKit.INK)
+	_feel_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_feel_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_layout_footer_feel_tag(footer_rect, stop_rect)
+	_frame.add_child(_feel_tag)
+	_build_stop_button(stop_rect)
 	_paused_label = _make_label("PausedLabel", MinigameCatalog.text("mg_paused"), 20, Color(0.93, 0.86, 0.62))
 	_paused_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_paused_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -365,14 +368,12 @@ func _build_pips(header: Control, offset: Vector2) -> void:
 	var pips: Dictionary = _frame_data.get("pips", {}) as Dictionary
 	var count: int = int(pips.get("count", 10))
 	var pitch: int = int(pips.get("pitch", 15))
-	var start_x: float = float(pips.get("x", 320)) - header.position.x + offset.x - offset.x
-	start_x = float(pips.get("x", 320)) - _rect("header", offset).position.x
 	var center_y: float = float(pips.get("center_y", 178)) - _rect("header", offset).position.y
-	var box := HBoxContainer.new()
-	box.name = "Pips"
-	box.position = Vector2(start_x, center_y - 6)
-	box.add_theme_constant_override("separation", pitch - 12)
-	header.add_child(box)
+	_pip_box = HBoxContainer.new()
+	_pip_box.name = "Pips"
+	_pip_box.position = Vector2(0, center_y - 6)
+	_pip_box.add_theme_constant_override("separation", pitch - 12)
+	header.add_child(_pip_box)
 	var empty_tex: Texture2D = load(_MG_TEX("pip_empty_12.png")) as Texture2D
 	var good_tex: Texture2D = load(_MG_TEX("pip_good_12.png")) as Texture2D
 	var perfect_tex: Texture2D = load(_MG_TEX("pip_perfect_12.png")) as Texture2D
@@ -386,8 +387,72 @@ func _build_pips(header: Control, offset: Vector2) -> void:
 		pip.set_meta("good", good_tex)
 		pip.set_meta("perfect", perfect_tex)
 		pip.set_meta("miss", miss_tex)
-		box.add_child(pip)
+		_pip_box.add_child(pip)
 		_pip_nodes.append(pip)
+
+
+func _uses_host_play_bg() -> bool:
+	if _game_id == "tap_test":
+		return false
+	return not bool(_cfg.get("play_bg_in_view", false))
+
+
+func _layout_header_controls(header: Control) -> void:
+	const PAD: float = 8.0
+	const PIP_W: float = 12.0
+	var header_h: float = header.size.y
+	var header_rect: Rect2 = _rect("header", _viewport_offset())
+	var pace_rect: Rect2 = _rect("pace_meter", _viewport_offset())
+	var pace_local: Vector2 = pace_rect.position - header_rect.position
+	_pace_track.position = pace_local
+	_pace_track.size = pace_rect.size
+	_pace_fill.position = pace_local + Vector2(2, 2)
+	var pace_val_w: float = 44.0
+	_pace_value_label.size = Vector2(pace_val_w, header_h)
+	_pace_value_label.position = pace_local + Vector2(pace_rect.size.x + 6, 0)
+	var pace_cap_w: float = 52.0
+	var pace_cap_x: float = pace_local.x - PAD - pace_cap_w
+	_pace_caption.position = Vector2(pace_cap_x, 0)
+	_pace_caption.size = Vector2(pace_cap_w, header_h)
+	var succ_x: float = PAD
+	var succ_w: float = 108.0
+	_success_label.position = Vector2(succ_x, 0)
+	_success_label.size = Vector2(succ_w, header_h)
+	var pip_left: float = succ_x + succ_w + PAD
+	var pip_right: float = pace_cap_x - PAD
+	var pip_avail: float = maxf(0.0, pip_right - pip_left)
+	var pips_cfg: Dictionary = _frame_data.get("pips", {}) as Dictionary
+	var pitch: int = int(pips_cfg.get("pitch", 15))
+	var sep: int = maxi(0, pitch - 12)
+	for pip_node: TextureRect in _pip_nodes:
+		pip_node.visible = true
+	var n: int = _pip_nodes.size()
+	var needed: float = PIP_W if n <= 1 else PIP_W + float(n - 1) * float(sep + PIP_W)
+	if needed > pip_avail and n > 1:
+		var max_sep: int = int(floor((pip_avail - PIP_W) / float(n - 1) - PIP_W))
+		sep = clampi(max_sep, 0, sep)
+		needed = PIP_W + float(n - 1) * float(sep + PIP_W)
+		if needed > pip_avail:
+			var show_n: int = clampi(int(floor((pip_avail + float(sep)) / float(sep + PIP_W))), 1, n)
+			for i: int in _pip_nodes.size():
+				_pip_nodes[i].visible = i >= n - show_n
+			n = show_n
+			needed = PIP_W if n <= 1 else PIP_W + float(n - 1) * float(sep + PIP_W)
+	_pip_box.add_theme_constant_override("separation", sep)
+	var pip_x: float = pip_left
+	if needed < pip_avail:
+		pip_x = pip_left + (pip_avail - needed) * 0.5
+	_pip_box.position = Vector2(pip_x, _pip_box.position.y)
+
+
+func _layout_footer_feel_tag(footer_rect: Rect2, stop_rect: Rect2) -> void:
+	const GAP: float = 10.0
+	var tag_w: float = 200.0
+	var tag_h: float = 20.0
+	var tag_x: float = stop_rect.position.x - GAP - tag_w
+	var tag_y: float = footer_rect.position.y + (footer_rect.size.y - tag_h) * 0.5
+	_feel_tag.position = Vector2(tag_x, tag_y)
+	_feel_tag.size = Vector2(tag_w, tag_h)
 
 
 func _build_stop_button(rect: Rect2) -> void:
@@ -476,11 +541,12 @@ static func _MG_TEX(file: String) -> String:
 	return MinigameKit.tex(file)
 
 
-func _build_footer_hint(footer_rect: Rect2) -> void:
+func _build_footer_hint(footer_rect: Rect2, stop_rect: Rect2) -> void:
 	var row := HBoxContainer.new()
 	row.name = "HintRow"
 	row.position = footer_rect.position + Vector2(16, 6)
-	row.size = Vector2(footer_rect.size.x - 32, 24)
+	var max_w: float = stop_rect.position.x - footer_rect.position.x - 24.0
+	row.size = Vector2(maxf(120.0, max_w), 24)
 	row.add_theme_constant_override("separation", 6)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(row)
@@ -498,6 +564,16 @@ func _build_footer_hint(footer_rect: Rect2) -> void:
 			row.add_child(lbl)
 	for glyph_file: String in MinigameKit.hint_glyph_files(_game_id):
 		row.add_child(_hint_glyph(glyph_file))
+	var flavour: String = _flavour_text()
+	if flavour != "":
+		var sep := _make_label("FlavourSep", "—", 12, MinigameKit.INK)
+		row.add_child(sep)
+		var flavour_lbl := _make_label("Flavour", flavour, 12, Color(0.28, 0.22, 0.18, 0.88))
+		flavour_lbl.clip_text = true
+		flavour_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		flavour_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		flavour_lbl.custom_minimum_size = Vector2(80, 24)
+		row.add_child(flavour_lbl)
 
 
 func _hint_glyph(file: String) -> TextureRect:

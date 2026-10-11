@@ -8258,6 +8258,47 @@ func _mg_controls_intersect(a: Rect2, b: Rect2) -> bool:
 	return a.intersects(b)
 
 
+func _mg_header_control_rects(host: MinigameHost) -> Array:
+	var header: Control = host.get_node_or_null("FrameRoot/Header") as Control
+	if header == null:
+		return []
+	var names: PackedStringArray = PackedStringArray([
+		"Successes", "Pips", "PaceCaption", "PaceMeter", "PaceValue",
+	])
+	var out: Array = []
+	for n: String in names:
+		var c: Control = header.get_node_or_null(n) as Control
+		if c != null and c.visible:
+			out.append({"name": n, "rect": c.get_rect()})
+	return out
+
+
+func _mg_header_layout_pairwise_ok(host: MinigameHost, game_id: String) -> int:
+	var failed: int = 0
+	failed += _assert(host.get_node_or_null("FrameRoot/Flavour") == null, "%s: flavour not in header row" % game_id)
+	var rects: Array = _mg_header_control_rects(host)
+	failed += _assert(rects.size() >= 4, "%s: header kit controls present" % game_id)
+	for i: int in rects.size():
+		for j: int in range(i + 1, rects.size()):
+			var a: Dictionary = rects[i] as Dictionary
+			var b: Dictionary = rects[j] as Dictionary
+			var ra: Rect2 = a.get("rect", Rect2()) as Rect2
+			var rb: Rect2 = b.get("rect", Rect2()) as Rect2
+			var ok: bool = not _mg_controls_intersect(ra, rb)
+			failed += _assert(ok, "%s: %s and %s do not intersect" % [game_id, str(a.get("name", "")), str(b.get("name", ""))])
+	return failed
+
+
+func _mg_footer_feel_stop_ok(host: MinigameHost, game_id: String) -> int:
+	var failed: int = 0
+	var feel: Control = host.get_node_or_null("FrameRoot/FeelTag") as Control
+	var stop: Control = host.get_node_or_null("FrameRoot/StopButton") as Control
+	failed += _assert(feel != null and stop != null, "%s: footer feel tag and Stop exist" % game_id)
+	if feel != null and stop != null:
+		failed += _assert(not _mg_controls_intersect(feel.get_rect(), stop.get_rect()), "%s: feel tag does not intersect Stop" % game_id)
+	return failed
+
+
 func _minigame_kit_ok(tree_root: Window, save_service: Node) -> int:
 	var failed: int = 0
 	var host_src: String = FileAccess.get_file_as_string("res://scripts/minigames/minigame_host.gd")
@@ -8272,6 +8313,11 @@ func _minigame_kit_ok(tree_root: Window, save_service: Node) -> int:
 	var old_success: Rect2 = Rect2(300, 166, 130, 24)
 	var old_pips_row: Rect2 = Rect2(320, 172, 10 * 15, 12)
 	failed += _assert(_mg_controls_intersect(old_success, old_pips_row), "regression model: old wiring overlapped Successes and pips")
+	var old_flavour: Rect2 = Rect2(480, 168, 320, 22)
+	var old_pips_kit: Rect2 = Rect2(416, 172, 10 * 15, 12)
+	var old_pace_cap: Rect2 = Rect2(600, 166, 177, 24)
+	failed += _assert(_mg_controls_intersect(old_flavour, old_pips_kit), "regression model: header flavour overlapped pips")
+	failed += _assert(_mg_controls_intersect(old_flavour, old_pace_cap), "regression model: header flavour overlapped Pace caption")
 	save_service.call("note_session_ended")
 	save_service.set("boot_intent", "new")
 	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
@@ -8292,20 +8338,24 @@ func _minigame_kit_ok(tree_root: Window, save_service: Node) -> int:
 	await process_frame
 	var frame_np: NinePatchRect = host.get_node_or_null("FrameRoot/Frame") as NinePatchRect
 	failed += _assert(frame_np != null and str(frame_np.texture.resource_path).find("/kit/") >= 0, "frame texture from kit/")
+	failed += _mg_header_layout_pairwise_ok(host, "tap_test")
+	failed += _mg_footer_feel_stop_ok(host, "tap_test")
 	var succ_lbl: Label = host.get_node_or_null("FrameRoot/Header/Successes") as Label
-	var pips: Control = host.get_node_or_null("FrameRoot/Header/Pips") as Control
-	var pace_cap: Label = host.get_node_or_null("FrameRoot/Header/PaceCaption") as Label
-	var pace_fill: TextureRect = host.get_node_or_null("FrameRoot/Header/PaceFill") as TextureRect
-	failed += _assert(succ_lbl != null and pips != null and pace_cap != null and pace_fill != null, "header kit nodes exist")
-	if succ_lbl != null and pips != null:
-		var s_rect: Rect2 = succ_lbl.get_rect()
-		var p_rect: Rect2 = pips.get_rect()
-		failed += _assert(not _mg_controls_intersect(s_rect, p_rect), "Successes label does not intersect pips")
-	if pace_cap != null and pace_fill != null:
-		failed += _assert(not _mg_controls_intersect(pace_cap.get_rect(), pace_fill.get_rect()), "Pace caption does not intersect pace meter")
 	if succ_lbl != null:
 		var ink: Color = succ_lbl.get_theme_color("font_color")
 		failed += _assert(ink.is_equal_approx(MinigameKit.INK), "parchment label ink is #3E2A18")
+	for game_id: String in _MG_GAME_IDS:
+		if host != null and MinigameHost.is_open():
+			host.close(&"debug")
+			await process_frame
+		failed += _assert(MinigameHost.open(game_id, seed), "%s opens for kit layout" % game_id)
+		host = MinigameHost.current()
+		if host == null:
+			failed += 1
+			continue
+		await process_frame
+		failed += _mg_header_layout_pairwise_ok(host, game_id)
+		failed += _mg_footer_feel_stop_ok(host, game_id)
 	var esc_cap: TextureRect = null
 	var stop_btn: TextureButton = host.get_node_or_null("FrameRoot/StopButton") as TextureButton
 	if stop_btn != null:

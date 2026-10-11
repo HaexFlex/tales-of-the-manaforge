@@ -6,6 +6,7 @@ const FILL: Color = Color(0.46, 0.73, 0.28, 0.9)
 const HANDLE: Color = Color(0.78, 0.68, 0.52, 1.0)
 
 var _vent_played: bool = false
+var _bg: Texture2D
 var _gauge_frame: Texture2D
 var _gauge_band: Texture2D
 var _arrow_l: Texture2D
@@ -21,6 +22,9 @@ func _ready() -> void:
 func bind(p_core: MinigameCore) -> void:
 	super.bind(p_core)
 	_vent_played = false
+	var path: String = str(core.cfg.get("play_bg", ""))
+	if path != "":
+		_bg = load(path) as Texture2D
 	_gauge_frame = MinigameKit.load_tex("gauge_frame_40x240.png")
 	_gauge_band = MinigameKit.load_tex("gauge_band_9s_40x12.png")
 	_arrow_l = MinigameKit.load_tex("gauge_arrow_l_6x11.png")
@@ -46,6 +50,8 @@ func _on_tick(_a = null, _b = null, _c = null) -> void:
 func _draw() -> void:
 	if core == null:
 		return
+	if _bg != null:
+		draw_texture_rect(_bg, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, 0.35))
 	var st: Dictionary = core.state()
 	var gx: float = size.x * 0.72
 	var gw: float = 36.0

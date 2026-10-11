@@ -34,7 +34,7 @@ func _draw() -> void:
 	if core == null:
 		return
 	if _bg != null:
-		draw_texture_rect(_bg, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, 0.45))
+		draw_texture_rect(_bg, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, 0.35))
 	var st: Dictionary = core.state()
 	var gx: float = float(st.get("gauge_x", 0.0625)) * size.x
 	var gy: float = float(st.get("gauge_y", 0.125)) * size.y

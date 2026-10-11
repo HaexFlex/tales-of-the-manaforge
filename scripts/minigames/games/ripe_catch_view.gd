@@ -50,13 +50,11 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if core == null:
 		return
-	if _bg != null:
-		draw_texture_rect(_bg, Rect2(Vector2.ZERO, size), false, Color(1, 1, 1, 0.45))
 	var st: Dictionary = core.state()
 	var catch_y: float = float(st.get("catch_y", 0.79)) * size.y
 	var hw: float = float(st.get("basket_half_w", 0.07)) * size.x
 	var bx: float = float(st.get("basket_x", 0.5)) * size.x
-	draw_rect(Rect2(bx - hw, catch_y - 6.0, hw * 2.0, 14.0), Color(0.35, 0.25, 0.18))
+	draw_rect(Rect2(bx - hw, catch_y - 4.0, hw * 2.0, 8.0), Color(0.35, 0.25, 0.18, 0.22))
 	if int(st.get("streak", 0)) >= 3:
 		draw_rect(Rect2(bx - hw - 4.0, catch_y - 10.0, hw * 2.0 + 8.0, 22.0), GOLD, false, 3.0)
 	for s: Dictionary in st.get("splats", []):
