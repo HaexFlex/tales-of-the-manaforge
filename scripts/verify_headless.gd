@@ -13801,7 +13801,6 @@ func _party_lock_save_ok(tree_root: Window, game_state: Node, save_service: Node
 	failed += _assert(not bool(reach.call("member_away", "elaia")), "elaia stayed home")
 	reach.call("reset_for_new_game")
 	failed += _assert(not bool(reach.call("member_away", "keeper")), "keeper home after run ends")
-	_reset_reach_test(tree_root, game_state, save_svc)
 	game_state.call("set_resource", &"essence", 100)
 	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "second depart")
 	var refrozen: Dictionary = _reach_party_stats((reach.get("party") as Array)[0] as Dictionary)
