@@ -698,6 +698,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BATTLE_UI_V7") == "1":
+		var battle_ui_v7_only: int = await _battle_ui_v7(tree_root, game_state, save_service)
+		if battle_ui_v7_only > 0:
+			print("BATTLE_UI_V7_FAIL: %d" % battle_ui_v7_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BATTLE_PLATES") == "1":
 		var battle_plates_only: int = await _battle_plates(tree_root, game_state, save_service)
 		if battle_plates_only > 0:
@@ -3430,6 +3439,7 @@ func _run() -> void:
 	failed += _reach_legacy_gone(tree_root, game_state, save_service)
 	failed += _echo_v4_math(tree_root)
 	failed += _echo_v4_parity()
+	failed += await _battle_ui_v7(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -12960,6 +12970,210 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	paused = false
 	if failed == 0:
 		print("BATTLE_PLATES_OK")
+	return failed
+
+
+func _battle_ui_v7_visible_top(root: Control) -> Rect2:
+	## Independent of BattleView: read the sprite's source PNG and find its visible pixels.
+	var sprite: Control = root.get_node_or_null("Sprite") as Control
+	if sprite == null:
+		return Rect2()
+	if sprite is TextureRect and (sprite as TextureRect).texture != null:
+		var path: String = (sprite as TextureRect).texture.resource_path
+		var image := Image.new()
+		if path == "" or image.load_png_from_buffer(FileAccess.get_file_as_bytes(path)) != OK:
+			return Rect2()
+		var used: Rect2i = image.get_used_rect()
+		return Rect2(root.position + sprite.position + Vector2(used.position), Vector2(used.size))
+	return Rect2(root.position + sprite.position, sprite.size)
+
+
+func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## v7 formation and bottom bar on the live arena: 6 vs 6 slots match the approved
+	## layout json, a plate under every fighter (no Weave on beasts), draw order by feet y,
+	## the old party HP bar is gone, the bottom bar holds exactly 6 buttons + the log,
+	## and intent bubbles sit at the visible sprite top - 28.
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for battle ui v7")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	var layout: Dictionary = _json_dict("res://tests/fixtures/battle_ui_v7_layout.json")
+	var feet: Dictionary = layout.get("slots_view_feet", {}) as Dictionary
+	failed += _assert(feet.size() == 4, "v7 layout json has four columns")
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for v7")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "v7 arena is a BattleView")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	# 1. Slot map: constants and the twelve ground marks equal the approved json.
+	for column: String in ["party_front", "party_back", "beast_front", "beast_back"]:
+		var want: Array = feet.get(column, []) as Array
+		failed += _assert(want.size() == 3, "%s has three slots in the json" % column)
+		for i: int in want.size():
+			var pair: Array = want[i] as Array
+			var expect := Vector2(int(pair[0]), int(pair[1]))
+			failed += _assert(BattleViewScript.slot_sole(column, i) == expect, "%s %d sole is %s (got %s)" % [column, i, expect, BattleViewScript.slot_sole(column, i)])
+			var mark: Control = view.get_node_or_null("Arena/Slots/%s_%d" % [column, i]) as Control
+			failed += _assert(mark != null and mark.position + mark.size * 0.5 == expect, "%s %d ground mark on the json sole" % [column, i])
+	var party_x: Array = []
+	var beast_x: Array = []
+	for i: int in 3:
+		party_x.append(BattleViewScript.slot_sole("party_front", i).x - BattleViewScript.slot_sole("party_back", i).x)
+		beast_x.append(BattleViewScript.slot_sole("beast_back", i).x - BattleViewScript.slot_sole("beast_front", i).x)
+	failed += _assert(BattleViewScript.slot_sole("party_front", 1).x - BattleViewScript.slot_sole("party_front", 0).x == 80.0, "party middle steps 80 toward the enemy")
+	failed += _assert(BattleViewScript.slot_sole("beast_front", 0).x - BattleViewScript.slot_sole("beast_front", 1).x == 128.0, "beast middle steps 128 toward the enemy (not a mirror)")
+	# 2. A full 6 vs 6 fight on the real view.
+	var fight: FightState = FightStateScript.new()
+	var stats: Dictionary = {
+		"might": 8, "arcana": 6, "resilience": 6, "ward": 6,
+		"vitality": 6, "swiftness": 6, "fate": 6, "attack": "physical",
+	}
+	var party_spots: Array = [["keeper", 0, "front"], ["elaia", 0, "back"], ["keeper", 1, "front"], ["elaia", 1, "back"], ["keeper", 2, "front"], ["elaia", 2, "back"]]
+	var party_ids: Array[String] = []
+	for n: int in party_spots.size():
+		var spot: Array = party_spots[n] as Array
+		var fid: String = "keeper" if n == 0 else ("elaia" if n == 1 else "ally_%d" % n)
+		party_ids.append(fight.add_member(str(spot[0]), stats, int(spot[1]), str(spot[2]), fid))
+	var beast_spots: Array = [["root_snapper", 0, "front"], ["acorn_imp", 1, "front"], ["thorn_boar", 2, "front"], ["vine_serpent", 0, "back"], ["moss_brute", 1, "back"], ["wilt_wisp", 2, "back"]]
+	var beast_ids: Array[String] = []
+	for spot_v: Variant in beast_spots:
+		var spot: Array = spot_v as Array
+		beast_ids.append(fight.add_beast(str(spot[0]), int(spot[1]), str(spot[2])))
+	fight.set_combat_seed(4711)
+	fight.loadout = {"heart_salve": 2}
+	fight.start_fight()
+	fight.controller = "manual"
+	view._fight = fight
+	view.call("show_fight", fight)
+	await process_frame
+	var all_ids: Array[String] = party_ids.duplicate()
+	all_ids.append_array(beast_ids)
+	failed += _assert(all_ids.size() == 12 and not all_ids.has(""), "6 party + 6 beasts join (%s)" % [all_ids])
+	var expected_soles: Dictionary = {}
+	for n: int in party_spots.size():
+		var spot: Array = party_spots[n] as Array
+		expected_soles[party_ids[n]] = ["party_%s" % str(spot[2]), int(spot[1])]
+	for n: int in beast_spots.size():
+		var spot: Array = beast_spots[n] as Array
+		expected_soles[beast_ids[n]] = ["beast_%s" % str(spot[2]), int(spot[1])]
+	for fid: String in all_ids:
+		var where: Array = expected_soles.get(fid, ["", 0]) as Array
+		var pair: Array = (feet.get(str(where[0]), []) as Array)[int(where[1])] as Array
+		var expect := Vector2(int(pair[0]), int(pair[1]))
+		var root: Control = view.get_node_or_null("Arena/Fighters/Fighter_%s" % fid) as Control
+		failed += _assert(root != null and root.position == expect, "%s stands on %s %d = %s" % [fid, where[0], int(where[1]), expect])
+		# 3. Plates: 56x24 at (x - 28, y + 10); Weave on the party only.
+		var side: String = "Party" if fid in party_ids else "Beast"
+		var plate: Control = view.get_node_or_null("Arena/Plates/%sPlate_%s" % [side, fid]) as Control
+		failed += _assert(plate != null, "%s has a plate" % fid)
+		if plate == null:
+			continue
+		failed += _assert(plate.position == expect + Vector2(-28, 10) and plate.size == Vector2(56, 24), "%s plate centred under the feet" % fid)
+		var name_label: Label = plate.get_node_or_null("NameLabel") as Label
+		var level_label: Label = plate.get_node_or_null("LevelLabel") as Label
+		var hp_bar: ProgressBar = plate.get_node_or_null("HpBar") as ProgressBar
+		var weave_bar: ProgressBar = plate.get_node_or_null("WeaveBar") as ProgressBar
+		failed += _assert(name_label != null and name_label.text != "" and level_label != null, "%s plate shows a name and a level slot" % fid)
+		failed += _assert(hp_bar != null and hp_bar.is_visible_in_tree() and int(hp_bar.max_value) == int(fight.fighter_dict(fid).get("max_hp", 0)), "%s plate HP bar" % fid)
+		if side == "Party":
+			failed += _assert(weave_bar != null and weave_bar.is_visible_in_tree(), "%s plate shows Weave" % fid)
+		else:
+			failed += _assert(weave_bar == null or not weave_bar.is_visible_in_tree(), "%s plate hides Weave (beasts have none)" % fid)
+	var plates_root: Node = view.get_node_or_null("Arena/Plates")
+	var foreground: Node = view.get_node_or_null("Arena/Foreground")
+	failed += _assert(plates_root != null and foreground != null and plates_root.get_index() > foreground.get_index(), "plates draw on a UI layer above the sprites and the foreground")
+	# 4. Draw order: ascending feet y, ties by x.
+	var fighters_root: Node = view.get_node_or_null("Arena/Fighters")
+	var order: Array[Vector2] = []
+	if fighters_root != null:
+		for child: Node in fighters_root.get_children():
+			order.append((child as Control).position)
+	var sorted_ok: bool = order.size() == 12
+	for i: int in range(1, order.size()):
+		var a: Vector2 = order[i - 1]
+		var b: Vector2 = order[i]
+		if a.y > b.y or (is_equal_approx(a.y, b.y) and a.x > b.x):
+			sorted_ok = false
+	failed += _assert(sorted_ok, "fighters draw in ascending feet y (%s)" % [order])
+	var keeper_mid: Control = view.get_node_or_null("Arena/Fighters/Fighter_ally_2") as Control
+	var keeper_low: Control = view.get_node_or_null("Arena/Fighters/Fighter_ally_4") as Control
+	failed += _assert(keeper_mid != null and keeper_low != null and keeper_mid.get_index() < keeper_low.get_index(), "the middle fighter is drawn behind the bottom fighter")
+	# 5. The old big HP bars are gone; every ProgressBar left is a plate bar.
+	failed += _assert(view.get_node_or_null("Arena/PartyBar") == null and view.find_child("PartyBar", true, false) == null, "no PartyBar")
+	var stray_bars: int = 0
+	for bar_v: Node in view.find_children("*", "ProgressBar", true, false):
+		var bar: ProgressBar = bar_v as ProgressBar
+		var parent: Node = bar.get_parent()
+		if parent == null or parent.get_parent() != plates_root or bar.size.x > 56.0:
+			stray_bars += 1
+	failed += _assert(stray_bars == 0, "no HP bar outside the plates (%d stray)" % stray_bars)
+	# 6. Bottom bar: exactly six action buttons + the log, nothing else.
+	var actor: String = fight.current_actor()
+	if str(fight.fighter_dict(actor).get("side", "")) != "party":
+		actor = "keeper"
+	view.call("_show_action_menu", actor)
+	await process_frame
+	var bottom: Control = view.get_node_or_null("Arena/BottomBar") as Control
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
+	var log_panel: Control = view.get_node_or_null("Arena/LogPanel") as Control
+	failed += _assert(bottom != null and menu != null and log_panel != null, "bottom bar, menu and log exist")
+	if bottom != null and menu != null and log_panel != null:
+		var bar_rect: Rect2 = bottom.get_global_rect()
+		failed += _assert(bottom.get_rect() == Rect2(0, 584, 1280, 136), "bottom bar rect in the arena (got %s)" % bottom.get_rect())
+		var names: Array[String] = []
+		for child: Node in menu.get_children():
+			if child is Button:
+				names.append(str(child.name))
+		failed += _assert(names == ["StrikeButton", "AbilityButton", "SalveButton", "BraceButton", "FleeButton", "StrikeForMeToggle"], "the menu holds exactly the six action buttons (%s)" % [names])
+		failed += _assert(menu.get_child_count() == 6, "nothing else in the action menu")
+		failed += _assert(bar_rect.encloses(log_panel.get_global_rect()), "the log sits in the bottom bar")
+		var in_bar: Array[String] = []
+		for node: Node in view.find_children("*", "Button", true, false):
+			var button: Button = node as Button
+			if button.is_visible_in_tree() and button.get_global_rect().intersects(bar_rect):
+				in_bar.append(str(button.name))
+		failed += _assert(in_bar.size() == 6, "exactly six visible buttons in the bottom bar (%s)" % [in_bar])
+		for button_name: String in in_bar:
+			var button: Button = menu.get_node_or_null(button_name) as Button
+			failed += _assert(button != null and bar_rect.encloses(button.get_global_rect()), "%s fits inside the bottom bar" % button_name)
+		for plate_v: Node in get_nodes_in_group("battle_plate"):
+			var plate_c: Control = plate_v as Control
+			failed += _assert(plate_c.get_global_rect().end.y <= bar_rect.position.y, "%s ends above the bottom bar" % plate_c.name)
+	# 7. Intent bubbles: (visible centre x - 10, visible top - 28).
+	for fid: String in beast_ids:
+		var root: Control = view.get_node_or_null("Arena/Fighters/Fighter_%s" % fid) as Control
+		var plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % fid) as Control
+		var intent: Control = plate.get_node_or_null("IntentMarker") as Control if plate != null else null
+		var shown: Rect2 = _battle_ui_v7_visible_top(root) if root != null else Rect2()
+		failed += _assert(intent != null and shown.size.y > 0.0, "%s has an intent bubble and a visible sprite" % fid)
+		if intent == null or shown.size.y <= 0.0:
+			continue
+		var at: Vector2 = plate.position + intent.position
+		failed += _assert(is_equal_approx(at.y, shown.position.y - 28.0), "%s bubble y = sprite top - 28 (%.0f vs %.0f)" % [fid, at.y, shown.position.y - 28.0])
+		failed += _assert(is_equal_approx(at.x, floorf(shown.position.x + shown.size.x * 0.5) - 10.0), "%s bubble x = visible centre - 10" % fid)
+		var wide: bool = int((fight.fighter_dict(fid).get("intent", {}) as Dictionary).get("mult", 1)) != 1
+		failed += _assert(intent.size == (Vector2(40, 26) if wide else Vector2(22, 26)), "%s bubble size" % fid)
+	BattleViewScript.close_arena()
+	await process_frame
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_UI_V7_OK")
 	return failed
 
 
