@@ -353,6 +353,24 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_DEPART_ESSENCE") == "1":
+		var depart_essence_only: int = _depart_essence_ok(tree_root, game_state, save_service)
+		if depart_essence_only > 0:
+			print("DEPART_ESSENCE_FAIL: %d" % depart_essence_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PARTY_LOCK_SAVE") == "1":
+		var party_lock_only: int = await _party_lock_save_ok(tree_root, game_state, save_service)
+		if party_lock_only > 0:
+			print("PARTY_LOCK_SAVE_FAIL: %d" % party_lock_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# Bundle 3 resolver. The full suite runs these at the end.
 	if OS.get_environment("MANAFORGE_RESOLVER_DICE") == "1":
 		var resolver_dice_only: int = _resolver_dice()
@@ -3160,6 +3178,8 @@ func _run() -> void:
 	failed += _board_companion_only_ok(tree_root, game_state, save_service)
 	failed += await _end_panel_ok(tree_root, game_state, save_service)
 	failed += await _manual_overwhelmed_ok(tree_root, game_state, save_service)
+	failed += _depart_essence_ok(tree_root, game_state, save_service)
+	failed += await _party_lock_save_ok(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8195,6 +8215,7 @@ func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	var win_seed: int = -1
 	for probe: int in range(1, 201):
 		_reset_reach_test(tree_root, game_state, save_service)
+		game_state.call("set_resource", &"essence", 100)
 		reach.call("set_test_run_seed", probe)
 		if str(reach.call("depart_slots", {
 			"depth": 1,
@@ -8221,6 +8242,7 @@ func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	if win_seed < 0:
 		return failed
 	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
 	var bag_before: Dictionary = _bag_snapshot(backpack)
 	reach.call("set_test_run_seed", win_seed)
 	failed += _assert(str(reach.call("depart_slots", {
@@ -8278,6 +8300,7 @@ func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	BattleViewScript.close_arena()
 	# Flee: half the pack banks.
 	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
 	reach.call("set_test_run_seed", win_seed)
 	reach.call("depart_slots", {
 		"depth": 1,
@@ -8324,6 +8347,7 @@ func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	BattleViewScript.close_arena()
 	# Last room: one slot, win shows only last-room Head home.
 	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
 	reach.call("set_test_run_seed", win_seed)
 	reach.call("depart_slots", {
 		"depth": 1,
@@ -8362,6 +8386,7 @@ func _manual_overwhelmed_ok(tree_root: Window, game_state: Node, save_service: N
 	var bag_before: Dictionary = _bag_snapshot(backpack)
 	var dojo_before: int = int(reach.get("dojo_exp"))
 	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
 	reach.call("set_test_run_seed", 1)
 	reach.call("depart_slots", {
 		"depth": 1,
@@ -13290,6 +13315,7 @@ func _idle_resolve_at_end(tree_root: Window, game_state: Node, save_service: Nod
 	reach.call("advance_clock", 1.0)
 	failed += _assert((reach.get("room_log") as Array).size() == 1, "the last second resolves one room")
 	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
 	reach.call("set_test_run_seed", 23)
 	var forced: Array[String] = []
 	for _win: int in 4:
@@ -13390,6 +13416,7 @@ func _idle_boss_payback(tree_root: Window, game_state: Node, save_service: Node)
 	failed += _assert(paid_again.size() == 1 and int(paid_again[0]) == 10, "boss_paid survives the save")
 	# A longer run keeps going after room 10, so a resumed save cannot pay that boss twice.
 	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
 	reach.set("deepest_depth", 2)
 	reach.call("set_test_run_seed", seed)
 	var longer: Array[String] = []
@@ -13612,4 +13639,175 @@ func _board_companion_only_ok(tree_root: Window, game_state: Node, save_service:
 	game_state.call("set_resource", &"essence", essence_was)
 	if failed == 0:
 		print("BOARD_COMPANION_ONLY_OK")
+	return failed
+
+
+func _reach_party_stats(entry: Dictionary) -> Dictionary:
+	var stats_v: Variant = entry.get("stats", {})
+	var out: Dictionary = {}
+	if typeof(stats_v) != TYPE_DICTIONARY:
+		return out
+	for key_v: Variant in (stats_v as Dictionary).keys():
+		var key: String = str(key_v)
+		if key == "attack":
+			out[key] = str((stats_v as Dictionary)[key_v])
+		else:
+			out[key] = int((stats_v as Dictionary)[key_v])
+	return out
+
+
+func _reach_stats_match(a: Dictionary, b: Dictionary) -> bool:
+	if a.size() != b.size():
+		return false
+	for key_v: Variant in a.keys():
+		var key: String = str(key_v)
+		if not b.has(key):
+			return false
+		if key == "attack":
+			if str(a[key]) != str(b[key]):
+				return false
+		else:
+			if int(a[key]) != int(b[key]):
+				return false
+	return true
+
+
+func _depart_essence_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "depart essence autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var cfg_base: Dictionary = {
+		"depth": 1,
+		"rooms": 1,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+	}
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 19)
+	var blocked: String = str(reach.call("depart_slots", cfg_base.duplicate(true)))
+	failed += _assert(blocked == "no_essence", "19 essence blocks depart (got %s)" % blocked)
+	failed += _assert(int(game_state.get("essence")) == 19, "no_essence spends nothing")
+	failed += _assert(not bool(reach.get("running")), "no_essence does not start a run")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 50)
+	backpack.call("set_count", "heart_salve", 3)
+	var salve_cfg: Dictionary = cfg_base.duplicate(true)
+	salve_cfg["loadout"] = {"heart_salve": 2}
+	failed += _assert(str(reach.call("depart_slots", salve_cfg)) == "ok", "loadout depart ok")
+	failed += _assert(int(game_state.get("essence")) == 30, "depart spends 20 essence")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == 1, "loadout leaves the backpack")
+	var packed: Dictionary = reach.get("loadout") as Dictionary
+	failed += _assert(int(packed.get("heart_salve", -1)) == 2, "run loadout holds packed salves")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 50)
+	reach.set("deepest_depth", 2)
+	reach.call("set_test_run_seed", 77)
+	var forced: Array[String] = []
+	for _win: int in 10:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	var boss_cfg: Dictionary = {
+		"depth": 2,
+		"rooms": 10,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", boss_cfg)) == "ok", "ten-room boss depart")
+	failed += _assert(int(game_state.get("essence")) == 30, "essence after depart")
+	for _room: int in 10:
+		reach.call("advance_clock", 720.0)
+	failed += _assert(int(game_state.get("essence")) == 45, "room-10 boss pays +15 essence")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	backpack.call("set_count", "heart_salve", 3)
+	reach.call("set_test_run_seed", 41)
+	reach.call("debug_force_outcomes", PackedStringArray(["win"]))
+	var left_cfg: Dictionary = cfg_base.duplicate(true)
+	left_cfg["loadout"] = {"heart_salve": 2}
+	failed += _assert(str(reach.call("depart_slots", left_cfg)) == "ok", "leftover run departs")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(not bool(reach.get("running")), "leftover run ends")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == 3, "unused salves return home")
+	var returned: Dictionary = (reach.get("last_summary") as Dictionary).get("loadout_returned", {}) as Dictionary
+	failed += _assert(int(returned.get("heart_salve", 0)) == 2, "summary records loadout_returned")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	backpack.call("set_count", "heart_salve", 3)
+	reach.call("set_test_run_seed", 9)
+	reach.call("debug_force_outcomes", PackedStringArray(["overwhelmed"]))
+	var o_cfg: Dictionary = cfg_base.duplicate(true)
+	o_cfg["loadout"] = {"heart_salve": 2}
+	failed += _assert(str(reach.call("depart_slots", o_cfg)) == "ok", "overwhelmed loadout depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(not bool(reach.get("running")), "overwhelmed ends with one slot")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == 3, "overwhelmed still returns loadout")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 50)
+	backpack.call("set_count", "heart_salve", 1)
+	var bad_cfg: Dictionary = cfg_base.duplicate(true)
+	bad_cfg["loadout"] = {"heart_salve": 5}
+	failed += _assert(str(reach.call("depart_slots", bad_cfg)) == "bad_loadout", "too many salves blocked")
+	failed += _assert(int(game_state.get("essence")) == 50, "bad_loadout spends no essence")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == 1, "bad_loadout spends no items")
+	if failed == 0:
+		print("DEPART_ESSENCE_OK")
+	return failed
+
+
+func _party_lock_save_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var save_svc: Node = save_service
+	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
+	failed += _assert(reach != null and keeper_stats != null, "party lock autoloads")
+	if reach == null or keeper_stats == null:
+		return failed
+	var session_was: bool = bool(save_svc.get("session_active"))
+	_reset_reach_test(tree_root, game_state, save_svc)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "party lock depart")
+	var party_arr: Array = reach.get("party") as Array
+	failed += _assert(party_arr.size() >= 1, "keeper party slot")
+	var frozen: Dictionary = _reach_party_stats(party_arr[0] as Dictionary)
+	var frozen_might: int = int(frozen.get("might", -1))
+	var live_before: int = int(SlotEngine.member_stats("keeper").get("might", -1))
+	keeper_stats.call("set_rank", "might", int(keeper_stats.call("get_rank", "might")) + 1)
+	var live_after: int = int(SlotEngine.member_stats("keeper").get("might", -1))
+	failed += _assert(live_after > live_before, "keeper might rose mid-run")
+	var party_live: Dictionary = _reach_party_stats((reach.get("party") as Array)[0] as Dictionary)
+	failed += _assert(int(party_live.get("might", -1)) == frozen_might, "party stats stay frozen")
+	var room: Array[Dictionary] = SlotEngine.build_room(int(reach.get("depth")), int(reach.get("room_seed")), bool(reach.call("is_boss_room")))
+	var fight: FightState = SlotEngine.fight_for_room(reach.get("party") as Array, reach.get("loadout") as Dictionary, room, int(reach.get("room_seed")))
+	var keeper_row: Dictionary = fight.fighter_dict("keeper")
+	failed += _assert(int(keeper_row.get("might", 0)) == frozen_might, "fight uses frozen might")
+	failed += _assert(bool(save_svc.call("save_game", 7)), "party lock save")
+	var saved_party: Array = (reach.get("party") as Array).duplicate(true)
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_svc.call("load_game", 7)), "party lock load")
+	var loaded_party: Array = reach.get("party") as Array
+	failed += _assert(_reach_stats_match(frozen, _reach_party_stats(loaded_party[0] as Dictionary)), "frozen stats survive load")
+	failed += _assert(bool(reach.call("member_away", "keeper")), "keeper away mid-run")
+	failed += _assert(not bool(reach.call("member_away", "elaia")), "elaia stayed home")
+	reach.call("reset_for_new_game")
+	failed += _assert(not bool(reach.call("member_away", "keeper")), "keeper home after run ends")
+	_reset_reach_test(tree_root, game_state, save_svc)
+	game_state.call("set_resource", &"essence", 100)
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "second depart")
+	var refrozen: Dictionary = _reach_party_stats((reach.get("party") as Array)[0] as Dictionary)
+	failed += _assert(int(refrozen.get("might", -1)) == live_after, "next depart freezes new stats")
+	save_svc.call("delete_slot", 7)
+	save_svc.set("session_active", session_was)
+	if failed == 0:
+		print("PARTY_LOCK_SAVE_OK")
 	return failed

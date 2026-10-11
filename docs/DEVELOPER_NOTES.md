@@ -85,6 +85,8 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `REACH_MIX_RELOAD_OK` | Idle depart, save/load, Join manual opens a fight whose beasts match `SlotEngine.build_room`, and one Strike does not end the run. `MANAFORGE_REACH_MIX=1` runs it alone. |
 | `END_PANEL_OK` | Manual reach fights show the pack counter and end panel (win choices, Go deeper, Head home, flee half-bank, last-room Head home). `MANAFORGE_END_PANEL=1` runs it alone. |
 | `MANUAL_OVERWHELMED_OK` | Manual Overwhelmed ends the run, loses the pack, skips rest, and shows the overwhelmed panel. `MANAFORGE_MANUAL_OVERWHELMED=1` runs it alone. |
+| `DEPART_ESSENCE_OK` | `depart_slots` costs 20 Essence, moves loadout into the run, returns leftovers on every ending, and blocks bad loadouts without spending. `MANAFORGE_DEPART_ESSENCE=1` runs it alone. |
+| `PARTY_LOCK_SAVE_OK` | Party stats freeze at depart, fights and save/load keep them, `member_away` / `away_members` track who is out, and the next depart re-freezes. `MANAFORGE_PARTY_LOCK_SAVE=1` runs it alone. |
 
 `REACH_MANUAL_DEFEAT_OK` retired by job 26, replaced by `MANUAL_OVERWHELMED_OK`.
 | `SAVE_NEWER_REFUSED_OK` | A save newer than this build is refused with a message naming both versions and leaves the game untouched. Continue skips it, and autosave never overwrites a newer autosave. `MANAFORGE_SAVE_NEWER=1` runs it alone. |

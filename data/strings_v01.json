@@ -667,6 +667,8 @@
   "board_bosses_none": "Bosses: none",
   "board_need_party": "Pick at least one member.",
   "board_need_essence": "Departing costs 20 Essence.",
+  "board_depart_no_essence": "Not enough Essence to depart (20).",
+  "board_depart_bad_loadout": "The loadout holds items you don't have.",
   "board_progress": "Room {used} of {total}",
   "board_resting": "Resting",
   "board_pack": "Pack: {n}",

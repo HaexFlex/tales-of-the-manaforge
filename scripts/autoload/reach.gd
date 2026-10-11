@@ -7,7 +7,9 @@ extends Node
 ## Any unlocked depth can be started. Every 10th room attempted in an expedition is a boss at that room's depth.
 
 signal changed
+signal party_changed
 
+const DEPART_ESSENCE: int = 20
 const ROOM_SEC: float = 720.0
 const REST_SEC: float = 1440.0
 const DC: int = 6
@@ -228,7 +230,7 @@ func grant_vial(n: int) -> void:
 
 
 func depart(start_depth: int, length_hours: float, pace_mode: String, control_mode: String) -> String:
-	## The old board. Push is ignored. One hour is five rooms, Keeper alone in front, empty loadout.
+	## Legacy test path: no Essence charge and an empty loadout. Job 35 retires or keeps this wrapper.
 	if running:
 		return "busy"
 	depth = clampi(start_depth, 1, max_start_depth())
@@ -239,13 +241,31 @@ func depart(start_depth: int, length_hours: float, pace_mode: String, control_mo
 	if pace_mode == "push":
 		pace = "hold"
 	var rooms: int = int(hours) * SlotEngine.ROOMS_PER_HOUR
-	return depart_slots({
+	return _begin_outing({
 		"depth": depth,
 		"rooms": rooms,
 		"control": "manual" if control_mode == "manual" else "idle",
 		"party": [{"member": "keeper", "row": "front"}],
 		"loadout": {},
 	})
+
+
+func member_away(member: String) -> bool:
+	if not running:
+		return false
+	for entry: Dictionary in party:
+		if str(entry.get("member", "")) == member:
+			return true
+	return false
+
+
+func away_members() -> Array[String]:
+	var out: Array[String] = []
+	if not running:
+		return out
+	for entry: Dictionary in party:
+		out.append(str(entry.get("member", "")))
+	return out
 
 
 func set_test_run_seed(seed: int) -> void:
@@ -256,20 +276,59 @@ func set_test_run_seed(seed: int) -> void:
 func depart_slots(cfg: Dictionary) -> String:
 	if running:
 		return "busy"
-	var built: Array[Dictionary] = []
+	var party_err: String = _party_cfg_error(cfg)
+	if party_err != "":
+		return party_err
+	var cleaned_loadout: Dictionary = _clean_loadout(cfg.get("loadout", {}))
+	if not _loadout_owned(cleaned_loadout):
+		return "bad_loadout"
+	if not has_node("/root/GameState") or int(GameState.essence) < DEPART_ESSENCE:
+		return "no_essence"
+	GameState.add_resource(&"essence", -DEPART_ESSENCE)
+	for key_v: Variant in cleaned_loadout.keys():
+		var item_id: String = str(key_v)
+		var qty: int = int(cleaned_loadout[key_v])
+		if qty > 0:
+			Backpack.try_spend(item_id, qty)
+	var outing_cfg: Dictionary = cfg.duplicate(true)
+	outing_cfg["loadout"] = cleaned_loadout
+	return _begin_outing(outing_cfg)
+
+
+func _party_cfg_error(cfg: Dictionary) -> String:
 	var raw_party: Variant = cfg.get("party", [])
 	if typeof(raw_party) != TYPE_ARRAY or (raw_party as Array).is_empty():
 		return "bad_party"
 	for entry_v: Variant in raw_party as Array:
 		if typeof(entry_v) != TYPE_DICTIONARY:
 			return "bad_party"
-		var entry: Dictionary = (entry_v as Dictionary).duplicate(true)
-		var member: String = str(entry.get("member", ""))
+		var member: String = str((entry_v as Dictionary).get("member", ""))
 		if member != "keeper" and member != "elaia":
 			return "bad_party"
-		var stats: Dictionary = SlotEngine.member_stats(member)
-		if stats.is_empty():
+		if SlotEngine.member_stats(member).is_empty():
 			return "bad_party"
+	return ""
+
+
+func _loadout_owned(lo: Dictionary) -> bool:
+	if lo.size() > 2:
+		return false
+	for key_v: Variant in lo.keys():
+		var qty: int = int(lo[key_v])
+		if qty <= 0 or qty > 100:
+			return false
+		if _item_count(str(key_v)) < qty:
+			return false
+	return true
+
+
+func _begin_outing(cfg: Dictionary) -> String:
+	var built: Array[Dictionary] = []
+	var raw_party: Variant = cfg.get("party", [])
+	for entry_v: Variant in raw_party as Array:
+		var entry: Dictionary = (entry_v as Dictionary).duplicate(true)
+		var member: String = str(entry.get("member", ""))
+		var stats: Dictionary = SlotEngine.member_stats(member)
 		entry["member"] = member
 		entry["row"] = "back" if str(entry.get("row", "")) == "back" else "front"
 		entry["stats"] = stats
@@ -307,6 +366,7 @@ func depart_slots(cfg: Dictionary) -> String:
 	_set_lantern("amber")
 	_remember_expedition()
 	changed.emit()
+	party_changed.emit()
 	return "ok"
 
 
@@ -880,6 +940,14 @@ func _continue_after_room() -> void:
 
 
 func _finish_run(reason: String) -> void:
+	var loadout_returned: Dictionary = {}
+	for key_v: Variant in loadout.keys():
+		var item_id: String = str(key_v)
+		var qty: int = int(loadout[key_v])
+		if qty > 0:
+			_item_add(item_id, qty)
+			loadout_returned[item_id] = qty
+	loadout = {}
 	var pct: int = 0
 	if reason == "finished" or reason == "head_home":
 		pct = 100
@@ -896,10 +964,12 @@ func _finish_run(reason: String) -> void:
 		"exp_gained": exp_gained,
 		"essence_payback": essence_payback,
 		"run_id": run_id,
+		"loadout_returned": loadout_returned,
 	}
 	expedition["summary"] = last_summary.duplicate(true)
 	var brought: bool = run_clears > 0 or not banked.is_empty()
 	_end_run("cyan" if brought else "dark", keep_battle_view)
+	party_changed.emit()
 
 
 func _end_run(lantern: String, keep_battle_view: bool = false) -> void:
@@ -1043,6 +1113,11 @@ func _clean_summary(raw: Variant) -> Dictionary:
 	if typeof(bank_v) == TYPE_DICTIONARY:
 		for key_v: Variant in (bank_v as Dictionary).keys():
 			banked[str(key_v)] = int((bank_v as Dictionary)[key_v])
+	var returned: Dictionary = {}
+	var ret_v: Variant = src.get("loadout_returned", {})
+	if typeof(ret_v) == TYPE_DICTIONARY:
+		for key_v: Variant in (ret_v as Dictionary).keys():
+			returned[str(key_v)] = int((ret_v as Dictionary)[key_v])
 	return {
 		"reason": str(src.get("reason", "")),
 		"rooms": int(src.get("rooms", 0)),
@@ -1051,6 +1126,7 @@ func _clean_summary(raw: Variant) -> Dictionary:
 		"exp_gained": int(src.get("exp_gained", 0)),
 		"essence_payback": int(src.get("essence_payback", 0)),
 		"run_id": int(src.get("run_id", 0)),
+		"loadout_returned": returned,
 	}
 
 
