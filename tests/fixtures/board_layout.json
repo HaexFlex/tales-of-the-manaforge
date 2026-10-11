@@ -1,4 +1,22 @@
 {
+ "version": "final 2026-10-11 (polish pass after approval)",
+ "changes_since_approved_mockup": [
+  "picker_popup: rows 60 -> 56 px; y = clamp(slot.y - 76, 140, 418 - h) so it ends at the formation bed bottom and no longer covers the Mode title/toggle (picker for back_mid: 236x262 at (362,156), was 236x278 at (362,190)); picker rows 54 h, portrait at +3,+1",
+  "Essence icon: res://assets/art/ui/icon_essence.png drawn with modulate hud.gd ESSENCE_TINT (0.78,0.62,1.18), the same as the HUD resource panel (was untinted)",
+  "party_slot_empty_hover / party_slot_hover / item_slot_hover: clearer 2 px light rim (W7 + CR); empty hover also brightens the plus and fill",
+  "scroll_thumb drag: light wood instead of gold (gold kept for active/selected only)",
+  "no rect moved except the picker popup/rows/tail-relative content"
+ ],
+ "essence_icon": {
+  "texture": "res://assets/art/ui/icon_essence.png",
+  "modulate": [
+   0.78,
+   0.62,
+   1.18,
+   1.0
+  ],
+  "source": "scripts/hud.gd ICON_ESSENCE_TEX + ESSENCE_TINT (Panel/IconRow/EssenceChip/IconEssence)"
+ },
  "screen": [
   1280,
   720
@@ -716,7 +734,7 @@
     84,
     44
    ],
-   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + ui/icon_essence.png (32) at +4,+6",
+   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + res://assets/art/ui/icon_essence.png (32) at +4,+6 with modulate = hud.gd ESSENCE_TINT (0.78,0.62,1.18) — the HUD resource-panel Essence icon",
    "state": "ok",
    "note": "cost \"20\" 18 px centred at +56,+22; RU0 when short",
    "z": 0
@@ -751,13 +769,13 @@
    "id": "picker_popup",
    "rect": [
     362,
-    190,
+    156,
     236,
-    278
+    262
    ],
    "asset": "pieces/popup_9s_32x32.png",
    "state": "",
-   "note": "PopupPanel 9s margins 8; anchored to the right of the clicked slot (left if no room); closes on pick, outside click or Esc",
+   "note": "PopupPanel 9s margins 8; x = slot.x + 68 (left of the slot if no room); y = clamp(slot.y - 76, 140, 418 - h) so the bottom never passes the formation bed (Mode toggle stays visible); rows 56 px; closes on pick, outside click or Esc",
    "z": 10
   },
   {
@@ -777,7 +795,7 @@
    "id": "picker_title",
    "rect": [
     374,
-    198,
+    164,
     212,
     18
    ],
@@ -790,52 +808,52 @@
    "id": "picker_row_0",
    "rect": [
     370,
+    186,
     220,
-    220,
-    58
+    54
    ],
    "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
    "state": "disabled",
-   "note": "keeper: portrait 52 at +3,+3, name 14 at +62,+12, sub 12 at +62,+32",
+   "note": "keeper: portrait 52 at +3,+1, name 14 at +62,+12, sub 12 at +62,+32",
    "z": 10
   },
   {
    "id": "picker_row_1",
    "rect": [
     370,
-    280,
+    242,
     220,
-    58
+    54
    ],
    "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
    "state": "current",
-   "note": "elaia: portrait 52 at +3,+3, name 14 at +62,+12, sub 12 at +62,+32",
+   "note": "elaia: portrait 52 at +3,+1, name 14 at +62,+12, sub 12 at +62,+32",
    "z": 10
   },
   {
    "id": "picker_row_2",
    "rect": [
     370,
-    340,
+    298,
     220,
-    58
+    54
    ],
    "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
    "state": "disabled",
-   "note": "bramble: portrait 52 at +3,+3, name 14 at +62,+12, sub 12 at +62,+32",
+   "note": "bramble: portrait 52 at +3,+1, name 14 at +62,+12, sub 12 at +62,+32",
    "z": 10
   },
   {
    "id": "picker_row_3",
    "rect": [
     370,
-    400,
+    354,
     220,
-    58
+    54
    ],
    "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
    "state": "normal",
-   "note": "empty: portrait 52 at +3,+3, name 14 at +62,+12, sub 12 at +62,+32",
+   "note": "empty: portrait 52 at +3,+1, name 14 at +62,+12, sub 12 at +62,+32",
    "z": 10
   },
   {
@@ -864,6 +882,19 @@
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "filled",
    "note": "portrait 52 at +4,+4; holds elaia. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "slot_back_bot",
+   "rect": [
+    264,
+    336,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "empty_hover",
+   "note": "portrait 52 at +4,+4; empty. Click = open picker; right-click = clear",
    "z": 0
   },
   {
@@ -939,7 +970,7 @@
     84,
     44
    ],
-   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + ui/icon_essence.png (32) at +4,+6",
+   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + res://assets/art/ui/icon_essence.png (32) at +4,+6 with modulate = hud.gd ESSENCE_TINT (0.78,0.62,1.18) — the HUD resource-panel Essence icon",
    "state": "short",
    "note": "cost \"20\" 18 px centred at +56,+22; RU0 when short",
    "z": 0
@@ -1097,7 +1128,7 @@
     570,
     40
    ],
-   "asset": "engine text 12 + ui/icon_essence.png 32 at (700,494)",
+   "asset": "engine text 12 + res://assets/art/ui/icon_essence.png 32 at (700,494), modulate ESSENCE_TINT (as the HUD)",
    "state": "",
    "note": "sim_banked, sim_items_used/none, sim_essence",
    "z": 21
