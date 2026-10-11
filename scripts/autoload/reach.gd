@@ -56,14 +56,14 @@ var room_log: Array[Dictionary] = []
 var last_summary: Dictionary = {}
 var exp_gained: int = 0
 var essence_payback: int = 0
+var last_room_exp: int = 0
 
 var _faces: Array[int] = []
 var _forced_outcomes: Array[String] = []
 var _test_run_seed: int = -1
 var _drops: Array[int] = []
 var _rng := RandomNumberGenerator.new()
-var _fight: ReachFight
-var _view: Node
+var _manual: FightState
 var _home_after_fight: bool = false
 
 
@@ -292,6 +292,7 @@ func depart_slots(cfg: Dictionary) -> String:
 	room_clock = 0.0
 	exp_gained = 0
 	essence_payback = 0
+	last_room_exp = 0
 	boss_paid = []
 	room_log = []
 	last_summary = {}
@@ -332,9 +333,10 @@ func set_control(mode: String) -> void:
 		if not _start_fight():
 			control = "idle"
 	elif phase == "manual" and mode == "idle":
-		_fight = null
+		_manual = null
 		_close_view()
 		phase = "idle_room"
+		room_clock = 0.0
 		if room_left <= 0.0:
 			room_left = ROOM_SEC
 	changed.emit()
@@ -390,46 +392,139 @@ func advance_clock(seconds: float) -> void:
 
 
 func fight_active() -> bool:
-	return _fight != null and running and phase == "manual"
+	return _manual != null and running and phase == "manual"
+
+
+func manual_fight() -> FightState:
+	return _manual
 
 
 func fight_snapshot() -> Dictionary:
-	if _fight == null:
+	if _manual == null:
 		return {}
-	var snap: Dictionary = _fight.snapshot()
-	snap["salve"] = _item_count("heart_salve")
-	snap["vial"] = _item_count("bile_vial")
-	return snap
+	var enemies: Array[Dictionary] = []
+	for fighter_id: String in _manual.order:
+		var row: Dictionary = _manual.fighter_dict(fighter_id)
+		if str(row.get("side", "")) == "beast":
+			enemies.append(row)
+	return {
+		"enemies": enemies,
+		"outcome": _manual.outcome(),
+	}
 
 
 func fight_choose(action: String, target: int = 0) -> String:
-	if _fight == null:
+	if _manual == null:
 		return "none"
-	var spent := ""
-	if action == "salve":
-		spent = "heart_salve"
+	if _manual.outcome() != "":
+		return _manual.outcome()
+	var step_action: Dictionary = {}
+	if action == "strike":
+		var beasts: Array[String] = _active_beast_ids()
+		if beasts.is_empty():
+			return "invalid"
+		var idx: int = clampi(target, 0, beasts.size() - 1)
+		step_action = {"kind": "strike", "target": beasts[idx]}
+	elif action == "salve":
+		if int(_manual.loadout.get("heart_salve", 0)) <= 0:
+			if _item_count("heart_salve") <= 0:
+				return "empty"
+			_item_add("heart_salve", -1)
+			_manual.loadout["heart_salve"] = int(_manual.loadout.get("heart_salve", 0)) + 1
+		var party_ids: Array[String] = _active_party_ids()
+		if party_ids.is_empty():
+			return "invalid"
+		var tidx: int = clampi(target, 0, party_ids.size() - 1)
+		step_action = {"kind": "item", "item": "heart_salve", "target": party_ids[tidx]}
 	elif action == "bile":
-		spent = "bile_vial"
-	if spent != "" and _item_count(spent) <= 0:
-		return "empty"
-	if spent != "":
-		_item_add(spent, -1)
-	var result := _fight.choose(action, target)
-	if result == "invalid" and spent != "":
-		_item_add(spent, 1)
-		return result
-	_after_fight()
+		if int(_manual.loadout.get("bile_vial", 0)) <= 0:
+			if _item_count("bile_vial") <= 0:
+				return "empty"
+			_item_add("bile_vial", -1)
+			_manual.loadout["bile_vial"] = int(_manual.loadout.get("bile_vial", 0)) + 1
+		var party_ids_b: Array[String] = _active_party_ids()
+		if party_ids_b.is_empty():
+			return "invalid"
+		var bidx: int = clampi(target, 0, party_ids_b.size() - 1)
+		step_action = {"kind": "item", "item": "bile_vial", "target": party_ids_b[bidx]}
+	elif action == "brace":
+		step_action = {"kind": "brace"}
+	else:
+		return "invalid"
+	_manual.step(step_action)
+	loadout = _manual.loadout.duplicate()
 	changed.emit()
-	return result
+	var out: String = _manual.outcome()
+	return out if out != "" else "continue"
 
 
 func debug_wound(amount: int) -> String:
-	if _fight == null:
+	if _manual == null:
 		return "none"
-	var result := _fight.debug_wound(amount)
-	_after_fight()
+	for fighter_id: String in _manual.order:
+		var row: Dictionary = _manual.fighter_dict(fighter_id)
+		if str(row.get("side", "")) == "party":
+			var hp: int = int(row.get("hp", 0))
+			_manual.set_hp(fighter_id, maxi(0, hp - amount))
 	changed.emit()
-	return result
+	var out: String = _manual.outcome()
+	return out if out != "" else "continue"
+
+
+func on_manual_outcome(outcome: String) -> void:
+	if not running or phase != "manual" or _manual == null:
+		return
+	match outcome:
+		"win":
+			slots_used += 1
+			loadout = _manual.loadout.duplicate()
+			var boss: bool = is_boss_room()
+			var loot: Dictionary = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
+			var exp_mult: int = 2 if boss else 1
+			last_room_exp = room_exp(depth) * exp_mult
+			_apply_room_win(boss, loot)
+			room_log.append({
+				"room": rooms_attempted,
+				"depth": depth,
+				"outcome": "win",
+				"boss": boss,
+			})
+		"flee":
+			slots_used += 1
+			_finish_run("flee")
+		"overwhelmed":
+			slots_used += 1
+			pack.clear()
+			_finish_run("overwhelmed")
+		_:
+			push_error("Reach: unknown manual outcome %s" % outcome)
+	changed.emit()
+
+
+func manual_choice(choice: String) -> String:
+	if not running or phase != "manual":
+		return "invalid"
+	if room_log.is_empty() or str(room_log[room_log.size() - 1].get("outcome", "")) != "win":
+		return "invalid"
+	match choice:
+		"continue":
+			if slots_used >= slots_total:
+				_finish_run("finished")
+				return "finished"
+			_begin_room()
+			return "continue"
+		"deeper":
+			depth += 1
+			if slots_used >= slots_total:
+				_finish_run("finished")
+				return "finished"
+			_begin_room()
+			return "deeper"
+		"home":
+			_finish_run("head_home")
+			return "home"
+		_:
+			return "invalid"
 
 
 func capture_save_fields() -> Dictionary:
@@ -517,7 +612,7 @@ func apply_save_fields(data: Dictionary) -> void:
 	## Saves from before the mix was stored come back empty. Reroll so Join manual has beasts.
 	if mix.is_empty():
 		mix = _roll_mix(_mix_budget())
-	_fight = null
+	_manual = null
 	_close_view()
 	changed.emit()
 
@@ -663,61 +758,21 @@ func _begin_room() -> void:
 	if control == "manual" and _start_fight():
 		return
 	phase = "idle_room"
-	_fight = null
+	_manual = null
 	_close_view()
 
 
 func _start_fight() -> bool:
-	## Never open a fight with no beasts: an empty room used to count as a free victory.
-	if mix.is_empty():
-		mix = _roll_mix(_mix_budget())
-	if mix.is_empty():
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, is_boss_room())
+	if room.is_empty():
 		push_error("Reach: refusing to start a fight with no enemies")
 		return false
-	var fight := ReachFight.new()
-	fight.force_miss = 0
-	fight.setup(depth, room_level(depth), _keeper_block(), mix, _champion_index(), _names(), _arts())
-	if fight.enemies.is_empty():
-		push_error("Reach: refusing to start a fight with no enemies")
-		return false
+	_manual = SlotEngine.fight_for_room(party, loadout, room, room_seed)
+	_manual.start_fight()
+	_manual.controller = "manual"
 	phase = "manual"
-	_fight = fight
 	_open_view()
 	return true
-
-
-func _after_fight() -> void:
-	if _fight == null:
-		return
-	var result := _fight.outcome
-	if result == "":
-		return
-	_fight = null
-	_close_view()
-	if result == "victory":
-		slots_used += 1
-		var boss: bool = is_boss_room()
-		var loot: Dictionary = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
-		_apply_win(loot, 2 if boss else 1, boss)
-		room_log.append({
-			"room": rooms_attempted,
-			"depth": depth,
-			"outcome": "win",
-			"boss": boss,
-		})
-		if slots_used < slots_total:
-			_begin_room()
-		else:
-			_finish_run("finished")
-		return
-	pack.clear()
-	room_log.append({
-		"room": rooms_attempted,
-		"depth": depth,
-		"outcome": "overwhelmed",
-		"boss": is_boss_room(),
-	})
-	_finish_run("overwhelmed")
 
 
 func _complete_slot() -> void:
@@ -771,7 +826,7 @@ func _resolve_slot_room() -> void:
 			rest_slots_left = SlotEngine.REST_SLOTS
 			room_clock = 0.0
 			room_left = REST_SEC
-			_fight = null
+			_manual = null
 			_close_view()
 		else:
 			_finish_run("overwhelmed")
@@ -794,6 +849,11 @@ func _forced_room_result(outcome: String) -> Dictionary:
 		"rounds": 0,
 		"fight": null,
 	}
+
+
+func _apply_room_win(boss: bool, loot: Dictionary) -> void:
+	var exp_mult: int = 2 if boss else 1
+	_apply_win(loot, exp_mult, boss)
 
 
 func _apply_win(loot: Dictionary, exp_mult: int, boss: bool) -> void:
@@ -820,7 +880,14 @@ func _continue_after_room() -> void:
 
 
 func _finish_run(reason: String) -> void:
-	var banked: Dictionary = pack.bank(100) if pack != null else {}
+	var pct: int = 0
+	if reason == "finished" or reason == "head_home":
+		pct = 100
+	elif reason == "flee":
+		pct = 50
+	var banked: Dictionary = pack.bank(pct) if pack != null else {}
+	_manual = null
+	var keep_battle_view: bool = reason == "flee" or reason == "overwhelmed"
 	last_summary = {
 		"reason": reason,
 		"rooms": slots_total,
@@ -832,10 +899,10 @@ func _finish_run(reason: String) -> void:
 	}
 	expedition["summary"] = last_summary.duplicate(true)
 	var brought: bool = run_clears > 0 or not banked.is_empty()
-	_end_run("cyan" if brought else "dark")
+	_end_run("cyan" if brought else "dark", keep_battle_view)
 
 
-func _end_run(lantern: String) -> void:
+func _end_run(lantern: String, keep_battle_view: bool = false) -> void:
 	running = false
 	phase = "home"
 	room_left = 0.0
@@ -843,9 +910,10 @@ func _end_run(lantern: String) -> void:
 	rest_slots_left = 0
 	rooms_attempted = 0
 	_home_after_fight = false
-	_fight = null
+	_manual = null
 	mix.clear()
-	_close_view()
+	if not keep_battle_view:
+		_close_view()
 	_set_lantern(lantern)
 	_remember_expedition()
 
@@ -860,6 +928,7 @@ func _clear_slot_memory() -> void:
 	room_clock = 0.0
 	exp_gained = 0
 	essence_payback = 0
+	last_room_exp = 0
 	pack = Pack.new()
 	party = []
 	loadout = {}
@@ -1076,21 +1145,33 @@ func _set_lantern(state: String) -> void:
 
 
 func _open_view() -> void:
-	if DisplayServer.get_name() == "headless":
+	if _manual == null:
 		return
-	if _view != null and is_instance_valid(_view):
-		_view.call("refresh")
-		return
-	var script: Script = load("res://scripts/reach_fight_view.gd") as Script
-	if script == null:
-		return
-	_view = Node.new()
-	_view.set_script(script)
-	_view.name = "ReachFightView"
-	get_tree().root.add_child(_view)
+	BattleView.open_reach_fight(_manual)
 
 
 func _close_view() -> void:
-	if _view != null and is_instance_valid(_view):
-		_view.queue_free()
-	_view = null
+	if BattleView.is_open():
+		BattleView.close_arena()
+
+
+func _active_party_ids() -> Array[String]:
+	var found: Array[String] = []
+	if _manual == null:
+		return found
+	for fighter_id: String in _manual.order:
+		var row: Dictionary = _manual.fighter_dict(fighter_id)
+		if str(row.get("side", "")) == "party" and str(row.get("status", "")) == "active":
+			found.append(fighter_id)
+	return found
+
+
+func _active_beast_ids() -> Array[String]:
+	var found: Array[String] = []
+	if _manual == null:
+		return found
+	for fighter_id: String in _manual.order:
+		var row: Dictionary = _manual.fighter_dict(fighter_id)
+		if str(row.get("side", "")) == "beast" and str(row.get("status", "")) == "active":
+			found.append(fighter_id)
+	return found

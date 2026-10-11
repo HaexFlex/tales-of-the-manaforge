@@ -75,7 +75,6 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `EXPEDITION_BOARD_SHELL_OK` | The trailhead board picks the Keeper and the open road. Depart stays disabled while the road is shut. |
 | `EXPEDITION_BOARD_TEASE_OK` | Right-clicking the north board with the Keeper selected walks him to its stand point and, while the road is shut, shows the wall's `path_east_tease` line without opening the shell. Once Bramble is spared the same click opens the shell. `MANAFORGE_BOARD_TEASE=1` runs it alone. |
 | `REACH_DEPTH_ASCEND_OK` | Deepest depth, the lifetime reach counter, and the dojo pool survive Ascension. A new game clears them. |
-| `REACH_MANUAL_DEFEAT_OK` | A manual defeat loses the room and returns to the trailhead with no rest and no reward. |
 | `IDLE_SLOTS_OK` | One hour departs as 5 idle slots. Five 12-minute advances end the run (unless an Overwhelmed rest ends it early), `room_log` plus two slots per rest accounts for all 5, the Backpack stays put mid-run and then gains exactly `last_summary.banked`, dojo exp is `room_exp` times wins, and the same seed repeats. A forced-win run's loot matches `RoomLoot`. `MANAFORGE_IDLE_SLOTS=1` runs it alone. |
 | `IDLE_RESOLVE_AT_END_OK` | 719 seconds leave the room unresolved. The next second resolves it. Three slot-lengths of a 4-room run resolve exactly 3 rooms. `MANAFORGE_IDLE_RESOLVE_AT_END=1` runs it alone. |
 | `IDLE_REST_SLOTS_OK` | Idle Overwhelmed clears the pack and rests 2 slots (a rest is not an attempt). Flee halves the pack and continues. Overwhelmed with fewer than 2 slots left ends the run. `MANAFORGE_IDLE_REST_SLOTS=1` runs it alone. |
@@ -83,7 +82,11 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `BOARD_V4_OK` | Board v4: depth checkpoints, room cycle and idle duration, two-slot loadout caps, Essence 20 depart gates, `depart_slots` matches `board_config`, running labels, no Cancel and no percent. `MANAFORGE_BOARD_V4=1` runs it alone. |
 | `BOARD_COMPANION_ONLY_OK` | Elaia-only party departs; empty party is blocked; Elaia toggle hides until she has joined. `MANAFORGE_BOARD_COMPANION_ONLY=1` runs it alone. |
 | `REACH_MIGRATION_OK` | A version 11 save gains an empty reach block. A version 12 save gains `rooms_attempted`. New saves write version 14. |
-| `REACH_MIX_RELOAD_OK` | A mid-run save keeps the room's beasts, so Join manual after a load shows them and the first Strike does not win. A save without the mix rerolls one. A fight with no beasts refuses Strike and is never a victory. `MANAFORGE_REACH_MIX=1` runs it alone. |
+| `REACH_MIX_RELOAD_OK` | Idle depart, save/load, Join manual opens a fight whose beasts match `SlotEngine.build_room`, and one Strike does not end the run. `MANAFORGE_REACH_MIX=1` runs it alone. |
+| `END_PANEL_OK` | Manual reach fights show the pack counter and end panel (win choices, Go deeper, Head home, flee half-bank, last-room Head home). `MANAFORGE_END_PANEL=1` runs it alone. |
+| `MANUAL_OVERWHELMED_OK` | Manual Overwhelmed ends the run, loses the pack, skips rest, and shows the overwhelmed panel. `MANAFORGE_MANUAL_OVERWHELMED=1` runs it alone. |
+
+`REACH_MANUAL_DEFEAT_OK` retired by job 26, replaced by `MANUAL_OVERWHELMED_OK`.
 | `SAVE_NEWER_REFUSED_OK` | A save newer than this build is refused with a message naming both versions and leaves the game untouched. Continue skips it, and autosave never overwrites a newer autosave. `MANAFORGE_SAVE_NEWER=1` runs it alone. |
 | `REACH_TURN_ORDER_OK` | Manual turn order is Swiftness first, the Keeper on ties, then slot, even with 24 equal-speed foes and float noise. `MANAFORGE_TURN_ORDER=1` runs it alone. |
 | `DEBUG_SNAPSHOTS_MIGRATE_OK` | All eight debug snapshots load through `SaveService.migrate_state`, so the version 10 ones gain a current reach block. A newer snapshot is refused. `MANAFORGE_SNAPSHOT_MIGRATE=1` runs it alone. |

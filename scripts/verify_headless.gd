@@ -183,9 +183,27 @@ func _run() -> void:
 		return
 
 	if OS.get_environment("MANAFORGE_REACH_MIX") == "1":
-		var mix_only: int = _reach_mix_reload(tree_root, game_state, save_service)
+		var mix_only: int = await _reach_mix_reload(tree_root, game_state, save_service)
 		if mix_only > 0:
 			print("REACH_MIX_RELOAD_FAIL: %d" % mix_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_END_PANEL") == "1":
+		var end_panel_only: int = await _end_panel_ok(tree_root, game_state, save_service)
+		if end_panel_only > 0:
+			print("END_PANEL_FAIL: %d" % end_panel_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MANUAL_OVERWHELMED") == "1":
+		var overwhelmed_only: int = await _manual_overwhelmed_ok(tree_root, game_state, save_service)
+		if overwhelmed_only > 0:
+			print("MANUAL_OVERWHELMED_FAIL: %d" % overwhelmed_only)
 			quit(1)
 		else:
 			quit(0)
@@ -3090,7 +3108,7 @@ func _run() -> void:
 	failed += await _debug_snapshots_reach(tree_root, game_state, save_service)
 	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 	failed += _reach_checks(tree_root, game_state, save_service)
-	failed += _reach_mix_reload(tree_root, game_state, save_service)
+	failed += await _reach_mix_reload(tree_root, game_state, save_service)
 	failed += _save_newer_refused(tree_root, game_state, save_service)
 	failed += _reach_turn_order()
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
@@ -3140,6 +3158,8 @@ func _run() -> void:
 	failed += _idle_boss_payback(tree_root, game_state, save_service)
 	failed += _board_v4_ok(tree_root, game_state, save_service)
 	failed += _board_companion_only_ok(tree_root, game_state, save_service)
+	failed += await _end_panel_ok(tree_root, game_state, save_service)
+	failed += await _manual_overwhelmed_ok(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -7936,22 +7956,8 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(bool(reach.call("fight_active")) == false, "switching back leaves the fight")
 	failed += _assert(bool(reach.get("running")), "switching control keeps the outing")
 	failed += _assert(int(pack.call("get_count", "briarwood")) == before_briar, "leaving a fight grants nothing")
-	reach.call("reset_for_new_game")
-	var briar_before: int = int(pack.call("get_count", "briarwood"))
-	var clears_before: int = int(reach.get("reaches_cleared"))
-	reach.call("depart", 1, 1, "hold", "manual")
-	failed += _assert(bool(reach.call("fight_active")), "manual depart opens a fight")
 	failed += _assert(int(ReachFightScript.road_damage(1.0, 10.0, 10.0, 0.0, 1.0)) == 5, "road damage is k*A^2/(A+D)")
-	failed += _assert(str(reach.call("debug_wound", 10000)) == "defeat", "a lethal hit is a defeat")
-	failed += _assert(bool(reach.get("running")) == false, "defeat ends the outing")
-	failed += _assert(str(reach.get("phase")) == "home", "defeat returns to the trailhead")
-	failed += _assert(is_equal_approx(float(reach.get("room_left")), 0.0), "defeat does not start a rest")
-	failed += _assert(int(reach.get("reaches_cleared")) == clears_before, "defeat does not count a reach")
-	failed += _assert(int(pack.call("get_count", "briarwood")) == briar_before, "defeat grants no briarwood")
-	failed += _assert(str(game_state.get("expedition_lantern")) != "amber", "the lantern is no longer out")
 	failed += _assert(ResourceLoader.exists("res://assets/art/echo/battle_root_snapper_idle.png"), "thornling art is packed")
-	if failed == before_manual:
-		print("REACH_MANUAL_DEFEAT_OK")
 	var before_mig: int = failed
 	var migrated: Variant = save_service.call("_migrate", 11, {"wood": 3, "stage_id": "sapling"})
 	failed += _assert(migrated is Dictionary, "v11 migration returns a state")
@@ -8032,9 +8038,7 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 
 
 func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## Haex bug: a mid-run save lost the room's beasts, so Join manual after a load opened an
-	## empty fight and the first Strike won it for free. The mix is saved, an old save rerolls
-	## it, and a fight never starts or wins with no beasts.
+	## Mid-run save/load, then Join manual must show the same beasts as SlotEngine.build_room.
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	failed += _assert(reach != null, "Reach autoload for the mix reload")
@@ -8044,46 +8048,356 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 	var lantern_was: String = str(game_state.get("expedition_lantern"))
 	reach.call("reset_for_new_game")
 	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "mix reload: idle depart")
-	var picked: Array[String] = ["brute", "minion"]
-	reach.set("mix", picked.duplicate())
 	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload: save mid-run to slot 7")
 	reach.call("reset_for_new_game")
-	failed += _assert((reach.get("mix") as Array).is_empty(), "mix reload: reset clears the mix")
 	failed += _assert(bool(save_service.call("load_game", 7)), "mix reload: load slot 7")
 	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "mix reload: the run is still out")
-	var loaded_mix: Array = reach.get("mix") as Array
-	failed += _assert(str(loaded_mix) == str(picked), "mix reload: the room keeps its beasts (got %s)" % str(loaded_mix))
 	reach.call("set_control", "manual")
 	failed += _assert(bool(reach.call("fight_active")), "mix reload: Join manual opens the fight")
-	var snap: Dictionary = reach.call("fight_snapshot")
-	failed += _assert((snap.get("enemies", []) as Array).size() == 2, "mix reload: Join manual shows both beasts")
-	var first: String = str(reach.call("fight_choose", "strike", 0))
-	failed += _assert(first != "victory", "mix reload: the first Strike does not win the room (got %s)" % first)
-	failed += _assert(bool(reach.get("running")), "mix reload: the run continues after one Strike")
-	# An older save without the mix field rerolls a real room instead of an empty one.
-	reach.call("set_control", "idle")
-	var blob: Dictionary = game_state.call("to_save_dict")
-	var reach_blob: Dictionary = (blob.get("reach", {}) as Dictionary).duplicate(true)
-	reach_blob.erase("mix")
-	blob["reach"] = reach_blob
-	reach.call("reset_for_new_game")
-	game_state.call("apply_save_dict", blob)
-	failed += _assert(not (reach.get("mix") as Array).is_empty(), "mix reload: a save without a mix rerolls one")
-	reach.call("set_control", "manual")
-	var old_snap: Dictionary = reach.call("fight_snapshot")
-	failed += _assert((old_snap.get("enemies", []) as Array).size() >= 1, "mix reload: the rerolled room has beasts")
-	failed += _assert(str(reach.call("fight_choose", "strike", 0)) != "victory", "mix reload: no free win after an old load")
-	# The fight itself refuses an empty room.
-	var empty_fight: RefCounted = ReachFightScript.new()
-	empty_fight.call("setup", 1, 5.2, {"vitality": 5, "swiftness": 5, "offense": 10.0}, [], -1, {}, {})
-	failed += _assert(str(empty_fight.call("choose", "strike", 0)) == "invalid", "an empty fight refuses a Strike")
-	failed += _assert(str(empty_fight.get("outcome")) == "", "an empty fight is never a victory")
+	var depth: int = int(reach.get("depth"))
+	var room_seed: int = int(reach.get("room_seed"))
+	var boss: bool = bool(reach.call("is_boss_room"))
+	var expected: Array[String] = _reach_room_species_list(depth, room_seed, boss)
+	var manual: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(manual != null, "mix reload: manual FightState")
+	var actual: Array[String] = _reach_fight_species_list(manual)
+	failed += _assert(str(actual) == str(expected), "mix reload: species match build_room (got %s)" % str(actual))
+	failed += _assert(await _reach_one_strike_keeps_run(reach, manual), "mix reload: one Strike does not end the run")
 	reach.call("reset_for_new_game")
 	save_service.call("delete_slot", 7)
 	save_service.set("session_active", session_was)
 	game_state.set("expedition_lantern", lantern_was)
 	if failed == 0:
 		print("REACH_MIX_RELOAD_OK")
+	return failed
+
+
+func _reach_room_species_list(depth: int, room_seed: int, boss: bool) -> Array[String]:
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, boss)
+	var out: Array[String] = []
+	for row: Dictionary in room:
+		out.append(str(row.get("beast", "")))
+	return out
+
+
+func _reach_fight_species_list(fight: FightState) -> Array[String]:
+	var out: Array[String] = []
+	if fight == null:
+		return out
+	for fighter_id: String in fight.order:
+		var row: Dictionary = fight.fighter_dict(fighter_id)
+		if str(row.get("side", "")) == "beast":
+			out.append(str(row.get("species", "")))
+	return out
+
+
+func _reach_open_manual_view(reach: Node) -> BattleView:
+	var manual: FightState = reach.call("manual_fight") as FightState
+	if manual == null:
+		return null
+	if not BattleViewScript.open_reach_fight(manual):
+		return null
+	await process_frame
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	if views.size() != 1:
+		return null
+	return views[0] as BattleView
+
+
+func _reach_auto_strike_fight(fight: FightState) -> String:
+	if fight == null:
+		return ""
+	var guard: int = 0
+	while fight.outcome() == "" and guard < 8000:
+		guard += 1
+		var actor_id: String = fight.current_actor()
+		if actor_id == "":
+			fight.step({})
+			continue
+		var row: Dictionary = fight.fighter_dict(actor_id)
+		if str(row.get("side", "")) == "party":
+			fight.step(AutoPolicy.strike_for_me_action(fight, actor_id))
+		else:
+			fight.step({})
+	return fight.outcome()
+
+
+func _reach_step_strike_for_me(view: BattleView, fight: FightState, max_steps: int = 2500) -> void:
+	var toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
+	if toggle != null:
+		toggle.button_pressed = true
+		toggle.emit_signal("toggled", true)
+	for _step: int in max_steps:
+		await process_frame
+		if not is_instance_valid(view) or fight == null:
+			break
+		if fight.outcome() != "":
+			break
+		var playback: BattlePlayback = view.get_playback()
+		if playback != null and playback.is_busy():
+			continue
+		view.call("_advance")
+		if playback != null and playback.is_busy():
+			continue
+
+
+func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
+	var view: BattleView = await _reach_open_manual_view(reach)
+	if view == null or manual == null:
+		return false
+	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+	if strike_btn == null:
+		BattleViewScript.close_arena()
+		return false
+	strike_btn.emit_signal("pressed")
+	await process_frame
+	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	var picked: Button = null
+	if target_layer != null:
+		for child: Node in target_layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				picked = child as Button
+				break
+	if picked != null:
+		picked.emit_signal("pressed")
+	await process_frame
+	var ok: bool = bool(reach.get("running")) and manual.outcome() == ""
+	BattleViewScript.close_arena()
+	return ok
+
+
+func _reach_wait_end_panel(view: BattleView, max_frames: int = 300) -> Panel:
+	if view == null or not is_instance_valid(view):
+		return null
+	for _wait: int in max_frames:
+		await process_frame
+		if not is_instance_valid(view):
+			return null
+		var panel: Panel = view.get_node_or_null("Arena/EndPanel") as Panel
+		if panel != null and panel.visible:
+			return panel
+	if not is_instance_valid(view):
+		return null
+	return view.get_node_or_null("Arena/EndPanel") as Panel
+
+
+func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and backpack != null and strings != null, "end panel autoloads")
+	if reach == null:
+		return failed
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo != null:
+		echo.set("in_battle", false)
+	var win_seed: int = -1
+	for probe: int in range(1, 201):
+		_reset_reach_test(tree_root, game_state, save_service)
+		reach.call("set_test_run_seed", probe)
+		if str(reach.call("depart_slots", {
+			"depth": 1,
+			"rooms": 3,
+			"control": "manual",
+			"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+			"loadout": {},
+		})) != "ok":
+			continue
+		BattleViewScript.close_arena()
+		var probe_fight: FightState = reach.call("manual_fight") as FightState
+		if _reach_auto_strike_fight(probe_fight) != "win":
+			continue
+		reach.call("on_manual_outcome", "win")
+		if str(reach.call("manual_choice", "deeper")) != "deeper":
+			continue
+		var deeper_fight: FightState = reach.call("manual_fight") as FightState
+		BattleViewScript.close_arena()
+		if deeper_fight != null and _reach_auto_strike_fight(deeper_fight) == "win":
+			win_seed = probe
+			reach.call("reset_for_new_game")
+			break
+	failed += _assert(win_seed > 0, "end panel: found a depth-1 win seed in 1..200")
+	if win_seed < 0:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	var bag_before: Dictionary = _bag_snapshot(backpack)
+	reach.call("set_test_run_seed", win_seed)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	})) == "ok", "end panel: depart for win seed")
+	var arena: BattleView = await _reach_open_manual_view(reach)
+	failed += _assert(arena != null, "end panel: arena opens")
+	if arena == null:
+		return failed
+	var run_fight: FightState = arena._fight
+	await _reach_step_strike_for_me(arena, run_fight)
+	var panel: Panel = await _reach_wait_end_panel(arena)
+	failed += _assert(panel != null and panel.visible, "EndPanel visible after win")
+	failed += _assert(arena.find_child("EndContinue", true, false) != null, "EndContinue")
+	failed += _assert(arena.find_child("EndDeeper", true, false) != null, "EndDeeper")
+	failed += _assert(arena.find_child("EndHome", true, false) != null, "EndHome")
+	failed += _assert(arena.call("pack_counter_text").find("Pack:") >= 0, "pack counter text")
+	failed += _assert(_loot_same(bag_before, _bag_snapshot(backpack)), "Backpack unchanged mid-run")
+	var deeper: Button = arena.find_child("EndDeeper", true, false) as Button
+	failed += _assert(deeper != null, "EndDeeper button")
+	if deeper != null:
+		deeper.emit_signal("pressed")
+	for _open: int in 120:
+		await process_frame
+		if int(reach.get("depth")) == 2 and bool(reach.call("fight_active")):
+			break
+	failed += _assert(int(reach.get("depth")) == 2, "Go deeper raises depth")
+	failed += _assert(int(reach.get("slots_used")) == 1, "one slot used after first win")
+	failed += _assert(bool(reach.call("fight_active")), "next manual fight opens")
+	BattleViewScript.close_arena()
+	var next_fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(next_fight != null, "second room fight state")
+	if next_fight != null:
+		failed += _assert(_reach_auto_strike_fight(next_fight) == "win", "second room wins (got %s)" % next_fight.outcome())
+	arena = await _reach_open_manual_view(reach)
+	failed += _assert(arena != null, "end panel: arena after second win")
+	if arena == null:
+		return failed
+	panel = await _reach_wait_end_panel(arena)
+	failed += _assert(panel != null, "second win panel")
+	var home: Button = arena.find_child("EndHome", true, false) as Button
+	failed += _assert(home != null, "EndHome on second win")
+	if home != null:
+		home.emit_signal("pressed")
+	await process_frame
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	failed += _assert(not bool(reach.get("running")), "Head home ends the run")
+	failed += _assert(_bag_gained_banked(bag_before, backpack, summary.get("banked", {}) as Dictionary), "Backpack gained banked pack")
+	var dojo_after: int = int(reach.get("dojo_exp"))
+	failed += _assert(dojo_after > 0, "exp was kept on the run")
+	BattleViewScript.close_arena()
+	# Flee: half the pack banks.
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", win_seed)
+	reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	})
+	var flee_pack: Pack = reach.get("pack") as Pack
+	flee_pack.add("briarwood", 5)
+	var flee_bag: int = int(backpack.call("get_count", "briarwood"))
+	arena = await _reach_open_manual_view(reach)
+	failed += _assert(arena != null, "flee fight opens")
+	var flee_btn: Button = arena.get_node_or_null("Arena/ActionMenu/FleeButton") as Button
+	if flee_btn != null:
+		flee_btn.emit_signal("pressed")
+	for _flee: int in 400:
+		await process_frame
+		if arena != null and is_instance_valid(arena) and arena._fight != null and arena._fight.outcome() == "flee":
+			var flee_pb: BattlePlayback = arena.get_playback()
+			if flee_pb == null or not flee_pb.is_busy():
+				break
+		if arena != null and is_instance_valid(arena):
+			arena.call("_advance")
+		if not bool(reach.get("running")):
+			break
+	var flee_views: Array[Node] = get_nodes_in_group("battle_overlay")
+	if flee_views.size() == 1:
+		arena = flee_views[0] as BattleView
+	if arena != null and is_instance_valid(arena) and arena._fight != null:
+		failed += _assert(arena._fight.outcome() == "flee", "flee outcome (got %s)" % arena._fight.outcome())
+		if arena._fight.outcome() == "flee":
+			arena.call("_finish_turn_ui")
+	await process_frame
+	await process_frame
+	failed += _assert(arena != null and is_instance_valid(arena), "flee arena stays open")
+	if arena != null and is_instance_valid(arena):
+		failed += _assert(arena.find_child("EndBack", true, false) != null, "flee EndPanel")
+		failed += _assert(arena.find_child("EndContinue", true, false) == null, "no Continue on flee")
+	failed += _assert(int(backpack.call("get_count", "briarwood")) == flee_bag + 2, "flee banks half the briarwood")
+	var back: Button = arena.find_child("EndBack", true, false) as Button
+	if back != null:
+		back.emit_signal("pressed")
+	BattleViewScript.close_arena()
+	# Last room: one slot, win shows only last-room Head home.
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", win_seed)
+	reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 1,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	})
+	arena = await _reach_open_manual_view(reach)
+	await _reach_step_strike_for_me(arena, arena._fight)
+	panel = await _reach_wait_end_panel(arena)
+	var last_home: Button = arena.find_child("EndHome", true, false) as Button
+	failed += _assert(last_home != null, "last room EndHome")
+	failed += _assert(arena.find_child("EndContinue", true, false) == null, "last room has no Continue")
+	var last_text: String = str(strings.call("get_text", "adv_end_last_room"))
+	if last_home != null:
+		failed += _assert(last_home.text == last_text, "last room button text")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("END_PANEL_OK")
+	return failed
+
+
+func _manual_overwhelmed_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and backpack != null and strings != null, "manual overwhelmed autoloads")
+	if reach == null:
+		return failed
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo != null:
+		echo.set("in_battle", false)
+	var bag_before: Dictionary = _bag_snapshot(backpack)
+	var dojo_before: int = int(reach.get("dojo_exp"))
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", 1)
+	reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})
+	var run_pack: Pack = reach.get("pack") as Pack
+	run_pack.add("briarwood", 4)
+	run_pack.add("glowcap", 2)
+	var view: BattleView = await _reach_open_manual_view(reach)
+	failed += _assert(view != null, "manual overwhelmed arena")
+	var fight: FightState = view._fight if view != null else null
+	failed += _assert(fight != null, "manual overwhelmed fight")
+	if fight != null and view != null:
+		reach.call("debug_wound", 100000)
+		view.call("refresh_fight", fight)
+		failed += _assert(_reach_auto_strike_fight(fight) == "overwhelmed", "fight ends overwhelmed (got %s)" % fight.outcome())
+		view.call("_finish_turn_ui")
+		await process_frame
+		await process_frame
+		failed += _assert(is_instance_valid(view), "overwhelmed arena stays open")
+		var title: Label = view.find_child("EndTitle", true, false) as Label if is_instance_valid(view) else null
+		var overwhelmed_title: String = str(strings.call("get_text", "adv_overwhelmed_title"))
+		failed += _assert(title != null and title.text == overwhelmed_title, "panel shows overwhelmed title")
+		failed += _assert(str((reach.get("last_summary") as Dictionary).get("reason", "")) == "overwhelmed", "last_summary reason")
+		failed += _assert(str(reach.get("phase")) == "home", "phase home")
+		failed += _assert(is_equal_approx(float(reach.get("room_clock")), 0.0), "room_clock zero")
+		failed += _assert(str(reach.get("phase")) != "rest", "no rest phase")
+		failed += _assert(_loot_same(bag_before, _bag_snapshot(backpack)), "Backpack unchanged (pack lost)")
+		failed += _assert(int(reach.get("dojo_exp")) == dojo_before, "dojo_exp keeps earlier rooms")
+		BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("MANUAL_OVERWHELMED_OK")
 	return failed
 
 

@@ -114,10 +114,59 @@ var _speed_buttons: Dictionary = {}
 var _battle_speed: int = 1
 var _log_reveal_count: int = 0
 var _advance_after_playback: bool = false
+var _reach_mode: bool = false
+var _reach_outcome_applied: bool = false
+var _end_panel: Panel = null
+var _pack_counter: Label = null
 
 
 static func is_open() -> bool:
 	return _current != null and is_instance_valid(_current) and not _current.is_queued_for_deletion()
+
+
+static func open_reach_fight(fight: FightState) -> bool:
+	## Manual reach room. Skips the Reach.fight_active() refusal; Echo in_battle still refuses.
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var echo: Node = tree.root.get_node_or_null("EchoChamber")
+		if echo != null and bool(echo.get("in_battle")):
+			return false
+	if not is_open():
+		var packed: PackedScene = load(SCENE_PATH) as PackedScene
+		if packed == null:
+			push_error("BattleView: arena scene missing")
+			return false
+		var view: BattleView = packed.instantiate() as BattleView
+		if view == null:
+			return false
+		var host: Node = _host()
+		if host == null:
+			view.free()
+			return false
+		host.add_child(view)
+	if not is_open():
+		return false
+	var reach_view: BattleView = _current as BattleView
+	if reach_view == null:
+		return false
+	reach_view._hide_end_panel()
+	reach_view.set_reach_mode(true)
+	reach_view._reach_outcome_applied = false
+	if reach_view._strike_for_me_toggle != null:
+		reach_view._strike_for_me_toggle.button_pressed = false
+	if reach_view._result_label != null:
+		reach_view._result_label.text = ""
+	reach_view._fight = fight
+	reach_view._log_reveal_count = 0
+	if reach_view._playback != null:
+		reach_view._playback.bind_view(reach_view, fight)
+		reach_view._playback.reset_for_fight()
+	reach_view.show_fight(fight)
+	if fight.outcome() != "":
+		reach_view.call_deferred("_finish_turn_ui")
+	else:
+		reach_view._advance()
+	return true
 
 
 static func open_arena() -> bool:
@@ -211,6 +260,9 @@ func _exit_tree() -> void:
 
 
 func close_overlay() -> void:
+	_hide_end_panel()
+	_reach_mode = false
+	_reach_outcome_applied = false
 	_unbind_load()
 	if is_in_group("battle_overlay"):
 		remove_from_group("battle_overlay")
@@ -218,6 +270,32 @@ func close_overlay() -> void:
 		_current = null
 	if is_inside_tree() and not is_queued_for_deletion():
 		queue_free()
+
+
+func set_reach_mode(on: bool) -> void:
+	_reach_mode = on
+	if on:
+		_unbind_load()
+	else:
+		_bind_load()
+	if _test_fight_bar != null:
+		_test_fight_bar.visible = not on
+	if _close_button != null:
+		_close_button.visible = not on
+	if on:
+		_ensure_pack_counter()
+		_refresh_pack_counter()
+	elif _pack_counter != null and is_instance_valid(_pack_counter):
+		_pack_counter.visible = false
+
+
+func pack_counter_text() -> String:
+	var reach: Node = get_node_or_null("/root/Reach")
+	if reach == null:
+		return ""
+	var run_pack: Pack = reach.get("pack") as Pack
+	var total: int = run_pack.total() if run_pack != null else 0
+	return _text("adv_pack_counter", "Pack: %d" % total, {"n": total})
 
 
 func _saves() -> Node:
@@ -241,7 +319,8 @@ func _unbind_load() -> void:
 
 func _on_load_completed(ok: bool) -> void:
 	## The overlay is not part of the save. A loaded game starts with it closed.
-	if ok:
+	## Reach end panels stay up until the player dismisses them.
+	if ok and not _reach_mode:
 		close_overlay()
 
 
@@ -1287,6 +1366,8 @@ func _finish_turn_ui() -> void:
 		return
 	_exit_target_mode()
 	refresh_fight(_fight)
+	if _reach_mode:
+		_refresh_pack_counter()
 	_update_log_panel()
 	if _fight.outcome() != "":
 		_show_fight_result()
@@ -1309,7 +1390,18 @@ func _on_playback_queue_empty() -> void:
 
 
 func _show_fight_result() -> void:
-	if _result_label == null or _fight == null:
+	if _fight == null:
+		return
+	if _reach_mode:
+		if not _reach_outcome_applied:
+			_reach_outcome_applied = true
+			var reach: Node = get_node_or_null("/root/Reach")
+			if reach != null:
+				reach.call("on_manual_outcome", _fight.outcome())
+			_show_end_panel(_fight.outcome())
+		_hide_action_menu()
+		return
+	if _result_label == null:
 		return
 	var outcome: String = _fight.outcome()
 	match outcome:
@@ -1563,6 +1655,177 @@ func _on_target_pressed(target_id: String) -> void:
 	_advance()
 
 
+func _ensure_pack_counter() -> void:
+	if _arena == null:
+		return
+	if _pack_counter != null and is_instance_valid(_pack_counter):
+		_pack_counter.visible = true
+		return
+	_pack_counter = Label.new()
+	_pack_counter.name = "PackCounter"
+	_pack_counter.add_to_group("battle_ui")
+	_pack_counter.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_pack_counter.position = Vector2(ARENA_SIZE.x - 280.0, 12.0)
+	_pack_counter.size = Vector2(264.0, 24.0)
+	_arena.add_child(_pack_counter)
+
+
+func _refresh_pack_counter() -> void:
+	if _pack_counter == null or not is_instance_valid(_pack_counter):
+		return
+	_pack_counter.text = pack_counter_text()
+	var reach: Node = get_node_or_null("/root/Reach")
+	var tip: String = ""
+	if reach != null:
+		var run_pack: Pack = reach.get("pack") as Pack
+		if run_pack != null:
+			if run_pack.is_empty():
+				tip = _text("adv_pack_empty", "The pack is empty.")
+			else:
+				var lines: PackedStringArray = []
+				for key_v: Variant in run_pack.items.keys():
+					var item_id: String = str(key_v)
+					var count: int = int(run_pack.items[item_id])
+					var item_name: String = _text("item_%s" % item_id, item_id.replace("_", " ").capitalize())
+					lines.append("%s ×%d" % [item_name, count])
+				tip = "\n".join(lines)
+	_pack_counter.tooltip_text = tip
+
+
+func _hide_end_panel() -> void:
+	if _end_panel != null and is_instance_valid(_end_panel):
+		_end_panel.queue_free()
+	_end_panel = null
+
+
+func _show_end_panel(outcome: String) -> void:
+	_hide_end_panel()
+	if _arena == null:
+		return
+	var reach: Node = get_node_or_null("/root/Reach")
+	if reach == null:
+		return
+	_refresh_pack_counter()
+	var panel := Panel.new()
+	panel.name = "EndPanel"
+	panel.add_to_group("battle_ui")
+	var panel_w: float = 520.0
+	var panel_h: float = 280.0
+	panel.position = Vector2((ARENA_SIZE.x - panel_w) * 0.5, PARTY_BAR_TOP - 8.0 - panel_h)
+	panel.size = Vector2(panel_w, panel_h)
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 12)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	panel.add_child(margin)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 8)
+	margin.add_child(body)
+	var title := Label.new()
+	title.name = "EndTitle"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(title)
+	var detail := Label.new()
+	detail.name = "EndDetail"
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(detail)
+	var exp_line := Label.new()
+	exp_line.name = "EndExp"
+	body.add_child(exp_line)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	body.add_child(buttons)
+	_end_panel = panel
+	_arena.add_child(panel)
+	match outcome:
+		"win":
+			title.text = _text("adv_end_victory_title", "Room cleared")
+			detail.text = _pack_list_text(reach)
+			var room_exp: int = int(reach.get("last_room_exp"))
+			exp_line.text = _text("adv_end_exp", "+%d exp" % room_exp, {"n": room_exp})
+			var slots_used: int = int(reach.get("slots_used"))
+			var slots_total: int = int(reach.get("slots_total"))
+			if slots_used >= slots_total:
+				var home := _ui_button(_text("adv_end_last_room", "Last room. Head home"), buttons)
+				home.name = "EndHome"
+				home.pressed.connect(_on_end_home_pressed)
+			else:
+				var cont := _ui_button(_text("adv_end_continue", "Continue"), buttons)
+				cont.name = "EndContinue"
+				cont.pressed.connect(_on_end_continue_pressed)
+				var deeper := _ui_button(_text("adv_end_deeper", "Go deeper"), buttons)
+				deeper.name = "EndDeeper"
+				deeper.pressed.connect(_on_end_deeper_pressed)
+				var home := _ui_button(_text("adv_end_home", "Head home"), buttons)
+				home.name = "EndHome"
+				home.pressed.connect(_on_end_home_pressed)
+		"flee":
+			title.text = _text("adv_end_flee_title", "Fled")
+			var summary: Dictionary = reach.get("last_summary") as Dictionary
+			var banked: Dictionary = summary.get("banked", {}) as Dictionary
+			detail.text = _text("adv_end_flee_body", "You fled to the trailhead. Half the pack came home.")
+			if not banked.is_empty():
+				detail.text += "\n" + _format_banked(banked)
+			exp_line.text = ""
+			var back := _ui_button(_text("adv_end_back", "Back to the clearing"), buttons)
+			back.name = "EndBack"
+			back.pressed.connect(_on_end_back_pressed)
+		"overwhelmed":
+			title.text = _text("adv_overwhelmed_title", "Overwhelmed")
+			detail.text = _text("adv_overwhelmed_body", "The party was overwhelmed. The pack returns to the forest. Exp is kept.")
+			exp_line.text = ""
+			var back_o := _ui_button(_text("adv_end_back", "Back to the clearing"), buttons)
+			back_o.name = "EndBack"
+			back_o.pressed.connect(_on_end_back_pressed)
+		_:
+			detail.text = outcome
+
+
+func _pack_list_text(reach: Node) -> String:
+	var run_pack: Pack = reach.get("pack") as Pack
+	if run_pack == null or run_pack.is_empty():
+		return _text("adv_pack_empty", "The pack is empty.")
+	return _format_banked(run_pack.items)
+
+
+func _format_banked(items: Dictionary) -> String:
+	var lines: PackedStringArray = []
+	for key_v: Variant in items.keys():
+		var item_id: String = str(key_v)
+		var count: int = int(items[item_id])
+		if count <= 0:
+			continue
+		var item_name: String = _text("item_%s" % item_id, item_id.replace("_", " ").capitalize())
+		lines.append("%s ×%d" % [item_name, count])
+	return "\n".join(lines) if lines.size() > 0 else _text("adv_pack_empty", "The pack is empty.")
+
+
+func _on_end_continue_pressed() -> void:
+	var reach: Node = get_node_or_null("/root/Reach")
+	if reach != null:
+		reach.call("manual_choice", "continue")
+
+
+func _on_end_deeper_pressed() -> void:
+	var reach: Node = get_node_or_null("/root/Reach")
+	if reach != null:
+		reach.call("manual_choice", "deeper")
+
+
+func _on_end_home_pressed() -> void:
+	var reach: Node = get_node_or_null("/root/Reach")
+	if reach != null:
+		reach.call("manual_choice", "home")
+	close_overlay()
+
+
+func _on_end_back_pressed() -> void:
+	close_overlay()
+
+
 func _input(event: InputEvent) -> void:
 	## Swallow world clicks even when the full-rect control is not the hovered
 	## GUI (headless has no pointer). Escape closes this overlay before the
@@ -1579,6 +1842,9 @@ func _input(event: InputEvent) -> void:
 		return
 	var key: InputEventKey = event as InputEventKey
 	if not key.pressed or key.echo or key.keycode != KEY_ESCAPE:
+		return
+	if _reach_mode:
+		get_viewport().set_input_as_handled()
 		return
 	close_overlay()
 	get_viewport().set_input_as_handled()
