@@ -779,6 +779,57 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BOARD_FORMATION") == "1":
+		var formation_only: int = _board_formation_ok(tree_root, game_state, save_service)
+		if formation_only > 0:
+			print("BOARD_FORMATION_FAIL: %d" % formation_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_SIM_WINDOW") == "1":
+		var sim_window_only: int = _board_sim_window_ok(tree_root, game_state, save_service)
+		if sim_window_only > 0:
+			print("BOARD_SIM_WINDOW_FAIL: %d" % sim_window_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_DEPTH_ROOMS") == "1":
+		var depth_rooms_only: int = _board_depth_rooms_ok(tree_root, game_state, save_service)
+		if depth_rooms_only > 0:
+			print("BOARD_DEPTH_ROOMS_FAIL: %d" % depth_rooms_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_ESSENCE_ICON") == "1":
+		var essence_icon_only: int = _board_essence_icon_ok(tree_root, game_state, save_service)
+		if essence_icon_only > 0:
+			print("BOARD_ESSENCE_ICON_FAIL: %d" % essence_icon_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_LEAK_CHAIN") == "1":
+		var chain_failed: int = 0
+		chain_failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+		chain_failed += await _bramble_hidden_until_join_ok(tree_root, game_state, save_service)
+		chain_failed += _board_v4_ok(tree_root, game_state, save_service)
+		chain_failed += await _board_close_ok(tree_root, game_state, save_service)
+		chain_failed += _board_companion_only_ok(tree_root, game_state, save_service)
+		if chain_failed > 0:
+			print("BOARD_LEAK_CHAIN_FAIL: %d" % chain_failed)
+			quit(1)
+		else:
+			print("BOARD_LEAK_CHAIN_OK")
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BOARD_CLOSE") == "1":
 		var board_close_only: int = await _board_close_ok(tree_root, game_state, save_service)
 		if board_close_only > 0:
@@ -1554,6 +1605,7 @@ func _run() -> void:
 		failed += _assert(paused == false, "resume_game clears tree.paused")
 		pm.queue_free()
 		await process_frame
+	paused = false
 
 	# Offers removed
 	failed += _assert(not game_state.has_method("try_offer"), "try_offer removed")
@@ -2301,6 +2353,7 @@ func _run() -> void:
 			failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "", "RMB ground unassigns wisp")
 		live.queue_free()
 		await process_frame
+	paused = false
 
 	# --- Art v0.1.12 care vs shop + Content v0.3.4 / SYSTEMS v0.3.3 ---
 	game_state.call("reset_for_new_game")
@@ -3459,6 +3512,10 @@ func _run() -> void:
 	failed += _board_v4_ok(tree_root, game_state, save_service)
 	failed += await _board_close_ok(tree_root, game_state, save_service)
 	failed += _board_companion_only_ok(tree_root, game_state, save_service)
+	failed += _board_formation_ok(tree_root, game_state, save_service)
+	failed += _board_sim_window_ok(tree_root, game_state, save_service)
+	failed += _board_depth_rooms_ok(tree_root, game_state, save_service)
+	failed += _board_essence_icon_ok(tree_root, game_state, save_service)
 	failed += await _end_panel_ok(tree_root, game_state, save_service)
 	failed += await _manual_overwhelmed_ok(tree_root, game_state, save_service)
 	failed += _depart_essence_ok(tree_root, game_state, save_service)
@@ -4417,6 +4474,8 @@ func _check_only_load() -> int:
 		"res://scripts/battle/spawn_roller.gd",
 		"res://scripts/battle/pack.gd",
 		"res://scripts/battle/room_loot.gd",
+		"res://scripts/expedition_board.gd",
+		"res://scripts/ui/expedition_shell.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -7977,9 +8036,12 @@ func _board_close_ok(tree_root: Window, game_state: Node, save_service: Node) ->
 	if pause_menu != null:
 		pause_menu.call("_unhandled_input", esc)
 	failed += _assert(not bool(board.call("shell_open")), "Esc works mid-run")
+	reach.call("reset_for_new_game")
 	if main_live != null and is_instance_valid(main_live):
 		main_live.free()
-	reach.call("reset_for_new_game")
+	var orphan_shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	if orphan_shell != null and is_instance_valid(orphan_shell):
+		orphan_shell.free()
 	game_state.call("reset_for_new_game")
 	if failed == 0:
 		print("BOARD_CLOSE_OK")
@@ -8009,6 +8071,7 @@ func _bramble_hidden_until_join_ok(tree_root: Window, game_state: Node, save_ser
 		failed += _assert(_bramble_warden_hidden_ok(warden), "spare at %d clears stays hidden" % clears)
 		live.free()
 	reach.set("reaches_cleared", 30)
+	game_state.set("echo_02_resolved", true)
 	game_state.set("echo_02_outcome", "spare")
 	var live_show: Node = await _echo2_boot_hub(tree_root)
 	var warden_show: Node2D = live_show.get_node_or_null("World/BrambleWarden") as Node2D
@@ -8343,6 +8406,14 @@ func _echo2_portal_visible(tree_root: Window, game_state: Node, save_service: No
 
 
 func _echo2_boot_hub(tree_root: Window) -> Node:
+	## Hub boots with boot_intent "auto" load the newest save and overwrite Reach /
+	## GameState that the caller just set. Tests that preset autoload state must not
+	## hit that path unless they set boot_intent to new / load / continue first.
+	var save_svc: Node = tree_root.get_node_or_null("SaveService")
+	if save_svc != null:
+		var intent: String = str(save_svc.get("boot_intent"))
+		if intent == "" or intent == "auto":
+			save_svc.set("boot_intent", "forge_return")
 	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
 	if packed == null:
 		return null
@@ -15301,21 +15372,36 @@ func _board_v4_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 		return failed
 	var board: Node = packed.instantiate()
 	tree_root.add_child(board)
-	var checkpoints: Variant = board.call("depth_checkpoints")
-	failed += _assert(checkpoints is Array and str(checkpoints) == "[1, 5, 10]", "depth checkpoints at depth 12")
 	board.call("open_shell")
 	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
-	var rooms_btn: Button = shell.find_child("RoomsButton", true, false) as Button if shell != null else null
-	failed += _assert(rooms_btn != null, "rooms button")
-	if rooms_btn != null:
-		var expect_steps: Array[int] = [5, 10, 20, 40, 5]
-		for expect: int in expect_steps:
-			failed += _assert(rooms_btn.text == "%d rooms" % expect, "room cycle expects %d" % expect)
-			rooms_btn.emit_signal("pressed")
+	var depth_field: LineEdit = shell.find_child("DepthField", true, false) as LineEdit if shell != null else null
+	var depth_plus: Button = shell.find_child("DepthPlus", true, false) as Button if shell != null else null
+	var rooms_field: LineEdit = shell.find_child("RoomsField", true, false) as LineEdit if shell != null else null
+	var rooms_plus: Button = shell.find_child("RoomsPlus", true, false) as Button if shell != null else null
+	failed += _assert(depth_field != null and rooms_field != null, "depth/rooms fields")
+	if depth_plus != null:
+		for _i: int in 3:
+			depth_plus.emit_signal("pressed")
 			board.call("_refresh_shell")
-		while rooms_btn.text != "20 rooms":
-			rooms_btn.emit_signal("pressed")
+		failed += _assert(depth_field.text == "4", "depth steps by 1")
+		depth_field.text = "99"
+		depth_field.emit_signal("text_submitted", "99")
+		board.call("_refresh_shell")
+		failed += _assert(int(depth_field.text) == 12, "depth typed clamp at max")
+	if rooms_plus != null and rooms_field != null:
+		var expect_up: Array[int] = [5, 10, 15, 20, 25, 30, 35, 40]
+		for expect: int in expect_up:
+			rooms_plus.emit_signal("pressed")
 			board.call("_refresh_shell")
+			failed += _assert(rooms_field.text == str(expect), "room step expects %d" % expect)
+		var rooms_minus: Button = shell.find_child("RoomsMinus", true, false) as Button
+		if rooms_minus != null:
+			rooms_minus.emit_signal("pressed")
+			board.call("_refresh_shell")
+			failed += _assert(rooms_field.text == "35", "room step down from 40")
+		rooms_field.text = "20"
+		rooms_field.emit_signal("text_submitted", "20")
+		board.call("_refresh_shell")
 		var duration: Label = shell.find_child("DurationLabel", true, false) as Label
 		var boss_lbl: Label = shell.find_child("BossLabel", true, false) as Label
 		failed += _assert(duration != null and duration.text == "Idle: about 4 h 0 min", "twenty rooms duration")
@@ -15380,12 +15466,15 @@ func _board_companion_only_ok(tree_root: Window, game_state: Node, save_service:
 	failed += _assert(reach != null, "companion board Reach")
 	if reach == null:
 		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	var orphan_shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	if orphan_shell != null and is_instance_valid(orphan_shell):
+		orphan_shell.free()
 	var essence_was: int = int(game_state.get("essence"))
 	var echo_was: bool = bool(game_state.get("echo_02_resolved"))
 	var redeemed_was: bool = bool(game_state.get("echo_01_redeemed"))
 	var relic_was: bool = bool(game_state.get("first_relic_crafted"))
 	var join_was: bool = bool(game_state.get("elaia_join_seen"))
-	reach.call("reset_for_new_game")
 	game_state.set("echo_02_resolved", true)
 	game_state.set("echo_01_redeemed", true)
 	game_state.set("first_relic_crafted", true)
@@ -15399,16 +15488,10 @@ func _board_companion_only_ok(tree_root: Window, game_state: Node, save_service:
 	tree_root.add_child(board)
 	board.call("open_shell")
 	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
-	failed += _assert(shell != null and shell.find_child("MemberElaia", true, false) != null, "Elaia toggle when joined")
-	var keeper_btn: Button = shell.find_child("MemberKeeper", true, false) as Button
-	var elaia_btn: Button = shell.find_child("MemberElaia", true, false) as Button
-	var row_elaia: Button = shell.find_child("RowElaia", true, false) as Button
-	if keeper_btn != null and elaia_btn != null:
-		if bool(keeper_btn.button_pressed):
-			keeper_btn.emit_signal("pressed")
-		if not bool(elaia_btn.button_pressed):
-			elaia_btn.emit_signal("pressed")
-		board.call("set_member_row", "elaia", "back")
+	failed += _assert(shell != null and shell.find_child("SlotBackMid", true, false) != null, "formation slots when joined")
+	if shell != null:
+		board.call("place_member", "", "front", 1)
+		board.call("place_member", "elaia", "back", 1)
 		failed += _assert(str(board.call("try_depart")) == "ok", "companions-only departs")
 		var party: Array = reach.get("party") as Array
 		failed += _assert(party.size() == 1 and str((party[0] as Dictionary).get("member", "")) == "elaia", "only Elaia went")
@@ -15419,8 +15502,7 @@ func _board_companion_only_ok(tree_root: Window, game_state: Node, save_service:
 		failed += _assert(not members.has("keeper"), "keeper stayed home")
 		reach.call("reset_for_new_game")
 		board.call("open_shell")
-		if bool(elaia_btn.button_pressed):
-			elaia_btn.emit_signal("pressed")
+		board.call("place_member", "", "back", 1)
 		board.call("_refresh_shell")
 		var depart: Button = shell.find_child("Depart", true, false) as Button
 		failed += _assert(depart != null and depart.disabled, "empty party disables Depart")
@@ -15430,8 +15512,7 @@ func _board_companion_only_ok(tree_root: Window, game_state: Node, save_service:
 	game_state.set("elaia_join_seen", false)
 	board.call("open_shell")
 	board.call("_refresh_shell")
-	var elaia_node: Node = shell.find_child("MemberElaia", true, false)
-	failed += _assert(elaia_node == null or not (elaia_node as Control).visible, "no Elaia toggle before join")
+	failed += _assert(not board.call("available_members").has("elaia"), "no Elaia before join")
 	reach.call("reset_for_new_game")
 	board.free()
 	shell = tree_root.get_node_or_null("ExpeditionShell")
@@ -15444,6 +15525,174 @@ func _board_companion_only_ok(tree_root: Window, game_state: Node, save_service:
 	game_state.call("set_resource", &"essence", essence_was)
 	if failed == 0:
 		print("BOARD_COMPANION_ONLY_OK")
+	return failed
+
+
+func _board_formation_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "formation Reach")
+	if reach == null:
+		return failed
+	reach.call("reset_for_new_game")
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	game_state.call("set_resource", &"essence", 40)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate() if packed != null else null
+	failed += _assert(board != null, "formation board")
+	if board == null:
+		return failed
+	tree_root.add_child(board)
+	board.call("place_member", "elaia", "back", 0)
+	board.call("place_member", "keeper", "front", 2)
+	var cfg: Dictionary = board.call("board_config")
+	var party_v: Variant = cfg.get("party", [])
+	failed += _assert(party_v is Array and (party_v as Array).size() == 2, "formation party size")
+	var elaia_cell: int = -1
+	var keeper_cell: int = -1
+	for entry_v: Variant in party_v as Array:
+		var entry: Dictionary = entry_v as Dictionary
+		if str(entry.get("member", "")) == "elaia":
+			elaia_cell = int(entry.get("cell", -1))
+		if str(entry.get("member", "")) == "keeper":
+			keeper_cell = int(entry.get("cell", -1))
+	failed += _assert(elaia_cell == 0 and keeper_cell == 2, "formation cells in config")
+	reach.call("set_test_run_seed", 77)
+	failed += _assert(str(reach.call("depart_slots", cfg)) == "ok", "formation depart")
+	var room: Array[Dictionary] = SlotEngine.build_room(1, int(reach.get("room_seed")), false)
+	var fight: FightState = SlotEngine.fight_for_room(reach.get("party") as Array, reach.get("loadout") as Dictionary, room, int(reach.get("room_seed")))
+	var snapshot: Dictionary = fight.to_dict()
+	var rows: Array = snapshot.get("fighters", []) as Array
+	var soles: Dictionary = {}
+	for row_v: Variant in rows:
+		if not row_v is Dictionary:
+			continue
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("side", "")) != "party":
+			continue
+		var col: String = "party_back" if str(row.get("row", "")) == "back" else "party_front"
+		var cell: int = int(row.get("cell", -1))
+		if cell < 0:
+			cell = 1
+		soles["%s:%d" % [col, cell]] = str(row.get("member", ""))
+	failed += _assert(soles.get("party_back:0", "") == "elaia", "Elaia sole back top")
+	failed += _assert(soles.get("party_front:2", "") == "keeper", "Keeper sole front bottom")
+	var slot_soles: Dictionary = BattleView.SLOT_SOLES
+	failed += _assert(slot_soles["party_back"][0] == BattleView.slot_sole("party_back", 0), "SLOT_SOLES back top")
+	failed += _assert(slot_soles["party_front"][2] == BattleView.slot_sole("party_front", 2), "SLOT_SOLES front bottom")
+	reach.call("reset_for_new_game")
+	board.free()
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	if shell != null and is_instance_valid(shell):
+		shell.free()
+	if failed == 0:
+		print("BOARD_FORMATION_OK")
+	return failed
+
+
+func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 40)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate() if packed != null else null
+	failed += _assert(board != null, "sim window board")
+	if board == null:
+		return failed
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
+	sim_btn.emit_signal("pressed")
+	var sim_win: Control = shell.find_child("SimulateWindow", true, false) as Control if shell != null else null
+	var sim_lbl: Label = shell.find_child("SimulateResult", true, false) as Label if shell != null else null
+	var sim_close: Button = shell.find_child("SimulateClose", true, false) as Button if shell != null else null
+	failed += _assert(sim_win != null and sim_win.visible, "sim window visible")
+	var in_scroll: bool = false
+	if sim_lbl != null:
+		var p: Node = sim_lbl.get_parent()
+		while p != null:
+			if p is ScrollContainer:
+				in_scroll = true
+				break
+			p = p.get_parent()
+	failed += _assert(sim_lbl != null and in_scroll, "SimulateResult in scroll")
+	if sim_close != null:
+		sim_close.emit_signal("pressed")
+	failed += _assert(sim_win != null and not sim_win.visible, "sim close works")
+	board.free()
+	if shell != null:
+		shell.free()
+	if failed == 0:
+		print("BOARD_SIM_WINDOW_OK")
+	return failed
+
+
+func _board_depth_rooms_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	reach.call("reset_for_new_game")
+	reach.set("deepest_depth", 8)
+	game_state.set("echo_02_resolved", true)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate() if packed != null else null
+	failed += _assert(board != null, "depth rooms board")
+	if board == null:
+		return failed
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var depth_field: LineEdit = shell.find_child("DepthField", true, false) as LineEdit
+	var rooms_minus: Button = shell.find_child("RoomsMinus", true, false) as Button
+	var rooms_field: LineEdit = shell.find_child("RoomsField", true, false) as LineEdit
+	rooms_field.text = "0"
+	rooms_field.emit_signal("text_submitted", "0")
+	board.call("_refresh_shell")
+	failed += _assert(rooms_field.text == "1", "rooms clamp low")
+	rooms_field.text = "99"
+	rooms_field.emit_signal("text_submitted", "99")
+	board.call("_refresh_shell")
+	failed += _assert(rooms_field.text == "40", "rooms clamp high")
+	if rooms_minus != null:
+		rooms_minus.emit_signal("pressed")
+		board.call("_refresh_shell")
+		failed += _assert(rooms_field.text == "35", "rooms step down from 40")
+	depth_field.text = "0"
+	depth_field.emit_signal("text_submitted", "0")
+	board.call("_refresh_shell")
+	failed += _assert(int(depth_field.text) >= 1, "depth clamp low")
+	board.free()
+	if shell != null:
+		shell.free()
+	if failed == 0:
+		print("BOARD_DEPTH_ROOMS_OK")
+	return failed
+
+
+func _board_essence_icon_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	game_state.set("echo_02_resolved", true)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate() if packed != null else null
+	failed += _assert(board != null, "essence icon board")
+	if board == null:
+		return failed
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var icon: TextureRect = shell.find_child("EssenceCostIcon", true, false) as TextureRect
+	failed += _assert(icon != null, "essence cost icon")
+	if icon != null:
+		failed += _assert(str(icon.texture.resource_path).ends_with("icon_essence.png"), "essence texture path")
+		failed += _assert(icon.modulate.is_equal_approx(GameHUD.ESSENCE_TINT), "essence tint")
+	board.free()
+	if shell != null:
+		shell.free()
+	if failed == 0:
+		print("BOARD_ESSENCE_ICON_OK")
 	return failed
 
 
@@ -15730,11 +15979,19 @@ func _simulate_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 		var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
 		var sim_lbl: Label = shell.find_child("SimulateResult", true, false) as Label if shell != null else null
 		failed += _assert(sim_btn != null and sim_lbl != null, "simulate controls")
+		var sim_win: Node = shell.find_child("SimulateWindow", true, false) if shell != null else null
+		var depart_btn: Button = shell.find_child("Depart", true, false) as Button if shell != null else null
 		if sim_btn != null:
 			sim_btn.emit_signal("pressed")
 			board.call("_refresh_shell")
-			failed += _assert(sim_lbl.text.find("rooms cleared") >= 0, "simulate summary line")
+			failed += _assert(sim_win != null and (sim_win as Control).visible, "simulate window opens")
+			failed += _assert(sim_lbl != null and sim_lbl.text.length() > 0, "simulate scroll text")
+			failed += _assert(sim_lbl.text.find("Room ") >= 0, "simulate per-room lines")
 			failed += _assert(sim_lbl.text.find("%") < 0, "simulate result has no percent")
+			if sim_win != null and depart_btn != null:
+				var win_rect: Rect2 = (sim_win as Control).get_global_rect()
+				var depart_rect: Rect2 = depart_btn.get_global_rect()
+				failed += _assert(not win_rect.intersects(depart_rect), "simulate window does not cover Depart")
 		_reset_reach_test(tree_root, game_state, save_service)
 		game_state.call("set_resource", &"essence", 40)
 		game_state.set("echo_02_resolved", true)
