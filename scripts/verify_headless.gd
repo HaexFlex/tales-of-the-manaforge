@@ -1,6 +1,5 @@
 extends SceneTree
 const EchoBattleScript := preload("res://scripts/echo_battle.gd")
-const ReachFightScript := preload("res://scripts/reach_fight.gd")
 const FightStateScript := preload("res://scripts/battle/fight_state.gd")
 const AutoPolicyScript := preload("res://scripts/battle/auto_policy.gd")
 const BatchSimScript := preload("res://scripts/battle/batch_sim.gd")
@@ -218,10 +217,10 @@ func _run() -> void:
 			quit(0)
 		return
 
-	if OS.get_environment("MANAFORGE_TURN_ORDER") == "1":
-		var order_only: int = _reach_turn_order()
-		if order_only > 0:
-			print("REACH_TURN_ORDER_FAIL: %d" % order_only)
+	if OS.get_environment("MANAFORGE_REACH_LEGACY_GONE") == "1":
+		var legacy_gone_only: int = _reach_legacy_gone(tree_root, game_state, save_service)
+		if legacy_gone_only > 0:
+			print("REACH_LEGACY_GONE_FAIL: %d" % legacy_gone_only)
 			quit(1)
 		else:
 			quit(0)
@@ -3326,7 +3325,6 @@ func _run() -> void:
 	failed += _reach_checks(tree_root, game_state, save_service)
 	failed += await _reach_mix_reload(tree_root, game_state, save_service)
 	failed += _save_newer_refused(tree_root, game_state, save_service)
-	failed += _reach_turn_order()
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
 	failed += _beast_data(tree_root)
 	failed += _spawn_data(tree_root)
@@ -3400,6 +3398,7 @@ func _run() -> void:
 	failed += await _handoff_expired(tree_root, game_state, save_service)
 	failed += await _handoff_idle(tree_root, game_state, save_service)
 	failed += await _debug_adventure_ok(tree_root, game_state, save_service)
+	failed += _reach_legacy_gone(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8493,7 +8492,6 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(bool(reach.call("fight_active")) == false, "switching back leaves the fight")
 	failed += _assert(bool(reach.get("running")), "switching control keeps the outing")
 	failed += _assert(int(pack.call("get_count", "briarwood")) == before_briar, "leaving a fight grants nothing")
-	failed += _assert(int(ReachFightScript.road_damage(1.0, 10.0, 10.0, 0.0, 1.0)) == 5, "road damage is k*A^2/(A+D)")
 	failed += _assert(ResourceLoader.exists("res://assets/art/echo/battle_root_snapper_idle.png"), "thornling art is packed")
 	var before_mig: int = failed
 	var migrated: Variant = save_service.call("_migrate", 11, {"wood": 3, "stage_id": "sapling"})
@@ -8527,7 +8525,7 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
 	var stable: Dictionary = presets.get(_STABLE_PRESET, {}) as Dictionary
 	var stable_exclude: PackedStringArray = _exclude_tokens(str(stable.get("exclude", "")))
-	for shipped: String in ["scripts/autoload/reach.gd", "scripts/reach_fight.gd", "scripts/reach_fight_view.gd", "scripts/expedition_board.gd"]:
+	for shipped: String in ["scripts/autoload/reach.gd", "scripts/expedition_board.gd"]:
 		failed += _assert(not _preset_excludes(stable_exclude, shipped), "stable ships %s" % shipped)
 	if failed == before_mig:
 		print("REACH_MIGRATION_OK")
@@ -8558,7 +8556,6 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	reach.call("reset_for_new_game")
 	if failed == before_board:
 		print("REACH_BOARD_OK")
-	reach.call("set_test_pp", -1.0)
 	reach.call("reset_for_new_game")
 	if speed_was == 1:
 		game_state.call("reset_play_speed")
@@ -8923,7 +8920,10 @@ func _manual_overwhelmed_ok(tree_root: Window, game_state: Node, save_service: N
 	var fight: FightState = view._fight if view != null else null
 	failed += _assert(fight != null, "manual overwhelmed fight")
 	if fight != null and view != null:
-		reach.call("debug_wound", 100000)
+		for fighter_id: String in fight.order:
+			var row: Dictionary = fight.fighter_dict(fighter_id)
+			if str(row.get("side", "")) == "party":
+				fight.set_hp(fighter_id, 0)
 		view.call("refresh_fight", fight)
 		failed += _assert(_reach_auto_strike_fight(fight) == "overwhelmed", "fight ends overwhelmed (got %s)" % fight.outcome())
 		view.call("_finish_turn_ui")
@@ -9005,51 +9005,82 @@ func _save_newer_refused(tree_root: Window, game_state: Node, save_service: Node
 	return failed
 
 
-func _reach_turn_order() -> int:
-	## Turn order is a total order: Swiftness first, the keeper wins ties, then slot. sort_custom is not
-	## stable, so a big room of equal-speed foes must still come out in slot order every time.
+func _reach_legacy_gone(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
-	var fight: RefCounted = ReachFightScript.new()
-	fight.call("setup", 1, 5.0, {"vitality": 5, "swiftness": 5, "offense": 10.0}, ["minion"], -1, {}, {})
-	var rows: Array[Dictionary] = []
-	for i: int in range(24):
-		var row: Dictionary = (fight.get("enemies") as Array)[0].duplicate()
-		row["swift"] = 5.0
-		row["hp"] = 10
-		rows.append(row)
-	rows[20]["swift"] = 9.0
-	rows[3]["swift"] = 1.0
-	fight.set("enemies", rows)
-	var keeper: Dictionary = fight.get("keeper")
-	keeper["swiftness"] = 5
-	fight.set("keeper", keeper)
-	for _attempt: int in range(5):
-		var order: Array = fight.call("_turn_order")
-		failed += _assert(order.size() == 25, "turn order lists the keeper and 24 foes")
-		if order.size() != 25:
-			break
-		failed += _assert(str((order[0] as Dictionary).get("side")) == "foe" and int((order[0] as Dictionary).get("index")) == 20, "the fastest foe acts first")
-		failed += _assert(str((order[1] as Dictionary).get("side")) == "keeper", "the keeper wins the Swiftness tie")
-		var want: Array[int] = []
-		for i: int in range(24):
-			if i != 20 and i != 3:
-				want.append(i)
-		var got: Array[int] = []
-		for k: int in range(2, 24):
-			got.append(int((order[k] as Dictionary).get("index")))
-		failed += _assert(str(got) == str(want), "tied foes act in slot order (got %s)" % str(got))
-		failed += _assert(int((order[24] as Dictionary).get("index")) == 3, "the slowest foe acts last")
-	# Float noise on Swiftness is still a tie that goes to the keeper.
-	rows = []
-	for i: int in range(3):
-		var r2: Dictionary = (fight.get("enemies") as Array)[0].duplicate()
-		r2["swift"] = 5.0000001
-		rows.append(r2)
-	fight.set("enemies", rows)
-	var near: Array = fight.call("_turn_order")
-	failed += _assert(near.size() == 4 and str((near[0] as Dictionary).get("side")) == "keeper", "float noise still ties to the keeper")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "Reach autoload")
+	for legacy_path: String in [
+		"res://scripts/reach_fight.gd",
+		"res://scripts/reach_fight.gd.uid",
+		"res://scripts/reach_fight_view.gd",
+		"res://scripts/reach_fight_view.gd.uid",
+	]:
+		failed += _assert(not FileAccess.file_exists(legacy_path), "deleted %s" % legacy_path)
+	var removed: Array[String] = [
+		"room_level", "idle_bonus", "idle_clears", "clear_chance", "odds_line", "party_power",
+		"preview_bonus", "preview_line", "push_would_stop", "set_test_pp", "push_faces", "push_drops",
+		"fight_choose", "debug_wound", "_roll_idle", "_grant_room", "_advance_depth", "_roll_mix",
+		"_mix_budget", "_clean_mix", "_champion_index", "_names", "_minion_name", "_arts", "_keeper_block",
+		"_offense", "_stat", "_next_face", "_next_drop", "_length_left",
+	]
+	for fn: String in removed:
+		failed += _assert(not reach.has_method(fn), "Reach no longer has %s" % fn)
+	var captured: Dictionary = reach.call("capture_save_fields") as Dictionary
+	var reach_block: Dictionary = captured.get("reach", {}) as Dictionary
+	failed += _assert(not reach_block.has("pace"), "capture_save_fields omits pace")
+	failed += _assert(not reach_block.has("mix"), "capture_save_fields omits mix")
+	failed += _assert(not reach_block.has("salve_used"), "capture_save_fields omits salve_used")
+	for scan_root: String in ["res://scripts", "res://tools"]:
+		var dir := DirAccess.open(scan_root)
+		failed += _assert(dir != null, "scan %s" % scan_root)
+		if dir != null:
+			failed += _scan_legacy_reach_refs(dir, scan_root)
+	# v13 pace/mix/salve_used still load (SAVE_V14_HOME-style fixture).
+	save_service.call("delete_slot", 7)
+	var legacy_state: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"expedition_lantern": "dark",
+		"reach": {
+			"running": false,
+			"reaches_cleared": 1,
+			"rooms_attempted": 0,
+			"deepest_depth": 2,
+			"pace": "push",
+			"salve_used": true,
+			"mix": ["minion", "brute"],
+		},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, legacy_state), "v13 legacy pace/mix writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "v13 legacy pace/mix loads")
+	failed += _assert(int(reach.get("reaches_cleared")) == 1 and int(reach.get("deepest_depth")) == 2, "legacy fields ignored, counters kept")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
 	if failed == 0:
-		print("REACH_TURN_ORDER_OK")
+		print("REACH_LEGACY_GONE_OK")
+	return failed
+
+
+func _scan_legacy_reach_refs(dir: DirAccess, root: String) -> int:
+	var failed: int = 0
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		if name == "." or name == "..":
+			name = dir.get_next()
+			continue
+		var path: String = "%s/%s" % [root, name]
+		if dir.current_is_dir():
+			var sub := DirAccess.open(path)
+			if sub != null:
+				failed += _scan_legacy_reach_refs(sub, path)
+		elif name.ends_with(".gd") and not path.ends_with("verify_headless.gd"):
+			var text: String = FileAccess.get_file_as_string(path)
+			failed += _assert(text.find("ReachFight") < 0, "%s must not name ReachFight" % path)
+			failed += _assert(text.find("reach_fight.gd") < 0 and text.find("reach_fight_view") < 0, "%s must not reference legacy reach_fight scripts" % path)
+			failed += _assert(text.find("idle_clears") < 0, "%s must not reference idle_clears" % path)
+		name = dir.get_next()
+	dir.list_dir_end()
 	return failed
 
 
@@ -9753,8 +9784,6 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	failed += _assert(_reach_item_keys_gone(written_reach), "the re-saved reach block has no item keys")
 	failed += _assert(int(written_pack.get("heart_salve", 0)) == 5, "re-saved salve count")
 	failed += _assert(int(written_pack.get("briarwood", 0)) == 3, "re-saved briarwood count")
-	reach.call("push_faces", [20])
-	reach.call("push_drops", [1, 0])
 	## Opening the manual fight lets beasts act immediately. Seed 1's volley does not end the run.
 	reach.call("set_test_run_seed", 1)
 	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "idle depart after the merge")
@@ -9763,9 +9792,24 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	var salve_before: int = int(pack.call("get_count", "heart_salve"))
 	reach.call("set_control", "manual")
 	failed += _assert(bool(reach.call("fight_active")), "manual opens the fight")
-	var spent: String = str(reach.call("fight_choose", "salve", 0))
-	failed += _assert(spent != "empty" and spent != "invalid", "the fight accepts the salve (got %s)" % spent)
-	failed += _assert(int(pack.call("get_count", "heart_salve")) == salve_before - 1, "a manual Salve spends one from the backpack")
+	var manual_fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(manual_fight != null, "manual fight state")
+	if manual_fight != null:
+		if int(manual_fight.loadout.get("heart_salve", 0)) <= 0:
+			pack.call("try_spend", "heart_salve", 1)
+			manual_fight.loadout["heart_salve"] = int(manual_fight.loadout.get("heart_salve", 0)) + 1
+		var party_target: String = ""
+		for fighter_id: String in manual_fight.order:
+			var row: Dictionary = manual_fight.fighter_dict(fighter_id)
+			if str(row.get("side", "")) == "party" and str(row.get("status", "")) == "active":
+				party_target = fighter_id
+				break
+		failed += _assert(party_target != "", "party target for salve")
+		if party_target != "":
+			var salve_step: Dictionary = manual_fight.step({"kind": "item", "item": "heart_salve", "target": party_target})
+			failed += _assert(str(salve_step.get("kind", "")) != "refused", "the fight accepts the salve")
+			reach.call("sync_manual_loadout")
+		failed += _assert(int(pack.call("get_count", "heart_salve")) == salve_before - 1, "a manual Salve spends one from the backpack")
 	pack.call("set_count", "fertilizer", 3)
 	var kept_salve: int = int(pack.call("get_count", "heart_salve"))
 	var kept_bile: int = int(pack.call("get_count", "bile_vial"))
