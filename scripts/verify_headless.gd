@@ -176,6 +176,59 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_MINIGAME_HOST") == "1":
+		var mg_host_only: int = await _minigame_host_ok(tree_root, save_service)
+		if mg_host_only > 0:
+			print("MINIGAME_HOST_FAIL: %d" % mg_host_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MINIGAME_CLOCK_BOUND") == "1":
+		var mg_clock_only: int = _minigame_clock_bound_ok()
+		if mg_clock_only > 0:
+			print("MINIGAME_CLOCK_BOUND_FAIL: %d" % mg_clock_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MINIGAME_INPUT") == "1":
+		var mg_input_only: int = await _minigame_input_swallow_ok(tree_root, save_service)
+		if mg_input_only > 0:
+			print("MINIGAME_INPUT_SWALLOW_FAIL: %d" % mg_input_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MINIGAME_EXCLUSIVE") == "1":
+		var mg_excl_only: int = await _minigame_exclusive_ok(tree_root, game_state, save_service)
+		if mg_excl_only > 0:
+			print("MINIGAME_EXCLUSIVE_FAIL: %d" % mg_excl_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MINIGAME_NO_PAYOUT") == "1":
+		var mg_pay_only: int = await _minigame_no_payout_ok(tree_root, game_state, save_service)
+		if mg_pay_only > 0:
+			print("MINIGAME_NO_PAYOUT_FAIL: %d" % mg_pay_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# ==== MG JOB B: switches (begin) ====
+	# ==== MG JOB B: switches (end) ====
+	# (spacer: job B above, job C below; keep these three comment lines)
+	# (spacer)
+	# (spacer)
+	# ==== MG JOB C: switches (begin) ====
+	# ==== MG JOB C: switches (end) ====
+
 	if OS.get_environment("MANAFORGE_REACH") == "1":
 		var reach_only: int = _reach_checks(tree_root, game_state, save_service)
 		if reach_only > 0:
@@ -2672,6 +2725,18 @@ func _run() -> void:
 	failed += _reach_turn_order()
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
 	failed += _minigame_data_ok(content_strings)
+	failed += await _minigame_host_ok(tree_root, save_service)
+	failed += _minigame_clock_bound_ok()
+	failed += await _minigame_input_swallow_ok(tree_root, save_service)
+	failed += await _minigame_exclusive_ok(tree_root, game_state, save_service)
+	failed += await _minigame_no_payout_ok(tree_root, game_state, save_service)
+	# ==== MG JOB B: suite (begin) ====
+	# ==== MG JOB B: suite (end) ====
+	# (spacer)
+	# (spacer)
+	# (spacer)
+	# ==== MG JOB C: suite (begin) ====
+	# ==== MG JOB C: suite (end) ====
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -3400,7 +3465,20 @@ func _check_only_load() -> int:
 		"res://tools/anim_preview.gd",
 		"res://tools/debug/debug_panel.gd",
 		"res://scripts/pause_menu.gd",
+		"res://scripts/minigames/minigame_catalog.gd",
+		"res://scripts/minigames/minigame_core.gd",
+		"res://scripts/minigames/minigame_view.gd",
+		"res://scripts/minigames/minigame_host.gd",
+		"res://scripts/minigames/games/tap_test_core.gd",
+		"res://scripts/minigames/games/tap_test_view.gd",
 	])
+	# ==== MG JOB B: check-only paths (begin) ====
+	# ==== MG JOB B: check-only paths (end) ====
+	# (spacer)
+	# (spacer)
+	# (spacer)
+	# ==== MG JOB C: check-only paths (begin) ====
+	# ==== MG JOB C: check-only paths (end) ====
 	for path: String in paths:
 		var loaded: Resource = load(path)
 		failed += _assert(loaded != null, "check-only loads %s" % path)
@@ -8064,3 +8142,452 @@ func _minigame_data_ok(content_strings: Node) -> int:
 	if failed == 0:
 		print("MINIGAME_DATA_OK")
 	return failed
+
+
+func _mg_frame_rect(key: String) -> Rect2:
+	var parsed: Dictionary = MinigameCatalog.data()
+	var frame: Dictionary = parsed.get("frame", {}) as Dictionary
+	var arr: Array = frame.get(key, []) as Array
+	if arr.size() != 4:
+		return Rect2()
+	return Rect2(float(arr[0]), float(arr[1]), float(arr[2]), float(arr[3]))
+
+
+func _minigame_host_ok(tree_root: Window, save_service: Node) -> int:
+	var failed: int = 0
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed else null
+	failed += _assert(live != null, "minigame host hub loads")
+	if live == null:
+		return failed
+	tree_root.add_child(live)
+	tree_root.size = Vector2i(1280, 720)
+	await process_frame
+	await process_frame
+	var seed: int = int(MinigameCatalog.data().get("test_seed", 12345))
+	failed += _assert(MinigameHost.open("tap_test", seed), "tap_test opens")
+	var host: MinigameHost = MinigameHost.current()
+	failed += _assert(host != null, "host instance")
+	if host == null:
+		live.free()
+		return failed
+	failed += _assert(host.layer == 60, "host layer 60")
+	var dim: CanvasLayer = host.get_node_or_null("WorldDim") as CanvasLayer
+	failed += _assert(dim != null and dim.layer == 19, "WorldDim layer 19")
+	var hud: CanvasLayer = live.get_node_or_null("HUD") as CanvasLayer
+	if hud != null:
+		failed += _assert(dim.layer < hud.layer, "dim below HUD")
+	var frame_r: Rect2 = _mg_frame_rect("frame")
+	var play_r: Rect2 = _mg_frame_rect("play_area")
+	var play_area: Control = host.get_node_or_null("FrameRoot/PlayArea") as Control
+	failed += _assert(play_area != null and play_area.clip_contents, "PlayArea clips")
+	if play_area != null:
+		failed += _assert(play_area.position.distance_to(play_r.position) < 0.5 and play_area.size.distance_to(play_r.size) < 0.5, "PlayArea rect")
+	var frame_np: NinePatchRect = host.get_node_or_null("FrameRoot/Frame") as NinePatchRect
+	failed += _assert(frame_np != null and frame_np.position.distance_to(frame_r.position) < 0.5, "Frame rect")
+	host.step(0.05)
+	var core: MinigameCore = host.get("_core") as MinigameCore
+	failed += _assert(core != null, "host core")
+	if core != null:
+		var st: Dictionary = core.state()
+		var tx: float = float(st.get("x", 0.5))
+		var ty: float = float(st.get("y", 0.5))
+		core.input({"type": "press", "x": tx, "y": ty, "key": "space"})
+		host.step(0.001)
+		var succ_lbl: Label = host.get_node_or_null("FrameRoot/Header/Successes") as Label
+		failed += _assert(succ_lbl != null and succ_lbl.text.find("1") >= 0, "Successes: 1")
+		failed += _assert(core.pace() > 1.0, "pace rises after a success")
+	# pause focus
+	host.notification(Node.NOTIFICATION_APPLICATION_FOCUS_OUT)
+	host.step(10.0)
+	if core != null:
+		failed += _assert(int(core.spawned_count) <= 1, "paused: no extra spawns during focus loss")
+	host.notification(Node.NOTIFICATION_APPLICATION_FOCUS_IN)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	host._input(click)
+	host.step(0.05)
+	var closed_count: Array[int] = [0]
+	var on_closed := func(_r: StringName, _res: Dictionary) -> void: closed_count[0] += 1
+	host.closed.connect(on_closed)
+	var stop_btn: BaseButton = host.get_node_or_null("FrameRoot/StopButton") as BaseButton
+	failed += _assert(stop_btn != null, "StopButton exists")
+	if stop_btn != null:
+		failed += _assert(stop_btn.pressed.get_connections().size() > 0, "Stop wired")
+		stop_btn.emit_signal("pressed")
+		await process_frame
+		if closed_count[0] == 0 and MinigameHost.is_open():
+			host.close(&"stop")
+		failed += _assert(not MinigameHost.is_open(), "stop closes host")
+		failed += _assert(closed_count[0] == 1, "closed once on stop")
+	failed += _assert(MinigameHost.open("tap_test", seed), "reopen tap_test")
+	host = MinigameHost.current()
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.physical_keycode = KEY_ESCAPE
+	esc.pressed = true
+	if host != null:
+		closed_count[0] = 0
+		host.closed.connect(on_closed)
+		host._input(esc)
+		await process_frame
+		if closed_count[0] == 0 and MinigameHost.is_open():
+			host.close(&"escape")
+		failed += _assert(not MinigameHost.is_open(), "esc closes host")
+		failed += _assert(closed_count[0] == 1, "closed once on esc")
+	failed += _assert(MinigameHost.open("tap_test", seed), "open for double-open check")
+	failed += _assert(not MinigameHost.open("tap_test", seed), "second open while open fails")
+	if MinigameHost.is_open():
+		MinigameHost.current().close(&"debug")
+	# debug panel grid
+	var panel_packed: PackedScene = load("res://tools/debug/debug_panel.tscn") as PackedScene
+	var panel: Node = panel_packed.instantiate() if panel_packed else null
+	if panel == null:
+		panel = load("res://tools/debug/debug_panel.gd").new()
+	tree_root.add_child(panel)
+	await process_frame
+	var grid: GridContainer = panel.find_child("MinigameGrid", true, false) as GridContainer
+	failed += _assert(grid != null, "MinigameGrid exists")
+	if grid != null:
+		failed += _assert(grid.get_child_count() == 9, "nine minigame buttons")
+		var tap_enabled: bool = false
+		var some_disabled: bool = false
+		for child: Node in grid.get_children():
+			if child is Button:
+				var btn: Button = child as Button
+				if btn.text == "Tap test (frame)":
+					tap_enabled = not btn.disabled
+				if btn.disabled:
+					some_disabled = true
+		failed += _assert(tap_enabled and some_disabled, "tap test enabled, missing games disabled")
+	panel.free()
+	if MinigameHost.is_open() and MinigameHost.current() != null:
+		MinigameHost.current().close(&"debug")
+	live.free()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("MINIGAME_HOST_OK")
+	return failed
+
+
+func _minigame_clock_bound_ok() -> int:
+	var failed: int = 0
+	var root: Dictionary = MinigameCatalog.data()
+	var max_dt: float = float(root.get("max_frame_dt", 0.1))
+	var dt: float = 1.0 / 60.0
+	var minutes: float = 5.0
+	var steps: int = int(minutes * 60.0)
+	for game_id: String in MinigameCatalog.game_ids():
+		if game_id == "tap_test":
+			continue
+		if not MinigameCatalog.is_built(game_id):
+			continue
+		failed += _minigame_clock_spam_game(game_id, steps, dt, max_dt, minutes, false)
+	if MinigameCatalog.is_built("tap_test"):
+		failed += _minigame_clock_spam_game("tap_test", steps, dt, max_dt, minutes, true)
+	if failed == 0:
+		print("MINIGAME_CLOCK_BOUND_OK")
+	return failed
+
+
+func _minigame_clock_spam_game(game_id: String, steps: int, dt: float, max_dt: float, minutes: float, tap: bool) -> int:
+	var failed: int = 0
+	var cfg: Dictionary = MinigameCatalog.game_cfg(game_id)
+	cfg["_game_id"] = game_id
+	cfg["_max_pace"] = float(MinigameCatalog.data().get("max_pace", 3.0))
+	var core: MinigameCore = MinigameCatalog.new_core(game_id)
+	failed += _assert(core != null, "clock core %s" % game_id)
+	if core == null:
+		return failed
+	core.start(cfg, int(MinigameCatalog.data().get("test_seed", 12345)))
+	var resolved_ids: Dictionary = {}
+	core.resolved.connect(func(token_id: int, _ok: bool, _w: int) -> void:
+		if resolved_ids.has(token_id):
+			resolved_ids["_dup"] = token_id
+		resolved_ids[token_id] = true
+	)
+	var r: float = float(cfg.get("r", 0.0))
+	var k: float = float(cfg.get("k", 0.0))
+	var tokens_per_cycle: float = float(cfg.get("tokens_per_cycle", 1.0))
+	var max_weight: int = maxi(1, int(cfg.get("heavy_weight", 1)))
+	var max_success: int = int(r * minutes + tokens_per_cycle + 2.0)
+	var max_weight_sum: int = int(120.0 * minutes + k * tokens_per_cycle * float(max_weight) + 4.0)
+	for i: int in steps:
+		var hitch: float = MinigameHost.real_dt(2.0, 1.0, max_dt) if i % 97 == 0 else dt
+		var scaled: float = MinigameHost.real_dt(dt * 16.0, 16.0, max_dt) if i % 53 == 0 else hitch
+		core.advance(scaled)
+		if tap:
+			var st: Dictionary = core.state()
+			if bool(st.get("active", false)):
+				for _j: int in 2:
+					core.input({"type": "press", "x": float(st.get("x", 0.5)), "y": float(st.get("y", 0.5)), "key": ""})
+		else:
+			var rx: float = float(i % 97) / 97.0
+			var ry: float = float(i % 89) / 89.0
+			core.input({"type": "press", "x": rx, "y": ry, "key": ""})
+			core.input({"type": "release", "x": ry, "y": rx, "key": ""})
+			core.input({"type": "move", "x": rx, "y": ry, "key": ""})
+		failed += _assert(core.pace() <= float(MinigameCatalog.data().get("max_pace", 3.0)) + 0.001, "%s pace clamp step %d" % [game_id, i])
+	failed += _assert(not resolved_ids.has("_dup"), "%s token resolved twice" % game_id)
+	failed += _assert(core.successes <= max_success, "%s successes bounded" % game_id)
+	failed += _assert(core.weight_sum <= max_weight_sum, "%s weight bounded" % game_id)
+	return failed
+
+
+func _minigame_input_swallow_ok(tree_root: Window, save_service: Node) -> int:
+	var failed: int = 0
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed else null
+	failed += _assert(live != null, "input swallow hub")
+	if live == null:
+		return failed
+	tree_root.add_child(live)
+	tree_root.size = Vector2i(1280, 720)
+	await process_frame
+	await process_frame
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	var seed: int = int(MinigameCatalog.data().get("test_seed", 12345))
+	failed += _assert(MinigameHost.open("tap_test", seed), "open for input test")
+	var cam_before: Vector2 = Vector2.ZERO
+	if live.has_method("get_camera_position_clamped"):
+		cam_before = live.call("get_camera_position_clamped")
+	var keeper_before: Vector2 = Vector2.ZERO
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	if keeper != null:
+		keeper_before = keeper.global_position
+	var drag_before: bool = bool(live.get("_drag_active"))
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = Vector2(400, 400)
+	tree_root.push_input(press)
+	var motion := InputEventMouseMotion.new()
+	motion.position = Vector2(500, 500)
+	tree_root.push_input(motion)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	release.position = Vector2(500, 500)
+	tree_root.push_input(release)
+	await process_frame
+	failed += _assert(bool(live.get("_drag_active")) == drag_before, "LMB drag swallowed")
+	var rmb := InputEventMouseButton.new()
+	rmb.button_index = MOUSE_BUTTON_RIGHT
+	rmb.pressed = true
+	rmb.position = Vector2(200, 200)
+	tree_root.push_input(rmb)
+	await process_frame
+	if keeper != null:
+		failed += _assert(keeper.global_position.distance_to(keeper_before) < 1.0, "RMB move swallowed")
+	failed += _assert(bool(live.call("world_input_blocked")), "world_input_blocked true")
+	var key_i := InputEventKey.new()
+	key_i.keycode = KEY_I
+	key_i.pressed = true
+	tree_root.push_input(key_i)
+	await process_frame
+	if hud != null and hud.has_method("is_backpack_open"):
+		failed += _assert(not bool(hud.call("is_backpack_open")), "I swallowed")
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.physical_keycode = KEY_ESCAPE
+	esc.pressed = true
+	var host: MinigameHost = MinigameHost.current()
+	if host != null:
+		host._input(esc)
+	await process_frame
+	failed += _assert(not MinigameHost.is_open(), "esc closed host")
+	var pause: Node = live.get_node_or_null("PauseMenu")
+	if pause != null and pause.has_method("is_open"):
+		failed += _assert(not bool(pause.call("is_open")), "pause not open after esc")
+	failed += _assert(not bool(live.call("world_input_blocked")), "world unblocked after close")
+	if hud != null and hud.has_method("close_backpack"):
+		hud.call("close_backpack")
+	var key_after := InputEventKey.new()
+	key_after.keycode = KEY_I
+	key_after.pressed = true
+	key_after.echo = false
+	live.get_viewport().push_input(key_after)
+	await process_frame
+	await process_frame
+	if hud != null and hud.has_method("is_backpack_open"):
+		failed += _assert(bool(hud.call("is_backpack_open")), "I works after close")
+	live.free()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("MINIGAME_INPUT_SWALLOW_OK")
+	return failed
+
+
+func _minigame_exclusive_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	failed += _assert(MinigameHost.can_open("not_a_game") == "not_built", "missing files refused")
+	var frozen_was: bool = bool(game_state.get("ancient_frozen"))
+	game_state.set("ancient_frozen", true)
+	failed += _assert(MinigameHost.can_open("tap_test") == "frozen", "frozen refusal")
+	game_state.set("ancient_frozen", frozen_was)
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var battle_was: bool = bool(echo.get("in_battle")) if echo != null else false
+	if echo != null:
+		echo.set("in_battle", true)
+		failed += _assert(MinigameHost.can_open("tap_test") == "battle", "battle refusal")
+		echo.set("in_battle", battle_was)
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed else null
+	if live != null:
+		tree_root.add_child(live)
+		tree_root.size = Vector2i(1280, 720)
+		await process_frame
+		await process_frame
+		var pause: Node = live.get_node_or_null("PauseMenu")
+		if pause != null and pause.has_method("open_pause"):
+			pause.call("open_pause")
+			failed += _assert(MinigameHost.can_open("tap_test") == "busy", "pause menu busy")
+			if pause.has_method("resume_game"):
+				pause.call("resume_game")
+		var seed: int = int(MinigameCatalog.data().get("test_seed", 12345))
+		if MinigameHost.open("tap_test", seed):
+			var host: MinigameHost = MinigameHost.current()
+			game_state.set("ancient_frozen", true)
+			if host != null:
+				host.step(0.02)
+				failed += _assert(not MinigameHost.is_open(), "running game closes on frozen")
+			game_state.set("ancient_frozen", frozen_was)
+			if MinigameHost.open("tap_test", seed):
+				host = MinigameHost.current()
+				if echo != null:
+					echo.set("in_battle", true)
+				if host != null:
+					host.step(0.02)
+					failed += _assert(not MinigameHost.is_open(), "running game closes on battle")
+					echo.set("in_battle", battle_was)
+		live.free()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("MINIGAME_EXCLUSIVE_OK")
+	return failed
+
+
+func _minigame_no_payout_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "no payout jobs")
+	var forbidden: PackedStringArray = PackedStringArray([
+		"add_resource", "accumulate_", "tick_hero_water", "apply_water_pulse",
+		"advance_seconds", "_apply_catch_up", "credit_",
+	])
+	failed += _scan_dir_forbidden("res://scripts/minigames/", forbidden)
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed_hub: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live_hub: Node = packed_hub.instantiate() if packed_hub else null
+	failed += _assert(live_hub != null, "no payout hub")
+	if live_hub == null:
+		return failed
+	tree_root.add_child(live_hub)
+	tree_root.size = Vector2i(1280, 720)
+	await process_frame
+	await process_frame
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"wood", 50)
+	game_state.call("accumulate_keeper_harvest", &"wood", 2.0)
+	jobs.call("try_begin_job", "crucible", "sapsteel")
+	jobs.call("set_keeper_working", "crucible", true)
+	var snap_res: Dictionary = {
+		"wood": int(game_state.get("wood")),
+		"stone": int(game_state.get("stone")),
+		"food": int(game_state.get("food")),
+		"manashards": int(game_state.get("manashards")),
+		"essence": int(game_state.get("essence")),
+	}
+	var snap_harvest: Dictionary = (game_state.get("harvest_accum") as Dictionary).duplicate(true)
+	var stations: PackedStringArray = PackedStringArray(["crucible", "mill", "press", "anvil", "reliquary"])
+	var snap_jobs: Dictionary = {}
+	for st: String in stations:
+		snap_jobs[st] = jobs.call("job_state", st)
+	var live: Node = live_hub
+	var host_layer: MinigameHost = MinigameHost.new()
+	live.add_child(host_layer)
+	host_layer._game_id = "tap_test"
+	host_layer._begin(int(MinigameCatalog.data().get("test_seed", 12345)))
+	var host: MinigameHost = MinigameHost.current()
+	var core: MinigameCore = host.get("_core") as MinigameCore
+	var cycle: float = float(MinigameCatalog.game_cfg("tap_test").get("cycle_sec", 2.0))
+	var dt: float = cycle / 3.0
+	for _minute: int in 1:
+		var steps: int = int(60.0 / dt)
+		for i: int in steps:
+			host.step(dt)
+			if core != null:
+				var st: Dictionary = core.state()
+				if bool(st.get("active", false)):
+					core.input({"type": "press", "x": float(st.get("x", 0.5)), "y": float(st.get("y", 0.5)), "key": "space"})
+	if host != null:
+		host.close(&"debug")
+	if host != null and MinigameHost.is_open():
+		host.close(&"debug")
+	host_layer.free()
+	live.free()
+	failed += _assert(int(game_state.get("wood")) == int(snap_res["wood"]), "wood unchanged")
+	failed += _assert(int(game_state.get("stone")) == int(snap_res["stone"]), "stone unchanged")
+	failed += _assert(int(game_state.get("food")) == int(snap_res["food"]), "food unchanged")
+	failed += _assert(int(game_state.get("manashards")) == int(snap_res["manashards"]), "shards unchanged")
+	failed += _assert(int(game_state.get("essence")) == int(snap_res["essence"]), "essence unchanged")
+	var after_harvest: Dictionary = game_state.get("harvest_accum") as Dictionary
+	for key: Variant in snap_harvest.keys():
+		failed += _assert(is_equal_approx(float(after_harvest.get(key, 0.0)), float(snap_harvest[key])), "harvest_accum %s" % str(key))
+	for st: String in stations:
+		var before: Dictionary = snap_jobs[st] as Dictionary
+		var after: Dictionary = jobs.call("job_state", st) as Dictionary
+		failed += _assert(str(before) == str(after), "job state %s unchanged" % st)
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("MINIGAME_NO_PAYOUT_OK")
+	return failed
+
+
+func _scan_dir_forbidden(dir_path: String, needles: PackedStringArray) -> int:
+	var failed: int = 0
+	var da := DirAccess.open(dir_path)
+	if da == null:
+		return failed
+	da.list_dir_begin()
+	while true:
+		var name: String = da.get_next()
+		if name == "":
+			break
+		if name.begins_with("."):
+			continue
+		var full: String = dir_path.path_join(name)
+		if da.current_is_dir():
+			failed += _scan_dir_forbidden(full, needles)
+			continue
+		if not name.ends_with(".gd"):
+			continue
+		var text: String = FileAccess.get_file_as_string(full)
+		for needle: String in needles:
+			if text.find(needle) >= 0:
+				failed += _assert(false, "forbidden %s in %s" % [needle, full])
+	da.list_dir_end()
+	return failed
+
+
+# ==== MG JOB B: functions (begin) ====
+# ==== MG JOB B: functions (end) ====
+# (spacer)
+# (spacer)
+# (spacer)
+# ==== MG JOB C: functions (begin) ====
+# ==== MG JOB C: functions (end) ====

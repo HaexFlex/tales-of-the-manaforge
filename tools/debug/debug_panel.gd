@@ -111,6 +111,25 @@ func _build_ui() -> void:
 	_add_button(box, "Jump to Echo", _on_echo_pressed)
 	_add_button(box, "Open Ascension shop", _on_ascension_pressed)
 
+	_add_section(box, MinigameCatalog.text("mg_section"))
+	var minigame_grid := GridContainer.new()
+	minigame_grid.name = "MinigameGrid"
+	minigame_grid.columns = 3
+	minigame_grid.add_theme_constant_override("h_separation", 6)
+	minigame_grid.add_theme_constant_override("v_separation", 4)
+	box.add_child(minigame_grid)
+	for game_id: String in MinigameCatalog.game_ids():
+		var gcfg: Dictionary = MinigameCatalog.game_cfg(game_id)
+		var label: String = MinigameCatalog.text(str(gcfg.get("name_key", "")))
+		var mg_btn: Button = _add_button(minigame_grid, label, _on_minigame_pressed.bind(game_id))
+		if not MinigameCatalog.is_built(game_id):
+			mg_btn.disabled = true
+			mg_btn.tooltip_text = MinigameCatalog.text("mg_not_built")
+	var tap_btn: Button = _add_button(minigame_grid, "Tap test (frame)", _on_minigame_pressed.bind("tap_test"))
+	if not MinigameCatalog.is_built("tap_test"):
+		tap_btn.disabled = true
+		tap_btn.tooltip_text = MinigameCatalog.text("mg_not_built")
+
 	_status = Label.new()
 	_status.name = "Status"
 	_status.text = "Ready."
@@ -388,6 +407,20 @@ func _on_catalogue_add() -> void:
 	else:
 		Backpack.add_item(id, qty)
 	_set_status("Added %d %s." % [qty, str(row.get("label", id))])
+
+
+func _on_minigame_pressed(game_id: String) -> void:
+	var reason: String = MinigameHost.can_open(game_id)
+	if reason != "":
+		_set_status(MinigameHost.refusal_text(reason))
+		var deny: String = str(MinigameCatalog.data().get("cues", {}).get("deny", "sfx_ui_deny"))
+		GameAudio.play(StringName(deny))
+		return
+	_dismiss_pause()
+	get_tree().paused = false
+	AnimPreviewHotkey.set_debug_panel(false)
+	if not MinigameHost.open(game_id):
+		_set_status(MinigameHost.refusal_text(MinigameHost.last_refusal))
 
 
 func _on_echo_pressed() -> void:
