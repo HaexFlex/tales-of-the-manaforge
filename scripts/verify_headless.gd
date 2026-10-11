@@ -16436,6 +16436,16 @@ func save_service_node(tree_root: Window) -> Node:
 
 
 func _handoff_resume(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## The press-to-600s clock checks assume no live frames step the room. An earlier
+	## test can leave a hub session open, so close it here and restore it afterwards.
+	var session_was: bool = bool(save_service.get("session_active"))
+	save_service.set("session_active", false)
+	var failed: int = await _handoff_resume_body(tree_root, game_state, save_service)
+	save_service.set("session_active", session_was)
+	return failed
+
+
+func _handoff_resume_body(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	var backpack: Node = tree_root.get_node_or_null("Backpack")
