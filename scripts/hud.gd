@@ -253,6 +253,8 @@ func _ready() -> void:
 	GameState.wisps_changed.connect(_refresh_selection_hint)
 	GameState.echo_flags_changed.connect(_refresh_selection_hint)
 	GameState.load_completed.connect(_on_game_state_loaded)
+	if has_node("/root/Reach") and not Reach.party_changed.is_connected(_on_reach_party_changed):
+		Reach.party_changed.connect(_on_reach_party_changed)
 	Backpack.inventory_changed.connect(_on_backpack_inventory)
 	_refresh_all()
 	stage_label.visible = false
@@ -812,8 +814,8 @@ func _refresh_party_bar() -> void:
 	var companion_id: String = str(GameState.selected_companion_id)
 	var elaia_joined: bool = GameState.elaia_portrait_visible()
 	_party_bar.visible = true
-	_slot_keeper.visible = true
-	_slot_elaia.visible = elaia_joined
+	_slot_keeper.visible = not GameState.member_away("keeper")
+	_slot_elaia.visible = elaia_joined and not GameState.member_away("elaia")
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
 	_slot_wisp.visible = not ids.is_empty()
 	_set_party_outline(_slot_keeper, show_keeper)
@@ -1011,6 +1013,10 @@ func _on_loaded_from_pause() -> void:
 	_refresh_all()
 	_sync_ascension_from_state()
 	maybe_show_welcome()
+
+
+func _on_reach_party_changed() -> void:
+	_refresh_party_bar()
 
 
 func _on_game_state_loaded() -> void:

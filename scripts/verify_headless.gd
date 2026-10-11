@@ -380,6 +380,60 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_KEEPER_AWAY_HUB") == "1":
+		var keeper_away_hub: int = await _keeper_away_hub_ok(tree_root, game_state, save_service)
+		if keeper_away_hub > 0:
+			print("KEEPER_AWAY_HUB_FAIL: %d" % keeper_away_hub)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PARTY_AWAY_HUB") == "1":
+		var party_away_hub: int = await _party_away_hub_ok(tree_root, game_state, save_service)
+		if party_away_hub > 0:
+			print("PARTY_AWAY_HUB_FAIL: %d" % party_away_hub)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_KEEPER_AWAY_JOIN_FIGHT") == "1":
+		var keeper_join: int = await _keeper_away_join_fight_ok(tree_root, game_state, save_service)
+		if keeper_join > 0:
+			print("KEEPER_AWAY_JOIN_FIGHT_FAIL: %d" % keeper_join)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WISP_MISCLICK_KEEPS_JOB") == "1":
+		var misclick: int = await _wisp_misclick_keeps_job_ok(tree_root, game_state, save_service)
+		if misclick > 0:
+			print("WISP_MISCLICK_KEEPS_JOB_FAIL: %d" % misclick)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WISP_REASSIGN_SAME_SCENE") == "1":
+		var reassign: int = _wisp_reassign_same_scene_ok(tree_root, game_state, save_service)
+		if reassign > 0:
+			print("WISP_REASSIGN_SAME_SCENE_FAIL: %d" % reassign)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WISP_NO_CROSS_SCENE") == "1":
+		var cross: int = _wisp_no_cross_scene_ok(tree_root, game_state, save_service)
+		if cross > 0:
+			print("WISP_NO_CROSS_SCENE_FAIL: %d" % cross)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_SIMULATE_NO_SIDE_EFFECTS") == "1":
 		var sim_side_only: int = await _simulate_no_side_effects_ok(tree_root, game_state, save_service)
 		if sim_side_only > 0:
@@ -3198,6 +3252,12 @@ func _run() -> void:
 	failed += await _manual_overwhelmed_ok(tree_root, game_state, save_service)
 	failed += _depart_essence_ok(tree_root, game_state, save_service)
 	failed += await _party_lock_save_ok(tree_root, game_state, save_service)
+	failed += await _keeper_away_hub_ok(tree_root, game_state, save_service)
+	failed += await _party_away_hub_ok(tree_root, game_state, save_service)
+	failed += await _keeper_away_join_fight_ok(tree_root, game_state, save_service)
+	failed += await _wisp_misclick_keeps_job_ok(tree_root, game_state, save_service)
+	failed += _wisp_reassign_same_scene_ok(tree_root, game_state, save_service)
+	failed += _wisp_no_cross_scene_ok(tree_root, game_state, save_service)
 	failed += await _simulate_ok(tree_root, game_state, save_service)
 	failed += await _simulate_no_side_effects_ok(tree_root, game_state, save_service)
 
@@ -13985,6 +14045,337 @@ func _simulate_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 		print("SIMULATE_PERF_WARN")
 	if failed == 0:
 		print("SIMULATE_OK")
+	return failed
+
+
+func _job29_elaia_joined(game_state: Node) -> void:
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+
+
+func _reach_force_end_run(reach: Node) -> void:
+	var total: int = int(reach.get("slots_total"))
+	var forced: Array[String] = []
+	for _i: int in range(total):
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	while bool(reach.get("running")):
+		reach.call("advance_clock", 720.0)
+
+
+func _keeper_away_hub_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(reach != null and jobs != null, "keeper away autoloads")
+	if reach == null or jobs == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 100)
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	var wood_before: int = int(game_state.get("wood"))
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper departs")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live else null
+	var hud: Node = live.get_node_or_null("HUD") if live else null
+	failed += _assert(live != null and keeper != null and hud != null, "hub bodies")
+	if live and live.has_method("_on_reach_party_changed"):
+		live.call("_on_reach_party_changed")
+	await process_frame
+	failed += _assert(not keeper.visible and not keeper.is_physics_processing(), "keeper hidden in clearing")
+	game_state.call("select_keeper")
+	failed += _assert(not bool(game_state.get("keeper_selected")), "select_keeper refused")
+	game_state.call("select_group", [0], true)
+	failed += _assert(not bool(game_state.get("keeper_selected")), "select_group skips keeper")
+	var slot_keeper: Control = hud.get("_slot_keeper") as Control
+	failed += _assert(slot_keeper != null and not slot_keeper.visible, "keeper portrait hidden")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	jobs.call("step_jobs", 10.0)
+	failed += _assert(int(game_state.get("wood")) == wood_before, "keeper harvest pays nothing while away")
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	var wood_wisp: int = int(game_state.get("wood"))
+	game_state.call("apply_wisp_pulses", 200.0)
+	failed += _assert(int(game_state.get("wood")) > wood_wisp, "wisp harvest continues")
+	_reach_force_end_run(reach)
+	if live and live.has_method("_on_reach_party_changed"):
+		live.call("_on_reach_party_changed")
+	await process_frame
+	failed += _assert(keeper.visible and keeper.is_physics_processing(), "keeper returns visible")
+	game_state.call("select_keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "keeper selectable after run")
+	if live:
+		live.free()
+	await process_frame
+	if failed == 0:
+		print("KEEPER_AWAY_HUB_OK")
+	return failed
+
+
+func _party_away_hub_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(reach != null and jobs != null, "party away autoloads")
+	if reach == null or jobs == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	_job29_elaia_joined(game_state)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "elaia", "row": "back"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "elaia-only depart")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live else null
+	var elaia: Node2D = live.get_node_or_null("World/Elaia") as Node2D if live else null
+	var hud: Node = live.get_node_or_null("HUD") if live else null
+	failed += _assert(live != null and keeper != null and elaia != null and hud != null, "hub with elaia")
+	if live and live.has_method("_on_reach_party_changed"):
+		live.call("_on_reach_party_changed")
+	await process_frame
+	failed += _assert(not elaia.visible, "elaia hidden clearing")
+	game_state.call("select_companion", "elaia")
+	failed += _assert(str(game_state.get("selected_companion_id")) != "elaia", "select elaia refused")
+	var slot_elaia: Control = hud.get("_slot_elaia") as Control
+	failed += _assert(slot_elaia != null and not slot_elaia.visible, "elaia portrait hidden")
+	game_state.call("select_keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "keeper still selectable")
+	if keeper.has_method("move_to"):
+		var from: Vector2 = keeper.global_position
+		keeper.call("move_to", from + Vector2(0, 60), null)
+		for _step: int in 12:
+			await physics_frame
+		failed += _assert(keeper.global_position.distance_to(from) > 6.0, "keeper walks")
+	jobs.call("set_in_forge_override", 1)
+	change_scene_to_file(_FORGE_SCENE)
+	failed += await _expect_scene("party away forge", _FORGE_SCENE)
+	var forge: Node = current_scene
+	var forge_elaia: Node2D = forge.get_node_or_null("Elaia") as Node2D if forge else null
+	if forge and forge.has_method("_on_reach_party_changed"):
+		forge.call("_on_reach_party_changed")
+	await process_frame
+	failed += _assert(forge_elaia != null and not forge_elaia.visible, "elaia hidden forge")
+	failed += _assert(bool(save_service.call("save_game", 6)), "party away save")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 6)), "party away load")
+	failed += _assert(bool(reach.call("member_away", "elaia")), "elaia still away after load")
+	jobs.call("set_in_forge_override", -1)
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("party away reload hub", _HUB_SCENE)
+	var hub_after: Node = current_scene
+	var elaia_after: Node2D = hub_after.get_node_or_null("World/Elaia") as Node2D if hub_after else null
+	if hub_after and hub_after.has_method("_on_reach_party_changed"):
+		hub_after.call("_on_reach_party_changed")
+	if elaia_after:
+		elaia_after.call("_apply_presence")
+	failed += _assert(elaia_after != null and not elaia_after.visible, "elaia hidden after load")
+	_reach_force_end_run(reach)
+	if hub_after and hub_after.has_method("_on_reach_party_changed"):
+		hub_after.call("_on_reach_party_changed")
+	if elaia_after:
+		elaia_after.call("_apply_presence")
+	failed += _assert(elaia_after != null and elaia_after.visible, "elaia back after run")
+	save_service.call("delete_slot", 6)
+	_drop_current_scene()
+	if live:
+		live.free()
+	await process_frame
+	if failed == 0:
+		print("PARTY_AWAY_HUB_OK")
+	return failed
+
+
+func _keeper_away_join_fight_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "join fight Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away for join")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var board: Area2D = live.get_node_or_null("World/ExpeditionBoard") as Area2D if live else null
+	failed += _assert(board != null, "expedition board")
+	game_state.call("clear_selection")
+	var lmb := InputEventMouseButton.new()
+	lmb.button_index = MOUSE_BUTTON_LEFT
+	lmb.pressed = true
+	if board:
+		board.input_event.emit(tree_root, lmb, 0)
+	await process_frame
+	failed += _assert(bool(board.call("shell_open")), "LMB opens shell while keeper away")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var manual_btn: Button = shell.find_child("ManualButton", true, false) as Button if shell else null
+	failed += _assert(manual_btn != null, "Manual button")
+	if manual_btn:
+		manual_btn.emit_signal("pressed")
+	await process_frame
+	failed += _assert(bool(reach.call("fight_active")), "manual joins fight")
+	failed += _assert(BattleViewScript.is_open(), "BattleView open")
+	if board and bool(board.call("shell_open")):
+		board.call("close_shell")
+	if live:
+		live.free()
+	reach.call("reset_for_new_game")
+	await process_frame
+	if failed == 0:
+		print("KEEPER_AWAY_JOIN_FIGHT_OK")
+	return failed
+
+
+func _wisp_misclick_keeps_job_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(reach != null and jobs != null, "misclick autoloads")
+	if reach == null or jobs == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 100)
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away misclick")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "misclick hub")
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	game_state.call("select_wisp", 1)
+	var toasts: Array[String] = []
+	game_state.status_message.connect(func(t: String) -> void:
+		toasts.append(t)
+	)
+	if live.has_method("handle_rmb_ground"):
+		live.call("handle_rmb_ground", Vector2(120, 120))
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "harvest_tree", "clearing misclick keeps job")
+	var keep_line: String = str(tree_root.get_node("ContentStrings").call("get_text", "wisp_keep_job_away"))
+	failed += _assert(toasts.has(keep_line), "misclick toast clearing")
+	jobs.call("set_in_forge_override", 1)
+	change_scene_to_file(_FORGE_SCENE)
+	failed += await _expect_scene("misclick forge", _FORGE_SCENE)
+	var forge: Node = current_scene
+	game_state.call("select_wisp", 1)
+	toasts.clear()
+	if forge and forge.has_method("_on_rmb_ground"):
+		forge.call("_on_rmb_ground", Vector2(200, 200))
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "harvest_tree", "forge misclick keeps job")
+	failed += _assert(toasts.has(keep_line), "misclick toast forge")
+	_reach_force_end_run(reach)
+	jobs.call("set_in_forge_override", -1)
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("misclick return hub", _HUB_SCENE)
+	var hub_back: Node = current_scene
+	game_state.call("select_wisp", 1)
+	if hub_back and hub_back.has_method("handle_rmb_ground"):
+		hub_back.call("handle_rmb_ground", Vector2(80, 80))
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "", "keeper home unassigns again")
+	_drop_current_scene()
+	if live:
+		live.free()
+	reach.call("reset_for_new_game")
+	await process_frame
+	if failed == 0:
+		print("WISP_MISCLICK_KEEPS_JOB_OK")
+	return failed
+
+
+func _wisp_reassign_same_scene_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "reassign Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away reassign")
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_stone")) == "reassign", "clearing reassign")
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "crucible")) == "ok", "forge spot a")
+	var forge_move: String = str(game_state.call("try_assign_wisp", 0, "press"))
+	failed += _assert(forge_move == "reassign", "forge reassign got %s on %s" % [forge_move, game_state.call("get_wisp_assignment", 0)])
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("WISP_REASSIGN_SAME_SCENE_OK")
+	return failed
+
+
+func _wisp_no_cross_scene_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and content_strings != null, "cross scene autoloads")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away cross")
+	game_state.set("wisp_count", 3)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "crucible")) == "cross_scene", "clearing to forge blocked")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "harvest_tree", "assignment unchanged")
+	game_state.call("unassign_wisp", 1)
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "crucible")) == "ok", "assign forge for reverse test")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_stone")) == "cross_scene", "forge to clearing blocked")
+	game_state.call("unassign_wisp", 1)
+	var forge_free: String = str(game_state.call("try_assign_wisp", 2, "crucible"))
+	failed += _assert(forge_free in ["ok", "join"], "unassigned may forge got %s" % forge_free)
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "harvest_tree")) in ["ok", "join"], "unassigned may clearing")
+	reach.call("reset_for_new_game")
+	for wid: int in range(int(game_state.get("wisp_count"))):
+		game_state.call("unassign_wisp", wid)
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	var home_cross: String = str(game_state.call("try_assign_wisp", 1, "crucible"))
+	failed += _assert(home_cross != "cross_scene" and str(game_state.call("get_wisp_assignment", 1)) == "crucible", "cross scene works at home got %s" % home_cross)
+	if failed == 0:
+		print("WISP_NO_CROSS_SCENE_OK")
 	return failed
 
 

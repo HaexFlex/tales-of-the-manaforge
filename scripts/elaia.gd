@@ -111,7 +111,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_presence() -> void:
-	var here: bool = GameState.elaia_in_party() and GameState.elaia_area == home_area
+	var here: bool = GameState.elaia_in_party() and GameState.elaia_area == home_area and not GameState.member_away("elaia")
 	if here and not GameState.elaia_has_pos and home_area == "clearing":
 		_spawn_beside_keeper()
 		here = true

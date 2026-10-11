@@ -89,6 +89,12 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `MANUAL_OVERWHELMED_OK` | Manual Overwhelmed ends the run, loses the pack, skips rest, and shows the overwhelmed panel. `MANAFORGE_MANUAL_OVERWHELMED=1` runs it alone. |
 | `DEPART_ESSENCE_OK` | `depart_slots` costs 20 Essence, moves loadout into the run, returns leftovers on every ending, and blocks bad loadouts without spending. `MANAFORGE_DEPART_ESSENCE=1` runs it alone. |
 | `PARTY_LOCK_SAVE_OK` | Party stats freeze at depart, fights and save/load keep them, `member_away` / `away_members` track who is out, and the next depart re-freezes. `MANAFORGE_PARTY_LOCK_SAVE=1` runs it alone. |
+| `KEEPER_AWAY_HUB_OK` | Keeper on a run vanishes from the hub, cannot be selected, his portrait hides, his harvest stops, wisps keep working, and he returns when the run ends. `MANAFORGE_KEEPER_AWAY_HUB=1` runs it alone. |
+| `PARTY_AWAY_HUB_OK` | Elaia-only depart hides her in the clearing and Forge, blocks selection and portrait, Keeper still walks, save/load mid-run keeps her away, and she returns when the run ends. `MANAFORGE_PARTY_AWAY_HUB=1` runs it alone. |
+| `KEEPER_AWAY_JOIN_FIGHT_OK` | With the Keeper away, a board LMB opens the shell and Manual joins the fight (`BattleView` open). `MANAFORGE_KEEPER_AWAY_JOIN_FIGHT=1` runs it alone. |
+| `WISP_MISCLICK_KEEPS_JOB_OK` | Keeper away: RMB ground in the clearing and Forge keeps wisp jobs and toasts; at home RMB unassigns again. `MANAFORGE_WISP_MISCLICK_KEEPS_JOB=1` runs it alone. |
+| `WISP_REASSIGN_SAME_SCENE_OK` | Keeper away: wisps reassign within the clearing or within Forge craft spots. `MANAFORGE_WISP_REASSIGN_SAME_SCENE=1` runs it alone. |
+| `WISP_NO_CROSS_SCENE_OK` | Keeper away: cross-scene wisp sends are blocked; unassigned wisps may go anywhere; at home cross-scene works. `MANAFORGE_WISP_NO_CROSS_SCENE=1` runs it alone. |
 
 `REACH_MANUAL_DEFEAT_OK` retired by job 26, replaced by `MANUAL_OVERWHELMED_OK`.
 | `SAVE_NEWER_REFUSED_OK` | A save newer than this build is refused with a message naming both versions and leaves the game untouched. Continue skips it, and autosave never overwrites a newer autosave. `MANAFORGE_SAVE_NEWER=1` runs it alone. |

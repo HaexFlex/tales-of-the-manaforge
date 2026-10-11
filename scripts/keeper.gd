@@ -492,7 +492,7 @@ func _remember_keeper_pose() -> void:
 func apply_keeper_presence() -> void:
 	if actor_id() != "keeper":
 		return
-	var here: bool = GameState.keeper_area == scene_home()
+	var here: bool = GameState.keeper_area == scene_home() and not GameState.member_away("keeper")
 	visible = here
 	set_physics_process(here)
 	var body_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D

@@ -353,10 +353,15 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 	if not mb.pressed:
 		return
 	if mb.button_index == MOUSE_BUTTON_LEFT:
+		if GameState.member_away("keeper"):
+			begin_entry()
 		get_viewport().set_input_as_handled()
 		return
 	if mb.button_index == MOUSE_BUTTON_RIGHT:
-		apply_player_command()
+		if GameState.member_away("keeper"):
+			begin_entry()
+		else:
+			apply_player_command()
 		get_viewport().set_input_as_handled()
 
 
@@ -364,7 +369,10 @@ func apply_player_command() -> void:
 	if EchoChamber.in_battle:
 		return
 	if not GameState.keeper_selected:
-		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
+		if GameState.member_away("keeper"):
+			GameState.status_message.emit(ContentStrings.get_text("keeper_away_wait"))
+		else:
+			GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 		return
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 	if keepers.is_empty():

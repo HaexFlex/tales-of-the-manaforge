@@ -73,6 +73,8 @@ func _ready() -> void:
 	var elaia_body: Node = get_node_or_null("Elaia")
 	if elaia_body and elaia_body.has_method("_apply_presence"):
 		elaia_body.call("_apply_presence")
+	if has_node("/root/Reach") and not Reach.party_changed.is_connected(_on_reach_party_changed):
+		Reach.party_changed.connect(_on_reach_party_changed)
 	_focus_pending_actor()
 	if hud and hud.has_method("maybe_show_elaia_footsteps"):
 		hud.call("maybe_show_elaia_footsteps")
@@ -200,20 +202,42 @@ func _on_elaia_arrived() -> void:
 		ForgeJobs.set_elaia_working(_dest_station, true)
 
 
+func _on_reach_party_changed() -> void:
+	if keeper and keeper.has_method("apply_keeper_presence"):
+		keeper.apply_keeper_presence()
+	var elaia_body: Node = get_node_or_null("Elaia")
+	if elaia_body and elaia_body.has_method("_apply_presence"):
+		elaia_body.call("_apply_presence")
+	if GameState.member_away("keeper"):
+		GameState.set_keeper_selected(false)
+	if GameState.member_away("elaia") and GameState.selected_companion_id == "elaia":
+		GameState.selected_companion_id = ""
+		GameState.selection_changed.emit()
+	if has_node("/root/Reach"):
+		for member: String in Reach.away_members():
+			if has_node("/root/ForgeJobs"):
+				ForgeJobs.on_member_departed(member)
+
+
 func _on_rmb_ground(world_pos: Vector2) -> void:
 	_dest_station = ""
 	_station_actor = ""
 	var elaia_selected: bool = GameState.selected_hero_id() == "elaia"
+	var keeper_away: bool = GameState.member_away("keeper")
 	if has_node("/root/ForgeJobs") and not elaia_selected:
 		ForgeJobs.set_keeper_working("", false)
 	_hide_recipes()
 	var ids: Array[int] = GameState.selected_wisp_list()
 	var unassigned: bool = false
-	for wid: int in ids:
-		if GameState.unassign_wisp(wid):
-			unassigned = true
-	if unassigned:
-		GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
+	if keeper_away:
+		if not ids.is_empty():
+			GameState.status_message.emit(ContentStrings.get_text("wisp_keep_job_away"))
+	else:
+		for wid: int in ids:
+			if GameState.unassign_wisp(wid):
+				unassigned = true
+		if unassigned:
+			GameState.status_message.emit(ContentStrings.get_text("wisp_unassign_ok"))
 	if elaia_selected:
 		var elaia: Node = get_node_or_null("Elaia")
 		if elaia and elaia.has_method("command_move"):
@@ -223,7 +247,10 @@ func _on_rmb_ground(world_pos: Vector2) -> void:
 		keeper.call("move_to", world_pos, null)
 		return
 	if ids.is_empty():
-		GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
+		if keeper_away:
+			GameState.status_message.emit(ContentStrings.get_text("keeper_away_wait"))
+		else:
+			GameState.status_message.emit(ContentStrings.get_text("keeper_required"))
 
 
 func focus_selection() -> void:
