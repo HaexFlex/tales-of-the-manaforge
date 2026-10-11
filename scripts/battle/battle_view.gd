@@ -48,7 +48,19 @@ const PARTY_POSES: Dictionary = {
 		"ko": ART_DIR + "party/battle_elaia_ko.png",
 	},
 }
-## West-facing beast hurt frames, imported for playback (job 21). Not wired yet.
+## West-facing beast idle + hurt frames (128×128, soles on row 123). Dark variants reuse the
+## base sprite with VARIANT_MODULATE. acorn_imp / spore_moth / thorn_boar / vine_serpent idles are
+## draft stand-ins (plain file replace later); briar_hulk idle is the briar_warden still.
+const BEAST_IDLE: Dictionary = {
+	"acorn_imp": ART_DIR + "beasts/battle_acorn_imp_idle.png",
+	"briar_hulk": ART_DIR + "beasts/battle_briar_hulk_idle.png",
+	"moss_brute": ART_DIR + "beasts/battle_moss_brute_idle.png",
+	"root_snapper": ART_DIR + "beasts/battle_root_snapper_idle.png",
+	"spore_moth": ART_DIR + "beasts/battle_spore_moth_idle.png",
+	"thorn_boar": ART_DIR + "beasts/battle_thorn_boar_idle.png",
+	"vine_serpent": ART_DIR + "beasts/battle_vine_serpent_idle.png",
+	"wilt_wisp": ART_DIR + "beasts/battle_wilt_wisp_idle.png",
+}
 const BEAST_HURT: Dictionary = {
 	"acorn_imp": ART_DIR + "beasts/battle_acorn_imp_hurt.png",
 	"briar_hulk": ART_DIR + "beasts/battle_briar_hulk_hurt.png",
@@ -594,7 +606,9 @@ func playback_set_beast_idle(fighter_id: String) -> void:
 	if sprite == null:
 		return
 	var base: String = _beast_base_species(species)
-	var idle_path: String = ECHO_BEAST_IDLE % base
+	var idle_path: String = str(BEAST_IDLE.get(base, ""))
+	if idle_path == "" or not ResourceLoader.exists(idle_path):
+		idle_path = ECHO_BEAST_IDLE % base
 	if ResourceLoader.exists(idle_path):
 		sprite.texture = load(idle_path) as Texture2D
 		sprite.size = FIGHTER_FRAME
@@ -813,7 +827,10 @@ func _spawn_fighter_node(row: Dictionary, sole: Vector2) -> void:
 
 func _build_beast_sprite(root: Control, species: String) -> void:
 	var base: String = _beast_base_species(species)
-	var idle_path: String = ECHO_BEAST_IDLE % base
+	var idle_path: String = str(BEAST_IDLE.get(base, ""))
+	if idle_path == "" or not ResourceLoader.exists(idle_path):
+		## Fallback for the three Echo Chamber stills that predate battle/beasts/.
+		idle_path = ECHO_BEAST_IDLE % base
 	if ResourceLoader.exists(idle_path):
 		var sprite := TextureRect.new()
 		sprite.name = "Sprite"

@@ -13907,10 +13907,33 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 
 
 func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Every art-backed species in beasts.json has idle + hurt (128×128). Dark variants reuse the
+	## base sprite. No species that has BEAST_IDLE falls back to the grey ColorRect placeholder.
 	var failed: int = 0
+	failed += _assert(BattleViewScript.BEAST_IDLE.size() == 8 and BattleViewScript.BEAST_HURT.size() == 8, "eight beast idle and hurt paths")
 	for beast_id: String in BattleViewScript.BEAST_HURT.keys():
-		var tex: Texture2D = load(str(BattleViewScript.BEAST_HURT[beast_id])) as Texture2D
-		failed += _assert(tex != null and tex.get_size() == Vector2(128, 128), "hurt %s" % beast_id)
+		failed += _assert(BattleViewScript.BEAST_IDLE.has(beast_id), "idle path for %s" % beast_id)
+		var hurt_tex: Texture2D = load(str(BattleViewScript.BEAST_HURT[beast_id])) as Texture2D
+		failed += _assert(hurt_tex != null and hurt_tex.get_size() == Vector2(128, 128), "hurt %s" % beast_id)
+		if not BattleViewScript.BEAST_IDLE.has(beast_id):
+			continue
+		var idle_tex: Texture2D = load(str(BattleViewScript.BEAST_IDLE[beast_id])) as Texture2D
+		failed += _assert(idle_tex != null and idle_tex.get_size() == Vector2(128, 128), "idle %s" % beast_id)
+	var beasts_data: Dictionary = _json_dict("res://data/beasts.json")
+	var art_pending: Array[String] = ["stump_ogre", "stag_spirit"]
+	var species_rows: Array = beasts_data.get("species", []) as Array
+	failed += _assert(species_rows.size() >= 8, "beasts.json lists species")
+	for row_v: Variant in species_rows:
+		var row: Dictionary = row_v as Dictionary
+		var sid: String = str(row.get("id", ""))
+		if sid in art_pending:
+			continue
+		failed += _assert(BattleViewScript.BEAST_IDLE.has(sid) and BattleViewScript.BEAST_HURT.has(sid), "beasts.json species %s has idle+hurt art" % sid)
+	for var_v: Variant in beasts_data.get("variants", []) as Array:
+		var vrow: Dictionary = var_v as Dictionary
+		var vid: String = str(vrow.get("id", ""))
+		var base: String = BattleViewScript._beast_base_species(vid)
+		failed += _assert(BattleViewScript.BEAST_IDLE.has(base) and BattleViewScript.BEAST_HURT.has(base), "variant %s reuses base %s art" % [vid, base])
 	for member: String in ["keeper", "elaia"]:
 		for pose: String in ["attack", "brace", "hurt", "ko"]:
 			var path: String = str((BattleViewScript.PARTY_POSES.get(member, {}) as Dictionary).get(pose, ""))
@@ -13926,25 +13949,75 @@ func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int
 	var playback: BattlePlayback = view.get_playback()
 	playback.instant = false
 	var stats: Dictionary = {"might": 11, "arcana": 5, "resilience": 6, "ward": 5, "vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical"}
+	## All eight species + both dark variants on screen: every Sprite must be a TextureRect, never the grey block.
 	var fight: FightState = FightStateScript.new()
 	fight.add_member("keeper", stats, 0, "front", "keeper")
-	fight.add_beast("moss_brute", 0, "front")
+	fight.add_member("elaia", stats, 1, "back", "elaia")
+	var lineup: Array = [
+		["acorn_imp", 0, "front"], ["spore_moth", 1, "front"], ["thorn_boar", 2, "front"],
+		["vine_serpent", 0, "back"], ["briar_hulk", 1, "back"], ["root_snapper", 2, "back"],
+	]
+	var beast_ids: Array[String] = []
+	for spot_v: Variant in lineup:
+		var spot: Array = spot_v as Array
+		beast_ids.append(fight.add_beast(str(spot[0]), int(spot[1]), str(spot[2])))
+	## Second pass covers brute, wisp and the two dark variants (overwrites via a fresh fight after the first checks).
 	fight.start_fight()
 	view.call("show_fight", fight)
 	view._fight = fight
 	playback.bind_view(view, fight)
-	var strike_ev: Dictionary = {"kind": "strike", "actor": "keeper", "target": "moss_brute", "band": "hit", "damage": 1, "target_side": "beast"}
+	for i: int in beast_ids.size():
+		var fid: String = beast_ids[i]
+		var species: String = str(lineup[i][0])
+		var root: Control = view.get_node_or_null("Arena/Fighters/Fighter_%s" % fid) as Control
+		var sprite_node: Node = root.get_node_or_null("Sprite") if root != null else null
+		failed += _assert(sprite_node is TextureRect, "%s uses a TextureRect, not the grey placeholder" % species)
+		if sprite_node is TextureRect:
+			var tr: TextureRect = sprite_node as TextureRect
+			failed += _assert(tr.texture != null and str(tr.texture.resource_path).ends_with("battle_%s_idle.png" % species), "%s idle texture" % species)
+			failed += _assert(root.get_node_or_null("Label") == null, "%s has no placeholder label" % species)
+	var strike_ev: Dictionary = {"kind": "strike", "actor": "keeper", "target": beast_ids[0], "band": "hit", "damage": 1, "target_side": "beast"}
 	playback.enqueue_events([strike_ev])
 	playback.advance(0.5)
-	var sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_moss_brute/Sprite") as TextureRect
-	failed += _assert(sprite != null and str(sprite.texture.resource_path).ends_with("battle_moss_brute_hurt.png"), "beast hurt")
+	var sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_%s/Sprite" % beast_ids[0]) as TextureRect
+	var hurt_path: String = str(sprite.texture.resource_path) if sprite != null and sprite.texture != null else ""
+	failed += _assert(hurt_path.ends_with("battle_acorn_imp_hurt.png"), "beast hurt")
 	playback.advance(0.35)
-	failed += _assert(str(sprite.texture.resource_path).ends_with("battle_moss_brute_idle.png"), "beast idle")
+	var idle_after: String = str(sprite.texture.resource_path) if sprite != null and sprite.texture != null else ""
+	failed += _assert(idle_after.ends_with("battle_acorn_imp_idle.png"), "beast idle after hurt")
+	## Dark variants + remaining two species: no placeholder, base art, optional modulate tint.
+	var fight2: FightState = FightStateScript.new()
+	fight2.add_member("keeper", stats, 0, "front", "keeper")
+	var lineup2: Array = [
+		["moss_brute", 0, "front"], ["wilt_wisp", 1, "front"],
+		["acorn_imp_dark", 2, "front"], ["spore_moth_dark", 0, "back"],
+		["briar_hulk", 1, "back"], ["vine_serpent", 2, "back"],
+	]
+	var ids2: Array[String] = []
+	for spot_v2: Variant in lineup2:
+		var spot2: Array = spot_v2 as Array
+		ids2.append(fight2.add_beast(str(spot2[0]), int(spot2[1]), str(spot2[2])))
+	fight2.start_fight()
+	view.call("show_fight", fight2)
+	view._fight = fight2
+	playback.bind_view(view, fight2)
+	for i2: int in ids2.size():
+		var fid2: String = ids2[i2]
+		var species2: String = str(lineup2[i2][0])
+		var base2: String = BattleViewScript._beast_base_species(species2)
+		var root2: Control = view.get_node_or_null("Arena/Fighters/Fighter_%s" % fid2) as Control
+		var spr2: Node = root2.get_node_or_null("Sprite") if root2 != null else null
+		failed += _assert(spr2 is TextureRect, "%s uses a TextureRect (no grey block)" % species2)
+		if spr2 is TextureRect:
+			var tr2: TextureRect = spr2 as TextureRect
+			failed += _assert(tr2.texture != null and str(tr2.texture.resource_path).ends_with("battle_%s_idle.png" % base2), "%s idle is base art" % species2)
+			if species2 != base2:
+				failed += _assert(tr2.modulate.is_equal_approx(BattleViewScript.VARIANT_MODULATE), "%s dark modulate tint" % species2)
 	var dark_species: String = "acorn_imp_dark"
 	var dark_base: String = dark_species.substr(0, dark_species.length() - 5) if dark_species.ends_with("_dark") else dark_species
 	failed += _assert(dark_base == "acorn_imp", "dark variant base species")
 	failed += _assert(str(BattleViewScript.BEAST_HURT.get(dark_base, "")).ends_with("battle_acorn_imp_hurt.png"), "dark uses base hurt art")
-	strike_ev = {"kind": "strike", "actor": "moss_brute", "target": "keeper", "band": "hit", "damage": 1, "target_side": "party"}
+	strike_ev = {"kind": "strike", "actor": ids2[0], "target": "keeper", "band": "hit", "damage": 1, "target_side": "party"}
 	playback.reset_for_fight()
 	playback.enqueue_events([strike_ev])
 	playback.advance(0.5)
