@@ -161,6 +161,8 @@ func display_name(fighter_id: String) -> String:
 			return "Keeper"
 		if lower == "elaia":
 			return "Elaia"
+		if lower == "bramble":
+			return "Bramble"
 		return member
 	var base_key: String = "beast_%s_name" % who.species
 	var base: String = base_key
