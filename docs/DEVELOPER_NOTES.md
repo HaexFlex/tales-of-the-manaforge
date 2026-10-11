@@ -144,12 +144,18 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `BATTLE_ART_OK` | Hurt/KO frames (128×128) and timed hurt→idle. `MANAFORGE_BATTLE_ART=1` runs it alone. |
 | `BATTLE_AUDIO_SOLE_CALLER_OK` | Only `battle_playback.gd` names battle SFX; `cues_for_event` rules. `MANAFORGE_BATTLE_AUDIO_SOLE_CALLER=1` runs it alone. |
 | `HEADLESS_SILENT_OK` | Full test fight headless plays no battle SFX. `MANAFORGE_HEADLESS_SILENT=1` runs it alone. |
+| `ADVENTURE_SLOT_RESUME_OK` | A manual fight saved mid-run reloads the same round, turn, HP and `rng_combat_state`, with the BattleView open. `MANAFORGE_ADVENTURE_SLOT_RESUME=1` runs it alone. |
+| `ADVENTURE_NO_SCUM_OK` | Quitting and loading mid-fight repeats the next Strike (damage, faces, band) twice. Each of 5 actions updates `user://manaforge_adventure.json` and leaves the 7 slots and 3 autosaves untouched. `MANAFORGE_ADVENTURE_NO_SCUM=1` runs it alone. |
+| `SAVE_REWIND_OK` | Loading an older slot ignores the adventure file owned by a newer save and restores that slot's room, pack and Backpack. Loading the newer slot returns to its own room. `MANAFORGE_SAVE_REWIND=1` runs it alone. |
+| `BANK_ONCE_OK` | Finishing a run banks once. Applying a stale copy of that same run and finishing again leaves the Backpack alone. A new `run_id` still banks. `MANAFORGE_BANK_ONCE=1` runs it alone. |
+| `SAVE_SEED_ROUNDTRIP_OK` | `run_seed` `0x7FFFFFF0`, a `room_seed` at 2^31−1, and `rng_combat_state` survive the main save and the adventure file. The next 20 d20s match a copy that was never saved. `MANAFORGE_SAVE_SEED_ROUNDTRIP=1` runs it alone. |
+| `ADVENTURE_NEWER_REFUSED_OK` | An adventure file with `adv_version` 2 is ignored: the main save's run loads, `last_load_error` names the adventure, and the file stays on disk. `MANAFORGE_ADVENTURE_NEWER_REFUSED=1` runs it alone. |
 
 `REACH_IDLE_ROLL_OK`, `REACH_FAIL_REST_OK`, `REACH_PUSH_STOP_OK`, `REACH_REWARDS_OK`, and `REACH_BOSS_ROOM_OK` retired by job 24, replaced by `IDLE_SLOTS_OK`, `IDLE_RESOLVE_AT_END_OK`, `IDLE_REST_SLOTS_OK`, and `IDLE_BOSS_PAYBACK_OK`.
 
 ### Offline order
 
-Loading a save whose expedition is still out resolves the closed gap in one pass. Forge jobs run first (`ForgeJobs.apply_saved_offline_gap`), then the expedition (`Reach.catch_up`: real headless fights on the raw gap, no play speed and no Rush). Time after the run's last slot is dropped. `save_game`, `save_autosave`, and `save_on_quit` refuse until that pass finishes, then saves unblock. A live frame longer than 5 seconds of game time uses the same pass.
+Loading a save whose expedition is still out resolves the closed gap in one pass. Forge jobs run first (`ForgeJobs.apply_saved_offline_gap`), then the expedition (`Reach.catch_up`: real headless fights on the raw gap, no play speed and no Rush). Time after the run's last slot is dropped. A manual room has no clock, including a fight restored from the adventure file, so that gap does not step it. `save_game`, `save_autosave`, and `save_on_quit` refuse until that pass finishes, then saves unblock. A live frame longer than 5 seconds of game time uses the same pass.
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 

@@ -909,6 +909,60 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ADVENTURE_SLOT_RESUME") == "1":
+		var adv_resume_only: int = await _adventure_slot_resume(tree_root, game_state, save_service)
+		if adv_resume_only > 0:
+			print("ADVENTURE_SLOT_RESUME_FAIL: %d" % adv_resume_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ADVENTURE_NO_SCUM") == "1":
+		var adv_noscum_only: int = await _adventure_no_scum(tree_root, game_state, save_service)
+		if adv_noscum_only > 0:
+			print("ADVENTURE_NO_SCUM_FAIL: %d" % adv_noscum_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_REWIND") == "1":
+		var rewind_only: int = _save_rewind(tree_root, game_state, save_service)
+		if rewind_only > 0:
+			print("SAVE_REWIND_FAIL: %d" % rewind_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BANK_ONCE") == "1":
+		var bank_once_only: int = _bank_once(tree_root, game_state, save_service)
+		if bank_once_only > 0:
+			print("BANK_ONCE_FAIL: %d" % bank_once_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_SEED_ROUNDTRIP") == "1":
+		var seed_round_only: int = await _save_seed_roundtrip(tree_root, game_state, save_service)
+		if seed_round_only > 0:
+			print("SAVE_SEED_ROUNDTRIP_FAIL: %d" % seed_round_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ADVENTURE_NEWER_REFUSED") == "1":
+		var adv_newer_only: int = _adventure_newer_refused(tree_root, game_state, save_service)
+		if adv_newer_only > 0:
+			print("ADVENTURE_NEWER_REFUSED_FAIL: %d" % adv_newer_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -3290,6 +3344,12 @@ func _run() -> void:
 	failed += _offline_reach_onepass(tree_root, game_state, save_service)
 	failed += _offline_save_blocked(tree_root, game_state, save_service)
 	failed += _big_delta_catchup(tree_root, game_state, save_service)
+	failed += await _adventure_slot_resume(tree_root, game_state, save_service)
+	failed += await _adventure_no_scum(tree_root, game_state, save_service)
+	failed += _save_rewind(tree_root, game_state, save_service)
+	failed += _bank_once(tree_root, game_state, save_service)
+	failed += await _save_seed_roundtrip(tree_root, game_state, save_service)
+	failed += _adventure_newer_refused(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8079,6 +8139,8 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	var before_manual: int = failed
 	reach.call("reset_for_new_game")
 	var before_briar: int = int(pack.call("get_count", "briarwood"))
+	## Opening a manual fight lets beasts act immediately. Seed 1's volley does not end the run.
+	reach.call("set_test_run_seed", 1)
 	reach.call("depart", 1, 1, "hold", "idle")
 	reach.call("set_control", "manual")
 	failed += _assert(bool(reach.call("fight_active")), "switching to manual opens the room's fight")
@@ -8177,6 +8239,9 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 	var session_was: bool = bool(save_service.get("session_active"))
 	var lantern_was: String = str(game_state.get("expedition_lantern"))
 	reach.call("reset_for_new_game")
+	## Opening a manual fight lets beasts act immediately. Seed 20's room is two of the
+	## same beast, so turn order matches the spawn list, and one Strike does not end the run.
+	reach.call("set_test_run_seed", 20)
 	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "mix reload: idle depart")
 	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload: save mid-run to slot 7")
 	reach.call("reset_for_new_game")
@@ -9341,6 +9406,8 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	failed += _assert(int(written_pack.get("briarwood", 0)) == 3, "re-saved briarwood count")
 	reach.call("push_faces", [20])
 	reach.call("push_drops", [1, 0])
+	## Opening the manual fight lets beasts act immediately. Seed 1's volley does not end the run.
+	reach.call("set_test_run_seed", 1)
 	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "idle depart after the merge")
 	reach.call("advance_clock", 719.0)
 	failed += _assert(int(pack.call("get_count", "briarwood")) == 3, "an idle slot does not bank Briarwood before the run ends")
@@ -14762,4 +14829,592 @@ func _big_delta_catchup(tree_root: Window, game_state: Node, save_service: Node)
 	save_service.call("delete_save")
 	if failed == 0:
 		print("BIG_DELTA_CATCHUP_OK")
+	return failed
+
+
+func _user_file_text(path: String) -> Variant:
+	if not FileAccess.file_exists(path):
+		return null
+	return FileAccess.get_file_as_string(path)
+
+
+func _restore_user_file(path: String, data: Variant) -> void:
+	if data == null:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
+		return
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(str(data))
+	file.close()
+
+
+func _adventure_path(save_service: Node) -> String:
+	return str(save_service.get("ADVENTURE_PATH"))
+
+
+func _reach_live_view() -> BattleView:
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	if views.size() != 1:
+		return null
+	return views[0] as BattleView
+
+
+func _adventure_one_strike(view: BattleView) -> bool:
+	if view == null or not is_instance_valid(view):
+		return false
+	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+	if strike_btn == null or not strike_btn.visible or strike_btn.disabled:
+		return false
+	strike_btn.emit_signal("pressed")
+	await process_frame
+	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	var picked: Button = null
+	if target_layer != null:
+		for child: Node in target_layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				picked = child as Button
+				break
+	if picked == null:
+		return false
+	picked.emit_signal("pressed")
+	await process_frame
+	return true
+
+
+func _wait_battle_open(frames: int = 6) -> bool:
+	for _i: int in frames:
+		if BattleViewScript.is_open():
+			return true
+		await process_frame
+	return BattleViewScript.is_open()
+
+
+func _fight_checkpoint(fight: FightState) -> Dictionary:
+	var data: Dictionary = fight.to_dict()
+	var hp: Dictionary = {}
+	var rows: Variant = data.get("fighters", [])
+	if rows is Array:
+		for row_v: Variant in rows:
+			if row_v is Dictionary:
+				var row: Dictionary = row_v
+				hp[str(row.get("id", ""))] = int(row.get("hp", -1))
+	return {
+		"round": int(data.get("round", -1)),
+		"turn_cursor": int(data.get("turn_cursor", -1)),
+		"hp": hp,
+		"rng": str(data.get("rng_combat_state", "")),
+	}
+
+
+func _hp_maps_equal(a: Dictionary, b: Dictionary) -> bool:
+	var keys: Dictionary = {}
+	for key_v: Variant in a.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in b.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		if int(a.get(key, -1)) != int(b.get(key, -2)):
+			return false
+	return true
+
+
+func _blow_fingerprint(events: Variant) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	if not (events is Array):
+		return ""
+	for entry_v: Variant in events:
+		if not (entry_v is Dictionary):
+			continue
+		var entry: Dictionary = entry_v
+		if str(entry.get("kind", "")) != "strike":
+			continue
+		parts.append("%d|%s|%s|%s|%s" % [
+			int(entry.get("damage", -1)),
+			str(entry.get("band", "")),
+			JSON.stringify(entry.get("attack_dice", [])),
+			JSON.stringify(entry.get("defense_faces", [])),
+			JSON.stringify(entry.get("damage_face", null)),
+		])
+	return "|".join(parts)
+
+
+func _int_dict_equal(a: Dictionary, b: Dictionary) -> bool:
+	var keys: Dictionary = {}
+	for key_v: Variant in a.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in b.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		if int(a.get(key, 0)) != int(b.get(key, 0)):
+			return false
+	return true
+
+
+func _manual_duo_cfg() -> Dictionary:
+	return {
+		"depth": 1,
+		"rooms": 4,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	}
+
+
+func _silence_echo(tree_root: Window) -> void:
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo != null:
+		echo.set("in_battle", false)
+
+
+func _adventure_slot_resume(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Quit mid-fight and the same FightState, including RNG, comes back.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "adventure resume Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var slot_path: String = str(save_service.call("slot_path", 7))
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Variant = _user_file_text(slot_path)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "resume depart")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and fight != null and fight.outcome() == "", "resume fight is open")
+	if view == null or fight == null:
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	for _swing: int in 3:
+		failed += _assert(await _adventure_one_strike(view), "resume strike %d" % (_swing + 1))
+		if fight.outcome() != "":
+			failed += _assert(false, "resume fight ended before the snapshot")
+			break
+	var before: Dictionary = _fight_checkpoint(fight)
+	var actor_id: String = fight.current_actor()
+	var side: String = str(fight.fighter_dict(actor_id).get("side", ""))
+	failed += _assert(side == "party", "snapshot waits on the party (got %s)" % side)
+	failed += _assert(bool(save_service.call("save_game", 7)), "resume save slot 7")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "resume load slot 7")
+	failed += _assert(await _wait_battle_open(), "BattleView reopens")
+	failed += _assert(bool(reach.call("fight_active")), "fight_active after load")
+	failed += _assert(BattleViewScript.is_open(), "BattleView.is_open after load")
+	var restored: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(restored != null, "restored FightState")
+	if restored != null:
+		var after: Dictionary = _fight_checkpoint(restored)
+		failed += _assert(int(after.get("round", -1)) == int(before.get("round", -2)), "round restored")
+		failed += _assert(int(after.get("turn_cursor", -1)) == int(before.get("turn_cursor", -2)), "turn_cursor restored")
+		failed += _assert(str(after.get("rng", "")) == str(before.get("rng", "x")), "rng_combat_state restored")
+		var hp_before: Dictionary = before.get("hp", {}) as Dictionary
+		var hp_after: Dictionary = after.get("hp", {}) as Dictionary
+		failed += _assert(_hp_maps_equal(hp_before, hp_after), "every HP restored (before %s after %s)" % [str(hp_before), str(hp_after)])
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot_path, slot_was)
+	if failed == 0:
+		print("ADVENTURE_SLOT_RESUME_OK")
+	return failed
+
+
+func _adventure_no_scum(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## The next blow is saved with the fight. Quitting does not reroll it. Slots stay untouched.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "no-scum Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Dictionary = {}
+	var auto_was: Dictionary = {}
+	for slot: int in range(1, 8):
+		var path: String = str(save_service.call("slot_path", slot))
+		slot_was[path] = _user_file_text(path)
+	for slot: int in range(1, 4):
+		var auto_path: String = str(save_service.call("autosave_path", slot))
+		auto_was[auto_path] = _user_file_text(auto_path)
+	var session_was: bool = bool(save_service.get("session_active"))
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "no-scum depart")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and fight != null and fight.outcome() == "", "no-scum fight open")
+	if view == null or fight == null:
+		_adventure_restore_saves(adv_path, adv_was, slot_was, auto_was)
+		save_service.set("session_active", session_was)
+		return failed
+	var mtimes: Dictionary = {}
+	for path_v: Variant in slot_was.keys():
+		mtimes[str(path_v)] = _save_mtime(str(path_v))
+	for path_v: Variant in auto_was.keys():
+		mtimes[str(path_v)] = _save_mtime(str(path_v))
+	for step_i: int in 5:
+		failed += _assert(await _adventure_one_strike(view), "saved action %d" % (step_i + 1))
+		var adv: Dictionary = save_service.call("read_adventure")
+		var file_fight: Variant = adv.get("fight", null)
+		failed += _assert(file_fight is Dictionary, "adventure fight after action %d" % (step_i + 1))
+		if file_fight is Dictionary:
+			var file_row: Dictionary = file_fight
+			failed += _assert(int(file_row.get("round", -1)) == int(fight.round), "file round matches after action %d" % (step_i + 1))
+			failed += _assert(int(file_row.get("turn_cursor", -1)) == int(fight.turn_cursor), "file turn_cursor matches after action %d" % (step_i + 1))
+	for path_v: Variant in mtimes.keys():
+		var path: String = str(path_v)
+		failed += _assert(_save_mtime(path) == int(mtimes[path]), "action left %s mtime alone" % path)
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "no-scum second depart")
+	await process_frame
+	fight = reach.call("manual_fight") as FightState
+	failed += _assert(fight != null and fight.outcome() == "", "clone fight open")
+	if fight != null:
+		for pass_i: int in 2:
+			var clone: FightState = FightState.from_dict(fight.to_dict())
+			var actor_id: String = clone.current_actor()
+			var legal: Array = clone.legal_targets(actor_id)
+			failed += _assert(not legal.is_empty(), "clone has a Strike target")
+			if legal.is_empty():
+				break
+			var target: String = str(legal[0])
+			var cloned: Dictionary = clone.step({"kind": "strike", "target": target})
+			save_service.set("session_active", true)
+			failed += _assert(bool(save_service.call("save_on_quit")), "quit writes the fight")
+			var quit_slot: int = _autosave_slot_for_id(save_service, int(save_service.get("current_save_id")))
+			reach.call("reset_for_new_game")
+			failed += _assert(quit_slot > 0 and bool(save_service.call("load_autosave", quit_slot)), "load the quit autosave")
+			failed += _assert(await _wait_battle_open(), "quit reload opens the fight")
+			fight = reach.call("manual_fight") as FightState
+			failed += _assert(fight != null, "live fight after quit")
+			if fight == null:
+				break
+			var lived: Dictionary = fight.step({"kind": "strike", "target": target})
+			var clone_events: Variant = cloned.get("events", [])
+			var live_events: Variant = lived.get("events", [])
+			failed += _assert(JSON.stringify(clone_events) == JSON.stringify(live_events), "pass %d events match" % (pass_i + 1))
+			failed += _assert(_blow_fingerprint(clone_events) == _blow_fingerprint(live_events), "pass %d damage, faces and band match" % (pass_i + 1))
+			failed += _assert(_blow_fingerprint(live_events) != "", "pass %d recorded a blow" % (pass_i + 1))
+			if pass_i == 0 and fight.outcome() == "":
+				var guard: int = 0
+				while guard < 24 and fight.outcome() == "":
+					var next_id: String = fight.current_actor()
+					if next_id == "" or str(fight.fighter_dict(next_id).get("side", "")) == "party":
+						break
+					fight.step({})
+					guard += 1
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	save_service.set("session_active", session_was)
+	_adventure_restore_saves(adv_path, adv_was, slot_was, auto_was)
+	if failed == 0:
+		print("ADVENTURE_NO_SCUM_OK")
+	return failed
+
+
+func _autosave_slot_for_id(save_service: Node, save_id: int) -> int:
+	for slot: int in range(1, 4):
+		var path: String = str(save_service.call("autosave_path", slot))
+		if not FileAccess.file_exists(path):
+			continue
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if parsed is Dictionary and int((parsed as Dictionary).get("save_id", -1)) == save_id:
+			return slot
+	return 0
+
+
+func _adventure_restore_saves(adv_path: String, adv_was: Variant, slot_was: Dictionary, auto_was: Dictionary) -> void:
+	_restore_user_file(adv_path, adv_was)
+	for path_v: Variant in slot_was.keys():
+		_restore_user_file(str(path_v), slot_was[path_v])
+	for path_v: Variant in auto_was.keys():
+		_restore_user_file(str(path_v), auto_was[path_v])
+
+
+func _save_rewind(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## An older slot wins over an adventure file owned by a newer save.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "rewind autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot6: String = str(save_service.call("slot_path", 6))
+	var slot7: String = str(save_service.call("slot_path", 7))
+	var was6: Variant = _user_file_text(slot6)
+	var was7: Variant = _user_file_text(slot7)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var forced: Array[String] = []
+	for _win: int in 8:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	reach.call("set_test_run_seed", 8)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 8,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})) == "ok", "rewind depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 2, "save A is room 2")
+	var pack_a: Dictionary = _pack_items(reach)
+	var bag_a: Dictionary = _bag_snapshot(backpack)
+	failed += _assert(bool(save_service.call("save_game", 7)), "save A slot 7")
+	var id_a: int = int(save_service.get("current_save_id"))
+	reach.call("advance_clock", 720.0)
+	reach.call("advance_clock", 720.0)
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 5, "save B is room 5")
+	var pack_b: Dictionary = _pack_items(reach)
+	failed += _assert(bool(save_service.call("save_game", 6)), "save B slot 6")
+	var id_b: int = int(save_service.get("current_save_id"))
+	failed += _assert(id_a != 0 and id_a != id_b, "A and B have different save ids")
+	var owned: Dictionary = save_service.call("read_adventure")
+	failed += _assert(int(owned.get("owner_save_id", -1)) == id_b, "adventure owner is B")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "load A")
+	failed += _assert(int(reach.get("rooms_attempted")) == 2, "A rewinds to room 2")
+	failed += _assert(_int_dict_equal(pack_a, _pack_items(reach)), "A's pack is restored")
+	failed += _assert(_int_dict_equal(bag_a, _bag_snapshot(backpack)), "A's Backpack is restored")
+	failed += _assert(int(save_service.get("current_save_id")) == id_a, "current_save_id is A's")
+	var left: Dictionary = save_service.call("read_adventure")
+	failed += _assert(int(left.get("owner_save_id", -1)) == id_b, "B's adventure file is left in place")
+	failed += _assert(bool(save_service.call("load_game", 6)), "load B")
+	failed += _assert(int(reach.get("rooms_attempted")) == 5, "B is room 5 again")
+	failed += _assert(_int_dict_equal(pack_b, _pack_items(reach)), "B's pack comes from B")
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot6, was6)
+	_restore_user_file(slot7, was7)
+	if failed == 0:
+		print("SAVE_REWIND_OK")
+	return failed
+
+
+func _bank_once(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A stale copy of a finished run cannot bank the pack or the leftover loadout again.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "bank-once autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	backpack.call("set_count", "heart_salve", 5)
+	var forced: Array[String] = ["win", "win"]
+	reach.call("debug_force_outcomes", forced)
+	reach.call("set_test_run_seed", 3)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {"heart_salve": 2},
+	})) == "ok", "bank-once depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(bool(reach.get("running")) and int(reach.get("rooms_attempted")) == 2, "still out after one win")
+	var block: Dictionary = reach.call("capture_run_block")
+	var first_id: int = int(reach.get("run_id"))
+	reach.call("_finish_run", "head_home")
+	failed += _assert(not bool(reach.get("running")), "first finish ends the run")
+	failed += _assert(int(reach.get("last_banked_run_id")) == first_id, "last_banked_run_id is the finished run")
+	var bag_after: Dictionary = _bag_snapshot(backpack)
+	var res_after: Dictionary = _res_snapshot(game_state)
+	reach.call("apply_run_block", block)
+	failed += _assert(bool(reach.get("running")) and int(reach.get("run_id")) == first_id, "stale run block is applied")
+	reach.call("_finish_run", "finished")
+	failed += _assert(_int_dict_equal(bag_after, _bag_snapshot(backpack)), "second finish does not touch the Backpack")
+	failed += _assert(_int_dict_equal(res_after, _res_snapshot(game_state)), "second finish does not touch resources")
+	failed += _assert(int(reach.get("last_banked_run_id")) == first_id, "the guard stays on the first run")
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("debug_force_outcomes", PackedStringArray(["win"]))
+	reach.call("set_test_run_seed", 4)
+	var bag_before: Dictionary = _bag_snapshot(backpack)
+	var res_before: Dictionary = _res_snapshot(game_state)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})) == "ok", "new run departs")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(bool(reach.get("running")), "new run still out")
+	var second_id: int = int(reach.get("run_id"))
+	failed += _assert(second_id != first_id, "the new run has its own id")
+	reach.call("_finish_run", "finished")
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	var banked: Dictionary = summary.get("banked", {}) as Dictionary
+	failed += _assert(not banked.is_empty(), "a new run still banks")
+	failed += _assert(int(reach.get("last_banked_run_id")) == second_id, "the guard follows the new run")
+	failed += _assert(_offline_loot_landed(bag_before, res_before, backpack, game_state, banked), "the new bank landed")
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	if failed == 0:
+		print("BANK_ONCE_OK")
+	return failed
+
+
+func _save_seed_roundtrip(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## 31-bit seeds and the combat RNG string survive the main save and the adventure file.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "seed roundtrip Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var slot_path: String = str(save_service.call("slot_path", 7))
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Variant = _user_file_text(slot_path)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var run_seed: int = 0x7FFFFFF0
+	var room_seed: int = 0x7FFFFFFF
+	reach.call("set_test_run_seed", run_seed)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "seed depart")
+	reach.set("room_seed", room_seed)
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(fight != null and fight.outcome() == "", "seed fight open")
+	if fight == null:
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	var snap: Dictionary = fight.to_dict()
+	var rng_state: String = str(snap.get("rng_combat_state", ""))
+	failed += _assert(rng_state != "", "rng_combat_state is a string")
+	var copy: FightState = FightState.from_dict(snap)
+	failed += _assert(bool(save_service.call("save_game", 7)), "seed save")
+	var slot_root: Dictionary = _read_slot_root(save_service, 7)
+	var state_v: Variant = slot_root.get("state", {})
+	var reach_block: Dictionary = (state_v as Dictionary).get("reach", {}) if state_v is Dictionary else {}
+	failed += _assert(int(slot_root.get("save_id", 0)) == int(save_service.get("current_save_id")), "main save_id round trip")
+	failed += _assert(int(reach_block.get("run_seed", 0)) == run_seed, "main run_seed through int()")
+	failed += _assert(int(reach_block.get("room_seed", 0)) == room_seed, "main room_seed near 2^31 through int()")
+	var adv: Dictionary = save_service.call("read_adventure")
+	var adv_reach_v: Variant = adv.get("reach", {})
+	var adv_reach: Dictionary = adv_reach_v if adv_reach_v is Dictionary else {}
+	var adv_fight_v: Variant = adv.get("fight", {})
+	var adv_fight: Dictionary = adv_fight_v if adv_fight_v is Dictionary else {}
+	failed += _assert(int(adv.get("owner_save_id", 0)) == int(save_service.get("current_save_id")), "adventure owner is the main save")
+	failed += _assert(int(adv_reach.get("run_seed", 0)) == run_seed, "adventure run_seed through int()")
+	failed += _assert(int(adv_reach.get("room_seed", 0)) == room_seed, "adventure room_seed through int()")
+	failed += _assert(str(adv_fight.get("rng_combat_state", "")) == rng_state, "adventure rng_combat_state string")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "seed load")
+	failed += _assert(await _wait_battle_open(), "seed fight view")
+	failed += _assert(int(reach.get("run_seed")) == run_seed, "loaded run_seed")
+	failed += _assert(int(reach.get("room_seed")) == room_seed, "loaded room_seed")
+	var restored: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(restored != null, "loaded fight")
+	if restored != null:
+		failed += _assert(str(restored.to_dict().get("rng_combat_state", "")) == rng_state, "loaded rng_combat_state")
+		var from_copy: Array[int] = []
+		var from_live: Array[int] = []
+		for _roll: int in 20:
+			from_copy.append(int(copy.get("_rng").call("roll_die", 20)))
+			from_live.append(int(restored.get("_rng").call("roll_die", 20)))
+		failed += _assert(str(from_copy) == str(from_live), "next 20 d20s match a never-saved copy")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot_path, slot_was)
+	if failed == 0:
+		print("SAVE_SEED_ROUNDTRIP_OK")
+	return failed
+
+
+func _adventure_newer_refused(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A newer adventure file is ignored. The main save still loads and the file stays.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "newer adventure Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var slot_path: String = str(save_service.call("slot_path", 7))
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Variant = _user_file_text(slot_path)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 5)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 4,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})) == "ok", "newer-adventure depart")
+	failed += _assert(bool(save_service.call("save_game", 7)), "newer-adventure main save")
+	var owner: int = int(save_service.get("current_save_id"))
+	var run_id: int = int(reach.get("run_id"))
+	var rooms: int = int(reach.get("rooms_attempted"))
+	var fake: Dictionary = {
+		"adv_version": 2,
+		"owner_save_id": owner,
+		"run_id": run_id,
+		"written_at": Time.get_unix_time_from_system(),
+		"reach": {
+			"running": true,
+			"run_id": run_id,
+			"rooms_attempted": 99,
+			"phase": "idle_room",
+			"slots_total": 4,
+		},
+		"fight": null,
+		"phase_detail": {"phase": "idle_room", "room_clock": 0.0},
+	}
+	var fh := FileAccess.open(adv_path, FileAccess.WRITE)
+	failed += _assert(fh != null, "write the newer adventure file")
+	if fh != null:
+		fh.store_string(JSON.stringify(fake, "\t"))
+		fh.close()
+	reach.call("reset_for_new_game")
+	var heard: Array[String] = []
+	var on_status := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", on_status)
+	var loaded: bool = bool(save_service.call("load_game", 7))
+	game_state.disconnect("status_message", on_status)
+	failed += _assert(loaded, "the main save still loads")
+	failed += _assert(bool(reach.get("running")), "the run comes from the main save")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms and rooms != 99, "rooms stay on the main save (got %d)" % int(reach.get("rooms_attempted")))
+	var why: String = str(save_service.get("last_load_error"))
+	failed += _assert(why.find("adventure") >= 0, "last_load_error names the adventure (got %s)" % why)
+	failed += _assert(not heard.is_empty() and heard[0].find("adventure") >= 0, "status message names the adventure")
+	failed += _assert(FileAccess.file_exists(adv_path), "the newer file is still on disk")
+	var still: Variant = JSON.parse_string(FileAccess.get_file_as_string(adv_path))
+	failed += _assert(still is Dictionary and int((still as Dictionary).get("adv_version", 0)) == 2, "adv_version 2 was not deleted")
+	var named: String = str(save_service.call("adventure_newer_message", 2))
+	failed += _assert(named.find("adventure") >= 0, "adventure_newer_message")
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot_path, slot_was)
+	if failed == 0:
+		print("ADVENTURE_NEWER_REFUSED_OK")
 	return failed

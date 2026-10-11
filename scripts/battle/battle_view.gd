@@ -1333,7 +1333,9 @@ func _advance_core() -> void:
 					return
 				continue
 			break
-		_enqueue_step(_fight.step())
+		var beast_packet: Dictionary = _fight.step()
+		_note_reach_fight_action()
+		_enqueue_step(beast_packet)
 		if _playback != null and _playback.is_busy():
 			# Resume when this beast's playback ends, or the fight stalls.
 			_advance_after_playback = true
@@ -1499,6 +1501,7 @@ func _strike_for_me_party_step_packet(actor_id: String) -> Dictionary:
 		return {}
 	var action: Dictionary = AutoPolicy.strike_for_me_action(_fight, actor_id)
 	var packet: Dictionary = _fight.step(action)
+	_note_reach_fight_action()
 	packet["strike_for_me_target"] = str(action.get("target", ""))
 	return packet
 
@@ -1558,7 +1561,9 @@ func _on_brace_pressed() -> void:
 		return
 	if _playback != null:
 		_playback.play_battle_select()
-	_enqueue_step(_fight.step({"kind": "brace"}))
+	var brace_packet: Dictionary = _fight.step({"kind": "brace"})
+	_note_reach_fight_action()
+	_enqueue_step(brace_packet)
 	_advance()
 
 
@@ -1567,7 +1572,9 @@ func _on_flee_pressed() -> void:
 		return
 	if _playback != null:
 		_playback.play_battle_select()
-	_enqueue_step(_fight.step({"kind": "flee"}))
+	var flee_packet: Dictionary = _fight.step({"kind": "flee"})
+	_note_reach_fight_action()
+	_enqueue_step(flee_packet)
 	_advance()
 
 
@@ -1647,12 +1654,25 @@ func _on_target_pressed(target_id: String) -> void:
 	if _playback != null:
 		_playback.play_battle_confirm()
 	var packet: Dictionary = {}
+	var stepped: bool = false
 	if mode == "strike":
 		packet = _fight.step({"kind": "strike", "target": target_id})
+		stepped = true
 	elif mode == "salve":
 		packet = _fight.step({"kind": "item", "item": "heart_salve", "target": target_id})
+		stepped = true
+	if stepped:
+		_note_reach_fight_action()
 	_enqueue_step(packet)
 	_advance()
+
+
+func _note_reach_fight_action() -> void:
+	if not _reach_mode or _fight == null:
+		return
+	var reach: Node = get_node_or_null("/root/Reach")
+	if reach != null and reach.has_method("note_fight_action"):
+		reach.call("note_fight_action")
 
 
 func _ensure_pack_counter() -> void:

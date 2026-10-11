@@ -48,6 +48,8 @@ var test_pp: float = -1.0
 var party_size: int = 1
 var mix: Array[String] = []
 var run_id: int = 0
+## Main-save guard: this run's pack and leftover loadout were already sent home.
+var last_banked_run_id: int = 0
 var run_seed: int = 0
 var slots_total: int = 0
 var slots_used: int = 0
@@ -127,6 +129,7 @@ func reset_for_new_game() -> void:
 	_drops.clear()
 	_forced_outcomes.clear()
 	_test_run_seed = -1
+	last_banked_run_id = 0
 	rush = false
 	changed.emit()
 
@@ -308,7 +311,10 @@ func depart_slots(cfg: Dictionary) -> String:
 			Backpack.try_spend(item_id, qty)
 	var outing_cfg: Dictionary = cfg.duplicate(true)
 	outing_cfg["loadout"] = cleaned_loadout
-	return _begin_outing(outing_cfg)
+	var result: String = _begin_outing(outing_cfg)
+	if result == "ok":
+		_touch_adventure()
+	return result
 
 
 func _party_cfg_error(cfg: Dictionary) -> String:
@@ -593,6 +599,9 @@ func debug_wound(amount: int) -> String:
 func on_manual_outcome(outcome: String) -> void:
 	if not running or phase != "manual" or _manual == null:
 		return
+	## A restored fight opens the view, which reports the outcome again. The room was already paid.
+	if _outcome_already_logged(outcome):
+		return
 	match outcome:
 		"win":
 			slots_used += 1
@@ -620,6 +629,7 @@ func on_manual_outcome(outcome: String) -> void:
 		_:
 			push_error("Reach: unknown manual outcome %s" % outcome)
 	changed.emit()
+	_touch_adventure()
 
 
 func manual_choice(choice: String) -> String:
@@ -629,75 +639,105 @@ func manual_choice(choice: String) -> String:
 		return "invalid"
 	if room_log.is_empty() or str(room_log[room_log.size() - 1].get("outcome", "")) != "win":
 		return "invalid"
+	var result: String = "invalid"
 	match choice:
 		"continue":
 			if slots_used >= slots_total:
 				_finish_run("finished")
 				return "finished"
 			_begin_room()
-			return "continue"
+			result = "continue"
 		"deeper":
 			depth += 1
 			if slots_used >= slots_total:
 				_finish_run("finished")
 				return "finished"
 			_begin_room()
-			return "deeper"
+			result = "deeper"
 		"home":
 			_finish_run("head_home")
 			return "home"
 		_:
 			return "invalid"
+	_touch_adventure()
+	return result
 
 
-func capture_save_fields() -> Dictionary:
-	var saved_phase := phase
-	if saved_phase == "manual":
-		saved_phase = "idle_room"
+func _outcome_already_logged(outcome: String) -> bool:
+	if room_log.is_empty():
+		return false
+	var last: Dictionary = room_log[room_log.size() - 1]
+	return int(last.get("room", -1)) == rooms_attempted and str(last.get("outcome", "")) == outcome
+
+
+func note_fight_action() -> void:
+	## BattleView calls this after every reach-mode step, including beast steps.
+	if _manual == null or not running or phase != "manual":
+		return
+	sync_manual_loadout()
+	_touch_adventure()
+
+
+func sync_manual_loadout() -> void:
+	if _manual == null:
+		return
+	loadout = _manual.loadout.duplicate()
+
+
+func restore_manual_fight(fight: FightState) -> void:
+	## The view closes itself on load_completed, so open on the next idle frame.
+	if fight == null:
+		return
+	_manual = fight
+	phase = "manual"
+	running = true
+	sync_manual_loadout()
+	call_deferred("_open_restored_manual_fight")
+
+
+func _open_restored_manual_fight() -> void:
+	if _manual == null or not running or phase != "manual":
+		return
+	_open_view()
+
+
+func capture_run_block() -> Dictionary:
+	## The current run only. Lifetime counters stay on the main save.
 	return {
-		"reach": {
-			"deepest_depth": deepest_depth,
-			"reaches_cleared": reaches_cleared,
-			"dojo_exp": dojo_exp,
-			"running": running,
-			"pace": pace,
-			"control": control,
-			"depth": depth,
-			"hours": hours,
-			"elapsed": elapsed,
-			"room_left": room_left,
-			"phase": saved_phase,
-			"run_clears": run_clears,
-			"rooms_attempted": rooms_attempted,
-			"salve_used": salve_used,
-			"mix": mix.duplicate(),
-			"run_id": run_id,
-			"run_seed": run_seed,
-			"room_seed": room_seed,
-			"slots_total": slots_total,
-			"slots_used": slots_used,
-			"rest_slots_left": rest_slots_left,
-			"room_clock": room_clock,
-			"exp_gained": exp_gained,
-			"essence_payback": essence_payback,
-			"pack": pack.to_dict() if pack != null else {"items": {}},
-			"party": party.duplicate(true),
-			"loadout": loadout.duplicate(),
-			"boss_paid": boss_paid.duplicate(),
-			"room_log": room_log.duplicate(true),
-			"last_summary": last_summary.duplicate(true),
-		},
-		"expedition": _capture_expedition(),
+		"running": running,
+		"pace": pace,
+		"control": control,
+		"depth": depth,
+		"hours": hours,
+		"elapsed": elapsed,
+		"room_left": room_left,
+		"phase": phase,
+		"run_clears": run_clears,
+		"rooms_attempted": rooms_attempted,
+		"salve_used": salve_used,
+		"mix": mix.duplicate(),
+		"run_id": run_id,
+		"run_seed": run_seed,
+		"room_seed": room_seed,
+		"slots_total": slots_total,
+		"slots_used": slots_used,
+		"rest_slots_left": rest_slots_left,
+		"room_clock": room_clock,
+		"exp_gained": exp_gained,
+		"essence_payback": essence_payback,
+		"pack": pack.to_dict() if pack != null else {"items": {}},
+		"party": party.duplicate(true),
+		"loadout": loadout.duplicate(),
+		"boss_paid": boss_paid.duplicate(),
+		"room_log": room_log.duplicate(true),
+		"last_summary": last_summary.duplicate(true),
 	}
 
 
-func apply_save_fields(data: Dictionary) -> void:
+func apply_run_block(data: Dictionary) -> void:
+	## Overlays the current run. Does not touch lifetime counters or last_banked_run_id.
 	if data.is_empty():
-		reset_for_new_game()
 		return
-	deepest_depth = maxi(0, int(data.get("deepest_depth", 0)))
-	reaches_cleared = maxi(0, int(data.get("reaches_cleared", 0)))
-	dojo_exp = maxi(0, int(data.get("dojo_exp", 0)))
 	pace = "push" if str(data.get("pace", "hold")) == "push" else "hold"
 	control = "manual" if str(data.get("control", "idle")) == "manual" else "idle"
 	depth = maxi(1, int(data.get("depth", 1)))
@@ -729,15 +769,47 @@ func apply_save_fields(data: Dictionary) -> void:
 	if not running:
 		_end_run(str(GameState.expedition_lantern) if has_node("/root/GameState") else "dark")
 		return
-	if saved_phase != "rest" and saved_phase != "idle_room":
+	if saved_phase != "rest" and saved_phase != "idle_room" and saved_phase != "manual":
 		saved_phase = "idle_room"
 	phase = saved_phase
-	## Saves from before the mix was stored come back empty. Reroll so Join manual has beasts.
-	if mix.is_empty():
-		mix = _roll_mix(_mix_budget())
 	_manual = null
 	_close_view()
 	changed.emit()
+
+
+func capture_save_fields() -> Dictionary:
+	var run := capture_run_block()
+	if str(run.get("phase", "")) == "manual":
+		run["phase"] = "idle_room"
+	run["deepest_depth"] = deepest_depth
+	run["reaches_cleared"] = reaches_cleared
+	run["dojo_exp"] = dojo_exp
+	run["last_banked_run_id"] = last_banked_run_id
+	return {
+		"reach": run,
+		"expedition": _capture_expedition(),
+	}
+
+
+func apply_save_fields(data: Dictionary) -> void:
+	if data.is_empty():
+		reset_for_new_game()
+		return
+	deepest_depth = maxi(0, int(data.get("deepest_depth", 0)))
+	reaches_cleared = maxi(0, int(data.get("reaches_cleared", 0)))
+	dojo_exp = maxi(0, int(data.get("dojo_exp", 0)))
+	last_banked_run_id = maxi(0, int(data.get("last_banked_run_id", 0)))
+	## A main save stores a manual room as idle. The adventure file keeps the live phase.
+	var run_data: Dictionary = data.duplicate(true)
+	var saved_phase := str(run_data.get("phase", "home"))
+	if saved_phase != "rest" and saved_phase != "idle_room":
+		saved_phase = "idle_room"
+	run_data["phase"] = saved_phase
+	apply_run_block(run_data)
+	## Saves from before the mix was stored come back empty. Reroll so Join manual has beasts.
+	if running and mix.is_empty():
+		mix = _roll_mix(_mix_budget())
+		changed.emit()
 
 
 func default_save_fields() -> Dictionary:
@@ -758,6 +830,7 @@ func default_save_fields() -> Dictionary:
 		"salve_used": false,
 		"mix": [],
 		"run_id": 0,
+		"last_banked_run_id": 0,
 		"run_seed": 0,
 		"room_seed": 0,
 		"slots_total": 0,
@@ -880,10 +953,12 @@ func _begin_room() -> void:
 	mix = _roll_mix(_mix_budget())
 	## A catch-up pass keeps the room idle, including a fight that was saved as manual.
 	if control == "manual" and not catching_up and _start_fight():
+		_touch_adventure()
 		return
 	phase = "idle_room"
 	_manual = null
 	_close_view()
+	_touch_adventure()
 
 
 func _start_fight() -> bool:
@@ -956,6 +1031,7 @@ func _resolve_slot_room() -> void:
 		else:
 			_finish_run("overwhelmed")
 	room_resolved.emit(entry.duplicate())
+	_touch_adventure()
 
 
 func _forced_room_result(outcome: String) -> Dictionary:
@@ -1006,20 +1082,27 @@ func _continue_after_room() -> void:
 
 
 func _finish_run(reason: String) -> void:
+	var already_banked: bool = run_id == last_banked_run_id
+	if already_banked:
+		push_warning("Reach: run %d was already banked; skipping a second bank" % run_id)
 	var loadout_returned: Dictionary = {}
-	for key_v: Variant in loadout.keys():
-		var item_id: String = str(key_v)
-		var qty: int = int(loadout[key_v])
-		if qty > 0:
-			_item_add(item_id, qty)
-			loadout_returned[item_id] = qty
+	if not already_banked:
+		for key_v: Variant in loadout.keys():
+			var item_id: String = str(key_v)
+			var qty: int = int(loadout[key_v])
+			if qty > 0:
+				_item_add(item_id, qty)
+				loadout_returned[item_id] = qty
 	loadout = {}
 	var pct: int = 0
 	if reason == "finished" or reason == "head_home":
 		pct = 100
 	elif reason == "flee":
 		pct = 50
-	var banked: Dictionary = pack.bank(pct) if pack != null else {}
+	var banked: Dictionary = {}
+	if not already_banked:
+		banked = pack.bank(pct) if pack != null else {}
+		last_banked_run_id = run_id
 	_manual = null
 	var keep_battle_view: bool = reason == "flee" or reason == "overwhelmed"
 	last_summary = {
@@ -1036,6 +1119,15 @@ func _finish_run(reason: String) -> void:
 	var brought: bool = run_clears > 0 or not banked.is_empty()
 	_end_run("cyan" if brought else "dark", keep_battle_view)
 	party_changed.emit()
+	if has_node("/root/SaveService"):
+		SaveService.write_adventure()
+		SaveService.clear_adventure()
+
+
+func _touch_adventure() -> void:
+	if not running or not has_node("/root/SaveService"):
+		return
+	SaveService.write_adventure()
 
 
 func _end_run(lantern: String, keep_battle_view: bool = false) -> void:
