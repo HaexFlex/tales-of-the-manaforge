@@ -19,6 +19,12 @@ const SNAPSHOT_ORDER: PackedStringArray = [
 	"Echo 2 ready", "North road open", "Pre-boss", "Veteran reacher",
 	"Mid-fight",
 ]
+const FORCE_LABELS: Dictionary = {
+	"flee": "Flee",
+	"overwhelmed": "Overwhelmed",
+	"win": "Win",
+}
+const BATCH_SIZE: int = 200
 var _free_crafts: PackedStringArray = PackedStringArray([
 	"sapsteel",
 	"heartwood_bits",
@@ -37,6 +43,9 @@ var _search: LineEdit
 var _qty: SpinBox
 var _list: ItemList
 var _rows: Array[Dictionary] = []
+var _fight_depth: SpinBox
+var _fight_boss: CheckBox
+var _fight_elaia: CheckBox
 
 
 func _ready() -> void:
@@ -65,14 +74,20 @@ func _build_ui() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
 
+	## Scrolls, so the expedition rows fit under the item catalogue.
+	var scroll := ScrollContainer.new()
+	scroll.name = "Scroll"
+	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scroll.offset_left = 18.0
+	scroll.offset_top = 14.0
+	scroll.offset_right = -18.0
+	scroll.offset_bottom = -14.0
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(scroll)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	box.offset_left = 18.0
-	box.offset_top = 14.0
-	box.offset_right = -18.0
-	box.offset_bottom = -14.0
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_theme_constant_override("separation", 4)
-	panel.add_child(box)
+	scroll.add_child(box)
 
 	var title := Label.new()
 	title.text = "Debug tools"
@@ -113,6 +128,17 @@ func _build_ui() -> void:
 	_add_button(box, "Jump to Echo", _on_echo_pressed)
 	_add_button(box, "Battle arena (test)", _on_battle_arena_pressed)
 	_add_button(box, "Open Ascension shop", _on_ascension_pressed)
+
+	_add_section(box, "Expedition")
+	var force_row := HBoxContainer.new()
+	force_row.name = "ForceRow"
+	force_row.add_theme_constant_override("separation", 6)
+	box.add_child(force_row)
+	for outcome: String in ["flee", "overwhelmed", "win"]:
+		var force_button: Button = _add_button(force_row, "Force next room: %s" % str(FORCE_LABELS[outcome]), _on_force_pressed.bind(outcome))
+		force_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_build_fight_at_depth(box)
+	_add_button(box, "Batch-sim %d" % BATCH_SIZE, _on_batch_sim_pressed)
 
 	_status = Label.new()
 	_status.name = "Status"
@@ -438,6 +464,86 @@ func _on_battle_arena_pressed() -> void:
 		return
 	_dismiss_pause()
 	AnimPreviewHotkey.set_debug_panel(false)
+
+
+func _on_force_pressed(outcome: String) -> void:
+	if not FORCE_LABELS.has(outcome):
+		_set_status("Unknown outcome.")
+		return
+	Reach.debug_force_outcomes([outcome])
+	_set_status("Next idle room is forced: %s." % str(FORCE_LABELS[outcome]))
+
+
+func _build_fight_at_depth(parent: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.name = "FightAtDepthRow"
+	row.add_theme_constant_override("separation", 6)
+	parent.add_child(row)
+	var label := Label.new()
+	label.text = "Fight at depth"
+	row.add_child(label)
+	var depth := SpinBox.new()
+	depth.name = "FightDepth"
+	depth.min_value = 1
+	depth.max_value = 40
+	depth.value = 1
+	depth.rounded = true
+	row.add_child(depth)
+	_fight_depth = depth
+	var boss := CheckBox.new()
+	boss.name = "FightBoss"
+	boss.text = "Boss"
+	row.add_child(boss)
+	_fight_boss = boss
+	var elaia := CheckBox.new()
+	elaia.name = "FightElaia"
+	elaia.text = "With Elaia"
+	elaia.button_pressed = true
+	row.add_child(elaia)
+	_fight_elaia = elaia
+	var open := _add_button(row, "Open fight", _on_fight_at_depth_pressed)
+	open.name = "OpenFight"
+	open.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+
+func _chosen_depth() -> int:
+	if _fight_depth == null:
+		return 1
+	return clampi(int(_fight_depth.value), 1, 40)
+
+
+func _on_fight_at_depth_pressed() -> void:
+	## Same open_arena() as the arena button. Echo and a reach fight still refuse it, and an
+	## open reach fight is refused here too, since open_arena() keeps an overlay that is already up.
+	if EchoChamber.in_battle or Reach.fight_active() or not BattleView.open_arena():
+		_set_status("Battle arena stays closed while Echo or a reach fight is open.")
+		return
+	var view: BattleView = null
+	for node: Node in get_tree().get_nodes_in_group("battle_overlay"):
+		if node is BattleView and not node.is_queued_for_deletion():
+			view = node as BattleView
+	if view == null:
+		_set_status("The battle arena did not open.")
+		return
+	var depth: int = _chosen_depth()
+	var boss: bool = _fight_boss != null and _fight_boss.button_pressed
+	var with_elaia: bool = _fight_elaia == null or _fight_elaia.button_pressed
+	view.start_test_fight(depth, boss, with_elaia, randi() & 0x7FFFFFFF)
+	_dismiss_pause()
+	AnimPreviewHotkey.set_debug_panel(false)
+
+
+func _on_batch_sim_pressed() -> void:
+	var depth: int = _chosen_depth()
+	var started: int = Time.get_ticks_msec()
+	var result: Dictionary = BatchSim.run_batch("duo", depth, BATCH_SIZE, randi() & 0x7FFFFFFF)
+	var ms: int = Time.get_ticks_msec() - started
+	## run_batch reports percents; turn them back into fight counts.
+	var n: int = int(result.get("n", BATCH_SIZE))
+	var wins: int = roundi(float(result.get("win", 0.0)) * float(n) / 100.0)
+	var flees: int = roundi(float(result.get("flee", 0.0)) * float(n) / 100.0)
+	var overwhelmed: int = roundi(float(result.get("overwhelmed", 0.0)) * float(n) / 100.0)
+	_set_status("Batch-sim %d at depth %d: win %d / flee %d / overwhelmed %d (%d ms)." % [n, depth, wins, flees, overwhelmed, ms])
 
 
 func _on_ascension_pressed() -> void:

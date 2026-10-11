@@ -154,6 +154,7 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `HANDOFF_RESUME_OK` | Idle mid-fight, then Manual within 12 minutes, resumes the same round, turn, HP, `salves_used` and `rng_combat_state`. A save and load with no offline time still resumes. `MANAFORGE_HANDOFF_RESUME=1` runs it alone. |
 | `HANDOFF_EXPIRED_OK` | 719 seconds do not resolve a handed-off fight. At 720 seconds the room log matches `AutoPolicy.run_idle` on the fight from the press, `slots_used` increases, and Manual opens the next room. `MANAFORGE_HANDOFF_EXPIRED=1` runs it alone. |
 | `HANDOFF_IDLE_OK` | A handed-off fight keeps manual Salves inside the cap of 2, the Idle button is disabled in the test fight and enabled on a reach party turn, Strike for me stays at 1×, and Go deeper / Head home still work after a resumed win. `MANAFORGE_HANDOFF_IDLE=1` runs it alone. |
+| `DEBUG_ADVENTURE_OK` | Experimental debug panel, through its real buttons: each **Force next room** button (Flee, Overwhelmed, Win) confirms on the status line and the next idle room resolves as forced. **Fight at depth** (1–40, Boss, With Elaia, **Open fight**) opens the arena test fight with beasts from `SpawnRoller.table_for(depth)`, and still refuses during a live reach fight. **Batch-sim 200** writes win / flee / overwhelmed counts that sum to 200, plus the ms. **Mid-fight** loads the hub with `Reach.fight_active()`, round 3 and the BattleView open on the hub. Every reach snapshot file except the Bramble-era Echo 2 ready is save_version 14, and Add items lists Glowcap and Bitterroot. `MANAFORGE_DEBUG_ADVENTURE=1` runs it alone. |
 
 `REACH_IDLE_ROLL_OK`, `REACH_FAIL_REST_OK`, `REACH_PUSH_STOP_OK`, `REACH_REWARDS_OK`, and `REACH_BOSS_ROOM_OK` retired by job 24, replaced by `IDLE_SLOTS_OK`, `IDLE_RESOLVE_AT_END_OK`, `IDLE_REST_SLOTS_OK`, and `IDLE_BOSS_PAYBACK_OK`.
 
@@ -207,6 +208,7 @@ Testing builds only. **Ctrl+F8**, or Options → **Show debug tools**. Bare F8 d
 - **Add items:** a search box, a quantity, and every raw material, handcraft item, and piece of gear from the data tables. Raw materials go to the resource counts. Gear goes to the equipment bag. Everything else goes to the backpack.
 - Options **Show speed-up button** stays. Its hint is `options_speedup_toggle_hint`.
 - **Jump to Echo** and **Open Ascension shop** are optional shortcuts.
+- **Expedition:** **Force next room: Flee / Overwhelmed / Win** queue that outcome for the next idle room (`Reach.debug_force_outcomes`). **Fight at depth** (1–40, Boss, With Elaia, **Open fight**) opens the arena test fight at that depth with a random 31-bit seed; Echo or a live reach fight refuses it. **Batch-sim 200** runs `BatchSim.run_batch("duo", depth, 200, seed)` at the same depth and shows win / flee / overwhelmed counts and the ms. The panel scrolls.
 
 ## Animation preview
 

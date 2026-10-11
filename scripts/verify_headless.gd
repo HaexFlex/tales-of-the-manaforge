@@ -999,6 +999,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_DEBUG_ADVENTURE") == "1":
+		var debug_adv_only: int = await _debug_adventure_ok(tree_root, game_state, save_service)
+		if debug_adv_only > 0:
+			print("DEBUG_ADVENTURE_FAIL: %d" % debug_adv_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -3390,6 +3399,7 @@ func _run() -> void:
 	failed += await _handoff_resume(tree_root, game_state, save_service)
 	failed += await _handoff_expired(tree_root, game_state, save_service)
 	failed += await _handoff_idle(tree_root, game_state, save_service)
+	failed += await _debug_adventure_ok(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -8096,6 +8106,230 @@ func _snapshot_hub_check(tree_root: Window, game_state: Node, save_service: Node
 			board.call("close_shell")
 	live.free()
 	await process_frame
+	return failed
+
+
+## Job 34: the Experimental debug panel's expedition tools and the Mid-fight snapshot.
+const _MID_FIGHT_PATH: String = "res://tools/debug/snapshots/mid_fight.json"
+const _MID_FIGHT_SAVE_ID: int = 340034
+
+
+func _debug_panel_open_for_test(tree_root: Window) -> Node:
+	## The real panel scene, named like AnimPreviewHotkey names it so its own close frees it.
+	var old: Node = tree_root.get_node_or_null("DebugToolsPanel")
+	if old != null:
+		old.free()
+	var packed: PackedScene = load("res://tools/debug/debug_panel.tscn") as PackedScene
+	if packed == null:
+		return null
+	var panel: Node = packed.instantiate()
+	panel.name = "DebugToolsPanel"
+	tree_root.add_child(panel)
+	return panel
+
+
+func _debug_panel_button(panel: Node, text: String) -> Button:
+	if panel == null or not is_instance_valid(panel):
+		return null
+	for node: Node in panel.find_children("*", "Button", true, false):
+		var button: Button = node as Button
+		if button != null and button.text == text:
+			return button
+	return null
+
+
+func _debug_panel_status(panel: Node) -> String:
+	if panel == null or not is_instance_valid(panel):
+		return ""
+	var found: Array[Node] = panel.find_children("Status", "Label", true, false)
+	return (found[0] as Label).text if not found.is_empty() else ""
+
+
+func _debug_panel_free(tree_root: Window) -> void:
+	var left: Node = tree_root.get_node_or_null("DebugToolsPanel")
+	if left != null and is_instance_valid(left):
+		left.free()
+
+
+func _debug_idle_duo_cfg() -> Dictionary:
+	return {
+		"depth": 1,
+		"rooms": 4,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	}
+
+
+func _debug_adventure_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Force buttons, Fight at depth, Batch-sim 200, the Mid-fight snapshot and the v14 re-saves,
+	## all through the real panel buttons, Reach, BattleView and SaveService.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "debug adventure Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
+	var save_id_was: int = int(save_service.get("current_save_id"))
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	failed += _assert(bool(reach.call("debug_tools")), "debug tools are on for this run")
+	var panel: Node = _debug_panel_open_for_test(tree_root)
+	failed += _assert(panel != null, "debug panel scene loads")
+	if panel == null:
+		return failed
+	await process_frame
+	# Item grants: the catalogue lists the Bundle 7 mats.
+	var catalogue_ids: Dictionary = {}
+	for row_v: Variant in panel.get("_rows") as Array:
+		catalogue_ids[str((row_v as Dictionary).get("id", ""))] = true
+	for mat: String in ["glowcap", "bitterroot"]:
+		failed += _assert(catalogue_ids.has(mat), "Add items lists %s" % mat)
+	# Re-saved snapshots: every reach snapshot file is save_version 14 and keeps its label.
+	for label: String in ["North road open", "Pre-boss", "Veteran reacher", "Mid-fight"]:
+		var snap_path: String = str(_REACH_SNAPSHOTS.get(label, ""))
+		var raw: Dictionary = _json_dict(snap_path)
+		failed += _assert(int(raw.get("save_version", 0)) == 14, "%s file is save_version 14 (got %d)" % [label, int(raw.get("save_version", 0))])
+		failed += _assert(str(raw.get("label", "")) == label, "%s keeps its label" % label)
+	# Force buttons: each queues its outcome and the next idle room resolves as forced.
+	var force_labels: Dictionary = {"flee": "Flee", "overwhelmed": "Overwhelmed", "win": "Win"}
+	for outcome: String in ["flee", "overwhelmed", "win"]:
+		_reset_reach_test(tree_root, game_state, save_service)
+		game_state.call("set_resource", &"essence", 100)
+		reach.call("set_test_run_seed", 34)
+		failed += _assert(str(reach.call("depart_slots", _debug_idle_duo_cfg())) == "ok", "force %s: idle depart" % outcome)
+		var button: Button = _debug_panel_button(panel, "Force next room: %s" % str(force_labels[outcome]))
+		failed += _assert(button != null, "panel has Force next room: %s" % str(force_labels[outcome]))
+		if button == null:
+			continue
+		button.pressed.emit()
+		failed += _assert(_debug_panel_status(panel).find(str(force_labels[outcome])) >= 0, "force %s: the status line confirms (%s)" % [outcome, _debug_panel_status(panel)])
+		var log_before: int = (reach.get("room_log") as Array).size()
+		reach.call("advance_clock", 720.0 - float(reach.get("room_clock")) + 0.001)
+		var room_log: Array = reach.get("room_log") as Array
+		failed += _assert(room_log.size() == log_before + 1, "force %s: one idle room resolved" % outcome)
+		if room_log.size() > log_before:
+			var entry: Dictionary = room_log[log_before] as Dictionary
+			failed += _assert(str(entry.get("outcome", "")) == outcome, "force %s: the room resolved as %s (got %s)" % [outcome, outcome, str(entry.get("outcome", ""))])
+	_reset_reach_test(tree_root, game_state, save_service)
+	# Fight at depth: the arena test fight rolls beasts from that depth's spawn table.
+	var depth_spin: SpinBox = null
+	var spins: Array[Node] = panel.find_children("FightDepth", "SpinBox", true, false)
+	if not spins.is_empty():
+		depth_spin = spins[0] as SpinBox
+	var boss_boxes: Array[Node] = panel.find_children("FightBoss", "CheckBox", true, false)
+	var elaia_boxes: Array[Node] = panel.find_children("FightElaia", "CheckBox", true, false)
+	failed += _assert(depth_spin != null and int(depth_spin.min_value) == 1 and int(depth_spin.max_value) == 40, "Fight at depth SpinBox runs 1-40")
+	failed += _assert(boss_boxes.size() == 1 and elaia_boxes.size() == 1, "Fight at depth has Boss and With Elaia")
+	var open_fight: Button = _debug_panel_button(panel, "Open fight")
+	failed += _assert(open_fight != null, "panel has Open fight")
+	if depth_spin != null and open_fight != null and boss_boxes.size() == 1 and elaia_boxes.size() == 1:
+		var fight_depth: int = 12
+		depth_spin.value = fight_depth
+		(boss_boxes[0] as CheckBox).button_pressed = true
+		(elaia_boxes[0] as CheckBox).button_pressed = true
+		open_fight.pressed.emit()
+		failed += _assert(BattleViewScript.is_open(), "Open fight opens the arena")
+		var arena: BattleView = _reach_live_view()
+		var fight: FightState = arena._fight if arena != null else null
+		failed += _assert(fight != null and fight.outcome() == "", "Open fight starts a test fight")
+		if fight != null:
+			var table_ids: Dictionary = {}
+			for row: Dictionary in SpawnRoller.table_for(fight_depth):
+				table_ids[str(row.get("beast", ""))] = true
+			var beasts: int = 0
+			var bosses: int = 0
+			var party_ids: Array[String] = []
+			for fighter_id: String in fight.order:
+				var info: Dictionary = fight.fighter_dict(fighter_id)
+				if str(info.get("side", "")) == "beast":
+					beasts += 1
+					failed += _assert(table_ids.has(str(info.get("species", ""))), "depth %d beast %s comes from table_for" % [fight_depth, str(info.get("species", ""))])
+					if bool(info.get("boss", false)):
+						bosses += 1
+				else:
+					party_ids.append(fighter_id)
+			failed += _assert(beasts > 0, "the depth fight has beasts")
+			failed += _assert(bosses == 1, "Boss marks one beast (got %d)" % bosses)
+			failed += _assert(party_ids.has("keeper") and party_ids.has("elaia"), "With Elaia brings Elaia")
+		failed += _assert(not is_instance_valid(panel) or panel.is_queued_for_deletion(), "Open fight closes the panel")
+		BattleViewScript.close_arena()
+		await process_frame
+	_debug_panel_free(tree_root)
+	# Refusal stays: a live reach fight keeps the arena shut.
+	panel = _debug_panel_open_for_test(tree_root)
+	await process_frame
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "manual depart for the refusal")
+	failed += _assert(bool(reach.call("fight_active")), "a manual reach fight is live")
+	var refuse_button: Button = _debug_panel_button(panel, "Open fight")
+	if refuse_button != null:
+		var views_before: int = get_nodes_in_group("battle_overlay").size()
+		refuse_button.pressed.emit()
+		failed += _assert(_debug_panel_status(panel).find("stays closed") >= 0, "Open fight refuses during a reach fight (%s)" % _debug_panel_status(panel))
+		failed += _assert(get_nodes_in_group("battle_overlay").size() == views_before, "a refused Open fight adds no arena")
+		failed += _assert(reach.call("manual_fight") != null and (reach.call("manual_fight") as FightState).round >= 1 and is_instance_valid(panel), "a refused Open fight leaves the reach fight and the panel")
+	BattleViewScript.close_arena()
+	_reset_reach_test(tree_root, game_state, save_service)
+	await process_frame
+	if not is_instance_valid(panel):
+		panel = _debug_panel_open_for_test(tree_root)
+		await process_frame
+	# Batch-sim 200: win / flee / overwhelmed counts that sum to 200, plus the ms.
+	var batch_button: Button = _debug_panel_button(panel, "Batch-sim 200")
+	failed += _assert(batch_button != null, "panel has Batch-sim 200")
+	if batch_button != null:
+		batch_button.pressed.emit()
+		var status: String = _debug_panel_status(panel)
+		var rx := RegEx.new()
+		rx.compile("win (\\d+) / flee (\\d+) / overwhelmed (\\d+) \\((\\d+) ms\\)")
+		var m: RegExMatch = rx.search(status)
+		failed += _assert(m != null, "Batch-sim writes counts and ms (%s)" % status)
+		if m != null:
+			var total: int = int(m.get_string(1)) + int(m.get_string(2)) + int(m.get_string(3))
+			failed += _assert(total == 200, "Batch-sim counts sum to 200 (got %d: %s)" % [total, status])
+			print("DEBUG_ADVENTURE_BATCH %s" % status)
+	# Mid-fight: the panel button resumes a live fight at round 3 on the hub.
+	_reset_reach_test(tree_root, game_state, save_service)
+	save_service.call("clear_adventure")
+	var mid_button: Button = _debug_panel_button(panel, "Mid-fight")
+	failed += _assert(mid_button != null, "panel has Mid-fight")
+	if mid_button != null:
+		mid_button.pressed.emit()
+		var opened: bool = false
+		for _i: int in 20:
+			await process_frame
+			if current_scene != null and str(current_scene.scene_file_path) == "res://scenes/main.tscn" and BattleViewScript.is_open():
+				opened = true
+				break
+		failed += _assert(current_scene != null and str(current_scene.scene_file_path) == "res://scenes/main.tscn", "Mid-fight loads the hub")
+		failed += _assert(bool(reach.call("fight_active")), "Mid-fight: Reach.fight_active()")
+		var live: FightState = reach.call("manual_fight") as FightState
+		failed += _assert(live != null and live.round == 3 and live.outcome() == "", "Mid-fight: round 3 of a live fight (got %s)" % (str(live.round) if live != null else "none"))
+		failed += _assert(int(reach.get("depth")) == 2 and str(reach.get("phase")) == "manual", "Mid-fight: manual run at depth 2")
+		failed += _assert(opened and BattleViewScript.is_open(), "Mid-fight: BattleView is open")
+		var view: BattleView = _reach_live_view()
+		failed += _assert(view != null and view._fight == live, "Mid-fight: the open view shows the resumed fight")
+		failed += _assert(view != null and view.get_parent() == current_scene, "Mid-fight: the view sits on the new hub")
+		failed += _assert(int(save_service.get("current_save_id")) == _MID_FIGHT_SAVE_ID, "Mid-fight: current_save_id is the snapshot's save_id")
+		var adv: Dictionary = save_service.call("read_adventure")
+		failed += _assert(int(adv.get("owner_save_id", -1)) == _MID_FIGHT_SAVE_ID, "Mid-fight: the adventure file matches the snapshot save_id")
+	BattleViewScript.close_arena()
+	await process_frame
+	_debug_panel_free(tree_root)
+	if current_scene != null:
+		unload_current_scene()
+	await process_frame
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	save_service.call("note_session_ended")
+	save_service.set("current_save_id", save_id_was)
+	_restore_user_file(adv_path, adv_was)
+	paused = false
+	if failed == 0:
+		print("DEBUG_ADVENTURE_OK")
 	return failed
 
 
