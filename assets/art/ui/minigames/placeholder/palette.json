@@ -1,0 +1,29 @@
+{
+ "note": "Art placeholder kit palette (tools/kit.py). Gold = active/perfect/target band, leaf green = good, warm grey-brown = miss. No red fail. Cyan is reserved for mana/Weave.",
+ "palette": {
+  "OUT": "#26180E",
+  "BARK0": "#422816",
+  "BARK1": "#684224",
+  "BARK2": "#8A5A32",
+  "BARK3": "#B07C48",
+  "PARCH": "#ECDCB2",
+  "PARCH_D": "#D6C08C",
+  "PARCH_DD": "#BCA26E",
+  "INK": "#3E2A18",
+  "CREAM": "#FAEECC",
+  "LEAF1": "#427630",
+  "LEAF2": "#7CB246",
+  "GOLD": "#F2C14E",
+  "GOOD": "#76BA48",
+  "MISS": "#968470",
+  "WATER": "#5C96D6",
+  "WATER_D": "#305CA0",
+  "EMBER": [
+   "#5A1A12",
+   "#AA3418",
+   "#E26C24",
+   "#FAB046",
+   "#FFECAA"
+  ]
+ }
+}

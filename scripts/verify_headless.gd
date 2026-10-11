@@ -165,6 +165,17 @@ func _run() -> void:
 			quit(0)
 		return
 
+	# Minigames feel test data (box commit 1). The full suite runs it last.
+	# MANAFORGE_MINIGAME_DATA=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_MINIGAME_DATA") == "1":
+		var mg_data_only: int = _minigame_data_ok(content_strings)
+		if mg_data_only > 0:
+			print("MINIGAME_DATA_FAIL: %d" % mg_data_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH") == "1":
 		var reach_only: int = _reach_checks(tree_root, game_state, save_service)
 		if reach_only > 0:
@@ -2660,6 +2671,7 @@ func _run() -> void:
 	failed += _save_newer_refused(tree_root, game_state, save_service)
 	failed += _reach_turn_order()
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
+	failed += _minigame_data_ok(content_strings)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -7913,4 +7925,142 @@ func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service:
 	game_state.call("reset_for_new_game")
 	if failed == 0:
 		print("DEBUG_SNAPSHOTS_MIGRATE_OK")
+	return failed
+
+
+## ---- Minigames feel test: data (box commit 1) ----
+const _MG_DATA_PATH: String = "res://data/minigames.json"
+const _MG_GAME_IDS: PackedStringArray = [
+	"ripe_catch", "splitting_stone", "woodsong", "just_enough",
+	"forge_glow", "steady_press", "with_the_grain", "steeping",
+]
+const _MG_KIT_DIR: String = "res://assets/art/ui/minigames/placeholder/kit/"
+
+
+static func _mg_r_weighted(g: Dictionary) -> float:
+	## Tokens per minute weighted by score weight. Woodsong: 48 × (1 + 1/8) = 54.
+	var r: float = float(g.get("r", 0.0))
+	var every: int = int(g.get("heavy_every", 0))
+	if every <= 0:
+		return r
+	var heavy_weight: float = float(g.get("heavy_weight", 1.0))
+	return r * (1.0 + (heavy_weight - 1.0) / float(every))
+
+
+func _mg_band_ok(g: Dictionary, key: String, id: String) -> int:
+	var band_v: Variant = g.get(key, [])
+	if typeof(band_v) != TYPE_ARRAY or (band_v as Array).size() != 2:
+		return _assert(false, "minigame %s has a two-value %s" % [id, key])
+	var band: Array = band_v as Array
+	var lo: float = float(band[0])
+	var hi: float = float(band[1])
+	return _assert(lo > 0.0 and hi > lo and hi < 1.0 and hi - lo >= 0.1 and hi - lo <= 0.3, "minigame %s %s %s is a sane band" % [id, key, str(band)])
+
+
+func _minigame_data_ok(content_strings: Node) -> int:
+	## data/minigames.json: all 8 games, fixed clock r = 60 / cycle × tokens,
+	## r_weighted × k = 120 (Woodsong weighted), sane windows, DRAFT strings,
+	## cue ids that exist in audio_cues.json, placeholder art that imports.
+	var failed: int = 0
+	failed += _assert(FileAccess.file_exists(_MG_DATA_PATH), "minigames.json exists")
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(_MG_DATA_PATH))
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "minigames.json parses")
+	if failed > 0:
+		return failed
+	var root_d: Dictionary = parsed as Dictionary
+	var target: float = float(root_d.get("target_bonus_sec_per_min", 0.0))
+	failed += _assert(is_equal_approx(target, 120.0), "target bonus is 120 s per minute")
+	failed += _assert(is_equal_approx(float(root_d.get("max_pace", 0.0)), 3.0), "max pace is 3x")
+	failed += _assert(float(root_d.get("max_frame_dt", 0.0)) > 0.0 and float(root_d.get("max_frame_dt", 1.0)) <= 0.1, "max_frame_dt clamps hitches")
+	var cues_parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cue_table: Dictionary = {}
+	if typeof(cues_parsed) == TYPE_DICTIONARY:
+		cue_table = (cues_parsed as Dictionary).get("cues", {}) as Dictionary
+	failed += _assert(not cue_table.is_empty(), "audio_cues.json has cues")
+	var shared_cues: Dictionary = root_d.get("cues", {}) as Dictionary
+	for cue_key: String in ["open", "close", "success", "fail"]:
+		failed += _assert(cue_table.has(str(shared_cues.get(cue_key, ""))), "shared cue %s is an existing audio id" % cue_key)
+	var frame: Dictionary = root_d.get("frame", {}) as Dictionary
+	failed += _assert(int(frame.get("layer", 0)) == 60, "overlay layer 60")
+	var want_rects: Dictionary = {
+		"frame": [280, 136, 720, 448], "title_plate": [496, 116, 288, 40],
+		"header": [300, 160, 680, 36], "play_area": [320, 200, 640, 320],
+		"footer": [300, 524, 680, 36], "stop_button": [856, 528, 104, 28],
+	}
+	for rect_key: String in want_rects.keys():
+		var got: Array = frame.get(rect_key, []) as Array
+		var want: Array = want_rects[rect_key] as Array
+		var same: bool = got.size() == 4
+		if same:
+			for i: int in 4:
+				same = same and int(got[i]) == int(want[i])
+		failed += _assert(same, "frame %s matches Art's geometry" % rect_key)
+	failed += _assert(absf(float(frame.get("dim_alpha", 0.0)) - 0.58) < 0.001, "dim at 58%")
+	var games: Dictionary = root_d.get("games", {}) as Dictionary
+	failed += _assert(games.size() == _MG_GAME_IDS.size(), "exactly %d games (got %d)" % [_MG_GAME_IDS.size(), games.size()])
+	var orders: Dictionary = {}
+	for id: String in _MG_GAME_IDS:
+		failed += _assert(games.has(id), "game %s present" % id)
+		if not games.has(id):
+			continue
+		var g: Dictionary = games[id] as Dictionary
+		var r: float = float(g.get("r", 0.0))
+		var k: float = float(g.get("k", 0.0))
+		var cycle: float = float(g.get("cycle_sec", 0.0))
+		var tokens: float = float(g.get("tokens_per_cycle", 1))
+		failed += _assert(r > 0.0 and k > 0.0 and cycle > 0.0 and tokens >= 1.0, "%s has r, k, cycle_sec" % id)
+		if r <= 0.0 or cycle <= 0.0:
+			continue
+		failed += _assert(absf(60.0 / cycle * tokens - r) < 0.01, "%s fixed clock: 60 / %.3f × %d = r %d" % [id, cycle, int(tokens), int(r)])
+		var rk: float = _mg_r_weighted(g) * k
+		failed += _assert(absf(rk - target) <= 0.05, "%s r_weighted × k = %.4f ≈ 120" % [id, rk])
+		var order: int = int(g.get("order", 0))
+		failed += _assert(order >= 1 and order <= 8 and not orders.has(order), "%s has a unique order" % id)
+		orders[order] = id
+		for key_field: String in ["name_key", "flavour_key", "hint_key"]:
+			var key: String = str(g.get(key_field, ""))
+			var text: String = str(content_strings.call("get_text", key))
+			failed += _assert(key != "" and text != key and text.begins_with("[DRAFT] "), "%s %s is a DRAFT string" % [id, key_field])
+		var game_cues: Dictionary = g.get("cues", {}) as Dictionary
+		failed += _assert(game_cues.has("success"), "%s has a success cue" % id)
+		for cue_name: Variant in game_cues.keys():
+			failed += _assert(cue_table.has(str(game_cues[cue_name])), "%s cue %s is an existing audio id" % [id, str(cue_name)])
+		var bg: String = str(g.get("play_bg", ""))
+		failed += _assert(bg != "" and ResourceLoader.exists(bg), "%s placeholder %s imports" % [id, bg])
+	if failed > 0:
+		return failed
+	var ripe: Dictionary = games["ripe_catch"] as Dictionary
+	failed += _assert(int(ripe.get("r", 0)) == 40 and float(ripe.get("rotten_chance", 0.0)) > 0.0 and float(ripe.get("rotten_chance", 1.0)) < 0.5, "ripe catch: 40/min, rotten ≈ 1 in 8, outside r")
+	failed += _assert(not bool(ripe.get("rotten_counts_in_r", true)), "rotten berries are not counted in r")
+	var stone: Dictionary = games["splitting_stone"] as Dictionary
+	var stone_busy: float = float(stone.get("preview_sec", 0.0)) + float(stone.get("spots", 0)) * float(stone.get("window_sec", 0.0))
+	failed += _assert(int(stone.get("spots", 0)) == 3 and is_equal_approx(float(stone.get("window_sec", 0.0)), 0.8), "stone: 3 spots, 0.8 s windows")
+	failed += _assert(stone_busy > 0.0 and stone_busy <= float(stone.get("cycle_sec", 0.0)), "stone: preview + spots fit the 6 s loop")
+	var wood: Dictionary = games["woodsong"] as Dictionary
+	var beat_sec: float = 60.0 / float(wood.get("bpm", 1.0))
+	failed += _assert(int(wood.get("bpm", 0)) == 48 and int(wood.get("r", 0)) == 48, "woodsong 48 BPM = r 48")
+	failed += _assert(int(wood.get("window_ms", 0)) == 180 and 2.0 * float(wood.get("window_ms", 0)) / 1000.0 < beat_sec, "woodsong ±180 ms windows do not overlap")
+	failed += _assert(int(wood.get("heavy_every", 0)) == 8 and int(wood.get("heavy_weight", 0)) == 2, "woodsong: every 8th beat heavy, weight 2")
+	failed += _assert(absf(_mg_r_weighted(wood) - 54.0) < 0.001, "woodsong weighted r is 54")
+	failed += _assert(cue_table.has(str((wood.get("cues", {}) as Dictionary).get("beat", ""))), "woodsong beat cue is audible")
+	var pour: Dictionary = games["just_enough"] as Dictionary
+	failed += _mg_band_ok(pour, "band", "just_enough")
+	failed += _assert(float(pour.get("fill_sec", 0.0)) > 0.0 and float(pour.get("fill_sec", 9.0)) < float(pour.get("cycle_sec", 0.0)), "just enough: the can fills inside the loop")
+	failed += _mg_band_ok(games["forge_glow"] as Dictionary, "sweet", "forge_glow")
+	var press: Dictionary = games["steady_press"] as Dictionary
+	failed += _mg_band_ok(press, "band", "steady_press")
+	failed += _assert(float(press.get("vent_at", 0.0)) > float((press.get("band", [0, 1]) as Array)[1]) and float(press.get("vent_at", 2.0)) <= 1.0, "steady press vent sits above the band")
+	failed += _assert(float(press.get("sag_per_sec", 0.0)) > 0.0, "steady press sags")
+	var grain: Dictionary = games["with_the_grain"] as Dictionary
+	failed += _assert(is_equal_approx(float(grain.get("accuracy_min", 0.0)), 0.75), "with the grain needs 75%")
+	failed += _assert((grain.get("shapes", []) as Array).size() >= 1, "with the grain has shapes")
+	var brew: Dictionary = games["steeping"] as Dictionary
+	failed += _assert(int(brew.get("order_min", 0)) == 3 and int(brew.get("order_max", 0)) == 5, "steeping orders 3–5 herbs")
+	for key: String in ["mg_section", "mg_stop", "mg_successes", "mg_pace", "mg_paused"]:
+		var text: String = str(content_strings.call("get_text", key))
+		failed += _assert(text != key and text.begins_with("[DRAFT] "), "%s is a DRAFT string" % key)
+	for kit_file: String in ["frame_720x448.png", "title_plate_312x46.png", "stop_button_normal_104x28.png", "pip_good_12.png", "pace_track_136x18.png"]:
+		failed += _assert(ResourceLoader.exists(_MG_KIT_DIR + kit_file), "kit %s imports" % kit_file)
+	if failed == 0:
+		print("MINIGAME_DATA_OK")
 	return failed
