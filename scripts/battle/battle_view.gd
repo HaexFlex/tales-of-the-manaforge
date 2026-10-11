@@ -47,6 +47,14 @@ const PARTY_POSES: Dictionary = {
 		"hurt": ART_DIR + "party/battle_elaia_hurt.png",
 		"ko": ART_DIR + "party/battle_elaia_ko.png",
 	},
+	## Debug fight only (not a companion yet): static idle, breathe frames not wired.
+	"bramble": {
+		"idle": ART_DIR + "party/battle_bramble_idle_e.png",
+		"attack": ART_DIR + "party/battle_bramble_attack.png",
+		"brace": ART_DIR + "party/battle_bramble_brace.png",
+		"hurt": ART_DIR + "party/battle_bramble_hurt.png",
+		"ko": ART_DIR + "party/battle_bramble_ko.png",
+	},
 }
 ## West-facing beast idle + hurt frames (128×128, soles on row 123). Dark variants reuse the
 ## base sprite with VARIANT_MODULATE. acorn_imp / spore_moth / thorn_boar / vine_serpent idles are
@@ -1416,6 +1424,8 @@ func _party_display_name(member: String) -> String:
 		return _text("echo_elaia_name", "Elaia")
 	if member == "keeper":
 		return _text("keeper_select", "Keeper")
+	if member == "bramble":
+		return _text("bramble_name", "Bramble")
 	return member.capitalize()
 
 

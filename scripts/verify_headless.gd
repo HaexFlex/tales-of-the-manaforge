@@ -14240,6 +14240,12 @@ func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int
 	failed += _assert(str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_idle_e.png") or str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_idle.png"), "party idle")
 	view.call("set_fighter_pose", "keeper", "ko")
 	failed += _assert(str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_ko.png"), "ko pose")
+	## Bramble (debug fight art only): every pose path loads as a 128x128 texture.
+	var bramble_poses: Dictionary = BattleViewScript.PARTY_POSES.get("bramble", {}) as Dictionary
+	for bpose: String in ["idle", "attack", "hurt", "ko", "brace"]:
+		var bpath: String = str(bramble_poses.get(bpose, ""))
+		var btex: Texture2D = load(bpath) as Texture2D if bpath != "" and ResourceLoader.exists(bpath) else null
+		failed += _assert(btex != null and btex.get_size() == Vector2(128, 128), "bramble %s texture loads" % bpose)
 	BattleViewScript.close_arena()
 	live.free()
 	if failed == 0:
