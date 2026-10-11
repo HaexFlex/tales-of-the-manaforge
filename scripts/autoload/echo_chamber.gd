@@ -150,7 +150,6 @@ func open_context(def: Dictionary, context: String, totals: Dictionary, strike_k
 	battle_context = context
 	reentry = already_paid
 	battle = EchoBattle.new()
-	battle.force_crit = -1
 	battle.configure(totals, def)
 	battle.strike_kind = strike_kind if strike_kind != "" else "physical"
 	battle.arrow_mode = "magical" if GameState.arrow_mode == "magical" else "physical"

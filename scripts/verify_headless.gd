@@ -669,6 +669,35 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ECHO_SUITE") == "1":
+		var echo_suite_failed: int = await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
+		echo_suite_failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+		if echo_suite_failed > 0:
+			print("ECHO_SUITE_FAIL: %d" % echo_suite_failed)
+			quit(1)
+		else:
+			print("ECHO_SUITE_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ECHO_V4_MATH") == "1":
+		var echo_math_only: int = _echo_v4_math(tree_root)
+		if echo_math_only > 0:
+			print("ECHO_V4_MATH_FAIL: %d" % echo_math_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ECHO_V4_PARITY") == "1":
+		var echo_parity_only: int = _echo_v4_parity()
+		if echo_parity_only > 0:
+			print("ECHO_V4_PARITY_FAIL: %d" % echo_parity_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BATTLE_PLATES") == "1":
 		var battle_plates_only: int = await _battle_plates(tree_root, game_state, save_service)
 		if battle_plates_only > 0:
@@ -3399,6 +3428,8 @@ func _run() -> void:
 	failed += await _handoff_idle(tree_root, game_state, save_service)
 	failed += await _debug_adventure_ok(tree_root, game_state, save_service)
 	failed += _reach_legacy_gone(tree_root, game_state, save_service)
+	failed += _echo_v4_math(tree_root)
+	failed += _echo_v4_parity()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -3423,8 +3454,10 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(echo.call("echo_display_name")) == "Elaia", "Elaia display name")
 	failed += _assert(str(echo_def.get("id", "")) == "echo_keeper_01", "echo id")
 	var estats: Dictionary = echo_def.get("stats", {})
-	failed += _assert(int(estats.get("vitality", 0)) == 6 and int(estats.get("arcana", 0)) == 7, "Elaia vit 6 arcana 7")
-	failed += _assert(int(estats.get("swiftness", 0)) == 6 and int(estats.get("might", 0)) == 4, "Elaia swift 6 might 4")
+	failed += _assert(int(estats.get("vitality", 0)) == 7 and int(estats.get("arcana", 0)) == 6, "Elaia vit 7 arcana 6")
+	failed += _assert(int(estats.get("swiftness", 0)) == 7 and int(estats.get("might", 0)) == 4, "Elaia swift 7 might 4")
+	failed += _assert(echo_def.get("crit_multiplier", null) == null, "Elaia has no crit_multiplier")
+	failed += _assert(echo_def.get("swift_tie_favors_foe", null) == null, "Elaia has no swift_tie_favors_foe")
 	failed += _assert(str(content_strings.call("get_text", "echo_elaia_name")) == "Elaia", "echo_elaia_name")
 	failed += _assert(str(content_strings.call("get_text", "echo_elaia_subtitle")).find("Echo") >= 0, "echo_elaia_subtitle")
 	failed += _assert(str(content_strings.call("get_text", "portal_confirm")).find("{cost}") >= 0, "portal_confirm")
@@ -3457,10 +3490,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(content_strings.call("get_text", "forge_enter_stage_locked")).find("Elder or Ancient") >= 0, "forge_enter_stage_locked")
 	failed += _assert(str(content_strings.call("get_text", "battle_save_disabled")).find("Cannot save") >= 0, "battle_save_disabled")
 	failed += _assert(str(content_strings.call("get_text", "battle_paused_hint")).find("Flee") >= 0, "battle_paused_hint")
-	failed += _assert(EchoBattleScript.raw_damage(5, 5) == 0, "fists raw 0")
-	failed += _assert(EchoBattleScript.raw_damage(4, 9) == 0, "negative raw is 0")
-	failed += _assert(EchoBattleScript.raw_damage(7, 5) == 20, "sword raw 20")
-	failed += _assert(EchoBattleScript.hp_max_for(5) == 50 and EchoBattleScript.hp_max_for(6) == 60, "hp from vitality")
+	failed += _assert(BattleResolver.max_hp_for(5) == 25 and BattleResolver.max_hp_for(7) == 31, "§4 HP from vitality")
 	failed += _assert(EchoBattleScript.rank_cost(0) == 100 and EchoBattleScript.rank_cost(1) == 165, "rank cost curve")
 	failed += _assert(EchoBattleScript.rank_cost(4) == 741 and EchoBattleScript.rank_cost(5) == 1222, "rank cost 741/1222")
 	var ranks0: Dictionary = {
@@ -3474,68 +3504,58 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(EchoBattleScript.payout("spare", ranks_might, 5) == 105, "specialist spare still third rank 0")
 	var ordered: Array[String] = EchoBattleScript.ranked_stat_ids(ranks_might)
 	failed += _assert(ordered[0] == "might" and ordered[1] == "arcana" and ordered[2] == "resilience", "might leads and the third tie is resilience")
-	# Fists: 0 damage. Enemy still hits after.
-	var fists: Variant = EchoBattleScript.new()
-	fists.force_crit = 0
-	fists.configure(_echo_totals(5, 9), echo_def)
+	var fx: Dictionary = _echo_duel_fixture()
+	# Fists: keeper miss on round 1 (e1_fresh_ko faces, first keeper swing).
+	var fists: EchoBattle = _echo_battle_for_replay(fx, "e1_fresh", echo_def)
+	_echo_apply_faces(fists, _echo_replay_faces(fx, "e1_fresh_ko"))
 	fists.choose("strike")
-	failed += _assert(fists.last_keeper_damage == 0 and fists.echo_hp == 60, "fists deal 0")
-	# Turn-1 floor: a lethal first cast leaves the Keeper at 1, then Flee succeeds.
-	var lethal: Dictionary = echo_def.duplicate(true)
-	(lethal["stats"] as Dictionary)["arcana"] = 40
-	(lethal["stats"] as Dictionary)["swiftness"] = 9
-	var t1: Variant = EchoBattleScript.new()
-	t1.force_crit = 0
-	t1.configure(_echo_totals(5, 1, 0), lethal)
-	failed += _assert(t1.choose("flee") == "flee", "flee after her first hit")
-	failed += _assert(t1.keeper_hp == 1 and t1.outcome == "flee" and t1.enemy_attacks == 1, "T1 cannot KO")
-	var t1_strike: Variant = EchoBattleScript.new()
-	t1_strike.force_crit = 0
-	t1_strike.configure(_echo_totals(5, 1, 0), lethal)
+	failed += _assert(fists.last_keeper_damage == 0 and fists.echo_hp == 31, "fists deal 0")
+	# Turn-1 floor from e1_rootsteel_floor (first landed echo hit).
+	var floor_b: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(floor_b, _echo_replay_faces(fx, "e1_rootsteel_floor"))
+	floor_b.choose("strike")
+	floor_b.choose("strike")
+	failed += _assert(floor_b.first_hit_used and floor_b.keeper_hp == 3, "T1 floor leaves 3 HP")
+	var t1: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(t1, _echo_replay_faces(fx, "e1_rootsteel_floor"))
+	t1.choose("strike")
+	t1.choose("strike")
+	failed += _assert(t1.keeper_hp == 3 and t1.first_hit_used, "T1 floor after first landed hit")
+	var t1_strike: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(t1_strike, _echo_replay_faces(fx, "e1_rootsteel_floor"))
 	t1_strike.choose("strike")
-	failed += _assert(t1_strike.keeper_hp == 1 and t1_strike.outcome == "", "T1 strike still cannot KO")
-	# Crit does not bypass the mercy floor.
-	var floored: Variant = EchoBattleScript.new()
-	floored.force_crit = 1
-	floored.configure(_echo_totals(20, 12), echo_def)
-	floored.choose("strike")
-	failed += _assert(floored.echo_hp == 1 and floored.spare_window, "10% floor holds on a crit")
+	t1_strike.choose("strike")
+	failed += _assert(t1_strike.keeper_hp == 3 and t1_strike.outcome == "", "T1 strike still cannot KO")
+	# Mercy window from e1_rootsteel_spare_window (crit crush).
+	var floored: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(floored, _echo_replay_faces(fx, "e1_rootsteel_spare_window"))
+	failed += _assert(floored.choose("strike") == "spare_window", "10% window opens")
+	failed += _assert(floored.echo_hp == 1 and floored.spare_window, "mercy floor clamps to 1")
 	failed += _assert(not floored.available_actions().has("flee"), "spare window has no Flee")
 	failed += _assert(floored.choose("flee") == "no_flee" and floored.outcome == "", "flee is refused in the window")
 	failed += _assert(floored.available_actions().has("spare") and floored.available_actions().has("strike"), "window offers spare and strike")
-	# No sword: she kills on her third hit. Echo never reaches the window.
-	var bare: Variant = EchoBattleScript.new()
-	bare.force_crit = 0
-	bare.configure(_echo_totals(5, 1), echo_def)
-	bare.choose("strike")
-	bare.choose("strike")
-	failed += _assert(bare.choose("strike") == "ko" and bare.enemy_attacks == 3 and bare.echo_hp == 60, "fists die on her third hit")
-	# Sword only: die on her third action, before the window.
-	var sword: Variant = EchoBattleScript.new()
-	sword.force_crit = 0
-	sword.configure(_echo_totals(7, 5), echo_def)
-	sword.choose("strike")
-	sword.choose("strike")
-	failed += _assert(sword.choose("strike") == "ko" and sword.echo_hp == 20 and sword.enemy_attacks == 3, "sword dies before spare")
-	# Sword + 1 Swift: tie, Keeper first, floor then window before her kill.
-	var swift: Variant = EchoBattleScript.new()
-	swift.force_crit = 0
-	swift.configure(_echo_totals(7, 6), echo_def)
-	swift.choose("strike")
-	swift.choose("strike")
-	failed += _assert(swift.choose("strike") == "spare_window", "swift reaches the window")
-	failed += _assert(swift.echo_hp == 1 and swift.keeper_hp == 10 and swift.enemy_attacks == 2, "swift floor before her third hit")
+	# Fresh keeper KO on e1_fresh_ko.
+	var bare: EchoBattle = _echo_battle_for_sheet(fx, "e1_fresh", echo_def)
+	_echo_apply_faces(bare, _echo_replay_faces(fx, "e1_fresh_ko"))
+	while bare.outcome == "" and not bare.spare_window:
+		bare.choose("strike")
+	failed += _assert(bare.outcome == "ko" and bare.echo_hp == 26, "fresh keeper loses to Elaia")
+	var sword: EchoBattle = _echo_battle_for_sheet(fx, "e1_flintblade", echo_def)
+	_echo_apply_faces(sword, _echo_replay_faces(fx, "e1_flintblade_ko"))
+	while sword.outcome == "" and not sword.spare_window:
+		sword.choose("strike")
+	failed += _assert(sword.outcome == "ko" and sword.enemy_attacks >= 1, "flintblade KO path")
+	var swift: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(swift, _echo_replay_faces(fx, "e1_rootsteel_spare_window"))
+	failed += _assert(swift.choose("strike") == "spare_window", "rootsteel reaches the window")
+	failed += _assert(swift.echo_hp == 1, "window leaves echo at 1 HP")
 	failed += _assert(swift.choose("strike") == "defeat" and swift.echo_hp == 0, "strike inside the window is defeat")
-	# Sword + 1 Might, she is faster: window on the Keeper's second strike.
-	var might_plus: Variant = EchoBattleScript.new()
-	might_plus.force_crit = 0
-	might_plus.configure(_echo_totals(8, 5), echo_def)
-	might_plus.choose("strike")
-	failed += _assert(might_plus.choose("strike") == "spare_window" and might_plus.echo_hp == 1, "might reaches 1 HP")
-	var window_view_battle: Variant = EchoBattleScript.new()
-	window_view_battle.force_crit = 0
-	window_view_battle.configure(_echo_totals(7, 6), echo_def)
-	window_view_battle.spare_window = true
+	var might_plus: EchoBattle = _echo_battle_for_sheet(fx, "e1_flint_2ranks", echo_def)
+	_echo_apply_faces(might_plus, _echo_replay_faces(fx, "e1_flint_2ranks_spare_window"))
+	failed += _assert(might_plus.choose("strike") == "spare_window" and might_plus.echo_hp == 1, "two ranks reach mercy")
+	var window_view_battle: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(window_view_battle, _echo_replay_faces(fx, "e1_rootsteel_spare_window"))
+	window_view_battle.choose("strike")
 	echo.set("battle", window_view_battle)
 	echo.set("in_battle", true)
 	echo.set("reentry", false)
@@ -3566,9 +3586,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	echo.set("in_battle", false)
 	# Opening flavour: narrator + intro on a new fee; return when the fee is already paid.
 	game_state.call("reset_for_new_game")
-	var open_battle: Variant = EchoBattleScript.new()
-	open_battle.force_crit = 0
-	open_battle.configure(_echo_totals(7, 6), echo_def)
+	var open_battle: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
 	echo.set("battle", open_battle)
 	echo.set("in_battle", true)
 	echo.set("reentry", false)
@@ -3849,6 +3867,213 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_audio.call("resume_hub_after_battle")
 	game_state.call("reset_for_new_game")
 	save_service.call("delete_save")
+	return failed
+
+
+func _echo_duel_fixture() -> Dictionary:
+	return _json_dict("res://tests/fixtures/echo_duel_cases.json")
+
+
+func _echo_replay_by_id(fx: Dictionary, replay_id: String) -> Dictionary:
+	for row_v: Variant in fx.get("replays", []) as Array:
+		if row_v is Dictionary and str((row_v as Dictionary).get("id", "")) == replay_id:
+			return row_v as Dictionary
+	return {}
+
+
+func _echo_replay_faces(fx: Dictionary, replay_id: String) -> Array[int]:
+	var replay: Dictionary = _echo_replay_by_id(fx, replay_id)
+	var out: Array[int] = []
+	for face_v: Variant in replay.get("faces", []) as Array:
+		out.append(int(face_v))
+	return out
+
+
+func _echo_sheet_dict(fx: Dictionary, sheet_id: String) -> Dictionary:
+	var sheets_v: Variant = fx.get("sheets", {})
+	if typeof(sheets_v) != TYPE_DICTIONARY:
+		return {}
+	return (sheets_v as Dictionary).get(sheet_id, {}) as Dictionary
+
+
+func _echo_keeper_totals_from_sheet(sheet: Dictionary) -> Dictionary:
+	var keeper_v: Variant = sheet.get("keeper", {})
+	var keeper: Dictionary = keeper_v if typeof(keeper_v) == TYPE_DICTIONARY else {}
+	return {
+		"might": int(keeper.get("might", 5)),
+		"arcana": int(keeper.get("arcana", 5)),
+		"resilience": int(keeper.get("resilience", 5)),
+		"ward": int(keeper.get("ward", 5)),
+		"vitality": int(keeper.get("vitality", 5)),
+		"swiftness": int(keeper.get("swiftness", 5)),
+		"fate": int(keeper.get("fate", 5)),
+	}
+
+
+func _echo_def_for_sheet(fx: Dictionary, sheet_id: String, elaia_def: Dictionary, bramble_def: Dictionary) -> Dictionary:
+	var sheet: Dictionary = _echo_sheet_dict(fx, sheet_id)
+	var echo_key: String = str(sheet.get("echo", "elaia"))
+	var base: Dictionary = elaia_def.duplicate(true) if echo_key == "elaia" else bramble_def.duplicate(true)
+	var echoes_v: Variant = fx.get("echoes", {})
+	var echoes: Dictionary = echoes_v if typeof(echoes_v) == TYPE_DICTIONARY else {}
+	var estats_v: Variant = echoes.get(echo_key, {})
+	if typeof(estats_v) == TYPE_DICTIONARY:
+		base["stats"] = (estats_v as Dictionary).duplicate(true)
+	base["rootbind_every"] = int(sheet.get("rootbind_every", 0))
+	return base
+
+
+func _echo_battle_for_sheet(fx: Dictionary, sheet_id: String, elaia_def: Dictionary) -> EchoBattle:
+	var echo: Node = Engine.get_main_loop().root.get_node_or_null("EchoChamber") if Engine.get_main_loop() is SceneTree else null
+	var bramble_def: Dictionary = {}
+	if echo != null:
+		bramble_def = echo.call("bramble_def") as Dictionary
+	var battle := EchoBattleScript.new()
+	var sheet: Dictionary = _echo_sheet_dict(fx, sheet_id)
+	battle.configure(_echo_keeper_totals_from_sheet(sheet), _echo_def_for_sheet(fx, sheet_id, elaia_def, bramble_def))
+	battle.strike_kind = "physical"
+	return battle
+
+
+func _echo_battle_for_replay(fx: Dictionary, sheet_id: String, elaia_def: Dictionary) -> EchoBattle:
+	return _echo_battle_for_sheet(fx, sheet_id, elaia_def)
+
+
+func _echo_apply_faces(battle: EchoBattle, faces: Array[int]) -> void:
+	battle.set_dice(BattleRng.with_faces(faces))
+
+
+func _echo_turn_field_equal(got: Variant, expect: Variant) -> bool:
+	if typeof(expect) == TYPE_FLOAT or typeof(expect) == TYPE_INT:
+		return int(got) == int(expect)
+	if typeof(expect) == TYPE_BOOL:
+		return bool(got) == bool(expect)
+	return str(got) == str(expect)
+
+
+func _echo_turn_matches(got: Dictionary, expect: Dictionary) -> bool:
+	for key: Variant in expect.keys():
+		if not _echo_turn_field_equal(got.get(key), expect.get(key)):
+			return false
+	return true
+
+
+func _echo_run_replay(fx: Dictionary, replay: Dictionary, elaia_def: Dictionary) -> EchoBattle:
+	var sheet_id: String = str(replay.get("sheet", ""))
+	var battle: EchoBattle = _echo_battle_for_sheet(fx, sheet_id, elaia_def)
+	_echo_apply_faces(battle, _echo_replay_faces(fx, str(replay.get("id", ""))))
+	while battle.outcome == "" and not battle.spare_window:
+		battle.choose("strike")
+	return battle
+
+
+func _echo_v4_math(tree_root: Window) -> int:
+	var failed: int = 0
+	var fx: Dictionary = _echo_duel_fixture()
+	failed += _assert(not fx.is_empty(), "echo_duel_cases.json loads")
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo == null:
+		return failed + 1
+	var elaia_def: Dictionary = echo.call("echo_def") as Dictionary
+	var bramble_def: Dictionary = echo.call("bramble_def") as Dictionary
+	var echoes_v: Variant = fx.get("echoes", {})
+	var echoes: Dictionary = echoes_v if typeof(echoes_v) == TYPE_DICTIONARY else {}
+	for echo_key: String in ["elaia", "bramble"]:
+		var expect_v: Variant = echoes.get(echo_key, {})
+		var data_def: Dictionary = elaia_def if echo_key == "elaia" else bramble_def
+		var estats: Dictionary = data_def.get("stats", {}) as Dictionary
+		var expect: Dictionary = expect_v if typeof(expect_v) == TYPE_DICTIONARY else {}
+		for stat_key: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+			failed += _assert(int(estats.get(stat_key, -1)) == int(expect.get(stat_key, -2)), "%s %s" % [echo_key, stat_key])
+		failed += _assert(data_def.get("crit_multiplier", null) == null, "%s crit_multiplier gone" % echo_key)
+		failed += _assert(data_def.get("swift_tie_favors_foe", null) == null, "%s swift_tie gone" % echo_key)
+	var fresh: EchoBattle = EchoBattleScript.new()
+	fresh.configure(_echo_keeper_totals_from_sheet(_echo_sheet_dict(fx, "e1_fresh")), elaia_def)
+	failed += _assert(fresh.keeper_max_hp == 25, "fresh keeper max_hp 25")
+	failed += _assert(fresh.echo_max_hp == 31, "Elaia max_hp 31")
+	var bramble_b: EchoBattle = EchoBattleScript.new()
+	bramble_b.configure(_echo_keeper_totals_from_sheet(_echo_sheet_dict(fx, "e2_rootsteel")), bramble_def)
+	failed += _assert(bramble_b.echo_max_hp == 46, "Bramble max_hp 46")
+	for replay_v: Variant in fx.get("replays", []) as Array:
+		if not (replay_v is Dictionary):
+			continue
+		var replay: Dictionary = replay_v as Dictionary
+		var battle: EchoBattle = _echo_run_replay(fx, replay, elaia_def)
+		var expect_v: Variant = replay.get("expect", {})
+		var expect: Dictionary = expect_v if typeof(expect_v) == TYPE_DICTIONARY else {}
+		var expect_outcome: String = str(expect.get("outcome", ""))
+		if expect_outcome == "spare_window":
+			failed += _assert(battle.spare_window, "replay %s spare_window" % replay.get("id", ""))
+		elif expect_outcome == "timeout":
+			failed += _assert(battle.outcome == "ko" and battle.timed_out, "replay %s timeout" % replay.get("id", ""))
+		elif expect_outcome == "ko":
+			failed += _assert(battle.outcome == "ko" and not battle.timed_out, "replay %s ko" % replay.get("id", ""))
+		else:
+			failed += _assert(battle.outcome == expect_outcome, "replay %s outcome" % replay.get("id", ""))
+		failed += _assert(battle.round == int(expect.get("rounds", -1)), "replay %s rounds" % replay.get("id", ""))
+		var turns_v: Variant = expect.get("turns", [])
+		var expect_turns: Array = turns_v if typeof(turns_v) == TYPE_ARRAY else []
+		var got_turns: Array[Dictionary] = battle.turn_log
+		var compare_from: int = 0
+		if str(replay.get("id", "")) == "e1_fresh_timeout_all_miss":
+			compare_from = maxi(0, got_turns.size() - 2)
+			failed += _assert(expect_turns.size() == 2, "timeout fixture last 2 turns")
+		for i: int in range(expect_turns.size()):
+			var gi: int = compare_from + i
+			failed += _assert(gi < got_turns.size(), "replay %s turn %d exists" % [replay.get("id", ""), i])
+			if gi < got_turns.size():
+				failed += _assert(_echo_turn_matches(got_turns[gi], expect_turns[i] as Dictionary), "replay %s turn %d" % [replay.get("id", ""), i])
+		failed += _assert(battle._dice.remaining() == 0, "replay %s dice remaining" % replay.get("id", ""))
+		failed += _assert(battle._dice.underrun() == 0, "replay %s dice underrun" % replay.get("id", ""))
+		if expect_outcome == "spare_window":
+			var spare_b: EchoBattle = _echo_run_replay(fx, replay, elaia_def)
+			failed += _assert(spare_b.choose("spare") == "spare" and spare_b.outcome == "spare", "replay spare")
+			var defeat_b: EchoBattle = _echo_run_replay(fx, replay, elaia_def)
+			failed += _assert(defeat_b.choose("strike") == "defeat" and defeat_b.outcome == "defeat", "replay defeat")
+	if failed == 0:
+		print("ECHO_V4_MATH_OK")
+	return failed
+
+
+func _echo_v4_parity() -> int:
+	var failed: int = 0
+	var fx: Dictionary = _echo_duel_fixture()
+	var rates_v: Variant = fx.get("win_rates", {})
+	var rates: Dictionary = rates_v if typeof(rates_v) == TYPE_DICTIONARY else {}
+	var sheet_ids: Array[String] = ["e1_fresh", "e1_flintblade", "e1_rootsteel", "e1_flint_2ranks", "e2_rootsteel", "e2_unlock"]
+	var echo: Node = Engine.get_main_loop().root.get_node_or_null("EchoChamber") if Engine.get_main_loop() is SceneTree else null
+	var elaia_def: Dictionary = {}
+	var bramble_def: Dictionary = {}
+	if echo != null:
+		elaia_def = echo.call("echo_def") as Dictionary
+		bramble_def = echo.call("bramble_def") as Dictionary
+	var started_ms: int = Time.get_ticks_msec()
+	var observed: Dictionary = {}
+	for i: int in range(sheet_ids.size()):
+		var sheet_id: String = sheet_ids[i]
+		var wins: int = 0
+		for duel: int in 1500:
+			var battle: EchoBattle = _echo_battle_for_sheet(fx, sheet_id, elaia_def)
+			battle.set_seed(900000 + i + duel * 7)
+			while battle.outcome == "" and not battle.spare_window:
+				battle.choose("strike")
+			if battle.spare_window:
+				wins += 1
+		var pct: float = float(wins) / 1500.0 * 100.0
+		observed[sheet_id] = pct
+		print("ECHO_V4_RATE %s %.2f" % [sheet_id, pct])
+		var target: float = float(rates.get(sheet_id, -1.0)) * 100.0
+		if sheet_id == "e1_fresh":
+			failed += _assert(pct <= 1.5, "e1_fresh rate cap")
+		else:
+			failed += _assert(abs(pct - target) <= 4.5, "%s within 4.5pp of %.2f" % [sheet_id, target])
+	failed += _assert(float(observed.get("e1_rootsteel", 0.0)) > float(observed.get("e1_flint_2ranks", 0.0)), "e1_rootsteel > e1_flint_2ranks")
+	failed += _assert(float(observed.get("e1_flint_2ranks", 0.0)) > float(observed.get("e1_flintblade", 0.0)), "e1_flint_2ranks > e1_flintblade")
+	failed += _assert(float(observed.get("e1_flintblade", 0.0)) > float(observed.get("e1_fresh", 0.0)), "e1_flintblade > e1_fresh")
+	failed += _assert(float(observed.get("e2_unlock", 0.0)) > float(observed.get("e2_rootsteel", 0.0)), "e2_unlock > e2_rootsteel")
+	print("ECHO_V4_PARITY_MS %d" % (Time.get_ticks_msec() - started_ms))
+	if failed == 0:
+		print("ECHO_V4_PARITY_OK")
 	return failed
 
 
@@ -7605,16 +7830,28 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	var bramble: Dictionary = echo.call("bramble_def")
 	var stats: Dictionary = bramble.get("stats", {}) as Dictionary
 	failed += _assert(str(bramble.get("attack_profile", "")) == "hybrid", "Bramble is hybrid")
-	failed += _assert(int(stats.get("resilience", 9)) <= 3 and int(stats.get("ward", 9)) <= 3, "Bramble is not a tank")
-	failed += _assert(int(stats.get("swiftness", 0)) >= 8 and int(stats.get("vitality", 9)) <= 5, "Bramble is nimble")
-	var scrap: Variant = EchoBattleScript.new()
-	scrap.force_crit = 0
+	var fx_b: Dictionary = _echo_duel_fixture()
+	var bramble_sheet: Dictionary = (fx_b.get("echoes", {}) as Dictionary).get("bramble", {}) as Dictionary
+	failed += _assert(int(stats.get("might", -1)) == int(bramble_sheet.get("might", -2)), "Bramble might matches sheet")
+	failed += _assert(int(stats.get("arcana", -1)) == int(bramble_sheet.get("arcana", -2)), "Bramble arcana matches sheet")
+	failed += _assert(int(stats.get("resilience", -1)) == int(bramble_sheet.get("resilience", -2)), "Bramble resilience matches sheet")
+	failed += _assert(int(stats.get("ward", -1)) == int(bramble_sheet.get("ward", -2)), "Bramble ward matches sheet")
+	failed += _assert(int(stats.get("vitality", -1)) == int(bramble_sheet.get("vitality", -2)), "Bramble vitality matches sheet")
+	failed += _assert(int(stats.get("swiftness", -1)) == int(bramble_sheet.get("swiftness", -2)), "Bramble swiftness matches sheet")
+	failed += _assert(int(stats.get("fate", -1)) == int(bramble_sheet.get("fate", -2)), "Bramble fate matches sheet")
+	failed += _assert(bramble.get("crit_multiplier", null) == null, "Bramble has no crit_multiplier")
+	failed += _assert(bramble.get("swift_tie_favors_foe", null) == null, "Bramble has no swift_tie_favors_foe")
+	var scrap: EchoBattle = EchoBattleScript.new()
 	scrap.configure({"might": 5, "arcana": 5, "resilience": 5, "ward": 5, "vitality": 5, "swiftness": 5, "fate": 5}, bramble)
 	failed += _assert(not scrap.keeper_acts_first(), "Bramble acts before a default Keeper")
-	failed += _assert(scrap.choose("strike") == "continue", "snare does not end the fight")
-	failed += _assert(str(scrap.last_foe_swing) == "snare", "first hybrid swing is a snare")
-	failed += _assert(scrap.choose("strike") == "continue", "knot does not end the fight")
-	failed += _assert(str(scrap.last_foe_swing) == "knot", "second hybrid swing is a knot")
+	failed += _assert(scrap.choose("strike") == "continue", "first swing does not end the fight")
+	var phys_margin: int = 6 - int((5 + 5) / 2)
+	var mag_margin: int = 6 - int((5 + 5) / 2)
+	var expect_first: String = "snare" if mag_margin <= phys_margin else "knot"
+	failed += _assert(str(scrap.last_foe_swing) == expect_first, "first hybrid swing uses the better margin")
+	scrap.choose("strike")
+	scrap.choose("strike")
+	failed += _assert(str(scrap.last_foe_swing) == "rootbind", "third Bramble turn is rootbind")
 	game_state.call("reset_for_new_game")
 	equipment.call("reset_for_new_game")
 	var before_fee: int = failed
