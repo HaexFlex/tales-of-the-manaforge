@@ -5584,11 +5584,61 @@ func _debug_stripped_ok() -> int:
 		print("DEBUG_KEPT_PCK %s files=%d" % [testing_pck, testing_files.size()])
 	elif require_pck:
 		failed += _assert(false, "testing pck missing at %s" % testing_pck)
+	failed += _debug_strip_mid_fight(stable_exclude, testing_exclude, stable_pck, testing_pck)
 	if game_state != null:
 		failed += _probe_debug_snapshots(game_state)
 	if failed == 0:
 		print("DEBUG_STRIPPED_OK")
 	return failed
+
+
+func _debug_strip_mid_fight(stable_exclude: PackedStringArray, testing_exclude: PackedStringArray, stable_pck: String, testing_pck: String) -> int:
+	## Job 34: Stable drops mid_fight.json through tools/*, Testing keeps it, and no shipped
+	## script reaches write_adventure_raw outside a Reach.debug_tools() guard.
+	var failed: int = 0
+	var mid: String = "tools/debug/snapshots/mid_fight.json"
+	failed += _assert(FileAccess.file_exists("res://%s" % mid), "debug resource exists %s" % mid)
+	failed += _assert(stable_exclude.has("tools/*") and _preset_excludes(stable_exclude, mid), "stable excludes %s" % mid)
+	failed += _assert(not _preset_excludes(testing_exclude, mid), "testing keeps %s" % mid)
+	if stable_pck != "" and FileAccess.file_exists(stable_pck):
+		failed += _assert(not _pck_has(_read_pck_paths(stable_pck), mid), "stable pck omits %s" % mid)
+	if testing_pck != "" and FileAccess.file_exists(testing_pck):
+		failed += _assert(_pck_has(_read_pck_paths(testing_pck), mid), "testing pck keeps %s" % mid)
+	var scripts: PackedStringArray = PackedStringArray()
+	_collect_gd("res://", scripts)
+	var defined: int = 0
+	for path: String in scripts:
+		if _preset_excludes(stable_exclude, path):
+			continue
+		var src: String = FileAccess.get_file_as_string(path)
+		var at: int = src.find("write_adventure_raw")
+		while at >= 0:
+			var func_at: int = maxi(src.rfind("\nfunc ", at), src.rfind("\nstatic func ", at))
+			var body: String = _func_body(src, src.substr(func_at + 1, src.find("\n", func_at + 1) - func_at - 1)) if func_at >= 0 else ""
+			if src.substr(func_at + 1, 25) == "func write_adventure_raw(":
+				defined += 1
+				failed += _assert(path == "res://scripts/autoload/save_service.gd", "write_adventure_raw is defined only in SaveService (%s)" % path)
+				var guard_at: int = body.find("debug_tools()")
+				failed += _assert(guard_at >= 0 and guard_at < body.find("_write_atomic"), "write_adventure_raw refuses unless debug_tools() (%s)" % path)
+			else:
+				var before: String = body.substr(0, at - func_at - 1)
+				failed += _assert(before.find("debug_tools()") >= 0, "shipped %s calls write_adventure_raw only behind debug_tools()" % path)
+			at = src.find("write_adventure_raw", at + 1)
+	failed += _assert(defined == 1, "SaveService.write_adventure_raw exists (found %d)" % defined)
+	return failed
+
+
+func _collect_gd(dir_path: String, out: PackedStringArray) -> void:
+	var dir: DirAccess = DirAccess.open(dir_path)
+	if dir == null:
+		return
+	for sub: String in dir.get_directories():
+		if sub.begins_with(".") or sub == "builds" or sub == "Assets upload":
+			continue
+		_collect_gd(dir_path.path_join(sub), out)
+	for file_name: String in dir.get_files():
+		if file_name.ends_with(".gd"):
+			out.append(dir_path.path_join(file_name))
 
 
 func _probe_debug_snapshots(game_state: Node) -> int:
@@ -7915,12 +7965,14 @@ const _REACH_SNAPSHOTS: Dictionary = {
 	"North road open": "res://tools/debug/snapshots/north_road_open.json",
 	"Pre-boss": "res://tools/debug/snapshots/pre_boss.json",
 	"Veteran reacher": "res://tools/debug/snapshots/veteran_reacher.json",
+	"Mid-fight": "res://tools/debug/snapshots/mid_fight.json",
 }
 
 
 func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## Each of the four reach snapshots loads the way the debug panel loads it
+	## Each reach snapshot loads the way the debug panel loads it
 	## (migrate, apply_save_dict on the state, then the hub) and lands in a valid state.
+	## Mid-fight also writes the adventure file through write_adventure_raw (job 34).
 	var failed: int = 0
 	var echo: Node = tree_root.get_node_or_null("EchoChamber")
 	var reach: Node = tree_root.get_node_or_null("Reach")
@@ -7929,9 +7981,13 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(echo != null and reach != null and equipment != null and pack != null, "autoloads for the reach snapshots")
 	if failed > 0:
 		return failed
-	## The four reach files stay version 13. migrate_state applies v14; do not re-save them.
-	var want_version: int = 13
-	failed += _assert(int(save_service.get("SAVE_VERSION")) > want_version, "v13 reach snapshots migrate forward")
+	## Job 34 re-saved North road open and Veteran reacher as v14 through migrate_state.
+	## Echo 2 ready stays a v13 file that migrates forward on load.
+	var want_version: int = 14
+	var echo2_version: int = 13
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == want_version, "reach snapshots match SAVE_VERSION 14")
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
 	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
 	for label: String in _REACH_SNAPSHOTS.keys():
 		var path: String = str(_REACH_SNAPSHOTS[label])
@@ -7940,7 +7996,7 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 		if typeof(parsed) == TYPE_DICTIONARY:
 			failed += _assert(str((parsed as Dictionary).get("label", "")) == label, "snapshot label %s" % label)
 	# a. Echo 2 ready: first Anvil weapon, 50 Essence, hub arch open for Bramble.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Echo 2 ready"]), want_version, true)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Echo 2 ready"]), echo2_version, true)
 	failed += _assert(bool(echo.call("owns_anvil_weapon")), "echo2 ready owns an Anvil weapon")
 	failed += _assert(int(game_state.get("essence")) == 50, "echo2 ready has 50 Essence")
 	failed += _assert(bool(game_state.get("echo_01_resolved")) and not bool(game_state.get("echo_02_resolved")), "echo2 ready: Elaia done, Bramble open")
@@ -7980,6 +8036,21 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	game_state.call("reset_for_new_game")
 	game_state.call("apply_save_dict", blob)
 	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.get("reaches_cleared")) == 19, "veteran survives a save round trip")
+	# e. Mid-fight: a manual run at depth 2; the loader writes the adventure for round 3.
+	save_service.call("clear_adventure")
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Mid-fight"]), want_version, true)
+	failed += _assert(bool(reach.get("running")) and int(reach.get("depth")) == 2 and str(reach.get("control")) == "manual", "mid-fight: a manual run at depth 2")
+	var mid_raw: Dictionary = _json_dict(str(_REACH_SNAPSHOTS["Mid-fight"]))
+	var mid_adv: Dictionary = save_service.call("read_adventure")
+	failed += _assert(not mid_adv.is_empty(), "mid-fight: the loader wrote the adventure file")
+	failed += _assert(int(mid_adv.get("owner_save_id", -1)) == int(mid_raw.get("save_id", -2)) and int(mid_raw.get("save_id", 0)) != 0, "mid-fight: the adventure is owned by the snapshot's save_id")
+	failed += _assert(int(mid_adv.get("run_id", -1)) == int(reach.get("run_id")), "mid-fight: the adventure matches the run")
+	var mid_fight_v: Variant = mid_adv.get("fight", null)
+	failed += _assert(mid_fight_v is Dictionary and int((mid_fight_v as Dictionary).get("round", 0)) == 3, "mid-fight: the saved fight is on round 3")
+	if mid_fight_v is Dictionary:
+		failed += _assert(FightState.from_dict(mid_fight_v as Dictionary).outcome() == "", "mid-fight: the saved fight is still live")
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
 	paused = false
 	game_state.call("reset_for_new_game")
 	if failed == 0:
@@ -8761,7 +8832,10 @@ func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service:
 	failed += _assert(press_body.find("load_snapshot_state(") >= 0, "the snapshot button uses the migrating loader")
 	failed += _assert(_func_body(panel_src, "static func load_snapshot_state").find("migrate_state") >= 0, "the loader calls SaveService.migrate_state")
 	var snapshots: Dictionary = panel_script.get_script_constant_map().get("SNAPSHOTS", {}) as Dictionary
-	failed += _assert(snapshots.size() == 8, "eight debug snapshots (got %d)" % snapshots.size())
+	failed += _assert(snapshots.size() == 9, "nine debug snapshots (got %d)" % snapshots.size())
+	## Mid-fight's loader writes the adventure file; put the old one back afterwards.
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
 	for label: String in snapshots.keys():
 		var path: String = str(snapshots[label])
 		var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
@@ -8787,6 +8861,7 @@ func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service:
 	failed += _assert(str(refused.get("error", "")).find("newer") >= 0, "the refusal names the newer build")
 	DirAccess.remove_absolute(newer_path)
 	game_state.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
 	if failed == 0:
 		print("DEBUG_SNAPSHOTS_MIGRATE_OK")
 	return failed

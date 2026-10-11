@@ -1,5 +1,5 @@
 {
-	"save_version": 13,
+	"save_version": 14,
 	"timestamp": 1760000011,
 	"slot": 0,
 	"kind": "debug",
@@ -35,7 +35,15 @@
 		"gear_inventory": {
 			"rootsteel_edge": 1
 		},
-		"keeper_stats": {},
+		"keeper_stats": {
+			"might": 0,
+			"arcana": 0,
+			"resilience": 0,
+			"ward": 0,
+			"vitality": 0,
+			"swiftness": 0,
+			"fate": 0
+		},
 		"forge_jobs": {},
 		"forge_workers": {},
 		"keeper_task": {
@@ -57,21 +65,20 @@
 			"deepest_depth": 0,
 			"reaches_cleared": 0,
 			"dojo_exp": 0,
-			"briarwood": 0,
-			"herbs": 0,
-			"heart_salve": 0,
-			"bile_vial": 0,
 			"running": false,
 			"pace": "hold",
 			"control": "idle",
 			"depth": 1,
-			"hours": 1.0,
-			"elapsed": 0.0,
-			"room_left": 0.0,
+			"hours": 1,
+			"elapsed": 0,
+			"room_left": 0,
 			"phase": "home",
 			"run_clears": 0,
 			"rooms_attempted": 0,
 			"salve_used": false
+		},
+		"expedition": {
+			"status": "home"
 		}
 	}
 }

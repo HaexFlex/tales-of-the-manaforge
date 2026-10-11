@@ -12,10 +12,12 @@ const SNAPSHOTS: Dictionary = {
 	"North road open": "res://tools/debug/snapshots/north_road_open.json",
 	"Pre-boss": "res://tools/debug/snapshots/pre_boss.json",
 	"Veteran reacher": "res://tools/debug/snapshots/veteran_reacher.json",
+	"Mid-fight": "res://tools/debug/snapshots/mid_fight.json",
 }
 const SNAPSHOT_ORDER: PackedStringArray = [
 	"Pre-Echo", "Forge unlocked", "Elaia joined", "Ancient ready",
 	"Echo 2 ready", "North road open", "Pre-boss", "Veteran reacher",
+	"Mid-fight",
 ]
 var _free_crafts: PackedStringArray = PackedStringArray([
 	"sapsteel",
@@ -152,6 +154,8 @@ func _on_close_pressed() -> void:
 static func load_snapshot_state(path: String) -> Dictionary:
 	## Reads a snapshot and runs it through SaveService migration, like a slot load.
 	## {"state": migrated, "error": ""} on success; "state" is empty when the file cannot be used.
+	## A snapshot with an "adventure" key (Mid-fight) also writes the adventure file, owned by
+	## the snapshot's save_id, so the slot-load resume step brings the fight back.
 	if not FileAccess.file_exists(path):
 		return {"state": {}, "error": "missing"}
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
@@ -170,7 +174,15 @@ static func load_snapshot_state(path: String) -> Dictionary:
 	var migrated: Dictionary = save_service.call("migrate_state", version, state_v as Dictionary)
 	if migrated.is_empty():
 		return {"state": {}, "error": "migration failed"}
-	return {"state": migrated, "error": ""}
+	var save_id: int = int(root.get("save_id", 0))
+	var adv_v: Variant = root.get("adventure", null)
+	if typeof(adv_v) != TYPE_DICTIONARY:
+		return {"state": migrated, "error": "", "save_id": save_id, "adventure": false}
+	var adv: Dictionary = (adv_v as Dictionary).duplicate(true)
+	adv["owner_save_id"] = save_id
+	if not bool(save_service.call("write_adventure_raw", adv)):
+		return {"state": {}, "error": "adventure refused"}
+	return {"state": migrated, "error": "", "save_id": save_id, "adventure": true}
 
 
 func _on_snapshot_pressed(path: String, label: String) -> void:
@@ -182,6 +194,10 @@ func _on_snapshot_pressed(path: String, label: String) -> void:
 	if EchoChamber.in_battle:
 		EchoChamber.dismiss_battle_without_reward()
 	GameState.apply_save_dict(state)
+	var resumes: bool = bool(loaded.get("adventure", false))
+	if resumes:
+		## The adventure file the loader wrote is owned by this save_id.
+		SaveService.current_save_id = int(loaded.get("save_id", 0))
 	SaveService.note_session_started()
 	SaveService.boot_intent = "auto"
 	SaveService.boot_slot = 0
@@ -189,6 +205,9 @@ func _on_snapshot_pressed(path: String, label: String) -> void:
 	get_tree().paused = false
 	AnimPreviewHotkey.set_debug_panel(false)
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
+	if resumes:
+		## The same resume step a slot load runs, once the new hub is up so the view opens on it.
+		get_tree().scene_changed.connect(SaveService._apply_loaded_adventure, CONNECT_ONE_SHOT)
 
 
 func _on_free_craft_pressed(recipe_id: String) -> void:

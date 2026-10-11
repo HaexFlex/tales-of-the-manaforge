@@ -324,6 +324,15 @@ func write_adventure() -> bool:
 	return _write_atomic(ADVENTURE_PATH, JSON.stringify(payload, "\t"))
 
 
+func write_adventure_raw(d: Dictionary) -> bool:
+	## Debug snapshots only (the Mid-fight loader). Refused unless Reach.debug_tools().
+	if not has_node("/root/Reach") or not bool(Reach.debug_tools()):
+		return false
+	if d.is_empty() or int(d.get("adv_version", 0)) > ADV_VERSION:
+		return false
+	return _write_atomic(ADVENTURE_PATH, JSON.stringify(d, "\t"))
+
+
 func read_adventure() -> Dictionary:
 	var root: Dictionary = _read_root(ADVENTURE_PATH)
 	return root
