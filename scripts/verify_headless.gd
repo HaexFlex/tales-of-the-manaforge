@@ -13138,8 +13138,27 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	for i: int in 3:
 		var speed_n: int = [1, 2, 4][i]
 		var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
-		var want_pos: Vector2 = Vector2(1124 + i * 36, 12)
+		var want_pos: Vector2 = Vector2(
+			BattleViewScript.SPEED_BUTTON_POS.x + float(i) * BattleViewScript.SPEED_BUTTON_PITCH,
+			BattleViewScript.SPEED_BUTTON_POS.y,
+		)
 		failed += _assert(speed_btn != null and speed_btn.position == want_pos, "speed %dx at %s" % [speed_n, want_pos])
+	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
+	if close_btn != null:
+		var close_rect: Rect2 = close_btn.get_global_rect()
+		for i: int in 3:
+			var speed_n: int = [1, 2, 4][i]
+			var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
+			if speed_btn != null:
+				failed += _assert(not close_rect.intersects(speed_btn.get_global_rect()), "Close does not cover Speed%dx" % speed_n)
+	var test_bar: Control = view.get_node_or_null("Arena/TestFightBar") as Control
+	if test_bar != null and depth_plate != null:
+		failed += _assert(not test_bar.get_global_rect().intersects(depth_plate.get_global_rect()), "TestFightBar does not overlap DepthPlate")
+	var sample_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_%s" % party_ids[0]) as Control
+	if sample_plate != null:
+		var sample_name: Label = sample_plate.get_node_or_null("NameLabel") as Label
+		if sample_name != null:
+			failed += _assert(sample_name.get_theme_color("font_color").is_equal_approx(BattleViewScript.PLATE_INK), "plate name uses README ink colour")
 	view.call("_apply_battle_speed", 2)
 	await process_frame
 	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
