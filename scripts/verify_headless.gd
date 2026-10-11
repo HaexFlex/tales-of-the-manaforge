@@ -8347,16 +8347,30 @@ func _minigame_host_ok(tree_root: Window, save_service: Node) -> int:
 	failed += _assert(grid != null, "MinigameGrid exists")
 	if grid != null:
 		failed += _assert(grid.get_child_count() == 9, "nine minigame buttons")
-		var tap_enabled: bool = false
-		var some_disabled: bool = false
+		# Grid order is catalog game_ids() then tap_test. Each button's disabled
+		# state must follow MinigameCatalog.is_built, so built games are enabled
+		# and a missing core/view pair would show disabled with the tooltip.
+		var grid_ids: PackedStringArray = MinigameCatalog.game_ids()
+		grid_ids.append("tap_test")
+		var buttons: Array[Button] = []
 		for child: Node in grid.get_children():
 			if child is Button:
-				var btn: Button = child as Button
-				if btn.text == "Tap test (frame)":
-					tap_enabled = not btn.disabled
-				if btn.disabled:
-					some_disabled = true
-		failed += _assert(tap_enabled and some_disabled, "tap test enabled, missing games disabled")
+				buttons.append(child as Button)
+		failed += _assert(buttons.size() == grid_ids.size(), "one button per catalog game plus tap test")
+		var mismatched: PackedStringArray = PackedStringArray()
+		for i: int in mini(buttons.size(), grid_ids.size()):
+			var gid: String = grid_ids[i]
+			var btn: Button = buttons[i]
+			var built: bool = MinigameCatalog.is_built(gid)
+			if btn.disabled == built:
+				mismatched.append(gid)
+			if not built and btn.tooltip_text != MinigameCatalog.text("mg_not_built"):
+				mismatched.append(gid + "(tooltip)")
+		failed += _assert(mismatched.is_empty(), "grid disabled state follows is_built: %s" % ", ".join(mismatched))
+		failed += _assert(buttons.size() > 0 and buttons[buttons.size() - 1].text == "Tap test (frame)" and not buttons[buttons.size() - 1].disabled, "tap test enabled")
+		# A game without core/view scripts reads as not built and cannot open.
+		failed += _assert(not MinigameCatalog.is_built("__mg_missing_probe__"), "missing game reads not built")
+		failed += _assert(MinigameHost.can_open("__mg_missing_probe__") == "not_built", "missing game refused by can_open")
 	panel.free()
 	if MinigameHost.is_open() and MinigameHost.current() != null:
 		MinigameHost.current().close(&"debug")
