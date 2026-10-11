@@ -84,6 +84,8 @@ var _test_run_seed: int = -1
 var _drops: Array[int] = []
 var _rng := RandomNumberGenerator.new()
 var _manual: FightState
+## Live fight handed to idle Auto. Resumes if Manual returns before this room's 12 minutes.
+var _handoff: FightState = null
 var _home_after_fight: bool = false
 
 
@@ -380,6 +382,7 @@ func _begin_outing(cfg: Dictionary) -> String:
 	pack = Pack.new()
 	loadout = _clean_loadout(cfg.get("loadout", {}))
 	party = built
+	_handoff = null
 	elapsed = 0.0
 	running = true
 	_home_after_fight = false
@@ -409,21 +412,51 @@ func set_control(mode: String) -> void:
 		return
 	if mode != "idle" and mode != "manual":
 		return
+	## Board Idle mid-fight is the same hand-off as the arena Idle button.
+	if mode == "idle" and running and phase == "manual":
+		hand_to_idle()
+		return
 	control = mode
 	if not running or phase == "rest" or phase == "home":
 		changed.emit()
 		return
 	if phase == "idle_room" and mode == "manual":
-		if not _start_fight():
+		if _handoff != null:
+			## Within this room's 12 minutes the same fight comes back. Not a new attempt.
+			_manual = _handoff
+			_manual.controller = "manual"
+			_handoff = null
+			phase = "manual"
+			BattleView.open_reach_fight(_manual)
+			if has_node("/root/GameState") and has_node("/root/ContentStrings"):
+				GameState.status_message.emit(ContentStrings.get_text("adv_handoff_resumed"))
+			_touch_adventure()
+		elif not _start_fight():
 			control = "idle"
-	elif phase == "manual" and mode == "idle":
-		_manual = null
-		_close_view()
-		phase = "idle_room"
-		room_clock = 0.0
-		if room_left <= 0.0:
-			room_left = ROOM_SEC
 	changed.emit()
+
+
+func handoff_pending() -> bool:
+	return _handoff != null
+
+
+func hand_to_idle() -> String:
+	## The arena Idle button and set_control("idle") during a live manual fight.
+	if catching_up:
+		return "invalid"
+	if not running or phase != "manual" or _manual == null or _manual.outcome() != "":
+		return "invalid"
+	_handoff = _manual
+	_handoff.controller = "idle_pending"
+	_manual = null
+	phase = "idle_room"
+	room_clock = 0.0
+	room_left = ROOM_SEC
+	control = "idle"
+	_close_view()
+	_touch_adventure()
+	changed.emit()
+	return "ok"
 
 
 func set_rush(on: bool) -> void:
@@ -731,6 +764,7 @@ func capture_run_block() -> Dictionary:
 		"boss_paid": boss_paid.duplicate(),
 		"room_log": room_log.duplicate(true),
 		"last_summary": last_summary.duplicate(true),
+		"handoff": _handoff.to_dict() if _handoff != null else null,
 	}
 
 
@@ -773,6 +807,10 @@ func apply_run_block(data: Dictionary) -> void:
 		saved_phase = "idle_room"
 	phase = saved_phase
 	_manual = null
+	_handoff = null
+	var handoff_v: Variant = data.get("handoff", null)
+	if typeof(handoff_v) == TYPE_DICTIONARY and not (handoff_v as Dictionary).is_empty():
+		_handoff = FightState.from_dict(handoff_v)
 	_close_view()
 	changed.emit()
 
@@ -845,6 +883,7 @@ func default_save_fields() -> Dictionary:
 		"boss_paid": [],
 		"room_log": [],
 		"last_summary": {},
+		"handoff": null,
 	}
 
 
@@ -947,6 +986,7 @@ func _advance_depth() -> void:
 func _begin_room() -> void:
 	rooms_attempted += 1
 	salve_used = false
+	_handoff = null
 	room_seed = SlotEngine.room_seed_for(run_seed, rooms_attempted)
 	room_clock = 0.0
 	room_left = ROOM_SEC
@@ -996,6 +1036,10 @@ func _resolve_slot_room() -> void:
 	var result: Dictionary = {}
 	if forced == "win" or forced == "flee" or forced == "overwhelmed":
 		result = _forced_room_result(forced)
+		_handoff = null
+	elif _handoff != null:
+		result = _handoff_room_result()
+		_handoff = null
 	else:
 		result = SlotEngine.resolve_idle_room(party, loadout, depth, rooms_attempted, room_seed)
 	slots_used += 1
@@ -1032,6 +1076,31 @@ func _resolve_slot_room() -> void:
 			_finish_run("overwhelmed")
 	room_resolved.emit(entry.duplicate())
 	_touch_adventure()
+
+
+func _handoff_room_result() -> Dictionary:
+	## Finish the fight that was handed over, from its round, HP, Salves and RNG.
+	var fight: FightState = _handoff
+	var outcome: String = AutoPolicy.run_idle(fight)
+	if outcome != "win" and outcome != "flee" and outcome != "overwhelmed":
+		push_error("Reach: unexpected handoff outcome %s" % outcome)
+		outcome = "overwhelmed"
+	var boss: bool = is_boss_room()
+	var loot: Dictionary = {}
+	var exp_mult: int = 1
+	if outcome == "win":
+		loot = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
+		exp_mult = 2 if boss else 1
+	return {
+		"outcome": outcome,
+		"boss": boss,
+		"loot": loot,
+		"exp_mult": exp_mult,
+		"loadout_after": fight.loadout.duplicate(),
+		"salves_used": fight.salves_used,
+		"rounds": fight.round,
+		"fight": fight,
+	}
 
 
 func _forced_room_result(outcome: String) -> Dictionary:
@@ -1139,6 +1208,7 @@ func _end_run(lantern: String, keep_battle_view: bool = false) -> void:
 	rooms_attempted = 0
 	_home_after_fight = false
 	_manual = null
+	_handoff = null
 	mix.clear()
 	if not keep_battle_view:
 		_close_view()
@@ -1163,6 +1233,7 @@ func _clear_slot_memory() -> void:
 	boss_paid = []
 	room_log = []
 	last_summary = {}
+	_handoff = null
 
 
 func _roll_mix(budget: float) -> Array[String]:

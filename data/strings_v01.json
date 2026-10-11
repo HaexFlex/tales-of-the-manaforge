@@ -758,5 +758,7 @@
   "adv_menu_flee": "Flee",
   "adv_menu_idle": "Idle",
   "adv_menu_cancel": "Back",
-  "adv_menu_idle_later": "Hands the fight to idle Auto. Not in the test fight yet."
+  "adv_menu_idle_later": "Hands the fight to idle Auto. Not in the test fight yet.",
+  "adv_menu_idle_tip": "Hand this fight to idle Auto. It finishes in 12 minutes. Join again before then to pick it back up.",
+  "adv_handoff_resumed": "You pick the fight back up, right where you left it."
 }

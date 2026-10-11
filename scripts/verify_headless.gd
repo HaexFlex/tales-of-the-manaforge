@@ -963,6 +963,42 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_HANDOFF_JOIN_FRESH") == "1":
+		var handoff_fresh_only: int = await _handoff_join_fresh(tree_root, game_state, save_service)
+		if handoff_fresh_only > 0:
+			print("HANDOFF_JOIN_FRESH_FAIL: %d" % handoff_fresh_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HANDOFF_RESUME") == "1":
+		var handoff_resume_only: int = await _handoff_resume(tree_root, game_state, save_service)
+		if handoff_resume_only > 0:
+			print("HANDOFF_RESUME_FAIL: %d" % handoff_resume_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HANDOFF_EXPIRED") == "1":
+		var handoff_expired_only: int = await _handoff_expired(tree_root, game_state, save_service)
+		if handoff_expired_only > 0:
+			print("HANDOFF_EXPIRED_FAIL: %d" % handoff_expired_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HANDOFF_IDLE") == "1":
+		var handoff_idle_only: int = await _handoff_idle(tree_root, game_state, save_service)
+		if handoff_idle_only > 0:
+			print("HANDOFF_IDLE_FAIL: %d" % handoff_idle_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -3350,6 +3386,10 @@ func _run() -> void:
 	failed += _bank_once(tree_root, game_state, save_service)
 	failed += await _save_seed_roundtrip(tree_root, game_state, save_service)
 	failed += _adventure_newer_refused(tree_root, game_state, save_service)
+	failed += await _handoff_join_fresh(tree_root, game_state, save_service)
+	failed += await _handoff_resume(tree_root, game_state, save_service)
+	failed += await _handoff_expired(tree_root, game_state, save_service)
+	failed += await _handoff_idle(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -15417,4 +15457,661 @@ func _adventure_newer_refused(tree_root: Window, game_state: Node, save_service:
 	_restore_user_file(slot_path, slot_was)
 	if failed == 0:
 		print("ADVENTURE_NEWER_REFUSED_OK")
+	return failed
+
+
+func _handoff_party_rows() -> Array:
+	return [
+		{"member": "keeper", "row": "front", "stats": SlotEngine.member_stats("keeper")},
+		{"member": "elaia", "row": "back", "stats": SlotEngine.member_stats("elaia")},
+	]
+
+
+func _handoff_built_fight(seed: int, room_index: int, depth: int, loadout: Dictionary) -> FightState:
+	var room_seed: int = SlotEngine.room_seed_for(seed & 0x7FFFFFFF, room_index)
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, SlotEngine.is_boss_index(room_index))
+	var fight: FightState = SlotEngine.fight_for_room(_handoff_party_rows(), loadout, room, room_seed)
+	fight.controller = "manual"
+	fight.start_fight()
+	return fight
+
+
+func _handoff_on_party(fight: FightState) -> bool:
+	if fight == null or fight.outcome() != "":
+		return false
+	var actor_id: String = fight.current_actor()
+	if actor_id == "":
+		return false
+	return str(fight.fighter_dict(actor_id).get("side", "")) == "party"
+
+
+func _handoff_step_to_party(fight: FightState) -> void:
+	var guard: int = 0
+	while fight != null and fight.outcome() == "" and guard < 48:
+		guard += 1
+		if _handoff_on_party(fight):
+			return
+		fight.step({})
+
+
+func _handoff_full_hp(fight: FightState) -> bool:
+	if fight == null or fight.order.is_empty():
+		return false
+	for fighter_id: String in fight.order:
+		var row: Dictionary = fight.fighter_dict(fighter_id)
+		if int(row.get("hp", -1)) != int(row.get("max_hp", -2)):
+			return false
+	return true
+
+
+func _handoff_species_by_slot(fight: FightState) -> Array[String]:
+	## build_room lists beasts in slot order. fight.order is turn order.
+	var slots: Array[int] = []
+	var by_slot: Dictionary = {}
+	if fight == null:
+		return []
+	for fighter_id: String in fight.order:
+		var row: Dictionary = fight.fighter_dict(fighter_id)
+		if str(row.get("side", "")) != "beast":
+			continue
+		var slot: int = int(row.get("slot", 0))
+		slots.append(slot)
+		by_slot[slot] = str(row.get("species", ""))
+	slots.sort()
+	var out: Array[String] = []
+	for slot: int in slots:
+		out.append(str(by_slot[slot]))
+	return out
+
+
+func _handoff_bosses(fight: FightState) -> int:
+	var count: int = 0
+	if fight == null:
+		return 0
+	for fighter_id: String in fight.order:
+		if bool(fight.fighter_dict(fighter_id).get("boss", false)):
+			count += 1
+	return count
+
+
+func _handoff_boss_seed() -> int:
+	## Room 10, party acts first (so the view does not spend HP), and one Strike
+	## then idle Auto still wins or flees so the run reaches room 11.
+	for probe: int in range(1, 401):
+		var fight: FightState = _handoff_built_fight(probe, 10, 1, {})
+		if not _handoff_on_party(fight) or not _handoff_full_hp(fight):
+			continue
+		var actor_id: String = fight.current_actor()
+		var legal: Array = fight.legal_targets(actor_id)
+		if legal.is_empty():
+			continue
+		fight.step({"kind": "strike", "target": str(legal[0])})
+		if fight.outcome() != "":
+			continue
+		_handoff_step_to_party(fight)
+		if fight.outcome() != "":
+			continue
+		var outcome: String = AutoPolicy.run_idle(FightState.from_dict(fight.to_dict()))
+		if outcome != "win" and outcome != "flee":
+			continue
+		var nxt: FightState = _handoff_built_fight(probe, 11, 1, {})
+		if _handoff_on_party(nxt) and _handoff_full_hp(nxt):
+			return probe
+	return -1
+
+
+func _handoff_expired_seed() -> int:
+	for probe: int in range(1, 401):
+		var fight: FightState = _handoff_built_fight(probe, 1, 1, {})
+		if not _handoff_on_party(fight):
+			continue
+		var outcome: String = AutoPolicy.run_idle(FightState.from_dict(fight.to_dict()))
+		if outcome != "win" and outcome != "flee":
+			continue
+		var nxt: FightState = _handoff_built_fight(probe, 2, 1, {})
+		if _handoff_on_party(nxt) and _handoff_full_hp(nxt):
+			return probe
+	return -1
+
+
+func _handoff_deeper_seed() -> int:
+	for probe: int in range(1, 201):
+		var first: FightState = _handoff_built_fight(probe, 1, 1, {})
+		if not _handoff_on_party(first):
+			continue
+		if _reach_auto_strike_fight(first) != "win":
+			continue
+		var second: FightState = _handoff_built_fight(probe, 2, 2, {})
+		if _reach_auto_strike_fight(second) == "win":
+			return probe
+	return -1
+
+
+func _handoff_resume_seed() -> int:
+	var loadout: Dictionary = {"heart_salve": 2}
+	for probe: int in range(1, 41):
+		var fight: FightState = _handoff_built_fight(probe, 1, 1, loadout)
+		_handoff_step_to_party(fight)
+		if fight.outcome() != "":
+			continue
+		var alive: bool = true
+		for _swing: int in 2:
+			if not _handoff_on_party(fight):
+				alive = false
+				break
+			var legal: Array = fight.legal_targets(fight.current_actor())
+			if legal.is_empty():
+				alive = false
+				break
+			fight.step({"kind": "strike", "target": str(legal[0])})
+			if fight.outcome() != "":
+				alive = false
+				break
+			_handoff_step_to_party(fight)
+		if not alive or fight.outcome() != "" or not _handoff_on_party(fight):
+			continue
+		var target: String = ""
+		for fighter_id: String in fight.order:
+			var row: Dictionary = fight.fighter_dict(fighter_id)
+			if str(row.get("side", "")) == "party" and str(row.get("status", "")) == "active":
+				target = fighter_id
+				break
+		if target == "":
+			continue
+		fight.step({"kind": "item", "item": "heart_salve", "target": target})
+		if fight.salves_used != 1 or fight.outcome() != "":
+			continue
+		_handoff_step_to_party(fight)
+		if fight.outcome() == "" and _handoff_on_party(fight) and fight.salves_used == 1:
+			return probe
+	return -1
+
+
+func _handoff_depart(reach: Node, game_state: Node, seed: int, control: String, rooms: int, loadout: Dictionary) -> String:
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", seed)
+	return str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": rooms,
+		"control": control,
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": loadout,
+	}))
+
+
+func _handoff_wait_party(view: BattleView, fight: FightState) -> bool:
+	for _i: int in 80:
+		if view == null or not is_instance_valid(view) or fight == null or fight.outcome() != "":
+			return false
+		if _handoff_on_party(fight):
+			view.call("_show_action_menu", fight.current_actor())
+			var idle_btn: Button = view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+			if idle_btn != null and idle_btn.visible and not idle_btn.disabled:
+				return true
+		view.call("_advance")
+		await process_frame
+	return false
+
+
+func _handoff_press_idle(view: BattleView) -> bool:
+	if view == null or not is_instance_valid(view):
+		return false
+	var idle_btn: Button = view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+	if idle_btn == null or idle_btn.disabled or not idle_btn.visible:
+		return false
+	idle_btn.emit_signal("pressed")
+	await process_frame
+	return true
+
+
+func _handoff_drink_salve(view: BattleView) -> bool:
+	if view == null or not is_instance_valid(view):
+		return false
+	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+	if salve_btn == null or not salve_btn.visible or salve_btn.disabled:
+		return false
+	salve_btn.emit_signal("pressed")
+	await process_frame
+	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	var picked: Button = null
+	if target_layer != null:
+		for child: Node in target_layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				picked = child as Button
+				break
+	if picked == null:
+		return false
+	picked.emit_signal("pressed")
+	await process_frame
+	return true
+
+
+func _handoff_assert_same(fight: FightState, before: Dictionary, salves: int, slots_before: int, slots_now: int, label: String) -> int:
+	var failed: int = 0
+	failed += _assert(fight != null, "%s fight is back" % label)
+	if fight == null:
+		return failed
+	var after: Dictionary = _fight_checkpoint(fight)
+	failed += _assert(int(after.get("round", -1)) == int(before.get("round", -2)), "%s round" % label)
+	failed += _assert(int(after.get("turn_cursor", -1)) == int(before.get("turn_cursor", -2)), "%s turn_cursor" % label)
+	failed += _assert(str(after.get("rng", "")) != "" and str(after.get("rng", "")) == str(before.get("rng", "x")), "%s rng_combat_state" % label)
+	var hp_before: Dictionary = before.get("hp", {}) as Dictionary
+	var hp_after: Dictionary = after.get("hp", {}) as Dictionary
+	failed += _assert(_hp_maps_equal(hp_before, hp_after), "%s HP (before %s after %s)" % [label, str(hp_before), str(hp_after)])
+	failed += _assert(fight.salves_used == salves, "%s salves_used == %d (got %d)" % [label, salves, fight.salves_used])
+	failed += _assert(slots_now == slots_before, "%s slots_used unchanged (before %d now %d)" % [label, slots_before, slots_now])
+	failed += _assert(str(fight.controller) == "manual", "%s controller is manual" % label)
+	return failed
+
+
+func _handoff_stamp_now(save_service: Node, slot: int) -> void:
+	var path: String = str(save_service.call("slot_path", slot))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not (parsed is Dictionary):
+		return
+	var root: Dictionary = parsed
+	root["timestamp"] = Time.get_unix_time_from_system()
+	var fh := FileAccess.open(path, FileAccess.WRITE)
+	if fh == null:
+		return
+	fh.store_string(JSON.stringify(root, "\t"))
+	fh.close()
+
+
+func _handoff_join_fresh(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "join fresh Reach")
+	if reach == null:
+		return failed
+	failed += _assert(reach.has_method("handoff_pending") and reach.has_method("hand_to_idle"), "handoff api")
+	if not reach.has_method("handoff_pending"):
+		return failed
+	_silence_echo(tree_root)
+	BattleViewScript.close_arena()
+	_reset_reach_test(tree_root, game_state, save_service)
+	var seed: int = _handoff_boss_seed()
+	failed += _assert(seed > 0, "join fresh: a party-first boss seed in 1..400")
+	if seed < 0:
+		return failed
+	var forced: Array = []
+	for _win: int in 9:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	failed += _assert(_handoff_depart(reach, game_state, seed, "idle", 20, {}) == "ok", "join fresh depart")
+	for _step: int in 9:
+		reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 10, "idle run is on room 10 (got %d)" % int(reach.get("rooms_attempted")))
+	failed += _assert(bool(reach.call("is_boss_room")), "room 10 is the boss")
+	var slots_before: int = int(reach.get("slots_used"))
+	reach.call("set_control", "manual")
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(fight != null and fight.outcome() == "", "boss join opens a live fight")
+	failed += _assert(int(reach.get("rooms_attempted")) == 10, "joining does not spend the boss attempt")
+	failed += _assert(int(reach.get("slots_used")) == slots_before, "joining does not spend a slot")
+	if fight != null:
+		var depth: int = int(reach.get("depth"))
+		var room_seed: int = int(reach.get("room_seed"))
+		var expected: Array[String] = _reach_room_species_list(depth, room_seed, true)
+		var actual: Array[String] = _handoff_species_by_slot(fight)
+		failed += _assert(str(actual) == str(expected), "boss species match build_room (got %s)" % str(actual))
+		failed += _assert(_handoff_bosses(fight) == 1, "one beast is the boss (got %d)" % _handoff_bosses(fight))
+		failed += _assert(_handoff_full_hp(fight), "fresh boss fight is at full HP")
+		failed += _assert(fight.salves_used == 0, "fresh boss fight has used no Salves")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	failed += _assert(view != null, "boss arena is open")
+	if view == null or fight == null:
+		BattleViewScript.close_arena()
+		reach.call("reset_for_new_game")
+		return failed
+	failed += _assert(await _adventure_one_strike(view), "one Strike on the boss")
+	failed += _assert(fight.outcome() == "", "the Strike does not finish the boss")
+	var handed: Dictionary = fight.to_dict()
+	var log_before: int = (reach.get("room_log") as Array).size()
+	reach.call("set_control", "idle")
+	failed += _assert(bool(reach.call("handoff_pending")), "Idle hands off the struck fight")
+	failed += _assert(not bool(reach.call("fight_active")), "the arena fight is no longer manual")
+	failed += _assert(str(reach.get("phase")) == "idle_room" and str(reach.get("control")) == "idle", "the board is idle")
+	failed += _assert(int(reach.get("rooms_attempted")) == 10, "hand-off does not start a new attempt")
+	reach.call("advance_clock", 721.0)
+	var log: Array = reach.get("room_log") as Array
+	failed += _assert(log.size() == log_before + 1, "past 12 minutes the boss room resolves")
+	var resolved: String = ""
+	if not log.is_empty():
+		resolved = str((log[log.size() - 1] as Dictionary).get("outcome", ""))
+	var expected_outcome: String = AutoPolicy.run_idle(FightState.from_dict(handed))
+	failed += _assert(resolved == expected_outcome, "resolved outcome is the handed-off fight (got %s want %s)" % [resolved, expected_outcome])
+	failed += _assert(not bool(reach.call("handoff_pending")), "the hand-off is finished")
+	failed += _assert(int(reach.get("rooms_attempted")) == 11, "the next room is 11 (got %d)" % int(reach.get("rooms_attempted")))
+	var slots_next: int = int(reach.get("slots_used"))
+	reach.call("set_control", "manual")
+	var nxt: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(nxt != null, "room 11 opens")
+	failed += _assert(int(reach.get("rooms_attempted")) == 11, "the new join does not bump the counter again")
+	failed += _assert(int(reach.get("slots_used")) == slots_next, "the new join does not spend a slot")
+	if nxt != null:
+		var next_seed: int = int(reach.get("room_seed"))
+		var next_expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), next_seed, false)
+		var next_actual: Array[String] = _handoff_species_by_slot(nxt)
+		failed += _assert(str(next_actual) == str(next_expected), "room 11 species are fresh (got %s)" % str(next_actual))
+		failed += _assert(_handoff_full_hp(nxt) and nxt.salves_used == 0, "room 11 starts at full HP with no Salves used")
+		failed += _assert(not bool(reach.call("is_boss_room")), "room 11 is not a new boss attempt")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("HANDOFF_JOIN_FRESH_OK")
+	return failed
+
+
+func _handoff_prepare_resume(tree_root: Window, game_state: Node, reach: Node, backpack: Node, seed: int) -> FightState:
+	_reset_reach_test(tree_root, game_state, save_service_node(tree_root))
+	backpack.call("set_count", "heart_salve", 2)
+	if _handoff_depart(reach, game_state, seed, "manual", 6, {"heart_salve": 2}) != "ok":
+		return null
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	if view == null or fight == null:
+		return null
+	if not await _handoff_wait_party(view, fight):
+		return null
+	for _swing: int in 2:
+		if not await _adventure_one_strike(view):
+			return null
+		if fight.outcome() != "":
+			return null
+		if not await _handoff_wait_party(view, fight):
+			return null
+	if not await _handoff_drink_salve(view):
+		return null
+	if fight.salves_used != 1 or fight.outcome() != "":
+		return null
+	if not await _handoff_wait_party(view, fight):
+		return null
+	return fight
+
+
+func save_service_node(tree_root: Window) -> Node:
+	return tree_root.get_node_or_null("SaveService")
+
+
+func _handoff_resume(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and backpack != null and strings != null, "resume autoloads")
+	if reach == null or backpack == null or strings == null:
+		return failed
+	failed += _assert(reach.has_method("handoff_pending"), "resume handoff api")
+	if not reach.has_method("handoff_pending"):
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var slot_path: String = str(save_service.call("slot_path", 7))
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Variant = _user_file_text(slot_path)
+	_silence_echo(tree_root)
+	BattleViewScript.close_arena()
+	var seed: int = _handoff_resume_seed()
+	failed += _assert(seed > 0, "resume seed survives two Strikes and one Salve")
+	if seed < 0:
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	var fight: FightState = await _handoff_prepare_resume(tree_root, game_state, reach, backpack, seed)
+	var view: BattleView = _reach_live_view()
+	failed += _assert(fight != null and view != null and fight.salves_used == 1, "resume fight drank one Salve")
+	if fight == null or view == null:
+		BattleViewScript.close_arena()
+		reach.call("reset_for_new_game")
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	var before: Dictionary = _fight_checkpoint(fight)
+	var slots_before: int = int(reach.get("slots_used"))
+	var rooms_before: int = int(reach.get("rooms_attempted"))
+	var log_before: int = (reach.get("room_log") as Array).size()
+	failed += _assert(await _handoff_press_idle(view), "IdleButton hands the fight off")
+	failed += _assert(bool(reach.call("handoff_pending")), "hand-off is pending")
+	failed += _assert(str(reach.get("phase")) == "idle_room" and str(reach.get("control")) == "idle", "board says idle")
+	failed += _assert(is_equal_approx(float(reach.get("room_clock")), 0.0), "the 12 minutes start at the press")
+	failed += _assert(int(reach.get("slots_used")) == slots_before, "the press does not spend a slot")
+	reach.call("advance_clock", 600.0)
+	failed += _assert(bool(reach.call("handoff_pending")), "600s does not resolve the hand-off")
+	failed += _assert((reach.get("room_log") as Array).size() == log_before, "600s adds no room")
+	failed += _assert(is_equal_approx(float(reach.get("room_clock")), 600.0), "clock is at 600s")
+	var toast: String = str(strings.call("get_text", "adv_handoff_resumed"))
+	failed += _assert(toast == "You pick the fight back up, right where you left it.", "adv_handoff_resumed copy")
+	var heard: Array[String] = []
+	var on_status := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", on_status)
+	reach.call("set_control", "manual")
+	game_state.disconnect("status_message", on_status)
+	failed += _assert(heard.has(toast), "resume shows adv_handoff_resumed")
+	var resumed: FightState = reach.call("manual_fight") as FightState
+	failed += _handoff_assert_same(resumed, before, 1, slots_before, int(reach.get("slots_used")), "within 12 min")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms_before, "resume does not change rooms_attempted")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	# Through a save: hand off, save, load with no offline time, join.
+	fight = await _handoff_prepare_resume(tree_root, game_state, reach, backpack, seed)
+	view = _reach_live_view()
+	failed += _assert(fight != null and view != null, "save-path fight")
+	if fight == null or view == null:
+		BattleViewScript.close_arena()
+		reach.call("reset_for_new_game")
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	before = _fight_checkpoint(fight)
+	slots_before = int(reach.get("slots_used"))
+	rooms_before = int(reach.get("rooms_attempted"))
+	failed += _assert(await _handoff_press_idle(view), "save-path IdleButton")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save the hand-off in slot 7")
+	_handoff_stamp_now(save_service, 7)
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7")
+	for _frame: int in 4:
+		await process_frame
+	failed += _assert(not BattleViewScript.is_open(), "0s offline does not open the fight")
+	failed += _assert(bool(reach.call("handoff_pending")), "load restores the hand-off")
+	failed += _assert(not bool(reach.call("fight_active")), "load does not resume by itself")
+	failed += _assert(float(reach.get("room_clock")) < 1.0, "offline catch-up added no room time (clock %s)" % str(reach.get("room_clock")))
+	reach.call("set_control", "manual")
+	var loaded: FightState = reach.call("manual_fight") as FightState
+	failed += _handoff_assert_same(loaded, before, 1, slots_before, int(reach.get("slots_used")), "saved hand-off")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms_before, "saved resume keeps the room")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot_path, slot_was)
+	if failed == 0:
+		print("HANDOFF_RESUME_OK")
+	return failed
+
+
+func _handoff_expired(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "expired Reach")
+	if reach == null:
+		return failed
+	failed += _assert(reach.has_method("handoff_pending"), "expired handoff api")
+	if not reach.has_method("handoff_pending"):
+		return failed
+	_silence_echo(tree_root)
+	BattleViewScript.close_arena()
+	_reset_reach_test(tree_root, game_state, save_service)
+	var seed: int = _handoff_expired_seed()
+	failed += _assert(seed > 0, "expired seed continues and the next room is party-first")
+	if seed < 0:
+		return failed
+	failed += _assert(_handoff_depart(reach, game_state, seed, "manual", 8, {}) == "ok", "expired depart")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and fight != null, "expired fight opens")
+	if view == null or fight == null:
+		return failed
+	failed += _assert(await _handoff_wait_party(view, fight), "expired waits on the party")
+	var slots_before: int = int(reach.get("slots_used"))
+	var rooms_before: int = int(reach.get("rooms_attempted"))
+	var log_before: int = (reach.get("room_log") as Array).size()
+	failed += _assert(await _handoff_press_idle(view), "expired IdleButton")
+	var handed: Dictionary = fight.to_dict()
+	reach.call("advance_clock", 719.0)
+	failed += _assert(bool(reach.call("handoff_pending")), "719s leaves the hand-off pending")
+	failed += _assert((reach.get("room_log") as Array).size() == log_before, "719s resolves nothing")
+	failed += _assert(int(reach.get("slots_used")) == slots_before, "719s spends no slot")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms_before, "719s stays on this room")
+	reach.call("advance_clock", 1.0)
+	var log: Array = reach.get("room_log") as Array
+	failed += _assert(log.size() == log_before + 1, "720s adds this room")
+	var resolved: String = ""
+	if not log.is_empty():
+		resolved = str((log[log.size() - 1] as Dictionary).get("outcome", ""))
+	var expected_outcome: String = AutoPolicy.run_idle(FightState.from_dict(handed))
+	failed += _assert(resolved == expected_outcome, "outcome matches run_idle on the press clone (got %s want %s)" % [resolved, expected_outcome])
+	failed += _assert(int(reach.get("slots_used")) == slots_before + 1, "the room spends one slot")
+	failed += _assert(not bool(reach.call("handoff_pending")), "expired hand-off is cleared")
+	var rooms_next: int = int(reach.get("rooms_attempted"))
+	var slots_next: int = int(reach.get("slots_used"))
+	failed += _assert(rooms_next == rooms_before + 1, "the next room is open (got %d)" % rooms_next)
+	reach.call("set_control", "manual")
+	var nxt: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(nxt != null, "join opens the next room")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms_next, "join does not bump rooms_attempted")
+	failed += _assert(int(reach.get("slots_used")) == slots_next, "join does not spend another slot")
+	if nxt != null:
+		var expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), int(reach.get("room_seed")), bool(reach.call("is_boss_room")))
+		var actual: Array[String] = _handoff_species_by_slot(nxt)
+		failed += _assert(str(actual) == str(expected), "next room species are fresh")
+		failed += _assert(_handoff_full_hp(nxt) and nxt.salves_used == 0, "next room is full HP with no Salves used")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("HANDOFF_EXPIRED_OK")
+	return failed
+
+
+func _handoff_idle(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and backpack != null and strings != null, "idle handoff autoloads")
+	if reach == null or backpack == null or strings == null:
+		return failed
+	failed += _assert(reach.has_method("hand_to_idle"), "idle handoff api")
+	if not reach.has_method("hand_to_idle"):
+		return failed
+	_silence_echo(tree_root)
+	BattleViewScript.close_arena()
+	_reset_reach_test(tree_root, game_state, save_service)
+	failed += _assert(bool(BattleViewScript.open_arena()), "test fight arena opens")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var test_view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(test_view != null, "test fight view")
+	if test_view != null:
+		test_view.call("start_test_fight", 1, false, true, 12345)
+		await process_frame
+		var test_idle: Button = test_view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+		failed += _assert(test_idle != null and test_idle.disabled, "IdleButton is disabled in the test fight")
+		failed += _assert(test_idle != null and test_idle.tooltip_text.find("Not in the test fight") >= 0, "test fight keeps the later tooltip")
+	BattleViewScript.close_arena()
+	await process_frame
+	backpack.call("set_count", "heart_salve", 3)
+	failed += _assert(_handoff_depart(reach, game_state, 1, "manual", 8, {"heart_salve": 3}) == "ok", "salve depart")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and fight != null, "reach fight for Idle")
+	if view == null or fight == null:
+		reach.call("reset_for_new_game")
+		return failed
+	failed += _assert(await _handoff_wait_party(view, fight), "reach party turn")
+	var reach_idle: Button = view.get_node_or_null("Arena/ActionMenu/IdleButton") as Button
+	var tip: String = str(strings.call("get_text", "adv_menu_idle_tip"))
+	failed += _assert(tip == "Hand this fight to idle Auto. It finishes in 12 minutes. Join again before then to pick it back up.", "adv_menu_idle_tip copy")
+	failed += _assert(reach_idle != null and not reach_idle.disabled and reach_idle.tooltip_text == tip, "IdleButton is enabled on a reach party turn")
+	view.call("_apply_battle_speed", 4)
+	var toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
+	failed += _assert(toggle != null, "Strike for me toggle")
+	if toggle != null:
+		toggle.set_pressed_no_signal(true)
+	view.call("_refresh_speed_buttons")
+	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
+	var speed4: Button = view.get_node_or_null("Arena/SpeedBar/Speed4x") as Button
+	var playback: BattlePlayback = view.get_playback()
+	failed += _assert(bool(view.call("strike_for_me_on")), "Strike for me is on")
+	failed += _assert(playback != null and int(playback.speed) == 1, "Auto speed is 1x")
+	failed += _assert(speed2 != null and speed2.disabled and speed4 != null and speed4.disabled, "SpeedBar 2x and 4x are disabled")
+	if toggle != null:
+		toggle.set_pressed_no_signal(false)
+	view.call("_refresh_speed_buttons")
+	view.call("_show_action_menu", fight.current_actor())
+	failed += _assert(await _handoff_drink_salve(view), "drink one Salve")
+	failed += _assert(fight.salves_used == 1, "one Salve is counted before the hand-off")
+	failed += _assert(await _handoff_wait_party(view, fight), "party turn after the Salve")
+	failed += _assert(await _handoff_press_idle(view), "hand the salve fight to idle")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(fight.salves_used >= 1 and fight.salves_used <= 2, "Auto drank at most one more (salves_used %d)" % fight.salves_used)
+	var left: int = int((reach.get("loadout") as Dictionary).get("heart_salve", 0))
+	failed += _assert(left == 3 - fight.salves_used, "loadout dropped by exactly salves_used (left %d used %d)" % [left, fight.salves_used])
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	var deeper_seed: int = _handoff_deeper_seed()
+	failed += _assert(deeper_seed > 0, "a resumed win can Go deeper and Head home")
+	if deeper_seed < 0:
+		return failed
+	failed += _assert(_handoff_depart(reach, game_state, deeper_seed, "manual", 3, {}) == "ok", "deeper depart")
+	await process_frame
+	view = _reach_live_view()
+	fight = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and await _handoff_wait_party(view, fight), "deeper fight is on the party")
+	if view == null:
+		reach.call("reset_for_new_game")
+		return failed
+	failed += _assert(await _handoff_press_idle(view), "hand off before the resumed win")
+	reach.call("advance_clock", 30.0)
+	reach.call("set_control", "manual")
+	await process_frame
+	view = _reach_live_view()
+	failed += _assert(view != null and bool(reach.call("fight_active")), "resume opens the same room")
+	if view == null:
+		reach.call("reset_for_new_game")
+		return failed
+	await _reach_step_strike_for_me(view, view._fight)
+	var panel: Panel = await _reach_wait_end_panel(view)
+	failed += _assert(panel != null and panel.visible, "end panel after the resumed win")
+	var deeper: Button = view.find_child("EndDeeper", true, false) as Button
+	failed += _assert(deeper != null, "Go deeper is on the resumed win")
+	if deeper != null:
+		deeper.emit_signal("pressed")
+	for _open: int in 120:
+		await process_frame
+		if int(reach.get("depth")) == 2 and bool(reach.call("fight_active")):
+			break
+	failed += _assert(int(reach.get("depth")) == 2, "Go deeper raises depth")
+	failed += _assert(int(reach.get("slots_used")) == 1, "the resumed win spent one slot")
+	view = _reach_live_view()
+	failed += _assert(view != null, "the next room's arena")
+	if view == null:
+		reach.call("reset_for_new_game")
+		return failed
+	await _reach_step_strike_for_me(view, view._fight)
+	panel = await _reach_wait_end_panel(view)
+	var home: Button = view.find_child("EndHome", true, false) as Button
+	failed += _assert(home != null, "Head home is on the next win")
+	if home != null:
+		home.emit_signal("pressed")
+	await process_frame
+	failed += _assert(not bool(reach.get("running")), "Head home ends the run")
+	failed += _assert(str((reach.get("last_summary") as Dictionary).get("reason", "")) == "head_home", "summary is head home")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("HANDOFF_IDLE_OK")
 	return failed

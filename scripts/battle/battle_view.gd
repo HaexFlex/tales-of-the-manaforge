@@ -1231,6 +1231,8 @@ func _build_fight_hud() -> void:
 	_idle_button.name = "IdleButton"
 	_idle_button.disabled = true
 	_idle_button.tooltip_text = _text("adv_menu_idle_later", "Hands the fight to idle Auto. Not in the test fight yet.")
+	if not _idle_button.pressed.is_connected(_on_idle_pressed):
+		_idle_button.pressed.connect(_on_idle_pressed)
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(8.0, 0.0)
 	_action_menu.add_child(spacer)
@@ -1461,6 +1463,7 @@ func _show_action_menu(actor_id: String) -> void:
 	for button: Button in [_strike_button, _salve_button, _brace_button, _flee_button, _idle_button]:
 		if button != null:
 			button.visible = _target_mode == ""
+	_refresh_idle_button()
 	var show_abilities: bool = _target_mode == "" and _has_abilities()
 	for ab: Button in _ability_buttons:
 		ab.visible = show_abilities
@@ -1542,6 +1545,32 @@ func _update_salve_button() -> void:
 		_salve_button.tooltip_text = _text("adv_item_none_packed", "None packed")
 	else:
 		_salve_button.tooltip_text = ""
+
+
+func _refresh_idle_button() -> void:
+	## Reach mode can hand the live fight to idle Auto. The test fight cannot.
+	if _idle_button == null:
+		return
+	if _reach_mode and _target_mode == "":
+		_idle_button.disabled = false
+		_idle_button.tooltip_text = _text(
+			"adv_menu_idle_tip",
+			"Hand this fight to idle Auto. It finishes in 12 minutes. Join again before then to pick it back up.",
+		)
+	else:
+		_idle_button.disabled = true
+		_idle_button.tooltip_text = _text(
+			"adv_menu_idle_later",
+			"Hands the fight to idle Auto. Not in the test fight yet.",
+		)
+
+
+func _on_idle_pressed() -> void:
+	if not _reach_mode or _idle_button == null or _idle_button.disabled:
+		return
+	var reach: Node = get_node_or_null("/root/Reach")
+	if reach != null and reach.has_method("hand_to_idle"):
+		reach.call("hand_to_idle")
 
 
 func _on_strike_pressed() -> void:
