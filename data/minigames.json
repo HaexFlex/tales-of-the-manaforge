@@ -222,6 +222,7 @@
       "fill_per_turn": 0.25,
       "max_fill_per_sec": 0.6,
       "crank_frames": 8,
+      "key_quarter_turn": true,
       "cues": {
         "success": "sfx_press_squeeze",
         "vent": "sfx_gather_cooldown"
@@ -246,6 +247,7 @@
         "head",
         "plank"
       ],
+      "key_steer_speed": 4.0,
       "cues": {
         "success": "sfx_bench_open"
       },

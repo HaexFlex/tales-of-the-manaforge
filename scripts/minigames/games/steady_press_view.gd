@@ -1,0 +1,114 @@
+class_name SteadyPressView
+extends MinigameView
+
+const GOLD: Color = Color(0.95, 0.76, 0.31, 1.0)
+const GAUGE_BG: Color = Color(0.28, 0.22, 0.18, 0.35)
+const FILL: Color = Color(0.46, 0.73, 0.28, 0.9)
+const HANDLE: Color = Color(0.78, 0.68, 0.52, 1.0)
+
+var _vent_played: bool = false
+
+
+func _ready() -> void:
+	custom_minimum_size = Vector2(640, 320)
+	size = Vector2(640, 320)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func bind(p_core: MinigameCore) -> void:
+	super.bind(p_core)
+	_vent_played = false
+	if core != null:
+		core.spawned.connect(_on_tick)
+		core.resolved.connect(_on_tick)
+
+
+func _on_tick(_a = null, _b = null, _c = null) -> void:
+	if core == null:
+		return
+	var st: Dictionary = core.state()
+	if bool(st.get("vent", false)) and not _vent_played:
+		_vent_played = true
+		var cues: Dictionary = (core.cfg.get("cues", {}) as Dictionary)
+		var vent_id: String = str(cues.get("vent", ""))
+		if vent_id != "":
+			GameAudio.play(vent_id)
+	queue_redraw()
+
+
+func _draw() -> void:
+	if core == null:
+		return
+	var st: Dictionary = core.state()
+	var gx: float = size.x * 0.72
+	var gw: float = 36.0
+	var gh: float = size.y * 0.7
+	var gy: float = (size.y - gh) * 0.5
+	draw_rect(Rect2(gx, gy, gw, gh), GAUGE_BG)
+	var fill: float = float(st.get("fill", 0.0))
+	var fill_h: float = gh * fill
+	draw_rect(Rect2(gx + 4.0, gy + gh - fill_h, gw - 8.0, fill_h), FILL)
+	var band_lo: float = float(st.get("band_lo", 0.7))
+	var band_hi: float = float(st.get("band_hi", 0.85))
+	var by0: float = gy + gh * (1.0 - band_hi)
+	var by1: float = gy + gh * (1.0 - band_lo)
+	draw_rect(Rect2(gx - 4.0, by0, gw + 8.0, by1 - by0), GOLD, false, 2.0)
+	var cx: float = size.x * 0.38
+	var cy: float = size.y * 0.5
+	var radius: float = minf(size.x, size.y) * 0.22
+	draw_arc(Vector2(cx, cy), radius, 0.0, TAU, 64, HANDLE, 2.0)
+	var frame: int = int(st.get("crank_frame", 0))
+	var frames: int = maxi(1, int(core.cfg.get("crank_frames", 8)))
+	var ang: float = (float(frame) / float(frames)) * TAU
+	var hx: float = cx + cos(ang) * radius
+	var hy: float = cy + sin(ang) * radius
+	draw_line(Vector2(cx, cy), Vector2(hx, hy), GOLD, 4.0)
+	draw_circle(Vector2(hx, hy), 8.0, HANDLE)
+
+
+func handle_input(ev: InputEvent, local: Vector2) -> void:
+	if core == null:
+		return
+	var norm: Vector2 = Vector2(local.x / size.x, local.y / size.y)
+	if ev is InputEventMouseButton:
+		var mb: InputEventMouseButton = ev as InputEventMouseButton
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return
+		if mb.pressed:
+			core.input({"type": "press", "x": norm.x, "y": norm.y, "key": ""})
+		else:
+			core.input({"type": "release", "x": norm.x, "y": norm.y, "key": ""})
+	elif ev is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = ev as InputEventMouseMotion
+		if (mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			core.input({"type": "move", "x": norm.x, "y": norm.y, "key": ""})
+	elif ev is InputEventKey:
+		var key: InputEventKey = ev as InputEventKey
+		if key.echo:
+			return
+		var kname: String = _key_name(key)
+		if kname == "":
+			return
+		if key.pressed:
+			if kname == "space":
+				core.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+			else:
+				core.input({"type": "press", "x": 0.5, "y": 0.5, "key": kname})
+		elif kname == "space":
+			core.input({"type": "release", "x": 0.5, "y": 0.5, "key": "space"})
+
+
+func _key_name(key: InputEventKey) -> String:
+	match key.keycode:
+		KEY_SPACE:
+			return "space"
+		KEY_A:
+			return "a"
+		KEY_D:
+			return "d"
+		KEY_LEFT:
+			return "left"
+		KEY_RIGHT:
+			return "right"
+		_:
+			return ""

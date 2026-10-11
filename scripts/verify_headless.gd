@@ -259,6 +259,38 @@ func _run() -> void:
 	# (spacer)
 	# (spacer)
 	# ==== MG JOB C: switches (begin) ====
+	if OS.get_environment("MANAFORGE_MG_FORGE_GLOW") == "1":
+		var fg_only: int = _forge_glow_logic_ok()
+		if fg_only > 0:
+			print("FORGE_GLOW_LOGIC_FAIL: %d" % fg_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+	if OS.get_environment("MANAFORGE_MG_STEADY_PRESS") == "1":
+		var sp_only: int = _steady_press_logic_ok()
+		if sp_only > 0:
+			print("STEADY_PRESS_LOGIC_FAIL: %d" % sp_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+	if OS.get_environment("MANAFORGE_MG_WITH_THE_GRAIN") == "1":
+		var wg_only: int = _with_the_grain_logic_ok()
+		if wg_only > 0:
+			print("WITH_THE_GRAIN_LOGIC_FAIL: %d" % wg_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+	if OS.get_environment("MANAFORGE_MG_STEEPING") == "1":
+		var st_only: int = _steeping_logic_ok()
+		if st_only > 0:
+			print("STEEPING_LOGIC_FAIL: %d" % st_only)
+			quit(1)
+		else:
+			quit(0)
+		return
 	# ==== MG JOB C: switches (end) ====
 
 	if OS.get_environment("MANAFORGE_REACH") == "1":
@@ -2772,6 +2804,14 @@ func _run() -> void:
 	# (spacer)
 	# (spacer)
 	# ==== MG JOB C: suite (begin) ====
+	if MinigameCatalog.is_built("forge_glow"):
+		failed += _forge_glow_logic_ok()
+	if MinigameCatalog.is_built("steady_press"):
+		failed += _steady_press_logic_ok()
+	if MinigameCatalog.is_built("with_the_grain"):
+		failed += _with_the_grain_logic_ok()
+	if MinigameCatalog.is_built("steeping"):
+		failed += _steeping_logic_ok()
 	# ==== MG JOB C: suite (end) ====
 
 	if failed == 0:
@@ -3522,6 +3562,16 @@ func _check_only_load() -> int:
 	# (spacer)
 	# (spacer)
 	# ==== MG JOB C: check-only paths (begin) ====
+	paths.append_array([
+		"res://scripts/minigames/games/forge_glow_core.gd",
+		"res://scripts/minigames/games/forge_glow_view.gd",
+		"res://scripts/minigames/games/steady_press_core.gd",
+		"res://scripts/minigames/games/steady_press_view.gd",
+		"res://scripts/minigames/games/with_the_grain_core.gd",
+		"res://scripts/minigames/games/with_the_grain_view.gd",
+		"res://scripts/minigames/games/steeping_core.gd",
+		"res://scripts/minigames/games/steeping_view.gd",
+	])
 	# ==== MG JOB C: check-only paths (end) ====
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -8948,4 +8998,477 @@ func _mg_b_just_enough_logic_ok() -> int:
 # (spacer)
 # (spacer)
 # ==== MG JOB C: functions (begin) ====
+
+func _mg_c_test_seed() -> int:
+	return int(MinigameCatalog.data().get("test_seed", 12345))
+
+
+func _mg_c_make_core(game_id: String) -> MinigameCore:
+	var cfg: Dictionary = MinigameCatalog.game_cfg(game_id)
+	cfg["_game_id"] = game_id
+	cfg["_max_pace"] = float(MinigameCatalog.data().get("max_pace", 3.0))
+	var core: MinigameCore = MinigameCatalog.new_core(game_id)
+	if core != null:
+		core.start(cfg, _mg_c_test_seed())
+	return core
+
+
+func _mg_c_step(core: MinigameCore, dt: float, steps: int) -> void:
+	for _i: int in steps:
+		core.advance(dt)
+
+
+func _mg_c_spawn_log(core: MinigameCore, count: int) -> Array:
+	var log: Array = []
+	core.spawned.connect(func(_id: int, info: Dictionary) -> void:
+		log.append(info.duplicate(true))
+	)
+	_mg_c_step(core, 1.0 / 60.0, count)
+	return log
+
+
+func _mg_c_three_minute_bots(
+	game_id: String,
+	perfect_step: Callable,
+	miss_step: Callable,
+) -> int:
+	var failed: int = 0
+	var cfg: Dictionary = MinigameCatalog.game_cfg(game_id)
+	var r: float = float(cfg.get("r", 0.0))
+	var k: float = float(cfg.get("k", 0.0))
+	var minutes: float = 3.0
+	var dt: float = 1.0 / 60.0
+	var steps: int = int((minutes * 60.0 - 0.05) / dt)
+	var perfect: MinigameCore = _mg_c_make_core(game_id)
+	failed += _assert(perfect != null, "%s perfect core" % game_id)
+	if perfect != null:
+		for i: int in steps:
+			perfect.advance(dt)
+			perfect_step.call(perfect, dt, i)
+		var lo_s: int = int(r * minutes) - 1
+		var hi_s: int = int(r * minutes)
+		failed += _assert(perfect.successes >= lo_s and perfect.successes <= hi_s, "%s perfect successes %d" % [game_id, perfect.successes])
+		var bonus: float = float(perfect.weight_sum) * k
+		var target: float = 120.0 * minutes
+		failed += _assert(bonus >= target - k and bonus <= target + k, "%s perfect bonus %.2f" % [game_id, bonus])
+	var miss: MinigameCore = _mg_c_make_core(game_id)
+	if miss != null:
+		for i: int in steps:
+			miss.advance(dt)
+			miss_step.call(miss, dt, i)
+		failed += _assert(miss.successes == 0, "%s miss successes" % game_id)
+		failed += _assert(is_equal_approx(miss.pace(), 1.0), "%s miss pace" % game_id)
+	var log_a: Array = []
+	var a: MinigameCore = _mg_c_make_core(game_id)
+	if a != null:
+		a.spawned.connect(func(_id: int, info: Dictionary) -> void:
+			if log_a.size() < 10:
+				log_a.append(info.duplicate(true))
+		)
+		_mg_c_step(a, dt, 600)
+	var log_b: Array = []
+	var b: MinigameCore = _mg_c_make_core(game_id)
+	if b != null:
+		b.spawned.connect(func(_id: int, info: Dictionary) -> void:
+			if log_b.size() < 10:
+				log_b.append(info.duplicate(true))
+		)
+		_mg_c_step(b, dt, 600)
+	failed += _assert(str(log_a) == str(log_b), "%s spawn log stable" % game_id)
+	return failed
+
+
+func _forge_glow_seek_needle(core: ForgeGlowCore, needle: float, dt: float) -> void:
+	var cycle: float = float(core.cfg.get("cycle_sec", 2.5))
+	var target_clock: float = needle * cycle + 0.0005
+	var guard: int = 0
+	while core.clock_sec < target_clock and guard < 8000:
+		core.advance(minf(dt, target_clock - core.clock_sec))
+		guard += 1
+
+
+func _forge_glow_logic_ok() -> int:
+	var failed: int = 0
+	var dt: float = 1.0 / 60.0
+	var cycle: float = float(MinigameCatalog.game_cfg("forge_glow").get("cycle_sec", 2.5))
+
+	var probe: ForgeGlowCore = _mg_c_make_core("forge_glow") as ForgeGlowCore
+	failed += _assert(probe != null, "forge_glow core")
+	if probe == null:
+		return failed
+	probe.advance(0.001)
+	_forge_glow_seek_needle(probe, 0.549, dt)
+	probe.input({"type": "press", "x": 0.5, "y": 0.5, "key": ""})
+	failed += _assert(probe.fails >= 1 and probe.successes == 0, "forge 0.549 fail")
+	probe = _mg_c_make_core("forge_glow") as ForgeGlowCore
+	probe.advance(0.001)
+	_forge_glow_seek_needle(probe, 0.551, dt)
+	probe.input({"type": "press", "x": 0.5, "y": 0.5, "key": ""})
+	failed += _assert(probe.successes == 1, "forge 0.551 success")
+	probe = _mg_c_make_core("forge_glow") as ForgeGlowCore
+	probe.advance(0.001)
+	_forge_glow_seek_needle(probe, 0.749, dt)
+	probe.input({"type": "press", "x": 0.5, "y": 0.5, "key": ""})
+	failed += _assert(probe.successes == 1, "forge 0.749 success")
+	probe = _mg_c_make_core("forge_glow") as ForgeGlowCore
+	probe.advance(0.001)
+	_forge_glow_seek_needle(probe, 0.751, dt)
+	probe.input({"type": "press", "x": 0.5, "y": 0.5, "key": ""})
+	failed += _assert(probe.fails >= 1, "forge 0.751 fail")
+	probe = _mg_c_make_core("forge_glow") as ForgeGlowCore
+	probe.advance(0.001)
+	_forge_glow_seek_needle(probe, 0.6, dt)
+	probe.input({"type": "press", "x": 0.5, "y": 0.5, "key": ""})
+	var succ_before: int = probe.successes
+	probe.input({"type": "press", "x": 0.5, "y": 0.5, "key": ""})
+	failed += _assert(probe.successes == succ_before, "forge second press noop")
+	var no_press: ForgeGlowCore = _mg_c_make_core("forge_glow") as ForgeGlowCore
+	no_press.advance(0.001)
+	_mg_c_step(no_press, dt, int(cycle / dt) + 2)
+	failed += _assert(no_press.fails >= 1 and no_press.successes == 0, "forge no press fail")
+
+	failed += _mg_c_three_minute_bots(
+		"forge_glow",
+		func(core: MinigameCore, _dt: float, _i: int) -> void:
+			var fg: ForgeGlowCore = core as ForgeGlowCore
+			if fg == null:
+				return
+			var st: Dictionary = fg.state()
+			if int(st.get("token_id", -1)) < 0 or bool(st.get("resolved", false)):
+				return
+			if fg.needle_at_time(fg.clock_sec) < 0.6:
+				return
+			if fg.needle_at_time(fg.clock_sec) > 0.7:
+				return
+			fg.input({"type": "press", "x": 0.5, "y": 0.5, "key": ""}),
+		func(_core: MinigameCore, _dt: float, _i: int) -> void:
+			pass,
+	)
+	if failed == 0:
+		print("FORGE_GLOW_LOGIC_OK")
+	return failed
+
+
+func _steady_press_logic_ok() -> int:
+	var failed: int = 0
+	var dt: float = 1.0 / 60.0
+	var cfg: Dictionary = MinigameCatalog.game_cfg("steady_press")
+	var band: Array = cfg.get("band", [0.7, 0.85]) as Array
+	var fill_per_turn: float = float(cfg.get("fill_per_turn", 0.25))
+	var max_fill: float = float(cfg.get("max_fill_per_sec", 0.6))
+	var vent_at: float = float(cfg.get("vent_at", 0.97))
+
+	var fill_probe: SteadyPressCore = _mg_c_make_core("steady_press") as SteadyPressCore
+	failed += _assert(fill_probe != null, "steady core")
+	if fill_probe != null:
+		fill_probe.advance(0.001)
+		fill_probe.input({"type": "press", "x": 0.7, "y": 0.5, "key": ""})
+		var released: bool = false
+		for _t: int in 200:
+			var ang: float = float(_t) * 0.12
+			fill_probe.input({"type": "move", "x": 0.5 + cos(ang) * 0.25, "y": 0.5 + sin(ang) * 0.25, "key": ""})
+			fill_probe.advance(dt)
+			var f: float = float(fill_probe.state().get("fill", 0.0))
+			if not released and f >= float(band[0]) and f <= float(band[1]):
+				fill_probe.input({"type": "release", "x": 0.5, "y": 0.5, "key": ""})
+				released = true
+		failed += _assert(fill_probe.successes == 1, "steady circle success")
+		var rate_probe: SteadyPressCore = _mg_c_make_core("steady_press") as SteadyPressCore
+		if rate_probe != null:
+			rate_probe.advance(0.001)
+			rate_probe.input({"type": "press", "x": 0.7, "y": 0.5, "key": ""})
+			var f0: float = float(rate_probe.state().get("fill", 0.0))
+			for _t: int in 60:
+				var ang: float = float(_t) * 0.12
+				rate_probe.input({"type": "move", "x": 0.5 + cos(ang) * 0.25, "y": 0.5 + sin(ang) * 0.25, "key": ""})
+				rate_probe.advance(dt)
+			var f1: float = float(rate_probe.state().get("fill", 0.0))
+			failed += _assert(f1 - f0 <= max_fill * 1.05 + 0.02, "steady fill rate cap")
+
+	var sag_probe: SteadyPressCore = _mg_c_make_core("steady_press") as SteadyPressCore
+	if sag_probe != null:
+		sag_probe.advance(0.001)
+		sag_probe.input({"type": "press", "x": 0.7, "y": 0.5, "key": ""})
+		for _t: int in 60:
+			var ang: float = float(_t) * 0.15
+			sag_probe.input({"type": "move", "x": 0.5 + cos(ang) * 0.22, "y": 0.5 + sin(ang) * 0.22, "key": ""})
+			sag_probe.advance(dt)
+		var mid_fill: float = float(sag_probe.state().get("fill", 0.0))
+		for _t: int in 50:
+			sag_probe.advance(dt)
+		failed += _assert(sag_probe.fails == 0 and sag_probe.successes == 0, "steady sag not fail")
+		failed += _assert(float(sag_probe.state().get("fill", 1.0)) < mid_fill, "steady sag drops")
+
+	var early: SteadyPressCore = _mg_c_make_core("steady_press") as SteadyPressCore
+	if early != null:
+		early.advance(0.001)
+		early.input({"type": "press", "x": 0.7, "y": 0.5, "key": ""})
+		early.input({"type": "release", "x": 0.5, "y": 0.5, "key": ""})
+		failed += _assert(early.fails >= 1, "steady early release")
+
+	var vent: SteadyPressCore = _mg_c_make_core("steady_press") as SteadyPressCore
+	if vent != null:
+		vent.advance(0.001)
+		vent.input({"type": "press", "x": 0.8, "y": 0.5, "key": ""})
+		for _t: int in 800:
+			var ang: float = float(_t) * 0.2
+			vent.input({"type": "move", "x": 0.5 + cos(ang) * 0.3, "y": 0.5 + sin(ang) * 0.3, "key": ""})
+			vent.advance(dt)
+			if vent.fails > 0:
+				break
+		failed += _assert(vent.fails >= 1, "steady vent fail")
+
+	var jig: SteadyPressCore = _mg_c_make_core("steady_press") as SteadyPressCore
+	if jig != null:
+		jig.advance(0.001)
+		jig.input({"type": "press", "x": 0.7, "y": 0.5, "key": ""})
+		for _t: int in 80:
+			var dir: float = 1.0 if _t % 2 == 0 else -1.0
+			var ang: float = float(_t) * 0.4 * dir
+			jig.input({"type": "move", "x": 0.5 + cos(ang) * 0.2, "y": 0.5 + sin(ang) * 0.2, "key": ""})
+			jig.advance(dt)
+		var jig_fill: float = float(jig.state().get("fill", 0.0))
+		failed += _assert(jig_fill < float(band[0]) * 0.5, "steady jiggle low fill")
+
+	var keys: SteadyPressCore = _mg_c_make_core("steady_press") as SteadyPressCore
+	if keys != null:
+		keys.advance(0.001)
+		keys.input({"type": "press", "x": 0.5, "y": 0.5, "key": "space"})
+		var guard: int = 0
+		while float(keys.state().get("fill", 0.0)) < float(band[0]) and guard < 400:
+			keys.input({"type": "press", "x": 0.5, "y": 0.5, "key": "a"})
+			keys.advance(dt)
+			keys.input({"type": "press", "x": 0.5, "y": 0.5, "key": "d"})
+			keys.advance(dt)
+			guard += 1
+		keys.input({"type": "release", "x": 0.5, "y": 0.5, "key": "space"})
+		failed += _assert(keys.successes == 1, "steady keyboard success")
+
+	failed += _mg_c_three_minute_bots(
+		"steady_press",
+		func(core: MinigameCore, step_dt: float, i: int) -> void:
+			var sp: SteadyPressCore = core as SteadyPressCore
+			if sp == null:
+				return
+			var st: Dictionary = sp.state()
+			if int(st.get("token_id", -1)) < 0:
+				return
+			if bool(st.get("resolved", false)):
+				return
+			var ang: float = float(i) * 0.11
+			sp.input({"type": "press", "x": 0.7, "y": 0.5, "key": ""})
+			sp.input({"type": "move", "x": 0.5 + cos(ang) * 0.28, "y": 0.5 + sin(ang) * 0.28, "key": ""})
+			var fill_now: float = float(sp.state().get("fill", 0.0))
+			if fill_now >= float(band[0]) and fill_now <= float(band[1]):
+				sp.input({"type": "release", "x": 0.5, "y": 0.5, "key": ""}),
+		func(_core: MinigameCore, _dt: float, _i: int) -> void:
+			pass,
+	)
+	if failed == 0:
+		print("STEADY_PRESS_LOGIC_OK")
+	return failed
+
+
+func _wg_keyboard_trace(core: WithTheGrainCore, dt: float) -> void:
+	var pts: PackedVector2Array = core.path_points()
+	if pts.is_empty():
+		return
+	core.input({"type": "press", "x": pts[0].x, "y": pts[0].y, "key": "space"})
+	if str(core.state().get("shape", "")) == "rod":
+		for p: Vector2 in pts:
+			core.input({"type": "move", "x": p.x, "y": p.y, "key": ""})
+		core.input({"type": "release", "x": pts[pts.size() - 1].x, "y": pts[pts.size() - 1].y, "key": "space"})
+		return
+	for seg: int in pts.size() - 1:
+		var a: Vector2 = pts[seg]
+		var b: Vector2 = pts[seg + 1]
+		for step: int in 4:
+			var t: float = float(step + 1) / 4.0
+			var target: Vector2 = a.lerp(b, t)
+			var st: Dictionary = core.state()
+			var stroke_arr: Array = st.get("stroke", []) as Array
+			var pen: Vector2 = pts[0]
+			if stroke_arr.size() > 0:
+				var last: Dictionary = stroke_arr[stroke_arr.size() - 1] as Dictionary
+				pen = Vector2(float(last.get("x", 0.5)), float(last.get("y", 0.5)))
+			var dx: float = target.x - pen.x
+			var dy: float = target.y - pen.y
+			if absf(dx) > absf(dy):
+				core.steer_key("right" if dx > 0.0 else "left")
+			else:
+				core.steer_key("down" if dy > 0.0 else "up")
+			for _fine: int in 3:
+				core.advance(dt)
+	core.input({"type": "release", "x": pts[pts.size() - 1].x, "y": pts[pts.size() - 1].y, "key": "space"})
+
+
+func _wg_trace_path(core: WithTheGrainCore) -> void:
+	var pts: PackedVector2Array = core.path_points()
+	if pts.is_empty():
+		return
+	core.input({"type": "press", "x": pts[0].x, "y": pts[0].y, "key": ""})
+	for p: Vector2 in pts:
+		core.input({"type": "move", "x": p.x, "y": p.y, "key": ""})
+	core.input({"type": "release", "x": pts[pts.size() - 1].x, "y": pts[pts.size() - 1].y, "key": ""})
+
+
+func _with_the_grain_logic_ok() -> int:
+	var failed: int = 0
+	var dt: float = 1.0 / 60.0
+	var tol: float = float(MinigameCatalog.game_cfg("with_the_grain").get("tolerance", 0.05))
+	var acc_min: float = float(MinigameCatalog.game_cfg("with_the_grain").get("accuracy_min", 0.75))
+
+	for shape: String in PackedStringArray(["rod", "head", "plank"]):
+		var found: bool = false
+		for seed_try: int in 20000:
+			var cfg: Dictionary = MinigameCatalog.game_cfg("with_the_grain")
+			cfg["_game_id"] = "with_the_grain"
+			cfg["_max_pace"] = float(MinigameCatalog.data().get("max_pace", 3.0))
+			var core: WithTheGrainCore = MinigameCatalog.new_core("with_the_grain") as WithTheGrainCore
+			core.start(cfg, seed_try)
+			core.advance(0.001)
+			if str(core.state().get("shape", "")) != shape:
+				continue
+			found = true
+			_wg_trace_path(core)
+			failed += _assert(core.successes == 1, "wg trace %s" % shape)
+			break
+		failed += _assert(found, "wg shape %s seed" % shape)
+
+	var acc_core: WithTheGrainCore = _mg_c_make_core("with_the_grain") as WithTheGrainCore
+	if acc_core != null:
+		acc_core.advance(0.001)
+		var path: PackedVector2Array = acc_core.path_points()
+		var samples: Array[Vector2] = []
+		for p: Vector2 in path:
+			samples.append(p)
+		var bad: Array[Vector2] = []
+		var total: int = 200
+		var off_count: int = int(floor(0.26 * float(total)))
+		for i: int in total:
+			var t: float = float(i) / float(total - 1)
+			var base: Vector2 = path[0].lerp(path[path.size() - 1], t)
+			if i < off_count:
+				bad.append(base + Vector2(tol * 1.2, 0.0))
+			else:
+				bad.append(base)
+		var acc_bad: float = acc_core._accuracy(bad, path)
+		failed += _assert(acc_bad < acc_min, "wg 0.74 fail")
+		var good: Array[Vector2] = []
+		for p: Vector2 in path:
+			good.append(p)
+		var acc_good: float = acc_core._accuracy(good, path)
+		failed += _assert(acc_good >= acc_min, "wg 0.75 success")
+
+	var half: WithTheGrainCore = _mg_c_make_core("with_the_grain") as WithTheGrainCore
+	if half != null:
+		half.advance(0.001)
+		var pts: PackedVector2Array = half.path_points()
+		half.input({"type": "press", "x": pts[0].x, "y": pts[0].y, "key": ""})
+		for i: int in pts.size() / 2:
+			half.input({"type": "move", "x": pts[i].x, "y": pts[i].y, "key": ""})
+		half.input({"type": "release", "x": pts[pts.size() / 2].x, "y": pts[pts.size() / 2].y, "key": ""})
+		failed += _assert(half.fails >= 1, "wg half stroke fail")
+
+	var kb_found: bool = false
+	for seed_try: int in 20000:
+		var cfg2: Dictionary = MinigameCatalog.game_cfg("with_the_grain")
+		cfg2["_game_id"] = "with_the_grain"
+		cfg2["_max_pace"] = float(MinigameCatalog.data().get("max_pace", 3.0))
+		var core2: WithTheGrainCore = MinigameCatalog.new_core("with_the_grain") as WithTheGrainCore
+		core2.start(cfg2, seed_try)
+		core2.advance(0.001)
+		if str(core2.state().get("shape", "")) != "rod":
+			continue
+		kb_found = true
+		_wg_keyboard_trace(core2, dt)
+		failed += _assert(core2.successes == 1, "wg keyboard rod")
+		break
+	failed += _assert(kb_found, "wg keyboard rod seed")
+
+	failed += _mg_c_three_minute_bots(
+		"with_the_grain",
+		func(core: MinigameCore, _dt: float, _i: int) -> void:
+			var wg: WithTheGrainCore = core as WithTheGrainCore
+			if wg == null:
+				return
+			var st: Dictionary = wg.state()
+			if int(st.get("token_id", -1)) < 0 or bool(st.get("resolved", false)):
+				return
+			if bool(st.get("stroking", false)):
+				return
+			_wg_trace_path(wg),
+		func(_core: MinigameCore, _dt: float, _i: int) -> void:
+			pass,
+	)
+	if failed == 0:
+		print("WITH_THE_GRAIN_LOGIC_OK")
+	return failed
+
+
+func _steeping_logic_ok() -> int:
+	var failed: int = 0
+	var dt: float = 1.0 / 60.0
+	var cycle: float = float(MinigameCatalog.game_cfg("steeping").get("cycle_sec", 5.0))
+	var o_min: int = int(MinigameCatalog.game_cfg("steeping").get("order_min", 3))
+	var o_max: int = int(MinigameCatalog.game_cfg("steeping").get("order_max", 5))
+
+	var core: SteepingCore = _mg_c_make_core("steeping") as SteepingCore
+	failed += _assert(core != null, "steeping core")
+	if core == null:
+		return failed
+	core.advance(0.001)
+	var order: Array = (core.state().get("order", []) as Array)
+	failed += _assert(order.size() >= o_min and order.size() <= o_max, "steeping order len")
+
+	var good: SteepingCore = _mg_c_make_core("steeping") as SteepingCore
+	if good != null:
+		good.advance(0.001)
+		var ord2: Array = good.state().get("order", []) as Array
+		var show_end: float = float(good.state().get("show_end", 0.0))
+		_mg_c_step(good, dt, int((show_end + 0.05) / dt))
+		for herb_v: Variant in ord2:
+			var herb: int = int(herb_v)
+			good.input({"type": "press", "x": (float(herb) + 0.5) / 5.0, "y": 0.8, "key": str(herb + 1)})
+		failed += _assert(good.successes == 1, "steeping order success")
+
+	var bad: SteepingCore = _mg_c_make_core("steeping") as SteepingCore
+	if bad != null:
+		bad.advance(0.001)
+		var ord3: Array = bad.state().get("order", []) as Array
+		var show_end2: float = float(bad.state().get("show_end", 0.0))
+		_mg_c_step(bad, dt, int((show_end2 + 0.05) / dt))
+		var wrong: int = (int(ord3[0]) + 1) % 5
+		bad.input({"type": "press", "x": (float(wrong) + 0.5) / 5.0, "y": 0.8, "key": str(wrong + 1)})
+		failed += _assert(bad.fails >= 1, "steeping wrong pick")
+
+	var tout: SteepingCore = _mg_c_make_core("steeping") as SteepingCore
+	if tout != null:
+		_mg_c_step(tout, dt, int((cycle + 0.1) / dt))
+		failed += _assert(tout.fails >= 1 and tout.successes == 0, "steeping timeout")
+
+	failed += _mg_c_three_minute_bots(
+		"steeping",
+		func(core: MinigameCore, step_dt: float, _i: int) -> void:
+			var st: SteepingCore = core as SteepingCore
+			if st == null:
+				return
+			var s: Dictionary = st.state()
+			if int(s.get("token_id", -1)) < 0 or bool(s.get("resolved", false)):
+				return
+			if str(s.get("phase", "")) == "show":
+				return
+			var ord4: Array = s.get("order", []) as Array
+			var pick_i: int = int(s.get("pick_i", 0))
+			if pick_i >= ord4.size():
+				return
+			var herb: int = int(ord4[pick_i])
+			st.input({"type": "press", "x": (float(herb) + 0.5) / 5.0, "y": 0.8, "key": str(herb + 1)}),
+		func(_core: MinigameCore, _dt: float, _i: int) -> void:
+			pass,
+	)
+	if failed == 0:
+		print("STEEPING_LOGIC_OK")
+	return failed
+
 # ==== MG JOB C: functions (end) ====

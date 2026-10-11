@@ -81,6 +81,7 @@ MANAFORGE_ECHO2_PORTAL=1 $G --headless --path . -s res://scripts/verify_headless
   - `MANAFORGE_BATCH_REFUND`, `MANAFORGE_BATCH_OFFLINE`, `MANAFORGE_BATCH_ASCEND`, `MANAFORGE_BATCH_MIGRATION`
   - `MANAFORGE_MINIGAME_DATA`, `MANAFORGE_MINIGAME_HOST`, `MANAFORGE_MINIGAME_CLOCK_BOUND`, `MANAFORGE_MINIGAME_INPUT`, `MANAFORGE_MINIGAME_EXCLUSIVE`, `MANAFORGE_MINIGAME_NO_PAYOUT`
   - `MANAFORGE_MG_RIPE_CATCH`, `MANAFORGE_MG_SPLITTING_STONE`, `MANAFORGE_MG_WOODSONG`, `MANAFORGE_MG_JUST_ENOUGH`
+  - `MANAFORGE_MG_FORGE_GLOW`, `MANAFORGE_MG_STEADY_PRESS`, `MANAFORGE_MG_WITH_THE_GRAIN`, `MANAFORGE_MG_STEEPING`
   - Grep `OS.get_environment("MANAFORGE_` for the current list. Which token each one prints is in DEVELOPER_NOTES.
 - **Debug-strip check (dual build):** `DEBUG_STRIPPED_OK` always checks the preset excludes. Running with `MANAFORGE_DEBUG_STRIP=1` also reads both pack file tables and fails if they are missing. Build the packs without templates or a zip (`builds/` is gitignored), then delete them afterwards:
 

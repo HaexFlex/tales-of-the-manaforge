@@ -97,6 +97,10 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `SPLITTING_STONE_LOGIC_OK` | Splitting Stone core: preview noop, window edge hits, wrong-spot/key mapping, perfect/all-miss bots. `MANAFORGE_MG_SPLITTING_STONE=1` runs it alone. |
 | `WOODSONG_LOGIC_OK` | Woodsong core: ±180 ms window, heavy every 8th beat, one-minute weight 54, single-press scoring. `MANAFORGE_MG_WOODSONG=1` runs it alone. |
 | `JUST_ENOUGH_LOGIC_OK` | Just Enough core: band edges, overflow once, cycle-end fail, perfect/all-miss bots. `MANAFORGE_MG_JUST_ENOUGH=1` runs it alone. |
+| `FORGE_GLOW_LOGIC_OK` | Forge Glow sweet-zone needle timing, one resolve per sweep, 3-minute perfect/miss bots. `MANAFORGE_MG_FORGE_GLOW=1` runs it alone. |
+| `STEADY_PRESS_LOGIC_OK` | Steady Press crank fill/sag/vent/band, keyboard A/D quarter turns, 3-minute bots. `MANAFORGE_MG_STEADY_PRESS=1` runs it alone. |
+| `WITH_THE_GRAIN_LOGIC_OK` | With the Grain stroke accuracy (rod/head/plank), keyboard trace, 3-minute bots. `MANAFORGE_MG_WITH_THE_GRAIN=1` runs it alone. |
+| `STEEPING_LOGIC_OK` | Steeping herb order recall, wrong pick and timeout, 3-minute bots. `MANAFORGE_MG_STEEPING=1` runs it alone. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 
