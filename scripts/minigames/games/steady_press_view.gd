@@ -2,11 +2,14 @@ class_name SteadyPressView
 extends MinigameView
 
 const GOLD: Color = Color(0.95, 0.76, 0.31, 1.0)
-const GAUGE_BG: Color = Color(0.28, 0.22, 0.18, 0.35)
 const FILL: Color = Color(0.46, 0.73, 0.28, 0.9)
 const HANDLE: Color = Color(0.78, 0.68, 0.52, 1.0)
 
 var _vent_played: bool = false
+var _gauge_frame: Texture2D
+var _gauge_band: Texture2D
+var _arrow_l: Texture2D
+var _arrow_r: Texture2D
 
 
 func _ready() -> void:
@@ -18,6 +21,10 @@ func _ready() -> void:
 func bind(p_core: MinigameCore) -> void:
 	super.bind(p_core)
 	_vent_played = false
+	_gauge_frame = MinigameKit.load_tex("gauge_frame_40x240.png")
+	_gauge_band = MinigameKit.load_tex("gauge_band_9s_40x12.png")
+	_arrow_l = MinigameKit.load_tex("gauge_arrow_l_6x11.png")
+	_arrow_r = MinigameKit.load_tex("gauge_arrow_r_6x11.png")
 	if core != null:
 		core.spawned.connect(_on_tick)
 		core.resolved.connect(_on_tick)
@@ -44,7 +51,8 @@ func _draw() -> void:
 	var gw: float = 36.0
 	var gh: float = size.y * 0.7
 	var gy: float = (size.y - gh) * 0.5
-	draw_rect(Rect2(gx, gy, gw, gh), GAUGE_BG)
+	if _gauge_frame != null:
+		draw_texture_rect(_gauge_frame, Rect2(gx, gy, gw, gh), false)
 	var fill: float = float(st.get("fill", 0.0))
 	var fill_h: float = gh * fill
 	draw_rect(Rect2(gx + 4.0, gy + gh - fill_h, gw - 8.0, fill_h), FILL)
@@ -52,7 +60,13 @@ func _draw() -> void:
 	var band_hi: float = float(st.get("band_hi", 0.85))
 	var by0: float = gy + gh * (1.0 - band_hi)
 	var by1: float = gy + gh * (1.0 - band_lo)
-	draw_rect(Rect2(gx - 4.0, by0, gw + 8.0, by1 - by0), GOLD, false, 2.0)
+	if _gauge_band != null:
+		draw_texture_rect(_gauge_band, Rect2(gx, by0, gw, by1 - by0), false)
+	var band_mid: float = (by0 + by1) * 0.5
+	if _arrow_r != null:
+		draw_texture(_arrow_r, Vector2(gx - 8.0, band_mid - 5.0))
+	if _arrow_l != null:
+		draw_texture(_arrow_l, Vector2(gx + gw + 2.0, band_mid - 5.0))
 	var cx: float = size.x * 0.38
 	var cy: float = size.y * 0.5
 	var radius: float = minf(size.x, size.y) * 0.22

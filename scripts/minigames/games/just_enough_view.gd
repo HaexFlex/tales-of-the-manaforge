@@ -1,11 +1,11 @@
 class_name JustEnoughView
 extends MinigameView
 
-const GOOD: Color = Color(0.46, 0.73, 0.28, 1.0)
 const WATER: Color = Color(0.36, 0.59, 0.84, 0.85)
-const GOLD: Color = Color(0.95, 0.76, 0.31, 1.0)
 
 var _bg: Texture2D
+var _gauge_frame: Texture2D
+var _gauge_band: Texture2D
 var _primary_down: bool = false
 
 
@@ -22,6 +22,8 @@ func bind(p_core: MinigameCore) -> void:
 		var path: String = str(core.cfg.get("play_bg", ""))
 		if path != "":
 			_bg = load(path) as Texture2D
+	_gauge_frame = MinigameKit.load_tex("gauge_frame_40x240.png")
+	_gauge_band = MinigameKit.load_tex("gauge_band_9s_40x12.png")
 
 
 func hint_key() -> String:
@@ -41,12 +43,15 @@ func _draw() -> void:
 	var lo: float = float(st.get("band_lo", 0.62))
 	var hi: float = float(st.get("band_hi", 0.82))
 	var level: float = float(st.get("level", 0.0))
-	draw_rect(Rect2(gx, gy, gw, gh), Color(0.25, 0.22, 0.2, 0.5))
+	if _gauge_frame != null:
+		draw_texture_rect(_gauge_frame, Rect2(gx, gy, gw, gh), false)
 	var band_top: float = gy + gh * (1.0 - hi)
 	var band_h: float = gh * (hi - lo)
-	draw_rect(Rect2(gx, band_top, gw, band_h), Color(GOOD, 0.35))
+	if _gauge_band != null:
+		draw_texture_rect(_gauge_band, Rect2(gx, band_top, gw, band_h), false)
 	var fill_h: float = gh * level
-	draw_rect(Rect2(gx, gy + gh - fill_h, gw, fill_h), WATER)
+	var inner: Rect2 = Rect2(gx + gw * 0.2, gy + gh * 0.033, gw * 0.6, gh * 0.933)
+	draw_rect(Rect2(inner.position.x, inner.position.y + inner.size.y - fill_h * inner.size.y / gh, inner.size.x, fill_h * inner.size.y / gh), WATER)
 	if str(st.get("phase", "")) == "pour":
 		draw_rect(Rect2(gx + gw + 8.0, gy + gh * 0.5, 24.0, 8.0), WATER)
 

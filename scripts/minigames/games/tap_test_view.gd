@@ -59,6 +59,13 @@ func handle_input(ev: InputEvent, local: Vector2) -> void:
 			})
 
 
+func feedback_pos(_success: bool, _weight: int) -> Vector2:
+	if core == null:
+		return size * 0.5
+	var st: Dictionary = core.state()
+	return Vector2(float(st.get("x", 0.5)) * size.x, float(st.get("y", 0.5)) * size.y)
+
+
 func _on_resolved(_token_id: int, _success: bool, _weight: int) -> void:
 	queue_redraw()
 

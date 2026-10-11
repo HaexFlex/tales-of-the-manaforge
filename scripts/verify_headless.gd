@@ -221,6 +221,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_MINIGAME_KIT") == "1":
+		var mg_kit_only: int = await _minigame_kit_ok(tree_root, save_service)
+		if mg_kit_only > 0:
+			print("MINIGAME_KIT_FAIL: %d" % mg_kit_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# ==== MG JOB B: switches (begin) ====
 	if OS.get_environment("MANAFORGE_MG_RIPE_CATCH") == "1":
 		var rc: int = _mg_b_ripe_catch_logic_ok()
@@ -2794,6 +2803,7 @@ func _run() -> void:
 	failed += await _minigame_input_swallow_ok(tree_root, save_service)
 	failed += await _minigame_exclusive_ok(tree_root, game_state, save_service)
 	failed += await _minigame_no_payout_ok(tree_root, game_state, save_service)
+	failed += await _minigame_kit_ok(tree_root, save_service)
 	# ==== MG JOB B: suite (begin) ====
 	failed += _mg_b_ripe_catch_logic_ok()
 	failed += _mg_b_splitting_stone_logic_ok()
@@ -3545,6 +3555,8 @@ func _check_only_load() -> int:
 		"res://scripts/minigames/minigame_core.gd",
 		"res://scripts/minigames/minigame_view.gd",
 		"res://scripts/minigames/minigame_host.gd",
+		"res://scripts/minigames/minigame_kit.gd",
+		"res://scripts/minigames/kit_strip_anim.gd",
 		"res://scripts/minigames/games/tap_test_core.gd",
 		"res://scripts/minigames/games/tap_test_view.gd",
 	])
@@ -8106,7 +8118,8 @@ const _MG_GAME_IDS: PackedStringArray = [
 	"ripe_catch", "splitting_stone", "woodsong", "just_enough",
 	"forge_glow", "steady_press", "with_the_grain", "steeping",
 ]
-const _MG_KIT_DIR: String = "res://assets/art/ui/minigames/placeholder/kit/"
+const _MG_KIT_DIR: String = "res://assets/art/ui/minigames/kit/"
+const _MG_KIT_PLACEHOLDER: String = "res://assets/art/ui/minigames/placeholder/kit/"
 
 
 static func _mg_r_weighted(g: Dictionary) -> float:
@@ -8132,7 +8145,7 @@ func _mg_band_ok(g: Dictionary, key: String, id: String) -> int:
 func _minigame_data_ok(content_strings: Node) -> int:
 	## data/minigames.json: all 8 games, fixed clock r = 60 / cycle × tokens,
 	## r_weighted × k = 120 (Woodsong weighted), sane windows, DRAFT strings,
-	## cue ids that exist in audio_cues.json, placeholder art that imports.
+	## cue ids that exist in audio_cues.json, approved kit art that imports.
 	var failed: int = 0
 	failed += _assert(FileAccess.file_exists(_MG_DATA_PATH), "minigames.json exists")
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(_MG_DATA_PATH))
@@ -8233,8 +8246,83 @@ func _minigame_data_ok(content_strings: Node) -> int:
 		failed += _assert(text != key and text.begins_with("[DRAFT] "), "%s is a DRAFT string" % key)
 	for kit_file: String in ["frame_720x448.png", "title_plate_312x46.png", "stop_button_normal_104x28.png", "pip_good_12.png", "pace_track_136x18.png"]:
 		failed += _assert(ResourceLoader.exists(_MG_KIT_DIR + kit_file), "kit %s imports" % kit_file)
+	var art_dir: String = str(frame.get("art_dir", ""))
+	failed += _assert(art_dir == _MG_KIT_DIR, "frame art_dir points at approved kit")
+	failed += _assert(int((frame.get("pips", {}) as Dictionary).get("x", 0)) == 416, "pips start at x 416 (no Successes overlap)")
 	if failed == 0:
 		print("MINIGAME_DATA_OK")
+	return failed
+
+
+func _mg_controls_intersect(a: Rect2, b: Rect2) -> bool:
+	return a.intersects(b)
+
+
+func _minigame_kit_ok(tree_root: Window, save_service: Node) -> int:
+	var failed: int = 0
+	var host_src: String = FileAccess.get_file_as_string("res://scripts/minigames/minigame_host.gd")
+	failed += _assert(host_src.find("placeholder/kit") < 0, "minigame_host.gd does not reference placeholder/kit")
+	failed += _assert(not DirAccess.dir_exists_absolute(_MG_KIT_PLACEHOLDER), "placeholder/kit removed from tree")
+	for kit_file: String in [
+		"frame_720x448.png", "pace_fill_good_132x8.png", "pace_fill_gold_132x8.png",
+		"pip_pop_16x16_3f.png", "fb_good_48x22.png", "keycap_esc.png",
+	]:
+		failed += _assert(ResourceLoader.exists(_MG_KIT_DIR + kit_file), "kit asset %s loads" % kit_file)
+	# Regression proof: the pre-kit header layout overlapped (pips at screen 320 vs Successes from 300).
+	var old_success: Rect2 = Rect2(300, 166, 130, 24)
+	var old_pips_row: Rect2 = Rect2(320, 172, 10 * 15, 12)
+	failed += _assert(_mg_controls_intersect(old_success, old_pips_row), "regression model: old wiring overlapped Successes and pips")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed else null
+	failed += _assert(live != null, "hub loads for kit host check")
+	if live == null:
+		return failed
+	tree_root.add_child(live)
+	tree_root.size = Vector2i(1280, 720)
+	await process_frame
+	await process_frame
+	var seed: int = int(MinigameCatalog.data().get("test_seed", 12345))
+	failed += _assert(MinigameHost.open("tap_test", seed), "tap_test opens with kit")
+	var host: MinigameHost = MinigameHost.current()
+	if host == null:
+		live.free()
+		return failed + 1
+	await process_frame
+	var frame_np: NinePatchRect = host.get_node_or_null("FrameRoot/Frame") as NinePatchRect
+	failed += _assert(frame_np != null and str(frame_np.texture.resource_path).find("/kit/") >= 0, "frame texture from kit/")
+	var succ_lbl: Label = host.get_node_or_null("FrameRoot/Header/Successes") as Label
+	var pips: Control = host.get_node_or_null("FrameRoot/Header/Pips") as Control
+	var pace_cap: Label = host.get_node_or_null("FrameRoot/Header/PaceCaption") as Label
+	var pace_fill: TextureRect = host.get_node_or_null("FrameRoot/Header/PaceFill") as TextureRect
+	failed += _assert(succ_lbl != null and pips != null and pace_cap != null and pace_fill != null, "header kit nodes exist")
+	if succ_lbl != null and pips != null:
+		var s_rect: Rect2 = succ_lbl.get_rect()
+		var p_rect: Rect2 = pips.get_rect()
+		failed += _assert(not _mg_controls_intersect(s_rect, p_rect), "Successes label does not intersect pips")
+	if pace_cap != null and pace_fill != null:
+		failed += _assert(not _mg_controls_intersect(pace_cap.get_rect(), pace_fill.get_rect()), "Pace caption does not intersect pace meter")
+	if succ_lbl != null:
+		var ink: Color = succ_lbl.get_theme_color("font_color")
+		failed += _assert(ink.is_equal_approx(MinigameKit.INK), "parchment label ink is #3E2A18")
+	var esc_cap: TextureRect = null
+	var stop_btn: TextureButton = host.get_node_or_null("FrameRoot/StopButton") as TextureButton
+	if stop_btn != null:
+		for child: Node in stop_btn.get_children():
+			if child is TextureRect:
+				esc_cap = child as TextureRect
+				break
+	if esc_cap != null and esc_cap.texture != null:
+		var esc_sz: Vector2i = esc_cap.texture.get_size()
+		failed += _assert(esc_sz == Vector2i(28, 20), "Stop hint uses keycap_esc 28x20")
+	if host != null and MinigameHost.is_open():
+		host.close(&"debug")
+	live.free()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("MINIGAME_KIT_OK")
 	return failed
 
 

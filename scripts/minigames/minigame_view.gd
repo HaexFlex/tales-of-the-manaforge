@@ -16,3 +16,7 @@ func hint_key() -> String:
 
 func handle_input(_ev: InputEvent, _local: Vector2) -> void:
 	pass
+
+
+func feedback_pos(_success: bool, _weight: int) -> Vector2:
+	return size * 0.5

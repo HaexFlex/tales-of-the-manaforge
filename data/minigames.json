@@ -62,7 +62,7 @@
       "count": 10,
       "size": 12,
       "pitch": 15,
-      "x": 320,
+      "x": 416,
       "center_y": 178
     },
     "pace_meter": [
@@ -71,7 +71,7 @@
       136,
       12
     ],
-    "art_dir": "res://assets/art/ui/minigames/placeholder/kit/",
+    "art_dir": "res://assets/art/ui/minigames/kit/",
     "geometry_source": "Art scaffold/overlay_geometry.json, Oct 11 (not approved)"
   },
   "cues": {

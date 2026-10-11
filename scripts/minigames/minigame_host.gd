@@ -21,7 +21,8 @@ var _world_dim_layer: CanvasLayer
 var _frame: Control
 var _success_label: Label
 var _pace_value_label: Label
-var _pace_fill: ColorRect
+var _pace_fill: TextureRect
+var _fx_layer: Control
 var _pip_nodes: Array[TextureRect] = []
 var _play_area: Control
 var _paused_label: Label
@@ -215,6 +216,9 @@ func _on_resolved(_token_id: int, success: bool, weight: int) -> void:
 	else:
 		cue_id = str(_root_data.get("cues", {}).get("fail", "sfx_ui_cancel"))
 	_play_cue(cue_id)
+	if _fx_layer != null and _view != null:
+		var local: Vector2 = _view.feedback_pos(success, weight)
+		MinigameKit.spawn_resolve_fx(_fx_layer, local, success, weight)
 	if _view != null:
 		_view.queue_redraw()
 
@@ -229,7 +233,7 @@ func _build_ui() -> void:
 	_add_nine_patch("Frame", _MG_TEX("frame_720x448.png"), _rect("frame", offset), Vector4(24, 24, 24, 24))
 	_add_texture_rect("TitlePlate", _MG_TEX("title_plate_312x46.png"), _rect("title_sprite", offset))
 	var title_plate_rect: Rect2 = _rect("title_plate", offset)
-	var title_lbl := _make_label("Title", _title_text(), 18, Color(0.93, 0.86, 0.62))
+	var title_lbl := _make_label("Title", _title_text(), 18, MinigameKit.WOOD_LABEL)
 	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title_lbl.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
@@ -250,12 +254,15 @@ func _build_ui() -> void:
 	header.size = header_rect.size
 	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.add_child(header)
-	_success_label = _make_label("Successes", "%s: 0" % MinigameCatalog.text("mg_successes"), 16, Color(0.93, 0.86, 0.62))
-	_success_label.position = Vector2(0, 6)
+	_success_label = _make_label("Successes", "%s: 0" % MinigameCatalog.text("mg_successes"), 16, MinigameKit.INK)
+	_success_label.position = Vector2(20, 6)
+	_success_label.size = Vector2(88, 24)
 	header.add_child(_success_label)
 	_build_pips(header, offset)
-	var pace_lbl := _make_label("PaceCaption", MinigameCatalog.text("mg_pace"), 14, Color(0.78, 0.86, 0.74))
-	pace_lbl.position = Vector2(header_rect.size.x - 200, 6)
+	var pace_lbl := _make_label("PaceCaption", MinigameCatalog.text("mg_pace"), 14, MinigameKit.INK)
+	pace_lbl.position = Vector2(320, 6)
+	pace_lbl.size = Vector2(177, 24)
+	pace_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	header.add_child(pace_lbl)
 	var pace_rect: Rect2 = _rect("pace_meter", offset)
 	var pace_local: Vector2 = pace_rect.position - header_rect.position
@@ -266,14 +273,15 @@ func _build_ui() -> void:
 	track.size = pace_rect.size
 	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header.add_child(track)
-	_pace_fill = ColorRect.new()
+	_pace_fill = TextureRect.new()
 	_pace_fill.name = "PaceFill"
-	_pace_fill.color = Color(0.46, 0.73, 0.28)
+	_pace_fill.texture = MinigameKit.load_tex("pace_fill_good_132x8.png")
+	_pace_fill.stretch_mode = TextureRect.STRETCH_SCALE
 	_pace_fill.position = pace_local + Vector2(2, 2)
-	_pace_fill.size = Vector2(0, pace_rect.size.y - 4)
+	_pace_fill.size = Vector2(0, 8)
 	_pace_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header.add_child(_pace_fill)
-	_pace_value_label = _make_label("PaceValue", "1.0×", 14, Color(0.93, 0.86, 0.62))
+	_pace_value_label = _make_label("PaceValue", "1.0×", 14, MinigameKit.INK)
 	_pace_value_label.position = pace_local + Vector2(pace_rect.size.x + 6, -2)
 	header.add_child(_pace_value_label)
 	_play_area = Control.new()
@@ -283,6 +291,11 @@ func _build_ui() -> void:
 	_play_area.size = pa.size
 	_play_area.clip_contents = true
 	_frame.add_child(_play_area)
+	_fx_layer = Control.new()
+	_fx_layer.name = "FxLayer"
+	_fx_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fx_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_play_area.add_child(_fx_layer)
 	if _game_id == "tap_test":
 		var parchment := ColorRect.new()
 		parchment.color = Color(0.86, 0.78, 0.62, 0.35)
@@ -298,15 +311,8 @@ func _build_ui() -> void:
 			bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 			_play_area.add_child(bg)
 	var footer_rect: Rect2 = _rect("footer", offset)
-	var hint_key: String = str(_cfg.get("hint_key", ""))
-	if _game_id == "tap_test":
-		hint_key = ""
-	var hint_text: String = MinigameCatalog.text(hint_key) if hint_key != "" else "Space — tap the lit target."
-	var hint := _make_label("Hint", hint_text, 14, Color(0.78, 0.86, 0.74))
-	hint.position = footer_rect.position + Vector2(20, 8)
-	hint.size = Vector2(footer_rect.size.x - 40, 24)
-	_frame.add_child(hint)
-	var tag := _make_label("FeelTag", MinigameCatalog.text("mg_feel_test_tag"), 12, Color(0.68, 0.72, 0.66))
+	_build_footer_hint(footer_rect)
+	var tag := _make_label("FeelTag", MinigameCatalog.text("mg_feel_test_tag"), 12, MinigameKit.INK)
 	tag.position = footer_rect.position + Vector2(footer_rect.size.x - 220, 10)
 	tag.size = Vector2(200, 20)
 	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -395,7 +401,7 @@ func _build_stop_button(rect: Rect2) -> void:
 	btn.texture_disabled = load(_MG_TEX("stop_button_disabled_104x28.png")) as Texture2D
 	btn.add_to_group("minigame_ui")
 	btn.pressed.connect(func() -> void: close(&"stop"))
-	var lbl := _make_label("StopLabel", MinigameCatalog.text("mg_stop"), 14, Color(0.93, 0.86, 0.62))
+	var lbl := _make_label("StopLabel", MinigameCatalog.text("mg_stop"), 14, MinigameKit.WOOD_LABEL)
 	lbl.position = Vector2(8, 4)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(lbl)
@@ -403,6 +409,7 @@ func _build_stop_button(rect: Rect2) -> void:
 	cap.texture = load(_MG_TEX("keycap_esc.png")) as Texture2D
 	cap.position = Vector2(rect.size.x - 28, 4)
 	cap.custom_minimum_size = Vector2(24, 20)
+	cap.stretch_mode = TextureRect.STRETCH_KEEP
 	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(cap)
 	_frame.add_child(btn)
@@ -418,21 +425,35 @@ func _update_hud() -> void:
 	var track_w: float = _rect("pace_meter", _viewport_offset()).size.x - 4.0
 	var frac: float = (pace - 1.0) / maxf(max_pace - 1.0, 0.001)
 	_pace_fill.size.x = maxf(0.0, track_w * clampf(frac, 0.0, 1.0))
-	_pace_fill.color = Color(0.95, 0.76, 0.31) if pace >= 2.95 else Color(0.46, 0.73, 0.28)
+	var gold_fill: bool = pace >= 2.95
+	var fill_path: String = "pace_fill_gold_132x8.png" if gold_fill else "pace_fill_good_132x8.png"
+	if _pace_fill.texture == null or not str(_pace_fill.texture.resource_path).ends_with(fill_path):
+		_pace_fill.texture = MinigameKit.load_tex(fill_path)
 	var results: Array = _core.last_results
 	var offset: int = maxi(0, results.size() - _pip_nodes.size())
 	for i: int in _pip_nodes.size():
 		var pip: TextureRect = _pip_nodes[i]
 		var idx: int = offset + i
 		var tex: Texture2D = pip.get_meta("empty") as Texture2D
+		var code: int = -1
 		if idx < results.size():
-			var code: int = int(results[idx])
+			code = int(results[idx])
 			if code == 2:
 				tex = pip.get_meta("perfect") as Texture2D
 			elif code == 1:
 				tex = pip.get_meta("good") as Texture2D
 			elif code == 0:
 				tex = pip.get_meta("miss") as Texture2D
+		var prev: Texture2D = pip.texture
+		if tex != prev and (code == 1 or code == 2):
+			MinigameKit.spawn_strip_fx(
+				pip,
+				MinigameKit.tex("pip_pop_16x16_3f.png"),
+				16,
+				3,
+				1.0 / 0.05,
+				Vector2(4, 4),
+			)
 		pip.texture = tex
 
 
@@ -452,7 +473,56 @@ func _rect(key: String, offset: Vector2) -> Rect2:
 
 
 static func _MG_TEX(file: String) -> String:
-	return "res://assets/art/ui/minigames/placeholder/kit/%s" % file
+	return MinigameKit.tex(file)
+
+
+func _build_footer_hint(footer_rect: Rect2) -> void:
+	var row := HBoxContainer.new()
+	row.name = "HintRow"
+	row.position = footer_rect.position + Vector2(16, 6)
+	row.size = Vector2(footer_rect.size.x - 32, 24)
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frame.add_child(row)
+	var hint_key: String = str(_cfg.get("hint_key", ""))
+	if _game_id == "tap_test":
+		var cap := _hint_glyph("keycap_space_40x15.png")
+		row.add_child(cap)
+		var lbl := _make_label("HintText", "— tap the lit target.", 14, MinigameKit.INK)
+		row.add_child(lbl)
+		return
+	if hint_key != "":
+		var short := _hint_blurb(hint_key)
+		if short != "":
+			var lbl := _make_label("HintText", short, 14, MinigameKit.INK)
+			row.add_child(lbl)
+	for glyph_file: String in MinigameKit.hint_glyph_files(_game_id):
+		row.add_child(_hint_glyph(glyph_file))
+
+
+func _hint_glyph(file: String) -> TextureRect:
+	var tr := TextureRect.new()
+	tr.texture = MinigameKit.load_tex(file)
+	tr.stretch_mode = TextureRect.STRETCH_KEEP
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tex: Texture2D = tr.texture
+	if tex != null:
+		tr.custom_minimum_size = tex.get_size()
+	return tr
+
+
+func _hint_blurb(hint_key: String) -> String:
+	var raw: String = MinigameCatalog.text(hint_key)
+	if raw == "" or raw == hint_key:
+		return ""
+	# Drop the [DRAFT] prefix and parenthetical key legend; glyphs carry the keys.
+	var t: String = raw
+	if t.begins_with("[DRAFT] "):
+		t = t.substr(8)
+	var p: int = t.find(" (")
+	if p >= 0:
+		t = t.substr(0, p)
+	return t.strip_edges() + " "
 
 
 func _add_nine_patch(node_name: String, tex_path: String, rect: Rect2, margin: Vector4) -> void:
