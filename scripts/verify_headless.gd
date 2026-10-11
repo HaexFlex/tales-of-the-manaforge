@@ -8293,9 +8293,27 @@ func _mg_footer_feel_stop_ok(host: MinigameHost, game_id: String) -> int:
 	var failed: int = 0
 	var feel: Control = host.get_node_or_null("FrameRoot/FeelTag") as Control
 	var stop: Control = host.get_node_or_null("FrameRoot/StopButton") as Control
-	failed += _assert(feel != null and stop != null, "%s: footer feel tag and Stop exist" % game_id)
+	var hint: Control = host.get_node_or_null("FrameRoot/HintRow") as Control
+	failed += _assert(feel != null and stop != null and hint != null, "%s: footer hint, feel tag and Stop exist" % game_id)
 	if feel != null and stop != null:
 		failed += _assert(not _mg_controls_intersect(feel.get_rect(), stop.get_rect()), "%s: feel tag does not intersect Stop" % game_id)
+	if hint != null and feel != null:
+		failed += _assert(not _mg_controls_intersect(hint.get_rect(), feel.get_rect()), "%s: HintRow does not intersect feel tag" % game_id)
+	return failed
+
+
+func _mg_pace_value_in_header_ok(host: MinigameHost, game_id: String) -> int:
+	var failed: int = 0
+	var header: Control = host.get_node_or_null("FrameRoot/Header") as Control
+	var pace_val: Control = host.get_node_or_null("FrameRoot/Header/PaceValue") as Control
+	failed += _assert(header != null and pace_val != null, "%s: pace value in header" % game_id)
+	if header != null and pace_val != null:
+		var bounds: Rect2 = Rect2(Vector2.ZERO, header.size)
+		var pr: Rect2 = pace_val.get_rect()
+		failed += _assert(bounds.encloses(pr), "%s: pace value fits inside header" % game_id)
+		var meter: Control = header.get_node_or_null("PaceMeter") as Control
+		if meter != null:
+			failed += _assert(pr.position.x >= meter.get_rect().end.x - 1.0, "%s: pace value sits right of meter" % game_id)
 	return failed
 
 
@@ -8340,6 +8358,7 @@ func _minigame_kit_ok(tree_root: Window, save_service: Node) -> int:
 	failed += _assert(frame_np != null and str(frame_np.texture.resource_path).find("/kit/") >= 0, "frame texture from kit/")
 	failed += _mg_header_layout_pairwise_ok(host, "tap_test")
 	failed += _mg_footer_feel_stop_ok(host, "tap_test")
+	failed += _mg_pace_value_in_header_ok(host, "tap_test")
 	var succ_lbl: Label = host.get_node_or_null("FrameRoot/Header/Successes") as Label
 	if succ_lbl != null:
 		var ink: Color = succ_lbl.get_theme_color("font_color")
@@ -8356,6 +8375,7 @@ func _minigame_kit_ok(tree_root: Window, save_service: Node) -> int:
 		await process_frame
 		failed += _mg_header_layout_pairwise_ok(host, game_id)
 		failed += _mg_footer_feel_stop_ok(host, game_id)
+		failed += _mg_pace_value_in_header_ok(host, game_id)
 	var esc_cap: TextureRect = null
 	var stop_btn: TextureButton = host.get_node_or_null("FrameRoot/StopButton") as TextureButton
 	if stop_btn != null:

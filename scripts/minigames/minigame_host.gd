@@ -26,6 +26,8 @@ var _pace_track: TextureRect
 var _pace_fill: TextureRect
 var _pip_box: HBoxContainer
 var _feel_tag: Label
+var _hint_row_clip: Control
+var _hint_row: HBoxContainer
 var _fx_layer: Control
 var _pip_nodes: Array[TextureRect] = []
 var _play_area: Control
@@ -281,6 +283,9 @@ func _build_ui() -> void:
 	header.add_child(_pace_fill)
 	_pace_value_label = _make_label("PaceValue", "1.0×", 14, MinigameKit.INK)
 	_pace_value_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_pace_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_pace_value_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_pace_value_label.clip_text = true
 	header.add_child(_pace_value_label)
 	_layout_header_controls(header)
 	_play_area = Control.new()
@@ -318,9 +323,10 @@ func _build_ui() -> void:
 	_feel_tag = _make_label("FeelTag", MinigameCatalog.text("mg_feel_test_tag"), 12, MinigameKit.INK)
 	_feel_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_feel_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_layout_footer_feel_tag(footer_rect, stop_rect)
 	_frame.add_child(_feel_tag)
+	_layout_footer_controls(footer_rect, stop_rect)
 	_build_stop_button(stop_rect)
+	call_deferred("_trim_footer_flavour")
 	_paused_label = _make_label("PausedLabel", MinigameCatalog.text("mg_paused"), 20, Color(0.93, 0.86, 0.62))
 	_paused_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_paused_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -407,9 +413,11 @@ func _layout_header_controls(header: Control) -> void:
 	_pace_track.position = pace_local
 	_pace_track.size = pace_rect.size
 	_pace_fill.position = pace_local + Vector2(2, 2)
-	var pace_val_w: float = 44.0
+	var meter_right: float = pace_local.x + pace_rect.size.x
+	var pace_val_x: float = meter_right + 4.0
+	var pace_val_w: float = maxf(28.0, header.size.x - PAD - pace_val_x)
+	_pace_value_label.position = Vector2(pace_val_x, 0)
 	_pace_value_label.size = Vector2(pace_val_w, header_h)
-	_pace_value_label.position = pace_local + Vector2(pace_rect.size.x + 6, 0)
 	var pace_cap_w: float = 52.0
 	var pace_cap_x: float = pace_local.x - PAD - pace_cap_w
 	_pace_caption.position = Vector2(pace_cap_x, 0)
@@ -445,14 +453,47 @@ func _layout_header_controls(header: Control) -> void:
 	_pip_box.position = Vector2(pip_x, _pip_box.position.y)
 
 
-func _layout_footer_feel_tag(footer_rect: Rect2, stop_rect: Rect2) -> void:
+func _layout_footer_controls(footer_rect: Rect2, stop_rect: Rect2) -> void:
 	const GAP: float = 10.0
-	var tag_w: float = 200.0
+	const TAG_W: float = 200.0
 	var tag_h: float = 20.0
-	var tag_x: float = stop_rect.position.x - GAP - tag_w
+	var tag_x: float = stop_rect.position.x - GAP - TAG_W
 	var tag_y: float = footer_rect.position.y + (footer_rect.size.y - tag_h) * 0.5
 	_feel_tag.position = Vector2(tag_x, tag_y)
-	_feel_tag.size = Vector2(tag_w, tag_h)
+	_feel_tag.size = Vector2(TAG_W, tag_h)
+	if _hint_row_clip != null:
+		var row_left: float = _hint_row_clip.position.x
+		var max_right: float = tag_x - GAP
+		var row_w: float = maxf(80.0, max_right - row_left)
+		var row_h: float = _hint_row_clip.size.y
+		_hint_row_clip.size = Vector2(row_w, row_h)
+
+
+func _trim_footer_flavour() -> void:
+	if _hint_row == null or _hint_row_clip == null:
+		return
+	var flavour: Label = _hint_row.get_node_or_null("Flavour") as Label
+	var sep: Label = _hint_row.get_node_or_null("FlavourSep") as Label
+	if flavour == null:
+		return
+	var sep_w: float = 16.0 if sep != null else 0.0
+	var fixed_w: float = 0.0
+	var sep_px: int = int(_hint_row.get_theme_constant("separation", "HBoxContainer"))
+	for child: Node in _hint_row.get_children():
+		if child == flavour or child == sep:
+			continue
+		if child is Control:
+			fixed_w += (child as Control).get_combined_minimum_size().x + float(sep_px)
+	var room: float = _hint_row_clip.size.x - fixed_w - sep_w
+	if room < 40.0:
+		flavour.visible = false
+		if sep != null:
+			sep.visible = false
+	else:
+		flavour.visible = true
+		flavour.custom_minimum_size.x = 0.0
+		if sep != null:
+			sep.visible = true
 
 
 func _build_stop_button(rect: Rect2) -> void:
@@ -541,15 +582,21 @@ static func _MG_TEX(file: String) -> String:
 	return MinigameKit.tex(file)
 
 
-func _build_footer_hint(footer_rect: Rect2, stop_rect: Rect2) -> void:
-	var row := HBoxContainer.new()
-	row.name = "HintRow"
-	row.position = footer_rect.position + Vector2(16, 6)
-	var max_w: float = stop_rect.position.x - footer_rect.position.x - 24.0
-	row.size = Vector2(maxf(120.0, max_w), 24)
-	row.add_theme_constant_override("separation", 6)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_frame.add_child(row)
+func _build_footer_hint(footer_rect: Rect2, _stop_rect: Rect2) -> void:
+	_hint_row_clip = Control.new()
+	_hint_row_clip.name = "HintRow"
+	_hint_row_clip.position = footer_rect.position + Vector2(16, 6)
+	_hint_row_clip.size = Vector2(120.0, 24)
+	_hint_row_clip.clip_contents = true
+	_hint_row_clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_frame.add_child(_hint_row_clip)
+	_hint_row = HBoxContainer.new()
+	_hint_row.name = "HintHBox"
+	_hint_row.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hint_row.add_theme_constant_override("separation", 6)
+	_hint_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_row_clip.add_child(_hint_row)
+	var row: HBoxContainer = _hint_row
 	var hint_key: String = str(_cfg.get("hint_key", ""))
 	if _game_id == "tap_test":
 		var cap := _hint_glyph("keycap_space_40x15.png")
