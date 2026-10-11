@@ -513,8 +513,8 @@ func _chosen_depth() -> int:
 
 
 func _on_fight_at_depth_pressed() -> void:
-	## Same open_arena() as the arena button. Echo and a reach fight still refuse it, and an
-	## open reach fight is refused here too, since open_arena() keeps an overlay that is already up.
+	## Same open_arena() as the arena button. Echo and a reach fight refuse it; the extra checks
+	## keep the test fight off a reach fight's overlay even if open_arena() changes.
 	if EchoChamber.in_battle or Reach.fight_active() or not BattleView.open_arena():
 		_set_status("Battle arena stays closed while Echo or a reach fight is open.")
 		return

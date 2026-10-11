@@ -13447,10 +13447,15 @@ func _battle_echo_exclusive(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(bool(BattleViewScript.open_arena()), "the arena opens again after Echo")
 	BattleViewScript.close_arena()
 	await process_frame
+	## Seed 1's opening volley does not end the run (same pin as REACH_DEPTH_ASCEND_OK).
+	reach.call("set_test_run_seed", 1)
 	failed += _assert(str(reach.call("depart", 1, 1.0, "hold", "manual")) == "ok", "manual depart for the arena lock")
 	failed += _assert(bool(reach.call("fight_active")), "manual depart opened a reach fight")
+	## Since job 26 the manual fight itself lives in the BattleView overlay.
+	var reach_views: int = get_nodes_in_group("battle_overlay").size()
 	failed += _assert(not bool(BattleViewScript.open_arena()), "a reach fight refuses the arena")
-	failed += _assert(not bool(BattleViewScript.is_open()), "a refused arena adds no overlay")
+	failed += _assert(get_nodes_in_group("battle_overlay").size() == reach_views, "a refused arena adds no overlay")
+	failed += _assert(bool(reach.call("fight_active")) and reach.call("manual_fight") != null, "a refused arena leaves the reach fight")
 	game_state.call("reset_for_new_game")
 	await process_frame
 	paused = false

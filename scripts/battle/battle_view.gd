@@ -172,10 +172,12 @@ static func open_reach_fight(fight: FightState) -> bool:
 static func open_arena() -> bool:
 	## The call the Experimental "Battle arena (test)" button makes.
 	## A second call keeps the one overlay. Echo and a manual reach fight refuse it.
-	if is_open():
-		return true
+	## Refuse first: a manual reach fight already owns the overlay (job 26), so an
+	## is_open() short-circuit would report the test arena as opened over it.
 	if _refuses_open():
 		return false
+	if is_open():
+		return true
 	var packed: PackedScene = load(SCENE_PATH) as PackedScene
 	if packed == null:
 		push_error("BattleView: arena scene missing")
