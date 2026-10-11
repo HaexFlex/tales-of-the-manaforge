@@ -770,6 +770,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BOARD_CLOSE") == "1":
+		var board_close_only: int = await _board_close_ok(tree_root, game_state, save_service)
+		if board_close_only > 0:
+			print("BOARD_CLOSE_FAIL: %d" % board_close_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BRAMBLE_HIDDEN") == "1":
 		var bramble_hidden_only: int = await _bramble_hidden_until_join_ok(tree_root, game_state, save_service)
 		if bramble_hidden_only > 0:
@@ -3438,6 +3447,7 @@ func _run() -> void:
 	failed += _idle_rest_slots(tree_root, game_state, save_service)
 	failed += _idle_boss_payback(tree_root, game_state, save_service)
 	failed += _board_v4_ok(tree_root, game_state, save_service)
+	failed += await _board_close_ok(tree_root, game_state, save_service)
 	failed += _board_companion_only_ok(tree_root, game_state, save_service)
 	failed += await _end_panel_ok(tree_root, game_state, save_service)
 	failed += await _manual_overwhelmed_ok(tree_root, game_state, save_service)
@@ -7845,6 +7855,74 @@ func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node)
 	if failed == 0:
 		print("CRAFT_DURATION_LABEL_OK")
 		print("WORKBENCH_BAR_TOOLTIP_OK")
+	return failed
+
+
+func _board_close_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "board close Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	var main_packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	failed += _assert(main_packed != null, "main for pause chain")
+	var main_live: Node = main_packed.instantiate() if main_packed != null else null
+	if main_live != null:
+		tree_root.add_child(main_live)
+		await process_frame
+	var pause_menu: Node = main_live.get_node_or_null("PauseMenu") if main_live != null else null
+	failed += _assert(pause_menu != null, "PauseMenu on main")
+	var board: Node = main_live.get_node_or_null("World/ExpeditionBoard") if main_live != null else null
+	failed += _assert(board != null, "hub ExpeditionBoard")
+	if board == null:
+		if main_live != null:
+			main_live.free()
+		return failed
+	board.call("open_shell")
+	failed += _assert(bool(board.call("shell_open")), "shell opens")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var close_btn: Button = shell.find_child("CloseButton", true, false) as Button if shell != null else null
+	failed += _assert(close_btn != null and close_btn.text == "Close", "Close button label")
+	if close_btn != null:
+		close_btn.emit_signal("pressed")
+	failed += _assert(not bool(board.call("shell_open")), "Close button closes shell")
+	board.call("open_shell")
+	failed += _assert(bool(board.call("shell_open")), "shell reopens for Esc")
+	var esc: InputEventKey = InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	if pause_menu != null:
+		pause_menu.call("_unhandled_input", esc)
+	failed += _assert(not bool(board.call("shell_open")), "Esc closes shell via pause chain")
+	failed += _assert(pause_menu == null or not bool(pause_menu.call("is_open")), "Esc does not open pause")
+	game_state.call("set_resource", &"essence", 40)
+	reach.call("set_test_run_seed", 41)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})) == "ok", "idle run for board close")
+	failed += _assert(bool(reach.get("running")), "reach running")
+	board.call("open_shell")
+	failed += _assert(bool(board.call("shell_open")), "shell opens mid-run")
+	if close_btn != null:
+		close_btn.emit_signal("pressed")
+	failed += _assert(not bool(board.call("shell_open")), "Close works mid-run")
+	board.call("open_shell")
+	esc.pressed = true
+	if pause_menu != null:
+		pause_menu.call("_unhandled_input", esc)
+	failed += _assert(not bool(board.call("shell_open")), "Esc works mid-run")
+	if main_live != null and is_instance_valid(main_live):
+		main_live.free()
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("BOARD_CLOSE_OK")
 	return failed
 
 

@@ -73,6 +73,7 @@ var _skip_btn: Button
 var _rush_btn: Button
 var _simulate_btn: Button
 var _simulate_result: Label
+var _close_btn: Button
 var _sim_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var last_sim: Dictionary = {}
 
@@ -107,6 +108,14 @@ func _exit_tree() -> void:
 	if _layer != null and is_instance_valid(_layer):
 		_layer.queue_free()
 	_layer = null
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not shell_open():
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		close_shell()
+		get_viewport().set_input_as_handled()
 
 
 func _fit_art() -> void:
@@ -413,6 +422,8 @@ func open_shell() -> void:
 func close_shell() -> void:
 	if _layer:
 		_layer.visible = false
+	if _panel != null and is_instance_valid(_panel):
+		_panel.visible = false
 	GameAudio.play_ui_close()
 
 
@@ -542,6 +553,13 @@ func _ensure_shell() -> void:
 	_depart.disabled = true
 	_panel.add_child(_depart)
 	_depart.pressed.connect(_on_depart)
+	_close_btn = Button.new()
+	_close_btn.name = "CloseButton"
+	_close_btn.text = "Close"
+	_close_btn.position = Vector2(400, 616)
+	_close_btn.size = Vector2(160, 40)
+	_panel.add_child(_close_btn)
+	_close_btn.pressed.connect(close_shell)
 	_skip_btn = Button.new()
 	_skip_btn.name = "SkipRoom"
 	_skip_btn.text = "Skip room"

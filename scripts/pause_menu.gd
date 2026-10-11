@@ -208,6 +208,20 @@ func close_standalone() -> void:
 	visible = false
 
 
+func _expedition_board_open() -> bool:
+	for node: Node in get_tree().get_nodes_in_group("expedition_board"):
+		if node.has_method("shell_open") and bool(node.call("shell_open")):
+			return true
+	return false
+
+
+func _close_expedition_board() -> void:
+	for node: Node in get_tree().get_nodes_in_group("expedition_board"):
+		if node.has_method("close_shell"):
+			node.call("close_shell")
+			return
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event
@@ -238,6 +252,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					hud.call("close_bench")
 				elif hud != null and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 					hud.call("close_backpack")
+				elif _expedition_board_open():
+					_close_expedition_board()
 				else:
 					open_pause()
 			get_viewport().set_input_as_handled()
