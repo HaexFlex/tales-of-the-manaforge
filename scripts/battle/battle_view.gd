@@ -116,7 +116,15 @@ const SPEED_BUTTON_POS: Vector2 = Vector2(
 	CLOSE_BUTTON_RECT.position.x - 4.0 - SPEED_BUTTON_SIZE.x - SPEED_BUTTON_PITCH * 2.0,
 	12.0,
 )
+const TWIST_CHIP_POS: Vector2 = Vector2(142.0, 20.0)
+const TWIST_CHIP_SIZE: Vector2 = Vector2(12.0, 12.0)
 const TEST_FIGHT_BAR_GAP: float = 8.0
+const STATUS_ICON_STEP: float = 13.0
+const STATUS_ICON_SIZE: Vector2 = Vector2(12.0, 12.0)
+const MAX_STATUS_ICONS: int = 3
+const BOSS_CROWN_POS: Vector2 = Vector2(-15.0, 2.0)
+const KEYCAP_POS: Vector2 = Vector2(141.0, 12.0)
+const KEYCAP_PRESS_OFFSET: float = 2.0
 ## Bottom bar: the six action buttons (3 x 2) and the battle log. Nothing else.
 const BOTTOM_BAR_RECT: Rect2 = Rect2(0.0, 584.0, 1280.0, 136.0)
 const ACTION_MENU_POS: Vector2 = Vector2(24.0, 600.0)
@@ -184,6 +192,8 @@ var _round_banner: Control = null
 var _depth_hud_label: Label = null
 var _round_hud_label: Label = null
 var _fight_depth: int = 1
+var _twist_chip: TextureRect = null
+var _action_buttons: Array[Button] = []
 var _log_reveal_count: int = 0
 var _advance_after_playback: bool = false
 var _reach_mode: bool = false
@@ -741,6 +751,7 @@ func show_fight(fight: FightState) -> void:
 
 
 func refresh_fight(fight: FightState) -> void:
+	_fight = fight
 	var snapshot: Dictionary = fight.to_dict()
 	var rows: Array = snapshot.get("fighters", []) as Array
 	for row_v: Variant in rows:
@@ -751,6 +762,7 @@ func refresh_fight(fight: FightState) -> void:
 		if side == "party" or side == "beast":
 			_refresh_plate(row)
 		_refresh_fighter_visual(row)
+	_refresh_twist_chip()
 
 
 func set_active(fighter_id: String) -> void:
@@ -766,7 +778,8 @@ func set_active(fighter_id: String) -> void:
 			var bg: TextureRect = plate_node.get_node_or_null("Bg") as TextureRect
 			if bg != null:
 				var side: String = str(plate_node.get_meta("side", "party"))
-				bg.texture = _load_ui_tex(_plate_bg_file(side, false))
+				var boss: bool = bool(plate_node.get_meta("boss", false))
+				bg.texture = _load_ui_tex(_plate_bg_file(side, false, boss))
 	if fighter_id == "" or _plates == null:
 		return
 	var plate: Control = _plate_for(fighter_id)
@@ -775,7 +788,8 @@ func set_active(fighter_id: String) -> void:
 	var active_bg: TextureRect = plate.get_node_or_null("Bg") as TextureRect
 	if active_bg != null:
 		var side: String = str(plate.get_meta("side", "party"))
-		active_bg.texture = _load_ui_tex(_plate_bg_file(side, true))
+		var boss: bool = bool(plate.get_meta("boss", false))
+		active_bg.texture = _load_ui_tex(_plate_bg_file(side, true, boss))
 	var arrow_tex: Texture2D = _load_ui_tex("active_arrow_13x9.png")
 	var shown: Rect2 = fighter_visible_rect(fighter_id)
 	if arrow_tex != null and shown.size.y > 0.0:
@@ -899,10 +913,136 @@ static func _plate_size_for(side: String) -> Vector2:
 	return PLATE_BEAST_SIZE if side == "beast" else PLATE_PARTY_SIZE
 
 
-static func _plate_bg_file(side: String, active: bool) -> String:
+static func _plate_bg_file(side: String, active: bool, boss: bool = false) -> String:
+	if side == "beast" and boss:
+		return "plate_beast_boss_active_56x20.png" if active else "plate_beast_boss_56x20.png"
 	if side == "beast":
 		return "plate_beast_active_56x20.png" if active else "plate_beast_56x20.png"
 	return "plate_party_active_56x24.png" if active else "plate_party_56x24.png"
+
+
+static func _test_fight_bar_pos() -> Vector2:
+	## Right of the depth plate and the optional twist chip (12×12 at TWIST_CHIP_POS).
+	var x: float = TWIST_CHIP_POS.x + TWIST_CHIP_SIZE.x + TEST_FIGHT_BAR_GAP
+	return Vector2(x, DEPTH_PLATE_POS.y)
+
+
+func _twist_chip_art(twist: String) -> Dictionary:
+	var key: String = twist.strip_edges().to_lower()
+	if key == "":
+		return {}
+	var file: String = ""
+	var tip: String = key.replace("_", " ").capitalize()
+	match key:
+		"thicket":
+			file = "status_slowed_12.png"
+			tip = "Thicket"
+		"fog":
+			file = "status_fogged_12.png"
+			tip = "Fog"
+		"ambush":
+			file = "twist_ambush_12.png"
+			tip = "Ambush"
+		"sap_spring":
+			file = "status_shield_12.png"
+			tip = "Sap Spring"
+		"rich_hollow":
+			file = "twist_rich_hollow_12.png"
+			tip = "Rich Hollow"
+		_:
+			return {}
+	return {"file": file, "tip": tip}
+
+
+func _refresh_twist_chip() -> void:
+	if _twist_chip == null:
+		return
+	var twist: String = _fight.twist if _fight != null else ""
+	var spec: Dictionary = _twist_chip_art(twist)
+	if spec.is_empty():
+		_twist_chip.visible = false
+		_twist_chip.texture = null
+		_twist_chip.tooltip_text = ""
+		return
+	_twist_chip.texture = _load_ui_tex(str(spec.get("file", "")))
+	_twist_chip.visible = _twist_chip.texture != null
+	_twist_chip.tooltip_text = str(spec.get("tip", ""))
+
+
+func _status_icon_files(row: Dictionary) -> Array[String]:
+	var files: Array[String] = []
+	var side: String = str(row.get("side", ""))
+	var status_id: String = str(row.get("status", "active"))
+	var poison_v: Variant = row.get("poison", {})
+	var poison: Dictionary = poison_v as Dictionary if poison_v is Dictionary else {}
+	var poison_left: int = int(poison.get("left", 0))
+	if poison_left > 0:
+		files.append("status_poisoned_12.png")
+	if int(row.get("shield", 0)) > 0:
+		files.append("status_shield_12.png")
+	if bool(row.get("brace", false)):
+		files.append("status_braced_12.png")
+	if bool(row.get("rootbind", false)):
+		files.append("status_rootbind_12.png")
+	if side == "party" and status_id == "ko":
+		files.append("status_ko_12.png")
+	elif side == "beast" and status_id == "calmed":
+		files.append("status_calmed_12.png")
+	var capped: Array[String] = []
+	for i: int in mini(files.size(), MAX_STATUS_ICONS):
+		capped.append(files[i])
+	return capped
+
+
+func _status_icon_tooltip(row: Dictionary, files: Array[String]) -> String:
+	var names: PackedStringArray = []
+	for file: String in files:
+		if file.begins_with("status_poisoned"):
+			names.append(_text("adv_poisoned", "Poisoned"))
+		elif file.begins_with("status_shield"):
+			names.append(_text("adv_shielded", "Shield"))
+		elif file.begins_with("status_braced"):
+			names.append(_text("adv_braced", "Braced"))
+		elif file.begins_with("status_rootbind"):
+			names.append(_text("adv_rootbound", "Rootbound"))
+		elif file.begins_with("status_ko"):
+			names.append(_text("adv_knocked_out", "Knocked out"))
+		elif file.begins_with("status_calmed"):
+			names.append(_text("adv_calmed", "Calmed"))
+	if names.is_empty():
+		return ""
+	return ", ".join(names)
+
+
+func _refresh_status_row(plate: Control, row: Dictionary) -> void:
+	var row_root: Control = plate.get_node_or_null("StatusRow") as Control
+	if row_root == null:
+		return
+	for child: Node in row_root.get_children():
+		row_root.remove_child(child)
+		child.queue_free()
+	var plate_h: float = plate.size.y
+	var files: Array[String] = _status_icon_files(row)
+	for i: int in files.size():
+		var icon := TextureRect.new()
+		icon.name = "Status%d" % i
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.texture = _load_ui_tex(files[i])
+		icon.position = Vector2(2.0 + float(i) * STATUS_ICON_STEP, plate_h + 1.0)
+		icon.size = STATUS_ICON_SIZE
+		row_root.add_child(icon)
+	row_root.tooltip_text = _status_icon_tooltip(row, files)
+
+
+func _bars_hidden_by_status(row: Dictionary) -> bool:
+	var status_id: String = str(row.get("status", "active"))
+	var side: String = str(row.get("side", ""))
+	if side == "party" and status_id == "ko":
+		return true
+	if side == "beast" and status_id == "calmed":
+		return true
+	return false
 
 
 func _load_ui_tex(file_name: String) -> Texture2D:
@@ -1007,12 +1147,14 @@ func _build_plate(row: Dictionary, sole: Vector2, suffix: String) -> void:
 	plate.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	plate.set_meta("fighter_id", fighter_id)
 	plate.set_meta("side", side)
+	var is_boss: bool = side == "beast" and bool(row.get("boss", false))
+	plate.set_meta("boss", is_boss)
 	plate.add_to_group("battle_plate")
 	plate.add_to_group("battle_ui")
 	var bg := TextureRect.new()
 	bg.name = "Bg"
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.texture = _load_ui_tex(_plate_bg_file(side, false))
+	bg.texture = _load_ui_tex(_plate_bg_file(side, false, is_boss))
 	bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	bg.size = plate_size
 	plate.add_child(bg)
@@ -1043,18 +1185,23 @@ func _build_plate(row: Dictionary, sole: Vector2, suffix: String) -> void:
 	var name_width: float = 50.0 if level_text == "" else 38.0
 	plate.add_child(_plate_label("NameLabel", display, Vector2(4.0, 5.0), name_width, HORIZONTAL_ALIGNMENT_LEFT, PLATE_INK))
 	plate.add_child(_plate_label("LevelLabel", level_text, Vector2(44.0, 5.0), 12.0, HORIZONTAL_ALIGNMENT_RIGHT, PLATE_LEVEL_INK))
-	var status := _plate_label("StatusLabel", "", Vector2(2.0, 11.0), plate_size.x - 4.0, HORIZONTAL_ALIGNMENT_CENTER, PLATE_INK)
-	status.visible = false
-	plate.add_child(status)
+	var status_row := Control.new()
+	status_row.name = "StatusRow"
+	status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(status_row)
 	var shield := _plate_label("ShieldLabel", "", Vector2(plate_size.x + 1.0, 5.0), 22.0, HORIZONTAL_ALIGNMENT_LEFT, PLATE_INK)
 	shield.add_theme_color_override("font_outline_color", PLATE_BAR_EDGE)
 	shield.add_theme_constant_override("outline_size", 1)
 	plate.add_child(shield)
-	if bool(row.get("boss", false)):
-		var boss := _plate_label("BossLabel", _text("adv_boss_mark", "Boss"), Vector2(0.0, plate_size.y), plate_size.x, HORIZONTAL_ALIGNMENT_CENTER, Color(0.98, 0.84, 0.3, 1.0))
-		boss.add_theme_color_override("font_outline_color", PLATE_BAR_EDGE)
-		boss.add_theme_constant_override("outline_size", 1)
-		plate.add_child(boss)
+	if is_boss:
+		var crown := TextureRect.new()
+		crown.name = "BossCrown"
+		crown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		crown.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		crown.texture = _load_ui_tex("boss_crown_16.png")
+		crown.position = BOSS_CROWN_POS
+		crown.size = Vector2(16.0, 16.0)
+		plate.add_child(crown)
 	_plates.add_child(plate)
 	_refresh_plate(row)
 
@@ -1159,18 +1306,35 @@ func _refresh_plate(row: Dictionary) -> void:
 	if weave_bar != null:
 		weave_bar.max_value = maxi(weave_bar.max_value, weave)
 		weave_bar.value = weave
-	var status_text: String = _party_status_text(status_id) if side == "party" else _beast_status_text(status_id)
-	var status: Label = plate.get_node_or_null("StatusLabel") as Label
-	if status != null:
-		status.text = status_text
-		status.visible = status_text != ""
+	var hide_bars: bool = _bars_hidden_by_status(row)
 	if hp_bar != null:
-		hp_bar.visible = status_text == ""
+		hp_bar.visible = not hide_bars
 	if weave_bar != null:
-		weave_bar.visible = status_text == ""
+		weave_bar.visible = not hide_bars
 	var shield: Label = plate.get_node_or_null("ShieldLabel") as Label
 	if shield != null:
 		shield.text = _shield_text(int(row.get("shield", 0)))
+	var fighter_id: String = str(row.get("id", ""))
+	var is_boss: bool = side == "beast" and bool(row.get("boss", false))
+	plate.set_meta("boss", is_boss)
+	var bg: TextureRect = plate.get_node_or_null("Bg") as TextureRect
+	if bg != null:
+		var active: bool = fighter_id == _active_fighter_id
+		if not active:
+			bg.texture = _load_ui_tex(_plate_bg_file(side, false, is_boss))
+	var crown: TextureRect = plate.get_node_or_null("BossCrown") as TextureRect
+	if is_boss and crown == null:
+		crown = TextureRect.new()
+		crown.name = "BossCrown"
+		crown.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		crown.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		crown.texture = _load_ui_tex("boss_crown_16.png")
+		crown.position = BOSS_CROWN_POS
+		crown.size = Vector2(16.0, 16.0)
+		plate.add_child(crown)
+	if crown != null:
+		crown.visible = is_boss
+	_refresh_status_row(plate, row)
 	var name_label: Label = plate.get_node_or_null("NameLabel") as Label
 	var tip: String = "%s · %s" % [name_label.text if name_label != null else "", _hp_line(hp, max_hp)]
 	if side == "party":
@@ -1388,6 +1552,17 @@ func _action_button(slot: int, button_name: String, label: String, icon_path: St
 	button.add_to_group("battle_ui")
 	button.set_meta("style_normal", button.get_theme_stylebox("normal"))
 	button.set_meta("style_hover", button.get_theme_stylebox("hover"))
+	var keycap := TextureRect.new()
+	keycap.name = "Keycap"
+	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var keycap_file: String = "keycap_%d_14x15.png" % (slot + 1)
+	keycap.texture = _load_ui_tex(keycap_file)
+	keycap.position = KEYCAP_POS
+	if keycap.texture != null:
+		keycap.size = keycap.texture.get_size()
+	button.add_child(keycap)
+	button.set_meta("keycap", keycap)
 	_action_menu.add_child(button)
 	_sync_action_button_style(button)
 	return button
@@ -1410,6 +1585,56 @@ func _sync_action_button_style(button: Button) -> void:
 			button.add_theme_stylebox_override("hover", hover_sb)
 	button.add_theme_color_override("icon_disabled_color", ICON_DISABLED)
 	button.add_theme_color_override("icon_normal_color", Color.WHITE)
+	var keycap: TextureRect = button.get_meta("keycap") as TextureRect if button.has_meta("keycap") else null
+	if keycap != null:
+		var press_y: float = KEYCAP_PRESS_OFFSET
+		if button.toggle_mode and button.button_pressed:
+			press_y = KEYCAP_PRESS_OFFSET
+		elif button.is_pressed():
+			press_y = KEYCAP_PRESS_OFFSET
+		keycap.position = KEYCAP_POS + Vector2(0.0, press_y)
+
+
+func _action_hotkey_buttons() -> Array[Button]:
+	return [_strike_button, _ability_button, _salve_button, _brace_button, _flee_button, _strike_for_me_toggle]
+
+
+func _action_hotkeys_blocked() -> bool:
+	if _target_mode != "":
+		return true
+	if _ability_row != null and _ability_row.visible:
+		return true
+	return false
+
+
+func _can_use_action_hotkeys() -> bool:
+	if _fight == null or _fight.outcome() != "":
+		return false
+	if _action_menu == null or not _action_menu.visible:
+		return false
+	if _action_hotkeys_blocked():
+		return false
+	var actor_id: String = _fight.current_actor()
+	if actor_id == "":
+		return false
+	return str(_fight.fighter_dict(actor_id).get("side", "")) == "party"
+
+
+func _try_action_hotkey(slot: int) -> bool:
+	if slot < 0 or slot > 5:
+		return false
+	if not _can_use_action_hotkeys():
+		return false
+	var buttons: Array[Button] = _action_hotkey_buttons()
+	var button: Button = buttons[slot] if slot < buttons.size() else null
+	if button == null or not button.is_visible_in_tree() or button.disabled:
+		return false
+	if slot == 5:
+		button.button_pressed = not button.button_pressed
+		button.emit_signal("toggled", button.button_pressed)
+		return true
+	button.emit_signal("pressed")
+	return true
 
 
 func _on_ability_pressed() -> void:
@@ -1436,6 +1661,15 @@ func _build_top_bar() -> void:
 	_depth_hud_label = _wood_label("DepthText", "Depth 1", Rect2(Vector2.ZERO, DEPTH_PLATE_SIZE))
 	_depth_plate.add_child(_depth_hud_label)
 	_arena.add_child(_depth_plate)
+	_twist_chip = TextureRect.new()
+	_twist_chip.name = "TwistChip"
+	_twist_chip.position = TWIST_CHIP_POS
+	_twist_chip.size = TWIST_CHIP_SIZE
+	_twist_chip.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_twist_chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	_twist_chip.visible = false
+	_twist_chip.add_to_group("battle_ui")
+	_arena.add_child(_twist_chip)
 	_round_banner = Control.new()
 	_round_banner.name = "RoundBanner"
 	_round_banner.position = ROUND_BANNER_POS
@@ -1463,14 +1697,12 @@ func _refresh_fight_hud() -> void:
 			_round_hud_label.text = _text("adv_log_round", "Round %d" % round_n, {"round": round_n})
 		else:
 			_round_hud_label.text = ""
+	_refresh_twist_chip()
 
 
 func _layout_top_chrome() -> void:
 	if _test_fight_bar != null:
-		_test_fight_bar.position = Vector2(
-			DEPTH_PLATE_POS.x + DEPTH_PLATE_SIZE.x + TEST_FIGHT_BAR_GAP,
-			DEPTH_PLATE_POS.y,
-		)
+		_test_fight_bar.position = _test_fight_bar_pos()
 	if _close_button != null:
 		_close_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		_close_button.offset_left = CLOSE_BUTTON_RECT.position.x
@@ -1487,7 +1719,7 @@ func _build_test_fight_bar() -> void:
 		return
 	_test_fight_bar = HBoxContainer.new()
 	_test_fight_bar.name = "TestFightBar"
-	_test_fight_bar.position = Vector2(DEPTH_PLATE_POS.x + DEPTH_PLATE_SIZE.x + TEST_FIGHT_BAR_GAP, DEPTH_PLATE_POS.y)
+	_test_fight_bar.position = _test_fight_bar_pos()
 	_test_fight_bar.add_theme_constant_override("separation", 8)
 	var depth_label := Label.new()
 	depth_label.text = "Depth"
@@ -1656,6 +1888,7 @@ func _build_fight_hud() -> void:
 	_action_menu.size = Vector2(ACTION_BUTTON_PITCH.x * 2.0 + ACTION_BUTTON_SIZE.x, ACTION_BUTTON_PITCH.y + ACTION_BUTTON_SIZE.y)
 	_action_menu.visible = false
 	_arena.add_child(_action_menu)
+	_action_buttons.clear()
 	# Exactly six fixed slots, 3 x 2: Strike, Ability, Items / Brace, Flee, Strike for me.
 	_strike_button = _action_button(0, "StrikeButton", _text("adv_menu_strike", "Strike"), "res://assets/art/ui/icon_stone_sword.png")
 	_strike_button.pressed.connect(_on_strike_pressed)
@@ -1677,6 +1910,9 @@ func _build_fight_hud() -> void:
 	)
 	if not _strike_for_me_toggle.toggled.is_connected(_on_strike_for_me_toggled):
 		_strike_for_me_toggle.toggled.connect(_on_strike_for_me_toggled)
+	for hotkey_btn: Button in _action_hotkey_buttons():
+		if hotkey_btn != null:
+			_action_buttons.append(hotkey_btn)
 	# Not part of the bottom bar: the ability picker pops up over the arena above the
 	# Ability button, and Idle / Back sit top-left under the test fight bar.
 	var ability_row := HBoxContainer.new()
@@ -2391,7 +2627,13 @@ func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey):
 		return
 	var key: InputEventKey = event as InputEventKey
-	if not key.pressed or key.echo or key.keycode != KEY_ESCAPE:
+	if not key.pressed or key.echo:
+		return
+	if key.keycode >= KEY_1 and key.keycode <= KEY_6:
+		if _try_action_hotkey(int(key.keycode - KEY_1)):
+			get_viewport().set_input_as_handled()
+		return
+	if key.keycode != KEY_ESCAPE:
 		return
 	if _reach_mode:
 		get_viewport().set_input_as_handled()

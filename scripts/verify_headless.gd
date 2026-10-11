@@ -707,6 +707,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BATTLE_ICONS") == "1":
+		var battle_icons_only: int = await _battle_icons(tree_root, game_state, save_service)
+		if battle_icons_only > 0:
+			print("BATTLE_ICONS_FAIL: %d" % battle_icons_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BATTLE_PLATES") == "1":
 		var battle_plates_only: int = await _battle_plates(tree_root, game_state, save_service)
 		if battle_plates_only > 0:
@@ -3440,6 +3449,7 @@ func _run() -> void:
 	failed += _echo_v4_math(tree_root)
 	failed += _echo_v4_parity()
 	failed += await _battle_ui_v7(tree_root, game_state, save_service)
+	failed += await _battle_icons(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -12955,8 +12965,14 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 		var imp_sprite: CanvasItem = imp_a.get_node_or_null("Sprite") as CanvasItem
 		failed += _assert(imp_sprite != null and is_equal_approx(imp_sprite.modulate.a, 0.35), "calmed imp fades")
 	if imp_a_plate != null:
-		var calm: Label = imp_a_plate.get_node_or_null("StatusLabel") as Label
-		failed += _assert(calm != null and calm.text == "Calmed", "imp plate shows Calmed")
+		var calm_row: Node = imp_a_plate.get_node_or_null("StatusRow")
+		var calm_icon: bool = false
+		if calm_row != null:
+			for child: Node in calm_row.get_children():
+				var tr: TextureRect = child as TextureRect
+				if tr != null and str(tr.texture.resource_path).find("status_calmed_12.png") >= 0:
+					calm_icon = true
+		failed += _assert(calm_icon, "imp plate shows Calmed status icon")
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
 	failed += _assert(close_btn != null, "Close button present")
 	if close_btn != null:
@@ -13152,8 +13168,12 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 			if speed_btn != null:
 				failed += _assert(not close_rect.intersects(speed_btn.get_global_rect()), "Close does not cover Speed%dx" % speed_n)
 	var test_bar: Control = view.get_node_or_null("Arena/TestFightBar") as Control
+	var twist_chip: Control = view.get_node_or_null("Arena/TwistChip") as Control
 	if test_bar != null and depth_plate != null:
 		failed += _assert(not test_bar.get_global_rect().intersects(depth_plate.get_global_rect()), "TestFightBar does not overlap DepthPlate")
+		failed += _assert(test_bar.position == BattleViewScript._test_fight_bar_pos(), "TestFightBar sits right of the twist chip slot")
+	if test_bar != null and twist_chip != null and twist_chip.is_visible_in_tree():
+		failed += _assert(not test_bar.get_global_rect().intersects(twist_chip.get_global_rect()), "TestFightBar does not overlap TwistChip")
 	var sample_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_%s" % party_ids[0]) as Control
 	if sample_plate != null:
 		var sample_name: Label = sample_plate.get_node_or_null("NameLabel") as Label
@@ -13224,6 +13244,149 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	paused = false
 	if failed == 0:
 		print("BATTLE_UI_V7_OK")
+	return failed
+
+
+func _battle_icons(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for battle icons")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for icons")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "icons arena is BattleView")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	for n: int in range(1, 7):
+		failed += _assert(ResourceLoader.exists(BattleViewScript.UI_ART_DIR + "keycap_%d_14x15.png" % n), "keycap %d art" % n)
+	var stats: Dictionary = {
+		"might": 8, "arcana": 6, "resilience": 6, "ward": 6,
+		"vitality": 6, "swiftness": 6, "fate": 6, "attack": "physical",
+	}
+	var fight: FightState = FightStateScript.new()
+	var keeper_id: String = fight.add_member("keeper", stats, 0, "front", "keeper")
+	var beast_id: String = fight.add_beast("root_snapper", 0, "front")
+	fight.set_combat_seed(90210)
+	fight.start_fight()
+	fight.controller = "manual"
+	fight.twist = "thicket"
+	view._fight = fight
+	view.call("show_fight", fight)
+	await process_frame
+	var twist: TextureRect = view.get_node_or_null("Arena/TwistChip") as TextureRect
+	failed += _assert(twist != null and twist.is_visible_in_tree(), "twist chip visible on thicket")
+	if twist != null and twist.texture != null:
+		failed += _assert(str(twist.texture.resource_path).find("status_slowed_12.png") >= 0, "thicket twist uses slowed chip art")
+		failed += _assert(twist.tooltip_text == "Thicket", "twist tooltip name")
+	fight.set_boss(beast_id, true)
+	view.call("refresh_fight", fight)
+	await process_frame
+	var beast_plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % beast_id) as Control
+	failed += _assert(beast_plate != null, "boss beast plate")
+	if beast_plate != null:
+		var boss_bg: TextureRect = beast_plate.get_node_or_null("Bg") as TextureRect
+		var crown: TextureRect = beast_plate.get_node_or_null("BossCrown") as TextureRect
+		failed += _assert(boss_bg != null and str(boss_bg.texture.resource_path).find("plate_beast_boss_56x20.png") >= 0, "boss plate texture")
+		failed += _assert(crown != null and crown.visible and crown.texture != null, "boss crown visible")
+		failed += _assert(beast_plate.get_node_or_null("BossLabel") == null, "no Boss text label")
+	var heavy_row: Dictionary = fight.fighter_dict(beast_id)
+	heavy_row["intent"] = {"move": "heavy", "mult": 1}
+	view.call("_refresh_plate", heavy_row)
+	await process_frame
+	var intent_icon: TextureRect = beast_plate.get_node_or_null("IntentMarker/Icon") as TextureRect if beast_plate != null else null
+	failed += _assert(intent_icon != null and str(intent_icon.texture.resource_path).find("intent_heavy_16.png") >= 0, "Heavy intent uses v2 texture")
+	fight.apply_poison(keeper_id, 6)
+	var keeper_row: Dictionary = fight.fighter_dict(keeper_id)
+	view.call("_refresh_plate", keeper_row)
+	await process_frame
+	var party_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_%s" % keeper_id) as Control
+	var status_row: Node = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
+	failed += _assert(status_row != null and status_row.get_child_count() >= 1, "poison status icon appears")
+	if status_row != null and status_row.get_child_count() > 0:
+		var poison_icon: TextureRect = status_row.get_child(0) as TextureRect
+		failed += _assert(str(poison_icon.texture.resource_path).find("status_poisoned_12.png") >= 0, "poison icon file")
+	var turn_guard: int = 0
+	while fight.outcome() == "" and turn_guard < 40:
+		turn_guard += 1
+		if str(fight.fighter_dict(fight.current_actor()).get("side", "")) == "party":
+			break
+		fight.step()
+	fight.step({"kind": "brace"})
+	await process_frame
+	keeper_row = fight.fighter_dict(keeper_id)
+	view.call("_refresh_plate", keeper_row)
+	await process_frame
+	failed += _assert(bool(keeper_row.get("brace", false)), "keeper braced")
+	status_row = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
+	var saw_brace: bool = false
+	if status_row != null:
+		for child: Node in status_row.get_children():
+			var tr: TextureRect = child as TextureRect
+			if tr != null and str(tr.texture.resource_path).find("status_braced_12.png") >= 0:
+				saw_brace = true
+	failed += _assert(saw_brace, "brace icon on plate")
+	while fight.outcome() == "" and str(fight.fighter_dict(fight.current_actor()).get("side", "")) != "party":
+		fight.step()
+	await process_frame
+	view.call("_show_action_menu", fight.current_actor())
+	await process_frame
+	for btn_name: String in ["StrikeButton", "AbilityButton", "SalveButton", "BraceButton", "FleeButton", "StrikeForMeToggle"]:
+		var btn: Button = view.get_node_or_null("Arena/ActionMenu/%s" % btn_name) as Button
+		var cap: TextureRect = btn.get_node_or_null("Keycap") as TextureRect if btn != null else null
+		failed += _assert(cap != null and cap.texture != null, "%s has keycap texture" % btn_name)
+	var before_target: String = str(view.get("_target_mode"))
+	var key1 := InputEventKey.new()
+	key1.keycode = KEY_1
+	key1.pressed = true
+	view._input(key1)
+	await process_frame
+	failed += _assert(str(view.get("_target_mode")) == "strike", "key 1 enters strike targeting (was %s)" % before_target)
+	view.call("_exit_target_mode")
+	await process_frame
+	turn_guard = 0
+	while fight.outcome() == "" and turn_guard < 40:
+		turn_guard += 1
+		if str(fight.fighter_dict(fight.current_actor()).get("side", "")) == "beast":
+			break
+		fight.step({"kind": "brace"})
+	await process_frame
+	var beast_target_before: String = str(view.get("_target_mode"))
+	var key1_beast := InputEventKey.new()
+	key1_beast.keycode = KEY_1
+	key1_beast.pressed = true
+	view._input(key1_beast)
+	await process_frame
+	failed += _assert(str(view.get("_target_mode")) == beast_target_before, "hotkey ignored on beast turn")
+	keeper_row = fight.fighter_dict(keeper_id)
+	var cleared: Dictionary = keeper_row.duplicate(true)
+	cleared["poison"] = {"ticks": [], "left": 0}
+	cleared["brace"] = false
+	view.call("_refresh_plate", cleared)
+	await process_frame
+	status_row = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
+	failed += _assert(status_row != null and status_row.get_child_count() == 0, "status icons clear when poison/brace gone")
+	BattleViewScript.close_arena()
+	await process_frame
+	failed += await _battle_ui_v7(tree_root, game_state, save_service)
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_ICONS_OK")
 	return failed
 
 
