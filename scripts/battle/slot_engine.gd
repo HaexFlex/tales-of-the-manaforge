@@ -79,7 +79,10 @@ static func fight_for_room(party: Array, loadout: Dictionary, room: Array[Dictio
 		var row: String = str(entry.get("row", "front"))
 		var stats_v: Variant = entry.get("stats", {})
 		var stats: Dictionary = stats_v if typeof(stats_v) == TYPE_DICTIONARY else {}
-		fight.add_member(who, stats, index, row, who)
+		var formation_cell: int = -1
+		if entry.has("cell"):
+			formation_cell = int(entry.get("cell", -1))
+		fight.add_member(who, stats, index, row, who, formation_cell)
 		index += 1
 	for beast_row: Dictionary in room:
 		var beast_id: String = fight.add_beast(

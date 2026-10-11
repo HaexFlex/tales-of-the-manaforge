@@ -35,6 +35,8 @@ static func _build_party(raw: Variant) -> Array[Dictionary]:
 			continue
 		entry["member"] = member
 		entry["row"] = "back" if str(entry.get("row", "")) == "back" else "front"
+		if entry.has("cell"):
+			entry["cell"] = clampi(int(entry.get("cell", 1)), 0, 2)
 		entry["stats"] = stats
 		out.append(entry)
 	return out
@@ -95,6 +97,7 @@ static func simulate(cfg: Dictionary, sim_seed: int) -> Dictionary:
 	var essence_payback: int = 0
 	var boss_paid: Array[int] = []
 	var lost: Array[Dictionary] = []
+	var room_log: Array[Dictionary] = []
 
 	while slots_used < rooms_total:
 		rooms_attempted += 1
@@ -110,9 +113,18 @@ static func simulate(cfg: Dictionary, sim_seed: int) -> Dictionary:
 			outcome = "overwhelmed"
 		loadout = fight.loadout.duplicate()
 		slots_used += 1
+		var log_row: Dictionary = {
+			"room": rooms_attempted,
+			"outcome": outcome,
+			"boss": boss,
+		}
+		var loot: Dictionary = {}
+		if outcome == "win":
+			loot = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
+			log_row["loot"] = loot.duplicate()
+		room_log.append(log_row)
 		if outcome == "win":
 			rooms_cleared += 1
-			var loot: Dictionary = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
 			pack.add_all(loot)
 			var exp_mult: int = 2 if boss else 1
 			exp += _room_exp(depth) * exp_mult
@@ -155,5 +167,6 @@ static func simulate(cfg: Dictionary, sim_seed: int) -> Dictionary:
 		"exp": exp,
 		"essence_payback": essence_payback,
 		"items_used": _items_used(loadout_start, loadout),
+		"room_log": room_log,
 		"ms": ms,
 	}

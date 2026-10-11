@@ -20,8 +20,10 @@ const WALK_BOX: Vector2 = Vector2(128, 45)
 const EXCLAIM_OFFSET: Vector2 = Vector2(-5, -151)
 const AMBER_FRAME_SEC: float = 0.10
 const CYAN_FRAME_SEC: float = 0.15
-const ROOM_STEPS: Array[int] = [5, 10, 20, 40]
+const ROOM_MAX: int = 40
 const DEPART_ESSENCE_COST: int = 20
+const SHELL_SCENE: PackedScene = preload("res://scenes/ui/expedition_shell.tscn")
+const BOARD_DIR: String = "res://assets/art/ui/board/"
 ## Stand point south of the feet. The Keeper's feet box (41 px tall) stops against the
 ## board's walk box at +41, so the stand must sit within ARRIVE_DIST of that contact.
 ## At +28 the Keeper stopped 13 px short and never arrived, so a click did nothing.
@@ -36,20 +38,25 @@ var _cyan: Array[Texture2D] = []
 var _frame_i: int = 0
 var _frame_t: float = 0.0
 var _hovered: bool = false
-var _members: Array[Dictionary] = [{"member": "keeper", "row": "front"}]
+var _members: Array[Dictionary] = [{"member": "keeper", "row": "front", "cell": 1}]
 var _start_depth: int = 1
-var _rooms: int = 5
+var _rooms: int = 1
 var _control: String = "idle"
 var _loadout_slots: Array[Dictionary] = [{"item": "", "qty": 0}, {"item": "", "qty": 0}]
 
 var _layer: CanvasLayer
-var _panel: Panel
+var _panel: Control
 var _depart: Button
 var _lantern_lbl: Label
+var _shell_view: ExpeditionShellView
 var _depth_lbl: Label
 var _depth_minus: Button
 var _depth_plus: Button
-var _rooms_btn: Button
+var _depth_field: LineEdit
+var _rooms_lbl: Label
+var _rooms_minus: Button
+var _rooms_plus: Button
+var _rooms_field: LineEdit
 var _duration_lbl: Label
 var _boss_lbl: Label
 var _cost_lbl: Label
@@ -57,25 +64,27 @@ var _warning_lbl: Label
 var _progress_lbl: Label
 var _pack_lbl: Label
 var _loadout_left_lbl: Label
-var _member_keeper: Button
-var _member_elaia: Button
-var _row_keeper: Button
-var _row_elaia: Button
+var _party_slots: Dictionary = {}
+var _picker_open: Dictionary = {}
+var _simulate_window: Control
 var _idle_btn: Button
 var _manual_btn: Button
 var _loadout_item_btns: Array[Button] = []
 var _loadout_minus_btns: Array[Button] = []
 var _loadout_plus_btns: Array[Button] = []
-var _loadout_qty_lbls: Array[Label] = []
+var _loadout_qty_lbls: Array[LineEdit] = []
 var _party_title: Label
 var _setup_nodes: Array[Control] = []
 var _skip_btn: Button
 var _rush_btn: Button
 var _simulate_btn: Button
 var _simulate_result: Label
+var _simulate_close: Button
 var _close_btn: Button
 var _sim_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var last_sim: Dictionary = {}
+var _depth_invalid: bool = false
+var _rooms_invalid: bool = false
 
 
 func _ready() -> void:
@@ -114,7 +123,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not shell_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		close_shell()
+		if _simulate_window != null and _simulate_window.visible:
+			_close_simulate_window()
+		else:
+			close_shell()
 		get_viewport().set_input_as_handled()
 
 
@@ -262,9 +274,18 @@ func available_members() -> Array[String]:
 
 
 func depth_checkpoints() -> Array[int]:
+	return depth_range_list()
+
+
+func depth_range() -> Vector2i:
 	var cap: int = 1
 	if has_node("/root/Reach"):
 		cap = Reach.max_start_depth()
+	return Vector2i(1, cap)
+
+
+func depth_range_list() -> Array[int]:
+	var cap: int = depth_range().y
 	var out: Array[int] = [1]
 	var step: int = 5
 	while step <= cap:
@@ -281,7 +302,8 @@ func toggle_member(member: String) -> void:
 		_members.remove_at(idx)
 	else:
 		var row: String = _pick_row_for_new_member()
-		_members.append({"member": member, "row": row})
+		var cell: int = _pick_cell_for_row(row)
+		_members.append({"member": member, "row": row, "cell": cell})
 	_refresh_shell()
 
 
@@ -291,6 +313,26 @@ func set_member_row(member: String, row: String) -> void:
 		return
 	var picked: String = "back" if row == "back" else "front"
 	_members[idx]["row"] = picked
+	if not _members[idx].has("cell"):
+		_members[idx]["cell"] = _pick_cell_for_row(picked)
+	_refresh_shell()
+
+
+func place_member(member: String, row: String, cell: int) -> void:
+	if _party_locked():
+		return
+	_ensure_shell()
+	var picked_row: String = "back" if row == "back" else "front"
+	var picked_cell: int = clampi(cell, 0, 2)
+	if member == "":
+		_remove_at_slot(picked_row, picked_cell)
+		_refresh_shell()
+		return
+	if not available_members().has(member):
+		return
+	_remove_member(member)
+	_remove_at_slot(picked_row, picked_cell)
+	_members.append({"member": member, "row": picked_row, "cell": picked_cell})
 	_refresh_shell()
 
 
@@ -420,6 +462,9 @@ func open_shell() -> void:
 
 
 func close_shell() -> void:
+	_close_simulate_window()
+	if _shell_view != null:
+		_shell_view.hide_picker()
 	if _layer:
 		_layer.visible = false
 	if _panel != null and is_instance_valid(_panel):
@@ -439,171 +484,99 @@ func _ensure_shell() -> void:
 	_layer.layer = 44
 	_layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	get_tree().root.add_child(_layer)
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.03, 0.05, 0.06, 0.45)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_layer.add_child(dim)
-	_panel = Panel.new()
-	_panel.name = "Panel"
-	_panel.anchor_left = 0.5
-	_panel.anchor_top = 0.5
-	_panel.anchor_right = 0.5
-	_panel.anchor_bottom = 0.5
-	_panel.offset_left = -300.0
-	_panel.offset_top = -300.0
-	_panel.offset_right = 300.0
-	_panel.offset_bottom = 360.0
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.10, 0.09, 0.98)
-	sb.border_color = Color(0.45, 0.55, 0.42, 1.0)
-	sb.set_border_width_all(2)
-	_panel.add_theme_stylebox_override("panel", sb)
-	_layer.add_child(_panel)
-	_make_label(_panel, "Title", Vector2(16, 8), Vector2(568, 24), 18, Color(0.86, 0.9, 0.78, 1)).text = ContentStrings.get_text("expedition_board_name")
-	_make_label(_panel, "Hint", Vector2(16, 32), Vector2(568, 36), 13, Color(0.86, 0.88, 0.82, 1)).text = ContentStrings.get_text("expedition_board_hint")
-	_lantern_lbl = _make_label(_panel, "Lantern", Vector2(16, 68), Vector2(568, 40), 13, Color(0.78, 0.86, 0.9, 1))
-	_party_title = _make_label(_panel, "PartyTitle", Vector2(16, 112), Vector2(120, 24), 14, Color(0.82, 0.86, 0.78, 1))
+	_shell_view = SHELL_SCENE.instantiate() as ExpeditionShellView
+	_panel = _shell_view
+	_layer.add_child(_shell_view)
+	_party_slots = _shell_view.party_slots.duplicate()
+	var panel: Control = _shell_view.get_node("Panel") as Control
+	_lantern_lbl = panel.get_node("Lantern") as Label
+	_party_title = panel.get_node("PartyTitle") as Label
+	panel.get_node("PartyHint").text = "click a square to pick"
+	_depth_lbl = panel.get_node("DepthLabel") as Label
+	_depth_minus = panel.get_node("DepthMinus") as Button
+	_depth_plus = panel.get_node("DepthPlus") as Button
+	_depth_field = panel.get_node("DepthField") as LineEdit
+	_rooms_lbl = panel.get_node("RoomsLabel") as Label
+	_rooms_minus = panel.get_node("RoomsMinus") as Button
+	_rooms_plus = panel.get_node("RoomsPlus") as Button
+	_rooms_field = panel.get_node("RoomsField") as LineEdit
+	_duration_lbl = panel.get_node("DurationLabel") as Label
+	_boss_lbl = panel.get_node("BossLabel") as Label
+	_idle_btn = panel.get_node("IdleButton") as Button
+	_manual_btn = panel.get_node("ManualButton") as Button
+	_cost_lbl = panel.get_node("CostLabel") as Label
+	_warning_lbl = panel.get_node("WarningLabel") as Label
+	_simulate_btn = panel.get_node("SimulateButton") as Button
+	_depart = panel.get_node("Depart") as Button
+	_close_btn = panel.get_node("CloseButton") as Button
+	_progress_lbl = panel.get_node("ProgressLabel") as Label
+	_pack_lbl = panel.get_node("PackLabel") as Label
+	_loadout_left_lbl = panel.get_node("LoadoutLeftLabel") as Label
+	_skip_btn = panel.get_node("SkipRoom") as Button
+	_rush_btn = panel.get_node("Rush") as Button
+	_loadout_item_btns.clear()
+	_loadout_minus_btns.clear()
+	_loadout_plus_btns.clear()
+	_loadout_qty_lbls.clear()
+	for slot_i: int in range(2):
+		var n: int = slot_i + 1
+		_loadout_item_btns.append(panel.get_node("LoadoutItem%d" % n) as Button)
+		_loadout_minus_btns.append(panel.get_node("LoadoutMinus%d" % n) as Button)
+		_loadout_plus_btns.append(panel.get_node("LoadoutPlus%d" % n) as Button)
+		_loadout_qty_lbls.append(panel.get_node("LoadoutQty%d" % n) as LineEdit)
+	_simulate_window = _shell_view.simulate_window
+	_simulate_result = _shell_view.simulate_result
+	_simulate_close = _shell_view.simulate_close
+	panel.get_node("Title").text = ContentStrings.get_text("expedition_board_name")
+	panel.get_node("Hint").text = ContentStrings.get_text("expedition_board_hint")
 	_party_title.text = ContentStrings.get_text("board_party_title")
-	_member_keeper = _party_button("MemberKeeper", Vector2(16, 136), ContentStrings.get_text("char_sheet_title"))
-	_row_keeper = _party_button("RowKeeper", Vector2(170, 136), ContentStrings.get_text("board_row_front"))
-	_member_elaia = _party_button("MemberElaia", Vector2(280, 136), ContentStrings.get_text("echo_elaia_name"))
-	_row_elaia = _party_button("RowElaia", Vector2(434, 136), ContentStrings.get_text("board_row_front"))
-	_member_keeper.pressed.connect(_on_member_pressed.bind("keeper"))
-	_member_elaia.pressed.connect(_on_member_pressed.bind("elaia"))
-	_row_keeper.pressed.connect(_on_row_pressed.bind("keeper"))
-	_row_elaia.pressed.connect(_on_row_pressed.bind("elaia"))
-	_depth_lbl = _make_label(_panel, "DepthLabel", Vector2(16, 180), Vector2(200, 28), 15, Color(0.9, 0.88, 0.78, 1))
-	_depth_minus = Button.new()
-	_depth_minus.name = "DepthMinus"
-	_depth_minus.text = "-"
-	_depth_minus.position = Vector2(220, 176)
-	_depth_minus.size = Vector2(48, 32)
-	_panel.add_child(_depth_minus)
 	_depth_minus.pressed.connect(_on_depth.bind(-1))
-	_depth_plus = Button.new()
-	_depth_plus.name = "DepthPlus"
-	_depth_plus.text = "+"
-	_depth_plus.position = Vector2(276, 176)
-	_depth_plus.size = Vector2(48, 32)
-	_panel.add_child(_depth_plus)
 	_depth_plus.pressed.connect(_on_depth.bind(1))
-	_rooms_btn = Button.new()
-	_rooms_btn.name = "RoomsButton"
-	_rooms_btn.position = Vector2(340, 176)
-	_rooms_btn.size = Vector2(200, 32)
-	_panel.add_child(_rooms_btn)
-	_rooms_btn.pressed.connect(_on_rooms)
-	_duration_lbl = _make_label(_panel, "DurationLabel", Vector2(16, 216), Vector2(360, 24), 14, Color(0.78, 0.84, 0.88, 1))
-	_boss_lbl = _make_label(_panel, "BossLabel", Vector2(16, 244), Vector2(360, 24), 14, Color(0.95, 0.9, 0.72, 1))
-	_idle_btn = _party_button("IdleButton", Vector2(16, 276), ContentStrings.get_text("board_row_front"))
-	_manual_btn = _party_button("ManualButton", Vector2(180, 276), "Manual")
-	_idle_btn.name = "IdleButton"
-	_manual_btn.name = "ManualButton"
-	_idle_btn.text = "Idle"
-	_manual_btn.text = "Manual"
+	_depth_field.text_submitted.connect(_on_depth_field_commit)
+	_depth_field.focus_exited.connect(_on_depth_field_commit.bind(_depth_field.text))
+	_rooms_minus.pressed.connect(_on_rooms_step.bind(-1))
+	_rooms_plus.pressed.connect(_on_rooms_step.bind(1))
+	_rooms_field.text_submitted.connect(_on_rooms_field_commit)
+	_rooms_field.focus_exited.connect(_on_rooms_field_commit.bind(_rooms_field.text))
 	_idle_btn.pressed.connect(_on_control.bind("idle"))
 	_manual_btn.pressed.connect(_on_control.bind("manual"))
 	for slot_i: int in range(2):
-		var n: int = slot_i + 1
-		var item_btn := Button.new()
-		item_btn.name = "LoadoutItem%d" % n
-		item_btn.position = Vector2(16, 316 + slot_i * 36)
-		item_btn.size = Vector2(220, 32)
-		item_btn.pressed.connect(_on_loadout_item.bind(slot_i))
-		_panel.add_child(item_btn)
-		_loadout_item_btns.append(item_btn)
-		var minus_btn := Button.new()
-		minus_btn.name = "LoadoutMinus%d" % n
-		minus_btn.text = "-"
-		minus_btn.position = Vector2(244, 316 + slot_i * 36)
-		minus_btn.size = Vector2(40, 32)
-		minus_btn.pressed.connect(_on_loadout_qty.bind(slot_i, -1))
-		_panel.add_child(minus_btn)
-		_loadout_minus_btns.append(minus_btn)
-		var qty_lbl := _make_label(_panel, "LoadoutQty%d" % n, Vector2(290, 318 + slot_i * 36), Vector2(48, 28), 14, Color(0.9, 0.88, 0.82, 1))
-		_loadout_qty_lbls.append(qty_lbl)
-		var plus_btn := Button.new()
-		plus_btn.name = "LoadoutPlus%d" % n
-		plus_btn.text = "+"
-		plus_btn.position = Vector2(344, 316 + slot_i * 36)
-		plus_btn.size = Vector2(40, 32)
-		plus_btn.pressed.connect(_on_loadout_qty.bind(slot_i, 1))
-		_panel.add_child(plus_btn)
-		_loadout_plus_btns.append(plus_btn)
-	_cost_lbl = _make_label(_panel, "CostLabel", Vector2(16, 396), Vector2(540, 24), 13, Color(0.82, 0.88, 0.9, 1))
-	_warning_lbl = _make_label(_panel, "WarningLabel", Vector2(16, 420), Vector2(540, 52), 12, Color(0.92, 0.82, 0.7, 1))
-	_simulate_btn = Button.new()
-	_simulate_btn.name = "SimulateButton"
-	_simulate_btn.text = ContentStrings.get_text("board_simulate")
-	_simulate_btn.position = Vector2(16, 476)
-	_simulate_btn.size = Vector2(120, 32)
-	_panel.add_child(_simulate_btn)
-	_simulate_btn.pressed.connect(_on_simulate)
-	_simulate_result = _make_label(_panel, "SimulateResult", Vector2(16, 512), Vector2(540, 96), 12, Color(0.82, 0.88, 0.9, 1))
-	_simulate_result.max_lines_visible = 8
-	_progress_lbl = _make_label(_panel, "ProgressLabel", Vector2(16, 180), Vector2(540, 28), 15, Color(0.9, 0.88, 0.78, 1))
-	_pack_lbl = _make_label(_panel, "PackLabel", Vector2(16, 212), Vector2(540, 24), 14, Color(0.78, 0.84, 0.88, 1))
-	_loadout_left_lbl = _make_label(_panel, "LoadoutLeftLabel", Vector2(16, 240), Vector2(540, 24), 14, Color(0.78, 0.84, 0.88, 1))
-	_depart = Button.new()
-	_depart.name = "Depart"
-	_depart.text = "Depart"
-	_depart.position = Vector2(16, 616)
-	_depart.size = Vector2(200, 40)
-	_depart.disabled = true
-	_panel.add_child(_depart)
+		_loadout_item_btns[slot_i].pressed.connect(_on_loadout_item.bind(slot_i))
+		_loadout_minus_btns[slot_i].pressed.connect(_on_loadout_qty.bind(slot_i, -1))
+		_loadout_plus_btns[slot_i].pressed.connect(_on_loadout_qty.bind(slot_i, 1))
 	_depart.pressed.connect(_on_depart)
-	_close_btn = Button.new()
-	_close_btn.name = "CloseButton"
-	_close_btn.text = "Close"
-	_close_btn.position = Vector2(400, 616)
-	_close_btn.size = Vector2(160, 40)
-	_panel.add_child(_close_btn)
 	_close_btn.pressed.connect(close_shell)
-	_skip_btn = Button.new()
-	_skip_btn.name = "SkipRoom"
-	_skip_btn.text = "Skip room"
-	_skip_btn.position = Vector2(16, 528)
-	_skip_btn.size = Vector2(160, 36)
-	_panel.add_child(_skip_btn)
+	_simulate_btn.pressed.connect(_on_simulate)
+	_simulate_close.pressed.connect(_close_simulate_window)
+	_shell_view.simulate_rerun.pressed.connect(_on_simulate)
 	_skip_btn.pressed.connect(_on_skip)
-	_rush_btn = Button.new()
-	_rush_btn.name = "Rush"
-	_rush_btn.text = "Rush"
-	_rush_btn.position = Vector2(188, 528)
-	_rush_btn.toggle_mode = true
-	_rush_btn.size = Vector2(120, 36)
-	_panel.add_child(_rush_btn)
 	_rush_btn.pressed.connect(_on_rush)
+	for key: String in _party_slots.keys():
+		var btn: Button = _party_slots[key] as Button
+		var parts: PackedStringArray = key.split(":")
+		btn.pressed.connect(_on_party_slot_pressed.bind(parts[0], int(parts[1])))
+	for i: int in range(_shell_view.picker_rows.size()):
+		_shell_view.picker_rows[i].pressed.connect(_on_picker_row.bind(i))
 	_setup_nodes = [
-		_party_title, _member_keeper, _row_keeper, _member_elaia, _row_elaia,
-		_depth_lbl, _depth_minus, _depth_plus, _rooms_btn, _duration_lbl, _boss_lbl,
-		_cost_lbl, _warning_lbl, _simulate_btn, _simulate_result, _depart,
+		_party_title, _depth_lbl, _depth_minus, _depth_plus, _depth_field,
+		_rooms_lbl, _rooms_minus, _rooms_plus, _rooms_field, _duration_lbl, _boss_lbl,
+		_cost_lbl, _warning_lbl, _simulate_btn, _depart, _idle_btn, _manual_btn,
 	]
+	for btn: Button in _party_slots.values():
+		_setup_nodes.append(btn)
 	for btn: Button in _loadout_item_btns:
 		_setup_nodes.append(btn)
 	for btn: Button in _loadout_minus_btns:
 		_setup_nodes.append(btn)
 	for btn: Button in _loadout_plus_btns:
 		_setup_nodes.append(btn)
-	for lbl: Label in _loadout_qty_lbls:
-		_setup_nodes.append(lbl)
+	for field: LineEdit in _loadout_qty_lbls:
+		_setup_nodes.append(field)
 	_layer.visible = false
 
 
-func _party_button(node_name: String, pos: Vector2, text: String) -> Button:
-	var btn := Button.new()
-	btn.name = node_name
-	btn.position = pos
-	btn.size = Vector2(140, 32)
-	btn.toggle_mode = true
-	btn.text = text
-	_panel.add_child(btn)
-	return btn
-
-
 func _refresh_shell() -> void:
-	if _member_keeper == null:
+	if _depth_field == null:
 		return
 	var running: bool = has_node("/root/Reach") and Reach.running
 	_sync_depth_to_cap()
@@ -613,21 +586,22 @@ func _refresh_shell() -> void:
 	_progress_lbl.visible = running
 	_pack_lbl.visible = running
 	_loadout_left_lbl.visible = running
-	if _member_elaia != null:
-		var show_elaia: bool = available_members().has("elaia")
-		_member_elaia.visible = show_elaia
-		_row_elaia.visible = show_elaia
-	_member_keeper.button_pressed = _member_index("keeper") >= 0
-	if _member_elaia != null:
-		_member_elaia.button_pressed = _member_index("elaia") >= 0
-	_row_keeper.disabled = _member_index("keeper") < 0
-	_row_elaia.disabled = _member_index("elaia") < 0
-	_row_keeper.text = _row_label_for("keeper")
-	_row_elaia.text = _row_label_for("elaia")
+	_refresh_party_slots(running)
 	if _depth_lbl:
-		_depth_lbl.text = ContentStrings.get_text("board_depth").replace("{d}", str(_start_depth))
-	if _rooms_btn:
-		_rooms_btn.text = ContentStrings.get_text("board_rooms").replace("{n}", str(_rooms))
+		_depth_lbl.text = ContentStrings.get_text("board_depth").replace("{d}", "")
+	if _depth_field and not _depth_field.has_focus():
+		_depth_field.text = str(_start_depth)
+	if _shell_view != null:
+		_shell_view.set_field_invalid(_depth_field, _depth_invalid)
+	if _rooms_lbl:
+		_rooms_lbl.text = ContentStrings.get_text("board_rooms").replace("{n}", "")
+	if _rooms_field and not _rooms_field.has_focus():
+		_rooms_field.text = str(_rooms)
+	if _shell_view != null:
+		_shell_view.set_field_invalid(_rooms_field, _rooms_invalid)
+	var depth_max: Label = _panel.get_node("Panel/DepthMaxLabel") as Label if _panel != null else null
+	if depth_max != null:
+		depth_max.text = "max %d" % depth_range().y
 	if _duration_lbl:
 		var mins: int = _rooms * 12
 		var h: int = mins / 60
@@ -659,8 +633,6 @@ func _refresh_shell() -> void:
 		_loadout_left_lbl.text = ContentStrings.get_text("board_loadout_left").replace("{list}", list)
 	if _simulate_btn != null:
 		_simulate_btn.disabled = _members.is_empty()
-	if _simulate_result != null and not running and last_sim.is_empty():
-		_simulate_result.text = ""
 	var blocked: bool = depart_disabled() or _members.is_empty() or GameState.essence < DEPART_ESSENCE_COST
 	_depart.disabled = blocked
 	if GameState.essence < DEPART_ESSENCE_COST and not depart_disabled() and not running:
@@ -668,6 +640,21 @@ func _refresh_shell() -> void:
 	else:
 		_depart.tooltip_text = ""
 	_depart.text = "Depart"
+	var warn: Label = _panel.get_node("Panel/DepartEssenceWarn") as Label if _panel != null else null
+	if warn != null:
+		if GameState.essence < DEPART_ESSENCE_COST and not depart_disabled() and not running:
+			warn.text = ContentStrings.get_text("board_depart_no_essence")
+			warn.visible = true
+		else:
+			warn.visible = false
+	var hint: Label = _panel.get_node("Panel/DepartHint") as Label if _panel != null else null
+	if hint != null:
+		hint.text = "You have %d Essence" % GameState.essence
+	var chip: NinePatchRect = _panel.get_node("Panel/CostChip") as NinePatchRect if _panel != null else null
+	if chip != null:
+		var short: bool = GameState.essence < DEPART_ESSENCE_COST
+		var tex_path: String = BOARD_DIR + ("cost_chip_9s_short_24x32.png" if short else "cost_chip_9s_ok_24x32.png")
+		chip.texture = load(tex_path) as Texture2D
 	var debug := has_node("/root/Reach") and Reach.debug_tools()
 	if _skip_btn:
 		_skip_btn.visible = debug
@@ -682,11 +669,16 @@ func _refresh_loadout_ui() -> void:
 		var item: String = str(slot.get("item", ""))
 		var qty: int = int(slot.get("qty", 0))
 		var item_btn: Button = _loadout_item_btns[slot_i]
+		var name_lbl: Label = _panel.get_node("Panel/LoadoutName%d" % (slot_i + 1)) as Label
 		if item == "":
-			item_btn.text = ContentStrings.get_text("adv_loadout_empty_slot")
+			if name_lbl:
+				name_lbl.text = ContentStrings.get_text("adv_loadout_empty_slot")
 		else:
-			item_btn.text = Backpack.item_display_name(item)
-		_loadout_qty_lbls[slot_i].text = str(qty)
+			if name_lbl:
+				name_lbl.text = "%s\nYou have %d" % [Backpack.item_display_name(item), Backpack.get_count(item)]
+		var qty_field: LineEdit = _loadout_qty_lbls[slot_i]
+		if qty_field and not qty_field.has_focus():
+			qty_field.text = str(qty)
 		var cap: int = _loadout_cap(slot_i)
 		_loadout_minus_btns[slot_i].disabled = qty <= 0 or item == ""
 		_loadout_plus_btns[slot_i].disabled = item == "" or qty >= cap
@@ -754,32 +746,68 @@ func _on_reach_changed() -> void:
 	_apply_lantern()
 
 
-func _on_member_pressed(member: String) -> void:
-	toggle_member(member)
-
-
-func _on_row_pressed(member: String) -> void:
-	var idx := _member_index(member)
-	if idx < 0:
-		return
-	var row: String = str(_members[idx].get("row", "front"))
-	set_member_row(member, "back" if row == "front" else "front")
-
-
 func _on_depth(step: int) -> void:
-	var checkpoints: Array[int] = depth_checkpoints()
-	var pos: int = checkpoints.find(_start_depth)
-	if pos < 0:
-		pos = 0
-	pos = clampi(pos + step, 0, checkpoints.size() - 1)
-	_start_depth = checkpoints[pos]
+	var cap: int = depth_range().y
+	_start_depth = clampi(_start_depth + step, 1, cap)
+	_depth_invalid = false
 	_refresh_shell()
 
 
-func _on_rooms() -> void:
-	var idx := ROOM_STEPS.find(_rooms)
-	_rooms = ROOM_STEPS[(idx + 1) % ROOM_STEPS.size()] if idx >= 0 else ROOM_STEPS[0]
+func _on_depth_field_commit(text: String = "") -> void:
+	var raw: String = text if text != "" else _depth_field.text
+	var stripped: String = raw.strip_edges()
+	var cap: int = depth_range().y
+	if stripped == "" or not stripped.is_valid_int():
+		_depth_invalid = true
+		_start_depth = clampi(_start_depth, 1, cap)
+	else:
+		var parsed: int = int(stripped)
+		if parsed < 1 or parsed > cap:
+			_depth_invalid = true
+			_start_depth = clampi(parsed, 1, cap)
+		else:
+			_depth_invalid = false
+			_start_depth = parsed
 	_refresh_shell()
+
+
+func _on_rooms_step(step: int) -> void:
+	_rooms = _rooms_step_value(_rooms, step)
+	_rooms_invalid = false
+	_refresh_shell()
+
+
+func _on_rooms_field_commit(text: String = "") -> void:
+	var raw: String = text if text != "" else _rooms_field.text
+	var stripped: String = raw.strip_edges()
+	if stripped == "" or not stripped.is_valid_int():
+		_rooms_invalid = true
+		_rooms = clampi(_rooms, 1, ROOM_MAX)
+	else:
+		var parsed: int = int(stripped)
+		if parsed < 1 or parsed > ROOM_MAX:
+			_rooms_invalid = true
+			_rooms = clampi(parsed, 1, ROOM_MAX)
+		else:
+			_rooms_invalid = false
+			_rooms = parsed
+	_refresh_shell()
+
+
+func _rooms_step_value(cur: int, dir: int) -> int:
+	if dir > 0:
+		if cur <= 1:
+			return 5
+		if cur >= ROOM_MAX:
+			return ROOM_MAX
+		if cur < 5:
+			return 5
+		return mini(ROOM_MAX, cur + 5)
+	if cur <= 1:
+		return 1
+	if cur <= 5:
+		return 1
+	return maxi(5, cur - 5)
 
 
 func _on_control(mode: String) -> void:
@@ -838,38 +866,84 @@ func _on_simulate() -> void:
 			sim_seed = _sim_rng.randi() & 0x7FFFFFFF
 	last_sim = RunSim.simulate(board_config(), sim_seed)
 	last_sim["sim_seed"] = sim_seed
+	_open_simulate_window()
+
+
+func _open_simulate_window() -> void:
+	if _simulate_window == null or last_sim.is_empty():
+		return
 	_refresh_simulate_result()
+	_simulate_window.visible = true
+
+
+func _close_simulate_window() -> void:
+	if _simulate_window != null:
+		_simulate_window.visible = false
 
 
 func _refresh_simulate_result() -> void:
 	if _simulate_result == null or last_sim.is_empty():
 		return
-	var lines: PackedStringArray = []
+	var header: Label = _simulate_window.get_node("SimulateHeader") as Label
+	var summary_lbl: Label = _simulate_window.get_node("SimulateSummary") as Label
+	var losses_lbl: Label = _simulate_window.get_node("SimulateLosses") as Label
+	var totals_lbl: Label = _simulate_window.get_node("SimulateTotals") as Label
+	var note_lbl: Label = _simulate_window.get_node("SimulateNote") as Label
+	var names: PackedStringArray = []
+	for entry: Dictionary in _members:
+		names.append(_member_display(str(entry.get("member", ""))))
+	if header != null:
+		header.text = "Depth %d · %d rooms · %s · %s" % [
+			_start_depth, _rooms, _control.capitalize(), ", ".join(names),
+		]
 	var summary: String = ContentStrings.get_text("sim_summary")
 	summary = summary.replace("{cleared}", str(int(last_sim.get("rooms_cleared", 0))))
 	summary = summary.replace("{rooms}", str(int(last_sim.get("rooms_total", 0))))
 	summary = summary.replace("{exp}", str(int(last_sim.get("exp", 0))))
-	lines.append(summary)
-	var lost_v: Variant = last_sim.get("lost", [])
-	if lost_v is Array:
-		for entry_v: Variant in lost_v as Array:
-			if typeof(entry_v) != TYPE_DICTIONARY:
+	if summary_lbl != null:
+		summary_lbl.text = summary
+	var lines: PackedStringArray = []
+	var log_v: Variant = last_sim.get("room_log", [])
+	if log_v is Array:
+		for row_v: Variant in log_v as Array:
+			if not row_v is Dictionary:
 				continue
-			lines.append(str((entry_v as Dictionary).get("reason", "")))
+			var row: Dictionary = row_v as Dictionary
+			var room_n: int = int(row.get("room", 0))
+			var outcome: String = str(row.get("outcome", ""))
+			var line: String = "Room %d · %s" % [room_n, outcome]
+			if outcome == "win" and row.has("loot"):
+				line += " · " + _format_item_dict(row.get("loot", {}) as Dictionary)
+			lines.append(line)
+	_simulate_result.text = "\n".join(lines)
+	if losses_lbl != null:
+		var lost_bits: PackedStringArray = []
+		var lost_v: Variant = last_sim.get("lost", [])
+		if lost_v is Array:
+			for entry_v: Variant in lost_v as Array:
+				if entry_v is Dictionary:
+					lost_bits.append(str((entry_v as Dictionary).get("reason", "")))
+		losses_lbl.text = "Lost: " + (" · ".join(lost_bits) if not lost_bits.is_empty() else "—")
 	var banked_v: Variant = last_sim.get("banked", {})
 	var banked: Dictionary = banked_v if typeof(banked_v) == TYPE_DICTIONARY else {}
-	var bank_line: String = ContentStrings.get_text("sim_banked").replace("{list}", _format_item_dict(banked))
-	lines.append(bank_line)
 	var used_v: Variant = last_sim.get("items_used", {})
 	var used: Dictionary = used_v if typeof(used_v) == TYPE_DICTIONARY else {}
+	var totals: PackedStringArray = []
+	totals.append(ContentStrings.get_text("sim_banked").replace("{list}", _format_item_dict(banked)))
 	if used.is_empty():
-		lines.append(ContentStrings.get_text("sim_items_none"))
+		totals.append(ContentStrings.get_text("sim_items_none"))
 	else:
-		lines.append(ContentStrings.get_text("sim_items_used").replace("{list}", _format_item_dict(used)))
+		totals.append(ContentStrings.get_text("sim_items_used").replace("{list}", _format_item_dict(used)))
 	var essence_back: int = int(last_sim.get("essence_payback", 0))
 	if essence_back > 0:
-		lines.append(ContentStrings.get_text("sim_essence").replace("{n}", str(essence_back)))
-	_simulate_result.text = "\n".join(lines)
+		totals.append(ContentStrings.get_text("sim_essence").replace("{n}", str(essence_back)))
+	if totals_lbl != null:
+		totals_lbl.text = "\n".join(totals)
+	if note_lbl != null:
+		var disc: String = ContentStrings.get_text("sim_forecast_note")
+		if disc == "" or disc == "sim_forecast_note":
+			disc = "A forecast with a random seed; the real run will differ."
+		note_lbl.text = disc
 
 
 func _format_item_dict(items: Dictionary) -> String:
@@ -917,11 +991,137 @@ func _row_label_for(member: String) -> String:
 
 
 func _sync_depth_to_cap() -> void:
-	var checkpoints: Array[int] = depth_checkpoints()
-	if checkpoints.is_empty():
+	_start_depth = clampi(_start_depth, depth_range().x, depth_range().y)
+	_rooms = clampi(_rooms, 1, ROOM_MAX)
+
+
+func _party_locked() -> bool:
+	return has_node("/root/Reach") and Reach.running
+
+
+func _remove_member(member: String) -> void:
+	var idx := _member_index(member)
+	if idx >= 0:
+		_members.remove_at(idx)
+
+
+func _remove_at_slot(row: String, cell: int) -> void:
+	for i: int in range(_members.size() - 1, -1, -1):
+		var entry: Dictionary = _members[i]
+		if str(entry.get("row", "")) == row and int(entry.get("cell", -1)) == cell:
+			_members.remove_at(i)
+
+
+func _member_at_slot(row: String, cell: int) -> String:
+	for entry: Dictionary in _members:
+		if str(entry.get("row", "")) == row and int(entry.get("cell", -1)) == cell:
+			return str(entry.get("member", ""))
+	return ""
+
+
+func _pick_cell_for_row(row: String) -> int:
+	var used: Dictionary = {}
+	for entry: Dictionary in _members:
+		if str(entry.get("row", "")) == row:
+			used[int(entry.get("cell", 1))] = true
+	for cell: int in [1, 0, 2]:
+		if not used.has(cell):
+			return cell
+	return 1
+
+
+func _on_party_slot_pressed(row: String, cell: int) -> void:
+	if _party_locked():
 		return
-	if not checkpoints.has(_start_depth):
-		_start_depth = checkpoints[0]
+	_picker_open = {"row": row, "cell": cell}
+	_populate_picker(row, cell)
+	var btn: Button = _party_slots.get("%s:%d" % [row, cell]) as Button
+	if _shell_view != null and btn != null:
+		_shell_view.place_picker(btn)
+
+
+func _populate_picker(row: String, cell: int) -> void:
+	if _shell_view == null:
+		return
+	var current: String = _member_at_slot(row, cell)
+	var choices: Array[Dictionary] = [{"member": "", "label": "Leave empty", "sub": "clear this square"}]
+	for member: String in available_members():
+		var sub: String = ""
+		var idx := _member_index(member)
+		if idx >= 0:
+			var e: Dictionary = _members[idx]
+			if str(e.get("row", "")) == row and int(e.get("cell", -1)) == cell:
+				sub = "Here now"
+			else:
+				sub = "In the party (%s)" % ("Back" if str(e.get("row", "")) == "back" else "Front")
+		choices.append({"member": member, "label": _member_display(member), "sub": sub})
+	for i: int in range(_shell_view.picker_rows.size()):
+		var btn: Button = _shell_view.picker_rows[i]
+		if i >= choices.size():
+			btn.visible = false
+			continue
+		btn.visible = true
+		var choice: Dictionary = choices[i]
+		btn.text = "%s\n%s" % [str(choice["label"]), str(choice["sub"])]
+		btn.set_meta("pick_member", str(choice["member"]))
+
+
+func _on_picker_row(index: int) -> void:
+	if _picker_open.is_empty():
+		return
+	var row: String = str(_picker_open.get("row", "front"))
+	var cell: int = int(_picker_open.get("cell", 1))
+	if index < 0 or index >= _shell_view.picker_rows.size():
+		return
+	var btn: Button = _shell_view.picker_rows[index]
+	var member: String = str(btn.get_meta("pick_member", ""))
+	place_member(member, row, cell)
+	if _shell_view != null:
+		_shell_view.hide_picker()
+	_picker_open.clear()
+
+
+func _refresh_party_slots(running: bool) -> void:
+	for key: String in _party_slots.keys():
+		var btn: Button = _party_slots[key] as Button
+		btn.disabled = running
+		var parts: PackedStringArray = key.split(":")
+		var member: String = _member_at_slot(parts[0], int(parts[1]))
+		var tex: String = ExpeditionShellView.BOARD_DIR + "party_slot_empty_60x60.png"
+		if member != "":
+			tex = ExpeditionShellView.BOARD_DIR + "party_slot_filled_60x60.png"
+		if _shell_view != null:
+			_shell_view._style_party_slot(btn, tex)
+		for child: Node in btn.get_children():
+			child.queue_free()
+		if member != "":
+			var portrait := TextureRect.new()
+			portrait.texture = load(_portrait_path(member)) as Texture2D
+			portrait.position = Vector2(4, 4)
+			portrait.size = Vector2(52, 52)
+			portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(portrait)
+
+
+func _portrait_path(member: String) -> String:
+	match member:
+		"keeper":
+			return "res://assets/art/portraits/keeper_portrait.png"
+		"elaia":
+			return "res://assets/art/portraits/elaia_portrait.png"
+		_:
+			return "res://assets/art/bramble/bramble_portrait.png"
+
+
+func _member_display(member: String) -> String:
+	match member:
+		"keeper":
+			return ContentStrings.get_text("char_sheet_title")
+		"elaia":
+			return ContentStrings.get_text("echo_elaia_name")
+		_:
+			return member.capitalize()
 
 
 func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, font_size: int, color: Color) -> Label:

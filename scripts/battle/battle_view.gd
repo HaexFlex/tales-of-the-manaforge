@@ -764,7 +764,7 @@ func show_fight(fight: FightState) -> void:
 		group.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 			return int(a.get("slot", 0)) < int(b.get("slot", 0))
 		)
-		var indices: Array[int] = _sole_indices(group.size())
+		var indices: Array[int] = _formation_cells(group)
 		for i: int in group.size():
 			var fighter_row: Dictionary = group[i] as Dictionary
 			var sole: Vector2 = slot_sole(column, indices[i])
@@ -868,6 +868,28 @@ static func _sole_indices(count: int) -> Array[int]:
 	if count == 2:
 		return [0, 2]
 	return [0, 1, 2]
+
+
+static func _formation_cells(group: Array) -> Array[int]:
+	if group.is_empty():
+		return []
+	var cells: Array[int] = []
+	for row_v: Variant in group:
+		if not row_v is Dictionary:
+			return _sole_indices(group.size())
+		var row: Dictionary = row_v as Dictionary
+		if not row.has("cell"):
+			return _sole_indices(group.size())
+		var cell: int = int(row.get("cell", -1))
+		if cell < 0 or cell > 2:
+			return _sole_indices(group.size())
+		cells.append(cell)
+	var seen: Dictionary = {}
+	for cell: int in cells:
+		if seen.has(cell):
+			return _sole_indices(group.size())
+		seen[cell] = true
+	return cells
 
 
 func _spawn_fighter_node(row: Dictionary, sole: Vector2) -> void:

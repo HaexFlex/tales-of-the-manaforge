@@ -52,10 +52,17 @@ func set_combat_seed(seed_value: int) -> void:
 	_scripted_dice = null
 
 
-func add_member(member: String, stats: Dictionary, slot: int = 0, row: String = "front", fighter_id: String = "") -> String:
+func add_member(
+	member: String,
+	stats: Dictionary,
+	slot: int = 0,
+	row: String = "front",
+	fighter_id: String = "",
+	formation_cell: int = -1,
+) -> String:
 	var id: String = fighter_id if fighter_id != "" else member
 	var attack: String = str(stats.get("attack", stats.get("kind", "physical")))
-	return add_fighter(id, "party", stats, slot, row, attack, "", member)
+	return add_fighter(id, "party", stats, slot, row, attack, "", member, formation_cell)
 
 
 func add_beast(species_id: String, slot: int = 0, row: String = "front", fighter_id: String = "") -> String:
@@ -67,7 +74,17 @@ func add_beast(species_id: String, slot: int = 0, row: String = "front", fighter
 	return add_fighter(id, "beast", spec, slot, row, str(spec.get("attack", "physical")), species_id, "")
 
 
-func add_fighter(fighter_id: String, side: String, stats: Dictionary, slot: int = 0, row: String = "front", attack: String = "", species: String = "", member: String = "") -> String:
+func add_fighter(
+	fighter_id: String,
+	side: String,
+	stats: Dictionary,
+	slot: int = 0,
+	row: String = "front",
+	attack: String = "",
+	species: String = "",
+	member: String = "",
+	formation_cell: int = -1,
+) -> String:
 	var id: String = _unique_id(fighter_id if fighter_id != "" else "fighter")
 	var who := Fighter.new()
 	who.id = id
@@ -76,6 +93,8 @@ func add_fighter(fighter_id: String, side: String, stats: Dictionary, slot: int 
 	who.row = "back" if row == "back" else "front"
 	who.species = species
 	who.member = member
+	if formation_cell >= 0 and formation_cell <= 2:
+		who.cell = formation_cell
 	who.might = _stat(stats, "might", "mig")
 	who.arcana = _stat(stats, "arcana", "arc")
 	who.resilience = _stat(stats, "resilience", "res")
@@ -1193,6 +1212,7 @@ class Fighter extends RefCounted:
 	var row: String = "front"
 	var species: String = ""
 	var member: String = ""
+	var cell: int = -1
 	var might: int = 0
 	var arcana: int = 0
 	var resilience: int = 0
@@ -1237,7 +1257,7 @@ class Fighter extends RefCounted:
 		return body
 
 	func to_dict() -> Dictionary:
-		return {
+		var out: Dictionary = {
 			"id": id,
 			"side": side,
 			"slot": slot,
@@ -1263,6 +1283,9 @@ class Fighter extends RefCounted:
 			"boss": boss,
 			"status": status,
 		}
+		if cell >= 0 and cell <= 2:
+			out["cell"] = cell
+		return out
 
 	static func from_dict(data: Dictionary) -> Fighter:
 		var who := Fighter.new()
@@ -1273,6 +1296,8 @@ class Fighter extends RefCounted:
 		who.row = "back" if str(data.get("row", "front")) == "back" else "front"
 		who.species = str(data.get("species", ""))
 		who.member = str(data.get("member", ""))
+		if data.has("cell"):
+			who.cell = clampi(FightState._as_int(data.get("cell", -1)), 0, 2)
 		who.might = FightState._as_int(data.get("might", 0))
 		who.arcana = FightState._as_int(data.get("arcana", 0))
 		who.resilience = FightState._as_int(data.get("resilience", 0))

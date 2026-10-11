@@ -231,14 +231,25 @@ func _party_cfg_error(cfg: Dictionary) -> String:
 	var raw_party: Variant = cfg.get("party", [])
 	if typeof(raw_party) != TYPE_ARRAY or (raw_party as Array).is_empty():
 		return "bad_party"
+	var occupied: Dictionary = {}
 	for entry_v: Variant in raw_party as Array:
 		if typeof(entry_v) != TYPE_DICTIONARY:
 			return "bad_party"
-		var member: String = str((entry_v as Dictionary).get("member", ""))
+		var entry: Dictionary = entry_v as Dictionary
+		var member: String = str(entry.get("member", ""))
 		if member != "keeper" and member != "elaia":
 			return "bad_party"
 		if SlotEngine.member_stats(member).is_empty():
 			return "bad_party"
+		if entry.has("cell"):
+			var cell: int = int(entry.get("cell", -1))
+			if cell < 0 or cell > 2:
+				return "bad_party"
+			var row: String = "back" if str(entry.get("row", "")) == "back" else "front"
+			var key: String = "%s:%d" % [row, cell]
+			if occupied.has(key):
+				return "bad_party"
+			occupied[key] = true
 	return ""
 
 
@@ -263,6 +274,8 @@ func _begin_outing(cfg: Dictionary) -> String:
 		var stats: Dictionary = SlotEngine.member_stats(member)
 		entry["member"] = member
 		entry["row"] = "back" if str(entry.get("row", "")) == "back" else "front"
+		if entry.has("cell"):
+			entry["cell"] = clampi(int(entry.get("cell", 1)), 0, 2)
 		entry["stats"] = stats
 		built.append(entry)
 	depth = maxi(1, int(cfg.get("depth", depth)))
