@@ -87,6 +87,21 @@ Tokens below are printed by the run that owns them. Listed only where the code p
 | `REACH_TURN_ORDER_OK` | Manual turn order is Swiftness first, the Keeper on ties, then slot, even with 24 equal-speed foes and float noise. `MANAFORGE_TURN_ORDER=1` runs it alone. |
 | `DEBUG_SNAPSHOTS_MIGRATE_OK` | All eight debug snapshots load through `SaveService.migrate_state`, so the version 10 ones gain a current reach block. A newer snapshot is refused. `MANAFORGE_SNAPSHOT_MIGRATE=1` runs it alone. |
 | `SPEED_BUTTON_OK` | The player speed button is 1×, 2×, 4×, 8× during an open session, including the Stable HUD. Offline and idle catch-up stay on the 1× curve at 8×. The value is not in the save. Launch resets it. The debug 16× button is unchanged. |
+| `MINIGAME_DATA_OK` | Minigames feel test (debug only, no payout). `data/minigames.json` has all 8 games, each on a fixed clock (r = 60 / `cycle_sec` × `tokens_per_cycle`) with r_weighted × k = 120 ± 0.05 (Woodsong weighted: 48 BPM, every 8th beat ×2, so 54 × 2.2222). Windows and bands are sane, the overlay frame matches Art's geometry (layer 60, dim 58%, pips at x 416), cue ids exist in `audio_cues.json`, name/flavour/hint strings are `[DRAFT]`, and the approved kit under `assets/art/ui/minigames/kit/` imports. `MANAFORGE_MINIGAME_DATA=1` runs it alone. |
+| `MINIGAME_KIT_OK` | Approved minigame kit wired: host textures load from `kit/` (no `placeholder/kit`), parchment labels use ink `#3E2A18`, Successes and Pace captions do not overlap pips/meter (includes a regression model proving the old layout overlapped). `MANAFORGE_MINIGAME_KIT=1` runs it alone. |
+| `MINIGAME_HOST_OK` | `MinigameHost` overlay: layer 60, world dim at 19, Art frame rects, tap_test open/step/success/pause/stop/Esc, debug-panel Minigames grid (9 buttons; each button is disabled exactly when `MinigameCatalog.is_built` is false, and a missing game is refused as `not_built`). `MANAFORGE_MINIGAME_HOST=1` runs it alone. |
+| `MINIGAME_CLOCK_BOUND_OK` | Seeded cores (tap_test and every built game): 5-minute spam, hitch and time-scale deltas, pace ≤ 3, no double resolve, success/weight caps. `MANAFORGE_MINIGAME_CLOCK_BOUND=1` runs it alone. |
+| `MINIGAME_INPUT_SWALLOW_OK` | Live hub with host open: world drag, RMB, I/C, arrows blocked; Esc closes without pause; I works after close. `MANAFORGE_MINIGAME_INPUT=1` runs it alone. |
+| `MINIGAME_EXCLUSIVE_OK` | `can_open` frozen/battle/busy/not_built; running host closes when frozen/battle flips. `MANAFORGE_MINIGAME_EXCLUSIVE=1` runs it alone. |
+| `MINIGAME_NO_PAYOUT_OK` | Perfect tap_test minute via `host.step` only leaves harvest, resources, and station jobs unchanged; minigame scripts scan clean. `MANAFORGE_MINIGAME_NO_PAYOUT=1` runs it alone. |
+| `RIPE_CATCH_LOGIC_OK` | Ripe Catch core: rotten berries (~1/8 spawn ticks), streak reset, seeded spawns, perfect/all-miss bots. `MANAFORGE_MG_RIPE_CATCH=1` runs it alone. |
+| `SPLITTING_STONE_LOGIC_OK` | Splitting Stone core: preview noop, window edge hits, wrong-spot/key mapping, perfect/all-miss bots. `MANAFORGE_MG_SPLITTING_STONE=1` runs it alone. |
+| `WOODSONG_LOGIC_OK` | Woodsong core: ±180 ms window, heavy every 8th beat, one-minute weight 54, single-press scoring. `MANAFORGE_MG_WOODSONG=1` runs it alone. |
+| `JUST_ENOUGH_LOGIC_OK` | Just Enough core: band edges, overflow once, cycle-end fail, perfect/all-miss bots. `MANAFORGE_MG_JUST_ENOUGH=1` runs it alone. |
+| `FORGE_GLOW_LOGIC_OK` | Forge Glow sweet-zone needle timing, one resolve per sweep, 3-minute perfect/miss bots. `MANAFORGE_MG_FORGE_GLOW=1` runs it alone. |
+| `STEADY_PRESS_LOGIC_OK` | Steady Press crank fill/sag/vent/band, keyboard A/D quarter turns, 3-minute bots. `MANAFORGE_MG_STEADY_PRESS=1` runs it alone. |
+| `WITH_THE_GRAIN_LOGIC_OK` | With the Grain stroke accuracy (rod/head/plank), keyboard trace, 3-minute bots. `MANAFORGE_MG_WITH_THE_GRAIN=1` runs it alone. |
+| `STEEPING_LOGIC_OK` | Steeping herb order recall, wrong pick and timeout, 3-minute bots. `MANAFORGE_MG_STEEPING=1` runs it alone. |
 
 `CHECK_ONLY_OK`, `DURATION_OK`, and `ELAIA_OK` are opt-in shortcuts (`--check-only`, `MANAFORGE_DURATION_ONLY`, `MANAFORGE_ELAIA_ONLY`). They are not extra regression tests. `ELAIA_OK` runs the same join check as `ELAIA_JOIN_OK`.
 

@@ -790,6 +790,8 @@ func world_input_blocked() -> bool:
 		return true
 	if EchoChamber.in_battle:
 		return true
+	if MinigameHost.is_open():
+		return true
 	return pause_menu.is_open()
 
 

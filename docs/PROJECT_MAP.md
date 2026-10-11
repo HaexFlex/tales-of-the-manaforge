@@ -35,6 +35,7 @@ This is a fast index for coding agents. It says where things live and which func
 | Audio | `scripts/autoload/game_audio.gd`, `data/audio_cues.json`, `assets/audio/` (+ `MANIFEST.json`) | `GameAudio.play(cue_id)` and helpers (`play_ui_confirm`, `play_ui_deny`, …), `suspend_hub_for_battle` / `resume_hub_after_battle`, `did_play` / `clear_played_log` (tests), signals `cue_played`, `cue_missing`, `volumes_changed`. Settings live in `user://manaforge_settings.cfg` |
 | Strings / content | `scripts/autoload/content_strings.gd`, `data/strings_v01.json` | `ContentStrings.get_text(key, {token: value})` (a missing key returns the key itself). Adventure copy comes from cast_adventure DRAFT v3 (`path_east_*`, `expedition_*`, `lantern_*`, `echo_02_*`, `bramble_*`). That draft is not FINAL |
 | Debug panel + snapshots | `tools/debug/debug_panel.gd` + `.tscn`, `tools/debug/snapshots/*.json`, `scripts/autoload/anim_preview_hotkey.gd`, `tools/AnimPreview.tscn` | Ctrl+F8 or the pause-menu Options `DebugToolsToggle` (`AnimPreviewHotkey.set_debug_panel`; Experimental only). `SNAPSHOTS` / `SNAPSHOT_ORDER`: Pre-Echo, Forge unlocked, Elaia joined, Ancient ready (save_version 10), then Echo 2 ready, North road open, Pre-boss, Veteran reacher (save_version 13, with a `reach` block). Loading goes through `load_snapshot_state` → `SaveService.migrate_state` (newer versions refused) → `GameState.apply_save_dict`, then swaps to the hub. A new snapshot must also go into the Stable `exclude_filter` and `_stripped_paths()` in `verify_headless.gd` |
+| Minigames (feel test, debug only) | `data/minigames.json`, `scripts/minigames/` (`minigame_catalog.gd`, `minigame_core.gd`, `minigame_view.gd`, `minigame_host.gd`, `minigame_kit.gd`, `games/*`), `assets/art/ui/minigames/kit/` (approved shared kit; see `docs/MINIGAME_KIT_README.md`), `assets/art/ui/minigames/placeholder/play/` (per-game play crops, not final), `assets/refs/minigames_scaffolds/` (Art's full mocks, Godot-ignored) | Branch `feat/minigames-feel-test`. Debug panel **Minigames** section opens `MinigameHost` (no payout). Tuning: r per minute on a fixed clock, k = 120 / r_weighted, windows, cycle times, frame geometry, cue ids. Strings `mg_*` in `strings_v01.json` are `[DRAFT]` (names pending Haex). Checked by `MINIGAME_*` tokens in DEVELOPER_NOTES. |
 
 ## Where data lives
 
@@ -52,6 +53,7 @@ This is a fast index for coding agents. It says where things live and which func
 | `keeper_work_spots.json` | `keeper.gd` |
 | `echo_keeper_01.json`, `echo_bramble_02.json` | EchoChamber |
 | `audio_cues.json` | GameAudio |
+| `minigames.json` | `verify_headless.gd` (`MINIGAME_DATA_OK`); the minigame host and cores once built |
 
 - **Art:** `assets/art/` (subfolders `bramble echo elaia forge fx hub keeper manatree nodes portraits props tiles title trees ui wisps`; manifest in `assets/art/MANIFEST.json`). Hub props are in `assets/art/props/` (e.g. `thorn/`, `expedition_board/`, `echo_portal_hub_v2.png`). Kept-but-unused sheets go in `assets/library/` and refs in `assets/refs/`. Both are `.gdignore`d, as is `docs/`.
 - **Audio:** `assets/audio/*.ogg|mp3`. Cue ids map to files in `data/audio_cues.json`.
@@ -77,6 +79,9 @@ MANAFORGE_ECHO2_PORTAL=1 $G --headless --path . -s res://scripts/verify_headless
   - `MANAFORGE_ELAIA_ONLY`, `MANAFORGE_PORTRAIT_SWITCH`, `MANAFORGE_FORGE_ARCH`, `MANAFORGE_FORGE_ENTRY`, `MANAFORGE_FORGE_YSORT`, `MANAFORGE_MANATREE_DOOR`, `MANAFORGE_COMPANION_DOOR`, `MANAFORGE_DOOR_ACTIVE`
   - `MANAFORGE_WORKBENCH_CLICK`, `MANAFORGE_WORKBENCH_PAUSE`, `MANAFORGE_WORKBENCH_WISP`, `MANAFORGE_FORGED_ITEM`, `MANAFORGE_WORKBENCH_ROUTE`, `MANAFORGE_CRAFT_DURATION`
   - `MANAFORGE_BATCH_REFUND`, `MANAFORGE_BATCH_OFFLINE`, `MANAFORGE_BATCH_ASCEND`, `MANAFORGE_BATCH_MIGRATION`
+  - `MANAFORGE_MINIGAME_DATA`, `MANAFORGE_MINIGAME_HOST`, `MANAFORGE_MINIGAME_CLOCK_BOUND`, `MANAFORGE_MINIGAME_INPUT`, `MANAFORGE_MINIGAME_EXCLUSIVE`, `MANAFORGE_MINIGAME_NO_PAYOUT`, `MANAFORGE_MINIGAME_KIT`
+  - `MANAFORGE_MG_RIPE_CATCH`, `MANAFORGE_MG_SPLITTING_STONE`, `MANAFORGE_MG_WOODSONG`, `MANAFORGE_MG_JUST_ENOUGH`
+  - `MANAFORGE_MG_FORGE_GLOW`, `MANAFORGE_MG_STEADY_PRESS`, `MANAFORGE_MG_WITH_THE_GRAIN`, `MANAFORGE_MG_STEEPING`
   - Grep `OS.get_environment("MANAFORGE_` for the current list. Which token each one prints is in DEVELOPER_NOTES.
 - **Debug-strip check (dual build):** `DEBUG_STRIPPED_OK` always checks the preset excludes. Running with `MANAFORGE_DEBUG_STRIP=1` also reads both pack file tables and fails if they are missing. Build the packs without templates or a zip (`builds/` is gitignored), then delete them afterwards:
 

@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "status": "FEEL TEST ONLY (debug panel, no payout). Numbers are Design's PLACEHOLDERS from MINIGAMES_SPEC_DRAFT.md (Oct 11); names pending Haex.",
+  "notes": "Fixed clock: each game spawns r tokens per real minute (r = 60 / cycle_sec x tokens_per_cycle). k = 120 / r_weighted seconds per success, so a perfect minute = +120 s = 3x. Woodsong r_weighted = r x (1 + (heavy_weight - 1) / heavy_every) = 54. Retune r and k together; MINIGAME_DATA_OK checks it.",
+  "target_bonus_sec_per_min": 120,
+  "max_pace": 3.0,
+  "max_frame_dt": 0.1,
+  "test_seed": 12345,
+  "frame": {
+    "layer": 60,
+    "screen": [
+      1280,
+      720
+    ],
+    "dim_alpha": 0.58,
+    "dim_desaturate": 0.25,
+    "dim_world_only": true,
+    "frame": [
+      280,
+      136,
+      720,
+      448
+    ],
+    "rim": 20,
+    "title_plate": [
+      496,
+      116,
+      288,
+      40
+    ],
+    "title_sprite": [
+      484,
+      113,
+      312,
+      46
+    ],
+    "header": [
+      300,
+      160,
+      680,
+      36
+    ],
+    "play_area": [
+      320,
+      200,
+      640,
+      320
+    ],
+    "footer": [
+      300,
+      524,
+      680,
+      36
+    ],
+    "stop_button": [
+      856,
+      528,
+      104,
+      28
+    ],
+    "pips": {
+      "count": 10,
+      "size": 12,
+      "pitch": 15,
+      "x": 416,
+      "center_y": 178
+    },
+    "pace_meter": [
+      804,
+      172,
+      136,
+      12
+    ],
+    "art_dir": "res://assets/art/ui/minigames/kit/",
+    "geometry_source": "Art scaffold/overlay_geometry.json, Oct 11 (not approved)"
+  },
+  "cues": {
+    "open": "sfx_ui_open",
+    "close": "sfx_ui_close",
+    "success": "sfx_ui_confirm",
+    "fail": "sfx_ui_cancel",
+    "perfect": "sfx_stage_up",
+    "deny": "sfx_ui_deny"
+  },
+  "games": {
+    "ripe_catch": {
+      "order": 1,
+      "enabled": true,
+      "name_key": "mg_ripe_catch_name",
+      "flavour_key": "mg_ripe_catch_flavour",
+      "hint_key": "mg_ripe_catch_hint",
+      "r": 40,
+      "k": 3.0,
+      "cycle_sec": 1.5,
+      "tokens_per_cycle": 1,
+      "node": "food",
+      "rotten_chance": 0.125,
+      "rotten_counts_in_r": false,
+      "fall_sec": 1.6,
+      "basket_half_w": 0.07,
+      "spawn_x_min": 0.04,
+      "spawn_x_max": 0.96,
+      "basket_speed_keys": 0.9,
+      "cues": {
+        "success": "sfx_gather_food"
+      },
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/ripe_catch_play_ref.png"
+    },
+    "splitting_stone": {
+      "order": 2,
+      "enabled": true,
+      "name_key": "mg_splitting_stone_name",
+      "flavour_key": "mg_splitting_stone_flavour",
+      "hint_key": "mg_splitting_stone_hint",
+      "r": 30,
+      "k": 4.0,
+      "cycle_sec": 6.0,
+      "tokens_per_cycle": 3,
+      "node": "stone",
+      "preview_sec": 0.6,
+      "spots": 3,
+      "window_sec": 0.8,
+      "spot_gap_sec": 0.0,
+      "spot_radius": 0.06,
+      "cues": {
+        "success": "sfx_gather_stone"
+      },
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/splitting_stone_play_ref.png"
+    },
+    "woodsong": {
+      "order": 3,
+      "enabled": true,
+      "name_key": "mg_woodsong_name",
+      "flavour_key": "mg_woodsong_flavour",
+      "hint_key": "mg_woodsong_hint",
+      "r": 48,
+      "k": 2.2222,
+      "cycle_sec": 1.25,
+      "tokens_per_cycle": 1,
+      "node": "wood",
+      "bpm": 48,
+      "window_ms": 180,
+      "heavy_every": 8,
+      "heavy_weight": 2,
+      "latency_ms": 0,
+      "k_note": "Design: normal k = 120/54 = 2.2222 s, heavy = 2x = 4.4444 s, so 42x1 + 6x2 = 54 weight/min x 2.2222 = 120 s/min. Spec's nominal 2.5 s is superseded by the averaged figure.",
+      "cues": {
+        "success": "sfx_gather_wood",
+        "beat": "sfx_ui_hover",
+        "heavy_beat": "sfx_footstep"
+      },
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/woodsong_play_ref.png"
+    },
+    "just_enough": {
+      "order": 4,
+      "enabled": true,
+      "name_key": "mg_just_enough_name",
+      "flavour_key": "mg_just_enough_flavour",
+      "hint_key": "mg_just_enough_hint",
+      "r": 20,
+      "k": 6.0,
+      "cycle_sec": 3.0,
+      "tokens_per_cycle": 1,
+      "node": "manatree",
+      "fill_sec": 1.8,
+      "band": [
+        0.62,
+        0.82
+      ],
+      "pour_sec": 0.8,
+      "cues": {
+        "success": "sfx_water_pulse"
+      },
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/just_enough_play_ref.png",
+      "play_bg_in_view": true
+    },
+    "forge_glow": {
+      "order": 5,
+      "enabled": true,
+      "name_key": "mg_forge_glow_name",
+      "flavour_key": "mg_forge_glow_flavour",
+      "hint_key": "mg_forge_glow_hint",
+      "r": 24,
+      "k": 5.0,
+      "cycle_sec": 2.5,
+      "tokens_per_cycle": 1,
+      "node": "crucible",
+      "stations": [
+        "crucible",
+        "anvil",
+        "reliquary"
+      ],
+      "sweet": [
+        0.55,
+        0.75
+      ],
+      "cues": {
+        "success": "sfx_forge_craft_start"
+      },
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/forge_glow_play_ref.png"
+    },
+    "steady_press": {
+      "order": 6,
+      "enabled": true,
+      "name_key": "mg_steady_press_name",
+      "flavour_key": "mg_steady_press_flavour",
+      "hint_key": "mg_steady_press_hint",
+      "r": 15,
+      "k": 8.0,
+      "cycle_sec": 4.0,
+      "tokens_per_cycle": 1,
+      "node": "mill",
+      "stations": [
+        "mill",
+        "press"
+      ],
+      "band": [
+        0.7,
+        0.85
+      ],
+      "sag_per_sec": 0.08,
+      "vent_at": 0.97,
+      "fill_per_turn": 0.25,
+      "max_fill_per_sec": 0.6,
+      "crank_frames": 8,
+      "key_quarter_turn": true,
+      "cues": {
+        "success": "sfx_press_squeeze",
+        "vent": "sfx_gather_cooldown"
+      },
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/steady_press_play_ref.png",
+      "play_bg_in_view": true
+    },
+    "with_the_grain": {
+      "order": 7,
+      "enabled": true,
+      "name_key": "mg_with_the_grain_name",
+      "flavour_key": "mg_with_the_grain_flavour",
+      "hint_key": "mg_with_the_grain_hint",
+      "r": 15,
+      "k": 8.0,
+      "cycle_sec": 4.0,
+      "tokens_per_cycle": 1,
+      "node": "workbench",
+      "accuracy_min": 0.75,
+      "tolerance": 0.05,
+      "shapes": [
+        "rod",
+        "head",
+        "plank"
+      ],
+      "key_steer_speed": 4.0,
+      "cues": {
+        "success": "sfx_bench_open"
+      },
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/with_the_grain_play_ref.png"
+    },
+    "steeping": {
+      "order": 8,
+      "enabled": true,
+      "name_key": "mg_steeping_name",
+      "flavour_key": "mg_steeping_flavour",
+      "hint_key": "mg_steeping_hint",
+      "r": 12,
+      "k": 10.0,
+      "cycle_sec": 5.0,
+      "tokens_per_cycle": 1,
+      "node": "brewing",
+      "order_min": 3,
+      "order_max": 5,
+      "herbs": 5,
+      "show_sec_per_herb": 0.5,
+      "feel_test_optional": true,
+      "cues": {
+        "success": "sfx_tree_water"
+      },
+      "play_bg": "res://assets/art/ui/minigames/placeholder/play/steeping_play_ref.png"
+    }
+  },
+  "debug_games": {
+    "tap_test": {
+      "debug_only": true,
+      "r": 30,
+      "k": 4.0,
+      "cycle_sec": 2.0,
+      "tokens_per_cycle": 1,
+      "window_sec": 0.8
+    }
+  }
+}
