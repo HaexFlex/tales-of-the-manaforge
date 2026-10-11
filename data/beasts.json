@@ -83,7 +83,7 @@
    "from_depth": 1,
    "attack": "magic",
    "might": 2,
-   "arcana": 8,
+   "arcana": 7,
    "resilience": 3,
    "ward": 3,
    "vitality": 10,
@@ -98,7 +98,7 @@
     "damage",
     "utility"
    ],
-   "threat": 45
+   "threat": 44
   },
   {
    "id": "wilt_wisp",
@@ -334,7 +334,7 @@
    "from_depth": 5,
    "attack": "magic",
    "might": 3,
-   "arcana": 10,
+   "arcana": 9,
    "resilience": 4,
    "ward": 4,
    "vitality": 13,
@@ -350,7 +350,7 @@
     "tank",
     "utility"
    ],
-   "threat": 62
+   "threat": 61
   }
  ],
  "variants_note": "Only the dark imp and dark moth spawn by depth 15. Other dark variants come after depth 15 and are not listed yet."

@@ -1,7 +1,7 @@
 {
  "source": {
   "sim": "combat_sim.py",
-  "sim_sha256": "9c2a650ab5ec14f4ad434a0c0acca092c915730b13517b3a7c79c54f2a4c7b6f",
+  "sim_sha256": "db7571469dc9535fe628e63c22e3664b8e14aa610fa1ba73495690fe769200cf",
   "rules": "BATTLE_SCENE_DRAFT v4",
   "exporter": "tools/sim/export_resolver_fixtures.py",
   "poison": "refresh (one per target, 3 ticks, stronger total kept)"
@@ -27,14 +27,14 @@
       "acorn_imp",
       "spore_moth"
      ],
-     "threat": 78
+     "threat": 77
     },
     {
      "beasts": [
       "spore_moth",
       "spore_moth"
      ],
-     "threat": 90
+     "threat": 88
     }
    ]
   },
@@ -55,14 +55,14 @@
       "acorn_imp",
       "spore_moth"
      ],
-     "threat": 78
+     "threat": 77
     },
     {
      "beasts": [
       "spore_moth",
       "spore_moth"
      ],
-     "threat": 90
+     "threat": 88
     }
    ]
   },
@@ -90,7 +90,7 @@
       "acorn_imp",
       "spore_moth"
      ],
-     "threat": 78
+     "threat": 77
     },
     {
      "beasts": [
@@ -111,7 +111,7 @@
       "root_snapper",
       "spore_moth"
      ],
-     "threat": 91
+     "threat": 90
     },
     {
      "beasts": [
@@ -125,14 +125,14 @@
       "spore_moth",
       "spore_moth"
      ],
-     "threat": 90
+     "threat": 88
     },
     {
      "beasts": [
       "spore_moth",
       "wilt_wisp"
      ],
-     "threat": 92
+     "threat": 91
     },
     {
      "beasts": [
@@ -167,7 +167,7 @@
       "acorn_imp",
       "spore_moth"
      ],
-     "threat": 78
+     "threat": 77
     },
     {
      "beasts": [
@@ -188,7 +188,7 @@
       "root_snapper",
       "spore_moth"
      ],
-     "threat": 91
+     "threat": 90
     },
     {
      "beasts": [
@@ -202,14 +202,14 @@
       "spore_moth",
       "spore_moth"
      ],
-     "threat": 90
+     "threat": 88
     },
     {
      "beasts": [
       "spore_moth",
       "wilt_wisp"
      ],
-     "threat": 92
+     "threat": 91
     },
     {
      "beasts": [
@@ -251,14 +251,14 @@
       "acorn_imp",
       "spore_moth"
      ],
-     "threat": 78
+     "threat": 77
     },
     {
      "beasts": [
       "acorn_imp",
       "spore_moth_dark"
      ],
-     "threat": 95
+     "threat": 94
     },
     {
      "beasts": [
@@ -286,7 +286,7 @@
       "acorn_imp_dark",
       "spore_moth"
      ],
-     "threat": 93
+     "threat": 92
     },
     {
      "beasts": [
@@ -307,7 +307,7 @@
       "root_snapper",
       "spore_moth"
      ],
-     "threat": 91
+     "threat": 90
     },
     {
      "beasts": [
@@ -321,14 +321,14 @@
       "spore_moth",
       "spore_moth"
      ],
-     "threat": 90
+     "threat": 88
     },
     {
      "beasts": [
       "spore_moth",
       "wilt_wisp"
      ],
-     "threat": 92
+     "threat": 91
     },
     {
      "beasts": [
@@ -371,14 +371,14 @@
       "acorn_imp",
       "spore_moth"
      ],
-     "threat": 78
+     "threat": 77
     },
     {
      "beasts": [
       "acorn_imp",
       "spore_moth_dark"
      ],
-     "threat": 95
+     "threat": 94
     },
     {
      "beasts": [
@@ -406,7 +406,7 @@
       "acorn_imp_dark",
       "spore_moth"
      ],
-     "threat": 93
+     "threat": 92
     },
     {
      "beasts": [
@@ -427,7 +427,7 @@
       "root_snapper",
       "spore_moth"
      ],
-     "threat": 91
+     "threat": 90
     },
     {
      "beasts": [
@@ -441,14 +441,14 @@
       "spore_moth",
       "spore_moth"
      ],
-     "threat": 90
+     "threat": 88
     },
     {
      "beasts": [
       "spore_moth",
       "wilt_wisp"
      ],
-     "threat": 92
+     "threat": 91
     },
     {
      "beasts": [
@@ -462,7 +462,7 @@
   {
    "depth": 9,
    "budget": 106,
-   "count": 16,
+   "count": 17,
    "rooms": [
     {
      "beasts": [
@@ -491,14 +491,14 @@
       "acorn_imp",
       "spore_moth"
      ],
-     "threat": 78
+     "threat": 77
     },
     {
      "beasts": [
       "acorn_imp",
       "spore_moth_dark"
      ],
-     "threat": 95
+     "threat": 94
     },
     {
      "beasts": [
@@ -526,7 +526,7 @@
       "acorn_imp_dark",
       "spore_moth"
      ],
-     "threat": 93
+     "threat": 92
     },
     {
      "beasts": [
@@ -547,7 +547,7 @@
       "root_snapper",
       "spore_moth"
      ],
-     "threat": 91
+     "threat": 90
     },
     {
      "beasts": [
@@ -561,14 +561,21 @@
       "spore_moth",
       "spore_moth"
      ],
-     "threat": 90
+     "threat": 88
+    },
+    {
+     "beasts": [
+      "spore_moth",
+      "spore_moth_dark"
+     ],
+     "threat": 105
     },
     {
      "beasts": [
       "spore_moth",
       "wilt_wisp"
      ],
-     "threat": 92
+     "threat": 91
     },
     {
      "beasts": [
@@ -582,7 +589,7 @@
   {
    "depth": 10,
    "budget": 108,
-   "count": 18,
+   "count": 19,
    "rooms": [
     {
      "beasts": [
@@ -611,14 +618,14 @@
       "acorn_imp",
       "spore_moth"
      ],
-     "threat": 78
+     "threat": 77
     },
     {
      "beasts": [
       "acorn_imp",
       "spore_moth_dark"
      ],
-     "threat": 95
+     "threat": 94
     },
     {
      "beasts": [
@@ -646,7 +653,7 @@
       "acorn_imp_dark",
       "spore_moth"
      ],
-     "threat": 93
+     "threat": 92
     },
     {
      "beasts": [
@@ -667,14 +674,14 @@
       "root_snapper",
       "spore_moth"
      ],
-     "threat": 91
+     "threat": 90
     },
     {
      "beasts": [
       "root_snapper",
       "spore_moth_dark"
      ],
-     "threat": 108
+     "threat": 107
     },
     {
      "beasts": [
@@ -688,21 +695,28 @@
       "spore_moth",
       "spore_moth"
      ],
-     "threat": 90
+     "threat": 88
     },
     {
      "beasts": [
       "spore_moth",
       "spore_moth_dark"
      ],
-     "threat": 107
+     "threat": 105
     },
     {
      "beasts": [
       "spore_moth",
       "wilt_wisp"
      ],
-     "threat": 92
+     "threat": 91
+    },
+    {
+     "beasts": [
+      "spore_moth_dark",
+      "wilt_wisp"
+     ],
+     "threat": 108
     },
     {
      "beasts": [
@@ -737,7 +751,7 @@
       "acorn_imp_dark",
       "spore_moth_dark"
      ],
-     "threat": 110
+     "threat": 109
     },
     {
      "beasts": [
@@ -772,7 +786,7 @@
       "root_snapper",
       "spore_moth_dark"
      ],
-     "threat": 108
+     "threat": 107
     },
     {
      "beasts": [
@@ -800,21 +814,21 @@
       "spore_moth_dark",
       "thorn_boar"
      ],
-     "threat": 116
+     "threat": 115
     },
     {
      "beasts": [
       "spore_moth_dark",
       "vine_serpent"
      ],
-     "threat": 120
+     "threat": 119
     },
     {
      "beasts": [
       "spore_moth_dark",
       "wilt_wisp"
      ],
-     "threat": 109
+     "threat": 108
     },
     {
      "beasts": [
@@ -884,7 +898,7 @@
       "acorn_imp_dark",
       "spore_moth_dark"
      ],
-     "threat": 110
+     "threat": 109
     },
     {
      "beasts": [
@@ -919,7 +933,7 @@
       "root_snapper",
       "spore_moth_dark"
      ],
-     "threat": 108
+     "threat": 107
     },
     {
      "beasts": [
@@ -947,28 +961,28 @@
       "spore_moth_dark",
       "spore_moth_dark"
      ],
-     "threat": 124
+     "threat": 122
     },
     {
      "beasts": [
       "spore_moth_dark",
       "thorn_boar"
      ],
-     "threat": 116
+     "threat": 115
     },
     {
      "beasts": [
       "spore_moth_dark",
       "vine_serpent"
      ],
-     "threat": 120
+     "threat": 119
     },
     {
      "beasts": [
       "spore_moth_dark",
       "wilt_wisp"
      ],
-     "threat": 109
+     "threat": 108
     },
     {
      "beasts": [
@@ -1038,7 +1052,7 @@
       "acorn_imp_dark",
       "spore_moth_dark"
      ],
-     "threat": 110
+     "threat": 109
     },
     {
      "beasts": [
@@ -1074,7 +1088,7 @@
       "root_snapper",
       "spore_moth_dark"
      ],
-     "threat": 108
+     "threat": 107
     },
     {
      "beasts": [
@@ -1102,28 +1116,28 @@
       "spore_moth_dark",
       "spore_moth_dark"
      ],
-     "threat": 124
+     "threat": 122
     },
     {
      "beasts": [
       "spore_moth_dark",
       "thorn_boar"
      ],
-     "threat": 116
+     "threat": 115
     },
     {
      "beasts": [
       "spore_moth_dark",
       "vine_serpent"
      ],
-     "threat": 120
+     "threat": 119
     },
     {
      "beasts": [
       "spore_moth_dark",
       "wilt_wisp"
      ],
-     "threat": 109
+     "threat": 108
     },
     {
      "beasts": [

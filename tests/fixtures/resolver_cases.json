@@ -1,7 +1,7 @@
 {
  "source": {
   "sim": "combat_sim.py",
-  "sim_sha256": "9c2a650ab5ec14f4ad434a0c0acca092c915730b13517b3a7c79c54f2a4c7b6f",
+  "sim_sha256": "db7571469dc9535fe628e63c22e3664b8e14aa610fa1ba73495690fe769200cf",
   "rules": "BATTLE_SCENE_DRAFT v4",
   "exporter": "tools/sim/export_resolver_fixtures.py",
   "poison": "refresh (one per target, 3 ticks, stronger total kept)"
@@ -488,7 +488,7 @@
    "attacker": {
     "name": "Spore moth A",
     "mig": 2,
-    "arc": 8,
+    "arc": 7,
     "res": 3,
     "ward": 3,
     "vit": 10,
@@ -525,13 +525,13 @@
     "fate_roll_0_100": null
    },
    "expect": {
-    "attack_total": 14,
+    "attack_total": 13,
     "defense_total": 10,
-    "margin": 4,
+    "margin": 3,
     "band": "hit",
-    "damage": 9,
+    "damage": 8,
     "fate_crit": false,
-    "defender_hp_after": 19
+    "defender_hp_after": 20
    }
   },
   {
@@ -603,7 +603,7 @@
    "defender": {
     "name": "Spore moth A",
     "mig": 2,
-    "arc": 8,
+    "arc": 7,
     "res": 3,
     "ward": 3,
     "vit": 10,

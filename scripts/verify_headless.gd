@@ -9673,7 +9673,7 @@ func _beast_data(_tree_root: Window) -> int:
 	var hp_rule: Dictionary = data.get("hp_rule", {}) as Dictionary
 	# The §10 table, as Haex reviewed it: id -> [tier, from depth, threat, hp].
 	var table: Dictionary = {
-		"acorn_imp": [1, 1, 33, 37], "spore_moth": [1, 1, 45, 40],
+		"acorn_imp": [1, 1, 33, 37], "spore_moth": [1, 1, 44, 40],
 		"wilt_wisp": [2, 3, 47, 40], "root_snapper": [2, 3, 46, 43],
 		"thorn_boar": [3, 12, 54, 46], "vine_serpent": [3, 12, 58, 43],
 		"briar_hulk": [4, 18, 61, 49], "moss_brute": [4, 18, 63, 52],
@@ -9704,7 +9704,7 @@ func _beast_data(_tree_root: Window) -> int:
 	failed += _assert(FileAccess.get_file_as_string(path).to_lower().find("warden") < 0, "no Briar Warden left in beasts.json")
 	# Variants: tier 1 is about +30% (at least +1), poison x1.3 (at least +2). Others +50% / +2.
 	var vrule: Dictionary = data.get("variant_rule", {}) as Dictionary
-	var dark_want: Dictionary = {"acorn_imp_dark": [48, 46, 5], "spore_moth_dark": [62, 49, 5]}
+	var dark_want: Dictionary = {"acorn_imp_dark": [48, 46, 5], "spore_moth_dark": [61, 49, 5]}
 	var variants: Array = data.get("variants", []) as Array
 	failed += _assert(variants.size() == dark_want.size(), "two dark variants by depth 15 (got %d)" % variants.size())
 	for var_v: Variant in variants:
@@ -9724,7 +9724,7 @@ func _beast_data(_tree_root: Window) -> int:
 			var bt: int = int((bmove as Dictionary).get("total", 0))
 			var want_p: int = maxi(bt + int(tier_rule.get("poison_min_add", 0)), _half_up(float(bt) * float(tier_rule.get("poison_mult", 1.0))))
 			failed += _assert(int(((vrow.get("move", {}) as Dictionary)).get("total", 0)) == want_p, "%s poison follows the variant rule" % vid)
-		failed += _assert(int(_beast_threat(vrow, rule)["threat"]) == int(vrow.get("threat", 0)), "%s threat recomputes" % vid)
+		failed += _assert(int(_beast_threat(vrow, rule)["threat"]) == int(vrow.get("threat", 0)), "%s threat recomputes (%d vs %d)" % [vid, int(_beast_threat(vrow, rule)["threat"]), int(vrow.get("threat", 0))])
 		failed += _assert(int(vrow.get("threat", 0)) == int(dark_want[vid][0]) and int(vrow.get("hp", 0)) == int(dark_want[vid][1]), "%s matches the §10 note" % vid)
 		failed += _assert(int(vrow.get("from_depth", 0)) == int(dark_want[vid][2]), "%s first spawns at depth 5" % vid)
 		failed += _assert(strings.has(str(vrow.get("name_key", ""))), "%s name string" % vid)
@@ -9825,7 +9825,7 @@ func _spawn_data(_tree_root: Window) -> int:
 		3: [94, "acorn_imp:8,spore_moth:8,wilt_wisp:1,root_snapper:1", 10],
 		5: [98, "acorn_imp:12,spore_moth:12,wilt_wisp:4,root_snapper:4,acorn_imp_dark:1,spore_moth_dark:1", 16],
 		8: [104, "acorn_imp:4,spore_moth:4,wilt_wisp:6,root_snapper:6,acorn_imp_dark:1,spore_moth_dark:1", 16],
-		10: [108, "acorn_imp:2,spore_moth:2,wilt_wisp:6,root_snapper:6,acorn_imp_dark:2,spore_moth_dark:1", 18],
+		10: [108, "acorn_imp:2,spore_moth:2,wilt_wisp:6,root_snapper:6,acorn_imp_dark:2,spore_moth_dark:1", 19],
 		12: [120, "wilt_wisp:4,root_snapper:4,acorn_imp_dark:2,spore_moth_dark:1,thorn_boar:1,vine_serpent:1", 20],
 		15: [138, "wilt_wisp:3,root_snapper:3,acorn_imp_dark:2,spore_moth_dark:2,thorn_boar:2,vine_serpent:2", 21],
 	}
@@ -10100,12 +10100,12 @@ func _spawn_seed(_tree_root: Window) -> int:
 		{"beast": "acorn_imp", "row": "front", "slot": 1, "boss": false, "threat": 33},
 	]
 	var pin_2: Array = [
-		{"beast": "spore_moth", "row": "back", "slot": 0, "boss": false, "threat": 45},
+		{"beast": "spore_moth", "row": "back", "slot": 0, "boss": false, "threat": 44},
 		{"beast": "wilt_wisp", "row": "back", "slot": 1, "boss": false, "threat": 47},
 	]
 	var pin_1000: Array = [
 		{"beast": "acorn_imp", "row": "front", "slot": 0, "boss": false, "threat": 33},
-		{"beast": "spore_moth_dark", "row": "back", "slot": 1, "boss": false, "threat": 62},
+		{"beast": "spore_moth_dark", "row": "back", "slot": 1, "boss": false, "threat": 61},
 	]
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1))) == str(pin_1), "pinned room seed 1 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(2))) == str(pin_2), "pinned room seed 2 depth 5")
