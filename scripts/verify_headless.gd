@@ -12949,7 +12949,7 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	if imp_a_plate != null and imp_b_plate != null:
 		var name_a: Label = imp_a_plate.get_node_or_null("NameLabel") as Label
 		var name_b: Label = imp_b_plate.get_node_or_null("NameLabel") as Label
-		failed += _assert(name_a != null and name_b != null and name_a.text == "Acorn imp A" and name_b.text == "Acorn imp B", "imp plate names")
+		failed += _assert(name_a != null and name_b != null and name_a.text.begins_with("Acorn imp A") and name_b.text.begins_with("Acorn imp B"), "imp plate names")
 	view.call("set_active", "elaia")
 	await process_frame
 	failed += _assert(get_nodes_in_group("battle_plate_outline").is_empty(), "no gold plate outline ColorRect")
@@ -12958,6 +12958,7 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 		var elaia_bg: TextureRect = elaia_plate_active.get_node_or_null("Bg") as TextureRect
 		var active_path: String = elaia_bg.texture.resource_path if elaia_bg != null and elaia_bg.texture != null else ""
 		failed += _assert(active_path.find("plate_party_active_56x24.png") >= 0, "active fighter uses active plate texture")
+	fight.apply_poison("acorn_imp", 4)
 	fight.set_hp("acorn_imp", 1)
 	view.call("refresh_fight", fight)
 	await process_frame
@@ -12967,12 +12968,18 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	if imp_a_plate != null:
 		var calm_row: Node = imp_a_plate.get_node_or_null("StatusRow")
 		var calm_icon: bool = false
+		var extra_status: bool = false
 		if calm_row != null:
+			failed += _assert(calm_row.get_child_count() == 1, "Calmed clears other status icons on the plate")
 			for child: Node in calm_row.get_children():
 				var tr: TextureRect = child as TextureRect
-				if tr != null and str(tr.texture.resource_path).find("status_calmed_12.png") >= 0:
+				if tr == null:
+					continue
+				if str(tr.texture.resource_path).find("status_calmed_12.png") >= 0:
 					calm_icon = true
-		failed += _assert(calm_icon, "imp plate shows Calmed status icon")
+				elif str(tr.texture.resource_path).find("status_poisoned_12.png") >= 0:
+					extra_status = true
+		failed += _assert(calm_icon and not extra_status, "imp plate shows only Calmed status icon")
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
 	failed += _assert(close_btn != null, "Close button present")
 	if close_btn != null:
@@ -13171,13 +13178,24 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	var twist_chip: Control = view.get_node_or_null("Arena/TwistChip") as Control
 	if test_bar != null and depth_plate != null:
 		failed += _assert(not test_bar.get_global_rect().intersects(depth_plate.get_global_rect()), "TestFightBar does not overlap DepthPlate")
-		failed += _assert(test_bar.position == BattleViewScript._test_fight_bar_pos(), "TestFightBar sits right of the twist chip slot")
+		failed += _assert(test_bar.position == BattleViewScript._test_fight_bar_pos(), "TestFightBar sits below the top chrome")
 	if test_bar != null and twist_chip != null and twist_chip.is_visible_in_tree():
 		failed += _assert(not test_bar.get_global_rect().intersects(twist_chip.get_global_rect()), "TestFightBar does not overlap TwistChip")
+	if test_bar != null and round_banner != null:
+		failed += _assert(not test_bar.get_global_rect().intersects(round_banner.get_global_rect()), "TestFightBar does not overlap RoundBanner")
+	if test_bar != null and close_btn != null:
+		failed += _assert(not test_bar.get_global_rect().intersects(close_btn.get_global_rect()), "TestFightBar does not overlap Close")
+	if test_bar != null:
+		for i: int in 3:
+			var speed_n: int = [1, 2, 4][i]
+			var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
+			if speed_btn != null:
+				failed += _assert(not test_bar.get_global_rect().intersects(speed_btn.get_global_rect()), "TestFightBar does not overlap Speed%dx" % speed_n)
 	var sample_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_%s" % party_ids[0]) as Control
 	if sample_plate != null:
 		var sample_name: Label = sample_plate.get_node_or_null("NameLabel") as Label
 		if sample_name != null:
+			failed += _assert(sample_name.get_theme_font_size("font_size") >= BattleViewScript.PLATE_LABEL_FONT_SIZE, "plate name font is legible (>= %d px)" % BattleViewScript.PLATE_LABEL_FONT_SIZE)
 			failed += _assert(sample_name.get_theme_color("font_color").is_equal_approx(BattleViewScript.PLATE_INK), "plate name uses README ink colour")
 	view.call("_apply_battle_speed", 2)
 	await process_frame
@@ -13188,6 +13206,29 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	view.call("set_active", party_ids[0])
 	await process_frame
 	failed += _assert(get_nodes_in_group("battle_plate_outline").is_empty(), "no gold plate outline ColorRect")
+	view.call("set_active", party_ids[1])
+	await process_frame
+	var back_arrows: Array[Node] = get_nodes_in_group("battle_active_arrow")
+	failed += _assert(back_arrows.size() == 1, "back-row fighter shows one active arrow")
+	if back_arrows.size() == 1:
+		var back_arrow: Control = back_arrows[0] as Control
+		var back_shown: Rect2 = view.fighter_visible_rect(party_ids[1])
+		if back_shown.size.y > 0.0 and back_arrow != null:
+			failed += _assert(back_arrow.position.x < back_shown.position.x, "back-row party arrow sits beside the head (left)")
+			var arrow_rect: Rect2 = back_arrow.get_global_rect()
+			for plate_v: Node in get_nodes_in_group("battle_plate"):
+				var other_plate: Control = plate_v as Control
+				if other_plate == null or str(other_plate.get_meta("fighter_id", "")) == party_ids[1]:
+					continue
+				var other_row: Node = other_plate.get_node_or_null("StatusRow")
+				if other_row == null:
+					continue
+				for icon_v: Node in other_row.get_children():
+					var icon: Control = icon_v as Control
+					if icon != null:
+						failed += _assert(not arrow_rect.intersects(icon.get_global_rect()), "active arrow avoids %s status icon" % other_plate.name)
+	view.call("set_active", party_ids[0])
+	await process_frame
 	failed += _assert(not DirAccess.dir_exists_absolute("res://assets/art/battle/ui_placeholder/"), "ui_placeholder folder removed")
 	failed += _assert(not FileAccess.file_exists("res://assets/art/battle/ui_placeholder/plate_bg.png"), "ui_placeholder plate_bg gone")
 	# 6. Bottom bar: exactly six action buttons + the log, nothing else.
@@ -13378,6 +13419,16 @@ func _battle_icons(tree_root: Window, game_state: Node, save_service: Node) -> i
 	await process_frame
 	status_row = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
 	failed += _assert(status_row != null and status_row.get_child_count() == 0, "status icons clear when poison/brace gone")
+	fight.set_hp(keeper_id, 2)
+	keeper_row = fight.fighter_dict(keeper_id)
+	view.call("_refresh_plate", keeper_row)
+	await process_frame
+	status_row = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
+	failed += _assert(str(keeper_row.get("status", "")) == "ko", "keeper knocked out for status regression")
+	if status_row != null:
+		failed += _assert(status_row.get_child_count() == 1, "KO clears poison/brace icons")
+		var ko_only: TextureRect = status_row.get_child(0) as TextureRect
+		failed += _assert(ko_only != null and str(ko_only.texture.resource_path).find("status_ko_12.png") >= 0, "KO plate shows only the KO icon")
 	BattleViewScript.close_arena()
 	await process_frame
 	failed += await _battle_ui_v7(tree_root, game_state, save_service)

@@ -111,6 +111,9 @@ const INTENT_BUBBLE_WIDE: Vector2 = Vector2(40.0, 26.0)
 const INTENT_LIFT: float = 28.0
 const INTENT_CENTRE_SHIFT: float = 10.0
 const ACTIVE_ARROW_TOP: float = 15.0
+const ACTIVE_ARROW_BACK_SIDE_GAP: float = 2.0
+const PLATE_LABEL_FONT_SIZE: int = 8
+const PLATE_NAME_Y: float = 6.0
 const DEPTH_PLATE_POS: Vector2 = Vector2(16.0, 12.0)
 const DEPTH_PLATE_SIZE: Vector2 = Vector2(120.0, 28.0)
 const ROUND_BANNER_POS: Vector2 = Vector2(478.0, 8.0)
@@ -127,6 +130,8 @@ const SPEED_BUTTON_POS: Vector2 = Vector2(
 const TWIST_CHIP_POS: Vector2 = Vector2(142.0, 20.0)
 const TWIST_CHIP_SIZE: Vector2 = Vector2(12.0, 12.0)
 const TEST_FIGHT_BAR_GAP: float = 8.0
+## Below depth plate, twist chip, and round banner (top chrome ends ~y 46).
+const TEST_FIGHT_BAR_Y: float = 52.0
 const STATUS_ICON_STEP: float = 13.0
 const STATUS_ICON_SIZE: Vector2 = Vector2(12.0, 12.0)
 const MAX_STATUS_ICONS: int = 3
@@ -807,7 +812,7 @@ func set_active(fighter_id: String) -> void:
 		arrow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		arrow.size = arrow_tex.get_size()
-		arrow.position = Vector2(floorf(shown.get_center().x) - 6.0, shown.position.y - ACTIVE_ARROW_TOP)
+		arrow.position = _active_arrow_position(fighter_id, shown, arrow.size)
 		arrow.add_to_group("battle_active_arrow")
 		_plates.add_child(arrow)
 
@@ -930,9 +935,30 @@ static func _plate_bg_file(side: String, active: bool, boss: bool = false) -> St
 
 
 static func _test_fight_bar_pos() -> Vector2:
-	## Right of the depth plate and the optional twist chip (12×12 at TWIST_CHIP_POS).
+	## Right of the twist chip slot; sits under the top chrome (depth, banner, speed).
 	var x: float = TWIST_CHIP_POS.x + TWIST_CHIP_SIZE.x + TEST_FIGHT_BAR_GAP
-	return Vector2(x, DEPTH_PLATE_POS.y)
+	return Vector2(x, TEST_FIGHT_BAR_Y)
+
+
+func _active_arrow_position(fighter_id: String, shown: Rect2, arrow_size: Vector2) -> Vector2:
+	var row: String = "front"
+	var side: String = "party"
+	if _fight != null:
+		var row_v: Dictionary = _fight.fighter_dict(fighter_id)
+		row = str(row_v.get("row", "front"))
+		side = str(row_v.get("side", "party"))
+	if row == "back":
+		var head_y: float = shown.position.y + shown.size.y * 0.22
+		if side == "party":
+			return Vector2(
+				floorf(shown.position.x) - arrow_size.x - ACTIVE_ARROW_BACK_SIDE_GAP,
+				floorf(head_y),
+			)
+		return Vector2(
+			floorf(shown.position.x + shown.size.x) + ACTIVE_ARROW_BACK_SIDE_GAP,
+			floorf(head_y),
+		)
+	return Vector2(floorf(shown.get_center().x) - 6.0, shown.position.y - ACTIVE_ARROW_TOP)
 
 
 func _twist_chip_art(twist: String) -> Dictionary:
@@ -981,6 +1007,10 @@ func _status_icon_files(row: Dictionary) -> Array[String]:
 	var files: Array[String] = []
 	var side: String = str(row.get("side", ""))
 	var status_id: String = str(row.get("status", "active"))
+	if side == "party" and status_id == "ko":
+		return ["status_ko_12.png"]
+	if side == "beast" and status_id == "calmed":
+		return ["status_calmed_12.png"]
 	var poison_v: Variant = row.get("poison", {})
 	var poison: Dictionary = poison_v as Dictionary if poison_v is Dictionary else {}
 	var poison_left: int = int(poison.get("left", 0))
@@ -992,10 +1022,6 @@ func _status_icon_files(row: Dictionary) -> Array[String]:
 		files.append("status_braced_12.png")
 	if bool(row.get("rootbind", false)):
 		files.append("status_rootbind_12.png")
-	if side == "party" and status_id == "ko":
-		files.append("status_ko_12.png")
-	elif side == "beast" and status_id == "calmed":
-		files.append("status_calmed_12.png")
 	var capped: Array[String] = []
 	for i: int in mini(files.size(), MAX_STATUS_ICONS):
 		capped.append(files[i])
@@ -1107,16 +1133,50 @@ func _plate_label(label_name: String, text: String, pos: Vector2, width: float, 
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_apply_plate_label_style(label, ink)
 	label.position = Vector2(floorf(pos.x), floorf(pos.y))
-	label.size = Vector2(floorf(width), 10.0)
+	label.size = Vector2(floorf(width), float(PLATE_LABEL_FONT_SIZE))
 	label.z_index = 10
 	return label
 
 
 func _apply_plate_label_style(label: Label, ink: Color) -> void:
 	label.add_theme_font_override("font", _battle_ui_font())
-	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_font_size_override("font_size", PLATE_LABEL_FONT_SIZE)
 	label.add_theme_color_override("font_color", ink)
 	label.add_theme_constant_override("line_spacing", 0)
+
+
+func _plate_name_inner_width(level_text: String) -> float:
+	return 38.0 if level_text != "" else 48.0
+
+
+func _fit_plate_name_line(display: String, hp: int, max_hp: int, max_width: float) -> String:
+	var font: Font = _battle_ui_font()
+	var fs: int = PLATE_LABEL_FONT_SIZE
+	var with_hp: String = "%s %d/%d" % [display, hp, max_hp]
+	if font.get_string_size(with_hp, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= max_width:
+		return with_hp
+	return display
+
+
+func _sync_plate_name_label(plate: Control, row: Dictionary) -> void:
+	var name_label: Label = plate.get_node_or_null("NameLabel") as Label
+	if name_label == null:
+		return
+	var side: String = str(row.get("side", ""))
+	var display: String = ""
+	if side == "party":
+		display = _party_display_name(str(row.get("member", row.get("id", ""))))
+	else:
+		var suffix: String = str(plate.get_meta("beast_suffix", ""))
+		display = _beast_display_name(str(row.get("species", ""))) + suffix
+	var level_text: String = _level_text(row)
+	var inner_w: float = _plate_name_inner_width(level_text)
+	var hp: int = int(row.get("hp", 0))
+	var max_hp: int = int(row.get("max_hp", 1))
+	var hide_bars: bool = _bars_hidden_by_status(row)
+	var line: String = display if hide_bars else _fit_plate_name_line(display, hp, max_hp, inner_w)
+	name_label.text = line
+	name_label.size = Vector2(floorf(inner_w), float(PLATE_LABEL_FONT_SIZE))
 
 
 func _plate_fill_bar(bar_name: String, y: float, bar_size: Vector2, fill_file: String, max_value: int, value: int) -> TextureProgressBar:
@@ -1190,9 +1250,11 @@ func _build_plate(row: Dictionary, sole: Vector2, suffix: String) -> void:
 		intent_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		plate.add_child(intent_root)
 	var level_text: String = _level_text(row)
-	var name_width: float = 50.0 if level_text == "" else 38.0
-	plate.add_child(_plate_label("NameLabel", display, Vector2(4.0, 5.0), name_width, HORIZONTAL_ALIGNMENT_LEFT, PLATE_INK))
-	plate.add_child(_plate_label("LevelLabel", level_text, Vector2(44.0, 5.0), 12.0, HORIZONTAL_ALIGNMENT_RIGHT, PLATE_LEVEL_INK))
+	var name_width: float = _plate_name_inner_width(level_text)
+	plate.set_meta("beast_suffix", suffix if side == "beast" else "")
+	var name_line: String = _fit_plate_name_line(display, hp, max_hp, name_width)
+	plate.add_child(_plate_label("NameLabel", name_line, Vector2(4.0, PLATE_NAME_Y), name_width, HORIZONTAL_ALIGNMENT_LEFT, PLATE_INK))
+	plate.add_child(_plate_label("LevelLabel", level_text, Vector2(44.0, PLATE_NAME_Y), 12.0, HORIZONTAL_ALIGNMENT_RIGHT, PLATE_LEVEL_INK))
 	var status_row := Control.new()
 	status_row.name = "StatusRow"
 	status_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1343,8 +1405,13 @@ func _refresh_plate(row: Dictionary) -> void:
 	if crown != null:
 		crown.visible = is_boss
 	_refresh_status_row(plate, row)
-	var name_label: Label = plate.get_node_or_null("NameLabel") as Label
-	var tip: String = "%s · %s" % [name_label.text if name_label != null else "", _hp_line(hp, max_hp)]
+	_sync_plate_name_label(plate, row)
+	var tip_name: String = ""
+	if side == "party":
+		tip_name = _party_display_name(str(row.get("member", fighter_id)))
+	else:
+		tip_name = _beast_display_name(str(row.get("species", ""))) + str(plate.get_meta("beast_suffix", ""))
+	var tip: String = "%s · %s" % [tip_name, _hp_line(hp, max_hp)]
 	if side == "party":
 		tip += " · " + _weave_line(weave)
 	plate.tooltip_text = tip
