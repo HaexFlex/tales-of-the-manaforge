@@ -8465,6 +8465,8 @@ func _debug_adventure_ok(tree_root: Window, game_state: Node, save_service: Node
 		depth_spin.value = fight_depth
 		(boss_boxes[0] as CheckBox).button_pressed = true
 		(elaia_boxes[0] as CheckBox).button_pressed = true
+		## The panel rolls its room seed with randi(): pin the global RNG for this fight.
+		seed(3401)
 		open_fight.pressed.emit()
 		failed += _assert(BattleViewScript.is_open(), "Open fight opens the arena")
 		var arena: BattleView = _reach_live_view()
@@ -14949,6 +14951,8 @@ func _keeper_away_join_fight_ok(tree_root: Window, game_state: Node, save_servic
 		"party": [{"member": "keeper", "row": "front"}],
 		"loadout": {},
 	}
+	## Manual join opens a real fight: pin the run seed.
+	reach.call("set_test_run_seed", 1)
 	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away for join")
 	var live: Node = await _echo2_boot_hub(tree_root)
 	var board: Area2D = live.get_node_or_null("World/ExpeditionBoard") as Area2D if live else null
