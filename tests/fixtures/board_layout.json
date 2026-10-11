@@ -1,0 +1,1372 @@
+{
+ "screen": [
+  1280,
+  720
+ ],
+ "font": "Pixelify Sans (stand-in for the game font)",
+ "coords": "screen px, 1 art px = 1 screen px; rect = [x, y, w, h]",
+ "board_with_picker": [
+  {
+   "id": "dim",
+   "rect": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "asset": "ColorRect black",
+   "state": "",
+   "note": "hub at Color 0.75 then 58% black (same dim as the minigame overlay); blocks clicks",
+   "z": -1
+  },
+  {
+   "id": "panel",
+   "rect": [
+    200,
+    60,
+    880,
+    600
+   ],
+   "asset": "kit/frame_9s_96.png",
+   "state": "",
+   "note": "NinePatchRect margins 24, axis TILE (period 48); parchment inner (224,84)-(1056,636)",
+   "z": 0
+  },
+  {
+   "id": "deco_vines",
+   "rect": [
+    196,
+    56,
+    888,
+    608
+   ],
+   "asset": "kit/deco_vine_tl.png, deco_vine_br.png",
+   "state": "",
+   "note": "corners, as the minigame frame",
+   "z": 0
+  },
+  {
+   "id": "title_plate",
+   "rect": [
+    484,
+    37,
+    312,
+    46
+   ],
+   "asset": "kit/title_plate_312x46.png",
+   "state": "",
+   "note": "text \"expedition_board_name\" 18 px CR + 1 px O shadow, centred (496,40,288,40)",
+   "z": 0
+  },
+  {
+   "id": "close_button",
+   "rect": [
+    944,
+    92,
+    104,
+    28
+   ],
+   "asset": "kit/stop_button_{normal,hover,pressed,disabled}_104x28.png",
+   "state": "normal",
+   "note": "text \"Close\" at +8,+4 14 px CR; Esc keycap at +76,+4. Esc anywhere = Close (closes the popup first if open)",
+   "z": 0
+  },
+  {
+   "id": "close_esc_keycap",
+   "rect": [
+    1020,
+    96,
+    28,
+    15
+   ],
+   "asset": "kit/keycap_esc.png",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "hint",
+   "rect": [
+    244,
+    92,
+    680,
+    18
+   ],
+   "asset": "engine text 14 INK",
+   "state": "",
+   "note": "expedition_board_hint",
+   "z": 0
+  },
+  {
+   "id": "lantern_line",
+   "rect": [
+    244,
+    114,
+    680,
+    16
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "_lantern_line()",
+   "z": 0
+  },
+  {
+   "id": "divider_top",
+   "rect": [
+    244,
+    136,
+    796,
+    6
+   ],
+   "asset": "pieces/divider_3s_48x6.png",
+   "state": "",
+   "note": "3-slice ends 8",
+   "z": 0
+  },
+  {
+   "id": "party_title",
+   "rect": [
+    244,
+    148,
+    120,
+    20
+   ],
+   "asset": "engine text 16 INK",
+   "state": "",
+   "note": "board_party_title",
+   "z": 0
+  },
+  {
+   "id": "formation_bed",
+   "rect": [
+    244,
+    172,
+    340,
+    246
+   ],
+   "asset": "ColorRect P2 + kit/play_bevel_9s_6x6.png (margins 2) around (rect -2)",
+   "state": "",
+   "note": "the party half of the v7 battlefield",
+   "z": 0
+  },
+  {
+   "id": "label_back",
+   "rect": [
+    264,
+    398,
+    60,
+    14
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "board_row_back",
+   "z": 0
+  },
+  {
+   "id": "label_front",
+   "rect": [
+    414,
+    398,
+    60,
+    14
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "board_row_front",
+   "z": 0
+  },
+  {
+   "id": "enemy_side_arrow",
+   "rect": [
+    562,
+    182,
+    12,
+    9
+   ],
+   "asset": "pieces/arrow_enemy_side_12x9.png",
+   "state": "",
+   "note": "+ text \"enemies\" 12 P4 right-aligned at its left",
+   "z": 0
+  },
+  {
+   "id": "slot_back_top",
+   "rect": [
+    264,
+    196,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "empty",
+   "note": "portrait 52 at +4,+4; empty. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "slot_back_mid",
+   "rect": [
+    294,
+    266,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "selected",
+   "note": "portrait 52 at +4,+4; holds elaia. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "slot_back_mid_portrait",
+   "rect": [
+    298,
+    270,
+    52,
+    52
+   ],
+   "asset": "portraits elaia 52x52",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "slot_back_bot",
+   "rect": [
+    264,
+    336,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "empty",
+   "note": "portrait 52 at +4,+4; empty. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "slot_front_top",
+   "rect": [
+    414,
+    196,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "filled",
+   "note": "portrait 52 at +4,+4; holds keeper. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "slot_front_top_portrait",
+   "rect": [
+    418,
+    200,
+    52,
+    52
+   ],
+   "asset": "portraits keeper 52x52",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "slot_front_mid",
+   "rect": [
+    444,
+    266,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "empty",
+   "note": "portrait 52 at +4,+4; empty. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "slot_front_bot",
+   "rect": [
+    414,
+    336,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "empty",
+   "note": "portrait 52 at +4,+4; empty. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "mode_title",
+   "rect": [
+    244,
+    430,
+    80,
+    20
+   ],
+   "asset": "engine text 16",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "mode_manual",
+   "rect": [
+    244,
+    452,
+    120,
+    32
+   ],
+   "asset": "pieces/wood_button_9s_selected_32x28.png (on) / kit/wood_button_9s_{normal,hover,pressed}_32x28.png (off)",
+   "state": "off",
+   "note": "ButtonGroup toggle; text 14 centred",
+   "z": 0
+  },
+  {
+   "id": "mode_idle",
+   "rect": [
+    368,
+    452,
+    120,
+    32
+   ],
+   "asset": "pieces/wood_button_9s_selected_32x28.png (on) / kit/wood_button_9s_{normal,hover,pressed}_32x28.png (off)",
+   "state": "on",
+   "note": "ButtonGroup toggle; text 14 centred",
+   "z": 0
+  },
+  {
+   "id": "mode_hint",
+   "rect": [
+    244,
+    490,
+    340,
+    16
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "route_title",
+   "rect": [
+    616,
+    148,
+    120,
+    20
+   ],
+   "asset": "engine text 16",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "depth_label",
+   "rect": [
+    616,
+    178,
+    100,
+    16
+   ],
+   "asset": "engine text 14",
+   "state": "",
+   "note": "board_depth label part",
+   "z": 0
+  },
+  {
+   "id": "depth_minus",
+   "rect": [
+    728,
+    172,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
+   "state": "normal",
+   "note": "9s margins 6; glyph at +9,+9",
+   "z": 0
+  },
+  {
+   "id": "depth_field",
+   "rect": [
+    760,
+    172,
+    72,
+    28
+   ],
+   "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
+   "state": "normal",
+   "note": "LineEdit, digits only, centred 16 px INK; Enter/blur clamps",
+   "z": 0
+  },
+  {
+   "id": "depth_plus",
+   "rect": [
+    836,
+    172,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
+   "state": "normal",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "depth_max",
+   "rect": [
+    874,
+    178,
+    70,
+    16
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "Reach.max_start_depth(); typed values clamp to 1..max",
+   "z": 0
+  },
+  {
+   "id": "rooms_label",
+   "rect": [
+    616,
+    218,
+    100,
+    16
+   ],
+   "asset": "engine text 14",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "rooms_minus",
+   "rect": [
+    728,
+    212,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
+   "state": "normal",
+   "note": "9s margins 6; glyph at +9,+9",
+   "z": 0
+  },
+  {
+   "id": "rooms_field",
+   "rect": [
+    760,
+    212,
+    72,
+    28
+   ],
+   "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
+   "state": "normal",
+   "note": "LineEdit, digits only, centred 16 px INK; Enter/blur clamps",
+   "z": 0
+  },
+  {
+   "id": "rooms_plus",
+   "rect": [
+    836,
+    212,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
+   "state": "normal",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "rooms_step_note",
+   "rect": [
+    874,
+    218,
+    70,
+    16
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "−/+ walk 1, 5, 10, 15 …; typing accepts any 1..max",
+   "z": 0
+  },
+  {
+   "id": "duration",
+   "rect": [
+    616,
+    254,
+    200,
+    16
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "board_duration",
+   "z": 0
+  },
+  {
+   "id": "bosses",
+   "rect": [
+    826,
+    254,
+    200,
+    16
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "board_bosses_*; boss_crown_16 optional at the left",
+   "z": 0
+  },
+  {
+   "id": "divider_right",
+   "rect": [
+    616,
+    280,
+    424,
+    6
+   ],
+   "asset": "pieces/divider_3s_48x6.png",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "loadout_title",
+   "rect": [
+    616,
+    292,
+    200,
+    20
+   ],
+   "asset": "engine text 16 + 12",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "loadout_0_slot",
+   "rect": [
+    616,
+    320,
+    44,
+    44
+   ],
+   "asset": "pieces/item_slot_{normal,hover,empty}_44x44.png",
+   "state": "normal",
+   "note": "click = item list (owned consumables); icon 32 at +6,+6",
+   "z": 0
+  },
+  {
+   "id": "loadout_0_name",
+   "rect": [
+    670,
+    326,
+    200,
+    34
+   ],
+   "asset": "engine text 14 + 12",
+   "state": "",
+   "note": "Backpack.item_display_name / adv_loadout_empty_slot",
+   "z": 0
+  },
+  {
+   "id": "loadout_0_minus",
+   "rect": [
+    872,
+    328,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
+   "state": "normal",
+   "note": "9s margins 6; glyph at +9,+9",
+   "z": 0
+  },
+  {
+   "id": "loadout_0_field",
+   "rect": [
+    904,
+    328,
+    56,
+    28
+   ],
+   "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
+   "state": "normal",
+   "note": "LineEdit, digits only, centred 16 px INK; Enter/blur clamps",
+   "z": 0
+  },
+  {
+   "id": "loadout_0_plus",
+   "rect": [
+    964,
+    328,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
+   "state": "normal",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "loadout_1_slot",
+   "rect": [
+    616,
+    376,
+    44,
+    44
+   ],
+   "asset": "pieces/item_slot_{normal,hover,empty}_44x44.png",
+   "state": "empty",
+   "note": "click = item list (owned consumables); icon 32 at +6,+6",
+   "z": 0
+  },
+  {
+   "id": "loadout_1_name",
+   "rect": [
+    670,
+    382,
+    200,
+    34
+   ],
+   "asset": "engine text 14 + 12",
+   "state": "",
+   "note": "Backpack.item_display_name / adv_loadout_empty_slot",
+   "z": 0
+  },
+  {
+   "id": "loadout_1_minus",
+   "rect": [
+    872,
+    384,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
+   "state": "disabled",
+   "note": "9s margins 6; glyph at +9,+9",
+   "z": 0
+  },
+  {
+   "id": "loadout_1_field",
+   "rect": [
+    904,
+    384,
+    56,
+    28
+   ],
+   "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
+   "state": "disabled",
+   "note": "LineEdit, digits only, centred 16 px INK; Enter/blur clamps",
+   "z": 0
+  },
+  {
+   "id": "loadout_1_plus",
+   "rect": [
+    964,
+    384,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
+   "state": "disabled",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "divider_bottom",
+   "rect": [
+    244,
+    520,
+    796,
+    6
+   ],
+   "asset": "pieces/divider_3s_48x6.png",
+   "state": "",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "warning",
+   "rect": [
+    244,
+    530,
+    356,
+    70
+   ],
+   "asset": "engine text 12 B2, autowrap, line height 14",
+   "state": "",
+   "note": "adv_predeparture_warning + adv_depart_cost (5 lines at 356 px)",
+   "z": 0
+  },
+  {
+   "id": "simulate_button",
+   "rect": [
+    616,
+    564,
+    160,
+    44
+   ],
+   "asset": "battle/action_button_{normal,hover,pressed,disabled}_160x44.png",
+   "state": "normal",
+   "note": "opens the Simulate results window; disabled when the party is empty",
+   "z": 0
+  },
+  {
+   "id": "cost_chip",
+   "rect": [
+    786,
+    564,
+    84,
+    44
+   ],
+   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + ui/icon_essence.png (32) at +4,+6",
+   "state": "ok",
+   "note": "cost \"20\" 18 px centred at +56,+22; RU0 when short",
+   "z": 0
+  },
+  {
+   "id": "depart_button",
+   "rect": [
+    880,
+    564,
+    160,
+    44
+   ],
+   "asset": "battle/action_button_{normal,hover,pressed,disabled}_160x44.png",
+   "state": "normal",
+   "note": "disabled if essence < 20, party empty, road closed or a run is out",
+   "z": 0
+  },
+  {
+   "id": "depart_hint",
+   "rect": [
+    760,
+    614,
+    280,
+    16
+   ],
+   "asset": "engine text 12, right-aligned",
+   "state": "ok/short",
+   "note": "P4 \"You have N Essence\"; RU0 \"Need 20 Essence · you have N\" (board_depart_no_essence); also the Depart tooltip",
+   "z": 0
+  },
+  {
+   "id": "picker_popup",
+   "rect": [
+    362,
+    190,
+    236,
+    278
+   ],
+   "asset": "pieces/popup_9s_32x32.png",
+   "state": "",
+   "note": "PopupPanel 9s margins 8; anchored to the right of the clicked slot (left if no room); closes on pick, outside click or Esc",
+   "z": 10
+  },
+  {
+   "id": "picker_tail",
+   "rect": [
+    356,
+    289,
+    8,
+    14
+   ],
+   "asset": "pieces/popup_tail_l_8x14.png",
+   "state": "",
+   "note": "points at the slot centre",
+   "z": 10
+  },
+  {
+   "id": "picker_title",
+   "rect": [
+    374,
+    198,
+    212,
+    18
+   ],
+   "asset": "engine text 14",
+   "state": "",
+   "note": "",
+   "z": 10
+  },
+  {
+   "id": "picker_row_0",
+   "rect": [
+    370,
+    220,
+    220,
+    58
+   ],
+   "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
+   "state": "disabled",
+   "note": "keeper: portrait 52 at +3,+3, name 14 at +62,+12, sub 12 at +62,+32",
+   "z": 10
+  },
+  {
+   "id": "picker_row_1",
+   "rect": [
+    370,
+    280,
+    220,
+    58
+   ],
+   "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
+   "state": "current",
+   "note": "elaia: portrait 52 at +3,+3, name 14 at +62,+12, sub 12 at +62,+32",
+   "z": 10
+  },
+  {
+   "id": "picker_row_2",
+   "rect": [
+    370,
+    340,
+    220,
+    58
+   ],
+   "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
+   "state": "disabled",
+   "note": "bramble: portrait 52 at +3,+3, name 14 at +62,+12, sub 12 at +62,+32",
+   "z": 10
+  },
+  {
+   "id": "picker_row_3",
+   "rect": [
+    370,
+    400,
+    220,
+    58
+   ],
+   "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
+   "state": "normal",
+   "note": "empty: portrait 52 at +3,+3, name 14 at +62,+12, sub 12 at +62,+32",
+   "z": 10
+  },
+  {
+   "id": "picker_lock_icon",
+   "rect": [
+    0,
+    0,
+    10,
+    12
+   ],
+   "asset": "pieces/lock_10x12.png",
+   "state": "",
+   "note": "on a locked row: portrait-local (40,38)",
+   "z": 10
+  }
+ ],
+ "board_closed_picker_extra_states": [
+  {
+   "id": "slot_back_mid",
+   "rect": [
+    294,
+    266,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "filled",
+   "note": "portrait 52 at +4,+4; holds elaia. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "slot_front_top",
+   "rect": [
+    414,
+    196,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "filled",
+   "note": "portrait 52 at +4,+4; holds keeper. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "slot_front_mid",
+   "rect": [
+    444,
+    266,
+    60,
+    60
+   ],
+   "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
+   "state": "filled",
+   "note": "portrait 52 at +4,+4; holds bramble. Click = open picker; right-click = clear",
+   "z": 0
+  },
+  {
+   "id": "loadout_1_minus",
+   "rect": [
+    872,
+    384,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
+   "state": "disabled",
+   "note": "9s margins 6; glyph at +9,+9",
+   "z": 0
+  },
+  {
+   "id": "loadout_1_field",
+   "rect": [
+    904,
+    384,
+    56,
+    28
+   ],
+   "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
+   "state": "disabled",
+   "note": "LineEdit, digits only, centred 16 px INK; Enter/blur clamps",
+   "z": 0
+  },
+  {
+   "id": "loadout_1_plus",
+   "rect": [
+    964,
+    384,
+    28,
+    28
+   ],
+   "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
+   "state": "disabled",
+   "note": "",
+   "z": 0
+  },
+  {
+   "id": "cost_chip",
+   "rect": [
+    786,
+    564,
+    84,
+    44
+   ],
+   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + ui/icon_essence.png (32) at +4,+6",
+   "state": "short",
+   "note": "cost \"20\" 18 px centred at +56,+22; RU0 when short",
+   "z": 0
+  },
+  {
+   "id": "depart_button",
+   "rect": [
+    880,
+    564,
+    160,
+    44
+   ],
+   "asset": "battle/action_button_{normal,hover,pressed,disabled}_160x44.png",
+   "state": "disabled",
+   "note": "disabled if essence < 20, party empty, road closed or a run is out",
+   "z": 0
+  }
+ ],
+ "simulate_results": [
+  {
+   "id": "results_veil",
+   "rect": [
+    0,
+    0,
+    1280,
+    720
+   ],
+   "asset": "ColorRect black 50% over the board",
+   "state": "",
+   "note": "modal; board stays open underneath",
+   "z": 20
+  },
+  {
+   "id": "results_window",
+   "rect": [
+    330,
+    110,
+    620,
+    500
+   ],
+   "asset": "kit/frame_9s_96.png",
+   "state": "",
+   "note": "9s margins 24 TILE; inner parchment (354,134)-(926,586)",
+   "z": 21
+  },
+  {
+   "id": "results_title",
+   "rect": [
+    510,
+    92,
+    260,
+    40
+   ],
+   "asset": "kit/title_plank_3s_48x40.png",
+   "state": "",
+   "note": "3-slice ends 16; text 16 CR + O shadow",
+   "z": 21
+  },
+  {
+   "id": "results_close",
+   "rect": [
+    814,
+    140,
+    104,
+    28
+   ],
+   "asset": "kit/stop_button_*_104x28.png + keycap_esc",
+   "state": "",
+   "note": "Esc closes this window only",
+   "z": 21
+  },
+  {
+   "id": "results_summary",
+   "rect": [
+    356,
+    144,
+    430,
+    38
+   ],
+   "asset": "engine text 12 P4 + 16 INK",
+   "state": "",
+   "note": "config line + sim_summary",
+   "z": 21
+  },
+  {
+   "id": "results_list",
+   "rect": [
+    354,
+    192,
+    572,
+    270
+   ],
+   "asset": "ScrollContainer; ColorRect P0 + kit/play_bevel_9s_6x6.png",
+   "state": "",
+   "note": "rows 26 px; one row per room + one per loss reason",
+   "z": 21
+  },
+  {
+   "id": "results_row",
+   "rect": [
+    356,
+    194,
+    554,
+    26
+   ],
+   "asset": "pieces/list_row_9s_{even,loss}_24x24.png (9s margins 4)",
+   "state": "even/odd/loss",
+   "note": "icon at +8 (kit pip_good_12 cleared, pip_miss_12 loss, battle boss_crown_16 boss); left text 14, right text 12 P4 right-aligned at +lw-26",
+   "z": 21
+  },
+  {
+   "id": "results_scroll_track",
+   "rect": [
+    912,
+    194,
+    12,
+    266
+   ],
+   "asset": "pieces/scroll_track_9s_12x24.png",
+   "state": "",
+   "note": "VScrollBar theme: scroll",
+   "z": 21
+  },
+  {
+   "id": "results_scroll_thumb",
+   "rect": [
+    912,
+    234,
+    12,
+    96
+   ],
+   "asset": "pieces/scroll_thumb_9s_{normal,hover,drag}_12x16.png",
+   "state": "hover",
+   "note": "grabber; min height 24",
+   "z": 21
+  },
+  {
+   "id": "results_losses",
+   "rect": [
+    356,
+    474,
+    570,
+    18
+   ],
+   "asset": "engine text 14 + 12 RU0",
+   "state": "",
+   "note": "all `lost[].reason` joined; wraps",
+   "z": 21
+  },
+  {
+   "id": "results_totals",
+   "rect": [
+    356,
+    496,
+    570,
+    40
+   ],
+   "asset": "engine text 12 + ui/icon_essence.png 32 at (700,494)",
+   "state": "",
+   "note": "sim_banked, sim_items_used/none, sim_essence",
+   "z": 21
+  },
+  {
+   "id": "results_rerun",
+   "rect": [
+    806,
+    544,
+    120,
+    32
+   ],
+   "asset": "kit/wood_button_9s_*_32x28.png",
+   "state": "",
+   "note": "new seed, same config",
+   "z": 21
+  },
+  {
+   "id": "results_note",
+   "rect": [
+    356,
+    554,
+    430,
+    16
+   ],
+   "asset": "engine text 12 P4",
+   "state": "",
+   "note": "",
+   "z": 21
+  }
+ ],
+ "new_pieces": {
+  "field_9s_normal_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "engraved parchment input, 9s margins 6"
+  },
+  "field_9s_focus_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "engraved parchment input, 9s margins 6"
+  },
+  "field_9s_disabled_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "engraved parchment input, 9s margins 6"
+  },
+  "field_9s_invalid_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "engraved parchment input, 9s margins 6"
+  },
+  "glyph_minus_10x10.png": {
+   "size": [
+    10,
+    10
+   ],
+   "note": "on kit wood_button_9s 28x28, centred"
+  },
+  "glyph_minus_disabled_10x10.png": {
+   "size": [
+    10,
+    10
+   ],
+   "note": "disabled"
+  },
+  "glyph_plus_10x10.png": {
+   "size": [
+    10,
+    10
+   ],
+   "note": "on kit wood_button_9s 28x28, centred"
+  },
+  "glyph_plus_disabled_10x10.png": {
+   "size": [
+    10,
+    10
+   ],
+   "note": "disabled"
+  },
+  "party_slot_empty_60x60.png": {
+   "size": [
+    60,
+    60
+   ],
+   "note": "portrait well; portrait 52 at +4,+4"
+  },
+  "party_slot_empty_hover_60x60.png": {
+   "size": [
+    60,
+    60
+   ],
+   "note": "portrait well; portrait 52 at +4,+4"
+  },
+  "party_slot_filled_60x60.png": {
+   "size": [
+    60,
+    60
+   ],
+   "note": "portrait well; portrait 52 at +4,+4"
+  },
+  "party_slot_hover_60x60.png": {
+   "size": [
+    60,
+    60
+   ],
+   "note": "portrait well; portrait 52 at +4,+4"
+  },
+  "party_slot_selected_60x60.png": {
+   "size": [
+    60,
+    60
+   ],
+   "note": "portrait well; portrait 52 at +4,+4"
+  },
+  "party_slot_locked_60x60.png": {
+   "size": [
+    60,
+    60
+   ],
+   "note": "portrait well; portrait 52 at +4,+4"
+  },
+  "lock_10x12.png": {
+   "size": [
+    10,
+    12
+   ],
+   "note": "locked companion"
+  },
+  "arrow_enemy_side_12x9.png": {
+   "size": [
+    12,
+    9
+   ],
+   "note": "formation bed: points toward the enemy side"
+  },
+  "popup_9s_32x32.png": {
+   "size": [
+    32,
+    32
+   ],
+   "note": "picker popup, 9s margins 8"
+  },
+  "popup_tail_l_8x14.png": {
+   "size": [
+    8,
+    14
+   ],
+   "note": "popup tail pointing left at the slot"
+  },
+  "pick_row_9s_hover_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "picker row, 9s margins 6"
+  },
+  "pick_row_9s_current_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "picker row, 9s margins 6"
+  },
+  "pick_row_9s_disabled_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "picker row, 9s margins 6"
+  },
+  "wood_button_9s_selected_32x28.png": {
+   "size": [
+    32,
+    28
+   ],
+   "note": "kit wood button + gold rim (toggle ON), 9s margins 6"
+  },
+  "item_slot_normal_44x44.png": {
+   "size": [
+    44,
+    44
+   ],
+   "note": "loadout item well; icon 32 at +6,+6"
+  },
+  "item_slot_hover_44x44.png": {
+   "size": [
+    44,
+    44
+   ],
+   "note": "loadout item well; icon 32 at +6,+6"
+  },
+  "item_slot_empty_44x44.png": {
+   "size": [
+    44,
+    44
+   ],
+   "note": "loadout item well; icon 32 at +6,+6"
+  },
+  "divider_3s_48x6.png": {
+   "size": [
+    48,
+    6
+   ],
+   "note": "3-slice ends 8"
+  },
+  "scroll_track_9s_12x24.png": {
+   "size": [
+    12,
+    24
+   ],
+   "note": "9s margins 4"
+  },
+  "scroll_thumb_9s_normal_12x16.png": {
+   "size": [
+    12,
+    16
+   ],
+   "note": "9s margins 5"
+  },
+  "scroll_thumb_9s_hover_12x16.png": {
+   "size": [
+    12,
+    16
+   ],
+   "note": "9s margins 5"
+  },
+  "scroll_thumb_9s_drag_12x16.png": {
+   "size": [
+    12,
+    16
+   ],
+   "note": "9s margins 5"
+  },
+  "list_row_9s_even_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "9s margins 4"
+  },
+  "list_row_9s_loss_24x24.png": {
+   "size": [
+    24,
+    24
+   ],
+   "note": "9s margins 4"
+  },
+  "cost_chip_9s_ok_24x32.png": {
+   "size": [
+    24,
+    32
+   ],
+   "note": "9s margins 8,8,8,8"
+  },
+  "cost_chip_9s_short_24x32.png": {
+   "size": [
+    24,
+    32
+   ],
+   "note": "9s margins 8,8,8,8"
+  }
+ }
+}
