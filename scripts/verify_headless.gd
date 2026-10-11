@@ -8157,6 +8157,9 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	failed += _assert(bramble.get("swift_tie_favors_foe", null) == null, "Bramble has no swift_tie_favors_foe")
 	var scrap: EchoBattle = EchoBattleScript.new()
 	scrap.configure({"might": 5, "arcana": 5, "resilience": 5, "ward": 5, "vitality": 5, "swiftness": 5, "fate": 5}, bramble)
+	# configure() rolls a random dice seed; about 1 in 30 seeds ends or spares the
+	# fight before the third Bramble turn. Pin the dice so the rootbind check is stable.
+	scrap.set_seed(1)
 	failed += _assert(not scrap.keeper_acts_first(), "Bramble acts before a default Keeper")
 	failed += _assert(scrap.choose("strike") == "continue", "first swing does not end the fight")
 	var phys_margin: int = 6 - int((5 + 5) / 2)
@@ -9104,8 +9107,8 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
 		var boss_lbl: Label = shell.find_child("BossLabel", true, false) as Label if shell != null else null
 		failed += _assert(boss_lbl != null and boss_lbl.text == "Bosses: none", "five rooms shows no bosses")
-		var rooms_btn: Button = shell.find_child("RoomsButton", true, false) as Button if shell != null else null
-		failed += _assert(rooms_btn != null and rooms_btn.text == "5 rooms", "length starts at 5 rooms")
+		var rooms_field: LineEdit = shell.find_child("RoomsField", true, false) as LineEdit if shell != null else null
+		failed += _assert(rooms_field != null and rooms_field.text == "1", "length starts at 1 room")
 		failed += _assert(shell != null and not _board_shell_has_percent(shell), "the board shows no percent odds")
 		failed += _assert(str(board.call("try_depart")) == "ok", "Depart starts the reach")
 		failed += _assert(bool(reach.get("running")), "the party is out")
@@ -15687,7 +15690,11 @@ func _board_essence_icon_ok(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(icon != null, "essence cost icon")
 	if icon != null:
 		failed += _assert(str(icon.texture.resource_path).ends_with("icon_essence.png"), "essence texture path")
-		failed += _assert(icon.modulate.is_equal_approx(GameHUD.ESSENCE_TINT), "essence tint")
+		# Load hud.gd at run time: a GameHUD class reference here makes the -s script
+		# compile hud.gd before autoloads are registered (ContentStrings not found).
+		var hud_script: GDScript = load("res://scripts/hud.gd") as GDScript
+		var hud_tint: Variant = hud_script.get_script_constant_map().get("ESSENCE_TINT") if hud_script != null else null
+		failed += _assert(hud_tint is Color and icon.modulate.is_equal_approx(hud_tint as Color), "essence tint")
 	board.free()
 	if shell != null:
 		shell.free()
