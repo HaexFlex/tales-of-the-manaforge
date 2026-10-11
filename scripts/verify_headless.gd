@@ -761,6 +761,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BATTLE_POSE_RESET") == "1":
+		var pose_reset_only: int = await _battle_pose_reset(tree_root, game_state, save_service)
+		if pose_reset_only > 0:
+			print("BATTLE_POSE_RESET_FAIL: %d" % pose_reset_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_BATTLE_ART") == "1":
 		var battle_art_only: int = await _battle_art(tree_root, game_state, save_service)
 		if battle_art_only > 0:
@@ -3393,6 +3402,7 @@ func _run() -> void:
 	failed += await _battle_target_reach(tree_root, game_state, save_service)
 	failed += await _battle_strike_for_me(tree_root, game_state, save_service)
 	failed += await _battle_playback(tree_root, game_state, save_service)
+	failed += await _battle_pose_reset(tree_root, game_state, save_service)
 	failed += await _battle_art(tree_root, game_state, save_service)
 	failed += _battle_audio_sole_caller(tree_root, game_audio)
 	failed += await _headless_silent(tree_root, game_state, save_service, game_audio)
@@ -14059,6 +14069,205 @@ func _battle_strike_event(packet: Dictionary) -> Dictionary:
 		if ev is Dictionary and str((ev as Dictionary).get("kind", "")) == "strike":
 			return ev as Dictionary
 	return {}
+
+
+func _battle_party_pose_rest_ok(view: BattleView, fight: FightState) -> bool:
+	var snapshot: Dictionary = fight.to_dict()
+	for row_v: Variant in snapshot.get("fighters", []):
+		if not row_v is Dictionary:
+			continue
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("side", "")) != "party":
+			continue
+		var fid: String = str(row.get("id", ""))
+		var pose: String = view.fighter_pose(fid)
+		var status: String = str(row.get("status", "active"))
+		if status == "ko":
+			if pose != "ko":
+				return false
+		elif bool(row.get("brace", false)):
+			if pose != "brace":
+				return false
+		elif pose != "idle":
+			return false
+	return true
+
+
+func _battle_start_pose_test_fight(view: BattleView, room_seed: int) -> FightState:
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	var elaia_stats: Dictionary = {
+		"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
+		"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+	}
+	var bramble_stats: Dictionary = {
+		"might": 8, "arcana": 4, "resilience": 7, "ward": 6,
+		"vitality": 7, "swiftness": 5, "fate": 5, "attack": "physical",
+	}
+	var fight := FightState.new()
+	fight.add_member("keeper", keeper_stats, 0, "front", "keeper")
+	fight.add_member("elaia", elaia_stats, 1, "back", "elaia")
+	fight.add_member("bramble", bramble_stats, 2, "front", "bramble")
+	var spawn_rng: BattleRng = SpawnRoller.room_seed_rng(room_seed)
+	var room: Array[Dictionary] = SpawnRoller.roll_room(1, spawn_rng, false)
+	for entry: Dictionary in room:
+		fight.add_beast(str(entry.get("beast", "")), int(entry.get("slot", 0)), str(entry.get("row", "front")))
+	fight.set_combat_seed(BattleRng.mix_stream(room_seed, "combat"))
+	fight.loadout = {"heart_salve": 2}
+	fight.start_fight()
+	fight.controller = "manual"
+	view._fight = fight
+	view._log_reveal_count = 0
+	var playback: BattlePlayback = view.get_playback()
+	playback.bind_view(view, fight)
+	playback.reset_for_fight()
+	playback.instant = false
+	view.show_fight(fight)
+	return fight
+
+
+func _battle_advance_playback_until_idle(view: BattleView, playback: BattlePlayback, max_sec: float) -> void:
+	var budget: float = max_sec
+	while playback.is_busy() and budget > 0.0:
+		playback.advance(0.05)
+		budget -= 0.05
+		await process_frame
+
+
+func _battle_pose_reset(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	if live == null:
+		return failed + 1
+	BattleViewScript.open_arena()
+	await process_frame
+	var view: BattleView = get_nodes_in_group("battle_overlay")[0] as BattleView
+	var playback: BattlePlayback = view.get_playback()
+	playback.instant = false
+	for speed: int in [1, 2, 4]:
+		var fight: FightState = _battle_start_pose_test_fight(view, 4242 + speed)
+		view.call("_apply_battle_speed", speed)
+		playback.speed = speed
+		view.call("_advance")
+		await process_frame
+		var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+		for turn: int in 4:
+			if fight.outcome() != "":
+				break
+			var shown: bool = false
+			for _tick: int in 500:
+				if strike_btn != null and strike_btn.is_visible_in_tree():
+					shown = true
+					break
+				if playback.is_busy():
+					playback.advance(0.05)
+				await process_frame
+			if not shown:
+				failed += 1
+				break
+			failed += _assert(_battle_party_pose_rest_ok(view, fight), "%dx menu: party rest poses turn %d" % [speed, turn + 1])
+			var who: String = fight.current_actor()
+			var picks: Array = fight.legal_targets(who)
+			if picks.is_empty():
+				break
+			view._target_mode = "strike"
+			view.call("_on_target_pressed", str(picks[0]))
+			await _battle_advance_playback_until_idle(view, playback, 8.0)
+			await process_frame
+			failed += _assert(_battle_party_pose_rest_ok(view, fight), "%dx after strike party rest" % speed)
+		if fight.outcome() == "win":
+			failed += _assert(_battle_party_pose_rest_ok(view, fight), "%dx fight end poses" % speed)
+	# Single elaia strike, no counter-hit during playback.
+	var solo_fight: FightState = _battle_start_pose_test_fight(view, 88002)
+	view.call("_apply_battle_speed", 1)
+	playback.speed = 1
+	while solo_fight.outcome() == "" and str(solo_fight.fighter_dict(solo_fight.current_actor()).get("side", "")) == "beast":
+		var pkt: Dictionary = solo_fight.step()
+		playback.enqueue_events(pkt.get("events", []))
+		await _battle_advance_playback_until_idle(view, playback, 8.0)
+	var elaia_id: String = ""
+	for row_v: Variant in solo_fight.to_dict().get("fighters", []):
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("member", "")) == "elaia":
+			elaia_id = str(row.get("id", ""))
+			break
+	failed += _assert(elaia_id != "", "elaia in solo fight")
+	if elaia_id != "" and solo_fight.current_actor() == elaia_id:
+		var tgt: Array = solo_fight.legal_targets(elaia_id)
+		if not tgt.is_empty():
+			var packet: Dictionary = solo_fight.step({"kind": "strike", "target": str(tgt[0])})
+			playback.enqueue_events(packet.get("events", []))
+			await _battle_advance_playback_until_idle(view, playback, 8.0)
+			failed += _assert(view.fighter_pose(elaia_id) == "idle", "elaia idle after own strike")
+	# Speed drop mid-event: target must not stay hurt.
+	var hurt_fight: FightState = FightState.new()
+	hurt_fight.add_member("keeper", {"might": 11, "vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical"}, 0, "front", "keeper")
+	var beast_id: String = hurt_fight.add_beast("acorn_imp", 0, "front")
+	hurt_fight.start_fight()
+	view._fight = hurt_fight
+	playback.bind_view(view, hurt_fight)
+	playback.reset_for_fight()
+	playback.instant = false
+	view.show_fight(hurt_fight)
+	view.call("_apply_battle_speed", 4)
+	playback.speed = 4
+	var beast_pkt: Dictionary = hurt_fight.step({"kind": "strike", "target": "keeper"})
+	var beast_strike: Dictionary = _battle_strike_event(beast_pkt)
+	if beast_strike.is_empty():
+		beast_strike = {"kind": "strike", "actor": beast_id, "target": "keeper", "band": "hit", "damage": 1}
+	playback.enqueue_events([beast_strike])
+	playback.advance(0.15)
+	view.call("_apply_battle_speed", 1)
+	playback.speed = 1
+	await _battle_advance_playback_until_idle(view, playback, 8.0)
+	failed += _assert(view.fighter_pose("keeper") != "hurt", "keeper not stuck hurt after speed drop")
+	# Strike-for-me forces 1x mid swing (same path as battle_view speed lock).
+	var sfm_fight: FightState = FightState.new()
+	sfm_fight.add_member("keeper", {"might": 11, "vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical"}, 0, "front", "keeper")
+	var sfm_beast: String = sfm_fight.add_beast("acorn_imp", 0, "front")
+	sfm_fight.start_fight()
+	view._fight = sfm_fight
+	playback.bind_view(view, sfm_fight)
+	playback.reset_for_fight()
+	view.show_fight(sfm_fight)
+	view.call("_apply_battle_speed", 4)
+	playback.speed = 4
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = false
+	var sfm_strike: Dictionary = {"kind": "strike", "actor": "keeper", "target": sfm_beast, "band": "hit", "damage": 1}
+	playback.enqueue_events([sfm_strike])
+	playback.advance(0.12)
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = true
+		view.call("_refresh_speed_buttons")
+	await _battle_advance_playback_until_idle(view, playback, 8.0)
+	failed += _assert(view.fighter_pose("keeper") == "idle", "keeper idle after strike-for-me mid swing")
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = false
+	# Fight ends while playback still runs.
+	var end_fight: FightState = FightState.new()
+	end_fight.add_member("keeper", {"might": 99, "vitality": 6, "swiftness": 7, "fate": 99, "attack": "physical"}, 0, "front", "keeper")
+	var weak_id: String = end_fight.add_beast("acorn_imp", 0, "front")
+	end_fight.start_fight()
+	view._fight = end_fight
+	playback.bind_view(view, end_fight)
+	playback.reset_for_fight()
+	view.show_fight(end_fight)
+	var fin_pkt: Dictionary = end_fight.step({"kind": "strike", "target": weak_id})
+	var fin_strike: Dictionary = _battle_strike_event(fin_pkt)
+	playback.enqueue_events([fin_strike])
+	await _battle_advance_playback_until_idle(view, playback, 8.0)
+	failed += _assert(end_fight.outcome() == "win", "fight won mid playback")
+	failed += _assert(view.fighter_pose("keeper") == "idle", "keeper idle when fight ends mid-event")
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("BATTLE_POSE_RESET_OK")
+	return failed
 
 
 func _battle_wait_fight_actor(fight: FightState, actor_id: String, max_steps: int) -> bool:

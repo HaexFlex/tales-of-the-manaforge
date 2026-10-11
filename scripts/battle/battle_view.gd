@@ -31,7 +31,7 @@ const FIGHTER_FRAME: Vector2 = Vector2(128.0, 128.0)
 const FIGHTER_SOLE: Vector2 = Vector2(64.0, 123.0)
 ## Placeholder lineup until job 18's formation: Keeper front middle, Elaia back middle.
 const PARTY_LINEUP: Dictionary = {"keeper": ["party_front", 1], "elaia": ["party_back", 1]}
-## Battle poses (east-facing). Only idle is shown; the rest wait for jobs 18/21.
+## Battle poses (east-facing). Playback swaps attack, brace, hurt, and ko; rest_pose_for picks idle or brace.
 const PARTY_POSES: Dictionary = {
 	"keeper": {
 		"idle": "res://assets/art/echo/battle_keeper_idle_e.png",
@@ -600,6 +600,24 @@ func fighter_visible_rect(fighter_id: String) -> Rect2:
 	if root == null:
 		return Rect2()
 	return root.get_meta("visible_rect", Rect2(root.position, Vector2.ZERO)) as Rect2
+
+
+func rest_pose_for(fighter_id: String) -> String:
+	if _fight == null:
+		return "idle"
+	var row: Dictionary = _fight.fighter_dict(fighter_id)
+	if str(row.get("status", "active")) == "ko":
+		return "ko"
+	if bool(row.get("brace", false)):
+		return "brace"
+	return "idle"
+
+
+func fighter_pose(fighter_id: String) -> String:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return ""
+	return str(root.get_meta("pose", "idle"))
 
 
 func set_fighter_pose(fighter_id: String, pose: String) -> bool:
@@ -1430,8 +1448,8 @@ func _refresh_fighter_visual(row: Dictionary) -> void:
 	var side: String = str(row.get("side", ""))
 	var status: String = str(row.get("status", "active"))
 	if side == "party":
-		if status == "ko":
-			set_fighter_pose(fighter_id, "ko")
+		if _playback == null or not _playback.is_busy():
+			set_fighter_pose(fighter_id, rest_pose_for(fighter_id))
 		return
 	var sprite: CanvasItem = root.get_node_or_null("Sprite") as CanvasItem
 	if sprite == null:
