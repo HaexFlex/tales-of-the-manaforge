@@ -2186,7 +2186,8 @@ func _run() -> void:
 
 	# --- SYSTEMS v0.4.0: backpack, handcraft, tools, Grow, Keep Tools, can shard_roll ×2 ---
 	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
-	failed += _assert(int((backpack.get("items_data") as Array).size()) == 17, "17 backpack items")
+	for want_item: String in ["wooden_planks", "stone_fragments", "wooden_tool_rod", "axe_head", "pickaxe_head", "stone_axe", "stone_pickaxe", "wooden_basket", "stone_watering_can", "fertilizer", "sapsteel", "heartwood_bits", "amberbind", "briarwood", "herbs", "glowcap", "bitterroot", "heart_salve", "bile_vial"]:
+		failed += _assert(bool(backpack.call("is_known_item", want_item)), "backpack item %s exists" % want_item)
 	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
 	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
 	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
@@ -10668,7 +10669,7 @@ func _resolver_salve() -> int:
 	fight.set_scripted_dice([7])
 	var healed: Dictionary = fight.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
 	failed += _assert(str(healed.get("error", "")) == "" and str(healed.get("kind", "")) == "item", "salve spends the turn")
-	failed += _assert(int(fight.fighter_dict("elaia").get("hp", -1)) == 80, "30% of 100 is 30 (got %s)" % str(fight.fighter_dict("elaia").get("hp", "")))
+	failed += _assert(int(fight.fighter_dict("elaia").get("hp", -1)) == 80, "30%% of 100 is 30 (got %s)" % str(fight.fighter_dict("elaia").get("hp", "")))
 	failed += _assert(int(fight.fighter_dict("keeper").get("hp", -1)) == 100, "the salve does not heal the user unless targeted")
 	failed += _assert(fight.salves_used == 1, "salves_used counts the dose")
 	failed += _assert(int(fight.loadout.get("heart_salve", -1)) == 0, "the dose leaves the loadout")
