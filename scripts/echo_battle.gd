@@ -1,30 +1,26 @@
 class_name EchoBattle
 extends RefCounted
-## 1v1 turn resolution for Echo 01. No scene, no save, no mid-fight persist.
-## Mercy floor and turn-1 protection apply to the Keeper only.
+## 1v1 turn resolution for Echo duels. No scene, no save, no mid-fight persist.
+## Damage uses BATTLE_SCENE_DRAFT v4 §4 (`BattleResolver` + `BattleRng`).
 
 const ECHO_ID: String = "echo_keeper_01"
-const MERCY_FRACTION: float = 0.10
-const KEEPER_CRIT_MULT: float = 2.0
 const STAT_ORDER: Array[String] = [
 	"might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"
 ]
+const ROUND_CAP: int = 60
 
 var echo_name: String = "Elaia"
 ## magical | physical | hybrid. Echo 1 stays magical (Arcana vs Ward).
 var foe_attack_profile: String = "magical"
-## snare (Might vs Resilience) or knot (Arcana vs Ward) on a hybrid foe.
+## snare (physical) or knot (magic) on a hybrid foe; arcana on a magical foe.
 var last_foe_swing: String = ""
 var foe_art_path: String = ""
-## Echo 1 ties go to the Keeper. Bramble wins a Swiftness tie.
-var keeper_wins_swift_tie: bool = true
-var keeper_max_hp: int = 50
-var echo_max_hp: int = 60
-var keeper_hp: int = 50
-var echo_hp: int = 60
+var keeper_max_hp: int = 25
+var echo_max_hp: int = 31
+var keeper_hp: int = 25
+var echo_hp: int = 31
 var keeper: Dictionary = {}
 var echo: Dictionary = {}
-var echo_crit_mult: float = 1.2
 var spare_window: bool = false
 var outcome: String = ""
 var enemy_attacks: int = 0
@@ -32,12 +28,19 @@ var last_keeper_damage: int = 0
 var last_echo_damage: int = 0
 var last_keeper_crit: bool = false
 var log: PackedStringArray = PackedStringArray()
-## 0 = never, 1 = always, -1 = roll Fate × 1%.
-var force_crit: int = -1
 ## physical | magical | hybrid. Hybrid reads arrow_mode. Fists and stone_sword stay physical.
 var strike_kind: String = "physical"
 var arrow_mode: String = "physical"
-var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+
+var round: int = 0
+var enemy_turns: int = 0
+var rootbound: bool = false
+var first_hit_used: bool = false
+var timed_out: bool = false
+var rootbind_every: int = 0
+var turn_log: Array[Dictionary] = []
+
+var _dice: BattleRng = BattleRng.new()
 
 
 func _log_line(key: String, tokens: Dictionary = {}) -> void:
@@ -48,14 +51,6 @@ func _log_line(key: String, tokens: Dictionary = {}) -> void:
 			log.append(str(cs.call("get_text", key, tokens)))
 			return
 	log.append(key)
-
-
-static func hp_max_for(vitality: int) -> int:
-	return maxi(1, vitality * 10)
-
-
-static func raw_damage(attack: int, defense: int) -> int:
-	return maxi(0, (attack - defense) * 10)
 
 
 static func rank_cost(rank: int, base: int = 100, growth: float = 1.65) -> int:
@@ -103,8 +98,18 @@ static func payout(kind: String, ranks: Dictionary, fate_total: int, base: int =
 	return int(floor(shards))
 
 
+func set_seed(seed: int) -> void:
+	_dice = BattleRng.new()
+	_dice.set_seed(seed)
+
+
+func set_dice(dice: BattleRng) -> void:
+	_dice = dice
+
+
 func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
-	_rng.randomize()
+	_dice = BattleRng.new()
+	_dice.set_seed(randi() & BattleRng.SEED_MASK)
 	var estats_v: Variant = echo_def.get("stats", {})
 	var estats: Dictionary = estats_v if typeof(estats_v) == TYPE_DICTIONARY else {}
 	keeper = {
@@ -118,25 +123,24 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 	}
 	echo = {
 		"might": int(estats.get("might", 4)),
-		"arcana": int(estats.get("arcana", 7)),
-		"resilience": int(estats.get("resilience", 5)),
-		"ward": int(estats.get("ward", 7)),
-		"vitality": int(estats.get("vitality", 6)),
-		"swiftness": int(estats.get("swiftness", 6)),
-		"fate": int(estats.get("fate", 5)),
+		"arcana": int(estats.get("arcana", 6)),
+		"resilience": int(estats.get("resilience", 7)),
+		"ward": int(estats.get("ward", 8)),
+		"vitality": int(estats.get("vitality", 7)),
+		"swiftness": int(estats.get("swiftness", 7)),
+		"fate": int(estats.get("fate", 30)),
 	}
 	echo_name = str(echo_def.get("display_name", "Elaia"))
-	echo_crit_mult = float(echo_def.get("crit_multiplier", 1.2))
 	foe_art_path = str(echo_def.get("battle_art_path", ""))
 	var profile: String = str(echo_def.get("attack_profile", "magical"))
 	if profile == "physical" or profile == "hybrid":
 		foe_attack_profile = profile
 	else:
 		foe_attack_profile = "magical"
-	keeper_wins_swift_tie = not bool(echo_def.get("swift_tie_favors_foe", false))
+	rootbind_every = int(echo_def.get("rootbind_every", 0))
 	last_foe_swing = ""
-	keeper_max_hp = hp_max_for(int(keeper["vitality"]))
-	echo_max_hp = hp_max_for(int(echo["vitality"]))
+	keeper_max_hp = BattleResolver.max_hp_for(int(keeper["vitality"]))
+	echo_max_hp = BattleResolver.max_hp_for(int(echo["vitality"]))
 	keeper_hp = keeper_max_hp
 	echo_hp = echo_max_hp
 	spare_window = false
@@ -146,13 +150,19 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 	last_echo_damage = 0
 	last_keeper_crit = false
 	log = PackedStringArray()
+	round = 0
+	enemy_turns = 0
+	rootbound = false
+	first_hit_used = false
+	timed_out = false
+	turn_log = []
 
 
 func keeper_acts_first() -> bool:
 	var ks: int = int(keeper.get("swiftness", 5))
 	var es: int = int(echo.get("swiftness", 6))
 	if ks == es:
-		return keeper_wins_swift_tie
+		return true
 	return ks > es
 
 
@@ -189,7 +199,7 @@ func choose(action: String) -> String:
 
 func _flee() -> String:
 	if not keeper_acts_first():
-		_echo_attack()
+		_echo_turn()
 		if outcome != "":
 			return outcome
 	_finish("flee")
@@ -198,23 +208,45 @@ func _flee() -> String:
 
 
 func _strike_round() -> String:
+	round += 1
 	if keeper_acts_first():
 		_keeper_strike()
 		if outcome != "" or spare_window:
+			_maybe_timeout()
 			return "spare_window" if spare_window and outcome == "" else outcome
-		_echo_attack()
+		_echo_turn()
 		if outcome != "":
+			_maybe_timeout()
 			return outcome
+		_maybe_timeout()
 		return "continue"
-	_echo_attack()
+	_echo_turn()
 	if outcome != "":
+		_maybe_timeout()
 		return outcome
 	_keeper_strike()
 	if spare_window and outcome == "":
+		_maybe_timeout()
 		return "spare_window"
 	if outcome != "":
+		_maybe_timeout()
 		return outcome
+	_maybe_timeout()
 	return "continue"
+
+
+func _maybe_timeout() -> void:
+	if outcome != "" or spare_window:
+		return
+	if round >= ROUND_CAP:
+		_timed_out_loss()
+
+
+func _timed_out_loss() -> void:
+	timed_out = true
+	keeper_hp = maxi(0, keeper_hp)
+	_log_line("battle_log_echo_timeout", {"enemy": echo_name})
+	_finish("ko")
 
 
 func resolved_strike_kind() -> String:
@@ -233,16 +265,27 @@ func toggle_arrow_mode() -> String:
 	return arrow_mode
 
 
-func _keeper_offense() -> Dictionary:
-	if resolved_strike_kind() == "magical":
-		return {
-			"attack": int(keeper.get("arcana", 5)),
-			"defense": int(echo.get("ward", 5)),
-		}
-	return {
-		"attack": int(keeper.get("might", 5)),
-		"defense": int(echo.get("resilience", 5)),
-	}
+func _keeper_attack_mode() -> String:
+	return "magic" if resolved_strike_kind() == "magical" else "physical"
+
+
+func _echo_attack_mode() -> String:
+	if foe_attack_profile == "hybrid":
+		var phys_margin: int = int(echo.get("might", 0)) - int((int(keeper.get("resilience", 5)) + int(keeper.get("swiftness", 5))) / 2)
+		var mag_margin: int = int(echo.get("arcana", 0)) - int((int(keeper.get("ward", 5)) + int(keeper.get("swiftness", 5))) / 2)
+		if mag_margin > phys_margin:
+			return "magic"
+		return "physical"
+	if foe_attack_profile == "physical":
+		return "physical"
+	return "magic"
+
+
+func _set_foe_swing(mode: String) -> void:
+	if mode == "physical":
+		last_foe_swing = "snare" if foe_attack_profile == "hybrid" else "might"
+	else:
+		last_foe_swing = "knot" if foe_attack_profile == "hybrid" else "arcana"
 
 
 func _log_keeper_hit(dealt: int) -> void:
@@ -255,108 +298,154 @@ func _log_keeper_hit(dealt: int) -> void:
 
 
 func _keeper_strike() -> void:
-	var offense: Dictionary = _keeper_offense()
-	var dealt: int = _rolled_damage(
-		int(offense.get("attack", 0)),
-		int(offense.get("defense", 0)),
-		keeper_fate(),
-		KEEPER_CRIT_MULT,
-		true
-	)
-	last_keeper_damage = dealt
-	var above_mercy: bool = float(echo_hp) > MERCY_FRACTION * float(echo_max_hp)
-	var next_hp: int = echo_hp - dealt
-	if dealt <= 0:
-		_log_keeper_hit(dealt)
-	elif above_mercy and next_hp <= 0:
-		echo_hp = 1
-		_log_line("battle_log_mercy_floor", {"enemy": echo_name})
-	else:
-		echo_hp = maxi(0, next_hp)
-		_log_keeper_hit(dealt)
-	if echo_hp <= 0:
+	var mode: String = _keeper_attack_mode()
+	var was_rootbound: bool = rootbound
+	if was_rootbound:
+		_log_line("battle_log_rootbound")
+	var res: Dictionary = _resolve_swing("keeper", mode, echo, echo_hp, echo_max_hp, "echo")
+	var resolver_damage: int = int(res.get("damage", 0))
+	var damage: int = resolver_damage
+	if was_rootbound:
+		rootbound = false
+		if resolver_damage > 0:
+			damage = maxi(1, BattleResolver.round_half_up(resolver_damage, 1, 2))
+	last_keeper_damage = damage
+	last_keeper_crit = bool(res.get("fate_crit", false))
+	var target_hp_before: int = echo_hp
+	echo_hp -= damage
+	_append_turn({
+		"round": round,
+		"actor": "keeper",
+		"mode": mode,
+		"band": str(res.get("band", "miss")),
+		"fate_crit": last_keeper_crit,
+		"resolver_damage": resolver_damage,
+		"target_hp_before": target_hp_before,
+		"rootbound": was_rootbound,
+		"damage": damage,
+		"keeper_hp": keeper_hp,
+		"echo_hp": echo_hp,
+	})
+	_log_keeper_hit(damage)
+	if echo_hp * 10 <= echo_max_hp:
+		if echo_hp < 1:
+			echo_hp = 1
+			_log_line("battle_log_mercy_floor", {"enemy": echo_name})
+		spare_window = true
+	elif echo_hp <= 0:
 		_finish("defeat")
 		_log_line("battle_log_defeat", {"enemy": echo_name})
-		return
-	if float(echo_hp) < MERCY_FRACTION * float(echo_max_hp):
-		spare_window = true
 
 
 func _strike_to_finish() -> void:
-	var offense: Dictionary = _keeper_offense()
-	var dealt: int = _rolled_damage(
-		int(offense.get("attack", 0)),
-		int(offense.get("defense", 0)),
-		keeper_fate(),
-		KEEPER_CRIT_MULT,
-		true
-	)
-	last_keeper_damage = dealt
+	var mode: String = _keeper_attack_mode()
+	var was_rootbound: bool = rootbound
+	if was_rootbound:
+		_log_line("battle_log_rootbound")
+	var res: Dictionary = _resolve_swing("keeper", mode, echo, echo_hp, echo_max_hp, "echo")
+	var resolver_damage: int = int(res.get("damage", 0))
+	var damage: int = resolver_damage
+	if was_rootbound:
+		rootbound = false
+		if resolver_damage > 0:
+			damage = maxi(1, BattleResolver.round_half_up(resolver_damage, 1, 2))
+	last_keeper_damage = damage
+	last_keeper_crit = bool(res.get("fate_crit", false))
 	echo_hp = 0
-	_log_keeper_hit(dealt)
+	_log_keeper_hit(damage)
 	_finish("defeat")
 	_log_line("battle_log_defeat", {"enemy": echo_name})
 
 
-func _echo_attack() -> void:
-	var first_hit: bool = enemy_attacks == 0
-	var atk_stat: String = "arcana"
-	var vs_stat: String = "ward"
-	if foe_attack_profile == "physical":
-		atk_stat = "might"
-		vs_stat = "resilience"
-		last_foe_swing = "might"
-	elif foe_attack_profile == "hybrid":
-		if enemy_attacks % 2 == 0:
-			atk_stat = "might"
-			vs_stat = "resilience"
-			last_foe_swing = "snare"
-		else:
-			atk_stat = "arcana"
-			vs_stat = "ward"
-			last_foe_swing = "knot"
-	else:
-		last_foe_swing = "arcana"
-	var dealt: int = _rolled_damage(
-		int(echo.get(atk_stat, 0)),
-		int(keeper.get(vs_stat, 0)),
-		int(echo.get("fate", 0)),
-		echo_crit_mult,
-		false
-	)
-	last_echo_damage = dealt
-	var next_hp: int = keeper_hp - dealt
-	if first_hit and next_hp <= 0:
-		keeper_hp = 1
-		_log_line("battle_log_t1_floor", {"enemy": echo_name})
-	else:
-		keeper_hp = maxi(0, next_hp)
-		_log_line("battle_log_strike_enemy", {"enemy": echo_name})
+func _echo_turn() -> void:
+	enemy_turns += 1
+	if rootbind_every > 0 and enemy_turns % rootbind_every == 0:
+		_do_rootbind()
+		return
 	enemy_attacks += 1
-	if keeper_hp <= 0:
+	var mode: String = _echo_attack_mode()
+	_set_foe_swing(mode)
+	var res: Dictionary = _resolve_swing("echo", mode, keeper, keeper_hp, keeper_max_hp, "party")
+	var resolver_damage: int = int(res.get("damage", 0))
+	var damage: int = resolver_damage
+	var first_hit_floor: bool = false
+	if damage > 0 and not first_hit_used:
+		first_hit_used = true
+		var floor_hp: int = keeper_max_hp / 10 + 1
+		var next_hp: int = keeper_hp - damage
+		if next_hp < floor_hp:
+			damage = keeper_hp - floor_hp
+			first_hit_floor = true
+	last_echo_damage = damage
+	var target_hp_before: int = keeper_hp
+	keeper_hp -= damage
+	if first_hit_floor:
+		_log_line("battle_log_t1_floor", {"enemy": echo_name})
+	_append_turn({
+		"round": round,
+		"actor": "echo",
+		"mode": mode,
+		"band": str(res.get("band", "miss")),
+		"fate_crit": bool(res.get("fate_crit", false)),
+		"resolver_damage": resolver_damage,
+		"target_hp_before": target_hp_before,
+		"first_hit_floor": first_hit_floor,
+		"damage": damage,
+		"keeper_hp": keeper_hp,
+		"echo_hp": echo_hp,
+	})
+	_log_line("battle_log_strike_enemy", {"enemy": echo_name})
+	if keeper_hp * 10 <= keeper_max_hp:
+		keeper_hp = maxi(0, keeper_hp)
 		_finish("ko")
 
 
-func _rolled_damage(attack: int, defense: int, fate: int, crit_mult: float, track_keeper_crit: bool) -> int:
-	var raw: int = raw_damage(attack, defense)
-	var crit: bool = raw > 0 and _is_crit(fate)
-	if track_keeper_crit:
-		last_keeper_crit = crit
-	if raw <= 0 or not crit:
-		return raw
-	return int(floor(float(raw) * crit_mult + 0.0000001))
+func _do_rootbind() -> void:
+	last_foe_swing = "rootbind"
+	rootbound = true
+	_log_line("battle_log_rootbind", {"enemy": echo_name})
+	_append_turn({
+		"round": round,
+		"actor": "echo",
+		"rootbind": true,
+		"keeper_hp": keeper_hp,
+		"echo_hp": echo_hp,
+	})
+
+
+func _resolve_swing(actor_side: String, mode: String, defender_stats: Dictionary, defender_hp: int, defender_max_hp: int, defender_side: String) -> Dictionary:
+	var attacker: Dictionary = {}
+	if actor_side == "keeper":
+		attacker = {
+			"attack": mode,
+			"might": int(keeper.get("might", 0)),
+			"arcana": int(keeper.get("arcana", 0)),
+			"fate": int(keeper.get("fate", 0)),
+		}
+	else:
+		attacker = {
+			"attack": mode,
+			"might": int(echo.get("might", 0)),
+			"arcana": int(echo.get("arcana", 0)),
+			"fate": int(echo.get("fate", 0)),
+		}
+	var defender: Dictionary = {
+		"resilience": int(defender_stats.get("resilience", 0)),
+		"ward": int(defender_stats.get("ward", 0)),
+		"swiftness": int(defender_stats.get("swiftness", 0)),
+		"hp": defender_hp,
+		"max_hp": defender_max_hp,
+		"side": defender_side,
+	}
+	return BattleResolver.resolve(attacker, defender, 0, 1, 1, _dice)
+
+
+func _append_turn(entry: Dictionary) -> void:
+	turn_log.append(entry)
 
 
 func keeper_fate() -> int:
 	return int(keeper.get("fate", 0))
-
-
-func _is_crit(fate: int) -> bool:
-	if force_crit == 0:
-		return false
-	if force_crit > 0:
-		return true
-	return _rng.randf() < float(fate) * 0.01
 
 
 func _finish(result: String) -> void:

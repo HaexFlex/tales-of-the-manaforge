@@ -8,24 +8,23 @@
   "battle_art_path": "res://assets/art/bramble/battle_bramble_idle.png",
   "facing": "west",
   "sole_y": 123,
-  "crit_multiplier": 1.2,
   "attack_profile": "hybrid",
-  "swift_tie_favors_foe": true,
+  "rootbind_every": 3,
   "role": "Nimble hybrid road warden. Snares and knots. Not a tank.",
   "notes": [
     "Echo 2. Content lines are DRAFT v3 until Haex FINAL.",
-    "Hybrid: even swings are a snare (Might vs Resilience), odd swings are a knot (Arcana vs Ward).",
-    "Low Resilience, Ward, and Vitality. The armored fight stays with the Keeper echo.",
-    "Swiftness 8 acts before a default Keeper. A Swiftness tie goes to Bramble.",
-    "Vitality 5 is 50 HP. Not a playable companion in this batch."
+    "Hybrid: each swing picks snare (Might) or knot (Arcana) by the better margin vs the Keeper.",
+    "Rootbind on every 3rd of Bramble's turns; the Keeper's next Strike is halved.",
+    "Swiftness 10 acts before a default Keeper. A Swiftness tie goes to the Keeper.",
+    "Vitality 10 is 40 HP. Not a playable companion in this batch."
   ],
   "stats": {
-    "might": 7,
-    "arcana": 7,
-    "resilience": 3,
-    "ward": 3,
-    "vitality": 5,
-    "swiftness": 8,
-    "fate": 5
+    "might": 6,
+    "arcana": 6,
+    "resilience": 7,
+    "ward": 7,
+    "vitality": 10,
+    "swiftness": 10,
+    "fate": 15
   }
 }

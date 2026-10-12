@@ -113,16 +113,24 @@ func _ready() -> void:
 	visible = false
 	_build()
 	call_deferred("_center_stat_glyphs")
-	if not CharacterSheet._auto("Equipment").equipment_changed.is_connected(_refresh):
-		CharacterSheet._auto("Equipment").equipment_changed.connect(_refresh)
-	if not CharacterSheet._auto("KeeperStats").ranks_changed.is_connected(_on_ranks):
-		CharacterSheet._auto("KeeperStats").ranks_changed.connect(_on_ranks)
+	var eq = CharacterSheet._auto("Equipment")
+	if eq != null and not eq.equipment_changed.is_connected(_on_equipment_changed):
+		eq.equipment_changed.connect(_on_equipment_changed)
+	var stats = CharacterSheet._auto("KeeperStats")
+	if stats != null and not stats.ranks_changed.is_connected(_on_ranks):
+		stats.ranks_changed.connect(_on_ranks)
 	_refresh()
 
 
 func _on_ranks(_stat_id: StringName) -> void:
 	if visible:
 		_refresh_stats()
+
+
+func _on_equipment_changed() -> void:
+	## Bag clicks equip inside GearRow._gui_input; rebuilding the list in the
+	## same frame tries to free the row that is still handling the click.
+	call_deferred("_refresh")
 
 
 func is_open() -> bool:
@@ -141,7 +149,8 @@ func sheet_actor() -> String:
 
 func show_actor(actor_id: String) -> void:
 	## Clicking the other party portrait switches this sheet. Gear follows the open sheet.
-	if actor_id == "elaia" and not CharacterSheet._auto("GameState").call("elaia_in_party"):
+	var gs = CharacterSheet._auto("GameState")
+	if actor_id == "elaia" and (gs == null or not bool(gs.call("elaia_portrait_visible"))):
 		actor_id = "keeper"
 	_actor_id = actor_id if actor_id == "elaia" else "keeper"
 	_apply_actor_chrome()
@@ -160,20 +169,23 @@ func request_close() -> void:
 
 
 func request_equip(item_id: String) -> String:
-	var result: String = CharacterSheet._auto("Equipment").try_equip(item_id, _actor_id)
+	var actor: String = sheet_actor()
+	var result: String = CharacterSheet._auto("Equipment").try_equip(item_id, actor)
 	_toast(result, item_id, CharacterSheet._auto("Equipment").item_slot(item_id))
 	return result
 
 
 func request_equip_slot(item_id: String, slot_id: String) -> String:
-	var result: String = CharacterSheet._auto("Equipment").try_equip_to_slot(item_id, slot_id, _actor_id)
+	var actor: String = sheet_actor()
+	var result: String = CharacterSheet._auto("Equipment").try_equip_to_slot(item_id, slot_id, actor)
 	_toast(result, item_id, slot_id)
 	return result
 
 
 func request_unequip(slot_id: String) -> String:
-	var item_id: String = CharacterSheet._auto("Equipment").equipped_id_for(_actor_id, slot_id)
-	var result: String = CharacterSheet._auto("Equipment").try_unequip(slot_id, _actor_id)
+	var actor: String = sheet_actor()
+	var item_id: String = CharacterSheet._auto("Equipment").equipped_id_for(actor, slot_id)
+	var result: String = CharacterSheet._auto("Equipment").try_unequip(slot_id, actor)
 	_toast(result, item_id, slot_id)
 	return result
 
@@ -190,7 +202,7 @@ func _toast(result: String, item_id: String, slot_id: String) -> void:
 	var text: String = ""
 	match result:
 		"ok":
-			if CharacterSheet._auto("Equipment").equipped_id_for(_actor_id, slot_id) == item_id and item_id != "":
+			if CharacterSheet._auto("Equipment").equipped_id_for(sheet_actor(), slot_id) == item_id and item_id != "":
 				text = CharacterSheet._auto("ContentStrings").get_text("equip_ok", {"item": item_name})
 			else:
 				text = CharacterSheet._auto("ContentStrings").get_text("equip_unequip_ok", {"item": item_name})
@@ -721,16 +733,19 @@ func _fill_trait_popup() -> void:
 		return
 	var strings = CharacterSheet._auto("ContentStrings")
 	var gs = CharacterSheet._auto("GameState")
+	if strings == null or gs == null:
+		return
+	var actor: String = sheet_actor()
 	var title: Label = panel.get_node_or_null("Title") as Label
 	var sub: Label = panel.get_node_or_null("Subtitle") as Label
 	if title:
 		title.text = strings.get_text("char_sheet_trait_popup_title")
 	if sub:
 		sub.text = _trait_sentence()
-	var work: float = float(gs.call("actor_work_rate", _actor_id, ""))
-	var relic: float = float(gs.call("actor_work_rate", _actor_id, "reliquary"))
-	var water: float = float(gs.call("actor_water_mult", _actor_id))
-	var pace: float = float(gs.call("actor_move_mult", _actor_id))
+	var work: float = float(gs.call("actor_work_rate", actor, ""))
+	var relic: float = float(gs.call("actor_work_rate", actor, "reliquary"))
+	var water: float = float(gs.call("actor_water_mult", actor))
+	var pace: float = float(gs.call("actor_move_mult", actor))
 	_set_trait_row(panel, "Work", "char_sheet_trait_work", work)
 	_set_trait_row(panel, "Reliquary", "char_sheet_trait_reliquary", relic)
 	_set_trait_row(panel, "Water", "char_sheet_trait_water", water)
@@ -827,9 +842,13 @@ func _refresh_inventory() -> void:
 		_inv_list.remove_child(child)
 		child.free()
 	var rows: Array[Dictionary] = []
-	for inst: Dictionary in CharacterSheet._auto("Equipment").list_for_sheet(_actor_id):
+	var eq = CharacterSheet._auto("Equipment")
+	var actor: String = sheet_actor()
+	for inst: Dictionary in eq.list_for_sheet(actor):
 		var iid: String = str(inst.get("id", ""))
-		if _gear_tab == "weapons" and CharacterSheet._auto("Equipment").item_slot(iid) != "weapon":
+		if not eq.call("is_equippable", iid):
+			continue
+		if _gear_tab == "weapons" and str(eq.call("item_slot", iid)) != "weapon":
 			continue
 		rows.append(inst)
 	if rows.is_empty():
@@ -859,20 +878,21 @@ func _refresh_stats() -> void:
 	var root: Node = get_node_or_null("SheetFit/Sheet/Stats")
 	if root == null:
 		return
+	var actor: String = sheet_actor()
 	for stat_name: StringName in CharacterSheet._auto("KeeperStats").STAT_ORDER:
 		var sid: String = String(stat_name)
 		var line: Label = root.get_node_or_null("Stat_%s/Line/Text" % sid) as Label
 		if line == null:
 			continue
-		var base: int = CharacterSheet._auto("KeeperStats").get_base_for(_actor_id, sid)
-		var gear: int = CharacterSheet._auto("Equipment").gear_bonus_for(_actor_id, sid)
+		var base: int = CharacterSheet._auto("KeeperStats").get_base_for(actor, sid)
+		var gear: int = CharacterSheet._auto("Equipment").gear_bonus_for(actor, sid)
 		var shown_gear: int = gear
 		if _hover_item_id != "":
-			shown_gear = CharacterSheet._auto("Equipment").preview_gear_bonus_for(_actor_id, sid, _hover_item_id)
+			shown_gear = CharacterSheet._auto("Equipment").preview_gear_bonus_for(actor, sid, _hover_item_id)
 		var total: int = base + shown_gear
 		## base = STAT_BASE_START + ranks. Line is base + gear = total.
 		var text: String = "%d + %d = %d" % [base, shown_gear, total]
-		if _actor_id == "elaia":
+		if actor == "elaia":
 			line.tooltip_text = ""
 		else:
 			line.tooltip_text = CharacterSheet._auto("ContentStrings").get_text("stat_base_note")

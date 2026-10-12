@@ -35,6 +35,8 @@ func _ready() -> void:
 		GameState.echo_flags_changed.connect(refresh_presence)
 	if not GameState.load_completed.is_connected(refresh_presence):
 		GameState.load_completed.connect(refresh_presence)
+	if has_node("/root/Reach") and not Reach.changed.is_connected(refresh_presence):
+		Reach.changed.connect(refresh_presence)
 	refresh_presence()
 
 
@@ -77,7 +79,7 @@ func _process(delta: float) -> void:
 
 
 func refresh_presence() -> void:
-	var show_it: bool = GameState.echo_02_outcome == "spare"
+	var show_it: bool = GameState.bramble_joined()
 	visible = show_it
 	input_pickable = show_it
 	monitorable = show_it

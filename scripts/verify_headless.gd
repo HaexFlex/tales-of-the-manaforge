@@ -1,6 +1,12 @@
 extends SceneTree
 const EchoBattleScript := preload("res://scripts/echo_battle.gd")
-const ReachFightScript := preload("res://scripts/reach_fight.gd")
+const FightStateScript := preload("res://scripts/battle/fight_state.gd")
+const AutoPolicyScript := preload("res://scripts/battle/auto_policy.gd")
+const BatchSimScript := preload("res://scripts/battle/batch_sim.gd")
+const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
+const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
+const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
+const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ## Regression rule: every bug Haex reports that has been fixed before, or that
@@ -129,10 +135,117 @@ func _run() -> void:
 		return
 
 	# Bundle 1 regressions. The full suite runs them after the reach checks.
+	# Battle Bundle 2 data checks. The full suite runs them after the Bundle 1 regressions.
+	if OS.get_environment("MANAFORGE_BEAST_DATA") == "1":
+		var _beast_data_only: int = _beast_data(tree_root)
+		if _beast_data_only > 0:
+			print("BEAST_DATA_FAIL: %d" % _beast_data_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SPAWN_DATA") == "1":
+		var _spawn_data_only: int = _spawn_data(tree_root)
+		if _spawn_data_only > 0:
+			print("SPAWN_DATA_FAIL: %d" % _spawn_data_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SPAWN_ROLLER") == "1":
+		var _spawn_roller_only: int = _spawn_roller(tree_root)
+		if _spawn_roller_only > 0:
+			print("SPAWN_ROLLER_FAIL: %d" % _spawn_roller_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SPAWN_SEED") == "1":
+		var _spawn_seed_only: int = _spawn_seed(tree_root)
+		if _spawn_seed_only > 0:
+			print("SPAWN_SEED_FAIL: %d" % _spawn_seed_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ROOM_FILL") == "1":
+		var _room_fill_only: int = _room_fill_ok(tree_root)
+		if _room_fill_only > 0:
+			print("ROOM_FILL_FAIL: %d" % _room_fill_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	var swarm_spawn_only: bool = OS.get_environment("MANAFORGE_SWARM_SPAWN") == "1"
+	var swarm_combat_only: bool = OS.get_environment("MANAFORGE_SWARM_COMBAT") == "1"
+	var swarm_both: bool = OS.get_environment("MANAFORGE_SWARM") == "1"
+	if swarm_spawn_only or swarm_combat_only or swarm_both:
+		var swarm_failed: int = 0
+		if swarm_spawn_only or swarm_both:
+			swarm_failed += _swarm_spawn(tree_root)
+		if swarm_combat_only or swarm_both:
+			swarm_failed += await _swarm_combat(tree_root)
+		if swarm_failed > 0:
+			print("SWARM_FAIL: %d" % swarm_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_STRINGS_V4") == "1":
+		var _strings_adventure_v4_only: int = _strings_adventure_v4(tree_root)
+		if _strings_adventure_v4_only > 0:
+			print("STRINGS_ADVENTURE_V4_FAIL: %d" % _strings_adventure_v4_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_REACH_MIX") == "1":
-		var mix_only: int = _reach_mix_reload(tree_root, game_state, save_service)
+		var mix_only: int = await _reach_mix_reload(tree_root, game_state, save_service)
 		if mix_only > 0:
 			print("REACH_MIX_RELOAD_FAIL: %d" % mix_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_DEPTH_PASSTHROUGH") == "1":
+		var depth_only: int = await _depth_passthrough_ok(tree_root, game_state, save_service)
+		if depth_only > 0:
+			print("DEPTH_PASSTHROUGH_FAIL: %d" % depth_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PICKER_JOINED_ONLY") == "1":
+		var picker_only: int = await _picker_joined_only_ok(tree_root, game_state, save_service)
+		if picker_only > 0:
+			print("PICKER_JOINED_ONLY_FAIL: %d" % picker_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_END_PANEL") == "1":
+		var end_panel_only: int = await _end_panel_ok(tree_root, game_state, save_service)
+		if end_panel_only > 0:
+			print("END_PANEL_FAIL: %d" % end_panel_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MANUAL_OVERWHELMED") == "1":
+		var overwhelmed_only: int = await _manual_overwhelmed_ok(tree_root, game_state, save_service)
+		if overwhelmed_only > 0:
+			print("MANUAL_OVERWHELMED_FAIL: %d" % overwhelmed_only)
 			quit(1)
 		else:
 			quit(0)
@@ -147,10 +260,10 @@ func _run() -> void:
 			quit(0)
 		return
 
-	if OS.get_environment("MANAFORGE_TURN_ORDER") == "1":
-		var order_only: int = _reach_turn_order()
-		if order_only > 0:
-			print("REACH_TURN_ORDER_FAIL: %d" % order_only)
+	if OS.get_environment("MANAFORGE_REACH_LEGACY_GONE") == "1":
+		var legacy_gone_only: int = _reach_legacy_gone(tree_root, game_state, save_service)
+		if legacy_gone_only > 0:
+			print("REACH_LEGACY_GONE_FAIL: %d" % legacy_gone_only)
 			quit(1)
 		else:
 			quit(0)
@@ -169,6 +282,655 @@ func _run() -> void:
 		var reach_only: int = _reach_checks(tree_root, game_state, save_service)
 		if reach_only > 0:
 			print("REACH_FAIL: %d" % reach_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_V14_INVENTORY") == "1":
+		var inv_only: int = _save_v14_inventory_merge(tree_root, game_state, save_service)
+		if inv_only > 0:
+			print("SAVE_V14_INVENTORY_MERGE_FAIL: %d" % inv_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_V14_HOME") == "1":
+		var home_only: int = _save_v14_home(tree_root, game_state, save_service)
+		if home_only > 0:
+			print("SAVE_V14_HOME_FAIL: %d" % home_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_V14_LEGACY_RUN") == "1":
+		var legacy_only: int = _save_v14_legacy_run_cleared(tree_root, game_state, save_service)
+		if legacy_only > 0:
+			print("SAVE_V14_LEGACY_RUN_CLEARED_FAIL: %d" % legacy_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_V14_FROM_MAIN") == "1":
+		var from_main_only: int = _save_v14_from_main(tree_root, game_state, save_service)
+		if from_main_only > 0:
+			print("SAVE_V14_FROM_MAIN_FAIL: %d" % from_main_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PACK_BANKING") == "1":
+		var pack_bank_only: int = _pack_banking(tree_root, game_state, save_service)
+		if pack_bank_only > 0:
+			print("PACK_BANKING_FAIL: %d" % pack_bank_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PACK_LOOT_TABLE") == "1":
+		var pack_loot_only: int = _pack_loot_table(tree_root)
+		if pack_loot_only > 0:
+			print("PACK_LOOT_TABLE_FAIL: %d" % pack_loot_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_IDLE_SLOTS") == "1":
+		var idle_slots_only: int = _idle_slots(tree_root, game_state, save_service)
+		if idle_slots_only > 0:
+			print("IDLE_SLOTS_FAIL: %d" % idle_slots_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_IDLE_RESOLVE_AT_END") == "1":
+		var idle_end_only: int = _idle_resolve_at_end(tree_root, game_state, save_service)
+		if idle_end_only > 0:
+			print("IDLE_RESOLVE_AT_END_FAIL: %d" % idle_end_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_IDLE_REST_SLOTS") == "1":
+		var idle_rest_only: int = _idle_rest_slots(tree_root, game_state, save_service)
+		if idle_rest_only > 0:
+			print("IDLE_REST_SLOTS_FAIL: %d" % idle_rest_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_IDLE_BOSS_PAYBACK") == "1":
+		var idle_boss_only: int = _idle_boss_payback(tree_root, game_state, save_service)
+		if idle_boss_only > 0:
+			print("IDLE_BOSS_PAYBACK_FAIL: %d" % idle_boss_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_V4") == "1":
+		var board_v4_only: int = _board_v4_ok(tree_root, game_state, save_service)
+		if board_v4_only > 0:
+			print("BOARD_V4_FAIL: %d" % board_v4_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_COMPANION_ONLY") == "1":
+		var companion_only: int = _board_companion_only_ok(tree_root, game_state, save_service)
+		if companion_only > 0:
+			print("BOARD_COMPANION_ONLY_FAIL: %d" % companion_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_DEPART_ESSENCE") == "1":
+		var depart_essence_only: int = _depart_essence_ok(tree_root, game_state, save_service)
+		if depart_essence_only > 0:
+			print("DEPART_ESSENCE_FAIL: %d" % depart_essence_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SIMULATE") == "1":
+		var simulate_only: int = await _simulate_ok(tree_root, game_state, save_service)
+		if simulate_only > 0:
+			print("SIMULATE_FAIL: %d" % simulate_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PARTY_LOCK_SAVE") == "1":
+		var party_lock_only: int = await _party_lock_save_ok(tree_root, game_state, save_service)
+		if party_lock_only > 0:
+			print("PARTY_LOCK_SAVE_FAIL: %d" % party_lock_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_KEEPER_AWAY_HUB") == "1":
+		var keeper_away_hub: int = await _keeper_away_hub_ok(tree_root, game_state, save_service)
+		if keeper_away_hub > 0:
+			print("KEEPER_AWAY_HUB_FAIL: %d" % keeper_away_hub)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PARTY_AWAY_HUB") == "1":
+		var party_away_hub: int = await _party_away_hub_ok(tree_root, game_state, save_service)
+		if party_away_hub > 0:
+			print("PARTY_AWAY_HUB_FAIL: %d" % party_away_hub)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_KEEPER_AWAY_JOIN_FIGHT") == "1":
+		var keeper_join: int = await _keeper_away_join_fight_ok(tree_root, game_state, save_service)
+		if keeper_join > 0:
+			print("KEEPER_AWAY_JOIN_FIGHT_FAIL: %d" % keeper_join)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WISP_MISCLICK_KEEPS_JOB") == "1":
+		var misclick: int = await _wisp_misclick_keeps_job_ok(tree_root, game_state, save_service)
+		if misclick > 0:
+			print("WISP_MISCLICK_KEEPS_JOB_FAIL: %d" % misclick)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WISP_REASSIGN_SAME_SCENE") == "1":
+		var reassign: int = _wisp_reassign_same_scene_ok(tree_root, game_state, save_service)
+		if reassign > 0:
+			print("WISP_REASSIGN_SAME_SCENE_FAIL: %d" % reassign)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WISP_NO_CROSS_SCENE") == "1":
+		var cross: int = _wisp_no_cross_scene_ok(tree_root, game_state, save_service)
+		if cross > 0:
+			print("WISP_NO_CROSS_SCENE_FAIL: %d" % cross)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SIMULATE_NO_SIDE_EFFECTS") == "1":
+		var sim_side_only: int = await _simulate_no_side_effects_ok(tree_root, game_state, save_service)
+		if sim_side_only > 0:
+			print("SIMULATE_NO_SIDE_EFFECTS_FAIL: %d" % sim_side_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_OFFLINE_REACH_ONEPASS") == "1":
+		var onepass_only: int = _offline_reach_onepass(tree_root, game_state, save_service)
+		if onepass_only > 0:
+			print("OFFLINE_REACH_ONEPASS_FAIL: %d" % onepass_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_OFFLINE_SAVE_BLOCKED") == "1":
+		var blocked_only: int = _offline_save_blocked(tree_root, game_state, save_service)
+		if blocked_only > 0:
+			print("OFFLINE_SAVE_BLOCKED_FAIL: %d" % blocked_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BIG_DELTA_CATCHUP") == "1":
+		var big_delta_only: int = _big_delta_catchup(tree_root, game_state, save_service)
+		if big_delta_only > 0:
+			print("BIG_DELTA_CATCHUP_FAIL: %d" % big_delta_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Bundle 3 resolver. The full suite runs these at the end.
+	if OS.get_environment("MANAFORGE_RESOLVER_DICE") == "1":
+		var resolver_dice_only: int = _resolver_dice()
+		if resolver_dice_only > 0:
+			print("RESOLVER_DICE_FAIL: %d" % resolver_dice_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_MARGIN") == "1":
+		var resolver_margin_only: int = _resolver_margin()
+		if resolver_margin_only > 0:
+			print("RESOLVER_MARGIN_FAIL: %d" % resolver_margin_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_DIE_TABLE") == "1":
+		var resolver_die_only: int = _resolver_die_table()
+		if resolver_die_only > 0:
+			print("RESOLVER_DIE_TABLE_FAIL: %d" % resolver_die_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_SEED") == "1":
+		var resolver_seed_only: int = _resolver_seed()
+		if resolver_seed_only > 0:
+			print("RESOLVER_SEED_FAIL: %d" % resolver_seed_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_STATE") == "1":
+		var resolver_state_only: int = _resolver_state_roundtrip()
+		if resolver_state_only > 0:
+			print("RESOLVER_STATE_ROUNDTRIP_FAIL: %d" % resolver_state_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER") == "1":
+		var resolver_all_only: int = _resolver_all()
+		if resolver_all_only > 0:
+			print("RESOLVER_FAIL: %d" % resolver_all_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_TURN_ORDER") == "1":
+		var resolver_order_only: int = _resolver_turn_order()
+		if resolver_order_only > 0:
+			print("RESOLVER_TURN_ORDER_FAIL: %d" % resolver_order_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_ROWS") == "1":
+		var resolver_rows_only: int = _resolver_rows()
+		if resolver_rows_only > 0:
+			print("RESOLVER_ROWS_FAIL: %d" % resolver_rows_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_TARGETING") == "1":
+		var resolver_targeting_only: int = _resolver_targeting()
+		if resolver_targeting_only > 0:
+			print("RESOLVER_TARGETING_FAIL: %d" % resolver_targeting_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_BRACE") == "1":
+		var resolver_brace_only: int = _resolver_brace()
+		if resolver_brace_only > 0:
+			print("RESOLVER_BRACE_FAIL: %d" % resolver_brace_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_SHIELD_ORDER") == "1":
+		var resolver_shield_only: int = _resolver_shield_order()
+		if resolver_shield_only > 0:
+			print("RESOLVER_SHIELD_ORDER_FAIL: %d" % resolver_shield_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_POISON") == "1":
+		var resolver_poison_only: int = _resolver_poison_refresh()
+		if resolver_poison_only > 0:
+			print("RESOLVER_POISON_REFRESH_FAIL: %d" % resolver_poison_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_TWISTS") == "1":
+		var resolver_twists_only: int = _resolver_twists()
+		if resolver_twists_only > 0:
+			print("RESOLVER_TWISTS_FAIL: %d" % resolver_twists_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_BOSS") == "1":
+		var resolver_boss_only: int = _resolver_boss()
+		if resolver_boss_only > 0:
+			print("RESOLVER_BOSS_FAIL: %d" % resolver_boss_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_SALVE") == "1":
+		var resolver_salve_only: int = _resolver_salve()
+		if resolver_salve_only > 0:
+			print("RESOLVER_SALVE_FAIL: %d" % resolver_salve_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_AUTO_FLEE_KO_ZERO") == "1":
+		var auto_flee_only: int = _auto_flee_ko_zero()
+		if auto_flee_only > 0:
+			print("AUTO_FLEE_KO_ZERO_FAIL: %d" % auto_flee_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_LOG") == "1":
+		var resolver_log_only: int = _resolver_log()
+		if resolver_log_only > 0:
+			print("RESOLVER_LOG_FAIL: %d" % resolver_log_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_AUTO_POLICY") == "1":
+		var auto_policy_only: int = _auto_policy()
+		if auto_policy_only > 0:
+			print("AUTO_POLICY_FAIL: %d" % auto_policy_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SIM_PARITY") == "1":
+		var sim_parity_only: int = _sim_parity()
+		if sim_parity_only > 0:
+			print("SIM_PARITY_FAIL: %d" % sim_parity_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RESOLVER_PERF") == "1":
+		var resolver_perf_only: int = _resolver_perf()
+		if resolver_perf_only > 0:
+			print("RESOLVER_PERF_FAIL: %d" % resolver_perf_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Battle arena shell. The full suite runs these at the end.
+	if OS.get_environment("MANAFORGE_BATTLE_SHELL") == "1":
+		var battle_shell_only: int = await _battle_shell(tree_root, game_state, save_service)
+		if battle_shell_only > 0:
+			print("BATTLE_SHELL_FAIL: %d" % battle_shell_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_ECHO") == "1":
+		var battle_echo_only: int = await _battle_echo_exclusive(tree_root, game_state, save_service)
+		if battle_echo_only > 0:
+			print("BATTLE_ECHO_EXCLUSIVE_FAIL: %d" % battle_echo_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ECHO_SUITE") == "1":
+		var echo_suite_failed: int = await _verify_echo(tree_root, game_state, save_service, content_strings, game_audio)
+		echo_suite_failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+		if echo_suite_failed > 0:
+			print("ECHO_SUITE_FAIL: %d" % echo_suite_failed)
+			quit(1)
+		else:
+			print("ECHO_SUITE_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ECHO_V4_MATH") == "1":
+		var echo_math_only: int = _echo_v4_math(tree_root)
+		if echo_math_only > 0:
+			print("ECHO_V4_MATH_FAIL: %d" % echo_math_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ECHO_V4_PARITY") == "1":
+		var echo_parity_only: int = _echo_v4_parity()
+		if echo_parity_only > 0:
+			print("ECHO_V4_PARITY_FAIL: %d" % echo_parity_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_UI_V7") == "1":
+		var battle_ui_v7_only: int = await _battle_ui_v7(tree_root, game_state, save_service)
+		if battle_ui_v7_only > 0:
+			print("BATTLE_UI_V7_FAIL: %d" % battle_ui_v7_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_ICONS") == "1":
+		var battle_icons_only: int = await _battle_icons(tree_root, game_state, save_service)
+		if battle_icons_only > 0:
+			print("BATTLE_ICONS_FAIL: %d" % battle_icons_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_PLATES") == "1":
+		var battle_plates_only: int = await _battle_plates(tree_root, game_state, save_service)
+		if battle_plates_only > 0:
+			print("BATTLE_PLATES_FAIL: %d" % battle_plates_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_MENU") == "1":
+		var battle_menu_only: int = await _battle_menu(tree_root, game_state, save_service)
+		if battle_menu_only > 0:
+			print("BATTLE_MENU_FAIL: %d" % battle_menu_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_TARGET_REACH") == "1":
+		var battle_target_only: int = await _battle_target_reach(tree_root, game_state, save_service)
+		if battle_target_only > 0:
+			print("BATTLE_TARGET_REACH_FAIL: %d" % battle_target_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_STRIKE_FOR_ME") == "1":
+		var battle_strike_only: int = await _battle_strike_for_me(tree_root, game_state, save_service)
+		if battle_strike_only > 0:
+			print("BATTLE_STRIKE_FOR_ME_FAIL: %d" % battle_strike_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_PLAYBACK") == "1":
+		var battle_playback_only: int = await _battle_playback(tree_root, game_state, save_service)
+		if battle_playback_only > 0:
+			print("BATTLE_PLAYBACK_FAIL: %d" % battle_playback_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_POSE_RESET") == "1":
+		var pose_reset_only: int = await _battle_pose_reset(tree_root, game_state, save_service)
+		if pose_reset_only > 0:
+			print("BATTLE_POSE_RESET_FAIL: %d" % pose_reset_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ELAIA_REAL_STATS") == "1":
+		var elaia_stats_only: int = _elaia_real_stats_ok(tree_root, game_state)
+		if elaia_stats_only > 0:
+			print("ELAIA_REAL_STATS_FAIL: %d" % elaia_stats_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_FORMATION") == "1":
+		var formation_only: int = _board_formation_ok(tree_root, game_state, save_service)
+		if formation_only > 0:
+			print("BOARD_FORMATION_FAIL: %d" % formation_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_SIM_WINDOW") == "1":
+		var sim_window_only: int = _board_sim_window_ok(tree_root, game_state, save_service)
+		if sim_window_only > 0:
+			print("BOARD_SIM_WINDOW_FAIL: %d" % sim_window_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_DEPTH_ROOMS") == "1":
+		var depth_rooms_only: int = _board_depth_rooms_ok(tree_root, game_state, save_service)
+		if depth_rooms_only > 0:
+			print("BOARD_DEPTH_ROOMS_FAIL: %d" % depth_rooms_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_ESSENCE_ICON") == "1":
+		var essence_icon_only: int = _board_essence_icon_ok(tree_root, game_state, save_service)
+		if essence_icon_only > 0:
+			print("BOARD_ESSENCE_ICON_FAIL: %d" % essence_icon_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_LEAK_CHAIN") == "1":
+		var chain_failed: int = 0
+		chain_failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+		chain_failed += await _bramble_hidden_until_join_ok(tree_root, game_state, save_service)
+		chain_failed += _board_v4_ok(tree_root, game_state, save_service)
+		chain_failed += await _board_close_ok(tree_root, game_state, save_service)
+		chain_failed += _board_companion_only_ok(tree_root, game_state, save_service)
+		if chain_failed > 0:
+			print("BOARD_LEAK_CHAIN_FAIL: %d" % chain_failed)
+			quit(1)
+		else:
+			print("BOARD_LEAK_CHAIN_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BOARD_CLOSE") == "1":
+		var board_close_only: int = await _board_close_ok(tree_root, game_state, save_service)
+		if board_close_only > 0:
+			print("BOARD_CLOSE_FAIL: %d" % board_close_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BRAMBLE_HIDDEN") == "1":
+		var bramble_hidden_only: int = await _bramble_hidden_until_join_ok(tree_root, game_state, save_service)
+		if bramble_hidden_only > 0:
+			print("BRAMBLE_HIDDEN_UNTIL_JOIN_FAIL: %d" % bramble_hidden_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_ART") == "1":
+		var battle_art_only: int = await _battle_art(tree_root, game_state, save_service)
+		if battle_art_only > 0:
+			print("BATTLE_ART_FAIL: %d" % battle_art_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_AUDIO_SOLE_CALLER") == "1":
+		var battle_audio_only: int = _battle_audio_sole_caller(tree_root, game_audio)
+		if battle_audio_only > 0:
+			print("BATTLE_AUDIO_SOLE_CALLER_FAIL: %d" % battle_audio_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HEADLESS_SILENT") == "1":
+		var headless_silent_only: int = await _headless_silent(tree_root, game_state, save_service, game_audio)
+		if headless_silent_only > 0:
+			print("HEADLESS_SILENT_FAIL: %d" % headless_silent_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ELAIA_JOIN_FLOW") == "1":
+		var flow_failed: int = await _elaia_join_flow_check(tree_root, game_state, save_service, backpack, tree_root.get_node_or_null("ForgeJobs"))
+		if flow_failed > 0:
+			print("ELAIA_JOIN_FLOW_FAIL: %d" % flow_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ROD_NOT_WEAPON") == "1":
+		var rod_failed: int = await _rod_not_weapon_ok(tree_root, tree_root.get_node_or_null("Equipment"))
+		if rod_failed > 0:
+			print("ROD_NOT_WEAPON_FAIL: %d" % rod_failed)
 			quit(1)
 		else:
 			quit(0)
@@ -283,12 +1045,31 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_KEEPER_EQUIP") == "1":
+		var keeper_equip_failed: int = await _keeper_equip_ok(tree_root, game_state)
+		if keeper_equip_failed > 0:
+			print("KEEPER_EQUIP_FAIL: %d" % keeper_equip_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_WORKBENCH_ROUTE") == "1":
 		var route_failed: int = _workbench_north_route()
 		if route_failed > 0:
 			print("WORKBENCH_NORTH_ROUTE_FAIL: %d" % route_failed)
 			quit(1)
 		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_WATER_RMB") == "1":
+		var water_rmb_failed: int = await _manatree_water_rmb_cancel(tree_root, game_state)
+		if water_rmb_failed > 0:
+			print("MANATREE_WATER_RMB_FAIL: %d" % water_rmb_failed)
+			quit(1)
+		else:
+			print("MANATREE_WATER_RMB_OK")
 			quit(0)
 		return
 
@@ -341,6 +1122,105 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ADVENTURE_SLOT_RESUME") == "1":
+		var adv_resume_only: int = await _adventure_slot_resume(tree_root, game_state, save_service)
+		if adv_resume_only > 0:
+			print("ADVENTURE_SLOT_RESUME_FAIL: %d" % adv_resume_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ADVENTURE_NO_SCUM") == "1":
+		var adv_noscum_only: int = await _adventure_no_scum(tree_root, game_state, save_service)
+		if adv_noscum_only > 0:
+			print("ADVENTURE_NO_SCUM_FAIL: %d" % adv_noscum_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_REWIND") == "1":
+		var rewind_only: int = _save_rewind(tree_root, game_state, save_service)
+		if rewind_only > 0:
+			print("SAVE_REWIND_FAIL: %d" % rewind_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BANK_ONCE") == "1":
+		var bank_once_only: int = _bank_once(tree_root, game_state, save_service)
+		if bank_once_only > 0:
+			print("BANK_ONCE_FAIL: %d" % bank_once_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAVE_SEED_ROUNDTRIP") == "1":
+		var seed_round_only: int = await _save_seed_roundtrip(tree_root, game_state, save_service)
+		if seed_round_only > 0:
+			print("SAVE_SEED_ROUNDTRIP_FAIL: %d" % seed_round_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ADVENTURE_NEWER_REFUSED") == "1":
+		var adv_newer_only: int = _adventure_newer_refused(tree_root, game_state, save_service)
+		if adv_newer_only > 0:
+			print("ADVENTURE_NEWER_REFUSED_FAIL: %d" % adv_newer_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HANDOFF_JOIN_FRESH") == "1":
+		var handoff_fresh_only: int = await _handoff_join_fresh(tree_root, game_state, save_service)
+		if handoff_fresh_only > 0:
+			print("HANDOFF_JOIN_FRESH_FAIL: %d" % handoff_fresh_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HANDOFF_RESUME") == "1":
+		var handoff_resume_only: int = await _handoff_resume(tree_root, game_state, save_service)
+		if handoff_resume_only > 0:
+			print("HANDOFF_RESUME_FAIL: %d" % handoff_resume_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HANDOFF_EXPIRED") == "1":
+		var handoff_expired_only: int = await _handoff_expired(tree_root, game_state, save_service)
+		if handoff_expired_only > 0:
+			print("HANDOFF_EXPIRED_FAIL: %d" % handoff_expired_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HANDOFF_IDLE") == "1":
+		var handoff_idle_only: int = await _handoff_idle(tree_root, game_state, save_service)
+		if handoff_idle_only > 0:
+			print("HANDOFF_IDLE_FAIL: %d" % handoff_idle_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_DEBUG_ADVENTURE") == "1":
+		var debug_adv_only: int = await _debug_adventure_ok(tree_root, game_state, save_service)
+		if debug_adv_only > 0:
+			print("DEBUG_ADVENTURE_FAIL: %d" % debug_adv_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
@@ -348,7 +1228,7 @@ func _run() -> void:
 		jobs.call("set_autosave_enabled", false)
 	failed += _assert(jobs != null, "ForgeJobs autoload missing")
 	failed += _assert(int(game_state.get("upgrades_data").size()) == 10, "expected 10 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION should be 13")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION should be 14")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -708,7 +1588,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 13, "written save_version 13")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 14, "written save_version 14")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -805,6 +1685,7 @@ func _run() -> void:
 		failed += _assert(paused == false, "resume_game clears tree.paused")
 		pm.queue_free()
 		await process_frame
+	paused = false
 
 	# Offers removed
 	failed += _assert(not game_state.has_method("try_offer"), "try_offer removed")
@@ -941,7 +1822,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION stays 13 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION stays 14 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -1054,6 +1935,14 @@ func _run() -> void:
 	failed += _assert(hub_path.ends_with("mus_hub_forest_haex.mp3"), "mus_hub_forest cue path: %s" % hub_path)
 	failed += _assert(bool(hub_meta.get("loop", false)), "mus_hub_forest loop=true")
 	failed += _assert(str(hub_meta.get("bus", "")) == "Music", "mus_hub_forest Music bus")
+	var battle_meta: Dictionary = hub_cues_tbl.get("mus_battle_forest", {}) as Dictionary
+	var battle_path: String = str(battle_meta.get("path", ""))
+	failed += _assert(battle_path.ends_with("mus_battle_forest.ogg"), "mus_battle_forest cue path: %s" % battle_path)
+	failed += _assert(bool(battle_meta.get("loop", false)), "mus_battle_forest loop=true")
+	failed += _assert(str(battle_meta.get("bus", "")) == "Music", "mus_battle_forest Music bus")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_battle_forest.ogg"), "mus_battle_forest ogg missing")
+	var battle_file: Variant = load(battle_path)
+	failed += _assert(battle_file is AudioStreamOggVorbis, "mus_battle_forest ogg loads")
 	game_audio.call("play_hub_music")
 	failed += _assert(game_audio.call("get_cue_path", &"mus_hub_forest").ends_with("mus_hub_forest_haex.mp3"), "get_cue_path haex.mp3")
 	var hub_stream: Variant = game_audio.call("get_hub_stream")
@@ -1064,6 +1953,15 @@ func _run() -> void:
 	failed += _assert(hub_stream is AudioStreamMP3 or hub_stream is AudioStreamOggVorbis or hub_stream is AudioStreamWAV, "hub stream type")
 	if hub_stream is AudioStreamMP3:
 		failed += _assert(bool((hub_stream as AudioStreamMP3).loop), "AudioStreamMP3.loop forced true")
+	game_audio.call("clear_played_log")
+	game_audio.call("suspend_hub_for_battle")
+	game_audio.call("play", &"mus_battle_forest")
+	failed += _assert(bool(game_audio.call("did_play", &"mus_battle_forest")), "mus_battle_forest play logged")
+	var battle_bed: Variant = game_audio.call("get_hub_stream")
+	failed += _assert(battle_bed is AudioStreamOggVorbis, "mus_battle_forest sets Music stream")
+	failed += _assert(bool(game_audio.call("is_hub_music_playing")), "battle bed playing")
+	game_audio.call("resume_hub_after_battle")
+	failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub bed back after battle resume")
 	# Stings must not silence Music bus forever — second sting player; hub stays up
 	game_audio.call("play", &"mus_fruit_sting")
 	failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub still playing under fruit sting")
@@ -1532,8 +2430,26 @@ func _run() -> void:
 			var expect_r: float = 0.0
 			if mana and mana.has_method("wisp_orbit_radius"):
 				expect_r = float(mana.call("wisp_orbit_radius"))
-			failed += _assert(abs(node_r - expect_r) < 0.01, "stacked orbit uses the trunk radius (got %s want %s)" % [node_r, expect_r])
+			failed += _assert(abs(node_r - expect_r) < 0.01, "stacked orbit uses the trunk ry (got %s want %s)" % [node_r, expect_r])
+			game_state.set("stage_id", StringName("elder"))
+			var elder_ry: float = float(mana.call("wisp_orbit_radius")) if mana != null else 0.0
+			var elder_rx: float = elder_ry * 2.0
+			if mana != null and mana.has_method("wisp_orbit_radii"):
+				var radii: Vector2 = mana.call("wisp_orbit_radii")
+				elder_rx = radii.x
+				elder_ry = radii.y
 			var orbit_jobs: Node = get_root().get_node_or_null("ForgeJobs")
+			if orbit_jobs:
+				orbit_jobs.call("debug_set_wisp_orbit_phase", 0.0)
+			for wo_side: Node in wisp_orbs:
+				if wo_side.has_method("place_on_shared_orbit"):
+					wo_side.call("place_on_shared_orbit")
+				if mana != null:
+					var center: Vector2 = mana.call("wisp_orbit_center")
+					var dx: float = absf(float(wo_side.global_position.x) - center.x)
+					var dy: float = absf(float(wo_side.global_position.y) - center.y)
+					failed += _assert(dx < elder_rx + 24.0, "elder orbit |x| stays near rx (got %.1f rx %.1f)" % [dx, elder_rx])
+					failed += _assert(dy < elder_ry * 0.6, "elder orbit |y| stays near ry (wide ellipse)")
 			if orbit_jobs:
 				orbit_jobs.call("debug_set_wisp_orbit_phase", 0.4)
 			var behind: int = 0
@@ -1552,6 +2468,7 @@ func _run() -> void:
 			failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "", "RMB ground unassigns wisp")
 		live.queue_free()
 		await process_frame
+	paused = false
 
 	# --- Art v0.1.12 care vs shop + Content v0.3.4 / SYSTEMS v0.3.3 ---
 	game_state.call("reset_for_new_game")
@@ -1771,7 +2688,8 @@ func _run() -> void:
 
 	# --- SYSTEMS v0.4.0: backpack, handcraft, tools, Grow, Keep Tools, can shard_roll ×2 ---
 	failed += _assert(int((backpack.get("recipes_data") as Array).size()) == 10, "10 handcraft recipes")
-	failed += _assert(int((backpack.get("items_data") as Array).size()) == 13, "13 backpack items")
+	for want_item: String in ["wooden_planks", "stone_fragments", "wooden_tool_rod", "axe_head", "pickaxe_head", "stone_axe", "stone_pickaxe", "wooden_basket", "stone_watering_can", "fertilizer", "sapsteel", "heartwood_bits", "amberbind", "briarwood", "herbs", "glowcap", "bitterroot", "heart_salve", "bile_vial"]:
+		failed += _assert(bool(backpack.call("is_known_item", want_item)), "backpack item %s exists" % want_item)
 	failed += _assert(not bool(backpack.call("recipe_has_manashards", "fertilizer")), "fertilizer recipe no manashards")
 	var fert_def: Dictionary = backpack.call("get_recipe_def", "fertilizer")
 	var fert_ings: Dictionary = fert_def.get("ingredients", {}) as Dictionary
@@ -1904,10 +2822,27 @@ func _run() -> void:
 	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 1, "fertilizer stacked")
 	failed += _assert(int(game_state.get("manashards")) == shards_pre_fert, "fertilizer ignores manashards")
 
+	# Stone tool heads: craft once (head or finished tool blocks the recipe)
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	backpack.call("set_count", "stone_fragments", 10)
+	failed += _assert(str(backpack.call("try_craft", "axe_head")) == "ok", "craft axe head once")
+	failed += _assert(str(backpack.call("try_craft", "axe_head")) == "unique", "second axe head blocked")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	backpack.call("set_count", "stone_fragments", 10)
+	failed += _assert(str(backpack.call("try_craft", "pickaxe_head")) == "ok", "craft pickaxe head once")
+	failed += _assert(str(backpack.call("craft_block_reason", "pickaxe_head")) == "unique", "pickaxe head locked after craft")
+	backpack.call("set_count", "pickaxe_head", 0)
+	backpack.call("set_count", "wooden_tool_rod", 1)
+	backpack.call("set_count", "pickaxe_head", 1)
+	failed += _assert(str(backpack.call("try_craft", "stone_pickaxe")) == "ok", "craft pickaxe for head lock test")
+	failed += _assert(str(backpack.call("craft_block_reason", "pickaxe_head")) == "unique", "pickaxe head blocked when tool owned")
+
 	# Unique tools: own 1
 	game_state.call("reset_for_new_game")
 	backpack.call("set_count", "wooden_tool_rod", 2)
-	backpack.call("set_count", "axe_head", 2)
+	backpack.call("set_count", "axe_head", 1)
 	failed += _assert(str(backpack.call("try_craft", "stone_axe")) == "ok", "craft stone axe")
 	failed += _assert(int(backpack.call("get_count", "stone_axe")) == 1, "axe unique 1")
 	failed += _assert(str(backpack.call("try_craft", "stone_axe")) == "unique", "second axe blocked")
@@ -2107,7 +3042,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "SAVE_VERSION is 13")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION is 14")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -2204,6 +3139,8 @@ func _run() -> void:
 		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 10, "10 planks for the rod")
 		failed += _assert(str(equipment.call("try_craft", "weapon_rod")) == "ok", "craft weapon rod")
 		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 1, "rod in gear inventory")
+		failed += _assert(not bool(equipment.call("is_equippable", "weapon_rod")), "weapon rod is not equippable")
+		failed += _assert(str(equipment.call("try_equip", "weapon_rod")) == "wrong_slot", "weapon rod cannot equip")
 		failed += _assert(int(backpack.call("get_count", "weapon_rod")) == 0, "rod stays out of the backpack")
 		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "planks spent")
 		backpack.call("set_count", "stone_fragments", 30)
@@ -2567,7 +3504,12 @@ func _run() -> void:
 			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "confirm spend raises might by 1")
 			failed += _assert(int(keeper_stats.call("get_base", "might")) == 6, "confirm spend base is 5 + 1")
 			failed += _assert(int(game_state.get("manashards")) == 0, "confirm spent 100 shards")
-			failed += _assert(not bool(might_stone.call("is_spend_confirm_open")), "confirm closes after raise")
+			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm stays open after raise")
+			game_state.call("set_resource", &"manashards", 500)
+			failed += _assert(str(might_stone.call("confirm_spend")) == "ok", "confirm buys might twice")
+			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 2, "second raise bumps rank")
+			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm still open for another raise")
+			might_stone.call("cancel_spend")
 		var v6_state: Dictionary = game_state.call("to_save_dict")
 		v6_state["backpack"] = {"fertilizer": 4, "weapon_rod": 2, "wooden_planks": 3}
 		v6_state["keeper_stats"] = {"might": 3}
@@ -2623,6 +3565,8 @@ func _run() -> void:
 	failed += _forge_duration_ticks(tree_root, game_state, backpack)
 	failed += await _party_bar_check(tree_root, game_state)
 	failed += await _elaia_join_check(tree_root, game_state, backpack)
+	failed += await _elaia_join_flow_check(tree_root, game_state, save_service, backpack, tree_root.get_node_or_null("ForgeJobs"))
+	failed += await _rod_not_weapon_ok(tree_root, equipment)
 	failed += _elaia_companion_asserts(tree_root, game_state, backpack)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
@@ -2640,7 +3584,9 @@ func _run() -> void:
 	failed += await _workbench_panel_no_pause(tree_root, game_state)
 	failed += await _workbench_wisp_visible(tree_root, game_state, save_service)
 	failed += _forged_item_any_character(tree_root)
+	failed += await _keeper_equip_ok(tree_root, game_state)
 	failed += _workbench_north_route()
+	failed += await _manatree_water_rmb_cancel(tree_root, game_state)
 	failed += await _craft_duration_labels(tree_root, game_state, backpack)
 	failed += await _forge_entry_one_click(tree_root, game_state, save_service)
 	failed += await _batch_refund(tree_root, game_state, save_service, backpack, content_strings)
@@ -2651,15 +3597,104 @@ func _run() -> void:
 	failed += await _jobs_survive_switch(tree_root, game_state, save_service)
 	failed += _autosave_event_throttle(save_service)
 	failed += await _adventure_batch1(tree_root, game_state, save_service, content_strings, game_audio)
+	failed += await _bramble_hidden_until_join_ok(tree_root, game_state, save_service)
 	failed += await _echo2_portal_visible(tree_root, game_state, save_service)
 	failed += await _expedition_board_tease(tree_root, game_state, save_service)
 	failed += await _debug_snapshots_reach(tree_root, game_state, save_service)
 	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 	failed += _reach_checks(tree_root, game_state, save_service)
-	failed += _reach_mix_reload(tree_root, game_state, save_service)
+	failed += await _reach_mix_reload(tree_root, game_state, save_service)
 	failed += _save_newer_refused(tree_root, game_state, save_service)
-	failed += _reach_turn_order()
 	failed += _debug_snapshots_migrate(tree_root, game_state, save_service)
+	failed += _beast_data(tree_root)
+	failed += _spawn_data(tree_root)
+	failed += _spawn_roller(tree_root)
+	failed += _spawn_seed(tree_root)
+	failed += _room_fill_ok(tree_root)
+	failed += _swarm_spawn(tree_root)
+	failed += await _swarm_combat(tree_root)
+	failed += _strings_adventure_v4(tree_root)
+	failed += _save_v14_inventory_merge(tree_root, game_state, save_service)
+	failed += _save_v14_home(tree_root, game_state, save_service)
+	failed += _save_v14_from_main(tree_root, game_state, save_service)
+	failed += _resolver_dice()
+	failed += _resolver_margin()
+	failed += _resolver_die_table()
+	failed += _resolver_seed()
+	failed += _resolver_state_roundtrip()
+	failed += await _battle_shell(tree_root, game_state, save_service)
+	failed += await _battle_echo_exclusive(tree_root, game_state, save_service)
+	failed += await _battle_plates(tree_root, game_state, save_service)
+	failed += await _battle_menu(tree_root, game_state, save_service)
+	failed += await _battle_target_reach(tree_root, game_state, save_service)
+	failed += await _battle_strike_for_me(tree_root, game_state, save_service)
+	failed += await _battle_playback(tree_root, game_state, save_service)
+	failed += await _battle_pose_reset(tree_root, game_state, save_service)
+	failed += _elaia_real_stats_ok(tree_root, game_state)
+	failed += await _battle_art(tree_root, game_state, save_service)
+	failed += _battle_audio_sole_caller(tree_root, game_audio)
+	failed += await _headless_silent(tree_root, game_state, save_service, game_audio)
+	failed += _resolver_turn_order()
+	failed += _resolver_rows()
+	failed += _resolver_targeting()
+	failed += _resolver_brace()
+	failed += _resolver_shield_order()
+	failed += _resolver_poison_refresh()
+	failed += _resolver_twists()
+	failed += _resolver_boss()
+	failed += _resolver_salve()
+	failed += _auto_flee_ko_zero()
+	failed += _resolver_log()
+	failed += _auto_policy()
+	# SIM_PARITY is switch-only (~31 s for 12k idle fights); see MANAFORGE_SIM_PARITY.
+	failed += _resolver_perf()
+	failed += _save_v14_legacy_run_cleared(tree_root, game_state, save_service)
+	failed += _pack_banking(tree_root, game_state, save_service)
+	failed += _pack_loot_table(tree_root)
+	failed += _idle_slots(tree_root, game_state, save_service)
+	failed += _idle_resolve_at_end(tree_root, game_state, save_service)
+	failed += _idle_rest_slots(tree_root, game_state, save_service)
+	failed += _idle_boss_payback(tree_root, game_state, save_service)
+	failed += _board_v4_ok(tree_root, game_state, save_service)
+	failed += await _board_close_ok(tree_root, game_state, save_service)
+	failed += _board_companion_only_ok(tree_root, game_state, save_service)
+	failed += _board_formation_ok(tree_root, game_state, save_service)
+	failed += _board_sim_window_ok(tree_root, game_state, save_service)
+	failed += _board_depth_rooms_ok(tree_root, game_state, save_service)
+	failed += _board_essence_icon_ok(tree_root, game_state, save_service)
+	failed += await _picker_joined_only_ok(tree_root, game_state, save_service)
+	failed += await _depth_passthrough_ok(tree_root, game_state, save_service)
+	failed += await _end_panel_ok(tree_root, game_state, save_service)
+	failed += await _manual_overwhelmed_ok(tree_root, game_state, save_service)
+	failed += _depart_essence_ok(tree_root, game_state, save_service)
+	failed += await _party_lock_save_ok(tree_root, game_state, save_service)
+	failed += await _keeper_away_hub_ok(tree_root, game_state, save_service)
+	failed += await _party_away_hub_ok(tree_root, game_state, save_service)
+	failed += await _keeper_away_join_fight_ok(tree_root, game_state, save_service)
+	failed += await _wisp_misclick_keeps_job_ok(tree_root, game_state, save_service)
+	failed += _wisp_reassign_same_scene_ok(tree_root, game_state, save_service)
+	failed += _wisp_no_cross_scene_ok(tree_root, game_state, save_service)
+	failed += await _simulate_ok(tree_root, game_state, save_service)
+	failed += await _simulate_no_side_effects_ok(tree_root, game_state, save_service)
+	failed += _offline_reach_onepass(tree_root, game_state, save_service)
+	failed += _offline_save_blocked(tree_root, game_state, save_service)
+	failed += _big_delta_catchup(tree_root, game_state, save_service)
+	failed += await _adventure_slot_resume(tree_root, game_state, save_service)
+	failed += await _adventure_no_scum(tree_root, game_state, save_service)
+	failed += _save_rewind(tree_root, game_state, save_service)
+	failed += _bank_once(tree_root, game_state, save_service)
+	failed += await _save_seed_roundtrip(tree_root, game_state, save_service)
+	failed += _adventure_newer_refused(tree_root, game_state, save_service)
+	failed += await _handoff_join_fresh(tree_root, game_state, save_service)
+	failed += await _handoff_resume(tree_root, game_state, save_service)
+	failed += await _handoff_expired(tree_root, game_state, save_service)
+	failed += await _handoff_idle(tree_root, game_state, save_service)
+	failed += await _debug_adventure_ok(tree_root, game_state, save_service)
+	failed += _reach_legacy_gone(tree_root, game_state, save_service)
+	failed += _echo_v4_math(tree_root)
+	failed += _echo_v4_parity()
+	failed += await _battle_ui_v7(tree_root, game_state, save_service)
+	failed += await _battle_icons(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -2684,8 +3719,10 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(echo.call("echo_display_name")) == "Elaia", "Elaia display name")
 	failed += _assert(str(echo_def.get("id", "")) == "echo_keeper_01", "echo id")
 	var estats: Dictionary = echo_def.get("stats", {})
-	failed += _assert(int(estats.get("vitality", 0)) == 6 and int(estats.get("arcana", 0)) == 7, "Elaia vit 6 arcana 7")
-	failed += _assert(int(estats.get("swiftness", 0)) == 6 and int(estats.get("might", 0)) == 4, "Elaia swift 6 might 4")
+	failed += _assert(int(estats.get("vitality", 0)) == 7 and int(estats.get("arcana", 0)) == 6, "Elaia vit 7 arcana 6")
+	failed += _assert(int(estats.get("swiftness", 0)) == 7 and int(estats.get("might", 0)) == 4, "Elaia swift 7 might 4")
+	failed += _assert(echo_def.get("crit_multiplier", null) == null, "Elaia has no crit_multiplier")
+	failed += _assert(echo_def.get("swift_tie_favors_foe", null) == null, "Elaia has no swift_tie_favors_foe")
 	failed += _assert(str(content_strings.call("get_text", "echo_elaia_name")) == "Elaia", "echo_elaia_name")
 	failed += _assert(str(content_strings.call("get_text", "echo_elaia_subtitle")).find("Echo") >= 0, "echo_elaia_subtitle")
 	failed += _assert(str(content_strings.call("get_text", "portal_confirm")).find("{cost}") >= 0, "portal_confirm")
@@ -2694,7 +3731,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(content_strings.call("get_text", "battle_fists_toast")).find("weapon") >= 0, "battle_fists_toast")
 	failed += _assert(str(content_strings.call("get_text", "battle_spare_ok")).find("{enemy}") >= 0, "battle_spare_ok")
 	failed += _assert(str(content_strings.call("get_text", "battle_defeat_ok")).find("{enemy}") >= 0, "battle_defeat_ok")
-	failed += _assert(str(content_strings.call("get_text", "battle_key_grant")).find("+2 Swiftness") >= 0, "battle_key_grant")
+	failed += _assert(str(content_strings.call("get_text", "battle_key_grant")).find("+1 Swiftness") >= 0, "battle_key_grant")
 	failed += _assert(str(content_strings.call("get_text", "forge_no_key")) == "You have no key.", "no key popup")
 	failed += _assert(str(content_strings.call("get_text", "forge_not_built")) == "Congratulations, you finished the Trial! What secrets await you in the Forge? Stay tuned.", "forge not built")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_narrator")).find("does not raise her voice") >= 0, "echo_01_narrator")
@@ -2707,7 +3744,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(content_strings.call("get_text", "echo_01_defeat")).find("I can sleep") >= 0, "echo_01_defeat")
 	failed += _assert(str(content_strings.call("get_text", "echo_01_flee")).find("clearing still needs you") >= 0, "echo_01_flee")
 	failed += _assert(str(content_strings.call("get_text", "forge_key_relic_name")) == "Forge Key", "forge_key_relic_name")
-	failed += _assert(str(equipment.call("item_tooltip", "forge_key_relic")).find("+2 Swiftness") >= 0, "forge_key relic tooltip stats")
+	failed += _assert(str(equipment.call("item_tooltip", "forge_key_relic")).find("+1 Swiftness") >= 0, "forge_key relic tooltip stats")
 	failed += _assert(str(content_strings.call("get_text", "forge_key_relic_grant")).find("settles with you") >= 0, "forge_key_relic_grant")
 	failed += _assert(str(content_strings.call("get_text", "battle_log_title")) == "Battle", "battle_log_title")
 	failed += _assert(str(content_strings.call("get_text", "battle_log_strike_you")) == "You strike.", "battle_log_strike_you")
@@ -2718,10 +3755,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(content_strings.call("get_text", "forge_enter_stage_locked")).find("Elder or Ancient") >= 0, "forge_enter_stage_locked")
 	failed += _assert(str(content_strings.call("get_text", "battle_save_disabled")).find("Cannot save") >= 0, "battle_save_disabled")
 	failed += _assert(str(content_strings.call("get_text", "battle_paused_hint")).find("Flee") >= 0, "battle_paused_hint")
-	failed += _assert(EchoBattleScript.raw_damage(5, 5) == 0, "fists raw 0")
-	failed += _assert(EchoBattleScript.raw_damage(4, 9) == 0, "negative raw is 0")
-	failed += _assert(EchoBattleScript.raw_damage(7, 5) == 20, "sword raw 20")
-	failed += _assert(EchoBattleScript.hp_max_for(5) == 50 and EchoBattleScript.hp_max_for(6) == 60, "hp from vitality")
+	failed += _assert(BattleResolver.max_hp_for(5) == 25 and BattleResolver.max_hp_for(7) == 31, "§4 HP from vitality")
 	failed += _assert(EchoBattleScript.rank_cost(0) == 100 and EchoBattleScript.rank_cost(1) == 165, "rank cost curve")
 	failed += _assert(EchoBattleScript.rank_cost(4) == 741 and EchoBattleScript.rank_cost(5) == 1222, "rank cost 741/1222")
 	var ranks0: Dictionary = {
@@ -2735,68 +3769,58 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(EchoBattleScript.payout("spare", ranks_might, 5) == 105, "specialist spare still third rank 0")
 	var ordered: Array[String] = EchoBattleScript.ranked_stat_ids(ranks_might)
 	failed += _assert(ordered[0] == "might" and ordered[1] == "arcana" and ordered[2] == "resilience", "might leads and the third tie is resilience")
-	# Fists: 0 damage. Enemy still hits after.
-	var fists: Variant = EchoBattleScript.new()
-	fists.force_crit = 0
-	fists.configure(_echo_totals(5, 9), echo_def)
+	var fx: Dictionary = _echo_duel_fixture()
+	# Fists: keeper miss on round 1 (e1_fresh_ko faces, first keeper swing).
+	var fists: EchoBattle = _echo_battle_for_replay(fx, "e1_fresh", echo_def)
+	_echo_apply_faces(fists, _echo_replay_faces(fx, "e1_fresh_ko"))
 	fists.choose("strike")
-	failed += _assert(fists.last_keeper_damage == 0 and fists.echo_hp == 60, "fists deal 0")
-	# Turn-1 floor: a lethal first cast leaves the Keeper at 1, then Flee succeeds.
-	var lethal: Dictionary = echo_def.duplicate(true)
-	(lethal["stats"] as Dictionary)["arcana"] = 40
-	(lethal["stats"] as Dictionary)["swiftness"] = 9
-	var t1: Variant = EchoBattleScript.new()
-	t1.force_crit = 0
-	t1.configure(_echo_totals(5, 1, 0), lethal)
-	failed += _assert(t1.choose("flee") == "flee", "flee after her first hit")
-	failed += _assert(t1.keeper_hp == 1 and t1.outcome == "flee" and t1.enemy_attacks == 1, "T1 cannot KO")
-	var t1_strike: Variant = EchoBattleScript.new()
-	t1_strike.force_crit = 0
-	t1_strike.configure(_echo_totals(5, 1, 0), lethal)
+	failed += _assert(fists.last_keeper_damage == 0 and fists.echo_hp == 31, "fists deal 0")
+	# Turn-1 floor from e1_rootsteel_floor (first landed echo hit).
+	var floor_b: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(floor_b, _echo_replay_faces(fx, "e1_rootsteel_floor"))
+	floor_b.choose("strike")
+	floor_b.choose("strike")
+	failed += _assert(floor_b.first_hit_used and floor_b.keeper_hp == 3, "T1 floor leaves 3 HP")
+	var t1: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(t1, _echo_replay_faces(fx, "e1_rootsteel_floor"))
+	t1.choose("strike")
+	t1.choose("strike")
+	failed += _assert(t1.keeper_hp == 3 and t1.first_hit_used, "T1 floor after first landed hit")
+	var t1_strike: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(t1_strike, _echo_replay_faces(fx, "e1_rootsteel_floor"))
 	t1_strike.choose("strike")
-	failed += _assert(t1_strike.keeper_hp == 1 and t1_strike.outcome == "", "T1 strike still cannot KO")
-	# Crit does not bypass the mercy floor.
-	var floored: Variant = EchoBattleScript.new()
-	floored.force_crit = 1
-	floored.configure(_echo_totals(20, 12), echo_def)
-	floored.choose("strike")
-	failed += _assert(floored.echo_hp == 1 and floored.spare_window, "10% floor holds on a crit")
+	t1_strike.choose("strike")
+	failed += _assert(t1_strike.keeper_hp == 3 and t1_strike.outcome == "", "T1 strike still cannot KO")
+	# Mercy window from e1_rootsteel_spare_window (crit crush).
+	var floored: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(floored, _echo_replay_faces(fx, "e1_rootsteel_spare_window"))
+	failed += _assert(floored.choose("strike") == "spare_window", "10% window opens")
+	failed += _assert(floored.echo_hp == 1 and floored.spare_window, "mercy floor clamps to 1")
 	failed += _assert(not floored.available_actions().has("flee"), "spare window has no Flee")
 	failed += _assert(floored.choose("flee") == "no_flee" and floored.outcome == "", "flee is refused in the window")
 	failed += _assert(floored.available_actions().has("spare") and floored.available_actions().has("strike"), "window offers spare and strike")
-	# No sword: she kills on her third hit. Echo never reaches the window.
-	var bare: Variant = EchoBattleScript.new()
-	bare.force_crit = 0
-	bare.configure(_echo_totals(5, 1), echo_def)
-	bare.choose("strike")
-	bare.choose("strike")
-	failed += _assert(bare.choose("strike") == "ko" and bare.enemy_attacks == 3 and bare.echo_hp == 60, "fists die on her third hit")
-	# Sword only: die on her third action, before the window.
-	var sword: Variant = EchoBattleScript.new()
-	sword.force_crit = 0
-	sword.configure(_echo_totals(7, 5), echo_def)
-	sword.choose("strike")
-	sword.choose("strike")
-	failed += _assert(sword.choose("strike") == "ko" and sword.echo_hp == 20 and sword.enemy_attacks == 3, "sword dies before spare")
-	# Sword + 1 Swift: tie, Keeper first, floor then window before her kill.
-	var swift: Variant = EchoBattleScript.new()
-	swift.force_crit = 0
-	swift.configure(_echo_totals(7, 6), echo_def)
-	swift.choose("strike")
-	swift.choose("strike")
-	failed += _assert(swift.choose("strike") == "spare_window", "swift reaches the window")
-	failed += _assert(swift.echo_hp == 1 and swift.keeper_hp == 10 and swift.enemy_attacks == 2, "swift floor before her third hit")
+	# Fresh keeper KO on e1_fresh_ko.
+	var bare: EchoBattle = _echo_battle_for_sheet(fx, "e1_fresh", echo_def)
+	_echo_apply_faces(bare, _echo_replay_faces(fx, "e1_fresh_ko"))
+	while bare.outcome == "" and not bare.spare_window:
+		bare.choose("strike")
+	failed += _assert(bare.outcome == "ko" and bare.echo_hp == 26, "fresh keeper loses to Elaia")
+	var sword: EchoBattle = _echo_battle_for_sheet(fx, "e1_flintblade", echo_def)
+	_echo_apply_faces(sword, _echo_replay_faces(fx, "e1_flintblade_ko"))
+	while sword.outcome == "" and not sword.spare_window:
+		sword.choose("strike")
+	failed += _assert(sword.outcome == "ko" and sword.enemy_attacks >= 1, "flintblade KO path")
+	var swift: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(swift, _echo_replay_faces(fx, "e1_rootsteel_spare_window"))
+	failed += _assert(swift.choose("strike") == "spare_window", "rootsteel reaches the window")
+	failed += _assert(swift.echo_hp == 1, "window leaves echo at 1 HP")
 	failed += _assert(swift.choose("strike") == "defeat" and swift.echo_hp == 0, "strike inside the window is defeat")
-	# Sword + 1 Might, she is faster: window on the Keeper's second strike.
-	var might_plus: Variant = EchoBattleScript.new()
-	might_plus.force_crit = 0
-	might_plus.configure(_echo_totals(8, 5), echo_def)
-	might_plus.choose("strike")
-	failed += _assert(might_plus.choose("strike") == "spare_window" and might_plus.echo_hp == 1, "might reaches 1 HP")
-	var window_view_battle: Variant = EchoBattleScript.new()
-	window_view_battle.force_crit = 0
-	window_view_battle.configure(_echo_totals(7, 6), echo_def)
-	window_view_battle.spare_window = true
+	var might_plus: EchoBattle = _echo_battle_for_sheet(fx, "e1_flint_2ranks", echo_def)
+	_echo_apply_faces(might_plus, _echo_replay_faces(fx, "e1_flint_2ranks_spare_window"))
+	failed += _assert(might_plus.choose("strike") == "spare_window" and might_plus.echo_hp == 1, "two ranks reach mercy")
+	var window_view_battle: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
+	_echo_apply_faces(window_view_battle, _echo_replay_faces(fx, "e1_rootsteel_spare_window"))
+	window_view_battle.choose("strike")
 	echo.set("battle", window_view_battle)
 	echo.set("in_battle", true)
 	echo.set("reentry", false)
@@ -2827,9 +3851,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	echo.set("in_battle", false)
 	# Opening flavour: narrator + intro on a new fee; return when the fee is already paid.
 	game_state.call("reset_for_new_game")
-	var open_battle: Variant = EchoBattleScript.new()
-	open_battle.force_crit = 0
-	open_battle.configure(_echo_totals(7, 6), echo_def)
+	var open_battle: EchoBattle = _echo_battle_for_sheet(fx, "e1_rootsteel", echo_def)
 	echo.set("battle", open_battle)
 	echo.set("in_battle", true)
 	echo.set("reentry", false)
@@ -2860,10 +3882,10 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(bool(game_state.get("echo_01_resolved")) and not bool(game_state.get("portal_fee_paid")), "spare closes the fee")
 	failed += _assert(bool(equipment.call("is_slot_unlocked", "relic")), "relic unlocks with the key")
 	failed += _assert(str(equipment.call("equipped_id", "relic")) == "forge_key_relic", "spare equips Forge Key relic")
-	failed += _assert(int(equipment.call("gear_bonus", "swiftness")) == 2, "Forge Key +2 Swiftness")
-	failed += _assert(int(equipment.call("gear_bonus", "fate")) == 2, "Forge Key +2 Fate")
-	failed += _assert(int(equipment.call("total_for", "swiftness")) == 7, "base 5 + key swift 2 = 7")
-	failed += _assert(int(equipment.call("total_for", "fate")) == 7, "base 5 + key fate 2 = 7")
+	failed += _assert(int(equipment.call("gear_bonus", "swiftness")) == 1, "Forge Key +1 Swiftness")
+	failed += _assert(int(equipment.call("gear_bonus", "fate")) == 1, "Forge Key +1 Fate")
+	failed += _assert(int(equipment.call("total_for", "swiftness")) == 6, "base 5 + key swift 1 = 6")
+	failed += _assert(int(equipment.call("total_for", "fate")) == 6, "base 5 + key fate 1 = 6")
 	# Auto-equip only if empty: unequip → leave in bag → ensure keeps inventory when slot filled again after re-equip path.
 	failed += _assert(str(equipment.call("try_unequip", "relic")) == "ok", "unequip key to bag")
 	failed += _assert(int(equipment.call("unequipped_count", "forge_key_relic")) == 1, "key sits in gear inventory")
@@ -2916,7 +3938,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 13, "slot writes save_version 13")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 14, "slot writes save_version 14")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -2924,7 +3946,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(bool(game_state.get("forge_key")) and bool(game_state.get("echo_01_redeemed")), "loaded key and companion flag")
 	failed += _assert(bool(equipment.call("is_slot_unlocked", "relic")), "loaded key unlocks relic")
 	failed += _assert(str(equipment.call("equipped_id", "relic")) == "forge_key_relic", "loaded Forge Key is equipped")
-	failed += _assert(int(equipment.call("gear_bonus", "swiftness")) == 2 and int(equipment.call("gear_bonus", "fate")) == 2, "loaded key still +2/+2")
+	failed += _assert(int(equipment.call("gear_bonus", "swiftness")) == 1 and int(equipment.call("gear_bonus", "fate")) == 1, "loaded key still +1/+1")
 	var v7_echo: Dictionary = save_service.call("_migrate", 7, {"ascensions": 1, "essence": 4})
 	failed += _assert(bool(v7_echo.get("portal_unlocked", false)), "v7 ascend migrates the portal open")
 	failed += _assert(not bool(v7_echo.get("forge_key", true)) and not bool(v7_echo.get("portal_fee_paid", true)), "v7 migrate does not invent a key or a fee")
@@ -3110,6 +4132,213 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_audio.call("resume_hub_after_battle")
 	game_state.call("reset_for_new_game")
 	save_service.call("delete_save")
+	return failed
+
+
+func _echo_duel_fixture() -> Dictionary:
+	return _json_dict("res://tests/fixtures/echo_duel_cases.json")
+
+
+func _echo_replay_by_id(fx: Dictionary, replay_id: String) -> Dictionary:
+	for row_v: Variant in fx.get("replays", []) as Array:
+		if row_v is Dictionary and str((row_v as Dictionary).get("id", "")) == replay_id:
+			return row_v as Dictionary
+	return {}
+
+
+func _echo_replay_faces(fx: Dictionary, replay_id: String) -> Array[int]:
+	var replay: Dictionary = _echo_replay_by_id(fx, replay_id)
+	var out: Array[int] = []
+	for face_v: Variant in replay.get("faces", []) as Array:
+		out.append(int(face_v))
+	return out
+
+
+func _echo_sheet_dict(fx: Dictionary, sheet_id: String) -> Dictionary:
+	var sheets_v: Variant = fx.get("sheets", {})
+	if typeof(sheets_v) != TYPE_DICTIONARY:
+		return {}
+	return (sheets_v as Dictionary).get(sheet_id, {}) as Dictionary
+
+
+func _echo_keeper_totals_from_sheet(sheet: Dictionary) -> Dictionary:
+	var keeper_v: Variant = sheet.get("keeper", {})
+	var keeper: Dictionary = keeper_v if typeof(keeper_v) == TYPE_DICTIONARY else {}
+	return {
+		"might": int(keeper.get("might", 5)),
+		"arcana": int(keeper.get("arcana", 5)),
+		"resilience": int(keeper.get("resilience", 5)),
+		"ward": int(keeper.get("ward", 5)),
+		"vitality": int(keeper.get("vitality", 5)),
+		"swiftness": int(keeper.get("swiftness", 5)),
+		"fate": int(keeper.get("fate", 5)),
+	}
+
+
+func _echo_def_for_sheet(fx: Dictionary, sheet_id: String, elaia_def: Dictionary, bramble_def: Dictionary) -> Dictionary:
+	var sheet: Dictionary = _echo_sheet_dict(fx, sheet_id)
+	var echo_key: String = str(sheet.get("echo", "elaia"))
+	var base: Dictionary = elaia_def.duplicate(true) if echo_key == "elaia" else bramble_def.duplicate(true)
+	var echoes_v: Variant = fx.get("echoes", {})
+	var echoes: Dictionary = echoes_v if typeof(echoes_v) == TYPE_DICTIONARY else {}
+	var estats_v: Variant = echoes.get(echo_key, {})
+	if typeof(estats_v) == TYPE_DICTIONARY:
+		base["stats"] = (estats_v as Dictionary).duplicate(true)
+	base["rootbind_every"] = int(sheet.get("rootbind_every", 0))
+	return base
+
+
+func _echo_battle_for_sheet(fx: Dictionary, sheet_id: String, elaia_def: Dictionary) -> EchoBattle:
+	var echo: Node = Engine.get_main_loop().root.get_node_or_null("EchoChamber") if Engine.get_main_loop() is SceneTree else null
+	var bramble_def: Dictionary = {}
+	if echo != null:
+		bramble_def = echo.call("bramble_def") as Dictionary
+	var battle := EchoBattleScript.new()
+	var sheet: Dictionary = _echo_sheet_dict(fx, sheet_id)
+	battle.configure(_echo_keeper_totals_from_sheet(sheet), _echo_def_for_sheet(fx, sheet_id, elaia_def, bramble_def))
+	battle.strike_kind = "physical"
+	return battle
+
+
+func _echo_battle_for_replay(fx: Dictionary, sheet_id: String, elaia_def: Dictionary) -> EchoBattle:
+	return _echo_battle_for_sheet(fx, sheet_id, elaia_def)
+
+
+func _echo_apply_faces(battle: EchoBattle, faces: Array[int]) -> void:
+	battle.set_dice(BattleRng.with_faces(faces))
+
+
+func _echo_turn_field_equal(got: Variant, expect: Variant) -> bool:
+	if typeof(expect) == TYPE_FLOAT or typeof(expect) == TYPE_INT:
+		return int(got) == int(expect)
+	if typeof(expect) == TYPE_BOOL:
+		return bool(got) == bool(expect)
+	return str(got) == str(expect)
+
+
+func _echo_turn_matches(got: Dictionary, expect: Dictionary) -> bool:
+	for key: Variant in expect.keys():
+		if not _echo_turn_field_equal(got.get(key), expect.get(key)):
+			return false
+	return true
+
+
+func _echo_run_replay(fx: Dictionary, replay: Dictionary, elaia_def: Dictionary) -> EchoBattle:
+	var sheet_id: String = str(replay.get("sheet", ""))
+	var battle: EchoBattle = _echo_battle_for_sheet(fx, sheet_id, elaia_def)
+	_echo_apply_faces(battle, _echo_replay_faces(fx, str(replay.get("id", ""))))
+	while battle.outcome == "" and not battle.spare_window:
+		battle.choose("strike")
+	return battle
+
+
+func _echo_v4_math(tree_root: Window) -> int:
+	var failed: int = 0
+	var fx: Dictionary = _echo_duel_fixture()
+	failed += _assert(not fx.is_empty(), "echo_duel_cases.json loads")
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo == null:
+		return failed + 1
+	var elaia_def: Dictionary = echo.call("echo_def") as Dictionary
+	var bramble_def: Dictionary = echo.call("bramble_def") as Dictionary
+	var echoes_v: Variant = fx.get("echoes", {})
+	var echoes: Dictionary = echoes_v if typeof(echoes_v) == TYPE_DICTIONARY else {}
+	for echo_key: String in ["elaia", "bramble"]:
+		var expect_v: Variant = echoes.get(echo_key, {})
+		var data_def: Dictionary = elaia_def if echo_key == "elaia" else bramble_def
+		var estats: Dictionary = data_def.get("stats", {}) as Dictionary
+		var expect: Dictionary = expect_v if typeof(expect_v) == TYPE_DICTIONARY else {}
+		for stat_key: String in ["might", "arcana", "resilience", "ward", "vitality", "swiftness", "fate"]:
+			failed += _assert(int(estats.get(stat_key, -1)) == int(expect.get(stat_key, -2)), "%s %s" % [echo_key, stat_key])
+		failed += _assert(data_def.get("crit_multiplier", null) == null, "%s crit_multiplier gone" % echo_key)
+		failed += _assert(data_def.get("swift_tie_favors_foe", null) == null, "%s swift_tie gone" % echo_key)
+	var fresh: EchoBattle = EchoBattleScript.new()
+	fresh.configure(_echo_keeper_totals_from_sheet(_echo_sheet_dict(fx, "e1_fresh")), elaia_def)
+	failed += _assert(fresh.keeper_max_hp == 25, "fresh keeper max_hp 25")
+	failed += _assert(fresh.echo_max_hp == 31, "Elaia max_hp 31")
+	var bramble_b: EchoBattle = EchoBattleScript.new()
+	bramble_b.configure(_echo_keeper_totals_from_sheet(_echo_sheet_dict(fx, "e2_rootsteel")), bramble_def)
+	failed += _assert(bramble_b.echo_max_hp == 40, "Bramble max_hp 40")
+	for replay_v: Variant in fx.get("replays", []) as Array:
+		if not (replay_v is Dictionary):
+			continue
+		var replay: Dictionary = replay_v as Dictionary
+		var battle: EchoBattle = _echo_run_replay(fx, replay, elaia_def)
+		var expect_v: Variant = replay.get("expect", {})
+		var expect: Dictionary = expect_v if typeof(expect_v) == TYPE_DICTIONARY else {}
+		var expect_outcome: String = str(expect.get("outcome", ""))
+		if expect_outcome == "spare_window":
+			failed += _assert(battle.spare_window, "replay %s spare_window" % replay.get("id", ""))
+		elif expect_outcome == "timeout":
+			failed += _assert(battle.outcome == "ko" and battle.timed_out, "replay %s timeout" % replay.get("id", ""))
+		elif expect_outcome == "ko":
+			failed += _assert(battle.outcome == "ko" and not battle.timed_out, "replay %s ko" % replay.get("id", ""))
+		else:
+			failed += _assert(battle.outcome == expect_outcome, "replay %s outcome" % replay.get("id", ""))
+		failed += _assert(battle.round == int(expect.get("rounds", -1)), "replay %s rounds" % replay.get("id", ""))
+		var turns_v: Variant = expect.get("turns", [])
+		var expect_turns: Array = turns_v if typeof(turns_v) == TYPE_ARRAY else []
+		var got_turns: Array[Dictionary] = battle.turn_log
+		var compare_from: int = 0
+		if str(replay.get("id", "")) == "e1_fresh_timeout_all_miss":
+			compare_from = maxi(0, got_turns.size() - 2)
+			failed += _assert(expect_turns.size() == 2, "timeout fixture last 2 turns")
+		for i: int in range(expect_turns.size()):
+			var gi: int = compare_from + i
+			failed += _assert(gi < got_turns.size(), "replay %s turn %d exists" % [replay.get("id", ""), i])
+			if gi < got_turns.size():
+				failed += _assert(_echo_turn_matches(got_turns[gi], expect_turns[i] as Dictionary), "replay %s turn %d" % [replay.get("id", ""), i])
+		failed += _assert(battle._dice.remaining() == 0, "replay %s dice remaining" % replay.get("id", ""))
+		failed += _assert(battle._dice.underrun() == 0, "replay %s dice underrun" % replay.get("id", ""))
+		if expect_outcome == "spare_window":
+			var spare_b: EchoBattle = _echo_run_replay(fx, replay, elaia_def)
+			failed += _assert(spare_b.choose("spare") == "spare" and spare_b.outcome == "spare", "replay spare")
+			var defeat_b: EchoBattle = _echo_run_replay(fx, replay, elaia_def)
+			failed += _assert(defeat_b.choose("strike") == "defeat" and defeat_b.outcome == "defeat", "replay defeat")
+	if failed == 0:
+		print("ECHO_V4_MATH_OK")
+	return failed
+
+
+func _echo_v4_parity() -> int:
+	var failed: int = 0
+	var fx: Dictionary = _echo_duel_fixture()
+	var rates_v: Variant = fx.get("win_rates", {})
+	var rates: Dictionary = rates_v if typeof(rates_v) == TYPE_DICTIONARY else {}
+	var sheet_ids: Array[String] = ["e1_fresh", "e1_flintblade", "e1_rootsteel", "e1_flint_2ranks", "e2_rootsteel", "e2_unlock"]
+	var echo: Node = Engine.get_main_loop().root.get_node_or_null("EchoChamber") if Engine.get_main_loop() is SceneTree else null
+	var elaia_def: Dictionary = {}
+	var bramble_def: Dictionary = {}
+	if echo != null:
+		elaia_def = echo.call("echo_def") as Dictionary
+		bramble_def = echo.call("bramble_def") as Dictionary
+	var started_ms: int = Time.get_ticks_msec()
+	var observed: Dictionary = {}
+	for i: int in range(sheet_ids.size()):
+		var sheet_id: String = sheet_ids[i]
+		var wins: int = 0
+		for duel: int in 1500:
+			var battle: EchoBattle = _echo_battle_for_sheet(fx, sheet_id, elaia_def)
+			battle.set_seed(900000 + i + duel * 7)
+			while battle.outcome == "" and not battle.spare_window:
+				battle.choose("strike")
+			if battle.spare_window:
+				wins += 1
+		var pct: float = float(wins) / 1500.0 * 100.0
+		observed[sheet_id] = pct
+		print("ECHO_V4_RATE %s %.2f" % [sheet_id, pct])
+		var target: float = float(rates.get(sheet_id, -1.0)) * 100.0
+		if sheet_id == "e1_fresh":
+			failed += _assert(pct <= 1.5, "e1_fresh rate cap")
+		else:
+			failed += _assert(abs(pct - target) <= 4.5, "%s within 4.5pp of %.2f" % [sheet_id, target])
+	failed += _assert(float(observed.get("e1_rootsteel", 0.0)) > float(observed.get("e1_flint_2ranks", 0.0)), "e1_rootsteel > e1_flint_2ranks")
+	failed += _assert(float(observed.get("e1_flint_2ranks", 0.0)) > float(observed.get("e1_flintblade", 0.0)), "e1_flint_2ranks > e1_flintblade")
+	failed += _assert(float(observed.get("e1_flintblade", 0.0)) > float(observed.get("e1_fresh", 0.0)), "e1_flintblade > e1_fresh")
+	failed += _assert(float(observed.get("e2_unlock", 0.0)) > float(observed.get("e2_rootsteel", 0.0)), "e2_unlock > e2_rootsteel")
+	print("ECHO_V4_PARITY_MS %d" % (Time.get_ticks_msec() - started_ms))
+	if failed == 0:
+		print("ECHO_V4_PARITY_OK")
 	return failed
 
 
@@ -3388,6 +4617,13 @@ func _check_only_load() -> int:
 		"res://tools/anim_preview.gd",
 		"res://tools/debug/debug_panel.gd",
 		"res://scripts/pause_menu.gd",
+		"res://scripts/battle/battle_view.gd",
+		"res://scripts/battle/battle_rng.gd",
+		"res://scripts/battle/spawn_roller.gd",
+		"res://scripts/battle/pack.gd",
+		"res://scripts/battle/room_loot.gd",
+		"res://scripts/expedition_board.gd",
+		"res://scripts/ui/expedition_shell.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -3572,6 +4808,111 @@ func _elaia_join_check(tree_root: Window, game_state: Node, backpack: Node) -> i
 	return failed
 
 
+func _rod_not_weapon_ok(tree_root: Window, equipment: Node) -> int:
+	var failed: int = 0
+	failed += _assert(equipment != null, "rod check needs Equipment")
+	if equipment == null:
+		return failed
+	failed += _assert(str(equipment.call("item_slot", "weapon_rod")) != "weapon", "weapon rod has no weapon slot")
+	failed += _assert(not bool(equipment.call("is_equippable", "weapon_rod")), "weapon rod is craft-only")
+	failed += _assert(str(equipment.call("try_equip", "weapon_rod")) == "wrong_slot", "weapon rod cannot equip")
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if packed != null:
+		var hud: Node = packed.instantiate()
+		tree_root.add_child(hud)
+		await process_frame
+		equipment.call("grant_item", "weapon_rod")
+		hud.call("open_character_sheet")
+		await process_frame
+		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "weapon slot empty with a rod in the bag")
+		var gear_list: Node = hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearScroll/GearList")
+		var rod_row: bool = false
+		if gear_list != null:
+			for child: Node in gear_list.get_children():
+				if child is CharacterSheet.GearRow and str((child as CharacterSheet.GearRow).item_id) == "weapon_rod":
+					rod_row = true
+		failed += _assert(not rod_row, "weapon rod is not listed under all gear")
+		hud.call("close_character_sheet")
+		hud.queue_free()
+		await process_frame
+	if failed == 0:
+		print("ROD_NOT_WEAPON_OK")
+	return failed
+
+
+func _elaia_join_flow_check(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, jobs: Node) -> int:
+	var failed: int = await _boot_play(game_state, save_service, false)
+	if failed > 0 or jobs == null:
+		return failed + _assert(jobs != null, "elaia join flow needs ForgeJobs")
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", false)
+	game_state.set("elaia_join_seen", false)
+	game_state.set("elaia_footsteps_seen", false)
+	game_state.set("elaia_legacy_joined", false)
+	_place_actor(game_state, "keeper", "forge", Vector2(800, 1048))
+	failed += await _enter_forge_view()
+	_forge_stock(game_state, backpack, "reliquary")
+	jobs.call("set_keeper_working", "reliquary", true)
+	failed += _assert(str(jobs.call("try_begin_job", "reliquary", "oakheart_knot")) == "ok", "join flow relic job")
+	jobs.call("_process", 600.0)
+	failed += _assert(bool(game_state.get("first_relic_crafted")), "join flow first relic flag")
+	failed += _assert(not bool(game_state.call("elaia_body_visible")), "Elaia body hidden before Go look")
+	var room: Node = current_scene
+	if room != null and room.has_method("_hide_recipes"):
+		room.call("_hide_recipes")
+	await process_frame
+	var hud: Node = room.get_node_or_null("HUD") if room else null
+	var popup: Node = hud.get_node_or_null("ElaiaFootsteps") if hud else null
+	failed += _assert(popup != null and popup.visible, "footsteps popup after closing the station")
+	var go: Button = popup.get_node_or_null("Go") as Button if popup else null
+	if go != null:
+		go.emit_signal("pressed")
+	failed += await _expect_scene("elaia_join_flow_go", _HUB_SCENE)
+	failed += _assert(bool(game_state.call("elaia_body_visible")), "Elaia body appears in the Clearing")
+	failed += _assert(not bool(game_state.call("elaia_portrait_visible")), "portrait waits for dialogue")
+	room = current_scene
+	hud = room.get_node_or_null("HUD") if room else null
+	if hud and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	if hud and hud.has_method("maybe_show_elaia_join"):
+		hud.call("maybe_show_elaia_join")
+	await process_frame
+	failed += _assert(hud != null and hud.has_method("is_elaia_join_open") and bool(hud.call("is_elaia_join_open")), "join band opens in the Clearing")
+	for _line: int in 5:
+		if hud != null and hud.has_method("_advance_join_line"):
+			hud.call("_advance_join_line")
+		await process_frame
+	failed += _assert(bool(game_state.get("elaia_join_seen")), "join dialogue finished")
+	failed += _assert(bool(game_state.call("elaia_portrait_visible")), "portrait shows after dialogue")
+	var elaia_slot: Control = hud.get_node_or_null("PartyBar/Column/Elaia") as Control if hud else null
+	failed += _assert(elaia_slot != null and elaia_slot.visible, "HUD portrait visible when join dialogue ends")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	if equipment != null and hud != null:
+		game_state.call("select_companion", "elaia")
+		game_state.set("forge_key", true)
+		equipment.call("grant_item", "sapstaff")
+		if not bool(equipment.call("owns_anywhere", "forge_key_relic")):
+			equipment.call("grant_item", "forge_key_relic")
+		hud.call("open_character_sheet")
+		await process_frame
+		var sheet: Node = hud.get_node_or_null("CharacterSheet")
+		if sheet != null and sheet.has_method("show_actor"):
+			sheet.call("show_actor", "elaia")
+		await process_frame
+		var staff_ok: String = str(sheet.call("request_equip", "sapstaff")) if sheet != null else "missing"
+		failed += _assert(staff_ok == "ok", "elaia equips sapstaff right after join without errors")
+		var relic_ok: String = str(sheet.call("request_equip", "forge_key_relic")) if sheet != null else "missing"
+		failed += _assert(relic_ok == "ok", "elaia equips a relic right after join without errors")
+		hud.call("close_character_sheet")
+		await process_frame
+	_drop_current_scene()
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("ELAIA_JOIN_FLOW_OK")
+	return failed
+
+
 func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	var failed: int = 0
 	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
@@ -3592,6 +4933,12 @@ func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(keeper_slot != null and keeper_slot.visible, "keeper portrait with nothing selected")
 	failed += _assert(wisp_slot != null and not wisp_slot.visible, "wisp portrait hidden with nothing selected")
 	failed += _assert(hud.get_node_or_null("SelectionPanel") == null, "no gray selection box")
+	var sheet_node: CanvasItem = hud.get_node_or_null("CharacterSheet") as CanvasItem
+	hud.call("open_character_sheet")
+	await process_frame
+	failed += _assert(sheet_node != null and bar != null and _effective_z(sheet_node) > _effective_z(bar), "character sheet draws above party portraits")
+	hud.call("close_character_sheet")
+	await process_frame
 	hud.call("party_click", "keeper")
 	failed += _assert(bool(game_state.get("keeper_selected")), "click keeper portrait selects the keeper")
 	game_state.set("wisp_count", 2)
@@ -4627,6 +5974,9 @@ func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, bac
 	game_state.call("accumulate_wisp_harvest", &"food", 20.0)
 	failed += _assert(not bool(game_audio.call("did_play", &"sfx_gather_food")), "wisp harvest stays silent")
 	game_audio.call("clear_played_log")
+	game_state.call("apply_wisp_pulses", 20.0)
+	failed += _assert(not bool(game_audio.call("did_play", &"sfx_wisp_pulse")), "wisp pulse harvest stays silent")
+	game_audio.call("clear_played_log")
 	game_state.call("apply_save_dict", {"stage_id": "young", "wood": 3})
 	await game_state.get_tree().process_frame
 	failed += _assert(not bool(game_audio.call("did_play", &"sfx_stage_up")), "load does not play stage_up")
@@ -4849,11 +6199,61 @@ func _debug_stripped_ok() -> int:
 		print("DEBUG_KEPT_PCK %s files=%d" % [testing_pck, testing_files.size()])
 	elif require_pck:
 		failed += _assert(false, "testing pck missing at %s" % testing_pck)
+	failed += _debug_strip_mid_fight(stable_exclude, testing_exclude, stable_pck, testing_pck)
 	if game_state != null:
 		failed += _probe_debug_snapshots(game_state)
 	if failed == 0:
 		print("DEBUG_STRIPPED_OK")
 	return failed
+
+
+func _debug_strip_mid_fight(stable_exclude: PackedStringArray, testing_exclude: PackedStringArray, stable_pck: String, testing_pck: String) -> int:
+	## Job 34: Stable drops mid_fight.json through tools/*, Testing keeps it, and no shipped
+	## script reaches write_adventure_raw outside a Reach.debug_tools() guard.
+	var failed: int = 0
+	var mid: String = "tools/debug/snapshots/mid_fight.json"
+	failed += _assert(FileAccess.file_exists("res://%s" % mid), "debug resource exists %s" % mid)
+	failed += _assert(stable_exclude.has("tools/*") and _preset_excludes(stable_exclude, mid), "stable excludes %s" % mid)
+	failed += _assert(not _preset_excludes(testing_exclude, mid), "testing keeps %s" % mid)
+	if stable_pck != "" and FileAccess.file_exists(stable_pck):
+		failed += _assert(not _pck_has(_read_pck_paths(stable_pck), mid), "stable pck omits %s" % mid)
+	if testing_pck != "" and FileAccess.file_exists(testing_pck):
+		failed += _assert(_pck_has(_read_pck_paths(testing_pck), mid), "testing pck keeps %s" % mid)
+	var scripts: PackedStringArray = PackedStringArray()
+	_collect_gd("res://", scripts)
+	var defined: int = 0
+	for path: String in scripts:
+		if _preset_excludes(stable_exclude, path):
+			continue
+		var src: String = FileAccess.get_file_as_string(path)
+		var at: int = src.find("write_adventure_raw")
+		while at >= 0:
+			var func_at: int = maxi(src.rfind("\nfunc ", at), src.rfind("\nstatic func ", at))
+			var body: String = _func_body(src, src.substr(func_at + 1, src.find("\n", func_at + 1) - func_at - 1)) if func_at >= 0 else ""
+			if src.substr(func_at + 1, 25) == "func write_adventure_raw(":
+				defined += 1
+				failed += _assert(path == "res://scripts/autoload/save_service.gd", "write_adventure_raw is defined only in SaveService (%s)" % path)
+				var guard_at: int = body.find("debug_tools()")
+				failed += _assert(guard_at >= 0 and guard_at < body.find("_write_atomic"), "write_adventure_raw refuses unless debug_tools() (%s)" % path)
+			else:
+				var before: String = body.substr(0, at - func_at - 1)
+				failed += _assert(before.find("debug_tools()") >= 0, "shipped %s calls write_adventure_raw only behind debug_tools()" % path)
+			at = src.find("write_adventure_raw", at + 1)
+	failed += _assert(defined == 1, "SaveService.write_adventure_raw exists (found %d)" % defined)
+	return failed
+
+
+func _collect_gd(dir_path: String, out: PackedStringArray) -> void:
+	var dir: DirAccess = DirAccess.open(dir_path)
+	if dir == null:
+		return
+	for sub: String in dir.get_directories():
+		if sub.begins_with(".") or sub == "builds" or sub == "Assets upload":
+			continue
+		_collect_gd(dir_path.path_join(sub), out)
+	for file_name: String in dir.get_files():
+		if file_name.ends_with(".gd"):
+			out.append(dir_path.path_join(file_name))
 
 
 func _probe_debug_snapshots(game_state: Node) -> int:
@@ -5112,7 +6512,8 @@ func _transition_round(game_state: Node, save_service: Node, jobs: Node, joined:
 		return failed
 	failed += await _enter_forge_view()
 	failed += await _press_footsteps("footsteps_hub/%s/%d" % [tag, round_i])
-	failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, wood_before)
+	var manatree_door: Vector2 = jobs.call("clearing_door_stand")
+	failed += _live_unchanged(game_state, "keeper", "clearing", manatree_door, wood_before)
 	failed += _assert(not _scene_path().ends_with("title_screen.tscn"), "footsteps avoided the title")
 	if failed > 0:
 		return failed
@@ -5189,7 +6590,10 @@ func _transition_footsteps_popup(game_state: Node, save_service: Node, _jobs: No
 	go.emit_signal("pressed")
 	failed += await _expect_scene("footsteps_popup", _HUB_SCENE)
 	failed += _assert(bool(game_state.get("elaia_footsteps_seen")), "Go and see marks the footsteps seen")
-	failed += _assert(str(game_state.get("keeper_area")) == "forge", "Go and see leaves the Keeper in the Forge")
+	failed += _assert(str(game_state.get("keeper_area")) == "clearing", "Go and see moves the Keeper to the Clearing")
+	var door: Vector2 = _jobs.call("clearing_door_stand")
+	failed += _assert((game_state.get("keeper_pos") as Vector2).distance_to(door) < 2.0, "Keeper stands before the Manatree")
+	failed += _assert(str(game_state.get("keeper_facing")) == "east", "Keeper faces Elaia's spot")
 	return failed
 
 
@@ -5533,7 +6937,7 @@ func _forge_arch_draw_order(tree_root: Window) -> int:
 		failed += _assert(cold_arch != null and cold_keeper != null, "packed forge has ArchFront and Keeper")
 		if cold_arch != null and cold_keeper != null:
 			failed += _assert(_effective_z(cold_arch) > _effective_z(cold_keeper), "packed ArchFront draws above the Keeper")
-			failed += _assert(cold_arch.texture != null and str(cold_arch.texture.resource_path).find("forge_arch_front") >= 0, "packed arch uses forge_arch_front")
+			failed += _assert(cold_arch.texture != null and str(cold_arch.texture.resource_path).find("forge_arch_front_haex") >= 0, "packed arch uses forge_arch_front_haex")
 		cold.free()
 	game_state.call("reset_for_new_game")
 	if save_service != null:
@@ -5568,8 +6972,8 @@ func _forge_arch_draw_order(tree_root: Window) -> int:
 	var elaia_item: CanvasItem = elaia as CanvasItem
 	failed += _assert(_effective_z(arch) > _effective_z(keeper_item), "live arch z stays above the keeper")
 	failed += _assert(_effective_z(arch) > _effective_z(elaia_item), "live arch z stays above elaia")
-	var covered: int = _arch_body_overlap(arch, keeper.global_position)
-	failed += _assert(covered > 40, "arch frame covers the keeper at the door spawn (opaque samples %d)" % covered)
+	var covered: int = _arch_body_overlap(arch, Vector2(811, 1170))
+	failed += _assert(covered > 20, "arch frame covers the doorway sill (opaque samples %d)" % covered)
 	var deep: int = _arch_body_overlap(arch, Vector2(800, 700))
 	failed += _assert(deep == 0, "arch frame does not cover a keeper deep in the room (samples %d)" % deep)
 	var lip: int = _arch_body_overlap(arch, Vector2(800, 1160))
@@ -5981,10 +7385,8 @@ func _arch_body_overlap(arch: Sprite2D, feet: Vector2) -> int:
 		arch_img.decompress()
 	if body.is_compressed():
 		body.decompress()
-	var arch_size: Vector2 = arch.texture.get_size()
-	var arch_origin: Vector2 = arch.global_position - arch_size * 0.5
-	if not arch.centered:
-		arch_origin = arch.global_position + arch.offset
+	var tex_size: Vector2 = arch.texture.get_size()
+	var scl: Vector2 = arch.scale
 	var body_origin: Vector2 = feet + Vector2(-64, -128)
 	var hits: int = 0
 	var step: int = 2
@@ -5993,9 +7395,9 @@ func _arch_body_overlap(arch: Sprite2D, feet: Vector2) -> int:
 			if body.get_pixel(px, py).a < 0.2:
 				continue
 			var world: Vector2 = body_origin + Vector2(px, py)
-			var tex: Vector2 = world - arch_origin
-			var tx: int = int(tex.x)
-			var ty: int = int(tex.y)
+			var local: Vector2 = (world - arch.global_position) / scl + tex_size * 0.5
+			var tx: int = int(local.x)
+			var ty: int = int(local.y)
 			if tx < 0 or ty < 0 or tx >= arch_img.get_width() or ty >= arch_img.get_height():
 				continue
 			if arch_img.get_pixel(tx, ty).a > 0.2:
@@ -6013,11 +7415,11 @@ func _arch_fill_and_floor(arch: Sprite2D) -> int:
 		return _assert(false, "arch image")
 	if img.is_compressed():
 		img.decompress()
-	var mouth: Color = img.get_pixel(800, 1050)
-	var side_l: Color = img.get_pixel(760, 1080)
-	var side_r: Color = img.get_pixel(840, 1080)
-	var floor_px: Color = img.get_pixel(800, 964)
-	var lip: Color = img.get_pixel(800, 1172)
+	var mouth: Color = img.get_pixel(105, 39)
+	var side_l: Color = img.get_pixel(93, 40)
+	var side_r: Color = img.get_pixel(149, 52)
+	var floor_px: Color = img.get_pixel(20, 10)
+	var lip: Color = img.get_pixel(151, 6)
 	failed += _assert(mouth.a > 0.9 and mouth.r < 0.08 and mouth.g < 0.08 and mouth.b < 0.08, "arch mouth is opaque black")
 	failed += _assert(side_l.a > 0.9 and side_l.r < 0.08 and side_r.a > 0.9 and side_r.r < 0.08, "arch mouth stays black toward the jambs")
 	failed += _assert(floor_px.a < 0.05, "floor above the arch is not painted into the foreground")
@@ -6598,10 +8000,15 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 	if wisp != null and wisp.has_method("place_on_shared_orbit"):
 		wisp.call("place_on_shared_orbit")
 	var center: Vector2 = bench.call("wisp_orbit_center") if bench != null else Vector2.ZERO
-	var radius: float = float(bench.call("wisp_orbit_radius")) if bench != null else 0.0
-	if wisp != null:
-		var gap: float = wisp.global_position.distance_to(center)
-		failed += _assert(absf(gap - radius) < 20.0, "workbench wisp orbits the bench (off %.1f radius %.1f)" % [gap, radius])
+	var ry_bench: float = float(bench.call("wisp_orbit_radius")) if bench != null else 0.0
+	var rx_bench: float = ry_bench * 2.0
+	if wisp != null and bench != null:
+		jobs.call("debug_set_wisp_orbit_phase", 0.0)
+		wisp.call("place_on_shared_orbit")
+		var dx: float = wisp.global_position.x - center.x
+		var dy: float = wisp.global_position.y - center.y
+		var ell: float = (dx * dx) / (rx_bench * rx_bench) + (dy * dy) / (ry_bench * ry_bench)
+		failed += _assert(absf(ell - 1.0) < 0.35, "workbench wisp sits on the ellipse (e %.2f)" % ell)
 		failed += _assert(wisp.visible, "workbench wisp stays visible on the ring")
 	var mana: Node = live.get_node_or_null("World/Manatree")
 	failed += _assert(mana != null and mana.has_method("wisp_orbit_radius"), "manatree orbit")
@@ -6630,21 +8037,25 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 	wisp = get_first_node_in_group("wisp") as Node2D
 	failed += _assert(wisp != null and wisp.visible, "station wisp is in the forge")
 	if station != null and wisp != null:
-		var shown: Vector2 = station.call("_sprite_shown_size")
-		var half_w: float = shown.x * 0.5
+		var orbit_center: Vector2 = station.call("wisp_orbit_center")
+		var ry_station: float = float(station.call("wisp_orbit_radius"))
+		var rx_station: float = ry_station * 2.0
 		jobs.call("debug_set_wisp_orbit_phase", 0.0)
 		wisp.call("place_on_shared_orbit")
 		failed += _assert(int(wisp.z_index) >= 1, "east side stays in front")
-		failed += _assert(wisp.global_position.x > station.global_position.x + half_w, "east side clears the sprite")
+		failed += _assert(wisp.global_position.x > orbit_center.x + rx_station * 0.85, "east side sits on the ellipse arc")
 		jobs.call("debug_set_wisp_orbit_phase", PI)
 		wisp.call("place_on_shared_orbit")
 		failed += _assert(int(wisp.z_index) >= 1, "west side stays in front")
-		failed += _assert(wisp.global_position.x < station.global_position.x - half_w, "west side clears the sprite")
+		failed += _assert(wisp.global_position.x < orbit_center.x - rx_station * 0.85, "west side sits on the ellipse arc")
 		jobs.call("debug_set_wisp_orbit_phase", PI * 0.5)
 		wisp.call("place_on_shared_orbit")
 		failed += _assert(int(wisp.z_index) >= 2, "south side draws in front of the station")
 		failed += _assert(wisp.global_position.y > station.global_position.y, "south side is in front of the station feet")
 		failed += _assert(wisp.visible, "south side stays visible")
+		jobs.call("debug_set_wisp_orbit_phase", -PI * 0.5)
+		wisp.call("place_on_shared_orbit")
+		failed += _assert(wisp.global_position.y < orbit_center.y - ry_station * 0.85, "north arc keeps the top orbit point")
 	_drop_current_scene()
 	game_state.call("reset_for_new_game")
 	jobs.call("reset_for_new_game")
@@ -6654,6 +8065,67 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 		print("WORKBENCH_WISP_VISIBLE_OK")
 		print("STATION_WISP_ORBIT_OK")
 		print("MANATREE_ELDER_ORBIT_OK")
+	return failed
+
+
+func _keeper_equip_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(equipment != null and backpack != null, "keeper equip autoloads")
+	if equipment == null or backpack == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	var hud_packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(hud_packed != null, "keeper equip hud scene")
+	if hud_packed == null:
+		return failed
+	var hud: Node = hud_packed.instantiate()
+	tree_root.add_child(hud)
+	await process_frame
+	var sheet: Node = hud.get_node("CharacterSheet")
+	sheet.call("open_sheet", "keeper")
+	await process_frame
+	failed += await _keeper_equip_click_ok(sheet, equipment, "thornbow", "debug grant")
+	failed += await _keeper_equip_click_ok(sheet, equipment, "stone_sword", "crafted")
+	hud.queue_free()
+	await process_frame
+	if failed == 0:
+		print("KEEPER_EQUIP_OK")
+	return failed
+
+
+func _keeper_equip_click_ok(sheet: Node, equipment: Node, item_id: String, tag: String) -> int:
+	var failed: int = 0
+	equipment.call("try_unequip", "weapon", "keeper")
+	equipment.call("reset_for_new_game")
+	if tag == "crafted":
+		var gs: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("GameState")
+		if gs != null:
+			gs.call("set_resource", &"wood", 30)
+		for _i: int in range(10):
+			(Engine.get_main_loop() as SceneTree).root.get_node("Backpack").call("try_craft", "wooden_planks")
+		(Engine.get_main_loop() as SceneTree).root.get_node("Backpack").call("set_count", "stone_fragments", 30)
+		failed += _assert(str(equipment.call("try_craft", "weapon_rod")) == "ok", "%s: craft rod" % tag)
+		failed += _assert(str(equipment.call("try_craft", item_id)) == "ok", "%s: craft sword" % tag)
+	else:
+		failed += _assert(bool(equipment.call("add_gear", item_id, 1)), "%s: add_gear" % tag)
+	await process_frame
+	var gear_list: Node = sheet.get_node("SheetFit/Sheet/GearColumn/GearScroll/GearList")
+	failed += _assert(gear_list.get_child_count() >= 1, "%s: bag lists item" % tag)
+	var row: Node = gear_list.get_child(0)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	row.call("_gui_input", press)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	row.call("_gui_input", release)
+	await process_frame
+	await process_frame
+	failed += _assert(str(equipment.call("equipped_id_for", "keeper", "weapon")) == item_id, "%s: keeper wears item after click" % tag)
 	return failed
 
 
@@ -6691,19 +8163,58 @@ func _forged_item_any_character(tree_root: Window) -> int:
 	return failed
 
 
+func _manatree_water_rmb_cancel(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed != null else null
+	failed += _assert(live != null, "hub for water RMB cancel")
+	if live == null:
+		return failed
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	game_state.call("select_keeper")
+	var mana: Node = live.get_node_or_null("World/Manatree")
+	var keeper: Node = live.get_node_or_null("World/Keeper")
+	failed += _assert(mana != null and keeper != null, "manatree and keeper present")
+	if mana != null and keeper != null:
+		var keeper_cls = load("res://scripts/keeper.gd")
+		var footprint: Rect2 = mana.call("work_footprint")
+		var solved: Dictionary = keeper_cls.solve_work_spot(footprint, mana.global_position, "manatree", Callable())
+		keeper.global_position = solved.get("position", keeper.global_position)
+		keeper.call("start_water_channel", mana)
+		await process_frame
+		failed += _assert(bool(keeper.call("is_channeling")), "keeper channels water")
+		failed += _assert(bool(mana.get("_watering")), "tree shows watering")
+		mana.call("apply_player_command")
+		failed += _assert(not bool(keeper.call("is_channeling")), "RMB cancels water channel")
+		failed += _assert(not bool(mana.get("_watering")), "tree watering flag clears")
+		mana.call("do_water")
+		await process_frame
+		failed += _assert(bool(keeper.call("is_channeling")), "Water button resumes channel")
+	live.queue_free()
+	return failed
+
+
 func _workbench_north_route() -> int:
 	var failed: int = 0
 	var keeper_cls: GDScript = load("res://scripts/keeper.gd") as GDScript
 	failed += _assert(keeper_cls != null, "keeper script for the bench route")
 	if keeper_cls == null:
 		return failed
-	var footprint := Rect2(Vector2(100, 100), Vector2(176, 104))
-	var spot := Vector2(footprint.get_center().x, footprint.position.y + footprint.size.y + 28.0)
+	var footprint := Rect2(Vector2(100, 100), Vector2(176, 88))
+	var spot := Vector2(footprint.get_center().x, footprint.position.y + footprint.size.y + 56.0)
 	var from_west: Array = keeper_cls.call("bench_approach_route", Vector2(120, 40), spot, footprint)
 	var from_east: Array = keeper_cls.call("bench_approach_route", Vector2(280, 40), spot, footprint)
+	var from_north: Array = keeper_cls.call("bench_approach_route", Vector2(spot.x, footprint.position.y - 40.0), spot, footprint)
+	var from_side_west: Array = keeper_cls.call("bench_approach_route", Vector2(footprint.position.x - 20.0, spot.y - 20.0), spot, footprint)
+	var from_side_east: Array = keeper_cls.call("bench_approach_route", Vector2(footprint.position.x + footprint.size.x + 20.0, spot.y - 20.0), spot, footprint)
 	var from_south: Array = keeper_cls.call("bench_approach_route", Vector2(spot.x, spot.y + 40.0), spot, footprint)
 	failed += _assert(from_west.size() >= 2, "north-west approach has a waypoint")
 	failed += _assert(from_east.size() >= 2, "north-east approach has a waypoint")
+	failed += _assert(from_north.size() >= 2, "due-north approach has a waypoint")
+	failed += _assert(from_side_west.size() >= 2, "west apron approach has a waypoint")
+	failed += _assert(from_side_east.size() >= 2, "east apron approach has a waypoint")
 	if from_west.size() >= 2 and from_east.size() >= 2:
 		var west_pt: Vector2 = from_west[0]
 		var east_pt: Vector2 = from_east[0]
@@ -6713,6 +8224,8 @@ func _workbench_north_route() -> int:
 		failed += _assert(east_pt.x > footprint.position.x + footprint.size.x, "north-east route uses the east side")
 		failed += _assert(west_end.distance_to(spot) <= 0.1 and east_end.distance_to(spot) <= 0.1, "both routes end on the south stand")
 	failed += _assert(from_south.size() == 1, "a south approach goes straight to the stand")
+	var apron: Array = keeper_cls.call("bench_approach_route", Vector2(spot.x, footprint.position.y + footprint.size.y + 12.0), spot, footprint)
+	failed += _assert(apron.size() >= 2, "north of the stand but south of the table still flanks")
 	if failed == 0:
 		print("WORKBENCH_NORTH_ROUTE_OK")
 	return failed
@@ -6789,6 +8302,201 @@ func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node)
 	return failed
 
 
+func _elaia_expected_stats(equipment: Node, keeper_stats: Node) -> Dictionary:
+	var out: Dictionary = {}
+	for stat_id: String in SlotEngine._KEEPER_STATS:
+		var base: int = int(keeper_stats.call("get_base_for", "elaia", stat_id))
+		var gear: int = int(equipment.call("gear_bonus_for", "elaia", stat_id)) if equipment != null else 0
+		out[stat_id] = base + gear
+	var attack: String = "magic"
+	if equipment != null:
+		var weapon_id: String = str(equipment.call("equipped_id_for", "elaia", "weapon"))
+		var item_def: Dictionary = equipment.call("get_item_def", weapon_id)
+		if str(item_def.get("damage_kind", "")) == "physical":
+			attack = "physical"
+	out["attack"] = attack
+	return out
+
+
+func _stats_dict_match(a: Dictionary, b: Dictionary) -> bool:
+	for key: String in SlotEngine._KEEPER_STATS:
+		if int(a.get(key, -999)) != int(b.get(key, -999)):
+			return false
+	return str(a.get("attack", "")) == str(b.get("attack", ""))
+
+
+func _elaia_real_stats_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
+	failed += _assert(equipment != null and keeper_stats != null, "elaia stats autoloads")
+	if equipment == null or keeper_stats == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	var fresh_expected: Dictionary = _elaia_expected_stats(equipment, keeper_stats)
+	var fresh_live: Dictionary = SlotEngine.member_stats("elaia")
+	failed += _assert(_stats_dict_match(fresh_live, fresh_expected), "fresh elaia matches sheet")
+	failed += _assert(int(fresh_live.get("arcana", 0)) == 6, "fresh elaia arcana from echo sheet")
+	failed += _assert(int(fresh_live.get("fate", 0)) == 30, "fresh elaia fate from echo sheet")
+	failed += _assert(bool(equipment.call("grant_item", "sapstaff")), "grant sapstaff")
+	failed += _assert(str(equipment.call("try_equip", "sapstaff", "elaia")) == "ok", "elaia wears sapstaff")
+	var geared_expected: Dictionary = _elaia_expected_stats(equipment, keeper_stats)
+	var geared_live: Dictionary = SlotEngine.member_stats("elaia")
+	failed += _assert(_stats_dict_match(geared_live, geared_expected), "geared elaia matches sheet plus gear")
+	failed += _assert(int(geared_live.get("arcana", 0)) == int(geared_expected.get("arcana", 0)), "geared arcana")
+	equipment.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("ELAIA_REAL_STATS_OK")
+	return failed
+
+
+func _board_close_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "board close Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	var main_packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	failed += _assert(main_packed != null, "main for pause chain")
+	var main_live: Node = main_packed.instantiate() if main_packed != null else null
+	if main_live != null:
+		tree_root.add_child(main_live)
+		await process_frame
+	var pause_menu: Node = main_live.get_node_or_null("PauseMenu") if main_live != null else null
+	failed += _assert(pause_menu != null, "PauseMenu on main")
+	var board: Node = main_live.get_node_or_null("World/ExpeditionBoard") if main_live != null else null
+	failed += _assert(board != null, "hub ExpeditionBoard")
+	if board == null:
+		if main_live != null:
+			main_live.free()
+		return failed
+	board.call("open_shell")
+	failed += _assert(bool(board.call("shell_open")), "shell opens")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var close_btn: Button = shell.find_child("CloseButton", true, false) as Button if shell != null else null
+	failed += _assert(close_btn != null and close_btn.text == "Close", "Close button label")
+	if close_btn != null:
+		close_btn.emit_signal("pressed")
+	failed += _assert(not bool(board.call("shell_open")), "Close button closes shell")
+	board.call("open_shell")
+	failed += _assert(bool(board.call("shell_open")), "shell reopens for Esc")
+	var esc: InputEventKey = InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	if pause_menu != null:
+		pause_menu.call("_unhandled_input", esc)
+	failed += _assert(not bool(board.call("shell_open")), "Esc closes shell via pause chain")
+	failed += _assert(pause_menu == null or not bool(pause_menu.call("is_open")), "Esc does not open pause")
+	game_state.call("set_resource", &"essence", 40)
+	reach.call("set_test_run_seed", 41)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})) == "ok", "idle run for board close")
+	failed += _assert(bool(reach.get("running")), "reach running")
+	board.call("open_shell")
+	failed += _assert(bool(board.call("shell_open")), "shell opens mid-run")
+	if close_btn != null:
+		close_btn.emit_signal("pressed")
+	failed += _assert(not bool(board.call("shell_open")), "Close works mid-run")
+	board.call("open_shell")
+	esc.pressed = true
+	if pause_menu != null:
+		pause_menu.call("_unhandled_input", esc)
+	failed += _assert(not bool(board.call("shell_open")), "Esc works mid-run")
+	reach.call("reset_for_new_game")
+	if main_live != null and is_instance_valid(main_live):
+		main_live.free()
+	var orphan_shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	if orphan_shell != null and is_instance_valid(orphan_shell):
+		orphan_shell.free()
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("BOARD_CLOSE_OK")
+	return failed
+
+
+func _bramble_warden_hidden_ok(warden: Node) -> bool:
+	if warden == null:
+		return false
+	return not warden.visible and not bool(warden.get("input_pickable")) and not bool(warden.get("monitorable"))
+
+
+func _bramble_hidden_until_join_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "Reach for bramble gate")
+	if reach == null:
+		return failed
+	for clears: int in [0, 29]:
+		game_state.call("reset_for_new_game")
+		reach.call("reset_for_new_game")
+		reach.set("reaches_cleared", clears)
+		game_state.set("echo_02_resolved", true)
+		game_state.set("echo_02_outcome", "spare")
+		var live: Node = await _echo2_boot_hub(tree_root)
+		var warden: Node2D = live.get_node_or_null("World/BrambleWarden") as Node2D
+		failed += _assert(_bramble_warden_hidden_ok(warden), "spare at %d clears stays hidden" % clears)
+		live.free()
+	reach.set("reaches_cleared", 30)
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "spare")
+	var live_show: Node = await _echo2_boot_hub(tree_root)
+	var warden_show: Node2D = live_show.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(warden_show != null and warden_show.visible, "30 clears shows Bramble")
+	failed += _assert(bool(save_service.call("save_game", 7)), "bramble gate save")
+	live_show.free()
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "bramble gate load")
+	var live_load: Node = tree_root.get_node_or_null("Main") as Node
+	if live_load == null:
+		live_load = await _echo2_boot_hub(tree_root)
+	var warden_load: Node2D = live_load.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(warden_load != null and warden_load.visible, "30 clears visible after load")
+	live_load.free()
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	reach.set("reaches_cleared", 30)
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "spare")
+	save_service.set("boot_intent", "load")
+	save_service.call("save_game", 7)
+	var live_boot: Node = await _echo2_boot_hub(tree_root)
+	var warden_boot: Node2D = live_boot.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(warden_boot != null and warden_boot.visible, "30 clears visible after fresh boot")
+	live_boot.free()
+	save_service.call("delete_slot", 7)
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	reach.set("reaches_cleared", 30)
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "defeat")
+	var live_def: Node = await _echo2_boot_hub(tree_root)
+	var warden_def: Node2D = live_def.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(_bramble_warden_hidden_ok(warden_def), "defeat at 30 clears stays hidden")
+	live_def.free()
+	game_state.call("reset_for_new_game")
+	reach.call("reset_for_new_game")
+	game_state.set("echo_02_outcome", "")
+	var live_none: Node = await _echo2_boot_hub(tree_root)
+	var warden_none: Node2D = live_none.get_node_or_null("World/BrambleWarden") as Node2D
+	failed += _assert(_bramble_warden_hidden_ok(warden_none), "no outcome stays hidden")
+	live_none.free()
+	game_state.call("reset_for_new_game")
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("BRAMBLE_HIDDEN_UNTIL_JOIN_OK")
+	return failed
+
+
 func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, content_strings: Node, game_audio: Node) -> int:
 	var failed: int = 0
 	var echo: Node = tree_root.get_node_or_null("EchoChamber")
@@ -6811,16 +8519,31 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	var bramble: Dictionary = echo.call("bramble_def")
 	var stats: Dictionary = bramble.get("stats", {}) as Dictionary
 	failed += _assert(str(bramble.get("attack_profile", "")) == "hybrid", "Bramble is hybrid")
-	failed += _assert(int(stats.get("resilience", 9)) <= 3 and int(stats.get("ward", 9)) <= 3, "Bramble is not a tank")
-	failed += _assert(int(stats.get("swiftness", 0)) >= 8 and int(stats.get("vitality", 9)) <= 5, "Bramble is nimble")
-	var scrap: Variant = EchoBattleScript.new()
-	scrap.force_crit = 0
+	var fx_b: Dictionary = _echo_duel_fixture()
+	var bramble_sheet: Dictionary = (fx_b.get("echoes", {}) as Dictionary).get("bramble", {}) as Dictionary
+	failed += _assert(int(stats.get("might", -1)) == int(bramble_sheet.get("might", -2)), "Bramble might matches sheet")
+	failed += _assert(int(stats.get("arcana", -1)) == int(bramble_sheet.get("arcana", -2)), "Bramble arcana matches sheet")
+	failed += _assert(int(stats.get("resilience", -1)) == int(bramble_sheet.get("resilience", -2)), "Bramble resilience matches sheet")
+	failed += _assert(int(stats.get("ward", -1)) == int(bramble_sheet.get("ward", -2)), "Bramble ward matches sheet")
+	failed += _assert(int(stats.get("vitality", -1)) == int(bramble_sheet.get("vitality", -2)), "Bramble vitality matches sheet")
+	failed += _assert(int(stats.get("swiftness", -1)) == int(bramble_sheet.get("swiftness", -2)), "Bramble swiftness matches sheet")
+	failed += _assert(int(stats.get("fate", -1)) == int(bramble_sheet.get("fate", -2)), "Bramble fate matches sheet")
+	failed += _assert(bramble.get("crit_multiplier", null) == null, "Bramble has no crit_multiplier")
+	failed += _assert(bramble.get("swift_tie_favors_foe", null) == null, "Bramble has no swift_tie_favors_foe")
+	var scrap: EchoBattle = EchoBattleScript.new()
 	scrap.configure({"might": 5, "arcana": 5, "resilience": 5, "ward": 5, "vitality": 5, "swiftness": 5, "fate": 5}, bramble)
+	# configure() rolls a random dice seed; about 1 in 30 seeds ends or spares the
+	# fight before the third Bramble turn. Pin the dice so the rootbind check is stable.
+	scrap.set_seed(1)
 	failed += _assert(not scrap.keeper_acts_first(), "Bramble acts before a default Keeper")
-	failed += _assert(scrap.choose("strike") == "continue", "snare does not end the fight")
-	failed += _assert(str(scrap.last_foe_swing) == "snare", "first hybrid swing is a snare")
-	failed += _assert(scrap.choose("strike") == "continue", "knot does not end the fight")
-	failed += _assert(str(scrap.last_foe_swing) == "knot", "second hybrid swing is a knot")
+	failed += _assert(scrap.choose("strike") == "continue", "first swing does not end the fight")
+	var phys_margin: int = 6 - int((5 + 5) / 2)
+	var mag_margin: int = 6 - int((5 + 5) / 2)
+	var expect_first: String = "snare" if mag_margin <= phys_margin else "knot"
+	failed += _assert(str(scrap.last_foe_swing) == expect_first, "first hybrid swing uses the better margin")
+	scrap.choose("strike")
+	scrap.choose("strike")
+	failed += _assert(str(scrap.last_foe_swing) == "rootbind", "third Bramble turn is rootbind")
 	game_state.call("reset_for_new_game")
 	equipment.call("reset_for_new_game")
 	var before_fee: int = failed
@@ -6921,7 +8644,7 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	failed += _assert(not bool(wall.call("collider_enabled")), "open wall drops the centre gate")
 	failed += _assert(bool(wall.call("sides_blocked")), "open wall keeps the side hedges")
 	failed += _assert(bool(game_audio.call("did_play", &"sfx_path_open")), "path open plays sfx_path_open")
-	failed += _assert(warden != null and warden.visible, "spared Bramble watches the trailhead")
+	failed += _assert(warden != null and not warden.visible, "spared Bramble stays hidden until 30 clears")
 	warden.call("on_interact", null)
 	failed += _assert(str(content_strings.call("get_text", "adventure_promised")).find("Not yet at your side") >= 0, "spared Bramble is not a companion yet")
 	if failed == before_open:
@@ -7061,6 +8784,14 @@ func _echo2_portal_visible(tree_root: Window, game_state: Node, save_service: No
 
 
 func _echo2_boot_hub(tree_root: Window) -> Node:
+	## Hub boots with boot_intent "auto" load the newest save and overwrite Reach /
+	## GameState that the caller just set. Tests that preset autoload state must not
+	## hit that path unless they set boot_intent to new / load / continue first.
+	var save_svc: Node = tree_root.get_node_or_null("SaveService")
+	if save_svc != null:
+		var intent: String = str(save_svc.get("boot_intent"))
+		if intent == "" or intent == "auto":
+			save_svc.set("boot_intent", "forge_return")
 	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
 	if packed == null:
 		return null
@@ -7180,20 +8911,29 @@ const _REACH_SNAPSHOTS: Dictionary = {
 	"North road open": "res://tools/debug/snapshots/north_road_open.json",
 	"Pre-boss": "res://tools/debug/snapshots/pre_boss.json",
 	"Veteran reacher": "res://tools/debug/snapshots/veteran_reacher.json",
+	"Mid-fight": "res://tools/debug/snapshots/mid_fight.json",
 }
 
 
 func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## Each of the four reach snapshots loads the way the debug panel loads it
+	## Each reach snapshot loads the way the debug panel loads it
 	## (migrate, apply_save_dict on the state, then the hub) and lands in a valid state.
+	## Mid-fight also writes the adventure file through write_adventure_raw (job 34).
 	var failed: int = 0
 	var echo: Node = tree_root.get_node_or_null("EchoChamber")
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	var equipment: Node = tree_root.get_node_or_null("Equipment")
-	failed += _assert(echo != null and reach != null and equipment != null, "autoloads for the reach snapshots")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(echo != null and reach != null and equipment != null and pack != null, "autoloads for the reach snapshots")
 	if failed > 0:
 		return failed
-	var want_version: int = int(save_service.get("SAVE_VERSION"))
+	## Job 34 re-saved North road open and Veteran reacher as v14 through migrate_state.
+	## Echo 2 ready stays a v13 file that migrates forward on load.
+	var want_version: int = 14
+	var echo2_version: int = 13
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == want_version, "reach snapshots match SAVE_VERSION 14")
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
 	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
 	for label: String in _REACH_SNAPSHOTS.keys():
 		var path: String = str(_REACH_SNAPSHOTS[label])
@@ -7202,7 +8942,7 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 		if typeof(parsed) == TYPE_DICTIONARY:
 			failed += _assert(str((parsed as Dictionary).get("label", "")) == label, "snapshot label %s" % label)
 	# a. Echo 2 ready: first Anvil weapon, 50 Essence, hub arch open for Bramble.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Echo 2 ready"]), want_version, true)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Echo 2 ready"]), echo2_version, true)
 	failed += _assert(bool(echo.call("owns_anvil_weapon")), "echo2 ready owns an Anvil weapon")
 	failed += _assert(int(game_state.get("essence")) == 50, "echo2 ready has 50 Essence")
 	failed += _assert(bool(game_state.get("echo_01_resolved")) and not bool(game_state.get("echo_02_resolved")), "echo2 ready: Elaia done, Bramble open")
@@ -7218,23 +8958,23 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "north road: lantern dark")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "North road open")
 	# c. Pre-boss: room 9 of the run in progress, the next room is the boss.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), 14, true)
 	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "pre-boss: an idle room is running")
 	failed += _assert(int(reach.get("rooms_attempted")) == 9 and not bool(reach.call("is_boss_room")), "pre-boss: room 9, not the boss yet")
 	failed += _assert(int(reach.call("rooms_until_boss")) == 1, "pre-boss: rooms until boss is 1 (got %d)" % int(reach.call("rooms_until_boss")))
-	failed += _assert(float(reach.get("room_left")) > 0.0 and float(reach.call("_length_left")) > float(reach.get("room_left")) + 720.0, "pre-boss: the run is long enough to reach the boss")
+	failed += _assert(int(reach.get("slots_total")) - int(reach.get("slots_used")) >= 2, "pre-boss: at least two slots remain, so the run can reach the boss")
 	failed += _assert(str(game_state.get("expedition_lantern")) == "amber", "pre-boss: lantern amber")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Pre-boss")
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
-	reach.call("push_faces", [20])
-	reach.call("advance_clock", float(reach.get("room_left")) + 0.001)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), 14, true)
+	reach.call("debug_force_outcomes", ["win"])
+	reach.call("advance_clock", 720.0 - float(reach.get("room_clock")) + 0.001)
 	failed += _assert(bool(reach.get("running")) and int(reach.get("rooms_attempted")) == 10 and bool(reach.call("is_boss_room")), "pre-boss: finishing room 9 opens the boss room")
 	failed += _assert(int(reach.call("rooms_until_boss")) == 0, "pre-boss: board shows the boss room")
 	# d. Veteran reacher: depth 25, mats, dojo exp, counter 19.
 	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Veteran reacher"]), want_version, true)
 	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.call("max_start_depth")) == 25, "veteran: deepest depth 25")
 	failed += _assert(int(reach.get("reaches_cleared")) == 19, "veteran: reach counter 19")
-	failed += _assert(int(reach.get("briarwood")) > 0 and int(reach.get("herbs")) > 0 and int(reach.get("dojo_exp")) > 0, "veteran: Briarwood, herbs and dojo exp")
+	failed += _assert(int(pack.call("get_count", "briarwood")) > 0 and int(pack.call("get_count", "herbs")) > 0 and int(reach.get("dojo_exp")) > 0, "veteran: Briarwood, herbs and dojo exp")
 	failed += _assert(not bool(reach.get("running")) and bool(game_state.get("echo_02_resolved")), "veteran: idle at home with the road open")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Veteran reacher")
 	# Round trip: the veteran state survives a save and load.
@@ -7242,6 +8982,21 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	game_state.call("reset_for_new_game")
 	game_state.call("apply_save_dict", blob)
 	failed += _assert(int(reach.get("deepest_depth")) == 25 and int(reach.get("reaches_cleared")) == 19, "veteran survives a save round trip")
+	# e. Mid-fight: a manual run at depth 2; the loader writes the adventure for round 3.
+	save_service.call("clear_adventure")
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Mid-fight"]), want_version, true)
+	failed += _assert(bool(reach.get("running")) and int(reach.get("depth")) == 2 and str(reach.get("control")) == "manual", "mid-fight: a manual run at depth 2")
+	var mid_raw: Dictionary = _json_dict(str(_REACH_SNAPSHOTS["Mid-fight"]))
+	var mid_adv: Dictionary = save_service.call("read_adventure")
+	failed += _assert(not mid_adv.is_empty(), "mid-fight: the loader wrote the adventure file")
+	failed += _assert(int(mid_adv.get("owner_save_id", -1)) == int(mid_raw.get("save_id", -2)) and int(mid_raw.get("save_id", 0)) != 0, "mid-fight: the adventure is owned by the snapshot's save_id")
+	failed += _assert(int(mid_adv.get("run_id", -1)) == int(reach.get("run_id")), "mid-fight: the adventure matches the run")
+	var mid_fight_v: Variant = mid_adv.get("fight", null)
+	failed += _assert(mid_fight_v is Dictionary and int((mid_fight_v as Dictionary).get("round", 0)) == 3, "mid-fight: the saved fight is on round 3")
+	if mid_fight_v is Dictionary:
+		failed += _assert(FightState.from_dict(mid_fight_v as Dictionary).outcome() == "", "mid-fight: the saved fight is still live")
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
 	paused = false
 	game_state.call("reset_for_new_game")
 	if failed == 0:
@@ -7287,6 +9042,232 @@ func _snapshot_hub_check(tree_root: Window, game_state: Node, save_service: Node
 			board.call("close_shell")
 	live.free()
 	await process_frame
+	return failed
+
+
+## Job 34: the Experimental debug panel's expedition tools and the Mid-fight snapshot.
+const _MID_FIGHT_PATH: String = "res://tools/debug/snapshots/mid_fight.json"
+const _MID_FIGHT_SAVE_ID: int = 340034
+
+
+func _debug_panel_open_for_test(tree_root: Window) -> Node:
+	## The real panel scene, named like AnimPreviewHotkey names it so its own close frees it.
+	var old: Node = tree_root.get_node_or_null("DebugToolsPanel")
+	if old != null:
+		old.free()
+	var packed: PackedScene = load("res://tools/debug/debug_panel.tscn") as PackedScene
+	if packed == null:
+		return null
+	var panel: Node = packed.instantiate()
+	panel.name = "DebugToolsPanel"
+	tree_root.add_child(panel)
+	return panel
+
+
+func _debug_panel_button(panel: Node, text: String) -> Button:
+	if panel == null or not is_instance_valid(panel):
+		return null
+	for node: Node in panel.find_children("*", "Button", true, false):
+		var button: Button = node as Button
+		if button != null and button.text == text:
+			return button
+	return null
+
+
+func _debug_panel_status(panel: Node) -> String:
+	if panel == null or not is_instance_valid(panel):
+		return ""
+	var found: Array[Node] = panel.find_children("Status", "Label", true, false)
+	return (found[0] as Label).text if not found.is_empty() else ""
+
+
+func _debug_panel_free(tree_root: Window) -> void:
+	var left: Node = tree_root.get_node_or_null("DebugToolsPanel")
+	if left != null and is_instance_valid(left):
+		left.free()
+
+
+func _debug_idle_duo_cfg() -> Dictionary:
+	return {
+		"depth": 1,
+		"rooms": 4,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	}
+
+
+func _debug_adventure_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Force buttons, Fight at depth, Batch-sim 200, the Mid-fight snapshot and the v14 re-saves,
+	## all through the real panel buttons, Reach, BattleView and SaveService.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "debug adventure Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
+	var save_id_was: int = int(save_service.get("current_save_id"))
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	failed += _assert(bool(reach.call("debug_tools")), "debug tools are on for this run")
+	var panel: Node = _debug_panel_open_for_test(tree_root)
+	failed += _assert(panel != null, "debug panel scene loads")
+	if panel == null:
+		return failed
+	await process_frame
+	# Item grants: the catalogue lists the Bundle 7 mats.
+	var catalogue_ids: Dictionary = {}
+	for row_v: Variant in panel.get("_rows") as Array:
+		catalogue_ids[str((row_v as Dictionary).get("id", ""))] = true
+	for mat: String in ["glowcap", "bitterroot"]:
+		failed += _assert(catalogue_ids.has(mat), "Add items lists %s" % mat)
+	# Re-saved snapshots: every reach snapshot file is save_version 14 and keeps its label.
+	for label: String in ["North road open", "Pre-boss", "Veteran reacher", "Mid-fight"]:
+		var snap_path: String = str(_REACH_SNAPSHOTS.get(label, ""))
+		var raw: Dictionary = _json_dict(snap_path)
+		failed += _assert(int(raw.get("save_version", 0)) == 14, "%s file is save_version 14 (got %d)" % [label, int(raw.get("save_version", 0))])
+		failed += _assert(str(raw.get("label", "")) == label, "%s keeps its label" % label)
+	# Force buttons: each queues its outcome and the next idle room resolves as forced.
+	var force_labels: Dictionary = {"flee": "Flee", "overwhelmed": "Overwhelmed", "win": "Win"}
+	for outcome: String in ["flee", "overwhelmed", "win"]:
+		_reset_reach_test(tree_root, game_state, save_service)
+		game_state.call("set_resource", &"essence", 100)
+		reach.call("set_test_run_seed", 34)
+		failed += _assert(str(reach.call("depart_slots", _debug_idle_duo_cfg())) == "ok", "force %s: idle depart" % outcome)
+		var button: Button = _debug_panel_button(panel, "Force next room: %s" % str(force_labels[outcome]))
+		failed += _assert(button != null, "panel has Force next room: %s" % str(force_labels[outcome]))
+		if button == null:
+			continue
+		button.pressed.emit()
+		failed += _assert(_debug_panel_status(panel).find(str(force_labels[outcome])) >= 0, "force %s: the status line confirms (%s)" % [outcome, _debug_panel_status(panel)])
+		var log_before: int = (reach.get("room_log") as Array).size()
+		reach.call("advance_clock", 720.0 - float(reach.get("room_clock")) + 0.001)
+		var room_log: Array = reach.get("room_log") as Array
+		failed += _assert(room_log.size() == log_before + 1, "force %s: one idle room resolved" % outcome)
+		if room_log.size() > log_before:
+			var entry: Dictionary = room_log[log_before] as Dictionary
+			failed += _assert(str(entry.get("outcome", "")) == outcome, "force %s: the room resolved as %s (got %s)" % [outcome, outcome, str(entry.get("outcome", ""))])
+	_reset_reach_test(tree_root, game_state, save_service)
+	# Fight at depth: the arena test fight rolls beasts from that depth's spawn table.
+	var depth_spin: SpinBox = null
+	var spins: Array[Node] = panel.find_children("FightDepth", "SpinBox", true, false)
+	if not spins.is_empty():
+		depth_spin = spins[0] as SpinBox
+	var boss_boxes: Array[Node] = panel.find_children("FightBoss", "CheckBox", true, false)
+	var elaia_boxes: Array[Node] = panel.find_children("FightElaia", "CheckBox", true, false)
+	failed += _assert(depth_spin != null and int(depth_spin.min_value) == 1 and int(depth_spin.max_value) == 40, "Fight at depth SpinBox runs 1-40")
+	failed += _assert(boss_boxes.size() == 1 and elaia_boxes.size() == 1, "Fight at depth has Boss and With Elaia")
+	var open_fight: Button = _debug_panel_button(panel, "Open fight")
+	failed += _assert(open_fight != null, "panel has Open fight")
+	if depth_spin != null and open_fight != null and boss_boxes.size() == 1 and elaia_boxes.size() == 1:
+		var fight_depth: int = 12
+		depth_spin.value = fight_depth
+		(boss_boxes[0] as CheckBox).button_pressed = true
+		(elaia_boxes[0] as CheckBox).button_pressed = true
+		## The panel rolls its room seed with randi(): pin the global RNG for this fight.
+		seed(3401)
+		open_fight.pressed.emit()
+		failed += _assert(BattleViewScript.is_open(), "Open fight opens the arena")
+		var arena: BattleView = _reach_live_view()
+		var fight: FightState = arena._fight if arena != null else null
+		failed += _assert(fight != null and fight.outcome() == "", "Open fight starts a test fight")
+		if fight != null:
+			var table_ids: Dictionary = {}
+			for row: Dictionary in SpawnRoller.table_for(fight_depth):
+				table_ids[str(row.get("beast", ""))] = true
+			var beasts: int = 0
+			var bosses: int = 0
+			var party_ids: Array[String] = []
+			for fighter_id: String in fight.order:
+				var info: Dictionary = fight.fighter_dict(fighter_id)
+				if str(info.get("side", "")) == "beast":
+					beasts += 1
+					failed += _assert(table_ids.has(str(info.get("species", ""))), "depth %d beast %s comes from table_for" % [fight_depth, str(info.get("species", ""))])
+					if bool(info.get("boss", false)):
+						bosses += 1
+				else:
+					party_ids.append(fighter_id)
+			failed += _assert(beasts > 0, "the depth fight has beasts")
+			failed += _assert(bosses == 1, "Boss marks one beast (got %d)" % bosses)
+			failed += _assert(party_ids.has("keeper") and party_ids.has("elaia"), "With Elaia brings Elaia")
+		failed += _assert(not is_instance_valid(panel) or panel.is_queued_for_deletion(), "Open fight closes the panel")
+		BattleViewScript.close_arena()
+		await process_frame
+	_debug_panel_free(tree_root)
+	# Refusal stays: a live reach fight keeps the arena shut.
+	panel = _debug_panel_open_for_test(tree_root)
+	await process_frame
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "manual depart for the refusal")
+	failed += _assert(bool(reach.call("fight_active")), "a manual reach fight is live")
+	var refuse_button: Button = _debug_panel_button(panel, "Open fight")
+	if refuse_button != null:
+		var views_before: int = get_nodes_in_group("battle_overlay").size()
+		refuse_button.pressed.emit()
+		failed += _assert(_debug_panel_status(panel).find("stays closed") >= 0, "Open fight refuses during a reach fight (%s)" % _debug_panel_status(panel))
+		failed += _assert(get_nodes_in_group("battle_overlay").size() == views_before, "a refused Open fight adds no arena")
+		failed += _assert(reach.call("manual_fight") != null and (reach.call("manual_fight") as FightState).round >= 1 and is_instance_valid(panel), "a refused Open fight leaves the reach fight and the panel")
+	BattleViewScript.close_arena()
+	_reset_reach_test(tree_root, game_state, save_service)
+	await process_frame
+	if not is_instance_valid(panel):
+		panel = _debug_panel_open_for_test(tree_root)
+		await process_frame
+	# Batch-sim 200: win / flee / overwhelmed counts that sum to 200, plus the ms.
+	var batch_button: Button = _debug_panel_button(panel, "Batch-sim 200")
+	failed += _assert(batch_button != null, "panel has Batch-sim 200")
+	if batch_button != null:
+		batch_button.pressed.emit()
+		var status: String = _debug_panel_status(panel)
+		var rx := RegEx.new()
+		rx.compile("win (\\d+) / flee (\\d+) / overwhelmed (\\d+) \\((\\d+) ms\\)")
+		var m: RegExMatch = rx.search(status)
+		failed += _assert(m != null, "Batch-sim writes counts and ms (%s)" % status)
+		if m != null:
+			var total: int = int(m.get_string(1)) + int(m.get_string(2)) + int(m.get_string(3))
+			failed += _assert(total == 200, "Batch-sim counts sum to 200 (got %d: %s)" % [total, status])
+			print("DEBUG_ADVENTURE_BATCH %s" % status)
+	# Mid-fight: the panel button resumes a live fight at round 3 on the hub.
+	_reset_reach_test(tree_root, game_state, save_service)
+	save_service.call("clear_adventure")
+	var mid_button: Button = _debug_panel_button(panel, "Mid-fight")
+	failed += _assert(mid_button != null, "panel has Mid-fight")
+	if mid_button != null:
+		mid_button.pressed.emit()
+		var opened: bool = false
+		for _i: int in 20:
+			await process_frame
+			if current_scene != null and str(current_scene.scene_file_path) == "res://scenes/main.tscn" and BattleViewScript.is_open():
+				opened = true
+				break
+		failed += _assert(current_scene != null and str(current_scene.scene_file_path) == "res://scenes/main.tscn", "Mid-fight loads the hub")
+		failed += _assert(bool(reach.call("fight_active")), "Mid-fight: Reach.fight_active()")
+		var live: FightState = reach.call("manual_fight") as FightState
+		failed += _assert(live != null and live.round == 3 and live.outcome() == "", "Mid-fight: round 3 of a live fight (got %s)" % (str(live.round) if live != null else "none"))
+		failed += _assert(int(reach.get("depth")) == 2 and str(reach.get("phase")) == "manual", "Mid-fight: manual run at depth 2")
+		failed += _assert(opened and BattleViewScript.is_open(), "Mid-fight: BattleView is open")
+		var view: BattleView = _reach_live_view()
+		failed += _assert(view != null and view._fight == live, "Mid-fight: the open view shows the resumed fight")
+		failed += _assert(view != null and view.get_parent() == current_scene, "Mid-fight: the view sits on the new hub")
+		failed += _assert(int(save_service.get("current_save_id")) == _MID_FIGHT_SAVE_ID, "Mid-fight: current_save_id is the snapshot's save_id")
+		var adv: Dictionary = save_service.call("read_adventure")
+		failed += _assert(int(adv.get("owner_save_id", -1)) == _MID_FIGHT_SAVE_ID, "Mid-fight: the adventure file matches the snapshot save_id")
+	BattleViewScript.close_arena()
+	await process_frame
+	_debug_panel_free(tree_root)
+	if current_scene != null:
+		unload_current_scene()
+	await process_frame
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	save_service.call("note_session_ended")
+	save_service.set("current_save_id", save_id_was)
+	_restore_user_file(adv_path, adv_was)
+	paused = false
+	if failed == 0:
+		print("DEBUG_ADVENTURE_OK")
 	return failed
 
 
@@ -7401,11 +9382,13 @@ func _preset_excludes(tokens: PackedStringArray, res_path: String) -> bool:
 
 
 func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## Idle d20 rooms, Push's 75% stop, Ascension memory, manual defeat, flat rewards.
+	## Ascension memory and manual defeat. Idle slots are covered by IDLE_SLOTS_OK.
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
 	failed += _assert(reach != null, "Reach autoload")
-	if reach == null:
+	failed += _assert(pack != null, "Backpack autoload")
+	if reach == null or pack == null:
 		return failed
 	var session_was: bool = bool(save_service.get("session_active"))
 	var scale_was: float = Engine.time_scale
@@ -7414,77 +9397,6 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	var essence_was: int = int(game_state.get("essence"))
 	var lantern_was: String = str(game_state.get("expedition_lantern"))
 	var fruit_was: bool = bool(game_state.get("fruit_committed"))
-	var before_idle: int = failed
-	reach.call("reset_for_new_game")
-	failed += _assert(bool(reach.call("idle_clears", 1, 10)) == false, "natural 1 fails")
-	failed += _assert(bool(reach.call("idle_clears", 20, -10)), "natural 20 clears")
-	failed += _assert(bool(reach.call("idle_clears", 5, 0)) == false, "5 + 0 misses DC 6")
-	failed += _assert(bool(reach.call("idle_clears", 6, 0)), "6 + 0 clears")
-	failed += _assert(is_equal_approx(float(reach.call("clear_chance", 0)), 0.75), "bonus 0 is 75%")
-	failed += _assert(is_equal_approx(float(reach.call("clear_chance", 3)), 0.90), "bonus +3 is 90%")
-	var level1: float = float(reach.call("room_level", 1))
-	failed += _assert(int(reach.call("idle_bonus", 5.2, level1)) == 0, "matched depth 1 bonus is 0")
-	failed += _assert(int(reach.call("idle_bonus", 100.0, 1.0)) == 10, "bonus clamps at +10")
-	failed += _assert(int(reach.call("idle_bonus", 0.0, 100.0)) == -10, "bonus clamps at -10")
-	failed += _assert(str(reach.call("odds_line", 3)) == "Clear chance 90% (d20 +3 vs 6)", "odds line")
-	reach.call("grant_salve", 1)
-	reach.call("push_faces", [1, 20])
-	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "idle depart")
-	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("reaches_cleared")) == 1, "one salve reroll clears a natural 1")
-	failed += _assert(int(reach.get("heart_salve")) == 0, "the reroll drinks the salve")
-	reach.call("reset_for_new_game")
-	reach.call("grant_salve", 1)
-	reach.call("push_faces", [1, 1])
-	reach.call("depart", 1, 1, "hold", "idle")
-	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("reaches_cleared")) == 0, "a second salve is not spent in the same room")
-	failed += _assert(int(reach.get("heart_salve")) == 0, "the one salve was the reroll")
-	failed += _assert(int(reach.get("briarwood")) == 0, "a failed room grants nothing")
-	failed += _assert(str(reach.get("phase")) == "rest", "a failed roll rests")
-	reach.call("reset_for_new_game")
-	game_state.call("set_play_speed", 8)
-	save_service.set("session_active", true)
-	var scale_at_speed: float = Engine.time_scale
-	reach.call("push_faces", [20])
-	reach.call("push_drops", [1, 0])
-	reach.call("depart", 1, 8, "hold", "idle")
-	reach.call("apply_offline_seconds", 720.0)
-	failed += _assert(int(reach.get("reaches_cleared")) == 1, "offline catch-up clears one room")
-	failed += _assert(is_equal_approx(float(reach.get("elapsed")), 720.0), "offline room time stays 720s at 8x (got %s)" % str(reach.get("elapsed")))
-	failed += _assert(is_equal_approx(Engine.time_scale, scale_at_speed), "reach catch-up leaves the debug time scale alone")
-	game_state.call("reset_play_speed")
-	save_service.set("session_active", session_was)
-	if failed == before_idle:
-		print("REACH_IDLE_ROLL_OK")
-	var before_rest: int = failed
-	reach.call("reset_for_new_game")
-	reach.call("push_faces", [1])
-	reach.call("depart", 1, 1, "hold", "idle")
-	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("reaches_cleared")) == 0, "a natural 1 clears nothing")
-	failed += _assert(int(reach.get("briarwood")) == 0, "a natural 1 grants no briarwood")
-	failed += _assert(str(reach.get("phase")) == "rest", "fail opens the 24 min rest")
-	failed += _assert(is_equal_approx(float(reach.get("room_left")), 1440.0), "rest is 24 minutes")
-	reach.call("advance_clock", 1440.0)
-	failed += _assert(str(reach.get("phase")) == "idle_room", "rest opens the next room")
-	failed += _assert(int(reach.get("depth")) == 1, "hold stays on the farmed depth")
-	if failed == before_rest:
-		print("REACH_FAIL_REST_OK")
-	var before_push: int = failed
-	reach.call("reset_for_new_game")
-	reach.call("set_test_pp", 5.2)
-	failed += _assert(float(reach.call("clear_chance", int(reach.call("preview_bonus", 1)))) >= 0.75, "depth 1 at matched power stays at 75% or better")
-	failed += _assert(float(reach.call("clear_chance", int(reach.call("preview_bonus", 2)))) < 0.75, "depth 2 drops below 75%")
-	reach.call("push_faces", [20])
-	reach.call("depart", 1, 1, "push", "idle")
-	reach.call("advance_clock", 720.0)
-	failed += _assert(str(reach.get("pace")) == "hold", "push switches to hold")
-	failed += _assert(int(reach.get("depth")) == 1, "push stops on the last safe depth")
-	failed += _assert(int(reach.get("reaches_cleared")) == 1, "the safe room still counts")
-	reach.call("set_test_pp", -1.0)
-	if failed == before_push:
-		print("REACH_PUSH_STOP_OK")
 	var before_ascend: int = failed
 	reach.call("reset_for_new_game")
 	reach.set("deepest_depth", 7)
@@ -7509,130 +9421,23 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		print("REACH_DEPTH_ASCEND_OK")
 	var before_manual: int = failed
 	reach.call("reset_for_new_game")
-	var before_briar: int = int(reach.get("briarwood"))
+	var before_briar: int = int(pack.call("get_count", "briarwood"))
+	## Opening a manual fight lets beasts act immediately. Seed 1's volley does not end the run.
+	reach.call("set_test_run_seed", 1)
 	reach.call("depart", 1, 1, "hold", "idle")
 	reach.call("set_control", "manual")
 	failed += _assert(bool(reach.call("fight_active")), "switching to manual opens the room's fight")
+	var reach_audio: Node = tree_root.get_node_or_null("GameAudio")
+	if reach_audio != null:
+		failed += _assert(bool(reach_audio.call("is_hub_suspended")), "reach fight suspends hub bed")
+		failed += _assert(bool(reach_audio.call("did_play", &"mus_battle_forest")), "reach fight plays mus_battle_forest")
 	reach.call("set_control", "idle")
+	if reach_audio != null:
+		failed += _assert(not bool(reach_audio.call("is_hub_suspended")), "hand-off to idle resumes hub bed")
 	failed += _assert(bool(reach.call("fight_active")) == false, "switching back leaves the fight")
 	failed += _assert(bool(reach.get("running")), "switching control keeps the outing")
-	failed += _assert(int(reach.get("briarwood")) == before_briar, "leaving a fight grants nothing")
-	reach.call("reset_for_new_game")
-	var briar_before: int = int(reach.get("briarwood"))
-	var clears_before: int = int(reach.get("reaches_cleared"))
-	reach.call("depart", 1, 1, "hold", "manual")
-	failed += _assert(bool(reach.call("fight_active")), "manual depart opens a fight")
-	failed += _assert(int(ReachFightScript.road_damage(1.0, 10.0, 10.0, 0.0, 1.0)) == 5, "road damage is k*A^2/(A+D)")
-	failed += _assert(str(reach.call("debug_wound", 10000)) == "defeat", "a lethal hit is a defeat")
-	failed += _assert(bool(reach.get("running")) == false, "defeat ends the outing")
-	failed += _assert(str(reach.get("phase")) == "home", "defeat returns to the trailhead")
-	failed += _assert(is_equal_approx(float(reach.get("room_left")), 0.0), "defeat does not start a rest")
-	failed += _assert(int(reach.get("reaches_cleared")) == clears_before, "defeat does not count a reach")
-	failed += _assert(int(reach.get("briarwood")) == briar_before, "defeat grants no briarwood")
-	failed += _assert(str(game_state.get("expedition_lantern")) != "amber", "the lantern is no longer out")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == before_briar, "leaving a fight grants nothing")
 	failed += _assert(ResourceLoader.exists("res://assets/art/echo/battle_root_snapper_idle.png"), "thornling art is packed")
-	if failed == before_manual:
-		print("REACH_MANUAL_DEFEAT_OK")
-	var before_rewards: int = failed
-	reach.call("reset_for_new_game")
-	game_state.call("set_resource", &"essence", 40)
-	reach.call("push_faces", [20])
-	reach.call("push_drops", [1, 0])
-	reach.call("depart", 1, 1, "hold", "idle")
-	reach.call("advance_clock", 720.0)
-	var exp1: int = int(reach.call("room_exp", 1))
-	failed += _assert(int(reach.get("briarwood")) == 1, "solo briarwood is the 0-1 roll")
-	failed += _assert(int(reach.get("herbs")) == 0, "herbs use the same 0-1 roll")
-	failed += _assert(int(reach.get("dojo_exp")) == exp1, "exp goes to the dojo pool")
-	failed += _assert(int(game_state.get("essence")) == 40, "a room grants no essence")
-	reach.call("on_ascend")
-	reach.set("deepest_depth", 11)
-	var briar_deep: int = int(reach.get("briarwood"))
-	var herb_deep: int = int(reach.get("herbs"))
-	var dojo_deep: int = int(reach.get("dojo_exp"))
-	reach.call("push_faces", [20])
-	reach.call("push_drops", [1, 1])
-	reach.call("depart", 11, 1, "hold", "idle")
-	reach.call("advance_clock", 720.0)
-	var exp11: int = int(reach.call("room_exp", 11))
-	failed += _assert(int(reach.get("briarwood")) == briar_deep + 1, "briarwood stays 0-1 at a deeper room")
-	failed += _assert(int(reach.get("herbs")) == herb_deep + 1, "herbs stay 0-1 at a deeper room")
-	failed += _assert(int(reach.get("dojo_exp")) == dojo_deep + exp11, "deeper rooms pay their own exp")
-	failed += _assert(exp11 != exp1, "exp changes with depth")
-	failed += _assert(int(game_state.get("essence")) == 40, "a deep room grants no essence")
-	if failed == before_rewards:
-		print("REACH_REWARDS_OK")
-	var before_boss: int = failed
-	reach.call("reset_for_new_game")
-	failed += _assert(str(reach.call("boss_line")) == "Rooms until boss: 10", "a new expedition is 10 rooms from a boss")
-	reach.set("deepest_depth", 4)
-	for _room: int in range(10):
-		reach.call("push_faces", [20])
-		reach.call("push_drops", [1, 0])
-	reach.call("depart", 4, 4, "hold", "idle")
-	failed += _assert(int(reach.get("rooms_attempted")) == 1, "depart counts the first room")
-	failed += _assert(int(reach.call("rooms_until_boss")) == 9, "room 1 leaves 9 through the boss")
-	failed += _assert(bool(reach.call("is_boss_room")) == false, "room 1 is not a boss")
-	reach.call("advance_clock", 720.0 * 8.0)
-	failed += _assert(int(reach.get("rooms_attempted")) == 9, "eight more clears reach room 9")
-	failed += _assert(bool(reach.call("is_boss_room")) == false, "room 9 is not a boss")
-	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("rooms_attempted")) == 10, "the next clear is room 10")
-	failed += _assert(bool(reach.call("is_boss_room")), "room 10 is the boss")
-	failed += _assert(str(reach.call("boss_line")) == "Boss room", "the board names the boss room")
-	failed += _assert(int(reach.get("depth")) == 4, "the boss stays at the run's depth")
-	var only_minion: Array[String] = ["minion"]
-	reach.set("mix", only_minion)
-	reach.call("set_control", "manual")
-	var boss_snap: Dictionary = reach.call("fight_snapshot")
-	var boss_rows: Array = boss_snap.get("enemies", []) as Array
-	var boss_level: float = float(reach.call("room_level", 4))
-	var champ_hp: int = int(round(float(int(round(2.9 * boss_level))) * 1.5))
-	failed += _assert(boss_rows.size() == 1, "the boss check uses one minion")
-	if boss_rows.size() == 1:
-		var boss_row: Dictionary = boss_rows[0]
-		failed += _assert(str(boss_row.get("name", "")).find("Champion") >= 0, "the first foe is the champion")
-		failed += _assert(int(boss_row.get("max_hp", 0)) == champ_hp, "the champion has 50 percent more HP (got %s, want %d)" % [str(boss_row.get("max_hp", 0)), champ_hp])
-	reach.call("set_control", "idle")
-	var briar_before_boss: int = int(reach.get("briarwood"))
-	var dojo_before_boss: int = int(reach.get("dojo_exp"))
-	var exp4: int = int(reach.call("room_exp", 4))
-	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("briarwood")) == briar_before_boss + 2, "the boss doubles the material roll")
-	failed += _assert(int(reach.get("dojo_exp")) == dojo_before_boss + exp4 * 2, "the boss doubles dojo exp")
-	reach.call("on_ascend")
-	failed += _assert(int(reach.get("rooms_attempted")) == 0, "ending the expedition clears the room counter")
-	failed += _assert(str(reach.call("boss_line")) == "Rooms until boss: 10", "the next expedition starts 10 rooms out")
-	reach.set("deepest_depth", 10)
-	reach.call("push_faces", [20])
-	reach.call("push_drops", [1, 0])
-	reach.call("depart", 10, 1, "hold", "idle")
-	failed += _assert(bool(reach.call("is_boss_room")) == false, "depth 10's first room is not a boss")
-	var briar_depth10: int = int(reach.get("briarwood"))
-	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("briarwood")) == briar_depth10 + 1, "depth 10's first room pays a single drop")
-	reach.call("reset_for_new_game")
-	for _fail: int in range(9):
-		reach.call("push_faces", [1])
-	reach.call("push_faces", [20])
-	reach.call("push_drops", [1, 0])
-	reach.call("depart", 1, 8, "hold", "idle")
-	reach.call("advance_clock", 720.0)
-	failed += _assert(str(reach.get("phase")) == "rest", "a failed attempt still spends the room")
-	failed += _assert(int(reach.get("rooms_attempted")) == 1, "a failed room counts")
-	failed += _assert(int(reach.get("briarwood")) == 0, "a failed boss-counter room grants nothing")
-	reach.call("advance_clock", 1440.0 + 2160.0 * 8.0)
-	failed += _assert(int(reach.get("rooms_attempted")) == 10, "nine failures make the next room the boss")
-	failed += _assert(bool(reach.call("is_boss_room")), "the 10th attempt is the boss after failures")
-	reach.call("advance_clock", 720.0)
-	failed += _assert(int(reach.get("briarwood")) == 2, "a boss clear after failures still doubles")
-	reach.call("on_ascend")
-	reach.call("push_faces", [20])
-	reach.call("push_drops", [1, 0])
-	reach.call("depart", 1, 1, "hold", "idle")
-	failed += _assert(int(reach.get("rooms_attempted")) == 1 and bool(reach.call("is_boss_room")) == false, "a new expedition does not inherit the boss counter")
-	if failed == before_boss:
-		print("REACH_BOSS_ROOM_OK")
 	var before_mig: int = failed
 	var migrated: Variant = save_service.call("_migrate", 11, {"wood": 3, "stage_id": "sapling"})
 	failed += _assert(migrated is Dictionary, "v11 migration returns a state")
@@ -7652,24 +9457,27 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		if kept_reach is Dictionary:
 			failed += _assert(int((kept_reach as Dictionary).get("reaches_cleared", -1)) == 9, "a v12 reach block is kept")
 			failed += _assert(int((kept_reach as Dictionary).get("rooms_attempted", -1)) == 0, "a finished v12 run gains a zero room counter")
-	var mid_run: Variant = save_service.call("_migrate", 12, {"wood": 1, "stage_id": "sapling", "reach": {"reaches_cleared": 2, "running": true, "phase": "idle_room"}})
+	# The v13 step alone: the full chain clears a running pre-v14 run (job 25 cut).
+	var mid_run: Dictionary = {"wood": 1, "stage_id": "sapling", "reach": {"reaches_cleared": 2, "running": true, "phase": "idle_room"}}
+	save_service.call("_migrate_v13", mid_run)
 	if mid_run is Dictionary:
 		var mid_reach: Variant = (mid_run as Dictionary).get("reach", {})
 		if mid_reach is Dictionary:
 			failed += _assert(int((mid_reach as Dictionary).get("rooms_attempted", -1)) == 1, "an in-progress v12 room counts as the first attempt")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 13, "saves write version 13")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "saves write version 14")
 	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
 	failed += _assert(project_text.find("Reach=\"*res://scripts/autoload/reach.gd\"") >= 0, "Reach autoload is registered")
 	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
 	var stable: Dictionary = presets.get(_STABLE_PRESET, {}) as Dictionary
 	var stable_exclude: PackedStringArray = _exclude_tokens(str(stable.get("exclude", "")))
-	for shipped: String in ["scripts/autoload/reach.gd", "scripts/reach_fight.gd", "scripts/reach_fight_view.gd", "scripts/expedition_board.gd"]:
+	for shipped: String in ["scripts/autoload/reach.gd", "scripts/expedition_board.gd"]:
 		failed += _assert(not _preset_excludes(stable_exclude, shipped), "stable ships %s" % shipped)
 	if failed == before_mig:
 		print("REACH_MIGRATION_OK")
 	var before_board: int = failed
 	reach.call("reset_for_new_game")
 	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 20)
 	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
 	failed += _assert(packed != null, "expedition board scene")
 	if packed != null:
@@ -7678,11 +9486,11 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		board.call("open_shell")
 		failed += _assert(bool(board.call("depart_disabled")) == false, "Depart is enabled once the road is open")
 		var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
-		var odds: Label = shell.find_child("Odds", true, false) as Label if shell != null else null
-		failed += _assert(odds != null and str(odds.text).find("Clear chance") >= 0 and str(odds.text).find("vs 6") >= 0, "the board shows per-room odds")
-		failed += _assert(odds != null and str(odds.text).find("Rooms until boss: 10") >= 0, "the board shows rooms until boss")
-		var hours_btn: Button = shell.find_child("Hours", true, false) as Button if shell != null else null
-		failed += _assert(hours_btn != null and hours_btn.text == "1 hour", "length starts at 1 hour")
+		var boss_lbl: Label = shell.find_child("BossLabel", true, false) as Label if shell != null else null
+		failed += _assert(boss_lbl != null and boss_lbl.text == "Bosses: none", "five rooms shows no bosses")
+		var rooms_field: LineEdit = shell.find_child("RoomsField", true, false) as LineEdit if shell != null else null
+		failed += _assert(rooms_field != null and rooms_field.text == "1", "length starts at 1 room")
+		failed += _assert(shell != null and not _board_shell_has_percent(shell), "the board shows no percent odds")
 		failed += _assert(str(board.call("try_depart")) == "ok", "Depart starts the reach")
 		failed += _assert(bool(reach.get("running")), "the party is out")
 		failed += _assert(str(game_state.get("expedition_lantern")) == "amber", "the lantern shows a run out")
@@ -7693,7 +9501,6 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	reach.call("reset_for_new_game")
 	if failed == before_board:
 		print("REACH_BOARD_OK")
-	reach.call("set_test_pp", -1.0)
 	reach.call("reset_for_new_game")
 	if speed_was == 1:
 		game_state.call("reset_play_speed")
@@ -7710,9 +9517,7 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 
 
 func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## Haex bug: a mid-run save lost the room's beasts, so Join manual after a load opened an
-	## empty fight and the first Strike won it for free. The mix is saved, an old save rerolls
-	## it, and a fight never starts or wins with no beasts.
+	## Mid-run save/load, then Join manual must show the same beasts as SlotEngine.build_room.
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	failed += _assert(reach != null, "Reach autoload for the mix reload")
@@ -7721,47 +9526,531 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 	var session_was: bool = bool(save_service.get("session_active"))
 	var lantern_was: String = str(game_state.get("expedition_lantern"))
 	reach.call("reset_for_new_game")
+	## Opening a manual fight lets beasts act immediately. Seed 20's room is two of the
+	## same beast, so turn order matches the spawn list, and one Strike does not end the run.
+	reach.call("set_test_run_seed", 20)
 	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "mix reload: idle depart")
-	var picked: Array[String] = ["brute", "minion"]
-	reach.set("mix", picked.duplicate())
 	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload: save mid-run to slot 7")
 	reach.call("reset_for_new_game")
-	failed += _assert((reach.get("mix") as Array).is_empty(), "mix reload: reset clears the mix")
 	failed += _assert(bool(save_service.call("load_game", 7)), "mix reload: load slot 7")
 	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "mix reload: the run is still out")
-	var loaded_mix: Array = reach.get("mix") as Array
-	failed += _assert(str(loaded_mix) == str(picked), "mix reload: the room keeps its beasts (got %s)" % str(loaded_mix))
 	reach.call("set_control", "manual")
 	failed += _assert(bool(reach.call("fight_active")), "mix reload: Join manual opens the fight")
-	var snap: Dictionary = reach.call("fight_snapshot")
-	failed += _assert((snap.get("enemies", []) as Array).size() == 2, "mix reload: Join manual shows both beasts")
-	var first: String = str(reach.call("fight_choose", "strike", 0))
-	failed += _assert(first != "victory", "mix reload: the first Strike does not win the room (got %s)" % first)
-	failed += _assert(bool(reach.get("running")), "mix reload: the run continues after one Strike")
-	# An older save without the mix field rerolls a real room instead of an empty one.
-	reach.call("set_control", "idle")
-	var blob: Dictionary = game_state.call("to_save_dict")
-	var reach_blob: Dictionary = (blob.get("reach", {}) as Dictionary).duplicate(true)
-	reach_blob.erase("mix")
-	blob["reach"] = reach_blob
-	reach.call("reset_for_new_game")
-	game_state.call("apply_save_dict", blob)
-	failed += _assert(not (reach.get("mix") as Array).is_empty(), "mix reload: a save without a mix rerolls one")
-	reach.call("set_control", "manual")
-	var old_snap: Dictionary = reach.call("fight_snapshot")
-	failed += _assert((old_snap.get("enemies", []) as Array).size() >= 1, "mix reload: the rerolled room has beasts")
-	failed += _assert(str(reach.call("fight_choose", "strike", 0)) != "victory", "mix reload: no free win after an old load")
-	# The fight itself refuses an empty room.
-	var empty_fight: RefCounted = ReachFightScript.new()
-	empty_fight.call("setup", 1, 5.2, {"vitality": 5, "swiftness": 5, "offense": 10.0}, [], -1, {}, {})
-	failed += _assert(str(empty_fight.call("choose", "strike", 0)) == "invalid", "an empty fight refuses a Strike")
-	failed += _assert(str(empty_fight.get("outcome")) == "", "an empty fight is never a victory")
+	var depth: int = int(reach.get("depth"))
+	var room_seed: int = int(reach.get("room_seed"))
+	var boss: bool = bool(reach.call("is_boss_room"))
+	var expected: Array[String] = _reach_room_species_list(depth, room_seed, boss)
+	var manual: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(manual != null, "mix reload: manual FightState")
+	var actual: Array[String] = _reach_fight_species_list(manual)
+	failed += _assert(str(actual) == str(expected), "mix reload: species match build_room (got %s)" % str(actual))
+	failed += _assert(await _reach_one_strike_keeps_run(reach, manual), "mix reload: one Strike does not end the run")
 	reach.call("reset_for_new_game")
 	save_service.call("delete_slot", 7)
 	save_service.set("session_active", session_was)
 	game_state.set("expedition_lantern", lantern_was)
 	if failed == 0:
 		print("REACH_MIX_RELOAD_OK")
+	return failed
+
+
+func _reach_room_species_list(depth: int, room_seed: int, boss: bool) -> Array[String]:
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, boss)
+	var out: Array[String] = []
+	for row: Dictionary in room:
+		out.append(str(row.get("beast", "")))
+	return out
+
+
+func _reach_fight_species_list(fight: FightState) -> Array[String]:
+	var out: Array[String] = []
+	if fight == null:
+		return out
+	for fighter_id: String in fight.order:
+		var row: Dictionary = fight.fighter_dict(fighter_id)
+		if str(row.get("side", "")) == "beast":
+			out.append(str(row.get("species", "")))
+	return out
+
+
+func _reach_open_manual_view(reach: Node) -> BattleView:
+	var manual: FightState = reach.call("manual_fight") as FightState
+	if manual == null:
+		return null
+	if not BattleViewScript.open_reach_fight(manual):
+		return null
+	await process_frame
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	if views.size() != 1:
+		return null
+	return views[0] as BattleView
+
+
+func _reach_auto_strike_fight(fight: FightState) -> String:
+	if fight == null:
+		return ""
+	var guard: int = 0
+	while fight.outcome() == "" and guard < 8000:
+		guard += 1
+		var actor_id: String = fight.current_actor()
+		if actor_id == "":
+			fight.step({})
+			continue
+		var row: Dictionary = fight.fighter_dict(actor_id)
+		if str(row.get("side", "")) == "party":
+			fight.step(AutoPolicy.strike_for_me_action(fight, actor_id))
+		else:
+			fight.step({})
+	return fight.outcome()
+
+
+func _reach_step_strike_for_me(view: BattleView, fight: FightState, max_steps: int = 2500) -> void:
+	var toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
+	if toggle != null:
+		toggle.button_pressed = true
+		toggle.emit_signal("toggled", true)
+	for _step: int in max_steps:
+		await process_frame
+		if not is_instance_valid(view) or fight == null:
+			break
+		if fight.outcome() != "":
+			break
+		var playback: BattlePlayback = view.get_playback()
+		if playback != null and playback.is_busy():
+			continue
+		view.call("_advance")
+		if playback != null and playback.is_busy():
+			continue
+
+
+func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
+	var view: BattleView = await _reach_open_manual_view(reach)
+	if view == null or manual == null:
+		return false
+	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+	if strike_btn == null:
+		BattleViewScript.close_arena()
+		return false
+	strike_btn.emit_signal("pressed")
+	await process_frame
+	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	var picked: Button = null
+	if target_layer != null:
+		for child: Node in target_layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				picked = child as Button
+				break
+	if picked != null:
+		picked.emit_signal("pressed")
+	await process_frame
+	var ok: bool = bool(reach.get("running")) and manual.outcome() == ""
+	BattleViewScript.close_arena()
+	return ok
+
+
+func _reach_wait_end_panel(view: BattleView, max_frames: int = 300) -> Panel:
+	if view == null or not is_instance_valid(view):
+		return null
+	for _wait: int in max_frames:
+		await process_frame
+		if not is_instance_valid(view):
+			return null
+		var panel: Panel = view.get_node_or_null("Arena/EndPanel") as Panel
+		if panel != null and panel.visible:
+			return panel
+	if not is_instance_valid(view):
+		return null
+	return view.get_node_or_null("Arena/EndPanel") as Panel
+
+
+func _depth_passthrough_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "depth passthrough autoloads")
+	if reach == null:
+		return failed
+	var duo_cfg: Dictionary = {
+		"depth": 3,
+		"rooms": 5,
+		"control": "manual",
+		"party": [
+			{"member": "keeper", "row": "front", "cell": 1},
+			{"member": "elaia", "row": "back", "cell": 1},
+		],
+		"loadout": {},
+	}
+	var win_seed: int = -1
+	for probe: int in range(1, 201):
+		_reset_reach_test(tree_root, game_state, save_service)
+		reach.set("deepest_depth", 12)
+		game_state.set("echo_02_resolved", true)
+		game_state.set("elaia_join_seen", true)
+		game_state.call("set_resource", &"essence", 100)
+		reach.call("set_test_run_seed", probe)
+		if str(reach.call("depart_slots", duo_cfg)) != "ok":
+			continue
+		BattleViewScript.close_arena()
+		var probe_fight: FightState = reach.call("manual_fight") as FightState
+		if probe_fight != null and _reach_auto_strike_fight(probe_fight) == "win":
+			win_seed = probe
+			reach.call("reset_for_new_game")
+			break
+		reach.call("reset_for_new_game")
+	failed += _assert(win_seed > 0, "depth-3 duo has a win seed in 1..200")
+	if win_seed < 0:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.set("deepest_depth", 12)
+	game_state.set("echo_02_resolved", true)
+	game_state.set("elaia_join_seen", true)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", win_seed)
+	failed += _assert(str(reach.call("depart_slots", duo_cfg)) == "ok", "depth 3 depart")
+	failed += _assert(int(reach.get("depth")) == 3, "Reach.depth is 3 after depart")
+	var view: BattleView = await _reach_open_manual_view(reach)
+	failed += _assert(view != null, "manual fight opens at depth 3")
+	if view == null:
+		return failed
+	var depth_lbl: Label = view.find_child("DepthText", true, false) as Label
+	failed += _assert(depth_lbl != null and depth_lbl.text == "Depth 3", "HUD shows Depth 3 (got %s)" % str(depth_lbl.text if depth_lbl != null else ""))
+	var fight: FightState = view._fight
+	failed += _assert(fight != null and fight.outcome() == "", "depth-3 fight started")
+	if fight != null:
+		var table_ids: Dictionary = {}
+		for row: Dictionary in SpawnRoller.table_for(3):
+			table_ids[str(row.get("beast", ""))] = true
+		for fighter_id: String in fight.order:
+			var info: Dictionary = fight.fighter_dict(fighter_id)
+			if str(info.get("side", "")) == "beast":
+				failed += _assert(table_ids.has(str(info.get("species", ""))), "depth-3 beast %s from table_for(3)" % str(info.get("species", "")))
+		await _reach_step_strike_for_me(view, fight, 8000)
+		failed += _assert(fight.outcome() == "win", "depth-3 room wins (got %s)" % fight.outcome())
+		await process_frame
+		var panel: Panel = await _reach_wait_end_panel(view)
+		failed += _assert(panel != null, "win panel after depth-3 room")
+		var deeper: Button = view.find_child("EndDeeper", true, false) as Button
+		failed += _assert(deeper != null, "Go deeper on win panel")
+		if deeper != null:
+			deeper.emit_signal("pressed")
+		for _w: int in 120:
+			await process_frame
+			if int(reach.get("depth")) == 4 and bool(reach.call("fight_active")):
+				break
+		failed += _assert(int(reach.get("depth")) == 4, "Go deeper raises depth to 4 (got %d)" % int(reach.get("depth")))
+		view = await _reach_open_manual_view(reach)
+		if view != null:
+			depth_lbl = view.find_child("DepthText", true, false) as Label
+			failed += _assert(depth_lbl != null and depth_lbl.text == "Depth 4", "HUD shows Depth 4 after Go deeper")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("DEPTH_PASSTHROUGH_OK")
+	return failed
+
+
+func _picker_joined_only_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "picker Reach")
+	if reach == null:
+		return failed
+	var orphan_shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	if orphan_shell != null and is_instance_valid(orphan_shell):
+		orphan_shell.free()
+	var echo_was: bool = bool(game_state.get("echo_02_resolved"))
+	var essence_was: int = int(game_state.get("essence"))
+	reach.call("reset_for_new_game")
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "spare")
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	reach.set("reaches_cleared", 0)
+	game_state.call("set_resource", &"essence", 50)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate()
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	failed += _assert(shell != null, "picker shell")
+	board.call("_on_party_slot_pressed", "front", 1)
+	board.call("_refresh_shell")
+	for i: int in range(16):
+		var row: Button = shell.find_child("PickerRow%d" % i, true, false) as Button
+		if row == null or not row.visible:
+			continue
+		var name_lbl: Label = row.get_node_or_null("Name") as Label
+		var sub_lbl: Label = row.get_node_or_null("Sub") as Label
+		if name_lbl != null and name_lbl.text == "Bramble":
+			failed += _assert(false, "Bramble row before join")
+		if sub_lbl != null:
+			failed += _assert(sub_lbl.text.find("Unlocks at") < 0, "no locked Bramble hint")
+	reach.set("reaches_cleared", 30)
+	board.call("_on_party_slot_pressed", "front", 1)
+	board.call("_refresh_shell")
+	var saw_bramble: bool = false
+	for i: int in range(16):
+		var row: Button = shell.find_child("PickerRow%d" % i, true, false) as Button
+		if row == null or not row.visible:
+			continue
+		var name_lbl: Label = row.get_node_or_null("Name") as Label
+		if name_lbl != null and name_lbl.text == "Bramble":
+			saw_bramble = true
+	failed += _assert(saw_bramble, "Bramble listed after join")
+	board.call("set_picker_test_extra", ["scout_a", "scout_b", "scout_c", "scout_d", "scout_e", "scout_f"])
+	board.call("_on_party_slot_pressed", "back", 0)
+	board.call("_refresh_shell")
+	var scroll: ScrollContainer = shell.find_child("PickerScroll", true, false) as ScrollContainer
+	var visible_picker_rows: int = 0
+	for i: int in range(16):
+		var row: Button = shell.find_child("PickerRow%d" % i, true, false) as Button
+		if row != null and row.visible:
+			visible_picker_rows += 1
+	failed += _assert(visible_picker_rows >= 8, "extra members expand the picker (%d rows)" % visible_picker_rows)
+	failed += _assert(scroll != null, "picker scroll exists")
+	if scroll != null:
+		failed += _assert(scroll.size.y <= 228.0 + 0.5, "picker scroll height clamped")
+		failed += _assert(visible_picker_rows * 56.0 > scroll.size.y + 1.0, "picker needs scroll for %d rows" % visible_picker_rows)
+	if shell.has_method("hide_picker"):
+		shell.call("hide_picker")
+	board.free()
+	shell = tree_root.get_node_or_null("ExpeditionShell")
+	if shell != null and is_instance_valid(shell):
+		shell.free()
+	game_state.set("echo_02_resolved", echo_was)
+	game_state.call("set_resource", &"essence", essence_was)
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("PICKER_JOINED_ONLY_OK")
+	return failed
+
+
+func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and backpack != null and strings != null, "end panel autoloads")
+	if reach == null:
+		return failed
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo != null:
+		echo.set("in_battle", false)
+	var win_seed: int = -1
+	for probe: int in range(1, 201):
+		_reset_reach_test(tree_root, game_state, save_service)
+		game_state.call("set_resource", &"essence", 100)
+		reach.call("set_test_run_seed", probe)
+		if str(reach.call("depart_slots", {
+			"depth": 1,
+			"rooms": 3,
+			"control": "manual",
+			"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+			"loadout": {},
+		})) != "ok":
+			continue
+		BattleViewScript.close_arena()
+		var probe_fight: FightState = reach.call("manual_fight") as FightState
+		if _reach_auto_strike_fight(probe_fight) != "win":
+			continue
+		reach.call("on_manual_outcome", "win")
+		if str(reach.call("manual_choice", "deeper")) != "deeper":
+			continue
+		var deeper_fight: FightState = reach.call("manual_fight") as FightState
+		BattleViewScript.close_arena()
+		if deeper_fight != null and _reach_auto_strike_fight(deeper_fight) == "win":
+			win_seed = probe
+			reach.call("reset_for_new_game")
+			break
+	failed += _assert(win_seed > 0, "end panel: found a depth-1 win seed in 1..200")
+	if win_seed < 0:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var bag_before: Dictionary = _bag_snapshot(backpack)
+	reach.call("set_test_run_seed", win_seed)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	})) == "ok", "end panel: depart for win seed")
+	var arena: BattleView = await _reach_open_manual_view(reach)
+	failed += _assert(arena != null, "end panel: arena opens")
+	if arena == null:
+		return failed
+	var run_fight: FightState = arena._fight
+	await _reach_step_strike_for_me(arena, run_fight)
+	var panel: Panel = await _reach_wait_end_panel(arena)
+	failed += _assert(panel != null and panel.visible, "EndPanel visible after win")
+	failed += _assert(arena.find_child("EndContinue", true, false) != null, "EndContinue")
+	failed += _assert(arena.find_child("EndDeeper", true, false) != null, "EndDeeper")
+	failed += _assert(arena.find_child("EndHome", true, false) != null, "EndHome")
+	failed += _assert(arena.call("pack_counter_text").find("Pack:") >= 0, "pack counter text")
+	failed += _assert(_loot_same(bag_before, _bag_snapshot(backpack)), "Backpack unchanged mid-run")
+	var deeper: Button = arena.find_child("EndDeeper", true, false) as Button
+	failed += _assert(deeper != null, "EndDeeper button")
+	if deeper != null:
+		deeper.emit_signal("pressed")
+	for _open: int in 120:
+		await process_frame
+		if int(reach.get("depth")) == 2 and bool(reach.call("fight_active")):
+			break
+	failed += _assert(int(reach.get("depth")) == 2, "Go deeper raises depth")
+	failed += _assert(int(reach.get("slots_used")) == 1, "one slot used after first win")
+	failed += _assert(bool(reach.call("fight_active")), "next manual fight opens")
+	BattleViewScript.close_arena()
+	var next_fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(next_fight != null, "second room fight state")
+	if next_fight != null:
+		failed += _assert(_reach_auto_strike_fight(next_fight) == "win", "second room wins (got %s)" % next_fight.outcome())
+	arena = await _reach_open_manual_view(reach)
+	failed += _assert(arena != null, "end panel: arena after second win")
+	if arena == null:
+		return failed
+	panel = await _reach_wait_end_panel(arena)
+	failed += _assert(panel != null, "second win panel")
+	var home: Button = arena.find_child("EndHome", true, false) as Button
+	failed += _assert(home != null, "EndHome on second win")
+	if home != null:
+		home.emit_signal("pressed")
+	await process_frame
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	failed += _assert(not bool(reach.get("running")), "Head home ends the run")
+	failed += _assert(_bag_gained_banked(bag_before, backpack, summary.get("banked", {}) as Dictionary), "Backpack gained banked pack")
+	var dojo_after: int = int(reach.get("dojo_exp"))
+	failed += _assert(dojo_after > 0, "exp was kept on the run")
+	BattleViewScript.close_arena()
+	# Flee: half the pack banks.
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", win_seed)
+	reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	})
+	var flee_pack: Pack = reach.get("pack") as Pack
+	flee_pack.add("briarwood", 5)
+	var flee_bag: int = int(backpack.call("get_count", "briarwood"))
+	arena = await _reach_open_manual_view(reach)
+	failed += _assert(arena != null, "flee fight opens")
+	var flee_btn: Button = arena.get_node_or_null("Arena/ActionMenu/FleeButton") as Button
+	if flee_btn != null:
+		flee_btn.emit_signal("pressed")
+	for _flee: int in 400:
+		await process_frame
+		if arena != null and is_instance_valid(arena) and arena._fight != null and arena._fight.outcome() == "flee":
+			var flee_pb: BattlePlayback = arena.get_playback()
+			if flee_pb == null or not flee_pb.is_busy():
+				break
+		if arena != null and is_instance_valid(arena):
+			arena.call("_advance")
+		if not bool(reach.get("running")):
+			break
+	var flee_views: Array[Node] = get_nodes_in_group("battle_overlay")
+	if flee_views.size() == 1:
+		arena = flee_views[0] as BattleView
+	if arena != null and is_instance_valid(arena) and arena._fight != null:
+		failed += _assert(arena._fight.outcome() == "flee", "flee outcome (got %s)" % arena._fight.outcome())
+		if arena._fight.outcome() == "flee":
+			arena.call("_finish_turn_ui")
+	await process_frame
+	await process_frame
+	failed += _assert(arena != null and is_instance_valid(arena), "flee arena stays open")
+	if arena != null and is_instance_valid(arena):
+		failed += _assert(arena.find_child("EndBack", true, false) != null, "flee EndPanel")
+		failed += _assert(arena.find_child("EndContinue", true, false) == null, "no Continue on flee")
+	failed += _assert(int(backpack.call("get_count", "briarwood")) == flee_bag + 2, "flee banks half the briarwood")
+	var back: Button = arena.find_child("EndBack", true, false) as Button
+	if back != null:
+		back.emit_signal("pressed")
+	BattleViewScript.close_arena()
+	# Last room: one slot, win shows only last-room Head home.
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", win_seed)
+	reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 1,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	})
+	arena = await _reach_open_manual_view(reach)
+	await _reach_step_strike_for_me(arena, arena._fight)
+	panel = await _reach_wait_end_panel(arena)
+	var last_home: Button = arena.find_child("EndHome", true, false) as Button
+	failed += _assert(last_home != null, "last room EndHome")
+	failed += _assert(arena.find_child("EndContinue", true, false) == null, "last room has no Continue")
+	var last_text: String = str(strings.call("get_text", "adv_end_last_room"))
+	if last_home != null:
+		failed += _assert(last_home.text == last_text, "last room button text")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("END_PANEL_OK")
+	return failed
+
+
+func _manual_overwhelmed_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and backpack != null and strings != null, "manual overwhelmed autoloads")
+	if reach == null:
+		return failed
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo != null:
+		echo.set("in_battle", false)
+	var bag_before: Dictionary = _bag_snapshot(backpack)
+	var dojo_before: int = int(reach.get("dojo_exp"))
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})
+	var run_pack: Pack = reach.get("pack") as Pack
+	run_pack.add("briarwood", 4)
+	run_pack.add("glowcap", 2)
+	var view: BattleView = await _reach_open_manual_view(reach)
+	failed += _assert(view != null, "manual overwhelmed arena")
+	var fight: FightState = view._fight if view != null else null
+	failed += _assert(fight != null, "manual overwhelmed fight")
+	if fight != null and view != null:
+		for fighter_id: String in fight.order:
+			var row: Dictionary = fight.fighter_dict(fighter_id)
+			if str(row.get("side", "")) == "party":
+				fight.set_hp(fighter_id, 0)
+		view.call("refresh_fight", fight)
+		failed += _assert(_reach_auto_strike_fight(fight) == "overwhelmed", "fight ends overwhelmed (got %s)" % fight.outcome())
+		view.call("_finish_turn_ui")
+		await process_frame
+		await process_frame
+		failed += _assert(is_instance_valid(view), "overwhelmed arena stays open")
+		var title: Label = view.find_child("EndTitle", true, false) as Label if is_instance_valid(view) else null
+		var overwhelmed_title: String = str(strings.call("get_text", "adv_overwhelmed_title"))
+		failed += _assert(title != null and title.text == overwhelmed_title, "panel shows overwhelmed title")
+		failed += _assert(str((reach.get("last_summary") as Dictionary).get("reason", "")) == "overwhelmed", "last_summary reason")
+		failed += _assert(str(reach.get("phase")) == "home", "phase home")
+		failed += _assert(is_equal_approx(float(reach.get("room_clock")), 0.0), "room_clock zero")
+		failed += _assert(str(reach.get("phase")) != "rest", "no rest phase")
+		failed += _assert(_loot_same(bag_before, _bag_snapshot(backpack)), "Backpack unchanged (pack lost)")
+		failed += _assert(int(reach.get("dojo_exp")) == dojo_before, "dojo_exp keeps earlier rooms")
+		BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("MANUAL_OVERWHELMED_OK")
 	return failed
 
 
@@ -7824,51 +10113,82 @@ func _save_newer_refused(tree_root: Window, game_state: Node, save_service: Node
 	return failed
 
 
-func _reach_turn_order() -> int:
-	## Turn order is a total order: Swiftness first, the keeper wins ties, then slot. sort_custom is not
-	## stable, so a big room of equal-speed foes must still come out in slot order every time.
+func _reach_legacy_gone(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
-	var fight: RefCounted = ReachFightScript.new()
-	fight.call("setup", 1, 5.0, {"vitality": 5, "swiftness": 5, "offense": 10.0}, ["minion"], -1, {}, {})
-	var rows: Array[Dictionary] = []
-	for i: int in range(24):
-		var row: Dictionary = (fight.get("enemies") as Array)[0].duplicate()
-		row["swift"] = 5.0
-		row["hp"] = 10
-		rows.append(row)
-	rows[20]["swift"] = 9.0
-	rows[3]["swift"] = 1.0
-	fight.set("enemies", rows)
-	var keeper: Dictionary = fight.get("keeper")
-	keeper["swiftness"] = 5
-	fight.set("keeper", keeper)
-	for _attempt: int in range(5):
-		var order: Array = fight.call("_turn_order")
-		failed += _assert(order.size() == 25, "turn order lists the keeper and 24 foes")
-		if order.size() != 25:
-			break
-		failed += _assert(str((order[0] as Dictionary).get("side")) == "foe" and int((order[0] as Dictionary).get("index")) == 20, "the fastest foe acts first")
-		failed += _assert(str((order[1] as Dictionary).get("side")) == "keeper", "the keeper wins the Swiftness tie")
-		var want: Array[int] = []
-		for i: int in range(24):
-			if i != 20 and i != 3:
-				want.append(i)
-		var got: Array[int] = []
-		for k: int in range(2, 24):
-			got.append(int((order[k] as Dictionary).get("index")))
-		failed += _assert(str(got) == str(want), "tied foes act in slot order (got %s)" % str(got))
-		failed += _assert(int((order[24] as Dictionary).get("index")) == 3, "the slowest foe acts last")
-	# Float noise on Swiftness is still a tie that goes to the keeper.
-	rows = []
-	for i: int in range(3):
-		var r2: Dictionary = (fight.get("enemies") as Array)[0].duplicate()
-		r2["swift"] = 5.0000001
-		rows.append(r2)
-	fight.set("enemies", rows)
-	var near: Array = fight.call("_turn_order")
-	failed += _assert(near.size() == 4 and str((near[0] as Dictionary).get("side")) == "keeper", "float noise still ties to the keeper")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "Reach autoload")
+	for legacy_path: String in [
+		"res://scripts/reach_fight.gd",
+		"res://scripts/reach_fight.gd.uid",
+		"res://scripts/reach_fight_view.gd",
+		"res://scripts/reach_fight_view.gd.uid",
+	]:
+		failed += _assert(not FileAccess.file_exists(legacy_path), "deleted %s" % legacy_path)
+	var removed: Array[String] = [
+		"room_level", "idle_bonus", "idle_clears", "clear_chance", "odds_line", "party_power",
+		"preview_bonus", "preview_line", "push_would_stop", "set_test_pp", "push_faces", "push_drops",
+		"fight_choose", "debug_wound", "_roll_idle", "_grant_room", "_advance_depth", "_roll_mix",
+		"_mix_budget", "_clean_mix", "_champion_index", "_names", "_minion_name", "_arts", "_keeper_block",
+		"_offense", "_stat", "_next_face", "_next_drop", "_length_left",
+	]
+	for fn: String in removed:
+		failed += _assert(not reach.has_method(fn), "Reach no longer has %s" % fn)
+	var captured: Dictionary = reach.call("capture_save_fields") as Dictionary
+	var reach_block: Dictionary = captured.get("reach", {}) as Dictionary
+	failed += _assert(not reach_block.has("pace"), "capture_save_fields omits pace")
+	failed += _assert(not reach_block.has("mix"), "capture_save_fields omits mix")
+	failed += _assert(not reach_block.has("salve_used"), "capture_save_fields omits salve_used")
+	for scan_root: String in ["res://scripts", "res://tools"]:
+		var dir := DirAccess.open(scan_root)
+		failed += _assert(dir != null, "scan %s" % scan_root)
+		if dir != null:
+			failed += _scan_legacy_reach_refs(dir, scan_root)
+	# v13 pace/mix/salve_used still load (SAVE_V14_HOME-style fixture).
+	save_service.call("delete_slot", 7)
+	var legacy_state: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"expedition_lantern": "dark",
+		"reach": {
+			"running": false,
+			"reaches_cleared": 1,
+			"rooms_attempted": 0,
+			"deepest_depth": 2,
+			"pace": "push",
+			"salve_used": true,
+			"mix": ["minion", "brute"],
+		},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, legacy_state), "v13 legacy pace/mix writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "v13 legacy pace/mix loads")
+	failed += _assert(int(reach.get("reaches_cleared")) == 1 and int(reach.get("deepest_depth")) == 2, "legacy fields ignored, counters kept")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
 	if failed == 0:
-		print("REACH_TURN_ORDER_OK")
+		print("REACH_LEGACY_GONE_OK")
+	return failed
+
+
+func _scan_legacy_reach_refs(dir: DirAccess, root: String) -> int:
+	var failed: int = 0
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		if name == "." or name == "..":
+			name = dir.get_next()
+			continue
+		var path: String = "%s/%s" % [root, name]
+		if dir.current_is_dir():
+			var sub := DirAccess.open(path)
+			if sub != null:
+				failed += _scan_legacy_reach_refs(sub, path)
+		elif name.ends_with(".gd") and not path.ends_with("verify_headless.gd"):
+			var text: String = FileAccess.get_file_as_string(path)
+			failed += _assert(text.find("ReachFight") < 0, "%s must not name ReachFight" % path)
+			failed += _assert(text.find("reach_fight.gd") < 0 and text.find("reach_fight_view") < 0, "%s must not reference legacy reach_fight scripts" % path)
+			failed += _assert(text.find("idle_clears") < 0, "%s must not reference idle_clears" % path)
+		name = dir.get_next()
+	dir.list_dir_end()
 	return failed
 
 
@@ -7885,7 +10205,10 @@ func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service:
 	failed += _assert(press_body.find("load_snapshot_state(") >= 0, "the snapshot button uses the migrating loader")
 	failed += _assert(_func_body(panel_src, "static func load_snapshot_state").find("migrate_state") >= 0, "the loader calls SaveService.migrate_state")
 	var snapshots: Dictionary = panel_script.get_script_constant_map().get("SNAPSHOTS", {}) as Dictionary
-	failed += _assert(snapshots.size() == 8, "eight debug snapshots (got %d)" % snapshots.size())
+	failed += _assert(snapshots.size() == 9, "nine debug snapshots (got %d)" % snapshots.size())
+	## Mid-fight's loader writes the adventure file; put the old one back afterwards.
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
 	for label: String in snapshots.keys():
 		var path: String = str(snapshots[label])
 		var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
@@ -7911,6 +10234,8933 @@ func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service:
 	failed += _assert(str(refused.get("error", "")).find("newer") >= 0, "the refusal names the newer build")
 	DirAccess.remove_absolute(newer_path)
 	game_state.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
 	if failed == 0:
 		print("DEBUG_SNAPSHOTS_MIGRATE_OK")
+	return failed
+
+
+func _json_dict(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+func _half_up(x: float) -> int:
+	## The battle draft rounds half up. Values here are never negative.
+	return floori(x + 0.5 + 0.000001)
+
+
+func _beast_threat(row: Dictionary, rule: Dictionary) -> Dictionary:
+	## Recompute a beast's roles and threat from its stats with the §10 rule in beasts.json.
+	var raw: int = 0
+	for stat_v: Variant in rule.get("stats", []) as Array:
+		raw += int(row.get(str(stat_v), 0)) * int(rule.get("per_stat_point", 1))
+	var roles: Array[String] = ["damage"]
+	var vit: int = int(row.get("vitality", 0))
+	var res_ward: float = float(int(row.get("resilience", 0)) + int(row.get("ward", 0))) / 2.0
+	if vit >= 12 or res_ward >= 8.0:
+		roles.append("tank")
+	var move: Variant = row.get("move", null)
+	if move is Dictionary:
+		var kind: String = str((move as Dictionary).get("kind", ""))
+		var level: int = 1
+		if kind == "poison":
+			level = maxi(1, _half_up(float((move as Dictionary).get("total", 0)) / 6.0))
+			roles.append("utility")
+		elif kind == "heavy":
+			level = maxi(1, _half_up(float((move as Dictionary).get("mult", 0.0))))
+		raw += int(rule.get("move_base", 5)) + level
+	var mult: float = pow(float(rule.get("role_mult", 1.1)), roles.size() - 1)
+	return {"threat": maxi(1, _half_up(float(raw) * mult)), "roles": roles}
+
+
+func _beast_data(_tree_root: Window) -> int:
+	## data/beasts.json carries the BATTLE_SCENE_DRAFT v4 §10 table. Threat recomputes to the table,
+	## HP is 10 + 3 x Vitality, the dark imp and moth follow the tier-1 variant rule, and every name
+	## has a string. Briar Warden is now Briar Hulk.
+	var failed: int = 0
+	var path: String = "res://data/beasts.json"
+	var data: Dictionary = _json_dict(path)
+	failed += _assert(not data.is_empty(), "beasts.json parses")
+	if data.is_empty():
+		return failed
+	var strings: Dictionary = _json_dict("res://data/strings_v01.json")
+	var rule: Dictionary = data.get("threat_rule", {}) as Dictionary
+	var hp_rule: Dictionary = data.get("hp_rule", {}) as Dictionary
+	# The §10 table, as Haex reviewed it: id -> [tier, from depth, threat, hp].
+	var table: Dictionary = {
+		"acorn_imp": [1, 1, 33, 37], "spore_moth": [1, 1, 44, 40],
+		"wilt_wisp": [2, 3, 47, 40], "root_snapper": [2, 3, 46, 43],
+		"thorn_boar": [3, 12, 54, 46], "vine_serpent": [3, 12, 58, 43],
+		"briar_hulk": [4, 18, 61, 49], "moss_brute": [4, 18, 63, 52],
+		"stump_ogre": [5, 22, 67, 55], "stag_spirit": [5, 22, 74, 52],
+	}
+	var by_id: Dictionary = {}
+	var species: Array = data.get("species", []) as Array
+	failed += _assert(species.size() == table.size(), "beasts.json lists the ten §10 species (got %d)" % species.size())
+	for row_v: Variant in species:
+		var row: Dictionary = row_v as Dictionary
+		var bid: String = str(row.get("id", ""))
+		by_id[bid] = row
+		failed += _assert(table.has(bid), "known species id %s" % bid)
+		if not table.has(bid):
+			continue
+		var want: Array = table[bid]
+		failed += _assert(int(row.get("tier", 0)) == int(want[0]) and int(row.get("from_depth", 0)) == int(want[1]), "%s tier and first depth" % bid)
+		failed += _assert(int(row.get("threat", 0)) == int(want[2]), "%s threat is the table's %d" % [bid, int(want[2])])
+		failed += _assert(int(row.get("hp", 0)) == int(want[3]), "%s HP is the table's %d" % [bid, int(want[3])])
+		failed += _assert(int(row.get("hp", 0)) == int(hp_rule.get("base", 10)) + int(hp_rule.get("per_vitality", 3)) * int(row.get("vitality", 0)), "%s HP = 10 + 3 x Vitality" % bid)
+		failed += _assert(int(row.get("fate", -1)) == 0, "%s has Fate 0" % bid)
+		failed += _assert(["physical", "magic"].has(str(row.get("attack", ""))), "%s attack type" % bid)
+		var re: Dictionary = _beast_threat(row, rule)
+		failed += _assert(int(re["threat"]) == int(row.get("threat", 0)), "%s threat recomputes (%d vs %d)" % [bid, int(re["threat"]), int(row.get("threat", 0))])
+		failed += _assert(str(re["roles"]) == str(row.get("roles", [])), "%s roles recompute" % bid)
+		failed += _assert(strings.has(str(row.get("name_key", ""))), "%s name string" % bid)
+	failed += _assert(str((by_id.get("briar_hulk", {}) as Dictionary).get("name", "")) == "Briar Hulk", "Briar Hulk is the name")
+	failed += _assert(FileAccess.get_file_as_string(path).to_lower().find("warden") < 0, "no Briar Warden left in beasts.json")
+	# Variants: tier 1 is about +30% (at least +1), poison x1.3 (at least +2). Others +50% / +2.
+	var vrule: Dictionary = data.get("variant_rule", {}) as Dictionary
+	var dark_want: Dictionary = {"acorn_imp_dark": [48, 46, 5], "spore_moth_dark": [61, 49, 5]}
+	var variants: Array = data.get("variants", []) as Array
+	failed += _assert(variants.size() == dark_want.size(), "two dark variants by depth 15 (got %d)" % variants.size())
+	for var_v: Variant in variants:
+		var vrow: Dictionary = var_v as Dictionary
+		var vid: String = str(vrow.get("id", ""))
+		var base: Dictionary = by_id.get(str(vrow.get("variant_of", "")), {}) as Dictionary
+		failed += _assert(not base.is_empty() and dark_want.has(vid), "variant %s has a known base" % vid)
+		if base.is_empty() or not dark_want.has(vid):
+			continue
+		var tier_rule: Dictionary = (vrule.get("tier_1", {}) if int(base.get("tier", 0)) == 1 else vrule.get("default", {})) as Dictionary
+		for stat_v: Variant in vrule.get("stats", []) as Array:
+			var b: int = int(base.get(str(stat_v), 0))
+			var want_stat: int = maxi(b + int(tier_rule.get("stat_min_add", 0)), _half_up(float(b) * float(tier_rule.get("stat_mult", 1.0))))
+			failed += _assert(int(vrow.get(str(stat_v), 0)) == want_stat, "%s %s follows the variant rule" % [vid, str(stat_v)])
+		var bmove: Variant = base.get("move", null)
+		if bmove is Dictionary and str((bmove as Dictionary).get("kind", "")) == "poison":
+			var bt: int = int((bmove as Dictionary).get("total", 0))
+			var want_p: int = maxi(bt + int(tier_rule.get("poison_min_add", 0)), _half_up(float(bt) * float(tier_rule.get("poison_mult", 1.0))))
+			failed += _assert(int(((vrow.get("move", {}) as Dictionary)).get("total", 0)) == want_p, "%s poison follows the variant rule" % vid)
+		failed += _assert(int(_beast_threat(vrow, rule)["threat"]) == int(vrow.get("threat", 0)), "%s threat recomputes (%d vs %d)" % [vid, int(_beast_threat(vrow, rule)["threat"]), int(vrow.get("threat", 0))])
+		failed += _assert(int(vrow.get("threat", 0)) == int(dark_want[vid][0]) and int(vrow.get("hp", 0)) == int(dark_want[vid][1]), "%s matches the §10 note" % vid)
+		failed += _assert(int(vrow.get("from_depth", 0)) == int(dark_want[vid][2]), "%s first spawns at depth 5" % vid)
+		failed += _assert(strings.has(str(vrow.get("name_key", ""))), "%s name string" % vid)
+	# Resolver fixtures (job 8): exported from the poison-refresh sim, and the §4 example uses this imp.
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	failed += _assert(not cases.is_empty(), "tests/fixtures/resolver_cases.json parses")
+	if not cases.is_empty():
+		failed += _assert(str((cases.get("source", {}) as Dictionary).get("poison", "")).begins_with("refresh"), "fixtures come from the poison-refresh sim")
+		var imp: Dictionary = by_id.get("acorn_imp", {}) as Dictionary
+		var seen_example: bool = false
+		for case_v: Variant in cases.get("strikes", []) as Array:
+			var c: Dictionary = case_v as Dictionary
+			var ex: Dictionary = c.get("expect", {}) as Dictionary
+			failed += _assert(ex.has("band") and ex.has("damage") and ex.has("margin"), "fixture %s has an expected result" % str(c.get("id", "")))
+			if str(c.get("id", "")) == "s4_line1":
+				seen_example = true
+				var d: Dictionary = c.get("defender", {}) as Dictionary
+				failed += _assert(int(d.get("mig", 0)) == int(imp.get("might", -1)) and int(d.get("res", 0)) == int(imp.get("resilience", -1)) and int(d.get("hp", 0)) == int(imp.get("hp", -1)), "the §4 example imp matches beasts.json")
+				failed += _assert(str(ex.get("band", "")) == "crush" and int(ex.get("damage", 0)) == 24, "the §4 example opens with a crushing blow for 24")
+		failed += _assert(seen_example, "the §4 worked example is in the fixtures")
+		var one_poison: bool = true
+		for step_v: Variant in cases.get("poison_refresh", []) as Array:
+			if ((step_v as Dictionary).get("ticks_left", []) as Array).size() > 3:
+				one_poison = false
+		failed += _assert(one_poison and (cases.get("poison_refresh", []) as Array).size() > 0, "fixture poison never stacks past one 3-tick poison")
+	if failed == 0:
+		print("BEAST_DATA_OK")
+	return failed
+
+
+func _room_budget(depth: int, budget: Dictionary) -> int:
+	if depth <= 10:
+		return int(budget.get("base", 0)) + int(budget.get("per_depth_to_10", 0)) * (depth - 1)
+	return int(budget.get("at_10", 0)) + int(budget.get("per_depth_after_10", 0)) * (depth - 10)
+
+
+func _spawn_table_for(depth: int, tables: Array) -> Array:
+	## The latest table at or below the depth.
+	var best: Array = []
+	for t_v: Variant in tables:
+		var t: Dictionary = t_v as Dictionary
+		if int(t.get("depth", 0)) <= depth:
+			best = t.get("weights", []) as Array
+	return best
+
+
+func _room_compositions(pool: Array[Dictionary], budget: int, max_beasts: int) -> Array[String]:
+	## Distinct maximal rooms: nothing else fits, or the room is full. Same rule as compositions().
+	var found: Dictionary = {}
+	_room_rec(pool, budget, max_beasts, 0, [], 0, found)
+	var keys: Array[String] = []
+	for k: Variant in found.keys():
+		keys.append(str(k))
+	keys.sort()
+	return keys
+
+
+func _room_rec(pool: Array[Dictionary], budget: int, max_beasts: int, start: int, chosen: Array, total: int, found: Dictionary) -> void:
+	var rem: int = budget - total
+	if not chosen.is_empty():
+		var nothing_fits: bool = true
+		for b: Dictionary in pool:
+			if int(b["threat"]) <= rem:
+				nothing_fits = false
+		if chosen.size() == max_beasts or nothing_fits:
+			var ids: Array = chosen.duplicate()
+			ids.sort()
+			found[",".join(PackedStringArray(ids))] = true
+			return
+	for i: int in range(start, pool.size()):
+		var b: Dictionary = pool[i]
+		if total + int(b["threat"]) <= budget:
+			var next: Array = chosen.duplicate()
+			next.append(str(b["id"]))
+			_room_rec(pool, budget, max_beasts, i, next, total + int(b["threat"]), found)
+
+
+func _spawn_data(_tree_root: Window) -> int:
+	## data/spawn_tables.json carries the §10 budget curve and per-depth weights. Every beast exists and
+	## may spawn at that depth, the room counts match the draft, and Amberbind is never a bonus drop.
+	var failed: int = 0
+	var data: Dictionary = _json_dict("res://data/spawn_tables.json")
+	var beasts: Dictionary = _json_dict("res://data/beasts.json")
+	failed += _assert(not data.is_empty() and not beasts.is_empty(), "spawn_tables.json and beasts.json parse")
+	if data.is_empty() or beasts.is_empty():
+		return failed
+	var by_id: Dictionary = {}
+	for row_v: Variant in (beasts.get("species", []) as Array) + (beasts.get("variants", []) as Array):
+		by_id[str((row_v as Dictionary).get("id", ""))] = row_v
+	var budget: Dictionary = data.get("budget", {}) as Dictionary
+	var fill: Dictionary = data.get("fill", {}) as Dictionary
+	var max_beasts: int = int(fill.get("max_beasts", 0))
+	failed += _assert(max_beasts == 6, "rooms hold up to 6 beasts")
+	failed += _assert(is_equal_approx(float(fill.get("variety_bias", 0.0)), 2.0), "variety bias x2")
+	# The §10 table: depth -> [budget, weights, different rooms].
+	var want: Dictionary = {
+		1: [90, "acorn_imp:1,spore_moth:1", 3],
+		3: [94, "acorn_imp:8,spore_moth:8,wilt_wisp:1,root_snapper:1", 10],
+		5: [98, "acorn_imp:12,spore_moth:12,wilt_wisp:4,root_snapper:4,acorn_imp_dark:1,spore_moth_dark:1", 16],
+		8: [104, "acorn_imp:4,spore_moth:4,wilt_wisp:6,root_snapper:6,acorn_imp_dark:1,spore_moth_dark:1", 16],
+		10: [108, "acorn_imp:2,spore_moth:2,wilt_wisp:6,root_snapper:6,acorn_imp_dark:2,spore_moth_dark:1", 19],
+		12: [120, "wilt_wisp:4,root_snapper:4,acorn_imp_dark:2,spore_moth_dark:1,thorn_boar:1,vine_serpent:1", 20],
+		15: [138, "wilt_wisp:3,root_snapper:3,acorn_imp_dark:2,spore_moth_dark:2,thorn_boar:2,vine_serpent:2", 21],
+	}
+	var tables: Array = data.get("tables", []) as Array
+	failed += _assert(tables.size() == want.size(), "seven spawn tables (got %d)" % tables.size())
+	var last_depth: int = 0
+	for t_v: Variant in tables:
+		var t: Dictionary = t_v as Dictionary
+		var depth: int = int(t.get("depth", 0))
+		failed += _assert(depth > last_depth, "tables are in depth order (%d)" % depth)
+		last_depth = depth
+		failed += _assert(want.has(depth), "table at depth %d is in the draft" % depth)
+		if not want.has(depth):
+			continue
+		var b: int = _room_budget(depth, budget)
+		failed += _assert(b == int(want[depth][0]), "budget at depth %d is %d (got %d)" % [depth, int(want[depth][0]), b])
+		var parts: PackedStringArray = []
+		var pool: Array[Dictionary] = []
+		var cheapest: int = 1 << 30
+		for w_v: Variant in t.get("weights", []) as Array:
+			var w: Dictionary = w_v as Dictionary
+			var bid: String = str(w.get("beast", ""))
+			parts.append("%s:%d" % [bid, int(w.get("weight", 0))])
+			failed += _assert(int(w.get("weight", 0)) > 0, "depth %d weight for %s is positive" % [depth, bid])
+			failed += _assert(by_id.has(bid), "depth %d beast %s is in beasts.json" % [depth, bid])
+			if not by_id.has(bid):
+				continue
+			var row: Dictionary = by_id[bid]
+			failed += _assert(int(row.get("from_depth", 99)) <= depth, "%s may spawn at depth %d" % [bid, depth])
+			cheapest = mini(cheapest, int(row.get("threat", 0)))
+			pool.append({"id": bid, "threat": int(row.get("threat", 0))})
+		failed += _assert(",".join(parts) == str(want[depth][1]), "depth %d weights match the draft (%s)" % [depth, ",".join(parts)])
+		failed += _assert(cheapest <= b, "a beast fits the depth %d budget" % depth)
+		var rooms: Array[String] = _room_compositions(pool, b, max_beasts)
+		failed += _assert(rooms.size() == int(want[depth][2]), "depth %d has %d different rooms (got %d)" % [depth, int(want[depth][2]), rooms.size()])
+	# Spawn-roller oracle (job 8): the sim's compositions() per depth match this data exactly.
+	var comps: Dictionary = _json_dict("res://tests/fixtures/resolver_compositions.json")
+	failed += _assert(not comps.is_empty() and (comps.get("depths", []) as Array).size() >= 7, "tests/fixtures/resolver_compositions.json parses")
+	for dep_v: Variant in comps.get("depths", []) as Array:
+		var dep: Dictionary = dep_v as Dictionary
+		var depth: int = int(dep.get("depth", 0))
+		var b: int = _room_budget(depth, budget)
+		failed += _assert(b == int(dep.get("budget", -1)), "fixture budget at depth %d" % depth)
+		var pool: Array[Dictionary] = []
+		for w_v: Variant in _spawn_table_for(depth, tables):
+			var bid: String = str((w_v as Dictionary).get("beast", ""))
+			pool.append({"id": bid, "threat": int((by_id.get(bid, {}) as Dictionary).get("threat", 0))})
+		var mine: Array[String] = _room_compositions(pool, b, max_beasts)
+		var theirs: Array[String] = []
+		for room_v: Variant in dep.get("rooms", []) as Array:
+			theirs.append(",".join(PackedStringArray((room_v as Dictionary).get("beasts", []) as Array)))
+		theirs.sort()
+		failed += _assert(str(mine) == str(theirs) and int(dep.get("count", -1)) == theirs.size(), "depth %d rooms match the sim's compositions() (%d vs %d)" % [depth, mine.size(), theirs.size()])
+	failed += _assert(_room_budget(1, budget) == 90 and _room_budget(10, budget) == 108 and _room_budget(15, budget) == 138, "budget 90 / 108 / 138 at depth 1 / 10 / 15")
+	failed += _assert(_spawn_table_for(2, tables).size() == 2 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
+	# Loot: Amberbind stays the manual jackpot. Job 23 numbers (approved 2026-10-10) are checked below.
+	var loot: Dictionary = data.get("loot", {}) as Dictionary
+	failed += _assert(is_equal_approx(float(loot.get("bonus_drop_chance", 0.0)), 0.10), "bonus drop chance stays 10%")
+	failed += _assert(str(loot.get("manual_jackpot", "")) == "amberbind", "Amberbind is the manual jackpot")
+	failed += _assert((loot.get("bonus_drop_never", []) as Array).has("amberbind"), "Amberbind is listed as never a bonus drop")
+	var contents: Variant = loot.get("bonus_drop_contents", null)
+	failed += _assert(contents == null or JSON.stringify(contents).find("amberbind") < 0, "bonus-drop contents carry no Amberbind")
+	failed += _spawn_data_job23(loot)
+	if failed == 0:
+		print("SPAWN_DATA_OK")
+	return failed
+
+
+func _spawn_int_list(values: Variant) -> Array[int]:
+	var out: Array[int] = []
+	if values is Array:
+		for v: Variant in values as Array:
+			out.append(int(v))
+	return out
+
+
+func _spawn_data_job23(loot: Dictionary) -> int:
+	## Job 23a: the approved depth curve, herbs by depth and bonus-drop tables.
+	var failed: int = 0
+	var curve: Dictionary = loot.get("depth_curve", {}) as Dictionary
+	var a: float = float(curve.get("a", -1.0))
+	failed += _assert(is_equal_approx(a, 0.25), "depth curve g(D) = 1 + 0.25 log2(D)")
+	var g16: float = 1.0 + a * (log(16.0) / log(2.0))
+	failed += _assert(is_equal_approx(g16, 2.0), "g(16) = 2")
+	var herbs: Dictionary = loot.get("herbs_by_depth", {}) as Dictionary
+	var base: Dictionary = herbs.get("base", {}) as Dictionary
+	var solo: Dictionary = base.get("solo", {}) as Dictionary
+	var duo: Dictionary = base.get("duo", {}) as Dictionary
+	failed += _assert(int(solo.get("guaranteed", -1)) == 0 and is_equal_approx(float(solo.get("bonus_chance", 0.0)), 0.5) and is_equal_approx(float(solo.get("avg", 0.0)), 0.5), "herbs solo 0-1 at 50%")
+	failed += _assert(int(duo.get("guaranteed", -1)) == 1 and is_equal_approx(float(duo.get("bonus_chance", 0.0)), 0.5) and is_equal_approx(float(duo.get("avg", 0.0)), 1.5), "herbs duo 1-2")
+	failed += _assert(str(herbs.get("types", [])) == str(["glowcap", "bitterroot"]) and _spawn_int_list(herbs.get("type_weights", [])) == [50, 50], "each herb is Glowcap or Bitterroot, 50/50")
+	failed += _assert(str(herbs.get("extra_rule", "")).find("frac(x)") >= 0, "herb extra rule: floor(x) plus frac(x) chance")
+	var briar: Dictionary = loot.get("briarwood", {}) as Dictionary
+	failed += _assert(briar.has("scales_with_depth") and not bool(briar.get("scales_with_depth", true)), "Briarwood stays flat by depth")
+	var bonus: Dictionary = loot.get("bonus_drop_contents", {}) as Dictionary
+	failed += _assert(int(bonus.get("boss_mult", 0)) == 2 and bonus.has("party_size_scales") and not bool(bonus.get("party_size_scales", true)), "boss rooms double the bundle; party size doesn't change it")
+	var bands: Array = bonus.get("depth_bands", []) as Array
+	failed += _assert(bands.size() == 3 and int((bands[0] as Dictionary).get("max_depth", 0)) == 4 and int((bands[1] as Dictionary).get("min_depth", 0)) == 5 and int((bands[1] as Dictionary).get("max_depth", 0)) == 14 and int((bands[2] as Dictionary).get("min_depth", 0)) == 15 and (bands[2] as Dictionary).get("max_depth", 0) == null, "bands D1-4 / D5-14 / D15+")
+	var want: Dictionary = {
+		"raw": [["wood", "stone", "food"], 15, [50, 30, 15]],
+		"refined": [["wooden_planks", "stone_fragments"], 3, [25, 30, 30]],
+		"fertilizer": [["fertilizer"], 1, [15, 15, 15]],
+		"forge_material": [["sapsteel", "heartwood_bits"], 1, [0, 15, 25]],
+		"herbs": [["glowcap", "bitterroot"], 2, [10, 10, 15]],
+	}
+	var groups: Array = bonus.get("groups", []) as Array
+	failed += _assert(groups.size() == want.size(), "five bonus-drop groups")
+	var sums: Array[int] = [0, 0, 0]
+	for group_v: Variant in groups:
+		var group: Dictionary = group_v as Dictionary
+		var gid: String = str(group.get("id", ""))
+		failed += _assert(want.has(gid), "known bonus group %s" % gid)
+		if not want.has(gid):
+			continue
+		var row: Array = want[gid] as Array
+		failed += _assert(str(group.get("items", [])) == str(row[0]) and int(group.get("base_qty", -1)) == int(row[1]) and _spawn_int_list(group.get("weights", [])) == _spawn_int_list(row[2]), "bonus group %s items, base and weights" % gid)
+		var weights: Array = group.get("weights", []) as Array
+		for i: int in mini(3, weights.size()):
+			sums[i] += int(weights[i])
+	failed += _assert(sums == [100, 100, 100], "each depth band's weights sum to 100 (%s)" % str(sums))
+	# qty = round_half_up(base * g(D)): raw at depth 1 = 15, depth 4 = 23 (22.5 rounds up), depth 16 = 30.
+	var qty: Callable = func(b: int, depth: int) -> int: return int(floor(float(b) * (1.0 + a * (log(float(depth)) / log(2.0))) + 0.5))
+	failed += _assert(qty.call(15, 1) == 15 and qty.call(15, 4) == 23 and qty.call(15, 16) == 30 and qty.call(1, 4) == 2, "bundle qty rounds half up on g(D)")
+	var never: Array = loot.get("bonus_drop_never", []) as Array
+	failed += _assert(never.has("amberbind") and never.has("essence"), "no Amberbind and no Essence in bonus drops")
+	failed += _assert(JSON.stringify(bonus).find("essence") < 0, "bonus-drop contents carry no Essence")
+	return failed
+
+
+func _spawn_room_key(room: Array) -> String:
+	var ids: PackedStringArray = PackedStringArray()
+	for e_v: Variant in room:
+		var e: Dictionary = e_v as Dictionary
+		ids.append(str(e.get("beast", "")))
+	ids.sort()
+	return ",".join(ids)
+
+
+func _spawn_room_threat(room: Array) -> int:
+	var total: int = 0
+	for e_v: Variant in room:
+		total += int((e_v as Dictionary).get("threat", 0))
+	return total
+
+
+func _spawn_attack_by_id() -> Dictionary:
+	var beasts: Dictionary = _json_dict("res://data/beasts.json")
+	var by_id: Dictionary = {}
+	for row_v: Variant in (beasts.get("species", []) as Array) + (beasts.get("variants", []) as Array):
+		var row: Dictionary = row_v as Dictionary
+		by_id[str(row.get("id", ""))] = str(row.get("attack", "physical"))
+	return by_id
+
+
+func _spawn_roller(_tree_root: Window) -> int:
+	## SpawnRoller matches the sim oracle in tests/fixtures/resolver_compositions.json and roll_room rows.
+	var failed: int = 0
+	var fixture: Dictionary = _json_dict("res://tests/fixtures/resolver_compositions.json")
+	failed += _assert(not fixture.is_empty(), "resolver_compositions.json parses")
+	if fixture.is_empty():
+		return failed
+	var by_attack: Dictionary = _spawn_attack_by_id()
+	var beasts: Dictionary = _json_dict("res://data/beasts.json")
+	var threat_by_id: Dictionary = {}
+	for row_v: Variant in (beasts.get("species", []) as Array) + (beasts.get("variants", []) as Array):
+		var row: Dictionary = row_v as Dictionary
+		threat_by_id[str(row.get("id", ""))] = int(row.get("threat", 0))
+	var depths: Array = fixture.get("depths", []) as Array
+	for dep_v: Variant in depths:
+		var dep: Dictionary = dep_v as Dictionary
+		var depth: int = int(dep.get("depth", 0))
+		failed += _assert(SpawnRoller.budget(depth) == int(dep.get("budget", -1)), "budget at depth %d" % depth)
+		var mine: Array = SpawnRoller.compositions(depth)
+		var theirs: Array = []
+		for room_v: Variant in dep.get("rooms", []) as Array:
+			var room: Dictionary = room_v as Dictionary
+			theirs.append(room.get("beasts", []))
+			var threat_sum: int = 0
+			for id_v: Variant in room.get("beasts", []) as Array:
+				threat_sum += int(threat_by_id.get(str(id_v), 0))
+			failed += _assert(threat_sum == int(room.get("threat", -1)), "fixture threat at depth %d" % depth)
+		failed += _assert(str(mine) == str(theirs) and mine.size() == int(dep.get("count", -1)), "compositions at depth %d" % depth)
+	var oracle_depths: Array[int] = [1, 3, 8, 15]
+	for depth: int in oracle_depths:
+		var room_budget: int = SpawnRoller.budget(depth)
+		var beast_floor: int = SpawnRoller.beast_fill_floor(depth)
+		for seed: int in range(300):
+			var room: Array = SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(seed))
+			failed += _assert(room.size() <= 6, "depth %d seed %d at most 6 beasts" % [depth, seed])
+			var beast_spent: int = _spawn_room_threat(room)
+			failed += _assert(beast_spent <= room_budget, "depth %d seed %d within budget" % [depth, seed])
+			if beast_floor > 0:
+				failed += _assert(beast_spent >= beast_floor, "depth %d seed %d beasts reach %d%% floor" % [depth, seed, 90])
+			var phys: int = 0
+			var mag: int = 0
+			for e_v: Variant in room:
+				var e: Dictionary = e_v as Dictionary
+				var atk: String = str(by_attack.get(str(e.get("beast", "")), "physical"))
+				if atk == "magic":
+					mag += 1
+				else:
+					phys += 1
+				failed += _assert(int(e.get("slot", -1)) >= 0 and int(e.get("slot", -1)) < room.size(), "slot in range depth %d" % depth)
+			for e_v: Variant in room:
+				var e: Dictionary = e_v as Dictionary
+				var atk: String = str(by_attack.get(str(e.get("beast", "")), "physical"))
+				var row: String = str(e.get("row", ""))
+				if atk != "magic" and phys <= 3:
+					failed += _assert(row == "front", "physical in front depth %d seed %d" % [depth, seed])
+				if atk == "magic" and mag <= 3:
+					failed += _assert(row == "back", "magic in back depth %d seed %d" % [depth, seed])
+			for i: int in range(room.size()):
+				var found: bool = false
+				for e_v: Variant in room:
+					if int((e_v as Dictionary).get("slot", -1)) == i:
+						found = true
+				failed += _assert(found, "slot %d present depth %d seed %d" % [i, depth, seed])
+	var saw_rare: bool = false
+	for seed: int in range(2000):
+		var room: Array = SpawnRoller.roll_room(3, SpawnRoller.room_seed_rng(seed))
+		for e_v: Variant in room:
+			var bid: String = str((e_v as Dictionary).get("beast", ""))
+			if bid == "wilt_wisp" or bid == "root_snapper":
+				saw_rare = true
+	failed += _assert(saw_rare, "depth 3 draws wilt_wisp or root_snapper over 2000 seeds")
+	if failed == 0:
+		print("SPAWN_ROLLER_OK")
+	return failed
+
+
+func _spawn_seed(_tree_root: Window) -> int:
+	var failed: int = 0
+	for seed: int in range(3):
+		var a: Array = SpawnRoller.roll_room(3, SpawnRoller.room_seed_rng(42))
+		var b: Array = SpawnRoller.roll_room(3, SpawnRoller.room_seed_rng(42))
+		failed += _assert(str(a) == str(b), "room seed 42 repeats")
+	var keys: Dictionary = {}
+	for seed: int in range(50):
+		keys[_spawn_room_key(SpawnRoller.roll_room(17, SpawnRoller.room_seed_rng(seed)))] = true
+	failed += _assert(keys.size() >= 2, "depth 17 varies across 50 consecutive room seeds")
+	for seed: int in range(20):
+		var room: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(500 + seed), true)
+		var bosses: int = 0
+		var best_i: int = -1
+		for i: int in room.size():
+			if bool((room[i] as Dictionary).get("boss", false)):
+				bosses += 1
+		for i: int in room.size():
+			var cur: Dictionary = room[i] as Dictionary
+			if best_i < 0:
+				best_i = i
+				continue
+			var best: Dictionary = room[best_i] as Dictionary
+			if int(cur.get("threat", 0)) > int(best.get("threat", 0)):
+				best_i = i
+			elif int(cur.get("threat", 0)) == int(best.get("threat", 0)) and int(cur.get("slot", 0)) < int(best.get("slot", 0)):
+				best_i = i
+		failed += _assert(bosses == 1, "exactly one boss flag")
+		failed += _assert(bool((room[best_i] as Dictionary).get("boss", false)), "boss is highest threat (lowest slot on ties)")
+	const PIN_DEPTH: int = 5
+	var pin_1: Array = [
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
+	]
+	var pin_2: Array = [
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
+	]
+	var pin_1000: Array = [
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
+	]
+	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1))) == str(pin_1), "pinned room seed 1 depth 5")
+	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(2))) == str(pin_2), "pinned room seed 2 depth 5")
+	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1000))) == str(pin_1000), "pinned room seed 1000 depth 5")
+	if failed == 0:
+		print("SPAWN_SEED_OK")
+	return failed
+
+
+func _swarm_front_count(room: Array) -> int:
+	var n: int = 0
+	for entry_v: Variant in room:
+		if str((entry_v as Dictionary).get("row", "")) == "front":
+			n += 1
+	return n
+
+
+func _swarm_beast(species: String, row_name: String, slot: int, threat: int) -> Dictionary:
+	return {"beast": species, "row": row_name, "slot": slot, "boss": false, "threat": threat}
+
+
+func _swarm_copy_room(rows: Array) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for entry_v: Variant in rows:
+		out.append((entry_v as Dictionary).duplicate(true))
+	return out
+
+
+func _room_fill_ok(_tree_root: Window) -> int:
+	## Beasts fill to the 90% floor when possible; swarms use the same depth budget as Reach.depth.
+	var failed: int = 0
+	failed += _assert(SpawnRoller.budget(1) == 85, "budget depth 1")
+	failed += _assert(SpawnRoller.budget(10) == 121, "budget depth 10")
+	failed += _assert(SpawnRoller.budget(20) == 181, "budget depth 20")
+	failed += _assert(SpawnRoller.budget(21) == 189, "budget depth 21")
+	failed += _assert(SpawnRoller.budget(30) == 261, "budget depth 30")
+	var imp_pair: Array = [
+		{"beast": "acorn_imp", "threat": 33, "attack": "physical"},
+		{"beast": "acorn_imp_dark", "threat": 48, "attack": "physical"},
+	]
+	failed += _assert(SpawnRoller.species_variety_count(imp_pair) == 1, "imp and dark imp are one species")
+	var mixed_species: Array = [
+		{"beast": "acorn_imp", "threat": 33, "attack": "physical"},
+		{"beast": "spore_moth", "threat": 44, "attack": "magic"},
+	]
+	failed += _assert(SpawnRoller.species_variety_count(mixed_species) == 2, "imp and moth are two species")
+	var depth5_floor: int = SpawnRoller.beast_fill_floor(5)
+	failed += _assert(depth5_floor > 0, "depth 5 has a 90% beast floor")
+	var variety_seed: int = -1
+	for probe: int in range(200):
+		var room5: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(probe))
+		var species: Dictionary = {}
+		for entry_v: Variant in room5:
+			var bid: String = str((entry_v as Dictionary).get("beast", ""))
+			species[SpawnRoller.species_key(bid)] = true
+		failed += _assert(species.size() >= 2, "depth 5 seed %d keeps 2+ species over 1-species high-threat pairs" % probe)
+		var threat5: int = _spawn_room_threat(room5)
+		if threat5 < 99 and variety_seed < 0:
+			variety_seed = probe
+	failed += _assert(variety_seed >= 0, "depth 5 has a legal sub-max-threat room (variety tier)")
+	var d12_keys: Array[String] = SpawnRoller.floor_beast_combo_keys(12)
+	failed += _assert(d12_keys.size() > 1, "depth 12 has more than one qualifying beast set (got %d)" % d12_keys.size())
+	var d12_rolls: Dictionary = {}
+	for seed: int in range(80):
+		d12_rolls[_spawn_room_key(SpawnRoller.roll_room(12, SpawnRoller.room_seed_rng(seed)))] = true
+	failed += _assert(d12_rolls.size() >= 2, "depth 12 seeded rolls vary (got %d compositions)" % d12_rolls.size())
+	for depth: int in range(1, 21):
+		var floor90: int = SpawnRoller.beast_fill_floor(depth)
+		var room_budget: int = SpawnRoller.budget(depth)
+		for seed: int in range(60):
+			var beasts: Array = SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(seed))
+			var beast_spent: int = _spawn_room_threat(beasts)
+			if floor90 > 0:
+				failed += _assert(beast_spent >= floor90, "depth %d seed %d beasts %d below floor %d" % [depth, seed, beast_spent, floor90])
+			var mixed: Array = SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(seed))
+			var spent: int = _swarm_threat_sum(mixed)
+			failed += _assert(spent <= room_budget, "depth %d seed %d total %d over budget %d" % [depth, seed, spent, room_budget])
+		var floor_check: int = SpawnRoller.beast_fill_floor(depth)
+		if floor_check > 0:
+			failed += _assert(floor_check == int(ceil(0.9 * float(SpawnRoller.budget(depth)))), "depth %d 90%% floor tracks budget" % depth)
+	if failed == 0:
+		print("ROOM_FILL_OK")
+	return failed
+
+
+func _swarm_spawn(tree_root: Window) -> int:
+	## Filler only: beasts keep their slots; one swarm grows to 10 before another opens.
+	var failed: int = 0
+	var beasts: Dictionary = _json_dict("res://data/beasts.json")
+	var species_ids: Dictionary = {}
+	for row_v: Variant in beasts.get("species", []) as Array:
+		species_ids[str((row_v as Dictionary).get("id", ""))] = true
+	failed += _assert(not species_ids.has("foe_mossmite"), "Mossmites are not a spawn-table species")
+	var fillers: Array = beasts.get("fillers", []) as Array
+	var moss: Dictionary = {}
+	for row_v: Variant in fillers:
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("id", "")) == "foe_mossmite":
+			moss = row
+	failed += _assert(str(moss.get("spawn_role", "")) == "filler", "Mossmites are filler only")
+	failed += _assert(int(moss.get("threat_open", 0)) == 7 and int(moss.get("threat_per_extra_bug", 0)) == 2, "open 7 and +2 per extra bug")
+	failed += _assert(int(moss.get("max_bugs", 0)) == 10 and int(moss.get("hp_per_bug", 0)) == 1, "cap 10, 1 HP per bug")
+	failed += _assert(str(moss.get("calm_threshold", "")) == "none" and not bool(moss.get("overkill_carry", true)), "dies at 0 HP and no overkill carry")
+	var tables: Dictionary = _json_dict("res://data/spawn_tables.json")
+	var listed: bool = false
+	for table_v: Variant in tables.get("tables", []) as Array:
+		for weight_v: Variant in (table_v as Dictionary).get("weights", []) as Array:
+			if str((weight_v as Dictionary).get("beast", "")) == "foe_mossmite":
+				listed = true
+	failed += _assert(not listed, "Mossmites are not in any SPAWN weight")
+	for depth: int in [1, 5, 10, 15]:
+		for row: Dictionary in SpawnRoller.table_for(depth):
+			failed += _assert(str(row.get("beast", "")) != "foe_mossmite", "table_for depth %d skips Mossmites" % depth)
+		for room_v: Variant in SpawnRoller.compositions(depth):
+			var ids: Array = room_v as Array
+			failed += _assert(not ids.has("foe_mossmite"), "compositions depth %d skip Mossmites" % depth)
+	var want_might: Array[int] = [-1, -1, 0, 0, 1, 1, 2, 2, 3, 3]
+	var want_res: Array[int] = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3]
+	for n: int in range(1, 11):
+		failed += _assert(SpawnRoller.mossmite_threat_for(n) == 7 + 2 * (n - 1), "threat for %d bugs" % n)
+		failed += _assert(SpawnRoller.mossmite_might(n) == want_might[n - 1], "might for %d bugs" % n)
+		failed += _assert(SpawnRoller.mossmite_res(n) == want_res[n - 1], "res for %d bugs" % n)
+		failed += _assert(SpawnRoller.mossmite_hp_for(n) == n, "hp pool for %d bugs" % n)
+	failed += _assert(SpawnRoller.mossmite_threat_for(10) == 25, "a full swarm costs 25")
+	var strings: Dictionary = _json_dict("res://data/strings_v01.json")
+	failed += _assert(str(strings.get("foe_mossmite_name", "")) == "Mossmites", "plural name")
+	failed += _assert(str(strings.get("foe_mossmite_name_one", "")) == "Mossmite", "singular name")
+	failed += _assert(str(strings.get("foe_mossmite_swarm", "")) == "{count} Mossmites", "swarm label template")
+	var desc: String = str(strings.get("foe_mossmite_desc", ""))
+	failed += _assert(desc == "Tiny moss-winged gnats that rise from the damp in clouds. They sting and pester, but they mean no real harm.", "Mossmite description is the approved line")
+	var cs: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null and str(cs.call("get_text", "foe_mossmite_swarm", {"count": 4})) == "4 Mossmites", "label fills the count")
+	failed += _assert(cs != null and str(cs.call("get_text", "foe_mossmite_desc")) == desc, "description reads through ContentStrings")
+	failed += _assert(FightState.swarm_count_label("foe_mossmite", 1) == "1 Mossmite", "one bug uses the singular")
+	failed += _assert(FightState.swarm_count_label("foe_mossmite", 4) == "4 Mossmites", "several bugs stay plural")
+	# One front beast: grow the first swarm to 10, then open a second swarm for the remainder.
+	var opened: Array[Dictionary] = [ _swarm_beast("acorn_imp", "front", 0, 33) ]
+	var five: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 35, _swarm_rng(1))
+	failed += _assert(five.size() == 3, "rem 35 fills one capped swarm plus a second")
+	failed += _assert(str(five[0].get("beast", "")) == "acorn_imp" and int(five[0].get("slot", -1)) == 0, "the beast keeps its slot")
+	failed += _assert(int(five[1].get("bugs", 0)) == 10 and int(five[1].get("threat", 0)) == 25, "first swarm caps at 10")
+	failed += _assert(int(five[2].get("bugs", 0)) == 2 and int(five[2].get("threat", 0)) == 9, "second swarm spends the rest")
+	failed += _assert(_swarm_threat_sum(five) == 67, "rem 35 spends down to a remainder under 2")
+	for seed: int in range(1, 41):
+		var grown: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(seed))
+		failed += _assert(grown.size() == 2 and int(grown[1].get("bugs", 0)) == 10 and _swarm_threat_sum(grown) == 58, "seed %d grows one 10-bug swarm" % seed)
+	var again: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(3))
+	var again_b: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(3))
+	failed += _assert(str(again) == str(again_b), "the same room seed grows the same swarm")
+	# Cap 10: one empty slot and enough threat for more than 10 bugs. The rest is discarded.
+	var packed: Array[Dictionary] = []
+	for i: int in range(3):
+		packed.append(_swarm_beast("acorn_imp", "front", i, 33))
+	for i: int in range(2):
+		packed.append(_swarm_beast("spore_moth", "back", 3 + i, 44))
+	var capped: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(packed), 47, _swarm_rng(2))
+	failed += _assert(capped.size() == 6 and _swarm_front_count(capped) == 3, "the tenth-bug swarm does not open a seventh slot or a fourth front")
+	var cap_sw: Dictionary = capped[5]
+	failed += _assert(str(cap_sw.get("beast", "")) == "foe_mossmite" and int(cap_sw.get("bugs", 0)) == 10 and int(cap_sw.get("threat", 0)) == 25, "one swarm grows to 10 for 25 and stops")
+	failed += _assert(str(cap_sw.get("row", "")) == "back", "front is already full, so the swarm sits in back")
+	var full: Array[Dictionary] = _swarm_copy_room(packed)
+	full.append(_swarm_beast("acorn_imp", "back", 5, 33))
+	var no_slot: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(full), 100, _swarm_rng(4))
+	failed += _assert(no_slot.size() == 6 and str(no_slot) == str(full), "six beasts and the leftover is discarded")
+	var poor: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 6, _swarm_rng(1))
+	failed += _assert(poor.size() == 1, "leftover under 7 opens nothing")
+	var odd: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 8, _swarm_rng(1))
+	failed += _assert(odd.size() == 2 and int(odd[1].get("bugs", 0)) == 1 and int(odd[1].get("threat", 0)) == 7, "a remainder under 2 is discarded")
+	var two: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 9, _swarm_rng(1))
+	failed += _assert(two.size() == 2 and int(two[1].get("bugs", 0)) == 2 and int(two[1].get("threat", 0)) == 9, "7 opens the swarm and +2 buys the second bug")
+	var fronts: Array[Dictionary] = []
+	for i: int in range(3):
+		fronts.append(_swarm_beast("acorn_imp", "front", i, 33))
+	var backs_only: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(fronts), 40, _swarm_rng(8))
+	failed += _assert(_swarm_front_count(backs_only) == 3, "swarms do not push the front row past 3")
+	for entry: Dictionary in backs_only:
+		if str(entry.get("beast", "")) == "foe_mossmite":
+			failed += _assert(str(entry.get("row", "")) == "back", "with 3 front beasts swarms open in back")
+	var backs: Array[Dictionary] = []
+	for i: int in range(3):
+		backs.append(_swarm_beast("spore_moth", "back", i, 44))
+	var fronts_only: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(backs), 21, _swarm_rng(8))
+	failed += _assert(fronts_only.size() == 4 and _swarm_front_count(fronts_only) == 1, "with no front beasts the swarm opens front and grows")
+	var lone_sw: Dictionary = fronts_only[3]
+	failed += _assert(str(lone_sw.get("beast", "")) == "foe_mossmite" and str(lone_sw.get("row", "")) == "front" and int(lone_sw.get("bugs", 0)) == 8, "one front swarm grows before a second opens")
+	for seed: int in [1, 2, 5, 1000]:
+		var plain: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(seed), true)
+		var boss_room: Array = SpawnRoller.roll_room_with_mossmites(5, SpawnRoller.room_seed_rng(seed), true)
+		failed += _assert(str(plain) == str(boss_room), "boss seed %d has no swarms" % seed)
+		for entry_v: Variant in boss_room:
+			failed += _assert(str((entry_v as Dictionary).get("beast", "")) != "foe_mossmite", "boss seed %d lists no Mossmite" % seed)
+	for depth: int in [1, 5, 10, 20]:
+		var room_budget: int = SpawnRoller.budget(depth)
+		for seed: int in range(40):
+			var base: Array = SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(seed), false)
+			var mixed: Array = SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(seed), false)
+			failed += _assert(mixed.size() >= base.size() and mixed.size() <= 6, "depth %d seed %d stays within 6 slots" % [depth, seed])
+			for i: int in range(base.size()):
+				var beast_row: Dictionary = mixed[i] as Dictionary
+				var orig: Dictionary = base[i] as Dictionary
+				failed += _assert(str(beast_row.get("beast", "")) == str(orig.get("beast", "")) and str(beast_row.get("row", "")) == str(orig.get("row", "")) and int(beast_row.get("slot", -1)) == int(orig.get("slot", -2)) and int(beast_row.get("threat", 0)) == int(orig.get("threat", -1)), "depth %d seed %d beast %d keeps its slot" % [depth, seed, i])
+			var seen_swarm: bool = false
+			var front_n: int = 0
+			var all_capped: bool = true
+			var swarm_n: int = 0
+			for i: int in range(mixed.size()):
+				var entry: Dictionary = mixed[i] as Dictionary
+				failed += _assert(int(entry.get("slot", -1)) == i, "depth %d seed %d slot index %d" % [depth, seed, i])
+				if str(entry.get("row", "")) == "front":
+					front_n += 1
+				var is_swarm: bool = str(entry.get("beast", "")) == "foe_mossmite"
+				if is_swarm:
+					seen_swarm = true
+					swarm_n += 1
+					var bugs: int = int(entry.get("bugs", 0))
+					failed += _assert(bugs >= 1 and bugs <= 10, "depth %d seed %d bugs %d" % [depth, seed, bugs])
+					failed += _assert(int(entry.get("threat", 0)) == SpawnRoller.mossmite_threat_for(bugs), "depth %d seed %d swarm threat" % [depth, seed])
+					failed += _assert(not bool(entry.get("boss", false)), "a swarm is never the boss")
+					if bugs < 10:
+						all_capped = false
+				elif seen_swarm:
+					failed += _assert(false, "depth %d seed %d lists a beast after a swarm" % [depth, seed])
+			failed += _assert(front_n <= 3, "depth %d seed %d front row is %d" % [depth, seed, front_n])
+			var spent: int = _swarm_threat_sum(mixed)
+			var beast_spent: int = _swarm_threat_sum(base)
+			failed += _assert(spent <= room_budget and spent >= beast_spent, "depth %d seed %d threat %d within %d" % [depth, seed, spent, room_budget])
+			var leftover: int = room_budget - spent
+			if swarm_n > 0 and not all_capped:
+				failed += _assert(leftover < 2, "depth %d seed %d discards only a remainder under 2 (left %d)" % [depth, seed, leftover])
+			elif swarm_n == 0:
+				var idle_left: int = room_budget - beast_spent
+				failed += _assert(base.size() >= 6 or idle_left < 7, "depth %d seed %d opened no swarm with room and threat left" % [depth, seed])
+	if failed == 0:
+		print("SWARM_SPAWN_OK")
+	return failed
+
+
+func _swarm_rng(seed_value: int) -> BattleRng:
+	var dice := BattleRng.new()
+	dice.set_seed(seed_value)
+	return dice
+
+
+func _swarm_threat_sum(room: Array) -> int:
+	var total: int = 0
+	for entry_v: Variant in room:
+		total += int((entry_v as Dictionary).get("threat", 0))
+	return total
+
+
+func _swarm_combat(tree_root: Window) -> int:
+	## HP is the bug pool. A lost bug updates the count, the sprite, and Res immediately.
+	## Damage past 0 HP is lost. The 10% Calmed rule does not apply.
+	var failed: int = 0
+	var fight := FightState.new()
+	fight.add_member("keeper", {
+		"might": 0, "arcana": 1, "resilience": 5, "ward": 5,
+		"vitality": 6, "swiftness": 4, "fate": 0, "attack": "physical",
+	}, 0, "front", "keeper")
+	fight.add_member("bruiser", {
+		"might": 30, "arcana": 1, "resilience": 5, "ward": 5,
+		"vitality": 6, "swiftness": 4, "fate": 0, "attack": "physical",
+	}, 1, "front", "bruiser")
+	var swarm_id: String = fight.add_beast("foe_mossmite", 0, "front", "", 10)
+	var acorn_id: String = fight.add_beast("acorn_imp", 1, "back")
+	failed += _assert(swarm_id == "foe_mossmite" and acorn_id == "acorn_imp", "swarm and acorn ids")
+	var row: Dictionary = fight.fighter_dict(swarm_id)
+	failed += _assert(int(row.get("hp", 0)) == 10 and int(row.get("max_hp", 0)) == 10 and int(row.get("bugs", 0)) == 10, "a 10-bug swarm has a 10 HP pool")
+	failed += _assert(int(row.get("might", 99)) == 3 and int(row.get("resilience", 99)) == 3, "full swarm might 3 res 3")
+	failed += _assert(int(row.get("ward", 0)) == 2 and int(row.get("swiftness", 0)) == 4 and int(row.get("fate", 1)) == 0, "ward 2, swift 4, fate 0")
+	failed += _assert(str(row.get("attack", "")) == "physical" and str(row.get("status", "")) == "active", "physical strike, still fighting at full HP")
+	failed += _assert(fight.display_name(swarm_id) == "10 Mossmites", "label is 10 Mossmites")
+	var acorn_hp: int = int(fight.fighter_dict(acorn_id).get("hp", 0))
+	fight.set_scripted_dice([6, 1, 1, 1, 1])
+	var nick: Dictionary = fight.strike("keeper", swarm_id)
+	row = fight.fighter_dict(swarm_id)
+	if int(row.get("hp", -1)) != 9:
+		print("SWARM nick blow %s" % str(nick))
+	failed += _assert(int(nick.get("damage", 0)) == 1 and int(row.get("hp", 0)) == 9 and int(row.get("bugs", 0)) == 9, "one point of damage removes one bug")
+	failed += _assert(int(row.get("resilience", -1)) == 3 and int(row.get("might", 99)) == 3 and str(row.get("status", "")) == "active", "9 bugs still have res 3 and keep fighting")
+	failed += _assert(fight.display_name(swarm_id) == "9 Mossmites", "label updates to 9 Mossmites")
+	fight.set_hp(swarm_id, 8)
+	row = fight.fighter_dict(swarm_id)
+	failed += _assert(int(row.get("bugs", 0)) == 8 and int(row.get("resilience", -1)) == 2 and int(row.get("might", 99)) == 2, "Res updates as soon as the eighth bug is the last one lost")
+	fight.set_hp(swarm_id, 1)
+	row = fight.fighter_dict(swarm_id)
+	failed += _assert(int(row.get("hp", 0)) == 1 and int(row.get("bugs", 0)) == 1 and int(row.get("resilience", -1)) == 0 and int(row.get("might", 0)) == -1, "one bug left: might -1, res 0")
+	failed += _assert(str(row.get("status", "")) == "active" and fight.legal_targets("keeper").has(swarm_id), "1 HP of 10 still acts; the 10% Calmed rule does not apply")
+	failed += _assert(fight.display_name(swarm_id) == "1 Mossmite", "one bug uses the singular name")
+	var saved: Dictionary = fight.to_dict()
+	var loaded: FightState = FightState.from_dict(saved)
+	var loaded_row: Dictionary = loaded.fighter_dict(swarm_id)
+	failed += _assert(int(loaded_row.get("hp", 0)) == 1 and int(loaded_row.get("bugs", 0)) == 1 and int(loaded_row.get("resilience", -1)) == 0 and str(loaded_row.get("status", "")) == "active", "a saved 1-bug swarm stays active")
+	fight.set_hp(swarm_id, 2)
+	var acorn_before: int = int(fight.fighter_dict(acorn_id).get("hp", 0))
+	fight.set_scripted_dice([6, 6, 1, 1, 10])
+	var crush: Dictionary = fight.strike("bruiser", swarm_id)
+	row = fight.fighter_dict(swarm_id)
+	failed += _assert(int(crush.get("damage", -1)) == 2 and int(row.get("hp", -1)) == 0 and int(row.get("bugs", -1)) == 0, "a killing blow spends only the HP the swarm had")
+	failed += _assert(int(crush.get("defender_hp_after", -1)) == 0 and str(row.get("status", "")) == "calmed", "the swarm is out at 0 HP and HP does not go negative")
+	failed += _assert(int(fight.fighter_dict(acorn_id).get("hp", 0)) == acorn_before and acorn_before == acorn_hp, "extra damage does not carry to the other foe")
+	failed += _assert(not fight.legal_targets("bruiser").has(swarm_id), "a dead swarm is not a target")
+	for n: int in range(1, 11):
+		for pose: String in ["idle", "attack", "hurt"]:
+			var path: String = BattleView.mossmite_sprite_path(n, pose)
+			failed += _assert(FileAccess.file_exists(path), "sprite %s" % path)
+	var packed: PackedScene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+	failed += _assert(packed != null, "battle scene")
+	if packed == null:
+		return failed
+	var view: BattleView = packed.instantiate() as BattleView
+	failed += _assert(view != null, "battle view")
+	if view == null:
+		return failed
+	tree_root.add_child(view)
+	await process_frame
+	var shown := FightState.new()
+	shown.add_member("keeper", {
+		"might": 8, "arcana": 1, "resilience": 5, "ward": 5,
+		"vitality": 6, "swiftness": 4, "fate": 0, "attack": "physical",
+	}, 0, "front", "keeper")
+	var shown_id: String = shown.add_beast("foe_mossmite", 0, "front", "", 10)
+	view.show_fight(shown)
+	await process_frame
+	var plate: Label = view.get_node_or_null("Arena/Plates/BeastPlate_%s/NameLabel" % shown_id) as Label
+	if plate == null:
+		plate = _swarm_name_label(view, shown_id)
+	failed += _assert(plate != null and plate.text.find("10 Mossmites") >= 0, "plate reads 10 Mossmites (got %s)" % (plate.text if plate != null else "missing"))
+	var root: Control = view.playback_fighter_root(shown_id)
+	failed += _assert(root != null and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_10_idle.png"), "10-bug idle sprite (got %s)" % ("" if root == null else str(root.get_meta("sprite_path", ""))))
+	shown.set_hp(shown_id, 4)
+	view.refresh_fight(shown)
+	plate = _swarm_name_label(view, shown_id)
+	failed += _assert(plate != null and plate.text.find("4 Mossmites") >= 0 and plate.text.find("10 Mossmites") < 0, "plate updates to 4 Mossmites (got %s)" % (plate.text if plate != null else "missing"))
+	failed += _assert(str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_idle.png"), "sprite drops to 4 bugs")
+	failed += _assert(int(shown.fighter_dict(shown_id).get("resilience", -1)) == 1, "4 bugs have res 1")
+	failed += _assert(view.set_fighter_pose(shown_id, "attack") and str(root.get_meta("pose", "")) == "attack" and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_attack.png"), "attack pose uses the 4-bug lunge")
+	var playback: BattlePlayback = view.get_playback()
+	failed += _assert(playback != null, "playback")
+	if playback != null:
+		playback.instant = false
+		playback.bind_view(view, shown)
+		playback.reset_for_fight()
+		playback.enqueue_events([{
+			"kind": "strike",
+			"actor": shown_id,
+			"target": "keeper",
+			"band": "hit",
+			"damage": 1,
+		}])
+		playback.advance(0.05)
+		failed += _assert(str(root.get_meta("pose", "")) == "attack" and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_attack.png"), "the swarm's strike shows the attack pose")
+		playback.advance(1.2)
+		failed += _assert(str(root.get_meta("pose", "")) == "idle" and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_idle.png"), "the swarm returns to idle after the strike")
+	failed += _assert(view.playback_set_beast_hurt(shown_id, "foe_mossmite") and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_hurt.png"), "hurt pose matches the bugs still alive")
+	view.playback_set_beast_idle(shown_id)
+	shown.set_hp(shown_id, 1)
+	view.refresh_fight(shown)
+	plate = _swarm_name_label(view, shown_id)
+	failed += _assert(plate != null and plate.text.find("1 Mossmite") >= 0 and plate.text.find("Mossmites") < 0, "plate uses the singular for one bug (got %s)" % (plate.text if plate != null else "missing"))
+	shown.set_hp(shown_id, 0)
+	view.refresh_fight(shown)
+	failed += _assert(str(shown.fighter_dict(shown_id).get("status", "")) == "calmed", "0 bugs is calmed")
+	failed += _assert(str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_1_idle.png"), "no 0-bug frame: the calmed swarm keeps the 1-bug idle")
+	view.close_overlay()
+	await process_frame
+	if failed == 0:
+		print("SWARM_COMBAT_OK")
+	return failed
+
+
+func _swarm_name_label(view: BattleView, fighter_id: String) -> Label:
+	var plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % fighter_id) as Control
+	if plate == null:
+		var plates: Node = view.find_child("BeastPlate_%s" % fighter_id, true, false)
+		plate = plates as Control
+	if plate == null:
+		return null
+	return plate.get_node_or_null("NameLabel") as Label
+
+
+func _strings_adventure_v4(tree_root: Window) -> int:
+	## The BATTLE_SCENE_DRAFT v4 strings (DRAFT copy) exist and read right through ContentStrings.
+	## Beasts are Calmed and the party is Overwhelmed: no "slain", "killed" or "defeat" in adventure
+	## copy, and "Rootweave" nowhere in the game.
+	var failed: int = 0
+	var cs: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null, "ContentStrings autoload")
+	if cs == null:
+		return failed
+	var exact: Dictionary = {
+		"adv_overwhelmed_title": "Overwhelmed",
+		"adv_knocked_out": "Knocked out",
+		"adv_calmed": "Calmed",
+		"adv_trailhead": "Trailhead",
+		"adv_strike_for_me": "Strike for me",
+		"adv_item_none_packed": "None packed",
+		"adv_ability_empty_tip": "Abilities draw on Weave. You have none yet.",
+		"adv_loadout_title": "Item loadout",
+	}
+	for key: String in exact.keys():
+		failed += _assert(str(cs.call("get_text", key)) == str(exact[key]), "%s reads \"%s\"" % [key, str(exact[key])])
+	var present: Array[String] = ["adv_overwhelmed_body", "adv_overwhelmed_log", "adv_knocked_out_log", "adv_calmed_log",
+		"adv_calmed_tip", "adv_back_at_trailhead", "adv_strike_for_me_tip", "adv_item_count", "adv_loadout_hint",
+		"adv_loadout_empty_slot", "adv_depart_cost", "adv_predeparture_warning"]
+	for key: String in present:
+		var text: String = str(cs.call("get_text", key))
+		failed += _assert(text != key and not text.strip_edges().is_empty(), "%s exists" % key)
+	failed += _assert(str(cs.call("get_text", "adv_calmed_log", {"beast": "Acorn imp"})) == "Acorn imp is Calmed.", "Calmed log line fills the beast name")
+	failed += _assert(str(cs.call("get_text", "adv_item_count", {"item": "Heart Salve", "count": 0})) == "Heart Salve ×0", "item count reads Heart Salve ×0")
+	failed += _assert(str(cs.call("get_text", "adv_depart_cost")).find("20 Essence") >= 0, "departure cost names 20 Essence")
+	failed += _assert(str(cs.call("get_text", "adv_predeparture_warning")).find("no Cancel") >= 0, "pre-departure warning says there is no Cancel")
+	failed += _assert(str(cs.call("get_text", "adv_strike_for_me_tip")).find("1×") >= 0, "Strike for me plays at 1×")
+	var table: Dictionary = _json_dict("res://data/strings_v01.json")
+	var raw: String = FileAccess.get_file_as_string("res://data/strings_v01.json").to_lower()
+	failed += _assert(raw.find("rootweave") < 0, "no Rootweave in any string")
+	var prefixes: Array[String] = ["adv_", "beast_", "adventure_", "expedition_", "path_east_", "lantern_", "reach_"]
+	var checked: int = 0
+	for key_v: Variant in table.keys():
+		var key: String = str(key_v)
+		var adventure: bool = false
+		for pre: String in prefixes:
+			if key.begins_with(pre):
+				adventure = true
+		if not adventure:
+			continue
+		checked += 1
+		var text: String = str(table[key_v]).to_lower()
+		for banned: String in ["slain", "slay", "killed", "kill "]:
+			failed += _assert(text.find(banned) < 0, "%s avoids \"%s\"" % [key, banned])
+		if key.begins_with("adv_") or key.begins_with("beast_"):
+			failed += _assert(text.find("defeat") < 0, "%s says Overwhelmed or Calmed, not defeat" % key)
+	failed += _assert(checked >= 30, "adventure strings were checked (%d)" % checked)
+	if failed == 0:
+		print("STRINGS_ADVENTURE_V4_OK")
+	return failed
+
+
+func _write_versioned_slot(save_service: Node, slot: int, version: int, state: Dictionary) -> bool:
+	var root: Dictionary = {
+		"save_version": version,
+		"timestamp": Time.get_unix_time_from_system(),
+		"slot": slot,
+		"kind": "manual",
+		"state": state,
+	}
+	var path: String = str(save_service.call("slot_path", slot))
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(root))
+	file.close()
+	return true
+
+
+func _read_slot_root(save_service: Node, slot: int) -> Dictionary:
+	var path: String = str(save_service.call("slot_path", slot))
+	if not FileAccess.file_exists(path):
+		return {}
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+func _reach_item_keys_gone(reach_block: Dictionary) -> bool:
+	for item_id: String in ["briarwood", "herbs", "heart_salve", "bile_vial"]:
+		if reach_block.has(item_id):
+			return false
+	return true
+
+
+func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A v13 reach's items add into a backpack that already holds some, then the live
+	## idle reward, manual Salve and Ascend all use that one backpack.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
+	var gear: Node = tree_root.get_node_or_null("Equipment")
+	failed += _assert(reach != null and pack != null and gear != null, "v14 inventory nodes")
+	if reach == null or pack == null or gear == null:
+		return failed
+	failed += _assert(bool(pack.call("is_known_item", "briarwood")) and bool(pack.call("is_known_item", "herbs")), "road materials are backpack items")
+	failed += _assert(bool(pack.call("is_known_item", "heart_salve")) and bool(pack.call("is_known_item", "bile_vial")), "potions are backpack items")
+	failed += _assert(str(pack.call("item_display_name", "heart_salve")) == "Heart Salve", "Heart Salve name")
+	failed += _assert(str(pack.call("item_display_name", "bile_vial")) == "Bile Vial", "Bile Vial name")
+	failed += _assert(str(pack.call("item_display_name", "briarwood")) == "Briarwood", "Briarwood name")
+	failed += _assert(str(pack.call("item_display_name", "herbs")) == "Herbs", "Herbs name")
+	failed += _assert(str(pack.call("item_kind", "heart_salve")) == "consumable" and str(pack.call("item_kind", "bile_vial")) == "consumable", "potions are consumable")
+	failed += _assert(str(gear.call("item_art_path", "heart_salve")).ends_with("icon_heart_salve.png"), "salve icon")
+	failed += _assert(str(gear.call("item_art_path", "bile_vial")).ends_with("icon_bile_vial.png"), "vial icon")
+	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_briarwood.png"), "briarwood icon png")
+	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_glowcap.png"), "glowcap icon png")
+	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_bitterroot.png"), "bitterroot icon png")
+	failed += _assert(str(gear.call("item_art_path", "briarwood")).ends_with("icon_briarwood.png"), "briarwood icon path")
+	failed += _assert(str(gear.call("item_art_path", "glowcap")).ends_with("icon_glowcap.png"), "glowcap icon path")
+	failed += _assert(str(gear.call("item_art_path", "bitterroot")).ends_with("icon_bitterroot.png"), "bitterroot icon path")
+	failed += _assert(str(gear.call("item_art_path", "herbs")) == "", "herbs colour swatch only")
+	var clamped: Dictionary = save_service.call("migrate_state", 13, {
+		"stage_id": "sapling",
+		"backpack": {"heart_salve": -2, "herbs": 4},
+		"reach": {
+			"briarwood": -3,
+			"heart_salve": 1,
+			"running": false,
+			"reaches_cleared": 0,
+			"rooms_attempted": 0,
+		},
+	})
+	var clamped_pack: Dictionary = clamped.get("backpack", {}) as Dictionary
+	var clamped_reach: Dictionary = clamped.get("reach", {}) as Dictionary
+	failed += _assert(int(clamped_pack.get("heart_salve", -1)) == 1, "a negative backpack count becomes 0 before the add")
+	failed += _assert(not clamped_pack.has("briarwood"), "a negative reach count adds no stack")
+	failed += _assert(not clamped_pack.has("bile_vial"), "a zero total adds no stack")
+	failed += _assert(int(clamped_pack.get("herbs", -1)) == 4, "a backpack count with nothing to move stays")
+	failed += _assert(_reach_item_keys_gone(clamped_reach), "clamped migration removes the item keys")
+	save_service.call("delete_slot", 7)
+	var state: Dictionary = {
+		"wood": 12,
+		"stage_id": "sapling",
+		"backpack": {"heart_salve": 1},
+		"reach": {
+			"briarwood": 3,
+			"herbs": 2,
+			"heart_salve": 4,
+			"bile_vial": 1,
+			"running": false,
+			"reaches_cleared": 0,
+			"deepest_depth": 0,
+			"rooms_attempted": 0,
+			"dojo_exp": 0,
+		},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, state), "v13 inventory fixture writes slot 7")
+	failed += _assert(bool(save_service.call("load_game", 7)), "v13 inventory fixture loads")
+	failed += _assert(int(pack.call("get_count", "heart_salve")) == 5, "salves add (1 already in the backpack)")
+	failed += _assert(int(pack.call("get_count", "bile_vial")) == 1, "bile moves across")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 3, "briarwood moves across")
+	failed += _assert(int(pack.call("get_count", "herbs")) == 2, "herbs move across")
+	failed += _assert(bool(save_service.call("save_game", 7)), "re-save the merged inventory")
+	var written: Dictionary = _read_slot_root(save_service, 7)
+	var written_state: Dictionary = written.get("state", {}) as Dictionary
+	var written_reach: Dictionary = written_state.get("reach", {}) as Dictionary
+	var written_pack: Dictionary = written_state.get("backpack", {}) as Dictionary
+	failed += _assert(int(written.get("save_version", 0)) == 14, "the re-save is version 14")
+	failed += _assert(_reach_item_keys_gone(written_reach), "the re-saved reach block has no item keys")
+	failed += _assert(int(written_pack.get("heart_salve", 0)) == 5, "re-saved salve count")
+	failed += _assert(int(written_pack.get("briarwood", 0)) == 3, "re-saved briarwood count")
+	## Opening the manual fight lets beasts act immediately. Seed 1's volley does not end the run.
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "idle depart after the merge")
+	reach.call("advance_clock", 719.0)
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 3, "an idle slot does not bank Briarwood before the run ends")
+	var salve_before: int = int(pack.call("get_count", "heart_salve"))
+	reach.call("set_control", "manual")
+	failed += _assert(bool(reach.call("fight_active")), "manual opens the fight")
+	var manual_fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(manual_fight != null, "manual fight state")
+	if manual_fight != null:
+		if int(manual_fight.loadout.get("heart_salve", 0)) <= 0:
+			pack.call("try_spend", "heart_salve", 1)
+			manual_fight.loadout["heart_salve"] = int(manual_fight.loadout.get("heart_salve", 0)) + 1
+		var party_target: String = ""
+		for fighter_id: String in manual_fight.order:
+			var row: Dictionary = manual_fight.fighter_dict(fighter_id)
+			if str(row.get("side", "")) == "party" and str(row.get("status", "")) == "active":
+				party_target = fighter_id
+				break
+		failed += _assert(party_target != "", "party target for salve")
+		if party_target != "":
+			var salve_step: Dictionary = manual_fight.step({"kind": "item", "item": "heart_salve", "target": party_target})
+			failed += _assert(str(salve_step.get("kind", "")) != "refused", "the fight accepts the salve")
+			reach.call("sync_manual_loadout")
+		failed += _assert(int(pack.call("get_count", "heart_salve")) == salve_before - 1, "a manual Salve spends one from the backpack")
+	pack.call("set_count", "fertilizer", 3)
+	var kept_salve: int = int(pack.call("get_count", "heart_salve"))
+	var kept_bile: int = int(pack.call("get_count", "bile_vial"))
+	var kept_briar: int = int(pack.call("get_count", "briarwood"))
+	var kept_herbs: int = int(pack.call("get_count", "herbs"))
+	var ascensions_before: int = int(game_state.get("ascensions"))
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	failed += _assert(int(game_state.get("ascensions")) == ascensions_before + 1, "ascend runs")
+	failed += _assert(int(pack.call("get_count", "fertilizer")) == 0, "ascend still wipes other backpack stacks")
+	failed += _assert(int(pack.call("get_count", "heart_salve")) == kept_salve, "ascend keeps Heart Salve")
+	failed += _assert(int(pack.call("get_count", "bile_vial")) == kept_bile, "ascend keeps Bile Vial")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == kept_briar, "ascend keeps Briarwood")
+	failed += _assert(int(pack.call("get_count", "herbs")) == kept_herbs, "ascend keeps Herbs")
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	if failed == 0:
+		print("SAVE_V14_INVENTORY_MERGE_OK")
+	return failed
+
+
+func _save_v14_home(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## No run is home. A cyan lantern with no run is an unseen finish. A running v13 run is cleared
+	## (job 25 cut; SAVE_V14_LEGACY_RUN_CLEARED_OK has the details).
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "v14 home needs Reach")
+	if reach == null:
+		return failed
+	save_service.call("delete_slot", 7)
+	var home_state: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"expedition_lantern": "dark",
+		"reach": {"running": false, "reaches_cleared": 0, "rooms_attempted": 0, "deepest_depth": 0},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, home_state), "home v13 writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "home v13 loads")
+	var home_exp: Dictionary = reach.get("expedition") as Dictionary
+	failed += _assert(str(home_exp.get("status", "")) == "home", "no run migrates to home")
+	failed += _assert(not home_exp.has("summary"), "home has no summary")
+	var cyan_state: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"expedition_lantern": "cyan",
+		"reach": {"running": false, "reaches_cleared": 2, "rooms_attempted": 0, "deepest_depth": 1},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, cyan_state), "cyan v13 writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "cyan v13 loads")
+	var cyan_exp: Dictionary = reach.get("expedition") as Dictionary
+	failed += _assert(str(cyan_exp.get("status", "")) == "finished_unseen", "a cyan lantern with no run is finished unseen")
+	failed += _assert(str(cyan_exp.get("summary", "")) == "from an older save", "the unseen summary text")
+	var resaved: Dictionary = game_state.call("to_save_dict")
+	var resaved_exp: Dictionary = resaved.get("expedition", {}) as Dictionary
+	failed += _assert(str(resaved_exp.get("status", "")) == "finished_unseen", "a re-save keeps finished unseen")
+	failed += _assert(str(resaved_exp.get("summary", "")) == "from an older save", "a re-save keeps the summary")
+	var out_state: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"expedition_lantern": "amber",
+		"reach": {
+			"running": true,
+			"phase": "idle_room",
+			"rooms_attempted": 6,
+			"reaches_cleared": 4,
+			"deepest_depth": 3,
+			"depth": 2,
+			"hours": 4.0,
+			"elapsed": 100.0,
+			"room_left": 400.0,
+			"dojo_exp": 20,
+			"briarwood": 1,
+			"herbs": 1,
+			"heart_salve": 0,
+			"bile_vial": 0,
+		},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 13, out_state), "running v13 writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "running v13 loads")
+	var out_exp: Dictionary = reach.get("expedition") as Dictionary
+	failed += _assert(str(out_exp.get("status", "")) == "home", "a running v13 run comes home")
+	failed += _assert(not out_exp.has("summary"), "a cleared run has no summary")
+	failed += _assert(not bool(reach.get("running")), "the old run is cleared")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("save_game", 7)), "a fresh v14 save writes")
+	var fresh: Dictionary = _read_slot_root(save_service, 7)
+	var fresh_state: Dictionary = fresh.get("state", {}) as Dictionary
+	var fresh_exp: Dictionary = fresh_state.get("expedition", {}) as Dictionary
+	var fresh_reach: Dictionary = fresh_state.get("reach", {}) as Dictionary
+	failed += _assert(int(fresh.get("save_version", 0)) == 14, "new saves write version 14")
+	failed += _assert(str(fresh_exp.get("status", "")) == "home", "a new game expedition is home")
+	failed += _assert(_reach_item_keys_gone(fresh_reach), "a new save's reach block has no item keys")
+	reach.call("depart", 1, 1, "hold", "idle")
+	failed += _assert(bool(save_service.call("save_game", 7)), "a running v14 save writes")
+	var running_save: Dictionary = _read_slot_root(save_service, 7)
+	var running_state: Dictionary = running_save.get("state", {}) as Dictionary
+	var running_exp: Dictionary = running_state.get("expedition", {}) as Dictionary
+	var running_reach: Dictionary = running_state.get("reach", {}) as Dictionary
+	failed += _assert(str(running_exp.get("status", "")) == "out", "a fresh running slot save is out")
+	failed += _assert(bool(running_reach.get("running", false)), "the fresh save still has the run")
+	failed += _assert(_reach_item_keys_gone(running_reach), "the running save has no item keys in reach")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	if failed == 0:
+		print("SAVE_V14_HOME_OK")
+	return failed
+
+
+func _save_v14_legacy_run_cleared(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Job 25 is cut (Haex 2026-10-10). A v13-era run still out is cleared on load with no
+	## conversion. A v14 old-engine run (running, no slots_total) is cleared the same way.
+	## A v14 save written by the slot engine mid-run resumes.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and pack != null, "legacy run nodes")
+	if reach == null or pack == null:
+		return failed
+	for phase: String in ["idle_room", "rest", "manual"]:
+		save_service.call("delete_slot", 7)
+		game_state.call("reset_for_new_game")
+		var state: Dictionary = {
+			"wood": 3,
+			"stage_id": "sapling",
+			"essence": 40,
+			"expedition_lantern": "amber",
+			"backpack": {"herbs": 2},
+			"reach": {
+				"running": true, "phase": "idle_room" if phase == "manual" else phase,
+				"control": "manual" if phase == "manual" else "idle",
+				"rooms_attempted": 6, "reaches_cleared": 4, "deepest_depth": 3, "depth": 2,
+				"hours": 4.0, "elapsed": 1900.0, "room_left": 400.0, "run_clears": 3,
+				"dojo_exp": 20, "pace": "push", "salve_used": true, "mix": ["minion"],
+				"briarwood": 1, "herbs": 1, "heart_salve": 0, "bile_vial": 0,
+			},
+		}
+		failed += _assert(_write_versioned_slot(save_service, 7, 13, state), "%s v13 writes" % phase)
+		failed += _assert(bool(save_service.call("load_game", 7)), "%s v13 loads" % phase)
+		var exp: Dictionary = reach.get("expedition") as Dictionary
+		failed += _assert(not bool(reach.get("running")) and str(reach.get("phase")) == "home", "%s: the v13 run is cleared" % phase)
+		failed += _assert(str(exp.get("status", "")) == "home" and bool(exp.get("legacy_run_cleared", false)), "%s: expedition home, marked legacy_run_cleared" % phase)
+		failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "%s: the lantern goes dark" % phase)
+		failed += _assert(int(reach.get("rooms_attempted")) == 0 and int(reach.get("run_clears")) == 0 and float(reach.get("elapsed")) == 0.0, "%s: no run counters survive" % phase)
+		failed += _assert(int(reach.get("deepest_depth")) == 3 and int(reach.get("reaches_cleared")) == 4 and int(reach.get("dojo_exp")) == 20, "%s: depth, clears and dojo exp are kept" % phase)
+		failed += _assert(int(pack.call("get_count", "herbs")) == 3 and int(pack.call("get_count", "briarwood")) == 1, "%s: banked reach items still merge into the Backpack" % phase)
+		failed += _assert(int(game_state.get("essence")) == 40, "%s: no Essence refund or charge" % phase)
+		failed += _assert(bool(save_service.call("save_game", 7)), "%s: re-save writes" % phase)
+		var resaved: Dictionary = (_read_slot_root(save_service, 7).get("state", {}) as Dictionary)
+		var re_exp: Dictionary = resaved.get("expedition", {}) as Dictionary
+		failed += _assert(str(re_exp.get("status", "")) == "home" and not bool((resaved.get("reach", {}) as Dictionary).get("running", true)), "%s: the re-save stays home" % phase)
+	# A v14 old-engine run has no slots_total. Load clears it: home, dark, kept items.
+	game_state.call("reset_for_new_game")
+	var old_engine: Dictionary = {
+		"wood": 3,
+		"stage_id": "sapling",
+		"essence": 40,
+		"expedition_lantern": "amber",
+		"backpack": {"briarwood": 4, "herbs": 2},
+		"expedition": {"status": "out_legacy"},
+		"reach": {
+			"running": true, "phase": "idle_room", "control": "idle",
+			"rooms_attempted": 4, "reaches_cleared": 3, "deepest_depth": 2, "depth": 2,
+			"hours": 2.0, "elapsed": 800.0, "room_left": 200.0, "run_clears": 3,
+			"dojo_exp": 30, "pace": "hold", "salve_used": false, "mix": ["minion"],
+		},
+	}
+	failed += _assert(_write_versioned_slot(save_service, 7, 14, old_engine), "v14 old-engine run writes")
+	failed += _assert(bool(save_service.call("load_game", 7)), "v14 old-engine run loads")
+	var old_exp: Dictionary = reach.get("expedition") as Dictionary
+	failed += _assert(not bool(reach.get("running")) and str(reach.get("phase")) == "home", "a v14 old-engine run (no slots_total) is cleared")
+	failed += _assert(str(old_exp.get("status", "")) == "home", "a cleared v14 old-engine run is home")
+	failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "a cleared v14 old-engine run goes dark")
+	failed += _assert(int(pack.call("get_count", "briarwood")) == 4 and int(pack.call("get_count", "herbs")) == 2, "a cleared v14 old-engine run keeps its items")
+	failed += _assert(int(reach.get("deepest_depth")) == 2 and int(reach.get("dojo_exp")) == 30, "a cleared v14 old-engine run keeps depth and dojo exp")
+	# A v14 save written by the slot engine mid-run resumes.
+	game_state.call("reset_for_new_game")
+	reach.call("set_test_run_seed", 4242)
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "slot engine departs")
+	failed += _assert(int(reach.get("slots_total")) == 5, "the slot save has slots_total")
+	failed += _assert(bool(save_service.call("save_game", 7)), "a running slot save writes")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "the running slot save loads")
+	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "a v14 slot-engine run resumes")
+	failed += _assert(str((reach.get("expedition") as Dictionary).get("status", "")) == "out", "a resumed slot run stays out")
+	failed += _assert(int(reach.get("slots_total")) == 5 and int(reach.get("run_id")) == 4242, "the resumed run keeps its slots and id")
+	# The helper is a no-op without a run.
+	var idle_state: Dictionary = {"reach": {"running": false, "deepest_depth": 2}, "expedition_lantern": "cyan"}
+	failed += _assert(not bool(save_service.call("clear_legacy_run", idle_state)) and str(idle_state.get("expedition_lantern")) == "cyan", "clear_legacy_run leaves a save with no run alone")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	if failed == 0:
+		print("SAVE_V14_LEGACY_RUN_CLEARED_OK")
+	return failed
+
+
+func _save_v14_from_main(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A real v11 main save, and the v10 batch fixture, both arrive at v14 with the road still at home.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var pack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and pack != null, "v14 from-main nodes")
+	if reach == null or pack == null:
+		return failed
+	save_service.call("delete_slot", 7)
+	var fixture: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/save_v11_main.json"))
+	failed += _assert(fixture is Dictionary, "v11 main fixture parses")
+	if fixture is Dictionary:
+		var root: Dictionary = (fixture as Dictionary).duplicate(true)
+		failed += _assert(int(root.get("save_version", 0)) == 11, "fixture is a v11 save")
+		failed += _assert(not (root.get("state", {}) as Dictionary).has("reach"), "v11 main has no reach block")
+		root["timestamp"] = Time.get_unix_time_from_system()
+		root["slot"] = 7
+		var path: String = str(save_service.call("slot_path", 7))
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		failed += _assert(file != null, "v11 fixture slot writes")
+		if file != null:
+			file.store_string(JSON.stringify(root))
+			file.close()
+			failed += _assert(bool(save_service.call("load_game", 7)), "v11 main fixture loads")
+			failed += _assert(int(game_state.get("wood")) == 37, "v11 wood survives")
+			failed += _assert(int(game_state.get("stone")) == 11, "v11 stone survives")
+			failed += _assert(int(game_state.get("food")) == 4, "v11 food survives")
+			failed += _assert(int(game_state.get("essence")) == 8, "v11 essence survives")
+			failed += _assert(int(game_state.get("manashards")) == 6, "v11 manashards survive")
+			failed += _assert(int(pack.call("get_count", "wooden_planks")) == 6, "v11 planks survive")
+			failed += _assert(int(pack.call("get_count", "fertilizer")) == 2, "v11 fertilizer survives")
+			var blob: Dictionary = game_state.call("to_save_dict")
+			var reach_block: Dictionary = blob.get("reach", {}) as Dictionary
+			var exp: Dictionary = blob.get("expedition", {}) as Dictionary
+			failed += _assert(not reach_block.is_empty(), "v11 gains a reach block")
+			failed += _assert(int(reach_block.get("reaches_cleared", -1)) == 0 and bool(reach_block.get("running", true)) == false, "the migrated reach is empty")
+			failed += _assert(_reach_item_keys_gone(reach_block), "the empty reach has no item keys")
+			failed += _assert(str(exp.get("status", "")) == "home", "a v11 save is home")
+			failed += _assert(int(reach.get("deepest_depth")) == 0 and int(reach.get("dojo_exp")) == 0, "v11 did not invent a run")
+			failed += _assert(int(pack.call("get_count", "briarwood")) == 0 and int(pack.call("get_count", "heart_salve")) == 0, "v11 had no reach items to move")
+	var v10: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/fixtures/batch_migration_6efbcab.json"))
+	failed += _assert(v10 is Dictionary, "v10 fixture parses")
+	if v10 is Dictionary:
+		var old: Dictionary = (v10 as Dictionary).duplicate(true)
+		old["timestamp"] = Time.get_unix_time_from_system()
+		old["slot"] = 7
+		var old_path: String = str(save_service.call("slot_path", 7))
+		var old_file := FileAccess.open(old_path, FileAccess.WRITE)
+		failed += _assert(old_file != null, "v10 fixture slot writes")
+		if old_file != null:
+			old_file.store_string(JSON.stringify(old))
+			old_file.close()
+			failed += _assert(bool(save_service.call("load_game", 7)), "v10 fixture loads through to v14")
+			failed += _assert(int(game_state.get("wood")) == 20 and int(game_state.get("stone")) == 20, "v10 resources survive")
+			failed += _assert(int(pack.call("get_count", "sapsteel")) == 0, "v10 does not grant the in-progress sapsteel")
+			var old_blob: Dictionary = game_state.call("to_save_dict")
+			var old_reach: Dictionary = old_blob.get("reach", {}) as Dictionary
+			var old_exp: Dictionary = old_blob.get("expedition", {}) as Dictionary
+			failed += _assert(old_reach.has("rooms_attempted") and int(old_reach.get("reaches_cleared", -1)) == 0, "v10 gains an empty reach block")
+			failed += _assert(_reach_item_keys_gone(old_reach), "v10 reach has no item keys")
+			failed += _assert(str(old_exp.get("status", "")) == "home", "v10 expedition is home")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", 7)
+	if failed == 0:
+		print("SAVE_V14_FROM_MAIN_OK")
+	return failed
+
+
+func _resolver_all() -> int:
+	return _resolver_dice() + _resolver_margin() + _resolver_die_table() + _resolver_seed() + _resolver_state_roundtrip() + _resolver_turn_order() + _resolver_rows() + _resolver_targeting() + _resolver_brace() + _resolver_shield_order() + _resolver_poison_refresh() + _resolver_twists() + _resolver_boss() + _resolver_salve() + _auto_flee_ko_zero() + _resolver_log()
+
+
+func _resolver_dice() -> int:
+	## §4 worked example through FightState.strike, plus a beast that must not eat a Fate roll.
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var by_id: Dictionary = {}
+	for case_v: Variant in cases.get("strikes", []) as Array:
+		var c: Dictionary = case_v as Dictionary
+		by_id[str(c.get("id", ""))] = c
+	var want_damage: Dictionary = {"s4_line1": 24, "s4_line2": 4, "s4_line4": 52}
+	var want_crit: Dictionary = {"s4_line1": false, "s4_line2": false, "s4_line4": true}
+	var want_band: Dictionary = {"s4_line1": "crush", "s4_line2": "graze", "s4_line4": "crush"}
+	for cid: String in ["s4_line1", "s4_line2", "s4_line4"]:
+		failed += _assert(by_id.has(cid), "fixture %s" % cid)
+		if not by_id.has(cid):
+			continue
+		var case: Dictionary = by_id[cid] as Dictionary
+		var packed: Dictionary = _resolver_run_case(case, [])
+		var result: Dictionary = packed["result"] as Dictionary
+		var expect: Dictionary = case.get("expect", {}) as Dictionary
+		failed += _resolver_expect(cid, result, expect, packed["fight"])
+		failed += _assert(int(result.get("damage", -1)) == int(want_damage[cid]), "%s damage is the worked example" % cid)
+		failed += _assert(bool(result.get("fate_crit", false)) == bool(want_crit[cid]), "%s crit flag" % cid)
+		failed += _assert(str(result.get("band", "")) == str(want_band[cid]), "%s band" % cid)
+		failed += _assert(int(packed["remaining"]) == 0, "%s used every injected face" % cid)
+		failed += _assert(int(packed["underrun"]) == 0, "%s did not read past the injected faces" % cid)
+	if by_id.has("s4_line2"):
+		var beast_case: Dictionary = by_id["s4_line2"] as Dictionary
+		var extra: Array[int] = [77]
+		var packed_beast: Dictionary = _resolver_run_case(beast_case, extra)
+		var expect_beast: Dictionary = beast_case.get("expect", {}) as Dictionary
+		failed += _resolver_expect("s4_line2 fate", packed_beast["result"], expect_beast, packed_beast["fight"])
+		failed += _assert(int(packed_beast["remaining"]) == 1, "beast attacker leaves the Fate roll unconsumed")
+		failed += _assert(int(packed_beast["underrun"]) == 0, "beast attacker did not underrun")
+		var left: Array = packed_beast["queue"] as Array
+		failed += _assert(left.size() == 1 and int(left[0]) == 77, "the unconsumed face is the Fate roll")
+	if failed == 0:
+		print("RESOLVER_DICE_OK")
+	return failed
+
+
+func _resolver_margin() -> int:
+	## Every fixed-dice strike, plus the 10% KO / Calmed line on both sides.
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var strikes: Array = cases.get("strikes", []) as Array
+	failed += _assert(strikes.size() >= 12, "fixture strikes (got %d)" % strikes.size())
+	var checked: int = 0
+	for case_v: Variant in strikes:
+		var case: Dictionary = case_v as Dictionary
+		var cid: String = str(case.get("id", ""))
+		var packed: Dictionary = _resolver_run_case(case, [])
+		var result: Dictionary = packed["result"] as Dictionary
+		var expect: Dictionary = case.get("expect", {}) as Dictionary
+		failed += _resolver_expect(cid, result, expect, packed["fight"])
+		failed += _assert(int(packed["remaining"]) == 0, "%s left injected faces unused" % cid)
+		failed += _assert(int(packed["underrun"]) == 0, "%s consumed a die the fixture does not roll" % cid)
+		var att: Dictionary = case.get("attacker", {}) as Dictionary
+		var attack_type: String = str(case.get("attack_type", "physical"))
+		var offense: int = int(att.get("arc", att.get("arcana", 0))) if attack_type == "magic" else int(att.get("mig", att.get("might", 0)))
+		var die_block: Dictionary = case.get("dice", {}) as Dictionary
+		failed += _assert(int(BattleResolverScript.die_size(offense)) == int(die_block.get("damage_die", -1)), "%s damage die" % cid)
+		var card: Dictionary = (packed["fight"] as FightState).fighter_dict("defender")
+		var hp_after: int = int(result.get("defender_hp_after", 0))
+		var max_hp: int = int(card.get("max_hp", 0))
+		var want_status: String = "active"
+		if hp_after * 10 <= max_hp:
+			want_status = "ko" if str(packed["defender_side"]) == "party" else "calmed"
+		failed += _assert(str(result.get("defender_status", "")) == want_status, "%s status %s vs %s (hp %d / %d)" % [cid, str(result.get("defender_status", "")), want_status, hp_after, max_hp])
+		failed += _assert(str(card.get("status", "")) == want_status, "%s stored status" % cid)
+		checked += 1
+	failed += _assert(checked == strikes.size() and checked > 0, "ran every strike")
+	# min-damage graze (1) across the threshold. vit 10 => max 40, so 4 HP is exactly 10%.
+	var bounds: Array = [
+		["party", 6, 3, "ko"],
+		["party", 6, 4, "active"],
+		["beast", 9, 4, "calmed"],
+		["beast", 9, 5, "active"],
+		["party", 10, 5, "ko"],
+		["party", 10, 6, "active"],
+		["beast", 10, 5, "calmed"],
+		["beast", 10, 6, "active"],
+	]
+	for row_v: Variant in bounds:
+		var row: Array = row_v as Array
+		var side: String = str(row[0])
+		var vit: int = int(row[1])
+		var hp_before: int = int(row[2])
+		var want: String = str(row[3])
+		var hit: Dictionary = _resolver_threshold_hit(side, vit, hp_before)
+		var result_b: Dictionary = hit["result"] as Dictionary
+		failed += _assert(int(result_b.get("damage", 0)) == 1, "threshold probe deals 1 (%s vit %d)" % [side, vit])
+		failed += _assert(int(result_b.get("defender_hp_after", 0)) == hp_before - 1, "threshold hp (%s vit %d)" % [side, vit])
+		failed += _assert(str(result_b.get("defender_status", "")) == want, "%s vit %d from %d -> %s, got %s" % [side, vit, hp_before, want, str(result_b.get("defender_status", ""))])
+		failed += _assert(int(hit["max_hp"]) == 10 + 3 * vit, "threshold max hp")
+		failed += _assert(int(hit["underrun"]) == 0 and int(hit["remaining"]) == 0, "threshold dice")
+	if failed == 0:
+		print("RESOLVER_MARGIN_OK")
+	return failed
+
+
+func _resolver_die_table() -> int:
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var table: Array = cases.get("die_table", []) as Array
+	var rounding: Array = cases.get("round_half_up", []) as Array
+	failed += _assert(not table.is_empty() and not rounding.is_empty(), "die fixture rows")
+	for row_v: Variant in table:
+		var row: Dictionary = row_v as Dictionary
+		var offense: int = int(row.get("offense", 0))
+		var got: int = int(BattleResolverScript.die_size(offense))
+		failed += _assert(got == int(row.get("die", -1)), "die %d -> %d, want %s" % [offense, got, str(row.get("die"))])
+	for round_row_v: Variant in rounding:
+		var row2: Dictionary = round_row_v as Dictionary
+		var got2: int = int(BattleResolverScript.round_half_up_number(float(row2.get("x", 0.0))))
+		failed += _assert(got2 == int(row2.get("rounded", -1)), "round %s -> %d, want %s" % [str(row2.get("x")), got2, str(row2.get("rounded"))])
+	var ratios: Array = [[1, 2], [3, 2], [2, 1]]
+	var sweep_bad: int = 0
+	var sample: String = ""
+	for raw: int in range(0, 401):
+		for ratio_v: Variant in ratios:
+			var ratio: Array = ratio_v as Array
+			var num: int = int(ratio[0])
+			var den: int = int(ratio[1])
+			var got3: int = int(BattleResolverScript.round_half_up(raw, num, den))
+			var x: float = float(raw) * float(num) / float(den)
+			var want: int = floori(x + 0.5)
+			if got3 != want:
+				sweep_bad += 1
+				if sample == "":
+					sample = "raw %d x %d/%d -> %d vs floor %d" % [raw, num, den, got3, want]
+	failed += _assert(sweep_bad == 0, "half-up sweep mismatches %d (%s)" % [sweep_bad, sample])
+	if failed == 0:
+		print("RESOLVER_DIE_TABLE_OK")
+	return failed
+
+
+func _resolver_seed() -> int:
+	## FNV-1a 32 of "1000:<stream>", then & 0x7FFFFFFF. These pins are the mix,
+	## not Godot's hash(); do not retune them to follow an engine change.
+	var failed: int = 0
+	var samples: Array = [0, 1, 2, 42, 0x7FFFFFFF, -1, -50, 1 << 40, 9999999999]
+	for sample_v: Variant in samples:
+		var masked: int = int(BattleRngScript.mask_seed(int(sample_v)))
+		failed += _assert(masked >= 0 and masked <= 0x7FFFFFFF, "seed %s masks into 31 bits (%d)" % [str(sample_v), masked])
+	var neg: BattleRng = BattleRngScript.new()
+	neg.set_seed(-1)
+	var pos: BattleRng = BattleRngScript.new()
+	pos.set_seed(0x7FFFFFFF)
+	failed += _assert(neg.seed_value() == 0x7FFFFFFF, "negative seeds mask to 31 bits")
+	var masked_match: bool = true
+	for _i: int in 8:
+		if neg.roll_die(6) != pos.roll_die(6):
+			masked_match = false
+	failed += _assert(masked_match, "a masked seed draws the same sequence")
+	var zero_rng: BattleRng = BattleRngScript.new()
+	zero_rng.set_seed(0)
+	var zero_face: int = zero_rng.roll_die(6)
+	failed += _assert(zero_face >= 1 and zero_face <= 6, "seed 0 rolls a d6")
+	var left: BattleRng = BattleRngScript.new()
+	var right: BattleRng = BattleRngScript.new()
+	left.set_seed(42)
+	right.set_seed(42)
+	var same: bool = true
+	for _j: int in 16:
+		if left.roll_die(6) != right.roll_die(6) or left.roll_fate() != right.roll_fate():
+			same = false
+	for _k: int in 8:
+		if left.roll_die(20) != right.roll_die(20):
+			same = false
+	failed += _assert(same, "the same seed repeats")
+	var pinned: Dictionary = {"spawn": 1141270305, "combat": 1745004102, "loot": 1908542868}
+	var seen: Dictionary = {}
+	var streams: Array = BattleRngScript.STREAMS
+	failed += _assert(streams.size() == 4, "four streams")
+	for stream_v: Variant in streams:
+		var stream: String = str(stream_v)
+		var once: int = int(BattleRngScript.mix_stream(1000, stream))
+		var twice: int = int(BattleRngScript.mix_stream(1000, stream))
+		failed += _assert(once == twice, "%s mix is stable" % stream)
+		failed += _assert(once >= 0 and once <= 0x7FFFFFFF, "%s mix stays in 31 bits" % stream)
+		seen[stream] = once
+		if pinned.has(stream):
+			failed += _assert(once == int(pinned[stream]), "%s mix is the pinned FNV value (got %d)" % [stream, once])
+	var unique: Dictionary = {}
+	for stream_key: Variant in seen.keys():
+		unique[seen[stream_key]] = true
+	failed += _assert(unique.size() == 4, "the four streams from room 1000 differ")
+	failed += _assert(int(BattleRngScript.mix_stream(1, "spawn")) != int(seen["spawn"]), "a different room seed mixes differently")
+	var rng: BattleRng = BattleRngScript.new()
+	rng.set_seed(99)
+	for _n: int in 7:
+		rng.roll_die(12)
+	var saved: String = rng.state_string()
+	failed += _assert(saved.is_valid_int(), "rng state string is an integer (%s)" % saved)
+	var wrapped: String = JSON.stringify({"rng_combat_state": saved})
+	var parsed: Variant = JSON.parse_string(wrapped)
+	failed += _assert(parsed is Dictionary, "rng state json")
+	if parsed is Dictionary:
+		var body: Dictionary = parsed as Dictionary
+		failed += _assert(typeof(body.get("rng_combat_state")) == TYPE_STRING, "json keeps rng state as a string")
+		failed += _assert(str(body.get("rng_combat_state", "")) == saved, "json state string is unchanged")
+		var restored: BattleRng = BattleRngScript.new()
+		restored.set_seed(99)
+		restored.set_state_string(str(body.get("rng_combat_state", "")))
+		var twin: BattleRng = BattleRngScript.new()
+		twin.set_seed(99)
+		twin.set_state_string(saved)
+		var draws_match: bool = true
+		for _m: int in 12:
+			var die_a: int = rng.roll_die(8)
+			var die_b: int = restored.roll_die(8)
+			var die_c: int = twin.roll_die(8)
+			var fate_a: int = rng.roll_fate()
+			var fate_b: int = restored.roll_fate()
+			var fate_c: int = twin.roll_fate()
+			if die_a != die_b or die_b != die_c or fate_a != fate_b or fate_b != fate_c:
+				draws_match = false
+		failed += _assert(draws_match, "restoring the state string repeats the next draws")
+	if failed == 0:
+		print("RESOLVER_SEED_OK")
+	return failed
+
+
+func _resolver_state_roundtrip() -> int:
+	## Keeper at the unlock line (the §4 example) versus the catalog imp and moth.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.set_combat_seed(20261009)
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	failed += _assert(fight.add_member("keeper", keeper_stats, 0, "front") == "keeper", "keeper id")
+	failed += _assert(fight.add_beast("acorn_imp", 0, "front") == "acorn_imp", "imp id")
+	failed += _assert(fight.add_beast("spore_moth", 1, "back") == "spore_moth", "moth id")
+	var beasts: Dictionary = _resolver_beast_rows()
+	var fresh: Dictionary = fight.to_dict()
+	var keeper_row: Dictionary = _resolver_fighter_row(fresh, "keeper")
+	var imp_row: Dictionary = _resolver_fighter_row(fresh, "acorn_imp")
+	var moth_row: Dictionary = _resolver_fighter_row(fresh, "spore_moth")
+	var imp_spec: Dictionary = beasts.get("acorn_imp", {}) as Dictionary
+	var moth_spec: Dictionary = beasts.get("spore_moth", {}) as Dictionary
+	failed += _assert(not imp_spec.is_empty() and not moth_spec.is_empty(), "catalog has the imp and the moth")
+	failed += _assert(int(keeper_row.get("might", 0)) == 11 and int(keeper_row.get("resilience", 0)) == 6, "keeper might and resilience")
+	failed += _assert(int(keeper_row.get("swiftness", 0)) == 7 and int(keeper_row.get("vitality", 0)) == 6 and int(keeper_row.get("fate", 0)) == 7, "keeper swift, vit, fate")
+	failed += _assert(int(keeper_row.get("weave", 0)) == 30 and str(keeper_row.get("side", "")) == "party", "party weave is 30")
+	failed += _assert(int(keeper_row.get("max_hp", 0)) == 10 + 3 * 6, "keeper max hp")
+	failed += _assert(int(imp_row.get("might", -1)) == int(imp_spec.get("might", -2)), "imp might comes from beasts.json")
+	failed += _assert(int(imp_row.get("hp", -1)) == int(imp_spec.get("hp", -2)), "imp hp comes from beasts.json")
+	failed += _assert(int(imp_row.get("max_hp", 0)) == 10 + 3 * int(imp_spec.get("vitality", 0)), "imp max hp is 10 + 3 x Vitality")
+	failed += _assert(str(imp_row.get("attack", "")) == str(imp_spec.get("attack", "")), "imp attack comes from beasts.json")
+	failed += _assert(int(imp_row.get("fate", -1)) == int(imp_spec.get("fate", -2)) and int(imp_row.get("weave", -1)) == 0, "beasts have Fate from the file and no weave")
+	failed += _assert(int(moth_row.get("arcana", -1)) == int(moth_spec.get("arcana", -2)), "moth arcana comes from beasts.json")
+	failed += _assert(str(moth_row.get("attack", "")) == "magic" and str(moth_row.get("row", "")) == "back" and int(moth_row.get("slot", -1)) == 1, "moth is the back-row caster")
+	failed += _assert(int(moth_row.get("weave", -1)) == 0, "moth has no weave")
+	failed += _assert(str(fresh.get("controller", "")) == "manual" and int(fresh.get("resolver_version", 0)) == 1, "manual controller, resolver version 1")
+	failed += _assert(typeof(fresh.get("rng_combat_state")) == TYPE_STRING, "rng state is stored as a string")
+	var ids: Array = fresh.get("order", []) as Array
+	failed += _assert(ids.size() == 3 and str(ids[0]) == "keeper" and str(ids[1]) == "acorn_imp" and str(ids[2]) == "spore_moth", "order is keeper, imp, moth")
+	var pairs: Array = [["keeper", "acorn_imp"], ["spore_moth", "keeper"], ["keeper", "spore_moth"]]
+	for pair_v: Variant in pairs:
+		var pair: Array = pair_v as Array
+		fight.strike(str(pair[0]), str(pair[1]), 0, 1)
+	var snap: Dictionary = fight.to_dict()
+	failed += _assert(str(snap.get("rng_combat_state", "")) != str(fresh.get("rng_combat_state", "")), "strikes advance the combat rng")
+	var parsed: Variant = JSON.parse_string(JSON.stringify(snap))
+	failed += _assert(parsed is Dictionary, "fight json")
+	if parsed is Dictionary:
+		var copy: FightState = FightStateScript.from_dict(parsed)
+		var again: Dictionary = copy.to_dict()
+		if again != snap:
+			print("STATE A ", JSON.stringify(snap))
+			print("STATE B ", JSON.stringify(again))
+		failed += _assert(again == snap, "fight dict survives json")
+		for n: int in 4:
+			var pair_n: Array = pairs[n % pairs.size()] as Array
+			var left: Dictionary = fight.strike(str(pair_n[0]), str(pair_n[1]), 0, 1)
+			var right: Dictionary = copy.strike(str(pair_n[0]), str(pair_n[1]), 0, 1)
+			if left != right:
+				print("STRIKE A ", JSON.stringify(left))
+				print("STRIKE B ", JSON.stringify(right))
+			failed += _assert(left == right, "strike %d matches after reload" % n)
+		var kept: Dictionary = copy.to_dict()
+		failed += _assert(int(_resolver_fighter_row(kept, "keeper").get("weave", 0)) == 30, "weave is still 30 after the reload")
+		var schema: Dictionary = snap.duplicate(true)
+		schema["round"] = 3
+		schema["turn_cursor"] = 2
+		schema["ambush"] = true
+		schema["twist"] = "briar"
+		schema["salves_used"] = 2
+		schema["log_tail"] = [{"note": "tail"}]
+		var schema_keeper: Dictionary = _resolver_fighter_row(schema, "keeper")
+		schema_keeper["shield"] = 4
+		schema_keeper["brace"] = true
+		schema_keeper["turns"] = 1
+		schema_keeper["weave"] = 22
+		schema_keeper["status"] = "ko"
+		schema_keeper["poison"] = {"ticks": [2, 2], "left": 2}
+		schema_keeper["intent"] = {"move": "heavy", "mult": 2}
+		var schema_imp: Dictionary = _resolver_fighter_row(schema, "acorn_imp")
+		schema_imp["boss"] = true
+		var schema_parsed: Variant = JSON.parse_string(JSON.stringify(schema))
+		if schema_parsed is Dictionary:
+			var schema_back: Dictionary = FightStateScript.from_dict(schema_parsed).to_dict()
+			if schema_back != schema:
+				print("SCHEMA A ", JSON.stringify(schema))
+				print("SCHEMA B ", JSON.stringify(schema_back))
+			failed += _assert(schema_back == schema, "schema fields survive json")
+		var cap_state: Dictionary = snap.duplicate(true)
+		var tail: Array = []
+		for i: int in 250:
+			tail.append({"i": i})
+		cap_state["log_tail"] = tail
+		var cap_parsed: Variant = JSON.parse_string(JSON.stringify(cap_state))
+		if cap_parsed is Dictionary:
+			var capped: Dictionary = FightStateScript.from_dict(cap_parsed).to_dict()
+			var got_tail: Array = capped.get("log_tail", []) as Array
+			failed += _assert(got_tail.size() == 200, "log tail caps at 200 (got %d)" % got_tail.size())
+			if got_tail.size() == 200:
+				failed += _assert(int((got_tail[0] as Dictionary).get("i", -1)) == 50, "log tail keeps the latest 200")
+				failed += _assert(int((got_tail[199] as Dictionary).get("i", -1)) == 249, "log tail ends at the latest entry")
+	if failed == 0:
+		print("RESOLVER_STATE_ROUNDTRIP_OK")
+	return failed
+
+
+class _ResolverSwiftHook extends FightState:
+	var bumped_id: String = ""
+	var bonus: int = 0
+
+	func effective_swiftness(id: String) -> int:
+		var base: int = super.effective_swiftness(id)
+		if id == bumped_id:
+			return base + bonus
+		return base
+
+
+func _resolver_turn_order() -> int:
+	## Fixture order, tie-breaks, the Swiftness hook, Ambush, skips, the round cap, and a mid-round save.
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var block: Dictionary = cases.get("turn_order", {}) as Dictionary
+	var expect: Array = block.get("expect", []) as Array
+	failed += _assert(expect.size() == 6, "turn_order fixture has six names")
+	var plain: FightState = _resolver_order_fight(false)
+	failed += _resolver_same_ids(plain.order, expect, "fixture order")
+	failed += _assert(plain.current_actor() == str(expect[0]) if expect.size() == 6 else false, "first actor is the head of the order")
+	failed += _assert(plain.round == 1 and plain.outcome() == "", "a fresh fight is round 1 with no outcome")
+	var ambush_expect: Array = ["Spore moth A", "Wilt Wisp A", "Acorn imp A", "Root Snapper A", "Keeper", "Elaia"]
+	var ambush: FightState = _resolver_order_fight(true)
+	failed += _resolver_same_ids(ambush.order, ambush_expect, "ambush round 1")
+	ambush.set_scripted_dice(_resolver_miss_faces(6))
+	var ambush_actors: Array[String] = []
+	for _step_i: int in 6:
+		var ambush_step: Dictionary = _resolver_step_auto(ambush)
+		failed += _assert(str(ambush_step.get("error", "")) == "", "ambush step error %s" % str(ambush_step.get("error", "")))
+		ambush_actors.append(str(ambush_step.get("actor", "")))
+	failed += _resolver_same_ids(ambush_actors, ambush_expect, "ambush actors")
+	failed += _assert(ambush.scripted_underrun() == 0 and ambush.scripted_remaining() == 0, "ambush round used one miss per actor")
+	failed += _assert(ambush.round == 2 and ambush.outcome() == "", "ambush ends after round 1")
+	failed += _resolver_same_ids(ambush.order, expect, "ambush round 2 is the normal order")
+	failed += _assert(ambush.current_actor() == str(expect[0]) if expect.size() == 6 else false, "round 2 starts at the normal head")
+	for name_v: Variant in ambush_expect:
+		failed += _assert(int(ambush.fighter_dict(str(name_v)).get("turns", -1)) == 1, "%s acted once in the ambush round" % str(name_v))
+	failed += _resolver_tie_order()
+	failed += _resolver_swift_hook()
+	failed += _resolver_skip_ko()
+	failed += _resolver_round_cap()
+	failed += _resolver_midround_save()
+	failed += _resolver_fight_ends()
+	if failed == 0:
+		print("RESOLVER_TURN_ORDER_OK")
+	return failed
+
+
+func _resolver_tie_order() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.add_fighter("b0", "beast", _resolver_tank(4), 0, "front", "physical")
+	fight.add_fighter("p2", "party", _resolver_tank(4), 2, "front", "physical", "", "keeper")
+	fight.add_fighter("p0", "party", _resolver_tank(4), 0, "front", "physical", "", "elaia")
+	fight.add_fighter("b1", "beast", _resolver_tank(4), 1, "front", "physical")
+	fight.add_fighter("pfast", "party", _resolver_tank(9), 1, "front", "physical", "", "keeper")
+	fight.start_fight()
+	failed += _resolver_same_ids(fight.order, ["pfast", "p0", "p2", "b0", "b1"], "ties: party, then slot")
+	return failed
+
+
+func _resolver_swift_hook() -> int:
+	## The bonus is applied after round 1 is built, so only the next rebuild sees it.
+	var failed: int = 0
+	var fight := _ResolverSwiftHook.new()
+	fight.add_fighter("brute", "beast", _resolver_tank(5), 0, "front", "physical")
+	fight.add_fighter("keeper", "party", _resolver_tank(4), 0, "front", "physical", "", "keeper")
+	fight.start_fight()
+	var round1: Array = fight.order.duplicate()
+	failed += _resolver_same_ids(round1, ["brute", "keeper"], "hook fight round 1")
+	fight.bumped_id = "keeper"
+	fight.bonus = 10
+	failed += _resolver_same_ids(fight.order, round1, "swiftness hook does not rebuild the current round")
+	fight.set_scripted_dice(_resolver_miss_faces(2))
+	var actors: Array[String] = []
+	for _i: int in 2:
+		var stepped: Dictionary = _resolver_step_auto(fight)
+		failed += _assert(str(stepped.get("error", "")) == "", "hook step error")
+		actors.append(str(stepped.get("actor", "")))
+	failed += _resolver_same_ids(actors, ["brute", "keeper"], "round 1 actors stay on the old order")
+	failed += _assert(fight.round == 2, "hook fight reached round 2 (got %d)" % fight.round)
+	failed += _resolver_same_ids(fight.order, ["keeper", "brute"], "next round uses effective_swiftness")
+	failed += _assert(fight.current_actor() == "keeper", "round 2 opens on the hooked fighter")
+	failed += _assert(fight.scripted_underrun() == 0 and fight.scripted_remaining() == 0, "hook fight dice")
+	return failed
+
+
+func _resolver_skip_ko() -> int:
+	var failed: int = 0
+	var already: FightState = FightStateScript.new()
+	already.add_fighter("down", "party", _resolver_tank(20), 0, "front", "physical", "", "keeper")
+	already.add_fighter("up", "party", _resolver_tank(5), 1, "front", "physical", "", "elaia")
+	already.add_fighter("mob", "beast", _resolver_tank(1), 0, "front", "physical")
+	already.set_hp("down", 0)
+	already.start_fight()
+	already.set_scripted_dice(_resolver_miss_faces(2))
+	var already_actors: Array[String] = []
+	for _i: int in 2:
+		var stepped: Dictionary = _resolver_step_auto(already)
+		failed += _assert(str(stepped.get("error", "")) == "", "pre-ko step error %s" % str(stepped.get("error", "")))
+		already_actors.append(str(stepped.get("actor", "")))
+	failed += _resolver_same_ids(already_actors, ["up", "mob"], "a fighter who starts knocked out never acts")
+	failed += _assert(int(already.fighter_dict("down").get("turns", -1)) == 0, "knocked-out fighter gains no turns")
+	failed += _assert(str(already.fighter_dict("down").get("status", "")) == "ko", "party at the threshold is knocked out")
+	failed += _assert(already.scripted_remaining() == 0 and already.scripted_underrun() == 0, "skipped fighter consumes no dice")
+	var mid: FightState = FightStateScript.new()
+	var striker: Dictionary = _resolver_tank(10)
+	striker["might"] = 30
+	mid.add_fighter("striker", "party", striker, 0, "front", "physical", "", "keeper")
+	var victim: Dictionary = _resolver_tank(5)
+	victim["resilience"] = 0
+	victim["ward"] = 0
+	victim["vitality"] = 1
+	mid.add_fighter("victim", "beast", victim, 0, "front", "physical")
+	mid.add_fighter("other", "beast", _resolver_tank(3), 1, "front", "physical")
+	var mid_faces: Array = [6, 6, 1, 1, 10]
+	mid_faces.append_array(_resolver_miss_faces(1))
+	mid.set_scripted_dice(mid_faces)
+	mid.start_fight()
+	var mid_actors: Array[String] = []
+	for _j: int in 2:
+		var mid_step: Dictionary = _resolver_step_auto(mid)
+		failed += _assert(str(mid_step.get("error", "")) == "", "mid-round step error %s" % str(mid_step.get("error", "")))
+		mid_actors.append(str(mid_step.get("actor", "")))
+	failed += _resolver_same_ids(mid_actors, ["striker", "other"], "a beast calmed mid-round loses that turn")
+	failed += _assert(str(mid.fighter_dict("victim").get("status", "")) == "calmed", "the dropped beast is Calmed")
+	failed += _assert(int(mid.fighter_dict("victim").get("turns", -1)) == 0, "calmed beast gains no turns")
+	failed += _assert(mid.outcome() == "" and mid.round == 2, "the other beast keeps the fight going")
+	failed += _assert(mid.scripted_underrun() == 0 and mid.scripted_remaining() == 0, "mid-round skip dice")
+	var party_drop: FightState = FightStateScript.new()
+	var bruiser: Dictionary = _resolver_tank(10)
+	bruiser["might"] = 30
+	party_drop.add_fighter("bruiser", "beast", bruiser, 0, "front", "physical")
+	var keeper_stats: Dictionary = _resolver_tank(5)
+	keeper_stats["resilience"] = 0
+	keeper_stats["ward"] = 0
+	keeper_stats["vitality"] = 1
+	party_drop.add_fighter("keeper", "party", keeper_stats, 0, "front", "physical", "", "keeper")
+	party_drop.add_fighter("elaia", "party", _resolver_tank(1), 1, "front", "physical", "", "elaia")
+	var drop_faces: Array = [6, 6, 1, 1, 10]
+	drop_faces.append_array(_resolver_miss_faces(1))
+	party_drop.set_scripted_dice(drop_faces)
+	party_drop.start_fight()
+	var drop_actors: Array[String] = []
+	for _k: int in 2:
+		var drop_step: Dictionary = _resolver_step_auto(party_drop)
+		failed += _assert(str(drop_step.get("error", "")) == "", "party drop step error %s" % str(drop_step.get("error", "")))
+		drop_actors.append(str(drop_step.get("actor", "")))
+	failed += _resolver_same_ids(drop_actors, ["bruiser", "elaia"], "a party member knocked out mid-round loses that turn")
+	failed += _assert(str(party_drop.fighter_dict("keeper").get("status", "")) == "ko", "the dropped party member is knocked out")
+	failed += _assert(int(party_drop.fighter_dict("keeper").get("turns", -1)) == 0, "knocked-out member gains no turns")
+	failed += _assert(party_drop.scripted_underrun() == 0 and party_drop.scripted_remaining() == 0, "party drop dice")
+	return failed
+
+
+func _resolver_round_cap() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.set_combat_seed(60)
+	fight.add_fighter("a", "party", _resolver_tank(3), 0, "front", "physical", "", "keeper")
+	fight.add_fighter("b", "beast", _resolver_tank(2), 0, "front", "physical")
+	fight.start_fight()
+	var seen_at: int = -1
+	var seen_outcome: String = ""
+	var closing: Dictionary = {}
+	for n: int in range(1, 130):
+		var stepped: Dictionary = _resolver_step_auto(fight)
+		if fight.outcome() != "":
+			seen_at = n
+			seen_outcome = fight.outcome()
+			closing = stepped
+			break
+		failed += _assert(str(stepped.get("error", "")) == "", "cap step %d error %s" % [n, str(stepped.get("error", ""))])
+		failed += _assert(fight.round <= 60, "round stayed within the cap during step %d" % n)
+	failed += _assert(seen_outcome == "flee", "round cap outcome is flee (got %s at step %d)" % [seen_outcome, seen_at])
+	failed += _assert(seen_at == 120, "flee after both fighters have acted for 60 rounds (step %d)" % seen_at)
+	failed += _assert(fight.round == 60, "flee leaves the round at 60 (got %d)" % fight.round)
+	failed += _assert(str(closing.get("round", "")) == "60" and str(closing.get("outcome", "")) == "flee", "the closing step reports round 60 and flee")
+	failed += _assert(str(closing.get("actor", "")) != "" and str(closing.get("error", "")) == "", "the closing step still resolved an action")
+	failed += _assert(fight.current_actor() == "", "no actor after flee")
+	var hp_a: int = int(fight.fighter_dict("a").get("hp", -1))
+	var hp_b: int = int(fight.fighter_dict("b").get("hp", -1))
+	failed += _assert(hp_a == int(fight.fighter_dict("a").get("max_hp", -2)) and hp_b == int(fight.fighter_dict("b").get("max_hp", -2)), "the cap pair never hurt each other")
+	var state_before: String = str(fight.to_dict().get("rng_combat_state", ""))
+	var extra: Dictionary = fight.step({})
+	failed += _assert(str(extra.get("error", "")) == "fight over" and str(extra.get("outcome", "")) == "flee", "no step runs after flee")
+	failed += _assert(str(fight.to_dict().get("rng_combat_state", "")) == state_before, "a step after flee consumes no dice")
+	var parsed: Variant = JSON.parse_string(JSON.stringify(fight.to_dict()))
+	failed += _assert(parsed is Dictionary, "flee save json")
+	if parsed is Dictionary:
+		var copy: FightState = FightStateScript.from_dict(parsed)
+		failed += _assert(copy.outcome() == "flee" and copy.current_actor() == "" and copy.round == 60, "a flee save resumes ended")
+		var copy_step: Dictionary = copy.step({})
+		failed += _assert(str(copy_step.get("error", "")) == "fight over", "a loaded flee save does not take another step")
+		failed += _assert(int(copy.fighter_dict("a").get("hp", -1)) == hp_a, "loading the flee save does not change hp")
+	return failed
+
+
+func _resolver_midround_save() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.set_combat_seed(20261010)
+	fight.add_fighter("keeper", "party", _resolver_tank(9), 0, "front", "physical", "", "keeper")
+	fight.add_fighter("imp", "beast", _resolver_tank(6), 0, "front", "physical")
+	fight.add_fighter("moth", "beast", _resolver_tank(7), 1, "front", "physical")
+	fight.start_fight()
+	var first: Dictionary = _resolver_step_auto(fight)
+	failed += _assert(str(first.get("error", "")) == "" and str(first.get("actor", "")) == "keeper", "save setup acts as the keeper")
+	failed += _assert(fight.current_actor() == "moth" and fight.round == 1, "the save is mid-round")
+	var snap: Dictionary = fight.to_dict()
+	var parsed: Variant = JSON.parse_string(JSON.stringify(snap))
+	failed += _assert(parsed is Dictionary, "mid-round json")
+	if parsed is not Dictionary:
+		return failed + 1
+	var copy: FightState = FightStateScript.from_dict(parsed)
+	failed += _assert(copy.current_actor() == fight.current_actor(), "reloaded next actor")
+	failed += _assert(copy.round == fight.round and copy.turn_cursor == fight.turn_cursor, "reloaded round and cursor")
+	failed += _assert(copy.outcome() == "", "reloaded fight is still going")
+	failed += _resolver_same_ids(copy.order, fight.order, "reloaded order")
+	for n: int in 4:
+		var left: Dictionary = _resolver_step_auto(fight)
+		var right: Dictionary = _resolver_step_auto(copy)
+		if left != right:
+			print("STEP A ", JSON.stringify(left))
+			print("STEP B ", JSON.stringify(right))
+		failed += _assert(left == right, "step %d matches after a mid-round reload" % n)
+	var again: Dictionary = copy.to_dict()
+	var live: Dictionary = fight.to_dict()
+	if again != live:
+		print("SAVE A ", JSON.stringify(live))
+		print("SAVE B ", JSON.stringify(again))
+	failed += _assert(again == live, "fight dict matches after the reloaded steps")
+	return failed
+
+
+func _resolver_fight_ends() -> int:
+	var failed: int = 0
+	var win: FightState = FightStateScript.new()
+	var keeper: Dictionary = _resolver_tank(10)
+	keeper["might"] = 30
+	win.add_fighter("keeper", "party", keeper, 0, "front", "physical", "", "keeper")
+	var imp: Dictionary = _resolver_tank(1)
+	imp["resilience"] = 0
+	imp["ward"] = 0
+	imp["vitality"] = 1
+	win.add_fighter("imp", "beast", imp, 0, "front", "physical")
+	win.set_scripted_dice([6, 6, 1, 1, 10])
+	win.start_fight()
+	var won: Dictionary = win.step({"kind": "strike", "target": "imp"})
+	failed += _assert(str(won.get("outcome", "")) == "win" and win.outcome() == "win", "all beasts Calmed is a win")
+	failed += _assert(str(win.fighter_dict("imp").get("status", "")) == "calmed", "win calms the beast")
+	failed += _assert(win.current_actor() == "", "win has no next actor")
+	failed += _assert(int(win.fighter_dict("imp").get("turns", -1)) == 0, "a calmed beast does not act after the winning blow")
+	failed += _assert(win.scripted_underrun() == 0 and win.scripted_remaining() == 0, "winning blow dice")
+	var idle: Dictionary = win.step({})
+	failed += _assert(str(idle.get("error", "")) == "fight over" and win.scripted_remaining() == 0 and win.scripted_underrun() == 0, "no step runs after a win")
+	var loss: FightState = FightStateScript.new()
+	var bruiser: Dictionary = _resolver_tank(10)
+	bruiser["might"] = 30
+	loss.add_fighter("bruiser", "beast", bruiser, 0, "front", "physical")
+	var fallen: Dictionary = _resolver_tank(1)
+	fallen["resilience"] = 0
+	fallen["ward"] = 0
+	fallen["vitality"] = 1
+	loss.add_fighter("keeper", "party", fallen, 0, "front", "physical", "", "keeper")
+	loss.set_scripted_dice([6, 6, 1, 1, 10, 9])
+	loss.start_fight()
+	var lost: Dictionary = loss.step({})
+	failed += _assert(str(lost.get("actor", "")) == "bruiser" and str(lost.get("outcome", "")) == "overwhelmed", "all party knocked out is overwhelmed")
+	failed += _assert(str(loss.fighter_dict("keeper").get("status", "")) == "ko", "overwhelmed knocks the party out")
+	failed += _assert(loss.current_actor() == "" and int(loss.fighter_dict("keeper").get("turns", -1)) == 0, "overwhelmed ends before the party acts")
+	failed += _assert(loss.scripted_remaining() == 1 and loss.scripted_underrun() == 0, "overwhelmed does not roll a die past the blow")
+	var idle_loss: Dictionary = loss.step({"kind": "strike", "target": "bruiser"})
+	failed += _assert(str(idle_loss.get("error", "")) == "fight over" and loss.scripted_remaining() == 1, "no step runs after overwhelmed")
+	return failed
+
+
+func _resolver_rows() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.add_fighter("melee", "party", _resolver_tank(9), 0, "front", "physical", "", "keeper")
+	var ranged_stats: Dictionary = _resolver_tank(8)
+	ranged_stats["arcana"] = 8
+	fight.add_fighter("ranged", "party", ranged_stats, 1, "back", "magic", "", "elaia")
+	fight.add_fighter("front", "beast", _resolver_tank(2), 0, "front", "physical")
+	fight.add_fighter("back", "beast", _resolver_tank(1), 1, "back", "physical")
+	fight.add_fighter("asleep", "beast", _resolver_tank(1), 2, "front", "physical")
+	fight.set_hp("asleep", 0)
+	fight.start_fight()
+	failed += _resolver_same_ids(fight.legal_targets("melee"), ["front"], "melee reaches only the standing front row")
+	failed += _resolver_same_ids(fight.legal_targets("ranged"), ["front", "back"], "ranged reaches both rows")
+	failed += _assert(fight.to_hit_mod_for("ranged", "front") == 0, "ranged into the front row is +0")
+	failed += _assert(fight.to_hit_mod_for("ranged", "back") == -2, "ranged into the back row is -2 while the front stands")
+	failed += _assert(fight.to_hit_mod_for("melee", "back") == 0, "melee carries no row penalty")
+	failed += _assert(not fight.legal_targets("melee").has("asleep") and not fight.legal_targets("ranged").has("asleep"), "a Calmed beast is not a target")
+	fight.set_scripted_dice([1, 1, 6, 6, 2, 2])
+	var before: int = fight.scripted_remaining()
+	var cursor: int = fight.turn_cursor
+	var bad: Dictionary = fight.step({"kind": "strike", "target": "back"})
+	failed += _assert(str(bad.get("error", "")) == "illegal target", "melee into the back row is refused (got %s)" % str(bad.get("error", "")))
+	failed += _assert(fight.scripted_remaining() == before and fight.scripted_underrun() == 0, "an illegal target consumes no dice")
+	failed += _assert(int(fight.fighter_dict("melee").get("turns", -1)) == 0, "an illegal target spends no turn")
+	failed += _assert(fight.current_actor() == "melee" and fight.turn_cursor == cursor and fight.round == 1, "an illegal target leaves the cursor")
+	var bad_kind: Dictionary = fight.step({"kind": "focus"})
+	failed += _assert(str(bad_kind.get("error", "")) == "illegal action", "an unknown action is refused")
+	var bad_ally: Dictionary = fight.step({"kind": "strike", "target": "ranged"})
+	failed += _assert(str(bad_ally.get("error", "")) == "illegal target", "an ally is not a target")
+	var bad_asleep: Dictionary = fight.step({"kind": "strike", "target": "asleep"})
+	failed += _assert(str(bad_asleep.get("error", "")) == "illegal target", "a Calmed beast is refused")
+	var bad_missing: Dictionary = fight.step({"kind": "strike", "target": "nobody"})
+	failed += _assert(str(bad_missing.get("error", "")) == "illegal target", "a missing id is refused")
+	failed += _assert(fight.scripted_remaining() == before and fight.current_actor() == "melee", "refused actions leave the dice and the turn")
+	var good: Dictionary = fight.step({"kind": "strike", "target": "front"})
+	failed += _assert(str(good.get("error", "")) == "" and str(good.get("target", "")) == "front", "melee can strike the front row")
+	failed += _assert(fight.scripted_remaining() == 2 and fight.scripted_underrun() == 0, "the legal strike consumes the miss and nothing more")
+	failed += _assert(int(fight.fighter_dict("melee").get("turns", -1)) == 1, "the legal strike spends the turn")
+	fight.set_hp("front", 0)
+	failed += _resolver_same_ids(fight.legal_targets("melee"), ["back"], "melee reaches the back row once the front is empty")
+	failed += _resolver_same_ids(fight.legal_targets("ranged"), ["back"], "ranged no longer lists the Calmed front")
+	failed += _assert(fight.to_hit_mod_for("ranged", "back") == 0, "the back-row penalty drops once the front is empty")
+	var opened: FightState = FightStateScript.new()
+	opened.add_fighter("melee", "party", _resolver_tank(9), 0, "front", "physical", "", "keeper")
+	opened.add_fighter("front", "beast", _resolver_tank(1), 0, "front", "physical")
+	opened.add_fighter("back", "beast", _resolver_tank(1), 1, "back", "physical")
+	opened.set_hp("front", 0)
+	opened.start_fight()
+	opened.set_scripted_dice(_resolver_miss_faces(1))
+	var opened_step: Dictionary = opened.step({"kind": "strike", "target": "back"})
+	failed += _assert(str(opened_step.get("error", "")) == "" and str(opened_step.get("target", "")) == "back", "melee can strike the back row once the front is empty")
+	failed += _assert(opened.scripted_remaining() == 0 and opened.scripted_underrun() == 0, "that back-row strike consumes the miss")
+	failed += _resolver_ranged_penalty(true, 15)
+	failed += _resolver_ranged_penalty(false, 17)
+	failed += _resolver_back_row_beast()
+	if failed == 0:
+		print("RESOLVER_ROWS_OK")
+	return failed
+
+
+func _resolver_ranged_penalty(front_alive: bool, want_total: int) -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var ranged: Dictionary = _resolver_tank(10)
+	ranged["arcana"] = 8
+	fight.add_fighter("ranged", "party", ranged, 0, "front", "magic", "", "keeper")
+	var beast: Dictionary = _resolver_tank(1)
+	beast["ward"] = 3
+	beast["resilience"] = 1
+	fight.add_fighter("front", "beast", beast, 0, "front", "physical")
+	fight.add_fighter("back", "beast", beast.duplicate(), 1, "back", "physical")
+	if not front_alive:
+		fight.set_hp("front", 0)
+	fight.start_fight()
+	failed += _assert(fight.to_hit_mod_for("ranged", "back") == (-2 if front_alive else 0), "row penalty flag")
+	fight.set_scripted_dice([4, 5, 1, 1, 3])
+	var stepped: Dictionary = fight.step({"kind": "strike", "target": "back"})
+	var blow: Dictionary = stepped.get("strike", {}) as Dictionary
+	var label: String = "front standing" if front_alive else "front empty"
+	failed += _assert(str(stepped.get("error", "")) == "", "ranged shot (%s) error %s" % [label, str(stepped.get("error", ""))])
+	failed += _assert(int(blow.get("attack_total", -1)) == want_total, "ranged attack total %s got %s want %d" % [label, str(blow.get("attack_total")), want_total])
+	failed += _assert(fight.scripted_remaining() == 0 and fight.scripted_underrun() == 0, "ranged shot dice (%s)" % label)
+	return failed
+
+
+func _resolver_back_row_beast() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var lurker: Dictionary = _resolver_tank(10)
+	lurker["might"] = 12
+	fight.add_fighter("lurker", "beast", lurker, 0, "back", "physical")
+	var keeper: Dictionary = _resolver_tank(1)
+	keeper["resilience"] = 4
+	fight.add_fighter("keeper", "party", keeper, 0, "front", "physical", "", "keeper")
+	var elaia: Dictionary = _resolver_tank(1)
+	elaia["resilience"] = 1
+	fight.add_fighter("elaia", "party", elaia, 1, "back", "physical", "", "elaia")
+	fight.start_fight()
+	failed += _assert(str(fight.fighter_dict("lurker").get("row", "")) == "back", "the melee beast stands in the back row")
+	failed += _resolver_same_ids(fight.legal_targets("lurker"), ["keeper"], "a back-row melee beast reaches the front row")
+	failed += _assert(fight.beast_target("lurker") == "keeper", "the back-row beast does not skip the fight to hit a softer back row")
+	fight.set_scripted_dice([6, 6, 1, 1, 4])
+	var elaia_hp: int = int(fight.fighter_dict("elaia").get("hp", -1))
+	var stepped: Dictionary = fight.step({"kind": "strike", "target": "elaia"})
+	failed += _assert(str(stepped.get("error", "")) == "" and str(stepped.get("kind", "")) == "strike", "a back-row melee beast can attack")
+	failed += _assert(str(stepped.get("actor", "")) == "lurker" and str(stepped.get("target", "")) == "keeper", "the beast ignores the passed target and strikes the front")
+	failed += _assert(int((stepped.get("strike", {}) as Dictionary).get("damage", 0)) > 0, "the back-row attack lands")
+	failed += _assert(int(fight.fighter_dict("elaia").get("hp", -2)) == elaia_hp, "the unreachable back row is untouched")
+	failed += _assert(int(fight.fighter_dict("lurker").get("turns", -1)) == 1, "the beast's attack spends its turn")
+	failed += _assert(fight.scripted_remaining() == 0 and fight.scripted_underrun() == 0, "back-row beast dice")
+	return failed
+
+
+func _resolver_targeting() -> int:
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var rows: Array = cases.get("beast_targeting", []) as Array
+	failed += _assert(rows.size() == 2, "beast_targeting fixture has two cases")
+	for row_v: Variant in rows:
+		var row: Dictionary = row_v as Dictionary
+		var built: Dictionary = _resolver_targeting_case(row)
+		var fight: FightState = built.get("fight") as FightState
+		var beast_id: String = str(built.get("beast_id", ""))
+		failed += _resolver_same_ids(fight.legal_targets(beast_id), row.get("reachable", []) as Array, "%s reachable" % beast_id)
+		failed += _assert(fight.beast_target(beast_id) == str(row.get("expect_target", "")), "%s targets %s, got %s" % [beast_id, str(row.get("expect_target", "")), fight.beast_target(beast_id)])
+	failed += _resolver_target_ties()
+	failed += _resolver_beast_ignores_action()
+	if failed == 0:
+		print("RESOLVER_TARGETING_OK")
+	return failed
+
+
+func _resolver_target_ties() -> int:
+	var failed: int = 0
+	var physical: FightState = FightStateScript.new()
+	physical.add_fighter("imp", "beast", _resolver_tank(4), 0, "front", "physical")
+	physical.add_member("p1", _resolver_target_stats(5, 9), 2, "front", "p1")
+	physical.add_member("p0", _resolver_target_stats(5, 9), 0, "front", "p0")
+	physical.add_member("pb", _resolver_target_stats(5, 9), 0, "back", "pb")
+	physical.add_member("pweak", _resolver_target_stats(1, 1), 1, "back", "pweak")
+	physical.start_fight()
+	failed += _resolver_same_ids(physical.legal_targets("imp"), ["p0", "p1"], "melee tie reach is the front row only")
+	failed += _assert(physical.beast_target("imp") == "p0", "equal Resilience breaks to the front row, then the lower slot")
+	physical.set_hp("p0", 0)
+	physical.set_hp("p1", 0)
+	failed += _resolver_same_ids(physical.legal_targets("imp"), ["pb", "pweak"], "once the front drops, the back row is reachable")
+	failed += _assert(physical.beast_target("imp") == "pweak", "the newly reachable weaker member is picked")
+	var magic: FightState = FightStateScript.new()
+	var moth: Dictionary = _resolver_tank(8)
+	moth["attack"] = "magic"
+	magic.add_fighter("moth", "beast", moth, 0, "front", "magic")
+	magic.add_member("front_hi", _resolver_target_stats(1, 4), 2, "front", "front_hi")
+	magic.add_member("front_lo", _resolver_target_stats(9, 4), 0, "front", "front_lo")
+	magic.add_member("back_lo", _resolver_target_stats(1, 4), 0, "back", "back_lo")
+	magic.start_fight()
+	failed += _resolver_same_ids(magic.legal_targets("moth"), ["front_lo", "front_hi", "back_lo"], "magic reach lists both rows")
+	failed += _assert(magic.beast_target("moth") == "front_lo", "equal Ward breaks to the front row, then slot")
+	return failed
+
+
+func _resolver_beast_ignores_action() -> int:
+	var failed: int = 0
+	var fight: FightState = _resolver_targeting_case({"beast": "acorn_imp", "party": [{"name": "Keeper", "row": "front", "res": 6, "ward": 5}, {"name": "Elaia", "row": "back", "res": 5, "ward": 7}]})["fight"] as FightState
+	fight.set_scripted_dice([6, 6, 1, 1, 6])
+	var elaia_hp: int = int(fight.fighter_dict("Elaia").get("hp", -1))
+	failed += _assert(fight.current_actor() == "acorn_imp", "the imp acts first in the ignore-action setup")
+	var stepped: Dictionary = fight.step({"kind": "strike", "target": "Elaia"})
+	failed += _assert(str(stepped.get("error", "")) == "", "beast step error %s" % str(stepped.get("error", "")))
+	failed += _assert(str(stepped.get("target", "")) == "Keeper", "a beast strikes its own target, not the passed one")
+	failed += _assert(int(fight.fighter_dict("Elaia").get("hp", -2)) == elaia_hp, "the passed target is not struck")
+	failed += _assert(int(fight.fighter_dict("Keeper").get("hp", 999)) < int(fight.fighter_dict("Keeper").get("max_hp", 0)), "the chosen target lost HP")
+	failed += _assert(fight.scripted_remaining() == 0 and fight.scripted_underrun() == 0, "beast strike dice")
+	return failed
+
+
+func _resolver_targeting_case(row: Dictionary) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	var party: Array = row.get("party", []) as Array
+	var slot: int = 0
+	for member_v: Variant in party:
+		var member: Dictionary = member_v as Dictionary
+		var stats: Dictionary = _resolver_target_stats(int(member.get("res", 0)), int(member.get("ward", 0)))
+		stats["swiftness"] = 1
+		var member_name: String = str(member.get("name", ""))
+		fight.add_member(member_name, stats, slot, str(member.get("row", "front")), member_name)
+		slot += 1
+	var beast_id: String = str(row.get("beast", ""))
+	fight.add_beast(beast_id, 0, "front")
+	fight.start_fight()
+	return {"fight": fight, "beast_id": beast_id}
+
+
+func _resolver_target_stats(resilience: int, ward: int) -> Dictionary:
+	return {
+		"might": 1, "arcana": 1, "resilience": resilience, "ward": ward,
+		"vitality": 8, "swiftness": 4, "fate": 0,
+	}
+
+
+func _resolver_order_fight(use_ambush: bool) -> FightState:
+	var fight: FightState = FightStateScript.new()
+	fight.ambush = use_ambush
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var block: Dictionary = cases.get("turn_order", {}) as Dictionary
+	for row_v: Variant in block.get("fighters", []) as Array:
+		var row: Dictionary = row_v as Dictionary
+		var fighter_name: String = str(row.get("name", ""))
+		var stats: Dictionary = _resolver_tank(int(row.get("swiftness", 0)))
+		var slot: int = int(row.get("slot", 0))
+		if str(row.get("side", "")) == "party":
+			fight.add_member(fighter_name, stats, slot, "front", fighter_name)
+		else:
+			fight.add_fighter(fighter_name, "beast", stats, slot, "front", "physical")
+	fight.start_fight()
+	return fight
+
+
+func _resolver_tank(swiftness: int) -> Dictionary:
+	return {
+		"might": 1, "arcana": 1, "resilience": 40, "ward": 40,
+		"vitality": 8, "swiftness": swiftness, "fate": 0,
+	}
+
+
+func _resolver_miss_faces(actions: int) -> Array:
+	var faces: Array = []
+	for _i: int in actions:
+		faces.append_array([1, 1, 6, 6])
+	return faces
+
+
+func _resolver_brace() -> int:
+	## Braced defense through a real step, halving, and the die that exists only while braced.
+	var failed: int = 0
+	failed += _resolver_brace_fixture()
+	failed += _resolver_brace_best_two()
+	failed += _resolver_brace_halve()
+	failed += _resolver_brace_minimum()
+	if failed == 0:
+		print("RESOLVER_BRACE_OK")
+	return failed
+
+
+func _resolver_brace_fixture() -> int:
+	## s4_line3 through Brace, then the same keeper's next turn drops it.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 6, "ward": 5,
+		"vitality": 8, "swiftness": 7, "fate": 0,
+	}
+	fight.add_member("Keeper", keeper, 0, "front", "Keeper")
+	fight.add_beast("acorn_imp", 0, "front", "Acorn imp A")
+	fight.start_fight()
+	failed += _assert(fight.current_actor() == "Keeper", "the keeper braces before the imp swings")
+	var queued: Array = [4, 5, 6, 5, 1, 1, 1, 6, 6, 1, 1, 6, 6, 9]
+	fight.set_scripted_dice(queued)
+	var braced: Dictionary = fight.step({"kind": "brace"})
+	failed += _assert(str(braced.get("error", "")) == "" and str(braced.get("kind", "")) == "brace", "brace spends the turn")
+	failed += _assert(bool(fight.fighter_dict("Keeper").get("brace", false)), "brace is up after the action")
+	failed += _assert(int(fight.fighter_dict("Keeper").get("turns", -1)) == 1, "brace counts as the keeper's turn")
+	failed += _assert(fight.scripted_remaining() == queued.size() and fight.scripted_underrun() == 0, "brace consumes no dice")
+	var blow_step: Dictionary = fight.step({})
+	var blow: Dictionary = blow_step.get("strike", {}) as Dictionary
+	failed += _assert(str(blow_step.get("actor", "")) == "Acorn imp A" and str(blow_step.get("error", "")) == "", "the imp strikes the braced keeper")
+	failed += _assert(int(blow.get("attack_total", -1)) == 16, "brace example attack total (got %s)" % str(blow.get("attack_total", "")))
+	failed += _assert(int(blow.get("defense_total", -1)) == 17, "brace example defense total (got %s)" % str(blow.get("defense_total", "")))
+	failed += _assert(str(blow.get("band", "")) == "miss" and int(blow.get("damage", -1)) == 0, "keeping 6+5 misses the attack of 16")
+	failed += _assert(bool(fight.fighter_dict("Keeper").get("brace", false)), "brace holds through the enemies' turns")
+	failed += _assert(fight.scripted_remaining() == 9 and fight.scripted_underrun() == 0, "the braced defense consumed the third die")
+	var keeper_turn: Dictionary = fight.step({"kind": "strike", "target": "Acorn imp A"})
+	failed += _assert(str(keeper_turn.get("error", "")) == "", "the keeper's next turn resolves (%s)" % str(keeper_turn.get("error", "")))
+	failed += _assert(not bool(fight.fighter_dict("Keeper").get("brace", true)), "brace clears when that turn starts")
+	var open_step: Dictionary = fight.step({})
+	var open_blow: Dictionary = open_step.get("strike", {}) as Dictionary
+	failed += _assert(str(open_step.get("error", "")) == "" and str(open_blow.get("band", "")) == "miss", "the later swing is an ordinary miss")
+	failed += _assert(fight.scripted_remaining() == 1 and fight.scripted_underrun() == 0, "an unbraced defense leaves the extra die")
+	var left: Array = fight.scripted_queue()
+	failed += _assert(left.size() == 1 and int(left[0]) == 9, "the spare face is the die Brace would have rolled")
+	return failed
+
+
+func _resolver_brace_best_two() -> int:
+	## [1, 2, 6] keeps 8. The first two alone would be a graze and would roll damage.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 6, "ward": 1,
+		"vitality": 8, "swiftness": 7, "fate": 0,
+	}
+	var imp: Dictionary = {
+		"might": 7, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 8, "swiftness": 1, "fate": 0,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_fighter("imp", "beast", imp, 0, "front", "physical")
+	fight.start_fight()
+	var setup: Dictionary = fight.step({"kind": "brace"})
+	failed += _assert(str(setup.get("error", "")) == "", "best-two setup braces")
+	fight.set_scripted_dice([1, 1, 1, 2, 6])
+	var stepped: Dictionary = fight.step({})
+	var blow: Dictionary = stepped.get("strike", {}) as Dictionary
+	failed += _assert(int(blow.get("attack_total", -1)) == 9, "best-two attack total")
+	failed += _assert(int(blow.get("defense_total", -1)) == 14, "best two of 1,2,6 is 8 plus guard 6 (got %s)" % str(blow.get("defense_total", "")))
+	failed += _assert(str(blow.get("band", "")) == "miss" and int(blow.get("damage", -1)) == 0, "the kept third die is a miss, not a graze")
+	failed += _assert(fight.scripted_remaining() == 0 and fight.scripted_underrun() == 0, "best-two consumes three defense dice and no damage die")
+	return failed
+
+
+func _resolver_brace_halve() -> int:
+	## Same graze: 3 unbraced, 2 braced (3 / 2 rounds half up).
+	var failed: int = 0
+	var open: Dictionary = _resolver_fixed_blow(false, 4, 0, [4, 4, 6, 6, 1])
+	var shut: Dictionary = _resolver_fixed_blow(true, 4, 0, [4, 4, 6, 6, 1, 1])
+	failed += _assert(int(open.get("damage", -1)) == 3, "unbraced graze of raw 5 is 3 (got %s)" % str(open.get("damage", "")))
+	failed += _assert(int(shut.get("damage", -1)) == 2, "brace halves 3 to 2 (got %s)" % str(shut.get("damage", "")))
+	failed += _assert(int(open.get("hp", -1)) == int(open.get("max_hp", 0)) - 3, "unbraced HP drops by 3")
+	failed += _assert(int(shut.get("hp", -1)) == int(shut.get("max_hp", 0)) - 2, "braced HP drops by 2")
+	failed += _assert(int(shut.get("underrun", -1)) == 0 and int(shut.get("remaining", -1)) == 0, "halve probe dice")
+	return failed
+
+
+func _resolver_brace_minimum() -> int:
+	## Half of 1 rounds to 1, so a braced chip still lands.
+	var failed: int = 0
+	var shut: Dictionary = _resolver_fixed_blow(true, 1, 12, [6, 6, 1, 1, 1, 1])
+	failed += _assert(int(shut.get("damage", -1)) == 1, "brace keeps a minimum of 1 (got %s)" % str(shut.get("damage", "")))
+	failed += _assert(int(shut.get("hp", -1)) == int(shut.get("max_hp", 0)) - 1, "the minimum chip still comes off HP")
+	failed += _assert(int(shut.get("underrun", -1)) == 0 and int(shut.get("remaining", -1)) == 0, "minimum probe dice")
+	return failed
+
+
+func _resolver_fixed_blow(use_brace: bool, might: int, resilience: int, faces: Array) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": resilience, "ward": 0,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	var imp: Dictionary = {
+		"might": might, "arcana": 1, "resilience": 40, "ward": 40,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_fighter("imp", "beast", imp, 0, "front", "physical")
+	fight.start_fight()
+	if use_brace:
+		var setup: Dictionary = fight.step({"kind": "brace"})
+		if str(setup.get("error", "")) != "":
+			return {"damage": -1, "hp": -1, "max_hp": 0, "underrun": 1, "remaining": 1}
+		fight.set_scripted_dice(faces)
+		var stepped: Dictionary = fight.step({})
+		var blow: Dictionary = stepped.get("strike", {}) as Dictionary
+		var card: Dictionary = fight.fighter_dict("keeper")
+		return {
+			"damage": blow.get("damage", -1),
+			"hp": card.get("hp", -1),
+			"max_hp": card.get("max_hp", 0),
+			"underrun": fight.scripted_underrun(),
+			"remaining": fight.scripted_remaining(),
+		}
+	fight.set_scripted_dice(faces)
+	var direct: Dictionary = fight.strike("imp", "keeper", 0, 1)
+	var open_card: Dictionary = fight.fighter_dict("keeper")
+	return {
+		"damage": direct.get("damage", -1),
+		"hp": open_card.get("hp", -1),
+		"max_hp": open_card.get("max_hp", 0),
+		"underrun": fight.scripted_underrun(),
+		"remaining": fight.scripted_remaining(),
+	}
+
+
+func _resolver_shield_order() -> int:
+	## Brace halves, then the shield absorbs. The other order leaves a different HP.
+	var failed: int = 0
+	failed += _resolver_sap_amounts()
+	var soft: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 1, "swiftness": 0, "fate": 0,
+	}
+	var hitter: Dictionary = {
+		"might": 8, "arcana": 1, "resilience": 40, "ward": 40,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	var control: FightState = FightStateScript.new()
+	control.twist = "sap_spring"
+	control.add_member("keeper", soft, 0, "front", "keeper")
+	control.add_fighter("imp", "beast", hitter, 0, "front", "physical")
+	control.start_fight()
+	failed += _assert(int(control.fighter_dict("keeper").get("shield", -1)) == 3, "the order probe starts with shield 3")
+	control.set_scripted_dice([3, 3, 6, 6, 1])
+	var open: Dictionary = control.strike("imp", "keeper", 0, 1)
+	failed += _assert(int(open.get("damage", -1)) == 5, "unbraced blow is 5 (got %s)" % str(open.get("damage", "")))
+	failed += _assert(int(control.fighter_dict("keeper").get("hp", -1)) == 11, "shield 3 of 5 leaves HP 11 (got %s)" % str(control.fighter_dict("keeper").get("hp", "")))
+	failed += _assert(int(control.fighter_dict("keeper").get("shield", -1)) == 0, "the unbraced shield is spent")
+	failed += _assert(control.scripted_underrun() == 0 and control.scripted_remaining() == 0, "unbraced shield dice")
+	var braced: FightState = FightStateScript.new()
+	braced.twist = "sap_spring"
+	braced.add_member("keeper", soft, 0, "front", "keeper")
+	braced.add_fighter("imp", "beast", hitter, 0, "front", "physical")
+	braced.start_fight()
+	var setup: Dictionary = braced.step({"kind": "brace"})
+	failed += _assert(str(setup.get("error", "")) == "", "shield-order brace")
+	braced.set_scripted_dice([3, 3, 6, 6, 1, 1])
+	var shut_step: Dictionary = braced.step({})
+	var shut: Dictionary = shut_step.get("strike", {}) as Dictionary
+	failed += _assert(int(shut.get("damage", -1)) == 3, "brace halves 5 to 3 before the shield (got %s)" % str(shut.get("damage", "")))
+	failed += _assert(int(braced.fighter_dict("keeper").get("hp", -1)) == 13, "halve-then-shield leaves HP full (shield-then-halve would leave 12)")
+	failed += _assert(int(braced.fighter_dict("keeper").get("shield", -1)) == 0, "the shield absorbed the halved 3")
+	failed += _assert(braced.scripted_underrun() == 0 and braced.scripted_remaining() == 0, "braced shield dice")
+	braced.set_scripted_dice([3, 3, 6, 6, 1, 1])
+	braced.strike("imp", "keeper", 0, 1)
+	failed += _assert(int(braced.fighter_dict("keeper").get("shield", -1)) == 0, "a spent shield stays at 0")
+	failed += _assert(int(braced.fighter_dict("keeper").get("hp", -1)) == 10, "the next blow lands on HP once the shield is gone")
+	var ticked: FightState = FightStateScript.new()
+	ticked.twist = "sap_spring"
+	var bulky: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 40, "ward": 40,
+		"vitality": 5, "swiftness": 5, "fate": 0,
+	}
+	ticked.add_member("keeper", bulky, 0, "front", "keeper")
+	ticked.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	ticked.start_fight()
+	failed += _assert(int(ticked.fighter_dict("keeper").get("shield", -1)) == 5, "poison shield starts at 5")
+	ticked.apply_poison("keeper", 9)
+	ticked.set_scripted_dice([1, 1, 6, 6])
+	var poisoned: Dictionary = ticked.step({"kind": "strike", "target": "imp"})
+	failed += _assert(str(poisoned.get("error", "")) == "", "a covered tick still lets them strike")
+	failed += _assert(int(ticked.fighter_dict("keeper").get("hp", -1)) == 25, "the shield absorbs the poison tick")
+	failed += _assert(int(ticked.fighter_dict("keeper").get("shield", -1)) == 2, "tick 3 leaves shield 2 (got %s)" % str(ticked.fighter_dict("keeper").get("shield", "")))
+	failed += _assert(int(ticked.fighter_dict("keeper").get("turns", -1)) == 1, "the absorbed tick did not cost the turn")
+	failed += _assert(ticked.scripted_remaining() == 0 and ticked.scripted_underrun() == 0, "poison-shield strike dice")
+	if failed == 0:
+		print("RESOLVER_SHIELD_ORDER_OK")
+	return failed
+
+
+func _resolver_sap_amounts() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.twist = "sap_spring"
+	var small: Dictionary = _resolver_tank(3)
+	small["vitality"] = 1
+	var large: Dictionary = _resolver_tank(2)
+	large["vitality"] = 9
+	fight.add_member("small", small, 0, "front", "small")
+	fight.add_member("large", large, 1, "front", "large")
+	fight.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	fight.start_fight()
+	failed += _assert(int(fight.fighter_dict("small").get("max_hp", 0)) == 13, "sap small max")
+	failed += _assert(int(fight.fighter_dict("small").get("shield", -1)) == 3, "round_half_up(13 / 5) is 3")
+	failed += _assert(int(fight.fighter_dict("large").get("max_hp", 0)) == 37, "sap large max")
+	failed += _assert(int(fight.fighter_dict("large").get("shield", -1)) == 7, "round_half_up(37 / 5) is 7")
+	failed += _assert(int(fight.fighter_dict("imp").get("shield", -1)) == 0, "Sap Spring does not shield beasts")
+	return failed
+
+
+func _resolver_poison_refresh() -> int:
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var ops: Array = cases.get("poison_refresh", []) as Array
+	failed += _assert(ops.size() == 11, "poison_refresh has 11 ops (got %d)" % ops.size())
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 30, "swiftness": 1, "fate": 0, "hp": 100,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	var index: int = 0
+	for op_v: Variant in ops:
+		var op: Dictionary = op_v as Dictionary
+		var name: String = str(op.get("op", ""))
+		if name == "apply":
+			fight.apply_poison("keeper", int(op.get("total", 0)))
+		else:
+			fight.tick_poison("keeper")
+		var card: Dictionary = fight.fighter_dict("keeper")
+		failed += _assert(int(card.get("hp", -1)) == int(op.get("hp_after", -2)), "poison op %d hp %s vs %s" % [index, str(card.get("hp", "")), str(op.get("hp_after", ""))])
+		var want_ticks: Array = op.get("ticks_left", []) as Array
+		failed += _resolver_same_ints(_resolver_ticks(fight, "keeper"), want_ticks, "poison op %d ticks" % index)
+		failed += _assert(_resolver_kept(card) == int(op.get("kept_total", -1)), "poison op %d kept %d vs %s" % [index, _resolver_kept(card), str(op.get("kept_total", ""))])
+		index += 1
+	failed += _resolver_poison_turn_start()
+	failed += _resolver_poison_move()
+	failed += _resolver_poison_continuation()
+	if failed == 0:
+		print("RESOLVER_POISON_REFRESH_OK")
+	return failed
+
+
+func _resolver_poison_turn_start() -> int:
+	var failed: int = 0
+	var ko: FightState = FightStateScript.new()
+	var fragile: Dictionary = {
+		"might": 30, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 10, "swiftness": 9, "fate": 0,
+	}
+	var bystander: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 8, "swiftness": 1, "fate": 0, "hp": 20,
+	}
+	ko.add_member("keeper", fragile, 0, "front", "keeper")
+	ko.add_fighter("imp", "beast", bystander, 0, "front", "physical")
+	ko.start_fight()
+	ko.set_hp("keeper", 5)
+	ko.apply_poison("keeper", 9)
+	ko.set_scripted_dice([6, 6, 1, 1, 8])
+	var lost: Dictionary = ko.step({"kind": "strike", "target": "imp"})
+	failed += _assert(str(ko.fighter_dict("keeper").get("status", "")) == "ko", "a tick can knock a member out")
+	failed += _assert(int(ko.fighter_dict("keeper").get("hp", -1)) == 2, "the tick landed before the action (got %s)" % str(ko.fighter_dict("keeper").get("hp", "")))
+	failed += _assert(int(ko.fighter_dict("keeper").get("turns", -1)) == 0, "the knocked-out member loses that turn")
+	failed += _assert(ko.outcome() == "overwhelmed", "the tick can end the fight (got %s)" % ko.outcome())
+	failed += _assert(int(ko.fighter_dict("imp").get("hp", -1)) == 20, "the lost turn deals no strike")
+	failed += _assert(str(lost.get("outcome", "")) == "overwhelmed", "the step reports overwhelmed")
+	failed += _assert(ko.scripted_remaining() == 5 and ko.scripted_underrun() == 0, "a lost turn consumes no dice")
+	var calm: FightState = FightStateScript.new()
+	var sturdy: Dictionary = _resolver_tank(1)
+	sturdy["hp"] = 40
+	var weak: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 1, "swiftness": 9, "fate": 0, "hp": 4,
+	}
+	calm.add_member("keeper", sturdy, 0, "front", "keeper")
+	calm.add_fighter("imp", "beast", weak, 0, "front", "physical")
+	calm.start_fight()
+	calm.apply_poison("imp", 9)
+	var keeper_hp: int = int(calm.fighter_dict("keeper").get("hp", -1))
+	calm.set_scripted_dice([6, 6, 1, 1, 8])
+	var ended: Dictionary = calm.step({})
+	failed += _assert(str(calm.fighter_dict("imp").get("status", "")) == "calmed", "a tick can Calm a beast")
+	failed += _assert(int(calm.fighter_dict("imp").get("hp", -1)) == 1, "beast tick hp (got %s)" % str(calm.fighter_dict("imp").get("hp", "")))
+	failed += _assert(int(calm.fighter_dict("imp").get("turns", -1)) == 0, "a Calmed beast loses that turn")
+	failed += _assert(calm.outcome() == "win" and str(ended.get("outcome", "")) == "win", "Calming the last beast wins")
+	failed += _assert(int(calm.fighter_dict("keeper").get("hp", -2)) == keeper_hp, "the Calmed beast dealt no strike")
+	failed += _assert(calm.scripted_remaining() == 5 and calm.scripted_underrun() == 0, "a Calmed turn consumes no dice")
+	return failed
+
+
+func _resolver_poison_move() -> int:
+	## A magic poison move picks the lowest Ward it can reach and rolls no strike.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var front: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 4, "ward": 8,
+		"vitality": 10, "swiftness": 1, "fate": 0,
+	}
+	var back: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 9, "ward": 2,
+		"vitality": 10, "swiftness": 1, "fate": 0,
+	}
+	fight.add_member("front", front, 0, "front", "front")
+	fight.add_member("back", back, 1, "back", "back")
+	fight.add_beast("spore_moth", 0, "front", "moth")
+	fight.set_boss("moth")
+	fight.start_fight()
+	failed += _assert(fight.beast_target("moth") == "back", "the moth's target is the lower Ward, in the back row")
+	fight.set_scripted_dice(_resolver_miss_faces(5))
+	var opening: Dictionary = fight.step({})
+	failed += _assert(str(opening.get("kind", "")) == "strike" and str(opening.get("error", "")) == "", "turn 1 is still a strike")
+	var front_step: Dictionary = fight.step({"kind": "strike", "target": "moth"})
+	var back_step: Dictionary = fight.step({"kind": "strike", "target": "moth"})
+	failed += _assert(str(front_step.get("error", "")) == "" and str(back_step.get("error", "")) == "", "the party answers the opening strike")
+	var intent: Dictionary = _resolver_intent(fight, "moth")
+	failed += _assert(str(intent.get("move", "")) == "poison", "a poison boss shows the move before turn 2")
+	var back_hp: int = int(fight.fighter_dict("back").get("hp", -1))
+	var front_hp: int = int(fight.fighter_dict("front").get("hp", -1))
+	var before: int = fight.scripted_remaining()
+	var poisoned: Dictionary = fight.step({})
+	failed += _assert(str(poisoned.get("kind", "")) == "poison" and str(poisoned.get("target", "")) == "back", "the move poisons the Ward-weakest reachable member")
+	failed += _assert(int(fight.fighter_dict("back").get("hp", -2)) == back_hp, "a poison move deals no strike")
+	failed += _assert(int(fight.fighter_dict("front").get("hp", -2)) == front_hp, "the higher Ward is not the target")
+	failed += _resolver_same_ids(_resolver_ticks(fight, "back"), [3, 3, 3], "spore moth poison is 9, split 3/3/3")
+	failed += _assert(_resolver_ticks(fight, "front").is_empty(), "the other member stays clean")
+	failed += _assert(fight.scripted_remaining() == before and fight.scripted_underrun() == 0, "a poison move consumes no dice")
+	return failed
+
+
+func _resolver_poison_continuation() -> int:
+	## A ticked poison keeps its total across a save, and the next step matches.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.twist = "sap_spring"
+	fight.loadout = {"heart_salve": 2}
+	var keeper: Dictionary = _resolver_tank(9)
+	keeper["vitality"] = 10
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_beast("acorn_imp", 0, "front", "imp")
+	fight.set_boss("imp")
+	fight.start_fight()
+	fight.apply_poison("keeper", 12)
+	fight.tick_poison("keeper")
+	var braced: Dictionary = fight.step({"kind": "brace"})
+	failed += _assert(str(braced.get("error", "")) == "", "continuation brace")
+	var card: Dictionary = fight.fighter_dict("keeper")
+	failed += _assert(bool(card.get("brace", false)), "continuation brace flag")
+	failed += _assert(_resolver_kept(card) == 12, "the kept total survives the tick")
+	failed += _resolver_same_ids(_resolver_ticks(fight, "keeper"), [4], "one tick of 12 remains")
+	failed += _assert(int(card.get("shield", -1)) == 0, "two ticks of 4 spent the shield of 8")
+	failed += _assert(int(fight.fighter_dict("imp").get("max_hp", 0)) == 56, "the boss max is in the save")
+	var snap: Dictionary = fight.to_dict()
+	var parsed: Variant = JSON.parse_string(JSON.stringify(snap))
+	failed += _assert(parsed is Dictionary, "continuation json")
+	if parsed is Dictionary:
+		var copy: FightState = FightStateScript.from_dict(parsed)
+		var again: Dictionary = copy.to_dict()
+		if again != snap:
+			print("POISON A ", JSON.stringify(snap))
+			print("POISON B ", JSON.stringify(again))
+		failed += _assert(again == snap, "poison, brace, shield, loadout, boss and twist survive json")
+		fight.set_scripted_dice([1, 1, 6, 6, 1])
+		copy.set_scripted_dice([1, 1, 6, 6, 1])
+		var left: Dictionary = fight.step({})
+		var right: Dictionary = copy.step({})
+		if left != right:
+			print("POISON STEP A ", JSON.stringify(left))
+			print("POISON STEP B ", JSON.stringify(right))
+		failed += _assert(left == right, "the next step matches after the reload")
+		failed += _assert(copy.to_dict() == fight.to_dict(), "the fights still match after that step")
+		failed += _assert(fight.scripted_underrun() == 0 and fight.scripted_remaining() == 0, "continuation dice")
+	return failed
+
+
+func _resolver_twists() -> int:
+	var failed: int = 0
+	failed += _resolver_thicket()
+	failed += _resolver_fog()
+	failed += _resolver_twist_ambush()
+	failed += _resolver_sap_amounts()
+	failed += _resolver_rich_hollow()
+	if failed == 0:
+		print("RESOLVER_TWISTS_OK")
+	return failed
+
+
+func _resolver_thicket() -> int:
+	var failed: int = 0
+	var plain: FightState = FightStateScript.new()
+	plain.add_member("keeper", _resolver_tank(0), 0, "front", "keeper")
+	plain.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	plain.start_fight()
+	failed += _resolver_same_ids(plain.order, ["imp", "keeper"], "without Thicket the swifter beast goes first")
+	var thick: FightState = FightStateScript.new()
+	thick.twist = "thicket"
+	thick.add_member("keeper", _resolver_tank(0), 0, "front", "keeper")
+	thick.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	thick.start_fight()
+	failed += _assert(thick.effective_swiftness("keeper") == 0 and thick.effective_swiftness("imp") == 0, "Thicket floors both at 0")
+	failed += _resolver_same_ids(thick.order, ["keeper", "imp"], "the new tie goes to the party")
+	failed += _assert(int(thick.fighter_dict("imp").get("swiftness", -1)) == 1, "Thicket does not rewrite the stored Swiftness")
+	var open: Dictionary = _resolver_guard_blow(false, 7)
+	var shut: Dictionary = _resolver_guard_blow(true, 7)
+	failed += _assert(int(open.get("defense_total", -1)) == 8, "unguarded defense is 8 (got %s)" % str(open.get("defense_total", "")))
+	failed += _assert(int(shut.get("defense_total", -1)) == 7, "Thicket drops that defense by 1 (got %s)" % str(shut.get("defense_total", "")))
+	failed += _assert(int(open.get("attack_total", -1)) == int(shut.get("attack_total", -2)), "Thicket does not change the attack total")
+	var clamped: Dictionary = _resolver_guard_blow(true, 1)
+	failed += _assert(int(clamped.get("defense_total", -1)) == 4, "Swiftness 1 floored at 0 still guards with Resilience 4 (got %s)" % str(clamped.get("defense_total", "")))
+	return failed
+
+
+func _resolver_guard_blow(use_thicket: bool, swiftness: int) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	if use_thicket:
+		fight.twist = "thicket"
+	var attacker: Dictionary = {
+		"might": 4, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 4, "swiftness": 1, "fate": 0,
+	}
+	var resilience: int = 6 if swiftness >= 2 else 4
+	var defender: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": resilience, "ward": 1,
+		"vitality": 8, "swiftness": swiftness, "fate": 0,
+	}
+	fight.add_fighter("attacker", "beast", attacker, 0, "front", "physical")
+	fight.add_fighter("defender", "party", defender, 0, "front", "physical", "", "keeper")
+	fight.set_scripted_dice([1, 1, 1, 1])
+	return fight.strike("attacker", "defender", 0, 1)
+
+
+func _resolver_fog() -> int:
+	var failed: int = 0
+	var open_party: Dictionary = _resolver_fog_blow(false, "party")
+	var fog_party: Dictionary = _resolver_fog_blow(true, "party")
+	var open_beast: Dictionary = _resolver_fog_blow(false, "beast")
+	var fog_beast: Dictionary = _resolver_fog_blow(true, "beast")
+	failed += _assert(int(open_party.get("attack_total", -1)) == 18 and int(fog_party.get("attack_total", -1)) == 16, "Fog takes 2 off a party attack")
+	failed += _assert(int(open_beast.get("attack_total", -1)) == 18 and int(fog_beast.get("attack_total", -1)) == 16, "Fog takes 2 off a beast attack")
+	failed += _assert(int(open_party.get("defense_total", -1)) == int(fog_party.get("defense_total", -2)), "Fog leaves party defense alone")
+	failed += _assert(int(open_beast.get("defense_total", -1)) == int(fog_beast.get("defense_total", -2)), "Fog leaves beast defense alone")
+	failed += _assert(str(open_party.get("band", "")) == "crush" and str(fog_party.get("band", "")) == "crush", "a solid hit stays a hit")
+	failed += _assert(int(open_party.get("damage", -1)) == int(fog_party.get("damage", -2)) and int(open_party.get("damage", 0)) > 0, "Fog is not a flat miss")
+	var graze: Dictionary = _resolver_fog_edge(false)
+	var miss: Dictionary = _resolver_fog_edge(true)
+	failed += _assert(str(graze.get("band", "")) == "graze" and int(graze.get("damage", 0)) > 0, "without Fog the edge is a graze")
+	failed += _assert(str(miss.get("band", "")) == "miss" and int(miss.get("damage", -1)) == 0, "Fog's -2 turns that graze into a miss")
+	failed += _assert(int(miss.get("underrun", -1)) == 0 and int(miss.get("remaining", -1)) == 0, "the Fog miss does not roll a damage die")
+	return failed
+
+
+func _resolver_fog_blow(use_fog: bool, attacker_side: String) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	if use_fog:
+		fight.twist = "fog"
+	var big: Dictionary = {
+		"might": 11, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 8, "swiftness": 1, "fate": 0,
+	}
+	var soft: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	if attacker_side == "party":
+		fight.add_member("attacker", big, 0, "front", "attacker")
+		fight.add_fighter("defender", "beast", soft, 0, "front", "physical")
+	else:
+		fight.add_fighter("attacker", "beast", big, 0, "front", "physical")
+		fight.add_member("defender", soft, 0, "front", "defender")
+	fight.set_scripted_dice([3, 4, 2, 2, 3])
+	return fight.strike("attacker", "defender", 0, 1)
+
+
+func _resolver_fog_edge(use_fog: bool) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	if use_fog:
+		fight.twist = "fog"
+	var attacker: Dictionary = {
+		"might": 4, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 4, "swiftness": 1, "fate": 0,
+	}
+	var defender: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 0,
+		"vitality": 8, "swiftness": 0, "fate": 0,
+	}
+	fight.add_fighter("attacker", "beast", attacker, 0, "front", "physical")
+	fight.add_member("defender", defender, 0, "front", "defender")
+	var faces: Array = [4, 4, 6, 6]
+	if not use_fog:
+		faces.append(1)
+	fight.set_scripted_dice(faces)
+	var blow: Dictionary = fight.strike("attacker", "defender", 0, 1)
+	blow["underrun"] = fight.scripted_underrun()
+	blow["remaining"] = fight.scripted_remaining()
+	return blow
+
+
+func _resolver_twist_ambush() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.twist = "ambush"
+	failed += _assert(fight.ambush, "twist ambush sets the ambush flag")
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var block: Dictionary = cases.get("turn_order", {}) as Dictionary
+	for row_v: Variant in block.get("fighters", []) as Array:
+		var row: Dictionary = row_v as Dictionary
+		var fighter_name: String = str(row.get("name", ""))
+		var stats: Dictionary = _resolver_tank(int(row.get("swiftness", 0)))
+		var slot: int = int(row.get("slot", 0))
+		if str(row.get("side", "")) == "party":
+			fight.add_member(fighter_name, stats, slot, "front", fighter_name)
+		else:
+			fight.add_fighter(fighter_name, "beast", stats, slot, "front", "physical")
+	fight.start_fight()
+	var ambush_expect: Array = ["Spore moth A", "Wilt Wisp A", "Acorn imp A", "Root Snapper A", "Keeper", "Elaia"]
+	failed += _resolver_same_ids(fight.order, ambush_expect, "twist ambush puts beasts first in round 1")
+	fight.set_scripted_dice(_resolver_miss_faces(6))
+	for _i: int in 6:
+		var stepped: Dictionary = _resolver_step_auto(fight)
+		failed += _assert(str(stepped.get("error", "")) == "", "ambush twist step %s" % str(stepped.get("error", "")))
+	failed += _resolver_same_ids(fight.order, block.get("expect", []) as Array, "round 2 drops the ambush order")
+	failed += _assert(fight.scripted_underrun() == 0 and fight.scripted_remaining() == 0, "ambush twist dice")
+	return failed
+
+
+func _resolver_rich_hollow() -> int:
+	var failed: int = 0
+	var plain: FightState = _resolver_seeded_pair("")
+	var rich: FightState = _resolver_seeded_pair("rich_hollow")
+	failed += _assert(rich.twist == "rich_hollow" and plain.twist == "", "Rich Hollow is stored")
+	failed += _resolver_same_ids(rich.order, plain.order, "Rich Hollow does not reorder")
+	for _i: int in 4:
+		var left: Dictionary = _resolver_step_auto(plain)
+		var right: Dictionary = _resolver_step_auto(rich)
+		if left != right:
+			print("HOLLOW A ", JSON.stringify(left))
+			print("HOLLOW B ", JSON.stringify(right))
+		failed += _assert(left == right, "Rich Hollow changes no roll")
+	failed += _assert(int(rich.fighter_dict("keeper").get("hp", -1)) == int(plain.fighter_dict("keeper").get("hp", -2)), "Rich Hollow HP matches")
+	failed += _assert(int(rich.fighter_dict("keeper").get("shield", -1)) == 0 and int(rich.fighter_dict("imp").get("shield", -1)) == 0, "Rich Hollow grants no shield")
+	failed += _assert(int(rich.fighter_dict("keeper").get("swiftness", -1)) == int(plain.fighter_dict("keeper").get("swiftness", -2)), "Rich Hollow leaves Swiftness")
+	failed += _assert(str(rich.to_dict().get("rng_combat_state", "")) == str(plain.to_dict().get("rng_combat_state", "x")), "Rich Hollow leaves the combat rng")
+	return failed
+
+
+func _resolver_seeded_pair(twist_name: String) -> FightState:
+	var fight: FightState = FightStateScript.new()
+	fight.set_combat_seed(424242)
+	if twist_name != "":
+		fight.twist = twist_name
+	fight.add_member("keeper", _resolver_tank(7), 0, "front", "keeper")
+	fight.add_fighter("imp", "beast", _resolver_tank(6), 0, "front", "physical")
+	fight.start_fight()
+	return fight
+
+
+func _resolver_boss() -> int:
+	var failed: int = 0
+	failed += _resolver_boss_hp()
+	var heavy: Array = ["strike", "strike", "heavy", "strike", "strike", "heavy"]
+	failed += _resolver_walk_moves("acorn_imp", true, heavy, 27)
+	var poison_boss: Array = ["strike", "poison", "strike", "poison", "strike", "poison"]
+	failed += _resolver_walk_moves("spore_moth", true, poison_boss, -1)
+	var poison_plain: Array = ["strike", "strike", "poison", "strike", "strike", "poison"]
+	failed += _resolver_walk_moves("spore_moth", false, poison_plain, -1)
+	if failed == 0:
+		print("RESOLVER_BOSS_OK")
+	return failed
+
+
+func _resolver_boss_hp() -> int:
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	fight.add_beast("acorn_imp", 0, "front", "boss")
+	fight.set_boss("boss")
+	fight.add_beast("acorn_imp", 1, "front", "plain")
+	fight.add_member("keeper", _resolver_tank(1), 0, "front", "keeper")
+	fight.start_fight()
+	failed += _assert(int(fight.fighter_dict("boss").get("max_hp", 0)) == 56, "boss max is round_half_up(37 * 3 / 2)")
+	failed += _assert(int(fight.fighter_dict("boss").get("hp", 0)) == 56, "boss HP is filled to the new max")
+	failed += _assert(int(fight.fighter_dict("plain").get("max_hp", 0)) == 37, "a normal imp keeps 37")
+	fight.set_hp("boss", 6)
+	failed += _assert(str(fight.fighter_dict("boss").get("status", "")) == "active", "6 HP is above 10% of 56")
+	fight.set_hp("boss", 5)
+	failed += _assert(str(fight.fighter_dict("boss").get("status", "")) == "calmed", "5 HP is Calmed on the boosted max")
+	fight.set_hp("plain", 5)
+	failed += _assert(str(fight.fighter_dict("plain").get("status", "")) == "active", "5 HP is still active on the unboosted max")
+	fight.set_hp("plain", 3)
+	failed += _assert(str(fight.fighter_dict("plain").get("status", "")) == "calmed", "3 HP Calms the unboosted imp")
+	return failed
+
+
+func _resolver_walk_moves(species: String, as_boss: bool, moves: Array, heavy_damage: int) -> int:
+	## Intents are read before the beast acts, and again the moment its turn ends.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 0, "ward": 40,
+		"vitality": 30, "swiftness": 0, "fate": 0,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_beast(species, 0, "front", "beast")
+	if as_boss:
+		fight.set_boss("beast")
+	fight.start_fight()
+	var faces: Array = []
+	for move_v: Variant in moves:
+		var move_name: String = str(move_v)
+		if move_name == "heavy":
+			faces.append_array([3, 3, 1, 1, 2])
+		elif move_name == "strike":
+			faces.append_array([1, 1, 6, 6])
+		faces.append_array([1, 1, 6, 6])
+	fight.set_scripted_dice(faces)
+	var label: String = species
+	if as_boss:
+		label = "%s boss" % species
+	for i: int in moves.size():
+		var expect: String = str(moves[i])
+		failed += _assert(fight.current_actor() == "beast", "%s turn %d is the beast" % [label, i + 1])
+		var intent: Dictionary = _resolver_intent(fight, "beast")
+		failed += _assert(str(intent.get("move", "")) == expect, "%s intent before turn %d is %s (got %s)" % [label, i + 1, expect, str(intent.get("move", ""))])
+		if expect == "heavy":
+			var ratio: Vector2i = FightStateScript.telegraph_ratio(intent.get("mult", 1))
+			failed += _assert(ratio == Vector2i(3, 2), "%s heavy is x1.5 before turn %d" % [label, i + 1])
+		var before: int = fight.scripted_remaining()
+		var hp_before: int = int(fight.fighter_dict("keeper").get("hp", -1))
+		var stepped: Dictionary = fight.step({})
+		failed += _assert(str(stepped.get("error", "")) == "", "%s turn %d error %s" % [label, i + 1, str(stepped.get("error", ""))])
+		if expect == "poison":
+			failed += _assert(str(stepped.get("kind", "")) == "poison", "%s uses poison on turn %d" % [label, i + 1])
+			failed += _assert(fight.scripted_remaining() == before, "%s poison spends no dice on turn %d" % [label, i + 1])
+			failed += _assert(int(fight.fighter_dict("keeper").get("hp", -2)) == hp_before, "%s poison deals no strike on turn %d" % [label, i + 1])
+		elif expect == "heavy":
+			var blow: Dictionary = stepped.get("strike", {}) as Dictionary
+			failed += _assert(str(stepped.get("kind", "")) == "strike", "%s heavy is a strike" % label)
+			if heavy_damage > 0:
+				failed += _assert(int(blow.get("damage", -1)) == heavy_damage, "%s heavy damage %s vs %d" % [label, str(blow.get("damage", "")), heavy_damage])
+		else:
+			failed += _assert(str(stepped.get("kind", "")) == "strike", "%s turn %d is a plain strike" % [label, i + 1])
+		if i + 1 < moves.size():
+			var nxt: Dictionary = _resolver_intent(fight, "beast")
+			failed += _assert(str(nxt.get("move", "")) == str(moves[i + 1]), "%s shows the next intent before it acts again" % label)
+		var answer: Dictionary = fight.step({"kind": "strike", "target": "beast"})
+		failed += _assert(str(answer.get("error", "")) == "", "%s party answer %s" % [label, str(answer.get("error", ""))])
+	failed += _assert(fight.scripted_underrun() == 0 and fight.scripted_remaining() == 0, "%s dice" % label)
+	return failed
+
+
+func _resolver_salve() -> int:
+	## Heart Salve. Its own token so Brace stays about the stance.
+	var failed: int = 0
+	var fight: FightState = FightStateScript.new()
+	var keeper: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 30, "swiftness": 8, "fate": 0, "hp": 100,
+	}
+	var elaia: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 30, "swiftness": 2, "fate": 0, "hp": 50,
+	}
+	fight.add_member("keeper", keeper, 0, "front", "keeper")
+	fight.add_member("elaia", elaia, 1, "front", "elaia")
+	fight.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	fight.loadout = {"heart_salve": 1, "bile_vial": 1}
+	fight.start_fight()
+	fight.set_scripted_dice([7])
+	var healed: Dictionary = fight.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
+	failed += _assert(str(healed.get("error", "")) == "" and str(healed.get("kind", "")) == "item", "salve spends the turn")
+	failed += _assert(int(fight.fighter_dict("elaia").get("hp", -1)) == 80, "30%% of 100 is 30 (got %s)" % str(fight.fighter_dict("elaia").get("hp", "")))
+	failed += _assert(int(fight.fighter_dict("keeper").get("hp", -1)) == 100, "the salve does not heal the user unless targeted")
+	failed += _assert(fight.salves_used == 1, "salves_used counts the dose")
+	failed += _assert(int(fight.loadout.get("heart_salve", -1)) == 0, "the dose leaves the loadout")
+	failed += _assert(fight.scripted_remaining() == 1 and fight.scripted_underrun() == 0, "a salve consumes no dice")
+	var empty: Dictionary = fight.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
+	failed += _assert(str(empty.get("error", "")) == "illegal action", "a second dose needs stock")
+	failed += _assert(fight.current_actor() == "elaia", "no stock leaves the next actor waiting")
+	failed += _assert(int(fight.fighter_dict("keeper").get("turns", -1)) == 1, "the spent dose still counts")
+	failed += _assert(int(fight.fighter_dict("elaia").get("turns", -1)) == 0, "the refused salve spends no turn")
+	var capped: FightState = FightStateScript.new()
+	var low: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 1, "ward": 1,
+		"vitality": 30, "swiftness": 8, "fate": 0, "hp": 90,
+	}
+	capped.add_member("keeper", low, 0, "front", "keeper")
+	capped.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	capped.loadout = {"heart_salve": 5}
+	capped.start_fight()
+	capped.set_scripted_dice(_resolver_miss_faces(2))
+	var first: Dictionary = capped.step({"kind": "item", "item": "heart_salve", "target": "keeper"})
+	failed += _assert(str(first.get("error", "")) == "" and int(capped.fighter_dict("keeper").get("hp", -1)) == 100, "the heal caps at max HP")
+	var beast_one: Dictionary = capped.step({})
+	failed += _assert(str(beast_one.get("error", "")) == "", "the beast acts between salves")
+	var second: Dictionary = capped.step({"kind": "item", "item": "heart_salve", "target": "keeper"})
+	failed += _assert(str(second.get("error", "")) == "" and capped.salves_used == 2, "the second salve is the last")
+	var beast_two: Dictionary = capped.step({})
+	failed += _assert(str(beast_two.get("error", "")) == "", "the beast acts again")
+	var third: Dictionary = capped.step({"kind": "item", "item": "heart_salve", "target": "keeper"})
+	failed += _assert(str(third.get("error", "")) == "illegal action", "the third salve is refused")
+	failed += _assert(capped.salves_used == 2 and int(capped.fighter_dict("keeper").get("turns", -1)) == 2, "the refused salve spends no turn and no dose")
+	failed += _assert(capped.current_actor() == "keeper", "the refused salve leaves the cursor")
+	failed += _assert(capped.scripted_underrun() == 0 and capped.scripted_remaining() == 0, "salve cap dice")
+	var blocked: FightState = FightStateScript.new()
+	blocked.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")
+	blocked.add_member("elaia", _resolver_tank(2), 1, "front", "elaia")
+	blocked.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	blocked.start_fight()
+	blocked.set_hp("elaia", 0)
+	var no_stock: Dictionary = blocked.step({"kind": "item", "item": "heart_salve", "target": "keeper"})
+	failed += _assert(str(no_stock.get("error", "")) == "illegal action", "salve without a loadout is refused")
+	var bile: Dictionary = blocked.step({"kind": "item", "item": "bile_vial", "target": "imp"})
+	failed += _assert(str(bile.get("error", "")) == "illegal action", "Bile Vial is refused")
+	blocked.loadout = {"heart_salve": 1}
+	var down: Dictionary = blocked.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
+	failed += _assert(str(down.get("error", "")) == "illegal action", "a knocked-out target is refused")
+	var beast_target: Dictionary = blocked.step({"kind": "item", "item": "heart_salve", "target": "imp"})
+	failed += _assert(str(beast_target.get("error", "")) == "illegal action", "a beast is not a salve target")
+	failed += _assert(blocked.salves_used == 0 and int(blocked.fighter_dict("keeper").get("turns", -1)) == 0, "refused salves spend nothing")
+	failed += _assert(int(blocked.loadout.get("heart_salve", -1)) == 1, "a refused salve keeps the stock")
+	if failed == 0:
+		print("RESOLVER_SALVE_OK")
+	return failed
+
+
+func _auto_flee_ko_zero() -> int:
+	var failed: int = 0
+	var ko: FightState = FightStateScript.new()
+	var down: Dictionary = _resolver_tank(1)
+	down["vitality"] = 10
+	down["hp"] = 4
+	var up: Dictionary = _resolver_tank(2)
+	up["vitality"] = 30
+	up["hp"] = 50
+	ko.add_member("down", down, 0, "front", "down")
+	ko.add_member("up", up, 1, "front", "up")
+	ko.add_fighter("imp", "beast", _resolver_tank(1), 0, "front", "physical")
+	var ko_row: Dictionary = ko.flee_check()
+	failed += _assert(str(ko.fighter_dict("down").get("status", "")) == "ko", "4 HP on max 40 is knocked out")
+	failed += _assert(int(ko_row.get("party_hp", -1)) == 50, "a KO member with leftover HP counts as 0 (got %s)" % str(ko_row.get("party_hp", "")))
+	failed += _assert(int(ko_row.get("party_max", -1)) == 140, "party max still sums the knocked-out member")
+	var shielded: FightState = FightStateScript.new()
+	shielded.twist = "sap_spring"
+	var body: Dictionary = _resolver_tank(3)
+	body["vitality"] = 30
+	body["hp"] = 40
+	shielded.add_member("keeper", body, 0, "front", "keeper")
+	var healthy: Dictionary = _resolver_tank(1)
+	healthy["vitality"] = 7
+	healthy["hp"] = 31
+	shielded.add_fighter("imp", "beast", healthy, 0, "front", "physical")
+	shielded.start_fight()
+	var shield_row: Dictionary = shielded.flee_check()
+	failed += _assert(int(shielded.fighter_dict("keeper").get("shield", -1)) == 20, "the flee probe is wearing a shield of 20")
+	failed += _assert(int(shield_row.get("party_hp", -1)) == 40, "the shield is not added to party HP")
+	failed += _assert(bool(shield_row.get("should_flee", false)), "40/100 and a healthy beast should flee; counting the shield would not")
+	var half: FightState = FightStateScript.new()
+	var even: Dictionary = _resolver_tank(1)
+	even["vitality"] = 30
+	even["hp"] = 50
+	half.add_member("keeper", even, 0, "front", "keeper")
+	var foe: Dictionary = _resolver_tank(1)
+	foe["vitality"] = 7
+	foe["hp"] = 31
+	half.add_fighter("imp", "beast", foe, 0, "front", "physical")
+	var even_row: Dictionary = half.flee_check()
+	failed += _assert(int(even_row.get("party_hp", -1)) == 50 and int(even_row.get("party_max", -1)) == 100, "the 50% probe")
+	failed += _assert(not bool(even_row.get("should_flee", true)), "exactly half does not flee")
+	half.set_hp("keeper", 49)
+	var under: Dictionary = half.flee_check()
+	failed += _assert(bool(under.get("should_flee", false)), "one HP under half does flee")
+	var third: FightState = FightStateScript.new()
+	var hurting: Dictionary = _resolver_tank(1)
+	hurting["vitality"] = 30
+	hurting["hp"] = 40
+	third.add_member("keeper", hurting, 0, "front", "keeper")
+	for i: int in 3:
+		var beast: Dictionary = _resolver_tank(1)
+		beast["vitality"] = 7
+		beast["hp"] = 31 if i == 0 else 0
+		third.add_fighter("b%d" % i, "beast", beast, i, "front", "physical")
+	var third_row: Dictionary = third.flee_check()
+	failed += _assert(int(third_row.get("beast_hp", -1)) == 31 and int(third_row.get("beast_max", -1)) == 93, "exactly one third of the beasts")
+	failed += _assert(not bool(third_row.get("should_flee", true)), "exactly one third does not flee")
+	third.set_hp("b0", 32)
+	var over: Dictionary = third.flee_check()
+	failed += _assert(bool(over.get("should_flee", false)), "one HP over one third does flee")
+	var bossed: FightState = FightStateScript.new()
+	bossed.add_member("keeper", hurting, 0, "front", "keeper")
+	bossed.add_beast("acorn_imp", 0, "front", "boss")
+	bossed.set_boss("boss")
+	bossed.start_fight()
+	bossed.set_hp("boss", 5)
+	var boss_row: Dictionary = bossed.flee_check()
+	failed += _assert(int(boss_row.get("beast_max", -1)) == 56, "beast max includes the boss max")
+	failed += _assert(int(boss_row.get("beast_hp", -1)) == 0, "a Calmed boss adds no HP")
+	failed += _assert(not bool(boss_row.get("should_flee", true)), "Calmed beasts cannot force a flee by themselves")
+	if failed == 0:
+		print("AUTO_FLEE_KO_ZERO_OK")
+	return failed
+
+
+func _auto_policy_keeper_unlock_stats() -> Dictionary:
+	return {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+
+
+func _auto_policy_strike_fight() -> FightState:
+	var fight: FightState = FightStateScript.new()
+	fight.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	fight.add_beast("acorn_imp", 2, "front", "imp_hi")
+	fight.add_beast("acorn_imp", 0, "front", "imp_lo")
+	fight.add_beast("acorn_imp", 1, "back", "imp_back")
+	fight.start_fight()
+	return fight
+
+
+func _auto_policy() -> int:
+	var failed: int = 0
+	var strike_fight: FightState = _auto_policy_strike_fight()
+	var strike_act: Dictionary = AutoPolicyScript.strike_for_me_action(strike_fight, "keeper")
+	failed += _assert(str(strike_act.get("kind", "")) == "strike", "strike for me is always a strike")
+	failed += _assert(str(strike_act.get("target", "")) == "imp_lo", "front row, lowest slot first (got %s)" % str(strike_act.get("target", "")))
+	var back_only: FightState = FightStateScript.new()
+	back_only.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	back_only.add_beast("acorn_imp", 1, "back", "imp_back")
+	back_only.start_fight()
+	var back_act: Dictionary = AutoPolicyScript.strike_for_me_action(back_only, "keeper")
+	failed += _assert(str(back_act.get("target", "")) == "imp_back", "empty front row reaches the back")
+	var hurt: FightState = FightStateScript.new()
+	hurt.add_member("keeper", {"vitality": 10, "hp": 3, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	hurt.add_beast("acorn_imp", 0, "front", "imp")
+	hurt.loadout = {"heart_salve": 2}
+	hurt.start_fight()
+	var hurt_act: Dictionary = AutoPolicyScript.strike_for_me_action(hurt, "keeper")
+	failed += _assert(str(hurt_act.get("kind", "")) == "strike", "strike for me never salves even below 40%")
+
+	var salve_base: FightState = FightStateScript.new()
+	salve_base.add_member("keeper", {"vitality": 30, "hp": 39, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	salve_base.add_beast("acorn_imp", 0, "front", "imp")
+	salve_base.loadout = {"heart_salve": 1}
+	salve_base.start_fight()
+	var at_39: Dictionary = AutoPolicyScript.idle_action(salve_base, "keeper")
+	failed += _assert(str(at_39.get("kind", "")) == "item" and str(at_39.get("item", "")) == "heart_salve", "39% drinks a salve")
+	failed += _assert(str(at_39.get("target", "")) == "keeper", "salve targets the lowest-ratio active member")
+
+	var at_40: FightState = FightStateScript.new()
+	at_40.add_member("keeper", {"vitality": 30, "hp": 40, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	at_40.add_beast("acorn_imp", 0, "front", "imp")
+	at_40.loadout = {"heart_salve": 1}
+	at_40.start_fight()
+	var forty: Dictionary = AutoPolicyScript.idle_action(at_40, "keeper")
+	failed += _assert(str(forty.get("kind", "")) == "strike", "exactly 40% does not salve")
+
+	var cap: FightState = FightStateScript.new()
+	cap.add_member("keeper", {"vitality": 30, "hp": 10, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	cap.add_beast("acorn_imp", 0, "front", "imp")
+	cap.salves_used = 2
+	cap.loadout = {"heart_salve": 1}
+	cap.start_fight()
+	failed += _assert(str(AutoPolicyScript.idle_action(cap, "keeper").get("kind", "")) == "strike", "two salves already used")
+
+	var empty_load: FightState = FightStateScript.new()
+	empty_load.add_member("keeper", {"vitality": 30, "hp": 10, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	empty_load.add_beast("acorn_imp", 0, "front", "imp")
+	empty_load.loadout = {"heart_salve": 0}
+	empty_load.start_fight()
+	failed += _assert(str(AutoPolicyScript.idle_action(empty_load, "keeper").get("kind", "")) == "strike", "zero salves in loadout")
+
+	var ko_pick: FightState = FightStateScript.new()
+	ko_pick.add_member("keeper", {"vitality": 10, "hp": 4, "swiftness": 7, "attack": "physical"}, 0, "front", "keeper")
+	ko_pick.add_member("elaia", {"vitality": 30, "hp": 39, "swiftness": 6, "attack": "physical"}, 1, "front", "elaia")
+	ko_pick.add_beast("acorn_imp", 0, "front", "imp")
+	ko_pick.loadout = {"heart_salve": 1}
+	ko_pick.start_fight()
+	var ko_act: Dictionary = AutoPolicyScript.idle_action(ko_pick, "keeper")
+	failed += _assert(str(ko_act.get("target", "")) == "elaia", "a knocked-out member is never the salve target (got %s)" % str(ko_act.get("target", "")))
+
+	var ratio_pick: FightState = FightStateScript.new()
+	ratio_pick.add_member("keeper", {"vitality": 30, "hp": 35, "swiftness": 7, "attack": "physical"}, 1, "front", "keeper")
+	ratio_pick.add_member("elaia", {"vitality": 30, "hp": 40, "swiftness": 6, "attack": "physical"}, 0, "front", "elaia")
+	ratio_pick.add_beast("acorn_imp", 0, "front", "imp")
+	ratio_pick.loadout = {"heart_salve": 1}
+	ratio_pick.start_fight()
+	var ratio_act: Dictionary = AutoPolicyScript.idle_action(ratio_pick, "keeper")
+	failed += _assert(str(ratio_act.get("target", "")) == "keeper", "lowest HP ratio wins over slot (got %s)" % str(ratio_act.get("target", "")))
+
+	var flee_early: FightState = FightStateScript.new()
+	var hurting: Dictionary = _resolver_tank(1)
+	hurting["vitality"] = 30
+	hurting["hp"] = 40
+	flee_early.add_member("keeper", hurting, 0, "front", "keeper")
+	var foe: Dictionary = _resolver_tank(1)
+	foe["vitality"] = 7
+	foe["hp"] = 31
+	flee_early.add_fighter("imp", "beast", foe, 0, "front", "physical")
+	flee_early.start_fight()
+	failed += _assert(not AutoPolicyScript.should_flee(flee_early), "should_flee is false in round 1 even when the numbers say flee")
+
+	var flee_late: FightState = FightStateScript.new()
+	var party_49: Dictionary = _resolver_tank(1)
+	party_49["vitality"] = 30
+	party_49["hp"] = 49
+	flee_late.add_member("keeper", party_49, 0, "front", "keeper")
+	var beast_34: Dictionary = _resolver_tank(1)
+	beast_34["vitality"] = 7
+	beast_34["hp"] = 34
+	flee_late.add_fighter("imp", "beast", beast_34, 0, "front", "physical")
+	flee_late.start_fight()
+	var late_snap: Dictionary = flee_late.to_dict()
+	late_snap["round"] = 2
+	flee_late = FightStateScript.from_dict(late_snap)
+	failed += _assert(AutoPolicyScript.should_flee(flee_late), "should_flee is true in round 2 at party 49% / beasts 34%")
+
+	var flee_half: FightState = FightStateScript.new()
+	var even: Dictionary = _resolver_tank(1)
+	even["vitality"] = 30
+	even["hp"] = 50
+	flee_half.add_member("keeper", even, 0, "front", "keeper")
+	var beast_half: Dictionary = _resolver_tank(1)
+	beast_half["vitality"] = 7
+	beast_half["hp"] = 31
+	flee_half.add_fighter("imp", "beast", beast_half, 0, "front", "physical")
+	var half_snap: Dictionary = flee_half.to_dict()
+	half_snap["round"] = 2
+	flee_half = FightStateScript.from_dict(half_snap)
+	failed += _assert(not AutoPolicyScript.should_flee(flee_half), "exactly 50% party does not flee in round 2")
+
+	var flee_third: FightState = FightStateScript.new()
+	flee_third.add_member("keeper", hurting, 0, "front", "keeper")
+	for i: int in 3:
+		var beast: Dictionary = _resolver_tank(1)
+		beast["vitality"] = 7
+		beast["hp"] = 31 if i == 0 else 0
+		flee_third.add_fighter("b%d" % i, "beast", beast, i, "front", "physical")
+	var third_snap: Dictionary = flee_third.to_dict()
+	third_snap["round"] = 2
+	flee_third = FightStateScript.from_dict(third_snap)
+	failed += _assert(not AutoPolicyScript.should_flee(flee_third), "exactly one third beast HP does not flee in round 2")
+
+	var seeded_a: FightState = FightStateScript.new()
+	seeded_a.set_combat_seed(31415926)
+	seeded_a.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	seeded_a.add_beast("acorn_imp", 0, "front", "acorn_imp")
+	var out_a: String = AutoPolicyScript.run_idle(seeded_a)
+	var seeded_b: FightState = FightStateScript.new()
+	seeded_b.set_combat_seed(31415926)
+	seeded_b.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	seeded_b.add_beast("acorn_imp", 0, "front", "acorn_imp")
+	var out_b: String = AutoPolicyScript.run_idle(seeded_b)
+	failed += _assert(out_a != "" and out_a == out_b, "seeded keeper vs imp is deterministic (%s vs %s)" % [out_a, out_b])
+
+	var easy: FightState = FightStateScript.new()
+	easy.set_combat_seed(7)
+	var titan: Dictionary = _auto_policy_keeper_unlock_stats()
+	titan["might"] = 99
+	titan["vitality"] = 30
+	easy.add_member("keeper", titan, 0, "front", "keeper")
+	var crumb: Dictionary = _resolver_tank(1)
+	crumb["vitality"] = 1
+	crumb["hp"] = 1
+	easy.add_fighter("imp", "beast", crumb, 0, "front", "physical")
+	failed += _assert(AutoPolicyScript.run_idle(easy) == "win", "an overpowered party wins idle auto")
+
+	var grim: FightState = FightStateScript.new()
+	grim.set_combat_seed(99)
+	var glass: Dictionary = _resolver_tank(1)
+	glass["vitality"] = 1
+	glass["hp"] = 1
+	grim.add_member("keeper", glass, 0, "front", "keeper")
+	for slot: int in 4:
+		grim.add_beast("acorn_imp", slot, "front", "imp_%d" % slot)
+	var grim_out: String = AutoPolicyScript.run_idle(grim)
+	failed += _assert(grim_out == "flee" or grim_out == "overwhelmed", "a hopeless fight flees or is overwhelmed (got %s)" % grim_out)
+
+	var guard_fight: FightState = FightStateScript.new()
+	guard_fight.set_combat_seed(12345)
+	guard_fight.add_member("keeper", _auto_policy_keeper_unlock_stats(), 0, "front", "keeper")
+	guard_fight.add_beast("acorn_imp", 0, "front", "acorn_imp")
+	AutoPolicyScript.run_idle(guard_fight)
+	failed += _assert(guard_fight.outcome() != "" or guard_fight.round > 0, "run_idle finishes a normal fight without tripping the guard")
+
+	if failed == 0:
+		print("AUTO_POLICY_OK")
+	return failed
+
+
+func _sim_parity() -> int:
+	var failed: int = 0
+	# Source: Director sim MILESTONES, 20,000 fights per cell, box run 2026-10-10.
+	var cells: Array[Dictionary] = [
+		{"sheet": "unlock", "depth": 1, "win": 15.5, "flee": 62.1, "overwhelmed": 22.4},
+		{"sheet": "unlock", "depth": 8, "win": 5.7, "flee": 64.6, "overwhelmed": 29.7},
+		{"sheet": "duo", "depth": 1, "win": 73.4, "flee": 23.2, "overwhelmed": 3.4},
+		{"sheet": "duo", "depth": 8, "win": 44.0, "flee": 47.9, "overwhelmed": 8.1},
+	]
+	const BATCH_N: int = 3000
+	const BASE_SEED: int = 20261010
+	const TOL: float = 3.0
+	for cell: Dictionary in cells:
+		var sheet: String = str(cell["sheet"])
+		var depth: int = int(cell["depth"])
+		var measured_a: Dictionary = BatchSimScript.run_batch(sheet, depth, BATCH_N, BASE_SEED)
+		var measured_b: Dictionary = BatchSimScript.run_batch(sheet, depth, BATCH_N, BASE_SEED)
+		print(
+			"SIM_PARITY %s depth %d: win=%.1f flee=%.1f overwhelmed=%.1f (n=%d)"
+			% [
+				sheet,
+				depth,
+				float(measured_a["win"]),
+				float(measured_a["flee"]),
+				float(measured_a["overwhelmed"]),
+				int(measured_a["n"]),
+			]
+		)
+		failed += _assert(measured_a == measured_b, "batch determinism %s depth %d" % [sheet, depth])
+		for key: String in ["win", "flee", "overwhelmed"]:
+			var got: float = float(measured_a[key])
+			var want: float = float(cell[key])
+			var delta: float = absf(got - want)
+			if delta > TOL:
+				failed += _assert(
+					false,
+					"%s depth %d %s %.1f vs target %.1f (off by %.1f)"
+					% [sheet, depth, key, got, want, delta]
+				)
+	if failed == 0:
+		print("SIM_PARITY_OK")
+	return failed
+
+
+func _resolver_perf() -> int:
+	var failed: int = 0
+	var times_usec: Array[int] = []
+	for _run: int in 3:
+		var t0: int = Time.get_ticks_usec()
+		BatchSimScript.run_batch("duo", 8, 50, 20261010)
+		times_usec.append(Time.get_ticks_usec() - t0)
+	var best_usec: int = times_usec[0]
+	for t: int in times_usec:
+		if t < best_usec:
+			best_usec = t
+	print(
+		"RESOLVER_PERF trio ms: %.2f %.2f %.2f (best %.2f)"
+		% [
+			float(times_usec[0]) / 1000.0,
+			float(times_usec[1]) / 1000.0,
+			float(times_usec[2]) / 1000.0,
+			float(best_usec) / 1000.0,
+		]
+	)
+	# Fail above 150 ms; 100-150 ms passes with a warning (slower computers).
+	failed += _assert(best_usec <= 150_000, "50 duo depth-8 rooms within 150 ms (best %d us)" % best_usec)
+	if best_usec >= 100_000 and best_usec <= 150_000:
+		print("RESOLVER_PERF_WARN %.2f" % (float(best_usec) / 1000.0))
+	if failed == 0:
+		print("RESOLVER_PERF_OK")
+	return failed
+
+
+func _resolver_log() -> int:
+	var failed: int = 0
+	var cases: Dictionary = _json_dict("res://tests/fixtures/resolver_cases.json")
+	var by_id: Dictionary = {}
+	for case_v: Variant in cases.get("strikes", []) as Array:
+		var row: Dictionary = case_v as Dictionary
+		by_id[str(row.get("id", ""))] = row
+	for doc_v: Variant in cases.get("doc_cases", []) as Array:
+		var doc: Dictionary = doc_v as Dictionary
+		by_id[str(doc.get("id", ""))] = doc
+	var line1: String = "Keeper strikes Acorn imp: Hit 18 vs 11 · Dmg 24 (d6+11), crushing blow"
+	var line2: String = "Acorn imp strikes Keeper: Hit 13 vs 13 · Dmg 4 (d4+7), graze"
+	var line4_suffix: String = "Dmg 52 (d6+11), crushing blow (Fate crit)"
+	var seen_kinds: Dictionary = {}
+	for cid: String in ["s4_line1", "s4_line2", "s4_line4"]:
+		failed += _assert(by_id.has(cid), "fixture %s" % cid)
+		if not by_id.has(cid):
+			continue
+		var case: Dictionary = by_id[cid] as Dictionary
+		var fight: FightState = _resolver_log_case_fight(case, cid == "s4_line2")
+		fight.set_scripted_dice(_resolver_faces(case))
+		var actor_id: String = fight.current_actor()
+		var stepped: Dictionary = {}
+		if cid == "s4_line2":
+			failed += _assert(actor_id == "attacker", "s4_line2 lets the imp act first")
+			stepped = fight.step({})
+		else:
+			failed += _assert(actor_id == "attacker", "%s lets the keeper act first" % cid)
+			stepped = fight.step({"kind": "strike", "target": "defender"})
+		_resolver_log_collect_events(stepped.get("events", []) as Array, seen_kinds)
+		failed += _resolver_log_assert_sums(stepped.get("events", []) as Array, cid)
+		var want_line: String = line1 if cid == "s4_line1" else (line2 if cid == "s4_line2" else "")
+		if want_line != "":
+			failed += _assert(_resolver_log_has_line(fight, want_line), "%s log line" % cid)
+		if cid == "s4_line4":
+			failed += _assert(_resolver_log_has_line(fight, line4_suffix), "s4_line4 fate suffix")
+	var brace_case: Dictionary = by_id.get("s4_line3_brace", {}) as Dictionary
+	if not brace_case.is_empty():
+		var brace_fight: FightState = FightStateScript.new()
+		var keeper: Dictionary = {
+			"might": 1, "arcana": 1, "resilience": 6, "ward": 5,
+			"vitality": 8, "swiftness": 7, "fate": 0,
+		}
+		brace_fight.add_member("keeper", keeper, 0, "front", "keeper")
+		brace_fight.add_beast("acorn_imp", 0, "front", "imp")
+		brace_fight.start_fight()
+		brace_fight.set_scripted_dice([4, 5, 6, 5, 1])
+		var braced: Dictionary = brace_fight.step({"kind": "brace"})
+		_resolver_log_collect_events(braced.get("events", []) as Array, seen_kinds)
+		var braced_blow: Dictionary = brace_fight.step({})
+		_resolver_log_collect_events(braced_blow.get("events", []) as Array, seen_kinds)
+		failed += _assert(_resolver_log_has_line(brace_fight, "Hit 16 vs 17 · miss"), "braced miss shows hit totals")
+		failed += _assert(_resolver_log_has_line(brace_fight, "Keeper braces (3d6 keep 2, damage halved)"), "brace line uses the §4 wording")
+	var hit_fight: FightState = FightStateScript.new()
+	hit_fight.add_member("keeper", {
+		"might": 1, "arcana": 1, "resilience": 6, "ward": 5,
+		"vitality": 8, "swiftness": 7, "fate": 0,
+	}, 0, "front", "keeper")
+	hit_fight.add_beast("acorn_imp", 0, "front", "imp")
+	hit_fight.start_fight()
+	hit_fight.set_scripted_dice([6, 6, 2, 1, 1, 4, 99, 99])
+	hit_fight.step({"kind": "brace"})
+	var hp_before: int = int(hit_fight.fighter_dict("keeper").get("hp", 0))
+	var braced_hit: Dictionary = hit_fight.step({})
+	var hit_ev: Dictionary = {}
+	for ev_v: Variant in braced_hit.get("events", []) as Array:
+		if ev_v is Dictionary and str((ev_v as Dictionary).get("kind", "")) == "strike":
+			hit_ev = ev_v as Dictionary
+	var raw: int = int(hit_ev.get("resolver_damage", -1))
+	var landed: int = int(hit_ev.get("damage", -1))
+	var hp_lost: int = hp_before - int(hit_fight.fighter_dict("keeper").get("hp", 0))
+	failed += _assert(bool(hit_ev.get("braced", false)) and str(hit_ev.get("band", "miss")) != "miss", "braced hit lands")
+	failed += _assert(raw > 1 and landed == maxi(1, BattleResolver.round_half_up(raw, 1, 2)), "braced hit: damage is resolver_damage halved (%d from %d)" % [landed, raw])
+	failed += _assert(hp_lost + int(hit_ev.get("shield_absorbed", 0)) == landed, "braced hit: damage is what lands before the shield")
+	failed += _assert(_resolver_log_has_line(hit_fight, "Hit 19 vs 9") and _resolver_log_has_line(hit_fight, "Dmg %d (d4+7)" % landed), "braced hit line shows hit and damage rolls")
+	print("RESOLVER_LOG braced hit line: ", hit_fight.log_tail[hit_fight.log_tail.size() - 1])
+	var salve_fight: FightState = FightStateScript.new()
+	salve_fight.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")
+	salve_fight.add_member("elaia", _resolver_tank(2), 1, "front", "elaia")
+	salve_fight.add_beast("acorn_imp", 0, "front", "imp")
+	salve_fight.loadout = {"heart_salve": 1}
+	salve_fight.start_fight()
+	var salve: Dictionary = salve_fight.step({"kind": "item", "item": "heart_salve", "target": "elaia"})
+	_resolver_log_collect_events(salve.get("events", []) as Array, seen_kinds)
+	var poison_fight: FightState = FightStateScript.new()
+	var slow_keeper: Dictionary = _resolver_tank(0)
+	slow_keeper["swiftness"] = 0
+	var quick_moth: Dictionary = _resolver_tank(1)
+	quick_moth["swiftness"] = 10
+	poison_fight.add_member("keeper", slow_keeper, 0, "front", "keeper")
+	poison_fight.add_fighter("moth", "beast", quick_moth, 0, "front", "physical", "spore_moth", "")
+	poison_fight.start_fight()
+	# The moth's poison move comes on its 3rd own turn. Keeper braces on his turns.
+	for _i: int in 12:
+		if poison_fight.outcome() != "" or seen_kinds.has("poison_apply"):
+			break
+		var poison_action: Dictionary = {"kind": "brace"} if poison_fight.current_actor() == "keeper" else {}
+		var poisoned: Dictionary = poison_fight.step(poison_action)
+		_resolver_log_collect_events(poisoned.get("events", []) as Array, seen_kinds)
+	poison_fight.apply_poison("keeper", 6)
+	var tick_fight: FightState = FightStateScript.new()
+	tick_fight.add_member("keeper", _resolver_tank(9), 0, "front", "keeper")
+	tick_fight.add_beast("acorn_imp", 0, "front", "imp")
+	tick_fight.start_fight()
+	tick_fight.apply_poison("keeper", 3)
+	var ticked: Dictionary = tick_fight.step({"kind": "brace"})
+	_resolver_log_collect_events(ticked.get("events", []) as Array, seen_kinds)
+	var win_fight: FightState = FightStateScript.new()
+	var smasher: Dictionary = _resolver_tank(10)
+	smasher["might"] = 30
+	win_fight.add_member("keeper", smasher, 0, "front", "keeper")
+	var prey: Dictionary = _resolver_tank(1)
+	prey["resilience"] = 0
+	prey["ward"] = 0
+	prey["vitality"] = 1
+	win_fight.add_beast("acorn_imp", 0, "front", "imp")
+	win_fight.set_scripted_dice([6, 6, 1, 1, 10])
+	win_fight.start_fight()
+	var won: Dictionary = win_fight.step({"kind": "strike", "target": "imp"})
+	_resolver_log_collect_events(won.get("events", []) as Array, seen_kinds)
+	var loss_fight: FightState = FightStateScript.new()
+	var bruiser: Dictionary = _resolver_tank(10)
+	bruiser["might"] = 30
+	loss_fight.add_beast("acorn_imp", 0, "front", "imp")
+	var fallen: Dictionary = _resolver_tank(1)
+	fallen["resilience"] = 0
+	fallen["ward"] = 0
+	fallen["vitality"] = 1
+	loss_fight.add_member("keeper", fallen, 0, "front", "keeper")
+	loss_fight.set_scripted_dice([6, 6, 1, 1, 10, 9])
+	loss_fight.start_fight()
+	var lost: Dictionary = loss_fight.step({})
+	_resolver_log_collect_events(lost.get("events", []) as Array, seen_kinds)
+	var cap: FightState = FightStateScript.new()
+	cap.set_combat_seed(60)
+	cap.add_member("keeper", _resolver_tank(3), 0, "front", "keeper")
+	cap.add_beast("acorn_imp", 0, "front", "imp")
+	cap.start_fight()
+	for _n: int in range(1, 130):
+		var cap_step: Dictionary = _resolver_step_auto(cap)
+		if cap.outcome() == "flee":
+			_resolver_log_collect_events(cap_step.get("events", []) as Array, seen_kinds)
+			break
+	var need: Array[String] = [
+		"round_start", "poison_tick", "brace", "item", "intent_reveal", "poison_apply",
+		"strike", "knocked_out", "calmed", "outcome",
+	]
+	for kind: String in need:
+		failed += _assert(seen_kinds.has(kind), "event kind %s appeared" % kind)
+		if seen_kinds.has(kind):
+			var sample: Dictionary = seen_kinds[kind] as Dictionary
+			match kind:
+				"round_start":
+					failed += _assert(sample.has("round"), "round_start.round")
+				"poison_tick":
+					for key: String in ["target", "amount", "shield_absorbed", "hp_after"]:
+						failed += _assert(sample.has(key), "poison_tick.%s" % key)
+				"brace":
+					failed += _assert(sample.has("actor"), "brace.actor")
+				"item":
+					for key: String in ["actor", "item", "target", "healed"]:
+						failed += _assert(sample.has(key), "item.%s" % key)
+				"intent_reveal":
+					for key: String in ["actor", "move", "mult"]:
+						failed += _assert(sample.has(key), "intent_reveal.%s" % key)
+				"poison_apply":
+					for key: String in ["actor", "target", "total"]:
+						failed += _assert(sample.has(key), "poison_apply.%s" % key)
+				"strike":
+					for key: String in ["actor", "target", "attack_total", "attack_dice", "attack_stat", "attack_mod", "defense_total", "defense_dice", "defense_stat", "defense_faces", "damage", "damage_face", "band", "to_hit_mod", "telegraph_mult", "braced", "shield_absorbed", "hp_after", "target_side"]:
+						failed += _assert(sample.has(key), "strike.%s" % key)
+				"knocked_out", "calmed":
+					failed += _assert(sample.has("target"), "%s.target" % kind)
+				"outcome":
+					failed += _assert(sample.has("result"), "outcome.result")
+	var spam: FightState = FightStateScript.new()
+	spam.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")
+	spam.add_beast("acorn_imp", 0, "front", "imp")
+	spam.start_fight()
+	for _spam: int in 30:
+		if spam.outcome() != "":
+			break
+		spam.step({"kind": "brace"})
+		if spam.outcome() != "":
+			break
+		spam.step({})
+	failed += _assert(spam.log_tail.size() <= 200, "log_tail stays capped at 200 (got %d)" % spam.log_tail.size())
+	var tree_root: Window = root as Window
+	var cs: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null, "ContentStrings for log strings")
+	var log_keys: Array[String] = [
+		"adv_log_strike", "adv_log_miss", "adv_band_graze", "adv_band_hit", "adv_band_crush",
+		"adv_log_crit_suffix", "adv_log_shield_suffix", "adv_log_brace", "adv_log_salve",
+		"adv_log_heavy_reveal", "adv_log_poison_apply", "adv_log_poison_tick", "adv_log_round",
+		"adv_log_victory",
+	]
+	for key: String in log_keys:
+		var text: String = str(cs.call("get_text", key))
+		failed += _assert(text != key and not text.strip_edges().is_empty(), "%s resolves" % key)
+		var lower: String = text.to_lower()
+		for banned: String in ["slain", "killed", "rootweave"]:
+			failed += _assert(lower.find(banned) < 0, "%s avoids %s" % [key, banned])
+	if failed == 0:
+		print("RESOLVER_LOG_OK")
+	return failed
+
+
+func _resolver_log_case_fight(case: Dictionary, imp_first: bool) -> FightState:
+	var fight: FightState = FightStateScript.new()
+	var att: Dictionary = (case.get("attacker", {}) as Dictionary).duplicate(true)
+	var dfn: Dictionary = (case.get("defender", {}) as Dictionary).duplicate(true)
+	if imp_first:
+		# Faster than the Keeper's 7 so the imp acts first; the Keeper's own
+		# Swiftness stays as in the fixture because it feeds his defense.
+		att["swi"] = 10
+	var attack_type: String = str(case.get("attack_type", "physical"))
+	var att_side: String = _resolver_side(str(att.get("name", "")))
+	var dfn_side: String = _resolver_side(str(dfn.get("name", "")))
+	var att_member: String = ""
+	var dfn_member: String = ""
+	var att_species: String = ""
+	var dfn_species: String = ""
+	if att_side == "party":
+		att_member = "elaia" if str(att.get("name", "")) == "Elaia" else "keeper"
+	else:
+		att_species = "acorn_imp"
+	if dfn_side == "party":
+		dfn_member = "elaia" if str(dfn.get("name", "")) == "Elaia" else "keeper"
+	else:
+		dfn_species = "acorn_imp"
+	var dfn_kind: String = str(dfn.get("kind", "phys"))
+	var dfn_attack: String = "magic" if dfn_kind == "mag" else "physical"
+	fight.add_fighter("attacker", att_side, att, 0, "front", attack_type, att_species, att_member)
+	fight.add_fighter("defender", dfn_side, dfn, 0, "front", dfn_attack, dfn_species, dfn_member)
+	if dfn.has("hp"):
+		fight.set_hp("defender", int(dfn["hp"]))
+	fight.start_fight()
+	return fight
+
+
+func _resolver_log_has_line(fight: FightState, fragment: String) -> bool:
+	for entry: Variant in fight.log_tail:
+		if str(entry).find(fragment) >= 0:
+			return true
+	return false
+
+
+func _resolver_log_collect_events(events: Array, seen: Dictionary) -> void:
+	for entry: Variant in events:
+		if entry is Dictionary:
+			var ev: Dictionary = entry as Dictionary
+			var kind: String = str(ev.get("kind", ""))
+			if kind != "" and not seen.has(kind):
+				seen[kind] = ev
+
+
+func _resolver_log_assert_sums(events: Array, label: String) -> int:
+	var failed: int = 0
+	for entry: Variant in events:
+		if not (entry is Dictionary):
+			continue
+		var ev: Dictionary = entry as Dictionary
+		if str(ev.get("kind", "")) != "strike":
+			continue
+		var total: int = int(ev.get("attack_total", -1))
+		var dice: int = int(ev.get("attack_dice", -1))
+		var stat: int = int(ev.get("attack_stat", -1))
+		var mod: int = int(ev.get("attack_mod", -1))
+		failed += _assert(total == dice + stat + mod, "%s attack_total splits (%d vs %d+%d+%d)" % [label, total, dice, stat, mod])
+		var def_total: int = int(ev.get("defense_total", -1))
+		var def_dice: int = int(ev.get("defense_dice", -1))
+		var def_stat: int = int(ev.get("defense_stat", -1))
+		failed += _assert(def_total == def_dice + def_stat, "%s defense_total splits" % label)
+	return failed
+
+
+func _resolver_intent(fight: FightState, fighter_id: String) -> Dictionary:
+	var card: Dictionary = fight.fighter_dict(fighter_id)
+	var intent_v: Variant = card.get("intent", {})
+	if intent_v is Dictionary:
+		return intent_v
+	return {}
+
+
+func _resolver_ticks(fight: FightState, fighter_id: String) -> Array:
+	var card: Dictionary = fight.fighter_dict(fighter_id)
+	var poison_v: Variant = card.get("poison", {})
+	if poison_v is Dictionary:
+		var ticks_v: Variant = (poison_v as Dictionary).get("ticks", [])
+		if ticks_v is Array:
+			return ticks_v
+	return []
+
+
+func _resolver_kept(card: Dictionary) -> int:
+	var poison_v: Variant = card.get("poison", {})
+	if not (poison_v is Dictionary):
+		return 0
+	var poison: Dictionary = poison_v
+	var ticks_v: Variant = poison.get("ticks", [])
+	var tick_sum: int = 0
+	if ticks_v is Array:
+		for tick_v: Variant in ticks_v:
+			tick_sum += int(tick_v)
+	if poison.has("total"):
+		return int(poison.get("total", 0))
+	return tick_sum
+
+
+func _resolver_step_auto(fight: FightState) -> Dictionary:
+	var actor_id: String = fight.current_actor()
+	if actor_id == "":
+		return fight.step({})
+	if str(fight.fighter_dict(actor_id).get("side", "")) == "beast":
+		return fight.step({})
+	var targets: Array[String] = fight.legal_targets(actor_id)
+	var target_id: String = targets[0] if not targets.is_empty() else ""
+	return fight.step({"kind": "strike", "target": target_id})
+
+
+func _resolver_same_ints(got: Array, expect: Array, label: String) -> int:
+	var failed: int = 0
+	failed += _assert(got.size() == expect.size(), "%s size %d vs %d (%s vs %s)" % [label, got.size(), expect.size(), str(got), str(expect)])
+	if got.size() == expect.size():
+		for i: int in got.size():
+			failed += _assert(int(got[i]) == int(expect[i]), "%s [%d] %s vs %s" % [label, i, str(got[i]), str(expect[i])])
+	return failed
+
+
+func _resolver_same_ids(got: Variant, expect: Variant, label: String) -> int:
+	var failed: int = 0
+	var got_ids: Array = got as Array if got is Array else []
+	var expect_ids: Array = expect as Array if expect is Array else []
+	failed += _assert(got is Array and expect is Array, "%s ids are lists" % label)
+	failed += _assert(got_ids.size() == expect_ids.size(), "%s size %d vs %d (%s vs %s)" % [label, got_ids.size(), expect_ids.size(), str(got_ids), str(expect_ids)])
+	if got_ids.size() == expect_ids.size():
+		for i: int in got_ids.size():
+			failed += _assert(str(got_ids[i]) == str(expect_ids[i]), "%s [%d] %s vs %s" % [label, i, str(got_ids[i]), str(expect_ids[i])])
+	return failed
+
+
+func _resolver_run_case(case: Dictionary, extra: Array[int]) -> Dictionary:
+	var fight: FightState = FightStateScript.new()
+	var att: Dictionary = case.get("attacker", {}) as Dictionary
+	var dfn: Dictionary = case.get("defender", {}) as Dictionary
+	var attack_type: String = str(case.get("attack_type", "physical"))
+	var att_side: String = _resolver_side(str(att.get("name", "")))
+	var dfn_side: String = _resolver_side(str(dfn.get("name", "")))
+	var att_member: String = ""
+	var dfn_member: String = ""
+	if att_side == "party":
+		att_member = "elaia" if str(att.get("name", "")) == "Elaia" else "keeper"
+	if dfn_side == "party":
+		dfn_member = "elaia" if str(dfn.get("name", "")) == "Elaia" else "keeper"
+	var dfn_kind: String = str(dfn.get("kind", "phys"))
+	var dfn_attack: String = "magic" if dfn_kind == "mag" else "physical"
+	fight.add_fighter("attacker", att_side, att, 0, "front", attack_type, "", att_member)
+	fight.add_fighter("defender", dfn_side, dfn, 0, "front", dfn_attack, "", dfn_member)
+	var faces: Array[int] = _resolver_faces(case)
+	for face: int in extra:
+		faces.append(face)
+	fight.set_scripted_dice(faces)
+	var result: Dictionary = fight.strike("attacker", "defender", int(case.get("to_hit_mod", 0)), case.get("telegraph_mult", 1))
+	return {
+		"result": result,
+		"remaining": fight.scripted_remaining(),
+		"underrun": fight.scripted_underrun(),
+		"queue": fight.scripted_queue(),
+		"fight": fight,
+		"defender_side": dfn_side,
+	}
+
+
+func _resolver_expect(cid: String, result: Dictionary, expect: Dictionary, fight: FightState) -> int:
+	var failed: int = 0
+	for key: String in ["attack_total", "defense_total", "margin", "damage", "defender_hp_after"]:
+		failed += _assert(int(result.get(key, -99999)) == int(expect.get(key, -88888)), "%s %s got %s want %s" % [cid, key, str(result.get(key)), str(expect.get(key))])
+	failed += _assert(str(result.get("band", "")) == str(expect.get("band", "")), "%s band got %s want %s" % [cid, str(result.get("band")), str(expect.get("band"))])
+	failed += _assert(bool(result.get("fate_crit", false)) == bool(expect.get("fate_crit", false)), "%s fate_crit got %s want %s" % [cid, str(result.get("fate_crit")), str(expect.get("fate_crit"))])
+	var card: Dictionary = fight.fighter_dict("defender")
+	failed += _assert(int(card.get("hp", 99999)) == int(expect.get("defender_hp_after", -88888)), "%s defender hp stored" % cid)
+	return failed
+
+
+func _resolver_faces(case: Dictionary) -> Array[int]:
+	var dice: Dictionary = case.get("dice", {}) as Dictionary
+	var faces: Array[int] = []
+	for key: String in ["attack_2d6", "defense_2d6"]:
+		var rolls: Variant = dice.get(key, [])
+		if rolls is Array:
+			for face_v: Variant in rolls:
+				faces.append(int(face_v))
+	if dice.get("damage_face", null) != null:
+		faces.append(int(dice.get("damage_face")))
+	if dice.get("fate_roll_0_100", null) != null:
+		faces.append(int(dice.get("fate_roll_0_100")))
+	return faces
+
+
+func _resolver_side(fighter_name: String) -> String:
+	if fighter_name == "Keeper" or fighter_name == "Elaia":
+		return "party"
+	return "beast"
+
+
+func _resolver_threshold_hit(side: String, vitality: int, hp: int) -> Dictionary:
+	## The min_damage_1 dice: graze for exactly 1, no Fate roll.
+	var fight: FightState = FightStateScript.new()
+	var att: Dictionary = {
+		"might": 1, "arcana": 1, "resilience": 7, "ward": 3, "vitality": 9,
+		"swiftness": 6, "fate": 0,
+	}
+	var dfn: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 12, "ward": 5, "vitality": vitality,
+		"swiftness": 7, "fate": 7, "hp": hp,
+	}
+	var member: String = "keeper" if side == "party" else ""
+	var species: String = "" if side == "party" else "acorn_imp"
+	fight.add_fighter("attacker", "beast", att, 0, "front", "physical", "", "")
+	fight.add_fighter("defender", side, dfn, 0, "front", "physical", species, member)
+	fight.set_scripted_dice([6, 6, 1, 1, 1])
+	var result: Dictionary = fight.strike("attacker", "defender", 0, 1)
+	return {
+		"result": result,
+		"max_hp": int(fight.fighter_dict("defender").get("max_hp", 0)),
+		"remaining": fight.scripted_remaining(),
+		"underrun": fight.scripted_underrun(),
+	}
+
+
+func _resolver_beast_rows() -> Dictionary:
+	var data: Dictionary = _json_dict("res://data/beasts.json")
+	var by_id: Dictionary = {}
+	for key: String in ["species", "variants"]:
+		for row_v: Variant in data.get(key, []) as Array:
+			if row_v is Dictionary:
+				var row: Dictionary = row_v as Dictionary
+				by_id[str(row.get("id", ""))] = row
+	return by_id
+
+
+func _resolver_fighter_row(state: Dictionary, fighter_id: String) -> Dictionary:
+	for row_v: Variant in state.get("fighters", []) as Array:
+		if row_v is Dictionary:
+			var row: Dictionary = row_v as Dictionary
+			if str(row.get("id", "")) == fighter_id:
+				return row
+	return {}
+
+
+const _BATTLE_SHELL_SLOT: int = 6
+
+
+func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## The arena is a fullscreen shell over a live hub. It opens only through
+	## BattleView.open_arena, the call the debug button makes.
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	save_service.call("delete_slot", _BATTLE_SHELL_SLOT)
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for the arena shell")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(not bool(BattleViewScript.is_open()), "arena is closed at boot")
+	failed += _assert(get_nodes_in_group("battle_overlay").is_empty(), "boot does not add an arena")
+	failed += _assert(not bool(live.call("world_input_blocked")), "hub input is open before the arena")
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	var pause_menu: Node = live.get_node_or_null("PauseMenu")
+	failed += _assert(keeper != null and pause_menu != null, "hub has a Keeper and a pause menu")
+	if keeper == null or pause_menu == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena opens the shell")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	failed += _assert(views.size() == 1, "one arena overlay")
+	var view: CanvasLayer = null
+	if views.size() == 1:
+		view = views[0] as CanvasLayer
+	failed += _assert(view != null, "arena is a CanvasLayer")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	var pause_layer: int = int(pause_menu.get("layer"))
+	var arena_layer: int = int(view.layer)
+	failed += _assert(view.visible, "arena layer is visible")
+	failed += _assert(arena_layer > 50 and arena_layer < pause_layer, "arena layer is above Echo and below pause (got %d, pause %d)" % [arena_layer, pause_layer])
+	failed += _assert(not paused, "opening the arena does not pause the tree")
+	var bg: ColorRect = view.get_node_or_null("Background") as ColorRect
+	failed += _assert(bg != null and bg.is_visible_in_tree(), "arena backdrop is on screen")
+	if bg != null:
+		var col: Color = bg.color
+		failed += _assert(col.g > col.r and col.g > col.b and col.g < 0.35 and col.a > 0.9, "arena backdrop is dark green")
+	var placeholder: Label = view.get_node_or_null("Arena/Placeholder") as Label
+	failed += _assert(placeholder != null and not placeholder.visible, "the art-coming line is hidden now that the arena art is in")
+	var backdrop: TextureRect = view.get_node_or_null("Arena/Backdrop") as TextureRect
+	var foreground: TextureRect = view.get_node_or_null("Arena/Foreground") as TextureRect
+	failed += _assert(backdrop != null and backdrop.texture != null and backdrop.texture.get_size() == Vector2(1600, 900), "the forest backdrop is the 1600x900 arena art")
+	failed += _assert(foreground != null and foreground.texture != null and foreground.get_index() > (view.get_node("Arena/Fighters") as Node).get_index(), "the foreground draws over the fighters")
+	failed += _assert(backdrop != null and backdrop.mouse_filter == Control.MOUSE_FILTER_IGNORE and foreground != null and foreground.mouse_filter == Control.MOUSE_FILTER_IGNORE, "arena art takes no clicks")
+	for member: String in ["keeper", "elaia"]:
+		var fighter: Node = view.get_node_or_null("Arena/Fighters/Fighter_%s" % member)
+		var sprite: TextureRect = fighter.get_node_or_null("Sprite") as TextureRect if fighter != null else null
+		failed += _assert(sprite != null and sprite.texture != null and sprite.texture.get_size() == Vector2(128, 128), "%s stands in the arena in a battle pose" % member)
+		for pose: String in ["attack", "brace", "hurt", "ko"]:
+			failed += _assert(bool(view.call("set_fighter_pose", member, pose)), "%s %s pose loads" % [member, pose])
+		view.call("set_fighter_pose", member, "idle")
+	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
+	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(380, 424), "Keeper stands on the front middle slot")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(160, 424), "Elaia stands on the back middle slot")
+	for beast_id: String in BattleViewScript.BEAST_HURT.keys():
+		failed += _assert(ResourceLoader.exists(str(BattleViewScript.BEAST_HURT[beast_id])), "%s hurt frame is imported" % beast_id)
+	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
+	failed += _assert(close_btn != null and close_btn.visible and close_btn.text == "Close", "Close is visible")
+	failed += _assert(get_nodes_in_group("battle_slot_outline").size() == 12, "front and back rows mark twelve slots")
+	var slot_root: Node = view.get_node_or_null("Arena/Slots")
+	var slot_nodes: Array[Node] = slot_root.get_children() if slot_root != null else []
+	failed += _assert(slot_nodes.size() == 12, "slot outlines live under the arena")
+	if slot_nodes.size() == 12:
+		var party_front: Control = slot_nodes[0] as Control
+		var party_back: Control = slot_nodes[3] as Control
+		var beast_front: Control = slot_nodes[6] as Control
+		var beast_back: Control = slot_nodes[9] as Control
+		failed += _assert(party_front != null and party_back != null and beast_front != null and beast_back != null, "row outlines are controls")
+		if party_front != null and party_back != null and beast_front != null and beast_back != null:
+			var half: Vector2 = party_front.size * 0.5
+			failed += _assert(party_front.position + half == Vector2(300, 360) and beast_back.position + half == Vector2(1176, 360), "slot marks sit on the v7 sole points")
+			failed += _assert(party_back.position.x < party_front.position.x, "party back column stands behind the front")
+			failed += _assert(is_equal_approx(party_back.position.y, party_front.position.y), "party columns share the v7 foot lines")
+			failed += _assert(beast_back.position.x > beast_front.position.x, "beast back column stands behind the front")
+			failed += _assert(is_equal_approx(beast_back.position.y, beast_front.position.y), "beast columns share the v7 foot lines")
+			failed += _assert(beast_front.position.x > party_front.position.x + 300.0, "beasts stand on the right")
+	var clock_before: float = float(game_state.get("run_time_sec"))
+	for _frame: int in 60:
+		await process_frame
+	var clock_after: float = float(game_state.get("run_time_sec"))
+	failed += _assert(clock_after > clock_before, "hub clock moves while the arena is open (%.4f -> %.4f)" % [clock_before, clock_after])
+	failed += _assert(not paused, "the hub is still running after a minute of frames")
+	game_state.call("select_keeper")
+	if keeper.has_method("halt"):
+		keeper.call("halt")
+	var origin: Vector2 = keeper.global_position
+	var point: Vector2 = _battle_walk_point(live, origin)
+	_battle_click(live, point, MOUSE_BUTTON_LEFT)
+	_battle_click(live, point, MOUSE_BUTTON_RIGHT)
+	for _blocked: int in 8:
+		await physics_frame
+	failed += _assert(keeper.global_position.distance_to(origin) < 1.0, "clicks do not move the Keeper")
+	failed += _assert(not bool(keeper.get("_moving")), "clicks do not command the Keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "a blocked left click does not deselect the Keeper")
+	_battle_escape(live)
+	await process_frame
+	failed += _assert(not bool(BattleViewScript.is_open()), "Escape closes the arena")
+	failed += _assert(get_nodes_in_group("battle_overlay").is_empty(), "Escape frees the overlay")
+	failed += _assert(not bool(pause_menu.call("is_open")), "Escape does not open the pause menu")
+	failed += _assert(not paused, "closing the arena leaves the hub running")
+	var still: Vector2 = keeper.global_position
+	_battle_click(live, point, MOUSE_BUTTON_RIGHT)
+	for _walk: int in 20:
+		await physics_frame
+	var moved: float = keeper.global_position.distance_to(still)
+	failed += _assert(bool(keeper.get("_moving")) or moved > 4.0, "the same right-click moves the Keeper after Escape (moved %.1f)" % moved)
+	if keeper.has_method("halt"):
+		keeper.call("halt")
+	failed += _assert(bool(BattleViewScript.open_arena()), "the arena opens again")
+	failed += _assert(bool(BattleViewScript.open_arena()), "a second open is the same overlay")
+	failed += _assert(get_nodes_in_group("battle_overlay").size() == 1, "opening twice does not stack")
+	failed += _assert(get_nodes_in_group("battle_slot_outline").size() == 12, "a second open adds no rows")
+	# A real mouse click on Close (GUI path, not close_overlay()) closes the arena.
+	var again: Array[Node] = get_nodes_in_group("battle_overlay")
+	var close_again: Button = (again[0] as Node).get_node_or_null("Arena/CloseButton") as Button if again.size() == 1 else null
+	failed += _assert(close_again != null, "Close button exists on the reopened arena")
+	if close_again != null:
+		var vp_close: Viewport = live.get_viewport()
+		var at: Vector2 = close_again.get_global_rect().get_center()
+		vp_close.warp_mouse(at)
+		var hover := InputEventMouseMotion.new()
+		hover.position = at
+		hover.global_position = at
+		vp_close.push_input(hover, true)
+		for pressed_v: bool in [true, false]:
+			var press := InputEventMouseButton.new()
+			press.button_index = MOUSE_BUTTON_LEFT
+			press.pressed = pressed_v
+			press.position = at
+			press.global_position = at
+			vp_close.push_input(press, true)
+		await process_frame
+		failed += _assert(not bool(BattleViewScript.is_open()), "a mouse click on Close closes the arena")
+	if not bool(BattleViewScript.is_open()):
+		failed += _assert(bool(BattleViewScript.open_arena()), "the arena opens after Close")
+	var wood_before: int = int(game_state.get("wood"))
+	failed += _assert(bool(save_service.call("save_game", _BATTLE_SHELL_SLOT)), "save works while the arena is open")
+	var slot_text: String = FileAccess.get_file_as_string(str(save_service.call("slot_path", _BATTLE_SHELL_SLOT)))
+	failed += _assert(slot_text.find("BattleArena") < 0 and slot_text.find("battle_overlay") < 0, "the save does not store the arena")
+	failed += _assert(bool(save_service.call("load_game", _BATTLE_SHELL_SLOT)), "load the arena save")
+	await process_frame
+	failed += _assert(not bool(BattleViewScript.is_open()), "load closes the arena")
+	failed += _assert(get_nodes_in_group("battle_overlay").is_empty(), "load frees the overlay")
+	failed += _assert(int(game_state.get("wood")) == wood_before, "load keeps the hub wood")
+	failed += _assert(not paused, "load does not leave the tree paused")
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_slot", _BATTLE_SHELL_SLOT)
+	paused = false
+	if failed == 0:
+		print("BATTLE_SHELL_OK")
+	return failed
+
+
+func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Formation, party bar, beast plates, and intent markers on the live arena shell.
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for battle plates")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for plates")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	failed += _assert(views.size() == 1, "one arena overlay for plates")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "arena is a BattleView")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
+	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(380, 424), "placeholder Keeper on front middle")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(160, 424), "placeholder Elaia on back middle")
+	var fight: FightState = FightStateScript.new()
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	failed += _assert(fight.add_member("keeper", keeper_stats, 0, "front") == "keeper", "keeper joins the fight")
+	var elaia_stats: Dictionary = {
+		"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
+		"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+	}
+	failed += _assert(fight.add_member("elaia", elaia_stats, 1, "back", "elaia") == "elaia", "elaia joins the fight")
+	failed += _assert(fight.add_beast("acorn_imp", 0, "front") == "acorn_imp", "first imp")
+	failed += _assert(fight.add_beast("spore_moth", 1, "back") == "spore_moth", "moth")
+	failed += _assert(fight.add_beast("acorn_imp", 1, "front") == "acorn_imp_2", "second imp")
+	view.call("show_fight", fight)
+	await process_frame
+	var imp_a: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp") as Control
+	var imp_b: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp_2") as Control
+	var keeper_f: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
+	failed += _assert(keeper_f != null and keeper_f.position == Vector2(380, 424), "Keeper alone uses front middle sole")
+	failed += _assert(imp_a != null and imp_b != null, "both imps spawned")
+	if imp_a != null and imp_b != null:
+		var front_soles: Array = BattleViewScript.SLOT_SOLES["beast_front"]
+		failed += _assert(imp_a.position == front_soles[0] and imp_b.position == front_soles[2], "front imps on soles 0 and 2")
+	var keeper_sprite: TextureRect = keeper_f.get_node_or_null("Sprite") as TextureRect if keeper_f != null else null
+	failed += _assert(keeper_sprite != null and keeper_sprite.texture != null and keeper_sprite.texture.get_size() == Vector2(128, 128), "keeper idle 128x128")
+	failed += _assert(bool(view.call("set_fighter_pose", "keeper", "brace")), "keeper brace pose")
+	# v7: the big party bar is gone; every fighter has a plate under its feet.
+	failed += _assert(view.get_node_or_null("Arena/PartyBar") == null, "the old PartyBar is gone")
+	var keeper_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_keeper") as Control
+	var elaia_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_elaia") as Control
+	failed += _assert(keeper_plate != null and elaia_plate != null, "two party plates")
+	if keeper_plate != null:
+		var keeper_hp: TextureProgressBar = keeper_plate.get_node_or_null("HpBar") as TextureProgressBar
+		failed += _assert(keeper_hp != null and int(keeper_hp.value) == 28 and int(keeper_hp.max_value) == 28, "keeper HP on the plate")
+		failed += _assert(keeper_plate.tooltip_text.find("HP 28/28") >= 0, "keeper plate tooltip has the HP line")
+		failed += _assert(keeper_plate.position == Vector2(380, 424) + Vector2(-28, 10), "keeper plate under his feet")
+	for beast_id: String in ["acorn_imp", "acorn_imp_2", "spore_moth"]:
+		var plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % beast_id) as Control
+		failed += _assert(plate != null, "beast plate %s" % beast_id)
+		if plate != null:
+			var intent: Control = plate.get_node_or_null("IntentMarker") as Control
+			failed += _assert(intent != null, "intent marker on %s" % beast_id)
+	var imp_a_plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_acorn_imp") as Control
+	var imp_b_plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_acorn_imp_2") as Control
+	if imp_a_plate != null and imp_b_plate != null:
+		var name_a: Label = imp_a_plate.get_node_or_null("NameLabel") as Label
+		var name_b: Label = imp_b_plate.get_node_or_null("NameLabel") as Label
+		failed += _assert(name_a != null and name_b != null and name_a.text.begins_with("Acorn imp A") and name_b.text.begins_with("Acorn imp B"), "imp plate names")
+	view.call("set_active", "elaia")
+	await process_frame
+	failed += _assert(get_nodes_in_group("battle_plate_outline").is_empty(), "no gold plate outline ColorRect")
+	var elaia_plate_active: Control = view.get_node_or_null("Arena/Plates/PartyPlate_elaia") as Control
+	if elaia_plate_active != null:
+		var elaia_bg: TextureRect = elaia_plate_active.get_node_or_null("Bg") as TextureRect
+		var active_path: String = elaia_bg.texture.resource_path if elaia_bg != null and elaia_bg.texture != null else ""
+		failed += _assert(active_path.find("plate_party_active_56x24.png") >= 0, "active fighter uses active plate texture")
+	fight.apply_poison("acorn_imp", 4)
+	fight.set_hp("acorn_imp", 1)
+	view.call("refresh_fight", fight)
+	await process_frame
+	if imp_a != null:
+		var imp_sprite: CanvasItem = imp_a.get_node_or_null("Sprite") as CanvasItem
+		failed += _assert(imp_sprite != null and is_equal_approx(imp_sprite.modulate.a, 0.35), "calmed imp fades")
+	if imp_a_plate != null:
+		var calm_row: Node = imp_a_plate.get_node_or_null("StatusRow")
+		var calm_icon: bool = false
+		var extra_status: bool = false
+		if calm_row != null:
+			failed += _assert(calm_row.get_child_count() == 1, "Calmed clears other status icons on the plate")
+			for child: Node in calm_row.get_children():
+				var tr: TextureRect = child as TextureRect
+				if tr == null:
+					continue
+				if str(tr.texture.resource_path).find("status_calmed_12.png") >= 0:
+					calm_icon = true
+				elif str(tr.texture.resource_path).find("status_poisoned_12.png") >= 0:
+					extra_status = true
+		failed += _assert(calm_icon and not extra_status, "imp plate shows only Calmed status icon")
+	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
+	failed += _assert(close_btn != null, "Close button present")
+	if close_btn != null:
+		failed += _assert(is_equal_approx(close_btn.offset_left, 1140.0) and is_equal_approx(close_btn.offset_top, 16.0), "Close sits top-right")
+		failed += _assert(is_equal_approx(close_btn.offset_right, 1264.0) and is_equal_approx(close_btn.offset_bottom, 52.0), "Close rect matches art")
+	BattleViewScript.close_arena()
+	await process_frame
+	failed += _assert(not bool(BattleViewScript.is_open()), "close_arena still closes")
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_PLATES_OK")
+	return failed
+
+
+func _battle_ui_v7_visible_top(root: Control) -> Rect2:
+	## Independent of BattleView: read the sprite's source PNG and find its visible pixels.
+	var sprite: Control = root.get_node_or_null("Sprite") as Control
+	if sprite == null:
+		return Rect2()
+	if sprite is TextureRect and (sprite as TextureRect).texture != null:
+		var path: String = (sprite as TextureRect).texture.resource_path
+		var image := Image.new()
+		if path == "" or image.load_png_from_buffer(FileAccess.get_file_as_bytes(path)) != OK:
+			return Rect2()
+		var used: Rect2i = image.get_used_rect()
+		return Rect2(root.position + sprite.position + Vector2(used.position), Vector2(used.size))
+	return Rect2(root.position + sprite.position, sprite.size)
+
+
+func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## v7 formation and bottom bar on the live arena: 6 vs 6 slots match the approved
+	## layout json, a plate under every fighter (no Weave on beasts), draw order by feet y,
+	## the old party HP bar is gone, the bottom bar holds exactly 6 buttons + the log,
+	## and intent bubbles sit at the visible sprite top - 28.
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for battle ui v7")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	var layout: Dictionary = _json_dict("res://tests/fixtures/battle_ui_v7_layout.json")
+	var feet: Dictionary = layout.get("slots_view_feet", {}) as Dictionary
+	failed += _assert(feet.size() == 4, "v7 layout json has four columns")
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for v7")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "v7 arena is a BattleView")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	# 1. Slot map: constants and the twelve ground marks equal the approved json.
+	for column: String in ["party_front", "party_back", "beast_front", "beast_back"]:
+		var want: Array = feet.get(column, []) as Array
+		failed += _assert(want.size() == 3, "%s has three slots in the json" % column)
+		for i: int in want.size():
+			var pair: Array = want[i] as Array
+			var expect := Vector2(int(pair[0]), int(pair[1]))
+			failed += _assert(BattleViewScript.slot_sole(column, i) == expect, "%s %d sole is %s (got %s)" % [column, i, expect, BattleViewScript.slot_sole(column, i)])
+			var mark: Control = view.get_node_or_null("Arena/Slots/%s_%d" % [column, i]) as Control
+			failed += _assert(mark != null and mark.position + mark.size * 0.5 == expect, "%s %d ground mark on the json sole" % [column, i])
+	var party_x: Array = []
+	var beast_x: Array = []
+	for i: int in 3:
+		party_x.append(BattleViewScript.slot_sole("party_front", i).x - BattleViewScript.slot_sole("party_back", i).x)
+		beast_x.append(BattleViewScript.slot_sole("beast_back", i).x - BattleViewScript.slot_sole("beast_front", i).x)
+	failed += _assert(BattleViewScript.slot_sole("party_front", 1).x - BattleViewScript.slot_sole("party_front", 0).x == 80.0, "party middle steps 80 toward the enemy")
+	failed += _assert(BattleViewScript.slot_sole("beast_front", 0).x - BattleViewScript.slot_sole("beast_front", 1).x == 128.0, "beast middle steps 128 toward the enemy (not a mirror)")
+	# 2. A full 6 vs 6 fight on the real view.
+	var fight: FightState = FightStateScript.new()
+	var stats: Dictionary = {
+		"might": 8, "arcana": 6, "resilience": 6, "ward": 6,
+		"vitality": 6, "swiftness": 6, "fate": 6, "attack": "physical",
+	}
+	var party_spots: Array = [["keeper", 0, "front"], ["elaia", 0, "back"], ["keeper", 1, "front"], ["elaia", 1, "back"], ["keeper", 2, "front"], ["elaia", 2, "back"]]
+	var party_ids: Array[String] = []
+	for n: int in party_spots.size():
+		var spot: Array = party_spots[n] as Array
+		var fid: String = "keeper" if n == 0 else ("elaia" if n == 1 else "ally_%d" % n)
+		party_ids.append(fight.add_member(str(spot[0]), stats, int(spot[1]), str(spot[2]), fid))
+	var beast_spots: Array = [["root_snapper", 0, "front"], ["acorn_imp", 1, "front"], ["thorn_boar", 2, "front"], ["vine_serpent", 0, "back"], ["moss_brute", 1, "back"], ["wilt_wisp", 2, "back"]]
+	var beast_ids: Array[String] = []
+	for spot_v: Variant in beast_spots:
+		var spot: Array = spot_v as Array
+		beast_ids.append(fight.add_beast(str(spot[0]), int(spot[1]), str(spot[2])))
+	fight.set_combat_seed(4711)
+	fight.loadout = {"heart_salve": 2}
+	fight.start_fight()
+	fight.controller = "manual"
+	view._fight = fight
+	view.call("show_fight", fight)
+	await process_frame
+	var all_ids: Array[String] = party_ids.duplicate()
+	all_ids.append_array(beast_ids)
+	failed += _assert(all_ids.size() == 12 and not all_ids.has(""), "6 party + 6 beasts join (%s)" % [all_ids])
+	var expected_soles: Dictionary = {}
+	for n: int in party_spots.size():
+		var spot: Array = party_spots[n] as Array
+		expected_soles[party_ids[n]] = ["party_%s" % str(spot[2]), int(spot[1])]
+	for n: int in beast_spots.size():
+		var spot: Array = beast_spots[n] as Array
+		expected_soles[beast_ids[n]] = ["beast_%s" % str(spot[2]), int(spot[1])]
+	for fid: String in all_ids:
+		var where: Array = expected_soles.get(fid, ["", 0]) as Array
+		var pair: Array = (feet.get(str(where[0]), []) as Array)[int(where[1])] as Array
+		var expect := Vector2(int(pair[0]), int(pair[1]))
+		var root: Control = view.get_node_or_null("Arena/Fighters/Fighter_%s" % fid) as Control
+		failed += _assert(root != null and root.position == expect, "%s stands on %s %d = %s" % [fid, where[0], int(where[1]), expect])
+		# 3. Plates: 56x24 at (x - 28, y + 10); Weave on the party only.
+		var side: String = "Party" if fid in party_ids else "Beast"
+		var plate: Control = view.get_node_or_null("Arena/Plates/%sPlate_%s" % [side, fid]) as Control
+		failed += _assert(plate != null, "%s has a plate" % fid)
+		if plate == null:
+			continue
+		var want_size: Vector2 = Vector2(56, 24) if side == "Party" else Vector2(56, 20)
+		failed += _assert(plate.position == expect + Vector2(-28, 10) and plate.size == want_size, "%s plate centred under the feet" % fid)
+		var name_label: Label = plate.get_node_or_null("NameLabel") as Label
+		var level_label: Label = plate.get_node_or_null("LevelLabel") as Label
+		var hp_bar: TextureProgressBar = plate.get_node_or_null("HpBar") as TextureProgressBar
+		var weave_bar: TextureProgressBar = plate.get_node_or_null("WeaveBar") as TextureProgressBar
+		failed += _assert(name_label != null and name_label.text != "" and level_label != null, "%s plate shows a name and a level slot" % fid)
+		failed += _assert(hp_bar != null and hp_bar.is_visible_in_tree() and int(hp_bar.max_value) == int(fight.fighter_dict(fid).get("max_hp", 0)), "%s plate HP bar" % fid)
+		if side == "Party":
+			failed += _assert(weave_bar != null and weave_bar.is_visible_in_tree(), "%s plate shows Weave" % fid)
+		else:
+			failed += _assert(weave_bar == null or not weave_bar.is_visible_in_tree(), "%s plate hides Weave (beasts have none)" % fid)
+	var plates_root: Node = view.get_node_or_null("Arena/Plates")
+	var foreground: Node = view.get_node_or_null("Arena/Foreground")
+	failed += _assert(plates_root != null and foreground != null and plates_root.get_index() > foreground.get_index(), "plates draw on a UI layer above the sprites and the foreground")
+	# 4. Draw order: ascending feet y, ties by x.
+	var fighters_root: Node = view.get_node_or_null("Arena/Fighters")
+	var order: Array[Vector2] = []
+	if fighters_root != null:
+		for child: Node in fighters_root.get_children():
+			order.append((child as Control).position)
+	var sorted_ok: bool = order.size() == 12
+	for i: int in range(1, order.size()):
+		var a: Vector2 = order[i - 1]
+		var b: Vector2 = order[i]
+		if a.y > b.y or (is_equal_approx(a.y, b.y) and a.x > b.x):
+			sorted_ok = false
+	failed += _assert(sorted_ok, "fighters draw in ascending feet y (%s)" % [order])
+	var keeper_mid: Control = view.get_node_or_null("Arena/Fighters/Fighter_ally_2") as Control
+	var keeper_low: Control = view.get_node_or_null("Arena/Fighters/Fighter_ally_4") as Control
+	failed += _assert(keeper_mid != null and keeper_low != null and keeper_mid.get_index() < keeper_low.get_index(), "the middle fighter is drawn behind the bottom fighter")
+	# 5. The old big HP bars are gone; plate fills are TextureProgressBars only.
+	failed += _assert(view.get_node_or_null("Arena/PartyBar") == null and view.find_child("PartyBar", true, false) == null, "no PartyBar")
+	var stray_bars: int = 0
+	for bar_v: Node in view.find_children("*", "TextureProgressBar", true, false):
+		var bar: TextureProgressBar = bar_v as TextureProgressBar
+		var parent: Node = bar.get_parent()
+		if parent == null or parent.get_parent() != plates_root or bar.size.x > 56.0:
+			stray_bars += 1
+	failed += _assert(stray_bars == 0, "no fill bar outside the plates (%d stray)" % stray_bars)
+	failed += _assert(str(BattleViewScript.UI_ART_DIR).ends_with("ui/"), "UI_ART_DIR uses final ui/")
+	var ui_files: Array[String] = [
+		"plate_party_56x24.png", "plate_beast_56x20.png", "plate_party_active_56x24.png",
+		"plate_beast_active_56x20.png", "bottom_panel_1280x136.png", "log_panel_732x108.png",
+		"active_arrow_13x9.png", "intent_bubble_22x26.png", "action_button_normal_160x44.png",
+		"depth_plate_120x28.png", "round_banner_324x38.png", "speed_1x_selected.png",
+	]
+	for ui_file: String in ui_files:
+		failed += _assert(ResourceLoader.exists(BattleViewScript.UI_ART_DIR + ui_file), "final ui texture %s" % ui_file)
+	var depth_plate: Control = view.get_node_or_null("Arena/DepthPlate") as Control
+	failed += _assert(depth_plate != null and depth_plate.position == Vector2(16, 12) and depth_plate.size == Vector2(120, 28), "depth plate top bar")
+	var round_banner: Control = view.get_node_or_null("Arena/RoundBanner") as Control
+	failed += _assert(round_banner != null and round_banner.position == Vector2(478, 8) and round_banner.size == Vector2(324, 38), "round banner top bar")
+	for i: int in 3:
+		var speed_n: int = [1, 2, 4][i]
+		var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
+		var want_pos: Vector2 = Vector2(
+			BattleViewScript.SPEED_BUTTON_POS.x + float(i) * BattleViewScript.SPEED_BUTTON_PITCH,
+			BattleViewScript.SPEED_BUTTON_POS.y,
+		)
+		failed += _assert(speed_btn != null and speed_btn.position == want_pos, "speed %dx at %s" % [speed_n, want_pos])
+	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
+	if close_btn != null:
+		var close_rect: Rect2 = close_btn.get_global_rect()
+		for i: int in 3:
+			var speed_n: int = [1, 2, 4][i]
+			var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
+			if speed_btn != null:
+				failed += _assert(not close_rect.intersects(speed_btn.get_global_rect()), "Close does not cover Speed%dx" % speed_n)
+	var test_bar: Control = view.get_node_or_null("Arena/TestFightBar") as Control
+	var twist_chip: Control = view.get_node_or_null("Arena/TwistChip") as Control
+	if test_bar != null and depth_plate != null:
+		failed += _assert(not test_bar.get_global_rect().intersects(depth_plate.get_global_rect()), "TestFightBar does not overlap DepthPlate")
+		failed += _assert(test_bar.position == BattleViewScript._test_fight_bar_pos(), "TestFightBar sits below the top chrome")
+	if test_bar != null and twist_chip != null and twist_chip.is_visible_in_tree():
+		failed += _assert(not test_bar.get_global_rect().intersects(twist_chip.get_global_rect()), "TestFightBar does not overlap TwistChip")
+	if test_bar != null and round_banner != null:
+		failed += _assert(not test_bar.get_global_rect().intersects(round_banner.get_global_rect()), "TestFightBar does not overlap RoundBanner")
+	if test_bar != null and close_btn != null:
+		failed += _assert(not test_bar.get_global_rect().intersects(close_btn.get_global_rect()), "TestFightBar does not overlap Close")
+	if test_bar != null:
+		for i: int in 3:
+			var speed_n: int = [1, 2, 4][i]
+			var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
+			if speed_btn != null:
+				failed += _assert(not test_bar.get_global_rect().intersects(speed_btn.get_global_rect()), "TestFightBar does not overlap Speed%dx" % speed_n)
+	var sample_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_%s" % party_ids[0]) as Control
+	if sample_plate != null:
+		var sample_name: Label = sample_plate.get_node_or_null("NameLabel") as Label
+		if sample_name != null:
+			failed += _assert(sample_name.get_theme_font_size("font_size") >= BattleViewScript.PLATE_LABEL_FONT_SIZE, "plate name font is legible (>= %d px)" % BattleViewScript.PLATE_LABEL_FONT_SIZE)
+			failed += _assert(sample_name.get_theme_color("font_color").is_equal_approx(BattleViewScript.PLATE_INK), "plate name uses README ink colour")
+	view.call("_apply_battle_speed", 2)
+	await process_frame
+	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
+	var speed2_box: StyleBoxTexture = speed2.get_theme_stylebox("normal") as StyleBoxTexture if speed2 != null else null
+	var speed2_path: String = speed2_box.texture.resource_path if speed2_box != null and speed2_box.texture != null else ""
+	failed += _assert(speed2_path.find("speed_2x_selected.png") >= 0, "current speed uses selected texture (%s)" % speed2_path)
+	view.call("set_active", party_ids[0])
+	await process_frame
+	failed += _assert(get_nodes_in_group("battle_plate_outline").is_empty(), "no gold plate outline ColorRect")
+	view.call("set_active", party_ids[1])
+	await process_frame
+	var back_arrows: Array[Node] = get_nodes_in_group("battle_active_arrow")
+	failed += _assert(back_arrows.size() == 1, "back-row fighter shows one active arrow")
+	if back_arrows.size() == 1:
+		var back_arrow: Control = back_arrows[0] as Control
+		var back_shown: Rect2 = view.fighter_visible_rect(party_ids[1])
+		if back_shown.size.y > 0.0 and back_arrow != null:
+			failed += _assert(back_arrow.position.x < back_shown.position.x, "back-row party arrow sits beside the head (left)")
+			var arrow_rect: Rect2 = back_arrow.get_global_rect()
+			for plate_v: Node in get_nodes_in_group("battle_plate"):
+				var other_plate: Control = plate_v as Control
+				if other_plate == null or str(other_plate.get_meta("fighter_id", "")) == party_ids[1]:
+					continue
+				var other_row: Node = other_plate.get_node_or_null("StatusRow")
+				if other_row == null:
+					continue
+				for icon_v: Node in other_row.get_children():
+					var icon: Control = icon_v as Control
+					if icon != null:
+						failed += _assert(not arrow_rect.intersects(icon.get_global_rect()), "active arrow avoids %s status icon" % other_plate.name)
+	view.call("set_active", party_ids[0])
+	await process_frame
+	failed += _assert(not DirAccess.dir_exists_absolute("res://assets/art/battle/ui_placeholder/"), "ui_placeholder folder removed")
+	failed += _assert(not FileAccess.file_exists("res://assets/art/battle/ui_placeholder/plate_bg.png"), "ui_placeholder plate_bg gone")
+	# 6. Bottom bar: exactly six action buttons + the log, nothing else.
+	var actor: String = fight.current_actor()
+	if str(fight.fighter_dict(actor).get("side", "")) != "party":
+		actor = "keeper"
+	view.call("_show_action_menu", actor)
+	await process_frame
+	var bottom: Control = view.get_node_or_null("Arena/BottomBar") as Control
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
+	var log_panel: Control = view.get_node_or_null("Arena/LogPanel") as Control
+	var log_scroll: ScrollContainer = view.get_node_or_null("Arena/LogPanel/LogScroll") as ScrollContainer
+	failed += _assert(bottom != null and menu != null and log_panel != null and log_scroll != null, "bottom bar, menu and log scroll exist")
+	if bottom != null and menu != null and log_panel != null:
+		var bar_rect: Rect2 = bottom.get_global_rect()
+		failed += _assert(bottom.get_rect() == Rect2(0, 584, 1280, 136), "bottom bar rect in the arena (got %s)" % bottom.get_rect())
+		var names: Array[String] = []
+		for child: Node in menu.get_children():
+			if child is Button:
+				names.append(str(child.name))
+		failed += _assert(names == ["StrikeButton", "AbilityButton", "SalveButton", "BraceButton", "FleeButton", "StrikeForMeToggle"], "the menu holds exactly the six action buttons (%s)" % [names])
+		failed += _assert(menu.get_child_count() == 6, "nothing else in the action menu")
+		failed += _assert(bar_rect.encloses(log_panel.get_global_rect()), "the log sits in the bottom bar")
+		var in_bar: Array[String] = []
+		for node: Node in view.find_children("*", "Button", true, false):
+			var button: Button = node as Button
+			if button.is_visible_in_tree() and button.get_global_rect().intersects(bar_rect):
+				in_bar.append(str(button.name))
+		failed += _assert(in_bar.size() == 6, "exactly six visible buttons in the bottom bar (%s)" % [in_bar])
+		for button_name: String in in_bar:
+			var button: Button = menu.get_node_or_null(button_name) as Button
+			failed += _assert(button != null and bar_rect.encloses(button.get_global_rect()), "%s fits inside the bottom bar" % button_name)
+		for plate_v: Node in get_nodes_in_group("battle_plate"):
+			var plate_c: Control = plate_v as Control
+			failed += _assert(plate_c.get_global_rect().end.y <= bar_rect.position.y, "%s ends above the bottom bar" % plate_c.name)
+	# 7. Intent bubbles: (visible centre x - 10, visible top - 28).
+	for fid: String in beast_ids:
+		var root: Control = view.get_node_or_null("Arena/Fighters/Fighter_%s" % fid) as Control
+		var plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % fid) as Control
+		var intent: Control = plate.get_node_or_null("IntentMarker") as Control if plate != null else null
+		var shown: Rect2 = _battle_ui_v7_visible_top(root) if root != null else Rect2()
+		failed += _assert(intent != null and shown.size.y > 0.0, "%s has an intent bubble and a visible sprite" % fid)
+		if intent == null or shown.size.y <= 0.0:
+			continue
+		var at: Vector2 = plate.position + intent.position
+		failed += _assert(is_equal_approx(at.y, shown.position.y - 28.0), "%s bubble y = sprite top - 28 (%.0f vs %.0f)" % [fid, at.y, shown.position.y - 28.0])
+		failed += _assert(is_equal_approx(at.x, floorf(shown.position.x + shown.size.x * 0.5) - 10.0), "%s bubble x = visible centre - 10" % fid)
+		var wide: bool = int((fight.fighter_dict(fid).get("intent", {}) as Dictionary).get("mult", 1)) != 1
+		failed += _assert(intent.size == (Vector2(40, 26) if wide else Vector2(22, 26)), "%s bubble size" % fid)
+	BattleViewScript.close_arena()
+	await process_frame
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_UI_V7_OK")
+	return failed
+
+
+func _battle_icons(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for battle icons")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for icons")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "icons arena is BattleView")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	for n: int in range(1, 7):
+		failed += _assert(ResourceLoader.exists(BattleViewScript.UI_ART_DIR + "keycap_%d_14x15.png" % n), "keycap %d art" % n)
+	var stats: Dictionary = {
+		"might": 8, "arcana": 6, "resilience": 6, "ward": 6,
+		"vitality": 6, "swiftness": 6, "fate": 6, "attack": "physical",
+	}
+	var fight: FightState = FightStateScript.new()
+	var keeper_id: String = fight.add_member("keeper", stats, 0, "front", "keeper")
+	var beast_id: String = fight.add_beast("root_snapper", 0, "front")
+	fight.set_combat_seed(90210)
+	fight.start_fight()
+	fight.controller = "manual"
+	fight.twist = "thicket"
+	view._fight = fight
+	view.call("show_fight", fight)
+	await process_frame
+	var twist: TextureRect = view.get_node_or_null("Arena/TwistChip") as TextureRect
+	failed += _assert(twist != null and twist.is_visible_in_tree(), "twist chip visible on thicket")
+	if twist != null and twist.texture != null:
+		failed += _assert(str(twist.texture.resource_path).find("status_slowed_12.png") >= 0, "thicket twist uses slowed chip art")
+		failed += _assert(twist.tooltip_text == "Thicket", "twist tooltip name")
+	fight.set_boss(beast_id, true)
+	view.call("refresh_fight", fight)
+	await process_frame
+	var beast_plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % beast_id) as Control
+	failed += _assert(beast_plate != null, "boss beast plate")
+	if beast_plate != null:
+		var boss_bg: TextureRect = beast_plate.get_node_or_null("Bg") as TextureRect
+		var crown: TextureRect = beast_plate.get_node_or_null("BossCrown") as TextureRect
+		failed += _assert(boss_bg != null and str(boss_bg.texture.resource_path).find("plate_beast_boss_56x20.png") >= 0, "boss plate texture")
+		failed += _assert(crown != null and crown.visible and crown.texture != null, "boss crown visible")
+		failed += _assert(beast_plate.get_node_or_null("BossLabel") == null, "no Boss text label")
+	var heavy_row: Dictionary = fight.fighter_dict(beast_id)
+	heavy_row["intent"] = {"move": "heavy", "mult": 1}
+	view.call("_refresh_plate", heavy_row)
+	await process_frame
+	var intent_icon: TextureRect = beast_plate.get_node_or_null("IntentMarker/Icon") as TextureRect if beast_plate != null else null
+	failed += _assert(intent_icon != null and str(intent_icon.texture.resource_path).find("intent_heavy_16.png") >= 0, "Heavy intent uses v2 texture")
+	fight.apply_poison(keeper_id, 6)
+	var keeper_row: Dictionary = fight.fighter_dict(keeper_id)
+	view.call("_refresh_plate", keeper_row)
+	await process_frame
+	var party_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_%s" % keeper_id) as Control
+	var status_row: Node = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
+	failed += _assert(status_row != null and status_row.get_child_count() >= 1, "poison status icon appears")
+	if status_row != null and status_row.get_child_count() > 0:
+		var poison_icon: TextureRect = status_row.get_child(0) as TextureRect
+		failed += _assert(str(poison_icon.texture.resource_path).find("status_poisoned_12.png") >= 0, "poison icon file")
+	var turn_guard: int = 0
+	while fight.outcome() == "" and turn_guard < 40:
+		turn_guard += 1
+		if str(fight.fighter_dict(fight.current_actor()).get("side", "")) == "party":
+			break
+		fight.step()
+	fight.step({"kind": "brace"})
+	await process_frame
+	keeper_row = fight.fighter_dict(keeper_id)
+	view.call("_refresh_plate", keeper_row)
+	await process_frame
+	failed += _assert(bool(keeper_row.get("brace", false)), "keeper braced")
+	status_row = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
+	var saw_brace: bool = false
+	if status_row != null:
+		for child: Node in status_row.get_children():
+			var tr: TextureRect = child as TextureRect
+			if tr != null and str(tr.texture.resource_path).find("status_braced_12.png") >= 0:
+				saw_brace = true
+	failed += _assert(saw_brace, "brace icon on plate")
+	while fight.outcome() == "" and str(fight.fighter_dict(fight.current_actor()).get("side", "")) != "party":
+		fight.step()
+	await process_frame
+	view.call("_show_action_menu", fight.current_actor())
+	await process_frame
+	for btn_name: String in ["StrikeButton", "AbilityButton", "SalveButton", "BraceButton", "FleeButton", "StrikeForMeToggle"]:
+		var btn: Button = view.get_node_or_null("Arena/ActionMenu/%s" % btn_name) as Button
+		var cap: TextureRect = btn.get_node_or_null("Keycap") as TextureRect if btn != null else null
+		failed += _assert(cap != null and cap.texture != null, "%s has keycap texture" % btn_name)
+	var before_target: String = str(view.get("_target_mode"))
+	var key1 := InputEventKey.new()
+	key1.keycode = KEY_1
+	key1.pressed = true
+	view._input(key1)
+	await process_frame
+	failed += _assert(str(view.get("_target_mode")) == "strike", "key 1 enters strike targeting (was %s)" % before_target)
+	view.call("_exit_target_mode")
+	await process_frame
+	turn_guard = 0
+	while fight.outcome() == "" and turn_guard < 40:
+		turn_guard += 1
+		if str(fight.fighter_dict(fight.current_actor()).get("side", "")) == "beast":
+			break
+		fight.step({"kind": "brace"})
+	await process_frame
+	var beast_target_before: String = str(view.get("_target_mode"))
+	var key1_beast := InputEventKey.new()
+	key1_beast.keycode = KEY_1
+	key1_beast.pressed = true
+	view._input(key1_beast)
+	await process_frame
+	failed += _assert(str(view.get("_target_mode")) == beast_target_before, "hotkey ignored on beast turn")
+	keeper_row = fight.fighter_dict(keeper_id)
+	var cleared: Dictionary = keeper_row.duplicate(true)
+	cleared["poison"] = {"ticks": [], "left": 0}
+	cleared["brace"] = false
+	view.call("_refresh_plate", cleared)
+	await process_frame
+	status_row = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
+	failed += _assert(status_row != null and status_row.get_child_count() == 0, "status icons clear when poison/brace gone")
+	fight.set_hp(keeper_id, 2)
+	keeper_row = fight.fighter_dict(keeper_id)
+	view.call("_refresh_plate", keeper_row)
+	await process_frame
+	status_row = party_plate.get_node_or_null("StatusRow") if party_plate != null else null
+	failed += _assert(str(keeper_row.get("status", "")) == "ko", "keeper knocked out for status regression")
+	if status_row != null:
+		failed += _assert(status_row.get_child_count() == 1, "KO clears poison/brace icons")
+		var ko_only: TextureRect = status_row.get_child(0) as TextureRect
+		failed += _assert(ko_only != null and str(ko_only.texture.resource_path).find("status_ko_12.png") >= 0, "KO plate shows only the KO icon")
+	BattleViewScript.close_arena()
+	await process_frame
+	failed += await _battle_ui_v7(tree_root, game_state, save_service)
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_ICONS_OK")
+	return failed
+
+
+func _battle_menu_in_bottom_bar(view: Node, label: String) -> int:
+	## v7: the action buttons live in the bottom bar, below every fighter plate.
+	var failed: int = 0
+	var bar: Control = view.get_node_or_null("Arena/BottomBar") as Control
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
+	failed += _assert(bar != null and menu != null, "%s: bottom bar and menu exist" % label)
+	if bar == null or menu == null:
+		return failed
+	var bar_rect: Rect2 = bar.get_global_rect()
+	var seen: int = 0
+	for node: Node in menu.find_children("*", "Button", true, false):
+		var button: Button = node as Button
+		if not button.is_visible_in_tree():
+			continue
+		seen += 1
+		var rect: Rect2 = button.get_global_rect()
+		failed += _assert(bar_rect.encloses(rect), "%s: %s sits inside the bottom bar" % [label, button.name])
+	failed += _assert(seen > 0, "%s: menu has visible buttons" % label)
+	return failed
+
+
+func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null and backpack != null, "hub boots for battle menu")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	var wood_before: int = int(game_state.get("wood"))
+	var salve_before: int = int(backpack.call("get_count", "heart_salve"))
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for menu")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	failed += _assert(views.size() == 1, "one arena overlay for menu")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "arena is a BattleView")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	view.call("start_test_fight", 1, false, true, 12345)
+	await process_frame
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
+	failed += _assert(menu != null and menu.visible, "menu on first party turn")
+	var idle_btn: Button = view.get_node_or_null("Arena/SideActions/IdleButton") as Button
+	failed += _assert(idle_btn != null and idle_btn.disabled, "Idle is disabled")
+	var ability_row: Node = view.get_node_or_null("Arena/AbilityRow")
+	var ability_btn: Button = view.get_node_or_null("Arena/ActionMenu/AbilityButton") as Button
+	failed += _assert(ability_btn != null and ability_btn.disabled and ability_btn.tooltip_text.find("Weave") >= 0, "Ability slot is disabled with the Weave tooltip")
+	for n: int in 4:
+		var ab: Button = null
+		if ability_row != null:
+			ab = ability_row.get_node_or_null("AbilityButton%d" % (n + 1)) as Button
+		failed += _assert(ab != null and ab.disabled and ab.text == "—", "ability %d empty" % (n + 1))
+		failed += _assert(ab != null and ab.tooltip_text.find("Weave") >= 0, "ability %d tooltip" % (n + 1))
+	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+	failed += _assert(salve_btn != null and salve_btn.text.find("Heart Salve") >= 0 and salve_btn.text.find("×2") >= 0, "salve shows ×2")
+	failed += _assert(ability_row != null and not (ability_row as CanvasItem).is_visible_in_tree(), "no empty ability row is visible")
+	failed += _battle_menu_in_bottom_bar(view, "first party turn")
+	var sfm_toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
+	failed += _assert(sfm_toggle != null and sfm_toggle.is_visible_in_tree(), "Strike for me toggle shows in the menu")
+	var brace_btn: Button = view.get_node_or_null("Arena/ActionMenu/BraceButton") as Button
+	failed += _assert(brace_btn != null, "Brace button")
+	if brace_btn != null:
+		brace_btn.emit_signal("pressed")
+	await process_frame
+	var fight: FightState = view._fight
+	failed += _assert(fight != null, "fight state")
+	if fight != null:
+		var braced: bool = false
+		for line: Variant in fight.log_tail:
+			if str(line).find("braces") >= 0:
+				braced = true
+				break
+		failed += _assert(braced, "brace log line")
+	var salve_done: bool = false
+	var strike_presses: int = 0
+	while fight != null and fight.outcome() == "" and strike_presses < 300:
+		await process_frame
+		var actor: String = fight.current_actor()
+		if actor == "":
+			view.call("_advance")
+			continue
+		if str(fight.fighter_dict(actor).get("side", "")) != "party":
+			view.call("_advance")
+			continue
+		if actor == "keeper" and not salve_done:
+			fight.set_hp("keeper", 5)
+			view.call("refresh_fight", fight)
+			salve_btn = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+			if salve_btn != null:
+				salve_btn.emit_signal("pressed")
+			await process_frame
+			var salve_target: Button = view.get_node_or_null("Arena/TargetLayer/TargetButton_keeper") as Button
+			failed += _assert(salve_target != null, "salve target on Keeper")
+			if salve_target != null:
+				salve_target.emit_signal("pressed")
+			await process_frame
+			salve_btn = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+			failed += _assert(salve_btn != null and salve_btn.text.find("×1") >= 0, "salve count drops to ×1")
+			var keeper_hp: int = int(fight.fighter_dict("keeper").get("hp", 0))
+			failed += _assert(keeper_hp > 5, "salve heals Keeper")
+			salve_done = true
+			continue
+		var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+		if strike_btn != null and strike_btn.visible:
+			strike_btn.emit_signal("pressed")
+		await process_frame
+		var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+		var picked: Button = null
+		if target_layer != null:
+			for child: Node in target_layer.get_children():
+				if str(child.name).begins_with("TargetButton_"):
+					picked = child as Button
+					break
+		if picked != null:
+			picked.emit_signal("pressed")
+			strike_presses += 1
+		await process_frame
+	var result: Label = view.get_node_or_null("Arena/ResultLabel") as Label
+	failed += _assert(fight != null and fight.outcome() != "", "fight reaches an outcome")
+	failed += _assert(result != null and result.text != "", "ResultLabel shows a result")
+	failed += _assert(strike_presses < 300, "fight ends within 300 strikes")
+	var start_btn: Button = view.get_node_or_null("Arena/TestFightBar/StartFightButton") as Button
+	failed += _assert(start_btn != null and not start_btn.disabled, "Start fight is enabled after the fight")
+	if start_btn != null:
+		var vp: Viewport = live.get_viewport()
+		var at: Vector2 = start_btn.get_global_rect().get_center()
+		vp.warp_mouse(at)
+		var hover := InputEventMouseMotion.new()
+		hover.position = at
+		hover.global_position = at
+		vp.push_input(hover, true)
+		for pressed_v: bool in [true, false]:
+			var press := InputEventMouseButton.new()
+			press.button_index = MOUSE_BUTTON_LEFT
+			press.pressed = pressed_v
+			press.position = at
+			press.global_position = at
+			vp.push_input(press, true)
+		await process_frame
+	view.call("start_test_fight", 1, false, true, 54321)
+	await process_frame
+	var flee_btn: Button = view.get_node_or_null("Arena/ActionMenu/FleeButton") as Button
+	if flee_btn != null:
+		flee_btn.emit_signal("pressed")
+	await process_frame
+	failed += _assert(view._fight != null and view._fight.outcome() == "flee", "flee outcome")
+	result = view.get_node_or_null("Arena/ResultLabel") as Label
+	var trail: String = str(content_strings.call("get_text", "adv_back_at_trailhead"))
+	failed += _assert(result != null and result.text == trail, "flee ResultLabel")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == salve_before, "backpack salve unchanged")
+	failed += _assert(int(game_state.get("wood")) == wood_before, "wood unchanged")
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_MENU_OK")
+	return failed
+
+
+func _battle_click_control(live: Node, control: Control) -> void:
+	if control == null:
+		return
+	var vp: Viewport = live.get_viewport()
+	var at: Vector2 = control.get_global_rect().get_center()
+	vp.warp_mouse(at)
+	var hover := InputEventMouseMotion.new()
+	hover.position = at
+	hover.global_position = at
+	vp.push_input(hover, true)
+	for pressed_v: bool in [true, false]:
+		var press := InputEventMouseButton.new()
+		press.button_index = MOUSE_BUTTON_LEFT
+		press.pressed = pressed_v
+		press.position = at
+		press.global_position = at
+		vp.push_input(press, true)
+
+
+func _battle_strike_for_me(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	const ROOM_SEED: int = 482901
+	const ROOM_SEED_OFF: int = 918273
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for strike for me")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for strike for me")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "BattleView for strike for me")
+	if view == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	var toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
+	failed += _assert(toggle != null and toggle.toggle_mode, "StrikeForMeToggle exists")
+	if toggle != null:
+		failed += _assert(toggle.text.find("Strike for me") >= 0, "toggle text adv_strike_for_me")
+		failed += _assert(toggle.tooltip_text.find("1×") >= 0, "toggle tooltip adv_strike_for_me_tip")
+	var party_packets: Array[Dictionary] = []
+	var on_party_step := func(packet: Dictionary) -> void:
+		party_packets.append(packet)
+	view.strike_for_me_party_stepped.connect(on_party_step)
+	view.call("start_test_fight", 1, false, true, ROOM_SEED)
+	await process_frame
+	failed += _assert(not bool(view.call("strike_for_me_on")), "toggle starts off on new fight")
+	var fight: FightState = view._fight
+	failed += _assert(fight != null and fight.outcome() == "", "fight begins")
+	if fight != null:
+		var keeper_row: Dictionary = fight.fighter_dict("keeper")
+		var low_hp: int = maxi(1, int(keeper_row.get("max_hp", 1)) / 5)
+		fight.set_hp("keeper", low_hp)
+	if toggle != null:
+		_battle_click_control(live, toggle)
+		toggle.emit_signal("pressed")
+		toggle.set_block_signals(true)
+		toggle.button_pressed = true
+		toggle.set_block_signals(false)
+		view.call("_on_strike_for_me_toggled", true)
+	var frames: int = 0
+	fight = view._fight
+	while fight != null and fight.outcome() == "" and frames < 600:
+		await process_frame
+		frames += 1
+		fight = view._fight
+	failed += _assert(fight != null and fight.outcome() != "", "strike for me reaches an outcome")
+	failed += _assert(frames < 600, "strike for me finishes within frame budget")
+	failed += _assert(party_packets.size() > 0, "party steps recorded")
+	for packet: Dictionary in party_packets:
+		var kind: String = str(packet.get("kind", ""))
+		failed += _assert(kind == "strike", "party only strikes (got %s)" % kind)
+		for ev: Variant in packet.get("events", []):
+			var ev_kind: String = str((ev as Dictionary).get("kind", ""))
+			failed += _assert(ev_kind != "brace" and ev_kind != "flee" and ev_kind != "item", "no brace/flee/item events")
+		failed += _assert(
+			str(packet.get("target", "")) == str(packet.get("strike_for_me_target", "")),
+			"strike targets front row then slot (got %s want %s)" % [str(packet.get("target", "")), str(packet.get("strike_for_me_target", ""))],
+		)
+	failed += _assert(bool(view.call("strike_for_me_on")), "toggle still on after auto fight")
+	view.strike_for_me_party_stepped.disconnect(on_party_step)
+	view.call("start_test_fight", 1, false, true, ROOM_SEED_OFF)
+	await process_frame
+	failed += _assert(not bool(view.call("strike_for_me_on")), "new fight resets toggle off")
+	failed += _assert(toggle != null and not toggle.button_pressed, "toggle button reset")
+	party_packets.clear()
+	var off_party_steps: Array[int] = [0]
+	var count_party_step := func(_packet: Dictionary) -> void:
+		off_party_steps[0] += 1
+	view.call("start_test_fight", 1, false, true, ROOM_SEED)
+	await process_frame
+	fight = view._fight
+	view.strike_for_me_party_stepped.connect(count_party_step)
+	var party_actor: String = fight.current_actor() if fight != null else ""
+	failed += _assert(
+		party_actor != "" and str(fight.fighter_dict(party_actor).get("side", "")) == "party",
+		"party turn before strike-for-me off test",
+	)
+	var steps_at_party_turn: int = off_party_steps[0]
+	if toggle != null:
+		toggle.set_block_signals(true)
+		toggle.button_pressed = true
+		toggle.set_block_signals(false)
+	if party_actor != "":
+		view.call("_strike_for_me_party_step", party_actor)
+	failed += _assert(
+		off_party_steps[0] == steps_at_party_turn + 1,
+		"one party strike while strike for me is on (got %d want %d)" % [off_party_steps[0], steps_at_party_turn + 1],
+	)
+	if toggle != null:
+		toggle.set_block_signals(true)
+		toggle.button_pressed = false
+		toggle.set_block_signals(false)
+	view.call("_advance")
+	var off_frames: int = 0
+	while fight != null and fight.outcome() == "" and off_frames < 400:
+		await process_frame
+		off_frames += 1
+		fight = view._fight
+		if not bool(view.call("strike_for_me_on")):
+			break
+	failed += _assert(
+		off_party_steps[0] == steps_at_party_turn + 1,
+		"exactly one party action before toggle off (got %d)" % off_party_steps[0],
+	)
+	failed += _assert(fight != null and fight.outcome() == "", "fight continues after turning strike for me off")
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
+	failed += _assert(menu != null and menu.visible, "menu visible for manual party turn")
+	var next_actor: String = fight.current_actor() if fight != null else ""
+	failed += _assert(next_actor != "" and str(fight.fighter_dict(next_actor).get("side", "")) == "party", "next actor is party")
+	failed += _assert(bool(view.call("strike_for_me_on")) == (toggle != null and toggle.button_pressed), "strike_for_me_on matches toggle")
+	if view.strike_for_me_party_stepped.is_connected(on_party_step):
+		view.strike_for_me_party_stepped.disconnect(on_party_step)
+	if view.strike_for_me_party_stepped.is_connected(count_party_step):
+		view.strike_for_me_party_stepped.disconnect(count_party_step)
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_STRIKE_FOR_ME_OK")
+	return failed
+
+
+func _battle_target_reach(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for target reach")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "open_arena for target reach")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(view != null, "BattleView")
+	if view == null:
+		live.free()
+		paused = false
+		return failed
+	var fight: FightState = FightStateScript.new()
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	fight.add_member("keeper", keeper_stats, 0, "front", "keeper")
+	var elaia_stats: Dictionary = {
+		"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
+		"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+	}
+	fight.add_member("elaia", elaia_stats, 1, "back", "elaia")
+	fight.add_beast("acorn_imp", 0, "front", "acorn_imp")
+	fight.add_beast("spore_moth", 1, "back", "spore_moth")
+	fight.loadout = {"heart_salve": 2}
+	fight.start_fight()
+	view._fight = fight
+	view.call("show_fight", fight)
+	view.call("_advance")
+	await process_frame
+	failed += _assert(await _battle_wait_actor(view, fight, "keeper", 120), "reach keeper turn")
+	view.call("_on_strike_pressed")
+	await process_frame
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_acorn_imp") != null, "keeper melee targets front imp")
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_spore_moth") == null, "keeper cannot reach back moth yet")
+	view.call("_exit_target_mode")
+	failed += _assert(await _battle_wait_actor(view, fight, "elaia", 120), "reach Elaia turn")
+	view.call("_on_strike_pressed")
+	await process_frame
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_acorn_imp") != null, "Elaia sees imp")
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_spore_moth") != null, "Elaia sees moth")
+	var layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	if layer != null:
+		for child: Node in layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				var tid: String = str(child.name).substr(13)
+				failed += _assert(fight.legal_targets("elaia").has(tid), "target %s is legal for Elaia" % tid)
+	view.call("_exit_target_mode")
+	fight.set_hp("acorn_imp", 0)
+	view.call("refresh_fight", fight)
+	failed += _assert(await _battle_wait_actor(view, fight, "keeper", 120), "keeper turn after Calmed imp")
+	view.call("_on_strike_pressed")
+	await process_frame
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_spore_moth") != null, "keeper can target moth after imp Calmed")
+	failed += _assert(view.get_node_or_null("Arena/TargetLayer/TargetButton_acorn_imp") == null, "no target on Calmed imp")
+	view.call("_exit_target_mode")
+	var steps_before: int = fight.round
+	view.call("_on_strike_pressed")
+	await process_frame
+	var imp_sprite: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp") as Control
+	if imp_sprite != null:
+		var at: Vector2 = imp_sprite.get_global_rect().get_center()
+		var vp: Viewport = live.get_viewport()
+		vp.warp_mouse(at)
+		var press := InputEventMouseButton.new()
+		press.button_index = MOUSE_BUTTON_LEFT
+		press.pressed = true
+		press.position = at
+		press.global_position = at
+		vp.push_input(press, true)
+		press.pressed = false
+		vp.push_input(press, true)
+		await process_frame
+	failed += _assert(fight.round == steps_before, "click on non-target sprite does not step")
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	if keeper != null and keeper.has_method("halt"):
+		keeper.call("halt")
+	var origin: Vector2 = keeper.global_position if keeper != null else Vector2.ZERO
+	var point: Vector2 = _battle_walk_point(live, origin)
+	_battle_click(live, point, MOUSE_BUTTON_RIGHT)
+	for _blocked: int in 8:
+		await physics_frame
+	failed += _assert(keeper != null and keeper.global_position.distance_to(origin) < 1.0, "world click still blocked with arena open")
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_TARGET_REACH_OK")
+	return failed
+
+
+func _battle_wait_actor(view: BattleView, fight: FightState, actor_id: String, max_steps: int) -> bool:
+	for _step: int in max_steps:
+		if fight.outcome() != "":
+			return false
+		if fight.current_actor() == actor_id:
+			return true
+		var cur: String = fight.current_actor()
+		if cur == "":
+			view.call("_advance")
+		elif str(fight.fighter_dict(cur).get("side", "")) == "beast":
+			view.call("_advance")
+		else:
+			fight.step({"kind": "brace"})
+			view.call("_advance")
+		await process_frame
+	return false
+
+
+func _battle_echo_exclusive(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Echo and the arena refuse each other. A manual reach fight refuses the arena.
+	## The debug button is the only Experimental opener.
+	var failed: int = 0
+	paused = false
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(echo != null and reach != null, "Echo and Reach are loaded")
+	if echo == null or reach == null:
+		return failed
+	if bool(echo.get("in_battle")):
+		echo.call("dismiss_battle_without_reward")
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "hub boots for the arena lock")
+	if live == null:
+		paused = false
+		return failed
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	failed += _assert(bool(BattleViewScript.open_arena()), "arena opens before the Echo check")
+	var echo_before: int = _echo_battle_count(tree_root)
+	echo.call("open_battle", true)
+	failed += _assert(not bool(echo.get("in_battle")), "an open arena keeps Echo closed")
+	failed += _assert(_echo_battle_count(tree_root) == echo_before, "an open arena adds no Echo view")
+	failed += _assert(not paused, "a refused Echo does not pause the hub")
+	BattleViewScript.close_arena()
+	await process_frame
+	echo.call("open_battle", true)
+	failed += _assert(bool(echo.get("in_battle")), "Echo opens once the arena is closed")
+	failed += _assert(_echo_battle_count(tree_root) == 1, "Echo adds one battle view")
+	failed += _assert(not bool(BattleViewScript.open_arena()), "Echo refuses the arena")
+	failed += _assert(not bool(BattleViewScript.is_open()), "Echo leaves the arena closed")
+	failed += _assert(_echo_battle_count(tree_root) == 1, "a refused arena does not add a second Echo")
+	echo.call("dismiss_battle_without_reward")
+	await process_frame
+	paused = false
+	failed += _assert(not bool(echo.get("in_battle")), "dismiss leaves Echo")
+	failed += _assert(_echo_battle_count(tree_root) == 0, "dismiss removes the Echo view")
+	failed += _assert(bool(BattleViewScript.open_arena()), "the arena opens again after Echo")
+	BattleViewScript.close_arena()
+	await process_frame
+	## Seed 1's opening volley does not end the run (same pin as REACH_DEPTH_ASCEND_OK).
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart", 1, 1.0, "hold", "manual")) == "ok", "manual depart for the arena lock")
+	failed += _assert(bool(reach.call("fight_active")), "manual depart opened a reach fight")
+	## Since job 26 the manual fight itself lives in the BattleView overlay.
+	var reach_views: int = get_nodes_in_group("battle_overlay").size()
+	failed += _assert(not bool(BattleViewScript.open_arena()), "a reach fight refuses the arena")
+	failed += _assert(get_nodes_in_group("battle_overlay").size() == reach_views, "a refused arena adds no overlay")
+	failed += _assert(bool(reach.call("fight_active")) and reach.call("manual_fight") != null, "a refused arena leaves the reach fight")
+	game_state.call("reset_for_new_game")
+	await process_frame
+	paused = false
+	failed += _assert(not bool(reach.call("fight_active")), "reset leaves the reach fight")
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	var echo_at: int = panel_src.find("\"Jump to Echo\"")
+	var arena_at: int = panel_src.find("\"Battle arena (test)\"")
+	failed += _assert(echo_at >= 0 and arena_at > echo_at, "the test button sits with Jump to Echo")
+	var panel_packed: PackedScene = load("res://tools/debug/debug_panel.tscn") as PackedScene
+	failed += _assert(panel_packed != null, "debug panel scene loads")
+	if panel_packed == null:
+		live.free()
+		game_state.call("reset_for_new_game")
+		paused = false
+		return failed
+	var panel: Node = panel_packed.instantiate()
+	tree_root.add_child(panel)
+	await process_frame
+	var arena_button: Button = null
+	for node: Node in panel.find_children("*", "Button", true, false):
+		var button: Button = node as Button
+		if button != null and button.text == "Battle arena (test)":
+			arena_button = button
+			break
+	failed += _assert(arena_button != null, "debug panel has Battle arena (test)")
+	if arena_button != null:
+		arena_button.pressed.emit()
+	failed += _assert(bool(BattleViewScript.is_open()), "the test button opens the arena")
+	await process_frame
+	BattleViewScript.close_arena()
+	await process_frame
+	var leftover: Node = tree_root.get_node_or_null("DebugToolsPanel")
+	if leftover != null and is_instance_valid(leftover):
+		leftover.free()
+	var echo_left: Node = tree_root.get_node_or_null("EchoBattle")
+	if echo_left != null:
+		echo_left.free()
+	if bool(echo.get("in_battle")):
+		echo.call("dismiss_battle_without_reward")
+	live.free()
+	await process_frame
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_ECHO_EXCLUSIVE_OK")
+	return failed
+
+
+func _echo_battle_count(tree_root: Window) -> int:
+	var count: int = 0
+	for child: Node in tree_root.get_children():
+		if str(child.name).begins_with("EchoBattle"):
+			count += 1
+	return count
+
+
+func _battle_walk_point(live: Node, origin: Vector2) -> Vector2:
+	## A clearing point on screen, off the Keeper, and off any clickable node.
+	var camera: Node2D = live.get_node_or_null("Camera2D") as Node2D
+	var center: Vector2 = camera.global_position if camera != null else origin
+	var offsets: Array[Vector2] = [
+		Vector2(280, 160),
+		Vector2(-260, 140),
+		Vector2(220, -180),
+		Vector2(-200, 200),
+		Vector2(0, 220),
+	]
+	for off: Vector2 in offsets:
+		var point: Vector2 = center + off
+		if point.distance_to(origin) < 80.0:
+			continue
+		if not bool(live.call("_in_clearing", point)):
+			continue
+		if bool(live.call("_interactable_under_point", point)):
+			continue
+		var screen: Vector2 = live.get_viewport().get_canvas_transform() * point
+		if screen.x < 160.0 or screen.x > 1120.0 or screen.y < 120.0 or screen.y > 600.0:
+			continue
+		return point
+	return center + Vector2(280, 160)
+
+
+func _battle_click(live: Node, world_pos: Vector2, button: int) -> void:
+	## The hub's real click path: a viewport mouse event, not a direct move_to.
+	var vp: Viewport = live.get_viewport()
+	var screen: Vector2 = vp.get_canvas_transform() * world_pos
+	vp.warp_mouse(screen)
+	var motion := InputEventMouseMotion.new()
+	motion.position = screen
+	motion.global_position = screen
+	vp.push_input(motion)
+	var down := InputEventMouseButton.new()
+	down.button_index = button
+	down.pressed = true
+	down.position = screen
+	down.global_position = screen
+	vp.push_input(down)
+	if button != MOUSE_BUTTON_LEFT:
+		return
+	var up := InputEventMouseButton.new()
+	up.button_index = button
+	up.pressed = false
+	up.position = screen
+	up.global_position = screen
+	vp.push_input(up)
+
+
+func _battle_escape(live: Node) -> void:
+	var key := InputEventKey.new()
+	key.keycode = KEY_ESCAPE
+	key.pressed = true
+	live.get_viewport().push_input(key)
+
+
+func _battle_strike_event(packet: Dictionary) -> Dictionary:
+	for ev: Variant in packet.get("events", []):
+		if ev is Dictionary and str((ev as Dictionary).get("kind", "")) == "strike":
+			return ev as Dictionary
+	return {}
+
+
+func _battle_party_pose_rest_ok(view: BattleView, fight: FightState) -> bool:
+	var snapshot: Dictionary = fight.to_dict()
+	for row_v: Variant in snapshot.get("fighters", []):
+		if not row_v is Dictionary:
+			continue
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("side", "")) != "party":
+			continue
+		var fid: String = str(row.get("id", ""))
+		var pose: String = view.fighter_pose(fid)
+		var status: String = str(row.get("status", "active"))
+		if status == "ko":
+			if pose != "ko":
+				return false
+		elif bool(row.get("brace", false)):
+			if pose != "brace":
+				return false
+		elif pose != "idle":
+			return false
+	return true
+
+
+func _battle_start_pose_test_fight(view: BattleView, room_seed: int) -> FightState:
+	var keeper_stats: Dictionary = {
+		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+	}
+	var elaia_stats: Dictionary = {
+		"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
+		"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+	}
+	var bramble_stats: Dictionary = {
+		"might": 8, "arcana": 4, "resilience": 7, "ward": 6,
+		"vitality": 7, "swiftness": 5, "fate": 5, "attack": "physical",
+	}
+	var fight := FightState.new()
+	fight.add_member("keeper", keeper_stats, 0, "front", "keeper")
+	fight.add_member("elaia", elaia_stats, 1, "back", "elaia")
+	fight.add_member("bramble", bramble_stats, 2, "front", "bramble")
+	var spawn_rng: BattleRng = SpawnRoller.room_seed_rng(room_seed)
+	var room: Array[Dictionary] = SpawnRoller.roll_room(1, spawn_rng, false)
+	for entry: Dictionary in room:
+		fight.add_beast(str(entry.get("beast", "")), int(entry.get("slot", 0)), str(entry.get("row", "front")))
+	fight.set_combat_seed(BattleRng.mix_stream(room_seed, "combat"))
+	fight.loadout = {"heart_salve": 2}
+	fight.start_fight()
+	fight.controller = "manual"
+	view._fight = fight
+	view._log_reveal_count = 0
+	var playback: BattlePlayback = view.get_playback()
+	playback.bind_view(view, fight)
+	playback.reset_for_fight()
+	playback.instant = false
+	view.show_fight(fight)
+	return fight
+
+
+func _battle_advance_playback_until_idle(view: BattleView, playback: BattlePlayback, max_sec: float) -> void:
+	var budget: float = max_sec
+	while playback.is_busy() and budget > 0.0:
+		playback.advance(0.05)
+		budget -= 0.05
+		await process_frame
+
+
+func _battle_pose_reset(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	if live == null:
+		return failed + 1
+	BattleViewScript.open_arena()
+	await process_frame
+	var view: BattleView = get_nodes_in_group("battle_overlay")[0] as BattleView
+	var playback: BattlePlayback = view.get_playback()
+	playback.instant = false
+	for speed: int in [1, 2, 4]:
+		var fight: FightState = _battle_start_pose_test_fight(view, 4242 + speed)
+		view.call("_apply_battle_speed", speed)
+		playback.speed = speed
+		view.call("_advance")
+		await process_frame
+		var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+		for turn: int in 4:
+			if fight.outcome() != "":
+				break
+			var shown: bool = false
+			for _tick: int in 500:
+				if strike_btn != null and strike_btn.is_visible_in_tree():
+					shown = true
+					break
+				if playback.is_busy():
+					playback.advance(0.05)
+				await process_frame
+			if not shown:
+				failed += 1
+				break
+			failed += _assert(_battle_party_pose_rest_ok(view, fight), "%dx menu: party rest poses turn %d" % [speed, turn + 1])
+			var who: String = fight.current_actor()
+			var picks: Array = fight.legal_targets(who)
+			if picks.is_empty():
+				break
+			view._target_mode = "strike"
+			view.call("_on_target_pressed", str(picks[0]))
+			await _battle_advance_playback_until_idle(view, playback, 8.0)
+			await process_frame
+			failed += _assert(_battle_party_pose_rest_ok(view, fight), "%dx after strike party rest" % speed)
+		if fight.outcome() == "win":
+			failed += _assert(_battle_party_pose_rest_ok(view, fight), "%dx fight end poses" % speed)
+	# Single elaia strike, no counter-hit during playback.
+	var solo_fight: FightState = _battle_start_pose_test_fight(view, 88002)
+	view.call("_apply_battle_speed", 1)
+	playback.speed = 1
+	while solo_fight.outcome() == "" and str(solo_fight.fighter_dict(solo_fight.current_actor()).get("side", "")) == "beast":
+		var pkt: Dictionary = solo_fight.step()
+		playback.enqueue_events(pkt.get("events", []))
+		await _battle_advance_playback_until_idle(view, playback, 8.0)
+	var elaia_id: String = ""
+	for row_v: Variant in solo_fight.to_dict().get("fighters", []):
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("member", "")) == "elaia":
+			elaia_id = str(row.get("id", ""))
+			break
+	failed += _assert(elaia_id != "", "elaia in solo fight")
+	if elaia_id != "" and solo_fight.current_actor() == elaia_id:
+		var tgt: Array = solo_fight.legal_targets(elaia_id)
+		if not tgt.is_empty():
+			var packet: Dictionary = solo_fight.step({"kind": "strike", "target": str(tgt[0])})
+			playback.enqueue_events(packet.get("events", []))
+			await _battle_advance_playback_until_idle(view, playback, 8.0)
+			failed += _assert(view.fighter_pose(elaia_id) == "idle", "elaia idle after own strike")
+	# Speed drop mid-event: target must not stay hurt.
+	var hurt_fight: FightState = FightState.new()
+	hurt_fight.add_member("keeper", {"might": 11, "vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical"}, 0, "front", "keeper")
+	var beast_id: String = hurt_fight.add_beast("acorn_imp", 0, "front")
+	hurt_fight.start_fight()
+	view._fight = hurt_fight
+	playback.bind_view(view, hurt_fight)
+	playback.reset_for_fight()
+	playback.instant = false
+	view.show_fight(hurt_fight)
+	view.call("_apply_battle_speed", 4)
+	playback.speed = 4
+	var beast_pkt: Dictionary = hurt_fight.step({"kind": "strike", "target": "keeper"})
+	var beast_strike: Dictionary = _battle_strike_event(beast_pkt)
+	if beast_strike.is_empty():
+		beast_strike = {"kind": "strike", "actor": beast_id, "target": "keeper", "band": "hit", "damage": 1}
+	playback.enqueue_events([beast_strike])
+	playback.advance(0.15)
+	view.call("_apply_battle_speed", 1)
+	playback.speed = 1
+	await _battle_advance_playback_until_idle(view, playback, 8.0)
+	failed += _assert(view.fighter_pose("keeper") != "hurt", "keeper not stuck hurt after speed drop")
+	# Strike-for-me forces 1x mid swing (same path as battle_view speed lock).
+	var sfm_fight: FightState = FightState.new()
+	sfm_fight.add_member("keeper", {"might": 11, "vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical"}, 0, "front", "keeper")
+	var sfm_beast: String = sfm_fight.add_beast("acorn_imp", 0, "front")
+	sfm_fight.start_fight()
+	view._fight = sfm_fight
+	playback.bind_view(view, sfm_fight)
+	playback.reset_for_fight()
+	view.show_fight(sfm_fight)
+	view.call("_apply_battle_speed", 4)
+	playback.speed = 4
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = false
+	var sfm_strike: Dictionary = {"kind": "strike", "actor": "keeper", "target": sfm_beast, "band": "hit", "damage": 1}
+	playback.enqueue_events([sfm_strike])
+	playback.advance(0.12)
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = true
+		view.call("_refresh_speed_buttons")
+	await _battle_advance_playback_until_idle(view, playback, 8.0)
+	failed += _assert(view.fighter_pose("keeper") == "idle", "keeper idle after strike-for-me mid swing")
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = false
+	# Fight ends while playback still runs.
+	var end_fight: FightState = FightState.new()
+	end_fight.add_member("keeper", {"might": 99, "vitality": 6, "swiftness": 7, "fate": 99, "attack": "physical"}, 0, "front", "keeper")
+	var weak_id: String = end_fight.add_beast("acorn_imp", 0, "front")
+	end_fight.start_fight()
+	view._fight = end_fight
+	playback.bind_view(view, end_fight)
+	playback.reset_for_fight()
+	view.show_fight(end_fight)
+	var fin_pkt: Dictionary = end_fight.step({"kind": "strike", "target": weak_id})
+	var fin_strike: Dictionary = _battle_strike_event(fin_pkt)
+	playback.enqueue_events([fin_strike])
+	await _battle_advance_playback_until_idle(view, playback, 8.0)
+	failed += _assert(end_fight.outcome() == "win", "fight won mid playback")
+	failed += _assert(view.fighter_pose("keeper") == "idle", "keeper idle when fight ends mid-event")
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("BATTLE_POSE_RESET_OK")
+	return failed
+
+
+func _battle_wait_fight_actor(fight: FightState, actor_id: String, max_steps: int) -> bool:
+	for _i: int in max_steps:
+		if fight.outcome() != "":
+			return false
+		if fight.current_actor() == actor_id:
+			return true
+		fight.step()
+	return false
+
+
+func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	paused = false
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	if live == null:
+		return failed + 1
+	BattleViewScript.open_arena()
+	await process_frame
+	var view: BattleView = get_nodes_in_group("battle_overlay")[0] as BattleView
+	var playback: BattlePlayback = view.get_playback()
+	playback.instant = false
+	view.call("start_test_fight", 1, false, true, 88001)
+	await process_frame
+	var fight: FightState = view._fight
+	var actor: String = fight.current_actor()
+	var targets: Array = fight.legal_targets(actor)
+	var packet: Dictionary = fight.step({"kind": "strike", "target": str(targets[0])})
+	var strike_ev: Dictionary = _battle_strike_event(packet)
+	failed += _assert(not strike_ev.is_empty(), "strike event")
+	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
+	menu.visible = false
+	playback.enqueue_events([strike_ev])
+	failed += _assert(playback.is_busy(), "one event playing")
+	for row: Dictionary in [{"speed": 1, "pre": 0.99, "post": 0.2}, {"speed": 2, "pre": 0.49, "post": 0.2}, {"speed": 4, "pre": 0.24, "post": 0.1}]:
+		playback.speed = int(row["speed"])
+		view.call("_apply_battle_speed", int(row["speed"]))
+		playback.reset_for_fight()
+		playback.bind_view(view, fight)
+		playback.enqueue_events([strike_ev])
+		playback.advance(float(row["pre"]))
+		failed += _assert(playback.is_busy(), "%dx gap timing" % int(row["speed"]))
+		playback.advance(float(row["post"]))
+		failed += _assert(not playback.is_busy(), "%dx gap ends" % int(row["speed"]))
+	view.call("_apply_battle_speed", 4)
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = true
+	view.call("_refresh_speed_buttons")
+	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
+	failed += _assert(bool(view.call("strike_for_me_on")) and int(playback.speed) == 1 and speed2.disabled, "strike for me locks 1x")
+	playback.reset_for_fight()
+	playback.enqueue_events([strike_ev])
+	playback.advance(0.45)
+	var floats: int = 0
+	for child: Node in view.get_node_or_null("Arena").get_children():
+		if child is Label and child.has_meta("battle_float"):
+			floats += 1
+	failed += _assert(floats > 0, "floating number")
+	playback.advance(1.0)
+	await process_frame
+	await process_frame
+	var ko_ev: Dictionary = {"kind": "calmed", "target": "x"}
+	playback.reset_for_fight()
+	var t0: float = playback.clock_sec
+	playback.enqueue_events([ko_ev])
+	while playback.is_busy():
+		playback.advance(0.05)
+	failed += _assert(playback.clock_sec - t0 >= 0.75, "status pause")
+	var test_bar: Control = view.get_node_or_null("Arena/TestFightBar") as Control
+	var speed_bar: Control = view.get_node_or_null("Arena/SpeedBar") as Control
+	failed += _assert(test_bar != null and speed_bar != null and not test_bar.get_global_rect().intersects(speed_bar.get_global_rect()), "speed bar does not cover the test fight bar")
+	# Real-speed fight where a beast acts first: the menu must come back after
+	# each beast turn's playback (it used to stall with the menu hidden).
+	if view._strike_for_me_toggle != null:
+		view._strike_for_me_toggle.button_pressed = false
+	playback.instant = false
+	view.call("start_test_fight", 1, false, true, 4242)
+	await process_frame
+	var paced: FightState = view._fight
+	failed += _assert(paced.order.size() > 0 and str(paced.fighter_dict(paced.order[0]).get("side", "")) == "beast", "paced fight opens on a beast")
+	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+	for turn: int in 3:
+		if paced.outcome() != "":
+			break
+		var shown: bool = false
+		for _tick: int in 400:
+			if strike_btn.is_visible_in_tree():
+				shown = true
+				break
+			playback.advance(0.05)
+			await process_frame
+		failed += _assert(shown, "paced fight: menu returns for party turn %d" % (turn + 1))
+		if not shown:
+			break
+		var who: String = paced.current_actor()
+		var picks: Array[String] = paced.legal_targets(who)
+		view._target_mode = "strike"
+		view.call("_on_target_pressed", picks[0])
+		await process_frame
+	BattleViewScript.close_arena()
+	live.free()
+	game_state.call("reset_for_new_game")
+	paused = false
+	if failed == 0:
+		print("BATTLE_PLAYBACK_OK")
+	return failed
+
+
+func _battle_art(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Every art-backed species in beasts.json has idle + hurt (128×128). Dark variants reuse the
+	## base sprite. No species that has BEAST_IDLE falls back to the grey ColorRect placeholder.
+	var failed: int = 0
+	failed += _assert(BattleViewScript.BEAST_IDLE.size() == 8 and BattleViewScript.BEAST_HURT.size() == 8, "eight beast idle and hurt paths")
+	for beast_id: String in BattleViewScript.BEAST_HURT.keys():
+		failed += _assert(BattleViewScript.BEAST_IDLE.has(beast_id), "idle path for %s" % beast_id)
+		var hurt_tex: Texture2D = load(str(BattleViewScript.BEAST_HURT[beast_id])) as Texture2D
+		failed += _assert(hurt_tex != null and hurt_tex.get_size() == Vector2(128, 128), "hurt %s" % beast_id)
+		if not BattleViewScript.BEAST_IDLE.has(beast_id):
+			continue
+		var idle_tex: Texture2D = load(str(BattleViewScript.BEAST_IDLE[beast_id])) as Texture2D
+		failed += _assert(idle_tex != null and idle_tex.get_size() == Vector2(128, 128), "idle %s" % beast_id)
+	var beasts_data: Dictionary = _json_dict("res://data/beasts.json")
+	var art_pending: Array[String] = ["stump_ogre", "stag_spirit"]
+	var species_rows: Array = beasts_data.get("species", []) as Array
+	failed += _assert(species_rows.size() >= 8, "beasts.json lists species")
+	for row_v: Variant in species_rows:
+		var row: Dictionary = row_v as Dictionary
+		var sid: String = str(row.get("id", ""))
+		if sid in art_pending:
+			continue
+		failed += _assert(BattleViewScript.BEAST_IDLE.has(sid) and BattleViewScript.BEAST_HURT.has(sid), "beasts.json species %s has idle+hurt art" % sid)
+	for var_v: Variant in beasts_data.get("variants", []) as Array:
+		var vrow: Dictionary = var_v as Dictionary
+		var vid: String = str(vrow.get("id", ""))
+		var base: String = BattleViewScript._beast_base_species(vid)
+		failed += _assert(BattleViewScript.BEAST_IDLE.has(base) and BattleViewScript.BEAST_HURT.has(base), "variant %s reuses base %s art" % [vid, base])
+	for member: String in ["keeper", "elaia"]:
+		for pose: String in ["attack", "brace", "hurt", "ko"]:
+			var path: String = str((BattleViewScript.PARTY_POSES.get(member, {}) as Dictionary).get(pose, ""))
+			if path == "":
+				continue
+			var ptex: Texture2D = load(path) as Texture2D
+			failed += _assert(ptex != null and ptex.get_size() == Vector2(128, 128), "%s %s" % [member, pose])
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	BattleViewScript.open_arena()
+	var view: BattleView = get_nodes_in_group("battle_overlay")[0] as BattleView
+	var playback: BattlePlayback = view.get_playback()
+	playback.instant = false
+	var stats: Dictionary = {"might": 11, "arcana": 5, "resilience": 6, "ward": 5, "vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical"}
+	## All eight species + both dark variants on screen: every Sprite must be a TextureRect, never the grey block.
+	var fight: FightState = FightStateScript.new()
+	fight.add_member("keeper", stats, 0, "front", "keeper")
+	fight.add_member("elaia", stats, 1, "back", "elaia")
+	var lineup: Array = [
+		["acorn_imp", 0, "front"], ["spore_moth", 1, "front"], ["thorn_boar", 2, "front"],
+		["vine_serpent", 0, "back"], ["briar_hulk", 1, "back"], ["root_snapper", 2, "back"],
+	]
+	var beast_ids: Array[String] = []
+	for spot_v: Variant in lineup:
+		var spot: Array = spot_v as Array
+		beast_ids.append(fight.add_beast(str(spot[0]), int(spot[1]), str(spot[2])))
+	## Second pass covers brute, wisp and the two dark variants (overwrites via a fresh fight after the first checks).
+	fight.start_fight()
+	view.call("show_fight", fight)
+	view._fight = fight
+	playback.bind_view(view, fight)
+	for i: int in beast_ids.size():
+		var fid: String = beast_ids[i]
+		var species: String = str(lineup[i][0])
+		var root: Control = view.get_node_or_null("Arena/Fighters/Fighter_%s" % fid) as Control
+		var sprite_node: Node = root.get_node_or_null("Sprite") if root != null else null
+		failed += _assert(sprite_node is TextureRect, "%s uses a TextureRect, not the grey placeholder" % species)
+		if sprite_node is TextureRect:
+			var tr: TextureRect = sprite_node as TextureRect
+			failed += _assert(tr.texture != null and str(tr.texture.resource_path).ends_with("battle_%s_idle.png" % species), "%s idle texture" % species)
+			failed += _assert(root.get_node_or_null("Label") == null, "%s has no placeholder label" % species)
+	var strike_ev: Dictionary = {"kind": "strike", "actor": "keeper", "target": beast_ids[0], "band": "hit", "damage": 1, "target_side": "beast"}
+	playback.enqueue_events([strike_ev])
+	playback.advance(0.5)
+	var sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_%s/Sprite" % beast_ids[0]) as TextureRect
+	var hurt_path: String = str(sprite.texture.resource_path) if sprite != null and sprite.texture != null else ""
+	failed += _assert(hurt_path.ends_with("battle_acorn_imp_hurt.png"), "beast hurt")
+	playback.advance(0.35)
+	var idle_after: String = str(sprite.texture.resource_path) if sprite != null and sprite.texture != null else ""
+	failed += _assert(idle_after.ends_with("battle_acorn_imp_idle.png"), "beast idle after hurt")
+	## Dark variants + remaining two species: no placeholder, base art, optional modulate tint.
+	var fight2: FightState = FightStateScript.new()
+	fight2.add_member("keeper", stats, 0, "front", "keeper")
+	var lineup2: Array = [
+		["moss_brute", 0, "front"], ["wilt_wisp", 1, "front"],
+		["acorn_imp_dark", 2, "front"], ["spore_moth_dark", 0, "back"],
+		["briar_hulk", 1, "back"], ["vine_serpent", 2, "back"],
+	]
+	var ids2: Array[String] = []
+	for spot_v2: Variant in lineup2:
+		var spot2: Array = spot_v2 as Array
+		ids2.append(fight2.add_beast(str(spot2[0]), int(spot2[1]), str(spot2[2])))
+	fight2.start_fight()
+	view.call("show_fight", fight2)
+	view._fight = fight2
+	playback.bind_view(view, fight2)
+	for i2: int in ids2.size():
+		var fid2: String = ids2[i2]
+		var species2: String = str(lineup2[i2][0])
+		var base2: String = BattleViewScript._beast_base_species(species2)
+		var root2: Control = view.get_node_or_null("Arena/Fighters/Fighter_%s" % fid2) as Control
+		var spr2: Node = root2.get_node_or_null("Sprite") if root2 != null else null
+		failed += _assert(spr2 is TextureRect, "%s uses a TextureRect (no grey block)" % species2)
+		if spr2 is TextureRect:
+			var tr2: TextureRect = spr2 as TextureRect
+			failed += _assert(tr2.texture != null and str(tr2.texture.resource_path).ends_with("battle_%s_idle.png" % base2), "%s idle is base art" % species2)
+			if species2 != base2:
+				failed += _assert(tr2.modulate.is_equal_approx(BattleViewScript.VARIANT_MODULATE), "%s dark modulate tint" % species2)
+	var dark_species: String = "acorn_imp_dark"
+	var dark_base: String = dark_species.substr(0, dark_species.length() - 5) if dark_species.ends_with("_dark") else dark_species
+	failed += _assert(dark_base == "acorn_imp", "dark variant base species")
+	failed += _assert(str(BattleViewScript.BEAST_HURT.get(dark_base, "")).ends_with("battle_acorn_imp_hurt.png"), "dark uses base hurt art")
+	strike_ev = {"kind": "strike", "actor": ids2[0], "target": "keeper", "band": "hit", "damage": 1, "target_side": "party"}
+	playback.reset_for_fight()
+	playback.enqueue_events([strike_ev])
+	playback.advance(0.5)
+	var keeper_sprite: TextureRect = view.get_node_or_null("Arena/Fighters/Fighter_keeper/Sprite") as TextureRect
+	failed += _assert(keeper_sprite != null and str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_hurt.png"), "party hurt")
+	playback.advance(0.35)
+	failed += _assert(str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_idle_e.png") or str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_idle.png"), "party idle")
+	view.call("set_fighter_pose", "keeper", "ko")
+	failed += _assert(str(keeper_sprite.texture.resource_path).ends_with("battle_keeper_ko.png"), "ko pose")
+	## Bramble (debug fight art only): every pose path loads as a 128x128 texture.
+	var bramble_poses: Dictionary = BattleViewScript.PARTY_POSES.get("bramble", {}) as Dictionary
+	for bpose: String in ["idle", "attack", "hurt", "ko", "brace"]:
+		var bpath: String = str(bramble_poses.get(bpose, ""))
+		var btex: Texture2D = load(bpath) as Texture2D if bpath != "" and ResourceLoader.exists(bpath) else null
+		failed += _assert(btex != null and btex.get_size() == Vector2(128, 128), "bramble %s texture loads" % bpose)
+	BattleViewScript.close_arena()
+	live.free()
+	if failed == 0:
+		print("BATTLE_ART_OK")
+	return failed
+
+
+func _battle_audio_sole_caller(tree_root: Window, game_audio: Node) -> int:
+	var failed: int = 0
+	failed += _scan_battle_sfx_refs("res://scripts")
+	failed += _scan_battle_sfx_refs("res://tools")
+	var strike: Dictionary = {"kind": "strike", "band": "graze", "fate_crit": true, "damage": 2, "target_side": "beast"}
+	var cues: Array[Dictionary] = BattlePlaybackScript.cues_for_event(strike, 1)
+	var ids: Array[String] = []
+	for c: Dictionary in cues:
+		ids.append(str(c.get("id", "")))
+	failed += _assert(ids.has("sfx_battle_graze") and ids.has("sfx_battle_crit"), "impact+crit")
+	var fast_crit: bool = false
+	for c2: Dictionary in BattlePlaybackScript.cues_for_event(strike, 2):
+		if str(c2.get("id", "")) == "sfx_battle_crit":
+			fast_crit = true
+	failed += _assert(not fast_crit, "no crit at 2x")
+	failed += _assert(BattlePlaybackScript.cues_for_event({"kind": "poison_tick"}, 1).is_empty(), "poison silent")
+	for c: Dictionary in cues:
+		failed += _assert(game_audio.list_cue_ids().has(str(c.get("id", ""))), "cue id")
+	var pb: BattlePlayback = BattlePlaybackScript.new()
+	pb._load_rules()
+	pb._throttle_last["sfx_battle_turn"] = 0.0
+	failed += _assert(not pb.throttle_allows("sfx_battle_turn"), "turn throttle")
+	pb.clock_sec = 0.31
+	failed += _assert(pb.throttle_allows("sfx_battle_turn"), "turn gap")
+	if failed == 0:
+		print("BATTLE_AUDIO_SOLE_CALLER_OK")
+	return failed
+
+
+func _scan_battle_sfx_refs(dir_path: String) -> int:
+	var failed: int = 0
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return 0
+	dir.list_dir_begin()
+	while true:
+		var name: String = dir.get_next()
+		if name == "":
+			break
+		if name.begins_with("."):
+			continue
+		var full: String = "%s/%s" % [dir_path, name]
+		if dir.current_is_dir():
+			failed += _scan_battle_sfx_refs(full)
+		elif name.ends_with(".gd") and full != "res://scripts/verify_headless.gd":
+			var text: String = FileAccess.get_file_as_string(full)
+			if text.find("sfx_battle_") >= 0:
+				failed += _assert(full == "res://scripts/battle/battle_playback.gd", "sole caller %s" % full)
+	dir.list_dir_end()
+	return failed
+
+
+func _headless_silent(tree_root: Window, game_state: Node, save_service: Node, game_audio: Node) -> int:
+	var failed: int = 0
+	game_audio.clear_played_log()
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	BattleViewScript.open_arena()
+	var view: BattleView = get_nodes_in_group("battle_overlay")[0] as BattleView
+	view.call("start_test_fight", 1, false, true, 88003)
+	for _i: int in 600:
+		if view._fight == null or view._fight.outcome() != "":
+			break
+		view.call("_advance")
+		await process_frame
+	var prefix: String = "sfx_battle_"
+	for suffix: String in ["hit", "graze", "crush", "crit", "miss", "brace", "salve", "flee", "beast_hurt", "ko", "overwhelmed", "victory", "turn", "select", "confirm"]:
+		failed += _assert(not game_audio.did_play(prefix + suffix), "silent %s" % suffix)
+	BattleViewScript.close_arena()
+	live.free()
+	if failed == 0:
+		print("HEADLESS_SILENT_OK")
+	return failed
+
+
+func _pack_banking(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "pack banking autoloads")
+	if reach == null or backpack == null:
+		return failed
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	backpack.call("reset_for_new_game")
+	var essence_before: int = int(game_state.get("essence"))
+	var p: Pack = Pack.new()
+	p.add("wood", 15)
+	p.add("briarwood", 7)
+	p.add("glowcap", 3)
+	p.add("fertilizer", 1)
+	var banked: Dictionary = p.bank(100)
+	failed += _assert(int(banked.get("wood", 0)) == 15 and int(banked.get("briarwood", 0)) == 7, "bank 100 dict")
+	failed += _assert(int(game_state.get("wood")) == 15, "bank 100 wood")
+	failed += _assert(int(backpack.call("get_count", "briarwood")) == 7, "bank 100 briarwood")
+	failed += _assert(int(backpack.call("get_count", "glowcap")) == 3, "bank 100 glowcap")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 1, "bank 100 fertilizer")
+	failed += _assert(p.is_empty(), "pack empty after bank 100")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	p = Pack.new()
+	p.add("wood", 15)
+	p.add("briarwood", 7)
+	p.add("glowcap", 3)
+	p.add("fertilizer", 1)
+	banked = p.bank(50)
+	failed += _assert(int(game_state.get("wood")) == 7, "bank 50 wood")
+	failed += _assert(int(backpack.call("get_count", "briarwood")) == 3, "bank 50 briarwood")
+	failed += _assert(int(backpack.call("get_count", "glowcap")) == 1, "bank 50 glowcap")
+	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 0, "bank 50 fertilizer")
+	failed += _assert(p.is_empty(), "pack empty after bank 50")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	p = Pack.new()
+	p.add("wood", 15)
+	banked = p.bank(0)
+	failed += _assert(int(game_state.get("wood")) == 0, "bank 0 wood")
+	failed += _assert(p.is_empty(), "pack empty after bank 0")
+	p = Pack.new()
+	p.add("briarwood", 7)
+	p.add("glowcap", 1)
+	var lost: Dictionary = p.halve()
+	failed += _assert(int(p.count("briarwood")) == 3 and int(p.count("glowcap")) == 0, "halve keeps")
+	failed += _assert(int(lost.get("briarwood", 0)) == 4 and int(lost.get("glowcap", 0)) == 1, "halve lost")
+	p = Pack.new()
+	p.add("essence", 5)
+	p.add("exp", 5)
+	failed += _assert(p.is_empty(), "essence and exp never sit in the pack")
+	p.bank(100)
+	failed += _assert(int(game_state.get("essence")) == essence_before, "bank does not move essence from pack")
+	var roundtrip: Pack = Pack.new()
+	roundtrip.add("briarwood", 2)
+	roundtrip.add("glowcap", 1)
+	var blob: String = JSON.stringify(roundtrip.to_dict())
+	var parsed: Variant = JSON.parse_string(blob)
+	var back: Pack = Pack.from_dict(parsed as Dictionary)
+	failed += _assert(int(back.count("briarwood")) == 2 and int(back.count("glowcap")) == 1, "pack dict roundtrip")
+	reach.call("reset_for_new_game")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	if failed == 0:
+		print("PACK_BANKING_OK")
+	return failed
+
+
+func _pack_loot_table(tree_root: Window) -> int:
+	var failed: int = 0
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(backpack != null, "pack loot Backpack")
+	if backpack == null:
+		return failed
+	failed += _assert(is_equal_approx(RoomLoot.depth_g(1), 1.0), "depth_g(1)")
+	failed += _assert(is_equal_approx(RoomLoot.depth_g(16), 2.0), "depth_g(16)")
+	var first: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(42))
+	var second: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(42))
+	failed += _assert(str(first) == str(second), "loot determinism same seed")
+	var distinct: Dictionary = {}
+	for seed: int in range(1, 21):
+		distinct[str(RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(seed)))] = true
+	failed += _assert(distinct.size() > 1, "loot varies across seeds 1..20")
+	var briar_sum: float = 0.0
+	var herb_sum: float = 0.0
+	for seed: int in range(1, 2001):
+		var loot: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(seed))
+		briar_sum += float(int(loot.get("briarwood", 0)))
+		herb_sum += float(int(loot.get("glowcap", 0)) + int(loot.get("bitterroot", 0)))
+		failed += _assert(not loot.has("amberbind") and not loot.has("essence"), "solo d1 no jackpot ids")
+	failed += _assert(briar_sum / 2000.0 >= 0.45 and briar_sum / 2000.0 <= 0.55, "solo d1 briarwood mean")
+	failed += _assert(herb_sum / 2000.0 >= 0.45 and herb_sum / 2000.0 <= 0.55, "solo d1 herbs mean")
+	var duo_briar: float = 0.0
+	for seed: int in range(1, 2001):
+		duo_briar += float(int(RoomLoot.roll(1, 2, false, RoomLoot.loot_rng(seed)).get("briarwood", 0)))
+	failed += _assert(duo_briar / 2000.0 >= 1.45 and duo_briar / 2000.0 <= 1.55, "duo d1 briarwood mean")
+	var duo_herb_sum: float = 0.0
+	for seed: int in range(1, 2001):
+		var loot16: Dictionary = RoomLoot.roll(16, 2, false, RoomLoot.loot_rng(seed))
+		duo_herb_sum += float(int(loot16.get("glowcap", 0)) + int(loot16.get("bitterroot", 0)))
+	var expect16: float = RoomLoot.expected_herbs(16, 2)
+	failed += _assert(is_equal_approx(expect16, 3.0), "expected_herbs(16,2)")
+	failed += _assert(absf(duo_herb_sum / 2000.0 - expect16) <= 0.08, "duo d16 herbs mean")
+	var bonus_hits: int = 0
+	for seed: int in range(1, 5001):
+		var loot_b: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(seed))
+		var has_bonus: bool = false
+		for k: Variant in loot_b.keys():
+			var id: String = str(k)
+			if id != "briarwood" and id != "glowcap" and id != "bitterroot":
+				has_bonus = true
+				failed += _assert(id != "sapsteel", "no sapsteel at depth 1 band")
+		if has_bonus:
+			bonus_hits += 1
+	var bonus_rate: float = float(bonus_hits) / 5000.0
+	failed += _assert(bonus_rate >= 0.08 and bonus_rate <= 0.12, "bonus drop rate depth 1")
+	for seed: int in range(1, 51):
+		var rng_boss: BattleRng = RoomLoot.loot_rng(seed)
+		var rng_norm: BattleRng = RoomLoot.loot_rng(seed)
+		var boss_loot: Dictionary = RoomLoot.roll(4, 2, true, rng_boss)
+		var norm_loot: Dictionary = RoomLoot.roll(4, 2, false, rng_norm)
+		var boss_b: int = int(boss_loot.get("briarwood", 0))
+		var norm_b: int = int(norm_loot.get("briarwood", 0))
+		failed += _assert(boss_b == norm_b * 2, "boss doubles briarwood seed %d" % seed)
+		var boss_h: int = int(boss_loot.get("glowcap", 0)) + int(boss_loot.get("bitterroot", 0))
+		var norm_h: int = int(norm_loot.get("glowcap", 0)) + int(norm_loot.get("bitterroot", 0))
+		failed += _assert(boss_h == norm_h * 2, "boss doubles herbs seed %d" % seed)
+	failed += _assert(bool(backpack.call("is_known_item", "glowcap")) and bool(backpack.call("is_known_item", "bitterroot")), "herb items known")
+	if failed == 0:
+		print("PACK_LOOT_TABLE_OK")
+	return failed
+
+
+func _loot_same(a: Dictionary, b: Dictionary) -> bool:
+	var keys: Dictionary = {}
+	for key_v: Variant in a.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in b.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		if int(a.get(key, 0)) != int(b.get(key, 0)):
+			return false
+	return true
+
+
+func _pack_items(reach: Node) -> Dictionary:
+	var held: Pack = reach.get("pack") as Pack
+	if held == null:
+		return {}
+	var raw: Dictionary = held.to_dict()
+	var items_v: Variant = raw.get("items", {})
+	return (items_v as Dictionary).duplicate() if items_v is Dictionary else {}
+
+
+func _bag_snapshot(backpack: Node) -> Dictionary:
+	var raw: Variant = backpack.call("to_save_dict")
+	return (raw as Dictionary).duplicate() if raw is Dictionary else {}
+
+
+func _bag_gained_banked(before: Dictionary, backpack: Node, banked: Dictionary) -> bool:
+	var after: Dictionary = _bag_snapshot(backpack)
+	var keys: Dictionary = {}
+	for key_v: Variant in before.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in after.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in banked.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		var got: int = int(after.get(key, 0)) - int(before.get(key, 0))
+		if got != int(banked.get(key, 0)):
+			return false
+	return true
+
+
+func _outcome_line(reach: Node) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	var log: Array = reach.get("room_log") as Array
+	for entry_v: Variant in log:
+		if entry_v is Dictionary:
+			parts.append(str((entry_v as Dictionary).get("outcome", "")))
+	return "|".join(parts)
+
+
+func _win_count(reach: Node) -> int:
+	var wins: int = 0
+	var log: Array = reach.get("room_log") as Array
+	for entry_v: Variant in log:
+		if entry_v is Dictionary and str((entry_v as Dictionary).get("outcome", "")) == "win":
+			wins += 1
+	return wins
+
+
+func _reset_reach_test(tree_root: Window, game_state: Node, save_service: Node) -> void:
+	var reach: Node = tree_root.get_node("Reach")
+	game_state.call("reset_for_new_game")
+	reach.call("reset_for_new_game")
+	save_service.call("delete_save")
+
+
+func _idle_slots(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "idle slots autoloads")
+	if reach == null or backpack == null:
+		return failed
+	# Seed 1 uses all 5 slots (an early Overwhelmed rest, then flee, then a last-slot Overwhelmed).
+	# Depth-1 idle often ends on slot 4, which would make room_log + 2*rests miss 5.
+	var seed: int = 1
+	_reset_reach_test(tree_root, game_state, save_service)
+	var essence_0: int = int(game_state.get("essence"))
+	var dojo_0: int = int(reach.get("dojo_exp"))
+	var bag_0: Dictionary = _bag_snapshot(backpack)
+	failed += _assert(reach.has_method("set_test_run_seed") and reach.has_method("depart_slots"), "slot engine depart")
+	if not reach.has_method("set_test_run_seed"):
+		return failed
+	reach.call("set_test_run_seed", seed)
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "idle depart")
+	failed += _assert(int(reach.get("slots_total")) == 5, "one hour is 5 slots")
+	failed += _assert(int(reach.get("rooms_attempted")) == 1, "depart opens room 1")
+	failed += _assert(str(reach.get("phase")) == "idle_room", "depart opens an idle room")
+	var rests: int = 0
+	for _step: int in 5:
+		if not bool(reach.get("running")):
+			break
+		var phase_before: String = str(reach.get("phase"))
+		reach.call("advance_clock", 720.0)
+		if phase_before != "rest" and str(reach.get("phase")) == "rest":
+			rests += 1
+		if bool(reach.get("running")) and int((reach.get("pack") as Pack).total()) > 0:
+			failed += _assert(_loot_same(bag_0, _bag_snapshot(backpack)), "backpack unchanged mid-run")
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	var ended_early: bool = not bool(reach.get("running")) and int(reach.get("slots_used")) < 5 and str(summary.get("reason", "")) == "overwhelmed"
+	if not ended_early:
+		failed += _assert(int(reach.get("slots_used")) == 5 and not bool(reach.get("running")), "five slots end the run (used %d)" % int(reach.get("slots_used")))
+	failed += _assert((reach.get("room_log") as Array).size() + 2 * rests == 5, "room_log + 2 rests == 5 (log %d rests %d %s)" % [(reach.get("room_log") as Array).size(), rests, _outcome_line(reach)])
+	failed += _assert(_bag_gained_banked(bag_0, backpack, summary.get("banked", {}) as Dictionary), "backpack gained exactly the banked pack")
+	var exp_each: int = int(reach.call("room_exp", 1))
+	failed += _assert(int(reach.get("dojo_exp")) - dojo_0 == exp_each * _win_count(reach), "dojo exp is room_exp times wins")
+	failed += _assert(int(game_state.get("essence")) == essence_0, "five rooms pay no essence")
+	var first_line: String = _outcome_line(reach)
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", seed)
+	reach.call("depart", 1, 1, "hold", "idle")
+	for _again: int in 5:
+		if not bool(reach.get("running")):
+			break
+		reach.call("advance_clock", 720.0)
+	failed += _assert(_outcome_line(reach) == first_line, "the same seed repeats the room log")
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", seed)
+	var forced: Array[String] = []
+	for _win: int in 5:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	reach.call("depart", 1, 1, "hold", "idle")
+	for room_i: int in range(1, 6):
+		var before: Dictionary = _pack_items(reach)
+		reach.call("advance_clock", 720.0)
+		var expect: Dictionary = RoomLoot.roll(1, 1, false, RoomLoot.loot_rng(SlotEngine.room_seed_for(seed, room_i)))
+		var after: Dictionary = _pack_items(reach)
+		if room_i == 5:
+			var banked: Dictionary = (reach.get("last_summary") as Dictionary).get("banked", {}) as Dictionary
+			after = banked
+		failed += _assert(_loot_same(_count_delta(before, after), expect), "room %d loot matches RoomLoot" % room_i)
+	if failed == 0:
+		print("IDLE_SLOTS_OK")
+	return failed
+
+
+func _count_delta(before: Dictionary, after: Dictionary) -> Dictionary:
+	var keys: Dictionary = {}
+	for key_v: Variant in before.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in after.keys():
+		keys[str(key_v)] = true
+	var out: Dictionary = {}
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		var delta: int = int(after.get(key, 0)) - int(before.get(key, 0))
+		if delta != 0:
+			out[key] = delta
+	return out
+
+
+func _idle_resolve_at_end(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "resolve-at-end Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", 23)
+	reach.call("depart", 1, 1, "hold", "idle")
+	var clears_0: int = int(reach.get("reaches_cleared"))
+	var pack_0: Dictionary = _pack_items(reach)
+	reach.call("advance_clock", 719.0)
+	failed += _assert((reach.get("room_log") as Array).is_empty(), "719s leaves the log empty")
+	failed += _assert(_loot_same(pack_0, _pack_items(reach)), "719s leaves the pack alone")
+	failed += _assert(int(reach.get("reaches_cleared")) == clears_0, "719s clears nothing")
+	failed += _assert(int(reach.get("slots_used")) == 0, "719s uses no slot")
+	reach.call("advance_clock", 1.0)
+	failed += _assert((reach.get("room_log") as Array).size() == 1, "the last second resolves one room")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 23)
+	var forced: Array[String] = []
+	for _win: int in 4:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	var started: String = str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 4,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}))
+	failed += _assert(started == "ok", "four-room depart")
+	reach.call("advance_clock", 3.0 * 720.0)
+	failed += _assert((reach.get("room_log") as Array).size() == 3, "three slot-lengths resolve exactly three rooms (got %d)" % (reach.get("room_log") as Array).size())
+	failed += _assert(int(reach.get("slots_used")) == 3 and bool(reach.get("running")), "the fourth room is open and unresolved")
+	if failed == 0:
+		print("IDLE_RESOLVE_AT_END_OK")
+	return failed
+
+
+func _idle_rest_slots(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "rest slots Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("set_test_run_seed", 31)
+	var queued: Array[String] = ["overwhelmed", "flee", "overwhelmed"]
+	reach.call("debug_force_outcomes", queued)
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "rest depart")
+	var held: Pack = reach.get("pack") as Pack
+	held.add("briarwood", 4)
+	reach.call("advance_clock", 720.0)
+	failed += _assert(held.is_empty(), "overwhelmed clears the pack")
+	failed += _assert(str(reach.get("phase")) == "rest" and int(reach.get("rest_slots_left")) == 2, "overwhelmed opens a 2-slot rest")
+	failed += _assert(int(reach.get("slots_used")) == 1, "the loss used one slot")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("slots_used")) == 2 and str(reach.get("phase")) == "rest", "the first rest slot")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("slots_used")) == 3 and str(reach.get("phase")) == "idle_room", "the second rest slot opens the next room")
+	failed += _assert(int(reach.get("rooms_attempted")) == 2, "a rest is not an attempt")
+	held.add("briarwood", 5)
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(held.count("briarwood")) == 2, "flee halves the pack down")
+	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) != "rest", "flee keeps the run and skips the rest")
+	failed += _assert(int(reach.get("slots_used")) == 4, "flee leaves one slot")
+	reach.call("advance_clock", 720.0)
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	failed += _assert(not bool(reach.get("running")), "fewer than two slots left ends the run")
+	failed += _assert(str(summary.get("reason", "")) == "overwhelmed", "the early end is overwhelmed")
+	if failed == 0:
+		print("IDLE_REST_SLOTS_OK")
+	return failed
+
+
+func _idle_boss_payback(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "boss payback Reach")
+	if reach == null:
+		return failed
+	var seed: int = 77
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.set("deepest_depth", 2)
+	reach.call("set_test_run_seed", seed)
+	var forced: Array[String] = []
+	for _win: int in 10:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	var essence_0: int = int(game_state.get("essence"))
+	failed += _assert(str(reach.call("depart", 2, 2, "hold", "idle")) == "ok", "ten-room depart")
+	failed += _assert(int(reach.get("slots_total")) == 10, "two hours is 10 rooms")
+	for _room: int in 9:
+		reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 10 and bool(reach.call("is_boss_room")), "room 10 is the boss")
+	var exp_before: int = int(reach.get("dojo_exp"))
+	var before_pack: Dictionary = _pack_items(reach)
+	failed += _assert(not before_pack.has("essence"), "the pack never holds essence")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(game_state.get("essence")) == essence_0 + 15, "a boss pays 15 essence once")
+	var paid: Array = reach.get("boss_paid") as Array
+	failed += _assert(paid.size() == 1 and int(paid[0]) == 10, "boss_paid records room 10")
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	var banked: Dictionary = summary.get("banked", {}) as Dictionary
+	failed += _assert(not banked.has("essence") and not _pack_items(reach).has("essence"), "essence stays out of the pack")
+	var boss_loot: Dictionary = RoomLoot.roll(2, 1, true, RoomLoot.loot_rng(SlotEngine.room_seed_for(seed, 10)))
+	failed += _assert(_loot_same(_count_delta(before_pack, banked), boss_loot), "boss-room loot is the boss RoomLoot roll")
+	failed += _assert(int(reach.get("dojo_exp")) == exp_before + int(reach.call("room_exp", 2)) * 2, "room 10 exp is doubled")
+	var fields: Dictionary = reach.call("capture_save_fields")
+	var essence_paid: int = int(game_state.get("essence"))
+	reach.call("apply_save_fields", fields.get("reach", {}))
+	reach.call("apply_expedition", fields.get("expedition", {}))
+	reach.call("advance_clock", 720.0 * 5.0)
+	failed += _assert(int(game_state.get("essence")) == essence_paid, "loading the finished boss run does not pay again")
+	var paid_again: Array = reach.get("boss_paid") as Array
+	failed += _assert(paid_again.size() == 1 and int(paid_again[0]) == 10, "boss_paid survives the save")
+	# A longer run keeps going after room 10, so a resumed save cannot pay that boss twice.
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.set("deepest_depth", 2)
+	reach.call("set_test_run_seed", seed)
+	var longer: Array[String] = []
+	for _more: int in 11:
+		longer.append("win")
+	reach.call("debug_force_outcomes", longer)
+	var opened: String = str(reach.call("depart_slots", {
+		"depth": 2,
+		"rooms": 11,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}))
+	failed += _assert(opened == "ok", "eleven-room depart")
+	for _past: int in 10:
+		reach.call("advance_clock", 720.0)
+	failed += _assert(bool(reach.get("running")) and int((reach.get("boss_paid") as Array)[0]) == 10, "room 10 paid and the run continues")
+	var mid_essence: int = int(game_state.get("essence"))
+	var mid: Dictionary = reach.call("capture_save_fields")
+	reach.call("apply_save_fields", mid.get("reach", {}))
+	reach.call("apply_expedition", mid.get("expedition", {}))
+	failed += _assert(bool(reach.get("running")) and int((reach.get("boss_paid") as Array)[0]) == 10, "the mid-run save keeps the payment")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(game_state.get("essence")) == mid_essence, "continuing after room 10 does not pay again")
+	for probe: int in range(1, 21):
+		var room: Array[Dictionary] = SlotEngine.build_room(2, probe, true)
+		var bosses: int = 0
+		for row: Dictionary in room:
+			if bool(row.get("boss", false)):
+				bosses += 1
+		failed += _assert(room.size() > 0 and bosses == 1, "seed %d boss room has one boss" % probe)
+	if failed == 0:
+		print("IDLE_BOSS_PAYBACK_OK")
+	return failed
+
+
+func _board_shell_has_percent(shell: Node) -> bool:
+	for child: Node in shell.find_children("*", "Label", true, false):
+		if str((child as Label).text).find("%") >= 0:
+			return true
+	for child: Node in shell.find_children("*", "Button", true, false):
+		if str((child as Button).text).find("%") >= 0:
+			return true
+	return false
+
+
+func _board_parchment_rect() -> Rect2:
+	return Rect2(Vector2(224, 84), Vector2(832, 552))
+
+
+func _board_rect_inside_frame(ctrl: Control, frame: Rect2) -> bool:
+	if ctrl == null or not ctrl.visible:
+		return true
+	var r: Rect2 = ctrl.get_global_rect()
+	var inner: Rect2 = frame.grow(-2)
+	return inner.encloses(r) or inner.intersection(r).get_area() >= r.get_area() * 0.85
+
+
+func _board_layout_rect_ok(shell: Node) -> int:
+	var failed: int = 0
+	if shell == null:
+		return failed + 1
+	var frame: Rect2 = _board_parchment_rect()
+	for node_name: String in [
+		"CloseButton", "CloseEscKeycap", "Depart", "CostChip", "SimulateButton",
+		"DepthMaxLabel", "RoomsStepNote", "LoadoutQty1Cap", "LoadoutQty2Cap",
+	]:
+		var ctrl: Control = shell.find_child(node_name, true, false) as Control
+		if ctrl == null:
+			failed += _assert(false, "board layout missing %s" % node_name)
+		else:
+			failed += _assert(_board_rect_inside_frame(ctrl, frame), "%s inside parchment frame" % node_name)
+	var warn: Label = shell.find_child("WarningLabel", true, false) as Label
+	for ctrl_name: String in ["ManualButton", "IdleButton", "SimulateButton"]:
+		var ctrl: Control = shell.find_child(ctrl_name, true, false) as Control
+		if warn != null and ctrl != null and warn.visible and ctrl.visible:
+			failed += _assert(not warn.get_global_rect().intersects(ctrl.get_global_rect()), "warning clear of %s" % ctrl_name)
+	failed += _board_footer_copy_ok(shell)
+	failed += _board_decorator_bounds_ok(shell)
+	return failed
+
+
+func _board_footer_copy_ok(shell: Node) -> int:
+	var failed: int = 0
+	var box: VBoxContainer = shell.find_child("BottomLeftCopy", true, false) as VBoxContainer
+	failed += _assert(box != null, "footer copy vbox exists")
+	if box == null:
+		return failed
+	box.queue_sort()
+	var prev_bottom: float = -1.0
+	for child: Node in box.get_children():
+		if not child is Control:
+			continue
+		var ctrl: Control = child as Control
+		if not ctrl.visible:
+			continue
+		var r: Rect2 = ctrl.get_global_rect()
+		failed += _assert(r.position.y >= prev_bottom - 0.5, "footer copy stacked %s" % ctrl.name)
+		prev_bottom = r.position.y + r.size.y
+	var frame: Rect2 = _board_parchment_rect()
+	failed += _assert(prev_bottom < frame.position.y + frame.size.y - 8.0, "footer copy above frame bottom")
+	return failed
+
+
+func _board_decor_whitelisted(node: Node) -> bool:
+	var n: String = node.name
+	if n in [
+		"Panel", "FormationBed", "ResultsFrame", "TitlePlate", "ResultsTitlePlate", "Dim", "SimulateDim",
+		"EnemyArrow", "DecoVineTL", "DecoVineBR", "PickerTail", "TitlePlate", "CloseEscKeycap", "SimulateCloseEsc",
+	]:
+		return true
+	if n.begins_with("Divider"):
+		return true
+	return false
+
+
+func _board_decorator_bounds_ok(shell: Node) -> int:
+	var failed: int = 0
+	if shell == null:
+		return failed + 1
+	var panel: Control = shell.find_child("Panel", true, false) as Control
+	if panel == null:
+		return failed + _assert(false, "board panel for decorator bounds")
+	var labels: Array[Label] = []
+	for node: Node in shell.find_children("*", "Label", true, false):
+		var lbl: Label = node as Label
+		if lbl.is_visible_in_tree():
+			labels.append(lbl)
+	for node: Node in shell.find_children("*", "", true, false):
+		if not node is Control:
+			continue
+		if node is Label:
+			continue
+		if _board_decor_whitelisted(node):
+			continue
+		var ctrl: Control = node as Control
+		if not ctrl.is_visible_in_tree():
+			continue
+		if node is TextureRect or node is NinePatchRect or node is Panel or node is PanelContainer:
+			var parent: Control = ctrl.get_parent() as Control
+			if parent == null:
+				continue
+			var pr: Rect2 = parent.get_global_rect()
+			var cr: Rect2 = ctrl.get_global_rect()
+			if cr.size.x < 1.0 or cr.size.y < 1.0:
+				continue
+			if not _board_decor_whitelisted(node):
+				failed += _assert(pr.encloses(cr) or pr.intersection(cr).get_area() >= cr.get_area() * 0.98, "%s inside parent %s" % [node.name, parent.name])
+				for lbl: Label in labels:
+					if lbl == ctrl or ctrl.is_ancestor_of(lbl) or lbl.is_ancestor_of(ctrl):
+						continue
+					if cr.intersects(lbl.get_global_rect()):
+						failed += _assert(false, "%s overlaps label %s" % [node.name, lbl.name])
+	var tail: TextureRect = shell.find_child("PickerTail", true, false) as TextureRect
+	if tail != null:
+		failed += _assert(tail.size.x <= 10.0 and tail.size.y <= 16.0, "picker tail not stretched")
+	return failed
+
+
+func _board_label_no_orphan_wrap(shell: Node, label_name: String) -> int:
+	var failed: int = 0
+	var lbl: Label = shell.find_child(label_name, true, false) as Label
+	if lbl == null:
+		return failed
+	var lines: PackedStringArray = lbl.text.split("\n")
+	for line: String in lines:
+		if line.length() == 1:
+			failed += _assert(false, "%s single-char line '%s'" % [label_name, line])
+	return failed
+
+
+func _board_picker_no_black_panels(shell: Node) -> int:
+	var failed: int = 0
+	var popup: Node = shell.find_child("PickerPopup", true, false)
+	if popup == null:
+		return failed
+	for child: Node in popup.find_children("*", "", true, false):
+		if child is ColorRect:
+			var cr: ColorRect = child as ColorRect
+			if cr.color.a > 0.1:
+				failed += _assert(false, "picker ColorRect %s" % child.name)
+	return failed
+
+
+func _board_party_slot_frames_ok(shell: Node) -> int:
+	var failed: int = 0
+	if shell == null:
+		return failed + 1
+	var slot: Button = shell.find_child("SlotBackTop", true, false) as Button
+	failed += _assert(slot != null, "party slot exists")
+	if slot != null:
+		var box: StyleBox = slot.get_theme_stylebox("normal")
+		failed += _assert(box is StyleBoxTexture and (box as StyleBoxTexture).texture != null, "party slot stylebox texture")
+	return failed
+
+
+func _board_warning_text_ok(shell: Node) -> int:
+	var failed: int = 0
+	if shell == null:
+		return failed + 1
+	var warn: Label = shell.find_child("WarningLabel", true, false) as Label
+	var cost: Label = shell.find_child("CostLabel", true, false) as Label
+	if warn != null and cost != null and cost.visible:
+		failed += _assert(not warn.get_global_rect().intersects(cost.get_global_rect()), "warning not over cost line")
+	return failed
+
+
+func _board_picker_row_names_ok(board: Node, shell: Node) -> int:
+	var failed: int = 0
+	if board == null or shell == null:
+		return failed + 1
+	board.call("_on_party_slot_pressed", "back", 1)
+	board.call("_refresh_shell")
+	for i: int in range(4):
+		var row: Button = shell.find_child("PickerRow%d" % i, true, false) as Button
+		if row == null or not row.visible:
+			continue
+		var name_lbl: Label = row.get_node_or_null("Name") as Label
+		failed += _assert(name_lbl != null and name_lbl.text.length() > 0, "picker row %d name label" % i)
+	for child: Node in shell.get_children():
+		if child.has_method("hide_picker"):
+			child.call("hide_picker")
+	return failed
+
+
+func _board_party_rows_match(reach_party: Array, cfg_party: Array) -> bool:
+	if reach_party.size() != cfg_party.size():
+		return false
+	for i: int in range(cfg_party.size()):
+		var cfg: Dictionary = cfg_party[i] as Dictionary
+		var live: Dictionary = reach_party[i] as Dictionary
+		if str(live.get("member", "")) != str(cfg.get("member", "")):
+			return false
+		if str(live.get("row", "")) != str(cfg.get("row", "")):
+			return false
+	return true
+
+
+func _board_v4_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "board v4 autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var essence_was: int = int(game_state.get("essence"))
+	var echo_was: bool = bool(game_state.get("echo_02_resolved"))
+	var lantern_was: String = str(game_state.get("expedition_lantern"))
+	reach.call("reset_for_new_game")
+	reach.set("deepest_depth", 12)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 20)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	failed += _assert(packed != null, "board v4 scene")
+	if packed == null:
+		return failed
+	var board: Node = packed.instantiate()
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var depth_field: LineEdit = shell.find_child("DepthField", true, false) as LineEdit if shell != null else null
+	var depth_plus: Button = shell.find_child("DepthPlus", true, false) as Button if shell != null else null
+	var rooms_field: LineEdit = shell.find_child("RoomsField", true, false) as LineEdit if shell != null else null
+	var rooms_plus: Button = shell.find_child("RoomsPlus", true, false) as Button if shell != null else null
+	failed += _assert(depth_field != null and rooms_field != null, "depth/rooms fields")
+	if depth_plus != null:
+		for _i: int in 3:
+			depth_plus.emit_signal("pressed")
+			board.call("_refresh_shell")
+		failed += _assert(depth_field.text == "4", "depth steps by 1")
+		depth_field.text = "99"
+		depth_field.emit_signal("text_submitted", "99")
+		board.call("_refresh_shell")
+		failed += _assert(int(depth_field.text) == 12, "depth typed clamp at max")
+	if rooms_plus != null and rooms_field != null:
+		var expect_up: Array[int] = [5, 10, 15, 20, 25, 30, 35, 40]
+		for expect: int in expect_up:
+			rooms_plus.emit_signal("pressed")
+			board.call("_refresh_shell")
+			failed += _assert(rooms_field.text == str(expect), "room step expects %d" % expect)
+		var rooms_minus: Button = shell.find_child("RoomsMinus", true, false) as Button
+		if rooms_minus != null:
+			rooms_minus.emit_signal("pressed")
+			board.call("_refresh_shell")
+			failed += _assert(rooms_field.text == "35", "room step down from 40")
+		rooms_field.text = "20"
+		rooms_field.emit_signal("text_submitted", "20")
+		board.call("_refresh_shell")
+		var duration: Label = shell.find_child("DurationLabel", true, false) as Label
+		var boss_lbl: Label = shell.find_child("BossLabel", true, false) as Label
+		failed += _assert(duration != null and duration.text == "Idle: about 4 h 0 min", "twenty rooms duration")
+		failed += _assert(boss_lbl != null and boss_lbl.text == "Bosses: up to 2", "twenty rooms bosses")
+	backpack.call("set_count", "heart_salve", 3)
+	board.call("_refresh_shell")
+	var item1: Button = shell.find_child("LoadoutItem1", true, false) as Button
+	var plus1: Button = shell.find_child("LoadoutPlus1", true, false) as Button
+	failed += _assert(item1 != null and plus1 != null, "loadout controls")
+	if item1 != null:
+		item1.emit_signal("pressed")
+		board.call("_refresh_shell")
+		var loadout_now: Dictionary = board.call("loadout_dict")
+		failed += _assert(not loadout_now.has("heart_salve"), "loadout starts empty qty")
+	for _step: int in 5:
+		plus1.emit_signal("pressed")
+		board.call("_refresh_shell")
+	failed += _assert(int(board.call("loadout_dict").get("heart_salve", -1)) == 3, "salve qty caps at owned")
+	var item2: Button = shell.find_child("LoadoutItem2", true, false) as Button
+	if item2 != null:
+		var choices: Array[String] = board.call("_loadout_choices", 1)
+		failed += _assert(not choices.has("heart_salve"), "slot 2 cannot pick the first slot item")
+	failed += _board_layout_rect_ok(shell)
+	failed += _board_party_slot_frames_ok(shell)
+	failed += _board_warning_text_ok(shell)
+	failed += _board_label_no_orphan_wrap(shell, "EnemyLabel")
+	var enemy_arrow: TextureRect = shell.find_child("EnemyArrow", true, false) as TextureRect if shell != null else null
+	var enemy_lbl: Label = shell.find_child("EnemyLabel", true, false) as Label if shell != null else null
+	if enemy_arrow != null and enemy_lbl != null:
+		var gap: float = enemy_lbl.get_global_rect().position.x - (enemy_arrow.get_global_rect().position.x + enemy_arrow.get_global_rect().size.x)
+		failed += _assert(gap >= 3.5 and gap <= 5.5, "enemy arrow 4px left of label")
+	var warn_cost: Label = shell.find_child("WarningLabel", true, false) as Label if shell != null else null
+	if warn_cost != null:
+		failed += _assert(warn_cost.text.find("20 Essence") >= 0, "warning includes depart cost")
+		failed += _assert(warn_cost.text.find("pays back 15") >= 0, "warning includes boss payback")
+	failed += _board_picker_no_black_panels(shell)
+	for lbl_name: String in ["ProgressLabel", "PackLabel", "LoadoutLeftLabel"]:
+		var run_lbl: Label = shell.find_child(lbl_name, true, false) as Label
+		if run_lbl != null:
+			failed += _assert(not run_lbl.visible, "%s hidden during setup" % lbl_name)
+			failed += _assert(run_lbl.size.y >= 14.0 or run_lbl.text == "", "%s not a 1px strip" % lbl_name)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	failed += _board_picker_row_names_ok(board, shell)
+	game_state.call("set_resource", &"essence", 19)
+	board.call("_refresh_shell")
+	var depart: Button = shell.find_child("Depart", true, false) as Button
+	failed += _assert(depart != null and depart.disabled, "essence 19 disables Depart")
+	failed += _assert(str(board.call("try_depart")) == "no_essence", "try_depart no essence")
+	failed += _assert(bool(reach.get("running")) == false, "no essence does not depart")
+	game_state.call("set_resource", &"essence", 20)
+	board.call("_refresh_shell")
+	var cfg: Dictionary = board.call("board_config")
+	failed += _assert(str(board.call("try_depart")) == "ok", "essence 20 departs")
+	failed += _assert(_board_party_rows_match(reach.get("party") as Array, cfg.get("party", []) as Array), "party matches config")
+	failed += _assert(int(reach.get("slots_total")) == int(cfg.get("rooms", -1)), "slots_total matches rooms")
+	failed += _assert(str(reach.get("loadout")) == str(cfg.get("loadout", {})), "loadout matches config")
+	board.call("open_shell")
+	var progress: Label = shell.find_child("ProgressLabel", true, false) as Label
+	failed += _assert(progress != null, "progress label")
+	if progress != null:
+		var expect: String = "Room %d of %d" % [int(reach.get("slots_used")), int(reach.get("slots_total"))]
+		failed += _assert(progress.text == expect or progress.text.begins_with(expect), "progress matches slots")
+	failed += _assert(shell.find_child("PackLabel", true, false) != null, "pack label exists")
+	failed += _assert(not _board_shell_has_percent(shell), "no percent on the board")
+	for child: Node in shell.find_children("*", "Button", true, false):
+		failed += _assert(str((child as Button).text) != "Cancel", "no Cancel button")
+	reach.call("reset_for_new_game")
+	board.free()
+	shell = tree_root.get_node_or_null("ExpeditionShell")
+	if shell != null and is_instance_valid(shell):
+		shell.free()
+	game_state.set("echo_02_resolved", echo_was)
+	game_state.call("set_resource", &"essence", essence_was)
+	game_state.set("expedition_lantern", lantern_was)
+	if failed == 0:
+		print("BOARD_V4_OK")
+	return failed
+
+
+func _board_companion_only_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "companion board Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	var orphan_shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	if orphan_shell != null and is_instance_valid(orphan_shell):
+		orphan_shell.free()
+	var essence_was: int = int(game_state.get("essence"))
+	var echo_was: bool = bool(game_state.get("echo_02_resolved"))
+	var redeemed_was: bool = bool(game_state.get("echo_01_redeemed"))
+	var relic_was: bool = bool(game_state.get("first_relic_crafted"))
+	var join_was: bool = bool(game_state.get("elaia_join_seen"))
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	game_state.call("set_resource", &"essence", 20)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	failed += _assert(packed != null, "companion board scene")
+	if packed == null:
+		return failed
+	var board: Node = packed.instantiate()
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	failed += _assert(shell != null and shell.find_child("SlotBackMid", true, false) != null, "formation slots when joined")
+	if shell != null:
+		board.call("place_member", "", "front", 1)
+		board.call("place_member", "elaia", "back", 1)
+		failed += _assert(str(board.call("try_depart")) == "ok", "companions-only departs")
+		var party: Array = reach.get("party") as Array
+		failed += _assert(party.size() == 1 and str((party[0] as Dictionary).get("member", "")) == "elaia", "only Elaia went")
+		failed += _assert(str((party[0] as Dictionary).get("row", "")) == "back", "Elaia in the back row")
+		var members: Array[String] = []
+		for entry: Dictionary in party:
+			members.append(str(entry.get("member", "")))
+		failed += _assert(not members.has("keeper"), "keeper stayed home")
+		reach.call("reset_for_new_game")
+		board.call("open_shell")
+		board.call("place_member", "", "back", 1)
+		board.call("_refresh_shell")
+		var depart: Button = shell.find_child("Depart", true, false) as Button
+		failed += _assert(depart != null and depart.disabled, "empty party disables Depart")
+		failed += _assert(str(board.call("try_depart")) == "no_party", "empty party blocked")
+	game_state.set("echo_01_redeemed", false)
+	game_state.set("first_relic_crafted", false)
+	game_state.set("elaia_join_seen", false)
+	board.call("open_shell")
+	board.call("_refresh_shell")
+	failed += _assert(not board.call("available_members").has("elaia"), "no Elaia before join")
+	reach.call("reset_for_new_game")
+	board.free()
+	shell = tree_root.get_node_or_null("ExpeditionShell")
+	if shell != null and is_instance_valid(shell):
+		shell.free()
+	game_state.set("echo_02_resolved", echo_was)
+	game_state.set("echo_01_redeemed", redeemed_was)
+	game_state.set("first_relic_crafted", relic_was)
+	game_state.set("elaia_join_seen", join_was)
+	game_state.call("set_resource", &"essence", essence_was)
+	if failed == 0:
+		print("BOARD_COMPANION_ONLY_OK")
+	return failed
+
+
+func _board_formation_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "formation Reach")
+	if reach == null:
+		return failed
+	reach.call("reset_for_new_game")
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	game_state.call("set_resource", &"essence", 40)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate() if packed != null else null
+	failed += _assert(board != null, "formation board")
+	if board == null:
+		return failed
+	tree_root.add_child(board)
+	board.call("place_member", "elaia", "back", 0)
+	board.call("place_member", "keeper", "front", 2)
+	var cfg: Dictionary = board.call("board_config")
+	var party_v: Variant = cfg.get("party", [])
+	failed += _assert(party_v is Array and (party_v as Array).size() == 2, "formation party size")
+	var elaia_cell: int = -1
+	var keeper_cell: int = -1
+	for entry_v: Variant in party_v as Array:
+		var entry: Dictionary = entry_v as Dictionary
+		if str(entry.get("member", "")) == "elaia":
+			elaia_cell = int(entry.get("cell", -1))
+		if str(entry.get("member", "")) == "keeper":
+			keeper_cell = int(entry.get("cell", -1))
+	failed += _assert(elaia_cell == 0 and keeper_cell == 2, "formation cells in config")
+	reach.call("set_test_run_seed", 77)
+	failed += _assert(str(reach.call("depart_slots", cfg)) == "ok", "formation depart")
+	var room: Array[Dictionary] = SlotEngine.build_room(1, int(reach.get("room_seed")), false)
+	var fight: FightState = SlotEngine.fight_for_room(reach.get("party") as Array, reach.get("loadout") as Dictionary, room, int(reach.get("room_seed")))
+	var snapshot: Dictionary = fight.to_dict()
+	var rows: Array = snapshot.get("fighters", []) as Array
+	var soles: Dictionary = {}
+	for row_v: Variant in rows:
+		if not row_v is Dictionary:
+			continue
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("side", "")) != "party":
+			continue
+		var col: String = "party_back" if str(row.get("row", "")) == "back" else "party_front"
+		var cell: int = int(row.get("cell", -1))
+		if cell < 0:
+			cell = 1
+		soles["%s:%d" % [col, cell]] = str(row.get("member", ""))
+	failed += _assert(soles.get("party_back:0", "") == "elaia", "Elaia sole back top")
+	failed += _assert(soles.get("party_front:2", "") == "keeper", "Keeper sole front bottom")
+	var slot_soles: Dictionary = BattleView.SLOT_SOLES
+	failed += _assert(slot_soles["party_back"][0] == BattleView.slot_sole("party_back", 0), "SLOT_SOLES back top")
+	failed += _assert(slot_soles["party_front"][2] == BattleView.slot_sole("party_front", 2), "SLOT_SOLES front bottom")
+	reach.call("reset_for_new_game")
+	board.free()
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	if shell != null and is_instance_valid(shell):
+		shell.free()
+	if failed == 0:
+		print("BOARD_FORMATION_OK")
+	return failed
+
+
+func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 40)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate() if packed != null else null
+	failed += _assert(board != null, "sim window board")
+	if board == null:
+		return failed
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
+	sim_btn.emit_signal("pressed")
+	var sim_modal: Control = shell.find_child("SimulateModal", true, false) as Control if shell != null else null
+	var sim_win: Control = shell.find_child("SimulateWindow", true, false) as Control if shell != null else null
+	var room_list: VBoxContainer = shell.find_child("SimulateRoomList", true, false) as VBoxContainer if shell != null else null
+	var sim_close: Button = shell.find_child("SimulateClose", true, false) as Button if shell != null else null
+	var depart_btn: Button = shell.find_child("Depart", true, false) as Button if shell != null else null
+	failed += _assert(sim_modal != null and sim_modal.visible, "sim modal visible")
+	failed += _assert(sim_win != null and sim_win.visible, "sim window visible")
+	var title_lbl: Label = shell.find_child("ResultsTitle", true, false) as Label if shell != null else null
+	failed += _assert(title_lbl != null and title_lbl.text == "Simulation", "simulation title plank")
+	if sim_win != null and depart_btn != null:
+		failed += _assert(not sim_win.get_global_rect().intersects(depart_btn.get_global_rect()), "sim window clear of Depart")
+	if sim_win != null and sim_close != null:
+		failed += _assert(sim_win.get_global_rect().encloses(sim_close.get_global_rect()), "sim close inside window")
+	var summary_lbl: Label = shell.find_child("SimulateSummary", true, false) as Label if shell != null else null
+	var sim_scroll: ScrollContainer = shell.find_child("SimulateScroll", true, false) as ScrollContainer if shell != null else null
+	if summary_lbl != null and sim_scroll != null:
+		var sum_r: Rect2 = summary_lbl.get_global_rect()
+		var scroll_r: Rect2 = sim_scroll.get_global_rect()
+		failed += _assert(sum_r.position.y + sum_r.size.y <= scroll_r.position.y + 0.5, "sim summary above room list")
+		failed += _assert(not sum_r.intersects(scroll_r), "sim summary clear of scroll")
+	failed += _assert(room_list != null and room_list.get_child_count() > 0, "simulate room rows")
+	if room_list != null:
+		for row: Node in room_list.get_children():
+			if row is PanelContainer:
+				var box: StyleBox = (row as PanelContainer).get_theme_stylebox("panel")
+				failed += _assert(box is StyleBoxTexture and (box as StyleBoxTexture).texture != null, "sim row has row bg")
+	var footer: VBoxContainer = shell.find_child("SimulateFooter", true, false) as VBoxContainer if shell != null else null
+	failed += _assert(footer != null and footer.get_child_count() >= 4, "simulate footer stack")
+	var losses: Label = shell.find_child("SimulateLosses", true, false) as Label if shell != null else null
+	if losses != null:
+		failed += _assert(not losses.text.contains("\n"), "sim losses one line")
+		failed += _assert(losses.text.find("Lost:") == 0, "sim losses prefix")
+	if sim_close != null:
+		sim_close.emit_signal("pressed")
+	failed += _assert(sim_modal != null and not sim_modal.visible, "sim close works")
+	board.free()
+	if shell != null:
+		shell.free()
+	if failed == 0:
+		print("BOARD_SIM_WINDOW_OK")
+	return failed
+
+
+func _board_depth_rooms_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	reach.call("reset_for_new_game")
+	reach.set("deepest_depth", 8)
+	game_state.set("echo_02_resolved", true)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate() if packed != null else null
+	failed += _assert(board != null, "depth rooms board")
+	if board == null:
+		return failed
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var depth_field: LineEdit = shell.find_child("DepthField", true, false) as LineEdit
+	var rooms_minus: Button = shell.find_child("RoomsMinus", true, false) as Button
+	var rooms_field: LineEdit = shell.find_child("RoomsField", true, false) as LineEdit
+	rooms_field.text = "0"
+	rooms_field.emit_signal("text_submitted", "0")
+	board.call("_refresh_shell")
+	failed += _assert(rooms_field.text == "1", "rooms clamp low")
+	rooms_field.text = "99"
+	rooms_field.emit_signal("text_submitted", "99")
+	board.call("_refresh_shell")
+	failed += _assert(rooms_field.text == "40", "rooms clamp high")
+	if rooms_minus != null:
+		rooms_minus.emit_signal("pressed")
+		board.call("_refresh_shell")
+		failed += _assert(rooms_field.text == "35", "rooms step down from 40")
+	depth_field.text = "0"
+	depth_field.emit_signal("text_submitted", "0")
+	board.call("_refresh_shell")
+	failed += _assert(int(depth_field.text) >= 1, "depth clamp low")
+	board.free()
+	if shell != null:
+		shell.free()
+	if failed == 0:
+		print("BOARD_DEPTH_ROOMS_OK")
+	return failed
+
+
+func _board_essence_icon_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	game_state.set("echo_02_resolved", true)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate() if packed != null else null
+	failed += _assert(board != null, "essence icon board")
+	if board == null:
+		return failed
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var icon: TextureRect = shell.find_child("EssenceCostIcon", true, false) as TextureRect
+	failed += _assert(icon != null, "essence cost icon")
+	if icon != null:
+		failed += _assert(str(icon.texture.resource_path).ends_with("icon_essence.png"), "essence texture path")
+		# Load hud.gd at run time: a GameHUD class reference here makes the -s script
+		# compile hud.gd before autoloads are registered (ContentStrings not found).
+		var hud_script: GDScript = load("res://scripts/hud.gd") as GDScript
+		var hud_tint: Variant = hud_script.get_script_constant_map().get("ESSENCE_TINT") if hud_script != null else null
+		failed += _assert(hud_tint is Color and icon.modulate.is_equal_approx(hud_tint as Color), "essence tint")
+	board.free()
+	if shell != null:
+		shell.free()
+	if failed == 0:
+		print("BOARD_ESSENCE_ICON_OK")
+	return failed
+
+
+func _reach_party_stats(entry: Dictionary) -> Dictionary:
+	var stats_v: Variant = entry.get("stats", {})
+	var out: Dictionary = {}
+	if typeof(stats_v) != TYPE_DICTIONARY:
+		return out
+	for key_v: Variant in (stats_v as Dictionary).keys():
+		var key: String = str(key_v)
+		if key == "attack":
+			out[key] = str((stats_v as Dictionary)[key_v])
+		else:
+			out[key] = int((stats_v as Dictionary)[key_v])
+	return out
+
+
+func _reach_stats_match(a: Dictionary, b: Dictionary) -> bool:
+	if a.size() != b.size():
+		return false
+	for key_v: Variant in a.keys():
+		var key: String = str(key_v)
+		if not b.has(key):
+			return false
+		if key == "attack":
+			if str(a[key]) != str(b[key]):
+				return false
+		else:
+			if int(a[key]) != int(b[key]):
+				return false
+	return true
+
+
+func _depart_essence_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "depart essence autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var cfg_base: Dictionary = {
+		"depth": 1,
+		"rooms": 1,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+	}
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 19)
+	var blocked: String = str(reach.call("depart_slots", cfg_base.duplicate(true)))
+	failed += _assert(blocked == "no_essence", "19 essence blocks depart (got %s)" % blocked)
+	failed += _assert(int(game_state.get("essence")) == 19, "no_essence spends nothing")
+	failed += _assert(not bool(reach.get("running")), "no_essence does not start a run")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 50)
+	backpack.call("set_count", "heart_salve", 3)
+	var salve_cfg: Dictionary = cfg_base.duplicate(true)
+	salve_cfg["loadout"] = {"heart_salve": 2}
+	failed += _assert(str(reach.call("depart_slots", salve_cfg)) == "ok", "loadout depart ok")
+	failed += _assert(int(game_state.get("essence")) == 30, "depart spends 20 essence")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == 1, "loadout leaves the backpack")
+	var packed: Dictionary = reach.get("loadout") as Dictionary
+	failed += _assert(int(packed.get("heart_salve", -1)) == 2, "run loadout holds packed salves")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 50)
+	reach.set("deepest_depth", 2)
+	reach.call("set_test_run_seed", 77)
+	var forced: Array[String] = []
+	for _win: int in 10:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	var boss_cfg: Dictionary = {
+		"depth": 2,
+		"rooms": 10,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", boss_cfg)) == "ok", "ten-room boss depart")
+	failed += _assert(int(game_state.get("essence")) == 30, "essence after depart")
+	for _room: int in 10:
+		reach.call("advance_clock", 720.0)
+	failed += _assert(int(game_state.get("essence")) == 45, "room-10 boss pays +15 essence")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	backpack.call("set_count", "heart_salve", 3)
+	reach.call("set_test_run_seed", 41)
+	reach.call("debug_force_outcomes", PackedStringArray(["win"]))
+	var left_cfg: Dictionary = cfg_base.duplicate(true)
+	left_cfg["loadout"] = {"heart_salve": 2}
+	failed += _assert(str(reach.call("depart_slots", left_cfg)) == "ok", "leftover run departs")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(not bool(reach.get("running")), "leftover run ends")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == 3, "unused salves return home")
+	var returned: Dictionary = (reach.get("last_summary") as Dictionary).get("loadout_returned", {}) as Dictionary
+	failed += _assert(int(returned.get("heart_salve", 0)) == 2, "summary records loadout_returned")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	backpack.call("set_count", "heart_salve", 3)
+	reach.call("set_test_run_seed", 9)
+	reach.call("debug_force_outcomes", PackedStringArray(["overwhelmed"]))
+	var o_cfg: Dictionary = cfg_base.duplicate(true)
+	o_cfg["loadout"] = {"heart_salve": 2}
+	failed += _assert(str(reach.call("depart_slots", o_cfg)) == "ok", "overwhelmed loadout depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(not bool(reach.get("running")), "overwhelmed ends with one slot")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == 3, "overwhelmed still returns loadout")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 50)
+	backpack.call("set_count", "heart_salve", 1)
+	var bad_cfg: Dictionary = cfg_base.duplicate(true)
+	bad_cfg["loadout"] = {"heart_salve": 5}
+	failed += _assert(str(reach.call("depart_slots", bad_cfg)) == "bad_loadout", "too many salves blocked")
+	failed += _assert(int(game_state.get("essence")) == 50, "bad_loadout spends no essence")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == 1, "bad_loadout spends no items")
+	if failed == 0:
+		print("DEPART_ESSENCE_OK")
+	return failed
+
+
+func _party_lock_save_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var save_svc: Node = save_service
+	var keeper_stats: Node = tree_root.get_node_or_null("KeeperStats")
+	failed += _assert(reach != null and keeper_stats != null, "party lock autoloads")
+	if reach == null or keeper_stats == null:
+		return failed
+	var session_was: bool = bool(save_svc.get("session_active"))
+	_reset_reach_test(tree_root, game_state, save_svc)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "party lock depart")
+	var party_arr: Array = reach.get("party") as Array
+	failed += _assert(party_arr.size() >= 1, "keeper party slot")
+	var frozen: Dictionary = _reach_party_stats(party_arr[0] as Dictionary)
+	var frozen_might: int = int(frozen.get("might", -1))
+	var live_before: int = int(SlotEngine.member_stats("keeper").get("might", -1))
+	keeper_stats.call("set_rank", "might", int(keeper_stats.call("get_rank", "might")) + 1)
+	var live_after: int = int(SlotEngine.member_stats("keeper").get("might", -1))
+	failed += _assert(live_after > live_before, "keeper might rose mid-run")
+	var party_live: Dictionary = _reach_party_stats((reach.get("party") as Array)[0] as Dictionary)
+	failed += _assert(int(party_live.get("might", -1)) == frozen_might, "party stats stay frozen")
+	var room: Array[Dictionary] = SlotEngine.build_room(int(reach.get("depth")), int(reach.get("room_seed")), bool(reach.call("is_boss_room")))
+	var fight: FightState = SlotEngine.fight_for_room(reach.get("party") as Array, reach.get("loadout") as Dictionary, room, int(reach.get("room_seed")))
+	var keeper_row: Dictionary = fight.fighter_dict("keeper")
+	failed += _assert(int(keeper_row.get("might", 0)) == frozen_might, "fight uses frozen might")
+	failed += _assert(bool(save_svc.call("save_game", 7)), "party lock save")
+	var saved_party: Array = (reach.get("party") as Array).duplicate(true)
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_svc.call("load_game", 7)), "party lock load")
+	var loaded_party: Array = reach.get("party") as Array
+	failed += _assert(_reach_stats_match(frozen, _reach_party_stats(loaded_party[0] as Dictionary)), "frozen stats survive load")
+	failed += _assert(bool(reach.call("member_away", "keeper")), "keeper away mid-run")
+	failed += _assert(not bool(reach.call("member_away", "elaia")), "elaia stayed home")
+	reach.call("reset_for_new_game")
+	failed += _assert(not bool(reach.call("member_away", "keeper")), "keeper home after run ends")
+	game_state.call("set_resource", &"essence", 100)
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "second depart")
+	var refrozen: Dictionary = _reach_party_stats((reach.get("party") as Array)[0] as Dictionary)
+	failed += _assert(int(refrozen.get("might", -1)) == live_after, "next depart freezes new stats")
+	save_svc.call("delete_slot", 7)
+	save_svc.set("session_active", session_was)
+	if failed == 0:
+		print("PARTY_LOCK_SAVE_OK")
+	return failed
+
+
+func _sim_outcome_list(sim: Dictionary) -> Array[String]:
+	var fought: int = int(sim.get("rooms_fought", 0))
+	var lost_v: Variant = sim.get("lost", [])
+	var by_room: Dictionary = {}
+	if lost_v is Array:
+		for entry_v: Variant in lost_v as Array:
+			if typeof(entry_v) != TYPE_DICTIONARY:
+				continue
+			var entry: Dictionary = entry_v
+			by_room[int(entry.get("room", 0))] = str(entry.get("outcome", ""))
+	var out: Array[String] = []
+	for room_i: int in range(1, fought + 1):
+		out.append(str(by_room.get(room_i, "win")))
+	return out
+
+
+func _reach_outcome_list(reach: Node) -> Array[String]:
+	var out: Array[String] = []
+	var log_v: Variant = reach.get("room_log")
+	if not (log_v is Array):
+		return out
+	for entry_v: Variant in log_v as Array:
+		if typeof(entry_v) != TYPE_DICTIONARY:
+			continue
+		out.append(str((entry_v as Dictionary).get("outcome", "")))
+	return out
+
+
+func _simulate_dict_equal(a: Dictionary, b: Dictionary) -> bool:
+	var keys: Dictionary = {}
+	for key_v: Variant in a.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in b.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		if key == "ms":
+			continue
+		if JSON.stringify(a.get(key)) != JSON.stringify(b.get(key)):
+			return false
+	return true
+
+
+func _simulate_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and content_strings != null, "simulate Reach")
+	if reach == null or content_strings == null:
+		return failed
+	var seed: int = 1234
+	var cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 20,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	var first: Dictionary = RunSim.simulate(cfg, seed)
+	var second: Dictionary = RunSim.simulate(cfg, seed)
+	failed += _assert(_simulate_dict_equal(first, second), "simulate deterministic")
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 40)
+	game_state.set("echo_02_resolved", true)
+	var sim_before: Dictionary = RunSim.simulate(cfg, seed)
+	var sim_outcomes: Array[String] = _sim_outcome_list(sim_before)
+	reach.call("set_test_run_seed", seed)
+	failed += _assert(str(reach.call("depart_slots", cfg)) == "ok", "parity depart")
+	while bool(reach.get("running")):
+		reach.call("advance_clock", 720.0)
+	failed += _assert(str(sim_outcomes) == str(_reach_outcome_list(reach)), "parity room outcomes")
+	var reason_templates: Array[String] = [
+		str(content_strings.call("get_text", "sim_reason_flee_half")).replace("{n}", "1"),
+		str(content_strings.call("get_text", "sim_reason_flee_rounds")).replace("{n}", "1"),
+		str(content_strings.call("get_text", "sim_reason_overwhelmed")).replace("{n}", "1").replace("{beast}", "x"),
+	]
+	var lost_v: Variant = sim_before.get("lost", [])
+	if lost_v is Array and (lost_v as Array).size() > 0:
+		var reason: String = str((lost_v as Array)[0].get("reason", ""))
+		var matched: bool = false
+		for template: String in reason_templates:
+			var parts: PackedStringArray = template.split("x")
+			if parts.size() == 2 and reason.begins_with(parts[0]) and reason.ends_with(parts[1]):
+				matched = true
+				break
+			if reason == template:
+				matched = true
+				break
+		if not matched:
+			for template2: String in [
+				str(content_strings.call("get_text", "sim_reason_flee_half")),
+				str(content_strings.call("get_text", "sim_reason_flee_rounds")),
+				str(content_strings.call("get_text", "sim_reason_overwhelmed")),
+			]:
+				if reason.find("Room ") == 0 and (
+					reason.ends_with("party below half")
+					or reason.ends_with("the fight dragged on")
+					or reason.find("Overwhelmed,") > 0
+				):
+					matched = true
+					break
+		failed += _assert(matched, "lost room reason template (%s)" % reason)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	failed += _assert(packed != null, "simulate board scene")
+	if packed != null:
+		var board: Node = packed.instantiate()
+		tree_root.add_child(board)
+		game_state.call("set_resource", &"essence", 40)
+		board.call("open_shell")
+		var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+		var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
+		var room_list: VBoxContainer = shell.find_child("SimulateRoomList", true, false) as VBoxContainer if shell != null else null
+		failed += _assert(sim_btn != null and room_list != null, "simulate controls")
+		var sim_win: Node = shell.find_child("SimulateWindow", true, false) if shell != null else null
+		var depart_btn: Button = shell.find_child("Depart", true, false) as Button if shell != null else null
+		if sim_btn != null:
+			sim_btn.emit_signal("pressed")
+			board.call("_refresh_shell")
+			var sim_modal: Node = shell.find_child("SimulateModal", true, false) if shell != null else null
+			failed += _assert(sim_modal != null and (sim_modal as Control).visible, "simulate modal opens")
+			failed += _assert(sim_win != null and (sim_win as Control).visible, "simulate window opens")
+			failed += _assert(room_list != null and room_list.get_child_count() > 0, "simulate room rows")
+			var first_row: Node = room_list.get_child(0) if room_list != null else null
+			var row_text: String = ""
+			if first_row != null:
+				for lbl_v: Variant in first_row.find_children("*", "Label", true, false):
+					var lbl: Label = lbl_v as Label
+					if lbl != null and lbl.text.find("Room ") >= 0:
+						row_text = lbl.text
+						break
+			failed += _assert(row_text.find("Room ") >= 0, "simulate per-room lines")
+			failed += _assert(row_text.find("%") < 0, "simulate result has no percent")
+			if sim_win != null and depart_btn != null:
+				var win_rect: Rect2 = (sim_win as Control).get_global_rect()
+				var depart_rect: Rect2 = depart_btn.get_global_rect()
+				failed += _assert(not win_rect.intersects(depart_rect), "simulate window does not cover Depart")
+		_reset_reach_test(tree_root, game_state, save_service)
+		game_state.call("set_resource", &"essence", 40)
+		game_state.set("echo_02_resolved", true)
+		reach.call("set_test_run_seed", seed)
+		reach.call("depart_slots", cfg)
+		failed += _assert(bool(reach.get("running")), "seed test run active")
+		var run_seed: int = int(reach.get("run_seed"))
+		board.call("open_shell")
+		sim_btn = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
+		if sim_btn != null:
+			sim_btn.emit_signal("pressed")
+			var last_v: Variant = board.get("last_sim")
+			failed += _assert(last_v is Dictionary and not (last_v as Dictionary).is_empty(), "last_sim filled")
+			if last_v is Dictionary:
+				failed += _assert(int((last_v as Dictionary).get("sim_seed", -1)) != run_seed, "sim seed != run seed")
+		reach.call("reset_for_new_game")
+		board.free()
+		if shell != null and is_instance_valid(shell):
+			shell.free()
+	var perf_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 50,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	}
+	var perf: Dictionary = RunSim.simulate(perf_cfg, 99)
+	var perf_ms: int = int(perf.get("ms", 0))
+	print("SIMULATE_MS %d" % perf_ms)
+	if perf_ms > 400:
+		failed += _assert(false, "simulate perf over 400 ms (%d)" % perf_ms)
+	elif perf_ms > 100:
+		print("SIMULATE_PERF_WARN")
+	if failed == 0:
+		print("SIMULATE_OK")
+	return failed
+
+
+func _job29_elaia_joined(game_state: Node) -> void:
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+
+
+func _reach_force_end_run(reach: Node) -> void:
+	var total: int = int(reach.get("slots_total"))
+	var forced: Array[String] = []
+	for _i: int in range(total):
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	while bool(reach.get("running")):
+		reach.call("advance_clock", 720.0)
+
+
+func _keeper_away_hub_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(reach != null and jobs != null, "keeper away autoloads")
+	if reach == null or jobs == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 100)
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	var wood_before: int = int(game_state.get("wood"))
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper departs")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live else null
+	var hud: Node = live.get_node_or_null("HUD") if live else null
+	failed += _assert(live != null and keeper != null and hud != null, "hub bodies")
+	if live and live.has_method("_on_reach_party_changed"):
+		live.call("_on_reach_party_changed")
+	await process_frame
+	failed += _assert(not keeper.visible and not keeper.is_physics_processing(), "keeper hidden in clearing")
+	game_state.call("select_keeper")
+	failed += _assert(not bool(game_state.get("keeper_selected")), "select_keeper refused")
+	game_state.call("select_group", [0], true)
+	failed += _assert(not bool(game_state.get("keeper_selected")), "select_group skips keeper")
+	var slot_keeper: Control = hud.get("_slot_keeper") as Control
+	var keeper_portrait: CanvasItem = slot_keeper.get_node_or_null("Portrait") as CanvasItem if slot_keeper else null
+	var keeper_act: Label = hud.get("_keeper_activity") as Label
+	failed += _assert(slot_keeper != null and slot_keeper.visible, "keeper portrait stays in the bar")
+	failed += _assert(keeper_portrait != null and keeper_portrait.modulate.r < 0.55, "keeper portrait is greyed while away")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	var adv_line: String = str(strings.call("get_text", "hud_activity_adventure", {"depth": int(reach.get("depth"))})) if strings else ""
+	failed += _assert(keeper_act != null and keeper_act.text.find(adv_line) >= 0, "keeper status shows the adventure line")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	jobs.call("step_jobs", 10.0)
+	failed += _assert(int(game_state.get("wood")) == wood_before, "keeper harvest pays nothing while away")
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	var wood_wisp: int = int(game_state.get("wood"))
+	game_state.call("apply_wisp_pulses", 200.0)
+	failed += _assert(int(game_state.get("wood")) > wood_wisp, "wisp harvest continues")
+	_reach_force_end_run(reach)
+	if live and live.has_method("_on_reach_party_changed"):
+		live.call("_on_reach_party_changed")
+	await process_frame
+	failed += _assert(keeper.visible and keeper.is_physics_processing(), "keeper returns visible")
+	game_state.call("select_keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "keeper selectable after run")
+	if live:
+		live.free()
+	await process_frame
+	if failed == 0:
+		print("KEEPER_AWAY_HUB_OK")
+	return failed
+
+
+func _party_away_hub_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(reach != null and jobs != null, "party away autoloads")
+	if reach == null or jobs == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	_job29_elaia_joined(game_state)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "elaia", "row": "back"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "elaia-only depart")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live else null
+	var elaia: Node2D = live.get_node_or_null("World/Elaia") as Node2D if live else null
+	var hud: Node = live.get_node_or_null("HUD") if live else null
+	failed += _assert(live != null and keeper != null and elaia != null and hud != null, "hub with elaia")
+	if live and live.has_method("_on_reach_party_changed"):
+		live.call("_on_reach_party_changed")
+	await process_frame
+	failed += _assert(not elaia.visible, "elaia hidden clearing")
+	game_state.call("select_companion", "elaia")
+	failed += _assert(str(game_state.get("selected_companion_id")) != "elaia", "select elaia refused")
+	var slot_elaia: Control = hud.get("_slot_elaia") as Control
+	var elaia_portrait: CanvasItem = slot_elaia.get_node_or_null("Portrait") as CanvasItem if slot_elaia else null
+	var elaia_act: Label = hud.get("_elaia_activity") as Label
+	failed += _assert(slot_elaia != null and slot_elaia.visible, "elaia portrait stays in the bar")
+	failed += _assert(elaia_portrait != null and elaia_portrait.modulate.r < 0.55, "elaia portrait is greyed while away")
+	var strings_away: Node = tree_root.get_node_or_null("ContentStrings")
+	var elaia_adv: String = str(strings_away.call("get_text", "hud_activity_adventure", {"depth": int(reach.get("depth"))})) if strings_away else ""
+	failed += _assert(elaia_act != null and elaia_act.text.find(elaia_adv) >= 0, "elaia status shows the adventure line")
+	game_state.call("select_keeper")
+	failed += _assert(bool(game_state.get("keeper_selected")), "keeper still selectable")
+	if keeper.has_method("move_to"):
+		var from: Vector2 = keeper.global_position
+		keeper.call("move_to", from + Vector2(0, 60), null)
+		for _step: int in 12:
+			await physics_frame
+		failed += _assert(keeper.global_position.distance_to(from) > 6.0, "keeper walks")
+	jobs.call("set_in_forge_override", 1)
+	change_scene_to_file(_FORGE_SCENE)
+	failed += await _expect_scene("party away forge", _FORGE_SCENE)
+	var forge: Node = current_scene
+	var forge_elaia: Node2D = forge.get_node_or_null("Elaia") as Node2D if forge else null
+	if forge and forge.has_method("_on_reach_party_changed"):
+		forge.call("_on_reach_party_changed")
+	await process_frame
+	failed += _assert(forge_elaia != null and not forge_elaia.visible, "elaia hidden forge")
+	failed += _assert(bool(save_service.call("save_game", 6)), "party away save")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 6)), "party away load")
+	failed += _assert(bool(reach.call("member_away", "elaia")), "elaia still away after load")
+	jobs.call("set_in_forge_override", -1)
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("party away reload hub", _HUB_SCENE)
+	var hub_after: Node = current_scene
+	var elaia_after: Node2D = hub_after.get_node_or_null("World/Elaia") as Node2D if hub_after else null
+	if hub_after and hub_after.has_method("_on_reach_party_changed"):
+		hub_after.call("_on_reach_party_changed")
+	if elaia_after:
+		elaia_after.call("_apply_presence")
+	failed += _assert(elaia_after != null and not elaia_after.visible, "elaia hidden after load")
+	_reach_force_end_run(reach)
+	if hub_after and hub_after.has_method("_on_reach_party_changed"):
+		hub_after.call("_on_reach_party_changed")
+	if elaia_after:
+		elaia_after.call("_apply_presence")
+	failed += _assert(elaia_after != null and elaia_after.visible, "elaia back after run")
+	save_service.call("delete_slot", 6)
+	_drop_current_scene()
+	if live:
+		live.free()
+	await process_frame
+	if failed == 0:
+		print("PARTY_AWAY_HUB_OK")
+	return failed
+
+
+func _keeper_away_join_fight_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "join fight Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	## Manual join opens a real fight: pin the run seed.
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away for join")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	var board: Area2D = live.get_node_or_null("World/ExpeditionBoard") as Area2D if live else null
+	failed += _assert(board != null, "expedition board")
+	game_state.call("clear_selection")
+	var lmb := InputEventMouseButton.new()
+	lmb.button_index = MOUSE_BUTTON_LEFT
+	lmb.pressed = true
+	if board:
+		board.input_event.emit(tree_root, lmb, 0)
+	await process_frame
+	failed += _assert(bool(board.call("shell_open")), "LMB opens shell while keeper away")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var join_btn: Button = shell.find_child("JoinFightButton", true, false) as Button if shell else null
+	failed += _assert(join_btn != null and join_btn.visible, "Join the fight button while out")
+	if join_btn:
+		join_btn.emit_signal("pressed")
+	await process_frame
+	failed += _assert(bool(reach.call("fight_active")), "join fight opens manual battle")
+	failed += _assert(BattleViewScript.is_open(), "BattleView open")
+	if board and bool(board.call("shell_open")):
+		board.call("close_shell")
+	if live:
+		live.free()
+	reach.call("reset_for_new_game")
+	await process_frame
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 31)
+	reach.call("debug_force_outcomes", ["overwhelmed", "win", "win"])
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "join fight rest depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(str(reach.get("phase")) == "rest", "overwhelmed opens rest")
+	var slots_after_loss: int = int(reach.get("slots_used"))
+	var live_rest: Node = await _echo2_boot_hub(tree_root)
+	var board_rest: Area2D = live_rest.get_node_or_null("World/ExpeditionBoard") as Area2D if live_rest else null
+	if board_rest:
+		board_rest.input_event.emit(tree_root, lmb, 0)
+	await process_frame
+	var shell_rest: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var join_rest: Button = shell_rest.find_child("JoinFightButton", true, false) as Button if shell_rest else null
+	failed += _assert(join_rest != null and join_rest.visible, "Join the fight during rest")
+	if join_rest:
+		join_rest.emit_signal("pressed")
+	await process_frame
+	failed += _assert(int(reach.get("slots_used")) == slots_after_loss, "rest join does not spend extra slots")
+	failed += _assert(bool(reach.call("fight_active")), "rest join opens manual fight")
+	if board_rest and bool(board_rest.call("shell_open")):
+		board_rest.call("close_shell")
+	if live_rest:
+		live_rest.free()
+	reach.call("reset_for_new_game")
+	await process_frame
+	if failed == 0:
+		print("KEEPER_AWAY_JOIN_FIGHT_OK")
+	return failed
+
+
+func _wisp_misclick_keeps_job_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(reach != null and jobs != null, "misclick autoloads")
+	if reach == null or jobs == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 100)
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away misclick")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "misclick hub")
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	game_state.call("select_wisp", 1)
+	var toasts: Array[String] = []
+	game_state.status_message.connect(func(t: String) -> void:
+		toasts.append(t)
+	)
+	if live.has_method("handle_rmb_ground"):
+		live.call("handle_rmb_ground", Vector2(120, 120))
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "harvest_tree", "clearing misclick keeps job")
+	var keep_line: String = str(tree_root.get_node("ContentStrings").call("get_text", "wisp_keep_job_away"))
+	failed += _assert(toasts.has(keep_line), "misclick toast clearing")
+	jobs.call("set_in_forge_override", 1)
+	change_scene_to_file(_FORGE_SCENE)
+	failed += await _expect_scene("misclick forge", _FORGE_SCENE)
+	var forge: Node = current_scene
+	game_state.call("select_wisp", 1)
+	toasts.clear()
+	if forge and forge.has_method("_on_rmb_ground"):
+		forge.call("_on_rmb_ground", Vector2(200, 200))
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "harvest_tree", "forge misclick keeps job")
+	failed += _assert(toasts.has(keep_line), "misclick toast forge")
+	_reach_force_end_run(reach)
+	jobs.call("set_in_forge_override", -1)
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("misclick return hub", _HUB_SCENE)
+	var hub_back: Node = current_scene
+	game_state.call("select_wisp", 1)
+	if hub_back and hub_back.has_method("handle_rmb_ground"):
+		hub_back.call("handle_rmb_ground", Vector2(80, 80))
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "", "keeper home unassigns again")
+	_drop_current_scene()
+	if live:
+		live.free()
+	reach.call("reset_for_new_game")
+	await process_frame
+	if failed == 0:
+		print("WISP_MISCLICK_KEEPS_JOB_OK")
+	return failed
+
+
+func _wisp_reassign_same_scene_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "reassign Reach")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away reassign")
+	game_state.set("wisp_count", 2)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_stone")) == "reassign", "clearing reassign")
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "crucible")) == "ok", "forge spot a")
+	var forge_move: String = str(game_state.call("try_assign_wisp", 0, "press"))
+	failed += _assert(forge_move == "reassign", "forge reassign got %s on %s" % [forge_move, game_state.call("get_wisp_assignment", 0)])
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("WISP_REASSIGN_SAME_SCENE_OK")
+	return failed
+
+
+func _wisp_no_cross_scene_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var content_strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and content_strings != null, "cross scene autoloads")
+	if reach == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var depart_cfg: Dictionary = {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	}
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "keeper away cross")
+	game_state.set("wisp_count", 3)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "crucible")) == "cross_scene", "clearing to forge blocked")
+	failed += _assert(str(game_state.call("get_wisp_assignment", 1)) == "harvest_tree", "assignment unchanged")
+	game_state.call("unassign_wisp", 1)
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "crucible")) == "ok", "assign forge for reverse test")
+	failed += _assert(str(game_state.call("try_assign_wisp", 1, "harvest_stone")) == "cross_scene", "forge to clearing blocked")
+	game_state.call("unassign_wisp", 1)
+	var forge_free: String = str(game_state.call("try_assign_wisp", 2, "crucible"))
+	failed += _assert(forge_free in ["ok", "join"], "unassigned may forge got %s" % forge_free)
+	failed += _assert(str(game_state.call("try_assign_wisp", 0, "harvest_tree")) in ["ok", "join"], "unassigned may clearing")
+	reach.call("reset_for_new_game")
+	for wid: int in range(int(game_state.get("wisp_count"))):
+		game_state.call("unassign_wisp", wid)
+	game_state.call("try_assign_wisp", 1, "harvest_tree")
+	var home_cross: String = str(game_state.call("try_assign_wisp", 1, "crucible"))
+	failed += _assert(home_cross != "cross_scene" and str(game_state.call("get_wisp_assignment", 1)) == "crucible", "cross scene works at home got %s" % home_cross)
+	if failed == 0:
+		print("WISP_NO_CROSS_SCENE_OK")
+	return failed
+
+
+func _save_mtime(path: String) -> int:
+	if not FileAccess.file_exists(path):
+		return -1
+	return int(FileAccess.get_modified_time(path))
+
+
+func _stable_game_state_json(game_state: Node) -> String:
+	var d: Dictionary = (game_state.call("to_save_dict") as Dictionary).duplicate(true)
+	d.erase("run_time_sec")
+	d.erase("active_since_load_sec")
+	d.erase("reach")
+	d.erase("expedition")
+	d.erase("idle_timestamp")
+	return JSON.stringify(d)
+
+
+func _simulate_no_side_effects_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "simulate side effects autoloads")
+	if reach == null or backpack == null:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 50)
+	save_service.call("save_game", 1)
+	var slot_path: String = "user://manaforge_save_slot_1.json"
+	var auto_path: String = "user://manaforge_autosave_1.json"
+	var mtime_slot: int = _save_mtime(slot_path)
+	var mtime_auto: int = _save_mtime(auto_path)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	failed += _assert(packed != null, "side effects board scene")
+	if packed == null:
+		return failed
+	var board: Node = packed.instantiate()
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
+	failed += _assert(sim_btn != null, "SimulateButton")
+	var gs_before: String = _stable_game_state_json(game_state)
+	var reach_before: String = JSON.stringify(reach.call("capture_save_fields"))
+	var bag_before: String = JSON.stringify(backpack.get("items"))
+	var essence_before: int = int(game_state.get("essence"))
+	if sim_btn != null:
+		for _press: int in 5:
+			sim_btn.emit_signal("pressed")
+	failed += _assert(_stable_game_state_json(game_state) == gs_before, "GameState unchanged")
+	failed += _assert(JSON.stringify(reach.call("capture_save_fields")) == reach_before, "Reach unchanged")
+	failed += _assert(JSON.stringify(backpack.get("items")) == bag_before, "Backpack unchanged")
+	failed += _assert(int(game_state.get("essence")) == essence_before, "essence unchanged")
+	failed += _assert(not bool(reach.get("running")), "Reach still not running")
+	failed += _assert(_save_mtime(slot_path) == mtime_slot, "save slot mtime")
+	failed += _assert(_save_mtime(auto_path) == mtime_auto, "autosave mtime")
+	board.free()
+	if shell != null and is_instance_valid(shell):
+		shell.free()
+	if failed == 0:
+		print("SIMULATE_NO_SIDE_EFFECTS_OK")
+	return failed
+
+
+func _reach_wins(n: int) -> Array[String]:
+	var out: Array[String] = []
+	for _i: int in n:
+		out.append("win")
+	return out
+
+
+func _stamp_slot_age(save_service: Node, slot: int, age_sec: float) -> bool:
+	var root: Dictionary = _read_slot_root(save_service, slot)
+	if root.is_empty():
+		return false
+	root["timestamp"] = Time.get_unix_time_from_system() - age_sec
+	var path: String = str(save_service.call("slot_path", slot))
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(root))
+	file.close()
+	return true
+
+
+func _res_snapshot(game_state: Node) -> Dictionary:
+	return {
+		"wood": int(game_state.get("wood")),
+		"stone": int(game_state.get("stone")),
+		"food": int(game_state.get("food")),
+	}
+
+
+func _offline_loot_landed(before_bag: Dictionary, before_res: Dictionary, backpack: Node, game_state: Node, banked: Dictionary) -> bool:
+	var after_bag: Dictionary = _bag_snapshot(backpack)
+	var resources: Array[String] = ["wood", "stone", "food"]
+	var keys: Dictionary = {}
+	for key_v: Variant in banked.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in before_bag.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in after_bag.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		var want: int = int(banked.get(key, 0))
+		if resources.has(key):
+			if int(game_state.get(key)) - int(before_res.get(key, 0)) != want:
+				return false
+		elif int(after_bag.get(key, 0)) - int(before_bag.get(key, 0)) != want:
+			return false
+	return true
+
+
+func _catchup_same(a: Dictionary, b: Dictionary) -> bool:
+	if str(a.get("source", "")) != str(b.get("source", "")):
+		return false
+	if int(a.get("rooms", -1)) != int(b.get("rooms", -2)):
+		return false
+	if int(a.get("ms", -1)) != int(b.get("ms", -2)):
+		return false
+	if not is_equal_approx(float(a.get("seconds_in", -1.0)), float(b.get("seconds_in", -2.0))):
+		return false
+	return is_equal_approx(float(a.get("seconds_used", -1.0)), float(b.get("seconds_used", -2.0)))
+
+
+func _room_log_key(reach: Node) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	var log: Array = reach.get("room_log")
+	for entry_v: Variant in log:
+		if entry_v is Dictionary:
+			var entry: Dictionary = entry_v
+			parts.append("%d:%d:%s:%s" % [int(entry.get("room", 0)), int(entry.get("depth", 0)), str(entry.get("outcome", "")), str(bool(entry.get("boss", false)))])
+	return "|".join(parts)
+
+
+func _offline_reach_onepass(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Load resolves Forge then the expedition in one pass. Forced outcomes are debug memory, so they are queued again after reset.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "onepass autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var session_was: bool = bool(save_service.get("session_active"))
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var echo_was: bool = echo != null and bool(echo.get("in_battle"))
+	if echo != null:
+		echo.set("in_battle", false)
+	failed += _assert(reach.has_signal("room_resolved") and reach.has_method("catch_up"), "catch-up API")
+	failed += _assert(save_service.get("last_catchup_order") != null, "last_catchup_order")
+	if failed > 0:
+		save_service.set("session_active", session_was)
+		if echo != null:
+			echo.set("in_battle", echo_was)
+		return failed
+	var wins: Array[String] = _reach_wins(10)
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("debug_force_outcomes", wins)
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 2, "hold", "idle")) == "ok", "ten-room idle depart")
+	failed += _assert(int(reach.get("slots_total")) == 10, "depart opens 10 slots")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save the open run to slot 7")
+	failed += _assert(_stamp_slot_age(save_service, 7, 10800.0), "stamp slot 7 three hours ago")
+	game_state.call("reset_for_new_game")
+	reach.call("debug_force_outcomes", wins)
+	var view_before: bool = BattleView.is_open()
+	var counts: Array[int] = [0, 0]
+	var on_room := func(_entry: Dictionary) -> void:
+		counts[0] += 1
+	var on_changed := func() -> void:
+		if counts[0] > 0:
+			counts[1] += 1
+	reach.connect("room_resolved", on_room)
+	reach.connect("changed", on_changed)
+	var bag_before: Dictionary = _bag_snapshot(backpack)
+	var res_before: Dictionary = _res_snapshot(game_state)
+	var loaded: bool = bool(save_service.call("load_game", 7))
+	reach.disconnect("room_resolved", on_room)
+	reach.disconnect("changed", on_changed)
+	failed += _assert(loaded, "load slot 7")
+	failed += _assert(counts[0] == 10, "exactly 10 room_resolved (got %d)" % counts[0])
+	failed += _assert(counts[1] == 1, "changed once during catch-up (got %d)" % counts[1])
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	failed += _assert(not bool(reach.get("running")) and str(summary.get("reason", "")) == "finished", "the run finished (%s)" % str(summary.get("reason", "")))
+	var banked: Dictionary = summary.get("banked", {}) as Dictionary
+	failed += _assert(_offline_loot_landed(bag_before, res_before, backpack, game_state, banked), "backpack gained banked %s" % str(banked))
+	var info: Dictionary = reach.get("last_catchup") as Dictionary
+	var used: float = float(info.get("seconds_used", -1.0))
+	failed += _assert(used <= 10.0 * 720.0 + 1.0 and used + 1.0 >= 10.0 * 720.0, "seconds_used is 10 slots (got %s)" % used)
+	failed += _assert(int(info.get("rooms", -1)) == 10, "last_catchup.rooms is 10")
+	failed += _assert(str(info.get("source", "")) == "load", "last_catchup source is load")
+	var order: Array = save_service.get("last_catchup_order") as Array
+	failed += _assert(order.size() == 2 and str(order[0]) == "forge" and str(order[1]) == "reach", "catch-up order %s" % str(order))
+	failed += _assert(BattleView.is_open() == view_before, "catch-up does not open BattleView")
+	failed += _assert(str(game_state.get("expedition_lantern")) == "cyan", "a finished run lights the board cyan")
+	game_state.call("reset_for_new_game")
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 2, "hold", "idle")) == "ok", "live seed depart")
+	for _step: int in 10:
+		reach.call("advance_clock", 720.0)
+	var live_line: String = _outcome_line(reach)
+	game_state.call("reset_for_new_game")
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 2, "hold", "idle")) == "ok", "offline seed depart")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save the unforced run")
+	failed += _assert(_stamp_slot_age(save_service, 7, 10800.0), "stamp the unforced run")
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "load the unforced run")
+	failed += _assert(_outcome_line(reach) == live_line and not live_line.is_empty(), "offline outcomes match the live clock (%s vs %s)" % [_outcome_line(reach), live_line])
+	var rest_queue: Array[String] = ["overwhelmed"]
+	rest_queue.append_array(_reach_wins(17))
+	game_state.call("reset_for_new_game")
+	reach.call("debug_force_outcomes", rest_queue)
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 4, "hold", "idle")) == "ok", "twenty-room depart")
+	failed += _assert(int(reach.get("slots_total")) == 20, "four hours is 20 slots")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save the rest run")
+	failed += _assert(_stamp_slot_age(save_service, 7, 9.0 * 3600.0), "stamp nine hours")
+	game_state.call("reset_for_new_game")
+	reach.call("debug_force_outcomes", rest_queue)
+	var rest_counts: Array[int] = [0]
+	var on_rest := func(_entry: Dictionary) -> void:
+		rest_counts[0] += 1
+	reach.connect("room_resolved", on_rest)
+	failed += _assert(bool(save_service.call("load_game", 7)), "load the rest run")
+	reach.disconnect("room_resolved", on_rest)
+	failed += _assert(int(reach.get("slots_used")) == 20, "rest run uses 20 slots (got %d)" % int(reach.get("slots_used")))
+	failed += _assert(rest_counts[0] == 18, "rest run resolves 18 rooms (got %d)" % rest_counts[0])
+	failed += _assert(int((reach.get("last_catchup") as Dictionary).get("rooms", -1)) == 18, "last_catchup.rooms counts the 18")
+	game_state.call("reset_for_new_game")
+	reach.call("set_test_run_seed", 424242)
+	if str(reach.call("depart", 1, 8, "hold", "idle")) == "ok":
+		reach.call("catch_up", 40.0 * 720.0, "load")
+		print("OFFLINE_REACH_MS %d" % int((reach.get("last_catchup") as Dictionary).get("ms", -1)))
+	else:
+		print("OFFLINE_REACH_MS -1")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	save_service.set("session_active", session_was)
+	if echo != null:
+		echo.set("in_battle", echo_was)
+	if failed == 0:
+		print("OFFLINE_REACH_ONEPASS_OK")
+	return failed
+
+
+func _offline_save_blocked(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "save-blocked Reach")
+	if reach == null:
+		return failed
+	var session_was: bool = bool(save_service.get("session_active"))
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var echo_was: bool = echo != null and bool(echo.get("in_battle"))
+	if echo != null:
+		echo.set("in_battle", false)
+	failed += _assert(reach.has_signal("room_resolved"), "room_resolved for the save block")
+	if failed > 0:
+		save_service.set("session_active", session_was)
+		if echo != null:
+			echo.set("in_battle", echo_was)
+		return failed
+	var wins: Array[String] = _reach_wins(10)
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("debug_force_outcomes", wins)
+	reach.call("set_test_run_seed", 777)
+	failed += _assert(str(reach.call("depart", 1, 2, "hold", "idle")) == "ok", "blocked-save depart")
+	failed += _assert(bool(save_service.call("save_game", 7)), "blocked-save writes slot 7")
+	failed += _assert(_stamp_slot_age(save_service, 7, 10800.0), "blocked-save stamps three hours")
+	game_state.call("reset_for_new_game")
+	reach.call("debug_force_outcomes", wins)
+	save_service.set("session_active", true)
+	var box := {"leaked": false, "manual": false, "mid_file": false, "fired": false}
+	var slot6: String = str(save_service.call("slot_path", 6))
+	var on_room := func(_entry: Dictionary) -> void:
+		box["fired"] = true
+		if bool(save_service.call("save_game", 6)):
+			box["leaked"] = true
+		if bool(save_service.call("save_autosave", true)):
+			box["leaked"] = true
+		if bool(save_service.call("save_on_quit")):
+			box["leaked"] = true
+		reach.call("set_control", "manual")
+		if str(reach.get("phase")) == "manual" or str(reach.get("control")) == "manual":
+			box["manual"] = true
+		if FileAccess.file_exists(slot6):
+			box["mid_file"] = true
+	reach.connect("room_resolved", on_room)
+	var loaded: bool = bool(save_service.call("load_game", 7))
+	reach.disconnect("room_resolved", on_room)
+	failed += _assert(loaded, "blocked-save load")
+	failed += _assert(bool(box["fired"]), "the handler ran")
+	failed += _assert(not bool(box["leaked"]), "saves return false during the pass")
+	failed += _assert(not bool(box["manual"]), "set_control changes nothing during the pass")
+	failed += _assert(not bool(box["mid_file"]), "slot 6 is not written mid-pass")
+	failed += _assert(not bool(save_service.call("has_slot", 6)), "slot 6 still missing after load")
+	failed += _assert(bool(save_service.call("save_game", 6)), "save_game works after the pass")
+	var saved: Dictionary = _read_slot_root(save_service, 6)
+	var state: Dictionary = saved.get("state", {}) as Dictionary
+	var reach_block: Dictionary = state.get("reach", {}) as Dictionary
+	var summary: Dictionary = reach_block.get("last_summary", {}) as Dictionary
+	failed += _assert(not bool(reach_block.get("running", true)), "slot 6 holds a finished run")
+	failed += _assert(str(summary.get("reason", "")) == "finished", "slot 6 reason is finished (got %s)" % str(summary.get("reason", "")))
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	save_service.set("session_active", session_was)
+	if echo != null:
+		echo.set("in_battle", echo_was)
+	if failed == 0:
+		print("OFFLINE_SAVE_BLOCKED_OK")
+	return failed
+
+
+func _big_delta_catchup(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null and reach.has_method("process_frame_delta"), "process_frame_delta")
+	if reach == null or not reach.has_method("process_frame_delta"):
+		return failed
+	var wins: Array[String] = _reach_wins(5)
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("debug_force_outcomes", wins)
+	reach.call("set_test_run_seed", 11)
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "five-room live depart")
+	var counts: Array[int] = [0]
+	var on_room := func(_entry: Dictionary) -> void:
+		counts[0] += 1
+	reach.connect("room_resolved", on_room)
+	reach.call("process_frame_delta", 3.0 * 720.0)
+	reach.disconnect("room_resolved", on_room)
+	failed += _assert(counts[0] == 3, "three slot-lengths resolve three rooms (got %d)" % counts[0])
+	var info: Dictionary = reach.get("last_catchup") as Dictionary
+	failed += _assert(str(info.get("source", "")) == "frame", "big frame source is frame")
+	failed += _assert(int(reach.get("slots_used")) == 3, "big frame uses 3 slots")
+	var big_key: String = _room_log_key(reach)
+	var big_slots: int = int(reach.get("slots_used"))
+	var snap: Dictionary = info.duplicate(true)
+	reach.call("process_frame_delta", 1.0)
+	failed += _assert(_catchup_same(snap, reach.get("last_catchup") as Dictionary), "a 1s frame leaves last_catchup alone")
+	failed += _assert(_room_log_key(reach) == big_key and int(reach.get("slots_used")) == big_slots, "a 1s frame resolves nothing")
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.call("debug_force_outcomes", wins)
+	reach.call("set_test_run_seed", 11)
+	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "one-second depart")
+	for _frame: int in 2160:
+		reach.call("process_frame_delta", 1.0)
+	failed += _assert(int(reach.get("slots_used")) == big_slots, "one-second frames use the same slots (got %d)" % int(reach.get("slots_used")))
+	failed += _assert(_room_log_key(reach) == big_key, "one-second frames match the room log")
+	game_state.call("reset_for_new_game")
+	save_service.call("delete_save")
+	if failed == 0:
+		print("BIG_DELTA_CATCHUP_OK")
+	return failed
+
+
+func _user_file_text(path: String) -> Variant:
+	if not FileAccess.file_exists(path):
+		return null
+	return FileAccess.get_file_as_string(path)
+
+
+func _restore_user_file(path: String, data: Variant) -> void:
+	if data == null:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
+		return
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(str(data))
+	file.close()
+
+
+func _adventure_path(save_service: Node) -> String:
+	return str(save_service.get("ADVENTURE_PATH"))
+
+
+func _reach_live_view() -> BattleView:
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	if views.size() != 1:
+		return null
+	return views[0] as BattleView
+
+
+func _adventure_one_strike(view: BattleView) -> bool:
+	if view == null or not is_instance_valid(view):
+		return false
+	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
+	if strike_btn == null or not strike_btn.visible or strike_btn.disabled:
+		return false
+	strike_btn.emit_signal("pressed")
+	await process_frame
+	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	var picked: Button = null
+	if target_layer != null:
+		for child: Node in target_layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				picked = child as Button
+				break
+	if picked == null:
+		return false
+	picked.emit_signal("pressed")
+	await process_frame
+	return true
+
+
+func _wait_battle_open(frames: int = 6) -> bool:
+	for _i: int in frames:
+		if BattleViewScript.is_open():
+			return true
+		await process_frame
+	return BattleViewScript.is_open()
+
+
+func _fight_checkpoint(fight: FightState) -> Dictionary:
+	var data: Dictionary = fight.to_dict()
+	var hp: Dictionary = {}
+	var rows: Variant = data.get("fighters", [])
+	if rows is Array:
+		for row_v: Variant in rows:
+			if row_v is Dictionary:
+				var row: Dictionary = row_v
+				hp[str(row.get("id", ""))] = int(row.get("hp", -1))
+	return {
+		"round": int(data.get("round", -1)),
+		"turn_cursor": int(data.get("turn_cursor", -1)),
+		"hp": hp,
+		"rng": str(data.get("rng_combat_state", "")),
+	}
+
+
+func _hp_maps_equal(a: Dictionary, b: Dictionary) -> bool:
+	var keys: Dictionary = {}
+	for key_v: Variant in a.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in b.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		if int(a.get(key, -1)) != int(b.get(key, -2)):
+			return false
+	return true
+
+
+func _blow_fingerprint(events: Variant) -> String:
+	var parts: PackedStringArray = PackedStringArray()
+	if not (events is Array):
+		return ""
+	for entry_v: Variant in events:
+		if not (entry_v is Dictionary):
+			continue
+		var entry: Dictionary = entry_v
+		if str(entry.get("kind", "")) != "strike":
+			continue
+		parts.append("%d|%s|%s|%s|%s" % [
+			int(entry.get("damage", -1)),
+			str(entry.get("band", "")),
+			JSON.stringify(entry.get("attack_dice", [])),
+			JSON.stringify(entry.get("defense_faces", [])),
+			JSON.stringify(entry.get("damage_face", null)),
+		])
+	return "|".join(parts)
+
+
+func _int_dict_equal(a: Dictionary, b: Dictionary) -> bool:
+	var keys: Dictionary = {}
+	for key_v: Variant in a.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in b.keys():
+		keys[str(key_v)] = true
+	for key_v: Variant in keys.keys():
+		var key: String = str(key_v)
+		if int(a.get(key, 0)) != int(b.get(key, 0)):
+			return false
+	return true
+
+
+func _manual_duo_cfg() -> Dictionary:
+	return {
+		"depth": 1,
+		"rooms": 4,
+		"control": "manual",
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": {},
+	}
+
+
+func _silence_echo(tree_root: Window) -> void:
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo != null:
+		echo.set("in_battle", false)
+
+
+func _adventure_slot_resume(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Quit mid-fight and the same FightState, including RNG, comes back.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "adventure resume Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var slot_path: String = str(save_service.call("slot_path", 7))
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Variant = _user_file_text(slot_path)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "resume depart")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and fight != null and fight.outcome() == "", "resume fight is open")
+	if view == null or fight == null:
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	for _swing: int in 3:
+		failed += _assert(await _adventure_one_strike(view), "resume strike %d" % (_swing + 1))
+		if fight.outcome() != "":
+			failed += _assert(false, "resume fight ended before the snapshot")
+			break
+	var before: Dictionary = _fight_checkpoint(fight)
+	var actor_id: String = fight.current_actor()
+	var side: String = str(fight.fighter_dict(actor_id).get("side", ""))
+	failed += _assert(side == "party", "snapshot waits on the party (got %s)" % side)
+	failed += _assert(bool(save_service.call("save_game", 7)), "resume save slot 7")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "resume load slot 7")
+	failed += _assert(await _wait_battle_open(), "BattleView reopens")
+	failed += _assert(bool(reach.call("fight_active")), "fight_active after load")
+	failed += _assert(BattleViewScript.is_open(), "BattleView.is_open after load")
+	var restored: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(restored != null, "restored FightState")
+	if restored != null:
+		var after: Dictionary = _fight_checkpoint(restored)
+		failed += _assert(int(after.get("round", -1)) == int(before.get("round", -2)), "round restored")
+		failed += _assert(int(after.get("turn_cursor", -1)) == int(before.get("turn_cursor", -2)), "turn_cursor restored")
+		failed += _assert(str(after.get("rng", "")) == str(before.get("rng", "x")), "rng_combat_state restored")
+		var hp_before: Dictionary = before.get("hp", {}) as Dictionary
+		var hp_after: Dictionary = after.get("hp", {}) as Dictionary
+		failed += _assert(_hp_maps_equal(hp_before, hp_after), "every HP restored (before %s after %s)" % [str(hp_before), str(hp_after)])
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot_path, slot_was)
+	if failed == 0:
+		print("ADVENTURE_SLOT_RESUME_OK")
+	return failed
+
+
+func _adventure_no_scum(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## The next blow is saved with the fight. Quitting does not reroll it. Slots stay untouched.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "no-scum Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Dictionary = {}
+	var auto_was: Dictionary = {}
+	for slot: int in range(1, 8):
+		var path: String = str(save_service.call("slot_path", slot))
+		slot_was[path] = _user_file_text(path)
+	for slot: int in range(1, 4):
+		var auto_path: String = str(save_service.call("autosave_path", slot))
+		auto_was[auto_path] = _user_file_text(auto_path)
+	var session_was: bool = bool(save_service.get("session_active"))
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "no-scum depart")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and fight != null and fight.outcome() == "", "no-scum fight open")
+	if view == null or fight == null:
+		_adventure_restore_saves(adv_path, adv_was, slot_was, auto_was)
+		save_service.set("session_active", session_was)
+		return failed
+	var mtimes: Dictionary = {}
+	for path_v: Variant in slot_was.keys():
+		mtimes[str(path_v)] = _save_mtime(str(path_v))
+	for path_v: Variant in auto_was.keys():
+		mtimes[str(path_v)] = _save_mtime(str(path_v))
+	for step_i: int in 5:
+		failed += _assert(await _adventure_one_strike(view), "saved action %d" % (step_i + 1))
+		var adv: Dictionary = save_service.call("read_adventure")
+		var file_fight: Variant = adv.get("fight", null)
+		failed += _assert(file_fight is Dictionary, "adventure fight after action %d" % (step_i + 1))
+		if file_fight is Dictionary:
+			var file_row: Dictionary = file_fight
+			failed += _assert(int(file_row.get("round", -1)) == int(fight.round), "file round matches after action %d" % (step_i + 1))
+			failed += _assert(int(file_row.get("turn_cursor", -1)) == int(fight.turn_cursor), "file turn_cursor matches after action %d" % (step_i + 1))
+	for path_v: Variant in mtimes.keys():
+		var path: String = str(path_v)
+		failed += _assert(_save_mtime(path) == int(mtimes[path]), "action left %s mtime alone" % path)
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 1)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "no-scum second depart")
+	await process_frame
+	fight = reach.call("manual_fight") as FightState
+	failed += _assert(fight != null and fight.outcome() == "", "clone fight open")
+	if fight != null:
+		for pass_i: int in 2:
+			var clone: FightState = FightState.from_dict(fight.to_dict())
+			var actor_id: String = clone.current_actor()
+			var legal: Array = clone.legal_targets(actor_id)
+			failed += _assert(not legal.is_empty(), "clone has a Strike target")
+			if legal.is_empty():
+				break
+			var target: String = str(legal[0])
+			var cloned: Dictionary = clone.step({"kind": "strike", "target": target})
+			save_service.set("session_active", true)
+			failed += _assert(bool(save_service.call("save_on_quit")), "quit writes the fight")
+			var quit_slot: int = _autosave_slot_for_id(save_service, int(save_service.get("current_save_id")))
+			reach.call("reset_for_new_game")
+			failed += _assert(quit_slot > 0 and bool(save_service.call("load_autosave", quit_slot)), "load the quit autosave")
+			failed += _assert(await _wait_battle_open(), "quit reload opens the fight")
+			fight = reach.call("manual_fight") as FightState
+			failed += _assert(fight != null, "live fight after quit")
+			if fight == null:
+				break
+			var lived: Dictionary = fight.step({"kind": "strike", "target": target})
+			var clone_events: Variant = cloned.get("events", [])
+			var live_events: Variant = lived.get("events", [])
+			failed += _assert(JSON.stringify(clone_events) == JSON.stringify(live_events), "pass %d events match" % (pass_i + 1))
+			failed += _assert(_blow_fingerprint(clone_events) == _blow_fingerprint(live_events), "pass %d damage, faces and band match" % (pass_i + 1))
+			failed += _assert(_blow_fingerprint(live_events) != "", "pass %d recorded a blow" % (pass_i + 1))
+			if pass_i == 0 and fight.outcome() == "":
+				var guard: int = 0
+				while guard < 24 and fight.outcome() == "":
+					var next_id: String = fight.current_actor()
+					if next_id == "" or str(fight.fighter_dict(next_id).get("side", "")) == "party":
+						break
+					fight.step({})
+					guard += 1
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	save_service.set("session_active", session_was)
+	_adventure_restore_saves(adv_path, adv_was, slot_was, auto_was)
+	if failed == 0:
+		print("ADVENTURE_NO_SCUM_OK")
+	return failed
+
+
+func _autosave_slot_for_id(save_service: Node, save_id: int) -> int:
+	for slot: int in range(1, 4):
+		var path: String = str(save_service.call("autosave_path", slot))
+		if not FileAccess.file_exists(path):
+			continue
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if parsed is Dictionary and int((parsed as Dictionary).get("save_id", -1)) == save_id:
+			return slot
+	return 0
+
+
+func _adventure_restore_saves(adv_path: String, adv_was: Variant, slot_was: Dictionary, auto_was: Dictionary) -> void:
+	_restore_user_file(adv_path, adv_was)
+	for path_v: Variant in slot_was.keys():
+		_restore_user_file(str(path_v), slot_was[path_v])
+	for path_v: Variant in auto_was.keys():
+		_restore_user_file(str(path_v), auto_was[path_v])
+
+
+func _save_rewind(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## An older slot wins over an adventure file owned by a newer save.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "rewind autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot6: String = str(save_service.call("slot_path", 6))
+	var slot7: String = str(save_service.call("slot_path", 7))
+	var was6: Variant = _user_file_text(slot6)
+	var was7: Variant = _user_file_text(slot7)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var forced: Array[String] = []
+	for _win: int in 8:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	reach.call("set_test_run_seed", 8)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 8,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})) == "ok", "rewind depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 2, "save A is room 2")
+	var pack_a: Dictionary = _pack_items(reach)
+	var bag_a: Dictionary = _bag_snapshot(backpack)
+	failed += _assert(bool(save_service.call("save_game", 7)), "save A slot 7")
+	var id_a: int = int(save_service.get("current_save_id"))
+	reach.call("advance_clock", 720.0)
+	reach.call("advance_clock", 720.0)
+	reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 5, "save B is room 5")
+	var pack_b: Dictionary = _pack_items(reach)
+	failed += _assert(bool(save_service.call("save_game", 6)), "save B slot 6")
+	var id_b: int = int(save_service.get("current_save_id"))
+	failed += _assert(id_a != 0 and id_a != id_b, "A and B have different save ids")
+	var owned: Dictionary = save_service.call("read_adventure")
+	failed += _assert(int(owned.get("owner_save_id", -1)) == id_b, "adventure owner is B")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "load A")
+	failed += _assert(int(reach.get("rooms_attempted")) == 2, "A rewinds to room 2")
+	failed += _assert(_int_dict_equal(pack_a, _pack_items(reach)), "A's pack is restored")
+	failed += _assert(_int_dict_equal(bag_a, _bag_snapshot(backpack)), "A's Backpack is restored")
+	failed += _assert(int(save_service.get("current_save_id")) == id_a, "current_save_id is A's")
+	var left: Dictionary = save_service.call("read_adventure")
+	failed += _assert(int(left.get("owner_save_id", -1)) == id_b, "B's adventure file is left in place")
+	failed += _assert(bool(save_service.call("load_game", 6)), "load B")
+	failed += _assert(int(reach.get("rooms_attempted")) == 5, "B is room 5 again")
+	failed += _assert(_int_dict_equal(pack_b, _pack_items(reach)), "B's pack comes from B")
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot6, was6)
+	_restore_user_file(slot7, was7)
+	if failed == 0:
+		print("SAVE_REWIND_OK")
+	return failed
+
+
+func _bank_once(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A stale copy of a finished run cannot bank the pack or the leftover loadout again.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "bank-once autoloads")
+	if reach == null or backpack == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var adv_was: Variant = _user_file_text(adv_path)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	backpack.call("set_count", "heart_salve", 5)
+	var forced: Array[String] = ["win", "win"]
+	reach.call("debug_force_outcomes", forced)
+	reach.call("set_test_run_seed", 3)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 3,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {"heart_salve": 2},
+	})) == "ok", "bank-once depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(bool(reach.get("running")) and int(reach.get("rooms_attempted")) == 2, "still out after one win")
+	var block: Dictionary = reach.call("capture_run_block")
+	var first_id: int = int(reach.get("run_id"))
+	reach.call("_finish_run", "head_home")
+	failed += _assert(not bool(reach.get("running")), "first finish ends the run")
+	failed += _assert(int(reach.get("last_banked_run_id")) == first_id, "last_banked_run_id is the finished run")
+	var bag_after: Dictionary = _bag_snapshot(backpack)
+	var res_after: Dictionary = _res_snapshot(game_state)
+	reach.call("apply_run_block", block)
+	failed += _assert(bool(reach.get("running")) and int(reach.get("run_id")) == first_id, "stale run block is applied")
+	reach.call("_finish_run", "finished")
+	failed += _assert(_int_dict_equal(bag_after, _bag_snapshot(backpack)), "second finish does not touch the Backpack")
+	failed += _assert(_int_dict_equal(res_after, _res_snapshot(game_state)), "second finish does not touch resources")
+	failed += _assert(int(reach.get("last_banked_run_id")) == first_id, "the guard stays on the first run")
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("debug_force_outcomes", PackedStringArray(["win"]))
+	reach.call("set_test_run_seed", 4)
+	var bag_before: Dictionary = _bag_snapshot(backpack)
+	var res_before: Dictionary = _res_snapshot(game_state)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 2,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})) == "ok", "new run departs")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(bool(reach.get("running")), "new run still out")
+	var second_id: int = int(reach.get("run_id"))
+	failed += _assert(second_id != first_id, "the new run has its own id")
+	reach.call("_finish_run", "finished")
+	var summary: Dictionary = reach.get("last_summary") as Dictionary
+	var banked: Dictionary = summary.get("banked", {}) as Dictionary
+	failed += _assert(not banked.is_empty(), "a new run still banks")
+	failed += _assert(int(reach.get("last_banked_run_id")) == second_id, "the guard follows the new run")
+	failed += _assert(_offline_loot_landed(bag_before, res_before, backpack, game_state, banked), "the new bank landed")
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	if failed == 0:
+		print("BANK_ONCE_OK")
+	return failed
+
+
+func _save_seed_roundtrip(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## 31-bit seeds and the combat RNG string survive the main save and the adventure file.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "seed roundtrip Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var slot_path: String = str(save_service.call("slot_path", 7))
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Variant = _user_file_text(slot_path)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	var run_seed: int = 0x7FFFFFF0
+	var room_seed: int = 0x7FFFFFFF
+	reach.call("set_test_run_seed", run_seed)
+	failed += _assert(str(reach.call("depart_slots", _manual_duo_cfg())) == "ok", "seed depart")
+	reach.set("room_seed", room_seed)
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(fight != null and fight.outcome() == "", "seed fight open")
+	if fight == null:
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	var snap: Dictionary = fight.to_dict()
+	var rng_state: String = str(snap.get("rng_combat_state", ""))
+	failed += _assert(rng_state != "", "rng_combat_state is a string")
+	var copy: FightState = FightState.from_dict(snap)
+	failed += _assert(bool(save_service.call("save_game", 7)), "seed save")
+	var slot_root: Dictionary = _read_slot_root(save_service, 7)
+	var state_v: Variant = slot_root.get("state", {})
+	var reach_block: Dictionary = (state_v as Dictionary).get("reach", {}) if state_v is Dictionary else {}
+	failed += _assert(int(slot_root.get("save_id", 0)) == int(save_service.get("current_save_id")), "main save_id round trip")
+	failed += _assert(int(reach_block.get("run_seed", 0)) == run_seed, "main run_seed through int()")
+	failed += _assert(int(reach_block.get("room_seed", 0)) == room_seed, "main room_seed near 2^31 through int()")
+	var adv: Dictionary = save_service.call("read_adventure")
+	var adv_reach_v: Variant = adv.get("reach", {})
+	var adv_reach: Dictionary = adv_reach_v if adv_reach_v is Dictionary else {}
+	var adv_fight_v: Variant = adv.get("fight", {})
+	var adv_fight: Dictionary = adv_fight_v if adv_fight_v is Dictionary else {}
+	failed += _assert(int(adv.get("owner_save_id", 0)) == int(save_service.get("current_save_id")), "adventure owner is the main save")
+	failed += _assert(int(adv_reach.get("run_seed", 0)) == run_seed, "adventure run_seed through int()")
+	failed += _assert(int(adv_reach.get("room_seed", 0)) == room_seed, "adventure room_seed through int()")
+	failed += _assert(str(adv_fight.get("rng_combat_state", "")) == rng_state, "adventure rng_combat_state string")
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "seed load")
+	failed += _assert(await _wait_battle_open(), "seed fight view")
+	failed += _assert(int(reach.get("run_seed")) == run_seed, "loaded run_seed")
+	failed += _assert(int(reach.get("room_seed")) == room_seed, "loaded room_seed")
+	var restored: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(restored != null, "loaded fight")
+	if restored != null:
+		failed += _assert(str(restored.to_dict().get("rng_combat_state", "")) == rng_state, "loaded rng_combat_state")
+		var from_copy: Array[int] = []
+		var from_live: Array[int] = []
+		for _roll: int in 20:
+			from_copy.append(int(copy.get("_rng").call("roll_die", 20)))
+			from_live.append(int(restored.get("_rng").call("roll_die", 20)))
+		failed += _assert(str(from_copy) == str(from_live), "next 20 d20s match a never-saved copy")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot_path, slot_was)
+	if failed == 0:
+		print("SAVE_SEED_ROUNDTRIP_OK")
+	return failed
+
+
+func _adventure_newer_refused(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A newer adventure file is ignored. The main save still loads and the file stays.
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "newer adventure Reach")
+	if reach == null:
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var slot_path: String = str(save_service.call("slot_path", 7))
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Variant = _user_file_text(slot_path)
+	_silence_echo(tree_root)
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 5)
+	failed += _assert(str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": 4,
+		"control": "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})) == "ok", "newer-adventure depart")
+	failed += _assert(bool(save_service.call("save_game", 7)), "newer-adventure main save")
+	var owner: int = int(save_service.get("current_save_id"))
+	var run_id: int = int(reach.get("run_id"))
+	var rooms: int = int(reach.get("rooms_attempted"))
+	var fake: Dictionary = {
+		"adv_version": 2,
+		"owner_save_id": owner,
+		"run_id": run_id,
+		"written_at": Time.get_unix_time_from_system(),
+		"reach": {
+			"running": true,
+			"run_id": run_id,
+			"rooms_attempted": 99,
+			"phase": "idle_room",
+			"slots_total": 4,
+		},
+		"fight": null,
+		"phase_detail": {"phase": "idle_room", "room_clock": 0.0},
+	}
+	var fh := FileAccess.open(adv_path, FileAccess.WRITE)
+	failed += _assert(fh != null, "write the newer adventure file")
+	if fh != null:
+		fh.store_string(JSON.stringify(fake, "\t"))
+		fh.close()
+	reach.call("reset_for_new_game")
+	var heard: Array[String] = []
+	var on_status := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", on_status)
+	var loaded: bool = bool(save_service.call("load_game", 7))
+	game_state.disconnect("status_message", on_status)
+	failed += _assert(loaded, "the main save still loads")
+	failed += _assert(bool(reach.get("running")), "the run comes from the main save")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms and rooms != 99, "rooms stay on the main save (got %d)" % int(reach.get("rooms_attempted")))
+	var why: String = str(save_service.get("last_load_error"))
+	failed += _assert(why.find("adventure") >= 0, "last_load_error names the adventure (got %s)" % why)
+	failed += _assert(not heard.is_empty() and heard[0].find("adventure") >= 0, "status message names the adventure")
+	failed += _assert(FileAccess.file_exists(adv_path), "the newer file is still on disk")
+	var still: Variant = JSON.parse_string(FileAccess.get_file_as_string(adv_path))
+	failed += _assert(still is Dictionary and int((still as Dictionary).get("adv_version", 0)) == 2, "adv_version 2 was not deleted")
+	var named: String = str(save_service.call("adventure_newer_message", 2))
+	failed += _assert(named.find("adventure") >= 0, "adventure_newer_message")
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot_path, slot_was)
+	if failed == 0:
+		print("ADVENTURE_NEWER_REFUSED_OK")
+	return failed
+
+
+func _handoff_party_rows() -> Array:
+	return [
+		{"member": "keeper", "row": "front", "stats": SlotEngine.member_stats("keeper")},
+		{"member": "elaia", "row": "back", "stats": SlotEngine.member_stats("elaia")},
+	]
+
+
+func _handoff_built_fight(seed: int, room_index: int, depth: int, loadout: Dictionary) -> FightState:
+	var room_seed: int = SlotEngine.room_seed_for(seed & 0x7FFFFFFF, room_index)
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, SlotEngine.is_boss_index(room_index))
+	var fight: FightState = SlotEngine.fight_for_room(_handoff_party_rows(), loadout, room, room_seed)
+	fight.controller = "manual"
+	fight.start_fight()
+	return fight
+
+
+func _handoff_on_party(fight: FightState) -> bool:
+	if fight == null or fight.outcome() != "":
+		return false
+	var actor_id: String = fight.current_actor()
+	if actor_id == "":
+		return false
+	return str(fight.fighter_dict(actor_id).get("side", "")) == "party"
+
+
+func _handoff_step_to_party(fight: FightState) -> void:
+	var guard: int = 0
+	while fight != null and fight.outcome() == "" and guard < 48:
+		guard += 1
+		if _handoff_on_party(fight):
+			return
+		fight.step({})
+
+
+func _handoff_full_hp(fight: FightState) -> bool:
+	if fight == null or fight.order.is_empty():
+		return false
+	for fighter_id: String in fight.order:
+		var row: Dictionary = fight.fighter_dict(fighter_id)
+		if int(row.get("hp", -1)) != int(row.get("max_hp", -2)):
+			return false
+	return true
+
+
+func _handoff_species_by_slot(fight: FightState) -> Array[String]:
+	## build_room lists beasts in slot order. fight.order is turn order.
+	var slots: Array[int] = []
+	var by_slot: Dictionary = {}
+	if fight == null:
+		return []
+	for fighter_id: String in fight.order:
+		var row: Dictionary = fight.fighter_dict(fighter_id)
+		if str(row.get("side", "")) != "beast":
+			continue
+		var slot: int = int(row.get("slot", 0))
+		slots.append(slot)
+		by_slot[slot] = str(row.get("species", ""))
+	slots.sort()
+	var out: Array[String] = []
+	for slot: int in slots:
+		out.append(str(by_slot[slot]))
+	return out
+
+
+func _handoff_bosses(fight: FightState) -> int:
+	var count: int = 0
+	if fight == null:
+		return 0
+	for fighter_id: String in fight.order:
+		if bool(fight.fighter_dict(fighter_id).get("boss", false)):
+			count += 1
+	return count
+
+
+func _handoff_boss_seed() -> int:
+	## Room 10, party acts first (so the view does not spend HP), and one Strike
+	## then idle Auto still wins or flees so the run reaches room 11.
+	for probe: int in range(1, 401):
+		var fight: FightState = _handoff_built_fight(probe, 10, 1, {})
+		if not _handoff_on_party(fight) or not _handoff_full_hp(fight):
+			continue
+		var actor_id: String = fight.current_actor()
+		var legal: Array = fight.legal_targets(actor_id)
+		if legal.is_empty():
+			continue
+		fight.step({"kind": "strike", "target": str(legal[0])})
+		if fight.outcome() != "":
+			continue
+		_handoff_step_to_party(fight)
+		if fight.outcome() != "":
+			continue
+		var outcome: String = AutoPolicy.run_idle(FightState.from_dict(fight.to_dict()))
+		if outcome != "win" and outcome != "flee":
+			continue
+		var nxt: FightState = _handoff_built_fight(probe, 11, 1, {})
+		if _handoff_on_party(nxt) and _handoff_full_hp(nxt):
+			return probe
+	return -1
+
+
+func _handoff_expired_seed() -> int:
+	for probe: int in range(1, 401):
+		var fight: FightState = _handoff_built_fight(probe, 1, 1, {})
+		if not _handoff_on_party(fight):
+			continue
+		var outcome: String = AutoPolicy.run_idle(FightState.from_dict(fight.to_dict()))
+		if outcome != "win" and outcome != "flee":
+			continue
+		var nxt: FightState = _handoff_built_fight(probe, 2, 1, {})
+		if _handoff_on_party(nxt) and _handoff_full_hp(nxt):
+			return probe
+	return -1
+
+
+func _handoff_deeper_seed() -> int:
+	for probe: int in range(1, 201):
+		var first: FightState = _handoff_built_fight(probe, 1, 1, {})
+		if not _handoff_on_party(first):
+			continue
+		if _reach_auto_strike_fight(first) != "win":
+			continue
+		var second: FightState = _handoff_built_fight(probe, 2, 2, {})
+		if _reach_auto_strike_fight(second) == "win":
+			return probe
+	return -1
+
+
+func _handoff_resume_seed() -> int:
+	var loadout: Dictionary = {"heart_salve": 2}
+	for probe: int in range(1, 41):
+		var fight: FightState = _handoff_built_fight(probe, 1, 1, loadout)
+		_handoff_step_to_party(fight)
+		if fight.outcome() != "":
+			continue
+		var alive: bool = true
+		for _swing: int in 2:
+			if not _handoff_on_party(fight):
+				alive = false
+				break
+			var legal: Array = fight.legal_targets(fight.current_actor())
+			if legal.is_empty():
+				alive = false
+				break
+			fight.step({"kind": "strike", "target": str(legal[0])})
+			if fight.outcome() != "":
+				alive = false
+				break
+			_handoff_step_to_party(fight)
+		if not alive or fight.outcome() != "" or not _handoff_on_party(fight):
+			continue
+		var target: String = ""
+		for fighter_id: String in fight.order:
+			var row: Dictionary = fight.fighter_dict(fighter_id)
+			if str(row.get("side", "")) == "party" and str(row.get("status", "")) == "active":
+				target = fighter_id
+				break
+		if target == "":
+			continue
+		fight.step({"kind": "item", "item": "heart_salve", "target": target})
+		if fight.salves_used != 1 or fight.outcome() != "":
+			continue
+		_handoff_step_to_party(fight)
+		if fight.outcome() == "" and _handoff_on_party(fight) and fight.salves_used == 1:
+			return probe
+	return -1
+
+
+func _handoff_depart(reach: Node, game_state: Node, seed: int, control: String, rooms: int, loadout: Dictionary) -> String:
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", seed)
+	return str(reach.call("depart_slots", {
+		"depth": 1,
+		"rooms": rooms,
+		"control": control,
+		"party": [{"member": "keeper", "row": "front"}, {"member": "elaia", "row": "back"}],
+		"loadout": loadout,
+	}))
+
+
+func _handoff_wait_party(view: BattleView, fight: FightState) -> bool:
+	for _i: int in 80:
+		if view == null or not is_instance_valid(view) or fight == null or fight.outcome() != "":
+			return false
+		if _handoff_on_party(fight):
+			view.call("_show_action_menu", fight.current_actor())
+			var idle_btn: Button = view.get_node_or_null("Arena/SideActions/IdleButton") as Button
+			if idle_btn != null and idle_btn.visible and not idle_btn.disabled:
+				return true
+		view.call("_advance")
+		await process_frame
+	return false
+
+
+func _handoff_press_idle(view: BattleView) -> bool:
+	if view == null or not is_instance_valid(view):
+		return false
+	var idle_btn: Button = view.get_node_or_null("Arena/SideActions/IdleButton") as Button
+	if idle_btn == null or idle_btn.disabled or not idle_btn.visible:
+		return false
+	idle_btn.emit_signal("pressed")
+	await process_frame
+	return true
+
+
+func _handoff_drink_salve(view: BattleView) -> bool:
+	if view == null or not is_instance_valid(view):
+		return false
+	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+	if salve_btn == null or not salve_btn.visible or salve_btn.disabled:
+		return false
+	salve_btn.emit_signal("pressed")
+	await process_frame
+	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
+	var picked: Button = null
+	if target_layer != null:
+		for child: Node in target_layer.get_children():
+			if str(child.name).begins_with("TargetButton_"):
+				picked = child as Button
+				break
+	if picked == null:
+		return false
+	picked.emit_signal("pressed")
+	await process_frame
+	return true
+
+
+func _handoff_assert_same(fight: FightState, before: Dictionary, salves: int, slots_before: int, slots_now: int, label: String) -> int:
+	var failed: int = 0
+	failed += _assert(fight != null, "%s fight is back" % label)
+	if fight == null:
+		return failed
+	var after: Dictionary = _fight_checkpoint(fight)
+	failed += _assert(int(after.get("round", -1)) == int(before.get("round", -2)), "%s round" % label)
+	failed += _assert(int(after.get("turn_cursor", -1)) == int(before.get("turn_cursor", -2)), "%s turn_cursor" % label)
+	failed += _assert(str(after.get("rng", "")) != "" and str(after.get("rng", "")) == str(before.get("rng", "x")), "%s rng_combat_state" % label)
+	var hp_before: Dictionary = before.get("hp", {}) as Dictionary
+	var hp_after: Dictionary = after.get("hp", {}) as Dictionary
+	failed += _assert(_hp_maps_equal(hp_before, hp_after), "%s HP (before %s after %s)" % [label, str(hp_before), str(hp_after)])
+	failed += _assert(fight.salves_used == salves, "%s salves_used == %d (got %d)" % [label, salves, fight.salves_used])
+	failed += _assert(slots_now == slots_before, "%s slots_used unchanged (before %d now %d)" % [label, slots_before, slots_now])
+	failed += _assert(str(fight.controller) == "manual", "%s controller is manual" % label)
+	return failed
+
+
+func _handoff_stamp_now(save_service: Node, slot: int) -> void:
+	var path: String = str(save_service.call("slot_path", slot))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	if not (parsed is Dictionary):
+		return
+	var root: Dictionary = parsed
+	root["timestamp"] = Time.get_unix_time_from_system()
+	var fh := FileAccess.open(path, FileAccess.WRITE)
+	if fh == null:
+		return
+	fh.store_string(JSON.stringify(root, "\t"))
+	fh.close()
+
+
+func _handoff_join_fresh(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "join fresh Reach")
+	if reach == null:
+		return failed
+	failed += _assert(reach.has_method("handoff_pending") and reach.has_method("hand_to_idle"), "handoff api")
+	if not reach.has_method("handoff_pending"):
+		return failed
+	_silence_echo(tree_root)
+	BattleViewScript.close_arena()
+	_reset_reach_test(tree_root, game_state, save_service)
+	var seed: int = _handoff_boss_seed()
+	failed += _assert(seed > 0, "join fresh: a party-first boss seed in 1..400")
+	if seed < 0:
+		return failed
+	var forced: Array = []
+	for _win: int in 9:
+		forced.append("win")
+	reach.call("debug_force_outcomes", forced)
+	failed += _assert(_handoff_depart(reach, game_state, seed, "idle", 20, {}) == "ok", "join fresh depart")
+	for _step: int in 9:
+		reach.call("advance_clock", 720.0)
+	failed += _assert(int(reach.get("rooms_attempted")) == 10, "idle run is on room 10 (got %d)" % int(reach.get("rooms_attempted")))
+	failed += _assert(bool(reach.call("is_boss_room")), "room 10 is the boss")
+	var slots_before: int = int(reach.get("slots_used"))
+	reach.call("set_control", "manual")
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(fight != null and fight.outcome() == "", "boss join opens a live fight")
+	failed += _assert(int(reach.get("rooms_attempted")) == 10, "joining does not spend the boss attempt")
+	failed += _assert(int(reach.get("slots_used")) == slots_before, "joining does not spend a slot")
+	if fight != null:
+		var depth: int = int(reach.get("depth"))
+		var room_seed: int = int(reach.get("room_seed"))
+		var expected: Array[String] = _reach_room_species_list(depth, room_seed, true)
+		var actual: Array[String] = _handoff_species_by_slot(fight)
+		failed += _assert(str(actual) == str(expected), "boss species match build_room (got %s)" % str(actual))
+		failed += _assert(_handoff_bosses(fight) == 1, "one beast is the boss (got %d)" % _handoff_bosses(fight))
+		failed += _assert(_handoff_full_hp(fight), "fresh boss fight is at full HP")
+		failed += _assert(fight.salves_used == 0, "fresh boss fight has used no Salves")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	failed += _assert(view != null, "boss arena is open")
+	if view == null or fight == null:
+		BattleViewScript.close_arena()
+		reach.call("reset_for_new_game")
+		return failed
+	failed += _assert(await _adventure_one_strike(view), "one Strike on the boss")
+	failed += _assert(fight.outcome() == "", "the Strike does not finish the boss")
+	var handed: Dictionary = fight.to_dict()
+	var log_before: int = (reach.get("room_log") as Array).size()
+	reach.call("set_control", "idle")
+	failed += _assert(bool(reach.call("handoff_pending")), "Idle hands off the struck fight")
+	failed += _assert(not bool(reach.call("fight_active")), "the arena fight is no longer manual")
+	failed += _assert(str(reach.get("phase")) == "idle_room" and str(reach.get("control")) == "idle", "the board is idle")
+	failed += _assert(int(reach.get("rooms_attempted")) == 10, "hand-off does not start a new attempt")
+	reach.call("advance_clock", 721.0)
+	var log: Array = reach.get("room_log") as Array
+	failed += _assert(log.size() == log_before + 1, "past 12 minutes the boss room resolves")
+	var resolved: String = ""
+	if not log.is_empty():
+		resolved = str((log[log.size() - 1] as Dictionary).get("outcome", ""))
+	var expected_outcome: String = AutoPolicy.run_idle(FightState.from_dict(handed))
+	failed += _assert(resolved == expected_outcome, "resolved outcome is the handed-off fight (got %s want %s)" % [resolved, expected_outcome])
+	failed += _assert(not bool(reach.call("handoff_pending")), "the hand-off is finished")
+	failed += _assert(int(reach.get("rooms_attempted")) == 11, "the next room is 11 (got %d)" % int(reach.get("rooms_attempted")))
+	var slots_next: int = int(reach.get("slots_used"))
+	reach.call("set_control", "manual")
+	var nxt: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(nxt != null, "room 11 opens")
+	failed += _assert(int(reach.get("rooms_attempted")) == 11, "the new join does not bump the counter again")
+	failed += _assert(int(reach.get("slots_used")) == slots_next, "the new join does not spend a slot")
+	if nxt != null:
+		var next_seed: int = int(reach.get("room_seed"))
+		var next_expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), next_seed, false)
+		var next_actual: Array[String] = _handoff_species_by_slot(nxt)
+		failed += _assert(str(next_actual) == str(next_expected), "room 11 species are fresh (got %s)" % str(next_actual))
+		failed += _assert(_handoff_full_hp(nxt) and nxt.salves_used == 0, "room 11 starts at full HP with no Salves used")
+		failed += _assert(not bool(reach.call("is_boss_room")), "room 11 is not a new boss attempt")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("HANDOFF_JOIN_FRESH_OK")
+	return failed
+
+
+func _handoff_prepare_resume(tree_root: Window, game_state: Node, reach: Node, backpack: Node, seed: int) -> FightState:
+	_reset_reach_test(tree_root, game_state, save_service_node(tree_root))
+	backpack.call("set_count", "heart_salve", 2)
+	if _handoff_depart(reach, game_state, seed, "manual", 6, {"heart_salve": 2}) != "ok":
+		return null
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	if view == null or fight == null:
+		return null
+	if not await _handoff_wait_party(view, fight):
+		return null
+	for _swing: int in 2:
+		if not await _adventure_one_strike(view):
+			return null
+		if fight.outcome() != "":
+			return null
+		if not await _handoff_wait_party(view, fight):
+			return null
+	if not await _handoff_drink_salve(view):
+		return null
+	if fight.salves_used != 1 or fight.outcome() != "":
+		return null
+	if not await _handoff_wait_party(view, fight):
+		return null
+	return fight
+
+
+func save_service_node(tree_root: Window) -> Node:
+	return tree_root.get_node_or_null("SaveService")
+
+
+func _handoff_resume(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## The press-to-600s clock checks assume no live frames step the room. An earlier
+	## test can leave a hub session open, so close it here and restore it afterwards.
+	var session_was: bool = bool(save_service.get("session_active"))
+	save_service.set("session_active", false)
+	var failed: int = await _handoff_resume_body(tree_root, game_state, save_service)
+	save_service.set("session_active", session_was)
+	return failed
+
+
+func _handoff_resume_body(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and backpack != null and strings != null, "resume autoloads")
+	if reach == null or backpack == null or strings == null:
+		return failed
+	failed += _assert(reach.has_method("handoff_pending"), "resume handoff api")
+	if not reach.has_method("handoff_pending"):
+		return failed
+	var adv_path: String = _adventure_path(save_service)
+	var slot_path: String = str(save_service.call("slot_path", 7))
+	var adv_was: Variant = _user_file_text(adv_path)
+	var slot_was: Variant = _user_file_text(slot_path)
+	_silence_echo(tree_root)
+	BattleViewScript.close_arena()
+	var seed: int = _handoff_resume_seed()
+	failed += _assert(seed > 0, "resume seed survives two Strikes and one Salve")
+	if seed < 0:
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	var fight: FightState = await _handoff_prepare_resume(tree_root, game_state, reach, backpack, seed)
+	var view: BattleView = _reach_live_view()
+	failed += _assert(fight != null and view != null and fight.salves_used == 1, "resume fight drank one Salve")
+	if fight == null or view == null:
+		BattleViewScript.close_arena()
+		reach.call("reset_for_new_game")
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	var before: Dictionary = _fight_checkpoint(fight)
+	var slots_before: int = int(reach.get("slots_used"))
+	var rooms_before: int = int(reach.get("rooms_attempted"))
+	var log_before: int = (reach.get("room_log") as Array).size()
+	failed += _assert(await _handoff_press_idle(view), "IdleButton hands the fight off")
+	failed += _assert(bool(reach.call("handoff_pending")), "hand-off is pending")
+	failed += _assert(str(reach.get("phase")) == "idle_room" and str(reach.get("control")) == "idle", "board says idle")
+	failed += _assert(is_equal_approx(float(reach.get("room_clock")), 0.0), "the 12 minutes start at the press")
+	failed += _assert(int(reach.get("slots_used")) == slots_before, "the press does not spend a slot")
+	reach.call("advance_clock", 600.0)
+	failed += _assert(bool(reach.call("handoff_pending")), "600s does not resolve the hand-off")
+	failed += _assert((reach.get("room_log") as Array).size() == log_before, "600s adds no room")
+	failed += _assert(is_equal_approx(float(reach.get("room_clock")), 600.0), "clock is at 600s")
+	var toast: String = str(strings.call("get_text", "adv_handoff_resumed"))
+	failed += _assert(toast == "You pick the fight back up, right where you left it.", "adv_handoff_resumed copy")
+	var heard: Array[String] = []
+	var on_status := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", on_status)
+	reach.call("set_control", "manual")
+	game_state.disconnect("status_message", on_status)
+	failed += _assert(heard.has(toast), "resume shows adv_handoff_resumed")
+	var resumed: FightState = reach.call("manual_fight") as FightState
+	failed += _handoff_assert_same(resumed, before, 1, slots_before, int(reach.get("slots_used")), "within 12 min")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms_before, "resume does not change rooms_attempted")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	# Through a save: hand off, save, load with no offline time, join.
+	fight = await _handoff_prepare_resume(tree_root, game_state, reach, backpack, seed)
+	view = _reach_live_view()
+	failed += _assert(fight != null and view != null, "save-path fight")
+	if fight == null or view == null:
+		BattleViewScript.close_arena()
+		reach.call("reset_for_new_game")
+		_restore_user_file(adv_path, adv_was)
+		_restore_user_file(slot_path, slot_was)
+		return failed
+	before = _fight_checkpoint(fight)
+	slots_before = int(reach.get("slots_used"))
+	rooms_before = int(reach.get("rooms_attempted"))
+	failed += _assert(await _handoff_press_idle(view), "save-path IdleButton")
+	failed += _assert(bool(save_service.call("save_game", 7)), "save the hand-off in slot 7")
+	_handoff_stamp_now(save_service, 7)
+	reach.call("reset_for_new_game")
+	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7")
+	for _frame: int in 4:
+		await process_frame
+	failed += _assert(not BattleViewScript.is_open(), "0s offline does not open the fight")
+	failed += _assert(bool(reach.call("handoff_pending")), "load restores the hand-off")
+	failed += _assert(not bool(reach.call("fight_active")), "load does not resume by itself")
+	failed += _assert(float(reach.get("room_clock")) < 1.0, "offline catch-up added no room time (clock %s)" % str(reach.get("room_clock")))
+	reach.call("set_control", "manual")
+	var loaded: FightState = reach.call("manual_fight") as FightState
+	failed += _handoff_assert_same(loaded, before, 1, slots_before, int(reach.get("slots_used")), "saved hand-off")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms_before, "saved resume keeps the room")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	_restore_user_file(adv_path, adv_was)
+	_restore_user_file(slot_path, slot_was)
+	if failed == 0:
+		print("HANDOFF_RESUME_OK")
+	return failed
+
+
+func _handoff_expired(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "expired Reach")
+	if reach == null:
+		return failed
+	failed += _assert(reach.has_method("handoff_pending"), "expired handoff api")
+	if not reach.has_method("handoff_pending"):
+		return failed
+	_silence_echo(tree_root)
+	BattleViewScript.close_arena()
+	_reset_reach_test(tree_root, game_state, save_service)
+	var seed: int = _handoff_expired_seed()
+	failed += _assert(seed > 0, "expired seed continues and the next room is party-first")
+	if seed < 0:
+		return failed
+	failed += _assert(_handoff_depart(reach, game_state, seed, "manual", 8, {}) == "ok", "expired depart")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and fight != null, "expired fight opens")
+	if view == null or fight == null:
+		return failed
+	failed += _assert(await _handoff_wait_party(view, fight), "expired waits on the party")
+	var slots_before: int = int(reach.get("slots_used"))
+	var rooms_before: int = int(reach.get("rooms_attempted"))
+	var log_before: int = (reach.get("room_log") as Array).size()
+	failed += _assert(await _handoff_press_idle(view), "expired IdleButton")
+	var handed: Dictionary = fight.to_dict()
+	reach.call("advance_clock", 719.0)
+	failed += _assert(bool(reach.call("handoff_pending")), "719s leaves the hand-off pending")
+	failed += _assert((reach.get("room_log") as Array).size() == log_before, "719s resolves nothing")
+	failed += _assert(int(reach.get("slots_used")) == slots_before, "719s spends no slot")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms_before, "719s stays on this room")
+	reach.call("advance_clock", 1.0)
+	var log: Array = reach.get("room_log") as Array
+	failed += _assert(log.size() == log_before + 1, "720s adds this room")
+	var resolved: String = ""
+	if not log.is_empty():
+		resolved = str((log[log.size() - 1] as Dictionary).get("outcome", ""))
+	var expected_outcome: String = AutoPolicy.run_idle(FightState.from_dict(handed))
+	failed += _assert(resolved == expected_outcome, "outcome matches run_idle on the press clone (got %s want %s)" % [resolved, expected_outcome])
+	failed += _assert(int(reach.get("slots_used")) == slots_before + 1, "the room spends one slot")
+	failed += _assert(not bool(reach.call("handoff_pending")), "expired hand-off is cleared")
+	var rooms_next: int = int(reach.get("rooms_attempted"))
+	var slots_next: int = int(reach.get("slots_used"))
+	failed += _assert(rooms_next == rooms_before + 1, "the next room is open (got %d)" % rooms_next)
+	reach.call("set_control", "manual")
+	var nxt: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(nxt != null, "join opens the next room")
+	failed += _assert(int(reach.get("rooms_attempted")) == rooms_next, "join does not bump rooms_attempted")
+	failed += _assert(int(reach.get("slots_used")) == slots_next, "join does not spend another slot")
+	if nxt != null:
+		var expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), int(reach.get("room_seed")), bool(reach.call("is_boss_room")))
+		var actual: Array[String] = _handoff_species_by_slot(nxt)
+		failed += _assert(str(actual) == str(expected), "next room species are fresh")
+		failed += _assert(_handoff_full_hp(nxt) and nxt.salves_used == 0, "next room is full HP with no Salves used")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("HANDOFF_EXPIRED_OK")
+	return failed
+
+
+func _handoff_idle(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(reach != null and backpack != null and strings != null, "idle handoff autoloads")
+	if reach == null or backpack == null or strings == null:
+		return failed
+	failed += _assert(reach.has_method("hand_to_idle"), "idle handoff api")
+	if not reach.has_method("hand_to_idle"):
+		return failed
+	_silence_echo(tree_root)
+	BattleViewScript.close_arena()
+	_reset_reach_test(tree_root, game_state, save_service)
+	failed += _assert(bool(BattleViewScript.open_arena()), "test fight arena opens")
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	var test_view: BattleView = views[0] as BattleView if views.size() == 1 else null
+	failed += _assert(test_view != null, "test fight view")
+	if test_view != null:
+		test_view.call("start_test_fight", 1, false, true, 12345)
+		await process_frame
+		var test_idle: Button = test_view.get_node_or_null("Arena/SideActions/IdleButton") as Button
+		failed += _assert(test_idle != null and test_idle.disabled, "IdleButton is disabled in the test fight")
+		failed += _assert(test_idle != null and test_idle.tooltip_text.find("Not in the test fight") >= 0, "test fight keeps the later tooltip")
+	BattleViewScript.close_arena()
+	await process_frame
+	backpack.call("set_count", "heart_salve", 3)
+	failed += _assert(_handoff_depart(reach, game_state, 1, "manual", 8, {"heart_salve": 3}) == "ok", "salve depart")
+	await process_frame
+	var view: BattleView = _reach_live_view()
+	var fight: FightState = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and fight != null, "reach fight for Idle")
+	if view == null or fight == null:
+		reach.call("reset_for_new_game")
+		return failed
+	failed += _assert(await _handoff_wait_party(view, fight), "reach party turn")
+	var reach_idle: Button = view.get_node_or_null("Arena/SideActions/IdleButton") as Button
+	var tip: String = str(strings.call("get_text", "adv_menu_idle_tip"))
+	failed += _assert(tip == "Hand this fight to idle Auto. It finishes in 12 minutes. Join again before then to pick it back up.", "adv_menu_idle_tip copy")
+	failed += _assert(reach_idle != null and not reach_idle.disabled and reach_idle.tooltip_text == tip, "IdleButton is enabled on a reach party turn")
+	view.call("_apply_battle_speed", 4)
+	var toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
+	failed += _assert(toggle != null, "Strike for me toggle")
+	if toggle != null:
+		toggle.set_pressed_no_signal(true)
+	view.call("_refresh_speed_buttons")
+	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
+	var speed4: Button = view.get_node_or_null("Arena/SpeedBar/Speed4x") as Button
+	var playback: BattlePlayback = view.get_playback()
+	failed += _assert(bool(view.call("strike_for_me_on")), "Strike for me is on")
+	failed += _assert(playback != null and int(playback.speed) == 1, "Auto speed is 1x")
+	failed += _assert(speed2 != null and speed2.disabled and speed4 != null and speed4.disabled, "SpeedBar 2x and 4x are disabled")
+	if toggle != null:
+		toggle.set_pressed_no_signal(false)
+	view.call("_refresh_speed_buttons")
+	view.call("_show_action_menu", fight.current_actor())
+	failed += _assert(await _handoff_drink_salve(view), "drink one Salve")
+	failed += _assert(fight.salves_used == 1, "one Salve is counted before the hand-off")
+	failed += _assert(await _handoff_wait_party(view, fight), "party turn after the Salve")
+	failed += _assert(await _handoff_press_idle(view), "hand the salve fight to idle")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(fight.salves_used >= 1 and fight.salves_used <= 2, "Auto drank at most one more (salves_used %d)" % fight.salves_used)
+	var left: int = int((reach.get("loadout") as Dictionary).get("heart_salve", 0))
+	failed += _assert(left == 3 - fight.salves_used, "loadout dropped by exactly salves_used (left %d used %d)" % [left, fight.salves_used])
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	var deeper_seed: int = _handoff_deeper_seed()
+	failed += _assert(deeper_seed > 0, "a resumed win can Go deeper and Head home")
+	if deeper_seed < 0:
+		return failed
+	failed += _assert(_handoff_depart(reach, game_state, deeper_seed, "manual", 3, {}) == "ok", "deeper depart")
+	await process_frame
+	view = _reach_live_view()
+	fight = reach.call("manual_fight") as FightState
+	failed += _assert(view != null and await _handoff_wait_party(view, fight), "deeper fight is on the party")
+	if view == null:
+		reach.call("reset_for_new_game")
+		return failed
+	failed += _assert(await _handoff_press_idle(view), "hand off before the resumed win")
+	reach.call("advance_clock", 30.0)
+	reach.call("set_control", "manual")
+	await process_frame
+	view = _reach_live_view()
+	failed += _assert(view != null and bool(reach.call("fight_active")), "resume opens the same room")
+	if view == null:
+		reach.call("reset_for_new_game")
+		return failed
+	await _reach_step_strike_for_me(view, view._fight)
+	var panel: Panel = await _reach_wait_end_panel(view)
+	failed += _assert(panel != null and panel.visible, "end panel after the resumed win")
+	var deeper: Button = view.find_child("EndDeeper", true, false) as Button
+	failed += _assert(deeper != null, "Go deeper is on the resumed win")
+	if deeper != null:
+		deeper.emit_signal("pressed")
+	for _open: int in 120:
+		await process_frame
+		if int(reach.get("depth")) == 2 and bool(reach.call("fight_active")):
+			break
+	failed += _assert(int(reach.get("depth")) == 2, "Go deeper raises depth")
+	failed += _assert(int(reach.get("slots_used")) == 1, "the resumed win spent one slot")
+	view = _reach_live_view()
+	failed += _assert(view != null, "the next room's arena")
+	if view == null:
+		reach.call("reset_for_new_game")
+		return failed
+	await _reach_step_strike_for_me(view, view._fight)
+	panel = await _reach_wait_end_panel(view)
+	var home: Button = view.find_child("EndHome", true, false) as Button
+	failed += _assert(home != null, "Head home is on the next win")
+	if home != null:
+		home.emit_signal("pressed")
+	await process_frame
+	failed += _assert(not bool(reach.get("running")), "Head home ends the run")
+	failed += _assert(str((reach.get("last_summary") as Dictionary).get("reason", "")) == "head_home", "summary is head home")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("HANDOFF_IDLE_OK")
 	return failed

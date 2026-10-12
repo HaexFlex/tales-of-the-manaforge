@@ -1,0 +1,297 @@
+{
+ "margins_order": "left, top, right, bottom",
+ "pieces": {
+  "frame_720x448.png": {
+   "margins": [
+    24,
+    24,
+    24,
+    24
+   ],
+   "rect": [
+    280,
+    136,
+    720,
+    448
+   ],
+   "note": "drawn 1:1; parchment inner 300,156-980,564; play bevel baked around 320,200,640,320"
+  },
+  "frame_9s_96.png": {
+   "margins": [
+    24,
+    24,
+    24,
+    24
+   ],
+   "axis_stretch": "TILE",
+   "tile_period": 48
+  },
+  "play_bevel_9s_6x6.png": {
+   "margins": [
+    2,
+    2,
+    2,
+    2
+   ],
+   "rect": [
+    318,
+    198,
+    644,
+    324
+   ],
+   "centre": "transparent"
+  },
+  "title_plate_312x46.png": {
+   "rect": [
+    484,
+    113,
+    312,
+    46
+   ],
+   "plank_in_sprite": [
+    12,
+    3,
+    288,
+    40
+   ],
+   "text_rect": [
+    496,
+    116,
+    288,
+    40
+   ]
+  },
+  "title_plank_3s_48x40.png": {
+   "margins": [
+    16,
+    0,
+    16,
+    0
+   ],
+   "axis_stretch": "STRETCH"
+  },
+  "wood_button_9s_*_32x28.png": {
+   "margins": [
+    6,
+    6,
+    6,
+    6
+   ],
+   "axis_stretch": "STRETCH",
+   "pressed_content_offset": [
+    0,
+    2
+   ]
+  },
+  "stop_button_*_104x28.png": {
+   "rect": [
+    856,
+    528,
+    104,
+    28
+   ],
+   "label_at": [
+    8,
+    4
+   ],
+   "keycap_at": [
+    76,
+    4
+   ]
+  },
+  "keycap_esc.png": {
+   "canvas": [
+    28,
+    20
+   ],
+   "cap": [
+    0,
+    0,
+    24,
+    15
+   ]
+  },
+  "keycap_9s_14x15.png": {
+   "margins": [
+    3,
+    3,
+    3,
+    4
+   ],
+   "legend_colour": "#3E2A18"
+  },
+  "pip_*_12.png": {
+   "size": [
+    12,
+    12
+   ],
+   "pitch": 15
+  },
+  "pip_pop_16x16_3f.png": {
+   "frames": 3,
+   "frame_size": [
+    16,
+    16
+   ],
+   "offset_from_pip": [
+    -2,
+    -2
+   ]
+  },
+  "pace_track_136x18.png": {
+   "rect": [
+    804,
+    172,
+    136,
+    18
+   ],
+   "fill_rect_in_track": [
+    2,
+    2,
+    132,
+    8
+   ],
+   "ticks_x": {
+    "1x": 2,
+    "2x": 68,
+    "3x": 133
+   }
+  },
+  "pace_fill_*_132x8.png": {
+   "rect_in_track": [
+    2,
+    2,
+    132,
+    8
+   ],
+   "row_uniform": true
+  },
+  "fb_*.png": {
+   "anchor": "centre"
+  },
+  "fx_perfect_32x32_4f.png": {
+   "frames": 4,
+   "frame_size": [
+    32,
+    32
+   ],
+   "anchor": [
+    15,
+    15
+   ]
+  },
+  "fx_good_24x24_4f.png": {
+   "frames": 4,
+   "frame_size": [
+    24,
+    24
+   ],
+   "anchor": [
+    11,
+    12
+   ]
+  },
+  "fx_miss_24x24_3f.png": {
+   "frames": 3,
+   "frame_size": [
+    24,
+    24
+   ],
+   "anchor": [
+    12,
+    18
+   ]
+  },
+  "num_8x11_sheet.png": {
+   "glyph_rects": "num_8x11.json"
+  },
+  "toast_9s_40x30.png": {
+   "margins": [
+    12,
+    8,
+    12,
+    8
+   ],
+   "height": 30,
+   "rect": "centred under frame, y 592"
+  },
+  "bubble_body_9s_*_24x26.png": {
+   "margins": [
+    7,
+    7,
+    7,
+    7
+   ],
+   "tail_at": [
+    "w/2-6",
+    "h-3"
+   ]
+  },
+  "bubble_*_128x33.png": {
+   "tip": [
+    64,
+    32
+   ]
+  },
+  "bubble_tail_*_13x10.png": {
+   "tip": [
+    6,
+    9
+   ]
+  },
+  "bubble_pop_128x40_3f.png": {
+   "frames": 3,
+   "frame_size": [
+    128,
+    40
+   ],
+   "tip": [
+    64,
+    39
+   ]
+  },
+  "gauge_frame_40x240.png": {
+   "glass_rect": [
+    8,
+    8,
+    24,
+    224
+   ],
+   "ticks_y": {
+    "25%": 176,
+    "50%": 120,
+    "75%": 64
+   }
+  },
+  "gauge_frame_9s_40x24.png": {
+   "margins": [
+    8,
+    8,
+    8,
+    8
+   ],
+   "axis_stretch": "STRETCH"
+  },
+  "gauge_band_9s_40x12.png": {
+   "margins": [
+    8,
+    3,
+    8,
+    3
+   ],
+   "centre": "transparent"
+  },
+  "gauge_arrow_r_6x11.png": {
+   "tip": [
+    5,
+    5
+   ]
+  },
+  "gauge_arrow_l_6x11.png": {
+   "tip": [
+    0,
+    5
+   ]
+  }
+ }
+}

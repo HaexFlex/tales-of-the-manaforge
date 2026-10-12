@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 13 — reach boss room counter. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 14 — one backpack, expedition marker. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -14,7 +14,7 @@ var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
 
-const SAVE_VERSION: int = 13
+const SAVE_VERSION: int = 14
 ## Never read a save newer than this build writes: unknown fields would be dropped silently.
 const SAVE_VERSION_MAX_READ: int = SAVE_VERSION
 const SAVE_SLOT_COUNT: int = 7
@@ -23,16 +23,27 @@ const AUTOSAVE_THROTTLE_SEC: float = 60.0
 const LEGACY_SAVE_PATH: String = "user://manaforge_save.json"
 const SLOT_PATH_FMT: String = "user://manaforge_save_slot_%d.json"
 const AUTOSAVE_PATH_FMT: String = "user://manaforge_autosave_%d.json"
+## Separate from the 7 manual slots and the 3 autosaves. One live run.
+const ADV_VERSION: int = 1
+const ADVENTURE_PATH: String = "user://manaforge_adventure.json"
 
 var _last_autosave_msec: int = -100000000
 var _autosave_coalesce_sec: float = 1.2
 var _autosave_serial: int = 0
 ## Player-facing reason the last load failed ("" after a good load).
 var last_load_error: String = ""
+## Id of the main save last written or loaded this session. 0 means none yet.
+var current_save_id: int = 0
+var _save_id_rng := RandomNumberGenerator.new()
+## True for the whole load pass (Forge, then the expedition). Saves refuse.
+var catchup_running: bool = false
+## Set when a load pass runs: "forge" then "reach".
+var last_catchup_order: Array[String] = []
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_save_id_rng.randomize()
 	migrate_legacy_save_if_needed()
 
 
@@ -146,19 +157,40 @@ func debug_set_last_autosave_age(seconds: float) -> void:
 
 
 func _battle_blocks_save() -> bool:
+	if catchup_running:
+		return true
+	if has_node("/root/Reach") and Reach.catching_up:
+		return true
 	return has_node("/root/EchoChamber") and EchoChamber.in_battle
 
 
 func _write_payload(path: String, slot: int, kind: String, stamped: float = -1.0) -> bool:
 	var when: float = stamped if stamped >= 0.0 else Time.get_unix_time_from_system()
+	var save_id: int = _fresh_save_id()
 	var payload: Dictionary = {
 		"save_version": SAVE_VERSION,
+		"save_id": save_id,
 		"timestamp": when,
 		"slot": slot,
 		"kind": kind,
 		"state": GameState.to_save_dict(),
 	}
-	return _write_atomic(path, JSON.stringify(payload, "\t"))
+	var ok: bool = _write_atomic(path, JSON.stringify(payload, "\t"))
+	if not ok:
+		return false
+	current_save_id = save_id
+	## The adventure file's owner follows the newest main save while a run is out.
+	if has_node("/root/Reach") and bool(Reach.running):
+		write_adventure()
+	return true
+
+
+func _fresh_save_id() -> int:
+	## 31-bit, never 0. A missing save_id loads as 0 and must not match a real write.
+	var n: int = _save_id_rng.randi() & 0x7FFFFFFF
+	if n == 0:
+		n = 1
+	return n
 
 
 func _write_atomic(path: String, json_text: String) -> bool:
@@ -251,10 +283,95 @@ func _load_path(path: String) -> bool:
 	if typeof(state) != TYPE_DICTIONARY:
 		load_completed.emit(false)
 		return false
-	GameState.apply_save_dict(_migrate(version, state as Dictionary))
+	var migrated: Dictionary = _migrate(version, state as Dictionary)
+	var reach_v: Variant = migrated.get("reach", {})
+	if typeof(reach_v) == TYPE_DICTIONARY:
+		var reach_block: Dictionary = reach_v
+		if bool(reach_block.get("running", false)) and not reach_block.has("slots_total"):
+			clear_legacy_run(migrated)
+	GameState.apply_save_dict(migrated)
+	current_save_id = int(root.get("save_id", 0))
+	_apply_loaded_adventure()
 	_apply_offline_catchup(root)
 	load_completed.emit(true)
 	return true
+
+
+func write_adventure() -> bool:
+	## Refused during catch-up (and any other save block). Does not touch slot files.
+	if _battle_blocks_save():
+		return false
+	if not has_node("/root/Reach"):
+		return false
+	Reach.sync_manual_loadout()
+	var fight_payload: Variant = null
+	if bool(Reach.fight_active()):
+		var live: FightState = Reach.manual_fight()
+		if live != null:
+			fight_payload = live.to_dict()
+	var payload: Dictionary = {
+		"adv_version": ADV_VERSION,
+		"owner_save_id": current_save_id,
+		"run_id": int(Reach.run_id),
+		"written_at": Time.get_unix_time_from_system(),
+		"reach": Reach.capture_run_block(),
+		"fight": fight_payload,
+		"phase_detail": {
+			"phase": str(Reach.phase),
+			"room_clock": float(Reach.room_clock),
+		},
+	}
+	return _write_atomic(ADVENTURE_PATH, JSON.stringify(payload, "\t"))
+
+
+func write_adventure_raw(d: Dictionary) -> bool:
+	## Debug snapshots only (the Mid-fight loader). Refused unless Reach.debug_tools().
+	if not has_node("/root/Reach") or not bool(Reach.debug_tools()):
+		return false
+	if d.is_empty() or int(d.get("adv_version", 0)) > ADV_VERSION:
+		return false
+	return _write_atomic(ADVENTURE_PATH, JSON.stringify(d, "\t"))
+
+
+func read_adventure() -> Dictionary:
+	var root: Dictionary = _read_root(ADVENTURE_PATH)
+	return root
+
+
+func clear_adventure() -> void:
+	_remove_if_exists(ADVENTURE_PATH)
+	_remove_if_exists(ADVENTURE_PATH + ".tmp")
+	_remove_if_exists(ADVENTURE_PATH + ".bak")
+
+
+func adventure_newer_message(v: int) -> String:
+	return "This adventure file is from a newer version (v%d). This build reads adventure files up to v%d." % [v, ADV_VERSION]
+
+
+func _apply_loaded_adventure() -> void:
+	## After the main save, before offline catch-up. A mismatch leaves the file alone.
+	if not has_node("/root/Reach"):
+		return
+	var adv: Dictionary = read_adventure()
+	if adv.is_empty():
+		return
+	var ver: int = int(adv.get("adv_version", 0))
+	if ver > ADV_VERSION:
+		last_load_error = adventure_newer_message(ver)
+		push_error("SaveService: ignored adventure v%d, newer than this build (reads up to v%d)" % [ver, ADV_VERSION])
+		if has_node("/root/GameState"):
+			GameState.status_message.emit(last_load_error)
+		return
+	if int(adv.get("owner_save_id", -1)) != current_save_id:
+		return
+	if int(adv.get("run_id", -1)) != int(Reach.run_id):
+		return
+	var reach_v: Variant = adv.get("reach", {})
+	if typeof(reach_v) == TYPE_DICTIONARY:
+		Reach.apply_run_block(reach_v)
+	var fight_v: Variant = adv.get("fight", null)
+	if typeof(fight_v) == TYPE_DICTIONARY:
+		Reach.restore_manual_fight(FightState.from_dict(fight_v))
 
 
 func newer_save_message(version: int) -> String:
@@ -502,6 +619,8 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v12(out)
 	if from_version < 13:
 		_migrate_v13(out)
+	if from_version < 14:
+		_migrate_v14(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -551,10 +670,6 @@ func _migrate_v12(out: Dictionary) -> void:
 			"deepest_depth": 0,
 			"reaches_cleared": 0,
 			"dojo_exp": 0,
-			"briarwood": 0,
-			"herbs": 0,
-			"heart_salve": 0,
-			"bile_vial": 0,
 			"running": false,
 			"pace": "hold",
 			"control": "idle",
@@ -584,6 +699,74 @@ func _migrate_v13(out: Dictionary) -> void:
 		guessed = 1
 	reach["rooms_attempted"] = guessed
 	out["reach"] = reach
+
+
+func _migrate_v14(out: Dictionary) -> void:
+	## Reach's four counters join the backpack (add, never overwrite; a zero total adds no stack,
+	## so players never see empty stacks). expedition is only a status
+	## marker here. Later jobs add fields on that dictionary, each with a default, and must not
+	## replace a status that is already set.
+	var reach_v: Variant = out.get("reach", {})
+	var reach: Dictionary = (reach_v as Dictionary).duplicate(true) if typeof(reach_v) == TYPE_DICTIONARY else {}
+	var pack_v: Variant = out.get("backpack", {})
+	var pack: Dictionary = (pack_v as Dictionary).duplicate(true) if typeof(pack_v) == TYPE_DICTIONARY else {}
+	for item_id: String in ["briarwood", "herbs", "heart_salve", "bile_vial"]:
+		var have := 0
+		if pack.has(item_id):
+			have = maxi(0, int(pack[item_id]))
+		var moved := 0
+		if reach.has(item_id):
+			moved = maxi(0, int(reach[item_id]))
+			reach.erase(item_id)
+		if have + moved > 0:
+			pack[item_id] = have + moved
+		else:
+			pack.erase(item_id)
+	out["backpack"] = pack
+	out["reach"] = reach
+	## Job 25 is cut (Haex 2026-10-10): a v13-era run that is still out is cleared, never converted.
+	clear_legacy_run(out)
+	var exp_v: Variant = out.get("expedition", {})
+	var exp: Dictionary = (exp_v as Dictionary).duplicate(true) if typeof(exp_v) == TYPE_DICTIONARY else {}
+	if str(exp.get("status", "")) == "":
+		if bool(reach.get("running", false)):
+			exp["status"] = "out_legacy"
+		elif str(out.get("expedition_lantern", "")) == "cyan":
+			exp["status"] = "finished_unseen"
+			exp["summary"] = "from an older save"
+		else:
+			exp["status"] = "home"
+	out["expedition"] = exp
+
+
+func clear_legacy_run(out: Dictionary) -> bool:
+	## Ends a run from the old (pre-slot) engine in a save state, with no conversion.
+	## Kept: deepest_depth, reaches_cleared, dojo_exp, and everything already banked
+	## (the four reach items are in the backpack by now). The lantern goes dark and the
+	## expedition is home, marked legacy_run_cleared. Returns true when a run was cleared.
+	## The v14 migration calls it for v13-era saves; the slot engine (job 24) calls it for a
+	## v14 save whose expedition is still out_legacy.
+	var reach_v: Variant = out.get("reach", {})
+	if typeof(reach_v) != TYPE_DICTIONARY or not bool((reach_v as Dictionary).get("running", false)):
+		return false
+	var reach: Dictionary = (reach_v as Dictionary).duplicate(true)
+	var blank: Dictionary = {
+		"running": false, "pace": "hold", "control": "idle", "depth": 1, "hours": 1.0,
+		"elapsed": 0.0, "room_left": 0.0, "phase": "home", "run_clears": 0,
+		"rooms_attempted": 0, "salve_used": false, "mix": [],
+	}
+	for key: String in blank.keys():
+		reach[key] = blank[key]
+	out["reach"] = reach
+	if str(out.get("expedition_lantern", "dark")) == "amber":
+		out["expedition_lantern"] = "dark"
+	var exp_v: Variant = out.get("expedition", {})
+	var exp: Dictionary = (exp_v as Dictionary).duplicate(true) if typeof(exp_v) == TYPE_DICTIONARY else {}
+	exp["status"] = "home"
+	exp.erase("summary")
+	exp["legacy_run_cleared"] = true
+	out["expedition"] = exp
+	return true
 
 
 func _infer_forge_visited(out: Dictionary) -> bool:
@@ -720,11 +903,17 @@ func _apply_offline_catchup(root: Dictionary) -> void:
 	var closed: float = Time.get_unix_time_from_system() - ts
 	if closed < 1.0:
 		return
-	if has_node("/root/ForgeJobs"):
-		ForgeJobs.apply_saved_offline_gap(closed)
-	## Road time is the raw gap. Play speed does not stretch a closed game.
+	## Forge first, then the expedition. Saves stay blocked until both return.
+	catchup_running = true
+	var order: Array[String] = []
+	ForgeJobs.apply_saved_offline_gap(closed)
+	order.append("forge")
+	## Road time is the raw gap. Play speed and Rush do not stretch a closed game.
 	if has_node("/root/Reach"):
 		Reach.apply_offline_seconds(closed)
+		order.append("reach")
+	last_catchup_order = order
+	catchup_running = false
 
 
 func _migrate_equipped_key_to_inventory(out: Dictionary) -> void:

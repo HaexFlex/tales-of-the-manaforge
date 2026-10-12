@@ -1,1 +1,1 @@
-# Place .ogg cues here; wire paths in data/audio_cues.json. Hub music stays on through gather/walk.
+# Place .ogg cues here; wire paths in data/audio_cues.json. Hub music stays on through gather/walk. Reach manual fights use mus_battle_forest.ogg (Bramble Dance) on the same Music player while the hub bed is suspended.

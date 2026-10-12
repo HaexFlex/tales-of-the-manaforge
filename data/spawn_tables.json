@@ -1,0 +1,344 @@
+{
+ "status": "DRAFT data from BATTLE_SCENE_DRAFT v4 §10 (weights and budget tweakable). The spawn roller (job 15) reads the budget, fill and tables; the loot block waits for jobs 23b/24.",
+ "budget": {
+  "depth_1": 85,
+  "step_from_depth": 2,
+  "initial_step": 4,
+  "depths_per_step_band": 10,
+  "step_increase_per_band": 2,
+  "note": "B(1)=depth_1. From depth step_from_depth onward, each depth adds a step; the step grows by step_increase_per_band every depths_per_step_band depths (4 for depths 2-10, 6 for 11-20, 8 for 21-30, ...)."
+ },
+ "fill": {
+  "max_beasts": 6,
+  "beast_floor_ratio": 0.9,
+  "note": "Beasts: enumerate multisets from every species on any spawn table with depth <= the room depth (earlier beasts never drop out). Weight = entry on the latest table at or below the room if listed there, else the weight from the latest earlier table that listed it. Keep every set at or above beast_floor_ratio x budget when any set can; otherwise max-threat sets. Prefer the most distinct species (A and dark/B count once). Pick among ties by the product of those weights with the room seed. Swarms spend leftover threat after place_rows (grow one swarm to 10 bugs before opening the next). Mossmites are not in these tables."
+ },
+ "table_rule": "Odds come from the latest table at or below the room depth; the roller pool keeps every beast from earlier tables with carry-forward weights.",
+ "tables": [
+  {
+   "depth": 1,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 1
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 3,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 8
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 8
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 1
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 5,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 12
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 12
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 4
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 4
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 1
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 8,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 4
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 4
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 6
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 6
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 1
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 10,
+   "weights": [
+    {
+     "beast": "acorn_imp",
+     "weight": 2
+    },
+    {
+     "beast": "spore_moth",
+     "weight": 2
+    },
+    {
+     "beast": "wilt_wisp",
+     "weight": 6
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 6
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 2
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 12,
+   "weights": [
+    {
+     "beast": "wilt_wisp",
+     "weight": 4
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 4
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 2
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 1
+    },
+    {
+     "beast": "thorn_boar",
+     "weight": 1
+    },
+    {
+     "beast": "vine_serpent",
+     "weight": 1
+    }
+   ]
+  },
+  {
+   "depth": 15,
+   "weights": [
+    {
+     "beast": "wilt_wisp",
+     "weight": 3
+    },
+    {
+     "beast": "root_snapper",
+     "weight": 3
+    },
+    {
+     "beast": "acorn_imp_dark",
+     "weight": 2
+    },
+    {
+     "beast": "spore_moth_dark",
+     "weight": 2
+    },
+    {
+     "beast": "thorn_boar",
+     "weight": 2
+    },
+    {
+     "beast": "vine_serpent",
+     "weight": 2
+    }
+   ]
+  }
+ ],
+ "loot": {
+  "status": "Job 23 numbers, approved by Haex 2026-10-10 (go 22:51). Nothing reads this yet; the pack (job 23b) and the slot engine (job 24) will.",
+  "depth_curve": {
+   "formula": "g(D) = 1 + a * log2(D)",
+   "a": 0.25,
+   "note": "g(1) = 1, g(2) = 1.25, g(4) = 1.5, g(16) = 2."
+  },
+  "herbs_by_depth": {
+   "per": "cleared room",
+   "base": {
+    "solo": {
+     "guaranteed": 0,
+     "bonus_chance": 0.5,
+     "avg": 0.5
+    },
+    "duo": {
+     "guaranteed": 1,
+     "bonus_chance": 0.5,
+     "avg": 1.5
+    }
+   },
+   "party_size_rule": "1 member = solo; 2 or more = duo (current default).",
+   "extra_rule": "x = base avg * (g(D) - 1); extra herbs = floor(x), plus one more with probability frac(x). Added on top of the base roll.",
+   "types": [
+    "glowcap",
+    "bitterroot"
+   ],
+   "type_weights": [
+    50,
+    50
+   ],
+   "type_rule": "Each herb is rolled on its own: Glowcap or Bitterroot, 50/50.",
+   "boss_mult": 1,
+   "note": "Boss rooms already double room loot in the slot engine (job 24); this table adds no extra multiplier."
+  },
+  "briarwood": {
+   "base": {
+    "solo": {
+     "guaranteed": 0,
+     "bonus_chance": 0.5
+    },
+    "duo": {
+     "guaranteed": 1,
+     "bonus_chance": 0.5
+    }
+   },
+   "scales_with_depth": false,
+   "note": "Locked drop rates; flat by depth. Twists never change them."
+  },
+  "bonus_drop_chance": 0.1,
+  "bonus_drop_contents": {
+   "per": "cleared room, one bundle at most",
+   "depth_bands": [
+    {
+     "min_depth": 1,
+     "max_depth": 4
+    },
+    {
+     "min_depth": 5,
+     "max_depth": 14
+    },
+    {
+     "min_depth": 15,
+     "max_depth": null
+    }
+   ],
+   "groups": [
+    {
+     "id": "raw",
+     "items": [
+      "wood",
+      "stone",
+      "food"
+     ],
+     "base_qty": 15,
+     "weights": [
+      50,
+      30,
+      15
+     ]
+    },
+    {
+     "id": "refined",
+     "items": [
+      "wooden_planks",
+      "stone_fragments"
+     ],
+     "base_qty": 3,
+     "weights": [
+      25,
+      30,
+      30
+     ]
+    },
+    {
+     "id": "fertilizer",
+     "items": [
+      "fertilizer"
+     ],
+     "base_qty": 1,
+     "weights": [
+      15,
+      15,
+      15
+     ]
+    },
+    {
+     "id": "forge_material",
+     "items": [
+      "sapsteel",
+      "heartwood_bits"
+     ],
+     "base_qty": 1,
+     "weights": [
+      0,
+      15,
+      25
+     ]
+    },
+    {
+     "id": "herbs",
+     "items": [
+      "glowcap",
+      "bitterroot"
+     ],
+     "base_qty": 2,
+     "weights": [
+      10,
+      10,
+      15
+     ]
+    }
+   ],
+   "weights_rule": "weights[i] is the group's weight in depth_bands[i]; each band sums to 100.",
+   "item_rule": "One item from the chosen group, uniform (the herbs bundle is one type).",
+   "qty_rule": "qty = round_half_up(base_qty * g(D)).",
+   "boss_mult": 2,
+   "party_size_scales": false
+  },
+  "bonus_drop_never": [
+   "amberbind",
+   "essence"
+  ],
+  "manual_jackpot": "amberbind",
+  "note": "Amberbind stays the manual jackpot and is never a bonus drop (Haex 2026-10-09). No Essence in bonus drops; the only adventure Essence is the 15 boss payback into the balance."
+ }
+}

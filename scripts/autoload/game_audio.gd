@@ -289,7 +289,7 @@ func play(cue_id: StringName, offset_db: float = 0.0, pitch: float = 1.0) -> voi
 	if _cues.has(key) and typeof(_cues[key]) == TYPE_DICTIONARY:
 		base_db = float((_cues[key] as Dictionary).get("volume_db", 0.0))
 	var effective_db: float = base_db + offset_db
-	if _hub_suspended and bus == "Music":
+	if _hub_suspended and bus == "Music" and key != "mus_battle_forest":
 		return
 	if _held_while_fruit_committed(key, bus):
 		return
@@ -620,7 +620,8 @@ func _on_wisp_unassigned(_wisp_id: int) -> void:
 
 
 func _on_wisp_pulsed(_resource_id: StringName) -> void:
-	play_wisp_pulse()
+	## Wisps bank harvest silently; assign/deny/unassign cues stay.
+	pass
 
 
 func _on_stage_changed(stage_id: StringName) -> void:
@@ -709,6 +710,14 @@ func did_play(cue_id: StringName) -> bool:
 
 func _on_cue_logged(cue_id: StringName) -> void:
 	_played_log.append(String(cue_id))
+
+
+func busy_voices(bus: String) -> int:
+	var count: int = 0
+	for voice: AudioStreamPlayer in _sfx_pool:
+		if voice.playing and voice.bus == bus:
+			count += 1
+	return count
 
 
 func list_cue_ids() -> PackedStringArray:

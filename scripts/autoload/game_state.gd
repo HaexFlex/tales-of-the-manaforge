@@ -58,6 +58,8 @@ var echo_02_fee_paid: bool = false
 var echo_02_resolved: bool = false
 ## "" | spare | defeat | flee | ko. Spare and defeat open the east road.
 var echo_02_outcome: String = ""
+## Lifetime reach room wins before spared Bramble appears in the clearing (companion gate).
+const BRAMBLE_JOIN_CLEARS: int = 30
 var echo_02_narrator_heard: bool = false
 ## Expedition board lantern. dark | amber | cyan. Amber is a run out, cyan is done.
 var expedition_lantern: String = "dark"
@@ -335,11 +337,23 @@ func elaia_join_pending() -> bool:
 	return true
 
 
+func member_away(member: String) -> bool:
+	if not has_node("/root/Reach"):
+		return false
+	return Reach.member_away(member)
+
+
+func _wisp_job_scene(node_id: String) -> String:
+	if has_node("/root/ForgeJobs") and ForgeJobs.is_craft_spot(node_id):
+		return "forge"
+	return "clearing"
+
+
 func selected_hero_id() -> String:
 	## Elaia and the Keeper are exclusive. Wisps are not heroes.
-	if selected_companion_id == "elaia" and elaia_portrait_visible():
+	if selected_companion_id == "elaia" and elaia_portrait_visible() and not member_away("elaia"):
 		return "elaia"
-	if keeper_selected:
+	if keeper_selected and not member_away("keeper"):
 		return "keeper"
 	return ""
 
@@ -536,6 +550,13 @@ func try_assign_wisp(wisp_id: int, node_id: String) -> String:
 		_forget_selected_wisp(wisp_id)
 		selection_changed.emit()
 		return "ok"
+	if member_away("keeper") and prev != "":
+		var prev_scene: String = _wisp_job_scene(prev)
+		var next_scene: String = _wisp_job_scene(node_id)
+		if prev_scene != next_scene:
+			wisp_assign_failed.emit("cross_scene", node_id)
+			status_message.emit(ContentStrings.get_text("wisp_cross_scene_away"))
+			return "cross_scene"
 	var joining: bool = count_wisps_on_node(node_id) > 0
 	wisp_assignments[key] = node_id
 	wisp_pulse_accum[key] = 0.0
@@ -617,6 +638,9 @@ func set_keeper_selected(value: bool) -> void:
 
 func select_keeper() -> void:
 	## LMB on Keeper: select Keeper, deselect any Wisp.
+	if member_away("keeper"):
+		status_message.emit(ContentStrings.get_text("keeper_away_select"))
+		return
 	if keeper_selected and selected_wisp_id < 0 and selected_wisp_ids.is_empty() and selected_companion_id == "":
 		return
 	keeper_selected = true
@@ -658,6 +682,15 @@ func elaia_portrait_visible() -> bool:
 	return elaia_in_party() and elaia_join_seen
 
 
+func elaia_body_visible() -> bool:
+	## Her sprite waits until the player has gone to look in the Clearing.
+	if not elaia_in_party():
+		return false
+	if elaia_join_seen:
+		return true
+	return elaia_footsteps_seen
+
+
 func elaia_footsteps_pending() -> bool:
 	return echo_01_redeemed and first_relic_crafted and not elaia_join_seen and not elaia_footsteps_seen
 
@@ -668,23 +701,43 @@ func note_first_relic_crafted() -> void:
 	first_relic_crafted = true
 	if echo_01_redeemed and not elaia_join_seen:
 		elaia_footsteps_seen = false
-		_place_elaia_at_door()
 	echo_flags_changed.emit()
+	call_deferred("_prompt_elaia_footsteps_if_ready")
 
 
-func _place_elaia_at_door() -> void:
+func _prompt_elaia_footsteps_if_ready() -> void:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return
+	for node: Node in tree.get_nodes_in_group("game_hud"):
+		if node.has_method("maybe_show_elaia_footsteps"):
+			node.call("maybe_show_elaia_footsteps")
+			return
+
+
+func begin_elaia_join_clearing() -> void:
+	## Called when the player leaves the Forge to meet Elaia at the Manatree.
+	if not has_node("/root/ForgeJobs"):
+		return
+	keeper_area = "clearing"
+	keeper_has_pos = true
+	keeper_pos = ForgeJobs.clearing_door_stand()
+	keeper_facing = "east"
 	elaia_area = "clearing"
 	elaia_has_pos = true
-	elaia_facing = "south"
-	if has_node("/root/ForgeJobs"):
-		elaia_pos = ForgeJobs.elaia_join_stand()
-	else:
-		elaia_pos = Vector2(2244, 2140)
+	elaia_pos = ForgeJobs.elaia_join_stand()
+	elaia_facing = "west"
+	echo_flags_changed.emit()
 
 
 func select_companion(companion_id: String) -> void:
 	## Portrait or sprite click. Refused until the join dialogue has played.
 	if companion_id != "elaia" or not elaia_portrait_visible():
+		return
+	if member_away("elaia"):
+		status_message.emit(ContentStrings.get_text("member_away_select", {
+			"name": ContentStrings.get_text("echo_elaia_name"),
+		}))
 		return
 	if selected_companion_id == companion_id and not keeper_selected and selected_wisp_ids.is_empty() and selected_wisp_id < 0:
 		return
@@ -698,6 +751,8 @@ func select_companion(companion_id: String) -> void:
 func select_group(wisp_ids: Array, include_keeper: bool) -> void:
 	## Drag box. Wisps, and the Keeper when his sprite is inside the box.
 	## Elaia is not part of the marquee; a box-select clears her selection.
+	if member_away("keeper"):
+		include_keeper = false
 	selected_companion_id = ""
 	selected_wisp_ids.clear()
 	for raw: Variant in wisp_ids:
@@ -785,6 +840,14 @@ func get_resource(resource_id: StringName) -> int:
 			return essence
 		_:
 			return 0
+
+
+func bramble_joined() -> bool:
+	if echo_02_outcome != "spare":
+		return false
+	if not has_node("/root/Reach"):
+		return false
+	return Reach.reaches_cleared >= BRAMBLE_JOIN_CLEARS
 
 
 func set_resource(resource_id: StringName, amount: int) -> void:
@@ -1705,8 +1768,8 @@ func apply_save_dict(data: Dictionary) -> void:
 		## Already joined, or she is not waiting: do not replay the Forge popup.
 		## Mid-way (relic done, dialogue not seen) still owes the popup.
 		elaia_footsteps_seen = not (first_relic_crafted and echo_01_redeemed and not elaia_join_seen)
-	if elaia_footsteps_pending() and not elaia_has_pos:
-		_place_elaia_at_door()
+	if elaia_footsteps_seen and elaia_join_pending() and not elaia_has_pos:
+		begin_elaia_join_clearing()
 	keeper_area = str(data.get("keeper_area", "clearing"))
 	if keeper_area != "forge":
 		keeper_area = "clearing"
@@ -1774,6 +1837,8 @@ func apply_save_dict(data: Dictionary) -> void:
 	if has_node("/root/Reach"):
 		var reach_v: Variant = data.get("reach", {})
 		Reach.apply_save_fields(reach_v if typeof(reach_v) == TYPE_DICTIONARY else {})
+		var exp_v: Variant = data.get("expedition", {})
+		Reach.apply_expedition(exp_v if typeof(exp_v) == TYPE_DICTIONARY else {})
 	keeper_selected = false
 	selected_wisp_id = -1
 	selected_wisp_ids.clear()

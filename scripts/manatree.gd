@@ -147,6 +147,14 @@ func work_footprint() -> Rect2:
 
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
+	var hero: Node = GameState.find_selected_hero()
+	if hero != null and hero.has_method("get_channel_kind") and str(hero.call("get_channel_kind")) == "water":
+		var channel_target: Node = hero.call("get_channel_target") if hero.has_method("get_channel_target") else null
+		if channel_target == self and hero.has_method("cancel_channel"):
+			hero.call("cancel_channel")
+			set_watering(false)
+			get_viewport().set_input_as_handled()
+			return
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
 		var result: String = GameState.command_selected_wisps(node_id)
@@ -490,17 +498,27 @@ func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void
 func wisp_orbit_center() -> Vector2:
 	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
 	var third: float = sz.y / 3.0
-	return global_position + Vector2(0, -third * 0.5)
+	var keeper_half_h: float = Keeper.BODY_SIZE.y * 0.5
+	if not Engine.is_editor_hint() and is_inside_tree():
+		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+		if not keepers.is_empty() and keepers[0] is Keeper:
+			keeper_half_h = Keeper.idle_frame_height_world((keepers[0] as Keeper).sprite) * 0.5
+	return global_position + Vector2(0, -third * 0.5 - keeper_half_h)
 
 
 func wisp_orbit_radius() -> float:
-	## Elder canopy is far wider than the trunk. The ring has to match the tree.
+	## Vertical semi-axis (ry) of the wide manatree orbit ellipse.
+	return wisp_orbit_radii().y
+
+
+func wisp_orbit_radii() -> Vector2:
 	if String(GameState.stage_id) == "elder":
-		return 280.0
+		return Vector2(280.0, 140.0)
 	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
+	var ry: float = sz.x * 0.5 + 14.0
 	if has_node("/root/ForgeJobs"):
-		return ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
-	return sz.x * 0.5 + 14.0
+		ry = ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
+	return Vector2(ry, ry * 0.5)
 
 
 func _apply_trunk(stage: String) -> void:

@@ -1,30 +1,31 @@
 extends Node
-## Endless reach rooms. Idle rolls and manual fights share one outing.
-## Offline catch-up of an open run uses raw closed seconds. Play speed never multiplies it.
+## Endless reach rooms. Idle slots and manual fights share one outing.
+## An idle room is a real fight, resolved at the end of its 12 minutes. Loot stays in the pack until the run ends.
+## Briarwood, herbs, Heart Salve and Bile Vial live in the Backpack once the pack is banked.
+## Offline catch-up of an open run is one pass over raw closed seconds. Play speed never multiplies it.
 ## The locked draft's Fate term, every-5 start checkpoints, room twists, crates, and Amberbind are not in this pass.
 ## Any unlocked depth can be started. Every 10th room attempted in an expedition is a boss at that room's depth.
 
 signal changed
+signal party_changed
+## One dictionary per resolved room: room, depth, outcome, boss.
+signal room_resolved(entry: Dictionary)
 
+const DEPART_ESSENCE: int = 20
 const ROOM_SEC: float = 720.0
+## A live frame longer than this (after play speed) resolves in one pass.
+const BIG_DELTA_SEC: float = 5.0
 const REST_SEC: float = 1440.0
-const DC: int = 6
-const PUSH_STOP: float = 0.75
 const HOURS: Array[int] = [1, 2, 4, 8]
-const SOLO_BUDGET: float = 3.0
-const ART_MINION := "res://assets/art/echo/battle_root_snapper_idle.png"
-const ART_CASTER := "res://assets/art/echo/battle_wilt_wisp_idle.png"
-const ART_BRUTE := "res://assets/art/echo/battle_moss_brute_idle.png"
+
+const PACK_ITEM_IDS: Array[String] = ["briarwood", "herbs", "heart_salve", "bile_vial"]
 
 var deepest_depth: int = 0
 var reaches_cleared: int = 0
 var dojo_exp: int = 0
-var briarwood: int = 0
-var herbs: int = 0
-var heart_salve: int = 0
-var bile_vial: int = 0
+## Marker for the outing. Later jobs add fields here with defaults.
+var expedition: Dictionary = {"status": "home"}
 var running: bool = false
-var pace: String = "hold"
 var control: String = "idle"
 var depth: int = 1
 var hours: float = 1.0
@@ -34,24 +35,48 @@ var phase: String = "home"
 var run_clears: int = 0
 ## Rooms begun this expedition, cleared or failed. Room 10, 20, 30… is the boss. A new Depart starts at 0.
 var rooms_attempted: int = 0
-var salve_used: bool = false
-var rush: bool = false
-var test_pp: float = -1.0
-var party_size: int = 1
-var mix: Array[String] = []
+var run_id: int = 0
+## Main-save guard: this run's pack and leftover loadout were already sent home.
+var last_banked_run_id: int = 0
+var run_seed: int = 0
+var slots_total: int = 0
+var slots_used: int = 0
+var rest_slots_left: int = 0
+var room_clock: float = 0.0
+var room_seed: int = 0
+var pack: Pack = Pack.new()
+var party: Array[Dictionary] = []
+var loadout: Dictionary = {}
+var boss_paid: Array[int] = []
+var room_log: Array[Dictionary] = []
+var last_summary: Dictionary = {}
+var exp_gained: int = 0
+var essence_payback: int = 0
+var last_room_exp: int = 0
+## True while catch_up is inside advance_clock. Run actions and saves change nothing.
+var catching_up: bool = false
+## Last one-pass result: source, seconds_in, seconds_used, rooms, ms.
+var last_catchup: Dictionary = {
+	"source": "",
+	"seconds_in": 0.0,
+	"seconds_used": 0.0,
+	"rooms": 0,
+	"ms": 0,
+}
 
-var _faces: Array[int] = []
-var _drops: Array[int] = []
+## catch_up sets this so advance_clock does not emit changed per slot.
+var _quiet: bool = false
+var _forced_outcomes: Array[String] = []
+var _test_run_seed: int = -1
 var _rng := RandomNumberGenerator.new()
-var _fight: ReachFight
-var _view: Node
-var _home_after_fight: bool = false
+var _manual: FightState
+## Live fight handed to idle Auto. Resumes if Manual returns before this room's 12 minutes.
+var _handoff: FightState = null
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_rng.randomize()
-	rush = false
 
 
 func _process(delta: float) -> void:
@@ -62,9 +87,7 @@ func _process(delta: float) -> void:
 	var step := delta
 	if has_node("/root/GameState"):
 		step = GameState.active_play_delta(delta)
-	if rush and debug_tools():
-		step *= 60.0
-	advance_clock(step)
+	process_frame_delta(step)
 
 
 func debug_tools() -> bool:
@@ -79,20 +102,15 @@ func reset_for_new_game() -> void:
 	deepest_depth = 0
 	reaches_cleared = 0
 	dojo_exp = 0
-	briarwood = 0
-	herbs = 0
-	heart_salve = 0
-	bile_vial = 0
+	_clear_pack_items()
 	_end_run("dark")
-	pace = "hold"
+	_clear_slot_memory()
 	control = "idle"
 	depth = 1
 	hours = 1.0
-	test_pp = -1.0
-	party_size = 1
-	_faces.clear()
-	_drops.clear()
-	rush = false
+	_forced_outcomes.clear()
+	_test_run_seed = -1
+	last_banked_run_id = 0
 	changed.emit()
 
 
@@ -106,64 +124,8 @@ func max_start_depth() -> int:
 	return maxi(1, deepest_depth)
 
 
-func room_level(room_depth: int) -> float:
-	var d := maxi(1, room_depth)
-	return 4.0 + 1.2 * pow(float(d), 0.6)
-
-
 func room_exp(room_depth: int) -> int:
 	return maxi(0, int(round(10.0 * pow(float(maxi(1, room_depth)), 0.8))))
-
-
-func idle_bonus(pp: float, level: float) -> int:
-	if level <= 0.0:
-		return 0
-	return clampi(int(round(20.0 * (pp / level - 1.0))), -10, 10)
-
-
-func idle_clears(face: int, bonus: int) -> bool:
-	if face <= 1:
-		return false
-	if face >= 20:
-		return true
-	return face + bonus >= DC
-
-
-func clear_chance(bonus: int) -> float:
-	var wins := 0
-	for face: int in range(1, 21):
-		if idle_clears(face, bonus):
-			wins += 1
-	return float(wins) / 20.0
-
-
-func odds_line(bonus: int) -> String:
-	var pct := int(round(clear_chance(bonus) * 100.0))
-	var sign := "+" if bonus >= 0 else ""
-	return "Clear chance %d%% (d20 %s%d vs 6)" % [pct, sign, bonus]
-
-
-func party_power() -> float:
-	if test_pp >= 0.0:
-		return test_pp
-	var off := _offense()
-	var defense := (float(_stat("resilience")) + float(_stat("ward"))) * 0.5
-	var pp := (off + defense + float(_stat("vitality")) + float(_stat("swiftness"))) / 4.0
-	if party_size > 1:
-		pp *= 1.15
-	return pp
-
-
-func preview_bonus(room_depth: int) -> int:
-	return idle_bonus(party_power(), room_level(room_depth))
-
-
-func preview_line(room_depth: int) -> String:
-	return odds_line(preview_bonus(room_depth))
-
-
-func push_would_stop(room_depth: int) -> bool:
-	return clear_chance(preview_bonus(room_depth)) < PUSH_STOP
 
 
 func is_boss_room() -> bool:
@@ -180,206 +142,521 @@ func rooms_until_boss() -> int:
 	return 10 - (entered % 10)
 
 
+func rooms_fight_cap() -> int:
+	## Fight rooms still in this outing's timeline. Rest slots (spent or queued) are not rooms.
+	var rest_blocked: int = maxi(0, slots_used - rooms_attempted)
+	if phase == "rest":
+		rest_blocked += rest_slots_left
+	return maxi(rooms_attempted, slots_total - rest_blocked)
+
+
 func boss_line() -> String:
 	if rooms_until_boss() == 0:
 		return "Boss room"
 	return "Rooms until boss: %d" % rooms_until_boss()
 
 
-func set_test_pp(value: float) -> void:
-	test_pp = value
-
-
-func push_faces(faces: Array) -> void:
-	for entry: Variant in faces:
-		_faces.append(int(entry))
-
-
-func push_drops(drops: Array) -> void:
-	for entry: Variant in drops:
-		_drops.append(int(entry))
-
-
 func grant_salve(n: int) -> void:
-	heart_salve = maxi(0, heart_salve + n)
+	_item_add("heart_salve", n)
 
 
 func grant_vial(n: int) -> void:
-	bile_vial = maxi(0, bile_vial + n)
+	_item_add("bile_vial", n)
 
 
-func depart(start_depth: int, length_hours: float, pace_mode: String, control_mode: String) -> String:
+func depart(start_depth: int, length_hours: float, _pace_unused: String, control_mode: String) -> String:
+	## Legacy test path: no Essence charge and an empty loadout. Push pace is gone; the third arg is ignored.
 	if running:
 		return "busy"
 	depth = clampi(start_depth, 1, max_start_depth())
-	var picked := int(round(length_hours))
+	var picked: int = int(round(length_hours))
 	hours = float(picked if HOURS.has(picked) else 1)
-	pace = "push" if pace_mode == "push" else "hold"
-	control = "manual" if control_mode == "manual" else "idle"
-	running = true
 	elapsed = 0.0
-	run_clears = 0
+	var rooms: int = int(hours) * SlotEngine.ROOMS_PER_HOUR
+	return _begin_outing({
+		"depth": depth,
+		"rooms": rooms,
+		"control": "manual" if control_mode == "manual" else "idle",
+		"party": [{"member": "keeper", "row": "front"}],
+		"loadout": {},
+	})
+
+
+func member_away(member: String) -> bool:
+	if not running:
+		return false
+	for entry: Dictionary in party:
+		if str(entry.get("member", "")) == member:
+			return true
+	return false
+
+
+func away_members() -> Array[String]:
+	var out: Array[String] = []
+	if not running:
+		return out
+	for entry: Dictionary in party:
+		out.append(str(entry.get("member", "")))
+	return out
+
+
+func set_test_run_seed(seed: int) -> void:
+	## The next depart uses this 31-bit seed for both run_seed and run_id.
+	_test_run_seed = seed & 0x7FFFFFFF
+
+
+func depart_slots(cfg: Dictionary) -> String:
+	if catching_up:
+		return "busy"
+	if running:
+		return "busy"
+	var party_err: String = _party_cfg_error(cfg)
+	if party_err != "":
+		return party_err
+	var cleaned_loadout: Dictionary = _clean_loadout(cfg.get("loadout", {}))
+	if not _loadout_owned(cleaned_loadout):
+		return "bad_loadout"
+	if not has_node("/root/GameState") or int(GameState.essence) < DEPART_ESSENCE:
+		return "no_essence"
+	GameState.add_resource(&"essence", -DEPART_ESSENCE)
+	for key_v: Variant in cleaned_loadout.keys():
+		var item_id: String = str(key_v)
+		var qty: int = int(cleaned_loadout[key_v])
+		if qty > 0:
+			Backpack.try_spend(item_id, qty)
+	var outing_cfg: Dictionary = cfg.duplicate(true)
+	outing_cfg["loadout"] = cleaned_loadout
+	var result: String = _begin_outing(outing_cfg)
+	if result == "ok":
+		_touch_adventure()
+	return result
+
+
+func _party_cfg_error(cfg: Dictionary) -> String:
+	var raw_party: Variant = cfg.get("party", [])
+	if typeof(raw_party) != TYPE_ARRAY or (raw_party as Array).is_empty():
+		return "bad_party"
+	var occupied: Dictionary = {}
+	for entry_v: Variant in raw_party as Array:
+		if typeof(entry_v) != TYPE_DICTIONARY:
+			return "bad_party"
+		var entry: Dictionary = entry_v as Dictionary
+		var member: String = str(entry.get("member", ""))
+		if member != "keeper" and member != "elaia" and member != "bramble":
+			return "bad_party"
+		if member == "bramble" and (not has_node("/root/GameState") or not GameState.bramble_joined()):
+			return "bad_party"
+		if SlotEngine.member_stats(member).is_empty():
+			return "bad_party"
+		if entry.has("cell"):
+			var cell: int = int(entry.get("cell", -1))
+			if cell < 0 or cell > 2:
+				return "bad_party"
+			var row: String = "back" if str(entry.get("row", "")) == "back" else "front"
+			var key: String = "%s:%d" % [row, cell]
+			if occupied.has(key):
+				return "bad_party"
+			occupied[key] = true
+	return ""
+
+
+func _loadout_owned(lo: Dictionary) -> bool:
+	if lo.size() > 2:
+		return false
+	for key_v: Variant in lo.keys():
+		var qty: int = int(lo[key_v])
+		if qty <= 0 or qty > 100:
+			return false
+		if _item_count(str(key_v)) < qty:
+			return false
+	return true
+
+
+func _begin_outing(cfg: Dictionary) -> String:
+	var built: Array[Dictionary] = []
+	var raw_party: Variant = cfg.get("party", [])
+	for entry_v: Variant in raw_party as Array:
+		var entry: Dictionary = (entry_v as Dictionary).duplicate(true)
+		var member: String = str(entry.get("member", ""))
+		var stats: Dictionary = SlotEngine.member_stats(member)
+		entry["member"] = member
+		entry["row"] = "back" if str(entry.get("row", "")) == "back" else "front"
+		if entry.has("cell"):
+			entry["cell"] = clampi(int(entry.get("cell", 1)), 0, 2)
+		entry["stats"] = stats
+		built.append(entry)
+	depth = clampi(maxi(1, int(cfg.get("depth", depth))), 1, max_start_depth())
+	control = "manual" if str(cfg.get("control", "idle")) == "manual" else "idle"
+	var fresh_seed: int = _rng.randi() & 0x7FFFFFFF
+	var fresh_id: int = _rng.randi() & 0x7FFFFFFF
+	if _test_run_seed >= 0:
+		fresh_seed = _test_run_seed & 0x7FFFFFFF
+		fresh_id = fresh_seed
+		_test_run_seed = -1
+	run_seed = fresh_seed
+	run_id = fresh_id
+	slots_total = maxi(1, int(cfg.get("rooms", 1)))
+	slots_used = 0
 	rooms_attempted = 0
-	_home_after_fight = false
-	salve_used = false
+	run_clears = 0
+	rest_slots_left = 0
+	room_clock = 0.0
+	exp_gained = 0
+	essence_payback = 0
+	last_room_exp = 0
+	boss_paid = []
+	room_log = []
+	last_summary = {}
+	pack = Pack.new()
+	loadout = _clean_loadout(cfg.get("loadout", {}))
+	party = built
+	_handoff = null
+	elapsed = 0.0
+	running = true
 	_begin_room()
 	_set_lantern("amber")
+	_remember_expedition()
 	changed.emit()
+	party_changed.emit()
 	return "ok"
 
 
+func debug_force_outcomes(list: Array) -> void:
+	## Queues idle outcomes for the next resolves. Ignored outside debug tools.
+	## Untyped Array so headless `call()` can pass a plain array.
+	if not debug_tools():
+		return
+	_forced_outcomes.clear()
+	for outcome_v: Variant in list:
+		var outcome: String = str(outcome_v)
+		if outcome == "win" or outcome == "flee" or outcome == "overwhelmed":
+			_forced_outcomes.append(outcome)
+
+
 func set_control(mode: String) -> void:
+	if catching_up:
+		return
 	if mode != "idle" and mode != "manual":
 		return
+	## Board Idle mid-fight is the same hand-off as the arena Idle button.
+	if mode == "idle" and running and phase == "manual":
+		hand_to_idle()
+		return
 	control = mode
+	if mode == "manual" and running and phase == "rest":
+		rest_slots_left = 0
+		room_clock = 0.0
+		_begin_room()
+		changed.emit()
+		return
 	if not running or phase == "rest" or phase == "home":
 		changed.emit()
 		return
 	if phase == "idle_room" and mode == "manual":
-		if not _start_fight():
+		if _handoff != null:
+			## Within this room's 12 minutes the same fight comes back. Not a new attempt.
+			_manual = _handoff
+			_manual.controller = "manual"
+			_handoff = null
+			phase = "manual"
+			BattleView.open_reach_fight(_manual)
+			if has_node("/root/GameState") and has_node("/root/ContentStrings"):
+				GameState.status_message.emit(ContentStrings.get_text("adv_handoff_resumed"))
+			_touch_adventure()
+		elif not _start_fight():
 			control = "idle"
-	elif phase == "manual" and mode == "idle":
-		_fight = null
-		_close_view()
-		phase = "idle_room"
-		if room_left <= 0.0:
-			room_left = ROOM_SEC
 	changed.emit()
 
 
-func set_rush(on: bool) -> void:
-	if not debug_tools():
-		rush = false
-		return
-	rush = on
+func handoff_pending() -> bool:
+	return _handoff != null
 
 
-func debug_skip_room() -> void:
-	if not debug_tools() or not running:
-		return
-	if phase == "manual":
-		return
-	advance_clock(room_left + 0.001)
+func hand_to_idle() -> String:
+	## The arena Idle button and set_control("idle") during a live manual fight.
+	if catching_up:
+		return "invalid"
+	if not running or phase != "manual" or _manual == null or _manual.outcome() != "":
+		return "invalid"
+	_handoff = _manual
+	_handoff.controller = "idle_pending"
+	_manual = null
+	phase = "idle_room"
+	room_clock = 0.0
+	room_left = ROOM_SEC
+	control = "idle"
+	_close_view()
+	_touch_adventure()
+	changed.emit()
+	return "ok"
 
 
 func apply_offline_seconds(closed_sec: float) -> void:
-	## Wall-clock seconds only. The play-speed button and Rush do not apply.
+	## Wall-clock seconds only. The play-speed button does not apply.
 	if closed_sec <= 0.0 or not running:
 		return
-	advance_clock(closed_sec)
+	catch_up(closed_sec, "load")
+
+
+func process_frame_delta(step: float) -> void:
+	## The frame step after play speed. Tests drive this directly.
+	if step > BIG_DELTA_SEC:
+		catch_up(step, "frame")
+		return
+	advance_clock(step)
+
+
+func catch_up(seconds: float, source: String) -> Dictionary:
+	## One pass. changed fires once at the end. Time after the run ends is dropped.
+	var started_ms: int = Time.get_ticks_msec()
+	var elapsed_before: float = elapsed
+	var rooms_before: int = room_log.size()
+	catching_up = true
+	_quiet = true
+	advance_clock(maxf(0.0, seconds))
+	_quiet = false
+	catching_up = false
+	var used: float = maxf(0.0, elapsed - elapsed_before)
+	if used > seconds and seconds >= 0.0:
+		used = seconds
+	last_catchup = {
+		"source": source,
+		"seconds_in": seconds,
+		"seconds_used": used,
+		"rooms": room_log.size() - rooms_before,
+		"ms": Time.get_ticks_msec() - started_ms,
+	}
+	changed.emit()
+	return last_catchup
 
 
 func advance_clock(seconds: float) -> void:
-	var left := seconds
-	var guard := 0
+	## One slot at a time. Idle rooms resolve only when the 12 minutes are up.
+	## Manual rooms ignore the clock. Elapsed is display only and never ends a run.
+	## _quiet (set by catch_up) skips the closing changed emit.
+	var left: float = maxf(0.0, seconds)
+	var guard: int = 0
 	while left > 0.0000001 and running and guard < 10000:
 		guard += 1
 		if phase == "manual":
-			var budget := _length_left()
-			if budget <= 0.0000001:
-				_home_after_fight = true
-				break
-			var slice := minf(left, budget)
-			elapsed += slice
-			left -= slice
-			if _length_left() <= 0.0000001:
-				_home_after_fight = true
+			elapsed += left
+			left = 0.0
 			break
-		var budget_left := _length_left()
-		if budget_left <= 0.0000001:
-			_finish_run()
+		if phase != "idle_room" and phase != "rest":
 			break
-		var step := minf(left, minf(room_left, budget_left))
-		if step <= 0.0:
-			break
+		var need: float = SlotEngine.ROOM_SEC - room_clock
+		if need <= 0.0000001:
+			_complete_slot()
+			continue
+		var step: float = minf(left, need)
 		elapsed += step
-		room_left -= step
+		room_clock += step
 		left -= step
-		if room_left <= 0.0001:
-			if phase == "rest":
-				_begin_room()
-			elif phase == "idle_room":
-				_resolve_idle()
-		elif _length_left() <= 0.0001:
-			if phase == "idle_room":
-				_resolve_idle()
-			if running:
-				_finish_run()
-			break
-	changed.emit()
+		if room_clock + 0.0000001 >= SlotEngine.ROOM_SEC:
+			_complete_slot()
+	if not _quiet:
+		changed.emit()
 
 
 func fight_active() -> bool:
-	return _fight != null and running and phase == "manual"
+	return _manual != null and running and phase == "manual"
 
 
-func fight_snapshot() -> Dictionary:
-	if _fight == null:
-		return {}
-	var snap: Dictionary = _fight.snapshot()
-	snap["salve"] = heart_salve
-	snap["vial"] = bile_vial
-	return snap
+func manual_fight() -> FightState:
+	return _manual
 
 
-func fight_choose(action: String, target: int = 0) -> String:
-	if _fight == null:
-		return "none"
-	if action == "salve" and heart_salve <= 0:
-		return "empty"
-	if action == "bile" and bile_vial <= 0:
-		return "empty"
-	if action == "salve":
-		heart_salve -= 1
-	elif action == "bile":
-		bile_vial -= 1
-	var result := _fight.choose(action, target)
-	if result == "invalid":
-		if action == "salve":
-			heart_salve += 1
-		elif action == "bile":
-			bile_vial += 1
-		return result
-	_after_fight()
+func on_manual_outcome(outcome: String) -> void:
+	if not running or phase != "manual" or _manual == null:
+		return
+	## A restored fight opens the view, which reports the outcome again. The room was already paid.
+	if _outcome_already_logged(outcome):
+		return
+	match outcome:
+		"win":
+			slots_used += 1
+			loadout = _manual.loadout.duplicate()
+			var boss: bool = is_boss_room()
+			var loot: Dictionary = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
+			var exp_mult: int = 2 if boss else 1
+			last_room_exp = room_exp(depth) * exp_mult
+			_apply_room_win(boss, loot)
+			var entry := {
+				"room": rooms_attempted,
+				"depth": depth,
+				"outcome": "win",
+				"boss": boss,
+			}
+			room_log.append(entry)
+			room_resolved.emit(entry.duplicate())
+		"flee":
+			slots_used += 1
+			_finish_run("flee")
+		"overwhelmed":
+			slots_used += 1
+			pack.clear()
+			_finish_run("overwhelmed")
+		_:
+			push_error("Reach: unknown manual outcome %s" % outcome)
 	changed.emit()
+	_touch_adventure()
+
+
+func manual_choice(choice: String) -> String:
+	if catching_up:
+		return "busy"
+	if not running or phase != "manual":
+		return "invalid"
+	if room_log.is_empty() or str(room_log[room_log.size() - 1].get("outcome", "")) != "win":
+		return "invalid"
+	var result: String = "invalid"
+	match choice:
+		"continue":
+			if slots_used >= slots_total:
+				_finish_run("finished")
+				return "finished"
+			_begin_room()
+			result = "continue"
+		"deeper":
+			depth += 1
+			if slots_used >= slots_total:
+				_finish_run("finished")
+				return "finished"
+			_begin_room()
+			result = "deeper"
+		"home":
+			_finish_run("head_home")
+			return "home"
+		_:
+			return "invalid"
+	_touch_adventure()
 	return result
 
 
-func debug_wound(amount: int) -> String:
-	if _fight == null:
-		return "none"
-	var result := _fight.debug_wound(amount)
-	_after_fight()
+func _outcome_already_logged(outcome: String) -> bool:
+	if room_log.is_empty():
+		return false
+	var last: Dictionary = room_log[room_log.size() - 1]
+	return int(last.get("room", -1)) == rooms_attempted and str(last.get("outcome", "")) == outcome
+
+
+func note_fight_action() -> void:
+	## BattleView calls this after every reach-mode step, including beast steps.
+	if _manual == null or not running or phase != "manual":
+		return
+	sync_manual_loadout()
+	_touch_adventure()
+
+
+func sync_manual_loadout() -> void:
+	if _manual == null:
+		return
+	loadout = _manual.loadout.duplicate()
+
+
+func restore_manual_fight(fight: FightState) -> void:
+	## The view closes itself on load_completed, so open on the next idle frame.
+	if fight == null:
+		return
+	_manual = fight
+	phase = "manual"
+	running = true
+	sync_manual_loadout()
+	call_deferred("_open_restored_manual_fight")
+
+
+func _open_restored_manual_fight() -> void:
+	if _manual == null or not running or phase != "manual":
+		return
+	_open_view()
+
+
+func capture_run_block() -> Dictionary:
+	## The current run only. Lifetime counters stay on the main save.
+	return {
+		"running": running,
+		"control": control,
+		"depth": depth,
+		"hours": hours,
+		"elapsed": elapsed,
+		"room_left": room_left,
+		"phase": phase,
+		"run_clears": run_clears,
+		"rooms_attempted": rooms_attempted,
+		"run_id": run_id,
+		"run_seed": run_seed,
+		"room_seed": room_seed,
+		"slots_total": slots_total,
+		"slots_used": slots_used,
+		"rest_slots_left": rest_slots_left,
+		"room_clock": room_clock,
+		"exp_gained": exp_gained,
+		"essence_payback": essence_payback,
+		"pack": pack.to_dict() if pack != null else {"items": {}},
+		"party": party.duplicate(true),
+		"loadout": loadout.duplicate(),
+		"boss_paid": boss_paid.duplicate(),
+		"room_log": room_log.duplicate(true),
+		"last_summary": last_summary.duplicate(true),
+		"handoff": _handoff.to_dict() if _handoff != null else null,
+	}
+
+
+func apply_run_block(data: Dictionary) -> void:
+	## Overlays the current run. Does not touch lifetime counters or last_banked_run_id.
+	if data.is_empty():
+		return
+	control = "manual" if str(data.get("control", "idle")) == "manual" else "idle"
+	depth = maxi(1, int(data.get("depth", 1)))
+	hours = float(data.get("hours", 1.0))
+	elapsed = maxf(0.0, float(data.get("elapsed", 0.0)))
+	room_left = maxf(0.0, float(data.get("room_left", 0.0)))
+	run_clears = maxi(0, int(data.get("run_clears", 0)))
+	rooms_attempted = maxi(0, int(data.get("rooms_attempted", 0)))
+	run_id = int(data.get("run_id", 0))
+	run_seed = int(data.get("run_seed", 0))
+	room_seed = int(data.get("room_seed", 0))
+	slots_total = maxi(0, int(data.get("slots_total", 0)))
+	slots_used = maxi(0, int(data.get("slots_used", 0)))
+	rest_slots_left = maxi(0, int(data.get("rest_slots_left", 0)))
+	room_clock = clampf(float(data.get("room_clock", 0.0)), 0.0, SlotEngine.ROOM_SEC)
+	exp_gained = maxi(0, int(data.get("exp_gained", 0)))
+	essence_payback = maxi(0, int(data.get("essence_payback", 0)))
+	var pack_v: Variant = data.get("pack", {})
+	pack = Pack.from_dict(pack_v if typeof(pack_v) == TYPE_DICTIONARY else {})
+	party = _clean_party(data.get("party", []))
+	loadout = _clean_loadout(data.get("loadout", {}))
+	boss_paid = _clean_boss_paid(data.get("boss_paid", []))
+	room_log = _clean_room_log(data.get("room_log", []))
+	last_summary = _clean_summary(data.get("last_summary", {}))
+	var saved_phase := str(data.get("phase", "home"))
+	running = bool(data.get("running", false))
+	if not running:
+		_end_run(str(GameState.expedition_lantern) if has_node("/root/GameState") else "dark")
+		return
+	if saved_phase != "rest" and saved_phase != "idle_room" and saved_phase != "manual":
+		saved_phase = "idle_room"
+	phase = saved_phase
+	_manual = null
+	_handoff = null
+	var handoff_v: Variant = data.get("handoff", null)
+	if typeof(handoff_v) == TYPE_DICTIONARY and not (handoff_v as Dictionary).is_empty():
+		_handoff = FightState.from_dict(handoff_v)
+	_close_view()
 	changed.emit()
-	return result
 
 
 func capture_save_fields() -> Dictionary:
-	var saved_phase := phase
-	if saved_phase == "manual":
-		saved_phase = "idle_room"
+	var run := capture_run_block()
+	if str(run.get("phase", "")) == "manual":
+		run["phase"] = "idle_room"
+	run["deepest_depth"] = deepest_depth
+	run["reaches_cleared"] = reaches_cleared
+	run["dojo_exp"] = dojo_exp
+	run["last_banked_run_id"] = last_banked_run_id
 	return {
-		"reach": {
-			"deepest_depth": deepest_depth,
-			"reaches_cleared": reaches_cleared,
-			"dojo_exp": dojo_exp,
-			"briarwood": briarwood,
-			"herbs": herbs,
-			"heart_salve": heart_salve,
-			"bile_vial": bile_vial,
-			"running": running,
-			"pace": pace,
-			"control": control,
-			"depth": depth,
-			"hours": hours,
-			"elapsed": elapsed,
-			"room_left": room_left,
-			"phase": saved_phase,
-			"run_clears": run_clears,
-			"rooms_attempted": rooms_attempted,
-			"salve_used": salve_used,
-			"mix": mix.duplicate(),
-		}
+		"reach": run,
+		"expedition": _capture_expedition(),
 	}
 
 
@@ -390,34 +667,14 @@ func apply_save_fields(data: Dictionary) -> void:
 	deepest_depth = maxi(0, int(data.get("deepest_depth", 0)))
 	reaches_cleared = maxi(0, int(data.get("reaches_cleared", 0)))
 	dojo_exp = maxi(0, int(data.get("dojo_exp", 0)))
-	briarwood = maxi(0, int(data.get("briarwood", 0)))
-	herbs = maxi(0, int(data.get("herbs", 0)))
-	heart_salve = maxi(0, int(data.get("heart_salve", 0)))
-	bile_vial = maxi(0, int(data.get("bile_vial", 0)))
-	pace = "push" if str(data.get("pace", "hold")) == "push" else "hold"
-	control = "manual" if str(data.get("control", "idle")) == "manual" else "idle"
-	depth = maxi(1, int(data.get("depth", 1)))
-	hours = float(data.get("hours", 1.0))
-	elapsed = maxf(0.0, float(data.get("elapsed", 0.0)))
-	room_left = maxf(0.0, float(data.get("room_left", 0.0)))
-	run_clears = maxi(0, int(data.get("run_clears", 0)))
-	rooms_attempted = maxi(0, int(data.get("rooms_attempted", 0)))
-	salve_used = bool(data.get("salve_used", false))
-	mix = _clean_mix(data.get("mix", []))
-	var saved_phase := str(data.get("phase", "home"))
-	running = bool(data.get("running", false))
-	if not running:
-		_end_run(str(GameState.expedition_lantern) if has_node("/root/GameState") else "dark")
-		return
+	last_banked_run_id = maxi(0, int(data.get("last_banked_run_id", 0)))
+	## A main save stores a manual room as idle. The adventure file keeps the live phase.
+	var run_data: Dictionary = data.duplicate(true)
+	var saved_phase := str(run_data.get("phase", "home"))
 	if saved_phase != "rest" and saved_phase != "idle_room":
 		saved_phase = "idle_room"
-	phase = saved_phase
-	## Saves from before the mix was stored come back empty. Reroll so Join manual has beasts.
-	if mix.is_empty():
-		mix = _roll_mix(_mix_budget())
-	_fight = null
-	_close_view()
-	changed.emit()
+	run_data["phase"] = saved_phase
+	apply_run_block(run_data)
 
 
 func default_save_fields() -> Dictionary:
@@ -425,12 +682,7 @@ func default_save_fields() -> Dictionary:
 		"deepest_depth": 0,
 		"reaches_cleared": 0,
 		"dojo_exp": 0,
-		"briarwood": 0,
-		"herbs": 0,
-		"heart_salve": 0,
-		"bile_vial": 0,
 		"running": false,
-		"pace": "hold",
 		"control": "idle",
 		"depth": 1,
 		"hours": 1.0,
@@ -439,240 +691,423 @@ func default_save_fields() -> Dictionary:
 		"phase": "home",
 		"run_clears": 0,
 		"rooms_attempted": 0,
-		"salve_used": false,
-		"mix": [],
+		"run_id": 0,
+		"last_banked_run_id": 0,
+		"run_seed": 0,
+		"room_seed": 0,
+		"slots_total": 0,
+		"slots_used": 0,
+		"rest_slots_left": 0,
+		"room_clock": 0.0,
+		"exp_gained": 0,
+		"essence_payback": 0,
+		"pack": {"items": {}},
+		"party": [],
+		"loadout": {},
+		"boss_paid": [],
+		"room_log": [],
+		"last_summary": {},
+		"handoff": null,
 	}
 
 
-func _resolve_idle() -> void:
-	var cleared := _roll_idle()
-	if cleared:
-		_grant_room()
-	_advance_depth()
-	if _length_left() <= 0.0001:
-		_finish_run()
+func apply_expedition(data: Dictionary) -> void:
+	## Empty means "derive it from the run we just applied". A saved block wins, including its summary.
+	if data.is_empty():
+		expedition = {}
+		_remember_expedition()
 		return
-	if cleared:
-		_begin_room()
+	expedition = data.duplicate(true)
+	if str(expedition.get("status", "")) == "":
+		_remember_expedition()
+
+
+func _capture_expedition() -> Dictionary:
+	## Status follows the live run. Other keys stay so later jobs can add defaults.
+	var out: Dictionary = expedition.duplicate(true)
+	if running:
+		out["status"] = "out"
+		out.erase("summary")
+	elif _lantern() == "cyan":
+		out["status"] = "finished_unseen"
+	else:
+		out["status"] = "home"
+		out.erase("summary")
+	return out
+
+
+func _remember_expedition() -> void:
+	expedition = _capture_expedition()
+
+
+func _lantern() -> String:
+	if not has_node("/root/GameState"):
+		return "dark"
+	var state := str(GameState.expedition_lantern)
+	if state != "amber" and state != "cyan":
+		return "dark"
+	return state
+
+
+func _item_count(item_id: String) -> int:
+	if not has_node("/root/Backpack"):
+		return 0
+	return Backpack.get_count(item_id)
+
+
+func _item_add(item_id: String, amount: int) -> void:
+	if amount == 0 or not has_node("/root/Backpack"):
 		return
-	phase = "rest"
-	room_left = REST_SEC
-	_fight = null
-	_close_view()
+	if amount > 0:
+		Backpack.add_item(item_id, amount)
+	else:
+		Backpack.try_spend(item_id, -amount)
 
 
-func _roll_idle() -> bool:
-	var bonus := preview_bonus(depth)
-	var face := _next_face()
-	var cleared := idle_clears(face, bonus)
-	if not cleared and heart_salve > 0 and not salve_used:
-		heart_salve -= 1
-		salve_used = true
-		face = _next_face()
-		cleared = idle_clears(face, bonus)
-	return cleared
-
-
-func _grant_room() -> void:
-	var mult := 2 if is_boss_room() else 1
-	briarwood += _next_drop() * mult
-	herbs += _next_drop() * mult
-	dojo_exp += room_exp(depth) * mult
-	reaches_cleared += 1
-	run_clears += 1
-	if depth > deepest_depth:
-		deepest_depth = depth
-
-
-func _advance_depth() -> void:
-	if pace != "push":
+func _item_set(item_id: String, amount: int) -> void:
+	if not has_node("/root/Backpack"):
 		return
-	var nxt := depth + 1
-	if push_would_stop(nxt):
-		pace = "hold"
-		return
-	depth = nxt
+	Backpack.set_count(item_id, maxi(0, amount))
+
+
+func _clear_pack_items() -> void:
+	for item_id: String in PACK_ITEM_IDS:
+		_item_set(item_id, 0)
 
 
 func _begin_room() -> void:
 	rooms_attempted += 1
-	salve_used = false
-	mix = _roll_mix(_mix_budget())
+	_handoff = null
+	room_seed = SlotEngine.room_seed_for(run_seed, rooms_attempted)
+	room_clock = 0.0
 	room_left = ROOM_SEC
-	if control == "manual" and _start_fight():
+	## A catch-up pass keeps the room idle, including a fight that was saved as manual.
+	if control == "manual" and not catching_up and _start_fight():
+		_touch_adventure()
 		return
 	phase = "idle_room"
-	_fight = null
+	_manual = null
 	_close_view()
+	_touch_adventure()
 
 
 func _start_fight() -> bool:
-	## Never open a fight with no beasts: an empty room used to count as a free victory.
-	if mix.is_empty():
-		mix = _roll_mix(_mix_budget())
-	if mix.is_empty():
+	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, is_boss_room())
+	if room.is_empty():
 		push_error("Reach: refusing to start a fight with no enemies")
 		return false
-	var fight := ReachFight.new()
-	fight.force_miss = 0
-	fight.setup(depth, room_level(depth), _keeper_block(), mix, _champion_index(), _names(), _arts())
-	if fight.enemies.is_empty():
-		push_error("Reach: refusing to start a fight with no enemies")
-		return false
+	_manual = SlotEngine.fight_for_room(party, loadout, room, room_seed)
+	_manual.start_fight()
+	_manual.controller = "manual"
 	phase = "manual"
-	_fight = fight
 	_open_view()
 	return true
 
 
-func _after_fight() -> void:
-	if _fight == null:
+func _complete_slot() -> void:
+	room_clock = 0.0
+	if phase == "rest":
+		slots_used += 1
+		rest_slots_left -= 1
+		if rest_slots_left <= 0:
+			if slots_used >= slots_total:
+				_finish_run("finished")
+			else:
+				_begin_room()
 		return
-	var result := _fight.outcome
-	if result == "":
-		return
-	_fight = null
-	_close_view()
-	if result == "victory":
-		_grant_room()
-		_advance_depth()
-		if _home_after_fight or _length_left() <= 0.0001:
-			_finish_run()
+	if phase == "idle_room":
+		_resolve_slot_room()
+
+
+func _resolve_slot_room() -> void:
+	var forced: String = ""
+	if not _forced_outcomes.is_empty():
+		forced = str(_forced_outcomes.pop_front())
+	var result: Dictionary = {}
+	if forced == "win" or forced == "flee" or forced == "overwhelmed":
+		result = _forced_room_result(forced)
+		_handoff = null
+	elif _handoff != null:
+		result = _handoff_room_result()
+		_handoff = null
+	else:
+		result = SlotEngine.resolve_idle_room(party, loadout, depth, rooms_attempted, room_seed)
+	slots_used += 1
+	var after_v: Variant = result.get("loadout_after", loadout)
+	if typeof(after_v) == TYPE_DICTIONARY:
+		loadout = (after_v as Dictionary).duplicate()
+	var outcome: String = str(result.get("outcome", "overwhelmed"))
+	var boss: bool = bool(result.get("boss", is_boss_room()))
+	var entry := {
+		"room": rooms_attempted,
+		"depth": depth,
+		"outcome": outcome,
+		"boss": boss,
+	}
+	room_log.append(entry)
+	if outcome == "win":
+		var loot_v: Variant = result.get("loot", {})
+		var loot: Dictionary = loot_v if typeof(loot_v) == TYPE_DICTIONARY else {}
+		_apply_win(loot, int(result.get("exp_mult", 1)), boss)
+		_continue_after_room()
+	elif outcome == "flee":
+		pack.halve()
+		_continue_after_room()
+	else:
+		pack.clear()
+		if slots_total - slots_used >= 2:
+			phase = "rest"
+			rest_slots_left = SlotEngine.REST_SLOTS
+			room_clock = 0.0
+			room_left = REST_SEC
+			_manual = null
+			_close_view()
 		else:
-			_begin_room()
+			_finish_run("overwhelmed")
+	room_resolved.emit(entry.duplicate())
+	_touch_adventure()
+
+
+func _handoff_room_result() -> Dictionary:
+	## Finish the fight that was handed over, from its round, HP, Salves and RNG.
+	var fight: FightState = _handoff
+	var outcome: String = AutoPolicy.run_idle(fight)
+	if outcome != "win" and outcome != "flee" and outcome != "overwhelmed":
+		push_error("Reach: unexpected handoff outcome %s" % outcome)
+		outcome = "overwhelmed"
+	var boss: bool = is_boss_room()
+	var loot: Dictionary = {}
+	var exp_mult: int = 1
+	if outcome == "win":
+		loot = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
+		exp_mult = 2 if boss else 1
+	return {
+		"outcome": outcome,
+		"boss": boss,
+		"loot": loot,
+		"exp_mult": exp_mult,
+		"loadout_after": fight.loadout.duplicate(),
+		"salves_used": fight.salves_used,
+		"rounds": fight.round,
+		"fight": fight,
+	}
+
+
+func _forced_room_result(outcome: String) -> Dictionary:
+	var boss: bool = is_boss_room()
+	var loot: Dictionary = {}
+	var exp_mult: int = 1
+	if outcome == "win":
+		loot = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))
+		exp_mult = 2 if boss else 1
+	return {
+		"outcome": outcome,
+		"boss": boss,
+		"loot": loot,
+		"exp_mult": exp_mult,
+		"loadout_after": loadout.duplicate(),
+		"salves_used": 0,
+		"rounds": 0,
+		"fight": null,
+	}
+
+
+func _apply_room_win(boss: bool, loot: Dictionary) -> void:
+	var exp_mult: int = 2 if boss else 1
+	_apply_win(loot, exp_mult, boss)
+
+
+func _apply_win(loot: Dictionary, exp_mult: int, boss: bool) -> void:
+	pack.add_all(loot)
+	var gained: int = room_exp(depth) * maxi(1, exp_mult)
+	dojo_exp += gained
+	exp_gained += gained
+	reaches_cleared += 1
+	run_clears += 1
+	if depth > deepest_depth:
+		deepest_depth = depth
+	if boss and not boss_paid.has(rooms_attempted):
+		if has_node("/root/GameState"):
+			GameState.add_resource(&"essence", SlotEngine.BOSS_ESSENCE)
+		essence_payback += SlotEngine.BOSS_ESSENCE
+		boss_paid.append(rooms_attempted)
+
+
+func _continue_after_room() -> void:
+	if slots_used < slots_total:
+		_begin_room()
+	else:
+		_finish_run("finished")
+
+
+func _finish_run(reason: String) -> void:
+	var already_banked: bool = run_id == last_banked_run_id
+	if already_banked:
+		push_warning("Reach: run %d was already banked; skipping a second bank" % run_id)
+	var loadout_returned: Dictionary = {}
+	if not already_banked:
+		for key_v: Variant in loadout.keys():
+			var item_id: String = str(key_v)
+			var qty: int = int(loadout[key_v])
+			if qty > 0:
+				_item_add(item_id, qty)
+				loadout_returned[item_id] = qty
+	loadout = {}
+	var pct: int = 0
+	if reason == "finished" or reason == "head_home":
+		pct = 100
+	elif reason == "flee":
+		pct = 50
+	var banked: Dictionary = {}
+	if not already_banked:
+		banked = pack.bank(pct) if pack != null else {}
+		last_banked_run_id = run_id
+	_manual = null
+	var keep_battle_view: bool = reason == "flee" or reason == "overwhelmed"
+	last_summary = {
+		"reason": reason,
+		"rooms": slots_total,
+		"rooms_cleared": run_clears,
+		"banked": banked,
+		"exp_gained": exp_gained,
+		"essence_payback": essence_payback,
+		"run_id": run_id,
+		"loadout_returned": loadout_returned,
+	}
+	expedition["summary"] = last_summary.duplicate(true)
+	var brought: bool = run_clears > 0 or not banked.is_empty()
+	_end_run("cyan" if brought else "dark", keep_battle_view)
+	party_changed.emit()
+	if has_node("/root/SaveService"):
+		SaveService.write_adventure()
+		SaveService.clear_adventure()
+
+
+func _touch_adventure() -> void:
+	if not running or not has_node("/root/SaveService"):
 		return
-	_finish_run()
+	SaveService.write_adventure()
 
 
-func _finish_run() -> void:
-	var brought := run_clears > 0
-	_end_run("cyan" if brought else "dark")
-
-
-func _end_run(lantern: String) -> void:
+func _end_run(lantern: String, keep_battle_view: bool = false) -> void:
 	running = false
 	phase = "home"
 	room_left = 0.0
+	room_clock = 0.0
+	rest_slots_left = 0
 	rooms_attempted = 0
-	_home_after_fight = false
-	_fight = null
-	mix.clear()
-	_close_view()
+	_manual = null
+	_handoff = null
+	if not keep_battle_view:
+		_close_view()
 	_set_lantern(lantern)
+	_remember_expedition()
 
 
-func _roll_mix(budget: float) -> Array[String]:
-	var roles: Array[String] = ["minion", "caster", "brute"]
-	var costs := {"minion": 1.0, "caster": 1.5, "brute": 2.5}
-	var out: Array[String] = []
-	var left := budget
-	var guard := 0
-	while left >= 1.0 - 0.001 and guard < 8:
-		guard += 1
-		var options: Array[String] = []
-		for role: String in roles:
-			if float(costs[role]) <= left + 0.001:
-				options.append(role)
-		if options.is_empty():
-			break
-		var pick: String = options[_rng.randi() % options.size()]
-		out.append(pick)
-		left -= float(costs[pick])
-	if out.is_empty():
-		out.append("minion")
+func _clear_slot_memory() -> void:
+	run_id = 0
+	run_seed = 0
+	room_seed = 0
+	slots_total = 0
+	slots_used = 0
+	rest_slots_left = 0
+	room_clock = 0.0
+	exp_gained = 0
+	essence_payback = 0
+	last_room_exp = 0
+	pack = Pack.new()
+	party = []
+	loadout = {}
+	boss_paid = []
+	room_log = []
+	last_summary = {}
+	_handoff = null
+
+
+func _clean_loadout(raw: Variant) -> Dictionary:
+	var out: Dictionary = {}
+	if typeof(raw) != TYPE_DICTIONARY:
+		return out
+	for key_v: Variant in (raw as Dictionary).keys():
+		out[str(key_v)] = int((raw as Dictionary)[key_v])
 	return out
 
 
-func _mix_budget() -> float:
-	return SOLO_BUDGET if party_size <= 1 else 4.0
-
-
-func _clean_mix(raw: Variant) -> Array[String]:
-	var out: Array[String] = []
+func _clean_party(raw: Variant) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
 	if typeof(raw) != TYPE_ARRAY:
 		return out
-	for entry: Variant in raw as Array:
-		var role := str(entry)
-		if role == "minion" or role == "caster" or role == "brute":
-			out.append(role)
+	for entry_v: Variant in raw as Array:
+		if typeof(entry_v) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = entry_v
+		var stats_v: Variant = entry.get("stats", {})
+		var stats: Dictionary = {}
+		if typeof(stats_v) == TYPE_DICTIONARY:
+			for key_v: Variant in (stats_v as Dictionary).keys():
+				var key: String = str(key_v)
+				if key == "attack":
+					stats[key] = str((stats_v as Dictionary)[key_v])
+				else:
+					stats[key] = int((stats_v as Dictionary)[key_v])
+		out.append({
+			"member": str(entry.get("member", "")),
+			"row": "back" if str(entry.get("row", "")) == "back" else "front",
+			"stats": stats,
+		})
 	return out
 
 
-func _champion_index() -> int:
-	if not is_boss_room() or mix.is_empty():
-		return -1
-	return 0
+func _clean_boss_paid(raw: Variant) -> Array[int]:
+	var out: Array[int] = []
+	if typeof(raw) != TYPE_ARRAY:
+		return out
+	for entry_v: Variant in raw as Array:
+		out.append(int(entry_v))
+	return out
 
 
-func _names() -> Dictionary:
+func _clean_room_log(raw: Variant) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if typeof(raw) != TYPE_ARRAY:
+		return out
+	for entry_v: Variant in raw as Array:
+		if typeof(entry_v) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = entry_v
+		out.append({
+			"room": int(entry.get("room", 0)),
+			"depth": int(entry.get("depth", 1)),
+			"outcome": str(entry.get("outcome", "")),
+			"boss": bool(entry.get("boss", false)),
+		})
+	return out
+
+
+func _clean_summary(raw: Variant) -> Dictionary:
+	if typeof(raw) != TYPE_DICTIONARY or (raw as Dictionary).is_empty():
+		return {}
+	var src: Dictionary = raw
+	var banked: Dictionary = {}
+	var bank_v: Variant = src.get("banked", {})
+	if typeof(bank_v) == TYPE_DICTIONARY:
+		for key_v: Variant in (bank_v as Dictionary).keys():
+			banked[str(key_v)] = int((bank_v as Dictionary)[key_v])
+	var returned: Dictionary = {}
+	var ret_v: Variant = src.get("loadout_returned", {})
+	if typeof(ret_v) == TYPE_DICTIONARY:
+		for key_v: Variant in (ret_v as Dictionary).keys():
+			returned[str(key_v)] = int((ret_v as Dictionary)[key_v])
 	return {
-		"minion": _minion_name(),
-		"caster": "Caster",
-		"brute": "Brute",
+		"reason": str(src.get("reason", "")),
+		"rooms": int(src.get("rooms", 0)),
+		"rooms_cleared": int(src.get("rooms_cleared", 0)),
+		"banked": banked,
+		"exp_gained": int(src.get("exp_gained", 0)),
+		"essence_payback": int(src.get("essence_payback", 0)),
+		"run_id": int(src.get("run_id", 0)),
+		"loadout_returned": returned,
 	}
-
-
-func _minion_name() -> String:
-	if has_node("/root/ContentStrings"):
-		var named := ContentStrings.get_text("adventure_reach_foe_name")
-		if named != "" and named != "adventure_reach_foe_name":
-			return named
-	return "Thornling"
-
-
-func _arts() -> Dictionary:
-	return {"minion": ART_MINION, "caster": ART_CASTER, "brute": ART_BRUTE}
-
-
-func _keeper_block() -> Dictionary:
-	return {
-		"might": _stat("might"),
-		"arcana": _stat("arcana"),
-		"resilience": _stat("resilience"),
-		"ward": _stat("ward"),
-		"vitality": _stat("vitality"),
-		"swiftness": _stat("swiftness"),
-		"fate": _stat("fate"),
-		"offense": _offense(),
-	}
-
-
-func _offense() -> float:
-	var might := float(_stat("might"))
-	var arcana := float(_stat("arcana"))
-	var kind := "physical"
-	if has_node("/root/Equipment"):
-		var wid := Equipment.equipped_id("weapon")
-		kind = str(Equipment.get_item_def(wid).get("damage_kind", "physical"))
-	if kind == "magical":
-		return arcana
-	if kind == "hybrid":
-		return (might + arcana) * 0.5
-	return might
-
-
-func _stat(stat_id: String) -> int:
-	if has_node("/root/Equipment"):
-		return int(Equipment.total_for(stat_id))
-	if has_node("/root/KeeperStats"):
-		return int(KeeperStats.get_base(stat_id))
-	return 5
-
-
-func _next_face() -> int:
-	if not _faces.is_empty():
-		return int(_faces.pop_front())
-	return _rng.randi_range(1, 20)
-
-
-func _next_drop() -> int:
-	if not _drops.is_empty():
-		return 1 if int(_drops.pop_front()) > 0 else 0
-	return 1 if _rng.randf() < 0.5 else 0
-
-
-func _length_left() -> float:
-	return maxf(0.0, hours * 3600.0 - elapsed)
 
 
 func _session_open() -> bool:
@@ -689,21 +1124,11 @@ func _set_lantern(state: String) -> void:
 
 
 func _open_view() -> void:
-	if DisplayServer.get_name() == "headless":
+	if _manual == null:
 		return
-	if _view != null and is_instance_valid(_view):
-		_view.call("refresh")
-		return
-	var script: Script = load("res://scripts/reach_fight_view.gd") as Script
-	if script == null:
-		return
-	_view = Node.new()
-	_view.set_script(script)
-	_view.name = "ReachFightView"
-	get_tree().root.add_child(_view)
+	BattleView.open_reach_fight(_manual)
 
 
 func _close_view() -> void:
-	if _view != null and is_instance_valid(_view):
-		_view.queue_free()
-	_view = null
+	if BattleView.is_open():
+		BattleView.close_arena()

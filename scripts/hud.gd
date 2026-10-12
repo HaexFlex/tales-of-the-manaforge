@@ -209,7 +209,7 @@ func _ready() -> void:
 	_sheet = CharacterSheet.new()
 	_sheet.name = "CharacterSheet"
 	_sheet.visible = false
-	_sheet.z_index = 10
+	_sheet.z_index = 30
 	_sheet.close_requested.connect(close_character_sheet)
 	add_child(_sheet)
 	backpack_close_button.pressed.connect(close_backpack)
@@ -253,6 +253,8 @@ func _ready() -> void:
 	GameState.wisps_changed.connect(_refresh_selection_hint)
 	GameState.echo_flags_changed.connect(_refresh_selection_hint)
 	GameState.load_completed.connect(_on_game_state_loaded)
+	if has_node("/root/Reach") and not Reach.party_changed.is_connected(_on_reach_party_changed):
+		Reach.party_changed.connect(_on_reach_party_changed)
 	Backpack.inventory_changed.connect(_on_backpack_inventory)
 	_refresh_all()
 	stage_label.visible = false
@@ -436,7 +438,12 @@ func _make_item_icon(item_id: String, tip: String) -> Control:
 		if item_id == "essence":
 			icon.modulate = ESSENCE_TINT
 		return icon
-	var placeholder := _placeholder_icon(PLACEHOLDER_SWATCH)
+	var swatch: Color = PLACEHOLDER_SWATCH
+	if has_node("/root/Backpack") and Backpack.is_known_item(item_id):
+		var hex: String = str(Backpack.get_item_def(item_id).get("color", ""))
+		if hex != "":
+			swatch = Backpack.item_color(item_id)
+	var placeholder := _placeholder_icon(swatch)
 	placeholder.tooltip_text = tip
 	return placeholder
 
@@ -745,6 +752,15 @@ func _set_party_outline(slot: Control, selected: bool) -> void:
 	frame.add_theme_stylebox_override("panel", style)
 
 
+func _set_party_away_visual(slot: Control, away: bool) -> void:
+	if slot == null:
+		return
+	var portrait := slot.get_node_or_null("Portrait") as CanvasItem
+	if portrait:
+		portrait.modulate = Color(0.42, 0.44, 0.42, 1.0) if away else Color.WHITE
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE if away else Control.MOUSE_FILTER_STOP
+
+
 func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> void:
 	if not (event is InputEventMouseButton):
 		return
@@ -810,6 +826,8 @@ func _refresh_party_bar() -> void:
 	_slot_keeper.visible = true
 	_slot_elaia.visible = elaia_joined
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
+	_set_party_away_visual(_slot_keeper, GameState.member_away("keeper"))
+	_set_party_away_visual(_slot_elaia, elaia_joined and GameState.member_away("elaia"))
 	_slot_wisp.visible = not ids.is_empty()
 	_set_party_outline(_slot_keeper, show_keeper)
 	_set_party_outline(_slot_elaia, companion_id == "elaia")
@@ -1006,6 +1024,10 @@ func _on_loaded_from_pause() -> void:
 	_refresh_all()
 	_sync_ascension_from_state()
 	maybe_show_welcome()
+
+
+func _on_reach_party_changed() -> void:
+	_refresh_party_bar()
 
 
 func _on_game_state_loaded() -> void:
@@ -1978,6 +2000,8 @@ func _fade_world_labels(node: Node, band: Rect2, in_layer: bool) -> void:
 
 
 func _activity_line(actor: String) -> String:
+	if has_node("/root/Reach") and GameState.member_away(actor):
+		return ContentStrings.get_text("hud_activity_adventure", {"depth": Reach.depth})
 	if not has_node("/root/ForgeJobs"):
 		return ContentStrings.get_text("hud_activity_idle")
 	var task: Dictionary = ForgeJobs.keeper_task() if actor == "keeper" else ForgeJobs.elaia_task()
@@ -2131,8 +2155,18 @@ func maybe_show_elaia_footsteps() -> void:
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
+	if _forge_station_panel_open():
+		return
 	_ensure_footsteps_popup()
 	_footsteps_popup.visible = true
+
+
+func _forge_station_panel_open() -> bool:
+	var scene: Node = get_tree().current_scene if get_tree() else null
+	if scene == null:
+		return false
+	var panel: CanvasItem = scene.get_node_or_null("UI/RecipePanel") as CanvasItem
+	return panel != null and panel.visible
 
 
 func _ensure_footsteps_popup() -> void:
@@ -2179,6 +2213,7 @@ func _on_footsteps_go() -> void:
 	GameState.elaia_footsteps_seen = true
 	if _footsteps_popup:
 		_footsteps_popup.visible = false
+	GameState.begin_elaia_join_clearing()
 	if has_node("/root/SaveService"):
 		SaveService.save_game()
 	if has_node("/root/ForgeJobs"):
@@ -2276,6 +2311,7 @@ func _advance_join_line() -> void:
 		return
 	_join_band.visible = false
 	GameState.elaia_join_seen = true
+	_refresh_party_bar()
 	_show_toast(ContentStrings.get_text("elaia_join_toast"))
 	if has_node("/root/SaveService"):
 		SaveService.save_game()
@@ -2286,6 +2322,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key: InputEventKey = event
 	if not key.pressed or key.echo:
+		return
+	if BattleView.is_open():
 		return
 	if key.keycode == KEY_I and not key.ctrl_pressed and not key.alt_pressed and not key.meta_pressed:
 		if welcome_panel.visible:

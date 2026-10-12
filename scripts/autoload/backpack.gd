@@ -9,6 +9,10 @@ const RESOURCE_IDS: Array[StringName] = [&"wood", &"stone", &"food", &"manashard
 const KEPT_TOOL_IDS: Array[StringName] = [
 	&"stone_axe", &"stone_pickaxe", &"wooden_basket", &"stone_watering_can"
 ]
+## Road materials and potions used to live on Reach and survived Ascend. They still do.
+const KEPT_REACH_ITEM_IDS: Array[StringName] = [
+	&"briarwood", &"herbs", &"heart_salve", &"bile_vial"
+]
 
 var items: Dictionary = {}
 var items_data: Array = []
@@ -254,6 +258,16 @@ func can_craft(recipe_id: String) -> bool:
 	return craft_block_reason(recipe_id) == ""
 
 
+func _stone_head_craft_blocked(item_id: String) -> bool:
+	match item_id:
+		"axe_head":
+			return owns_item("axe_head") or owns_item("stone_axe")
+		"pickaxe_head":
+			return owns_item("pickaxe_head") or owns_item("stone_pickaxe")
+		_:
+			return false
+
+
 func craft_block_reason(recipe_id: String) -> String:
 	var def: Dictionary = get_recipe_def(recipe_id)
 	if def.is_empty():
@@ -262,6 +276,8 @@ func craft_block_reason(recipe_id: String) -> String:
 		return "pending_ascend"
 	var out_id: String = str(def.get("output_id", recipe_id))
 	if is_unique_item(out_id) and owns_item(out_id):
+		return "unique"
+	if _stone_head_craft_blocked(out_id):
 		return "unique"
 	var ings: Dictionary = get_recipe_ingredients(recipe_id)
 	if ings.is_empty() and get_recipe_def(recipe_id).is_empty():
@@ -387,10 +403,17 @@ func grant_kept_tools() -> void:
 
 
 func on_ascend() -> void:
+	var kept_reach: Dictionary = {}
+	for iid: StringName in KEPT_REACH_ITEM_IDS:
+		kept_reach[String(iid)] = get_count(String(iid))
 	var keep: bool = GameState.get_upgrade_rank("keep_tools") > 0
 	wipe_all()
 	if keep:
 		grant_kept_tools()
+	for key: Variant in kept_reach.keys():
+		var n: int = int(kept_reach[key])
+		if n > 0:
+			set_count(str(key), n)
 
 
 func reset_for_new_game() -> void:

@@ -821,11 +821,20 @@ func elaia_task() -> Dictionary:
 	return _elaia_task.duplicate(true)
 
 
+func on_member_departed(member: String) -> void:
+	if member == "keeper":
+		note_keeper_idle()
+	elif member == "elaia":
+		note_elaia_idle()
+
+
 func _tick_absent_elaia(delta: float) -> void:
 	## Her body only simulates in the area she is standing in. The job keeps going in the other view.
 	if delta <= 0.0 or not bool(_elaia_task.get("working", false)):
 		return
 	if not has_node("/root/GameState"):
+		return
+	if GameState.member_away("elaia"):
 		return
 	if GameState.is_world_frozen() or GameState.fruit_committed:
 		return
@@ -850,6 +859,8 @@ func _tick_absent_keeper(delta: float) -> void:
 	if delta <= 0.0 or not bool(_keeper_task.get("working", false)):
 		return
 	if not has_node("/root/GameState"):
+		return
+	if GameState.member_away("keeper"):
 		return
 	if GameState.is_world_frozen() or GameState.fruit_committed:
 		return

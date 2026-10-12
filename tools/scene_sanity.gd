@@ -147,7 +147,7 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 13") >= 0, "SAVE_VERSION 13")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 14") >= 0, "SAVE_VERSION 14")
 	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()
@@ -284,29 +284,52 @@ func _weapons() -> int:
 	failed += _check(str(gear.call("try_equip", "thornbow")) == "ok", "equip thornbow")
 	failed += _check(str(gear.call("equipped_strike_kind")) == "hybrid", "equipped hybrid")
 	var mag := EchoBattle.new()
-	mag.force_crit = 0
 	mag.strike_kind = "magical"
 	mag.configure(
 		{"might": 1, "arcana": 20, "resilience": 40, "ward": 40, "vitality": 20, "swiftness": 20, "fate": 1},
 		{"stats": {"resilience": 5, "ward": 0, "arcana": 1, "swiftness": 1, "vitality": 8, "fate": 1, "might": 1}, "display_name": "Elaia"}
 	)
+	# force_crit was removed with the BattleResolver retune (16de7cd); setting it
+	# raised a script error that skipped the rest of this check. Pin the dice instead.
+	mag.set_seed(1)
 	mag.choose("strike")
-	failed += _check(mag.last_keeper_damage == 200, "magical strike uses arcana vs ward (got %d)" % mag.last_keeper_damage)
+	var mag_turn: Dictionary = mag.turn_log[0] if mag.turn_log.size() > 0 else {}
+	var mag_expect: int = _replay_keeper_strike("magic", 1, 20, 1, 5, 0, 1, 8)
+	failed += _check(str(mag_turn.get("mode", "")) == "magic" and mag.last_keeper_damage == mag_expect, "magical strike uses arcana vs ward (got %d, want %d)" % [mag.last_keeper_damage, mag_expect])
 	var phys := EchoBattle.new()
-	phys.force_crit = 0
 	phys.strike_kind = "physical"
 	phys.configure(
 		{"might": 1, "arcana": 20, "resilience": 40, "ward": 40, "vitality": 20, "swiftness": 20, "fate": 1},
 		{"stats": {"resilience": 5, "ward": 0, "arcana": 1, "swiftness": 1, "vitality": 8, "fate": 1, "might": 1}, "display_name": "Elaia"}
 	)
+	# force_crit was removed with the BattleResolver retune (16de7cd); setting it
+	# raised a script error that skipped the rest of this check. Pin the dice instead.
+	phys.set_seed(1)
 	phys.choose("strike")
-	failed += _check(phys.last_keeper_damage == 0, "physical strike uses might vs resilience (got %d)" % phys.last_keeper_damage)
+	var phys_turn: Dictionary = phys.turn_log[0] if phys.turn_log.size() > 0 else {}
+	var phys_expect: int = _replay_keeper_strike("physical", 1, 20, 1, 5, 0, 1, 8)
+	failed += _check(str(phys_turn.get("mode", "")) == "physical" and phys.last_keeper_damage == phys_expect, "physical strike uses might vs resilience (got %d, want %d)" % [phys.last_keeper_damage, phys_expect])
+	failed += _check(mag_expect != phys_expect, "magical and physical strikes differ (%d vs %d)" % [mag_expect, phys_expect])
 	var hybrid := EchoBattle.new()
 	hybrid.strike_kind = "hybrid"
 	hybrid.arrow_mode = "physical"
 	failed += _check(hybrid.resolved_strike_kind() == "physical", "hybrid starts physical")
 	failed += _check(hybrid.toggle_arrow_mode() == "magical" and hybrid.resolved_strike_kind() == "magical", "hybrid toggles magical")
 	return failed
+
+
+func _replay_keeper_strike(mode: String, might: int, arcana: int, fate: int, def_res: int, def_ward: int, def_swift: int, def_vit: int) -> int:
+	## Expected first Keeper strike for a seed-1 EchoBattle: the same BattleResolver
+	## call EchoBattle._resolve_swing makes, on fresh seed-1 dice.
+	var dice := BattleRng.new()
+	dice.set_seed(1)
+	var max_hp: int = BattleResolver.max_hp_for(def_vit)
+	var res: Dictionary = BattleResolver.resolve(
+		{"attack": mode, "might": might, "arcana": arcana, "fate": fate},
+		{"resilience": def_res, "ward": def_ward, "swiftness": def_swift, "hp": max_hp, "max_hp": max_hp, "side": "echo"},
+		0, 1, 1, dice
+	)
+	return int(res.get("damage", -1))
 
 
 func _battle_view() -> int:
@@ -319,13 +342,15 @@ func _battle_view() -> int:
 	if view_packed == null:
 		return failed
 	var battle := EchoBattle.new()
-	battle.force_crit = 0
 	battle.strike_kind = "hybrid"
 	battle.arrow_mode = "physical"
 	battle.configure(
 		{"might": 8, "arcana": 8, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1},
 		{"display_name": "Elaia", "stats": {"swiftness": 1, "vitality": 6}}
 	)
+	# force_crit was removed with the BattleResolver retune (16de7cd); setting it
+	# raised a script error that skipped the rest of this check. Pin the dice instead.
+	battle.set_seed(1)
 	echo.set("battle", battle)
 	echo.set("in_battle", true)
 	echo.set("reentry", false)
@@ -1274,6 +1299,11 @@ func _elaia_portrait_gate(live: Node) -> int:
 		body.call("_apply_presence")
 	failed += _check(bool(game.call("elaia_in_party")), "joined save has Elaia")
 	failed += _check(slot != null and not slot.visible, "portrait waits until the Clearing dialogue")
+	failed += _check(body != null and not body.visible, "sprite waits until Go look")
+	game.set("elaia_footsteps_seen", true)
+	if body and body.has_method("_apply_presence"):
+		body.call("_apply_presence")
+	failed += _check(body != null and body.visible, "sprite shows after Go look")
 	game.set("elaia_join_seen", true)
 	if hud:
 		hud.call("_refresh_party_bar")
