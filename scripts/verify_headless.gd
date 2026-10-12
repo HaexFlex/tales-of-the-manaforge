@@ -15373,6 +15373,85 @@ func _board_layout_rect_ok(shell: Node) -> int:
 		var ctrl: Control = shell.find_child(ctrl_name, true, false) as Control
 		if warn != null and ctrl != null and warn.visible and ctrl.visible:
 			failed += _assert(not warn.get_global_rect().intersects(ctrl.get_global_rect()), "warning clear of %s" % ctrl_name)
+	failed += _board_footer_copy_ok(shell)
+	failed += _board_decorator_bounds_ok(shell)
+	return failed
+
+
+func _board_footer_copy_ok(shell: Node) -> int:
+	var failed: int = 0
+	var box: VBoxContainer = shell.find_child("BottomLeftCopy", true, false) as VBoxContainer
+	failed += _assert(box != null, "footer copy vbox exists")
+	if box == null:
+		return failed
+	box.queue_sort()
+	var prev_bottom: float = -1.0
+	for child: Node in box.get_children():
+		if not child is Control:
+			continue
+		var ctrl: Control = child as Control
+		if not ctrl.visible:
+			continue
+		var r: Rect2 = ctrl.get_global_rect()
+		failed += _assert(r.position.y >= prev_bottom - 0.5, "footer copy stacked %s" % ctrl.name)
+		prev_bottom = r.position.y + r.size.y
+	var frame: Rect2 = _board_parchment_rect()
+	failed += _assert(prev_bottom < frame.position.y + frame.size.y - 8.0, "footer copy above frame bottom")
+	return failed
+
+
+func _board_decor_whitelisted(node: Node) -> bool:
+	var n: String = node.name
+	if n in [
+		"Panel", "FormationBed", "ResultsFrame", "TitlePlate", "ResultsTitlePlate", "Dim", "SimulateDim",
+		"EnemyArrow", "DecoVineTL", "DecoVineBR", "PickerTail", "TitlePlate", "CloseEscKeycap", "SimulateCloseEsc",
+	]:
+		return true
+	if n.begins_with("Divider"):
+		return true
+	return false
+
+
+func _board_decorator_bounds_ok(shell: Node) -> int:
+	var failed: int = 0
+	if shell == null:
+		return failed + 1
+	var panel: Control = shell.find_child("Panel", true, false) as Control
+	if panel == null:
+		return failed + _assert(false, "board panel for decorator bounds")
+	var labels: Array[Label] = []
+	for node: Node in shell.find_children("*", "Label", true, false):
+		var lbl: Label = node as Label
+		if lbl.is_visible_in_tree():
+			labels.append(lbl)
+	for node: Node in shell.find_children("*", "", true, false):
+		if not node is Control:
+			continue
+		if node is Label:
+			continue
+		if _board_decor_whitelisted(node):
+			continue
+		var ctrl: Control = node as Control
+		if not ctrl.is_visible_in_tree():
+			continue
+		if node is TextureRect or node is NinePatchRect or node is Panel or node is PanelContainer:
+			var parent: Control = ctrl.get_parent() as Control
+			if parent == null:
+				continue
+			var pr: Rect2 = parent.get_global_rect()
+			var cr: Rect2 = ctrl.get_global_rect()
+			if cr.size.x < 1.0 or cr.size.y < 1.0:
+				continue
+			if not _board_decor_whitelisted(node):
+				failed += _assert(pr.encloses(cr) or pr.intersection(cr).get_area() >= cr.get_area() * 0.98, "%s inside parent %s" % [node.name, parent.name])
+				for lbl: Label in labels:
+					if lbl == ctrl or ctrl.is_ancestor_of(lbl) or lbl.is_ancestor_of(ctrl):
+						continue
+					if cr.intersects(lbl.get_global_rect()):
+						failed += _assert(false, "%s overlaps label %s" % [node.name, lbl.name])
+	var tail: TextureRect = shell.find_child("PickerTail", true, false) as TextureRect
+	if tail != null:
+		failed += _assert(tail.size.x <= 10.0 and tail.size.y <= 16.0, "picker tail not stretched")
 	return failed
 
 

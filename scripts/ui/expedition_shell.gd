@@ -73,11 +73,7 @@ func _build_panel(panel: Control) -> void:
 	_route_block(panel)
 	_mode_block(panel)
 	_loadout_block(panel)
-	var warn := _make_label(panel, "WarningLabel", _scr(Vector2(244, 500)), Vector2(356, 38), 11, INK_SECONDARY)
-	warn.text = ""
-	var cost_ln := _make_label(panel, "DepartCostLine", _scr(Vector2(244, 540)), Vector2(356, 14), 11, INK_SECONDARY)
-	cost_ln.autowrap_mode = TextServer.AUTOWRAP_OFF
-	_divider(panel, "DividerBottom", _scr(Vector2(244, 556)), Vector2(356, 6))
+	_add_bottom_copy(panel)
 	_add_footer(panel)
 	_build_picker()
 	_build_simulate_window()
@@ -123,7 +119,6 @@ func _route_block(panel: Control) -> void:
 	_make_label(panel, "RoomsStepNote", _scr(Vector2(874, 218)), Vector2(70, 16), 12, INK_SECONDARY).text = "step 5"
 	_make_label(panel, "DurationLabel", _scr(Vector2(616, 254)), Vector2(200, 16), 12, INK_SECONDARY)
 	_make_label(panel, "BossLabel", _scr(Vector2(826, 254)), Vector2(200, 16), 12, INK_SECONDARY)
-	_divider(panel, "DividerLoadout", _scr(Vector2(616, 308)), Vector2(424, 6))
 
 
 func _mode_block(panel: Control) -> void:
@@ -135,11 +130,62 @@ func _mode_block(panel: Control) -> void:
 	var group := ButtonGroup.new()
 	manual.button_group = group
 	idle.button_group = group
-	_make_label(panel, "ModeHint", _scr(Vector2(244, 490)), Vector2(340, 16), 12, INK_SECONDARY)
+
+func _add_bottom_copy(panel: Control) -> void:
+	var box := VBoxContainer.new()
+	box.name = "BottomLeftCopy"
+	box.position = _scr(Vector2(244, 486))
+	box.custom_minimum_size = Vector2(356, 0)
+	box.add_theme_constant_override("separation", 6)
+	panel.add_child(box)
+	var mode_hint := Label.new()
+	mode_hint.name = "ModeHint"
+	mode_hint.add_theme_font_size_override("font_size", 12)
+	mode_hint.add_theme_color_override("font_color", INK_SECONDARY)
+	mode_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+	mode_hint.custom_minimum_size = Vector2(356, 20)
+	box.add_child(mode_hint)
+	var warn := Label.new()
+	warn.name = "WarningLabel"
+	warn.add_theme_font_size_override("font_size", 11)
+	warn.add_theme_color_override("font_color", INK_SECONDARY)
+	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	warn.custom_minimum_size = Vector2(356, 50)
+	box.add_child(warn)
+	var cost_ln := Label.new()
+	cost_ln.name = "DepartCostLine"
+	cost_ln.add_theme_font_size_override("font_size", 10)
+	cost_ln.add_theme_color_override("font_color", INK_SECONDARY)
+	cost_ln.autowrap_mode = TextServer.AUTOWRAP_OFF
+	cost_ln.clip_text = true
+	cost_ln.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	cost_ln.custom_minimum_size = Vector2(356, 14)
+	box.add_child(cost_ln)
+
+
+func reflow_footer_copy() -> void:
+	var box: VBoxContainer = find_child("BottomLeftCopy", true, false) as VBoxContainer
+	if box == null:
+		return
+	box.queue_sort()
+	var sep: int = box.get_theme_constant("separation")
+	var y: float = 0.0
+	for child: Node in box.get_children():
+		if not child is Control:
+			continue
+		var ctrl: Control = child as Control
+		ctrl.position = Vector2(0, y)
+		var h: float = maxf(ctrl.custom_minimum_size.y, ctrl.get_combined_minimum_size().y)
+		if child is Label:
+			h = maxf(h, (child as Label).get_minimum_size().y)
+		ctrl.size = Vector2(box.custom_minimum_size.x, h)
+		y += h + float(sep)
+	box.size = Vector2(box.custom_minimum_size.x, maxf(y - float(sep), 0.0))
 
 
 func _loadout_block(panel: Control) -> void:
 	_make_label(panel, "LoadoutTitle", _scr(Vector2(616, 292)), Vector2(120, 20), 16, INK).text = "Loadout"
+	_divider(panel, "DividerLoadout", _scr(Vector2(616, 318)), Vector2(424, 6))
 	_make_label(panel, "LoadoutCap", _scr(Vector2(736, 296)), Vector2(160, 16), 12, INK_SECONDARY).text = "up to 100 each"
 	for slot_i: int in range(2):
 		var y_scr: int = 320 + slot_i * 56
@@ -216,9 +262,12 @@ func _build_picker() -> void:
 	sb.texture_margin_bottom = POPUP_9S
 	picker_popup.add_theme_stylebox_override("panel", sb)
 	add_child(picker_popup)
-	picker_tail = _tex_rect(picker_popup, BOARD_DIR + "popup_tail_l_8x14.png", Vector2(-6, 0), Vector2(8, 14))
+	picker_popup.z_index = 20
+	picker_tail = _tex_rect(self, BOARD_DIR + "popup_tail_l_8x14.png", Vector2.ZERO, Vector2(8, 14))
 	picker_tail.name = "PickerTail"
 	picker_tail.visible = false
+	picker_tail.z_index = 19
+	picker_tail.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 	picker_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var margin := MarginContainer.new()
 	margin.name = "PickerMargin"
@@ -292,13 +341,34 @@ func configure_picker_row(index: int, display_name: String, sub: String, portrai
 	name_lbl.text = display_name
 	sub_lbl.text = sub
 	lock.visible = locked
+	var plus_lbl: Label = row.get_node_or_null("PlusGlyph") as Label
 	if portrait_path != "" and ResourceLoader.exists(portrait_path):
 		portrait.texture = load(portrait_path) as Texture2D
 		portrait.visible = true
+		portrait.size = Vector2(52, 52)
+		portrait.position = Vector2(3, 1)
 		portrait.modulate = Color(0.55, 0.55, 0.55, 1.0) if row_state == "disabled" else Color.WHITE
+		if plus_lbl != null:
+			plus_lbl.visible = false
+		name_lbl.position = Vector2(62, 12)
+		sub_lbl.position = Vector2(62, 32)
 	else:
 		portrait.texture = null
 		portrait.visible = false
+		if plus_lbl == null:
+			plus_lbl = Label.new()
+			plus_lbl.name = "PlusGlyph"
+			plus_lbl.position = Vector2(18, 14)
+			plus_lbl.size = Vector2(24, 24)
+			plus_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			plus_lbl.add_theme_font_size_override("font_size", 20)
+			plus_lbl.add_theme_color_override("font_color", INK_SECONDARY)
+			plus_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(plus_lbl)
+		plus_lbl.text = "+"
+		plus_lbl.visible = row_state != "disabled"
+		name_lbl.position = Vector2(52, 12)
+		sub_lbl.position = Vector2(52, 32)
 	_style_picker_row(row, row_state)
 	var blocked: bool = row_state == "disabled"
 	row.set_meta("picker_locked", blocked)
@@ -362,20 +432,21 @@ func _build_simulate_window() -> void:
 	simulate_modal.add_child(simulate_window)
 	var frame := _nine_patch("ResultsFrame", KIT_DIR + "frame_9s_96.png", FRAME_9S, Vector2.ZERO, SIM_SIZE)
 	simulate_window.add_child(frame)
-	var plate := _tex_rect(simulate_window, KIT_DIR + "title_plank_3s_48x40.png", _sim_local(Vector2(510, 92)), Vector2(260, 40))
+	var plate := _tex_rect(simulate_window, KIT_DIR + "title_plank_3s_48x40.png", Vector2(144, 0), Vector2(260, 40))
 	plate.name = "ResultsTitlePlate"
-	var sim_title := _make_label(simulate_window, "ResultsTitle", _sim_local(Vector2(518, 98)), Vector2(244, 28), 16, INK)
+	var sim_title := _make_label(simulate_window, "ResultsTitle", Vector2(152, 6), Vector2(244, 28), 16, INK)
 	sim_title.text = "Simulation"
 	sim_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	simulate_close = _stop_button(simulate_window, "SimulateClose", _sim_local(Vector2(754, 126)))
+	simulate_close = _stop_button(simulate_window, "SimulateClose", Vector2(392, 20))
 	simulate_close.text = "Close"
-	_tex_rect(simulate_window, KIT_DIR + "keycap_esc.png", _sim_local(Vector2(830, 130)), Vector2(28, 15)).name = "SimulateCloseEsc"
-	_make_label(simulate_window, "SimulateHeader", _sim_local(Vector2(356, 144)), Vector2(400, 20), 12, INK_SECONDARY)
-	_make_label(simulate_window, "SimulateSummary", _sim_local(Vector2(356, 164)), Vector2(400, 20), 16, INK)
+	_tex_rect(simulate_window, KIT_DIR + "keycap_esc.png", Vector2(468, 24), Vector2(28, 15)).name = "SimulateCloseEsc"
+	_make_label(simulate_window, "SimulateHeader", Vector2(24, 52), Vector2(400, 20), 12, INK_SECONDARY)
+	_make_label(simulate_window, "SimulateSummary", Vector2(24, 72), Vector2(400, 20), 16, INK)
 	simulate_scroll = ScrollContainer.new()
 	simulate_scroll.name = "SimulateScroll"
-	simulate_scroll.position = _sim_local(Vector2(354, 192))
-	simulate_scroll.size = Vector2(548, 248)
+	simulate_scroll.position = Vector2(24, 82)
+	simulate_scroll.size = Vector2(500, 248)
+	simulate_scroll.clip_contents = true
 	_apply_simulate_scroll_theme(simulate_scroll)
 	simulate_window.add_child(simulate_scroll)
 	simulate_room_list = VBoxContainer.new()
@@ -387,8 +458,8 @@ func _build_simulate_window() -> void:
 	simulate_result.visible = false
 	simulate_footer = VBoxContainer.new()
 	simulate_footer.name = "SimulateFooter"
-	simulate_footer.position = _sim_local(Vector2(356, 448))
-	simulate_footer.size = Vector2(520, 88)
+	simulate_footer.position = Vector2(24, 338)
+	simulate_footer.size = Vector2(500, 88)
 	simulate_footer.add_theme_constant_override("separation", 2)
 	simulate_window.add_child(simulate_footer)
 	var losses := Label.new()
@@ -396,7 +467,8 @@ func _build_simulate_window() -> void:
 	losses.autowrap_mode = TextServer.AUTOWRAP_OFF
 	losses.clip_text = true
 	losses.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	losses.custom_minimum_size = Vector2(520, 16)
+	losses.custom_minimum_size = Vector2(500, 16)
+	losses.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	losses.add_theme_font_size_override("font_size", 12)
 	losses.add_theme_color_override("font_color", INK)
 	simulate_footer.add_child(losses)
@@ -404,7 +476,7 @@ func _build_simulate_window() -> void:
 	banked.name = "SimulateBanked"
 	banked.autowrap_mode = TextServer.AUTOWRAP_OFF
 	banked.clip_text = true
-	banked.custom_minimum_size = Vector2(520, 16)
+	banked.custom_minimum_size = Vector2(500, 16)
 	banked.add_theme_font_size_override("font_size", 12)
 	banked.add_theme_color_override("font_color", INK)
 	simulate_footer.add_child(banked)
@@ -412,7 +484,7 @@ func _build_simulate_window() -> void:
 	used.name = "SimulateUsed"
 	used.autowrap_mode = TextServer.AUTOWRAP_OFF
 	used.clip_text = true
-	used.custom_minimum_size = Vector2(520, 16)
+	used.custom_minimum_size = Vector2(500, 16)
 	used.add_theme_font_size_override("font_size", 12)
 	used.add_theme_color_override("font_color", INK)
 	simulate_footer.add_child(used)
@@ -420,7 +492,7 @@ func _build_simulate_window() -> void:
 	note.name = "SimulateNote"
 	note.autowrap_mode = TextServer.AUTOWRAP_OFF
 	note.clip_text = true
-	note.custom_minimum_size = Vector2(520, 14)
+	note.custom_minimum_size = Vector2(500, 14)
 	note.add_theme_font_size_override("font_size", 12)
 	note.add_theme_color_override("font_color", INK_SECONDARY)
 	simulate_footer.add_child(note)
@@ -429,7 +501,7 @@ func _build_simulate_window() -> void:
 	simulate_essence_icon.modulate = ESSENCE_TINT
 	simulate_essence_icon.visible = false
 	essence_icons.append(simulate_essence_icon)
-	simulate_rerun = _wood_text_button(simulate_window, "SimulateRerun", _sim_local(Vector2(746, 544)), Vector2(120, 32), "Run again")
+	simulate_rerun = _wood_text_button(simulate_window, "SimulateRerun", Vector2(380, 432), Vector2(120, 32), "Run again")
 
 
 func _add_title(panel: Control) -> void:
@@ -448,8 +520,10 @@ func _add_close(panel: Control) -> void:
 
 
 func _add_vines(panel: Control) -> void:
-	_tex_rect(panel, KIT_DIR + "deco_vine_tl.png", Vector2(-4, -4), Vector2(32, 32))
-	_tex_rect(panel, KIT_DIR + "deco_vine_br.png", Vector2(852, 572), Vector2(32, 32))
+	var vine_tl := _tex_rect(panel, KIT_DIR + "deco_vine_tl.png", Vector2(-4, -4), Vector2(32, 32))
+	vine_tl.name = "DecoVineTL"
+	var vine_br := _tex_rect(panel, KIT_DIR + "deco_vine_br.png", Vector2(852, 572), Vector2(32, 32))
+	vine_br.name = "DecoVineBR"
 
 
 func _add_loadout_stepper(panel: Control, slot_n: int, pos: Vector2) -> void:
@@ -469,6 +543,7 @@ func _add_stepper(panel: Control, prefix: String, pos: Vector2, _qty_only: bool 
 	field.name = field_name
 	field.position = pos + Vector2(32, 0)
 	field.size = Vector2(48 if slot_n > 0 else 72, 28)
+	field.clip_contents = true
 	field.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	field.add_theme_font_size_override("font_size", 16)
 	field.add_theme_color_override("font_color", INK)
@@ -670,7 +745,7 @@ func add_simulate_row(left_text: String, right_text: String, row_kind: String, i
 	if simulate_room_list == null:
 		return
 	var row := PanelContainer.new()
-	row.custom_minimum_size = Vector2(520, 26)
+	row.custom_minimum_size = Vector2(480, 26)
 	var bg: StyleBox = StyleBoxEmpty.new()
 	if row_kind == "loss":
 		bg = _list_row_stylebox("list_row_9s_loss_24x24.png")
@@ -707,7 +782,7 @@ func add_simulate_row(left_text: String, right_text: String, row_kind: String, i
 	var right := Label.new()
 	right.text = right_text
 	right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	right.custom_minimum_size.x = 148
+	right.custom_minimum_size.x = 132
 	right.add_theme_font_size_override("font_size", 12)
 	right.add_theme_color_override("font_color", INK_SECONDARY)
 	h.add_child(right)
@@ -783,15 +858,18 @@ func _tex_rect(parent: Control, path: String, pos: Vector2, size: Vector2) -> Te
 
 
 func _divider(parent: Control, node_name: String, pos: Vector2, size: Vector2) -> void:
-	var tr := TextureRect.new()
-	tr.name = node_name
-	tr.texture = _load_tex(BOARD_DIR + "divider_3s_48x6.png")
-	tr.position = pos
-	tr.size = size
-	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	tr.stretch_mode = TextureRect.STRETCH_TILE
-	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(tr)
+	var np := NinePatchRect.new()
+	np.name = node_name
+	np.texture = _load_tex(BOARD_DIR + "divider_3s_48x6.png")
+	np.position = pos
+	np.size = size
+	np.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	np.patch_margin_left = 8
+	np.patch_margin_right = 8
+	np.patch_margin_top = 0
+	np.patch_margin_bottom = 0
+	np.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(np)
 
 
 func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, font_size: int, color: Color) -> Label:
@@ -826,7 +904,8 @@ func place_picker(slot_btn: Button) -> void:
 	picker_popup.position = Vector2(slot_btn.global_position.x + 68.0, y)
 	picker_popup.custom_minimum_size = Vector2(236, h)
 	picker_popup.size = Vector2(236, h)
-	picker_tail.position = Vector2(-6, slot_centre_y - y - 7.0)
+	picker_tail.position = Vector2(picker_popup.position.x - 6.0, slot_centre_y - 7.0)
+	picker_tail.size = Vector2(8, 14)
 	picker_tail.visible = true
 	picker_popup.visible = true
 

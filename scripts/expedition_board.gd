@@ -506,7 +506,7 @@ func _ensure_shell() -> void:
 	_idle_btn = panel.get_node("IdleButton") as Button
 	_manual_btn = panel.get_node("ManualButton") as Button
 	_cost_lbl = panel.get_node_or_null("CostLabel") as Label
-	_warning_lbl = panel.get_node("WarningLabel") as Label
+	_warning_lbl = panel.get_node("BottomLeftCopy/WarningLabel") as Label
 	_simulate_btn = panel.get_node("SimulateButton") as Button
 	_depart = panel.get_node("Depart") as Button
 	_close_btn = panel.get_node("CloseButton") as Button
@@ -620,7 +620,9 @@ func _refresh_shell() -> void:
 			_boss_lbl.text = ContentStrings.get_text("board_bosses_none")
 		else:
 			_boss_lbl.text = ContentStrings.get_text("board_bosses_up_to").replace("{n}", str(bosses))
-	var mode_hint: Label = _panel.get_node("Panel/ModeHint") as Label if _panel != null else null
+	if _shell_view != null and _shell_view.has_method("reflow_footer_copy"):
+		_shell_view.call("reflow_footer_copy")
+	var mode_hint: Label = _panel.get_node("Panel/BottomLeftCopy/ModeHint") as Label if _panel != null else null
 	if mode_hint != null:
 		var hint_key: String = "board_mode_idle_hint" if _control == "idle" else "board_mode_manual_hint"
 		var hint_txt: String = ContentStrings.get_text(hint_key)
