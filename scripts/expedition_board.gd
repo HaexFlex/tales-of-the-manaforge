@@ -66,6 +66,7 @@ var _pack_lbl: Label
 var _loadout_left_lbl: Label
 var _party_slots: Dictionary = {}
 var _picker_open: Dictionary = {}
+var _simulate_modal: Control
 var _simulate_window: Control
 var _idle_btn: Button
 var _manual_btn: Button
@@ -123,7 +124,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not shell_open():
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
-		if _simulate_window != null and _simulate_window.visible:
+		if _simulate_modal != null and _simulate_modal.visible:
 			_close_simulate_window()
 		else:
 			close_shell()
@@ -524,6 +525,7 @@ func _ensure_shell() -> void:
 		_loadout_minus_btns.append(panel.get_node("LoadoutMinus%d" % n) as Button)
 		_loadout_plus_btns.append(panel.get_node("LoadoutPlus%d" % n) as Button)
 		_loadout_qty_lbls.append(panel.get_node("LoadoutQty%d" % n) as LineEdit)
+	_simulate_modal = _shell_view.simulate_modal
 	_simulate_window = _shell_view.simulate_window
 	_simulate_result = _shell_view.simulate_result
 	_simulate_close = _shell_view.simulate_close
@@ -613,6 +615,13 @@ func _refresh_shell() -> void:
 			_boss_lbl.text = ContentStrings.get_text("board_bosses_none")
 		else:
 			_boss_lbl.text = ContentStrings.get_text("board_bosses_up_to").replace("{n}", str(bosses))
+	var mode_hint: Label = _panel.get_node("Panel/ModeHint") as Label if _panel != null else null
+	if mode_hint != null:
+		var hint_key: String = "board_mode_idle_hint" if _control == "idle" else "board_mode_manual_hint"
+		var hint_txt: String = ContentStrings.get_text(hint_key)
+		if hint_txt == hint_key:
+			hint_txt = "Idle: the party walks and fights on its own." if _control == "idle" else "Manual: you choose each room."
+		mode_hint.text = hint_txt
 	if _cost_lbl:
 		_cost_lbl.text = ContentStrings.get_text("adv_depart_cost")
 	if _warning_lbl:
@@ -655,9 +664,10 @@ func _refresh_shell() -> void:
 		var short: bool = GameState.essence < DEPART_ESSENCE_COST
 		var tex_path: String = BOARD_DIR + ("cost_chip_9s_short_24x32.png" if short else "cost_chip_9s_ok_24x32.png")
 		chip.texture = load(tex_path) as Texture2D
-	var debug := has_node("/root/Reach") and Reach.debug_tools()
+	var debug := has_node("/root/Reach") and Reach.debug_tools() and running
 	if _skip_btn:
 		_skip_btn.visible = debug
+	if _rush_btn:
 		_rush_btn.visible = debug
 		_rush_btn.button_pressed = Reach.rush if debug else false
 	_lantern_lbl.text = _lantern_line()
@@ -870,15 +880,15 @@ func _on_simulate() -> void:
 
 
 func _open_simulate_window() -> void:
-	if _simulate_window == null or last_sim.is_empty():
+	if _simulate_modal == null or last_sim.is_empty():
 		return
 	_refresh_simulate_result()
-	_simulate_window.visible = true
+	_simulate_modal.visible = true
 
 
 func _close_simulate_window() -> void:
-	if _simulate_window != null:
-		_simulate_window.visible = false
+	if _simulate_modal != null:
+		_simulate_modal.visible = false
 
 
 func _refresh_simulate_result() -> void:
@@ -939,6 +949,8 @@ func _refresh_simulate_result() -> void:
 		totals.append(ContentStrings.get_text("sim_essence").replace("{n}", str(essence_back)))
 	if totals_lbl != null:
 		totals_lbl.text = "\n".join(totals)
+	if _shell_view != null and _shell_view.simulate_essence_icon != null:
+		_shell_view.simulate_essence_icon.visible = essence_back > 0
 	if note_lbl != null:
 		var disc: String = ContentStrings.get_text("sim_forecast_note")
 		if disc == "" or disc == "sim_forecast_note":
@@ -1044,17 +1056,16 @@ func _populate_picker(row: String, cell: int) -> void:
 	if _shell_view == null:
 		return
 	var current: String = _member_at_slot(row, cell)
-	var choices: Array[Dictionary] = [{"member": "", "label": "Leave empty", "sub": "clear this square"}]
-	for member: String in available_members():
-		var sub: String = ""
-		var idx := _member_index(member)
-		if idx >= 0:
-			var e: Dictionary = _members[idx]
-			if str(e.get("row", "")) == row and int(e.get("cell", -1)) == cell:
-				sub = "Here now"
-			else:
-				sub = "In the party (%s)" % ("Back" if str(e.get("row", "")) == "back" else "Front")
-		choices.append({"member": member, "label": _member_display(member), "sub": sub})
+	var title: String = ContentStrings.get_text("board_who_stands")
+	if title == "board_who_stands":
+		title = "Who stands here?"
+	_shell_view.picker_title.text = title
+	var choices: Array[Dictionary] = []
+	choices.append(_picker_choice("keeper", row, cell, current))
+	if GameState.elaia_portrait_visible():
+		choices.append(_picker_choice("elaia", row, cell, current))
+	choices.append(_picker_bramble_choice(row, cell, current))
+	choices.append({"member": "", "label": "Leave empty", "sub": "clear this square", "state": "normal", "portrait": "", "locked": false})
 	for i: int in range(_shell_view.picker_rows.size()):
 		var btn: Button = _shell_view.picker_rows[i]
 		if i >= choices.size():
@@ -1062,8 +1073,51 @@ func _populate_picker(row: String, cell: int) -> void:
 			continue
 		btn.visible = true
 		var choice: Dictionary = choices[i]
-		btn.text = "%s\n%s" % [str(choice["label"]), str(choice["sub"])]
-		btn.set_meta("pick_member", str(choice["member"]))
+		btn.set_meta("pick_member", str(choice.get("member", "")))
+		_shell_view.configure_picker_row(
+			i,
+			str(choice.get("label", "")),
+			str(choice.get("sub", "")),
+			str(choice.get("portrait", "")),
+			str(choice.get("state", "normal")),
+			bool(choice.get("locked", false)),
+		)
+
+
+func _picker_choice(member: String, row: String, cell: int, current: String) -> Dictionary:
+	var sub: String = ""
+	var state: String = "normal"
+	var idx := _member_index(member)
+	if idx >= 0:
+		var e: Dictionary = _members[idx]
+		if str(e.get("row", "")) == row and int(e.get("cell", -1)) == cell:
+			sub = "Here now"
+			state = "current"
+		else:
+			sub = "In the party (%s)" % ("Back" if str(e.get("row", "")) == "back" else "Front")
+			state = "disabled"
+	return {
+		"member": member,
+		"label": _member_display(member),
+		"sub": sub,
+		"state": state,
+		"portrait": _portrait_path(member),
+		"locked": false,
+	}
+
+
+func _picker_bramble_choice(row: String, cell: int, current: String) -> Dictionary:
+	var unlocked: bool = available_members().has("bramble")
+	if unlocked:
+		return _picker_choice("bramble", row, cell, current)
+	return {
+		"member": "bramble",
+		"label": "Bramble",
+		"sub": "Unlocks at 30 rooms",
+		"state": "disabled",
+		"portrait": _portrait_path("bramble"),
+		"locked": true,
+	}
 
 
 func _on_picker_row(index: int) -> void:
@@ -1082,16 +1136,21 @@ func _on_picker_row(index: int) -> void:
 
 
 func _refresh_party_slots(running: bool) -> void:
+	var selected_key: String = ""
+	if not _picker_open.is_empty():
+		selected_key = "%s:%d" % [str(_picker_open.get("row", "")), int(_picker_open.get("cell", -1))]
 	for key: String in _party_slots.keys():
 		var btn: Button = _party_slots[key] as Button
 		btn.disabled = running
 		var parts: PackedStringArray = key.split(":")
 		var member: String = _member_at_slot(parts[0], int(parts[1]))
-		var tex: String = ExpeditionShellView.BOARD_DIR + "party_slot_empty_60x60.png"
+		var style: String = "empty"
 		if member != "":
-			tex = ExpeditionShellView.BOARD_DIR + "party_slot_filled_60x60.png"
+			style = "filled"
+		if key == selected_key:
+			style = "selected"
 		if _shell_view != null:
-			_shell_view._style_party_slot(btn, tex)
+			_shell_view.set_party_slot_style(btn, style)
 		for child: Node in btn.get_children():
 			child.queue_free()
 		if member != "":

@@ -15342,6 +15342,58 @@ func _board_shell_has_percent(shell: Node) -> bool:
 	return false
 
 
+func _board_parchment_rect() -> Rect2:
+	return Rect2(Vector2(224, 84), Vector2(832, 552))
+
+
+func _board_rect_inside_frame(ctrl: Control, frame: Rect2) -> bool:
+	if ctrl == null or not ctrl.visible:
+		return true
+	var r: Rect2 = ctrl.get_global_rect()
+	var inner: Rect2 = frame.grow(-2)
+	return inner.encloses(r) or inner.intersection(r).get_area() >= r.get_area() * 0.85
+
+
+func _board_layout_rect_ok(shell: Node) -> int:
+	var failed: int = 0
+	if shell == null:
+		return failed + 1
+	var frame: Rect2 = _board_parchment_rect()
+	for node_name: String in [
+		"CloseButton", "CloseEscKeycap", "Depart", "CostChip", "SimulateButton",
+		"DepthMaxLabel", "RoomsStepNote", "LoadoutQty1Cap", "LoadoutQty2Cap",
+	]:
+		var ctrl: Control = shell.find_child(node_name, true, false) as Control
+		if ctrl == null:
+			failed += _assert(false, "board layout missing %s" % node_name)
+		else:
+			failed += _assert(_board_rect_inside_frame(ctrl, frame), "%s inside parchment frame" % node_name)
+	var warn: Label = shell.find_child("WarningLabel", true, false) as Label
+	for ctrl_name: String in ["ManualButton", "IdleButton", "SimulateButton"]:
+		var ctrl: Control = shell.find_child(ctrl_name, true, false) as Control
+		if warn != null and ctrl != null and warn.visible and ctrl.visible:
+			failed += _assert(not warn.get_global_rect().intersects(ctrl.get_global_rect()), "warning clear of %s" % ctrl_name)
+	return failed
+
+
+func _board_picker_row_names_ok(board: Node, shell: Node) -> int:
+	var failed: int = 0
+	if board == null or shell == null:
+		return failed + 1
+	board.call("_on_party_slot_pressed", "back", 1)
+	board.call("_refresh_shell")
+	for i: int in range(4):
+		var row: Button = shell.find_child("PickerRow%d" % i, true, false) as Button
+		if row == null or not row.visible:
+			continue
+		var name_lbl: Label = row.get_node_or_null("Name") as Label
+		failed += _assert(name_lbl != null and name_lbl.text.length() > 0, "picker row %d name label" % i)
+	for child: Node in shell.get_children():
+		if child.has_method("hide_picker"):
+			child.call("hide_picker")
+	return failed
+
+
 func _board_party_rows_match(reach_party: Array, cfg_party: Array) -> bool:
 	if reach_party.size() != cfg_party.size():
 		return false
@@ -15427,6 +15479,11 @@ func _board_v4_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 	if item2 != null:
 		var choices: Array[String] = board.call("_loadout_choices", 1)
 		failed += _assert(not choices.has("heart_salve"), "slot 2 cannot pick the first slot item")
+	failed += _board_layout_rect_ok(shell)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	failed += _board_picker_row_names_ok(board, shell)
 	game_state.call("set_resource", &"essence", 19)
 	board.call("_refresh_shell")
 	var depart: Button = shell.find_child("Depart", true, false) as Button
@@ -15610,10 +15667,17 @@ func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Nod
 	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
 	var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
 	sim_btn.emit_signal("pressed")
+	var sim_modal: Control = shell.find_child("SimulateModal", true, false) as Control if shell != null else null
 	var sim_win: Control = shell.find_child("SimulateWindow", true, false) as Control if shell != null else null
 	var sim_lbl: Label = shell.find_child("SimulateResult", true, false) as Label if shell != null else null
 	var sim_close: Button = shell.find_child("SimulateClose", true, false) as Button if shell != null else null
+	var depart_btn: Button = shell.find_child("Depart", true, false) as Button if shell != null else null
+	failed += _assert(sim_modal != null and sim_modal.visible, "sim modal visible")
 	failed += _assert(sim_win != null and sim_win.visible, "sim window visible")
+	var title_lbl: Label = shell.find_child("ResultsTitle", true, false) as Label if shell != null else null
+	failed += _assert(title_lbl != null and title_lbl.text == "Simulation", "simulation title plank")
+	if sim_win != null and depart_btn != null:
+		failed += _assert(not sim_win.get_global_rect().intersects(depart_btn.get_global_rect()), "sim window clear of Depart")
 	var in_scroll: bool = false
 	if sim_lbl != null:
 		var p: Node = sim_lbl.get_parent()
@@ -15625,7 +15689,7 @@ func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Nod
 	failed += _assert(sim_lbl != null and in_scroll, "SimulateResult in scroll")
 	if sim_close != null:
 		sim_close.emit_signal("pressed")
-	failed += _assert(sim_win != null and not sim_win.visible, "sim close works")
+	failed += _assert(sim_modal != null and not sim_modal.visible, "sim close works")
 	board.free()
 	if shell != null:
 		shell.free()
@@ -15991,6 +16055,8 @@ func _simulate_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 		if sim_btn != null:
 			sim_btn.emit_signal("pressed")
 			board.call("_refresh_shell")
+			var sim_modal: Node = shell.find_child("SimulateModal", true, false) if shell != null else null
+			failed += _assert(sim_modal != null and (sim_modal as Control).visible, "simulate modal opens")
 			failed += _assert(sim_win != null and (sim_win as Control).visible, "simulate window opens")
 			failed += _assert(sim_lbl != null and sim_lbl.text.length() > 0, "simulate scroll text")
 			failed += _assert(sim_lbl.text.find("Room ") >= 0, "simulate per-room lines")

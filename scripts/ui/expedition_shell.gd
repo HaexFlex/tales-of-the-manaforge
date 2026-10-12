@@ -5,23 +5,31 @@ class_name ExpeditionShellView
 const BOARD_DIR: String = "res://assets/art/ui/board/"
 const KIT_DIR: String = "res://assets/art/ui/minigames/kit/"
 const BATTLE_UI: String = "res://assets/art/battle/ui/"
-const INK: Color = Color(0.243137, 0.164706, 0.0941176, 1.0)
-const PARCHMENT: Color = Color(0.86, 0.88, 0.82, 1.0)
+const PANEL_ORIGIN: Vector2 = Vector2(200, 60)
+const SIM_ORIGIN: Vector2 = Vector2(330, 110)
+const SIM_SIZE: Vector2 = Vector2(548, 500)
+const INK: Color = Color(0.243137, 0.164706, 0.0941176, 1.0) # #3E2A18
+const INK_SECONDARY: Color = Color(0.368627, 0.321569, 0.266667, 1.0) # #5E5244
 const WOOD_9S: int = 6
 const FRAME_9S: int = 24
 const FIELD_9S: int = 6
 const POPUP_9S: int = 8
+const PICK_ROW_9S: int = 6
 const ICON_ESSENCE_TEX: String = "res://assets/art/ui/icon_essence.png"
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 
 var picker_popup: PanelContainer
+var picker_title: Label
+var picker_tail: TextureRect
 var picker_rows: Array[Button] = []
 var party_slots: Dictionary = {}
+var simulate_modal: Control
 var simulate_window: Control
 var simulate_scroll: ScrollContainer
 var simulate_result: Label
 var simulate_close: Button
 var simulate_rerun: Button
+var simulate_essence_icon: TextureRect
 var essence_icons: Array[TextureRect] = []
 
 
@@ -31,6 +39,14 @@ func _ready() -> void:
 	_build()
 
 
+func _scr(screen_pos: Vector2) -> Vector2:
+	return screen_pos - PANEL_ORIGIN
+
+
+func _sim_local(screen_pos: Vector2) -> Vector2:
+	return screen_pos - SIM_ORIGIN
+
+
 func _build() -> void:
 	var dim := ColorRect.new()
 	dim.name = "Dim"
@@ -38,7 +54,7 @@ func _build() -> void:
 	dim.color = Color(0, 0, 0, 0.58)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
-	var panel: NinePatchRect = _nine_patch("Panel", KIT_DIR + "frame_9s_96.png", FRAME_9S, Vector2(200, 60), Vector2(880, 600))
+	var panel: NinePatchRect = _nine_patch("Panel", KIT_DIR + "frame_9s_96.png", FRAME_9S, PANEL_ORIGIN, Vector2(880, 600))
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
 	_build_panel(panel)
@@ -48,15 +64,16 @@ func _build_panel(panel: Control) -> void:
 	_add_vines(panel)
 	_add_title(panel)
 	_add_close(panel)
-	_make_label(panel, "Hint", Vector2(224, 84), Vector2(832, 20), 13, PARCHMENT).text = ""
-	_make_label(panel, "Lantern", Vector2(224, 104), Vector2(832, 20), 13, Color(0.78, 0.86, 0.9, 1.0))
-	_divider(panel, Vector2(224, 128), Vector2(832, 6))
+	_make_label(panel, "Hint", _scr(Vector2(244, 92)), Vector2(680, 18), 14, INK).text = ""
+	_make_label(panel, "Lantern", _scr(Vector2(244, 114)), Vector2(680, 16), 12, INK_SECONDARY).text = ""
+	_divider(panel, _scr(Vector2(244, 136)), Vector2(796, 6))
 	_party_block(panel)
 	_route_block(panel)
 	_mode_block(panel)
 	_loadout_block(panel)
-	_divider(panel, Vector2(224, 424), Vector2(832, 6))
-	_make_label(panel, "WarningLabel", Vector2(224, 436), Vector2(832, 52), 12, Color(0.92, 0.82, 0.7, 1.0))
+	_divider(panel, _scr(Vector2(244, 520)), Vector2(796, 6))
+	var warn := _make_label(panel, "WarningLabel", _scr(Vector2(244, 530)), Vector2(356, 70), 12, INK_SECONDARY)
+	warn.text = ""
 	_add_footer(panel)
 	_build_picker()
 	_build_simulate_window()
@@ -64,23 +81,23 @@ func _build_panel(panel: Control) -> void:
 
 
 func _party_block(panel: Control) -> void:
-	_make_label(panel, "PartyTitle", Vector2(224, 140), Vector2(200, 20), 16, INK).text = ""
-	var sub := _make_label(panel, "PartyHint", Vector2(224, 158), Vector2(280, 16), 12, PARCHMENT)
+	_make_label(panel, "PartyTitle", _scr(Vector2(244, 148)), Vector2(200, 20), 16, INK).text = ""
+	var sub := _make_label(panel, "PartyHint", _scr(Vector2(244, 168)), Vector2(280, 16), 12, INK_SECONDARY)
 	sub.text = ""
-	var bed := _nine_patch("FormationBed", KIT_DIR + "play_bevel_9s_6x6.png", 2, Vector2(224, 176), Vector2(360, 242))
+	var bed := _nine_patch("FormationBed", KIT_DIR + "play_bevel_9s_6x6.png", 2, _scr(Vector2(244, 172)), Vector2(340, 246))
 	panel.add_child(bed)
-	_make_label(panel, "LabelBack", Vector2(248, 188), Vector2(60, 16), 12, INK).text = "Back"
-	_make_label(panel, "LabelFront", Vector2(448, 188), Vector2(60, 16), 12, INK).text = "Front"
-	var arrow := _tex_rect(panel, BOARD_DIR + "arrow_enemy_side_12x9.png", Vector2(548, 188), Vector2(12, 9))
+	_make_label(panel, "LabelBack", _scr(Vector2(264, 398)), Vector2(60, 14), 12, INK_SECONDARY).text = "Back"
+	_make_label(panel, "LabelFront", _scr(Vector2(414, 398)), Vector2(60, 14), 12, INK_SECONDARY).text = "Front"
+	var arrow := _tex_rect(panel, BOARD_DIR + "arrow_enemy_side_12x9.png", _scr(Vector2(562, 182)), Vector2(12, 9))
 	arrow.name = "EnemyArrow"
-	_make_label(panel, "EnemyLabel", Vector2(564, 188), Vector2(60, 16), 12, PARCHMENT).text = "enemies"
+	_make_label(panel, "EnemyLabel", _scr(Vector2(576, 182)), Vector2(60, 16), 12, INK_SECONDARY).text = "enemies"
 	var defs: Array[Dictionary] = [
-		{"name": "SlotBackTop", "row": "back", "cell": 0, "pos": Vector2(248, 208)},
-		{"name": "SlotBackMid", "row": "back", "cell": 1, "pos": Vector2(248, 276)},
-		{"name": "SlotBackBot", "row": "back", "cell": 2, "pos": Vector2(248, 344)},
-		{"name": "SlotFrontTop", "row": "front", "cell": 0, "pos": Vector2(448, 208)},
-		{"name": "SlotFrontMid", "row": "front", "cell": 1, "pos": Vector2(448, 276)},
-		{"name": "SlotFrontBot", "row": "front", "cell": 2, "pos": Vector2(448, 344)},
+		{"name": "SlotBackTop", "row": "back", "cell": 0, "pos": _scr(Vector2(264, 196))},
+		{"name": "SlotBackMid", "row": "back", "cell": 1, "pos": _scr(Vector2(294, 266))},
+		{"name": "SlotBackBot", "row": "back", "cell": 2, "pos": _scr(Vector2(264, 336))},
+		{"name": "SlotFrontTop", "row": "front", "cell": 0, "pos": _scr(Vector2(414, 196))},
+		{"name": "SlotFrontMid", "row": "front", "cell": 1, "pos": _scr(Vector2(444, 266))},
+		{"name": "SlotFrontBot", "row": "front", "cell": 2, "pos": _scr(Vector2(414, 336))},
 	]
 	for def: Dictionary in defs:
 		var btn := _party_slot_button(str(def["name"]), def["pos"] as Vector2)
@@ -89,44 +106,44 @@ func _party_block(panel: Control) -> void:
 
 
 func _route_block(panel: Control) -> void:
-	_make_label(panel, "RouteTitle", Vector2(616, 140), Vector2(120, 20), 16, INK).text = "Route"
-	_make_label(panel, "DepthLabel", Vector2(616, 178), Vector2(100, 16), 14, INK)
-	_add_stepper(panel, "Depth", Vector2(728, 172))
-	_make_label(panel, "DepthMaxLabel", Vector2(874, 178), Vector2(70, 16), 12, PARCHMENT)
-	_make_label(panel, "RoomsLabel", Vector2(616, 218), Vector2(100, 16), 14, INK)
-	_add_stepper(panel, "Rooms", Vector2(728, 212))
-	_make_label(panel, "RoomsStepNote", Vector2(874, 218), Vector2(70, 16), 12, PARCHMENT).text = "step 5"
-	_make_label(panel, "DurationLabel", Vector2(616, 252), Vector2(360, 20), 14, Color(0.78, 0.84, 0.88, 1.0))
-	_make_label(panel, "BossLabel", Vector2(616, 276), Vector2(360, 20), 14, Color(0.95, 0.9, 0.72, 1.0))
+	_make_label(panel, "RouteTitle", _scr(Vector2(616, 148)), Vector2(120, 20), 16, INK).text = "Route"
+	_make_label(panel, "DepthLabel", _scr(Vector2(616, 178)), Vector2(100, 16), 14, INK)
+	_add_stepper(panel, "Depth", _scr(Vector2(728, 172)))
+	_make_label(panel, "DepthMaxLabel", _scr(Vector2(874, 178)), Vector2(70, 16), 12, INK_SECONDARY)
+	_make_label(panel, "RoomsLabel", _scr(Vector2(616, 218)), Vector2(100, 16), 14, INK)
+	_add_stepper(panel, "Rooms", _scr(Vector2(728, 212)))
+	_make_label(panel, "RoomsStepNote", _scr(Vector2(874, 218)), Vector2(70, 16), 12, INK_SECONDARY).text = "step 5"
+	_make_label(panel, "DurationLabel", _scr(Vector2(616, 254)), Vector2(200, 16), 12, INK_SECONDARY)
+	_make_label(panel, "BossLabel", _scr(Vector2(826, 254)), Vector2(200, 16), 12, INK_SECONDARY)
+	_divider(panel, _scr(Vector2(616, 280)), Vector2(424, 6))
 
 
 func _mode_block(panel: Control) -> void:
-	_make_label(panel, "ModeTitle", Vector2(224, 428), Vector2(120, 20), 16, INK).text = "Mode"
-	var manual := _mode_toggle(panel, "ManualButton", Vector2(224, 452), "Manual")
-	var idle := _mode_toggle(panel, "IdleButton", Vector2(360, 452), "Idle")
+	_make_label(panel, "ModeTitle", _scr(Vector2(244, 430)), Vector2(80, 20), 16, INK).text = "Mode"
+	var manual := _mode_toggle(panel, "ManualButton", _scr(Vector2(244, 452)), "Manual")
+	var idle := _mode_toggle(panel, "IdleButton", _scr(Vector2(368, 452)), "Idle")
 	manual.toggle_mode = true
 	idle.toggle_mode = true
 	var group := ButtonGroup.new()
 	manual.button_group = group
 	idle.button_group = group
-	_make_label(panel, "ModeHint", Vector2(224, 488), Vector2(360, 32), 12, PARCHMENT)
+	_make_label(panel, "ModeHint", _scr(Vector2(244, 490)), Vector2(340, 16), 12, INK_SECONDARY)
 
 
 func _loadout_block(panel: Control) -> void:
-	_make_label(panel, "LoadoutTitle", Vector2(616, 308), Vector2(200, 20), 16, INK).text = "Loadout"
-	_divider(panel, Vector2(616, 332), Vector2(328, 6))
+	_make_label(panel, "LoadoutTitle", _scr(Vector2(616, 292)), Vector2(200, 20), 16, INK).text = "Loadout"
 	for slot_i: int in range(2):
-		var y: int = 344 + slot_i * 52
+		var y_scr: int = 320 + slot_i * 56
 		var n: int = slot_i + 1
 		var slot_btn := Button.new()
 		slot_btn.name = "LoadoutItem%d" % n
-		slot_btn.position = Vector2(616, y)
+		slot_btn.position = _scr(Vector2(616, y_scr))
 		slot_btn.size = Vector2(44, 44)
 		slot_btn.flat = true
 		panel.add_child(slot_btn)
 		_style_item_slot(slot_btn)
-		_make_label(panel, "LoadoutName%d" % n, Vector2(668, y + 4), Vector2(120, 16), 12, INK)
-		_add_loadout_stepper(panel, n, Vector2(788, y + 8))
+		_make_label(panel, "LoadoutName%d" % n, _scr(Vector2(670, y_scr + 6)), Vector2(200, 34), 12, INK)
+		_add_loadout_stepper(panel, n, _scr(Vector2(872, y_scr + 8)))
 
 
 func _add_footer(panel: Control) -> void:
@@ -134,38 +151,43 @@ func _add_footer(panel: Control) -> void:
 	var strings: Node = get_node_or_null("/root/ContentStrings")
 	if strings != null:
 		sim_label = str(strings.call("get_text", "board_simulate"))
-	var sim := _action_button(panel, "SimulateButton", Vector2(224, 544), sim_label)
+	var sim := _action_button(panel, "SimulateButton", _scr(Vector2(616, 564)), sim_label)
 	sim.size = Vector2(160, 44)
-	var chip := _nine_patch("CostChip", BOARD_DIR + "cost_chip_9s_ok_24x32.png", 8, Vector2(596, 548), Vector2(84, 44))
+	var chip := _nine_patch("CostChip", BOARD_DIR + "cost_chip_9s_ok_24x32.png", 8, _scr(Vector2(786, 564)), Vector2(84, 44))
 	panel.add_child(chip)
-	var ess_icon := _tex_rect(chip, ICON_ESSENCE_TEX, Vector2(8, 6), Vector2(32, 32))
+	var ess_icon := _tex_rect(chip, ICON_ESSENCE_TEX, Vector2(4, 6), Vector2(32, 32))
 	ess_icon.name = "EssenceCostIcon"
 	ess_icon.modulate = ESSENCE_TINT
 	essence_icons.append(ess_icon)
-	_make_label(chip, "CostAmount", Vector2(40, 10), Vector2(40, 24), 16, INK).text = "20"
-	_make_label(panel, "CostLabel", Vector2(224, 500), Vector2(832, 20), 13, Color(0.82, 0.88, 0.9, 1.0))
-	var depart := _action_button(panel, "Depart", Vector2(688, 544), "Depart")
+	_make_label(chip, "CostAmount", Vector2(40, 10), Vector2(40, 24), 18, INK).text = "20"
+	_make_label(panel, "CostLabel", _scr(Vector2(244, 536)), Vector2(356, 36), 12, INK_SECONDARY)
+	var depart := _action_button(panel, "Depart", _scr(Vector2(880, 564)), "Depart")
 	depart.size = Vector2(160, 44)
-	_make_label(panel, "DepartHint", Vector2(688, 592), Vector2(200, 16), 12, PARCHMENT)
-	_make_label(panel, "DepartEssenceWarn", Vector2(688, 608), Vector2(200, 16), 12, Color(0.9, 0.45, 0.4, 1.0))
+	var depart_hint := _make_label(panel, "DepartHint", _scr(Vector2(760, 614)), Vector2(280, 16), 12, INK_SECONDARY)
+	depart_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	depart_hint.clip_text = true
+	depart_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_make_label(panel, "DepartEssenceWarn", _scr(Vector2(760, 630)), Vector2(280, 16), 12, Color(0.55, 0.22, 0.18, 1.0))
 
 
 func _add_progress(panel: Control) -> void:
-	_make_label(panel, "ProgressLabel", Vector2(224, 176), Vector2(832, 28), 15, Color(0.9, 0.88, 0.78, 1.0))
-	_make_label(panel, "PackLabel", Vector2(224, 208), Vector2(832, 24), 14, Color(0.78, 0.84, 0.88, 1.0))
-	_make_label(panel, "LoadoutLeftLabel", Vector2(224, 236), Vector2(832, 24), 14, Color(0.78, 0.84, 0.88, 1.0))
+	_make_label(panel, "ProgressLabel", _scr(Vector2(244, 172)), Vector2(340, 28), 15, INK)
+	_make_label(panel, "PackLabel", _scr(Vector2(244, 200)), Vector2(340, 24), 14, INK_SECONDARY)
+	_make_label(panel, "LoadoutLeftLabel", _scr(Vector2(244, 228)), Vector2(340, 24), 14, INK_SECONDARY)
 	var skip := Button.new()
 	skip.name = "SkipRoom"
 	skip.text = "Skip room"
-	skip.position = Vector2(224, 528)
+	skip.position = _scr(Vector2(244, 528))
 	skip.size = Vector2(160, 36)
+	skip.visible = false
 	panel.add_child(skip)
 	var rush := Button.new()
 	rush.name = "Rush"
 	rush.text = "Rush"
 	rush.toggle_mode = true
-	rush.position = Vector2(396, 528)
+	rush.position = _scr(Vector2(416, 528))
 	rush.size = Vector2(120, 36)
+	rush.visible = false
 	panel.add_child(rush)
 
 
@@ -182,42 +204,153 @@ func _build_picker() -> void:
 	sb.texture_margin_bottom = POPUP_9S
 	picker_popup.add_theme_stylebox_override("panel", sb)
 	add_child(picker_popup)
-	_make_label(picker_popup, "PickerTitle", Vector2(12, 8), Vector2(200, 20), 14, INK)
+	picker_tail = _tex_rect(picker_popup, BOARD_DIR + "popup_tail_l_8x14.png", Vector2(-6, 0), Vector2(8, 14))
+	picker_tail.name = "PickerTail"
+	picker_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var margin := MarginContainer.new()
+	margin.name = "PickerMargin"
+	margin.add_theme_constant_override("margin_left", 8)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_right", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	picker_popup.add_child(margin)
+	var vbox := VBoxContainer.new()
+	vbox.name = "PickerVBox"
+	vbox.add_theme_constant_override("separation", 2)
+	margin.add_child(vbox)
+	picker_title = Label.new()
+	picker_title.name = "PickerTitle"
+	picker_title.add_theme_font_size_override("font_size", 14)
+	picker_title.add_theme_color_override("font_color", INK)
+	picker_title.custom_minimum_size = Vector2(220, 18)
+	vbox.add_child(picker_title)
 	for i: int in range(4):
-		var row := Button.new()
-		row.name = "PickerRow%d" % i
-		row.custom_minimum_size = Vector2(220, 54)
-		row.position = Vector2(8, 28 + i * 56)
-		row.size = Vector2(220, 54)
-		row.flat = true
-		picker_popup.add_child(row)
+		var row := _make_picker_row(i)
+		vbox.add_child(row)
 		picker_rows.append(row)
-	var tail := _tex_rect(picker_popup, BOARD_DIR + "popup_tail_l_8x14.png", Vector2(-6, 0), Vector2(8, 14))
-	tail.name = "PickerTail"
-	tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _make_picker_row(index: int) -> Button:
+	var row := Button.new()
+	row.name = "PickerRow%d" % index
+	row.custom_minimum_size = Vector2(220, 54)
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	row.flat = true
+	row.text = ""
+	row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_style_picker_row(row, "normal")
+	var portrait := TextureRect.new()
+	portrait.name = "Portrait"
+	portrait.position = Vector2(3, 1)
+	portrait.size = Vector2(52, 52)
+	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(portrait)
+	var name_lbl := Label.new()
+	name_lbl.name = "Name"
+	name_lbl.position = Vector2(62, 12)
+	name_lbl.size = Vector2(150, 16)
+	name_lbl.add_theme_font_size_override("font_size", 14)
+	name_lbl.add_theme_color_override("font_color", INK)
+	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(name_lbl)
+	var sub_lbl := Label.new()
+	sub_lbl.name = "Sub"
+	sub_lbl.position = Vector2(62, 32)
+	sub_lbl.size = Vector2(150, 16)
+	sub_lbl.add_theme_font_size_override("font_size", 12)
+	sub_lbl.add_theme_color_override("font_color", INK_SECONDARY)
+	sub_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(sub_lbl)
+	var lock := _tex_rect(row, BOARD_DIR + "lock_10x12.png", Vector2(43, 38), Vector2(10, 12))
+	lock.name = "Lock"
+	lock.visible = false
+	return row
+
+
+func configure_picker_row(index: int, display_name: String, sub: String, portrait_path: String, row_state: String, locked: bool) -> void:
+	if index < 0 or index >= picker_rows.size():
+		return
+	var row: Button = picker_rows[index]
+	var portrait: TextureRect = row.get_node("Portrait") as TextureRect
+	var name_lbl: Label = row.get_node("Name") as Label
+	var sub_lbl: Label = row.get_node("Sub") as Label
+	var lock: TextureRect = row.get_node("Lock") as TextureRect
+	name_lbl.text = display_name
+	sub_lbl.text = sub
+	lock.visible = locked
+	if portrait_path != "" and ResourceLoader.exists(portrait_path):
+		portrait.texture = load(portrait_path) as Texture2D
+		portrait.modulate = Color(0.55, 0.55, 0.55, 1.0) if row_state == "disabled" else Color.WHITE
+	else:
+		portrait.texture = null
+	_style_picker_row(row, row_state)
+	row.disabled = row_state == "disabled"
+
+
+func _style_picker_row(btn: Button, row_state: String) -> void:
+	var empty := StyleBoxEmpty.new()
+	btn.add_theme_stylebox_override("normal", empty)
+	btn.add_theme_stylebox_override("focus", empty)
+	var hover := StyleBoxTexture.new()
+	hover.texture = _load_tex(BOARD_DIR + "pick_row_9s_hover_24x24.png")
+	hover.texture_margin_left = PICK_ROW_9S
+	hover.texture_margin_top = PICK_ROW_9S
+	hover.texture_margin_right = PICK_ROW_9S
+	hover.texture_margin_bottom = PICK_ROW_9S
+	btn.add_theme_stylebox_override("hover", hover)
+	if row_state == "current":
+		var cur := StyleBoxTexture.new()
+		cur.texture = _load_tex(BOARD_DIR + "pick_row_9s_current_24x24.png")
+		cur.texture_margin_left = PICK_ROW_9S
+		cur.texture_margin_top = PICK_ROW_9S
+		cur.texture_margin_right = PICK_ROW_9S
+		cur.texture_margin_bottom = PICK_ROW_9S
+		btn.add_theme_stylebox_override("normal", cur)
+	elif row_state == "disabled":
+		var dis := StyleBoxTexture.new()
+		dis.texture = _load_tex(BOARD_DIR + "pick_row_9s_disabled_24x24.png")
+		dis.texture_margin_left = PICK_ROW_9S
+		dis.texture_margin_top = PICK_ROW_9S
+		dis.texture_margin_right = PICK_ROW_9S
+		dis.texture_margin_bottom = PICK_ROW_9S
+		btn.add_theme_stylebox_override("normal", dis)
 
 
 func _build_simulate_window() -> void:
-	simulate_window = Control.new()
-	simulate_window.name = "SimulateWindow"
-	simulate_window.set_anchors_preset(Control.PRESET_FULL_RECT)
-	simulate_window.visible = false
-	simulate_window.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(simulate_window)
+	simulate_modal = Control.new()
+	simulate_modal.name = "SimulateModal"
+	simulate_modal.set_anchors_preset(Control.PRESET_FULL_RECT)
+	simulate_modal.visible = false
+	simulate_modal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(simulate_modal)
 	var veil := ColorRect.new()
+	veil.name = "SimulateDim"
 	veil.set_anchors_preset(Control.PRESET_FULL_RECT)
 	veil.color = Color(0, 0, 0, 0.5)
 	veil.mouse_filter = Control.MOUSE_FILTER_STOP
-	simulate_window.add_child(veil)
-	var frame := _nine_patch("ResultsFrame", KIT_DIR + "frame_9s_96.png", FRAME_9S, Vector2(330, 110), Vector2(620, 500))
+	simulate_modal.add_child(veil)
+	simulate_window = Control.new()
+	simulate_window.name = "SimulateWindow"
+	simulate_window.position = SIM_ORIGIN
+	simulate_window.size = SIM_SIZE
+	simulate_window.mouse_filter = Control.MOUSE_FILTER_STOP
+	simulate_modal.add_child(simulate_window)
+	var frame := _nine_patch("ResultsFrame", KIT_DIR + "frame_9s_96.png", FRAME_9S, Vector2.ZERO, SIM_SIZE)
 	simulate_window.add_child(frame)
-	_add_title_plank(simulate_window, Vector2(510, 92), "Simulation")
-	simulate_close = _stop_button(simulate_window, "SimulateClose", Vector2(814, 140))
-	_make_label(simulate_window, "SimulateHeader", Vector2(356, 144), Vector2(430, 20), 12, PARCHMENT)
-	_make_label(simulate_window, "SimulateSummary", Vector2(356, 164), Vector2(430, 20), 16, INK)
+	var plate := _tex_rect(simulate_window, KIT_DIR + "title_plank_3s_48x40.png", _sim_local(Vector2(510, 92)), Vector2(260, 40))
+	plate.name = "ResultsTitlePlate"
+	var sim_title := _make_label(simulate_window, "ResultsTitle", _sim_local(Vector2(518, 98)), Vector2(244, 28), 16, INK)
+	sim_title.text = "Simulation"
+	sim_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	simulate_close = _stop_button(simulate_window, "SimulateClose", _sim_local(Vector2(814, 140)))
+	simulate_close.text = "Close"
+	_tex_rect(simulate_window, KIT_DIR + "keycap_esc.png", _sim_local(Vector2(890, 144)), Vector2(28, 15)).name = "SimulateCloseEsc"
+	_make_label(simulate_window, "SimulateHeader", _sim_local(Vector2(356, 144)), Vector2(430, 20), 12, INK_SECONDARY)
+	_make_label(simulate_window, "SimulateSummary", _sim_local(Vector2(356, 164)), Vector2(430, 20), 16, INK)
 	simulate_scroll = ScrollContainer.new()
 	simulate_scroll.name = "SimulateScroll"
-	simulate_scroll.position = Vector2(354, 192)
+	simulate_scroll.position = _sim_local(Vector2(354, 192))
 	simulate_scroll.size = Vector2(572, 270)
 	simulate_window.add_child(simulate_scroll)
 	var inner := VBoxContainer.new()
@@ -231,32 +364,29 @@ func _build_simulate_window() -> void:
 	simulate_result.add_theme_color_override("font_color", INK)
 	simulate_result.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inner.add_child(simulate_result)
-	_make_label(simulate_window, "SimulateLosses", Vector2(356, 474), Vector2(570, 18), 12, INK)
-	_make_label(simulate_window, "SimulateTotals", Vector2(356, 496), Vector2(570, 40), 12, INK)
-	var totals_ess := _tex_rect(simulate_window, ICON_ESSENCE_TEX, Vector2(700, 494), Vector2(32, 32))
-	totals_ess.name = "SimulateEssenceIcon"
-	totals_ess.modulate = ESSENCE_TINT
-	essence_icons.append(totals_ess)
-	_make_label(simulate_window, "SimulateNote", Vector2(356, 554), Vector2(430, 16), 12, PARCHMENT)
-	simulate_rerun = _wood_text_button(simulate_window, "SimulateRerun", Vector2(806, 544), Vector2(120, 32), "Run again")
+	var losses := _make_label(simulate_window, "SimulateLosses", _sim_local(Vector2(356, 468)), Vector2(570, 36), 12, INK)
+	losses.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_make_label(simulate_window, "SimulateTotals", _sim_local(Vector2(356, 508)), Vector2(570, 40), 12, INK)
+	simulate_essence_icon = _tex_rect(simulate_window, ICON_ESSENCE_TEX, _sim_local(Vector2(700, 494)), Vector2(32, 32))
+	simulate_essence_icon.name = "SimulateEssenceIcon"
+	simulate_essence_icon.modulate = ESSENCE_TINT
+	simulate_essence_icon.visible = false
+	essence_icons.append(simulate_essence_icon)
+	_make_label(simulate_window, "SimulateNote", _sim_local(Vector2(356, 554)), Vector2(430, 16), 12, INK_SECONDARY)
+	simulate_rerun = _wood_text_button(simulate_window, "SimulateRerun", _sim_local(Vector2(746, 544)), Vector2(120, 32), "Run again")
 
 
 func _add_title(panel: Control) -> void:
-	var plate := _tex_rect(panel, KIT_DIR + "title_plate_312x46.png", Vector2(484, 37), Vector2(312, 46))
+	var plate := _tex_rect(panel, KIT_DIR + "title_plate_312x46.png", _scr(Vector2(484, 37)), Vector2(312, 46))
 	plate.name = "TitlePlate"
-	var title := _make_label(panel, "Title", Vector2(496, 40), Vector2(288, 40), 18, INK)
+	var title := _make_label(panel, "Title", _scr(Vector2(496, 40)), Vector2(288, 40), 18, INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
-func _add_title_plank(parent: Control, pos: Vector2, _text: String) -> void:
-	var plate := _tex_rect(parent, KIT_DIR + "title_plank_3s_48x40.png", pos, Vector2(260, 40))
-	plate.name = "ResultsTitlePlate"
-
-
 func _add_close(panel: Control) -> void:
-	var btn := _stop_button(panel, "CloseButton", Vector2(956, 84))
+	var btn := _stop_button(panel, "CloseButton", _scr(Vector2(944, 92)))
 	btn.text = "Close"
-	var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", Vector2(1068, 84), Vector2(28, 15))
+	var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", _scr(Vector2(1020, 96)), Vector2(28, 15))
 	esc.name = "CloseEscKeycap"
 	esc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -290,7 +420,7 @@ func _add_stepper(panel: Control, prefix: String, pos: Vector2, _qty_only: bool 
 	panel.add_child(field)
 	var plus := _wood_glyph_button(panel, plus_name, pos + Vector2(84 if slot_n > 0 else 108, 0), BOARD_DIR + "glyph_plus_10x10.png", BOARD_DIR + "glyph_plus_disabled_10x10.png")
 	if slot_n > 0:
-		_make_label(panel, "LoadoutQty%dCap" % slot_n, pos + Vector2(136, 6), Vector2(48, 20), 12, PARCHMENT).text = "/ 100"
+		_make_label(panel, "LoadoutQty%dCap" % slot_n, pos + Vector2(136, 6), Vector2(48, 20), 12, INK_SECONDARY).text = "/ 100"
 
 
 func _party_slot_button(node_name: String, pos: Vector2) -> Button:
@@ -300,8 +430,25 @@ func _party_slot_button(node_name: String, pos: Vector2) -> Button:
 	btn.size = Vector2(60, 60)
 	btn.toggle_mode = false
 	btn.flat = true
-	_style_party_slot(btn, BOARD_DIR + "party_slot_empty_60x60.png")
+	btn.text = ""
+	set_party_slot_style(btn, "empty")
 	return btn
+
+
+func set_party_slot_style(btn: Button, state: String) -> void:
+	var file: String = "party_slot_empty_60x60.png"
+	match state:
+		"empty_hover":
+			file = "party_slot_empty_hover_60x60.png"
+		"filled":
+			file = "party_slot_filled_60x60.png"
+		"hover":
+			file = "party_slot_hover_60x60.png"
+		"selected":
+			file = "party_slot_selected_60x60.png"
+		"locked":
+			file = "party_slot_locked_60x60.png"
+	_style_party_slot(btn, BOARD_DIR + file)
 
 
 func _mode_toggle(panel: Control, node_name: String, pos: Vector2, text: String) -> Button:
@@ -427,10 +574,20 @@ func set_field_invalid(field: LineEdit, invalid: bool) -> void:
 
 
 func _style_party_slot(btn: Button, tex_path: String) -> void:
+	var tex: Texture2D = _load_tex(tex_path)
+	if tex == null:
+		return
 	var box := StyleBoxTexture.new()
-	box.texture = _load_tex(tex_path)
+	box.texture = tex
 	btn.add_theme_stylebox_override("normal", box)
-	btn.add_theme_stylebox_override("hover", box)
+	var hover_path: String = tex_path.replace("_empty_60", "_empty_hover_60")
+	if tex_path.find("_filled_") >= 0:
+		hover_path = tex_path.replace("_filled_60", "_hover_60")
+	var hover_tex: Texture2D = _load_tex(hover_path)
+	if hover_tex != null:
+		var hover_box := StyleBoxTexture.new()
+		hover_box.texture = hover_tex
+		btn.add_theme_stylebox_override("hover", hover_box)
 	btn.add_theme_stylebox_override("pressed", box)
 
 
@@ -500,10 +657,17 @@ func _load_tex(path: String) -> Texture2D:
 func place_picker(slot_btn: Button) -> void:
 	if picker_popup == null or slot_btn == null:
 		return
-	var h: float = 28.0 + float(picker_rows.size()) * 56.0
+	var visible_rows: int = 0
+	for row: Button in picker_rows:
+		if row.visible:
+			visible_rows += 1
+	var h: float = 18.0 + 8.0 + float(visible_rows) * 56.0 + 8.0
+	var slot_centre_y: float = slot_btn.global_position.y + slot_btn.size.y * 0.5
 	var y: float = clampf(slot_btn.global_position.y - 76.0, 140.0, 418.0 - h)
-	picker_popup.position = Vector2(slot_btn.global_position.x + 70.0, y)
+	picker_popup.position = Vector2(slot_btn.global_position.x + 68.0, y)
+	picker_popup.custom_minimum_size = Vector2(236, h)
 	picker_popup.size = Vector2(236, h)
+	picker_tail.position = Vector2(-6, slot_centre_y - y - 7.0)
 	picker_popup.visible = true
 
 
