@@ -811,28 +811,27 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and _drag_active:
 		_update_marquee(get_global_mouse_position())
 		return
-	if not (event is InputEventMouseButton):
-		return
-	var mb: InputEventMouseButton = event
-	if mb.button_index == MOUSE_BUTTON_LEFT:
-		if mb.pressed:
-			if world_input_blocked():
-				return
-			if _gui_blocks_drag():
-				return
-			if _interactable_under_point(get_global_mouse_position()):
-				return
-			_drag_active = true
-			_drag_from = get_global_mouse_position()
-			_update_marquee(_drag_from)
-		elif _drag_active:
-			_finish_marquee(get_global_mouse_position())
-		return
-	if not mb.pressed or world_input_blocked():
-		return
-	if _interactable_under_point(get_global_mouse_position()):
-		return
-	if mb.button_index == MOUSE_BUTTON_RIGHT:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed:
+				if world_input_blocked():
+					return
+				if _gui_blocks_drag():
+					return
+				if _interactable_under_point(get_global_mouse_position()):
+					return
+				_drag_active = true
+				_drag_from = get_global_mouse_position()
+				_update_marquee(_drag_from)
+			elif _drag_active:
+				_finish_marquee(get_global_mouse_position())
+			return
+	if event.is_action_pressed("game_command"):
+		if world_input_blocked():
+			return
+		if _interactable_under_point(get_global_mouse_position()):
+			return
 		handle_rmb_ground(get_global_mouse_position())
 
 

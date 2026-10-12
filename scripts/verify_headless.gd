@@ -2618,7 +2618,7 @@ func _run() -> void:
 		var shop_sz_v: Variant = metrics.get("size", Vector2.ZERO)
 		failed += _assert(shop_sz_v is Vector2, "shop size is Vector2")
 		var shop_sz: Vector2 = shop_sz_v as Vector2
-		failed += _assert(abs(shop_sz.x - 720.0) < 1.5 and abs(shop_sz.y - 500.0) < 1.5, "shop 720x500 (got %s)" % shop_sz)
+		failed += _assert(abs(shop_sz.x - 640.0) < 1.5 and abs(shop_sz.y - 412.0) < 1.5, "shop 640x412 (got %s)" % shop_sz)
 		failed += _assert(abs(float(metrics.get("header_h", 0)) - 64.0) < 1.5, "header 64")
 		failed += _assert(abs(float(metrics.get("footer_h", 0)) - 72.0) < 1.5, "footer 72")
 		failed += _assert(shop_sz.x + 0.1 >= 640.0 and shop_sz.y + 0.1 >= 420.0, "shop meets min 640x420")
@@ -4625,6 +4625,7 @@ func _check_only_load() -> int:
 		"res://scripts/expedition_board.gd",
 		"res://scripts/ui/expedition_shell.gd",
 		"res://scripts/autoload/game_theme.gd",
+		"res://scripts/autoload/game_input.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)

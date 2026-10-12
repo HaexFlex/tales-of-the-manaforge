@@ -9,10 +9,13 @@ const TITLE_SIZE: int = 37
 const PLANK_SIZE: int = 19
 const TITLE_HERO_SIZE: int = 38
 const CURSOR_SCALE: float = 2.0
+const SAFE_MARGIN_PX: float = 24.0
+const TAP_MIN_PX: float = 24.0
 
 var _silver: FontFile
 var _jersey: FontFile
 var _theme: Theme
+var _tree_hooked: bool = false
 
 
 func _ready() -> void:
@@ -39,12 +42,10 @@ func _apply_font_defaults(theme: Theme) -> void:
 	var body: Font = _silver
 	theme.default_font = body
 	theme.default_font_size = BODY_SIZE
-	theme.set_font_size(&"font", &"Label", BODY_SIZE)
-	theme.set_font(&"font", &"Label", body)
-	theme.set_font_size(&"font", &"Button", BODY_SIZE)
-	theme.set_font(&"font", &"Button", body)
-	theme.set_font_size(&"font", &"RichTextLabel", BODY_SIZE)
-	theme.set_font(&"font", &"RichTextLabel", body)
+	for kind: StringName in [&"Label", &"Button", &"RichTextLabel", &"CheckBox", &"LineEdit", &"SpinBox", &"TabBar"]:
+		theme.set_font_size(&"font", kind, BODY_SIZE)
+		theme.set_font(&"font", kind, body)
+	theme.set_font(&"font", &"Button", _silver_embolden())
 
 
 func apply_app_theme() -> void:
@@ -52,6 +53,59 @@ func apply_app_theme() -> void:
 	if tree == null:
 		return
 	tree.root.theme = _theme
+	if not _tree_hooked:
+		_tree_hooked = true
+		tree.node_added.connect(_on_node_added)
+	sweep_theme(tree.root)
+
+
+func _on_node_added(node: Node) -> void:
+	if node is Control:
+		apply_control_theme(node as Control)
+
+
+func sweep_theme(root: Node) -> void:
+	if root is Control:
+		apply_control_theme(root as Control)
+	for child: Node in root.get_children():
+		sweep_theme(child)
+
+
+func apply_control_theme(ctrl: Control) -> void:
+	if ctrl is ScrollContainer and has_node("/root/GameInput"):
+		GameInput.configure_scroll_container(ctrl as ScrollContainer)
+	_ensure_tap_target(ctrl)
+	if ctrl is Button:
+		if ctrl.is_in_group("title_hero_button"):
+			style_title_hero_button(ctrl as Button)
+		else:
+			style_primary_button(ctrl as Button)
+		return
+	if ctrl is Label:
+		_style_label(ctrl as Label)
+
+
+func _style_label(lbl: Label) -> void:
+	var name_l: String = lbl.name.to_lower()
+	var size_override: int = lbl.get_theme_font_size("font_size")
+	if name_l.find("title") >= 0 and size_override >= 28:
+		style_title_label(lbl)
+	elif name_l.find("title") >= 0 or name_l.find("header") >= 0 or name_l.find("subtitle") >= 0:
+		style_plank_label(lbl)
+	else:
+		lbl.add_theme_font_override("font", _silver)
+		lbl.add_theme_font_size_override("font_size", BODY_SIZE)
+
+
+func _ensure_tap_target(ctrl: Control) -> void:
+	if not (ctrl is BaseButton):
+		return
+	var btn: BaseButton = ctrl as BaseButton
+	if btn.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+		return
+	var min_sz: Vector2 = btn.custom_minimum_size
+	if min_sz.x < TAP_MIN_PX or min_sz.y < TAP_MIN_PX:
+		btn.custom_minimum_size = Vector2(maxf(min_sz.x, TAP_MIN_PX), maxf(min_sz.y, TAP_MIN_PX))
 
 
 func body_font() -> Font:
@@ -96,6 +150,11 @@ func style_title_label(lbl: Label) -> void:
 func style_plank_label(lbl: Label) -> void:
 	lbl.add_theme_font_override("font", _jersey)
 	lbl.add_theme_font_size_override("font_size", PLANK_SIZE)
+
+
+func style_body_label(lbl: Label) -> void:
+	lbl.add_theme_font_override("font", _silver)
+	lbl.add_theme_font_size_override("font_size", BODY_SIZE)
 
 
 func _silver_embolden() -> Font:

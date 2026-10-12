@@ -26,6 +26,7 @@ ForgeJobs="*res://scripts/autoload/forge_jobs.gd"
 Reach="*res://scripts/autoload/reach.gd"
 AnimPreviewHotkey="*res://scripts/autoload/anim_preview_hotkey.gd"
 GameTheme="*res://scripts/autoload/game_theme.gd"
+GameInput="*res://scripts/autoload/game_input.gd"
 
 [display]
 

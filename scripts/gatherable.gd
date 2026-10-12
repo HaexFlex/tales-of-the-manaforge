@@ -155,7 +155,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			# LMB on a node is not empty ground — swallow so Main does not deselect.
 			get_viewport().set_input_as_handled()
 			return
-		if mb.button_index == MOUSE_BUTTON_RIGHT:
+		if GameInput.is_command(mb):
 			apply_player_command()
 			get_viewport().set_input_as_handled()
 

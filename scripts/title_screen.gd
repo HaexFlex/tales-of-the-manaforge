@@ -50,6 +50,8 @@ func _ready() -> void:
 	btn_quit.pressed.connect(_on_quit)
 	for child: Node in menu.get_children():
 		if child is Button:
+			var b: Button = child as Button
+			b.add_to_group("title_hero_button")
 			(child as Button).focus_entered.connect(_on_menu_focus.bind(child))
 	confirm_yes.pressed.connect(_on_confirm_yes)
 	confirm_no.pressed.connect(_on_confirm_no)
@@ -148,8 +150,6 @@ func _style_button(btn: Button) -> void:
 	btn.add_theme_stylebox_override("pressed", hover)
 	if has_node("/root/GameTheme"):
 		GameTheme.style_title_hero_button(btn)
-	else:
-		btn.add_theme_font_size_override("font_size", 22)
 	btn.add_theme_color_override("font_color", Color(0.93, 0.86, 0.62, 1))
 	btn.add_theme_color_override("font_hover_color", Color(1, 0.95, 0.75, 1))
 	btn.add_theme_color_override("font_focus_color", Color(1, 0.95, 0.75, 1))

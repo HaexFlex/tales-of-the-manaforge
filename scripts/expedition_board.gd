@@ -422,7 +422,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			begin_entry()
 		get_viewport().set_input_as_handled()
 		return
-	if mb.button_index == MOUSE_BUTTON_RIGHT:
+	if GameInput.is_command(mb):
 		if GameState.member_away("keeper"):
 			begin_entry()
 		else:

@@ -196,7 +196,7 @@ func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> vo
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		_on_left_click()
 		get_viewport().set_input_as_handled()
-	elif mb.button_index == MOUSE_BUTTON_RIGHT:
+	elif GameInput.is_command(mb):
 		_on_right_click()
 		get_viewport().set_input_as_handled()
 

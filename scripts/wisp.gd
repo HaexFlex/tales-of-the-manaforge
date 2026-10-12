@@ -204,7 +204,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			wisp_clicked.emit(wisp_id)
 			get_viewport().set_input_as_handled()
-		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+		elif GameInput.is_command(mb):
 			get_viewport().set_input_as_handled()
 
 

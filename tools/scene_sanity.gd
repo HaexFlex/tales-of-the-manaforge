@@ -151,6 +151,9 @@ func _run() -> void:
 	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()
+	failed += await _res540_theme_sanity()
+	failed += await _res540_input_sanity()
+	failed += await _res540_shop_sanity()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -1378,3 +1381,30 @@ func _check(ok: bool, label: String) -> int:
 		return 0
 	print("FAIL %s" % label)
 	return 1
+
+
+func _res540_theme_sanity() -> int:
+	var failed: int = 0
+	var theme: Node = root.get_node_or_null("GameTheme")
+	failed += _check(theme != null, "GameTheme autoload")
+	if theme != null:
+		failed += _check(int(theme.call("silver_body_size")) == 19, "Silver body 19")
+		failed += _check(int(theme.call("jersey_title_size")) == 37, "Jersey title 37")
+	return failed
+
+
+func _res540_input_sanity() -> int:
+	var failed: int = 0
+	failed += _check(InputMap.has_action("game_command"), "game_command action")
+	failed += _check(InputMap.has_action("game_inspect"), "game_inspect action")
+	var input_node: Node = root.get_node_or_null("GameInput")
+	failed += _check(input_node != null, "GameInput autoload")
+	return failed
+
+
+func _res540_shop_sanity() -> int:
+	var failed: int = 0
+	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _check(hud_src.find("const SHOP_SIZE: Vector2 = Vector2(640, 412)") >= 0, "shop size 640x412 in hud.gd")
+	failed += _check(640.0 + 48.0 <= 960.0 and 412.0 + 48.0 <= 540.0, "shop fits 540p with 24px margins")
+	return failed

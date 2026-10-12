@@ -111,6 +111,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and _drag_active:
 		_update_marquee(get_global_mouse_position())
 		return
+	if event.is_action_pressed("game_command"):
+		if _ui_blocks():
+			return
+		if _interactable_under_point(get_global_mouse_position()):
+			return
+		_on_rmb_ground(get_global_mouse_position())
+		return
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
@@ -127,13 +134,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_marquee(_drag_from)
 		elif _drag_active:
 			_finish_marquee(get_global_mouse_position())
-		return
-	if not mb.pressed or _ui_blocks():
-		return
-	if _interactable_under_point(get_global_mouse_position()):
-		return
-	if mb.button_index == MOUSE_BUTTON_RIGHT:
-		_on_rmb_ground(get_global_mouse_position())
 
 
 func _on_escape() -> void:

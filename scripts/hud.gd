@@ -93,12 +93,12 @@ var _forge_popup_body: Label
 const CARE_SIZE: Vector2 = Vector2(520, 420)
 const CARE_HEADER_H: float = 64.0
 const CARE_ACTION_BAND_H: float = 56.0
-## Art lock ASCENSION_SHOP_LAYOUT_V01: 720×500, header 64 / list flex / footer 72, row 48.
-const SHOP_SIZE: Vector2 = Vector2(720, 500)
-const SHOP_MIN_SIZE: Vector2 = Vector2(640, 420)
-const SHOP_HEADER_H: float = 64.0
-const SHOP_FOOTER_H: float = 72.0
-const SHOP_ROW_H: float = 48.0
+## Art lock ASCENSION_SHOP_LAYOUT_V01 scaled for 960×540 (24 px safe margins).
+const SHOP_SIZE: Vector2 = Vector2(640, 412)
+const SHOP_MIN_SIZE: Vector2 = Vector2(560, 360)
+const SHOP_HEADER_H: float = 48.0
+const SHOP_FOOTER_H: float = 54.0
+const SHOP_ROW_H: float = 36.0
 const SHOP_PAD: float = 16.0
 const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
@@ -268,6 +268,29 @@ func _ready() -> void:
 	_refresh_selection_hint()
 	_show_toast(ContentStrings.get_text("boot_line"))
 	_sync_ascension_from_state()
+	_layout_ascension_shop()
+	if has_node("/root/GameTheme"):
+		GameTheme.sweep_theme(self)
+
+
+func _layout_ascension_shop() -> void:
+	if ascension_panel == null:
+		return
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	var margin: float = GameTheme.SAFE_MARGIN_PX if has_node("/root/GameTheme") else 24.0
+	var w: float = minf(SHOP_SIZE.x, vp.x - margin * 2.0)
+	var h: float = minf(SHOP_SIZE.y, vp.y - margin * 2.0)
+	w = maxf(w, SHOP_MIN_SIZE.x)
+	h = maxf(h, SHOP_MIN_SIZE.y)
+	ascension_panel.custom_minimum_size = Vector2(w, h)
+	ascension_panel.size = Vector2(w, h)
+	if shop_header:
+		shop_header.offset_bottom = SHOP_HEADER_H
+	if shop_footer:
+		shop_footer.offset_top = h - SHOP_FOOTER_H
+		shop_footer.offset_bottom = h
+	if has_node("/root/GameInput"):
+		GameInput.configure_scroll_container(shop_scroll)
 
 
 func _wood_style() -> StyleBoxFlat:
