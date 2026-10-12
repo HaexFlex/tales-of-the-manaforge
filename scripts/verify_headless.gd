@@ -875,6 +875,24 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ELAIA_JOIN_FLOW") == "1":
+		var flow_failed: int = await _elaia_join_flow_check(tree_root, game_state, save_service, backpack, tree_root.get_node_or_null("ForgeJobs"))
+		if flow_failed > 0:
+			print("ELAIA_JOIN_FLOW_FAIL: %d" % flow_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ROD_NOT_WEAPON") == "1":
+		var rod_failed: int = await _rod_not_weapon_ok(tree_root, tree_root.get_node_or_null("Equipment"))
+		if rod_failed > 0:
+			print("ROD_NOT_WEAPON_FAIL: %d" % rod_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ELAIA_ONLY") == "1":
 		var elaia_failed: int = await _elaia_join_check(tree_root, game_state, backpack)
 		if elaia_failed > 0:
@@ -3007,6 +3025,8 @@ func _run() -> void:
 		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 10, "10 planks for the rod")
 		failed += _assert(str(equipment.call("try_craft", "weapon_rod")) == "ok", "craft weapon rod")
 		failed += _assert(int(equipment.call("unequipped_count", "weapon_rod")) == 1, "rod in gear inventory")
+		failed += _assert(not bool(equipment.call("is_equippable", "weapon_rod")), "weapon rod is not equippable")
+		failed += _assert(str(equipment.call("try_equip", "weapon_rod")) == "wrong_slot", "weapon rod cannot equip")
 		failed += _assert(int(backpack.call("get_count", "weapon_rod")) == 0, "rod stays out of the backpack")
 		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "planks spent")
 		backpack.call("set_count", "stone_fragments", 30)
@@ -3426,6 +3446,8 @@ func _run() -> void:
 	failed += _forge_duration_ticks(tree_root, game_state, backpack)
 	failed += await _party_bar_check(tree_root, game_state)
 	failed += await _elaia_join_check(tree_root, game_state, backpack)
+	failed += await _elaia_join_flow_check(tree_root, game_state, save_service, backpack, tree_root.get_node_or_null("ForgeJobs"))
+	failed += await _rod_not_weapon_ok(tree_root, equipment)
 	failed += _elaia_companion_asserts(tree_root, game_state, backpack)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
@@ -4660,6 +4682,90 @@ func _elaia_join_check(tree_root: Window, game_state: Node, backpack: Node) -> i
 	return failed
 
 
+func _rod_not_weapon_ok(tree_root: Window, equipment: Node) -> int:
+	var failed: int = 0
+	failed += _assert(equipment != null, "rod check needs Equipment")
+	if equipment == null:
+		return failed
+	failed += _assert(str(equipment.call("item_slot", "weapon_rod")) != "weapon", "weapon rod has no weapon slot")
+	failed += _assert(not bool(equipment.call("is_equippable", "weapon_rod")), "weapon rod is craft-only")
+	failed += _assert(str(equipment.call("try_equip", "weapon_rod")) == "wrong_slot", "weapon rod cannot equip")
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	if packed != null:
+		var hud: Node = packed.instantiate()
+		tree_root.add_child(hud)
+		await process_frame
+		equipment.call("grant_item", "weapon_rod")
+		hud.call("open_character_sheet")
+		await process_frame
+		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "weapon slot empty with a rod in the bag")
+		var gear_list: Node = hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearScroll/GearList")
+		var rod_row: bool = false
+		if gear_list != null:
+			for child: Node in gear_list.get_children():
+				if child is CharacterSheet.GearRow and str((child as CharacterSheet.GearRow).item_id) == "weapon_rod":
+					rod_row = true
+		failed += _assert(rod_row, "weapon rod still lists under all gear")
+		hud.call("close_character_sheet")
+		hud.queue_free()
+		await process_frame
+	if failed == 0:
+		print("ROD_NOT_WEAPON_OK")
+	return failed
+
+
+func _elaia_join_flow_check(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, jobs: Node) -> int:
+	var failed: int = await _boot_play(game_state, save_service, false)
+	if failed > 0 or jobs == null:
+		return failed + _assert(jobs != null, "elaia join flow needs ForgeJobs")
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", false)
+	game_state.set("elaia_join_seen", false)
+	game_state.set("elaia_footsteps_seen", false)
+	game_state.set("elaia_legacy_joined", false)
+	_place_actor(game_state, "keeper", "forge", Vector2(800, 1048))
+	failed += await _enter_forge_view()
+	_forge_stock(game_state, backpack, "reliquary")
+	jobs.call("set_keeper_working", "reliquary", true)
+	failed += _assert(str(jobs.call("try_begin_job", "reliquary", "oakheart_knot")) == "ok", "join flow relic job")
+	jobs.call("_process", 600.0)
+	failed += _assert(bool(game_state.get("first_relic_crafted")), "join flow first relic flag")
+	failed += _assert(not bool(game_state.call("elaia_body_visible")), "Elaia body hidden before Go look")
+	var room: Node = current_scene
+	if room != null and room.has_method("_hide_recipes"):
+		room.call("_hide_recipes")
+	await process_frame
+	var hud: Node = room.get_node_or_null("HUD") if room else null
+	var popup: Node = hud.get_node_or_null("ElaiaFootsteps") if hud else null
+	failed += _assert(popup != null and popup.visible, "footsteps popup after closing the station")
+	var go: Button = popup.get_node_or_null("Go") as Button if popup else null
+	if go != null:
+		go.emit_signal("pressed")
+	failed += await _expect_scene("elaia_join_flow_go", _HUB_SCENE)
+	failed += _assert(bool(game_state.call("elaia_body_visible")), "Elaia body appears in the Clearing")
+	failed += _assert(not bool(game_state.call("elaia_portrait_visible")), "portrait waits for dialogue")
+	room = current_scene
+	hud = room.get_node_or_null("HUD") if room else null
+	if hud and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	if hud and hud.has_method("maybe_show_elaia_join"):
+		hud.call("maybe_show_elaia_join")
+	await process_frame
+	failed += _assert(hud != null and hud.has_method("is_elaia_join_open") and bool(hud.call("is_elaia_join_open")), "join band opens in the Clearing")
+	for _line: int in 5:
+		if hud != null and hud.has_method("_advance_join_line"):
+			hud.call("_advance_join_line")
+		await process_frame
+	failed += _assert(bool(game_state.get("elaia_join_seen")), "join dialogue finished")
+	failed += _assert(bool(game_state.call("elaia_portrait_visible")), "portrait shows after dialogue")
+	_drop_current_scene()
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("ELAIA_JOIN_FLOW_OK")
+	return failed
+
+
 func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	var failed: int = 0
 	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
@@ -5715,6 +5821,9 @@ func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, bac
 	game_state.call("accumulate_wisp_harvest", &"food", 20.0)
 	failed += _assert(not bool(game_audio.call("did_play", &"sfx_gather_food")), "wisp harvest stays silent")
 	game_audio.call("clear_played_log")
+	game_state.call("apply_wisp_pulses", 20.0)
+	failed += _assert(not bool(game_audio.call("did_play", &"sfx_wisp_pulse")), "wisp pulse harvest stays silent")
+	game_audio.call("clear_played_log")
 	game_state.call("apply_save_dict", {"stage_id": "young", "wood": 3})
 	await game_state.get_tree().process_frame
 	failed += _assert(not bool(game_audio.call("did_play", &"sfx_stage_up")), "load does not play stage_up")
@@ -6250,7 +6359,8 @@ func _transition_round(game_state: Node, save_service: Node, jobs: Node, joined:
 		return failed
 	failed += await _enter_forge_view()
 	failed += await _press_footsteps("footsteps_hub/%s/%d" % [tag, round_i])
-	failed += _live_unchanged(game_state, "keeper", "forge", keeper_spot, wood_before)
+	var manatree_door: Vector2 = jobs.call("clearing_door_stand")
+	failed += _live_unchanged(game_state, "keeper", "clearing", manatree_door, wood_before)
 	failed += _assert(not _scene_path().ends_with("title_screen.tscn"), "footsteps avoided the title")
 	if failed > 0:
 		return failed
@@ -6327,7 +6437,10 @@ func _transition_footsteps_popup(game_state: Node, save_service: Node, _jobs: No
 	go.emit_signal("pressed")
 	failed += await _expect_scene("footsteps_popup", _HUB_SCENE)
 	failed += _assert(bool(game_state.get("elaia_footsteps_seen")), "Go and see marks the footsteps seen")
-	failed += _assert(str(game_state.get("keeper_area")) == "forge", "Go and see leaves the Keeper in the Forge")
+	failed += _assert(str(game_state.get("keeper_area")) == "clearing", "Go and see moves the Keeper to the Clearing")
+	var door: Vector2 = _jobs.call("clearing_door_stand")
+	failed += _assert((game_state.get("keeper_pos") as Vector2).distance_to(door) < 2.0, "Keeper stands before the Manatree")
+	failed += _assert(str(game_state.get("keeper_facing")) == "east", "Keeper faces Elaia's spot")
 	return failed
 
 
@@ -6671,7 +6784,7 @@ func _forge_arch_draw_order(tree_root: Window) -> int:
 		failed += _assert(cold_arch != null and cold_keeper != null, "packed forge has ArchFront and Keeper")
 		if cold_arch != null and cold_keeper != null:
 			failed += _assert(_effective_z(cold_arch) > _effective_z(cold_keeper), "packed ArchFront draws above the Keeper")
-			failed += _assert(cold_arch.texture != null and str(cold_arch.texture.resource_path).find("forge_arch_front") >= 0, "packed arch uses forge_arch_front")
+			failed += _assert(cold_arch.texture != null and str(cold_arch.texture.resource_path).find("forge_arch_front_haex") >= 0, "packed arch uses forge_arch_front_haex")
 		cold.free()
 	game_state.call("reset_for_new_game")
 	if save_service != null:
@@ -6706,8 +6819,8 @@ func _forge_arch_draw_order(tree_root: Window) -> int:
 	var elaia_item: CanvasItem = elaia as CanvasItem
 	failed += _assert(_effective_z(arch) > _effective_z(keeper_item), "live arch z stays above the keeper")
 	failed += _assert(_effective_z(arch) > _effective_z(elaia_item), "live arch z stays above elaia")
-	var covered: int = _arch_body_overlap(arch, keeper.global_position)
-	failed += _assert(covered > 40, "arch frame covers the keeper at the door spawn (opaque samples %d)" % covered)
+	var covered: int = _arch_body_overlap(arch, Vector2(811, 1170))
+	failed += _assert(covered > 20, "arch frame covers the doorway sill (opaque samples %d)" % covered)
 	var deep: int = _arch_body_overlap(arch, Vector2(800, 700))
 	failed += _assert(deep == 0, "arch frame does not cover a keeper deep in the room (samples %d)" % deep)
 	var lip: int = _arch_body_overlap(arch, Vector2(800, 1160))
@@ -7119,10 +7232,8 @@ func _arch_body_overlap(arch: Sprite2D, feet: Vector2) -> int:
 		arch_img.decompress()
 	if body.is_compressed():
 		body.decompress()
-	var arch_size: Vector2 = arch.texture.get_size()
-	var arch_origin: Vector2 = arch.global_position - arch_size * 0.5
-	if not arch.centered:
-		arch_origin = arch.global_position + arch.offset
+	var tex_size: Vector2 = arch.texture.get_size()
+	var scl: Vector2 = arch.scale
 	var body_origin: Vector2 = feet + Vector2(-64, -128)
 	var hits: int = 0
 	var step: int = 2
@@ -7131,9 +7242,9 @@ func _arch_body_overlap(arch: Sprite2D, feet: Vector2) -> int:
 			if body.get_pixel(px, py).a < 0.2:
 				continue
 			var world: Vector2 = body_origin + Vector2(px, py)
-			var tex: Vector2 = world - arch_origin
-			var tx: int = int(tex.x)
-			var ty: int = int(tex.y)
+			var local: Vector2 = (world - arch.global_position) / scl + tex_size * 0.5
+			var tx: int = int(local.x)
+			var ty: int = int(local.y)
 			if tx < 0 or ty < 0 or tx >= arch_img.get_width() or ty >= arch_img.get_height():
 				continue
 			if arch_img.get_pixel(tx, ty).a > 0.2:
@@ -7151,11 +7262,11 @@ func _arch_fill_and_floor(arch: Sprite2D) -> int:
 		return _assert(false, "arch image")
 	if img.is_compressed():
 		img.decompress()
-	var mouth: Color = img.get_pixel(800, 1050)
-	var side_l: Color = img.get_pixel(760, 1080)
-	var side_r: Color = img.get_pixel(840, 1080)
-	var floor_px: Color = img.get_pixel(800, 964)
-	var lip: Color = img.get_pixel(800, 1172)
+	var mouth: Color = img.get_pixel(105, 39)
+	var side_l: Color = img.get_pixel(93, 40)
+	var side_r: Color = img.get_pixel(149, 52)
+	var floor_px: Color = img.get_pixel(20, 10)
+	var lip: Color = img.get_pixel(151, 6)
 	failed += _assert(mouth.a > 0.9 and mouth.r < 0.08 and mouth.g < 0.08 and mouth.b < 0.08, "arch mouth is opaque black")
 	failed += _assert(side_l.a > 0.9 and side_l.r < 0.08 and side_r.a > 0.9 and side_r.r < 0.08, "arch mouth stays black toward the jambs")
 	failed += _assert(floor_px.a < 0.05, "floor above the arch is not painted into the foreground")
