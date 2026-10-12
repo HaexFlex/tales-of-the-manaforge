@@ -79,6 +79,18 @@ const BEAST_HURT: Dictionary = {
 	"vine_serpent": ART_DIR + "beasts/battle_vine_serpent_hurt.png",
 	"wilt_wisp": ART_DIR + "beasts/battle_wilt_wisp_hurt.png",
 }
+## Mossmite swarms: one 128×128 frame per living-bug count (1..10) and pose.
+## Feet on row 123, cluster centred on x 63.5, facing west. There is no 0-bug frame.
+const MOSSMITE_ID: String = "foe_mossmite"
+const MOSSMITE_FRAME: String = ART_DIR + "mossmite/battle_mossmite_%d_%s.png"
+
+static func mossmite_sprite_path(bugs: int, pose: String) -> String:
+	var n: int = clampi(bugs, 1, 10)
+	var pose_name: String = pose
+	if pose_name != "idle" and pose_name != "attack" and pose_name != "hurt":
+		pose_name = "idle"
+	return MOSSMITE_FRAME % [n, pose_name]
+
 const SLOT_MARK_PATH: String = ART_DIR + "arena/slot_mark.png"
 const TARGET_MARK_PATH: String = ART_DIR + "ui/slot_mark_target.png"
 const TARGET_BUTTON_SIZE: Vector2 = Vector2(80.0, 110.0)
@@ -638,6 +650,8 @@ func set_fighter_pose(fighter_id: String, pose: String) -> bool:
 	var root: Node = _fighters.get_node_or_null("Fighter_%s" % fighter_id) if _fighters != null else null
 	if root == null:
 		return false
+	if bool(root.get_meta("swarm", false)):
+		return _set_swarm_pose(root, fighter_id, pose)
 	var member: String = str(root.get_meta("member", fighter_id))
 	var poses: Dictionary = PARTY_POSES.get(member, {})
 	if not poses.has(pose):
@@ -668,6 +682,8 @@ func playback_set_beast_hurt(fighter_id: String, species: String) -> bool:
 	var sprite: TextureRect = playback_sprite_for(fighter_id) as TextureRect
 	if sprite == null:
 		return false
+	if _fighter_root_is_swarm(fighter_id) or species == MOSSMITE_ID:
+		return set_fighter_pose(fighter_id, "hurt")
 	var base: String = _beast_base_species(species)
 	if not BEAST_HURT.has(base):
 		return false
@@ -680,6 +696,16 @@ func playback_set_beast_hurt(fighter_id: String, species: String) -> bool:
 	return true
 
 
+func playback_release_swarm_attack(fighter_id: String) -> void:
+	## The lunge stays up for the swarm's strike, then the cloud settles back to idle.
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null or not bool(root.get_meta("swarm", false)):
+		return
+	if str(root.get_meta("pose", "")) != "attack":
+		return
+	set_fighter_pose(fighter_id, "idle")
+
+
 func playback_set_beast_idle(fighter_id: String) -> void:
 	if _fight == null:
 		return
@@ -688,6 +714,13 @@ func playback_set_beast_idle(fighter_id: String) -> void:
 	var root: Control = playback_fighter_root(fighter_id)
 	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect if root != null else null
 	if sprite == null:
+		return
+	if _fighter_root_is_swarm(fighter_id) or species == MOSSMITE_ID or bool(row.get("swarm", false)):
+		set_fighter_pose(fighter_id, "idle")
+		var swarm_alpha: float = 0.35 if str(row.get("status", "")) == "calmed" else 1.0
+		var swarm_mod: Color = sprite.modulate
+		swarm_mod.a = swarm_alpha
+		sprite.modulate = swarm_mod
 		return
 	var base: String = _beast_base_species(species)
 	var idle_path: String = str(BEAST_IDLE.get(base, ""))
@@ -760,6 +793,7 @@ func show_fight(fight: FightState) -> void:
 		return
 	_sync_fight_depth_from_reach()
 	_clear_fight_ui()
+	_fight = fight
 	if _playback != null:
 		# Any fight shown here gets playback bound, not just start_test_fight's.
 		_playback.bind_view(self, fight)
@@ -927,13 +961,29 @@ func _spawn_fighter_node(row: Dictionary, sole: Vector2) -> void:
 	else:
 		var species: String = str(row.get("species", ""))
 		root.set_meta("species", species)
-		_build_beast_sprite(root, species)
+		var swarm: bool = bool(row.get("swarm", false)) or species == MOSSMITE_ID
+		root.set_meta("swarm", swarm)
+		_build_beast_sprite(root, species, int(row.get("bugs", int(row.get("hp", 1)))), swarm)
 		_fighters.add_child(root)
 		_finish_fighter_root(root)
 		_refresh_fighter_visual(row)
 
 
-func _build_beast_sprite(root: Control, species: String) -> void:
+func _build_beast_sprite(root: Control, species: String, bugs: int = -1, swarm: bool = false) -> void:
+	if swarm or species == MOSSMITE_ID:
+		var n: int = bugs if bugs > 0 else 1
+		var path: String = mossmite_sprite_path(n, "idle")
+		if ResourceLoader.exists(path):
+			var swarm_sprite := TextureRect.new()
+			swarm_sprite.name = "Sprite"
+			swarm_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			swarm_sprite.texture = load(path) as Texture2D
+			swarm_sprite.size = FIGHTER_FRAME
+			swarm_sprite.position = -FIGHTER_SOLE
+			root.add_child(swarm_sprite)
+			root.set_meta("pose", "idle")
+			root.set_meta("sprite_path", path)
+			return
 	var base: String = _beast_base_species(species)
 	var idle_path: String = str(BEAST_IDLE.get(base, ""))
 	if idle_path == "" or not ResourceLoader.exists(idle_path):
@@ -1224,7 +1274,7 @@ func _sync_plate_name_label(plate: Control, row: Dictionary) -> void:
 		display = _party_display_name(str(row.get("member", row.get("id", ""))))
 	else:
 		var suffix: String = str(plate.get_meta("beast_suffix", ""))
-		display = _beast_display_name(str(row.get("species", ""))) + suffix
+		display = _beast_plate_name(row, suffix)
 	var level_text: String = _level_text(row)
 	var inner_w: float = _plate_name_inner_width(level_text)
 	var hp: int = int(row.get("hp", 0))
@@ -1286,7 +1336,7 @@ func _build_plate(row: Dictionary, sole: Vector2, suffix: String) -> void:
 	if side == "party":
 		display = _party_display_name(str(row.get("member", fighter_id)))
 	else:
-		display = _beast_display_name(str(row.get("species", ""))) + suffix
+		display = _beast_plate_name(row, suffix)
 	var hp: int = int(row.get("hp", 0))
 	var max_hp: int = int(row.get("max_hp", 1))
 	plate.add_child(_plate_fill_bar("HpBar", PLATE_BAR_POS.y, PLATE_BAR_HP_SIZE, _hp_fill_file(hp, max_hp), max_hp, hp))
@@ -1466,7 +1516,7 @@ func _refresh_plate(row: Dictionary) -> void:
 	if side == "party":
 		tip_name = _party_display_name(str(row.get("member", fighter_id)))
 	else:
-		tip_name = _beast_display_name(str(row.get("species", ""))) + str(plate.get_meta("beast_suffix", ""))
+		tip_name = _beast_plate_name(row, str(plate.get_meta("beast_suffix", "")))
 	var tip: String = "%s · %s" % [tip_name, _hp_line(hp, max_hp)]
 	if side == "party":
 		tip += " · " + _weave_line(weave)
@@ -1491,6 +1541,19 @@ func _refresh_fighter_visual(row: Dictionary) -> void:
 		return
 	var sprite: CanvasItem = root.get_node_or_null("Sprite") as CanvasItem
 	if sprite == null:
+		return
+	if bool(root.get_meta("swarm", false)) or bool(row.get("swarm", false)):
+		var busy: bool = _playback != null and _playback.is_busy()
+		var pose_now: String = str(root.get_meta("pose", "idle"))
+		if not (busy and pose_now == "attack"):
+			var next_pose: String = "idle"
+			if busy and pose_now == "hurt":
+				next_pose = "hurt"
+			_set_swarm_pose(root, fighter_id, next_pose)
+		var swarm_alpha: float = 0.35 if status == "calmed" else 1.0
+		var swarm_mod: Color = sprite.modulate
+		swarm_mod.a = swarm_alpha
+		sprite.modulate = swarm_mod
 		return
 	var alpha: float = 0.35 if status == "calmed" else 1.0
 	var mod: Color = sprite.modulate
@@ -1550,6 +1613,48 @@ func _party_display_name(member: String) -> String:
 	if member == "bramble":
 		return _text("bramble_name", "Bramble")
 	return member.capitalize()
+
+
+func _beast_plate_name(row: Dictionary, suffix: String) -> String:
+	if bool(row.get("swarm", false)) or str(row.get("species", "")) == MOSSMITE_ID:
+		var count: int = int(row.get("bugs", row.get("hp", 0)))
+		var label: String = _text("foe_mossmite_swarm", "%d Mossmites" % count, {"count": count})
+		return label + suffix
+	return _beast_display_name(str(row.get("species", ""))) + suffix
+
+
+func _set_swarm_pose(root: Node, fighter_id: String, pose: String) -> bool:
+	var sprite: TextureRect = root.get_node_or_null("Sprite") as TextureRect
+	if sprite == null:
+		return false
+	var bugs: int = _swarm_bugs_now(fighter_id)
+	var path: String = mossmite_sprite_path(bugs, pose)
+	var tex: Texture2D = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	if tex == null:
+		return false
+	sprite.texture = tex
+	sprite.size = FIGHTER_FRAME
+	sprite.position = -FIGHTER_SOLE
+	root.set_meta("pose", pose)
+	root.set_meta("sprite_path", path)
+	return true
+
+
+func _swarm_bugs_now(fighter_id: String) -> int:
+	## No 0-bug frame exists, so a calmed swarm keeps the 1-bug picture, faded.
+	var bugs: int = 1
+	if _fight != null:
+		var row: Dictionary = _fight.fighter_dict(fighter_id)
+		if not row.is_empty():
+			bugs = int(row.get("bugs", row.get("hp", 1)))
+	if bugs < 1:
+		bugs = 1
+	return bugs
+
+
+func _fighter_root_is_swarm(fighter_id: String) -> bool:
+	var root: Control = playback_fighter_root(fighter_id)
+	return root != null and bool(root.get_meta("swarm", false))
 
 
 func _beast_display_name(species: String) -> String:
@@ -2129,9 +2234,15 @@ func start_test_fight(depth: int, boss: bool, with_elaia: bool, room_seed: int) 
 		}
 		fight.add_member("elaia", elaia_stats, 1, "back", "elaia")
 	var spawn_rng: BattleRng = SpawnRoller.room_seed_rng(room_seed)
-	var room: Array[Dictionary] = SpawnRoller.roll_room(depth, spawn_rng, boss)
+	var room: Array[Dictionary] = SpawnRoller.roll_room_with_mossmites(depth, spawn_rng, boss)
 	for entry: Dictionary in room:
-		var beast_id: String = fight.add_beast(str(entry.get("beast", "")), int(entry.get("slot", 0)), str(entry.get("row", "front")))
+		var beast_id: String = fight.add_beast(
+			str(entry.get("beast", "")),
+			int(entry.get("slot", 0)),
+			str(entry.get("row", "front")),
+			"",
+			int(entry.get("bugs", -1))
+		)
 		if bool(entry.get("boss", false)) and beast_id != "":
 			fight.set_boss(beast_id)
 	fight.set_combat_seed(BattleRng.mix_stream(room_seed, "combat"))

@@ -159,6 +159,10 @@ func _start_next_event() -> void:
 
 
 func _finish_event() -> void:
+	var kind: String = str(_event.get("kind", ""))
+	var actor_id: String = str(_event.get("actor", ""))
+	if kind == "strike" and actor_id != "" and _view != null:
+		_view.call("playback_release_swarm_attack", actor_id)
 	_clear_nudge()
 	_event = {}
 	_active = false

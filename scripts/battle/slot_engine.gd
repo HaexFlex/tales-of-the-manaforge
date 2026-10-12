@@ -23,7 +23,8 @@ static func is_boss_index(room_index: int) -> bool:
 
 
 static func build_room(depth: int, room_seed: int, boss: bool) -> Array[Dictionary]:
-	return SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(room_seed), boss)
+	## Beasts roll first. Mossmites spend only the leftover threat, and boss rooms stay beast-only.
+	return SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(room_seed), boss)
 
 
 static func member_stats(member: String) -> Dictionary:
@@ -85,10 +86,13 @@ static func fight_for_room(party: Array, loadout: Dictionary, room: Array[Dictio
 		fight.add_member(who, stats, index, row, who, formation_cell)
 		index += 1
 	for beast_row: Dictionary in room:
+		var bugs: int = int(beast_row.get("bugs", -1))
 		var beast_id: String = fight.add_beast(
 			str(beast_row.get("beast", "")),
 			int(beast_row.get("slot", 0)),
-			str(beast_row.get("row", "front"))
+			str(beast_row.get("row", "front")),
+			"",
+			bugs
 		)
 		if bool(beast_row.get("boss", false)) and beast_id != "":
 			fight.set_boss(beast_id)

@@ -172,6 +172,22 @@ func _run() -> void:
 			quit(0)
 		return
 
+	var swarm_spawn_only: bool = OS.get_environment("MANAFORGE_SWARM_SPAWN") == "1"
+	var swarm_combat_only: bool = OS.get_environment("MANAFORGE_SWARM_COMBAT") == "1"
+	var swarm_both: bool = OS.get_environment("MANAFORGE_SWARM") == "1"
+	if swarm_spawn_only or swarm_combat_only or swarm_both:
+		var swarm_failed: int = 0
+		if swarm_spawn_only or swarm_both:
+			swarm_failed += _swarm_spawn(tree_root)
+		if swarm_combat_only or swarm_both:
+			swarm_failed += await _swarm_combat(tree_root)
+		if swarm_failed > 0:
+			print("SWARM_FAIL: %d" % swarm_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_STRINGS_V4") == "1":
 		var _strings_adventure_v4_only: int = _strings_adventure_v4(tree_root)
 		if _strings_adventure_v4_only > 0:
@@ -3573,6 +3589,8 @@ func _run() -> void:
 	failed += _spawn_data(tree_root)
 	failed += _spawn_roller(tree_root)
 	failed += _spawn_seed(tree_root)
+	failed += _swarm_spawn(tree_root)
+	failed += await _swarm_combat(tree_root)
 	failed += _strings_adventure_v4(tree_root)
 	failed += _save_v14_inventory_merge(tree_root, game_state, save_service)
 	failed += _save_v14_home(tree_root, game_state, save_service)
@@ -10630,6 +10648,329 @@ func _spawn_seed(_tree_root: Window) -> int:
 	if failed == 0:
 		print("SPAWN_SEED_OK")
 	return failed
+
+
+func _swarm_front_count(room: Array) -> int:
+	var n: int = 0
+	for entry_v: Variant in room:
+		if str((entry_v as Dictionary).get("row", "")) == "front":
+			n += 1
+	return n
+
+
+func _swarm_beast(species: String, row_name: String, slot: int, threat: int) -> Dictionary:
+	return {"beast": species, "row": row_name, "slot": slot, "boss": false, "threat": threat}
+
+
+func _swarm_copy_room(rows: Array) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for entry_v: Variant in rows:
+		out.append((entry_v as Dictionary).duplicate(true))
+	return out
+
+
+func _swarm_spawn(tree_root: Window) -> int:
+	## Filler only: beasts keep their slots, then empty front, then empty back, then random growth.
+	var failed: int = 0
+	var beasts: Dictionary = _json_dict("res://data/beasts.json")
+	var species_ids: Dictionary = {}
+	for row_v: Variant in beasts.get("species", []) as Array:
+		species_ids[str((row_v as Dictionary).get("id", ""))] = true
+	failed += _assert(not species_ids.has("foe_mossmite"), "Mossmites are not a spawn-table species")
+	var fillers: Array = beasts.get("fillers", []) as Array
+	var moss: Dictionary = {}
+	for row_v: Variant in fillers:
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("id", "")) == "foe_mossmite":
+			moss = row
+	failed += _assert(str(moss.get("spawn_role", "")) == "filler", "Mossmites are filler only")
+	failed += _assert(int(moss.get("threat_open", 0)) == 7 and int(moss.get("threat_per_extra_bug", 0)) == 2, "open 7 and +2 per extra bug")
+	failed += _assert(int(moss.get("max_bugs", 0)) == 10 and int(moss.get("hp_per_bug", 0)) == 1, "cap 10, 1 HP per bug")
+	failed += _assert(str(moss.get("calm_threshold", "")) == "none" and not bool(moss.get("overkill_carry", true)), "dies at 0 HP and no overkill carry")
+	var tables: Dictionary = _json_dict("res://data/spawn_tables.json")
+	var listed: bool = false
+	for table_v: Variant in tables.get("tables", []) as Array:
+		for weight_v: Variant in (table_v as Dictionary).get("weights", []) as Array:
+			if str((weight_v as Dictionary).get("beast", "")) == "foe_mossmite":
+				listed = true
+	failed += _assert(not listed, "Mossmites are not in any SPAWN weight")
+	for depth: int in [1, 5, 10, 15]:
+		for row: Dictionary in SpawnRoller.table_for(depth):
+			failed += _assert(str(row.get("beast", "")) != "foe_mossmite", "table_for depth %d skips Mossmites" % depth)
+		for room_v: Variant in SpawnRoller.compositions(depth):
+			var ids: Array = room_v as Array
+			failed += _assert(not ids.has("foe_mossmite"), "compositions depth %d skip Mossmites" % depth)
+	var want_might: Array[int] = [-1, -1, 0, 0, 1, 1, 2, 2, 3, 3]
+	var want_res: Array[int] = [0, 0, 1, 1, 1, 2, 2, 2, 3, 3]
+	for n: int in range(1, 11):
+		failed += _assert(SpawnRoller.mossmite_threat_for(n) == 7 + 2 * (n - 1), "threat for %d bugs" % n)
+		failed += _assert(SpawnRoller.mossmite_might(n) == want_might[n - 1], "might for %d bugs" % n)
+		failed += _assert(SpawnRoller.mossmite_res(n) == want_res[n - 1], "res for %d bugs" % n)
+		failed += _assert(SpawnRoller.mossmite_hp_for(n) == n, "hp pool for %d bugs" % n)
+	failed += _assert(SpawnRoller.mossmite_threat_for(10) == 25, "a full swarm costs 25")
+	var strings: Dictionary = _json_dict("res://data/strings_v01.json")
+	failed += _assert(str(strings.get("foe_mossmite_name", "")) == "Mossmites", "plural name")
+	failed += _assert(str(strings.get("foe_mossmite_name_one", "")) == "Mossmite", "singular name")
+	failed += _assert(str(strings.get("foe_mossmite_swarm", "")) == "{count} Mossmites", "swarm label template")
+	var desc: String = str(strings.get("foe_mossmite_desc", ""))
+	failed += _assert(desc.find("PLACEHOLDER") >= 0, "description is a marked PLACEHOLDER")
+	var cs: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(cs != null and str(cs.call("get_text", "foe_mossmite_swarm", {"count": 4})) == "4 Mossmites", "label fills the count")
+	# One front beast, exactly five empty slots, budget for five 1-bug swarms and nothing left to grow.
+	var opened: Array[Dictionary] = [ _swarm_beast("acorn_imp", "front", 0, 33) ]
+	var five: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 35, _swarm_rng(1))
+	failed += _assert(five.size() == 6, "five swarms fill the room")
+	failed += _assert(str(five[0].get("beast", "")) == "acorn_imp" and str(five[0].get("row", "")) == "front" and int(five[0].get("slot", -1)) == 0, "the beast keeps its slot")
+	failed += _assert(_swarm_front_count(five) == 3, "front stops at 3 including the beast")
+	for i: int in range(1, 6):
+		var sw: Dictionary = five[i]
+		var want_row: String = "front" if i <= 2 else "back"
+		failed += _assert(str(sw.get("beast", "")) == "foe_mossmite" and bool(sw.get("swarm", false)), "slot %d is a swarm" % i)
+		failed += _assert(str(sw.get("row", "")) == want_row and int(sw.get("slot", -1)) == i, "swarm %d is %s slot %d" % [i, want_row, i])
+		failed += _assert(int(sw.get("bugs", 0)) == 1 and int(sw.get("threat", 0)) == 7, "opened swarm is one bug for 7")
+	# 4 opens (28) plus one extra bug (2). Growth is a fresh draw, not always the first swarm.
+	var grew_at: Dictionary = {}
+	for seed: int in range(1, 41):
+		var grown: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(seed))
+		var twos: int = 0
+		var at: int = -1
+		for i: int in range(1, grown.size()):
+			if int(grown[i].get("bugs", 0)) == 2:
+				twos += 1
+				at = i
+		failed += _assert(grown.size() == 5 and twos == 1 and _swarm_threat_sum(grown) == 33 + 30, "seed %d grows exactly one extra bug" % seed)
+		grew_at[at] = true
+	failed += _assert(grew_at.size() >= 2, "extra bugs are spread across swarms (got %s)" % str(grew_at.keys()))
+	var again: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(3))
+	var again_b: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(3))
+	failed += _assert(str(again) == str(again_b), "the same room seed grows the same swarm")
+	# Cap 10: one empty slot and enough threat for more than 10 bugs. The rest is discarded.
+	var packed: Array[Dictionary] = []
+	for i: int in range(3):
+		packed.append(_swarm_beast("acorn_imp", "front", i, 33))
+	for i: int in range(2):
+		packed.append(_swarm_beast("spore_moth", "back", 3 + i, 44))
+	var capped: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(packed), 47, _swarm_rng(2))
+	failed += _assert(capped.size() == 6 and _swarm_front_count(capped) == 3, "the tenth-bug swarm does not open a seventh slot or a fourth front")
+	var cap_sw: Dictionary = capped[5]
+	failed += _assert(str(cap_sw.get("beast", "")) == "foe_mossmite" and int(cap_sw.get("bugs", 0)) == 10 and int(cap_sw.get("threat", 0)) == 25, "one swarm grows to 10 for 25 and stops")
+	failed += _assert(str(cap_sw.get("row", "")) == "back", "front is already full, so the swarm sits in back")
+	var full: Array[Dictionary] = _swarm_copy_room(packed)
+	full.append(_swarm_beast("acorn_imp", "back", 5, 33))
+	var no_slot: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(full), 100, _swarm_rng(4))
+	failed += _assert(no_slot.size() == 6 and str(no_slot) == str(full), "six beasts and the leftover is discarded")
+	var poor: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 6, _swarm_rng(1))
+	failed += _assert(poor.size() == 1, "leftover under 7 opens nothing")
+	var odd: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 8, _swarm_rng(1))
+	failed += _assert(odd.size() == 2 and int(odd[1].get("bugs", 0)) == 1 and int(odd[1].get("threat", 0)) == 7, "a remainder under 2 is discarded")
+	var two: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 9, _swarm_rng(1))
+	failed += _assert(two.size() == 2 and int(two[1].get("bugs", 0)) == 2 and int(two[1].get("threat", 0)) == 9, "7 opens the swarm and +2 buys the second bug")
+	var fronts: Array[Dictionary] = []
+	for i: int in range(3):
+		fronts.append(_swarm_beast("acorn_imp", "front", i, 33))
+	var backs_only: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(fronts), 40, _swarm_rng(8))
+	failed += _assert(_swarm_front_count(backs_only) == 3, "swarms do not push the front row past 3")
+	for entry: Dictionary in backs_only:
+		if str(entry.get("beast", "")) == "foe_mossmite":
+			failed += _assert(str(entry.get("row", "")) == "back", "with 3 front beasts every swarm is in back")
+	var backs: Array[Dictionary] = []
+	for i: int in range(3):
+		backs.append(_swarm_beast("spore_moth", "back", i, 44))
+	var fronts_only: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(backs), 21, _swarm_rng(8))
+	failed += _assert(fronts_only.size() == 6 and _swarm_front_count(fronts_only) == 3, "empty front fills before any back swarm")
+	for entry: Dictionary in fronts_only:
+		if str(entry.get("beast", "")) == "foe_mossmite":
+			failed += _assert(str(entry.get("row", "")) == "front" and int(entry.get("bugs", 0)) == 1, "those swarms are front-row and still one bug")
+	for seed: int in [1, 2, 5, 1000]:
+		var plain: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(seed), true)
+		var boss_room: Array = SpawnRoller.roll_room_with_mossmites(5, SpawnRoller.room_seed_rng(seed), true)
+		failed += _assert(str(plain) == str(boss_room), "boss seed %d has no swarms" % seed)
+		for entry_v: Variant in boss_room:
+			failed += _assert(str((entry_v as Dictionary).get("beast", "")) != "foe_mossmite", "boss seed %d lists no Mossmite" % seed)
+	for depth: int in [1, 5, 10, 20]:
+		var room_budget: int = SpawnRoller.budget(depth)
+		for seed: int in range(40):
+			var base: Array = SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(seed), false)
+			var mixed: Array = SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(seed), false)
+			failed += _assert(mixed.size() >= base.size() and mixed.size() <= 6, "depth %d seed %d stays within 6 slots" % [depth, seed])
+			for i: int in range(base.size()):
+				var beast_row: Dictionary = mixed[i] as Dictionary
+				var orig: Dictionary = base[i] as Dictionary
+				failed += _assert(str(beast_row.get("beast", "")) == str(orig.get("beast", "")) and str(beast_row.get("row", "")) == str(orig.get("row", "")) and int(beast_row.get("slot", -1)) == int(orig.get("slot", -2)) and int(beast_row.get("threat", 0)) == int(orig.get("threat", -1)), "depth %d seed %d beast %d keeps its slot" % [depth, seed, i])
+			var seen_swarm: bool = false
+			var front_n: int = 0
+			var all_capped: bool = true
+			var swarm_n: int = 0
+			for i: int in range(mixed.size()):
+				var entry: Dictionary = mixed[i] as Dictionary
+				failed += _assert(int(entry.get("slot", -1)) == i, "depth %d seed %d slot index %d" % [depth, seed, i])
+				if str(entry.get("row", "")) == "front":
+					front_n += 1
+				var is_swarm: bool = str(entry.get("beast", "")) == "foe_mossmite"
+				if is_swarm:
+					seen_swarm = true
+					swarm_n += 1
+					var bugs: int = int(entry.get("bugs", 0))
+					failed += _assert(bugs >= 1 and bugs <= 10, "depth %d seed %d bugs %d" % [depth, seed, bugs])
+					failed += _assert(int(entry.get("threat", 0)) == SpawnRoller.mossmite_threat_for(bugs), "depth %d seed %d swarm threat" % [depth, seed])
+					failed += _assert(not bool(entry.get("boss", false)), "a swarm is never the boss")
+					if bugs < 10:
+						all_capped = false
+				elif seen_swarm:
+					failed += _assert(false, "depth %d seed %d lists a beast after a swarm" % [depth, seed])
+			failed += _assert(front_n <= 3, "depth %d seed %d front row is %d" % [depth, seed, front_n])
+			var spent: int = _swarm_threat_sum(mixed)
+			var beast_spent: int = _swarm_threat_sum(base)
+			failed += _assert(spent <= room_budget and spent >= beast_spent, "depth %d seed %d threat %d within %d" % [depth, seed, spent, room_budget])
+			var leftover: int = room_budget - spent
+			if swarm_n > 0 and not all_capped:
+				failed += _assert(leftover < 2, "depth %d seed %d discards only a remainder under 2 (left %d)" % [depth, seed, leftover])
+			elif swarm_n == 0:
+				var idle_left: int = room_budget - beast_spent
+				failed += _assert(base.size() >= 6 or idle_left < 7, "depth %d seed %d opened no swarm with room and threat left" % [depth, seed])
+	if failed == 0:
+		print("SWARM_SPAWN_OK")
+	return failed
+
+
+func _swarm_rng(seed_value: int) -> BattleRng:
+	var dice := BattleRng.new()
+	dice.set_seed(seed_value)
+	return dice
+
+
+func _swarm_threat_sum(room: Array) -> int:
+	var total: int = 0
+	for entry_v: Variant in room:
+		total += int((entry_v as Dictionary).get("threat", 0))
+	return total
+
+
+func _swarm_combat(tree_root: Window) -> int:
+	## HP is the bug pool. A lost bug updates the count, the sprite, and Res immediately.
+	## Damage past 0 HP is lost. The 10% Calmed rule does not apply.
+	var failed: int = 0
+	var fight := FightState.new()
+	fight.add_member("keeper", {
+		"might": 0, "arcana": 1, "resilience": 5, "ward": 5,
+		"vitality": 6, "swiftness": 4, "fate": 0, "attack": "physical",
+	}, 0, "front", "keeper")
+	fight.add_member("bruiser", {
+		"might": 30, "arcana": 1, "resilience": 5, "ward": 5,
+		"vitality": 6, "swiftness": 4, "fate": 0, "attack": "physical",
+	}, 1, "front", "bruiser")
+	var swarm_id: String = fight.add_beast("foe_mossmite", 0, "front", "", 10)
+	var acorn_id: String = fight.add_beast("acorn_imp", 1, "back")
+	failed += _assert(swarm_id == "foe_mossmite" and acorn_id == "acorn_imp", "swarm and acorn ids")
+	var row: Dictionary = fight.fighter_dict(swarm_id)
+	failed += _assert(int(row.get("hp", 0)) == 10 and int(row.get("max_hp", 0)) == 10 and int(row.get("bugs", 0)) == 10, "a 10-bug swarm has a 10 HP pool")
+	failed += _assert(int(row.get("might", 99)) == 3 and int(row.get("resilience", 99)) == 3, "full swarm might 3 res 3")
+	failed += _assert(int(row.get("ward", 0)) == 2 and int(row.get("swiftness", 0)) == 4 and int(row.get("fate", 1)) == 0, "ward 2, swift 4, fate 0")
+	failed += _assert(str(row.get("attack", "")) == "physical" and str(row.get("status", "")) == "active", "physical strike, still fighting at full HP")
+	failed += _assert(fight.display_name(swarm_id) == "10 Mossmites", "label is 10 Mossmites")
+	var acorn_hp: int = int(fight.fighter_dict(acorn_id).get("hp", 0))
+	fight.set_scripted_dice([6, 1, 1, 1, 1])
+	var nick: Dictionary = fight.strike("keeper", swarm_id)
+	row = fight.fighter_dict(swarm_id)
+	if int(row.get("hp", -1)) != 9:
+		print("SWARM nick blow %s" % str(nick))
+	failed += _assert(int(nick.get("damage", 0)) == 1 and int(row.get("hp", 0)) == 9 and int(row.get("bugs", 0)) == 9, "one point of damage removes one bug")
+	failed += _assert(int(row.get("resilience", -1)) == 3 and int(row.get("might", 99)) == 3 and str(row.get("status", "")) == "active", "9 bugs still have res 3 and keep fighting")
+	failed += _assert(fight.display_name(swarm_id) == "9 Mossmites", "label updates to 9 Mossmites")
+	fight.set_hp(swarm_id, 8)
+	row = fight.fighter_dict(swarm_id)
+	failed += _assert(int(row.get("bugs", 0)) == 8 and int(row.get("resilience", -1)) == 2 and int(row.get("might", 99)) == 2, "Res updates as soon as the eighth bug is the last one lost")
+	fight.set_hp(swarm_id, 1)
+	row = fight.fighter_dict(swarm_id)
+	failed += _assert(int(row.get("hp", 0)) == 1 and int(row.get("bugs", 0)) == 1 and int(row.get("resilience", -1)) == 0 and int(row.get("might", 0)) == -1, "one bug left: might -1, res 0")
+	failed += _assert(str(row.get("status", "")) == "active" and fight.legal_targets("keeper").has(swarm_id), "1 HP of 10 still acts; the 10% Calmed rule does not apply")
+	failed += _assert(fight.display_name(swarm_id) == "1 Mossmites", "label follows the last bug")
+	var saved: Dictionary = fight.to_dict()
+	var loaded: FightState = FightState.from_dict(saved)
+	var loaded_row: Dictionary = loaded.fighter_dict(swarm_id)
+	failed += _assert(int(loaded_row.get("hp", 0)) == 1 and int(loaded_row.get("bugs", 0)) == 1 and int(loaded_row.get("resilience", -1)) == 0 and str(loaded_row.get("status", "")) == "active", "a saved 1-bug swarm stays active")
+	fight.set_hp(swarm_id, 2)
+	var acorn_before: int = int(fight.fighter_dict(acorn_id).get("hp", 0))
+	fight.set_scripted_dice([6, 6, 1, 1, 10])
+	var crush: Dictionary = fight.strike("bruiser", swarm_id)
+	row = fight.fighter_dict(swarm_id)
+	failed += _assert(int(crush.get("damage", -1)) == 2 and int(row.get("hp", -1)) == 0 and int(row.get("bugs", -1)) == 0, "a killing blow spends only the HP the swarm had")
+	failed += _assert(int(crush.get("defender_hp_after", -1)) == 0 and str(row.get("status", "")) == "calmed", "the swarm is out at 0 HP and HP does not go negative")
+	failed += _assert(int(fight.fighter_dict(acorn_id).get("hp", 0)) == acorn_before and acorn_before == acorn_hp, "extra damage does not carry to the other foe")
+	failed += _assert(not fight.legal_targets("bruiser").has(swarm_id), "a dead swarm is not a target")
+	for n: int in range(1, 11):
+		for pose: String in ["idle", "attack", "hurt"]:
+			var path: String = BattleView.mossmite_sprite_path(n, pose)
+			failed += _assert(FileAccess.file_exists(path), "sprite %s" % path)
+	var packed: PackedScene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+	failed += _assert(packed != null, "battle scene")
+	if packed == null:
+		return failed
+	var view: BattleView = packed.instantiate() as BattleView
+	failed += _assert(view != null, "battle view")
+	if view == null:
+		return failed
+	tree_root.add_child(view)
+	await process_frame
+	var shown := FightState.new()
+	shown.add_member("keeper", {
+		"might": 8, "arcana": 1, "resilience": 5, "ward": 5,
+		"vitality": 6, "swiftness": 4, "fate": 0, "attack": "physical",
+	}, 0, "front", "keeper")
+	var shown_id: String = shown.add_beast("foe_mossmite", 0, "front", "", 10)
+	view.show_fight(shown)
+	await process_frame
+	var plate: Label = view.get_node_or_null("Arena/Plates/BeastPlate_%s/NameLabel" % shown_id) as Label
+	if plate == null:
+		plate = _swarm_name_label(view, shown_id)
+	failed += _assert(plate != null and plate.text.find("10 Mossmites") >= 0, "plate reads 10 Mossmites (got %s)" % (plate.text if plate != null else "missing"))
+	var root: Control = view.playback_fighter_root(shown_id)
+	failed += _assert(root != null and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_10_idle.png"), "10-bug idle sprite (got %s)" % ("" if root == null else str(root.get_meta("sprite_path", ""))))
+	shown.set_hp(shown_id, 4)
+	view.refresh_fight(shown)
+	plate = _swarm_name_label(view, shown_id)
+	failed += _assert(plate != null and plate.text.find("4 Mossmites") >= 0 and plate.text.find("10 Mossmites") < 0, "plate updates to 4 Mossmites (got %s)" % (plate.text if plate != null else "missing"))
+	failed += _assert(str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_idle.png"), "sprite drops to 4 bugs")
+	failed += _assert(int(shown.fighter_dict(shown_id).get("resilience", -1)) == 1, "4 bugs have res 1")
+	failed += _assert(view.set_fighter_pose(shown_id, "attack") and str(root.get_meta("pose", "")) == "attack" and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_attack.png"), "attack pose uses the 4-bug lunge")
+	var playback: BattlePlayback = view.get_playback()
+	failed += _assert(playback != null, "playback")
+	if playback != null:
+		playback.instant = false
+		playback.bind_view(view, shown)
+		playback.reset_for_fight()
+		playback.enqueue_events([{
+			"kind": "strike",
+			"actor": shown_id,
+			"target": "keeper",
+			"band": "hit",
+			"damage": 1,
+		}])
+		playback.advance(0.05)
+		failed += _assert(str(root.get_meta("pose", "")) == "attack" and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_attack.png"), "the swarm's strike shows the attack pose")
+		playback.advance(1.2)
+		failed += _assert(str(root.get_meta("pose", "")) == "idle" and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_idle.png"), "the swarm returns to idle after the strike")
+	failed += _assert(view.playback_set_beast_hurt(shown_id, "foe_mossmite") and str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_4_hurt.png"), "hurt pose matches the bugs still alive")
+	view.playback_set_beast_idle(shown_id)
+	shown.set_hp(shown_id, 0)
+	view.refresh_fight(shown)
+	failed += _assert(str(shown.fighter_dict(shown_id).get("status", "")) == "calmed", "0 bugs is calmed")
+	failed += _assert(str(root.get_meta("sprite_path", "")).ends_with("battle_mossmite_1_idle.png"), "no 0-bug frame: the calmed swarm keeps the 1-bug idle")
+	view.close_overlay()
+	await process_frame
+	if failed == 0:
+		print("SWARM_COMBAT_OK")
+	return failed
+
+
+func _swarm_name_label(view: BattleView, fighter_id: String) -> Label:
+	var plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % fighter_id) as Control
+	if plate == null:
+		var plates: Node = view.find_child("BeastPlate_%s" % fighter_id, true, false)
+		plate = plates as Control
+	if plate == null:
+		return null
+	return plate.get_node_or_null("NameLabel") as Label
 
 
 func _strings_adventure_v4(tree_root: Window) -> int:

@@ -65,13 +65,41 @@ func add_member(
 	return add_fighter(id, "party", stats, slot, row, attack, "", member, formation_cell)
 
 
-func add_beast(species_id: String, slot: int = 0, row: String = "front", fighter_id: String = "") -> String:
+func add_beast(species_id: String, slot: int = 0, row: String = "front", fighter_id: String = "", bugs: int = -1) -> String:
 	var spec: Dictionary = beast_row(species_id)
 	if spec.is_empty():
 		push_error("FightState: unknown beast %s" % species_id)
 		return ""
+	if str(spec.get("spawn_role", "")) == "filler":
+		return _add_swarm(species_id, spec, bugs, slot, row, fighter_id)
 	var id: String = fighter_id if fighter_id != "" else species_id
 	return add_fighter(id, "beast", spec, slot, row, str(spec.get("attack", "physical")), species_id, "")
+
+
+func _add_swarm(species_id: String, spec: Dictionary, bugs: int, slot: int, row: String, fighter_id: String) -> String:
+	var cap: int = maxi(1, int(spec.get("max_bugs", SpawnRoller.mossmite_cap())))
+	var n: int = bugs if bugs > 0 else 1
+	n = clampi(n, 1, cap)
+	var per: int = maxi(1, int(spec.get("hp_per_bug", 1)))
+	var pool: int = n * per
+	var stats: Dictionary = {
+		"might": SpawnRoller.mossmite_might(n),
+		"arcana": int(spec.get("arc", spec.get("arcana", 1))),
+		"resilience": SpawnRoller.mossmite_res(n),
+		"ward": int(spec.get("ward", 2)),
+		"vitality": 0,
+		"swiftness": int(spec.get("swi", spec.get("swiftness", 4))),
+		"fate": int(spec.get("fate", 0)),
+		"attack": "physical",
+		"hp": pool,
+		"max_hp": pool,
+		"swarm": true,
+		"bugs": n,
+		"hp_per_bug": per,
+		"max_bugs": cap,
+	}
+	var id: String = fighter_id if fighter_id != "" else species_id
+	return add_fighter(id, "beast", stats, slot, row, "physical", species_id, "")
 
 
 func add_fighter(
@@ -106,8 +134,14 @@ func add_fighter(
 	who.attack = "magic" if (kind == "magic" or kind == "mag") else "physical"
 	who.max_hp = BattleResolver.max_hp_for(who.vitality)
 	who.hp = who.max_hp
+	if stats.has("max_hp"):
+		who.max_hp = int(stats["max_hp"])
 	if stats.has("hp"):
 		who.hp = int(stats["hp"])
+	who.swarm = bool(stats.get("swarm", false))
+	who.hp_per_bug = maxi(1, int(stats.get("hp_per_bug", 1)))
+	who.max_bugs = int(stats.get("max_bugs", 0))
+	who.bugs = int(stats.get("bugs", 0)) if who.swarm else 0
 	who.weave = WEAVE_BASE if who.side == "party" else 0
 	who.shield = 0
 	who.brace = false
@@ -119,7 +153,7 @@ func add_fighter(
 	who.intent_den = 1
 	who.poison_total = 0
 	who.boss = false
-	who.status = BattleResolver.status_for(who.side, who.hp, who.max_hp)
+	_sync_after_hp(who)
 	_fighters[id] = who
 	order.append(id)
 	return id
@@ -130,7 +164,7 @@ func set_hp(fighter_id: String, hp: int) -> void:
 	if who == null:
 		return
 	who.hp = hp
-	who.status = BattleResolver.status_for(who.side, who.hp, who.max_hp)
+	_sync_after_hp(who)
 
 
 func set_scripted_dice(faces: Array) -> void:
@@ -185,13 +219,16 @@ func display_name(fighter_id: String) -> String:
 		return member
 	var base_key: String = "beast_%s_name" % who.species
 	var base: String = base_key
-	if who.species != "":
+	if who.swarm:
+		base = _swarm_label(who)
+		base_key = base
+	elif who.species != "":
 		var tree: SceneTree = Engine.get_main_loop() as SceneTree
 		if tree != null:
 			var cs: Node = tree.root.get_node_or_null("ContentStrings")
 			if cs != null:
 				base = str(cs.call("get_text", base_key))
-	if base == base_key:
+	if not who.swarm and base == base_key:
 		base = who.species if who.species != "" else who.id
 	var same: Array[String] = []
 	for key: Variant in _fighters.keys():
@@ -233,7 +270,7 @@ func strike(attacker: String, defender: String, to_hit_mod: int = 0, telegraph_m
 		shield_absorbed = mini(shield_before, applied)
 		result["damage"] = applied
 	else:
-		dfn.status = BattleResolver.status_for(dfn.side, dfn.hp, dfn.max_hp)
+		_sync_after_hp(dfn)
 	result["defender_hp_after"] = dfn.hp
 	result["defender_status"] = dfn.status
 	result["shield_absorbed"] = shield_absorbed
@@ -556,7 +593,7 @@ func _act_item(actor: Fighter, action: Dictionary, action_round: int) -> Diction
 	var heal: int = BattleResolver.round_half_up(target.max_hp, 3, 10)
 	var hp_before: int = target.hp
 	target.hp = mini(target.max_hp, target.hp + heal)
-	target.status = BattleResolver.status_for(target.side, target.hp, target.max_hp)
+	_sync_after_hp(target)
 	var healed: int = target.hp - hp_before
 	salves_used += 1
 	loadout["heart_salve"] = maxi(0, int(loadout.get("heart_salve", 0)) - 1)
@@ -729,9 +766,13 @@ func _beast_action(beast_id: String) -> Dictionary:
 
 func _apply_landed_damage(defender: Fighter, damage: int) -> int:
 	## Brace halves first (round half up, minimum 1), then the shield absorbs the rest.
+	## A swarm keeps only the HP it still has. Extra damage is lost and does not spill.
 	var amount: int = damage
 	if defender.brace:
 		amount = maxi(1, BattleResolver.round_half_up(amount, 1, 2))
+	if defender.swarm:
+		var room_left: int = maxi(0, defender.hp) + maxi(0, defender.shield)
+		amount = mini(amount, room_left)
 	_absorb(defender, amount)
 	return amount
 
@@ -740,8 +781,42 @@ func _absorb(who: Fighter, amount: int) -> void:
 	var spent: int = maxi(0, amount)
 	var absorbed: int = mini(maxi(0, who.shield), spent)
 	who.shield -= absorbed
-	who.hp -= spent - absorbed
+	var hp_loss: int = spent - absorbed
+	if who.swarm:
+		hp_loss = mini(hp_loss, maxi(0, who.hp))
+	who.hp -= hp_loss
+	_sync_after_hp(who)
+
+
+static func _sync_after_hp(who: Fighter) -> void:
+	if who == null:
+		return
+	if who.swarm:
+		## Haex: Res (and Might) update as soon as bugs die. The sim waited until the
+		## swarm's own turn. That lazy Res is an un-simmed change we are not using.
+		if who.hp < 0:
+			who.hp = 0
+		var per: int = maxi(1, who.hp_per_bug)
+		who.bugs = 0 if who.hp <= 0 else int((who.hp + per - 1) / float(per))
+		who.might = SpawnRoller.mossmite_might(who.bugs)
+		who.resilience = SpawnRoller.mossmite_res(who.bugs)
+		who.status = "active" if who.hp > 0 and who.bugs >= 1 else "calmed"
+		return
 	who.status = BattleResolver.status_for(who.side, who.hp, who.max_hp)
+
+
+func _swarm_label(who: Fighter) -> String:
+	var spec: Dictionary = beast_row(who.species)
+	var key: String = str(spec.get("swarm_label_key", "foe_mossmite_swarm"))
+	var fallback: String = "%d Mossmites" % who.bugs
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var cs: Node = tree.root.get_node_or_null("ContentStrings")
+		if cs != null:
+			var line: String = str(cs.call("get_text", key, {"count": who.bugs}))
+			if line != "" and line != key:
+				return line
+	return fallback
 
 
 func to_dict() -> Dictionary:
@@ -887,7 +962,7 @@ static func _as_bool(v: Variant, fallback: bool = false) -> bool:
 func _apply_boss_hp() -> void:
 	for key: Variant in _fighters.keys():
 		var who := _fighter(str(key))
-		if who == null or who.side != "beast" or not who.boss:
+		if who == null or who.side != "beast" or not who.boss or who.swarm:
 			continue
 		var boosted: int = BattleResolver.round_half_up(who.max_hp, 3, 2)
 		who.max_hp = boosted
@@ -1192,7 +1267,7 @@ static func _beast_catalog() -> Dictionary:
 		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(BEASTS_PATH))
 		if parsed is Dictionary:
 			var data: Dictionary = parsed
-			for key: String in ["species", "variants"]:
+			for key: String in ["species", "variants", "fillers"]:
 				var rows: Variant = data.get(key, [])
 				if rows is Array:
 					for row_v: Variant in rows:
@@ -1234,6 +1309,10 @@ class Fighter extends RefCounted:
 	var intent_den: int = 1
 	var poison_total: int = 0
 	var boss: bool = false
+	var swarm: bool = false
+	var bugs: int = 0
+	var hp_per_bug: int = 1
+	var max_bugs: int = 0
 	var status: String = "active"
 
 	func _intent_mult() -> Variant:
@@ -1283,6 +1362,11 @@ class Fighter extends RefCounted:
 			"boss": boss,
 			"status": status,
 		}
+		if swarm:
+			out["swarm"] = true
+			out["bugs"] = bugs
+			out["hp_per_bug"] = hp_per_bug
+			out["max_bugs"] = max_bugs
 		if cell >= 0 and cell <= 2:
 			out["cell"] = cell
 		return out
@@ -1335,9 +1419,19 @@ class Fighter extends RefCounted:
 		who.intent_num = ratio.x
 		who.intent_den = maxi(1, ratio.y)
 		who.boss = FightState._as_bool(data.get("boss", false))
+		who.swarm = FightState._as_bool(data.get("swarm", false))
+		if not who.swarm and who.species != "":
+			var spec: Dictionary = FightState.beast_row(who.species)
+			if str(spec.get("spawn_role", "")) == "filler":
+				who.swarm = true
+		who.hp_per_bug = maxi(1, FightState._as_int(data.get("hp_per_bug", 1)))
+		who.max_bugs = FightState._as_int(data.get("max_bugs", 0))
+		who.bugs = FightState._as_int(data.get("bugs", who.hp if who.swarm else 0))
 		var saved_status: String = str(data.get("status", "active"))
 		if saved_status == "ko" or saved_status == "calmed" or saved_status == "active":
 			who.status = saved_status
 		else:
 			who.status = "active"
+		if who.swarm:
+			FightState._sync_after_hp(who)
 		return who

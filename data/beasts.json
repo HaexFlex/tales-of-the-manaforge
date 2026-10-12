@@ -353,5 +353,41 @@
    "threat": 61
   }
  ],
- "variants_note": "Only the dark imp and dark moth spawn by depth 15. Other dark variants come after depth 15 and are not listed yet."
+ "variants_note": "Only the dark imp and dark moth spawn by depth 15. Other dark variants come after depth 15 and are not listed yet.",
+ "fillers": [
+  {
+   "id": "foe_mossmite",
+   "name_key": "foe_mossmite_name",
+   "name_one_key": "foe_mossmite_name_one",
+   "swarm_label_key": "foe_mossmite_swarm",
+   "desc_key": "foe_mossmite_desc",
+   "name": "Mossmites",
+   "spawn_role": "filler",
+   "kind": "phys",
+   "attack": "physical",
+   "tel": "none",
+   "max_bugs": 10,
+   "hp_per_bug": 1,
+   "might": {"per_bug_ceil_div": 2, "offset": -2},
+   "res": {"per_bug_floor_div": 3, "offset": 0},
+   "arc": 1,
+   "ward": 2,
+   "swi": 4,
+   "fate": 0,
+   "min_damage_on_hit": 1,
+   "calm_threshold": "none",
+   "overkill_carry": false,
+   "threat_open": 7,
+   "threat_per_extra_bug": 2,
+   "fill_order": ["front", "back", "grow"],
+   "grow_pick": "uniform_random_below_max",
+   "sprite": {
+    "pattern": "res://assets/art/battle/mossmite/battle_mossmite_{n}_{pose}.png",
+    "poses": ["idle", "attack", "hurt"],
+    "feet_row": 123,
+    "center_x": 63.5,
+    "facing": "west"
+   }
+  }
+ ]
 }

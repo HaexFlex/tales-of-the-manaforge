@@ -6,9 +6,11 @@ extends RefCounted
 
 const SPAWN_TABLES_PATH: String = "res://data/spawn_tables.json"
 const BEASTS_PATH: String = "res://data/beasts.json"
+const MOSSMITE_ID: String = "foe_mossmite"
 
 static var _spawn_data: Dictionary = {}
 static var _beasts_by_id: Dictionary = {}
+static var _mossmite: Dictionary = {}
 static var _data_ready: bool = false
 
 
@@ -21,6 +23,11 @@ static func _ensure_data() -> void:
 	for row_v: Variant in (beasts.get("species", []) as Array) + (beasts.get("variants", []) as Array):
 		var row: Dictionary = row_v as Dictionary
 		_beasts_by_id[str(row.get("id", ""))] = row
+	_mossmite = {}
+	for row_v: Variant in beasts.get("fillers", []) as Array:
+		var filler: Dictionary = row_v as Dictionary
+		if str(filler.get("id", "")) == MOSSMITE_ID:
+			_mossmite = filler
 	_data_ready = true
 
 
@@ -200,3 +207,113 @@ static func room_seed_rng(room_seed: int) -> BattleRng:
 	var dice := BattleRng.new()
 	dice.set_seed(BattleRng.mix_stream(room_seed, "spawn"))
 	return dice
+
+
+static func mossmite_def() -> Dictionary:
+	_ensure_data()
+	return _mossmite
+
+
+static func mossmite_open_cost() -> int:
+	return maxi(1, int(mossmite_def().get("threat_open", 7)))
+
+
+static func mossmite_per_bug_cost() -> int:
+	return maxi(1, int(mossmite_def().get("threat_per_extra_bug", 2)))
+
+
+static func mossmite_cap() -> int:
+	return maxi(1, int(mossmite_def().get("max_bugs", 10)))
+
+
+static func mossmite_threat_for(bugs: int) -> int:
+	## 7 for the first bug, +2 for each extra. A full swarm of 10 costs 25.
+	var n: int = maxi(0, bugs)
+	if n <= 0:
+		return 0
+	return mossmite_open_cost() + mossmite_per_bug_cost() * (n - 1)
+
+
+static func mossmite_hp_for(bugs: int) -> int:
+	return maxi(0, bugs) * maxi(1, int(mossmite_def().get("hp_per_bug", 1)))
+
+
+static func mossmite_might(bugs: int) -> int:
+	## ceil(n/2) - 2. Can be negative. A dead swarm (n = 0) keeps the offset.
+	var spec: Dictionary = mossmite_def().get("might", {}) as Dictionary
+	var div: int = int(spec.get("per_bug_ceil_div", 2))
+	var off: int = int(spec.get("offset", -2))
+	if div <= 0:
+		div = 2
+	if bugs <= 0:
+		return off
+	return int((bugs + div - 1) / float(div)) + off
+
+
+static func mossmite_res(bugs: int) -> int:
+	## floor(n/3). Recomputed from the living bugs, not stored as a flat stat.
+	var spec: Dictionary = mossmite_def().get("res", {}) as Dictionary
+	var div: int = int(spec.get("per_bug_floor_div", 3))
+	var off: int = int(spec.get("offset", 0))
+	if bugs <= 0 or div <= 0:
+		return off
+	return int(bugs / float(div)) + off
+
+
+static func roll_room_with_mossmites(depth: int, rng: BattleRng, boss: bool = false) -> Array[Dictionary]:
+	## Baseline beasts keep the slots place_rows gave them. Swarms are filler only.
+	## Boss rooms are not simmed: no swarms there.
+	var room: Array[Dictionary] = roll_room(depth, rng, boss)
+	if boss:
+		return room
+	var spent: int = 0
+	for entry: Dictionary in room:
+		spent += int(entry.get("threat", 0))
+	return fill_mossmites(room, budget(depth) - spent, rng)
+
+
+static func fill_mossmites(room: Array[Dictionary], rem: int, rng: BattleRng) -> Array[Dictionary]:
+	## Phase A opens one-bug swarms into empty front slots, then empty back slots.
+	## Phase B spends the rest one bug at a time on a uniformly random swarm under the cap.
+	## Leftover threat is discarded. place_rows is not run again.
+	_ensure_data()
+	var out: Array[Dictionary] = []
+	var n_front: int = 0
+	for entry: Dictionary in room:
+		out.append(entry)
+		if str(entry.get("row", "")) == "front":
+			n_front += 1
+	var open_cost: int = mossmite_open_cost()
+	var per_cost: int = mossmite_per_bug_cost()
+	var cap: int = mossmite_cap()
+	var max_foes: int = int((_spawn_data.get("fill", {}) as Dictionary).get("max_beasts", 6))
+	var swarms: Array[Dictionary] = []
+	while out.size() < max_foes and rem >= open_cost:
+		var row_name: String = "back"
+		if n_front < 3:
+			row_name = "front"
+			n_front += 1
+		var sw: Dictionary = {
+			"beast": MOSSMITE_ID,
+			"row": row_name,
+			"slot": out.size(),
+			"boss": false,
+			"threat": open_cost,
+			"bugs": 1,
+			"swarm": true,
+		}
+		out.append(sw)
+		swarms.append(sw)
+		rem -= open_cost
+	while rem >= per_cost:
+		var growable: Array[Dictionary] = []
+		for sw: Dictionary in swarms:
+			if int(sw.get("bugs", 0)) < cap:
+				growable.append(sw)
+		if growable.is_empty():
+			break
+		var picked: Dictionary = growable[rng.roll_die(growable.size()) - 1]
+		picked["bugs"] = int(picked.get("bugs", 1)) + 1
+		picked["threat"] = int(picked.get("threat", open_cost)) + per_cost
+		rem -= per_cost
+	return out
