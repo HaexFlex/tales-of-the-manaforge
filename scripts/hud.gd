@@ -209,7 +209,7 @@ func _ready() -> void:
 	_sheet = CharacterSheet.new()
 	_sheet.name = "CharacterSheet"
 	_sheet.visible = false
-	_sheet.z_index = 10
+	_sheet.z_index = 30
 	_sheet.close_requested.connect(close_character_sheet)
 	add_child(_sheet)
 	backpack_close_button.pressed.connect(close_backpack)
@@ -2298,6 +2298,7 @@ func _advance_join_line() -> void:
 		return
 	_join_band.visible = false
 	GameState.elaia_join_seen = true
+	_refresh_party_bar()
 	_show_toast(ContentStrings.get_text("elaia_join_toast"))
 	if has_node("/root/SaveService"):
 		SaveService.save_game()
