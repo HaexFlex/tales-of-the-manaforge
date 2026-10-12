@@ -147,6 +147,14 @@ func work_footprint() -> Rect2:
 
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
+	var hero: Node = GameState.find_selected_hero()
+	if hero != null and hero.has_method("get_channel_kind") and str(hero.call("get_channel_kind")) == "water":
+		var channel_target: Node = hero.call("get_channel_target") if hero.has_method("get_channel_target") else null
+		if channel_target == self and hero.has_method("cancel_channel"):
+			hero.call("cancel_channel")
+			set_watering(false)
+			get_viewport().set_input_as_handled()
+			return
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
 		var result: String = GameState.command_selected_wisps(node_id)
@@ -494,13 +502,18 @@ func wisp_orbit_center() -> Vector2:
 
 
 func wisp_orbit_radius() -> float:
-	## Elder canopy is far wider than the trunk. The ring has to match the tree.
+	## Vertical semi-axis of the orbit ellipse (ry). Elder uses a wide canopy ring.
+	return wisp_orbit_radii().y
+
+
+func wisp_orbit_radii() -> Vector2:
 	if String(GameState.stage_id) == "elder":
-		return 280.0
+		return Vector2(140.0, 280.0)
 	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
+	var ry: float = sz.x * 0.5 + 14.0
 	if has_node("/root/ForgeJobs"):
-		return ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
-	return sz.x * 0.5 + 14.0
+		ry = ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
+	return Vector2(ry * 0.5, ry)
 
 
 func _apply_trunk(stage: String) -> void:
