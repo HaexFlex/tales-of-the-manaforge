@@ -10,6 +10,7 @@ const MOSSMITE_ID: String = "foe_mossmite"
 
 static var _spawn_data: Dictionary = {}
 static var _beasts_by_id: Dictionary = {}
+static var _species_of_beast: Dictionary = {}
 static var _mossmite: Dictionary = {}
 static var _data_ready: bool = false
 
@@ -20,9 +21,15 @@ static func _ensure_data() -> void:
 	_spawn_data = _read_json(SPAWN_TABLES_PATH)
 	var beasts: Dictionary = _read_json(BEASTS_PATH)
 	_beasts_by_id = {}
+	_species_of_beast = {}
 	for row_v: Variant in (beasts.get("species", []) as Array) + (beasts.get("variants", []) as Array):
 		var row: Dictionary = row_v as Dictionary
-		_beasts_by_id[str(row.get("id", ""))] = row
+		var bid: String = str(row.get("id", ""))
+		_beasts_by_id[bid] = row
+		if row.has("variant_of"):
+			_species_of_beast[bid] = str(row.get("variant_of", ""))
+		else:
+			_species_of_beast[bid] = bid
 	_mossmite = {}
 	for row_v: Variant in beasts.get("fillers", []) as Array:
 		var filler: Dictionary = row_v as Dictionary
@@ -40,20 +47,26 @@ static func _read_json(path: String) -> Dictionary:
 
 
 static func budget(depth: int) -> int:
-	## Depth 1 = 85. Steps 2..10 add 4 each, 11..20 add 6, 21..30 add 8, then +2 per 10-depth band.
+	_ensure_data()
+	var b: Dictionary = _spawn_data.get("budget", {}) as Dictionary
+	var at_one: int = int(b.get("depth_1", 85))
+	var step_from: int = maxi(2, int(b.get("step_from_depth", 2)))
+	var initial_step: int = int(b.get("initial_step", 4))
+	var band_len: int = maxi(1, int(b.get("depths_per_step_band", 10)))
+	var step_inc: int = int(b.get("step_increase_per_band", 2))
 	var d: int = maxi(1, depth)
 	if d <= 1:
-		return 85
-	var total: int = 85
+		return at_one
+	var total: int = at_one
 	var band: int = 0
 	while true:
-		var depth_start: int = 2 if band == 0 else 10 * band + 1
+		var depth_start: int = step_from if band == 0 else step_from - 1 + band * band_len
 		if d < depth_start:
 			break
-		var depth_end: int = 10 if band == 0 else 10 * band + 10
+		var depth_end: int = step_from + band_len - 2 if band == 0 else depth_start + band_len - 1
 		var last: int = mini(d, depth_end)
 		var steps: int = last - depth_start + 1
-		var step_size: int = 4 + 2 * band
+		var step_size: int = initial_step + step_inc * band
 		total += steps * step_size
 		if last >= depth_end:
 			band += 1
@@ -132,12 +145,21 @@ static func _comp_rec(pool: Array[Dictionary], room_budget: int, max_beasts: int
 			_comp_rec(pool, room_budget, max_beasts, i, next, total + int(b["threat"]), found)
 
 
-static func _variety_count(picks: Array) -> int:
+static func species_key(beast_id: String) -> String:
+	_ensure_data()
+	return str(_species_of_beast.get(beast_id, beast_id))
+
+
+static func species_variety_count(picks: Array) -> int:
 	var seen: Dictionary = {}
 	for row_v: Variant in picks:
 		var row: Dictionary = row_v as Dictionary
-		seen[str(row.get("beast", ""))] = true
+		seen[species_key(str(row.get("beast", "")))] = true
 	return seen.size()
+
+
+static func _variety_count(picks: Array) -> int:
+	return species_variety_count(picks)
 
 
 static func _combo_sort_key(picks: Array) -> String:
@@ -180,6 +202,16 @@ static func _enumerate_combos(pool: Array[Dictionary], max_beasts: int, room_bud
 		_enumerate_combos(pool, max_beasts, room_budget, i, next, total + threat, out)
 
 
+static func _cheapest_beast_combo(pool: Array[Dictionary]) -> Array:
+	if pool.is_empty():
+		return []
+	var best: Dictionary = pool[0]
+	for row: Dictionary in pool:
+		if int(row["threat"]) < int(best["threat"]):
+			best = row
+	return [best.duplicate()]
+
+
 static func _max_combo_threat(pool: Array[Dictionary], max_beasts: int, room_budget: int) -> int:
 	var combos: Array = []
 	_enumerate_combos(pool, max_beasts, room_budget, 0, [], 0, combos)
@@ -189,16 +221,23 @@ static func _max_combo_threat(pool: Array[Dictionary], max_beasts: int, room_bud
 	return best
 
 
+static func beast_floor_ratio() -> float:
+	_ensure_data()
+	var fill: Dictionary = _spawn_data.get("fill", {}) as Dictionary
+	return float(fill.get("beast_floor_ratio", 0.9))
+
+
 static func beast_fill_floor(depth: int) -> int:
-	## Minimum beast threat when any combo reaches 90% of the room budget.
+	## Minimum beast threat when any combo reaches the configured floor ratio.
 	var pool: Array[Dictionary] = table_for(depth)
 	if pool.is_empty():
 		return 0
 	var room_budget: int = budget(depth)
 	var best: int = _max_combo_threat(pool, int((_spawn_data.get("fill", {}) as Dictionary).get("max_beasts", 6)), room_budget)
-	if best < int(ceil(0.9 * float(room_budget))):
+	var floor90: int = int(ceil(beast_floor_ratio() * float(room_budget)))
+	if best < floor90:
 		return 0
-	return int(ceil(0.9 * float(room_budget)))
+	return floor90
 
 
 static func roll_room(depth: int, rng: BattleRng, boss: bool = false) -> Array[Dictionary]:
@@ -210,27 +249,37 @@ static func roll_room(depth: int, rng: BattleRng, boss: bool = false) -> Array[D
 	var combos: Array = []
 	_enumerate_combos(table, max_beasts, room_budget, 0, [], 0, combos)
 	if combos.is_empty():
-		return _place_rows([], boss)
+		var fallback: Array = _cheapest_beast_combo(table)
+		if fallback.is_empty():
+			return _place_rows([], boss)
+		combos = [fallback]
 	var best_threat: int = 0
 	for picks_v: Variant in combos:
 		best_threat = maxi(best_threat, _combo_threat(picks_v as Array))
-	var floor90: int = int(ceil(0.9 * float(room_budget)))
-	var require90: bool = best_threat >= floor90
+	var floor90: int = int(ceil(beast_floor_ratio() * float(room_budget)))
+	var candidates: Array = []
+	if best_threat >= floor90:
+		for picks_v: Variant in combos:
+			var picks: Array = picks_v as Array
+			if _combo_threat(picks) >= floor90:
+				candidates.append(picks)
+	else:
+		for picks_v: Variant in combos:
+			var picks: Array = picks_v as Array
+			if _combo_threat(picks) == best_threat:
+				candidates.append(picks)
 	var tier: Array = []
 	var tier_variety: int = 0
-	for picks_v: Variant in combos:
+	for picks_v: Variant in candidates:
 		var picks: Array = picks_v as Array
-		var threat: int = _combo_threat(picks)
-		if require90 and threat < floor90:
-			continue
-		if threat < best_threat:
-			continue
 		var variety: int = _variety_count(picks)
 		if variety > tier_variety:
 			tier.clear()
 			tier_variety = variety
 		if variety == tier_variety:
 			tier.append(picks)
+	if tier.is_empty():
+		tier = candidates
 	tier.sort_custom(func(a: Array, b: Array) -> bool:
 		return _combo_sort_key(a) < _combo_sort_key(b)
 	)

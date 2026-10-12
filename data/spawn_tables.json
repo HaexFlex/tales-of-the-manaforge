@@ -1,16 +1,17 @@
 {
  "status": "DRAFT data from BATTLE_SCENE_DRAFT v4 §10 (weights and budget tweakable). The spawn roller (job 15) reads the budget, fill and tables; the loot block waits for jobs 23b/24.",
  "budget": {
-  "base": 90,
-  "per_depth_to_10": 2,
-  "at_10": 108,
-  "per_depth_after_10": 6,
-  "note": "B(D) = 90 + 2 x (D - 1) through depth 10, then 108 + 6 x (D - 10). Depth 1 = 90, 10 = 108, 15 = 138."
+  "depth_1": 85,
+  "step_from_depth": 2,
+  "initial_step": 4,
+  "depths_per_step_band": 10,
+  "step_increase_per_band": 2,
+  "note": "B(1)=depth_1. From depth step_from_depth onward, each depth adds a step; the step grows by step_increase_per_band every depths_per_step_band depths (4 for depths 2-10, 6 for 11-20, 8 for 21-30, ...)."
  },
  "fill": {
   "max_beasts": 6,
-  "variety_bias": 2.0,
-  "note": "Fill the budget until nothing else fits, up to 6 beasts, drawing by the depth's weights. A species not yet in the room has its weight x2. Melee in front, ranged behind, 3 per row."
+  "beast_floor_ratio": 0.9,
+  "note": "Beasts: enumerate multisets from the depth table (<= max_beasts, threat <= budget). Keep every set at or above beast_floor_ratio x budget when any set can; otherwise keep max-threat sets. Prefer the most distinct species (A and dark/B variants of one species count once). Pick among ties by the product of table weights with the room seed. Swarms spend leftover threat after place_rows (grow one swarm to 10 bugs before opening the next). Mossmites are not in these tables."
  },
  "table_rule": "A depth uses the latest table at or below it. Weights are relative.",
  "tables": [

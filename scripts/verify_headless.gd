@@ -10751,6 +10751,30 @@ func _room_fill_ok(_tree_root: Window) -> int:
 	failed += _assert(SpawnRoller.budget(20) == 181, "budget depth 20")
 	failed += _assert(SpawnRoller.budget(21) == 189, "budget depth 21")
 	failed += _assert(SpawnRoller.budget(30) == 261, "budget depth 30")
+	var imp_pair: Array = [
+		{"beast": "acorn_imp", "threat": 33, "attack": "physical"},
+		{"beast": "acorn_imp_dark", "threat": 48, "attack": "physical"},
+	]
+	failed += _assert(SpawnRoller.species_variety_count(imp_pair) == 1, "imp and dark imp are one species")
+	var mixed_species: Array = [
+		{"beast": "acorn_imp", "threat": 33, "attack": "physical"},
+		{"beast": "spore_moth", "threat": 44, "attack": "magic"},
+	]
+	failed += _assert(SpawnRoller.species_variety_count(mixed_species) == 2, "imp and moth are two species")
+	var depth5_floor: int = SpawnRoller.beast_fill_floor(5)
+	failed += _assert(depth5_floor > 0, "depth 5 has a 90% beast floor")
+	var variety_seed: int = -1
+	for probe: int in range(200):
+		var room5: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(probe))
+		var species: Dictionary = {}
+		for entry_v: Variant in room5:
+			var bid: String = str((entry_v as Dictionary).get("beast", ""))
+			species[SpawnRoller.species_key(bid)] = true
+		failed += _assert(species.size() >= 2, "depth 5 seed %d keeps 2+ species over 1-species high-threat pairs" % probe)
+		var threat5: int = _spawn_room_threat(room5)
+		if threat5 < 99 and variety_seed < 0:
+			variety_seed = probe
+	failed += _assert(variety_seed >= 0, "depth 5 has a legal sub-max-threat room (variety tier)")
 	for depth: int in range(1, 21):
 		var floor90: int = SpawnRoller.beast_fill_floor(depth)
 		var room_budget: int = SpawnRoller.budget(depth)
