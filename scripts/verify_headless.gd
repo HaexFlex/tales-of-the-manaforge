@@ -15610,10 +15610,15 @@ func _board_v4_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 	failed += _board_party_slot_frames_ok(shell)
 	failed += _board_warning_text_ok(shell)
 	failed += _board_label_no_orphan_wrap(shell, "EnemyLabel")
-	var cost_ln: Label = shell.find_child("DepartCostLine", true, false) as Label if shell != null else null
-	var frame: Rect2 = _board_parchment_rect()
-	if cost_ln != null:
-		failed += _assert(_board_rect_inside_frame(cost_ln, frame), "depart cost line inside frame")
+	var enemy_arrow: TextureRect = shell.find_child("EnemyArrow", true, false) as TextureRect if shell != null else null
+	var enemy_lbl: Label = shell.find_child("EnemyLabel", true, false) as Label if shell != null else null
+	if enemy_arrow != null and enemy_lbl != null:
+		var gap: float = enemy_lbl.get_global_rect().position.x - (enemy_arrow.get_global_rect().position.x + enemy_arrow.get_global_rect().size.x)
+		failed += _assert(gap >= 3.5 and gap <= 5.5, "enemy arrow 4px left of label")
+	var warn_cost: Label = shell.find_child("WarningLabel", true, false) as Label if shell != null else null
+	if warn_cost != null:
+		failed += _assert(warn_cost.text.find("20 Essence") >= 0, "warning includes depart cost")
+		failed += _assert(warn_cost.text.find("pays back 15") >= 0, "warning includes boss payback")
 	failed += _board_picker_no_black_panels(shell)
 	game_state.set("echo_01_redeemed", true)
 	game_state.set("first_relic_crafted", true)
@@ -15815,7 +15820,19 @@ func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Nod
 		failed += _assert(not sim_win.get_global_rect().intersects(depart_btn.get_global_rect()), "sim window clear of Depart")
 	if sim_win != null and sim_close != null:
 		failed += _assert(sim_win.get_global_rect().encloses(sim_close.get_global_rect()), "sim close inside window")
+	var summary_lbl: Label = shell.find_child("SimulateSummary", true, false) as Label if shell != null else null
+	var sim_scroll: ScrollContainer = shell.find_child("SimulateScroll", true, false) as ScrollContainer if shell != null else null
+	if summary_lbl != null and sim_scroll != null:
+		var sum_r: Rect2 = summary_lbl.get_global_rect()
+		var scroll_r: Rect2 = sim_scroll.get_global_rect()
+		failed += _assert(sum_r.position.y + sum_r.size.y <= scroll_r.position.y + 0.5, "sim summary above room list")
+		failed += _assert(not sum_r.intersects(scroll_r), "sim summary clear of scroll")
 	failed += _assert(room_list != null and room_list.get_child_count() > 0, "simulate room rows")
+	if room_list != null:
+		for row: Node in room_list.get_children():
+			if row is PanelContainer:
+				var box: StyleBox = (row as PanelContainer).get_theme_stylebox("panel")
+				failed += _assert(box is StyleBoxTexture and (box as StyleBoxTexture).texture != null, "sim row has row bg")
 	var footer: VBoxContainer = shell.find_child("SimulateFooter", true, false) as VBoxContainer if shell != null else null
 	failed += _assert(footer != null and footer.get_child_count() >= 4, "simulate footer stack")
 	var losses: Label = shell.find_child("SimulateLosses", true, false) as Label if shell != null else null

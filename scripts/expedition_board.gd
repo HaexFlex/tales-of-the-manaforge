@@ -630,10 +630,9 @@ func _refresh_shell() -> void:
 			hint_txt = "Idle: the party walks and fights on its own." if _control == "idle" else "Manual: you choose each room."
 		mode_hint.text = hint_txt
 	if _warning_lbl:
-		_warning_lbl.text = ContentStrings.get_text("adv_predeparture_warning")
-	var cost_ln: Label = _panel.get_node_or_null("Panel/DepartCostLine") as Label if _panel != null else null
-	if cost_ln != null:
-		cost_ln.text = ContentStrings.get_text("adv_depart_cost")
+		var warn_txt: String = ContentStrings.get_text("adv_predeparture_warning")
+		var cost_txt: String = ContentStrings.get_text("adv_depart_cost")
+		_warning_lbl.text = "%s %s" % [warn_txt, cost_txt]
 	if _cost_lbl != null:
 		_cost_lbl.visible = false
 	_idle_btn.button_pressed = _control == "idle"
