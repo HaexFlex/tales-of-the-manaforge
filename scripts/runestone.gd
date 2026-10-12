@@ -213,22 +213,51 @@ func confirm_spend() -> String:
 		return "missing"
 	var sid: String = _pending_stat
 	var stat_name: String = KeeperStats.stat_display_name(sid)
-	_close_confirm()
 	var result: String = KeeperStats.try_buy(sid)
 	match result:
 		"ok":
 			GameAudio.play_upgrade_buy()
 			GameState.status_message.emit(ContentStrings.get_text("runestone_ok", {"stat": stat_name}))
 			SaveService.save_game()
+			_refresh_open_confirm(sid)
 		"cant_afford":
 			GameAudio.play_tree_deny()
 			GameState.status_message.emit(ContentStrings.get_text("runestone_cant_afford"))
+			_refresh_open_confirm(sid)
 		"maxed":
 			GameAudio.play_tree_deny()
 			GameState.status_message.emit(ContentStrings.get_text("runestone_maxed"))
+			_close_confirm()
 		_:
 			GameAudio.play_tree_deny()
+			_close_confirm()
 	return result
+
+
+func _refresh_open_confirm(sid: String) -> void:
+	_ensure_confirm()
+	var stat_name: String = KeeperStats.stat_display_name(sid)
+	var reason: String = KeeperStats.try_buy_reason(sid)
+	if reason == "maxed":
+		_close_confirm()
+		return
+	_pending_stat = sid
+	var cost: int = KeeperStats.get_next_cost(sid)
+	_title.text = ContentStrings.get_text("runestone_title")
+	_spend.text = ContentStrings.get_text("runestone_spend", {"stat": stat_name})
+	if reason == "cant_afford":
+		_yes.disabled = true
+		_body.text = "%s\n%s" % [
+			ContentStrings.get_text("runestone_cant_afford"),
+			ContentStrings.get_text("runestone_confirm", {"cost": maxi(cost, 0), "stat": stat_name}),
+		]
+	else:
+		_yes.disabled = false
+		_body.text = ContentStrings.get_text("runestone_confirm", {"cost": maxi(cost, 0), "stat": stat_name})
+	_hint.text = ContentStrings.get_text("runestone_hint")
+	_bank.text = ContentStrings.get_text("runestone_bank_hint")
+	_panel.visible = true
+	_layer.visible = true
 
 
 func cancel_spend() -> void:
