@@ -11246,17 +11246,17 @@ func _resolver_state_roundtrip() -> int:
 			failed += _assert(schema_back == schema, "schema fields survive json")
 		var cap_state: Dictionary = snap.duplicate(true)
 		var tail: Array = []
-		for i: int in 25:
+		for i: int in 250:
 			tail.append({"i": i})
 		cap_state["log_tail"] = tail
 		var cap_parsed: Variant = JSON.parse_string(JSON.stringify(cap_state))
 		if cap_parsed is Dictionary:
 			var capped: Dictionary = FightStateScript.from_dict(cap_parsed).to_dict()
 			var got_tail: Array = capped.get("log_tail", []) as Array
-			failed += _assert(got_tail.size() == 20, "log tail caps at 20 (got %d)" % got_tail.size())
-			if got_tail.size() == 20:
-				failed += _assert(int((got_tail[0] as Dictionary).get("i", -1)) == 5, "log tail keeps the latest 20")
-				failed += _assert(int((got_tail[19] as Dictionary).get("i", -1)) == 24, "log tail ends at the latest entry")
+			failed += _assert(got_tail.size() == 200, "log tail caps at 200 (got %d)" % got_tail.size())
+			if got_tail.size() == 200:
+				failed += _assert(int((got_tail[0] as Dictionary).get("i", -1)) == 50, "log tail keeps the latest 200")
+				failed += _assert(int((got_tail[199] as Dictionary).get("i", -1)) == 249, "log tail ends at the latest entry")
 	if failed == 0:
 		print("RESOLVER_STATE_ROUNDTRIP_OK")
 	return failed
