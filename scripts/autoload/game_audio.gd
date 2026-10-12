@@ -289,7 +289,7 @@ func play(cue_id: StringName, offset_db: float = 0.0, pitch: float = 1.0) -> voi
 	if _cues.has(key) and typeof(_cues[key]) == TYPE_DICTIONARY:
 		base_db = float((_cues[key] as Dictionary).get("volume_db", 0.0))
 	var effective_db: float = base_db + offset_db
-	if _hub_suspended and bus == "Music":
+	if _hub_suspended and bus == "Music" and key != "mus_battle_forest":
 		return
 	if _held_while_fruit_committed(key, bus):
 		return

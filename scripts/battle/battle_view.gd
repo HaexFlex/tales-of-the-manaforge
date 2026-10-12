@@ -261,6 +261,11 @@ static func open_reach_fight(fight: FightState) -> bool:
 		reach_view._playback.bind_view(reach_view, fight)
 		reach_view._playback.reset_for_fight()
 	reach_view.show_fight(fight)
+	if tree != null:
+		var battle_audio: Node = tree.root.get_node_or_null("GameAudio")
+		if battle_audio != null:
+			battle_audio.call("suspend_hub_for_battle")
+			battle_audio.call("play", &"mus_battle_forest")
 	if fight.outcome() != "":
 		reach_view.call_deferred("_finish_turn_ui")
 	else:
@@ -365,6 +370,7 @@ func _exit_tree() -> void:
 
 func close_overlay() -> void:
 	_hide_end_panel()
+	var was_reach: bool = _reach_mode
 	_reach_mode = false
 	_reach_outcome_applied = false
 	_unbind_load()
@@ -372,6 +378,10 @@ func close_overlay() -> void:
 		remove_from_group("battle_overlay")
 	if _current == self:
 		_current = null
+	if was_reach:
+		var resume_audio: Node = get_node_or_null("/root/GameAudio")
+		if resume_audio != null:
+			resume_audio.call("resume_hub_after_battle")
 	if is_inside_tree() and not is_queued_for_deletion():
 		queue_free()
 

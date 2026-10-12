@@ -3,7 +3,7 @@
   "version": "v0.3.1-battle-music",
   "date": "2026-10-12",
   "source_spec": "CUE_NOTES_FIXPASS.md (box audio_restart/); supersedes AUDIO_RESTART_V01.md and CUE_NOTES_FORGE_V2.md where they differ; battle cues: CUE_NOTES_BATTLE_V1.md",
-  "mirrors": "data/audio_cues.json: same cue ids, files (path) and buses. 54 cues: 38 from the fix pass/adventure + 15 sfx_battle_* (in audio_cues.json, wired by battle playback job 21; rules in audio_cues.json battle_playback). This file is documentation; code reads audio_cues.json only.",
+  "mirrors": "data/audio_cues.json: same cue ids, files (path) and buses. 54 cues: 38 from the fix pass/adventure + mus_battle_forest (reach manual fights) + 15 sfx_battle_* (in audio_cues.json, wired by battle playback job 21; rules in audio_cues.json battle_playback). This file is documentation; code reads audio_cues.json only.",
   "sample_rate": 44100,
   "format": "ogg (SFX/stings: Vorbis 44.1 kHz mono); hub bed mp3 48 kHz stereo",
   "layout": "flat",
@@ -54,6 +54,17 @@
       "base_db": 0.0,
       "play_offset_db": 0.0,
       "notes": "Hub bed. Haex's raw MP3 (48 kHz stereo, 178.3 s, peak 0 dBFS), loop on; the fade-out loop join is ACCEPTED (Haex lock), do not crossfade or fix. Fallback chain: JSON path, then this shipped MP3 only. Music bus default -9 dB. Ducked -5 dB (bed only) while any SFX_Progress voice plays. Plays through the post-Ancient freeze."
+    },
+    "mus_battle_forest": {
+      "file": "mus_battle_forest.ogg",
+      "path": "res://assets/audio/mus_battle_forest.ogg",
+      "bus": "Music",
+      "loop": true,
+      "duration_sec": 81.7,
+      "file_peak_dbfs": -1.4,
+      "base_db": 0.0,
+      "play_offset_db": 0.0,
+      "notes": "Battle bed \"Bramble Dance\" (94 BPM 6/8, E minor, -13.5 LUFS like the hub). Haex pick 2026-10-12 (may revisit). Replaces the hub bed during manual reach fights via suspend_hub_for_battle; resumes on arena close. Missing file is a quiet no-op (cue_missing + did_play). StingPlayer battle cues play over it; not ducked by battle SFX. Echo chamber unchanged."
     },
     "mus_fruit_sting": {
       "file": "mus_fruit_sting.ogg",
@@ -624,17 +635,6 @@
       "base_db": 0.0,
       "play_offset_db": 0.0,
       "notes": "Haex go 2026-10-10 via the Director. Battle v1 (Target confirm). Fixed pitch, ±4% jitter/±1 dB; no pitch_scale for speed. See CUE_NOTES_BATTLE_V1.md."
-    },
-    "mus_battle_forest": {
-      "file": "mus_battle_forest.ogg",
-      "path": "res://assets/audio/mus_battle_forest.ogg",
-      "bus": "Music",
-      "loop": true,
-      "duration_sec": 81.7,
-      "file_peak_dbfs": -1.4,
-      "base_db": 0.0,
-      "play_offset_db": 0.0,
-      "notes": "Battle bed \"Bramble Dance\" (94 BPM 6/8, E minor, -13.5 LUFS like the hub). Haex pick 2026-10-12 (may revisit). Replaces the hub bed during manual battles, back to hub after; StingPlayer battle cues play over it; not ducked by battle SFX."
     }
   },
   "legacy": [

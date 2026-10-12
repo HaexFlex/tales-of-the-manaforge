@@ -238,6 +238,8 @@ godot --path . res://tools/AnimPreview.tscn
 
 Cue `mus_hub_forest` plays **`assets/audio/mus_hub_forest_haex.mp3`** on the **Music** bus with loop. The fallback is that JSON path, then the shipped MP3 only. Older beds live in `assets/library/legacy/` and are not imported. After `git pull`, **reopen the project in Godot** so the MP3 reimports.
 
+Reach manual fights (`BattleView.open_reach_fight`) suspend the hub bed and play cue **`mus_battle_forest`** (`assets/audio/mus_battle_forest.ogg`, loop, “Bramble Dance”). Closing the reach arena calls `resume_hub_after_battle`. If the OGG is not in the tree yet, `GameAudio.play` logs `cue_missing` and continues (no crash). Echo chamber hub suspend is unchanged.
+
 Music stings (`mus_fruit_sting`, `mus_ascend_sting`) use a second Music player so the hub bed never stops. Music bus defaults ~−9 dB; SFX buses 0 dB; Progress→Music duck only. Runtime forces `AudioStreamMP3.loop` / Ogg loop / WAV `LOOP_FORWARD`. If saved `music_volume` is `0` (bug: silent Music, SFX still OK), load treats it as reset-to-default once.
 
 **Pause → Options → Audio:** Music / Sounds sliders + Reset. Persists in `user://manaforge_settings.cfg` (volume only — never restarts the hub stream).

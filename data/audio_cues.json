@@ -26,6 +26,11 @@
       "loop": true,
       "path": "res://assets/audio/mus_hub_forest_haex.mp3"
     },
+    "mus_battle_forest": {
+      "bus": "Music",
+      "loop": true,
+      "path": "res://assets/audio/mus_battle_forest.ogg"
+    },
     "mus_fruit_sting": {
       "bus": "Music",
       "loop": false,
