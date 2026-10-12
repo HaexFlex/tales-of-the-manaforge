@@ -30,8 +30,8 @@ texture = ExtResource("2_plate")
 [node name="ArchFront" type="Sprite2D" parent="."]
 z_index = 10
 texture_filter = 0
-position = Vector2(812.8538, 1145.6604)
-scale = Vector2(1.2358491, 1.2358491)
+position = Vector2(800, 1116)
+scale = Vector2(1, 1)
 texture = ExtResource("13_arch")
 
 [node name="SwirlOverlay" type="Sprite2D" parent="."]
