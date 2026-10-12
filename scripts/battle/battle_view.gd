@@ -128,6 +128,8 @@ const PLATE_LABEL_FONT_SIZE: int = 8
 const PLATE_NAME_Y: float = 6.0
 const DEPTH_PLATE_POS: Vector2 = Vector2(16.0, 12.0)
 const DEPTH_PLATE_SIZE: Vector2 = Vector2(120.0, 28.0)
+const ROOMS_PLATE_POS: Vector2 = Vector2(142.0, 12.0)
+const ROOMS_PLATE_SIZE: Vector2 = Vector2(108.0, 28.0)
 const ROUND_BANNER_POS: Vector2 = Vector2(478.0, 8.0)
 const ROUND_BANNER_SIZE: Vector2 = Vector2(324.0, 38.0)
 const ROUND_TEXT_RECT: Rect2 = Rect2(490.0, 11.0, 300.0, 32.0)
@@ -219,6 +221,7 @@ var _battle_speed: int = 1
 var _depth_plate: Control = null
 var _round_banner: Control = null
 var _depth_hud_label: Label = null
+var _rooms_hud_label: Label = null
 var _round_hud_label: Label = null
 var _fight_depth: int = 1
 var _twist_chip: TextureRect = null
@@ -1898,6 +1901,22 @@ func _build_top_bar() -> void:
 	_depth_hud_label = _wood_label("DepthText", "Depth 1", Rect2(Vector2.ZERO, DEPTH_PLATE_SIZE))
 	_depth_plate.add_child(_depth_hud_label)
 	_arena.add_child(_depth_plate)
+	var rooms_plate := Control.new()
+	rooms_plate.name = "RoomsPlate"
+	rooms_plate.position = ROOMS_PLATE_POS
+	rooms_plate.size = ROOMS_PLATE_SIZE
+	rooms_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rooms_plate.add_to_group("battle_ui")
+	var rooms_bg := TextureRect.new()
+	rooms_bg.name = "Bg"
+	rooms_bg.texture = _load_ui_tex("depth_plate_120x28.png")
+	rooms_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rooms_bg.size = ROOMS_PLATE_SIZE
+	rooms_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rooms_plate.add_child(rooms_bg)
+	_rooms_hud_label = _wood_label("RoomsText", "", Rect2(Vector2.ZERO, ROOMS_PLATE_SIZE))
+	rooms_plate.add_child(_rooms_hud_label)
+	_arena.add_child(rooms_plate)
 	_twist_chip = TextureRect.new()
 	_twist_chip.name = "TwistChip"
 	_twist_chip.position = TWIST_CHIP_POS
@@ -1937,6 +1956,20 @@ func _refresh_fight_hud() -> void:
 	_sync_fight_depth_from_reach()
 	if _depth_hud_label != null:
 		_depth_hud_label.text = "Depth %d" % _fight_depth
+	if _rooms_hud_label != null:
+		if _reach_mode:
+			var reach: Node = get_node_or_null("/root/Reach")
+			if reach != null and bool(reach.get("running")):
+				var room_x: int = int(reach.get("rooms_attempted"))
+				var room_y: int = int(reach.call("rooms_fight_cap"))
+				_rooms_hud_label.text = "%d / %d Rooms" % [room_x, room_y]
+				_rooms_hud_label.get_parent().visible = true
+			else:
+				_rooms_hud_label.text = ""
+				_rooms_hud_label.get_parent().visible = false
+		else:
+			_rooms_hud_label.text = ""
+			_rooms_hud_label.get_parent().visible = false
 	if _round_hud_label != null:
 		var round_n: int = _fight.round if _fight != null else 0
 		if round_n > 0:

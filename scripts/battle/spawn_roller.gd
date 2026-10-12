@@ -117,44 +117,132 @@ static func _comp_rec(pool: Array[Dictionary], room_budget: int, max_beasts: int
 			_comp_rec(pool, room_budget, max_beasts, i, next, total + int(b["threat"]), found)
 
 
+static func _variety_count(picks: Array) -> int:
+	var seen: Dictionary = {}
+	for row_v: Variant in picks:
+		var row: Dictionary = row_v as Dictionary
+		seen[str(row.get("beast", ""))] = true
+	return seen.size()
+
+
+static func _combo_sort_key(picks: Array) -> String:
+	var ids: PackedStringArray = PackedStringArray()
+	for row_v: Variant in picks:
+		ids.append(str((row_v as Dictionary).get("beast", "")))
+	ids.sort()
+	return ",".join(ids)
+
+
+static func _combo_table_weight(picks: Array, table: Array[Dictionary]) -> int:
+	var by_id: Dictionary = {}
+	for row: Dictionary in table:
+		by_id[str(row["beast"])] = maxi(1, int(row["weight"]))
+	var product: int = 1
+	for row_v: Variant in picks:
+		product *= int(by_id.get(str((row_v as Dictionary).get("beast", "")), 1))
+	return maxi(1, product)
+
+
+static func _combo_threat(picks: Array) -> int:
+	var total: int = 0
+	for row_v: Variant in picks:
+		total += int((row_v as Dictionary).get("threat", 0))
+	return total
+
+
+static func _enumerate_combos(pool: Array[Dictionary], max_beasts: int, room_budget: int, start: int, chosen: Array, total: int, out: Array) -> void:
+	if not chosen.is_empty():
+		out.append(chosen.duplicate())
+	if chosen.size() >= max_beasts:
+		return
+	for i: int in range(start, pool.size()):
+		var row: Dictionary = pool[i]
+		var threat: int = int(row["threat"])
+		if threat <= 0 or total + threat > room_budget:
+			continue
+		var next: Array = chosen.duplicate()
+		next.append(row)
+		_enumerate_combos(pool, max_beasts, room_budget, i, next, total + threat, out)
+
+
+static func _max_combo_threat(pool: Array[Dictionary], max_beasts: int, room_budget: int) -> int:
+	var combos: Array = []
+	_enumerate_combos(pool, max_beasts, room_budget, 0, [], 0, combos)
+	var best: int = 0
+	for picks_v: Variant in combos:
+		best = maxi(best, _combo_threat(picks_v as Array))
+	return best
+
+
+static func beast_fill_floor(depth: int) -> int:
+	## Minimum beast threat when any combo reaches 90% of the room budget.
+	var pool: Array[Dictionary] = table_for(depth)
+	if pool.is_empty():
+		return 0
+	var room_budget: int = budget(depth)
+	var best: int = _max_combo_threat(pool, int((_spawn_data.get("fill", {}) as Dictionary).get("max_beasts", 6)), room_budget)
+	if best < int(ceil(0.9 * float(room_budget))):
+		return 0
+	return int(ceil(0.9 * float(room_budget)))
+
+
 static func roll_room(depth: int, rng: BattleRng, boss: bool = false) -> Array[Dictionary]:
 	_ensure_data()
 	var fill: Dictionary = _spawn_data.get("fill", {}) as Dictionary
 	var max_beasts: int = int(fill.get("max_beasts", 6))
 	var table: Array[Dictionary] = table_for(depth)
-	var rem: int = budget(depth)
-	var picks: Array[Dictionary] = []
-	var counts: Dictionary = {}
-	while picks.size() < max_beasts:
-		var options: Array[Dictionary] = []
-		for row: Dictionary in table:
-			if int(row["threat"]) <= rem:
-				options.append(row)
-		if options.is_empty():
-			break
+	var room_budget: int = budget(depth)
+	var combos: Array = []
+	_enumerate_combos(table, max_beasts, room_budget, 0, [], 0, combos)
+	if combos.is_empty():
+		return _place_rows([], boss)
+	var best_threat: int = 0
+	for picks_v: Variant in combos:
+		best_threat = maxi(best_threat, _combo_threat(picks_v as Array))
+	var floor90: int = int(ceil(0.9 * float(room_budget)))
+	var require90: bool = best_threat >= floor90
+	var tier: Array = []
+	var tier_variety: int = 0
+	for picks_v: Variant in combos:
+		var picks: Array = picks_v as Array
+		var threat: int = _combo_threat(picks)
+		if require90 and threat < floor90:
+			continue
+		if threat < best_threat:
+			continue
+		var variety: int = _variety_count(picks)
+		if variety > tier_variety:
+			tier.clear()
+			tier_variety = variety
+		if variety == tier_variety:
+			tier.append(picks)
+	tier.sort_custom(func(a: Array, b: Array) -> bool:
+		return _combo_sort_key(a) < _combo_sort_key(b)
+	)
+	var pick_i: int = 0
+	if tier.size() > 1:
 		var total_weight: int = 0
-		for row: Dictionary in options:
-			var bid: String = str(row["beast"])
-			var w: int = int(row["weight"])
-			if not counts.has(bid):
-				w *= 2
+		var weights: Array[int] = []
+		for picks_v: Variant in tier:
+			var w: int = _combo_table_weight(picks_v as Array, table)
+			weights.append(w)
 			total_weight += w
-		var r: int = rng.roll_die(total_weight) - 1
+		var roll: int = rng.roll_die(total_weight) - 1
 		var acc: int = 0
-		var picked: Dictionary = options[0]
-		for row: Dictionary in options:
-			var bid: String = str(row["beast"])
-			var w: int = int(row["weight"])
-			if not counts.has(bid):
-				w *= 2
-			acc += w
-			if r < acc:
-				picked = row
+		for i: int in range(weights.size()):
+			acc += weights[i]
+			if roll < acc:
+				pick_i = i
 				break
-		var pid: String = str(picked["beast"])
-		picks.append({"beast": pid, "threat": int(picked["threat"]), "attack": str(picked["attack"])})
-		counts[pid] = int(counts.get(pid, 0)) + 1
-		rem -= int(picked["threat"])
+	var picked: Array = tier[pick_i] as Array
+	var picks: Array[Dictionary] = []
+	for row_v: Variant in picked:
+		var row: Dictionary = (row_v as Dictionary).duplicate()
+		picks.append({
+			"beast": str(row["beast"]),
+			"threat": int(row["threat"]),
+			"attack": str(row["attack"]),
+		})
 	return _place_rows(picks, boss)
 
 
@@ -261,7 +349,7 @@ static func mossmite_res(bugs: int) -> int:
 
 
 static func roll_room_with_mossmites(depth: int, rng: BattleRng, boss: bool = false) -> Array[Dictionary]:
-	## Baseline beasts keep the slots place_rows gave them. Swarms are filler only.
+	## Beasts fill first (search + variety). Swarms spend leftover threat only.
 	## Boss rooms are not simmed: no swarms there.
 	var room: Array[Dictionary] = roll_room(depth, rng, boss)
 	if boss:
@@ -272,10 +360,9 @@ static func roll_room_with_mossmites(depth: int, rng: BattleRng, boss: bool = fa
 	return fill_mossmites(room, budget(depth) - spent, rng)
 
 
-static func fill_mossmites(room: Array[Dictionary], rem: int, rng: BattleRng) -> Array[Dictionary]:
-	## Phase A opens one-bug swarms into empty front slots, then empty back slots.
-	## Phase B spends the rest one bug at a time on a uniformly random swarm under the cap.
-	## Leftover threat is discarded. place_rows is not run again.
+static func fill_mossmites(room: Array[Dictionary], rem: int, _rng: BattleRng) -> Array[Dictionary]:
+	## Grow the active swarm to 10 bugs before opening another. Swarms append after beasts.
+	## Leftover threat under 2 is discarded. place_rows is not run again.
 	_ensure_data()
 	var out: Array[Dictionary] = []
 	var n_front: int = 0
@@ -288,32 +375,35 @@ static func fill_mossmites(room: Array[Dictionary], rem: int, rng: BattleRng) ->
 	var cap: int = mossmite_cap()
 	var max_foes: int = int((_spawn_data.get("fill", {}) as Dictionary).get("max_beasts", 6))
 	var swarms: Array[Dictionary] = []
-	while out.size() < max_foes and rem >= open_cost:
-		var row_name: String = "back"
-		if n_front < 3:
-			row_name = "front"
-			n_front += 1
-		var sw: Dictionary = {
-			"beast": MOSSMITE_ID,
-			"row": row_name,
-			"slot": out.size(),
-			"boss": false,
-			"threat": open_cost,
-			"bugs": 1,
-			"swarm": true,
-		}
-		out.append(sw)
-		swarms.append(sw)
-		rem -= open_cost
-	while rem >= per_cost:
-		var growable: Array[Dictionary] = []
-		for sw: Dictionary in swarms:
-			if int(sw.get("bugs", 0)) < cap:
-				growable.append(sw)
-		if growable.is_empty():
+	while true:
+		var progressed: bool = false
+		if not swarms.is_empty():
+			var active: Dictionary = swarms[swarms.size() - 1]
+			if int(active.get("bugs", 0)) < cap and rem >= per_cost:
+				active["bugs"] = int(active.get("bugs", 1)) + 1
+				active["threat"] = int(active.get("threat", open_cost)) + per_cost
+				rem -= per_cost
+				progressed = true
+				continue
+		if out.size() < max_foes and rem >= open_cost:
+			var row_name: String = "back"
+			if n_front < 3:
+				row_name = "front"
+				n_front += 1
+			var sw: Dictionary = {
+				"beast": MOSSMITE_ID,
+				"row": row_name,
+				"slot": out.size(),
+				"boss": false,
+				"threat": open_cost,
+				"bugs": 1,
+				"swarm": true,
+			}
+			out.append(sw)
+			swarms.append(sw)
+			rem -= open_cost
+			progressed = true
+			continue
+		if not progressed:
 			break
-		var picked: Dictionary = growable[rng.roll_die(growable.size()) - 1]
-		picked["bugs"] = int(picked.get("bugs", 1)) + 1
-		picked["threat"] = int(picked.get("threat", open_cost)) + per_cost
-		rem -= per_cost
 	return out

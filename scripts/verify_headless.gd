@@ -172,6 +172,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ROOM_FILL") == "1":
+		var _room_fill_only: int = _room_fill_ok(tree_root)
+		if _room_fill_only > 0:
+			print("ROOM_FILL_FAIL: %d" % _room_fill_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	var swarm_spawn_only: bool = OS.get_environment("MANAFORGE_SWARM_SPAWN") == "1"
 	var swarm_combat_only: bool = OS.get_environment("MANAFORGE_SWARM_COMBAT") == "1"
 	var swarm_both: bool = OS.get_environment("MANAFORGE_SWARM") == "1"
@@ -3601,6 +3610,7 @@ func _run() -> void:
 	failed += _spawn_data(tree_root)
 	failed += _spawn_roller(tree_root)
 	failed += _spawn_seed(tree_root)
+	failed += _room_fill_ok(tree_root)
 	failed += _swarm_spawn(tree_root)
 	failed += await _swarm_combat(tree_root)
 	failed += _strings_adventure_v4(tree_root)
@@ -10618,24 +10628,15 @@ func _spawn_roller(_tree_root: Window) -> int:
 		failed += _assert(str(mine) == str(theirs) and mine.size() == int(dep.get("count", -1)), "compositions at depth %d" % depth)
 	var oracle_depths: Array[int] = [1, 3, 8, 15]
 	for depth: int in oracle_depths:
-		var allowed: Dictionary = {}
-		for dep_v: Variant in depths:
-			var dep: Dictionary = dep_v as Dictionary
-			if int(dep.get("depth", 0)) != depth:
-				continue
-			for room_v: Variant in dep.get("rooms", []) as Array:
-				var beast_ids: Array = (room_v as Dictionary).get("beasts", []) as Array
-				var key_parts: PackedStringArray = PackedStringArray()
-				for b_v: Variant in beast_ids:
-					key_parts.append(str(b_v))
-				key_parts.sort()
-				allowed[",".join(key_parts)] = true
 		var room_budget: int = SpawnRoller.budget(depth)
+		var beast_floor: int = SpawnRoller.beast_fill_floor(depth)
 		for seed: int in range(300):
 			var room: Array = SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(seed))
 			failed += _assert(room.size() <= 6, "depth %d seed %d at most 6 beasts" % [depth, seed])
-			failed += _assert(_spawn_room_threat(room) <= room_budget, "depth %d seed %d within budget" % [depth, seed])
-			failed += _assert(allowed.has(_spawn_room_key(room)), "depth %d seed %d is a fixture room" % [depth, seed])
+			var beast_spent: int = _spawn_room_threat(room)
+			failed += _assert(beast_spent <= room_budget, "depth %d seed %d within budget" % [depth, seed])
+			if beast_floor > 0:
+				failed += _assert(beast_spent >= beast_floor, "depth %d seed %d beasts reach %d%% floor" % [depth, seed, 90])
 			var phys: int = 0
 			var mag: int = 0
 			for e_v: Variant in room:
@@ -10681,8 +10682,8 @@ func _spawn_seed(_tree_root: Window) -> int:
 		failed += _assert(str(a) == str(b), "room seed 42 repeats")
 	var keys: Dictionary = {}
 	for seed: int in range(50):
-		keys[_spawn_room_key(SpawnRoller.roll_room(3, SpawnRoller.room_seed_rng(seed)))] = true
-	failed += _assert(keys.size() >= 2, "depth 3 varies across 50 consecutive room seeds")
+		keys[_spawn_room_key(SpawnRoller.roll_room(17, SpawnRoller.room_seed_rng(seed)))] = true
+	failed += _assert(keys.size() >= 2, "depth 17 varies across 50 consecutive room seeds")
 	for seed: int in range(20):
 		var room: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(500 + seed), true)
 		var bosses: int = 0
@@ -10704,16 +10705,16 @@ func _spawn_seed(_tree_root: Window) -> int:
 		failed += _assert(bool((room[best_i] as Dictionary).get("boss", false)), "boss is highest threat (lowest slot on ties)")
 	const PIN_DEPTH: int = 5
 	var pin_1: Array = [
-		{"beast": "root_snapper", "row": "front", "slot": 0, "boss": false, "threat": 46},
-		{"beast": "acorn_imp", "row": "front", "slot": 1, "boss": false, "threat": 33},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
 	]
 	var pin_2: Array = [
-		{"beast": "spore_moth", "row": "back", "slot": 0, "boss": false, "threat": 44},
-		{"beast": "wilt_wisp", "row": "back", "slot": 1, "boss": false, "threat": 47},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
 	]
 	var pin_1000: Array = [
-		{"beast": "acorn_imp", "row": "front", "slot": 0, "boss": false, "threat": 33},
-		{"beast": "spore_moth_dark", "row": "back", "slot": 1, "boss": false, "threat": 61},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
+		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
 	]
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1))) == str(pin_1), "pinned room seed 1 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(2))) == str(pin_2), "pinned room seed 2 depth 5")
@@ -10742,8 +10743,39 @@ func _swarm_copy_room(rows: Array) -> Array[Dictionary]:
 	return out
 
 
+func _room_fill_ok(_tree_root: Window) -> int:
+	## Beasts fill to the 90% floor when possible; swarms use the same depth budget as Reach.depth.
+	var failed: int = 0
+	for depth: int in range(1, 21):
+		var floor90: int = SpawnRoller.beast_fill_floor(depth)
+		var room_budget: int = SpawnRoller.budget(depth)
+		for seed: int in range(60):
+			var beasts: Array = SpawnRoller.roll_room(depth, SpawnRoller.room_seed_rng(seed))
+			var beast_spent: int = _spawn_room_threat(beasts)
+			if floor90 > 0:
+				failed += _assert(beast_spent >= floor90, "depth %d seed %d beasts %d below floor %d" % [depth, seed, beast_spent, floor90])
+			var mixed: Array = SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(seed))
+			var spent: int = _swarm_threat_sum(mixed)
+			failed += _assert(spent <= room_budget, "depth %d seed %d total %d over budget %d" % [depth, seed, spent, room_budget])
+		if depth == 6:
+			for probe: int in range(200):
+				var room: Array = SpawnRoller.roll_room_with_mossmites(6, SpawnRoller.room_seed_rng(probe))
+				var moth_n: int = 0
+				var spent6: int = 0
+				for entry_v: Variant in room:
+					var entry: Dictionary = entry_v as Dictionary
+					spent6 += int(entry.get("threat", 0))
+					if str(entry.get("beast", "")) == "spore_moth":
+						moth_n += 1
+				if moth_n == 2 and spent6 == 97:
+					failed += _assert(false, "depth 6 must not roll like budget(depth-1) (2 moths + 2-bug swarm)")
+	if failed == 0:
+		print("ROOM_FILL_OK")
+	return failed
+
+
 func _swarm_spawn(tree_root: Window) -> int:
-	## Filler only: beasts keep their slots, then empty front, then empty back, then random growth.
+	## Filler only: beasts keep their slots; one swarm grows to 10 before another opens.
 	var failed: int = 0
 	var beasts: Dictionary = _json_dict("res://data/beasts.json")
 	var species_ids: Dictionary = {}
@@ -10792,31 +10824,17 @@ func _swarm_spawn(tree_root: Window) -> int:
 	failed += _assert(cs != null and str(cs.call("get_text", "foe_mossmite_desc")) == desc, "description reads through ContentStrings")
 	failed += _assert(FightState.swarm_count_label("foe_mossmite", 1) == "1 Mossmite", "one bug uses the singular")
 	failed += _assert(FightState.swarm_count_label("foe_mossmite", 4) == "4 Mossmites", "several bugs stay plural")
-	# One front beast, exactly five empty slots, budget for five 1-bug swarms and nothing left to grow.
+	# One front beast: grow the first swarm to 10, then open a second swarm for the remainder.
 	var opened: Array[Dictionary] = [ _swarm_beast("acorn_imp", "front", 0, 33) ]
 	var five: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 35, _swarm_rng(1))
-	failed += _assert(five.size() == 6, "five swarms fill the room")
-	failed += _assert(str(five[0].get("beast", "")) == "acorn_imp" and str(five[0].get("row", "")) == "front" and int(five[0].get("slot", -1)) == 0, "the beast keeps its slot")
-	failed += _assert(_swarm_front_count(five) == 3, "front stops at 3 including the beast")
-	for i: int in range(1, 6):
-		var sw: Dictionary = five[i]
-		var want_row: String = "front" if i <= 2 else "back"
-		failed += _assert(str(sw.get("beast", "")) == "foe_mossmite" and bool(sw.get("swarm", false)), "slot %d is a swarm" % i)
-		failed += _assert(str(sw.get("row", "")) == want_row and int(sw.get("slot", -1)) == i, "swarm %d is %s slot %d" % [i, want_row, i])
-		failed += _assert(int(sw.get("bugs", 0)) == 1 and int(sw.get("threat", 0)) == 7, "opened swarm is one bug for 7")
-	# 4 opens (28) plus one extra bug (2). Growth is a fresh draw, not always the first swarm.
-	var grew_at: Dictionary = {}
+	failed += _assert(five.size() == 3, "rem 35 fills one capped swarm plus a second")
+	failed += _assert(str(five[0].get("beast", "")) == "acorn_imp" and int(five[0].get("slot", -1)) == 0, "the beast keeps its slot")
+	failed += _assert(int(five[1].get("bugs", 0)) == 10 and int(five[1].get("threat", 0)) == 25, "first swarm caps at 10")
+	failed += _assert(int(five[2].get("bugs", 0)) == 2 and int(five[2].get("threat", 0)) == 9, "second swarm spends the rest")
+	failed += _assert(_swarm_threat_sum(five) == 67, "rem 35 spends down to a remainder under 2")
 	for seed: int in range(1, 41):
 		var grown: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(seed))
-		var twos: int = 0
-		var at: int = -1
-		for i: int in range(1, grown.size()):
-			if int(grown[i].get("bugs", 0)) == 2:
-				twos += 1
-				at = i
-		failed += _assert(grown.size() == 5 and twos == 1 and _swarm_threat_sum(grown) == 33 + 30, "seed %d grows exactly one extra bug" % seed)
-		grew_at[at] = true
-	failed += _assert(grew_at.size() >= 2, "extra bugs are spread across swarms (got %s)" % str(grew_at.keys()))
+		failed += _assert(grown.size() == 2 and int(grown[1].get("bugs", 0)) == 10 and _swarm_threat_sum(grown) == 58, "seed %d grows one 10-bug swarm" % seed)
 	var again: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(3))
 	var again_b: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(opened), 30, _swarm_rng(3))
 	failed += _assert(str(again) == str(again_b), "the same room seed grows the same swarm")
@@ -10848,15 +10866,14 @@ func _swarm_spawn(tree_root: Window) -> int:
 	failed += _assert(_swarm_front_count(backs_only) == 3, "swarms do not push the front row past 3")
 	for entry: Dictionary in backs_only:
 		if str(entry.get("beast", "")) == "foe_mossmite":
-			failed += _assert(str(entry.get("row", "")) == "back", "with 3 front beasts every swarm is in back")
+			failed += _assert(str(entry.get("row", "")) == "back", "with 3 front beasts swarms open in back")
 	var backs: Array[Dictionary] = []
 	for i: int in range(3):
 		backs.append(_swarm_beast("spore_moth", "back", i, 44))
 	var fronts_only: Array[Dictionary] = SpawnRoller.fill_mossmites(_swarm_copy_room(backs), 21, _swarm_rng(8))
-	failed += _assert(fronts_only.size() == 6 and _swarm_front_count(fronts_only) == 3, "empty front fills before any back swarm")
-	for entry: Dictionary in fronts_only:
-		if str(entry.get("beast", "")) == "foe_mossmite":
-			failed += _assert(str(entry.get("row", "")) == "front" and int(entry.get("bugs", 0)) == 1, "those swarms are front-row and still one bug")
+	failed += _assert(fronts_only.size() == 4 and _swarm_front_count(fronts_only) == 1, "with no front beasts the swarm opens front and grows")
+	var lone_sw: Dictionary = fronts_only[3]
+	failed += _assert(str(lone_sw.get("beast", "")) == "foe_mossmite" and str(lone_sw.get("row", "")) == "front" and int(lone_sw.get("bugs", 0)) == 8, "one front swarm grows before a second opens")
 	for seed: int in [1, 2, 5, 1000]:
 		var plain: Array = SpawnRoller.roll_room(5, SpawnRoller.room_seed_rng(seed), true)
 		var boss_room: Array = SpawnRoller.roll_room_with_mossmites(5, SpawnRoller.room_seed_rng(seed), true)

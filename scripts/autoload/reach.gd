@@ -142,6 +142,14 @@ func rooms_until_boss() -> int:
 	return 10 - (entered % 10)
 
 
+func rooms_fight_cap() -> int:
+	## Fight rooms still in this outing's timeline. Rest slots (spent or queued) are not rooms.
+	var rest_blocked: int = maxi(0, slots_used - rooms_attempted)
+	if phase == "rest":
+		rest_blocked += rest_slots_left
+	return maxi(rooms_attempted, slots_total - rest_blocked)
+
+
 func boss_line() -> String:
 	if rooms_until_boss() == 0:
 		return "Boss room"
