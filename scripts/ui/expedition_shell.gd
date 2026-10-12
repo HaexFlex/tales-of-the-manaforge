@@ -135,6 +135,9 @@ func _mode_block(panel: Control) -> void:
 	_make_label(panel, "ModeTitle", _scr(Vector2(244, 430)), Vector2(80, 20), 16, INK).text = "Mode"
 	var manual := _mode_toggle(panel, "ManualButton", _scr(Vector2(244, 452)), "Manual")
 	var idle := _mode_toggle(panel, "IdleButton", _scr(Vector2(368, 452)), "Idle")
+	var join := _action_button(panel, "JoinFightButton", _scr(Vector2(492, 452)), "Join the fight")
+	join.size = Vector2(160, 36)
+	join.visible = false
 	manual.toggle_mode = true
 	idle.toggle_mode = true
 	var group := ButtonGroup.new()
@@ -237,22 +240,6 @@ func _add_progress(panel: Control) -> void:
 	var left := _make_label(panel, "LoadoutLeftLabel", _scr(Vector2(616, 432)), Vector2(424, 36), 14, INK_SECONDARY)
 	left.visible = false
 	left.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var skip := Button.new()
-	skip.name = "SkipRoom"
-	skip.text = "Skip room"
-	skip.position = _scr(Vector2(244, 528))
-	skip.size = Vector2(160, 36)
-	skip.visible = false
-	panel.add_child(skip)
-	var rush := Button.new()
-	rush.name = "Rush"
-	rush.text = "Rush"
-	rush.toggle_mode = true
-	rush.position = _scr(Vector2(416, 528))
-	rush.size = Vector2(120, 36)
-	rush.visible = false
-	panel.add_child(rush)
-
 
 func _build_picker() -> void:
 	picker_popup = PanelContainer.new()

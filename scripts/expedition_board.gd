@@ -76,8 +76,7 @@ var _loadout_plus_btns: Array[Button] = []
 var _loadout_qty_lbls: Array[LineEdit] = []
 var _party_title: Label
 var _setup_nodes: Array[Control] = []
-var _skip_btn: Button
-var _rush_btn: Button
+var _join_fight_btn: Button
 var _simulate_btn: Button
 var _simulate_result: Label
 var _simulate_close: Button
@@ -527,8 +526,7 @@ func _ensure_shell() -> void:
 	_progress_lbl = panel.get_node("ProgressLabel") as Label
 	_pack_lbl = panel.get_node("PackLabel") as Label
 	_loadout_left_lbl = panel.get_node("LoadoutLeftLabel") as Label
-	_skip_btn = panel.get_node("SkipRoom") as Button
-	_rush_btn = panel.get_node("Rush") as Button
+	_join_fight_btn = panel.get_node("JoinFightButton") as Button
 	_loadout_item_btns.clear()
 	_loadout_minus_btns.clear()
 	_loadout_plus_btns.clear()
@@ -565,8 +563,9 @@ func _ensure_shell() -> void:
 	_simulate_btn.pressed.connect(_on_simulate)
 	_simulate_close.pressed.connect(_close_simulate_window)
 	_shell_view.simulate_rerun.pressed.connect(_on_simulate)
-	_skip_btn.pressed.connect(_on_skip)
-	_rush_btn.pressed.connect(_on_rush)
+	if _join_fight_btn:
+		_join_fight_btn.text = ContentStrings.get_text("adv_join_fight")
+		_join_fight_btn.pressed.connect(_on_join_fight)
 	for key: String in _party_slots.keys():
 		var btn: Button = _party_slots[key] as Button
 		var parts: PackedStringArray = key.split(":")
@@ -687,12 +686,9 @@ func _refresh_shell() -> void:
 		var short: bool = GameState.essence < DEPART_ESSENCE_COST
 		var tex_path: String = BOARD_DIR + ("cost_chip_9s_short_24x32.png" if short else "cost_chip_9s_ok_24x32.png")
 		chip.texture = load(tex_path) as Texture2D
-	var debug := has_node("/root/Reach") and Reach.debug_tools() and running
-	if _skip_btn:
-		_skip_btn.visible = debug
-	if _rush_btn:
-		_rush_btn.visible = debug
-		_rush_btn.button_pressed = Reach.rush if debug else false
+	var can_join: bool = running and has_node("/root/Reach") and str(Reach.phase) in ["idle_room", "rest"]
+	if _join_fight_btn:
+		_join_fight_btn.visible = can_join
 	_lantern_lbl.text = _lantern_line()
 
 
@@ -873,15 +869,9 @@ func _on_loadout_qty(slot_i: int, delta: int) -> void:
 	_refresh_shell()
 
 
-func _on_skip() -> void:
+func _on_join_fight() -> void:
 	if has_node("/root/Reach"):
-		Reach.debug_skip_room()
-	_refresh_shell()
-
-
-func _on_rush() -> void:
-	if has_node("/root/Reach"):
-		Reach.set_rush(_rush_btn.button_pressed if _rush_btn else false)
+		Reach.set_control("manual")
 	_refresh_shell()
 
 
@@ -1098,8 +1088,14 @@ func _remove_at_slot(row: String, cell: int) -> void:
 			_members.remove_at(i)
 
 
+func _running_party() -> Array[Dictionary]:
+	if has_node("/root/Reach") and Reach.running:
+		return Reach.party
+	return _members
+
+
 func _member_at_slot(row: String, cell: int) -> String:
-	for entry: Dictionary in _members:
+	for entry: Dictionary in _running_party():
 		if str(entry.get("row", "")) == row and int(entry.get("cell", -1)) == cell:
 			return str(entry.get("member", ""))
 	return ""

@@ -13,7 +13,7 @@ signal room_resolved(entry: Dictionary)
 
 const DEPART_ESSENCE: int = 20
 const ROOM_SEC: float = 720.0
-## A live frame longer than this (after play speed, before Rush) resolves in one pass.
+## A live frame longer than this (after play speed) resolves in one pass.
 const BIG_DELTA_SEC: float = 5.0
 const REST_SEC: float = 1440.0
 const HOURS: Array[int] = [1, 2, 4, 8]
@@ -35,7 +35,6 @@ var phase: String = "home"
 var run_clears: int = 0
 ## Rooms begun this expedition, cleared or failed. Room 10, 20, 30… is the boss. A new Depart starts at 0.
 var rooms_attempted: int = 0
-var rush: bool = false
 var run_id: int = 0
 ## Main-save guard: this run's pack and leftover loadout were already sent home.
 var last_banked_run_id: int = 0
@@ -78,7 +77,6 @@ var _handoff: FightState = null
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	_rng.randomize()
-	rush = false
 
 
 func _process(delta: float) -> void:
@@ -113,7 +111,6 @@ func reset_for_new_game() -> void:
 	_forced_outcomes.clear()
 	_test_run_seed = -1
 	last_banked_run_id = 0
-	rush = false
 	changed.emit()
 
 
@@ -338,6 +335,12 @@ func set_control(mode: String) -> void:
 		hand_to_idle()
 		return
 	control = mode
+	if mode == "manual" and running and phase == "rest":
+		rest_slots_left = 0
+		room_clock = 0.0
+		_begin_room()
+		changed.emit()
+		return
 	if not running or phase == "rest" or phase == "home":
 		changed.emit()
 		return
@@ -380,42 +383,19 @@ func hand_to_idle() -> String:
 	return "ok"
 
 
-func set_rush(on: bool) -> void:
-	if catching_up:
-		return
-	if not debug_tools():
-		rush = false
-		return
-	rush = on
-
-
-func debug_skip_room() -> void:
-	if catching_up:
-		return
-	if not debug_tools() or not running:
-		return
-	if phase == "manual":
-		return
-	var left: float = SlotEngine.ROOM_SEC - room_clock
-	advance_clock(maxf(0.0, left) + 0.001)
-
-
 func apply_offline_seconds(closed_sec: float) -> void:
-	## Wall-clock seconds only. The play-speed button and Rush do not apply.
+	## Wall-clock seconds only. The play-speed button does not apply.
 	if closed_sec <= 0.0 or not running:
 		return
 	catch_up(closed_sec, "load")
 
 
 func process_frame_delta(step: float) -> void:
-	## The frame step after play speed and before Rush. Tests drive this directly.
+	## The frame step after play speed. Tests drive this directly.
 	if step > BIG_DELTA_SEC:
 		catch_up(step, "frame")
 		return
-	var clock_step: float = step
-	if rush and debug_tools():
-		clock_step *= 60.0
-	advance_clock(clock_step)
+	advance_clock(step)
 
 
 func catch_up(seconds: float, source: String) -> Dictionary:
