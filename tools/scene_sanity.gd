@@ -1299,6 +1299,11 @@ func _elaia_portrait_gate(live: Node) -> int:
 		body.call("_apply_presence")
 	failed += _check(bool(game.call("elaia_in_party")), "joined save has Elaia")
 	failed += _check(slot != null and not slot.visible, "portrait waits until the Clearing dialogue")
+	failed += _check(body != null and not body.visible, "sprite waits until Go look")
+	game.set("elaia_footsteps_seen", true)
+	if body and body.has_method("_apply_presence"):
+		body.call("_apply_presence")
+	failed += _check(body != null and body.visible, "sprite shows after Go look")
 	game.set("elaia_join_seen", true)
 	if hud:
 		hud.call("_refresh_party_bar")

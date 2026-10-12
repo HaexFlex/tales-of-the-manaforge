@@ -2142,8 +2142,18 @@ func maybe_show_elaia_footsteps() -> void:
 		return
 	if _pause_menu and _pause_menu.is_open():
 		return
+	if _forge_station_panel_open():
+		return
 	_ensure_footsteps_popup()
 	_footsteps_popup.visible = true
+
+
+func _forge_station_panel_open() -> bool:
+	var scene: Node = get_tree().current_scene if get_tree() else null
+	if scene == null:
+		return false
+	var panel: CanvasItem = scene.get_node_or_null("UI/RecipePanel") as CanvasItem
+	return panel != null and panel.visible
 
 
 func _ensure_footsteps_popup() -> void:
@@ -2190,6 +2200,7 @@ func _on_footsteps_go() -> void:
 	GameState.elaia_footsteps_seen = true
 	if _footsteps_popup:
 		_footsteps_popup.visible = false
+	GameState.begin_elaia_join_clearing()
 	if has_node("/root/SaveService"):
 		SaveService.save_game()
 	if has_node("/root/ForgeJobs"):

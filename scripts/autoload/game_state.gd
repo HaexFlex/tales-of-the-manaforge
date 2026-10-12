@@ -682,6 +682,15 @@ func elaia_portrait_visible() -> bool:
 	return elaia_in_party() and elaia_join_seen
 
 
+func elaia_body_visible() -> bool:
+	## Her sprite waits until the player has gone to look in the Clearing.
+	if not elaia_in_party():
+		return false
+	if elaia_join_seen:
+		return true
+	return elaia_footsteps_seen
+
+
 func elaia_footsteps_pending() -> bool:
 	return echo_01_redeemed and first_relic_crafted and not elaia_join_seen and not elaia_footsteps_seen
 
@@ -692,18 +701,33 @@ func note_first_relic_crafted() -> void:
 	first_relic_crafted = true
 	if echo_01_redeemed and not elaia_join_seen:
 		elaia_footsteps_seen = false
-		_place_elaia_at_door()
 	echo_flags_changed.emit()
+	call_deferred("_prompt_elaia_footsteps_if_ready")
 
 
-func _place_elaia_at_door() -> void:
+func _prompt_elaia_footsteps_if_ready() -> void:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return
+	for node: Node in tree.get_nodes_in_group("game_hud"):
+		if node.has_method("maybe_show_elaia_footsteps"):
+			node.call("maybe_show_elaia_footsteps")
+			return
+
+
+func begin_elaia_join_clearing() -> void:
+	## Called when the player leaves the Forge to meet Elaia at the Manatree.
+	if not has_node("/root/ForgeJobs"):
+		return
+	keeper_area = "clearing"
+	keeper_has_pos = true
+	keeper_pos = ForgeJobs.clearing_door_stand()
+	keeper_facing = "east"
 	elaia_area = "clearing"
 	elaia_has_pos = true
-	elaia_facing = "south"
-	if has_node("/root/ForgeJobs"):
-		elaia_pos = ForgeJobs.elaia_join_stand()
-	else:
-		elaia_pos = Vector2(2244, 2140)
+	elaia_pos = ForgeJobs.elaia_join_stand()
+	elaia_facing = "west"
+	echo_flags_changed.emit()
 
 
 func select_companion(companion_id: String) -> void:
@@ -1744,8 +1768,8 @@ func apply_save_dict(data: Dictionary) -> void:
 		## Already joined, or she is not waiting: do not replay the Forge popup.
 		## Mid-way (relic done, dialogue not seen) still owes the popup.
 		elaia_footsteps_seen = not (first_relic_crafted and echo_01_redeemed and not elaia_join_seen)
-	if elaia_footsteps_pending() and not elaia_has_pos:
-		_place_elaia_at_door()
+	if elaia_footsteps_seen and elaia_join_pending() and not elaia_has_pos:
+		begin_elaia_join_clearing()
 	keeper_area = str(data.get("keeper_area", "clearing"))
 	if keeper_area != "forge":
 		keeper_area = "clearing"

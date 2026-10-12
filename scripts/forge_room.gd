@@ -491,6 +491,8 @@ func _hide_recipes() -> void:
 		recipe_panel.visible = false
 	_panel_station = ""
 	_refresh_station_job()
+	if hud and hud.has_method("maybe_show_elaia_footsteps"):
+		hud.call("maybe_show_elaia_footsteps")
 
 
 func _ensure_station_meter() -> void:
