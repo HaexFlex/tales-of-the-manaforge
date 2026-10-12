@@ -5,9 +5,14 @@ class_name ExpeditionShellView
 const BOARD_DIR: String = "res://assets/art/ui/board/"
 const KIT_DIR: String = "res://assets/art/ui/minigames/kit/"
 const BATTLE_UI: String = "res://assets/art/battle/ui/"
-const PANEL_ORIGIN: Vector2 = Vector2(200, 60)
-const SIM_ORIGIN: Vector2 = Vector2(330, 110)
-const SIM_SIZE: Vector2 = Vector2(548, 500)
+const LEGACY_PANEL_ORIGIN: Vector2 = Vector2(200, 60)
+const RES_SCALE: float = 0.75
+const PANEL_ORIGIN: Vector2 = Vector2(150, 45)
+const SIM_ORIGIN: Vector2 = Vector2(248, 83)
+const SIM_SIZE: Vector2 = Vector2(411, 375)
+const PICKER_CLAMP_TOP: float = 105.0
+const PICKER_CLAMP_BOTTOM: float = 313.5
+const PICKER_Y_OFFSET: float = 57.0
 const INK: Color = Color(0.243137, 0.164706, 0.0941176, 1.0) # #3E2A18
 const INK_SECONDARY: Color = Color(0.368627, 0.321569, 0.266667, 1.0) # #5E5244
 const WOOD_9S: int = 6
@@ -15,9 +20,9 @@ const FRAME_9S: int = 24
 const FIELD_9S: int = 6
 const POPUP_9S: int = 8
 const PICK_ROW_9S: int = 6
-const PICKER_POPUP_W: float = 236.0
-const PICKER_POPUP_MAX_H: float = 262.0
-const PICKER_ROW_H: float = 54.0
+const PICKER_POPUP_W: float = 177.0
+const PICKER_POPUP_MAX_H: float = 196.5
+const PICKER_ROW_H: float = 40.5
 const PICKER_ROW_GAP: float = 2.0
 const PICKER_ROW_POOL: int = 16
 const PICKER_SCROLL_MAX_H: float = PICKER_POPUP_MAX_H - 34.0
@@ -50,7 +55,7 @@ func _ready() -> void:
 
 
 func _scr(screen_pos: Vector2) -> Vector2:
-	return screen_pos - PANEL_ORIGIN
+	return PANEL_ORIGIN + (screen_pos - LEGACY_PANEL_ORIGIN) * RES_SCALE
 
 
 func _sim_local(screen_pos: Vector2) -> Vector2:
@@ -64,7 +69,7 @@ func _build() -> void:
 	dim.color = Color(0, 0, 0, 0.58)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
-	var panel: NinePatchRect = _nine_patch("Panel", KIT_DIR + "frame_9s_96.png", FRAME_9S, PANEL_ORIGIN, Vector2(880, 600))
+	var panel: NinePatchRect = _nine_patch("Panel", KIT_DIR + "frame_9s_96.png", FRAME_9S, PANEL_ORIGIN, Vector2(660, 450))
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	panel.clip_contents = false  # the title plate and vines sit above the panel edge
 	add_child(panel)
@@ -958,7 +963,7 @@ func place_picker(slot_btn: Button) -> void:
 		picker_scroll.custom_minimum_size = Vector2(220, scroll_h)
 		picker_scroll.size = Vector2(220, scroll_h)
 	var slot_centre_y: float = slot_btn.global_position.y + slot_btn.size.y * 0.5
-	var y: float = clampf(slot_btn.global_position.y - 76.0, 140.0, 418.0 - h)
+	var y: float = clampf(slot_btn.global_position.y - PICKER_Y_OFFSET, PICKER_CLAMP_TOP, PICKER_CLAMP_BOTTOM - h)
 	picker_popup.position = Vector2(slot_btn.global_position.x + 68.0, y)
 	picker_popup.custom_minimum_size = Vector2(PICKER_POPUP_W, h)
 	picker_popup.size = Vector2(PICKER_POPUP_W, h)

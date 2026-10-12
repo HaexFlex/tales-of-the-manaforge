@@ -1,5 +1,5 @@
 extends Node2D
-## Forest hub 2560×2160 (2× × 3× of 1280×720): arrow-key camera, RTS LMB/RMB, wisps.
+## Forest hub 4320×3780 play area; base view 960×540: arrow-key camera, RTS LMB/RMB, wisps.
 
 @onready var keeper: Keeper = %Keeper
 @onready var manatree: Manatree = %Manatree
@@ -27,7 +27,7 @@ const PORTAL_SCENE: PackedScene = preload("res://scenes/echo_portal.tscn")
 var _wisp_nodes: Dictionary = {}  # wisp_id int → WispOrb
 var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
-var view_size: Vector2 = Vector2(1280, 720)
+var view_size: Vector2 = Vector2(960, 540)
 var camera_pan_speed: float = 420.0
 var glade: Rect2 = Rect2(760, 820, 1680, 1360)
 var clearing_center: Vector2 = Vector2(1600, 1500)

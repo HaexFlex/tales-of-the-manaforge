@@ -3845,7 +3845,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	var lsize: Vector2 = view.call("log_band_size")
 	failed += _assert(lsize.y >= 100.0 and lsize.y <= 140.0, "battle log band 100-140")
 	var csize: Vector2 = view.call("command_band_size")
-	failed += _assert(abs(csize.x - 720.0) < 0.5 and abs(csize.y - 120.0) < 0.5, "command band 720x120")
+	failed += _assert(abs(csize.x - 540.0) < 0.5 and abs(csize.y - 90.0) < 0.5, "command band 540x90")
 	view.free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)
@@ -4624,6 +4624,7 @@ func _check_only_load() -> int:
 		"res://scripts/battle/room_loot.gd",
 		"res://scripts/expedition_board.gd",
 		"res://scripts/ui/expedition_shell.gd",
+		"res://scripts/autoload/game_theme.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -13987,8 +13988,8 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 		view.call("set_fighter_pose", member, "idle")
 	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
 	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
-	failed += _assert(keeper_node != null and keeper_node.position == Vector2(380, 424), "Keeper stands on the front middle slot")
-	failed += _assert(elaia_node != null and elaia_node.position == Vector2(160, 424), "Elaia stands on the back middle slot")
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(285, 318), "Keeper stands on the front middle slot")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(120, 318), "Elaia stands on the back middle slot")
 	for beast_id: String in BattleViewScript.BEAST_HURT.keys():
 		failed += _assert(ResourceLoader.exists(str(BattleViewScript.BEAST_HURT[beast_id])), "%s hurt frame is imported" % beast_id)
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
@@ -14005,12 +14006,12 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 		failed += _assert(party_front != null and party_back != null and beast_front != null and beast_back != null, "row outlines are controls")
 		if party_front != null and party_back != null and beast_front != null and beast_back != null:
 			var half: Vector2 = party_front.size * 0.5
-			failed += _assert(party_front.position + half == Vector2(300, 360) and beast_back.position + half == Vector2(1176, 360), "slot marks sit on the v7 sole points")
+			failed += _assert(party_front.position + half == Vector2(225, 270) and beast_back.position + half == Vector2(882, 270), "slot marks sit on the v7 sole points")
 			failed += _assert(party_back.position.x < party_front.position.x, "party back column stands behind the front")
 			failed += _assert(is_equal_approx(party_back.position.y, party_front.position.y), "party columns share the v7 foot lines")
 			failed += _assert(beast_back.position.x > beast_front.position.x, "beast back column stands behind the front")
 			failed += _assert(is_equal_approx(beast_back.position.y, beast_front.position.y), "beast columns share the v7 foot lines")
-			failed += _assert(beast_front.position.x > party_front.position.x + 300.0, "beasts stand on the right")
+			failed += _assert(beast_front.position.x > party_front.position.x + 225.0, "beasts stand on the right")
 	var clock_before: float = float(game_state.get("run_time_sec"))
 	for _frame: int in 60:
 		await process_frame
@@ -14462,7 +14463,7 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(bottom != null and menu != null and log_panel != null and log_scroll != null, "bottom bar, menu and log scroll exist")
 	if bottom != null and menu != null and log_panel != null:
 		var bar_rect: Rect2 = bottom.get_global_rect()
-		failed += _assert(bottom.get_rect() == Rect2(0, 584, 1280, 136), "bottom bar rect in the arena (got %s)" % bottom.get_rect())
+		failed += _assert(bottom.get_rect() == Rect2(0, 438, 960, 102), "bottom bar rect in the arena (got %s)" % bottom.get_rect())
 		var names: Array[String] = []
 		for child: Node in menu.get_children():
 			if child is Button:

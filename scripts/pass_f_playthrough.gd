@@ -198,7 +198,7 @@ func _gather(main: Node) -> void:
 	var berry_frame := Rect2((berry as Node2D).global_position + Vector2(-vis.x * 0.5, -vis.y) - Vector2(160, 80), vis + Vector2(320, 200))
 	var berry_zoom: float = 720.0 / berry_frame.size.x
 	var berry_h: int = maxi(2, int(round(berry_frame.size.y * berry_zoom)))
-	var berry_view: SubViewport = _make_view(main, berry_frame, berry_zoom, berry_h, 720)
+	var berry_view: SubViewport = _make_view(main, berry_frame, berry_zoom, berry_h, 540)
 	for _i: int in range(3):
 		await process_frame
 	var berry_img: Image = berry_view.get_texture().get_image()

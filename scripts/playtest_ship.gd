@@ -837,19 +837,19 @@ func _hud_sizes() -> void:
 	print("-- hud --")
 	var main: Node = current_scene
 	var win: Window = root as Window
-	win.size = Vector2i(1280, 720)
+	win.size = Vector2i(960, 540)
 	for _i: int in range(4):
 		await process_frame
-	_hud_audit("5 HUD 1280x720")
-	_shot("pt_hud_1280.png")
-	await _tooltip_check("5 tooltip at 1280")
+	_hud_audit("5 HUD 960x540")
+	_shot("pt_hud_960.png")
+		await _tooltip_check("5 tooltip at 960")
 	win.size = Vector2i(960, 540)
 	for _j: int in range(6):
 		await process_frame
 	_hud_audit("5 HUD 960x540")
 	_shot("pt_hud_960.png")
 	await _tooltip_check("5 tooltip at 960")
-	win.size = Vector2i(1280, 720)
+	win.size = Vector2i(960, 540)
 
 
 func _hud_audit(label: String) -> void:

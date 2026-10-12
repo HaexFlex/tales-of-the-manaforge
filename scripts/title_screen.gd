@@ -29,6 +29,8 @@ func _ready() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	GameState.reset_play_speed()
+	if has_node("/root/GameTheme"):
+		GameTheme.apply_app_theme()
 	GameAudio.play_hub_music()
 	_style_button(btn_continue)
 	_style_button(btn_new)
@@ -127,7 +129,7 @@ func _place_cursor() -> void:
 		return
 	var btn: Button = _items[_index]
 	var origin: Vector2 = btn.global_position
-	cursor.global_position = origin + Vector2(-36, btn.size.y * 0.5 - 16)
+	cursor.global_position = origin + Vector2(-48, btn.size.y * 0.5 - 28)
 
 
 func _style_button(btn: Button) -> void:
@@ -144,7 +146,10 @@ func _style_button(btn: Button) -> void:
 	btn.add_theme_stylebox_override("hover", hover)
 	btn.add_theme_stylebox_override("focus", hover)
 	btn.add_theme_stylebox_override("pressed", hover)
-	btn.add_theme_font_size_override("font_size", 22)
+	if has_node("/root/GameTheme"):
+		GameTheme.style_title_hero_button(btn)
+	else:
+		btn.add_theme_font_size_override("font_size", 22)
 	btn.add_theme_color_override("font_color", Color(0.93, 0.86, 0.62, 1))
 	btn.add_theme_color_override("font_hover_color", Color(1, 0.95, 0.75, 1))
 	btn.add_theme_color_override("font_focus_color", Color(1, 0.95, 0.75, 1))

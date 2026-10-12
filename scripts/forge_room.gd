@@ -573,7 +573,7 @@ func _setup_camera() -> void:
 
 
 func _half_view() -> Vector2:
-	var view := Vector2(1280, 720)
+	var view := Vector2(960, 540)
 	if is_inside_tree():
 		var vp := get_viewport().get_visible_rect().size
 		if vp.x >= 64.0 and vp.y >= 64.0:

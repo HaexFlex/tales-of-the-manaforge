@@ -4,19 +4,20 @@ class_name EchoBattleView
 ## Separate battle surface. Keeper stands on idle v4 east frame 0; Elaia front right.
 ## Flavour text box sits between the portraits and above the battle log.
 
-const PORTRAIT: Vector2 = Vector2(384, 384)
-const KEEPER_PORTRAIT_POS: Vector2 = Vector2(56, 114)
-const ECHO_PORTRAIT_POS: Vector2 = Vector2(840, 114)
-const COMMAND_SIZE: Vector2 = Vector2(720, 120)
-const LOG_SIZE: Vector2 = Vector2(1040, 100)
-const LOG_BG_POS: Vector2 = Vector2(120, 500)
-const SPEECH_POS: Vector2 = Vector2(456, 256)
-const SPEECH_SIZE: Vector2 = Vector2(368, 100)
+const PORTRAIT: Vector2 = Vector2(288, 288)
+const KEEPER_PORTRAIT_POS: Vector2 = Vector2(42, 86)
+const ECHO_PORTRAIT_POS: Vector2 = Vector2(630, 86)
+const COMMAND_SIZE: Vector2 = Vector2(540, 90)
+const LOG_SIZE: Vector2 = Vector2(780, 75)
+const LOG_BG_POS: Vector2 = Vector2(90, 375)
+const SPEECH_POS: Vector2 = Vector2(342, 192)
+const SPEECH_SIZE: Vector2 = Vector2(276, 75)
+const CHAMBER_CROP: Rect2 = Rect2(160, 90, 960, 540)
 const KEEPER_IDLE: String = "res://assets/art/echo/battle_keeper_idle_e.png"
 const ELAIA_IDLE: String = "res://assets/art/echo/battle_elaia_idle_w.png"
 const ELAIA_KEY: String = "res://assets/art/echo/battle_elaia_key_w.png"
 const ELAIA_FRONT: String = ELAIA_IDLE
-## Opaque 1280×720 plate. Background + Ground stay underneath until this file exists.
+## Opaque 1280×720 plate (centre-cropped to 960×540). Background + Ground stay underneath until this file exists.
 const CHAMBER_BG: String = "res://assets/art/echo/echo_chamber_bg.png"
 
 var _battle: EchoBattle
@@ -50,6 +51,7 @@ var _pulse: float = 0.0
 
 func _ready() -> void:
 	_apply_chamber_plate()
+	_apply_540_layout()
 	_apply_portraits()
 	_raise_names()
 	_lighten_panels()
@@ -133,13 +135,45 @@ func _lighten_panels() -> void:
 			rect.color = panels[node_name]
 
 
+func _apply_540_layout() -> void:
+	if _keeper_portrait:
+		_keeper_portrait.position = KEEPER_PORTRAIT_POS
+		_keeper_portrait.size = PORTRAIT
+	if _echo_portrait:
+		_echo_portrait.position = ECHO_PORTRAIT_POS
+		_echo_portrait.size = PORTRAIT
+	if _speech_bg:
+		_speech_bg.position = SPEECH_POS
+		_speech_bg.size = SPEECH_SIZE
+	if _speech:
+		_speech.position = SPEECH_POS + Vector2(8, 4)
+		_speech.size = SPEECH_SIZE - Vector2(16, 8)
+	if _command_band:
+		var band_x: float = (960.0 - COMMAND_SIZE.x) * 0.5
+		_command_band.position = Vector2(band_x, 450.0)
+		_command_band.size = COMMAND_SIZE
+	var log_bg: ColorRect = get_node_or_null("LogBg") as ColorRect
+	if log_bg:
+		log_bg.position = LOG_BG_POS
+		log_bg.size = LOG_SIZE
+	if _log:
+		_log.position = LOG_BG_POS + Vector2(12, 20)
+		_log.size = LOG_SIZE - Vector2(24, 28)
+
+
 func _apply_chamber_plate() -> void:
 	if _chamber_art == null:
 		return
 	var plate: Texture2D = null
 	if FileAccess.file_exists(CHAMBER_BG):
-		plate = load(CHAMBER_BG) as Texture2D
+		var full: Texture2D = load(CHAMBER_BG) as Texture2D
+		if full != null:
+			var atlas := AtlasTexture.new()
+			atlas.atlas = full
+			atlas.region = CHAMBER_CROP
+			plate = atlas
 	_chamber_art.texture = plate
+	_chamber_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_chamber_art.visible = plate != null
 	if _bg:
 		_bg.visible = true

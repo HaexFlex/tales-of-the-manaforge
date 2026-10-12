@@ -18,8 +18,8 @@
   "source": "scripts/hud.gd ICON_ESSENCE_TEX + ESSENCE_TINT (Panel/IconRow/EssenceChip/IconEssence)"
  },
  "screen": [
-  1280,
-  720
+  960,
+  540
  ],
  "font": "Pixelify Sans (stand-in for the game font)",
  "coords": "screen px, 1 art px = 1 screen px; rect = [x, y, w, h]",
@@ -29,8 +29,8 @@
    "rect": [
     0,
     0,
-    1280,
-    720
+    960,
+    540
    ],
    "asset": "ColorRect black",
    "state": "",
@@ -40,10 +40,10 @@
   {
    "id": "panel",
    "rect": [
-    200,
-    60,
-    880,
-    600
+    150,
+    45,
+    660,
+    450
    ],
    "asset": "kit/frame_9s_96.png",
    "state": "",
@@ -53,10 +53,10 @@
   {
    "id": "deco_vines",
    "rect": [
-    196,
-    56,
-    888,
-    608
+    147,
+    42,
+    666,
+    456
    ],
    "asset": "kit/deco_vine_tl.png, deco_vine_br.png",
    "state": "",
@@ -66,10 +66,10 @@
   {
    "id": "title_plate",
    "rect": [
-    484,
-    37,
-    312,
-    46
+    363,
+    28,
+    234,
+    34
    ],
    "asset": "kit/title_plate_312x46.png",
    "state": "",
@@ -79,10 +79,10 @@
   {
    "id": "close_button",
    "rect": [
-    944,
-    92,
-    104,
-    28
+    708,
+    69,
+    78,
+    21
    ],
    "asset": "kit/stop_button_{normal,hover,pressed,disabled}_104x28.png",
    "state": "normal",
@@ -92,10 +92,10 @@
   {
    "id": "close_esc_keycap",
    "rect": [
-    1020,
-    96,
-    28,
-    15
+    765,
+    72,
+    21,
+    11
    ],
    "asset": "kit/keycap_esc.png",
    "state": "",
@@ -105,10 +105,10 @@
   {
    "id": "hint",
    "rect": [
-    244,
-    92,
-    680,
-    18
+    183,
+    69,
+    510,
+    14
    ],
    "asset": "engine text 14 INK",
    "state": "",
@@ -118,10 +118,10 @@
   {
    "id": "lantern_line",
    "rect": [
-    244,
-    114,
-    680,
-    16
+    183,
+    86,
+    510,
+    12
    ],
    "asset": "engine text 12 P4",
    "state": "",
@@ -131,10 +131,10 @@
   {
    "id": "divider_top",
    "rect": [
-    244,
-    136,
-    796,
-    6
+    183,
+    102,
+    597,
+    4
    ],
    "asset": "pieces/divider_3s_48x6.png",
    "state": "",
@@ -144,10 +144,10 @@
   {
    "id": "party_title",
    "rect": [
-    244,
-    148,
-    120,
-    20
+    183,
+    111,
+    90,
+    15
    ],
    "asset": "engine text 16 INK",
    "state": "",
@@ -157,10 +157,10 @@
   {
    "id": "formation_bed",
    "rect": [
-    244,
-    172,
-    340,
-    246
+    183,
+    129,
+    255,
+    184
    ],
    "asset": "ColorRect P2 + kit/play_bevel_9s_6x6.png (margins 2) around (rect -2)",
    "state": "",
@@ -170,10 +170,10 @@
   {
    "id": "label_back",
    "rect": [
-    264,
-    398,
-    60,
-    14
+    198,
+    298,
+    45,
+    10
    ],
    "asset": "engine text 12 P4",
    "state": "",
@@ -183,10 +183,10 @@
   {
    "id": "label_front",
    "rect": [
-    414,
-    398,
-    60,
-    14
+    310,
+    298,
+    45,
+    10
    ],
    "asset": "engine text 12 P4",
    "state": "",
@@ -196,10 +196,10 @@
   {
    "id": "enemy_side_arrow",
    "rect": [
-    562,
-    182,
-    12,
-    9
+    422,
+    136,
+    9,
+    7
    ],
    "asset": "pieces/arrow_enemy_side_12x9.png",
    "state": "",
@@ -209,10 +209,10 @@
   {
    "id": "slot_back_top",
    "rect": [
-    264,
-    196,
-    60,
-    60
+    198,
+    147,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "empty",
@@ -222,10 +222,10 @@
   {
    "id": "slot_back_mid",
    "rect": [
-    294,
-    266,
-    60,
-    60
+    220,
+    200,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "selected",
@@ -235,10 +235,10 @@
   {
    "id": "slot_back_mid_portrait",
    "rect": [
-    298,
-    270,
-    52,
-    52
+    224,
+    202,
+    39,
+    39
    ],
    "asset": "portraits elaia 52x52",
    "state": "",
@@ -248,10 +248,10 @@
   {
    "id": "slot_back_bot",
    "rect": [
-    264,
-    336,
-    60,
-    60
+    198,
+    252,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "empty",
@@ -261,10 +261,10 @@
   {
    "id": "slot_front_top",
    "rect": [
-    414,
-    196,
-    60,
-    60
+    310,
+    147,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "filled",
@@ -274,10 +274,10 @@
   {
    "id": "slot_front_top_portrait",
    "rect": [
-    418,
-    200,
-    52,
-    52
+    314,
+    150,
+    39,
+    39
    ],
    "asset": "portraits keeper 52x52",
    "state": "",
@@ -287,10 +287,10 @@
   {
    "id": "slot_front_mid",
    "rect": [
-    444,
-    266,
-    60,
-    60
+    333,
+    200,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "empty",
@@ -300,10 +300,10 @@
   {
    "id": "slot_front_bot",
    "rect": [
-    414,
-    336,
-    60,
-    60
+    310,
+    252,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "empty",
@@ -313,10 +313,10 @@
   {
    "id": "mode_title",
    "rect": [
-    244,
-    430,
-    80,
-    20
+    183,
+    322,
+    60,
+    15
    ],
    "asset": "engine text 16",
    "state": "",
@@ -326,10 +326,10 @@
   {
    "id": "mode_manual",
    "rect": [
-    244,
-    452,
-    120,
-    32
+    183,
+    339,
+    90,
+    24
    ],
    "asset": "pieces/wood_button_9s_selected_32x28.png (on) / kit/wood_button_9s_{normal,hover,pressed}_32x28.png (off)",
    "state": "off",
@@ -339,10 +339,10 @@
   {
    "id": "mode_idle",
    "rect": [
-    368,
-    452,
-    120,
-    32
+    276,
+    339,
+    90,
+    24
    ],
    "asset": "pieces/wood_button_9s_selected_32x28.png (on) / kit/wood_button_9s_{normal,hover,pressed}_32x28.png (off)",
    "state": "on",
@@ -352,10 +352,10 @@
   {
    "id": "mode_hint",
    "rect": [
-    244,
-    490,
-    340,
-    16
+    183,
+    368,
+    255,
+    12
    ],
    "asset": "engine text 12 P4",
    "state": "",
@@ -365,10 +365,10 @@
   {
    "id": "route_title",
    "rect": [
-    616,
-    148,
-    120,
-    20
+    462,
+    111,
+    90,
+    15
    ],
    "asset": "engine text 16",
    "state": "",
@@ -378,10 +378,10 @@
   {
    "id": "depth_label",
    "rect": [
-    616,
-    178,
-    100,
-    16
+    462,
+    134,
+    75,
+    12
    ],
    "asset": "engine text 14",
    "state": "",
@@ -391,10 +391,10 @@
   {
    "id": "depth_minus",
    "rect": [
-    728,
-    172,
-    28,
-    28
+    546,
+    129,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
    "state": "normal",
@@ -404,10 +404,10 @@
   {
    "id": "depth_field",
    "rect": [
-    760,
-    172,
-    72,
-    28
+    570,
+    129,
+    54,
+    21
    ],
    "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
    "state": "normal",
@@ -417,10 +417,10 @@
   {
    "id": "depth_plus",
    "rect": [
-    836,
-    172,
-    28,
-    28
+    627,
+    129,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
    "state": "normal",
@@ -430,10 +430,10 @@
   {
    "id": "depth_max",
    "rect": [
-    874,
-    178,
-    70,
-    16
+    656,
+    134,
+    52,
+    12
    ],
    "asset": "engine text 12 P4",
    "state": "",
@@ -443,10 +443,10 @@
   {
    "id": "rooms_label",
    "rect": [
-    616,
-    218,
-    100,
-    16
+    462,
+    164,
+    75,
+    12
    ],
    "asset": "engine text 14",
    "state": "",
@@ -456,10 +456,10 @@
   {
    "id": "rooms_minus",
    "rect": [
-    728,
-    212,
-    28,
-    28
+    546,
+    159,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
    "state": "normal",
@@ -469,10 +469,10 @@
   {
    "id": "rooms_field",
    "rect": [
-    760,
-    212,
-    72,
-    28
+    570,
+    159,
+    54,
+    21
    ],
    "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
    "state": "normal",
@@ -482,10 +482,10 @@
   {
    "id": "rooms_plus",
    "rect": [
-    836,
-    212,
-    28,
-    28
+    627,
+    159,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
    "state": "normal",
@@ -495,23 +495,23 @@
   {
    "id": "rooms_step_note",
    "rect": [
-    874,
-    218,
-    70,
-    16
+    656,
+    164,
+    52,
+    12
    ],
    "asset": "engine text 12 P4",
    "state": "",
-   "note": "−/+ walk 1, 5, 10, 15 …; typing accepts any 1..max",
+   "note": "\u2212/+ walk 1, 5, 10, 15 \u2026; typing accepts any 1..max",
    "z": 0
   },
   {
    "id": "duration",
    "rect": [
-    616,
-    254,
-    200,
-    16
+    462,
+    190,
+    150,
+    12
    ],
    "asset": "engine text 12 P4",
    "state": "",
@@ -521,10 +521,10 @@
   {
    "id": "bosses",
    "rect": [
-    826,
-    254,
-    200,
-    16
+    620,
+    190,
+    150,
+    12
    ],
    "asset": "engine text 12 P4",
    "state": "",
@@ -534,10 +534,10 @@
   {
    "id": "divider_right",
    "rect": [
-    616,
-    280,
-    424,
-    6
+    462,
+    210,
+    318,
+    4
    ],
    "asset": "pieces/divider_3s_48x6.png",
    "state": "",
@@ -547,10 +547,10 @@
   {
    "id": "loadout_title",
    "rect": [
-    616,
-    292,
-    200,
-    20
+    462,
+    219,
+    150,
+    15
    ],
    "asset": "engine text 16 + 12",
    "state": "",
@@ -560,10 +560,10 @@
   {
    "id": "loadout_0_slot",
    "rect": [
-    616,
-    320,
-    44,
-    44
+    462,
+    240,
+    33,
+    33
    ],
    "asset": "pieces/item_slot_{normal,hover,empty}_44x44.png",
    "state": "normal",
@@ -573,10 +573,10 @@
   {
    "id": "loadout_0_name",
    "rect": [
-    670,
-    326,
-    200,
-    34
+    502,
+    244,
+    150,
+    26
    ],
    "asset": "engine text 14 + 12",
    "state": "",
@@ -586,10 +586,10 @@
   {
    "id": "loadout_0_minus",
    "rect": [
-    872,
-    328,
-    28,
-    28
+    654,
+    246,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
    "state": "normal",
@@ -599,10 +599,10 @@
   {
    "id": "loadout_0_field",
    "rect": [
-    904,
-    328,
-    56,
-    28
+    678,
+    246,
+    42,
+    21
    ],
    "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
    "state": "normal",
@@ -612,10 +612,10 @@
   {
    "id": "loadout_0_plus",
    "rect": [
-    964,
-    328,
-    28,
-    28
+    723,
+    246,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
    "state": "normal",
@@ -625,10 +625,10 @@
   {
    "id": "loadout_1_slot",
    "rect": [
-    616,
-    376,
-    44,
-    44
+    462,
+    282,
+    33,
+    33
    ],
    "asset": "pieces/item_slot_{normal,hover,empty}_44x44.png",
    "state": "empty",
@@ -638,10 +638,10 @@
   {
    "id": "loadout_1_name",
    "rect": [
-    670,
-    382,
-    200,
-    34
+    502,
+    286,
+    150,
+    26
    ],
    "asset": "engine text 14 + 12",
    "state": "",
@@ -651,10 +651,10 @@
   {
    "id": "loadout_1_minus",
    "rect": [
-    872,
-    384,
-    28,
-    28
+    654,
+    288,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
    "state": "disabled",
@@ -664,10 +664,10 @@
   {
    "id": "loadout_1_field",
    "rect": [
-    904,
-    384,
-    56,
-    28
+    678,
+    288,
+    42,
+    21
    ],
    "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
    "state": "disabled",
@@ -677,10 +677,10 @@
   {
    "id": "loadout_1_plus",
    "rect": [
-    964,
-    384,
-    28,
-    28
+    723,
+    288,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
    "state": "disabled",
@@ -690,10 +690,10 @@
   {
    "id": "divider_bottom",
    "rect": [
-    244,
-    520,
-    796,
-    6
+    183,
+    390,
+    597,
+    4
    ],
    "asset": "pieces/divider_3s_48x6.png",
    "state": "",
@@ -703,10 +703,10 @@
   {
    "id": "warning",
    "rect": [
-    244,
-    530,
-    356,
-    70
+    183,
+    398,
+    267,
+    52
    ],
    "asset": "engine text 12 B2, autowrap, line height 14",
    "state": "",
@@ -716,10 +716,10 @@
   {
    "id": "simulate_button",
    "rect": [
-    616,
-    564,
-    160,
-    44
+    462,
+    423,
+    120,
+    33
    ],
    "asset": "battle/action_button_{normal,hover,pressed,disabled}_160x44.png",
    "state": "normal",
@@ -729,12 +729,12 @@
   {
    "id": "cost_chip",
    "rect": [
-    786,
-    564,
-    84,
-    44
+    590,
+    423,
+    63,
+    33
    ],
-   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + res://assets/art/ui/icon_essence.png (32) at +4,+6 with modulate = hud.gd ESSENCE_TINT (0.78,0.62,1.18) — the HUD resource-panel Essence icon",
+   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + res://assets/art/ui/icon_essence.png (32) at +4,+6 with modulate = hud.gd ESSENCE_TINT (0.78,0.62,1.18) \u2014 the HUD resource-panel Essence icon",
    "state": "ok",
    "note": "cost \"20\" 18 px centred at +56,+22; RU0 when short",
    "z": 0
@@ -742,10 +742,10 @@
   {
    "id": "depart_button",
    "rect": [
-    880,
-    564,
-    160,
-    44
+    660,
+    423,
+    120,
+    33
    ],
    "asset": "battle/action_button_{normal,hover,pressed,disabled}_160x44.png",
    "state": "normal",
@@ -755,23 +755,23 @@
   {
    "id": "depart_hint",
    "rect": [
-    760,
-    614,
-    280,
-    16
+    570,
+    460,
+    210,
+    12
    ],
    "asset": "engine text 12, right-aligned",
    "state": "ok/short",
-   "note": "P4 \"You have N Essence\"; RU0 \"Need 20 Essence · you have N\" (board_depart_no_essence); also the Depart tooltip",
+   "note": "P4 \"You have N Essence\"; RU0 \"Need 20 Essence \u00b7 you have N\" (board_depart_no_essence); also the Depart tooltip",
    "z": 0
   },
   {
    "id": "picker_popup",
    "rect": [
-    362,
-    156,
-    236,
-    262
+    272,
+    117,
+    177,
+    196
    ],
    "asset": "pieces/popup_9s_32x32.png",
    "state": "",
@@ -781,10 +781,10 @@
   {
    "id": "picker_tail",
    "rect": [
-    356,
-    289,
-    8,
-    14
+    267,
+    217,
+    6,
+    10
    ],
    "asset": "pieces/popup_tail_l_8x14.png",
    "state": "",
@@ -794,10 +794,10 @@
   {
    "id": "picker_title",
    "rect": [
-    374,
-    164,
-    212,
-    18
+    280,
+    123,
+    159,
+    14
    ],
    "asset": "engine text 14",
    "state": "",
@@ -807,10 +807,10 @@
   {
    "id": "picker_row_0",
    "rect": [
-    370,
-    186,
-    220,
-    54
+    278,
+    140,
+    165,
+    40
    ],
    "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
    "state": "disabled",
@@ -820,10 +820,10 @@
   {
    "id": "picker_row_1",
    "rect": [
-    370,
-    242,
-    220,
-    54
+    278,
+    182,
+    165,
+    40
    ],
    "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
    "state": "current",
@@ -833,10 +833,10 @@
   {
    "id": "picker_row_2",
    "rect": [
-    370,
-    298,
-    220,
-    54
+    278,
+    224,
+    165,
+    40
    ],
    "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
    "state": "disabled",
@@ -846,10 +846,10 @@
   {
    "id": "picker_row_3",
    "rect": [
-    370,
-    354,
-    220,
-    54
+    278,
+    266,
+    165,
+    40
    ],
    "asset": "pieces/pick_row_9s_{hover,current,disabled}_24x24.png",
    "state": "normal",
@@ -861,8 +861,8 @@
    "rect": [
     0,
     0,
-    10,
-    12
+    8,
+    9
    ],
    "asset": "pieces/lock_10x12.png",
    "state": "",
@@ -874,10 +874,10 @@
   {
    "id": "slot_back_mid",
    "rect": [
-    294,
-    266,
-    60,
-    60
+    220,
+    200,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "filled",
@@ -887,10 +887,10 @@
   {
    "id": "slot_back_bot",
    "rect": [
-    264,
-    336,
-    60,
-    60
+    198,
+    252,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "empty_hover",
@@ -900,10 +900,10 @@
   {
    "id": "slot_front_top",
    "rect": [
-    414,
-    196,
-    60,
-    60
+    310,
+    147,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "filled",
@@ -913,10 +913,10 @@
   {
    "id": "slot_front_mid",
    "rect": [
-    444,
-    266,
-    60,
-    60
+    333,
+    200,
+    45,
+    45
    ],
    "asset": "pieces/party_slot_{empty,empty_hover,filled,hover,selected,locked}_60x60.png",
    "state": "filled",
@@ -926,10 +926,10 @@
   {
    "id": "loadout_1_minus",
    "rect": [
-    872,
-    384,
-    28,
-    28
+    654,
+    288,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_{normal,hover,pressed,disabled}_32x28.png @28x28 + glyph_minus_10x10",
    "state": "disabled",
@@ -939,10 +939,10 @@
   {
    "id": "loadout_1_field",
    "rect": [
-    904,
-    384,
-    56,
-    28
+    678,
+    288,
+    42,
+    21
    ],
    "asset": "pieces/field_9s_{normal,focus,disabled,invalid}_24x24.png",
    "state": "disabled",
@@ -952,10 +952,10 @@
   {
    "id": "loadout_1_plus",
    "rect": [
-    964,
-    384,
-    28,
-    28
+    723,
+    288,
+    21,
+    21
    ],
    "asset": "kit/wood_button_9s_* + glyph_plus_10x10",
    "state": "disabled",
@@ -965,12 +965,12 @@
   {
    "id": "cost_chip",
    "rect": [
-    786,
-    564,
-    84,
-    44
+    590,
+    423,
+    63,
+    33
    ],
-   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + res://assets/art/ui/icon_essence.png (32) at +4,+6 with modulate = hud.gd ESSENCE_TINT (0.78,0.62,1.18) — the HUD resource-panel Essence icon",
+   "asset": "pieces/cost_chip_9s_{ok,short}_24x32.png + res://assets/art/ui/icon_essence.png (32) at +4,+6 with modulate = hud.gd ESSENCE_TINT (0.78,0.62,1.18) \u2014 the HUD resource-panel Essence icon",
    "state": "short",
    "note": "cost \"20\" 18 px centred at +56,+22; RU0 when short",
    "z": 0
@@ -978,10 +978,10 @@
   {
    "id": "depart_button",
    "rect": [
-    880,
-    564,
-    160,
-    44
+    660,
+    423,
+    120,
+    33
    ],
    "asset": "battle/action_button_{normal,hover,pressed,disabled}_160x44.png",
    "state": "disabled",
@@ -995,8 +995,8 @@
    "rect": [
     0,
     0,
-    1280,
-    720
+    960,
+    540
    ],
    "asset": "ColorRect black 50% over the board",
    "state": "",
@@ -1006,10 +1006,10 @@
   {
    "id": "results_window",
    "rect": [
-    330,
-    110,
-    620,
-    500
+    248,
+    82,
+    465,
+    375
    ],
    "asset": "kit/frame_9s_96.png",
    "state": "",
@@ -1019,10 +1019,10 @@
   {
    "id": "results_title",
    "rect": [
-    510,
-    92,
-    260,
-    40
+    382,
+    69,
+    195,
+    30
    ],
    "asset": "kit/title_plank_3s_48x40.png",
    "state": "",
@@ -1032,10 +1032,10 @@
   {
    "id": "results_close",
    "rect": [
-    814,
-    140,
-    104,
-    28
+    610,
+    105,
+    78,
+    21
    ],
    "asset": "kit/stop_button_*_104x28.png + keycap_esc",
    "state": "",
@@ -1045,10 +1045,10 @@
   {
    "id": "results_summary",
    "rect": [
-    356,
-    144,
-    430,
-    38
+    267,
+    108,
+    322,
+    28
    ],
    "asset": "engine text 12 P4 + 16 INK",
    "state": "",
@@ -1058,10 +1058,10 @@
   {
    "id": "results_list",
    "rect": [
-    354,
-    192,
-    572,
-    270
+    266,
+    144,
+    429,
+    202
    ],
    "asset": "ScrollContainer; ColorRect P0 + kit/play_bevel_9s_6x6.png",
    "state": "",
@@ -1071,10 +1071,10 @@
   {
    "id": "results_row",
    "rect": [
-    356,
-    194,
-    554,
-    26
+    267,
+    146,
+    416,
+    20
    ],
    "asset": "pieces/list_row_9s_{even,loss}_24x24.png (9s margins 4)",
    "state": "even/odd/loss",
@@ -1084,10 +1084,10 @@
   {
    "id": "results_scroll_track",
    "rect": [
-    912,
-    194,
-    12,
-    266
+    684,
+    146,
+    9,
+    200
    ],
    "asset": "pieces/scroll_track_9s_12x24.png",
    "state": "",
@@ -1097,10 +1097,10 @@
   {
    "id": "results_scroll_thumb",
    "rect": [
-    912,
-    234,
-    12,
-    96
+    684,
+    176,
+    9,
+    72
    ],
    "asset": "pieces/scroll_thumb_9s_{normal,hover,drag}_12x16.png",
    "state": "hover",
@@ -1110,10 +1110,10 @@
   {
    "id": "results_losses",
    "rect": [
+    267,
     356,
-    474,
-    570,
-    18
+    428,
+    14
    ],
    "asset": "engine text 14 + 12 RU0",
    "state": "",
@@ -1123,10 +1123,10 @@
   {
    "id": "results_totals",
    "rect": [
-    356,
-    496,
-    570,
-    40
+    267,
+    372,
+    428,
+    30
    ],
    "asset": "engine text 12 + res://assets/art/ui/icon_essence.png 32 at (700,494), modulate ESSENCE_TINT (as the HUD)",
    "state": "",
@@ -1136,10 +1136,10 @@
   {
    "id": "results_rerun",
    "rect": [
-    806,
-    544,
-    120,
-    32
+    604,
+    408,
+    90,
+    24
    ],
    "asset": "kit/wood_button_9s_*_32x28.png",
    "state": "",
@@ -1149,10 +1149,10 @@
   {
    "id": "results_note",
    "rect": [
-    356,
-    554,
-    430,
-    16
+    267,
+    416,
+    322,
+    12
    ],
    "asset": "engine text 12 P4",
    "state": "",

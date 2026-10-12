@@ -43,6 +43,8 @@ It's also **fully vibe-coded**: every line of code, every sprite and every sound
 
 Built with [Godot 4](https://godotengine.org/).
 
+**Fonts:** [Silver](https://poppyworks.itch.io/silver) by Poppy Works (CC BY 4.0); Jersey 10 (SIL Open Font License 1.1, see `assets/fonts/Jersey10-OFL.txt`).
+
 **Feedback, bug reports and kind words are always welcome! 💚**
 
 ---

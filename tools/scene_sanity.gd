@@ -361,11 +361,11 @@ func _battle_view() -> int:
 	var ssize: Vector2 = view.call("speech_band_size")
 	var csize: Vector2 = view.call("command_band_size")
 	var lsize: Vector2 = view.call("log_band_size")
-	failed += _check(ssize.y >= 80.0 and ssize.y <= 100.0, "speech band")
-	failed += _check(absf(csize.x - 720.0) < 0.5 and absf(csize.y - 120.0) < 0.5, "command band")
-	failed += _check(lsize.y >= 100.0 and lsize.y <= 140.0, "log band")
+	failed += _check(ssize.y >= 60.0 and ssize.y <= 85.0, "speech band")
+	failed += _check(absf(csize.x - 540.0) < 0.5 and absf(csize.y - 90.0) < 0.5, "command band")
+	failed += _check(lsize.y >= 65.0 and lsize.y <= 90.0, "log band")
 	var psize: Vector2 = view.call("portrait_size")
-	failed += _check(absf(psize.x - 384.0) < 0.5, "portrait 384")
+	failed += _check(absf(psize.x - 288.0) < 0.5, "portrait 288")
 	failed += _check(bool(view.call("keeper_uses_idle_texture")), "keeper portrait")
 	failed += _check(bool(view.call("echo_uses_elaia_texture")), "elaia portrait")
 	failed += _check(bool(view.call("is_arrow_toggle_shown")), "hybrid toggle shown")
@@ -421,15 +421,15 @@ func _chamber_plate(view: Node) -> int:
 	if FileAccess.file_exists(plate_path):
 		failed += _check(art != null and art.visible and art.texture != null, "chamber plate visible")
 		if art and art.texture:
-			failed += _check(art.texture.get_width() == 1280 and art.texture.get_height() == 720, "plate is 1280x720")
+			failed += _check(art.texture.get_width() == 960 and art.texture.get_height() == 540, "plate crop is 960x540")
 	else:
 		failed += _check(art != null and not art.visible, "chamber art hidden without a plate")
 	failed += _check(
-		keeper != null and keeper.position == Vector2(56, 114) and keeper.size == Vector2(384, 384),
+		keeper != null and keeper.position == Vector2(42, 86) and keeper.size == Vector2(288, 288),
 		"keeper portrait box"
 	)
 	failed += _check(
-		echo_portrait != null and echo_portrait.position == Vector2(840, 114) and echo_portrait.size == Vector2(384, 384),
+		echo_portrait != null and echo_portrait.position == Vector2(630, 86) and echo_portrait.size == Vector2(288, 288),
 		"elaia portrait box"
 	)
 	return failed

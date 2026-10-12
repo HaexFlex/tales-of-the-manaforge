@@ -23,7 +23,7 @@ script = ExtResource("1_room")
 swirl_texture = ExtResource("11_swirl")
 
 [node name="FloorPlate" type="Sprite2D" parent="."]
-texture_filter = 1
+texture_filter = 0
 position = Vector2(800, 600)
 texture = ExtResource("2_plate")
 

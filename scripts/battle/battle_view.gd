@@ -11,18 +11,18 @@ signal strike_for_me_party_stepped(packet: Dictionary)
 
 const SCENE_PATH: String = "res://scenes/battle/battle_scene.tscn"
 const ARENA_LAYER: int = 75
-const ARENA_SIZE: Vector2 = Vector2(1280.0, 720.0)
+const ARENA_SIZE: Vector2 = Vector2(960.0, 540.0)
 const ART_DIR: String = "res://assets/art/battle/"
 ## v7 formation (Haex approved 2026-10-11; minigames_art scaffold battle_ui_scaffold_v7_layout.json).
-## Sole points (feet on the ground) in the 1280x720 arena view. Each side has a front and a
+## Sole points (feet on the ground) in the 960x540 arena view. Each side has a front and a
 ## back column of three: 0 = top, 1 = middle (steps toward the enemy, feet at the head height
 ## of the fighter behind), 2 = bottom. Beast slots are wider apart and are not a mirror.
 ## Presentation only: the resolver's front/back rows and slots are unchanged.
 const SLOT_SOLES: Dictionary = {
-	"party_front": [Vector2(300, 360), Vector2(380, 424), Vector2(300, 536)],
-	"party_back": [Vector2(80, 360), Vector2(160, 424), Vector2(80, 536)],
-	"beast_front": [Vector2(920, 360), Vector2(792, 424), Vector2(920, 536)],
-	"beast_back": [Vector2(1176, 360), Vector2(1048, 424), Vector2(1176, 536)],
+	"party_front": [Vector2(225, 270), Vector2(285, 318), Vector2(225, 402)],
+	"party_back": [Vector2(60, 270), Vector2(120, 318), Vector2(60, 402)],
+	"beast_front": [Vector2(690, 270), Vector2(594, 318), Vector2(690, 402)],
+	"beast_back": [Vector2(882, 270), Vector2(786, 318), Vector2(882, 402)],
 }
 const SLOT_ORDER: Array[String] = ["party_front", "party_back", "beast_front", "beast_back"]
 const SLOT_MARK_SIZE: Vector2 = Vector2(56.0, 16.0)
@@ -126,38 +126,38 @@ const ACTIVE_ARROW_TOP: float = 15.0
 const ACTIVE_ARROW_BACK_SIDE_GAP: float = 2.0
 const PLATE_LABEL_FONT_SIZE: int = 8
 const PLATE_NAME_Y: float = 6.0
-const DEPTH_PLATE_POS: Vector2 = Vector2(16.0, 12.0)
-const DEPTH_PLATE_SIZE: Vector2 = Vector2(120.0, 28.0)
-const ROOMS_PLATE_POS: Vector2 = Vector2(142.0, 12.0)
-const ROOMS_PLATE_SIZE: Vector2 = Vector2(108.0, 28.0)
-const ROUND_BANNER_POS: Vector2 = Vector2(478.0, 8.0)
-const ROUND_BANNER_SIZE: Vector2 = Vector2(324.0, 38.0)
-const ROUND_TEXT_RECT: Rect2 = Rect2(490.0, 11.0, 300.0, 32.0)
-## Three 32×32 speed buttons (36 px pitch) sit just left of the Close button (1140–1264).
+const DEPTH_PLATE_POS: Vector2 = Vector2(12.0, 9.0)
+const DEPTH_PLATE_SIZE: Vector2 = Vector2(90.0, 21.0)
+const ROOMS_PLATE_POS: Vector2 = Vector2(107.0, 9.0)
+const ROOMS_PLATE_SIZE: Vector2 = Vector2(81.0, 21.0)
+const ROUND_BANNER_POS: Vector2 = Vector2(359.0, 6.0)
+const ROUND_BANNER_SIZE: Vector2 = Vector2(243.0, 29.0)
+const ROUND_TEXT_RECT: Rect2 = Rect2(368.0, 8.0, 225.0, 24.0)
+## Three 32×32 speed buttons (27 px pitch) sit just left of the Close button (855–948).
 const SPEED_BUTTON_SIZE: Vector2 = Vector2(32.0, 32.0)
 const SPEED_BUTTON_PITCH: float = 36.0
-const CLOSE_BUTTON_RECT: Rect2 = Rect2(1140.0, 16.0, 124.0, 36.0)
+const CLOSE_BUTTON_RECT: Rect2 = Rect2(855.0, 12.0, 93.0, 27.0)
 const SPEED_BUTTON_POS: Vector2 = Vector2(
 	CLOSE_BUTTON_RECT.position.x - 4.0 - SPEED_BUTTON_SIZE.x - SPEED_BUTTON_PITCH * 2.0,
 	12.0,
 )
-const TWIST_CHIP_POS: Vector2 = Vector2(142.0, 20.0)
+const TWIST_CHIP_POS: Vector2 = Vector2(107.0, 15.0)
 const TWIST_CHIP_SIZE: Vector2 = Vector2(12.0, 12.0)
 const TEST_FIGHT_BAR_GAP: float = 8.0
 ## Below depth plate, twist chip, and round banner (top chrome ends ~y 46).
-const TEST_FIGHT_BAR_Y: float = 52.0
+const TEST_FIGHT_BAR_Y: float = 39.0
 const STATUS_ICON_STEP: float = 13.0
 const STATUS_ICON_SIZE: Vector2 = Vector2(12.0, 12.0)
 const MAX_STATUS_ICONS: int = 3
 const BOSS_CROWN_POS: Vector2 = Vector2(-15.0, 2.0)
-const KEYCAP_POS: Vector2 = Vector2(141.0, 12.0)
+const KEYCAP_POS: Vector2 = Vector2(106.0, 9.0)
 const KEYCAP_PRESS_OFFSET: float = 2.0
 ## Bottom bar: the six action buttons (3 x 2) and the battle log. Nothing else.
-const BOTTOM_BAR_RECT: Rect2 = Rect2(0.0, 584.0, 1280.0, 136.0)
-const ACTION_MENU_POS: Vector2 = Vector2(24.0, 600.0)
-const ACTION_BUTTON_SIZE: Vector2 = Vector2(160.0, 44.0)
-const ACTION_BUTTON_PITCH: Vector2 = Vector2(168.0, 52.0)
-const LOG_PANEL_RECT: Rect2 = Rect2(528.0, 600.0, 728.0, 104.0)
+const BOTTOM_BAR_RECT: Rect2 = Rect2(0.0, 438.0, 960.0, 102.0)
+const ACTION_MENU_POS: Vector2 = Vector2(18.0, 450.0)
+const ACTION_BUTTON_SIZE: Vector2 = Vector2(120.0, 33.0)
+const ACTION_BUTTON_PITCH: Vector2 = Vector2(126.0, 39.0)
+const LOG_PANEL_RECT: Rect2 = Rect2(396.0, 450.0, 546.0, 78.0)
 const LOG_LINE_COUNT: int = 5
 const LOG_SCROLL_PAD: float = 8.0
 const LOG_INK: Color = Color(0.243137, 0.164706, 0.094118, 1.0)
@@ -185,7 +185,7 @@ static var _ui_font_cache: Font = null
 @onready var _fighters: Control = $Arena/Fighters
 
 var _plates: Control = null
-var _bottom_bar: TextureRect = null
+var _bottom_bar: NinePatchRect = null
 var _side_actions: VBoxContainer = null
 var _ability_button: Button = null
 var _active_fighter_id: String = ""
@@ -2119,16 +2119,19 @@ func _build_fight_hud() -> void:
 		return
 	_result_label = Label.new()
 	_result_label.name = "ResultLabel"
-	_result_label.position = Vector2(400.0, 12.0)
-	_result_label.size = Vector2(480.0, 28.0)
+	_result_label.position = Vector2(300.0, 9.0)
+	_result_label.size = Vector2(360.0, 21.0)
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_result_label.add_to_group("battle_ui")
 	_arena.add_child(_result_label)
-	_bottom_bar = TextureRect.new()
+	_bottom_bar = NinePatchRect.new()
 	_bottom_bar.name = "BottomBar"
 	_bottom_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bottom_bar.texture = _load_ui_tex("bottom_panel_1280x136.png")
+	_bottom_bar.texture = _load_ui_tex("bottom_panel_9s_48.png")
 	_bottom_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_bottom_bar.set_patch_margin_all(16)
+	_bottom_bar.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
+	_bottom_bar.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE
 	_bottom_bar.position = BOTTOM_BAR_RECT.position
 	_bottom_bar.size = BOTTOM_BAR_RECT.size
 	_arena.add_child(_bottom_bar)
