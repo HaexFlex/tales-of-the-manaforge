@@ -40,11 +40,26 @@ static func _read_json(path: String) -> Dictionary:
 
 
 static func budget(depth: int) -> int:
-	_ensure_data()
-	var b: Dictionary = _spawn_data.get("budget", {}) as Dictionary
-	if depth <= 10:
-		return int(b.get("base", 0)) + int(b.get("per_depth_to_10", 0)) * (depth - 1)
-	return int(b.get("at_10", 0)) + int(b.get("per_depth_after_10", 0)) * (depth - 10)
+	## Depth 1 = 85. Steps 2..10 add 4 each, 11..20 add 6, 21..30 add 8, then +2 per 10-depth band.
+	var d: int = maxi(1, depth)
+	if d <= 1:
+		return 85
+	var total: int = 85
+	var band: int = 0
+	while true:
+		var depth_start: int = 2 if band == 0 else 10 * band + 1
+		if d < depth_start:
+			break
+		var depth_end: int = 10 if band == 0 else 10 * band + 10
+		var last: int = mini(d, depth_end)
+		var steps: int = last - depth_start + 1
+		var step_size: int = 4 + 2 * band
+		total += steps * step_size
+		if last >= depth_end:
+			band += 1
+		else:
+			break
+	return total
 
 
 static func _raw_weights_for(depth: int) -> Array:

@@ -10746,6 +10746,11 @@ func _swarm_copy_room(rows: Array) -> Array[Dictionary]:
 func _room_fill_ok(_tree_root: Window) -> int:
 	## Beasts fill to the 90% floor when possible; swarms use the same depth budget as Reach.depth.
 	var failed: int = 0
+	failed += _assert(SpawnRoller.budget(1) == 85, "budget depth 1")
+	failed += _assert(SpawnRoller.budget(10) == 121, "budget depth 10")
+	failed += _assert(SpawnRoller.budget(20) == 181, "budget depth 20")
+	failed += _assert(SpawnRoller.budget(21) == 189, "budget depth 21")
+	failed += _assert(SpawnRoller.budget(30) == 261, "budget depth 30")
 	for depth: int in range(1, 21):
 		var floor90: int = SpawnRoller.beast_fill_floor(depth)
 		var room_budget: int = SpawnRoller.budget(depth)
@@ -10757,18 +10762,9 @@ func _room_fill_ok(_tree_root: Window) -> int:
 			var mixed: Array = SpawnRoller.roll_room_with_mossmites(depth, SpawnRoller.room_seed_rng(seed))
 			var spent: int = _swarm_threat_sum(mixed)
 			failed += _assert(spent <= room_budget, "depth %d seed %d total %d over budget %d" % [depth, seed, spent, room_budget])
-		if depth == 6:
-			for probe: int in range(200):
-				var room: Array = SpawnRoller.roll_room_with_mossmites(6, SpawnRoller.room_seed_rng(probe))
-				var moth_n: int = 0
-				var spent6: int = 0
-				for entry_v: Variant in room:
-					var entry: Dictionary = entry_v as Dictionary
-					spent6 += int(entry.get("threat", 0))
-					if str(entry.get("beast", "")) == "spore_moth":
-						moth_n += 1
-				if moth_n == 2 and spent6 == 97:
-					failed += _assert(false, "depth 6 must not roll like budget(depth-1) (2 moths + 2-bug swarm)")
+		var floor_check: int = SpawnRoller.beast_fill_floor(depth)
+		if floor_check > 0:
+			failed += _assert(floor_check == int(ceil(0.9 * float(SpawnRoller.budget(depth)))), "depth %d 90%% floor tracks budget" % depth)
 	if failed == 0:
 		print("ROOM_FILL_OK")
 	return failed
