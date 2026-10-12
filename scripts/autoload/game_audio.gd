@@ -620,7 +620,8 @@ func _on_wisp_unassigned(_wisp_id: int) -> void:
 
 
 func _on_wisp_pulsed(_resource_id: StringName) -> void:
-	play_wisp_pulse()
+	## Wisps bank harvest silently; assign/deny/unassign cues stay.
+	pass
 
 
 func _on_stage_changed(stage_id: StringName) -> void:
