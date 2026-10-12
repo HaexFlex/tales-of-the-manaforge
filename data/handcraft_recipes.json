@@ -162,7 +162,8 @@
       "kind": "intermediate",
       "category": "raw",
       "unique": false,
-      "color": "#6e4b32"
+      "color": "#6e4b32",
+      "art_name": "icon_briarwood"
     },
     {
       "id": "herbs",
@@ -180,7 +181,8 @@
       "kind": "intermediate",
       "category": "raw",
       "unique": false,
-      "color": "#7fc2a0"
+      "color": "#7fc2a0",
+      "art_name": "icon_glowcap"
     },
     {
       "id": "bitterroot",
@@ -189,7 +191,8 @@
       "kind": "intermediate",
       "category": "raw",
       "unique": false,
-      "color": "#8a6a3a"
+      "color": "#8a6a3a",
+      "art_name": "icon_bitterroot"
     },
     {
       "id": "heart_salve",

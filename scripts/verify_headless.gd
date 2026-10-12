@@ -1891,6 +1891,11 @@ func _run() -> void:
 	failed += _assert(hub_path.ends_with("mus_hub_forest_haex.mp3"), "mus_hub_forest cue path: %s" % hub_path)
 	failed += _assert(bool(hub_meta.get("loop", false)), "mus_hub_forest loop=true")
 	failed += _assert(str(hub_meta.get("bus", "")) == "Music", "mus_hub_forest Music bus")
+	var battle_meta: Dictionary = hub_cues_tbl.get("mus_battle_forest", {}) as Dictionary
+	var battle_path: String = str(battle_meta.get("path", ""))
+	failed += _assert(battle_path.ends_with("mus_battle_forest.ogg"), "mus_battle_forest cue path: %s" % battle_path)
+	failed += _assert(bool(battle_meta.get("loop", false)), "mus_battle_forest loop=true")
+	failed += _assert(str(battle_meta.get("bus", "")) == "Music", "mus_battle_forest Music bus")
 	game_audio.call("play_hub_music")
 	failed += _assert(game_audio.call("get_cue_path", &"mus_hub_forest").ends_with("mus_hub_forest_haex.mp3"), "get_cue_path haex.mp3")
 	var hub_stream: Variant = game_audio.call("get_hub_stream")
@@ -9183,7 +9188,13 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 	reach.call("depart", 1, 1, "hold", "idle")
 	reach.call("set_control", "manual")
 	failed += _assert(bool(reach.call("fight_active")), "switching to manual opens the room's fight")
+	var reach_audio: Node = tree_root.get_node_or_null("GameAudio")
+	if reach_audio != null:
+		failed += _assert(bool(reach_audio.call("is_hub_suspended")), "reach fight suspends hub bed")
+		failed += _assert(bool(reach_audio.call("did_play", &"mus_battle_forest")), "reach fight plays mus_battle_forest")
 	reach.call("set_control", "idle")
+	if reach_audio != null:
+		failed += _assert(not bool(reach_audio.call("is_hub_suspended")), "hand-off to idle resumes hub bed")
 	failed += _assert(bool(reach.call("fight_active")) == false, "switching back leaves the fight")
 	failed += _assert(bool(reach.get("running")), "switching control keeps the outing")
 	failed += _assert(int(pack.call("get_count", "briarwood")) == before_briar, "leaving a fight grants nothing")
@@ -10591,7 +10602,13 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	failed += _assert(str(pack.call("item_kind", "heart_salve")) == "consumable" and str(pack.call("item_kind", "bile_vial")) == "consumable", "potions are consumable")
 	failed += _assert(str(gear.call("item_art_path", "heart_salve")).ends_with("icon_heart_salve.png"), "salve icon")
 	failed += _assert(str(gear.call("item_art_path", "bile_vial")).ends_with("icon_bile_vial.png"), "vial icon")
-	failed += _assert(str(gear.call("item_art_path", "briarwood")) == "" and str(gear.call("item_art_path", "herbs")) == "", "materials use the colour fallback")
+	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_briarwood.png"), "briarwood icon png")
+	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_glowcap.png"), "glowcap icon png")
+	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_bitterroot.png"), "bitterroot icon png")
+	failed += _assert(str(gear.call("item_art_path", "briarwood")).ends_with("icon_briarwood.png"), "briarwood icon path")
+	failed += _assert(str(gear.call("item_art_path", "glowcap")).ends_with("icon_glowcap.png"), "glowcap icon path")
+	failed += _assert(str(gear.call("item_art_path", "bitterroot")).ends_with("icon_bitterroot.png"), "bitterroot icon path")
+	failed += _assert(str(gear.call("item_art_path", "herbs")) == "", "herbs colour swatch only")
 	var clamped: Dictionary = save_service.call("migrate_state", 13, {
 		"stage_id": "sapling",
 		"backpack": {"heart_salve": -2, "herbs": 4},
