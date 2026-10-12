@@ -426,8 +426,8 @@ func _ensure_batch_panel() -> BatchPanel:
 
 func _ensure_repeat_toggle(station_id: String) -> void:
 	var existing: Button = recipe_panel.get_node_or_null("RepeatToggle") as Button
-	var show: bool = ForgeJobs.station_supports_repeat(station_id)
-	if not show:
+	var show_toggle: bool = ForgeJobs.station_supports_repeat(station_id)
+	if not show_toggle:
 		if existing:
 			existing.visible = false
 		return
@@ -534,11 +534,11 @@ func _ensure_station_meter() -> void:
 func _refresh_station_job() -> void:
 	if _job_label == null:
 		return
-	var show: bool = recipe_panel != null and recipe_panel.visible and _panel_station != "" and has_node("/root/ForgeJobs")
+	var show_job: bool = recipe_panel != null and recipe_panel.visible and _panel_station != "" and has_node("/root/ForgeJobs")
 	var state: Dictionary = {}
-	if show:
+	if show_job:
 		state = ForgeJobs.job_state(_panel_station)
-	var live: bool = show and not state.is_empty()
+	var live: bool = show_job and not state.is_empty()
 	_job_label.visible = live
 	_job_border.visible = live
 	_job_track.visible = live
