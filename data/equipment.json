@@ -6,7 +6,7 @@
     "users lists who can equip an item. Empty users would mean both. Every gear item sets it.",
     "Weapon Rod is the battle-path intermediate (10 Wooden Planks), consumed into stone_sword.",
     "stone_sword (stone_sword_name): 30 Stone Fragments + 1 Weapon Rod, +2 Might while equipped.",
-    "Forge Key relic (`forge_key_relic`): unique Relic from Echo win — +2 Swiftness, +2 Fate. Auto-equip if relic empty.",
+    "Forge Key relic (`forge_key_relic`): unique Relic from Echo win — +1 Swiftness, +1 Fate. Auto-equip if relic empty.",
     "Anchors are slot centers on the 496×622 character-sheet host (3× Keeper portrait)."
   ],
   "slots": [
@@ -108,7 +108,7 @@
       "category": "relic",
       "unique": true,
       "users": ["keeper", "elaia"],
-      "bonuses": { "swiftness": 2, "fate": 2 },
+      "bonuses": { "swiftness": 1, "fate": 1 },
       "color": "#7eb8b0",
       "art_name": "icon_forge_key"
     },

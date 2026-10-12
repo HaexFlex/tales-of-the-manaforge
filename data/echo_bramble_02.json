@@ -16,15 +16,15 @@
     "Hybrid: each swing picks snare (Might) or knot (Arcana) by the better margin vs the Keeper.",
     "Rootbind on every 3rd of Bramble's turns; the Keeper's next Strike is halved.",
     "Swiftness 10 acts before a default Keeper. A Swiftness tie goes to the Keeper.",
-    "Vitality 12 is 46 HP. Not a playable companion in this batch."
+    "Vitality 10 is 40 HP. Not a playable companion in this batch."
   ],
   "stats": {
     "might": 6,
     "arcana": 6,
     "resilience": 7,
     "ward": 7,
-    "vitality": 12,
+    "vitality": 10,
     "swiftness": 10,
-    "fate": 20
+    "fate": 15
   }
 }
