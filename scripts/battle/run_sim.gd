@@ -117,7 +117,11 @@ static func simulate(cfg: Dictionary, sim_seed: int) -> Dictionary:
 			"room": rooms_attempted,
 			"outcome": outcome,
 			"boss": boss,
+			"beasts": room.size(),
 		}
+		if room.size() > 0:
+			var lead: Dictionary = room[0] as Dictionary
+			log_row["beast_label"] = fight.display_name(str(lead.get("beast", "")))
 		var loot: Dictionary = {}
 		if outcome == "win":
 			loot = RoomLoot.roll(depth, party.size(), boss, RoomLoot.loot_rng(room_seed))

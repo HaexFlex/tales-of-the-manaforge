@@ -15376,6 +15376,31 @@ func _board_layout_rect_ok(shell: Node) -> int:
 	return failed
 
 
+func _board_label_no_orphan_wrap(shell: Node, label_name: String) -> int:
+	var failed: int = 0
+	var lbl: Label = shell.find_child(label_name, true, false) as Label
+	if lbl == null:
+		return failed
+	var lines: PackedStringArray = lbl.text.split("\n")
+	for line: String in lines:
+		if line.length() == 1:
+			failed += _assert(false, "%s single-char line '%s'" % [label_name, line])
+	return failed
+
+
+func _board_picker_no_black_panels(shell: Node) -> int:
+	var failed: int = 0
+	var popup: Node = shell.find_child("PickerPopup", true, false)
+	if popup == null:
+		return failed
+	for child: Node in popup.find_children("*", "", true, false):
+		if child is ColorRect:
+			var cr: ColorRect = child as ColorRect
+			if cr.color.a > 0.1:
+				failed += _assert(false, "picker ColorRect %s" % child.name)
+	return failed
+
+
 func _board_party_slot_frames_ok(shell: Node) -> int:
 	var failed: int = 0
 	if shell == null:
@@ -15505,6 +15530,12 @@ func _board_v4_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 	failed += _board_layout_rect_ok(shell)
 	failed += _board_party_slot_frames_ok(shell)
 	failed += _board_warning_text_ok(shell)
+	failed += _board_label_no_orphan_wrap(shell, "EnemyLabel")
+	var cost_ln: Label = shell.find_child("DepartCostLine", true, false) as Label if shell != null else null
+	var frame: Rect2 = _board_parchment_rect()
+	if cost_ln != null:
+		failed += _assert(_board_rect_inside_frame(cost_ln, frame), "depart cost line inside frame")
+	failed += _board_picker_no_black_panels(shell)
 	game_state.set("echo_01_redeemed", true)
 	game_state.set("first_relic_crafted", true)
 	game_state.set("elaia_join_seen", true)
@@ -15707,7 +15738,11 @@ func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Nod
 		failed += _assert(sim_win.get_global_rect().encloses(sim_close.get_global_rect()), "sim close inside window")
 	failed += _assert(room_list != null and room_list.get_child_count() > 0, "simulate room rows")
 	var footer: VBoxContainer = shell.find_child("SimulateFooter", true, false) as VBoxContainer if shell != null else null
-	failed += _assert(footer != null and footer.get_child_count() >= 2, "simulate footer stack")
+	failed += _assert(footer != null and footer.get_child_count() >= 4, "simulate footer stack")
+	var losses: Label = shell.find_child("SimulateLosses", true, false) as Label if shell != null else null
+	if losses != null:
+		failed += _assert(not losses.text.contains("\n"), "sim losses one line")
+		failed += _assert(losses.text.find("Lost:") == 0, "sim losses prefix")
 	if sim_close != null:
 		sim_close.emit_signal("pressed")
 	failed += _assert(sim_modal != null and not sim_modal.visible, "sim close works")

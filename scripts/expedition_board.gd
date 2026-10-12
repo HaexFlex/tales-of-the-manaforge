@@ -628,9 +628,10 @@ func _refresh_shell() -> void:
 			hint_txt = "Idle: the party walks and fights on its own." if _control == "idle" else "Manual: you choose each room."
 		mode_hint.text = hint_txt
 	if _warning_lbl:
-		var warn_body: String = ContentStrings.get_text("adv_predeparture_warning")
-		var cost_line: String = ContentStrings.get_text("adv_depart_cost")
-		_warning_lbl.text = "%s\n\n%s" % [warn_body, cost_line]
+		_warning_lbl.text = ContentStrings.get_text("adv_predeparture_warning")
+	var cost_ln: Label = _panel.get_node_or_null("Panel/DepartCostLine") as Label if _panel != null else null
+	if cost_ln != null:
+		cost_ln.text = ContentStrings.get_text("adv_depart_cost")
 	if _cost_lbl != null:
 		_cost_lbl.visible = false
 	_idle_btn.button_pressed = _control == "idle"
@@ -689,7 +690,8 @@ func _refresh_loadout_ui() -> void:
 		var name_lbl: Label = _panel.get_node("Panel/LoadoutName%d" % (slot_i + 1)) as Label
 		if item == "":
 			if name_lbl:
-				name_lbl.text = ContentStrings.get_text("adv_loadout_empty_slot")
+				var empty_txt: String = ContentStrings.get_text("adv_loadout_empty_slot")
+				name_lbl.text = "%s\nclick to choose" % empty_txt
 		else:
 			if name_lbl:
 				name_lbl.text = "%s\nYou have %d" % [Backpack.item_display_name(item), Backpack.get_count(item)]
@@ -905,8 +907,9 @@ func _refresh_simulate_result() -> void:
 	var summary_lbl: Label = _simulate_window.get_node("SimulateSummary") as Label
 	var footer: VBoxContainer = _simulate_window.get_node("SimulateFooter") as VBoxContainer
 	var losses_lbl: Label = footer.get_node("SimulateLosses") as Label if footer != null else null
-	var totals_lbl: Label = footer.get_node("SimulateTotals") as Label if footer != null else null
-	var note_lbl: Label = _simulate_window.get_node("SimulateNote") as Label
+	var banked_lbl: Label = footer.get_node("SimulateBanked") as Label if footer != null else null
+	var used_lbl: Label = footer.get_node("SimulateUsed") as Label if footer != null else null
+	var note_lbl: Label = footer.get_node("SimulateNote") as Label if footer != null else null
 	var names: PackedStringArray = []
 	for entry: Dictionary in _members:
 		names.append(_member_display(str(entry.get("member", ""))))
@@ -942,7 +945,14 @@ func _refresh_simulate_result() -> void:
 			var row: Dictionary = row_v as Dictionary
 			var room_n: int = int(row.get("room", 0))
 			var outcome: String = str(row.get("outcome", ""))
-			var left: String = "Room %d · %s" % [room_n, outcome]
+			var boss: bool = bool(row.get("boss", false))
+			var beasts: int = int(row.get("beasts", 0))
+			var beast_label: String = str(row.get("beast_label", ""))
+			var left: String
+			if boss:
+				left = "Room %d · BOSS %s" % [room_n, beast_label if beast_label != "" else "boss"]
+			else:
+				left = "Room %d · %d beasts" % [room_n, maxi(beasts, 1)]
 			var right: String = ""
 			if outcome == "win":
 				right = "cleared"
@@ -950,14 +960,23 @@ func _refresh_simulate_result() -> void:
 					right += " · " + _format_item_dict(row.get("loot", {}) as Dictionary)
 			elif outcome == "flee":
 				right = "fled"
+				if lost_v is Array:
+					for entry_v: Variant in lost_v as Array:
+						if entry_v is Dictionary and int((entry_v as Dictionary).get("room", -1)) == room_n:
+							var reason: String = str((entry_v as Dictionary).get("reason", ""))
+							if reason.find("below half") >= 0:
+								right = "lost half the pack"
+			elif outcome == "overwhelmed":
+				right = "lost"
 			else:
 				right = outcome
 			var kind: String = ""
-			if lost_rooms.has(room_n):
+			if lost_rooms.has(room_n) or outcome == "overwhelmed":
 				kind = "loss"
 			elif row_i % 2 == 0:
 				kind = "even"
-			_shell_view.add_simulate_row(left, right, kind)
+			var icon_kind: String = "boss" if boss else ("miss" if kind == "loss" else "good")
+			_shell_view.add_simulate_row(left, right, kind, icon_kind)
 			row_i += 1
 	if losses_lbl != null:
 		var lost_bits: PackedStringArray = []
@@ -965,22 +984,30 @@ func _refresh_simulate_result() -> void:
 			for entry_v: Variant in lost_v as Array:
 				if entry_v is Dictionary:
 					lost_bits.append(str((entry_v as Dictionary).get("reason", "")))
-		losses_lbl.text = "Lost: " + (" · ".join(lost_bits) if not lost_bits.is_empty() else "—")
+		if lost_bits.is_empty():
+			losses_lbl.text = "Lost: —"
+		elif lost_bits.size() <= 3:
+			losses_lbl.text = "Lost: " + " · ".join(lost_bits)
+		else:
+			var head: PackedStringArray = PackedStringArray()
+			for i: int in range(3):
+				head.append(lost_bits[i])
+			losses_lbl.text = "Lost: " + " · ".join(head) + " · +%d more" % (lost_bits.size() - 3)
 	var banked_v: Variant = last_sim.get("banked", {})
 	var banked: Dictionary = banked_v if typeof(banked_v) == TYPE_DICTIONARY else {}
 	var used_v: Variant = last_sim.get("items_used", {})
 	var used: Dictionary = used_v if typeof(used_v) == TYPE_DICTIONARY else {}
-	var totals: PackedStringArray = []
-	totals.append(ContentStrings.get_text("sim_banked").replace("{list}", _format_item_dict(banked)))
-	if used.is_empty():
-		totals.append(ContentStrings.get_text("sim_items_none"))
-	else:
-		totals.append(ContentStrings.get_text("sim_items_used").replace("{list}", _format_item_dict(used)))
 	var essence_back: int = int(last_sim.get("essence_payback", 0))
-	if essence_back > 0:
-		totals.append(ContentStrings.get_text("sim_essence").replace("{n}", str(essence_back)))
-	if totals_lbl != null:
-		totals_lbl.text = "\n".join(totals)
+	if banked_lbl != null:
+		var bank_line: String = ContentStrings.get_text("sim_banked").replace("{list}", _format_item_dict(banked))
+		if essence_back > 0:
+			bank_line += "  " + ContentStrings.get_text("sim_essence").replace("{n}", str(essence_back))
+		banked_lbl.text = bank_line
+	if used_lbl != null:
+		if used.is_empty():
+			used_lbl.text = ContentStrings.get_text("sim_items_none")
+		else:
+			used_lbl.text = ContentStrings.get_text("sim_items_used").replace("{list}", _format_item_dict(used))
 	if _shell_view != null and _shell_view.simulate_essence_icon != null:
 		_shell_view.simulate_essence_icon.visible = essence_back > 0
 	if note_lbl != null:
@@ -1097,7 +1124,14 @@ func _populate_picker(row: String, cell: int) -> void:
 	if GameState.elaia_portrait_visible():
 		choices.append(_picker_choice("elaia", row, cell, current))
 	choices.append(_picker_bramble_choice(row, cell, current))
-	choices.append({"member": "", "label": "Leave empty", "sub": "clear this square", "state": "normal", "portrait": "", "locked": false})
+	choices.append({
+		"member": "",
+		"label": "Leave empty",
+		"sub": "clear this square",
+		"state": "normal",
+		"portrait": BOARD_DIR + "party_slot_empty_60x60.png",
+		"locked": false,
+	})
 	for i: int in range(_shell_view.picker_rows.size()):
 		var btn: Button = _shell_view.picker_rows[i]
 		if i >= choices.size():
@@ -1160,6 +1194,8 @@ func _on_picker_row(index: int) -> void:
 	if index < 0 or index >= _shell_view.picker_rows.size():
 		return
 	var btn: Button = _shell_view.picker_rows[index]
+	if bool(btn.get_meta("picker_locked", false)):
+		return
 	var member: String = str(btn.get_meta("pick_member", ""))
 	place_member(member, row, cell)
 	if _shell_view != null:
