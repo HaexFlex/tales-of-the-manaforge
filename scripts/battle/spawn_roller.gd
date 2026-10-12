@@ -75,30 +75,115 @@ static func budget(depth: int) -> int:
 	return total
 
 
-static func _raw_weights_for(depth: int) -> Array:
-	var tables: Array = _spawn_data.get("tables", []) as Array
-	var best: Array = []
-	for t_v: Variant in tables:
-		var t: Dictionary = t_v as Dictionary
-		if int(t.get("depth", 0)) <= depth:
-			best = t.get("weights", []) as Array
+static func _sorted_spawn_tables() -> Array:
+	var tables: Array = (_spawn_data.get("tables", []) as Array).duplicate()
+	tables.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return int(a.get("depth", 0)) < int(b.get("depth", 0))
+	)
+	return tables
+
+
+static func _latest_table_depth_at(depth: int) -> int:
+	var best: int = 0
+	for t_v: Variant in _sorted_spawn_tables():
+		var td: int = int((t_v as Dictionary).get("depth", 0))
+		if td <= depth:
+			best = td
 	return best
 
 
+static func _weights_at_table_depth(table_depth: int) -> Dictionary:
+	var out: Dictionary = {}
+	for t_v: Variant in _sorted_spawn_tables():
+		var t: Dictionary = t_v as Dictionary
+		if int(t.get("depth", 0)) != table_depth:
+			continue
+		for w_v: Variant in t.get("weights", []) as Array:
+			var w: Dictionary = w_v as Dictionary
+			out[str(w.get("beast", ""))] = int(w.get("weight", 0))
+	return out
+
+
+static func _latest_listed_weight(beast_id: String, depth: int) -> int:
+	var best_depth: int = -1
+	var weight: int = 1
+	for t_v: Variant in _sorted_spawn_tables():
+		var t: Dictionary = t_v as Dictionary
+		var td: int = int(t.get("depth", 0))
+		if td > depth:
+			break
+		for w_v: Variant in t.get("weights", []) as Array:
+			var w: Dictionary = w_v as Dictionary
+			if str(w.get("beast", "")) != beast_id:
+				continue
+			if td >= best_depth:
+				best_depth = td
+				weight = int(w.get("weight", 0))
+	return weight
+
+
 static func table_for(depth: int) -> Array[Dictionary]:
+	## Every beast listed on any table with depth <= D. Weight from the current table if listed there,
+	## else the weight from the latest earlier table that listed it.
 	_ensure_data()
+	var room_depth: int = maxi(1, depth)
+	var current_td: int = _latest_table_depth_at(room_depth)
+	var current_weights: Dictionary = _weights_at_table_depth(current_td)
+	var beast_ids: Dictionary = {}
+	for t_v: Variant in _sorted_spawn_tables():
+		var td: int = int((t_v as Dictionary).get("depth", 0))
+		if td > room_depth:
+			break
+		for w_v: Variant in (t_v as Dictionary).get("weights", []) as Array:
+			beast_ids[str((w_v as Dictionary).get("beast", ""))] = true
+	var ids: Array[String] = []
+	for k: Variant in beast_ids.keys():
+		ids.append(str(k))
+	ids.sort()
 	var rows: Array[Dictionary] = []
-	for w_v: Variant in _raw_weights_for(depth):
-		var w: Dictionary = w_v as Dictionary
-		var bid: String = str(w.get("beast", ""))
+	for bid: String in ids:
+		if bid.is_empty():
+			continue
 		var beast: Dictionary = _beasts_by_id.get(bid, {}) as Dictionary
+		var w: int = int(current_weights.get(bid, _latest_listed_weight(bid, room_depth)))
 		rows.append({
 			"beast": bid,
-			"weight": int(w.get("weight", 0)),
+			"weight": w,
 			"threat": int(beast.get("threat", 0)),
 			"attack": str(beast.get("attack", "physical")),
 		})
 	return rows
+
+
+static func floor_beast_combo_keys(depth: int) -> Array[String]:
+	## Distinct beast multisets that meet the floor ratio (before variety and weight pick).
+	var fill: Dictionary = _spawn_data.get("fill", {}) as Dictionary
+	var max_beasts: int = int(fill.get("max_beasts", 6))
+	var table: Array[Dictionary] = table_for(depth)
+	var room_budget: int = budget(depth)
+	var combos: Array = []
+	_enumerate_combos(table, max_beasts, room_budget, 0, [], 0, combos)
+	if combos.is_empty():
+		return []
+	var best_threat: int = 0
+	for picks_v: Variant in combos:
+		best_threat = maxi(best_threat, _combo_threat(picks_v as Array))
+	var floor90: int = int(ceil(beast_floor_ratio() * float(room_budget)))
+	var keys: Dictionary = {}
+	for picks_v: Variant in combos:
+		var picks: Array = picks_v as Array
+		var threat: int = _combo_threat(picks)
+		if best_threat >= floor90:
+			if threat < floor90:
+				continue
+		elif threat != best_threat:
+			continue
+		keys[_combo_sort_key(picks)] = true
+	var out: Array[String] = []
+	for k: Variant in keys.keys():
+		out.append(str(k))
+	out.sort()
+	return out
 
 
 static func compositions(depth: int) -> Array:

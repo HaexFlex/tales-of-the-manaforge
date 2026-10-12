@@ -10775,6 +10775,12 @@ func _room_fill_ok(_tree_root: Window) -> int:
 		if threat5 < 99 and variety_seed < 0:
 			variety_seed = probe
 	failed += _assert(variety_seed >= 0, "depth 5 has a legal sub-max-threat room (variety tier)")
+	var d12_keys: Array[String] = SpawnRoller.floor_beast_combo_keys(12)
+	failed += _assert(d12_keys.size() > 1, "depth 12 has more than one qualifying beast set (got %d)" % d12_keys.size())
+	var d12_rolls: Dictionary = {}
+	for seed: int in range(80):
+		d12_rolls[_spawn_room_key(SpawnRoller.roll_room(12, SpawnRoller.room_seed_rng(seed)))] = true
+	failed += _assert(d12_rolls.size() >= 2, "depth 12 seeded rolls vary (got %d compositions)" % d12_rolls.size())
 	for depth: int in range(1, 21):
 		var floor90: int = SpawnRoller.beast_fill_floor(depth)
 		var room_budget: int = SpawnRoller.budget(depth)
