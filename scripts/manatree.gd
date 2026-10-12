@@ -498,7 +498,12 @@ func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void
 func wisp_orbit_center() -> Vector2:
 	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
 	var third: float = sz.y / 3.0
-	return global_position + Vector2(0, -third * 0.5)
+	var keeper_half_h: float = Keeper.BODY_SIZE.y * 0.5
+	if not Engine.is_editor_hint() and is_inside_tree():
+		var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
+		if not keepers.is_empty() and keepers[0] is Keeper:
+			keeper_half_h = Keeper.idle_frame_height_world((keepers[0] as Keeper).sprite) * 0.5
+	return global_position + Vector2(0, -third * 0.5 - keeper_half_h)
 
 
 func wisp_orbit_radius() -> float:

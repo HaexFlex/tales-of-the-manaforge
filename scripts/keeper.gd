@@ -1264,6 +1264,15 @@ func wisp_orbit_radius() -> float:
 	return 56.0
 
 
+static func idle_frame_height_world(sprite: AnimatedSprite2D) -> float:
+	if sprite == null or sprite.sprite_frames == null:
+		return BODY_SIZE.y
+	var tex: Texture2D = sprite.sprite_frames.get_frame_texture(&"idle_south", 0)
+	if tex == null:
+		return BODY_SIZE.y
+	return float(tex.get_height()) * absf(sprite.scale.y)
+
+
 func _channel_stand_pos(target: Node) -> Vector2:
 	if _has_work_spot and target == _work_target:
 		return _work_spot

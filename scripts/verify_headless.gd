@@ -2433,7 +2433,7 @@ func _run() -> void:
 			failed += _assert(abs(node_r - expect_r) < 0.01, "stacked orbit uses the trunk ry (got %s want %s)" % [node_r, expect_r])
 			game_state.set("stage_id", StringName("elder"))
 			var elder_ry: float = float(mana.call("wisp_orbit_radius")) if mana != null else 0.0
-			var elder_rx: float = elder_ry * 0.5
+			var elder_rx: float = elder_ry * 2.0
 			if mana != null and mana.has_method("wisp_orbit_radii"):
 				var radii: Vector2 = mana.call("wisp_orbit_radii")
 				elder_rx = radii.x
@@ -8001,7 +8001,7 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 		wisp.call("place_on_shared_orbit")
 	var center: Vector2 = bench.call("wisp_orbit_center") if bench != null else Vector2.ZERO
 	var ry_bench: float = float(bench.call("wisp_orbit_radius")) if bench != null else 0.0
-	var rx_bench: float = ry_bench * 0.5
+	var rx_bench: float = ry_bench * 2.0
 	if wisp != null and bench != null:
 		jobs.call("debug_set_wisp_orbit_phase", 0.0)
 		wisp.call("place_on_shared_orbit")
@@ -8039,7 +8039,7 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 	if station != null and wisp != null:
 		var orbit_center: Vector2 = station.call("wisp_orbit_center")
 		var ry_station: float = float(station.call("wisp_orbit_radius"))
-		var rx_station: float = ry_station * 0.5
+		var rx_station: float = ry_station * 2.0
 		jobs.call("debug_set_wisp_orbit_phase", 0.0)
 		wisp.call("place_on_shared_orbit")
 		failed += _assert(int(wisp.z_index) >= 1, "east side stays in front")

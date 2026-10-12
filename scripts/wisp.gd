@@ -324,7 +324,7 @@ func _ring_draws_clear(node: Node2D) -> bool:
 func _orbit_ellipse_radii(node: Node2D, radius_y: float) -> Vector2:
 	if node != null and node.has_method("wisp_orbit_radii"):
 		return node.call("wisp_orbit_radii")
-	return Vector2(radius_y * 0.5, radius_y)
+	return Vector2(radius_y * 2.0, radius_y)
 
 
 func _ring_offset(node: Node2D, angle: float, radius_y: float) -> Vector2:
