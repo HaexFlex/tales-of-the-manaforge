@@ -220,7 +220,7 @@ func display_name(fighter_id: String) -> String:
 	var base_key: String = "beast_%s_name" % who.species
 	var base: String = base_key
 	if who.swarm:
-		base = _swarm_label(who)
+		base = swarm_count_label(who.species, who.bugs)
 		base_key = base
 	elif who.species != "":
 		var tree: SceneTree = Engine.get_main_loop() as SceneTree
@@ -805,18 +805,28 @@ static func _sync_after_hp(who: Fighter) -> void:
 	who.status = BattleResolver.status_for(who.side, who.hp, who.max_hp)
 
 
-func _swarm_label(who: Fighter) -> String:
-	var spec: Dictionary = beast_row(who.species)
+static func swarm_count_label(species: String, count: int) -> String:
+	## One living bug uses the singular name. Every other count uses the plural template.
+	var spec: Dictionary = beast_row(species)
+	if count == 1:
+		var one_key: String = str(spec.get("name_one_key", "foe_mossmite_name_one"))
+		var one: String = _content_line(one_key, {}, "Mossmite")
+		return "1 %s" % one
 	var key: String = str(spec.get("swarm_label_key", "foe_mossmite_swarm"))
-	var fallback: String = "%d Mossmites" % who.bugs
+	return _content_line(key, {"count": count}, "%d Mossmites" % count)
+
+
+static func _content_line(key: String, tokens: Dictionary, fallback: String) -> String:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
-	if tree != null:
-		var cs: Node = tree.root.get_node_or_null("ContentStrings")
-		if cs != null:
-			var line: String = str(cs.call("get_text", key, {"count": who.bugs}))
-			if line != "" and line != key:
-				return line
-	return fallback
+	if tree == null:
+		return fallback
+	var cs: Node = tree.root.get_node_or_null("ContentStrings")
+	if cs == null:
+		return fallback
+	var line: String = str(cs.call("get_text", key, tokens))
+	if line == "" or line == key:
+		return fallback
+	return line
 
 
 func to_dict() -> Dictionary:

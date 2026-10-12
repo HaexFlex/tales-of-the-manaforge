@@ -1618,8 +1618,7 @@ func _party_display_name(member: String) -> String:
 func _beast_plate_name(row: Dictionary, suffix: String) -> String:
 	if bool(row.get("swarm", false)) or str(row.get("species", "")) == MOSSMITE_ID:
 		var count: int = int(row.get("bugs", row.get("hp", 0)))
-		var label: String = _text("foe_mossmite_swarm", "%d Mossmites" % count, {"count": count})
-		return label + suffix
+		return FightState.swarm_count_label(str(row.get("species", MOSSMITE_ID)), count) + suffix
 	return _beast_display_name(str(row.get("species", ""))) + suffix
 
 
