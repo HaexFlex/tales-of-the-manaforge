@@ -4730,7 +4730,7 @@ func _rod_not_weapon_ok(tree_root: Window, equipment: Node) -> int:
 			for child: Node in gear_list.get_children():
 				if child is CharacterSheet.GearRow and str((child as CharacterSheet.GearRow).item_id) == "weapon_rod":
 					rod_row = true
-		failed += _assert(rod_row, "weapon rod still lists under all gear")
+		failed += _assert(not rod_row, "weapon rod is not listed under all gear")
 		hud.call("close_character_sheet")
 		hud.queue_free()
 		await process_frame
@@ -4784,6 +4784,27 @@ func _elaia_join_flow_check(tree_root: Window, game_state: Node, save_service: N
 		await process_frame
 	failed += _assert(bool(game_state.get("elaia_join_seen")), "join dialogue finished")
 	failed += _assert(bool(game_state.call("elaia_portrait_visible")), "portrait shows after dialogue")
+	var elaia_slot: Control = hud.get_node_or_null("PartyBar/Column/Elaia") as Control if hud else null
+	failed += _assert(elaia_slot != null and elaia_slot.visible, "HUD portrait visible when join dialogue ends")
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	if equipment != null and hud != null:
+		game_state.call("select_companion", "elaia")
+		game_state.set("forge_key", true)
+		equipment.call("grant_item", "sapstaff")
+		if not bool(equipment.call("owns_anywhere", "forge_key_relic")):
+			equipment.call("grant_item", "forge_key_relic")
+		hud.call("open_character_sheet")
+		await process_frame
+		var sheet: Node = hud.get_node_or_null("CharacterSheet")
+		if sheet != null and sheet.has_method("show_actor"):
+			sheet.call("show_actor", "elaia")
+		await process_frame
+		var staff_ok: String = str(sheet.call("request_equip", "sapstaff")) if sheet != null else "missing"
+		failed += _assert(staff_ok == "ok", "elaia equips sapstaff right after join without errors")
+		var relic_ok: String = str(sheet.call("request_equip", "forge_key_relic")) if sheet != null else "missing"
+		failed += _assert(relic_ok == "ok", "elaia equips a relic right after join without errors")
+		hud.call("close_character_sheet")
+		await process_frame
 	_drop_current_scene()
 	game_state.call("reset_for_new_game")
 	if failed == 0:
@@ -4811,6 +4832,12 @@ func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(keeper_slot != null and keeper_slot.visible, "keeper portrait with nothing selected")
 	failed += _assert(wisp_slot != null and not wisp_slot.visible, "wisp portrait hidden with nothing selected")
 	failed += _assert(hud.get_node_or_null("SelectionPanel") == null, "no gray selection box")
+	var sheet_node: CanvasItem = hud.get_node_or_null("CharacterSheet") as CanvasItem
+	hud.call("open_character_sheet")
+	await process_frame
+	failed += _assert(sheet_node != null and bar != null and _effective_z(sheet_node) > _effective_z(bar), "character sheet draws above party portraits")
+	hud.call("close_character_sheet")
+	await process_frame
 	hud.call("party_click", "keeper")
 	failed += _assert(bool(game_state.get("keeper_selected")), "click keeper portrait selects the keeper")
 	game_state.set("wisp_count", 2)
@@ -16764,17 +16791,45 @@ func _keeper_away_join_fight_ok(tree_root: Window, game_state: Node, save_servic
 	await process_frame
 	failed += _assert(bool(board.call("shell_open")), "LMB opens shell while keeper away")
 	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
-	var manual_btn: Button = shell.find_child("ManualButton", true, false) as Button if shell else null
-	failed += _assert(manual_btn != null, "Manual button")
-	if manual_btn:
-		manual_btn.emit_signal("pressed")
+	var join_btn: Button = shell.find_child("JoinFightButton", true, false) as Button if shell else null
+	failed += _assert(join_btn != null and join_btn.visible, "Join the fight button while out")
+	if join_btn:
+		join_btn.emit_signal("pressed")
 	await process_frame
-	failed += _assert(bool(reach.call("fight_active")), "manual joins fight")
+	failed += _assert(bool(reach.call("fight_active")), "join fight opens manual battle")
 	failed += _assert(BattleViewScript.is_open(), "BattleView open")
 	if board and bool(board.call("shell_open")):
 		board.call("close_shell")
 	if live:
 		live.free()
+	reach.call("reset_for_new_game")
+	await process_frame
+	_reset_reach_test(tree_root, game_state, save_service)
+	game_state.set("echo_02_resolved", true)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", 31)
+	reach.call("debug_force_outcomes", ["overwhelmed", "win", "win"])
+	failed += _assert(str(reach.call("depart_slots", depart_cfg)) == "ok", "join fight rest depart")
+	reach.call("advance_clock", 720.0)
+	failed += _assert(str(reach.get("phase")) == "rest", "overwhelmed opens rest")
+	var slots_after_loss: int = int(reach.get("slots_used"))
+	var live_rest: Node = await _echo2_boot_hub(tree_root)
+	var board_rest: Area2D = live_rest.get_node_or_null("World/ExpeditionBoard") as Area2D if live_rest else null
+	if board_rest:
+		board_rest.input_event.emit(tree_root, lmb, 0)
+	await process_frame
+	var shell_rest: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var join_rest: Button = shell_rest.find_child("JoinFightButton", true, false) as Button if shell_rest else null
+	failed += _assert(join_rest != null and join_rest.visible, "Join the fight during rest")
+	if join_rest:
+		join_rest.emit_signal("pressed")
+	await process_frame
+	failed += _assert(int(reach.get("slots_used")) == slots_after_loss, "rest join does not spend extra slots")
+	failed += _assert(bool(reach.call("fight_active")), "rest join opens manual fight")
+	if board_rest and bool(board_rest.call("shell_open")):
+		board_rest.call("close_shell")
+	if live_rest:
+		live_rest.free()
 	reach.call("reset_for_new_game")
 	await process_frame
 	if failed == 0:

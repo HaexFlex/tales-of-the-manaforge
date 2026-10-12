@@ -45,7 +45,7 @@ Build script: `tools/build_board.py`, new-piece generators in `tools/board_piece
 - Loadout: 2 slots, count field + −/+ (step 1, hold to repeat), cap min(100, owned); an empty slot opens an item pick (same popup + rows).
 - Cost: chip "20" + essence icon. Short = RU text + `cost_chip_short`, Depart uses action_button_disabled, and the hint "Need 20 Essence · you have N" (RU) sits right-aligned under it.
 - Simulate opens a SEPARATE window (620×500 at (330,110), 50% black veil over the board) with a summary, a scrolling per-room list (pip, room/beasts, result + items/Essence), Lost line, totals, and Run again. **RunSim currently returns only totals + lost[]; the per-room list needs a per-room log added to RunSim.**
-- Debug Skip/Rush are left out of the mockup. The running-state view (progress/pack) can reuse this panel with no new art.
+- The running-state view (progress, pack, live formation, **Join the fight**) reuses this panel with no new art.
 - Warning text (adv_predeparture_warning + adv_depart_cost) autowraps at 356 px, line height 14 (6 lines at 12 px).
 
 ## Count + effort
