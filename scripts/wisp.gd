@@ -245,26 +245,44 @@ func _process(delta: float) -> void:
 	_refresh_label()
 
 
-func _tick_keeper_orbit(delta: float) -> void:
+func _tick_keeper_orbit(_delta: float) -> void:
 	var keepers: Array[Node] = get_tree().get_nodes_in_group("keeper")
 	if keepers.is_empty():
 		return
 	var k: Node2D = keepers[0] as Node2D
 	sprite.flip_h = false
-	z_index = 2
-	_orbit_angle += KEEPER_ORBIT_SPEED * delta
 	_play_anim(&"orbit")
-	var slot: float = _even_slot_angle()
-	var angle: float = _orbit_angle + slot
+	var angle: float = _keeper_shared_orbit_angle()
 	var bob: float = sin(_bob_t * 2.8 + float(wisp_id)) * 3.0
-	var offset := Vector2(cos(angle), sin(angle) * 0.55) * KEEPER_ORBIT_RADIUS
-	global_position = k.global_position + KEEPER_SHOULDER_OFFSET + offset + Vector2(0, bob)
+	var anchor: Vector2 = k.global_position
+	if k.has_method("wisp_orbit_center"):
+		anchor = k.call("wisp_orbit_center")
+	var ry: float = KEEPER_ORBIT_RADIUS
+	if k.has_method("wisp_orbit_radius"):
+		ry = float(k.call("wisp_orbit_radius"))
+	global_position = anchor + _ring_offset(k, angle, ry) + Vector2(0, bob)
+	z_index = _ring_z(k, angle)
 
 
 func _shared_orbit_angle(node_id: String) -> float:
 	## Same phase for every wisp. Slots are 360/n and jump when the count changes.
 	var n: int = maxi(1, GameState.count_wisps_on_node(node_id))
 	var slot: int = GameState.wisp_slot_index_on_node(wisp_id, node_id)
+	var phase: float = 0.0
+	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("wisp_orbit_phase"):
+		phase = ForgeJobs.wisp_orbit_phase()
+	return phase + TAU * float(slot) / float(n)
+
+
+func _keeper_shared_orbit_angle() -> float:
+	var ids: Array[int] = []
+	for i: int in range(GameState.wisp_count):
+		if GameState.get_wisp_assignment(i) == "":
+			ids.append(i)
+	var n: int = maxi(1, ids.size())
+	var slot: int = ids.find(wisp_id)
+	if slot < 0:
+		slot = 0
 	var phase: float = 0.0
 	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("wisp_orbit_phase"):
 		phase = ForgeJobs.wisp_orbit_phase()
@@ -303,10 +321,17 @@ func _ring_draws_clear(node: Node2D) -> bool:
 	return node != null and node.has_method("wisp_orbit_draws_in_front") and bool(node.call("wisp_orbit_draws_in_front"))
 
 
-func _ring_offset(node: Node2D, angle: float, radius: float) -> Vector2:
+func _orbit_ellipse_radii(node: Node2D, radius_y: float) -> Vector2:
+	if node != null and node.has_method("wisp_orbit_radii"):
+		return node.call("wisp_orbit_radii")
+	return Vector2(radius_y * 0.5, radius_y)
+
+
+func _ring_offset(node: Node2D, angle: float, radius_y: float) -> Vector2:
 	## One bob for the whole ring so the spacing stays even.
 	var bob: float = sin(_bob_t * 2.8) * 2.0
-	var offset := Vector2(cos(angle), sin(angle)) * radius
+	var radii: Vector2 = _orbit_ellipse_radii(node, radius_y)
+	var offset := Vector2(cos(angle) * radii.x, sin(angle) * radii.y)
 	## The shoulder lift pulls a station ring up into the sprite, so the south
 	## arc sorts behind it. Craft rings sit on the painted center instead.
 	var lift: float = 0.0 if _ring_draws_clear(node) else HOVER_LIFT
@@ -326,9 +351,14 @@ func _keeper_slot_pos() -> Vector2:
 	if keepers.is_empty():
 		return global_position
 	var k: Node2D = keepers[0] as Node2D
-	var angle: float = _orbit_angle + _even_slot_angle()
-	var offset := Vector2(cos(angle), sin(angle) * 0.55) * KEEPER_ORBIT_RADIUS
-	return k.global_position + KEEPER_SHOULDER_OFFSET + offset
+	var angle: float = _keeper_shared_orbit_angle()
+	var anchor: Vector2 = k.global_position
+	if k.has_method("wisp_orbit_center"):
+		anchor = k.call("wisp_orbit_center")
+	var ry: float = KEEPER_ORBIT_RADIUS
+	if k.has_method("wisp_orbit_radius"):
+		ry = float(k.call("wisp_orbit_radius"))
+	return anchor + _ring_offset(k, angle, ry)
 
 
 func _begin_fly_to(dest: Vector2) -> void:
