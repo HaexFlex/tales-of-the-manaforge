@@ -26,6 +26,8 @@ var party_slots: Dictionary = {}
 var simulate_modal: Control
 var simulate_window: Control
 var simulate_scroll: ScrollContainer
+var simulate_room_list: VBoxContainer
+var simulate_footer: VBoxContainer
 var simulate_result: Label
 var simulate_close: Button
 var simulate_rerun: Button
@@ -82,15 +84,17 @@ func _build_panel(panel: Control) -> void:
 
 func _party_block(panel: Control) -> void:
 	_make_label(panel, "PartyTitle", _scr(Vector2(244, 148)), Vector2(200, 20), 16, INK).text = ""
-	var sub := _make_label(panel, "PartyHint", _scr(Vector2(244, 168)), Vector2(280, 16), 12, INK_SECONDARY)
+	var sub := _make_label(panel, "PartyHint", _scr(Vector2(340, 150)), Vector2(200, 16), 12, INK_SECONDARY)
 	sub.text = ""
 	var bed := _nine_patch("FormationBed", KIT_DIR + "play_bevel_9s_6x6.png", 2, _scr(Vector2(244, 172)), Vector2(340, 246))
 	panel.add_child(bed)
 	_make_label(panel, "LabelBack", _scr(Vector2(264, 398)), Vector2(60, 14), 12, INK_SECONDARY).text = "Back"
 	_make_label(panel, "LabelFront", _scr(Vector2(414, 398)), Vector2(60, 14), 12, INK_SECONDARY).text = "Front"
-	var arrow := _tex_rect(panel, BOARD_DIR + "arrow_enemy_side_12x9.png", _scr(Vector2(562, 182)), Vector2(12, 9))
+	var arrow := _tex_rect(panel, BOARD_DIR + "arrow_enemy_side_12x9.png", _scr(Vector2(548, 182)), Vector2(12, 9))
 	arrow.name = "EnemyArrow"
-	_make_label(panel, "EnemyLabel", _scr(Vector2(576, 182)), Vector2(60, 16), 12, INK_SECONDARY).text = "enemies"
+	var enemy_lbl := _make_label(panel, "EnemyLabel", _scr(Vector2(500, 182)), Vector2(46, 16), 12, INK_SECONDARY)
+	enemy_lbl.text = "enemies"
+	enemy_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var defs: Array[Dictionary] = [
 		{"name": "SlotBackTop", "row": "back", "cell": 0, "pos": _scr(Vector2(264, 196))},
 		{"name": "SlotBackMid", "row": "back", "cell": 1, "pos": _scr(Vector2(294, 266))},
@@ -131,7 +135,8 @@ func _mode_block(panel: Control) -> void:
 
 
 func _loadout_block(panel: Control) -> void:
-	_make_label(panel, "LoadoutTitle", _scr(Vector2(616, 292)), Vector2(200, 20), 16, INK).text = "Loadout"
+	_make_label(panel, "LoadoutTitle", _scr(Vector2(616, 292)), Vector2(120, 20), 16, INK).text = "Loadout"
+	_make_label(panel, "LoadoutCap", _scr(Vector2(736, 296)), Vector2(160, 16), 12, INK_SECONDARY).text = "up to 100 each"
 	for slot_i: int in range(2):
 		var y_scr: int = 320 + slot_i * 56
 		var n: int = slot_i + 1
@@ -139,10 +144,11 @@ func _loadout_block(panel: Control) -> void:
 		slot_btn.name = "LoadoutItem%d" % n
 		slot_btn.position = _scr(Vector2(616, y_scr))
 		slot_btn.size = Vector2(44, 44)
-		slot_btn.flat = true
+		slot_btn.flat = false
+		slot_btn.text = ""
 		panel.add_child(slot_btn)
 		_style_item_slot(slot_btn)
-		_make_label(panel, "LoadoutName%d" % n, _scr(Vector2(670, y_scr + 6)), Vector2(200, 34), 12, INK)
+		_make_label(panel, "LoadoutName%d" % n, _scr(Vector2(670, y_scr + 4)), Vector2(200, 36), 12, INK)
 		_add_loadout_stepper(panel, n, _scr(Vector2(872, y_scr + 8)))
 
 
@@ -160,7 +166,6 @@ func _add_footer(panel: Control) -> void:
 	ess_icon.modulate = ESSENCE_TINT
 	essence_icons.append(ess_icon)
 	_make_label(chip, "CostAmount", Vector2(40, 10), Vector2(40, 24), 18, INK).text = "20"
-	_make_label(panel, "CostLabel", _scr(Vector2(244, 536)), Vector2(356, 36), 12, INK_SECONDARY)
 	var depart := _action_button(panel, "Depart", _scr(Vector2(880, 564)), "Depart")
 	depart.size = Vector2(160, 44)
 	var depart_hint := _make_label(panel, "DepartHint", _scr(Vector2(760, 614)), Vector2(280, 16), 12, INK_SECONDARY)
@@ -171,9 +176,12 @@ func _add_footer(panel: Control) -> void:
 
 
 func _add_progress(panel: Control) -> void:
-	_make_label(panel, "ProgressLabel", _scr(Vector2(244, 172)), Vector2(340, 28), 15, INK)
-	_make_label(panel, "PackLabel", _scr(Vector2(244, 200)), Vector2(340, 24), 14, INK_SECONDARY)
-	_make_label(panel, "LoadoutLeftLabel", _scr(Vector2(244, 228)), Vector2(340, 24), 14, INK_SECONDARY)
+	var prog := _make_label(panel, "ProgressLabel", _scr(Vector2(244, 172)), Vector2(340, 28), 15, INK)
+	prog.visible = false
+	var pack := _make_label(panel, "PackLabel", _scr(Vector2(244, 200)), Vector2(340, 24), 14, INK_SECONDARY)
+	pack.visible = false
+	var left := _make_label(panel, "LoadoutLeftLabel", _scr(Vector2(244, 228)), Vector2(340, 24), 14, INK_SECONDARY)
+	left.visible = false
 	var skip := Button.new()
 	skip.name = "SkipRoom"
 	skip.text = "Skip room"
@@ -235,7 +243,7 @@ func _make_picker_row(index: int) -> Button:
 	row.name = "PickerRow%d" % index
 	row.custom_minimum_size = Vector2(220, 54)
 	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	row.flat = true
+	row.flat = false
 	row.text = ""
 	row.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_style_picker_row(row, "normal")
@@ -285,36 +293,43 @@ func configure_picker_row(index: int, display_name: String, sub: String, portrai
 	else:
 		portrait.texture = null
 	_style_picker_row(row, row_state)
+	row.set_meta("picker_locked", row_state == "disabled")
 	row.disabled = row_state == "disabled"
 
 
+func _pick_row_stylebox(kind: String) -> StyleBox:
+	if kind == "empty":
+		return StyleBoxEmpty.new()
+	var file: String = "pick_row_9s_hover_24x24.png"
+	match kind:
+		"current":
+			file = "pick_row_9s_current_24x24.png"
+		"disabled":
+			file = "pick_row_9s_disabled_24x24.png"
+	var box := StyleBoxTexture.new()
+	box.texture = _load_tex(BOARD_DIR + file)
+	box.texture_margin_left = PICK_ROW_9S
+	box.texture_margin_top = PICK_ROW_9S
+	box.texture_margin_right = PICK_ROW_9S
+	box.texture_margin_bottom = PICK_ROW_9S
+	return box
+
+
 func _style_picker_row(btn: Button, row_state: String) -> void:
-	var empty := StyleBoxEmpty.new()
-	btn.add_theme_stylebox_override("normal", empty)
-	btn.add_theme_stylebox_override("focus", empty)
-	var hover := StyleBoxTexture.new()
-	hover.texture = _load_tex(BOARD_DIR + "pick_row_9s_hover_24x24.png")
-	hover.texture_margin_left = PICK_ROW_9S
-	hover.texture_margin_top = PICK_ROW_9S
-	hover.texture_margin_right = PICK_ROW_9S
-	hover.texture_margin_bottom = PICK_ROW_9S
-	btn.add_theme_stylebox_override("hover", hover)
+	var normal_box: StyleBox = _pick_row_stylebox("empty")
 	if row_state == "current":
-		var cur := StyleBoxTexture.new()
-		cur.texture = _load_tex(BOARD_DIR + "pick_row_9s_current_24x24.png")
-		cur.texture_margin_left = PICK_ROW_9S
-		cur.texture_margin_top = PICK_ROW_9S
-		cur.texture_margin_right = PICK_ROW_9S
-		cur.texture_margin_bottom = PICK_ROW_9S
-		btn.add_theme_stylebox_override("normal", cur)
+		normal_box = _pick_row_stylebox("current")
 	elif row_state == "disabled":
-		var dis := StyleBoxTexture.new()
-		dis.texture = _load_tex(BOARD_DIR + "pick_row_9s_disabled_24x24.png")
-		dis.texture_margin_left = PICK_ROW_9S
-		dis.texture_margin_top = PICK_ROW_9S
-		dis.texture_margin_right = PICK_ROW_9S
-		dis.texture_margin_bottom = PICK_ROW_9S
-		btn.add_theme_stylebox_override("normal", dis)
+		normal_box = _pick_row_stylebox("disabled")
+	var hover_box: StyleBox = _pick_row_stylebox("hover")
+	var dis_box: StyleBox = _pick_row_stylebox("disabled")
+	for state: String in ["normal", "hover", "pressed", "focus", "disabled"]:
+		var box: StyleBox = normal_box
+		if state == "hover":
+			box = hover_box
+		elif state == "disabled":
+			box = dis_box
+		btn.add_theme_stylebox_override(state, box)
 
 
 func _build_simulate_window() -> void:
@@ -343,31 +358,45 @@ func _build_simulate_window() -> void:
 	var sim_title := _make_label(simulate_window, "ResultsTitle", _sim_local(Vector2(518, 98)), Vector2(244, 28), 16, INK)
 	sim_title.text = "Simulation"
 	sim_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	simulate_close = _stop_button(simulate_window, "SimulateClose", _sim_local(Vector2(814, 140)))
+	simulate_close = _stop_button(simulate_window, "SimulateClose", _sim_local(Vector2(768, 124)))
 	simulate_close.text = "Close"
-	_tex_rect(simulate_window, KIT_DIR + "keycap_esc.png", _sim_local(Vector2(890, 144)), Vector2(28, 15)).name = "SimulateCloseEsc"
-	_make_label(simulate_window, "SimulateHeader", _sim_local(Vector2(356, 144)), Vector2(430, 20), 12, INK_SECONDARY)
-	_make_label(simulate_window, "SimulateSummary", _sim_local(Vector2(356, 164)), Vector2(430, 20), 16, INK)
+	_tex_rect(simulate_window, KIT_DIR + "keycap_esc.png", _sim_local(Vector2(844, 128)), Vector2(28, 15)).name = "SimulateCloseEsc"
+	_make_label(simulate_window, "SimulateHeader", _sim_local(Vector2(356, 144)), Vector2(400, 20), 12, INK_SECONDARY)
+	_make_label(simulate_window, "SimulateSummary", _sim_local(Vector2(356, 164)), Vector2(400, 20), 16, INK)
 	simulate_scroll = ScrollContainer.new()
 	simulate_scroll.name = "SimulateScroll"
 	simulate_scroll.position = _sim_local(Vector2(354, 192))
-	simulate_scroll.size = Vector2(572, 270)
+	simulate_scroll.size = Vector2(572, 258)
+	_apply_simulate_scroll_theme(simulate_scroll)
 	simulate_window.add_child(simulate_scroll)
-	var inner := VBoxContainer.new()
-	inner.name = "SimulateList"
-	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	simulate_scroll.add_child(inner)
+	simulate_room_list = VBoxContainer.new()
+	simulate_room_list.name = "SimulateRoomList"
+	simulate_room_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	simulate_scroll.add_child(simulate_room_list)
 	simulate_result = Label.new()
 	simulate_result.name = "SimulateResult"
-	simulate_result.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	simulate_result.add_theme_font_size_override("font_size", 12)
-	simulate_result.add_theme_color_override("font_color", INK)
-	simulate_result.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inner.add_child(simulate_result)
-	var losses := _make_label(simulate_window, "SimulateLosses", _sim_local(Vector2(356, 468)), Vector2(570, 36), 12, INK)
+	simulate_result.visible = false
+	simulate_footer = VBoxContainer.new()
+	simulate_footer.name = "SimulateFooter"
+	simulate_footer.position = _sim_local(Vector2(356, 458))
+	simulate_footer.size = Vector2(570, 96)
+	simulate_footer.add_theme_constant_override("separation", 6)
+	simulate_window.add_child(simulate_footer)
+	var losses := Label.new()
+	losses.name = "SimulateLosses"
 	losses.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_make_label(simulate_window, "SimulateTotals", _sim_local(Vector2(356, 508)), Vector2(570, 40), 12, INK)
-	simulate_essence_icon = _tex_rect(simulate_window, ICON_ESSENCE_TEX, _sim_local(Vector2(700, 494)), Vector2(32, 32))
+	losses.custom_minimum_size = Vector2(570, 34)
+	losses.add_theme_font_size_override("font_size", 12)
+	losses.add_theme_color_override("font_color", INK)
+	simulate_footer.add_child(losses)
+	var totals := Label.new()
+	totals.name = "SimulateTotals"
+	totals.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	totals.custom_minimum_size = Vector2(570, 36)
+	totals.add_theme_font_size_override("font_size", 12)
+	totals.add_theme_color_override("font_color", INK)
+	simulate_footer.add_child(totals)
+	simulate_essence_icon = _tex_rect(simulate_window, ICON_ESSENCE_TEX, Vector2(-64, -64), Vector2(32, 32))
 	simulate_essence_icon.name = "SimulateEssenceIcon"
 	simulate_essence_icon.modulate = ESSENCE_TINT
 	simulate_essence_icon.visible = false
@@ -420,7 +449,7 @@ func _add_stepper(panel: Control, prefix: String, pos: Vector2, _qty_only: bool 
 	panel.add_child(field)
 	var plus := _wood_glyph_button(panel, plus_name, pos + Vector2(84 if slot_n > 0 else 108, 0), BOARD_DIR + "glyph_plus_10x10.png", BOARD_DIR + "glyph_plus_disabled_10x10.png")
 	if slot_n > 0:
-		_make_label(panel, "LoadoutQty%dCap" % slot_n, pos + Vector2(136, 6), Vector2(48, 20), 12, INK_SECONDARY).text = "/ 100"
+		_make_label(panel, "LoadoutQty%dCap" % slot_n, pos + Vector2(136, 4), Vector2(48, 20), 12, INK_SECONDARY).text = "/ 100"
 
 
 func _party_slot_button(node_name: String, pos: Vector2) -> Button:
@@ -429,7 +458,7 @@ func _party_slot_button(node_name: String, pos: Vector2) -> Button:
 	btn.position = pos
 	btn.size = Vector2(60, 60)
 	btn.toggle_mode = false
-	btn.flat = true
+	btn.flat = false
 	btn.text = ""
 	set_party_slot_style(btn, "empty")
 	return btn
@@ -589,15 +618,112 @@ func _style_party_slot(btn: Button, tex_path: String) -> void:
 		hover_box.texture = hover_tex
 		btn.add_theme_stylebox_override("hover", hover_box)
 	btn.add_theme_stylebox_override("pressed", box)
+	btn.add_theme_stylebox_override("disabled", box)
+	btn.add_theme_stylebox_override("focus", box)
 
 
 func _style_item_slot(btn: Button) -> void:
-	var normal := StyleBoxTexture.new()
-	normal.texture = _load_tex(BOARD_DIR + "item_slot_empty_44x44.png")
-	btn.add_theme_stylebox_override("normal", normal)
-	var hover := StyleBoxTexture.new()
-	hover.texture = _load_tex(BOARD_DIR + "item_slot_hover_44x44.png")
-	btn.add_theme_stylebox_override("hover", hover)
+	for state: String in ["normal", "hover", "pressed", "disabled"]:
+		var file: String = "item_slot_empty_44x44.png"
+		if state == "hover" or state == "pressed":
+			file = "item_slot_hover_44x44.png"
+		var box := StyleBoxTexture.new()
+		box.texture = _load_tex(BOARD_DIR + file)
+		btn.add_theme_stylebox_override(state, box)
+
+
+func clear_simulate_rows() -> void:
+	if simulate_room_list == null:
+		return
+	for child: Node in simulate_room_list.get_children():
+		child.queue_free()
+
+
+func add_simulate_row(left_text: String, right_text: String, row_kind: String) -> void:
+	if simulate_room_list == null:
+		return
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(554, 26)
+	var bg: StyleBox = StyleBoxEmpty.new()
+	if row_kind == "loss":
+		bg = _list_row_stylebox("list_row_9s_loss_24x24.png")
+	elif row_kind == "even":
+		bg = _list_row_stylebox("list_row_9s_even_24x24.png")
+	row.add_theme_stylebox_override("panel", bg)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 4)
+	margin.add_theme_constant_override("margin_right", 4)
+	row.add_child(margin)
+	var h := HBoxContainer.new()
+	h.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.add_child(h)
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(12, 12)
+	icon.size = Vector2(12, 12)
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	var icon_path: String = KIT_DIR + "pip_good_12.png"
+	if row_kind == "loss":
+		icon_path = KIT_DIR + "pip_miss_12.png"
+	icon.texture = _load_tex(icon_path)
+	h.add_child(icon)
+	var left := Label.new()
+	left.text = left_text
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left.add_theme_font_size_override("font_size", 14)
+	left.add_theme_color_override("font_color", INK)
+	h.add_child(left)
+	var right := Label.new()
+	right.text = right_text
+	right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.custom_minimum_size.x = 120
+	right.add_theme_font_size_override("font_size", 12)
+	right.add_theme_color_override("font_color", INK_SECONDARY)
+	h.add_child(right)
+	simulate_room_list.add_child(row)
+
+
+func _list_row_stylebox(file: String) -> StyleBoxTexture:
+	var box := StyleBoxTexture.new()
+	box.texture = _load_tex(BOARD_DIR + file)
+	box.texture_margin_left = 4
+	box.texture_margin_top = 4
+	box.texture_margin_right = 4
+	box.texture_margin_bottom = 4
+	return box
+
+
+func _apply_simulate_scroll_theme(scroll: ScrollContainer) -> void:
+	var track := StyleBoxTexture.new()
+	track.texture = _load_tex(BOARD_DIR + "scroll_track_9s_12x24.png")
+	track.texture_margin_left = 4
+	track.texture_margin_top = 4
+	track.texture_margin_right = 4
+	track.texture_margin_bottom = 4
+	var grab := StyleBoxTexture.new()
+	grab.texture = _load_tex(BOARD_DIR + "scroll_thumb_9s_normal_12x16.png")
+	grab.texture_margin_left = 5
+	grab.texture_margin_top = 5
+	grab.texture_margin_right = 5
+	grab.texture_margin_bottom = 5
+	var grab_hi := StyleBoxTexture.new()
+	grab_hi.texture = _load_tex(BOARD_DIR + "scroll_thumb_9s_hover_12x16.png")
+	grab_hi.texture_margin_left = 5
+	grab_hi.texture_margin_top = 5
+	grab_hi.texture_margin_right = 5
+	grab_hi.texture_margin_bottom = 5
+	var grab_press := StyleBoxTexture.new()
+	grab_press.texture = _load_tex(BOARD_DIR + "scroll_thumb_9s_drag_12x16.png")
+	grab_press.texture_margin_left = 5
+	grab_press.texture_margin_top = 5
+	grab_press.texture_margin_right = 5
+	grab_press.texture_margin_bottom = 5
+	scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	var vbar := scroll.get_v_scroll_bar()
+	vbar.add_theme_stylebox_override("scroll", track)
+	vbar.add_theme_stylebox_override("grabber", grab)
+	vbar.add_theme_stylebox_override("grabber_highlight", grab_hi)
+	vbar.add_theme_stylebox_override("grabber_pressed", grab_press)
 
 
 func _nine_patch(node_name: String, path: String, margin: int, pos: Vector2, size: Vector2) -> NinePatchRect:

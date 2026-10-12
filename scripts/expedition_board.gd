@@ -505,7 +505,7 @@ func _ensure_shell() -> void:
 	_boss_lbl = panel.get_node("BossLabel") as Label
 	_idle_btn = panel.get_node("IdleButton") as Button
 	_manual_btn = panel.get_node("ManualButton") as Button
-	_cost_lbl = panel.get_node("CostLabel") as Label
+	_cost_lbl = panel.get_node_or_null("CostLabel") as Label
 	_warning_lbl = panel.get_node("WarningLabel") as Label
 	_simulate_btn = panel.get_node("SimulateButton") as Button
 	_depart = panel.get_node("Depart") as Button
@@ -596,7 +596,12 @@ func _refresh_shell() -> void:
 	if _shell_view != null:
 		_shell_view.set_field_invalid(_depth_field, _depth_invalid)
 	if _rooms_lbl:
-		_rooms_lbl.text = ContentStrings.get_text("board_rooms").replace("{n}", "")
+		var rooms_cap: String = ContentStrings.get_text("board_rooms").replace("{n}", "").strip_edges()
+		if rooms_cap.is_empty():
+			rooms_cap = "Rooms"
+		elif rooms_cap.to_lower() == "rooms":
+			rooms_cap = "Rooms"
+		_rooms_lbl.text = rooms_cap
 	if _rooms_field and not _rooms_field.has_focus():
 		_rooms_field.text = str(_rooms)
 	if _shell_view != null:
@@ -622,10 +627,12 @@ func _refresh_shell() -> void:
 		if hint_txt == hint_key:
 			hint_txt = "Idle: the party walks and fights on its own." if _control == "idle" else "Manual: you choose each room."
 		mode_hint.text = hint_txt
-	if _cost_lbl:
-		_cost_lbl.text = ContentStrings.get_text("adv_depart_cost")
 	if _warning_lbl:
-		_warning_lbl.text = ContentStrings.get_text("adv_predeparture_warning")
+		var warn_body: String = ContentStrings.get_text("adv_predeparture_warning")
+		var cost_line: String = ContentStrings.get_text("adv_depart_cost")
+		_warning_lbl.text = "%s\n\n%s" % [warn_body, cost_line]
+	if _cost_lbl != null:
+		_cost_lbl.visible = false
 	_idle_btn.button_pressed = _control == "idle"
 	_manual_btn.button_pressed = _control == "manual"
 	_refresh_loadout_ui()
@@ -892,18 +899,19 @@ func _close_simulate_window() -> void:
 
 
 func _refresh_simulate_result() -> void:
-	if _simulate_result == null or last_sim.is_empty():
+	if _simulate_window == null or last_sim.is_empty() or _shell_view == null:
 		return
 	var header: Label = _simulate_window.get_node("SimulateHeader") as Label
 	var summary_lbl: Label = _simulate_window.get_node("SimulateSummary") as Label
-	var losses_lbl: Label = _simulate_window.get_node("SimulateLosses") as Label
-	var totals_lbl: Label = _simulate_window.get_node("SimulateTotals") as Label
+	var footer: VBoxContainer = _simulate_window.get_node("SimulateFooter") as VBoxContainer
+	var losses_lbl: Label = footer.get_node("SimulateLosses") as Label if footer != null else null
+	var totals_lbl: Label = footer.get_node("SimulateTotals") as Label if footer != null else null
 	var note_lbl: Label = _simulate_window.get_node("SimulateNote") as Label
 	var names: PackedStringArray = []
 	for entry: Dictionary in _members:
 		names.append(_member_display(str(entry.get("member", ""))))
 	if header != null:
-		header.text = "Depth %d · %d rooms · %s · %s" % [
+		header.text = "Depth %d · %d Rooms · %s · %s" % [
 			_start_depth, _rooms, _control.capitalize(), ", ".join(names),
 		]
 	var summary: String = ContentStrings.get_text("sim_summary")
@@ -912,8 +920,21 @@ func _refresh_simulate_result() -> void:
 	summary = summary.replace("{exp}", str(int(last_sim.get("exp", 0))))
 	if summary_lbl != null:
 		summary_lbl.text = summary
-	var lines: PackedStringArray = []
+	var lost_rooms: Dictionary = {}
+	var lost_v: Variant = last_sim.get("lost", [])
+	if lost_v is Array:
+		for entry_v: Variant in lost_v as Array:
+			if entry_v is Dictionary:
+				var reason: String = str((entry_v as Dictionary).get("reason", ""))
+				var room_i: int = reason.find("Room ")
+				if room_i >= 0:
+					var tail: String = reason.substr(room_i + 5)
+					var num: int = int(tail.split(":")[0].split(" ")[0])
+					if num > 0:
+						lost_rooms[num] = true
+	_shell_view.clear_simulate_rows()
 	var log_v: Variant = last_sim.get("room_log", [])
+	var row_i: int = 0
 	if log_v is Array:
 		for row_v: Variant in log_v as Array:
 			if not row_v is Dictionary:
@@ -921,14 +942,25 @@ func _refresh_simulate_result() -> void:
 			var row: Dictionary = row_v as Dictionary
 			var room_n: int = int(row.get("room", 0))
 			var outcome: String = str(row.get("outcome", ""))
-			var line: String = "Room %d · %s" % [room_n, outcome]
-			if outcome == "win" and row.has("loot"):
-				line += " · " + _format_item_dict(row.get("loot", {}) as Dictionary)
-			lines.append(line)
-	_simulate_result.text = "\n".join(lines)
+			var left: String = "Room %d · %s" % [room_n, outcome]
+			var right: String = ""
+			if outcome == "win":
+				right = "cleared"
+				if row.has("loot"):
+					right += " · " + _format_item_dict(row.get("loot", {}) as Dictionary)
+			elif outcome == "flee":
+				right = "fled"
+			else:
+				right = outcome
+			var kind: String = ""
+			if lost_rooms.has(room_n):
+				kind = "loss"
+			elif row_i % 2 == 0:
+				kind = "even"
+			_shell_view.add_simulate_row(left, right, kind)
+			row_i += 1
 	if losses_lbl != null:
 		var lost_bits: PackedStringArray = []
-		var lost_v: Variant = last_sim.get("lost", [])
 		if lost_v is Array:
 			for entry_v: Variant in lost_v as Array:
 				if entry_v is Dictionary:

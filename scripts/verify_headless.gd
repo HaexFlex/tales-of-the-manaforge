@@ -15376,6 +15376,29 @@ func _board_layout_rect_ok(shell: Node) -> int:
 	return failed
 
 
+func _board_party_slot_frames_ok(shell: Node) -> int:
+	var failed: int = 0
+	if shell == null:
+		return failed + 1
+	var slot: Button = shell.find_child("SlotBackTop", true, false) as Button
+	failed += _assert(slot != null, "party slot exists")
+	if slot != null:
+		var box: StyleBox = slot.get_theme_stylebox("normal")
+		failed += _assert(box is StyleBoxTexture and (box as StyleBoxTexture).texture != null, "party slot stylebox texture")
+	return failed
+
+
+func _board_warning_text_ok(shell: Node) -> int:
+	var failed: int = 0
+	if shell == null:
+		return failed + 1
+	var warn: Label = shell.find_child("WarningLabel", true, false) as Label
+	var cost: Label = shell.find_child("CostLabel", true, false) as Label
+	if warn != null and cost != null and cost.visible:
+		failed += _assert(not warn.get_global_rect().intersects(cost.get_global_rect()), "warning not over cost line")
+	return failed
+
+
 func _board_picker_row_names_ok(board: Node, shell: Node) -> int:
 	var failed: int = 0
 	if board == null or shell == null:
@@ -15480,6 +15503,8 @@ func _board_v4_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 		var choices: Array[String] = board.call("_loadout_choices", 1)
 		failed += _assert(not choices.has("heart_salve"), "slot 2 cannot pick the first slot item")
 	failed += _board_layout_rect_ok(shell)
+	failed += _board_party_slot_frames_ok(shell)
+	failed += _board_warning_text_ok(shell)
 	game_state.set("echo_01_redeemed", true)
 	game_state.set("first_relic_crafted", true)
 	game_state.set("elaia_join_seen", true)
@@ -15669,7 +15694,7 @@ func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Nod
 	sim_btn.emit_signal("pressed")
 	var sim_modal: Control = shell.find_child("SimulateModal", true, false) as Control if shell != null else null
 	var sim_win: Control = shell.find_child("SimulateWindow", true, false) as Control if shell != null else null
-	var sim_lbl: Label = shell.find_child("SimulateResult", true, false) as Label if shell != null else null
+	var room_list: VBoxContainer = shell.find_child("SimulateRoomList", true, false) as VBoxContainer if shell != null else null
 	var sim_close: Button = shell.find_child("SimulateClose", true, false) as Button if shell != null else null
 	var depart_btn: Button = shell.find_child("Depart", true, false) as Button if shell != null else null
 	failed += _assert(sim_modal != null and sim_modal.visible, "sim modal visible")
@@ -15678,15 +15703,11 @@ func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Nod
 	failed += _assert(title_lbl != null and title_lbl.text == "Simulation", "simulation title plank")
 	if sim_win != null and depart_btn != null:
 		failed += _assert(not sim_win.get_global_rect().intersects(depart_btn.get_global_rect()), "sim window clear of Depart")
-	var in_scroll: bool = false
-	if sim_lbl != null:
-		var p: Node = sim_lbl.get_parent()
-		while p != null:
-			if p is ScrollContainer:
-				in_scroll = true
-				break
-			p = p.get_parent()
-	failed += _assert(sim_lbl != null and in_scroll, "SimulateResult in scroll")
+	if sim_win != null and sim_close != null:
+		failed += _assert(sim_win.get_global_rect().encloses(sim_close.get_global_rect()), "sim close inside window")
+	failed += _assert(room_list != null and room_list.get_child_count() > 0, "simulate room rows")
+	var footer: VBoxContainer = shell.find_child("SimulateFooter", true, false) as VBoxContainer if shell != null else null
+	failed += _assert(footer != null and footer.get_child_count() >= 2, "simulate footer stack")
 	if sim_close != null:
 		sim_close.emit_signal("pressed")
 	failed += _assert(sim_modal != null and not sim_modal.visible, "sim close works")
@@ -16048,8 +16069,8 @@ func _simulate_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 		board.call("open_shell")
 		var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
 		var sim_btn: Button = shell.find_child("SimulateButton", true, false) as Button if shell != null else null
-		var sim_lbl: Label = shell.find_child("SimulateResult", true, false) as Label if shell != null else null
-		failed += _assert(sim_btn != null and sim_lbl != null, "simulate controls")
+		var room_list: VBoxContainer = shell.find_child("SimulateRoomList", true, false) as VBoxContainer if shell != null else null
+		failed += _assert(sim_btn != null and room_list != null, "simulate controls")
 		var sim_win: Node = shell.find_child("SimulateWindow", true, false) if shell != null else null
 		var depart_btn: Button = shell.find_child("Depart", true, false) as Button if shell != null else null
 		if sim_btn != null:
@@ -16058,9 +16079,17 @@ func _simulate_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 			var sim_modal: Node = shell.find_child("SimulateModal", true, false) if shell != null else null
 			failed += _assert(sim_modal != null and (sim_modal as Control).visible, "simulate modal opens")
 			failed += _assert(sim_win != null and (sim_win as Control).visible, "simulate window opens")
-			failed += _assert(sim_lbl != null and sim_lbl.text.length() > 0, "simulate scroll text")
-			failed += _assert(sim_lbl.text.find("Room ") >= 0, "simulate per-room lines")
-			failed += _assert(sim_lbl.text.find("%") < 0, "simulate result has no percent")
+			failed += _assert(room_list != null and room_list.get_child_count() > 0, "simulate room rows")
+			var first_row: Node = room_list.get_child(0) if room_list != null else null
+			var row_text: String = ""
+			if first_row != null:
+				for lbl_v: Variant in first_row.find_children("*", "Label", true, false):
+					var lbl: Label = lbl_v as Label
+					if lbl != null and lbl.text.find("Room ") >= 0:
+						row_text = lbl.text
+						break
+			failed += _assert(row_text.find("Room ") >= 0, "simulate per-room lines")
+			failed += _assert(row_text.find("%") < 0, "simulate result has no percent")
 			if sim_win != null and depart_btn != null:
 				var win_rect: Rect2 = (sim_win as Control).get_global_rect()
 				var depart_rect: Rect2 = depart_btn.get_global_rect()
