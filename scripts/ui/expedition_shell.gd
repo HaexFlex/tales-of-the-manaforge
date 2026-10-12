@@ -15,11 +15,19 @@ const FRAME_9S: int = 24
 const FIELD_9S: int = 6
 const POPUP_9S: int = 8
 const PICK_ROW_9S: int = 6
+const PICKER_POPUP_W: float = 236.0
+const PICKER_POPUP_MAX_H: float = 262.0
+const PICKER_ROW_H: float = 54.0
+const PICKER_ROW_GAP: float = 2.0
+const PICKER_ROW_POOL: int = 16
+const PICKER_SCROLL_MAX_H: float = PICKER_POPUP_MAX_H - 34.0
 const ICON_ESSENCE_TEX: String = "res://assets/art/ui/icon_essence.png"
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 
 var picker_popup: PanelContainer
 var picker_title: Label
+var picker_scroll: ScrollContainer
+var picker_list: VBoxContainer
 var picker_tail: TextureRect
 var picker_rows: Array[Button] = []
 var party_slots: Dictionary = {}
@@ -219,15 +227,16 @@ func _add_footer(panel: Control) -> void:
 
 
 func _add_progress(panel: Control) -> void:
-	var prog := _make_label(panel, "ProgressLabel", Vector2.ZERO, Vector2(1, 1), 15, INK)
+	var prog := _make_label(panel, "ProgressLabel", _scr(Vector2(616, 148)), Vector2(400, 20), 15, INK)
 	prog.visible = false
-	prog.modulate.a = 0.0
-	var pack := _make_label(panel, "PackLabel", Vector2.ZERO, Vector2(1, 1), 14, INK_SECONDARY)
+	prog.clip_text = true
+	prog.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var pack := _make_label(panel, "PackLabel", _scr(Vector2(616, 172)), Vector2(400, 18), 14, INK_SECONDARY)
 	pack.visible = false
-	pack.modulate.a = 0.0
-	var left := _make_label(panel, "LoadoutLeftLabel", Vector2.ZERO, Vector2(1, 1), 14, INK_SECONDARY)
+	pack.clip_text = true
+	var left := _make_label(panel, "LoadoutLeftLabel", _scr(Vector2(616, 432)), Vector2(424, 36), 14, INK_SECONDARY)
 	left.visible = false
-	left.modulate.a = 0.0
+	left.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var skip := Button.new()
 	skip.name = "SkipRoom"
 	skip.text = "Skip room"
@@ -282,9 +291,22 @@ func _build_picker() -> void:
 	picker_title.add_theme_color_override("font_color", INK)
 	picker_title.custom_minimum_size = Vector2(220, 18)
 	vbox.add_child(picker_title)
-	for i: int in range(4):
+	picker_scroll = ScrollContainer.new()
+	picker_scroll.name = "PickerScroll"
+	picker_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	picker_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	picker_scroll.custom_minimum_size = Vector2(220, PICKER_SCROLL_MAX_H)
+	picker_scroll.size = Vector2(220, PICKER_SCROLL_MAX_H)
+	_apply_picker_scroll_theme(picker_scroll)
+	vbox.add_child(picker_scroll)
+	picker_list = VBoxContainer.new()
+	picker_list.name = "PickerList"
+	picker_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	picker_list.add_theme_constant_override("separation", int(PICKER_ROW_GAP))
+	picker_scroll.add_child(picker_list)
+	for i: int in range(PICKER_ROW_POOL):
 		var row := _make_picker_row(i)
-		vbox.add_child(row)
+		picker_list.add_child(row)
 		picker_rows.append(row)
 
 
@@ -808,6 +830,41 @@ func _list_row_stylebox(file: String) -> StyleBoxTexture:
 	return box
 
 
+func ensure_picker_rows(visible_count: int) -> void:
+	var need: int = clampi(visible_count, 0, picker_rows.size())
+	for i: int in range(picker_rows.size()):
+		picker_rows[i].visible = i < need
+
+
+func _apply_picker_scroll_theme(scroll: ScrollContainer) -> void:
+	var track := StyleBoxTexture.new()
+	track.texture = _load_tex(BOARD_DIR + "scroll_track_9s_12x24.png")
+	track.texture_margin_left = 4
+	track.texture_margin_top = 4
+	track.texture_margin_right = 4
+	track.texture_margin_bottom = 4
+	var grab := StyleBoxTexture.new()
+	grab.texture = _load_tex(BOARD_DIR + "scroll_thumb_9s_normal_12x16.png")
+	grab.texture_margin_left = 5
+	grab.texture_margin_top = 5
+	grab.texture_margin_right = 5
+	grab.texture_margin_bottom = 5
+	var grab_hi := StyleBoxTexture.new()
+	grab_hi.texture = _load_tex(BOARD_DIR + "scroll_thumb_9s_hover_12x16.png")
+	grab_hi.texture_margin_left = 5
+	grab_hi.texture_margin_top = 5
+	grab_hi.texture_margin_right = 5
+	grab_hi.texture_margin_bottom = 5
+	scroll.add_theme_stylebox_override("panel", track)
+	scroll.add_theme_stylebox_override("bg", track)
+	var vbar := scroll.get_v_scroll_bar()
+	if vbar != null:
+		vbar.add_theme_stylebox_override("scroll", track)
+		vbar.add_theme_stylebox_override("grabber", grab)
+		vbar.add_theme_stylebox_override("grabber_highlight", grab_hi)
+		vbar.add_theme_stylebox_override("grabber_pressed", grab_hi)
+
+
 func _apply_simulate_scroll_theme(scroll: ScrollContainer) -> void:
 	var track := StyleBoxTexture.new()
 	track.texture = _load_tex(BOARD_DIR + "scroll_track_9s_12x24.png")
@@ -907,12 +964,17 @@ func place_picker(slot_btn: Button) -> void:
 	for row: Button in picker_rows:
 		if row.visible:
 			visible_rows += 1
-	var h: float = 18.0 + 8.0 + float(visible_rows) * 56.0 + 8.0
+	var list_h: float = maxf(0.0, float(visible_rows) * (PICKER_ROW_H + PICKER_ROW_GAP) - PICKER_ROW_GAP)
+	var scroll_h: float = minf(list_h, PICKER_SCROLL_MAX_H)
+	var h: float = 34.0 + scroll_h
+	if picker_scroll != null:
+		picker_scroll.custom_minimum_size = Vector2(220, scroll_h)
+		picker_scroll.size = Vector2(220, scroll_h)
 	var slot_centre_y: float = slot_btn.global_position.y + slot_btn.size.y * 0.5
 	var y: float = clampf(slot_btn.global_position.y - 76.0, 140.0, 418.0 - h)
 	picker_popup.position = Vector2(slot_btn.global_position.x + 68.0, y)
-	picker_popup.custom_minimum_size = Vector2(236, h)
-	picker_popup.size = Vector2(236, h)
+	picker_popup.custom_minimum_size = Vector2(PICKER_POPUP_W, h)
+	picker_popup.size = Vector2(PICKER_POPUP_W, h)
 	picker_tail.position = Vector2(picker_popup.position.x - 6.0, slot_centre_y - 7.0)
 	picker_tail.size = Vector2(8, 14)
 	picker_tail.visible = true

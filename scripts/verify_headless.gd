@@ -190,6 +190,24 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_DEPTH_PASSTHROUGH") == "1":
+		var depth_only: int = await _depth_passthrough_ok(tree_root, game_state, save_service)
+		if depth_only > 0:
+			print("DEPTH_PASSTHROUGH_FAIL: %d" % depth_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_PICKER_JOINED_ONLY") == "1":
+		var picker_only: int = await _picker_joined_only_ok(tree_root, game_state, save_service)
+		if picker_only > 0:
+			print("PICKER_JOINED_ONLY_FAIL: %d" % picker_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_END_PANEL") == "1":
 		var end_panel_only: int = await _end_panel_ok(tree_root, game_state, save_service)
 		if end_panel_only > 0:
@@ -3538,6 +3556,8 @@ func _run() -> void:
 	failed += _board_sim_window_ok(tree_root, game_state, save_service)
 	failed += _board_depth_rooms_ok(tree_root, game_state, save_service)
 	failed += _board_essence_icon_ok(tree_root, game_state, save_service)
+	failed += await _picker_joined_only_ok(tree_root, game_state, save_service)
+	failed += await _depth_passthrough_ok(tree_root, game_state, save_service)
 	failed += await _end_panel_ok(tree_root, game_state, save_service)
 	failed += await _manual_overwhelmed_ok(tree_root, game_state, save_service)
 	failed += _depart_essence_ok(tree_root, game_state, save_service)
@@ -9393,6 +9413,169 @@ func _reach_wait_end_panel(view: BattleView, max_frames: int = 300) -> Panel:
 	return view.get_node_or_null("Arena/EndPanel") as Panel
 
 
+func _depth_passthrough_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(reach != null and backpack != null, "depth passthrough autoloads")
+	if reach == null:
+		return failed
+	var duo_cfg: Dictionary = {
+		"depth": 3,
+		"rooms": 5,
+		"control": "manual",
+		"party": [
+			{"member": "keeper", "row": "front", "cell": 1},
+			{"member": "elaia", "row": "back", "cell": 1},
+		],
+		"loadout": {},
+	}
+	var win_seed: int = -1
+	for probe: int in range(1, 201):
+		_reset_reach_test(tree_root, game_state, save_service)
+		reach.set("deepest_depth", 12)
+		game_state.set("echo_02_resolved", true)
+		game_state.set("elaia_join_seen", true)
+		game_state.call("set_resource", &"essence", 100)
+		reach.call("set_test_run_seed", probe)
+		if str(reach.call("depart_slots", duo_cfg)) != "ok":
+			continue
+		BattleViewScript.close_arena()
+		var probe_fight: FightState = reach.call("manual_fight") as FightState
+		if probe_fight != null and _reach_auto_strike_fight(probe_fight) == "win":
+			win_seed = probe
+			reach.call("reset_for_new_game")
+			break
+		reach.call("reset_for_new_game")
+	failed += _assert(win_seed > 0, "depth-3 duo has a win seed in 1..200")
+	if win_seed < 0:
+		return failed
+	_reset_reach_test(tree_root, game_state, save_service)
+	reach.set("deepest_depth", 12)
+	game_state.set("echo_02_resolved", true)
+	game_state.set("elaia_join_seen", true)
+	game_state.call("set_resource", &"essence", 100)
+	reach.call("set_test_run_seed", win_seed)
+	failed += _assert(str(reach.call("depart_slots", duo_cfg)) == "ok", "depth 3 depart")
+	failed += _assert(int(reach.get("depth")) == 3, "Reach.depth is 3 after depart")
+	var view: BattleView = await _reach_open_manual_view(reach)
+	failed += _assert(view != null, "manual fight opens at depth 3")
+	if view == null:
+		return failed
+	var depth_lbl: Label = view.find_child("DepthText", true, false) as Label
+	failed += _assert(depth_lbl != null and depth_lbl.text == "Depth 3", "HUD shows Depth 3 (got %s)" % str(depth_lbl.text if depth_lbl != null else ""))
+	var fight: FightState = view._fight
+	failed += _assert(fight != null and fight.outcome() == "", "depth-3 fight started")
+	if fight != null:
+		var table_ids: Dictionary = {}
+		for row: Dictionary in SpawnRoller.table_for(3):
+			table_ids[str(row.get("beast", ""))] = true
+		for fighter_id: String in fight.order:
+			var info: Dictionary = fight.fighter_dict(fighter_id)
+			if str(info.get("side", "")) == "beast":
+				failed += _assert(table_ids.has(str(info.get("species", ""))), "depth-3 beast %s from table_for(3)" % str(info.get("species", "")))
+		await _reach_step_strike_for_me(view, fight, 8000)
+		failed += _assert(fight.outcome() == "win", "depth-3 room wins (got %s)" % fight.outcome())
+		await process_frame
+		var panel: Panel = await _reach_wait_end_panel(view)
+		failed += _assert(panel != null, "win panel after depth-3 room")
+		var deeper: Button = view.find_child("EndDeeper", true, false) as Button
+		failed += _assert(deeper != null, "Go deeper on win panel")
+		if deeper != null:
+			deeper.emit_signal("pressed")
+		for _w: int in 120:
+			await process_frame
+			if int(reach.get("depth")) == 4 and bool(reach.call("fight_active")):
+				break
+		failed += _assert(int(reach.get("depth")) == 4, "Go deeper raises depth to 4 (got %d)" % int(reach.get("depth")))
+		view = await _reach_open_manual_view(reach)
+		if view != null:
+			depth_lbl = view.find_child("DepthText", true, false) as Label
+			failed += _assert(depth_lbl != null and depth_lbl.text == "Depth 4", "HUD shows Depth 4 after Go deeper")
+	BattleViewScript.close_arena()
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("DEPTH_PASSTHROUGH_OK")
+	return failed
+
+
+func _picker_joined_only_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node_or_null("Reach")
+	failed += _assert(reach != null, "picker Reach")
+	if reach == null:
+		return failed
+	var orphan_shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	if orphan_shell != null and is_instance_valid(orphan_shell):
+		orphan_shell.free()
+	var echo_was: bool = bool(game_state.get("echo_02_resolved"))
+	var essence_was: int = int(game_state.get("essence"))
+	reach.call("reset_for_new_game")
+	game_state.set("echo_02_resolved", true)
+	game_state.set("echo_02_outcome", "spare")
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	reach.set("reaches_cleared", 0)
+	game_state.call("set_resource", &"essence", 50)
+	var packed: PackedScene = load("res://scenes/expedition_board.tscn") as PackedScene
+	var board: Node = packed.instantiate()
+	tree_root.add_child(board)
+	board.call("open_shell")
+	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	failed += _assert(shell != null, "picker shell")
+	board.call("_on_party_slot_pressed", "front", 1)
+	board.call("_refresh_shell")
+	for i: int in range(16):
+		var row: Button = shell.find_child("PickerRow%d" % i, true, false) as Button
+		if row == null or not row.visible:
+			continue
+		var name_lbl: Label = row.get_node_or_null("Name") as Label
+		var sub_lbl: Label = row.get_node_or_null("Sub") as Label
+		if name_lbl != null and name_lbl.text == "Bramble":
+			failed += _assert(false, "Bramble row before join")
+		if sub_lbl != null:
+			failed += _assert(sub_lbl.text.find("Unlocks at") < 0, "no locked Bramble hint")
+	reach.set("reaches_cleared", 30)
+	board.call("_on_party_slot_pressed", "front", 1)
+	board.call("_refresh_shell")
+	var saw_bramble: bool = false
+	for i: int in range(16):
+		var row: Button = shell.find_child("PickerRow%d" % i, true, false) as Button
+		if row == null or not row.visible:
+			continue
+		var name_lbl: Label = row.get_node_or_null("Name") as Label
+		if name_lbl != null and name_lbl.text == "Bramble":
+			saw_bramble = true
+	failed += _assert(saw_bramble, "Bramble listed after join")
+	board.call("set_picker_test_extra", ["scout_a", "scout_b", "scout_c", "scout_d", "scout_e", "scout_f"])
+	board.call("_on_party_slot_pressed", "back", 0)
+	board.call("_refresh_shell")
+	var scroll: ScrollContainer = shell.find_child("PickerScroll", true, false) as ScrollContainer
+	var visible_picker_rows: int = 0
+	for i: int in range(16):
+		var row: Button = shell.find_child("PickerRow%d" % i, true, false) as Button
+		if row != null and row.visible:
+			visible_picker_rows += 1
+	failed += _assert(visible_picker_rows >= 8, "extra members expand the picker (%d rows)" % visible_picker_rows)
+	failed += _assert(scroll != null, "picker scroll exists")
+	if scroll != null:
+		failed += _assert(scroll.size.y <= 228.0 + 0.5, "picker scroll height clamped")
+		failed += _assert(visible_picker_rows * 56.0 > scroll.size.y + 1.0, "picker needs scroll for %d rows" % visible_picker_rows)
+	if shell.has_method("hide_picker"):
+		shell.call("hide_picker")
+	board.free()
+	shell = tree_root.get_node_or_null("ExpeditionShell")
+	if shell != null and is_instance_valid(shell):
+		shell.free()
+	game_state.set("echo_02_resolved", echo_was)
+	game_state.call("set_resource", &"essence", essence_was)
+	reach.call("reset_for_new_game")
+	if failed == 0:
+		print("PICKER_JOINED_ONLY_OK")
+	return failed
+
+
 func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
@@ -12676,9 +12859,9 @@ func _resolver_log() -> int:
 	for doc_v: Variant in cases.get("doc_cases", []) as Array:
 		var doc: Dictionary = doc_v as Dictionary
 		by_id[str(doc.get("id", ""))] = doc
-	var line1: String = "Keeper 7+11=18 vs Acorn imp 5+6=11 → crushing blow for 24"
-	var line2: String = "Acorn imp 6+7=13 vs Keeper 7+6=13 → graze for 4"
-	var line4_suffix: String = "crushing blow for 52 (Fate crit)"
+	var line1: String = "Keeper strikes Acorn imp: 2d6 7 + 11 vs 11, crushing blow, 24 dmg"
+	var line2: String = "Acorn imp strikes Keeper: 2d6 6 + 7 vs 13, graze, 4 dmg"
+	var line4_suffix: String = "crushing blow, 52 dmg (Fate crit)"
 	var seen_kinds: Dictionary = {}
 	for cid: String in ["s4_line1", "s4_line2", "s4_line4"]:
 		failed += _assert(by_id.has(cid), "fixture %s" % cid)
@@ -12740,7 +12923,7 @@ func _resolver_log() -> int:
 	failed += _assert(bool(hit_ev.get("braced", false)) and str(hit_ev.get("band", "miss")) != "miss", "braced hit lands")
 	failed += _assert(raw > 1 and landed == maxi(1, BattleResolver.round_half_up(raw, 1, 2)), "braced hit: damage is resolver_damage halved (%d from %d)" % [landed, raw])
 	failed += _assert(hp_lost + int(hit_ev.get("shield_absorbed", 0)) == landed, "braced hit: damage is what lands before the shield")
-	failed += _assert(_resolver_log_has_line(hit_fight, "[2,1,1 → 2+1]") and _resolver_log_has_line(hit_fight, " for %d" % landed), "braced hit line: bracketed dice, halved damage")
+	failed += _assert(_resolver_log_has_line(hit_fight, "[2,1,1 → 2+1]") and _resolver_log_has_line(hit_fight, ", %d dmg" % landed), "braced hit line: bracketed dice, halved damage")
 	print("RESOLVER_LOG braced hit line: ", hit_fight.log_tail[hit_fight.log_tail.size() - 1])
 	var salve_fight: FightState = FightStateScript.new()
 	salve_fight.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")
@@ -12852,7 +13035,7 @@ func _resolver_log() -> int:
 		if spam.outcome() != "":
 			break
 		spam.step({})
-	failed += _assert(spam.log_tail.size() <= 20, "log_tail stays capped at 20 (got %d)" % spam.log_tail.size())
+	failed += _assert(spam.log_tail.size() <= 200, "log_tail stays capped at 200 (got %d)" % spam.log_tail.size())
 	var tree_root: Window = root as Window
 	var cs: Node = tree_root.get_node_or_null("ContentStrings")
 	failed += _assert(cs != null, "ContentStrings for log strings")
@@ -13656,7 +13839,8 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	var bottom: Control = view.get_node_or_null("Arena/BottomBar") as Control
 	var menu: Control = view.get_node_or_null("Arena/ActionMenu") as Control
 	var log_panel: Control = view.get_node_or_null("Arena/LogPanel") as Control
-	failed += _assert(bottom != null and menu != null and log_panel != null, "bottom bar, menu and log exist")
+	var log_scroll: ScrollContainer = view.get_node_or_null("Arena/LogPanel/LogScroll") as ScrollContainer
+	failed += _assert(bottom != null and menu != null and log_panel != null and log_scroll != null, "bottom bar, menu and log scroll exist")
 	if bottom != null and menu != null and log_panel != null:
 		var bar_rect: Rect2 = bottom.get_global_rect()
 		failed += _assert(bottom.get_rect() == Rect2(0, 584, 1280, 136), "bottom bar rect in the arena (got %s)" % bottom.get_rect())
@@ -14711,7 +14895,7 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	menu.visible = false
 	playback.enqueue_events([strike_ev])
 	failed += _assert(playback.is_busy(), "one event playing")
-	for row: Dictionary in [{"speed": 1, "pre": 1.99, "post": 0.2}, {"speed": 2, "pre": 0.99, "post": 0.2}, {"speed": 4, "pre": 0.49, "post": 0.1}]:
+	for row: Dictionary in [{"speed": 1, "pre": 0.99, "post": 0.2}, {"speed": 2, "pre": 0.49, "post": 0.2}, {"speed": 4, "pre": 0.24, "post": 0.1}]:
 		playback.speed = int(row["speed"])
 		view.call("_apply_battle_speed", int(row["speed"]))
 		playback.reset_for_fight()
@@ -15731,6 +15915,11 @@ func _board_v4_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 		failed += _assert(warn_cost.text.find("20 Essence") >= 0, "warning includes depart cost")
 		failed += _assert(warn_cost.text.find("pays back 15") >= 0, "warning includes boss payback")
 	failed += _board_picker_no_black_panels(shell)
+	for lbl_name: String in ["ProgressLabel", "PackLabel", "LoadoutLeftLabel"]:
+		var run_lbl: Label = shell.find_child(lbl_name, true, false) as Label
+		if run_lbl != null:
+			failed += _assert(not run_lbl.visible, "%s hidden during setup" % lbl_name)
+			failed += _assert(run_lbl.size.y >= 14.0 or run_lbl.text == "", "%s not a 1px strip" % lbl_name)
 	game_state.set("echo_01_redeemed", true)
 	game_state.set("first_relic_crafted", true)
 	game_state.set("elaia_join_seen", true)

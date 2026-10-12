@@ -237,7 +237,9 @@ func _party_cfg_error(cfg: Dictionary) -> String:
 			return "bad_party"
 		var entry: Dictionary = entry_v as Dictionary
 		var member: String = str(entry.get("member", ""))
-		if member != "keeper" and member != "elaia":
+		if member != "keeper" and member != "elaia" and member != "bramble":
+			return "bad_party"
+		if member == "bramble" and (not has_node("/root/GameState") or not GameState.bramble_joined()):
 			return "bad_party"
 		if SlotEngine.member_stats(member).is_empty():
 			return "bad_party"
@@ -278,7 +280,7 @@ func _begin_outing(cfg: Dictionary) -> String:
 			entry["cell"] = clampi(int(entry.get("cell", 1)), 0, 2)
 		entry["stats"] = stats
 		built.append(entry)
-	depth = maxi(1, int(cfg.get("depth", depth)))
+	depth = clampi(maxi(1, int(cfg.get("depth", depth))), 1, max_start_depth())
 	control = "manual" if str(cfg.get("control", "idle")) == "manual" else "idle"
 	var fresh_seed: int = _rng.randi() & 0x7FFFFFFF
 	var fresh_id: int = _rng.randi() & 0x7FFFFFFF

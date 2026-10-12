@@ -86,6 +86,8 @@ var _sim_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var last_sim: Dictionary = {}
 var _depth_invalid: bool = false
 var _rooms_invalid: bool = false
+## Headless tests only: extra picker rows (member ids).
+var _picker_test_extra: Array[String] = []
 
 
 func _ready() -> void:
@@ -267,10 +269,18 @@ func shell_starts_reach() -> bool:
 	return true
 
 
+func set_picker_test_extra(ids: Array) -> void:
+	_picker_test_extra.clear()
+	for id_v: Variant in ids:
+		_picker_test_extra.append(str(id_v))
+
+
 func available_members() -> Array[String]:
 	var out: Array[String] = ["keeper"]
 	if GameState.elaia_portrait_visible():
 		out.append("elaia")
+	if GameState.bramble_joined():
+		out.append("bramble")
 	return out
 
 
@@ -387,6 +397,10 @@ func try_depart() -> String:
 		return "no_party"
 	if GameState.essence < DEPART_ESSENCE_COST:
 		return "no_essence"
+	if _depth_field != null:
+		_on_depth_field_commit(_depth_field.text)
+	if _rooms_field != null:
+		_on_rooms_field_commit(_rooms_field.text)
 	_sync_depth_to_cap()
 	return Reach.depart_slots(board_config())
 
@@ -1124,7 +1138,11 @@ func _populate_picker(row: String, cell: int) -> void:
 	choices.append(_picker_choice("keeper", row, cell, current))
 	if GameState.elaia_portrait_visible():
 		choices.append(_picker_choice("elaia", row, cell, current))
-	choices.append(_picker_bramble_choice(row, cell, current))
+	if GameState.bramble_joined():
+		choices.append(_picker_choice("bramble", row, cell, current))
+	for extra_id: String in _picker_test_extra:
+		if extra_id != "" and extra_id != "keeper" and extra_id != "elaia" and extra_id != "bramble":
+			choices.append(_picker_choice(extra_id, row, cell, current))
 	choices.append({
 		"member": "",
 		"label": "Leave empty",
@@ -1133,6 +1151,7 @@ func _populate_picker(row: String, cell: int) -> void:
 		"portrait": BOARD_DIR + "party_slot_empty_60x60.png",
 		"locked": false,
 	})
+	_shell_view.ensure_picker_rows(choices.size())
 	for i: int in range(_shell_view.picker_rows.size()):
 		var btn: Button = _shell_view.picker_rows[i]
 		if i >= choices.size():
@@ -1170,20 +1189,6 @@ func _picker_choice(member: String, row: String, cell: int, current: String) -> 
 		"state": state,
 		"portrait": _portrait_path(member),
 		"locked": false,
-	}
-
-
-func _picker_bramble_choice(row: String, cell: int, current: String) -> Dictionary:
-	var unlocked: bool = available_members().has("bramble")
-	if unlocked:
-		return _picker_choice("bramble", row, cell, current)
-	return {
-		"member": "bramble",
-		"label": "Bramble",
-		"sub": "Unlocks at 30 rooms",
-		"state": "disabled",
-		"portrait": _portrait_path("bramble"),
-		"locked": true,
 	}
 
 
@@ -1238,8 +1243,10 @@ func _portrait_path(member: String) -> String:
 			return "res://assets/art/portraits/keeper_portrait.png"
 		"elaia":
 			return "res://assets/art/portraits/elaia_portrait.png"
-		_:
+		"bramble":
 			return "res://assets/art/bramble/bramble_portrait.png"
+		_:
+			return BOARD_DIR + "party_slot_empty_60x60.png"
 
 
 func _member_display(member: String) -> String:
@@ -1248,6 +1255,8 @@ func _member_display(member: String) -> String:
 			return ContentStrings.get_text("char_sheet_title")
 		"elaia":
 			return ContentStrings.get_text("echo_elaia_name")
+		"bramble":
+			return ContentStrings.get_text("bramble_name")
 		_:
 			return member.capitalize()
 

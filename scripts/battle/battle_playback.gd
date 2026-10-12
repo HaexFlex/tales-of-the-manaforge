@@ -4,7 +4,7 @@ class_name BattlePlayback
 signal queue_empty
 
 const RULES_PATH: String = "res://data/audio_cues.json"
-const GAP_STRIKE_SEC: float = 2.0
+const GAP_STRIKE_SEC: float = 1.0
 const GAP_SHORT_SEC: float = 0.6
 const GAP_KO_SEC: float = 0.8
 const NUDGE_PX: float = 12.0

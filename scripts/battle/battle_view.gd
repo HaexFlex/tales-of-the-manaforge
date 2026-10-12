@@ -145,6 +145,7 @@ const ACTION_BUTTON_SIZE: Vector2 = Vector2(160.0, 44.0)
 const ACTION_BUTTON_PITCH: Vector2 = Vector2(168.0, 52.0)
 const LOG_PANEL_RECT: Rect2 = Rect2(528.0, 600.0, 728.0, 104.0)
 const LOG_LINE_COUNT: int = 5
+const LOG_SCROLL_PAD: float = 8.0
 const LOG_INK: Color = Color(0.243137, 0.164706, 0.094118, 1.0)
 const LOG_MISS_INK: Color = Color(0.368627, 0.321569, 0.266667, 1.0)
 const LOG_THREAT_INK: Color = Color(0.556863, 0.227451, 0.141176, 1.0)
@@ -191,7 +192,10 @@ var _cancel_target_button: Button = null
 var _ability_buttons: Array[Button] = []
 var _ability_row: HBoxContainer = null
 var _log_panel: Control = null
+var _log_scroll: ScrollContainer = null
+var _log_list: VBoxContainer = null
 var _log_labels: Array[Label] = []
+var _log_follow_tail: bool = true
 var _result_label: Label = null
 var _target_layer: Control = null
 var _strike_for_me_toggle: Button = null
@@ -744,6 +748,7 @@ func playback_show_float(event: Dictionary) -> void:
 func show_fight(fight: FightState) -> void:
 	if _fighters == null or _arena == null:
 		return
+	_sync_fight_depth_from_reach()
 	_clear_fight_ui()
 	if _playback != null:
 		# Any fight shown here gets playback bound, not just start_test_fight's.
@@ -840,6 +845,7 @@ func _clear_fight_ui() -> void:
 	if _result_label != null:
 		_result_label.text = ""
 	_log_reveal_count = 0
+	_log_follow_tail = true
 	if _playback != null:
 		_playback.reset_for_fight()
 	_hide_action_menu()
@@ -1805,7 +1811,16 @@ func _build_top_bar() -> void:
 	_arena.add_child(_round_banner)
 
 
+func _sync_fight_depth_from_reach() -> void:
+	if not _reach_mode:
+		return
+	var reach: Node = get_node_or_null("/root/Reach")
+	if reach != null and bool(reach.get("running")):
+		_fight_depth = maxi(1, int(reach.get("depth")))
+
+
 func _refresh_fight_hud() -> void:
+	_sync_fight_depth_from_reach()
 	if _depth_hud_label != null:
 		_depth_hud_label.text = "Depth %d" % _fight_depth
 	if _round_hud_label != null:
@@ -1985,19 +2000,24 @@ func _build_fight_hud() -> void:
 	parchment.position = Vector2(-2.0, -2.0)
 	parchment.size = LOG_PANEL_RECT.size + Vector2(4.0, 4.0)
 	_log_panel.add_child(parchment)
+	_log_scroll = ScrollContainer.new()
+	_log_scroll.name = "LogScroll"
+	_log_scroll.position = Vector2(LOG_SCROLL_PAD, LOG_SCROLL_PAD)
+	_log_scroll.size = LOG_PANEL_RECT.size - Vector2(LOG_SCROLL_PAD * 2.0, LOG_SCROLL_PAD * 2.0)
+	_log_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_log_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_log_scroll.follow_focus = false
+	_log_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	if not _log_scroll.gui_input.is_connected(_on_log_scroll_gui_input):
+		_log_scroll.gui_input.connect(_on_log_scroll_gui_input)
+	_log_panel.add_child(_log_scroll)
+	_log_list = VBoxContainer.new()
+	_log_list.name = "LogList"
+	_log_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_log_list.add_theme_constant_override("separation", 2)
+	_log_scroll.add_child(_log_list)
 	for i: int in LOG_LINE_COUNT:
-		var line := Label.new()
-		line.name = "LogLine%d" % i
-		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		line.clip_text = true
-		line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		line.position = Vector2(10.0, 3.0 + 19.0 * float(i))
-		line.size = Vector2(LOG_PANEL_RECT.size.x - 20.0, 19.0)
-		line.add_theme_font_size_override("font_size", 12)
-		line.add_theme_color_override("font_color", LOG_INK)
-		_log_panel.add_child(line)
-		_log_labels.append(line)
+		_log_labels.append(_make_log_line_label(i))
 	_action_menu = Control.new()
 	_action_menu.name = "ActionMenu"
 	_action_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2230,22 +2250,70 @@ func _show_fight_result() -> void:
 			_result_label.text = outcome
 
 
+func _make_log_line_label(index: int) -> Label:
+	var line := Label.new()
+	line.name = "LogLine%d" % index
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.autowrap_mode = TextServer.AUTOWRAP_OFF
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.custom_minimum_size.x = LOG_PANEL_RECT.size.x - 20.0 - LOG_SCROLL_PAD * 2.0
+	line.add_theme_font_size_override("font_size", 12)
+	line.add_theme_color_override("font_color", LOG_INK)
+	if _log_list != null:
+		_log_list.add_child(line)
+	return line
+
+
+func _ensure_log_line_labels(need: int) -> void:
+	while _log_labels.size() < need:
+		_log_labels.append(_make_log_line_label(_log_labels.size()))
+
+
+func _on_log_scroll_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_log_follow_tail = false
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			call_deferred("_sync_log_follow_from_scroll")
+
+
+func _sync_log_follow_from_scroll() -> void:
+	if _log_scroll == null:
+		return
+	var bar: VScrollBar = _log_scroll.get_v_scroll_bar()
+	if bar == null:
+		return
+	_log_follow_tail = bar.max_value <= 0.0 or bar.value >= bar.max_value - 2.0
+
+
+func _scroll_log_to_end() -> void:
+	if _log_scroll == null:
+		return
+	var bar: VScrollBar = _log_scroll.get_v_scroll_bar()
+	if bar != null:
+		bar.value = bar.max_value
+
+
 func _update_log_panel() -> void:
-	if _fight == null or _log_labels.is_empty():
+	if _fight == null or _log_list == null:
 		return
 	var tail: Array = _fight.log_tail
 	var visible: int = tail.size()
 	if _playback != null and not _playback.instant:
 		visible = mini(_log_reveal_count, tail.size())
-	var start: int = maxi(0, visible - _log_labels.size())
-	var slice: Array = tail.slice(start, visible)
+	_ensure_log_line_labels(visible)
 	for i: int in _log_labels.size():
-		if i < slice.size():
-			var line_text: String = str(slice[i])
-			_log_labels[i].text = line_text
-			_log_labels[i].add_theme_color_override("font_color", _log_line_color(line_text))
+		var lbl: Label = _log_labels[i]
+		if i < visible:
+			var line_text: String = str(tail[i])
+			lbl.visible = true
+			lbl.text = line_text
+			lbl.add_theme_color_override("font_color", _log_line_color(line_text))
 		else:
-			_log_labels[i].text = ""
+			lbl.visible = false
+			lbl.text = ""
+	if _log_follow_tail:
+		call_deferred("_scroll_log_to_end")
 
 
 func _log_line_color(line_text: String) -> Color:

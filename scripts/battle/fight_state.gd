@@ -8,7 +8,7 @@ extends RefCounted
 
 const RESOLVER_VERSION: int = 1
 const WEAVE_BASE: int = 30
-const LOG_TAIL_MAX: int = 20
+const LOG_TAIL_MAX: int = 200
 const ROUND_CAP: int = 60
 const BEASTS_PATH: String = "res://data/beasts.json"
 

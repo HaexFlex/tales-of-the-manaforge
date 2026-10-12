@@ -58,16 +58,21 @@ static func _strike_line(event: Dictionary, fight: FightState) -> String:
 	var band: String = str(event.get("band", ""))
 	var attacker: String = _fighter_name(fight, str(event.get("actor", "")))
 	var defender: String = _fighter_name(fight, str(event.get("target", "")))
-	var atk: String = _attack_total_label(event)
-	var def: String = _defense_total_label(event)
+	var roll: String = _attack_roll_label(event)
+	var target: String = _defense_target_label(event)
 	if band == "miss":
-		return _text("adv_log_miss", {"attacker": attacker, "atk": atk, "defender": defender, "def": def})
+		return _text("adv_log_miss", {
+			"attacker": attacker,
+			"defender": defender,
+			"roll": roll,
+			"target": target,
+		})
 	var result_word: String = _band_word(band)
 	var line: String = _text("adv_log_strike", {
 		"attacker": attacker,
-		"atk": atk,
 		"defender": defender,
-		"def": def,
+		"roll": roll,
+		"target": target,
 		"result": result_word,
 		"damage": str(event.get("damage", 0)),
 	})
@@ -77,6 +82,24 @@ static func _strike_line(event: Dictionary, fight: FightState) -> String:
 	if absorbed > 0:
 		line += _text("adv_log_shield_suffix", {"amount": str(absorbed)})
 	return line
+
+
+static func _attack_roll_label(event: Dictionary) -> String:
+	var dice: int = int(event.get("attack_dice", 0))
+	var stat: int = int(event.get("attack_stat", 0))
+	var mod: int = int(event.get("attack_mod", 0))
+	var bonus: int = stat + mod
+	if bonus != 0:
+		return "2d6 %d + %d" % [dice, bonus]
+	return "2d6 %d" % dice
+
+
+static func _defense_target_label(event: Dictionary) -> String:
+	var total: int = int(event.get("defense_total", 0))
+	var faces_v: Variant = event.get("defense_faces", [])
+	if faces_v is Array and (faces_v as Array).size() == 3:
+		return "%d %s" % [total, _defense_total_label(event)]
+	return str(total)
 
 
 static func _attack_total_label(event: Dictionary) -> String:
@@ -162,8 +185,8 @@ static func _text(key: String, tokens: Dictionary) -> String:
 
 static func _fallback(key: String, tokens: Dictionary) -> String:
 	var table: Dictionary = {
-		"adv_log_strike": "{attacker} {atk} vs {defender} {def} → {result} for {damage}",
-		"adv_log_miss": "{attacker} {atk} vs {defender} {def} → miss",
+		"adv_log_strike": "{attacker} strikes {defender}: {roll} vs {target}, {result}, {damage} dmg",
+		"adv_log_miss": "{attacker} strikes {defender}: {roll} vs {target}, miss",
 		"adv_band_graze": "graze",
 		"adv_band_hit": "hit",
 		"adv_band_crush": "crushing blow",
