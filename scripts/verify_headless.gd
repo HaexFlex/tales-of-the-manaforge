@@ -1029,6 +1029,16 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_WATER_RMB") == "1":
+		var water_rmb_failed: int = await _manatree_water_rmb_cancel(tree_root, game_state)
+		if water_rmb_failed > 0:
+			print("MANATREE_WATER_RMB_FAIL: %d" % water_rmb_failed)
+			quit(1)
+		else:
+			print("MANATREE_WATER_RMB_OK")
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_CRAFT_DURATION") == "1":
 		var duration_label_failed: int = await _craft_duration_labels(tree_root, game_state, backpack)
 		if duration_label_failed > 0:
@@ -2374,8 +2384,24 @@ func _run() -> void:
 			var expect_r: float = 0.0
 			if mana and mana.has_method("wisp_orbit_radius"):
 				expect_r = float(mana.call("wisp_orbit_radius"))
-			failed += _assert(abs(node_r - expect_r) < 0.01, "stacked orbit uses the trunk radius (got %s want %s)" % [node_r, expect_r])
+			failed += _assert(abs(node_r - expect_r) < 0.01, "stacked orbit uses the trunk ry (got %s want %s)" % [node_r, expect_r])
+			game_state.set("stage_id", StringName("elder"))
+			var elder_ry: float = float(mana.call("wisp_orbit_radius")) if mana != null else 0.0
+			var elder_rx: float = elder_ry * 0.5
+			if mana != null and mana.has_method("wisp_orbit_radii"):
+				var radii: Vector2 = mana.call("wisp_orbit_radii")
+				elder_rx = radii.x
+				elder_ry = radii.y
 			var orbit_jobs: Node = get_root().get_node_or_null("ForgeJobs")
+			if orbit_jobs:
+				orbit_jobs.call("debug_set_wisp_orbit_phase", 0.0)
+			for wo_side: Node in wisp_orbs:
+				if wo_side.has_method("place_on_shared_orbit"):
+					wo_side.call("place_on_shared_orbit")
+				if mana != null:
+					var dx: float = absf(float(wo_side.global_position.x) - float(mana.global_position.x))
+					failed += _assert(dx < elder_rx + 24.0, "elder orbit |x| stays near rx (got %.1f rx %.1f)" % [dx, elder_rx])
+					failed += _assert(dx < elder_ry * 0.6, "elder orbit |x| is about half the old circle")
 			if orbit_jobs:
 				orbit_jobs.call("debug_set_wisp_orbit_phase", 0.4)
 			var behind: int = 0
@@ -2748,10 +2774,27 @@ func _run() -> void:
 	failed += _assert(int(backpack.call("get_count", "fertilizer")) == 1, "fertilizer stacked")
 	failed += _assert(int(game_state.get("manashards")) == shards_pre_fert, "fertilizer ignores manashards")
 
+	# Stone tool heads: craft once (head or finished tool blocks the recipe)
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	backpack.call("set_count", "stone_fragments", 10)
+	failed += _assert(str(backpack.call("try_craft", "axe_head")) == "ok", "craft axe head once")
+	failed += _assert(str(backpack.call("try_craft", "axe_head")) == "unique", "second axe head blocked")
+	game_state.call("reset_for_new_game")
+	backpack.call("reset_for_new_game")
+	backpack.call("set_count", "stone_fragments", 10)
+	failed += _assert(str(backpack.call("try_craft", "pickaxe_head")) == "ok", "craft pickaxe head once")
+	failed += _assert(str(backpack.call("craft_block_reason", "pickaxe_head")) == "unique", "pickaxe head locked after craft")
+	backpack.call("set_count", "pickaxe_head", 0)
+	backpack.call("set_count", "wooden_tool_rod", 1)
+	backpack.call("set_count", "pickaxe_head", 1)
+	failed += _assert(str(backpack.call("try_craft", "stone_pickaxe")) == "ok", "craft pickaxe for head lock test")
+	failed += _assert(str(backpack.call("craft_block_reason", "pickaxe_head")) == "unique", "pickaxe head blocked when tool owned")
+
 	# Unique tools: own 1
 	game_state.call("reset_for_new_game")
 	backpack.call("set_count", "wooden_tool_rod", 2)
-	backpack.call("set_count", "axe_head", 2)
+	backpack.call("set_count", "axe_head", 1)
 	failed += _assert(str(backpack.call("try_craft", "stone_axe")) == "ok", "craft stone axe")
 	failed += _assert(int(backpack.call("get_count", "stone_axe")) == 1, "axe unique 1")
 	failed += _assert(str(backpack.call("try_craft", "stone_axe")) == "unique", "second axe blocked")
@@ -3413,7 +3456,12 @@ func _run() -> void:
 			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "confirm spend raises might by 1")
 			failed += _assert(int(keeper_stats.call("get_base", "might")) == 6, "confirm spend base is 5 + 1")
 			failed += _assert(int(game_state.get("manashards")) == 0, "confirm spent 100 shards")
-			failed += _assert(not bool(might_stone.call("is_spend_confirm_open")), "confirm closes after raise")
+			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm stays open after raise")
+			game_state.call("set_resource", &"manashards", 500)
+			failed += _assert(str(might_stone.call("confirm_spend")) == "ok", "confirm buys might twice")
+			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 2, "second raise bumps rank")
+			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm still open for another raise")
+			might_stone.call("cancel_spend")
 		var v6_state: Dictionary = game_state.call("to_save_dict")
 		v6_state["backpack"] = {"fertilizer": 4, "weapon_rod": 2, "wooden_planks": 3}
 		v6_state["keeper_stats"] = {"might": 3}
@@ -3489,6 +3537,7 @@ func _run() -> void:
 	failed += await _workbench_wisp_visible(tree_root, game_state, save_service)
 	failed += _forged_item_any_character(tree_root)
 	failed += _workbench_north_route()
+	failed += await _manatree_water_rmb_cancel(tree_root, game_state)
 	failed += await _craft_duration_labels(tree_root, game_state, backpack)
 	failed += await _forge_entry_one_click(tree_root, game_state, save_service)
 	failed += await _batch_refund(tree_root, game_state, save_service, backpack, content_strings)
@@ -7899,10 +7948,15 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 	if wisp != null and wisp.has_method("place_on_shared_orbit"):
 		wisp.call("place_on_shared_orbit")
 	var center: Vector2 = bench.call("wisp_orbit_center") if bench != null else Vector2.ZERO
-	var radius: float = float(bench.call("wisp_orbit_radius")) if bench != null else 0.0
-	if wisp != null:
-		var gap: float = wisp.global_position.distance_to(center)
-		failed += _assert(absf(gap - radius) < 20.0, "workbench wisp orbits the bench (off %.1f radius %.1f)" % [gap, radius])
+	var ry_bench: float = float(bench.call("wisp_orbit_radius")) if bench != null else 0.0
+	var rx_bench: float = ry_bench * 0.5
+	if wisp != null and bench != null:
+		jobs.call("debug_set_wisp_orbit_phase", 0.0)
+		wisp.call("place_on_shared_orbit")
+		var dx: float = wisp.global_position.x - center.x
+		var dy: float = wisp.global_position.y - center.y
+		var ell: float = (dx * dx) / (rx_bench * rx_bench) + (dy * dy) / (ry_bench * ry_bench)
+		failed += _assert(absf(ell - 1.0) < 0.35, "workbench wisp sits on the ellipse (e %.2f)" % ell)
 		failed += _assert(wisp.visible, "workbench wisp stays visible on the ring")
 	var mana: Node = live.get_node_or_null("World/Manatree")
 	failed += _assert(mana != null and mana.has_method("wisp_orbit_radius"), "manatree orbit")
@@ -7931,21 +7985,25 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 	wisp = get_first_node_in_group("wisp") as Node2D
 	failed += _assert(wisp != null and wisp.visible, "station wisp is in the forge")
 	if station != null and wisp != null:
-		var shown: Vector2 = station.call("_sprite_shown_size")
-		var half_w: float = shown.x * 0.5
+		var orbit_center: Vector2 = station.call("wisp_orbit_center")
+		var ry_station: float = float(station.call("wisp_orbit_radius"))
+		var rx_station: float = ry_station * 0.5
 		jobs.call("debug_set_wisp_orbit_phase", 0.0)
 		wisp.call("place_on_shared_orbit")
 		failed += _assert(int(wisp.z_index) >= 1, "east side stays in front")
-		failed += _assert(wisp.global_position.x > station.global_position.x + half_w, "east side clears the sprite")
+		failed += _assert(wisp.global_position.x > orbit_center.x + rx_station * 0.85, "east side sits on the ellipse arc")
 		jobs.call("debug_set_wisp_orbit_phase", PI)
 		wisp.call("place_on_shared_orbit")
 		failed += _assert(int(wisp.z_index) >= 1, "west side stays in front")
-		failed += _assert(wisp.global_position.x < station.global_position.x - half_w, "west side clears the sprite")
+		failed += _assert(wisp.global_position.x < orbit_center.x - rx_station * 0.85, "west side sits on the ellipse arc")
 		jobs.call("debug_set_wisp_orbit_phase", PI * 0.5)
 		wisp.call("place_on_shared_orbit")
 		failed += _assert(int(wisp.z_index) >= 2, "south side draws in front of the station")
 		failed += _assert(wisp.global_position.y > station.global_position.y, "south side is in front of the station feet")
 		failed += _assert(wisp.visible, "south side stays visible")
+		jobs.call("debug_set_wisp_orbit_phase", -PI * 0.5)
+		wisp.call("place_on_shared_orbit")
+		failed += _assert(wisp.global_position.y < orbit_center.y - ry_station * 0.85, "north arc keeps the top orbit point")
 	_drop_current_scene()
 	game_state.call("reset_for_new_game")
 	jobs.call("reset_for_new_game")
@@ -7992,19 +8050,58 @@ func _forged_item_any_character(tree_root: Window) -> int:
 	return failed
 
 
+func _manatree_water_rmb_cancel(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed != null else null
+	failed += _assert(live != null, "hub for water RMB cancel")
+	if live == null:
+		return failed
+	tree_root.add_child(live)
+	await process_frame
+	await process_frame
+	game_state.call("select_keeper")
+	var mana: Node = live.get_node_or_null("World/Manatree")
+	var keeper: Node = live.get_node_or_null("World/Keeper")
+	failed += _assert(mana != null and keeper != null, "manatree and keeper present")
+	if mana != null and keeper != null:
+		var keeper_cls = load("res://scripts/keeper.gd")
+		var footprint: Rect2 = mana.call("work_footprint")
+		var solved: Dictionary = keeper_cls.solve_work_spot(footprint, mana.global_position, "manatree", Callable())
+		keeper.global_position = solved.get("position", keeper.global_position)
+		keeper.call("start_water_channel", mana)
+		await process_frame
+		failed += _assert(bool(keeper.call("is_channeling")), "keeper channels water")
+		failed += _assert(bool(mana.get("_watering")), "tree shows watering")
+		mana.call("apply_player_command")
+		failed += _assert(not bool(keeper.call("is_channeling")), "RMB cancels water channel")
+		failed += _assert(not bool(mana.get("_watering")), "tree watering flag clears")
+		mana.call("do_water")
+		await process_frame
+		failed += _assert(bool(keeper.call("is_channeling")), "Water button resumes channel")
+	live.queue_free()
+	return failed
+
+
 func _workbench_north_route() -> int:
 	var failed: int = 0
 	var keeper_cls: GDScript = load("res://scripts/keeper.gd") as GDScript
 	failed += _assert(keeper_cls != null, "keeper script for the bench route")
 	if keeper_cls == null:
 		return failed
-	var footprint := Rect2(Vector2(100, 100), Vector2(176, 104))
-	var spot := Vector2(footprint.get_center().x, footprint.position.y + footprint.size.y + 28.0)
+	var footprint := Rect2(Vector2(100, 100), Vector2(176, 88))
+	var spot := Vector2(footprint.get_center().x, footprint.position.y + footprint.size.y + 56.0)
 	var from_west: Array = keeper_cls.call("bench_approach_route", Vector2(120, 40), spot, footprint)
 	var from_east: Array = keeper_cls.call("bench_approach_route", Vector2(280, 40), spot, footprint)
+	var from_north: Array = keeper_cls.call("bench_approach_route", Vector2(spot.x, footprint.position.y - 40.0), spot, footprint)
+	var from_side_west: Array = keeper_cls.call("bench_approach_route", Vector2(footprint.position.x - 20.0, spot.y - 20.0), spot, footprint)
+	var from_side_east: Array = keeper_cls.call("bench_approach_route", Vector2(footprint.position.x + footprint.size.x + 20.0, spot.y - 20.0), spot, footprint)
 	var from_south: Array = keeper_cls.call("bench_approach_route", Vector2(spot.x, spot.y + 40.0), spot, footprint)
 	failed += _assert(from_west.size() >= 2, "north-west approach has a waypoint")
 	failed += _assert(from_east.size() >= 2, "north-east approach has a waypoint")
+	failed += _assert(from_north.size() >= 2, "due-north approach has a waypoint")
+	failed += _assert(from_side_west.size() >= 2, "west apron approach has a waypoint")
+	failed += _assert(from_side_east.size() >= 2, "east apron approach has a waypoint")
 	if from_west.size() >= 2 and from_east.size() >= 2:
 		var west_pt: Vector2 = from_west[0]
 		var east_pt: Vector2 = from_east[0]
@@ -8014,6 +8111,8 @@ func _workbench_north_route() -> int:
 		failed += _assert(east_pt.x > footprint.position.x + footprint.size.x, "north-east route uses the east side")
 		failed += _assert(west_end.distance_to(spot) <= 0.1 and east_end.distance_to(spot) <= 0.1, "both routes end on the south stand")
 	failed += _assert(from_south.size() == 1, "a south approach goes straight to the stand")
+	var apron: Array = keeper_cls.call("bench_approach_route", Vector2(spot.x, footprint.position.y + footprint.size.y + 12.0), spot, footprint)
+	failed += _assert(apron.size() >= 2, "north of the stand but south of the table still flanks")
 	if failed == 0:
 		print("WORKBENCH_NORTH_ROUTE_OK")
 	return failed

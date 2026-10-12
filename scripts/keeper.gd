@@ -26,6 +26,7 @@ var _outline_mat: ShaderMaterial
 
 const OUTLINE_SHADER: Shader = preload("res://assets/art/ui/select_outline.gdshader")
 const ARRIVE_DIST: float = 12.0
+const KEEPER_SHOULDER_OFFSET: Vector2 = Vector2(0, -56)
 const INTERACT_DIST: float = 64.0
 const BODY_SIZE: Vector2 = Vector2(128, 128)
 const IDLE_HOLD_MS: float = 140.0
@@ -861,7 +862,10 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 	_apply_solved(target, solve_type, solved)
 	_suppress_work_clear = true
 	if solve_type == "bench" and target.has_method("work_footprint"):
-		var route: Array[Vector2] = bench_approach_route(global_position, _work_spot, target.call("work_footprint"))
+		var route_fp: Rect2 = target.call("work_footprint")
+		if target.has_method("bench_route_footprint"):
+			route_fp = target.call("bench_route_footprint")
+		var route: Array[Vector2] = bench_approach_route(global_position, _work_spot, route_fp)
 		move_along(route, target)
 	else:
 		move_to(_work_spot, target)
@@ -1131,7 +1135,8 @@ static func bench_approach_route(from: Vector2, spot: Vector2, footprint: Rect2)
 	## into the legs, so the walk goes out to the side the hero came from, then south.
 	var points: Array[Vector2] = []
 	var south_edge: float = footprint.position.y + footprint.size.y
-	if from.y >= south_edge - 4.0:
+	var at_stand: bool = from.y >= spot.y - 8.0 and absf(from.x - spot.x) < 32.0
+	if at_stand:
 		points.append(spot)
 		return points
 	var center_x: float = footprint.get_center().x
@@ -1241,6 +1246,22 @@ func get_channel_kind() -> StringName:
 			return &"water"
 		_:
 			return &""
+
+
+func get_channel_target() -> Node:
+	return _channel_target
+
+
+func wisp_orbit_draws_in_front() -> bool:
+	return true
+
+
+func wisp_orbit_center() -> Vector2:
+	return global_position + KEEPER_SHOULDER_OFFSET
+
+
+func wisp_orbit_radius() -> float:
+	return 56.0
 
 
 func _channel_stand_pos(target: Node) -> Vector2:
