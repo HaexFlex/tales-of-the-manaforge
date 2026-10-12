@@ -58,7 +58,7 @@ func _build() -> void:
 	add_child(dim)
 	var panel: NinePatchRect = _nine_patch("Panel", KIT_DIR + "frame_9s_96.png", FRAME_9S, PANEL_ORIGIN, Vector2(880, 600))
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.clip_contents = true
+	panel.clip_contents = false  # the title plate and vines sit above the panel edge
 	add_child(panel)
 	_build_panel(panel)
 
