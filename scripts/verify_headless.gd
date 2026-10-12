@@ -1036,6 +1036,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_KEEPER_EQUIP") == "1":
+		var keeper_equip_failed: int = await _keeper_equip_ok(tree_root, game_state)
+		if keeper_equip_failed > 0:
+			print("KEEPER_EQUIP_FAIL: %d" % keeper_equip_failed)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_WORKBENCH_ROUTE") == "1":
 		var route_failed: int = _workbench_north_route()
 		if route_failed > 0:
@@ -3566,6 +3575,7 @@ func _run() -> void:
 	failed += await _workbench_panel_no_pause(tree_root, game_state)
 	failed += await _workbench_wisp_visible(tree_root, game_state, save_service)
 	failed += _forged_item_any_character(tree_root)
+	failed += await _keeper_equip_ok(tree_root, game_state)
 	failed += _workbench_north_route()
 	failed += await _manatree_water_rmb_cancel(tree_root, game_state)
 	failed += await _craft_duration_labels(tree_root, game_state, backpack)
@@ -8045,6 +8055,67 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 		print("WORKBENCH_WISP_VISIBLE_OK")
 		print("STATION_WISP_ORBIT_OK")
 		print("MANATREE_ELDER_ORBIT_OK")
+	return failed
+
+
+func _keeper_equip_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var equipment: Node = tree_root.get_node_or_null("Equipment")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	failed += _assert(equipment != null and backpack != null, "keeper equip autoloads")
+	if equipment == null or backpack == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	equipment.call("reset_for_new_game")
+	var hud_packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(hud_packed != null, "keeper equip hud scene")
+	if hud_packed == null:
+		return failed
+	var hud: Node = hud_packed.instantiate()
+	tree_root.add_child(hud)
+	await process_frame
+	var sheet: Node = hud.get_node("CharacterSheet")
+	sheet.call("open_sheet", "keeper")
+	await process_frame
+	failed += await _keeper_equip_click_ok(sheet, equipment, "thornbow", "debug grant")
+	failed += await _keeper_equip_click_ok(sheet, equipment, "stone_sword", "crafted")
+	hud.queue_free()
+	await process_frame
+	if failed == 0:
+		print("KEEPER_EQUIP_OK")
+	return failed
+
+
+func _keeper_equip_click_ok(sheet: Node, equipment: Node, item_id: String, tag: String) -> int:
+	var failed: int = 0
+	equipment.call("try_unequip", "weapon", "keeper")
+	equipment.call("reset_for_new_game")
+	if tag == "crafted":
+		var gs: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("GameState")
+		if gs != null:
+			gs.call("set_resource", &"wood", 30)
+		for _i: int in range(10):
+			(Engine.get_main_loop() as SceneTree).root.get_node("Backpack").call("try_craft", "wooden_planks")
+		(Engine.get_main_loop() as SceneTree).root.get_node("Backpack").call("set_count", "stone_fragments", 30)
+		failed += _assert(str(equipment.call("try_craft", "weapon_rod")) == "ok", "%s: craft rod" % tag)
+		failed += _assert(str(equipment.call("try_craft", item_id)) == "ok", "%s: craft sword" % tag)
+	else:
+		failed += _assert(bool(equipment.call("add_gear", item_id, 1)), "%s: add_gear" % tag)
+	await process_frame
+	var gear_list: Node = sheet.get_node("SheetFit/Sheet/GearColumn/GearScroll/GearList")
+	failed += _assert(gear_list.get_child_count() >= 1, "%s: bag lists item" % tag)
+	var row: Node = gear_list.get_child(0)
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	row.call("_gui_input", press)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.pressed = false
+	row.call("_gui_input", release)
+	await process_frame
+	await process_frame
+	failed += _assert(str(equipment.call("equipped_id_for", "keeper", "weapon")) == item_id, "%s: keeper wears item after click" % tag)
 	return failed
 
 
@@ -13364,9 +13435,9 @@ func _resolver_log() -> int:
 	for doc_v: Variant in cases.get("doc_cases", []) as Array:
 		var doc: Dictionary = doc_v as Dictionary
 		by_id[str(doc.get("id", ""))] = doc
-	var line1: String = "Keeper strikes Acorn imp: 2d6 7 + 11 vs 11, crushing blow, 24 dmg"
-	var line2: String = "Acorn imp strikes Keeper: 2d6 6 + 7 vs 13, graze, 4 dmg"
-	var line4_suffix: String = "crushing blow, 52 dmg (Fate crit)"
+	var line1: String = "Keeper strikes Acorn imp: Hit 18 vs 11 · Dmg 24 (d6+11), crushing blow"
+	var line2: String = "Acorn imp strikes Keeper: Hit 13 vs 13 · Dmg 4 (d4+7), graze"
+	var line4_suffix: String = "Dmg 52 (d6+11), crushing blow (Fate crit)"
 	var seen_kinds: Dictionary = {}
 	for cid: String in ["s4_line1", "s4_line2", "s4_line4"]:
 		failed += _assert(by_id.has(cid), "fixture %s" % cid)
@@ -13405,7 +13476,7 @@ func _resolver_log() -> int:
 		_resolver_log_collect_events(braced.get("events", []) as Array, seen_kinds)
 		var braced_blow: Dictionary = brace_fight.step({})
 		_resolver_log_collect_events(braced_blow.get("events", []) as Array, seen_kinds)
-		failed += _assert(_resolver_log_has_line(brace_fight, "[6,5,1 → 6+5]"), "braced miss shows kept dice")
+		failed += _assert(_resolver_log_has_line(brace_fight, "Hit 16 vs 17 · miss"), "braced miss shows hit totals")
 		failed += _assert(_resolver_log_has_line(brace_fight, "Keeper braces (3d6 keep 2, damage halved)"), "brace line uses the §4 wording")
 	var hit_fight: FightState = FightStateScript.new()
 	hit_fight.add_member("keeper", {
@@ -13428,7 +13499,7 @@ func _resolver_log() -> int:
 	failed += _assert(bool(hit_ev.get("braced", false)) and str(hit_ev.get("band", "miss")) != "miss", "braced hit lands")
 	failed += _assert(raw > 1 and landed == maxi(1, BattleResolver.round_half_up(raw, 1, 2)), "braced hit: damage is resolver_damage halved (%d from %d)" % [landed, raw])
 	failed += _assert(hp_lost + int(hit_ev.get("shield_absorbed", 0)) == landed, "braced hit: damage is what lands before the shield")
-	failed += _assert(_resolver_log_has_line(hit_fight, "[2,1,1 → 2+1]") and _resolver_log_has_line(hit_fight, ", %d dmg" % landed), "braced hit line: bracketed dice, halved damage")
+	failed += _assert(_resolver_log_has_line(hit_fight, "Hit 19 vs 9") and _resolver_log_has_line(hit_fight, "Dmg %d (d4+7)" % landed), "braced hit line shows hit and damage rolls")
 	print("RESOLVER_LOG braced hit line: ", hit_fight.log_tail[hit_fight.log_tail.size() - 1])
 	var salve_fight: FightState = FightStateScript.new()
 	salve_fight.add_member("keeper", _resolver_tank(8), 0, "front", "keeper")

@@ -2,6 +2,8 @@ class_name BattleLog
 extends RefCounted
 ## Pure log lines for fight events. Reads copy through ContentStrings when present.
 
+const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
+
 
 static func line_for(event: Dictionary, fight: FightState) -> String:
 	var kind: String = str(event.get("kind", ""))
@@ -58,23 +60,24 @@ static func _strike_line(event: Dictionary, fight: FightState) -> String:
 	var band: String = str(event.get("band", ""))
 	var attacker: String = _fighter_name(fight, str(event.get("actor", "")))
 	var defender: String = _fighter_name(fight, str(event.get("target", "")))
-	var roll: String = _attack_roll_label(event)
-	var target: String = _defense_target_label(event)
+	var hit_total: String = str(int(event.get("attack_total", 0)))
+	var defense_total: String = str(int(event.get("defense_total", 0)))
 	if band == "miss":
 		return _text("adv_log_miss", {
 			"attacker": attacker,
 			"defender": defender,
-			"roll": roll,
-			"target": target,
+			"hit_total": hit_total,
+			"defense_total": defense_total,
 		})
 	var result_word: String = _band_word(band)
 	var line: String = _text("adv_log_strike", {
 		"attacker": attacker,
 		"defender": defender,
-		"roll": roll,
-		"target": target,
+		"hit_total": hit_total,
+		"defense_total": defense_total,
 		"result": result_word,
 		"damage": str(event.get("damage", 0)),
+		"dmg_roll": _damage_roll_label(event),
 	})
 	if bool(event.get("fate_crit", false)):
 		line += _text("adv_log_crit_suffix", {})
@@ -82,6 +85,12 @@ static func _strike_line(event: Dictionary, fight: FightState) -> String:
 	if absorbed > 0:
 		line += _text("adv_log_shield_suffix", {"amount": str(absorbed)})
 	return line
+
+
+static func _damage_roll_label(event: Dictionary) -> String:
+	var offense: int = int(event.get("attack_stat", 0))
+	var sides: int = BattleResolverScript.die_size(offense)
+	return "d%d+%d" % [sides, offense]
 
 
 static func _attack_roll_label(event: Dictionary) -> String:
@@ -185,8 +194,8 @@ static func _text(key: String, tokens: Dictionary) -> String:
 
 static func _fallback(key: String, tokens: Dictionary) -> String:
 	var table: Dictionary = {
-		"adv_log_strike": "{attacker} strikes {defender}: {roll} vs {target}, {result}, {damage} dmg",
-		"adv_log_miss": "{attacker} strikes {defender}: {roll} vs {target}, miss",
+		"adv_log_strike": "{attacker} strikes {defender}: Hit {hit_total} vs {defense_total} · Dmg {damage} ({dmg_roll}), {result}",
+		"adv_log_miss": "{attacker} strikes {defender}: Hit {hit_total} vs {defense_total} · miss",
 		"adv_band_graze": "graze",
 		"adv_band_hit": "hit",
 		"adv_band_crush": "crushing blow",

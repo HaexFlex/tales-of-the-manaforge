@@ -114,8 +114,8 @@ func _ready() -> void:
 	_build()
 	call_deferred("_center_stat_glyphs")
 	var eq = CharacterSheet._auto("Equipment")
-	if eq != null and not eq.equipment_changed.is_connected(_refresh):
-		eq.equipment_changed.connect(_refresh)
+	if eq != null and not eq.equipment_changed.is_connected(_on_equipment_changed):
+		eq.equipment_changed.connect(_on_equipment_changed)
 	var stats = CharacterSheet._auto("KeeperStats")
 	if stats != null and not stats.ranks_changed.is_connected(_on_ranks):
 		stats.ranks_changed.connect(_on_ranks)
@@ -125,6 +125,12 @@ func _ready() -> void:
 func _on_ranks(_stat_id: StringName) -> void:
 	if visible:
 		_refresh_stats()
+
+
+func _on_equipment_changed() -> void:
+	## Bag clicks equip inside GearRow._gui_input; rebuilding the list in the
+	## same frame tries to free the row that is still handling the click.
+	call_deferred("_refresh")
 
 
 func is_open() -> bool:
