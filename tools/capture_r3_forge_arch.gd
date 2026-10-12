@@ -26,6 +26,12 @@ func _run() -> void:
 	var elaia: Node2D = room.get_node_or_null("Elaia") as Node2D
 	if elaia:
 		elaia.visible = false
+	var hud: CanvasItem = room.get_node_or_null("HUD") as CanvasItem
+	if hud:
+		hud.visible = false
+	var pause: CanvasItem = room.get_node_or_null("PauseMenu") as CanvasItem
+	if pause:
+		pause.visible = false
 	DisplayServer.window_set_size(Vector2i(1280, 720))
 	for _i: int in 6:
 		await process_frame
