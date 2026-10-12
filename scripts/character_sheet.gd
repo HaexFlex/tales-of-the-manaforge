@@ -829,8 +829,10 @@ func _refresh_inventory() -> void:
 	var rows: Array[Dictionary] = []
 	for inst: Dictionary in CharacterSheet._auto("Equipment").list_for_sheet(_actor_id):
 		var iid: String = str(inst.get("id", ""))
-		if _gear_tab == "weapons" and CharacterSheet._auto("Equipment").item_slot(iid) != "weapon":
-			continue
+		if _gear_tab == "weapons":
+			var eq = CharacterSheet._auto("Equipment")
+			if not eq.call("is_equippable", iid) or str(eq.call("item_slot", iid)) != "weapon":
+				continue
 		rows.append(inst)
 	if rows.is_empty():
 		var empty := Label.new()

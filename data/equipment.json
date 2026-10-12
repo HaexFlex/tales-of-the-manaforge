@@ -77,7 +77,7 @@
       "display_name": "Weapon Rod",
       "string_key": "weapon_rod_name",
       "tooltip_key": "weapon_rod_tooltip",
-      "slot": "weapon",
+      "slot": "",
       "category": "refined",
       "unique": false,
       "users": ["keeper", "elaia"],

@@ -273,8 +273,17 @@ func is_unique_item(item_id: String) -> bool:
 
 
 func item_fits_slot(item_id: String, slot_id: String) -> bool:
+	if not is_equippable(item_id):
+		return false
 	var slot: String = item_slot(item_id)
 	return is_known_item(item_id) and slot != "" and slot == _canonical_slot(slot_id)
+
+
+func is_equippable(item_id: String) -> bool:
+	## Craft intermediates (refined materials) stay in the gear bag only.
+	if str(get_item_def(item_id).get("category", "")) == "refined":
+		return false
+	return item_slot(item_id) != ""
 
 
 func _normalize_actor(actor: String) -> String:
@@ -403,6 +412,8 @@ func try_equip(item_id: String, actor: String = "keeper") -> String:
 func try_equip_to_slot(item_id: String, slot_id: String, actor: String = "keeper") -> String:
 	if not is_known_item(item_id):
 		return "missing"
+	if not is_equippable(item_id):
+		return "wrong_slot"
 	var sid: String = _canonical_slot(slot_id)
 	if not is_known_slot(sid):
 		return "missing"
