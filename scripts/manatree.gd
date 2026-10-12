@@ -502,18 +502,18 @@ func wisp_orbit_center() -> Vector2:
 
 
 func wisp_orbit_radius() -> float:
-	## Vertical semi-axis of the orbit ellipse (ry). Elder uses a wide canopy ring.
+	## Vertical semi-axis (ry) of the wide manatree orbit ellipse.
 	return wisp_orbit_radii().y
 
 
 func wisp_orbit_radii() -> Vector2:
 	if String(GameState.stage_id) == "elder":
-		return Vector2(140.0, 280.0)
+		return Vector2(280.0, 140.0)
 	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
 	var ry: float = sz.x * 0.5 + 14.0
 	if has_node("/root/ForgeJobs"):
 		ry = ForgeJobs.wisp_orbit_radius_for_size(Vector2(sz.x, sz.y / 3.0))
-	return Vector2(ry * 0.5, ry)
+	return Vector2(ry, ry * 0.5)
 
 
 func _apply_trunk(stage: String) -> void:

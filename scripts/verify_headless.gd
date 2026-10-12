@@ -2427,9 +2427,11 @@ func _run() -> void:
 				if wo_side.has_method("place_on_shared_orbit"):
 					wo_side.call("place_on_shared_orbit")
 				if mana != null:
-					var dx: float = absf(float(wo_side.global_position.x) - float(mana.global_position.x))
+					var center: Vector2 = mana.call("wisp_orbit_center")
+					var dx: float = absf(float(wo_side.global_position.x) - center.x)
+					var dy: float = absf(float(wo_side.global_position.y) - center.y)
 					failed += _assert(dx < elder_rx + 24.0, "elder orbit |x| stays near rx (got %.1f rx %.1f)" % [dx, elder_rx])
-					failed += _assert(dx < elder_ry * 0.6, "elder orbit |x| is about half the old circle")
+					failed += _assert(dy < elder_ry * 0.6, "elder orbit |y| stays near ry (wide ellipse)")
 			if orbit_jobs:
 				orbit_jobs.call("debug_set_wisp_orbit_phase", 0.4)
 			var behind: int = 0
@@ -17118,7 +17120,13 @@ func _keeper_away_hub_ok(tree_root: Window, game_state: Node, save_service: Node
 	game_state.call("select_group", [0], true)
 	failed += _assert(not bool(game_state.get("keeper_selected")), "select_group skips keeper")
 	var slot_keeper: Control = hud.get("_slot_keeper") as Control
-	failed += _assert(slot_keeper != null and not slot_keeper.visible, "keeper portrait hidden")
+	var keeper_portrait: CanvasItem = slot_keeper.get_node_or_null("Portrait") as CanvasItem if slot_keeper else null
+	var keeper_act: Label = hud.get("_keeper_activity") as Label
+	failed += _assert(slot_keeper != null and slot_keeper.visible, "keeper portrait stays in the bar")
+	failed += _assert(keeper_portrait != null and keeper_portrait.modulate.r < 0.55, "keeper portrait is greyed while away")
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	var adv_line: String = str(strings.call("get_text", "hud_activity_adventure", {"depth": int(reach.get("depth"))})) if strings else ""
+	failed += _assert(keeper_act != null and keeper_act.text.find(adv_line) >= 0, "keeper status shows the adventure line")
 	jobs.call("set_keeper_task", "harvest", "wood", true)
 	jobs.call("step_jobs", 10.0)
 	failed += _assert(int(game_state.get("wood")) == wood_before, "keeper harvest pays nothing while away")
@@ -17171,7 +17179,13 @@ func _party_away_hub_ok(tree_root: Window, game_state: Node, save_service: Node)
 	game_state.call("select_companion", "elaia")
 	failed += _assert(str(game_state.get("selected_companion_id")) != "elaia", "select elaia refused")
 	var slot_elaia: Control = hud.get("_slot_elaia") as Control
-	failed += _assert(slot_elaia != null and not slot_elaia.visible, "elaia portrait hidden")
+	var elaia_portrait: CanvasItem = slot_elaia.get_node_or_null("Portrait") as CanvasItem if slot_elaia else null
+	var elaia_act: Label = hud.get("_elaia_activity") as Label
+	failed += _assert(slot_elaia != null and slot_elaia.visible, "elaia portrait stays in the bar")
+	failed += _assert(elaia_portrait != null and elaia_portrait.modulate.r < 0.55, "elaia portrait is greyed while away")
+	var strings_away: Node = tree_root.get_node_or_null("ContentStrings")
+	var elaia_adv: String = str(strings_away.call("get_text", "hud_activity_adventure", {"depth": int(reach.get("depth"))})) if strings_away else ""
+	failed += _assert(elaia_act != null and elaia_act.text.find(elaia_adv) >= 0, "elaia status shows the adventure line")
 	game_state.call("select_keeper")
 	failed += _assert(bool(game_state.get("keeper_selected")), "keeper still selectable")
 	if keeper.has_method("move_to"):

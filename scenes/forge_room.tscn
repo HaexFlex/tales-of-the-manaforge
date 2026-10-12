@@ -30,7 +30,7 @@ texture = ExtResource("2_plate")
 [node name="ArchFront" type="Sprite2D" parent="."]
 z_index = 10
 texture_filter = 0
-position = Vector2(800, 1116)
+position = Vector2(805, 1087)
 scale = Vector2(1, 1)
 texture = ExtResource("13_arch")
 

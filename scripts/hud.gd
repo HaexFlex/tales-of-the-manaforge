@@ -752,6 +752,15 @@ func _set_party_outline(slot: Control, selected: bool) -> void:
 	frame.add_theme_stylebox_override("panel", style)
 
 
+func _set_party_away_visual(slot: Control, away: bool) -> void:
+	if slot == null:
+		return
+	var portrait := slot.get_node_or_null("Portrait") as CanvasItem
+	if portrait:
+		portrait.modulate = Color(0.42, 0.44, 0.42, 1.0) if away else Color.WHITE
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE if away else Control.MOUSE_FILTER_STOP
+
+
 func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> void:
 	if not (event is InputEventMouseButton):
 		return
@@ -814,9 +823,11 @@ func _refresh_party_bar() -> void:
 	var companion_id: String = str(GameState.selected_companion_id)
 	var elaia_joined: bool = GameState.elaia_portrait_visible()
 	_party_bar.visible = true
-	_slot_keeper.visible = not GameState.member_away("keeper")
-	_slot_elaia.visible = elaia_joined and not GameState.member_away("elaia")
+	_slot_keeper.visible = true
+	_slot_elaia.visible = elaia_joined
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
+	_set_party_away_visual(_slot_keeper, GameState.member_away("keeper"))
+	_set_party_away_visual(_slot_elaia, elaia_joined and GameState.member_away("elaia"))
 	_slot_wisp.visible = not ids.is_empty()
 	_set_party_outline(_slot_keeper, show_keeper)
 	_set_party_outline(_slot_elaia, companion_id == "elaia")
@@ -1989,6 +2000,8 @@ func _fade_world_labels(node: Node, band: Rect2, in_layer: bool) -> void:
 
 
 func _activity_line(actor: String) -> String:
+	if has_node("/root/Reach") and GameState.member_away(actor):
+		return ContentStrings.get_text("hud_activity_adventure", {"depth": Reach.depth})
 	if not has_node("/root/ForgeJobs"):
 		return ContentStrings.get_text("hud_activity_idle")
 	var task: Dictionary = ForgeJobs.keeper_task() if actor == "keeper" else ForgeJobs.elaia_task()

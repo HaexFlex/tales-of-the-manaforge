@@ -598,6 +598,7 @@
   "options_speedup_toggle_hint": "Test only. Cycles 1× → 2× → 4× → 8× → 16×. Speeds harvest, growth, Ancient, crafting and Wisps. Turning the option off resets to 1×.",
   "options_debug_tools_toggle": "Show debug tools",
   "hud_activity_idle": "Idle",
+  "hud_activity_adventure": "On adventure · depth {depth}",
   "hud_activity_selected": "Selected",
   "hud_activity_harvest_wood": "Harvesting Wood…",
   "hud_activity_harvest_stone": "Harvesting Stone…",
