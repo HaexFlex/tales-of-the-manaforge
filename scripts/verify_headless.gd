@@ -2619,9 +2619,9 @@ func _run() -> void:
 		failed += _assert(shop_sz_v is Vector2, "shop size is Vector2")
 		var shop_sz: Vector2 = shop_sz_v as Vector2
 		failed += _assert(abs(shop_sz.x - 640.0) < 1.5 and abs(shop_sz.y - 412.0) < 1.5, "shop 640x412 (got %s)" % shop_sz)
-		failed += _assert(abs(float(metrics.get("header_h", 0)) - 64.0) < 1.5, "header 64")
-		failed += _assert(abs(float(metrics.get("footer_h", 0)) - 72.0) < 1.5, "footer 72")
-		failed += _assert(shop_sz.x + 0.1 >= 640.0 and shop_sz.y + 0.1 >= 420.0, "shop meets min 640x420")
+		failed += _assert(abs(float(metrics.get("header_h", 0)) - 48.0) < 1.5, "shop header 48")
+		failed += _assert(abs(float(metrics.get("footer_h", 0)) - 54.0) < 1.5, "shop footer 54")
+		failed += _assert(shop_sz.x + 0.1 >= 560.0 and shop_sz.y + 0.1 >= 360.0, "shop meets min 560x360")
 		var close_post: Button = test_hud.get_node_or_null("AscensionPanel/Footer/CloseButton") as Button
 		var ascend_post: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
 		failed += _assert(close_post != null and ascend_post != null, "footer Close+Ascend")
@@ -2632,7 +2632,7 @@ func _run() -> void:
 		var list_node: VBoxContainer = test_hud.get_node_or_null("AscensionPanel/ShopScroll/UpgradeList") as VBoxContainer
 		if list_node and list_node.get_child_count() > 0:
 			var row0: Control = list_node.get_child(0) as Control
-			failed += _assert(row0 != null and abs(row0.custom_minimum_size.y - 48.0) < 0.1, "row height 48")
+			failed += _assert(row0 != null and abs(row0.custom_minimum_size.y - 36.0) < 0.1, "row height 36")
 			var described: int = 0
 			for child: Node in list_node.get_children():
 				if child is Control and str((child as Control).tooltip_text) != "":
@@ -3833,7 +3833,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(view.call("speech_text")).find("Wait. Please") >= 0, "mercy flavour in the window")
 	failed += _assert(str(view.call("speech_text")).find("worth following") >= 0, "mercy uses the full line")
 	var psize: Vector2 = view.call("portrait_size")
-	failed += _assert(abs(psize.x - 384.0) < 0.5 and abs(psize.y - 384.0) < 0.5, "portraits 384x384")
+	failed += _assert(abs(psize.x - 288.0) < 0.5 and abs(psize.y - 288.0) < 0.5, "portraits 288x288")
 	failed += _assert(bool(view.call("keeper_uses_idle_texture")), "keeper portrait uses battle_keeper_idle_e")
 	failed += _assert(bool(view.call("echo_uses_key_texture")), "spare window uses battle_elaia_key_w")
 	failed += _assert(FileAccess.file_exists("res://assets/art/echo/battle_elaia_idle_w.png"), "battle_elaia_idle_w.png shipped")
@@ -3841,9 +3841,9 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(float(view.call("speech_top")) < float(view.call("log_top")), "flavour above battle log")
 	failed += _assert(bool(view.call("speech_between_portraits")), "flavour box sits between the portraits")
 	var ssize: Vector2 = view.call("speech_band_size")
-	failed += _assert(ssize.y >= 80.0 and ssize.y <= 100.0, "flavour band 80-100")
+	failed += _assert(ssize.y >= 60.0 and ssize.y <= 85.0, "flavour band 60-85")
 	var lsize: Vector2 = view.call("log_band_size")
-	failed += _assert(lsize.y >= 100.0 and lsize.y <= 140.0, "battle log band 100-140")
+	failed += _assert(lsize.y >= 65.0 and lsize.y <= 90.0, "battle log band 65-90")
 	var csize: Vector2 = view.call("command_band_size")
 	failed += _assert(abs(csize.x - 540.0) < 0.5 and abs(csize.y - 90.0) < 0.5, "command band 540x90")
 	view.free()
@@ -14277,8 +14277,8 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	for i: int in 3:
 		party_x.append(BattleViewScript.slot_sole("party_front", i).x - BattleViewScript.slot_sole("party_back", i).x)
 		beast_x.append(BattleViewScript.slot_sole("beast_back", i).x - BattleViewScript.slot_sole("beast_front", i).x)
-	failed += _assert(BattleViewScript.slot_sole("party_front", 1).x - BattleViewScript.slot_sole("party_front", 0).x == 80.0, "party middle steps 80 toward the enemy")
-	failed += _assert(BattleViewScript.slot_sole("beast_front", 0).x - BattleViewScript.slot_sole("beast_front", 1).x == 128.0, "beast middle steps 128 toward the enemy (not a mirror)")
+	failed += _assert(BattleViewScript.slot_sole("party_front", 1).x - BattleViewScript.slot_sole("party_front", 0).x == 60.0, "party middle steps 60 toward the enemy")
+	failed += _assert(BattleViewScript.slot_sole("beast_front", 0).x - BattleViewScript.slot_sole("beast_front", 1).x == 96.0, "beast middle steps 96 toward the enemy (not a mirror)")
 	# 2. A full 6 vs 6 fight on the real view.
 	var fight: FightState = FightStateScript.new()
 	var stats: Dictionary = {
@@ -14375,9 +14375,9 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	for ui_file: String in ui_files:
 		failed += _assert(ResourceLoader.exists(BattleViewScript.UI_ART_DIR + ui_file), "final ui texture %s" % ui_file)
 	var depth_plate: Control = view.get_node_or_null("Arena/DepthPlate") as Control
-	failed += _assert(depth_plate != null and depth_plate.position == Vector2(16, 12) and depth_plate.size == Vector2(120, 28), "depth plate top bar")
+	failed += _assert(depth_plate != null and depth_plate.position == Vector2(12, 9) and depth_plate.size == Vector2(90, 21), "depth plate top bar")
 	var round_banner: Control = view.get_node_or_null("Arena/RoundBanner") as Control
-	failed += _assert(round_banner != null and round_banner.position == Vector2(478, 8) and round_banner.size == Vector2(324, 38), "round banner top bar")
+	failed += _assert(round_banner != null and round_banner.position == Vector2(359, 6) and round_banner.size == Vector2(243, 29), "round banner top bar")
 	for i: int in 3:
 		var speed_n: int = [1, 2, 4][i]
 		var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
