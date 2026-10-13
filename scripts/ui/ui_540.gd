@@ -152,7 +152,7 @@ static func apply_kit_panel(
 ) -> VineFrame:
 	var vines: VineFrame = apply_kit_frame_panel(panel, window_id)
 	if title_label:
-		GameTheme.style_plank_label(title_label)
+		title_label.theme_type_variation = &"TitlePlank"
 	if close_button:
 		configure_kit_close_button(close_button)
 	return vines
