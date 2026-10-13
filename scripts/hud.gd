@@ -1375,8 +1375,9 @@ func _layout_welcome_panel() -> void:
 	card.size = Vector2(card_w, card_h)
 	for lbl: Label in [welcome_boot_label, welcome_title_label, welcome_body_label, welcome_hint_label]:
 		lbl.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	welcome_boot_label.position = Vector2(card_x + 40.0, card_y + 30.0)
-	welcome_boot_label.size = Vector2(card_w - 80.0, 24.0)
+	## Scene caption above the card, not a line inside it.
+	welcome_boot_label.position = Vector2(24.0, 96.0)
+	welcome_boot_label.size = Vector2(vs.x - 48.0, 28.0)
 	welcome_boot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	welcome_boot_label.remove_theme_color_override("font_outline_color")
 	welcome_boot_label.remove_theme_constant_override("outline_size")
@@ -1422,7 +1423,25 @@ func show_welcome() -> void:
 	_welcome_delay_tween.tween_interval(1.5)
 	_welcome_delay_tween.tween_callback(_enable_welcome_dismiss)
 	welcome_panel.visible = true
+	_play_welcome_beats()
 	GameAudio.play_ui_open()
+
+
+func _play_welcome_beats() -> void:
+	## Boot line alone, then the card fades in.
+	var card: CanvasItem = welcome_panel.get_node_or_null("WelcomeCard") as CanvasItem
+	var hidden: Array[CanvasItem] = [welcome_body_label, welcome_hint_label, welcome_dismiss_button, welcome_title_label]
+	if card:
+		hidden.append(card)
+	for item: CanvasItem in hidden:
+		if item:
+			item.modulate.a = 0.0
+	welcome_boot_label.modulate.a = 1.0
+	var tw: Tween = create_tween()
+	tw.tween_interval(1.2)
+	for item: CanvasItem in hidden:
+		if item:
+			tw.parallel().tween_property(item, "modulate:a", 1.0, 0.35)
 
 
 func _enable_welcome_dismiss() -> void:
@@ -1433,11 +1452,27 @@ func hide_welcome() -> void:
 	welcome_panel.visible = false
 
 
+func _fade_hud_in() -> void:
+	var pieces: Array[CanvasItem] = []
+	if panel:
+		pieces.append(panel)
+	if _party_bar:
+		pieces.append(_party_bar)
+	if pause_button:
+		pieces.append(pause_button)
+	for item: CanvasItem in pieces:
+		item.modulate.a = 0.0
+	var tw: Tween = create_tween()
+	for item: CanvasItem in pieces:
+		tw.parallel().tween_property(item, "modulate:a", 1.0, 0.45)
+
+
 func _on_welcome_dismiss() -> void:
 	if not _welcome_dismiss_ready:
 		return
 	GameState.welcome_shown = true
 	hide_welcome()
+	_fade_hud_in()
 	GameAudio.play_ui_confirm()
 	_show_toast(ContentStrings.get_text("boot_line"))
 	SaveService.save_game()
