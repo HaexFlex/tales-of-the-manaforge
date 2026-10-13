@@ -156,6 +156,8 @@ func _run() -> void:
 	failed += await _res540_shop_sanity()
 	failed += _res540_char_sanity()
 	failed += _res540_bag_sanity()
+	failed += _res540_board_sanity()
+	failed += _res540_battle_sanity()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -1409,6 +1411,23 @@ func _res540_shop_sanity() -> int:
 	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
 	failed += _check(hud_src.find("const SHOP_SIZE: Vector2 = Vector2(912, 472)") >= 0, "shop size 912x472 in hud.gd")
 	failed += _check(912.0 + 48.0 <= 960.0 and 472.0 + 48.0 <= 540.0, "shop fits 540p with 24px margins")
+	return failed
+
+
+func _res540_battle_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/battle/battle_view.gd")
+	failed += _check(src.find("Vector2(232, 206)") >= 0, "battle540 party front sole row 206")
+	failed += _check(src.find("Vector2(876, 206)") >= 0, "battle540 beast back sole row 206")
+	return failed
+
+
+func _res540_board_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/ui/expedition_shell.gd")
+	failed += _check(src.find("const PICKER_POPUP_W: float = 272.0") >= 0, "board540 picker width 272")
+	failed += _check(src.find("const PICKER_ROW_H: float = 48.0") >= 0, "board540 picker row 48px")
+	failed += _check(src.find("Who stands here?") >= 0, "board540 picker title")
 	return failed
 
 
