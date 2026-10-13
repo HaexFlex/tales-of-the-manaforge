@@ -7926,7 +7926,7 @@ func _arch_fill_and_floor(arch: Sprite2D) -> int:
 
 
 func _forge_entry_one_click(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## One click on the door walks to the sill and enters. A second click must not be required.
+	## The door walk does not enter. Enter Forge is the only way in, and it does not walk the Keeper.
 	## Also checks the watering stand is clear of the trunk at every growth stage.
 	var failed: int = 0
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
@@ -7980,18 +7980,13 @@ func _forge_entry_one_click(tree_root: Window, game_state: Node, save_service: N
 	game_state.set("keeper_has_pos", true)
 	game_state.set("keeper_pos", far)
 	var started: String = str(jobs.call("request_door_walk"))
-	failed += _assert(started == "walking", "one click from the south starts the walk (got %s)" % started)
-	var entered: bool = false
-	for _step: int in 240:
-		await physics_frame
-		await process_frame
-		if _scene_path() == _FORGE_SCENE or str(game_state.get("keeper_area")) == "forge":
-			entered = true
-			break
-	if str(game_state.get("keeper_area")) == "forge" and _scene_path() != _FORGE_SCENE:
-		var hopped: String = await _await_stable_scene()
-		entered = hopped == _FORGE_SCENE
-	failed += _assert(entered and _scene_path() == _FORGE_SCENE, "one door click enters the forge (scene %s area %s)" % [_scene_path(), str(game_state.get("keeper_area"))])
+	failed += _assert(started == "denied", "the door walk does not enter the forge (got %s)" % started)
+	failed += _assert(str(game_state.get("keeper_area")) == "clearing", "the keeper stays in the clearing")
+	var hud_enter: Node = live.get_node_or_null("HUD")
+	var entered_by: String = str(hud_enter.call("open_forge_entry")) if hud_enter != null else ""
+	failed += _assert(entered_by == "entered", "Enter Forge enters without a walk (got %s)" % entered_by)
+	var hopped: String = await _await_stable_scene()
+	failed += _assert(hopped == _FORGE_SCENE, "Enter Forge opens the forge (scene %s)" % hopped)
 	_drop_current_scene()
 	save_service.call("note_session_ended")
 	game_state.call("reset_for_new_game")

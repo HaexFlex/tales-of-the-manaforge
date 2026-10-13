@@ -2209,7 +2209,7 @@ func open_forge_entry() -> String:
 		GameAudio.play_ui_confirm()
 		return msg
 	if has_node("/root/ForgeJobs") and (ForgeJobs.can_enter_forge() or GameState.forge_visited):
-		return ForgeJobs.request_door_walk()
+		return ForgeJobs.travel_to_forge()
 	return "denied"
 
 

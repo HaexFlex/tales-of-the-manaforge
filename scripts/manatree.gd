@@ -135,9 +135,7 @@ func _click_is_door() -> bool:
 
 
 func _request_door() -> void:
-	## One click: the selected hero walks to the sill and the feet trigger enters.
-	if has_node("/root/ForgeJobs"):
-		ForgeJobs.request_door_walk()
+	## The arch is not an entrance. Only the Enter Forge button changes the scene.
 
 
 func work_footprint() -> Rect2:
@@ -556,36 +554,8 @@ func _ensure_door_trigger() -> void:
 
 
 func _check_door_feet() -> void:
-	if not has_node("/root/ForgeJobs"):
-		return
-	var occupied: bool = false
-	var occupant: Node = null
-	for group_name: String in ["keeper", "elaia"]:
-		for node: Node in get_tree().get_nodes_in_group(group_name):
-			if not (node is Node2D) or not (node as CanvasItem).visible:
-				continue
-			if node.has_method("actor_id") == false:
-				continue
-			var rel: Vector2 = (node as Node2D).global_position - global_position
-			if absf(rel.x) > 22.0 or rel.y < -4.0 or rel.y > 16.0:
-				continue
-			occupied = true
-			occupant = node
-			break
-		if occupied:
-			break
-	if not _door_seen_clear:
-		if occupied:
-			_door_latched = true
-			return
-		_door_seen_clear = true
-	if not occupied:
-		_door_latched = false
-		return
-	if _door_latched or occupant == null:
-		return
-	_door_latched = true
-	ForgeJobs.try_door_entry(str(occupant.call("actor_id")))
+	## Standing on the sill does not enter. The Enter Forge button is the only way in.
+	return
 
 
 func _ensure_veins() -> void:

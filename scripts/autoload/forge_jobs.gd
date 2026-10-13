@@ -618,31 +618,8 @@ func try_door_entry(actor_id: String) -> String:
 
 
 func request_door_walk() -> String:
-	## The selected hero walks into the sill. Only that hero changes scene.
-	if not has_node("/root/GameState"):
-		return "denied"
-	var actor: String = GameState.selected_hero_id()
-	if actor == "":
-		actor = "keeper"
-	var area: String = GameState.elaia_area if actor == "elaia" else GameState.keeper_area
-	if area != "clearing" or in_forge_scene():
-		return "away"
-	var hero: Node = null
-	if actor == "elaia":
-		hero = get_tree().get_first_node_in_group("elaia") if get_tree() != null else null
-	else:
-		hero = get_tree().get_first_node_in_group("keeper") if get_tree() != null else null
-	if hero == null or not hero.has_method("move_to"):
-		return "denied"
-	var dest: Vector2 = door_entry_point()
-	if hero is Node2D and (hero as Node2D).global_position.distance_to(dest) <= 18.0:
-		_clear_door_walk()
-		return try_door_entry(actor)
-	## One click walks to the sill. Entry happens when they arrive, not on a second click.
-	_door_walk_actor = actor
-	_door_stuck_frames = 0
-	hero.call("move_to", dest, null)
-	return "walking"
+	## The Keeper does not walk into the Forge. Only the Enter Forge button enters.
+	return "denied"
 
 
 func _defer_scene(path: String) -> void:
@@ -686,38 +663,8 @@ func _door_hero(actor: String) -> Node:
 
 
 func _tick_door_walk() -> void:
-	## The walk stops within arrive distance of the sill, which can sit just
-	## outside the feet trigger. Enter from that stop. A second click is not required.
-	if _door_walk_actor == "":
-		return
-	var actor: String = _door_walk_actor
-	var hero: Node = _door_hero(actor)
-	if hero == null or not (hero is Node2D):
-		_clear_door_walk()
-		return
-	var dist: float = (hero as Node2D).global_position.distance_to(door_entry_point())
-	## Arrival can sit just outside the feet trigger. Enter from that stop.
-	if dist <= 22.0:
-		_clear_door_walk()
-		try_door_entry(actor)
-		return
-	## move_to raises _moving before the body has a velocity. That first
-	## zero-velocity sample is the start of the walk, not a blocked path.
-	var still_pathing: bool = bool(hero.get("_moving"))
-	var speed_now: float = 0.0
-	if hero is CharacterBody2D:
-		speed_now = (hero as CharacterBody2D).velocity.length()
-	if still_pathing or speed_now >= 12.0:
-		_door_stuck_frames = 0
-		return
-	if dist <= 72.0:
-		_door_stuck_frames += 1
-		if _door_stuck_frames >= 6:
-			_clear_door_walk()
-			try_door_entry(actor)
-		return
-	_door_stuck_frames += 1
-	if _door_stuck_frames >= 30:
+	## Leftover walk state must not enter the Forge.
+	if _door_walk_actor != "":
 		_clear_door_walk()
 
 
