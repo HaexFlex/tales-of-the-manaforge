@@ -51,6 +51,7 @@ const PICKER_PAD_BOTTOM: float = 22.0
 const PICKER_CHROME_H: float = PICKER_PAD_TOP + PICKER_TITLE_H + PICKER_ROW_GAP + PICKER_PAD_BOTTOM
 const PICKER_SCROLL_MAX_H: float = 228.0
 const ICON_ESSENCE_TEX: String = "res://assets_extra/shared/icon_essence.png"
+const ESC_KEYCAP_SIZE: Vector2 = Vector2(56, 40)
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 
 var picker_popup: PanelContainer
@@ -504,10 +505,10 @@ func _build_simulate_window() -> void:
 	Ui540.place_title_plank(sim_title, SIM_SIZE.x)
 	var inner_w: float = SIM_SIZE.x - PAD * 2.0
 	simulate_close = _big_button(simulate_window, "SimulateClose", Vector2(SIM_SIZE.x - PAD - 120.0, 20), Vector2(120, ROW_H), "Close")
-	var esc := _tex_rect(simulate_window, KIT_DIR + "keycap_esc.png", Vector2(SIM_SIZE.x - PAD - 120.0 - 36.0, 34.5), Vector2(28, 15))
+	var esc := _esc_keycap(simulate_window, simulate_close)
 	esc.name = "SimulateCloseEsc"
 	Ui540.hide_on_phone(esc)
-	var header := _line(simulate_window, "SimulateHeader", Vector2(PAD, 22), Vector2(inner_w - 170.0, 20), true)
+	var header := _line(simulate_window, "SimulateHeader", Vector2(PAD, 22), Vector2(inner_w - 192.0, 20), true)
 	header.clip_text = true
 	var summary := _line(simulate_window, "SimulateSummary", Vector2(PAD, 68), Vector2(inner_w, 24), false)
 	summary.z_index = 2
@@ -568,8 +569,14 @@ func _add_close(panel: Control) -> void:
 	var btn := _big_button(panel, "CloseButton", Vector2(PANEL_SIZE.x - PAD - 120.0, HEADER_Y), Vector2(120, ROW_H), "Close")
 	btn.tooltip_text = "Close"
 	if not Ui540.is_phone_export():
-		var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", Vector2(btn.position.x - 36.0, HEADER_Y + 14.5), Vector2(28, 15))
+		var esc := _esc_keycap(panel, btn)
 		esc.name = "CloseEscKeycap"
+
+
+func _esc_keycap(parent: Control, close_btn: Control) -> TextureRect:
+	## 2× the 28×20 cap, nearest-neighbour, centred on the Close button.
+	var pos := Vector2(close_btn.position.x - 8.0 - ESC_KEYCAP_SIZE.x, close_btn.position.y + (ROW_H - ESC_KEYCAP_SIZE.y) * 0.5)
+	return _tex_rect(parent, KIT_DIR + "keycap_esc.png", pos, ESC_KEYCAP_SIZE)
 
 
 func _add_loadout_stepper(panel: Control, slot_n: int, pos: Vector2) -> void:
