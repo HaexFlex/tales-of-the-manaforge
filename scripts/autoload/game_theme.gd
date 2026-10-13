@@ -126,14 +126,74 @@ func style_title_label(lbl: Label) -> void:
 	lbl.theme_type_variation = &"TitlePlank"
 
 
+## Window titles: the theme plank (Jersey 10 30, cream on wood). No size override, so the
+## plank art and the cap centring from build_theme.gd stay in step.
 func style_plank_label(lbl: Label) -> void:
-	lbl.add_theme_font_override("font", _title_font)
-	lbl.add_theme_font_size_override("font_size", PLANK_SIZE)
+	lbl.theme_type_variation = &"TitlePlank"
+	lbl.remove_theme_font_override("font")
+	lbl.remove_theme_font_size_override("font_size")
+	lbl.remove_theme_color_override("font_color")
 
 
 func style_body_label(lbl: Label) -> void:
 	lbl.add_theme_font_override("font", _body_font)
 	lbl.add_theme_font_size_override("font_size", BODY_SIZE)
+
+
+## Plain parchment text: Silver 19, ink or muted ink, no outline.
+func style_ink_label(lbl: Label, muted: bool = false) -> void:
+	style_body_label(lbl)
+	lbl.add_theme_color_override(&"font_color", MUTED if muted else INK)
+	lbl.remove_theme_color_override(&"font_shadow_color")
+	lbl.remove_theme_constant_override(&"shadow_offset_x")
+	lbl.remove_theme_constant_override(&"shadow_offset_y")
+
+
+## Parchment headings (section names, item names): Silver 38 ink.
+func style_heading_label(lbl: Label) -> void:
+	lbl.add_theme_font_override("font", _body_font)
+	lbl.add_theme_font_size_override("font_size", TITLE_HERO_SIZE)
+	lbl.add_theme_color_override(&"font_color", INK)
+
+
+## Wood menu button with the Silver 38 caps (pause rows, confirm choices, Back).
+func style_menu_button(btn: Button) -> void:
+	btn.theme_type_variation = &"BigButton"
+	btn.remove_theme_font_override("font")
+	btn.remove_theme_font_size_override("font_size")
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.remove_theme_color_override(state)
+
+
+## Wood button with Silver 19 caps (tabs, small actions, list chips).
+func style_wood_button(btn: Button) -> void:
+	btn.theme_type_variation = &""
+	btn.flat = false
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled", &"focus"]:
+		btn.remove_theme_stylebox_override(state)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.remove_theme_color_override(state)
+	btn.add_theme_font_override("font", _body_font)
+	btn.add_theme_font_size_override("font_size", BODY_SIZE)
+
+
+## Faceless text button sitting on parchment: ink caps.
+func style_ink_button(btn: Button) -> void:
+	btn.theme_type_variation = &"InkButton"
+	btn.flat = false
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled"]:
+		btn.remove_theme_stylebox_override(state)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.remove_theme_color_override(state)
 
 
 func _apply_mouse_cursor() -> void:

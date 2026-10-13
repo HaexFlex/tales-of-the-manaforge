@@ -124,6 +124,20 @@ func _init() -> void:
 	th.set_color("font_outline_color", "TitleMenuButton", OUTLINE)
 	th.set_constant("outline_size", "TitleMenuButton", 2)
 
+	# ---- Menu button (BigButton: wood face, Silver 38 faux-bold caps: pause, options, confirm, care rows)
+	th.set_type_variation("BigButton", "Button")
+	th.set_font("font", "BigButton", primary)
+	th.set_font_size("font_size", "BigButton", 38)
+
+	# ---- Flat text button on parchment: no face, so the label must be ink, never cream
+	th.set_type_variation("InkButton", "Button")
+	for k in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		th.set_stylebox(k, "InkButton", StyleBoxEmpty.new())
+	for c in ["font_color", "font_pressed_color", "font_focus_color"]: th.set_color(c, "InkButton", INK)
+	th.set_color("font_hover_color", "InkButton", Color8(122, 78, 44))
+	th.set_color("font_hover_pressed_color", "InkButton", Color8(122, 78, 44))
+	th.set_color("font_disabled_color", "InkButton", MUTED)
+
 	# ---- Primary button (battle action button, 9s 8)
 	th.set_type_variation("PrimaryButton", "Button")
 	th.set_stylebox("normal", "PrimaryButton", sbt("action_button_normal_160x44.png", [8, 8, 8, 8], [20, 1, 20, 5]))
@@ -184,6 +198,18 @@ func _init() -> void:
 	th.set_color("font_placeholder_color", "LineEdit", MUTED)
 	th.set_color("caret_color", "LineEdit", INK)
 	th.set_color("selection_color", "LineEdit", Color8(220, 192, 122))
+
+	# SpinBox: no kit arrow piece yet, and the engine's white arrows float on parchment.
+	# Fields stay editable by typing, wheel and arrow keys; screens that need steppers draw − / +.
+	var no_icon := PlaceholderTexture2D.new()
+	no_icon.size = Vector2(1, 1)
+	for k in ["updown", "up", "up_hover", "up_pressed", "up_disabled", "down", "down_hover", "down_pressed", "down_disabled"]:
+		th.set_icon(k, "SpinBox", no_icon)
+	for k in ["up_background", "up_background_hovered", "up_background_pressed", "up_background_disabled", "down_background", "down_background_hovered", "down_background_pressed", "down_background_disabled", "field_and_buttons_separator", "up_down_buttons_separator"]:
+		th.set_stylebox(k, "SpinBox", StyleBoxEmpty.new())
+	th.set_constant("buttons_width", "SpinBox", 0)
+	th.set_constant("field_and_buttons_separation", "SpinBox", 0)
+	th.set_constant("set_min_buttons_width_from_icons", "SpinBox", 0)
 
 	# ---- ScrollContainer / VScrollBar (board scroll pieces)
 	th.set_stylebox("scroll", "VScrollBar", sbt("scroll_track_9s_12x24.png", [4, 4, 4, 4], [6, 2, 6, 2]))
