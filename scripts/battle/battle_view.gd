@@ -171,6 +171,16 @@ const ACTION_MENU_POS: Vector2 = Vector2(24.0, 420.0)
 const ACTION_BUTTON_SIZE: Vector2 = Vector2(148.0, 44.0)
 const ACTION_BUTTON_PITCH: Vector2 = Vector2(156.0, 52.0)
 const LOG_PANEL_RECT: Rect2 = Rect2(496.0, 420.0, 440.0, 96.0)
+## Pre-fight primary action, centred in the action column of the bottom bar.
+const START_FIGHT_RECT: Rect2 = Rect2(132.0, 442.0, 244.0, 52.0)
+const KEEPER_TEST_STATS: Dictionary = {
+	"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
+	"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
+}
+const ELAIA_TEST_STATS: Dictionary = {
+	"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
+	"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
+}
 const LOG_LINE_COUNT: int = 5
 const LOG_SCROLL_PAD: float = 4.0
 const LOG_LINE_H: float = 22.0
@@ -388,6 +398,8 @@ func _ready() -> void:
 	_playback.queue_empty.connect(_on_playback_queue_empty)
 	_bind_load()
 	_layout_top_chrome()
+	_refresh_fight_hud()
+	_show_party_preview()
 
 
 func _exit_tree() -> void:
@@ -424,6 +436,7 @@ func set_reach_mode(on: bool) -> void:
 		_test_fight_bar.visible = not on
 	if _side_actions != null:
 		_side_actions.position = _side_actions_pos(not on)
+	_sync_start_fight_action()
 	if _close_button != null:
 		_close_button.visible = not on
 	if on:
@@ -2044,7 +2057,10 @@ func _build_test_fight_bar() -> void:
 	_test_fight_bar.position = _test_fight_bar_pos()
 	_test_fight_bar.add_theme_constant_override("separation", 8)
 	var depth_label := Label.new()
+	depth_label.name = "DepthLabel"
 	depth_label.text = "Depth"
+	depth_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_style_plate_name(depth_label)
 	depth_label.add_to_group("battle_ui")
 	_test_fight_bar.add_child(depth_label)
 	_depth_spin = SpinBox.new()
@@ -2053,6 +2069,7 @@ func _build_test_fight_bar() -> void:
 	_depth_spin.max_value = 15.0
 	_depth_spin.value = 1.0
 	_depth_spin.add_to_group("battle_ui")
+	_depth_spin.value_changed.connect(_on_test_depth_changed)
 	_test_fight_bar.add_child(_depth_spin)
 	_boss_check = CheckBox.new()
 	_boss_check.name = "BossCheck"
@@ -2064,12 +2081,76 @@ func _build_test_fight_bar() -> void:
 	_elaia_check.text = "With Elaia"
 	_elaia_check.button_pressed = true
 	_elaia_check.add_to_group("battle_ui")
+	_elaia_check.toggled.connect(_on_test_elaia_toggled)
 	_test_fight_bar.add_child(_elaia_check)
-	_start_fight_button = _ui_button("Start fight", _test_fight_bar)
+	_arena.add_child(_test_fight_bar)
+	_start_fight_button = _ui_button("Start fight", _arena)
 	_start_fight_button.name = "StartFightButton"
+	_theme_call("style_menu_button", _start_fight_button)
+	_start_fight_button.focus_mode = Control.FOCUS_NONE
+	_start_fight_button.position = START_FIGHT_RECT.position
+	_start_fight_button.custom_minimum_size = START_FIGHT_RECT.size
+	_start_fight_button.size = START_FIGHT_RECT.size
+	_start_fight_button.z_index = 6
 	if not _start_fight_button.pressed.is_connected(_on_start_fight_pressed):
 		_start_fight_button.pressed.connect(_on_start_fight_pressed)
-	_arena.add_child(_test_fight_bar)
+
+
+func _on_test_depth_changed(value: float) -> void:
+	if _fight != null and _fight.outcome() == "":
+		return
+	_fight_depth = int(value)
+	_refresh_fight_hud()
+
+
+func _on_test_elaia_toggled(_on: bool) -> void:
+	if _fight == null:
+		_show_party_preview()
+
+
+static func _add_test_party(fight: FightState, with_elaia: bool) -> void:
+	fight.add_member("keeper", KEEPER_TEST_STATS, 0, "front", "keeper")
+	if with_elaia:
+		fight.add_member("elaia", ELAIA_TEST_STATS, 1, "back", "elaia")
+
+
+func _show_party_preview() -> void:
+	## Before the first fight: the party's plates and name tags, and Start fight in the bar.
+	if _plates == null or _fight != null or _reach_mode:
+		_sync_start_fight_action()
+		return
+	for child: Node in _plates.get_children():
+		_plates.remove_child(child)
+		child.free()
+	var with_elaia: bool = _elaia_check.button_pressed if _elaia_check != null else true
+	var preview := FightState.new()
+	_add_test_party(preview, with_elaia)
+	var rows: Array = preview.to_dict().get("fighters", []) as Array
+	for member: String in ["elaia", "keeper"]:
+		var root: Control = playback_fighter_root(member)
+		if root != null:
+			root.visible = member != "elaia" or with_elaia
+	for row_v: Variant in rows:
+		if row_v is Dictionary:
+			var row: Dictionary = row_v as Dictionary
+			var fighter_id: String = str(row.get("id", ""))
+			if playback_fighter_root(fighter_id) != null:
+				_build_plate(row, _fighter_sole(fighter_id), "")
+	if _log_list != null:
+		_ensure_log_line_labels(1)
+		for i: int in _log_labels.size():
+			_log_labels[i].visible = i == 0
+		_log_labels[0].text = "Set the depth above, then Start fight."
+		_log_labels[0].add_theme_color_override("font_color", LOG_SYSTEM_INK)
+	_sync_start_fight_action()
+
+
+func _sync_start_fight_action() -> void:
+	if _start_fight_button == null:
+		return
+	var idle_view: bool = _fight == null or _fight.outcome() != ""
+	_start_fight_button.visible = idle_view and not _reach_mode
+	_start_fight_button.disabled = not idle_view
 
 
 func _build_speed_bar() -> void:
@@ -2297,23 +2378,14 @@ func start_test_fight(depth: int, boss: bool, with_elaia: bool, room_seed: int) 
 	_fight_depth = depth
 	if _start_fight_button != null:
 		_start_fight_button.disabled = true
+		_start_fight_button.visible = false
 	if _result_label != null:
 		_result_label.text = ""
 	if _strike_for_me_toggle != null:
 		_strike_for_me_toggle.button_pressed = false
 	_exit_target_mode()
 	var fight := FightState.new()
-	var keeper_stats: Dictionary = {
-		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
-		"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
-	}
-	fight.add_member("keeper", keeper_stats, 0, "front", "keeper")
-	if with_elaia:
-		var elaia_stats: Dictionary = {
-			"might": 4, "arcana": 7, "resilience": 5, "ward": 7,
-			"vitality": 6, "swiftness": 6, "fate": 5, "attack": "magic",
-		}
-		fight.add_member("elaia", elaia_stats, 1, "back", "elaia")
+	_add_test_party(fight, with_elaia)
 	var spawn_rng: BattleRng = SpawnRoller.room_seed_rng(room_seed)
 	var room: Array[Dictionary] = SpawnRoller.roll_room_with_mossmites(depth, spawn_rng, boss)
 	for entry: Dictionary in room:
@@ -2409,8 +2481,7 @@ func _finish_turn_ui() -> void:
 	if _fight.outcome() != "":
 		_show_fight_result()
 		_hide_action_menu()
-		if _start_fight_button != null:
-			_start_fight_button.disabled = false
+		_sync_start_fight_action()
 		return
 	set_active(_fight.current_actor())
 	_show_action_menu(_fight.current_actor())

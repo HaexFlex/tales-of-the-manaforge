@@ -15141,7 +15141,7 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 	failed += _assert(fight != null and fight.outcome() != "", "fight reaches an outcome")
 	failed += _assert(result != null and result.text != "", "ResultLabel shows a result")
 	failed += _assert(strike_presses < 300, "fight ends within 300 strikes")
-	var start_btn: Button = view.get_node_or_null("Arena/TestFightBar/StartFightButton") as Button
+	var start_btn: Button = view.get_node_or_null("Arena/StartFightButton") as Button
 	failed += _assert(start_btn != null and not start_btn.disabled, "Start fight is enabled after the fight")
 	if start_btn != null:
 		var vp: Viewport = live.get_viewport()
