@@ -699,6 +699,7 @@
   "beast_acorn_imp_name": "Acorn imp",
   "beast_spore_moth_name": "Spore moth",
   "beast_wilt_wisp_name": "Wilt Wisp",
+  "beast_wilt_wisp_desc": "A spark twisted by the Withering. Calm it, and it is free again.",
   "beast_root_snapper_name": "Root Snapper",
   "beast_thorn_boar_name": "Thorn boar",
   "beast_vine_serpent_name": "Vine serpent",
@@ -801,5 +802,16 @@
   "ascend_shop_locked_collapsed": "{count} locked",
   "ascend_shop_complete_collapsed": "{count} complete",
   "upgrade_rank_endless": "Rank {rank}",
-  "runestone_stat_totals": "Trained {trained}  ·  Total {total}"
+  "runestone_stat_totals": "Trained {trained}  ·  Total {total}",
+  "battle_foe_calmed": "{name} is Calmed.",
+  "battle_foe_calmed_short": "Calmed",
+  "battle_ally_knocked_out": "{name} is knocked out.",
+  "battle_party_overwhelmed_title": "Overwhelmed",
+  "battle_party_overwhelmed_body": "Your party is carried back to the trailhead. The pack returns to the forest.",
+  "battle_flee_body": "You slip away to the trailhead with half the pack.",
+  "battle_head_home_body": "You head home to the trailhead with the full pack.",
+  "battle_run_complete_body": "The road is done. You return to the trailhead with the full pack.",
+  "foe_wilt_wisp_name": "Wilt Wisp",
+  "foe_wilt_wisp_desc": "A spark twisted by the Withering. Calm it, and it is free again.",
+  "foe_wilt_wisp_calmed": "The Wilt Wisp is Calmed. Its light clears, and it drifts free."
 }

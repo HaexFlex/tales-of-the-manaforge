@@ -42,15 +42,15 @@ static func line_for(event: Dictionary, fight: FightState) -> String:
 		"strike":
 			return _strike_line(event, fight)
 		"knocked_out":
-			return _text("adv_knocked_out_log", {"name": _fighter_name(fight, str(event.get("target", "")))})
+			return _text("battle_ally_knocked_out", {"name": _fighter_name(fight, str(event.get("target", "")))})
 		"calmed":
-			return _text("adv_calmed_log", {"beast": _fighter_name(fight, str(event.get("target", "")))})
+			return _text("battle_foe_calmed", {"name": _fighter_name(fight, str(event.get("target", "")))})
 		"outcome":
 			var result: String = str(event.get("result", ""))
 			if result == "win":
 				return _text("adv_log_victory", {})
 			if result == "overwhelmed":
-				return _text("adv_overwhelmed_log", {})
+				return _text("battle_party_overwhelmed_body", {})
 			return ""
 		_:
 			return ""

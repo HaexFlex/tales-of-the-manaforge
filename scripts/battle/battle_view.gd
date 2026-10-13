@@ -1151,7 +1151,7 @@ func _status_icon_tooltip(row: Dictionary, files: Array[String]) -> String:
 		elif file.begins_with("status_ko"):
 			names.append(_text("adv_knocked_out", "Knocked out"))
 		elif file.begins_with("status_calmed"):
-			names.append(_text("adv_calmed", "Calmed"))
+			names.append(_text("battle_foe_calmed_short", "Calmed"))
 	if names.is_empty():
 		return ""
 	return ", ".join(names)
@@ -1698,7 +1698,7 @@ func _party_status_text(status: String) -> String:
 
 func _beast_status_text(status: String) -> String:
 	if status == "calmed":
-		return _text("adv_calmed", "Calmed")
+		return _text("battle_foe_calmed_short", "Calmed")
 	return ""
 
 
@@ -2889,14 +2889,14 @@ func _show_end_panel(outcome: String) -> void:
 				var deeper := _ui_button(_text("adv_end_deeper", "Go deeper"), buttons)
 				deeper.name = "EndDeeper"
 				deeper.pressed.connect(_on_end_deeper_pressed)
-				var home := _ui_button(_text("adv_end_home", "Head home"), buttons)
-				home.name = "EndHome"
-				home.pressed.connect(_on_end_home_pressed)
+				var home_btn := _ui_button(_text("adv_end_home", "Head home"), buttons)
+				home_btn.name = "EndHome"
+				home_btn.pressed.connect(_on_end_home_pressed)
 		"flee":
 			title.text = _text("adv_end_flee_title", "Fled")
 			var summary: Dictionary = reach.get("last_summary") as Dictionary
 			var banked: Dictionary = summary.get("banked", {}) as Dictionary
-			detail.text = _text("adv_end_flee_body", "You fled to the trailhead. Half the pack came home.")
+			detail.text = _text("battle_flee_body", "You slip away to the trailhead with half the pack.")
 			if not banked.is_empty():
 				detail.text += "\n" + _format_banked(banked)
 			exp_line.text = ""
@@ -2904,12 +2904,26 @@ func _show_end_panel(outcome: String) -> void:
 			back.name = "EndBack"
 			back.pressed.connect(_on_end_back_pressed)
 		"overwhelmed":
-			title.text = _text("adv_overwhelmed_title", "Overwhelmed")
-			detail.text = _text("adv_overwhelmed_body", "The party was overwhelmed. The pack returns to the forest. Exp is kept.")
+			title.text = _text("battle_party_overwhelmed_title", "Overwhelmed")
+			detail.text = _text("battle_party_overwhelmed_body", "Your party is carried back to the trailhead. The pack returns to the forest.")
 			exp_line.text = ""
 			var back_o := _ui_button(_text("adv_end_back", "Back to the clearing"), buttons)
 			back_o.name = "EndBack"
 			back_o.pressed.connect(_on_end_back_pressed)
+		"head_home":
+			title.text = _text("adv_end_home", "Head home")
+			detail.text = _text("battle_head_home_body", "You head home to the trailhead with the full pack.")
+			exp_line.text = ""
+			var back_h := _ui_button(_text("adv_end_back", "Back to the clearing"), buttons)
+			back_h.name = "EndBack"
+			back_h.pressed.connect(_on_end_back_pressed)
+		"finished":
+			title.text = _text("adv_end_victory_title", "Run complete")
+			detail.text = _text("battle_run_complete_body", "The road is done. You return to the trailhead with the full pack.")
+			exp_line.text = ""
+			var back_f := _ui_button(_text("adv_end_back", "Back to the clearing"), buttons)
+			back_f.name = "EndBack"
+			back_f.pressed.connect(_on_end_back_pressed)
 		_:
 			detail.text = outcome
 
