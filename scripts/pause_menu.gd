@@ -11,7 +11,7 @@ signal standalone_load_requested(slot: int, kind: String)
 enum SlotMode { NONE, SAVE, LOAD }
 
 @onready var backdrop: ColorRect = $Backdrop
-@onready var panel: ColorRect = $Panel
+@onready var panel: Control = $Panel
 @onready var title_label: Label = $Panel/Title
 @onready var btn_resume: Button = $Panel/BtnResume
 @onready var btn_new_game: Button = $Panel/BtnNewGame
@@ -19,15 +19,15 @@ enum SlotMode { NONE, SAVE, LOAD }
 @onready var btn_load: Button = $Panel/BtnLoad
 @onready var btn_options: Button = $Panel/BtnOptions
 @onready var btn_exit: Button = $Panel/BtnExit
-@onready var slots_panel: ColorRect = $SlotsPanel
+@onready var slots_panel: Control = $SlotsPanel
 @onready var slots_title: Label = $SlotsPanel/SlotsTitle
 @onready var slot_buttons: VBoxContainer = $SlotsPanel/SlotButtons
 @onready var slots_back: Button = $SlotsPanel/SlotsBack
-@onready var confirm_panel: ColorRect = $ConfirmPanel
+@onready var confirm_panel: Control = $ConfirmPanel
 @onready var confirm_label: Label = $ConfirmPanel/ConfirmLabel
 @onready var confirm_yes: Button = $ConfirmPanel/ConfirmYes
 @onready var confirm_no: Button = $ConfirmPanel/ConfirmNo
-@onready var options_panel: ColorRect = $OptionsPanel
+@onready var options_panel: Control = $OptionsPanel
 @onready var options_title: Label = $OptionsPanel/OptionsTitle
 @onready var options_hint: Label = $OptionsPanel/OptionsHint
 @onready var options_controls: Label = $OptionsPanel/OptionsControls
@@ -48,6 +48,12 @@ var _pending_slot: int = 0
 var _slot_btns: Array[Button] = []
 var _audio_sliders_ready: bool = false
 
+const PAUSE_BTN_W: float = 200.0
+const PAUSE_BTN_H: float = 44.0
+const PAUSE_BTN_GAP: float = 8.0
+const PAUSE_PAD_X: float = 36.0
+const PAUSE_PAD_TOP: float = 32.0
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -58,11 +64,11 @@ func _ready() -> void:
 	slots_panel.visible = false
 	confirm_panel.visible = false
 	options_panel.visible = false
-	backdrop.color = Color(0.02, 0.04, 0.03, 0.72)
-	panel.color = Color(0.09, 0.12, 0.11, 0.97)
-	slots_panel.color = Color(0.09, 0.12, 0.11, 0.97)
-	confirm_panel.color = Color(0.12, 0.1, 0.08, 0.98)
-	options_panel.color = Color(0.09, 0.12, 0.11, 0.97)
+	backdrop.color = Color(0, 0, 0, 0.5)
+	_apply_pause_kit_chrome()
+	_layout_pause_menu()
+	if not get_viewport().size_changed.is_connected(_layout_pause_menu):
+		get_viewport().size_changed.connect(_layout_pause_menu)
 	_apply_strings()
 	btn_resume.pressed.connect(resume_game)
 	btn_new_game.pressed.connect(_on_new_game_pressed)
@@ -83,6 +89,54 @@ func _ready() -> void:
 	_sync_audio_sliders_from_game()
 	_build_slot_buttons()
 	_ensure_speedup_toggle()
+
+
+func _apply_pause_kit_chrome() -> void:
+	for kit_panel: Dictionary in [
+		{"root": panel, "id": "pause", "frame": panel.get_node_or_null("Frame") as Panel},
+		{"root": slots_panel, "id": "save_load", "frame": slots_panel.get_node_or_null("Frame") as Panel},
+		{"root": confirm_panel, "id": "confirm", "frame": confirm_panel.get_node_or_null("Frame") as Panel},
+		{"root": options_panel, "id": "options", "frame": options_panel.get_node_or_null("Frame") as Panel},
+	]:
+		var frame: Panel = kit_panel.frame as Panel
+		if frame:
+			Ui540.apply_kit_frame_panel(frame, str(kit_panel.id))
+	for lbl: Label in [title_label, slots_title, options_title]:
+		if lbl:
+			GameTheme.style_plank_label(lbl)
+	if confirm_panel:
+		var confirm_title: Label = confirm_panel.get_node_or_null("ConfirmTitle") as Label
+		if confirm_title:
+			GameTheme.style_plank_label(confirm_title)
+	for lbl: Label in [confirm_label, options_hint, options_controls, music_label, sfx_label]:
+		if lbl:
+			GameTheme.style_body_label(lbl)
+	for btn: Button in [btn_resume, btn_new_game, btn_save, btn_load, btn_options, btn_exit, slots_back, confirm_yes, confirm_no, options_reset, options_close]:
+		if btn and btn != btn_resume and btn != confirm_yes and btn != options_close:
+			btn.custom_minimum_size = Vector2(PAUSE_BTN_W, PAUSE_BTN_H)
+
+
+func _layout_pause_menu() -> void:
+	var btns: Array[Button] = [btn_resume, btn_new_game, btn_save, btn_load, btn_options, btn_exit]
+	var n: int = btns.size()
+	var inner_h: float = PAUSE_PAD_TOP + n * PAUSE_BTN_H + float(n - 1) * PAUSE_BTN_GAP + 24.0
+	var ww: float = PAUSE_BTN_W + PAUSE_PAD_X * 2.0
+	panel.custom_minimum_size = Vector2(ww, inner_h)
+	panel.size = panel.custom_minimum_size
+	var frame: Panel = panel.get_node_or_null("Frame") as Panel
+	if frame:
+		frame.size = panel.size
+	var y: float = PAUSE_PAD_TOP
+	for btn: Button in btns:
+		btn.position = Vector2(PAUSE_PAD_X, y)
+		btn.size = Vector2(PAUSE_BTN_W, PAUSE_BTN_H)
+		y += PAUSE_BTN_H + PAUSE_BTN_GAP
+	title_label.position = Vector2(PAUSE_PAD_X, -20.0)
+	title_label.size = Vector2(PAUSE_BTN_W, 40.0)
+	Ui540.center_control(panel)
+	Ui540.center_control(slots_panel)
+	Ui540.center_control(options_panel)
+	Ui540.center_control(confirm_panel)
 
 
 func _apply_strings() -> void:
@@ -118,22 +172,22 @@ func _ensure_speedup_toggle() -> void:
 		return
 	var box := CheckButton.new()
 	box.name = "SpeedupToggle"
-	box.position = Vector2(28, 248)
-	box.size = Vector2(464, 32)
+	box.position = Vector2(36, 208)
+	box.size = Vector2(488, 32)
 	box.text = ContentStrings.get_text("options_speedup_toggle")
 	box.button_pressed = GameAudio.use_speedup_button
 	box.toggled.connect(_on_speedup_toggled)
 	options_panel.add_child(box)
 	var hint := Label.new()
 	hint.name = "SpeedupHint"
-	hint.position = Vector2(36, 282)
-	hint.size = Vector2(448, 72)
+	hint.position = Vector2(36, 242)
+	hint.size = Vector2(488, 48)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_font_size_override("font_size", 12)
 	hint.add_theme_color_override("font_color", Color(0.78, 0.86, 0.74, 1))
 	hint.text = ContentStrings.get_text("options_speedup_toggle_hint")
 	options_panel.add_child(hint)
-	var next_y: float = 360.0
+	var next_y: float = 296.0
 	if _debug_tools_available():
 		var debug_box := CheckButton.new()
 		debug_box.name = "DebugToolsToggle"
@@ -148,9 +202,15 @@ func _ensure_speedup_toggle() -> void:
 	if options_controls:
 		options_controls.position = Vector2(options_controls.position.x, next_y)
 		next_y += 84.0
-	options_reset.position = Vector2(options_reset.position.x, next_y)
-	options_close.position = Vector2(options_close.position.x, next_y)
-	options_panel.offset_bottom = -240.0 + next_y + 56.0
+	options_reset.position = Vector2(36, next_y)
+	options_close.position = Vector2(364, next_y)
+	options_reset.size = Vector2(160, PAUSE_BTN_H)
+	options_close.size = Vector2(160, PAUSE_BTN_H)
+	var frame: Panel = options_panel.get_node_or_null("Frame") as Panel
+	if frame:
+		frame.size = Vector2(560, next_y + PAUSE_BTN_H + 28.0)
+	options_panel.custom_minimum_size = frame.size if frame else Vector2(560, 404)
+	options_panel.size = options_panel.custom_minimum_size
 
 
 func _debug_tools_available() -> bool:
@@ -271,10 +331,12 @@ func open_pause() -> void:
 	_hide_slots()
 	_hide_confirm()
 	_hide_options()
+	_layout_pause_menu()
 	visible = true
 	backdrop.visible = true
 	panel.visible = true
 	btn_save.disabled = EchoChamber.in_battle
+	btn_resume.grab_focus.call_deferred()
 	if EchoChamber.in_battle:
 		status_toast.emit(ContentStrings.get_text("battle_paused_hint"))
 	get_tree().paused = true
@@ -509,6 +571,8 @@ func _show_confirm(action: StringName, body: String, yes: String, no: String) ->
 	confirm_yes.text = yes
 	confirm_no.text = no
 	confirm_panel.visible = true
+	_layout_pause_menu()
+	confirm_no.grab_focus.call_deferred()
 
 
 func _on_confirm_no() -> void:

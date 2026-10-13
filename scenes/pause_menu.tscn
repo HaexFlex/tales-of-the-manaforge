@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://pausemenu001mf"]
+[gd_scene load_steps=3 format=3 uid="uid://pausemenu001mf"]
 
 [ext_resource type="Script" path="res://scripts/pause_menu.gd" id="1_pause"]
+[ext_resource type="Script" path="res://scripts/ui/vine_frame.gd" id="2_vine"]
 
 [node name="PauseMenu" type="CanvasLayer"]
 layer = 100
@@ -15,113 +16,158 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
-color = Color(0.02, 0.04, 0.03, 0.72)
+color = Color(0, 0, 0, 0.5)
 
-[node name="Panel" type="ColorRect" parent="."]
+[node name="Panel" type="Control" parent="."]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -180.0
-offset_top = -240.0
-offset_right = 180.0
-offset_bottom = 240.0
+offset_left = -136.0
+offset_top = -160.0
+offset_right = 136.0
+offset_bottom = 160.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.09, 0.12, 0.11, 0.97)
+
+[node name="Frame" type="Panel" parent="Panel"]
+layout_mode = 0
+offset_right = 272.0
+offset_bottom = 320.0
+mouse_filter = 2
+
+[node name="VineFrame" type="Control" parent="Panel/Frame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_vine")
+window_id = "pause"
 
 [node name="Title" type="Label" parent="Panel"]
-offset_left = 16.0
-offset_top = 16.0
-offset_right = 344.0
-offset_bottom = 48.0
-theme_override_font_sizes/font_size = 20
+layout_mode = 0
+offset_left = 36.0
+offset_top = -20.0
+offset_right = 236.0
+offset_bottom = 20.0
+theme_type_variation = &"TitlePlank"
 text = "Pause"
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="BtnResume" type="Button" parent="Panel"]
-offset_left = 40.0
-offset_top = 64.0
-offset_right = 320.0
-offset_bottom = 104.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 32.0
+offset_right = 236.0
+offset_bottom = 76.0
+theme_type_variation = &"PrimaryButton"
 text = "Resume"
 
 [node name="BtnNewGame" type="Button" parent="Panel"]
-offset_left = 40.0
-offset_top = 116.0
-offset_right = 320.0
-offset_bottom = 156.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 84.0
+offset_right = 236.0
+offset_bottom = 128.0
 text = "New Game"
 
 [node name="BtnSave" type="Button" parent="Panel"]
-offset_left = 40.0
-offset_top = 168.0
-offset_right = 320.0
-offset_bottom = 208.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 136.0
+offset_right = 236.0
+offset_bottom = 180.0
 text = "Save"
 
 [node name="BtnLoad" type="Button" parent="Panel"]
-offset_left = 40.0
-offset_top = 220.0
-offset_right = 320.0
-offset_bottom = 260.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 188.0
+offset_right = 236.0
+offset_bottom = 232.0
 text = "Load"
 
 [node name="BtnOptions" type="Button" parent="Panel"]
-offset_left = 40.0
-offset_top = 272.0
-offset_right = 320.0
-offset_bottom = 312.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 240.0
+offset_right = 236.0
+offset_bottom = 284.0
 text = "Options"
 
 [node name="BtnExit" type="Button" parent="Panel"]
-offset_left = 40.0
-offset_top = 324.0
-offset_right = 320.0
-offset_bottom = 364.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 292.0
+offset_right = 236.0
+offset_bottom = 336.0
 text = "Exit"
 
-[node name="SlotsPanel" type="ColorRect" parent="."]
+[node name="SlotsPanel" type="Control" parent="."]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -280.0
-offset_right = 240.0
-offset_bottom = 280.0
+offset_left = -320.0
+offset_top = -220.0
+offset_right = 320.0
+offset_bottom = 220.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.09, 0.12, 0.11, 0.97)
+
+[node name="Frame" type="Panel" parent="SlotsPanel"]
+layout_mode = 0
+offset_right = 640.0
+offset_bottom = 440.0
+mouse_filter = 2
+
+[node name="VineFrame" type="Control" parent="SlotsPanel/Frame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_vine")
+window_id = "save_load"
 
 [node name="SlotsTitle" type="Label" parent="SlotsPanel"]
-offset_left = 16.0
-offset_top = 12.0
-offset_right = 464.0
-offset_bottom = 44.0
-theme_override_font_sizes/font_size = 18
+layout_mode = 0
+offset_left = 120.0
+offset_top = -20.0
+offset_right = 520.0
+offset_bottom = 20.0
+theme_type_variation = &"TitlePlank"
 text = "Save"
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="SlotButtons" type="VBoxContainer" parent="SlotsPanel"]
+layout_mode = 0
 offset_left = 40.0
 offset_top = 48.0
-offset_right = 440.0
-offset_bottom = 460.0
+offset_right = 600.0
+offset_bottom = 360.0
 theme_override_constants/separation = 6
 
 [node name="SlotsBack" type="Button" parent="SlotsPanel"]
-offset_left = 180.0
-offset_top = 480.0
-offset_right = 300.0
-offset_bottom = 516.0
+layout_mode = 0
+offset_left = 240.0
+offset_top = 380.0
+offset_right = 400.0
+offset_bottom = 424.0
 text = "Close"
 
-[node name="ConfirmPanel" type="ColorRect" parent="."]
+[node name="ConfirmPanel" type="Control" parent="."]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
@@ -134,123 +180,176 @@ offset_right = 260.0
 offset_bottom = 120.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.12, 0.1, 0.08, 0.98)
+
+[node name="Frame" type="Panel" parent="ConfirmPanel"]
+layout_mode = 0
+offset_right = 520.0
+offset_bottom = 240.0
+mouse_filter = 2
+
+[node name="VineFrame" type="Control" parent="ConfirmPanel/Frame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_vine")
+window_id = "confirm"
+
+[node name="ConfirmTitle" type="Label" parent="ConfirmPanel"]
+visible = false
+layout_mode = 0
+offset_left = 80.0
+offset_top = -20.0
+offset_right = 440.0
+offset_bottom = 20.0
+theme_type_variation = &"TitlePlank"
+text = "Confirm"
+horizontal_alignment = 1
 
 [node name="ConfirmLabel" type="Label" parent="ConfirmPanel"]
-offset_left = 24.0
-offset_top = 24.0
-offset_right = 496.0
-offset_bottom = 120.0
-theme_override_font_sizes/font_size = 14
-text = "Confirm?"
+layout_mode = 0
+offset_left = 40.0
+offset_top = 36.0
+offset_right = 480.0
+offset_bottom = 132.0
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="ConfirmYes" type="Button" parent="ConfirmPanel"]
+layout_mode = 0
 offset_left = 60.0
-offset_top = 140.0
-offset_right = 220.0
-offset_bottom = 180.0
+offset_top = 156.0
+offset_right = 230.0
+offset_bottom = 200.0
+theme_type_variation = &"PrimaryButton"
 text = "Yes"
 
 [node name="ConfirmNo" type="Button" parent="ConfirmPanel"]
-offset_left = 300.0
-offset_top = 140.0
+layout_mode = 0
+offset_left = 290.0
+offset_top = 156.0
 offset_right = 460.0
-offset_bottom = 180.0
+offset_bottom = 200.0
 text = "No"
 
-[node name="OptionsPanel" type="ColorRect" parent="."]
+[node name="OptionsPanel" type="Control" parent="."]
 visible = false
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -260.0
-offset_top = -240.0
-offset_right = 260.0
-offset_bottom = 250.0
+offset_left = -280.0
+offset_top = -220.0
+offset_right = 280.0
+offset_bottom = 220.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.09, 0.12, 0.11, 0.97)
+
+[node name="Frame" type="Panel" parent="OptionsPanel"]
+layout_mode = 0
+offset_right = 560.0
+offset_bottom = 404.0
+mouse_filter = 2
+
+[node name="VineFrame" type="Control" parent="OptionsPanel/Frame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_vine")
+window_id = "options"
 
 [node name="OptionsTitle" type="Label" parent="OptionsPanel"]
-offset_left = 24.0
-offset_top = 16.0
-offset_right = 496.0
-offset_bottom = 48.0
-theme_override_font_sizes/font_size = 20
+layout_mode = 0
+offset_left = 120.0
+offset_top = -20.0
+offset_right = 440.0
+offset_bottom = 20.0
+theme_type_variation = &"TitlePlank"
 text = "Audio"
 horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="OptionsHint" type="Label" parent="OptionsPanel"]
-offset_left = 24.0
-offset_top = 52.0
-offset_right = 496.0
-offset_bottom = 84.0
-theme_override_font_sizes/font_size = 12
+layout_mode = 0
+offset_left = 36.0
+offset_top = 28.0
+offset_right = 524.0
+offset_bottom = 52.0
+theme_type_variation = &"MutedLabel"
 text = "Soften the forest, or let it sing."
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="MusicLabel" type="Label" parent="OptionsPanel"]
-offset_left = 40.0
-offset_top = 100.0
-offset_right = 480.0
-offset_bottom = 128.0
-theme_override_font_sizes/font_size = 14
+layout_mode = 0
+offset_left = 36.0
+offset_top = 72.0
+offset_right = 524.0
+offset_bottom = 96.0
 text = "Music"
 
 [node name="MusicSlider" type="HSlider" parent="OptionsPanel"]
-offset_left = 40.0
-offset_top = 132.0
-offset_right = 480.0
-offset_bottom = 160.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 100.0
+offset_right = 524.0
+offset_bottom = 124.0
 min_value = 0.0
 max_value = 1.0
 step = 0.01
 value = 1.0
 
 [node name="SfxLabel" type="Label" parent="OptionsPanel"]
-offset_left = 40.0
-offset_top = 180.0
-offset_right = 480.0
-offset_bottom = 208.0
-theme_override_font_sizes/font_size = 14
+layout_mode = 0
+offset_left = 36.0
+offset_top = 140.0
+offset_right = 524.0
+offset_bottom = 164.0
 text = "Sounds"
 
 [node name="SfxSlider" type="HSlider" parent="OptionsPanel"]
-offset_left = 40.0
-offset_top = 212.0
-offset_right = 480.0
-offset_bottom = 240.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 168.0
+offset_right = 524.0
+offset_bottom = 192.0
 min_value = 0.0
 max_value = 1.0
 step = 0.01
 value = 1.0
 
 [node name="OptionsControls" type="Label" parent="OptionsPanel"]
-offset_left = 28.0
+layout_mode = 0
+offset_left = 36.0
 offset_top = 248.0
-offset_right = 492.0
-offset_bottom = 328.0
-theme_override_font_sizes/font_size = 13
-theme_override_colors/font_color = Color(0.78, 0.86, 0.74, 1)
+offset_right = 524.0
+offset_bottom = 320.0
+theme_type_variation = &"MutedLabel"
 text = "Left-click: select"
 horizontal_alignment = 1
 autowrap_mode = 3
 
 [node name="OptionsReset" type="Button" parent="OptionsPanel"]
-offset_left = 40.0
-offset_top = 340.0
-offset_right = 200.0
-offset_bottom = 380.0
+layout_mode = 0
+offset_left = 36.0
+offset_top = 332.0
+offset_right = 196.0
+offset_bottom = 376.0
 text = "Reset"
 
 [node name="OptionsClose" type="Button" parent="OptionsPanel"]
-offset_left = 320.0
-offset_top = 340.0
-offset_right = 480.0
-offset_bottom = 380.0
+layout_mode = 0
+offset_left = 364.0
+offset_top = 332.0
+offset_right = 524.0
+offset_bottom = 376.0
+theme_type_variation = &"PrimaryButton"
 text = "Back"
