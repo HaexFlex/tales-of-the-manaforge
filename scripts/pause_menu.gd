@@ -21,7 +21,8 @@ enum SlotMode { NONE, SAVE, LOAD }
 @onready var btn_exit: Button = $Panel/BtnExit
 @onready var slots_panel: Control = $SlotsPanel
 @onready var slots_title: Label = $SlotsPanel/SlotsTitle
-@onready var slot_buttons: VBoxContainer = $SlotsPanel/SlotButtons
+@onready var slot_scroll: ScrollContainer = $SlotsPanel/SlotScroll
+@onready var slot_buttons: VBoxContainer = $SlotsPanel/SlotScroll/SlotButtons
 @onready var slots_back: Button = $SlotsPanel/SlotsBack
 @onready var confirm_panel: Control = $ConfirmPanel
 @onready var confirm_label: Label = $ConfirmPanel/ConfirmLabel
@@ -53,6 +54,17 @@ const PAUSE_BTN_H: float = 44.0
 const PAUSE_BTN_GAP: float = 8.0
 const PAUSE_PAD_X: float = 36.0
 const PAUSE_PAD_TOP: float = 32.0
+const OPTIONS_W: float = 560.0
+const SLOTS_W: float = 640.0
+const SLOTS_H: float = 368.0
+const CONFIRM_TITLES: Dictionary = {
+	&"new_game": "pause_new_game_confirm_title",
+	&"exit": "pause_exit_confirm_title",
+	&"overwrite": "pause_slot_overwrite_title",
+}
+const OPTIONS_ROW_H: float = 44.0
+const OPTIONS_LABEL_W: float = 96.0
+const OPTIONS_PCT_W: float = 52.0
 
 
 func _ready() -> void:
@@ -101,48 +113,148 @@ func _apply_pause_kit_chrome() -> void:
 		var frame: Panel = kit_panel.frame as Panel
 		if frame:
 			Ui540.apply_kit_frame_panel(frame, str(kit_panel.id))
+			frame.mouse_filter = Control.MOUSE_FILTER_STOP
 	for lbl: Label in [title_label, slots_title, options_title]:
 		if lbl:
 			GameTheme.style_plank_label(lbl)
-	if confirm_panel:
-		var confirm_title: Label = confirm_panel.get_node_or_null("ConfirmTitle") as Label
-		if confirm_title:
-			GameTheme.style_plank_label(confirm_title)
-	for lbl: Label in [confirm_label, options_hint, options_controls, music_label, sfx_label]:
-		if lbl:
-			GameTheme.style_body_label(lbl)
-	for btn: Button in [btn_resume, btn_new_game, btn_save, btn_load, btn_options, btn_exit, slots_back, confirm_yes, confirm_no, options_reset, options_close]:
-		if btn and btn != btn_resume and btn != confirm_yes and btn != options_close:
-			btn.custom_minimum_size = Vector2(PAUSE_BTN_W, PAUSE_BTN_H)
+	for btn: Button in [btn_resume, btn_new_game, btn_save, btn_load, btn_options, btn_exit, options_reset, options_close]:
+		GameTheme.style_menu_button(btn)
+	GameTheme.style_menu_button(slots_back)
+	GameTheme.style_ink_label(options_hint, true)
+	GameTheme.style_ink_label(options_controls, true)
+	for lbl: Label in [music_label, sfx_label]:
+		GameTheme.style_ink_label(lbl)
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	for lbl: Label in [options_hint, options_controls]:
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for slider: HSlider in [music_slider, sfx_slider]:
+		slider.custom_minimum_size = Vector2.ZERO
+		slider.value_changed.connect(_refresh_volume_pct.unbind(1))
+
+
+## A kit window here is a Control root plus a Frame panel; both take the content size.
+func _fit_window(root: Control, sz: Vector2) -> void:
+	root.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	root.custom_minimum_size = Vector2.ZERO
+	root.size = sz
+	var frame: Panel = root.get_node_or_null("Frame") as Panel
+	if frame:
+		frame.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		frame.position = Vector2.ZERO
+		frame.size = sz
+	Ui540.center_kit_panel(root)
 
 
 func _layout_pause_menu() -> void:
 	var btns: Array[Button] = [btn_resume, btn_new_game, btn_save, btn_load, btn_options, btn_exit]
 	var n: int = btns.size()
-	var inner_h: float = PAUSE_PAD_TOP + n * PAUSE_BTN_H + float(n - 1) * PAUSE_BTN_GAP + 24.0
-	var ww: float = PAUSE_BTN_W + PAUSE_PAD_X * 2.0
-	panel.custom_minimum_size = Vector2(ww, inner_h)
-	panel.size = panel.custom_minimum_size
-	var frame: Panel = panel.get_node_or_null("Frame") as Panel
-	if frame:
-		frame.size = panel.size
+	var btn_w: float = PAUSE_BTN_W
+	for btn: Button in btns:
+		btn_w = maxf(btn_w, ceilf(Ui540._button_text_w(btn)) + 40.0)
+	var ww: float = btn_w + PAUSE_PAD_X * 2.0
+	_fit_window(panel, Vector2(ww, PAUSE_PAD_TOP + n * PAUSE_BTN_H + float(n - 1) * PAUSE_BTN_GAP + 24.0))
 	var y: float = PAUSE_PAD_TOP
 	for btn: Button in btns:
-		btn.position = Vector2(PAUSE_PAD_X, y)
-		btn.size = Vector2(PAUSE_BTN_W, PAUSE_BTN_H)
+		Ui540.anchor_rect_safe(btn, PAUSE_PAD_X, y, btn_w, PAUSE_BTN_H)
+		Ui540.fit_button_font(btn, btn_w)
 		y += PAUSE_BTN_H + PAUSE_BTN_GAP
-	title_label.position = Vector2(PAUSE_PAD_X, -20.0)
-	title_label.size = Vector2(PAUSE_BTN_W, 40.0)
-	if options_title:
-		options_title.position = Vector2(120.0, -12.0)
-		options_title.size = Vector2(320.0, 40.0)
-	if slots_title:
-		slots_title.position = Vector2(120.0, -12.0)
-	confirm_panel.z_index = 10
-	Ui540.center_control(panel)
-	Ui540.center_control(slots_panel)
-	Ui540.center_control(options_panel)
-	Ui540.center_control(confirm_panel)
+	Ui540.place_title_plank(title_label, ww)
+	_layout_options()
+	_layout_slots()
+
+
+func _slot_bevel() -> Panel:
+	var bevel: Panel = slots_panel.get_node_or_null("SlotBevel") as Panel
+	if bevel == null:
+		bevel = Panel.new()
+		bevel.name = "SlotBevel"
+		bevel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bevel.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2)))
+		slots_panel.add_child(bevel)
+		slots_panel.move_child(bevel, slot_scroll.get_index())
+	return bevel
+
+
+## Mockup saveload540_pc_manual: 640 wide, bevelled scroll list of 44 px parchment rows, Back.
+func _layout_slots() -> void:
+	var sz := Vector2(SLOTS_W, minf(SLOTS_H, Ui540.max_window_h()))
+	_fit_window(slots_panel, sz)
+	Ui540.place_title_plank(slots_title, sz.x)
+	Ui540.anchor_rect_safe(_slot_bevel(), 36, 40, sz.x - 72.0, sz.y - 40.0 - 24.0 - PAUSE_BTN_H - 12.0)
+	Ui540.anchor_rect_safe(slot_scroll, 38, 42, sz.x - 76.0, sz.y - 44.0 - 24.0 - PAUSE_BTN_H - 12.0)
+	Ui540.anchor_rect_safe(slots_back, (sz.x - 160.0) * 0.5, sz.y - 24.0 - PAUSE_BTN_H, 160, PAUSE_BTN_H)
+
+
+## Mockup options540_pc_audiodisplay_r3: label column, slider with a % readout, switches
+## right-aligned on the same 36 px margins, Silver 19 throughout, 160×44 wood buttons.
+func _layout_options() -> void:
+	if options_panel == null:
+		return
+	var w: float = OPTIONS_W
+	var inner: float = w - PAUSE_PAD_X * 2.0
+	var body_font: Font = GameTheme.body_font()
+	var line_h: float = body_font.get_height(GameTheme.BODY_SIZE)
+	var y: float = 36.0
+	Ui540.anchor_rect_safe(options_hint, PAUSE_PAD_X, y, inner, line_h)
+	y += line_h + 12.0
+	for pair: Array in [[music_label, music_slider, "MusicPct"], [sfx_label, sfx_slider, "SfxPct"]]:
+		var lbl: Label = pair[0]
+		var slider: HSlider = pair[1]
+		Ui540.anchor_rect_safe(lbl, PAUSE_PAD_X, y, OPTIONS_LABEL_W, OPTIONS_ROW_H)
+		Ui540.anchor_rect_safe(slider, PAUSE_PAD_X + OPTIONS_LABEL_W, y + (OPTIONS_ROW_H - 24.0) * 0.5, inner - OPTIONS_LABEL_W - OPTIONS_PCT_W - 12.0, 24)
+		var pct: Label = _volume_pct_label(str(pair[2]))
+		Ui540.anchor_rect_safe(pct, w - PAUSE_PAD_X - OPTIONS_PCT_W, y, OPTIONS_PCT_W, OPTIONS_ROW_H)
+		y += OPTIONS_ROW_H
+	_refresh_volume_pct()
+	y += 8.0
+	var speed: CheckButton = options_panel.get_node_or_null("SpeedupToggle") as CheckButton
+	if speed:
+		Ui540.anchor_rect_safe(speed, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
+		y += OPTIONS_ROW_H
+		var hint: Label = options_panel.get_node_or_null("SpeedupHint") as Label
+		if hint:
+			var lines: int = Ui540.text_line_count(hint.text, body_font, GameTheme.BODY_SIZE, inner)
+			hint.update_minimum_size()
+			Ui540.anchor_rect_safe(hint, PAUSE_PAD_X, y, inner, line_h * lines)
+			y += line_h * lines + 8.0
+	var debug_box: CheckButton = options_panel.get_node_or_null("DebugToolsToggle") as CheckButton
+	if debug_box:
+		Ui540.anchor_rect_safe(debug_box, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
+		y += OPTIONS_ROW_H + 4.0
+	if options_controls:
+		var lines_c: int = Ui540.text_line_count(options_controls.text, body_font, GameTheme.BODY_SIZE, inner)
+		options_controls.update_minimum_size()
+		Ui540.anchor_rect_safe(options_controls, PAUSE_PAD_X, y, inner, line_h * lines_c)
+		y += line_h * lines_c + 12.0
+	Ui540.anchor_rect_safe(options_reset, PAUSE_PAD_X, y, 160, PAUSE_BTN_H)
+	Ui540.anchor_rect_safe(options_close, w - PAUSE_PAD_X - 160.0, y, 160, PAUSE_BTN_H)
+	for btn: Button in [options_reset, options_close]:
+		Ui540.fit_button_font(btn, 160)
+	_fit_window(options_panel, Vector2(w, y + PAUSE_BTN_H + 24.0))
+	Ui540.place_title_plank(options_title, w)
+
+
+func _volume_pct_label(node_name: String) -> Label:
+	var pct: Label = options_panel.get_node_or_null(node_name) as Label
+	if pct == null:
+		pct = Label.new()
+		pct.name = node_name
+		GameTheme.style_ink_label(pct)
+		pct.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		pct.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		options_panel.add_child(pct)
+	return pct
+
+
+func _refresh_volume_pct() -> void:
+	if options_panel == null:
+		return
+	for pair: Array in [["MusicPct", music_slider], ["SfxPct", sfx_slider]]:
+		var pct: Label = options_panel.get_node_or_null(str(pair[0])) as Label
+		var slider: HSlider = pair[1]
+		if pct and slider:
+			pct.text = "%d%%" % roundi(100.0 * (slider.value - slider.min_value) / maxf(0.001, slider.max_value - slider.min_value))
 
 
 func _apply_strings() -> void:
@@ -153,8 +265,8 @@ func _apply_strings() -> void:
 	btn_load.text = ContentStrings.get_text("pause_load")
 	btn_options.text = ContentStrings.get_text("pause_options")
 	btn_exit.text = ContentStrings.get_text("pause_exit")
-	slots_back.text = ContentStrings.get_text("btn_close")
-	options_title.text = ContentStrings.get_text("options_audio_title")
+	slots_back.text = ContentStrings.get_text("options_back")
+	options_title.text = ContentStrings.get_text("options_title")
 	options_hint.text = ContentStrings.get_text("options_audio_hint")
 	if options_controls:
 		options_controls.text = "%s   ·   %s\n%s   ·   %s" % [
@@ -178,45 +290,29 @@ func _ensure_speedup_toggle() -> void:
 		return
 	var box := CheckButton.new()
 	box.name = "SpeedupToggle"
-	box.position = Vector2(36, 208)
-	box.size = Vector2(488, 32)
 	box.text = ContentStrings.get_text("options_speedup_toggle")
 	box.button_pressed = GameAudio.use_speedup_button
 	box.toggled.connect(_on_speedup_toggled)
 	options_panel.add_child(box)
 	var hint := Label.new()
 	hint.name = "SpeedupHint"
-	hint.position = Vector2(36, 242)
-	hint.size = Vector2(488, 48)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_color_override("font_color", GameTheme.MUTED)
+	GameTheme.style_ink_label(hint, true)
 	hint.text = ContentStrings.get_text("options_speedup_toggle_hint")
 	options_panel.add_child(hint)
-	var next_y: float = 296.0
 	if _debug_tools_available():
 		var debug_box := CheckButton.new()
 		debug_box.name = "DebugToolsToggle"
-		debug_box.position = Vector2(28, next_y)
-		debug_box.size = Vector2(464, 32)
 		debug_box.text = ContentStrings.get_text("options_debug_tools_toggle")
 		debug_box.tooltip_text = "Ctrl+F8"
 		debug_box.button_pressed = AnimPreviewHotkey.debug_panel_open()
 		debug_box.toggled.connect(_on_debug_tools_toggled)
 		options_panel.add_child(debug_box)
-		next_y += 40.0
-	if options_controls:
-		options_controls.position = Vector2(options_controls.position.x, next_y)
-		next_y += 84.0
-	options_reset.position = Vector2(36, next_y)
-	options_close.position = Vector2(364, next_y)
-	options_reset.size = Vector2(160, PAUSE_BTN_H)
-	options_close.size = Vector2(160, PAUSE_BTN_H)
-	var frame: Panel = options_panel.get_node_or_null("Frame") as Panel
-	if frame:
-		frame.size = Vector2(560, next_y + PAUSE_BTN_H + 28.0)
-	options_panel.custom_minimum_size = frame.size if frame else Vector2(560, 404)
-	options_panel.size = options_panel.custom_minimum_size
+	for toggle: CheckButton in [box, options_panel.get_node_or_null("DebugToolsToggle") as CheckButton]:
+		if toggle:
+			toggle.add_theme_font_override("font", GameTheme.body_font())
+			toggle.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	_layout_options()
 
 
 func _debug_tools_available() -> bool:
@@ -395,6 +491,8 @@ func _on_load_pressed() -> void:
 func _on_options_pressed() -> void:
 	_apply_strings()
 	_sync_audio_sliders_from_game()
+	panel.visible = false
+	_layout_options()
 	options_panel.visible = true
 	GameAudio.play_ui_open()
 
@@ -438,6 +536,8 @@ func _show_slots(title: String) -> void:
 	slots_title.text = title
 	_rebuild_slot_rows(_slot_mode == SlotMode.LOAD)
 	_refresh_slot_labels()
+	panel.visible = false
+	_layout_slots()
 	slots_panel.visible = true
 	GameAudio.play_ui_open()
 
@@ -453,6 +553,8 @@ func _on_slots_back() -> void:
 func _hide_slots() -> void:
 	slots_panel.visible = false
 	_slot_mode = SlotMode.NONE
+	if _open and not standalone and not confirm_panel.visible:
+		panel.visible = true
 
 
 func _rebuild_slot_rows(include_autosave: bool) -> void:
@@ -472,15 +574,25 @@ func _add_slot_header(node_name: String, text: String) -> void:
 	var header := Label.new()
 	header.name = node_name
 	header.text = text
-	header.add_theme_font_size_override("font_size", 16)
-	header.add_theme_color_override("font_color", Color(0.93, 0.86, 0.62, 1))
+	GameTheme.style_ink_label(header, true)
+	header.custom_minimum_size = Vector2(0, 28)
+	header.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	slot_buttons.add_child(header)
 
 
 func _add_slot_button(kind: String, slot: int) -> void:
 	var btn := Button.new()
 	btn.name = "%s%d" % [kind.capitalize(), slot]
-	btn.custom_minimum_size = Vector2(400, 28 if _slot_mode == SlotMode.LOAD else 36)
+	btn.custom_minimum_size = Vector2(0, 44)
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	GameTheme.style_ink_button(btn)
+	btn.add_theme_font_override("font", GameTheme.body_font())
+	btn.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	btn.add_theme_stylebox_override("normal", Ui540.list_row_style())
+	btn.add_theme_stylebox_override("hover", Ui540.kit_stylebox_9s("res://assets/ui/theme/pick_row_9s_hover_24x24.png", Vector4i(6, 6, 6, 6), Vector4(8, 4, 12, 4)))
+	btn.add_theme_stylebox_override("pressed", Ui540.list_row_style(true))
+	btn.add_theme_stylebox_override("focus", Ui540.list_row_style(true))
 	btn.set_meta("slot_kind", kind)
 	btn.set_meta("slot_index", slot)
 	btn.pressed.connect(_on_slot_pressed.bind(kind, slot))
@@ -580,12 +692,16 @@ func _show_confirm(action: StringName, body: String, yes: String, no: String) ->
 	slots_panel.visible = false
 	options_panel.visible = false
 	confirm_panel.visible = true
+	confirm_panel.z_index = 10
 	confirm_panel.move_to_front()
-	_layout_pause_menu()
-	for btn: Button in [confirm_yes, confirm_no]:
-		btn.theme_type_variation = &""
-		btn.add_theme_font_override("font", GameTheme.body_font())
-		btn.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
+	var title: Label = confirm_panel.get_node_or_null("ConfirmTitle") as Label
+	if title:
+		title.text = ContentStrings.get_text(str(CONFIRM_TITLES.get(action, "pause_title")))
+	Ui540.layout_confirm(confirm_panel, title, confirm_label, confirm_yes, confirm_no)
+	var frame: Panel = confirm_panel.get_node_or_null("Frame") as Panel
+	if frame:
+		frame.position = Vector2.ZERO
+		frame.size = confirm_panel.size
 	confirm_no.grab_focus.call_deferred()
 
 
@@ -612,6 +728,8 @@ func _on_options_close() -> void:
 
 func _hide_options() -> void:
 	options_panel.visible = false
+	if _open and not standalone:
+		panel.visible = true
 
 
 func _on_confirm_yes() -> void:

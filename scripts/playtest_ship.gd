@@ -140,7 +140,7 @@ func _title_flows() -> void:
 	await process_frame
 	var save_btn: Button = pause.get_node("Panel/BtnSave") as Button
 	await _click(save_btn)
-	var slot1: Button = pause.get_node_or_null("SlotsPanel/SlotButtons/Slot1") as Button
+	var slot1: Button = pause.get_node_or_null("SlotsPanel/SlotScroll/SlotButtons/Slot1") as Button
 	await _click(slot1)
 	var overwrite: CanvasItem = pause.get_node_or_null("ConfirmPanel") as CanvasItem
 	if overwrite != null and overwrite.visible:
@@ -206,7 +206,7 @@ func _title_flows() -> void:
 	var slots: CanvasItem = title.get_node("PauseMenu/SlotsPanel") as CanvasItem
 	_check("1 Load opens slot list", slots.visible)
 	_shot("pt_title_load.png")
-	var load_slot: Button = title.get_node("PauseMenu/SlotsPanel/SlotButtons/Slot1") as Button
+	var load_slot: Button = title.get_node("PauseMenu/SlotsPanel/SlotScroll/SlotButtons/Slot1") as Button
 	await _click(load_slot)
 	for _l: int in range(8):
 		await process_frame
