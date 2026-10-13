@@ -6,7 +6,7 @@ const T := "res://assets/ui/theme/"
 const INK := Color8(62, 42, 24)
 const CREAM := Color8(250, 238, 204)
 const OUTLINE := Color8(26, 15, 8)
-const MUTED := Color8(154, 126, 82)
+const MUTED := Color8(90, 62, 40)
 const DIS := Color8(164, 150, 132)
 # measured cap heights (px ink, top of "H" to baseline) - see MOCKUPS.md v8c
 const CAP := {"silver19": 9, "silver38": 18, "jersey30": 16}
