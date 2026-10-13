@@ -1607,7 +1607,6 @@ func _build_party_bar() -> void:
 	(_slot_keeper.get_node("Portrait") as TextureRect).texture = keeper_tex
 	(_slot_wisp.get_node("Portrait") as TextureRect).texture = wisp_tex
 	(_slot_elaia.get_node("Portrait") as TextureRect).texture = _actor_portrait_texture("elaia")
-	_slot_elaia.tooltip_text = ContentStrings.get_text("hud_elaia_portrait_tooltip")
 	_slot_elaia.visible = false
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
