@@ -1772,6 +1772,14 @@ func _run() -> void:
 		var pm: Node = pause_packed.instantiate()
 		tree_root.add_child(pm)
 		await process_frame
+		var resume_btn: Button = pm.get_node_or_null("Panel/BtnResume") as Button
+		var new_game_btn: Button = pm.get_node_or_null("Panel/BtnNewGame") as Button
+		var quit_title_btn: Button = pm.get_node_or_null("Panel/BtnExit") as Button
+		var quit_game_btn: Button = pm.get_node_or_null("Panel/BtnQuitGame") as Button
+		failed += _assert(resume_btn != null and is_equal_approx(resume_btn.position.y, 28.0), "pause list starts at y 28")
+		failed += _assert(new_game_btn != null and not new_game_btn.visible, "pause has no New Game")
+		failed += _assert(quit_title_btn != null and quit_title_btn.text == "Quit to Title", "pause quit-to-title label")
+		failed += _assert(quit_game_btn != null and quit_game_btn.visible and quit_game_btn.text == "Quit Game", "Quit Game shows on PC")
 		pm.call("open_pause")
 		failed += _assert(paused == true, "open_pause sets tree.paused")
 		pm.call("resume_game")

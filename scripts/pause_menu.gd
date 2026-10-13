@@ -19,6 +19,7 @@ enum SlotMode { NONE, SAVE, LOAD }
 @onready var btn_load: Button = $Panel/BtnLoad
 @onready var btn_options: Button = $Panel/BtnOptions
 @onready var btn_exit: Button = $Panel/BtnExit
+var btn_quit_game: Button
 @onready var slots_panel: Control = $SlotsPanel
 @onready var slots_title: Label = $SlotsPanel/SlotsTitle
 @onready var slot_scroll: ScrollContainer = $SlotsPanel/SlotScroll
@@ -53,13 +54,14 @@ const PAUSE_BTN_W: float = 200.0
 const PAUSE_BTN_H: float = 44.0
 const PAUSE_BTN_GAP: float = 8.0
 const PAUSE_PAD_X: float = 36.0
-const PAUSE_PAD_TOP: float = 32.0
+const PAUSE_PAD_TOP: float = 28.0
 const OPTIONS_W: float = 560.0
 const SLOTS_W: float = 640.0
 const SLOTS_H: float = 368.0
 const CONFIRM_TITLES: Dictionary = {
 	&"new_game": "pause_new_game_confirm_title",
 	&"exit": "pause_exit_confirm_title",
+	&"quit": "pause_quit_game_confirm_title",
 	&"overwrite": "pause_slot_overwrite_title",
 }
 const OPTIONS_ROW_H: float = 44.0
@@ -146,8 +148,40 @@ func _fit_window(root: Control, sz: Vector2) -> void:
 	Ui540.center_kit_panel(root)
 
 
+func _ensure_quit_game_button() -> void:
+	if btn_quit_game != null and is_instance_valid(btn_quit_game):
+		Ui540.hide_on_phone(btn_quit_game)
+		return
+	btn_quit_game = Button.new()
+	btn_quit_game.name = "BtnQuitGame"
+	btn_quit_game.text = "Quit Game"
+	GameTheme.style_menu_button(btn_quit_game)
+	btn_quit_game.pressed.connect(_on_quit_game_pressed)
+	panel.add_child(btn_quit_game)
+	Ui540.hide_on_phone(btn_quit_game)
+
+
+func _on_quit_game_pressed() -> void:
+	_show_confirm(
+		&"quit",
+		ContentStrings.get_text("pause_quit_game_confirm"),
+		ContentStrings.get_text("pause_quit_game_confirm_yes"),
+		ContentStrings.get_text("pause_quit_game_confirm_no"),
+	)
+
+
+func _notify_pause_button() -> void:
+	var hud: Node = get_tree().get_first_node_in_group("game_hud") if get_tree() != null else null
+	if hud != null and hud.has_method("hold_pause_button_over_dim"):
+		hud.call("hold_pause_button_over_dim", _open)
+
+
 func _layout_pause_menu() -> void:
-	var btns: Array[Button] = [btn_resume, btn_new_game, btn_save, btn_load, btn_options, btn_exit]
+	_ensure_quit_game_button()
+	btn_new_game.visible = false
+	var btns: Array[Button] = [btn_resume, btn_save, btn_load, btn_options, btn_exit]
+	if btn_quit_game != null and btn_quit_game.visible:
+		btns.append(btn_quit_game)
 	var n: int = btns.size()
 	var btn_w: float = PAUSE_BTN_W
 	for btn: Button in btns:
@@ -265,6 +299,8 @@ func _apply_strings() -> void:
 	btn_load.text = ContentStrings.get_text("pause_load")
 	btn_options.text = ContentStrings.get_text("pause_options")
 	btn_exit.text = ContentStrings.get_text("pause_exit")
+	if btn_quit_game:
+		btn_quit_game.text = ContentStrings.get_text("pause_quit_game")
 	slots_back.text = ContentStrings.get_text("options_back")
 	options_title.text = ContentStrings.get_text("options_title")
 	options_hint.text = ContentStrings.get_text("options_audio_hint")
@@ -439,6 +475,7 @@ func open_pause() -> void:
 	panel.visible = true
 	btn_save.disabled = EchoChamber.in_battle
 	btn_resume.grab_focus.call_deferred()
+	_notify_pause_button()
 	if EchoChamber.in_battle:
 		status_toast.emit(ContentStrings.get_text("battle_paused_hint"))
 	get_tree().paused = true
@@ -459,6 +496,7 @@ func resume_game() -> void:
 	visible = false
 	# Fruit commit holds the world paused until Ascend. An open Echo stays paused too.
 	get_tree().paused = GameState.fruit_committed or EchoChamber.in_battle
+	_notify_pause_button()
 	# Hub bed must still be playing after pause resume, except during an Echo.
 	if not EchoChamber.in_battle and not GameAudio.is_hub_music_playing():
 		GameAudio.play_hub_music()
@@ -739,6 +777,11 @@ func _on_confirm_yes() -> void:
 	match action:
 		&"new_game":
 			_do_new_game()
+		&"quit":
+			if not EchoChamber.in_battle:
+				SaveService.save_on_quit()
+			get_tree().paused = false
+			get_tree().quit()
 		&"exit":
 			if not EchoChamber.in_battle:
 				SaveService.save_on_quit()

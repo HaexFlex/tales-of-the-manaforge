@@ -1235,6 +1235,7 @@ func _sync_toast_under_modals() -> void:
 	var a: float = 0.0 if modal else 1.0
 	if panel:
 		panel.visible = not modal
+	hold_pause_button_over_dim(_pause_menu_is_open())
 	## The Keeper portrait and Idle label sit in the party column, outside $Panel.
 	if _party_bar:
 		_party_bar.visible = not modal
@@ -1247,6 +1248,55 @@ func _sync_toast_under_modals() -> void:
 		toast_shade.self_modulate.a = a
 	if _ancient_countdown:
 		_ancient_countdown.self_modulate.a = a
+
+
+var _pause_button_lifted: bool = false
+
+
+func hold_pause_button_over_dim(hold: bool) -> void:
+	## The phone pause control stays on the pause layer, above the dim, while pause is open.
+	if pause_button == null or not is_instance_valid(pause_button):
+		return
+	if hold == _pause_button_lifted and ((not hold) or pause_button.get_parent() != panel):
+		if hold:
+			pause_button.visible = true
+			pause_button.modulate = Color.WHITE
+		return
+	_pause_button_lifted = hold
+	if hold:
+		var menu: Node = _open_pause_layer()
+		if menu == null:
+			_pause_button_lifted = false
+			return
+		var at: Vector2 = pause_button.global_position
+		pause_button.get_parent().remove_child(pause_button)
+		menu.add_child(pause_button)
+		pause_button.global_position = at
+		pause_button.visible = true
+		pause_button.modulate = Color.WHITE
+		pause_button.z_index = 20
+		return
+	if panel != null and pause_button.get_parent() != panel:
+		var back: Vector2 = pause_button.global_position
+		pause_button.get_parent().remove_child(pause_button)
+		panel.add_child(pause_button)
+		pause_button.global_position = back
+		pause_button.z_index = 0
+		_layout_hud540()
+
+
+func _pause_menu_is_open() -> bool:
+	return _open_pause_layer() != null
+
+
+func _open_pause_layer() -> Node:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return null
+	for menu: Node in tree.get_nodes_in_group("pause_menu"):
+		if menu.has_method("is_open") and bool(menu.call("is_open")):
+			return menu
+	return null
 
 
 func modal_window_open() -> bool:
