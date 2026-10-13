@@ -8875,6 +8875,13 @@ func _board_close_ok(tree_root: Window, game_state: Node, save_service: Node) ->
 	board.call("open_shell")
 	failed += _assert(bool(board.call("shell_open")), "shell opens")
 	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
+	var board_panel: Control = shell.find_child("Panel", true, false) as Control if shell != null else null
+	if board_panel != null:
+		var view_h: float = tree_root.get_visible_rect().size.y
+		var visual_top: float = board_panel.position.y - Ui540.PLANK_RISE
+		var visual_mid: float = visual_top + (board_panel.size.y + Ui540.PLANK_RISE) * 0.5
+		failed += _assert(absf(visual_mid - view_h * 0.5) <= 2.0, "board window is vertically centred at 540p (mid %.1f of %.1f)" % [visual_mid, view_h])
+		failed += _assert(visual_top >= Ui540.SAFE_MARGIN_PX - 1.0, "board plank stays inside the safe margin")
 	var close_btn: Button = shell.find_child("CloseButton", true, false) as Button if shell != null else null
 	failed += _assert(close_btn != null and close_btn.text == "" and close_btn.icon != null and close_btn.tooltip_text == "Close", "board Close is the kit ×")
 	if close_btn != null:

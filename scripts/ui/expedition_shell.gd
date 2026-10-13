@@ -102,6 +102,8 @@ func _build() -> void:
 
 
 func _center_board_panel() -> void:
+	## 16:9 and 20:9 are both 540 tall, so the vertical place is the same.
+	## fit_kit_window centres the frame plus the plank. Raising it would push the plank into the HUD.
 	if _panel == null:
 		return
 	Ui540.fit_kit_window(_panel, PANEL_SIZE)
