@@ -2052,7 +2052,8 @@ func _refresh_care_needs() -> void:
 	var can_pay: bool = bool(info.get("can_pay", false))
 	pay_button.visible = not is_ancient
 	pay_button.text = ContentStrings.get_text("tree_grow")
-	pay_button.disabled = not can_pay
+	## Stays tappable when short, so a press can flash the missing line.
+	pay_button.disabled = false
 	_refresh_grow_cost_icons(info, is_ancient)
 	water_button.visible = not GameState.fruit_committed
 	water_button.text = ContentStrings.get_text("tree_interact_water")
@@ -2060,6 +2061,7 @@ func _refresh_care_needs() -> void:
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
 	_refresh_forge_entry()
 	_layout_care_window()
+	_paint_grow_face(can_pay)
 	fruit_ready_card.visible = fruit_ready
 	precommit_hint.visible = fruit_ready
 	if fruit_ready:
@@ -2224,7 +2226,13 @@ func _refresh_forge_entry() -> void:
 			forge_button.add_theme_color_override(state, forge_button.get_theme_color("font_disabled_color"))
 	else:
 		forge_button.text = ContentStrings.get_text("forge_enter")
-	Ui540.fit_button_font(forge_button)
+	## Same face size as Grow and Water. The long locked line is not shrunk.
+	forge_button.remove_theme_font_override("font")
+	forge_button.remove_theme_font_size_override("font_size")
+	var lock_icon: Texture2D = load("res://assets/art/ui/board/lock_10x12.png") as Texture2D
+	forge_button.icon = lock_icon if _forge_locked else null
+	forge_button.expand_icon = false
+	forge_button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 func is_forge_entry_visible() -> bool:
@@ -2635,11 +2643,38 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 		})
 
 
+func _paint_grow_face(can_pay: bool) -> void:
+	if pay_button == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed", &"focus"]:
+		pay_button.remove_theme_stylebox_override(state)
+	if can_pay:
+		GameTheme.style_primary_button(pay_button)
+		return
+	var dis: StyleBox = pay_button.get_theme_stylebox(&"disabled")
+	if dis == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed"]:
+		pay_button.add_theme_stylebox_override(state, dis)
+
+
+func _flash_grow_needs() -> void:
+	var missing: String = GameState.format_missing_needs()
+	if _care_status and missing != "":
+		_care_status.text = missing
+		_care_status.visible = true
+	if care_grow_costs == null:
+		return
+	var tw: Tween = create_tween()
+	care_grow_costs.modulate = Color(1.0, 0.55, 0.25)
+	tw.tween_property(care_grow_costs, "modulate", Color.WHITE, 0.45)
+
+
 func _on_pay() -> void:
 	## One-click Grow, except Ancient, which asks first. try_grow_stage itself stays direct.
 	if not GameState.can_grow_stage():
 		GameAudio.play_tree_deny()
-		_refresh_care_needs()
+		_flash_grow_needs()
 		return
 	if String(GameState.get_next_stage_id()) == "ancient":
 		open_ancient_grow_confirm()

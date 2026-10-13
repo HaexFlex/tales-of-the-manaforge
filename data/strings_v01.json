@@ -52,7 +52,7 @@
   "tree_stage_blocked_food": "Food {have}/{need}",
   "tree_stage_blocked_shards": "Manashards {have}/{need}",
   "tree_at_ancient_idle": "Ancient and waiting. The Primordial Fruit hangs heavy.",
-  "fruit_ready_prompt": "Harvest the Primordial Fruit",
+  "fruit_ready_prompt": "Harvest the Fruit",
   "fruit_precommit_cta": "Harvest the Primordial Fruit",
   "fruit_precommit_hint": "You can still water and gather. Blessings wait until after you commit the harvest.",
   "fruit_precommit_no_shop": "Blessings unlock after you harvest.",
