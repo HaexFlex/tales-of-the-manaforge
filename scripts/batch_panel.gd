@@ -338,7 +338,7 @@ func _refresh() -> void:
 	var limit: int = 0
 	if _recipe_id != "" and not running:
 		limit = ForgeJobs.slider_limit(_recipe_id)
-	_slider.max_value = float(maxi(limit, 1))
+	_slider.max_value = float(limit)
 	_slider.min_value = 0.0
 	if _recipe_id != _slider_recipe:
 		_slider_recipe = _recipe_id

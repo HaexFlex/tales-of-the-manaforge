@@ -72,12 +72,12 @@ var _qty: SpinBox
 var _list: ItemList
 var _rows: Array[Dictionary] = []
 var _fight_depth: SpinBox
-var _fight_boss: CheckButton
-var _fight_elaia: CheckButton
+var _fight_boss: CheckBox
+var _fight_elaia: CheckBox
 var _grant_add_mode: bool = true
 var _grant_to_pack: bool = false
 var _ancient_timer: SpinBox
-var _ancient_freeze: CheckButton
+var _ancient_freeze: CheckBox
 var _reach_depth: SpinBox
 var _reach_deepest: SpinBox
 var _reach_dojo: SpinBox
@@ -330,8 +330,8 @@ func _field_spin(row: Container, min_v: int, max_v: int, val: int, width: float 
 	return spin
 
 
-func _switch(row: Container, text: String) -> CheckButton:
-	var toggle := CheckButton.new()
+func _switch(row: Container, text: String) -> CheckBox:
+	var toggle := CheckBox.new()
 	toggle.text = text
 	toggle.custom_minimum_size = Vector2(0, ROW_H)
 	row.add_child(toggle)
@@ -987,10 +987,10 @@ func _build_fight_at_depth(parent: Container) -> void:
 	var depth: SpinBox = _field_spin(row, 1, 40, 1, 88.0)
 	depth.name = "FightDepth"
 	_fight_depth = depth
-	var boss: CheckButton = _switch(row, "Boss")
+	var boss: CheckBox = _switch(row, "Boss")
 	boss.name = "FightBoss"
 	_fight_boss = boss
-	var elaia: CheckButton = _switch(row, "With Elaia")
+	var elaia: CheckBox = _switch(row, "With Elaia")
 	elaia.name = "FightElaia"
 	elaia.button_pressed = true
 	_fight_elaia = elaia

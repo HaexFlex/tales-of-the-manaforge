@@ -378,9 +378,15 @@ static func style_wood_icon_button(btn: BaseButton) -> void:
 	var theme_res: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
 	if theme_res == null:
 		return
+	var icon_only: bool = not (btn is Button and (btn as Button).text != "")
 	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled", &"focus"]:
 		var sb: StyleBox = theme_res.get_stylebox(state, &"Button")
 		if sb:
+			if icon_only:
+				# The theme's 12 px text margins would make a 24 px glyph 48 wide.
+				sb = sb.duplicate() as StyleBox
+				sb.content_margin_left = 10.0
+				sb.content_margin_right = 10.0
 			btn.add_theme_stylebox_override(state, sb)
 	btn.flat = false
 
@@ -391,11 +397,12 @@ const _CLOSE_ICON: Texture2D = preload("res://assets_extra/shared/close_x_24.png
 static func configure_kit_close_button(btn: BaseButton) -> void:
 	if btn == null:
 		return
+	if btn is Button:
+		(btn as Button).text = ""
 	style_wood_icon_button(btn)
 	configure_icon_button(btn, "Close")
 	if btn is Button:
 		var b: Button = btn as Button
-		b.text = ""
 		b.icon = _CLOSE_ICON
 		b.expand_icon = false
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
