@@ -138,6 +138,11 @@ func _party_block(panel: Control) -> void:
 	var sub := _line(panel, "PartyHint", Vector2(PARTY_X + 100.0, COL_TITLE_Y), Vector2(PARTY_W - 100.0, COL_TITLE_H), true)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var bed := _nine_patch("FormationBed", KIT_DIR + "play_bevel_9s_6x6.png", 2, Vector2(PARTY_X, BODY_Y), Vector2(PARTY_W, BED_H))
+	var depart_cost := _line(panel, "PartyDepartCost", Vector2(PARTY_X, BODY_Y + BED_H + 2.0), Vector2(PARTY_W - 100.0, 22), true)
+	depart_cost.add_theme_font_size_override("font_size", 14)
+	depart_cost.clip_text = true
+	depart_cost.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	depart_cost.text = "Departure costs 20 Essence."
 	bed.clip_contents = true
 	panel.add_child(bed)
 	var label_y: float = BODY_Y + 12.0 + SLOT_PITCH_Y * 2.0 + 62.0
@@ -188,7 +193,21 @@ func _route_block(panel: Control) -> void:
 		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		note.text = str(row[2])
 	var hero_y: float = BODY_Y + ROW_PITCH * 3.0 + 2.0
-	var duration := _line(panel, "DurationLabel", Vector2(ROUTE_X, hero_y), Vector2(ROUTE_W, 30), false)
+	var glass_w: float = 0.0
+	var glass := Label.new()
+	glass.name = "Hourglass"
+	glass.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glass.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	glass.add_theme_font_override("font", _primary_font)
+	glass.add_theme_font_size_override("font_size", BIG_SIZE)
+	glass.add_theme_color_override("font_color", INK)
+	if _primary_font != null and _primary_font.has_char(0x23F3):
+		glass.text = "⏳"
+		glass_w = 28.0
+	panel.add_child(glass)
+	glass.position = Vector2(ROUTE_X, hero_y)
+	glass.size = Vector2(glass_w, 30)
+	var duration := _line(panel, "DurationLabel", Vector2(ROUTE_X + glass_w, hero_y), Vector2(ROUTE_W - glass_w, 30), false)
 	duration.add_theme_font_override("font", _primary_font)
 	duration.add_theme_font_size_override("font_size", BIG_SIZE)
 	_line(panel, "BossLabel", Vector2(ROUTE_X, hero_y + 30.0), Vector2(ROUTE_W, 20), true)
@@ -250,7 +269,8 @@ func _loadout_block(panel: Control) -> void:
 	_section(panel, "LoadoutTitle", Vector2(LOAD_X, COL_TITLE_Y), Vector2(120, COL_TITLE_H)).text = "Loadout"
 	var cap := _line(panel, "LoadoutCap", Vector2(LOAD_X + 120.0, COL_TITLE_Y), Vector2(LOAD_W - 120.0, COL_TITLE_H), true)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	cap.text = "up to 100 each"
+	cap.text = "2 of 6 open"
+	cap.tooltip_text = "More unlock later. Up to 100 each."
 	for slot_i: int in range(2):
 		var y: float = BODY_Y + LOAD_SLOT_PITCH * float(slot_i)
 		var n: int = slot_i + 1
@@ -267,6 +287,21 @@ func _loadout_block(panel: Control) -> void:
 		name_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 		name_lbl.add_theme_constant_override("line_spacing", -2)
+	var locked_y: float = BODY_Y + LOAD_SLOT_PITCH * 2.0 + 4.0
+	var lock_tex: Texture2D = load(BOARD_DIR + "lock_10x12.png") as Texture2D
+	for locked_i: int in range(4):
+		var locked := Button.new()
+		locked.name = "LoadoutLocked%d" % (locked_i + 1)
+		locked.position = Vector2(LOAD_X + float(locked_i) * 48.0, locked_y)
+		locked.size = Vector2(ROW_H, ROW_H)
+		locked.disabled = true
+		locked.focus_mode = Control.FOCUS_NONE
+		locked.tooltip_text = "More unlock later."
+		locked.icon = lock_tex
+		locked.expand_icon = false
+		locked.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		panel.add_child(locked)
+		_style_item_slot(locked)
 
 
 func _add_footer(panel: Control) -> void:

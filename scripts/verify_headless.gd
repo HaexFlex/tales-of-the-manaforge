@@ -17076,6 +17076,16 @@ func _board_v4_ok(tree_root: Window, game_state: Node, save_service: Node) -> in
 	var item1: Button = shell.find_child("LoadoutItem1", true, false) as Button
 	var plus1: Button = shell.find_child("LoadoutPlus1", true, false) as Button
 	failed += _assert(item1 != null and plus1 != null, "loadout controls")
+	var locked_n: int = 0
+	for locked_i: int in range(1, 5):
+		var locked_btn: Button = shell.find_child("LoadoutLocked%d" % locked_i, true, false) as Button
+		if locked_btn != null and locked_btn.disabled:
+			locked_n += 1
+	failed += _assert(locked_n == 4, "four loadout slots stay locked")
+	var cap_lbl: Label = shell.find_child("LoadoutCap", true, false) as Label
+	failed += _assert(cap_lbl != null and cap_lbl.text == "2 of 6 open", "loadout says 2 of 6 open")
+	var depart_cost_lbl: Label = shell.find_child("PartyDepartCost", true, false) as Label
+	failed += _assert(depart_cost_lbl != null and depart_cost_lbl.text == "Departure costs 20 Essence.", "departure cost under the party bed")
 	if item1 != null:
 		item1.emit_signal("pressed")
 		board.call("_refresh_shell")
