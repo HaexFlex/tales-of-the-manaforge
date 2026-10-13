@@ -151,6 +151,13 @@ var _backpack_tab: String = "all"
 var _sheet: CharacterSheet = null
 var _toast_tween: Tween
 var _care_hidden_for_forge: bool = false
+var _shop_preview_mode: bool = false
+var _shop_toolbar: HBoxContainer
+var _hide_locked_toggle: CheckButton
+var _hide_maxed_toggle: CheckButton
+var _blessings_preview_button: Button
+var _spoiler_dialog: PanelContainer
+var _spoiler_pending_unlock: bool = false
 const TOAST_HOLD_SEC: float = 2.6
 const TOAST_FADE_SEC: float = 0.8
 
@@ -237,6 +244,9 @@ func _ready() -> void:
 	_ensure_frozen_banner()
 	_ensure_nav_button()
 	_ensure_speed_button()
+	_ensure_shop_toolbar()
+	_ensure_spoiler_dialog()
+	_ensure_care_blessings_button()
 	_ensure_play_speed_button()
 	if not GameState.ancient_expired.is_connected(_on_ancient_expired):
 		GameState.ancient_expired.connect(_on_ancient_expired)
@@ -286,6 +296,10 @@ func _layout_ascension_shop() -> void:
 	ascension_panel.size = Vector2(w, h)
 	if shop_header:
 		shop_header.offset_bottom = SHOP_HEADER_H
+	if _shop_toolbar:
+		_shop_toolbar.position = Vector2(16, SHOP_HEADER_H)
+	if shop_scroll:
+		shop_scroll.offset_top = SHOP_HEADER_H + 32.0
 	if shop_footer:
 		shop_footer.offset_top = h - SHOP_FOOTER_H
 		shop_footer.offset_bottom = h
@@ -1367,7 +1381,11 @@ func is_shop_list_visible() -> bool:
 
 
 func is_ascension_shop_open() -> bool:
-	return ascension_panel.visible
+	return ascension_panel.visible and not _shop_preview_mode
+
+
+func is_shop_preview_open() -> bool:
+	return ascension_panel.visible and _shop_preview_mode
 
 
 func shop_list_clears_footer() -> bool:
@@ -1427,6 +1445,11 @@ func get_fruit_confirm_step() -> int:
 	return _fruit_confirm_step
 
 
+func show_ascension_shop_preview() -> void:
+	_shop_preview_mode = true
+	_open_ascension_shop_internal(false)
+
+
 func show_ascension_shop() -> void:
 	if welcome_panel.visible:
 		return
@@ -1434,29 +1457,46 @@ func show_ascension_shop() -> void:
 		return
 	if not GameState.fruit_harvested_pending_ascend:
 		return
+	_shop_preview_mode = false
+	_open_ascension_shop_internal(true)
+
+
+func _open_ascension_shop_internal(ascend_pause: bool) -> void:
+	if welcome_panel.visible:
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
 	backpack_panel.visible = false
 	close_character_sheet()
 	hide_care_menu()
 	hide_fruit_confirm()
-	_hold_world_for_ascension()
+	if ascend_pause:
+		_hold_world_for_ascension()
+	else:
+		_release_world_if_allowed()
 	_confirm_ascend = false
-	_highlight_ascend = true
+	_highlight_ascend = ascend_pause
 	ascension_panel.visible = true
 	_confirm_batches = false
 	_hide_ascend_batch_dialog()
+	_sync_shop_toolbar()
 	GameAudio.play_ui_open()
 	_rebuild_upgrades()
 	_refresh_ascension_copy()
 	_refresh_reopen_button()
 	_refresh_frozen_banner()
 	_refresh_dim()
-	_apply_ascend_highlight()
+	if ascend_pause:
+		_apply_ascend_highlight()
+	else:
+		_clear_ascend_highlight()
 
 
 func hide_ascension_shop() -> void:
 	if ascension_panel.visible:
 		GameAudio.play_ui_close()
 	ascension_panel.visible = false
+	_shop_preview_mode = false
 	_confirm_ascend = false
 	_confirm_batches = false
 	_hide_ascend_batch_dialog()
@@ -1470,7 +1510,10 @@ func hide_ascension_shop() -> void:
 func _on_shop_close() -> void:
 	## Close cancels the harvest lock. Play resumes; Fruit can be harvested again.
 	## The run locks only when Ascend actually commits.
-	var cancelled_commit: bool = GameState.fruit_committed and not GameState.ancient_frozen
+	var preview: bool = _shop_preview_mode
+	var cancelled_commit: bool = (
+		not preview and GameState.fruit_committed and not GameState.ancient_frozen
+	)
 	if cancelled_commit:
 		GameState.cancel_fruit_commit()
 	hide_ascension_shop()
@@ -2802,10 +2845,17 @@ func _refresh_ascension_copy() -> void:
 	if prestige_title == null:
 		return
 	prestige_title.text = ContentStrings.get_text("fruit_panel_title")
-	prestige_sub.text = ContentStrings.get_text("fruit_shop_only_banner")
+	if _shop_preview_mode:
+		prestige_sub.text = ContentStrings.get_text("ascend_shop_preview_line")
+	elif prestige_sub:
+		prestige_sub.text = ContentStrings.get_text("fruit_shop_only_banner")
 	if shard_count_label:
 		shard_count_label.text = str(GameState.manashards)
-	ascend_button.visible = GameState.fruit_harvested_pending_ascend
+	if shard_chip:
+		shard_chip.visible = not _shop_preview_mode
+	if _shop_toolbar:
+		_shop_toolbar.visible = not _shop_preview_mode
+	ascend_button.visible = GameState.fruit_harvested_pending_ascend and not _shop_preview_mode
 	ascend_button.disabled = not GameState.can_ascend()
 	ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
 	if _highlight_ascend and GameState.can_ascend():
@@ -2824,19 +2874,173 @@ func _clear_ascend_highlight() -> void:
 	ascend_button.modulate = Color.WHITE
 
 
+func _ensure_shop_toolbar() -> void:
+	if ascension_panel == null or _shop_toolbar != null:
+		return
+	_shop_toolbar = HBoxContainer.new()
+	_shop_toolbar.name = "ShopToolbar"
+	_shop_toolbar.position = Vector2(16, 48)
+	_shop_toolbar.size = Vector2(608, 28)
+	_shop_toolbar.add_theme_constant_override("separation", 12)
+	ascension_panel.add_child(_shop_toolbar)
+	_hide_locked_toggle = CheckButton.new()
+	_hide_locked_toggle.text = ContentStrings.get_text("ascend_shop_hide_locked")
+	_hide_locked_toggle.toggled.connect(_on_hide_locked_toggled)
+	_shop_toolbar.add_child(_hide_locked_toggle)
+	_hide_maxed_toggle = CheckButton.new()
+	_hide_maxed_toggle.text = ContentStrings.get_text("ascend_shop_hide_maxed")
+	_hide_maxed_toggle.toggled.connect(_on_hide_maxed_toggled)
+	_shop_toolbar.add_child(_hide_maxed_toggle)
+	_sync_shop_toolbar()
+
+
+func _sync_shop_toolbar() -> void:
+	if _hide_locked_toggle == null or _hide_maxed_toggle == null:
+		return
+	_hide_locked_toggle.set_block_signals(true)
+	_hide_maxed_toggle.set_block_signals(true)
+	_hide_locked_toggle.button_pressed = GameState.shop_hide_locked
+	_hide_maxed_toggle.button_pressed = GameState.shop_hide_maxed
+	_hide_locked_toggle.set_block_signals(false)
+	_hide_maxed_toggle.set_block_signals(false)
+
+
+func _on_hide_maxed_toggled(pressed: bool) -> void:
+	GameState.shop_hide_maxed = pressed
+	_rebuild_upgrades()
+	SaveService.save_game()
+
+
+func _on_hide_locked_toggled(pressed: bool) -> void:
+	if pressed:
+		GameState.shop_hide_locked = true
+		_rebuild_upgrades()
+		SaveService.save_game()
+		return
+	if not GameState.shop_hide_locked:
+		return
+	if GameState.shop_spoiler_shown_count >= 3:
+		GameState.shop_hide_locked = false
+		_rebuild_upgrades()
+		SaveService.save_game()
+		return
+	_spoiler_pending_unlock = true
+	_show_spoiler_dialog()
+
+
+func _ensure_spoiler_dialog() -> void:
+	if _spoiler_dialog != null:
+		return
+	_spoiler_dialog = PanelContainer.new()
+	_spoiler_dialog.name = "AscendSpoilerDialog"
+	_spoiler_dialog.visible = false
+	_spoiler_dialog.set_anchors_preset(Control.PRESET_CENTER)
+	_spoiler_dialog.custom_minimum_size = Vector2(420, 200)
+	add_child(_spoiler_dialog)
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 10)
+	_spoiler_dialog.add_child(inner)
+	var title := Label.new()
+	title.text = ContentStrings.get_text("ascend_spoiler_title")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inner.add_child(title)
+	var body := Label.new()
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.text = ContentStrings.get_text("ascend_spoiler_body")
+	inner.add_child(body)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_END
+	row.add_theme_constant_override("separation", 16)
+	inner.add_child(row)
+	var peek := Button.new()
+	peek.text = ContentStrings.get_text("ascend_spoiler_confirm")
+	peek.pressed.connect(_on_spoiler_peek)
+	row.add_child(peek)
+	var stay := Button.new()
+	stay.text = ContentStrings.get_text("ascend_spoiler_stay")
+	stay.custom_minimum_size = Vector2(140, 40)
+	stay.pressed.connect(_on_spoiler_stay)
+	row.add_child(stay)
+
+
+func _show_spoiler_dialog() -> void:
+	_ensure_spoiler_dialog()
+	if _spoiler_dialog:
+		_spoiler_dialog.visible = true
+	_sync_shop_toolbar()
+
+
+func _hide_spoiler_dialog() -> void:
+	if _spoiler_dialog:
+		_spoiler_dialog.visible = false
+	_spoiler_pending_unlock = false
+
+
+func _on_spoiler_peek() -> void:
+	GameState.shop_spoiler_shown_count += 1
+	GameState.shop_hide_locked = false
+	_hide_spoiler_dialog()
+	_sync_shop_toolbar()
+	_rebuild_upgrades()
+	SaveService.save_game()
+
+
+func _on_spoiler_stay() -> void:
+	_hide_spoiler_dialog()
+	_sync_shop_toolbar()
+
+
+func _ensure_care_blessings_button() -> void:
+	if care_panel == null or _blessings_preview_button != null:
+		return
+	_blessings_preview_button = Button.new()
+	_blessings_preview_button.name = "BlessingsPreviewButton"
+	_blessings_preview_button.position = Vector2(400, 8)
+	_blessings_preview_button.size = Vector2(104, 48)
+	_blessings_preview_button.text = ContentStrings.get_text("ascend_shop_preview_tag")
+	_blessings_preview_button.tooltip_text = ContentStrings.get_text("ascend_shop_preview_line")
+	care_header.add_child(_blessings_preview_button)
+	_blessings_preview_button.pressed.connect(_on_care_blessings_preview)
+
+
+func _on_care_blessings_preview() -> void:
+	hide_care_menu()
+	show_ascension_shop_preview()
+
+
+func _upgrade_rank_label(rank: int, upgrade_id: String) -> String:
+	var cap: int = GameState.upgrade_max_rank(upgrade_id)
+	if cap >= 1_000_000:
+		return ContentStrings.get_text("upgrade_rank_endless", {"rank": rank})
+	return ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": cap})
+
+
 func _rebuild_upgrades() -> void:
 	for child: Node in upgrade_list.get_children():
 		child.queue_free()
-	if not GameState.fruit_harvested_pending_ascend:
+	if not _shop_preview_mode and not GameState.fruit_harvested_pending_ascend:
 		return
+	var locked_hidden: int = 0
+	var maxed_hidden: int = 0
 	var stripe: bool = false
 	for entry: Variant in GameState.upgrades_data:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
 		var d: Dictionary = entry
 		var uid: String = str(d.get("id", ""))
+		if uid == "":
+			continue
 		var rank: int = GameState.get_upgrade_rank(uid)
-		var max_rank: int = int(d.get("max_rank", 1))
+		var cap: int = GameState.upgrade_max_rank(uid)
+		var unlocked: bool = GameState.is_upgrade_unlocked(uid)
+		var maxed: bool = rank >= cap
+		var always_show: bool = uid == "party_banner"
+		if GameState.shop_hide_maxed and maxed:
+			maxed_hidden += 1
+			continue
+		if GameState.shop_hide_locked and not unlocked and not always_show:
+			locked_hidden += 1
+			continue
 		var cost: int = GameState.get_upgrade_cost(uid)
 		var row := PanelContainer.new()
 		row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
@@ -2857,21 +3061,18 @@ func _rebuild_upgrades() -> void:
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.alignment = BoxContainer.ALIGNMENT_CENTER
 		var name_lbl := Label.new()
-		if uid == "keep_tools":
-			name_lbl.text = ContentStrings.get_text("upgrade_keep_tools_name")
-		else:
-			name_lbl.text = str(d.get("display_name", uid))
+		name_lbl.text = _upgrade_display_name(uid, d)
 		name_lbl.add_theme_font_size_override("font_size", 13)
-		name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+		var name_color: Color = Color(0.92, 0.86, 0.72, 1.0)
+		if not unlocked:
+			name_color = Color(0.55, 0.50, 0.42, 1.0)
+		name_lbl.add_theme_color_override("font_color", name_color)
 		var desc: String = _upgrade_description(uid, d)
 		var rank_lbl := Label.new()
 		if desc != "":
-			rank_lbl.text = "%s  ·  %s" % [
-				desc,
-				ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank}),
-			]
+			rank_lbl.text = "%s  ·  %s" % [desc, _upgrade_rank_label(rank, uid)]
 		else:
-			rank_lbl.text = ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank})
+			rank_lbl.text = _upgrade_rank_label(rank, uid)
 		rank_lbl.add_theme_font_size_override("font_size", 11)
 		rank_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
 		rank_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -2885,7 +3086,15 @@ func _rebuild_upgrades() -> void:
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(108, 32)
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		if rank >= max_rank:
+		if _shop_preview_mode:
+			btn.text = ContentStrings.get_text("ascend_shop_preview_tag")
+			btn.disabled = true
+			_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
+		elif not unlocked:
+			btn.text = ContentStrings.get_text("upgrade_buy")
+			btn.disabled = true
+			_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
+		elif maxed:
 			btn.text = ContentStrings.get_text("upgrade_maxed")
 			btn.disabled = true
 			_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
@@ -2905,6 +3114,35 @@ func _rebuild_upgrades() -> void:
 		row.add_child(inner)
 		upgrade_list.add_child(row)
 		stripe = not stripe
+	if locked_hidden > 0:
+		upgrade_list.add_child(_shop_summary_row(
+			ContentStrings.get_text("ascend_shop_locked_collapsed", {"count": locked_hidden})
+		))
+	if maxed_hidden > 0:
+		upgrade_list.add_child(_shop_summary_row(
+			ContentStrings.get_text("ascend_shop_complete_collapsed", {"count": maxed_hidden})
+		))
+
+
+func _shop_summary_row(text: String) -> PanelContainer:
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(0, 28)
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_color_override("font_color", Color(0.65, 0.58, 0.48, 1.0))
+	row.add_child(lbl)
+	return row
+
+
+func _upgrade_display_name(upgrade_id: String, def: Dictionary) -> String:
+	var key: String = "upgrade_%s_name" % upgrade_id
+	var named: String = ContentStrings.get_text(key)
+	if named != key and named != "":
+		return named
+	if upgrade_id == "keep_tools":
+		return ContentStrings.get_text("upgrade_keep_tools_name")
+	return str(def.get("display_name", upgrade_id))
 
 
 func _upgrade_icon(upgrade_id: String, def: Dictionary) -> TextureRect:
