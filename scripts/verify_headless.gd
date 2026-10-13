@@ -6101,9 +6101,9 @@ func _intro_text_ok(tree_root: Window, content_strings: Node) -> int:
 	hud.call("show_welcome")
 	await tree_root.process_frame
 	var btn: Button = hud.get_node_or_null("WelcomePanel/WelcomeDismiss") as Button
-	failed += _assert(btn != null and btn.disabled, "dismiss starts disabled")
+	failed += _assert(btn != null and not btn.disabled and not bool(hud.get("_welcome_dismiss_ready")), "dismiss shows its primary face but ignores presses at first")
 	await tree_root.create_timer(1.6, true).timeout
-	failed += _assert(btn != null and not btn.disabled, "dismiss enabled after 1.5s")
+	failed += _assert(btn != null and not btn.disabled and bool(hud.get("_welcome_dismiss_ready")), "dismiss armed after 1.5s")
 	hud.queue_free()
 	return failed
 

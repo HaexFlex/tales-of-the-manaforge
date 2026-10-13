@@ -1204,8 +1204,16 @@ func _process(_delta: float) -> void:
 
 ## The status toast is world feedback. Any modal (HUD windows, pause, board, runestone,
 ## debug, battle) covers it; self_modulate leaves the toast's own fade tween alone.
+## The HUD chrome ($Panel: resource bar, speed, pause, help, bottom buttons) steps aside too:
+## wide windows start at y 46, so the bar would otherwise peek out above their frame.
 func _sync_toast_under_modals() -> void:
-	var a: float = 0.0 if modal_window_open() else 1.0
+	var modal: bool = modal_window_open()
+	var a: float = 0.0 if modal else 1.0
+	if panel:
+		panel.visible = not modal
+	var wisps: CanvasItem = get_node_or_null("WispCounter") as CanvasItem
+	if wisps:
+		wisps.self_modulate.a = a
 	if status_label:
 		status_label.self_modulate.a = a
 	if toast_shade:
@@ -1268,13 +1276,13 @@ func _layout_welcome_panel() -> void:
 	welcome_panel.offset_top = 0.0
 	welcome_panel.offset_right = 0.0
 	welcome_panel.offset_bottom = 0.0
-	## intro540: the scene dims, the boot line captions it above the card, and the kit card
-	## (600×280, "Keeper" plank) holds the body, the muted hint and one primary button.
+	## intro540: the scene dims and the kit card (600×306, "Keeper" plank) holds the boot line,
+	## the body, the muted hint and one primary button.
 	welcome_panel.color = Color(0, 0, 0, 0.5)
 	welcome_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	var vs: Vector2 = Ui540.viewport_size()
 	var card_w: float = 600.0
-	var card_h: float = 280.0
+	var card_h: float = 306.0
 	var card_x: float = roundf((vs.x - card_w) * 0.5)
 	var card_y: float = roundf((vs.y - card_h) * 0.5 + 22.0)
 	var card := welcome_panel.get_node_or_null("WelcomeCard") as Panel
@@ -1289,21 +1297,23 @@ func _layout_welcome_panel() -> void:
 	card.size = Vector2(card_w, card_h)
 	for lbl: Label in [welcome_boot_label, welcome_title_label, welcome_body_label, welcome_hint_label]:
 		lbl.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	welcome_boot_label.position = Vector2(card_x, card_y - 70.0)
-	welcome_boot_label.size = Vector2(card_w, 26)
+	welcome_boot_label.position = Vector2(card_x + 40.0, card_y + 30.0)
+	welcome_boot_label.size = Vector2(card_w - 80.0, 24.0)
 	welcome_boot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_style_world_label(welcome_boot_label)
+	welcome_boot_label.remove_theme_color_override("font_outline_color")
+	welcome_boot_label.remove_theme_constant_override("outline_size")
+	GameTheme.style_ink_label(welcome_boot_label, true)
 	if welcome_title_label.get_parent() != card:
 		welcome_title_label.reparent(card, false)
 	Ui540.place_title_plank(welcome_title_label, card_w)
-	welcome_body_label.position = Vector2(card_x + 40.0, card_y + 34.0)
+	welcome_body_label.position = Vector2(card_x + 40.0, card_y + 58.0)
 	welcome_body_label.size = Vector2(card_w - 80.0, 124.0)
 	welcome_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	welcome_body_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	welcome_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	GameTheme.style_ink_label(welcome_body_label)
 	welcome_body_label.add_theme_constant_override("line_spacing", 4)
-	welcome_hint_label.position = Vector2(card_x + 40.0, card_y + 162.0)
+	welcome_hint_label.position = Vector2(card_x + 40.0, card_y + 186.0)
 	welcome_hint_label.size = Vector2(card_w - 80.0, 24.0)
 	welcome_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameTheme.style_ink_label(welcome_hint_label, true)
@@ -1325,8 +1335,9 @@ func show_welcome() -> void:
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")
 	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
 	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
+	## Arming ignores presses for 1.5 s; the button shows its primary face from the first frame.
 	_welcome_dismiss_ready = false
-	welcome_dismiss_button.disabled = true
+	welcome_dismiss_button.disabled = false
 	if _welcome_delay_tween != null and is_instance_valid(_welcome_delay_tween):
 		_welcome_delay_tween.kill()
 	_welcome_delay_tween = create_tween()
@@ -1338,7 +1349,6 @@ func show_welcome() -> void:
 
 func _enable_welcome_dismiss() -> void:
 	_welcome_dismiss_ready = true
-	welcome_dismiss_button.disabled = false
 
 
 func hide_welcome() -> void:
