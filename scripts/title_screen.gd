@@ -30,6 +30,7 @@ var _confirm_action: String = ""
 var _active_dialog: KitDialog
 var _menu_frame: Panel
 var _version_label: Label
+var _armed: bool = false
 
 
 func _ready() -> void:
@@ -141,7 +142,9 @@ func _ensure_menu_frame() -> void:
 	_version_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_version_label.add_theme_font_override("font", GameTheme.body_font())
 	_version_label.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
-	_version_label.add_theme_color_override("font_color", Color(GameTheme.CREAM_BTN, 0.6))
+	_version_label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
+	_version_label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
+	_version_label.add_theme_constant_override("outline_size", 4)
 	add_child(_version_label)
 	move_child(_version_label, menu.get_index() + 1)
 
@@ -211,12 +214,13 @@ func _format_time_ago(ts: float) -> String:
 	return "%d days ago" % int(hours / 24.0)
 
 
+## Arming gates input only: the buttons keep their enabled face from the first frame.
 func _set_menu_enabled(enabled: bool) -> void:
-	btn_continue.disabled = not enabled
-	btn_new.disabled = not enabled
-	btn_load.disabled = not enabled
-	btn_options.disabled = not enabled
-	btn_quit.disabled = not enabled
+	_armed = enabled
+	for btn: Button in [btn_continue, btn_new, btn_load, btn_options, btn_quit]:
+		btn.disabled = false
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP if enabled else Control.MOUSE_FILTER_IGNORE
+		btn.focus_mode = Control.FOCUS_ALL if enabled else Control.FOCUS_NONE
 
 
 func _input_held() -> bool:
@@ -261,6 +265,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if pause_menu.visible and pause_menu.standalone:
 		return
 	if _active_dialog != null and is_instance_valid(_active_dialog):
+		return
+	if not _armed:
 		return
 	if event.is_action_pressed("ui_down"):
 		_focus_index(_index + 1)
