@@ -27,7 +27,25 @@ const FORCE_LABELS: Dictionary = {
 	"win": "Win",
 }
 const BATCH_SIZE: int = 200
-const BTN_MIN_H: float = 44.0
+const WIN_SIZE: Vector2 = Vector2(912, 472)
+const PAD: float = 24.0
+const ROW_H: float = 44.0
+const ROW_GAP: float = 8.0
+const TAB_GAP: float = 4.0
+const HEADER_Y: float = 20.0
+const PINS_Y: float = 72.0
+const TABS_Y: float = 124.0
+const BODY_Y: float = 176.0
+const BODY_PAD: float = 12.0
+const STATUS_H: float = 24.0
+const TAG_W: float = 132.0
+const PIN_LABEL_W: float = 70.0
+const FIELD_W: float = 110.0
+const SCROLL_RESERVE: float = 14.0
+const BEVEL_PATH: String = "res://assets/ui/theme/play_bevel_9s_6x6.png"
+const TAB_LABELS: PackedStringArray = [
+	"Tree", "Items", "Reach", "Party", "Forge", "Runes", "Battle", "Time", "Overlays",
+]
 var _offline_hours: PackedFloat32Array = PackedFloat32Array([1.0, 8.0, 24.0])
 var _free_crafts: PackedStringArray = PackedStringArray([
 	"sapsteel",
@@ -41,6 +59,12 @@ var _resource_ids: PackedStringArray = PackedStringArray([
 	"wood", "stone", "food", "manashards", "essence",
 ])
 
+var _panel: Panel
+var _tabs: TabContainer
+var _tab_buttons: Array[Button] = []
+var _global_search: LineEdit
+var _grid_cols: int = 3
+var _grid_w: float = 270.0
 var _status: Label
 var _recipes: Dictionary = {}
 var _search: LineEdit
@@ -48,12 +72,12 @@ var _qty: SpinBox
 var _list: ItemList
 var _rows: Array[Dictionary] = []
 var _fight_depth: SpinBox
-var _fight_boss: CheckBox
-var _fight_elaia: CheckBox
+var _fight_boss: CheckButton
+var _fight_elaia: CheckButton
 var _grant_add_mode: bool = true
 var _grant_to_pack: bool = false
 var _ancient_timer: SpinBox
-var _ancient_freeze: CheckBox
+var _ancient_freeze: CheckButton
 var _reach_depth: SpinBox
 var _reach_deepest: SpinBox
 var _reach_dojo: SpinBox
@@ -73,8 +97,9 @@ func _ready() -> void:
 	_build_ui()
 
 
-func _layout_debug_panel(panel: Panel) -> void:
-	Ui540.center_kit_panel(panel)
+func _layout_debug_panel() -> void:
+	if _panel != null:
+		Ui540.center_kit_panel(_panel)
 
 
 func _build_ui() -> void:
@@ -87,59 +112,90 @@ func _build_ui() -> void:
 
 	var panel := Panel.new()
 	panel.name = "Panel"
-	panel.custom_minimum_size = Vector2(600, 760)
-	panel.size = Vector2(600, 760)
 	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
-	call_deferred("_layout_debug_panel", panel)
+	_panel = panel
 	Ui540.apply_kit_panel(panel, "debug")
+	var sz: Vector2 = Ui540.fit_kit_window(panel, WIN_SIZE)
+	call_deferred("_layout_debug_panel")
+
+	var title := Label.new()
+	title.name = "Title"
+	title.text = "Debug"
+	panel.add_child(title)
+	Ui540.place_title_plank(title, sz.x)
 	var close_icon := Button.new()
 	close_icon.name = "CloseIcon"
-	close_icon.position = Vector2(600 - 68, 18)
-	close_icon.size = Vector2(44, 44)
 	Ui540.configure_kit_close_button(close_icon)
+	Ui540.place_close_button(close_icon, sz.x)
+	close_icon.tooltip_text = "Close (Ctrl+F8)"
 	close_icon.pressed.connect(_on_close_pressed)
 	panel.add_child(close_icon)
 
-	var root := VBoxContainer.new()
-	root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.offset_left = 14.0
-	root.offset_top = 16.0
-	root.offset_right = -14.0
-	root.offset_bottom = -22.0
-	panel.add_child(root)
+	var tag := Label.new()
+	tag.name = "BuildTag"
+	tag.text = "debug · %s" % str(ProjectSettings.get_setting("application/config/version", "dev"))
+	tag.tooltip_text = "Ctrl+F8  ·  testing build"
+	tag.mouse_filter = Control.MOUSE_FILTER_PASS
+	_style_line_label(tag, true)
+	panel.add_child(tag)
+	Ui540.anchor_rect_safe(tag, PAD, HEADER_Y, TAG_W, ROW_H)
+	_global_search = LineEdit.new()
+	_global_search.name = "SearchAll"
+	_global_search.placeholder_text = "Search all tabs…"
+	_global_search.clear_button_enabled = true
+	_global_search.text_changed.connect(_on_global_search)
+	panel.add_child(_global_search)
+	var search_x: float = PAD + TAG_W + ROW_GAP
+	Ui540.anchor_rect_safe(_global_search, search_x, HEADER_Y, close_icon.position.x - 12.0 - search_x, ROW_H)
 
-	var title := Label.new()
-	title.text = "Debug tools"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameTheme.style_plank_label(title)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	root.add_child(title)
-	var subtitle := Label.new()
-	subtitle.text = "Ctrl+F8  ·  testing build"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameTheme.style_body_label(subtitle)
-	root.add_child(subtitle)
+	var pin_label := Label.new()
+	pin_label.name = "PinnedLabel"
+	pin_label.text = "Pinned"
+	_style_line_label(pin_label, true)
+	panel.add_child(pin_label)
+	Ui540.anchor_rect_safe(pin_label, PAD, PINS_Y, PIN_LABEL_W, ROW_H)
+	var pins: Array[Array] = [
+		["Go to shop", _on_ascension_pressed],
+		["Skip station work", _on_skip_pressed],
+		["+1000 Manashards", _on_pin_manashards],
+		["Ancient ready", _on_snapshot_pressed.bind(str(SNAPSHOTS["Ancient ready"]), "Ancient ready")],
+	]
+	var star: String = "★ " if GameTheme.body_font().has_char(0x2605) else ""
+	var pin_x: float = PAD + PIN_LABEL_W
+	var pin_w: float = floorf((sz.x - PAD - pin_x - ROW_GAP * float(pins.size() - 1)) / float(pins.size()))
+	for i: int in pins.size():
+		var pin: Button = _make_button(star + str(pins[i][0]), pins[i][1] as Callable, true)
+		pin.name = "Pin%d" % i
+		panel.add_child(pin)
+		Ui540.anchor_rect_safe(pin, pin_x + float(i) * (pin_w + ROW_GAP), PINS_Y, pin_w, ROW_H)
 
-	_search = LineEdit.new()
-	_search.placeholder_text = "Search all tabs…"
-	_search.custom_minimum_size = Vector2(0, 44)
-	root.add_child(_search)
+	var body_w: float = sz.x - PAD * 2.0
+	var body_h: float = sz.y - PAD - BODY_Y
+	var body := Panel.new()
+	body.name = "TabBody"
+	body.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(BEVEL_PATH, Vector4i(2, 2, 2, 2)))
+	panel.add_child(body)
+	Ui540.anchor_rect_safe(body, PAD, BODY_Y, body_w, body_h)
+	_status = Label.new()
+	_status.name = "Status"
+	_status.text = "Ready."
+	_style_line_label(_status, false)
+	_status.mouse_filter = Control.MOUSE_FILTER_PASS
+	body.add_child(_status)
+	Ui540.anchor_rect_safe(_status, BODY_PAD, 8.0, body_w - BODY_PAD * 2.0, STATUS_H)
 
-	var pin_row := HBoxContainer.new()
-	pin_row.add_theme_constant_override("separation", 8)
-	_add_button(pin_row, "Go to shop", _on_ascension_pressed).size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_add_button(pin_row, "Skip station work", _on_skip_pressed).size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_add_button(pin_row, "+1000 Manashards", _on_preset_grant.bind(1000)).size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_add_button(pin_row, "Ancient ready", _on_snapshot_pressed.bind(str(SNAPSHOTS["Ancient ready"]), "Ancient ready")).size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	root.add_child(pin_row)
-
+	_grid_cols = 2 if Ui540.is_phone_export() else 3
+	var page_w: float = body_w - BODY_PAD * 2.0
+	_grid_w = floorf((page_w - SCROLL_RESERVE - ROW_GAP * float(_grid_cols - 1)) / float(_grid_cols))
 	var tabs := TabContainer.new()
 	tabs.name = "DebugTabs"
-	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	tabs.custom_minimum_size = Vector2(0, 520)
-	root.add_child(tabs)
+	tabs.tabs_visible = false
+	tabs.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	body.add_child(tabs)
+	Ui540.anchor_rect_safe(tabs, BODY_PAD, 8.0 + STATUS_H + 6.0, page_w, body_h - STATUS_H - 24.0)
+	_tabs = tabs
 	_build_tab_tree(tabs)
 	_build_tab_resources(tabs)
 	_build_tab_reach(tabs)
@@ -149,27 +205,70 @@ func _build_ui() -> void:
 	_build_tab_battle(tabs)
 	_build_tab_time_save(tabs)
 	_build_tab_overlays(tabs)
-	tabs.set_tab_title(0, "Tree")
-	tabs.set_tab_title(1, "Items")
-	tabs.set_tab_title(2, "Reach")
-	tabs.set_tab_title(3, "Party")
-	tabs.set_tab_title(4, "Forge")
-	tabs.set_tab_title(5, "Runes")
-	tabs.set_tab_title(6, "Battle")
-	tabs.set_tab_title(7, "Time")
-	tabs.set_tab_title(8, "Overlays")
 
-	_status = Label.new()
-	_status.name = "Status"
-	_status.text = "Ready."
-	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size = Vector2(0, 40)
-	root.add_child(_status)
-	var close := Button.new()
-	close.text = "Close"
-	close.custom_minimum_size = Vector2(0, BTN_MIN_H)
-	close.pressed.connect(_on_close_pressed)
-	root.add_child(close)
+	var tab_count: int = tabs.get_tab_count()
+	var tab_w: float = floorf((body_w - TAB_GAP * float(tab_count - 1)) / float(tab_count))
+	var group := ButtonGroup.new()
+	for i: int in tab_count:
+		var tab := Button.new()
+		tab.name = "Tab%s" % TAB_LABELS[i]
+		tab.text = TAB_LABELS[i]
+		GameTheme.style_tab_button(tab)
+		tab.button_group = group
+		tab.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		tab.tooltip_text = tabs.get_tab_title(i)
+		tab.pressed.connect(_select_tab.bind(i))
+		panel.add_child(tab)
+		Ui540.anchor_rect_safe(tab, PAD + float(i) * (tab_w + TAB_GAP), TABS_Y, tab_w, ROW_H)
+		tabs.set_tab_title(i, TAB_LABELS[i])
+		_tab_buttons.append(tab)
+	_select_tab(0)
+
+
+func _style_line_label(lbl: Label, muted: bool) -> void:
+	GameTheme.style_ink_label(lbl, muted)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	lbl.clip_text = true
+
+
+func _select_tab(index: int) -> void:
+	if _tabs == null or index < 0 or index >= _tabs.get_tab_count():
+		return
+	_tabs.current_tab = index
+	for i: int in _tab_buttons.size():
+		_tab_buttons[i].set_pressed_no_signal(i == index)
+
+
+func _on_global_search(text: String) -> void:
+	if _tabs == null:
+		return
+	var query: String = text.strip_edges().to_lower()
+	var first_hit: int = -1
+	var current_hits: int = 0
+	for i: int in _tabs.get_tab_count():
+		var hits: int = 0
+		for node: Node in _tabs.get_tab_control(i).find_children("*", "Button", true, false):
+			var button: Button = node as Button
+			if button == null or not button.get_parent().has_meta(&"auto_grid"):
+				continue
+			button.visible = query == "" or button.text.to_lower().contains(query)
+			if button.visible:
+				hits += 1
+		if i < _tab_buttons.size():
+			_tab_buttons[i].disabled = query != "" and hits == 0
+		if hits > 0 and first_hit < 0:
+			first_hit = i
+		if i == _tabs.current_tab:
+			current_hits = hits
+	if query != "" and current_hits == 0 and first_hit >= 0:
+		_select_tab(first_hit)
+
+
+func _on_pin_manashards() -> void:
+	GameState.add_resource(&"manashards", 1000)
+	_set_status("+1000 Manashards.")
 
 
 func _tab_scroll(parent: TabContainer, title: String) -> VBoxContainer:
@@ -177,25 +276,96 @@ func _tab_scroll(parent: TabContainer, title: String) -> VBoxContainer:
 	scroll.name = title.replace(" ", "")
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	parent.add_child(scroll)
 	parent.set_tab_title(parent.get_tab_count() - 1, title)
 	var box := VBoxContainer.new()
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", int(ROW_GAP))
+	box.set_meta(&"debug_tab", true)
 	scroll.add_child(box)
 	return box
+
+
+## Free-width buttons in a tab flow into a shared grid of equal columns.
+func _tab_grid(box: Container) -> GridContainer:
+	var count: int = box.get_child_count()
+	var last: Node = box.get_child(count - 1) if count > 0 else null
+	if last is GridContainer and last.has_meta(&"auto_grid"):
+		return last as GridContainer
+	var grid := GridContainer.new()
+	grid.columns = _grid_cols
+	grid.add_theme_constant_override("h_separation", int(ROW_GAP))
+	grid.add_theme_constant_override("v_separation", int(ROW_GAP))
+	grid.set_meta(&"auto_grid", true)
+	box.add_child(grid)
+	return grid
+
+
+func _row(parent: Container) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", int(ROW_GAP))
+	parent.add_child(row)
+	return row
+
+
+func _row_label(row: Container, text: String, width: float = 0.0) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	GameTheme.style_ink_label(lbl)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.custom_minimum_size = Vector2(width, ROW_H)
+	row.add_child(lbl)
+	return lbl
+
+
+func _field_spin(row: Container, min_v: int, max_v: int, val: int, width: float = FIELD_W) -> SpinBox:
+	var spin := SpinBox.new()
+	spin.min_value = min_v
+	spin.max_value = max_v
+	spin.value = val
+	spin.rounded = true
+	spin.custom_minimum_size = Vector2(width, ROW_H)
+	row.add_child(spin)
+	return spin
+
+
+func _switch(row: Container, text: String) -> CheckButton:
+	var toggle := CheckButton.new()
+	toggle.text = text
+	toggle.custom_minimum_size = Vector2(0, ROW_H)
+	row.add_child(toggle)
+	return toggle
+
+
+func _picker(row: Container, width: float) -> OptionButton:
+	var pick := OptionButton.new()
+	pick.custom_minimum_size = Vector2(width, ROW_H)
+	pick.fit_to_longest_item = false
+	pick.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	row.add_child(pick)
+	return pick
+
+
+## Two or more toggle chips sharing one group; `on_pick` gets the chosen index.
+func _segmented(row: Container, labels: PackedStringArray, picked: int, width: float, on_pick: Callable) -> void:
+	var group := ButtonGroup.new()
+	for i: int in labels.size():
+		var chip := Button.new()
+		chip.text = labels[i]
+		GameTheme.style_tab_button(chip)
+		chip.button_group = group
+		chip.custom_minimum_size = Vector2(width, ROW_H)
+		chip.button_pressed = i == picked
+		chip.pressed.connect(on_pick.bind(i))
+		row.add_child(chip)
 
 
 func _build_tab_time_save(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Time & Save")
 	_add_section(box, "Snapshots")
-	var snapshot_grid := GridContainer.new()
-	snapshot_grid.columns = 2
-	snapshot_grid.add_theme_constant_override("h_separation", 6)
-	box.add_child(snapshot_grid)
 	for label: String in SNAPSHOT_ORDER:
-		var snap_button: Button = _add_button(snapshot_grid, label, _on_snapshot_pressed.bind(str(SNAPSHOTS[label]), label))
-		snap_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_add_button(box, label, _on_snapshot_pressed.bind(str(SNAPSHOTS[label]), label))
 	_add_section(box, "Offline skip")
 	for h: float in _offline_hours:
 		_add_button(box, "Skip offline %.0f h" % h, _on_offline_skip.bind(h))
@@ -205,119 +375,101 @@ func _build_tab_time_save(tabs: TabContainer) -> void:
 
 
 func _build_tab_resources(tabs: TabContainer) -> void:
-	var box := _tab_scroll(tabs, "Resources")
-	var mode_row := HBoxContainer.new()
-	box.add_child(mode_row)
-	var add_toggle := CheckButton.new()
-	add_toggle.text = "Add mode"
-	add_toggle.button_pressed = true
-	add_toggle.toggled.connect(func(on: bool) -> void:
-		_grant_add_mode = on
+	var box := _tab_scroll(tabs, "Resources & Items")
+	var mode_row := _row(box)
+	_segmented(mode_row, PackedStringArray(["Add", "Set"]), 0, 72.0, func(i: int) -> void:
+		_grant_add_mode = i == 0
 	)
-	mode_row.add_child(add_toggle)
-	var pack_toggle := CheckButton.new()
-	pack_toggle.text = "Reach pack"
-	pack_toggle.toggled.connect(func(on: bool) -> void:
-		_grant_to_pack = on
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(16, 0)
+	mode_row.add_child(gap)
+	_segmented(mode_row, PackedStringArray(["Backpack", "Reach pack"]), 0, 120.0, func(i: int) -> void:
+		_grant_to_pack = i == 1
 	)
-	mode_row.add_child(pack_toggle)
-	var preset_row := HBoxContainer.new()
-	for preset: int in [10, 100, 1000]:
-		_add_button(preset_row, "+%d" % preset, _on_preset_grant.bind(preset))
-	box.add_child(preset_row)
 	_build_catalogue(box)
+	for preset: int in [10, 100, 1000]:
+		_add_button(box, "+%d" % preset, _on_preset_grant.bind(preset))
 
 
 func _build_tab_forge(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Forge")
-	_forge_craft_pick = OptionButton.new()
+	var row := _row(box)
+	_forge_craft_pick = _picker(row, 260.0)
 	for rid: String in _free_crafts:
 		_forge_craft_pick.add_item(_pretty(rid), _forge_craft_pick.item_count)
-	box.add_child(_forge_craft_pick)
-	_add_button(box, "Test craft recipe", _on_forge_craft_picked)
+	_add_button(row, "Test craft recipe", _on_forge_craft_picked)
 	_add_button(box, "Skip station work", _on_skip_pressed)
 
 
 func _build_tab_tree(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Tree & Ascension")
-	var timer_row := HBoxContainer.new()
-	box.add_child(timer_row)
-	timer_row.add_child(Label.new())
-	(timer_row.get_child(0) as Label).text = "Ancient timer (s)"
-	_ancient_timer = SpinBox.new()
-	_ancient_timer.min_value = 0
-	_ancient_timer.max_value = 3600
-	_ancient_timer.value = 0
-	timer_row.add_child(_ancient_timer)
-	_ancient_freeze = CheckBox.new()
-	_ancient_freeze.text = "Freeze"
-	timer_row.add_child(_ancient_freeze)
-	_add_button(box, "Apply Ancient timer", _on_apply_ancient_timer)
+	var timer_row := _row(box)
+	_row_label(timer_row, "Ancient timer (s)", 140.0)
+	_ancient_timer = _field_spin(timer_row, 0, 3600, 0)
+	_add_button(timer_row, "Set", _on_apply_ancient_timer).custom_minimum_size.x = 90.0
+	_ancient_freeze = _switch(timer_row, "Freeze")
 	_add_button(box, "Commit Fruit", _on_debug_commit_fruit)
 	_add_button(box, "Cancel Fruit commit", _on_debug_cancel_fruit)
 	_add_button(box, "Grow one stage", _on_grow_stage)
 	_add_button(box, "Go to Ascension shop", _on_ascension_pressed)
-	_add_section(box, "Blessings")
-	_blessing_pick = OptionButton.new()
+	_add_button(box, "Reset all blessing ranks", _on_reset_blessings)
+	_add_section(box, "Blessing rank")
+	var bless_row := _row(box)
+	_blessing_pick = _picker(bless_row, 300.0)
 	for entry: Variant in GameState.upgrades_data:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
 		var uid: String = str((entry as Dictionary).get("id", ""))
 		if uid != "":
 			_blessing_pick.add_item(uid)
-	box.add_child(_blessing_pick)
-	_blessing_rank = SpinBox.new()
-	_blessing_rank.min_value = 0
-	_blessing_rank.max_value = 999
-	box.add_child(_blessing_rank)
-	_add_button(box, "Set blessing rank", _on_set_blessing_rank)
-	_add_button(box, "Reset all blessing ranks", _on_reset_blessings)
+	_blessing_rank = _field_spin(bless_row, 0, 999, 0)
+	_add_button(bless_row, "Set blessing rank", _on_set_blessing_rank)
 
 
 func _build_tab_reach(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Reach")
-	var row := HBoxContainer.new()
-	box.add_child(row)
+	var row := _row(box)
 	_reach_depth = _labeled_spin(row, "Depth", 1, 99, 1)
 	_reach_deepest = _labeled_spin(row, "Deepest", 1, 99, 1)
 	_reach_dojo = _labeled_spin(row, "Dojo exp", 0, 99999, 0)
 	_reach_clears = _labeled_spin(row, "Clears", 0, 99, 0)
 	_add_button(box, "Apply reach stats", _on_apply_reach_stats)
+	_add_button(box, "Mossmite room roll", _on_room_roll)
+	_add_button(box, "Finish run (finished)", _on_finish_run.bind("finished"))
+	_add_button(box, "Finish run (flee)", _on_finish_run.bind("flee"))
+	_add_section(box, "Force the next idle room")
+	for outcome: String in ["flee", "overwhelmed", "win"]:
+		_add_button(box, "Force next room: %s" % FORCE_LABELS[outcome], _on_force_pressed.bind(outcome))
+	_add_section(box, "Queue several outcomes")
 	for outcome: String in ["flee", "overwhelmed", "win"]:
 		_add_button(box, "Queue outcome: %s" % FORCE_LABELS[outcome], _on_queue_force.bind(outcome))
 	_add_button(box, "Apply queued outcomes", _on_apply_force_queue)
-	_add_button(box, "Finish run (finished)", _on_finish_run.bind("finished"))
-	_add_button(box, "Finish run (flee)", _on_finish_run.bind("flee"))
-	_add_button(box, "Mossmite room roll", _on_room_roll)
 
 
 func _build_tab_party(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Party")
-	_add_button(box, "Jump to Echo 1", _on_echo_pressed)
 	_add_button(box, "Launch Echo 2 (portal)", _on_echo2_pressed)
-	_echo_outcome = OptionButton.new()
-	_echo_outcome.add_item("spare")
-	_echo_outcome.add_item("flee")
-	_echo_outcome.add_item("ko")
-	box.add_child(_echo_outcome)
-	_add_button(box, "Apply Echo 2 outcome (resolved)", _on_apply_echo2)
 	var bramble := _add_button(box, "Recruit Bramble [ON HOLD]", _on_bramble_hold)
 	bramble.disabled = true
 	bramble.tooltip_text = "Bramble is ON HOLD — not implemented."
+	_add_section(box, "Echo 2 outcome")
+	var row := _row(box)
+	_echo_outcome = _picker(row, 160.0)
+	_echo_outcome.add_item("spare")
+	_echo_outcome.add_item("flee")
+	_echo_outcome.add_item("ko")
+	_add_button(row, "Apply Echo 2 outcome (resolved)", _on_apply_echo2)
 
 
 func _build_tab_runes(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Runestones")
 	_add_section(box, "Runestone ranks")
-	_rune_pick = OptionButton.new()
+	var row := _row(box)
+	_rune_pick = _picker(row, 200.0)
 	for sid: StringName in KeeperStats.STAT_ORDER:
 		_rune_pick.add_item(String(sid))
-	box.add_child(_rune_pick)
-	_rune_rank = SpinBox.new()
-	_rune_rank.min_value = 0
-	_rune_rank.max_value = 9999
-	box.add_child(_rune_rank)
-	_add_button(box, "Set runestone rank", _on_set_rune_rank)
+	_rune_rank = _field_spin(row, 0, 9999, 0)
+	_add_button(row, "Set runestone rank", _on_set_rune_rank)
 
 
 func _build_tab_overlays(tabs: TabContainer) -> void:
@@ -333,19 +485,14 @@ func _build_tab_overlays(tabs: TabContainer) -> void:
 func _build_tab_battle(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Battle")
 	_build_fight_at_depth(box)
+	_add_button(box, "Jump to Echo", _on_echo_pressed)
 	_add_button(box, "Open arena (empty)", _on_battle_arena_pressed)
 	_add_button(box, "Batch-sim %d" % BATCH_SIZE, _on_batch_sim_pressed)
 
 
 func _labeled_spin(parent: HBoxContainer, label: String, min_v: int, max_v: int, val: int) -> SpinBox:
-	parent.add_child(Label.new())
-	(parent.get_child(parent.get_child_count() - 1) as Label).text = label
-	var spin := SpinBox.new()
-	spin.min_value = min_v
-	spin.max_value = max_v
-	spin.value = val
-	parent.add_child(spin)
-	return spin
+	_row_label(parent, label)
+	return _field_spin(parent, min_v, max_v, val, 88.0)
 
 
 var _force_queue: Array[String] = []
@@ -483,20 +630,36 @@ func _on_set_rune_rank() -> void:
 	_set_status("Runestone %s rank %d." % [sid, int(_rune_rank.value)])
 
 
-func _add_section(parent: VBoxContainer, text: String) -> void:
+func _add_section(parent: Container, text: String) -> void:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 15)
-	label.add_theme_color_override("font_color", Color(0.78, 0.86, 0.74, 1))
+	GameTheme.style_ink_label(label, true)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	label.custom_minimum_size = Vector2(0, 28)
 	parent.add_child(label)
 
 
+## Buttons added straight to a tab flow into its grid; buttons added to a row keep their text width.
 func _add_button(parent: Container, text: String, callback: Callable) -> Button:
+	var in_grid: bool = parent.has_meta(&"debug_tab")
+	var button: Button = _make_button(text, callback, in_grid)
+	if in_grid:
+		button.custom_minimum_size.x = _grid_w
+		_tab_grid(parent).add_child(button)
+	else:
+		parent.add_child(button)
+	return button
+
+
+func _make_button(text: String, callback: Callable, trims: bool) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(0, BTN_MIN_H)
+	GameTheme.style_wood_button(button)
+	button.custom_minimum_size = Vector2(0, ROW_H)
+	if trims:
+		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		button.tooltip_text = text
 	button.pressed.connect(callback)
-	parent.add_child(button)
 	return button
 
 
@@ -621,43 +784,38 @@ func _on_skip_pressed() -> void:
 		_set_status("Finished %d station job(s)." % finished)
 
 
-func _build_catalogue(parent: VBoxContainer) -> void:
+func _build_catalogue(parent: Container) -> void:
+	var row := _row(parent)
 	var search := LineEdit.new()
 	search.name = "ItemSearch"
 	search.placeholder_text = "Search items and materials"
-	search.custom_minimum_size = Vector2(0, 28)
+	search.custom_minimum_size = Vector2(0, ROW_H)
+	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	search.text_changed.connect(_on_catalogue_filter)
-	parent.add_child(search)
+	row.add_child(search)
 	_search = search
-	var qty_row := HBoxContainer.new()
-	qty_row.add_theme_constant_override("separation", 8)
-	parent.add_child(qty_row)
-	var qty_label := Label.new()
-	qty_label.text = "Quantity"
-	qty_label.custom_minimum_size = Vector2(88, 0)
-	qty_row.add_child(qty_label)
-	var qty := SpinBox.new()
+	_row_label(row, "Quantity")
+	var qty: SpinBox = _field_spin(row, 1, 999, 1)
 	qty.name = "ItemQuantity"
-	qty.min_value = 1
-	qty.max_value = 999
-	qty.value = 1
-	qty.rounded = true
-	qty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	qty_row.add_child(qty)
 	_qty = qty
+	var add: Button = _add_button(row, "Add selected", _on_catalogue_add)
+	add.name = "AddItem"
 	var list := ItemList.new()
 	list.name = "ItemCatalogue"
 	list.custom_minimum_size = Vector2(0, 132)
-	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	list.select_mode = ItemList.SELECT_SINGLE
+	list.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(BEVEL_PATH, Vector4i(2, 2, 2, 2), Vector4(8, 6, 8, 6)))
+	list.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	for state: StringName in [&"selected", &"selected_focus", &"cursor", &"cursor_unfocused"]:
+		list.add_theme_stylebox_override(state, Ui540.list_row_style(true))
+	list.add_theme_stylebox_override("hovered", Ui540.list_row_style(false))
+	list.add_theme_font_override("font", GameTheme.body_font())
+	list.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	for color: StringName in [&"font_color", &"font_hovered_color", &"font_selected_color"]:
+		list.add_theme_color_override(color, GameTheme.INK)
+	list.add_theme_color_override("guide_color", Color(GameTheme.INK, 0.15))
 	parent.add_child(list)
 	_list = list
-	var add := Button.new()
-	add.name = "AddItem"
-	add.text = "Add selected"
-	add.custom_minimum_size = Vector2(0, 28)
-	add.pressed.connect(_on_catalogue_add)
-	parent.add_child(add)
 	_fill_catalogue()
 
 
@@ -822,32 +980,19 @@ func _on_force_pressed(outcome: String) -> void:
 	_set_status("Next idle room is forced: %s." % str(FORCE_LABELS[outcome]))
 
 
-func _build_fight_at_depth(parent: VBoxContainer) -> void:
-	var row := HBoxContainer.new()
+func _build_fight_at_depth(parent: Container) -> void:
+	var row := _row(parent)
 	row.name = "FightAtDepthRow"
-	row.add_theme_constant_override("separation", 6)
-	parent.add_child(row)
-	var label := Label.new()
-	label.text = "Fight at depth"
-	row.add_child(label)
-	var depth := SpinBox.new()
+	_row_label(row, "Fight at depth")
+	var depth: SpinBox = _field_spin(row, 1, 40, 1, 88.0)
 	depth.name = "FightDepth"
-	depth.min_value = 1
-	depth.max_value = 40
-	depth.value = 1
-	depth.rounded = true
-	row.add_child(depth)
 	_fight_depth = depth
-	var boss := CheckBox.new()
+	var boss: CheckButton = _switch(row, "Boss")
 	boss.name = "FightBoss"
-	boss.text = "Boss"
-	row.add_child(boss)
 	_fight_boss = boss
-	var elaia := CheckBox.new()
+	var elaia: CheckButton = _switch(row, "With Elaia")
 	elaia.name = "FightElaia"
-	elaia.text = "With Elaia"
 	elaia.button_pressed = true
-	row.add_child(elaia)
 	_fight_elaia = elaia
 	var open := _add_button(row, "Open fight", _on_fight_at_depth_pressed)
 	open.name = "OpenFight"
@@ -981,3 +1126,4 @@ func _pretty(recipe_id: String) -> String:
 func _set_status(text: String) -> void:
 	if _status:
 		_status.text = text
+		_status.tooltip_text = text
