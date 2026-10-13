@@ -59,6 +59,11 @@ var _resource_ids: PackedStringArray = PackedStringArray([
 	"wood", "stone", "food", "manashards", "essence",
 ])
 
+const PIN_PATH: String = "user://debug_pins.cfg"
+const PIN_DEFAULTS: PackedStringArray = PackedStringArray(["go_shop", "skip_station", "manashards", "ancient_ready"])
+
+var _pin_panel: Control
+var _pin_width: float = 912.0
 var _panel: Panel
 var _tabs: TabContainer
 var _tab_buttons: Array[Button] = []
@@ -156,20 +161,9 @@ func _build_ui() -> void:
 	_style_line_label(pin_label, true)
 	panel.add_child(pin_label)
 	Ui540.anchor_rect_safe(pin_label, PAD, PINS_Y, PIN_LABEL_W, ROW_H)
-	var pins: Array[Array] = [
-		["Go to shop", _on_ascension_pressed],
-		["Skip station work", _on_skip_pressed],
-		["+1000 Manashards", _on_pin_manashards],
-		["Ancient ready", _on_snapshot_pressed.bind(str(SNAPSHOTS["Ancient ready"]), "Ancient ready")],
-	]
-	var star: String = "★ " if GameTheme.body_font().has_char(0x2605) else ""
-	var pin_x: float = PAD + PIN_LABEL_W
-	var pin_w: float = floorf((sz.x - PAD - pin_x - ROW_GAP * float(pins.size() - 1)) / float(pins.size()))
-	for i: int in pins.size():
-		var pin: Button = _make_button(star + str(pins[i][0]), pins[i][1] as Callable, true)
-		pin.name = "Pin%d" % i
-		panel.add_child(pin)
-		Ui540.anchor_rect_safe(pin, pin_x + float(i) * (pin_w + ROW_GAP), PINS_Y, pin_w, ROW_H)
+	_pin_panel = panel
+	_pin_width = sz.x
+	_fill_pin_row()
 
 	var body_w: float = sz.x - PAD * 2.0
 	var body_h: float = sz.y - PAD - BODY_Y
@@ -264,6 +258,87 @@ func _on_global_search(text: String) -> void:
 			current_hits = hits
 	if query != "" and current_hits == 0 and first_hit >= 0:
 		_select_tab(first_hit)
+
+
+func _pin_catalog() -> Dictionary:
+	return {
+		"go_shop": ["Go to shop", _on_ascension_pressed],
+		"skip_station": ["Skip station work", _on_skip_pressed],
+		"manashards": ["+1000 Manashards", _on_pin_manashards],
+		"ancient_ready": ["Ancient ready", _on_snapshot_pressed.bind(str(SNAPSHOTS["Ancient ready"]), "Ancient ready")],
+	}
+
+
+func _load_pin_ids() -> PackedStringArray:
+	var cfg := ConfigFile.new()
+	if cfg.load(PIN_PATH) != OK:
+		_save_pin_ids(PIN_DEFAULTS)
+		return PIN_DEFAULTS.duplicate()
+	var raw: Variant = cfg.get_value("pins", "ids", PIN_DEFAULTS)
+	if raw is PackedStringArray and not (raw as PackedStringArray).is_empty():
+		return raw as PackedStringArray
+	return PIN_DEFAULTS.duplicate()
+
+
+func _save_pin_ids(ids: PackedStringArray) -> void:
+	var cfg := ConfigFile.new()
+	cfg.load(PIN_PATH)
+	cfg.set_value("pins", "ids", ids)
+	cfg.save(PIN_PATH)
+
+
+func _fill_pin_row() -> void:
+	if _pin_panel == null:
+		return
+	for child: Node in _pin_panel.get_children():
+		if str(child.name).begins_with("Pin"):
+			child.queue_free()
+	var catalog: Dictionary = _pin_catalog()
+	var ids: PackedStringArray = _load_pin_ids()
+	var shown: PackedStringArray = PackedStringArray()
+	for id: String in ids:
+		if catalog.has(id):
+			shown.append(id)
+	if shown.is_empty():
+		return
+	var star: String = "★ " if GameTheme.body_font().has_char(0x2605) else ""
+	var pin_x: float = PAD + PIN_LABEL_W
+	var pin_w: float = floorf((_pin_width - PAD - pin_x - ROW_GAP * float(shown.size() - 1)) / float(shown.size()))
+	for i: int in shown.size():
+		var entry: Array = catalog[shown[i]]
+		var pin: Button = _make_button(star + str(entry[0]), entry[1] as Callable, true)
+		pin.name = "Pin%d" % i
+		pin.tooltip_text = "Right-click to unpin. Pins are kept in user://debug_pins.cfg."
+		pin.gui_input.connect(_on_pin_gui.bind(shown[i]))
+		_pin_panel.add_child(pin)
+		Ui540.anchor_rect_safe(pin, pin_x + float(i) * (pin_w + ROW_GAP), PINS_Y, pin_w, ROW_H)
+
+
+func _on_pin_gui(event: InputEvent, pin_id: String) -> void:
+	if not (event is InputEventMouseButton):
+		return
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if not mb.pressed or mb.button_index != MOUSE_BUTTON_RIGHT:
+		return
+	var ids: PackedStringArray = _load_pin_ids()
+	var next := PackedStringArray()
+	for id: String in ids:
+		if id != pin_id:
+			next.append(id)
+	if next.is_empty():
+		next = PIN_DEFAULTS.duplicate()
+	_save_pin_ids(next)
+	_fill_pin_row()
+	get_viewport().set_input_as_handled()
+
+
+func _on_dev_speed(scale: float) -> void:
+	Engine.time_scale = scale
+	var jobs: Node = get_node_or_null("/root/ForgeJobs")
+	if jobs != null and jobs.has_method("set_dev_speed_override"):
+		jobs.call("set_dev_speed_override", scale)
+	if _status:
+		_status.text = "Dev speed %s×" % str(scale)
 
 
 func _on_pin_manashards() -> void:
@@ -369,6 +444,10 @@ func _build_tab_time_save(tabs: TabContainer) -> void:
 	_add_section(box, "Offline skip")
 	for h: float in _offline_hours:
 		_add_button(box, "Skip offline %.0f h" % h, _on_offline_skip.bind(h))
+	_add_section(box, "Dev speed")
+	var speed_row := _row(box)
+	for scale: int in [1, 2, 4, 8, 16]:
+		_add_button(speed_row, "%d×" % scale, _on_dev_speed.bind(float(scale)))
 	_add_section(box, "Save")
 	_add_button(box, "Dump save JSON", _on_dump_save)
 	_add_button(box, "Reset game (confirm)", _on_reset_game)
