@@ -341,8 +341,9 @@ static func fit_button_font(btn: Button, face_w: float = -1.0) -> void:
 		btn.add_theme_font_size_override("font_size", 19)
 
 
-## Cream ↻ cue at the right of a cycling tab (bag category, char gear category).
-## The mark sits in a narrow right gutter so a Silver 38 label ("Weapon") clears it.
+## Cream ↻ cue at the right of a cycling tab (bag, bench Parts, char Weapon).
+## One readable 18 px mark, inset 12 px, on every tab. The label is padded so a
+## Silver 38 "Weapon" on the narrow gear tab still ends before the arc.
 static func add_cycle_cue(btn: Button) -> void:
 	if btn == null or btn.get_node_or_null("CycleCue") != null:
 		return
@@ -351,19 +352,19 @@ static func add_cycle_cue(btn: Button) -> void:
 	cue.name = "CycleCue"
 	cue.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cue.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	cue.offset_left = -18.0
-	cue.offset_right = -4.0
-	cue.offset_top = -8.0
-	cue.offset_bottom = 8.0
+	cue.offset_left = -30.0
+	cue.offset_right = -12.0
+	cue.offset_top = -11.0
+	cue.offset_bottom = 7.0
 	cue.draw.connect(func() -> void:
-		var c := Vector2(6, 8)
+		var c := Vector2(9, 9)
 		for pass_i: int in range(2):
 			var col: Color = _CUE_OUTLINE if pass_i == 0 else _CUE_CREAM
-			var wdt: float = 3.0 if pass_i == 0 else 1.5
-			cue.draw_arc(c, 4.5, deg_to_rad(200.0), deg_to_rad(470.0), 14, col, wdt)
-			var tri := PackedVector2Array([Vector2(8, 2), Vector2(13, 5), Vector2(7, 7)])
+			var wdt: float = 4.0 if pass_i == 0 else 2.0
+			cue.draw_arc(c, 6.0, deg_to_rad(200.0), deg_to_rad(470.0), 16, col, wdt)
+			var tri := PackedVector2Array([Vector2(11, 1), Vector2(17, 5), Vector2(10, 7)])
 			if pass_i == 0:
-				tri = PackedVector2Array([Vector2(7, 1), Vector2(14, 5), Vector2(6, 8)])
+				tri = PackedVector2Array([Vector2(10, 0), Vector2(18, 5), Vector2(9, 8)])
 			cue.draw_colored_polygon(tri, col)
 	)
 	btn.add_child(cue)
@@ -377,8 +378,8 @@ static func _pad_cycle_label(btn: Button) -> void:
 		if box == null:
 			continue
 		var copy: StyleBox = box.duplicate()
-		if copy.content_margin_right < 24.0:
-			copy.content_margin_right = 24.0
+		if copy.content_margin_right < 36.0:
+			copy.content_margin_right = 36.0
 		btn.add_theme_stylebox_override(state_name, copy)
 
 

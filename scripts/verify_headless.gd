@@ -5457,6 +5457,10 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(int(backpack.call("get_count", "wooden_planks")) == plank_before, "bench row selects a batch instead of crafting immediately")
 		var bench_panel: Node = hud_node2.get_node_or_null("BenchPanel/BatchPanel")
 		failed += _assert(bench_panel != null and str(bench_panel.call("selected_recipe")) == "wooden_planks", "bench row binds the plank recipe")
+		await process_frame
+		failed += _assert_bench_need_hints(craft_box)
+		failed += _assert_cycle_cue(hud_node2.get_node_or_null("BenchPanel/BenchTabs/BenchCategoryCycle") as Button, "bench Parts")
+		failed += _assert_cycle_cue(hud_node2.find_child("TabCategoryCycle", true, false) as Button, "bag category")
 		hud_node2.call("close_bench")
 		hud_node2.queue_free()
 		await process_frame
@@ -5619,6 +5623,7 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		equipment.call("try_unequip", "relic")
 		hud_node.call("open_character_sheet")
 		await process_frame
+		failed += _assert_cycle_cue(hud_node.find_child("GearCategoryCycle", true, false) as Button, "char Weapon")
 		var relic_square: TextureRect = hud_node.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
 		var empty_frame: Texture2D = load("res://assets_extra/char/relic_slot_empty.png") as Texture2D
 		failed += _assert(relic_square != null and relic_square.texture == empty_frame and relic_square.size.distance_to(Vector2(44, 44)) < 0.5, "empty relic slot uses the 44 frame")
@@ -6076,6 +6081,65 @@ func _assert(cond: bool, msg: String) -> int:
 		return 0
 	printerr("ASSERT FAIL: %s" % msg)
 	return 1
+
+
+## Unaffordable bench rows keep a short Need hint beside a full, unclipped name.
+func _assert_bench_need_hints(craft_box: VBoxContainer) -> int:
+	var failed: int = 0
+	failed += _assert(craft_box != null, "bench list for shortage hints")
+	if craft_box == null:
+		return failed
+	var saw_need: int = 0
+	for row: Node in craft_box.get_children():
+		var name_lbl: Label = row.find_child("RecipeName", true, false) as Label
+		var state_lbl: Label = row.find_child("RecipeState", true, false) as Label
+		if name_lbl == null or state_lbl == null:
+			continue
+		var line: Control = name_lbl.get_parent() as Control
+		failed += _assert(name_lbl.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING and not name_lbl.clip_text, "bench name stays whole (%s)" % name_lbl.text)
+		failed += _assert(name_lbl.size.x + 0.5 >= name_lbl.get_combined_minimum_size().x, "bench name is not clipped (%s)" % name_lbl.text)
+		failed += _assert(line != null and line.offset_right <= -12.0, "bench row keeps a right gutter")
+		if state_lbl.text.begins_with("Need"):
+			saw_need += 1
+			failed += _assert(state_lbl.text_overrun_behavior == TextServer.OVERRUN_TRIM_ELLIPSIS, "bench hint can ellipsize")
+			var font: Font = state_lbl.get_theme_font(&"font")
+			var fs: int = state_lbl.get_theme_font_size(&"font_size")
+			var need_w: float = font.get_string_size(state_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if font != null else 0.0
+			failed += _assert(state_lbl.size.x + 0.5 >= need_w and state_lbl.size.x > 8.0, "bench hint visible: %s" % state_lbl.text)
+		var rid: String = str(row.get_meta("recipe_id", ""))
+		if rid == "stone_fragments":
+			failed += _assert(state_lbl.text == "Need 3 Stone", "stone fragment hint")
+		elif rid == "stone_pickaxe":
+			failed += _assert(state_lbl.text == "Need 2 items", "pickaxe hint is short")
+			var tip: String = state_lbl.tooltip_text
+			failed += _assert(tip.contains("Wood Rod") and tip.contains("Stone Pickaxe Head"), "pickaxe tooltip lists both parts")
+	failed += _assert(saw_need >= 2, "unaffordable bench rows show a Need hint")
+	return failed
+
+
+## Parts and Weapon share one readable cycle mark, inset from the tab edge, with the label clear of it.
+func _assert_cycle_cue(btn: Button, tag: String) -> int:
+	var failed: int = 0
+	failed += _assert(btn != null, "%s cycle tab" % tag)
+	if btn == null:
+		return failed
+	var cue: Control = btn.get_node_or_null("CycleCue") as Control
+	failed += _assert(cue != null, "%s cycle cue" % tag)
+	if cue == null:
+		return failed
+	var cue_w: float = cue.offset_right - cue.offset_left
+	var cue_h: float = cue.offset_bottom - cue.offset_top
+	failed += _assert(cue_w >= 16.0 and cue_h >= 16.0, "%s cycle cue is readable" % tag)
+	failed += _assert(cue.offset_right <= -10.0, "%s cycle cue is inset from the tab edge" % tag)
+	var box: StyleBox = btn.get_theme_stylebox(&"normal")
+	failed += _assert(box != null and box.content_margin_right >= 32.0, "%s label padded past the cue" % tag)
+	if btn.text != "" and btn.size.x > 100.0 and box != null:
+		var font: Font = btn.get_theme_font(&"font")
+		var fs: int = btn.get_theme_font_size(&"font_size")
+		var tw: float = font.get_string_size(btn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if font != null else 0.0
+		var gap: float = (btn.size.x - box.content_margin_left + box.content_margin_right - tw) * 0.5
+		failed += _assert(gap >= 34.0, "%s text clears the cycle cue" % tag)
+	return failed
 
 
 func _debug_panel_ok(tree_root: Window) -> int:

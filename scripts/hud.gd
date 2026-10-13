@@ -3846,14 +3846,19 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 		icon.modulate = Color(0.75, 0.72, 0.68, 0.7)
 	line.add_child(icon)
 	var name_lbl := Label.new()
+	name_lbl.name = "RecipeName"
 	name_lbl.text = craft_name
 	GameTheme.style_ink_label(name_lbl, reason != "")
-	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	## The name keeps its full width and never takes the leftover, so a shortage
+	## hint cannot be squeezed to nothing and the name itself is never ellipsized.
+	name_lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_lbl.clip_text = false
 	name_lbl.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_child(name_lbl)
 	var state_lbl := Label.new()
+	state_lbl.name = "RecipeState"
 	var missing_tip: String = ""
 	if reason == "unique":
 		state_lbl.text = ContentStrings.get_text("backpack_owned")
@@ -3867,9 +3872,11 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 		state_lbl.text = ""
 	GameTheme.style_ink_label(state_lbl, true)
 	state_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	state_lbl.size_flags_horizontal = Control.SIZE_SHRINK_END
+	## Leftover width, after the full name. Ellipsis only when that leftover is short.
+	state_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	state_lbl.clip_text = true
 	state_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	state_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if missing_tip != "":
 		state_lbl.tooltip_text = missing_tip
 	line.add_child(state_lbl)
