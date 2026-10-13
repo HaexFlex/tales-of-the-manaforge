@@ -3832,7 +3832,8 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	var line := HBoxContainer.new()
 	line.set_anchors_preset(Control.PRESET_FULL_RECT)
 	line.offset_left = 6.0
-	line.offset_right = -10.0
+	## Gutter before the scrollbar. The name keeps its full width; the tag gives way.
+	line.offset_right = -16.0
 	line.add_theme_constant_override("separation", 8)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(line)
@@ -3849,28 +3850,48 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	GameTheme.style_ink_label(name_lbl, reason != "")
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_lbl.clip_text = true
-	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_lbl.clip_text = false
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	line.add_child(name_lbl)
 	var state_lbl := Label.new()
+	var missing_tip: String = ""
 	if reason == "unique":
 		state_lbl.text = ContentStrings.get_text("backpack_owned")
 	elif reason == "":
 		state_lbl.text = "ready"
 	elif reason == "cant_afford" or reason == "no_shards":
-		state_lbl.text = _bench_short_text(recipe_id, equipment_out)
+		var missing: PackedStringArray = _bench_missing_parts(recipe_id, equipment_out)
+		missing_tip = ", ".join(missing)
+		state_lbl.text = _bench_short_text(missing)
 	else:
 		state_lbl.text = ""
 	GameTheme.style_ink_label(state_lbl, true)
 	state_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	state_lbl.size_flags_horizontal = Control.SIZE_SHRINK_END
+	state_lbl.clip_text = true
+	state_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	if missing_tip != "":
+		state_lbl.tooltip_text = missing_tip
 	line.add_child(state_lbl)
-	row.tooltip_text = _craft_row_cost_text(recipe_id)
+	var cost_tip: String = _craft_row_cost_text(recipe_id)
+	if missing_tip != "" and cost_tip.find(missing_tip) < 0:
+		cost_tip = missing_tip if cost_tip == "" else "%s\n%s" % [cost_tip, missing_tip]
+	row.tooltip_text = cost_tip
+	btn.tooltip_text = cost_tip
 	row.set_meta("recipe_id", recipe_id)
 	row.set_meta("gear", equipment_out)
 	return row
 
 
-func _bench_short_text(recipe_id: String, equipment_out: bool) -> String:
+## One missing ingredient stays "Need 3 Wood". Several collapse to "Need 2 items"
+## so the recipe name is never squeezed; the full list stays on the tooltip.
+func _bench_short_text(parts: PackedStringArray) -> String:
+	if parts.size() > 1:
+		return "Need %d items" % parts.size()
+	return ", ".join(parts)
+
+
+func _bench_missing_parts(recipe_id: String, equipment_out: bool) -> PackedStringArray:
 	var ings: Dictionary = Equipment.get_recipe_ingredients(recipe_id) if equipment_out else Backpack.get_recipe_ingredients(recipe_id)
 	var parts: PackedStringArray = PackedStringArray()
 	for key: Variant in ings.keys():
@@ -3878,7 +3899,7 @@ func _bench_short_text(recipe_id: String, equipment_out: bool) -> String:
 		var missing: int = int(ings[key]) - _bench_have(iid)
 		if missing > 0:
 			parts.append("Need %d %s" % [missing, _bench_item_name(iid)])
-	return ", ".join(parts)
+	return parts
 
 
 func _bench_have(iid: String) -> int:

@@ -200,6 +200,7 @@ const ECHO_BEAST_IDLE: String = "res://assets/art/echo/battle_%s_idle.png"
 static var _current: Node = null
 ## Visible (non-transparent) rect of each fighter texture, by resource path.
 static var _used_rect_cache: Dictionary = {}
+static var _swarm_body_cache: Dictionary = {}
 static var _ui_font_cache: Font = null
 
 @onready var _background: ColorRect = $Background
@@ -591,9 +592,14 @@ func _finish_fighter_root(root: Control) -> void:
 	var local := Rect2(-FIGHTER_SOLE, FIGHTER_FRAME)
 	if sprite is TextureRect and (sprite as TextureRect).texture != null:
 		var drawn: TextureRect = sprite as TextureRect
-		var scale: float = drawn.size.x / FIGHTER_FRAME.x if FIGHTER_FRAME.x > 0.0 else 1.0
+		var tex_size: Vector2 = drawn.texture.get_size()
+		var sx: float = drawn.size.x / tex_size.x if tex_size.x > 0.0 else 1.0
+		var sy: float = drawn.size.y / tex_size.y if tex_size.y > 0.0 else 1.0
 		var used: Rect2 = texture_used_rect(drawn.texture)
-		local = Rect2(drawn.position + used.position * scale, used.size * scale)
+		local = Rect2(
+			drawn.position + Vector2(used.position.x * sx, used.position.y * sy),
+			Vector2(used.size.x * sx, used.size.y * sy)
+		)
 	elif sprite != null:
 		local = Rect2(sprite.position, sprite.size)
 	root.set_meta("visible_rect", Rect2(root.position + local.position, local.size))
@@ -1699,18 +1705,93 @@ func _set_swarm_pose(root: Node, fighter_id: String, pose: String) -> bool:
 
 
 func _place_swarm_sprite(sprite: TextureRect) -> void:
-	## Feet stay on FIGHTER_SOLE. A one-bug frame is scaled up so the gnat is visible.
+	## Scale the painted cloud until it is readable, then sit its bottom on the sole.
+	## The frame's foot-row shadow is a separate mark; scaling that gap is what
+	## left the gnat floating. The slot's ground mark stays under the feet.
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_SCALE
+	var source: Texture2D = sprite.texture
+	if source is AtlasTexture:
+		source = (source as AtlasTexture).atlas
+	var body := Rect2(Vector2.ZERO, FIGHTER_FRAME)
+	if source != null:
+		body = _swarm_body_rect(source)
 	var scale: float = 1.0
-	if sprite.texture != null:
-		var used: Rect2 = texture_used_rect(sprite.texture)
-		var cluster: float = minf(used.size.x, used.size.y)
-		if cluster > 0.0 and cluster < SWARM_MIN_CLUSTER:
-			scale = SWARM_MIN_CLUSTER / cluster
-	sprite.size = FIGHTER_FRAME * scale
-	sprite.position = -FIGHTER_SOLE * scale
+	var cluster: float = minf(body.size.x, body.size.y)
+	if cluster > 0.0 and cluster < SWARM_MIN_CLUSTER:
+		scale = SWARM_MIN_CLUSTER / cluster
+	if source != null and body.size.x > 0.0 and body.size.y > 0.0:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = source
+		atlas.region = body
+		sprite.texture = atlas
+	sprite.size = body.size * scale
+	sprite.position = Vector2(-body.size.x * scale * 0.5, -body.size.y * scale)
+
+
+func _swarm_body_rect(tex: Texture2D) -> Rect2:
+	## Opaque cloud, excluding a ground shadow detached on the foot row.
+	var key: String = tex.resource_path
+	if key != "" and _swarm_body_cache.has(key):
+		return _swarm_body_cache[key] as Rect2
+	var image: Image = _fighter_frame_image(tex)
+	var fallback: Rect2 = texture_used_rect(tex)
+	if image == null or image.is_empty():
+		return fallback
+	var w: int = image.get_width()
+	var h: int = image.get_height()
+	var rows: Array[int] = []
+	for y: int in h:
+		if _image_row_opaque(image, y, w):
+			rows.append(y)
+	if rows.is_empty():
+		return fallback
+	var body_last: int = rows[rows.size() - 1]
+	var i: int = rows.size() - 1
+	var run_top: int = rows[i]
+	while i > 0 and rows[i - 1] == rows[i] - 1:
+		i -= 1
+		run_top = rows[i]
+	if i > 0 and run_top >= int(FIGHTER_SOLE.y) - 4 and rows[i - 1] <= run_top - 2:
+		body_last = rows[i - 1]
+	var x0: int = w
+	var x1: int = -1
+	var y0: int = rows[0]
+	for y: int in range(y0, body_last + 1):
+		for x: int in w:
+			if image.get_pixel(x, y).a > 0.0:
+				if x < x0:
+					x0 = x
+				if x > x1:
+					x1 = x
+	if x1 < x0:
+		return fallback
+	var body := Rect2(x0, y0, x1 - x0 + 1, body_last - y0 + 1)
+	if key != "":
+		_swarm_body_cache[key] = body
+	return body
+
+
+func _fighter_frame_image(tex: Texture2D) -> Image:
+	if tex == null:
+		return null
+	var image: Image = tex.get_image()
+	var key: String = tex.resource_path
+	if (image == null or image.is_empty()) and key != "" and FileAccess.file_exists(key):
+		image = Image.new()
+		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(key)) != OK:
+			return null
+	if image != null and image.is_compressed():
+		image.decompress()
+	return image
+
+
+func _image_row_opaque(image: Image, y: int, width: int) -> bool:
+	for x: int in width:
+		if image.get_pixel(x, y).a > 0.0:
+			return true
+	return false
 
 
 func _swarm_bugs_now(fighter_id: String) -> int:
