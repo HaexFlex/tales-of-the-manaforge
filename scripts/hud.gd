@@ -1630,6 +1630,8 @@ func _make_party_slot(slot_name: String, unit: String) -> Control:
 	host.size = Vector2(PARTY_SLOT, PARTY_SLOT)
 	host.mouse_filter = Control.MOUSE_FILTER_STOP
 	host.gui_input.connect(_on_party_slot_input.bind(unit, host))
+	if not Ui540.is_phone_export():
+		host.tooltip_text = slot_name
 	var face := Panel.new()
 	face.name = "Face"
 	face.mouse_filter = Control.MOUSE_FILTER_IGNORE

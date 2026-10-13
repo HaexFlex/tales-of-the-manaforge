@@ -4921,6 +4921,7 @@ func _elaia_join_check(tree_root: Window, game_state: Node, backpack: Node) -> i
 	hud.call("_refresh_party_bar")
 	failed += _assert(elaia_slot.visible and keeper_slot.visible, "Elaia portrait shows after the dialogue")
 	failed += _assert(elaia_slot.get_index() < wisp_slot.get_index() and wisp_slot.get_index() < keeper_slot.get_index(), "hud540 portrait column is Elaia, Wisps, then Keeper on the bottom row")
+	failed += _assert(keeper_slot.tooltip_text == "Keeper" and wisp_slot.tooltip_text == "Wisps" and elaia_slot.tooltip_text == "Elaia", "party slots name themselves in the tooltip")
 	var old_save: Dictionary = {
 		"stage_id": "sapling",
 		"echo_01_redeemed": true,
