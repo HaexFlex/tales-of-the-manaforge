@@ -1266,6 +1266,24 @@ func _run() -> void:
 		quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_DEBUG_PANEL") == "1":
+		var panel_failed: int = await _debug_panel_ok(tree_root)
+		if panel_failed > 0:
+			print("DEBUG_PANEL_FAIL: %d" % panel_failed)
+			quit(1)
+		print("DEBUG_PANEL_OK")
+		quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_BATTLE_SFX") == "1":
+		var sfx_failed: int = _battle_sfx_ok(tree_root, game_audio)
+		if sfx_failed > 0:
+			print("BATTLE_SFX_FAIL: %d" % sfx_failed)
+			quit(1)
+		print("BATTLE_SFX_OK")
+		quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_INTRO_TEXT") == "1":
 		var intro_failed: int = await _intro_text_ok(tree_root, content_strings)
 		if intro_failed > 0:
@@ -6005,6 +6023,61 @@ func _assert(cond: bool, msg: String) -> int:
 		return 0
 	printerr("ASSERT FAIL: %s" % msg)
 	return 1
+
+
+func _debug_panel_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	failed += _assert(src.find("DebugTabs") >= 0, "tabbed debug panel")
+	failed += _assert(src.find("Skip offline") >= 0, "offline skip")
+	failed += _assert(src.find("Recruit Bramble [ON HOLD]") >= 0, "bramble on hold")
+	failed += _assert(src.find("Reach.debug_finish_run") >= 0, "finish run hook")
+	failed += _assert(src.find("Battle arena (test)") < 0, "merged battle arena row")
+	var packed: PackedScene = load("res://tools/debug/debug_panel.tscn") as PackedScene
+	var panel: Node = packed.instantiate()
+	tree_root.add_child(panel)
+	await tree_root.process_frame
+	var tabs: TabContainer = panel.find_child("DebugTabs", true, false) as TabContainer
+	failed += _assert(tabs != null and tabs.get_tab_count() >= 6, "six tabs")
+	var bramble_btn: Button = null
+	for node: Node in panel.find_children("*", "Button", true, false):
+		var b: Button = node as Button
+		if b != null and b.text == "Recruit Bramble [ON HOLD]":
+			bramble_btn = b
+			break
+	failed += _assert(bramble_btn != null and bramble_btn.disabled, "bramble disabled")
+	panel.queue_free()
+	return failed
+
+
+func _battle_sfx_ok(tree_root: Window, game_audio: Node) -> int:
+	var failed: int = 0
+	var cues: Array = []
+	var file := FileAccess.open("res://data/audio_cues.json", FileAccess.READ)
+	if file != null:
+		var parsed: Variant = JSON.parse_string(file.get_as_text())
+		if parsed is Dictionary:
+			var list_v: Variant = (parsed as Dictionary).get("battle_playback", {}).get("battle_cue_ids", [])
+			if list_v is Array:
+				cues = list_v
+	if cues.is_empty():
+		cues = [
+			"sfx_battle_hit", "sfx_battle_graze", "sfx_battle_crush", "sfx_battle_crit", "sfx_battle_miss",
+			"sfx_battle_brace", "sfx_battle_salve", "sfx_battle_flee", "sfx_battle_beast_hurt", "sfx_battle_ko",
+			"sfx_battle_overwhelmed", "sfx_battle_victory", "sfx_battle_turn", "sfx_battle_select", "sfx_battle_confirm",
+		]
+	game_audio.call("clear_played_log")
+	for cue_id: Variant in cues:
+		var id: String = str(cue_id)
+		failed += _assert(game_audio.list_cue_ids().has(id), "cue registered %s" % id)
+		var path: String = str(game_audio.call("get_cue_path", id))
+		failed += _assert(path != "" and FileAccess.file_exists(path), "cue file %s" % id)
+		game_audio.call("play", id)
+		failed += _assert(bool(game_audio.call("did_play", id)), "cue fired %s" % id)
+		game_audio.call("clear_played_log")
+	var strike: Dictionary = {"kind": "strike", "band": "miss", "target_side": "beast", "damage": 0}
+	failed += _assert(not BattlePlaybackScript.cues_for_event(strike, 1).is_empty(), "miss maps to cue")
+	return failed
 
 
 func _intro_text_ok(tree_root: Window, content_strings: Node) -> int:
@@ -15442,7 +15515,7 @@ func _battle_echo_exclusive(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(not bool(reach.call("fight_active")), "reset leaves the reach fight")
 	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
 	var echo_at: int = panel_src.find("\"Jump to Echo\"")
-	var arena_at: int = panel_src.find("\"Battle arena (test)\"")
+	var arena_at: int = panel_src.find("\"Open arena (empty)\"")
 	failed += _assert(echo_at >= 0 and arena_at > echo_at, "the test button sits with Jump to Echo")
 	var panel_packed: PackedScene = load("res://tools/debug/debug_panel.tscn") as PackedScene
 	failed += _assert(panel_packed != null, "debug panel scene loads")
@@ -15457,10 +15530,10 @@ func _battle_echo_exclusive(tree_root: Window, game_state: Node, save_service: N
 	var arena_button: Button = null
 	for node: Node in panel.find_children("*", "Button", true, false):
 		var button: Button = node as Button
-		if button != null and button.text == "Battle arena (test)":
+		if button != null and button.text == "Open arena (empty)":
 			arena_button = button
 			break
-	failed += _assert(arena_button != null, "debug panel has Battle arena (test)")
+	failed += _assert(arena_button != null, "debug panel has Open arena (empty)")
 	if arena_button != null:
 		arena_button.pressed.emit()
 	failed += _assert(bool(BattleViewScript.is_open()), "the test button opens the arena")

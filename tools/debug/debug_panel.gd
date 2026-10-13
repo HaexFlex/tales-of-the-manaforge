@@ -1,4 +1,6 @@
 extends CanvasLayer
+
+const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 ## Testing-build debug panel. Ctrl+F8, or Options → Show debug tools.
 ## Stable exports exclude this scene, this script, and tools/debug/snapshots/.
 
@@ -25,6 +27,8 @@ const FORCE_LABELS: Dictionary = {
 	"win": "Win",
 }
 const BATCH_SIZE: int = 200
+const BTN_MIN_H: float = 44.0
+var _offline_hours: PackedFloat32Array = PackedFloat32Array([1.0, 8.0, 24.0])
 var _free_crafts: PackedStringArray = PackedStringArray([
 	"sapsteel",
 	"heartwood_bits",
@@ -46,6 +50,20 @@ var _rows: Array[Dictionary] = []
 var _fight_depth: SpinBox
 var _fight_boss: CheckBox
 var _fight_elaia: CheckBox
+var _grant_add_mode: bool = true
+var _grant_to_pack: bool = false
+var _ancient_timer: SpinBox
+var _ancient_freeze: CheckBox
+var _reach_depth: SpinBox
+var _reach_deepest: SpinBox
+var _reach_dojo: SpinBox
+var _reach_clears: SpinBox
+var _echo_outcome: OptionButton
+var _forge_craft_pick: OptionButton
+var _blessing_pick: OptionButton
+var _blessing_rank: SpinBox
+var _rune_pick: OptionButton
+var _rune_rank: SpinBox
 
 
 func _ready() -> void:
@@ -67,93 +85,353 @@ func _build_ui() -> void:
 	panel.name = "Panel"
 	panel.color = Color(0.09, 0.12, 0.11, 0.97)
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -270.0
-	panel.offset_top = -356.0
-	panel.offset_right = 270.0
-	panel.offset_bottom = 356.0
+	panel.offset_left = -300.0
+	panel.offset_top = -380.0
+	panel.offset_right = 300.0
+	panel.offset_bottom = 380.0
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
 
-	## Scrolls, so the expedition rows fit under the item catalogue.
-	var scroll := ScrollContainer.new()
-	scroll.name = "Scroll"
-	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
-	scroll.offset_left = 18.0
-	scroll.offset_top = 14.0
-	scroll.offset_right = -18.0
-	scroll.offset_bottom = -14.0
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	panel.add_child(scroll)
-	var box := VBoxContainer.new()
-	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_theme_constant_override("separation", 4)
-	scroll.add_child(box)
+	var root := VBoxContainer.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.offset_left = 14.0
+	root.offset_top = 10.0
+	root.offset_right = -14.0
+	root.offset_bottom = -10.0
+	panel.add_child(root)
 
 	var title := Label.new()
 	title.text = "Debug tools"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(0.93, 0.86, 0.62, 1))
-	box.add_child(title)
-
+	root.add_child(title)
 	var subtitle := Label.new()
 	subtitle.text = "Ctrl+F8  ·  testing build"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 13)
-	subtitle.add_theme_color_override("font_color", Color(0.78, 0.86, 0.74, 1))
-	box.add_child(subtitle)
+	subtitle.add_theme_font_size_override("font_size", 12)
+	root.add_child(subtitle)
 
-	_add_section(box, "Load snapshots")
-	## Two columns, so eight snapshots take the height the first four did.
-	var snapshot_grid := GridContainer.new()
-	snapshot_grid.name = "SnapshotGrid"
-	snapshot_grid.columns = 2
-	snapshot_grid.add_theme_constant_override("h_separation", 6)
-	snapshot_grid.add_theme_constant_override("v_separation", 4)
-	box.add_child(snapshot_grid)
-	for label: String in SNAPSHOT_ORDER:
-		var snap_button: Button = _add_button(snapshot_grid, label, _on_snapshot_pressed.bind(str(SNAPSHOTS[label]), label))
-		snap_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-	_add_section(box, "Forge")
-	_add_button(box, "Free Sapsteel", _on_free_craft_pressed.bind("sapsteel"))
-	_add_button(box, "Free Heartwood", _on_free_craft_pressed.bind("heartwood_bits"))
-	_add_button(box, "Free Amberbind", _on_free_craft_pressed.bind("amberbind"))
-	_add_button(box, "Skip station work", _on_skip_pressed)
-
-	_add_section(box, "Add items")
-	_build_catalogue(box)
-
-	_add_section(box, "Jumps")
-	_add_button(box, "Jump to Echo", _on_echo_pressed)
-	_add_button(box, "Battle arena (test)", _on_battle_arena_pressed)
-	_add_button(box, "Open Ascension shop", _on_ascension_pressed)
-
-	_add_section(box, "Expedition")
-	var force_row := HBoxContainer.new()
-	force_row.name = "ForceRow"
-	force_row.add_theme_constant_override("separation", 6)
-	box.add_child(force_row)
-	for outcome: String in ["flee", "overwhelmed", "win"]:
-		var force_button: Button = _add_button(force_row, "Force next room: %s" % str(FORCE_LABELS[outcome]), _on_force_pressed.bind(outcome))
-		force_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_build_fight_at_depth(box)
-	_add_button(box, "Batch-sim %d" % BATCH_SIZE, _on_batch_sim_pressed)
+	var tabs := TabContainer.new()
+	tabs.name = "DebugTabs"
+	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tabs.custom_minimum_size = Vector2(0, 520)
+	root.add_child(tabs)
+	_build_tab_time_save(tabs)
+	_build_tab_resources(tabs)
+	_build_tab_forge(tabs)
+	_build_tab_tree(tabs)
+	_build_tab_reach(tabs)
+	_build_tab_party(tabs)
+	_build_tab_battle(tabs)
 
 	_status = Label.new()
 	_status.name = "Status"
 	_status.text = "Ready."
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size = Vector2(0, 36)
-	_status.add_theme_font_size_override("font_size", 13)
-	_status.add_theme_color_override("font_color", Color(0.93, 0.86, 0.62, 1))
-	box.add_child(_status)
-
+	_status.custom_minimum_size = Vector2(0, 40)
+	root.add_child(_status)
 	var close := Button.new()
 	close.text = "Close"
-	close.custom_minimum_size = Vector2(0, 32)
+	close.custom_minimum_size = Vector2(0, BTN_MIN_H)
 	close.pressed.connect(_on_close_pressed)
-	box.add_child(close)
+	root.add_child(close)
+
+
+func _tab_scroll(parent: TabContainer, title: String) -> VBoxContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = title.replace(" ", "")
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	parent.add_child(scroll)
+	parent.set_tab_title(parent.get_tab_count() - 1, title)
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_theme_constant_override("separation", 6)
+	scroll.add_child(box)
+	return box
+
+
+func _build_tab_time_save(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Time & Save")
+	_add_section(box, "Snapshots")
+	var snapshot_grid := GridContainer.new()
+	snapshot_grid.columns = 2
+	snapshot_grid.add_theme_constant_override("h_separation", 6)
+	box.add_child(snapshot_grid)
+	for label: String in SNAPSHOT_ORDER:
+		var snap_button: Button = _add_button(snapshot_grid, label, _on_snapshot_pressed.bind(str(SNAPSHOTS[label]), label))
+		snap_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_add_section(box, "Offline skip")
+	for h: float in _offline_hours:
+		_add_button(box, "Skip offline %.0f h" % h, _on_offline_skip.bind(h))
+	_add_section(box, "Save")
+	_add_button(box, "Dump save JSON", _on_dump_save)
+	_add_button(box, "Reset game (confirm)", _on_reset_game)
+
+
+func _build_tab_resources(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Resources")
+	var mode_row := HBoxContainer.new()
+	box.add_child(mode_row)
+	var add_toggle := CheckButton.new()
+	add_toggle.text = "Add mode"
+	add_toggle.button_pressed = true
+	add_toggle.toggled.connect(func(on: bool) -> void:
+		_grant_add_mode = on
+	)
+	mode_row.add_child(add_toggle)
+	var pack_toggle := CheckButton.new()
+	pack_toggle.text = "Reach pack"
+	pack_toggle.toggled.connect(func(on: bool) -> void:
+		_grant_to_pack = on
+	)
+	mode_row.add_child(pack_toggle)
+	var preset_row := HBoxContainer.new()
+	for preset: int in [10, 100, 1000]:
+		_add_button(preset_row, "+%d" % preset, _on_preset_grant.bind(preset))
+	box.add_child(preset_row)
+	_build_catalogue(box)
+
+
+func _build_tab_forge(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Forge")
+	_forge_craft_pick = OptionButton.new()
+	for rid: String in _free_crafts:
+		_forge_craft_pick.add_item(_pretty(rid), _forge_craft_pick.item_count)
+	box.add_child(_forge_craft_pick)
+	_add_button(box, "Test craft recipe", _on_forge_craft_picked)
+	_add_button(box, "Skip station work", _on_skip_pressed)
+
+
+func _build_tab_tree(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Tree & Ascension")
+	var timer_row := HBoxContainer.new()
+	box.add_child(timer_row)
+	timer_row.add_child(Label.new())
+	(timer_row.get_child(0) as Label).text = "Ancient timer (s)"
+	_ancient_timer = SpinBox.new()
+	_ancient_timer.min_value = 0
+	_ancient_timer.max_value = 3600
+	_ancient_timer.value = 0
+	timer_row.add_child(_ancient_timer)
+	_ancient_freeze = CheckBox.new()
+	_ancient_freeze.text = "Freeze"
+	timer_row.add_child(_ancient_freeze)
+	_add_button(box, "Apply Ancient timer", _on_apply_ancient_timer)
+	_add_button(box, "Commit Fruit", _on_debug_commit_fruit)
+	_add_button(box, "Cancel Fruit commit", _on_debug_cancel_fruit)
+	_add_button(box, "Grow one stage", _on_grow_stage)
+	_add_button(box, "Go to Ascension shop", _on_ascension_pressed)
+	_add_section(box, "Blessings")
+	_blessing_pick = OptionButton.new()
+	for entry: Variant in GameState.upgrades_data:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var uid: String = str((entry as Dictionary).get("id", ""))
+		if uid != "":
+			_blessing_pick.add_item(uid)
+	box.add_child(_blessing_pick)
+	_blessing_rank = SpinBox.new()
+	_blessing_rank.min_value = 0
+	_blessing_rank.max_value = 999
+	box.add_child(_blessing_rank)
+	_add_button(box, "Set blessing rank", _on_set_blessing_rank)
+	_add_button(box, "Reset all blessing ranks", _on_reset_blessings)
+
+
+func _build_tab_reach(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Reach")
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	_reach_depth = _labeled_spin(row, "Depth", 1, 99, 1)
+	_reach_deepest = _labeled_spin(row, "Deepest", 1, 99, 1)
+	_reach_dojo = _labeled_spin(row, "Dojo exp", 0, 99999, 0)
+	_reach_clears = _labeled_spin(row, "Clears", 0, 99, 0)
+	_add_button(box, "Apply reach stats", _on_apply_reach_stats)
+	for outcome: String in ["flee", "overwhelmed", "win"]:
+		_add_button(box, "Queue outcome: %s" % FORCE_LABELS[outcome], _on_queue_force.bind(outcome))
+	_add_button(box, "Apply queued outcomes", _on_apply_force_queue)
+	_add_button(box, "Finish run (finished)", _on_finish_run.bind("finished"))
+	_add_button(box, "Finish run (flee)", _on_finish_run.bind("flee"))
+	_add_button(box, "Mossmite room roll", _on_room_roll)
+
+
+func _build_tab_party(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Party")
+	_add_button(box, "Jump to Echo 1", _on_echo_pressed)
+	_add_button(box, "Launch Echo 2 (portal)", _on_echo2_pressed)
+	_echo_outcome = OptionButton.new()
+	_echo_outcome.add_item("spare")
+	_echo_outcome.add_item("flee")
+	_echo_outcome.add_item("ko")
+	box.add_child(_echo_outcome)
+	_add_button(box, "Apply Echo 2 outcome (resolved)", _on_apply_echo2)
+	var bramble := _add_button(box, "Recruit Bramble [ON HOLD]", _on_bramble_hold)
+	bramble.disabled = true
+	bramble.tooltip_text = "Bramble is ON HOLD — not implemented."
+	_add_section(box, "Runestone ranks")
+	_rune_pick = OptionButton.new()
+	for sid: StringName in KeeperStats.STAT_ORDER:
+		_rune_pick.add_item(String(sid))
+	box.add_child(_rune_pick)
+	_rune_rank = SpinBox.new()
+	_rune_rank.min_value = 0
+	_rune_rank.max_value = 9999
+	box.add_child(_rune_rank)
+	_add_button(box, "Set runestone rank", _on_set_rune_rank)
+
+
+func _build_tab_battle(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Battle")
+	_build_fight_at_depth(box)
+	_add_button(box, "Open arena (empty)", _on_battle_arena_pressed)
+	_add_button(box, "Batch-sim %d" % BATCH_SIZE, _on_batch_sim_pressed)
+
+
+func _labeled_spin(parent: HBoxContainer, label: String, min_v: int, max_v: int, val: int) -> SpinBox:
+	parent.add_child(Label.new())
+	(parent.get_child(parent.get_child_count() - 1) as Label).text = label
+	var spin := SpinBox.new()
+	spin.min_value = min_v
+	spin.max_value = max_v
+	spin.value = val
+	parent.add_child(spin)
+	return spin
+
+
+var _force_queue: Array[String] = []
+
+
+func _on_offline_skip(hours: float) -> void:
+	var eff: float = GameState.debug_skip_offline_hours(hours)
+	_set_status("Offline skip %.0f h (effective %.1f s)." % [hours, eff])
+
+
+func _on_dump_save() -> void:
+	var data: Dictionary = GameState.to_save_dict()
+	_set_status(JSON.stringify(data).substr(0, 400) + "…")
+
+
+func _on_reset_game() -> void:
+	GameState.reset_for_new_game()
+	if has_node("/root/Reach"):
+		Reach.reset_for_new_game()
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.reset_for_new_game()
+	if has_node("/root/Backpack"):
+		Backpack.reset_for_new_game()
+	if has_node("/root/KeeperStats"):
+		KeeperStats.reset_for_new_game()
+	_set_status("Game reset.")
+
+
+func _on_preset_grant(amount: int) -> void:
+	if _list == null or _list.get_selected_items().is_empty():
+		_set_status("Pick a catalogue row first.")
+		return
+	_on_catalogue_add_with(amount)
+
+
+func _on_forge_craft_picked() -> void:
+	if _forge_craft_pick == null:
+		return
+	var rid: String = _free_crafts[_forge_craft_pick.selected]
+	_on_free_craft_pressed(rid)
+
+
+func _on_apply_ancient_timer() -> void:
+	var frozen: bool = _ancient_freeze != null and _ancient_freeze.button_pressed
+	GameState.debug_set_ancient_timer(float(_ancient_timer.value) if _ancient_timer else 0.0, frozen)
+	_set_status("Ancient timer set.")
+
+
+func _on_debug_commit_fruit() -> void:
+	GameState.debug_commit_fruit()
+	_set_status("Fruit committed." if GameState.fruit_committed else "Could not commit Fruit.")
+
+
+func _on_debug_cancel_fruit() -> void:
+	GameState.debug_cancel_fruit()
+	_set_status("Fruit commit cancelled.")
+
+
+func _on_grow_stage() -> void:
+	var result: String = GameState.try_grow_stage()
+	_set_status("Grow: %s" % result)
+
+
+func _on_set_blessing_rank() -> void:
+	if _blessing_pick == null:
+		return
+	GameState.debug_set_upgrade_rank(_blessing_pick.get_item_text(_blessing_pick.selected), int(_blessing_rank.value))
+	_set_status("Blessing rank set.")
+
+
+func _on_reset_blessings() -> void:
+	GameState.debug_reset_upgrade_ranks()
+	_set_status("Blessing ranks reset.")
+
+
+func _on_apply_reach_stats() -> void:
+	Reach.debug_set_depths(int(_reach_depth.value), int(_reach_deepest.value))
+	Reach.debug_set_dojo_exp(int(_reach_dojo.value))
+	Reach.debug_set_reaches_cleared(int(_reach_clears.value))
+	_set_status("Reach stats applied.")
+
+
+func _on_queue_force(outcome: String) -> void:
+	_force_queue.append(outcome)
+	_set_status("Queued %s (%d)." % [outcome, _force_queue.size()])
+
+
+func _on_apply_force_queue() -> void:
+	if _force_queue.is_empty():
+		_set_status("No outcomes queued.")
+		return
+	Reach.debug_force_outcomes(_force_queue.duplicate())
+	_force_queue.clear()
+	_set_status("Outcomes queued for next rooms.")
+
+
+func _on_finish_run(reason: String) -> void:
+	Reach.debug_finish_run(reason)
+	_set_status("Finish run: %s." % reason)
+
+
+func _on_room_roll() -> void:
+	var depth: int = int(_reach_depth.value) if _reach_depth else 1
+	var boss: bool = _fight_boss != null and _fight_boss.button_pressed
+	var rng: BattleRng = BattleRngScript.new()
+	rng.seed = randi() & 0x7FFFFFFF
+	var roll: Array = SpawnRoller.roll_room_with_mossmites(depth, rng, boss)
+	_set_status("Room roll d%d (%d slots): %s" % [depth, roll.size(), JSON.stringify(roll)])
+
+
+func _on_echo2_pressed() -> void:
+	GameState.portal_unlocked = true
+	GameState.echo_02_fee_paid = true
+	GameState.echo_flags_changed.emit()
+	_set_status("Echo 2 portal fees waived — use adventure board.")
+
+
+func _on_apply_echo2() -> void:
+	if _echo_outcome == null:
+		return
+	var outcome: String = _echo_outcome.get_item_text(_echo_outcome.selected)
+	Reach.debug_set_echo_02(true, outcome, true)
+	_set_status("Echo 2 resolved: %s." % outcome)
+
+
+func _on_bramble_hold() -> void:
+	_set_status("Recruit Bramble is ON HOLD.")
+
+
+func _on_set_rune_rank() -> void:
+	if _rune_pick == null:
+		return
+	var sid: String = _rune_pick.get_item_text(_rune_pick.selected)
+	KeeperStats.set_rank(sid, int(_rune_rank.value))
+	_set_status("Runestone %s rank %d." % [sid, int(_rune_rank.value)])
 
 
 func _add_section(parent: VBoxContainer, text: String) -> void:
@@ -167,7 +445,7 @@ func _add_section(parent: VBoxContainer, text: String) -> void:
 func _add_button(parent: Container, text: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(0, 24)
+	button.custom_minimum_size = Vector2(0, BTN_MIN_H)
 	button.pressed.connect(callback)
 	parent.add_child(button)
 	return button
@@ -410,6 +688,13 @@ func _on_catalogue_filter(_text: String) -> void:
 
 
 func _on_catalogue_add() -> void:
+	var qty: int = 1
+	if _qty != null:
+		qty = maxi(1, int(_qty.value))
+	_on_catalogue_add_with(qty)
+
+
+func _on_catalogue_add_with(qty: int) -> void:
 	if _list == null:
 		return
 	var selected: PackedInt32Array = _list.get_selected_items()
@@ -420,20 +705,34 @@ func _on_catalogue_add() -> void:
 	if typeof(meta) != TYPE_DICTIONARY:
 		return
 	var row: Dictionary = meta
-	var qty: int = 1
-	if _qty != null:
-		qty = maxi(1, int(_qty.value))
 	var id: String = str(row.get("id", ""))
 	var kind: String = str(row.get("kind", "item"))
+	if _grant_to_pack and kind != "resource" and kind != "gear":
+		if not Reach.running:
+			_set_status("Start a reach run to fill the pack.")
+			return
+		Reach.debug_add_pack(id, qty)
+		_set_status("Pack +%d %s." % [qty, id])
+		return
 	if kind == "resource":
-		GameState.add_resource(StringName(id), qty)
+		if _grant_add_mode:
+			GameState.add_resource(StringName(id), qty)
+		else:
+			GameState.debug_set_resource_exact(StringName(id), qty)
 	elif kind == "gear":
+		if not _grant_add_mode:
+			_set_status("Set mode is for resources only.")
+			return
 		if not Equipment.add_gear(id, qty):
 			_set_status("Could not add %s." % str(row.get("label", id)))
 			return
 	else:
-		Backpack.add_item(id, qty)
-	_set_status("Added %d %s." % [qty, str(row.get("label", id))])
+		if not _grant_add_mode:
+			Backpack.set_count(id, qty)
+		else:
+			Backpack.add_item(id, qty)
+	var verb: String = "Added" if _grant_add_mode else "Set"
+	_set_status("%s %d %s." % [verb, qty, str(row.get("label", id))])
 
 
 func _on_echo_pressed() -> void:

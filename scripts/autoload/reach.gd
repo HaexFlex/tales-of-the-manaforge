@@ -347,6 +347,51 @@ func debug_force_outcomes(list: Array) -> void:
 			_forced_outcomes.append(outcome)
 
 
+func debug_finish_run(reason: String = "finished") -> void:
+	if not debug_tools() or not running:
+		return
+	var r: String = reason if reason != "" else "finished"
+	_finish_run(r)
+
+
+func debug_set_depths(depth_v: int, deepest_v: int) -> void:
+	if not debug_tools():
+		return
+	depth = maxi(1, depth_v)
+	deepest_depth = maxi(depth, deepest_v)
+	changed.emit()
+
+
+func debug_set_dojo_exp(amount: int) -> void:
+	if not debug_tools():
+		return
+	dojo_exp = maxi(0, amount)
+	changed.emit()
+
+
+func debug_set_reaches_cleared(n: int) -> void:
+	if not debug_tools():
+		return
+	reaches_cleared = maxi(0, n)
+	changed.emit()
+
+
+func debug_add_pack(item_id: String, n: int) -> void:
+	if not debug_tools():
+		return
+	if pack != null:
+		pack.add(item_id, n)
+
+
+func debug_set_echo_02(resolved: bool, outcome: String, fee_paid: bool) -> void:
+	if not debug_tools():
+		return
+	GameState.echo_02_resolved = resolved
+	GameState.echo_02_outcome = outcome if outcome == "spare" or outcome == "flee" or outcome == "ko" else ""
+	GameState.echo_02_fee_paid = fee_paid
+	GameState.echo_flags_changed.emit()
+
+
 func set_control(mode: String) -> void:
 	if catching_up:
 		return

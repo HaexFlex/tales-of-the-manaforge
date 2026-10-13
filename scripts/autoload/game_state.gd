@@ -2160,3 +2160,69 @@ func cancel_fruit_commit() -> void:
 	fruit_ready = bool(def.get("grants_fruit", false))
 	fruit_ready_changed.emit(fruit_ready)
 	needs_changed.emit()
+
+
+func debug_tools() -> bool:
+	if has_node("/root/AnimPreviewHotkey"):
+		return bool(AnimPreviewHotkey.debug_tools_enabled())
+	return OS.is_debug_build()
+
+
+func debug_set_resource_exact(resource_id: StringName, amount: int) -> void:
+	if not debug_tools():
+		return
+	set_resource(resource_id, amount)
+
+
+func debug_set_upgrade_rank(upgrade_id: String, rank: int) -> void:
+	if not debug_tools():
+		return
+	upgrade_ranks[upgrade_id] = maxi(0, rank)
+	upgrades_changed.emit()
+	needs_changed.emit()
+
+
+func debug_reset_upgrade_ranks() -> void:
+	if not debug_tools():
+		return
+	upgrade_ranks.clear()
+	_ensure_upgrade_keys()
+	upgrades_changed.emit()
+	needs_changed.emit()
+
+
+func debug_set_ancient_timer(sec: float, frozen: bool) -> void:
+	if not debug_tools():
+		return
+	if stage_id != &"ancient":
+		_set_stage(&"ancient")
+	ancient_remaining_sec = maxf(0.0, sec)
+	ancient_frozen = frozen
+	if frozen:
+		_set_fruit_committed(true)
+		fruit_ready = false
+		fruit_ready_changed.emit(false)
+
+
+func debug_commit_fruit() -> void:
+	if not debug_tools() or stage_id != &"ancient" or fruit_committed:
+		return
+	harvest_fruit()
+
+
+func debug_cancel_fruit() -> void:
+	if not debug_tools():
+		return
+	cancel_fruit_commit()
+
+
+func debug_skip_offline_hours(hours: float) -> float:
+	if not debug_tools() or hours <= 0.0:
+		return 0.0
+	var sec: float = hours * 3600.0
+	var eff: float = commit_offline_gap(sec)
+	if has_node("/root/Reach"):
+		Reach.apply_offline_seconds(sec)
+	if has_node("/root/ForgeJobs"):
+		ForgeJobs.apply_offline_seconds(sec)
+	return eff
