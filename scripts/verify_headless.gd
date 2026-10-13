@@ -9528,9 +9528,8 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 	var session_was: bool = bool(save_service.get("session_active"))
 	var lantern_was: String = str(game_state.get("expedition_lantern"))
 	reach.call("reset_for_new_game")
-	## Opening a manual fight lets beasts act immediately. Seed 20's room is two of the
-	## same beast, so turn order matches the spawn list, and one Strike does not end the run.
-	reach.call("set_test_run_seed", 20)
+	## Seed 1: keeper survives the opening beast turns; one Strike must not finish the run.
+	reach.call("set_test_run_seed", 1)
 	failed += _assert(str(reach.call("depart", 1, 1, "hold", "idle")) == "ok", "mix reload: idle depart")
 	failed += _assert(bool(save_service.call("save_game", 7)), "mix reload: save mid-run to slot 7")
 	reach.call("reset_for_new_game")
@@ -9558,8 +9557,18 @@ func _reach_mix_reload(tree_root: Window, game_state: Node, save_service: Node) 
 
 func _reach_room_species_list(depth: int, room_seed: int, boss: bool) -> Array[String]:
 	var room: Array[Dictionary] = SlotEngine.build_room(depth, room_seed, boss)
-	var out: Array[String] = []
+	var rows: Array[Dictionary] = []
 	for row: Dictionary in room:
+		rows.append(row)
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var row_a: int = 0 if str(a.get("row", "front")) == "front" else 1
+		var row_b: int = 0 if str(b.get("row", "front")) == "front" else 1
+		if row_a != row_b:
+			return row_a < row_b
+		return int(a.get("slot", 0)) < int(b.get("slot", 0))
+	)
+	var out: Array[String] = []
+	for row: Dictionary in rows:
 		out.append(str(row.get("beast", "")))
 	return out
 
@@ -9568,10 +9577,21 @@ func _reach_fight_species_list(fight: FightState) -> Array[String]:
 	var out: Array[String] = []
 	if fight == null:
 		return out
-	for fighter_id: String in fight.order:
-		var row: Dictionary = fight.fighter_dict(fighter_id)
-		if str(row.get("side", "")) == "beast":
-			out.append(str(row.get("species", "")))
+	var beasts: Array[Dictionary] = []
+	for row_v: Variant in fight.to_dict().get("fighters", []) as Array:
+		var row: Dictionary = row_v as Dictionary
+		if str(row.get("side", "")) != "beast":
+			continue
+		beasts.append({"slot": int(row.get("slot", 0)), "row": str(row.get("row", "front")), "species": str(row.get("species", ""))})
+	beasts.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var row_a: int = 0 if str(a.get("row", "")) == "front" else 1
+		var row_b: int = 0 if str(b.get("row", "")) == "front" else 1
+		if row_a != row_b:
+			return row_a < row_b
+		return int(a.get("slot", 0)) < int(b.get("slot", 0))
+	)
+	for entry: Dictionary in beasts:
+		out.append(str(entry.get("species", "")))
 	return out
 
 
@@ -9633,6 +9653,18 @@ func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
 	if strike_btn == null:
 		BattleViewScript.close_arena()
 		return false
+	for _wait_party: int in 600:
+		if manual.outcome() != "":
+			break
+		var actor_id: String = manual.current_actor()
+		if actor_id != "" and str(manual.fighter_dict(actor_id).get("side", "")) == "party":
+			break
+		var playback: BattlePlayback = view.get_playback()
+		if playback != null and playback.is_busy():
+			await process_frame
+			continue
+		view.call("_advance")
+		await process_frame
 	strike_btn.emit_signal("pressed")
 	await process_frame
 	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
@@ -9644,7 +9676,8 @@ func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
 				break
 	if picked != null:
 		picked.emit_signal("pressed")
-	await process_frame
+	for _settle: int in 30:
+		await process_frame
 	var ok: bool = bool(reach.get("running")) and manual.outcome() == ""
 	BattleViewScript.close_arena()
 	return ok
