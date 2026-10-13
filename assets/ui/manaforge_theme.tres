@@ -37,6 +37,12 @@
 [ext_resource type="Texture2D" path="res://assets/ui/theme/scroll_thumb_9s_hover_12x16.png" id="35_r5pg2"]
 [ext_resource type="Texture2D" path="res://assets/ui/theme/scroll_thumb_9s_drag_12x16.png" id="36_1nskq"]
 [ext_resource type="Texture2D" path="res://assets/ui/theme/scroll_track_9s_12x24.png" id="37_0ni4r"]
+[ext_resource type="Texture2D" path="res://assets/ui/extras/spin_up_normal_12x8.png" id="38_spinup"]
+[ext_resource type="Texture2D" path="res://assets/ui/extras/spin_up_hover_12x8.png" id="39_spinuph"]
+[ext_resource type="Texture2D" path="res://assets/ui/extras/spin_up_disabled_12x8.png" id="40_spinupd"]
+[ext_resource type="Texture2D" path="res://assets/ui/extras/spin_down_normal_12x8.png" id="41_spindn"]
+[ext_resource type="Texture2D" path="res://assets/ui/extras/spin_down_hover_12x8.png" id="42_spindnh"]
+[ext_resource type="Texture2D" path="res://assets/ui/extras/spin_down_disabled_12x8.png" id="43_spindnd"]
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_sphc3"]
 content_margin_left = 28.0
@@ -592,17 +598,17 @@ ProgressBar/colors/font_outline_color = Color(0.9529412, 0.9019608, 0.78431374, 
 ProgressBar/styles/background = SubResource("StyleBoxTexture_r5pg2")
 ProgressBar/styles/fill = SubResource("StyleBoxTexture_1nskq")
 ScrollContainer/styles/panel = SubResource("StyleBoxTexture_0ni4r")
-SpinBox/constants/buttons_width = 0
+SpinBox/constants/buttons_width = 16
 SpinBox/constants/field_and_buttons_separation = 0
 SpinBox/constants/set_min_buttons_width_from_icons = 0
-SpinBox/icons/down = SubResource("PlaceholderTexture2D_26eso")
-SpinBox/icons/down_disabled = SubResource("PlaceholderTexture2D_26eso")
-SpinBox/icons/down_hover = SubResource("PlaceholderTexture2D_26eso")
-SpinBox/icons/down_pressed = SubResource("PlaceholderTexture2D_26eso")
-SpinBox/icons/up = SubResource("PlaceholderTexture2D_26eso")
-SpinBox/icons/up_disabled = SubResource("PlaceholderTexture2D_26eso")
-SpinBox/icons/up_hover = SubResource("PlaceholderTexture2D_26eso")
-SpinBox/icons/up_pressed = SubResource("PlaceholderTexture2D_26eso")
+SpinBox/icons/down = ExtResource("41_spindn")
+SpinBox/icons/down_disabled = ExtResource("43_spindnd")
+SpinBox/icons/down_hover = ExtResource("42_spindnh")
+SpinBox/icons/down_pressed = ExtResource("42_spindnh")
+SpinBox/icons/up = ExtResource("38_spinup")
+SpinBox/icons/up_disabled = ExtResource("40_spinupd")
+SpinBox/icons/up_hover = ExtResource("39_spinuph")
+SpinBox/icons/up_pressed = ExtResource("39_spinuph")
 SpinBox/icons/updown = SubResource("PlaceholderTexture2D_26eso")
 SpinBox/styles/down_background = SubResource("StyleBoxEmpty_sruy5")
 SpinBox/styles/down_background_disabled = SubResource("StyleBoxEmpty_3xtk8")

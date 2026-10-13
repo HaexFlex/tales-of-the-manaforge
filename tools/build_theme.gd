@@ -207,15 +207,27 @@ func _init() -> void:
 	th.set_color("caret_color", "LineEdit", INK)
 	th.set_color("selection_color", "LineEdit", Color8(220, 192, 122))
 
-	# SpinBox: no kit arrow piece yet, and the engine's white arrows float on parchment.
-	# Fields stay editable by typing, wheel and arrow keys; screens that need steppers draw − / +.
+	# Kit SpinBox arrows (12×8). Pressed reuses hover; there is no pressed piece.
+	var spin_up := load("res://assets/ui/extras/spin_up_normal_12x8.png")
+	var spin_up_h := load("res://assets/ui/extras/spin_up_hover_12x8.png")
+	var spin_up_d := load("res://assets/ui/extras/spin_up_disabled_12x8.png")
+	var spin_down := load("res://assets/ui/extras/spin_down_normal_12x8.png")
+	var spin_down_h := load("res://assets/ui/extras/spin_down_hover_12x8.png")
+	var spin_down_d := load("res://assets/ui/extras/spin_down_disabled_12x8.png")
+	th.set_icon("up", "SpinBox", spin_up)
+	th.set_icon("up_hover", "SpinBox", spin_up_h)
+	th.set_icon("up_pressed", "SpinBox", spin_up_h)
+	th.set_icon("up_disabled", "SpinBox", spin_up_d)
+	th.set_icon("down", "SpinBox", spin_down)
+	th.set_icon("down_hover", "SpinBox", spin_down_h)
+	th.set_icon("down_pressed", "SpinBox", spin_down_h)
+	th.set_icon("down_disabled", "SpinBox", spin_down_d)
 	var no_icon := PlaceholderTexture2D.new()
 	no_icon.size = Vector2(1, 1)
-	for k in ["updown", "up", "up_hover", "up_pressed", "up_disabled", "down", "down_hover", "down_pressed", "down_disabled"]:
-		th.set_icon(k, "SpinBox", no_icon)
+	th.set_icon("updown", "SpinBox", no_icon)
 	for k in ["up_background", "up_background_hovered", "up_background_pressed", "up_background_disabled", "down_background", "down_background_hovered", "down_background_pressed", "down_background_disabled", "field_and_buttons_separator", "up_down_buttons_separator"]:
 		th.set_stylebox(k, "SpinBox", StyleBoxEmpty.new())
-	th.set_constant("buttons_width", "SpinBox", 0)
+	th.set_constant("buttons_width", "SpinBox", 16)
 	th.set_constant("field_and_buttons_separation", "SpinBox", 0)
 	th.set_constant("set_min_buttons_width_from_icons", "SpinBox", 0)
 
