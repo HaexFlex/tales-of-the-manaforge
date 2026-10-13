@@ -56,6 +56,9 @@ var _rebind_listen: String = ""
 var _rebind_pending_key: int = 0
 var _rebind_pending_other: String = ""
 var _return_to_options: bool = false
+var _return_to_slots: bool = false
+var _slot_tab: String = "manual"
+var _pending_kind: String = ""
 var _master_slider: HSlider
 
 const PAUSE_BTN_W: float = 200.0
@@ -72,6 +75,7 @@ const CONFIRM_TITLES: Dictionary = {
 	&"quit": "pause_quit_game_confirm_title",
 	&"overwrite": "pause_slot_overwrite_title",
 	&"rebind_swap": "options_rebind_conflict_title",
+	&"delete_slot": "pause_slot_delete_title",
 }
 const OPTIONS_ROW_H: float = 44.0
 const OPTIONS_LABEL_W: float = 96.0
@@ -220,14 +224,36 @@ func _slot_bevel() -> Panel:
 	return bevel
 
 
-## Mockup saveload540_pc_manual: 640 wide, bevelled scroll list of 44 px parchment rows, Back.
+## Manual | Autosaves. The list is 44 px rows. Close is the kit ×, not a text Back.
 func _layout_slots() -> void:
 	var sz := Vector2(SLOTS_W, minf(SLOTS_H, Ui540.max_window_h()))
 	_fit_window(slots_panel, sz)
 	Ui540.place_title_plank(slots_title, sz.x)
-	Ui540.anchor_rect_safe(_slot_bevel(), 36, 40, sz.x - 72.0, sz.y - 40.0 - 24.0 - PAUSE_BTN_H - 12.0)
-	Ui540.anchor_rect_safe(slot_scroll, 38, 42, sz.x - 76.0, sz.y - 44.0 - 24.0 - PAUSE_BTN_H - 12.0)
-	Ui540.anchor_rect_safe(slots_back, (sz.x - 160.0) * 0.5, sz.y - 24.0 - PAUSE_BTN_H, 160, PAUSE_BTN_H)
+	_ensure_slot_tabs()
+	var tab_y: float = 72.0
+	var tab_h: float = 36.0
+	var tab_w: float = 160.0
+	for i: int in 2:
+		var node_name: String = "TabManual" if i == 0 else "TabAutosave"
+		var tab: Button = slots_panel.get_node_or_null(node_name) as Button
+		if tab == null:
+			continue
+		var x: float = 36.0 + float(i) * (tab_w + 8.0)
+		Ui540.anchor_rect_safe(tab, x, tab_y, tab_w, tab_h)
+		tab.set_pressed_no_signal((i == 0 and _slot_tab == "manual") or (i == 1 and _slot_tab == "autosave"))
+	var rule: ColorRect = slots_panel.get_node_or_null("SlotTabRule") as ColorRect
+	if rule:
+		var rule_x: float = 36.0 if _slot_tab == "manual" else 36.0 + tab_w + 8.0
+		Ui540.anchor_rect_safe(rule, rule_x, tab_y + tab_h, tab_w, 3.0)
+	var list_y: float = tab_y + tab_h + 12.0
+	var list_h: float = sz.y - list_y - 24.0
+	Ui540.anchor_rect_safe(_slot_bevel(), 36, list_y, sz.x - 72.0, list_h)
+	Ui540.anchor_rect_safe(slot_scroll, 38, list_y + 2.0, sz.x - 76.0, list_h - 4.0)
+	slots_back.visible = false
+	var closer: Button = slots_panel.get_node_or_null("SlotsClose") as Button
+	if closer:
+		Ui540.configure_kit_close_button(closer)
+		Ui540.place_close_button(closer, sz.x)
 
 
 ## options540: Audio & Display / Gameplay / Controls. The × sits in the title row.
@@ -885,7 +911,9 @@ func _on_exit_pressed() -> void:
 
 func _show_slots(title: String) -> void:
 	slots_title.text = title
-	_rebuild_slot_rows(_slot_mode == SlotMode.LOAD)
+	if _slot_mode == SlotMode.SAVE:
+		_slot_tab = "manual"
+	_rebuild_slot_rows(_slot_tab == "autosave")
 	_refresh_slot_labels()
 	panel.visible = false
 	_layout_slots()
@@ -908,17 +936,51 @@ func _hide_slots() -> void:
 		panel.visible = true
 
 
+func _ensure_slot_tabs() -> void:
+	if slots_panel == null or slots_panel.get_node_or_null("TabManual") != null:
+		return
+	var group := ButtonGroup.new()
+	for spec: Array in [["TabManual", "slots_tab_manual", "manual"], ["TabAutosave", "slots_tab_autosave", "autosave"]]:
+		var tab := Button.new()
+		tab.name = str(spec[0])
+		tab.text = ContentStrings.get_text(str(spec[1]))
+		tab.toggle_mode = true
+		tab.button_group = group
+		GameTheme.style_tab_button(tab)
+		tab.pressed.connect(_on_slot_tab.bind(str(spec[2])))
+		slots_panel.add_child(tab)
+	var rule := ColorRect.new()
+	rule.name = "SlotTabRule"
+	rule.color = Color(0.82, 0.64, 0.28, 1.0)
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slots_panel.add_child(rule)
+	var closer := Button.new()
+	closer.name = "SlotsClose"
+	closer.pressed.connect(_on_slots_back)
+	slots_panel.add_child(closer)
+	Ui540.configure_kit_close_button(closer)
+
+
+func _on_slot_tab(tab_id: String) -> void:
+	if _slot_mode == SlotMode.SAVE and tab_id == "autosave":
+		_slot_tab = "autosave"
+	else:
+		_slot_tab = tab_id
+	_rebuild_slot_rows(_slot_tab == "autosave")
+	_refresh_slot_labels()
+	_layout_slots()
+
+
 func _rebuild_slot_rows(include_autosave: bool) -> void:
 	for child: Node in slot_buttons.get_children():
 		child.queue_free()
 	_slot_btns.clear()
 	if include_autosave:
-		_add_slot_header("AutosaveHeader", ContentStrings.get_text("load_autosave_header"))
 		for slot: int in range(1, SaveService.AUTOSAVE_SLOT_COUNT + 1):
 			_add_slot_button("autosave", slot)
-		_add_slot_header("ManualHeader", ContentStrings.get_text("load_manual_header"))
-	for slot: int in range(1, SaveService.SAVE_SLOT_COUNT + 1):
-		_add_slot_button("manual", slot)
+	else:
+		for slot: int in range(1, SaveService.SAVE_SLOT_COUNT + 1):
+			_add_slot_button("manual", slot)
 
 
 func _add_slot_header(node_name: String, text: String) -> void:
@@ -947,8 +1009,36 @@ func _add_slot_button(kind: String, slot: int) -> void:
 	btn.set_meta("slot_kind", kind)
 	btn.set_meta("slot_index", slot)
 	btn.pressed.connect(_on_slot_pressed.bind(kind, slot))
+	var del := Button.new()
+	del.name = "Delete"
+	del.flat = true
+	del.focus_mode = Control.FOCUS_NONE
+	del.tooltip_text = ContentStrings.get_text("pause_slot_delete")
+	del.text = ContentStrings.get_text("pause_slot_delete")
+	GameTheme.style_wood_button(del)
+	del.add_theme_font_size_override("font_size", 14)
+	del.visible = false
+	del.pressed.connect(_on_delete_slot.bind(kind, slot))
+	btn.add_child(del)
+	del.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	del.offset_left = -96.0
+	del.offset_right = -8.0
+	del.offset_top = -18.0
+	del.offset_bottom = 18.0
 	slot_buttons.add_child(btn)
 	_slot_btns.append(btn)
+
+
+func _on_delete_slot(kind: String, slot: int) -> void:
+	_pending_slot = slot
+	_pending_kind = kind
+	_return_to_slots = true
+	_show_confirm(
+		&"delete_slot",
+		ContentStrings.get_text("pause_slot_delete_confirm"),
+		ContentStrings.get_text("pause_slot_delete_yes"),
+		ContentStrings.get_text("pause_slot_delete_no"),
+	)
 
 
 func _refresh_slot_labels() -> void:
@@ -957,29 +1047,60 @@ func _refresh_slot_labels() -> void:
 		var slot: int = int(btn.get_meta("slot_index", 0))
 		var info: Dictionary = SaveService.get_autosave_info(slot) if kind == "autosave" else SaveService.get_slot_info(slot)
 		var line: String
+		var sub: Label = btn.get_node_or_null("Sub") as Label
+		if sub == null:
+			sub = Label.new()
+			sub.name = "Sub"
+			sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			GameTheme.style_ink_label(sub, true)
+			sub.add_theme_font_size_override("font_size", 14)
+			btn.add_child(sub)
+			sub.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+			sub.offset_left = -280.0
+			sub.offset_right = -104.0
+			sub.offset_top = -16.0
+			sub.offset_bottom = 16.0
+		var del: Button = btn.get_node_or_null("Delete") as Button
 		if bool(info.get("filled", false)):
-			var filled: String = ContentStrings.get_text("pause_slot_filled", {
-				"ascensions": int(info.get("ascensions", 0)),
-				"stage_display": str(info.get("stage_display", "")),
-			})
-			if kind == "autosave":
-				line = "%s — %s" % [ContentStrings.get_text("load_autosave_slot", {"n": slot}), filled]
-			else:
-				line = "Slot %d — %s" % [slot, filled]
-			var essence: int = int(info.get("essence", 0))
-			if essence > 0:
-				line += " · %s %d" % [ContentStrings.get_text("hud_essence"), essence]
-		elif kind == "autosave":
-			line = "%s — %s" % [
-				ContentStrings.get_text("load_autosave_slot", {"n": slot}),
-				ContentStrings.get_text("pause_slot_empty"),
-			]
+			line = str(info.get("stage_display", ""))
+			if line == "":
+				line = "Slot %d" % slot
+			sub.text = _slot_subline(info)
+			sub.visible = true
+			if del:
+				del.visible = true
 		else:
 			line = "Slot %d — %s" % [slot, ContentStrings.get_text("pause_slot_empty")]
+			if kind == "autosave":
+				line = "%s — %s" % [
+					ContentStrings.get_text("load_autosave_slot", {"n": slot}),
+					ContentStrings.get_text("pause_slot_empty"),
+				]
+			sub.visible = false
+			if del:
+				del.visible = false
 		btn.text = line
 
 
+func _slot_subline(info: Dictionary) -> String:
+	var depth: int = int(info.get("depth", 1))
+	var when: int = int(float(info.get("timestamp", 0.0)))
+	var clock: String = ""
+	var day: String = ""
+	if when > 0:
+		var stamp: Dictionary = Time.get_datetime_dict_from_unix_time(when)
+		clock = "%02d:%02d" % [int(stamp.get("hour", 0)), int(stamp.get("minute", 0))]
+		day = "%d/%d" % [int(stamp.get("month", 1)), int(stamp.get("day", 1))]
+	if clock == "":
+		return "Depth %d" % depth
+	return "Depth %d · %s · %s" % [depth, clock, day]
+
+
 func _on_slot_pressed(kind: String, slot: int) -> void:
+	if kind == "autosave" and _slot_mode == SlotMode.SAVE:
+		return
 	if _slot_mode == SlotMode.SAVE:
 		var info: Dictionary = SaveService.get_slot_info(slot)
 		if bool(info.get("filled", false)):
@@ -1070,6 +1191,11 @@ func _hide_confirm() -> void:
 		options_panel.visible = true
 		panel.visible = false
 		return
+	if _return_to_slots:
+		_return_to_slots = false
+		slots_panel.visible = true
+		panel.visible = false
+		return
 	if _open and not standalone:
 		panel.visible = true
 
@@ -1091,6 +1217,7 @@ func _hide_options() -> void:
 func _on_confirm_yes() -> void:
 	var action: StringName = _confirm_action
 	var slot: int = _pending_slot
+	var kind_now: String = _pending_kind
 	_hide_confirm()
 	match action:
 		&"new_game":
@@ -1121,6 +1248,16 @@ func _on_confirm_yes() -> void:
 			_rebind_listen = ""
 			_rebind_pending_other = ""
 			_refresh_rebind_rows()
+		&"delete_slot":
+			if kind_now == "autosave":
+				SaveService.delete_autosave(slot)
+			else:
+				SaveService.delete_slot(slot)
+			_pending_kind = ""
+			_rebuild_slot_rows(_slot_tab == "autosave")
+			_refresh_slot_labels()
+			slots_panel.visible = true
+			panel.visible = false
 
 
 func _do_new_game() -> void:

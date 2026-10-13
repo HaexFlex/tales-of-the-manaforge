@@ -1780,6 +1780,11 @@ func _run() -> void:
 		failed += _assert(new_game_btn != null and not new_game_btn.visible, "pause has no New Game")
 		failed += _assert(quit_title_btn != null and quit_title_btn.text == "Quit to Title", "pause quit-to-title label")
 		failed += _assert(quit_game_btn != null and quit_game_btn.visible and quit_game_btn.text == "Quit Game", "Quit Game shows on PC")
+		pm.call("_layout_slots")
+		failed += _assert(pm.get_node_or_null("SlotsPanel/TabManual") != null and pm.get_node_or_null("SlotsPanel/TabAutosave") != null, "save slots have Manual and Autosaves tabs")
+		var slot_close: Button = pm.get_node_or_null("SlotsPanel/SlotsClose") as Button
+		failed += _assert(slot_close != null and slot_close.text == "" and slot_close.icon != null, "save slots use the × close")
+		failed += _assert(not (pm.get_node("SlotsPanel/SlotsBack") as CanvasItem).visible, "save slots hide the text Back")
 		pm.call("open_pause")
 		failed += _assert(paused == true, "open_pause sets tree.paused")
 		pm.call("resume_game")

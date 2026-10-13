@@ -455,6 +455,7 @@ func _info_from_root(slot: int, kind: String, root: Dictionary) -> Dictionary:
 		"ascensions": int(state.get("ascensions", 0)),
 		"essence": int(state.get("essence", 0)),
 		"wood": int(state.get("wood", 0)),
+		"depth": int(state.get("depth", 1)),
 		"save_version": int(root.get("save_version", 0)),
 		"newer": is_newer_than_build(int(root.get("save_version", 0))),
 	}
