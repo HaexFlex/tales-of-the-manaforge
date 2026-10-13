@@ -136,6 +136,7 @@ func _click_is_door() -> bool:
 
 func _request_door() -> void:
 	## The arch is not an entrance. Only the Enter Forge button changes the scene.
+	return
 
 
 func work_footprint() -> Rect2:
