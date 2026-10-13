@@ -764,7 +764,8 @@ func _layout_bench540() -> void:
 	var scroll: ScrollContainer = bench_panel.get_node_or_null("CraftScroll") as ScrollContainer
 	if scroll:
 		scroll.position = Vector2(24, list_top)
-		scroll.size = Vector2(BENCH_LIST_W, h - 24.0 - list_top)
+		## Extra inset so the frame doesn't clip the last recipe, plus the list's own pad.
+		scroll.size = Vector2(BENCH_LIST_W, h - 40.0 - list_top)
 	var rx: float = 24.0 + BENCH_LIST_W + 20.0
 	var rw: float = w - 24.0 - rx
 	if _bench_detail:
@@ -1226,6 +1227,9 @@ func _sync_toast_under_modals() -> void:
 	var a: float = 0.0 if modal else 1.0
 	if panel:
 		panel.visible = not modal
+	## The Keeper portrait and Idle label sit in the party column, outside $Panel.
+	if _party_bar:
+		_party_bar.visible = not modal
 	var wisps: CanvasItem = get_node_or_null("WispCounter") as CanvasItem
 	if wisps:
 		wisps.self_modulate.a = a
@@ -1684,7 +1688,7 @@ func _refresh_party_bar() -> void:
 	var show_keeper: bool = GameState.keeper_selected
 	var companion_id: String = str(GameState.selected_companion_id)
 	var elaia_joined: bool = GameState.elaia_portrait_visible()
-	_party_bar.visible = true
+	_party_bar.visible = not modal_window_open()
 	_slot_keeper.visible = true
 	_slot_elaia.visible = elaia_joined
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
@@ -2839,12 +2843,20 @@ func _make_activity_label(node_name: String, y: float) -> Label:
 	return lbl
 
 
-## Text drawn straight over the clearing: cream Silver 19 with a 1 px dark-ink rim.
+var _world_bold_font: FontVariation
+
+
+## Wisps and Idle sit on the grass. Silver 19 faux-bold, cream, with a dark rim.
 func _style_world_label(label: Label) -> void:
-	GameTheme.style_body_label(label)
+	if _world_bold_font == null:
+		_world_bold_font = FontVariation.new()
+		_world_bold_font.base_font = GameTheme.body_font()
+		_world_bold_font.variation_embolden = 1.0
+	label.add_theme_font_override("font", _world_bold_font)
+	label.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
 	label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
 	label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
-	label.add_theme_constant_override("outline_size", 4)
+	label.add_theme_constant_override("outline_size", 6)
 	label.add_theme_constant_override("line_spacing", -2)
 	label.remove_theme_color_override("font_shadow_color")
 
@@ -3621,6 +3633,11 @@ func _rebuild_bench() -> void:
 			first = rid
 		if rid == _bench_selected:
 			keep = true
+	var pad := Control.new()
+	pad.name = "ScrollPad"
+	pad.custom_minimum_size = Vector2(0, 16)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	craft_list.add_child(pad)
 	if not keep:
 		_bench_selected = first
 	if _bench_selected != "":
@@ -3840,8 +3857,10 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 		state_lbl.text = ContentStrings.get_text("backpack_owned")
 	elif reason == "":
 		state_lbl.text = "ready"
+	elif reason == "cant_afford" or reason == "no_shards":
+		state_lbl.text = _bench_short_text(recipe_id, equipment_out)
 	else:
-		state_lbl.text = "short"
+		state_lbl.text = ""
 	GameTheme.style_ink_label(state_lbl, true)
 	state_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	line.add_child(state_lbl)
@@ -3849,6 +3868,17 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	row.set_meta("recipe_id", recipe_id)
 	row.set_meta("gear", equipment_out)
 	return row
+
+
+func _bench_short_text(recipe_id: String, equipment_out: bool) -> String:
+	var ings: Dictionary = Equipment.get_recipe_ingredients(recipe_id) if equipment_out else Backpack.get_recipe_ingredients(recipe_id)
+	var parts: PackedStringArray = PackedStringArray()
+	for key: Variant in ings.keys():
+		var iid: String = str(key)
+		var missing: int = int(ings[key]) - _bench_have(iid)
+		if missing > 0:
+			parts.append("Need %d %s" % [missing, _bench_item_name(iid)])
+	return ", ".join(parts)
 
 
 func _bench_have(iid: String) -> int:
