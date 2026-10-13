@@ -504,7 +504,7 @@ func _build_simulate_window() -> void:
 	simulate_window.add_child(sim_title)
 	Ui540.place_title_plank(sim_title, SIM_SIZE.x)
 	var inner_w: float = SIM_SIZE.x - PAD * 2.0
-	simulate_close = _big_button(simulate_window, "SimulateClose", Vector2(SIM_SIZE.x - PAD - 120.0, 20), Vector2(120, ROW_H), "Close")
+	simulate_close = _kit_close(simulate_window, "SimulateClose", SIM_SIZE.x)
 	var esc := _esc_keycap(simulate_window, simulate_close)
 	esc.name = "SimulateCloseEsc"
 	Ui540.hide_on_phone(esc)
@@ -566,11 +566,19 @@ func _add_title(panel: Control) -> void:
 
 
 func _add_close(panel: Control) -> void:
-	var btn := _big_button(panel, "CloseButton", Vector2(PANEL_SIZE.x - PAD - 120.0, HEADER_Y), Vector2(120, ROW_H), "Close")
-	btn.tooltip_text = "Close"
+	var btn := _kit_close(panel, "CloseButton", PANEL_SIZE.x)
 	if not Ui540.is_phone_export():
 		var esc := _esc_keycap(panel, btn)
 		esc.name = "CloseEscKeycap"
+
+
+func _kit_close(parent: Control, node_name: String, window_w: float) -> Button:
+	var btn := Button.new()
+	btn.name = node_name
+	parent.add_child(btn)
+	Ui540.configure_kit_close_button(btn)
+	Ui540.place_close_button(btn, window_w)
+	return btn
 
 
 func _esc_keycap(parent: Control, close_btn: Control) -> TextureRect:

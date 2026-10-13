@@ -8881,7 +8881,7 @@ func _board_close_ok(tree_root: Window, game_state: Node, save_service: Node) ->
 	failed += _assert(bool(board.call("shell_open")), "shell opens")
 	var shell: Node = tree_root.get_node_or_null("ExpeditionShell")
 	var close_btn: Button = shell.find_child("CloseButton", true, false) as Button if shell != null else null
-	failed += _assert(close_btn != null and close_btn.text == "Close", "Close button label")
+	failed += _assert(close_btn != null and close_btn.text == "" and close_btn.icon != null and close_btn.tooltip_text == "Close", "board Close is the kit ×")
 	if close_btn != null:
 		close_btn.emit_signal("pressed")
 	failed += _assert(not bool(board.call("shell_open")), "Close button closes shell")
@@ -17280,6 +17280,7 @@ func _board_sim_window_ok(tree_root: Window, game_state: Node, save_service: Nod
 	var room_list: VBoxContainer = shell.find_child("SimulateRoomList", true, false) as VBoxContainer if shell != null else null
 	var sim_close: Button = shell.find_child("SimulateClose", true, false) as Button if shell != null else null
 	var depart_btn: Button = shell.find_child("Depart", true, false) as Button if shell != null else null
+	failed += _assert(sim_close != null and sim_close.text == "" and sim_close.icon != null, "sim Close is the kit ×")
 	failed += _assert(sim_modal != null and sim_modal.visible, "sim modal visible")
 	failed += _assert(sim_win != null and sim_win.visible, "sim window visible")
 	var title_lbl: Label = shell.find_child("ResultsTitle", true, false) as Label if shell != null else null
