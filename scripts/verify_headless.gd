@@ -2876,7 +2876,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "upgrade_keeper_stride_tooltip")).find("faster") >= 0, "upgrade_keeper_stride_tooltip")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_wisp_haste_tooltip")).find("Wisps") >= 0, "upgrade_wisp_haste_tooltip")
 	failed += _assert(str(content_strings.call("get_text", "upgrade_bonus_wisp_tooltip")).find("Wisp") >= 0, "upgrade_bonus_wisp_tooltip")
-	failed += _assert(str(content_strings.call("get_text", "welcome_hint")).find("Arrow") >= 0, "welcome_hint camera pan")
+	failed += _assert(str(content_strings.call("get_text", "controls_camera_pan")).find("Arrow") >= 0, "camera pan hint lives in the Help keys (controls_camera_pan)")
 	failed += _assert(str(content_strings.call("get_text", "tree_grow_cost_young")).find("×3") >= 0, "tree_grow_cost_young fert 3")
 	failed += _assert(str(content_strings.call("get_text", "tree_grow_cost_ancient")).find("×24") >= 0, "tree_grow_cost_ancient fert 24")
 	failed += _assert(str(content_strings.call("get_text", "part_woven_fiber")) == "Woven Fiber", "part_woven_fiber")
@@ -2897,7 +2897,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_food")).find("Food") >= 0, "fertilizer_craft_cost_food")
 	failed += _assert(str(content_strings.call("get_text", "fertilizer_craft_cost_line")).find("{item}") >= 0, "fertilizer_craft_cost_line")
 	failed += _assert(str(content_strings.call("get_text", "ascend_backpack_wipe_toast")).find("Keep Tools") >= 0, "ascend_backpack_wipe_toast")
-	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Grow") >= 0, "welcome Grow not Pay")
+	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("help the tree grow") >= 0, "welcome Grow not Pay")
 	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Pay its Needs") < 0, "welcome drops needs-only Pay")
 	failed += _assert(str(content_strings.call("get_text", "tool_never_gate")).find("hands") >= 0, "tool_never_gate")
 	failed += _assert(str(content_strings.call("get_text", "tool_wiped_on_ascend")).find("Keep Tools") >= 0, "tool_wiped_on_ascend")
@@ -4897,7 +4897,7 @@ func _elaia_join_check(tree_root: Window, game_state: Node, backpack: Node) -> i
 	game_state.set("elaia_join_seen", true)
 	hud.call("_refresh_party_bar")
 	failed += _assert(elaia_slot.visible and keeper_slot.visible, "Elaia portrait shows after the dialogue")
-	failed += _assert(wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, then Elaia")
+	failed += _assert(elaia_slot.get_index() < wisp_slot.get_index() and wisp_slot.get_index() < keeper_slot.get_index(), "hud540 portrait column is Elaia, Wisps, then Keeper on the bottom row")
 	var old_save: Dictionary = {
 		"stage_id": "sapling",
 		"echo_01_redeemed": true,
@@ -5086,7 +5086,7 @@ func _party_bar_check(tree_root: Window, game_state: Node) -> int:
 	hud.call("_refresh_party_bar")
 	failed += _assert(elaia_slot.visible, "Elaia portrait after the Clearing dialogue")
 	var order_column: Node = hud.get_node_or_null("PartyBar/Column")
-	failed += _assert(order_column != null and wisp_slot.get_index() < keeper_slot.get_index() and keeper_slot.get_index() < elaia_slot.get_index(), "portrait order is Wisps, Keeper, Elaia")
+	failed += _assert(order_column != null and elaia_slot.get_index() < wisp_slot.get_index() and wisp_slot.get_index() < keeper_slot.get_index(), "hud540 portrait column is Elaia, Wisps, Keeper (Keeper on the bottom row)")
 	hud.call("party_click", "elaia")
 	failed += _assert(str(game_state.get("selected_companion_id")) == "elaia", "click Elaia portrait selects her")
 	failed += await _party_activity_check(hud, game_state, tree_root)
