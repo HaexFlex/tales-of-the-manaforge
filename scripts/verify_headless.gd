@@ -1427,7 +1427,7 @@ func _run() -> void:
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_berry.png"), "harvest_berry art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/props/native/berry_harvest_node.png"), "berry_harvest_node art")
 	failed += _assert(FileAccess.file_exists("res://assets/art/props/echo_portal_hub.png"), "echo_portal_hub art")
-	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icons/hud_character.png"), "hud character icon")
+	failed += _assert(FileAccess.file_exists("res://assets_extra/shared/hud_character.png"), "hud character icon")
 
 	# Art v0.1.13 — cleaned inbox forest + Keeper south walk
 	failed += _assert(FileAccess.file_exists("res://assets/art/hub/trees/ring_tree_large_01.png"), "ring_tree_large_01")
@@ -3500,12 +3500,12 @@ func _run() -> void:
 		var sword_icon: TextureRect = null
 		if sword_row.get_child_count() > 0 and sword_row.get_child(0).get_child_count() > 0:
 			sword_icon = sword_row.get_child(0).get_child(0) as TextureRect
-		var flint_icon: Texture2D = load("res://assets/art/ui/icon_stone_sword.png") as Texture2D
+		var flint_icon: Texture2D = load("res://assets_extra/shared/icon_stone_sword.png") as Texture2D
 		failed += _assert(HudIcons.index_for_item("stone_sword") < 0, "stone_sword leaves sheet cell 6")
-		failed += _assert(CharacterSheet.gear_icon_path("stone_sword") == "res://assets/art/ui/icon_stone_sword.png", "flintblade icon path")
-		failed += _assert(CharacterSheet.gear_icon_path("rootsteel_edge") == "res://assets/art/ui/icon_rootsteel_edge.png", "rootsteel icon path")
-		failed += _assert(CharacterSheet.gear_icon_path("heartwand") == "res://assets/art/ui/icon_heartwand.png", "heartwand icon path")
-		failed += _assert(CharacterSheet.gear_icon_path("switchshaft") == "res://assets/art/ui/icon_switchshaft.png", "switchshaft icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("stone_sword") == "res://assets_extra/shared/icon_stone_sword.png", "flintblade icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("rootsteel_edge") == "res://assets_extra/shared/icon_rootsteel_edge.png", "rootsteel icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("heartwand") == "res://assets_extra/shared/icon_heartwand.png", "heartwand icon path")
+		failed += _assert(CharacterSheet.gear_icon_path("switchshaft") == "res://assets_extra/shared/icon_switchshaft.png", "switchshaft icon path")
 		failed += _assert(sword_icon != null and flint_icon != null and sword_icon.texture == flint_icon, "gear bag sword uses flintblade icon")
 		sheet_hud.get_node("CharacterSheet").call("request_equip", "stone_sword")
 		await process_frame
@@ -5536,15 +5536,15 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 	if equipment == null:
 		return failed
 	var art_paths: Dictionary = {
-		"res://assets/art/ui/icon_amberbind.png": Vector2i(32, 32),
-		"res://assets/art/ui/icon_sapsteel.png": Vector2i(32, 32),
-		"res://assets/art/ui/icon_heartwood_bits.png": Vector2i(32, 32),
+		"res://assets_extra/shared/icon_amberbind.png": Vector2i(32, 32),
+		"res://assets_extra/shared/icon_sapsteel.png": Vector2i(32, 32),
+		"res://assets_extra/shared/icon_heartwood_bits.png": Vector2i(32, 32),
 		"res://assets/art/ui/icons/icon_oakheart_knot.png": Vector2i(32, 32),
 		"res://assets/art/ui/icons/icon_shardlens.png": Vector2i(32, 32),
 		"res://assets/art/ui/icons/icon_windthorn_bead.png": Vector2i(32, 32),
 		"res://assets/art/ui/badge_station_paused.png": Vector2i(32, 32),
 		"res://assets/art/ui/badge_station_busy.png": Vector2i(32, 32),
-		"res://assets/art/ui/relic_slot_empty.png": Vector2i(44, 44),
+		"res://assets_extra/char/relic_slot_empty.png": Vector2i(44, 44),
 		"res://assets/art/forge/bench_idle.png": Vector2i(192, 192),
 		"res://assets/art/forge/bench_busy.png": Vector2i(192, 192),
 		"res://assets/art/forge/prop_press_idle.png": Vector2i(192, 192),
@@ -5567,7 +5567,7 @@ func _forge_pass_c(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		hud_node.call("open_character_sheet")
 		await process_frame
 		var relic_square: TextureRect = hud_node.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_relic/Square") as TextureRect
-		var empty_frame: Texture2D = load("res://assets/art/ui/relic_slot_empty.png") as Texture2D
+		var empty_frame: Texture2D = load("res://assets_extra/char/relic_slot_empty.png") as Texture2D
 		failed += _assert(relic_square != null and relic_square.texture == empty_frame and relic_square.size.distance_to(Vector2(44, 44)) < 0.5, "empty relic slot uses the 44 frame")
 		equipment.call("grant_item", "oakheart_knot")
 		failed += _assert(str(equipment.call("try_equip", "oakheart_knot")) == "ok", "oakheart equips")
@@ -11554,9 +11554,9 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	failed += _assert(str(pack.call("item_kind", "heart_salve")) == "consumable" and str(pack.call("item_kind", "bile_vial")) == "consumable", "potions are consumable")
 	failed += _assert(str(gear.call("item_art_path", "heart_salve")).ends_with("icon_heart_salve.png"), "salve icon")
 	failed += _assert(str(gear.call("item_art_path", "bile_vial")).ends_with("icon_bile_vial.png"), "vial icon")
-	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_briarwood.png"), "briarwood icon png")
-	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_glowcap.png"), "glowcap icon png")
-	failed += _assert(FileAccess.file_exists("res://assets/art/ui/icon_bitterroot.png"), "bitterroot icon png")
+	failed += _assert(FileAccess.file_exists("res://assets_extra/shared/icon_briarwood.png"), "briarwood icon png")
+	failed += _assert(FileAccess.file_exists("res://assets_extra/shared/icon_glowcap.png"), "glowcap icon png")
+	failed += _assert(FileAccess.file_exists("res://assets_extra/board/icon_bitterroot.png"), "bitterroot icon png")
 	failed += _assert(str(gear.call("item_art_path", "briarwood")).ends_with("icon_briarwood.png"), "briarwood icon path")
 	failed += _assert(str(gear.call("item_art_path", "glowcap")).ends_with("icon_glowcap.png"), "glowcap icon path")
 	failed += _assert(str(gear.call("item_art_path", "bitterroot")).ends_with("icon_bitterroot.png"), "bitterroot icon path")

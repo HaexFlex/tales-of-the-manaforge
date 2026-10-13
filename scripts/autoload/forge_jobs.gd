@@ -293,13 +293,13 @@ func _output_icon_path(item_id: String) -> String:
 			return from_art
 	match item_id:
 		"wood":
-			return "res://assets/art/ui/icon_wood.png"
+			return "res://assets_extra/shared/icon_wood.png"
 		"stone":
-			return "res://assets/art/ui/icon_stone.png"
+			return "res://assets_extra/shared/icon_stone.png"
 		"food":
-			return "res://assets/art/ui/icon_food.png"
+			return "res://assets_extra/shared/icon_food.png"
 		"essence":
-			return "res://assets/art/ui/icon_essence.png"
+			return "res://assets_extra/shared/icon_essence.png"
 		_:
 			return ""
 

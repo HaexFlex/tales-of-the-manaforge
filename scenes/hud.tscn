@@ -1,10 +1,10 @@
 [gd_scene load_steps=6 format=3 uid="uid://hud001manaforge"]
 
 [ext_resource type="Script" path="res://scripts/hud.gd" id="1_hud"]
-[ext_resource type="Texture2D" path="res://assets/art/ui/icon_wood.png" id="2_wood"]
-[ext_resource type="Texture2D" path="res://assets/art/ui/icon_stone.png" id="3_stone"]
-[ext_resource type="Texture2D" path="res://assets/art/ui/icon_food.png" id="4_food"]
-[ext_resource type="Texture2D" path="res://assets/art/ui/icon_manashards.png" id="5_shards"]
+[ext_resource type="Texture2D" path="res://assets_extra/shared/icon_wood.png" id="2_wood"]
+[ext_resource type="Texture2D" path="res://assets_extra/shared/icon_stone.png" id="3_stone"]
+[ext_resource type="Texture2D" path="res://assets_extra/shared/icon_food.png" id="4_food"]
+[ext_resource type="Texture2D" path="res://assets_extra/shared/icon_manashards.png" id="5_shards"]
 
 [node name="HUD" type="CanvasLayer"]
 process_mode = 3

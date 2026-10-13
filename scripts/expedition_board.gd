@@ -1236,11 +1236,11 @@ func _refresh_party_slots(running: bool) -> void:
 func _portrait_path(member: String) -> String:
 	match member:
 		"keeper":
-			return "res://assets/art/portraits/keeper_portrait.png"
+			return "res://assets_extra/shared/keeper_portrait.png"
 		"elaia":
-			return "res://assets/art/portraits/elaia_portrait.png"
+			return "res://assets_extra/shared/elaia_portrait.png"
 		"bramble":
-			return "res://assets/art/bramble/bramble_portrait.png"
+			return "res://assets_extra/shared/bramble_portrait.png"
 		_:
 			return BOARD_DIR + "party_slot_empty_60x60.png"
 

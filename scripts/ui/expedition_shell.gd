@@ -27,7 +27,7 @@ const PICKER_ROW_H: float = 48.0
 const PICKER_ROW_GAP: float = 2.0
 const PICKER_ROW_POOL: int = 16
 const PICKER_SCROLL_MAX_H: float = PICKER_POPUP_MAX_H - 34.0
-const ICON_ESSENCE_TEX: String = "res://assets/art/ui/icon_essence.png"
+const ICON_ESSENCE_TEX: String = "res://assets_extra/shared/icon_essence.png"
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 
 var picker_popup: PanelContainer
@@ -86,7 +86,7 @@ func _build() -> void:
 func _center_board_panel() -> void:
 	var panel: Control = get_node_or_null("Panel") as Control
 	if panel:
-		Ui540.center_control(panel)
+		Ui540.center_kit_panel(panel)
 
 
 func _build_panel(panel: Control) -> void:
@@ -962,6 +962,23 @@ func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, 
 
 
 func _load_tex(path: String) -> Texture2D:
+	if path.begins_with(BOARD_DIR):
+		var file_name: String = path.substr(BOARD_DIR.length())
+		var from_extra: Texture2D = AssetsExtra.board_tex(file_name)
+		if from_extra != null:
+			return from_extra
+	if path.begins_with("res://assets/art/ui/board/"):
+		var file_name: String = path.get_file()
+		var from_extra: Texture2D = AssetsExtra.board_tex(file_name)
+		if from_extra != null:
+			return from_extra
+	if path.begins_with(AssetsExtra.SHARED):
+		return AssetsExtra.tex(path)
+	var shared_name: String = path.get_file()
+	if shared_name == "divider_3s_48x6.png":
+		var div: Texture2D = AssetsExtra.tex("shared/divider_3s_48x6.png")
+		if div != null:
+			return div
 	if not ResourceLoader.exists(path):
 		return null
 	return load(path) as Texture2D
