@@ -3,6 +3,7 @@ class_name GameHUD
 ## HUD + Manatree care + backpack + Keeper's Bench + Ascension shop.
 
 const BATCH_PANEL_SCENE: PackedScene = preload("res://scenes/ui/batch_panel.tscn")
+const Binds := preload("res://scripts/ui/input_binds.gd")
 const BatchPanel := preload("res://scripts/batch_panel.gd")
 
 @onready var panel: ColorRect = $Panel
@@ -3348,7 +3349,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if BattleView.is_open():
 		return
-	if key.keycode == KEY_I and not key.ctrl_pressed and not key.alt_pressed and not key.meta_pressed:
+	if Binds.event_matches(key, "inventory"):
 		if welcome_panel.visible:
 			return
 		if _pause_menu and _pause_menu.is_open():
@@ -3356,7 +3357,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_backpack()
 		get_viewport().set_input_as_handled()
 		return
-	var sheet_key: bool = key.keycode == KEY_C or key.is_action_pressed("character_sheet")
+	var sheet_key: bool = Binds.event_matches(key, "character") or key.is_action_pressed("character_sheet")
 	if not sheet_key or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
 		return
 	if welcome_panel.visible:

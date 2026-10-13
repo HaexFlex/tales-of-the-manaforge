@@ -1358,7 +1358,7 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "options_music_volume")) == "Music", "options_music_volume")
 	failed += _assert(str(content_strings.call("get_text", "options_sfx_volume")) == "Sounds", "options_sfx_volume")
 	failed += _assert(str(content_strings.call("get_text", "options_audio_back")) == "Back", "options_audio_back")
-	failed += _assert(str(content_strings.call("get_text", "options_audio_hint")).find("forest") >= 0, "options_audio_hint")
+	failed += _assert(str(content_strings.call("get_text", "options_audio_hint")).find("Drag the handle") >= 0, "options_audio_hint")
 	failed += _assert(str(content_strings.call("get_text", "options_audio_reset")) == "Reset", "options_audio_reset")
 	failed += _debug_stripped_ok()
 	failed += _assert(str(content_strings.call("get_text", "options_music_volume_full")).find("Music") >= 0, "options_music_volume_full")
@@ -2016,6 +2016,14 @@ func _run() -> void:
 			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/MusicSlider") != null, "Options MusicSlider")
 			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/SfxSlider") != null, "Options SfxSlider")
 			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/OptionsReset") != null, "Options Reset")
+			failed += _assert(not (pause_menu.get_node_or_null("OptionsPanel/OptionsReset") as CanvasItem).visible, "Options Reset is hidden")
+			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/MasterSlider") != null, "Options Master slider")
+			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/TabAudio") != null, "Options Audio & Display tab")
+			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/TabGameplay") != null, "Options Gameplay tab")
+			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/TabControls") != null, "Options Controls tab")
+			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/Rebind_pause") != null, "Options rebind Pause")
+			var opt_close: Button = pause_menu.get_node_or_null("OptionsPanel/OptionsClose") as Button
+			failed += _assert(opt_close != null and opt_close.text == "" and opt_close.icon != null, "Options uses the × close")
 			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/OptionsLabel") == null, "Options stub label retired")
 		inst.free()
 

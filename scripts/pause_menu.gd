@@ -3,6 +3,8 @@ class_name PauseMenu
 ## Mid-game pause: ESC / HUD Pause. PROCESS_MODE_ALWAYS so ESC works while paused.
 ## Options → Audio: Music / SFX volume sliders (persist via GameAudio settings).
 
+const Binds := preload("res://scripts/ui/input_binds.gd")
+
 signal status_toast(text: String)
 signal new_game_started
 signal game_loaded
@@ -49,6 +51,12 @@ var _confirm_action: StringName = &""
 var _pending_slot: int = 0
 var _slot_btns: Array[Button] = []
 var _audio_sliders_ready: bool = false
+var _options_tab: String = "audio"
+var _rebind_listen: String = ""
+var _rebind_pending_key: int = 0
+var _rebind_pending_other: String = ""
+var _return_to_options: bool = false
+var _master_slider: HSlider
 
 const PAUSE_BTN_W: float = 200.0
 const PAUSE_BTN_H: float = 44.0
@@ -63,6 +71,7 @@ const CONFIRM_TITLES: Dictionary = {
 	&"exit": "pause_exit_confirm_title",
 	&"quit": "pause_quit_game_confirm_title",
 	&"overwrite": "pause_slot_overwrite_title",
+	&"rebind_swap": "options_rebind_conflict_title",
 }
 const OPTIONS_ROW_H: float = 44.0
 const OPTIONS_LABEL_W: float = 96.0
@@ -103,6 +112,7 @@ func _ready() -> void:
 	_sync_audio_sliders_from_game()
 	_build_slot_buttons()
 	_ensure_speedup_toggle()
+	_ensure_options_chrome()
 
 
 func _apply_pause_kit_chrome() -> void:
@@ -220,53 +230,338 @@ func _layout_slots() -> void:
 	Ui540.anchor_rect_safe(slots_back, (sz.x - 160.0) * 0.5, sz.y - 24.0 - PAUSE_BTN_H, 160, PAUSE_BTN_H)
 
 
-## Mockup options540_pc_audiodisplay_r3: label column, slider with a % readout, switches
-## right-aligned on the same 36 px margins, Silver 19 throughout, 160×44 wood buttons.
+## options540: Audio & Display / Gameplay / Controls. The × sits in the title row.
+## Reset stays in the scene for older callers and is not shown.
 func _layout_options() -> void:
 	if options_panel == null:
 		return
+	_ensure_options_chrome()
 	var w: float = OPTIONS_W
 	var inner: float = w - PAUSE_PAD_X * 2.0
+	Ui540.configure_kit_close_button(options_close)
+	Ui540.place_close_button(options_close, w)
+	options_reset.visible = false
+	if options_controls:
+		options_controls.visible = false
+	var tab_y: float = 72.0
+	var tab_h: float = 44.0
+	_layout_option_tabs(tab_y, tab_h, inner)
+	var y: float = tab_y + tab_h + 8.0
+	var rule: ColorRect = options_panel.get_node_or_null("TabRule") as ColorRect
+	if rule:
+		Ui540.anchor_rect_safe(rule, PAUSE_PAD_X, y, inner, 2.0)
+	y += 14.0
+	var show_audio: bool = _options_tab == "audio"
+	var show_play: bool = _options_tab == "gameplay"
+	var show_keys: bool = _options_tab == "controls"
+	var phone: bool = Ui540.is_phone_export()
+	y = _layout_audio_page(y, inner, w, show_audio, phone)
+	y = _layout_gameplay_page(y, inner, show_play)
+	y = _layout_controls_page(y, inner, show_keys, phone)
+	_fit_window(options_panel, Vector2(w, y + 24.0))
+	Ui540.place_title_plank(options_title, w)
+
+
+func _ensure_options_chrome() -> void:
+	if options_panel == null or options_panel.get_node_or_null("TabAudio") != null:
+		return
+	var group := ButtonGroup.new()
+	for spec: Array in [
+		["TabAudio", "options_tab_audio", "audio"],
+		["TabGameplay", "options_tab_gameplay", "gameplay"],
+		["TabControls", "options_tab_controls", "controls"],
+	]:
+		var tab := Button.new()
+		tab.name = str(spec[0])
+		tab.text = ContentStrings.get_text(str(spec[1]))
+		tab.toggle_mode = true
+		tab.button_group = group
+		tab.button_pressed = str(spec[2]) == _options_tab
+		GameTheme.style_big_tab_button(tab)
+		tab.pressed.connect(_on_options_tab.bind(str(spec[2])))
+		options_panel.add_child(tab)
+	var rule := ColorRect.new()
+	rule.name = "TabRule"
+	rule.color = Color(0.82, 0.64, 0.28, 1.0)
+	rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	options_panel.add_child(rule)
+	_master_slider = HSlider.new()
+	_master_slider.name = "MasterSlider"
+	_master_slider.min_value = 0.0
+	_master_slider.max_value = 1.0
+	_master_slider.step = 0.01
+	_master_slider.value = GameAudio.master_volume_linear
+	_master_slider.value_changed.connect(_on_master_slider_changed)
+	_master_slider.drag_ended.connect(_on_volume_drag_ended)
+	options_panel.add_child(_master_slider)
+	var master_lbl := Label.new()
+	master_lbl.name = "MasterLabel"
+	master_lbl.text = ContentStrings.get_text("options_master_volume")
+	GameTheme.style_ink_label(master_lbl)
+	master_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	options_panel.add_child(master_lbl)
+	var display := Control.new()
+	display.name = "DisplayBlock"
+	display.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	options_panel.add_child(display)
+	var full := CheckButton.new()
+	full.name = "FullscreenToggle"
+	full.text = ContentStrings.get_text("options_fullscreen")
+	full.button_pressed = GameAudio.fullscreen_on
+	full.toggled.connect(_on_fullscreen_toggled)
+	full.add_theme_font_override("font", GameTheme.body_font())
+	full.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	display.add_child(full)
+	var screen_lbl := Label.new()
+	screen_lbl.name = "ScreenLabel"
+	screen_lbl.text = ContentStrings.get_text("options_screen")
+	GameTheme.style_ink_label(screen_lbl)
+	screen_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	display.add_child(screen_lbl)
+	var screen_group := ButtonGroup.new()
+	for spec2: Array in [["ScreenPixel", "options_screen_pixel", false], ["ScreenFill", "options_screen_fill", true]]:
+		var chip := Button.new()
+		chip.name = str(spec2[0])
+		chip.text = ContentStrings.get_text(str(spec2[1]))
+		chip.toggle_mode = true
+		chip.button_group = screen_group
+		chip.button_pressed = GameAudio.fill_screen == bool(spec2[2])
+		GameTheme.style_tab_button(chip)
+		chip.pressed.connect(_on_screen_mode.bind(bool(spec2[2])))
+		display.add_child(chip)
+	Ui540.hide_on_phone(display)
+	for action: String in ["pause", "character", "inventory"]:
+		var row := Button.new()
+		row.name = "Rebind_%s" % action
+		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		GameTheme.style_ink_button(row)
+		row.add_theme_font_override("font", GameTheme.body_font())
+		row.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+		row.set_meta("bind_action", action)
+		row.pressed.connect(_on_rebind_pressed.bind(action))
+		var key_lbl := Label.new()
+		key_lbl.name = "Key"
+		key_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		key_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		key_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		GameTheme.style_ink_label(key_lbl, true)
+		row.add_child(key_lbl)
+		options_panel.add_child(row)
+	var touch := VBoxContainer.new()
+	touch.name = "TouchHelp"
+	touch.add_theme_constant_override("separation", 6)
+	options_panel.add_child(touch)
+	for key: String in ["options_touch_walk", "options_touch_use", "options_touch_pause", "options_touch_drag"]:
+		var line := Label.new()
+		line.text = ContentStrings.get_text(key)
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameTheme.style_ink_label(line)
+		touch.add_child(line)
+	_refresh_rebind_rows()
+
+
+func _on_options_tab(tab_id: String) -> void:
+	_options_tab = tab_id
+	_rebind_listen = ""
+	_layout_options()
+
+
+func _layout_option_tabs(tab_y: float, tab_h: float, inner: float) -> void:
+	var ids: PackedStringArray = PackedStringArray(["TabAudio", "TabGameplay", "TabControls"])
+	var font: Font = load("res://assets/fonts/font_primary_silver38_bold.tres") as Font
+	var widths: Array[float] = []
+	var sum: float = 0.0
+	for node_name: String in ids:
+		var tab: Button = options_panel.get_node_or_null(node_name) as Button
+		if tab == null:
+			widths.append(0.0)
+			continue
+		tab.button_pressed = (
+			(node_name == "TabAudio" and _options_tab == "audio")
+			or (node_name == "TabGameplay" and _options_tab == "gameplay")
+			or (node_name == "TabControls" and _options_tab == "controls")
+		)
+		var text_w: float = 120.0
+		if font:
+			text_w = ceilf(font.get_string_size(tab.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 38).x) + 28.0
+		widths.append(text_w)
+		sum += text_w
+	var gap: float = 8.0
+	var gaps: float = gap * float(ids.size() - 1)
+	if sum + gaps > inner and sum > 0.0:
+		var scale: float = (inner - gaps) / sum
+		for i: int in widths.size():
+			widths[i] = floorf(widths[i] * scale)
+	var x: float = PAUSE_PAD_X
+	for i: int in ids.size():
+		var tab: Button = options_panel.get_node_or_null(ids[i]) as Button
+		if tab == null:
+			continue
+		Ui540.anchor_rect_safe(tab, x, tab_y, widths[i], tab_h)
+		if widths[i] < 80.0:
+			Ui540.fit_button_font(tab, widths[i])
+		x += widths[i] + gap
+
+
+func _layout_audio_page(y: float, inner: float, w: float, show: bool, phone: bool) -> float:
 	var body_font: Font = GameTheme.body_font()
 	var line_h: float = body_font.get_height(GameTheme.BODY_SIZE)
-	var y: float = 36.0
-	Ui540.anchor_rect_safe(options_hint, PAUSE_PAD_X, y, inner, line_h)
-	y += line_h + 12.0
-	for pair: Array in [[music_label, music_slider, "MusicPct"], [sfx_label, sfx_slider, "SfxPct"]]:
+	options_hint.visible = show
+	if show:
+		Ui540.anchor_rect_safe(options_hint, PAUSE_PAD_X, y, inner, line_h)
+		y += line_h + 8.0
+	var rows: Array = [
+		[options_panel.get_node_or_null("MasterLabel"), _master_slider, "MasterPct"],
+		[music_label, music_slider, "MusicPct"],
+		[sfx_label, sfx_slider, "SfxPct"],
+	]
+	for pair: Array in rows:
 		var lbl: Label = pair[0]
 		var slider: HSlider = pair[1]
-		Ui540.anchor_rect_safe(lbl, PAUSE_PAD_X, y, OPTIONS_LABEL_W, OPTIONS_ROW_H)
-		Ui540.anchor_rect_safe(slider, PAUSE_PAD_X + OPTIONS_LABEL_W, y + (OPTIONS_ROW_H - 24.0) * 0.5, inner - OPTIONS_LABEL_W - OPTIONS_PCT_W - 12.0, 24)
+		if lbl == null or slider == null:
+			continue
+		lbl.visible = show
+		slider.visible = show
 		var pct: Label = _volume_pct_label(str(pair[2]))
-		Ui540.anchor_rect_safe(pct, w - PAUSE_PAD_X - OPTIONS_PCT_W, y, OPTIONS_PCT_W, OPTIONS_ROW_H)
-		y += OPTIONS_ROW_H
-	_refresh_volume_pct()
-	y += 8.0
+		pct.visible = show
+		if show:
+			Ui540.anchor_rect_safe(lbl, PAUSE_PAD_X, y, OPTIONS_LABEL_W, OPTIONS_ROW_H)
+			Ui540.anchor_rect_safe(slider, PAUSE_PAD_X + OPTIONS_LABEL_W, y + (OPTIONS_ROW_H - 24.0) * 0.5, inner - OPTIONS_LABEL_W - OPTIONS_PCT_W - 12.0, 24)
+			Ui540.anchor_rect_safe(pct, w - PAUSE_PAD_X - OPTIONS_PCT_W, y, OPTIONS_PCT_W, OPTIONS_ROW_H)
+			y += OPTIONS_ROW_H
+	if show:
+		_refresh_volume_pct()
+	var display: Control = options_panel.get_node_or_null("DisplayBlock") as Control
+	if display:
+		var display_on: bool = show and not phone
+		display.visible = display_on
+		if display_on:
+			var full: CheckButton = display.get_node_or_null("FullscreenToggle") as CheckButton
+			var screen_lbl: Label = display.get_node_or_null("ScreenLabel") as Label
+			if full:
+				full.position = Vector2(PAUSE_PAD_X, y)
+				full.size = Vector2(inner, OPTIONS_ROW_H)
+				y += OPTIONS_ROW_H
+			if screen_lbl:
+				screen_lbl.position = Vector2(PAUSE_PAD_X, y)
+				screen_lbl.size = Vector2(OPTIONS_LABEL_W, OPTIONS_ROW_H)
+			var chip_x: float = PAUSE_PAD_X + OPTIONS_LABEL_W
+			var chip_w: float = (inner - OPTIONS_LABEL_W - 8.0) * 0.5
+			for node_name: String in ["ScreenPixel", "ScreenFill"]:
+				var chip: Button = display.get_node_or_null(node_name) as Button
+				if chip == null:
+					continue
+				chip.position = Vector2(chip_x, y)
+				chip.size = Vector2(chip_w, OPTIONS_ROW_H)
+				chip_x += chip_w + 8.0
+			y += OPTIONS_ROW_H
+	return y
+
+
+func _layout_gameplay_page(y: float, inner: float, show: bool) -> float:
+	var body_font: Font = GameTheme.body_font()
+	var line_h: float = body_font.get_height(GameTheme.BODY_SIZE)
 	var speed: CheckButton = options_panel.get_node_or_null("SpeedupToggle") as CheckButton
 	if speed:
-		Ui540.anchor_rect_safe(speed, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
-		y += OPTIONS_ROW_H
-		var hint: Label = options_panel.get_node_or_null("SpeedupHint") as Label
-		if hint:
+		speed.visible = show
+		if show:
+			Ui540.anchor_rect_safe(speed, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
+			y += OPTIONS_ROW_H
+	var hint: Label = options_panel.get_node_or_null("SpeedupHint") as Label
+	if hint:
+		hint.visible = show
+		if show:
 			var lines: int = Ui540.text_line_count(hint.text, body_font, GameTheme.BODY_SIZE, inner)
-			hint.update_minimum_size()
-			Ui540.anchor_rect_safe(hint, PAUSE_PAD_X, y, inner, line_h * lines)
-			y += line_h * lines + 8.0
+			Ui540.anchor_rect_safe(hint, PAUSE_PAD_X, y, inner, line_h * float(lines))
+			y += line_h * float(lines) + 8.0
 	var debug_box: CheckButton = options_panel.get_node_or_null("DebugToolsToggle") as CheckButton
 	if debug_box:
-		Ui540.anchor_rect_safe(debug_box, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
-		y += OPTIONS_ROW_H + 4.0
-	if options_controls:
-		var lines_c: int = Ui540.text_line_count(options_controls.text, body_font, GameTheme.BODY_SIZE, inner)
-		options_controls.update_minimum_size()
-		Ui540.anchor_rect_safe(options_controls, PAUSE_PAD_X, y, inner, line_h * lines_c)
-		y += line_h * lines_c + 12.0
-	Ui540.anchor_rect_safe(options_reset, PAUSE_PAD_X, y, 160, PAUSE_BTN_H)
-	Ui540.anchor_rect_safe(options_close, w - PAUSE_PAD_X - 160.0, y, 160, PAUSE_BTN_H)
-	for btn: Button in [options_reset, options_close]:
-		Ui540.fit_button_font(btn, 160)
-	_fit_window(options_panel, Vector2(w, y + PAUSE_BTN_H + 24.0))
-	Ui540.place_title_plank(options_title, w)
+		debug_box.visible = show
+		if show:
+			Ui540.anchor_rect_safe(debug_box, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
+			y += OPTIONS_ROW_H
+	return y
+
+
+func _layout_controls_page(y: float, inner: float, show: bool, phone: bool) -> float:
+	for action: String in ["pause", "character", "inventory"]:
+		var row: Button = options_panel.get_node_or_null("Rebind_%s" % action) as Button
+		if row == null:
+			continue
+		var on: bool = show and not phone
+		row.visible = on
+		if on:
+			Ui540.anchor_rect_safe(row, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
+			var key_lbl: Label = row.get_node_or_null("Key") as Label
+			if key_lbl:
+				key_lbl.position = Vector2(inner - 180.0, 0)
+				key_lbl.size = Vector2(168.0, OPTIONS_ROW_H)
+			y += OPTIONS_ROW_H + 4.0
+	var touch: Control = options_panel.get_node_or_null("TouchHelp") as Control
+	if touch:
+		var on_touch: bool = show and phone
+		touch.visible = on_touch
+		if on_touch:
+			touch.position = Vector2(PAUSE_PAD_X, y)
+			touch.size = Vector2(inner, 120.0)
+			y += 120.0
+	return y
+
+
+func _refresh_rebind_rows() -> void:
+	if options_panel == null:
+		return
+	for action: String in ["pause", "character", "inventory"]:
+		var row: Button = options_panel.get_node_or_null("Rebind_%s" % action) as Button
+		if row == null:
+			continue
+		row.text = ContentStrings.get_text("options_rebind_%s" % action)
+		var key_lbl: Label = row.get_node_or_null("Key") as Label
+		if key_lbl == null:
+			continue
+		if _rebind_listen == action:
+			key_lbl.text = ContentStrings.get_text("options_rebind_listen")
+		else:
+			key_lbl.text = Binds.display(Binds.keycode(action))
+
+
+func _on_rebind_pressed(action: String) -> void:
+	_rebind_listen = action
+	_refresh_rebind_rows()
+
+
+func _offer_rebind(code: Key) -> void:
+	if _rebind_listen == "" or int(code) <= 0:
+		return
+	var other: String = Binds.conflict(_rebind_listen, code)
+	if other == "":
+		Binds.set_keycode(_rebind_listen, code)
+		_rebind_listen = ""
+		_refresh_rebind_rows()
+		return
+	_rebind_pending_key = int(code)
+	_rebind_pending_other = other
+	_return_to_options = true
+	var other_name: String = ContentStrings.get_text("options_rebind_%s" % other)
+	_show_confirm(
+		&"rebind_swap",
+		ContentStrings.get_text("options_rebind_conflict", {"action": other_name}),
+		ContentStrings.get_text("options_rebind_swap"),
+		ContentStrings.get_text("options_rebind_cancel"),
+	)
+
+
+func _on_master_slider_changed(value: float) -> void:
+	GameAudio.set_master_volume_linear(value)
+	_refresh_volume_pct()
+
+
+func _on_fullscreen_toggled(on: bool) -> void:
+	GameAudio.set_fullscreen(on)
+
+
+func _on_screen_mode(fill: bool) -> void:
+	GameAudio.set_fill_screen(fill)
 
 
 func _volume_pct_label(node_name: String) -> Label:
@@ -284,7 +579,7 @@ func _volume_pct_label(node_name: String) -> Label:
 func _refresh_volume_pct() -> void:
 	if options_panel == null:
 		return
-	for pair: Array in [["MusicPct", music_slider], ["SfxPct", sfx_slider]]:
+	for pair: Array in [["MasterPct", _master_slider], ["MusicPct", music_slider], ["SfxPct", sfx_slider]]:
 		var pct: Label = options_panel.get_node_or_null(str(pair[0])) as Label
 		var slider: HSlider = pair[1]
 		if pct and slider:
@@ -304,6 +599,10 @@ func _apply_strings() -> void:
 	slots_back.text = ContentStrings.get_text("options_back")
 	options_title.text = ContentStrings.get_text("options_title")
 	options_hint.text = ContentStrings.get_text("options_audio_hint")
+	var master_lbl: Label = options_panel.get_node_or_null("MasterLabel") as Label if options_panel else null
+	if master_lbl:
+		master_lbl.text = ContentStrings.get_text("options_master_volume")
+	_refresh_rebind_rows()
 	if options_controls:
 		options_controls.text = "%s   ·   %s\n%s   ·   %s" % [
 			ContentStrings.get_text("controls_lmb_select"),
@@ -314,7 +613,9 @@ func _apply_strings() -> void:
 	music_label.text = ContentStrings.get_text("options_music_volume")
 	sfx_label.text = ContentStrings.get_text("options_sfx_volume")
 	options_reset.text = ContentStrings.get_text("options_audio_reset")
-	options_close.text = ContentStrings.get_text("options_audio_back")
+	options_reset.visible = false
+	if options_close:
+		Ui540.configure_kit_close_button(options_close)
 
 
 func _build_slot_buttons() -> void:
@@ -421,9 +722,19 @@ func _close_expedition_board() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _rebind_listen != "" and event is InputEventKey and event.pressed and not event.echo:
+		var listen: InputEventKey = event as InputEventKey
+		if listen.keycode == KEY_ESCAPE:
+			_rebind_listen = ""
+			_refresh_rebind_rows()
+		else:
+			_offer_rebind(listen.keycode)
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event
-		if key.keycode == KEY_ESCAPE:
+		var pause_key: bool = key.keycode == KEY_ESCAPE or Binds.event_matches(key, "pause")
+		if pause_key:
 			if suppress_pause_hotkey and not standalone:
 				return
 			if standalone:
@@ -540,6 +851,8 @@ func _sync_audio_sliders_from_game() -> void:
 		return
 	music_slider.set_value_no_signal(GameAudio.music_volume_linear)
 	sfx_slider.set_value_no_signal(GameAudio.sfx_volume_linear)
+	if _master_slider:
+		_master_slider.set_value_no_signal(GameAudio.master_volume_linear)
 
 
 func _on_music_slider_changed(value: float) -> void:
@@ -752,6 +1065,11 @@ func _hide_confirm() -> void:
 	confirm_panel.visible = false
 	_confirm_action = &""
 	_pending_slot = 0
+	if _return_to_options:
+		_return_to_options = false
+		options_panel.visible = true
+		panel.visible = false
+		return
 	if _open and not standalone:
 		panel.visible = true
 
@@ -795,6 +1113,14 @@ func _on_confirm_yes() -> void:
 		&"overwrite":
 			if slot >= 1:
 				_do_save_slot(slot)
+		&"rebind_swap":
+			if _rebind_listen != "" and _rebind_pending_other != "":
+				var old_key: Key = Binds.keycode(_rebind_listen)
+				Binds.set_keycode(_rebind_listen, _rebind_pending_key as Key)
+				Binds.set_keycode(_rebind_pending_other, old_key)
+			_rebind_listen = ""
+			_rebind_pending_other = ""
+			_refresh_rebind_rows()
 
 
 func _do_new_game() -> void:
