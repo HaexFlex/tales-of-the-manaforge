@@ -3480,15 +3480,14 @@ func _run() -> void:
 		if might_name != null:
 			name_bottom = might_name.position.y + might_name.size.y
 		failed += _assert(might_role != null and might_name != null and might_role.position.y > might_name.position.y and might_role.position.y < name_bottom and might_role.position.y + might_role.size.y > name_bottom + 4.0, "role sits directly under the name")
-		failed += _assert(might_nums != null and might_role != null and might_nums.position.y >= might_role.position.y + might_role.size.y + 4.0, "small gap before the numbers")
+		var might_nums_text: Label = might_nums.get_node_or_null("Text") as Label if might_nums != null else null
+		failed += _assert(might_nums != null and might_name != null and is_equal_approx(might_nums.position.y, might_name.position.y) and might_nums_text != null and might_nums_text.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "numbers sit right-aligned on the name row")
 		failed += _assert(might_block != null and arcana_block != null and might_nums != null, "stat blocks stacked")
 		if might_block != null and arcana_block != null and might_nums != null and might_role != null:
-			var gap_small: float = might_nums.position.y - (might_role.position.y + might_role.size.y)
-			var gap_large: float = arcana_block.position.y - (might_block.position.y + might_nums.position.y + might_nums.size.y)
-			failed += _assert(gap_large > gap_small + 4.0, "larger gap before the next stat")
+			failed += _assert(arcana_block.position.y >= might_block.position.y + might_role.position.y + might_role.size.y, "the next stat starts below the role")
 			var fate_block: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_fate") as Control
 			var stats_root: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats") as Control
-			failed += _assert(fate_block != null and stats_root != null and fate_block.position.y + might_nums.position.y + might_nums.size.y <= stats_root.size.y, "seven stats fit the panel")
+			failed += _assert(fate_block != null and stats_root != null and fate_block.position.y + might_role.position.y + might_role.size.y <= stats_root.size.y, "seven stats fit the panel")
 		var arcana_line: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats/Stat_arcana/Line/Text") as Label
 		failed += _assert(arcana_line != null and str(arcana_line.text) == "5 + 0 = 5", "new game arcana is 5 + 0 = 5")
 		failed += _assert(arcana_name != null and str(arcana_name.text) == "Arcana", "arcana name")

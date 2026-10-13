@@ -15,10 +15,32 @@ const KEEPER_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_po
 const ELAIA_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_portrait_sheet.png"
 ## char540 r4 kit window (912×492, 24 px safe margins on 960×540).
 const SHEET_SIZE: Vector2 = Vector2(912, 492)
-const HOST_POS: Vector2 = Vector2(24, 104)
-const PORTRAIT_SIZE: Vector2 = Vector2(276, 388)
+const PAD: float = 24.0
+const HEADER_H: float = 44.0
+const BODY_TOP: float = 86.0
+const BODY_H: float = 382.0
+const HOST_POS: Vector2 = Vector2(24, 86)
+const PORTRAIT_SIZE: Vector2 = Vector2(276, 382)
 const SPRITE_SIZE: Vector2 = Vector2(144, 351)
-const SPRITE_POS: Vector2 = Vector2(66, 19)
+const SPRITE_POS: Vector2 = Vector2(66, 15)
+const FIGURE_SCALE: float = 3.0
+const GEAR_X: float = 316.0
+const GEAR_W: float = 270.0
+const TABS_Y: float = 88.0
+const GEAR_ROW_H: float = 46.0
+const GEAR_ROW_PITCH: float = 50.0
+const STATS_X: float = 604.0
+const DOLL_BG: Color = Color8(26, 36, 28)
+const STAT_RULE: Color = Color(0.243, 0.165, 0.094, 0.2)
+const BEVEL_PATH: String = "res://assets/ui/theme/play_bevel_9s_6x6.png"
+const DIVIDER_PATH: String = "res://assets_extra/shared/divider_3s_48x6.png"
+const ROW_EVEN_PATH: String = "res://assets/ui/theme/list_row_9s_even_24x24.png"
+const ROW_HOVER_PATH: String = "res://assets/ui/theme/pick_row_9s_hover_24x24.png"
+const NOTE_SECONDS: float = 4.0
+const PRIMARY_FONT_PATH: String = "res://assets/fonts/font_primary_silver38_bold.tres"
+const TITLE_FONT_SIZE: int = 37
+const SECTION_FONT_SIZE: int = 19
+const BODY_FONT_SIZE: int = 19
 const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
 
 
@@ -38,6 +60,23 @@ static func _style_plank_label(lbl: Label) -> void:
 	var gt: Node = CharacterSheet._theme()
 	if gt:
 		gt.call("style_plank_label", lbl)
+
+
+static func _style_ink(lbl: Label, muted: bool = false) -> void:
+	var gt: Node = CharacterSheet._theme()
+	if gt:
+		gt.call("style_ink_label", lbl, muted)
+
+
+static func _theme_call(method: String, ctrl: Control) -> void:
+	var gt: Node = CharacterSheet._theme()
+	if gt:
+		gt.call(method, ctrl)
+
+
+static func _theme_font(method: String) -> Font:
+	var gt: Node = CharacterSheet._theme()
+	return gt.call(method) as Font if gt else null
 
 
 static func _style_body_label(lbl: Label) -> void:
@@ -78,30 +117,28 @@ static func make_item_icon(item_id: String) -> Control:
 	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	swatch.tooltip_text = tip
 	return swatch
-## Slot plates in host space, flanking the enlarged Keeper so they do not cover the figure.
+## Slot squares in host space, on the body part each one dresses (char540 r4).
 const SLOT_POS: Dictionary = {
-	"head": Vector2(140, 12),
-	"relic": Vector2(140, 134),
-	"cape": Vector2(83, 158),
-	"body": Vector2(140, 182),
-	"weapon": Vector2(83, 222),
-	"hands": Vector2(197, 222),
-	"pants": Vector2(140, 274),
-	"ring1": Vector2(83, 274),
-	"ring2": Vector2(197, 274),
-	"feet": Vector2(140, 338),
+	"head": Vector2(116, 6),
+	"relic": Vector2(116, 128),
+	"cape": Vector2(59, 152),
+	"body": Vector2(116, 176),
+	"weapon": Vector2(59, 216),
+	"hands": Vector2(173, 216),
+	"pants": Vector2(116, 268),
+	"ring1": Vector2(59, 268),
+	"ring2": Vector2(173, 268),
+	"feet": Vector2(116, 332),
 }
-const SLOT_SIZE: Vector2 = Vector2(56, 66)
+const SLOT_SIZE: Vector2 = Vector2(44, 44)
 const SLOT_SQUARE: Vector2 = Vector2(44, 44)
-## Empty and locked chrome come from the HUD icon sheet. No gold edge — the caption sits under the square.
-## Below the persist hint and the trait line, so Might does not sit on the hint.
-const STAT_TOP: float = 76.0
-const STAT_NAME_H: float = 22.0
+## Stat blocks on a 40 px pitch below the Trait lines.
+const STAT_TOP: float = 88.0
+const STAT_STRIDE: float = 40.0
+const STAT_NAME_Y: float = 2.0
+const STAT_NAME_H: float = 20.0
+const STAT_ROLE_Y: float = 19.0
 const STAT_ROLE_H: float = 18.0
-const STAT_GAP_SMALL: float = 4.0
-const STAT_NUM_H: float = 24.0
-const STAT_GAP_LARGE: float = 10.0
-const STAT_STRIDE: float = STAT_NAME_H + STAT_ROLE_H + STAT_GAP_SMALL + STAT_NUM_H + STAT_GAP_LARGE
 const ELAIA_SHEET_FIGURE: String = "res://assets/art/elaia/anim/idle/south.png"
 const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
@@ -122,6 +159,8 @@ var _prev_char_btn: Button
 var _next_char_btn: Button
 var _gear_tab_all_btn: Button
 var _gear_cat_btn: Button
+var _gear_tab_line: ColorRect
+var _note_serial: int = 0
 
 
 func _ready() -> void:
@@ -246,8 +285,7 @@ func _toast(result: String, item_id: String, slot_id: String) -> void:
 		_:
 			text = ""
 	if text != "":
-		if _footer:
-			_footer.text = text
+		show_note(text)
 		CharacterSheet._auto("GameState").status_message.emit(text)
 
 
@@ -255,6 +293,7 @@ func _build() -> void:
 	if _built:
 		return
 	_built = true
+	var strings = CharacterSheet._auto("ContentStrings")
 	var dim := ColorRect.new()
 	dim.name = "Dim"
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -263,17 +302,12 @@ func _build() -> void:
 	dim.gui_input.connect(_on_dim_input)
 	add_child(dim)
 
-	## Gutter for the party column. Anchors track every window size; the paper doll scales inside.
 	var fit := Control.new()
 	fit.name = "SheetFit"
-	fit.set_anchors_preset(Control.PRESET_FULL_RECT)
-	fit.offset_left = 0.0
-	fit.offset_top = 0.0
-	fit.offset_right = 0.0
-	fit.offset_bottom = 0.0
+	fit.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fit)
-	fit.resized.connect(_fit_sheet)
+	resized.connect(_fit_sheet)
 
 	var sheet := Panel.new()
 	sheet.name = "Sheet"
@@ -283,27 +317,14 @@ func _build() -> void:
 	fit.add_child(sheet)
 	Ui540.apply_kit_panel(sheet, "character_sheet")
 
-	_prev_char_btn = Button.new()
-	_prev_char_btn.name = "PrevCharButton"
-	_prev_char_btn.position = Vector2(24, 24)
-	_prev_char_btn.size = Vector2(44, 44)
-	_prev_char_btn.text = "<"
+	# Header row: ‹ portrait Name › · hint · hotkey · ×
+	_prev_char_btn = _make_arrow_button("PrevCharButton", "<", Vector2(PAD, PAD))
 	_prev_char_btn.pressed.connect(_cycle_actor.bind(-1))
-	Ui540.style_wood_icon_button(_prev_char_btn)
 	sheet.add_child(_prev_char_btn)
-
-	_next_char_btn = Button.new()
-	_next_char_btn.name = "NextCharButton"
-	_next_char_btn.position = Vector2(268, 24)
-	_next_char_btn.size = Vector2(44, 44)
-	_next_char_btn.text = ">"
-	_next_char_btn.pressed.connect(_cycle_actor.bind(1))
-	Ui540.style_wood_icon_button(_next_char_btn)
-	sheet.add_child(_next_char_btn)
 
 	var header_icon := TextureRect.new()
 	header_icon.name = "HeaderPortrait"
-	header_icon.position = Vector2(76, 10)
+	header_icon.position = Vector2(PAD + 52.0, PAD + 6.0)
 	header_icon.size = Vector2(32, 32)
 	header_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	header_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -314,53 +335,92 @@ func _build() -> void:
 
 	var title := Label.new()
 	title.name = "Title"
-	title.position = Vector2(48, -14)
-	title.size = Vector2(400, 40)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_title")
-	_style_plank_label(title)
+	title.position = Vector2(PAD + 92.0, PAD)
+	title.size = Vector2(112, HEADER_H)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.clip_text = true
+	title.text = strings.get_text("char_sheet_title")
+	title.add_theme_font_override("font", CharacterSheet._theme_font("title_font"))
+	title.add_theme_font_size_override("font_size", TITLE_FONT_SIZE)
+	title.add_theme_color_override("font_color", INK)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sheet.add_child(title)
 
-	var hint := Label.new()
-	hint.name = "Hint"
-	hint.position = Vector2(92, 34)
-	hint.size = Vector2(520, 28)
-	hint.clip_text = false
-	hint.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hint")
-	var hotkey := Label.new()
-	hotkey.name = "HotkeyHint"
-	hotkey.position = Vector2(SHEET_SIZE.x - 140, 30)
-	hotkey.size = Vector2(120, 18)
-	hotkey.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	hotkey.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hotkey_hint")
-	_style_body_label(hotkey)
-	hotkey.add_theme_color_override("font_color", MUTED)
-	sheet.add_child(hotkey)
-	_style_body_label(hint)
-	hint.add_theme_color_override("font_color", MUTED)
-	sheet.add_child(hint)
+	_next_char_btn = _make_arrow_button("NextCharButton", ">", Vector2(PAD + 212.0, PAD))
+	_next_char_btn.pressed.connect(_cycle_actor.bind(1))
+	sheet.add_child(_next_char_btn)
 
 	var close := Button.new()
 	close.name = "CloseButton"
-	close.position = Vector2(SHEET_SIZE.x - 68, 18)
-	close.size = Vector2(44, 44)
 	close.pressed.connect(request_close)
 	Ui540.configure_kit_close_button(close)
 	sheet.add_child(close)
+	Ui540.place_close_button(close, SHEET_SIZE.x)
+	close.position.y = PAD
 
+	var hotkey := Label.new()
+	hotkey.name = "HotkeyHint"
+	hotkey.text = strings.get_text("char_sheet_hotkey_hint")
+	_style_line(hotkey, true)
+	hotkey.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var hotkey_font: Font = hotkey.get_theme_font("font")
+	var hotkey_w: float = 120.0
+	if hotkey_font:
+		hotkey_w = ceilf(hotkey_font.get_string_size(hotkey.text, HORIZONTAL_ALIGNMENT_LEFT, -1, BODY_FONT_SIZE).x) + 4.0
+	hotkey.size = Vector2(hotkey_w, HEADER_H)
+	hotkey.position = Vector2(close.position.x - 12.0 - hotkey_w, PAD)
+	sheet.add_child(hotkey)
+
+	var hint_x: float = PAD + 268.0
+	var hint := Label.new()
+	hint.name = "Hint"
+	hint.text = strings.get_text("char_sheet_hint")
+	_style_line(hint, true)
+	hint.position = Vector2(hint_x, PAD)
+	hint.size = Vector2(hotkey.position.x - 12.0 - hint_x, HEADER_H)
+	hint.tooltip_text = hint.text
+	hint.mouse_filter = Control.MOUSE_FILTER_PASS
+	sheet.add_child(hint)
+
+	_footer = Label.new()
+	_footer.name = "Footer"
+	_style_line(_footer, false)
+	_footer.position = hint.position
+	_footer.size = hint.size
+	_footer.visible = false
+	sheet.add_child(_footer)
+
+	var divider := NinePatchRect.new()
+	divider.name = "HeaderDivider"
+	divider.texture = load(DIVIDER_PATH) as Texture2D
+	divider.patch_margin_left = 16
+	divider.patch_margin_right = 16
+	divider.position = Vector2(PAD, PAD + 50.0)
+	divider.size = Vector2(SHEET_SIZE.x - PAD * 2.0, 8.0)
+	divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sheet.add_child(divider)
+
+	# Paper doll: dark bevel, the 3× still centred, 44 px slots on the body part they dress.
 	var host := Control.new()
 	host.name = "PortraitHost"
 	host.position = HOST_POS
 	host.size = PORTRAIT_SIZE
 	host.custom_minimum_size = PORTRAIT_SIZE
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.clip_contents = true
 	sheet.add_child(host)
 
+	var bevel := Panel.new()
+	bevel.name = "DollBevel"
+	bevel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bevel.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(BEVEL_PATH, Vector4i(2, 2, 2, 2)))
+	bevel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.add_child(bevel)
 	var backdrop := ColorRect.new()
 	backdrop.name = "PortraitBackdrop"
-	backdrop.position = SPRITE_POS
-	backdrop.size = SPRITE_SIZE
-	backdrop.color = Color(0.94, 0.88, 0.74, 1.0)
+	backdrop.position = Vector2(2, 2)
+	backdrop.size = PORTRAIT_SIZE - Vector2(4, 4)
+	backdrop.color = DOLL_BG
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(backdrop)
 
@@ -372,8 +432,7 @@ func _build() -> void:
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tex: Texture2D = load(PORTRAIT_PATH) as Texture2D
-	_portrait.texture = tex
+	_portrait.texture = load(PORTRAIT_PATH) as Texture2D
 	host.add_child(_portrait)
 
 	for slot_name: StringName in CharacterSheet._auto("Equipment").SLOT_ORDER:
@@ -397,193 +456,242 @@ func _build() -> void:
 		host.add_child(plate)
 		plate.setup()
 
+	# Gear column
 	var mid := InvColumn.new()
 	mid.name = "GearColumn"
 	mid.host = self
 	mid.mouse_filter = Control.MOUSE_FILTER_STOP
-	mid.position = Vector2(316, 104)
-	mid.size = Vector2(270, 388)
+	mid.position = Vector2(GEAR_X, BODY_TOP)
+	mid.size = Vector2(GEAR_W, BODY_H)
 	sheet.add_child(mid)
 
 	var gear_title := Label.new()
 	gear_title.name = "GearTitle"
-	gear_title.position = Vector2(0, 0)
-	gear_title.size = Vector2(270, 22)
-	gear_title.text = CharacterSheet._auto("ContentStrings").get_text("gear_title")
-	_style_body_label(gear_title)
+	gear_title.text = strings.get_text("gear_title")
+	_style_section_title(gear_title)
+	gear_title.position = Vector2.ZERO
+	gear_title.size = Vector2(GEAR_W, 20)
 	mid.add_child(gear_title)
 
 	var gear_hint := Label.new()
-	gear_hint.position = Vector2(0, 22)
-	gear_hint.size = Vector2(360, 30)
+	gear_hint.name = "GearHint"
+	gear_hint.text = strings.get_text("gear_hint")
+	CharacterSheet._style_ink(gear_hint, true)
 	gear_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	gear_hint.text = CharacterSheet._auto("ContentStrings").get_text("gear_hint")
+	gear_hint.position = Vector2(0, 22)
+	gear_hint.size = Vector2(GEAR_W, 40)
+	mid.add_child(gear_hint)
 	var persist := Label.new()
 	persist.name = "PersistHint"
-	persist.position = Vector2(0, 54)
-	persist.size = Vector2(360, 16)
-	persist.text = CharacterSheet._auto("ContentStrings").get_text("weapon_persist_hint")
-	persist.add_theme_font_size_override("font_size", 11)
-	persist.add_theme_color_override("font_color", MUTED)
+	persist.text = strings.get_text("weapon_persist_hint")
+	_style_line(persist, true)
+	persist.position = Vector2(0, 62)
+	persist.size = Vector2(GEAR_W, 20)
 	mid.add_child(persist)
+
 	var tabs := HBoxContainer.new()
 	tabs.name = "GearTabs"
-	tabs.position = Vector2(0, 72)
-	tabs.size = Vector2(270, 44)
+	tabs.position = Vector2(0, TABS_Y)
+	tabs.size = Vector2(GEAR_W, 44)
 	tabs.add_theme_constant_override("separation", 8)
 	mid.add_child(tabs)
 	_gear_tab_all_btn = Button.new()
 	_gear_tab_all_btn.name = "TabAll"
 	_gear_tab_all_btn.custom_minimum_size = Vector2(90, 44)
 	_gear_tab_all_btn.pressed.connect(_set_gear_filter_all)
-	Ui540.style_wood_icon_button(_gear_tab_all_btn)
+	CharacterSheet._theme_call("style_tab_button", _gear_tab_all_btn)
+	_big_tab_font(_gear_tab_all_btn)
 	tabs.add_child(_gear_tab_all_btn)
 	_gear_cat_btn = Button.new()
 	_gear_cat_btn.name = "GearCategoryCycle"
 	_gear_cat_btn.custom_minimum_size = Vector2(172, 44)
 	_gear_cat_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_gear_cat_btn.pressed.connect(_cycle_gear_filter)
-	Ui540.style_wood_icon_button(_gear_cat_btn)
+	CharacterSheet._theme_call("style_tab_button", _gear_cat_btn)
+	_big_tab_font(_gear_cat_btn)
+	Ui540.add_cycle_cue(_gear_cat_btn)
 	tabs.add_child(_gear_cat_btn)
-	gear_hint.add_theme_font_size_override("font_size", 11)
-	gear_hint.add_theme_color_override("font_color", MUTED)
-	mid.add_child(gear_hint)
+	_gear_tab_line = ColorRect.new()
+	_gear_tab_line.name = "TabUnderline"
+	_gear_tab_line.color = GOLD
+	_gear_tab_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mid.add_child(_gear_tab_line)
 
+	var list_y: float = TABS_Y + 56.0
 	var scroll := ScrollContainer.new()
 	scroll.name = "GearScroll"
-	scroll.position = Vector2(0, 106)
-	scroll.size = Vector2(270, 282)
+	scroll.position = Vector2(0, list_y)
+	scroll.size = Vector2(GEAR_W, BODY_H - list_y)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	scroll.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(BEVEL_PATH, Vector4i(2, 2, 2, 2), Vector4(2, 2, 2, 2)))
 	mid.add_child(scroll)
 
 	_inv_list = VBoxContainer.new()
 	_inv_list.name = "GearList"
 	_inv_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_inv_list.add_theme_constant_override("separation", 6)
+	_inv_list.add_theme_constant_override("separation", int(GEAR_ROW_PITCH - GEAR_ROW_H))
 	scroll.add_child(_inv_list)
 	_refresh_gear_tabs()
 
+	# Stats column
 	var right := Control.new()
 	right.name = "Stats"
-	right.position = Vector2(604, 104)
-	right.size = Vector2(272, 388)
+	right.position = Vector2(STATS_X, BODY_TOP)
+	right.size = Vector2(SHEET_SIZE.x - PAD - 8.0 - STATS_X, BODY_H)
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sheet.add_child(right)
+	var sw: float = right.size.x
 
 	var stats_title := Label.new()
 	stats_title.name = "StatsTitle"
-	stats_title.position = Vector2(0, 0)
-	stats_title.size = Vector2(268, 22)
-	stats_title.add_theme_color_override("font_color", INK)
-	stats_title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_stats_header")
-	stats_title.add_theme_font_size_override("font_size", 15)
-	stats_title.add_theme_color_override("font_color", GOLD)
+	stats_title.text = strings.get_text("char_sheet_stats_header")
+	_style_section_title(stats_title)
+	stats_title.position = Vector2.ZERO
+	stats_title.size = Vector2(sw, 20)
 	right.add_child(stats_title)
 
 	var stats_hint := Label.new()
 	stats_hint.name = "PersistHint"
+	stats_hint.text = strings.get_text("stat_persist_hint")
+	_style_line(stats_hint, true)
 	stats_hint.position = Vector2(0, 22)
-	stats_hint.size = Vector2(360, 20)
-	stats_hint.clip_text = false
-	stats_hint.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	stats_hint.text = CharacterSheet._auto("ContentStrings").get_text("stat_persist_hint")
-	stats_hint.add_theme_font_size_override("font_size", 11)
-	stats_hint.add_theme_color_override("font_color", MUTED)
+	stats_hint.size = Vector2(sw, 20)
 	right.add_child(stats_hint)
 
 	var trait_row := Control.new()
 	trait_row.name = "TraitRow"
-	trait_row.position = Vector2(0, 44)
-	trait_row.size = Vector2(360, 28)
+	trait_row.position = Vector2(0, 42)
+	trait_row.size = Vector2(sw, 44)
 	trait_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.add_child(trait_row)
 	var trait_label := Label.new()
 	trait_label.name = "TraitLabel"
-	trait_label.position = Vector2(0, 4)
-	trait_label.size = Vector2(52, 20)
-	trait_label.clip_text = false
-	trait_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	trait_label.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_trait_label")
-	trait_label.add_theme_font_size_override("font_size", 12)
-	trait_label.add_theme_color_override("font_color", MUTED)
-	trait_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	trait_label.text = strings.get_text("char_sheet_trait_label")
+	_style_line(trait_label, true)
+	trait_label.position = Vector2(0, 0)
+	trait_label.size = Vector2(44, 44)
 	trait_row.add_child(trait_label)
 	var trait_btn := Button.new()
 	trait_btn.name = "TraitButton"
-	trait_btn.position = Vector2(52, 0)
-	trait_btn.size = Vector2(304, 28)
+	trait_btn.position = Vector2(44, 0)
+	trait_btn.size = Vector2(sw - 44.0, 44)
 	trait_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	trait_btn.clip_text = false
-	trait_btn.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_keeper_trait")
-	trait_btn.add_theme_font_size_override("font_size", 13)
+	trait_btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	trait_btn.text = strings.get_text("char_sheet_keeper_trait")
 	_paint_trait_button(trait_btn)
 	trait_btn.mouse_entered.connect(open_trait_popup)
 	trait_btn.mouse_exited.connect(close_trait_popup)
 	trait_row.add_child(trait_btn)
 
-	## Name, role flush under it, a small gap, the numbers, then a larger gap.
-	## The font line box is taller than the glyphs, so the role row overlaps the
-	## name row's empty descent and each label is centered in its host.
+	## Name left and base + gear = total right on one line, the role under the name,
+	## a hairline between stats.
 	var y: float = STAT_TOP
+	var first: bool = true
 	for stat_name: StringName in CharacterSheet._auto("KeeperStats").STAT_ORDER:
 		var sid: String = String(stat_name)
 		var block := Control.new()
 		block.name = "Stat_%s" % sid
 		block.position = Vector2(0, y)
-		block.size = Vector2(268, STAT_STRIDE)
+		block.size = Vector2(sw, STAT_STRIDE)
 		block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		right.add_child(block)
-		# Role overlaps the name row's empty descent so the words sit flush under the name.
-		var role_y: float = STAT_NAME_H - 8.0
-		var line_y: float = role_y + STAT_ROLE_H + STAT_GAP_SMALL
-		_add_stat_row(block, "Name", CharacterSheet._auto("KeeperStats").stat_display_name(sid), 14, CharacterSheet._auto("KeeperStats").stat_color(sid), 0.0, STAT_NAME_H)
-		_add_stat_row(block, "Role", CharacterSheet._auto("KeeperStats").stat_role(sid), 11, MUTED, role_y, STAT_ROLE_H)
-		_add_stat_row(block, "Line", "", 15, INK, line_y, STAT_NUM_H)
+		if not first:
+			var rule := ColorRect.new()
+			rule.name = "Rule"
+			rule.position = Vector2(0, 0)
+			rule.size = Vector2(sw, 1)
+			rule.color = STAT_RULE
+			rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			block.add_child(rule)
+		first = false
+		var stats = CharacterSheet._auto("KeeperStats")
+		_add_stat_row(block, "Name", stats.stat_display_name(sid), stats.stat_color(sid), STAT_NAME_Y, STAT_NAME_H, sw, false)
+		_add_stat_row(block, "Role", stats.stat_role(sid), MUTED, STAT_ROLE_Y, STAT_ROLE_H, sw, false)
+		_add_stat_row(block, "Line", "", INK, STAT_NAME_Y, STAT_NAME_H, sw, true)
 		y += STAT_STRIDE
-	var stats_bottom: float = y - STAT_GAP_LARGE + 4.0
-	var sheet_h: float = SHEET_SIZE.y
-	if stats_bottom > right.size.y:
-		var extra: float = stats_bottom - right.size.y
-		right.size.y = stats_bottom
-		sheet_h = minf(SHEET_SIZE.y + 48.0, SHEET_SIZE.y + extra)
-		sheet.custom_minimum_size = Vector2(SHEET_SIZE.x, sheet_h)
-		sheet.size = sheet.custom_minimum_size
 
 	var fate_note := Label.new()
 	fate_note.name = "FateNote"
 	fate_note.visible = false
 	fate_note.position = Vector2(0, y)
-	fate_note.size = Vector2(360, 0)
-	fate_note.text = ""
+	fate_note.size = Vector2(sw, 0)
 	fate_note.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.add_child(fate_note)
 
 	_build_trait_popup()
-	_footer = Label.new()
-	_footer.name = "Footer"
-	_footer.position = Vector2(316, sheet_h - 28.0)
-	_footer.size = Vector2(572, 24)
-	_footer.add_theme_font_size_override("font_size", 12)
-	_footer.add_theme_color_override("font_color", INK)
-	sheet.add_child(_footer)
 	call_deferred("_fit_sheet")
 
 
-func _add_stat_row(block: Control, node_name: String, text: String, font_size: int, color: Color, y: float, row_h: float) -> void:
+func _make_arrow_button(node_name: String, glyph: String, at: Vector2) -> Button:
+	var btn := Button.new()
+	btn.name = node_name
+	btn.text = glyph
+	CharacterSheet._theme_call("style_menu_button", btn)
+	btn.custom_minimum_size = Vector2(44, 44)
+	btn.position = at
+	btn.size = Vector2(44, 44)
+	return btn
+
+
+## char540 gear tabs use the Silver 38 caps of the menu buttons.
+func _big_tab_font(btn: Button) -> void:
+	btn.add_theme_font_override("font", load(PRIMARY_FONT_PATH) as Font)
+	btn.add_theme_font_size_override("font_size", 38)
+
+
+func _style_line(lbl: Label, muted: bool) -> void:
+	CharacterSheet._style_ink(lbl, muted)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	lbl.clip_text = true
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _style_section_title(lbl: Label) -> void:
+	lbl.add_theme_font_override("font", CharacterSheet._theme_font("title_font"))
+	lbl.add_theme_font_size_override("font_size", SECTION_FONT_SIZE)
+	lbl.add_theme_color_override("font_color", INK)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+## Equip and lock notes replace the header hint for a few seconds.
+func show_note(text: String) -> void:
+	if _footer == null:
+		return
+	_footer.text = text
+	_footer.tooltip_text = text
+	_footer.visible = text != ""
+	var hint: CanvasItem = get_node_or_null("SheetFit/Sheet/Hint") as CanvasItem
+	if hint:
+		hint.visible = text == ""
+	_note_serial += 1
+	if text == "" or not is_inside_tree():
+		return
+	var serial: int = _note_serial
+	await get_tree().create_timer(NOTE_SECONDS, true, false, true).timeout
+	if serial == _note_serial:
+		show_note("")
+
+
+func _add_stat_row(block: Control, node_name: String, text: String, color: Color, y: float, row_h: float, width: float, right_align: bool) -> void:
 	var host := Control.new()
 	host.name = node_name
 	host.position = Vector2(0, y)
-	host.size = Vector2(360, row_h)
+	host.size = Vector2(width, row_h)
 	host.clip_contents = false
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	block.add_child(host)
 	var lbl := Label.new()
 	lbl.name = "Text"
 	lbl.text = text
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	lbl.add_theme_font_size_override("font_size", font_size)
+	CharacterSheet._style_body_label(lbl)
 	lbl.add_theme_color_override("font_color", color)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if right_align else HORIZONTAL_ALIGNMENT_LEFT
+	lbl.mouse_filter = Control.MOUSE_FILTER_PASS if right_align else Control.MOUSE_FILTER_IGNORE
 	host.add_child(lbl)
 	_center_glyph_label(host, lbl)
 
@@ -612,7 +720,7 @@ func _center_glyph_label(host: Control, lbl: Label) -> void:
 	var need: float = host.size.y
 	if font != null:
 		need = float(font.get_height(font_size))
-	need = minf(host.size.y, maxf(need, lbl.get_minimum_size().y))
+	need = maxf(host.size.y, need)
 	lbl.size = Vector2(host.size.x, need)
 	lbl.position = Vector2(0, (host.size.y - need) * 0.5)
 
@@ -628,7 +736,7 @@ func _fit_sheet() -> void:
 	sheet.position = Vector2.ZERO
 	fit.custom_minimum_size = SHEET_SIZE
 	fit.size = SHEET_SIZE
-	Ui540.center_kit_panel(fit)
+	Ui540.center_kit_panel(fit, false)
 
 
 func _refresh_actor_nav() -> void:
@@ -669,8 +777,7 @@ func _apply_actor_chrome() -> void:
 		var figure_path: String = _sheet_figure_path()
 		_portrait.texture = load(figure_path) as Texture2D
 		_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		_portrait.position = SPRITE_POS
-		_portrait.size = SPRITE_SIZE
+		_place_figure()
 	var header_icon: TextureRect = sheet.get_node_or_null("HeaderPortrait") as TextureRect
 	if header_icon:
 		var bust_path: String = ELAIA_SHEET_PORTRAIT_PATH if elaia else KEEPER_SHEET_PORTRAIT_PATH
@@ -680,6 +787,25 @@ func _apply_actor_chrome() -> void:
 	if trait_btn:
 		var trait_key: String = "char_sheet_elaia_trait" if elaia else "char_sheet_keeper_trait"
 		trait_btn.text = strings.get_text(trait_key)
+
+
+## The stills sit on a 128 px canvas; draw them at 3× so the figure itself fills SPRITE_SIZE.
+func _place_figure() -> void:
+	var tex: Texture2D = _portrait.texture
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_SCALE
+	if tex == null:
+		_portrait.position = SPRITE_POS
+		_portrait.size = SPRITE_SIZE
+		return
+	var used := Rect2i(Vector2i.ZERO, Vector2i(tex.get_size()))
+	var img: Image = tex.get_image()
+	if img != null:
+		used = img.get_used_rect()
+	var drawn: Vector2 = Vector2(used.size) * FIGURE_SCALE
+	var origin: Vector2 = SPRITE_POS + Vector2(roundf((SPRITE_SIZE.x - drawn.x) * 0.5), SPRITE_SIZE.y - drawn.y)
+	_portrait.size = tex.get_size() * FIGURE_SCALE
+	_portrait.position = origin - Vector2(used.position) * FIGURE_SCALE
 
 
 func _sheet_figure_path() -> String:
@@ -843,8 +969,10 @@ func _paint_trait_button(btn: Button) -> void:
 	btn.add_theme_stylebox_override("hover", hover)
 	btn.add_theme_stylebox_override("pressed", hover)
 	btn.add_theme_stylebox_override("focus", hover)
-	btn.add_theme_color_override("font_color", INK)
-	btn.add_theme_color_override("font_hover_color", GOLD)
+	btn.add_theme_font_override("font", CharacterSheet._theme_font("body_font"))
+	btn.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
+	for state: StringName in [&"font_color", &"font_hover_color", &"font_pressed_color", &"font_focus_color", &"font_hover_pressed_color"]:
+		btn.add_theme_color_override(state, INK)
 
 
 func _on_dim_input(event: InputEvent) -> void:
@@ -912,20 +1040,28 @@ func _cycle_gear_filter() -> void:
 	_refresh_inventory()
 
 
+## On All the cycle tab names the category it will switch to; otherwise the one in use.
 func _gear_filter_label() -> String:
-	if _gear_filter_slot == "":
-		return "Type"
+	var slot_id: String = _gear_filter_slot if _gear_filter_slot != "" else GEAR_FILTER_CYCLE[1]
 	var eq = CharacterSheet._auto("Equipment")
 	if eq != null and eq.has_method("slot_display_name"):
-		return str(eq.call("slot_display_name", _gear_filter_slot))
-	return _gear_filter_slot.capitalize()
+		return str(eq.call("slot_display_name", slot_id))
+	return slot_id.capitalize()
 
 
 func _refresh_gear_tabs() -> void:
+	var on_all: bool = _gear_filter_slot == ""
 	if _gear_tab_all_btn:
 		_gear_tab_all_btn.text = CharacterSheet._auto("ContentStrings").get_text("gear_tab_all")
+		_gear_tab_all_btn.set_pressed_no_signal(on_all)
 	if _gear_cat_btn:
 		_gear_cat_btn.text = _gear_filter_label()
+		_gear_cat_btn.set_pressed_no_signal(not on_all)
+	if _gear_tab_line:
+		var tab_x: float = 0.0 if on_all else 98.0
+		var tab_w: float = 90.0 if on_all else GEAR_W - 98.0
+		_gear_tab_line.position = Vector2(tab_x + 12.0, TABS_Y + 46.0)
+		_gear_tab_line.size = Vector2(tab_w - 24.0, 3.0)
 
 
 func _refresh_inventory() -> void:
@@ -950,9 +1086,11 @@ func _refresh_inventory() -> void:
 		empty.text = CharacterSheet._auto("ContentStrings").get_text("gear_empty")
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		empty.custom_minimum_size = Vector2(320, 48)
-		empty.add_theme_font_size_override("font_size", 12)
-		empty.add_theme_color_override("font_color", MUTED)
+		empty.custom_minimum_size = Vector2(0, GEAR_ROW_H)
+		empty.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		CharacterSheet._style_ink(empty, true)
 		_inv_list.add_child(empty)
 		return
 	for inst: Dictionary in rows:
@@ -960,7 +1098,7 @@ func _refresh_inventory() -> void:
 		row.host = self
 		row.item_id = str(inst.get("id", ""))
 		row.shown_count = int(inst.get("count", 1))
-		row.custom_minimum_size = Vector2(320, 48)
+		row.custom_minimum_size = Vector2(0, GEAR_ROW_H)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
 		_inv_list.add_child(row)
@@ -1069,6 +1207,8 @@ class SlotPlate extends Panel:
 		caption_host.size = Vector2(SLOT_SIZE.x + 16, 14)
 		caption_host.clip_contents = true
 		caption_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		## char540 r4 slots carry no caption; the tooltip names the slot or item.
+		caption_host.visible = false
 		add_child(caption_host)
 		_caption = Label.new()
 		_caption.name = "Hint"
@@ -1227,9 +1367,7 @@ class SlotPlate extends Panel:
 			var hint: String = CharacterSheet._auto("Equipment").slot_lock_hint(slot_id)
 			CharacterSheet._auto("GameAudio").play_tree_deny()
 			CharacterSheet._auto("GameState").status_message.emit(hint)
-			var footer: Label = host.get_node_or_null("SheetFit/Sheet/Footer") as Label
-			if footer:
-				footer.text = hint
+			host.call("show_note", hint)
 			return
 		var iid: String = CharacterSheet._auto("Equipment").equipped_id_for(_actor(), slot_id)
 		if iid != "":
@@ -1280,34 +1418,59 @@ class GearRow extends Panel:
 	var _dragged: bool = false
 
 	func setup() -> void:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.20, 0.14, 0.09, 1.0)
-		sb.border_color = Color(0.45, 0.34, 0.18, 1.0)
-		sb.set_border_width_all(1)
-		sb.set_corner_radius_all(2)
-		sb.content_margin_left = 4.0
-		sb.content_margin_right = 4.0
-		sb.content_margin_top = 4.0
-		sb.content_margin_bottom = 4.0
-		add_theme_stylebox_override("panel", sb)
+		_paint(false)
 		var row := HBoxContainer.new()
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_theme_constant_override("separation", 8)
+		row.add_theme_constant_override("separation", 7)
+		row.set_anchors_preset(Control.PRESET_FULL_RECT)
+		row.offset_left = 7.0
+		row.offset_right = -6.0
 		add_child(row)
 		var icon: Control = CharacterSheet.make_item_icon(item_id)
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(icon)
+		var text_col := VBoxContainer.new()
+		text_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text_col.alignment = BoxContainer.ALIGNMENT_CENTER
+		text_col.add_theme_constant_override("separation", 0)
+		row.add_child(text_col)
+		var eq = CharacterSheet._auto("Equipment")
+		var count: int = shown_count if shown_count >= 0 else eq.unequipped_count(item_id)
+		var name: String = eq.item_display_name(item_id)
 		var lbl := Label.new()
-		var count: int = shown_count if shown_count >= 0 else CharacterSheet._auto("Equipment").unequipped_count(item_id)
-		var name: String = CharacterSheet._auto("Equipment").item_display_name(item_id)
+		lbl.name = "Name"
 		lbl.text = name if count <= 1 else "%s  ×%d" % [name, count]
-		lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		lbl.add_theme_font_size_override("font_size", 13)
-		lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+		CharacterSheet._style_ink(lbl)
+		lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(lbl)
-		tooltip_text = "%s\n%s" % [CharacterSheet._auto("Equipment").item_tooltip(item_id), CharacterSheet._auto("ContentStrings").get_text("equip_equip")]
+		text_col.add_child(lbl)
+		var sub := Label.new()
+		sub.name = "Detail"
+		sub.text = _detail_line(eq)
+		CharacterSheet._style_ink(sub, true)
+		sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		text_col.add_child(sub)
+		tooltip_text = "%s\n%s" % [eq.item_tooltip(item_id), CharacterSheet._auto("ContentStrings").get_text("equip_equip")]
+
+	## "Weapon · Might +2": the slot, then the first stat the item raises.
+	func _detail_line(eq: Node) -> String:
+		var parts: PackedStringArray = [str(eq.slot_display_name(eq.item_slot(item_id)))]
+		var bonuses_v: Variant = eq.get_item_def(item_id).get("bonuses", {})
+		if typeof(bonuses_v) == TYPE_DICTIONARY:
+			var stats = CharacterSheet._auto("KeeperStats")
+			for stat_name: StringName in stats.STAT_ORDER:
+				var amount: int = int((bonuses_v as Dictionary).get(String(stat_name), 0))
+				if amount != 0:
+					parts.append("%s %s%d" % [stats.stat_display_name(String(stat_name)), "+" if amount > 0 else "", amount])
+					break
+		return " · ".join(parts)
+
+	func _paint(hot: bool) -> void:
+		var path: String = CharacterSheet.ROW_HOVER_PATH if hot else CharacterSheet.ROW_EVEN_PATH
+		add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(path, Vector4i(6, 6, 6, 6)))
 
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseMotion and host != null:
@@ -1330,8 +1493,12 @@ class GearRow extends Panel:
 			host.call("request_equip", item_id)
 
 	func _notification(what: int) -> void:
-		if what == NOTIFICATION_MOUSE_EXIT and host != null:
-			host.call("set_hover_item", "")
+		if what == NOTIFICATION_MOUSE_ENTER:
+			_paint(true)
+		elif what == NOTIFICATION_MOUSE_EXIT:
+			_paint(false)
+			if host != null:
+				host.call("set_hover_item", "")
 
 	func _get_drag_data(_at: Vector2) -> Variant:
 		if item_id == "":
