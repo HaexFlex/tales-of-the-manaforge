@@ -89,8 +89,15 @@ var _forge_popup_body: Label
 @onready var welcome_hint_label: Label = $WelcomePanel/WelcomeHint
 @onready var welcome_dismiss_button: Button = $WelcomePanel/WelcomeDismiss
 
-## Art lock MANATREE_CARE_PANEL_V01: 520×420, header 64 / body / action band 56. No shop rows.
+## Shop dim sits between kit windows (35) and the shop / confirms it dims behind.
+const Z_MODAL_DIM: int = 39
+const Z_MODAL: int = 40
+## Art lock MANATREE_CARE_PANEL_V01 (540p r2): 600×440, header 64 / card / action band 56.
 const CARE_SIZE: Vector2 = Vector2(600, 440)
+const CARE_COST_COL_W: float = 250.0
+const ANCIENT_TIMER_W: float = 300.0
+const CARE_TIMER_CYAN: Color = Color8(46, 150, 170)
+const CARE_GREEN: Color = Color8(52, 120, 44)
 const CARE_HEADER_H: float = 64.0
 const CARE_ACTION_BAND_H: float = 56.0
 ## Art lock ASCENSION_SHOP_LAYOUT_V01 scaled for 960×540 (24 px safe margins).
@@ -125,7 +132,13 @@ const BTN_PACK_HOVER: String = "res://assets/art/ui/buttons/backpack_hover.png"
 const BTN_PACK_PRESSED: String = "res://assets/art/ui/buttons/backpack_pressed.png"
 const BACKPACK_ROW_H: float = 48.0
 const BAG_PANEL_W: float = 560.0
-const BENCH_PANEL_W: float = 600.0
+const BAG_PANEL_H: float = 452.0
+const BAG_ROW_H: float = 44.0
+const BENCH_SIZE: Vector2 = Vector2(912, 472)
+const BENCH_LIST_W: float = 330.0
+const BENCH_BATCH_Y: float = 300.0
+const BENCH_FILTER_CYCLE: Array[String] = ["all", "parts", "tools", "weapons"]
+const SHORT_RED: Color = Color8(170, 52, 40)
 
 var _manatree: Manatree = null
 var _confirm_pay: bool = false
@@ -149,6 +162,18 @@ var _confirm_batches: bool = false
 var _ascend_batch_dialog: PanelContainer
 var _ascend_batch_body: Label
 var _bench_batch: BatchPanel
+var _bench_tabs: HBoxContainer
+var _care_card: Panel
+var _forge_locked: bool = false
+var _care_needs_hdr: Label
+var _care_status: Label
+var _care_hint: Label
+var _care_timer: Label
+var _bench_tab_all: Button
+var _bench_cat_btn: Button
+var _bench_detail: Control
+var _bench_filter_ix: int = 0
+var _bench_selected: String = ""
 var _backpack_tab: String = "all"
 const BAG_FILTER_CYCLE: Array[String] = ["all", "raw", "refined", "tools", "weapons", "relics"]
 var _backpack_cat_btn: Button
@@ -199,6 +224,9 @@ func _ready() -> void:
 	if not get_viewport().size_changed.is_connected(_layout_welcome_panel):
 		get_viewport().size_changed.connect(_layout_welcome_panel)
 	shop_dim.visible = false
+	shop_dim.z_index = Z_MODAL_DIM
+	ascension_panel.z_index = Z_MODAL
+	fruit_confirm_panel.z_index = Z_MODAL
 	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	shop_scroll.clip_contents = true
@@ -221,8 +249,6 @@ func _ready() -> void:
 		ContentStrings.get_text("tool_never_gate"),
 	]
 	bench_panel.visible = false
-	close_button.text = ContentStrings.get_text("btn_close")
-	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	pay_button.text = ContentStrings.get_text("tree_grow")
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
@@ -522,107 +548,222 @@ func _apply_bag540_chrome() -> void:
 		return
 	Ui540.apply_kit_panel(backpack_panel, "bag", backpack_title, backpack_close_button)
 	GameTheme.style_plank_label(backpack_title)
-	GameTheme.style_outlined_ink_label(inventory_title)
+	GameTheme.style_ink_label(inventory_title, true)
+	inventory_title.clip_text = true
+	inventory_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	backpack_panel.z_index = 35
-	var tab_btns: Array[Button] = [
-		backpack_tab_all, backpack_tab_raw, backpack_tab_refined,
-		backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics,
-	]
-	for tab: Button in tab_btns:
-		tab.visible = true
-		tab.custom_minimum_size = Vector2(68, 40)
-		Ui540.style_wood_icon_button(tab)
+	## Mockup bag540: "All" plus one cycling category button; the per-category tabs stay as
+	## nodes (verify, keyboard paths) but are not shown.
+	for tab: Button in [backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
+		tab.visible = false
+	backpack_tab_all.custom_minimum_size = Vector2(90, 44)
+	GameTheme.style_tab_button(backpack_tab_all)
 	if _backpack_cat_btn == null:
 		_backpack_cat_btn = Button.new()
 		_backpack_cat_btn.name = "TabCategoryCycle"
 		backpack_tab_all.get_parent().add_child(_backpack_cat_btn)
 		_backpack_cat_btn.pressed.connect(_cycle_backpack_filter)
-	_backpack_cat_btn.visible = false
+	_backpack_cat_btn.custom_minimum_size = Vector2(150, 44)
+	GameTheme.style_tab_button(_backpack_cat_btn)
+	Ui540.add_cycle_cue(_backpack_cat_btn)
+	_backpack_cat_btn.visible = true
+	var tab_row: HBoxContainer = backpack_panel.get_node_or_null("TabRow") as HBoxContainer
+	if tab_row:
+		tab_row.add_theme_constant_override("separation", 8)
+	var list: VBoxContainer = inventory_list as VBoxContainer
+	if list:
+		list.add_theme_constant_override("separation", int(BACKPACK_ROW_H - BAG_ROW_H))
 	_ensure_bag_detail_panel()
 
 
 func _layout_bag540() -> void:
 	if backpack_panel == null:
 		return
-	var h: float = minf(492.0, Ui540.viewport_size().y - Ui540.SAFE_MARGIN_PX * 2.0)
-	backpack_panel.custom_minimum_size = Vector2(BAG_PANEL_W, h)
-	backpack_panel.size = Vector2(BAG_PANEL_W, h)
-	Ui540.center_kit_panel(backpack_panel)
-	var inner_w: float = BAG_PANEL_W - 72.0
-	backpack_close_button.position = Vector2(BAG_PANEL_W - 68.0, 18.0)
-	backpack_close_button.size = Vector2(44, 44)
-	backpack_title.position = Vector2((BAG_PANEL_W - 200.0) * 0.5, -20.0)
-	backpack_title.size = Vector2(200, 40)
-	backpack_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inventory_title.position = Vector2(36, 28)
-	inventory_title.size = Vector2(inner_w, 22)
+	var sz: Vector2 = Ui540.fit_kit_window(backpack_panel, Vector2(BAG_PANEL_W, BAG_PANEL_H))
+	var w: float = sz.x
+	var h: float = sz.y
+	var inner_w: float = w - 72.0
+	Ui540.place_close_button(backpack_close_button, w)
+	Ui540.place_title_plank(backpack_title, w)
+	inventory_title.position = Vector2(36, 30)
+	inventory_title.size = Vector2(inner_w - Ui540.TAP_MIN_PX - 12.0, 24)
 	var tab_row: Control = backpack_panel.get_node_or_null("TabRow") as Control
-	var tab_y: float = 58.0
+	var tab_y: float = 64.0
 	if tab_row:
 		tab_row.position = Vector2(36, tab_y)
 		tab_row.size = Vector2(inner_w, 44)
-	var list_top: float = tab_y + 48.0
+	var list_top: float = tab_y + 44.0 + 14.0
 	var scroll: ScrollContainer = backpack_panel.get_node_or_null("InventoryScroll") as ScrollContainer
 	if scroll:
 		scroll.position = Vector2(36, list_top)
-		scroll.size = Vector2(inner_w, h - list_top - 56.0)
+		scroll.size = Vector2(inner_w, h - list_top - 28.0)
 
 
 func _apply_care540_chrome() -> void:
 	if care_panel:
 		Ui540.apply_kit_panel(care_panel, "manatree_care", care_title, care_close_button)
-		GameTheme.style_outlined_ink_label(care_needs_label)
+		GameTheme.style_plank_label(care_title)
+		GameTheme.style_ink_label(care_stage_label, true)
+		GameTheme.style_ink_label(care_needs_label)
+		care_needs_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		GameTheme.style_primary_button(pay_button)
 		GameTheme.style_primary_button(harvest_fruit_button)
+		GameTheme.style_menu_button(water_button)
+		_ensure_care_card()
 	if bench_panel:
 		Ui540.apply_kit_panel(bench_panel, "workbench", bench_title, bench_close_button)
 		GameTheme.style_plank_label(bench_title)
-		GameTheme.style_outlined_ink_label(bench_prompt)
+		GameTheme.style_ink_label(bench_prompt, true)
+		bench_prompt.autowrap_mode = TextServer.AUTOWRAP_OFF
+		bench_prompt.clip_text = true
+		bench_prompt.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		bench_panel.z_index = 35
+		_ensure_bench_chrome()
+
+
+func _ensure_care_card() -> void:
+	if _care_card != null:
+		return
+	_care_card = Panel.new()
+	_care_card.name = "CareCard"
+	_care_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_care_card.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2)))
+	care_panel.add_child(_care_card)
+	var vines: Node = care_panel.get_node_or_null("VineFrame")
+	care_panel.move_child(_care_card, vines.get_index() + 1 if vines else 0)
+	_care_needs_hdr = Label.new()
+	_care_needs_hdr.name = "CareNeedsHeader"
+	GameTheme.style_ink_label(_care_needs_hdr, true)
+	care_panel.add_child(_care_needs_hdr)
+	_care_status = Label.new()
+	_care_status.name = "CareStatus"
+	GameTheme.style_ink_label(_care_status)
+	_care_status.add_theme_color_override("font_color", CARE_GREEN)
+	care_panel.add_child(_care_status)
+	_care_hint = Label.new()
+	_care_hint.name = "CareHint"
+	GameTheme.style_ink_label(_care_hint, true)
+	_care_hint.clip_text = true
+	_care_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	care_panel.add_child(_care_hint)
+	fruit_ready_card.color = Color(0, 0, 0, 0)
+	_care_timer = Label.new()
+	_care_timer.name = "CareFruitTimer"
+	_care_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_care_timer.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_care_timer.add_theme_font_override("font", GameTheme.title_font())
+	_care_timer.add_theme_font_size_override("font_size", GameTheme.TITLE_SIZE)
+	_care_timer.add_theme_color_override("font_color", CARE_TIMER_CYAN)
+	_care_timer.visible = false
+	fruit_ready_card.add_child(_care_timer)
+	GameTheme.style_ink_label(precommit_hint)
+	precommit_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for lbl: Label in [grow_fert_need, grow_ess_need]:
+		GameTheme.style_ink_label(lbl)
+		lbl.custom_minimum_size = Vector2(CARE_COST_COL_W - 40.0, 44)
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	for icon: TextureRect in [grow_fert_icon, grow_ess_icon]:
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	care_grow_costs.add_theme_constant_override("separation", 8)
+
+
+## Mockup manatree540_pc_16x9_r3: 600×440; header = stage line + Blessings + ×; a bevelled
+## needs card; Grow/Harvest (primary, left) | Water (right); Enter Forge full width last.
+func _layout_care_window() -> void:
+	var sz: Vector2 = Ui540.fit_kit_window(care_panel, CARE_SIZE)
+	var w: float = sz.x
+	var h: float = sz.y
+	var left: float = 28.0
+	var inner: float = w - left * 2.0
+	Ui540.place_close_button(care_close_button, w)
+	Ui540.place_title_plank(care_title, w)
+	if _blessings_preview_button:
+		_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 20.0)
+		_blessings_preview_button.size = Vector2(44, 44)
+	care_stage_label.position = Vector2(left, 30)
+	care_stage_label.size = Vector2(w - 124.0 - 12.0 - left, 24)
+	var card := Rect2(left, 84, inner, 160)
+	if _care_card:
+		_care_card.position = card.position
+		_care_card.size = card.size
+	care_needs_label.position = card.position + Vector2(14, 8)
+	care_needs_label.size = Vector2(card.size.x - 28.0, 24)
+	if _care_needs_hdr:
+		_care_needs_hdr.position = card.position + Vector2(14, 32)
+		_care_needs_hdr.size = Vector2(card.size.x - 28.0, 24)
+	care_grow_costs.position = card.position + Vector2(14, 56)
+	care_grow_costs.size = Vector2(card.size.x - 28.0, 44)
+	if _care_status:
+		_care_status.position = card.position + Vector2(14, 104)
+		_care_status.size = Vector2(card.size.x - 28.0, 24)
+	if _care_hint:
+		_care_hint.position = card.position + Vector2(14, 128)
+		_care_hint.size = Vector2(card.size.x - 28.0, 24)
+	fruit_ready_card.position = card.position
+	fruit_ready_card.size = card.size
+	precommit_hint.position = Vector2(14, 10)
+	precommit_hint.size = Vector2(card.size.x - 28.0, 70)
+	if _care_timer:
+		_care_timer.position = Vector2(14, 88)
+		_care_timer.size = Vector2(card.size.x - 28.0, 48)
+	care_action_band.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	care_action_band.position = Vector2(left, card.end.y + 12.0)
+	care_action_band.size = Vector2(inner, 56)
+	var half: float = floorf((inner - 12.0) * 0.5)
+	pay_button.position = Vector2(0, 0)
+	pay_button.size = Vector2(half, 52)
+	harvest_fruit_button.position = pay_button.position
+	harvest_fruit_button.size = pay_button.size
+	water_button.position = Vector2(inner - half, 0)
+	water_button.size = Vector2(half, 52)
+	Ui540.fit_button_font(harvest_fruit_button, half)
+	harvest_fruit_button.size = pay_button.size
+	if forge_button:
+		forge_button.position = Vector2(left, h - 24.0 - 44.0)
+		forge_button.size = Vector2(inner, 44)
 
 
 func _layout_care540() -> void:
 	if care_panel:
-		care_panel.custom_minimum_size = CARE_SIZE
-		care_panel.size = CARE_SIZE
-		Ui540.center_kit_panel(care_panel)
-		care_close_button.position = Vector2(CARE_SIZE.x - 68.0, 18.0)
-		care_close_button.size = Vector2(44, 44)
-		care_title.position = Vector2((CARE_SIZE.x - 200.0) * 0.5, -20)
-		if care_needs_label:
-			care_needs_label.position = Vector2(36, 72)
-			care_needs_label.size = Vector2(CARE_SIZE.x - 72.0, 48)
-		if _blessings_preview_button:
-			_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 18.0)
-			_blessings_preview_button.size = Vector2(44, 44)
-		if pay_button and water_button:
-			pay_button.position = Vector2(0, 4)
-			pay_button.size = Vector2(216, 48)
-			water_button.position = Vector2(232, 4)
-			water_button.size = Vector2(216, 48)
-			harvest_fruit_button.position = pay_button.position
-			harvest_fruit_button.size = pay_button.size
+		_layout_care_window()
 	if bench_panel:
-		var area_h: float = Ui540.kit_content_size().y
-		var bh: float = minf(468.0, area_h)
-		bench_panel.custom_minimum_size = Vector2(BENCH_PANEL_W, bh)
-		bench_panel.size = Vector2(BENCH_PANEL_W, bh)
-		Ui540.center_kit_panel(bench_panel)
-		bench_close_button.position = Vector2(BENCH_PANEL_W - 68.0, 18.0)
-		bench_close_button.size = Vector2(44, 44)
-		bench_title.position = Vector2((BENCH_PANEL_W - 200.0) * 0.5, -20)
-		var inner_w: float = BENCH_PANEL_W - 72.0
-		bench_prompt.position = Vector2(36, 56)
-		bench_prompt.size = Vector2(inner_w, 40)
-		var scroll: ScrollContainer = bench_panel.get_node_or_null("CraftScroll") as ScrollContainer
-		if scroll:
-			var batch_h: float = 120.0
-			var list_top: float = 100.0
-			scroll.position = Vector2(36, list_top)
-			scroll.size = Vector2(inner_w, bh - list_top - batch_h - 36.0)
-		if _bench_batch != null and is_instance_valid(_bench_batch):
-			_bench_batch.position = Vector2(36, bh - 128.0)
-			_bench_batch.size = Vector2(inner_w, 112.0)
+		_layout_bench540()
+
+
+## Mockup workbench540_bench_pc_r2: 912×472, recipe list left (300 + scrollbar), detail and
+## the batch controls right, × in the header.
+func _layout_bench540() -> void:
+	var sz: Vector2 = Ui540.fit_kit_window(bench_panel, BENCH_SIZE)
+	var w: float = sz.x
+	var h: float = sz.y
+	Ui540.place_close_button(bench_close_button, w)
+	Ui540.place_title_plank(bench_title, w)
+	bench_prompt.position = Vector2(24, 30)
+	bench_prompt.size = Vector2(w - 48.0 - Ui540.TAP_MIN_PX - 12.0, 24)
+	if _bench_tabs:
+		_bench_tabs.position = Vector2(24, 72)
+		_bench_tabs.size = Vector2(BENCH_LIST_W, 44)
+	var list_top: float = 130.0
+	var scroll: ScrollContainer = bench_panel.get_node_or_null("CraftScroll") as ScrollContainer
+	if scroll:
+		scroll.position = Vector2(24, list_top)
+		scroll.size = Vector2(BENCH_LIST_W, h - 24.0 - list_top)
+	var rx: float = 24.0 + BENCH_LIST_W + 20.0
+	var rw: float = w - 24.0 - rx
+	if _bench_detail:
+		_bench_detail.position = Vector2(rx, 72)
+		_bench_detail.size = Vector2(rw, BENCH_BATCH_Y - 72.0)
+	if _bench_batch != null and is_instance_valid(_bench_batch):
+		_bench_batch.custom_minimum_size = Vector2.ZERO
+		_bench_batch.anchor_left = 0.0
+		_bench_batch.anchor_top = 0.0
+		_bench_batch.anchor_right = 1.0
+		_bench_batch.anchor_bottom = 1.0
+		_bench_batch.offset_left = rx
+		_bench_batch.offset_top = BENCH_BATCH_Y
+		_bench_batch.offset_right = -24.0
+		_bench_batch.offset_bottom = -24.0
 
 
 func _ensure_help_panel() -> void:
@@ -813,8 +954,6 @@ func _layout_ascension_shop() -> void:
 	ascension_panel.custom_minimum_size = Vector2(w, h)
 	ascension_panel.size = Vector2(w, h)
 	Ui540.center_kit_panel(ascension_panel)
-	ascension_panel.z_index = 40
-	shop_dim.z_index = 39
 	if shop_header:
 		shop_header.offset_bottom = SHOP_HEADER_H
 	if _shop_toolbar:
@@ -833,45 +972,6 @@ func _layout_ascension_shop() -> void:
 		shop_footer.offset_bottom = h
 	if has_node("/root/GameInput"):
 		GameInput.configure_scroll_container(shop_scroll)
-
-
-func _wood_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = WOOD
-	sb.border_color = GOLD
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(2)
-	sb.content_margin_left = 2.0
-	sb.content_margin_right = 2.0
-	sb.content_margin_top = 2.0
-	sb.content_margin_bottom = 2.0
-	return sb
-
-
-func _btn_style(bg: Color, border: Color) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(1)
-	sb.set_corner_radius_all(3)
-	sb.content_margin_left = 10.0
-	sb.content_margin_right = 10.0
-	sb.content_margin_top = 6.0
-	sb.content_margin_bottom = 6.0
-	return sb
-
-
-func _apply_button_chrome(btn: Button, bg: Color, border: Color) -> void:
-	var normal: StyleBoxFlat = _btn_style(bg, border)
-	var hover: StyleBoxFlat = _btn_style(bg.lightened(0.08), GOLD)
-	var pressed: StyleBoxFlat = _btn_style(bg.darkened(0.12), border)
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", pressed)
-	btn.add_theme_stylebox_override("focus", hover)
-	btn.add_theme_color_override("font_color", Color(0.95, 0.96, 0.88, 1.0))
-	btn.add_theme_color_override("font_hover_color", Color(1, 1, 0.92, 1.0))
-	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 1, 1.0))
 
 
 func _apply_icon_button(btn: Button) -> void:
@@ -1018,25 +1118,15 @@ func _make_item_icon(item_id: String, tip: String) -> Control:
 
 
 func _apply_wood_chrome() -> void:
-	Ui540.apply_kit_panel(ascension_panel, "ascension_shop", prestige_title)
-	GameTheme.style_body_label(prestige_sub)
+	Ui540.apply_kit_panel(ascension_panel, "ascension_shop", prestige_title, close_button)
+	GameTheme.style_plank_label(prestige_title)
+	GameTheme.style_ink_label(prestige_sub, true)
 	GameTheme.style_primary_button(ascend_button)
-	fruit_confirm_panel.add_theme_stylebox_override("panel", _wood_style())
 	shard_chip.color = CHIP_CYAN
-	_apply_button_chrome(close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(ascend_button, LEAF, GOLD)
-	_apply_button_chrome(fruit_confirm_yes, LEAF, GOLD)
-	_apply_button_chrome(fruit_confirm_no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(care_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(water_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(pay_button, LEAF, GOLD)
-	_apply_button_chrome(harvest_fruit_button, LEAF, GOLD)
 	_apply_icon_button(character_button)
 	_apply_icon_button(backpack_button)
 	_apply_icon_button(pause_button)
 	_apply_icon_button(ascension_reopen_button)
-	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(bench_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 
 
 func _process(_delta: float) -> void:
@@ -1059,6 +1149,8 @@ func _sync_toast_under_modals() -> void:
 		status_label.self_modulate.a = a
 	if toast_shade:
 		toast_shade.self_modulate.a = a
+	if _ancient_countdown:
+		_ancient_countdown.self_modulate.a = a
 
 
 func modal_window_open() -> bool:
@@ -1787,36 +1879,30 @@ func _refresh_care_needs() -> void:
 		care_stage_label.text = ContentStrings.get_text("hud_stage_label", {"stage": stage_name})
 	var lines: PackedStringArray = info.get("needs_lines", PackedStringArray()) as PackedStringArray
 	var header: String = str(info.get("needs_header", ""))
-	var status: String = str(info.get("needs_status", ""))
-	var body_parts: PackedStringArray = PackedStringArray()
 	var is_ancient: bool = bool(info.get("is_ancient", false))
-	if not is_ancient:
-		var toward: String = str(info.get("title", ""))
-		if toward != "":
-			body_parts.append(toward)
-		var next_id: String = str(info.get("next_stage_id", ""))
-		if next_id != "":
-			var grow_key: String = "tree_grow_cost_%s" % next_id
-			var grow_line: String = _content_line(grow_key)
-			if grow_line != "":
-				body_parts.append(grow_line)
-	if header != "":
-		body_parts.append(header)
-	for line: String in lines:
-		body_parts.append(line)
-	if status != "" and not is_ancient:
-		body_parts.append(status)
-	if not is_ancient:
-		var grow_needs: Dictionary = info.get("needs", {}) as Dictionary
-		if grow_needs.is_empty():
-			grow_needs = GameState.get_next_stage_needs()
-		body_parts.append(_format_grow_needs_sentence(
-			int(grow_needs.get("fertilizer", 0)),
-			int(grow_needs.get("essence", 0))
-		))
-		body_parts.append(ContentStrings.get_text("tree_grow_hint"))
-	care_needs_label.text = "\n".join(body_parts)
+	var can_pay_now: bool = bool(info.get("can_pay", false))
+	## Mockup r3: "Toward …", "Needs", the icon checklist, "Ready to Grow" only when payable,
+	## and the grow hint. The cost sentences that repeated the checklist are gone.
+	if is_ancient:
+		care_needs_label.text = "\n".join(lines)
+		care_needs_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		care_needs_label.size.y = 140.0
+	else:
+		care_needs_label.text = str(info.get("title", ""))
+		care_needs_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		care_needs_label.size.y = 24.0
 	care_needs_label.visible = not fruit_ready
+	if _care_card:
+		_care_card.visible = true
+	if _care_needs_hdr:
+		_care_needs_hdr.text = header
+		_care_needs_hdr.visible = not fruit_ready and not is_ancient
+	if _care_status:
+		_care_status.text = ContentStrings.get_text("tree_grow_ready")
+		_care_status.visible = not fruit_ready and not is_ancient and can_pay_now
+	if _care_hint:
+		_care_hint.text = ContentStrings.get_text("tree_grow_hint")
+		_care_hint.visible = not fruit_ready and not is_ancient
 	var can_pay: bool = bool(info.get("can_pay", false))
 	pay_button.visible = not is_ancient
 	pay_button.text = ContentStrings.get_text("tree_grow")
@@ -1934,23 +2020,18 @@ func _ensure_forge_controls() -> void:
 	_forge_popup.offset_top = -78.0
 	_forge_popup.offset_right = 210.0
 	_forge_popup.offset_bottom = 72.0
+	_forge_popup.z_index = 45
 	_forge_popup.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.13, 0.11, 1)
-	sb.border_color = Color(0.45, 0.58, 0.48, 1)
-	sb.set_border_width_all(2)
-	sb.set_content_margin_all(12)
-	_forge_popup.add_theme_stylebox_override("panel", sb)
 	add_child(_forge_popup)
+	Ui540.apply_kit_panel(_forge_popup, "forge_popup")
 	_forge_popup_body = Label.new()
 	_forge_popup_body.name = "Body"
-	_forge_popup_body.position = Vector2(16, 12)
-	_forge_popup_body.size = Vector2(388, 78)
+	_forge_popup_body.position = Vector2(28, 28)
+	_forge_popup_body.size = Vector2(364, 50)
 	_forge_popup_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_forge_popup_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_forge_popup_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_forge_popup_body.add_theme_font_size_override("font_size", 16)
-	_forge_popup_body.add_theme_color_override("font_color", Color(0.88, 0.92, 0.84, 1))
+	GameTheme.style_ink_label(_forge_popup_body)
 	_forge_popup.add_child(_forge_popup_body)
 	var close := Button.new()
 	close.name = "Close"
@@ -1958,12 +2039,13 @@ func _ensure_forge_controls() -> void:
 	close.anchor_right = 0.5
 	close.anchor_top = 1.0
 	close.anchor_bottom = 1.0
-	close.offset_left = -70.0
-	close.offset_right = 70.0
-	close.offset_top = -44.0
-	close.offset_bottom = -10.0
+	close.offset_left = -80.0
+	close.offset_right = 80.0
+	close.offset_top = -68.0
+	close.offset_bottom = -24.0
 	close.text = ContentStrings.get_text("btn_close")
 	close.pressed.connect(hide_forge_popup)
+	GameTheme.style_wood_button(close)
 	_forge_popup.add_child(close)
 	_refresh_forge_entry()
 
@@ -1976,15 +2058,26 @@ func _refresh_forge_entry() -> void:
 	forge_button.visible = forge_stage
 	if not forge_stage:
 		return
-	forge_button.text = ContentStrings.get_text("forge_enter")
 	forge_button.disabled = false
 	var owns_key: bool = GameState.forge_key
 	if has_node("/root/ForgeJobs"):
 		owns_key = ForgeJobs.owns_forge_key()
-	if owns_key:
-		forge_button.modulate = Color.WHITE
+	_forge_locked = not owns_key
+	## Locked stays tappable (it explains the key), so it borrows the disabled face instead
+	## of disabling the button.
+	GameTheme.style_menu_button(forge_button)
+	for state: StringName in [&"normal", &"hover", &"pressed", &"focus"]:
+		forge_button.remove_theme_stylebox_override(state)
+	if _forge_locked:
+		forge_button.text = "%s  ·  %s" % [ContentStrings.get_text("forge_enter"), ContentStrings.get_text("forge_locked_hint")]
+		var dis: StyleBox = forge_button.get_theme_stylebox("disabled")
+		for state: StringName in [&"normal", &"hover", &"pressed"]:
+			forge_button.add_theme_stylebox_override(state, dis)
+		for state: StringName in [&"font_color", &"font_hover_color", &"font_pressed_color", &"font_focus_color"]:
+			forge_button.add_theme_color_override(state, forge_button.get_theme_color("font_disabled_color"))
 	else:
-		forge_button.modulate = Color(0.45, 0.47, 0.44, 1)
+		forge_button.text = ContentStrings.get_text("forge_enter")
+	Ui540.fit_button_font(forge_button)
 
 
 func is_forge_entry_visible() -> bool:
@@ -1992,7 +2085,7 @@ func is_forge_entry_visible() -> bool:
 
 
 func is_forge_entry_gray() -> bool:
-	return forge_button != null and forge_button.visible and forge_button.modulate.r < 0.6
+	return forge_button != null and forge_button.visible and _forge_locked
 
 
 func is_forge_popup_open() -> bool:
@@ -2312,7 +2405,8 @@ func _show_fruit_confirm_step() -> void:
 	]
 	fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step2_yes")
 	fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step1_no")
-	_show_toast(fruit_confirm_body.text)
+	Ui540.layout_confirm(fruit_confirm_panel, fruit_confirm_title, fruit_confirm_body, fruit_confirm_yes, fruit_confirm_no)
+	fruit_confirm_no.grab_focus.call_deferred()
 	_refresh_dim()
 
 
@@ -2376,7 +2470,8 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 	var ess_have: int = GameState.get_need_have(&"essence")
 	if grow_fert_need:
 		var fert_key: String = "tree_grow_cost_fertilizer" if fert_have < fert_need else "tree_grow_cost_fertilizer_met"
-		grow_fert_need.text = "%d/%d" % [fert_have, fert_need]
+		grow_fert_need.text = ContentStrings.get_text("tree_grow_cost_fertilizer", {"have": fert_have, "need": fert_need})
+		grow_fert_need.add_theme_color_override("font_color", CARE_GREEN if fert_have >= fert_need else GameTheme.INK)
 		grow_fert_need.tooltip_text = ContentStrings.get_text(fert_key, {
 			"item": ContentStrings.get_text("fertilizer_name"),
 			"have": fert_have,
@@ -2384,7 +2479,8 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 		})
 	if grow_ess_need:
 		var ess_key: String = "tree_grow_cost_essence" if ess_have < ess_need else "tree_grow_cost_essence_met"
-		grow_ess_need.text = "%d/%d" % [ess_have, ess_need]
+		grow_ess_need.text = ContentStrings.get_text("tree_grow_cost_essence", {"have": ess_have, "need": ess_need})
+		grow_ess_need.add_theme_color_override("font_color", CARE_GREEN if ess_have >= ess_need else GameTheme.INK)
 		grow_ess_need.tooltip_text = ContentStrings.get_text(ess_key, {
 			"item": ContentStrings.get_text("hud_essence"),
 			"have": ess_have,
@@ -2419,58 +2515,38 @@ func _commit_grow() -> void:
 func _ensure_ancient_hud() -> void:
 	_ancient_countdown_bg = ColorRect.new()
 	_ancient_countdown_bg.name = "AncientCountdownBg"
-	_ancient_countdown_bg.position = Vector2(390, 64)
-	_ancient_countdown_bg.size = Vector2(500, 40)
-	_ancient_countdown_bg.color = Color(0.05, 0.08, 0.06, 0.88)
+	_ancient_countdown_bg.color = Color(0, 0, 0, 0)
 	_ancient_countdown_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ancient_countdown_bg.visible = false
 	add_child(_ancient_countdown_bg)
 	_ancient_countdown = Label.new()
 	_ancient_countdown.name = "AncientCountdown"
-	_ancient_countdown.position = Vector2(390, 64)
-	_ancient_countdown.size = Vector2(500, 40)
+	_ancient_countdown.size = Vector2(ANCIENT_TIMER_W, 36)
 	_ancient_countdown.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ancient_countdown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_ancient_countdown.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ancient_countdown.add_theme_font_size_override("font_size", 22)
-	_ancient_countdown.add_theme_color_override("font_color", GOLD)
+	GameTheme.style_ink_label(_ancient_countdown)
+	_ancient_countdown.add_theme_stylebox_override("normal", Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/toast_9s_40x30.png", Vector4i(12, 8, 12, 8), Vector4(20, 6, 20, 6)))
 	_ancient_countdown.visible = false
 	add_child(_ancient_countdown)
 	_ancient_confirm = Panel.new()
 	_ancient_confirm.name = "AncientGrowConfirm"
-	_ancient_confirm.position = Vector2(280, 150)
-	_ancient_confirm.size = Vector2(720, 300)
 	_ancient_confirm.visible = false
-	_ancient_confirm.z_index = 40
-	_ancient_confirm.add_theme_stylebox_override("panel", _wood_style())
+	_ancient_confirm.z_index = Z_MODAL
 	add_child(_ancient_confirm)
 	var title := Label.new()
 	title.name = "Title"
-	title.position = Vector2(24, 16)
-	title.size = Vector2(672, 36)
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", GOLD)
 	_ancient_confirm.add_child(title)
 	var body := Label.new()
 	body.name = "Body"
-	body.position = Vector2(24, 64)
-	body.size = Vector2(672, 140)
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_theme_font_size_override("font_size", 18)
-	body.add_theme_color_override("font_color", Color(0.93, 0.94, 0.86, 1))
 	_ancient_confirm.add_child(body)
 	var yes := Button.new()
 	yes.name = "Yes"
-	yes.position = Vector2(24, 220)
-	yes.size = Vector2(320, 52)
-	_apply_button_chrome(yes, LEAF, GOLD)
 	yes.pressed.connect(_on_ancient_grow_yes)
 	_ancient_confirm.add_child(yes)
 	var no := Button.new()
 	no.name = "No"
-	no.position = Vector2(376, 220)
-	no.size = Vector2(320, 52)
-	_apply_button_chrome(no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	no.pressed.connect(hide_ancient_grow_confirm)
 	_ancient_confirm.add_child(no)
 
@@ -2478,21 +2554,17 @@ func _ensure_ancient_hud() -> void:
 func _ensure_frozen_banner() -> void:
 	_frozen_button = Button.new()
 	_frozen_button.name = "AscendFrozenButton"
-	_frozen_button.position = Vector2(430, 250)
-	_frozen_button.size = Vector2(420, 64)
-	_frozen_button.add_theme_font_size_override("font_size", 28)
-	_apply_button_chrome(_frozen_button, LEAF, GOLD)
+	_frozen_button.size = Vector2(420, 52)
+	GameTheme.style_primary_button(_frozen_button)
 	_frozen_button.pressed.connect(show_ascension_shop)
 	_frozen_button.visible = false
 	add_child(_frozen_button)
 	_frozen_hint = Label.new()
 	_frozen_hint.name = "AscendFrozenHint"
-	_frozen_hint.position = Vector2(360, 322)
 	_frozen_hint.size = Vector2(560, 64)
 	_frozen_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_frozen_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_frozen_hint.add_theme_font_size_override("font_size", 16)
-	_frozen_hint.add_theme_color_override("font_color", GOLD)
+	_style_world_label(_frozen_hint)
 	_frozen_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frozen_hint.visible = false
 	add_child(_frozen_hint)
@@ -2503,6 +2575,11 @@ func _refresh_frozen_banner() -> void:
 		return
 	var show_banner: bool = GameState.ancient_frozen and not ascension_panel.visible
 	_frozen_button.visible = show_banner
+	if show_banner:
+		var vs: Vector2 = Ui540.viewport_size()
+		_frozen_button.position = ((vs - _frozen_button.size) * 0.5 - Vector2(0, 20)).round()
+		if _frozen_hint:
+			_frozen_hint.position = Vector2(roundf((vs.x - _frozen_hint.size.x) * 0.5), _frozen_button.position.y + 60.0)
 	_frozen_button.text = ContentStrings.get_text("ascend_frozen_button")
 	if _frozen_hint:
 		_frozen_hint.visible = show_banner
@@ -2802,12 +2879,17 @@ func _refresh_ancient_countdown() -> void:
 	)
 	_ancient_countdown.visible = show_timer
 	if _ancient_countdown_bg:
-		_ancient_countdown_bg.visible = show_timer
+		_ancient_countdown_bg.visible = false
+	if _care_timer:
+		_care_timer.visible = show_timer and fruit_ready_card.visible
 	if not show_timer:
 		return
 	var total: int = int(ceil(GameState.ancient_remaining_sec))
 	var label: String = "%d:%02d" % [int(total / 60), total % 60]
 	_ancient_countdown.text = ContentStrings.get_text("tree_ancient_timer_label", {"time": label})
+	_ancient_countdown.position = Vector2(roundf((Ui540.viewport_size().x - ANCIENT_TIMER_W) * 0.5), 72.0)
+	if _care_timer:
+		_care_timer.text = _ancient_countdown.text
 
 
 func open_ancient_grow_confirm() -> void:
@@ -2822,7 +2904,9 @@ func open_ancient_grow_confirm() -> void:
 	body.text = ContentStrings.get_text("tree_grow_ancient_confirm_body", {"minutes": minutes})
 	yes.text = ContentStrings.get_text("tree_grow_ancient_confirm_yes")
 	no.text = ContentStrings.get_text("tree_grow_ancient_confirm_no")
+	Ui540.layout_confirm(_ancient_confirm, title, body, yes, no)
 	_ancient_confirm.visible = true
+	no.grab_focus.call_deferred()
 	_refresh_dim()
 	GameAudio.play_ui_confirm()
 
@@ -3196,9 +3280,11 @@ func _cycle_backpack_filter() -> void:
 
 func _refresh_backpack_tab_labels() -> void:
 	backpack_tab_all.text = _filter_label("all")
+	backpack_tab_all.set_pressed_no_signal(_backpack_tab == "all")
 	if _backpack_cat_btn:
+		_backpack_cat_btn.set_pressed_no_signal(_backpack_tab != "all")
 		if _backpack_tab == "all":
-			_backpack_cat_btn.text = _filter_label("weapons")
+			_backpack_cat_btn.text = _filter_label(BAG_FILTER_CYCLE[(_bag_filter_ix + 1) % BAG_FILTER_CYCLE.size()])
 		else:
 			_backpack_cat_btn.text = _filter_label(_backpack_tab)
 
@@ -3239,8 +3325,10 @@ func _rebuild_backpack() -> void:
 	if rows.is_empty():
 		var empty := Label.new()
 		empty.text = ContentStrings.get_text("backpack_empty")
-		empty.add_theme_font_size_override("font_size", 12)
-		empty.add_theme_color_override("font_color", GameTheme.MUTED)
+		GameTheme.style_ink_label(empty, true)
+		empty.custom_minimum_size = Vector2(0, BAG_ROW_H)
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inventory_list.add_child(empty)
 
@@ -3333,35 +3421,121 @@ func _ensure_bench_batch() -> BatchPanel:
 			return null
 		existing.name = "BatchPanel"
 		bench_panel.add_child(existing)
-	existing.position = Vector2(12, 300)
-	existing.size = Vector2(616, 224)
+	existing.compact = true
 	existing.setup(ForgeJobs.WORKBENCH_ID if has_node("/root/ForgeJobs") else "workbench")
 	_bench_batch = existing
+	if _bench_detail != null:
+		_layout_bench540()
 	return existing
 
 
+func _ensure_bench_chrome() -> void:
+	if _bench_tabs != null or bench_panel == null:
+		return
+	_bench_tabs = HBoxContainer.new()
+	_bench_tabs.name = "BenchTabs"
+	_bench_tabs.add_theme_constant_override("separation", 8)
+	bench_panel.add_child(_bench_tabs)
+	_bench_tab_all = Button.new()
+	_bench_tab_all.name = "TabAll"
+	_bench_tab_all.custom_minimum_size = Vector2(90, 44)
+	_bench_tab_all.pressed.connect(_set_bench_filter.bind(0))
+	GameTheme.style_tab_button(_bench_tab_all)
+	_bench_tabs.add_child(_bench_tab_all)
+	_bench_cat_btn = Button.new()
+	_bench_cat_btn.name = "BenchCategoryCycle"
+	_bench_cat_btn.custom_minimum_size = Vector2(140, 44)
+	_bench_cat_btn.pressed.connect(_cycle_bench_filter)
+	GameTheme.style_tab_button(_bench_cat_btn)
+	Ui540.add_cycle_cue(_bench_cat_btn)
+	_bench_tabs.add_child(_bench_cat_btn)
+	craft_list.add_theme_constant_override("separation", int(BACKPACK_ROW_H - BAG_ROW_H))
+	_bench_detail = Control.new()
+	_bench_detail.name = "BenchDetail"
+	_bench_detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bench_panel.add_child(_bench_detail)
+
+
+func _bench_filter_label(filter_id: String) -> String:
+	match filter_id:
+		"all":
+			return ContentStrings.get_text("backpack_tab_all")
+		"parts":
+			return "Parts"
+		"tools":
+			return ContentStrings.get_text("backpack_tab_tools")
+		"weapons":
+			return ContentStrings.get_text("backpack_tab_weapons")
+		_:
+			return filter_id
+
+
+func _set_bench_filter(ix: int) -> void:
+	_bench_filter_ix = ix
+	_rebuild_bench()
+
+
+func _cycle_bench_filter() -> void:
+	_bench_filter_ix = _bench_filter_ix % (BENCH_FILTER_CYCLE.size() - 1) + 1
+	_rebuild_bench()
+
+
+func _bench_recipe_category(recipe_id: String, equipment_out: bool) -> String:
+	if equipment_out:
+		return "weapons"
+	var out_id: String = str(Backpack.get_recipe_def(recipe_id).get("output_id", recipe_id))
+	if Backpack.is_tool(out_id) or Backpack.matches_filter(out_id, "tools") or out_id == "fertilizer":
+		return "tools"
+	return "parts"
+
+
+func _bench_recipes() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for entry: Variant in Backpack.recipes_data:
+		if typeof(entry) == TYPE_DICTIONARY:
+			out.append({"id": str((entry as Dictionary).get("id", "")), "gear": false})
+	for gear_entry: Variant in Equipment.recipes_data:
+		if typeof(gear_entry) != TYPE_DICTIONARY:
+			continue
+		var gear_id: String = str((gear_entry as Dictionary).get("id", ""))
+		if Equipment.recipe_station(gear_id) != "anvil":
+			out.append({"id": gear_id, "gear": true})
+	return out
+
+
 func _rebuild_bench() -> void:
+	_ensure_bench_chrome()
 	_ensure_bench_batch()
 	bench_title.text = ContentStrings.get_text("bench_title")
 	bench_prompt.text = "%s  ·  %s" % [
 		ContentStrings.get_text("handcraft_title"),
 		ContentStrings.get_text("tool_never_gate"),
 	]
+	var filter_id: String = BENCH_FILTER_CYCLE[_bench_filter_ix]
+	_bench_tab_all.text = _bench_filter_label("all")
+	_bench_tab_all.set_pressed_no_signal(filter_id == "all")
+	_bench_cat_btn.text = _bench_filter_label(BENCH_FILTER_CYCLE[maxi(1, _bench_filter_ix)])
+	_bench_cat_btn.set_pressed_no_signal(filter_id != "all")
 	for child: Node in craft_list.get_children():
 		child.queue_free()
-	for entry: Variant in Backpack.recipes_data:
-		if typeof(entry) != TYPE_DICTIONARY:
+	var first: String = ""
+	var keep: bool = false
+	for rec: Dictionary in _bench_recipes():
+		var rid: String = str(rec["id"])
+		var gear: bool = bool(rec["gear"])
+		if filter_id != "all" and _bench_recipe_category(rid, gear) != filter_id:
 			continue
-		var rec: Dictionary = entry
-		craft_list.add_child(_make_craft_row(str(rec.get("id", "")), false))
-	for gear_entry: Variant in Equipment.recipes_data:
-		if typeof(gear_entry) != TYPE_DICTIONARY:
-			continue
-		var gear_rec: Dictionary = gear_entry
-		var gear_id: String = str(gear_rec.get("id", ""))
-		if Equipment.recipe_station(gear_id) == "anvil":
-			continue
-		craft_list.add_child(_make_craft_row(gear_id, true))
+		craft_list.add_child(_make_craft_row(rid, gear))
+		if first == "":
+			first = rid
+		if rid == _bench_selected:
+			keep = true
+	if not keep:
+		_bench_selected = first
+	if _bench_selected != "":
+		_on_bench_recipe_selected(_bench_selected)
+	else:
+		_refresh_bench_detail()
 
 
 func _placeholder_icon(color: Color) -> ColorRect:
@@ -3389,46 +3563,84 @@ func _wire_backpack_row(row: Control, stack: Dictionary) -> void:
 		if ev is InputEventMouseButton:
 			var mb: InputEventMouseButton = ev as InputEventMouseButton
 			if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
-				_show_bag_detail(stack)
+				if _bag_detail_panel != null and _bag_detail_panel.visible and _bag_detail_item_id == str(stack.get("id", "")):
+					_hide_bag_detail()
+				else:
+					_show_bag_detail(stack, row)
 	)
 
 
-func _show_bag_detail(stack: Dictionary) -> void:
+## Mockup bag540_pc_detail: 320 wide, under the tapped row, right edge on the list's right
+## edge, flipped above the row when it would leave the window.
+func _show_bag_detail(stack: Dictionary, row: Control = null) -> void:
 	_ensure_bag_detail_panel()
 	if _bag_detail_panel == null:
 		return
 	_bag_detail_item_id = str(stack.get("id", ""))
 	for child: Node in _bag_detail_panel.get_children():
-		child.free()
+		if child.name != "VineFrame":
+			child.free()
+	if not _bag_detail_panel.gui_input.is_connected(_on_bag_detail_input):
+		_bag_detail_panel.gui_input.connect(_on_bag_detail_input)
 	var item_id: String = _bag_detail_item_id
+	var w: float = 320.0
+	var equippable: bool = Equipment.is_equippable(item_id)
+	var action_w: float = 100.0 if equippable else 0.0
+	var icon: Control = _make_item_icon(item_id, "")
+	icon.position = Vector2(22, 18)
+	icon.size = Vector2(32, 32)
+	_bag_detail_panel.add_child(icon)
 	var title := Label.new()
 	title.text = str(stack.get("display_name", item_id))
-	GameTheme.style_body_label(title)
-	title.position = Vector2(16, 12)
-	title.size = Vector2(288, 24)
+	GameTheme.style_heading_label(title)
+	title.position = Vector2(62, 12)
+	title.size = Vector2(w - 62 - 24, 40)
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_bag_detail_panel.add_child(title)
 	var body := Label.new()
 	body.text = _item_examine_text(item_id)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	GameTheme.style_body_label(body)
-	body.position = Vector2(16, 40)
-	body.size = Vector2(288, 120)
+	GameTheme.style_ink_label(body)
+	var body_w: float = w - 48.0 - (action_w + 8.0 if equippable else 0.0)
+	body.position = Vector2(24, 58)
+	body.size = Vector2(body_w, 20)
 	_bag_detail_panel.add_child(body)
-	var action := Button.new()
-	action.custom_minimum_size = Vector2(100, 44)
-	var equippable: bool = Equipment.is_equippable(item_id)
-	action.text = "Equip" if equippable else "Close"
-	action.position = Vector2(204, 168)
-	action.pressed.connect(_on_bag_detail_action.bind(equippable))
+	var lines: int = maxi(1, body.get_line_count())
+	var body_h: float = maxf(20.0 * lines, 44.0 if equippable else 0.0)
+	body.size = Vector2(body_w, 20.0 * lines)
+	var h: float = 58.0 + body_h + 20.0
 	if equippable:
-		GameTheme.style_primary_button(action)
-	else:
-		Ui540.style_wood_icon_button(action)
-	_bag_detail_panel.add_child(action)
-	_bag_detail_panel.custom_minimum_size = Vector2(320, 220)
-	_bag_detail_panel.size = Vector2(320, 220)
-	_bag_detail_panel.position = Vector2(BAG_PANEL_W - 336, 160)
+		var action := Button.new()
+		action.text = "Equip"
+		GameTheme.style_wood_button(action)
+		action.position = Vector2(w - 24.0 - action_w, h - 20.0 - 44.0)
+		action.size = Vector2(action_w, 44)
+		action.pressed.connect(_on_bag_detail_action.bind(true))
+		_bag_detail_panel.add_child(action)
+	_bag_detail_panel.custom_minimum_size = Vector2(w, h)
+	_bag_detail_panel.size = Vector2(w, h)
+	var scroll: Control = backpack_panel.get_node_or_null("InventoryScroll") as Control
+	var right: float = (scroll.position.x + scroll.size.x - 30.0) if scroll else backpack_panel.size.x - 36.0
+	var top: float = scroll.position.y if scroll else 24.0
+	var bottom: float = (scroll.position.y + scroll.size.y) if scroll else backpack_panel.size.y - 24.0
+	var y: float = top
+	if row != null and scroll != null:
+		var row_top: float = row.global_position.y - backpack_panel.global_position.y
+		y = row_top + row.size.y + 2.0
+		if y + h > bottom:
+			y = row_top - h - 2.0
+	_bag_detail_panel.position = Vector2(right - w, clampf(y, top, maxf(top, bottom - h)))
+	_bag_detail_panel.z_index = 2
 	_bag_detail_panel.visible = true
+
+
+func _on_bag_detail_input(ev: InputEvent) -> void:
+	if ev is InputEventMouseButton:
+		var mb: InputEventMouseButton = ev as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			_hide_bag_detail()
 
 
 func _on_bag_detail_action(equip: bool) -> void:
@@ -3445,84 +3657,213 @@ func _hide_bag_detail() -> void:
 
 
 func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
-	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H)
-	row.add_theme_constant_override("separation", 8)
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(0, BAG_ROW_H)
+	row.add_theme_stylebox_override("panel", Ui540.list_row_style())
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 8)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(line)
 	var stack_id: String = str(stack.get("id", ""))
 	var stack_name: String = str(stack.get("display_name", stack_id))
-	row.add_child(_make_item_icon(stack_id, stack_name))
+	var icon: Control = _make_item_icon(stack_id, stack_name)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(icon)
 	var lbl := Label.new()
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var count: int = int(stack.get("count", 0))
 	var name: String = str(stack.get("display_name", ""))
-	if str(stack.get("id", "")) == "stone_watering_can":
+	var count_text: String = "×%d" % count
+	if stack_id == "stone_watering_can":
 		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("tool_water_hint")]
+		count_text = ""
 	elif bool(stack.get("unique", false)):
 		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("tool_owned_hint")]
+		count_text = ""
 	else:
-		lbl.text = "%s  ×%d" % [name, count]
-	lbl.add_theme_font_size_override("font_size", 12)
-	lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl.text = name
+	GameTheme.style_ink_label(lbl)
+	lbl.clip_text = true
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var examine: String = _item_examine_text(str(stack.get("id", "")))
+	lbl.mouse_filter = Control.MOUSE_FILTER_PASS
+	var examine: String = _item_examine_text(stack_id)
 	if examine != "":
 		row.tooltip_text = examine
 		lbl.tooltip_text = examine
-	row.add_child(lbl)
+	line.add_child(lbl)
+	if count_text != "":
+		var cnt := Label.new()
+		cnt.text = count_text
+		GameTheme.style_ink_label(cnt)
+		cnt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		cnt.mouse_filter = Control.MOUSE_FILTER_PASS
+		line.add_child(cnt)
 	return row
 
 
+## One 44 px list row; the whole row is the (toggle) Button that selects the recipe, the
+## label line sits on top and ignores the mouse.
 func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	var def: Dictionary = Equipment.get_recipe_def(recipe_id) if equipment_out else Backpack.get_recipe_def(recipe_id)
 	var out_id: String = str(def.get("output_id", recipe_id))
-	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H + 8.0)
+	var row := Control.new()
+	row.custom_minimum_size = Vector2(0, BAG_ROW_H)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 8)
-	row.clip_contents = true
+	var btn := Button.new()
+	btn.name = "Pick"
+	btn.toggle_mode = true
+	btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_stylebox_override("normal", Ui540.list_row_style())
+	btn.add_theme_stylebox_override("hover", Ui540.kit_stylebox_9s("res://assets/ui/theme/pick_row_9s_hover_24x24.png", Vector4i(6, 6, 6, 6)))
+	btn.add_theme_stylebox_override("pressed", Ui540.list_row_style(true))
+	btn.add_theme_stylebox_override("hover_pressed", Ui540.list_row_style(true))
+	btn.pressed.connect(_on_bench_recipe_selected.bind(recipe_id))
+	row.add_child(btn)
+	var line := HBoxContainer.new()
+	line.set_anchors_preset(Control.PRESET_FULL_RECT)
+	line.offset_left = 6.0
+	line.offset_right = -10.0
+	line.add_theme_constant_override("separation", 8)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(line)
 	var craft_name: String = Equipment.item_display_name(out_id) if equipment_out else Backpack.item_display_name(out_id)
-	row.add_child(_make_item_icon(out_id, craft_name))
-	var info := VBoxContainer.new()
-	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.size_flags_stretch_ratio = 1.0
+	var reason: String = Equipment.craft_block_reason(recipe_id) if equipment_out else Backpack.craft_block_reason(recipe_id)
+	var icon: Control = _make_item_icon(out_id, craft_name)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if reason != "":
+		icon.modulate = Color(0.75, 0.72, 0.68, 0.7)
+	line.add_child(icon)
 	var name_lbl := Label.new()
-	name_lbl.text = Equipment.item_display_name(out_id) if equipment_out else Backpack.item_display_name(out_id)
-	name_lbl.add_theme_font_size_override("font_size", 13)
-	name_lbl.add_theme_color_override("font_color", GameTheme.INK)
+	name_lbl.text = craft_name
+	GameTheme.style_ink_label(name_lbl, reason != "")
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_lbl.clip_text = true
 	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	var cost_lbl := Label.new()
-	## Costs only — long tool/fertilizer fluff overflowed the panel.
-	cost_lbl.text = _craft_row_cost_text(recipe_id)
-	cost_lbl.add_theme_font_size_override("font_size", 11)
-	cost_lbl.add_theme_color_override("font_color", GameTheme.MUTED)
-	cost_lbl.clip_text = true
-	cost_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	cost_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
-	info.add_child(name_lbl)
-	info.add_child(cost_lbl)
-	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(72, 28)
-	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	btn.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var reason: String = Equipment.craft_block_reason(recipe_id) if equipment_out else Backpack.craft_block_reason(recipe_id)
+	line.add_child(name_lbl)
+	var state_lbl := Label.new()
 	if reason == "unique":
-		btn.text = ContentStrings.get_text("backpack_owned")
-		btn.disabled = true
-		_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
-	elif reason != "":
-		btn.text = ContentStrings.get_text("handcraft_prompt")
-		btn.disabled = true
-		_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
+		state_lbl.text = ContentStrings.get_text("backpack_owned")
+	elif reason == "":
+		state_lbl.text = "ready"
 	else:
-		btn.text = ContentStrings.get_text("handcraft_prompt")
-		_apply_button_chrome(btn, BUY_CAN, GOLD)
-		btn.pressed.connect(_on_bench_recipe_selected.bind(recipe_id))
-	row.add_child(info)
-	row.add_child(btn)
+		state_lbl.text = "short"
+	GameTheme.style_ink_label(state_lbl, true)
+	state_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(state_lbl)
+	row.tooltip_text = _craft_row_cost_text(recipe_id)
 	row.set_meta("recipe_id", recipe_id)
+	row.set_meta("gear", equipment_out)
 	return row
+
+
+func _bench_have(iid: String) -> int:
+	if StringName(iid) in Backpack.RESOURCE_IDS:
+		return GameState.get_resource(StringName(iid))
+	if Backpack.is_known_item(iid):
+		return Backpack.get_count(iid)
+	return Equipment.gear_count_anywhere(iid)
+
+
+func _bench_item_name(iid: String) -> String:
+	if StringName(iid) in Backpack.RESOURCE_IDS:
+		return ContentStrings.get_text("hud_%s" % iid)
+	if Backpack.is_known_item(iid):
+		return Backpack.item_display_name(iid)
+	return Equipment.item_display_name(iid)
+
+
+func _bench_detail_label(text: String, pos: Vector2, w: float, muted: bool = false) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	GameTheme.style_ink_label(lbl, muted)
+	lbl.position = pos
+	lbl.size = Vector2(w, 22)
+	lbl.clip_text = true
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_bench_detail.add_child(lbl)
+	return lbl
+
+
+func _refresh_bench_detail() -> void:
+	if _bench_detail == null:
+		return
+	for child: Node in _bench_detail.get_children():
+		child.queue_free()
+	var rid: String = _bench_selected
+	if rid == "":
+		return
+	var gear: bool = Equipment.has_recipe(rid)
+	var def: Dictionary = Equipment.get_recipe_def(rid) if gear else Backpack.get_recipe_def(rid)
+	var out_id: String = str(def.get("output_id", rid))
+	var rw: float = _bench_detail.size.x
+	var frame := Panel.new()
+	frame.position = Vector2.ZERO
+	frame.size = Vector2(108, 108)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2)))
+	_bench_detail.add_child(frame)
+	var big: Control = _make_item_icon(out_id, "")
+	big.position = Vector2(6, 6)
+	big.size = Vector2(96, 96)
+	big.custom_minimum_size = Vector2(96, 96)
+	if big is TextureRect:
+		(big as TextureRect).expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	frame.add_child(big)
+	var tx: float = 124.0
+	var name_lbl := Label.new()
+	name_lbl.text = _bench_item_name(out_id)
+	GameTheme.style_heading_label(name_lbl)
+	name_lbl.position = Vector2(tx, -2)
+	name_lbl.size = Vector2(rw - tx, 40)
+	name_lbl.clip_text = true
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_bench_detail.add_child(name_lbl)
+	var cat: String = _bench_recipe_category(rid, gear)
+	var sub: String = {"weapons": "Weapon", "tools": "Tool", "parts": "Part"}.get(cat, "")
+	var stats: String = ""
+	if gear:
+		var item: Dictionary = Equipment.get_item_def(out_id)
+		var kind: String = str(item.get("damage_kind", ""))
+		if kind != "":
+			sub += " · " + kind.capitalize()
+		var bon: Variant = item.get("bonuses", {})
+		if typeof(bon) == TYPE_DICTIONARY:
+			var bits: PackedStringArray = PackedStringArray()
+			for stat: Variant in (bon as Dictionary).keys():
+				bits.append("%s +%d" % [str(stat).capitalize(), int((bon as Dictionary)[stat])])
+			stats = "  ".join(bits)
+	if stats == "":
+		stats = _item_examine_text(out_id).get_slice("\n", 0)
+	if stats == "" or stats == name_lbl.text:
+		stats = "—"
+	_bench_detail_label(sub, Vector2(tx, 34), rw - tx, true)
+	_bench_detail_label(stats, Vector2(tx, 56), rw - tx)
+	_bench_detail_label("Handcraft at the Bench", Vector2(tx, 78), rw - tx, true)
+	var mat_title := _bench_detail_label("Materials", Vector2(0, 118), rw)
+	mat_title.add_theme_font_override("font", GameTheme.title_font())
+	var ings: Dictionary = Equipment.get_recipe_ingredients(rid) if gear else Backpack.get_recipe_ingredients(rid)
+	var col_w: float = floorf(rw * 0.5)
+	var j: int = 0
+	for key: Variant in ings.keys():
+		var iid: String = str(key)
+		var need: int = int(ings[key])
+		var have: int = _bench_have(iid)
+		var mx: float = float(j % 2) * col_w
+		var my: float = 142.0 + float(j / 2) * 40.0
+		var ic: Control = _make_item_icon(iid, _bench_item_name(iid))
+		ic.position = Vector2(mx, my + 2)
+		ic.size = Vector2(32, 32)
+		_bench_detail.add_child(ic)
+		_bench_detail_label(_bench_item_name(iid), Vector2(mx + 38, my + 7), col_w - 38 - 80)
+		var cnt := _bench_detail_label("%d/%d" % [have, need], Vector2(mx + col_w - 12 - 76, my + 7), 76)
+		cnt.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		if have < need:
+			cnt.add_theme_color_override("font_color", SHORT_RED)
+		j += 1
 
 
 func _item_examine_text(item_id: String) -> String:
@@ -3580,7 +3921,13 @@ func _on_bench_recipe_selected(recipe_id: String) -> void:
 	var panel: BatchPanel = _ensure_bench_batch()
 	if panel == null:
 		return
+	_bench_selected = recipe_id
 	panel.bind_recipe(recipe_id)
+	for row: Node in craft_list.get_children():
+		var pick: Button = row.get_node_or_null("Pick") as Button
+		if pick:
+			pick.set_pressed_no_signal(str(row.get_meta("recipe_id", "")) == recipe_id)
+	_refresh_bench_detail()
 
 
 func _on_craft(recipe_id: String) -> void:
@@ -3886,22 +4233,22 @@ func _rebuild_upgrades() -> void:
 		if _shop_preview_mode:
 			btn.text = ContentStrings.get_text("ascend_shop_preview_tag")
 			btn.disabled = true
-			_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
+			GameTheme.style_wood_button(btn)
 		elif not unlocked:
 			btn.text = ContentStrings.get_text("upgrade_buy")
 			btn.disabled = true
-			_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
+			GameTheme.style_wood_button(btn)
 		elif maxed:
 			btn.text = ContentStrings.get_text("upgrade_maxed")
 			btn.disabled = true
-			_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
+			GameTheme.style_wood_button(btn)
 		elif GameState.manashards < cost:
 			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
 			btn.disabled = true
-			_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
+			GameTheme.style_wood_button(btn)
 		else:
 			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
-			_apply_button_chrome(btn, BUY_CAN, GOLD)
+			GameTheme.style_wood_button(btn)
 			btn.pressed.connect(_on_buy.bind(uid))
 		var keep_cost_tip: String = _upgrade_keep_tools_cost_text(uid, cost)
 		if keep_cost_tip != "":

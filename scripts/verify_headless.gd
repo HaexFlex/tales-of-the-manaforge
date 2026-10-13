@@ -2583,7 +2583,7 @@ func _run() -> void:
 		var care_sz_v: Variant = care_metrics.get("size", Vector2.ZERO)
 		failed += _assert(care_sz_v is Vector2, "care size is Vector2")
 		var care_sz: Vector2 = care_sz_v as Vector2
-		failed += _assert(abs(care_sz.x - 520.0) < 1.5 and abs(care_sz.y - 420.0) < 1.5, "care 520x420 (got %s)" % care_sz)
+		failed += _assert(abs(care_sz.x - 600.0) < 1.5 and abs(care_sz.y - 440.0) < 1.5, "care 600x440 (got %s)" % care_sz)
 		failed += _assert(abs(float(care_metrics.get("header_h", 0)) - 64.0) < 1.5, "care header 64")
 		failed += _assert(abs(float(care_metrics.get("action_band_h", 0)) - 56.0) < 1.5, "care action band 56")
 		game_state.call("set_resource", &"essence", 200)
@@ -2637,7 +2637,7 @@ func _run() -> void:
 		var pay_anc: Button = test_hud.get_node_or_null("CarePanel/ActionBand/PayButton") as Button
 		failed += _assert(pay_anc != null and not pay_anc.visible, "ancient hides Pay")
 		if water_cta and harvest_cta:
-			failed += _assert(water_cta.position.x < harvest_cta.position.x, "action band Water left of Fruit")
+			failed += _assert(harvest_cta.position.x < water_cta.position.x, "action band Fruit left of Water")
 		var pre_hint: Label = test_hud.get_node_or_null("CarePanel/FruitReadyCard/PrecommitHint") as Label
 		failed += _assert(pre_hint != null and str(pre_hint.text).find("Keep watering") >= 0, "care hint tree_ancient_care_hint")
 		failed += _assert(pre_hint != null and str(pre_hint.text).find("still water") < 0, "care hint hides tree_water_ancient_note")
@@ -3086,7 +3086,7 @@ func _run() -> void:
 		var pack_metrics: Dictionary = pack_hud.call("get_backpack_layout_metrics")
 		var bench_metrics: Dictionary = pack_hud.call("get_bench_layout_metrics")
 		failed += _assert(bool(bench_metrics.get("fits", false)), "craft scroll width ≤ bench panel")
-		failed += _assert(float(pack_metrics.get("panel_w", 0)) >= 630.0, "backpack panel widened")
+		failed += _assert(absf(float(pack_metrics.get("panel_w", 0)) - 560.0) < 1.5, "backpack panel 560 wide")
 		if craft_box:
 			var fluff: int = 0
 			for row: Node in craft_box.get_children():
