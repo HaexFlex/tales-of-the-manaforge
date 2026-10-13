@@ -67,6 +67,7 @@ func _process(delta: float) -> void:
 func _refresh_save_info() -> void:
 	if save_info == null:
 		return
+	save_info.add_theme_color_override("font_color", GameTheme.MUTED)
 	if not SaveService.has_save():
 		save_info.visible = false
 		save_info.text = ""
