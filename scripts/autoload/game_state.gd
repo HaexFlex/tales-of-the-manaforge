@@ -920,10 +920,14 @@ func get_upgrade_def(upgrade_id: String) -> Dictionary:
 
 
 func upgrade_art_path(upgrade_id: String) -> String:
-	## Same lookup as Equipment.item_art_path: ui/<art_name>.png, then ui/icons/.
+	## Same lookup as Equipment.item_art_path (assets_extra/ascension/ first for blessings).
 	var art_name: String = str(get_upgrade_def(upgrade_id).get("art_name", ""))
 	if art_name == "":
 		return ""
+	for extra_dir: String in [AssetsExtra.ROOT + "ascension/", AssetsExtra.SHARED]:
+		var extra: String = "%s%s.png" % [extra_dir, art_name]
+		if ResourceLoader.exists(extra):
+			return extra
 	var direct: String = "res://assets/art/ui/%s.png" % art_name
 	if ResourceLoader.exists(direct):
 		return direct

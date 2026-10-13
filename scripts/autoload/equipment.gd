@@ -163,12 +163,15 @@ func slot_anchor(slot_id: String) -> Vector2:
 
 func item_art_path(item_id: String) -> String:
 	## Standalone icon from equipment.json or the backpack item's art_name.
-	## Files live either in ui/ or ui/icons/. The HUD sheet is a separate path.
+	## The 540p package (assets_extra/shared/) wins; then ui/ or ui/icons/. The HUD sheet is a separate path.
 	var art_name: String = str(get_item_def(item_id).get("art_name", ""))
 	if art_name == "" and has_node("/root/Backpack"):
 		art_name = str(Backpack.get_item_def(item_id).get("art_name", ""))
 	if art_name == "":
 		return ""
+	var extra: String = "%s%s.png" % [AssetsExtra.SHARED, art_name]
+	if ResourceLoader.exists(extra):
+		return extra
 	var direct: String = "res://assets/art/ui/%s.png" % art_name
 	if ResourceLoader.exists(direct):
 		return direct
