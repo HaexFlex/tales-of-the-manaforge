@@ -3,6 +3,14 @@ extends Control
 
 const MAIN_SCENE: String = "res://scenes/main.tscn"
 const KIT_DIALOG: PackedScene = preload("res://scenes/ui/kit_dialog.tscn")
+const LOGO_POS: Vector2 = Vector2(52, 22)
+const MENU_POS: Vector2 = Vector2(166, 168)
+## Frame padding around the menu column: left, top, right, bottom.
+const MENU_FRAME_PAD: Vector4 = Vector4(28, 20, 28, 22)
+const WOOD_FILL: Color = Color8(104, 66, 38)
+const WOOD_SEAM: Color = Color8(80, 48, 27)
+const WOOD_BOARD_H: float = 26.0
+const SAVE_CHIP_H: float = 24.0
 
 @onready var fade: ColorRect = $Fade
 @onready var menu: VBoxContainer = $Menu
@@ -20,6 +28,8 @@ var _index: int = 0
 var _fade: float = 1.0
 var _confirm_action: String = ""
 var _active_dialog: KitDialog
+var _menu_frame: Panel
+var _version_label: Label
 
 
 func _ready() -> void:
@@ -60,18 +70,90 @@ func _ready() -> void:
 	call_deferred("_arm_menu_when_idle")
 
 
+## The background covers the whole logical viewport (cropped at 16:9, full art at 20:9);
+## only the logo and the menu frame follow the 960 design canvas.
 func _layout_title540() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
 	var shift: float = Ui540.center_shift_x()
 	var bg: TextureRect = get_node_or_null("Background") as TextureRect
 	if bg:
-		bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		var bg_w: float = 1200.0
-		bg.position = Vector2((vs.x - bg_w) * 0.5 + shift, 0.0)
-		bg.size = Vector2(bg_w, vs.y)
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.offset_left = 0.0
+		bg.offset_top = 0.0
+		bg.offset_right = 0.0
+		bg.offset_bottom = 0.0
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	if logo:
-		logo.position = Vector2(48.0 + shift, 72.0)
-	menu.position = Vector2(48.0 + shift, 188.0)
+		logo.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		logo.position = Vector2(LOGO_POS.x + shift, LOGO_POS.y)
+		logo.size = logo.texture.get_size() if logo.texture else logo.size
+	_ensure_menu_frame()
+	menu.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	menu.size = Vector2.ZERO
+	var menu_size: Vector2 = menu.get_combined_minimum_size()
+	menu.position = Vector2(MENU_POS.x + shift, MENU_POS.y)
+	menu.size = menu_size
+	_menu_frame.position = menu.position - Vector2(MENU_FRAME_PAD.x, MENU_FRAME_PAD.y)
+	_menu_frame.size = menu_size + Vector2(MENU_FRAME_PAD.x + MENU_FRAME_PAD.z, MENU_FRAME_PAD.y + MENU_FRAME_PAD.w)
+	_version_label.size = Vector2(240.0, 24.0)
+	_version_label.position = Vector2(vs.x - 12.0 - 240.0, vs.y - 10.0 - 24.0)
+
+
+func _ensure_menu_frame() -> void:
+	if _menu_frame != null:
+		return
+	_menu_frame = Panel.new()
+	_menu_frame.name = "MenuFrame"
+	_menu_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var border: StyleBoxTexture = Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/frame_9s_96.png", Vector4i(24, 24, 24, 24), Vector4.ZERO, true
+	)
+	border.draw_center = false
+	var rim := Panel.new()
+	rim.name = "Rim"
+	rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rim.add_theme_stylebox_override("panel", border)
+	_menu_frame.add_child(rim)
+	var fill := Control.new()
+	fill.name = "WoodFill"
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fill.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fill.offset_left = 19.0
+	fill.offset_top = 19.0
+	fill.offset_right = -19.0
+	fill.offset_bottom = -19.0
+	fill.draw.connect(_draw_wood_fill.bind(fill))
+	_menu_frame.add_child(fill)
+	_menu_frame.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	add_child(_menu_frame)
+	move_child(_menu_frame, menu.get_index())
+	var vines: VineFrame = Ui540.attach_vine_frame(_menu_frame, "title")
+	_menu_frame.move_child(vines, _menu_frame.get_child_count() - 1)
+	fill.resized.connect(fill.queue_redraw)
+
+	_version_label = Label.new()
+	_version_label.name = "Version"
+	_version_label.text = "v%s" % str(ProjectSettings.get_setting("application/config/version", ""))
+	_version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_version_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_version_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_version_label.add_theme_font_override("font", GameTheme.body_font())
+	_version_label.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	_version_label.add_theme_color_override("font_color", Color(GameTheme.CREAM_BTN, 0.6))
+	add_child(_version_label)
+	move_child(_version_label, menu.get_index() + 1)
+
+
+## Dark plank boards behind the menu buttons (the mockup's wood panel; the kit has no such piece).
+func _draw_wood_fill(fill: Control) -> void:
+	var sz: Vector2 = fill.size
+	fill.draw_rect(Rect2(Vector2.ZERO, sz), WOOD_FILL)
+	var y: float = WOOD_BOARD_H
+	while y < sz.y:
+		fill.draw_rect(Rect2(0.0, y, sz.x, 2.0), WOOD_SEAM)
+		y += WOOD_BOARD_H
 
 
 func _process(delta: float) -> void:
@@ -84,7 +166,18 @@ func _process(delta: float) -> void:
 func _refresh_save_info() -> void:
 	if save_info == null:
 		return
+	save_info.theme_type_variation = &""
+	save_info.add_theme_font_override("font", GameTheme.body_font())
+	save_info.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
 	save_info.add_theme_color_override("font_color", GameTheme.MUTED)
+	save_info.add_theme_stylebox_override("normal", Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/field_9s_normal_24x24.png", Vector4i(6, 6, 6, 6), Vector4(8, 1, 8, 1)
+	))
+	save_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	save_info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	save_info.autowrap_mode = TextServer.AUTOWRAP_OFF
+	save_info.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	save_info.custom_minimum_size = Vector2(0, SAVE_CHIP_H)
 	if not SaveService.has_save():
 		save_info.visible = false
 		save_info.text = ""
@@ -99,7 +192,8 @@ func _refresh_save_info() -> void:
 	var slot_label: String = "Slot %d" % slot if kind == "manual" else ContentStrings.get_text("load_autosave_slot", {"n": slot})
 	var ts: float = float(rec.get("timestamp", 0.0))
 	var ago: String = _format_time_ago(ts)
-	save_info.text = "Last save: %s · %s" % [slot_label, ago]
+	save_info.text = "%s · %s" % [slot_label, ago]
+	save_info.tooltip_text = "Last save: %s" % save_info.text
 
 
 func _format_time_ago(ts: float) -> String:
