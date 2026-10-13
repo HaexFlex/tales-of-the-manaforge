@@ -158,6 +158,8 @@ func _run() -> void:
 	failed += _res540_bag_sanity()
 	failed += _res540_board_sanity()
 	failed += _res540_battle_sanity()
+	failed += _res540_care_sanity()
+	failed += _res540_debug_sanity()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -1411,6 +1413,24 @@ func _res540_shop_sanity() -> int:
 	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
 	failed += _check(hud_src.find("const SHOP_SIZE: Vector2 = Vector2(912, 472)") >= 0, "shop size 912x472 in hud.gd")
 	failed += _check(912.0 + 48.0 <= 960.0 and 472.0 + 48.0 <= 540.0, "shop fits 540p with 24px margins")
+	return failed
+
+
+func _res540_debug_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	failed += _check(src.find("_build_tab_overlays") >= 0, "debug540 overlays tab")
+	failed += _check(src.find("_build_tab_runes") >= 0, "debug540 runes tab")
+	failed += _check(src.find("Search all tabs") >= 0, "debug540 search field")
+	return failed
+
+
+func _res540_care_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _check(src.find("BlessingsPreviewButton") >= 0, "manatree540 blessings icon")
+	failed += _check(src.find("const CARE_SIZE: Vector2 = Vector2(600, 440)") >= 0, "manatree540 window 600x440")
+	failed += _check(src.find("CARE_SIZE.x - 124.0") >= 0, "blessings left of close")
 	return failed
 
 

@@ -121,18 +121,42 @@ func _build_ui() -> void:
 	GameTheme.style_body_label(subtitle)
 	root.add_child(subtitle)
 
+	_search = LineEdit.new()
+	_search.placeholder_text = "Search all tabs…"
+	_search.custom_minimum_size = Vector2(0, 44)
+	root.add_child(_search)
+
+	var pin_row := HBoxContainer.new()
+	pin_row.add_theme_constant_override("separation", 8)
+	_add_button(pin_row, "Go to shop", _on_ascension_pressed).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_add_button(pin_row, "Skip station work", _on_skip_pressed).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_add_button(pin_row, "+1000 Manashards", _on_preset_grant.bind(1000)).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_add_button(pin_row, "Ancient ready", _on_snapshot_pressed.bind(str(SNAPSHOTS["Ancient ready"]), "Ancient ready")).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	root.add_child(pin_row)
+
 	var tabs := TabContainer.new()
 	tabs.name = "DebugTabs"
 	tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tabs.custom_minimum_size = Vector2(0, 520)
 	root.add_child(tabs)
-	_build_tab_time_save(tabs)
-	_build_tab_resources(tabs)
-	_build_tab_forge(tabs)
 	_build_tab_tree(tabs)
+	_build_tab_resources(tabs)
 	_build_tab_reach(tabs)
 	_build_tab_party(tabs)
+	_build_tab_forge(tabs)
+	_build_tab_runes(tabs)
 	_build_tab_battle(tabs)
+	_build_tab_time_save(tabs)
+	_build_tab_overlays(tabs)
+	tabs.set_tab_title(0, "Tree")
+	tabs.set_tab_title(1, "Items")
+	tabs.set_tab_title(2, "Reach")
+	tabs.set_tab_title(3, "Party")
+	tabs.set_tab_title(4, "Forge")
+	tabs.set_tab_title(5, "Runes")
+	tabs.set_tab_title(6, "Battle")
+	tabs.set_tab_title(7, "Time")
+	tabs.set_tab_title(8, "Overlays")
 
 	_status = Label.new()
 	_status.name = "Status"
@@ -279,6 +303,10 @@ func _build_tab_party(tabs: TabContainer) -> void:
 	var bramble := _add_button(box, "Recruit Bramble [ON HOLD]", _on_bramble_hold)
 	bramble.disabled = true
 	bramble.tooltip_text = "Bramble is ON HOLD — not implemented."
+
+
+func _build_tab_runes(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Runestones")
 	_add_section(box, "Runestone ranks")
 	_rune_pick = OptionButton.new()
 	for sid: StringName in KeeperStats.STAT_ORDER:
@@ -289,6 +317,16 @@ func _build_tab_party(tabs: TabContainer) -> void:
 	_rune_rank.max_value = 9999
 	box.add_child(_rune_rank)
 	_add_button(box, "Set runestone rank", _on_set_rune_rank)
+
+
+func _build_tab_overlays(tabs: TabContainer) -> void:
+	var box := _tab_scroll(tabs, "Visual / Debug overlays")
+	_add_button(box, "Toggle debug panel (close)", _on_close_pressed)
+	_add_button(box, "Open AnimPreview scene", func() -> void:
+		var path: String = "res://tools/AnimPreview.tscn"
+		if ResourceLoader.exists(path):
+			get_tree().call_deferred("change_scene_to_file", path)
+	)
 
 
 func _build_tab_battle(tabs: TabContainer) -> void:
