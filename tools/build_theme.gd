@@ -7,7 +7,10 @@ const INK := Color8(62, 42, 24)
 const CREAM := Color8(243, 230, 200)
 const OUTLINE := Color8(26, 15, 8)
 const MUTED := Color8(90, 62, 40)
-const DIS := Color8(66, 52, 40)
+const DIS := INK
+## The kit's disabled faces are grey; tinted they read as muted wood (warm tan, flat, no grain),
+## so disabled stays obvious while ink caps keep their contrast.
+const DIS_TINT := Color(1.2, 1.1, 0.93)
 # measured cap heights (px ink, top of "H" to baseline) - see MOCKUPS.md v8c
 const CAP := {"silver19": 9, "silver38": 18, "jersey30": 16}
 
@@ -32,6 +35,11 @@ func sbt(n: String, m: Array, cm: Array = [], tile := false, expand: Array = [])
 		s.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
 	if expand.size() == 4:
 		s.expand_margin_left = expand[0]; s.expand_margin_top = expand[1]; s.expand_margin_right = expand[2]; s.expand_margin_bottom = expand[3]
+	return s
+
+func dis_sbt(n: String, m: Array, cm: Array = []) -> StyleBoxTexture:
+	var s := sbt(n, m, cm)
+	s.modulate_color = DIS_TINT
 	return s
 
 func centred_variation(base: FontFile, size: int, cap: int, embolden := 0.0) -> FontVariation:
@@ -100,7 +108,7 @@ func _init() -> void:
 	th.set_stylebox("hover", "Button", sbt("wood_button_9s_hover_32x28.png", [6, 6, 6, 6], [12, 1, 12, 5]))
 	th.set_stylebox("pressed", "Button", sbt("wood_button_9s_pressed_32x28.png", [6, 6, 6, 6], [12, 4, 12, 4]))
 	th.set_stylebox("hover_pressed", "Button", sbt("wood_button_9s_selected_32x28.png", [6, 6, 6, 6], [12, 4, 12, 4]))
-	th.set_stylebox("disabled", "Button", sbt("wood_button_9s_disabled_32x28.png", [6, 6, 6, 6], [12, 1, 12, 5]))
+	th.set_stylebox("disabled", "Button", dis_sbt("wood_button_9s_disabled_32x28.png", [6, 6, 6, 6], [12, 1, 12, 5]))
 	th.set_stylebox("focus", "Button", focus)
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]: th.set_color(c, "Button", CREAM)
 	th.set_color("font_disabled_color", "Button", DIS)
@@ -143,7 +151,7 @@ func _init() -> void:
 	th.set_stylebox("normal", "PrimaryButton", sbt("action_button_normal_160x44.png", [8, 8, 8, 8], [20, 1, 20, 5]))
 	th.set_stylebox("hover", "PrimaryButton", sbt("action_button_hover_160x44.png", [8, 8, 8, 8], [20, 1, 20, 5]))
 	th.set_stylebox("pressed", "PrimaryButton", sbt("action_button_pressed_160x44.png", [8, 8, 8, 8], [20, 4, 20, 4]))
-	th.set_stylebox("disabled", "PrimaryButton", sbt("action_button_disabled_160x44.png", [8, 8, 8, 8], [20, 1, 20, 5]))
+	th.set_stylebox("disabled", "PrimaryButton", dis_sbt("action_button_disabled_160x44.png", [8, 8, 8, 8], [20, 1, 20, 5]))
 	th.set_font("font", "PrimaryButton", primary); th.set_font_size("font_size", "PrimaryButton", 38)
 	# fallback faux bold if embolden rasterises soft: uncomment (1 px outline in the font colour)
 	# th.set_constant("outline_size", "PrimaryButton", 1); th.set_color("font_outline_color", "PrimaryButton", CREAM)
@@ -153,13 +161,13 @@ func _init() -> void:
 	th.set_stylebox("normal", "CloseButton", sbt("stop_button_normal_104x28.png", [8, 8, 8, 8], [10, 1, 8, 5]))
 	th.set_stylebox("hover", "CloseButton", sbt("stop_button_hover_104x28.png", [8, 8, 8, 8], [10, 1, 8, 5]))
 	th.set_stylebox("pressed", "CloseButton", sbt("stop_button_pressed_104x28.png", [8, 8, 8, 8], [10, 4, 8, 4]))
-	th.set_stylebox("disabled", "CloseButton", sbt("stop_button_disabled_104x28.png", [8, 8, 8, 8], [10, 1, 8, 5]))
+	th.set_stylebox("disabled", "CloseButton", dis_sbt("stop_button_disabled_104x28.png", [8, 8, 8, 8], [10, 1, 8, 5]))
 
 	# ---- TabBar / TabContainer
 	th.set_stylebox("tab_unselected", "TabBar", sbt("wood_button_9s_normal_32x28.png", [6, 6, 6, 6], [12, 1, 12, 5]))
 	th.set_stylebox("tab_hovered", "TabBar", sbt("wood_button_9s_hover_32x28.png", [6, 6, 6, 6], [12, 1, 12, 5]))
 	th.set_stylebox("tab_selected", "TabBar", sbt("wood_button_9s_selected_32x28.png", [6, 6, 6, 6], [12, 4, 12, 4]))
-	th.set_stylebox("tab_disabled", "TabBar", sbt("wood_button_9s_disabled_32x28.png", [6, 6, 6, 6], [12, 1, 12, 5]))
+	th.set_stylebox("tab_disabled", "TabBar", dis_sbt("wood_button_9s_disabled_32x28.png", [6, 6, 6, 6], [12, 1, 12, 5]))
 	th.set_stylebox("tab_focus", "TabBar", focus)
 	for c in ["font_selected_color", "font_unselected_color", "font_hovered_color"]: th.set_color(c, "TabBar", CREAM)
 	th.set_color("font_disabled_color", "TabBar", DIS)
@@ -232,7 +240,7 @@ func _init() -> void:
 	th.set_stylebox("hover", "PopupMenu", sbt("pick_row_9s_hover_24x24.png", [6, 6, 6, 6]))
 	th.set_stylebox("panel", "PopupPanel", sbt("popup_9s_32x32.png", [8, 8, 8, 8], [8, 8, 8, 8]))
 	for c in ["font_color", "font_hover_color", "font_accelerator_color"]: th.set_color(c, "PopupMenu", INK)
-	th.set_color("font_disabled_color", "PopupMenu", DIS)
+	th.set_color("font_disabled_color", "PopupMenu", MUTED)
 	th.set_constant("v_separation", "PopupMenu", 6)
 
 	if body == null or primary == null or title == null:

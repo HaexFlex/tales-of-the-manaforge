@@ -61,6 +61,7 @@ texture_margin_left = 6.0
 texture_margin_top = 6.0
 texture_margin_right = 6.0
 texture_margin_bottom = 6.0
+modulate_color = Color(1.2, 1.1, 0.93, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_61qtb"]
 texture = ExtResource("3_61qtb")
@@ -137,6 +138,7 @@ texture_margin_left = 8.0
 texture_margin_top = 8.0
 texture_margin_right = 8.0
 texture_margin_bottom = 8.0
+modulate_color = Color(1.2, 1.1, 0.93, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_1e2vj"]
 content_margin_left = 10.0
@@ -277,6 +279,7 @@ texture_margin_left = 8.0
 texture_margin_top = 8.0
 texture_margin_right = 8.0
 texture_margin_bottom = 8.0
+modulate_color = Color(1.2, 1.1, 0.93, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_hjvkl"]
 content_margin_left = 20.0
@@ -372,6 +375,7 @@ texture_margin_left = 6.0
 texture_margin_top = 6.0
 texture_margin_right = 6.0
 texture_margin_bottom = 6.0
+modulate_color = Color(1.2, 1.1, 0.93, 1)
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_rm42b"]
 content_margin_left = 12.0
@@ -500,7 +504,7 @@ BigButton/base_type = &"Button"
 BigButton/font_sizes/font_size = 38
 BigButton/fonts/font = ExtResource("23_scq3v")
 Button/colors/font_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
-Button/colors/font_disabled_color = Color(0.25882354, 0.20392157, 0.15686275, 1)
+Button/colors/font_disabled_color = Color(0.24313726, 0.16470589, 0.09411765, 1)
 Button/colors/font_focus_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
 Button/colors/font_hover_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
 Button/colors/font_hover_pressed_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
@@ -570,7 +574,7 @@ Panel/styles/panel = SubResource("StyleBoxTexture_sphc3")
 PanelContainer/styles/panel = SubResource("StyleBoxTexture_sphc3")
 PopupMenu/colors/font_accelerator_color = Color(0.24313726, 0.16470589, 0.09411765, 1)
 PopupMenu/colors/font_color = Color(0.24313726, 0.16470589, 0.09411765, 1)
-PopupMenu/colors/font_disabled_color = Color(0.25882354, 0.20392157, 0.15686275, 1)
+PopupMenu/colors/font_disabled_color = Color(0.3529412, 0.24313726, 0.15686275, 1)
 PopupMenu/colors/font_hover_color = Color(0.24313726, 0.16470589, 0.09411765, 1)
 PopupMenu/constants/v_separation = 6
 PopupMenu/styles/hover = SubResource("StyleBoxTexture_x6117")
@@ -610,7 +614,7 @@ SpinBox/styles/up_background_disabled = SubResource("StyleBoxEmpty_6pqq3")
 SpinBox/styles/up_background_hovered = SubResource("StyleBoxEmpty_5ux50")
 SpinBox/styles/up_background_pressed = SubResource("StyleBoxEmpty_8s4e5")
 SpinBox/styles/up_down_buttons_separator = SubResource("StyleBoxEmpty_70ram")
-TabBar/colors/font_disabled_color = Color(0.25882354, 0.20392157, 0.15686275, 1)
+TabBar/colors/font_disabled_color = Color(0.24313726, 0.16470589, 0.09411765, 1)
 TabBar/colors/font_hovered_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
 TabBar/colors/font_selected_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
 TabBar/colors/font_unselected_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
@@ -632,7 +636,7 @@ TabContainer/styles/tab_selected = SubResource("StyleBoxTexture_cq3wc")
 TabContainer/styles/tab_unselected = SubResource("StyleBoxTexture_mu614")
 TitleMenuButton/base_type = &"Button"
 TitleMenuButton/colors/font_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
-TitleMenuButton/colors/font_disabled_color = Color(0.25882354, 0.20392157, 0.15686275, 1)
+TitleMenuButton/colors/font_disabled_color = Color(0.24313726, 0.16470589, 0.09411765, 1)
 TitleMenuButton/colors/font_focus_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
 TitleMenuButton/colors/font_hover_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
 TitleMenuButton/colors/font_hover_pressed_color = Color(0.9529412, 0.9019608, 0.78431374, 1)
