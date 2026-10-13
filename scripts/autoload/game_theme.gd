@@ -183,6 +183,13 @@ func style_wood_button(btn: Button) -> void:
 	btn.add_theme_font_size_override("font_size", BODY_SIZE)
 
 
+## Wood tab: Silver 19 caps, the selected face while pressed.
+func style_tab_button(btn: Button) -> void:
+	style_wood_button(btn)
+	btn.theme_type_variation = &"ToggleButton"
+	btn.toggle_mode = true
+
+
 ## Faceless text button sitting on parchment: ink caps.
 func style_ink_button(btn: Button) -> void:
 	btn.theme_type_variation = &"InkButton"

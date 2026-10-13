@@ -193,10 +193,188 @@ static func apply_kit_frame_panel(panel: Panel, window_id: String) -> VineFrame:
 	return attach_vine_frame(panel, window_id)
 
 
+## Parchment list row (bag, bench, shop): 44 px tall rows on a 48 px pitch inside the bevel.
+static func list_row_style(selected: bool = false) -> StyleBoxTexture:
+	var file: String = "pick_row_9s_current_24x24.png" if selected else "list_row_9s_even_24x24.png"
+	return kit_stylebox_9s("res://assets/ui/theme/" + file, Vector4i(6, 6, 6, 6), Vector4(8, 4, 12, 4))
+
+
+const _INK: Color = Color8(62, 42, 24)
+const _CUE_CREAM: Color = Color8(243, 230, 200)
+const _CUE_OUTLINE: Color = Color8(26, 15, 8)
+const CONFIRM_W: float = 520.0
+const CONFIRM_BTN_H: float = 44.0
+const CONFIRM_BTN_GAP: float = 16.0
+const CONFIRM_MAX_W: float = 640.0
+
+
+## kit_dialog look for confirms built in place (HUD, pause, runestone): kit frame, plank title,
+## centred Silver 19 ink body, optional amber note, action = wood button LEFT, safe = primary
+## RIGHT, no ×. Height follows the body so there is no empty band.
+static func layout_confirm(
+	panel: Control,
+	title: Label,
+	body: Label,
+	action: Button,
+	safe: Button,
+	note: Label = null,
+	width: float = CONFIRM_W,
+) -> void:
+	if panel is Panel and panel.get_node_or_null("VineFrame") == null:
+		apply_kit_frame_panel(panel as Panel, str(panel.name).to_snake_case())
+	var body_font: Font = load("res://assets/fonts/font_body_silver19.tres") as Font
+	var action_w: float = 0.0
+	var safe_w: float = 0.0
+	if action:
+		action.theme_type_variation = &"BigButton"
+		action.remove_theme_font_override("font")
+		action.remove_theme_font_size_override("font_size")
+		action_w = maxf(160.0, _button_text_w(action) + 30.0)
+	if safe:
+		safe.theme_type_variation = &"PrimaryButton"
+		safe.remove_theme_font_override("font")
+		safe.remove_theme_font_size_override("font_size")
+		safe_w = maxf(200.0, _button_text_w(safe) + 40.0)
+	width = clampf(action_w + CONFIRM_BTN_GAP + safe_w + 72.0, width, minf(CONFIRM_MAX_W, max_window_w()))
+	var inner: float = width - 72.0
+	var y: float = 36.0
+	if title:
+		title.theme_type_variation = &"TitlePlank"
+		title.remove_theme_font_override("font")
+		title.remove_theme_font_size_override("font_size")
+		title.remove_theme_color_override("font_color")
+		place_title_plank(title, width)
+	for lbl: Label in [body, note]:
+		if lbl == null:
+			continue
+		lbl.add_theme_font_override("font", body_font)
+		lbl.add_theme_font_size_override("font_size", 19)
+		lbl.add_theme_color_override("font_color", WARNING_AMBER if lbl == note else _INK)
+		lbl.remove_theme_color_override("font_shadow_color")
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		# The cached minimum keeps the unwrapped width until refreshed, and `size` clamps to it.
+		lbl.update_minimum_size()
+		lbl.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		lbl.position = Vector2(36, y)
+		lbl.size = Vector2(inner, 20)
+		var lines: int = text_line_count(lbl.text, body_font, 19, inner)
+		lbl.visible = lines > 0
+		var spacing: float = float(lbl.get_theme_constant("line_spacing"))
+		lbl.size = Vector2(inner, maxf(20.0, (body_font.get_height(19) + spacing) * lines))
+		if lines > 0:
+			y += lbl.size.y + 12.0
+	y += 8.0
+	var sw: float = floorf(maxf(200.0, minf(safe_w, (inner - CONFIRM_BTN_GAP) * 0.5))) if action else inner
+	var aw: float = inner - CONFIRM_BTN_GAP - sw if safe else inner
+	if action:
+		action.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		action.position = Vector2(36, y)
+		action.custom_minimum_size = Vector2(0, CONFIRM_BTN_H)
+		_clear_button_overrides(action)
+		fit_button_font(action, aw + 10.0)
+		action.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		action.size = Vector2(aw, CONFIRM_BTN_H)
+	if safe:
+		safe.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		safe.position = Vector2(width - 36.0 - sw, y)
+		safe.custom_minimum_size = Vector2(0, CONFIRM_BTN_H)
+		_clear_button_overrides(safe)
+		fit_button_font(safe, sw + 10.0)
+		safe.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		safe.size = Vector2(sw, CONFIRM_BTN_H)
+	var h: float = y + CONFIRM_BTN_H + 28.0
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.custom_minimum_size = Vector2(width, h)
+	panel.size = Vector2(width, h)
+	center_kit_panel(panel)
+
+
+## Wrapped line count for `text` at `width` (word-smart, like the labels use).
+static func text_line_count(text: String, font: Font, font_size: int, width: float) -> int:
+	if text == "" or font == null:
+		return 0
+	var lines: int = 0
+	for para: String in text.split("\n"):
+		if para == "":
+			lines += 1
+			continue
+		var sz: Vector2 = font.get_multiline_string_size(para, HORIZONTAL_ALIGNMENT_LEFT, width, font_size)
+		lines += maxi(1, int(roundf(sz.y / font.get_height(font_size))))
+	return lines
+
+
+static func _button_text_w(btn: Button) -> float:
+	var font: Font = btn.get_theme_font("font")
+	if font == null:
+		return 0.0
+	return font.get_string_size(btn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, btn.get_theme_font_size("font_size")).x
+
+
+static func _clear_button_overrides(btn: Button) -> void:
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled", &"focus"]:
+		btn.remove_theme_stylebox_override(state)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.remove_theme_color_override(state)
+	btn.flat = false
+
+
+## Big (Silver 38) caps drop to the body size when the label would not fit the face.
+static func fit_button_font(btn: Button, face_w: float = -1.0) -> void:
+	if btn == null:
+		return
+	if face_w < 0.0:
+		face_w = btn.size.x
+	btn.remove_theme_font_override("font")
+	btn.remove_theme_font_size_override("font_size")
+	var font: Font = btn.get_theme_font("font")
+	var fs: int = btn.get_theme_font_size("font_size")
+	if font == null:
+		return
+	var tw: float = font.get_string_size(btn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	if tw > face_w - 40.0:
+		btn.add_theme_font_override("font", load("res://assets/fonts/font_body_silver19.tres") as Font)
+		btn.add_theme_font_size_override("font_size", 19)
+
+
+## Cream ↻ cue at the right of a cycling tab (bag category, char gear category).
+static func add_cycle_cue(btn: Button) -> void:
+	if btn == null or btn.get_node_or_null("CycleCue") != null:
+		return
+	var cue := Control.new()
+	cue.name = "CycleCue"
+	cue.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cue.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	cue.offset_left = -30.0
+	cue.offset_right = -12.0
+	cue.offset_top = -11.0
+	cue.offset_bottom = 7.0
+	cue.draw.connect(func() -> void:
+		var c := Vector2(9, 9)
+		for pass_i: int in range(2):
+			var col: Color = _CUE_OUTLINE if pass_i == 0 else _CUE_CREAM
+			var wdt: float = 4.0 if pass_i == 0 else 2.0
+			cue.draw_arc(c, 6.0, deg_to_rad(200.0), deg_to_rad(470.0), 16, col, wdt)
+			var tri := PackedVector2Array([Vector2(11, 1), Vector2(17, 5), Vector2(10, 7)])
+			if pass_i == 0:
+				tri = PackedVector2Array([Vector2(10, 0), Vector2(18, 5), Vector2(9, 8)])
+			cue.draw_colored_polygon(tri, col)
+	)
+	btn.add_child(cue)
+	btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
 static func style_wood_icon_button(btn: BaseButton) -> void:
 	if btn == null:
 		return
-	configure_icon_button(btn, btn.tooltip_text)
+	if btn is Button and (btn as Button).text != "":
+		btn.custom_minimum_size.y = maxf(btn.custom_minimum_size.y, TAP_MIN_PX)
+	else:
+		configure_icon_button(btn, btn.tooltip_text)
 	var theme_res: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
 	if theme_res == null:
 		return
