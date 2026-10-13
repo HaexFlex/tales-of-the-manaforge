@@ -154,6 +154,7 @@ func _run() -> void:
 	failed += await _res540_theme_sanity()
 	failed += await _res540_input_sanity()
 	failed += await _res540_shop_sanity()
+	failed += _res540_char_sanity()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -1407,4 +1408,13 @@ func _res540_shop_sanity() -> int:
 	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
 	failed += _check(hud_src.find("const SHOP_SIZE: Vector2 = Vector2(912, 472)") >= 0, "shop size 912x472 in hud.gd")
 	failed += _check(912.0 + 48.0 <= 960.0 and 472.0 + 48.0 <= 540.0, "shop fits 540p with 24px margins")
+	return failed
+
+
+func _res540_char_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/character_sheet.gd")
+	failed += _check(src.find("PrevCharButton") >= 0, "char540 prev actor control")
+	failed += _check(src.find("GearCategoryCycle") >= 0, "char540 gear category cycle")
+	failed += _check(src.find("const SHEET_SIZE: Vector2 = Vector2(912, 492)") >= 0, "char540 window 912x492")
 	return failed

@@ -112,9 +112,16 @@ var _portrait: TextureRect
 var _inv_list: VBoxContainer
 var _footer: Label
 var _hover_item_id: String = ""
-var _gear_tab: String = "all"
+var _gear_filter_slot: String = ""
+const GEAR_FILTER_CYCLE: Array[String] = [
+	"", "weapon", "relic", "body", "pants", "hands", "cape", "head", "feet", "ring1",
+]
 var _built: bool = false
 var _actor_id: String = "keeper"
+var _prev_char_btn: Button
+var _next_char_btn: Button
+var _gear_tab_all_btn: Button
+var _gear_cat_btn: Button
 
 
 func _ready() -> void:
@@ -169,6 +176,8 @@ func show_actor(actor_id: String) -> void:
 		actor_id = "keeper"
 	_actor_id = actor_id if actor_id == "elaia" else "keeper"
 	_apply_actor_chrome()
+	_refresh_gear_tabs()
+	_refresh_actor_nav()
 	_refresh()
 	_fit_sheet()
 
@@ -274,9 +283,27 @@ func _build() -> void:
 	fit.add_child(sheet)
 	Ui540.apply_kit_panel(sheet, "character_sheet")
 
+	_prev_char_btn = Button.new()
+	_prev_char_btn.name = "PrevCharButton"
+	_prev_char_btn.position = Vector2(24, 24)
+	_prev_char_btn.size = Vector2(44, 44)
+	_prev_char_btn.text = "<"
+	_prev_char_btn.pressed.connect(_cycle_actor.bind(-1))
+	Ui540.style_wood_icon_button(_prev_char_btn)
+	sheet.add_child(_prev_char_btn)
+
+	_next_char_btn = Button.new()
+	_next_char_btn.name = "NextCharButton"
+	_next_char_btn.position = Vector2(268, 24)
+	_next_char_btn.size = Vector2(44, 44)
+	_next_char_btn.text = ">"
+	_next_char_btn.pressed.connect(_cycle_actor.bind(1))
+	Ui540.style_wood_icon_button(_next_char_btn)
+	sheet.add_child(_next_char_btn)
+
 	var header_icon := TextureRect.new()
 	header_icon.name = "HeaderPortrait"
-	header_icon.position = Vector2(16, 4)
+	header_icon.position = Vector2(76, 10)
 	header_icon.size = Vector2(32, 32)
 	header_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	header_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -401,23 +428,22 @@ func _build() -> void:
 	var tabs := HBoxContainer.new()
 	tabs.name = "GearTabs"
 	tabs.position = Vector2(0, 72)
-	tabs.size = Vector2(360, 28)
-	tabs.add_theme_constant_override("separation", 6)
+	tabs.size = Vector2(270, 44)
+	tabs.add_theme_constant_override("separation", 8)
 	mid.add_child(tabs)
-	var tab_all := Button.new()
-	tab_all.name = "TabAll"
-	tab_all.text = CharacterSheet._auto("ContentStrings").get_text("gear_tab_all")
-	tab_all.custom_minimum_size = Vector2(72, 26)
-	tab_all.pressed.connect(_set_gear_tab.bind("all"))
-	_paint_button(tab_all, Color(0.18, 0.14, 0.10, 1.0))
-	tabs.add_child(tab_all)
-	var tab_weapons := Button.new()
-	tab_weapons.name = "TabWeapons"
-	tab_weapons.text = CharacterSheet._auto("ContentStrings").get_text("gear_tab_weapons")
-	tab_weapons.custom_minimum_size = Vector2(96, 26)
-	tab_weapons.pressed.connect(_set_gear_tab.bind("weapons"))
-	_paint_button(tab_weapons, Color(0.18, 0.14, 0.10, 1.0))
-	tabs.add_child(tab_weapons)
+	_gear_tab_all_btn = Button.new()
+	_gear_tab_all_btn.name = "TabAll"
+	_gear_tab_all_btn.custom_minimum_size = Vector2(90, 44)
+	_gear_tab_all_btn.pressed.connect(_set_gear_filter_all)
+	Ui540.style_wood_icon_button(_gear_tab_all_btn)
+	tabs.add_child(_gear_tab_all_btn)
+	_gear_cat_btn = Button.new()
+	_gear_cat_btn.name = "GearCategoryCycle"
+	_gear_cat_btn.custom_minimum_size = Vector2(172, 44)
+	_gear_cat_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_gear_cat_btn.pressed.connect(_cycle_gear_filter)
+	Ui540.style_wood_icon_button(_gear_cat_btn)
+	tabs.add_child(_gear_cat_btn)
 	gear_hint.add_theme_font_size_override("font_size", 11)
 	gear_hint.add_theme_color_override("font_color", MUTED)
 	mid.add_child(gear_hint)
@@ -435,6 +461,7 @@ func _build() -> void:
 	_inv_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_inv_list.add_theme_constant_override("separation", 6)
 	scroll.add_child(_inv_list)
+	_refresh_gear_tabs()
 
 	var right := Control.new()
 	right.name = "Stats"
@@ -602,10 +629,20 @@ func _fit_sheet() -> void:
 	Ui540.center_control(fit)
 
 
+func _refresh_actor_nav() -> void:
+	var actors: Array[String] = _available_actors()
+	var dual: bool = actors.size() > 1
+	if _prev_char_btn:
+		_prev_char_btn.visible = dual
+	if _next_char_btn:
+		_next_char_btn.visible = dual
+
+
 func _apply_actor_chrome() -> void:
 	var sheet: Node = get_node_or_null("SheetFit/Sheet")
 	if sheet == null:
 		return
+	_refresh_actor_nav()
 	var elaia: bool = _actor_id == "elaia"
 	var strings = CharacterSheet._auto("ContentStrings")
 	var title: Label = sheet.get_node_or_null("Title") as Label
@@ -838,9 +875,55 @@ func _refresh_slots() -> void:
 			plate.refresh()
 
 
-func _set_gear_tab(tab_id: String) -> void:
-	_gear_tab = tab_id
+func _available_actors() -> Array[String]:
+	var actors: Array[String] = ["keeper"]
+	var gs = CharacterSheet._auto("GameState")
+	if gs != null and bool(gs.call("elaia_portrait_visible")):
+		actors.append("elaia")
+	return actors
+
+
+func _cycle_actor(delta: int) -> void:
+	var actors: Array[String] = _available_actors()
+	if actors.size() < 2:
+		return
+	var idx: int = actors.find(_actor_id)
+	if idx < 0:
+		idx = 0
+	idx = (idx + delta) % actors.size()
+	show_actor(actors[idx])
+
+
+func _set_gear_filter_all() -> void:
+	_gear_filter_slot = ""
+	_refresh_gear_tabs()
 	_refresh_inventory()
+
+
+func _cycle_gear_filter() -> void:
+	var idx: int = GEAR_FILTER_CYCLE.find(_gear_filter_slot)
+	if idx < 0:
+		idx = 0
+	idx = (idx + 1) % GEAR_FILTER_CYCLE.size()
+	_gear_filter_slot = GEAR_FILTER_CYCLE[idx]
+	_refresh_gear_tabs()
+	_refresh_inventory()
+
+
+func _gear_filter_label() -> String:
+	if _gear_filter_slot == "":
+		return CharacterSheet._auto("ContentStrings").get_text("gear_tab_all")
+	var eq = CharacterSheet._auto("Equipment")
+	if eq != null and eq.has_method("slot_display_name"):
+		return str(eq.call("slot_display_name", _gear_filter_slot))
+	return _gear_filter_slot.capitalize()
+
+
+func _refresh_gear_tabs() -> void:
+	if _gear_tab_all_btn:
+		_gear_tab_all_btn.text = CharacterSheet._auto("ContentStrings").get_text("gear_tab_all")
+	if _gear_cat_btn:
+		_gear_cat_btn.text = _gear_filter_label()
 
 
 func _refresh_inventory() -> void:
@@ -856,7 +939,7 @@ func _refresh_inventory() -> void:
 		var iid: String = str(inst.get("id", ""))
 		if not eq.call("is_equippable", iid):
 			continue
-		if _gear_tab == "weapons" and str(eq.call("item_slot", iid)) != "weapon":
+		if _gear_filter_slot != "" and str(eq.call("item_slot", iid)) != _gear_filter_slot:
 			continue
 		rows.append(inst)
 	if rows.is_empty():
