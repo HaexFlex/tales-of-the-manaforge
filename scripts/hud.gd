@@ -94,6 +94,8 @@ const Z_MODAL_DIM: int = 39
 const Z_MODAL: int = 40
 ## Art lock MANATREE_CARE_PANEL_V01 (540p r2): 600×440, header 64 / card / action band 56.
 const CARE_SIZE: Vector2 = Vector2(600, 440)
+## Card 84..244, then the 52 px action row 12 below it.
+const CARE_ACTION_END_Y: float = 308.0
 const CARE_COST_COL_W: float = 250.0
 const ANCIENT_TIMER_W: float = 300.0
 const CARE_TIMER_CYAN: Color = Color8(46, 150, 170)
@@ -673,10 +675,19 @@ func _ensure_care_card() -> void:
 	care_grow_costs.add_theme_constant_override("separation", 8)
 
 
-## Mockup manatree540_pc_16x9_r3: 600×440; header = stage line + Blessings + ×; a bevelled
+## Mockup manatree540_pc_16x9_r3: 600 wide; header = stage line + Blessings + ×; a bevelled
 ## needs card; Grow/Harvest (primary, left) | Water (right); Enter Forge full width last.
+## Height follows the content: 344 without Enter Forge, 400 with it (CARE_SIZE.y is the cap).
+## The last row keeps 12 px clear of the 24 px frame.
+func _care_window_h() -> float:
+	var h: float = CARE_ACTION_END_Y + 24.0 + 12.0
+	if forge_button != null and forge_button.visible:
+		h += 12.0 + 44.0
+	return minf(h, CARE_SIZE.y)
+
+
 func _layout_care_window() -> void:
-	var sz: Vector2 = Ui540.fit_kit_window(care_panel, CARE_SIZE)
+	var sz: Vector2 = Ui540.fit_kit_window(care_panel, Vector2(CARE_SIZE.x, _care_window_h()))
 	var w: float = sz.x
 	var h: float = sz.y
 	var left: float = 28.0
@@ -725,7 +736,7 @@ func _layout_care_window() -> void:
 	Ui540.fit_button_font(harvest_fruit_button, half)
 	harvest_fruit_button.size = pay_button.size
 	if forge_button:
-		forge_button.position = Vector2(left, h - 24.0 - 44.0)
+		forge_button.position = Vector2(left, h - 36.0 - 44.0)
 		forge_button.size = Vector2(inner, 44)
 
 
@@ -1032,8 +1043,12 @@ func _place_shop_preview_tag() -> void:
 		return
 	_shop_preview_tag.visible = _shop_preview_mode
 	var font: Font = _shop_preview_tag.get_theme_font("font")
-	var tw: float = font.get_string_size(_shop_preview_tag.text, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.BODY_SIZE).x + 20.0
-	Ui540.anchor_rect_safe(_shop_preview_tag, prestige_title.position.x + prestige_title.size.x + 6.0, -13, ceilf(tw), 26)
+	var tw: float = ceilf(font.get_string_size(_shop_preview_tag.text, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.BODY_SIZE).x + 20.0)
+	## Header row, left of the shard chip; the subline gives way to it.
+	var tag_x: float = shard_chip.position.x - 12.0 - tw
+	Ui540.anchor_rect_safe(_shop_preview_tag, tag_x, shard_chip.position.y + 9.0, tw, 26)
+	if _shop_preview_mode:
+		prestige_sub.size.x = minf(prestige_sub.size.x, tag_x - 12.0 - prestige_sub.position.x)
 
 
 func _apply_icon_button(btn: Button) -> void:
@@ -1988,6 +2003,7 @@ func _refresh_care_needs() -> void:
 	harvest_fruit_button.visible = fruit_ready
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
 	_refresh_forge_entry()
+	_layout_care_window()
 	fruit_ready_card.visible = fruit_ready
 	precommit_hint.visible = fruit_ready
 	if fruit_ready:
@@ -2270,7 +2286,7 @@ func get_care_layout_metrics() -> Dictionary:
 		"header_h": care_header.size.y,
 		"action_band_h": care_action_band.size.y,
 		"preferred_w": CARE_SIZE.x,
-		"preferred_h": CARE_SIZE.y,
+		"preferred_h": _care_window_h(),
 	}
 
 

@@ -2583,7 +2583,7 @@ func _run() -> void:
 		var care_sz_v: Variant = care_metrics.get("size", Vector2.ZERO)
 		failed += _assert(care_sz_v is Vector2, "care size is Vector2")
 		var care_sz: Vector2 = care_sz_v as Vector2
-		failed += _assert(abs(care_sz.x - 600.0) < 1.5 and abs(care_sz.y - 440.0) < 1.5, "care 600x440 (got %s)" % care_sz)
+		failed += _assert(abs(care_sz.x - 600.0) < 1.5 and abs(care_sz.y - 344.0) < 1.5, "care 600x344 without Enter Forge (got %s)" % care_sz)
 		failed += _assert(abs(float(care_metrics.get("header_h", 0)) - 64.0) < 1.5, "care header 64")
 		failed += _assert(abs(float(care_metrics.get("action_band_h", 0)) - 56.0) < 1.5, "care action band 56")
 		game_state.call("set_resource", &"essence", 200)
