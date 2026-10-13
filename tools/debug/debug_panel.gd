@@ -60,7 +60,6 @@ var _resource_ids: PackedStringArray = PackedStringArray([
 ])
 
 const PIN_PATH: String = "user://debug_pins.cfg"
-const PIN_DEFAULTS: PackedStringArray = PackedStringArray(["go_shop", "skip_station", "manashards", "ancient_ready"])
 
 var _pin_panel: Control
 var _pin_width: float = 912.0
@@ -269,15 +268,20 @@ func _pin_catalog() -> Dictionary:
 	}
 
 
+func _default_pins() -> PackedStringArray:
+	return PackedStringArray(["go_shop", "skip_station", "manashards", "ancient_ready"])
+
+
 func _load_pin_ids() -> PackedStringArray:
+	var defaults: PackedStringArray = _default_pins()
 	var cfg := ConfigFile.new()
 	if cfg.load(PIN_PATH) != OK:
-		_save_pin_ids(PIN_DEFAULTS)
-		return PIN_DEFAULTS.duplicate()
-	var raw: Variant = cfg.get_value("pins", "ids", PIN_DEFAULTS)
+		_save_pin_ids(defaults)
+		return defaults
+	var raw: Variant = cfg.get_value("pins", "ids", defaults)
 	if raw is PackedStringArray and not (raw as PackedStringArray).is_empty():
 		return raw as PackedStringArray
-	return PIN_DEFAULTS.duplicate()
+	return defaults
 
 
 func _save_pin_ids(ids: PackedStringArray) -> void:
@@ -326,7 +330,7 @@ func _on_pin_gui(event: InputEvent, pin_id: String) -> void:
 		if id != pin_id:
 			next.append(id)
 	if next.is_empty():
-		next = PIN_DEFAULTS.duplicate()
+		next = _default_pins()
 	_save_pin_ids(next)
 	_fill_pin_row()
 	get_viewport().set_input_as_handled()
