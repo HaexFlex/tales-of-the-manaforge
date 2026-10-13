@@ -130,3 +130,37 @@ static func style_wood_icon_button(btn: BaseButton) -> void:
 		if sb:
 			btn.add_theme_stylebox_override(state, sb)
 	btn.flat = false
+
+
+const _CLOSE_ICON: Texture2D = preload("res://assets/ui/theme/icon_close_24x24.png")
+
+
+static func configure_kit_close_button(btn: BaseButton) -> void:
+	if btn == null:
+		return
+	configure_icon_button(btn, "Close")
+	btn.text = ""
+	btn.icon = _CLOSE_ICON
+	btn.expand_icon = true
+
+
+static func apply_kit_panel(
+	panel: Panel,
+	window_id: String,
+	title_label: Label = null,
+	close_button: BaseButton = null,
+) -> VineFrame:
+	var vines: VineFrame = apply_kit_frame_panel(panel, window_id)
+	if title_label:
+		GameTheme.style_plank_label(title_label)
+	if close_button:
+		configure_kit_close_button(close_button)
+	return vines
+
+
+static func layout_popup_panel(panel: Control, size: Vector2) -> void:
+	if panel == null:
+		return
+	panel.custom_minimum_size = size
+	panel.size = size
+	center_control(panel)

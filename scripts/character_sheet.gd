@@ -13,13 +13,12 @@ const ELAIA_PARTY_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_port
 ## 160×160 busts. Header icon only. The sheet figure is idle v4 south, frame 0.
 const KEEPER_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_portrait_sheet.png"
 const ELAIA_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_portrait_sheet.png"
-const SHEET_SIZE: Vector2 = Vector2(1272, 716)
-const HOST_POS: Vector2 = Vector2(12, 54)
-## Paper-doll host. The sprite is inset; slots sit in the margins around the figure.
-const PORTRAIT_SIZE: Vector2 = Vector2(496, 622)
-## Prior fitted portrait was 160×160 (128² kept inside a 160×284 rect). This is 3×.
-const SPRITE_SIZE: Vector2 = Vector2(480, 480)
-const SPRITE_POS: Vector2 = Vector2(8, 70)
+## char540 r4 kit window (912×492, 24 px safe margins on 960×540).
+const SHEET_SIZE: Vector2 = Vector2(912, 492)
+const HOST_POS: Vector2 = Vector2(24, 104)
+const PORTRAIT_SIZE: Vector2 = Vector2(276, 388)
+const SPRITE_SIZE: Vector2 = Vector2(144, 351)
+const SPRITE_POS: Vector2 = Vector2(66, 19)
 const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
 
 
@@ -65,16 +64,16 @@ static func make_item_icon(item_id: String) -> Control:
 	return swatch
 ## Slot plates in host space, flanking the enlarged Keeper so they do not cover the figure.
 const SLOT_POS: Dictionary = {
-	"head": Vector2(216, 2),
-	"relic": Vector2(18, 80),
-	"cape": Vector2(18, 208),
-	"body": Vector2(18, 337),
-	"ring1": Vector2(18, 465),
-	"weapon": Vector2(400, 80),
-	"hands": Vector2(400, 208),
-	"pants": Vector2(400, 337),
-	"ring2": Vector2(400, 465),
-	"feet": Vector2(216, 554),
+	"head": Vector2(116, 6),
+	"relic": Vector2(116, 134),
+	"cape": Vector2(59, 158),
+	"body": Vector2(116, 182),
+	"weapon": Vector2(59, 222),
+	"hands": Vector2(173, 222),
+	"pants": Vector2(116, 274),
+	"ring1": Vector2(59, 274),
+	"ring2": Vector2(173, 274),
+	"feet": Vector2(116, 338),
 }
 const SLOT_SIZE: Vector2 = Vector2(56, 66)
 const SLOT_SQUARE: Vector2 = Vector2(44, 44)
@@ -243,10 +242,10 @@ func _build() -> void:
 	var fit := Control.new()
 	fit.name = "SheetFit"
 	fit.set_anchors_preset(Control.PRESET_FULL_RECT)
-	fit.offset_left = 88.0
-	fit.offset_top = 8.0
-	fit.offset_right = -12.0
-	fit.offset_bottom = -12.0
+	fit.offset_left = 0.0
+	fit.offset_top = 0.0
+	fit.offset_right = 0.0
+	fit.offset_bottom = 0.0
 	fit.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fit)
 	fit.resized.connect(_fit_sheet)
@@ -256,8 +255,8 @@ func _build() -> void:
 	sheet.custom_minimum_size = SHEET_SIZE
 	sheet.size = SHEET_SIZE
 	sheet.mouse_filter = Control.MOUSE_FILTER_STOP
-	sheet.add_theme_stylebox_override("panel", _wood_style())
 	fit.add_child(sheet)
+	Ui540.apply_kit_panel(sheet, "character_sheet")
 
 	var header_icon := TextureRect.new()
 	header_icon.name = "HeaderPortrait"
@@ -272,38 +271,37 @@ func _build() -> void:
 
 	var title := Label.new()
 	title.name = "Title"
-	title.position = Vector2(54, 8)
-	title.size = Vector2(600, 26)
+	title.position = Vector2(48, -20)
+	title.size = Vector2(400, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_title")
-	title.add_theme_font_size_override("font_size", 20)
-	title.add_theme_color_override("font_color", GOLD)
+	GameTheme.style_plank_label(title)
 	sheet.add_child(title)
 
 	var hint := Label.new()
 	hint.name = "Hint"
-	hint.position = Vector2(54, 32)
-	hint.size = Vector2(660, 22)
+	hint.position = Vector2(92, 28)
+	hint.size = Vector2(520, 22)
 	hint.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hint")
 	var hotkey := Label.new()
 	hotkey.name = "HotkeyHint"
-	hotkey.position = Vector2(SHEET_SIZE.x - 250, 34)
+	hotkey.position = Vector2(SHEET_SIZE.x - 140, 30)
 	hotkey.size = Vector2(120, 18)
 	hotkey.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hotkey.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hotkey_hint")
-	hotkey.add_theme_font_size_override("font_size", 11)
+	GameTheme.style_body_label(hotkey)
 	hotkey.add_theme_color_override("font_color", MUTED)
 	sheet.add_child(hotkey)
-	hint.add_theme_font_size_override("font_size", 12)
+	GameTheme.style_body_label(hint)
 	hint.add_theme_color_override("font_color", MUTED)
 	sheet.add_child(hint)
 
 	var close := Button.new()
 	close.name = "CloseButton"
-	close.position = Vector2(SHEET_SIZE.x - 116, 8)
-	close.size = Vector2(96, 36)
-	close.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_close")
+	close.position = Vector2(SHEET_SIZE.x - 68, 18)
+	close.size = Vector2(44, 44)
 	close.pressed.connect(request_close)
-	_paint_button(close, Color(0.18, 0.14, 0.10, 1.0))
+	Ui540.configure_kit_close_button(close)
 	sheet.add_child(close)
 
 	var host := Control.new()
@@ -359,17 +357,16 @@ func _build() -> void:
 	mid.name = "GearColumn"
 	mid.host = self
 	mid.mouse_filter = Control.MOUSE_FILTER_STOP
-	mid.position = Vector2(524, 64)
-	mid.size = Vector2(360, 600)
+	mid.position = Vector2(316, 104)
+	mid.size = Vector2(270, 388)
 	sheet.add_child(mid)
 
 	var gear_title := Label.new()
 	gear_title.name = "GearTitle"
 	gear_title.position = Vector2(0, 0)
-	gear_title.size = Vector2(360, 22)
+	gear_title.size = Vector2(270, 22)
 	gear_title.text = CharacterSheet._auto("ContentStrings").get_text("gear_title")
-	gear_title.add_theme_font_size_override("font_size", 15)
-	gear_title.add_theme_color_override("font_color", GOLD)
+	GameTheme.style_body_label(gear_title)
 	mid.add_child(gear_title)
 
 	var gear_hint := Label.new()
@@ -412,7 +409,7 @@ func _build() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.name = "GearScroll"
 	scroll.position = Vector2(0, 106)
-	scroll.size = Vector2(360, 480)
+	scroll.size = Vector2(270, 282)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	mid.add_child(scroll)
@@ -425,8 +422,8 @@ func _build() -> void:
 
 	var right := Control.new()
 	right.name = "Stats"
-	right.position = Vector2(896, 64)
-	right.size = Vector2(360, 620)
+	right.position = Vector2(604, 104)
+	right.size = Vector2(284, 388)
 	sheet.add_child(right)
 
 	var stats_title := Label.new()
@@ -503,7 +500,7 @@ func _build() -> void:
 	if stats_bottom > right.size.y:
 		var extra: float = stats_bottom - right.size.y
 		right.size.y = stats_bottom
-		sheet_h = minf(688.0, SHEET_SIZE.y + extra)
+		sheet_h = minf(SHEET_SIZE.y + 48.0, SHEET_SIZE.y + extra)
 		sheet.custom_minimum_size = Vector2(SHEET_SIZE.x, sheet_h)
 		sheet.size = sheet.custom_minimum_size
 
@@ -519,8 +516,8 @@ func _build() -> void:
 	_build_trait_popup()
 	_footer = Label.new()
 	_footer.name = "Footer"
-	_footer.position = Vector2(524, sheet_h - 32.0)
-	_footer.size = Vector2(740, 24)
+	_footer.position = Vector2(316, sheet_h - 28.0)
+	_footer.size = Vector2(572, 24)
 	_footer.add_theme_font_size_override("font_size", 12)
 	_footer.add_theme_color_override("font_color", INK)
 	sheet.add_child(_footer)
@@ -580,18 +577,13 @@ func _fit_sheet() -> void:
 	var sheet: Control = get_node_or_null("SheetFit/Sheet") as Control
 	if fit == null or sheet == null:
 		return
-	var avail: Vector2 = fit.size
-	if avail.x < 32.0 or avail.y < 32.0:
-		return
-	var design: Vector2 = sheet.custom_minimum_size
-	if design.x < 1.0 or design.y < 1.0:
-		design = SHEET_SIZE
-	var sc: float = minf(1.0, minf(avail.x / design.x, avail.y / design.y))
-	sheet.scale = Vector2(sc, sc)
-	sheet.pivot_offset = Vector2.ZERO
-	var drawn: Vector2 = design * sc
-	sheet.position = (avail - drawn) * 0.5
-	sheet.size = design
+	sheet.scale = Vector2.ONE
+	sheet.custom_minimum_size = SHEET_SIZE
+	sheet.size = SHEET_SIZE
+	sheet.position = Vector2.ZERO
+	fit.custom_minimum_size = SHEET_SIZE
+	fit.size = SHEET_SIZE
+	Ui540.center_control(fit)
 
 
 func _apply_actor_chrome() -> void:
@@ -671,16 +663,16 @@ func _build_trait_popup() -> void:
 	add_child(pop)
 	var panel := Panel.new()
 	panel.name = "Panel"
-	panel.size = Vector2(520, 280)
+	panel.size = Vector2(380, 268)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel", _wood_style())
 	pop.add_child(panel)
+	Ui540.apply_kit_panel(panel, "trait_popup")
 	var title := Label.new()
 	title.name = "Title"
-	title.position = Vector2(20, 16)
-	title.size = Vector2(400, 28)
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", GOLD)
+	title.position = Vector2(12, -20)
+	title.size = Vector2(356, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameTheme.style_plank_label(title)
 	panel.add_child(title)
 	var sub := Label.new()
 	sub.name = "Subtitle"
@@ -765,7 +757,7 @@ func _place_trait_popup() -> void:
 	var panel: Control = get_node_or_null("TraitPopup/Panel") as Control
 	if panel == null:
 		return
-	var panel_size := Vector2(360, 220)
+	var panel_size := Vector2(380, 268)
 	panel.size = panel_size
 	var btn: Control = find_child("TraitButton", true, false) as Control
 	var origin := Vector2(16, 16)

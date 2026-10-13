@@ -123,7 +123,8 @@ const BTN_PAUSE_PRESSED: String = "res://assets/art/ui/buttons/pause_pressed.png
 const BTN_PACK_NORMAL: String = "res://assets/art/ui/buttons/backpack_normal.png"
 const BTN_PACK_HOVER: String = "res://assets/art/ui/buttons/backpack_hover.png"
 const BTN_PACK_PRESSED: String = "res://assets/art/ui/buttons/backpack_pressed.png"
-const BACKPACK_ROW_H: float = 40.0
+const BACKPACK_ROW_H: float = 48.0
+const BAG_PANEL_W: float = 560.0
 
 var _manatree: Manatree = null
 var _confirm_pay: bool = false
@@ -172,6 +173,13 @@ var _board_button: Button
 var _board_icon: TextureRect
 var _party_tag: PanelContainer
 var _party_tag_label: Label
+var _help_dim: ColorRect
+var _help_panel: Panel
+var _help_tab_pc: Button
+var _help_tab_phone: Button
+var _help_body: VBoxContainer
+var _help_close: Button
+var _help_tab: String = "pc"
 
 
 func _ready() -> void:
@@ -299,6 +307,16 @@ func _ready() -> void:
 	_layout_hud540()
 	if not get_viewport().size_changed.is_connected(_layout_hud540):
 		get_viewport().size_changed.connect(_layout_hud540)
+	_apply_bag540_chrome()
+	_layout_bag540()
+	if not get_viewport().size_changed.is_connected(_layout_bag540):
+		get_viewport().size_changed.connect(_layout_bag540)
+	_ensure_help_panel()
+	if help_button:
+		help_button.visible = true
+		Ui540.style_wood_icon_button(help_button)
+		if not help_button.pressed.is_connected(_toggle_help_panel):
+			help_button.pressed.connect(_toggle_help_panel)
 
 
 func _reorder_resource_row() -> void:
@@ -340,8 +358,6 @@ func _apply_hud540_chrome() -> void:
 	Ui540.style_wood_icon_button(pause_button)
 	Ui540.style_wood_icon_button(character_button)
 	Ui540.style_wood_icon_button(backpack_button)
-	if help_button:
-		help_button.visible = false
 	var pause_tex: Texture2D = load(HUD_PAUSE_ICON) as Texture2D
 	if pause_icon and pause_tex:
 		pause_icon.texture = pause_tex
@@ -455,6 +471,186 @@ func _on_board_pressed() -> void:
 			node.call("open_shell")
 			GameAudio.play_ui_open()
 			return
+
+
+func _apply_bag540_chrome() -> void:
+	if backpack_panel == null:
+		return
+	Ui540.apply_kit_panel(backpack_panel, "bag", backpack_title, backpack_close_button)
+	GameTheme.style_body_label(inventory_title)
+	for tab: Button in [backpack_tab_all, backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
+		tab.custom_minimum_size = Vector2(90, 44)
+
+
+func _layout_bag540() -> void:
+	if backpack_panel == null:
+		return
+	var h: float = minf(492.0, Ui540.viewport_size().y - Ui540.SAFE_MARGIN_PX * 2.0)
+	backpack_panel.custom_minimum_size = Vector2(BAG_PANEL_W, h)
+	backpack_panel.size = Vector2(BAG_PANEL_W, h)
+	Ui540.center_control(backpack_panel)
+	var inner_w: float = BAG_PANEL_W - 72.0
+	backpack_close_button.position = Vector2(BAG_PANEL_W - 68.0, 18.0)
+	backpack_close_button.size = Vector2(44, 44)
+	backpack_title.position = Vector2((BAG_PANEL_W - 200.0) * 0.5, -20.0)
+	backpack_title.size = Vector2(200, 40)
+	backpack_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inventory_title.position = Vector2(36, 28)
+	inventory_title.size = Vector2(inner_w, 22)
+	var tab_row: Control = backpack_panel.get_node_or_null("TabRow") as Control
+	var tab_y: float = 58.0
+	if tab_row:
+		tab_row.position = Vector2(36, tab_y)
+		tab_row.size = Vector2(inner_w, 44)
+	var list_top: float = tab_y + 52.0
+	var scroll: ScrollContainer = backpack_panel.get_node_or_null("InventoryScroll") as ScrollContainer
+	if scroll:
+		scroll.position = Vector2(36, list_top)
+		scroll.size = Vector2(inner_w, h - list_top - 56.0)
+
+
+func _ensure_help_panel() -> void:
+	if _help_panel != null:
+		return
+	_help_dim = ColorRect.new()
+	_help_dim.name = "HelpDim"
+	_help_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_help_dim.color = Color(0, 0, 0, 0.5)
+	_help_dim.visible = false
+	_help_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_help_dim.gui_input.connect(_on_help_dim_input)
+	add_child(_help_dim)
+	_help_panel = Panel.new()
+	_help_panel.name = "HelpPanel"
+	_help_panel.visible = false
+	_help_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_help_panel)
+	Ui540.apply_kit_panel(_help_panel, "help")
+	var title := Label.new()
+	title.name = "HelpTitle"
+	title.text = "Help"
+	title.position = Vector2((912.0 - 120.0) * 0.5, -20.0)
+	title.size = Vector2(120, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameTheme.style_plank_label(title)
+	_help_panel.add_child(title)
+	_help_close = Button.new()
+	_help_close.name = "CloseButton"
+	_help_close.position = Vector2(912.0 - 68.0, 18.0)
+	_help_close.size = Vector2(44, 44)
+	Ui540.configure_kit_close_button(_help_close)
+	_help_close.pressed.connect(_close_help_panel)
+	_help_panel.add_child(_help_close)
+	_help_tab_pc = Button.new()
+	_help_tab_pc.text = "PC"
+	_help_tab_pc.position = Vector2(36, 28)
+	_help_tab_pc.size = Vector2(120, 44)
+	_help_tab_pc.pressed.connect(_set_help_tab.bind("pc"))
+	_help_panel.add_child(_help_tab_pc)
+	_help_tab_phone = Button.new()
+	_help_tab_phone.text = "Phone"
+	_help_tab_phone.position = Vector2(164, 28)
+	_help_tab_phone.size = Vector2(120, 44)
+	_help_tab_phone.pressed.connect(_set_help_tab.bind("phone"))
+	_help_panel.add_child(_help_tab_phone)
+	var scroll := ScrollContainer.new()
+	scroll.position = Vector2(36, 84)
+	scroll.size = Vector2(840, 360)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_help_panel.add_child(scroll)
+	_help_body = VBoxContainer.new()
+	_help_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_help_body)
+	_layout_help_panel()
+
+
+func _help_rows() -> Array[Dictionary]:
+	if _help_tab == "phone":
+		return [
+			{"key": "Tap", "action": "Select · press buttons"},
+			{"key": "Long-press (½ s)", "action": "Show what it is; on open ground: command"},
+			{"key": "Pause button", "action": "Pause menu (top right)"},
+		]
+	return [
+		{"key": "Left-click", "action": ContentStrings.get_text("controls_lmb_select")},
+		{"key": "Right-click / G", "action": ContentStrings.get_text("controls_rmb_command")},
+		{"key": "H", "action": "Inspect what is under the pointer"},
+		{"key": "Arrow keys", "action": ContentStrings.get_text("controls_camera_pan")},
+		{"key": "I", "action": ContentStrings.get_text("backpack_open")},
+		{"key": "C", "action": ContentStrings.get_text("char_sheet_hotkey_hint")},
+		{"key": "Esc", "action": "Close a window · Pause"},
+	]
+
+
+func _layout_help_panel() -> void:
+	if _help_panel == null:
+		return
+	_help_panel.custom_minimum_size = Vector2(912, 472)
+	_help_panel.size = Vector2(912, 472)
+	Ui540.center_control(_help_panel)
+	for child: Node in _help_body.get_children():
+		child.free()
+	for row: Dictionary in _help_rows():
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 12)
+		var key_lbl := Label.new()
+		key_lbl.custom_minimum_size = Vector2(160, 24)
+		key_lbl.text = str(row.get("key", ""))
+		GameTheme.style_body_label(key_lbl)
+		var act_lbl := Label.new()
+		act_lbl.text = str(row.get("action", ""))
+		act_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		act_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		GameTheme.style_body_label(act_lbl)
+		line.add_child(key_lbl)
+		line.add_child(act_lbl)
+		_help_body.add_child(line)
+	var welcome_hint: String = ContentStrings.get_text("welcome_hint")
+	if welcome_hint != "":
+		var old := Label.new()
+		old.text = "From the old intro: %s" % welcome_hint
+		old.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameTheme.style_body_label(old)
+		old.add_theme_color_override("font_color", Color(0.7, 0.64, 0.52))
+		_help_body.add_child(old)
+
+
+func _set_help_tab(tab_id: String) -> void:
+	_help_tab = tab_id
+	_layout_help_panel()
+
+
+func _toggle_help_panel() -> void:
+	if _help_panel != null and _help_panel.visible:
+		_close_help_panel()
+	else:
+		_open_help_panel()
+
+
+func _open_help_panel() -> void:
+	if _help_panel == null:
+		_ensure_help_panel()
+	close_backpack()
+	close_character_sheet()
+	_layout_help_panel()
+	_help_dim.visible = true
+	_help_panel.visible = true
+	GameAudio.play_ui_open()
+
+
+func _close_help_panel() -> void:
+	if _help_panel:
+		_help_panel.visible = false
+	if _help_dim:
+		_help_dim.visible = false
+	GameAudio.play_ui_close()
+
+
+func _on_help_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			_close_help_panel()
 
 
 func _layout_ascension_shop() -> void:
@@ -682,9 +878,6 @@ func _apply_wood_chrome() -> void:
 	_apply_icon_button(ascension_reopen_button)
 	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(bench_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	for tab: Button in [backpack_tab_all, backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
-		_apply_button_chrome(tab, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	backpack_panel.add_theme_stylebox_override("panel", _wood_style())
 	bench_panel.add_theme_stylebox_override("panel", _wood_style())
 
 
