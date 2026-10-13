@@ -3873,9 +3873,12 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	else:
 		state_lbl.text = ""
 	GameTheme.style_ink_label(state_lbl, true)
-	## Smaller muted ink, parked on the right before the scrollbar gutter, so the
-	## hint reads apart from the recipe name. Ellipsis only when the leftover is short.
-	state_lbl.add_theme_font_size_override("font_size", 15)
+	## Muted ink, parked on the right before the scrollbar gutter, so the hint
+	## reads apart from the recipe name. Silver only renders crisp at 19/38: at
+	## 15-17 every glyph pixel is a blend and the hint read as faint 7 px text,
+	## so it keeps the body 19 and stands apart by colour and alignment.
+	## Ellipsis only when the leftover is short.
+	state_lbl.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
 	state_lbl.add_theme_color_override("font_color", Color8(90, 62, 40))
 	state_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	state_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

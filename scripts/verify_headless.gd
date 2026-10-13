@@ -6103,13 +6103,13 @@ func _assert_bench_need_hints(craft_box: VBoxContainer) -> int:
 			saw_need += 1
 			failed += _assert(state_lbl.text_overrun_behavior == TextServer.OVERRUN_TRIM_ELLIPSIS, "bench hint can ellipsize")
 			failed += _assert(state_lbl.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "bench hint is right aligned")
-			failed += _assert(state_lbl.get_theme_font_size(&"font_size") == 15, "bench hint is smaller than the name")
+			failed += _assert(state_lbl.get_theme_font_size(&"font_size") == 19, "bench hint uses the crisp Silver 19")
 			failed += _assert(state_lbl.get_theme_color(&"font_color").is_equal_approx(Color8(90, 62, 40)), "bench hint is muted ink")
 			var font: Font = state_lbl.get_theme_font(&"font")
 			var fs: int = state_lbl.get_theme_font_size(&"font_size")
 			var need_w: float = font.get_string_size(state_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if font != null else 0.0
 			failed += _assert(state_lbl.size.x + 0.5 >= need_w and state_lbl.size.x > 8.0, "bench hint visible: %s" % state_lbl.text)
-			failed += _assert(name_lbl.get_theme_font_size(&"font_size") > fs, "bench name stays larger than the hint")
+			failed += _assert(name_lbl.get_theme_font_size(&"font_size") >= fs, "bench name is not smaller than the hint")
 		var rid: String = str(row.get_meta("recipe_id", ""))
 		if rid == "stone_fragments":
 			failed += _assert(state_lbl.text == "Need 3 Stone", "stone fragment hint")
