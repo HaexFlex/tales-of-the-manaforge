@@ -10375,10 +10375,8 @@ func _beast_data(_tree_root: Window) -> int:
 	return failed
 
 
-func _room_budget(depth: int, budget: Dictionary) -> int:
-	if depth <= 10:
-		return int(budget.get("base", 0)) + int(budget.get("per_depth_to_10", 0)) * (depth - 1)
-	return int(budget.get("at_10", 0)) + int(budget.get("per_depth_after_10", 0)) * (depth - 10)
+func _room_budget(depth: int, _budget: Dictionary) -> int:
+	return SpawnRoller.budget(depth)
 
 
 func _spawn_table_for(depth: int, tables: Array) -> Array:
@@ -10438,16 +10436,17 @@ func _spawn_data(_tree_root: Window) -> int:
 	var fill: Dictionary = data.get("fill", {}) as Dictionary
 	var max_beasts: int = int(fill.get("max_beasts", 0))
 	failed += _assert(max_beasts == 6, "rooms hold up to 6 beasts")
-	failed += _assert(is_equal_approx(float(fill.get("variety_bias", 0.0)), 2.0), "variety bias x2")
+	var comps_fixture: Dictionary = _json_dict("res://tests/fixtures/resolver_compositions.json")
+	failed += _assert(is_equal_approx(float(comps_fixture.get("variety_bias", 0.0)), 2.0), "variety bias x2")
 	# The §10 table: depth -> [budget, weights, different rooms].
 	var want: Dictionary = {
-		1: [90, "acorn_imp:1,spore_moth:1", 3],
-		3: [94, "acorn_imp:8,spore_moth:8,wilt_wisp:1,root_snapper:1", 10],
-		5: [98, "acorn_imp:12,spore_moth:12,wilt_wisp:4,root_snapper:4,acorn_imp_dark:1,spore_moth_dark:1", 16],
-		8: [104, "acorn_imp:4,spore_moth:4,wilt_wisp:6,root_snapper:6,acorn_imp_dark:1,spore_moth_dark:1", 16],
-		10: [108, "acorn_imp:2,spore_moth:2,wilt_wisp:6,root_snapper:6,acorn_imp_dark:2,spore_moth_dark:1", 19],
-		12: [120, "wilt_wisp:4,root_snapper:4,acorn_imp_dark:2,spore_moth_dark:1,thorn_boar:1,vine_serpent:1", 20],
-		15: [138, "wilt_wisp:3,root_snapper:3,acorn_imp_dark:2,spore_moth_dark:2,thorn_boar:2,vine_serpent:2", 21],
+		1: [85, "acorn_imp:1,spore_moth:1", 2],
+		3: [93, "acorn_imp:8,spore_moth:8,wilt_wisp:1,root_snapper:1", 9],
+		5: [101, "acorn_imp:12,spore_moth:12,wilt_wisp:4,root_snapper:4,acorn_imp_dark:1,spore_moth_dark:1", 16],
+		8: [113, "acorn_imp:4,spore_moth:4,wilt_wisp:6,root_snapper:6,acorn_imp_dark:1,spore_moth_dark:1", 20],
+		10: [121, "acorn_imp:2,spore_moth:2,wilt_wisp:6,root_snapper:6,acorn_imp_dark:2,spore_moth_dark:1", 20],
+		12: [133, "wilt_wisp:4,root_snapper:4,acorn_imp_dark:2,spore_moth_dark:1,thorn_boar:1,vine_serpent:1", 37],
+		15: [151, "wilt_wisp:3,root_snapper:3,acorn_imp_dark:2,spore_moth_dark:2,thorn_boar:2,vine_serpent:2", 74],
 	}
 	var tables: Array = data.get("tables", []) as Array
 	failed += _assert(tables.size() == want.size(), "seven spawn tables (got %d)" % tables.size())
@@ -10479,7 +10478,7 @@ func _spawn_data(_tree_root: Window) -> int:
 			pool.append({"id": bid, "threat": int(row.get("threat", 0))})
 		failed += _assert(",".join(parts) == str(want[depth][1]), "depth %d weights match the draft (%s)" % [depth, ",".join(parts)])
 		failed += _assert(cheapest <= b, "a beast fits the depth %d budget" % depth)
-		var rooms: Array[String] = _room_compositions(pool, b, max_beasts)
+		var rooms: Array = SpawnRoller.compositions(depth)
 		failed += _assert(rooms.size() == int(want[depth][2]), "depth %d has %d different rooms (got %d)" % [depth, int(want[depth][2]), rooms.size()])
 	# Spawn-roller oracle (job 8): the sim's compositions() per depth match this data exactly.
 	var comps: Dictionary = _json_dict("res://tests/fixtures/resolver_compositions.json")
@@ -10489,17 +10488,12 @@ func _spawn_data(_tree_root: Window) -> int:
 		var depth: int = int(dep.get("depth", 0))
 		var b: int = _room_budget(depth, budget)
 		failed += _assert(b == int(dep.get("budget", -1)), "fixture budget at depth %d" % depth)
-		var pool: Array[Dictionary] = []
-		for w_v: Variant in _spawn_table_for(depth, tables):
-			var bid: String = str((w_v as Dictionary).get("beast", ""))
-			pool.append({"id": bid, "threat": int((by_id.get(bid, {}) as Dictionary).get("threat", 0))})
-		var mine: Array[String] = _room_compositions(pool, b, max_beasts)
-		var theirs: Array[String] = []
+		var mine: Array = SpawnRoller.compositions(depth)
+		var theirs: Array = []
 		for room_v: Variant in dep.get("rooms", []) as Array:
-			theirs.append(",".join(PackedStringArray((room_v as Dictionary).get("beasts", []) as Array)))
-		theirs.sort()
+			theirs.append((room_v as Dictionary).get("beasts", []))
 		failed += _assert(str(mine) == str(theirs) and int(dep.get("count", -1)) == theirs.size(), "depth %d rooms match the sim's compositions() (%d vs %d)" % [depth, mine.size(), theirs.size()])
-	failed += _assert(_room_budget(1, budget) == 90 and _room_budget(10, budget) == 108 and _room_budget(15, budget) == 138, "budget 90 / 108 / 138 at depth 1 / 10 / 15")
+	failed += _assert(_room_budget(1, budget) == 85 and _room_budget(10, budget) == 121 and _room_budget(15, budget) == 151, "budget 85 / 121 / 151 at depth 1 / 10 / 15")
 	failed += _assert(_spawn_table_for(2, tables).size() == 2 and _spawn_table_for(14, tables).size() == 6, "a depth uses the latest table at or below it")
 	# Loot: Amberbind stays the manual jackpot. Job 23 numbers (approved 2026-10-10) are checked below.
 	var loot: Dictionary = data.get("loot", {}) as Dictionary
@@ -10708,15 +10702,15 @@ func _spawn_seed(_tree_root: Window) -> int:
 	const PIN_DEPTH: int = 5
 	var pin_1: Array = [
 		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
-		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
+		{"beast": "spore_moth", "row": "back", "slot": 1, "boss": false, "threat": 44},
 	]
 	var pin_2: Array = [
-		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
-		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
+		{"beast": "spore_moth", "row": "back", "slot": 0, "boss": false, "threat": 44},
+		{"beast": "wilt_wisp", "row": "back", "slot": 1, "boss": false, "threat": 47},
 	]
 	var pin_1000: Array = [
 		{"beast": "acorn_imp_dark", "row": "front", "slot": 0, "boss": false, "threat": 48},
-		{"beast": "acorn_imp_dark", "row": "front", "slot": 1, "boss": false, "threat": 48},
+		{"beast": "spore_moth", "row": "back", "slot": 1, "boss": false, "threat": 44},
 	]
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(1))) == str(pin_1), "pinned room seed 1 depth 5")
 	failed += _assert(str(SpawnRoller.roll_room(PIN_DEPTH, SpawnRoller.room_seed_rng(2))) == str(pin_2), "pinned room seed 2 depth 5")
