@@ -117,19 +117,23 @@ static func make_item_icon(item_id: String) -> Control:
 	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	swatch.tooltip_text = tip
 	return swatch
-## Slot squares in host space, on the body part each one dresses (char540 r4).
+
+
+## 44 px slots in the doll gutters, beside the 3× figure (host 276×382, figure x 66–210).
+## They ring the sprite; none of them sit on it.
 const SLOT_POS: Dictionary = {
-	"head": Vector2(116, 6),
-	"relic": Vector2(116, 128),
-	"cape": Vector2(59, 152),
-	"body": Vector2(116, 176),
-	"weapon": Vector2(59, 216),
-	"hands": Vector2(173, 216),
-	"pants": Vector2(116, 268),
-	"ring1": Vector2(59, 268),
-	"ring2": Vector2(173, 268),
-	"feet": Vector2(116, 332),
+	"head": Vector2(8, 8),
+	"cape": Vector2(8, 82),
+	"weapon": Vector2(8, 156),
+	"ring1": Vector2(8, 230),
+	"feet": Vector2(8, 304),
+	"relic": Vector2(224, 8),
+	"body": Vector2(224, 82),
+	"hands": Vector2(224, 156),
+	"pants": Vector2(224, 230),
+	"ring2": Vector2(224, 304),
 }
+const GEAR_TAB_W: float = 131.0
 const SLOT_SIZE: Vector2 = Vector2(44, 44)
 const SLOT_SQUARE: Vector2 = Vector2(44, 44)
 ## Stat blocks on a 40 px pitch below the Trait lines.
@@ -400,7 +404,7 @@ func _build() -> void:
 	divider.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sheet.add_child(divider)
 
-	# Paper doll: dark bevel, the 3× still centred, 44 px slots on the body part they dress.
+	# Paper doll: dark bevel, the 3× still centred, 44 px slots in the gutters beside it.
 	var host := Control.new()
 	host.name = "PortraitHost"
 	host.position = HOST_POS
@@ -497,15 +501,15 @@ func _build() -> void:
 	mid.add_child(tabs)
 	_gear_tab_all_btn = Button.new()
 	_gear_tab_all_btn.name = "TabAll"
-	_gear_tab_all_btn.custom_minimum_size = Vector2(90, 44)
+	_gear_tab_all_btn.custom_minimum_size = Vector2(GEAR_TAB_W, 44)
 	_gear_tab_all_btn.pressed.connect(_set_gear_filter_all)
 	CharacterSheet._theme_call("style_tab_button", _gear_tab_all_btn)
 	_big_tab_font(_gear_tab_all_btn)
 	tabs.add_child(_gear_tab_all_btn)
 	_gear_cat_btn = Button.new()
 	_gear_cat_btn.name = "GearCategoryCycle"
-	_gear_cat_btn.custom_minimum_size = Vector2(172, 44)
-	_gear_cat_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_gear_cat_btn.custom_minimum_size = Vector2(GEAR_TAB_W, 44)
+	_gear_cat_btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_gear_cat_btn.pressed.connect(_cycle_gear_filter)
 	CharacterSheet._theme_call("style_tab_button", _gear_cat_btn)
 	_big_tab_font(_gear_cat_btn)
