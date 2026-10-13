@@ -67,6 +67,32 @@ static func place_tooltip(popup: Window, anchor: Control) -> void:
 	popup.position = Vector2(clampf(pos.x, SAFE_MARGIN_PX, max_x), clampf(pos.y, SAFE_MARGIN_PX, max_y))
 
 
+## Four pips under a speed button. `active` is the lit step, or -1 when none match.
+static func paint_speed_pips(host: Control, active: int) -> void:
+	if host == null:
+		return
+	var row: HBoxContainer = host.get_node_or_null("SpeedPips") as HBoxContainer
+	if row == null:
+		row = HBoxContainer.new()
+		row.name = "SpeedPips"
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		row.add_theme_constant_override("separation", 3)
+		host.add_child(row)
+		for _i: int in 4:
+			var pip := ColorRect.new()
+			pip.custom_minimum_size = Vector2(6, 4)
+			pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(pip)
+	row.position = Vector2(4, host.size.y - 8.0)
+	row.size = Vector2(host.size.x - 8.0, 4)
+	for i: int in row.get_child_count():
+		var pip: ColorRect = row.get_child(i) as ColorRect
+		if pip == null:
+			continue
+		pip.color = Color8(243, 230, 200) if i == active else Color(0.243, 0.165, 0.094, 0.35)
+
+
 static func center_control(ctrl: Control) -> void:
 	if ctrl == null:
 		return

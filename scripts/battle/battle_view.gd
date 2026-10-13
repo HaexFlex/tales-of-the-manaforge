@@ -140,12 +140,12 @@ const ROOMS_PLATE_POS: Vector2 = Vector2(182.0, 24.0)
 const ROOMS_PLATE_SIZE: Vector2 = Vector2(150.0, 40.0)
 const ROUND_BANNER_POS: Vector2 = Vector2(385.0, 24.0)
 const ROUND_BANNER_SIZE: Vector2 = Vector2(190.0, 40.0)
-## Three 44 px wood speed toggles sit 8 px left of the Close button (the tap rule sizes them).
+## One 44 px speed button sits 8 px left of Close and cycles 1× / 2× / 4× / 8×.
 const SPEED_BUTTON_SIZE: Vector2 = Vector2(44.0, 44.0)
 const SPEED_BUTTON_PITCH: float = 48.0
 const CLOSE_BUTTON_RECT: Rect2 = Rect2(892.0, 24.0, 44.0, 44.0)
 const SPEED_BUTTON_POS: Vector2 = Vector2(
-	CLOSE_BUTTON_RECT.position.x - 8.0 - SPEED_BUTTON_SIZE.x - SPEED_BUTTON_PITCH * 2.0,
+	CLOSE_BUTTON_RECT.position.x - 8.0 - SPEED_BUTTON_SIZE.x,
 	24.0,
 )
 const TWIST_CHIP_POS: Vector2 = Vector2(146.0, 38.0)
@@ -2268,32 +2268,26 @@ func _build_speed_bar() -> void:
 	_speed_bar.name = "SpeedBar"
 	_speed_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_arena.add_child(_speed_bar)
-	for i: int in 3:
-		var label_speed: int = [1, 2, 4][i]
-		var btn := Button.new()
-		btn.name = "Speed%dx" % label_speed
-		btn.text = "%dx" % label_speed
-		_theme_call("style_tab_button", btn)
-		btn.add_theme_font_override("font", load(PRIMARY_FONT_PATH) as Font)
-		btn.add_theme_font_size_override("font_size", BIG_FONT_SIZE)
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.custom_minimum_size = SPEED_BUTTON_SIZE
-		btn.size = SPEED_BUTTON_SIZE
-		btn.position = Vector2(
-			floorf(SPEED_BUTTON_POS.x + float(i) * SPEED_BUTTON_PITCH),
-			floorf(SPEED_BUTTON_POS.y),
-		)
-		btn.add_to_group("battle_ui")
-		btn.button_pressed = label_speed == 1
-		btn.pressed.connect(_on_speed_pressed.bind(label_speed))
-		_speed_buttons[label_speed] = btn
-		_speed_bar.add_child(btn)
+	var btn := Button.new()
+	btn.name = "SpeedCycle"
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size = SPEED_BUTTON_SIZE
+	btn.size = SPEED_BUTTON_SIZE
+	btn.position = SPEED_BUTTON_POS
+	btn.add_to_group("battle_ui")
+	_theme_call("style_wood_button", btn)
+	btn.pressed.connect(_on_speed_cycle_pressed)
+	_speed_bar.add_child(btn)
 	_refresh_speed_buttons()
 
 
-func _on_speed_pressed(chosen: int) -> void:
-	if not strike_for_me_on():
-		_apply_battle_speed(chosen)
+func _on_speed_cycle_pressed() -> void:
+	if strike_for_me_on():
+		return
+	var steps: Array[int] = [1, 2, 4, 8]
+	var idx: int = steps.find(_battle_speed)
+	var nxt: int = steps[(idx + 1) % steps.size()] if idx >= 0 else 1
+	_apply_battle_speed(nxt)
 
 
 func _apply_battle_speed(chosen: int) -> void:
@@ -2308,21 +2302,20 @@ func _apply_battle_speed(chosen: int) -> void:
 
 
 func _refresh_speed_buttons() -> void:
+	var btn: Button = _speed_bar.get_node_or_null("SpeedCycle") as Button if _speed_bar != null else null
+	if btn == null:
+		return
 	var locked: bool = strike_for_me_on()
-	for speed_key: int in _speed_buttons.keys():
-		var btn: Button = _speed_buttons[speed_key] as Button
-		if btn == null:
-			continue
-		if locked:
-			btn.disabled = speed_key != 1
-			btn.button_pressed = speed_key == 1
-			if speed_key == 1:
-				_battle_speed = 1
-				if _playback != null:
-					_playback.speed = 1
-		else:
-			btn.disabled = false
-		btn.set_pressed_no_signal(speed_key == _battle_speed)
+	if locked:
+		btn.disabled = true
+		_battle_speed = 1
+		if _playback != null:
+			_playback.speed = 1
+	else:
+		btn.disabled = false
+	btn.text = "%dx" % _battle_speed
+	var steps: Array[int] = [1, 2, 4, 8]
+	Ui540.paint_speed_pips(btn, steps.find(_battle_speed))
 
 
 func _build_fight_hud() -> void:

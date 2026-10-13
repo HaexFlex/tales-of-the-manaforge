@@ -6627,7 +6627,7 @@ func _scene_transitions(tree_root: Window, game_state: Node, save_service: Node)
 
 const _STABLE_PRESET: String = "Windows Release / Stable"
 const _TESTING_PRESET: String = "Windows Testing / Experimental"
-const _SPEED_HINT: String = "Test only. Cycles 1× → 2× → 4× → 8× → 16×. Speeds harvest, growth, Ancient, crafting and Wisps. Turning the option off resets to 1×."
+const _SPEED_HINT: String = "Adds a 1x / 2x / 4x / 8x button next to Pause."
 
 
 func _stripped_paths() -> PackedStringArray:
@@ -9832,7 +9832,7 @@ func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, g
 	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
 	failed += _assert(title_src.find("reset_play_speed()") >= 0, "title launch resets play speed")
 	failed += _assert(state_src.find("reset_play_speed()") >= 0, "autoload launch resets play speed")
-	failed += _assert(hud_src.find("[1, 2, 4, 8, 16]") >= 0, "debug speed still cycles to 16x")
+	failed += _assert(hud_src.find("[1, 2, 4, 8, 16]") < 0, "HUD speed does not cycle to 16x")
 	failed += _assert(bool(game_state.call("play_speed_in_stable")), "play speed ships in Stable")
 	var stable_body: String = _func_body(state_src, "func play_speed_in_stable")
 	failed += _assert(stable_body.find("manaforge") < 0, "stable inclusion is not feature-gated")
@@ -9847,6 +9847,15 @@ func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, g
 	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
 	failed += _assert(packed != null, "hud scene")
 	if packed != null:
+		game_audio.set("use_speedup_button", false)
+		var hidden_hud: Node = packed.instantiate()
+		tree_root.add_child(hidden_hud)
+		await process_frame
+		var hidden_btn: TextureButton = hidden_hud.find_child("PlaySpeedButton", true, false) as TextureButton
+		failed += _assert(hidden_btn != null and not hidden_btn.visible, "play speed button stays hidden until Options enables it")
+		hidden_hud.free()
+		game_state.call("set_play_speed", 8)
+		game_audio.set("use_speedup_button", true)
 		var hud: Node = packed.instantiate()
 		tree_root.add_child(hud)
 		await process_frame
@@ -9854,10 +9863,11 @@ func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, g
 		failed += _assert(btn != null and btn.visible, "play speed button is on the HUD")
 		if btn != null:
 			failed += _assert(btn.tooltip_text == "8x", "button shows 8x (got %s)" % btn.tooltip_text)
+			failed += _assert(btn.get_node_or_null("SpeedPips") != null and btn.get_node("SpeedPips").get_child_count() == 4, "speed button has 4 pips")
 			btn.pressed.emit()
 			failed += _assert(int(game_state.get("play_speed")) == 1, "8x cycles back to 1x")
 		var debug_btn: TextureButton = hud.find_child("SpeedButton", true, false) as TextureButton
-		failed += _assert(debug_btn != null and debug_btn != btn, "debug speed button stays separate")
+		failed += _assert(debug_btn != null and not debug_btn.visible, "debug 16x button is not on the HUD")
 		hud.free()
 	game_state.set("run_time_sec", run0)
 	game_state.set("active_since_load_sec", idle0)
@@ -14932,22 +14942,11 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(depth_plate != null and depth_plate.position == BattleViewScript.DEPTH_PLATE_POS and depth_plate.size == BattleViewScript.DEPTH_PLATE_SIZE, "depth plate top bar")
 	var round_banner: Control = view.get_node_or_null("Arena/RoundBanner") as Control
 	failed += _assert(round_banner != null and round_banner.position == BattleViewScript.ROUND_BANNER_POS and round_banner.size == BattleViewScript.ROUND_BANNER_SIZE, "round banner top bar")
-	for i: int in 3:
-		var speed_n: int = [1, 2, 4][i]
-		var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
-		var want_pos: Vector2 = Vector2(
-			BattleViewScript.SPEED_BUTTON_POS.x + float(i) * BattleViewScript.SPEED_BUTTON_PITCH,
-			BattleViewScript.SPEED_BUTTON_POS.y,
-		)
-		failed += _assert(speed_btn != null and speed_btn.position == want_pos, "speed %dx at %s" % [speed_n, want_pos])
+	var speed_cycle: Button = view.get_node_or_null("Arena/SpeedBar/SpeedCycle") as Button
+	failed += _assert(speed_cycle != null and speed_cycle.position == BattleViewScript.SPEED_BUTTON_POS, "one speed button sits left of Close")
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
-	if close_btn != null:
-		var close_rect: Rect2 = close_btn.get_global_rect()
-		for i: int in 3:
-			var speed_n: int = [1, 2, 4][i]
-			var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
-			if speed_btn != null:
-				failed += _assert(not close_rect.intersects(speed_btn.get_global_rect()), "Close does not cover Speed%dx" % speed_n)
+	if close_btn != null and speed_cycle != null:
+		failed += _assert(not close_btn.get_global_rect().intersects(speed_cycle.get_global_rect()), "Close does not cover the speed button")
 	var test_bar: Control = view.get_node_or_null("Arena/TestFightBar") as Control
 	var twist_chip: Control = view.get_node_or_null("Arena/TwistChip") as Control
 	if test_bar != null and depth_plate != null:
@@ -14959,12 +14958,8 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 		failed += _assert(not test_bar.get_global_rect().intersects(round_banner.get_global_rect()), "TestFightBar does not overlap RoundBanner")
 	if test_bar != null and close_btn != null:
 		failed += _assert(not test_bar.get_global_rect().intersects(close_btn.get_global_rect()), "TestFightBar does not overlap Close")
-	if test_bar != null:
-		for i: int in 3:
-			var speed_n: int = [1, 2, 4][i]
-			var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
-			if speed_btn != null:
-				failed += _assert(not test_bar.get_global_rect().intersects(speed_btn.get_global_rect()), "TestFightBar does not overlap Speed%dx" % speed_n)
+	if test_bar != null and speed_cycle != null:
+		failed += _assert(not test_bar.get_global_rect().intersects(speed_cycle.get_global_rect()), "TestFightBar does not overlap the speed button")
 	var sample_plate: Control = view.get_node_or_null("Arena/Plates/PartyPlate_%s" % party_ids[0]) as Control
 	if sample_plate != null:
 		var sample_name: Label = sample_plate.get_node_or_null("NameLabel") as Label
@@ -14973,9 +14968,8 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 			failed += _assert(sample_name.get_theme_color("font_color").is_equal_approx(BattleViewScript.PLATE_NAME_TEXT) and sample_name.get_theme_constant("outline_size") > 0, "plate name tag is cream with a dark rim over the arena")
 	view.call("_apply_battle_speed", 2)
 	await process_frame
-	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
-	var speed1: Button = view.get_node_or_null("Arena/SpeedBar/Speed1x") as Button
-	failed += _assert(speed2 != null and speed2.toggle_mode and speed2.button_pressed and speed1 != null and not speed1.button_pressed, "current speed shows as the pressed wood toggle")
+	var speed_now: Button = view.get_node_or_null("Arena/SpeedBar/SpeedCycle") as Button
+	failed += _assert(speed_now != null and speed_now.text == "2x", "speed button reads the current step")
 	view.call("set_active", party_ids[0])
 	await process_frame
 	failed += _assert(get_nodes_in_group("battle_plate_outline").is_empty(), "no gold plate outline ColorRect")
@@ -16083,8 +16077,8 @@ func _battle_playback(tree_root: Window, game_state: Node, save_service: Node) -
 	if view._strike_for_me_toggle != null:
 		view._strike_for_me_toggle.button_pressed = true
 	view.call("_refresh_speed_buttons")
-	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
-	failed += _assert(bool(view.call("strike_for_me_on")) and int(playback.speed) == 1 and speed2.disabled, "strike for me locks 1x")
+	var speed_locked: Button = view.get_node_or_null("Arena/SpeedBar/SpeedCycle") as Button
+	failed += _assert(bool(view.call("strike_for_me_on")) and int(playback.speed) == 1 and speed_locked != null and speed_locked.disabled, "strike for me locks 1x")
 	playback.reset_for_fight()
 	playback.enqueue_events([strike_ev])
 	playback.advance(0.45)
@@ -19664,12 +19658,11 @@ func _handoff_idle_body(tree_root: Window, game_state: Node, save_service: Node)
 	if toggle != null:
 		toggle.set_pressed_no_signal(true)
 	view.call("_refresh_speed_buttons")
-	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
-	var speed4: Button = view.get_node_or_null("Arena/SpeedBar/Speed4x") as Button
+	var speed_cycle_btn: Button = view.get_node_or_null("Arena/SpeedBar/SpeedCycle") as Button
 	var playback: BattlePlayback = view.get_playback()
 	failed += _assert(bool(view.call("strike_for_me_on")), "Strike for me is on")
 	failed += _assert(playback != null and int(playback.speed) == 1, "Auto speed is 1x")
-	failed += _assert(speed2 != null and speed2.disabled and speed4 != null and speed4.disabled, "SpeedBar 2x and 4x are disabled")
+	failed += _assert(speed_cycle_btn != null and speed_cycle_btn.disabled, "speed button is locked while Strike for me is on")
 	if toggle != null:
 		toggle.set_pressed_no_signal(false)
 	view.call("_refresh_speed_buttons")

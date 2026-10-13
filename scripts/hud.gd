@@ -2820,28 +2820,24 @@ func _ensure_speed_button() -> void:
 
 
 func _refresh_speed_button() -> void:
+	## 16× stays off the HUD. The player button is the only speed control here.
 	if _speed_button == null:
 		return
-	var show: bool = has_node("/root/GameAudio") and GameAudio.use_speedup_button
-	_speed_button.visible = show
-	if not show:
-		if not is_equal_approx(Engine.time_scale, 1.0):
-			Engine.time_scale = 1.0
-		_speed_index = 0
-		_apply_speed_textures()
+	_speed_button.visible = false
+	if not is_equal_approx(Engine.time_scale, 1.0):
+		Engine.time_scale = 1.0
+	_speed_index = 0
 
 
 func _on_speed_pressed() -> void:
-	var steps: Array[int] = [1, 2, 4, 8, 16]
-	_speed_index = (_speed_index + 1) % steps.size()
-	Engine.time_scale = float(steps[_speed_index])
-	_apply_speed_textures()
+	_speed_index = 0
+	Engine.time_scale = 1.0
 
 
 func _apply_speed_textures() -> void:
 	if _speed_button == null:
 		return
-	var steps: Array[int] = [1, 2, 4, 8, 16]
+	var steps: Array[int] = [1, 2, 4, 8]
 	var n: int = steps[_speed_index]
 	var stem: String = "res://assets/art/ui/buttons/speed_%dx_" % n
 	_speed_button.texture_normal = load(stem + "normal.png") as Texture2D
@@ -2851,7 +2847,7 @@ func _apply_speed_textures() -> void:
 
 
 func _ensure_play_speed_button() -> void:
-	## Player control. Stable ships this. The debug SpeedButton above stays opt-in and reaches 16×.
+	## Player control. Shown only when Options turns the speed button on. Steps are 1× / 2× / 4× / 8×.
 	_play_speed_button = TextureButton.new()
 	_play_speed_button.name = "PlaySpeedButton"
 	_play_speed_button.position = Vector2(924, 6)
@@ -2874,7 +2870,10 @@ func _ensure_play_speed_button() -> void:
 func _refresh_play_speed_button() -> void:
 	if _play_speed_button == null:
 		return
-	_play_speed_button.visible = true
+	var show: bool = has_node("/root/GameAudio") and GameAudio.use_speedup_button
+	_play_speed_button.visible = show
+	if not show and has_node("/root/GameState"):
+		GameState.reset_play_speed()
 	_apply_play_speed_textures()
 
 
@@ -2895,6 +2894,7 @@ func _apply_play_speed_textures() -> void:
 	_play_speed_button.texture_hover = load(stem + "hover.png") as Texture2D
 	_play_speed_button.texture_pressed = load(stem + "pressed.png") as Texture2D
 	_play_speed_button.tooltip_text = "%dx" % n
+	Ui540.paint_speed_pips(_play_speed_button, [1, 2, 4, 8].find(n))
 
 
 func _make_activity_label(node_name: String, y: float) -> Label:
