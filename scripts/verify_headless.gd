@@ -3437,7 +3437,7 @@ func _run() -> void:
 		var weapon_square: TextureRect = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
 		failed += _assert(weapon_slot != null and relic_slot != null, "weapon and relic slots")
 		failed += _assert(relic_square != null and relic_square.texture == HudIcons.cell(HudIcons.EQUIP_LOCKED), "relic slot uses locked chrome")
-		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "empty weapon slot uses empty chrome")
+		failed += _assert(weapon_square != null and weapon_square.texture != null and weapon_square.texture.resource_path == CharacterSheet.EMPTY_SLOT_FRAME_PATH, "empty weapon slot uses the empty-slot frame")
 		var relic_style: StyleBoxFlat = relic_slot.get_theme_stylebox("panel") as StyleBoxFlat if relic_slot != null else null
 		var weapon_style: StyleBoxFlat = weapon_slot.get_theme_stylebox("panel") as StyleBoxFlat if weapon_slot != null else null
 		failed += _assert(relic_style != null and relic_style.get_border_width(SIDE_LEFT) == 0, "locked slot has no gold border")
@@ -3522,7 +3522,7 @@ func _run() -> void:
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "", "sheet unequip")
 		weapon_square = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost/Slot_weapon/Square") as TextureRect
-		failed += _assert(weapon_square != null and weapon_square.texture == HudIcons.cell(HudIcons.EQUIP_EMPTY), "unequipped weapon returns to empty chrome")
+		failed += _assert(weapon_square != null and weapon_square.texture != null and weapon_square.texture.resource_path == CharacterSheet.EMPTY_SLOT_FRAME_PATH, "unequipped weapon returns to the empty-slot frame")
 		slot_plate.call("_drop_data", Vector2.ZERO, {"kind": "gear", "item_id": "stone_sword", "from_slot": ""})
 		await process_frame
 		failed += _assert(str(equipment.call("equipped_id", "weapon")) == "stone_sword", "sheet drag-drop equips")

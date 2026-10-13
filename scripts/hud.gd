@@ -564,14 +564,14 @@ func _apply_bag540_chrome() -> void:
 	for tab: Button in [backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
 		tab.visible = false
 	backpack_tab_all.custom_minimum_size = Vector2(90, 44)
-	GameTheme.style_tab_button(backpack_tab_all)
+	GameTheme.style_big_tab_button(backpack_tab_all)
 	if _backpack_cat_btn == null:
 		_backpack_cat_btn = Button.new()
 		_backpack_cat_btn.name = "TabCategoryCycle"
 		backpack_tab_all.get_parent().add_child(_backpack_cat_btn)
 		_backpack_cat_btn.pressed.connect(_cycle_backpack_filter)
-	_backpack_cat_btn.custom_minimum_size = Vector2(150, 44)
-	GameTheme.style_tab_button(_backpack_cat_btn)
+	_backpack_cat_btn.custom_minimum_size = Vector2(160, 44)
+	GameTheme.style_big_tab_button(_backpack_cat_btn)
 	Ui540.add_cycle_cue(_backpack_cat_btn)
 	_backpack_cat_btn.visible = true
 	var tab_row: HBoxContainer = backpack_panel.get_node_or_null("TabRow") as HBoxContainer
@@ -3531,13 +3531,13 @@ func _ensure_bench_chrome() -> void:
 	_bench_tab_all.name = "TabAll"
 	_bench_tab_all.custom_minimum_size = Vector2(90, 44)
 	_bench_tab_all.pressed.connect(_set_bench_filter.bind(0))
-	GameTheme.style_tab_button(_bench_tab_all)
+	GameTheme.style_big_tab_button(_bench_tab_all)
 	_bench_tabs.add_child(_bench_tab_all)
 	_bench_cat_btn = Button.new()
 	_bench_cat_btn.name = "BenchCategoryCycle"
-	_bench_cat_btn.custom_minimum_size = Vector2(140, 44)
+	_bench_cat_btn.custom_minimum_size = Vector2(160, 44)
 	_bench_cat_btn.pressed.connect(_cycle_bench_filter)
-	GameTheme.style_tab_button(_bench_cat_btn)
+	GameTheme.style_big_tab_button(_bench_cat_btn)
 	Ui540.add_cycle_cue(_bench_cat_btn)
 	_bench_tabs.add_child(_bench_cat_btn)
 	craft_list.add_theme_constant_override("separation", int(BACKPACK_ROW_H - BAG_ROW_H))

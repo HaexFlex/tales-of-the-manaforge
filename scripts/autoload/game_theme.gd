@@ -190,6 +190,13 @@ func style_tab_button(btn: Button) -> void:
 	btn.toggle_mode = true
 
 
+## Window filter tab (char, bag, workbench): the wood tab with Silver 38 caps.
+func style_big_tab_button(btn: Button) -> void:
+	style_tab_button(btn)
+	btn.add_theme_font_override("font", _primary_font)
+	btn.add_theme_font_size_override("font_size", 38)
+
+
 ## Faceless text button sitting on parchment: ink caps.
 func style_ink_button(btn: Button) -> void:
 	btn.theme_type_variation = &"InkButton"

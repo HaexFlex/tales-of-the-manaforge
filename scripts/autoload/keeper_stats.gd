@@ -12,6 +12,18 @@ const STAT_ORDER: Array[StringName] = [
 	&"might", &"arcana", &"resilience", &"ward", &"vitality", &"swiftness", &"fate"
 ]
 
+## stat_color is tuned for dark wood and runestone glow; on parchment these dark-ink cousins
+## (char540 r4) keep the hue and reach readable contrast against #E7D4A6.
+const STAT_INK: Dictionary = {
+	"might": Color8(170, 52, 40),
+	"arcana": Color8(118, 64, 150),
+	"resilience": Color8(104, 110, 40),
+	"ward": Color8(46, 84, 150),
+	"vitality": Color8(52, 120, 52),
+	"swiftness": Color8(160, 104, 20),
+	"fate": Color8(160, 60, 120),
+}
+
 var ranks: Dictionary = {}
 var params: Dictionary = {}
 var stats_data: Array = []
@@ -95,6 +107,12 @@ func stat_role(stat_id: String) -> String:
 func stat_color(stat_id: String) -> Color:
 	var hex: String = str(get_stat_def(stat_id).get("color", "#888888"))
 	return Color(hex)
+
+
+func stat_ink_color(stat_id: String) -> Color:
+	if STAT_INK.has(stat_id):
+		return STAT_INK[stat_id] as Color
+	return stat_color(stat_id).darkened(0.45)
 
 
 func get_rank(stat_id: String) -> int:

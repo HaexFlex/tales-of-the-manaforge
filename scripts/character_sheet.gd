@@ -606,7 +606,7 @@ func _build() -> void:
 			block.add_child(rule)
 		first = false
 		var stats = CharacterSheet._auto("KeeperStats")
-		_add_stat_row(block, "Name", stats.stat_display_name(sid), stats.stat_color(sid), STAT_NAME_Y, STAT_NAME_H, sw, false)
+		_add_stat_row(block, "Name", stats.stat_display_name(sid), stats.stat_ink_color(sid), STAT_NAME_Y, STAT_NAME_H, sw, false)
 		_add_stat_row(block, "Role", stats.stat_role(sid), MUTED, STAT_ROLE_Y, STAT_ROLE_H, sw, false)
 		_add_stat_row(block, "Line", "", INK, STAT_NAME_Y, STAT_NAME_H, sw, true)
 		y += STAT_STRIDE
@@ -1173,6 +1173,7 @@ class InvColumn extends Control:
 
 
 const EMPTY_RELIC_FRAME_PATH: String = "res://assets_extra/char/relic_slot_empty.png"
+const EMPTY_SLOT_FRAME_PATH: String = "res://assets/art/ui/board/item_slot_empty_44x44.png"
 const RELIC_ICON_SIZE: Vector2 = Vector2(32, 32)
 const RELIC_ICON_INSET: Vector2 = Vector2(6, 6)
 
@@ -1235,9 +1236,13 @@ class SlotPlate extends Panel:
 		refresh()
 
 	func _apply_empty_relic_frame() -> bool:
+		return _apply_frame(CharacterSheet.EMPTY_RELIC_FRAME_PATH)
+
+
+	func _apply_frame(path: String) -> bool:
 		var tex: Texture2D = null
-		if ResourceLoader.exists(CharacterSheet.EMPTY_RELIC_FRAME_PATH):
-			tex = load(CharacterSheet.EMPTY_RELIC_FRAME_PATH) as Texture2D
+		if ResourceLoader.exists(path):
+			tex = load(path) as Texture2D
 		if tex == null:
 			return false
 		_square.texture = tex
@@ -1329,7 +1334,8 @@ class SlotPlate extends Panel:
 				_caption.text = CharacterSheet._auto("ContentStrings").get_text("equip_empty")
 				tooltip_text = CharacterSheet._auto("ContentStrings").get_text("equip_empty")
 				return
-			_show_slot_icon(HudIcons.EQUIP_EMPTY)
+			if not _apply_frame(CharacterSheet.EMPTY_SLOT_FRAME_PATH):
+				_show_slot_icon(HudIcons.EQUIP_EMPTY)
 			if slot_id == "weapon":
 				_caption.text = CharacterSheet._auto("Equipment").slot_display_name(slot_id)
 				tooltip_text = CharacterSheet._auto("ContentStrings").get_text("equip_bare_stone_tooltip")
