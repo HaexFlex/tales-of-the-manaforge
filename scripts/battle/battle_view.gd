@@ -136,7 +136,7 @@ const ROUND_TEXT_RECT: Rect2 = Rect2(368.0, 8.0, 225.0, 24.0)
 ## Three 32×32 speed buttons (27 px pitch) sit just left of the Close button (855–948).
 const SPEED_BUTTON_SIZE: Vector2 = Vector2(32.0, 32.0)
 const SPEED_BUTTON_PITCH: float = 36.0
-const CLOSE_BUTTON_RECT: Rect2 = Rect2(855.0, 12.0, 93.0, 27.0)
+const CLOSE_BUTTON_RECT: Rect2 = Rect2(892.0, 24.0, 44.0, 44.0)
 const SPEED_BUTTON_POS: Vector2 = Vector2(
 	CLOSE_BUTTON_RECT.position.x - 4.0 - SPEED_BUTTON_SIZE.x - SPEED_BUTTON_PITCH * 2.0,
 	12.0,
@@ -153,11 +153,11 @@ const BOSS_CROWN_POS: Vector2 = Vector2(-15.0, 2.0)
 const KEYCAP_POS: Vector2 = Vector2(106.0, 9.0)
 const KEYCAP_PRESS_OFFSET: float = 2.0
 ## Bottom bar: the six action buttons (3 x 2) and the battle log. Nothing else.
-const BOTTOM_BAR_RECT: Rect2 = Rect2(0.0, 438.0, 960.0, 102.0)
-const ACTION_MENU_POS: Vector2 = Vector2(18.0, 450.0)
-const ACTION_BUTTON_SIZE: Vector2 = Vector2(120.0, 33.0)
-const ACTION_BUTTON_PITCH: Vector2 = Vector2(126.0, 39.0)
-const LOG_PANEL_RECT: Rect2 = Rect2(396.0, 450.0, 546.0, 78.0)
+const BOTTOM_BAR_RECT: Rect2 = Rect2(-24.0, 396.0, 1008.0, 168.0)
+const ACTION_MENU_POS: Vector2 = Vector2(24.0, 420.0)
+const ACTION_BUTTON_SIZE: Vector2 = Vector2(148.0, 44.0)
+const ACTION_BUTTON_PITCH: Vector2 = Vector2(156.0, 52.0)
+const LOG_PANEL_RECT: Rect2 = Rect2(496.0, 420.0, 440.0, 96.0)
 const LOG_LINE_COUNT: int = 5
 const LOG_SCROLL_PAD: float = 8.0
 const LOG_INK: Color = Color(0.243137, 0.164706, 0.094118, 1.0)
@@ -185,7 +185,7 @@ static var _ui_font_cache: Font = null
 @onready var _fighters: Control = $Arena/Fighters
 
 var _plates: Control = null
-var _bottom_bar: NinePatchRect = null
+var _bottom_bar: Control = null
 var _side_actions: VBoxContainer = null
 var _ability_button: Button = null
 var _active_fighter_id: String = ""
@@ -365,6 +365,7 @@ func _ready() -> void:
 		_close_button.pressed.connect(close_overlay)
 	if _close_button:
 		_close_button.add_to_group("battle_ui")
+		Ui540.configure_kit_close_button(_close_button)
 	_build_test_fight_bar()
 	_build_top_bar()
 	_build_speed_bar()
@@ -2124,20 +2125,22 @@ func _build_fight_hud() -> void:
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_result_label.add_to_group("battle_ui")
 	_arena.add_child(_result_label)
-	_bottom_bar = NinePatchRect.new()
-	_bottom_bar.name = "BottomBar"
-	_bottom_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bottom_bar.texture = _load_ui_tex("bottom_panel_9s_48.png")
-	_bottom_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_bottom_bar.patch_margin_left = 16
-	_bottom_bar.patch_margin_top = 16
-	_bottom_bar.patch_margin_right = 16
-	_bottom_bar.patch_margin_bottom = 16
-	_bottom_bar.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
-	_bottom_bar.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE
-	_bottom_bar.position = BOTTOM_BAR_RECT.position
-	_bottom_bar.size = BOTTOM_BAR_RECT.size
-	_arena.add_child(_bottom_bar)
+	var bottom_panel := Panel.new()
+	bottom_panel.name = "BottomBar"
+	bottom_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bottom_panel.position = BOTTOM_BAR_RECT.position
+	bottom_panel.size = BOTTOM_BAR_RECT.size
+	bottom_panel.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s(
+			"res://assets/ui/theme/frame_9s_96.png",
+			Vector4i(24, 24, 24, 24),
+			Vector4(28, 28, 28, 28),
+			true,
+		),
+	)
+	_arena.add_child(bottom_panel)
+	_bottom_bar = bottom_panel
 	_log_panel = Control.new()
 	_log_panel.name = "LogPanel"
 	_log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2145,13 +2148,15 @@ func _build_fight_hud() -> void:
 	_log_panel.size = LOG_PANEL_RECT.size
 	_log_panel.add_to_group("battle_ui")
 	_arena.add_child(_log_panel)
-	var parchment := TextureRect.new()
+	var parchment := Panel.new()
 	parchment.name = "Parchment"
 	parchment.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parchment.texture = _load_ui_tex("log_panel_732x108.png")
-	parchment.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	parchment.position = Vector2(-2.0, -2.0)
-	parchment.size = LOG_PANEL_RECT.size + Vector2(4.0, 4.0)
+	parchment.position = Vector2.ZERO
+	parchment.size = LOG_PANEL_RECT.size
+	parchment.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(6, 6, 6, 6), Vector4(4, 4, 4, 4)),
+	)
 	_log_panel.add_child(parchment)
 	_log_scroll = ScrollContainer.new()
 	_log_scroll.name = "LogScroll"
