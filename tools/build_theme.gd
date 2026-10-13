@@ -7,11 +7,19 @@ const INK := Color8(62, 42, 24)
 const CREAM := Color8(243, 230, 200)
 const OUTLINE := Color8(26, 15, 8)
 const MUTED := Color8(90, 62, 40)
-const DIS := Color8(164, 150, 132)
+const DIS := Color8(66, 52, 40)
 # measured cap heights (px ink, top of "H" to baseline) - see MOCKUPS.md v8c
 const CAP := {"silver19": 9, "silver38": 18, "jersey30": 16}
 
-func tex(n: String) -> Texture2D: return load(T + n)
+var _missing: PackedStringArray = []
+
+## A headless run before `--import` loads every texture as null and silently writes a
+## Theme with no art (flat buttons, no slider track, engine font). Refuse to save then.
+func tex(n: String) -> Texture2D:
+	var t: Texture2D = load(T + n) as Texture2D
+	if t == null:
+		_missing.append(n)
+	return t
 
 func sbt(n: String, m: Array, cm: Array = [], tile := false, expand: Array = []) -> StyleBoxTexture:
 	var s := StyleBoxTexture.new()
@@ -201,6 +209,12 @@ func _init() -> void:
 	th.set_color("font_disabled_color", "PopupMenu", DIS)
 	th.set_constant("v_separation", "PopupMenu", 6)
 
+	if body == null or primary == null or title == null:
+		_missing.append("font variations")
+	if not _missing.is_empty():
+		push_error("build_theme: missing %s; run --headless --import first" % ", ".join(_missing))
+		quit(1)
+		return
 	var err := ResourceSaver.save(th, "res://assets/ui/manaforge_theme.tres")
 	print("theme saved: ", error_string(err))
 	quit(0 if err == OK else 1)
