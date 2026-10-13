@@ -192,6 +192,8 @@ func _ready() -> void:
 	care_panel.visible = false
 	welcome_panel.visible = false
 	call_deferred("_layout_welcome_panel")
+	if not get_viewport().size_changed.is_connected(_layout_welcome_panel):
+		get_viewport().size_changed.connect(_layout_welcome_panel)
 	shop_dim.visible = false
 	welcome_panel.color = Color(0.07, 0.1, 0.09, 0.97)
 	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
