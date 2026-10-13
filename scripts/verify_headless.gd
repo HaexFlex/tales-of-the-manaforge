@@ -5599,6 +5599,11 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		var room: Node = room_packed.instantiate()
 		reliquary = room.get_node_or_null("Reliquary") as Node2D
 		failed += _assert(reliquary != null and reliquary.position.distance_to(Vector2(420, 800)) < 1.0, "reliquary left the north doorway")
+		room.call("_layout_station_panel")
+		var station_panel: Control = room.get_node_or_null("UI/RecipePanel") as Control
+		var view_sz: Vector2 = tree_root.get_visible_rect().size
+		failed += _assert(station_panel != null and station_panel.position.x >= 0.0 and station_panel.position.y >= 0.0, "station window starts on screen")
+		failed += _assert(station_panel != null and station_panel.position.x + station_panel.size.x <= view_sz.x + 1.0 and station_panel.position.y + station_panel.size.y <= view_sz.y + 1.0, "station window fits the viewport")
 		room.free()
 	audio.call("set_forge_room_mix", false)
 	jobs.call("set_scene_changes_enabled", true)

@@ -388,16 +388,48 @@ func _open_recipes(station_id: String) -> void:
 		btn.tooltip_text = recipe_id
 		btn.pressed.connect(_on_recipe_pressed.bind(station_id, recipe_id))
 		recipe_list.add_child(btn)
-	if recipe_list:
-		recipe_list.offset_bottom = 180.0
 	var panel: BatchPanel = _ensure_batch_panel()
 	if panel:
 		panel.setup(station_id)
 		if panel.selected_recipe() == "" and ids.size() > 0:
 			panel.bind_recipe(ids[0])
-	if recipe_panel:
-		recipe_panel.offset_bottom = 760.0
+	_layout_station_panel()
 	_refresh_station_job()
+
+
+## Station recipe window stays inside the 540p safe area. The old offsets started at
+## x 860 and then stretched the panel to y 760, which left it off-screen.
+func _layout_station_panel() -> void:
+	if recipe_panel == null:
+		return
+	var sz: Vector2 = Ui540.fit_kit_window(recipe_panel, Vector2(420, 460), false)
+	if recipe_title:
+		recipe_title.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		recipe_title.position = Vector2(16, 12)
+		recipe_title.size = Vector2(sz.x - 148.0, 28)
+	var list_y: float = 48.0
+	if _job_label != null:
+		_job_label.position = Vector2(16, 44)
+		_job_label.size = Vector2(sz.x - 32.0, 20)
+		if _job_border:
+			_job_border.position = Vector2(15, 66)
+			_job_border.size = Vector2(sz.x - 30.0, 10)
+		if _job_track:
+			_job_track.position = Vector2(16, 67)
+			_job_track.size = Vector2(sz.x - 32.0, 8)
+		if _job_fill:
+			_job_fill.position = Vector2(16, 67)
+		list_y = 84.0
+	if recipe_list:
+		recipe_list.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		recipe_list.position = Vector2(16, list_y)
+		recipe_list.size = Vector2(sz.x - 32.0, 120)
+	var batch: Control = recipe_panel.get_node_or_null("BatchPanel") as Control
+	if batch:
+		var batch_y: float = list_y + 128.0
+		batch.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		batch.position = Vector2(12, batch_y)
+		batch.size = Vector2(sz.x - 24.0, maxf(80.0, sz.y - batch_y - 12.0))
 
 
 func _on_recipe_pressed(station_id: String, recipe_id: String) -> void:
@@ -527,8 +559,7 @@ func _ensure_station_meter() -> void:
 	_job_fill.color = Color(0.55, 0.78, 0.34, 1)
 	_job_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	recipe_panel.add_child(_job_fill)
-	if recipe_list:
-		recipe_list.offset_top = 74.0
+	_layout_station_panel()
 
 
 func _refresh_station_job() -> void:
