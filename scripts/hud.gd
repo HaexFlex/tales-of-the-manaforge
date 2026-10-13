@@ -90,7 +90,7 @@ var _forge_popup_body: Label
 @onready var welcome_dismiss_button: Button = $WelcomePanel/WelcomeDismiss
 
 ## Art lock MANATREE_CARE_PANEL_V01: 520×420, header 64 / body / action band 56. No shop rows.
-const CARE_SIZE: Vector2 = Vector2(520, 420)
+const CARE_SIZE: Vector2 = Vector2(600, 440)
 const CARE_HEADER_H: float = 64.0
 const CARE_ACTION_BAND_H: float = 56.0
 ## Art lock ASCENSION_SHOP_LAYOUT_V01 scaled for 960×540 (24 px safe margins).
@@ -125,6 +125,7 @@ const BTN_PACK_HOVER: String = "res://assets/art/ui/buttons/backpack_hover.png"
 const BTN_PACK_PRESSED: String = "res://assets/art/ui/buttons/backpack_pressed.png"
 const BACKPACK_ROW_H: float = 48.0
 const BAG_PANEL_W: float = 560.0
+const BENCH_PANEL_W: float = 600.0
 
 var _manatree: Manatree = null
 var _confirm_pay: bool = false
@@ -311,6 +312,10 @@ func _ready() -> void:
 	_layout_bag540()
 	if not get_viewport().size_changed.is_connected(_layout_bag540):
 		get_viewport().size_changed.connect(_layout_bag540)
+	_apply_care540_chrome()
+	_layout_care540()
+	if not get_viewport().size_changed.is_connected(_layout_care540):
+		get_viewport().size_changed.connect(_layout_care540)
 	_ensure_help_panel()
 	if help_button:
 		help_button.visible = true
@@ -507,6 +512,35 @@ func _layout_bag540() -> void:
 	if scroll:
 		scroll.position = Vector2(36, list_top)
 		scroll.size = Vector2(inner_w, h - list_top - 56.0)
+
+
+func _apply_care540_chrome() -> void:
+	if care_panel:
+		Ui540.apply_kit_panel(care_panel, "manatree_care", care_title, care_close_button)
+		GameTheme.style_body_label(care_needs_label)
+		GameTheme.style_primary_button(pay_button)
+		GameTheme.style_primary_button(harvest_fruit_button)
+	if bench_panel:
+		Ui540.apply_kit_panel(bench_panel, "workbench", bench_title, bench_close_button)
+		GameTheme.style_body_label(bench_prompt)
+
+
+func _layout_care540() -> void:
+	if care_panel:
+		care_panel.custom_minimum_size = CARE_SIZE
+		care_panel.size = CARE_SIZE
+		Ui540.center_control(care_panel)
+		care_close_button.position = Vector2(CARE_SIZE.x - 68.0, 18.0)
+		care_close_button.size = Vector2(44, 44)
+		care_title.position = Vector2(24, -20)
+	if bench_panel:
+		var bh: float = minf(440.0, Ui540.viewport_size().y - Ui540.SAFE_MARGIN_PX * 2.0)
+		bench_panel.custom_minimum_size = Vector2(BENCH_PANEL_W, bh)
+		bench_panel.size = Vector2(BENCH_PANEL_W, bh)
+		Ui540.center_control(bench_panel)
+		bench_close_button.position = Vector2(BENCH_PANEL_W - 68.0, 18.0)
+		bench_close_button.size = Vector2(44, 44)
+		bench_title.position = Vector2((BENCH_PANEL_W - 200.0) * 0.5, -20)
 
 
 func _ensure_help_panel() -> void:
@@ -862,7 +896,6 @@ func _make_item_icon(item_id: String, tip: String) -> Control:
 func _apply_wood_chrome() -> void:
 	ascension_panel.add_theme_stylebox_override("panel", _wood_style())
 	fruit_confirm_panel.add_theme_stylebox_override("panel", _wood_style())
-	care_panel.add_theme_stylebox_override("panel", _wood_style())
 	shard_chip.color = CHIP_CYAN
 	_apply_button_chrome(close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(ascend_button, LEAF, GOLD)
@@ -878,7 +911,6 @@ func _apply_wood_chrome() -> void:
 	_apply_icon_button(ascension_reopen_button)
 	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	_apply_button_chrome(bench_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	bench_panel.add_theme_stylebox_override("panel", _wood_style())
 
 
 func _process(_delta: float) -> void:

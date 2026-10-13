@@ -380,21 +380,12 @@ func _ensure_confirm() -> void:
 	_panel = Panel.new()
 	_panel.name = "Panel"
 	_panel.custom_minimum_size = Vector2(520, 280)
-	_panel.anchor_left = 0.5
-	_panel.anchor_top = 0.5
-	_panel.anchor_right = 0.5
-	_panel.anchor_bottom = 0.5
-	_panel.offset_left = -260.0
-	_panel.offset_top = -150.0
-	_panel.offset_right = 260.0
-	_panel.offset_bottom = 150.0
+	_panel.size = Vector2(520, 280)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.16, 0.11, 0.07, 0.98)
-	sb.border_color = Color(0.82, 0.64, 0.28, 1.0)
-	sb.set_border_width_all(2)
-	_panel.add_theme_stylebox_override("panel", sb)
 	_layer.add_child(_panel)
+	Ui540.apply_kit_panel(_panel, "runestone_confirm")
+	_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_panel.position = Vector2.ZERO
 	_title = _make_label(_panel, "Title", Vector2(16, 12), Vector2(488, 24), 18, Color(0.82, 0.64, 0.28, 1.0))
 	_spend = _make_label(_panel, "Spend", Vector2(16, 40), Vector2(488, 22), 15, Color(0.92, 0.86, 0.72, 1.0))
 	_body = _make_label(_panel, "Body", Vector2(16, 68), Vector2(488, 40), 14, Color(0.92, 0.86, 0.72, 1.0))
@@ -402,13 +393,14 @@ func _ensure_confirm() -> void:
 	_bank = _make_label(_panel, "Bank", Vector2(16, 162), Vector2(488, 40), 12, Color(0.70, 0.64, 0.52, 1.0))
 	_yes = Button.new()
 	_yes.name = "Yes"
-	_yes.position = Vector2(16, 220)
-	_yes.size = Vector2(140, 36)
+	_yes.position = Vector2(280, 220)
+	_yes.size = Vector2(220, 44)
+	GameTheme.style_primary_button(_yes)
 	_panel.add_child(_yes)
 	_no = Button.new()
 	_no.name = "No"
-	_no.position = Vector2(168, 220)
-	_no.size = Vector2(140, 36)
+	_no.position = Vector2(36, 220)
+	_no.size = Vector2(220, 44)
 	_panel.add_child(_no)
 	if not _wired:
 		_yes.pressed.connect(_on_yes_pressed)
