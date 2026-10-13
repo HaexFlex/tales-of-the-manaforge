@@ -159,6 +159,7 @@ const GEAR_FILTER_CYCLE: Array[String] = [
 ]
 var _built: bool = false
 var _actor_id: String = "keeper"
+var _sheet_page: String = "gear"
 var _prev_char_btn: Button
 var _next_char_btn: Button
 var _gear_tab_all_btn: Button
@@ -624,7 +625,50 @@ func _build() -> void:
 	right.add_child(fate_note)
 
 	_build_trait_popup()
+	_install_portrait_list(sheet)
 	call_deferred("_fit_sheet")
+
+
+func _install_portrait_list(sheet: Control) -> void:
+	## The brief's portrait list. No mockup shows this yet; the arrow header is retired.
+	if _prev_char_btn:
+		_prev_char_btn.visible = false
+	if _next_char_btn:
+		_next_char_btn.visible = false
+	var header_icon: CanvasItem = sheet.get_node_or_null("HeaderPortrait") as CanvasItem
+	if header_icon:
+		header_icon.visible = false
+	var rail := VBoxContainer.new()
+	rail.name = "PortraitRail"
+	rail.position = Vector2(PAD, BODY_TOP)
+	rail.add_theme_constant_override("separation", 8)
+	rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sheet.add_child(rail)
+	for actor: String in ["keeper", "elaia"]:
+		var pick := Button.new()
+		pick.name = "Pick_%s" % actor
+		pick.custom_minimum_size = Vector2(44, 44)
+		pick.icon = load(KEEPER_SHEET_PORTRAIT_PATH if actor == "keeper" else ELAIA_SHEET_PORTRAIT_PATH) as Texture2D
+		pick.expand_icon = true
+		pick.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pick.pressed.connect(show_actor.bind(actor))
+		CharacterSheet._theme_call("style_wood_button", pick)
+		rail.add_child(pick)
+	var pages := HBoxContainer.new()
+	pages.name = "SheetPages"
+	pages.position = Vector2(GEAR_X, PAD)
+	pages.add_theme_constant_override("separation", 8)
+	sheet.add_child(pages)
+	for spec: Array in [["PageGear", "Gear", "gear"], ["PageStats", "Stats", "stats"]]:
+		var tab := Button.new()
+		tab.name = str(spec[0])
+		tab.text = str(spec[1])
+		tab.toggle_mode = true
+		tab.custom_minimum_size = Vector2(120, 44)
+		tab.pressed.connect(_set_sheet_page.bind(str(spec[2])))
+		CharacterSheet._theme_call("style_big_tab_button", tab)
+		pages.add_child(tab)
+	_apply_sheet_page()
 
 
 func _make_arrow_button(node_name: String, glyph: String, at: Vector2) -> Button:
@@ -744,12 +788,41 @@ func _fit_sheet() -> void:
 
 
 func _refresh_actor_nav() -> void:
-	var actors: Array[String] = _available_actors()
-	var dual: bool = actors.size() > 1
 	if _prev_char_btn:
-		_prev_char_btn.visible = dual
+		_prev_char_btn.visible = false
 	if _next_char_btn:
-		_next_char_btn.visible = dual
+		_next_char_btn.visible = false
+	var actors: Array[String] = _available_actors()
+	var sheet: Node = get_node_or_null("SheetFit/Sheet")
+	if sheet == null:
+		return
+	for actor: String in ["keeper", "elaia"]:
+		var pick: BaseButton = sheet.get_node_or_null("PortraitRail/Pick_%s" % actor) as BaseButton
+		if pick == null:
+			continue
+		pick.visible = actors.has(actor)
+		pick.button_pressed = actor == _actor_id
+
+
+func _set_sheet_page(page_id: String) -> void:
+	_sheet_page = page_id
+	_apply_sheet_page()
+
+
+func _apply_sheet_page() -> void:
+	var sheet: Node = get_node_or_null("SheetFit/Sheet")
+	if sheet == null:
+		return
+	var gear: CanvasItem = sheet.get_node_or_null("GearColumn") as CanvasItem
+	var stats: CanvasItem = sheet.get_node_or_null("Stats") as CanvasItem
+	if gear:
+		gear.visible = _sheet_page != "stats"
+	if stats:
+		stats.visible = _sheet_page == "stats"
+	for spec: Array in [["PageGear", "gear"], ["PageStats", "stats"]]:
+		var tab: BaseButton = sheet.get_node_or_null("SheetPages/%s" % str(spec[0])) as BaseButton
+		if tab:
+			tab.set_pressed_no_signal(_sheet_page == str(spec[1]))
 
 
 func _apply_actor_chrome() -> void:
@@ -771,12 +844,7 @@ func _apply_actor_chrome() -> void:
 		for child: Node in host.get_children():
 			if str(child.name).begins_with("Slot_"):
 				child.visible = true
-	var gear: CanvasItem = sheet.get_node_or_null("GearColumn") as CanvasItem
-	if gear:
-		gear.visible = true
-	var stats: CanvasItem = sheet.get_node_or_null("Stats") as CanvasItem
-	if stats:
-		stats.visible = true
+	_apply_sheet_page()
 	if _portrait:
 		var figure_path: String = _sheet_figure_path()
 		_portrait.texture = load(figure_path) as Texture2D
