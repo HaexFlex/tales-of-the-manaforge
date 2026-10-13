@@ -179,7 +179,7 @@ var _bench_detail: Control
 var _bench_filter_ix: int = 0
 var _bench_selected: String = ""
 var _backpack_tab: String = "all"
-const BAG_FILTER_CYCLE: Array[String] = ["all", "raw", "refined", "tools", "weapons", "relics"]
+const BAG_FILTER_CYCLE: Array[String] = ["all", "raw", "refined", "potions", "tools", "weapons", "relics"]
 var _backpack_cat_btn: Button
 var _bag_detail_panel: Panel
 var _bag_detail_item_id: String = ""
@@ -3474,6 +3474,8 @@ func _filter_label(filter_id: String) -> String:
 			return ContentStrings.get_text("backpack_tab_raw")
 		"refined":
 			return ContentStrings.get_text("backpack_tab_refined")
+		"potions":
+			return ContentStrings.get_text("backpack_tab_potions")
 		"tools":
 			return ContentStrings.get_text("backpack_tab_tools")
 		"weapons":
@@ -3508,7 +3510,7 @@ func _rebuild_backpack() -> void:
 
 func filter_owned_counts() -> Dictionary:
 	var counts: Dictionary = {}
-	var filters: PackedStringArray = PackedStringArray(["all", "raw", "refined", "tools", "weapons", "relics"])
+	var filters: PackedStringArray = PackedStringArray(["all", "raw", "refined", "potions", "tools", "weapons", "relics"])
 	if has_node("/root/ForgeJobs"):
 		filters = ForgeJobs.backpack_filters()
 	for filter_id: String in filters:

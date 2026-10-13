@@ -61,7 +61,7 @@
     "manashards": "raw",
     "essence": "raw"
   },
-  "backpack_filters": ["all", "raw", "refined", "tools", "weapons", "relics"],
+  "backpack_filters": ["all", "raw", "refined", "potions", "tools", "weapons", "relics"],
   "ascend_upgrades": [
     {
       "id": "keep_forge_jobs",

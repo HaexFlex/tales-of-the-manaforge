@@ -387,6 +387,8 @@ func matches_backpack_filter(item_id: String, filter_id: String) -> bool:
 			want = "weapon"
 		"relics":
 			want = "relic"
+		"potions":
+			return has_node("/root/Backpack") and Backpack.item_kind(item_id) == "consumable"
 	return category_of(item_id) == want
 
 

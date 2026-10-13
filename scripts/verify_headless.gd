@@ -11763,6 +11763,8 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	failed += _assert(str(pack.call("item_display_name", "briarwood")) == "Briarwood", "Briarwood name")
 	failed += _assert(str(pack.call("item_display_name", "herbs")) == "Herbs", "Herbs name")
 	failed += _assert(str(pack.call("item_kind", "heart_salve")) == "consumable" and str(pack.call("item_kind", "bile_vial")) == "consumable", "potions are consumable")
+	var jobs_filters: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs_filters != null and bool(jobs_filters.call("matches_backpack_filter", "heart_salve", "potions")) and not bool(jobs_filters.call("matches_backpack_filter", "briarwood", "potions")), "Potions category is the consumables")
 	failed += _assert(str(gear.call("item_art_path", "heart_salve")).ends_with("icon_heart_salve.png"), "salve icon")
 	failed += _assert(str(gear.call("item_art_path", "bile_vial")).ends_with("icon_bile_vial.png"), "vial icon")
 	failed += _assert(FileAccess.file_exists("res://assets_extra/shared/icon_briarwood.png"), "briarwood icon png")
