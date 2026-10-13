@@ -5121,6 +5121,8 @@ func _party_activity_check(hud: Node, game_state: Node, tree_root: Window) -> in
 	failed += _assert(not elaia_slot.visible and not elaia_act.visible and elaia_act.text == "", "no Elaia activity before she joins")
 	failed += _assert(keeper_act.visible and is_equal_approx(keeper_act.position.y, keeper_slot.position.y), "keeper activity stays on the keeper row before Elaia joins — y %s slot %s" % [keeper_act.position.y, keeper_slot.position.y])
 	failed += _assert(not info.visible and task.text == "", "shared info box shows no activity before Elaia joins")
+	var activity_tag: Control = hud.get_node_or_null("PartyBar/ActivityTag") as Control
+	failed += _assert(activity_tag != null and not activity_tag.visible, "no activity parchment before anyone is selected")
 	game_state.set("elaia_join_seen", true)
 	jobs.call("set_keeper_task", "harvest", "stone", true)
 	jobs.call("set_elaia_task", "harvest", "food", true)
@@ -5132,6 +5134,13 @@ func _party_activity_check(hud: Node, game_state: Node, tree_root: Window) -> in
 	failed += _assert(keeper_act.text == "%s\n%s" % [selected_word, stone_word], "selected keeper activity is beside the keeper — %s" % keeper_act.text)
 	failed += _assert(elaia_act.text == " \n%s" % berry_word, "elaia activity stays on her row while the keeper is selected — %s" % elaia_act.text)
 	failed += _assert(not info.visible and task.text == "", "shared info box shows no activity while someone is selected")
+	failed += _assert(activity_tag != null and not activity_tag.visible, "no activity parchment while the keeper is selected")
+	game_state.call("select_companion", "elaia")
+	hud.call("_refresh_party_bar")
+	await process_frame
+	failed += _assert(activity_tag != null and not activity_tag.visible, "no activity parchment while Elaia is selected")
+	game_state.call("select_keeper")
+	hud.call("_refresh_party_bar")
 	var keeper_y: float = keeper_act.position.y
 	var elaia_y: float = elaia_act.position.y
 	game_state.call("clear_selection")

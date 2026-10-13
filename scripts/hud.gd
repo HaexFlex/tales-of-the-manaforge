@@ -1710,21 +1710,13 @@ func _refresh_party_bar() -> void:
 	_update_party_activity_tag(show_keeper, companion_id, ids)
 
 
-func _update_party_activity_tag(show_keeper: bool, companion_id: String, wisp_ids: Array[int]) -> void:
-	if _party_tag == null or _party_tag_label == null:
+func _update_party_activity_tag(_show_keeper: bool, _companion_id: String, _wisp_ids: Array[int]) -> void:
+	## The parchment under a selected portrait is gone for every actor, Idle included.
+	if _party_tag == null:
 		return
-	var actor: String = "keeper" if show_keeper else ("elaia" if companion_id == "elaia" else "")
-	if actor == "" and not wisp_ids.is_empty():
-		actor = "keeper"
-	if actor == "":
-		_party_tag.visible = false
-		return
-	var display: String = "Keeper" if actor == "keeper" else "Elaia"
-	_party_tag_label.text = "%s · %s" % [display, _activity_line(actor)]
-	_party_tag.visible = true
-	if _slot_keeper and _party_column:
-		var ky: float = _slot_keeper.position.y + 7.0
-		_party_tag.position = Vector2(PARTY_SLOT + 8.0, ky)
+	_party_tag.visible = false
+	if _party_tag_label:
+		_party_tag_label.text = ""
 
 
 func _clear_shared_activity() -> void:
