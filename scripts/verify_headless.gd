@@ -18927,26 +18927,6 @@ func _handoff_full_hp(fight: FightState) -> bool:
 	return true
 
 
-func _handoff_species_by_slot(fight: FightState) -> Array[String]:
-	## build_room lists beasts in slot order. fight.order is turn order.
-	var slots: Array[int] = []
-	var by_slot: Dictionary = {}
-	if fight == null:
-		return []
-	for fighter_id: String in fight.order:
-		var row: Dictionary = fight.fighter_dict(fighter_id)
-		if str(row.get("side", "")) != "beast":
-			continue
-		var slot: int = int(row.get("slot", 0))
-		slots.append(slot)
-		by_slot[slot] = str(row.get("species", ""))
-	slots.sort()
-	var out: Array[String] = []
-	for slot: int in slots:
-		out.append(str(by_slot[slot]))
-	return out
-
-
 func _handoff_bosses(fight: FightState) -> int:
 	var count: int = 0
 	if fight == null:
@@ -19141,7 +19121,30 @@ func _handoff_stamp_now(save_service: Node, slot: int) -> void:
 	fh.close()
 
 
+func _handoff_fast_keeper(tree_root: Window, body: Callable) -> int:
+	## Depth-1 rooms always field a Spore moth (swiftness 8), which outpaces the
+	## starting Keeper (5) and Elaia (7). The hand-off checks need party-first rooms,
+	## so they run with a Keeper who has bought four swiftness ranks.
+	var stats: Node = tree_root.get_node("KeeperStats")
+	var was: int = int(stats.call("get_rank", "swiftness"))
+	var failed: int = await body.call()
+	stats.call("set_rank", "swiftness", was)
+	return failed
+
+
+func _handoff_keeper_outpaces_moth(tree_root: Window) -> int:
+	## A new-game reset clears the ranks, so call this after each one.
+	tree_root.get_node("KeeperStats").call("set_rank", "swiftness", 4)
+	var keeper: Dictionary = SlotEngine.member_stats("keeper")
+	var swift: int = int(keeper.get("swiftness", 0))
+	return _assert(swift > 8, "the hand-off Keeper outpaces the depth-1 Spore moth (swiftness %d)" % swift)
+
+
 func _handoff_join_fresh(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	return await _handoff_fast_keeper(tree_root, _handoff_join_fresh_body.bind(tree_root, game_state, save_service))
+
+
+func _handoff_join_fresh_body(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	failed += _assert(reach != null, "join fresh Reach")
@@ -19153,6 +19156,7 @@ func _handoff_join_fresh(tree_root: Window, game_state: Node, save_service: Node
 	_silence_echo(tree_root)
 	BattleViewScript.close_arena()
 	_reset_reach_test(tree_root, game_state, save_service)
+	failed += _handoff_keeper_outpaces_moth(tree_root)
 	var seed: int = _handoff_boss_seed()
 	failed += _assert(seed > 0, "join fresh: a party-first boss seed in 1..400")
 	if seed < 0:
@@ -19176,7 +19180,7 @@ func _handoff_join_fresh(tree_root: Window, game_state: Node, save_service: Node
 		var depth: int = int(reach.get("depth"))
 		var room_seed: int = int(reach.get("room_seed"))
 		var expected: Array[String] = _reach_room_species_list(depth, room_seed, true)
-		var actual: Array[String] = _handoff_species_by_slot(fight)
+		var actual: Array[String] = _reach_fight_species_list(fight)
 		failed += _assert(str(actual) == str(expected), "boss species match build_room (got %s)" % str(actual))
 		failed += _assert(_handoff_bosses(fight) == 1, "one beast is the boss (got %d)" % _handoff_bosses(fight))
 		failed += _assert(_handoff_full_hp(fight), "fresh boss fight is at full HP")
@@ -19216,8 +19220,8 @@ func _handoff_join_fresh(tree_root: Window, game_state: Node, save_service: Node
 	if nxt != null:
 		var next_seed: int = int(reach.get("room_seed"))
 		var next_expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), next_seed, false)
-		var next_actual: Array[String] = _handoff_species_by_slot(nxt)
-		failed += _assert(str(next_actual) == str(next_expected), "room 11 species are fresh (got %s)" % str(next_actual))
+		var next_actual: Array[String] = _reach_fight_species_list(nxt)
+		failed += _assert(str(next_actual) == str(next_expected), "room 11 species are fresh (got %s want %s)" % [str(next_actual), str(next_expected)])
 		failed += _assert(_handoff_full_hp(nxt) and nxt.salves_used == 0, "room 11 starts at full HP with no Salves used")
 		failed += _assert(not bool(reach.call("is_boss_room")), "room 11 is not a new boss attempt")
 	BattleViewScript.close_arena()
@@ -19366,6 +19370,10 @@ func _handoff_resume_body(tree_root: Window, game_state: Node, save_service: Nod
 
 
 func _handoff_expired(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	return await _handoff_fast_keeper(tree_root, _handoff_expired_body.bind(tree_root, game_state, save_service))
+
+
+func _handoff_expired_body(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	failed += _assert(reach != null, "expired Reach")
@@ -19377,6 +19385,7 @@ func _handoff_expired(tree_root: Window, game_state: Node, save_service: Node) -
 	_silence_echo(tree_root)
 	BattleViewScript.close_arena()
 	_reset_reach_test(tree_root, game_state, save_service)
+	failed += _handoff_keeper_outpaces_moth(tree_root)
 	var seed: int = _handoff_expired_seed()
 	failed += _assert(seed > 0, "expired seed continues and the next room is party-first")
 	if seed < 0:
@@ -19419,8 +19428,8 @@ func _handoff_expired(tree_root: Window, game_state: Node, save_service: Node) -
 	failed += _assert(int(reach.get("slots_used")) == slots_next, "join does not spend another slot")
 	if nxt != null:
 		var expected: Array[String] = _reach_room_species_list(int(reach.get("depth")), int(reach.get("room_seed")), bool(reach.call("is_boss_room")))
-		var actual: Array[String] = _handoff_species_by_slot(nxt)
-		failed += _assert(str(actual) == str(expected), "next room species are fresh")
+		var actual: Array[String] = _reach_fight_species_list(nxt)
+		failed += _assert(str(actual) == str(expected), "next room species are fresh (got %s want %s)" % [str(actual), str(expected)])
 		failed += _assert(_handoff_full_hp(nxt) and nxt.salves_used == 0, "next room is full HP with no Salves used")
 	BattleViewScript.close_arena()
 	reach.call("reset_for_new_game")
@@ -19430,6 +19439,10 @@ func _handoff_expired(tree_root: Window, game_state: Node, save_service: Node) -
 
 
 func _handoff_idle(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	return await _handoff_fast_keeper(tree_root, _handoff_idle_body.bind(tree_root, game_state, save_service))
+
+
+func _handoff_idle_body(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	var reach: Node = tree_root.get_node_or_null("Reach")
 	var backpack: Node = tree_root.get_node_or_null("Backpack")
@@ -19495,6 +19508,7 @@ func _handoff_idle(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(left == 3 - fight.salves_used, "loadout dropped by exactly salves_used (left %d used %d)" % [left, fight.salves_used])
 	BattleViewScript.close_arena()
 	reach.call("reset_for_new_game")
+	failed += _handoff_keeper_outpaces_moth(tree_root)
 	var deeper_seed: int = _handoff_deeper_seed()
 	failed += _assert(deeper_seed > 0, "a resumed win can Go deeper and Head home")
 	if deeper_seed < 0:
