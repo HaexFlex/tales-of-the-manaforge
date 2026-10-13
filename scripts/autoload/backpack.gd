@@ -337,6 +337,7 @@ func try_craft(recipe_id: String) -> String:
 	var out_id: String = str(def.get("output_id", recipe_id))
 	var out_n: int = int(def.get("output_count", 1))
 	add_item(out_id, out_n)
+	GameState.note_first_tool_crafted()
 	return "ok"
 
 

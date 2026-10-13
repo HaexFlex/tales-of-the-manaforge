@@ -96,6 +96,15 @@ var lifetime_essence_from_water: int = 0
 var lifetime_fruit_harvested: int = 0
 var lifetime_harvested: Dictionary = {}
 var upgrade_ranks: Dictionary = {}
+## Ascension shop UI (per save). Both default on.
+var shop_hide_locked: bool = true
+var shop_hide_maxed: bool = true
+## Spoiler confirm when turning Hide locked off (first 3 times per save).
+var shop_spoiler_shown_count: int = 0
+var first_wisp_gained: bool = false
+var first_tool_crafted: bool = false
+var first_pack_lost: bool = false
+var first_minigame_played: bool = false
 
 ## node_id is harvest_tree/stone/berry or NODE_ID_MANATREE ("manatree"). String stays
 ## SAVE_VERSION 5 compatible — no schema bump for the new Manatree target type.
@@ -416,11 +425,12 @@ func param_float(key: String, default_v: float = 0.0) -> float:
 
 
 func get_wisp_pulse_sec() -> float:
-	## A Wisp is 1/10 of a bare Keeper: 1 yield per 20s. Haste is −2s/rank, minimum 10s.
+	## Wisp pulse interval. Swift Wisps: ×(1 − 0.08×rank), 10 s floor.
 	var base_s: float = param_float("WISP_PULSE_SEC", 20.0)
 	var haste: int = get_upgrade_rank("wisp_haste")
+	var mult: float = 1.0 - float(get_upgrade_def("wisp_haste").get("value_per_rank", 0.08)) * float(haste)
 	var min_s: float = param_float("WISP_HARVEST_MIN_SEC", 10.0)
-	return maxf(min_s, base_s - 2.0 * float(haste))
+	return maxf(min_s, base_s * maxf(0.0, mult))
 
 
 func get_wisp_capacity() -> int:
@@ -503,6 +513,7 @@ func grant_wisp_from_stage() -> void:
 	if wisp_count >= get_wisp_capacity():
 		return
 	wisp_count += 1
+	first_wisp_gained = true
 	_ensure_wisp_slots()
 	wisps_changed.emit()
 	status_message.emit(ContentStrings.get_text("wisp_gained"))
@@ -936,11 +947,10 @@ func get_effect_total(effect_name: String) -> float:
 
 
 func get_water_essence_amount() -> int:
-	## Base + floor(value_per_rank × rank). Deep Roots is 0.5, so +1 Essence every 2 ranks.
+	## Base + Deep Roots (+1 Essence per rank, capped at blessing max).
 	var base_amt: int = param_int("WATER_ESSENCE_PER_SEC", 1)
-	var deep_rank: int = get_upgrade_rank("deep_roots")
-	var per: float = float(get_upgrade_def("deep_roots").get("value_per_rank", 0.5))
-	return base_amt + int(floor(per * float(deep_rank)))
+	var roots: int = mini(get_upgrade_rank("deep_roots"), upgrade_max_rank("deep_roots"))
+	return base_amt + roots
 
 
 func get_stage_gather_mult() -> float:
@@ -1142,13 +1152,104 @@ func try_water() -> String:
 	return "ok"
 
 
+func upgrade_max_rank(upgrade_id: String) -> int:
+	var def: Dictionary = get_upgrade_def(upgrade_id)
+	var cap: int = int(def.get("max_rank", 1))
+	return cap if cap >= 0 else 1_000_000
+
+
+func is_upgrade_unlocked(upgrade_id: String) -> bool:
+	var def: Dictionary = get_upgrade_def(upgrade_id)
+	if def.is_empty():
+		return false
+	var unlock: String = str(def.get("unlock", "always"))
+	match unlock:
+		"always":
+			return true
+		"first_wisp_gained":
+			return first_wisp_gained or wisp_count > 0 or get_upgrade_rank("bonus_wisp") > 0
+		"first_tool_crafted":
+			return first_tool_crafted
+		"ascensions_1":
+			return ascensions >= 1
+		"ascensions_2":
+			return ascensions >= 2
+		"forge_visited":
+			return forge_visited
+		"reach_cleared_1":
+			return has_node("/root/Reach") and int(Reach.reaches_cleared) >= 1
+		"first_pack_lost":
+			return first_pack_lost
+		"dojo_exp":
+			return has_node("/root/Reach") and int(Reach.dojo_exp) > 0
+		"first_relic_crafted":
+			return first_relic_crafted
+		"adventure_unlocked":
+			return echo_02_resolved
+		"first_minigame_played":
+			return first_minigame_played
+		_:
+			return true
+
+
 func get_upgrade_cost(upgrade_id: String) -> int:
-	## SYSTEMS v0.2.5: cost = SHOP_BASE * (rank + 1) via cost_base=400, cost_per_rank=400.
 	var def: Dictionary = get_upgrade_def(upgrade_id)
 	if def.is_empty():
 		return 999999
 	var rank: int = get_upgrade_rank(upgrade_id)
-	return int(def.get("cost_base", 1)) + int(def.get("cost_per_rank", 1)) * rank
+	if rank >= upgrade_max_rank(upgrade_id):
+		return -1
+	var kind: String = str(def.get("cost_kind", "linear"))
+	match kind:
+		"flat":
+			return int(def.get("cost_base", 0)) if rank < 1 else -1
+		"exponential":
+			var base: int = int(def.get("cost_base", 1))
+			var mult: float = float(def.get("cost_mult", 2.0))
+			return int(floor(float(base) * pow(mult, float(rank)) + 0.0000001))
+		_:
+			return int(def.get("cost_base", 1)) + int(def.get("cost_per_rank", 1)) * rank
+
+
+func keep_manashards_fraction() -> float:
+	return minf(0.5, float(get_upgrade_rank("keep_manashards")) * float(get_upgrade_def("keep_manashards").get("value_per_rank", 0.1)))
+
+
+func expedition_loot_mult() -> float:
+	return 1.0 + float(get_upgrade_rank("expedition_satchel")) * float(get_upgrade_def("expedition_satchel").get("value_per_rank", 0.1))
+
+
+func dojo_exp_mult() -> float:
+	return 1.0 + float(get_upgrade_rank("dojo_echo")) * float(get_upgrade_def("dojo_echo").get("value_per_rank", 0.05))
+
+
+func forge_warmth_mult() -> float:
+	var rank: int = get_upgrade_rank("forge_warmth")
+	return maxf(0.25, pow(0.95, float(rank)))
+
+
+func minigame_reward_mult() -> float:
+	return 1.0 + float(get_upgrade_rank("minigame_knack")) * float(get_upgrade_def("minigame_knack").get("value_per_rank", 0.1))
+
+
+func sturdy_pack_safe_ratio() -> float:
+	return minf(0.45, float(get_upgrade_rank("sturdy_pack")) * float(get_upgrade_def("sturdy_pack").get("value_per_rank", 0.15)))
+
+
+func max_expedition_party() -> int:
+	return 2 + get_upgrade_rank("party_banner")
+
+
+func note_first_tool_crafted() -> void:
+	first_tool_crafted = true
+
+
+func note_first_pack_lost() -> void:
+	first_pack_lost = true
+
+
+func note_first_minigame_played() -> void:
+	first_minigame_played = true
 
 
 func can_afford_any_ascension() -> bool:
@@ -1160,8 +1261,9 @@ func can_afford_any_ascension() -> bool:
 		if upgrade_id == "":
 			continue
 		var def: Dictionary = entry as Dictionary
-		var max_rank: int = int(def.get("max_rank", 1))
-		if get_upgrade_rank(upgrade_id) >= max_rank:
+		if not is_upgrade_unlocked(upgrade_id):
+			continue
+		if get_upgrade_rank(upgrade_id) >= upgrade_max_rank(upgrade_id):
 			continue
 		if manashards >= get_upgrade_cost(upgrade_id):
 			return true
@@ -1175,10 +1277,12 @@ func can_buy_upgrade(upgrade_id: String) -> bool:
 	var def: Dictionary = get_upgrade_def(upgrade_id)
 	if def.is_empty():
 		return false
-	var max_rank: int = int(def.get("max_rank", 1))
-	if get_upgrade_rank(upgrade_id) >= max_rank:
+	if not is_upgrade_unlocked(upgrade_id):
 		return false
-	return manashards >= get_upgrade_cost(upgrade_id)
+	if get_upgrade_rank(upgrade_id) >= upgrade_max_rank(upgrade_id):
+		return false
+	var cost: int = get_upgrade_cost(upgrade_id)
+	return cost >= 0 and manashards >= cost
 
 
 func buy_upgrade(upgrade_id: String) -> bool:
@@ -1470,6 +1574,7 @@ func offline_effective_seconds(closed_sec: float) -> float:
 	var tiers: Array = tiers_v if typeof(tiers_v) == TYPE_ARRAY else []
 	if tiers.is_empty():
 		tiers = _default_offline_tiers()
+	tiers = _offline_tiers_with_quiet_hours(tiers)
 	var cursor: float = 0.0
 	var total: float = 0.0
 	var remain: float = closed_sec
@@ -1524,6 +1629,26 @@ func _ensure_idle_tuning() -> void:
 	file.close()
 	if typeof(parsed) == TYPE_DICTIONARY:
 		_idle_tuning = parsed
+
+
+func _offline_tiers_with_quiet_hours(tiers: Array) -> Array:
+	var rank: int = get_upgrade_rank("quiet_hours")
+	if rank <= 0 or tiers.is_empty():
+		return tiers
+	var out: Array = []
+	for i: int in range(tiers.size()):
+		var entry: Variant = tiers[i]
+		if typeof(entry) != TYPE_ARRAY:
+			out.append(entry)
+			continue
+		var pair: Array = (entry as Array).duplicate()
+		if i == 0 and pair.size() >= 2:
+			var end_h: float = float(pair[0])
+			if end_h > 0.0:
+				var bonus_h: float = float(get_upgrade_def("quiet_hours").get("value_per_rank", 0.25)) * float(rank)
+				pair[0] = end_h + bonus_h
+		out.append(pair)
+	return out
 
 
 func _default_offline_tiers() -> Array:
@@ -1590,7 +1715,11 @@ func ascend() -> void:
 	wood = 0
 	stone = 0
 	food = 0
-	manashards = 0
+	var shard_keep: float = keep_manashards_fraction()
+	if shard_keep > 0.0 and manashards > 0:
+		manashards = int(floor(float(manashards) * shard_keep))
+	else:
+		manashards = 0
 	essence = 0
 	_set_fruit_committed(false)
 	ancient_frozen = false
@@ -1659,6 +1788,13 @@ func to_save_dict() -> Dictionary:
 		"lifetime_fruit_harvested": lifetime_fruit_harvested,
 		"lifetime_harvested": lifetime_harvested.duplicate(true),
 		"upgrades": upgrade_ranks.duplicate(true),
+		"shop_hide_locked": shop_hide_locked,
+		"shop_hide_maxed": shop_hide_maxed,
+		"shop_spoiler_shown_count": shop_spoiler_shown_count,
+		"first_wisp_gained": first_wisp_gained,
+		"first_tool_crafted": first_tool_crafted,
+		"first_pack_lost": first_pack_lost,
+		"first_minigame_played": first_minigame_played,
 		"wisp_count": wisp_count,
 		"wisp_assignments": wisp_assignments.duplicate(true),
 		"backpack": Backpack.to_save_dict(),
@@ -1807,7 +1943,16 @@ func apply_save_dict(data: Dictionary) -> void:
 	if typeof(ranks) == TYPE_DICTIONARY:
 		upgrade_ranks = (ranks as Dictionary).duplicate(true)
 	_ensure_upgrade_keys()
+	shop_hide_locked = bool(data.get("shop_hide_locked", true))
+	shop_hide_maxed = bool(data.get("shop_hide_maxed", true))
+	shop_spoiler_shown_count = int(data.get("shop_spoiler_shown_count", 0))
+	first_wisp_gained = bool(data.get("first_wisp_gained", false))
+	first_tool_crafted = bool(data.get("first_tool_crafted", false))
+	first_pack_lost = bool(data.get("first_pack_lost", false))
+	first_minigame_played = bool(data.get("first_minigame_played", false))
 	wisp_count = int(data.get("wisp_count", 0))
+	if wisp_count > 0:
+		first_wisp_gained = true
 	var assigns: Variant = data.get("wisp_assignments", {})
 	if typeof(assigns) == TYPE_DICTIONARY:
 		wisp_assignments = (assigns as Dictionary).duplicate(true)
@@ -1923,6 +2068,13 @@ func reset_for_new_game() -> void:
 	_ensure_harvest_keys()
 	upgrade_ranks.clear()
 	_ensure_upgrade_keys()
+	shop_hide_locked = true
+	shop_hide_maxed = true
+	shop_spoiler_shown_count = 0
+	first_wisp_gained = false
+	first_tool_crafted = false
+	first_pack_lost = false
+	first_minigame_played = false
 	wisp_count = 0
 	wisp_assignments.clear()
 	wisp_pulse_accum.clear()

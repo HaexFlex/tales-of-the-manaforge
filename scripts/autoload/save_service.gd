@@ -1,6 +1,6 @@
 extends Node
 ## Manual slots user://manaforge_save_slot_{1..7}.json plus three rotating autosaves.
-## Payload schema SAVE_VERSION 14 — one backpack, expedition marker. Atomic temp-then-rename writes.
+## Payload schema SAVE_VERSION 15 — ascension shop UI + blessing unlock flags. Atomic temp-then-rename writes.
 
 signal save_completed(ok: bool)
 signal load_completed(ok: bool)
@@ -14,7 +14,7 @@ var boot_slot_kind: String = "manual"
 ## True while a play session is in main or the Forge. Title quit does not save a blank Keeper.
 var session_active: bool = false
 
-const SAVE_VERSION: int = 14
+const SAVE_VERSION: int = 15
 ## Never read a save newer than this build writes: unknown fields would be dropped silently.
 const SAVE_VERSION_MAX_READ: int = SAVE_VERSION
 const SAVE_SLOT_COUNT: int = 7
@@ -621,6 +621,8 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v13(out)
 	if from_version < 14:
 		_migrate_v14(out)
+	if from_version < 15:
+		_migrate_v15(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -699,6 +701,27 @@ func _migrate_v13(out: Dictionary) -> void:
 		guessed = 1
 	reach["rooms_attempted"] = guessed
 	out["reach"] = reach
+
+
+func _migrate_v15(out: Dictionary) -> void:
+	## Ascension shop toggles and spoiler count; blessing unlock milestones default off.
+	if not out.has("shop_hide_locked"):
+		out["shop_hide_locked"] = true
+	if not out.has("shop_hide_maxed"):
+		out["shop_hide_maxed"] = true
+	if not out.has("shop_spoiler_shown_count"):
+		out["shop_spoiler_shown_count"] = 0
+	for flag: String in [
+		"first_wisp_gained",
+		"first_tool_crafted",
+		"first_pack_lost",
+		"first_minigame_played",
+	]:
+		if not out.has(flag):
+			out[flag] = false
+	var wc: int = int(out.get("wisp_count", 0))
+	if wc > 0:
+		out["first_wisp_gained"] = true
 
 
 func _migrate_v14(out: Dictionary) -> void:
