@@ -16607,7 +16607,7 @@ func _board_shell_has_percent(shell: Node) -> bool:
 
 
 func _board_parchment_rect() -> Rect2:
-	return Rect2(Vector2(224, 84), Vector2(832, 552))
+	return Rect2(Vector2(24, 44), Vector2(912, 472))
 
 
 func _board_rect_inside_frame(ctrl: Control, frame: Rect2) -> bool:

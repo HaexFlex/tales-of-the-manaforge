@@ -3,11 +3,12 @@ class_name ExpeditionShellView
 ## Expedition board shell (Art mockup 2026-10-11). Built at runtime; expedition_board owns state.
 
 const BOARD_DIR: String = "res://assets/art/ui/board/"
-const KIT_DIR: String = "res://assets/art/ui/minigames/kit/"
+const KIT_DIR: String = "res://assets/ui/theme/"
 const BATTLE_UI: String = "res://assets/art/battle/ui/"
 const LEGACY_PANEL_ORIGIN: Vector2 = Vector2(200, 60)
-const RES_SCALE: float = 0.75
-const PANEL_ORIGIN: Vector2 = Vector2(150, 45)
+const RES_SCALE: float = 912.0 / 660.0 * 0.75
+const PANEL_ORIGIN: Vector2 = Vector2(24, 44)
+const PANEL_SIZE: Vector2 = Vector2(912, 472)
 const SIM_ORIGIN: Vector2 = Vector2(248, 83)
 const SIM_SIZE: Vector2 = Vector2(411, 375)
 const PICKER_CLAMP_TOP: float = 105.0
@@ -66,18 +67,29 @@ func _build() -> void:
 	var dim := ColorRect.new()
 	dim.name = "Dim"
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0, 0, 0, 0.58)
+	dim.color = Color(0, 0, 0, 0.5)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
-	var panel: NinePatchRect = _nine_patch("Panel", KIT_DIR + "frame_9s_96.png", FRAME_9S, PANEL_ORIGIN, Vector2(660, 450))
+	var panel := Panel.new()
+	panel.name = "Panel"
+	panel.position = PANEL_ORIGIN
+	panel.size = PANEL_SIZE
+	panel.custom_minimum_size = PANEL_SIZE
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.clip_contents = false  # the title plate and vines sit above the panel edge
+	panel.clip_contents = false
 	add_child(panel)
+	Ui540.apply_kit_panel(panel, "adventure_board")
 	_build_panel(panel)
+	call_deferred("_center_board_panel")
+
+
+func _center_board_panel() -> void:
+	var panel: Control = get_node_or_null("Panel") as Control
+	if panel:
+		Ui540.center_control(panel)
 
 
 func _build_panel(panel: Control) -> void:
-	_add_vines(panel)
 	_add_title(panel)
 	_add_close(panel)
 	_make_label(panel, "Hint", _scr(Vector2(244, 92)), Vector2(680, 18), 14, INK).text = ""
@@ -516,18 +528,22 @@ func _build_simulate_window() -> void:
 
 
 func _add_title(panel: Control) -> void:
-	var plate := _tex_rect(panel, KIT_DIR + "title_plate_312x46.png", _scr(Vector2(484, 37)), Vector2(312, 46))
-	plate.name = "TitlePlate"
-	var title := _make_label(panel, "Title", _scr(Vector2(496, 40)), Vector2(288, 40), 18, INK)
+	var title := _make_label(panel, "Title", Vector2((PANEL_SIZE.x - 320.0) * 0.5, -20.0), Vector2(320, 40), GameTheme.jersey_plank_size(), INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameTheme.style_plank_label(title)
 
 
 func _add_close(panel: Control) -> void:
-	var btn := _stop_button(panel, "CloseButton", _scr(Vector2(944, 92)))
-	btn.text = "Close"
-	var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", _scr(Vector2(1020, 96)), Vector2(28, 15))
-	esc.name = "CloseEscKeycap"
-	esc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var btn := Button.new()
+	btn.name = "CloseButton"
+	btn.position = Vector2(PANEL_SIZE.x - 68.0, 18.0)
+	btn.size = Vector2(44, 44)
+	Ui540.configure_kit_close_button(btn)
+	panel.add_child(btn)
+	if not Ui540.is_phone_export():
+		var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", Vector2(PANEL_SIZE.x - 100.0, 26.0), Vector2(28, 15))
+		esc.name = "CloseEscKeycap"
+		esc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 func _add_vines(panel: Control) -> void:
