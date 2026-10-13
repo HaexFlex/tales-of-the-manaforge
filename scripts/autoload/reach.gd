@@ -116,8 +116,22 @@ func reset_for_new_game() -> void:
 
 func on_ascend() -> void:
 	## Deepest depth, the lifetime reach counter, and the dojo pool stay.
+	## Mid-run Ascend: loot pack is lost; unused carried loadout returns to the bag.
+	if running:
+		_return_loadout_on_ascend()
+		if pack != null:
+			pack.clear()
 	_end_run("dark")
 	changed.emit()
+
+
+func _return_loadout_on_ascend() -> void:
+	for key_v: Variant in loadout.keys():
+		var item_id: String = str(key_v)
+		var qty: int = int(loadout[key_v])
+		if qty > 0:
+			_item_add(item_id, qty)
+	loadout = {}
 
 
 func max_start_depth() -> int:
@@ -918,8 +932,13 @@ func _apply_room_win(boss: bool, loot: Dictionary) -> void:
 
 
 func _apply_win(loot: Dictionary, exp_mult: int, boss: bool) -> void:
+	if GameState.expedition_loot_mult() > 1.0 and not loot.is_empty():
+		var scaled: Dictionary = {}
+		for k: Variant in loot.keys():
+			scaled[str(k)] = int(round(float(int(loot[k])) * GameState.expedition_loot_mult()))
+		loot = scaled
 	pack.add_all(loot)
-	var gained: int = room_exp(depth) * maxi(1, exp_mult)
+	var gained: int = int(round(float(room_exp(depth) * maxi(1, exp_mult)) * GameState.dojo_exp_mult()))
 	dojo_exp += gained
 	exp_gained += gained
 	reaches_cleared += 1
@@ -953,14 +972,12 @@ func _finish_run(reason: String) -> void:
 				_item_add(item_id, qty)
 				loadout_returned[item_id] = qty
 	loadout = {}
-	var pct: int = 0
-	if reason == "finished" or reason == "head_home":
-		pct = 100
-	elif reason == "flee":
-		pct = 50
 	var banked: Dictionary = {}
 	if not already_banked:
-		banked = pack.bank(pct) if pack != null else {}
+		if pack != null:
+			banked = pack.bank_with_sturdy(reason, GameState.sturdy_pack_safe_ratio())
+			if not banked.is_empty():
+				GameState.note_first_pack_lost()
 		last_banked_run_id = run_id
 	_manual = null
 	var keep_battle_view: bool = reason == "flee" or reason == "overwhelmed"
