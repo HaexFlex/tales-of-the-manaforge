@@ -105,9 +105,9 @@ func _build_ui() -> void:
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.offset_left = 14.0
-	root.offset_top = 10.0
+	root.offset_top = 16.0
 	root.offset_right = -14.0
-	root.offset_bottom = -10.0
+	root.offset_bottom = -22.0
 	panel.add_child(root)
 
 	var title := Label.new()

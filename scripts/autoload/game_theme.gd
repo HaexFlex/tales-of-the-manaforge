@@ -8,6 +8,8 @@ const PRIMARY_FONT_PATH: String = "res://assets/fonts/font_primary_silver38_bold
 const TITLE_FONT_PATH: String = "res://assets/fonts/font_title_jersey30.tres"
 const INK: Color = Color8(62, 42, 24)
 const MUTED: Color = Color8(90, 62, 40)
+const CREAM_BTN: Color = Color8(243, 230, 200)
+const OUTLINE: Color = Color8(26, 15, 8)
 const SAFE_MARGIN_PX: float = 24.0
 const TAP_MIN_PX: float = 44.0
 const BODY_SIZE: int = 19
@@ -100,8 +102,24 @@ func style_primary_button(btn: Button) -> void:
 
 
 func style_title_hero_button(btn: Button) -> void:
+	btn.theme_type_variation = &"TitleMenuButton"
 	btn.add_theme_font_override("font", _primary_font)
 	btn.add_theme_font_size_override("font_size", TITLE_HERO_SIZE)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.add_theme_color_override(state, CREAM_BTN)
+	btn.add_theme_color_override(&"font_outline_color", OUTLINE)
+	btn.add_theme_constant_override(&"outline_size", 2)
+
+
+func style_outlined_ink_label(lbl: Label, muted: bool = false) -> void:
+	style_body_label(lbl)
+	lbl.add_theme_color_override(&"font_color", MUTED if muted else INK)
+	lbl.add_theme_color_override(&"font_shadow_color", OUTLINE)
+	lbl.add_theme_constant_override(&"shadow_offset_x", 1)
+	lbl.add_theme_constant_override(&"shadow_offset_y", 1)
 
 
 func style_title_label(lbl: Label) -> void:

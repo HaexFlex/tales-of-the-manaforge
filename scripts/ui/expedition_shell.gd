@@ -145,14 +145,16 @@ func _route_block(panel: Control) -> void:
 	_add_stepper(panel, "Rooms", _scr(Vector2(728, 212)))
 	_make_label(panel, "RoomsStepNote", _scr(Vector2(874, 218)), Vector2(70, 16), 12, INK_SECONDARY).text = "step 5"
 	_make_label(panel, "DurationLabel", _scr(Vector2(616, 254)), Vector2(200, 16), 12, INK_SECONDARY)
-	_make_label(panel, "BossLabel", _scr(Vector2(826, 254)), Vector2(200, 16), 12, INK_SECONDARY)
+	var boss := _make_label(panel, "BossLabel", _scr(Vector2(616, 254)), Vector2(380, 16), 12, INK_SECONDARY)
+	boss.clip_text = true
+	boss.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 
 func _mode_block(panel: Control) -> void:
-	_make_label(panel, "ModeTitle", _scr(Vector2(244, 430)), Vector2(80, 20), 16, INK).text = "Mode"
-	var manual := _mode_toggle(panel, "ManualButton", _scr(Vector2(244, 452)), "Manual")
-	var idle := _mode_toggle(panel, "IdleButton", _scr(Vector2(368, 452)), "Idle")
-	var join := _action_button(panel, "JoinFightButton", _scr(Vector2(492, 452)), "Join the fight")
+	_make_label(panel, "ModeTitle", _scr(Vector2(244, 408)), Vector2(80, 20), 16, INK).text = "Mode"
+	var manual := _mode_toggle(panel, "ManualButton", _scr(Vector2(244, 428)), "Manual")
+	var idle := _mode_toggle(panel, "IdleButton", _scr(Vector2(368, 428)), "Idle")
+	var join := _action_button(panel, "JoinFightButton", _scr(Vector2(492, 428)), "Join the fight")
 	join.size = Vector2(160, 36)
 	join.visible = false
 	manual.toggle_mode = true
@@ -164,7 +166,7 @@ func _mode_block(panel: Control) -> void:
 func _add_bottom_copy(panel: Control) -> void:
 	var box := VBoxContainer.new()
 	box.name = "BottomLeftCopy"
-	box.position = _scr(Vector2(244, 486))
+	box.position = _scr(Vector2(244, 462))
 	box.custom_minimum_size = Vector2(356, 0)
 	box.add_theme_constant_override("separation", 6)
 	panel.add_child(box)
@@ -530,7 +532,7 @@ func _build_simulate_window() -> void:
 
 
 func _add_title(panel: Control) -> void:
-	var title := _make_label(panel, "Title", Vector2((PANEL_SIZE.x - 320.0) * 0.5, -20.0), Vector2(320, 40), GameTheme.jersey_plank_size(), INK)
+	var title := _make_label(panel, "Title", Vector2((PANEL_SIZE.x - 320.0) * 0.5, -8.0), Vector2(320, 40), GameTheme.jersey_plank_size(), INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	GameTheme.style_plank_label(title)
 
@@ -543,7 +545,7 @@ func _add_close(panel: Control) -> void:
 	Ui540.configure_kit_close_button(btn)
 	panel.add_child(btn)
 	if not Ui540.is_phone_export():
-		var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", Vector2(PANEL_SIZE.x - 100.0, 26.0), Vector2(28, 15))
+		var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", Vector2(PANEL_SIZE.x - 118.0, 28.0), Vector2(28, 15))
 		esc.name = "CloseEscKeycap"
 		esc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 

@@ -314,7 +314,7 @@ func _build() -> void:
 
 	var title := Label.new()
 	title.name = "Title"
-	title.position = Vector2(48, -20)
+	title.position = Vector2(48, -14)
 	title.size = Vector2(400, 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_title")
@@ -323,8 +323,9 @@ func _build() -> void:
 
 	var hint := Label.new()
 	hint.name = "Hint"
-	hint.position = Vector2(92, 28)
-	hint.size = Vector2(520, 22)
+	hint.position = Vector2(92, 34)
+	hint.size = Vector2(520, 28)
+	hint.clip_text = false
 	hint.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hint")
 	var hotkey := Label.new()
 	hotkey.name = "HotkeyHint"
@@ -359,7 +360,7 @@ func _build() -> void:
 	backdrop.name = "PortraitBackdrop"
 	backdrop.position = SPRITE_POS
 	backdrop.size = SPRITE_SIZE
-	backdrop.color = Color(0.10, 0.14, 0.11, 1.0)
+	backdrop.color = Color(0.94, 0.88, 0.74, 1.0)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(backdrop)
 
@@ -466,13 +467,14 @@ func _build() -> void:
 	var right := Control.new()
 	right.name = "Stats"
 	right.position = Vector2(604, 104)
-	right.size = Vector2(284, 388)
+	right.size = Vector2(272, 388)
 	sheet.add_child(right)
 
 	var stats_title := Label.new()
 	stats_title.name = "StatsTitle"
 	stats_title.position = Vector2(0, 0)
-	stats_title.size = Vector2(360, 22)
+	stats_title.size = Vector2(268, 22)
+	stats_title.add_theme_color_override("font_color", INK)
 	stats_title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_stats_header")
 	stats_title.add_theme_font_size_override("font_size", 15)
 	stats_title.add_theme_color_override("font_color", GOLD)
@@ -528,7 +530,7 @@ func _build() -> void:
 		var block := Control.new()
 		block.name = "Stat_%s" % sid
 		block.position = Vector2(0, y)
-		block.size = Vector2(360, STAT_STRIDE)
+		block.size = Vector2(268, STAT_STRIDE)
 		block.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		right.add_child(block)
 		# Role overlaps the name row's empty descent so the words sit flush under the name.
@@ -912,7 +914,7 @@ func _cycle_gear_filter() -> void:
 
 func _gear_filter_label() -> String:
 	if _gear_filter_slot == "":
-		return CharacterSheet._auto("ContentStrings").get_text("gear_tab_all")
+		return "Type"
 	var eq = CharacterSheet._auto("Equipment")
 	if eq != null and eq.has_method("slot_display_name"):
 		return str(eq.call("slot_display_name", _gear_filter_slot))
@@ -1063,8 +1065,8 @@ class SlotPlate extends Panel:
 		add_child(_square)
 		var caption_host := Control.new()
 		caption_host.name = "CaptionHost"
-		caption_host.position = Vector2(-14, SLOT_SQUARE.y + 2)
-		caption_host.size = Vector2(SLOT_SIZE.x + 28, 16)
+		caption_host.position = Vector2(-8, SLOT_SQUARE.y + 4)
+		caption_host.size = Vector2(SLOT_SIZE.x + 16, 14)
 		caption_host.clip_contents = true
 		caption_host.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(caption_host)
@@ -1072,8 +1074,8 @@ class SlotPlate extends Panel:
 		_caption.name = "Hint"
 		_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_caption.add_theme_font_size_override("font_size", 10)
-		_caption.add_theme_color_override("font_color", Color(0.86, 0.82, 0.70, 1.0))
+		_caption.add_theme_font_size_override("font_size", 9)
+		_caption.add_theme_color_override("font_color", CharacterSheet.MUTED)
 		_caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		caption_host.add_child(_caption)
 		var cap_h: float = maxf(16.0, _caption.get_minimum_size().y)

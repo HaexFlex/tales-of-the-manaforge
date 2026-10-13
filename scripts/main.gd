@@ -252,6 +252,9 @@ func _setup_camera(snap_to_tree: bool) -> void:
 	camera.position_smoothing_enabled = false
 	if snap_to_tree and manatree:
 		camera.position = manatree.position
+	elif manatree != null and keeper != null:
+		var focus: Vector2 = (manatree.global_position + keeper.global_position) * 0.5
+		camera.position = _clamped_camera_pos(focus + Vector2(0.0, 48.0))
 	_clamp_camera()
 
 

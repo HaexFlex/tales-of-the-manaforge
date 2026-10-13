@@ -367,7 +367,11 @@ func _apply_hud540_chrome() -> void:
 			num.add_theme_font_override("font", GameTheme.body_font())
 			num.add_theme_color_override("font_color", GameTheme.INK)
 	if status_label:
-		GameTheme.style_body_label(status_label)
+		GameTheme.style_outlined_ink_label(status_label)
+		status_label.z_index = 50
+	if toast_shade:
+		toast_shade.z_index = 49
+		toast_shade.clip_contents = true
 	Ui540.style_wood_icon_button(pause_button)
 	Ui540.style_wood_icon_button(character_button)
 	Ui540.style_wood_icon_button(backpack_button)
@@ -428,7 +432,7 @@ func _layout_toast_r4(vs: Vector2, safe: float, shift: float) -> void:
 	if status_label == null or toast_shade == null:
 		return
 	var tap: float = Ui540.TAP_MIN_PX
-	var toast_y: float = vs.y - safe - tap - 8.0 - 30.0 + 20.0
+	var toast_y: float = vs.y - safe - tap - 8.0 - 32.0
 	var line: String = status_label.text
 	var text_w: float = GameTheme.body_font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.silver_body_size()).x
 	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - safe * 2.0)
@@ -490,18 +494,23 @@ func _apply_bag540_chrome() -> void:
 	if backpack_panel == null:
 		return
 	Ui540.apply_kit_panel(backpack_panel, "bag", backpack_title, backpack_close_button)
-	GameTheme.style_body_label(inventory_title)
-	backpack_tab_all.custom_minimum_size = Vector2(90, 44)
-	Ui540.style_wood_icon_button(backpack_tab_all)
-	for tab: Button in [backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
-		tab.visible = false
+	GameTheme.style_plank_label(backpack_title)
+	GameTheme.style_outlined_ink_label(inventory_title)
+	backpack_panel.z_index = 35
+	var tab_btns: Array[Button] = [
+		backpack_tab_all, backpack_tab_raw, backpack_tab_refined,
+		backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics,
+	]
+	for tab: Button in tab_btns:
+		tab.visible = true
+		tab.custom_minimum_size = Vector2(68, 40)
+		Ui540.style_wood_icon_button(tab)
 	if _backpack_cat_btn == null:
 		_backpack_cat_btn = Button.new()
 		_backpack_cat_btn.name = "TabCategoryCycle"
 		backpack_tab_all.get_parent().add_child(_backpack_cat_btn)
 		_backpack_cat_btn.pressed.connect(_cycle_backpack_filter)
-	Ui540.style_wood_icon_button(_backpack_cat_btn)
-	_backpack_cat_btn.custom_minimum_size = Vector2(160, 44)
+	_backpack_cat_btn.visible = false
 	_ensure_bag_detail_panel()
 
 
@@ -525,9 +534,7 @@ func _layout_bag540() -> void:
 	if tab_row:
 		tab_row.position = Vector2(36, tab_y)
 		tab_row.size = Vector2(inner_w, 44)
-	if _backpack_cat_btn:
-		_backpack_cat_btn.position = Vector2(94, 0)
-	var list_top: float = tab_y + 52.0
+	var list_top: float = tab_y + 48.0
 	var scroll: ScrollContainer = backpack_panel.get_node_or_null("InventoryScroll") as ScrollContainer
 	if scroll:
 		scroll.position = Vector2(36, list_top)
@@ -537,12 +544,14 @@ func _layout_bag540() -> void:
 func _apply_care540_chrome() -> void:
 	if care_panel:
 		Ui540.apply_kit_panel(care_panel, "manatree_care", care_title, care_close_button)
-		GameTheme.style_body_label(care_needs_label)
+		GameTheme.style_outlined_ink_label(care_needs_label)
 		GameTheme.style_primary_button(pay_button)
 		GameTheme.style_primary_button(harvest_fruit_button)
 	if bench_panel:
 		Ui540.apply_kit_panel(bench_panel, "workbench", bench_title, bench_close_button)
-		GameTheme.style_body_label(bench_prompt)
+		GameTheme.style_plank_label(bench_title)
+		GameTheme.style_outlined_ink_label(bench_prompt)
+		bench_panel.z_index = 35
 
 
 func _layout_care540() -> void:
@@ -777,6 +786,8 @@ func _layout_ascension_shop() -> void:
 	ascension_panel.custom_minimum_size = Vector2(w, h)
 	ascension_panel.size = Vector2(w, h)
 	Ui540.center_kit_panel(ascension_panel)
+	ascension_panel.z_index = 40
+	shop_dim.z_index = 39
 	if shop_header:
 		shop_header.offset_bottom = SHOP_HEADER_H
 	if _shop_toolbar:
@@ -787,6 +798,9 @@ func _layout_ascension_shop() -> void:
 		prestige_sub.add_theme_color_override("font_color", GameTheme.MUTED)
 		prestige_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		prestige_sub.custom_minimum_size.y = 36.0
+		prestige_sub.offset_left = 20.0
+		prestige_sub.offset_right = -20.0
+		prestige_sub.clip_text = false
 	if shop_footer:
 		shop_footer.offset_top = h - SHOP_FOOTER_H
 		shop_footer.offset_bottom = h
@@ -1795,8 +1809,9 @@ func _ensure_wisp_counter() -> void:
 	counter.position = Vector2(780, 14)
 	counter.size = Vector2(180, 28)
 	counter.add_theme_font_size_override("font_size", 15)
-	counter.add_theme_color_override("font_color", Color(0.86, 0.95, 0.9, 1))
+	GameTheme.style_outlined_ink_label(counter)
 	add_child(counter)
+	counter.z_index = 25
 	if not GameState.wisps_changed.is_connected(_refresh_wisp_counter):
 		GameState.wisps_changed.connect(_refresh_wisp_counter)
 	_refresh_wisp_counter()
@@ -3129,7 +3144,7 @@ func _rebuild_backpack() -> void:
 		var empty := Label.new()
 		empty.text = ContentStrings.get_text("backpack_empty")
 		empty.add_theme_font_size_override("font_size", 12)
-		empty.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+		empty.add_theme_color_override("font_color", GameTheme.MUTED)
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inventory_list.add_child(empty)
 
@@ -3378,14 +3393,14 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	var name_lbl := Label.new()
 	name_lbl.text = Equipment.item_display_name(out_id) if equipment_out else Backpack.item_display_name(out_id)
 	name_lbl.add_theme_font_size_override("font_size", 13)
-	name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+	name_lbl.add_theme_color_override("font_color", GameTheme.INK)
 	name_lbl.clip_text = true
 	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var cost_lbl := Label.new()
 	## Costs only — long tool/fertilizer fluff overflowed the panel.
 	cost_lbl.text = _craft_row_cost_text(recipe_id)
 	cost_lbl.add_theme_font_size_override("font_size", 11)
-	cost_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+	cost_lbl.add_theme_color_override("font_color", GameTheme.MUTED)
 	cost_lbl.clip_text = true
 	cost_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	cost_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF

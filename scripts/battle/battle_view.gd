@@ -124,10 +124,10 @@ const INTENT_LIFT: float = 28.0
 const INTENT_CENTRE_SHIFT: float = 10.0
 const ACTIVE_ARROW_TOP: float = 15.0
 const ACTIVE_ARROW_BACK_SIDE_GAP: float = 2.0
-const PLATE_LABEL_FONT_SIZE: int = 8
+const PLATE_LABEL_FONT_SIZE: int = 10
 const PLATE_NAME_Y: float = 6.0
 const DEPTH_PLATE_POS: Vector2 = Vector2(12.0, 9.0)
-const DEPTH_PLATE_SIZE: Vector2 = Vector2(104.0, 22.0)
+const DEPTH_PLATE_SIZE: Vector2 = Vector2(112.0, 22.0)
 const ROOMS_PLATE_POS: Vector2 = Vector2(107.0, 9.0)
 const ROOMS_PLATE_SIZE: Vector2 = Vector2(81.0, 21.0)
 const ROUND_BANNER_POS: Vector2 = Vector2(359.0, 6.0)
@@ -2139,6 +2139,7 @@ func _build_fight_hud() -> void:
 	_log_panel.position = LOG_PANEL_RECT.position
 	_log_panel.size = LOG_PANEL_RECT.size
 	_log_panel.add_to_group("battle_ui")
+	_log_panel.z_index = 6
 	_arena.add_child(_log_panel)
 	var parchment := Panel.new()
 	parchment.name = "Parchment"
@@ -2174,6 +2175,7 @@ func _build_fight_hud() -> void:
 	_action_menu.position = ACTION_MENU_POS
 	_action_menu.size = Vector2(ACTION_BUTTON_PITCH.x * 2.0 + ACTION_BUTTON_SIZE.x, ACTION_BUTTON_PITCH.y + ACTION_BUTTON_SIZE.y)
 	_action_menu.visible = false
+	_action_menu.z_index = 5
 	_arena.add_child(_action_menu)
 	_action_buttons.clear()
 	# Exactly six fixed slots, 3 x 2: Strike, Ability, Items / Brace, Flee, Strike for me.

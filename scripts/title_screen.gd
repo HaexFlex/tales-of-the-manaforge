@@ -52,9 +52,26 @@ func _ready() -> void:
 	pause_menu.suppress_pause_hotkey = true
 	pause_menu.standalone_load_requested.connect(_on_slot_chosen)
 	pause_menu.close_standalone()
+	_layout_title540()
+	if not get_viewport().size_changed.is_connected(_layout_title540):
+		get_viewport().size_changed.connect(_layout_title540)
 	_rebuild_items()
 	_set_menu_enabled(false)
 	call_deferred("_arm_menu_when_idle")
+
+
+func _layout_title540() -> void:
+	var vs: Vector2 = Ui540.viewport_size()
+	var shift: float = Ui540.center_shift_x()
+	var bg: TextureRect = get_node_or_null("Background") as TextureRect
+	if bg:
+		bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		var bg_w: float = 1200.0
+		bg.position = Vector2((vs.x - bg_w) * 0.5 + shift, 0.0)
+		bg.size = Vector2(bg_w, vs.y)
+	if logo:
+		logo.position = Vector2(48.0 + shift, 72.0)
+	menu.position = Vector2(48.0 + shift, 188.0)
 
 
 func _process(delta: float) -> void:
@@ -222,7 +239,13 @@ func _show_confirm(action: String, body: String, yes: String, no: String) -> voi
 	_confirm_action = action
 	var dialog: KitDialog = KIT_DIALOG.instantiate() as KitDialog
 	_active_dialog = dialog
-	add_child(dialog)
+	var popup_layer: CanvasLayer = get_node_or_null("PopupLayer") as CanvasLayer
+	if popup_layer == null:
+		popup_layer = CanvasLayer.new()
+		popup_layer.name = "PopupLayer"
+		popup_layer.layer = 110
+		add_child(popup_layer)
+	popup_layer.add_child(dialog)
 	dialog.setup("", body, "", no, yes, "title_%s" % action)
 	dialog.confirmed.connect(_on_confirm_yes)
 	dialog.cancelled.connect(_on_confirm_no)

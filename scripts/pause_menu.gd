@@ -133,6 +133,12 @@ func _layout_pause_menu() -> void:
 		y += PAUSE_BTN_H + PAUSE_BTN_GAP
 	title_label.position = Vector2(PAUSE_PAD_X, -20.0)
 	title_label.size = Vector2(PAUSE_BTN_W, 40.0)
+	if options_title:
+		options_title.position = Vector2(120.0, -12.0)
+		options_title.size = Vector2(320.0, 40.0)
+	if slots_title:
+		slots_title.position = Vector2(120.0, -12.0)
+	confirm_panel.z_index = 10
 	Ui540.center_control(panel)
 	Ui540.center_control(slots_panel)
 	Ui540.center_control(options_panel)
@@ -184,7 +190,7 @@ func _ensure_speedup_toggle() -> void:
 	hint.size = Vector2(488, 48)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.add_theme_font_size_override("font_size", 12)
-	hint.add_theme_color_override("font_color", Color(0.78, 0.86, 0.74, 1))
+	hint.add_theme_color_override("font_color", GameTheme.MUTED)
 	hint.text = ContentStrings.get_text("options_speedup_toggle_hint")
 	options_panel.add_child(hint)
 	var next_y: float = 296.0
@@ -570,8 +576,16 @@ func _show_confirm(action: StringName, body: String, yes: String, no: String) ->
 	confirm_label.text = body
 	confirm_yes.text = yes
 	confirm_no.text = no
+	panel.visible = false
+	slots_panel.visible = false
+	options_panel.visible = false
 	confirm_panel.visible = true
+	confirm_panel.move_to_front()
 	_layout_pause_menu()
+	for btn: Button in [confirm_yes, confirm_no]:
+		btn.theme_type_variation = &""
+		btn.add_theme_font_override("font", GameTheme.body_font())
+		btn.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
 	confirm_no.grab_focus.call_deferred()
 
 
@@ -584,6 +598,8 @@ func _hide_confirm() -> void:
 	confirm_panel.visible = false
 	_confirm_action = &""
 	_pending_slot = 0
+	if _open and not standalone:
+		panel.visible = true
 
 
 func _on_options_close() -> void:

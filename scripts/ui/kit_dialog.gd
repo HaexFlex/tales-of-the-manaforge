@@ -59,6 +59,8 @@ func _apply_copy() -> void:
 		_note.add_theme_color_override("font_color", WARNING)
 	_action.text = _fit_button_label(_action, _action_text)
 	_safe.text = _fit_button_label(_safe, _safe_text)
+	_safe.add_theme_font_override("font", _action.get_theme_font(&"font"))
+	_safe.add_theme_font_size_override("font_size", _action.get_theme_font_size(&"font_size"))
 	if _action.text != _action_text and Ui540.should_show_pc_tooltips():
 		_action.tooltip_text = _action_text
 	if _safe.text != _safe_text and Ui540.should_show_pc_tooltips():

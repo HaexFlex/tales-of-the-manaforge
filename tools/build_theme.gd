@@ -4,7 +4,7 @@ extends SceneTree
 
 const T := "res://assets/ui/theme/"
 const INK := Color8(62, 42, 24)
-const CREAM := Color8(250, 238, 204)
+const CREAM := Color8(243, 230, 200)
 const OUTLINE := Color8(26, 15, 8)
 const MUTED := Color8(90, 62, 40)
 const DIS := Color8(164, 150, 132)
@@ -102,6 +102,19 @@ func _init() -> void:
 	# toggle-style selected (tabs / mode) = board wood_button_selected for pressed
 	th.set_type_variation("ToggleButton", "Button")
 	th.set_stylebox("pressed", "ToggleButton", sbt("wood_button_9s_selected_32x28.png", [6, 6, 6, 6], [12, 4, 12, 4]))
+
+	# ---- Title menu (wood face, cream hero caps)
+	th.set_type_variation("TitleMenuButton", "Button")
+	for k in ["normal", "hover", "pressed", "hover_pressed", "disabled"]:
+		th.set_stylebox(k, "TitleMenuButton", th.get_stylebox(k, "Button"))
+	th.set_stylebox("focus", "TitleMenuButton", focus)
+	th.set_font("font", "TitleMenuButton", primary)
+	th.set_font_size("font_size", "TitleMenuButton", 38)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		th.set_color(c, "TitleMenuButton", CREAM)
+	th.set_color("font_disabled_color", "TitleMenuButton", DIS)
+	th.set_color("font_outline_color", "TitleMenuButton", OUTLINE)
+	th.set_constant("outline_size", "TitleMenuButton", 2)
 
 	# ---- Primary button (battle action button, 9s 8)
 	th.set_type_variation("PrimaryButton", "Button")
