@@ -6102,15 +6102,19 @@ func _assert_bench_need_hints(craft_box: VBoxContainer) -> int:
 		if state_lbl.text.begins_with("Need"):
 			saw_need += 1
 			failed += _assert(state_lbl.text_overrun_behavior == TextServer.OVERRUN_TRIM_ELLIPSIS, "bench hint can ellipsize")
+			failed += _assert(state_lbl.horizontal_alignment == HORIZONTAL_ALIGNMENT_RIGHT, "bench hint is right aligned")
+			failed += _assert(state_lbl.get_theme_font_size(&"font_size") == 15, "bench hint is smaller than the name")
+			failed += _assert(state_lbl.get_theme_color(&"font_color").is_equal_approx(Color8(90, 62, 40)), "bench hint is muted ink")
 			var font: Font = state_lbl.get_theme_font(&"font")
 			var fs: int = state_lbl.get_theme_font_size(&"font_size")
 			var need_w: float = font.get_string_size(state_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x if font != null else 0.0
 			failed += _assert(state_lbl.size.x + 0.5 >= need_w and state_lbl.size.x > 8.0, "bench hint visible: %s" % state_lbl.text)
+			failed += _assert(name_lbl.get_theme_font_size(&"font_size") > fs, "bench name stays larger than the hint")
 		var rid: String = str(row.get_meta("recipe_id", ""))
 		if rid == "stone_fragments":
 			failed += _assert(state_lbl.text == "Need 3 Stone", "stone fragment hint")
 		elif rid == "stone_pickaxe":
-			failed += _assert(state_lbl.text == "Need 2 items", "pickaxe hint is short")
+			failed += _assert(state_lbl.text == "Need 1 Wood Rod +1", "pickaxe hint names the first part")
 			var tip: String = state_lbl.tooltip_text
 			failed += _assert(tip.contains("Wood Rod") and tip.contains("Stone Pickaxe Head"), "pickaxe tooltip lists both parts")
 	failed += _assert(saw_need >= 2, "unaffordable bench rows show a Need hint")
@@ -6129,8 +6133,8 @@ func _assert_cycle_cue(btn: Button, tag: String) -> int:
 		return failed
 	var cue_w: float = cue.offset_right - cue.offset_left
 	var cue_h: float = cue.offset_bottom - cue.offset_top
-	failed += _assert(cue_w >= 16.0 and cue_h >= 16.0, "%s cycle cue is readable" % tag)
-	failed += _assert(cue.offset_right <= -10.0, "%s cycle cue is inset from the tab edge" % tag)
+	failed += _assert(is_equal_approx(cue_w, 18.0) and is_equal_approx(cue_h, 18.0), "%s cycle cue is the shared 18 px mark" % tag)
+	failed += _assert(is_equal_approx(cue.offset_right, -12.0) and is_equal_approx(cue.offset_left, -30.0), "%s cycle cue uses the shared inset" % tag)
 	var box: StyleBox = btn.get_theme_stylebox(&"normal")
 	failed += _assert(box != null and box.content_margin_right >= 32.0, "%s label padded past the cue" % tag)
 	if btn.text != "" and btn.size.x > 100.0 and box != null:

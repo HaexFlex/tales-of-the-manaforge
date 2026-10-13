@@ -3390,6 +3390,8 @@ func _refresh_backpack_tab_labels() -> void:
 			_backpack_cat_btn.text = _filter_label(BAG_FILTER_CYCLE[(_bag_filter_ix + 1) % BAG_FILTER_CYCLE.size()])
 		else:
 			_backpack_cat_btn.text = _filter_label(_backpack_tab)
+		## Same 18 px mark and 12 px inset as the bench Parts and char Weapon tabs.
+		Ui540.add_cycle_cue(_backpack_cat_btn)
 
 
 func _apply_filter_labels() -> void:
@@ -3848,7 +3850,7 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	var name_lbl := Label.new()
 	name_lbl.name = "RecipeName"
 	name_lbl.text = craft_name
-	GameTheme.style_ink_label(name_lbl, reason != "")
+	GameTheme.style_ink_label(name_lbl, false)
 	## The name keeps its full width and never takes the leftover, so a shortage
 	## hint cannot be squeezed to nothing and the name itself is never ellipsized.
 	name_lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -3871,8 +3873,12 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	else:
 		state_lbl.text = ""
 	GameTheme.style_ink_label(state_lbl, true)
+	## Smaller muted ink, parked on the right before the scrollbar gutter, so the
+	## hint reads apart from the recipe name. Ellipsis only when the leftover is short.
+	state_lbl.add_theme_font_size_override("font_size", 15)
+	state_lbl.add_theme_color_override("font_color", Color8(90, 62, 40))
+	state_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	state_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	## Leftover width, after the full name. Ellipsis only when that leftover is short.
 	state_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	state_lbl.clip_text = true
 	state_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -3890,11 +3896,12 @@ func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	return row
 
 
-## One missing ingredient stays "Need 3 Wood". Several collapse to "Need 2 items"
-## so the recipe name is never squeezed; the full list stays on the tooltip.
+## One missing ingredient stays "Need 3 Wood". Several name the first and a count
+## ("Need 1 Wood Rod +1") so the recipe name is never squeezed; the full list
+## stays on the tooltip.
 func _bench_short_text(parts: PackedStringArray) -> String:
 	if parts.size() > 1:
-		return "Need %d items" % parts.size()
+		return "%s +%d" % [parts[0], parts.size() - 1]
 	return ", ".join(parts)
 
 
