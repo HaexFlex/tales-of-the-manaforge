@@ -14625,8 +14625,9 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	for i: int in 3:
 		party_x.append(BattleViewScript.slot_sole("party_front", i).x - BattleViewScript.slot_sole("party_back", i).x)
 		beast_x.append(BattleViewScript.slot_sole("beast_back", i).x - BattleViewScript.slot_sole("beast_front", i).x)
-	failed += _assert(BattleViewScript.slot_sole("party_front", 1).x - BattleViewScript.slot_sole("party_front", 0).x == 60.0, "party middle steps 60 toward the enemy")
-	failed += _assert(BattleViewScript.slot_sole("beast_front", 0).x - BattleViewScript.slot_sole("beast_front", 1).x == 96.0, "beast middle steps 96 toward the enemy (not a mirror)")
+	failed += _assert(BattleViewScript.slot_sole("party_front", 1).x - BattleViewScript.slot_sole("party_front", 0).x == 80.0, "party middle steps 80 toward the enemy")
+	failed += _assert(BattleViewScript.slot_sole("beast_front", 0).x - BattleViewScript.slot_sole("beast_front", 1).x == 80.0, "beast middle steps 80 toward the enemy")
+	failed += _assert(party_x == [148.0, 148.0, 148.0] and beast_x == [216.0, 216.0, 216.0], "beast columns sit wider apart than the party's (not a mirror): %s vs %s" % [beast_x, party_x])
 	# 2. A full 6 vs 6 fight on the real view.
 	var fight: FightState = FightStateScript.new()
 	var stats: Dictionary = {
@@ -14811,7 +14812,7 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(bottom != null and menu != null and log_panel != null and log_scroll != null, "bottom bar, menu and log scroll exist")
 	if bottom != null and menu != null and log_panel != null:
 		var bar_rect: Rect2 = bottom.get_global_rect()
-		failed += _assert(bottom.get_rect() == Rect2(0, 438, 960, 102), "bottom bar rect in the arena (got %s)" % bottom.get_rect())
+		failed += _assert(bottom.get_rect() == Rect2(-24, 400, 1008, 164), "bottom bar rect in the arena (got %s)" % bottom.get_rect())
 		var names: Array[String] = []
 		for child: Node in menu.get_children():
 			if child is Button:

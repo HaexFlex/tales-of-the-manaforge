@@ -166,13 +166,13 @@ const BOSS_CROWN_POS: Vector2 = Vector2(-15.0, 2.0)
 const KEYCAP_POS: Vector2 = Vector2(130.0, 2.0)
 const KEYCAP_PRESS_OFFSET: float = 2.0
 ## Bottom bar: the six action buttons (3 x 2) and the battle log. Nothing else.
-const BOTTOM_BAR_RECT: Rect2 = Rect2(-24.0, 396.0, 1008.0, 168.0)
-const ACTION_MENU_POS: Vector2 = Vector2(24.0, 420.0)
+const BOTTOM_BAR_RECT: Rect2 = Rect2(-24.0, 400.0, 1008.0, 164.0)
+const ACTION_MENU_POS: Vector2 = Vector2(24.0, 424.0)
 const ACTION_BUTTON_SIZE: Vector2 = Vector2(148.0, 44.0)
 const ACTION_BUTTON_PITCH: Vector2 = Vector2(156.0, 52.0)
-const LOG_PANEL_RECT: Rect2 = Rect2(496.0, 420.0, 440.0, 96.0)
+const LOG_PANEL_RECT: Rect2 = Rect2(496.0, 424.0, 440.0, 96.0)
 ## Pre-fight primary action, centred in the action column of the bottom bar.
-const START_FIGHT_RECT: Rect2 = Rect2(132.0, 442.0, 244.0, 52.0)
+const START_FIGHT_RECT: Rect2 = Rect2(132.0, 446.0, 244.0, 52.0)
 const KEEPER_TEST_STATS: Dictionary = {
 	"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
 	"vitality": 6, "swiftness": 7, "fate": 7, "attack": "physical",
@@ -859,6 +859,7 @@ func show_fight(fight: FightState) -> void:
 		_build_plate(row, _fighter_sole(fighter_id), str(beast_suffixes.get(fighter_id, "")))
 	set_active("")
 	_refresh_fight_hud()
+	_update_log_panel()
 	_sync_start_fight_action()
 
 
