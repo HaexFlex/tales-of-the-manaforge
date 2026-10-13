@@ -150,6 +150,10 @@ var _ascend_batch_dialog: PanelContainer
 var _ascend_batch_body: Label
 var _bench_batch: BatchPanel
 var _backpack_tab: String = "all"
+const BAG_FILTER_CYCLE: Array[String] = ["all", "raw", "refined", "tools", "weapons", "relics"]
+var _backpack_cat_btn: Button
+var _bag_detail_panel: Panel
+var _bag_detail_item_id: String = ""
 var _sheet: CharacterSheet = null
 var _toast_tween: Tween
 var _care_hidden_for_forge: bool = false
@@ -486,8 +490,18 @@ func _apply_bag540_chrome() -> void:
 		return
 	Ui540.apply_kit_panel(backpack_panel, "bag", backpack_title, backpack_close_button)
 	GameTheme.style_body_label(inventory_title)
-	for tab: Button in [backpack_tab_all, backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
-		tab.custom_minimum_size = Vector2(90, 44)
+	backpack_tab_all.custom_minimum_size = Vector2(90, 44)
+	Ui540.style_wood_icon_button(backpack_tab_all)
+	for tab: Button in [backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
+		tab.visible = false
+	if _backpack_cat_btn == null:
+		_backpack_cat_btn = Button.new()
+		_backpack_cat_btn.name = "TabCategoryCycle"
+		backpack_tab_all.get_parent().add_child(_backpack_cat_btn)
+		_backpack_cat_btn.pressed.connect(_cycle_backpack_filter)
+	Ui540.style_wood_icon_button(_backpack_cat_btn)
+	_backpack_cat_btn.custom_minimum_size = Vector2(172, 44)
+	_ensure_bag_detail_panel()
 
 
 func _layout_bag540() -> void:
@@ -510,6 +524,8 @@ func _layout_bag540() -> void:
 	if tab_row:
 		tab_row.position = Vector2(36, tab_y)
 		tab_row.size = Vector2(inner_w, 44)
+	if _backpack_cat_btn:
+		_backpack_cat_btn.position = Vector2(98, 0)
 	var list_top: float = tab_y + 52.0
 	var scroll: ScrollContainer = backpack_panel.get_node_or_null("InventoryScroll") as ScrollContainer
 	if scroll:
@@ -536,6 +552,16 @@ func _layout_care540() -> void:
 		care_close_button.position = Vector2(CARE_SIZE.x - 68.0, 18.0)
 		care_close_button.size = Vector2(44, 44)
 		care_title.position = Vector2(24, -20)
+		if _blessings_preview_button:
+			_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 18.0)
+			_blessings_preview_button.size = Vector2(44, 44)
+		if pay_button and water_button:
+			pay_button.position = Vector2(0, 4)
+			pay_button.size = Vector2(216, 48)
+			water_button.position = Vector2(232, 4)
+			water_button.size = Vector2(216, 48)
+			harvest_fruit_button.position = pay_button.position
+			harvest_fruit_button.size = pay_button.size
 	if bench_panel:
 		var bh: float = minf(440.0, Ui540.viewport_size().y - Ui540.SAFE_MARGIN_PX * 2.0)
 		bench_panel.custom_minimum_size = Vector2(BENCH_PANEL_W, bh)
@@ -578,17 +604,27 @@ func _ensure_help_panel() -> void:
 	Ui540.configure_kit_close_button(_help_close)
 	_help_close.pressed.connect(_close_help_panel)
 	_help_panel.add_child(_help_close)
+	var draft := Label.new()
+	draft.name = "HelpDraftTag"
+	draft.text = "DRAFT — for Lore"
+	draft.position = Vector2(36, 28)
+	draft.size = Vector2(200, 26)
+	GameTheme.style_body_label(draft)
+	draft.add_theme_color_override("font_color", Color(0.69, 0.44, 0.08))
+	_help_panel.add_child(draft)
 	_help_tab_pc = Button.new()
 	_help_tab_pc.text = "PC"
-	_help_tab_pc.position = Vector2(36, 28)
+	_help_tab_pc.position = Vector2(220, 28)
 	_help_tab_pc.size = Vector2(120, 44)
 	_help_tab_pc.pressed.connect(_set_help_tab.bind("pc"))
+	Ui540.style_wood_icon_button(_help_tab_pc)
 	_help_panel.add_child(_help_tab_pc)
 	_help_tab_phone = Button.new()
 	_help_tab_phone.text = "Phone"
-	_help_tab_phone.position = Vector2(164, 28)
+	_help_tab_phone.position = Vector2(348, 28)
 	_help_tab_phone.size = Vector2(120, 44)
 	_help_tab_phone.pressed.connect(_set_help_tab.bind("phone"))
+	Ui540.style_wood_icon_button(_help_tab_phone)
 	_help_panel.add_child(_help_tab_phone)
 	var scroll := ScrollContainer.new()
 	scroll.position = Vector2(36, 84)
@@ -645,21 +681,33 @@ func _layout_help_panel() -> void:
 	Ui540.center_control(_help_panel)
 	for child: Node in _help_body.get_children():
 		child.free()
-	for row: Dictionary in _help_rows():
-		var line := HBoxContainer.new()
-		line.add_theme_constant_override("separation", 12)
-		var key_lbl := Label.new()
-		key_lbl.custom_minimum_size = Vector2(160, 24)
-		key_lbl.text = str(row.get("key", ""))
-		GameTheme.style_body_label(key_lbl)
-		var act_lbl := Label.new()
-		act_lbl.text = str(row.get("action", ""))
-		act_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		act_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		GameTheme.style_body_label(act_lbl)
-		line.add_child(key_lbl)
-		line.add_child(act_lbl)
-		_help_body.add_child(line)
+	var rows: Array[Dictionary] = _help_rows()
+	if _help_tab == "pc":
+		var cols_box := HBoxContainer.new()
+		cols_box.add_theme_constant_override("separation", 20)
+		var left := VBoxContainer.new()
+		var right := VBoxContainer.new()
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var per_col: int = int(ceil(float(rows.size()) / 2.0))
+		for i: int in range(rows.size()):
+			var line: Control = _make_help_row(rows[i])
+			if i < per_col:
+				left.add_child(line)
+			else:
+				right.add_child(line)
+		cols_box.add_child(left)
+		cols_box.add_child(right)
+		_help_body.add_child(cols_box)
+		var pad := Label.new()
+		pad.text = "Gamepad: not supported yet (menus follow Godot ui_ arrows only)."
+		GameTheme.style_body_label(pad)
+		pad.add_theme_color_override("font_color", Color(0.7, 0.64, 0.52))
+		pad.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_help_body.add_child(pad)
+	else:
+		for row: Dictionary in rows:
+			_help_body.add_child(_make_help_row(row))
 	var welcome_hint: String = ContentStrings.get_text("welcome_hint")
 	if welcome_hint != "":
 		var old := Label.new()
@@ -2934,6 +2982,7 @@ func open_backpack() -> void:
 
 
 func close_backpack() -> void:
+	_hide_bag_detail()
 	if backpack_panel.visible:
 		GameAudio.play_ui_close()
 	backpack_panel.visible = false
@@ -2969,16 +3018,32 @@ func _on_backpack_inventory(_item_id: StringName, _amount: int) -> void:
 
 func _on_backpack_tab(tab_id: String) -> void:
 	_backpack_tab = tab_id
+	_bag_filter_ix = maxi(0, BAG_FILTER_CYCLE.find(tab_id))
+	_refresh_backpack_tab_labels()
 	_rebuild_backpack()
 
 
-func _apply_filter_labels() -> void:
+var _bag_filter_ix: int = 0
+
+
+func _cycle_backpack_filter() -> void:
+	_bag_filter_ix = (_bag_filter_ix + 1) % BAG_FILTER_CYCLE.size()
+	_backpack_tab = BAG_FILTER_CYCLE[_bag_filter_ix]
+	_refresh_backpack_tab_labels()
+	_rebuild_backpack()
+
+
+func _refresh_backpack_tab_labels() -> void:
 	backpack_tab_all.text = _filter_label("all")
-	backpack_tab_raw.text = _filter_label("raw")
-	backpack_tab_refined.text = _filter_label("refined")
-	backpack_tab_tools.text = _filter_label("tools")
-	backpack_tab_weapons.text = _filter_label("weapons")
-	backpack_tab_relics.text = _filter_label("relics")
+	if _backpack_cat_btn:
+		if _backpack_tab == "all":
+			_backpack_cat_btn.text = _filter_label("weapons")
+		else:
+			_backpack_cat_btn.text = _filter_label(_backpack_tab)
+
+
+func _apply_filter_labels() -> void:
+	_refresh_backpack_tab_labels()
 
 
 func _filter_label(filter_id: String) -> String:
@@ -3007,7 +3072,9 @@ func _rebuild_backpack() -> void:
 		child.queue_free()
 	var rows: Array[Dictionary] = _filtered_rows(_backpack_tab)
 	for row: Dictionary in rows:
-		inventory_list.add_child(_make_item_row(row, false))
+		var item_row: Control = _make_item_row(row, false)
+		inventory_list.add_child(item_row)
+		_wire_backpack_row(item_row, row)
 	if rows.is_empty():
 		var empty := Label.new()
 		empty.text = ContentStrings.get_text("backpack_empty")
@@ -3142,6 +3209,78 @@ func _placeholder_icon(color: Color) -> ColorRect:
 	icon.color = color
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return icon
+
+
+func _ensure_bag_detail_panel() -> void:
+	if _bag_detail_panel != null or backpack_panel == null:
+		return
+	_bag_detail_panel = Panel.new()
+	_bag_detail_panel.name = "BagDetailPopup"
+	_bag_detail_panel.visible = false
+	_bag_detail_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	backpack_panel.add_child(_bag_detail_panel)
+	Ui540.apply_kit_panel(_bag_detail_panel, "bag_detail")
+
+
+func _wire_backpack_row(row: Control, stack: Dictionary) -> void:
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton:
+			var mb: InputEventMouseButton = ev as InputEventMouseButton
+			if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+				_show_bag_detail(stack)
+	)
+
+
+func _show_bag_detail(stack: Dictionary) -> void:
+	_ensure_bag_detail_panel()
+	if _bag_detail_panel == null:
+		return
+	_bag_detail_item_id = str(stack.get("id", ""))
+	for child: Node in _bag_detail_panel.get_children():
+		child.free()
+	var item_id: String = _bag_detail_item_id
+	var title := Label.new()
+	title.text = str(stack.get("display_name", item_id))
+	GameTheme.style_body_label(title)
+	title.position = Vector2(16, 12)
+	title.size = Vector2(288, 24)
+	_bag_detail_panel.add_child(title)
+	var body := Label.new()
+	body.text = _item_examine_text(item_id)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameTheme.style_body_label(body)
+	body.position = Vector2(16, 40)
+	body.size = Vector2(288, 120)
+	_bag_detail_panel.add_child(body)
+	var action := Button.new()
+	action.custom_minimum_size = Vector2(100, 44)
+	var equippable: bool = Equipment.is_equippable(item_id)
+	action.text = "Equip" if equippable else "Close"
+	action.position = Vector2(204, 168)
+	action.pressed.connect(_on_bag_detail_action.bind(equippable))
+	if equippable:
+		GameTheme.style_primary_button(action)
+	else:
+		Ui540.style_wood_icon_button(action)
+	_bag_detail_panel.add_child(action)
+	_bag_detail_panel.custom_minimum_size = Vector2(320, 220)
+	_bag_detail_panel.size = Vector2(320, 220)
+	_bag_detail_panel.position = Vector2(BAG_PANEL_W - 336, 160)
+	_bag_detail_panel.visible = true
+
+
+func _on_bag_detail_action(equip: bool) -> void:
+	if equip and _bag_detail_item_id != "":
+		Equipment.try_equip(_bag_detail_item_id)
+		_rebuild_backpack()
+	_hide_bag_detail()
+
+
+func _hide_bag_detail() -> void:
+	if _bag_detail_panel:
+		_bag_detail_panel.visible = false
+	_bag_detail_item_id = ""
 
 
 func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
@@ -3489,10 +3628,13 @@ func _ensure_care_blessings_button() -> void:
 		return
 	_blessings_preview_button = Button.new()
 	_blessings_preview_button.name = "BlessingsPreviewButton"
-	_blessings_preview_button.position = Vector2(400, 8)
-	_blessings_preview_button.size = Vector2(104, 48)
-	_blessings_preview_button.text = ContentStrings.get_text("ascend_shop_preview_tag")
+	_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 18.0)
+	_blessings_preview_button.size = Vector2(44, 44)
+	_blessings_preview_button.text = ""
 	_blessings_preview_button.tooltip_text = ContentStrings.get_text("ascend_shop_preview_line")
+	_blessings_preview_button.icon = HudIcons.cell(HudIcons.ASCENSION)
+	_blessings_preview_button.expand_icon = true
+	Ui540.style_wood_icon_button(_blessings_preview_button)
 	care_header.add_child(_blessings_preview_button)
 	_blessings_preview_button.pressed.connect(_on_care_blessings_preview)
 

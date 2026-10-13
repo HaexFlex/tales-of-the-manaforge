@@ -21,9 +21,9 @@ const FRAME_9S: int = 24
 const FIELD_9S: int = 6
 const POPUP_9S: int = 8
 const PICK_ROW_9S: int = 6
-const PICKER_POPUP_W: float = 177.0
-const PICKER_POPUP_MAX_H: float = 196.5
-const PICKER_ROW_H: float = 40.5
+const PICKER_POPUP_W: float = 272.0
+const PICKER_POPUP_MAX_H: float = 234.0
+const PICKER_ROW_H: float = 48.0
 const PICKER_ROW_GAP: float = 2.0
 const PICKER_ROW_POOL: int = 16
 const PICKER_SCROLL_MAX_H: float = PICKER_POPUP_MAX_H - 34.0
@@ -293,7 +293,9 @@ func _build_picker() -> void:
 	picker_title.name = "PickerTitle"
 	picker_title.add_theme_font_size_override("font_size", 14)
 	picker_title.add_theme_color_override("font_color", INK)
-	picker_title.custom_minimum_size = Vector2(220, 18)
+	picker_title.custom_minimum_size = Vector2(240, 22)
+	GameTheme.style_body_label(picker_title)
+	picker_title.text = "Who stands here?"
 	vbox.add_child(picker_title)
 	picker_scroll = ScrollContainer.new()
 	picker_scroll.name = "PickerScroll"
