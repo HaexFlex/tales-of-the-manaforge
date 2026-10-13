@@ -19,10 +19,10 @@ const ART_DIR: String = "res://assets/art/battle/"
 ## of the fighter behind), 2 = bottom. Beast slots are wider apart and are not a mirror.
 ## Presentation only: the resolver's front/back rows and slots are unchanged.
 const SLOT_SOLES: Dictionary = {
-	"party_front": [Vector2(225, 270), Vector2(285, 318), Vector2(225, 402)],
-	"party_back": [Vector2(60, 270), Vector2(120, 318), Vector2(60, 402)],
-	"beast_front": [Vector2(690, 270), Vector2(594, 318), Vector2(690, 402)],
-	"beast_back": [Vector2(882, 270), Vector2(786, 318), Vector2(882, 402)],
+	"party_front": [Vector2(232, 206), Vector2(312, 286), Vector2(232, 366)],
+	"party_back": [Vector2(84, 206), Vector2(164, 286), Vector2(84, 366)],
+	"beast_front": [Vector2(660, 206), Vector2(580, 286), Vector2(660, 366)],
+	"beast_back": [Vector2(876, 206), Vector2(796, 286), Vector2(876, 366)],
 }
 const SLOT_ORDER: Array[String] = ["party_front", "party_back", "beast_front", "beast_back"]
 const SLOT_MARK_SIZE: Vector2 = Vector2(56.0, 16.0)
