@@ -1,5 +1,5 @@
 {
-	"save_version": 14,
+	"save_version": 15,
 	"save_id": 340034,
 	"timestamp": 1760000013,
 	"slot": 0,
@@ -268,7 +268,14 @@
 		},
 		"expedition": {
 			"status": "out"
-		}
+		},
+		"shop_hide_locked": true,
+		"shop_hide_maxed": true,
+		"shop_spoiler_shown_count": 0,
+		"first_wisp_gained": false,
+		"first_tool_crafted": false,
+		"first_pack_lost": false,
+		"first_minigame_played": false
 	},
 	"adventure": {
 		"adv_version": 1,
