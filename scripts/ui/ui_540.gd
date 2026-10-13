@@ -120,6 +120,65 @@ static func center_kit_panel(ctrl: Control, has_plank: bool = true) -> void:
 
 const PLANK_RISE: float = 22.0
 const PLANK_H: float = 40.0
+## You Fled windows sit at y 92 so the title plank (20 px above the frame) starts at y 72,
+## 8 px under the HUD bar. They are not centred vertically. 24 px padding inside the bark.
+const FLED_WINDOW_Y: float = 92.0
+const FLED_WINDOW_W: float = 520.0
+const FLED_PLANK_OVERHANG: float = 20.0
+const FLED_PARCHMENT_PAD: float = 24.0
+const FLED_BORDER: float = 20.0
+const FLED_INSET: float = 44.0
+const FLED_NAME_GROW: float = 8.0
+
+
+## Horizontal centre of a 520-wide fled window on the full viewport (220 at 960, 340 at 1200).
+static func fled_window_x() -> float:
+	return roundf((viewport_size().x - FLED_WINDOW_W) * 0.5)
+
+
+## World name tags stay on the world canvas, under the dim. Any tag that meets the
+## window (title plank included) grown by 8 px is hidden until the window closes.
+static func hide_name_tags_under(panel: Control) -> void:
+	if panel == null or not is_instance_valid(panel):
+		return
+	var tree: SceneTree = panel.get_tree()
+	if tree == null:
+		return
+	var rect: Rect2 = panel.get_global_rect()
+	rect.position.y -= FLED_PLANK_OVERHANG
+	rect.size.y += FLED_PLANK_OVERHANG
+	rect = rect.grow(FLED_NAME_GROW)
+	_hide_name_walk(tree.root, panel, rect)
+
+
+static func _hide_name_walk(node: Node, panel: Control, rect: Rect2) -> void:
+	if node == panel:
+		return
+	if node is Label and _is_world_name_tag(node):
+		var lbl: Label = node as Label
+		if lbl.visible and not lbl.has_meta(&"fled_hidden") and lbl.get_global_rect().intersects(rect):
+			lbl.visible = false
+			lbl.set_meta(&"fled_hidden", true)
+	for child: Node in node.get_children():
+		_hide_name_walk(child, panel, rect)
+
+
+static func _is_world_name_tag(node: Node) -> bool:
+	## Battle plates are NameLabel. Clearing tags (Keeper, Wisp, Bramble) are Labels on a Node2D.
+	if String(node.name) == "NameLabel":
+		return true
+	var parent: Node = node.get_parent()
+	return parent is Node2D
+
+
+static func restore_name_tags(root: Node) -> void:
+	if root == null or not is_instance_valid(root):
+		return
+	if root is Label and root.has_meta(&"fled_hidden"):
+		(root as Label).visible = true
+		root.remove_meta(&"fled_hidden")
+	for child: Node in root.get_children():
+		restore_name_tags(child)
 
 
 ## Tallest window that fits 540 inside the safe margins (with room for a plank).

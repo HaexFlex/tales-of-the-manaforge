@@ -4254,6 +4254,20 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(pause_save != null and pause_save.disabled, "Save disabled while the echo is open")
 		pause_menu.call("resume_game")
 		failed += _assert(bool(game_audio.call("is_hub_suspended")), "pause resume does not restart the bed")
+		battle_view.call("_offer_return", "flee")
+		await process_frame
+		var echo_fled: Control = battle_view.get_node_or_null("EchoFledWindow") as Control
+		var fled_view_w: float = battle_view.get_viewport().get_visible_rect().size.x
+		var echo_fled_x: float = roundf((fled_view_w - 520.0) * 0.5)
+		failed += _assert(echo_fled != null and is_equal_approx(echo_fled.position.y, 92.0) and is_equal_approx(echo_fled.size.x, 520.0) and is_equal_approx(echo_fled.size.y, 420.0), "echo fled window is 520x420 at y 92")
+		failed += _assert(echo_fled != null and is_equal_approx(echo_fled.position.x, echo_fled_x), "echo fled window stays at y 92 instead of centring vertically")
+		var echo_body: Label = battle_view.get_node_or_null("EchoFledWindow/EchoFledBody") as Label
+		failed += _assert(echo_body != null and str(echo_body.text).find("clearing still needs you") >= 0, "echo fled uses the live flee line")
+		var echo_back: Button = battle_view.get_node_or_null("EchoFledWindow/EchoFledReturn") as Button
+		failed += _assert(echo_back != null and echo_back.text == "Return to the tree" and is_equal_approx(echo_back.position.y, 332.0), "echo return sits on the bottom padding")
+		var echo_close: Button = battle_view.get_node_or_null("EchoFledWindow/EchoFledClose") as Button
+		failed += _assert(echo_close != null and echo_close.text == "" and is_equal_approx(echo_close.position.y, 44.0), "echo × sits on the 24 px padding")
+		failed += _assert(bool(battle_view.call("speech_between_portraits")), "echo chamber layout is unchanged under the fled window")
 		echo.call("finish_battle", "flee")
 		await process_frame
 		failed += _assert(not bool(echo.get("in_battle")), "flee leaves the battle")
@@ -4774,6 +4788,8 @@ func _check_only_load() -> int:
 		"res://tools/debug/debug_panel.gd",
 		"res://scripts/pause_menu.gd",
 		"res://scripts/battle/battle_view.gd",
+		"res://scripts/echo_battle_view.gd",
+		"res://scripts/ui/ui_540.gd",
 		"res://scripts/battle/battle_rng.gd",
 		"res://scripts/battle/spawn_roller.gd",
 		"res://scripts/battle/pack.gd",
@@ -10547,9 +10563,51 @@ func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(fled_close != null and fled_close.text == "", "fled window uses the × close")
 	var fled_loot: ScrollContainer = arena.find_child("EndLoot", true, false) as ScrollContainer if arena != null else null
 	failed += _assert(fled_loot != null and fled_loot.size.y <= 4.0 * 34.0 + 8.0, "fled loot shows four rows")
+	failed += _assert(fled_loot != null and is_equal_approx(fled_loot.position.y, 124.0), "fled loot starts 80 px into the 24 px padding")
+	var fled_detail: Label = arena.find_child("EndDetail", true, false) as Label if arena != null else null
+	failed += _assert(fled_detail != null and fled_detail.text == "You slip away to the trailhead with half the pack.", "fled line is the adventure copy")
+	var loot_row: Control = arena.find_child("LootRow_briarwood", true, false) as Control if arena != null else null
+	var loot_count: Label = loot_row.get_node_or_null("Count") as Label if loot_row != null else null
+	failed += _assert(loot_count != null and loot_count.text == "×2", "fled list shows the banked half, not the mockup rows")
+	var kept_line: Label = arena.find_child("EndKept", true, false) as Label if arena != null else null
+	failed += _assert(kept_line != null and kept_line.text == "Kept: half the pack" and kept_line.text.find("example") < 0, "example data tag is not in the window")
+	if fled_close != null:
+		failed += _assert(is_equal_approx(fled_close.position.x, 432.0) and is_equal_approx(fled_close.position.y, 44.0), "fled × sits on the 24 px padding")
+	var inside := Node2D.new()
+	inside.name = "FledNameInside"
+	var inside_tag := Label.new()
+	inside_tag.name = "Label"
+	inside_tag.text = "Keeper"
+	inside_tag.visible = true
+	inside_tag.size = Vector2(80, 26)
+	tree_root.add_child(inside)
+	if fled != null:
+		inside.global_position = fled.get_global_rect().position + Vector2(48, 120)
+	inside.add_child(inside_tag)
+	var outside := Node2D.new()
+	outside.name = "FledNameOutside"
+	var outside_tag := Label.new()
+	outside_tag.name = "Label"
+	outside_tag.text = "Wisp"
+	outside_tag.visible = true
+	outside_tag.position = Vector2(8, 8)
+	outside_tag.size = Vector2(48, 26)
+	outside.position = Vector2(8, 400)
+	tree_root.add_child(outside)
+	outside.add_child(outside_tag)
+	await process_frame
+	if fled != null:
+		arena.call("_conceal_names_under", fled)
+	failed += _assert(not inside_tag.visible, "name tag inside the window plus 8 px is hidden")
+	failed += _assert(outside_tag.visible, "name tag outside the window stays visible")
 	if back != null:
 		failed += _assert(is_equal_approx(back.size.x, 300.0) and is_equal_approx(back.size.y, 44.0), "fled primary is 300x44")
+		failed += _assert(is_equal_approx(back.position.y, 272.0), "fled primary sits on the bottom padding")
 		back.emit_signal("pressed")
+	await process_frame
+	failed += _assert(inside_tag.visible, "hidden name tag returns when the window closes")
+	inside.queue_free()
+	outside.queue_free()
 	BattleViewScript.close_arena()
 	# Last room: one slot, win shows only last-room Head home.
 	_reset_reach_test(tree_root, game_state, save_service)

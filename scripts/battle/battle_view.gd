@@ -370,12 +370,18 @@ static func _host() -> Node:
 	return tree.root
 
 
+var _name_tag_root: Node = null
+
+
 func _enter_tree() -> void:
 	## Pausable, like the hub. Nothing here sets get_tree().paused.
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	layer = ARENA_LAYER
 	add_to_group("battle_overlay")
 	_current = self
+	var tree: SceneTree = get_tree()
+	if tree != null:
+		_name_tag_root = tree.root
 
 
 func _ready() -> void:
@@ -406,6 +412,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_restore_fled_names()
 	_unbind_load()
 	if _current == self:
 		_current = null
@@ -3259,6 +3266,7 @@ func _fill_fled_loot(rows: VBoxContainer, banked: Dictionary, list_w: float) -> 
 			continue
 		any = true
 		var row := Control.new()
+		row.name = "LootRow_%s" % item_id
 		row.custom_minimum_size = Vector2(list_w - 16.0, FLED_ROW_H)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var icon := TextureRect.new()
@@ -3277,6 +3285,7 @@ func _fill_fled_loot(rows: VBoxContainer, banked: Dictionary, list_w: float) -> 
 		_theme_call("style_ink_label", name_lbl)
 		row.add_child(name_lbl)
 		var count_lbl := Label.new()
+		count_lbl.name = "Count"
 		count_lbl.text = "×%d" % count
 		count_lbl.position = Vector2(list_w - 96.0, 4)
 		count_lbl.size = Vector2(64, 26)
@@ -3306,37 +3315,16 @@ func _fled_item_icon(item_id: String) -> Texture2D:
 
 
 func _conceal_names_under(panel: Control) -> void:
-	if _arena == null or panel == null:
-		return
-	var rect: Rect2 = panel.get_global_rect()
-	rect.position.y -= 20.0
-	rect.size.y += 20.0
-	rect = rect.grow(8.0)
-	_conceal_name_walk(_arena, rect)
-
-
-func _conceal_name_walk(node: Node, rect: Rect2) -> void:
-	if node is Label and String(node.name) == "NameLabel":
-		var lbl: Label = node as Label
-		if lbl.visible and lbl.get_global_rect().intersects(rect):
-			lbl.visible = false
-			lbl.set_meta("fled_hidden", true)
-	for child: Node in node.get_children():
-		_conceal_name_walk(child, rect)
+	## Dim is already above the world canvas. Hide any name tag the window covers.
+	Ui540.hide_name_tags_under(panel)
 
 
 func _restore_fled_names() -> void:
-	if _arena == null or not is_instance_valid(_arena):
-		return
-	_restore_name_walk(_arena)
-
-
-func _restore_name_walk(node: Node) -> void:
-	if node is Label and node.has_meta("fled_hidden"):
-		(node as Label).visible = true
-		node.remove_meta("fled_hidden")
-	for child: Node in node.get_children():
-		_restore_name_walk(child)
+	var root: Node = _name_tag_root
+	var tree: SceneTree = get_tree()
+	if tree != null:
+		root = tree.root
+	Ui540.restore_name_tags(root)
 
 
 func _pack_list_text(reach: Node) -> String:
