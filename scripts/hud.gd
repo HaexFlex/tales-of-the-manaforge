@@ -552,6 +552,16 @@ func _layout_care540() -> void:
 		care_close_button.position = Vector2(CARE_SIZE.x - 68.0, 18.0)
 		care_close_button.size = Vector2(44, 44)
 		care_title.position = Vector2(24, -20)
+		if _blessings_preview_button:
+			_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 18.0)
+			_blessings_preview_button.size = Vector2(44, 44)
+		if pay_button and water_button:
+			pay_button.position = Vector2(0, 4)
+			pay_button.size = Vector2(216, 48)
+			water_button.position = Vector2(232, 4)
+			water_button.size = Vector2(216, 48)
+			harvest_fruit_button.position = pay_button.position
+			harvest_fruit_button.size = pay_button.size
 	if bench_panel:
 		var bh: float = minf(440.0, Ui540.viewport_size().y - Ui540.SAFE_MARGIN_PX * 2.0)
 		bench_panel.custom_minimum_size = Vector2(BENCH_PANEL_W, bh)
@@ -3578,10 +3588,13 @@ func _ensure_care_blessings_button() -> void:
 		return
 	_blessings_preview_button = Button.new()
 	_blessings_preview_button.name = "BlessingsPreviewButton"
-	_blessings_preview_button.position = Vector2(400, 8)
-	_blessings_preview_button.size = Vector2(104, 48)
-	_blessings_preview_button.text = ContentStrings.get_text("ascend_shop_preview_tag")
+	_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 18.0)
+	_blessings_preview_button.size = Vector2(44, 44)
+	_blessings_preview_button.text = ""
 	_blessings_preview_button.tooltip_text = ContentStrings.get_text("ascend_shop_preview_line")
+	_blessings_preview_button.icon = HudIcons.cell(HudIcons.ASCENSION)
+	_blessings_preview_button.expand_icon = true
+	Ui540.style_wood_icon_button(_blessings_preview_button)
 	care_header.add_child(_blessings_preview_button)
 	_blessings_preview_button.pressed.connect(_on_care_blessings_preview)
 
