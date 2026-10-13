@@ -2129,7 +2129,10 @@ func _build_fight_hud() -> void:
 	_bottom_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bottom_bar.texture = _load_ui_tex("bottom_panel_9s_48.png")
 	_bottom_bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_bottom_bar.set_patch_margin_all(16)
+	_bottom_bar.patch_margin_left = 16
+	_bottom_bar.patch_margin_top = 16
+	_bottom_bar.patch_margin_right = 16
+	_bottom_bar.patch_margin_bottom = 16
 	_bottom_bar.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
 	_bottom_bar.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE
 	_bottom_bar.position = BOTTOM_BAR_RECT.position
