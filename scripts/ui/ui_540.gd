@@ -66,3 +66,67 @@ static func hide_on_phone(ctrl: CanvasItem) -> void:
 	if ctrl == null:
 		return
 	ctrl.visible = not is_phone_export()
+
+
+static func kit_stylebox_9s(
+	texture_path: String,
+	margins: Vector4i,
+	content: Vector4 = Vector4.ZERO,
+	tile: bool = false,
+) -> StyleBoxTexture:
+	var box := StyleBoxTexture.new()
+	box.texture = load(texture_path) as Texture2D
+	box.texture_margin_left = margins.x
+	box.texture_margin_top = margins.y
+	box.texture_margin_right = margins.z
+	box.texture_margin_bottom = margins.w
+	if content != Vector4.ZERO:
+		box.content_margin_left = content.x
+		box.content_margin_top = content.y
+		box.content_margin_right = content.z
+		box.content_margin_bottom = content.w
+	if tile:
+		box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+		box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE_FIT
+	return box
+
+
+static func attach_vine_frame(host: Control, window_id: String) -> VineFrame:
+	var existing: VineFrame = host.get_node_or_null("VineFrame") as VineFrame
+	if existing:
+		existing.window_id = window_id
+		return existing
+	var vines := VineFrame.new()
+	vines.name = "VineFrame"
+	vines.window_id = window_id
+	vines.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vines.anchor_right = 1.0
+	vines.anchor_bottom = 1.0
+	vines.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	vines.grow_vertical = Control.GROW_DIRECTION_BOTH
+	vines.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.add_child(vines)
+	host.move_child(vines, 0)
+	return vines
+
+
+static func apply_kit_frame_panel(panel: Panel, window_id: String) -> VineFrame:
+	panel.add_theme_stylebox_override(
+		"panel",
+		kit_stylebox_9s("res://assets/ui/theme/frame_9s_96.png", Vector4i(24, 24, 24, 24), Vector4(28, 28, 28, 28), true),
+	)
+	return attach_vine_frame(panel, window_id)
+
+
+static func style_wood_icon_button(btn: BaseButton) -> void:
+	if btn == null:
+		return
+	configure_icon_button(btn, btn.tooltip_text)
+	var theme_res: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
+	if theme_res == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed", &"disabled", &"focus"]:
+		var sb: StyleBox = theme_res.get_stylebox(state, &"Button")
+		if sb:
+			btn.add_theme_stylebox_override(state, sb)
+	btn.flat = false

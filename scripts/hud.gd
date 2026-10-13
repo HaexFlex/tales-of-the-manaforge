@@ -15,7 +15,7 @@ const BatchPanel := preload("res://scripts/batch_panel.gd")
 @onready var stage_label: Label = $Panel/StageLabel
 @onready var controls_hint: Label = $Panel/ControlsHint
 @onready var status_label: Label = $Panel/StatusLabel
-@onready var toast_shade: ColorRect = $Panel/ToastShade
+@onready var toast_shade: Control = $Panel/ToastShade
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var help_button: Button = $Panel/HelpButton
 @onready var help_icon: TextureRect = $Panel/HelpButton/HelpIcon
@@ -162,6 +162,16 @@ var _welcome_dismiss_ready: bool = false
 var _welcome_delay_tween: Tween
 const TOAST_HOLD_SEC: float = 2.6
 const TOAST_FADE_SEC: float = 0.8
+const HUD_KIT_LOG: String = "res://assets/ui/theme/log_panel_9s_12.png"
+const HUD_KIT_TOAST: String = "res://assets/ui/theme/toast_9s_40x30.png"
+const HUD_PAUSE_ICON: String = "res://assets/ui/theme/icon_pause_32.png"
+const HUD_BOARD_ICON: String = "res://assets/art/ui/icons/hud_board.png"
+const PARTY_PITCH_R4: float = 50.0
+
+var _board_button: Button
+var _board_icon: TextureRect
+var _party_tag: PanelContainer
+var _party_tag_label: Label
 
 
 func _ready() -> void:
@@ -283,6 +293,168 @@ func _ready() -> void:
 	_layout_ascension_shop()
 	if has_node("/root/GameTheme"):
 		GameTheme.sweep_theme(self)
+	_apply_hud540_chrome()
+	_ensure_board_button()
+	_reorder_resource_row()
+	_layout_hud540()
+	if not get_viewport().size_changed.is_connected(_layout_hud540):
+		get_viewport().size_changed.connect(_layout_hud540)
+
+
+func _reorder_resource_row() -> void:
+	var row: HBoxContainer = $Panel/IconRow as HBoxContainer
+	if row == null:
+		return
+	for chip_name: String in ["ShardChip", "WoodChip", "StoneChip", "FoodChip", "EssenceChip"]:
+		var chip: Node = row.get_node_or_null(chip_name)
+		if chip:
+			row.move_child(chip, -1)
+	row.add_theme_constant_override("separation", 8)
+
+
+func _apply_hud540_chrome() -> void:
+	var shade: Panel = $Panel.get_node_or_null("IconShade") as Panel
+	if shade:
+		shade.add_theme_stylebox_override(
+			"panel",
+			Ui540.kit_stylebox_9s(HUD_KIT_LOG, Vector4i(4, 4, 4, 4), Vector4(8, 4, 8, 4)),
+		)
+	if toast_shade is Panel:
+		(toast_shade as Panel).add_theme_stylebox_override(
+			"panel",
+			Ui540.kit_stylebox_9s(HUD_KIT_TOAST, Vector4i(12, 8, 12, 8), Vector4(12, 6, 12, 6)),
+		)
+	for chip_path: String in [
+		"Panel/IconRow/ShardChip/NumShards",
+		"Panel/IconRow/WoodChip/NumWood",
+		"Panel/IconRow/StoneChip/NumStone",
+		"Panel/IconRow/FoodChip/NumFood",
+		"Panel/IconRow/EssenceChip/NumEssence",
+	]:
+		var num: Label = get_node_or_null(chip_path) as Label
+		if num:
+			num.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
+			num.add_theme_font_override("font", GameTheme.body_font())
+	if status_label:
+		GameTheme.style_body_label(status_label)
+	Ui540.style_wood_icon_button(pause_button)
+	Ui540.style_wood_icon_button(character_button)
+	Ui540.style_wood_icon_button(backpack_button)
+	if help_button:
+		help_button.visible = false
+	var pause_tex: Texture2D = load(HUD_PAUSE_ICON) as Texture2D
+	if pause_icon and pause_tex:
+		pause_icon.texture = pause_tex
+		pause_icon.custom_minimum_size = Vector2(32, 32)
+
+
+func _layout_hud540() -> void:
+	var vs: Vector2 = Ui540.viewport_size()
+	var safe: float = Ui540.SAFE_MARGIN_PX
+	var shift: float = Ui540.center_shift_x()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.offset_left = 0.0
+	panel.offset_top = 0.0
+	panel.offset_right = 0.0
+	panel.offset_bottom = 0.0
+	var bar_h: float = 40.0
+	var bar_w: float = 16.0 + 5.0 * 72.0
+	var shade: Control = panel.get_node_or_null("IconShade") as Control
+	if shade:
+		shade.position = Vector2(safe + shift, safe)
+		shade.size = Vector2(bar_w, bar_h)
+	var row: Control = $Panel/IconRow as Control
+	if row:
+		row.position = Vector2(safe + 8.0 + shift, safe + 4.0)
+		row.size = Vector2(bar_w - 16.0, bar_h - 8.0)
+	var tap: float = Ui540.TAP_MIN_PX
+	var pause_sz: float = 40.0 if Ui540.is_phone_export() else tap
+	var pause_x: float = vs.x - safe - pause_sz + shift
+	pause_button.position = Vector2(pause_x, safe)
+	pause_button.size = Vector2(pause_sz, pause_sz)
+	if ascension_reopen_button.visible:
+		ascension_reopen_button.position = Vector2(pause_x - tap - 8.0, safe)
+		ascension_reopen_button.size = Vector2(tap, tap)
+	var speed_x: float = pause_x - 8.0 - tap
+	if _play_speed_button:
+		_play_speed_button.position = Vector2(speed_x, safe)
+		_play_speed_button.size = Vector2(tap, tap)
+	if _speed_button:
+		_speed_button.position = Vector2(speed_x - tap - 4.0, safe)
+		_speed_button.size = Vector2(tap, tap)
+	var shortcut_y: float = vs.y - safe - tap
+	var shortcut_x: float = vs.x - safe - 3.0 * tap - 2.0 * 8.0 + shift
+	character_button.position = Vector2(shortcut_x, shortcut_y)
+	character_button.size = Vector2(tap, tap)
+	backpack_button.position = Vector2(shortcut_x + tap + 8.0, shortcut_y)
+	backpack_button.size = Vector2(tap, tap)
+	if _board_button:
+		_board_button.position = Vector2(shortcut_x + 2.0 * (tap + 8.0), shortcut_y)
+		_board_button.size = Vector2(tap, tap)
+	_layout_party_bar_r4(vs, safe, shift)
+	_layout_toast_r4(vs, safe, shift)
+
+
+func _layout_toast_r4(vs: Vector2, safe: float, shift: float) -> void:
+	if status_label == null or toast_shade == null:
+		return
+	var tap: float = Ui540.TAP_MIN_PX
+	var toast_y: float = vs.y - safe - tap - 8.0 - 30.0 + 20.0
+	var line: String = status_label.text
+	var text_w: float = GameTheme.body_font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.silver_body_size()).x
+	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - safe * 2.0)
+	var toast_x: float = (vs.x - toast_w) * 0.5 + shift
+	toast_shade.position = Vector2(toast_x, toast_y)
+	toast_shade.size = Vector2(toast_w, 30.0)
+	status_label.position = Vector2(toast_x + 40.0, toast_y + 2.0)
+	status_label.size = Vector2(toast_w - 48.0, 26.0)
+
+
+func _layout_party_bar_r4(vs: Vector2, safe: float, _shift: float) -> void:
+	if _party_bar == null:
+		return
+	var col_x: float = 30.0
+	var bottom: float = vs.y - safe
+	var visible_h: float = bottom - 300.0
+	if visible_h < PARTY_SLOT * 2.0:
+		visible_h = PARTY_SLOT * 3.0
+	_party_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_party_bar.offset_left = col_x
+	_party_bar.offset_top = 300.0
+	_party_bar.offset_right = col_x + PARTY_SLOT + 220.0
+	_party_bar.offset_bottom = bottom
+	_party_bar.size = Vector2(PARTY_SLOT + 220.0, visible_h)
+	if _party_column:
+		_party_column.position = Vector2(0.0, maxf(0.0, visible_h - _party_column.size.y))
+
+
+func _ensure_board_button() -> void:
+	if _board_button != null:
+		return
+	_board_button = Button.new()
+	_board_button.name = "BoardButton"
+	_board_button.text = ""
+	_board_button.tooltip_text = ContentStrings.get_text("expedition_board_name")
+	_board_button.pressed.connect(_on_board_pressed)
+	_board_icon = TextureRect.new()
+	_board_icon.name = "BoardIcon"
+	_board_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_board_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_board_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_board_icon.custom_minimum_size = Vector2(30, 30)
+	_board_icon.texture = load(HUD_BOARD_ICON) as Texture2D
+	_board_button.add_child(_board_icon)
+	panel.add_child(_board_button)
+	Ui540.style_wood_icon_button(_board_button)
+
+
+func _on_board_pressed() -> void:
+	for node: Node in get_tree().get_nodes_in_group("expedition_board"):
+		if node.has_method("open_shell"):
+			node.call("open_shell")
+			GameAudio.play_ui_open()
+			return
 
 
 func _layout_ascension_shop() -> void:
@@ -417,7 +589,11 @@ func _wire_sprite_hud() -> void:
 	_assign_tex(grow_fert_icon, ICON_FERTILIZER_TEX, ContentStrings.get_text("fertilizer_name"))
 	_assign_tex(grow_ess_icon, ICON_ESSENCE_TEX, ContentStrings.get_text("hud_essence"), ESSENCE_TINT)
 	_bind_tex_states(backpack_button, backpack_icon, BTN_PACK_NORMAL, BTN_PACK_HOVER, BTN_PACK_PRESSED)
-	_bind_tex_states(pause_button, pause_icon, BTN_PAUSE_NORMAL, BTN_PAUSE_HOVER, BTN_PAUSE_PRESSED)
+	var pause_tex: Texture2D = load(HUD_PAUSE_ICON) as Texture2D
+	if pause_icon and pause_tex:
+		pause_icon.texture = pause_tex
+	else:
+		_bind_tex_states(pause_button, pause_icon, BTN_PAUSE_NORMAL, BTN_PAUSE_HOVER, BTN_PAUSE_PRESSED)
 	if character_icon:
 		HudIcons.apply(character_icon, HudIcons.CHARACTER)
 	if help_icon:
@@ -661,7 +837,7 @@ func _refresh_controls_hint() -> void:
 		help_button.tooltip_text = line
 
 
-const PARTY_SLOT: float = 56.0
+const PARTY_SLOT: float = 44.0
 const PARTY_OUTLINE: Color = Color(0.78, 0.92, 0.62, 1.0)
 
 var _party_bar: Control
@@ -686,62 +862,62 @@ func _build_party_bar() -> void:
 		return
 	_party_bar = Control.new()
 	_party_bar.name = "PartyBar"
-	## Top-left anchors. The column stays in the gutter the character sheet leaves open.
-	_party_bar.anchor_left = 0.0
-	_party_bar.anchor_top = 0.0
-	_party_bar.anchor_right = 0.0
-	_party_bar.anchor_bottom = 0.0
-	_party_bar.offset_left = 12.0
-	_party_bar.offset_top = 86.0
-	_party_bar.offset_right = 12.0 + PARTY_SLOT
-	_party_bar.offset_bottom = 86.0 + PARTY_SLOT * 3.0 + 24.0
 	_party_bar.z_index = 20
 	_party_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_bar.clip_contents = true
 	_party_column = VBoxContainer.new()
 	_party_column.name = "Column"
 	_party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_party_column.add_theme_constant_override("separation", 6)
-	_slot_wisp = _make_party_slot("Wisps", "wisp")
+	_party_column.add_theme_constant_override("separation", int(PARTY_PITCH_R4 - PARTY_SLOT))
 	_slot_elaia = _make_party_slot("Elaia", "elaia")
+	_slot_wisp = _make_party_slot("Wisps", "wisp")
 	_slot_keeper = _make_party_slot("Keeper", "keeper")
 	_wisp_count_label = Label.new()
 	_wisp_count_label.name = "Count"
-	_wisp_count_label.position = Vector2(24, 34)
+	_wisp_count_label.position = Vector2(22, 30)
 	_wisp_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_style_party_label(_wisp_count_label, 14, Color(0.95, 0.92, 0.78))
 	_slot_wisp.add_child(_wisp_count_label)
+	_party_column.add_child(_slot_elaia)
 	_party_column.add_child(_slot_wisp)
 	_party_column.add_child(_slot_keeper)
-	_party_column.add_child(_slot_elaia)
+	_party_bar.add_child(_party_column)
 	_party_info = VBoxContainer.new()
 	_party_info.name = "Info"
-	_party_info.position = Vector2(PARTY_SLOT + 10.0, 0)
+	_party_info.visible = false
 	_party_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_party_info.add_theme_constant_override("separation", 0)
 	_sel_name = Label.new()
 	_sel_name.name = "Name"
-	_style_party_label(_sel_name, 15, Color(0.96, 0.94, 0.86))
 	_sel_extra = Label.new()
 	_sel_extra.name = "Extra"
-	_style_party_label(_sel_extra, 13, Color(0.85, 0.9, 0.75))
 	_sel_task = Label.new()
 	_sel_task.name = "Task"
-	_style_party_label(_sel_task, 13, Color(0.85, 0.9, 0.75))
 	_sel_job = Label.new()
 	_sel_job.name = "JobLine"
-	_style_party_label(_sel_job, 13, Color(0.95, 0.86, 0.55))
-	_sel_job.visible = false
 	_party_info.add_child(_sel_name)
 	_party_info.add_child(_sel_extra)
 	_party_info.add_child(_sel_task)
 	_party_info.add_child(_sel_job)
-	_party_bar.add_child(_party_column)
 	_party_bar.add_child(_party_info)
 	_keeper_activity = _make_activity_label("KeeperActivity", 62.0)
 	_elaia_activity = _make_activity_label("ElaiaActivity", 124.0)
+	_keeper_activity.visible = false
+	_elaia_activity.visible = false
 	_party_bar.add_child(_keeper_activity)
 	_party_bar.add_child(_elaia_activity)
-	_party_bar.offset_right = 280.0
+	_party_tag = PanelContainer.new()
+	_party_tag.name = "ActivityTag"
+	_party_tag.visible = false
+	_party_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_tag.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s(HUD_KIT_TOAST, Vector4i(12, 8, 12, 8), Vector4(10, 4, 10, 4)),
+	)
+	_party_tag_label = Label.new()
+	_party_tag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameTheme.style_body_label(_party_tag_label)
+	_party_tag.add_child(_party_tag_label)
+	_party_bar.add_child(_party_tag)
 	add_child(_party_bar)
 	var keeper_tex: Texture2D = _actor_portrait_texture("keeper")
 	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
@@ -893,6 +1069,24 @@ func _refresh_party_bar() -> void:
 		_wisp_count_label.visible = false
 	_refresh_actor_activities(elaia_joined, show_keeper, companion_id)
 	_clear_shared_activity()
+	_update_party_activity_tag(show_keeper, companion_id, ids)
+
+
+func _update_party_activity_tag(show_keeper: bool, companion_id: String, wisp_ids: Array[int]) -> void:
+	if _party_tag == null or _party_tag_label == null:
+		return
+	var actor: String = "keeper" if show_keeper else ("elaia" if companion_id == "elaia" else "")
+	if actor == "" and not wisp_ids.is_empty():
+		actor = "keeper"
+	if actor == "":
+		_party_tag.visible = false
+		return
+	var display: String = "Keeper" if actor == "keeper" else "Elaia"
+	_party_tag_label.text = "%s · %s" % [display, _activity_line(actor)]
+	_party_tag.visible = true
+	if _slot_keeper and _party_column:
+		var ky: float = _slot_keeper.position.y + 7.0
+		_party_tag.position = Vector2(PARTY_SLOT + 8.0, ky)
 
 
 func _clear_shared_activity() -> void:
@@ -2063,7 +2257,7 @@ func _settle_world_labels() -> void:
 	var scene: Node = get_tree().current_scene
 	if scene == null:
 		return
-	var band := Rect2(0, 0, get_viewport().get_visible_rect().size.x, 82.0)
+	var band := Rect2(0, 0, get_viewport().get_visible_rect().size.x, 72.0)
 	_fade_world_labels(scene, band, false)
 
 
