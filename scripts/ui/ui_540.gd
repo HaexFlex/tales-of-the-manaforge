@@ -3,6 +3,7 @@ extends RefCounted
 ## Shared 540p layout helpers (safe margins, phone export, 20:9 window shift).
 
 const SAFE_MARGIN_PX: float = 24.0
+const HUD_RESOURCE_BAND_H: float = 48.0
 const TAP_MIN_PX: float = 44.0
 const WIDE_ASPECT_SHIFT_PX: float = 120.0
 const BASE_W: float = 960.0
@@ -32,6 +33,15 @@ static func center_shift_x() -> float:
 	return WIDE_ASPECT_SHIFT_PX if is_wide_aspect() else 0.0
 
 
+static func kit_top_inset() -> float:
+	return SAFE_MARGIN_PX + HUD_RESOURCE_BAND_H + SAFE_MARGIN_PX
+
+
+static func kit_content_size() -> Vector2:
+	var vs: Vector2 = viewport_size()
+	return Vector2(vs.x, maxf(0.0, vs.y - kit_top_inset() - SAFE_MARGIN_PX))
+
+
 static func center_control(ctrl: Control) -> void:
 	if ctrl == null:
 		return
@@ -42,6 +52,19 @@ static func center_control(ctrl: Control) -> void:
 	ctrl.position = Vector2(
 		(vs.x - sz.x) * 0.5 + center_shift_x(),
 		(vs.y - sz.y) * 0.5,
+	)
+
+
+static func center_kit_panel(ctrl: Control) -> void:
+	if ctrl == null:
+		return
+	var area: Vector2 = kit_content_size()
+	var sz: Vector2 = ctrl.size
+	if sz.x <= 0.0 or sz.y <= 0.0:
+		sz = ctrl.get_combined_minimum_size()
+	ctrl.position = Vector2(
+		(viewport_size().x - sz.x) * 0.5 + center_shift_x(),
+		kit_top_inset() + maxf(0.0, (area.y - sz.y) * 0.5),
 	)
 
 
@@ -132,7 +155,7 @@ static func style_wood_icon_button(btn: BaseButton) -> void:
 	btn.flat = false
 
 
-const _CLOSE_ICON: Texture2D = preload("res://assets/ui/theme/icon_close_24x24.png")
+const _CLOSE_ICON: Texture2D = preload("res://assets_extra/shared/close_x_24.png")
 
 
 static func configure_kit_close_button(btn: BaseButton) -> void:

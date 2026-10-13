@@ -277,6 +277,7 @@ func _refresh_open_confirm(sid: String) -> void:
 		_yes.disabled = false
 		_body.text = ContentStrings.get_text("runestone_confirm", {"cost": maxi(cost, 0), "stat": stat_name})
 	_bank.text = ContentStrings.get_text("runestone_bank_hint")
+	Ui540.center_kit_panel(_panel)
 	_panel.visible = true
 	_layer.visible = true
 
@@ -344,6 +345,7 @@ func _open_confirm(sid: String, stat_name: String, cost: int) -> void:
 	_bank.text = ContentStrings.get_text("runestone_bank_hint")
 	_yes.text = ContentStrings.get_text("runestone_confirm_yes")
 	_no.text = ContentStrings.get_text("runestone_confirm_no")
+	Ui540.center_kit_panel(_panel)
 	_panel.visible = true
 	_layer.visible = true
 	GameAudio.play_ui_confirm()
@@ -384,13 +386,11 @@ func _ensure_confirm() -> void:
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_layer.add_child(_panel)
 	Ui540.apply_kit_panel(_panel, "runestone_confirm")
-	_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_panel.position = Vector2.ZERO
-	_title = _make_label(_panel, "Title", Vector2(16, 12), Vector2(488, 24), 18, Color(0.82, 0.64, 0.28, 1.0))
-	_spend = _make_label(_panel, "Spend", Vector2(16, 40), Vector2(488, 22), 15, Color(0.92, 0.86, 0.72, 1.0))
-	_body = _make_label(_panel, "Body", Vector2(16, 68), Vector2(488, 40), 14, Color(0.92, 0.86, 0.72, 1.0))
-	_hint = _make_label(_panel, "Hint", Vector2(16, 112), Vector2(488, 48), 12, Color(0.70, 0.64, 0.52, 1.0))
-	_bank = _make_label(_panel, "Bank", Vector2(16, 162), Vector2(488, 40), 12, Color(0.70, 0.64, 0.52, 1.0))
+	_title = _make_label(_panel, "Title", Vector2(16, 12), Vector2(488, 24), 18, GameTheme.INK)
+	_spend = _make_label(_panel, "Spend", Vector2(16, 40), Vector2(488, 22), 15, GameTheme.INK)
+	_body = _make_label(_panel, "Body", Vector2(16, 68), Vector2(488, 56), 15, GameTheme.INK)
+	_hint = _make_label(_panel, "Hint", Vector2(16, 128), Vector2(488, 48), 12, GameTheme.MUTED)
+	_bank = _make_label(_panel, "Bank", Vector2(16, 178), Vector2(488, 40), 12, GameTheme.MUTED)
 	_yes = Button.new()
 	_yes.name = "Yes"
 	_yes.position = Vector2(280, 220)

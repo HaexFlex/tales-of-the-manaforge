@@ -73,6 +73,10 @@ func _ready() -> void:
 	_build_ui()
 
 
+func _layout_debug_panel(panel: Panel) -> void:
+	Ui540.center_kit_panel(panel)
+
+
 func _build_ui() -> void:
 	var backdrop := ColorRect.new()
 	backdrop.name = "Backdrop"
@@ -85,13 +89,10 @@ func _build_ui() -> void:
 	panel.name = "Panel"
 	panel.custom_minimum_size = Vector2(600, 760)
 	panel.size = Vector2(600, 760)
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -300.0
-	panel.offset_top = -380.0
-	panel.offset_right = 300.0
-	panel.offset_bottom = 380.0
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
+	call_deferred("_layout_debug_panel", panel)
 	Ui540.apply_kit_panel(panel, "debug")
 	var close_icon := Button.new()
 	close_icon.name = "CloseIcon"

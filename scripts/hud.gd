@@ -111,16 +111,16 @@ const ICON_ESSENCE: Color = Color(0.56, 0.35, 0.66, 1.0)
 const ICON_BACKPACK: Color = Color(0.48, 0.31, 0.18, 1.0)
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
-const ICON_WOOD_TEX: String = "res://assets/art/ui/icon_wood.png"
-const ICON_STONE_TEX: String = "res://assets/art/ui/icon_stone.png"
-const ICON_FOOD_TEX: String = "res://assets/art/ui/icon_food.png"
-const ICON_SHARD_TEX: String = "res://assets/art/ui/icon_manashards.png"
-const ICON_ESSENCE_TEX: String = "res://assets/art/ui/icon_essence.png"
-const ICON_FERTILIZER_TEX: String = "res://assets/art/ui/icon_fertilizer.png"
+const ICON_WOOD_TEX: String = "res://assets_extra/shared/icon_wood.png"
+const ICON_STONE_TEX: String = "res://assets_extra/shared/icon_stone.png"
+const ICON_FOOD_TEX: String = "res://assets_extra/shared/icon_food.png"
+const ICON_SHARD_TEX: String = "res://assets_extra/shared/icon_manashards.png"
+const ICON_ESSENCE_TEX: String = "res://assets_extra/shared/icon_essence.png"
+const ICON_FERTILIZER_TEX: String = "res://assets_extra/shared/icon_fertilizer.png"
 const BTN_PAUSE_NORMAL: String = "res://assets/art/ui/buttons/pause_normal.png"
 const BTN_PAUSE_HOVER: String = "res://assets/art/ui/buttons/pause_hover.png"
 const BTN_PAUSE_PRESSED: String = "res://assets/art/ui/buttons/pause_pressed.png"
-const BTN_PACK_NORMAL: String = "res://assets/art/ui/buttons/backpack_normal.png"
+const BTN_PACK_NORMAL: String = "res://assets_extra/shared/backpack_normal.png"
 const BTN_PACK_HOVER: String = "res://assets/art/ui/buttons/backpack_hover.png"
 const BTN_PACK_PRESSED: String = "res://assets/art/ui/buttons/backpack_pressed.png"
 const BACKPACK_ROW_H: float = 48.0
@@ -171,7 +171,7 @@ const TOAST_FADE_SEC: float = 0.8
 const HUD_KIT_LOG: String = "res://assets/ui/theme/log_panel_9s_12.png"
 const HUD_KIT_TOAST: String = "res://assets/ui/theme/toast_9s_40x30.png"
 const HUD_PAUSE_ICON: String = "res://assets/ui/theme/icon_pause_32.png"
-const HUD_BOARD_ICON: String = "res://assets/art/ui/icons/hud_board.png"
+const HUD_BOARD_ICON: String = "res://assets_extra/hud/board_icon_30.png"
 const PARTY_PITCH_R4: float = 50.0
 
 var _board_button: Button
@@ -365,6 +365,7 @@ func _apply_hud540_chrome() -> void:
 		if num:
 			num.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
 			num.add_theme_font_override("font", GameTheme.body_font())
+			num.add_theme_color_override("font_color", GameTheme.INK)
 	if status_label:
 		GameTheme.style_body_label(status_label)
 	Ui540.style_wood_icon_button(pause_button)
@@ -500,7 +501,7 @@ func _apply_bag540_chrome() -> void:
 		backpack_tab_all.get_parent().add_child(_backpack_cat_btn)
 		_backpack_cat_btn.pressed.connect(_cycle_backpack_filter)
 	Ui540.style_wood_icon_button(_backpack_cat_btn)
-	_backpack_cat_btn.custom_minimum_size = Vector2(172, 44)
+	_backpack_cat_btn.custom_minimum_size = Vector2(160, 44)
 	_ensure_bag_detail_panel()
 
 
@@ -510,7 +511,7 @@ func _layout_bag540() -> void:
 	var h: float = minf(492.0, Ui540.viewport_size().y - Ui540.SAFE_MARGIN_PX * 2.0)
 	backpack_panel.custom_minimum_size = Vector2(BAG_PANEL_W, h)
 	backpack_panel.size = Vector2(BAG_PANEL_W, h)
-	Ui540.center_control(backpack_panel)
+	Ui540.center_kit_panel(backpack_panel)
 	var inner_w: float = BAG_PANEL_W - 72.0
 	backpack_close_button.position = Vector2(BAG_PANEL_W - 68.0, 18.0)
 	backpack_close_button.size = Vector2(44, 44)
@@ -525,7 +526,7 @@ func _layout_bag540() -> void:
 		tab_row.position = Vector2(36, tab_y)
 		tab_row.size = Vector2(inner_w, 44)
 	if _backpack_cat_btn:
-		_backpack_cat_btn.position = Vector2(98, 0)
+		_backpack_cat_btn.position = Vector2(94, 0)
 	var list_top: float = tab_y + 52.0
 	var scroll: ScrollContainer = backpack_panel.get_node_or_null("InventoryScroll") as ScrollContainer
 	if scroll:
@@ -548,10 +549,13 @@ func _layout_care540() -> void:
 	if care_panel:
 		care_panel.custom_minimum_size = CARE_SIZE
 		care_panel.size = CARE_SIZE
-		Ui540.center_control(care_panel)
+		Ui540.center_kit_panel(care_panel)
 		care_close_button.position = Vector2(CARE_SIZE.x - 68.0, 18.0)
 		care_close_button.size = Vector2(44, 44)
-		care_title.position = Vector2(24, -20)
+		care_title.position = Vector2((CARE_SIZE.x - 200.0) * 0.5, -20)
+		if care_needs_label:
+			care_needs_label.position = Vector2(36, 72)
+			care_needs_label.size = Vector2(CARE_SIZE.x - 72.0, 48)
 		if _blessings_preview_button:
 			_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 18.0)
 			_blessings_preview_button.size = Vector2(44, 44)
@@ -563,13 +567,26 @@ func _layout_care540() -> void:
 			harvest_fruit_button.position = pay_button.position
 			harvest_fruit_button.size = pay_button.size
 	if bench_panel:
-		var bh: float = minf(440.0, Ui540.viewport_size().y - Ui540.SAFE_MARGIN_PX * 2.0)
+		var area_h: float = Ui540.kit_content_size().y
+		var bh: float = minf(468.0, area_h)
 		bench_panel.custom_minimum_size = Vector2(BENCH_PANEL_W, bh)
 		bench_panel.size = Vector2(BENCH_PANEL_W, bh)
-		Ui540.center_control(bench_panel)
+		Ui540.center_kit_panel(bench_panel)
 		bench_close_button.position = Vector2(BENCH_PANEL_W - 68.0, 18.0)
 		bench_close_button.size = Vector2(44, 44)
 		bench_title.position = Vector2((BENCH_PANEL_W - 200.0) * 0.5, -20)
+		var inner_w: float = BENCH_PANEL_W - 72.0
+		bench_prompt.position = Vector2(36, 56)
+		bench_prompt.size = Vector2(inner_w, 40)
+		var scroll: ScrollContainer = bench_panel.get_node_or_null("CraftScroll") as ScrollContainer
+		if scroll:
+			var batch_h: float = 120.0
+			var list_top: float = 100.0
+			scroll.position = Vector2(36, list_top)
+			scroll.size = Vector2(inner_w, bh - list_top - batch_h - 36.0)
+		if _bench_batch != null and is_instance_valid(_bench_batch):
+			_bench_batch.position = Vector2(36, bh - 128.0)
+			_bench_batch.size = Vector2(inner_w, 112.0)
 
 
 func _ensure_help_panel() -> void:
@@ -678,7 +695,7 @@ func _layout_help_panel() -> void:
 		return
 	_help_panel.custom_minimum_size = Vector2(912, 472)
 	_help_panel.size = Vector2(912, 472)
-	Ui540.center_control(_help_panel)
+	Ui540.center_kit_panel(_help_panel)
 	for child: Node in _help_body.get_children():
 		child.free()
 	var rows: Array[Dictionary] = _help_rows()
@@ -708,14 +725,6 @@ func _layout_help_panel() -> void:
 	else:
 		for row: Dictionary in rows:
 			_help_body.add_child(_make_help_row(row))
-	var welcome_hint: String = ContentStrings.get_text("welcome_hint")
-	if welcome_hint != "":
-		var old := Label.new()
-		old.text = "From the old intro: %s" % welcome_hint
-		old.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		GameTheme.style_body_label(old)
-		old.add_theme_color_override("font_color", Color(0.7, 0.64, 0.52))
-		_help_body.add_child(old)
 
 
 func _set_help_tab(tab_id: String) -> void:
@@ -767,13 +776,17 @@ func _layout_ascension_shop() -> void:
 	h = maxf(h, SHOP_MIN_SIZE.y)
 	ascension_panel.custom_minimum_size = Vector2(w, h)
 	ascension_panel.size = Vector2(w, h)
-	Ui540.center_control(ascension_panel)
+	Ui540.center_kit_panel(ascension_panel)
 	if shop_header:
 		shop_header.offset_bottom = SHOP_HEADER_H
 	if _shop_toolbar:
 		_shop_toolbar.position = Vector2(16, SHOP_HEADER_H)
 	if shop_scroll:
 		shop_scroll.offset_top = SHOP_HEADER_H + 32.0
+	if prestige_sub:
+		prestige_sub.add_theme_color_override("font_color", GameTheme.MUTED)
+		prestige_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		prestige_sub.custom_minimum_size.y = 36.0
 	if shop_footer:
 		shop_footer.offset_top = h - SHOP_FOOTER_H
 		shop_footer.offset_bottom = h
@@ -1026,22 +1039,41 @@ func _layout_welcome_panel() -> void:
 	welcome_panel.color = Color(0, 0, 0, 0.58)
 	var card_w: float = 600.0
 	var card_h: float = 360.0
+	var area: Vector2 = Ui540.kit_content_size()
 	var card_x: float = (Ui540.viewport_size().x - card_w) * 0.5 + Ui540.center_shift_x()
-	var card_y: float = (Ui540.viewport_size().y - card_h) * 0.5 + 24.0
-	welcome_boot_label.position = Vector2((Ui540.viewport_size().x - 560.0) * 0.5 + Ui540.center_shift_x(), 96.0)
-	welcome_boot_label.size = Vector2(560, 28)
+	var card_y: float = Ui540.kit_top_inset() + maxf(0.0, (area.y - card_h) * 0.5)
+	var card := welcome_panel.get_node_or_null("WelcomeCard") as Panel
+	if card == null:
+		card = Panel.new()
+		card.name = "WelcomeCard"
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		welcome_panel.add_child(card)
+		welcome_panel.move_child(card, 0)
+	var parchment := StyleBoxFlat.new()
+	parchment.bg_color = Color(0.96, 0.9, 0.76, 1.0)
+	parchment.set_border_width_all(2)
+	parchment.border_color = Color(0.16, 0.1, 0.06, 1.0)
+	parchment.set_corner_radius_all(4)
+	card.add_theme_stylebox_override("panel", parchment)
+	card.position = Vector2(card_x, card_y)
+	card.size = Vector2(card_w, card_h)
+	welcome_boot_label.position = Vector2(card_x + 32.0, card_y + 20.0)
+	welcome_boot_label.size = Vector2(card_w - 64.0, 28)
 	welcome_boot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	welcome_title_label.position = Vector2(card_x + (card_w - 200.0) * 0.5, card_y - 20.0)
+	GameTheme.style_body_label(welcome_boot_label)
+	welcome_boot_label.add_theme_color_override("font_color", GameTheme.INK)
+	welcome_title_label.position = Vector2(card_x + (card_w - 200.0) * 0.5, card_y + 52.0)
 	welcome_title_label.size = Vector2(200, 40)
 	GameTheme.style_plank_label(welcome_title_label)
-	welcome_body_label.position = Vector2(card_x + 40.0, card_y + 44.0)
-	welcome_body_label.size = Vector2(card_w - 80.0, 200.0)
+	welcome_body_label.position = Vector2(card_x + 40.0, card_y + 100.0)
+	welcome_body_label.size = Vector2(card_w - 80.0, 160.0)
 	GameTheme.style_body_label(welcome_body_label)
-	welcome_hint_label.position = Vector2(card_x + 40.0, card_y + 250.0)
-	welcome_hint_label.size = Vector2(card_w - 80.0, 24.0)
+	welcome_body_label.add_theme_color_override("font_color", GameTheme.INK)
+	welcome_hint_label.position = Vector2(card_x + 40.0, card_y + 264.0)
+	welcome_hint_label.size = Vector2(card_w - 80.0, 28.0)
 	GameTheme.style_body_label(welcome_hint_label)
-	welcome_hint_label.add_theme_color_override("font_color", Color(0.7, 0.64, 0.52))
-	welcome_dismiss_button.position = Vector2(card_x + (card_w - 260.0) * 0.5, card_y + card_h - 76.0)
+	welcome_hint_label.add_theme_color_override("font_color", GameTheme.MUTED)
+	welcome_dismiss_button.position = Vector2(card_x + (card_w - 260.0) * 0.5, card_y + card_h - 68.0)
 	welcome_dismiss_button.size = Vector2(260, 52)
 	GameTheme.style_primary_button(welcome_dismiss_button)
 
@@ -1205,7 +1237,7 @@ func _build_party_bar() -> void:
 	_wisp_count_label.name = "Count"
 	_wisp_count_label.position = Vector2(22, 30)
 	_wisp_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style_party_label(_wisp_count_label, 14, Color(0.95, 0.92, 0.78))
+	_style_party_label(_wisp_count_label, 14, GameTheme.INK)
 	_slot_wisp.add_child(_wisp_count_label)
 	_party_column.add_child(_slot_elaia)
 	_party_column.add_child(_slot_wisp)
@@ -2540,7 +2572,7 @@ func _make_activity_label(node_name: String, y: float) -> Label:
 	lbl.size = Vector2(210, 52)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style_party_label(lbl, 13, Color(0.9, 0.94, 0.82))
+	_style_party_label(lbl, 13, GameTheme.INK)
 	return lbl
 
 
@@ -2581,27 +2613,45 @@ func _actor_status_text(actor: String, selected: bool) -> String:
 	return "%s\n%s" % [head, _activity_line(actor)]
 
 
+func _kit_window_obscures_world() -> bool:
+	return (
+		welcome_panel.visible
+		or backpack_panel.visible
+		or bench_panel.visible
+		or care_panel.visible
+		or ascension_panel.visible
+		or fruit_confirm_panel.visible
+		or (_help_panel != null and _help_panel.visible)
+		or is_character_open()
+		or (_sheet != null and _sheet.visible)
+	)
+
+
 func _settle_world_labels() -> void:
-	## The resource bar is translucent, so a world Label in that band would show through it.
+	## Hide world Labels under the HUD band and whenever a kit window is open.
 	var scene: Node = get_tree().current_scene
 	if scene == null:
 		return
-	var band := Rect2(0, 0, get_viewport().get_visible_rect().size.x, 72.0)
-	_fade_world_labels(scene, band, false)
+	var band := Rect2(0, 0, get_viewport().get_visible_rect().size.x, Ui540.kit_top_inset())
+	var force_hide: bool = _kit_window_obscures_world()
+	_fade_world_labels(scene, band, false, force_hide)
 
 
-func _fade_world_labels(node: Node, band: Rect2, in_layer: bool) -> void:
+func _fade_world_labels(node: Node, band: Rect2, in_layer: bool, force_hide: bool) -> void:
 	var layer: bool = in_layer or node is CanvasLayer
 	if not layer and node is Label:
 		var lbl: Label = node as Label
 		if lbl.visible:
-			var screen: Transform2D = lbl.get_global_transform_with_canvas()
-			var rect := Rect2(screen.origin, lbl.size * screen.get_scale())
 			var mod: Color = lbl.modulate
-			mod.a = 0.0 if rect.intersects(band) else 1.0
+			if force_hide:
+				mod.a = 0.0
+			else:
+				var screen: Transform2D = lbl.get_global_transform_with_canvas()
+				var rect := Rect2(screen.origin, lbl.size * screen.get_scale())
+				mod.a = 0.0 if rect.intersects(band) else 1.0
 			lbl.modulate = mod
 	for child: Node in node.get_children():
-		_fade_world_labels(child, band, layer)
+		_fade_world_labels(child, band, layer, force_hide)
 
 
 func _activity_line(actor: String) -> String:

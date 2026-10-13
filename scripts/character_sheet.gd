@@ -6,10 +6,10 @@ class_name CharacterSheet
 signal close_requested
 
 const PORTRAIT_PATH: String = "res://assets/art/keeper/stills/keeper_still_south_frame0.png"
-const WISP_PORTRAIT_PATH: String = "res://assets/art/wisps/wisp_portrait.png"
+const WISP_PORTRAIT_PATH: String = "res://assets_extra/hud/wisp_portrait.png"
 ## HUD party slots. 52×52, drawn 1:1. companions.json points at these.
-const KEEPER_PARTY_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_portrait.png"
-const ELAIA_PARTY_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_portrait.png"
+const KEEPER_PARTY_PORTRAIT_PATH: String = "res://assets_extra/shared/keeper_portrait.png"
+const ELAIA_PARTY_PORTRAIT_PATH: String = "res://assets_extra/shared/elaia_portrait.png"
 ## 160×160 busts. Header icon only. The sheet figure is idle v4 south, frame 0.
 const KEEPER_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/keeper_portrait_sheet.png"
 const ELAIA_SHEET_PORTRAIT_PATH: String = "res://assets/art/portraits/elaia_portrait_sheet.png"
@@ -80,16 +80,16 @@ static func make_item_icon(item_id: String) -> Control:
 	return swatch
 ## Slot plates in host space, flanking the enlarged Keeper so they do not cover the figure.
 const SLOT_POS: Dictionary = {
-	"head": Vector2(116, 6),
-	"relic": Vector2(116, 134),
-	"cape": Vector2(59, 158),
-	"body": Vector2(116, 182),
-	"weapon": Vector2(59, 222),
-	"hands": Vector2(173, 222),
-	"pants": Vector2(116, 274),
-	"ring1": Vector2(59, 274),
-	"ring2": Vector2(173, 274),
-	"feet": Vector2(116, 338),
+	"head": Vector2(140, 12),
+	"relic": Vector2(140, 134),
+	"cape": Vector2(83, 158),
+	"body": Vector2(140, 182),
+	"weapon": Vector2(83, 222),
+	"hands": Vector2(197, 222),
+	"pants": Vector2(140, 274),
+	"ring1": Vector2(83, 274),
+	"ring2": Vector2(197, 274),
+	"feet": Vector2(140, 338),
 }
 const SLOT_SIZE: Vector2 = Vector2(56, 66)
 const SLOT_SQUARE: Vector2 = Vector2(44, 44)
@@ -105,8 +105,8 @@ const STAT_STRIDE: float = STAT_NAME_H + STAT_ROLE_H + STAT_GAP_SMALL + STAT_NUM
 const ELAIA_SHEET_FIGURE: String = "res://assets/art/elaia/anim/idle/south.png"
 const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
-const INK: Color = Color(0.92, 0.86, 0.72, 1.0)
-const MUTED: Color = Color(0.70, 0.64, 0.52, 1.0)
+const INK: Color = Color8(62, 42, 24)
+const MUTED: Color = Color8(90, 62, 40)
 
 var _portrait: TextureRect
 var _inv_list: VBoxContainer
@@ -626,7 +626,7 @@ func _fit_sheet() -> void:
 	sheet.position = Vector2.ZERO
 	fit.custom_minimum_size = SHEET_SIZE
 	fit.size = SHEET_SIZE
-	Ui540.center_control(fit)
+	Ui540.center_kit_panel(fit)
 
 
 func _refresh_actor_nav() -> void:
@@ -1032,7 +1032,7 @@ class InvColumn extends Control:
 		host.call("request_unequip", str((data as Dictionary).get("from_slot", "")))
 
 
-const EMPTY_RELIC_FRAME_PATH: String = "res://assets/art/ui/relic_slot_empty.png"
+const EMPTY_RELIC_FRAME_PATH: String = "res://assets_extra/char/relic_slot_empty.png"
 const RELIC_ICON_SIZE: Vector2 = Vector2(32, 32)
 const RELIC_ICON_INSET: Vector2 = Vector2(6, 6)
 

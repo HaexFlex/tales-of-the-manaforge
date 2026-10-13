@@ -127,7 +127,7 @@ const ACTIVE_ARROW_BACK_SIDE_GAP: float = 2.0
 const PLATE_LABEL_FONT_SIZE: int = 8
 const PLATE_NAME_Y: float = 6.0
 const DEPTH_PLATE_POS: Vector2 = Vector2(12.0, 9.0)
-const DEPTH_PLATE_SIZE: Vector2 = Vector2(90.0, 21.0)
+const DEPTH_PLATE_SIZE: Vector2 = Vector2(104.0, 22.0)
 const ROOMS_PLATE_POS: Vector2 = Vector2(107.0, 9.0)
 const ROOMS_PLATE_SIZE: Vector2 = Vector2(81.0, 21.0)
 const ROUND_BANNER_POS: Vector2 = Vector2(359.0, 6.0)
@@ -1190,7 +1190,7 @@ func _bars_hidden_by_status(row: Dictionary) -> bool:
 
 
 func _load_ui_tex(file_name: String) -> Texture2D:
-	return load(UI_ART_DIR + file_name) as Texture2D
+	return AssetsExtra.battle_tex(file_name)
 
 
 func _nearest_tex_rect(tex: Texture2D) -> TextureRect:
@@ -2130,15 +2130,7 @@ func _build_fight_hud() -> void:
 	bottom_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bottom_panel.position = BOTTOM_BAR_RECT.position
 	bottom_panel.size = BOTTOM_BAR_RECT.size
-	bottom_panel.add_theme_stylebox_override(
-		"panel",
-		Ui540.kit_stylebox_9s(
-			"res://assets/ui/theme/frame_9s_96.png",
-			Vector4i(24, 24, 24, 24),
-			Vector4(28, 28, 28, 28),
-			true,
-		),
-	)
+	bottom_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	_arena.add_child(bottom_panel)
 	_bottom_bar = bottom_panel
 	_log_panel = Control.new()
@@ -2185,19 +2177,19 @@ func _build_fight_hud() -> void:
 	_arena.add_child(_action_menu)
 	_action_buttons.clear()
 	# Exactly six fixed slots, 3 x 2: Strike, Ability, Items / Brace, Flee, Strike for me.
-	_strike_button = _action_button(0, "StrikeButton", _text("adv_menu_strike", "Strike"), "res://assets/art/ui/icon_stone_sword.png")
+	_strike_button = _action_button(0, "StrikeButton", _text("adv_menu_strike", "Strike"), "res://assets_extra/shared/icon_stone_sword.png")
 	_strike_button.pressed.connect(_on_strike_pressed)
 	_ability_button = _action_button(1, "AbilityButton", _text("adv_menu_ability", "Ability"), UI_ART_DIR + "icon_ability_32.png")
 	_ability_button.disabled = true
 	_ability_button.tooltip_text = _text("adv_ability_empty_tip", "Abilities draw on Weave. You have none yet.")
 	_ability_button.pressed.connect(_on_ability_pressed)
-	_salve_button = _action_button(2, "SalveButton", "", "res://assets/art/ui/icon_heart_salve.png")
+	_salve_button = _action_button(2, "SalveButton", "", "res://assets_extra/shared/icon_heart_salve.png")
 	_salve_button.pressed.connect(_on_salve_pressed)
 	_brace_button = _action_button(3, "BraceButton", _text("adv_menu_brace", "Brace"), UI_ART_DIR + "icon_brace_32.png")
 	_brace_button.pressed.connect(_on_brace_pressed)
 	_flee_button = _action_button(4, "FleeButton", _text("adv_menu_flee", "Flee"), UI_ART_DIR + "icon_flee_32.png")
 	_flee_button.pressed.connect(_on_flee_pressed)
-	_strike_for_me_toggle = _action_button(5, "StrikeForMeToggle", _text("adv_strike_for_me", "Strike for me"), "res://assets/art/ui/icons/hud_character.png")
+	_strike_for_me_toggle = _action_button(5, "StrikeForMeToggle", _text("adv_strike_for_me", "Strike for me"), "res://assets_extra/shared/hud_character.png")
 	_strike_for_me_toggle.toggle_mode = true
 	_strike_for_me_toggle.tooltip_text = _text(
 		"adv_strike_for_me_tip",
