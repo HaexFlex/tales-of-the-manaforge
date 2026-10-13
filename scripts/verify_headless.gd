@@ -14723,9 +14723,9 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	for ui_file: String in ui_files:
 		failed += _assert(ResourceLoader.exists(BattleViewScript.UI_ART_DIR + ui_file), "final ui texture %s" % ui_file)
 	var depth_plate: Control = view.get_node_or_null("Arena/DepthPlate") as Control
-	failed += _assert(depth_plate != null and depth_plate.position == Vector2(12, 9) and depth_plate.size == Vector2(90, 21), "depth plate top bar")
+	failed += _assert(depth_plate != null and depth_plate.position == BattleViewScript.DEPTH_PLATE_POS and depth_plate.size == BattleViewScript.DEPTH_PLATE_SIZE, "depth plate top bar")
 	var round_banner: Control = view.get_node_or_null("Arena/RoundBanner") as Control
-	failed += _assert(round_banner != null and round_banner.position == Vector2(359, 6) and round_banner.size == Vector2(243, 29), "round banner top bar")
+	failed += _assert(round_banner != null and round_banner.position == BattleViewScript.ROUND_BANNER_POS and round_banner.size == BattleViewScript.ROUND_BANNER_SIZE, "round banner top bar")
 	for i: int in 3:
 		var speed_n: int = [1, 2, 4][i]
 		var speed_btn: Button = view.get_node_or_null("Arena/SpeedBar/Speed%dx" % speed_n) as Button
@@ -14764,13 +14764,12 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 		var sample_name: Label = sample_plate.get_node_or_null("NameLabel") as Label
 		if sample_name != null:
 			failed += _assert(sample_name.get_theme_font_size("font_size") >= BattleViewScript.PLATE_LABEL_FONT_SIZE, "plate name font is legible (>= %d px)" % BattleViewScript.PLATE_LABEL_FONT_SIZE)
-			failed += _assert(sample_name.get_theme_color("font_color").is_equal_approx(BattleViewScript.PLATE_INK), "plate name uses README ink colour")
+			failed += _assert(sample_name.get_theme_color("font_color").is_equal_approx(BattleViewScript.PLATE_NAME_TEXT) and sample_name.get_theme_constant("outline_size") > 0, "plate name tag is cream with a dark rim over the arena")
 	view.call("_apply_battle_speed", 2)
 	await process_frame
 	var speed2: Button = view.get_node_or_null("Arena/SpeedBar/Speed2x") as Button
-	var speed2_box: StyleBoxTexture = speed2.get_theme_stylebox("normal") as StyleBoxTexture if speed2 != null else null
-	var speed2_path: String = speed2_box.texture.resource_path if speed2_box != null and speed2_box.texture != null else ""
-	failed += _assert(speed2_path.find("speed_2x_selected.png") >= 0, "current speed uses selected texture (%s)" % speed2_path)
+	var speed1: Button = view.get_node_or_null("Arena/SpeedBar/Speed1x") as Button
+	failed += _assert(speed2 != null and speed2.toggle_mode and speed2.button_pressed and speed1 != null and not speed1.button_pressed, "current speed shows as the pressed wood toggle")
 	view.call("set_active", party_ids[0])
 	await process_frame
 	failed += _assert(get_nodes_in_group("battle_plate_outline").is_empty(), "no gold plate outline ColorRect")

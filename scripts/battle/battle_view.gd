@@ -126,31 +126,44 @@ const ACTIVE_ARROW_TOP: float = 15.0
 const ACTIVE_ARROW_BACK_SIDE_GAP: float = 2.0
 const PLATE_LABEL_FONT_SIZE: int = 10
 const PLATE_NAME_Y: float = 6.0
-const DEPTH_PLATE_POS: Vector2 = Vector2(12.0, 9.0)
-const DEPTH_PLATE_SIZE: Vector2 = Vector2(112.0, 22.0)
-const ROOMS_PLATE_POS: Vector2 = Vector2(107.0, 9.0)
-const ROOMS_PLATE_SIZE: Vector2 = Vector2(81.0, 21.0)
-const ROUND_BANNER_POS: Vector2 = Vector2(359.0, 6.0)
-const ROUND_BANNER_SIZE: Vector2 = Vector2(243.0, 29.0)
-const ROUND_TEXT_RECT: Rect2 = Rect2(368.0, 8.0, 225.0, 24.0)
-## Three 32×32 speed buttons (27 px pitch) sit just left of the Close button (855–948).
-const SPEED_BUTTON_SIZE: Vector2 = Vector2(32.0, 32.0)
-const SPEED_BUTTON_PITCH: float = 36.0
+const PLATE_NAME_FONT_SIZE: int = 19
+const PLATE_NAME_H: float = 20.0
+const PLATE_NAME_GAP: float = 2.0
+const PLATE_NAME_TEXT: Color = Color8(243, 230, 200)
+const PLATE_NAME_OUTLINE: Color = Color8(26, 15, 8)
+const PLATE_NAME_OUTLINE_SIZE: int = 3
+const DEPTH_PLATE_POS: Vector2 = Vector2(24.0, 24.0)
+const DEPTH_PLATE_SIZE: Vector2 = Vector2(150.0, 40.0)
+const ROOMS_PLATE_POS: Vector2 = Vector2(182.0, 24.0)
+const ROOMS_PLATE_SIZE: Vector2 = Vector2(150.0, 40.0)
+const ROUND_BANNER_POS: Vector2 = Vector2(385.0, 24.0)
+const ROUND_BANNER_SIZE: Vector2 = Vector2(190.0, 40.0)
+## Three 44 px wood speed toggles sit 8 px left of the Close button (the tap rule sizes them).
+const SPEED_BUTTON_SIZE: Vector2 = Vector2(44.0, 44.0)
+const SPEED_BUTTON_PITCH: float = 48.0
 const CLOSE_BUTTON_RECT: Rect2 = Rect2(892.0, 24.0, 44.0, 44.0)
 const SPEED_BUTTON_POS: Vector2 = Vector2(
-	CLOSE_BUTTON_RECT.position.x - 4.0 - SPEED_BUTTON_SIZE.x - SPEED_BUTTON_PITCH * 2.0,
-	12.0,
+	CLOSE_BUTTON_RECT.position.x - 8.0 - SPEED_BUTTON_SIZE.x - SPEED_BUTTON_PITCH * 2.0,
+	24.0,
 )
-const TWIST_CHIP_POS: Vector2 = Vector2(107.0, 15.0)
+const TWIST_CHIP_POS: Vector2 = Vector2(146.0, 38.0)
 const TWIST_CHIP_SIZE: Vector2 = Vector2(12.0, 12.0)
-const TEST_FIGHT_BAR_GAP: float = 8.0
-## Below depth plate, twist chip, and round banner (top chrome ends ~y 46).
-const TEST_FIGHT_BAR_Y: float = 39.0
+## Debug test-fight controls: under the planks (top chrome ends at y 64).
+const TEST_FIGHT_BAR_Y: float = 76.0
+const TEST_FIGHT_BAR_H: float = 44.0
+const RESULT_LABEL_RECT: Rect2 = Rect2(280.0, 124.0, 400.0, 32.0)
+const PRIMARY_FONT_PATH: String = "res://assets/fonts/font_primary_silver38_bold.tres"
+const BODY_FONT_PATH: String = "res://assets/fonts/font_body_silver19.tres"
+const THEME_PATH: String = "res://assets/ui/manaforge_theme.tres"
+const PLANK_FONT_SIZE: int = 19
+const ROUND_FONT_SIZE: int = 37
+const BIG_FONT_SIZE: int = 38
+const BODY_FONT_SIZE: int = 19
 const STATUS_ICON_STEP: float = 13.0
 const STATUS_ICON_SIZE: Vector2 = Vector2(12.0, 12.0)
 const MAX_STATUS_ICONS: int = 3
 const BOSS_CROWN_POS: Vector2 = Vector2(-15.0, 2.0)
-const KEYCAP_POS: Vector2 = Vector2(106.0, 9.0)
+const KEYCAP_POS: Vector2 = Vector2(130.0, 2.0)
 const KEYCAP_PRESS_OFFSET: float = 2.0
 ## Bottom bar: the six action buttons (3 x 2) and the battle log. Nothing else.
 const BOTTOM_BAR_RECT: Rect2 = Rect2(-24.0, 396.0, 1008.0, 168.0)
@@ -159,13 +172,13 @@ const ACTION_BUTTON_SIZE: Vector2 = Vector2(148.0, 44.0)
 const ACTION_BUTTON_PITCH: Vector2 = Vector2(156.0, 52.0)
 const LOG_PANEL_RECT: Rect2 = Rect2(496.0, 420.0, 440.0, 96.0)
 const LOG_LINE_COUNT: int = 5
-const LOG_SCROLL_PAD: float = 8.0
+const LOG_SCROLL_PAD: float = 4.0
+const LOG_LINE_H: float = 22.0
+const LOG_FILL: Color = Color8(232, 212, 162)
 const LOG_INK: Color = Color(0.243137, 0.164706, 0.094118, 1.0)
 const LOG_MISS_INK: Color = Color(0.368627, 0.321569, 0.266667, 1.0)
 const LOG_THREAT_INK: Color = Color(0.556863, 0.227451, 0.141176, 1.0)
 const LOG_SYSTEM_INK: Color = Color(0.368627, 0.227451, 0.133333, 1.0)
-const BUTTON_TEXT: Color = WOOD_TEXT
-const BUTTON_TEXT_DISABLED: Color = Color(0.643137, 0.588235, 0.517647, 1.0)
 const BEAST_PLACEHOLDER_SIZE: Vector2 = Vector2(40.0, 56.0)
 const ACTIVE_OUTLINE_COLOR: Color = Color(1.0, 0.84, 0.3)
 const ACTIVE_OUTLINE_WIDTH: float = 1.0
@@ -216,7 +229,6 @@ var _strike_for_me_toggle: Button = null
 var _playback: BattlePlayback = null
 var _speed_bar: Control = null
 var _speed_buttons: Dictionary = {}
-var _speed_textures: Dictionary = {}
 var _battle_speed: int = 1
 var _depth_plate: Control = null
 var _round_banner: Control = null
@@ -410,6 +422,8 @@ func set_reach_mode(on: bool) -> void:
 		_bind_load()
 	if _test_fight_bar != null:
 		_test_fight_bar.visible = not on
+	if _side_actions != null:
+		_side_actions.position = _side_actions_pos(not on)
 	if _close_button != null:
 		_close_button.visible = not on
 	if on:
@@ -1045,9 +1059,13 @@ static func _plate_bg_file(side: String, active: bool, boss: bool = false) -> St
 
 
 static func _test_fight_bar_pos() -> Vector2:
-	## Right of the twist chip slot; sits under the top chrome (depth, banner, speed).
-	var x: float = TWIST_CHIP_POS.x + TWIST_CHIP_SIZE.x + TEST_FIGHT_BAR_GAP
-	return Vector2(x, TEST_FIGHT_BAR_Y)
+	return Vector2(DEPTH_PLATE_POS.x, TEST_FIGHT_BAR_Y)
+
+
+static func _side_actions_pos(below_test_bar: bool) -> Vector2:
+	## Idle / Back sit top-left under the depth plank, or under the test fight bar when it shows.
+	var y: float = TEST_FIGHT_BAR_Y + (TEST_FIGHT_BAR_H + 8.0 if below_test_bar else 0.0)
+	return Vector2(DEPTH_PLATE_POS.x, y)
 
 
 func _active_arrow_position(fighter_id: String, shown: Rect2, arrow_size: Vector2) -> Vector2:
@@ -1068,7 +1086,8 @@ func _active_arrow_position(fighter_id: String, shown: Rect2, arrow_size: Vector
 			floorf(shown.position.x + shown.size.x) + ACTIVE_ARROW_BACK_SIDE_GAP,
 			floorf(head_y),
 		)
-	return Vector2(floorf(shown.get_center().x) - 6.0, shown.position.y - ACTIVE_ARROW_TOP)
+	var name_lift: float = PLATE_NAME_H + PLATE_NAME_GAP if side == "party" else 0.0
+	return Vector2(floorf(shown.get_center().x) - 6.0, shown.position.y - ACTIVE_ARROW_TOP - name_lift)
 
 
 func _twist_chip_art(twist: String) -> Dictionary:
@@ -1255,17 +1274,37 @@ func _apply_plate_label_style(label: Label, ink: Color) -> void:
 	label.add_theme_constant_override("line_spacing", 0)
 
 
-func _plate_name_inner_width(level_text: String) -> float:
-	return 38.0 if level_text != "" else 48.0
+func _style_plate_name(label: Label) -> void:
+	## Name tag floats over the arena (not on the parchment): cream Silver 19 with a dark rim.
+	label.clip_text = false
+	label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_override("font", load(BODY_FONT_PATH) as Font)
+	label.add_theme_font_size_override("font_size", PLATE_NAME_FONT_SIZE)
+	label.add_theme_color_override("font_color", PLATE_NAME_TEXT)
+	label.add_theme_color_override("font_outline_color", PLATE_NAME_OUTLINE)
+	label.add_theme_constant_override("outline_size", PLATE_NAME_OUTLINE_SIZE)
 
 
-func _fit_plate_name_line(display: String, hp: int, max_hp: int, max_width: float) -> String:
-	var font: Font = _battle_ui_font()
-	var fs: int = PLATE_LABEL_FONT_SIZE
-	var with_hp: String = "%s %d/%d" % [display, hp, max_hp]
-	if font.get_string_size(with_hp, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x <= max_width:
-		return with_hp
-	return display
+func _layout_plate_name(plate: Control, name_label: Label, row: Dictionary) -> void:
+	## Party: centred above the head. Beasts: right of the intent bubble (left of it at the edge).
+	var font: Font = name_label.get_theme_font("font")
+	var w: float = ceilf(font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, PLATE_NAME_FONT_SIZE).x) + 4.0
+	name_label.size = Vector2(w, PLATE_NAME_H)
+	var fighter_id: String = str(row.get("id", ""))
+	var shown: Rect2 = fighter_visible_rect(fighter_id)
+	var at: Vector2 = plate.position + Vector2((plate.size.x - w) * 0.5, -PLATE_NAME_H)
+	if shown.size != Vector2.ZERO:
+		if str(row.get("side", "")) == "beast":
+			var intent: Control = plate.get_node_or_null("IntentMarker") as Control
+			var bubble_w: float = intent.size.x if intent != null and intent.size.x > 0.0 else INTENT_BUBBLE_SIZE.x
+			var bubble: Rect2 = intent_bubble_rect(fighter_id, bubble_w > INTENT_BUBBLE_SIZE.x)
+			at = Vector2(bubble.position.x + bubble_w + PLATE_NAME_GAP, bubble.position.y + floorf((INTENT_BUBBLE_SIZE.y - PLATE_NAME_H) * 0.5) - 2.0)
+			if at.x + w > ARENA_SIZE.x - 4.0:
+				at.x = bubble.position.x - PLATE_NAME_GAP - w
+		else:
+			at = Vector2(shown.get_center().x - w * 0.5, shown.position.y - PLATE_NAME_H - PLATE_NAME_GAP)
+	name_label.position = (at - plate.position).floor()
 
 
 func _sync_plate_name_label(plate: Control, row: Dictionary) -> void:
@@ -1279,14 +1318,8 @@ func _sync_plate_name_label(plate: Control, row: Dictionary) -> void:
 	else:
 		var suffix: String = str(plate.get_meta("beast_suffix", ""))
 		display = _beast_plate_name(row, suffix)
-	var level_text: String = _level_text(row)
-	var inner_w: float = _plate_name_inner_width(level_text)
-	var hp: int = int(row.get("hp", 0))
-	var max_hp: int = int(row.get("max_hp", 1))
-	var hide_bars: bool = _bars_hidden_by_status(row)
-	var line: String = display if hide_bars else _fit_plate_name_line(display, hp, max_hp, inner_w)
-	name_label.text = line
-	name_label.size = Vector2(floorf(inner_w), float(PLATE_LABEL_FONT_SIZE))
+	name_label.text = display
+	_layout_plate_name(plate, name_label, row)
 
 
 func _plate_fill_bar(bar_name: String, y: float, bar_size: Vector2, fill_file: String, max_value: int, value: int) -> TextureProgressBar:
@@ -1360,10 +1393,10 @@ func _build_plate(row: Dictionary, sole: Vector2, suffix: String) -> void:
 		intent_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		plate.add_child(intent_root)
 	var level_text: String = _level_text(row)
-	var name_width: float = _plate_name_inner_width(level_text)
 	plate.set_meta("beast_suffix", suffix if side == "beast" else "")
-	var name_line: String = _fit_plate_name_line(display, hp, max_hp, name_width)
-	plate.add_child(_plate_label("NameLabel", name_line, Vector2(4.0, PLATE_NAME_Y), name_width, HORIZONTAL_ALIGNMENT_LEFT, PLATE_INK))
+	var name_label := _plate_label("NameLabel", display, Vector2.ZERO, PLATE_PARTY_SIZE.x, HORIZONTAL_ALIGNMENT_CENTER, PLATE_NAME_TEXT)
+	_style_plate_name(name_label)
+	plate.add_child(name_label)
 	plate.add_child(_plate_label("LevelLabel", level_text, Vector2(44.0, PLATE_NAME_Y), 12.0, HORIZONTAL_ALIGNMENT_RIGHT, PLATE_LEVEL_INK))
 	var status_row := Control.new()
 	status_row.name = "StatusRow"
@@ -1455,6 +1488,9 @@ func _fill_intent_marker(intent_root: Control, row: Dictionary) -> void:
 			mult_label.add_theme_font_size_override("font_size", 10)
 			mult_label.add_theme_color_override("font_color", LOG_THREAT_INK)
 			intent_root.add_child(mult_label)
+	var name_label: Label = plate.get_node_or_null("NameLabel") as Label if plate != null else null
+	if name_label != null:
+		_layout_plate_name(plate, name_label, row)
 
 
 func _refresh_plate(row: Dictionary) -> void:
@@ -1752,7 +1788,7 @@ func _ui_button(text: String, parent: Control) -> Button:
 
 
 func _action_button(slot: int, button_name: String, label: String, icon_path: String) -> Button:
-	## One of the six bottom-bar slots (160x44 wood button, scaffold placeholder art).
+	## One of the six bottom-bar slots: wood face, 32 px icon at the left, Silver 38 cream caps.
 	var button := Button.new()
 	button.name = button_name
 	button.text = label
@@ -1760,36 +1796,20 @@ func _action_button(slot: int, button_name: String, label: String, icon_path: St
 	button.size = ACTION_BUTTON_SIZE
 	button.custom_minimum_size = ACTION_BUTTON_SIZE
 	button.clip_text = true
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.focus_mode = Control.FOCUS_NONE
 	if ResourceLoader.exists(icon_path):
 		button.icon = load(icon_path) as Texture2D
-	button.add_theme_constant_override("h_separation", 6)
-	button.add_theme_font_size_override("font_size", 14)
-	for state: String in ["normal", "hover", "pressed", "disabled"]:
-		var box := StyleBoxTexture.new()
-		box.texture = _load_ui_tex("action_button_%s_160x44.png" % state)
-		box.set_texture_margin_all(4.0)
-		box.content_margin_left = 8.0
-		box.content_margin_right = 8.0
-		button.add_theme_stylebox_override(state, box)
-	var toggled := StyleBoxTexture.new()
-	toggled.texture = _load_ui_tex("action_button_toggled_160x44.png")
-	toggled.set_texture_margin_all(4.0)
-	toggled.content_margin_left = 8.0
-	toggled.content_margin_right = 8.0
-	button.set_meta("style_toggled", toggled)
-	var hover_pressed := StyleBoxTexture.new()
-	hover_pressed.texture = _load_ui_tex("action_button_pressed_160x44.png")
-	hover_pressed.set_texture_margin_all(4.0)
-	hover_pressed.content_margin_left = 8.0
-	button.add_theme_stylebox_override("hover_pressed", hover_pressed)
+	button.expand_icon = false
+	button.add_theme_constant_override("icon_max_width", 32)
+	button.add_theme_constant_override("h_separation", 2)
+	_theme_call("style_menu_button", button)
+	var theme_res: Theme = load(THEME_PATH) as Theme
+	for state: String in ["normal", "hover", "pressed", "disabled", "hover_pressed"]:
+		button.add_theme_stylebox_override(state, _action_face(theme_res, state, "BigButton"))
+	button.set_meta("style_toggled", _action_face(theme_res, "pressed", "ToggleButton"))
 	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	for color_name: String in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
-		button.add_theme_color_override(color_name, BUTTON_TEXT)
-	button.add_theme_color_override("font_disabled_color", BUTTON_TEXT_DISABLED)
-	button.add_theme_color_override("font_outline_color", Color(0.12, 0.08, 0.05, 1.0))
-	button.add_theme_constant_override("outline_size", 3)
 	button.add_to_group("battle_ui")
 	button.set_meta("style_normal", button.get_theme_stylebox("normal"))
 	button.set_meta("style_hover", button.get_theme_stylebox("hover"))
@@ -1805,8 +1825,34 @@ func _action_button(slot: int, button_name: String, label: String, icon_path: St
 	button.add_child(keycap)
 	button.set_meta("keycap", keycap)
 	_action_menu.add_child(button)
+	_fit_action_label(button)
 	_sync_action_button_style(button)
 	return button
+
+
+## Theme wood face with room for the icon on the left and the keycap on the right.
+func _action_face(theme_res: Theme, state: String, type_name: String) -> StyleBox:
+	var sb: StyleBox = null
+	if theme_res != null:
+		if theme_res.has_stylebox(state, type_name):
+			sb = theme_res.get_stylebox(state, type_name)
+		elif theme_res.has_stylebox(state, "Button"):
+			sb = theme_res.get_stylebox(state, "Button")
+	sb = sb.duplicate() as StyleBox if sb != null else StyleBoxFlat.new()
+	sb.content_margin_left = 6.0
+	sb.content_margin_right = 20.0
+	return sb
+
+
+## Silver 38 when the label fits beside the icon, Silver 19 otherwise ("Strike for me", salves).
+func _fit_action_label(button: Button) -> void:
+	if button == null:
+		return
+	var big: Font = load(PRIMARY_FONT_PATH) as Font
+	var face_w: float = ACTION_BUTTON_SIZE.x - 6.0 - 32.0 - 2.0 - 20.0
+	var fits: bool = big != null and big.get_string_size(button.text, HORIZONTAL_ALIGNMENT_LEFT, -1, BIG_FONT_SIZE).x <= face_w
+	button.add_theme_font_override("font", big if fits else load(BODY_FONT_PATH) as Font)
+	button.add_theme_font_size_override("font_size", BIG_FONT_SIZE if fits else BODY_FONT_SIZE)
 
 
 func _sync_action_button_style(button: Button) -> void:
@@ -1886,38 +1932,12 @@ func _on_ability_pressed() -> void:
 func _build_top_bar() -> void:
 	if _arena == null:
 		return
-	_depth_plate = Control.new()
-	_depth_plate.name = "DepthPlate"
-	_depth_plate.position = DEPTH_PLATE_POS
-	_depth_plate.size = DEPTH_PLATE_SIZE
-	_depth_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_depth_plate.add_to_group("battle_ui")
-	var depth_bg := TextureRect.new()
-	depth_bg.name = "Bg"
-	depth_bg.texture = _load_ui_tex("depth_plate_120x28.png")
-	depth_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	depth_bg.size = DEPTH_PLATE_SIZE
-	depth_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_depth_plate.add_child(depth_bg)
-	_depth_hud_label = _wood_label("DepthText", "Depth 1", Rect2(Vector2.ZERO, DEPTH_PLATE_SIZE))
+	_depth_plate = _plank_plate("DepthPlate", DEPTH_PLATE_POS, DEPTH_PLATE_SIZE)
+	_depth_hud_label = _plank_label("DepthText", "Depth 1", DEPTH_PLATE_SIZE, PLANK_FONT_SIZE)
 	_depth_plate.add_child(_depth_hud_label)
-	_arena.add_child(_depth_plate)
-	var rooms_plate := Control.new()
-	rooms_plate.name = "RoomsPlate"
-	rooms_plate.position = ROOMS_PLATE_POS
-	rooms_plate.size = ROOMS_PLATE_SIZE
-	rooms_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rooms_plate.add_to_group("battle_ui")
-	var rooms_bg := TextureRect.new()
-	rooms_bg.name = "Bg"
-	rooms_bg.texture = _load_ui_tex("depth_plate_120x28.png")
-	rooms_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	rooms_bg.size = ROOMS_PLATE_SIZE
-	rooms_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rooms_plate.add_child(rooms_bg)
-	_rooms_hud_label = _wood_label("RoomsText", "", Rect2(Vector2.ZERO, ROOMS_PLATE_SIZE))
+	var rooms_plate := _plank_plate("RoomsPlate", ROOMS_PLATE_POS, ROOMS_PLATE_SIZE)
+	_rooms_hud_label = _plank_label("RoomsText", "", ROOMS_PLATE_SIZE, PLANK_FONT_SIZE)
 	rooms_plate.add_child(_rooms_hud_label)
-	_arena.add_child(rooms_plate)
 	_twist_chip = TextureRect.new()
 	_twist_chip.name = "TwistChip"
 	_twist_chip.position = TWIST_CHIP_POS
@@ -1927,22 +1947,43 @@ func _build_top_bar() -> void:
 	_twist_chip.visible = false
 	_twist_chip.add_to_group("battle_ui")
 	_arena.add_child(_twist_chip)
-	_round_banner = Control.new()
-	_round_banner.name = "RoundBanner"
-	_round_banner.position = ROUND_BANNER_POS
-	_round_banner.size = ROUND_BANNER_SIZE
-	_round_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_round_banner.add_to_group("battle_ui")
-	var round_bg := TextureRect.new()
-	round_bg.name = "Bg"
-	round_bg.texture = _load_ui_tex("round_banner_324x38.png")
-	round_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	round_bg.size = ROUND_BANNER_SIZE
-	round_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_round_banner.add_child(round_bg)
-	_round_hud_label = _wood_label("RoundText", "", Rect2(Vector2(12.0, 3.0), Vector2(300.0, 32.0)))
+	_round_banner = _plank_plate("RoundBanner", ROUND_BANNER_POS, ROUND_BANNER_SIZE)
+	_round_hud_label = _plank_label("RoundText", "", ROUND_BANNER_SIZE, ROUND_FONT_SIZE)
 	_round_banner.add_child(_round_hud_label)
-	_arena.add_child(_round_banner)
+
+
+func _theme_call(method: String, ctrl: Control) -> void:
+	var gt: Node = get_node_or_null("/root/GameTheme")
+	if gt != null:
+		gt.call(method, ctrl)
+
+
+func _plank_plate(node_name: String, pos: Vector2, sz: Vector2) -> Control:
+	var plate := Control.new()
+	plate.name = node_name
+	plate.position = pos
+	plate.size = sz
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_to_group("battle_ui")
+	_arena.add_child(plate)
+	return plate
+
+
+## Title plank face (the kit's 3-slice) with Jersey caps in cream, as in the mockup.
+func _plank_label(node_name: String, text: String, sz: Vector2, font_size: int) -> Label:
+	var label := Label.new()
+	label.name = node_name
+	label.text = text
+	label.theme_type_variation = &"TitlePlank"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.clip_text = true
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", font_size)
+	label.position = Vector2.ZERO
+	label.size = sz
+	return label
 
 
 func _sync_fight_depth_from_reach() -> void:
@@ -1977,6 +2018,7 @@ func _refresh_fight_hud() -> void:
 			_round_hud_label.text = _text("adv_log_round", "Round %d" % round_n, {"round": round_n})
 		else:
 			_round_hud_label.text = ""
+		_round_banner.visible = round_n > 0
 	_refresh_twist_chip()
 
 
@@ -2039,17 +2081,12 @@ func _build_speed_bar() -> void:
 	_arena.add_child(_speed_bar)
 	for i: int in 3:
 		var label_speed: int = [1, 2, 4][i]
-		var prefix: String = "speed_%dx" % label_speed
-		_speed_textures[label_speed] = {
-			"normal": _load_ui_tex("%s_normal.png" % prefix),
-			"hover": _load_ui_tex("%s_hover.png" % prefix),
-			"pressed": _load_ui_tex("%s_pressed.png" % prefix),
-			"selected": _load_ui_tex("%s_selected.png" % prefix),
-		}
 		var btn := Button.new()
 		btn.name = "Speed%dx" % label_speed
-		btn.toggle_mode = true
-		btn.text = ""
+		btn.text = "%dx" % label_speed
+		_theme_call("style_tab_button", btn)
+		btn.add_theme_font_override("font", load(PRIMARY_FONT_PATH) as Font)
+		btn.add_theme_font_size_override("font_size", BIG_FONT_SIZE)
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.custom_minimum_size = SPEED_BUTTON_SIZE
 		btn.size = SPEED_BUTTON_SIZE
@@ -2063,12 +2100,6 @@ func _build_speed_bar() -> void:
 		_speed_buttons[label_speed] = btn
 		_speed_bar.add_child(btn)
 	_refresh_speed_buttons()
-
-
-func _speed_stylebox(tex: Texture2D) -> StyleBoxTexture:
-	var box := StyleBoxTexture.new()
-	box.texture = tex
-	return box
 
 
 func _on_speed_pressed(chosen: int) -> void:
@@ -2102,17 +2133,7 @@ func _refresh_speed_buttons() -> void:
 					_playback.speed = 1
 		else:
 			btn.disabled = false
-		var tex_map: Dictionary = _speed_textures.get(speed_key, {}) as Dictionary
-		if tex_map.is_empty():
-			continue
-		var selected: bool = speed_key == _battle_speed and not btn.disabled
-		var normal_tex: Texture2D = tex_map["selected"] as Texture2D if selected else tex_map["normal"] as Texture2D
-		btn.add_theme_stylebox_override("normal", _speed_stylebox(normal_tex))
-		btn.add_theme_stylebox_override("hover", _speed_stylebox(tex_map["hover"] as Texture2D))
-		btn.add_theme_stylebox_override("pressed", _speed_stylebox(tex_map["pressed"] as Texture2D))
-		btn.add_theme_stylebox_override("disabled", _speed_stylebox(tex_map["normal"] as Texture2D))
-		btn.add_theme_stylebox_override("hover_pressed", _speed_stylebox(tex_map["pressed"] as Texture2D))
-		btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		btn.set_pressed_no_signal(speed_key == _battle_speed)
 
 
 func _build_fight_hud() -> void:
@@ -2120,17 +2141,28 @@ func _build_fight_hud() -> void:
 		return
 	_result_label = Label.new()
 	_result_label.name = "ResultLabel"
-	_result_label.position = Vector2(300.0, 9.0)
-	_result_label.size = Vector2(360.0, 21.0)
+	_result_label.position = RESULT_LABEL_RECT.position
+	_result_label.size = RESULT_LABEL_RECT.size
 	_result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_result_label.add_theme_font_override("font", load(PRIMARY_FONT_PATH) as Font)
+	_result_label.add_theme_font_size_override("font_size", BIG_FONT_SIZE)
+	_result_label.add_theme_color_override("font_color", WOOD_TEXT)
+	_result_label.add_theme_color_override("font_outline_color", WOOD_SHADOW)
+	_result_label.add_theme_constant_override("outline_size", 4)
 	_result_label.add_to_group("battle_ui")
 	_arena.add_child(_result_label)
 	var bottom_panel := Panel.new()
 	bottom_panel.name = "BottomBar"
 	bottom_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bottom_panel.position = BOTTOM_BAR_RECT.position
-	bottom_panel.size = BOTTOM_BAR_RECT.size
-	bottom_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	## The frame runs past both screen edges (wider viewports too), like the mockup's dock.
+	var spill_x: float = maxf(0.0, (Ui540.viewport_size().x - ARENA_SIZE.x) * 0.5)
+	bottom_panel.position = BOTTOM_BAR_RECT.position - Vector2(spill_x, 0.0)
+	bottom_panel.size = BOTTOM_BAR_RECT.size + Vector2(spill_x * 2.0, 0.0)
+	bottom_panel.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s("res://assets/ui/theme/frame_9s_96.png", Vector4i(24, 24, 24, 24), Vector4.ZERO, true),
+	)
 	_arena.add_child(bottom_panel)
 	_bottom_bar = bottom_panel
 	_log_panel = Control.new()
@@ -2146,11 +2178,23 @@ func _build_fight_hud() -> void:
 	parchment.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parchment.position = Vector2.ZERO
 	parchment.size = LOG_PANEL_RECT.size
-	parchment.add_theme_stylebox_override(
-		"panel",
-		Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(6, 6, 6, 6), Vector4(4, 4, 4, 4)),
-	)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = LOG_FILL
+	parchment.add_theme_stylebox_override("panel", fill)
 	_log_panel.add_child(parchment)
+	## The bevel art is 6×6: a 2 px slice leaves it a centre to stretch.
+	var bevel := NinePatchRect.new()
+	bevel.name = "Bevel"
+	bevel.texture = load("res://assets/ui/theme/play_bevel_9s_6x6.png") as Texture2D
+	bevel.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bevel.patch_margin_left = 2
+	bevel.patch_margin_top = 2
+	bevel.patch_margin_right = 2
+	bevel.patch_margin_bottom = 2
+	bevel.draw_center = false
+	bevel.size = LOG_PANEL_RECT.size
+	bevel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parchment.add_child(bevel)
 	_log_scroll = ScrollContainer.new()
 	_log_scroll.name = "LogScroll"
 	_log_scroll.position = Vector2(LOG_SCROLL_PAD, LOG_SCROLL_PAD)
@@ -2165,7 +2209,7 @@ func _build_fight_hud() -> void:
 	_log_list = VBoxContainer.new()
 	_log_list.name = "LogList"
 	_log_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_log_list.add_theme_constant_override("separation", 2)
+	_log_list.add_theme_constant_override("separation", 0)
 	_log_scroll.add_child(_log_list)
 	for i: int in LOG_LINE_COUNT:
 		_log_labels.append(_make_log_line_label(i))
@@ -2219,7 +2263,7 @@ func _build_fight_hud() -> void:
 		_ability_buttons.append(ab)
 	_side_actions = VBoxContainer.new()
 	_side_actions.name = "SideActions"
-	_side_actions.position = Vector2(16.0, 52.0)
+	_side_actions.position = _side_actions_pos(_test_fight_bar != null and _test_fight_bar.visible)
 	_side_actions.add_theme_constant_override("separation", 4)
 	_side_actions.visible = false
 	_arena.add_child(_side_actions)
@@ -2414,8 +2458,12 @@ func _make_log_line_label(index: int) -> Label:
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.autowrap_mode = TextServer.AUTOWRAP_OFF
 	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	line.custom_minimum_size.x = LOG_PANEL_RECT.size.x - 20.0 - LOG_SCROLL_PAD * 2.0
-	line.add_theme_font_size_override("font_size", 12)
+	line.custom_minimum_size = Vector2(LOG_PANEL_RECT.size.x - 20.0 - LOG_SCROLL_PAD * 2.0, LOG_LINE_H)
+	line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.clip_text = true
+	line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	line.add_theme_font_override("font", load(BODY_FONT_PATH) as Font)
+	line.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
 	line.add_theme_color_override("font_color", LOG_INK)
 	if _log_list != null:
 		_log_list.add_child(line)
@@ -2599,6 +2647,7 @@ func _update_salve_button() -> void:
 	var salve_name: String = _text("item_heart_salve", "Heart Salve")
 	var count: int = int(_fight.loadout.get("heart_salve", 0))
 	_salve_button.text = _text("adv_item_count", "%s ×%d" % [salve_name, count], {"item": salve_name, "count": count})
+	_fit_action_label(_salve_button)
 	var cap_hit: bool = _fight.salves_used >= 2
 	_salve_button.disabled = count < 1 or cap_hit
 	if count < 1:
