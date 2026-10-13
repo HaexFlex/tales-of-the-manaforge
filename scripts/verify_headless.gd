@@ -4104,6 +4104,10 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		if hud.has_method("hide_welcome"):
 			hud.call("hide_welcome")
 		hud.call("show_care_menu")
+		game_state.set("forge_visited", false)
+		hud.call("_refresh_nav_button")
+		var nav_early: Button = hud.get_node_or_null("Panel/HubForgeNav") as Button
+		failed += _assert(nav_early != null and not nav_early.visible, "forge switch hidden before the forge is unlocked")
 		var forge_btn: Button = hud.get_node_or_null("CarePanel/ForgeButton") as Button
 		failed += _assert(forge_btn != null and not bool(hud.call("is_forge_entry_visible")), "Enter Forge hidden on Sapling")
 		game_state.set("stage_id", &"young")
@@ -4129,6 +4133,14 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(not bool(hud.call("is_forge_entry_gray")), "Enter Forge wakes up with the key")
 		var forge_jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 		failed += _assert(forge_jobs != null and bool(forge_jobs.call("can_enter_forge")), "key can enter the forge")
+		var nav_btn: Button = hud.get_node_or_null("Panel/HubForgeNav") as Button
+		game_state.set("forge_visited", false)
+		hud.call("_refresh_nav_button")
+		failed += _assert(nav_btn != null and nav_btn.visible, "forge switch shows once the forge is unlocked")
+		var nav_face: StyleBox = nav_btn.get_theme_stylebox(&"normal") if nav_btn else null
+		var nav_tex: Texture2D = (nav_face as StyleBoxTexture).texture if nav_face is StyleBoxTexture else null
+		failed += _assert(nav_tex != null and str(nav_tex.resource_path).find("hud_board_btn_forge_normal_44x44") >= 0, "forge switch uses the board button art")
+		failed += _assert(nav_btn.custom_minimum_size.x >= 44.0 and nav_btn.custom_minimum_size.y >= 44.0, "forge switch is a 44 px shortcut")
 		hud.call("hide_forge_popup")
 		game_state.set("stage_id", &"ancient")
 		game_state.emit_signal("stage_changed", &"ancient")

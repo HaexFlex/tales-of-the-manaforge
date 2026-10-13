@@ -473,13 +473,21 @@ func _layout_hud540() -> void:
 		counter.size = Vector2(160, 28)
 		counter.position = Vector2(counter_right - counter.size.x, safe + (tap - counter.size.y) * 0.5)
 	var shortcut_y: float = vs.y - safe - tap
-	var shortcut_x: float = vs.x - safe - 3.0 * tap - 2.0 * 8.0 + shift
-	character_button.position = Vector2(shortcut_x, shortcut_y)
+	var show_nav: bool = _nav_button != null and _nav_button.visible
+	var shortcut_n: float = 4.0 if show_nav else 3.0
+	var shortcut_x: float = vs.x - safe - shortcut_n * tap - (shortcut_n - 1.0) * 8.0 + shift
+	var slot: float = 0.0
+	if show_nav:
+		_nav_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_nav_button.position = Vector2(shortcut_x, shortcut_y)
+		_nav_button.size = Vector2(tap, tap)
+		slot = 1.0
+	character_button.position = Vector2(shortcut_x + slot * (tap + 8.0), shortcut_y)
 	character_button.size = Vector2(tap, tap)
-	backpack_button.position = Vector2(shortcut_x + tap + 8.0, shortcut_y)
+	backpack_button.position = Vector2(shortcut_x + (slot + 1.0) * (tap + 8.0), shortcut_y)
 	backpack_button.size = Vector2(tap, tap)
 	if _board_button:
-		_board_button.position = Vector2(shortcut_x + 2.0 * (tap + 8.0), shortcut_y)
+		_board_button.position = Vector2(shortcut_x + (slot + 2.0) * (tap + 8.0), shortcut_y)
 		_board_button.size = Vector2(tap, tap)
 	_layout_party_bar_r4(vs, safe, shift)
 	_layout_toast_r4(vs, safe, shift)
@@ -2676,46 +2684,62 @@ func _refresh_frozen_banner() -> void:
 func _ensure_nav_button() -> void:
 	_nav_button = Button.new()
 	_nav_button.name = "HubForgeNav"
-	_nav_button.anchor_left = 1.0
-	_nav_button.anchor_top = 1.0
-	_nav_button.anchor_right = 1.0
-	_nav_button.anchor_bottom = 1.0
-	_nav_button.offset_left = -56.0
-	_nav_button.offset_top = -56.0
-	_nav_button.offset_right = -16.0
-	_nav_button.offset_bottom = -16.0
-	_nav_button.flat = true
+	_nav_button.text = ""
 	_nav_button.focus_mode = Control.FOCUS_NONE
+	_nav_button.custom_minimum_size = Vector2(Ui540.TAP_MIN_PX, Ui540.TAP_MIN_PX)
 	_nav_button.pressed.connect(_on_nav_pressed)
 	_nav_button.visible = false
-	var icon := TextureRect.new()
-	icon.name = "Icon"
-	icon.position = Vector2(4, 4)
-	icon.size = Vector2(32, 32)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_nav_button.add_child(icon)
-	add_child(_nav_button)
+	var host: Node = get_node_or_null("Panel")
+	if host:
+		host.add_child(_nav_button)
+	else:
+		add_child(_nav_button)
+
+
+func _nav_face(path: String, expand: float = 0.0) -> StyleBoxTexture:
+	var box := StyleBoxTexture.new()
+	box.texture = load(path) as Texture2D
+	if expand > 0.0:
+		box.expand_margin_left = expand
+		box.expand_margin_top = expand
+		box.expand_margin_right = expand
+		box.expand_margin_bottom = expand
+	return box
+
+
+func _apply_nav_board_face(destination: String) -> void:
+	if _nav_button == null:
+		return
+	var stem: String = "res://assets/ui/extras/hud_board_btn_%s_" % destination
+	_nav_button.add_theme_stylebox_override("normal", _nav_face(stem + "normal_44x44.png"))
+	_nav_button.add_theme_stylebox_override("hover", _nav_face(stem + "hover_44x44.png"))
+	_nav_button.add_theme_stylebox_override("pressed", _nav_face(stem + "pressed_44x44.png"))
+	_nav_button.add_theme_stylebox_override("hover_pressed", _nav_face(stem + "pressed_44x44.png"))
+	_nav_button.add_theme_stylebox_override("disabled", _nav_face(stem + "disabled_44x44.png"))
+	_nav_button.add_theme_stylebox_override("focus", _nav_face(stem + "focus_50x50.png", 3.0))
 
 
 func _refresh_nav_button() -> void:
 	if _nav_button == null or not has_node("/root/ForgeJobs"):
 		return
 	var in_battle: bool = has_node("/root/EchoChamber") and EchoChamber.in_battle
-	var show_nav: bool = GameState.forge_visited and not in_battle and not GameState.is_world_frozen()
+	var unlocked: bool = GameState.forge_visited or ForgeJobs.can_enter_forge()
+	var show_nav: bool = unlocked and not in_battle and not GameState.is_world_frozen()
+	var was: bool = _nav_button.visible
 	_nav_button.visible = show_nav
-	if not show_nav:
-		return
-	var in_forge: bool = ForgeJobs.in_forge_scene()
-	var tip_key: String = "nav_to_clearing" if in_forge else "nav_to_forge"
-	_nav_button.text = ""
-	_nav_button.tooltip_text = ContentStrings.get_text(tip_key)
-	var icon: TextureRect = _nav_button.get_node_or_null("Icon") as TextureRect
-	if icon:
-		var path: String = "res://assets/art/ui/icons/hud_scene_clearing.png" if in_forge else "res://assets/art/ui/icons/hud_scene_forge.png"
-		icon.texture = load(path) as Texture2D
+	if show_nav:
+		var in_forge: bool = ForgeJobs.in_forge_scene()
+		var tip_key: String = "nav_to_clearing" if in_forge else "nav_to_forge"
+		var tip: String = ContentStrings.get_text(tip_key)
+		if Ui540.should_show_pc_tooltips():
+			tip = "%s (Tab)" % tip
+		_nav_button.tooltip_text = tip
+		var destination: String = "clearing" if in_forge else "forge"
+		if str(_nav_button.get_meta("nav_dest", "")) != destination:
+			_nav_button.set_meta("nav_dest", destination)
+			_apply_nav_board_face(destination)
+	if was != show_nav:
+		_layout_hud540()
 
 
 func _on_nav_pressed() -> void:
