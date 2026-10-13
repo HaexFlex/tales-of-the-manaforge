@@ -199,7 +199,6 @@ func _ready() -> void:
 	if not get_viewport().size_changed.is_connected(_layout_welcome_panel):
 		get_viewport().size_changed.connect(_layout_welcome_panel)
 	shop_dim.visible = false
-	welcome_panel.color = Color(0.07, 0.1, 0.09, 0.97)
 	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	shop_scroll.clip_contents = true
@@ -324,11 +323,28 @@ func _ready() -> void:
 	if not get_viewport().size_changed.is_connected(_layout_care540):
 		get_viewport().size_changed.connect(_layout_care540)
 	_ensure_help_panel()
+	_sink_hud_chrome()
 	if help_button:
 		help_button.visible = true
 		Ui540.style_wood_icon_button(help_button)
 		if not help_button.pressed.is_connected(_toggle_help_panel):
 			help_button.pressed.connect(_toggle_help_panel)
+
+
+## HUD chrome draws under every HUD window: z 0 and tree order right after the Panel,
+## so the dims and kit windows (later siblings) cover the party column, wisp counter and toast.
+func _sink_hud_chrome() -> void:
+	var at: int = panel.get_index() + 1
+	for node_name: String in ["PartyBar", "WispCounter"]:
+		var chrome: CanvasItem = get_node_or_null(node_name) as CanvasItem
+		if chrome:
+			chrome.z_index = 0
+			move_child(chrome, at)
+			at += 1
+	if status_label:
+		status_label.z_index = 0
+	if toast_shade:
+		toast_shade.z_index = 0
 
 
 func _reorder_resource_row() -> void:
@@ -384,7 +400,8 @@ func _apply_hud540_chrome() -> void:
 func _layout_hud540() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
 	var safe: float = Ui540.SAFE_MARGIN_PX
-	var shift: float = Ui540.center_shift_x()
+	## HUD chrome hugs the screen edges on every aspect (hud540 20:9 mockup).
+	var shift: float = 0.0
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.offset_left = 0.0
 	panel.offset_top = 0.0
@@ -412,9 +429,16 @@ func _layout_hud540() -> void:
 	if _play_speed_button:
 		_play_speed_button.position = Vector2(speed_x, safe)
 		_play_speed_button.size = Vector2(tap, tap)
+	var counter_right: float = speed_x - 12.0
 	if _speed_button:
 		_speed_button.position = Vector2(speed_x - tap - 4.0, safe)
 		_speed_button.size = Vector2(tap, tap)
+		if _speed_button.visible:
+			counter_right = _speed_button.position.x - 12.0
+	var counter: Label = get_node_or_null("WispCounter") as Label
+	if counter:
+		counter.size = Vector2(160, 28)
+		counter.position = Vector2(counter_right - counter.size.x, safe + (tap - counter.size.y) * 0.5)
 	var shortcut_y: float = vs.y - safe - tap
 	var shortcut_x: float = vs.x - safe - 3.0 * tap - 2.0 * 8.0 + shift
 	character_button.position = Vector2(shortcut_x, shortcut_y)
@@ -436,29 +460,32 @@ func _layout_toast_r4(vs: Vector2, safe: float, shift: float) -> void:
 	var line: String = status_label.text
 	var text_w: float = GameTheme.body_font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.silver_body_size()).x
 	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - safe * 2.0)
-	var toast_x: float = (vs.x - toast_w) * 0.5 + shift
+	var toast_x: float = roundf((vs.x - toast_w) * 0.5 + shift)
 	toast_shade.position = Vector2(toast_x, toast_y)
 	toast_shade.size = Vector2(toast_w, 30.0)
 	status_label.position = Vector2(toast_x + 40.0, toast_y + 2.0)
 	status_label.size = Vector2(toast_w - 48.0, 26.0)
 
 
+## The bar is exactly as tall as its portrait column and sits on the bottom safe margin,
+## so the column starts at y 0 and the activity labels share the portrait row offsets.
 func _layout_party_bar_r4(vs: Vector2, safe: float, _shift: float) -> void:
 	if _party_bar == null:
 		return
 	var col_x: float = 30.0
 	var bottom: float = vs.y - safe
-	var visible_h: float = bottom - 300.0
-	if visible_h < PARTY_SLOT * 2.0:
-		visible_h = PARTY_SLOT * 3.0
-	_party_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_party_bar.offset_left = col_x
-	_party_bar.offset_top = 300.0
-	_party_bar.offset_right = col_x + PARTY_SLOT + 220.0
-	_party_bar.offset_bottom = bottom
-	_party_bar.size = Vector2(PARTY_SLOT + 220.0, visible_h)
+	var col_h: float = PARTY_SLOT
 	if _party_column:
-		_party_column.position = Vector2(0.0, maxf(0.0, visible_h - _party_column.size.y))
+		var rows: int = 0
+		for slot: Node in _party_column.get_children():
+			if slot is Control and (slot as Control).visible:
+				rows += 1
+		col_h = maxf(PARTY_SLOT, rows * PARTY_PITCH_R4 - (PARTY_PITCH_R4 - PARTY_SLOT))
+		_party_column.position = Vector2.ZERO
+		_party_column.size = Vector2(PARTY_SLOT, col_h)
+	_party_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_party_bar.position = Vector2(col_x, bottom - col_h)
+	_party_bar.size = Vector2(PARTY_SLOT + 220.0, col_h)
 
 
 func _ensure_board_button() -> void:
@@ -1021,6 +1048,40 @@ func _process(_delta: float) -> void:
 	if _keeper_activity != null:
 		_refresh_actor_activities(GameState.elaia_portrait_visible(), GameState.keeper_selected, str(GameState.selected_companion_id))
 	_settle_world_labels()
+	_sync_toast_under_modals()
+
+
+## The status toast is world feedback. Any modal (HUD windows, pause, board, runestone,
+## debug, battle) covers it; self_modulate leaves the toast's own fade tween alone.
+func _sync_toast_under_modals() -> void:
+	var a: float = 0.0 if modal_window_open() else 1.0
+	if status_label:
+		status_label.self_modulate.a = a
+	if toast_shade:
+		toast_shade.self_modulate.a = a
+
+
+func modal_window_open() -> bool:
+	if _kit_window_obscures_world():
+		return true
+	if (_ancient_confirm != null and _ancient_confirm.visible) or (_spoiler_dialog != null and _spoiler_dialog.visible):
+		return true
+	if (_footsteps_popup != null and _footsteps_popup.visible) or (_forge_popup != null and _forge_popup.visible):
+		return true
+	var tree: SceneTree = get_tree()
+	for menu: Node in tree.get_nodes_in_group("pause_menu"):
+		if menu is CanvasItem or menu is CanvasLayer:
+			if bool(menu.get("visible")):
+				return true
+	for board: Node in tree.get_nodes_in_group("expedition_board"):
+		if board.has_method("shell_open") and bool(board.call("shell_open")):
+			return true
+	for stone: Node in tree.get_nodes_in_group("runestone"):
+		if stone.has_method("is_spend_confirm_open") and bool(stone.call("is_spend_confirm_open")):
+			return true
+	if has_node("/root/AnimPreviewHotkey") and AnimPreviewHotkey.debug_panel_open():
+		return true
+	return BattleView.is_open()
 
 
 func _refresh_dim() -> void:
@@ -1050,12 +1111,15 @@ func _layout_welcome_panel() -> void:
 	welcome_panel.offset_top = 0.0
 	welcome_panel.offset_right = 0.0
 	welcome_panel.offset_bottom = 0.0
-	welcome_panel.color = Color(0, 0, 0, 0.58)
+	## intro540: the scene dims, the boot line captions it above the card, and the kit card
+	## (600×280, "Keeper" plank) holds the body, the muted hint and one primary button.
+	welcome_panel.color = Color(0, 0, 0, 0.5)
+	welcome_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var vs: Vector2 = Ui540.viewport_size()
 	var card_w: float = 600.0
-	var card_h: float = 360.0
-	var area: Vector2 = Ui540.kit_content_size()
-	var card_x: float = (Ui540.viewport_size().x - card_w) * 0.5 + Ui540.center_shift_x()
-	var card_y: float = Ui540.kit_top_inset() + maxf(0.0, (area.y - card_h) * 0.5)
+	var card_h: float = 280.0
+	var card_x: float = roundf((vs.x - card_w) * 0.5)
+	var card_y: float = roundf((vs.y - card_h) * 0.5 + 22.0)
 	var card := welcome_panel.get_node_or_null("WelcomeCard") as Panel
 	if card == null:
 		card = Panel.new()
@@ -1063,31 +1127,31 @@ func _layout_welcome_panel() -> void:
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		welcome_panel.add_child(card)
 		welcome_panel.move_child(card, 0)
-	var parchment := StyleBoxFlat.new()
-	parchment.bg_color = Color(0.96, 0.9, 0.76, 1.0)
-	parchment.set_border_width_all(2)
-	parchment.border_color = Color(0.16, 0.1, 0.06, 1.0)
-	parchment.set_corner_radius_all(4)
-	card.add_theme_stylebox_override("panel", parchment)
+		Ui540.apply_kit_frame_panel(card, "intro")
 	card.position = Vector2(card_x, card_y)
 	card.size = Vector2(card_w, card_h)
-	welcome_boot_label.position = Vector2(card_x + 32.0, card_y + 20.0)
-	welcome_boot_label.size = Vector2(card_w - 64.0, 28)
+	for lbl: Label in [welcome_boot_label, welcome_title_label, welcome_body_label, welcome_hint_label]:
+		lbl.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	welcome_boot_label.position = Vector2(card_x, card_y - 70.0)
+	welcome_boot_label.size = Vector2(card_w, 26)
 	welcome_boot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameTheme.style_body_label(welcome_boot_label)
-	welcome_boot_label.add_theme_color_override("font_color", GameTheme.INK)
-	welcome_title_label.position = Vector2(card_x + (card_w - 200.0) * 0.5, card_y + 52.0)
-	welcome_title_label.size = Vector2(200, 40)
-	GameTheme.style_plank_label(welcome_title_label)
-	welcome_body_label.position = Vector2(card_x + 40.0, card_y + 100.0)
-	welcome_body_label.size = Vector2(card_w - 80.0, 160.0)
-	GameTheme.style_body_label(welcome_body_label)
-	welcome_body_label.add_theme_color_override("font_color", GameTheme.INK)
-	welcome_hint_label.position = Vector2(card_x + 40.0, card_y + 264.0)
-	welcome_hint_label.size = Vector2(card_w - 80.0, 28.0)
-	GameTheme.style_body_label(welcome_hint_label)
-	welcome_hint_label.add_theme_color_override("font_color", GameTheme.MUTED)
-	welcome_dismiss_button.position = Vector2(card_x + (card_w - 260.0) * 0.5, card_y + card_h - 68.0)
+	_style_world_label(welcome_boot_label)
+	if welcome_title_label.get_parent() != card:
+		welcome_title_label.reparent(card, false)
+	Ui540.place_title_plank(welcome_title_label, card_w)
+	welcome_body_label.position = Vector2(card_x + 40.0, card_y + 34.0)
+	welcome_body_label.size = Vector2(card_w - 80.0, 124.0)
+	welcome_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	welcome_body_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	welcome_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameTheme.style_ink_label(welcome_body_label)
+	welcome_body_label.add_theme_constant_override("line_spacing", 4)
+	welcome_hint_label.position = Vector2(card_x + 40.0, card_y + 162.0)
+	welcome_hint_label.size = Vector2(card_w - 80.0, 24.0)
+	welcome_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameTheme.style_ink_label(welcome_hint_label, true)
+	welcome_dismiss_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	welcome_dismiss_button.position = Vector2(card_x + (card_w - 260.0) * 0.5, card_y + card_h - 28.0 - 52.0)
 	welcome_dismiss_button.size = Vector2(260, 52)
 	GameTheme.style_primary_button(welcome_dismiss_button)
 
@@ -1251,7 +1315,7 @@ func _build_party_bar() -> void:
 	_wisp_count_label.name = "Count"
 	_wisp_count_label.position = Vector2(22, 30)
 	_wisp_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style_party_label(_wisp_count_label, 14, GameTheme.INK)
+	_style_world_label(_wisp_count_label)
 	_slot_wisp.add_child(_wisp_count_label)
 	_party_column.add_child(_slot_elaia)
 	_party_column.add_child(_slot_wisp)
@@ -1322,11 +1386,22 @@ func _make_party_slot(slot_name: String, unit: String) -> Control:
 	host.size = Vector2(PARTY_SLOT, PARTY_SLOT)
 	host.mouse_filter = Control.MOUSE_FILTER_STOP
 	host.gui_input.connect(_on_party_slot_input.bind(unit, host))
+	var face := Panel.new()
+	face.name = "Face"
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.position = Vector2.ZERO
+	face.size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	face.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s("res://assets/ui/theme/wood_button_9s_normal_32x28.png", Vector4i(6, 6, 6, 6)),
+	)
+	host.add_child(face)
 	var frame := Panel.new()
 	frame.name = "Frame"
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.position = Vector2.ZERO
 	frame.size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	frame.z_index = 1
 	host.add_child(frame)
 	var portrait := TextureRect.new()
 	portrait.name = "Portrait"
@@ -1334,8 +1409,8 @@ func _make_party_slot(slot_name: String, unit: String) -> Control:
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait.position = Vector2(2, 2)
-	portrait.size = Vector2(PARTY_SLOT - 4.0, PARTY_SLOT - 4.0)
+	portrait.position = Vector2(4, 3)
+	portrait.size = Vector2(PARTY_SLOT - 8.0, PARTY_SLOT - 9.0)
 	host.add_child(portrait)
 	return host
 
@@ -1351,8 +1426,9 @@ func _set_party_outline(slot: Control, selected: bool) -> void:
 	var frame := slot.get_node("Frame") as Panel
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0)
-	style.border_color = PARTY_OUTLINE
+	style.border_color = Color8(143, 227, 230)
 	style.set_border_width_all(2 if selected else 0)
+	style.set_expand_margin_all(2.0)
 	frame.add_theme_stylebox_override("panel", style)
 
 
@@ -1442,6 +1518,7 @@ func _refresh_party_bar() -> void:
 	else:
 		_wisp_count_label.text = ""
 		_wisp_count_label.visible = false
+	_layout_party_bar_r4(Ui540.viewport_size(), Ui540.SAFE_MARGIN_PX, 0.0)
 	_refresh_actor_activities(elaia_joined, show_keeper, companion_id)
 	_clear_shared_activity()
 	_update_party_activity_tag(show_keeper, companion_id, ids)
@@ -1807,9 +1884,11 @@ func _ensure_wisp_counter() -> void:
 	var counter := Label.new()
 	counter.name = "WispCounter"
 	counter.position = Vector2(780, 14)
-	counter.size = Vector2(180, 28)
-	counter.add_theme_font_size_override("font_size", 15)
-	GameTheme.style_outlined_ink_label(counter)
+	counter.size = Vector2(160, 28)
+	counter.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	counter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	counter.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_style_world_label(counter)
 	add_child(counter)
 	counter.z_index = 25
 	if not GameState.wisps_changed.is_connected(_refresh_wisp_counter):
@@ -2584,28 +2663,45 @@ func _make_activity_label(node_name: String, y: float) -> Label:
 	var lbl := Label.new()
 	lbl.name = node_name
 	lbl.position = Vector2(PARTY_SLOT + 8.0, y)
-	lbl.size = Vector2(210, 52)
+	lbl.size = Vector2(210, PARTY_SLOT)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style_party_label(lbl, 13, GameTheme.INK)
+	_style_world_label(lbl)
 	return lbl
 
 
+## Text drawn straight over the clearing: cream Silver 19 with a 1 px dark-ink rim.
+func _style_world_label(label: Label) -> void:
+	GameTheme.style_body_label(label)
+	label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
+	label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
+	label.add_theme_constant_override("outline_size", 4)
+	label.add_theme_constant_override("line_spacing", -2)
+	label.remove_theme_color_override("font_shadow_color")
+
+
 func _portrait_row_y(which: String) -> float:
-	## Matches Column: 56px slots, 6px separation, hidden rows take no space.
-	var step: float = PARTY_SLOT + 6.0
+	## Walks Column in order: 44 px slots on a 50 px pitch, hidden rows take no space.
+	var target: Control = _slot_keeper
+	if which == "wisp":
+		target = _slot_wisp
+	elif which == "elaia":
+		target = _slot_elaia
 	var y: float = 0.0
-	if _slot_wisp != null and _slot_wisp.visible:
-		if which == "wisp":
-			return y
-		y += step
-	if which == "keeper":
+	if _party_column == null:
 		return y
-	return y + step
+	for slot: Node in _party_column.get_children():
+		if slot == target:
+			return y
+		if slot is Control and (slot as Control).visible:
+			y += PARTY_PITCH_R4
+	return y
 
 
 func _place_activity_label(label: Label, which: String) -> void:
 	label.position = Vector2(PARTY_SLOT + 8.0, _portrait_row_y(which))
+	label.size = Vector2(210, PARTY_SLOT)
 
 
 func _refresh_actor_activities(elaia_visible: bool, keeper_selected: bool, companion_id: String) -> void:
