@@ -94,8 +94,8 @@ const CARE_SIZE: Vector2 = Vector2(600, 440)
 const CARE_HEADER_H: float = 64.0
 const CARE_ACTION_BAND_H: float = 56.0
 ## Art lock ASCENSION_SHOP_LAYOUT_V01 scaled for 960×540 (24 px safe margins).
-const SHOP_SIZE: Vector2 = Vector2(640, 412)
-const SHOP_MIN_SIZE: Vector2 = Vector2(560, 360)
+const SHOP_SIZE: Vector2 = Vector2(912, 472)
+const SHOP_MIN_SIZE: Vector2 = Vector2(640, 412)
 const SHOP_HEADER_H: float = 48.0
 const SHOP_FOOTER_H: float = 54.0
 const SHOP_ROW_H: float = 36.0
@@ -191,6 +191,7 @@ func _ready() -> void:
 	fruit_confirm_panel.visible = false
 	care_panel.visible = false
 	welcome_panel.visible = false
+	call_deferred("_layout_welcome_panel")
 	shop_dim.visible = false
 	welcome_panel.color = Color(0.07, 0.1, 0.09, 0.97)
 	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -698,6 +699,7 @@ func _layout_ascension_shop() -> void:
 	h = maxf(h, SHOP_MIN_SIZE.y)
 	ascension_panel.custom_minimum_size = Vector2(w, h)
 	ascension_panel.size = Vector2(w, h)
+	Ui540.center_control(ascension_panel)
 	if shop_header:
 		shop_header.offset_bottom = SHOP_HEADER_H
 	if _shop_toolbar:
@@ -894,7 +896,9 @@ func _make_item_icon(item_id: String, tip: String) -> Control:
 
 
 func _apply_wood_chrome() -> void:
-	ascension_panel.add_theme_stylebox_override("panel", _wood_style())
+	Ui540.apply_kit_panel(ascension_panel, "ascension_shop", prestige_title)
+	GameTheme.style_body_label(prestige_sub)
+	GameTheme.style_primary_button(ascend_button)
 	fruit_confirm_panel.add_theme_stylebox_override("panel", _wood_style())
 	shard_chip.color = CHIP_CYAN
 	_apply_button_chrome(close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
@@ -943,12 +947,44 @@ func maybe_show_welcome() -> void:
 	show_welcome()
 
 
+func _layout_welcome_panel() -> void:
+	if welcome_panel == null:
+		return
+	welcome_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	welcome_panel.offset_left = 0.0
+	welcome_panel.offset_top = 0.0
+	welcome_panel.offset_right = 0.0
+	welcome_panel.offset_bottom = 0.0
+	welcome_panel.color = Color(0, 0, 0, 0.58)
+	var card_w: float = 600.0
+	var card_h: float = 360.0
+	var card_x: float = (Ui540.viewport_size().x - card_w) * 0.5 + Ui540.center_shift_x()
+	var card_y: float = (Ui540.viewport_size().y - card_h) * 0.5 + 24.0
+	welcome_boot_label.position = Vector2((Ui540.viewport_size().x - 560.0) * 0.5 + Ui540.center_shift_x(), 96.0)
+	welcome_boot_label.size = Vector2(560, 28)
+	welcome_boot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	welcome_title_label.position = Vector2(card_x + (card_w - 200.0) * 0.5, card_y - 20.0)
+	welcome_title_label.size = Vector2(200, 40)
+	GameTheme.style_plank_label(welcome_title_label)
+	welcome_body_label.position = Vector2(card_x + 40.0, card_y + 44.0)
+	welcome_body_label.size = Vector2(card_w - 80.0, 200.0)
+	GameTheme.style_body_label(welcome_body_label)
+	welcome_hint_label.position = Vector2(card_x + 40.0, card_y + 250.0)
+	welcome_hint_label.size = Vector2(card_w - 80.0, 24.0)
+	GameTheme.style_body_label(welcome_hint_label)
+	welcome_hint_label.add_theme_color_override("font_color", Color(0.7, 0.64, 0.52))
+	welcome_dismiss_button.position = Vector2(card_x + (card_w - 260.0) * 0.5, card_y + card_h - 76.0)
+	welcome_dismiss_button.size = Vector2(260, 52)
+	GameTheme.style_primary_button(welcome_dismiss_button)
+
+
 func show_welcome() -> void:
 	close_backpack()
 	close_character_sheet()
 	hide_care_menu()
 	hide_fruit_confirm()
 	hide_ascension_shop()
+	_layout_welcome_panel()
 	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
 	welcome_title_label.text = ContentStrings.get_text("welcome_title")
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")

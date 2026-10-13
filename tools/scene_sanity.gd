@@ -1405,6 +1405,6 @@ func _res540_input_sanity() -> int:
 func _res540_shop_sanity() -> int:
 	var failed: int = 0
 	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
-	failed += _check(hud_src.find("const SHOP_SIZE: Vector2 = Vector2(640, 412)") >= 0, "shop size 640x412 in hud.gd")
-	failed += _check(640.0 + 48.0 <= 960.0 and 412.0 + 48.0 <= 540.0, "shop fits 540p with 24px margins")
+	failed += _check(hud_src.find("const SHOP_SIZE: Vector2 = Vector2(912, 472)") >= 0, "shop size 912x472 in hud.gd")
+	failed += _check(912.0 + 48.0 <= 960.0 and 472.0 + 48.0 <= 540.0, "shop fits 540p with 24px margins")
 	return failed
