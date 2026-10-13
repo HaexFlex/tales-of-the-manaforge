@@ -30,6 +30,22 @@ static func _auto(node_name: String):
 	return tree.root.get_node_or_null(node_name)
 
 
+static func _theme() -> Node:
+	return CharacterSheet._auto("GameTheme")
+
+
+static func _style_plank_label(lbl: Label) -> void:
+	var gt: Node = CharacterSheet._theme()
+	if gt:
+		gt.call("style_plank_label", lbl)
+
+
+static func _style_body_label(lbl: Label) -> void:
+	var gt: Node = CharacterSheet._theme()
+	if gt:
+		gt.call("style_body_label", lbl)
+
+
 static func gear_icon_path(item_id: String) -> String:
 	var eq = CharacterSheet._auto("Equipment")
 	if eq == null:
@@ -275,7 +291,7 @@ func _build() -> void:
 	title.size = Vector2(400, 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_title")
-	GameTheme.style_plank_label(title)
+	_style_plank_label(title)
 	sheet.add_child(title)
 
 	var hint := Label.new()
@@ -289,10 +305,10 @@ func _build() -> void:
 	hotkey.size = Vector2(120, 18)
 	hotkey.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	hotkey.text = CharacterSheet._auto("ContentStrings").get_text("char_sheet_hotkey_hint")
-	GameTheme.style_body_label(hotkey)
+	_style_body_label(hotkey)
 	hotkey.add_theme_color_override("font_color", MUTED)
 	sheet.add_child(hotkey)
-	GameTheme.style_body_label(hint)
+	_style_body_label(hint)
 	hint.add_theme_color_override("font_color", MUTED)
 	sheet.add_child(hint)
 
@@ -366,7 +382,7 @@ func _build() -> void:
 	gear_title.position = Vector2(0, 0)
 	gear_title.size = Vector2(270, 22)
 	gear_title.text = CharacterSheet._auto("ContentStrings").get_text("gear_title")
-	GameTheme.style_body_label(gear_title)
+	_style_body_label(gear_title)
 	mid.add_child(gear_title)
 
 	var gear_hint := Label.new()
@@ -672,7 +688,7 @@ func _build_trait_popup() -> void:
 	title.position = Vector2(12, -20)
 	title.size = Vector2(356, 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameTheme.style_plank_label(title)
+	_style_plank_label(title)
 	panel.add_child(title)
 	var sub := Label.new()
 	sub.name = "Subtitle"
