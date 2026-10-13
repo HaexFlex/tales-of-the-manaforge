@@ -642,10 +642,10 @@ func _refresh_shell() -> void:
 		if hint_txt == hint_key:
 			hint_txt = "Idle: the party walks and fights on its own." if _control == "idle" else "Manual: you choose each room."
 		mode_hint.text = hint_txt
+	var predeparture: String = ContentStrings.get_text("adv_predeparture_warning")
 	if _warning_lbl:
-		var warn_txt: String = ContentStrings.get_text("adv_predeparture_warning")
-		var cost_txt: String = ContentStrings.get_text("adv_depart_cost")
-		_warning_lbl.text = "%s %s" % [warn_txt, cost_txt]
+		_warning_lbl.text = ContentStrings.get_text("adv_depart_cost")
+		_warning_lbl.tooltip_text = predeparture
 	if _cost_lbl != null:
 		_cost_lbl.visible = false
 	_idle_btn.button_pressed = _control == "idle"
@@ -667,9 +667,9 @@ func _refresh_shell() -> void:
 	var blocked: bool = depart_disabled() or _members.is_empty() or GameState.essence < DEPART_ESSENCE_COST
 	_depart.disabled = blocked
 	if GameState.essence < DEPART_ESSENCE_COST and not depart_disabled() and not running:
-		_depart.tooltip_text = ContentStrings.get_text("board_need_essence")
+		_depart.tooltip_text = "%s\n%s" % [ContentStrings.get_text("board_need_essence"), predeparture]
 	else:
-		_depart.tooltip_text = ""
+		_depart.tooltip_text = predeparture
 	_depart.text = "Depart"
 	var warn: Label = _panel.get_node("Panel/DepartEssenceWarn") as Label if _panel != null else null
 	if warn != null:
@@ -680,7 +680,7 @@ func _refresh_shell() -> void:
 			warn.visible = false
 	var hint: Label = _panel.get_node("Panel/DepartHint") as Label if _panel != null else null
 	if hint != null:
-		hint.text = "You have %d Essence" % GameState.essence
+		hint.text = "You have %d" % GameState.essence
 	var chip: NinePatchRect = _panel.get_node("Panel/CostChip") as NinePatchRect if _panel != null else null
 	if chip != null:
 		var short: bool = GameState.essence < DEPART_ESSENCE_COST

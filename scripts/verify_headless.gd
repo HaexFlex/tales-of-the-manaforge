@@ -16606,7 +16606,11 @@ func _board_shell_has_percent(shell: Node) -> bool:
 	return false
 
 
-func _board_parchment_rect() -> Rect2:
+## The board window is centred on the logical viewport, which is not 540 tall headless.
+func _board_parchment_rect(shell: Node = null) -> Rect2:
+	var panel: Control = shell.find_child("Panel", true, false) as Control if shell != null else null
+	if panel != null:
+		return panel.get_global_rect()
 	return Rect2(Vector2(24, 44), Vector2(912, 472))
 
 
@@ -16622,7 +16626,7 @@ func _board_layout_rect_ok(shell: Node) -> int:
 	var failed: int = 0
 	if shell == null:
 		return failed + 1
-	var frame: Rect2 = _board_parchment_rect()
+	var frame: Rect2 = _board_parchment_rect(shell)
 	for node_name: String in [
 		"CloseButton", "CloseEscKeycap", "Depart", "CostChip", "SimulateButton",
 		"DepthMaxLabel", "RoomsStepNote", "LoadoutQty1Cap", "LoadoutQty2Cap",
@@ -16659,7 +16663,7 @@ func _board_footer_copy_ok(shell: Node) -> int:
 		var r: Rect2 = ctrl.get_global_rect()
 		failed += _assert(r.position.y >= prev_bottom - 0.5, "footer copy stacked %s" % ctrl.name)
 		prev_bottom = r.position.y + r.size.y
-	var frame: Rect2 = _board_parchment_rect()
+	var frame: Rect2 = _board_parchment_rect(shell)
 	failed += _assert(prev_bottom < frame.position.y + frame.size.y - 8.0, "footer copy above frame bottom")
 	return failed
 

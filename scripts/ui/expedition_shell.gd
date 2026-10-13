@@ -5,28 +5,51 @@ class_name ExpeditionShellView
 const BOARD_DIR: String = "res://assets/art/ui/board/"
 const KIT_DIR: String = "res://assets/ui/theme/"
 const BATTLE_UI: String = "res://assets/art/battle/ui/"
-const LEGACY_PANEL_ORIGIN: Vector2 = Vector2(200, 60)
-const RES_SCALE: float = 912.0 / 660.0 * 0.75
-const PANEL_ORIGIN: Vector2 = Vector2(24, 44)
 const PANEL_SIZE: Vector2 = Vector2(912, 472)
-const SIM_ORIGIN: Vector2 = Vector2(248, 83)
-const SIM_SIZE: Vector2 = Vector2(411, 375)
-const PICKER_CLAMP_TOP: float = 105.0
-const PICKER_CLAMP_BOTTOM: float = 313.5
-const PICKER_Y_OFFSET: float = 57.0
+const PAD: float = 24.0
+const HEADER_Y: float = 26.0
+const DIVIDER_Y: float = 84.0
+const COL_TITLE_Y: float = 92.0
+const COL_TITLE_H: float = 24.0
+const BODY_Y: float = 118.0
+const ROW_H: float = 44.0
+const ROW_PITCH: float = 50.0
+const PARTY_X: float = 24.0
+const PARTY_W: float = 272.0
+const BED_H: float = 242.0
+const SLOT_PITCH_Y: float = 70.0
+const SLOT_MID_STEP: float = 30.0
+const BACK_COL_X: float = 48.0
+const FRONT_COL_X: float = 188.0
+const ROUTE_X: float = 312.0
+const ROUTE_W: float = 288.0
+const ROUTE_FIELD_X: float = 76.0
+const LOAD_X: float = 616.0
+const LOAD_W: float = 272.0
+const LOAD_SLOT_PITCH: float = 100.0
+const FOOT_BTN_Y_FROM_BOTTOM: float = 76.0
+const DEPART_W: float = 232.0
+const SIM_SIZE: Vector2 = Vector2(560, 340)
+const SIM_TOP: float = 86.0
 const INK: Color = Color(0.243137, 0.164706, 0.0941176, 1.0) # #3E2A18
-const INK_SECONDARY: Color = Color(0.368627, 0.321569, 0.266667, 1.0) # #5E5244
-const WOOD_9S: int = 6
-const FRAME_9S: int = 24
+const INK_SECONDARY: Color = Color8(90, 62, 40)
+const WARN_RED: Color = Color(0.55, 0.22, 0.18, 1.0)
+const BODY_SIZE: int = 19
+const BIG_SIZE: int = 38
+const PRIMARY_FONT_PATH: String = "res://assets/fonts/font_primary_silver38_bold.tres"
 const FIELD_9S: int = 6
-const POPUP_9S: int = 8
 const PICK_ROW_9S: int = 6
 const PICKER_POPUP_W: float = 272.0
-const PICKER_POPUP_MAX_H: float = 234.0
+const PICKER_POPUP_MAX_H: float = 300.0
 const PICKER_ROW_H: float = 48.0
-const PICKER_ROW_GAP: float = 2.0
+const PICKER_ROW_W: float = 224.0
+const PICKER_ROW_GAP: float = 4.0
 const PICKER_ROW_POOL: int = 16
-const PICKER_SCROLL_MAX_H: float = PICKER_POPUP_MAX_H - 34.0
+const PICKER_PAD_TOP: float = 20.0
+const PICKER_TITLE_H: float = 24.0
+const PICKER_PAD_BOTTOM: float = 22.0
+const PICKER_CHROME_H: float = PICKER_PAD_TOP + PICKER_TITLE_H + PICKER_ROW_GAP + PICKER_PAD_BOTTOM
+const PICKER_SCROLL_MAX_H: float = 228.0
 const ICON_ESSENCE_TEX: String = "res://assets_extra/shared/icon_essence.png"
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 
@@ -47,20 +70,16 @@ var simulate_close: Button
 var simulate_rerun: Button
 var simulate_essence_icon: TextureRect
 var essence_icons: Array[TextureRect] = []
+var _panel: Panel
+var _win_h: float = PANEL_SIZE.y
+var _primary_font: Font
 
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_primary_font = load(PRIMARY_FONT_PATH) as Font
 	_build()
-
-
-func _scr(screen_pos: Vector2) -> Vector2:
-	return PANEL_ORIGIN + (screen_pos - LEGACY_PANEL_ORIGIN) * RES_SCALE
-
-
-func _sim_local(screen_pos: Vector2) -> Vector2:
-	return screen_pos - SIM_ORIGIN
 
 
 func _build() -> void:
@@ -70,31 +89,36 @@ func _build() -> void:
 	dim.color = Color(0, 0, 0, 0.5)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
-	var panel := Panel.new()
-	panel.name = "Panel"
-	panel.position = PANEL_ORIGIN
-	panel.size = PANEL_SIZE
-	panel.custom_minimum_size = PANEL_SIZE
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.clip_contents = false
-	add_child(panel)
-	Ui540.apply_kit_panel(panel, "adventure_board")
-	_build_panel(panel)
+	_panel = Panel.new()
+	_panel.name = "Panel"
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_panel.clip_contents = false
+	add_child(_panel)
+	_win_h = Ui540.fit_kit_window(_panel, PANEL_SIZE).y
+	Ui540.apply_kit_panel(_panel, "adventure_board")
+	_build_panel(_panel)
 	call_deferred("_center_board_panel")
 
 
 func _center_board_panel() -> void:
-	var panel: Control = get_node_or_null("Panel") as Control
-	if panel:
-		Ui540.center_kit_panel(panel)
+	if _panel == null:
+		return
+	Ui540.fit_kit_window(_panel, PANEL_SIZE)
+	Ui540.place_title_plank(_panel.get_node("Title") as Label, PANEL_SIZE.x)
+	_fit_enemy_marker()
+	if simulate_window != null:
+		simulate_window.position = Vector2(roundf((Ui540.viewport_size().x - SIM_SIZE.x) * 0.5), SIM_TOP)
 
 
 func _build_panel(panel: Control) -> void:
 	_add_title(panel)
 	_add_close(panel)
-	_make_label(panel, "Hint", _scr(Vector2(244, 92)), Vector2(680, 18), 14, INK).text = ""
-	_make_label(panel, "Lantern", _scr(Vector2(244, 114)), Vector2(680, 16), 12, INK_SECONDARY).text = ""
-	_divider(panel, "DividerTop", _scr(Vector2(244, 136)), Vector2(796, 6))
+	_line(panel, "Hint", Vector2(PAD, HEADER_Y), Vector2(640, 20), false)
+	var lantern := _line(panel, "Lantern", Vector2(PAD, HEADER_Y + 20.0), Vector2(640, 38), true)
+	lantern.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lantern.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	lantern.add_theme_constant_override("line_spacing", -2)
+	_divider(panel, "DividerTop", Vector2(PAD, DIVIDER_Y), Vector2(PANEL_SIZE.x - PAD * 2.0, 6))
 	_party_block(panel)
 	_route_block(panel)
 	_mode_block(panel)
@@ -107,83 +131,96 @@ func _build_panel(panel: Control) -> void:
 
 
 func _party_block(panel: Control) -> void:
-	_make_label(panel, "PartyTitle", _scr(Vector2(244, 148)), Vector2(200, 20), 16, INK).text = ""
-	var sub := _make_label(panel, "PartyHint", _scr(Vector2(340, 150)), Vector2(200, 16), 12, INK_SECONDARY)
-	sub.text = ""
-	var bed := _nine_patch("FormationBed", KIT_DIR + "play_bevel_9s_6x6.png", 2, _scr(Vector2(244, 172)), Vector2(340, 246))
+	_section(panel, "PartyTitle", Vector2(PARTY_X, COL_TITLE_Y), Vector2(120, COL_TITLE_H)).text = ""
+	var sub := _line(panel, "PartyHint", Vector2(PARTY_X + 100.0, COL_TITLE_Y), Vector2(PARTY_W - 100.0, COL_TITLE_H), true)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var bed := _nine_patch("FormationBed", KIT_DIR + "play_bevel_9s_6x6.png", 2, Vector2(PARTY_X, BODY_Y), Vector2(PARTY_W, BED_H))
 	bed.clip_contents = true
 	panel.add_child(bed)
-	_make_label(panel, "LabelBack", _scr(Vector2(264, 398)), Vector2(60, 14), 12, INK_SECONDARY).text = "Back"
-	_make_label(panel, "LabelFront", _scr(Vector2(414, 398)), Vector2(60, 14), 12, INK_SECONDARY).text = "Front"
-	var arrow := _tex_rect(panel, BOARD_DIR + "arrow_enemy_side_12x9.png", _scr(Vector2(504, 184)), Vector2(12, 9))
+	var label_y: float = BODY_Y + 12.0 + SLOT_PITCH_Y * 2.0 + 62.0
+	for col: Array in [["LabelBack", BACK_COL_X, "Back"], ["LabelFront", FRONT_COL_X, "Front"]]:
+		var col_lbl := _line(panel, str(col[0]), Vector2(float(col[1]), label_y), Vector2(60, 20), true)
+		col_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		col_lbl.text = str(col[2])
+	var marker_y: float = BODY_Y + BED_H + 6.0
+	var arrow := _tex_rect(panel, BOARD_DIR + "arrow_enemy_side_12x9.png", Vector2(0, marker_y + 6.0), Vector2(12, 9))
 	arrow.name = "EnemyArrow"
-	var enemy_lbl := _make_label(panel, "EnemyLabel", _scr(Vector2(520, 182)), Vector2(64, 16), 12, INK_SECONDARY)
+	var enemy_lbl := _line(panel, "EnemyLabel", Vector2(0, marker_y), Vector2(60, 20), true)
 	enemy_lbl.text = "enemies"
-	enemy_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
-	enemy_lbl.clip_text = true
-	enemy_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	var defs: Array[Dictionary] = [
-		{"name": "SlotBackTop", "row": "back", "cell": 0, "pos": _scr(Vector2(264, 196))},
-		{"name": "SlotBackMid", "row": "back", "cell": 1, "pos": _scr(Vector2(294, 266))},
-		{"name": "SlotBackBot", "row": "back", "cell": 2, "pos": _scr(Vector2(264, 336))},
-		{"name": "SlotFrontTop", "row": "front", "cell": 0, "pos": _scr(Vector2(414, 196))},
-		{"name": "SlotFrontMid", "row": "front", "cell": 1, "pos": _scr(Vector2(444, 266))},
-		{"name": "SlotFrontBot", "row": "front", "cell": 2, "pos": _scr(Vector2(414, 336))},
-	]
-	for def: Dictionary in defs:
-		var btn := _party_slot_button(str(def["name"]), def["pos"] as Vector2)
-		panel.add_child(btn)
-		party_slots["%s:%d" % [str(def["row"]), int(def["cell"])]] = btn
+	_fit_enemy_marker()
+	var rows: Array[String] = ["Top", "Mid", "Bot"]
+	for col: Array in [["back", "SlotBack", BACK_COL_X], ["front", "SlotFront", FRONT_COL_X]]:
+		for cell: int in range(3):
+			var x: float = float(col[2]) + (SLOT_MID_STEP if cell == 1 else 0.0)
+			var pos := Vector2(x, BODY_Y + 12.0 + SLOT_PITCH_Y * float(cell))
+			var btn := _party_slot_button("%s%s" % [str(col[1]), rows[cell]], pos)
+			panel.add_child(btn)
+			party_slots["%s:%d" % [str(col[0]), cell]] = btn
+
+
+## The "enemies" marker hugs the bed's right edge: arrow, 4 px, then the word.
+func _fit_enemy_marker() -> void:
+	if _panel == null:
+		return
+	var lbl: Label = _panel.get_node_or_null("EnemyLabel") as Label
+	var arrow: Control = _panel.get_node_or_null("EnemyArrow") as Control
+	if lbl == null or arrow == null:
+		return
+	var font: Font = lbl.get_theme_font("font")
+	var w: float = ceilf(font.get_string_size(lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, BODY_SIZE).x) if font else 44.0
+	lbl.size = Vector2(w, 20)
+	lbl.position.x = PARTY_X + PARTY_W - 8.0 - w
+	arrow.position.x = lbl.position.x - 4.0 - arrow.size.x
 
 
 func _route_block(panel: Control) -> void:
-	_make_label(panel, "RouteTitle", _scr(Vector2(616, 148)), Vector2(120, 20), 16, INK).text = "Route"
-	_make_label(panel, "DepthLabel", _scr(Vector2(616, 178)), Vector2(100, 16), 14, INK)
-	_add_stepper(panel, "Depth", _scr(Vector2(728, 172)))
-	_make_label(panel, "DepthMaxLabel", _scr(Vector2(874, 178)), Vector2(70, 16), 12, INK_SECONDARY)
-	_make_label(panel, "RoomsLabel", _scr(Vector2(616, 218)), Vector2(100, 16), 14, INK)
-	_add_stepper(panel, "Rooms", _scr(Vector2(728, 212)))
-	_make_label(panel, "RoomsStepNote", _scr(Vector2(874, 218)), Vector2(70, 16), 12, INK_SECONDARY).text = "step 5"
-	_make_label(panel, "DurationLabel", _scr(Vector2(616, 254)), Vector2(200, 16), 12, INK_SECONDARY)
-	var boss := _make_label(panel, "BossLabel", _scr(Vector2(616, 254)), Vector2(380, 16), 12, INK_SECONDARY)
-	boss.clip_text = true
-	boss.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_section(panel, "RouteTitle", Vector2(ROUTE_X, COL_TITLE_Y), Vector2(120, COL_TITLE_H)).text = "Route"
+	var note_x: float = ROUTE_X + ROUTE_FIELD_X + 172.0
+	var note_w: float = ROUTE_X + ROUTE_W - note_x
+	for row: Array in [["Depth", "DepthMaxLabel", ""], ["Rooms", "RoomsStepNote", "step 5"]]:
+		var y: float = BODY_Y + ROW_PITCH * (0.0 if str(row[0]) == "Depth" else 1.0)
+		_line(panel, "%sLabel" % str(row[0]), Vector2(ROUTE_X, y), Vector2(ROUTE_FIELD_X, ROW_H), false)
+		_add_stepper(panel, str(row[0]), Vector2(ROUTE_X + ROUTE_FIELD_X, y))
+		var note := _line(panel, str(row[1]), Vector2(note_x, y), Vector2(note_w, ROW_H), true)
+		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		note.text = str(row[2])
+	var hero_y: float = BODY_Y + ROW_PITCH * 3.0 + 2.0
+	var duration := _line(panel, "DurationLabel", Vector2(ROUTE_X, hero_y), Vector2(ROUTE_W, 30), false)
+	duration.add_theme_font_override("font", _primary_font)
+	duration.add_theme_font_size_override("font_size", BIG_SIZE)
+	_line(panel, "BossLabel", Vector2(ROUTE_X, hero_y + 30.0), Vector2(ROUTE_W, 20), true)
 
 
 func _mode_block(panel: Control) -> void:
-	_make_label(panel, "ModeTitle", _scr(Vector2(244, 408)), Vector2(80, 20), 16, INK).text = "Mode"
-	var manual := _mode_toggle(panel, "ManualButton", _scr(Vector2(244, 428)), "Manual")
-	var idle := _mode_toggle(panel, "IdleButton", _scr(Vector2(368, 428)), "Idle")
-	var join := _action_button(panel, "JoinFightButton", _scr(Vector2(492, 428)), "Join the fight")
-	join.size = Vector2(160, 36)
+	var y: float = BODY_Y + ROW_PITCH * 2.0
+	_line(panel, "ModeTitle", Vector2(ROUTE_X, y), Vector2(ROUTE_FIELD_X, ROW_H), false).text = "Mode"
+	var toggle_w: float = (ROUTE_W - ROUTE_FIELD_X - 8.0) * 0.5
+	var manual := _mode_toggle(panel, "ManualButton", Vector2(ROUTE_X + ROUTE_FIELD_X, y), toggle_w, "Manual")
+	var idle := _mode_toggle(panel, "IdleButton", Vector2(ROUTE_X + ROUTE_FIELD_X + toggle_w + 8.0, y), toggle_w, "Idle")
+	var join := _big_button(panel, "JoinFightButton", Vector2(ROUTE_X, BODY_Y + 64.0), Vector2(ROUTE_W, ROW_H), "Join the fight")
 	join.visible = false
-	manual.toggle_mode = true
-	idle.toggle_mode = true
 	var group := ButtonGroup.new()
 	manual.button_group = group
 	idle.button_group = group
 
+
 func _add_bottom_copy(panel: Control) -> void:
 	var box := VBoxContainer.new()
 	box.name = "BottomLeftCopy"
-	box.position = _scr(Vector2(244, 462))
-	box.custom_minimum_size = Vector2(356, 0)
-	box.add_theme_constant_override("separation", 6)
+	box.position = Vector2(ROUTE_X, BODY_Y + ROW_PITCH * 3.0 + 56.0)
+	box.custom_minimum_size = Vector2(ROUTE_W, 0)
+	box.add_theme_constant_override("separation", 2)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(box)
-	var mode_hint := Label.new()
-	mode_hint.name = "ModeHint"
-	mode_hint.add_theme_font_size_override("font_size", 12)
-	mode_hint.add_theme_color_override("font_color", INK_SECONDARY)
-	mode_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
-	mode_hint.custom_minimum_size = Vector2(356, 20)
-	box.add_child(mode_hint)
-	var warn := Label.new()
-	warn.name = "WarningLabel"
-	warn.add_theme_font_size_override("font_size", 11)
-	warn.add_theme_color_override("font_color", INK_SECONDARY)
-	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	warn.custom_minimum_size = Vector2(356, 64)
-	box.add_child(warn)
+	for node_name: String in ["ModeHint", "WarningLabel"]:
+		var copy := Label.new()
+		copy.name = node_name
+		GameTheme.style_ink_label(copy, true)
+		copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		copy.add_theme_constant_override("line_spacing", -2)
+		copy.custom_minimum_size = Vector2(ROUTE_W, 18)
+		copy.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(copy)
 
 
 func reflow_footer_copy() -> void:
@@ -207,22 +244,26 @@ func reflow_footer_copy() -> void:
 
 
 func _loadout_block(panel: Control) -> void:
-	_make_label(panel, "LoadoutTitle", _scr(Vector2(616, 292)), Vector2(120, 20), 16, INK).text = "Loadout"
-	_divider(panel, "DividerLoadout", _scr(Vector2(616, 318)), Vector2(424, 6))
-	_make_label(panel, "LoadoutCap", _scr(Vector2(736, 296)), Vector2(160, 16), 12, INK_SECONDARY).text = "up to 100 each"
+	_section(panel, "LoadoutTitle", Vector2(LOAD_X, COL_TITLE_Y), Vector2(120, COL_TITLE_H)).text = "Loadout"
+	var cap := _line(panel, "LoadoutCap", Vector2(LOAD_X + 120.0, COL_TITLE_Y), Vector2(LOAD_W - 120.0, COL_TITLE_H), true)
+	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	cap.text = "up to 100 each"
 	for slot_i: int in range(2):
-		var y_scr: int = 320 + slot_i * 56
+		var y: float = BODY_Y + LOAD_SLOT_PITCH * float(slot_i)
 		var n: int = slot_i + 1
 		var slot_btn := Button.new()
 		slot_btn.name = "LoadoutItem%d" % n
-		slot_btn.position = _scr(Vector2(616, y_scr))
-		slot_btn.size = Vector2(44, 44)
+		slot_btn.position = Vector2(LOAD_X, y)
+		slot_btn.size = Vector2(ROW_H, ROW_H)
 		slot_btn.flat = false
 		slot_btn.text = ""
 		panel.add_child(slot_btn)
 		_style_item_slot(slot_btn)
-		_make_label(panel, "LoadoutName%d" % n, _scr(Vector2(670, y_scr + 4)), Vector2(200, 36), 12, INK)
-		_add_loadout_stepper(panel, n, _scr(Vector2(872, y_scr + 8)))
+		_add_loadout_stepper(panel, n, Vector2(LOAD_X + 52.0, y))
+		var name_lbl := _line(panel, "LoadoutName%d" % n, Vector2(LOAD_X, y + 48.0), Vector2(LOAD_W, 40), false)
+		name_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		name_lbl.add_theme_constant_override("line_spacing", -2)
 
 
 func _add_footer(panel: Control) -> void:
@@ -230,81 +271,73 @@ func _add_footer(panel: Control) -> void:
 	var strings: Node = get_node_or_null("/root/ContentStrings")
 	if strings != null:
 		sim_label = str(strings.call("get_text", "board_simulate"))
-	var sim := _action_button(panel, "SimulateButton", _scr(Vector2(616, 564)), sim_label)
-	sim.size = Vector2(160, 44)
-	var chip := _nine_patch("CostChip", BOARD_DIR + "cost_chip_9s_ok_24x32.png", 8, _scr(Vector2(786, 564)), Vector2(84, 44))
+	var foot_y: float = _win_h - FOOT_BTN_Y_FROM_BOTTOM
+	_big_button(panel, "SimulateButton", Vector2(ROUTE_X, foot_y + 4.0), Vector2(160, ROW_H), sim_label)
+	var chip := _nine_patch("CostChip", BOARD_DIR + "cost_chip_9s_ok_24x32.png", 8, Vector2(ROUTE_X + 172.0, foot_y + 4.0), Vector2(84, ROW_H))
 	panel.add_child(chip)
-	var ess_icon := _tex_rect(chip, ICON_ESSENCE_TEX, Vector2(4, 6), Vector2(32, 32))
+	var ess_icon := _tex_rect(chip, ICON_ESSENCE_TEX, Vector2(8, 10), Vector2(24, 24))
 	ess_icon.name = "EssenceCostIcon"
 	ess_icon.modulate = ESSENCE_TINT
 	essence_icons.append(ess_icon)
-	_make_label(chip, "CostAmount", Vector2(40, 10), Vector2(40, 24), 18, INK).text = "20"
-	var depart := _action_button(panel, "Depart", _scr(Vector2(880, 564)), "Depart")
-	depart.size = Vector2(160, 44)
-	var depart_hint := _make_label(panel, "DepartHint", _scr(Vector2(760, 614)), Vector2(280, 16), 12, INK_SECONDARY)
-	depart_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	depart_hint.clip_text = true
-	depart_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_make_label(panel, "DepartEssenceWarn", _scr(Vector2(760, 630)), Vector2(280, 16), 12, Color(0.55, 0.22, 0.18, 1.0))
+	var amount := _make_label(chip, "CostAmount", Vector2(36, 0), Vector2(42, ROW_H), BIG_SIZE, INK)
+	amount.add_theme_font_override("font", _primary_font)
+	amount.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	amount.autowrap_mode = TextServer.AUTOWRAP_OFF
+	amount.text = "20"
+	var depart_x: float = PANEL_SIZE.x - PAD - DEPART_W
+	_big_button(panel, "Depart", Vector2(depart_x, foot_y), Vector2(DEPART_W, 52), "Depart")
+	var hint_x: float = ROUTE_X + 264.0
+	_line(panel, "DepartHint", Vector2(hint_x, foot_y + 4.0), Vector2(depart_x - 8.0 - hint_x, ROW_H), true)
+	var warn := _line(panel, "DepartEssenceWarn", Vector2(LOAD_X, foot_y - 26.0), Vector2(LOAD_W, 20), false)
+	warn.add_theme_color_override("font_color", WARN_RED)
+	warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 
 func _add_progress(panel: Control) -> void:
-	var prog := _make_label(panel, "ProgressLabel", _scr(Vector2(616, 148)), Vector2(400, 20), 15, INK)
+	var prog := _line(panel, "ProgressLabel", Vector2(ROUTE_X, BODY_Y), Vector2(ROUTE_W, 30), false)
+	prog.add_theme_font_override("font", _primary_font)
+	prog.add_theme_font_size_override("font_size", BIG_SIZE)
 	prog.visible = false
-	prog.clip_text = true
-	prog.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	var pack := _make_label(panel, "PackLabel", _scr(Vector2(616, 172)), Vector2(400, 18), 14, INK_SECONDARY)
+	var pack := _line(panel, "PackLabel", Vector2(ROUTE_X, BODY_Y + 32.0), Vector2(ROUTE_W, 20), true)
 	pack.visible = false
-	pack.clip_text = true
-	var left := _make_label(panel, "LoadoutLeftLabel", _scr(Vector2(616, 432)), Vector2(424, 36), 14, INK_SECONDARY)
+	var left := _line(panel, "LoadoutLeftLabel", Vector2(LOAD_X, BODY_Y), Vector2(LOAD_W, 60), true)
 	left.visible = false
+	left.clip_text = false
 	left.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+
 
 func _build_picker() -> void:
 	picker_popup = PanelContainer.new()
 	picker_popup.name = "PickerPopup"
 	picker_popup.visible = false
 	picker_popup.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxTexture.new()
-	sb.texture = _load_tex(BOARD_DIR + "popup_9s_32x32.png")
-	sb.texture_margin_left = POPUP_9S
-	sb.texture_margin_top = POPUP_9S
-	sb.texture_margin_right = POPUP_9S
-	sb.texture_margin_bottom = POPUP_9S
-	picker_popup.add_theme_stylebox_override("panel", sb)
+	picker_popup.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(
+		KIT_DIR + "frame_9s_96.png", Vector4i(24, 24, 24, 24),
+		Vector4(PAD, PICKER_PAD_TOP, PAD, PICKER_PAD_BOTTOM), true))
 	add_child(picker_popup)
 	picker_popup.z_index = 20
 	picker_tail = _tex_rect(self, BOARD_DIR + "popup_tail_l_8x14.png", Vector2.ZERO, Vector2(8, 14))
 	picker_tail.name = "PickerTail"
 	picker_tail.visible = false
-	picker_tail.z_index = 19
 	picker_tail.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-	picker_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var margin := MarginContainer.new()
-	margin.name = "PickerMargin"
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_bottom", 8)
-	picker_popup.add_child(margin)
 	var vbox := VBoxContainer.new()
 	vbox.name = "PickerVBox"
-	vbox.add_theme_constant_override("separation", 2)
-	margin.add_child(vbox)
+	vbox.add_theme_constant_override("separation", int(PICKER_ROW_GAP))
+	picker_popup.add_child(vbox)
 	picker_title = Label.new()
 	picker_title.name = "PickerTitle"
-	picker_title.add_theme_font_size_override("font_size", 14)
-	picker_title.add_theme_color_override("font_color", INK)
-	picker_title.custom_minimum_size = Vector2(240, 22)
-	GameTheme.style_body_label(picker_title)
+	_style_section(picker_title)
+	picker_title.custom_minimum_size = Vector2(PICKER_ROW_W, PICKER_TITLE_H)
 	picker_title.text = "Who stands here?"
 	vbox.add_child(picker_title)
 	picker_scroll = ScrollContainer.new()
 	picker_scroll.name = "PickerScroll"
 	picker_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	picker_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	picker_scroll.custom_minimum_size = Vector2(220, PICKER_SCROLL_MAX_H)
-	picker_scroll.size = Vector2(220, PICKER_SCROLL_MAX_H)
+	picker_scroll.custom_minimum_size = Vector2(PICKER_ROW_W, PICKER_SCROLL_MAX_H)
+	picker_scroll.size = Vector2(PICKER_ROW_W, PICKER_SCROLL_MAX_H)
 	_apply_picker_scroll_theme(picker_scroll)
 	vbox.add_child(picker_scroll)
 	picker_list = VBoxContainer.new()
@@ -321,39 +354,41 @@ func _build_picker() -> void:
 func _make_picker_row(index: int) -> Button:
 	var row := Button.new()
 	row.name = "PickerRow%d" % index
-	row.custom_minimum_size = Vector2(220, 54)
-	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	row.custom_minimum_size = Vector2(PICKER_ROW_W, PICKER_ROW_H)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.flat = false
 	row.text = ""
 	row.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_style_picker_row(row, "normal")
 	var portrait := TextureRect.new()
 	portrait.name = "Portrait"
-	portrait.position = Vector2(3, 1)
-	portrait.size = Vector2(52, 52)
+	portrait.position = Vector2(4, 4)
+	portrait.size = Vector2(40, 40)
+	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(portrait)
-	var name_lbl := Label.new()
-	name_lbl.name = "Name"
-	name_lbl.position = Vector2(62, 12)
-	name_lbl.size = Vector2(150, 16)
-	name_lbl.add_theme_font_size_override("font_size", 14)
+	var name_lbl := _picker_line(row, "Name", Vector2(52, 4), false)
 	name_lbl.add_theme_color_override("font_color", INK)
-	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(name_lbl)
-	var sub_lbl := Label.new()
-	sub_lbl.name = "Sub"
-	sub_lbl.position = Vector2(62, 32)
-	sub_lbl.size = Vector2(150, 16)
-	sub_lbl.add_theme_font_size_override("font_size", 12)
-	sub_lbl.add_theme_color_override("font_color", INK_SECONDARY)
-	sub_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(sub_lbl)
-	var lock := _tex_rect(row, BOARD_DIR + "lock_10x12.png", Vector2(43, 38), Vector2(10, 12))
+	_picker_line(row, "Sub", Vector2(52, 24), true)
+	var lock := _tex_rect(row, BOARD_DIR + "lock_10x12.png", Vector2(34, 32), Vector2(10, 12))
 	lock.name = "Lock"
 	lock.visible = false
 	return row
+
+
+func _picker_line(row: Button, node_name: String, pos: Vector2, muted: bool) -> Label:
+	var lbl := Label.new()
+	lbl.name = node_name
+	lbl.position = pos
+	lbl.size = Vector2(PICKER_ROW_W - pos.x - 6.0, 20)
+	GameTheme.style_ink_label(lbl, muted)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.clip_text = true
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(lbl)
+	return lbl
 
 
 func configure_picker_row(index: int, display_name: String, sub: String, portrait_path: String, row_state: String, locked: bool) -> void:
@@ -371,30 +406,32 @@ func configure_picker_row(index: int, display_name: String, sub: String, portrai
 	if portrait_path != "" and ResourceLoader.exists(portrait_path):
 		portrait.texture = load(portrait_path) as Texture2D
 		portrait.visible = true
-		portrait.size = Vector2(52, 52)
-		portrait.position = Vector2(3, 1)
+		portrait.size = Vector2(40, 40)
+		portrait.position = Vector2(4, 4)
 		portrait.modulate = Color(0.55, 0.55, 0.55, 1.0) if row_state == "disabled" else Color.WHITE
 		if plus_lbl != null:
 			plus_lbl.visible = false
-		name_lbl.position = Vector2(62, 12)
-		sub_lbl.position = Vector2(62, 32)
+		name_lbl.position = Vector2(52, 4)
+		sub_lbl.position = Vector2(52, 24)
 	else:
 		portrait.texture = null
 		portrait.visible = false
 		if plus_lbl == null:
 			plus_lbl = Label.new()
 			plus_lbl.name = "PlusGlyph"
-			plus_lbl.position = Vector2(10, 14)
-			plus_lbl.size = Vector2(24, 24)
+			plus_lbl.position = Vector2(4, 4)
+			plus_lbl.size = Vector2(40, 40)
 			plus_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			plus_lbl.add_theme_font_size_override("font_size", 20)
-			plus_lbl.add_theme_color_override("font_color", INK_SECONDARY)
+			plus_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			plus_lbl.add_theme_font_override("font", _primary_font)
+			plus_lbl.add_theme_font_size_override("font_size", BIG_SIZE)
+			plus_lbl.add_theme_color_override("font_color", INK)
 			plus_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			row.add_child(plus_lbl)
 		plus_lbl.text = "+"
 		plus_lbl.visible = row_state != "disabled"
-		name_lbl.position = Vector2(40, 12)
-		sub_lbl.position = Vector2(40, 32)
+		name_lbl.position = Vector2(52, 4)
+		sub_lbl.position = Vector2(52, 24)
 	_style_picker_row(row, row_state)
 	var blocked: bool = row_state == "disabled"
 	row.set_meta("picker_locked", blocked)
@@ -403,10 +440,10 @@ func configure_picker_row(index: int, display_name: String, sub: String, portrai
 
 
 func _pick_row_stylebox(kind: String) -> StyleBox:
-	if kind == "empty":
-		return StyleBoxEmpty.new()
 	var file: String = "pick_row_9s_hover_24x24.png"
 	match kind:
+		"normal":
+			file = "list_row_9s_even_24x24.png"
 		"current":
 			file = "pick_row_9s_current_24x24.png"
 		"disabled":
@@ -421,7 +458,7 @@ func _pick_row_stylebox(kind: String) -> StyleBox:
 
 
 func _style_picker_row(btn: Button, row_state: String) -> void:
-	var normal_box: StyleBox = _pick_row_stylebox("empty")
+	var normal_box: StyleBox = _pick_row_stylebox("normal")
 	if row_state == "current":
 		normal_box = _pick_row_stylebox("current")
 	elif row_state == "disabled":
@@ -452,109 +489,87 @@ func _build_simulate_window() -> void:
 	simulate_modal.add_child(veil)
 	simulate_window = Control.new()
 	simulate_window.name = "SimulateWindow"
-	simulate_window.position = SIM_ORIGIN
+	simulate_window.position = Vector2(roundf((Ui540.viewport_size().x - SIM_SIZE.x) * 0.5), SIM_TOP)
 	simulate_window.size = SIM_SIZE
 	simulate_window.mouse_filter = Control.MOUSE_FILTER_STOP
 	simulate_modal.add_child(simulate_window)
-	var frame := _nine_patch("ResultsFrame", KIT_DIR + "frame_9s_96.png", FRAME_9S, Vector2.ZERO, SIM_SIZE)
+	var frame := _nine_patch("ResultsFrame", KIT_DIR + "frame_9s_96.png", 24, Vector2.ZERO, SIM_SIZE)
+	frame.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE_FIT
+	frame.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_TILE_FIT
 	simulate_window.add_child(frame)
-	var plate := _tex_rect(simulate_window, KIT_DIR + "title_plank_3s_48x40.png", Vector2(144, 0), Vector2(260, 40))
-	plate.name = "ResultsTitlePlate"
-	var sim_title := _make_label(simulate_window, "ResultsTitle", Vector2(152, 6), Vector2(244, 28), 16, INK)
+	var sim_title := Label.new()
+	sim_title.name = "ResultsTitle"
 	sim_title.text = "Simulation"
-	sim_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	simulate_close = _stop_button(simulate_window, "SimulateClose", Vector2(392, 20))
-	simulate_close.text = "Close"
-	_tex_rect(simulate_window, KIT_DIR + "keycap_esc.png", Vector2(468, 24), Vector2(28, 15)).name = "SimulateCloseEsc"
-	_make_label(simulate_window, "SimulateHeader", Vector2(24, 52), Vector2(400, 20), 12, INK_SECONDARY)
-	var summary := _make_label(simulate_window, "SimulateSummary", Vector2(24, 72), Vector2(460, 24), 16, INK)
+	simulate_window.add_child(sim_title)
+	Ui540.place_title_plank(sim_title, SIM_SIZE.x)
+	var inner_w: float = SIM_SIZE.x - PAD * 2.0
+	simulate_close = _big_button(simulate_window, "SimulateClose", Vector2(SIM_SIZE.x - PAD - 120.0, 20), Vector2(120, ROW_H), "Close")
+	var esc := _tex_rect(simulate_window, KIT_DIR + "keycap_esc.png", Vector2(SIM_SIZE.x - PAD - 120.0 - 36.0, 34.5), Vector2(28, 15))
+	esc.name = "SimulateCloseEsc"
+	Ui540.hide_on_phone(esc)
+	var header := _line(simulate_window, "SimulateHeader", Vector2(PAD, 22), Vector2(inner_w - 170.0, 20), true)
+	header.clip_text = true
+	var summary := _line(simulate_window, "SimulateSummary", Vector2(PAD, 68), Vector2(inner_w, 24), false)
 	summary.z_index = 2
 	simulate_scroll = ScrollContainer.new()
 	simulate_scroll.name = "SimulateScroll"
-	simulate_scroll.position = Vector2(24, 102)
-	simulate_scroll.size = Vector2(500, 228)
+	simulate_scroll.position = Vector2(PAD, 98)
+	simulate_scroll.size = Vector2(inner_w, 130)
+	simulate_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	simulate_scroll.clip_contents = true
 	_apply_simulate_scroll_theme(simulate_scroll)
 	simulate_window.add_child(simulate_scroll)
 	simulate_room_list = VBoxContainer.new()
 	simulate_room_list.name = "SimulateRoomList"
 	simulate_room_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	simulate_room_list.add_theme_constant_override("separation", 2)
 	simulate_scroll.add_child(simulate_room_list)
 	simulate_result = Label.new()
 	simulate_result.name = "SimulateResult"
 	simulate_result.visible = false
+	var rerun_w: float = 140.0
+	var footer_w: float = inner_w - rerun_w - 16.0
 	simulate_footer = VBoxContainer.new()
 	simulate_footer.name = "SimulateFooter"
-	simulate_footer.position = Vector2(24, 338)
-	simulate_footer.size = Vector2(500, 88)
-	simulate_footer.add_theme_constant_override("separation", 2)
+	simulate_footer.position = Vector2(PAD, 236)
+	simulate_footer.size = Vector2(footer_w, 84)
+	simulate_footer.add_theme_constant_override("separation", 1)
+	simulate_footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	simulate_window.add_child(simulate_footer)
-	var losses := Label.new()
-	losses.name = "SimulateLosses"
-	losses.autowrap_mode = TextServer.AUTOWRAP_OFF
-	losses.clip_text = true
-	losses.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	losses.custom_minimum_size = Vector2(500, 16)
-	losses.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	losses.add_theme_font_size_override("font_size", 12)
-	losses.add_theme_color_override("font_color", INK)
-	simulate_footer.add_child(losses)
-	var banked := Label.new()
-	banked.name = "SimulateBanked"
-	banked.autowrap_mode = TextServer.AUTOWRAP_OFF
-	banked.clip_text = true
-	banked.custom_minimum_size = Vector2(500, 16)
-	banked.add_theme_font_size_override("font_size", 12)
-	banked.add_theme_color_override("font_color", INK)
-	simulate_footer.add_child(banked)
-	var used := Label.new()
-	used.name = "SimulateUsed"
-	used.autowrap_mode = TextServer.AUTOWRAP_OFF
-	used.clip_text = true
-	used.custom_minimum_size = Vector2(500, 16)
-	used.add_theme_font_size_override("font_size", 12)
-	used.add_theme_color_override("font_color", INK)
-	simulate_footer.add_child(used)
-	var note := Label.new()
-	note.name = "SimulateNote"
-	note.autowrap_mode = TextServer.AUTOWRAP_OFF
-	note.clip_text = true
-	note.custom_minimum_size = Vector2(500, 14)
-	note.add_theme_font_size_override("font_size", 12)
-	note.add_theme_color_override("font_color", INK_SECONDARY)
-	simulate_footer.add_child(note)
-	simulate_essence_icon = _tex_rect(simulate_window, ICON_ESSENCE_TEX, Vector2(-64, -64), Vector2(32, 32))
+	for line_def: Array in [["SimulateLosses", false], ["SimulateBanked", false], ["SimulateUsed", false], ["SimulateNote", true]]:
+		var line := Label.new()
+		line.name = str(line_def[0])
+		GameTheme.style_ink_label(line, bool(line_def[1]))
+		line.autowrap_mode = TextServer.AUTOWRAP_OFF
+		line.clip_text = true
+		line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		line.custom_minimum_size = Vector2(footer_w, 20)
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		simulate_footer.add_child(line)
+	var banked: Label = simulate_footer.get_node("SimulateBanked") as Label
+	banked.custom_minimum_size.x = footer_w - 26.0
+	banked.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	simulate_essence_icon = _tex_rect(simulate_window, ICON_ESSENCE_TEX, Vector2(PAD + footer_w - 20.0, 236.0 + 21.0), Vector2(20, 20))
 	simulate_essence_icon.name = "SimulateEssenceIcon"
 	simulate_essence_icon.modulate = ESSENCE_TINT
 	simulate_essence_icon.visible = false
 	essence_icons.append(simulate_essence_icon)
-	simulate_rerun = _wood_text_button(simulate_window, "SimulateRerun", Vector2(380, 432), Vector2(120, 32), "Run again")
+	simulate_rerun = _big_button(simulate_window, "SimulateRerun", Vector2(SIM_SIZE.x - PAD - rerun_w, SIM_SIZE.y - PAD - ROW_H), Vector2(rerun_w, ROW_H), "Run again")
 
 
 func _add_title(panel: Control) -> void:
-	var title := _make_label(panel, "Title", Vector2((PANEL_SIZE.x - 320.0) * 0.5, -8.0), Vector2(320, 40), GameTheme.jersey_plank_size(), INK)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	GameTheme.style_plank_label(title)
+	var title := Label.new()
+	title.name = "Title"
+	panel.add_child(title)
+	Ui540.place_title_plank(title, PANEL_SIZE.x)
 
 
 func _add_close(panel: Control) -> void:
-	var btn := Button.new()
-	btn.name = "CloseButton"
-	btn.position = Vector2(PANEL_SIZE.x - 68.0, 18.0)
-	btn.size = Vector2(44, 44)
-	Ui540.configure_kit_close_button(btn)
-	panel.add_child(btn)
+	var btn := _big_button(panel, "CloseButton", Vector2(PANEL_SIZE.x - PAD - 120.0, HEADER_Y), Vector2(120, ROW_H), "Close")
+	btn.tooltip_text = "Close"
 	if not Ui540.is_phone_export():
-		var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", Vector2(PANEL_SIZE.x - 118.0, 28.0), Vector2(28, 15))
+		var esc := _tex_rect(panel, KIT_DIR + "keycap_esc.png", Vector2(btn.position.x - 36.0, HEADER_Y + 14.5), Vector2(28, 15))
 		esc.name = "CloseEscKeycap"
-		esc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-
-func _add_vines(panel: Control) -> void:
-	var vine_tl := _tex_rect(panel, KIT_DIR + "deco_vine_tl.png", Vector2(-4, -4), Vector2(32, 32))
-	vine_tl.name = "DecoVineTL"
-	var vine_br := _tex_rect(panel, KIT_DIR + "deco_vine_br.png", Vector2(852, 572), Vector2(32, 32))
-	vine_br.name = "DecoVineBR"
 
 
 func _add_loadout_stepper(panel: Control, slot_n: int, pos: Vector2) -> void:
@@ -569,20 +584,25 @@ func _add_stepper(panel: Control, prefix: String, pos: Vector2, _qty_only: bool 
 		minus_name = "LoadoutMinus%d" % slot_n
 		field_name = "LoadoutQty%d" % slot_n
 		plus_name = "LoadoutPlus%d" % slot_n
-	var minus := _wood_glyph_button(panel, minus_name, pos, BOARD_DIR + "glyph_minus_10x10.png", BOARD_DIR + "glyph_minus_disabled_10x10.png")
+	_wood_glyph_button(panel, minus_name, pos, BOARD_DIR + "glyph_minus_10x10.png", BOARD_DIR + "glyph_minus_disabled_10x10.png")
+	var field_w: float = 56.0 if slot_n > 0 else 64.0
 	var field := LineEdit.new()
 	field.name = field_name
-	field.position = pos + Vector2(32, 0)
-	field.size = Vector2(48 if slot_n > 0 else 72, 28)
+	field.position = pos + Vector2(ROW_H + 8.0, 0)
+	field.size = Vector2(field_w, ROW_H)
 	field.clip_contents = true
 	field.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	field.add_theme_font_size_override("font_size", 16)
+	field.add_theme_font_override("font", _primary_font)
+	field.add_theme_font_size_override("font_size", BIG_SIZE)
 	field.add_theme_color_override("font_color", INK)
 	_style_field(field, slot_n > 0)
 	panel.add_child(field)
-	var plus := _wood_glyph_button(panel, plus_name, pos + Vector2(84 if slot_n > 0 else 108, 0), BOARD_DIR + "glyph_plus_10x10.png", BOARD_DIR + "glyph_plus_disabled_10x10.png")
+	var plus_x: float = ROW_H + 8.0 + field_w + 8.0
+	_wood_glyph_button(panel, plus_name, pos + Vector2(plus_x, 0), BOARD_DIR + "glyph_plus_10x10.png", BOARD_DIR + "glyph_plus_disabled_10x10.png")
 	if slot_n > 0:
-		_make_label(panel, "LoadoutQty%dCap" % slot_n, pos + Vector2(136, 4), Vector2(48, 20), 12, INK_SECONDARY).text = "/ 100"
+		var cap_x: float = plus_x + ROW_H + 6.0
+		var cap := _line(panel, "LoadoutQty%dCap" % slot_n, pos + Vector2(cap_x, 0), Vector2(LOAD_X + LOAD_W - pos.x - cap_x, ROW_H), true)
+		cap.text = "/ 100"
 
 
 func _party_slot_button(node_name: String, pos: Vector2) -> Button:
@@ -613,59 +633,28 @@ func set_party_slot_style(btn: Button, state: String) -> void:
 	_style_party_slot(btn, BOARD_DIR + file)
 
 
-func _mode_toggle(panel: Control, node_name: String, pos: Vector2, text: String) -> Button:
-	var btn := _wood_text_button(panel, node_name, pos, Vector2(120, 32), text)
-	btn.toggle_mode = true
-	var selected := StyleBoxTexture.new()
-	selected.texture = _load_tex(BOARD_DIR + "wood_button_9s_selected_32x28.png")
-	selected.texture_margin_left = WOOD_9S
-	selected.texture_margin_top = WOOD_9S
-	selected.texture_margin_right = WOOD_9S
-	selected.texture_margin_bottom = WOOD_9S
-	btn.add_theme_stylebox_override("pressed", selected)
-	return btn
-
-
-func _action_button(parent: Control, node_name: String, pos: Vector2, text: String) -> Button:
+func _mode_toggle(panel: Control, node_name: String, pos: Vector2, w: float, text: String) -> Button:
 	var btn := Button.new()
 	btn.name = node_name
 	btn.position = pos
+	btn.size = Vector2(w, ROW_H)
 	btn.text = text
-	btn.add_theme_font_size_override("font_size", 14)
-	btn.add_theme_color_override("font_color", INK)
-	for state: String in ["normal", "hover", "pressed", "disabled"]:
-		var suffix: String = state
-		var box := StyleBoxTexture.new()
-		box.texture = _load_tex("%saction_button_%s_160x44.png" % [BATTLE_UI, suffix])
-		btn.add_theme_stylebox_override(state, box)
-	parent.add_child(btn)
+	GameTheme.style_tab_button(btn)
+	btn.add_theme_font_override("font", _primary_font)
+	btn.add_theme_font_size_override("font_size", BIG_SIZE)
+	panel.add_child(btn)
 	return btn
 
 
-func _stop_button(parent: Control, node_name: String, pos: Vector2) -> Button:
+## Wood face with the Silver 38 caps in cream (Close, Simulate, Depart, Run again).
+func _big_button(parent: Control, node_name: String, pos: Vector2, sz: Vector2, text: String) -> Button:
 	var btn := Button.new()
 	btn.name = node_name
 	btn.position = pos
-	btn.size = Vector2(104, 28)
-	btn.add_theme_font_size_override("font_size", 13)
-	btn.add_theme_color_override("font_color", INK)
-	for state: String in ["normal", "hover", "pressed", "disabled"]:
-		var box := StyleBoxTexture.new()
-		box.texture = _load_tex("%sstop_button_%s_104x28.png" % [KIT_DIR, state])
-		btn.add_theme_stylebox_override(state, box)
-	parent.add_child(btn)
-	return btn
-
-
-func _wood_text_button(parent: Control, node_name: String, pos: Vector2, size: Vector2, text: String) -> Button:
-	var btn := Button.new()
-	btn.name = node_name
-	btn.position = pos
-	btn.size = size
+	btn.size = sz
 	btn.text = text
-	btn.add_theme_font_size_override("font_size", 13)
-	btn.add_theme_color_override("font_color", INK)
-	_style_wood(btn)
+	GameTheme.style_menu_button(btn)
+	btn.clip_text = true
 	parent.add_child(btn)
 	return btn
 
@@ -674,30 +663,26 @@ func _wood_glyph_button(parent: Control, node_name: String, pos: Vector2, glyph:
 	var btn := Button.new()
 	btn.name = node_name
 	btn.position = pos
-	btn.size = Vector2(28, 28)
-	_style_wood(btn)
+	btn.size = Vector2(ROW_H, ROW_H)
+	btn.text = ""
+	GameTheme.style_wood_button(btn)
 	var icon := TextureRect.new()
+	icon.name = "Glyph"
 	icon.texture = _load_tex(glyph)
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
-	icon.custom_minimum_size = Vector2(10, 10)
-	icon.size = Vector2(10, 10)
-	icon.position = Vector2(9, 9)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon.size = Vector2(20, 20)
+	icon.position = Vector2(12, 11)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(icon)
 	btn.set_meta("glyph_disabled", glyph_dis)
+	var on_tex: Texture2D = icon.texture
+	var off_tex: Texture2D = _load_tex(glyph_dis)
+	btn.draw.connect(func() -> void:
+		icon.texture = off_tex if btn.disabled and off_tex != null else on_tex
+	)
 	parent.add_child(btn)
 	return btn
-
-
-func _style_wood(btn: Button) -> void:
-	for state: String in ["normal", "hover", "pressed", "disabled"]:
-		var box := StyleBoxTexture.new()
-		box.texture = _load_tex("%swood_button_9s_%s_32x28.png" % [KIT_DIR, state])
-		box.texture_margin_left = WOOD_9S
-		box.texture_margin_top = WOOD_9S
-		box.texture_margin_right = WOOD_9S
-		box.texture_margin_bottom = WOOD_9S
-		btn.add_theme_stylebox_override(state, box)
 
 
 func _style_field(field: LineEdit, compact: bool = false) -> void:
@@ -781,7 +766,7 @@ func add_simulate_row(left_text: String, right_text: String, row_kind: String, i
 	if simulate_room_list == null:
 		return
 	var row := PanelContainer.new()
-	row.custom_minimum_size = Vector2(480, 26)
+	row.custom_minimum_size = Vector2(SIM_SIZE.x - PAD * 2.0 - 14.0, 26)
 	var bg: StyleBox = _list_row_stylebox("list_row_9s_even_24x24.png")
 	if row_kind == "loss":
 		bg = _list_row_stylebox("list_row_9s_loss_24x24.png")
@@ -819,15 +804,15 @@ func add_simulate_row(left_text: String, right_text: String, row_kind: String, i
 	var left := Label.new()
 	left.text = left_text
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left.add_theme_font_size_override("font_size", 14)
-	left.add_theme_color_override("font_color", INK)
+	GameTheme.style_ink_label(left)
+	left.clip_text = true
+	left.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	h.add_child(left)
 	var right := Label.new()
 	right.text = right_text
 	right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	right.custom_minimum_size.x = 132
-	right.add_theme_font_size_override("font_size", 12)
-	right.add_theme_color_override("font_color", INK_SECONDARY)
+	right.custom_minimum_size.x = 150
+	GameTheme.style_ink_label(right, true)
 	h.add_child(right)
 	simulate_room_list.add_child(row)
 
@@ -867,8 +852,7 @@ func _apply_picker_scroll_theme(scroll: ScrollContainer) -> void:
 	grab_hi.texture_margin_top = 5
 	grab_hi.texture_margin_right = 5
 	grab_hi.texture_margin_bottom = 5
-	scroll.add_theme_stylebox_override("panel", track)
-	scroll.add_theme_stylebox_override("bg", track)
+	scroll.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	var vbar := scroll.get_v_scroll_bar()
 	if vbar != null:
 		vbar.add_theme_stylebox_override("scroll", track)
@@ -927,6 +911,7 @@ func _nine_patch(node_name: String, path: String, margin: int, pos: Vector2, siz
 func _tex_rect(parent: Control, path: String, pos: Vector2, size: Vector2) -> TextureRect:
 	var tr := TextureRect.new()
 	tr.texture = _load_tex(path)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	tr.position = pos
 	tr.size = size
 	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -963,6 +948,42 @@ func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, 
 	return lbl
 
 
+## Silver 19 parchment line, centred in its row, trimmed instead of wrapping into a neighbour.
+func _line(parent: Control, node_name: String, pos: Vector2, sz: Vector2, muted: bool) -> Label:
+	var lbl := Label.new()
+	lbl.name = node_name
+	lbl.position = pos
+	lbl.size = sz
+	GameTheme.style_ink_label(lbl, muted)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	lbl.clip_text = true
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(lbl)
+	return lbl
+
+
+func _section(parent: Control, node_name: String, pos: Vector2, sz: Vector2) -> Label:
+	var lbl := Label.new()
+	lbl.name = node_name
+	lbl.position = pos
+	lbl.size = sz
+	_style_section(lbl)
+	parent.add_child(lbl)
+	return lbl
+
+
+## Column headings: Jersey 19 ink, as on the character sheet.
+func _style_section(lbl: Label) -> void:
+	lbl.add_theme_font_override("font", GameTheme.title_font())
+	lbl.add_theme_font_size_override("font_size", GameTheme.PLANK_SIZE)
+	lbl.add_theme_color_override("font_color", INK)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
 func _load_tex(path: String) -> Texture2D:
 	if path.begins_with(BOARD_DIR):
 		var file_name: String = path.substr(BOARD_DIR.length())
@@ -986,27 +1007,25 @@ func _load_tex(path: String) -> Texture2D:
 	return load(path) as Texture2D
 
 
+## The picker is a framed window over the party bed, so it never covers the Route column.
 func place_picker(slot_btn: Button) -> void:
-	if picker_popup == null or slot_btn == null:
+	if picker_popup == null or slot_btn == null or _panel == null:
 		return
-	var visible_rows: int = 0
+	var list_h: float = -PICKER_ROW_GAP
 	for row: Button in picker_rows:
 		if row.visible:
-			visible_rows += 1
-	var list_h: float = maxf(0.0, float(visible_rows) * (PICKER_ROW_H + PICKER_ROW_GAP) - PICKER_ROW_GAP)
+			list_h += maxf(PICKER_ROW_H, row.get_combined_minimum_size().y) + PICKER_ROW_GAP
+	list_h = maxf(list_h, 0.0)
 	var scroll_h: float = minf(list_h, PICKER_SCROLL_MAX_H)
-	var h: float = 34.0 + scroll_h
+	var h: float = minf(PICKER_CHROME_H + scroll_h, PICKER_POPUP_MAX_H)
 	if picker_scroll != null:
-		picker_scroll.custom_minimum_size = Vector2(220, scroll_h)
-		picker_scroll.size = Vector2(220, scroll_h)
-	var slot_centre_y: float = slot_btn.global_position.y + slot_btn.size.y * 0.5
-	var y: float = clampf(slot_btn.global_position.y - PICKER_Y_OFFSET, PICKER_CLAMP_TOP, PICKER_CLAMP_BOTTOM - h)
-	picker_popup.position = Vector2(slot_btn.global_position.x + 68.0, y)
+		picker_scroll.custom_minimum_size = Vector2(PICKER_ROW_W, scroll_h)
+		picker_scroll.size = Vector2(PICKER_ROW_W, scroll_h)
+	var origin: Vector2 = _panel.global_position - global_position
 	picker_popup.custom_minimum_size = Vector2(PICKER_POPUP_W, h)
 	picker_popup.size = Vector2(PICKER_POPUP_W, h)
-	picker_tail.position = Vector2(picker_popup.position.x - 6.0, slot_centre_y - 7.0)
-	picker_tail.size = Vector2(8, 14)
-	picker_tail.visible = true
+	picker_popup.position = origin + Vector2(PARTY_X, BODY_Y + 6.0)
+	picker_tail.visible = false
 	picker_popup.visible = true
 
 
