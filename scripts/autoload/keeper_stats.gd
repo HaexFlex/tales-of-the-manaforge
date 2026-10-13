@@ -102,7 +102,10 @@ func get_rank(stat_id: String) -> int:
 
 
 func get_max_rank() -> int:
-	return maxi(1, int(params.get("max_rank", 40)))
+	## Uncapped: cost curve continues at 100×1.65^rank with no purchase ceiling.
+	if params.has("max_rank"):
+		return maxi(1, int(params.get("max_rank", 1)))
+	return 1_000_000
 
 
 func power_per_rank() -> int:

@@ -142,6 +142,14 @@ func _on_resources(resource_id: StringName, _amount: int) -> void:
 		_refresh()
 
 
+func _stat_lines(sid: String) -> Dictionary:
+	var trained: int = KeeperStats.get_base(sid)
+	var total: int = trained
+	if has_node("/root/Equipment"):
+		total = Equipment.total_for(sid)
+	return {"trained": trained, "total": total}
+
+
 func _refresh() -> void:
 	var sid: String = String(stat_id)
 	var tint: Color = KeeperStats.stat_color(sid)
@@ -152,10 +160,19 @@ func _refresh() -> void:
 	if label == null:
 		return
 	var stat_name: String = KeeperStats.stat_display_name(sid)
+	var lines: Dictionary = _stat_lines(sid)
+	var stat_line: String = ContentStrings.get_text(
+		"runestone_stat_totals",
+		{"trained": lines.get("trained", 0), "total": lines.get("total", 0)},
+	)
 	if cost < 0:
-		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_maxed")]
+		label.text = "%s\n%s" % [stat_name, stat_line]
 	else:
-		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_cost", {"cost": cost})]
+		label.text = "%s\n%s\n%s" % [
+			stat_name,
+			stat_line,
+			ContentStrings.get_text("runestone_cost", {"cost": cost}),
+		]
 	label.visible = _hovered
 
 
@@ -243,8 +260,13 @@ func _refresh_open_confirm(sid: String) -> void:
 		return
 	_pending_stat = sid
 	var cost: int = KeeperStats.get_next_cost(sid)
+	var lines: Dictionary = _stat_lines(sid)
 	_title.text = ContentStrings.get_text("runestone_title")
 	_spend.text = ContentStrings.get_text("runestone_spend", {"stat": stat_name})
+	_hint.text = ContentStrings.get_text(
+		"runestone_stat_totals",
+		{"trained": lines.get("trained", 0), "total": lines.get("total", 0)},
+	)
 	if reason == "cant_afford":
 		_yes.disabled = true
 		_body.text = "%s\n%s" % [
@@ -254,7 +276,6 @@ func _refresh_open_confirm(sid: String) -> void:
 	else:
 		_yes.disabled = false
 		_body.text = ContentStrings.get_text("runestone_confirm", {"cost": maxi(cost, 0), "stat": stat_name})
-	_hint.text = ContentStrings.get_text("runestone_hint")
 	_bank.text = ContentStrings.get_text("runestone_bank_hint")
 	_panel.visible = true
 	_layer.visible = true
@@ -315,7 +336,11 @@ func _open_confirm(sid: String, stat_name: String, cost: int) -> void:
 	_title.text = ContentStrings.get_text("runestone_title")
 	_spend.text = ContentStrings.get_text("runestone_spend", {"stat": stat_name})
 	_body.text = ContentStrings.get_text("runestone_confirm", {"cost": cost, "stat": stat_name})
-	_hint.text = ContentStrings.get_text("runestone_hint")
+	var lines: Dictionary = _stat_lines(sid)
+	_hint.text = ContentStrings.get_text(
+		"runestone_stat_totals",
+		{"trained": lines.get("trained", 0), "total": lines.get("total", 0)},
+	)
 	_bank.text = ContentStrings.get_text("runestone_bank_hint")
 	_yes.text = ContentStrings.get_text("runestone_confirm_yes")
 	_no.text = ContentStrings.get_text("runestone_confirm_no")

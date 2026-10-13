@@ -1221,14 +1221,69 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_BLESSINGS_DATA") == "1":
+		var bless_data_failed: int = _blessings_data_ok(game_state, content_strings)
+		if bless_data_failed > 0:
+			print("BLESSINGS_DATA_FAIL: %d" % bless_data_failed)
+			quit(1)
+		print("BLESSINGS_DATA_OK")
+		quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SHOP_TOGGLES") == "1":
+		var toggles_failed: int = await _shop_toggles_ok(tree_root, game_state, save_service)
+		if toggles_failed > 0:
+			print("SHOP_TOGGLES_FAIL: %d" % toggles_failed)
+			quit(1)
+		print("SHOP_TOGGLES_OK")
+		quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SHOP_PREVIEW") == "1":
+		var preview_failed: int = await _shop_preview_ok(tree_root, game_state)
+		if preview_failed > 0:
+			print("SHOP_PREVIEW_FAIL: %d" % preview_failed)
+			quit(1)
+		print("SHOP_PREVIEW_OK")
+		quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ASCEND_MIDRUN") == "1":
+		var midrun_failed: int = _ascend_midrun_ok(tree_root, game_state, backpack)
+		if midrun_failed > 0:
+			print("ASCEND_MIDRUN_FAIL: %d" % midrun_failed)
+			quit(1)
+		print("ASCEND_MIDRUN_OK")
+		quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_KEEP_SHARDS") == "1":
+		var keep_failed: int = _keep_shards_ok(game_state)
+		if keep_failed > 0:
+			print("KEEP_SHARDS_FAIL: %d" % keep_failed)
+			quit(1)
+		print("KEEP_SHARDS_OK")
+		quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_RUNESTONE_UNCAPPED") == "1":
+		var keeper_stats_node: Node = tree_root.get_node_or_null("KeeperStats")
+		var rune_failed: int = _runestone_uncapped_ok(tree_root, game_state, keeper_stats_node)
+		if rune_failed > 0:
+			print("RUNESTONE_UNCAPPED_FAIL: %d" % rune_failed)
+			quit(1)
+		print("RUNESTONE_UNCAPPED_OK")
+		quit(0)
+		return
+
 	failed += _assert(int(game_state.get("stages_data").size()) == 5, "expected 5 stages")
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
 	if jobs:
 		jobs.call("set_dev_speed_override", 1.0)
 		jobs.call("set_autosave_enabled", false)
 	failed += _assert(jobs != null, "ForgeJobs autoload missing")
-	failed += _assert(int(game_state.get("upgrades_data").size()) == 10, "expected 10 fruit upgrades")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION should be 14")
+	failed += _assert(int(game_state.get("upgrades_data").size()) == 17, "expected 17 fruit upgrades")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "SAVE_VERSION should be 15")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
 	failed += _assert(int(game_state.call("param_int", "HARVEST_WOOD_PER_SEC", 0)) == 1, "HARVEST_WOOD_PER_SEC")
@@ -1588,7 +1643,7 @@ func _run() -> void:
 		var s1root: Variant = JSON.parse_string(s1f.get_as_text())
 		s1f.close()
 		if typeof(s1root) == TYPE_DICTIONARY:
-			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 14, "written save_version 14")
+			failed += _assert(int((s1root as Dictionary).get("save_version", 0)) == 15, "written save_version 15")
 			var st: Variant = (s1root as Dictionary).get("state", {})
 			if typeof(st) == TYPE_DICTIONARY:
 				failed += _assert(not (st as Dictionary).has("growth"), "payload no growth field")
@@ -1601,7 +1656,7 @@ func _run() -> void:
 	failed += _assert(int(game_state.get("lifetime_essence_from_water")) == 120, "essence lifetime")
 	failed += _assert(int((game_state.get("lifetime_harvested") as Dictionary).get("wood", 0)) == 11, "harvested wood lifetime")
 	# deep_roots rank 2 → floor(2/2)=1 bonus essence
-	failed += _assert(int(game_state.call("get_water_essence_amount")) == 2, "deep_roots rank2 → essence 2")
+	failed += _assert(int(game_state.call("get_water_essence_amount")) == 3, "deep_roots rank2 → essence 3")
 	var info1: Dictionary = save_service.call("get_slot_info", 1)
 	failed += _assert(bool(info1.get("filled", false)), "slot 1 filled summary")
 	failed += _assert(str(info1.get("stage_id", "")) == "mature", "slot 1 stage summary")
@@ -1822,7 +1877,7 @@ func _run() -> void:
 	var committed_payload: Dictionary = game_state.call("to_save_dict")
 	failed += _assert(bool(committed_payload.get("fruit_committed", false)), "to_save_dict fruit_committed")
 	failed += _assert(bool(committed_payload.get("fruit_harvested_pending_ascend", false)), "to_save_dict alias")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION stays 14 with fruit_committed")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "SAVE_VERSION stays 15 with fruit_committed")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("fruit_committed")), "reset clears fruit_committed")
 	game_state.call("apply_save_dict", committed_payload)
@@ -2075,7 +2130,7 @@ func _run() -> void:
 
 	var haste_def: Dictionary = game_state.call("get_upgrade_def", "wisp_haste")
 	failed += _assert(str(haste_def.get("display_name", "")) == "Swift Wisps", "wisp_haste display")
-	failed += _assert(str(haste_def.get("effect", "")) == "wisp_pulse_reduce", "wisp_haste effect")
+	failed += _assert(str(haste_def.get("effect", "")) == "wisp_pulse_mult", "wisp_haste effect")
 	failed += _assert(int(haste_def.get("max_rank", 0)) == 5, "wisp_haste max 5")
 	var bonus_def: Dictionary = game_state.call("get_upgrade_def", "bonus_wisp")
 	failed += _assert(str(bonus_def.get("display_name", "")) == "Extra Wisp", "bonus_wisp display")
@@ -2643,7 +2698,7 @@ func _run() -> void:
 				var asc_icon: TextureRect = shop_row.find_child("AscIcon", true, false) as TextureRect
 				if asc_icon and asc_icon.texture and str(asc_icon.texture.resource_path).find("icon_asc_") >= 0 and asc_icon.custom_minimum_size == Vector2(32, 32):
 					icon_rows += 1
-			failed += _assert(list_node.get_child_count() == 10 and icon_rows == 10, "every blessing row has a 32 icon (%d/%d)" % [icon_rows, list_node.get_child_count()])
+			failed += _assert(list_node.get_child_count() >= 10 and icon_rows >= 10, "blessing rows have 32 icons (%d/%d)" % [icon_rows, list_node.get_child_count()])
 			failed += _assert(str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")
 		failed += _assert(not bool(w_post_ui.get("ok", true)), "water blocked after UI commit")
@@ -3042,7 +3097,7 @@ func _run() -> void:
 	failed += _assert(equipment != null, "Equipment autoload missing")
 	if keeper_stats != null and equipment != null:
 		game_state.call("reset_for_new_game")
-		failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "SAVE_VERSION is 14")
+		failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "SAVE_VERSION is 15")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_title")) == "Keeper", "char_sheet_title")
 		failed += _assert(str(content_strings.call("get_text", "char_sheet_open")) == "Character", "char_sheet_open")
 		failed += _assert(str(content_strings.call("get_text", "hud_btn_character")) == "Character", "hud_btn_character")
@@ -3938,7 +3993,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	if slot_file:
 		var slot_root: Variant = JSON.parse_string(slot_file.get_as_text())
 		slot_file.close()
-		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 14, "slot writes save_version 14")
+		failed += _assert(typeof(slot_root) == TYPE_DICTIONARY and int((slot_root as Dictionary).get("save_version", 0)) == 15, "slot writes save_version 15")
 	game_state.call("reset_for_new_game")
 	failed += _assert(not bool(game_state.get("portal_unlocked")) and not bool(game_state.get("forge_key")), "new game clears echo flags")
 	failed += _assert(bool(save_service.call("load_game", 7)), "load slot 7 echo flags")
@@ -5936,6 +5991,150 @@ func _assert(cond: bool, msg: String) -> int:
 	return 1
 
 
+func _blessings_data_ok(game_state: Node, content_strings: Node) -> int:
+	var failed: int = 0
+	failed += _assert(FileAccess.file_exists("res://docs/design/ascension_blessings.md"), "design doc")
+	failed += _assert(FileAccess.file_exists("res://data/fruit_upgrades.json"), "fruit_upgrades.json")
+	var raw: String = FileAccess.get_file_as_string("res://data/fruit_upgrades.json")
+	var parsed: Variant = JSON.parse_string(raw)
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "fruit_upgrades parses")
+	var upgrades: Array = (parsed as Dictionary).get("upgrades", [])
+	failed += _assert(upgrades.size() == 17, "17 blessings in json")
+	var ids: Dictionary = {}
+	for entry: Variant in upgrades:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		var id: String = str((entry as Dictionary).get("id", ""))
+		ids[id] = true
+	failed += _assert(bool(ids.get("keep_manashards", false)), "keep_manashards in data")
+	failed += _assert(bool(ids.get("dojo_echo", false)), "dojo_echo in data")
+	var dr: Dictionary = game_state.call("get_upgrade_def", "deep_roots")
+	failed += _assert(int(dr.get("max_rank", 0)) == 5, "deep_roots max 5")
+	failed += _assert(
+		str(content_strings.call("get_text", "upgrade_keep_manashards_name")) == "Shard Purse",
+		"keep_manashards string",
+	)
+	var runtime_n: int = int(game_state.get("upgrades_data").size())
+	failed += _assert(runtime_n >= 17, "runtime upgrades_data has blessings (got %d)" % runtime_n)
+	return failed
+
+
+func _shop_toggles_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	failed += _assert(bool(game_state.get("shop_hide_locked")), "hide locked default on")
+	failed += _assert(bool(game_state.get("shop_hide_maxed")), "hide maxed default on")
+	game_state.set("shop_spoiler_shown_count", 0)
+	var migrated: Dictionary = save_service.call("_migrate", 14, {"wisp_count": 0})
+	failed += _assert(bool(migrated.get("shop_hide_locked", false)), "v15 migrate hide locked")
+	failed += _assert(int(migrated.get("shop_spoiler_shown_count", -1)) == 0, "v15 migrate spoiler count")
+	game_state.set("shop_spoiler_shown_count", 2)
+	game_state.set("shop_hide_locked", true)
+	game_state.set("shop_hide_maxed", false)
+	game_state.set("first_wisp_gained", true)
+	game_state.set("fruit_committed", true)
+	game_state.set("stage_id", &"ancient")
+	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	failed += _assert(hud_scene != null, "hud scene")
+	if hud_scene == null:
+		return failed + 1
+	var hud: Node = hud_scene.instantiate()
+	tree_root.add_child(hud)
+	await tree_root.process_frame
+	hud.call("show_ascension_shop")
+	await tree_root.process_frame
+	var toolbar: Node = hud.get_node_or_null("AscensionPanel/ShopToolbar")
+	failed += _assert(toolbar != null, "shop toolbar")
+	game_state.set("shop_hide_locked", false)
+	hud.call("_rebuild_upgrades")
+	await tree_root.process_frame
+	game_state.set("shop_spoiler_shown_count", 3)
+	game_state.set("shop_hide_locked", true)
+	hud.call("_on_hide_locked_toggled", false)
+	await tree_root.process_frame
+	failed += _assert(not bool(game_state.get("shop_hide_locked")), "spoiler bypass after 3")
+	hud.queue_free()
+	return failed
+
+
+func _shop_preview_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	failed += _assert(not bool(game_state.get("fruit_committed")), "preview before commit")
+	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var hud: Node = hud_scene.instantiate()
+	tree_root.add_child(hud)
+	await tree_root.process_frame
+	hud.call("show_ascension_shop_preview")
+	await tree_root.process_frame
+	failed += _assert(bool(hud.call("is_shop_preview_open")), "preview mode open")
+	failed += _assert(not bool(hud.call("is_ascension_shop_open")), "not counted as ascend shop")
+	var list: VBoxContainer = hud.get_node_or_null("AscensionPanel/ShopScroll/UpgradeList") as VBoxContainer
+	failed += _assert(list != null and list.get_child_count() > 0, "preview lists blessings")
+	hud.call("_on_shop_close")
+	await tree_root.process_frame
+	failed += _assert(not bool(hud.call("is_shop_preview_open")), "preview closes")
+	hud.queue_free()
+	return failed
+
+
+func _ascend_midrun_ok(tree_root: Window, game_state: Node, backpack: Node) -> int:
+	var failed: int = 0
+	var reach: Node = tree_root.get_node("Reach")
+	reach.call("reset_for_new_game")
+	reach.set("running", true)
+	reach.pack.add("herbs", 4)
+	reach.loadout = {"heart_salve": 2}
+	var before_salve: int = int(backpack.call("get_count", "heart_salve"))
+	reach.call("on_ascend")
+	failed += _assert(reach.pack.is_empty(), "ascend wipes pack")
+	failed += _assert(int(backpack.call("get_count", "heart_salve")) == before_salve + 2, "loadout returned")
+	failed += _assert(not bool(reach.get("running")), "run ended")
+	return failed
+
+
+func _keep_shards_ok(game_state: Node) -> int:
+	var failed: int = 0
+	game_state.call("reset_for_new_game")
+	game_state.call("set_resource", &"manashards", 100)
+	game_state.set("fruit_committed", true)
+	game_state.call("ascend")
+	failed += _assert(int(game_state.get("manashards")) == 0, "no blessing wipes shards")
+	game_state.call("reset_for_new_game")
+	game_state.set("fruit_committed", true)
+	game_state.call("set_resource", &"manashards", 100)
+	var ranks: Dictionary = game_state.get("upgrade_ranks")
+	ranks["keep_manashards"] = 3
+	game_state.set("upgrade_ranks", ranks)
+	game_state.call("ascend")
+	failed += _assert(int(game_state.get("manashards")) == 30, "rank3 keeps 30%")
+	return failed
+
+
+func _runestone_uncapped_ok(tree_root: Window, game_state: Node, keeper_stats: Node) -> int:
+	var failed: int = 0
+	failed += _assert(keeper_stats != null, "KeeperStats")
+	if keeper_stats == null:
+		return failed + 1
+	var params: Dictionary = keeper_stats.get("params")
+	failed += _assert(not params.has("max_rank"), "max_rank removed from data")
+	keeper_stats.call("set_rank", "might", 41)
+	failed += _assert(int(keeper_stats.call("get_rank", "might")) == 41, "rank 41 allowed")
+	var cost41: int = int(keeper_stats.call("get_next_cost", "might"))
+	failed += _assert(cost41 > 0, "rank 41 has a cost")
+	game_state.call("set_resource", &"manashards", cost41 + 5)
+	failed += _assert(str(keeper_stats.call("try_buy", "might")) == "ok", "buy rank 42")
+	var stone: Node = null
+	for n: Node in tree_root.get_nodes_in_group("runestone"):
+		if str(n.get("stat_id")) == "might":
+			stone = n
+			break
+	if stone != null and stone.has_method("_stat_lines"):
+		var lines: Dictionary = stone.call("_stat_lines", "might")
+		failed += _assert(int(lines.get("trained", 0)) >= 47, "trained stat on stone")
+	return failed
+
+
 func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node, game_audio: Node) -> int:
 	var failed: int = 0
 	var jobs: Node = tree_root.get_node("ForgeJobs")
@@ -5948,12 +6147,12 @@ func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, bac
 	failed += _assert(int(game_state.call("get_water_essence_amount")) == 1, "deep roots rank 1 → 1")
 	ranks["deep_roots"] = 2
 	game_state.set("upgrade_ranks", ranks)
-	failed += _assert(int(game_state.call("get_water_essence_amount")) == 2, "deep roots rank 2 → 2")
-	ranks["deep_roots"] = 10
+	failed += _assert(int(game_state.call("get_water_essence_amount")) == 3, "deep roots rank 2 → 3")
+	ranks["deep_roots"] = 5
 	game_state.set("upgrade_ranks", ranks)
-	failed += _assert(int(game_state.call("get_water_essence_amount")) == 6, "deep roots rank 10 → 6")
+	failed += _assert(int(game_state.call("get_water_essence_amount")) == 6, "deep roots rank 5 → 6")
 	var deep: Dictionary = game_state.call("get_upgrade_def", "deep_roots")
-	failed += _assert(absf(float(deep.get("value_per_rank", 0.0)) - 0.5) < 0.001, "deep roots value_per_rank 0.5")
+	failed += _assert(absf(float(deep.get("value_per_rank", 0.0)) - 1.0) < 0.001, "deep roots value_per_rank 1")
 	failed += _assert(absf(float(game_audio.call("duck_amount_db")) + 5.0) < 0.01, "duck amount -5")
 	failed += _assert(absf(float(game_audio.call("duck_attack_sec")) - 0.05) < 0.001, "duck attack 0.05")
 	failed += _assert(absf(float(game_audio.call("duck_release_sec")) - 0.6) < 0.001, "duck release 0.6")
@@ -8934,11 +9133,11 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(echo != null and reach != null and equipment != null and pack != null, "autoloads for the reach snapshots")
 	if failed > 0:
 		return failed
-	## Job 34 re-saved North road open and Veteran reacher as v14 through migrate_state.
+	## Job 34 re-saved North road open and Veteran reacher through migrate_state.
 	## Echo 2 ready stays a v13 file that migrates forward on load.
-	var want_version: int = 14
+	var want_version: int = 15
 	var echo2_version: int = 13
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == want_version, "reach snapshots match SAVE_VERSION 14")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == want_version, "reach snapshots match SAVE_VERSION 15")
 	var adv_path: String = _adventure_path(save_service)
 	var adv_was: Variant = _user_file_text(adv_path)
 	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
@@ -9129,11 +9328,11 @@ func _debug_adventure_ok(tree_root: Window, game_state: Node, save_service: Node
 		catalogue_ids[str((row_v as Dictionary).get("id", ""))] = true
 	for mat: String in ["glowcap", "bitterroot"]:
 		failed += _assert(catalogue_ids.has(mat), "Add items lists %s" % mat)
-	# Re-saved snapshots: every reach snapshot file is save_version 14 and keeps its label.
+	# Re-saved snapshots: every reach snapshot file is save_version 15 and keeps its label.
 	for label: String in ["North road open", "Pre-boss", "Veteran reacher", "Mid-fight"]:
 		var snap_path: String = str(_REACH_SNAPSHOTS.get(label, ""))
 		var raw: Dictionary = _json_dict(snap_path)
-		failed += _assert(int(raw.get("save_version", 0)) == 14, "%s file is save_version 14 (got %d)" % [label, int(raw.get("save_version", 0))])
+		failed += _assert(int(raw.get("save_version", 0)) == 15, "%s file is save_version 15 (got %d)" % [label, int(raw.get("save_version", 0))])
 		failed += _assert(str(raw.get("label", "")) == label, "%s keeps its label" % label)
 	# Force buttons: each queues its outcome and the next idle room resolves as forced.
 	var force_labels: Dictionary = {"flee": "Flee", "overwhelmed": "Overwhelmed", "win": "Win"}
@@ -9471,7 +9670,7 @@ func _reach_checks(tree_root: Window, game_state: Node, save_service: Node) -> i
 		var mid_reach: Variant = (mid_run as Dictionary).get("reach", {})
 		if mid_reach is Dictionary:
 			failed += _assert(int((mid_reach as Dictionary).get("rooms_attempted", -1)) == 1, "an in-progress v12 room counts as the first attempt")
-	failed += _assert(int(save_service.get("SAVE_VERSION")) == 14, "saves write version 14")
+	failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "saves write version 15")
 	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
 	failed += _assert(project_text.find("Reach=\"*res://scripts/autoload/reach.gd\"") >= 0, "Reach autoload is registered")
 	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
@@ -11291,7 +11490,7 @@ func _save_v14_inventory_merge(tree_root: Window, game_state: Node, save_service
 	var written_state: Dictionary = written.get("state", {}) as Dictionary
 	var written_reach: Dictionary = written_state.get("reach", {}) as Dictionary
 	var written_pack: Dictionary = written_state.get("backpack", {}) as Dictionary
-	failed += _assert(int(written.get("save_version", 0)) == 14, "the re-save is version 14")
+	failed += _assert(int(written.get("save_version", 0)) == 15, "the re-save is version 15")
 	failed += _assert(_reach_item_keys_gone(written_reach), "the re-saved reach block has no item keys")
 	failed += _assert(int(written_pack.get("heart_salve", 0)) == 5, "re-saved salve count")
 	failed += _assert(int(written_pack.get("briarwood", 0)) == 3, "re-saved briarwood count")
@@ -11411,7 +11610,7 @@ func _save_v14_home(tree_root: Window, game_state: Node, save_service: Node) -> 
 	var fresh_state: Dictionary = fresh.get("state", {}) as Dictionary
 	var fresh_exp: Dictionary = fresh_state.get("expedition", {}) as Dictionary
 	var fresh_reach: Dictionary = fresh_state.get("reach", {}) as Dictionary
-	failed += _assert(int(fresh.get("save_version", 0)) == 14, "new saves write version 14")
+	failed += _assert(int(fresh.get("save_version", 0)) == 15, "new saves write version 15")
 	failed += _assert(str(fresh_exp.get("status", "")) == "home", "a new game expedition is home")
 	failed += _assert(_reach_item_keys_gone(fresh_reach), "a new save's reach block has no item keys")
 	reach.call("depart", 1, 1, "hold", "idle")

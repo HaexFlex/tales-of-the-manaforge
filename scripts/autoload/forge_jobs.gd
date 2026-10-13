@@ -1800,7 +1800,10 @@ func _inputs(recipe: Dictionary) -> Dictionary:
 
 
 func _duration(recipe: Dictionary) -> float:
-	return maxf(float(recipe.get("duration_sec", 1.0)), 0.05)
+	var base: float = maxf(float(recipe.get("duration_sec", 1.0)), 0.05)
+	if has_node("/root/GameState"):
+		return base * GameState.forge_warmth_mult()
+	return base
 
 
 func _recipe(recipe_id: String) -> Dictionary:
