@@ -547,7 +547,7 @@ func _core_loop() -> void:
 	await _wait_arrive(keeper, rune.global_position, 360)
 	await process_frame
 	await process_frame
-	var yes_btn: Button = root.get_node_or_null("RunestoneConfirm/Panel/Yes") as Button
+	var yes_btn: Button = rune.get_parent().get_node_or_null("RunestoneConfirm/Panel/Yes") as Button
 	_check("3 runestone confirm opens", yes_btn != null and yes_btn.visible)
 	_shot("pt_runestone_confirm.png")
 	if yes_btn:

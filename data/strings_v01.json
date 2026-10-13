@@ -422,6 +422,8 @@
   "runestone_cant_afford": "Not enough Manashards",
   "runestone_cost": "{cost} Manashards",
   "runestone_maxed": "Fully raised for now",
+  "runestone_next_raise": "Next raise",
+  "runestone_have": "You have {count} Manashards",
   "equip_slot_weapon": "Weapon",
   "equip_slot_relic": "Relic",
   "equip_slot_head": "Head",

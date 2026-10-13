@@ -3580,7 +3580,7 @@ func _run() -> void:
 			game_state.call("set_resource", &"manashards", 0)
 			failed += _assert(str(might_stone.call("begin_spend")) == "cant_afford", "poor keeper still sees the confirm")
 			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm stays open when short")
-			var poor_body: Label = might_stone.get_tree().root.get_node_or_null("RunestoneConfirm/Panel/Body") as Label
+			var poor_body: Label = might_stone.get_parent().get_node_or_null("RunestoneConfirm/Panel/Body") as Label
 			failed += _assert(poor_body != null and str(poor_body.text).find("Not enough") >= 0, "confirm says not enough")
 			might_stone.call("cancel_spend")
 			game_state.call("set_resource", &"manashards", 100)
@@ -3588,7 +3588,7 @@ func _run() -> void:
 			failed += _assert(bool(might_stone.call("is_spend_confirm_open")), "confirm panel visible")
 			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 0, "confirm does not spend yet")
 			failed += _assert(int(keeper_stats.call("get_base", "might")) == 5, "confirm sheet base is still 5")
-			var bank_lbl: Label = might_stone.get_tree().root.get_node_or_null("RunestoneConfirm/Panel/Bank") as Label
+			var bank_lbl: Label = might_stone.get_parent().get_node_or_null("RunestoneConfirm/Panel/Bank") as Label
 			failed += _assert(bank_lbl != null and str(bank_lbl.text).find("Ascension") >= 0, "confirm shows bank hint")
 			failed += _assert(str(might_stone.call("confirm_spend")) == "ok", "confirm raises the stat")
 			failed += _assert(int(keeper_stats.call("get_rank", "might")) == 1, "confirm spend raises might by 1")
