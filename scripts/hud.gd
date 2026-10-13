@@ -1705,12 +1705,42 @@ func _style_party_label(label: Label, size: int, color: Color) -> void:
 
 func _set_party_outline(slot: Control, selected: bool) -> void:
 	var frame := slot.get_node("Frame") as Panel
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0)
-	style.border_color = Color8(143, 227, 230)
-	style.set_border_width_all(2 if selected else 0)
-	style.set_expand_margin_all(2.0)
-	frame.add_theme_stylebox_override("panel", style)
+	frame.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	var glow: Control = slot.get_node_or_null("SelectGlow") as Control
+	if glow == null:
+		glow = Control.new()
+		glow.name = "SelectGlow"
+		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		glow.position = Vector2(-6, -6)
+		glow.size = Vector2(PARTY_SLOT + 12.0, PARTY_SLOT + 12.0)
+		glow.z_index = 2
+		glow.draw.connect(_draw_party_glow.bind(glow))
+		slot.add_child(glow)
+	glow.visible = selected
+	glow.queue_redraw()
+
+
+func _draw_party_glow(glow: Control) -> void:
+	## Square ring plus an ordered dither that falls off by 6 px.
+	var ink := Color8(143, 227, 230)
+	var inner := Rect2(Vector2(6, 6), Vector2(PARTY_SLOT, PARTY_SLOT))
+	glow.draw_rect(inner, ink, false, 2.0)
+	for d: int in range(1, 7):
+		var alpha: float = 0.55 * (1.0 - float(d) / 6.0)
+		var x0: int = 6 - d
+		var y0: int = 6 - d
+		var x1: int = 6 + int(PARTY_SLOT) + d
+		var y1: int = 6 + int(PARTY_SLOT) + d
+		for x: int in range(x0, x1):
+			for y: int in range(y0, y1):
+				var edge: bool = x == x0 or x == x1 - 1 or y == y0 or y == y1 - 1
+				if not edge:
+					continue
+				if ((x + y) & 1) != (d & 1):
+					continue
+				var px := ink
+				px.a = alpha
+				glow.draw_rect(Rect2(Vector2(x, y), Vector2.ONE), px, true)
 
 
 func _set_party_away_visual(slot: Control, away: bool) -> void:
