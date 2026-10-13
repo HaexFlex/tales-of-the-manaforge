@@ -601,6 +601,24 @@ func _ensure_help_panel() -> void:
 	_layout_help_panel()
 
 
+func _make_help_row(row: Dictionary) -> HBoxContainer:
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 12)
+	line.custom_minimum_size = Vector2(0, 28)
+	var key_lbl := Label.new()
+	key_lbl.custom_minimum_size = Vector2(140, 24)
+	key_lbl.text = "[%s]" % str(row.get("key", ""))
+	GameTheme.style_body_label(key_lbl)
+	var act_lbl := Label.new()
+	act_lbl.text = str(row.get("action", ""))
+	act_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	act_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	GameTheme.style_body_label(act_lbl)
+	line.add_child(key_lbl)
+	line.add_child(act_lbl)
+	return line
+
+
 func _help_rows() -> Array[Dictionary]:
 	if _help_tab == "phone":
 		return [
