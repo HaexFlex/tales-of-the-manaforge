@@ -83,6 +83,8 @@ const BEAST_HURT: Dictionary = {
 ## Feet on row 123, cluster centred on x 63.5, facing west. There is no 0-bug frame.
 const MOSSMITE_ID: String = "foe_mossmite"
 const MOSSMITE_FRAME: String = ART_DIR + "mossmite/battle_mossmite_%d_%s.png"
+## One gnat is an 11 px mark in the 128 frame. Scale the frame until the cluster is readable.
+const SWARM_MIN_CLUSTER: float = 32.0
 
 static func mossmite_sprite_path(bugs: int, pose: String) -> String:
 	var n: int = clampi(bugs, 1, 10)
@@ -588,8 +590,10 @@ func _finish_fighter_root(root: Control) -> void:
 	var sprite: Control = root.get_node_or_null("Sprite") as Control
 	var local := Rect2(-FIGHTER_SOLE, FIGHTER_FRAME)
 	if sprite is TextureRect and (sprite as TextureRect).texture != null:
-		var used: Rect2 = texture_used_rect((sprite as TextureRect).texture)
-		local = Rect2(sprite.position + used.position, used.size)
+		var drawn: TextureRect = sprite as TextureRect
+		var scale: float = drawn.size.x / FIGHTER_FRAME.x if FIGHTER_FRAME.x > 0.0 else 1.0
+		var used: Rect2 = texture_used_rect(drawn.texture)
+		local = Rect2(drawn.position + used.position * scale, used.size * scale)
 	elif sprite != null:
 		local = Rect2(sprite.position, sprite.size)
 	root.set_meta("visible_rect", Rect2(root.position + local.position, local.size))
@@ -1011,8 +1015,7 @@ func _build_beast_sprite(root: Control, species: String, bugs: int = -1, swarm: 
 			swarm_sprite.name = "Sprite"
 			swarm_sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			swarm_sprite.texture = load(path) as Texture2D
-			swarm_sprite.size = FIGHTER_FRAME
-			swarm_sprite.position = -FIGHTER_SOLE
+			_place_swarm_sprite(swarm_sprite)
 			root.add_child(swarm_sprite)
 			root.set_meta("pose", "idle")
 			root.set_meta("sprite_path", path)
@@ -1687,11 +1690,27 @@ func _set_swarm_pose(root: Node, fighter_id: String, pose: String) -> bool:
 	if tex == null:
 		return false
 	sprite.texture = tex
-	sprite.size = FIGHTER_FRAME
-	sprite.position = -FIGHTER_SOLE
+	_place_swarm_sprite(sprite)
 	root.set_meta("pose", pose)
 	root.set_meta("sprite_path", path)
+	if root is Control:
+		_finish_fighter_root(root as Control)
 	return true
+
+
+func _place_swarm_sprite(sprite: TextureRect) -> void:
+	## Feet stay on FIGHTER_SOLE. A one-bug frame is scaled up so the gnat is visible.
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sprite.stretch_mode = TextureRect.STRETCH_SCALE
+	var scale: float = 1.0
+	if sprite.texture != null:
+		var used: Rect2 = texture_used_rect(sprite.texture)
+		var cluster: float = minf(used.size.x, used.size.y)
+		if cluster > 0.0 and cluster < SWARM_MIN_CLUSTER:
+			scale = SWARM_MIN_CLUSTER / cluster
+	sprite.size = FIGHTER_FRAME * scale
+	sprite.position = -FIGHTER_SOLE * scale
 
 
 func _swarm_bugs_now(fighter_id: String) -> int:
@@ -2061,6 +2080,7 @@ func _build_test_fight_bar() -> void:
 	var depth_label := Label.new()
 	depth_label.name = "DepthLabel"
 	depth_label.text = "Depth"
+	depth_label.visible = false
 	depth_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_style_plate_name(depth_label)
 	depth_label.add_to_group("battle_ui")
@@ -2153,6 +2173,11 @@ func _sync_start_fight_action() -> void:
 	var idle_view: bool = _fight == null or _fight.outcome() != ""
 	_start_fight_button.visible = idle_view and not _reach_mode
 	_start_fight_button.disabled = not idle_view
+	## The test bar (depth spinner, boss, Elaia) is the pre-fight setup. The plank keeps Depth.
+	if _test_fight_bar != null:
+		_test_fight_bar.visible = not _reach_mode and idle_view
+	if _side_actions != null:
+		_side_actions.position = _side_actions_pos(_test_fight_bar != null and _test_fight_bar.visible)
 
 
 func _build_speed_bar() -> void:
@@ -2652,7 +2677,9 @@ func _show_action_menu(actor_id: String) -> void:
 	if _side_actions != null:
 		_side_actions.visible = true
 	if _idle_button != null:
-		_idle_button.visible = choosing
+		## The test fight's Idle chip is part of the setup bar, not a mid-fight control.
+		var test_live: bool = not _reach_mode and _fight != null and _fight.outcome() == ""
+		_idle_button.visible = choosing and not test_live
 	_cancel_target_button.visible = not choosing
 	_refresh_idle_button()
 	if _strike_for_me_toggle != null:
