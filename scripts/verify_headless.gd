@@ -1309,7 +1309,8 @@ func _run() -> void:
 		jobs.call("set_dev_speed_override", 1.0)
 		jobs.call("set_autosave_enabled", false)
 	failed += _assert(jobs != null, "ForgeJobs autoload missing")
-	failed += _assert(int(game_state.get("upgrades_data").size()) == 17, "expected 17 fruit upgrades")
+	var runtime_upgrade_ids: Array = (game_state.get("upgrades_data") as Array).map(func(u: Variant) -> String: return str((u as Dictionary).get("id", "")))
+	failed += _assert(runtime_upgrade_ids.size() == 18 and runtime_upgrade_ids.back() == "keep_forge_intermediates", "17 fruit blessings plus the Forge's Keep Forge Materials (got %s)" % [runtime_upgrade_ids])
 	failed += _assert(int(save_service.get("SAVE_VERSION")) == 15, "SAVE_VERSION should be 15")
 	failed += _assert(int(save_service.get("SAVE_SLOT_COUNT")) == 7, "SAVE_SLOT_COUNT should be 7")
 	failed += _assert(not (game_state.get("params") as Dictionary).has("WATER_GROWTH"), "WATER_GROWTH removed")
@@ -2208,10 +2209,19 @@ func _run() -> void:
 	var ranks_h: Dictionary = game_state.get("upgrade_ranks")
 	ranks_h["wisp_haste"] = 3
 	game_state.set("upgrade_ranks", ranks_h)
-	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 14.0) < 0.01, "haste rank3 → 14s")
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 15.2) < 0.01, "haste rank3 → 20 × (1 − 0.24) = 15.2s")
 	ranks_h["wisp_haste"] = 5
 	game_state.set("upgrade_ranks", ranks_h)
+	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 12.0) < 0.01, "haste rank5 → 12s")
+	var haste_params: Dictionary = game_state.get("params")
+	var pulse_base_had: bool = haste_params.has("WISP_PULSE_SEC")
+	var pulse_base_was: Variant = haste_params.get("WISP_PULSE_SEC")
+	haste_params["WISP_PULSE_SEC"] = 12.0
 	failed += _assert(abs(float(game_state.call("get_wisp_pulse_sec")) - 10.0) < 0.01, "haste min 10s")
+	if pulse_base_had:
+		haste_params["WISP_PULSE_SEC"] = pulse_base_was
+	else:
+		haste_params.erase("WISP_PULSE_SEC")
 	# Unassign
 	failed += _assert(bool(game_state.call("unassign_wisp", 0)), "unassign")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "", "cleared assignment")
@@ -2251,6 +2261,8 @@ func _run() -> void:
 	failed += _assert(int(game_state.call("get_upgrade_cost", "wisp_haste")) == 400, "wisp_haste cost 400")
 	failed += _assert(int(game_state.call("get_upgrade_cost", "bonus_wisp")) == 400, "bonus_wisp cost 400")
 	game_state.call("set_resource", &"manashards", 400)
+	failed += _assert(not bool(game_state.call("buy_upgrade", "bonus_wisp")), "bonus_wisp locked before the first Wisp")
+	game_state.set("first_wisp_gained", true)
 	failed += _assert(bool(game_state.call("buy_upgrade", "bonus_wisp")), "buy bonus_wisp")
 	failed += _assert(int(game_state.call("get_upgrade_rank", "bonus_wisp")) == 1, "bonus_wisp rank 1")
 
@@ -2729,11 +2741,27 @@ func _run() -> void:
 					described += 1
 			failed += _assert(described == list_node.get_child_count(), "each blessing row has tooltip desc (%d/%d)" % [described, list_node.get_child_count()])
 			var icon_rows: int = 0
+			var blessing_rows: int = 0
 			for shop_row: Node in list_node.get_children():
+				if str(shop_row.name).begins_with("Summary"):
+					continue
+				blessing_rows += 1
 				var asc_icon: TextureRect = shop_row.find_child("AscIcon", true, false) as TextureRect
 				if asc_icon and asc_icon.texture and str(asc_icon.texture.resource_path).find("icon_asc_") >= 0 and asc_icon.custom_minimum_size == Vector2(32, 32):
 					icon_rows += 1
-			failed += _assert(list_node.get_child_count() >= 10 and icon_rows >= 10, "blessing rows have 32 icons (%d/%d)" % [icon_rows, list_node.get_child_count()])
+			var shown_want: int = 0
+			var locked_want: int = 0
+			for upgrade_v: Variant in game_state.get("upgrades_data"):
+				var upgrade_id: String = str((upgrade_v as Dictionary).get("id", ""))
+				var maxed_now: bool = int(game_state.call("get_upgrade_rank", upgrade_id)) >= int(game_state.call("upgrade_max_rank", upgrade_id))
+				if bool(game_state.get("shop_hide_maxed")) and maxed_now:
+					continue
+				if bool(game_state.get("shop_hide_locked")) and not bool(game_state.call("is_upgrade_unlocked", upgrade_id)) and upgrade_id != "party_banner":
+					locked_want += 1
+					continue
+				shown_want += 1
+			failed += _assert(blessing_rows == shown_want and icon_rows == shown_want, "every shown blessing row has its 32 icon (%d/%d, want %d)" % [icon_rows, blessing_rows, shown_want])
+			failed += _assert((list_node.get_node_or_null("SummaryLocked") != null) == (locked_want > 0), "hidden locked blessings collapse into one summary row (%d hidden)" % locked_want)
 			failed += _assert(str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")
 		failed += _assert(not bool(w_post_ui.get("ok", true)), "water blocked after UI commit")
@@ -2892,6 +2920,8 @@ func _run() -> void:
 		failed += _assert(asc_art.ends_with("icon_asc_%s.png" % asc_id), "ascension icon %s" % asc_id)
 	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools unaffordable at 0 shards")
 	game_state.call("set_resource", &"manashards", 4000)
+	failed += _assert(not bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools locked before the first tool is crafted")
+	game_state.set("first_tool_crafted", true)
 	failed += _assert(bool(game_state.call("can_buy_upgrade", "keep_tools")), "Keep Tools affordable at 4000")
 	if int(game_state.call("get_upgrade_cost", "keep_tools")) == 4000 and str(content_strings.call("get_text", "upgrade_keep_tools_cost_default")).find("4000") >= 0 and bool(game_state.call("can_buy_upgrade", "keep_tools")):
 		print("KEEP_TOOLS_COST_OK")
@@ -6261,7 +6291,7 @@ func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, bac
 	var ranks: Dictionary = game_state.get("upgrade_ranks")
 	ranks["deep_roots"] = 1
 	game_state.set("upgrade_ranks", ranks)
-	failed += _assert(int(game_state.call("get_water_essence_amount")) == 1, "deep roots rank 1 → 1")
+	failed += _assert(int(game_state.call("get_water_essence_amount")) == 2, "deep roots rank 1 → 2")
 	ranks["deep_roots"] = 2
 	game_state.set("upgrade_ranks", ranks)
 	failed += _assert(int(game_state.call("get_water_essence_amount")) == 3, "deep roots rank 2 → 3")

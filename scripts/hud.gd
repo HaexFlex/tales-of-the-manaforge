@@ -4410,6 +4410,7 @@ func _shop_price(cost: int) -> HBoxContainer:
 
 func _shop_summary_row(text: String, locked: bool) -> PanelContainer:
 	var row := PanelContainer.new()
+	row.name = "SummaryLocked" if locked else "SummaryComplete"
 	row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 	row.add_theme_stylebox_override("panel", _shop_row_style())
 	row.tooltip_text = text
