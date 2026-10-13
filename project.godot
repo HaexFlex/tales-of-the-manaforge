@@ -30,6 +30,8 @@ GameInput="*res://scripts/autoload/game_input.gd"
 
 [display]
 
+mouse_cursor/custom_image="res://assets/ui/theme/pointer_12x17.png"
+mouse_cursor/custom_image_hotspot=Vector2i(0, 0)
 window/size/viewport_width=960
 window/size/viewport_height=540
 window/size/window_width_override=960
@@ -37,6 +39,10 @@ window/size/window_height_override=540
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/stretch/scale_mode="integer"
+
+[gui]
+
+theme/custom="res://assets/ui/manaforge_theme.tres"
 
 [layer_names]
 
