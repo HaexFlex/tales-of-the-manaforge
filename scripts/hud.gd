@@ -158,6 +158,8 @@ var _hide_maxed_toggle: CheckButton
 var _blessings_preview_button: Button
 var _spoiler_dialog: PanelContainer
 var _spoiler_pending_unlock: bool = false
+var _welcome_dismiss_ready: bool = false
+var _welcome_delay_tween: Tween
 const TOAST_HOLD_SEC: float = 2.6
 const TOAST_FADE_SEC: float = 0.8
 
@@ -551,8 +553,20 @@ func show_welcome() -> void:
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")
 	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
 	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
+	_welcome_dismiss_ready = false
+	welcome_dismiss_button.disabled = true
+	if _welcome_delay_tween != null and is_instance_valid(_welcome_delay_tween):
+		_welcome_delay_tween.kill()
+	_welcome_delay_tween = create_tween()
+	_welcome_delay_tween.tween_interval(1.5)
+	_welcome_delay_tween.tween_callback(_enable_welcome_dismiss)
 	welcome_panel.visible = true
 	GameAudio.play_ui_open()
+
+
+func _enable_welcome_dismiss() -> void:
+	_welcome_dismiss_ready = true
+	welcome_dismiss_button.disabled = false
 
 
 func hide_welcome() -> void:
@@ -560,6 +574,8 @@ func hide_welcome() -> void:
 
 
 func _on_welcome_dismiss() -> void:
+	if not _welcome_dismiss_ready:
+		return
 	GameState.welcome_shown = true
 	hide_welcome()
 	GameAudio.play_ui_confirm()
@@ -2388,6 +2404,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key: InputEventKey = event
 	if not key.pressed or key.echo:
+		return
+	if welcome_panel.visible:
+		get_viewport().set_input_as_handled()
 		return
 	if BattleView.is_open():
 		return

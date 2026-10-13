@@ -1266,6 +1266,15 @@ func _run() -> void:
 		quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_INTRO_TEXT") == "1":
+		var intro_failed: int = await _intro_text_ok(tree_root, content_strings)
+		if intro_failed > 0:
+			print("INTRO_TEXT_FAIL: %d" % intro_failed)
+			quit(1)
+		print("INTRO_TEXT_OK")
+		quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_RUNESTONE_UNCAPPED") == "1":
 		var keeper_stats_node: Node = tree_root.get_node_or_null("KeeperStats")
 		var rune_failed: int = _runestone_uncapped_ok(tree_root, game_state, keeper_stats_node)
@@ -1302,10 +1311,17 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "node_wood_busy")).find("Harvesting") >= 0, "harvest channel HUD")
 	failed += _assert(str(content_strings.call("get_text", "tree_water_pulse_hud")).find("Manashards") >= 0, "water pulse HUD")
 	failed += _assert(str(content_strings.call("get_text", "tree_water_no_food")) == "tree_water_no_food", "tree_water_no_food must be removed")
-	failed += _assert(str(content_strings.call("get_text", "welcome_boot")).find("Tend the Manatree") >= 0, "welcome_boot")
-	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("Keeper") >= 0, "welcome_body")
-	failed += _assert(str(content_strings.call("get_text", "welcome_dismiss")).find("tend") >= 0, "welcome_dismiss")
-	failed += _assert(str(content_strings.call("get_text", "welcome_hint")).find("LMB") >= 0, "welcome_hint LMB")
+	failed += _assert(
+		str(content_strings.call("get_text", "welcome_boot")) == "The forest is quiet. The Manatree waits.",
+		"welcome_boot",
+	)
+	failed += _assert(str(content_strings.call("get_text", "welcome_title")) == "Keeper", "welcome_title")
+	failed += _assert(str(content_strings.call("get_text", "welcome_body")).find("This little clearing is all that is left") >= 0, "welcome_body")
+	failed += _assert(str(content_strings.call("get_text", "welcome_dismiss")) == "I will tend it", "welcome_dismiss")
+	failed += _assert(
+		str(content_strings.call("get_text", "welcome_hint")) == "The first Ascension is only the beginning.",
+		"welcome_hint",
+	)
 	failed += _assert(str(content_strings.call("get_text", "tree_next_stage_needs_met")).find("Grow") >= 0, "tree_next_stage_needs_met Grow")
 	failed += _assert(str(content_strings.call("get_text", "tree_pay_ok")).find("{next_stage}") >= 0, "tree_pay_ok")
 	# Offers retired from Content UI
@@ -5989,6 +6005,34 @@ func _assert(cond: bool, msg: String) -> int:
 		return 0
 	printerr("ASSERT FAIL: %s" % msg)
 	return 1
+
+
+func _intro_text_ok(tree_root: Window, content_strings: Node) -> int:
+	var failed: int = 0
+	failed += _assert(
+		str(content_strings.call("get_text", "welcome_boot")) == "The forest is quiet. The Manatree waits.",
+		"welcome_boot",
+	)
+	failed += _assert(str(content_strings.call("get_text", "welcome_title")) == "Keeper", "welcome_title")
+	var body: String = str(content_strings.call("get_text", "welcome_body"))
+	failed += _assert(body.find("This little clearing is all that is left") >= 0, "welcome_body")
+	failed += _assert(
+		str(content_strings.call("get_text", "welcome_hint")) == "The first Ascension is only the beginning.",
+		"welcome_hint",
+	)
+	failed += _assert(str(content_strings.call("get_text", "welcome_dismiss")) == "I will tend it", "welcome_dismiss")
+	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var hud: Node = hud_scene.instantiate()
+	tree_root.add_child(hud)
+	await tree_root.process_frame
+	hud.call("show_welcome")
+	await tree_root.process_frame
+	var btn: Button = hud.get_node_or_null("WelcomePanel/WelcomeDismiss") as Button
+	failed += _assert(btn != null and btn.disabled, "dismiss starts disabled")
+	await tree_root.create_timer(1.6, true).timeout
+	failed += _assert(btn != null and not btn.disabled, "dismiss enabled after 1.5s")
+	hud.queue_free()
+	return failed
 
 
 func _blessings_data_ok(game_state: Node, content_strings: Node) -> int:
