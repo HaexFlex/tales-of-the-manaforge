@@ -859,6 +859,7 @@ func show_fight(fight: FightState) -> void:
 		_build_plate(row, _fighter_sole(fighter_id), str(beast_suffixes.get(fighter_id, "")))
 	set_active("")
 	_refresh_fight_hud()
+	_sync_start_fight_action()
 
 
 func refresh_fight(fight: FightState) -> void:
