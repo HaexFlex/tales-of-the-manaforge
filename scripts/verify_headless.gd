@@ -1780,6 +1780,15 @@ func _run() -> void:
 		failed += _assert(new_game_btn != null and not new_game_btn.visible, "pause has no New Game")
 		failed += _assert(quit_title_btn != null and quit_title_btn.text == "Quit to Title", "pause quit-to-title label")
 		failed += _assert(quit_game_btn != null and quit_game_btn.visible and quit_game_btn.text == "Quit Game", "Quit Game shows on PC")
+		var opt_reset: CanvasItem = pm.get_node_or_null("OptionsPanel/OptionsReset") as CanvasItem
+		failed += _assert(opt_reset != null and not opt_reset.visible, "Options Reset is hidden")
+		failed += _assert(pm.get_node_or_null("OptionsPanel/MasterSlider") != null, "Options Master slider")
+		failed += _assert(pm.get_node_or_null("OptionsPanel/TabAudio") != null, "Options Audio & Display tab")
+		failed += _assert(pm.get_node_or_null("OptionsPanel/TabGameplay") != null, "Options Gameplay tab")
+		failed += _assert(pm.get_node_or_null("OptionsPanel/TabControls") != null, "Options Controls tab")
+		failed += _assert(pm.get_node_or_null("OptionsPanel/Rebind_pause") != null, "Options rebind Pause")
+		var opt_close: Button = pm.get_node_or_null("OptionsPanel/OptionsClose") as Button
+		failed += _assert(opt_close != null and opt_close.text == "" and opt_close.icon != null, "Options uses the × close")
 		pm.call("_layout_slots")
 		failed += _assert(pm.get_node_or_null("SlotsPanel/TabManual") != null and pm.get_node_or_null("SlotsPanel/TabAutosave") != null, "save slots have Manual and Autosaves tabs")
 		var slot_close: Button = pm.get_node_or_null("SlotsPanel/SlotsClose") as Button
@@ -2021,14 +2030,6 @@ func _run() -> void:
 			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/MusicSlider") != null, "Options MusicSlider")
 			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/SfxSlider") != null, "Options SfxSlider")
 			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/OptionsReset") != null, "Options Reset")
-			failed += _assert(not (pause_menu.get_node_or_null("OptionsPanel/OptionsReset") as CanvasItem).visible, "Options Reset is hidden")
-			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/MasterSlider") != null, "Options Master slider")
-			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/TabAudio") != null, "Options Audio & Display tab")
-			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/TabGameplay") != null, "Options Gameplay tab")
-			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/TabControls") != null, "Options Controls tab")
-			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/Rebind_pause") != null, "Options rebind Pause")
-			var opt_close: Button = pause_menu.get_node_or_null("OptionsPanel/OptionsClose") as Button
-			failed += _assert(opt_close != null and opt_close.text == "" and opt_close.icon != null, "Options uses the × close")
 			failed += _assert(pause_menu.get_node_or_null("OptionsPanel/OptionsLabel") == null, "Options stub label retired")
 		inst.free()
 
