@@ -3052,6 +3052,11 @@ func _refresh_pack_counter() -> void:
 
 
 func _hide_end_panel() -> void:
+	_restore_fled_names()
+	if _arena != null and is_instance_valid(_arena):
+		var dim: Node = _arena.get_node_or_null("EndDim")
+		if dim != null:
+			dim.queue_free()
 	if _end_panel != null and is_instance_valid(_end_panel):
 		_end_panel.queue_free()
 	_end_panel = null
@@ -3122,16 +3127,11 @@ func _show_end_panel(outcome: String) -> void:
 				home_btn.name = "EndHome"
 				home_btn.pressed.connect(_on_end_home_pressed)
 		"flee":
-			title.text = _text("adv_end_flee_title", "Fled")
-			var summary: Dictionary = reach.get("last_summary") as Dictionary
-			var banked: Dictionary = summary.get("banked", {}) as Dictionary
-			detail.text = _text("battle_flee_body", "You slip away to the trailhead with half the pack.")
-			if not banked.is_empty():
-				detail.text += "\n" + _format_banked(banked)
-			exp_line.text = ""
-			var back := _ui_button(_text("adv_end_back", "Back to the clearing"), buttons)
-			back.name = "EndBack"
-			back.pressed.connect(_on_end_back_pressed)
+			_arena.remove_child(panel)
+			panel.queue_free()
+			_end_panel = null
+			_show_fled_window(reach)
+			return
 		"overwhelmed":
 			title.text = _text("battle_party_overwhelmed_title", "Overwhelmed")
 			detail.text = _text("battle_party_overwhelmed_body", "Your party is carried back to the trailhead. The pack returns to the forest.")
@@ -3155,6 +3155,194 @@ func _show_end_panel(outcome: String) -> void:
 			back_f.pressed.connect(_on_end_back_pressed)
 		_:
 			detail.text = outcome
+
+
+## Adventure flee result (extras v8c, variant 3b). Echo keeps its own window.
+## The arena is already centred, so 20:9 picks up the +120 shift without adding it again.
+const FLED_WINDOW_POS := Vector2(220.0, 92.0)
+const FLED_WINDOW_SIZE := Vector2(520.0, 360.0)
+const FLED_INSET := 44.0
+const FLED_ROW_H := 34.0
+const FLED_VISIBLE_ROWS := 4
+
+
+func _show_fled_window(reach: Node) -> void:
+	if _arena == null:
+		return
+	var dim := ColorRect.new()
+	dim.name = "EndDim"
+	dim.color = Color(0, 0, 0, 0.5)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.offset_left = -400.0
+	dim.offset_top = -200.0
+	dim.offset_right = 400.0
+	dim.offset_bottom = 200.0
+	_arena.add_child(dim)
+	var panel := Panel.new()
+	panel.name = "EndPanel"
+	panel.add_to_group("battle_ui")
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.position = FLED_WINDOW_POS
+	panel.size = FLED_WINDOW_SIZE
+	panel.custom_minimum_size = FLED_WINDOW_SIZE
+	Ui540.apply_kit_frame_panel(panel, "you_fled")
+	_arena.add_child(panel)
+	_end_panel = panel
+	var title := Label.new()
+	title.name = "EndTitle"
+	title.text = _text("adv_end_flee_title", "You Fled")
+	panel.add_child(title)
+	Ui540.place_title_plank(title, FLED_WINDOW_SIZE.x)
+	title.position.y = -20.0
+	var close := Button.new()
+	close.name = "EndClose"
+	close.add_to_group("battle_ui")
+	Ui540.configure_kit_close_button(close)
+	close.pressed.connect(_on_end_back_pressed)
+	panel.add_child(close)
+	close.position = Vector2(FLED_WINDOW_SIZE.x - FLED_INSET - Ui540.TAP_MIN_PX, FLED_INSET)
+	close.size = Vector2(Ui540.TAP_MIN_PX, Ui540.TAP_MIN_PX)
+	var line := Label.new()
+	line.name = "EndDetail"
+	line.text = _text("battle_flee_body", "You slip away to the trailhead with half the pack.")
+	line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line.position = Vector2(FLED_INSET, FLED_INSET + 4.0)
+	line.size = Vector2(FLED_WINDOW_SIZE.x - FLED_INSET * 2.0 - Ui540.TAP_MIN_PX - 8.0, 40.0)
+	_theme_call("style_ink_label", line)
+	panel.add_child(line)
+	var kept := Label.new()
+	kept.name = "EndKept"
+	kept.text = _text("adv_end_flee_kept", "Kept: half the pack")
+	kept.position = Vector2(FLED_INSET, FLED_INSET + 48.0)
+	kept.size = Vector2(FLED_WINDOW_SIZE.x - FLED_INSET * 2.0, 24.0)
+	_theme_call("style_ink_label", kept)
+	panel.add_child(kept)
+	var list_w: float = FLED_WINDOW_SIZE.x - FLED_INSET * 2.0
+	var list_h: float = FLED_VISIBLE_ROWS * FLED_ROW_H + 4.0
+	var scroll := ScrollContainer.new()
+	scroll.name = "EndLoot"
+	scroll.position = Vector2(FLED_INSET, FLED_INSET + 80.0)
+	scroll.size = Vector2(list_w, list_h)
+	scroll.custom_minimum_size = scroll.size
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2), Vector4(4, 2, 4, 2)),
+	)
+	panel.add_child(scroll)
+	if Ui540.is_phone_export():
+		var bar: VScrollBar = scroll.get_v_scroll_bar()
+		if bar != null:
+			bar.custom_minimum_size.x = Ui540.TAP_MIN_PX
+	var rows := VBoxContainer.new()
+	rows.name = "EndLootRows"
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows.add_theme_constant_override("separation", 0)
+	scroll.add_child(rows)
+	var summary: Dictionary = reach.get("last_summary") as Dictionary if reach != null else {}
+	var banked: Dictionary = summary.get("banked", {}) as Dictionary
+	_fill_fled_loot(rows, banked, list_w)
+	var back := Button.new()
+	back.name = "EndBack"
+	back.text = _text("adv_end_back", "Back to the clearing")
+	back.add_to_group("battle_ui")
+	back.custom_minimum_size = Vector2(300.0, 44.0)
+	back.size = Vector2(300.0, 44.0)
+	back.position = Vector2((FLED_WINDOW_SIZE.x - 300.0) * 0.5, FLED_WINDOW_SIZE.y - FLED_INSET - 44.0)
+	_theme_call("style_primary_button", back)
+	back.pressed.connect(_on_end_back_pressed)
+	panel.add_child(back)
+	back.call_deferred("grab_focus")
+	_conceal_names_under(panel)
+
+
+func _fill_fled_loot(rows: VBoxContainer, banked: Dictionary, list_w: float) -> void:
+	var any: bool = false
+	for key_v: Variant in banked.keys():
+		var item_id: String = str(key_v)
+		var count: int = int(banked[item_id])
+		if count <= 0:
+			continue
+		any = true
+		var row := Control.new()
+		row.custom_minimum_size = Vector2(list_w - 16.0, FLED_ROW_H)
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var icon := TextureRect.new()
+		icon.position = Vector2(8, 1)
+		icon.size = Vector2(32, 32)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.texture = _fled_item_icon(item_id)
+		row.add_child(icon)
+		var name_lbl := Label.new()
+		name_lbl.text = _text("item_%s" % item_id, item_id.replace("_", " ").capitalize())
+		name_lbl.position = Vector2(48, 4)
+		name_lbl.size = Vector2(list_w - 140.0, 26)
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_theme_call("style_ink_label", name_lbl)
+		row.add_child(name_lbl)
+		var count_lbl := Label.new()
+		count_lbl.text = "×%d" % count
+		count_lbl.position = Vector2(list_w - 96.0, 4)
+		count_lbl.size = Vector2(64, 26)
+		count_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		count_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_theme_call("style_ink_label", count_lbl)
+		row.add_child(count_lbl)
+		rows.add_child(row)
+	if not any:
+		var empty := Label.new()
+		empty.text = _text("adv_pack_empty", "The pack is empty.")
+		empty.custom_minimum_size = Vector2(list_w - 16.0, FLED_ROW_H)
+		_theme_call("style_ink_label", empty)
+		rows.add_child(empty)
+
+
+func _fled_item_icon(item_id: String) -> Texture2D:
+	if has_node("/root/Equipment"):
+		var path: String = str(Equipment.call("item_art_path", item_id))
+		if path != "" and ResourceLoader.exists(path):
+			return load(path) as Texture2D
+	var shared: String = "res://assets_extra/shared/icon_%s.png" % item_id
+	if ResourceLoader.exists(shared):
+		return load(shared) as Texture2D
+	return null
+
+
+func _conceal_names_under(panel: Control) -> void:
+	if _arena == null or panel == null:
+		return
+	var rect: Rect2 = panel.get_global_rect()
+	rect.position.y -= 20.0
+	rect.size.y += 20.0
+	rect = rect.grow(8.0)
+	_conceal_name_walk(_arena, rect)
+
+
+func _conceal_name_walk(node: Node, rect: Rect2) -> void:
+	if node is Label and String(node.name) == "NameLabel":
+		var lbl: Label = node as Label
+		if lbl.visible and lbl.get_global_rect().intersects(rect):
+			lbl.visible = false
+			lbl.set_meta("fled_hidden", true)
+	for child: Node in node.get_children():
+		_conceal_name_walk(child, rect)
+
+
+func _restore_fled_names() -> void:
+	if _arena == null or not is_instance_valid(_arena):
+		return
+	_restore_name_walk(_arena)
+
+
+func _restore_name_walk(node: Node) -> void:
+	if node is Label and node.has_meta("fled_hidden"):
+		(node as Label).visible = true
+		node.remove_meta("fled_hidden")
+	for child: Node in node.get_children():
+		_restore_name_walk(child)
 
 
 func _pack_list_text(reach: Node) -> String:

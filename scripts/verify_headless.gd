@@ -10503,7 +10503,17 @@ func _end_panel_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 		failed += _assert(arena.find_child("EndContinue", true, false) == null, "no Continue on flee")
 	failed += _assert(int(backpack.call("get_count", "briarwood")) == flee_bag + 2, "flee banks half the briarwood")
 	var back: Button = arena.find_child("EndBack", true, false) as Button
+	var fled: Control = arena.find_child("EndPanel", true, false) as Control if arena != null else null
+	failed += _assert(fled != null and is_equal_approx(fled.position.x, 220.0) and is_equal_approx(fled.position.y, 92.0), "fled window sits at 220,92 (arena is already centred on 20:9)")
+	failed += _assert(fled != null and is_equal_approx(fled.size.x, 520.0) and is_equal_approx(fled.size.y, 360.0), "fled window is 520x360")
+	var fled_title: Label = arena.find_child("EndTitle", true, false) as Label if arena != null else null
+	failed += _assert(fled_title != null and fled_title.text == "You Fled", "fled title is You Fled")
+	var fled_close: Button = arena.find_child("EndClose", true, false) as Button if arena != null else null
+	failed += _assert(fled_close != null and fled_close.text == "", "fled window uses the × close")
+	var fled_loot: ScrollContainer = arena.find_child("EndLoot", true, false) as ScrollContainer if arena != null else null
+	failed += _assert(fled_loot != null and fled_loot.size.y <= 4.0 * 34.0 + 8.0, "fled loot shows four rows")
 	if back != null:
+		failed += _assert(is_equal_approx(back.size.x, 300.0) and is_equal_approx(back.size.y, 44.0), "fled primary is 300x44")
 		back.emit_signal("pressed")
 	BattleViewScript.close_arena()
 	# Last room: one slot, win shows only last-room Head home.
