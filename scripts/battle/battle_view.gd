@@ -3294,8 +3294,9 @@ func _fill_fled_loot(rows: VBoxContainer, banked: Dictionary, list_w: float) -> 
 
 
 func _fled_item_icon(item_id: String) -> Texture2D:
-	if has_node("/root/Equipment"):
-		var path: String = str(Equipment.call("item_art_path", item_id))
+	var gear: Node = get_node_or_null("/root/Equipment")
+	if gear != null and gear.has_method("item_art_path"):
+		var path: String = str(gear.call("item_art_path", item_id))
 		if path != "" and ResourceLoader.exists(path):
 			return load(path) as Texture2D
 	var shared: String = "res://assets_extra/shared/icon_%s.png" % item_id
