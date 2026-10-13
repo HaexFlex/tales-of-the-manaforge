@@ -6,7 +6,7 @@ const KIT_DIALOG: PackedScene = preload("res://scenes/ui/kit_dialog.tscn")
 
 @onready var fade: ColorRect = $Fade
 @onready var menu: VBoxContainer = $Menu
-@onready var logo: Label = $Logo
+@onready var logo: TextureRect = $Logo
 @onready var btn_continue: Button = $Menu/BtnContinue
 @onready var save_info: Label = $Menu/SaveInfo
 @onready var btn_new: Button = $Menu/BtnNewGame
@@ -29,9 +29,6 @@ func _ready() -> void:
 	GameState.reset_play_speed()
 	GameTheme.apply_app_theme()
 	GameAudio.play_hub_music()
-	if logo:
-		logo.add_theme_font_override("font", GameTheme.title_font())
-		logo.add_theme_font_size_override("font_size", GameTheme.jersey_title_size())
 	for btn: Button in [btn_continue, btn_new, btn_load, btn_options, btn_quit]:
 		btn.add_to_group("title_hero_button")
 		GameTheme.style_title_hero_button(btn)
