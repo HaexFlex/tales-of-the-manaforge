@@ -578,12 +578,12 @@ offset_top = -72.0
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="CloseButton" type="Button" parent="AscensionPanel/Footer"]
-offset_left = 16.0
-offset_top = 16.0
-offset_right = 168.0
-offset_bottom = 56.0
-text = "Close"
+[node name="CloseButton" type="Button" parent="AscensionPanel/Header"]
+offset_left = 844.0
+offset_top = 20.0
+offset_right = 888.0
+offset_bottom = 64.0
+tooltip_text = "Close"
 
 [node name="AscendButton" type="Button" parent="AscensionPanel/Footer"]
 offset_left = 500.0

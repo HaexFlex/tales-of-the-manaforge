@@ -80,7 +80,7 @@ var _forge_popup_body: Label
 @onready var shop_scroll: ScrollContainer = $AscensionPanel/ShopScroll
 @onready var upgrade_list: VBoxContainer = $AscensionPanel/ShopScroll/UpgradeList
 @onready var shop_footer: Control = $AscensionPanel/Footer
-@onready var close_button: Button = $AscensionPanel/Footer/CloseButton
+@onready var close_button: Button = $AscensionPanel/Header/CloseButton
 @onready var ascend_button: Button = $AscensionPanel/Footer/AscendButton
 @onready var welcome_panel: ColorRect = $WelcomePanel
 @onready var welcome_boot_label: Label = $WelcomePanel/WelcomeBoot
@@ -100,19 +100,21 @@ const CARE_TIMER_CYAN: Color = Color8(46, 150, 170)
 const CARE_GREEN: Color = Color8(52, 120, 44)
 const CARE_HEADER_H: float = 64.0
 const CARE_ACTION_BAND_H: float = 56.0
-## Art lock ASCENSION_SHOP_LAYOUT_V01 scaled for 960×540 (24 px safe margins).
+## Mockup ascension540_pc_16x9_r3: 912×472, 48 px rows on a 52 pitch in a bevelled list,
+## Ascend 240×52 bottom-right; × in the title row with the shard chip to its left.
 const SHOP_SIZE: Vector2 = Vector2(912, 472)
 const SHOP_MIN_SIZE: Vector2 = Vector2(640, 412)
 const SHOP_HEADER_H: float = 48.0
-const SHOP_FOOTER_H: float = 54.0
-const SHOP_ROW_H: float = 36.0
-const SHOP_PAD: float = 16.0
-const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
+const SHOP_FOOTER_BTN_H: float = 52.0
+const SHOP_ROW_H: float = 48.0
+const SHOP_PAD: float = 24.0
+const SHOP_LIST_Y: float = 126.0
+const SHOP_CHIP_W: float = 150.0
+const SHOP_CHIP_BG: Color = Color8(40, 28, 20)
+const SHOP_BUY_W: float = 136.0
+const SHOP_SHARD_ICON: String = "res://assets_extra/shared/icon_manashards.png"
+const SHOP_LOCK_ICON: String = "res://assets_extra/shared/hud_equip_locked.png"
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
-const LEAF: Color = Color(0.24, 0.48, 0.28, 1.0)
-const BUY_CAN: Color = Color(0.28, 0.52, 0.30, 1.0)
-const BUY_CANT: Color = Color(0.62, 0.22, 0.18, 1.0)
-const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
 const ICON_FERTILIZER: Color = Color(0.42, 0.35, 0.14, 1.0)
 const ICON_ESSENCE: Color = Color(0.56, 0.35, 0.66, 1.0)
 const ICON_BACKPACK: Color = Color(0.48, 0.31, 0.18, 1.0)
@@ -159,7 +161,7 @@ var _keeper_activity: Label
 var _elaia_activity: Label
 var _highlight_ascend: bool = false
 var _confirm_batches: bool = false
-var _ascend_batch_dialog: PanelContainer
+var _ascend_batch_dialog: Panel
 var _ascend_batch_body: Label
 var _bench_batch: BatchPanel
 var _bench_tabs: HBoxContainer
@@ -184,10 +186,13 @@ var _toast_tween: Tween
 var _care_hidden_for_forge: bool = false
 var _shop_preview_mode: bool = false
 var _shop_toolbar: HBoxContainer
+var _shop_list_bevel: Panel
+var _shop_preview_tag: Label
+var _shop_footer_hint: Label
 var _hide_locked_toggle: CheckButton
 var _hide_maxed_toggle: CheckButton
 var _blessings_preview_button: Button
-var _spoiler_dialog: PanelContainer
+var _spoiler_dialog: Panel
 var _spoiler_pending_unlock: bool = false
 var _welcome_dismiss_ready: bool = false
 var _welcome_delay_tween: Tween
@@ -945,33 +950,90 @@ func _on_help_dim_input(event: InputEvent) -> void:
 func _layout_ascension_shop() -> void:
 	if ascension_panel == null:
 		return
-	var vp: Vector2 = get_viewport().get_visible_rect().size
-	var margin: float = GameTheme.SAFE_MARGIN_PX if has_node("/root/GameTheme") else 24.0
-	var w: float = minf(SHOP_SIZE.x, vp.x - margin * 2.0)
-	var h: float = minf(SHOP_SIZE.y, vp.y - margin * 2.0)
-	w = maxf(w, SHOP_MIN_SIZE.x)
-	h = maxf(h, SHOP_MIN_SIZE.y)
-	ascension_panel.custom_minimum_size = Vector2(w, h)
-	ascension_panel.size = Vector2(w, h)
-	Ui540.center_kit_panel(ascension_panel)
-	if shop_header:
-		shop_header.offset_bottom = SHOP_HEADER_H
+	_ensure_shop_chrome()
+	var sz: Vector2 = Ui540.fit_kit_window(ascension_panel, SHOP_SIZE)
+	var w: float = sz.x
+	var h: float = sz.y
+	var right: float = w - SHOP_PAD
+	Ui540.anchor_rect_safe(shop_header, 0, 0, w, SHOP_HEADER_H)
+	Ui540.place_title_plank(prestige_title, w)
+	Ui540.place_close_button(close_button, w)
+	var chip_x: float = w - 24.0 - Ui540.TAP_MIN_PX - 12.0 - SHOP_CHIP_W
+	Ui540.anchor_rect_safe(shard_chip, chip_x, 20, SHOP_CHIP_W, 44)
+	Ui540.anchor_rect_safe(prestige_sub, SHOP_PAD, 30, chip_x - SHOP_PAD - 12.0, 24)
+	prestige_sub.autowrap_mode = TextServer.AUTOWRAP_OFF
+	prestige_sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	prestige_sub.clip_text = true
+	_place_shop_preview_tag()
 	if _shop_toolbar:
-		_shop_toolbar.position = Vector2(16, SHOP_HEADER_H)
-	if shop_scroll:
-		shop_scroll.offset_top = SHOP_HEADER_H + 32.0
-	if prestige_sub:
-		prestige_sub.add_theme_color_override("font_color", GameTheme.MUTED)
-		prestige_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		prestige_sub.custom_minimum_size.y = 36.0
-		prestige_sub.offset_left = 20.0
-		prestige_sub.offset_right = -20.0
-		prestige_sub.clip_text = false
-	if shop_footer:
-		shop_footer.offset_top = h - SHOP_FOOTER_H
-		shop_footer.offset_bottom = h
+		var tw: float = _shop_toolbar.get_combined_minimum_size().x
+		Ui540.anchor_rect_safe(_shop_toolbar, right - tw, 72, tw, 44)
+	var has_footer: bool = ascend_button.visible
+	var foot_y: float = h - 24.0 - SHOP_FOOTER_BTN_H
+	var list_bottom: float = (foot_y - 12.0) if has_footer else (h - 24.0)
+	Ui540.anchor_rect_safe(_shop_list_bevel, SHOP_PAD, SHOP_LIST_Y, right - SHOP_PAD, list_bottom - SHOP_LIST_Y)
+	shop_scroll.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	shop_scroll.position = Vector2(SHOP_PAD + 2.0, SHOP_LIST_Y + 2.0)
+	shop_scroll.size = Vector2(right - SHOP_PAD - 4.0, list_bottom - SHOP_LIST_Y - 4.0)
+	Ui540.anchor_rect_safe(shop_footer, 0, foot_y, w, SHOP_FOOTER_BTN_H)
+	Ui540.anchor_rect_safe(ascend_button, right - 240.0, 0, 240, SHOP_FOOTER_BTN_H)
+	Ui540.anchor_rect_safe(_shop_footer_hint, SHOP_PAD, 0, right - 240.0 - 12.0 - SHOP_PAD, SHOP_FOOTER_BTN_H)
+	_shop_footer_hint.visible = has_footer
 	if has_node("/root/GameInput"):
 		GameInput.configure_scroll_container(shop_scroll)
+
+
+func _ensure_shop_chrome() -> void:
+	if _shop_list_bevel != null:
+		return
+	_shop_list_bevel = Panel.new()
+	_shop_list_bevel.name = "ShopListBevel"
+	_shop_list_bevel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shop_list_bevel.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2)))
+	ascension_panel.add_child(_shop_list_bevel)
+	ascension_panel.move_child(_shop_list_bevel, shop_scroll.get_index())
+	upgrade_list.add_theme_constant_override("separation", 4)
+	_shop_preview_tag = Label.new()
+	_shop_preview_tag.name = "PreviewTag"
+	_shop_preview_tag.text = ContentStrings.get_text("ascend_shop_preview_tag")
+	GameTheme.style_ink_label(_shop_preview_tag)
+	_shop_preview_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_shop_preview_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_shop_preview_tag.add_theme_stylebox_override("normal", Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/action_button_hover_160x44.png", Vector4i(6, 6, 6, 6), Vector4(10, 0, 10, 0)))
+	_shop_preview_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shop_preview_tag.z_index = 1
+	shop_header.add_child(_shop_preview_tag)
+	_shop_footer_hint = Label.new()
+	_shop_footer_hint.name = "AscendHint"
+	_shop_footer_hint.text = ContentStrings.get_text("ascension_paused_hint")
+	GameTheme.style_ink_label(_shop_footer_hint, true)
+	_shop_footer_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_shop_footer_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_shop_footer_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	shop_footer.add_child(_shop_footer_hint)
+	shard_chip.color = SHOP_CHIP_BG
+	var icon: TextureRect = shard_chip.get_node("ShardIcon") as TextureRect
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	Ui540.anchor_rect_safe(icon, 10, 6, 32, 32)
+	Ui540.anchor_rect_safe(shard_count_label, 48, 0, SHOP_CHIP_W - 56.0, 44)
+	shard_count_label.remove_theme_font_size_override("font_size")
+	shard_count_label.add_theme_font_override("font", load(GameTheme.PRIMARY_FONT_PATH) as Font)
+	shard_count_label.add_theme_font_size_override("font_size", GameTheme.TITLE_HERO_SIZE)
+	shard_count_label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
+	shard_count_label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
+	shard_count_label.add_theme_constant_override("outline_size", 2)
+	shard_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
+func _place_shop_preview_tag() -> void:
+	if _shop_preview_tag == null:
+		return
+	_shop_preview_tag.visible = _shop_preview_mode
+	var font: Font = _shop_preview_tag.get_theme_font("font")
+	var tw: float = font.get_string_size(_shop_preview_tag.text, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.BODY_SIZE).x + 20.0
+	Ui540.anchor_rect_safe(_shop_preview_tag, prestige_title.position.x + prestige_title.size.x + 6.0, -13, ceilf(tw), 26)
 
 
 func _apply_icon_button(btn: Button) -> void:
@@ -1122,7 +1184,6 @@ func _apply_wood_chrome() -> void:
 	GameTheme.style_plank_label(prestige_title)
 	GameTheme.style_ink_label(prestige_sub, true)
 	GameTheme.style_primary_button(ascend_button)
-	shard_chip.color = CHIP_CYAN
 	_apply_icon_button(character_button)
 	_apply_icon_button(backpack_button)
 	_apply_icon_button(pause_button)
@@ -1181,6 +1242,10 @@ func _refresh_dim() -> void:
 		return
 	var ancient_open: bool = _ancient_confirm != null and _ancient_confirm.visible
 	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible or ancient_open
+	## A confirm over the shop dims the shop too (kit_dialog's second dim).
+	var over_shop: bool = (_spoiler_dialog != null and _spoiler_dialog.visible) \
+		or (_ascend_batch_dialog != null and _ascend_batch_dialog.visible)
+	shop_dim.z_index = Z_MODAL + 1 if over_shop else Z_MODAL_DIM
 	if backpack_dim:
 		backpack_dim.visible = backpack_panel.visible or bench_panel.visible
 
@@ -3992,13 +4057,10 @@ func _refresh_ascension_copy() -> void:
 		prestige_sub.text = ContentStrings.get_text("fruit_shop_only_banner")
 	if shard_count_label:
 		shard_count_label.text = str(GameState.manashards)
-	if shard_chip:
-		shard_chip.visible = not _shop_preview_mode
-	if _shop_toolbar:
-		_shop_toolbar.visible = not _shop_preview_mode
 	ascend_button.visible = GameState.fruit_harvested_pending_ascend and not _shop_preview_mode
 	ascend_button.disabled = not GameState.can_ascend()
 	ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
+	_layout_ascension_shop()
 	if _highlight_ascend and GameState.can_ascend():
 		_apply_ascend_highlight()
 	else:
@@ -4020,16 +4082,16 @@ func _ensure_shop_toolbar() -> void:
 		return
 	_shop_toolbar = HBoxContainer.new()
 	_shop_toolbar.name = "ShopToolbar"
-	_shop_toolbar.position = Vector2(16, 48)
-	_shop_toolbar.size = Vector2(608, 28)
 	_shop_toolbar.add_theme_constant_override("separation", 12)
 	ascension_panel.add_child(_shop_toolbar)
 	_hide_locked_toggle = CheckButton.new()
 	_hide_locked_toggle.text = ContentStrings.get_text("ascend_shop_hide_locked")
+	_hide_locked_toggle.custom_minimum_size = Vector2(0, 44)
 	_hide_locked_toggle.toggled.connect(_on_hide_locked_toggled)
 	_shop_toolbar.add_child(_hide_locked_toggle)
 	_hide_maxed_toggle = CheckButton.new()
 	_hide_maxed_toggle.text = ContentStrings.get_text("ascend_shop_hide_maxed")
+	_hide_maxed_toggle.custom_minimum_size = Vector2(0, 44)
 	_hide_maxed_toggle.toggled.connect(_on_hide_maxed_toggled)
 	_shop_toolbar.add_child(_hide_maxed_toggle)
 	_sync_shop_toolbar()
@@ -4072,42 +4134,55 @@ func _on_hide_locked_toggled(pressed: bool) -> void:
 func _ensure_spoiler_dialog() -> void:
 	if _spoiler_dialog != null:
 		return
-	_spoiler_dialog = PanelContainer.new()
-	_spoiler_dialog.name = "AscendSpoilerDialog"
-	_spoiler_dialog.visible = false
-	_spoiler_dialog.set_anchors_preset(Control.PRESET_CENTER)
-	_spoiler_dialog.custom_minimum_size = Vector2(420, 200)
-	add_child(_spoiler_dialog)
-	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 10)
-	_spoiler_dialog.add_child(inner)
-	var title := Label.new()
-	title.text = ContentStrings.get_text("ascend_spoiler_title")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inner.add_child(title)
-	var body := Label.new()
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.text = ContentStrings.get_text("ascend_spoiler_body")
-	inner.add_child(body)
-	var row := HBoxContainer.new()
-	row.alignment = BoxContainer.ALIGNMENT_END
-	row.add_theme_constant_override("separation", 16)
-	inner.add_child(row)
-	var peek := Button.new()
-	peek.text = ContentStrings.get_text("ascend_spoiler_confirm")
-	peek.pressed.connect(_on_spoiler_peek)
-	row.add_child(peek)
-	var stay := Button.new()
-	stay.text = ContentStrings.get_text("ascend_spoiler_stay")
-	stay.custom_minimum_size = Vector2(140, 40)
-	stay.pressed.connect(_on_spoiler_stay)
-	row.add_child(stay)
+	_spoiler_dialog = _make_kit_confirm("AscendSpoilerDialog", _on_spoiler_peek, _on_spoiler_stay)
+	_spoiler_dialog.z_index = Z_MODAL + 2
+
+
+## Bare confirm (Title, Body, Yes = action, No = safe); Ui540.layout_confirm styles and sizes it.
+func _make_kit_confirm(node_name: String, on_yes: Callable, on_no: Callable) -> Panel:
+	var dialog := Panel.new()
+	dialog.name = node_name
+	dialog.visible = false
+	dialog.z_index = Z_MODAL
+	dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(dialog)
+	for label_name: String in ["Title", "Body"]:
+		var lbl := Label.new()
+		lbl.name = label_name
+		dialog.add_child(lbl)
+	var yes := Button.new()
+	yes.name = "Yes"
+	yes.pressed.connect(on_yes)
+	dialog.add_child(yes)
+	var no := Button.new()
+	no.name = "No"
+	no.pressed.connect(on_no)
+	dialog.add_child(no)
+	return dialog
+
+
+func _show_kit_confirm(dialog: Panel, title: String, body: String, yes_text: String, no_text: String) -> void:
+	var title_lbl: Label = dialog.get_node("Title") as Label
+	var body_lbl: Label = dialog.get_node("Body") as Label
+	var yes: Button = dialog.get_node("Yes") as Button
+	var no: Button = dialog.get_node("No") as Button
+	title_lbl.text = title
+	body_lbl.text = body.trim_prefix(title + " ")
+	yes.text = yes_text
+	no.text = no_text
+	Ui540.layout_confirm(dialog, title_lbl, body_lbl, yes, no)
+	dialog.visible = true
+	no.grab_focus.call_deferred()
+	_refresh_dim()
 
 
 func _show_spoiler_dialog() -> void:
 	_ensure_spoiler_dialog()
-	if _spoiler_dialog:
-		_spoiler_dialog.visible = true
+	_show_kit_confirm(_spoiler_dialog,
+		ContentStrings.get_text("ascend_spoiler_title"),
+		ContentStrings.get_text("ascend_spoiler_body"),
+		ContentStrings.get_text("ascend_spoiler_confirm"),
+		ContentStrings.get_text("ascend_spoiler_stay"))
 	_sync_shop_toolbar()
 
 
@@ -4115,6 +4190,7 @@ func _hide_spoiler_dialog() -> void:
 	if _spoiler_dialog:
 		_spoiler_dialog.visible = false
 	_spoiler_pending_unlock = false
+	_refresh_dim()
 
 
 func _on_spoiler_peek() -> void:
@@ -4166,7 +4242,6 @@ func _rebuild_upgrades() -> void:
 		return
 	var locked_hidden: int = 0
 	var maxed_hidden: int = 0
-	var stripe: bool = false
 	for entry: Variant in GameState.upgrades_data:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
@@ -4175,9 +4250,8 @@ func _rebuild_upgrades() -> void:
 		if uid == "":
 			continue
 		var rank: int = GameState.get_upgrade_rank(uid)
-		var cap: int = GameState.upgrade_max_rank(uid)
 		var unlocked: bool = GameState.is_upgrade_unlocked(uid)
-		var maxed: bool = rank >= cap
+		var maxed: bool = rank >= GameState.upgrade_max_rank(uid)
 		var always_show: bool = uid == "party_banner"
 		if GameState.shop_hide_maxed and maxed:
 			maxed_hidden += 1
@@ -4185,97 +4259,152 @@ func _rebuild_upgrades() -> void:
 		if GameState.shop_hide_locked and not unlocked and not always_show:
 			locked_hidden += 1
 			continue
-		var cost: int = GameState.get_upgrade_cost(uid)
-		var row := PanelContainer.new()
-		row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
-		var row_sb := StyleBoxFlat.new()
-		if stripe:
-			row_sb.bg_color = Color(0.20, 0.14, 0.09, 1.0)
-		else:
-			row_sb.bg_color = Color(0.15, 0.10, 0.07, 1.0)
-		row_sb.set_border_width_all(0)
-		row_sb.border_color = Color(0.35, 0.26, 0.14, 0.5)
-		row_sb.border_width_bottom = 1
-		row.add_theme_stylebox_override("panel", row_sb)
-		var inner := HBoxContainer.new()
-		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
-		inner.add_theme_constant_override("separation", 8)
-		inner.add_child(_upgrade_icon(uid, d))
-		var info := VBoxContainer.new()
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		info.alignment = BoxContainer.ALIGNMENT_CENTER
-		var name_lbl := Label.new()
-		name_lbl.text = _upgrade_display_name(uid, d)
-		name_lbl.add_theme_font_size_override("font_size", 13)
-		var name_color: Color = Color(0.92, 0.86, 0.72, 1.0)
-		if not unlocked:
-			name_color = Color(0.55, 0.50, 0.42, 1.0)
-		name_lbl.add_theme_color_override("font_color", name_color)
-		var desc: String = _upgrade_description(uid, d)
-		var rank_lbl := Label.new()
-		if desc != "":
-			rank_lbl.text = "%s  ·  %s" % [desc, _upgrade_rank_label(rank, uid)]
-		else:
-			rank_lbl.text = _upgrade_rank_label(rank, uid)
-		rank_lbl.add_theme_font_size_override("font_size", 11)
-		rank_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
-		rank_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		info.add_child(name_lbl)
-		info.add_child(rank_lbl)
-		if desc != "":
-			row.tooltip_text = desc
-			inner.tooltip_text = desc
-			name_lbl.tooltip_text = desc
-			rank_lbl.tooltip_text = desc
-		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(108, 32)
-		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		if _shop_preview_mode:
-			btn.text = ContentStrings.get_text("ascend_shop_preview_tag")
-			btn.disabled = true
-			GameTheme.style_wood_button(btn)
-		elif not unlocked:
-			btn.text = ContentStrings.get_text("upgrade_buy")
-			btn.disabled = true
-			GameTheme.style_wood_button(btn)
-		elif maxed:
-			btn.text = ContentStrings.get_text("upgrade_maxed")
-			btn.disabled = true
-			GameTheme.style_wood_button(btn)
-		elif GameState.manashards < cost:
-			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
-			btn.disabled = true
-			GameTheme.style_wood_button(btn)
-		else:
-			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
-			GameTheme.style_wood_button(btn)
-			btn.pressed.connect(_on_buy.bind(uid))
-		var keep_cost_tip: String = _upgrade_keep_tools_cost_text(uid, cost)
-		if keep_cost_tip != "":
-			btn.tooltip_text = keep_cost_tip
-		inner.add_child(info)
-		inner.add_child(btn)
-		row.add_child(inner)
-		upgrade_list.add_child(row)
-		stripe = not stripe
-	if locked_hidden > 0:
-		upgrade_list.add_child(_shop_summary_row(
-			ContentStrings.get_text("ascend_shop_locked_collapsed", {"count": locked_hidden})
-		))
+		upgrade_list.add_child(_make_upgrade_row(uid, d, rank, unlocked, maxed))
 	if maxed_hidden > 0:
 		upgrade_list.add_child(_shop_summary_row(
-			ContentStrings.get_text("ascend_shop_complete_collapsed", {"count": maxed_hidden})
+			ContentStrings.get_text("ascend_shop_complete_collapsed", {"count": maxed_hidden}), false
+		))
+	if locked_hidden > 0:
+		upgrade_list.add_child(_shop_summary_row(
+			ContentStrings.get_text("ascend_shop_locked_collapsed", {"count": locked_hidden}), true
 		))
 
 
-func _shop_summary_row(text: String) -> PanelContainer:
+func _make_upgrade_row(uid: String, d: Dictionary, rank: int, unlocked: bool, maxed: bool) -> PanelContainer:
+	var cost: int = GameState.get_upgrade_cost(uid)
 	var row := PanelContainer.new()
-	row.custom_minimum_size = Vector2(0, 28)
+	row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
+	row.add_theme_stylebox_override("panel", _shop_row_style())
+	var desc: String = _upgrade_description(uid, d)
+	row.tooltip_text = desc if desc != "" else _upgrade_display_name(uid, d)
+	var inner := HBoxContainer.new()
+	inner.add_theme_constant_override("separation", 10)
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(inner)
+	var can_buy: bool = unlocked and not maxed and GameState.manashards >= cost
+	var icon: TextureRect = _upgrade_icon(uid, d)
+	if not unlocked:
+		icon.self_modulate = Color(0.35, 0.32, 0.30, 1.0)
+		var lock := TextureRect.new()
+		lock.name = "Lock"
+		lock.texture = _load_ui_tex(SHOP_LOCK_ICON)
+		lock.set_anchors_preset(Control.PRESET_FULL_RECT)
+		lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.add_child(lock)
+	elif not can_buy and not maxed and not _shop_preview_mode:
+		icon.modulate = Color(0.6, 0.6, 0.6, 1.0)
+	inner.add_child(icon)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.alignment = BoxContainer.ALIGNMENT_CENTER
+	info.add_theme_constant_override("separation", -2)
+	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(info)
+	var name_lbl := Label.new()
+	name_lbl.text = _upgrade_display_name(uid, d)
+	GameTheme.style_ink_label(name_lbl, not unlocked)
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	info.add_child(name_lbl)
+	var rank_lbl := Label.new()
+	rank_lbl.text = "%s  ·  %s" % [desc, _upgrade_rank_label(rank, uid)] if desc != "" else _upgrade_rank_label(rank, uid)
+	GameTheme.style_ink_label(rank_lbl, true)
+	rank_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	rank_lbl.custom_minimum_size.x = 120.0
+	info.add_child(rank_lbl)
+	if maxed or not unlocked:
+		inner.add_child(_shop_state_label(
+			ContentStrings.get_text("upgrade_maxed") if maxed else ContentStrings.get_text("equip_locked")))
+	elif _shop_preview_mode:
+		inner.add_child(_shop_price(cost))
+	else:
+		if not can_buy:
+			var need := Label.new()
+			need.text = ContentStrings.get_text("upgrade_need_more", {"count": cost - GameState.manashards})
+			GameTheme.style_ink_label(need)
+			need.add_theme_color_override("font_color", SHORT_RED)
+			need.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			inner.add_child(need)
+		var btn := Button.new()
+		btn.name = "Buy"
+		btn.text = str(cost)
+		btn.icon = _load_ui_tex(SHOP_SHARD_ICON)
+		btn.expand_icon = false
+		btn.custom_minimum_size = Vector2(SHOP_BUY_W, 44)
+		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		btn.disabled = not can_buy
+		if can_buy:
+			GameTheme.style_primary_button(btn)
+			btn.pressed.connect(_on_buy.bind(uid))
+		else:
+			GameTheme.style_menu_button(btn)
+		var keep_cost_tip: String = _upgrade_keep_tools_cost_text(uid, cost)
+		btn.tooltip_text = keep_cost_tip if keep_cost_tip != "" else row.tooltip_text
+		inner.add_child(btn)
+	return row
+
+
+## 44 px Buy buttons sit 2 px inside the 48 px row.
+func _shop_row_style() -> StyleBoxTexture:
+	var sb: StyleBoxTexture = Ui540.list_row_style()
+	sb.content_margin_top = 2.0
+	sb.content_margin_bottom = 2.0
+	sb.content_margin_right = 4.0
+	return sb
+
+
+## Fixed-width right column so state labels and prices line up with the Buy buttons.
+func _shop_state_label(text: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 12)
-	lbl.add_theme_color_override("font_color", Color(0.65, 0.58, 0.48, 1.0))
-	row.add_child(lbl)
+	GameTheme.style_ink_label(lbl, true)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.custom_minimum_size = Vector2(SHOP_BUY_W, 40)
+	return lbl
+
+
+func _shop_price(cost: int) -> HBoxContainer:
+	var box := HBoxContainer.new()
+	box.custom_minimum_size = Vector2(SHOP_BUY_W, 40)
+	box.add_theme_constant_override("separation", 8)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon := TextureRect.new()
+	icon.texture = _load_ui_tex(SHOP_SHARD_ICON)
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+	var lbl := Label.new()
+	lbl.text = str(cost)
+	GameTheme.style_ink_label(lbl)
+	lbl.custom_minimum_size.x = 64.0
+	box.add_child(lbl)
+	return box
+
+
+func _shop_summary_row(text: String, locked: bool) -> PanelContainer:
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
+	row.add_theme_stylebox_override("panel", _shop_row_style())
+	row.tooltip_text = text
+	var inner := HBoxContainer.new()
+	inner.add_theme_constant_override("separation", 10)
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(inner)
+	if locked:
+		var icon := TextureRect.new()
+		icon.texture = _load_ui_tex(SHOP_LOCK_ICON)
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(icon)
+	var lbl := Label.new()
+	lbl.text = text
+	GameTheme.style_ink_label(lbl, not locked)
+	lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	inner.add_child(lbl)
 	return row
 
 
@@ -4362,12 +4491,7 @@ func _on_ascend() -> void:
 			if warn != "":
 				confirm_line = warn
 				ascend_button.tooltip_text = warn
-		_show_toast("%s\n%s" % [
-			confirm_line,
-			ContentStrings.get_text("ascend_hint"),
-		])
-		ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
-		_refresh_ascension_copy()
+		_show_ascend_batch_dialog(confirm_line)
 		return
 	_confirm_ascend = false
 	_confirm_batches = false
@@ -4384,60 +4508,35 @@ func _on_ascend() -> void:
 
 func _show_ascend_batch_dialog(body: String) -> void:
 	_ensure_ascend_batch_dialog()
-	if _ascend_batch_body:
-		_ascend_batch_body.text = body
-	if _ascend_batch_dialog:
-		_ascend_batch_dialog.visible = true
+	_show_kit_confirm(_ascend_batch_dialog,
+		ContentStrings.get_text("ascend_confirm_title"),
+		body,
+		ContentStrings.get_text("ascend_confirm_yes"),
+		ContentStrings.get_text("ascend_confirm_no"))
 
 
 func _hide_ascend_batch_dialog() -> void:
 	if _ascend_batch_dialog:
 		_ascend_batch_dialog.visible = false
+		_refresh_dim()
 
 
 func _ensure_ascend_batch_dialog() -> void:
 	if _ascend_batch_dialog != null and is_instance_valid(_ascend_batch_dialog):
 		return
-	var dialog := PanelContainer.new()
-	dialog.name = "AscendBatchDialog"
-	dialog.position = Vector2(280, 160)
-	dialog.size = Vector2(720, 360)
-	dialog.z_index = 40
-	dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	var body := Label.new()
-	body.name = "Body"
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.custom_minimum_size = Vector2(680, 220)
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_color_override("font_color", Color(0.93, 0.9, 0.78, 1))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	var yes := Button.new()
-	yes.name = "Yes"
-	yes.text = ContentStrings.get_text("ascend_confirm_yes")
-	yes.pressed.connect(_on_ascend_batch_yes)
-	var no := Button.new()
-	no.name = "No"
-	no.text = ContentStrings.get_text("ascend_confirm_no")
-	no.pressed.connect(_on_ascend_batch_no)
-	row.add_child(yes)
-	row.add_child(no)
-	box.add_child(body)
-	box.add_child(row)
-	dialog.add_child(box)
-	add_child(dialog)
-	_ascend_batch_dialog = dialog
-	_ascend_batch_body = body
+	_ascend_batch_dialog = _make_kit_confirm("AscendBatchDialog", _on_ascend_batch_yes, _on_ascend_batch_no)
+	_ascend_batch_dialog.z_index = Z_MODAL + 2
+	_ascend_batch_body = _ascend_batch_dialog.get_node("Body") as Label
 
 
 func _on_ascend_batch_yes() -> void:
 	_confirm_batches = true
+	_confirm_ascend = true
 	_hide_ascend_batch_dialog()
 	_on_ascend()
 
 
 func _on_ascend_batch_no() -> void:
 	_confirm_batches = false
+	_confirm_ascend = false
 	_hide_ascend_batch_dialog()

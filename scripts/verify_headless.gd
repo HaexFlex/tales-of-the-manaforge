@@ -1985,7 +1985,7 @@ func _run() -> void:
 			failed += _assert(hud.get_node_or_null("PrestigePanel") == null, "old PrestigePanel must be gone")
 			failed += _assert(hud.get_node_or_null("AscensionPanel/ShopScroll") != null, "Ascension ShopScroll missing")
 			failed += _assert(hud.get_node_or_null("AscensionPanel/Footer/AscendButton") != null, "Ascend footer missing")
-			failed += _assert(hud.get_node_or_null("AscensionPanel/Footer/CloseButton") != null, "Close footer missing")
+			failed += _assert(hud.get_node_or_null("AscensionPanel/Header/CloseButton") != null, "shop × close missing")
 			failed += _assert(hud.get_node_or_null("AscensionPanel/Header/ShardChip") != null, "shard chip missing")
 			failed += _assert(hud.get_node_or_null("AscensionPanel/Layout") == null, "old Layout container retired")
 			failed += _assert(hud.get_node_or_null("FruitConfirmPanel") != null, "FruitConfirmPanel missing")
@@ -2707,21 +2707,22 @@ func _run() -> void:
 		var shop_sz_v: Variant = metrics.get("size", Vector2.ZERO)
 		failed += _assert(shop_sz_v is Vector2, "shop size is Vector2")
 		var shop_sz: Vector2 = shop_sz_v as Vector2
-		failed += _assert(abs(shop_sz.x - 640.0) < 1.5 and abs(shop_sz.y - 412.0) < 1.5, "shop 640x412 (got %s)" % shop_sz)
+		failed += _assert(abs(shop_sz.x - 912.0) < 1.5 and shop_sz.y >= 468.0 and shop_sz.y <= 472.5, "shop 912x470 (got %s)" % shop_sz)
 		failed += _assert(abs(float(metrics.get("header_h", 0)) - 48.0) < 1.5, "shop header 48")
-		failed += _assert(abs(float(metrics.get("footer_h", 0)) - 54.0) < 1.5, "shop footer 54")
+		failed += _assert(abs(float(metrics.get("footer_h", 0)) - 52.0) < 1.5, "shop footer 52")
 		failed += _assert(shop_sz.x + 0.1 >= 560.0 and shop_sz.y + 0.1 >= 360.0, "shop meets min 560x360")
-		var close_post: Button = test_hud.get_node_or_null("AscensionPanel/Footer/CloseButton") as Button
+		var close_post: Button = test_hud.get_node_or_null("AscensionPanel/Header/CloseButton") as Button
 		var ascend_post: Button = test_hud.get_node_or_null("AscensionPanel/Footer/AscendButton") as Button
-		failed += _assert(close_post != null and ascend_post != null, "footer Close+Ascend")
+		failed += _assert(close_post != null and ascend_post != null, "title-row × + footer Ascend")
 		if close_post and ascend_post:
-			failed += _assert(close_post.position.x < ascend_post.position.x, "Close left, Ascend right")
+			failed += _assert(close_post.size == Vector2(44, 44) and close_post.text == "", "shop Close is the 44 px ×")
+			failed += _assert(close_post.get_global_rect().end.y < ascend_post.get_global_rect().position.y, "× in the title row, Ascend in the footer")
 			failed += _assert(ascend_post.visible and not ascend_post.disabled, "Ascend only post-commit")
 		failed += _assert(not bool(test_hud.call("shop_has_harvest_button")), "Harvest never on shop")
 		var list_node: VBoxContainer = test_hud.get_node_or_null("AscensionPanel/ShopScroll/UpgradeList") as VBoxContainer
 		if list_node and list_node.get_child_count() > 0:
 			var row0: Control = list_node.get_child(0) as Control
-			failed += _assert(row0 != null and abs(row0.custom_minimum_size.y - 36.0) < 0.1, "row height 36")
+			failed += _assert(row0 != null and abs(row0.custom_minimum_size.y - 48.0) < 0.1, "row height 48")
 			var described: int = 0
 			for child: Node in list_node.get_children():
 				if child is Control and str((child as Control).tooltip_text) != "":
