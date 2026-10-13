@@ -49,6 +49,8 @@ func _run() -> void:
 			quit(0)
 		return
 
+	failed += _tooltip_parchment_ok(tree_root)
+
 	# Workbench stand. The full suite still runs this near the end.
 	# MANAFORGE_WORKBENCH=1 skips every other assertion.
 	if OS.get_environment("MANAFORGE_WORKBENCH") == "1":
@@ -6099,6 +6101,37 @@ func _keeper_work_spot_asserts() -> int:
 	var food: Dictionary = keeper_cls.solve_work_spot(Rect2(Vector2(0, -128), Vector2(86, 128)), Vector2(400, 0), "food", Callable(open_gate, "gate"))
 	failed += _assert(str(food.get("facing", "")) == "west", "berries approached from the east face west")
 	failed += _assert(keeper_cls.distance_to_rect(food.get("contact", Vector2(-999, 0)), Rect2(Vector2(0, -128), Vector2(86, 128))) <= keeper_cls.REACH_SLACK, "hands reach the bush")
+	return failed
+
+
+func _tooltip_parchment_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
+	var box: StyleBoxTexture = null
+	if theme != null:
+		box = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture
+	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
+	failed += _assert(path.find("tooltip_parchment_9s_24x24") >= 0, "tooltip panel uses the parchment 9-slice")
+	failed += _assert(box != null and box.texture_margin_left == 4.0 and box.texture_margin_top == 4.0 and box.texture_margin_right == 4.0 and box.texture_margin_bottom == 4.0, "tooltip texture margins are 4")
+	failed += _assert(box != null and box.content_margin_left == 12.0 and box.content_margin_top == 8.0 and box.content_margin_right == 12.0 and box.content_margin_bottom == 8.0, "tooltip content margins are 12/8/12/8")
+	var host := Control.new()
+	host.position = Vector2(100, 80)
+	host.size = Vector2(44, 44)
+	tree_root.add_child(host)
+	var pop := PopupPanel.new()
+	pop.size = Vector2(120, 20)
+	tree_root.add_child(pop)
+	Ui540.place_tooltip(pop, host)
+	failed += _assert(is_equal_approx(pop.position.x, 100.0) and is_equal_approx(pop.position.y, 130.0), "tooltip sits 6 px under the control (got %s)" % str(pop.position))
+	failed += _assert(pop.size.y >= 29.9, "tooltip is at least 30 px high")
+	host.position = Vector2(900, 500)
+	pop.size = Vector2(200, 40)
+	Ui540.place_tooltip(pop, host)
+	var vs: Vector2 = tree_root.get_visible_rect().size
+	failed += _assert(pop.position.x >= 23.9 and pop.position.y >= 23.9, "tooltip stays inside the safe margin")
+	failed += _assert(pop.position.x + pop.size.x <= vs.x - 23.0 and pop.position.y + pop.size.y <= vs.y - 23.0, "tooltip clamps to the safe area (pos %s size %s view %s)" % [str(pop.position), str(pop.size), str(vs)])
+	pop.free()
+	host.free()
 	return failed
 
 

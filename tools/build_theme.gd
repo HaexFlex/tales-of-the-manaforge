@@ -233,7 +233,19 @@ func _init() -> void:
 	th.set_color("font_outline_color", "ProgressBar", CREAM)
 
 	# ---- Tooltip / Popup
-	th.set_stylebox("panel", "TooltipPanel", sbt("toast_9s_40x30.png", [12, 8, 12, 8], [12, 6, 12, 6]))
+	var tip_box := StyleBoxTexture.new()
+	tip_box.texture = load("res://assets/ui/extras/tooltip_parchment_9s_24x24.png") as Texture2D
+	if tip_box.texture == null:
+		_missing.append("tooltip_parchment_9s_24x24.png")
+	tip_box.texture_margin_left = 4
+	tip_box.texture_margin_top = 4
+	tip_box.texture_margin_right = 4
+	tip_box.texture_margin_bottom = 4
+	tip_box.content_margin_left = 12
+	tip_box.content_margin_top = 8
+	tip_box.content_margin_right = 12
+	tip_box.content_margin_bottom = 8
+	th.set_stylebox("panel", "TooltipPanel", tip_box)
 	th.set_color("font_color", "TooltipLabel", INK)
 	th.set_font("font", "TooltipLabel", body); th.set_font_size("font_size", "TooltipLabel", 19)
 	th.set_stylebox("panel", "PopupMenu", sbt("popup_9s_32x32.png", [8, 8, 8, 8], [8, 8, 8, 8]))

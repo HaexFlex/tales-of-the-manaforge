@@ -47,6 +47,15 @@ func apply_app_theme() -> void:
 func _on_node_added(node: Node) -> void:
 	if node is Control:
 		apply_control_theme(node as Control)
+	if node is PopupPanel and (node as PopupPanel).theme_type_variation == &"TooltipPanel":
+		call_deferred("_seat_tooltip", node)
+
+
+func _seat_tooltip(node: Node) -> void:
+	var popup: PopupPanel = node as PopupPanel
+	if popup == null or not is_instance_valid(popup) or not popup.visible:
+		return
+	Ui540.place_tooltip(popup, popup.get_parent() as Control)
 
 
 func sweep_theme(root: Node) -> void:

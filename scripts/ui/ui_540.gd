@@ -3,6 +3,8 @@ extends RefCounted
 ## Shared 540p layout helpers (safe margins, phone export, 20:9 window shift).
 
 const SAFE_MARGIN_PX: float = 24.0
+const TOOLTIP_GAP_PX: float = 6.0
+const TOOLTIP_MIN_H: float = 30.0
 const HUD_RESOURCE_BAND_H: float = 48.0
 const TAP_MIN_PX: float = 44.0
 const WIDE_ASPECT_SHIFT_PX: float = 120.0
@@ -45,6 +47,24 @@ static func kit_top_inset() -> float:
 static func kit_content_size() -> Vector2:
 	var vs: Vector2 = viewport_size()
 	return Vector2(vs.x, maxf(0.0, vs.y - kit_top_inset() - SAFE_MARGIN_PX))
+
+
+## Hover tip: parchment panel, 6 px under the control, kept inside the 24 px safe area.
+static func place_tooltip(popup: Window, anchor: Control) -> void:
+	if popup == null:
+		return
+	var sz: Vector2 = popup.size
+	if sz.y < TOOLTIP_MIN_H:
+		sz.y = TOOLTIP_MIN_H
+		popup.size = sz
+	var vs: Vector2 = viewport_size()
+	var pos := Vector2(SAFE_MARGIN_PX, SAFE_MARGIN_PX)
+	if anchor != null and is_instance_valid(anchor):
+		var rect: Rect2 = anchor.get_global_rect()
+		pos = Vector2(rect.position.x, rect.end.y + TOOLTIP_GAP_PX)
+	var max_x: float = maxf(SAFE_MARGIN_PX, vs.x - SAFE_MARGIN_PX - sz.x)
+	var max_y: float = maxf(SAFE_MARGIN_PX, vs.y - SAFE_MARGIN_PX - sz.y)
+	popup.position = Vector2(clampf(pos.x, SAFE_MARGIN_PX, max_x), clampf(pos.y, SAFE_MARGIN_PX, max_y))
 
 
 static func center_control(ctrl: Control) -> void:
