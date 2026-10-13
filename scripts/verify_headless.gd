@@ -14337,12 +14337,12 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 		view.call("set_fighter_pose", member, "idle")
 	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
 	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
-	failed += _assert(keeper_node != null and keeper_node.position == Vector2(285, 318), "Keeper stands on the front middle slot")
-	failed += _assert(elaia_node != null and elaia_node.position == Vector2(120, 318), "Elaia stands on the back middle slot")
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(312, 286), "Keeper stands on the front middle slot")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(164, 286), "Elaia stands on the back middle slot")
 	for beast_id: String in BattleViewScript.BEAST_HURT.keys():
 		failed += _assert(ResourceLoader.exists(str(BattleViewScript.BEAST_HURT[beast_id])), "%s hurt frame is imported" % beast_id)
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
-	failed += _assert(close_btn != null and close_btn.visible and close_btn.text == "Close", "Close is visible")
+	failed += _assert(close_btn != null and close_btn.visible and close_btn.text == "" and close_btn.icon != null and close_btn.tooltip_text == "Close", "Close is visible as the kit × icon with a Close tooltip")
 	failed += _assert(get_nodes_in_group("battle_slot_outline").size() == 12, "front and back rows mark twelve slots")
 	var slot_root: Node = view.get_node_or_null("Arena/Slots")
 	var slot_nodes: Array[Node] = slot_root.get_children() if slot_root != null else []
@@ -14355,7 +14355,7 @@ func _battle_shell(tree_root: Window, game_state: Node, save_service: Node) -> i
 		failed += _assert(party_front != null and party_back != null and beast_front != null and beast_back != null, "row outlines are controls")
 		if party_front != null and party_back != null and beast_front != null and beast_back != null:
 			var half: Vector2 = party_front.size * 0.5
-			failed += _assert(party_front.position + half == Vector2(225, 270) and beast_back.position + half == Vector2(882, 270), "slot marks sit on the v7 sole points")
+			failed += _assert(party_front.position + half == Vector2(232, 206) and beast_back.position + half == Vector2(876, 206), "slot marks sit on the battle540 sole points")
 			failed += _assert(party_back.position.x < party_front.position.x, "party back column stands behind the front")
 			failed += _assert(is_equal_approx(party_back.position.y, party_front.position.y), "party columns share the v7 foot lines")
 			failed += _assert(beast_back.position.x > beast_front.position.x, "beast back column stands behind the front")
@@ -14467,8 +14467,8 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 		return failed
 	var keeper_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
 	var elaia_node: Control = view.get_node_or_null("Arena/Fighters/Fighter_elaia") as Control
-	failed += _assert(keeper_node != null and keeper_node.position == Vector2(380, 424), "placeholder Keeper on front middle")
-	failed += _assert(elaia_node != null and elaia_node.position == Vector2(160, 424), "placeholder Elaia on back middle")
+	failed += _assert(keeper_node != null and keeper_node.position == Vector2(312, 286), "placeholder Keeper on front middle")
+	failed += _assert(elaia_node != null and elaia_node.position == Vector2(164, 286), "placeholder Elaia on back middle")
 	var fight: FightState = FightStateScript.new()
 	var keeper_stats: Dictionary = {
 		"might": 11, "arcana": 5, "resilience": 6, "ward": 5,
@@ -14488,7 +14488,7 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	var imp_a: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp") as Control
 	var imp_b: Control = view.get_node_or_null("Arena/Fighters/Fighter_acorn_imp_2") as Control
 	var keeper_f: Control = view.get_node_or_null("Arena/Fighters/Fighter_keeper") as Control
-	failed += _assert(keeper_f != null and keeper_f.position == Vector2(380, 424), "Keeper alone uses front middle sole")
+	failed += _assert(keeper_f != null and keeper_f.position == Vector2(312, 286), "Keeper alone uses front middle sole")
 	failed += _assert(imp_a != null and imp_b != null, "both imps spawned")
 	if imp_a != null and imp_b != null:
 		var front_soles: Array = BattleViewScript.SLOT_SOLES["beast_front"]
@@ -14505,7 +14505,7 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 		var keeper_hp: TextureProgressBar = keeper_plate.get_node_or_null("HpBar") as TextureProgressBar
 		failed += _assert(keeper_hp != null and int(keeper_hp.value) == 28 and int(keeper_hp.max_value) == 28, "keeper HP on the plate")
 		failed += _assert(keeper_plate.tooltip_text.find("HP 28/28") >= 0, "keeper plate tooltip has the HP line")
-		failed += _assert(keeper_plate.position == Vector2(380, 424) + Vector2(-28, 10), "keeper plate under his feet")
+		failed += _assert(keeper_plate.position == Vector2(312, 286) + Vector2(-28, 10), "keeper plate under his feet")
 	for beast_id: String in ["acorn_imp", "acorn_imp_2", "spore_moth"]:
 		var plate: Control = view.get_node_or_null("Arena/Plates/BeastPlate_%s" % beast_id) as Control
 		failed += _assert(plate != null, "beast plate %s" % beast_id)
@@ -14551,8 +14551,8 @@ func _battle_plates(tree_root: Window, game_state: Node, save_service: Node) -> 
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
 	failed += _assert(close_btn != null, "Close button present")
 	if close_btn != null:
-		failed += _assert(is_equal_approx(close_btn.offset_left, 1140.0) and is_equal_approx(close_btn.offset_top, 16.0), "Close sits top-right")
-		failed += _assert(is_equal_approx(close_btn.offset_right, 1264.0) and is_equal_approx(close_btn.offset_bottom, 52.0), "Close rect matches art")
+		failed += _assert(is_equal_approx(close_btn.offset_left, 892.0) and is_equal_approx(close_btn.offset_top, 24.0), "Close sits top-right")
+		failed += _assert(is_equal_approx(close_btn.offset_right, 936.0) and is_equal_approx(close_btn.offset_bottom, 68.0), "Close is the 44 px kit button")
 	BattleViewScript.close_arena()
 	await process_frame
 	failed += _assert(not bool(BattleViewScript.is_open()), "close_arena still closes")
