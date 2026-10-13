@@ -77,13 +77,14 @@ func _build_ui() -> void:
 	var backdrop := ColorRect.new()
 	backdrop.name = "Backdrop"
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	backdrop.color = Color(0.02, 0.04, 0.03, 0.62)
+	backdrop.color = Color(0, 0, 0, 0.5)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(backdrop)
 
-	var panel := ColorRect.new()
+	var panel := Panel.new()
 	panel.name = "Panel"
-	panel.color = Color(0.09, 0.12, 0.11, 0.97)
+	panel.custom_minimum_size = Vector2(600, 760)
+	panel.size = Vector2(600, 760)
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.offset_left = -300.0
 	panel.offset_top = -380.0
@@ -91,6 +92,14 @@ func _build_ui() -> void:
 	panel.offset_bottom = 380.0
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(panel)
+	Ui540.apply_kit_panel(panel, "debug")
+	var close_icon := Button.new()
+	close_icon.name = "CloseIcon"
+	close_icon.position = Vector2(600 - 68, 18)
+	close_icon.size = Vector2(44, 44)
+	Ui540.configure_kit_close_button(close_icon)
+	close_icon.pressed.connect(_on_close_pressed)
+	panel.add_child(close_icon)
 
 	var root := VBoxContainer.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -103,12 +112,13 @@ func _build_ui() -> void:
 	var title := Label.new()
 	title.text = "Debug tools"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 22)
+	GameTheme.style_plank_label(title)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(title)
 	var subtitle := Label.new()
 	subtitle.text = "Ctrl+F8  ·  testing build"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 12)
+	GameTheme.style_body_label(subtitle)
 	root.add_child(subtitle)
 
 	var tabs := TabContainer.new()
