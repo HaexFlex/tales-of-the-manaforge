@@ -6066,7 +6066,7 @@ func _debug_panel_ok(tree_root: Window) -> int:
 	var packed: PackedScene = load("res://tools/debug/debug_panel.tscn") as PackedScene
 	var panel: Node = packed.instantiate()
 	tree_root.add_child(panel)
-	await tree_root.process_frame
+	await process_frame
 	var tabs: TabContainer = panel.find_child("DebugTabs", true, false) as TabContainer
 	failed += _assert(tabs != null and tabs.get_tab_count() >= 6, "six tabs")
 	var bramble_btn: Button = null
@@ -6127,12 +6127,12 @@ func _intro_text_ok(tree_root: Window, content_strings: Node) -> int:
 	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
 	var hud: Node = hud_scene.instantiate()
 	tree_root.add_child(hud)
-	await tree_root.process_frame
+	await process_frame
 	hud.call("show_welcome")
-	await tree_root.process_frame
+	await process_frame
 	var btn: Button = hud.get_node_or_null("WelcomePanel/WelcomeDismiss") as Button
 	failed += _assert(btn != null and not btn.disabled and not bool(hud.get("_welcome_dismiss_ready")), "dismiss shows its primary face but ignores presses at first")
-	await tree_root.create_timer(1.6, true).timeout
+	await create_timer(1.6, true).timeout
 	failed += _assert(btn != null and not btn.disabled and bool(hud.get("_welcome_dismiss_ready")), "dismiss armed after 1.5s")
 	hud.queue_free()
 	return failed
@@ -6187,18 +6187,18 @@ func _shop_toggles_ok(tree_root: Window, game_state: Node, save_service: Node) -
 		return failed + 1
 	var hud: Node = hud_scene.instantiate()
 	tree_root.add_child(hud)
-	await tree_root.process_frame
+	await process_frame
 	hud.call("show_ascension_shop")
-	await tree_root.process_frame
+	await process_frame
 	var toolbar: Node = hud.get_node_or_null("AscensionPanel/ShopToolbar")
 	failed += _assert(toolbar != null, "shop toolbar")
 	game_state.set("shop_hide_locked", false)
 	hud.call("_rebuild_upgrades")
-	await tree_root.process_frame
+	await process_frame
 	game_state.set("shop_spoiler_shown_count", 3)
 	game_state.set("shop_hide_locked", true)
 	hud.call("_on_hide_locked_toggled", false)
-	await tree_root.process_frame
+	await process_frame
 	failed += _assert(not bool(game_state.get("shop_hide_locked")), "spoiler bypass after 3")
 	hud.queue_free()
 	return failed
@@ -6211,15 +6211,15 @@ func _shop_preview_ok(tree_root: Window, game_state: Node) -> int:
 	var hud_scene: PackedScene = load("res://scenes/hud.tscn") as PackedScene
 	var hud: Node = hud_scene.instantiate()
 	tree_root.add_child(hud)
-	await tree_root.process_frame
+	await process_frame
 	hud.call("show_ascension_shop_preview")
-	await tree_root.process_frame
+	await process_frame
 	failed += _assert(bool(hud.call("is_shop_preview_open")), "preview mode open")
 	failed += _assert(not bool(hud.call("is_ascension_shop_open")), "not counted as ascend shop")
 	var list: VBoxContainer = hud.get_node_or_null("AscensionPanel/ShopScroll/UpgradeList") as VBoxContainer
 	failed += _assert(list != null and list.get_child_count() > 0, "preview lists blessings")
 	hud.call("_on_shop_close")
-	await tree_root.process_frame
+	await process_frame
 	failed += _assert(not bool(hud.call("is_shop_preview_open")), "preview closes")
 	hud.queue_free()
 	return failed
@@ -9311,14 +9311,14 @@ func _debug_snapshots_reach(tree_root: Window, game_state: Node, save_service: N
 	failed += _assert(str(game_state.get("expedition_lantern")) == "dark", "north road: lantern dark")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "North road open")
 	# c. Pre-boss: room 9 of the run in progress, the next room is the boss.
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), 14, true)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
 	failed += _assert(bool(reach.get("running")) and str(reach.get("phase")) == "idle_room", "pre-boss: an idle room is running")
 	failed += _assert(int(reach.get("rooms_attempted")) == 9 and not bool(reach.call("is_boss_room")), "pre-boss: room 9, not the boss yet")
 	failed += _assert(int(reach.call("rooms_until_boss")) == 1, "pre-boss: rooms until boss is 1 (got %d)" % int(reach.call("rooms_until_boss")))
 	failed += _assert(int(reach.get("slots_total")) - int(reach.get("slots_used")) >= 2, "pre-boss: at least two slots remain, so the run can reach the boss")
 	failed += _assert(str(game_state.get("expedition_lantern")) == "amber", "pre-boss: lantern amber")
 	failed += await _snapshot_hub_check(tree_root, game_state, save_service, "Pre-boss")
-	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), 14, true)
+	failed += _probe_one(game_state, str(_REACH_SNAPSHOTS["Pre-boss"]), want_version, true)
 	reach.call("debug_force_outcomes", ["win"])
 	reach.call("advance_clock", 720.0 - float(reach.get("room_clock")) + 0.001)
 	failed += _assert(bool(reach.get("running")) and int(reach.get("rooms_attempted")) == 10 and bool(reach.call("is_boss_room")), "pre-boss: finishing room 9 opens the boss room")
