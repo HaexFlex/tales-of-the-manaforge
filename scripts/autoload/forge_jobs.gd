@@ -35,7 +35,6 @@ var _last_big_done_msec: int = -1000000
 var _allow_scene_change: bool = true
 ## -1 follows the live scene. 0/1 forces the upcycle tick inside or outside the Forge.
 var _in_forge_override: int = -1
-var _materials_snapshot: Dictionary = {}
 var _repeat_override: Dictionary = {}
 ## One phase for every wisp on every target. Advanced once per frame, not once per wisp.
 var _wisp_orbit_phase: float = 0.0
@@ -1239,8 +1238,8 @@ func _grant_offline(eff: float, raw_sec: float = -1.0) -> Dictionary:
 
 func ascend_warning() -> String:
 	var parts: PackedStringArray = PackedStringArray()
-	if GameState.get_upgrade_rank("keep_forge_intermediates") <= 0:
-		parts.append(copy_text("ascend_warning_materials"))
+	## Forge materials always wipe. There is no blessing that keeps them.
+	parts.append(copy_text("ascend_warning_materials"))
 	if GameState.get_upgrade_rank("keep_forge_jobs") <= 0:
 		parts.append(copy_text("ascend_warning_jobs"))
 	var batches: String = ascend_confirm_text()
@@ -1273,26 +1272,18 @@ func ascend_confirm_text() -> String:
 
 
 func prepare_ascend() -> Dictionary:
-	var snap: Dictionary = {}
-	for mat: String in _forge_materials():
-		if has_node("/root/Backpack"):
-			snap[mat] = Backpack.get_count(mat)
+	## Jobs may stay with Banked Embers. Forge materials always wipe with the backpack.
 	if GameState.get_upgrade_rank("keep_forge_jobs") <= 0:
 		_jobs.clear()
 	_companions.clear()
 	note_keeper_idle()
 	note_elaia_idle()
-	_materials_snapshot = snap
-	return snap
+	return {}
 
 
-func finish_ascend(snap: Dictionary) -> void:
-	if GameState.get_upgrade_rank("keep_forge_intermediates") <= 0:
-		return
-	if not has_node("/root/Backpack"):
-		return
-	for key: Variant in snap.keys():
-		Backpack.set_count(str(key), int(snap[key]))
+func finish_ascend(_snap: Dictionary) -> void:
+	## Nothing to put back. Sapsteel, Heartwood Bits and Amberbind are already wiped.
+	return
 
 
 func capture_save_fields() -> Dictionary:
@@ -1376,7 +1367,6 @@ func reset_for_new_game() -> void:
 	_return_to_clearing = false
 	_pending_scene = ""
 	_scene_swap_queued = false
-	_materials_snapshot.clear()
 	_repeat_override.clear()
 
 

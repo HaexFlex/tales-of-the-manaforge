@@ -39,7 +39,7 @@ Endless example costs (PLACEHOLDER):
 ## Dropped
 - companion_bond
 - reach_headstart (start depth already goes up to `deepest_depth`)
-- Keep Forge Materials upgrade (replaced by parked Root Cellar)
+- **Keep Forge Materials** (`keep_forge_intermediates`). Removed from the shop, `forge_tuning.json`, and the Ascend restore path (Haex 2026-10-13). Sapsteel, Heartwood Bits and Amberbind always wipe on Ascend. A save that still has the rank drops it in `migrate_state`, with no refund. Root Cellar stays parked and is not this blessing.
 
 ## Shop UI
 - **Hide locked** and **Hide maxed** toggles side by side, both ON by default, saved per save file.

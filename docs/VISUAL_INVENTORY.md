@@ -627,7 +627,6 @@ Pixel sizes from Pillow (PIL). Paths are repo-relative under the project root. U
 | `assets/art/ui/icons/icon_asc_deep_roots.png` | 32×32 | scripts/character_sheet.gd; scripts/hud.gd; scripts/hud_icons.gd |
 | `assets/art/ui/icons/icon_asc_forager.png` | 32×32 | scripts/character_sheet.gd; scripts/hud.gd; scripts/hud_icons.gd |
 | `assets/art/ui/icons/icon_asc_green_thumb.png` | 32×32 | scripts/character_sheet.gd; scripts/hud.gd; scripts/hud_icons.gd |
-| `assets/art/ui/icons/icon_asc_keep_forge_intermediates.png` | 32×32 | scripts/character_sheet.gd; scripts/hud.gd; scripts/hud_icons.gd |
 | `assets/art/ui/icons/icon_asc_keep_forge_jobs.png` | 32×32 | scripts/character_sheet.gd; scripts/hud.gd; scripts/hud_icons.gd |
 | `assets/art/ui/icons/icon_asc_keep_tools.png` | 32×32 | scripts/character_sheet.gd; scripts/hud.gd; scripts/hud_icons.gd |
 | `assets/art/ui/icons/icon_asc_keeper_stride.png` | 32×32 | scripts/character_sheet.gd; scripts/hud.gd; scripts/hud_icons.gd |

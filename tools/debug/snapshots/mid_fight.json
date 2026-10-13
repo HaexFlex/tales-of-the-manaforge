@@ -40,7 +40,6 @@
 			"wisp_haste": 0,
 			"bonus_wisp": 0,
 			"keep_tools": 0,
-			"keep_forge_intermediates": 0,
 			"keep_forge_jobs": 0
 		},
 		"wisp_count": 0,

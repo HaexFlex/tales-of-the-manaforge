@@ -1946,6 +1946,7 @@ func apply_save_dict(data: Dictionary) -> void:
 	var ranks: Variant = data.get("upgrades", data.get("upgrade_ranks", {}))
 	if typeof(ranks) == TYPE_DICTIONARY:
 		upgrade_ranks = (ranks as Dictionary).duplicate(true)
+		upgrade_ranks.erase("keep_forge_intermediates")
 	_ensure_upgrade_keys()
 	shop_hide_locked = bool(data.get("shop_hide_locked", true))
 	shop_hide_maxed = bool(data.get("shop_hide_maxed", true))

@@ -623,6 +623,7 @@ func _migrate(from_version: int, state: Dictionary) -> Dictionary:
 		_migrate_v14(out)
 	if from_version < 15:
 		_migrate_v15(out)
+	_drop_removed_blessings(out)
 	_normalize_stat_ranks(out)
 	if not out.has("welcome_shown"):
 		out["welcome_shown"] = true
@@ -701,6 +702,16 @@ func _migrate_v13(out: Dictionary) -> void:
 		guessed = 1
 	reach["rooms_attempted"] = guessed
 	out["reach"] = reach
+
+
+func _drop_removed_blessings(out: Dictionary) -> void:
+	## Keep Forge Materials is gone. Forge materials always wipe on Ascend. No refund.
+	for key: String in ["upgrades", "upgrade_ranks"]:
+		var ranks_v: Variant = out.get(key, null)
+		if typeof(ranks_v) != TYPE_DICTIONARY:
+			continue
+		var ranks: Dictionary = ranks_v as Dictionary
+		ranks.erase("keep_forge_intermediates")
 
 
 func _migrate_v15(out: Dictionary) -> void:
