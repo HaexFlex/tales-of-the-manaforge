@@ -604,17 +604,27 @@ func _ensure_help_panel() -> void:
 	Ui540.configure_kit_close_button(_help_close)
 	_help_close.pressed.connect(_close_help_panel)
 	_help_panel.add_child(_help_close)
+	var draft := Label.new()
+	draft.name = "HelpDraftTag"
+	draft.text = "DRAFT — for Lore"
+	draft.position = Vector2(36, 28)
+	draft.size = Vector2(200, 26)
+	GameTheme.style_body_label(draft)
+	draft.add_theme_color_override("font_color", Color(0.69, 0.44, 0.08))
+	_help_panel.add_child(draft)
 	_help_tab_pc = Button.new()
 	_help_tab_pc.text = "PC"
-	_help_tab_pc.position = Vector2(36, 28)
+	_help_tab_pc.position = Vector2(220, 28)
 	_help_tab_pc.size = Vector2(120, 44)
 	_help_tab_pc.pressed.connect(_set_help_tab.bind("pc"))
+	Ui540.style_wood_icon_button(_help_tab_pc)
 	_help_panel.add_child(_help_tab_pc)
 	_help_tab_phone = Button.new()
 	_help_tab_phone.text = "Phone"
-	_help_tab_phone.position = Vector2(164, 28)
+	_help_tab_phone.position = Vector2(348, 28)
 	_help_tab_phone.size = Vector2(120, 44)
 	_help_tab_phone.pressed.connect(_set_help_tab.bind("phone"))
+	Ui540.style_wood_icon_button(_help_tab_phone)
 	_help_panel.add_child(_help_tab_phone)
 	var scroll := ScrollContainer.new()
 	scroll.position = Vector2(36, 84)
@@ -625,6 +635,24 @@ func _ensure_help_panel() -> void:
 	_help_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_help_body)
 	_layout_help_panel()
+
+
+func _make_help_row(row: Dictionary) -> HBoxContainer:
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 12)
+	line.custom_minimum_size = Vector2(0, 28)
+	var key_lbl := Label.new()
+	key_lbl.custom_minimum_size = Vector2(140, 24)
+	key_lbl.text = "[%s]" % str(row.get("key", ""))
+	GameTheme.style_body_label(key_lbl)
+	var act_lbl := Label.new()
+	act_lbl.text = str(row.get("action", ""))
+	act_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	act_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	GameTheme.style_body_label(act_lbl)
+	line.add_child(key_lbl)
+	line.add_child(act_lbl)
+	return line
 
 
 func _help_rows() -> Array[Dictionary]:
@@ -653,21 +681,33 @@ func _layout_help_panel() -> void:
 	Ui540.center_control(_help_panel)
 	for child: Node in _help_body.get_children():
 		child.free()
-	for row: Dictionary in _help_rows():
-		var line := HBoxContainer.new()
-		line.add_theme_constant_override("separation", 12)
-		var key_lbl := Label.new()
-		key_lbl.custom_minimum_size = Vector2(160, 24)
-		key_lbl.text = str(row.get("key", ""))
-		GameTheme.style_body_label(key_lbl)
-		var act_lbl := Label.new()
-		act_lbl.text = str(row.get("action", ""))
-		act_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		act_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		GameTheme.style_body_label(act_lbl)
-		line.add_child(key_lbl)
-		line.add_child(act_lbl)
-		_help_body.add_child(line)
+	var rows: Array[Dictionary] = _help_rows()
+	if _help_tab == "pc":
+		var cols_box := HBoxContainer.new()
+		cols_box.add_theme_constant_override("separation", 20)
+		var left := VBoxContainer.new()
+		var right := VBoxContainer.new()
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var per_col: int = int(ceil(float(rows.size()) / 2.0))
+		for i: int in range(rows.size()):
+			var line: Control = _make_help_row(rows[i])
+			if i < per_col:
+				left.add_child(line)
+			else:
+				right.add_child(line)
+		cols_box.add_child(left)
+		cols_box.add_child(right)
+		_help_body.add_child(cols_box)
+		var pad := Label.new()
+		pad.text = "Gamepad: not supported yet (menus follow Godot ui_ arrows only)."
+		GameTheme.style_body_label(pad)
+		pad.add_theme_color_override("font_color", Color(0.7, 0.64, 0.52))
+		pad.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_help_body.add_child(pad)
+	else:
+		for row: Dictionary in rows:
+			_help_body.add_child(_make_help_row(row))
 	var welcome_hint: String = ContentStrings.get_text("welcome_hint")
 	if welcome_hint != "":
 		var old := Label.new()
