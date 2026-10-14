@@ -51,7 +51,6 @@ const PICKER_PAD_BOTTOM: float = 22.0
 const PICKER_CHROME_H: float = PICKER_PAD_TOP + PICKER_TITLE_H + PICKER_ROW_GAP + PICKER_PAD_BOTTOM
 const PICKER_SCROLL_MAX_H: float = 228.0
 const ICON_ESSENCE_TEX: String = "res://assets_extra/shared/icon_essence.png"
-const ESC_KEYCAP_SIZE: Vector2 = Vector2(56, 40)
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 
 var picker_popup: PanelContainer
@@ -542,9 +541,6 @@ func _build_simulate_window() -> void:
 	Ui540.place_title_plank(sim_title, SIM_SIZE.x)
 	var inner_w: float = SIM_SIZE.x - PAD * 2.0
 	simulate_close = _kit_close(simulate_window, "SimulateClose", SIM_SIZE.x)
-	var esc := _esc_keycap(simulate_window, simulate_close)
-	esc.name = "SimulateCloseEsc"
-	Ui540.hide_on_phone(esc)
 	var header := _line(simulate_window, "SimulateHeader", Vector2(PAD, 22), Vector2(inner_w - 192.0, 20), true)
 	header.clip_text = true
 	var summary := _line(simulate_window, "SimulateSummary", Vector2(PAD, 68), Vector2(inner_w, 24), false)
@@ -603,10 +599,7 @@ func _add_title(panel: Control) -> void:
 
 
 func _add_close(panel: Control) -> void:
-	var btn := _kit_close(panel, "CloseButton", PANEL_SIZE.x)
-	if not Ui540.is_phone_export():
-		var esc := _esc_keycap(panel, btn)
-		esc.name = "CloseEscKeycap"
+	_kit_close(panel, "CloseButton", PANEL_SIZE.x)
 
 
 func _kit_close(parent: Control, node_name: String, window_w: float) -> Button:
@@ -616,12 +609,6 @@ func _kit_close(parent: Control, node_name: String, window_w: float) -> Button:
 	Ui540.configure_kit_close_button(btn)
 	Ui540.place_close_button(btn, window_w)
 	return btn
-
-
-func _esc_keycap(parent: Control, close_btn: Control) -> TextureRect:
-	## 2× the 28×20 cap, nearest-neighbour, centred on the Close button.
-	var pos := Vector2(close_btn.position.x - 8.0 - ESC_KEYCAP_SIZE.x, close_btn.position.y + (ROW_H - ESC_KEYCAP_SIZE.y) * 0.5)
-	return _tex_rect(parent, KIT_DIR + "keycap_esc.png", pos, ESC_KEYCAP_SIZE)
 
 
 func _add_loadout_stepper(panel: Control, slot_n: int, pos: Vector2) -> void:

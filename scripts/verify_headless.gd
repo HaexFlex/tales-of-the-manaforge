@@ -16933,7 +16933,7 @@ func _board_layout_rect_ok(shell: Node) -> int:
 		return failed + 1
 	var frame: Rect2 = _board_parchment_rect(shell)
 	for node_name: String in [
-		"CloseButton", "CloseEscKeycap", "Depart", "CostChip", "SimulateButton",
+		"CloseButton", "Depart", "CostChip", "SimulateButton",
 		"DepthMaxLabel", "RoomsStepNote", "LoadoutQty1Cap", "LoadoutQty2Cap",
 	]:
 		var ctrl: Control = shell.find_child(node_name, true, false) as Control
@@ -16977,7 +16977,7 @@ func _board_decor_whitelisted(node: Node) -> bool:
 	var n: String = node.name
 	if n in [
 		"Panel", "FormationBed", "ResultsFrame", "TitlePlate", "ResultsTitlePlate", "Dim", "SimulateDim",
-		"EnemyArrow", "DecoVineTL", "DecoVineBR", "PickerTail", "TitlePlate", "CloseEscKeycap", "SimulateCloseEsc",
+		"EnemyArrow", "DecoVineTL", "DecoVineBR", "PickerTail", "TitlePlate",
 	]:
 		return true
 	if n.begins_with("Divider"):
