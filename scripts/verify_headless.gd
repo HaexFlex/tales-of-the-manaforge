@@ -49,7 +49,7 @@ func _run() -> void:
 			quit(0)
 		return
 
-	failed += _tooltip_parchment_ok(tree_root)
+	failed += await _tooltip_parchment_ok(tree_root)
 	failed += _title_plank_drawn()
 
 	# Workbench stand. The full suite still runs this near the end.
@@ -6307,8 +6307,10 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 		box = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture
 	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
 	failed += _assert(path.find("toast_9s_40x30") >= 0, "tooltip panel uses the activity papyrus scroll")
-	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 8.0 and box.texture_margin_right == 12.0 and box.texture_margin_bottom == 8.0, "tooltip texture margins are 12/8/12/8")
-	failed += _assert(box != null and box.content_margin_left == 10.0 and box.content_margin_top == 4.0 and box.content_margin_right == 10.0 and box.content_margin_bottom == 4.0, "tooltip content margins are 10/4/10/4")
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 8.0 and box.texture_margin_right == 12.0 and box.texture_margin_bottom == 8.0, "tooltip texture margins keep the rolls at 12/8/12/8")
+	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH, "tooltip nine-slice stretches only the middle")
+	failed += _assert(box != null and box.content_margin_left >= box.texture_margin_left and box.content_margin_right >= box.texture_margin_right and box.content_margin_top >= box.texture_margin_top and box.content_margin_bottom >= box.texture_margin_bottom, "tooltip content sits inside the rolled ends")
+	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 10.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 10.0, "tooltip content margins are 16/10/16/10")
 	var host := Control.new()
 	host.position = Vector2(100, 80)
 	host.size = Vector2(44, 44)
@@ -6330,9 +6332,20 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	host.size = Vector2(44, 44)
 	pop.size = Vector2(140, 36)
 	Ui540.place_tooltip(pop, host)
-	failed += _assert(pop.position.y + pop.size.y <= host.position.y + 0.5, "tooltip sits above a bottom-row button (got %s)" % str(pop.position))
+	var gap: float = host.position.y - (pop.position.y + pop.size.y)
+	failed += _assert(gap >= Ui540.TOOLTIP_GAP_PX - 0.5, "bottom-row tooltip opens above with a few px of gap (got %.1f)" % gap)
+	failed += _assert(pop.position.y >= Ui540.SAFE_MARGIN_PX - 0.1 and pop.position.y + pop.size.y <= vs.y - Ui540.SAFE_MARGIN_PX + 0.1, "bottom-row tooltip stays inside the safe margin vertically")
 	var neighbour := Rect2(Vector2(752, row_y), Vector2(44, 44))
 	failed += _assert(not Rect2(pop.position, pop.size).intersects(neighbour), "tooltip clears the neighbouring HUD icon")
+	host.position = Vector2(vs.x - 30.0, row_y)
+	pop.size = Vector2(220, 36)
+	Ui540.place_tooltip(pop, host)
+	failed += _assert(pop.position.x >= Ui540.SAFE_MARGIN_PX - 0.1 and pop.position.x + pop.size.x <= vs.x - Ui540.SAFE_MARGIN_PX + 0.1, "wide bottom-row tooltip clamps inside the 24 px margin (got %s)" % str(pop.position))
+	failed += _assert(host.position.y - (pop.position.y + pop.size.y) >= Ui540.TOOLTIP_GAP_PX - 0.5, "clamped bottom-row tooltip keeps its gap")
+	pop.size = Vector2(120, vs.y - 80.0)
+	Ui540.place_tooltip(pop, host)
+	failed += _assert(is_equal_approx(pop.position.y, Ui540.SAFE_MARGIN_PX), "a tall bottom-row tooltip clamps to the top safe margin (got %.1f)" % pop.position.y)
+	failed += _assert(pop.position.y + pop.size.y <= vs.y - Ui540.SAFE_MARGIN_PX + 0.5, "a tall bottom-row tooltip stays above the bottom safe margin")
 	pop.free()
 	host.free()
 	## The engine builds a TooltipPanel popup and adds it under the control.
@@ -6361,8 +6374,42 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
 	failed += _assert(drawn_path.find("toast_9s_40x30") >= 0, "tooltip panel draws the activity papyrus scroll (got %s)" % drawn_path)
 	failed += _assert(tip_label.get_theme_color("font_color").is_equal_approx(Color8(62, 42, 24)), "tooltip label ink is applied")
+	failed += await _tooltip_text_inside_margins(tree_root, theme)
 	tip_btn.free()
 	failed += _world_hover_names_ok(tree_root)
+	return failed
+
+
+func _tooltip_text_inside_margins(tree_root: Window, theme: Theme) -> int:
+	var failed: int = 0
+	var panel := PanelContainer.new()
+	panel.name = "TooltipTextProbe"
+	panel.theme = theme
+	panel.theme_type_variation = &"TooltipPanel"
+	var label := Label.new()
+	label.theme = theme
+	label.theme_type_variation = &"TooltipLabel"
+	label.text = "C — Character"
+	panel.add_child(label)
+	tree_root.add_child(panel)
+	await process_frame
+	var box: StyleBoxTexture = panel.get_theme_stylebox(&"panel") as StyleBoxTexture
+	failed += _assert(box != null, "probe tooltip has the papyrus stylebox")
+	if box == null:
+		panel.free()
+		return failed
+	var text_rect := Rect2(label.position, label.size)
+	var content := Rect2(
+		box.content_margin_left,
+		box.content_margin_top,
+		panel.size.x - box.content_margin_left - box.content_margin_right,
+		panel.size.y - box.content_margin_top - box.content_margin_bottom
+	)
+	failed += _assert(content.encloses(text_rect), "C — Character sits inside the content margins (text %s content %s)" % [str(text_rect), str(content)])
+	failed += _assert(text_rect.position.x >= box.texture_margin_left - 0.1, "tooltip text clears the left roll (x %.1f)" % text_rect.position.x)
+	failed += _assert(text_rect.end.x <= panel.size.x - box.texture_margin_right + 0.1, "tooltip text clears the handle (right %.1f panel %.1f)" % [text_rect.end.x, panel.size.x])
+	failed += _assert(text_rect.position.y >= box.texture_margin_top - 0.1 and text_rect.end.y <= panel.size.y - box.texture_margin_bottom + 0.1, "tooltip text clears the top and bottom edges")
+	panel.free()
 	return failed
 
 
