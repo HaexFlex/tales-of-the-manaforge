@@ -35,6 +35,7 @@ func run_scenes() -> int:
 	failed += _check(MinigameCatalog.hot_spot_points("reliquary").size() == 9, "reliquary has the nine rune points")
 	failed += _hot_spots_switch()
 	failed += _woodsong_volume()
+	failed += _grain_shapes()
 	failed += _check(MinigameCatalog.game_for("brewing") == "steeping", "steeping stays mapped to brewing")
 	failed += _check(not MinigameCatalog.is_reachable("steeping"), "steeping has no world station, so it stays unreachable")
 	failed += _summary()
@@ -78,6 +79,33 @@ func _woodsong_volume() -> int:
 	failed += _check(is_equal_approx(Woodsong._saved_volume, before - 0.1), "woodsong [ lowers the tune")
 	Woodsong._saved_volume = before
 	node.call("_paint_volume")
+	node.free()
+	return failed
+
+
+func _grain_shapes() -> int:
+	var failed: int = 0
+	var node: Node = (load("res://scenes/minigames/with_the_grain.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	var want: PackedStringArray = PackedStringArray([
+		"rod", "head", "plank", "s_curve", "spiral", "wave", "loop", "heart", "leaf", "zigzag",
+		"arch", "vee", "tick", "stairs", "diamond", "hook", "circle", "figure8", "crescent", "bell",
+	])
+	var panel := Rect2(148, 34, 424, 272)
+	for i: int in want.size():
+		node.set("_shape_i", i)
+		var pts: PackedVector2Array = node.call("_path_for", want[i])
+		var expect: int = 20 if i < 3 else 32
+		failed += _check(pts.size() == expect, "%s has %d points, got %d" % [want[i], expect, pts.size()])
+		var inside: bool = pts.size() > 1
+		for p: Vector2 in pts:
+			if not panel.grow(1.0).has_point(p):
+				inside = false
+		failed += _check(inside, "%s stays on the workpiece" % want[i])
+	node.set("_shape_i", 0)
+	var rod: PackedVector2Array = node.call("_path_for", "rod")
+	var origin := Vector2(148.0 + 0.277365 * 424.0, 34.0 + 0.422701 * 272.0)
+	failed += _check(rod.size() > 0 and rod[0].distance_to(origin) < 0.05, "rod uses the prototype seed")
 	node.free()
 	return failed
 
@@ -212,7 +240,13 @@ func _math() -> int:
 	var desk_k: float = MinigameCatalog.k_for("with_the_grain", false)
 	var phone_avg: float = MinigameCatalog.grain_average_round(true)
 	failed += _check(is_equal_approx(phone_k, MinigameMath.grain_k(phone_avg)), "grain k follows the average round")
-	failed += _check(absf(phone_k - 10.0) < 1.0, "phone grain k is about 10 (got %.3f)" % phone_k)
+	failed += _check(MinigameCatalog.grain_shapes().size() == 20, "grain has the twenty prototype shapes")
+	var straight: int = 0
+	for entry_v: Variant in MinigameCatalog.grain_shapes():
+		if typeof(entry_v) == TYPE_DICTIONARY and not bool((entry_v as Dictionary).get("curvy", false)):
+			straight += 1
+	failed += _check(straight == 1, "only the rod stays a 4s phone round")
+	failed += _check(is_equal_approx(phone_k, 11.8), "phone grain k is 11.8 with nineteen curvy rounds (got %.3f)" % phone_k)
 	failed += _check(is_equal_approx(desk_k, 8.0), "desktop grain rounds are 4s so k = 8")
 	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(1, true), 6.0), "curvy phone round is 6s")
 	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(0, true), 4.0), "straight phone round stays 4s")

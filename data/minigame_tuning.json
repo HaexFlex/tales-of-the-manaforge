@@ -105,7 +105,24 @@
       "shapes": [
         {"id": "rod", "curvy": false},
         {"id": "head", "curvy": true},
-        {"id": "plank", "curvy": true}
+        {"id": "plank", "curvy": true},
+        {"id": "s_curve", "curvy": true},
+        {"id": "spiral", "curvy": true},
+        {"id": "wave", "curvy": true},
+        {"id": "loop", "curvy": true},
+        {"id": "heart", "curvy": true},
+        {"id": "leaf", "curvy": true},
+        {"id": "zigzag", "curvy": true},
+        {"id": "arch", "curvy": true},
+        {"id": "vee", "curvy": true},
+        {"id": "tick", "curvy": true},
+        {"id": "stairs", "curvy": true},
+        {"id": "diamond", "curvy": true},
+        {"id": "hook", "curvy": true},
+        {"id": "circle", "curvy": true},
+        {"id": "figure8", "curvy": true},
+        {"id": "crescent", "curvy": true},
+        {"id": "bell", "curvy": true}
       ],
       "hint_pc": "Drag from the gold ring along the grain.",
       "hint_phone": "Drag from the gold ring along the grain."
