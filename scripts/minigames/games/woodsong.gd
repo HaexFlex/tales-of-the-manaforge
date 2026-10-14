@@ -9,6 +9,11 @@ const TUNE_RECT := Rect2(12, 264, 140, 44)
 ## r6 puts the beat rail on the top of the play field, clear of the tune button.
 const RAIL_POS := Vector2(320, 32)
 const NOTCH_X: float = 100.0
+## Volume plate sits beside the tune button. The value survives Play again.
+const VOL_RECT := Rect2(160, 264, 196, 44)
+## Track width is the plate minus the 20 px side margins the prototype leaves.
+const VOL_TRACK_W: float = 156.0
+static var _saved_volume: float = 0.8
 
 var _window: float = 0.18
 var _interval: float = 1.25
@@ -22,6 +27,8 @@ var _rail: Sprite2D
 var _notch: Sprite2D
 var _tune_on: bool = true
 var _tune_btn: TextureButton
+var _vol_fill: TextureRect
+var _vol_grab: TextureRect
 var _player: AudioStreamPlayer
 var _loops: int = 0
 var _last_pos: float = 0.0
@@ -62,6 +69,7 @@ func _ready() -> void:
 	_tune_btn.pressed.connect(_toggle_tune)
 	add_child(_tune_btn)
 	_paint_tune()
+	_build_volume()
 	_player = AudioStreamPlayer.new()
 	_player.name = "Alt96"
 	_player.bus = "Music"
@@ -124,7 +132,7 @@ func _gui_input(event: InputEvent) -> void:
 	if not playing or not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and not TUNE_RECT.has_point(mb.position):
+	if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and not TUNE_RECT.has_point(mb.position) and not VOL_RECT.has_point(mb.position):
 		_strike()
 
 
@@ -136,6 +144,11 @@ func on_key(event: InputEvent) -> void:
 		return
 	if key.keycode == KEY_M:
 		_toggle_tune()
+		return
+	if key.keycode == KEY_BRACKETLEFT or key.keycode == KEY_BRACKETRIGHT:
+		var step: float = 0.1 if key.keycode == KEY_BRACKETRIGHT else -0.1
+		_saved_volume = clampf(_saved_volume + step, 0.0, 1.0)
+		_paint_volume()
 		return
 	if key.keycode == KEY_SPACE or key.keycode == KEY_ENTER:
 		_strike()
@@ -193,6 +206,82 @@ func _paint_tune() -> void:
 	_tune_btn.tooltip_text = "Music on" if _tune_on else "Music off"
 
 
+func _build_volume() -> void:
+	var plate := Control.new()
+	plate.name = "Volume"
+	plate.position = VOL_RECT.position
+	plate.size = VOL_RECT.size
+	plate.mouse_filter = Control.MOUSE_FILTER_STOP
+	plate.z_index = 5
+	plate.gui_input.connect(_on_volume_input)
+	add_child(plate)
+	var back := TextureRect.new()
+	back.name = "Plate"
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	back.texture = MinigameArt.texture("vol_plate.png")
+	back.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	back.stretch_mode = TextureRect.STRETCH_SCALE
+	back.size = VOL_RECT.size
+	plate.add_child(back)
+	_vol_fill = TextureRect.new()
+	_vol_fill.name = "Fill"
+	_vol_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vol_fill.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_vol_fill.stretch_mode = TextureRect.STRETCH_SCALE
+	_vol_fill.position = Vector2(20, 15)
+	plate.add_child(_vol_fill)
+	_vol_grab = TextureRect.new()
+	_vol_grab.name = "Grab"
+	_vol_grab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_vol_grab.texture = MinigameArt.texture("vol_grab.png")
+	_vol_grab.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_vol_grab.stretch_mode = TextureRect.STRETCH_KEEP
+	_vol_grab.size = Vector2(24, 24)
+	plate.add_child(_vol_grab)
+	_paint_volume()
+
+
+func _paint_volume() -> void:
+	var v: float = clampf(_saved_volume, 0.0, 1.0)
+	var fw: float = maxf(8.0, roundf((VOL_TRACK_W - 4.0) * v))
+	if _vol_fill != null:
+		var src: Texture2D = MinigameArt.texture("vol_fill.png")
+		var atlas := AtlasTexture.new()
+		atlas.atlas = src
+		atlas.region = Rect2(0, 0, fw, 14)
+		_vol_fill.texture = atlas
+		_vol_fill.size = Vector2(fw, 14)
+	if _vol_grab != null:
+		_vol_grab.position = Vector2(20.0 + roundf((VOL_TRACK_W - 24.0) * v), 10.0)
+	_apply_volume()
+
+
+func _apply_volume() -> void:
+	if _player == null:
+		return
+	var v: float = clampf(_saved_volume, 0.0, 1.0)
+	_player.volume_db = -80.0 if v <= 0.001 else linear_to_db(v)
+
+
+func _on_volume_input(event: InputEvent) -> void:
+	var local_x: float = -1.0
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.button_index != MOUSE_BUTTON_LEFT or not mb.pressed:
+			return
+		local_x = mb.position.x
+	elif event is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = event as InputEventMouseMotion
+		if mm.button_mask & MOUSE_BUTTON_MASK_LEFT == 0:
+			return
+		local_x = mm.position.x
+	else:
+		return
+	## Grab center sits 32 px in from the plate, then travels the 132 px track.
+	_saved_volume = clampf((local_x - 32.0) / (VOL_TRACK_W - 24.0), 0.0, 1.0)
+	_paint_volume()
+
+
 func _load_tune() -> void:
 	if not ResourceLoader.exists(TUNE_PATH):
 		return
@@ -217,6 +306,7 @@ func _start_tune() -> void:
 	_await_audio = true
 	if has_node("/root/GameAudio"):
 		GameAudio.hold_bed_for_tune()
+	_apply_volume()
 	_player.play(offset)
 
 

@@ -34,6 +34,7 @@ func run_scenes() -> int:
 	failed += _check(MinigameCatalog.hot_spot_points("crucible").size() == 15, "crucible has the fifteen bubble points")
 	failed += _check(MinigameCatalog.hot_spot_points("reliquary").size() == 9, "reliquary has the nine rune points")
 	failed += _hot_spots_switch()
+	failed += _woodsong_volume()
 	failed += _check(MinigameCatalog.game_for("brewing") == "steeping", "steeping stays mapped to brewing")
 	failed += _check(not MinigameCatalog.is_reachable("steeping"), "steeping has no world station, so it stays unreachable")
 	failed += _summary()
@@ -55,6 +56,28 @@ func _hot_spots_switch() -> int:
 	failed += _check(plate_path.ends_with("close_reliquary.png"), "switcher shows the reliquary plate")
 	node.call("_drop_miss", {"x": 40.0, "y": 40.0, "sprite": null})
 	failed += _check(node.get_node_or_null("MissPip") != null, "an expired spot leaves a miss pip")
+	node.free()
+	return failed
+
+
+func _woodsong_volume() -> int:
+	var failed: int = 0
+	var node: Node = (load("res://scenes/minigames/woodsong.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	var vol: Control = node.get_node_or_null("Volume") as Control
+	failed += _check(vol != null and vol.position.is_equal_approx(Vector2(160, 264)), "woodsong volume plate sits beside the tune button")
+	failed += _check(node.get_node_or_null("Volume/Fill") != null and node.get_node_or_null("Volume/Grab") != null, "woodsong volume has fill and grab")
+	var rail: Sprite2D = node.get_node_or_null("beat_rail") as Sprite2D
+	failed += _check(rail != null and rail.position.y < 80.0, "woodsong beat rail stays at the top")
+	var before: float = Woodsong._saved_volume
+	node.call("begin")
+	var key := InputEventKey.new()
+	key.pressed = true
+	key.keycode = KEY_BRACKETLEFT
+	node.call("on_key", key)
+	failed += _check(is_equal_approx(Woodsong._saved_volume, before - 0.1), "woodsong [ lowers the tune")
+	Woodsong._saved_volume = before
+	node.call("_paint_volume")
 	node.free()
 	return failed
 
