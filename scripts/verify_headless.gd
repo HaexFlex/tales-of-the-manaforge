@@ -1544,6 +1544,17 @@ func _run() -> void:
 			game_state.set("wisp_count", saved_wisps)
 			game_state.set("wisp_assignments", saved_assign)
 			game_state.emit_signal("wisps_changed")
+			for pair: Array in [
+				["HUD/Panel/BoardButton", "HUD/Panel/BoardButton/BoardIcon"],
+				["HUD/Panel/CharacterButton", "HUD/Panel/CharacterButton/CharacterIcon"],
+				["HUD/Panel/BackpackButton", "HUD/Panel/BackpackButton/BackpackIcon"],
+				["HUD/Panel/PauseButton", "HUD/Panel/PauseButton/Icon"],
+				["HUD/Panel/HelpButton", "HUD/Panel/HelpButton/HelpIcon"],
+			]:
+				var host_btn: Control = boot_live.get_node_or_null(str(pair[0])) as Control
+				var glyph: Control = boot_live.get_node_or_null(str(pair[1])) as Control
+				var centred: bool = host_btn != null and glyph != null and host_btn.get_global_rect().get_center().distance_to(glyph.get_global_rect().get_center()) <= 0.6
+				failed += _assert(centred, "%s icon is centred on its button" % str(pair[0]))
 			boot_live.free()
 			await process_frame
 		paused = false

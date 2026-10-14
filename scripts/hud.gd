@@ -485,8 +485,32 @@ func _layout_hud540() -> void:
 	if _board_button:
 		_board_button.position = Vector2(shortcut_x + (slot + 2.0) * (tap + 8.0), shortcut_y)
 		_board_button.size = Vector2(tap, tap)
+	_center_hud_icons()
 	_layout_party_bar_r4(vs, safe, shift)
 	_layout_toast_r4(vs, safe, shift)
+
+
+## Child glyphs were authored for a 40 px button. On the 44 px tap target they sat up-left.
+func _center_hud_icons() -> void:
+	_center_hud_icon(pause_icon, pause_button)
+	_center_hud_icon(character_icon, character_button)
+	_center_hud_icon(backpack_icon, backpack_button)
+	_center_hud_icon(help_icon, help_button)
+	_center_hud_icon(ascension_icon, ascension_reopen_button)
+	_center_hud_icon(_board_icon, _board_button)
+
+
+func _center_hud_icon(icon: Control, host: Control) -> void:
+	if icon == null or host == null:
+		return
+	var glyph := icon.custom_minimum_size
+	if glyph.x < 1.0 or glyph.y < 1.0:
+		glyph = icon.size
+	if glyph.x < 1.0 or glyph.y < 1.0:
+		return
+	icon.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	icon.position = ((host.size - glyph) * 0.5).round()
+	icon.size = glyph
 
 
 func _layout_toast_r4(vs: Vector2, safe: float, shift: float) -> void:
