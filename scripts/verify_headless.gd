@@ -5663,6 +5663,8 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		var room: Node = room_packed.instantiate()
 		reliquary = room.get_node_or_null("Reliquary") as Node2D
 		failed += _assert(reliquary != null and reliquary.position.distance_to(Vector2(420, 800)) < 1.0, "reliquary left the north doorway")
+		var saved_root_size: Vector2i = tree_root.size
+		tree_root.size = Vector2i(960, 540)
 		tree_root.add_child(room)
 		await process_frame
 		room.call("_open_recipes", "anvil")
@@ -5696,6 +5698,7 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 			var font: Font = amount_lbl.get_theme_font(&"font") if amount_lbl != null else null
 			var text_w: float = font.get_string_size(amount_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, amount_lbl.get_theme_font_size(&"font_size")).x if font != null else 0.0
 			failed += _assert(amount.size.x + 0.5 >= text_w, "Amount is wide enough for its word")
+		failed += _station_list_fits_rows(scroll as ScrollContainer, list as Control, "anvil")
 		if list != null and scroll != null:
 			for child: Node in list.get_children():
 				if child is Control and not child.is_queued_for_deletion():
@@ -5704,17 +5707,17 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 					if row_rect.intersects(visible_rows) and amount != null:
 						var shown := row_rect.intersection(visible_rows)
 						failed += _assert(not shown.intersects(amount.get_global_rect()), "a visible recipe row clears the amount row")
-		var detail: Label = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/Detail") as Label
+		var detail: Label = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/MetaRow/Detail") as Label
 		failed += _assert(detail != null and detail.text.find("Rootsteel") >= 0, "anvil names the selected recipe")
 		room.call("_open_recipes", "mill")
 		await process_frame
-		detail = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/Detail") as Label
+		detail = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/MetaRow/Detail") as Label
 		failed += _assert(detail != null and detail.text.find("Heartwood") >= 0 and detail.text.find("Sapsteel") < 0, "mill does not keep the anvil's Sapsteel line")
 		room.call("_open_recipes", "press")
 		await process_frame
-		detail = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/Detail") as Label
+		detail = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/MetaRow/Detail") as Label
 		failed += _assert(detail != null and detail.text.find("Amberbind") >= 0 and detail.text.find("Sapsteel") < 0, "press names Amberbind, not Sapsteel")
-		var away: Label = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/AwayNote") as Label
+		var away: Label = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/ActionRow/AwayNote") as Label
 		failed += _assert(away != null and away.clip_text == false and away.autowrap_mode != TextServer.AUTOWRAP_OFF, "away note wraps instead of clipping")
 		failed += _assert(away != null and away.text.ends_with("working the station."), "away note keeps the full sentence")
 		if away != null:
@@ -5723,11 +5726,35 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 			if away_font != null:
 				away_need = away_font.get_multiline_string_size(away.text, HORIZONTAL_ALIGNMENT_LEFT, maxf(away.size.x, 160.0), away.get_theme_font_size(&"font_size")).y
 			failed += _assert(away.size.y + 1.0 >= away_need, "away note is tall enough for the wrapped line (got %s need %s)" % [str(away.size), str(away_need)])
+		room.call("_open_recipes", "reliquary")
+		await process_frame
+		await process_frame
+		var reliquary_scroll: ScrollContainer = room.get_node_or_null("UI/RecipePanel/RecipeScroll") as ScrollContainer
+		var reliquary_list: Control = room.get_node_or_null("UI/RecipePanel/RecipeScroll/List") as Control
+		failed += _station_list_fits_rows(reliquary_scroll, reliquary_list, "reliquary")
 		room.free()
+		tree_root.size = saved_root_size
 	audio.call("set_forge_room_mix", false)
 	jobs.call("set_scene_changes_enabled", true)
 	jobs.call("set_in_forge_override", -1)
 	game_state.call("reset_for_new_game")
+	return failed
+
+
+func _station_list_fits_rows(scroll: ScrollContainer, list: Control, station_id: String) -> int:
+	if scroll == null or list == null:
+		return _assert(false, "%s recipe list is missing" % station_id)
+	var failed: int = 0
+	var rows: int = 0
+	var view: Rect2 = scroll.get_global_rect().grow(1.0)
+	for child: Node in list.get_children():
+		if not (child is Control) or child.is_queued_for_deletion():
+			continue
+		rows += 1
+		failed += _assert(view.encloses((child as Control).get_global_rect()), "%s recipe row is fully visible" % station_id)
+	var need: float = list.get_combined_minimum_size().y
+	failed += _assert(rows >= 3 and scroll.size.y + 1.0 >= need, "%s list shows three rows (visible %s need %s)" % [station_id, str(scroll.size.y), str(need)])
+	failed += _assert(scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_SHOW_NEVER, "%s three rows need no scrollbar" % station_id)
 	return failed
 
 

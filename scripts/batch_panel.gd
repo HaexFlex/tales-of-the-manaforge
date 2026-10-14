@@ -24,6 +24,7 @@ var _total_label: Label
 var _total_bar: ProgressBar
 var _detail: Label
 var _note: Label
+var _meta_row: HBoxContainer
 var _status: Label
 var _body: VBoxContainer
 var _action_row: HBoxContainer
@@ -110,12 +111,17 @@ func _ensure_built() -> void:
 	GameTheme.style_wood_button(_max)
 	amount_row.add_child(_max)
 	box.add_child(amount_row)
+	var meta := HBoxContainer.new()
+	meta.name = "MetaRow"
+	meta.add_theme_constant_override("separation", 8)
+	_meta_row = meta
 	_count_label = Label.new()
 	_count_label.name = "Count"
 	_count_label.custom_minimum_size = Vector2(0, 36)
 	_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_count_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	GameTheme.style_heading_label(_count_label)
-	box.add_child(_count_label)
+	meta.add_child(_count_label)
 	_current_label = Label.new()
 	_current_label.name = "CurrentLabel"
 	GameTheme.style_ink_label(_current_label)
@@ -132,8 +138,12 @@ func _ensure_built() -> void:
 	_detail.name = "Detail"
 	_detail.clip_text = true
 	_detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_detail.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	GameTheme.style_ink_label(_detail, true)
-	box.add_child(_detail)
+	meta.add_child(_detail)
+	box.add_child(meta)
 	_status = Label.new()
 	_status.name = "Status"
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -172,6 +182,7 @@ func _ensure_built() -> void:
 	box.add_child(act_row)
 	_build_confirm(box)
 	_apply_copy()
+	_apply_density()
 
 
 func _step_button(node_name: String, glyph: String, delta: int) -> Button:
@@ -257,26 +268,51 @@ func _build_confirm(box: VBoxContainer) -> void:
 	box.add_child(_confirm)
 
 
+func _apply_density() -> void:
+	## Stations share the window with three recipe rows, so the batch gives up the
+	## hero count and sits the away note beside Make. The workbench keeps the tall count.
+	if _body != null:
+		_body.add_theme_constant_override("separation", 6 if compact else 2)
+	if _count_label != null:
+		if compact:
+			GameTheme.style_heading_label(_count_label)
+			_count_label.custom_minimum_size = Vector2(0, 36)
+		else:
+			GameTheme.style_ink_label(_count_label)
+			_count_label.custom_minimum_size = Vector2(0, 20)
+	if _make != null:
+		_make.custom_minimum_size = Vector2(200, 52) if compact else Vector2(120, 52)
+
+
+func _place_status() -> void:
+	## The running line shares the button row so it does not push the recipe list
+	## back down to one row on a 540p station window.
+	if _status == null or _action_row == null:
+		return
+	if _status.get_parent() != _action_row:
+		_status.reparent(_action_row)
+	_action_row.move_child(_status, 0)
+	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status.custom_minimum_size = Vector2(0, 0)
+
+
 func _place_away_note() -> void:
 	if _note == null or _body == null or _action_row == null:
 		return
+	if _note.get_parent() != _action_row:
+		_note.reparent(_action_row)
+		_action_row.move_child(_note, 0)
+	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	if compact:
-		if _note.get_parent() != _action_row:
-			_note.reparent(_action_row)
-			_action_row.move_child(_note, 0)
-		_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		_note.size_flags_vertical = Control.SIZE_SHRINK_END
 		_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		_note.autowrap_mode = TextServer.AUTOWRAP_OFF
 		_note.clip_text = true
 		_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		_note.custom_minimum_size = Vector2(120, 36)
 		return
-	if _note.get_parent() != _body:
-		_note.reparent(_body)
-	_body.move_child(_note, _action_row.get_index())
-	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_note.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_note.clip_text = false
@@ -285,24 +321,37 @@ func _place_away_note() -> void:
 
 
 func refit_away_note(width: float) -> void:
-	if compact:
-		_place_away_note()
-		return
+	_apply_density()
 	_place_away_note()
-	_fit_away_note(width)
+	if not compact:
+		_fit_away_note(width)
+
+
+func _note_column_width(width: float) -> float:
+	var reserved: float = 8.0
+	var sep: float = 12.0
+	if _action_row != null:
+		sep = float(_action_row.get_theme_constant(&"separation"))
+		reserved += sep
+	if _make != null and _make.visible:
+		reserved += _make.get_combined_minimum_size().x
+	if _cancel != null and _cancel.visible:
+		reserved += _cancel.get_combined_minimum_size().x + sep
+	## 240 px keeps "…working the station." on two lines of Silver 19.
+	return maxf(240.0, width - reserved)
 
 
 func _fit_away_note(width: float) -> void:
 	if _note == null or compact:
 		return
-	var text_w: float = maxf(160.0, width - 8.0)
+	var text_w: float = _note_column_width(width)
 	_note.custom_minimum_size.x = text_w
 	var font: Font = _note.get_theme_font(&"font")
 	var fsize: int = _note.get_theme_font_size(&"font_size")
-	var text_h: float = 40.0
+	var text_h: float = 30.0
 	if font != null and _note.text != "":
 		text_h = font.get_multiline_string_size(_note.text, HORIZONTAL_ALIGNMENT_LEFT, text_w, fsize).y
-	_note.custom_minimum_size.y = maxf(36.0, ceilf(text_h))
+	_note.custom_minimum_size.y = maxf(30.0, ceilf(text_h))
 
 
 func _fit_amount_label() -> void:
@@ -400,6 +449,7 @@ func _refresh() -> void:
 	if not _built or _spot_id == "" or not has_node("/root/ForgeJobs"):
 		return
 	_apply_copy()
+	_apply_density()
 	var running: bool = ForgeJobs.has_job(_spot_id)
 	var state: Dictionary = ForgeJobs.job_state(_spot_id) if running else {}
 	var limit: int = 0
@@ -477,6 +527,7 @@ func _refresh() -> void:
 	_detail.visible = running or not compact
 	_status.visible = _status.text != ""
 	_note.visible = not _status.visible
+	_place_status()
 	_confirm.visible = _confirming and running
 	if _confirm.visible:
 		_confirm_body.text = _line("batch_cancel_confirm_body", {"refund": ForgeJobs.refund_text(_spot_id)})

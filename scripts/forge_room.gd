@@ -436,21 +436,23 @@ func _layout_station_panel() -> void:
 		repeat_btn.size = Vector2(140, 36)
 	var batch: Control = recipe_panel.get_node_or_null("BatchPanel") as Control
 	var scroll: ScrollContainer = _ensure_recipe_scroll()
-	var gap: float = 8.0
+	var gap: float = 6.0
 	var bottom: float = sz.y - inset
 	var rows_h: float = _recipe_rows_height()
-	var batch_need: float = 160.0
+	var batch_need: float = 0.0
 	if batch:
+		## A 148 px floor would steal the rows back on a 540p window.
+		batch.custom_minimum_size.y = 0.0
 		var batch_panel: BatchPanel = batch as BatchPanel
 		if batch_panel:
 			batch_panel.refit_away_note(inner_w)
-		batch_need = maxf(batch_need, batch.get_combined_minimum_size().y)
+		batch_need = batch.get_combined_minimum_size().y
 	var room_h: float = maxf(0.0, bottom - list_y)
+	## Keep every recipe row on screen. The batch takes whatever height is left.
 	var list_h: float = rows_h
 	var batch_h: float = batch_need
 	if rows_h + gap + batch_need > room_h:
-		batch_h = minf(batch_need, maxf(160.0, room_h - 44.0 - gap))
-		list_h = maxf(44.0, room_h - batch_h - gap)
+		batch_h = maxf(0.0, room_h - list_h - gap)
 	var batch_y: float = bottom - batch_h
 	if scroll:
 		scroll.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -466,8 +468,8 @@ func _layout_station_panel() -> void:
 		batch.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		batch.clip_contents = true
 		batch.position = Vector2(inset - 4.0, batch_y)
-		batch.size = Vector2(inner_w + 8.0, batch_h)
 		batch.custom_minimum_size = Vector2(0, batch_h)
+		batch.size = Vector2(inner_w + 8.0, batch_h)
 
 
 ## The toast lives on the bottom band. A centred 400 px window would cover it.
@@ -529,6 +531,8 @@ func _ensure_recipe_scroll() -> ScrollContainer:
 		scroll = ScrollContainer.new()
 		scroll.name = "RecipeScroll"
 		scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+		## The theme panel insets the rows, so a 144 px scroll hid the bottom of the third one.
+		scroll.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
 		recipe_panel.add_child(scroll)
 		recipe_panel.move_child(scroll, recipe_list.get_index())
 	if recipe_list.get_parent() != scroll:
