@@ -94,7 +94,7 @@ func _build() -> void:
 	closer.ignore_texture_size = true
 	closer.stretch_mode = TextureButton.STRETCH_KEEP
 	closer.focus_mode = Control.FOCUS_NONE
-	closer.tooltip_text = "Stop"
+	closer.tooltip_text = "Close"
 	closer.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_close = closer
 	_panel.add_child(_close)
