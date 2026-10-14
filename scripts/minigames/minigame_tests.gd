@@ -33,12 +33,29 @@ func run_scenes() -> int:
 	failed += _check(MinigameCatalog.hot_spot_points("anvil").size() == 7, "anvil has the seven blade points")
 	failed += _check(MinigameCatalog.hot_spot_points("crucible").size() == 15, "crucible has the fifteen bubble points")
 	failed += _check(MinigameCatalog.hot_spot_points("reliquary").size() == 9, "reliquary has the nine rune points")
+	failed += _hot_spots_switch()
 	failed += _check(MinigameCatalog.game_for("brewing") == "steeping", "steeping stays mapped to brewing")
 	failed += _check(not MinigameCatalog.is_reachable("steeping"), "steeping has no world station, so it stays unreachable")
 	failed += _summary()
 	failed += _world_hover()
 	if failed == 0:
 		print("MINIGAME_SCENES_OK")
+	return failed
+
+
+func _hot_spots_switch() -> int:
+	var failed: int = 0
+	var node: Node = (load("res://scenes/minigames/hot_spots.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	for station_id: String in ["anvil", "crucible", "reliquary"]:
+		failed += _check(node.get_node_or_null("Station_%s" % station_id) != null, "hot spots switcher has %s" % station_id)
+	node.call("_switch_station", "reliquary")
+	var plate: Sprite2D = node.get_node_or_null("Plate") as Sprite2D
+	var plate_path: String = str(plate.texture.resource_path) if plate != null and plate.texture != null else ""
+	failed += _check(plate_path.ends_with("close_reliquary.png"), "switcher shows the reliquary plate")
+	node.call("_drop_miss", {"x": 40.0, "y": 40.0, "sprite": null})
+	failed += _check(node.get_node_or_null("MissPip") != null, "an expired spot leaves a miss pip")
+	node.free()
 	return failed
 
 

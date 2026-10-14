@@ -1,7 +1,8 @@
 class_name HotSpots
 extends Minigame
 ## Forge Glow's replacement. Spots flare on the station and cool over one spawn.
-## A tap on a live spot pays. A tap elsewhere, and a spot that cools out, pay nothing.
+## A tap on a live spot pays. A tap elsewhere pays nothing. A spot that cools
+## out pays nothing and leaves a miss pip. The station buttons switch the plate.
 
 var _k: float = 5.0
 var _spawn_sec: float = 2.5
@@ -17,7 +18,11 @@ var _station: String = "anvil"
 var _points: PackedVector2Array = PackedVector2Array()
 var _spots: Array[Dictionary] = []
 var _sparks: Array[Dictionary] = []
+var _misses: Array[Dictionary] = []
+var _switch: Array[TextureButton] = []
 var _rng := RandomNumberGenerator.new()
+
+const SWITCH_IDS: PackedStringArray = ["anvil", "crucible", "reliquary"]
 
 
 func game_id() -> String:
@@ -37,6 +42,7 @@ func _ready() -> void:
 	_tap_r = float(row.get("tap_r", 28.0))
 	_separate = float(row.get("separate_px", 70.0))
 	_rng.randomize()
+	_build_switcher()
 	_apply_station("anvil")
 
 
@@ -71,9 +77,7 @@ func _tick(delta: float) -> void:
 		if bool(spot.get("hit", false)):
 			continue
 		if _clock - float(spot.get("t0", 0.0)) >= _life_sec:
-			var dead: Sprite2D = spot.get("sprite") as Sprite2D
-			if dead != null and is_instance_valid(dead):
-				dead.queue_free()
+			_drop_miss(spot)
 			continue
 		kept.append(spot)
 	_spots = kept
@@ -83,6 +87,62 @@ func _tick(delta: float) -> void:
 		if _spots.size() < _max_spots:
 			_spawn_spot()
 	_animate()
+
+
+func _build_switcher() -> void:
+	for i: int in SWITCH_IDS.size():
+		var station_id: String = SWITCH_IDS[i]
+		var button := TextureButton.new()
+		button.name = "Station_%s" % station_id
+		button.position = Vector2(12.0, 12.0 + float(i) * 52.0)
+		button.size = Vector2(112, 44)
+		button.custom_minimum_size = button.size
+		button.ignore_texture_size = true
+		button.stretch_mode = TextureButton.STRETCH_KEEP
+		button.focus_mode = Control.FOCUS_NONE
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		button.z_index = 8
+		button.pressed.connect(_switch_station.bind(station_id))
+		add_child(button)
+		_switch.append(button)
+	_paint_switcher()
+
+
+func _paint_switcher() -> void:
+	for i: int in _switch.size():
+		var station_id: String = SWITCH_IDS[i]
+		var file: String = "stbtn_%s_%s.png" % [station_id, "s" if station_id == _station else "n"]
+		var tex: Texture2D = MinigameArt.texture(file)
+		_switch[i].texture_normal = tex
+		_switch[i].texture_hover = tex
+		_switch[i].texture_pressed = tex
+
+
+func _switch_station(station_id: String) -> void:
+	if station_id == _station:
+		return
+	_clear_live_spots()
+	_apply_station(station_id)
+	_paint_switcher()
+
+
+func _clear_live_spots() -> void:
+	for spot: Dictionary in _spots:
+		var spr: Sprite2D = spot.get("sprite") as Sprite2D
+		if spr != null and is_instance_valid(spr):
+			spr.queue_free()
+	_spots.clear()
+
+
+func _drop_miss(spot: Dictionary) -> void:
+	var spr: Sprite2D = spot.get("sprite") as Sprite2D
+	if spr != null and is_instance_valid(spr):
+		spr.queue_free()
+	var where := Vector2(float(spot.get("x", 0.0)), float(spot.get("y", 0.0)))
+	var pip: Sprite2D = MinigameArt.add_sprite(self, "pip_miss.png", where)
+	pip.name = "MissPip"
+	pip.z_index = 5
+	_misses.append({"t0": _clock, "sprite": pip})
 
 
 func _apply_station(station: String) -> void:
@@ -95,6 +155,7 @@ func _apply_station(station: String) -> void:
 	else:
 		var existing: Sprite2D = get_node("Plate") as Sprite2D
 		existing.texture = MinigameArt.texture(plate)
+	_paint_switcher()
 
 
 func _spawn_spot() -> void:
@@ -150,6 +211,16 @@ func _animate() -> void:
 			spr_s.frame = mini(3, int(floor(age_s / 0.08)))
 		sparks_left.append(spark)
 	_sparks = sparks_left
+	var misses_left: Array[Dictionary] = []
+	for miss: Dictionary in _misses:
+		var age_m: float = _clock - float(miss.get("t0", 0.0))
+		var pip: Sprite2D = miss.get("sprite") as Sprite2D
+		if age_m >= 0.7:
+			if pip != null and is_instance_valid(pip):
+				pip.queue_free()
+			continue
+		misses_left.append(miss)
+	_misses = misses_left
 
 
 func _strike(at: Vector2) -> void:
