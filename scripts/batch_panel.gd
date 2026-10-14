@@ -255,10 +255,24 @@ func _build_confirm(box: VBoxContainer) -> void:
 	box.add_child(_confirm)
 
 
+func _fit_amount_label() -> void:
+	if _amount_label == null:
+		return
+	var font: Font = _amount_label.get_theme_font(&"font")
+	var fsize: int = _amount_label.get_theme_font_size(&"font_size")
+	var text_w: float = 72.0
+	if font != null:
+		text_w = font.get_string_size(_amount_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+	_amount_label.custom_minimum_size = Vector2(ceilf(text_w) + 12.0, 44.0)
+	_amount_label.clip_text = true
+	_amount_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+
+
 func _apply_copy() -> void:
 	if not has_node("/root/ContentStrings"):
 		return
 	_amount_label.text = ContentStrings.get_text("batch_amount")
+	_fit_amount_label()
 	_make.text = ContentStrings.get_text("batch_make")
 	_max.text = ContentStrings.get_text("batch_max")
 	_cancel.text = ContentStrings.get_text("batch_cancel")

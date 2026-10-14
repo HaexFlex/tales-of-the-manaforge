@@ -388,6 +388,8 @@ func _open_recipes(station_id: String) -> void:
 		btn.expand_icon = false
 		btn.add_theme_constant_override("icon_max_width", 28)
 		btn.tooltip_text = recipe_id
+		btn.custom_minimum_size = Vector2(0, 44)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_recipe_pressed.bind(station_id, recipe_id))
 		recipe_list.add_child(btn)
 	var panel: BatchPanel = _ensure_batch_panel()
@@ -427,22 +429,41 @@ func _layout_station_panel() -> void:
 		if _job_fill:
 			_job_fill.position = Vector2(inset, inset + 23.0)
 		list_y = inset + 40.0
-	if recipe_list:
-		recipe_list.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		recipe_list.clip_contents = true
-		recipe_list.position = Vector2(inset, list_y)
-		recipe_list.size = Vector2(inner_w, 112)
 	var repeat_btn: Control = recipe_panel.get_node_or_null("RepeatToggle") as Control
 	if repeat_btn:
 		repeat_btn.position = Vector2(sz.x - inset - 140.0, inset)
 		repeat_btn.size = Vector2(140, 36)
 	var batch: Control = recipe_panel.get_node_or_null("BatchPanel") as Control
+	var scroll: ScrollContainer = _ensure_recipe_scroll()
+	var gap: float = 8.0
+	var bottom: float = sz.y - inset
+	var rows_h: float = _recipe_rows_height()
+	var batch_need: float = 160.0
 	if batch:
-		var batch_y: float = list_y + 120.0
+		batch_need = maxf(batch_need, batch.get_combined_minimum_size().y)
+	var room_h: float = maxf(0.0, bottom - list_y)
+	var list_h: float = rows_h
+	var batch_h: float = batch_need
+	if rows_h + gap + batch_need > room_h:
+		batch_h = minf(batch_need, maxf(160.0, room_h - 44.0 - gap))
+		list_h = maxf(44.0, room_h - batch_h - gap)
+	var batch_y: float = bottom - batch_h
+	if scroll:
+		scroll.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		scroll.position = Vector2(inset, list_y)
+		scroll.size = Vector2(inner_w, list_h)
+		scroll.clip_contents = true
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER if rows_h <= list_h + 1.0 else ScrollContainer.SCROLL_MODE_AUTO
+	if recipe_list:
+		recipe_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		recipe_list.custom_minimum_size.x = inner_w
+	if batch:
 		batch.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		batch.clip_contents = true
 		batch.position = Vector2(inset - 4.0, batch_y)
-		batch.size = Vector2(inner_w + 8.0, maxf(120.0, sz.y - batch_y - inset))
+		batch.size = Vector2(inner_w + 8.0, batch_h)
+		batch.custom_minimum_size = Vector2(0, batch_h)
 
 
 ## The toast lives on the bottom band. A centred 400 px window would cover it.
@@ -457,9 +478,11 @@ func _pin_station_above_toast() -> void:
 	var h: float = minf(recipe_panel.size.y, maxf(200.0, limit - top))
 	if top + h > limit:
 		h = maxf(160.0, limit - top)
+	## A minimum taller than `h` clamps the size back, so the pin has to land first.
+	var w: float = recipe_panel.size.x
+	recipe_panel.custom_minimum_size = Vector2(w, h)
+	recipe_panel.size = Vector2(w, h)
 	recipe_panel.position = Vector2(recipe_panel.position.x, top)
-	recipe_panel.size.y = h
-	recipe_panel.custom_minimum_size.y = h
 
 
 func _relayout_hud() -> void:
@@ -473,6 +496,39 @@ func _on_recipe_pressed(station_id: String, recipe_id: String) -> void:
 		return
 	panel.setup(station_id)
 	panel.bind_recipe(recipe_id)
+
+
+func _recipe_rows_height() -> float:
+	if recipe_list == null:
+		return 0.0
+	var height: float = 0.0
+	var count: int = 0
+	var sep: float = float(recipe_list.get_theme_constant(&"separation"))
+	for child: Node in recipe_list.get_children():
+		if not (child is Control) or child.is_queued_for_deletion():
+			continue
+		height += (child as Control).get_combined_minimum_size().y
+		count += 1
+	if count > 1:
+		height += sep * float(count - 1)
+	return height
+
+
+func _ensure_recipe_scroll() -> ScrollContainer:
+	if recipe_panel == null or recipe_list == null:
+		return null
+	var scroll: ScrollContainer = recipe_panel.get_node_or_null("RecipeScroll") as ScrollContainer
+	if scroll == null:
+		scroll = ScrollContainer.new()
+		scroll.name = "RecipeScroll"
+		scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+		recipe_panel.add_child(scroll)
+		recipe_panel.move_child(scroll, recipe_list.get_index())
+	if recipe_list.get_parent() != scroll:
+		recipe_list.reparent(scroll)
+	if has_node("/root/GameInput"):
+		GameInput.configure_scroll_container(scroll)
+	return scroll
 
 
 func _ensure_batch_panel() -> BatchPanel:

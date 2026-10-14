@@ -5662,7 +5662,11 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		var room: Node = room_packed.instantiate()
 		reliquary = room.get_node_or_null("Reliquary") as Node2D
 		failed += _assert(reliquary != null and reliquary.position.distance_to(Vector2(420, 800)) < 1.0, "reliquary left the north doorway")
-		room.call("_layout_station_panel")
+		tree_root.add_child(room)
+		await process_frame
+		room.call("_open_recipes", "anvil")
+		await process_frame
+		await process_frame
 		var station_panel: Control = room.get_node_or_null("UI/RecipePanel") as Control
 		var view_sz: Vector2 = tree_root.get_visible_rect().size
 		failed += _assert(station_panel != null and station_panel.position.x >= 0.0 and station_panel.position.y >= 0.0, "station window starts on screen")
@@ -5674,6 +5678,27 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(station_tex.find("frame_9s_96") >= 0, "station window uses the kit frame")
 		var toast_top: float = view_sz.y - 24.0 - 44.0 - 8.0 - 32.0
 		failed += _assert(station_panel != null and station_panel.position.y + station_panel.size.y <= toast_top - 7.0, "station window stays clear of the toast")
+		var scroll: Control = room.get_node_or_null("UI/RecipePanel/RecipeScroll") as Control
+		var amount: Control = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/AmountRow/Amount") as Control
+		var minus: Control = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/AmountRow/Minus") as Control
+		var list: Node = room.get_node_or_null("UI/RecipePanel/RecipeScroll/List")
+		failed += _assert(scroll != null and amount != null and minus != null and list != null and list.get_child_count() == 3, "anvil shows three recipes in a scroll")
+		if scroll != null and amount != null:
+			failed += _assert(scroll.get_global_rect().end.y <= amount.get_global_rect().position.y + 0.5, "recipe scroll ends above the amount row")
+		if amount != null and minus != null:
+			failed += _assert(not amount.get_global_rect().intersects(minus.get_global_rect()), "Amount sits beside the minus button")
+			var amount_lbl: Label = amount as Label
+			var font: Font = amount_lbl.get_theme_font(&"font") if amount_lbl != null else null
+			var text_w: float = font.get_string_size(amount_lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, amount_lbl.get_theme_font_size(&"font_size")).x if font != null else 0.0
+			failed += _assert(amount.size.x + 0.5 >= text_w, "Amount is wide enough for its word")
+		if list != null and scroll != null:
+			for child: Node in list.get_children():
+				if child is Control and not child.is_queued_for_deletion():
+					var row_rect: Rect2 = (child as Control).get_global_rect()
+					var visible_rows: Rect2 = scroll.get_global_rect()
+					if row_rect.intersects(visible_rows) and amount != null:
+						var shown := row_rect.intersection(visible_rows)
+						failed += _assert(not shown.intersects(amount.get_global_rect()), "a visible recipe row clears the amount row")
 		room.free()
 	audio.call("set_forge_room_mix", false)
 	jobs.call("set_scene_changes_enabled", true)
