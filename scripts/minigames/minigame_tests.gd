@@ -33,9 +33,77 @@ func run_scenes() -> int:
 	failed += _check(MinigameCatalog.hot_spot_points("anvil").size() == 7, "anvil has the seven blade points")
 	failed += _check(MinigameCatalog.hot_spot_points("crucible").size() == 15, "crucible has the fifteen bubble points")
 	failed += _check(MinigameCatalog.hot_spot_points("reliquary").size() == 9, "reliquary has the nine rune points")
+	failed += _summary()
 	if failed == 0:
 		print("MINIGAME_SCENES_OK")
 	return failed
+
+
+func _summary() -> int:
+	var failed: int = 0
+	var host: Node = Engine.get_main_loop().root.get_node_or_null("MinigameHost")
+	failed += _check(host != null, "minigame host is loaded")
+	if host == null:
+		return failed
+	var frozen: bool = GameState.ancient_frozen
+	GameState.ancient_frozen = false
+	host.call("close_immediate")
+	var opened: bool = bool(host.call("open_game", "ripe_catch", "keeper", "food"))
+	failed += _check(opened, "summary check can open a game")
+	if not opened:
+		host.call("close_immediate")
+		GameState.ancient_frozen = frozen
+		return failed
+	var window: Node = host.get_node("MinigameRoot/Window")
+	var play: Control = window.get_node("Play") as Control
+	failed += _check(play.visible, "play layer shows while the game is running")
+	var closer: BaseButton = window.get_node("Close") as BaseButton
+	closer.pressed.emit()
+	var summaries: Array[Node] = []
+	_collect_named(host, "Summary", summaries)
+	failed += _check(summaries.size() == 1, "one summary node, got %d" % summaries.size())
+	var summary: Control = summaries[0] as Control if summaries.size() == 1 else null
+	failed += _check(summary != null and summary.visible, "the host summary is showing")
+	failed += _check(not play.visible, "play layer hides under the summary")
+	var game_visible: bool = false
+	for child: Node in play.get_children():
+		if child is Minigame and (child as CanvasItem).visible:
+			game_visible = true
+	failed += _check(not game_visible, "the game itself is hidden under the summary")
+	failed += _check(not _tree_text_has(host, "Feel test"), "feel-test placeholder is gone")
+	failed += _check(not _tree_text_has(host, "Successes"), "baked successes list is not a second summary")
+	if summary != null:
+		var body: Label = summary.get_node_or_null("SummaryBody") as Label
+		failed += _check(body != null and body.text.begins_with("Bonus"), "summary text is the host bonus")
+		failed += _check(body != null and body.position.x >= 48.0, "summary text starts inside the frame (x %.0f)" % (body.position.x if body else -1.0))
+		failed += _check(body != null and body.position.x + body.size.x <= 412.0, "summary text ends inside the frame")
+		var done: Control = summary.get_node_or_null("Done") as Control
+		var again: Control = summary.get_node_or_null("PlayAgain") as Control
+		failed += _check(done != null and again != null, "summary has Done and Play again")
+		if done != null and again != null:
+			failed += _check(done.size.is_equal_approx(again.size), "Done and Play again are the same size (%s vs %s)" % [done.size, again.size])
+			failed += _check(done.size.y >= 44.0 and done.size.x > 0.0, "summary buttons meet the tap size")
+	host.call("close_immediate")
+	GameState.ancient_frozen = frozen
+	return failed
+
+
+func _collect_named(node: Node, wanted: String, into: Array[Node]) -> void:
+	if str(node.name) == wanted:
+		into.append(node)
+	for child: Node in node.get_children():
+		_collect_named(child, wanted, into)
+
+
+func _tree_text_has(node: Node, needle: String) -> bool:
+	if node is Label and (node as Label).text.find(needle) >= 0:
+		return true
+	if node is Button and (node as Button).text.find(needle) >= 0:
+		return true
+	for child: Node in node.get_children():
+		if _tree_text_has(child, needle):
+			return true
+	return false
 
 
 func _math() -> int:

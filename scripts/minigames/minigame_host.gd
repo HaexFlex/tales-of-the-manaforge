@@ -2,6 +2,13 @@ extends CanvasLayer
 ## Lend-a-hand overlay. The hub keeps running underneath. Nothing here is saved.
 
 const ARRIVE_PX: float = 72.0
+## card.png parchment starts at x=40. Text sits 16 px inside that, clear of the wood.
+const SUMMARY_COVER := Rect2(42, 46, 376, 166)
+const SUMMARY_BODY := Rect2(56, 58, 348, 142)
+const SUMMARY_BTN := Vector2(160, 52)
+const SUMMARY_BTN_X: float = 62.0
+const SUMMARY_BTN_Y: float = 222.0
+const SUMMARY_BTN_GAP: float = 16.0
 
 var _dim: ColorRect
 var _panel: Panel
@@ -12,7 +19,8 @@ var _close: BaseButton
 var _play: Control
 var _summary: Control
 var _summary_body: Label
-var _done: Button
+var _done: BaseButton
+var _again: BaseButton
 var _prompt: Button
 var _game: Minigame
 var _open: bool = false
@@ -117,35 +125,51 @@ func _build() -> void:
 	(_summary as TextureRect).stretch_mode = TextureRect.STRETCH_SCALE
 	_summary.mouse_filter = Control.MOUSE_FILTER_STOP
 	_summary.visible = false
+	_summary.z_index = 20
 	_panel.add_child(_summary)
-
-	var summary_title := Label.new()
-	summary_title.name = "SummaryTitle"
-	summary_title.text = "Bonus"
-	summary_title.position = Vector2(30, 28)
-	summary_title.size = Vector2(400, 32)
-	summary_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	summary_title.add_theme_color_override("font_color", Color8(62, 42, 24))
-	_summary.add_child(summary_title)
+	## card.png bakes an empty Successes/Misses list and "Feel test: no rewards."
+	## The parchment cover leaves one summary: the host's bonus, inside the frame.
+	var cover := ColorRect.new()
+	cover.name = "Parchment"
+	cover.color = Color8(231, 212, 166)
+	cover.position = SUMMARY_COVER.position
+	cover.size = SUMMARY_COVER.size
+	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_summary.add_child(cover)
 
 	_summary_body = Label.new()
 	_summary_body.name = "SummaryBody"
-	_summary_body.position = Vector2(30, 74)
-	_summary_body.size = Vector2(400, 130)
+	_summary_body.position = SUMMARY_BODY.position
+	_summary_body.size = SUMMARY_BODY.size
 	_summary_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_summary_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_summary_body.add_theme_font_size_override("font_size", 19)
-	_summary_body.add_theme_color_override("font_color", Color8(62, 42, 24))
+	_summary_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	GameTheme.style_ink_label(_summary_body)
 	_summary.add_child(_summary_body)
 
-	_done = Button.new()
-	_done.name = "Done"
-	_done.text = "Done"
-	_done.position = Vector2(44, 222)
-	_done.size = Vector2(136, 52)
-	_done.focus_mode = Control.FOCUS_NONE
+	_done = _summary_button("Done", "btn_done_n.png", "btn_done_h.png")
+	_done.position = Vector2(SUMMARY_BTN_X, SUMMARY_BTN_Y)
 	_done.pressed.connect(_on_done)
 	_summary.add_child(_done)
+	_again = _summary_button("PlayAgain", "btn_again_n.png", "btn_again_h.png")
+	_again.position = Vector2(SUMMARY_BTN_X + SUMMARY_BTN.x + SUMMARY_BTN_GAP, SUMMARY_BTN_Y)
+	_again.pressed.connect(_on_again)
+	_summary.add_child(_again)
+
+
+func _summary_button(node_name: String, normal_file: String, hover_file: String) -> TextureButton:
+	var button := TextureButton.new()
+	button.name = node_name
+	button.texture_normal = MinigameArt.texture(normal_file)
+	button.texture_hover = MinigameArt.texture(hover_file)
+	button.texture_pressed = MinigameArt.texture(hover_file)
+	button.ignore_texture_size = true
+	button.stretch_mode = TextureButton.STRETCH_SCALE
+	button.custom_minimum_size = SUMMARY_BTN
+	button.size = SUMMARY_BTN
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	return button
 
 
 func _process(delta: float) -> void:
@@ -271,16 +295,18 @@ func open_game(game_id: String, worker: String, target_id: String) -> bool:
 	Ui540.place_title_plank(_title, _panel.size.x)
 	_hint.text = MinigameCatalog.hint(game_id, Ui540.is_phone_export())
 	_summary.visible = false
+	_play.visible = true
 	var node: Node = packed.instantiate()
 	_game = node as Minigame
 	if _game == null:
 		node.queue_free()
 		return false
-	_game.position = MinigameCatalog.PLAY_ORIGIN
-	_game.size = MinigameCatalog.PLAY_SIZE
-	_game.custom_minimum_size = MinigameCatalog.PLAY_SIZE
+	_game.position = Vector2.ZERO
+	_game.size = _play.size
+	_game.custom_minimum_size = _play.size
 	_game.mouse_filter = Control.MOUSE_FILTER_STOP
-	_panel.add_child(_game)
+	_game.visible = true
+	_play.add_child(_game)
 	_panel.move_child(_summary, -1)
 	_game.bind_target(target_id)
 	_game.begin()
@@ -311,14 +337,15 @@ func _refresh_pace() -> void:
 
 func _spawn_pop(k_seconds: float) -> void:
 	var pop := Label.new()
+	pop.name = "PacePop"
 	pop.text = "+%.1fs" % k_seconds
-	pop.position = MinigameCatalog.PLAY_ORIGIN + Vector2(MinigameCatalog.PLAY_SIZE.x * 0.5 - 36.0, 36.0)
+	pop.position = Vector2(MinigameCatalog.PLAY_SIZE.x * 0.5 - 36.0, 36.0)
 	pop.size = Vector2(90, 28)
 	pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pop.z_index = 4
 	pop.add_theme_font_size_override("font_size", 19)
 	pop.add_theme_color_override("font_color", Color8(62, 42, 24))
-	_panel.add_child(pop)
+	_play.add_child(pop)
 	var tw: Tween = create_tween()
 	tw.tween_property(pop, "position:y", pop.position.y - 26.0, 0.55)
 	tw.parallel().tween_property(pop, "modulate:a", 0.0, 0.55)
@@ -328,11 +355,14 @@ func _spawn_pop(k_seconds: float) -> void:
 func _show_summary() -> void:
 	if _game != null:
 		_game.shutdown()
+		_game.visible = false
+	_play.visible = false
 	_summary_up = true
 	var pace: float = MinigameMath.pace_multiplier(_pace_seconds, _elapsed)
 	var line: String = _bonus_line()
 	_summary_body.text = "%s\n%d tended\nPace ×%.1f" % [line, _successes, pace]
 	_summary.visible = true
+	_panel.move_child(_summary, -1)
 
 
 func _bonus_line() -> String:
@@ -358,6 +388,13 @@ func _on_close() -> void:
 
 func _on_done() -> void:
 	close_immediate()
+
+
+func _on_again() -> void:
+	var game_id: String = _game_id
+	var worker: String = _worker
+	var target_id: String = _target_id
+	open_game(game_id, worker, target_id)
 
 
 func _on_prompt_pressed() -> void:
@@ -429,9 +466,12 @@ func _clear_game() -> void:
 
 func _set_open(open: bool) -> void:
 	_open = open
+	if _dim == null or _panel == null or _play == null:
+		return
 	_dim.visible = open
 	_panel.visible = open
 	if not open:
 		_summary.visible = false
 		_summary_up = false
 		_prompt_on = false
+		_play.visible = false
