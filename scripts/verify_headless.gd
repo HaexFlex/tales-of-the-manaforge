@@ -2429,6 +2429,7 @@ func _run() -> void:
 			live.call("pan_camera", Vector2(9999, 9999))
 			var clamped_hi: Vector2 = live.call("get_camera_position_clamped") as Vector2
 			failed += _assert(clamped_hi.distance_to(cam_max) < 1.5, "camera clamps to max (got %s want %s)" % [clamped_hi, cam_max])
+			failed += await _camera_zoom_checks(live, tree_root)
 		var tree_cols: int = 0
 		var bush_cols: int = 0
 		var canopy_ok: int = 0
@@ -6419,6 +6420,82 @@ func _title_plank_drawn() -> int:
 	failed += _assert(is_equal_approx(title.position.y, -Ui540.PLANK_RISE), "title plank hangs on the frame edge")
 	host.free()
 	return failed
+
+
+func _camera_zoom_checks(live: Node, tree_root: Window) -> int:
+	var failed := 0
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	failed += _assert(cam != null, "zoom camera")
+	if cam == null:
+		return failed
+	var saved_root: Vector2i = tree_root.size
+	var audio: Node = tree_root.get_node_or_null("GameAudio")
+	var saved_zoom := 1.0
+	if audio != null and audio.has_method("get_camera_zoom"):
+		saved_zoom = float(audio.call("get_camera_zoom"))
+	tree_root.size = Vector2i(960, 540)
+	await process_frame
+	var design_fills: bool = bool(live.call("zoom_step_fills_view", 0.25, Vector2(960.0, 540.0)))
+	failed += _assert(design_fills, "0.25x fills the 960x540 view")
+	var tall_fills: bool = bool(live.call("zoom_step_fills_view", 0.25, Vector2(960.0, 960.0)))
+	failed += _assert(not tall_fills, "0.25x does not fill a 960x960 view")
+	var steps: Array = live.call("camera_zoom_steps") as Array
+	var live_fills: bool = bool(live.call("zoom_step_fills", 0.25))
+	failed += _assert(live_fills == steps.has(0.25), "0.25 stays in the step list only when the live view fills (steps %s)" % steps)
+	failed += _assert(steps.has(2.0) and steps.has(1.0) and steps.has(0.5), "zoom steps include 2x, 1x, 0.5x (got %s)" % steps)
+	var vp: Vector2 = live.get_viewport().get_visible_rect().size
+	if vp.x <= 960.5 and vp.y <= 540.5:
+		failed += _assert(live_fills, "live 540p view keeps 0.25x (view %s)" % vp)
+	var forest: Rect2 = live.call("_camera_limit_rect") as Rect2
+	for level_v: Variant in [2.0, 1.0, 0.5, 0.25]:
+		var level := float(level_v)
+		if level < 0.3 and not bool(live.call("zoom_step_fills", level)):
+			continue
+		live.call("set_camera_zoom", level, false)
+		failed += _assert(absf(cam.zoom.x - level) < 0.001, "zoom applied %s (got %s)" % [level, cam.zoom.x])
+		live.call("pan_camera", Vector2(-99999, -99999))
+		failed += _view_inside_forest(live, cam, forest)
+		live.call("pan_camera", Vector2(99999, 99999))
+		failed += _view_inside_forest(live, cam, forest)
+		failed += _assert(absf(cam.position.x - roundf(cam.position.x)) < 0.01 and absf(cam.position.y - roundf(cam.position.y)) < 0.01, "camera pixel snap at %s" % level)
+	live.call("set_camera_zoom", 1.0, false)
+	live.call("step_camera_zoom", 1)
+	failed += _assert(absf(cam.zoom.x - 2.0) < 0.001, "wheel step in from 1x reaches 2x")
+	live.call("step_camera_zoom", 1)
+	failed += _assert(absf(cam.zoom.x - 2.0) < 0.001, "zoom stops at 2x")
+	live.call("set_camera_zoom", 1.0, false)
+	live.call("step_camera_zoom", -1)
+	failed += _assert(absf(cam.zoom.x - 0.5) < 0.001, "wheel step out from 1x reaches 0.5x")
+	live.set("camera_zoom", 0.01)
+	cam.zoom = Vector2(0.01, 0.01)
+	live.call("_clamp_camera")
+	var clearing: Vector2 = live.get("clearing_center") as Vector2
+	var clearing_px := Vector2(roundf(clearing.x), roundf(clearing.y))
+	failed += _assert(cam.position.distance_to(clearing_px) < 1.5, "oversize view centres on the clearing (got %s want %s)" % [cam.position, clearing_px])
+	failed += _assert(cam.limit_left < -1000 and cam.limit_right > 100000 and cam.limit_top < -1000 and cam.limit_bottom > 100000, "engine limits release when the map fits")
+	live.call("set_camera_zoom", 1.0, false)
+	failed += _assert(cam.limit_left == 180 and cam.limit_top == 180 and cam.limit_right == 4140 and cam.limit_bottom == 3600, "forest limits restored at 1x")
+	live.call("set_camera_zoom", 2.0, true)
+	var cfg := ConfigFile.new()
+	var loaded: bool = cfg.load("user://manaforge_settings.cfg") == OK
+	var disk := -1.0
+	if loaded:
+		disk = float(cfg.get_value("display", "camera_zoom", -1.0))
+	failed += _assert(absf(disk - 2.0) < 0.001, "zoom persisted (got %s)" % disk)
+	if audio != null and audio.has_method("set_camera_zoom"):
+		audio.call("set_camera_zoom", saved_zoom)
+	live.call("set_camera_zoom", saved_zoom, false)
+	live.call("focus_manatree")
+	tree_root.size = saved_root
+	await process_frame
+	return failed
+
+
+func _view_inside_forest(live: Node, cam: Camera2D, forest: Rect2) -> int:
+	var half: Vector2 = live.call("_half_view") as Vector2
+	var view := Rect2(cam.position - half, half * 2.0)
+	var inside := forest.grow(1.0).encloses(view)
+	return _assert(inside, "view stays inside the forest (view %s forest %s)" % [view, forest])
 
 
 func _assert(cond: bool, msg: String) -> int:

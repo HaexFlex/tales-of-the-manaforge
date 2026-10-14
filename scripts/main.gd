@@ -29,6 +29,12 @@ var hub_map: Dictionary = {}
 var play_size: Vector2 = Vector2(2560, 2160)
 var view_size: Vector2 = Vector2(960, 540)
 var camera_pan_speed: float = 420.0
+## 1 is the design view. Larger zooms in. 0.25 is offered only when the forest still fills the view.
+var camera_zoom: float = 1.0
+var _pinch_accum: float = 1.0
+var _wheel_accum: float = 0.0
+var _forest_limit: Rect2 = Rect2()
+var _forest_limit_ready: bool = false
 var glade: Rect2 = Rect2(760, 820, 1680, 1360)
 var clearing_center: Vector2 = Vector2(1600, 1500)
 var clearing_rx: float = 1200.0
@@ -250,12 +256,16 @@ func _setup_camera(snap_to_tree: bool) -> void:
 	camera.enabled = true
 	camera.make_current()
 	camera.position_smoothing_enabled = false
+	_ensure_forest_limit()
+	_apply_saved_camera_zoom()
 	if snap_to_tree and manatree:
 		camera.position = manatree.position
 	elif manatree != null and keeper != null:
 		var focus: Vector2 = (manatree.global_position + keeper.global_position) * 0.5
 		camera.position = _clamped_camera_pos(focus + Vector2(0.0, 48.0))
 	_clamp_camera()
+	if is_inside_tree() and not get_viewport().size_changed.is_connected(_on_viewport_resized):
+		get_viewport().size_changed.connect(_on_viewport_resized)
 
 
 func _apply_forge_return() -> void:
@@ -309,32 +319,55 @@ func get_camera_position_clamped() -> Vector2:
 
 ## Keep the outer hem of the map — bare grass past the last trunks — off screen.
 const CAMERA_EDGE_INSET: float = 120.0
+## Powers of two so world pixels land on screen pixels. 0.25 is appended only when it fills.
+const CAMERA_ZOOM_LEVELS: Array[float] = [2.0, 1.0, 0.5]
 
 
-func _half_view() -> Vector2:
+func _viewport_view() -> Vector2:
 	var view := view_size
 	if is_inside_tree():
 		var vp := get_viewport().get_visible_rect().size
 		if vp.x >= 64.0 and vp.y >= 64.0:
 			view = vp
-	return view * 0.5
+	return view
 
 
-func _camera_limit_rect() -> Rect2:
-	## Inspector values on Camera2D (Limit). Defaults match the old inset around the play rect.
+func _zoom_factor() -> float:
+	if camera != null and camera.zoom.x > 0.001:
+		return camera.zoom.x
+	if camera_zoom > 0.001:
+		return camera_zoom
+	return 1.0
+
+
+func _half_view() -> Vector2:
+	return (_viewport_view() / _zoom_factor()) * 0.5
+
+
+func _ensure_forest_limit() -> Rect2:
+	if _forest_limit_ready:
+		return _forest_limit
 	if camera != null and camera.limit_right < 1000000 and camera.limit_bottom < 1000000:
-		return Rect2(
+		_forest_limit = Rect2(
 			float(camera.limit_left),
 			float(camera.limit_top),
 			float(camera.limit_right - camera.limit_left),
 			float(camera.limit_bottom - camera.limit_top)
 		)
-	return Rect2(
-		CAMERA_EDGE_INSET,
-		CAMERA_EDGE_INSET,
-		play_size.x - CAMERA_EDGE_INSET * 2.0,
-		play_size.y - CAMERA_EDGE_INSET * 2.0
-	)
+	else:
+		_forest_limit = Rect2(
+			CAMERA_EDGE_INSET,
+			CAMERA_EDGE_INSET,
+			play_size.x - CAMERA_EDGE_INSET * 2.0,
+			play_size.y - CAMERA_EDGE_INSET * 2.0
+		)
+	_forest_limit_ready = true
+	return _forest_limit
+
+
+func _camera_limit_rect() -> Rect2:
+	## Inspector values on Camera2D (Limit), cached so an oversize view can release them.
+	return _ensure_forest_limit()
 
 
 func camera_min() -> Vector2:
@@ -349,17 +382,143 @@ func camera_max() -> Vector2:
 func _clamped_camera_pos(pos: Vector2) -> Vector2:
 	var lo: Vector2 = camera_min()
 	var hi: Vector2 = camera_max()
-	if hi.x < lo.x:
-		hi.x = lo.x
-	if hi.y < lo.y:
-		hi.y = lo.y
-	return Vector2(clampf(pos.x, lo.x, hi.x), clampf(pos.y, lo.y, hi.y))
+	var x: float = clearing_center.x if hi.x < lo.x else clampf(pos.x, lo.x, hi.x)
+	var y: float = clearing_center.y if hi.y < lo.y else clampf(pos.y, lo.y, hi.y)
+	return Vector2(roundf(x), roundf(y))
 
 
 func _clamp_camera() -> void:
 	if camera == null:
 		return
 	camera.position = _clamped_camera_pos(camera.position)
+	_sync_engine_limits()
+
+
+func _sync_engine_limits() -> void:
+	## While the view fits, Godot's limits keep the same edge as the script clamp.
+	## When the whole map fits on an axis, release that side so the clearing stays centred.
+	if camera == null:
+		return
+	var forest := _ensure_forest_limit()
+	var half := _half_view()
+	if half.x * 2.0 <= forest.size.x + 0.5:
+		camera.limit_left = int(round(forest.position.x))
+		camera.limit_right = int(round(forest.position.x + forest.size.x))
+	else:
+		camera.limit_left = -10000000
+		camera.limit_right = 10000000
+	if half.y * 2.0 <= forest.size.y + 0.5:
+		camera.limit_top = int(round(forest.position.y))
+		camera.limit_bottom = int(round(forest.position.y + forest.size.y))
+	else:
+		camera.limit_top = -10000000
+		camera.limit_bottom = 10000000
+
+
+func zoom_step_fills_view(level: float, view: Vector2) -> bool:
+	if level <= 0.001:
+		return false
+	var shown := view / level
+	var forest := _camera_limit_rect().size
+	return shown.x <= forest.x + 0.5 and shown.y <= forest.y + 0.5
+
+
+func zoom_step_fills(level: float) -> bool:
+	return zoom_step_fills_view(level, _viewport_view())
+
+
+func camera_zoom_steps() -> Array[float]:
+	var steps: Array[float] = CAMERA_ZOOM_LEVELS.duplicate()
+	if zoom_step_fills(0.25):
+		steps.append(0.25)
+	return steps
+
+
+func _nearest_zoom(level: float, steps: Array[float]) -> float:
+	var best := 1.0
+	var best_d := 9999.0
+	for z: float in steps:
+		var d := absf(z - level)
+		if d < best_d:
+			best_d = d
+			best = z
+	return best
+
+
+func set_camera_zoom(level: float, persist: bool = true) -> void:
+	var picked := _nearest_zoom(level, camera_zoom_steps())
+	camera_zoom = picked
+	if camera != null:
+		camera.zoom = Vector2(picked, picked)
+	_clamp_camera()
+	if persist and has_node("/root/GameAudio") and GameAudio.has_method("set_camera_zoom"):
+		GameAudio.set_camera_zoom(picked)
+
+
+func step_camera_zoom(dir: int) -> void:
+	var steps := camera_zoom_steps()
+	if steps.is_empty():
+		return
+	var idx := 0
+	var best_d := 9999.0
+	for i: int in steps.size():
+		var d := absf(steps[i] - camera_zoom)
+		if d < best_d:
+			best_d = d
+			idx = i
+	var nxt := clampi(idx - dir, 0, steps.size() - 1)
+	set_camera_zoom(steps[nxt])
+
+
+func _apply_saved_camera_zoom() -> void:
+	var saved := 1.0
+	if has_node("/root/GameAudio") and GameAudio.has_method("get_camera_zoom"):
+		saved = float(GameAudio.get_camera_zoom())
+	set_camera_zoom(saved, false)
+
+
+func _on_viewport_resized() -> void:
+	if camera == null:
+		return
+	set_camera_zoom(camera_zoom, false)
+
+
+func _handle_zoom_input(event: InputEvent) -> bool:
+	if event is InputEventMagnifyGesture:
+		if world_input_blocked() or _gui_blocks_drag():
+			return true
+		var mag := event as InputEventMagnifyGesture
+		_pinch_accum *= mag.factor
+		if _pinch_accum >= 1.15:
+			step_camera_zoom(1)
+			_pinch_accum = 1.0
+		elif _pinch_accum <= 0.87:
+			step_camera_zoom(-1)
+			_pinch_accum = 1.0
+		get_viewport().set_input_as_handled()
+		return true
+	if not (event is InputEventMouseButton):
+		return false
+	var mb := event as InputEventMouseButton
+	if mb.button_index != MOUSE_BUTTON_WHEEL_UP and mb.button_index != MOUSE_BUTTON_WHEEL_DOWN:
+		return false
+	if not mb.pressed or world_input_blocked() or _gui_blocks_drag() or _drag_active:
+		get_viewport().set_input_as_handled()
+		return true
+	var notch := mb.factor if absf(mb.factor) > 0.01 else 1.0
+	if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		notch = -absf(notch)
+	else:
+		notch = absf(notch)
+	_wheel_accum += notch
+	while _wheel_accum >= 1.0:
+		step_camera_zoom(1)
+		_wheel_accum -= 1.0
+	while _wheel_accum <= -1.0:
+		step_camera_zoom(-1)
+		_wheel_accum += 1.0
+	get_viewport().set_input_as_handled()
+	return true
 
 
 func pan_camera(delta: Vector2) -> void:
@@ -811,6 +970,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _handle_zoom_input(event):
+		return
 	if event is InputEventMouseMotion and _drag_active:
 		_update_marquee(get_global_mouse_position())
 		return

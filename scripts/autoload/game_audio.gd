@@ -44,6 +44,8 @@ var master_volume_linear: float = 1.0
 var fullscreen_on: bool = false
 ## True fills the window. False keeps a pixel-perfect integer scale with bars.
 var fill_screen: bool = true
+## Hub camera step. 2 / 1 / 0.5, and 0.25 when the forest fills that view.
+var camera_zoom: float = 1.0
 var use_speedup_button: bool = false
 var _forge_mix_on: bool = false
 var _forge_music_offset_db: float = 0.0
@@ -820,6 +822,7 @@ func load_settings() -> void:
 	use_speedup_button = bool(cfg.get_value(SETTINGS_SECTION, "use_speedup_button", false))
 	fullscreen_on = bool(cfg.get_value("display", "fullscreen", false))
 	fill_screen = bool(cfg.get_value("display", "fill_screen", true))
+	camera_zoom = float(cfg.get_value("display", "camera_zoom", 1.0))
 	apply_display()
 	if MUSIC_VOLUME_ZERO_MEANS_DEFAULT and music_volume_linear <= 0.001:
 		music_volume_linear = 1.0
@@ -835,7 +838,17 @@ func save_settings() -> void:
 	cfg.set_value(SETTINGS_SECTION, "use_speedup_button", use_speedup_button)
 	cfg.set_value("display", "fullscreen", fullscreen_on)
 	cfg.set_value("display", "fill_screen", fill_screen)
+	cfg.set_value("display", "camera_zoom", camera_zoom)
 	cfg.save(SETTINGS_PATH)
+
+
+func get_camera_zoom() -> float:
+	return camera_zoom
+
+
+func set_camera_zoom(z: float) -> void:
+	camera_zoom = z
+	save_settings()
 
 
 func set_use_speedup_button(enabled: bool) -> void:
