@@ -49,7 +49,8 @@ static func kit_content_size() -> Vector2:
 	return Vector2(vs.x, maxf(0.0, vs.y - kit_top_inset() - SAFE_MARGIN_PX))
 
 
-## Hover tip: parchment panel, 6 px under the control, kept inside the 24 px safe area.
+## Hover tip: parchment panel, 6 px under the control, or above it when that would
+## cover the bottom HUD row. Kept inside the 24 px safe area.
 static func place_tooltip(popup: Window, anchor: Control) -> void:
 	if popup == null:
 		return
@@ -61,7 +62,12 @@ static func place_tooltip(popup: Window, anchor: Control) -> void:
 	var pos := Vector2(SAFE_MARGIN_PX, SAFE_MARGIN_PX)
 	if anchor != null and is_instance_valid(anchor):
 		var rect: Rect2 = anchor.get_global_rect()
-		pos = Vector2(rect.position.x, rect.end.y + TOOLTIP_GAP_PX)
+		var below: float = rect.end.y + TOOLTIP_GAP_PX
+		var above: float = rect.position.y - TOOLTIP_GAP_PX - sz.y
+		var y: float = below
+		if below + sz.y > vs.y - SAFE_MARGIN_PX and above >= SAFE_MARGIN_PX:
+			y = above
+		pos = Vector2(rect.position.x, y)
 	var max_x: float = maxf(SAFE_MARGIN_PX, vs.x - SAFE_MARGIN_PX - sz.x)
 	var max_y: float = maxf(SAFE_MARGIN_PX, vs.y - SAFE_MARGIN_PX - sz.y)
 	popup.position = Vector2(clampf(pos.x, SAFE_MARGIN_PX, max_x), clampf(pos.y, SAFE_MARGIN_PX, max_y))

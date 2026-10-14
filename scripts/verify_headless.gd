@@ -6247,6 +6247,14 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	var vs: Vector2 = tree_root.get_visible_rect().size
 	failed += _assert(pop.position.x >= 23.9 and pop.position.y >= 23.9, "tooltip stays inside the safe margin")
 	failed += _assert(pop.position.x + pop.size.x <= vs.x - 23.0 and pop.position.y + pop.size.y <= vs.y - 23.0, "tooltip clamps to the safe area (pos %s size %s view %s)" % [str(pop.position), str(pop.size), str(vs)])
+	var row_y: float = vs.y - Ui540.SAFE_MARGIN_PX - 44.0
+	host.position = Vector2(700, row_y)
+	host.size = Vector2(44, 44)
+	pop.size = Vector2(140, 36)
+	Ui540.place_tooltip(pop, host)
+	failed += _assert(pop.position.y + pop.size.y <= host.position.y + 0.5, "tooltip sits above a bottom-row button (got %s)" % str(pop.position))
+	var neighbour := Rect2(Vector2(752, row_y), Vector2(44, 44))
+	failed += _assert(not Rect2(pop.position, pop.size).intersects(neighbour), "tooltip clears the neighbouring HUD icon")
 	pop.free()
 	host.free()
 	## The engine builds a TooltipPanel popup and adds it under the control.
