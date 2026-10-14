@@ -5678,6 +5678,10 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		failed += _assert(station_tex.find("frame_9s_96") >= 0, "station window uses the kit frame")
 		var toast_top: float = view_sz.y - 24.0 - 44.0 - 8.0 - 32.0
 		failed += _assert(station_panel != null and station_panel.position.y + station_panel.size.y <= toast_top - 7.0, "station window stays clear of the toast")
+		var shade: Control = room.get_node_or_null("HUD/Panel/IconShade") as Control
+		failed += _assert(shade != null and station_panel != null and not station_panel.get_global_rect().intersects(shade.get_global_rect()), "station frame stays below the resource bar")
+		var plank: Control = room.get_node_or_null("UI/RecipePanel/Title/TitlePlank") as Control
+		failed += _assert(plank != null and shade != null and not plank.get_global_rect().intersects(shade.get_global_rect()), "station title plank stays below the resource bar")
 		var scroll: Control = room.get_node_or_null("UI/RecipePanel/RecipeScroll") as Control
 		var amount: Control = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/AmountRow/Amount") as Control
 		var minus: Control = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/AmountRow/Minus") as Control

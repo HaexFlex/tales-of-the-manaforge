@@ -477,7 +477,10 @@ func _pin_station_above_toast() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
 	var safe: float = Ui540.SAFE_MARGIN_PX
 	var toast_top: float = vs.y - safe - Ui540.TAP_MIN_PX - 8.0 - 32.0
-	var top: float = safe + Ui540.PLANK_RISE
+	## The resource shade is 40 px under the safe margin. The plank rises above the frame,
+	## so the frame starts below that shade or its corner covers the last counts.
+	var bar_bottom: float = safe + 40.0
+	var top: float = bar_bottom + Ui540.PLANK_RISE + 4.0
 	var limit: float = toast_top - 8.0
 	var h: float = minf(recipe_panel.size.y, maxf(200.0, limit - top))
 	if top + h > limit:
