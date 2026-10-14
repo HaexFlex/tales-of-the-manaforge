@@ -12,7 +12,7 @@ var _points: PackedVector2Array = PackedVector2Array()
 var _stroke: PackedVector2Array = PackedVector2Array()
 var _drawing: bool = false
 var _resolved: bool = false
-var _line: Line2D
+var _dots: Node2D
 var _ink: Line2D
 var _ring: Sprite2D
 var _phone: bool = false
@@ -32,19 +32,15 @@ func _ready() -> void:
 	bench.scale = Vector2(0.45, 0.45)
 	var plank: Sprite2D = MinigameArt.add_sprite(self, "workpiece.png", Vector2(360, 170))
 	plank.z_index = 1
-	_line = Line2D.new()
-	_line.width = 8.0
-	_line.default_color = Color(0.62, 0.48, 0.28, 0.85)
-	_line.joint_mode = Line2D.LINE_JOINT_ROUND
-	_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	_line.end_cap_mode = Line2D.LINE_CAP_ROUND
-	_line.z_index = 2
-	add_child(_line)
+	_dots = Node2D.new()
+	_dots.name = "GrainPath"
+	_dots.z_index = 3
+	add_child(_dots)
 	_ink = Line2D.new()
 	_ink.width = 5.0
 	_ink.default_color = Color8(62, 42, 24)
 	_ink.joint_mode = Line2D.LINE_JOINT_ROUND
-	_ink.z_index = 3
+	_ink.z_index = 5
 	add_child(_ink)
 	_ring = MinigameArt.add_sprite(self, "start_ring.png", Vector2(140, 160))
 	_ring.z_index = 4
@@ -135,9 +131,40 @@ func _load_shape() -> void:
 		if typeof(entry_v) == TYPE_DICTIONARY:
 			id = str((entry_v as Dictionary).get("id", "rod"))
 	_points = _path_for(id)
-	_line.points = _points
+	_paint_dots()
 	if _ring != null and _points.size() > 0:
 		_ring.position = _points[0]
+
+
+func _paint_dots() -> void:
+	if _dots == null:
+		return
+	for child: Node in _dots.get_children():
+		child.queue_free()
+	if _points.size() < 2:
+		return
+	var file: String = "dot_path_ph.png" if _phone else "dot_path.png"
+	var step: float = 18.0 if _phone else 14.0
+	var carried: float = step
+	for i: int in _points.size() - 1:
+		var a: Vector2 = _points[i]
+		var b: Vector2 = _points[i + 1]
+		var seg: float = a.distance_to(b)
+		if seg <= 0.001:
+			continue
+		var walked: float = 0.0
+		while carried + (seg - walked) >= step - 0.001:
+			var need: float = step - carried
+			walked += need
+			_place_dot(file, a.lerp(b, clampf(walked / seg, 0.0, 1.0)))
+			carried = 0.0
+		carried += seg - walked
+	_place_dot(file, _points[_points.size() - 1])
+
+
+func _place_dot(file: String, at: Vector2) -> void:
+	var spr: Sprite2D = MinigameArt.add_sprite(_dots, file, at)
+	spr.z_index = 1
 
 
 func _path_for(id: String) -> PackedVector2Array:
