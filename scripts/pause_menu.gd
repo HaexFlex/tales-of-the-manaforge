@@ -240,11 +240,14 @@ func _layout_slots() -> void:
 			continue
 		var x: float = 36.0 + float(i) * (tab_w + 8.0)
 		Ui540.anchor_rect_safe(tab, x, tab_y, tab_w, tab_h)
-		tab.set_pressed_no_signal((i == 0 and _slot_tab == "manual") or (i == 1 and _slot_tab == "autosave"))
+		var selected: bool = (i == 0 and _slot_tab == "manual") or (i == 1 and _slot_tab == "autosave")
+		tab.set_pressed_no_signal(selected)
+		_paint_slot_tab(tab, selected)
 	var rule: ColorRect = slots_panel.get_node_or_null("SlotTabRule") as ColorRect
 	if rule:
 		var rule_x: float = 36.0 if _slot_tab == "manual" else 36.0 + tab_w + 8.0
-		Ui540.anchor_rect_safe(rule, rule_x, tab_y + tab_h, tab_w, 3.0)
+		rule.color = Color8(232, 176, 48)
+		Ui540.anchor_rect_safe(rule, rule_x, tab_y + tab_h - 2.0, tab_w, 6.0)
 	var list_y: float = tab_y + tab_h + 12.0
 	var list_h: float = sz.y - list_y - 24.0
 	Ui540.anchor_rect_safe(_slot_bevel(), 36, list_y, sz.x - 72.0, list_h)
@@ -936,6 +939,17 @@ func _hide_slots() -> void:
 		panel.visible = true
 
 
+func _paint_slot_tab(tab: Button, selected: bool) -> void:
+	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
+	if theme == null or tab == null:
+		return
+	var box: StyleBox = theme.get_stylebox(&"pressed" if selected else &"normal", &"ToggleButton" if selected else &"Button")
+	if box == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"focus"]:
+		tab.add_theme_stylebox_override(state, box)
+
+
 func _ensure_slot_tabs() -> void:
 	if slots_panel == null or slots_panel.get_node_or_null("TabManual") != null:
 		return
@@ -1002,6 +1016,11 @@ func _add_slot_button(kind: String, slot: int) -> void:
 	GameTheme.style_ink_button(btn)
 	btn.add_theme_font_override("font", GameTheme.body_font())
 	btn.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	for ink_state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.add_theme_color_override(ink_state, GameTheme.INK)
 	btn.add_theme_stylebox_override("normal", Ui540.list_row_style())
 	btn.add_theme_stylebox_override("hover", Ui540.kit_stylebox_9s("res://assets/ui/theme/pick_row_9s_hover_24x24.png", Vector4i(6, 6, 6, 6), Vector4(8, 4, 12, 4)))
 	btn.add_theme_stylebox_override("pressed", Ui540.list_row_style(true))

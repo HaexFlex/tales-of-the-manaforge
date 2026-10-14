@@ -1792,6 +1792,16 @@ func _run() -> void:
 		failed += _assert(opt_close != null and opt_close.text == "" and opt_close.icon != null, "Options uses the × close")
 		pm.call("_layout_slots")
 		failed += _assert(pm.get_node_or_null("SlotsPanel/TabManual") != null and pm.get_node_or_null("SlotsPanel/TabAutosave") != null, "save slots have Manual and Autosaves tabs")
+		var tab_manual: Button = pm.get_node_or_null("SlotsPanel/TabManual") as Button
+		var tab_auto: Button = pm.get_node_or_null("SlotsPanel/TabAutosave") as Button
+		if tab_manual != null and tab_auto != null:
+			var manual_face: StyleBox = tab_manual.get_theme_stylebox("normal")
+			var auto_face: StyleBox = tab_auto.get_theme_stylebox("normal")
+			failed += _assert(manual_face != null and auto_face != null and manual_face != auto_face, "selected save tab face differs from the other tab")
+		var empty_slot: Button = pm.get_node_or_null("SlotsPanel/SlotScroll/SlotButtons/Manual1") as Button
+		if empty_slot == null:
+			empty_slot = pm.find_child("Manual1", true, false) as Button
+		failed += _assert(empty_slot != null and empty_slot.get_theme_color("font_color").is_equal_approx(Color8(62, 42, 24)), "empty slot text is dark ink")
 		var slot_close: Button = pm.get_node_or_null("SlotsPanel/SlotsClose") as Button
 		failed += _assert(slot_close != null and slot_close.text == "" and slot_close.icon != null, "save slots use the × close")
 		failed += _assert(not (pm.get_node("SlotsPanel/SlotsBack") as CanvasItem).visible, "save slots hide the text Back")
