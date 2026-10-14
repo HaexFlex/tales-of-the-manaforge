@@ -231,9 +231,14 @@ func _refresh_prompt() -> void:
 	_apply_label_visibility()
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("node_%s_prompt" % node_key)
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_apply_label_visibility()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _label_should_show() -> bool:

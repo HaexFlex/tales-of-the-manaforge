@@ -245,18 +245,19 @@ func _init() -> void:
 	th.set_color("font_outline_color", "ProgressBar", CREAM)
 
 	# ---- Tooltip / Popup
+	## The Keeper activity parchment (toast_9s). Same 9-slice the status tag used.
 	var tip_box := StyleBoxTexture.new()
-	tip_box.texture = load("res://assets/ui/extras/tooltip_parchment_9s_24x24.png") as Texture2D
+	tip_box.texture = load("res://assets/ui/theme/toast_9s_40x30.png") as Texture2D
 	if tip_box.texture == null:
-		_missing.append("tooltip_parchment_9s_24x24.png")
-	tip_box.texture_margin_left = 4
-	tip_box.texture_margin_top = 4
-	tip_box.texture_margin_right = 4
-	tip_box.texture_margin_bottom = 4
-	tip_box.content_margin_left = 12
-	tip_box.content_margin_top = 8
-	tip_box.content_margin_right = 12
-	tip_box.content_margin_bottom = 8
+		_missing.append("toast_9s_40x30.png")
+	tip_box.texture_margin_left = 12
+	tip_box.texture_margin_top = 8
+	tip_box.texture_margin_right = 12
+	tip_box.texture_margin_bottom = 8
+	tip_box.content_margin_left = 10
+	tip_box.content_margin_top = 4
+	tip_box.content_margin_right = 10
+	tip_box.content_margin_bottom = 4
 	th.set_type_variation("TooltipPanel", "PopupPanel")
 	th.set_stylebox("panel", "TooltipPanel", tip_box)
 	th.set_type_variation("TooltipLabel", "Label")

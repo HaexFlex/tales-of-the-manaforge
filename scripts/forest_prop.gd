@@ -61,11 +61,34 @@ func _ready() -> void:
 		add_to_group("forest_fill")
 	if body and not ground_deco:
 		body.add_to_group("forest_collision")
+		_bind_hover(body)
 		var applied: Vector2 = collider_size
 		var walk_col: CollisionShape2D = body.get_node_or_null("CollisionShape2D") as CollisionShape2D
 		if walk_col != null and walk_col.shape is RectangleShape2D:
 			applied = (walk_col.shape as RectangleShape2D).size
 		set_meta("collider_size", applied)
+
+
+func world_hover_name() -> String:
+	if prop_kind == "tree":
+		return ContentStrings.get_text("hover_tree")
+	if prop_kind == "bush":
+		return ContentStrings.get_text("hover_bush")
+	return ""
+
+
+func _bind_hover(body: StaticBody2D) -> void:
+	if world_hover_name() == "":
+		return
+	body.input_pickable = true
+	if body.mouse_entered.is_connected(_on_prop_hover):
+		return
+	body.mouse_entered.connect(_on_prop_hover.bind(true))
+	body.mouse_exited.connect(_on_prop_hover.bind(false))
+
+
+func _on_prop_hover(inside: bool) -> void:
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _apply_visual() -> void:

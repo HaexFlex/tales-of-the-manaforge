@@ -184,9 +184,14 @@ func _refresh() -> void:
 	label.visible = _hovered
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("runestone_title")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_refresh()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _world_blocked() -> bool:

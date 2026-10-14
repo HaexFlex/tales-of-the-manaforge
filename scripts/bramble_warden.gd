@@ -88,10 +88,15 @@ func refresh_presence() -> void:
 		label.text = ContentStrings.get_text("bramble_name")
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("bramble_name")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	if label:
 		label.visible = _hovered and visible
+	WorldHover.sync(self, inside and visible, world_hover_name())
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:

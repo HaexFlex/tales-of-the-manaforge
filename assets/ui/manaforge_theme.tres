@@ -32,7 +32,7 @@
 [ext_resource type="Texture2D" path="res://assets/ui/theme/title_plank_3s_48x40.png" id="30_not87"]
 [ext_resource type="Texture2D" path="res://assets/ui/theme/title_plate_312x46.png" id="31_7ma6f"]
 [ext_resource type="FontVariation" path="res://assets/fonts/font_body_silver19.tres" id="32_hjvkl"]
-[ext_resource type="Texture2D" path="res://assets/ui/extras/tooltip_parchment_9s_24x24.png" id="33_q4oox"]
+[ext_resource type="Texture2D" path="res://assets/ui/theme/toast_9s_40x30.png" id="33_q4oox"]
 [ext_resource type="Texture2D" path="res://assets/ui/theme/scroll_thumb_9s_normal_12x16.png" id="34_g2586"]
 [ext_resource type="Texture2D" path="res://assets/ui/theme/scroll_thumb_9s_hover_12x16.png" id="35_r5pg2"]
 [ext_resource type="Texture2D" path="res://assets/ui/theme/scroll_thumb_9s_drag_12x16.png" id="36_1nskq"]
@@ -448,15 +448,15 @@ texture_margin_right = 6.0
 texture_margin_bottom = 6.0
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_o583u"]
-content_margin_left = 12.0
-content_margin_top = 8.0
-content_margin_right = 12.0
-content_margin_bottom = 8.0
+content_margin_left = 10.0
+content_margin_top = 4.0
+content_margin_right = 10.0
+content_margin_bottom = 4.0
 texture = ExtResource("33_q4oox")
-texture_margin_left = 4.0
-texture_margin_top = 4.0
-texture_margin_right = 4.0
-texture_margin_bottom = 4.0
+texture_margin_left = 12.0
+texture_margin_top = 8.0
+texture_margin_right = 12.0
+texture_margin_bottom = 8.0
 
 [sub_resource type="StyleBoxTexture" id="StyleBoxTexture_b0ukt"]
 content_margin_left = 6.0

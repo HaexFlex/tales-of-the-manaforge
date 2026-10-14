@@ -51,6 +51,8 @@ func _ready() -> void:
 		elaia.arrived.connect(_on_elaia_arrived)
 	if exit_area and not exit_area.body_entered.is_connected(_on_exit_body):
 		exit_area.body_entered.connect(_on_exit_body)
+		exit_area.mouse_entered.connect(_on_exit_hover.bind(true))
+		exit_area.mouse_exited.connect(_on_exit_hover.bind(false))
 	call_deferred("_prime_exit")
 	if pause_menu:
 		pause_menu.set("suppress_pause_hotkey", true)
@@ -332,6 +334,12 @@ func _finish_marquee(world_pos: Vector2) -> void:
 
 func _prime_exit() -> void:
 	_exit_primed = true
+
+
+func _on_exit_hover(inside: bool) -> void:
+	if exit_area == null:
+		return
+	WorldHover.sync(exit_area, inside, ContentStrings.get_text("hover_clearing_door"))
 
 
 func _on_exit_body(body: Node2D) -> void:

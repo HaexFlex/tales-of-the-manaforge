@@ -249,9 +249,14 @@ func _on_fruit_changed(ready: bool) -> void:
 	_apply_label_visibility()
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("tree_menu_title")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_apply_label_visibility()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _refresh_label() -> void:
@@ -481,7 +486,16 @@ func _ensure_door_click() -> void:
 		shape_node.position = Vector2(0, 8)
 		door.add_child(shape_node)
 		door.input_event.connect(_on_door_input)
+		door.mouse_entered.connect(_on_door_hover.bind(true))
+		door.mouse_exited.connect(_on_door_hover.bind(false))
 		add_child(door)
+
+
+func _on_door_hover(inside: bool) -> void:
+	var door: Area2D = get_node_or_null("DoorHit") as Area2D
+	if door == null:
+		return
+	WorldHover.sync(door, inside, ContentStrings.get_text("hover_forge_door"))
 
 
 func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:

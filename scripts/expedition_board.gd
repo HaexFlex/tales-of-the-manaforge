@@ -404,11 +404,16 @@ func try_depart() -> String:
 	return Reach.depart_slots(board_config())
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("expedition_board_name")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	if label:
 		label.visible = _hovered
 		label.text = ContentStrings.get_text("expedition_board_examine")
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:

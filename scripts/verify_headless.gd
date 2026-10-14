@@ -6255,9 +6255,9 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	if theme != null:
 		box = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture
 	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
-	failed += _assert(path.find("tooltip_parchment_9s_24x24") >= 0, "tooltip panel uses the parchment 9-slice")
-	failed += _assert(box != null and box.texture_margin_left == 4.0 and box.texture_margin_top == 4.0 and box.texture_margin_right == 4.0 and box.texture_margin_bottom == 4.0, "tooltip texture margins are 4")
-	failed += _assert(box != null and box.content_margin_left == 12.0 and box.content_margin_top == 8.0 and box.content_margin_right == 12.0 and box.content_margin_bottom == 8.0, "tooltip content margins are 12/8/12/8")
+	failed += _assert(path.find("toast_9s_40x30") >= 0, "tooltip panel uses the activity papyrus scroll")
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 8.0 and box.texture_margin_right == 12.0 and box.texture_margin_bottom == 8.0, "tooltip texture margins are 12/8/12/8")
+	failed += _assert(box != null and box.content_margin_left == 10.0 and box.content_margin_top == 4.0 and box.content_margin_right == 10.0 and box.content_margin_bottom == 4.0, "tooltip content margins are 10/4/10/4")
 	var host := Control.new()
 	host.position = Vector2(100, 80)
 	host.size = Vector2(44, 44)
@@ -6300,17 +6300,80 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	tip_btn.add_child(shown)
 	var applied: StyleBoxTexture = shown.get_theme_stylebox("panel") as StyleBoxTexture
 	var applied_path: String = applied.texture.resource_path if applied != null and applied.texture != null else ""
-	failed += _assert(applied_path.find("tooltip_parchment_9s_24x24") >= 0, "applied tooltip stylebox is the parchment 9-slice (got %s)" % applied_path)
-	failed += _assert(applied != null and applied.texture_margin_left == 4.0 and applied.texture_margin_top == 4.0 and applied.texture_margin_right == 4.0 and applied.texture_margin_bottom == 4.0, "applied tooltip margins are 4")
+	failed += _assert(applied_path.find("toast_9s_40x30") >= 0, "applied tooltip stylebox is the activity papyrus scroll (got %s)" % applied_path)
+	failed += _assert(applied != null and applied.texture_margin_left == 12.0 and applied.texture_margin_top == 8.0 and applied.texture_margin_right == 12.0 and applied.texture_margin_bottom == 8.0, "applied tooltip margins are 12/8/12/8")
 	var drawn: StyleBoxTexture = null
 	for idx: int in shown.get_child_count(true):
 		var inner: Node = shown.get_child(idx, true)
 		if inner is Panel:
 			drawn = (inner as Panel).get_theme_stylebox("panel") as StyleBoxTexture
 	var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
-	failed += _assert(drawn_path.find("tooltip_parchment_9s_24x24") >= 0, "tooltip panel draws the parchment 9-slice (got %s)" % drawn_path)
+	failed += _assert(drawn_path.find("toast_9s_40x30") >= 0, "tooltip panel draws the activity papyrus scroll (got %s)" % drawn_path)
 	failed += _assert(tip_label.get_theme_color("font_color").is_equal_approx(Color8(62, 42, 24)), "tooltip label ink is applied")
 	tip_btn.free()
+	failed += _world_hover_names_ok(tree_root)
+	return failed
+
+
+func _world_hover_names_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var strings: Node = tree_root.get_node_or_null("ContentStrings")
+	failed += _assert(strings != null, "world hover strings autoload")
+	if strings == null:
+		return failed
+	var wood: Node = (load("res://scripts/gatherable.gd") as GDScript).new()
+	wood.set("node_key", "wood")
+	var stone: Node = (load("res://scripts/gatherable.gd") as GDScript).new()
+	stone.set("node_key", "stone")
+	var food: Node = (load("res://scripts/gatherable.gd") as GDScript).new()
+	food.set("node_key", "food")
+	failed += _assert(str(wood.call("world_hover_name")) == str(strings.call("get_text", "node_wood_prompt")), "harvest tree hover name")
+	failed += _assert(str(stone.call("world_hover_name")) == str(strings.call("get_text", "node_stone_prompt")), "stone hover name")
+	failed += _assert(str(food.call("world_hover_name")) == str(strings.call("get_text", "node_food_prompt")), "berry hover name")
+	var tree: Node = (load("res://scripts/manatree.gd") as GDScript).new()
+	failed += _assert(str(tree.call("world_hover_name")) == str(strings.call("get_text", "tree_menu_title")), "manatree hover name")
+	var wisp: Node = (load("res://scripts/wisp.gd") as GDScript).new()
+	failed += _assert(str(wisp.call("world_hover_name")) == str(strings.call("get_text", "wisp_name")), "wisp hover name")
+	var station: Node = (load("res://scripts/forge_station.gd") as GDScript).new()
+	station.set("station_id", "anvil")
+	failed += _assert(str(station.call("world_hover_name")) == "Anvil", "anvil hover name")
+	var bench: Node = (load("res://scripts/keepers_bench.gd") as GDScript).new()
+	failed += _assert(str(bench.call("world_hover_name")) == str(strings.call("get_text", "bench_title")), "bench hover name")
+	var road := Area2D.new()
+	road.set_script(load("res://scripts/thorn_wall.gd"))
+	failed += _assert(str(road.call("world_hover_name")) == str(strings.call("get_text", "hover_east_road")), "east road hover name")
+	road.free()
+	var prop: Node = (load("res://scripts/forest_prop.gd") as GDScript).new()
+	prop.set("prop_kind", "tree")
+	failed += _assert(str(prop.call("world_hover_name")) == str(strings.call("get_text", "hover_tree")), "forest tree hover name")
+	prop.set("prop_kind", "bush")
+	failed += _assert(str(prop.call("world_hover_name")) == str(strings.call("get_text", "hover_bush")), "forest bush hover name")
+	var host := Node2D.new()
+	tree_root.add_child(host)
+	WorldHover.present(host, str(strings.call("get_text", "hover_forge_door")))
+	var tip: PanelContainer = WorldHover.panel()
+	var tip_box: StyleBoxTexture = tip.get_theme_stylebox(&"panel") as StyleBoxTexture if tip != null else null
+	var tip_path: String = tip_box.texture.resource_path if tip_box != null and tip_box.texture != null else ""
+	failed += _assert(WorldHover.current_text() == "Forge Door", "world hover shows the forge door name (got %s)" % WorldHover.current_text())
+	failed += _assert(tip_path.find("toast_9s_40x30") >= 0, "world hover draws the papyrus scroll (got %s)" % tip_path)
+	WorldHover.dismiss(host)
+	failed += _assert(WorldHover.current_text() == "", "world hover hides when the pointer leaves")
+	var other := Node2D.new()
+	tree_root.add_child(other)
+	WorldHover.present(other, "Wisp")
+	WorldHover.dismiss(host)
+	failed += _assert(WorldHover.current_text() == "Wisp", "leaving a different object keeps the current hover")
+	WorldHover.shutdown()
+	host.free()
+	other.free()
+	wood.free()
+	stone.free()
+	food.free()
+	tree.free()
+	wisp.free()
+	station.free()
+	bench.free()
+	prop.free()
 	return failed
 
 
