@@ -16979,6 +16979,15 @@ func _board_layout_rect_ok(shell: Node) -> int:
 			failed += _assert(false, "board layout missing %s" % node_name)
 		else:
 			failed += _assert(_board_rect_inside_frame(ctrl, frame), "%s inside parchment frame" % node_name)
+	var sim_face: Button = shell.find_child("SimulateButton", true, false) as Button
+	var depart_face: Button = shell.find_child("Depart", true, false) as Button
+	failed += _assert(sim_face != null and sim_face.theme_type_variation == &"PrimaryButton", "Simulate uses the primary button")
+	failed += _assert(depart_face != null and depart_face.theme_type_variation == &"PrimaryButton", "Depart uses the primary button")
+	var action_face: StyleBoxTexture = null
+	if sim_face != null:
+		action_face = sim_face.get_theme_stylebox("normal") as StyleBoxTexture
+	var action_path: String = action_face.texture.resource_path if action_face != null and action_face.texture != null else ""
+	failed += _assert(action_path.find("action_button_normal") >= 0, "Simulate draws the kit primary face")
 	var warn: Label = shell.find_child("WarningLabel", true, false) as Label
 	for ctrl_name: String in ["ManualButton", "IdleButton", "SimulateButton"]:
 		var ctrl: Control = shell.find_child(ctrl_name, true, false) as Control

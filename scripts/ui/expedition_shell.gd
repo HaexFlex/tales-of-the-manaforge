@@ -309,7 +309,7 @@ func _add_footer(panel: Control) -> void:
 	if strings != null:
 		sim_label = str(strings.call("get_text", "board_simulate"))
 	var foot_y: float = _win_h - FOOT_BTN_Y_FROM_BOTTOM
-	_big_button(panel, "SimulateButton", Vector2(ROUTE_X, foot_y + 4.0), Vector2(160, ROW_H), sim_label)
+	GameTheme.force_primary_button(_big_button(panel, "SimulateButton", Vector2(ROUTE_X, foot_y + 4.0), Vector2(160, ROW_H), sim_label))
 	var chip := _nine_patch("CostChip", BOARD_DIR + "cost_chip_9s_ok_24x32.png", 8, Vector2(ROUTE_X + 172.0, foot_y + 4.0), Vector2(84, ROW_H))
 	panel.add_child(chip)
 	var ess_icon := _tex_rect(chip, ICON_ESSENCE_TEX, Vector2(8, 10), Vector2(24, 24))
@@ -323,7 +323,7 @@ func _add_footer(panel: Control) -> void:
 	amount.autowrap_mode = TextServer.AUTOWRAP_OFF
 	amount.text = "20"
 	var depart_x: float = PANEL_SIZE.x - PAD - DEPART_W
-	_big_button(panel, "Depart", Vector2(depart_x, foot_y), Vector2(DEPART_W, 52), "Depart")
+	GameTheme.force_primary_button(_big_button(panel, "Depart", Vector2(depart_x, foot_y), Vector2(DEPART_W, 52), "Depart"))
 	var hint_x: float = ROUTE_X + 264.0
 	_line(panel, "DepartHint", Vector2(hint_x, foot_y + 4.0), Vector2(depart_x - 8.0 - hint_x, ROW_H), true)
 	var warn := _line(panel, "DepartEssenceWarn", Vector2(LOAD_X, foot_y - 26.0), Vector2(LOAD_W, 20), false)
