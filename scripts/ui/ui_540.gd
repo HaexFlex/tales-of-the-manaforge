@@ -223,6 +223,27 @@ static func place_title_plank(lbl: Label, window_w: float) -> void:
 	lbl.size = Vector2(w, PLANK_H)
 	lbl.position = Vector2(roundf((window_w - w) * 0.5), -PLANK_RISE)
 	lbl.z_index = 1
+	# Labels do not draw styleboxes, so the TitlePlank style never showed the wood.
+	var plank: NinePatchRect = lbl.get_node_or_null("TitlePlank") as NinePatchRect
+	if plank == null:
+		plank = NinePatchRect.new()
+		plank.name = "TitlePlank"
+		plank.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		plank.show_behind_parent = true
+		plank.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		plank.set_anchors_preset(Control.PRESET_FULL_RECT)
+		plank.anchor_right = 1.0
+		plank.anchor_bottom = 1.0
+		plank.offset_left = 0.0
+		plank.offset_top = 0.0
+		plank.offset_right = 0.0
+		plank.offset_bottom = 0.0
+		plank.texture = load("res://assets/ui/theme/title_plank_3s_48x40.png") as Texture2D
+		plank.patch_margin_left = 16
+		plank.patch_margin_right = 16
+		plank.axis_stretch_horizontal = NinePatchRect.AXIS_STRETCH_MODE_TILE
+		plank.axis_stretch_vertical = NinePatchRect.AXIS_STRETCH_MODE_STRETCH
+		lbl.add_child(plank)
 
 
 static func anchor_rect_safe(ctrl: Control, x: float, y: float, w: float, h: float) -> void:

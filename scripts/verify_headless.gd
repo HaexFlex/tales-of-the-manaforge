@@ -50,6 +50,7 @@ func _run() -> void:
 		return
 
 	failed += _tooltip_parchment_ok(tree_root)
+	failed += _title_plank_drawn()
 
 	# Workbench stand. The full suite still runs this near the end.
 	# MANAFORGE_WORKBENCH=1 skips every other assertion.
@@ -6205,6 +6206,22 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 		var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
 		failed += _assert(drawn_path.find("tooltip_parchment_9s_24x24") >= 0, "tooltip panel draws the parchment 9-slice (got %s)" % drawn_path)
 	tip_btn.free()
+	return failed
+
+
+func _title_plank_drawn() -> int:
+	var failed: int = 0
+	var host := Control.new()
+	host.size = Vector2(400, 200)
+	var title := Label.new()
+	title.text = "Options"
+	host.add_child(title)
+	Ui540.place_title_plank(title, 400.0)
+	var plank: NinePatchRect = title.get_node_or_null("TitlePlank") as NinePatchRect
+	var path: String = plank.texture.resource_path if plank != null and plank.texture != null else ""
+	failed += _assert(plank != null and plank.show_behind_parent and path.find("title_plank_3s_48x40") >= 0, "title plank graphic sits behind the label")
+	failed += _assert(is_equal_approx(title.position.y, -Ui540.PLANK_RISE), "title plank hangs on the frame edge")
+	host.free()
 	return failed
 
 
