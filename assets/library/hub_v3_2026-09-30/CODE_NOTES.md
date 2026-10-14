@@ -15,7 +15,7 @@ Density everywhere: **1 art px = 1 display px**, nearest filter, `sprite_scale` 
 
 | Family | Paths (under `res://assets/art/`) | Count | Canvas |
 |---|---|---|---|
-| Ascension icons | `ui/icons/icon_asc_{deep_roots,forager,green_thumb,shard_sight,keeper_stride,wisp_haste,bonus_wisp,keep_tools,keep_forge_intermediates,keep_forge_jobs}.png` | 10 | 32x32 |
+| Ascension icons | `ui/icons/icon_asc_{deep_roots,forager,green_thumb,shard_sight,keeper_stride,wisp_haste,bonus_wisp,keep_tools,keep_forge_jobs}.png` | 9 | 32x32 |
 | Large ring trees | `hub/trees/ring_tree_large_01..03.png` | 3 | 320x400 |
 | Medium ring trees | `hub/trees/ring_tree_medium_01..02.png` | 2 | 256x288 |
 | Slim ring tree | `hub/trees/ring_tree_slim_01.png` | 1 | 160x320 |
@@ -107,7 +107,7 @@ Code changes:
 
 - Add `"art_name": "icon_asc_<id>"` to each entry in `data/fruit_upgrades.json` (deep_roots, forager, green_thumb, shard_sight,
   keeper_stride, wisp_haste, bonus_wisp, keep_tools) and in `data/forge_tuning.json` `ascend_upgrades`
-  (keep_forge_intermediates, keep_forge_jobs).
+  (`keep_forge_jobs` only). `keep_forge_intermediates` (Keep Forge Materials) was removed: Forge materials always wipe on Ascend.
 - Resolve the path the same way `scripts/autoload/equipment.gd` `item_art_path()` does (lines 162-176): `res://assets/art/ui/<art_name>.png`, then
   `res://assets/art/ui/icons/<art_name>.png`. These files are in `ui/icons/`.
 - `scripts/hud.gd` `_rebuild_upgrades()` (line 2092, `SHOP_ROW_H` 48): add a 32x32 `TextureRect` with nearest filter

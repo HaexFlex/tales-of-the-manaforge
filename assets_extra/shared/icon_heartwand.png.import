@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bl66xh6njdwby"
-path="res://.godot/imported/icon_asc_keep_forge_intermediates.png-d636324a9549833d1cfeadd0ce85d4cc.ctex"
+uid="uid://c3srm4rckjc4m"
+path="res://.godot/imported/icon_heartwand.png-c6856b6316e7f4febeb11055966009b3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/art/ui/icons/icon_asc_keep_forge_intermediates.png"
-dest_files=["res://.godot/imported/icon_asc_keep_forge_intermediates.png-d636324a9549833d1cfeadd0ce85d4cc.ctex"]
+source_file="res://assets_extra/shared/icon_heartwand.png"
+dest_files=["res://.godot/imported/icon_heartwand.png-c6856b6316e7f4febeb11055966009b3.ctex"]
 
 [params]
 

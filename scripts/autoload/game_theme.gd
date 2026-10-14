@@ -1,56 +1,41 @@
 extends Node
-## Project-wide Silver / Jersey 10 theme and 2× game cursor for 540p base resolution.
+## Loads the kit Theme resource and keeps shared 540p font/size helpers for VERIFY.
 
-const SILVER_PATH: String = "res://assets/fonts/Silver.ttf"
-const JERSEY_PATH: String = "res://assets/fonts/Jersey10-Regular.ttf"
-const CURSOR_TEX: String = "res://assets/art/ui/icon_manashards.png"
+const THEME_PATH: String = "res://assets/ui/manaforge_theme.tres"
+const POINTER_PATH: String = "res://assets/ui/theme/pointer_12x17.png"
+const BODY_FONT_PATH: String = "res://assets/fonts/font_body_silver19.tres"
+const PRIMARY_FONT_PATH: String = "res://assets/fonts/font_primary_silver38_bold.tres"
+const TITLE_FONT_PATH: String = "res://assets/fonts/font_title_jersey30.tres"
+const INK: Color = Color8(62, 42, 24)
+const MUTED: Color = Color8(90, 62, 40)
+const CREAM_BTN: Color = Color8(243, 230, 200)
+const OUTLINE: Color = Color8(26, 15, 8)
+const SAFE_MARGIN_PX: float = 24.0
+const TAP_MIN_PX: float = 44.0
 const BODY_SIZE: int = 19
 const TITLE_SIZE: int = 37
 const PLANK_SIZE: int = 19
 const TITLE_HERO_SIZE: int = 38
-const CURSOR_SCALE: float = 2.0
-const SAFE_MARGIN_PX: float = 24.0
-const TAP_MIN_PX: float = 24.0
 
-var _silver: FontFile
-var _jersey: FontFile
 var _theme: Theme
+var _body_font: Font
+var _primary_font: Font
+var _title_font: Font
 var _tree_hooked: bool = false
 
 
 func _ready() -> void:
-	_silver = _load_font(SILVER_PATH)
-	_jersey = _load_font(JERSEY_PATH)
-	_theme = Theme.new()
-	_apply_font_defaults(_theme)
+	_theme = load(THEME_PATH) as Theme
+	_body_font = load(BODY_FONT_PATH) as Font
+	_primary_font = load(PRIMARY_FONT_PATH) as Font
+	_title_font = load(TITLE_FONT_PATH) as Font
 	_apply_mouse_cursor()
 	call_deferred("apply_app_theme")
 
 
-func _load_font(path: String) -> FontFile:
-	var file: FontFile = load(path) as FontFile
-	if file == null:
-		push_warning("GameTheme: missing font %s" % path)
-		return FontFile.new()
-	file.antialiasing = TextServer.FONT_ANTIALIASING_NONE
-	file.hinting = TextServer.HINTING_NONE
-	file.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
-	return file
-
-
-func _apply_font_defaults(theme: Theme) -> void:
-	var body: Font = _silver
-	theme.default_font = body
-	theme.default_font_size = BODY_SIZE
-	for kind: StringName in [&"Label", &"Button", &"RichTextLabel", &"CheckBox", &"LineEdit", &"SpinBox", &"TabBar"]:
-		theme.set_font_size(&"font", kind, BODY_SIZE)
-		theme.set_font(&"font", kind, body)
-	theme.set_font(&"font", &"Button", _silver_embolden())
-
-
 func apply_app_theme() -> void:
 	var tree: SceneTree = get_tree()
-	if tree == null:
+	if tree == null or _theme == null:
 		return
 	tree.root.theme = _theme
 	if not _tree_hooked:
@@ -62,6 +47,20 @@ func apply_app_theme() -> void:
 func _on_node_added(node: Node) -> void:
 	if node is Control:
 		apply_control_theme(node as Control)
+	if node is PopupPanel and (node as PopupPanel).theme_type_variation == &"TooltipPanel":
+		# Tooltip popups are their own Window. They do not inherit the root theme,
+		# so the engine default (dark, see-through) wins unless this theme is set.
+		var pop: PopupPanel = node as PopupPanel
+		if _theme != null:
+			pop.theme = _theme
+		call_deferred("_seat_tooltip", node)
+
+
+func _seat_tooltip(node: Node) -> void:
+	var popup: PopupPanel = node as PopupPanel
+	if popup == null or not is_instance_valid(popup) or not popup.visible:
+		return
+	Ui540.place_tooltip(popup, popup.get_parent() as Control)
 
 
 func sweep_theme(root: Node) -> void:
@@ -75,26 +74,6 @@ func apply_control_theme(ctrl: Control) -> void:
 	if ctrl is ScrollContainer and has_node("/root/GameInput"):
 		GameInput.configure_scroll_container(ctrl as ScrollContainer)
 	_ensure_tap_target(ctrl)
-	if ctrl is Button:
-		if ctrl.is_in_group("title_hero_button"):
-			style_title_hero_button(ctrl as Button)
-		else:
-			style_primary_button(ctrl as Button)
-		return
-	if ctrl is Label:
-		_style_label(ctrl as Label)
-
-
-func _style_label(lbl: Label) -> void:
-	var name_l: String = lbl.name.to_lower()
-	var size_override: int = lbl.get_theme_font_size("font_size")
-	if name_l.find("title") >= 0 and size_override >= 28:
-		style_title_label(lbl)
-	elif name_l.find("title") >= 0 or name_l.find("header") >= 0 or name_l.find("subtitle") >= 0:
-		style_plank_label(lbl)
-	else:
-		lbl.add_theme_font_override("font", _silver)
-		lbl.add_theme_font_size_override("font_size", BODY_SIZE)
 
 
 func _ensure_tap_target(ctrl: Control) -> void:
@@ -109,11 +88,11 @@ func _ensure_tap_target(ctrl: Control) -> void:
 
 
 func body_font() -> Font:
-	return _silver
+	return _body_font
 
 
 func title_font() -> Font:
-	return _jersey
+	return _title_font
 
 
 func jersey_plank_size() -> int:
@@ -133,51 +112,143 @@ func silver_hero_size() -> int:
 
 
 func style_primary_button(btn: Button) -> void:
-	btn.add_theme_font_override("font", _silver_embolden())
-	btn.add_theme_font_size_override("font_size", BODY_SIZE)
+	btn.theme_type_variation = &"PrimaryButton"
+
+
+## Primary face copied onto the button. The variation alone still draws the engine
+## button on some popups; the override is the kit action button at full contrast.
+func force_primary_button(btn: Button) -> void:
+	style_primary_button(btn)
+	if btn == null or _theme == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled", &"focus"]:
+		var box: StyleBox = _theme.get_stylebox(state, &"PrimaryButton")
+		if box:
+			btn.add_theme_stylebox_override(state, box)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.add_theme_color_override(state, CREAM_BTN)
+	btn.add_theme_color_override(&"font_outline_color", OUTLINE)
+	btn.add_theme_constant_override(&"outline_size", 2)
 
 
 func style_title_hero_button(btn: Button) -> void:
-	btn.add_theme_font_override("font", _silver)
+	btn.theme_type_variation = &"TitleMenuButton"
+	btn.add_theme_font_override("font", _primary_font)
 	btn.add_theme_font_size_override("font_size", TITLE_HERO_SIZE)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.add_theme_color_override(state, CREAM_BTN)
+	btn.add_theme_color_override(&"font_outline_color", OUTLINE)
+	btn.add_theme_constant_override(&"outline_size", 2)
+
+
+func style_outlined_ink_label(lbl: Label, muted: bool = false) -> void:
+	style_body_label(lbl)
+	lbl.add_theme_color_override(&"font_color", MUTED if muted else INK)
+	lbl.add_theme_color_override(&"font_shadow_color", OUTLINE)
+	lbl.add_theme_constant_override(&"shadow_offset_x", 1)
+	lbl.add_theme_constant_override(&"shadow_offset_y", 1)
 
 
 func style_title_label(lbl: Label) -> void:
-	lbl.add_theme_font_override("font", _jersey)
-	lbl.add_theme_font_size_override("font_size", TITLE_SIZE)
+	lbl.theme_type_variation = &"TitlePlank"
 
 
+## Window titles: the theme plank (Jersey 10 30, cream on wood). No size override, so the
+## plank art and the cap centring from build_theme.gd stay in step.
 func style_plank_label(lbl: Label) -> void:
-	lbl.add_theme_font_override("font", _jersey)
-	lbl.add_theme_font_size_override("font_size", PLANK_SIZE)
+	lbl.theme_type_variation = &"TitlePlank"
+	lbl.remove_theme_font_override("font")
+	lbl.remove_theme_font_size_override("font_size")
+	lbl.remove_theme_color_override("font_color")
 
 
 func style_body_label(lbl: Label) -> void:
-	lbl.add_theme_font_override("font", _silver)
+	lbl.add_theme_font_override("font", _body_font)
 	lbl.add_theme_font_size_override("font_size", BODY_SIZE)
 
 
-func _silver_embolden() -> Font:
-	var fv := FontVariation.new()
-	fv.base_font = _silver
-	fv.variation_embolden = 1.35
-	return fv
+## Plain parchment text: Silver 19, ink or muted ink, no outline.
+func style_ink_label(lbl: Label, muted: bool = false) -> void:
+	style_body_label(lbl)
+	lbl.add_theme_color_override(&"font_color", MUTED if muted else INK)
+	lbl.remove_theme_color_override(&"font_shadow_color")
+	lbl.remove_theme_constant_override(&"shadow_offset_x")
+	lbl.remove_theme_constant_override(&"shadow_offset_y")
+
+
+## Parchment headings (section names, item names): Silver 38 ink.
+func style_heading_label(lbl: Label) -> void:
+	lbl.add_theme_font_override("font", _body_font)
+	lbl.add_theme_font_size_override("font_size", TITLE_HERO_SIZE)
+	lbl.add_theme_color_override(&"font_color", INK)
+
+
+## Wood menu button with the Silver 38 caps (pause rows, confirm choices, Back).
+func style_menu_button(btn: Button) -> void:
+	btn.theme_type_variation = &"BigButton"
+	btn.remove_theme_font_override("font")
+	btn.remove_theme_font_size_override("font_size")
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.remove_theme_color_override(state)
+
+
+## Wood button with Silver 19 caps (tabs, small actions, list chips).
+func style_wood_button(btn: Button) -> void:
+	btn.theme_type_variation = &""
+	btn.flat = false
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled", &"focus"]:
+		btn.remove_theme_stylebox_override(state)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.remove_theme_color_override(state)
+	btn.add_theme_font_override("font", _body_font)
+	btn.add_theme_font_size_override("font_size", BODY_SIZE)
+
+
+## Wood tab: Silver 19 caps, the selected face while pressed.
+func style_tab_button(btn: Button) -> void:
+	style_wood_button(btn)
+	btn.theme_type_variation = &"ToggleButton"
+	btn.toggle_mode = true
+
+
+## Window filter tab (char, bag, workbench): the wood tab with Silver 38 caps.
+func style_big_tab_button(btn: Button) -> void:
+	style_tab_button(btn)
+	btn.add_theme_font_override("font", _primary_font)
+	btn.add_theme_font_size_override("font_size", 38)
+
+
+## Faceless text button sitting on parchment: ink caps.
+func style_ink_button(btn: Button) -> void:
+	btn.theme_type_variation = &"InkButton"
+	btn.flat = false
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled"]:
+		btn.remove_theme_stylebox_override(state)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.remove_theme_color_override(state)
 
 
 func _apply_mouse_cursor() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	var tex: Texture2D = load(CURSOR_TEX) as Texture2D
+	var tex: Texture2D = load(POINTER_PATH) as Texture2D
 	if tex == null:
 		return
-	var img: Image = tex.get_image()
-	if img == null or img.is_empty():
-		return
-	var w: int = img.get_width()
-	var h: int = img.get_height()
-	img.resize(w * int(CURSOR_SCALE), h * int(CURSOR_SCALE), Image.INTERPOLATE_NEAREST)
-	var big := ImageTexture.create_from_image(img)
-	var hotspot := Vector2(float(w), float(h)) * 0.5
-	Input.set_custom_mouse_cursor(big, Input.CURSOR_ARROW, hotspot)
-	Input.set_custom_mouse_cursor(big, Input.CURSOR_IBEAM, hotspot)
-	Input.set_custom_mouse_cursor(big, Input.CURSOR_POINTING_HAND, hotspot)
+	Input.set_custom_mouse_cursor(tex, Input.CURSOR_ARROW, Vector2.ZERO)
+	Input.set_custom_mouse_cursor(tex, Input.CURSOR_IBEAM, Vector2.ZERO)
+	Input.set_custom_mouse_cursor(tex, Input.CURSOR_POINTING_HAND, Vector2.ZERO)

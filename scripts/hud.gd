@@ -3,6 +3,7 @@ class_name GameHUD
 ## HUD + Manatree care + backpack + Keeper's Bench + Ascension shop.
 
 const BATCH_PANEL_SCENE: PackedScene = preload("res://scenes/ui/batch_panel.tscn")
+const Binds := preload("res://scripts/ui/input_binds.gd")
 const BatchPanel := preload("res://scripts/batch_panel.gd")
 
 @onready var panel: ColorRect = $Panel
@@ -15,7 +16,7 @@ const BatchPanel := preload("res://scripts/batch_panel.gd")
 @onready var stage_label: Label = $Panel/StageLabel
 @onready var controls_hint: Label = $Panel/ControlsHint
 @onready var status_label: Label = $Panel/StatusLabel
-@onready var toast_shade: ColorRect = $Panel/ToastShade
+@onready var toast_shade: Control = $Panel/ToastShade
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var help_button: Button = $Panel/HelpButton
 @onready var help_icon: TextureRect = $Panel/HelpButton/HelpIcon
@@ -80,7 +81,7 @@ var _forge_popup_body: Label
 @onready var shop_scroll: ScrollContainer = $AscensionPanel/ShopScroll
 @onready var upgrade_list: VBoxContainer = $AscensionPanel/ShopScroll/UpgradeList
 @onready var shop_footer: Control = $AscensionPanel/Footer
-@onready var close_button: Button = $AscensionPanel/Footer/CloseButton
+@onready var close_button: Button = $AscensionPanel/Header/CloseButton
 @onready var ascend_button: Button = $AscensionPanel/Footer/AscendButton
 @onready var welcome_panel: ColorRect = $WelcomePanel
 @onready var welcome_boot_label: Label = $WelcomePanel/WelcomeBoot
@@ -89,41 +90,60 @@ var _forge_popup_body: Label
 @onready var welcome_hint_label: Label = $WelcomePanel/WelcomeHint
 @onready var welcome_dismiss_button: Button = $WelcomePanel/WelcomeDismiss
 
-## Art lock MANATREE_CARE_PANEL_V01: 520×420, header 64 / body / action band 56. No shop rows.
-const CARE_SIZE: Vector2 = Vector2(520, 420)
+## Shop dim sits between kit windows (35) and the shop / confirms it dims behind.
+const Z_MODAL_DIM: int = 39
+const Z_MODAL: int = 40
+## Art lock MANATREE_CARE_PANEL_V01 (540p r2): 600×440, header 64 / card / action band 56.
+const CARE_SIZE: Vector2 = Vector2(600, 440)
+## Card 84..244, then the 52 px action row 12 below it.
+const CARE_ACTION_END_Y: float = 308.0
+const CARE_COST_COL_W: float = 250.0
+const ANCIENT_TIMER_W: float = 300.0
+const CARE_TIMER_CYAN: Color = Color8(46, 150, 170)
+const CARE_GREEN: Color = Color8(52, 120, 44)
 const CARE_HEADER_H: float = 64.0
 const CARE_ACTION_BAND_H: float = 56.0
-## Art lock ASCENSION_SHOP_LAYOUT_V01 scaled for 960×540 (24 px safe margins).
-const SHOP_SIZE: Vector2 = Vector2(640, 412)
-const SHOP_MIN_SIZE: Vector2 = Vector2(560, 360)
+## Mockup ascension540_pc_16x9_r3: 912×472, 48 px rows on a 52 pitch in a bevelled list,
+## Ascend 240×52 bottom-right; × in the title row with the shard chip to its left.
+const SHOP_SIZE: Vector2 = Vector2(912, 472)
+const SHOP_MIN_SIZE: Vector2 = Vector2(640, 412)
 const SHOP_HEADER_H: float = 48.0
-const SHOP_FOOTER_H: float = 54.0
-const SHOP_ROW_H: float = 36.0
-const SHOP_PAD: float = 16.0
-const WOOD: Color = Color(0.16, 0.11, 0.07, 0.98)
+const SHOP_FOOTER_BTN_H: float = 52.0
+const SHOP_ROW_H: float = 48.0
+const SHOP_PAD: float = 24.0
+const SHOP_LIST_Y: float = 126.0
+const SHOP_CHIP_W: float = 150.0
+const SHOP_CHIP_BG: Color = Color8(40, 28, 20)
+const SHOP_BUY_W: float = 136.0
+const SHOP_SHARD_ICON: String = "res://assets_extra/shared/icon_manashards.png"
+const SHOP_LOCK_ICON: String = "res://assets_extra/shared/hud_equip_locked.png"
 const GOLD: Color = Color(0.82, 0.64, 0.28, 1.0)
-const LEAF: Color = Color(0.24, 0.48, 0.28, 1.0)
-const BUY_CAN: Color = Color(0.28, 0.52, 0.30, 1.0)
-const BUY_CANT: Color = Color(0.62, 0.22, 0.18, 1.0)
-const CHIP_CYAN: Color = Color(0.14, 0.38, 0.68, 0.95)
 const ICON_FERTILIZER: Color = Color(0.42, 0.35, 0.14, 1.0)
 const ICON_ESSENCE: Color = Color(0.56, 0.35, 0.66, 1.0)
 const ICON_BACKPACK: Color = Color(0.48, 0.31, 0.18, 1.0)
 const ESSENCE_TINT: Color = Color(0.78, 0.62, 1.18, 1.0)
 const PLACEHOLDER_SWATCH: Color = Color(0.42, 0.40, 0.36, 1.0)
-const ICON_WOOD_TEX: String = "res://assets/art/ui/icon_wood.png"
-const ICON_STONE_TEX: String = "res://assets/art/ui/icon_stone.png"
-const ICON_FOOD_TEX: String = "res://assets/art/ui/icon_food.png"
-const ICON_SHARD_TEX: String = "res://assets/art/ui/icon_manashards.png"
-const ICON_ESSENCE_TEX: String = "res://assets/art/ui/icon_essence.png"
-const ICON_FERTILIZER_TEX: String = "res://assets/art/ui/icon_fertilizer.png"
+const ICON_WOOD_TEX: String = "res://assets_extra/shared/icon_wood.png"
+const ICON_STONE_TEX: String = "res://assets_extra/shared/icon_stone.png"
+const ICON_FOOD_TEX: String = "res://assets_extra/shared/icon_food.png"
+const ICON_SHARD_TEX: String = "res://assets_extra/shared/icon_manashards.png"
+const ICON_ESSENCE_TEX: String = "res://assets_extra/shared/icon_essence.png"
+const ICON_FERTILIZER_TEX: String = "res://assets_extra/shared/icon_fertilizer.png"
 const BTN_PAUSE_NORMAL: String = "res://assets/art/ui/buttons/pause_normal.png"
 const BTN_PAUSE_HOVER: String = "res://assets/art/ui/buttons/pause_hover.png"
 const BTN_PAUSE_PRESSED: String = "res://assets/art/ui/buttons/pause_pressed.png"
-const BTN_PACK_NORMAL: String = "res://assets/art/ui/buttons/backpack_normal.png"
+const BTN_PACK_NORMAL: String = "res://assets_extra/shared/backpack_normal.png"
 const BTN_PACK_HOVER: String = "res://assets/art/ui/buttons/backpack_hover.png"
 const BTN_PACK_PRESSED: String = "res://assets/art/ui/buttons/backpack_pressed.png"
-const BACKPACK_ROW_H: float = 40.0
+const BACKPACK_ROW_H: float = 48.0
+const BAG_PANEL_W: float = 560.0
+const BAG_PANEL_H: float = 452.0
+const BAG_ROW_H: float = 44.0
+const BENCH_SIZE: Vector2 = Vector2(912, 472)
+const BENCH_LIST_W: float = 330.0
+const BENCH_BATCH_Y: float = 300.0
+const BENCH_FILTER_CYCLE: Array[String] = ["all", "parts", "tools", "weapons"]
+const SHORT_RED: Color = Color8(170, 52, 40)
 
 var _manatree: Manatree = null
 var _confirm_pay: bool = false
@@ -144,15 +164,60 @@ var _keeper_activity: Label
 var _elaia_activity: Label
 var _highlight_ascend: bool = false
 var _confirm_batches: bool = false
-var _ascend_batch_dialog: PanelContainer
+var _ascend_batch_dialog: Panel
 var _ascend_batch_body: Label
 var _bench_batch: BatchPanel
+var _bench_tabs: HBoxContainer
+var _care_card: Panel
+var _forge_locked: bool = false
+var _care_needs_hdr: Label
+var _care_status: Label
+var _care_hint: Label
+var _care_timer: Label
+var _bench_tab_all: Button
+var _bench_cat_btn: Button
+var _bench_detail: Control
+var _bench_filter_ix: int = 0
+var _bench_selected: String = ""
 var _backpack_tab: String = "all"
+const BAG_FILTER_CYCLE: Array[String] = ["all", "raw", "refined", "potions", "tools", "weapons", "relics"]
+var _backpack_cat_btn: Button
+var _bag_detail_panel: Panel
+var _bag_detail_item_id: String = ""
 var _sheet: CharacterSheet = null
 var _toast_tween: Tween
 var _care_hidden_for_forge: bool = false
+var _shop_preview_mode: bool = false
+var _shop_toolbar: HBoxContainer
+var _shop_list_bevel: Panel
+var _shop_preview_tag: Label
+var _shop_footer_hint: Label
+var _hide_locked_toggle: CheckButton
+var _hide_maxed_toggle: CheckButton
+var _blessings_preview_button: Button
+var _spoiler_dialog: Panel
+var _spoiler_pending_unlock: bool = false
+var _welcome_dismiss_ready: bool = false
+var _welcome_delay_tween: Tween
 const TOAST_HOLD_SEC: float = 2.6
 const TOAST_FADE_SEC: float = 0.8
+const HUD_KIT_LOG: String = "res://assets/ui/theme/log_panel_9s_12.png"
+const HUD_KIT_TOAST: String = "res://assets/ui/theme/toast_9s_40x30.png"
+const HUD_PAUSE_ICON: String = "res://assets/ui/theme/icon_pause_32.png"
+const HUD_BOARD_ICON: String = "res://assets_extra/hud/board_icon_30.png"
+const PARTY_PITCH_R4: float = 50.0
+
+var _board_button: Button
+var _board_icon: TextureRect
+var _party_tag: PanelContainer
+var _party_tag_label: Label
+var _help_dim: ColorRect
+var _help_panel: Panel
+var _help_tab_pc: Button
+var _help_tab_phone: Button
+var _help_body: VBoxContainer
+var _help_close: Button
+var _help_tab: String = "pc"
 
 
 func _ready() -> void:
@@ -163,8 +228,13 @@ func _ready() -> void:
 	fruit_confirm_panel.visible = false
 	care_panel.visible = false
 	welcome_panel.visible = false
+	call_deferred("_layout_welcome_panel")
+	if not get_viewport().size_changed.is_connected(_layout_welcome_panel):
+		get_viewport().size_changed.connect(_layout_welcome_panel)
 	shop_dim.visible = false
-	welcome_panel.color = Color(0.07, 0.1, 0.09, 0.97)
+	shop_dim.z_index = Z_MODAL_DIM
+	ascension_panel.z_index = Z_MODAL
+	fruit_confirm_panel.z_index = Z_MODAL
 	shop_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	shop_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	shop_scroll.clip_contents = true
@@ -187,8 +257,6 @@ func _ready() -> void:
 		ContentStrings.get_text("tool_never_gate"),
 	]
 	bench_panel.visible = false
-	close_button.text = ContentStrings.get_text("btn_close")
-	care_close_button.text = ContentStrings.get_text("btn_close")
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	pay_button.text = ContentStrings.get_text("tree_grow")
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
@@ -237,6 +305,9 @@ func _ready() -> void:
 	_ensure_frozen_banner()
 	_ensure_nav_button()
 	_ensure_speed_button()
+	_ensure_shop_toolbar()
+	_ensure_spoiler_dialog()
+	_ensure_care_blessings_button()
 	_ensure_play_speed_button()
 	if not GameState.ancient_expired.is_connected(_on_ancient_expired):
 		GameState.ancient_expired.connect(_on_ancient_expired)
@@ -271,65 +342,771 @@ func _ready() -> void:
 	_layout_ascension_shop()
 	if has_node("/root/GameTheme"):
 		GameTheme.sweep_theme(self)
+	_apply_hud540_chrome()
+	_ensure_board_button()
+	_reorder_resource_row()
+	_layout_hud540()
+	if not get_viewport().size_changed.is_connected(_layout_hud540):
+		get_viewport().size_changed.connect(_layout_hud540)
+	_apply_bag540_chrome()
+	_layout_bag540()
+	if not get_viewport().size_changed.is_connected(_layout_bag540):
+		get_viewport().size_changed.connect(_layout_bag540)
+	_apply_care540_chrome()
+	_layout_care540()
+	if not get_viewport().size_changed.is_connected(_layout_care540):
+		get_viewport().size_changed.connect(_layout_care540)
+	_ensure_help_panel()
+	_sink_hud_chrome()
+	if help_button:
+		help_button.visible = true
+		Ui540.style_wood_icon_button(help_button)
+		if not help_button.pressed.is_connected(_toggle_help_panel):
+			help_button.pressed.connect(_toggle_help_panel)
+
+
+## HUD chrome draws under every HUD window: z 0 and tree order right after the Panel,
+## so the dims and kit windows (later siblings) cover the party column, wisp counter and toast.
+func _sink_hud_chrome() -> void:
+	var at: int = panel.get_index() + 1
+	for node_name: String in ["PartyBar", "WispCounter"]:
+		var chrome: CanvasItem = get_node_or_null(node_name) as CanvasItem
+		if chrome:
+			chrome.z_index = 0
+			move_child(chrome, at)
+			at += 1
+	if status_label:
+		status_label.z_index = 0
+	if toast_shade:
+		toast_shade.z_index = 0
+
+
+func _reorder_resource_row() -> void:
+	var row: HBoxContainer = $Panel/IconRow as HBoxContainer
+	if row == null:
+		return
+	for chip_name: String in ["ShardChip", "WoodChip", "StoneChip", "FoodChip", "EssenceChip", "WispChip"]:
+		var chip: Node = row.get_node_or_null(chip_name)
+		if chip:
+			row.move_child(chip, -1)
+	row.add_theme_constant_override("separation", 8)
+
+
+func _apply_hud540_chrome() -> void:
+	var shade: Panel = $Panel.get_node_or_null("IconShade") as Panel
+	if shade:
+		shade.add_theme_stylebox_override(
+			"panel",
+			Ui540.kit_stylebox_9s(HUD_KIT_LOG, Vector4i(4, 4, 4, 4), Vector4(8, 4, 8, 4)),
+		)
+	if toast_shade is Panel:
+		(toast_shade as Panel).add_theme_stylebox_override(
+			"panel",
+			Ui540.kit_stylebox_9s(HUD_KIT_TOAST, Vector4i(12, 8, 12, 8), Vector4(12, 6, 12, 6)),
+		)
+	for chip_path: String in [
+		"Panel/IconRow/ShardChip/NumShards",
+		"Panel/IconRow/WoodChip/NumWood",
+		"Panel/IconRow/StoneChip/NumStone",
+		"Panel/IconRow/FoodChip/NumFood",
+		"Panel/IconRow/EssenceChip/NumEssence",
+		"Panel/IconRow/WispChip/NumWisps",
+	]:
+		var num: Label = get_node_or_null(chip_path) as Label
+		if num:
+			num.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
+			num.add_theme_font_override("font", GameTheme.body_font())
+			num.add_theme_color_override("font_color", GameTheme.INK)
+	if status_label:
+		GameTheme.style_outlined_ink_label(status_label)
+		status_label.z_index = 50
+	if toast_shade:
+		toast_shade.z_index = 49
+		toast_shade.clip_contents = true
+	Ui540.style_wood_icon_button(pause_button)
+	Ui540.style_wood_icon_button(character_button)
+	Ui540.style_wood_icon_button(backpack_button)
+	var pause_tex: Texture2D = load(HUD_PAUSE_ICON) as Texture2D
+	if pause_icon and pause_tex:
+		pause_icon.texture = pause_tex
+		pause_icon.custom_minimum_size = Vector2(32, 32)
+
+
+func _layout_hud540() -> void:
+	var vs: Vector2 = Ui540.viewport_size()
+	var safe: float = Ui540.SAFE_MARGIN_PX
+	## HUD chrome hugs the screen edges on every aspect (hud540 20:9 mockup).
+	var shift: float = 0.0
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.offset_left = 0.0
+	panel.offset_top = 0.0
+	panel.offset_right = 0.0
+	panel.offset_bottom = 0.0
+	var bar_h: float = 40.0
+	## Five resource chips at 72, plus the Wisp chip (icon and free/total).
+	var bar_w: float = 16.0 + 5.0 * 72.0 + 96.0
+	var shade: Control = panel.get_node_or_null("IconShade") as Control
+	if shade:
+		shade.position = Vector2(safe + shift, safe)
+		shade.size = Vector2(bar_w, bar_h)
+	var row: Control = $Panel/IconRow as Control
+	if row:
+		row.position = Vector2(safe + 8.0 + shift, safe + 4.0)
+		row.size = Vector2(bar_w - 16.0, bar_h - 8.0)
+	var tap: float = Ui540.TAP_MIN_PX
+	var pause_sz: float = 40.0 if Ui540.is_phone_export() else tap
+	var pause_x: float = vs.x - safe - pause_sz + shift
+	pause_button.position = Vector2(pause_x, safe)
+	pause_button.size = Vector2(pause_sz, pause_sz)
+	if ascension_reopen_button.visible:
+		ascension_reopen_button.position = Vector2(pause_x - tap - 8.0, safe)
+		ascension_reopen_button.size = Vector2(tap, tap)
+	var speed_x: float = pause_x - 8.0 - tap
+	if _play_speed_button:
+		_play_speed_button.position = Vector2(speed_x, safe)
+		_play_speed_button.size = Vector2(tap, tap)
+	if _speed_button:
+		_speed_button.position = Vector2(speed_x - tap - 4.0, safe)
+		_speed_button.size = Vector2(tap, tap)
+	var shortcut_y: float = vs.y - safe - tap
+	var show_nav: bool = _nav_button != null and _nav_button.visible
+	var shortcut_n: float = 4.0 if show_nav else 3.0
+	var shortcut_x: float = vs.x - safe - shortcut_n * tap - (shortcut_n - 1.0) * 8.0 + shift
+	var slot: float = 0.0
+	if show_nav:
+		_nav_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_nav_button.position = Vector2(shortcut_x, shortcut_y)
+		_nav_button.size = Vector2(tap, tap)
+		slot = 1.0
+	character_button.position = Vector2(shortcut_x + slot * (tap + 8.0), shortcut_y)
+	character_button.size = Vector2(tap, tap)
+	backpack_button.position = Vector2(shortcut_x + (slot + 1.0) * (tap + 8.0), shortcut_y)
+	backpack_button.size = Vector2(tap, tap)
+	if _board_button:
+		_board_button.position = Vector2(shortcut_x + (slot + 2.0) * (tap + 8.0), shortcut_y)
+		_board_button.size = Vector2(tap, tap)
+	_center_hud_icons()
+	_layout_party_bar_r4(vs, safe, shift)
+	_layout_toast_r4(vs, safe, shift)
+
+
+## Child glyphs were authored for a 40 px button. On the 44 px tap target they sat up-left.
+func _center_hud_icons() -> void:
+	_center_hud_icon(pause_icon, pause_button)
+	_center_hud_icon(character_icon, character_button)
+	_center_hud_icon(backpack_icon, backpack_button)
+	_center_hud_icon(help_icon, help_button)
+	_center_hud_icon(ascension_icon, ascension_reopen_button)
+	_center_hud_icon(_board_icon, _board_button)
+
+
+func _center_hud_icon(icon: Control, host: Control) -> void:
+	if icon == null or host == null:
+		return
+	var glyph := icon.custom_minimum_size
+	if glyph.x < 1.0 or glyph.y < 1.0:
+		glyph = icon.size
+	if glyph.x < 1.0 or glyph.y < 1.0:
+		return
+	icon.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	icon.position = ((host.size - glyph) * 0.5).round()
+	icon.size = glyph
+
+
+func _layout_toast_r4(vs: Vector2, safe: float, shift: float) -> void:
+	if status_label == null or toast_shade == null:
+		return
+	var tap: float = Ui540.TAP_MIN_PX
+	var toast_y: float = vs.y - safe - tap - 8.0 - 32.0
+	var line: String = status_label.text
+	var text_w: float = GameTheme.body_font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.silver_body_size()).x
+	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - safe * 2.0)
+	var toast_x: float = roundf((vs.x - toast_w) * 0.5 + shift)
+	var toast_h: float = 30.0
+	var clear: Vector2 = _toast_clear_of_station(Vector2(toast_x, toast_y), Vector2(toast_w, toast_h), vs)
+	toast_x = clear.x
+	toast_y = clear.y
+	toast_shade.position = Vector2(toast_x, toast_y)
+	toast_shade.size = Vector2(toast_w, toast_h)
+	status_label.position = Vector2(toast_x + 40.0, toast_y + 2.0)
+	status_label.size = Vector2(toast_w - 48.0, 26.0)
+
+
+## The station window owns the centre. Slide the toast above it, or below if that fits.
+func _toast_clear_of_station(origin: Vector2, toast_sz: Vector2, vs: Vector2) -> Vector2:
+	var station: Control = _forge_station_panel()
+	if station == null or not station.is_visible_in_tree():
+		return origin
+	var win: Rect2 = station.get_global_rect().grow(6.0)
+	var rect := Rect2(origin, toast_sz)
+	if not rect.intersects(win):
+		return origin
+	var above: float = win.position.y - 8.0 - toast_sz.y
+	if above >= Ui540.SAFE_MARGIN_PX and not Rect2(origin.x, above, toast_sz.x, toast_sz.y).intersects(win):
+		return Vector2(origin.x, above)
+	var below: float = win.end.y + 8.0
+	if below + toast_sz.y <= vs.y - 4.0 and not Rect2(origin.x, below, toast_sz.x, toast_sz.y).intersects(win):
+		return Vector2(origin.x, below)
+	return Vector2(origin.x, clampf(origin.y, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.y - toast_sz.y - 4.0)))
+
+
+func _forge_station_panel() -> Control:
+	var scene: Node = get_tree().current_scene if get_tree() else null
+	if scene == null:
+		return null
+	return scene.get_node_or_null("UI/RecipePanel") as Control
+
+
+## The bar is exactly as tall as its portrait column and sits on the bottom safe margin,
+## so the column starts at y 0 and the activity labels share the portrait row offsets.
+func _layout_party_bar_r4(vs: Vector2, safe: float, _shift: float) -> void:
+	if _party_bar == null:
+		return
+	var col_x: float = 30.0
+	var bottom: float = vs.y - safe
+	var col_h: float = PARTY_SLOT
+	if _party_column:
+		var rows: int = 0
+		for slot: Node in _party_column.get_children():
+			if slot is Control and (slot as Control).visible:
+				rows += 1
+		col_h = maxf(PARTY_SLOT, rows * PARTY_PITCH_R4 - (PARTY_PITCH_R4 - PARTY_SLOT))
+		_party_column.position = Vector2.ZERO
+		_party_column.size = Vector2(PARTY_SLOT, col_h)
+	_party_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_party_bar.position = Vector2(col_x, bottom - col_h)
+	_party_bar.size = Vector2(PARTY_SLOT + 220.0, col_h)
+
+
+func _ensure_board_button() -> void:
+	if _board_button != null:
+		return
+	_board_button = Button.new()
+	_board_button.name = "BoardButton"
+	_board_button.text = ""
+	_board_button.tooltip_text = ContentStrings.get_text("expedition_board_name")
+	_board_button.pressed.connect(_on_board_pressed)
+	_board_icon = TextureRect.new()
+	_board_icon.name = "BoardIcon"
+	_board_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_board_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_board_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_board_icon.custom_minimum_size = Vector2(30, 30)
+	_board_icon.texture = load(HUD_BOARD_ICON) as Texture2D
+	_board_button.add_child(_board_icon)
+	panel.add_child(_board_button)
+	Ui540.style_wood_icon_button(_board_button)
+
+
+func _on_board_pressed() -> void:
+	for node: Node in get_tree().get_nodes_in_group("expedition_board"):
+		if node.has_method("open_shell"):
+			node.call("open_shell")
+			GameAudio.play_ui_open()
+			return
+
+
+func _apply_bag540_chrome() -> void:
+	if backpack_panel == null:
+		return
+	Ui540.apply_kit_panel(backpack_panel, "bag", backpack_title, backpack_close_button)
+	GameTheme.style_plank_label(backpack_title)
+	GameTheme.style_ink_label(inventory_title, true)
+	inventory_title.clip_text = true
+	inventory_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	backpack_panel.z_index = 35
+	## Mockup bag540: "All" plus one cycling category button; the per-category tabs stay as
+	## nodes (verify, keyboard paths) but are not shown.
+	for tab: Button in [backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
+		tab.visible = false
+	backpack_tab_all.custom_minimum_size = Vector2(90, 44)
+	GameTheme.style_big_tab_button(backpack_tab_all)
+	if _backpack_cat_btn == null:
+		_backpack_cat_btn = Button.new()
+		_backpack_cat_btn.name = "TabCategoryCycle"
+		backpack_tab_all.get_parent().add_child(_backpack_cat_btn)
+		_backpack_cat_btn.pressed.connect(_cycle_backpack_filter)
+	_backpack_cat_btn.custom_minimum_size = Vector2(160, 44)
+	GameTheme.style_big_tab_button(_backpack_cat_btn)
+	Ui540.add_cycle_cue(_backpack_cat_btn)
+	_backpack_cat_btn.visible = true
+	var tab_row: HBoxContainer = backpack_panel.get_node_or_null("TabRow") as HBoxContainer
+	if tab_row:
+		tab_row.add_theme_constant_override("separation", 8)
+	var list: VBoxContainer = inventory_list as VBoxContainer
+	if list:
+		list.add_theme_constant_override("separation", int(BACKPACK_ROW_H - BAG_ROW_H))
+	_ensure_bag_detail_panel()
+
+
+func _layout_bag540() -> void:
+	if backpack_panel == null:
+		return
+	var sz: Vector2 = Ui540.fit_kit_window(backpack_panel, Vector2(BAG_PANEL_W, BAG_PANEL_H))
+	var w: float = sz.x
+	var h: float = sz.y
+	var inner_w: float = w - 72.0
+	Ui540.place_close_button(backpack_close_button, w)
+	Ui540.place_title_plank(backpack_title, w)
+	inventory_title.position = Vector2(36, 30)
+	inventory_title.size = Vector2(inner_w - Ui540.TAP_MIN_PX - 12.0, 24)
+	var tab_row: Control = backpack_panel.get_node_or_null("TabRow") as Control
+	var tab_y: float = 64.0
+	if tab_row:
+		tab_row.position = Vector2(36, tab_y)
+		tab_row.size = Vector2(inner_w, 44)
+	var list_top: float = tab_y + 44.0 + 14.0
+	var scroll: ScrollContainer = backpack_panel.get_node_or_null("InventoryScroll") as ScrollContainer
+	if scroll:
+		scroll.position = Vector2(36, list_top)
+		scroll.size = Vector2(inner_w, h - list_top - 28.0)
+
+
+func _apply_care540_chrome() -> void:
+	if care_panel:
+		Ui540.apply_kit_panel(care_panel, "manatree_care", care_title, care_close_button)
+		GameTheme.style_plank_label(care_title)
+		GameTheme.style_ink_label(care_stage_label, true)
+		GameTheme.style_ink_label(care_needs_label)
+		care_needs_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		GameTheme.style_primary_button(pay_button)
+		GameTheme.style_primary_button(harvest_fruit_button)
+		GameTheme.style_menu_button(water_button)
+		_ensure_care_card()
+	if bench_panel:
+		Ui540.apply_kit_panel(bench_panel, "workbench", bench_title, bench_close_button)
+		GameTheme.style_plank_label(bench_title)
+		GameTheme.style_ink_label(bench_prompt, true)
+		bench_prompt.autowrap_mode = TextServer.AUTOWRAP_OFF
+		bench_prompt.clip_text = true
+		bench_prompt.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		bench_panel.z_index = 35
+		_ensure_bench_chrome()
+
+
+func _ensure_care_card() -> void:
+	if _care_card != null:
+		return
+	_care_card = Panel.new()
+	_care_card.name = "CareCard"
+	_care_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_care_card.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2)))
+	care_panel.add_child(_care_card)
+	var vines: Node = care_panel.get_node_or_null("VineFrame")
+	care_panel.move_child(_care_card, vines.get_index() + 1 if vines else 0)
+	_care_needs_hdr = Label.new()
+	_care_needs_hdr.name = "CareNeedsHeader"
+	GameTheme.style_ink_label(_care_needs_hdr, true)
+	care_panel.add_child(_care_needs_hdr)
+	_care_status = Label.new()
+	_care_status.name = "CareStatus"
+	GameTheme.style_ink_label(_care_status)
+	_care_status.add_theme_color_override("font_color", CARE_GREEN)
+	care_panel.add_child(_care_status)
+	_care_hint = Label.new()
+	_care_hint.name = "CareHint"
+	GameTheme.style_ink_label(_care_hint, true)
+	_care_hint.clip_text = true
+	_care_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	care_panel.add_child(_care_hint)
+	fruit_ready_card.color = Color(0, 0, 0, 0)
+	_care_timer = Label.new()
+	_care_timer.name = "CareFruitTimer"
+	_care_timer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_care_timer.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_care_timer.add_theme_font_override("font", GameTheme.title_font())
+	_care_timer.add_theme_font_size_override("font_size", GameTheme.TITLE_SIZE)
+	_care_timer.add_theme_color_override("font_color", CARE_TIMER_CYAN)
+	_care_timer.visible = false
+	fruit_ready_card.add_child(_care_timer)
+	GameTheme.style_ink_label(precommit_hint)
+	precommit_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	for lbl: Label in [grow_fert_need, grow_ess_need]:
+		GameTheme.style_ink_label(lbl)
+		lbl.custom_minimum_size = Vector2(CARE_COST_COL_W - 40.0, 44)
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	for icon: TextureRect in [grow_fert_icon, grow_ess_icon]:
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	care_grow_costs.add_theme_constant_override("separation", 8)
+
+
+## Mockup manatree540_pc_16x9_r3: 600 wide; header = stage line + Blessings + ×; a bevelled
+## needs card; Grow/Harvest (primary, left) | Water (right); Enter Forge full width last.
+## Height follows the content: 344 without Enter Forge, 400 with it (CARE_SIZE.y is the cap).
+## The last row keeps 12 px clear of the 24 px frame.
+func _care_window_h() -> float:
+	var h: float = CARE_ACTION_END_Y + 24.0 + 12.0
+	if forge_button != null and forge_button.visible:
+		h += 12.0 + 44.0
+	return minf(h, CARE_SIZE.y)
+
+
+func _layout_care_window() -> void:
+	var sz: Vector2 = Ui540.fit_kit_window(care_panel, Vector2(CARE_SIZE.x, _care_window_h()))
+	var w: float = sz.x
+	var h: float = sz.y
+	var left: float = 28.0
+	var inner: float = w - left * 2.0
+	Ui540.place_close_button(care_close_button, w)
+	Ui540.place_title_plank(care_title, w)
+	if _blessings_preview_button:
+		_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 20.0)
+		_blessings_preview_button.size = Vector2(44, 44)
+	care_stage_label.position = Vector2(left, 30)
+	care_stage_label.size = Vector2(w - 124.0 - 12.0 - left, 24)
+	var card := Rect2(left, 84, inner, 160)
+	if _care_card:
+		_care_card.position = card.position
+		_care_card.size = card.size
+	care_needs_label.position = card.position + Vector2(14, 8)
+	care_needs_label.size = Vector2(card.size.x - 28.0, 24)
+	if _care_needs_hdr:
+		_care_needs_hdr.position = card.position + Vector2(14, 32)
+		_care_needs_hdr.size = Vector2(card.size.x - 28.0, 24)
+	care_grow_costs.position = card.position + Vector2(14, 56)
+	care_grow_costs.size = Vector2(card.size.x - 28.0, 44)
+	if _care_status:
+		_care_status.position = card.position + Vector2(14, 104)
+		_care_status.size = Vector2(card.size.x - 28.0, 24)
+	if _care_hint:
+		_care_hint.position = card.position + Vector2(14, 128)
+		_care_hint.size = Vector2(card.size.x - 28.0, 24)
+	fruit_ready_card.position = card.position
+	fruit_ready_card.size = card.size
+	precommit_hint.position = Vector2(14, 10)
+	precommit_hint.size = Vector2(card.size.x - 28.0, 70)
+	if _care_timer:
+		_care_timer.position = Vector2(14, 88)
+		_care_timer.size = Vector2(card.size.x - 28.0, 48)
+	care_action_band.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	care_action_band.position = Vector2(left, card.end.y + 12.0)
+	care_action_band.size = Vector2(inner, 56)
+	var half: float = floorf((inner - 12.0) * 0.5)
+	pay_button.position = Vector2(0, 0)
+	pay_button.size = Vector2(half, 52)
+	harvest_fruit_button.position = pay_button.position
+	harvest_fruit_button.size = pay_button.size
+	water_button.position = Vector2(inner - half, 0)
+	water_button.size = Vector2(half, 52)
+	Ui540.fit_button_font(harvest_fruit_button, half)
+	harvest_fruit_button.size = pay_button.size
+	if forge_button:
+		forge_button.position = Vector2(left, h - 36.0 - 44.0)
+		forge_button.size = Vector2(inner, 44)
+
+
+func _layout_care540() -> void:
+	if care_panel:
+		_layout_care_window()
+	if bench_panel:
+		_layout_bench540()
+
+
+## Mockup workbench540_bench_pc_r2: 912×472, recipe list left (300 + scrollbar), detail and
+## the batch controls right, × in the header.
+func _layout_bench540() -> void:
+	var sz: Vector2 = Ui540.fit_kit_window(bench_panel, BENCH_SIZE)
+	var w: float = sz.x
+	var h: float = sz.y
+	Ui540.place_close_button(bench_close_button, w)
+	Ui540.place_title_plank(bench_title, w)
+	bench_prompt.position = Vector2(24, 30)
+	bench_prompt.size = Vector2(w - 48.0 - Ui540.TAP_MIN_PX - 12.0, 24)
+	if _bench_tabs:
+		_bench_tabs.position = Vector2(24, 72)
+		_bench_tabs.size = Vector2(BENCH_LIST_W, 44)
+	var list_top: float = 130.0
+	var scroll: ScrollContainer = bench_panel.get_node_or_null("CraftScroll") as ScrollContainer
+	if scroll:
+		scroll.position = Vector2(24, list_top)
+		## Extra inset so the frame doesn't clip the last recipe, plus the list's own pad.
+		scroll.size = Vector2(BENCH_LIST_W, h - 40.0 - list_top)
+	var rx: float = 24.0 + BENCH_LIST_W + 20.0
+	var rw: float = w - 24.0 - rx
+	if _bench_detail:
+		_bench_detail.position = Vector2(rx, 72)
+		_bench_detail.size = Vector2(rw, BENCH_BATCH_Y - 72.0)
+	if _bench_batch != null and is_instance_valid(_bench_batch):
+		_bench_batch.custom_minimum_size = Vector2.ZERO
+		_bench_batch.anchor_left = 0.0
+		_bench_batch.anchor_top = 0.0
+		_bench_batch.anchor_right = 1.0
+		_bench_batch.anchor_bottom = 1.0
+		_bench_batch.offset_left = rx
+		_bench_batch.offset_top = BENCH_BATCH_Y
+		_bench_batch.offset_right = -24.0
+		_bench_batch.offset_bottom = -24.0
+
+
+func _ensure_help_panel() -> void:
+	if _help_panel != null:
+		return
+	_help_dim = ColorRect.new()
+	_help_dim.name = "HelpDim"
+	_help_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_help_dim.color = Color(0, 0, 0, 0.5)
+	_help_dim.visible = false
+	_help_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_help_dim.gui_input.connect(_on_help_dim_input)
+	add_child(_help_dim)
+	_help_panel = Panel.new()
+	_help_panel.name = "HelpPanel"
+	_help_panel.visible = false
+	_help_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_help_panel)
+	Ui540.apply_kit_panel(_help_panel, "help")
+	var title := Label.new()
+	title.name = "HelpTitle"
+	title.text = "Help"
+	title.position = Vector2((912.0 - 120.0) * 0.5, -20.0)
+	title.size = Vector2(120, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameTheme.style_plank_label(title)
+	_help_panel.add_child(title)
+	_help_close = Button.new()
+	_help_close.name = "CloseButton"
+	_help_close.position = Vector2(912.0 - 68.0, 18.0)
+	_help_close.size = Vector2(44, 44)
+	Ui540.configure_kit_close_button(_help_close)
+	_help_close.pressed.connect(_close_help_panel)
+	_help_panel.add_child(_help_close)
+	var draft := Label.new()
+	draft.name = "HelpDraftTag"
+	draft.text = "DRAFT — for Lore"
+	draft.position = Vector2(36, 28)
+	draft.size = Vector2(200, 26)
+	GameTheme.style_body_label(draft)
+	draft.add_theme_color_override("font_color", Color(0.69, 0.44, 0.08))
+	_help_panel.add_child(draft)
+	_help_tab_pc = Button.new()
+	_help_tab_pc.text = "PC"
+	_help_tab_pc.position = Vector2(220, 28)
+	_help_tab_pc.size = Vector2(120, 44)
+	_help_tab_pc.pressed.connect(_set_help_tab.bind("pc"))
+	Ui540.style_wood_icon_button(_help_tab_pc)
+	_help_panel.add_child(_help_tab_pc)
+	_help_tab_phone = Button.new()
+	_help_tab_phone.text = "Phone"
+	_help_tab_phone.position = Vector2(348, 28)
+	_help_tab_phone.size = Vector2(120, 44)
+	_help_tab_phone.pressed.connect(_set_help_tab.bind("phone"))
+	Ui540.style_wood_icon_button(_help_tab_phone)
+	_help_panel.add_child(_help_tab_phone)
+	var scroll := ScrollContainer.new()
+	scroll.position = Vector2(36, 84)
+	scroll.size = Vector2(840, 360)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_help_panel.add_child(scroll)
+	_help_body = VBoxContainer.new()
+	_help_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_help_body)
+	_layout_help_panel()
+
+
+func _make_help_row(row: Dictionary) -> HBoxContainer:
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 12)
+	line.custom_minimum_size = Vector2(0, 28)
+	var key_lbl := Label.new()
+	key_lbl.custom_minimum_size = Vector2(140, 24)
+	key_lbl.text = "[%s]" % str(row.get("key", ""))
+	GameTheme.style_body_label(key_lbl)
+	var act_lbl := Label.new()
+	act_lbl.text = str(row.get("action", ""))
+	act_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	act_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	GameTheme.style_body_label(act_lbl)
+	line.add_child(key_lbl)
+	line.add_child(act_lbl)
+	return line
+
+
+func _help_rows() -> Array[Dictionary]:
+	if _help_tab == "phone":
+		return [
+			{"key": "Tap", "action": "Select · press buttons"},
+			{"key": "Long-press (½ s)", "action": "Show what it is; on open ground: command"},
+			{"key": "Pause button", "action": "Pause menu (top right)"},
+		]
+	return [
+		{"key": "Left-click", "action": ContentStrings.get_text("controls_lmb_select")},
+		{"key": "Right-click / G", "action": ContentStrings.get_text("controls_rmb_command")},
+		{"key": "H", "action": "Inspect what is under the pointer"},
+		{"key": "Arrow keys", "action": ContentStrings.get_text("controls_camera_pan")},
+		{"key": "I", "action": ContentStrings.get_text("backpack_open")},
+		{"key": "C", "action": ContentStrings.get_text("char_sheet_hotkey_hint")},
+		{"key": "Esc", "action": "Close a window · Pause"},
+	]
+
+
+func _layout_help_panel() -> void:
+	if _help_panel == null:
+		return
+	_help_panel.custom_minimum_size = Vector2(912, 472)
+	_help_panel.size = Vector2(912, 472)
+	Ui540.center_kit_panel(_help_panel)
+	for child: Node in _help_body.get_children():
+		child.free()
+	var rows: Array[Dictionary] = _help_rows()
+	if _help_tab == "pc":
+		var cols_box := HBoxContainer.new()
+		cols_box.add_theme_constant_override("separation", 20)
+		var left := VBoxContainer.new()
+		var right := VBoxContainer.new()
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var per_col: int = int(ceil(float(rows.size()) / 2.0))
+		for i: int in range(rows.size()):
+			var line: Control = _make_help_row(rows[i])
+			if i < per_col:
+				left.add_child(line)
+			else:
+				right.add_child(line)
+		cols_box.add_child(left)
+		cols_box.add_child(right)
+		_help_body.add_child(cols_box)
+		var pad := Label.new()
+		pad.text = "Gamepad: not supported yet (menus follow Godot ui_ arrows only)."
+		GameTheme.style_body_label(pad)
+		pad.add_theme_color_override("font_color", Color(0.7, 0.64, 0.52))
+		pad.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_help_body.add_child(pad)
+	else:
+		for row: Dictionary in rows:
+			_help_body.add_child(_make_help_row(row))
+
+
+func _set_help_tab(tab_id: String) -> void:
+	_help_tab = tab_id
+	_layout_help_panel()
+
+
+func _toggle_help_panel() -> void:
+	if _help_panel != null and _help_panel.visible:
+		_close_help_panel()
+	else:
+		_open_help_panel()
+
+
+func _open_help_panel() -> void:
+	if _help_panel == null:
+		_ensure_help_panel()
+	close_backpack()
+	close_character_sheet()
+	_layout_help_panel()
+	_help_dim.visible = true
+	_help_panel.visible = true
+	GameAudio.play_ui_open()
+
+
+func _close_help_panel() -> void:
+	if _help_panel:
+		_help_panel.visible = false
+	if _help_dim:
+		_help_dim.visible = false
+	GameAudio.play_ui_close()
+
+
+func _on_help_dim_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			_close_help_panel()
 
 
 func _layout_ascension_shop() -> void:
 	if ascension_panel == null:
 		return
-	var vp: Vector2 = get_viewport().get_visible_rect().size
-	var margin: float = GameTheme.SAFE_MARGIN_PX if has_node("/root/GameTheme") else 24.0
-	var w: float = minf(SHOP_SIZE.x, vp.x - margin * 2.0)
-	var h: float = minf(SHOP_SIZE.y, vp.y - margin * 2.0)
-	w = maxf(w, SHOP_MIN_SIZE.x)
-	h = maxf(h, SHOP_MIN_SIZE.y)
-	ascension_panel.custom_minimum_size = Vector2(w, h)
-	ascension_panel.size = Vector2(w, h)
-	if shop_header:
-		shop_header.offset_bottom = SHOP_HEADER_H
-	if shop_footer:
-		shop_footer.offset_top = h - SHOP_FOOTER_H
-		shop_footer.offset_bottom = h
+	_ensure_shop_chrome()
+	var sz: Vector2 = Ui540.fit_kit_window(ascension_panel, SHOP_SIZE)
+	var w: float = sz.x
+	var h: float = sz.y
+	var right: float = w - SHOP_PAD
+	Ui540.anchor_rect_safe(shop_header, 0, 0, w, SHOP_HEADER_H)
+	Ui540.place_title_plank(prestige_title, w)
+	Ui540.place_close_button(close_button, w)
+	var chip_x: float = w - 24.0 - Ui540.TAP_MIN_PX - 12.0 - SHOP_CHIP_W
+	Ui540.anchor_rect_safe(shard_chip, chip_x, 20, SHOP_CHIP_W, 44)
+	Ui540.anchor_rect_safe(prestige_sub, SHOP_PAD, 30, chip_x - SHOP_PAD - 12.0, 24)
+	prestige_sub.autowrap_mode = TextServer.AUTOWRAP_OFF
+	prestige_sub.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	prestige_sub.clip_text = true
+	_place_shop_preview_tag()
+	if _shop_toolbar:
+		var tw: float = _shop_toolbar.get_combined_minimum_size().x
+		Ui540.anchor_rect_safe(_shop_toolbar, right - tw, 72, tw, 44)
+	var has_footer: bool = ascend_button.visible
+	var foot_y: float = h - 24.0 - SHOP_FOOTER_BTN_H
+	var list_bottom: float = (foot_y - 12.0) if has_footer else (h - 24.0)
+	Ui540.anchor_rect_safe(_shop_list_bevel, SHOP_PAD, SHOP_LIST_Y, right - SHOP_PAD, list_bottom - SHOP_LIST_Y)
+	shop_scroll.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	shop_scroll.position = Vector2(SHOP_PAD + 2.0, SHOP_LIST_Y + 2.0)
+	shop_scroll.size = Vector2(right - SHOP_PAD - 4.0, list_bottom - SHOP_LIST_Y - 4.0)
+	Ui540.anchor_rect_safe(shop_footer, 0, foot_y, w, SHOP_FOOTER_BTN_H)
+	Ui540.anchor_rect_safe(ascend_button, right - 240.0, 0, 240, SHOP_FOOTER_BTN_H)
+	Ui540.anchor_rect_safe(_shop_footer_hint, SHOP_PAD, 0, right - 240.0 - 12.0 - SHOP_PAD, SHOP_FOOTER_BTN_H)
+	_shop_footer_hint.visible = has_footer
 	if has_node("/root/GameInput"):
 		GameInput.configure_scroll_container(shop_scroll)
 
 
-func _wood_style() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = WOOD
-	sb.border_color = GOLD
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(2)
-	sb.content_margin_left = 2.0
-	sb.content_margin_right = 2.0
-	sb.content_margin_top = 2.0
-	sb.content_margin_bottom = 2.0
-	return sb
+func _ensure_shop_chrome() -> void:
+	if _shop_list_bevel != null:
+		return
+	_shop_list_bevel = Panel.new()
+	_shop_list_bevel.name = "ShopListBevel"
+	_shop_list_bevel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shop_list_bevel.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2)))
+	ascension_panel.add_child(_shop_list_bevel)
+	ascension_panel.move_child(_shop_list_bevel, shop_scroll.get_index())
+	upgrade_list.add_theme_constant_override("separation", 4)
+	_shop_preview_tag = Label.new()
+	_shop_preview_tag.name = "PreviewTag"
+	_shop_preview_tag.text = ContentStrings.get_text("ascend_shop_preview_tag")
+	GameTheme.style_ink_label(_shop_preview_tag)
+	_shop_preview_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_shop_preview_tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_shop_preview_tag.add_theme_stylebox_override("normal", Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/action_button_hover_160x44.png", Vector4i(6, 6, 6, 6), Vector4(10, 0, 10, 0)))
+	_shop_preview_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_shop_preview_tag.z_index = 1
+	shop_header.add_child(_shop_preview_tag)
+	_shop_footer_hint = Label.new()
+	_shop_footer_hint.name = "AscendHint"
+	_shop_footer_hint.text = ContentStrings.get_text("ascension_paused_hint")
+	GameTheme.style_ink_label(_shop_footer_hint, true)
+	_shop_footer_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_shop_footer_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_shop_footer_hint.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	shop_footer.add_child(_shop_footer_hint)
+	shard_chip.color = SHOP_CHIP_BG
+	var icon: TextureRect = shard_chip.get_node("ShardIcon") as TextureRect
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	Ui540.anchor_rect_safe(icon, 10, 6, 32, 32)
+	Ui540.anchor_rect_safe(shard_count_label, 48, 0, SHOP_CHIP_W - 56.0, 44)
+	shard_count_label.remove_theme_font_size_override("font_size")
+	shard_count_label.add_theme_font_override("font", load(GameTheme.PRIMARY_FONT_PATH) as Font)
+	shard_count_label.add_theme_font_size_override("font_size", GameTheme.TITLE_HERO_SIZE)
+	shard_count_label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
+	shard_count_label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
+	shard_count_label.add_theme_constant_override("outline_size", 2)
+	shard_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
 
-func _btn_style(bg: Color, border: Color) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(1)
-	sb.set_corner_radius_all(3)
-	sb.content_margin_left = 10.0
-	sb.content_margin_right = 10.0
-	sb.content_margin_top = 6.0
-	sb.content_margin_bottom = 6.0
-	return sb
-
-
-func _apply_button_chrome(btn: Button, bg: Color, border: Color) -> void:
-	var normal: StyleBoxFlat = _btn_style(bg, border)
-	var hover: StyleBoxFlat = _btn_style(bg.lightened(0.08), GOLD)
-	var pressed: StyleBoxFlat = _btn_style(bg.darkened(0.12), border)
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", pressed)
-	btn.add_theme_stylebox_override("focus", hover)
-	btn.add_theme_color_override("font_color", Color(0.95, 0.96, 0.88, 1.0))
-	btn.add_theme_color_override("font_hover_color", Color(1, 1, 0.92, 1.0))
-	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 1, 1.0))
+func _place_shop_preview_tag() -> void:
+	if _shop_preview_tag == null:
+		return
+	_shop_preview_tag.visible = _shop_preview_mode
+	var font: Font = _shop_preview_tag.get_theme_font("font")
+	var tw: float = ceilf(font.get_string_size(_shop_preview_tag.text, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.BODY_SIZE).x + 20.0)
+	## Header row, left of the shard chip; the subline gives way to it.
+	var tag_x: float = shard_chip.position.x - 12.0 - tw
+	Ui540.anchor_rect_safe(_shop_preview_tag, tag_x, shard_chip.position.y + 9.0, tw, 26)
+	if _shop_preview_mode:
+		prestige_sub.size.x = minf(prestige_sub.size.x, tag_x - 12.0 - prestige_sub.position.x)
 
 
 func _apply_icon_button(btn: Button) -> void:
@@ -401,7 +1178,11 @@ func _wire_sprite_hud() -> void:
 	_assign_tex(grow_fert_icon, ICON_FERTILIZER_TEX, ContentStrings.get_text("fertilizer_name"))
 	_assign_tex(grow_ess_icon, ICON_ESSENCE_TEX, ContentStrings.get_text("hud_essence"), ESSENCE_TINT)
 	_bind_tex_states(backpack_button, backpack_icon, BTN_PACK_NORMAL, BTN_PACK_HOVER, BTN_PACK_PRESSED)
-	_bind_tex_states(pause_button, pause_icon, BTN_PAUSE_NORMAL, BTN_PAUSE_HOVER, BTN_PAUSE_PRESSED)
+	var pause_tex: Texture2D = load(HUD_PAUSE_ICON) as Texture2D
+	if pause_icon and pause_tex:
+		pause_icon.texture = pause_tex
+	else:
+		_bind_tex_states(pause_button, pause_icon, BTN_PAUSE_NORMAL, BTN_PAUSE_HOVER, BTN_PAUSE_PRESSED)
 	if character_icon:
 		HudIcons.apply(character_icon, HudIcons.CHARACTER)
 	if help_icon:
@@ -472,28 +1253,14 @@ func _make_item_icon(item_id: String, tip: String) -> Control:
 
 
 func _apply_wood_chrome() -> void:
-	ascension_panel.add_theme_stylebox_override("panel", _wood_style())
-	fruit_confirm_panel.add_theme_stylebox_override("panel", _wood_style())
-	care_panel.add_theme_stylebox_override("panel", _wood_style())
-	shard_chip.color = CHIP_CYAN
-	_apply_button_chrome(close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(ascend_button, LEAF, GOLD)
-	_apply_button_chrome(fruit_confirm_yes, LEAF, GOLD)
-	_apply_button_chrome(fruit_confirm_no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(care_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(water_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(pay_button, LEAF, GOLD)
-	_apply_button_chrome(harvest_fruit_button, LEAF, GOLD)
+	Ui540.apply_kit_panel(ascension_panel, "ascension_shop", prestige_title, close_button)
+	GameTheme.style_plank_label(prestige_title)
+	GameTheme.style_ink_label(prestige_sub, true)
+	GameTheme.style_primary_button(ascend_button)
 	_apply_icon_button(character_button)
 	_apply_icon_button(backpack_button)
 	_apply_icon_button(pause_button)
 	_apply_icon_button(ascension_reopen_button)
-	_apply_button_chrome(backpack_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	_apply_button_chrome(bench_close_button, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	for tab: Button in [backpack_tab_all, backpack_tab_raw, backpack_tab_refined, backpack_tab_tools, backpack_tab_weapons, backpack_tab_relics]:
-		_apply_button_chrome(tab, Color(0.18, 0.14, 0.10, 1.0), GOLD)
-	backpack_panel.add_theme_stylebox_override("panel", _wood_style())
-	bench_panel.add_theme_stylebox_override("panel", _wood_style())
 
 
 func _process(_delta: float) -> void:
@@ -505,6 +1272,100 @@ func _process(_delta: float) -> void:
 	if _keeper_activity != null:
 		_refresh_actor_activities(GameState.elaia_portrait_visible(), GameState.keeper_selected, str(GameState.selected_companion_id))
 	_settle_world_labels()
+	_sync_toast_under_modals()
+
+
+## The status toast is world feedback. Any modal (HUD windows, pause, board, runestone,
+## debug, battle) covers it; self_modulate leaves the toast's own fade tween alone.
+## The HUD chrome ($Panel: resource bar, speed, pause, help, bottom buttons) steps aside too:
+## wide windows start at y 46, so the bar would otherwise peek out above their frame.
+func _sync_toast_under_modals() -> void:
+	var modal: bool = modal_window_open()
+	var a: float = 0.0 if modal else 1.0
+	if panel:
+		panel.visible = not modal
+	hold_pause_button_over_dim(_pause_menu_is_open())
+	## The Keeper portrait and Idle label sit in the party column, outside $Panel.
+	if _party_bar:
+		_party_bar.visible = not modal
+	if status_label:
+		status_label.self_modulate.a = a
+	if toast_shade:
+		toast_shade.self_modulate.a = a
+	if _ancient_countdown:
+		_ancient_countdown.self_modulate.a = a
+
+
+var _pause_button_lifted: bool = false
+
+
+func hold_pause_button_over_dim(hold: bool) -> void:
+	## The phone pause control stays on the pause layer, above the dim, while pause is open.
+	if pause_button == null or not is_instance_valid(pause_button):
+		return
+	if hold == _pause_button_lifted and ((not hold) or pause_button.get_parent() != panel):
+		if hold:
+			pause_button.visible = true
+			pause_button.modulate = Color.WHITE
+		return
+	_pause_button_lifted = hold
+	if hold:
+		var menu: Node = _open_pause_layer()
+		if menu == null:
+			_pause_button_lifted = false
+			return
+		var at: Vector2 = pause_button.global_position
+		pause_button.get_parent().remove_child(pause_button)
+		menu.add_child(pause_button)
+		pause_button.global_position = at
+		pause_button.visible = true
+		pause_button.modulate = Color.WHITE
+		pause_button.z_index = 20
+		return
+	if panel != null and pause_button.get_parent() != panel:
+		var back: Vector2 = pause_button.global_position
+		pause_button.get_parent().remove_child(pause_button)
+		panel.add_child(pause_button)
+		pause_button.global_position = back
+		pause_button.z_index = 0
+		_layout_hud540()
+
+
+func _pause_menu_is_open() -> bool:
+	return _open_pause_layer() != null
+
+
+func _open_pause_layer() -> Node:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return null
+	for menu: Node in tree.get_nodes_in_group("pause_menu"):
+		if menu.has_method("is_open") and bool(menu.call("is_open")):
+			return menu
+	return null
+
+
+func modal_window_open() -> bool:
+	if _kit_window_obscures_world():
+		return true
+	if (_ancient_confirm != null and _ancient_confirm.visible) or (_spoiler_dialog != null and _spoiler_dialog.visible):
+		return true
+	if (_footsteps_popup != null and _footsteps_popup.visible) or (_forge_popup != null and _forge_popup.visible):
+		return true
+	var tree: SceneTree = get_tree()
+	for menu: Node in tree.get_nodes_in_group("pause_menu"):
+		if menu is CanvasItem or menu is CanvasLayer:
+			if bool(menu.get("visible")):
+				return true
+	for board: Node in tree.get_nodes_in_group("expedition_board"):
+		if board.has_method("shell_open") and bool(board.call("shell_open")):
+			return true
+	for stone: Node in tree.get_nodes_in_group("runestone"):
+		if stone.has_method("is_spend_confirm_open") and bool(stone.call("is_spend_confirm_open")):
+			return true
+	if has_node("/root/AnimPreviewHotkey") and AnimPreviewHotkey.debug_panel_open():
+		return true
+	return BattleView.is_open()
 
 
 func _refresh_dim() -> void:
@@ -512,6 +1373,10 @@ func _refresh_dim() -> void:
 		return
 	var ancient_open: bool = _ancient_confirm != null and _ancient_confirm.visible
 	shop_dim.visible = fruit_confirm_panel.visible or ascension_panel.visible or ancient_open
+	## A confirm over the shop dims the shop too (kit_dialog's second dim).
+	var over_shop: bool = (_spoiler_dialog != null and _spoiler_dialog.visible) \
+		or (_ascend_batch_dialog != null and _ascend_batch_dialog.visible)
+	shop_dim.z_index = Z_MODAL + 1 if over_shop else Z_MODAL_DIM
 	if backpack_dim:
 		backpack_dim.visible = backpack_panel.visible or bench_panel.visible
 
@@ -521,33 +1386,139 @@ func bind_manatree(tree: Manatree) -> void:
 
 
 func maybe_show_welcome() -> void:
-	if GameState.welcome_shown:
+	if GameState.welcome_shown or GameState.welcome_presented:
 		return
 	show_welcome()
 
 
+func _layout_welcome_panel() -> void:
+	if welcome_panel == null:
+		return
+	welcome_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	welcome_panel.offset_left = 0.0
+	welcome_panel.offset_top = 0.0
+	welcome_panel.offset_right = 0.0
+	welcome_panel.offset_bottom = 0.0
+	## intro540: the scene dims and the kit card (600×306, "Keeper" plank) holds the boot line,
+	## the body, the muted hint and one primary button.
+	welcome_panel.color = Color(0, 0, 0, 0.5)
+	welcome_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	var vs: Vector2 = Ui540.viewport_size()
+	var card_w: float = 600.0
+	var card_h: float = 306.0
+	var card_x: float = roundf((vs.x - card_w) * 0.5)
+	var card_y: float = roundf((vs.y - card_h) * 0.5 + 22.0)
+	var card := welcome_panel.get_node_or_null("WelcomeCard") as Panel
+	if card == null:
+		card = Panel.new()
+		card.name = "WelcomeCard"
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		welcome_panel.add_child(card)
+		welcome_panel.move_child(card, 0)
+		Ui540.apply_kit_frame_panel(card, "intro")
+	card.position = Vector2(card_x, card_y)
+	card.size = Vector2(card_w, card_h)
+	for lbl: Label in [welcome_boot_label, welcome_title_label, welcome_body_label, welcome_hint_label]:
+		lbl.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	## Scene caption above the card, not a line inside it.
+	welcome_boot_label.position = Vector2(24.0, 96.0)
+	welcome_boot_label.size = Vector2(vs.x - 48.0, 28.0)
+	welcome_boot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	welcome_boot_label.remove_theme_color_override("font_outline_color")
+	welcome_boot_label.remove_theme_constant_override("outline_size")
+	GameTheme.style_ink_label(welcome_boot_label, true)
+	if welcome_title_label.get_parent() != card:
+		welcome_title_label.reparent(card, false)
+	Ui540.place_title_plank(welcome_title_label, card_w)
+	welcome_body_label.position = Vector2(card_x + 40.0, card_y + 58.0)
+	welcome_body_label.size = Vector2(card_w - 80.0, 124.0)
+	welcome_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	welcome_body_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	welcome_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameTheme.style_ink_label(welcome_body_label)
+	welcome_body_label.add_theme_constant_override("line_spacing", 4)
+	welcome_hint_label.position = Vector2(card_x + 40.0, card_y + 186.0)
+	welcome_hint_label.size = Vector2(card_w - 80.0, 24.0)
+	welcome_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	GameTheme.style_ink_label(welcome_hint_label, true)
+	welcome_dismiss_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	welcome_dismiss_button.position = Vector2(card_x + (card_w - 260.0) * 0.5, card_y + card_h - 28.0 - 52.0)
+	welcome_dismiss_button.size = Vector2(260, 52)
+	GameTheme.style_primary_button(welcome_dismiss_button)
+
+
 func show_welcome() -> void:
+	GameState.welcome_presented = true
 	close_backpack()
 	close_character_sheet()
 	hide_care_menu()
 	hide_fruit_confirm()
 	hide_ascension_shop()
+	_layout_welcome_panel()
 	welcome_boot_label.text = ContentStrings.get_text("welcome_boot")
 	welcome_title_label.text = ContentStrings.get_text("welcome_title")
 	welcome_body_label.text = ContentStrings.get_text("welcome_body")
 	welcome_hint_label.text = ContentStrings.get_text("welcome_hint")
 	welcome_dismiss_button.text = ContentStrings.get_text("welcome_dismiss")
+	## Arming ignores presses for 1.5 s; the button shows its primary face from the first frame.
+	_welcome_dismiss_ready = false
+	welcome_dismiss_button.disabled = false
+	if _welcome_delay_tween != null and is_instance_valid(_welcome_delay_tween):
+		_welcome_delay_tween.kill()
+	_welcome_delay_tween = create_tween()
+	_welcome_delay_tween.tween_interval(1.5)
+	_welcome_delay_tween.tween_callback(_enable_welcome_dismiss)
 	welcome_panel.visible = true
+	_play_welcome_beats()
 	GameAudio.play_ui_open()
+
+
+func _play_welcome_beats() -> void:
+	## Boot line alone, then the card fades in.
+	var card: CanvasItem = welcome_panel.get_node_or_null("WelcomeCard") as CanvasItem
+	var hidden: Array[CanvasItem] = [welcome_body_label, welcome_hint_label, welcome_dismiss_button, welcome_title_label]
+	if card:
+		hidden.append(card)
+	for item: CanvasItem in hidden:
+		if item:
+			item.modulate.a = 0.0
+	welcome_boot_label.modulate.a = 1.0
+	var tw: Tween = create_tween()
+	tw.tween_interval(1.2)
+	for item: CanvasItem in hidden:
+		if item:
+			tw.parallel().tween_property(item, "modulate:a", 1.0, 0.35)
+
+
+func _enable_welcome_dismiss() -> void:
+	_welcome_dismiss_ready = true
 
 
 func hide_welcome() -> void:
 	welcome_panel.visible = false
 
 
+func _fade_hud_in() -> void:
+	var pieces: Array[CanvasItem] = []
+	if panel:
+		pieces.append(panel)
+	if _party_bar:
+		pieces.append(_party_bar)
+	if pause_button:
+		pieces.append(pause_button)
+	for item: CanvasItem in pieces:
+		item.modulate.a = 0.0
+	var tw: Tween = create_tween()
+	for item: CanvasItem in pieces:
+		tw.parallel().tween_property(item, "modulate:a", 1.0, 0.45)
+
+
 func _on_welcome_dismiss() -> void:
+	if not _welcome_dismiss_ready:
+		return
 	GameState.welcome_shown = true
 	hide_welcome()
+	_fade_hud_in()
 	GameAudio.play_ui_confirm()
 	_show_toast(ContentStrings.get_text("boot_line"))
 	SaveService.save_game()
@@ -599,6 +1570,8 @@ func _show_toast(text: String) -> void:
 	status_label.text = line
 	status_label.visible = true
 	status_label.modulate.a = 1.0
+	status_label.self_modulate.a = 1.0
+	_layout_toast_r4(Ui540.viewport_size(), Ui540.SAFE_MARGIN_PX, 0.0)
 	if toast_shade:
 		toast_shade.visible = true
 		toast_shade.modulate.a = 0.92
@@ -631,7 +1604,7 @@ func _refresh_controls_hint() -> void:
 		help_button.tooltip_text = line
 
 
-const PARTY_SLOT: float = 56.0
+const PARTY_SLOT: float = 44.0
 const PARTY_OUTLINE: Color = Color(0.78, 0.92, 0.62, 1.0)
 
 var _party_bar: Control
@@ -656,69 +1629,68 @@ func _build_party_bar() -> void:
 		return
 	_party_bar = Control.new()
 	_party_bar.name = "PartyBar"
-	## Top-left anchors. The column stays in the gutter the character sheet leaves open.
-	_party_bar.anchor_left = 0.0
-	_party_bar.anchor_top = 0.0
-	_party_bar.anchor_right = 0.0
-	_party_bar.anchor_bottom = 0.0
-	_party_bar.offset_left = 12.0
-	_party_bar.offset_top = 86.0
-	_party_bar.offset_right = 12.0 + PARTY_SLOT
-	_party_bar.offset_bottom = 86.0 + PARTY_SLOT * 3.0 + 24.0
 	_party_bar.z_index = 20
 	_party_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_bar.clip_contents = true
 	_party_column = VBoxContainer.new()
 	_party_column.name = "Column"
 	_party_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_party_column.add_theme_constant_override("separation", 6)
-	_slot_wisp = _make_party_slot("Wisps", "wisp")
+	_party_column.add_theme_constant_override("separation", int(PARTY_PITCH_R4 - PARTY_SLOT))
 	_slot_elaia = _make_party_slot("Elaia", "elaia")
+	_slot_wisp = _make_party_slot("Wisps", "wisp")
 	_slot_keeper = _make_party_slot("Keeper", "keeper")
 	_wisp_count_label = Label.new()
 	_wisp_count_label.name = "Count"
-	_wisp_count_label.position = Vector2(24, 34)
+	_wisp_count_label.position = Vector2(22, 30)
 	_wisp_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style_party_label(_wisp_count_label, 14, Color(0.95, 0.92, 0.78))
+	_style_world_label(_wisp_count_label)
 	_slot_wisp.add_child(_wisp_count_label)
+	_party_column.add_child(_slot_elaia)
 	_party_column.add_child(_slot_wisp)
 	_party_column.add_child(_slot_keeper)
-	_party_column.add_child(_slot_elaia)
+	_party_bar.add_child(_party_column)
 	_party_info = VBoxContainer.new()
 	_party_info.name = "Info"
-	_party_info.position = Vector2(PARTY_SLOT + 10.0, 0)
+	_party_info.visible = false
 	_party_info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_party_info.add_theme_constant_override("separation", 0)
 	_sel_name = Label.new()
 	_sel_name.name = "Name"
-	_style_party_label(_sel_name, 15, Color(0.96, 0.94, 0.86))
 	_sel_extra = Label.new()
 	_sel_extra.name = "Extra"
-	_style_party_label(_sel_extra, 13, Color(0.85, 0.9, 0.75))
 	_sel_task = Label.new()
 	_sel_task.name = "Task"
-	_style_party_label(_sel_task, 13, Color(0.85, 0.9, 0.75))
 	_sel_job = Label.new()
 	_sel_job.name = "JobLine"
-	_style_party_label(_sel_job, 13, Color(0.95, 0.86, 0.55))
-	_sel_job.visible = false
 	_party_info.add_child(_sel_name)
 	_party_info.add_child(_sel_extra)
 	_party_info.add_child(_sel_task)
 	_party_info.add_child(_sel_job)
-	_party_bar.add_child(_party_column)
 	_party_bar.add_child(_party_info)
 	_keeper_activity = _make_activity_label("KeeperActivity", 62.0)
 	_elaia_activity = _make_activity_label("ElaiaActivity", 124.0)
+	_keeper_activity.visible = false
+	_elaia_activity.visible = false
 	_party_bar.add_child(_keeper_activity)
 	_party_bar.add_child(_elaia_activity)
-	_party_bar.offset_right = 280.0
+	_party_tag = PanelContainer.new()
+	_party_tag.name = "ActivityTag"
+	_party_tag.visible = false
+	_party_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_party_tag.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s(HUD_KIT_TOAST, Vector4i(12, 8, 12, 8), Vector4(10, 4, 10, 4)),
+	)
+	_party_tag_label = Label.new()
+	_party_tag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	GameTheme.style_body_label(_party_tag_label)
+	_party_tag.add_child(_party_tag_label)
+	_party_bar.add_child(_party_tag)
 	add_child(_party_bar)
 	var keeper_tex: Texture2D = _actor_portrait_texture("keeper")
 	var wisp_tex: Texture2D = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
 	(_slot_keeper.get_node("Portrait") as TextureRect).texture = keeper_tex
 	(_slot_wisp.get_node("Portrait") as TextureRect).texture = wisp_tex
 	(_slot_elaia.get_node("Portrait") as TextureRect).texture = _actor_portrait_texture("elaia")
-	_slot_elaia.tooltip_text = ContentStrings.get_text("hud_elaia_portrait_tooltip")
 	_slot_elaia.visible = false
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -741,11 +1713,24 @@ func _make_party_slot(slot_name: String, unit: String) -> Control:
 	host.size = Vector2(PARTY_SLOT, PARTY_SLOT)
 	host.mouse_filter = Control.MOUSE_FILTER_STOP
 	host.gui_input.connect(_on_party_slot_input.bind(unit, host))
+	if not Ui540.is_phone_export():
+		host.tooltip_text = slot_name
+	var face := Panel.new()
+	face.name = "Face"
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.position = Vector2.ZERO
+	face.size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	face.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s("res://assets/ui/theme/wood_button_9s_normal_32x28.png", Vector4i(6, 6, 6, 6)),
+	)
+	host.add_child(face)
 	var frame := Panel.new()
 	frame.name = "Frame"
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.position = Vector2.ZERO
 	frame.size = Vector2(PARTY_SLOT, PARTY_SLOT)
+	frame.z_index = 1
 	host.add_child(frame)
 	var portrait := TextureRect.new()
 	portrait.name = "Portrait"
@@ -753,8 +1738,8 @@ func _make_party_slot(slot_name: String, unit: String) -> Control:
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	portrait.position = Vector2(2, 2)
-	portrait.size = Vector2(PARTY_SLOT - 4.0, PARTY_SLOT - 4.0)
+	portrait.position = Vector2(4, 3)
+	portrait.size = Vector2(PARTY_SLOT - 8.0, PARTY_SLOT - 9.0)
 	host.add_child(portrait)
 	return host
 
@@ -768,11 +1753,42 @@ func _style_party_label(label: Label, size: int, color: Color) -> void:
 
 func _set_party_outline(slot: Control, selected: bool) -> void:
 	var frame := slot.get_node("Frame") as Panel
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0)
-	style.border_color = PARTY_OUTLINE
-	style.set_border_width_all(2 if selected else 0)
-	frame.add_theme_stylebox_override("panel", style)
+	frame.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	var glow: Control = slot.get_node_or_null("SelectGlow") as Control
+	if glow == null:
+		glow = Control.new()
+		glow.name = "SelectGlow"
+		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		glow.position = Vector2(-6, -6)
+		glow.size = Vector2(PARTY_SLOT + 12.0, PARTY_SLOT + 12.0)
+		glow.z_index = 2
+		glow.draw.connect(_draw_party_glow.bind(glow))
+		slot.add_child(glow)
+	glow.visible = selected
+	glow.queue_redraw()
+
+
+func _draw_party_glow(glow: Control) -> void:
+	## Square ring plus an ordered dither that falls off by 6 px.
+	var ink := Color8(143, 227, 230)
+	var inner := Rect2(Vector2(6, 6), Vector2(PARTY_SLOT, PARTY_SLOT))
+	glow.draw_rect(inner, ink, false, 2.0)
+	for d: int in range(1, 7):
+		var alpha: float = 0.55 * (1.0 - float(d) / 6.0)
+		var x0: int = 6 - d
+		var y0: int = 6 - d
+		var x1: int = 6 + int(PARTY_SLOT) + d
+		var y1: int = 6 + int(PARTY_SLOT) + d
+		for x: int in range(x0, x1):
+			for y: int in range(y0, y1):
+				var edge: bool = x == x0 or x == x1 - 1 or y == y0 or y == y1 - 1
+				if not edge:
+					continue
+				if ((x + y) & 1) != (d & 1):
+					continue
+				var px := ink
+				px.a = alpha
+				glow.draw_rect(Rect2(Vector2(x, y), Vector2.ONE), px, true)
 
 
 func _set_party_away_visual(slot: Control, away: bool) -> void:
@@ -845,7 +1861,7 @@ func _refresh_party_bar() -> void:
 	var show_keeper: bool = GameState.keeper_selected
 	var companion_id: String = str(GameState.selected_companion_id)
 	var elaia_joined: bool = GameState.elaia_portrait_visible()
-	_party_bar.visible = true
+	_party_bar.visible = not modal_window_open()
 	_slot_keeper.visible = true
 	_slot_elaia.visible = elaia_joined
 	_slot_elaia.mouse_filter = Control.MOUSE_FILTER_STOP if elaia_joined else Control.MOUSE_FILTER_IGNORE
@@ -861,8 +1877,19 @@ func _refresh_party_bar() -> void:
 	else:
 		_wisp_count_label.text = ""
 		_wisp_count_label.visible = false
+	_layout_party_bar_r4(Ui540.viewport_size(), Ui540.SAFE_MARGIN_PX, 0.0)
 	_refresh_actor_activities(elaia_joined, show_keeper, companion_id)
 	_clear_shared_activity()
+	_update_party_activity_tag(show_keeper, companion_id, ids)
+
+
+func _update_party_activity_tag(_show_keeper: bool, _companion_id: String, _wisp_ids: Array[int]) -> void:
+	## The parchment under a selected portrait is gone for every actor, Idle included.
+	if _party_tag == null:
+		return
+	_party_tag.visible = false
+	if _party_tag_label:
+		_party_tag_label.text = ""
 
 
 func _clear_shared_activity() -> void:
@@ -1111,46 +2138,43 @@ func _refresh_care_needs() -> void:
 		care_stage_label.text = ContentStrings.get_text("hud_stage_label", {"stage": stage_name})
 	var lines: PackedStringArray = info.get("needs_lines", PackedStringArray()) as PackedStringArray
 	var header: String = str(info.get("needs_header", ""))
-	var status: String = str(info.get("needs_status", ""))
-	var body_parts: PackedStringArray = PackedStringArray()
 	var is_ancient: bool = bool(info.get("is_ancient", false))
-	if not is_ancient:
-		var toward: String = str(info.get("title", ""))
-		if toward != "":
-			body_parts.append(toward)
-		var next_id: String = str(info.get("next_stage_id", ""))
-		if next_id != "":
-			var grow_key: String = "tree_grow_cost_%s" % next_id
-			var grow_line: String = _content_line(grow_key)
-			if grow_line != "":
-				body_parts.append(grow_line)
-	if header != "":
-		body_parts.append(header)
-	for line: String in lines:
-		body_parts.append(line)
-	if status != "" and not is_ancient:
-		body_parts.append(status)
-	if not is_ancient:
-		var grow_needs: Dictionary = info.get("needs", {}) as Dictionary
-		if grow_needs.is_empty():
-			grow_needs = GameState.get_next_stage_needs()
-		body_parts.append(_format_grow_needs_sentence(
-			int(grow_needs.get("fertilizer", 0)),
-			int(grow_needs.get("essence", 0))
-		))
-		body_parts.append(ContentStrings.get_text("tree_grow_hint"))
-	care_needs_label.text = "\n".join(body_parts)
+	var can_pay_now: bool = bool(info.get("can_pay", false))
+	## Mockup r3: "Toward …", "Needs", the icon checklist, "Ready to Grow" only when payable,
+	## and the grow hint. The cost sentences that repeated the checklist are gone.
+	if is_ancient:
+		care_needs_label.text = "\n".join(lines)
+		care_needs_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		care_needs_label.size.y = 140.0
+	else:
+		care_needs_label.text = str(info.get("title", ""))
+		care_needs_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		care_needs_label.size.y = 24.0
 	care_needs_label.visible = not fruit_ready
+	if _care_card:
+		_care_card.visible = true
+	if _care_needs_hdr:
+		_care_needs_hdr.text = header
+		_care_needs_hdr.visible = not fruit_ready and not is_ancient
+	if _care_status:
+		_care_status.text = ContentStrings.get_text("tree_grow_ready")
+		_care_status.visible = not fruit_ready and not is_ancient and can_pay_now
+	if _care_hint:
+		_care_hint.text = ContentStrings.get_text("tree_grow_hint")
+		_care_hint.visible = not fruit_ready and not is_ancient
 	var can_pay: bool = bool(info.get("can_pay", false))
 	pay_button.visible = not is_ancient
 	pay_button.text = ContentStrings.get_text("tree_grow")
-	pay_button.disabled = not can_pay
+	## Stays tappable when short, so a press can flash the missing line.
+	pay_button.disabled = false
 	_refresh_grow_cost_icons(info, is_ancient)
 	water_button.visible = not GameState.fruit_committed
 	water_button.text = ContentStrings.get_text("tree_interact_water")
 	harvest_fruit_button.visible = fruit_ready
 	harvest_fruit_button.text = ContentStrings.get_text("fruit_ready_prompt")
 	_refresh_forge_entry()
+	_layout_care_window()
+	_paint_grow_face(can_pay)
 	fruit_ready_card.visible = fruit_ready
 	precommit_hint.visible = fruit_ready
 	if fruit_ready:
@@ -1205,34 +2229,62 @@ func hide_prestige_menu() -> void:
 
 
 func _ensure_wisp_counter() -> void:
-	var counter := Label.new()
-	counter.name = "WispCounter"
-	counter.position = Vector2(780, 14)
-	counter.size = Vector2(180, 28)
-	counter.add_theme_font_size_override("font_size", 15)
-	counter.add_theme_color_override("font_color", Color(0.86, 0.95, 0.9, 1))
-	add_child(counter)
+	var row: HBoxContainer = get_node_or_null("Panel/IconRow") as HBoxContainer
+	if row == null:
+		return
+	var chip: HBoxContainer = row.get_node_or_null("WispChip") as HBoxContainer
+	if chip == null:
+		chip = HBoxContainer.new()
+		chip.name = "WispChip"
+		chip.tooltip_text = ContentStrings.get_text("wisp_name_plural")
+		chip.add_theme_constant_override("separation", 4)
+		var icon := TextureRect.new()
+		icon.name = "IconWisp"
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
+		chip.add_child(icon)
+		var num := Label.new()
+		num.name = "NumWisps"
+		num.custom_minimum_size = Vector2(48, 32)
+		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		num.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(num)
+		row.add_child(chip)
 	if not GameState.wisps_changed.is_connected(_refresh_wisp_counter):
 		GameState.wisps_changed.connect(_refresh_wisp_counter)
+	if not GameState.wisp_assigned.is_connected(_on_wisp_assignment_changed):
+		GameState.wisp_assigned.connect(_on_wisp_assignment_changed)
+	if not GameState.wisp_unassigned.is_connected(_on_wisp_freed):
+		GameState.wisp_unassigned.connect(_on_wisp_freed)
+	_refresh_wisp_counter()
+
+
+func _on_wisp_assignment_changed(_wisp_id: int, _node_id: String, _result: String) -> void:
+	_refresh_wisp_counter()
+
+
+func _on_wisp_freed(_wisp_id: int) -> void:
 	_refresh_wisp_counter()
 
 
 func _set_wisp_counter_visible(show_counter: bool) -> void:
-	var counter: CanvasItem = get_node_or_null("WispCounter") as CanvasItem
-	if counter:
-		counter.visible = show_counter
+	var chip: CanvasItem = get_node_or_null("Panel/IconRow/WispChip") as CanvasItem
+	if chip:
+		chip.visible = show_counter
 
 
 func _refresh_wisp_counter() -> void:
-	var counter: Label = get_node_or_null("WispCounter") as Label
-	if counter == null:
+	var num: Label = get_node_or_null("Panel/IconRow/WispChip/NumWisps") as Label
+	if num == null:
 		return
-	if is_character_open():
-		counter.visible = false
-	var text: String = "Wisps: %d" % GameState.wisp_count
-	if has_node("/root/ForgeJobs"):
-		text = ForgeJobs.copy_text("wisp_counter", {"count": GameState.wisp_count})
-	counter.text = text
+	num.text = ContentStrings.get_text("hud_wisps_count", {
+		"free": GameState.wisp_free_count(),
+		"total": GameState.wisp_count,
+	})
 
 
 func _ensure_forge_controls() -> void:
@@ -1255,23 +2307,18 @@ func _ensure_forge_controls() -> void:
 	_forge_popup.offset_top = -78.0
 	_forge_popup.offset_right = 210.0
 	_forge_popup.offset_bottom = 72.0
+	_forge_popup.z_index = 45
 	_forge_popup.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.13, 0.11, 1)
-	sb.border_color = Color(0.45, 0.58, 0.48, 1)
-	sb.set_border_width_all(2)
-	sb.set_content_margin_all(12)
-	_forge_popup.add_theme_stylebox_override("panel", sb)
 	add_child(_forge_popup)
+	Ui540.apply_kit_panel(_forge_popup, "forge_popup")
 	_forge_popup_body = Label.new()
 	_forge_popup_body.name = "Body"
-	_forge_popup_body.position = Vector2(16, 12)
-	_forge_popup_body.size = Vector2(388, 78)
+	_forge_popup_body.position = Vector2(28, 28)
+	_forge_popup_body.size = Vector2(364, 50)
 	_forge_popup_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_forge_popup_body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_forge_popup_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_forge_popup_body.add_theme_font_size_override("font_size", 16)
-	_forge_popup_body.add_theme_color_override("font_color", Color(0.88, 0.92, 0.84, 1))
+	GameTheme.style_ink_label(_forge_popup_body)
 	_forge_popup.add_child(_forge_popup_body)
 	var close := Button.new()
 	close.name = "Close"
@@ -1279,12 +2326,13 @@ func _ensure_forge_controls() -> void:
 	close.anchor_right = 0.5
 	close.anchor_top = 1.0
 	close.anchor_bottom = 1.0
-	close.offset_left = -70.0
-	close.offset_right = 70.0
-	close.offset_top = -44.0
-	close.offset_bottom = -10.0
+	close.offset_left = -80.0
+	close.offset_right = 80.0
+	close.offset_top = -68.0
+	close.offset_bottom = -24.0
 	close.text = ContentStrings.get_text("btn_close")
 	close.pressed.connect(hide_forge_popup)
+	GameTheme.style_wood_button(close)
 	_forge_popup.add_child(close)
 	_refresh_forge_entry()
 
@@ -1297,15 +2345,32 @@ func _refresh_forge_entry() -> void:
 	forge_button.visible = forge_stage
 	if not forge_stage:
 		return
-	forge_button.text = ContentStrings.get_text("forge_enter")
 	forge_button.disabled = false
 	var owns_key: bool = GameState.forge_key
 	if has_node("/root/ForgeJobs"):
 		owns_key = ForgeJobs.owns_forge_key()
-	if owns_key:
-		forge_button.modulate = Color.WHITE
+	_forge_locked = not owns_key
+	## Locked stays tappable (it explains the key), so it borrows the disabled face instead
+	## of disabling the button.
+	GameTheme.style_menu_button(forge_button)
+	for state: StringName in [&"normal", &"hover", &"pressed", &"focus"]:
+		forge_button.remove_theme_stylebox_override(state)
+	if _forge_locked:
+		forge_button.text = "%s  ·  %s" % [ContentStrings.get_text("forge_enter"), ContentStrings.get_text("forge_locked_hint")]
+		var dis: StyleBox = forge_button.get_theme_stylebox("disabled")
+		for state: StringName in [&"normal", &"hover", &"pressed"]:
+			forge_button.add_theme_stylebox_override(state, dis)
+		for state: StringName in [&"font_color", &"font_hover_color", &"font_pressed_color", &"font_focus_color"]:
+			forge_button.add_theme_color_override(state, forge_button.get_theme_color("font_disabled_color"))
 	else:
-		forge_button.modulate = Color(0.45, 0.47, 0.44, 1)
+		forge_button.text = ContentStrings.get_text("forge_enter")
+	## Same face size as Grow and Water. The long locked line is not shrunk.
+	forge_button.remove_theme_font_override("font")
+	forge_button.remove_theme_font_size_override("font_size")
+	var lock_icon: Texture2D = load("res://assets/art/ui/board/lock_10x12.png") as Texture2D
+	forge_button.icon = lock_icon if _forge_locked else null
+	forge_button.expand_icon = false
+	forge_button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 func is_forge_entry_visible() -> bool:
@@ -1313,7 +2378,7 @@ func is_forge_entry_visible() -> bool:
 
 
 func is_forge_entry_gray() -> bool:
-	return forge_button != null and forge_button.visible and forge_button.modulate.r < 0.6
+	return forge_button != null and forge_button.visible and _forge_locked
 
 
 func is_forge_popup_open() -> bool:
@@ -1342,7 +2407,7 @@ func open_forge_entry() -> String:
 		GameAudio.play_ui_confirm()
 		return msg
 	if has_node("/root/ForgeJobs") and (ForgeJobs.can_enter_forge() or GameState.forge_visited):
-		return ForgeJobs.request_door_walk()
+		return ForgeJobs.travel_to_forge()
 	return "denied"
 
 
@@ -1367,7 +2432,11 @@ func is_shop_list_visible() -> bool:
 
 
 func is_ascension_shop_open() -> bool:
-	return ascension_panel.visible
+	return ascension_panel.visible and not _shop_preview_mode
+
+
+func is_shop_preview_open() -> bool:
+	return ascension_panel.visible and _shop_preview_mode
 
 
 func shop_list_clears_footer() -> bool:
@@ -1419,12 +2488,17 @@ func get_care_layout_metrics() -> Dictionary:
 		"header_h": care_header.size.y,
 		"action_band_h": care_action_band.size.y,
 		"preferred_w": CARE_SIZE.x,
-		"preferred_h": CARE_SIZE.y,
+		"preferred_h": _care_window_h(),
 	}
 
 
 func get_fruit_confirm_step() -> int:
 	return _fruit_confirm_step
+
+
+func show_ascension_shop_preview() -> void:
+	_shop_preview_mode = true
+	_open_ascension_shop_internal(false)
 
 
 func show_ascension_shop() -> void:
@@ -1434,29 +2508,46 @@ func show_ascension_shop() -> void:
 		return
 	if not GameState.fruit_harvested_pending_ascend:
 		return
+	_shop_preview_mode = false
+	_open_ascension_shop_internal(true)
+
+
+func _open_ascension_shop_internal(ascend_pause: bool) -> void:
+	if welcome_panel.visible:
+		return
+	if _pause_menu and _pause_menu.is_open():
+		return
 	backpack_panel.visible = false
 	close_character_sheet()
 	hide_care_menu()
 	hide_fruit_confirm()
-	_hold_world_for_ascension()
+	if ascend_pause:
+		_hold_world_for_ascension()
+	else:
+		_release_world_if_allowed()
 	_confirm_ascend = false
-	_highlight_ascend = true
+	_highlight_ascend = ascend_pause
 	ascension_panel.visible = true
 	_confirm_batches = false
 	_hide_ascend_batch_dialog()
+	_sync_shop_toolbar()
 	GameAudio.play_ui_open()
 	_rebuild_upgrades()
 	_refresh_ascension_copy()
 	_refresh_reopen_button()
 	_refresh_frozen_banner()
 	_refresh_dim()
-	_apply_ascend_highlight()
+	if ascend_pause:
+		_apply_ascend_highlight()
+	else:
+		_clear_ascend_highlight()
 
 
 func hide_ascension_shop() -> void:
 	if ascension_panel.visible:
 		GameAudio.play_ui_close()
 	ascension_panel.visible = false
+	_shop_preview_mode = false
 	_confirm_ascend = false
 	_confirm_batches = false
 	_hide_ascend_batch_dialog()
@@ -1470,7 +2561,10 @@ func hide_ascension_shop() -> void:
 func _on_shop_close() -> void:
 	## Close cancels the harvest lock. Play resumes; Fruit can be harvested again.
 	## The run locks only when Ascend actually commits.
-	var cancelled_commit: bool = GameState.fruit_committed and not GameState.ancient_frozen
+	var preview: bool = _shop_preview_mode
+	var cancelled_commit: bool = (
+		not preview and GameState.fruit_committed and not GameState.ancient_frozen
+	)
 	if cancelled_commit:
 		GameState.cancel_fruit_commit()
 	hide_ascension_shop()
@@ -1604,7 +2698,8 @@ func _show_fruit_confirm_step() -> void:
 	]
 	fruit_confirm_yes.text = ContentStrings.get_text("fruit_confirm_step2_yes")
 	fruit_confirm_no.text = ContentStrings.get_text("fruit_confirm_step1_no")
-	_show_toast(fruit_confirm_body.text)
+	Ui540.layout_confirm(fruit_confirm_panel, fruit_confirm_title, fruit_confirm_body, fruit_confirm_yes, fruit_confirm_no)
+	fruit_confirm_no.grab_focus.call_deferred()
 	_refresh_dim()
 
 
@@ -1668,7 +2763,8 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 	var ess_have: int = GameState.get_need_have(&"essence")
 	if grow_fert_need:
 		var fert_key: String = "tree_grow_cost_fertilizer" if fert_have < fert_need else "tree_grow_cost_fertilizer_met"
-		grow_fert_need.text = "%d/%d" % [fert_have, fert_need]
+		grow_fert_need.text = ContentStrings.get_text("tree_grow_cost_fertilizer", {"have": fert_have, "need": fert_need})
+		grow_fert_need.add_theme_color_override("font_color", CARE_GREEN if fert_have >= fert_need else GameTheme.INK)
 		grow_fert_need.tooltip_text = ContentStrings.get_text(fert_key, {
 			"item": ContentStrings.get_text("fertilizer_name"),
 			"have": fert_have,
@@ -1676,7 +2772,8 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 		})
 	if grow_ess_need:
 		var ess_key: String = "tree_grow_cost_essence" if ess_have < ess_need else "tree_grow_cost_essence_met"
-		grow_ess_need.text = "%d/%d" % [ess_have, ess_need]
+		grow_ess_need.text = ContentStrings.get_text("tree_grow_cost_essence", {"have": ess_have, "need": ess_need})
+		grow_ess_need.add_theme_color_override("font_color", CARE_GREEN if ess_have >= ess_need else GameTheme.INK)
 		grow_ess_need.tooltip_text = ContentStrings.get_text(ess_key, {
 			"item": ContentStrings.get_text("hud_essence"),
 			"have": ess_have,
@@ -1684,11 +2781,38 @@ func _refresh_grow_cost_icons(info: Dictionary, is_ancient: bool) -> void:
 		})
 
 
+func _paint_grow_face(can_pay: bool) -> void:
+	if pay_button == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed", &"focus"]:
+		pay_button.remove_theme_stylebox_override(state)
+	if can_pay:
+		GameTheme.style_primary_button(pay_button)
+		return
+	var dis: StyleBox = pay_button.get_theme_stylebox(&"disabled")
+	if dis == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed"]:
+		pay_button.add_theme_stylebox_override(state, dis)
+
+
+func _flash_grow_needs() -> void:
+	var missing: String = GameState.format_missing_needs()
+	if _care_status and missing != "":
+		_care_status.text = missing
+		_care_status.visible = true
+	if care_grow_costs == null:
+		return
+	var tw: Tween = create_tween()
+	care_grow_costs.modulate = Color(1.0, 0.55, 0.25)
+	tw.tween_property(care_grow_costs, "modulate", Color.WHITE, 0.45)
+
+
 func _on_pay() -> void:
 	## One-click Grow, except Ancient, which asks first. try_grow_stage itself stays direct.
 	if not GameState.can_grow_stage():
 		GameAudio.play_tree_deny()
-		_refresh_care_needs()
+		_flash_grow_needs()
 		return
 	if String(GameState.get_next_stage_id()) == "ancient":
 		open_ancient_grow_confirm()
@@ -1711,58 +2835,38 @@ func _commit_grow() -> void:
 func _ensure_ancient_hud() -> void:
 	_ancient_countdown_bg = ColorRect.new()
 	_ancient_countdown_bg.name = "AncientCountdownBg"
-	_ancient_countdown_bg.position = Vector2(390, 64)
-	_ancient_countdown_bg.size = Vector2(500, 40)
-	_ancient_countdown_bg.color = Color(0.05, 0.08, 0.06, 0.88)
+	_ancient_countdown_bg.color = Color(0, 0, 0, 0)
 	_ancient_countdown_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ancient_countdown_bg.visible = false
 	add_child(_ancient_countdown_bg)
 	_ancient_countdown = Label.new()
 	_ancient_countdown.name = "AncientCountdown"
-	_ancient_countdown.position = Vector2(390, 64)
-	_ancient_countdown.size = Vector2(500, 40)
+	_ancient_countdown.size = Vector2(ANCIENT_TIMER_W, 36)
 	_ancient_countdown.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_ancient_countdown.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_ancient_countdown.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ancient_countdown.add_theme_font_size_override("font_size", 22)
-	_ancient_countdown.add_theme_color_override("font_color", GOLD)
+	GameTheme.style_ink_label(_ancient_countdown)
+	_ancient_countdown.add_theme_stylebox_override("normal", Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/toast_9s_40x30.png", Vector4i(12, 8, 12, 8), Vector4(20, 6, 20, 6)))
 	_ancient_countdown.visible = false
 	add_child(_ancient_countdown)
 	_ancient_confirm = Panel.new()
 	_ancient_confirm.name = "AncientGrowConfirm"
-	_ancient_confirm.position = Vector2(280, 150)
-	_ancient_confirm.size = Vector2(720, 300)
 	_ancient_confirm.visible = false
-	_ancient_confirm.z_index = 40
-	_ancient_confirm.add_theme_stylebox_override("panel", _wood_style())
+	_ancient_confirm.z_index = Z_MODAL
 	add_child(_ancient_confirm)
 	var title := Label.new()
 	title.name = "Title"
-	title.position = Vector2(24, 16)
-	title.size = Vector2(672, 36)
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", GOLD)
 	_ancient_confirm.add_child(title)
 	var body := Label.new()
 	body.name = "Body"
-	body.position = Vector2(24, 64)
-	body.size = Vector2(672, 140)
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_theme_font_size_override("font_size", 18)
-	body.add_theme_color_override("font_color", Color(0.93, 0.94, 0.86, 1))
 	_ancient_confirm.add_child(body)
 	var yes := Button.new()
 	yes.name = "Yes"
-	yes.position = Vector2(24, 220)
-	yes.size = Vector2(320, 52)
-	_apply_button_chrome(yes, LEAF, GOLD)
 	yes.pressed.connect(_on_ancient_grow_yes)
 	_ancient_confirm.add_child(yes)
 	var no := Button.new()
 	no.name = "No"
-	no.position = Vector2(376, 220)
-	no.size = Vector2(320, 52)
-	_apply_button_chrome(no, Color(0.18, 0.14, 0.10, 1.0), GOLD)
 	no.pressed.connect(hide_ancient_grow_confirm)
 	_ancient_confirm.add_child(no)
 
@@ -1770,21 +2874,17 @@ func _ensure_ancient_hud() -> void:
 func _ensure_frozen_banner() -> void:
 	_frozen_button = Button.new()
 	_frozen_button.name = "AscendFrozenButton"
-	_frozen_button.position = Vector2(430, 250)
-	_frozen_button.size = Vector2(420, 64)
-	_frozen_button.add_theme_font_size_override("font_size", 28)
-	_apply_button_chrome(_frozen_button, LEAF, GOLD)
+	_frozen_button.size = Vector2(420, 52)
+	GameTheme.style_primary_button(_frozen_button)
 	_frozen_button.pressed.connect(show_ascension_shop)
 	_frozen_button.visible = false
 	add_child(_frozen_button)
 	_frozen_hint = Label.new()
 	_frozen_hint.name = "AscendFrozenHint"
-	_frozen_hint.position = Vector2(360, 322)
 	_frozen_hint.size = Vector2(560, 64)
 	_frozen_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_frozen_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_frozen_hint.add_theme_font_size_override("font_size", 16)
-	_frozen_hint.add_theme_color_override("font_color", GOLD)
+	_style_world_label(_frozen_hint)
 	_frozen_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frozen_hint.visible = false
 	add_child(_frozen_hint)
@@ -1795,6 +2895,11 @@ func _refresh_frozen_banner() -> void:
 		return
 	var show_banner: bool = GameState.ancient_frozen and not ascension_panel.visible
 	_frozen_button.visible = show_banner
+	if show_banner:
+		var vs: Vector2 = Ui540.viewport_size()
+		_frozen_button.position = ((vs - _frozen_button.size) * 0.5 - Vector2(0, 20)).round()
+		if _frozen_hint:
+			_frozen_hint.position = Vector2(roundf((vs.x - _frozen_hint.size.x) * 0.5), _frozen_button.position.y + 60.0)
 	_frozen_button.text = ContentStrings.get_text("ascend_frozen_button")
 	if _frozen_hint:
 		_frozen_hint.visible = show_banner
@@ -1804,46 +2909,62 @@ func _refresh_frozen_banner() -> void:
 func _ensure_nav_button() -> void:
 	_nav_button = Button.new()
 	_nav_button.name = "HubForgeNav"
-	_nav_button.anchor_left = 1.0
-	_nav_button.anchor_top = 1.0
-	_nav_button.anchor_right = 1.0
-	_nav_button.anchor_bottom = 1.0
-	_nav_button.offset_left = -56.0
-	_nav_button.offset_top = -56.0
-	_nav_button.offset_right = -16.0
-	_nav_button.offset_bottom = -16.0
-	_nav_button.flat = true
+	_nav_button.text = ""
 	_nav_button.focus_mode = Control.FOCUS_NONE
+	_nav_button.custom_minimum_size = Vector2(Ui540.TAP_MIN_PX, Ui540.TAP_MIN_PX)
 	_nav_button.pressed.connect(_on_nav_pressed)
 	_nav_button.visible = false
-	var icon := TextureRect.new()
-	icon.name = "Icon"
-	icon.position = Vector2(4, 4)
-	icon.size = Vector2(32, 32)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_nav_button.add_child(icon)
-	add_child(_nav_button)
+	var host: Node = get_node_or_null("Panel")
+	if host:
+		host.add_child(_nav_button)
+	else:
+		add_child(_nav_button)
+
+
+func _nav_face(path: String, expand: float = 0.0) -> StyleBoxTexture:
+	var box := StyleBoxTexture.new()
+	box.texture = load(path) as Texture2D
+	if expand > 0.0:
+		box.expand_margin_left = expand
+		box.expand_margin_top = expand
+		box.expand_margin_right = expand
+		box.expand_margin_bottom = expand
+	return box
+
+
+func _apply_nav_board_face(destination: String) -> void:
+	if _nav_button == null:
+		return
+	var stem: String = "res://assets/ui/extras/hud_board_btn_%s_" % destination
+	_nav_button.add_theme_stylebox_override("normal", _nav_face(stem + "normal_44x44.png"))
+	_nav_button.add_theme_stylebox_override("hover", _nav_face(stem + "hover_44x44.png"))
+	_nav_button.add_theme_stylebox_override("pressed", _nav_face(stem + "pressed_44x44.png"))
+	_nav_button.add_theme_stylebox_override("hover_pressed", _nav_face(stem + "pressed_44x44.png"))
+	_nav_button.add_theme_stylebox_override("disabled", _nav_face(stem + "disabled_44x44.png"))
+	_nav_button.add_theme_stylebox_override("focus", _nav_face(stem + "focus_50x50.png", 3.0))
 
 
 func _refresh_nav_button() -> void:
 	if _nav_button == null or not has_node("/root/ForgeJobs"):
 		return
 	var in_battle: bool = has_node("/root/EchoChamber") and EchoChamber.in_battle
-	var show_nav: bool = GameState.forge_visited and not in_battle and not GameState.is_world_frozen()
+	var unlocked: bool = GameState.forge_visited or ForgeJobs.can_enter_forge()
+	var show_nav: bool = unlocked and not in_battle and not GameState.is_world_frozen()
+	var was: bool = _nav_button.visible
 	_nav_button.visible = show_nav
-	if not show_nav:
-		return
-	var in_forge: bool = ForgeJobs.in_forge_scene()
-	var tip_key: String = "nav_to_clearing" if in_forge else "nav_to_forge"
-	_nav_button.text = ""
-	_nav_button.tooltip_text = ContentStrings.get_text(tip_key)
-	var icon: TextureRect = _nav_button.get_node_or_null("Icon") as TextureRect
-	if icon:
-		var path: String = "res://assets/art/ui/icons/hud_scene_clearing.png" if in_forge else "res://assets/art/ui/icons/hud_scene_forge.png"
-		icon.texture = load(path) as Texture2D
+	if show_nav:
+		var in_forge: bool = ForgeJobs.in_forge_scene()
+		var tip_key: String = "nav_to_clearing" if in_forge else "nav_to_forge"
+		var tip: String = ContentStrings.get_text(tip_key)
+		if Ui540.should_show_pc_tooltips():
+			tip = "%s (Tab)" % tip
+		_nav_button.tooltip_text = tip
+		var destination: String = "clearing" if in_forge else "forge"
+		if str(_nav_button.get_meta("nav_dest", "")) != destination:
+			_nav_button.set_meta("nav_dest", destination)
+			_apply_nav_board_face(destination)
+	if was != show_nav:
+		_layout_hud540()
 
 
 func _on_nav_pressed() -> void:
@@ -1874,28 +2995,24 @@ func _ensure_speed_button() -> void:
 
 
 func _refresh_speed_button() -> void:
+	## 16× stays off the HUD. The player button is the only speed control here.
 	if _speed_button == null:
 		return
-	var show: bool = has_node("/root/GameAudio") and GameAudio.use_speedup_button
-	_speed_button.visible = show
-	if not show:
-		if not is_equal_approx(Engine.time_scale, 1.0):
-			Engine.time_scale = 1.0
-		_speed_index = 0
-		_apply_speed_textures()
+	_speed_button.visible = false
+	if not is_equal_approx(Engine.time_scale, 1.0):
+		Engine.time_scale = 1.0
+	_speed_index = 0
 
 
 func _on_speed_pressed() -> void:
-	var steps: Array[int] = [1, 2, 4, 8, 16]
-	_speed_index = (_speed_index + 1) % steps.size()
-	Engine.time_scale = float(steps[_speed_index])
-	_apply_speed_textures()
+	_speed_index = 0
+	Engine.time_scale = 1.0
 
 
 func _apply_speed_textures() -> void:
 	if _speed_button == null:
 		return
-	var steps: Array[int] = [1, 2, 4, 8, 16]
+	var steps: Array[int] = [1, 2, 4, 8]
 	var n: int = steps[_speed_index]
 	var stem: String = "res://assets/art/ui/buttons/speed_%dx_" % n
 	_speed_button.texture_normal = load(stem + "normal.png") as Texture2D
@@ -1905,7 +3022,7 @@ func _apply_speed_textures() -> void:
 
 
 func _ensure_play_speed_button() -> void:
-	## Player control. Stable ships this. The debug SpeedButton above stays opt-in and reaches 16×.
+	## Player control. Shown only when Options turns the speed button on. Steps are 1× / 2× / 4× / 8×.
 	_play_speed_button = TextureButton.new()
 	_play_speed_button.name = "PlaySpeedButton"
 	_play_speed_button.position = Vector2(924, 6)
@@ -1928,7 +3045,10 @@ func _ensure_play_speed_button() -> void:
 func _refresh_play_speed_button() -> void:
 	if _play_speed_button == null:
 		return
-	_play_speed_button.visible = true
+	var show: bool = has_node("/root/GameAudio") and GameAudio.use_speedup_button
+	_play_speed_button.visible = show
+	if not show and has_node("/root/GameState"):
+		GameState.reset_play_speed()
 	_apply_play_speed_textures()
 
 
@@ -1949,34 +3069,60 @@ func _apply_play_speed_textures() -> void:
 	_play_speed_button.texture_hover = load(stem + "hover.png") as Texture2D
 	_play_speed_button.texture_pressed = load(stem + "pressed.png") as Texture2D
 	_play_speed_button.tooltip_text = "%dx" % n
+	Ui540.paint_speed_pips(_play_speed_button, [1, 2, 4, 8].find(n))
 
 
 func _make_activity_label(node_name: String, y: float) -> Label:
 	var lbl := Label.new()
 	lbl.name = node_name
 	lbl.position = Vector2(PARTY_SLOT + 8.0, y)
-	lbl.size = Vector2(210, 52)
+	lbl.size = Vector2(210, PARTY_SLOT)
 	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style_party_label(lbl, 13, Color(0.9, 0.94, 0.82))
+	_style_world_label(lbl)
 	return lbl
 
 
+var _world_bold_font: FontVariation
+
+
+## Wisps and Idle sit on the grass. Silver 19 faux-bold, cream, with a dark rim.
+func _style_world_label(label: Label) -> void:
+	if _world_bold_font == null:
+		_world_bold_font = FontVariation.new()
+		_world_bold_font.base_font = GameTheme.body_font()
+		_world_bold_font.variation_embolden = 1.0
+	label.add_theme_font_override("font", _world_bold_font)
+	label.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
+	label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
+	label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
+	label.add_theme_constant_override("outline_size", 6)
+	label.add_theme_constant_override("line_spacing", -2)
+	label.remove_theme_color_override("font_shadow_color")
+
+
 func _portrait_row_y(which: String) -> float:
-	## Matches Column: 56px slots, 6px separation, hidden rows take no space.
-	var step: float = PARTY_SLOT + 6.0
+	## Walks Column in order: 44 px slots on a 50 px pitch, hidden rows take no space.
+	var target: Control = _slot_keeper
+	if which == "wisp":
+		target = _slot_wisp
+	elif which == "elaia":
+		target = _slot_elaia
 	var y: float = 0.0
-	if _slot_wisp != null and _slot_wisp.visible:
-		if which == "wisp":
-			return y
-		y += step
-	if which == "keeper":
+	if _party_column == null:
 		return y
-	return y + step
+	for slot: Node in _party_column.get_children():
+		if slot == target:
+			return y
+		if slot is Control and (slot as Control).visible:
+			y += PARTY_PITCH_R4
+	return y
 
 
 func _place_activity_label(label: Label, which: String) -> void:
 	label.position = Vector2(PARTY_SLOT + 8.0, _portrait_row_y(which))
+	label.size = Vector2(210, PARTY_SLOT)
 
 
 func _refresh_actor_activities(elaia_visible: bool, keeper_selected: bool, companion_id: String) -> void:
@@ -1999,27 +3145,45 @@ func _actor_status_text(actor: String, selected: bool) -> String:
 	return "%s\n%s" % [head, _activity_line(actor)]
 
 
+func _kit_window_obscures_world() -> bool:
+	return (
+		welcome_panel.visible
+		or backpack_panel.visible
+		or bench_panel.visible
+		or care_panel.visible
+		or ascension_panel.visible
+		or fruit_confirm_panel.visible
+		or (_help_panel != null and _help_panel.visible)
+		or is_character_open()
+		or (_sheet != null and _sheet.visible)
+	)
+
+
 func _settle_world_labels() -> void:
-	## The resource bar is translucent, so a world Label in that band would show through it.
+	## Hide world Labels under the HUD band and whenever a kit window is open.
 	var scene: Node = get_tree().current_scene
 	if scene == null:
 		return
-	var band := Rect2(0, 0, get_viewport().get_visible_rect().size.x, 82.0)
-	_fade_world_labels(scene, band, false)
+	var band := Rect2(0, 0, get_viewport().get_visible_rect().size.x, Ui540.kit_top_inset())
+	var force_hide: bool = _kit_window_obscures_world()
+	_fade_world_labels(scene, band, false, force_hide)
 
 
-func _fade_world_labels(node: Node, band: Rect2, in_layer: bool) -> void:
+func _fade_world_labels(node: Node, band: Rect2, in_layer: bool, force_hide: bool) -> void:
 	var layer: bool = in_layer or node is CanvasLayer
 	if not layer and node is Label:
 		var lbl: Label = node as Label
 		if lbl.visible:
-			var screen: Transform2D = lbl.get_global_transform_with_canvas()
-			var rect := Rect2(screen.origin, lbl.size * screen.get_scale())
 			var mod: Color = lbl.modulate
-			mod.a = 0.0 if rect.intersects(band) else 1.0
+			if force_hide:
+				mod.a = 0.0
+			else:
+				var screen: Transform2D = lbl.get_global_transform_with_canvas()
+				var rect := Rect2(screen.origin, lbl.size * screen.get_scale())
+				mod.a = 0.0 if rect.intersects(band) else 1.0
 			lbl.modulate = mod
 	for child: Node in node.get_children():
-		_fade_world_labels(child, band, layer)
+		_fade_world_labels(child, band, layer, force_hide)
 
 
 func _activity_line(actor: String) -> String:
@@ -2059,12 +3223,17 @@ func _refresh_ancient_countdown() -> void:
 	)
 	_ancient_countdown.visible = show_timer
 	if _ancient_countdown_bg:
-		_ancient_countdown_bg.visible = show_timer
+		_ancient_countdown_bg.visible = false
+	if _care_timer:
+		_care_timer.visible = show_timer and fruit_ready_card.visible
 	if not show_timer:
 		return
 	var total: int = int(ceil(GameState.ancient_remaining_sec))
 	var label: String = "%d:%02d" % [int(total / 60), total % 60]
 	_ancient_countdown.text = ContentStrings.get_text("tree_ancient_timer_label", {"time": label})
+	_ancient_countdown.position = Vector2(roundf((Ui540.viewport_size().x - ANCIENT_TIMER_W) * 0.5), 72.0)
+	if _care_timer:
+		_care_timer.text = _ancient_countdown.text
 
 
 func open_ancient_grow_confirm() -> void:
@@ -2079,7 +3248,9 @@ func open_ancient_grow_confirm() -> void:
 	body.text = ContentStrings.get_text("tree_grow_ancient_confirm_body", {"minutes": minutes})
 	yes.text = ContentStrings.get_text("tree_grow_ancient_confirm_yes")
 	no.text = ContentStrings.get_text("tree_grow_ancient_confirm_no")
+	Ui540.layout_confirm(_ancient_confirm, title, body, yes, no)
 	_ancient_confirm.visible = true
+	no.grab_focus.call_deferred()
 	_refresh_dim()
 	GameAudio.play_ui_confirm()
 
@@ -2346,9 +3517,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	var key: InputEventKey = event
 	if not key.pressed or key.echo:
 		return
+	if welcome_panel.visible:
+		get_viewport().set_input_as_handled()
+		return
 	if BattleView.is_open():
 		return
-	if key.keycode == KEY_I and not key.ctrl_pressed and not key.alt_pressed and not key.meta_pressed:
+	if Binds.event_matches(key, "inventory"):
 		if welcome_panel.visible:
 			return
 		if _pause_menu and _pause_menu.is_open():
@@ -2356,7 +3530,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_backpack()
 		get_viewport().set_input_as_handled()
 		return
-	var sheet_key: bool = key.keycode == KEY_C or key.is_action_pressed("character_sheet")
+	var sheet_key: bool = Binds.event_matches(key, "character") or key.is_action_pressed("character_sheet")
 	if not sheet_key or key.ctrl_pressed or key.alt_pressed or key.meta_pressed:
 		return
 	if welcome_panel.visible:
@@ -2397,6 +3571,7 @@ func open_backpack() -> void:
 
 
 func close_backpack() -> void:
+	_hide_bag_detail()
 	if backpack_panel.visible:
 		GameAudio.play_ui_close()
 	backpack_panel.visible = false
@@ -2432,16 +3607,36 @@ func _on_backpack_inventory(_item_id: StringName, _amount: int) -> void:
 
 func _on_backpack_tab(tab_id: String) -> void:
 	_backpack_tab = tab_id
+	_bag_filter_ix = maxi(0, BAG_FILTER_CYCLE.find(tab_id))
+	_refresh_backpack_tab_labels()
 	_rebuild_backpack()
 
 
-func _apply_filter_labels() -> void:
+var _bag_filter_ix: int = 0
+
+
+func _cycle_backpack_filter() -> void:
+	_bag_filter_ix = (_bag_filter_ix + 1) % BAG_FILTER_CYCLE.size()
+	_backpack_tab = BAG_FILTER_CYCLE[_bag_filter_ix]
+	_refresh_backpack_tab_labels()
+	_rebuild_backpack()
+
+
+func _refresh_backpack_tab_labels() -> void:
 	backpack_tab_all.text = _filter_label("all")
-	backpack_tab_raw.text = _filter_label("raw")
-	backpack_tab_refined.text = _filter_label("refined")
-	backpack_tab_tools.text = _filter_label("tools")
-	backpack_tab_weapons.text = _filter_label("weapons")
-	backpack_tab_relics.text = _filter_label("relics")
+	backpack_tab_all.set_pressed_no_signal(_backpack_tab == "all")
+	if _backpack_cat_btn:
+		_backpack_cat_btn.set_pressed_no_signal(_backpack_tab != "all")
+		if _backpack_tab == "all":
+			_backpack_cat_btn.text = _filter_label(BAG_FILTER_CYCLE[(_bag_filter_ix + 1) % BAG_FILTER_CYCLE.size()])
+		else:
+			_backpack_cat_btn.text = _filter_label(_backpack_tab)
+		## Same 18 px mark and 12 px inset as the bench Parts and char Weapon tabs.
+		Ui540.add_cycle_cue(_backpack_cat_btn)
+
+
+func _apply_filter_labels() -> void:
+	_refresh_backpack_tab_labels()
 
 
 func _filter_label(filter_id: String) -> String:
@@ -2452,6 +3647,8 @@ func _filter_label(filter_id: String) -> String:
 			return ContentStrings.get_text("backpack_tab_raw")
 		"refined":
 			return ContentStrings.get_text("backpack_tab_refined")
+		"potions":
+			return ContentStrings.get_text("backpack_tab_potions")
 		"tools":
 			return ContentStrings.get_text("backpack_tab_tools")
 		"weapons":
@@ -2470,19 +3667,23 @@ func _rebuild_backpack() -> void:
 		child.queue_free()
 	var rows: Array[Dictionary] = _filtered_rows(_backpack_tab)
 	for row: Dictionary in rows:
-		inventory_list.add_child(_make_item_row(row, false))
+		var item_row: Control = _make_item_row(row, false)
+		inventory_list.add_child(item_row)
+		_wire_backpack_row(item_row, row)
 	if rows.is_empty():
 		var empty := Label.new()
 		empty.text = ContentStrings.get_text("backpack_empty")
-		empty.add_theme_font_size_override("font_size", 12)
-		empty.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
+		GameTheme.style_ink_label(empty, true)
+		empty.custom_minimum_size = Vector2(0, BAG_ROW_H)
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		inventory_list.add_child(empty)
 
 
 func filter_owned_counts() -> Dictionary:
 	var counts: Dictionary = {}
-	var filters: PackedStringArray = PackedStringArray(["all", "raw", "refined", "tools", "weapons", "relics"])
+	var filters: PackedStringArray = PackedStringArray(["all", "raw", "refined", "potions", "tools", "weapons", "relics"])
 	if has_node("/root/ForgeJobs"):
 		filters = ForgeJobs.backpack_filters()
 	for filter_id: String in filters:
@@ -2568,35 +3769,126 @@ func _ensure_bench_batch() -> BatchPanel:
 			return null
 		existing.name = "BatchPanel"
 		bench_panel.add_child(existing)
-	existing.position = Vector2(12, 300)
-	existing.size = Vector2(616, 224)
+	existing.compact = true
 	existing.setup(ForgeJobs.WORKBENCH_ID if has_node("/root/ForgeJobs") else "workbench")
 	_bench_batch = existing
+	if _bench_detail != null:
+		_layout_bench540()
 	return existing
 
 
+func _ensure_bench_chrome() -> void:
+	if _bench_tabs != null or bench_panel == null:
+		return
+	_bench_tabs = HBoxContainer.new()
+	_bench_tabs.name = "BenchTabs"
+	_bench_tabs.add_theme_constant_override("separation", 8)
+	bench_panel.add_child(_bench_tabs)
+	_bench_tab_all = Button.new()
+	_bench_tab_all.name = "TabAll"
+	_bench_tab_all.custom_minimum_size = Vector2(90, 44)
+	_bench_tab_all.pressed.connect(_set_bench_filter.bind(0))
+	GameTheme.style_big_tab_button(_bench_tab_all)
+	_bench_tabs.add_child(_bench_tab_all)
+	_bench_cat_btn = Button.new()
+	_bench_cat_btn.name = "BenchCategoryCycle"
+	_bench_cat_btn.custom_minimum_size = Vector2(160, 44)
+	_bench_cat_btn.pressed.connect(_cycle_bench_filter)
+	GameTheme.style_big_tab_button(_bench_cat_btn)
+	Ui540.add_cycle_cue(_bench_cat_btn)
+	_bench_tabs.add_child(_bench_cat_btn)
+	craft_list.add_theme_constant_override("separation", int(BACKPACK_ROW_H - BAG_ROW_H))
+	_bench_detail = Control.new()
+	_bench_detail.name = "BenchDetail"
+	_bench_detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bench_panel.add_child(_bench_detail)
+
+
+func _bench_filter_label(filter_id: String) -> String:
+	match filter_id:
+		"all":
+			return ContentStrings.get_text("backpack_tab_all")
+		"parts":
+			return "Parts"
+		"tools":
+			return ContentStrings.get_text("backpack_tab_tools")
+		"weapons":
+			return ContentStrings.get_text("backpack_tab_weapons")
+		_:
+			return filter_id
+
+
+func _set_bench_filter(ix: int) -> void:
+	_bench_filter_ix = ix
+	_rebuild_bench()
+
+
+func _cycle_bench_filter() -> void:
+	_bench_filter_ix = _bench_filter_ix % (BENCH_FILTER_CYCLE.size() - 1) + 1
+	_rebuild_bench()
+
+
+func _bench_recipe_category(recipe_id: String, equipment_out: bool) -> String:
+	if equipment_out:
+		return "weapons"
+	var out_id: String = str(Backpack.get_recipe_def(recipe_id).get("output_id", recipe_id))
+	if Backpack.is_tool(out_id) or Backpack.matches_filter(out_id, "tools") or out_id == "fertilizer":
+		return "tools"
+	return "parts"
+
+
+func _bench_recipes() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for entry: Variant in Backpack.recipes_data:
+		if typeof(entry) == TYPE_DICTIONARY:
+			out.append({"id": str((entry as Dictionary).get("id", "")), "gear": false})
+	for gear_entry: Variant in Equipment.recipes_data:
+		if typeof(gear_entry) != TYPE_DICTIONARY:
+			continue
+		var gear_id: String = str((gear_entry as Dictionary).get("id", ""))
+		if Equipment.recipe_station(gear_id) != "anvil":
+			out.append({"id": gear_id, "gear": true})
+	return out
+
+
 func _rebuild_bench() -> void:
+	_ensure_bench_chrome()
 	_ensure_bench_batch()
 	bench_title.text = ContentStrings.get_text("bench_title")
 	bench_prompt.text = "%s  ·  %s" % [
 		ContentStrings.get_text("handcraft_title"),
 		ContentStrings.get_text("tool_never_gate"),
 	]
+	var filter_id: String = BENCH_FILTER_CYCLE[_bench_filter_ix]
+	_bench_tab_all.text = _bench_filter_label("all")
+	_bench_tab_all.set_pressed_no_signal(filter_id == "all")
+	_bench_cat_btn.text = _bench_filter_label(BENCH_FILTER_CYCLE[maxi(1, _bench_filter_ix)])
+	_bench_cat_btn.set_pressed_no_signal(filter_id != "all")
 	for child: Node in craft_list.get_children():
 		child.queue_free()
-	for entry: Variant in Backpack.recipes_data:
-		if typeof(entry) != TYPE_DICTIONARY:
+	var first: String = ""
+	var keep: bool = false
+	for rec: Dictionary in _bench_recipes():
+		var rid: String = str(rec["id"])
+		var gear: bool = bool(rec["gear"])
+		if filter_id != "all" and _bench_recipe_category(rid, gear) != filter_id:
 			continue
-		var rec: Dictionary = entry
-		craft_list.add_child(_make_craft_row(str(rec.get("id", "")), false))
-	for gear_entry: Variant in Equipment.recipes_data:
-		if typeof(gear_entry) != TYPE_DICTIONARY:
-			continue
-		var gear_rec: Dictionary = gear_entry
-		var gear_id: String = str(gear_rec.get("id", ""))
-		if Equipment.recipe_station(gear_id) == "anvil":
-			continue
-		craft_list.add_child(_make_craft_row(gear_id, true))
+		craft_list.add_child(_make_craft_row(rid, gear))
+		if first == "":
+			first = rid
+		if rid == _bench_selected:
+			keep = true
+	var pad := Control.new()
+	pad.name = "ScrollPad"
+	pad.custom_minimum_size = Vector2(0, 16)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	craft_list.add_child(pad)
+	if not keep:
+		_bench_selected = first
+	if _bench_selected != "":
+		_on_bench_recipe_selected(_bench_selected)
+	else:
+		_refresh_bench_detail()
 
 
 func _placeholder_icon(color: Color) -> ColorRect:
@@ -2607,85 +3899,373 @@ func _placeholder_icon(color: Color) -> ColorRect:
 	return icon
 
 
+func _ensure_bag_detail_panel() -> void:
+	if _bag_detail_panel != null or backpack_panel == null:
+		return
+	_bag_detail_panel = Panel.new()
+	_bag_detail_panel.name = "BagDetailPopup"
+	_bag_detail_panel.visible = false
+	_bag_detail_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	backpack_panel.add_child(_bag_detail_panel)
+	Ui540.apply_kit_panel(_bag_detail_panel, "bag_detail")
+
+
+func _wire_backpack_row(row: Control, stack: Dictionary) -> void:
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton:
+			var mb: InputEventMouseButton = ev as InputEventMouseButton
+			if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+				if _bag_detail_panel != null and _bag_detail_panel.visible and _bag_detail_item_id == str(stack.get("id", "")):
+					_hide_bag_detail()
+				else:
+					_show_bag_detail(stack, row)
+	)
+
+
+## Mockup bag540_pc_detail: 320 wide, under the tapped row, right edge on the list's right
+## edge, flipped above the row when it would leave the window.
+func _show_bag_detail(stack: Dictionary, row: Control = null) -> void:
+	_ensure_bag_detail_panel()
+	if _bag_detail_panel == null:
+		return
+	_bag_detail_item_id = str(stack.get("id", ""))
+	for child: Node in _bag_detail_panel.get_children():
+		if child.name != "VineFrame":
+			child.free()
+	if not _bag_detail_panel.gui_input.is_connected(_on_bag_detail_input):
+		_bag_detail_panel.gui_input.connect(_on_bag_detail_input)
+	var item_id: String = _bag_detail_item_id
+	var w: float = 320.0
+	var equippable: bool = Equipment.is_equippable(item_id)
+	var action_w: float = 100.0 if equippable else 0.0
+	var icon: Control = _make_item_icon(item_id, "")
+	icon.position = Vector2(22, 18)
+	icon.size = Vector2(32, 32)
+	_bag_detail_panel.add_child(icon)
+	var title := Label.new()
+	title.text = str(stack.get("display_name", item_id))
+	GameTheme.style_heading_label(title)
+	title.position = Vector2(62, 12)
+	title.size = Vector2(w - 62 - 24, 40)
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_bag_detail_panel.add_child(title)
+	var body := Label.new()
+	body.text = _item_examine_text(item_id)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	GameTheme.style_ink_label(body)
+	var body_w: float = w - 48.0 - (action_w + 8.0 if equippable else 0.0)
+	body.position = Vector2(24, 58)
+	body.size = Vector2(body_w, 20)
+	_bag_detail_panel.add_child(body)
+	var lines: int = maxi(1, body.get_line_count())
+	var body_h: float = maxf(20.0 * lines, 44.0 if equippable else 0.0)
+	body.size = Vector2(body_w, 20.0 * lines)
+	var h: float = 58.0 + body_h + 20.0
+	if equippable:
+		var action := Button.new()
+		action.text = "Equip"
+		GameTheme.style_wood_button(action)
+		action.position = Vector2(w - 24.0 - action_w, h - 20.0 - 44.0)
+		action.size = Vector2(action_w, 44)
+		action.pressed.connect(_on_bag_detail_action.bind(true))
+		_bag_detail_panel.add_child(action)
+	_bag_detail_panel.custom_minimum_size = Vector2(w, h)
+	_bag_detail_panel.size = Vector2(w, h)
+	var scroll: Control = backpack_panel.get_node_or_null("InventoryScroll") as Control
+	var right: float = (scroll.position.x + scroll.size.x - 30.0) if scroll else backpack_panel.size.x - 36.0
+	var top: float = scroll.position.y if scroll else 24.0
+	var bottom: float = (scroll.position.y + scroll.size.y) if scroll else backpack_panel.size.y - 24.0
+	var y: float = top
+	if row != null and scroll != null:
+		var row_top: float = row.global_position.y - backpack_panel.global_position.y
+		y = row_top + row.size.y + 2.0
+		if y + h > bottom:
+			y = row_top - h - 2.0
+	_bag_detail_panel.position = Vector2(right - w, clampf(y, top, maxf(top, bottom - h)))
+	_bag_detail_panel.z_index = 2
+	_bag_detail_panel.visible = true
+
+
+func _on_bag_detail_input(ev: InputEvent) -> void:
+	if ev is InputEventMouseButton:
+		var mb: InputEventMouseButton = ev as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
+			_hide_bag_detail()
+
+
+func _on_bag_detail_action(equip: bool) -> void:
+	if equip and _bag_detail_item_id != "":
+		Equipment.try_equip(_bag_detail_item_id)
+		_rebuild_backpack()
+	_hide_bag_detail()
+
+
+func _hide_bag_detail() -> void:
+	if _bag_detail_panel:
+		_bag_detail_panel.visible = false
+	_bag_detail_item_id = ""
+
+
 func _make_item_row(stack: Dictionary, _craft: bool) -> Control:
-	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H)
-	row.add_theme_constant_override("separation", 8)
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(0, BAG_ROW_H)
+	row.add_theme_stylebox_override("panel", Ui540.list_row_style())
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 8)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(line)
 	var stack_id: String = str(stack.get("id", ""))
 	var stack_name: String = str(stack.get("display_name", stack_id))
-	row.add_child(_make_item_icon(stack_id, stack_name))
+	var icon: Control = _make_item_icon(stack_id, stack_name)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	line.add_child(icon)
 	var lbl := Label.new()
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var count: int = int(stack.get("count", 0))
 	var name: String = str(stack.get("display_name", ""))
-	if str(stack.get("id", "")) == "stone_watering_can":
+	var count_text: String = "×%d" % count
+	if stack_id == "stone_watering_can":
 		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("tool_water_hint")]
+		count_text = ""
 	elif bool(stack.get("unique", false)):
 		lbl.text = "%s  ·  %s" % [name, ContentStrings.get_text("tool_owned_hint")]
+		count_text = ""
 	else:
-		lbl.text = "%s  ×%d" % [name, count]
-	lbl.add_theme_font_size_override("font_size", 12)
-	lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl.text = name
+	GameTheme.style_ink_label(lbl)
+	lbl.clip_text = true
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	var examine: String = _item_examine_text(str(stack.get("id", "")))
+	lbl.mouse_filter = Control.MOUSE_FILTER_PASS
+	var examine: String = _item_examine_text(stack_id)
 	if examine != "":
 		row.tooltip_text = examine
 		lbl.tooltip_text = examine
-	row.add_child(lbl)
+	line.add_child(lbl)
+	if count_text != "":
+		var cnt := Label.new()
+		cnt.text = count_text
+		GameTheme.style_ink_label(cnt)
+		cnt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		cnt.mouse_filter = Control.MOUSE_FILTER_PASS
+		line.add_child(cnt)
 	return row
 
 
+## One 44 px list row; the whole row is the (toggle) Button that selects the recipe, the
+## label line sits on top and ignores the mouse.
 func _make_craft_row(recipe_id: String, equipment_out: bool = false) -> Control:
 	var def: Dictionary = Equipment.get_recipe_def(recipe_id) if equipment_out else Backpack.get_recipe_def(recipe_id)
 	var out_id: String = str(def.get("output_id", recipe_id))
-	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(0, BACKPACK_ROW_H + 8.0)
+	var row := Control.new()
+	row.custom_minimum_size = Vector2(0, BAG_ROW_H)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 8)
-	row.clip_contents = true
+	var btn := Button.new()
+	btn.name = "Pick"
+	btn.toggle_mode = true
+	btn.set_anchors_preset(Control.PRESET_FULL_RECT)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_stylebox_override("normal", Ui540.list_row_style())
+	btn.add_theme_stylebox_override("hover", Ui540.kit_stylebox_9s("res://assets/ui/theme/pick_row_9s_hover_24x24.png", Vector4i(6, 6, 6, 6)))
+	btn.add_theme_stylebox_override("pressed", Ui540.list_row_style(true))
+	btn.add_theme_stylebox_override("hover_pressed", Ui540.list_row_style(true))
+	btn.pressed.connect(_on_bench_recipe_selected.bind(recipe_id))
+	row.add_child(btn)
+	var line := HBoxContainer.new()
+	line.set_anchors_preset(Control.PRESET_FULL_RECT)
+	line.offset_left = 6.0
+	## Gutter before the scrollbar. The name keeps its full width; the tag gives way.
+	line.offset_right = -16.0
+	line.add_theme_constant_override("separation", 8)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(line)
 	var craft_name: String = Equipment.item_display_name(out_id) if equipment_out else Backpack.item_display_name(out_id)
-	row.add_child(_make_item_icon(out_id, craft_name))
-	var info := VBoxContainer.new()
-	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.size_flags_stretch_ratio = 1.0
+	var reason: String = Equipment.craft_block_reason(recipe_id) if equipment_out else Backpack.craft_block_reason(recipe_id)
+	var icon: Control = _make_item_icon(out_id, craft_name)
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if reason != "":
+		icon.modulate = Color(0.75, 0.72, 0.68, 0.7)
+	line.add_child(icon)
 	var name_lbl := Label.new()
-	name_lbl.text = Equipment.item_display_name(out_id) if equipment_out else Backpack.item_display_name(out_id)
-	name_lbl.add_theme_font_size_override("font_size", 13)
-	name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
+	name_lbl.name = "RecipeName"
+	name_lbl.text = craft_name
+	GameTheme.style_ink_label(name_lbl, false)
+	## The name keeps its full width and never takes the leftover, so a shortage
+	## hint cannot be squeezed to nothing and the name itself is never ellipsized.
+	name_lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_lbl.clip_text = false
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_child(name_lbl)
+	var state_lbl := Label.new()
+	state_lbl.name = "RecipeState"
+	var missing_tip: String = ""
+	if reason == "unique":
+		state_lbl.text = ContentStrings.get_text("backpack_owned")
+	elif reason == "":
+		state_lbl.text = "ready"
+	elif reason == "cant_afford" or reason == "no_shards":
+		var missing: PackedStringArray = _bench_missing_parts(recipe_id, equipment_out)
+		missing_tip = ", ".join(missing)
+		state_lbl.text = _bench_short_text(missing)
+	else:
+		state_lbl.text = ""
+	GameTheme.style_ink_label(state_lbl, true)
+	## Muted ink, parked on the right before the scrollbar gutter, so the hint
+	## reads apart from the recipe name. Silver only renders crisp at 19/38: at
+	## 15-17 every glyph pixel is a blend and the hint read as faint 7 px text,
+	## so it keeps the body 19 and stands apart by colour and alignment.
+	## Ellipsis only when the leftover is short.
+	state_lbl.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	state_lbl.add_theme_color_override("font_color", Color8(90, 62, 40))
+	state_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	state_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	state_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	state_lbl.clip_text = true
+	state_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	state_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if missing_tip != "":
+		state_lbl.tooltip_text = missing_tip
+	line.add_child(state_lbl)
+	var cost_tip: String = _craft_row_cost_text(recipe_id)
+	if missing_tip != "" and cost_tip.find(missing_tip) < 0:
+		cost_tip = missing_tip if cost_tip == "" else "%s\n%s" % [cost_tip, missing_tip]
+	row.tooltip_text = cost_tip
+	btn.tooltip_text = cost_tip
+	row.set_meta("recipe_id", recipe_id)
+	row.set_meta("gear", equipment_out)
+	return row
+
+
+## One missing ingredient stays "Need 3 Wood". Several name the first and a count
+## ("Need 1 Wood Rod +1") so the recipe name is never squeezed; the full list
+## stays on the tooltip.
+func _bench_short_text(parts: PackedStringArray) -> String:
+	if parts.size() > 1:
+		return "%s +%d" % [parts[0], parts.size() - 1]
+	return ", ".join(parts)
+
+
+func _bench_missing_parts(recipe_id: String, equipment_out: bool) -> PackedStringArray:
+	var ings: Dictionary = Equipment.get_recipe_ingredients(recipe_id) if equipment_out else Backpack.get_recipe_ingredients(recipe_id)
+	var parts: PackedStringArray = PackedStringArray()
+	for key: Variant in ings.keys():
+		var iid: String = str(key)
+		var missing: int = int(ings[key]) - _bench_have(iid)
+		if missing > 0:
+			parts.append("Need %d %s" % [missing, _bench_item_name(iid)])
+	return parts
+
+
+func _bench_have(iid: String) -> int:
+	if StringName(iid) in Backpack.RESOURCE_IDS:
+		return GameState.get_resource(StringName(iid))
+	if Backpack.is_known_item(iid):
+		return Backpack.get_count(iid)
+	return Equipment.gear_count_anywhere(iid)
+
+
+func _bench_item_name(iid: String) -> String:
+	if StringName(iid) in Backpack.RESOURCE_IDS:
+		return ContentStrings.get_text("hud_%s" % iid)
+	if Backpack.is_known_item(iid):
+		return Backpack.item_display_name(iid)
+	return Equipment.item_display_name(iid)
+
+
+func _bench_detail_label(text: String, pos: Vector2, w: float, muted: bool = false) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	GameTheme.style_ink_label(lbl, muted)
+	lbl.position = pos
+	lbl.size = Vector2(w, 22)
+	lbl.clip_text = true
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_bench_detail.add_child(lbl)
+	return lbl
+
+
+func _refresh_bench_detail() -> void:
+	if _bench_detail == null:
+		return
+	for child: Node in _bench_detail.get_children():
+		child.queue_free()
+	var rid: String = _bench_selected
+	if rid == "":
+		return
+	var gear: bool = Equipment.has_recipe(rid)
+	var def: Dictionary = Equipment.get_recipe_def(rid) if gear else Backpack.get_recipe_def(rid)
+	var out_id: String = str(def.get("output_id", rid))
+	var rw: float = _bench_detail.size.x
+	var frame := Panel.new()
+	frame.position = Vector2.ZERO
+	frame.size = Vector2(108, 108)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2)))
+	_bench_detail.add_child(frame)
+	var big: Control = _make_item_icon(out_id, "")
+	big.position = Vector2(6, 6)
+	big.size = Vector2(96, 96)
+	big.custom_minimum_size = Vector2(96, 96)
+	if big is TextureRect:
+		(big as TextureRect).expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	frame.add_child(big)
+	var tx: float = 124.0
+	var name_lbl := Label.new()
+	name_lbl.text = _bench_item_name(out_id)
+	GameTheme.style_heading_label(name_lbl)
+	name_lbl.position = Vector2(tx, -2)
+	name_lbl.size = Vector2(rw - tx, 40)
 	name_lbl.clip_text = true
 	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	var cost_lbl := Label.new()
-	## Costs only — long tool/fertilizer fluff overflowed the panel.
-	cost_lbl.text = _craft_row_cost_text(recipe_id)
-	cost_lbl.add_theme_font_size_override("font_size", 11)
-	cost_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
-	cost_lbl.clip_text = true
-	cost_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	cost_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
-	info.add_child(name_lbl)
-	info.add_child(cost_lbl)
-	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(72, 28)
-	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	btn.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var reason: String = Equipment.craft_block_reason(recipe_id) if equipment_out else Backpack.craft_block_reason(recipe_id)
-	if reason == "unique":
-		btn.text = ContentStrings.get_text("backpack_owned")
-		btn.disabled = true
-		_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
-	elif reason != "":
-		btn.text = ContentStrings.get_text("handcraft_prompt")
-		btn.disabled = true
-		_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
-	else:
-		btn.text = ContentStrings.get_text("handcraft_prompt")
-		_apply_button_chrome(btn, BUY_CAN, GOLD)
-		btn.pressed.connect(_on_bench_recipe_selected.bind(recipe_id))
-	row.add_child(info)
-	row.add_child(btn)
-	row.set_meta("recipe_id", recipe_id)
-	return row
+	_bench_detail.add_child(name_lbl)
+	var cat: String = _bench_recipe_category(rid, gear)
+	var sub: String = {"weapons": "Weapon", "tools": "Tool", "parts": "Part"}.get(cat, "")
+	var stats: String = ""
+	if gear:
+		var item: Dictionary = Equipment.get_item_def(out_id)
+		var kind: String = str(item.get("damage_kind", ""))
+		if kind != "":
+			sub += " · " + kind.capitalize()
+		var bon: Variant = item.get("bonuses", {})
+		if typeof(bon) == TYPE_DICTIONARY:
+			var bits: PackedStringArray = PackedStringArray()
+			for stat: Variant in (bon as Dictionary).keys():
+				bits.append("%s +%d" % [str(stat).capitalize(), int((bon as Dictionary)[stat])])
+			stats = "  ".join(bits)
+	if stats == "":
+		stats = _item_examine_text(out_id).get_slice("\n", 0)
+	if stats == "" or stats == name_lbl.text:
+		stats = "—"
+	_bench_detail_label(sub, Vector2(tx, 34), rw - tx, true)
+	_bench_detail_label(stats, Vector2(tx, 56), rw - tx)
+	_bench_detail_label("Handcraft at the Bench", Vector2(tx, 78), rw - tx, true)
+	var mat_title := _bench_detail_label("Materials", Vector2(0, 118), rw)
+	mat_title.add_theme_font_override("font", GameTheme.title_font())
+	var ings: Dictionary = Equipment.get_recipe_ingredients(rid) if gear else Backpack.get_recipe_ingredients(rid)
+	var col_w: float = floorf(rw * 0.5)
+	var j: int = 0
+	for key: Variant in ings.keys():
+		var iid: String = str(key)
+		var need: int = int(ings[key])
+		var have: int = _bench_have(iid)
+		var mx: float = float(j % 2) * col_w
+		var my: float = 142.0 + float(j / 2) * 40.0
+		var ic: Control = _make_item_icon(iid, _bench_item_name(iid))
+		ic.position = Vector2(mx, my + 2)
+		ic.size = Vector2(32, 32)
+		_bench_detail.add_child(ic)
+		_bench_detail_label(_bench_item_name(iid), Vector2(mx + 38, my + 7), col_w - 38 - 80)
+		var cnt := _bench_detail_label("%d/%d" % [have, need], Vector2(mx + col_w - 12 - 76, my + 7), 76)
+		cnt.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		if have < need:
+			cnt.add_theme_color_override("font_color", SHORT_RED)
+		j += 1
 
 
 func _item_examine_text(item_id: String) -> String:
@@ -2743,7 +4323,13 @@ func _on_bench_recipe_selected(recipe_id: String) -> void:
 	var panel: BatchPanel = _ensure_bench_batch()
 	if panel == null:
 		return
+	_bench_selected = recipe_id
 	panel.bind_recipe(recipe_id)
+	for row: Node in craft_list.get_children():
+		var pick: Button = row.get_node_or_null("Pick") as Button
+		if pick:
+			pick.set_pressed_no_signal(str(row.get_meta("recipe_id", "")) == recipe_id)
+	_refresh_bench_detail()
 
 
 func _on_craft(recipe_id: String) -> void:
@@ -2802,12 +4388,16 @@ func _refresh_ascension_copy() -> void:
 	if prestige_title == null:
 		return
 	prestige_title.text = ContentStrings.get_text("fruit_panel_title")
-	prestige_sub.text = ContentStrings.get_text("fruit_shop_only_banner")
+	if _shop_preview_mode:
+		prestige_sub.text = ContentStrings.get_text("ascend_shop_preview_line")
+	elif prestige_sub:
+		prestige_sub.text = ContentStrings.get_text("fruit_shop_only_banner")
 	if shard_count_label:
 		shard_count_label.text = str(GameState.manashards)
-	ascend_button.visible = GameState.fruit_harvested_pending_ascend
+	ascend_button.visible = GameState.fruit_harvested_pending_ascend and not _shop_preview_mode
 	ascend_button.disabled = not GameState.can_ascend()
 	ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
+	_layout_ascension_shop()
 	if _highlight_ascend and GameState.can_ascend():
 		_apply_ascend_highlight()
 	else:
@@ -2824,87 +4414,346 @@ func _clear_ascend_highlight() -> void:
 	ascend_button.modulate = Color.WHITE
 
 
+func _ensure_shop_toolbar() -> void:
+	if ascension_panel == null or _shop_toolbar != null:
+		return
+	_shop_toolbar = HBoxContainer.new()
+	_shop_toolbar.name = "ShopToolbar"
+	_shop_toolbar.add_theme_constant_override("separation", 12)
+	ascension_panel.add_child(_shop_toolbar)
+	_hide_locked_toggle = CheckButton.new()
+	_hide_locked_toggle.text = ContentStrings.get_text("ascend_shop_hide_locked")
+	_hide_locked_toggle.custom_minimum_size = Vector2(0, 44)
+	_hide_locked_toggle.toggled.connect(_on_hide_locked_toggled)
+	_shop_toolbar.add_child(_hide_locked_toggle)
+	_hide_maxed_toggle = CheckButton.new()
+	_hide_maxed_toggle.text = ContentStrings.get_text("ascend_shop_hide_maxed")
+	_hide_maxed_toggle.custom_minimum_size = Vector2(0, 44)
+	_hide_maxed_toggle.toggled.connect(_on_hide_maxed_toggled)
+	_shop_toolbar.add_child(_hide_maxed_toggle)
+	_sync_shop_toolbar()
+
+
+func _sync_shop_toolbar() -> void:
+	if _hide_locked_toggle == null or _hide_maxed_toggle == null:
+		return
+	_hide_locked_toggle.set_block_signals(true)
+	_hide_maxed_toggle.set_block_signals(true)
+	_hide_locked_toggle.button_pressed = GameState.shop_hide_locked
+	_hide_maxed_toggle.button_pressed = GameState.shop_hide_maxed
+	_hide_locked_toggle.set_block_signals(false)
+	_hide_maxed_toggle.set_block_signals(false)
+
+
+func _on_hide_maxed_toggled(pressed: bool) -> void:
+	GameState.shop_hide_maxed = pressed
+	_rebuild_upgrades()
+	SaveService.save_game()
+
+
+func _on_hide_locked_toggled(pressed: bool) -> void:
+	if pressed:
+		GameState.shop_hide_locked = true
+		_rebuild_upgrades()
+		SaveService.save_game()
+		return
+	if not GameState.shop_hide_locked:
+		return
+	if GameState.shop_spoiler_shown_count >= 3:
+		GameState.shop_hide_locked = false
+		_rebuild_upgrades()
+		SaveService.save_game()
+		return
+	_spoiler_pending_unlock = true
+	_show_spoiler_dialog()
+
+
+func _ensure_spoiler_dialog() -> void:
+	if _spoiler_dialog != null:
+		return
+	_spoiler_dialog = _make_kit_confirm("AscendSpoilerDialog", _on_spoiler_peek, _on_spoiler_stay)
+	_spoiler_dialog.z_index = Z_MODAL + 2
+
+
+## Bare confirm (Title, Body, Yes = action, No = safe); Ui540.layout_confirm styles and sizes it.
+func _make_kit_confirm(node_name: String, on_yes: Callable, on_no: Callable) -> Panel:
+	var dialog := Panel.new()
+	dialog.name = node_name
+	dialog.visible = false
+	dialog.z_index = Z_MODAL
+	dialog.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(dialog)
+	for label_name: String in ["Title", "Body"]:
+		var lbl := Label.new()
+		lbl.name = label_name
+		dialog.add_child(lbl)
+	var yes := Button.new()
+	yes.name = "Yes"
+	yes.pressed.connect(on_yes)
+	dialog.add_child(yes)
+	var no := Button.new()
+	no.name = "No"
+	no.pressed.connect(on_no)
+	dialog.add_child(no)
+	return dialog
+
+
+func _show_kit_confirm(dialog: Panel, title: String, body: String, yes_text: String, no_text: String) -> void:
+	var title_lbl: Label = dialog.get_node("Title") as Label
+	var body_lbl: Label = dialog.get_node("Body") as Label
+	var yes: Button = dialog.get_node("Yes") as Button
+	var no: Button = dialog.get_node("No") as Button
+	title_lbl.text = title
+	body_lbl.text = body.trim_prefix(title + " ")
+	yes.text = yes_text
+	no.text = no_text
+	Ui540.layout_confirm(dialog, title_lbl, body_lbl, yes, no)
+	dialog.visible = true
+	no.grab_focus.call_deferred()
+	_refresh_dim()
+
+
+func _show_spoiler_dialog() -> void:
+	_ensure_spoiler_dialog()
+	_show_kit_confirm(_spoiler_dialog,
+		ContentStrings.get_text("ascend_spoiler_title"),
+		ContentStrings.get_text("ascend_spoiler_body"),
+		ContentStrings.get_text("ascend_spoiler_confirm"),
+		ContentStrings.get_text("ascend_spoiler_stay"))
+	_sync_shop_toolbar()
+
+
+func _hide_spoiler_dialog() -> void:
+	if _spoiler_dialog:
+		_spoiler_dialog.visible = false
+	_spoiler_pending_unlock = false
+	_refresh_dim()
+
+
+func _on_spoiler_peek() -> void:
+	GameState.shop_spoiler_shown_count += 1
+	GameState.shop_hide_locked = false
+	_hide_spoiler_dialog()
+	_sync_shop_toolbar()
+	_rebuild_upgrades()
+	SaveService.save_game()
+
+
+func _on_spoiler_stay() -> void:
+	_hide_spoiler_dialog()
+	_sync_shop_toolbar()
+
+
+func _ensure_care_blessings_button() -> void:
+	if care_panel == null or _blessings_preview_button != null:
+		return
+	_blessings_preview_button = Button.new()
+	_blessings_preview_button.name = "BlessingsPreviewButton"
+	_blessings_preview_button.position = Vector2(CARE_SIZE.x - 124.0, 18.0)
+	_blessings_preview_button.size = Vector2(44, 44)
+	_blessings_preview_button.text = ""
+	_blessings_preview_button.tooltip_text = ContentStrings.get_text("ascend_shop_preview_line")
+	_blessings_preview_button.icon = HudIcons.cell(HudIcons.ASCENSION)
+	_blessings_preview_button.expand_icon = true
+	Ui540.style_wood_icon_button(_blessings_preview_button)
+	care_header.add_child(_blessings_preview_button)
+	_blessings_preview_button.pressed.connect(_on_care_blessings_preview)
+
+
+func _on_care_blessings_preview() -> void:
+	hide_care_menu()
+	show_ascension_shop_preview()
+
+
+func _upgrade_rank_label(rank: int, upgrade_id: String) -> String:
+	var cap: int = GameState.upgrade_max_rank(upgrade_id)
+	if cap >= 1_000_000:
+		return ContentStrings.get_text("upgrade_rank_endless", {"rank": rank})
+	return ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": cap})
+
+
 func _rebuild_upgrades() -> void:
 	for child: Node in upgrade_list.get_children():
 		child.queue_free()
-	if not GameState.fruit_harvested_pending_ascend:
+	if not _shop_preview_mode and not GameState.fruit_harvested_pending_ascend:
 		return
-	var stripe: bool = false
+	var locked_hidden: int = 0
+	var maxed_hidden: int = 0
 	for entry: Variant in GameState.upgrades_data:
 		if typeof(entry) != TYPE_DICTIONARY:
 			continue
 		var d: Dictionary = entry
 		var uid: String = str(d.get("id", ""))
+		if uid == "":
+			continue
 		var rank: int = GameState.get_upgrade_rank(uid)
-		var max_rank: int = int(d.get("max_rank", 1))
-		var cost: int = GameState.get_upgrade_cost(uid)
-		var row := PanelContainer.new()
-		row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
-		var row_sb := StyleBoxFlat.new()
-		if stripe:
-			row_sb.bg_color = Color(0.20, 0.14, 0.09, 1.0)
-		else:
-			row_sb.bg_color = Color(0.15, 0.10, 0.07, 1.0)
-		row_sb.set_border_width_all(0)
-		row_sb.border_color = Color(0.35, 0.26, 0.14, 0.5)
-		row_sb.border_width_bottom = 1
-		row.add_theme_stylebox_override("panel", row_sb)
-		var inner := HBoxContainer.new()
-		inner.custom_minimum_size = Vector2(0, SHOP_ROW_H)
-		inner.add_theme_constant_override("separation", 8)
-		inner.add_child(_upgrade_icon(uid, d))
-		var info := VBoxContainer.new()
-		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		info.alignment = BoxContainer.ALIGNMENT_CENTER
-		var name_lbl := Label.new()
-		if uid == "keep_tools":
-			name_lbl.text = ContentStrings.get_text("upgrade_keep_tools_name")
-		else:
-			name_lbl.text = str(d.get("display_name", uid))
-		name_lbl.add_theme_font_size_override("font_size", 13)
-		name_lbl.add_theme_color_override("font_color", Color(0.92, 0.86, 0.72, 1.0))
-		var desc: String = _upgrade_description(uid, d)
-		var rank_lbl := Label.new()
-		if desc != "":
-			rank_lbl.text = "%s  ·  %s" % [
-				desc,
-				ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank}),
-			]
-		else:
-			rank_lbl.text = ContentStrings.get_text("upgrade_rank", {"rank": rank, "max": max_rank})
-		rank_lbl.add_theme_font_size_override("font_size", 11)
-		rank_lbl.add_theme_color_override("font_color", Color(0.70, 0.64, 0.52, 1.0))
-		rank_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		info.add_child(name_lbl)
-		info.add_child(rank_lbl)
-		if desc != "":
-			row.tooltip_text = desc
-			inner.tooltip_text = desc
-			name_lbl.tooltip_text = desc
-			rank_lbl.tooltip_text = desc
+		var unlocked: bool = GameState.is_upgrade_unlocked(uid)
+		var maxed: bool = rank >= GameState.upgrade_max_rank(uid)
+		var always_show: bool = uid == "party_banner"
+		if GameState.shop_hide_maxed and maxed:
+			maxed_hidden += 1
+			continue
+		if GameState.shop_hide_locked and not unlocked and not always_show:
+			locked_hidden += 1
+			continue
+		upgrade_list.add_child(_make_upgrade_row(uid, d, rank, unlocked, maxed))
+	if maxed_hidden > 0:
+		upgrade_list.add_child(_shop_summary_row(
+			ContentStrings.get_text("ascend_shop_complete_collapsed", {"count": maxed_hidden}), false
+		))
+	if locked_hidden > 0:
+		upgrade_list.add_child(_shop_summary_row(
+			ContentStrings.get_text("ascend_shop_locked_collapsed", {"count": locked_hidden}), true
+		))
+
+
+func _make_upgrade_row(uid: String, d: Dictionary, rank: int, unlocked: bool, maxed: bool) -> PanelContainer:
+	var cost: int = GameState.get_upgrade_cost(uid)
+	var row := PanelContainer.new()
+	row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
+	row.add_theme_stylebox_override("panel", _shop_row_style())
+	var desc: String = _upgrade_description(uid, d)
+	row.tooltip_text = desc if desc != "" else _upgrade_display_name(uid, d)
+	var inner := HBoxContainer.new()
+	inner.add_theme_constant_override("separation", 10)
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(inner)
+	var can_buy: bool = unlocked and not maxed and GameState.manashards >= cost
+	var icon: TextureRect = _upgrade_icon(uid, d)
+	if not unlocked:
+		icon.self_modulate = Color(0.35, 0.32, 0.30, 1.0)
+		var lock := TextureRect.new()
+		lock.name = "Lock"
+		lock.texture = _load_ui_tex(SHOP_LOCK_ICON)
+		lock.set_anchors_preset(Control.PRESET_FULL_RECT)
+		lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.add_child(lock)
+	elif not can_buy and not maxed and not _shop_preview_mode:
+		icon.modulate = Color(0.6, 0.6, 0.6, 1.0)
+	inner.add_child(icon)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.alignment = BoxContainer.ALIGNMENT_CENTER
+	info.add_theme_constant_override("separation", -2)
+	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_child(info)
+	var name_lbl := Label.new()
+	name_lbl.text = _upgrade_display_name(uid, d)
+	GameTheme.style_ink_label(name_lbl, not unlocked)
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	info.add_child(name_lbl)
+	var rank_lbl := Label.new()
+	rank_lbl.text = "%s  ·  %s" % [desc, _upgrade_rank_label(rank, uid)] if desc != "" else _upgrade_rank_label(rank, uid)
+	GameTheme.style_ink_label(rank_lbl, true)
+	rank_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	rank_lbl.custom_minimum_size.x = 120.0
+	info.add_child(rank_lbl)
+	if maxed or not unlocked:
+		inner.add_child(_shop_state_label(
+			ContentStrings.get_text("upgrade_maxed") if maxed else ContentStrings.get_text("equip_locked")))
+	elif _shop_preview_mode:
+		inner.add_child(_shop_price(cost))
+	else:
+		if not can_buy:
+			var need := Label.new()
+			need.text = ContentStrings.get_text("upgrade_need_more", {"count": cost - GameState.manashards})
+			GameTheme.style_ink_label(need)
+			need.add_theme_color_override("font_color", SHORT_RED)
+			need.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			inner.add_child(need)
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(108, 32)
+		btn.name = "Buy"
+		btn.text = str(cost)
+		btn.icon = _load_ui_tex(SHOP_SHARD_ICON)
+		btn.expand_icon = false
+		btn.custom_minimum_size = Vector2(SHOP_BUY_W, 44)
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		if rank >= max_rank:
-			btn.text = ContentStrings.get_text("upgrade_maxed")
-			btn.disabled = true
-			_apply_button_chrome(btn, Color(0.22, 0.18, 0.12, 1.0), GOLD)
-		elif GameState.manashards < cost:
-			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
-			btn.disabled = true
-			_apply_button_chrome(btn, Color(0.22, 0.12, 0.10, 1.0), BUY_CANT)
-		else:
-			btn.text = "%s %d" % [ContentStrings.get_text("upgrade_buy"), cost]
-			_apply_button_chrome(btn, BUY_CAN, GOLD)
+		btn.disabled = not can_buy
+		if can_buy:
+			GameTheme.style_primary_button(btn)
 			btn.pressed.connect(_on_buy.bind(uid))
+		else:
+			GameTheme.style_menu_button(btn)
 		var keep_cost_tip: String = _upgrade_keep_tools_cost_text(uid, cost)
-		if keep_cost_tip != "":
-			btn.tooltip_text = keep_cost_tip
-		inner.add_child(info)
+		btn.tooltip_text = keep_cost_tip if keep_cost_tip != "" else row.tooltip_text
 		inner.add_child(btn)
-		row.add_child(inner)
-		upgrade_list.add_child(row)
-		stripe = not stripe
+	return row
+
+
+## 44 px Buy buttons sit 2 px inside the 48 px row.
+func _shop_row_style() -> StyleBoxTexture:
+	var sb: StyleBoxTexture = Ui540.list_row_style()
+	sb.content_margin_top = 2.0
+	sb.content_margin_bottom = 2.0
+	sb.content_margin_right = 4.0
+	return sb
+
+
+## Fixed-width right column so state labels and prices line up with the Buy buttons.
+func _shop_state_label(text: String) -> Label:
+	var lbl := Label.new()
+	lbl.text = text
+	GameTheme.style_ink_label(lbl, true)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.custom_minimum_size = Vector2(SHOP_BUY_W, 40)
+	return lbl
+
+
+func _shop_price(cost: int) -> HBoxContainer:
+	var box := HBoxContainer.new()
+	box.custom_minimum_size = Vector2(SHOP_BUY_W, 40)
+	box.add_theme_constant_override("separation", 8)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var icon := TextureRect.new()
+	icon.texture = _load_ui_tex(SHOP_SHARD_ICON)
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(icon)
+	var lbl := Label.new()
+	lbl.text = str(cost)
+	GameTheme.style_ink_label(lbl)
+	lbl.custom_minimum_size.x = 64.0
+	box.add_child(lbl)
+	return box
+
+
+func _shop_summary_row(text: String, locked: bool) -> PanelContainer:
+	var row := PanelContainer.new()
+	row.name = "SummaryLocked" if locked else "SummaryComplete"
+	row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
+	row.add_theme_stylebox_override("panel", _shop_row_style())
+	row.tooltip_text = text
+	var inner := HBoxContainer.new()
+	inner.add_theme_constant_override("separation", 10)
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(inner)
+	if locked:
+		var icon := TextureRect.new()
+		icon.texture = _load_ui_tex(SHOP_LOCK_ICON)
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		inner.add_child(icon)
+	var lbl := Label.new()
+	lbl.text = text
+	GameTheme.style_ink_label(lbl, not locked)
+	lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	inner.add_child(lbl)
+	return row
+
+
+func _upgrade_display_name(upgrade_id: String, def: Dictionary) -> String:
+	var key: String = "upgrade_%s_name" % upgrade_id
+	var named: String = ContentStrings.get_text(key)
+	if named != key and named != "":
+		return named
+	if upgrade_id == "keep_tools":
+		return ContentStrings.get_text("upgrade_keep_tools_name")
+	return str(def.get("display_name", upgrade_id))
 
 
 func _upgrade_icon(upgrade_id: String, def: Dictionary) -> TextureRect:
@@ -2980,12 +4829,7 @@ func _on_ascend() -> void:
 			if warn != "":
 				confirm_line = warn
 				ascend_button.tooltip_text = warn
-		_show_toast("%s\n%s" % [
-			confirm_line,
-			ContentStrings.get_text("ascend_hint"),
-		])
-		ascend_button.text = ContentStrings.get_text("ascend_confirm_yes")
-		_refresh_ascension_copy()
+		_show_ascend_batch_dialog(confirm_line)
 		return
 	_confirm_ascend = false
 	_confirm_batches = false
@@ -3002,60 +4846,35 @@ func _on_ascend() -> void:
 
 func _show_ascend_batch_dialog(body: String) -> void:
 	_ensure_ascend_batch_dialog()
-	if _ascend_batch_body:
-		_ascend_batch_body.text = body
-	if _ascend_batch_dialog:
-		_ascend_batch_dialog.visible = true
+	_show_kit_confirm(_ascend_batch_dialog,
+		ContentStrings.get_text("ascend_confirm_title"),
+		body,
+		ContentStrings.get_text("ascend_confirm_yes"),
+		ContentStrings.get_text("ascend_confirm_no"))
 
 
 func _hide_ascend_batch_dialog() -> void:
 	if _ascend_batch_dialog:
 		_ascend_batch_dialog.visible = false
+		_refresh_dim()
 
 
 func _ensure_ascend_batch_dialog() -> void:
 	if _ascend_batch_dialog != null and is_instance_valid(_ascend_batch_dialog):
 		return
-	var dialog := PanelContainer.new()
-	dialog.name = "AscendBatchDialog"
-	dialog.position = Vector2(280, 160)
-	dialog.size = Vector2(720, 360)
-	dialog.z_index = 40
-	dialog.mouse_filter = Control.MOUSE_FILTER_STOP
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	var body := Label.new()
-	body.name = "Body"
-	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.custom_minimum_size = Vector2(680, 220)
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_color_override("font_color", Color(0.93, 0.9, 0.78, 1))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	var yes := Button.new()
-	yes.name = "Yes"
-	yes.text = ContentStrings.get_text("ascend_confirm_yes")
-	yes.pressed.connect(_on_ascend_batch_yes)
-	var no := Button.new()
-	no.name = "No"
-	no.text = ContentStrings.get_text("ascend_confirm_no")
-	no.pressed.connect(_on_ascend_batch_no)
-	row.add_child(yes)
-	row.add_child(no)
-	box.add_child(body)
-	box.add_child(row)
-	dialog.add_child(box)
-	add_child(dialog)
-	_ascend_batch_dialog = dialog
-	_ascend_batch_body = body
+	_ascend_batch_dialog = _make_kit_confirm("AscendBatchDialog", _on_ascend_batch_yes, _on_ascend_batch_no)
+	_ascend_batch_dialog.z_index = Z_MODAL + 2
+	_ascend_batch_body = _ascend_batch_dialog.get_node("Body") as Label
 
 
 func _on_ascend_batch_yes() -> void:
 	_confirm_batches = true
+	_confirm_ascend = true
 	_hide_ascend_batch_dialog()
 	_on_ascend()
 
 
 func _on_ascend_batch_no() -> void:
 	_confirm_batches = false
+	_confirm_ascend = false
 	_hide_ascend_batch_dialog()

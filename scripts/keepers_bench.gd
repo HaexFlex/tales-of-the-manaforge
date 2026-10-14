@@ -57,10 +57,15 @@ func _apply_walk_box() -> void:
 	FeetBox.apply_size(shape_node, box, Vector2.ZERO)
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("bench_title")
+
+
 func _on_title_hover(inside: bool) -> void:
 	var title: Label = get_node_or_null("Title") as Label
 	if title:
 		title.visible = inside
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func stand_global() -> Vector2:

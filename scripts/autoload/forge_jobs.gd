@@ -35,7 +35,6 @@ var _last_big_done_msec: int = -1000000
 var _allow_scene_change: bool = true
 ## -1 follows the live scene. 0/1 forces the upcycle tick inside or outside the Forge.
 var _in_forge_override: int = -1
-var _materials_snapshot: Dictionary = {}
 var _repeat_override: Dictionary = {}
 ## One phase for every wisp on every target. Advanced once per frame, not once per wisp.
 var _wisp_orbit_phase: float = 0.0
@@ -293,13 +292,13 @@ func _output_icon_path(item_id: String) -> String:
 			return from_art
 	match item_id:
 		"wood":
-			return "res://assets/art/ui/icon_wood.png"
+			return "res://assets_extra/shared/icon_wood.png"
 		"stone":
-			return "res://assets/art/ui/icon_stone.png"
+			return "res://assets_extra/shared/icon_stone.png"
 		"food":
-			return "res://assets/art/ui/icon_food.png"
+			return "res://assets_extra/shared/icon_food.png"
 		"essence":
-			return "res://assets/art/ui/icon_essence.png"
+			return "res://assets_extra/shared/icon_essence.png"
 		_:
 			return ""
 
@@ -388,6 +387,8 @@ func matches_backpack_filter(item_id: String, filter_id: String) -> bool:
 			want = "weapon"
 		"relics":
 			want = "relic"
+		"potions":
+			return has_node("/root/Backpack") and Backpack.item_kind(item_id) == "consumable"
 	return category_of(item_id) == want
 
 
@@ -619,31 +620,8 @@ func try_door_entry(actor_id: String) -> String:
 
 
 func request_door_walk() -> String:
-	## The selected hero walks into the sill. Only that hero changes scene.
-	if not has_node("/root/GameState"):
-		return "denied"
-	var actor: String = GameState.selected_hero_id()
-	if actor == "":
-		actor = "keeper"
-	var area: String = GameState.elaia_area if actor == "elaia" else GameState.keeper_area
-	if area != "clearing" or in_forge_scene():
-		return "away"
-	var hero: Node = null
-	if actor == "elaia":
-		hero = get_tree().get_first_node_in_group("elaia") if get_tree() != null else null
-	else:
-		hero = get_tree().get_first_node_in_group("keeper") if get_tree() != null else null
-	if hero == null or not hero.has_method("move_to"):
-		return "denied"
-	var dest: Vector2 = door_entry_point()
-	if hero is Node2D and (hero as Node2D).global_position.distance_to(dest) <= 18.0:
-		_clear_door_walk()
-		return try_door_entry(actor)
-	## One click walks to the sill. Entry happens when they arrive, not on a second click.
-	_door_walk_actor = actor
-	_door_stuck_frames = 0
-	hero.call("move_to", dest, null)
-	return "walking"
+	## The Keeper does not walk into the Forge. Only the Enter Forge button enters.
+	return "denied"
 
 
 func _defer_scene(path: String) -> void:
@@ -687,38 +665,8 @@ func _door_hero(actor: String) -> Node:
 
 
 func _tick_door_walk() -> void:
-	## The walk stops within arrive distance of the sill, which can sit just
-	## outside the feet trigger. Enter from that stop. A second click is not required.
-	if _door_walk_actor == "":
-		return
-	var actor: String = _door_walk_actor
-	var hero: Node = _door_hero(actor)
-	if hero == null or not (hero is Node2D):
-		_clear_door_walk()
-		return
-	var dist: float = (hero as Node2D).global_position.distance_to(door_entry_point())
-	## Arrival can sit just outside the feet trigger. Enter from that stop.
-	if dist <= 22.0:
-		_clear_door_walk()
-		try_door_entry(actor)
-		return
-	## move_to raises _moving before the body has a velocity. That first
-	## zero-velocity sample is the start of the walk, not a blocked path.
-	var still_pathing: bool = bool(hero.get("_moving"))
-	var speed_now: float = 0.0
-	if hero is CharacterBody2D:
-		speed_now = (hero as CharacterBody2D).velocity.length()
-	if still_pathing or speed_now >= 12.0:
-		_door_stuck_frames = 0
-		return
-	if dist <= 72.0:
-		_door_stuck_frames += 1
-		if _door_stuck_frames >= 6:
-			_clear_door_walk()
-			try_door_entry(actor)
-		return
-	_door_stuck_frames += 1
-	if _door_stuck_frames >= 30:
+	## Leftover walk state must not enter the Forge.
+	if _door_walk_actor != "":
 		_clear_door_walk()
 
 
@@ -1239,8 +1187,8 @@ func _grant_offline(eff: float, raw_sec: float = -1.0) -> Dictionary:
 
 func ascend_warning() -> String:
 	var parts: PackedStringArray = PackedStringArray()
-	if GameState.get_upgrade_rank("keep_forge_intermediates") <= 0:
-		parts.append(copy_text("ascend_warning_materials"))
+	## Forge materials always wipe. There is no blessing that keeps them.
+	parts.append(copy_text("ascend_warning_materials"))
 	if GameState.get_upgrade_rank("keep_forge_jobs") <= 0:
 		parts.append(copy_text("ascend_warning_jobs"))
 	var batches: String = ascend_confirm_text()
@@ -1273,26 +1221,18 @@ func ascend_confirm_text() -> String:
 
 
 func prepare_ascend() -> Dictionary:
-	var snap: Dictionary = {}
-	for mat: String in _forge_materials():
-		if has_node("/root/Backpack"):
-			snap[mat] = Backpack.get_count(mat)
+	## Jobs may stay with Banked Embers. Forge materials always wipe with the backpack.
 	if GameState.get_upgrade_rank("keep_forge_jobs") <= 0:
 		_jobs.clear()
 	_companions.clear()
 	note_keeper_idle()
 	note_elaia_idle()
-	_materials_snapshot = snap
-	return snap
+	return {}
 
 
-func finish_ascend(snap: Dictionary) -> void:
-	if GameState.get_upgrade_rank("keep_forge_intermediates") <= 0:
-		return
-	if not has_node("/root/Backpack"):
-		return
-	for key: Variant in snap.keys():
-		Backpack.set_count(str(key), int(snap[key]))
+func finish_ascend(_snap: Dictionary) -> void:
+	## Nothing to put back. Sapsteel, Heartwood Bits and Amberbind are already wiped.
+	return
 
 
 func capture_save_fields() -> Dictionary:
@@ -1376,7 +1316,6 @@ func reset_for_new_game() -> void:
 	_return_to_clearing = false
 	_pending_scene = ""
 	_scene_swap_queued = false
-	_materials_snapshot.clear()
 	_repeat_override.clear()
 
 
@@ -1800,7 +1739,10 @@ func _inputs(recipe: Dictionary) -> Dictionary:
 
 
 func _duration(recipe: Dictionary) -> float:
-	return maxf(float(recipe.get("duration_sec", 1.0)), 0.05)
+	var base: float = maxf(float(recipe.get("duration_sec", 1.0)), 0.05)
+	if has_node("/root/GameState"):
+		return base * GameState.forge_warmth_mult()
+	return base
 
 
 func _recipe(recipe_id: String) -> Dictionary:

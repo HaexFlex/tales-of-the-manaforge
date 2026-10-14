@@ -149,10 +149,17 @@ func serves_bramble() -> bool:
 	return EchoChamber.hub_portal_context() == "echo2"
 
 
+func world_hover_name() -> String:
+	if serves_bramble():
+		return ContentStrings.get_text("bramble_name")
+	return ContentStrings.get_text("portal_label")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	if label:
 		label.visible = _hovered and visible
+	WorldHover.sync(self, inside and visible, world_hover_name())
 
 
 static func is_fee_confirm_open() -> bool:

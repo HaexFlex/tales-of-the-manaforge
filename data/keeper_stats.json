@@ -14,7 +14,6 @@
     "cost_base": 100,
     "cost_growth": 1.65,
     "power_per_rank": 1,
-    "max_rank": 40,
     "stat_base_start": 5
   },
   "stats": [

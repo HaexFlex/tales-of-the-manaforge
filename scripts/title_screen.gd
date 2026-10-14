@@ -1,27 +1,36 @@
 extends Control
-## SNES-style front door. Hub BGM is already playing from GameAudio and is not restarted.
+## Title screen (540p kit). Hub BGM is already playing from GameAudio and is not restarted.
 
 const MAIN_SCENE: String = "res://scenes/main.tscn"
+const KIT_DIALOG: PackedScene = preload("res://scenes/ui/kit_dialog.tscn")
+const LOGO_POS: Vector2 = Vector2(52, 22)
+const MENU_POS: Vector2 = Vector2(166, 168)
+## Frame padding around the menu column: left, top, right, bottom.
+const MENU_FRAME_PAD: Vector4 = Vector4(28, 20, 28, 22)
+const WOOD_FILL: Color = Color8(104, 66, 38)
+const WOOD_SEAM: Color = Color8(80, 48, 27)
+const WOOD_BOARD_H: float = 26.0
+const SAVE_CHIP_H: float = 24.0
 
 @onready var fade: ColorRect = $Fade
 @onready var menu: VBoxContainer = $Menu
-@onready var cursor: TextureRect = $Cursor
+@onready var logo: TextureRect = $Logo
 @onready var btn_continue: Button = $Menu/BtnContinue
+@onready var save_info: Label = $Menu/SaveInfo
 @onready var btn_new: Button = $Menu/BtnNewGame
 @onready var btn_load: Button = $Menu/BtnLoad
 @onready var btn_options: Button = $Menu/BtnOptions
 @onready var btn_quit: Button = $Menu/BtnQuit
-@onready var confirm_panel: ColorRect = $ConfirmPanel
-@onready var confirm_label: Label = $ConfirmPanel/ConfirmLabel
-@onready var confirm_yes: Button = $ConfirmPanel/ConfirmYes
-@onready var confirm_no: Button = $ConfirmPanel/ConfirmNo
 @onready var pause_menu: PauseMenu = $PauseMenu
 
 var _items: Array[Button] = []
 var _index: int = 0
 var _fade: float = 1.0
-var _blink: float = 0.0
 var _confirm_action: String = ""
+var _active_dialog: KitDialog
+var _menu_frame: Panel
+var _version_label: Label
+var _armed: bool = false
 
 
 func _ready() -> void:
@@ -29,20 +38,20 @@ func _ready() -> void:
 	get_tree().paused = false
 	Engine.time_scale = 1.0
 	GameState.reset_play_speed()
-	if has_node("/root/GameTheme"):
-		GameTheme.apply_app_theme()
+	GameTheme.apply_app_theme()
 	GameAudio.play_hub_music()
-	_style_button(btn_continue)
-	_style_button(btn_new)
-	_style_button(btn_load)
-	_style_button(btn_options)
-	_style_button(btn_quit)
+	for btn: Button in [btn_continue, btn_new, btn_load, btn_options, btn_quit]:
+		btn.add_to_group("title_hero_button")
+		GameTheme.style_title_hero_button(btn)
+		btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn_continue.text = ContentStrings.get_text("title_continue")
 	btn_new.text = ContentStrings.get_text("title_new_game")
 	btn_load.text = ContentStrings.get_text("title_load")
 	btn_options.text = ContentStrings.get_text("title_options")
 	btn_quit.text = ContentStrings.get_text("title_quit")
 	btn_continue.visible = SaveService.has_save()
+	Ui540.hide_on_phone(btn_quit)
+	_refresh_save_info()
 	btn_continue.pressed.connect(_on_continue)
 	btn_new.pressed.connect(_on_new_game)
 	btn_load.pressed.connect(_on_load)
@@ -50,21 +59,104 @@ func _ready() -> void:
 	btn_quit.pressed.connect(_on_quit)
 	for child: Node in menu.get_children():
 		if child is Button:
-			var b: Button = child as Button
-			b.add_to_group("title_hero_button")
 			(child as Button).focus_entered.connect(_on_menu_focus.bind(child))
-	confirm_yes.pressed.connect(_on_confirm_yes)
-	confirm_no.pressed.connect(_on_confirm_no)
-	confirm_panel.visible = false
 	pause_menu.suppress_pause_hotkey = true
 	pause_menu.standalone_load_requested.connect(_on_slot_chosen)
 	pause_menu.close_standalone()
-	var cursor_tex: Texture2D = load("res://assets/art/ui/icon_manashards.png") as Texture2D
-	cursor.texture = cursor_tex
-	cursor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_layout_title540()
+	if not get_viewport().size_changed.is_connected(_layout_title540):
+		get_viewport().size_changed.connect(_layout_title540)
 	_rebuild_items()
 	_set_menu_enabled(false)
 	call_deferred("_arm_menu_when_idle")
+
+
+## The background covers the whole logical viewport (cropped at 16:9, full art at 20:9);
+## only the logo and the menu frame follow the 960 design canvas.
+func _layout_title540() -> void:
+	var vs: Vector2 = Ui540.viewport_size()
+	var shift: float = Ui540.center_shift_x()
+	var bg: TextureRect = get_node_or_null("Background") as TextureRect
+	if bg:
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.offset_left = 0.0
+		bg.offset_top = 0.0
+		bg.offset_right = 0.0
+		bg.offset_bottom = 0.0
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	if logo:
+		logo.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		logo.position = Vector2(LOGO_POS.x + shift, LOGO_POS.y)
+		logo.size = logo.texture.get_size() if logo.texture else logo.size
+	_ensure_menu_frame()
+	menu.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	menu.size = Vector2.ZERO
+	var menu_size: Vector2 = menu.get_combined_minimum_size()
+	menu.position = Vector2(MENU_POS.x + shift, MENU_POS.y)
+	menu.size = menu_size
+	_menu_frame.position = menu.position - Vector2(MENU_FRAME_PAD.x, MENU_FRAME_PAD.y)
+	_menu_frame.size = menu_size + Vector2(MENU_FRAME_PAD.x + MENU_FRAME_PAD.z, MENU_FRAME_PAD.y + MENU_FRAME_PAD.w)
+	_version_label.size = Vector2(240.0, 24.0)
+	_version_label.position = Vector2(vs.x - 12.0 - 240.0, vs.y - 10.0 - 24.0)
+
+
+func _ensure_menu_frame() -> void:
+	if _menu_frame != null:
+		return
+	_menu_frame = Panel.new()
+	_menu_frame.name = "MenuFrame"
+	_menu_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var border: StyleBoxTexture = Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/frame_9s_96.png", Vector4i(24, 24, 24, 24), Vector4.ZERO, true
+	)
+	border.draw_center = false
+	var rim := Panel.new()
+	rim.name = "Rim"
+	rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rim.add_theme_stylebox_override("panel", border)
+	_menu_frame.add_child(rim)
+	var fill := Control.new()
+	fill.name = "WoodFill"
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fill.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fill.offset_left = 19.0
+	fill.offset_top = 19.0
+	fill.offset_right = -19.0
+	fill.offset_bottom = -19.0
+	fill.draw.connect(_draw_wood_fill.bind(fill))
+	_menu_frame.add_child(fill)
+	_menu_frame.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	add_child(_menu_frame)
+	move_child(_menu_frame, menu.get_index())
+	var vines: VineFrame = Ui540.attach_vine_frame(_menu_frame, "title")
+	_menu_frame.move_child(vines, _menu_frame.get_child_count() - 1)
+	fill.resized.connect(fill.queue_redraw)
+
+	_version_label = Label.new()
+	_version_label.name = "Version"
+	_version_label.text = "v%s" % str(ProjectSettings.get_setting("application/config/version", ""))
+	_version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_version_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_version_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_version_label.add_theme_font_override("font", GameTheme.body_font())
+	_version_label.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	_version_label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
+	_version_label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
+	_version_label.add_theme_constant_override("outline_size", 4)
+	add_child(_version_label)
+	move_child(_version_label, menu.get_index() + 1)
+
+
+## Dark plank boards behind the menu buttons (the mockup's wood panel; the kit has no such piece).
+func _draw_wood_fill(fill: Control) -> void:
+	var sz: Vector2 = fill.size
+	fill.draw_rect(Rect2(Vector2.ZERO, sz), WOOD_FILL)
+	var y: float = WOOD_BOARD_H
+	while y < sz.y:
+		fill.draw_rect(Rect2(0.0, y, sz.x, 2.0), WOOD_SEAM)
+		y += WOOD_BOARD_H
 
 
 func _process(delta: float) -> void:
@@ -72,18 +164,63 @@ func _process(delta: float) -> void:
 		_fade = maxf(0.0, _fade - delta * 1.4)
 		fade.color = Color(0, 0, 0, _fade)
 		fade.mouse_filter = Control.MOUSE_FILTER_STOP if _fade > 0.05 else Control.MOUSE_FILTER_IGNORE
-	_blink += delta
-	var pulse: float = 0.55 + 0.45 * abs(sin(_blink * 3.2))
-	cursor.modulate = Color(1, 1, 1, pulse)
-	_place_cursor()
 
 
+func _refresh_save_info() -> void:
+	if save_info == null:
+		return
+	save_info.theme_type_variation = &""
+	save_info.add_theme_font_override("font", GameTheme.body_font())
+	save_info.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	save_info.add_theme_color_override("font_color", GameTheme.MUTED)
+	save_info.add_theme_stylebox_override("normal", Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/field_9s_normal_24x24.png", Vector4i(6, 6, 6, 6), Vector4(8, 1, 8, 1)
+	))
+	save_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	save_info.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	save_info.autowrap_mode = TextServer.AUTOWRAP_OFF
+	save_info.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	save_info.custom_minimum_size = Vector2(0, SAVE_CHIP_H)
+	if not SaveService.has_save():
+		save_info.visible = false
+		save_info.text = ""
+		return
+	save_info.visible = true
+	var rec: Dictionary = SaveService.get_most_recent_record()
+	if rec.is_empty():
+		save_info.text = ContentStrings.get_text("title_continue_hint")
+		return
+	var kind: String = str(rec.get("kind", "manual"))
+	var slot: int = int(rec.get("slot", 0))
+	var slot_label: String = "Slot %d" % slot if kind == "manual" else ContentStrings.get_text("load_autosave_slot", {"n": slot})
+	var ts: float = float(rec.get("timestamp", 0.0))
+	var ago: String = _format_time_ago(ts)
+	save_info.text = "%s · %s" % [slot_label, ago]
+	save_info.tooltip_text = "Last save: %s" % save_info.text
+
+
+func _format_time_ago(ts: float) -> String:
+	if ts <= 0.0:
+		return "—"
+	var sec: float = maxf(0.0, Time.get_unix_time_from_system() - ts)
+	if sec < 90.0:
+		return "just now"
+	var mins: int = int(sec / 60.0)
+	if mins < 90:
+		return "%d min ago" % mins
+	var hours: int = int(mins / 60.0)
+	if hours < 48:
+		return "%d hr ago" % hours
+	return "%d days ago" % int(hours / 24.0)
+
+
+## Arming gates input only: the buttons keep their enabled face from the first frame.
 func _set_menu_enabled(enabled: bool) -> void:
-	btn_continue.disabled = not enabled
-	btn_new.disabled = not enabled
-	btn_load.disabled = not enabled
-	btn_options.disabled = not enabled
-	btn_quit.disabled = not enabled
+	_armed = enabled
+	for btn: Button in [btn_continue, btn_new, btn_load, btn_options, btn_quit]:
+		btn.disabled = false
+		btn.mouse_filter = Control.MOUSE_FILTER_STOP if enabled else Control.MOUSE_FILTER_IGNORE
+		btn.focus_mode = Control.FOCUS_ALL if enabled else Control.FOCUS_NONE
 
 
 func _input_held() -> bool:
@@ -98,7 +235,6 @@ func _input_held() -> bool:
 
 
 func _arm_menu_when_idle() -> void:
-	## The editor Play click / accept must not activate Continue or New Game.
 	while is_inside_tree() and (_fade > 0.05 or _input_held()):
 		await get_tree().process_frame
 	if not is_inside_tree():
@@ -123,48 +259,14 @@ func _focus_index(index: int) -> void:
 		return
 	_index = posmod(index, _items.size())
 	_items[_index].grab_focus()
-	_place_cursor()
-
-
-func _place_cursor() -> void:
-	if _items.is_empty() or cursor == null:
-		return
-	var btn: Button = _items[_index]
-	var origin: Vector2 = btn.global_position
-	cursor.global_position = origin + Vector2(-48, btn.size.y * 0.5 - 28)
-
-
-func _style_button(btn: Button) -> void:
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color(0.05, 0.07, 0.08, 0.55)
-	normal.border_color = Color(0.72, 0.58, 0.28, 0.0)
-	normal.set_border_width_all(0)
-	normal.set_content_margin_all(6)
-	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = Color(0.10, 0.12, 0.08, 0.72)
-	hover.border_color = Color(0.86, 0.72, 0.34, 1)
-	hover.set_border_width_all(1)
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("focus", hover)
-	btn.add_theme_stylebox_override("pressed", hover)
-	if has_node("/root/GameTheme"):
-		GameTheme.style_title_hero_button(btn)
-	btn.add_theme_color_override("font_color", Color(0.93, 0.86, 0.62, 1))
-	btn.add_theme_color_override("font_hover_color", Color(1, 0.95, 0.75, 1))
-	btn.add_theme_color_override("font_focus_color", Color(1, 0.95, 0.75, 1))
-	btn.add_theme_color_override("font_pressed_color", Color(1, 1, 0.86, 1))
-	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.focus_mode = Control.FOCUS_ALL
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if pause_menu.visible and pause_menu.standalone:
 		return
-	if confirm_panel.visible:
-		if event.is_action_pressed("ui_cancel"):
-			_on_confirm_no()
-			get_viewport().set_input_as_handled()
+	if _active_dialog != null and is_instance_valid(_active_dialog):
+		return
+	if not _armed:
 		return
 	if event.is_action_pressed("ui_down"):
 		_focus_index(_index + 1)
@@ -178,7 +280,6 @@ func _on_menu_focus(btn: Button) -> void:
 	var found: int = _items.find(btn)
 	if found >= 0:
 		_index = found
-		_place_cursor()
 
 
 func _on_continue() -> void:
@@ -236,23 +337,31 @@ func _on_slot_chosen(slot: int, kind: String) -> void:
 
 func _show_confirm(action: String, body: String, yes: String, no: String) -> void:
 	_confirm_action = action
-	confirm_label.text = body
-	confirm_yes.text = yes
-	confirm_no.text = no
-	confirm_panel.visible = true
+	var dialog: KitDialog = KIT_DIALOG.instantiate() as KitDialog
+	_active_dialog = dialog
+	var popup_layer: CanvasLayer = get_node_or_null("PopupLayer") as CanvasLayer
+	if popup_layer == null:
+		popup_layer = CanvasLayer.new()
+		popup_layer.name = "PopupLayer"
+		popup_layer.layer = 110
+		add_child(popup_layer)
+	popup_layer.add_child(dialog)
+	dialog.setup("", body, "", no, yes, "title_%s" % action)
+	dialog.confirmed.connect(_on_confirm_yes)
+	dialog.cancelled.connect(_on_confirm_no)
 	GameAudio.play_ui_open()
 
 
 func _on_confirm_no() -> void:
-	confirm_panel.visible = false
 	_confirm_action = ""
+	_active_dialog = null
 	GameAudio.play_ui_cancel()
 
 
 func _on_confirm_yes() -> void:
 	var action: String = _confirm_action
-	confirm_panel.visible = false
 	_confirm_action = ""
+	_active_dialog = null
 	match action:
 		"new":
 			_start_new_game()

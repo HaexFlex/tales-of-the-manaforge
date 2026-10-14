@@ -243,7 +243,7 @@ Rules:
 5. Watering Can: Manashard side only (see §3).
 
 ### Ascend wipe (backpack)
-On Ascend: **wipe entire backpack** (Fertilizer stacks, intermediates, tools) **unless** blessing `keep_tools` owned → **re-grant the 4 finished tools only** (not Fertilizer, not intermediates). Soft mats still wipe; essence → 0; manashards → 0 (existing).
+On Ascend: **wipe entire backpack** (Fertilizer stacks, intermediates, tools) **unless** blessing `keep_tools` owned → **re-grant the 4 finished tools only** (not Fertilizer, not intermediates). Soft mats still wipe; essence → 0; manashards → 0 (existing). Forge materials (Sapsteel, Heartwood Bits, Amberbind) always wipe. There is no Keep Forge Materials blessing.
 
 **Do not wipe** combat stats, equipped gear, or gear inventory on Ascend — see §4e / §5.
 

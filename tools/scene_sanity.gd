@@ -147,13 +147,20 @@ func _run() -> void:
 	game.call("apply_save_dict", {})
 	failed += _check(str(game.get("arrow_mode")) == "physical", "old save defaults arrow_mode")
 	var save_src: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
-	failed += _check(save_src.find("const SAVE_VERSION: int = 14") >= 0, "SAVE_VERSION 14")
+	failed += _check(save_src.find("const SAVE_VERSION: int = 15") >= 0, "SAVE_VERSION 15")
 	failed += _content_keys()
 	failed += _gear_bonus_match()
 	failed += _scene_exit_audit()
 	failed += await _res540_theme_sanity()
 	failed += await _res540_input_sanity()
 	failed += await _res540_shop_sanity()
+	failed += _res540_char_sanity()
+	failed += _res540_bag_sanity()
+	failed += _res540_board_sanity()
+	failed += _res540_battle_sanity()
+	failed += _res540_care_sanity()
+	failed += _res540_debug_sanity()
+	failed += _res540_help_sanity()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -1405,6 +1412,68 @@ func _res540_input_sanity() -> int:
 func _res540_shop_sanity() -> int:
 	var failed: int = 0
 	var hud_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
-	failed += _check(hud_src.find("const SHOP_SIZE: Vector2 = Vector2(640, 412)") >= 0, "shop size 640x412 in hud.gd")
-	failed += _check(640.0 + 48.0 <= 960.0 and 412.0 + 48.0 <= 540.0, "shop fits 540p with 24px margins")
+	failed += _check(hud_src.find("const SHOP_SIZE: Vector2 = Vector2(912, 472)") >= 0, "shop size 912x472 in hud.gd")
+	failed += _check(912.0 + 48.0 <= 960.0 and 472.0 + 48.0 <= 540.0, "shop fits 540p with 24px margins")
+	return failed
+
+
+func _res540_help_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _check(src.find("HelpDraftTag") >= 0, "help540 draft tag")
+	failed += _check(src.find("_make_help_row") >= 0, "help540 keycap rows")
+	failed += _check(src.find("Gamepad: not supported yet") >= 0, "help540 gamepad note")
+	return failed
+
+
+func _res540_debug_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	failed += _check(src.find("_build_tab_overlays") >= 0, "debug540 overlays tab")
+	failed += _check(src.find("_build_tab_runes") >= 0, "debug540 runes tab")
+	failed += _check(src.find("Search all tabs") >= 0, "debug540 search field")
+	return failed
+
+
+func _res540_care_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _check(src.find("BlessingsPreviewButton") >= 0, "manatree540 blessings icon")
+	failed += _check(src.find("const CARE_SIZE: Vector2 = Vector2(600, 440)") >= 0, "manatree540 window 600x440")
+	failed += _check(src.find("CARE_SIZE.x - 124.0") >= 0, "blessings left of close")
+	return failed
+
+
+func _res540_battle_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/battle/battle_view.gd")
+	failed += _check(src.find("Vector2(232, 206)") >= 0, "battle540 party front sole row 206")
+	failed += _check(src.find("Vector2(876, 206)") >= 0, "battle540 beast back sole row 206")
+	return failed
+
+
+func _res540_board_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/ui/expedition_shell.gd")
+	failed += _check(src.find("const PICKER_POPUP_W: float = 272.0") >= 0, "board540 picker width 272")
+	failed += _check(src.find("const PICKER_ROW_H: float = 48.0") >= 0, "board540 picker row 48px")
+	failed += _check(src.find("Who stands here?") >= 0, "board540 picker title")
+	return failed
+
+
+func _res540_bag_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _check(src.find("TabCategoryCycle") >= 0, "bag540 category cycle tab")
+	failed += _check(src.find("BagDetailPopup") >= 0, "bag540 detail popup")
+	failed += _check(src.find("const BAG_PANEL_W: float = 560.0") >= 0, "bag540 panel width 560")
+	return failed
+
+
+func _res540_char_sanity() -> int:
+	var failed: int = 0
+	var src: String = FileAccess.get_file_as_string("res://scripts/character_sheet.gd")
+	failed += _check(src.find("PrevCharButton") >= 0, "char540 prev actor control")
+	failed += _check(src.find("GearCategoryCycle") >= 0, "char540 gear category cycle")
+	failed += _check(src.find("const SHEET_SIZE: Vector2 = Vector2(912, 492)") >= 0, "char540 window 912x492")
 	return failed

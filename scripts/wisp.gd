@@ -469,6 +469,11 @@ func _apply_outline(show_outline: bool) -> void:
 		sprite.material = null
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("wisp_name")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_refresh_label()
+	WorldHover.sync(self, inside, world_hover_name())

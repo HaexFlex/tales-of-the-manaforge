@@ -16,6 +16,9 @@ class_name Runestone
 
 const RUNE_SHEET: String = "res://assets/art/props/runestones/native/runestones_sheet.png"
 const RUNE_CELL: int = 64
+const SHARD_ICON: String = "res://assets_extra/shared/icon_manashards.png"
+const PANEL_W: float = 600.0
+const PAD: float = 24.0
 
 static var _layer: CanvasLayer
 static var _panel: Panel
@@ -25,6 +28,11 @@ static var _body: Label
 static var _hint: Label
 static var _bank: Label
 static var _yes: Button
+static var _rune: TextureRect
+static var _stat_box: Label
+static var _next: Label
+static var _shard: TextureRect
+static var _have: Label
 static var _no: Button
 static var _pending_stat: String = ""
 static var _wired: bool = false
@@ -142,6 +150,14 @@ func _on_resources(resource_id: StringName, _amount: int) -> void:
 		_refresh()
 
 
+func _stat_lines(sid: String) -> Dictionary:
+	var trained: int = KeeperStats.get_base(sid)
+	var total: int = trained
+	if has_node("/root/Equipment"):
+		total = Equipment.total_for(sid)
+	return {"trained": trained, "total": total}
+
+
 func _refresh() -> void:
 	var sid: String = String(stat_id)
 	var tint: Color = KeeperStats.stat_color(sid)
@@ -152,16 +168,30 @@ func _refresh() -> void:
 	if label == null:
 		return
 	var stat_name: String = KeeperStats.stat_display_name(sid)
+	var lines: Dictionary = _stat_lines(sid)
+	var stat_line: String = ContentStrings.get_text(
+		"runestone_stat_totals",
+		{"trained": lines.get("trained", 0), "total": lines.get("total", 0)},
+	)
 	if cost < 0:
-		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_maxed")]
+		label.text = "%s\n%s" % [stat_name, stat_line]
 	else:
-		label.text = "%s\n%s" % [stat_name, ContentStrings.get_text("runestone_cost", {"cost": cost})]
+		label.text = "%s\n%s\n%s" % [
+			stat_name,
+			stat_line,
+			ContentStrings.get_text("runestone_cost", {"cost": cost}),
+		]
 	label.visible = _hovered
+
+
+func world_hover_name() -> String:
+	return ContentStrings.get_text("runestone_title")
 
 
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_refresh()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _world_blocked() -> bool:
@@ -202,6 +232,7 @@ func begin_spend() -> String:
 			ContentStrings.get_text("runestone_cant_afford"),
 			ContentStrings.get_text("runestone_confirm", {"cost": maxi(cost, 0), "stat": stat_name}),
 		]
+		_layout_confirm_panel(sid, maxi(cost, 0))
 		GameAudio.play_tree_deny()
 		return result
 	_yes.disabled = false
@@ -243,8 +274,13 @@ func _refresh_open_confirm(sid: String) -> void:
 		return
 	_pending_stat = sid
 	var cost: int = KeeperStats.get_next_cost(sid)
+	var lines: Dictionary = _stat_lines(sid)
 	_title.text = ContentStrings.get_text("runestone_title")
 	_spend.text = ContentStrings.get_text("runestone_spend", {"stat": stat_name})
+	_hint.text = ContentStrings.get_text(
+		"runestone_stat_totals",
+		{"trained": lines.get("trained", 0), "total": lines.get("total", 0)},
+	)
 	if reason == "cant_afford":
 		_yes.disabled = true
 		_body.text = "%s\n%s" % [
@@ -254,8 +290,8 @@ func _refresh_open_confirm(sid: String) -> void:
 	else:
 		_yes.disabled = false
 		_body.text = ContentStrings.get_text("runestone_confirm", {"cost": maxi(cost, 0), "stat": stat_name})
-	_hint.text = ContentStrings.get_text("runestone_hint")
 	_bank.text = ContentStrings.get_text("runestone_bank_hint")
+	_layout_confirm_panel(sid, maxi(cost, 0))
 	_panel.visible = true
 	_layer.visible = true
 
@@ -315,10 +351,15 @@ func _open_confirm(sid: String, stat_name: String, cost: int) -> void:
 	_title.text = ContentStrings.get_text("runestone_title")
 	_spend.text = ContentStrings.get_text("runestone_spend", {"stat": stat_name})
 	_body.text = ContentStrings.get_text("runestone_confirm", {"cost": cost, "stat": stat_name})
-	_hint.text = ContentStrings.get_text("runestone_hint")
+	var lines: Dictionary = _stat_lines(sid)
+	_hint.text = ContentStrings.get_text(
+		"runestone_stat_totals",
+		{"trained": lines.get("trained", 0), "total": lines.get("total", 0)},
+	)
 	_bank.text = ContentStrings.get_text("runestone_bank_hint")
 	_yes.text = ContentStrings.get_text("runestone_confirm_yes")
 	_no.text = ContentStrings.get_text("runestone_confirm_no")
+	_layout_confirm_panel(sid, cost)
 	_panel.visible = true
 	_layer.visible = true
 	GameAudio.play_ui_confirm()
@@ -346,7 +387,8 @@ func _ensure_confirm() -> void:
 	_layer.name = "RunestoneConfirm"
 	_layer.layer = 40
 	_layer.process_mode = Node.PROCESS_MODE_ALWAYS
-	get_tree().root.add_child(_layer)
+	## Shared by every stone, so it lives beside them (freed with the hub) rather than on root.
+	get_parent().add_child(_layer)
 	var dim := ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color(0.02, 0.03, 0.02, 0.45)
@@ -354,36 +396,38 @@ func _ensure_confirm() -> void:
 	_layer.add_child(dim)
 	_panel = Panel.new()
 	_panel.name = "Panel"
-	_panel.custom_minimum_size = Vector2(520, 280)
-	_panel.anchor_left = 0.5
-	_panel.anchor_top = 0.5
-	_panel.anchor_right = 0.5
-	_panel.anchor_bottom = 0.5
-	_panel.offset_left = -260.0
-	_panel.offset_top = -150.0
-	_panel.offset_right = 260.0
-	_panel.offset_bottom = 150.0
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.16, 0.11, 0.07, 0.98)
-	sb.border_color = Color(0.82, 0.64, 0.28, 1.0)
-	sb.set_border_width_all(2)
-	_panel.add_theme_stylebox_override("panel", sb)
 	_layer.add_child(_panel)
-	_title = _make_label(_panel, "Title", Vector2(16, 12), Vector2(488, 24), 18, Color(0.82, 0.64, 0.28, 1.0))
-	_spend = _make_label(_panel, "Spend", Vector2(16, 40), Vector2(488, 22), 15, Color(0.92, 0.86, 0.72, 1.0))
-	_body = _make_label(_panel, "Body", Vector2(16, 68), Vector2(488, 40), 14, Color(0.92, 0.86, 0.72, 1.0))
-	_hint = _make_label(_panel, "Hint", Vector2(16, 112), Vector2(488, 48), 12, Color(0.70, 0.64, 0.52, 1.0))
-	_bank = _make_label(_panel, "Bank", Vector2(16, 162), Vector2(488, 40), 12, Color(0.70, 0.64, 0.52, 1.0))
+	Ui540.apply_kit_panel(_panel, "runestone_confirm")
+	_title = _make_label(_panel, "Title", false)
+	_rune = TextureRect.new()
+	_rune.name = "Rune"
+	_rune.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_rune.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_rune.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_panel.add_child(_rune)
+	_spend = _make_label(_panel, "Spend", false)
+	GameTheme.style_heading_label(_spend)
+	_stat_box = _make_label(_panel, "StatBox", false)
+	_stat_box.add_theme_stylebox_override("normal", Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/pick_row_9s_current_24x24.png", Vector4i(6, 6, 6, 6), Vector4(8, 0, 8, 0)))
+	_stat_box.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_next = _make_label(_panel, "Next", true)
+	_next.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_shard = TextureRect.new()
+	_shard.name = "Shard"
+	_shard.texture = load(SHARD_ICON) as Texture2D
+	_shard.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	_panel.add_child(_shard)
+	_hint = _make_label(_panel, "Hint", true)
+	_body = _make_label(_panel, "Body", false)
+	_bank = _make_label(_panel, "Bank", true)
+	_have = _make_label(_panel, "Have", false)
 	_yes = Button.new()
 	_yes.name = "Yes"
-	_yes.position = Vector2(16, 220)
-	_yes.size = Vector2(140, 36)
 	_panel.add_child(_yes)
 	_no = Button.new()
 	_no.name = "No"
-	_no.position = Vector2(168, 220)
-	_no.size = Vector2(140, 36)
 	_panel.add_child(_no)
 	if not _wired:
 		_yes.pressed.connect(_on_yes_pressed)
@@ -392,16 +436,67 @@ func _ensure_confirm() -> void:
 	_layer.visible = false
 
 
-func _make_label(parent: Control, node_name: String, pos: Vector2, sz: Vector2, font_size: int, color: Color) -> Label:
+func _make_label(parent: Control, node_name: String, muted: bool) -> Label:
 	var lbl := Label.new()
 	lbl.name = node_name
-	lbl.position = pos
-	lbl.size = sz
-	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.add_theme_font_size_override("font_size", font_size)
-	lbl.add_theme_color_override("font_color", color)
+	GameTheme.style_ink_label(lbl, muted)
 	parent.add_child(lbl)
 	return lbl
+
+
+## Mockup runestone540_pc_16x9_r3: 600 wide; rune + "Raise Might" + stat box + next cost on
+## top, ink body lines below, Raise (wood, left) and Not now (primary, right).
+func _layout_confirm_panel(sid: String, cost: int) -> void:
+	var w: float = PANEL_W
+	var inner: float = w - PAD * 2.0
+	var font: Font = GameTheme.body_font()
+	var line_h: float = font.get_height(GameTheme.BODY_SIZE)
+	var cell: Vector2i = sheet_cell()
+	var atlas := AtlasTexture.new()
+	atlas.atlas = load(RUNE_SHEET) as Texture2D
+	atlas.region = Rect2(cell.x * RUNE_CELL, cell.y * RUNE_CELL, RUNE_CELL, RUNE_CELL)
+	_rune.texture = atlas
+	Ui540.anchor_rect_safe(_rune, PAD, 36, 64, 64)
+	var tx: float = PAD + 80.0
+	Ui540.anchor_rect_safe(_spend, tx, 30, w - tx - PAD, 40)
+	var lines: Dictionary = _stat_lines(sid)
+	_stat_box.text = "%s %d" % [KeeperStats.stat_display_name(sid), int(lines.get("trained", 0))]
+	_stat_box.add_theme_color_override("font_color", KeeperStats.stat_color(sid).darkened(0.35))
+	var box_w: float = ceilf(font.get_string_size(_stat_box.text, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.BODY_SIZE).x) + 20.0
+	Ui540.anchor_rect_safe(_stat_box, tx, 74, box_w, 32)
+	_next.text = ContentStrings.get_text("runestone_next_raise")
+	var next_w: float = ceilf(font.get_string_size(_next.text, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.BODY_SIZE).x)
+	Ui540.anchor_rect_safe(_next, tx + box_w + 16.0, 74, next_w, 32)
+	Ui540.anchor_rect_safe(_shard, tx + box_w + 24.0 + next_w, 74, 32, 32)
+	_shard.tooltip_text = ContentStrings.get_text("runestone_cost", {"cost": cost})
+	var cost_lbl: Label = _panel.get_node_or_null("NextCost") as Label
+	if cost_lbl == null:
+		cost_lbl = _make_label(_panel, "NextCost", false)
+		cost_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	cost_lbl.text = str(cost)
+	Ui540.anchor_rect_safe(cost_lbl, tx + box_w + 60.0 + next_w, 74, 80, 32)
+	Ui540.anchor_rect_safe(_hint, tx, 108, w - tx - PAD, line_h)
+	var y: float = 136.0
+	_have.text = ContentStrings.get_text("runestone_have", {"count": GameState.manashards})
+	for lbl: Label in [_body, _bank, _have]:
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		lbl.update_minimum_size()
+		var n: int = Ui540.text_line_count(lbl.text, font, GameTheme.BODY_SIZE, inner)
+		Ui540.anchor_rect_safe(lbl, PAD, y, inner, line_h * n)
+		y += line_h * n + 8.0
+	y += 4.0
+	_yes.theme_type_variation = &"BigButton"
+	_no.theme_type_variation = &"PrimaryButton"
+	Ui540.anchor_rect_safe(_yes, PAD, y, 200, 44)
+	Ui540.anchor_rect_safe(_no, w - PAD - 160.0, y, 160, 44)
+	Ui540.fit_button_font(_yes, 200)
+	Ui540.fit_button_font(_no, 160)
+	var h: float = y + 44.0 + 24.0
+	_panel.custom_minimum_size = Vector2(w, h)
+	_panel.size = Vector2(w, h)
+	Ui540.place_title_plank(_title, w)
+	Ui540.center_kit_panel(_panel)
+	_no.grab_focus.call_deferred()
 
 
 func _on_yes_pressed() -> void:

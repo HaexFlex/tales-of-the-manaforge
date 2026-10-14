@@ -1,5 +1,5 @@
 {
-	"save_version": 14,
+	"save_version": 15,
 	"timestamp": 1760000012,
 	"slot": 0,
 	"kind": "debug",
@@ -39,7 +39,15 @@
 		"gear_inventory": {
 			"rootsteel_edge": 1
 		},
-		"keeper_stats": {},
+		"keeper_stats": {
+			"might": 0,
+			"arcana": 0,
+			"resilience": 0,
+			"ward": 0,
+			"vitality": 0,
+			"swiftness": 0,
+			"fate": 0
+		},
 		"forge_jobs": {},
 		"forge_workers": {},
 		"keeper_task": {
@@ -105,6 +113,13 @@
 		},
 		"expedition": {
 			"status": "out"
-		}
+		},
+		"shop_hide_locked": true,
+		"shop_hide_maxed": true,
+		"shop_spoiler_shown_count": 0,
+		"first_wisp_gained": false,
+		"first_tool_crafted": false,
+		"first_pack_lost": false,
+		"first_minigame_played": false
 	}
 }

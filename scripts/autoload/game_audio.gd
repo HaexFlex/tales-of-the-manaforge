@@ -38,8 +38,15 @@ var _fruit_ready_after_stage: bool = false
 var _fruit_delay_token: int = 0
 var _played_log: PackedStringArray = PackedStringArray()
 var music_volume_linear: float = 1.0
-var use_speedup_button: bool = false
 var sfx_volume_linear: float = 1.0
+## Multiplies Music and SFX together. Missing from old settings files, so it stays 1.
+var master_volume_linear: float = 1.0
+var fullscreen_on: bool = false
+## True fills the window. False keeps a pixel-perfect integer scale with bars.
+var fill_screen: bool = true
+## Hub camera step. 2 / 1 / 0.5, and 0.25 when the forest fills that view.
+var camera_zoom: float = 1.0
+var use_speedup_button: bool = false
 var _forge_mix_on: bool = false
 var _forge_music_offset_db: float = 0.0
 var _forge_lowpass: AudioEffectLowPassFilter
@@ -739,18 +746,53 @@ func set_sfx_volume_linear(value: float) -> void:
 	volumes_changed.emit(music_volume_linear, sfx_volume_linear)
 
 
+func set_master_volume_linear(value: float) -> void:
+	master_volume_linear = clampf(value, 0.0, 1.0)
+	apply_volumes()
+	volumes_changed.emit(music_volume_linear, sfx_volume_linear)
+
+
+func set_fullscreen(on: bool) -> void:
+	fullscreen_on = on
+	apply_display()
+	save_settings()
+
+
+func set_fill_screen(fill: bool) -> void:
+	fill_screen = fill
+	apply_display()
+	save_settings()
+
+
 func reset_volumes_to_defaults() -> void:
 	music_volume_linear = 1.0
 	sfx_volume_linear = 1.0
+	master_volume_linear = 1.0
 	apply_volumes()
 	save_settings()
 	volumes_changed.emit(music_volume_linear, sfx_volume_linear)
 
 
 func apply_volumes() -> void:
-	_apply_bus_volume("Music", music_volume_linear, MUSIC_BUS_DEFAULT_DB)
+	var music_lin: float = clampf(music_volume_linear * master_volume_linear, 0.0, 1.0)
+	var sfx_lin: float = clampf(sfx_volume_linear * master_volume_linear, 0.0, 1.0)
+	_apply_bus_volume("Music", music_lin, MUSIC_BUS_DEFAULT_DB)
 	for bus_name: String in SFX_BUS_NAMES:
-		_apply_bus_volume(bus_name, sfx_volume_linear, SFX_BUS_DEFAULT_DB)
+		_apply_bus_volume(bus_name, sfx_lin, SFX_BUS_DEFAULT_DB)
+
+
+func apply_display() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	var mode: DisplayServer.WindowMode = DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen_on else DisplayServer.WINDOW_MODE_WINDOWED
+	DisplayServer.window_set_mode(mode)
+	var win: Window = get_window() if is_inside_tree() else null
+	if win == null:
+		return
+	if fill_screen:
+		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	else:
+		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
 
 
 func _apply_bus_volume(bus_name: String, linear: float, base_db: float) -> void:
@@ -772,10 +814,16 @@ func load_settings() -> void:
 	if err != OK:
 		music_volume_linear = 1.0
 		sfx_volume_linear = 1.0
+		master_volume_linear = 1.0
 		return
 	music_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "music_volume", 1.0)), 0.0, 1.0)
 	sfx_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "sfx_volume", 1.0)), 0.0, 1.0)
+	master_volume_linear = clampf(float(cfg.get_value(SETTINGS_SECTION, "master_volume", 1.0)), 0.0, 1.0)
 	use_speedup_button = bool(cfg.get_value(SETTINGS_SECTION, "use_speedup_button", false))
+	fullscreen_on = bool(cfg.get_value("display", "fullscreen", false))
+	fill_screen = bool(cfg.get_value("display", "fill_screen", true))
+	camera_zoom = float(cfg.get_value("display", "camera_zoom", 1.0))
+	apply_display()
 	if MUSIC_VOLUME_ZERO_MEANS_DEFAULT and music_volume_linear <= 0.001:
 		music_volume_linear = 1.0
 		save_settings()
@@ -786,8 +834,21 @@ func save_settings() -> void:
 	cfg.load(SETTINGS_PATH)
 	cfg.set_value(SETTINGS_SECTION, "music_volume", music_volume_linear)
 	cfg.set_value(SETTINGS_SECTION, "sfx_volume", sfx_volume_linear)
+	cfg.set_value(SETTINGS_SECTION, "master_volume", master_volume_linear)
 	cfg.set_value(SETTINGS_SECTION, "use_speedup_button", use_speedup_button)
+	cfg.set_value("display", "fullscreen", fullscreen_on)
+	cfg.set_value("display", "fill_screen", fill_screen)
+	cfg.set_value("display", "camera_zoom", camera_zoom)
 	cfg.save(SETTINGS_PATH)
+
+
+func get_camera_zoom() -> float:
+	return camera_zoom
+
+
+func set_camera_zoom(z: float) -> void:
+	camera_zoom = z
+	save_settings()
 
 
 func set_use_speedup_button(enabled: bool) -> void:

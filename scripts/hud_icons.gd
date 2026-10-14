@@ -4,16 +4,16 @@ extends RefCounted
 ## Nearest-neighbor only. The 1280×512 sheet is no longer read.
 
 const CELL_PATHS: PackedStringArray = [
-	"res://assets/art/ui/icons/hud_character.png",
-	"res://assets/art/ui/icons/hud_help.png",
+	"res://assets_extra/shared/hud_character.png",
+	"res://assets_extra/shared/hud_help.png",
 	"res://assets/art/ui/icons/hud_ascension.png",
 	"res://assets/art/ui/icons/hud_keep_tools.png",
-	"res://assets/art/ui/icons/hud_wooden_basket.png",
-	"res://assets/art/ui/icons/hud_watering_can.png",
+	"res://assets_extra/workbench/hud_wooden_basket.png",
+	"res://assets_extra/workbench/hud_watering_can.png",
 	"res://assets/art/ui/icons/hud_stone_sword_old.png",
-	"res://assets/art/ui/icons/icon_weapon_rod.png",
+	"res://assets_extra/workbench/icon_weapon_rod.png",
 	"res://assets/art/ui/icons/hud_equip_empty.png",
-	"res://assets/art/ui/icons/hud_equip_locked.png",
+	"res://assets_extra/shared/hud_equip_locked.png",
 ]
 
 const CHARACTER: int = 0

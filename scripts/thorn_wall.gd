@@ -196,9 +196,14 @@ func walk_box_size() -> Vector2:
 	return (_centre.shape as RectangleShape2D).size
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("hover_east_road")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_refresh_label()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _refresh_label() -> void:

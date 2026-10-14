@@ -42,9 +42,16 @@ func _ready() -> void:
 	_refresh_visual()
 
 
+func world_hover_name() -> String:
+	if station_id == "":
+		return ""
+	return ForgeJobs.station_display(station_id)
+
+
 func _on_title_hover(inside: bool) -> void:
 	if title:
 		title.visible = inside
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _ensure_walk_body() -> void:

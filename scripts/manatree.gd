@@ -135,9 +135,8 @@ func _click_is_door() -> bool:
 
 
 func _request_door() -> void:
-	## One click: the selected hero walks to the sill and the feet trigger enters.
-	if has_node("/root/ForgeJobs"):
-		ForgeJobs.request_door_walk()
+	## The arch is not an entrance. Only the Enter Forge button changes the scene.
+	return
 
 
 func work_footprint() -> Rect2:
@@ -199,9 +198,10 @@ func do_water() -> void:
 			hero = keepers[0]
 	if hero == null or not hero.has_method("start_water_channel"):
 		return
-	hero.call("start_water_channel", self)
+	## The channel's gain line is the toast that stays. Ancient used to replace it.
 	if GameState.stage_id == &"ancient":
 		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
+	hero.call("start_water_channel", self)
 
 
 func do_pay_stage() -> String:
@@ -250,9 +250,14 @@ func _on_fruit_changed(ready: bool) -> void:
 	_apply_label_visibility()
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("tree_menu_title")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_apply_label_visibility()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _refresh_label() -> void:
@@ -482,7 +487,16 @@ func _ensure_door_click() -> void:
 		shape_node.position = Vector2(0, 8)
 		door.add_child(shape_node)
 		door.input_event.connect(_on_door_input)
+		door.mouse_entered.connect(_on_door_hover.bind(true))
+		door.mouse_exited.connect(_on_door_hover.bind(false))
 		add_child(door)
+
+
+func _on_door_hover(inside: bool) -> void:
+	var door: Area2D = get_node_or_null("DoorHit") as Area2D
+	if door == null:
+		return
+	WorldHover.sync(door, inside, ContentStrings.get_text("hover_forge_door"))
 
 
 func _on_door_input(_viewport: Node, event: InputEvent, _shape_idx: int) -> void:
@@ -556,36 +570,8 @@ func _ensure_door_trigger() -> void:
 
 
 func _check_door_feet() -> void:
-	if not has_node("/root/ForgeJobs"):
-		return
-	var occupied: bool = false
-	var occupant: Node = null
-	for group_name: String in ["keeper", "elaia"]:
-		for node: Node in get_tree().get_nodes_in_group(group_name):
-			if not (node is Node2D) or not (node as CanvasItem).visible:
-				continue
-			if node.has_method("actor_id") == false:
-				continue
-			var rel: Vector2 = (node as Node2D).global_position - global_position
-			if absf(rel.x) > 22.0 or rel.y < -4.0 or rel.y > 16.0:
-				continue
-			occupied = true
-			occupant = node
-			break
-		if occupied:
-			break
-	if not _door_seen_clear:
-		if occupied:
-			_door_latched = true
-			return
-		_door_seen_clear = true
-	if not occupied:
-		_door_latched = false
-		return
-	if _door_latched or occupant == null:
-		return
-	_door_latched = true
-	ForgeJobs.try_door_entry(str(occupant.call("actor_id")))
+	## Standing on the sill does not enter. The Enter Forge button is the only way in.
+	return
 
 
 func _ensure_veins() -> void:
