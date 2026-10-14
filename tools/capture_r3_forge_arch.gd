@@ -32,7 +32,7 @@ func _run() -> void:
 	var pause: CanvasItem = room.get_node_or_null("PauseMenu") as CanvasItem
 	if pause:
 		pause.visible = false
-	DisplayServer.window_set_size(Vector2i(1280, 720))
+	DisplayServer.window_set_size(Vector2i(960, 540))
 	for _i: int in 6:
 		await process_frame
 	var dest: String = "res://docs/captures/r3_forge_arch.png"
@@ -42,7 +42,7 @@ func _run() -> void:
 		print("CAPTURE_FAIL no image")
 		quit(1)
 		return
-	image.resize(1280, 720, Image.INTERPOLATE_NEAREST)
+	image.resize(960, 540, Image.INTERPOLATE_NEAREST)
 	var err: Error = image.save_png(dest)
 	if err != OK:
 		print("CAPTURE_FAIL save %s" % err)

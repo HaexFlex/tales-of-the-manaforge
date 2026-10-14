@@ -10,7 +10,8 @@ config/description="Cozy top-down pixel adventure. Restart Edition prototype: Ke
 config/version="0.1.1-restart"
 run/main_scene="res://scenes/title_screen.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
-config/icon="res://icon.svg"
+config/icon="res://assets/ui/icon_256.png"
+config/windows_native_icon="res://assets/ui/icon.ico"
 
 [autoload]
 
@@ -25,15 +26,24 @@ EchoChamber="*res://scripts/autoload/echo_chamber.gd"
 ForgeJobs="*res://scripts/autoload/forge_jobs.gd"
 Reach="*res://scripts/autoload/reach.gd"
 AnimPreviewHotkey="*res://scripts/autoload/anim_preview_hotkey.gd"
+GameTheme="*res://scripts/autoload/game_theme.gd"
+GameInput="*res://scripts/autoload/game_input.gd"
 
 [display]
 
-window/size/viewport_width=1280
-window/size/viewport_height=720
-window/size/window_width_override=1280
-window/size/window_height_override=720
+mouse_cursor/custom_image="res://assets/ui/theme/pointer_12x17.png"
+mouse_cursor/custom_image_hotspot=Vector2i(0, 0)
+window/size/viewport_width=960
+window/size/viewport_height=540
+window/size/window_width_override=960
+window/size/window_height_override=540
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/stretch/scale_mode="integer"
+
+[gui]
+
+theme/custom="res://assets/ui/manaforge_theme.tres"
 
 [layer_names]
 

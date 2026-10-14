@@ -149,10 +149,17 @@ func serves_bramble() -> bool:
 	return EchoChamber.hub_portal_context() == "echo2"
 
 
+func world_hover_name() -> String:
+	if serves_bramble():
+		return ContentStrings.get_text("bramble_name")
+	return ContentStrings.get_text("portal_label")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	if label:
 		label.visible = _hovered and visible
+	WorldHover.sync(self, inside and visible, world_hover_name())
 
 
 static func is_fee_confirm_open() -> bool:
@@ -250,7 +257,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()
 		return
-	if mb.button_index == MOUSE_BUTTON_RIGHT:
+	if GameInput.is_command(mb):
 		apply_player_command()
 		get_viewport().set_input_as_handled()
 

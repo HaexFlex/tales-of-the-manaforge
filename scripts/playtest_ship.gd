@@ -140,7 +140,7 @@ func _title_flows() -> void:
 	await process_frame
 	var save_btn: Button = pause.get_node("Panel/BtnSave") as Button
 	await _click(save_btn)
-	var slot1: Button = pause.get_node_or_null("SlotsPanel/SlotButtons/Slot1") as Button
+	var slot1: Button = pause.get_node_or_null("SlotsPanel/SlotScroll/SlotButtons/Slot1") as Button
 	await _click(slot1)
 	var overwrite: CanvasItem = pause.get_node_or_null("ConfirmPanel") as CanvasItem
 	if overwrite != null and overwrite.visible:
@@ -206,7 +206,7 @@ func _title_flows() -> void:
 	var slots: CanvasItem = title.get_node("PauseMenu/SlotsPanel") as CanvasItem
 	_check("1 Load opens slot list", slots.visible)
 	_shot("pt_title_load.png")
-	var load_slot: Button = title.get_node("PauseMenu/SlotsPanel/SlotButtons/Slot1") as Button
+	var load_slot: Button = title.get_node("PauseMenu/SlotsPanel/SlotScroll/SlotButtons/Slot1") as Button
 	await _click(load_slot)
 	for _l: int in range(8):
 		await process_frame
@@ -547,7 +547,7 @@ func _core_loop() -> void:
 	await _wait_arrive(keeper, rune.global_position, 360)
 	await process_frame
 	await process_frame
-	var yes_btn: Button = root.get_node_or_null("RunestoneConfirm/Panel/Yes") as Button
+	var yes_btn: Button = rune.get_parent().get_node_or_null("RunestoneConfirm/Panel/Yes") as Button
 	_check("3 runestone confirm opens", yes_btn != null and yes_btn.visible)
 	_shot("pt_runestone_confirm.png")
 	if yes_btn:
@@ -837,19 +837,19 @@ func _hud_sizes() -> void:
 	print("-- hud --")
 	var main: Node = current_scene
 	var win: Window = root as Window
-	win.size = Vector2i(1280, 720)
+	win.size = Vector2i(960, 540)
 	for _i: int in range(4):
 		await process_frame
-	_hud_audit("5 HUD 1280x720")
-	_shot("pt_hud_1280.png")
-	await _tooltip_check("5 tooltip at 1280")
+	_hud_audit("5 HUD 960x540")
+	_shot("pt_hud_960.png")
+		await _tooltip_check("5 tooltip at 960")
 	win.size = Vector2i(960, 540)
 	for _j: int in range(6):
 		await process_frame
 	_hud_audit("5 HUD 960x540")
 	_shot("pt_hud_960.png")
 	await _tooltip_check("5 tooltip at 960")
-	win.size = Vector2i(1280, 720)
+	win.size = Vector2i(960, 540)
 
 
 func _hud_audit(label: String) -> void:

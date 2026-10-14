@@ -155,7 +155,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 			# LMB on a node is not empty ground — swallow so Main does not deselect.
 			get_viewport().set_input_as_handled()
 			return
-		if mb.button_index == MOUSE_BUTTON_RIGHT:
+		if GameInput.is_command(mb):
 			apply_player_command()
 			get_viewport().set_input_as_handled()
 
@@ -231,9 +231,14 @@ func _refresh_prompt() -> void:
 	_apply_label_visibility()
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("node_%s_prompt" % node_key)
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_apply_label_visibility()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _label_should_show() -> bool:

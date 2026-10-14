@@ -51,6 +51,8 @@ func _ready() -> void:
 		elaia.arrived.connect(_on_elaia_arrived)
 	if exit_area and not exit_area.body_entered.is_connected(_on_exit_body):
 		exit_area.body_entered.connect(_on_exit_body)
+		exit_area.mouse_entered.connect(_on_exit_hover.bind(true))
+		exit_area.mouse_exited.connect(_on_exit_hover.bind(false))
 	call_deferred("_prime_exit")
 	if pause_menu:
 		pause_menu.set("suppress_pause_hotkey", true)
@@ -76,6 +78,8 @@ func _ready() -> void:
 	if has_node("/root/Reach") and not Reach.party_changed.is_connected(_on_reach_party_changed):
 		Reach.party_changed.connect(_on_reach_party_changed)
 	_focus_pending_actor()
+	if not get_viewport().size_changed.is_connected(_layout_station_panel):
+		get_viewport().size_changed.connect(_layout_station_panel)
 	if hud and hud.has_method("maybe_show_elaia_footsteps"):
 		hud.call("maybe_show_elaia_footsteps")
 
@@ -111,6 +115,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and _drag_active:
 		_update_marquee(get_global_mouse_position())
 		return
+	if event.is_action_pressed("game_command"):
+		if _ui_blocks():
+			return
+		if _interactable_under_point(get_global_mouse_position()):
+			return
+		_on_rmb_ground(get_global_mouse_position())
+		return
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
@@ -127,13 +138,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_marquee(_drag_from)
 		elif _drag_active:
 			_finish_marquee(get_global_mouse_position())
-		return
-	if not mb.pressed or _ui_blocks():
-		return
-	if _interactable_under_point(get_global_mouse_position()):
-		return
-	if mb.button_index == MOUSE_BUTTON_RIGHT:
-		_on_rmb_ground(get_global_mouse_position())
 
 
 func _on_escape() -> void:
@@ -332,6 +336,12 @@ func _prime_exit() -> void:
 	_exit_primed = true
 
 
+func _on_exit_hover(inside: bool) -> void:
+	if exit_area == null:
+		return
+	WorldHover.sync(exit_area, inside, ContentStrings.get_text("hover_clearing_door"))
+
+
 func _on_exit_body(body: Node2D) -> void:
 	if not _exit_primed:
 		return
@@ -386,18 +396,115 @@ func _open_recipes(station_id: String) -> void:
 		btn.expand_icon = false
 		btn.add_theme_constant_override("icon_max_width", 28)
 		btn.tooltip_text = recipe_id
+		btn.custom_minimum_size = Vector2(0, 44)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.pressed.connect(_on_recipe_pressed.bind(station_id, recipe_id))
 		recipe_list.add_child(btn)
-	if recipe_list:
-		recipe_list.offset_bottom = 180.0
 	var panel: BatchPanel = _ensure_batch_panel()
 	if panel:
 		panel.setup(station_id)
-		if panel.selected_recipe() == "" and ids.size() > 0:
+		var current: String = panel.selected_recipe()
+		if ids.find(current) < 0 and ids.size() > 0:
 			panel.bind_recipe(ids[0])
-	if recipe_panel:
-		recipe_panel.offset_bottom = 760.0
+	_layout_station_panel()
 	_refresh_station_job()
+	_relayout_hud()
+
+
+## Station recipe window: kit frame and parchment, kept above the status toast.
+func _layout_station_panel() -> void:
+	if recipe_panel == null:
+		return
+	Ui540.apply_kit_frame_panel(recipe_panel, "forge_station")
+	var sz: Vector2 = Ui540.fit_kit_window(recipe_panel, Vector2(440, 400), true)
+	_pin_station_above_toast()
+	sz = recipe_panel.size
+	if recipe_title:
+		if recipe_title.text == "":
+			recipe_title.text = "Station"
+		Ui540.place_title_plank(recipe_title, sz.x)
+	var inset: float = 28.0
+	var inner_w: float = sz.x - inset * 2.0
+	var list_y: float = inset
+	if _job_label != null:
+		_job_label.position = Vector2(inset, inset)
+		_job_label.size = Vector2(inner_w, 20)
+		if _job_border:
+			_job_border.position = Vector2(inset - 1.0, inset + 22.0)
+			_job_border.size = Vector2(inner_w + 2.0, 10)
+		if _job_track:
+			_job_track.position = Vector2(inset, inset + 23.0)
+			_job_track.size = Vector2(inner_w, 8)
+		if _job_fill:
+			_job_fill.position = Vector2(inset, inset + 23.0)
+		list_y = inset + 40.0
+	var repeat_btn: Control = recipe_panel.get_node_or_null("RepeatToggle") as Control
+	if repeat_btn:
+		repeat_btn.position = Vector2(sz.x - inset - 140.0, inset)
+		repeat_btn.size = Vector2(140, 36)
+	var batch: Control = recipe_panel.get_node_or_null("BatchPanel") as Control
+	var scroll: ScrollContainer = _ensure_recipe_scroll()
+	var gap: float = 6.0
+	var bottom: float = sz.y - inset
+	var rows_h: float = _recipe_rows_height()
+	var batch_need: float = 0.0
+	if batch:
+		## A 148 px floor would steal the rows back on a 540p window.
+		batch.custom_minimum_size.y = 0.0
+		var batch_panel: BatchPanel = batch as BatchPanel
+		if batch_panel:
+			batch_panel.refit_away_note(inner_w)
+		batch_need = batch.get_combined_minimum_size().y
+	var room_h: float = maxf(0.0, bottom - list_y)
+	## Keep every recipe row on screen. The batch takes whatever height is left.
+	var list_h: float = rows_h
+	var batch_h: float = batch_need
+	if rows_h + gap + batch_need > room_h:
+		batch_h = maxf(0.0, room_h - list_h - gap)
+	var batch_y: float = bottom - batch_h
+	if scroll:
+		scroll.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		scroll.position = Vector2(inset, list_y)
+		scroll.size = Vector2(inner_w, list_h)
+		scroll.clip_contents = true
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER if rows_h <= list_h + 1.0 else ScrollContainer.SCROLL_MODE_AUTO
+	if recipe_list:
+		recipe_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		recipe_list.custom_minimum_size.x = inner_w
+	if batch:
+		batch.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		batch.clip_contents = true
+		batch.position = Vector2(inset - 4.0, batch_y)
+		batch.custom_minimum_size = Vector2(0, batch_h)
+		batch.size = Vector2(inner_w + 8.0, batch_h)
+
+
+## The toast lives on the bottom band. A centred 400 px window would cover it.
+func _pin_station_above_toast() -> void:
+	if recipe_panel == null:
+		return
+	var vs: Vector2 = Ui540.viewport_size()
+	var safe: float = Ui540.SAFE_MARGIN_PX
+	var toast_top: float = vs.y - safe - Ui540.TAP_MIN_PX - 8.0 - 32.0
+	## The resource shade is 40 px under the safe margin. The plank rises above the frame,
+	## so the frame starts below that shade or its corner covers the last counts.
+	var bar_bottom: float = safe + 40.0
+	var top: float = bar_bottom + Ui540.PLANK_RISE + 4.0
+	var limit: float = toast_top - 8.0
+	var h: float = minf(recipe_panel.size.y, maxf(200.0, limit - top))
+	if top + h > limit:
+		h = maxf(160.0, limit - top)
+	## A minimum taller than `h` clamps the size back, so the pin has to land first.
+	var w: float = recipe_panel.size.x
+	recipe_panel.custom_minimum_size = Vector2(w, h)
+	recipe_panel.size = Vector2(w, h)
+	recipe_panel.position = Vector2(recipe_panel.position.x, top)
+
+
+func _relayout_hud() -> void:
+	if hud and hud.has_method("_layout_hud540"):
+		hud.call("_layout_hud540")
 
 
 func _on_recipe_pressed(station_id: String, recipe_id: String) -> void:
@@ -406,6 +513,41 @@ func _on_recipe_pressed(station_id: String, recipe_id: String) -> void:
 		return
 	panel.setup(station_id)
 	panel.bind_recipe(recipe_id)
+
+
+func _recipe_rows_height() -> float:
+	if recipe_list == null:
+		return 0.0
+	var height: float = 0.0
+	var count: int = 0
+	var sep: float = float(recipe_list.get_theme_constant(&"separation"))
+	for child: Node in recipe_list.get_children():
+		if not (child is Control) or child.is_queued_for_deletion():
+			continue
+		height += (child as Control).get_combined_minimum_size().y
+		count += 1
+	if count > 1:
+		height += sep * float(count - 1)
+	return height
+
+
+func _ensure_recipe_scroll() -> ScrollContainer:
+	if recipe_panel == null or recipe_list == null:
+		return null
+	var scroll: ScrollContainer = recipe_panel.get_node_or_null("RecipeScroll") as ScrollContainer
+	if scroll == null:
+		scroll = ScrollContainer.new()
+		scroll.name = "RecipeScroll"
+		scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+		## The theme panel insets the rows, so a 144 px scroll hid the bottom of the third one.
+		scroll.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
+		recipe_panel.add_child(scroll)
+		recipe_panel.move_child(scroll, recipe_list.get_index())
+	if recipe_list.get_parent() != scroll:
+		recipe_list.reparent(scroll)
+	if has_node("/root/GameInput"):
+		GameInput.configure_scroll_container(scroll)
+	return scroll
 
 
 func _ensure_batch_panel() -> BatchPanel:
@@ -491,6 +633,7 @@ func _hide_recipes() -> void:
 		recipe_panel.visible = false
 	_panel_station = ""
 	_refresh_station_job()
+	_relayout_hud()
 	if hud and hud.has_method("maybe_show_elaia_footsteps"):
 		hud.call("maybe_show_elaia_footsteps")
 
@@ -502,8 +645,7 @@ func _ensure_station_meter() -> void:
 	_job_label.name = "JobProgress"
 	_job_label.position = Vector2(12, 36)
 	_job_label.size = Vector2(348, 20)
-	_job_label.add_theme_font_size_override("font_size", 14)
-	_job_label.add_theme_color_override("font_color", Color(0.93, 0.9, 0.78, 1))
+	GameTheme.style_ink_label(_job_label)
 	_job_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	recipe_panel.add_child(_job_label)
 	_job_border = ColorRect.new()
@@ -527,8 +669,7 @@ func _ensure_station_meter() -> void:
 	_job_fill.color = Color(0.55, 0.78, 0.34, 1)
 	_job_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	recipe_panel.add_child(_job_fill)
-	if recipe_list:
-		recipe_list.offset_top = 74.0
+	_layout_station_panel()
 
 
 func _refresh_station_job() -> void:
@@ -573,7 +714,7 @@ func _setup_camera() -> void:
 
 
 func _half_view() -> Vector2:
-	var view := Vector2(1280, 720)
+	var view := Vector2(960, 540)
 	if is_inside_tree():
 		var vp := get_viewport().get_visible_rect().size
 		if vp.x >= 64.0 and vp.y >= 64.0:

@@ -4,19 +4,20 @@ class_name EchoBattleView
 ## Separate battle surface. Keeper stands on idle v4 east frame 0; Elaia front right.
 ## Flavour text box sits between the portraits and above the battle log.
 
-const PORTRAIT: Vector2 = Vector2(384, 384)
-const KEEPER_PORTRAIT_POS: Vector2 = Vector2(56, 114)
-const ECHO_PORTRAIT_POS: Vector2 = Vector2(840, 114)
-const COMMAND_SIZE: Vector2 = Vector2(720, 120)
-const LOG_SIZE: Vector2 = Vector2(1040, 100)
-const LOG_BG_POS: Vector2 = Vector2(120, 500)
-const SPEECH_POS: Vector2 = Vector2(456, 256)
-const SPEECH_SIZE: Vector2 = Vector2(368, 100)
+const PORTRAIT: Vector2 = Vector2(288, 288)
+const KEEPER_PORTRAIT_POS: Vector2 = Vector2(42, 86)
+const ECHO_PORTRAIT_POS: Vector2 = Vector2(630, 86)
+const COMMAND_SIZE: Vector2 = Vector2(540, 90)
+const LOG_SIZE: Vector2 = Vector2(780, 75)
+const LOG_BG_POS: Vector2 = Vector2(90, 375)
+const SPEECH_POS: Vector2 = Vector2(342, 192)
+const SPEECH_SIZE: Vector2 = Vector2(276, 75)
+const CHAMBER_CROP: Rect2 = Rect2(160, 90, 960, 540)
 const KEEPER_IDLE: String = "res://assets/art/echo/battle_keeper_idle_e.png"
 const ELAIA_IDLE: String = "res://assets/art/echo/battle_elaia_idle_w.png"
 const ELAIA_KEY: String = "res://assets/art/echo/battle_elaia_key_w.png"
 const ELAIA_FRONT: String = ELAIA_IDLE
-## Opaque 1280×720 plate. Background + Ground stay underneath until this file exists.
+## Opaque 1280×720 plate (centre-cropped to 960×540). Background + Ground stay underneath until this file exists.
 const CHAMBER_BG: String = "res://assets/art/echo/echo_chamber_bg.png"
 
 var _battle: EchoBattle
@@ -46,10 +47,19 @@ var _waiting_return: bool = false
 var _pending_outcome: String = ""
 var _pending_toast: String = ""
 var _pulse: float = 0.0
+var _name_tag_root: Node = null
+
+
+func _exit_tree() -> void:
+	_restore_fled_names()
 
 
 func _ready() -> void:
+	var tree: SceneTree = get_tree()
+	if tree != null:
+		_name_tag_root = tree.root
 	_apply_chamber_plate()
+	_apply_540_layout()
 	_apply_portraits()
 	_raise_names()
 	_lighten_panels()
@@ -133,13 +143,45 @@ func _lighten_panels() -> void:
 			rect.color = panels[node_name]
 
 
+func _apply_540_layout() -> void:
+	if _keeper_portrait:
+		_keeper_portrait.position = KEEPER_PORTRAIT_POS
+		_keeper_portrait.size = PORTRAIT
+	if _echo_portrait:
+		_echo_portrait.position = ECHO_PORTRAIT_POS
+		_echo_portrait.size = PORTRAIT
+	if _speech_bg:
+		_speech_bg.position = SPEECH_POS
+		_speech_bg.size = SPEECH_SIZE
+	if _speech:
+		_speech.position = SPEECH_POS + Vector2(8, 4)
+		_speech.size = SPEECH_SIZE - Vector2(16, 8)
+	if _command_band:
+		var band_x: float = (960.0 - COMMAND_SIZE.x) * 0.5
+		_command_band.position = Vector2(band_x, 450.0)
+		_command_band.size = COMMAND_SIZE
+	var log_bg: ColorRect = get_node_or_null("LogBg") as ColorRect
+	if log_bg:
+		log_bg.position = LOG_BG_POS
+		log_bg.size = LOG_SIZE
+	if _log:
+		_log.position = LOG_BG_POS + Vector2(12, 20)
+		_log.size = LOG_SIZE - Vector2(24, 28)
+
+
 func _apply_chamber_plate() -> void:
 	if _chamber_art == null:
 		return
 	var plate: Texture2D = null
 	if FileAccess.file_exists(CHAMBER_BG):
-		plate = load(CHAMBER_BG) as Texture2D
+		var full: Texture2D = load(CHAMBER_BG) as Texture2D
+		if full != null:
+			var atlas := AtlasTexture.new()
+			atlas.atlas = full
+			atlas.region = CHAMBER_CROP
+			plate = atlas
 	_chamber_art.texture = plate
+	_chamber_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_chamber_art.visible = plate != null
 	if _bg:
 		_bg.visible = true
@@ -411,9 +453,14 @@ func _offer_return(outcome: String) -> void:
 	_spare.visible = false
 	if _arrow:
 		_arrow.visible = false
-	_return_btn.visible = true
 	if _log:
 		_log.text = _pending_toast
+	## Only the flee result is the You Fled window. Spare and defeat keep the command-band return.
+	if outcome == "flee":
+		_return_btn.visible = false
+		_show_fled_window()
+		return
+	_return_btn.visible = true
 
 
 func _flavour_for_outcome(outcome: String) -> String:
@@ -458,11 +505,168 @@ func _outcome_toast(outcome: String) -> String:
 	return "\n".join(parts)
 
 
+## Echo You Fled (extras v8c). Position only: 520×420 at y 92, 24 px inside the parchment.
+## The chamber, portraits, and the spare/defeat return stay as they are.
+const ECHO_FLED_H: float = 420.0
+const ECHO_FLED_ART: String = "res://assets/ui/extras/fled_art_120x72.png"
+const ECHO_FLED_WARN: String = "res://assets/ui/extras/icon_warn_amber_kit_18x16.png"
+
+
+func _show_fled_window() -> void:
+	_clear_fled_window()
+	var dim := ColorRect.new()
+	dim.name = "EchoFledDim"
+	dim.color = Color(0, 0, 0, 0.5)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	var panel := Panel.new()
+	panel.name = "EchoFledWindow"
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.position = Vector2(Ui540.fled_window_x(), Ui540.FLED_WINDOW_Y)
+	panel.size = Vector2(Ui540.FLED_WINDOW_W, ECHO_FLED_H)
+	panel.custom_minimum_size = panel.size
+	Ui540.apply_kit_frame_panel(panel, "fled_window")
+	add_child(panel)
+	var title := Label.new()
+	title.name = "EchoFledTitle"
+	title.text = ContentStrings.get_text("adv_end_flee_title")
+	panel.add_child(title)
+	Ui540.place_title_plank(title, Ui540.FLED_WINDOW_W)
+	title.position.y = -Ui540.FLED_PLANK_OVERHANG
+	var inset: float = Ui540.FLED_INSET
+	var content_w: float = Ui540.FLED_WINDOW_W - inset * 2.0
+	var close := Button.new()
+	close.name = "EchoFledClose"
+	Ui540.configure_kit_close_button(close)
+	close.position = Vector2(Ui540.FLED_WINDOW_W - inset - Ui540.TAP_MIN_PX, inset)
+	close.size = Vector2(Ui540.TAP_MIN_PX, Ui540.TAP_MIN_PX)
+	close.pressed.connect(_on_return)
+	panel.add_child(close)
+	var art := TextureRect.new()
+	art.name = "EchoFledArt"
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.texture = load(ECHO_FLED_ART) as Texture2D
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.position = Vector2((Ui540.FLED_WINDOW_W - 120.0) * 0.5, inset + 8.0)
+	art.size = Vector2(120, 72)
+	panel.add_child(art)
+	var body := Label.new()
+	body.name = "EchoFledBody"
+	body.text = _echo_line("flee")
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.position = Vector2(inset, inset + 100.0 - 14.0)
+	body.size = Vector2(content_w, 28)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_style_fled_label(body, false)
+	panel.add_child(body)
+	var rows: Array = [
+		["echo_fled_fee", "Essence fee", "echo_fled_fee_value", "still paid · re-entry free", false],
+		["echo_fled_rewards", "Rewards", "echo_fled_rewards_value", "none this attempt", true],
+		["echo_fled_keeper", "Keeper", "echo_fled_keeper_value", "back at the trailhead", false],
+	]
+	for i: int in rows.size():
+		var spec: Array = rows[i]
+		_add_fled_row(panel, i, str(spec[0]), str(spec[1]), str(spec[2]), str(spec[3]), bool(spec[4]), inset, content_w)
+	var back := Button.new()
+	back.name = "EchoFledReturn"
+	back.text = ContentStrings.get_text("battle_return")
+	back.custom_minimum_size = Vector2(300, 44)
+	back.size = Vector2(300, 44)
+	back.position = Vector2((Ui540.FLED_WINDOW_W - 300.0) * 0.5, ECHO_FLED_H - inset - 44.0)
+	var theme: Node = get_node_or_null("/root/GameTheme")
+	if theme != null:
+		theme.call("style_primary_button", back)
+	back.pressed.connect(_on_return)
+	panel.add_child(back)
+	back.call_deferred("grab_focus")
+	Ui540.hide_name_tags_under(panel)
+
+
+func _add_fled_row(panel: Control, index: int, label_key: String, label_fallback: String, value_key: String, value_fallback: String, amber: bool, inset: float, content_w: float) -> void:
+	var row := Panel.new()
+	row.name = "EchoFledRow%d" % index
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.position = Vector2(inset, inset + 128.0 + float(index) * 34.0)
+	row.size = Vector2(content_w, 28)
+	row.add_theme_stylebox_override(
+		"panel",
+		Ui540.kit_stylebox_9s("res://assets/ui/theme/play_bevel_9s_6x6.png", Vector4i(2, 2, 2, 2)),
+	)
+	panel.add_child(row)
+	var left := Label.new()
+	left.text = _fled_text(label_key, label_fallback)
+	left.position = Vector2(12, 0)
+	left.size = Vector2(content_w * 0.45, 28)
+	left.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_style_fled_label(left, true)
+	row.add_child(left)
+	var value := _fled_text(value_key, value_fallback)
+	var right := Label.new()
+	right.name = "Value"
+	right.text = value
+	right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	right.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	right.position = Vector2(content_w * 0.4, 0)
+	right.size = Vector2(content_w * 0.6 - 12.0, 28)
+	_style_fled_label(right, false)
+	if amber:
+		right.add_theme_color_override("font_color", Ui540.WARNING_AMBER)
+		var icon := TextureRect.new()
+		icon.texture = load(ECHO_FLED_WARN) as Texture2D
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.size = Vector2(18, 16)
+		var font: Font = right.get_theme_font("font")
+		var text_w: float = font.get_string_size(value, HORIZONTAL_ALIGNMENT_LEFT, -1, right.get_theme_font_size("font_size")).x if font else 120.0
+		icon.position = Vector2(right.position.x + right.size.x - text_w - 24.0, 6)
+		row.add_child(icon)
+	row.add_child(right)
+
+
+func _fled_text(key: String, fallback: String) -> String:
+	var text: String = ContentStrings.get_text(key)
+	if text == "" or text == key:
+		return fallback
+	return text
+
+
+func _style_fled_label(lbl: Label, muted: bool) -> void:
+	var theme: Node = get_node_or_null("/root/GameTheme")
+	if theme != null:
+		theme.call("style_ink_label", lbl, muted)
+
+
+func _clear_fled_window() -> void:
+	_restore_fled_names()
+	for node_name: String in ["EchoFledDim", "EchoFledWindow"]:
+		var node: Node = get_node_or_null(node_name)
+		if node != null:
+			node.queue_free()
+
+
+func _restore_fled_names() -> void:
+	var root: Node = _name_tag_root
+	var tree: SceneTree = get_tree()
+	if tree != null:
+		root = tree.root
+	Ui540.restore_name_tags(root)
+
+
 func _on_return() -> void:
 	if _pending_outcome == "":
 		return
 	var outcome: String = _pending_outcome
 	_pending_outcome = ""
+	_restore_fled_names()
 	GameAudio.play_ui_confirm()
 	EchoChamber.finish_battle(outcome)
 

@@ -6,7 +6,7 @@
   "jobs_finished_away": "While you were away, the Forge kept working: {summary}",
   "wisp_speed_hint": "Each Wisp here quickens the work, up to four.",
   "relic_swap_confirm": "{item} now rests in your relic slot.",
-  "ascend_warning_materials": "Forge materials return to the forest on Ascend — unless you hold Keep Forge Materials.",
+  "ascend_warning_materials": "Forge materials return to the forest on Ascend.",
   "ascend_warning_jobs": "Unfinished Forge jobs fade on Ascend — unless you hold Keep Forge Jobs.",
   "examine_crucible": "The Crucible warms Stone until it remembers metal: Sapsteel.",
   "examine_mill": "The Mill grinds Wood down to Heartwood Bits.",

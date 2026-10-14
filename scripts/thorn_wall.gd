@@ -196,9 +196,14 @@ func walk_box_size() -> Vector2:
 	return (_centre.shape as RectangleShape2D).size
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("hover_east_road")
+
+
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_refresh_label()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _refresh_label() -> void:
@@ -223,7 +228,7 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		get_viewport().set_input_as_handled()
 		return
-	if mb.button_index == MOUSE_BUTTON_RIGHT:
+	if GameInput.is_command(mb):
 		apply_player_command()
 		get_viewport().set_input_as_handled()
 

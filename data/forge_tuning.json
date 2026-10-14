@@ -61,19 +61,8 @@
     "manashards": "raw",
     "essence": "raw"
   },
-  "backpack_filters": ["all", "raw", "refined", "tools", "weapons", "relics"],
+  "backpack_filters": ["all", "raw", "refined", "potions", "tools", "weapons", "relics"],
   "ascend_upgrades": [
-    {
-      "id": "keep_forge_intermediates",
-      "art_name": "icon_asc_keep_forge_intermediates",
-      "display_name": "Keep Forge Materials",
-      "description": "Ascend keeps Sapsteel, Heartwood Bits, and Amberbind.",
-      "max_rank": 1,
-      "cost_base": 25000,
-      "cost_per_rank": 0,
-      "effect": "keep_forge_intermediates",
-      "value_per_rank": 1.0
-    },
     {
       "id": "keep_forge_jobs",
       "art_name": "icon_asc_keep_forge_jobs",

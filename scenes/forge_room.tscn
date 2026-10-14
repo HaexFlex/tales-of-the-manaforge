@@ -23,7 +23,7 @@ script = ExtResource("1_room")
 swirl_texture = ExtResource("11_swirl")
 
 [node name="FloorPlate" type="Sprite2D" parent="."]
-texture_filter = 1
+texture_filter = 0
 position = Vector2(800, 600)
 texture = ExtResource("2_plate")
 
@@ -98,10 +98,10 @@ layer = 30
 
 [node name="RecipePanel" type="Panel" parent="UI"]
 visible = false
-offset_left = 860.0
-offset_top = 80.0
-offset_right = 1240.0
-offset_bottom = 420.0
+offset_left = 270.0
+offset_top = 40.0
+offset_right = 690.0
+offset_bottom = 500.0
 
 [node name="Title" type="Label" parent="UI/RecipePanel"]
 offset_left = 12.0

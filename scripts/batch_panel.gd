@@ -13,6 +13,10 @@ var _count_label: Label
 var _slider: HSlider
 var _make: Button
 var _max: Button
+var _minus: Button
+var _plus: Button
+## Hosts that already show the recipe name (workbench) hide the idle detail line.
+var compact: bool = false
 var _cancel: Button
 var _current_label: Label
 var _current_bar: ProgressBar
@@ -20,7 +24,10 @@ var _total_label: Label
 var _total_bar: ProgressBar
 var _detail: Label
 var _note: Label
+var _meta_row: HBoxContainer
 var _status: Label
+var _body: VBoxContainer
+var _action_row: HBoxContainer
 var _confirm: PanelContainer
 var _confirm_title: Label
 var _confirm_body: Label
@@ -64,69 +71,144 @@ func _ensure_built() -> void:
 		return
 	_built = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	custom_minimum_size = Vector2(340, 250)
+	custom_minimum_size = Vector2(340, 148)
+	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	clip_contents = true
 	var box := VBoxContainer.new()
 	box.name = "Body"
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	box.add_theme_constant_override("separation", 4)
+	box.add_theme_constant_override("separation", 6)
 	add_child(box)
+	_body = box
+	## Mockup workbench540: Amount · − · slider · + · Max, then ×N · time, then note + Craft.
 	var amount_row := HBoxContainer.new()
+	amount_row.name = "AmountRow"
 	amount_row.add_theme_constant_override("separation", 8)
 	_amount_label = Label.new()
 	_amount_label.name = "Amount"
-	_count_label = Label.new()
-	_count_label.name = "Count"
+	_amount_label.custom_minimum_size = Vector2(64, 44)
+	_amount_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	GameTheme.style_ink_label(_amount_label)
 	amount_row.add_child(_amount_label)
-	amount_row.add_child(_count_label)
-	box.add_child(amount_row)
+	_minus = _step_button("Minus", "res://assets_extra/shared/glyph_minus_10x10.png", -1)
+	amount_row.add_child(_minus)
 	_slider = HSlider.new()
 	_slider.name = "Slider"
 	_slider.min_value = 0
 	_slider.max_value = 0
 	_slider.step = 1
 	_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_slider.custom_minimum_size = Vector2(0, 22)
+	_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_slider.custom_minimum_size = Vector2(0, 24)
 	_slider.value_changed.connect(_on_slider)
-	box.add_child(_slider)
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 6)
-	_make = Button.new()
-	_make.name = "Make"
-	_make.pressed.connect(_on_make)
+	amount_row.add_child(_slider)
+	_plus = _step_button("Plus", "res://assets_extra/shared/glyph_plus_10x10.png", 1)
+	amount_row.add_child(_plus)
 	_max = Button.new()
 	_max.name = "Max"
+	_max.custom_minimum_size = Vector2(64, 44)
 	_max.pressed.connect(_on_max)
-	_cancel = Button.new()
-	_cancel.name = "Cancel"
-	_cancel.pressed.connect(_on_cancel)
-	buttons.add_child(_make)
-	buttons.add_child(_max)
-	buttons.add_child(_cancel)
-	box.add_child(buttons)
+	GameTheme.style_wood_button(_max)
+	amount_row.add_child(_max)
+	box.add_child(amount_row)
+	var meta := HBoxContainer.new()
+	meta.name = "MetaRow"
+	meta.add_theme_constant_override("separation", 8)
+	_meta_row = meta
+	_count_label = Label.new()
+	_count_label.name = "Count"
+	_count_label.custom_minimum_size = Vector2(0, 36)
+	_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_count_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	GameTheme.style_heading_label(_count_label)
+	meta.add_child(_count_label)
 	_current_label = Label.new()
 	_current_label.name = "CurrentLabel"
+	GameTheme.style_ink_label(_current_label)
 	box.add_child(_current_label)
 	_current_bar = _bar("CurrentBar")
 	box.add_child(_current_bar)
 	_total_label = Label.new()
 	_total_label.name = "TotalLabel"
+	GameTheme.style_ink_label(_total_label)
 	box.add_child(_total_label)
 	_total_bar = _bar("TotalBar")
 	box.add_child(_total_bar)
 	_detail = Label.new()
 	_detail.name = "Detail"
-	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(_detail)
+	_detail.clip_text = true
+	_detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_detail.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_detail.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	GameTheme.style_ink_label(_detail, true)
+	meta.add_child(_detail)
+	box.add_child(meta)
 	_status = Label.new()
 	_status.name = "Status"
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status.custom_minimum_size = Vector2(200, 0)
+	GameTheme.style_ink_label(_status)
 	box.add_child(_status)
 	_note = Label.new()
 	_note.name = "AwayNote"
+	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.clip_text = false
+	_note.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	GameTheme.style_ink_label(_note, true)
 	box.add_child(_note)
+	var act_row := HBoxContainer.new()
+	act_row.name = "ActionRow"
+	act_row.add_theme_constant_override("separation", 12)
+	act_row.size_flags_vertical = Control.SIZE_SHRINK_END
+	act_row.alignment = BoxContainer.ALIGNMENT_END
+	_action_row = act_row
+	_cancel = Button.new()
+	_cancel.name = "Cancel"
+	_cancel.custom_minimum_size = Vector2(120, 44)
+	_cancel.size_flags_vertical = Control.SIZE_SHRINK_END
+	_cancel.pressed.connect(_on_cancel)
+	GameTheme.style_wood_button(_cancel)
+	act_row.add_child(_cancel)
+	_make = Button.new()
+	_make.name = "Make"
+	_make.custom_minimum_size = Vector2(200, 52)
+	_make.size_flags_vertical = Control.SIZE_SHRINK_END
+	_make.pressed.connect(_on_make)
+	GameTheme.force_primary_button(_make)
+	act_row.add_child(_make)
+	box.add_child(act_row)
 	_build_confirm(box)
 	_apply_copy()
+	_apply_density()
+
+
+func _step_button(node_name: String, glyph: String, delta: int) -> Button:
+	var btn := Button.new()
+	btn.name = node_name
+	btn.custom_minimum_size = Vector2(44, 44)
+	GameTheme.style_wood_button(btn)
+	var tex: Texture2D = load(glyph) as Texture2D
+	if tex:
+		var img := TextureRect.new()
+		img.texture = tex
+		img.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		img.set_anchors_preset(Control.PRESET_CENTER)
+		img.offset_left = -10.0
+		img.offset_right = 10.0
+		img.offset_top = -12.0
+		img.offset_bottom = 8.0
+		btn.add_child(img)
+	btn.pressed.connect(func() -> void:
+		if _slider:
+			_slider.value = clampf(_slider.value + float(delta), _slider.min_value, _slider.max_value)
+	)
+	return btn
 
 
 func _bar(node_name: String) -> ProgressBar:
@@ -136,7 +218,7 @@ func _bar(node_name: String) -> ProgressBar:
 	bar.max_value = 1.0
 	bar.step = 0.001
 	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(0, 10)
+	bar.custom_minimum_size = Vector2(0, 12)
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = Color(0.55, 0.78, 0.34, 1.0)
 	bar.add_theme_stylebox_override("fill", fill)
@@ -152,20 +234,31 @@ func _build_confirm(box: VBoxContainer) -> void:
 	_confirm.visible = false
 	var inner := VBoxContainer.new()
 	inner.add_theme_constant_override("separation", 6)
+	_confirm.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(
+		"res://assets/ui/theme/popup_9s_32x32.png", Vector4i(8, 8, 8, 8), Vector4(12, 10, 12, 10)))
 	_confirm_title = Label.new()
 	_confirm_title.name = "ConfirmTitle"
 	_confirm_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_confirm_title.custom_minimum_size = Vector2(200, 0)
+	GameTheme.style_ink_label(_confirm_title)
 	_confirm_body = Label.new()
 	_confirm_body.name = "ConfirmBody"
 	_confirm_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_confirm_body.custom_minimum_size = Vector2(200, 0)
+	GameTheme.style_ink_label(_confirm_body, true)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
+	row.add_theme_constant_override("separation", 12)
+	row.alignment = BoxContainer.ALIGNMENT_END
 	_confirm_yes = Button.new()
 	_confirm_yes.name = "ConfirmYes"
+	_confirm_yes.custom_minimum_size = Vector2(0, 44)
 	_confirm_yes.pressed.connect(_on_confirm_yes)
+	GameTheme.style_wood_button(_confirm_yes)
 	_confirm_no = Button.new()
 	_confirm_no.name = "ConfirmNo"
+	_confirm_no.custom_minimum_size = Vector2(0, 44)
 	_confirm_no.pressed.connect(_on_confirm_no)
+	GameTheme.style_wood_button(_confirm_no)
 	row.add_child(_confirm_yes)
 	row.add_child(_confirm_no)
 	inner.add_child(_confirm_title)
@@ -175,10 +268,102 @@ func _build_confirm(box: VBoxContainer) -> void:
 	box.add_child(_confirm)
 
 
+func _apply_density() -> void:
+	## Stations share the window with three recipe rows, so the batch gives up the
+	## hero count and sits the away note beside Make. The workbench keeps the tall count.
+	if _body != null:
+		_body.add_theme_constant_override("separation", 6 if compact else 2)
+	if _count_label != null:
+		if compact:
+			GameTheme.style_heading_label(_count_label)
+			_count_label.custom_minimum_size = Vector2(0, 36)
+		else:
+			GameTheme.style_ink_label(_count_label)
+			_count_label.custom_minimum_size = Vector2(0, 20)
+	if _make != null:
+		_make.custom_minimum_size = Vector2(200, 52) if compact else Vector2(120, 52)
+
+
+func _place_status() -> void:
+	## The running line shares the button row so it does not push the recipe list
+	## back down to one row on a 540p station window.
+	if _status == null or _action_row == null:
+		return
+	if _status.get_parent() != _action_row:
+		_status.reparent(_action_row)
+	_action_row.move_child(_status, 0)
+	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_status.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status.custom_minimum_size = Vector2(0, 0)
+
+
+func _place_away_note() -> void:
+	if _note == null or _body == null or _action_row == null:
+		return
+	if _note.get_parent() != _action_row:
+		_note.reparent(_action_row)
+		_action_row.move_child(_note, 0)
+	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.clip_text = false
+	_note.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_fit_away_note(size.x)
+
+
+func refit_away_note(width: float) -> void:
+	_apply_density()
+	_place_away_note()
+	_fit_away_note(width)
+
+
+func _note_column_width(width: float) -> float:
+	var reserved: float = 8.0
+	var sep: float = 12.0
+	if _action_row != null:
+		sep = float(_action_row.get_theme_constant(&"separation"))
+		reserved += sep
+	if _make != null and _make.visible:
+		reserved += _make.get_combined_minimum_size().x
+	if _cancel != null and _cancel.visible:
+		reserved += _cancel.get_combined_minimum_size().x + sep
+	## 240 px keeps "…working the station." on two lines of Silver 19.
+	return maxf(240.0, width - reserved)
+
+
+func _fit_away_note(width: float) -> void:
+	if _note == null:
+		return
+	var text_w: float = _note_column_width(width)
+	_note.custom_minimum_size.x = text_w
+	var font: Font = _note.get_theme_font(&"font")
+	var fsize: int = _note.get_theme_font_size(&"font_size")
+	var text_h: float = 30.0
+	if font != null and _note.text != "":
+		text_h = font.get_multiline_string_size(_note.text, HORIZONTAL_ALIGNMENT_LEFT, text_w, fsize).y
+	_note.custom_minimum_size.y = maxf(30.0, ceilf(text_h))
+
+
+func _fit_amount_label() -> void:
+	if _amount_label == null:
+		return
+	var font: Font = _amount_label.get_theme_font(&"font")
+	var fsize: int = _amount_label.get_theme_font_size(&"font_size")
+	var text_w: float = 72.0
+	if font != null:
+		text_w = font.get_string_size(_amount_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
+	_amount_label.custom_minimum_size = Vector2(ceilf(text_w) + 12.0, 44.0)
+	_amount_label.clip_text = true
+	_amount_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+
+
 func _apply_copy() -> void:
 	if not has_node("/root/ContentStrings"):
 		return
 	_amount_label.text = ContentStrings.get_text("batch_amount")
+	_fit_amount_label()
 	_make.text = ContentStrings.get_text("batch_make")
 	_max.text = ContentStrings.get_text("batch_max")
 	_cancel.text = ContentStrings.get_text("batch_cancel")
@@ -197,9 +382,9 @@ func _line(key: String, tokens: Dictionary = {}) -> String:
 
 func _count_text(count: int) -> String:
 	if _recipe_id == "" or not has_node("/root/ForgeJobs"):
-		return str(count)
+		return "×%d" % count
 	var seconds: float = ForgeJobs.craft_duration_seconds(_spot_id, _recipe_id, count)
-	return "%d · %s" % [count, ForgeJobs.format_duration_words(seconds)]
+	return "×%d · %s" % [count, ForgeJobs.format_duration_words(seconds)]
 
 
 func _on_slider(_value: float) -> void:
@@ -256,6 +441,7 @@ func _refresh() -> void:
 	if not _built or _spot_id == "" or not has_node("/root/ForgeJobs"):
 		return
 	_apply_copy()
+	_apply_density()
 	var running: bool = ForgeJobs.has_job(_spot_id)
 	var state: Dictionary = ForgeJobs.job_state(_spot_id) if running else {}
 	var limit: int = 0
@@ -271,7 +457,12 @@ func _refresh() -> void:
 	var shown: int = int(_slider.value)
 	_count_label.text = _count_text(shown)
 	var show_slider: bool = not running and limit > 0
-	_slider.visible = show_slider
+	_slider.visible = not running
+	_slider.editable = show_slider
+	_minus.visible = not running
+	_plus.visible = not running
+	_minus.disabled = not show_slider or shown <= 0
+	_plus.disabled = not show_slider or shown >= limit
 	_amount_label.visible = not running
 	_count_label.visible = not running
 	_make.visible = not running
@@ -303,7 +494,7 @@ func _refresh() -> void:
 		var bits: PackedStringArray = PackedStringArray()
 		bits.append(str(state.get("name", "")))
 		bits.append(ForgeJobs.staff_line(_spot_id))
-		_detail.text = "\n".join(bits)
+		_detail.text = "  ·  ".join(bits)
 		if float(state.get("speed", 0.0)) <= 0.0:
 			_status.text = _line("batch_unstaffed")
 		else:
@@ -319,10 +510,16 @@ func _refresh() -> void:
 		var staff: String = ForgeJobs.staff_line(_spot_id)
 		if staff != "":
 			idle_bits.append(staff)
-		_detail.text = "\n".join(idle_bits)
+		_detail.text = "  ·  ".join(idle_bits)
 		if _status.text == _line("batch_unstaffed") or _status.text == _line("batch_busy"):
 			_status.text = ""
 	_note.text = _line("batch_away_note")
+	_note.tooltip_text = _note.text
+	_place_away_note()
+	_detail.visible = running or not compact
+	_status.visible = _status.text != ""
+	_note.visible = not _status.visible
+	_place_status()
 	_confirm.visible = _confirming and running
 	if _confirm.visible:
 		_confirm_body.text = _line("batch_cancel_confirm_body", {"refund": ForgeJobs.refund_text(_spot_id)})

@@ -57,10 +57,15 @@ func _apply_walk_box() -> void:
 	FeetBox.apply_size(shape_node, box, Vector2.ZERO)
 
 
+func world_hover_name() -> String:
+	return ContentStrings.get_text("bench_title")
+
+
 func _on_title_hover(inside: bool) -> void:
 	var title: Label = get_node_or_null("Title") as Label
 	if title:
 		title.visible = inside
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func stand_global() -> Vector2:
@@ -155,7 +160,7 @@ func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> vo
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		_on_left_click()
 		get_viewport().set_input_as_handled()
-	elif mb.button_index == MOUSE_BUTTON_RIGHT:
+	elif GameInput.is_command(mb):
 		_on_right_click()
 		get_viewport().set_input_as_handled()
 

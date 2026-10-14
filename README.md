@@ -16,7 +16,7 @@ Now that sapling is yours. **You are the new Keeper.** Will you break the cycle,
 
 Deep in an ancient forest, the Manatree waits. You tend it from a fragile sapling to a towering Ancient, gather wood, stone and berries, and command a little swarm of glowing Wisps who work for you even while you're away.
 
-When the tree finally bears its **Primordial Fruit**, you choose what power to carry into your next life, then **Ascend** and start over with everything you've learned. Every cycle brings you a little closer to what the Ancient Keepers never managed to do.
+When the tree finally bears its **Primordial Fruit**, you choose what power to carry into your next life, then **Ascend** and start over with everything you've learned. Forge materials do not come with you: Sapsteel, Heartwood Bits and Amberbind return to the forest on every Ascend. Every cycle brings you a little closer to what the Ancient Keepers never managed to do.
 
 ## ✨ What you'll do
 
@@ -42,6 +42,8 @@ Tales of the Manaforge is a **hobby game made by a dad of three**, built in the 
 It's also **fully vibe-coded**: every line of code, every sprite and every sound comes from working with AI assistants. I describe the game I want to play, and a little team of AI helpers builds it with me. It's an experiment in how far a busy parent with big ideas can get.
 
 Built with [Godot 4](https://godotengine.org/).
+
+**Fonts:** [Silver](https://poppyworks.itch.io/silver) by Poppy Works (CC BY 4.0); Jersey 10 (SIL Open Font License 1.1, see `assets/fonts/Jersey10-OFL.txt`).
 
 **Feedback, bug reports and kind words are always welcome! 💚**
 

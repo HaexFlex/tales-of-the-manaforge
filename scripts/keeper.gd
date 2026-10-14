@@ -1366,13 +1366,20 @@ func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -
 			else:
 				GameState.status_message.emit(ContentStrings.get_text("echo_elaia_name"))
 			get_viewport().set_input_as_handled()
-		elif mb.button_index == MOUSE_BUTTON_RIGHT:
+		elif GameInput.is_command(mb):
 			get_viewport().set_input_as_handled()
+
+
+func world_hover_name() -> String:
+	if actor_id() == "elaia":
+		return ContentStrings.get_text("echo_elaia_name")
+	return ContentStrings.get_text("keeper_select")
 
 
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_on_selection_changed()
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _apply_outline(show_outline: bool) -> void:

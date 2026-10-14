@@ -42,9 +42,16 @@ func _ready() -> void:
 	_refresh_visual()
 
 
+func world_hover_name() -> String:
+	if station_id == "":
+		return ""
+	return ForgeJobs.station_display(station_id)
+
+
 func _on_title_hover(inside: bool) -> void:
 	if title:
 		title.visible = inside
+	WorldHover.sync(self, inside, world_hover_name())
 
 
 func _ensure_walk_body() -> void:
@@ -196,7 +203,7 @@ func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> vo
 	if mb.button_index == MOUSE_BUTTON_LEFT:
 		_on_left_click()
 		get_viewport().set_input_as_handled()
-	elif mb.button_index == MOUSE_BUTTON_RIGHT:
+	elif GameInput.is_command(mb):
 		_on_right_click()
 		get_viewport().set_input_as_handled()
 

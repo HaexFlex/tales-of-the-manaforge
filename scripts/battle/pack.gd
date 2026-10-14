@@ -83,6 +83,56 @@ func bank(pct: int) -> Dictionary:
 	return _bank_real(pct)
 
 
+func bank_with_sturdy(reason: String, safe_ratio: float) -> Dictionary:
+	## Sturdy Pack: `safe_ratio` of each stack is protected. Overwhelmed banks only that share;
+	## Flee halves only the unprotected remainder. Other reasons use the legacy 100% / 50% / 0% rules.
+	if items.is_empty():
+		return {}
+	if safe_ratio <= 0.0001:
+		if reason == "flee":
+			return bank(50)
+		if reason == "overwhelmed":
+			clear()
+			return {}
+		return bank(100)
+	var to_bank: Dictionary = {}
+	var keys: Array = items.keys()
+	for k: Variant in keys:
+		var item_id: String = str(k)
+		var n: int = int(items[item_id])
+		if n <= 0:
+			continue
+		var protected: int = mini(n, int(floor(float(n) * safe_ratio + 0.0000001)))
+		var unprotected: int = n - protected
+		var keep: int = protected
+		if reason == "flee":
+			keep += int(unprotected / 2)
+		elif reason == "overwhelmed":
+			pass
+		else:
+			keep = n
+		if keep > 0:
+			to_bank[item_id] = keep
+		items.erase(item_id)
+	if to_bank.is_empty():
+		return {}
+	var tree_root: Window = Engine.get_main_loop().root as Window
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var backpack: Node = tree_root.get_node_or_null("Backpack")
+	for bk: Variant in to_bank.keys():
+		var item_id: String = str(bk)
+		var qty: int = int(to_bank[item_id])
+		if qty <= 0:
+			continue
+		if item_id == "wood" or item_id == "stone" or item_id == "food":
+			if game_state != null:
+				game_state.call("add_resource", StringName(item_id), qty)
+		else:
+			if backpack != null and bool(backpack.call("is_known_item", item_id)):
+				backpack.call("add_item", item_id, qty)
+	return to_bank
+
+
 func _bank_real(pct: int) -> Dictionary:
 	var banked: Dictionary = banked_share(pct)
 	var tree_root: Window = Engine.get_main_loop().root as Window
