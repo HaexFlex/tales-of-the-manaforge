@@ -1527,6 +1527,23 @@ func _run() -> void:
 			failed += _assert(shard_lbl != null and shard_lbl.text == "0", "new game HUD shards are 0")
 			failed += _assert(ess_lbl != null and ess_lbl.text == "0", "new game HUD essence is 0")
 			failed += _assert(str(game_state.get("stage_id")) == "sapling", "new game boot is sapling")
+			var saved_wisps: int = int(game_state.get("wisp_count"))
+			var saved_assign: Dictionary = (game_state.get("wisp_assignments") as Dictionary).duplicate()
+			game_state.set("wisp_count", 4)
+			game_state.set("wisp_assignments", {"0": "manatree", "1": "", "2": "anvil", "3": ""})
+			game_state.emit_signal("wisps_changed")
+			var wisp_num: Label = boot_live.get_node_or_null("HUD/Panel/IconRow/WispChip/NumWisps") as Label
+			var wisp_icon: TextureRect = boot_live.get_node_or_null("HUD/Panel/IconRow/WispChip/IconWisp") as TextureRect
+			var shade: Control = boot_live.get_node_or_null("HUD/Panel/IconShade") as Control
+			failed += _assert(boot_live.get_node_or_null("HUD/WispCounter") == null, "the old floating wisp counter is gone")
+			failed += _assert(int(game_state.call("wisp_free_count")) == 2, "two of four wisps are free")
+			failed += _assert(wisp_num != null and wisp_num.text == "2/4", "resource bar shows free/total wisps (got %s)" % (wisp_num.text if wisp_num else "none"))
+			failed += _assert(wisp_icon != null and wisp_icon.texture != null, "resource bar shows the wisp icon")
+			if wisp_num and shade:
+				failed += _assert(shade.get_global_rect().grow(1.0).encloses(wisp_num.get_global_rect()), "wisp count sits inside the resource bar")
+			game_state.set("wisp_count", saved_wisps)
+			game_state.set("wisp_assignments", saved_assign)
+			game_state.emit_signal("wisps_changed")
 			boot_live.free()
 			await process_frame
 		paused = false

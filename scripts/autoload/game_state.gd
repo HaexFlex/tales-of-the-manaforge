@@ -444,6 +444,14 @@ func get_wisp_assignment(wisp_id: int) -> String:
 	return str(wisp_assignments.get(str(wisp_id), ""))
 
 
+func wisp_free_count() -> int:
+	var free: int = 0
+	for wid: int in range(wisp_count):
+		if get_wisp_assignment(wid) == "":
+			free += 1
+	return free
+
+
 func node_id_for_resource(resource_id: StringName) -> String:
 	match resource_id:
 		&"wood":

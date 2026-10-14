@@ -12,6 +12,7 @@
   "hud_food": "Food",
   "hud_manashards": "Manashards",
   "hud_essence": "Essence",
+  "hud_wisps_count": "{free}/{total}",
   "tooltip_wood": "Soft timber from the Harvest Tree.",
   "tooltip_stone": "Cool river-rock, still dusted with moss.",
   "tooltip_food": "Berries from the bush — for the Manatree’s Needs.",

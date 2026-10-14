@@ -385,7 +385,7 @@ func _reorder_resource_row() -> void:
 	var row: HBoxContainer = $Panel/IconRow as HBoxContainer
 	if row == null:
 		return
-	for chip_name: String in ["ShardChip", "WoodChip", "StoneChip", "FoodChip", "EssenceChip"]:
+	for chip_name: String in ["ShardChip", "WoodChip", "StoneChip", "FoodChip", "EssenceChip", "WispChip"]:
 		var chip: Node = row.get_node_or_null(chip_name)
 		if chip:
 			row.move_child(chip, -1)
@@ -410,6 +410,7 @@ func _apply_hud540_chrome() -> void:
 		"Panel/IconRow/StoneChip/NumStone",
 		"Panel/IconRow/FoodChip/NumFood",
 		"Panel/IconRow/EssenceChip/NumEssence",
+		"Panel/IconRow/WispChip/NumWisps",
 	]:
 		var num: Label = get_node_or_null(chip_path) as Label
 		if num:
@@ -442,7 +443,8 @@ func _layout_hud540() -> void:
 	panel.offset_right = 0.0
 	panel.offset_bottom = 0.0
 	var bar_h: float = 40.0
-	var bar_w: float = 16.0 + 5.0 * 72.0
+	## Five resource chips at 72, plus the Wisp chip (icon and free/total).
+	var bar_w: float = 16.0 + 5.0 * 72.0 + 96.0
 	var shade: Control = panel.get_node_or_null("IconShade") as Control
 	if shade:
 		shade.position = Vector2(safe + shift, safe)
@@ -463,16 +465,9 @@ func _layout_hud540() -> void:
 	if _play_speed_button:
 		_play_speed_button.position = Vector2(speed_x, safe)
 		_play_speed_button.size = Vector2(tap, tap)
-	var counter_right: float = speed_x - 12.0
 	if _speed_button:
 		_speed_button.position = Vector2(speed_x - tap - 4.0, safe)
 		_speed_button.size = Vector2(tap, tap)
-		if _speed_button.visible:
-			counter_right = _speed_button.position.x - 12.0
-	var counter: Label = get_node_or_null("WispCounter") as Label
-	if counter:
-		counter.size = Vector2(160, 28)
-		counter.position = Vector2(counter_right - counter.size.x, safe + (tap - counter.size.y) * 0.5)
 	var shortcut_y: float = vs.y - safe - tap
 	var show_nav: bool = _nav_button != null and _nav_button.visible
 	var shortcut_n: float = 4.0 if show_nav else 3.0
@@ -1269,9 +1264,6 @@ func _sync_toast_under_modals() -> void:
 	## The Keeper portrait and Idle label sit in the party column, outside $Panel.
 	if _party_bar:
 		_party_bar.visible = not modal
-	var wisps: CanvasItem = get_node_or_null("WispCounter") as CanvasItem
-	if wisps:
-		wisps.self_modulate.a = a
 	if status_label:
 		status_label.self_modulate.a = a
 	if toast_shade:
@@ -2211,37 +2203,62 @@ func hide_prestige_menu() -> void:
 
 
 func _ensure_wisp_counter() -> void:
-	var counter := Label.new()
-	counter.name = "WispCounter"
-	counter.position = Vector2(780, 14)
-	counter.size = Vector2(160, 28)
-	counter.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	counter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	counter.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_style_world_label(counter)
-	add_child(counter)
-	counter.z_index = 25
+	var row: HBoxContainer = get_node_or_null("Panel/IconRow") as HBoxContainer
+	if row == null:
+		return
+	var chip: HBoxContainer = row.get_node_or_null("WispChip") as HBoxContainer
+	if chip == null:
+		chip = HBoxContainer.new()
+		chip.name = "WispChip"
+		chip.tooltip_text = ContentStrings.get_text("wisp_name_plural")
+		chip.add_theme_constant_override("separation", 4)
+		var icon := TextureRect.new()
+		icon.name = "IconWisp"
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.texture = load(CharacterSheet.WISP_PORTRAIT_PATH) as Texture2D
+		chip.add_child(icon)
+		var num := Label.new()
+		num.name = "NumWisps"
+		num.custom_minimum_size = Vector2(48, 32)
+		num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		num.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chip.add_child(num)
+		row.add_child(chip)
 	if not GameState.wisps_changed.is_connected(_refresh_wisp_counter):
 		GameState.wisps_changed.connect(_refresh_wisp_counter)
+	if not GameState.wisp_assigned.is_connected(_on_wisp_assignment_changed):
+		GameState.wisp_assigned.connect(_on_wisp_assignment_changed)
+	if not GameState.wisp_unassigned.is_connected(_on_wisp_freed):
+		GameState.wisp_unassigned.connect(_on_wisp_freed)
+	_refresh_wisp_counter()
+
+
+func _on_wisp_assignment_changed(_wisp_id: int, _node_id: String, _result: String) -> void:
+	_refresh_wisp_counter()
+
+
+func _on_wisp_freed(_wisp_id: int) -> void:
 	_refresh_wisp_counter()
 
 
 func _set_wisp_counter_visible(show_counter: bool) -> void:
-	var counter: CanvasItem = get_node_or_null("WispCounter") as CanvasItem
-	if counter:
-		counter.visible = show_counter
+	var chip: CanvasItem = get_node_or_null("Panel/IconRow/WispChip") as CanvasItem
+	if chip:
+		chip.visible = show_counter
 
 
 func _refresh_wisp_counter() -> void:
-	var counter: Label = get_node_or_null("WispCounter") as Label
-	if counter == null:
+	var num: Label = get_node_or_null("Panel/IconRow/WispChip/NumWisps") as Label
+	if num == null:
 		return
-	if is_character_open():
-		counter.visible = false
-	var text: String = "Wisps: %d" % GameState.wisp_count
-	if has_node("/root/ForgeJobs"):
-		text = ForgeJobs.copy_text("wisp_counter", {"count": GameState.wisp_count})
-	counter.text = text
+	num.text = ContentStrings.get_text("hud_wisps_count", {
+		"free": GameState.wisp_free_count(),
+		"total": GameState.wisp_count,
+	})
 
 
 func _ensure_forge_controls() -> void:
