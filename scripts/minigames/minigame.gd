@@ -13,6 +13,10 @@ func begin() -> void:
 	playing = true
 
 
+func bind_target(_target_id: String) -> void:
+	pass
+
+
 func shutdown() -> void:
 	playing = false
 

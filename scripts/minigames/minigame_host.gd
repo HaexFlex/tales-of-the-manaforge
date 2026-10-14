@@ -8,7 +8,7 @@ var _panel: Panel
 var _title: Label
 var _pace: Label
 var _hint: Label
-var _close: Button
+var _close: BaseButton
 var _play: Control
 var _summary: Control
 var _summary_body: Label
@@ -76,10 +76,18 @@ func _build() -> void:
 	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(_title)
 
-	_close = Button.new()
-	_close.name = "Close"
+	var closer := TextureButton.new()
+	closer.name = "Close"
+	closer.texture_normal = MinigameArt.texture("close_n.png")
+	closer.texture_hover = MinigameArt.texture("close_h.png")
+	closer.texture_pressed = MinigameArt.texture("close_h.png")
+	closer.ignore_texture_size = true
+	closer.stretch_mode = TextureButton.STRETCH_KEEP
+	closer.focus_mode = Control.FOCUS_NONE
+	closer.tooltip_text = "Stop"
+	closer.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_close = closer
 	_panel.add_child(_close)
-	Ui540.configure_kit_close_button(_close)
 	_close.pressed.connect(_on_close)
 
 	_pace = Label.new()
@@ -274,6 +282,7 @@ func open_game(game_id: String, worker: String, target_id: String) -> bool:
 	_game.mouse_filter = Control.MOUSE_FILTER_STOP
 	_panel.add_child(_game)
 	_panel.move_child(_summary, -1)
+	_game.bind_target(target_id)
 	_game.begin()
 	_set_open(true)
 	_refresh_pace()
