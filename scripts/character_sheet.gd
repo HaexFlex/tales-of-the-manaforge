@@ -466,8 +466,8 @@ func _build() -> void:
 	mid.name = "GearColumn"
 	mid.host = self
 	mid.mouse_filter = Control.MOUSE_FILTER_STOP
-	mid.position = Vector2(GEAR_X, BODY_TOP)
-	mid.size = Vector2(GEAR_W, BODY_H)
+	mid.position = Vector2(GEAR_X, BODY_TOP + 44.0)
+	mid.size = Vector2(GEAR_W, BODY_H - 44.0)
 	sheet.add_child(mid)
 
 	var gear_title := Label.new()
@@ -656,7 +656,8 @@ func _install_portrait_list(sheet: Control) -> void:
 		rail.add_child(pick)
 	var pages := HBoxContainer.new()
 	pages.name = "SheetPages"
-	pages.position = Vector2(GEAR_X, PAD)
+	## Below the subtitle line (header ends at PAD + HEADER_H). The gear column starts under the tabs.
+	pages.position = Vector2(GEAR_X, PAD + HEADER_H + 16.0)
 	pages.add_theme_constant_override("separation", 8)
 	sheet.add_child(pages)
 	for spec: Array in [["PageGear", "Gear", "gear"], ["PageStats", "Stats", "stats"]]:

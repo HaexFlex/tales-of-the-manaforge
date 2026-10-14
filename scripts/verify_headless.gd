@@ -3515,6 +3515,9 @@ func _run() -> void:
 		failed += _assert(head_square != null and head_cap != null and head_cap.position.y >= head_square.position.y + head_square.size.y - 0.5, "head Locked sits under the square")
 		var hotkey_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/HotkeyHint") as Label
 		failed += _assert(hotkey_lbl != null and str(hotkey_lbl.text) == "C — Character", "sheet hotkey hint")
+		var sheet_hint: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Hint") as Control
+		var sheet_pages: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/SheetPages") as Control
+		failed += _assert(sheet_hint != null and sheet_pages != null and sheet_pages.position.y >= sheet_hint.position.y + sheet_hint.size.y - 1.0, "Gear/Stats tabs sit below the subtitle")
 		failed += _assert(char_btn != null and str(char_btn.tooltip_text) == "C — Character", "HUD hotkey hint")
 		var gear_title_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearTitle") as Label
 		failed += _assert(gear_title_lbl != null and str(gear_title_lbl.text) == "Gear", "gear column title")
