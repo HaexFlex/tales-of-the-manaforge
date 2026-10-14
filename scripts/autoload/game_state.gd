@@ -42,6 +42,9 @@ var fruit_committed: bool = false
 var fruit_harvested_pending_ascend: bool = false
 ## True after first-boot welcome was dismissed (once per new save).
 var welcome_shown: bool = false
+## True once the card has been shown this session. Not saved. Rebuilding the
+## clearing (Forge view switch) must not play it again.
+var welcome_presented: bool = false
 ## Echo Chamber v1. Portal after the first Ascend. No mid-fight HP.
 var portal_unlocked: bool = false
 var portal_fee_paid: bool = false
@@ -2064,6 +2067,7 @@ func reset_for_new_game() -> void:
 	fruit_ready = false
 	_set_fruit_committed(false)
 	welcome_shown = false
+	welcome_presented = false
 	ascensions = 0
 	lifetime_waters = 0
 	lifetime_shards_from_water = 0

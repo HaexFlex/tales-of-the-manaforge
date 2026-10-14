@@ -3739,6 +3739,7 @@ func _run() -> void:
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
 	failed += await _scene_transitions(tree_root, game_state, save_service)
+	failed += await _welcome_once(tree_root, game_state, save_service)
 	failed += await _workbench_reach(tree_root, save_service)
 	failed += await _portrait_switch_forge(tree_root, game_state, save_service)
 	failed += await _forge_arch_draw_order(tree_root)
@@ -6730,6 +6731,57 @@ func _waypoint_pass(tree_root: Window, game_state: Node, save_service: Node, bac
 const _HUB_SCENE: String = "res://scenes/main.tscn"
 const _FORGE_SCENE: String = "res://scenes/forge_room.tscn"
 const _TITLE_SCENE: String = "res://scenes/title_screen.tscn"
+
+
+func _welcome_once(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## The card plays once. switch_view(false) rebuilds the clearing; it must not play again.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for the welcome")
+	if jobs == null:
+		return failed
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	if echo:
+		echo.set("in_battle", false)
+	game_state.set("ancient_frozen", false)
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	save_service.call("note_session_ended")
+	save_service.call("delete_save")
+	game_state.call("reset_for_new_game")
+	save_service.set("boot_intent", "new")
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("welcome boot", _HUB_SCENE)
+	if failed > 0:
+		return failed
+	var welcome: CanvasItem = current_scene.get_node_or_null("HUD/WelcomePanel") as CanvasItem
+	failed += _assert(welcome != null and welcome.visible, "a new game shows the welcome card")
+	failed += _assert(bool(game_state.get("welcome_presented")), "showing the card marks it presented")
+	failed += _assert(not bool(game_state.get("welcome_shown")), "the card is presented before it is dismissed")
+	game_state.set("forge_visited", true)
+	jobs.call("switch_view", true)
+	failed += await _expect_scene("welcome to forge", _FORGE_SCENE)
+	if failed == 0:
+		jobs.call("switch_view", false)
+		failed += await _expect_scene("welcome back", _HUB_SCENE)
+	welcome = current_scene.get_node_or_null("HUD/WelcomePanel") as CanvasItem if current_scene else null
+	failed += _assert(welcome != null and not welcome.visible, "returning from the forge does not show the welcome again")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	change_scene_to_file(_HUB_SCENE)
+	failed += await _expect_scene("welcome new again", _HUB_SCENE)
+	welcome = current_scene.get_node_or_null("HUD/WelcomePanel") as CanvasItem if current_scene else null
+	failed += _assert(welcome != null and welcome.visible, "a new game after that still shows the card once")
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("WELCOME_ONCE_OK")
+	return failed
 
 
 func _scene_transitions(tree_root: Window, game_state: Node, save_service: Node) -> int:

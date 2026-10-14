@@ -1370,7 +1370,7 @@ func bind_manatree(tree: Manatree) -> void:
 
 
 func maybe_show_welcome() -> void:
-	if GameState.welcome_shown:
+	if GameState.welcome_shown or GameState.welcome_presented:
 		return
 	show_welcome()
 
@@ -1432,6 +1432,7 @@ func _layout_welcome_panel() -> void:
 
 
 func show_welcome() -> void:
+	GameState.welcome_presented = true
 	close_backpack()
 	close_character_sheet()
 	hide_care_menu()
