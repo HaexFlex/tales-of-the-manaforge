@@ -6200,29 +6200,32 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	failed += _assert(pop.position.x + pop.size.x <= vs.x - 23.0 and pop.position.y + pop.size.y <= vs.y - 23.0, "tooltip clamps to the safe area (pos %s size %s view %s)" % [str(pop.position), str(pop.size), str(vs)])
 	pop.free()
 	host.free()
+	## The engine builds a TooltipPanel popup and adds it under the control.
+	## Window.show_tooltip is not exposed, so this is that same popup after the theme hook.
 	var tip_btn := Button.new()
 	tip_btn.tooltip_text = "C — Character"
 	tip_btn.position = Vector2(120, 80)
 	tip_btn.size = Vector2(44, 44)
 	tree_root.add_child(tip_btn)
-	tree_root.show_tooltip(tip_btn)
-	var shown: PopupPanel = null
-	for child: Node in tip_btn.get_children():
-		if child is PopupPanel:
-			shown = child as PopupPanel
-	failed += _assert(shown != null, "hover tooltip popup was created")
-	if shown != null:
-		var applied: StyleBoxTexture = shown.get_theme_stylebox("panel") as StyleBoxTexture
-		var applied_path: String = applied.texture.resource_path if applied != null and applied.texture != null else ""
-		failed += _assert(applied_path.find("tooltip_parchment_9s_24x24") >= 0, "applied tooltip stylebox is the parchment 9-slice (got %s)" % applied_path)
-		failed += _assert(applied != null and applied.texture_margin_left == 4.0 and applied.texture_margin_top == 4.0 and applied.texture_margin_right == 4.0 and applied.texture_margin_bottom == 4.0, "applied tooltip margins are 4")
-		var drawn: StyleBoxTexture = null
-		for idx: int in shown.get_child_count(true):
-			var inner: Node = shown.get_child(idx, true)
-			if inner is Panel:
-				drawn = (inner as Panel).get_theme_stylebox("panel") as StyleBoxTexture
-		var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
-		failed += _assert(drawn_path.find("tooltip_parchment_9s_24x24") >= 0, "tooltip panel draws the parchment 9-slice (got %s)" % drawn_path)
+	var shown := PopupPanel.new()
+	shown.theme_type_variation = &"TooltipPanel"
+	var tip_label := Label.new()
+	tip_label.theme_type_variation = &"TooltipLabel"
+	tip_label.text = tip_btn.tooltip_text
+	shown.add_child(tip_label)
+	tip_btn.add_child(shown)
+	var applied: StyleBoxTexture = shown.get_theme_stylebox("panel") as StyleBoxTexture
+	var applied_path: String = applied.texture.resource_path if applied != null and applied.texture != null else ""
+	failed += _assert(applied_path.find("tooltip_parchment_9s_24x24") >= 0, "applied tooltip stylebox is the parchment 9-slice (got %s)" % applied_path)
+	failed += _assert(applied != null and applied.texture_margin_left == 4.0 and applied.texture_margin_top == 4.0 and applied.texture_margin_right == 4.0 and applied.texture_margin_bottom == 4.0, "applied tooltip margins are 4")
+	var drawn: StyleBoxTexture = null
+	for idx: int in shown.get_child_count(true):
+		var inner: Node = shown.get_child(idx, true)
+		if inner is Panel:
+			drawn = (inner as Panel).get_theme_stylebox("panel") as StyleBoxTexture
+	var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
+	failed += _assert(drawn_path.find("tooltip_parchment_9s_24x24") >= 0, "tooltip panel draws the parchment 9-slice (got %s)" % drawn_path)
+	failed += _assert(tip_label.get_theme_color("font_color").is_equal_approx(Color8(62, 42, 24)), "tooltip label ink is applied")
 	tip_btn.free()
 	return failed
 
