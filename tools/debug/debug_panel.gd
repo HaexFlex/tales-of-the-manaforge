@@ -558,6 +558,13 @@ func _build_tab_runes(tabs: TabContainer) -> void:
 func _build_tab_overlays(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Visual / Debug overlays")
 	_add_button(box, "Toggle debug panel (close)", _on_close_pressed)
+	_add_button(box, "Open Steeping", func() -> void:
+		if not has_node("/root/MinigameHost"):
+			_set_status("Steeping needs the minigame host.")
+			return
+		var opened: bool = bool(MinigameHost.call("debug_open", "steeping"))
+		_set_status("Steeping opened." if opened else "Could not open Steeping.")
+	)
 	_add_button(box, "Open AnimPreview scene", func() -> void:
 		var path: String = "res://tools/AnimPreview.tscn"
 		if ResourceLoader.exists(path):

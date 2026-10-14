@@ -1,24 +1,29 @@
 class_name Steeping
 extends Minigame
-## Herbs flash an order, then go into the cauldron in that order.
-## No brewing station exists in the world, so the host does not offer this game.
-## The cycle never starts the next one before 8 seconds. k is 16.
+## Herbs are shown, held, then picked. The world never offers this game.
+## Show 1.2s per herb, hold 1s, input 10s, one replay, then a 0.8s gap. k is 21.2.
 
 const HERB_COUNT: int = 5
 
-var _k: float = 16.0
-var _cycle: float = 8.0
-var _show_for: float = 2.4
-var _t: float = 0.0
+var _k: float = 21.2
+var _show_each: float = 1.2
+var _hold: float = 1.0
+var _input_sec: float = 10.0
+var _input_left: float = 10.0
+var _replays_max: int = 1
+var _replays_left: int = 1
+var _gap: float = 0.8
+var _phase: String = "show"
+var _phase_t: float = 0.0
 var _order: Array[int] = []
 var _step: int = 0
 var _resolved: bool = false
-var _showing: bool = true
-var _replay: float = 0.0
 var _slots: Array[TextureRect] = []
 var _order_icons: Array[TextureRect] = []
 var _cauldron: Sprite2D
 var _drag_herb: int = -1
+var _replay_btn: TextureButton
+var _bar_fill: ColorRect
 var _rng := RandomNumberGenerator.new()
 
 
@@ -28,8 +33,13 @@ func game_id() -> String:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	var row: Dictionary = MinigameCatalog.game("steeping")
 	_k = MinigameCatalog.k_for("steeping")
-	_cycle = MinigameCatalog.steeping_cycle()
+	_show_each = maxf(0.1, float(row.get("show_sec_per_herb", 1.2)))
+	_hold = maxf(0.0, float(row.get("hold_sec", 1.0)))
+	_input_sec = maxf(0.1, float(row.get("input_sec", 10.0)))
+	_replays_max = maxi(0, int(row.get("replays", 1)))
+	_gap = maxf(0.0, float(row.get("next_gap_sec", 0.8)))
 	_rng.randomize()
 	MinigameArt.add_sprite(self, "bg_forge.png", Vector2(320, 160))
 	_cauldron = MinigameArt.add_sprite(self, "st_cauldron.png", Vector2(320, 150))
@@ -61,20 +71,51 @@ func _ready() -> void:
 		frame.z_index = 2
 		slot.set_meta("frame", frame)
 		_slots.append(slot)
+	var track := ColorRect.new()
+	track.name = "TimerTrack"
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.color = Color8(52, 36, 24)
+	track.position = Vector2(210, 80)
+	track.size = Vector2(352, 8)
+	track.z_index = 4
+	add_child(track)
+	_bar_fill = ColorRect.new()
+	_bar_fill.name = "TimerFill"
+	_bar_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bar_fill.color = Color8(143, 227, 230)
+	_bar_fill.position = Vector2(210, 80)
+	_bar_fill.size = Vector2(352, 8)
+	_bar_fill.z_index = 5
+	add_child(_bar_fill)
+	_replay_btn = TextureButton.new()
+	_replay_btn.name = "Replay"
+	_replay_btn.position = Vector2(588, 26)
+	_replay_btn.size = Vector2(44, 44)
+	_replay_btn.ignore_texture_size = true
+	_replay_btn.stretch_mode = TextureButton.STRETCH_KEEP
+	_replay_btn.focus_mode = Control.FOCUS_NONE
+	_replay_btn.z_index = 6
+	_replay_btn.pressed.connect(_replay)
+	add_child(_replay_btn)
 	_new_order()
 
 
 func _process(delta: float) -> void:
 	if not playing:
 		return
-	_t += delta
-	if _replay > 0.0:
-		_replay = maxf(0.0, _replay - delta)
-	if _t >= _cycle:
-		_t = 0.0
+	_phase_t += delta
+	if _phase == "show" and _phase_t >= _show_each * float(maxi(_order.size(), 1)):
+		_phase = "hold"
+		_phase_t = 0.0
+	elif _phase == "hold" and _phase_t >= _hold:
+		_phase = "input"
+		_phase_t = 0.0
+	elif _phase == "input":
+		_input_left = maxf(0.0, _input_left - delta)
+		if _input_left <= 0.0:
+			_end_round(false)
+	elif _phase == "gap" and _phase_t >= _gap:
 		_new_order()
-	elif _showing and _t >= _show_for:
-		_showing = false
 	_paint()
 
 
@@ -101,8 +142,7 @@ func on_key(event: InputEvent) -> void:
 	if not key.pressed or key.echo:
 		return
 	if key.keycode == KEY_R:
-		_replay = 1.4
-		_showing = true
+		_replay()
 		return
 	var index: int = -1
 	match key.keycode:
@@ -121,17 +161,38 @@ func on_key(event: InputEvent) -> void:
 
 
 func _pick(index: int) -> void:
-	if _resolved or _showing or _replay > 0.0:
+	if _resolved or _phase != "input":
 		return
 	if index < 0 or index >= HERB_COUNT or _step >= _order.size():
 		return
 	if index != _order[_step]:
-		_resolved = true
-		_paint()
+		_end_round(false)
 		return
 	_step += 1
 	if _step >= _order.size():
-		_resolved = true
+		_end_round(true)
+	_paint()
+
+
+func _replay() -> void:
+	if _phase != "input" or _replays_left <= 0 or _resolved:
+		return
+	_replays_left -= 1
+	_phase = "show"
+	_phase_t = 0.0
+	_step = 0
+	_drag_herb = -1
+	_paint()
+
+
+func _end_round(ok: bool) -> void:
+	if _resolved:
+		return
+	_resolved = true
+	_phase = "gap"
+	_phase_t = 0.0
+	_drag_herb = -1
+	if ok:
 		succeed(_k)
 	_paint()
 
@@ -150,8 +211,10 @@ func _new_order() -> void:
 		_order.append(bag[i])
 	_step = 0
 	_resolved = false
-	_showing = true
-	_replay = 0.0
+	_phase = "show"
+	_phase_t = 0.0
+	_input_left = _input_sec
+	_replays_left = _replays_max
 	_drag_herb = -1
 	for icon: TextureRect in _order_icons:
 		icon.texture = null
@@ -171,17 +234,25 @@ func _slot_at(pos: Vector2) -> int:
 
 
 func _paint() -> void:
+	var showing: bool = _phase == "show" or _phase == "hold"
+	var revealed: int = _order.size()
+	if _phase == "show":
+		revealed = clampi(int(floor(_phase_t / _show_each)) + 1, 0, _order.size())
+	elif _phase == "input":
+		revealed = _step
+	for i: int in _order_icons.size():
+		var show_icon: bool = i < _order.size() and (showing or _phase == "gap" or i < revealed)
+		_order_icons[i].visible = show_icon
 	var flash: int = -1
-	if (_showing or _replay > 0.0) and not _order.is_empty():
-		var pulse: float = _t if _replay <= 0.0 else (1.4 - _replay)
-		flash = _order[posmod(int(floor(pulse / 0.45)), _order.size())]
+	if _phase == "show" and revealed > 0:
+		flash = _order[revealed - 1]
 	for i: int in _slots.size():
 		var frame: Sprite2D = _slots[i].get_meta("frame") as Sprite2D
 		if frame == null:
 			continue
 		var file: String = "slot_n.png"
-		if _resolved and _step < _order.size():
-			file = "slot_bad.png" if i == _order[_step] else "slot_n.png"
+		if _resolved and _phase == "gap" and _step < _order.size() and i == _order[_step]:
+			file = "slot_bad.png"
 		elif i == flash:
 			file = "slot_h.png"
 		elif _step > 0 and _order.slice(0, _step).has(i):
@@ -189,3 +260,19 @@ func _paint() -> void:
 		var tex: Texture2D = MinigameArt.texture(file)
 		if tex != null:
 			frame.texture = tex
+	if _bar_fill != null:
+		var frac: float = 1.0
+		if _phase == "input":
+			frac = clampf(_input_left / _input_sec, 0.0, 1.0)
+		elif _phase == "gap":
+			frac = 0.0
+		_bar_fill.size = Vector2(roundf(352.0 * frac), 8.0)
+		_bar_fill.color = Color8(224, 150, 58) if frac < 0.3 else Color8(143, 227, 230)
+	if _replay_btn != null:
+		var live: bool = _phase == "input" and _replays_left > 0
+		var face: Texture2D = MinigameArt.texture("btn_replay.png" if live else "btn_replay_off.png")
+		_replay_btn.texture_normal = face
+		_replay_btn.texture_hover = face
+		_replay_btn.texture_pressed = face
+		_replay_btn.disabled = not live
+		_replay_btn.tooltip_text = "See the order again" if live else "Replay spent"

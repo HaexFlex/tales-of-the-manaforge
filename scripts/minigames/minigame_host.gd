@@ -284,9 +284,24 @@ func _open_walk() -> void:
 
 
 func open_game(game_id: String, worker: String, target_id: String) -> bool:
-	if game_id == "" or not MinigameCatalog.is_reachable(game_id) or (worker != "keeper" and worker != "elaia"):
+	return _open_game(game_id, worker, target_id, false)
+
+
+## The debug panel can open a game the world does not offer. Steeping uses this.
+func debug_open(game_id: String) -> bool:
+	var target: String = ""
+	var nodes_v: Variant = MinigameCatalog.game(game_id).get("nodes", [])
+	if typeof(nodes_v) == TYPE_ARRAY and not (nodes_v as Array).is_empty():
+		target = str((nodes_v as Array)[0])
+	return _open_game(game_id, "keeper", target, true)
+
+
+func _open_game(game_id: String, worker: String, target_id: String, from_debug: bool) -> bool:
+	if game_id == "" or (worker != "keeper" and worker != "elaia"):
 		return false
-	if has_node("/root/GameState") and GameState.is_world_frozen():
+	if not from_debug and not MinigameCatalog.is_reachable(game_id):
+		return false
+	if not from_debug and has_node("/root/GameState") and GameState.is_world_frozen():
 		GameState.note_frozen_deny()
 		return false
 	var packed: PackedScene = load(MinigameCatalog.scene_path(game_id)) as PackedScene

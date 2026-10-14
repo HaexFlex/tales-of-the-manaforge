@@ -153,7 +153,7 @@ static func grain_average_round(phone: bool) -> float:
 
 
 static func steeping_cycle() -> float:
-	return maxf(8.0, float(game("steeping").get("cycle_sec", 8.0)))
+	return maxf(0.1, float(game("steeping").get("cycle_sec", 10.6)))
 
 
 static func hot_spot_points(station: String) -> PackedVector2Array:

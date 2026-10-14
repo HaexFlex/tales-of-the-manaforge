@@ -36,6 +36,7 @@ func run_scenes() -> int:
 	failed += _hot_spots_switch()
 	failed += _woodsong_volume()
 	failed += _grain_shapes()
+	failed += _steeping_debug()
 	failed += _check(MinigameCatalog.game_for("brewing") == "steeping", "steeping stays mapped to brewing")
 	failed += _check(not MinigameCatalog.is_reachable("steeping"), "steeping has no world station, so it stays unreachable")
 	failed += _summary()
@@ -107,6 +108,38 @@ func _grain_shapes() -> int:
 	var origin := Vector2(148.0 + 0.277365 * 424.0, 34.0 + 0.422701 * 272.0)
 	failed += _check(rod.size() > 0 and rod[0].distance_to(origin) < 0.05, "rod uses the prototype seed")
 	node.free()
+	return failed
+
+
+func _steeping_debug() -> int:
+	var failed: int = 0
+	var host: Node = Engine.get_main_loop().root.get_node_or_null("MinigameHost")
+	failed += _check(host != null, "steeping check has the minigame host")
+	if host == null:
+		return failed
+	var frozen: bool = GameState.ancient_frozen
+	GameState.ancient_frozen = false
+	host.call("close_immediate")
+	failed += _check(not bool(host.call("open_game", "steeping", "keeper", "brewing")), "the world cannot open steeping")
+	failed += _check(bool(host.call("debug_open", "steeping")), "the debug panel can open steeping")
+	var game: Node = null
+	var play: Node = host.get_node_or_null("MinigameRoot/Window/Play")
+	if play != null:
+		for child: Node in play.get_children():
+			if child is Steeping:
+				game = child
+	failed += _check(game != null, "steeping scene is open from the debug entry")
+	if game != null:
+		failed += _check(is_equal_approx(float(game.get("_k")), 21.2), "open steeping pays 21.2")
+		failed += _check(is_equal_approx(float(game.get("_show_each")), 1.2), "steeping shows each herb for 1.2s")
+		failed += _check(is_equal_approx(float(game.get("_hold")), 1.0), "steeping holds the order for 1s")
+		failed += _check(is_equal_approx(float(game.get("_input_sec")), 10.0), "steeping gives 10s to pick")
+		failed += _check(int(game.get("_replays_max")) == 1, "steeping allows one replay")
+		failed += _check(is_equal_approx(float(game.get("_gap")), 0.8), "steeping waits 0.8s before the next order")
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	failed += _check(panel_src.find("Open Steeping") >= 0, "debug panel lists Steeping")
+	host.call("close_immediate")
+	GameState.ancient_frozen = frozen
 	return failed
 
 
@@ -233,9 +266,9 @@ func _math() -> int:
 	failed += _check(is_equal_approx(heavy, normal * 2.0), "heavy beat is double")
 	var minute: float = 42.0 * normal + 6.0 * heavy
 	failed += _check(is_equal_approx(minute, 120.0), "woodsong perfect minute is +120s (got %.4f)" % minute)
-	failed += _check(is_equal_approx(MinigameCatalog.k_for("steeping"), 16.0), "steeping k = 16")
-	failed += _check(is_equal_approx(MinigameCatalog.steeping_cycle(), 8.0), "steeping pace floor is 8s")
-	failed += _check(is_equal_approx(MinigameMath.k_from_r(60.0 / 8.0), 16.0), "steeping k matches the 8s clock")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("steeping"), 21.2), "steeping k is the prototype 21.2")
+	failed += _check(is_equal_approx(MinigameCatalog.steeping_cycle(), 10.6), "steeping nominal cycle is 10.6s")
+	failed += _check(is_equal_approx(60.0 / 10.6 * 21.2, 120.0), "a perfect steeping minute is still +120s")
 	var phone_k: float = MinigameCatalog.k_for("with_the_grain", true)
 	var desk_k: float = MinigameCatalog.k_for("with_the_grain", false)
 	var phone_avg: float = MinigameCatalog.grain_average_round(true)
