@@ -338,8 +338,7 @@ func _ensure_options_chrome() -> void:
 	full.text = ContentStrings.get_text("options_fullscreen")
 	full.button_pressed = GameAudio.fullscreen_on
 	full.toggled.connect(_on_fullscreen_toggled)
-	full.add_theme_font_override("font", GameTheme.body_font())
-	full.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	_ink_check(full)
 	display.add_child(full)
 	var screen_lbl := Label.new()
 	screen_lbl.name = "ScreenLabel"
@@ -366,6 +365,14 @@ func _ensure_options_chrome() -> void:
 		GameTheme.style_ink_button(row)
 		row.add_theme_font_override("font", GameTheme.body_font())
 		row.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+		var empty_face := StyleBoxEmpty.new()
+		for face_state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled", &"focus"]:
+			row.add_theme_stylebox_override(face_state, empty_face)
+		for ink_state: StringName in [
+			&"font_color", &"font_hover_color", &"font_pressed_color",
+			&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+		]:
+			row.add_theme_color_override(ink_state, GameTheme.INK)
 		row.set_meta("bind_action", action)
 		row.pressed.connect(_on_rebind_pressed.bind(action))
 		var key_lbl := Label.new()
@@ -373,7 +380,7 @@ func _ensure_options_chrome() -> void:
 		key_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		key_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		key_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		GameTheme.style_ink_label(key_lbl, true)
+		GameTheme.style_ink_label(key_lbl, false)
 		row.add_child(key_lbl)
 		options_panel.add_child(row)
 	var touch := VBoxContainer.new()
@@ -675,10 +682,20 @@ func _ensure_speedup_toggle() -> void:
 		debug_box.toggled.connect(_on_debug_tools_toggled)
 		options_panel.add_child(debug_box)
 	for toggle: CheckButton in [box, options_panel.get_node_or_null("DebugToolsToggle") as CheckButton]:
-		if toggle:
-			toggle.add_theme_font_override("font", GameTheme.body_font())
-			toggle.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+		_ink_check(toggle)
 	_layout_options()
+
+
+func _ink_check(box: CheckButton) -> void:
+	if box == null:
+		return
+	box.add_theme_font_override("font", GameTheme.body_font())
+	box.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+	for ink_state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		box.add_theme_color_override(ink_state, GameTheme.INK)
 
 
 func _debug_tools_available() -> bool:

@@ -1788,6 +1788,13 @@ func _run() -> void:
 		failed += _assert(pm.get_node_or_null("OptionsPanel/TabGameplay") != null, "Options Gameplay tab")
 		failed += _assert(pm.get_node_or_null("OptionsPanel/TabControls") != null, "Options Controls tab")
 		failed += _assert(pm.get_node_or_null("OptionsPanel/Rebind_pause") != null, "Options rebind Pause")
+		var speed_toggle: CheckButton = pm.get_node_or_null("OptionsPanel/SpeedupToggle") as CheckButton
+		var full_toggle: CheckButton = pm.get_node_or_null("OptionsPanel/DisplayBlock/FullscreenToggle") as CheckButton
+		var rebind_key: Label = pm.get_node_or_null("OptionsPanel/Rebind_pause/Key") as Label
+		var ink := Color8(62, 42, 24)
+		failed += _assert(speed_toggle != null and speed_toggle.get_theme_color("font_color").is_equal_approx(ink), "gameplay toggle label is ink")
+		failed += _assert(full_toggle != null and full_toggle.get_theme_color("font_color").is_equal_approx(ink), "fullscreen label is ink")
+		failed += _assert(rebind_key != null and rebind_key.get_theme_color("font_color").is_equal_approx(ink), "controls key glyph is ink")
 		var opt_close: Button = pm.get_node_or_null("OptionsPanel/OptionsClose") as Button
 		failed += _assert(opt_close != null and opt_close.text == "" and opt_close.icon != null, "Options uses the × close")
 		pm.call("_layout_slots")
