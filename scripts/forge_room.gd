@@ -395,7 +395,8 @@ func _open_recipes(station_id: String) -> void:
 	var panel: BatchPanel = _ensure_batch_panel()
 	if panel:
 		panel.setup(station_id)
-		if panel.selected_recipe() == "" and ids.size() > 0:
+		var current: String = panel.selected_recipe()
+		if ids.find(current) < 0 and ids.size() > 0:
 			panel.bind_recipe(ids[0])
 	_layout_station_panel()
 	_refresh_station_job()

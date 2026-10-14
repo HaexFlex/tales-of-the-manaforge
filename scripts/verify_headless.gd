@@ -5699,6 +5699,16 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 					if row_rect.intersects(visible_rows) and amount != null:
 						var shown := row_rect.intersection(visible_rows)
 						failed += _assert(not shown.intersects(amount.get_global_rect()), "a visible recipe row clears the amount row")
+		var detail: Label = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/Detail") as Label
+		failed += _assert(detail != null and detail.text.find("Rootsteel") >= 0, "anvil names the selected recipe")
+		room.call("_open_recipes", "mill")
+		await process_frame
+		detail = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/Detail") as Label
+		failed += _assert(detail != null and detail.text.find("Heartwood") >= 0 and detail.text.find("Sapsteel") < 0, "mill does not keep the anvil's Sapsteel line")
+		room.call("_open_recipes", "press")
+		await process_frame
+		detail = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/Detail") as Label
+		failed += _assert(detail != null and detail.text.find("Amberbind") >= 0 and detail.text.find("Sapsteel") < 0, "press names Amberbind, not Sapsteel")
 		room.free()
 	audio.call("set_forge_room_mix", false)
 	jobs.call("set_scene_changes_enabled", true)
