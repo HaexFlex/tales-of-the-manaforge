@@ -112,6 +112,7 @@
     "steeping": {
       "title": "Steeping",
       "kind": "station",
+      "reachable": false,
       "nodes": ["brewing", "cauldron"],
       "k": 16.0,
       "cycle_sec": 8.0,

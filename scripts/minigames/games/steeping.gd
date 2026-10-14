@@ -1,6 +1,7 @@
 class_name Steeping
 extends Minigame
 ## Herbs flash an order, then go into the cauldron in that order.
+## No brewing station exists in the world, so the host does not offer this game.
 ## The cycle never starts the next one before 8 seconds. k is 16.
 
 const HERB_COUNT: int = 5

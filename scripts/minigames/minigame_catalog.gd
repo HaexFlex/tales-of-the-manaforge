@@ -70,6 +70,12 @@ static func scene_path(game_id: String) -> String:
 	return "res://scenes/minigames/%s.tscn" % game_id
 
 
+## Steeping's brewing and cauldron stations are not in the world. The scene
+## stays, and nothing offers it until a station exists and this flag flips.
+static func is_reachable(game_id: String) -> bool:
+	return bool(game(game_id).get("reachable", true))
+
+
 static func game_for(node_id: String) -> String:
 	for key: Variant in games().keys():
 		var id: String = str(key)

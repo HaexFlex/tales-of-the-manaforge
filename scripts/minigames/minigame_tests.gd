@@ -33,6 +33,8 @@ func run_scenes() -> int:
 	failed += _check(MinigameCatalog.hot_spot_points("anvil").size() == 7, "anvil has the seven blade points")
 	failed += _check(MinigameCatalog.hot_spot_points("crucible").size() == 15, "crucible has the fifteen bubble points")
 	failed += _check(MinigameCatalog.hot_spot_points("reliquary").size() == 9, "reliquary has the nine rune points")
+	failed += _check(MinigameCatalog.game_for("brewing") == "steeping", "steeping stays mapped to brewing")
+	failed += _check(not MinigameCatalog.is_reachable("steeping"), "steeping has no world station, so it stays unreachable")
 	failed += _summary()
 	failed += _world_hover()
 	if failed == 0:

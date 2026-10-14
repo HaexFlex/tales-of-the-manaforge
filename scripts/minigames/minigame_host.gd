@@ -212,7 +212,7 @@ func request(target_id: String, approach: Vector2) -> void:
 		return
 	var game_id: String = MinigameCatalog.game_for(target_id)
 	var worker: String = hero_for(target_id)
-	if game_id == "" or worker == "":
+	if game_id == "" or worker == "" or not MinigameCatalog.is_reachable(game_id):
 		return
 	_walk = true
 	_walk_t = 0.0
@@ -284,7 +284,7 @@ func _open_walk() -> void:
 
 
 func open_game(game_id: String, worker: String, target_id: String) -> bool:
-	if game_id == "" or (worker != "keeper" and worker != "elaia"):
+	if game_id == "" or not MinigameCatalog.is_reachable(game_id) or (worker != "keeper" and worker != "elaia"):
 		return false
 	if has_node("/root/GameState") and GameState.is_world_frozen():
 		GameState.note_frozen_deny()
@@ -442,7 +442,7 @@ func _refresh_prompt() -> void:
 	var show: bool = _prompt_on and not _open and not _walk
 	if show:
 		var game_id: String = MinigameCatalog.game_for(_prompt_target)
-		show = game_id != "" and hero_for(_prompt_target) != ""
+		show = game_id != "" and MinigameCatalog.is_reachable(game_id) and hero_for(_prompt_target) != ""
 		if has_node("/root/GameState") and GameState.is_world_frozen():
 			show = false
 	_prompt.visible = show
