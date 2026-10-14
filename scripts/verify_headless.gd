@@ -6441,8 +6441,8 @@ func _camera_zoom_checks(live: Node, tree_root: Window) -> int:
 	failed += _assert(not tall_fills, "0.25x does not fill a 960x960 view")
 	var steps: Array = live.call("camera_zoom_steps") as Array
 	var live_fills: bool = bool(live.call("zoom_step_fills", 0.25))
-	failed += _assert(live_fills == steps.has(0.25), "0.25 stays in the step list only when the live view fills (steps %s)" % steps)
-	failed += _assert(steps.has(2.0) and steps.has(1.0) and steps.has(0.5), "zoom steps include 2x, 1x, 0.5x (got %s)" % steps)
+	failed += _assert(live_fills == steps.has(0.25), "0.25 stays in the step list only when the live view fills (steps %s)" % str(steps))
+	failed += _assert(steps.has(2.0) and steps.has(1.0) and steps.has(0.5), "zoom steps include 2x, 1x, 0.5x (got %s)" % str(steps))
 	var vp: Vector2 = live.get_viewport().get_visible_rect().size
 	if vp.x <= 960.5 and vp.y <= 540.5:
 		failed += _assert(live_fills, "live 540p view keeps 0.25x (view %s)" % vp)
