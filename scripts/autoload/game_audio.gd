@@ -33,6 +33,8 @@ var _sfx_pool: Array[AudioStreamPlayer] = []
 var _progress_pool: Array[AudioStreamPlayer] = []
 var _hub_playing: bool = false
 var _hub_suspended: bool = false
+## Woodsong pauses the hub bed while its own loop is audible, then lets it resume.
+var _bed_held_for_tune: bool = false
 var _fruit_ready_played_cycle: bool = false
 var _fruit_ready_after_stage: bool = false
 var _fruit_delay_token: int = 0
@@ -215,6 +217,23 @@ func resume_hub_after_battle() -> void:
 			_ensure_music_bus_audible()
 			return
 	play_hub_music()
+
+
+func hold_bed_for_tune() -> void:
+	if _music_player == null or not _music_player.playing or _music_player.stream_paused:
+		return
+	_music_player.stream_paused = true
+	_bed_held_for_tune = true
+
+
+func release_bed_for_tune() -> void:
+	if not _bed_held_for_tune:
+		return
+	_bed_held_for_tune = false
+	if _hub_suspended:
+		return
+	if _music_player and _music_player.stream_paused:
+		_music_player.stream_paused = false
 
 
 func is_hub_bed_paused() -> bool:
