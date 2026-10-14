@@ -441,6 +441,9 @@ func _layout_station_panel() -> void:
 	var rows_h: float = _recipe_rows_height()
 	var batch_need: float = 160.0
 	if batch:
+		var batch_panel: BatchPanel = batch as BatchPanel
+		if batch_panel:
+			batch_panel.refit_away_note(inner_w)
 		batch_need = maxf(batch_need, batch.get_combined_minimum_size().y)
 	var room_h: float = maxf(0.0, bottom - list_y)
 	var list_h: float = rows_h

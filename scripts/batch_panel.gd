@@ -25,6 +25,8 @@ var _total_bar: ProgressBar
 var _detail: Label
 var _note: Label
 var _status: Label
+var _body: VBoxContainer
+var _action_row: HBoxContainer
 var _confirm: PanelContainer
 var _confirm_title: Label
 var _confirm_body: Label
@@ -76,6 +78,7 @@ func _ensure_built() -> void:
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_theme_constant_override("separation", 6)
 	add_child(box)
+	_body = box
 	## Mockup workbench540: Amount · − · slider · + · Max, then ×N · time, then note + Craft.
 	var amount_row := HBoxContainer.new()
 	amount_row.name = "AmountRow"
@@ -137,22 +140,21 @@ func _ensure_built() -> void:
 	_status.custom_minimum_size = Vector2(200, 0)
 	GameTheme.style_ink_label(_status)
 	box.add_child(_status)
+	_note = Label.new()
+	_note.name = "AwayNote"
+	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.clip_text = false
+	_note.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	GameTheme.style_ink_label(_note, true)
+	box.add_child(_note)
 	var act_row := HBoxContainer.new()
 	act_row.name = "ActionRow"
 	act_row.add_theme_constant_override("separation", 12)
 	act_row.size_flags_vertical = Control.SIZE_SHRINK_END
 	act_row.alignment = BoxContainer.ALIGNMENT_END
-	_note = Label.new()
-	_note.name = "AwayNote"
-	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_note.size_flags_vertical = Control.SIZE_SHRINK_END
-	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_note.custom_minimum_size = Vector2(120, 36)
-	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_note.clip_text = true
-	_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	GameTheme.style_ink_label(_note, true)
-	act_row.add_child(_note)
+	_action_row = act_row
 	_cancel = Button.new()
 	_cancel.name = "Cancel"
 	_cancel.custom_minimum_size = Vector2(120, 44)
@@ -253,6 +255,54 @@ func _build_confirm(box: VBoxContainer) -> void:
 	inner.add_child(row)
 	_confirm.add_child(inner)
 	box.add_child(_confirm)
+
+
+func _place_away_note() -> void:
+	if _note == null or _body == null or _action_row == null:
+		return
+	if compact:
+		if _note.get_parent() != _action_row:
+			_note.reparent(_action_row)
+			_action_row.move_child(_note, 0)
+		_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_note.size_flags_vertical = Control.SIZE_SHRINK_END
+		_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_note.autowrap_mode = TextServer.AUTOWRAP_OFF
+		_note.clip_text = true
+		_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		_note.custom_minimum_size = Vector2(120, 36)
+		return
+	if _note.get_parent() != _body:
+		_note.reparent(_body)
+	_body.move_child(_note, _action_row.get_index())
+	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_note.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.clip_text = false
+	_note.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_fit_away_note(size.x)
+
+
+func refit_away_note(width: float) -> void:
+	if compact:
+		_place_away_note()
+		return
+	_place_away_note()
+	_fit_away_note(width)
+
+
+func _fit_away_note(width: float) -> void:
+	if _note == null or compact:
+		return
+	var text_w: float = maxf(160.0, width - 8.0)
+	_note.custom_minimum_size.x = text_w
+	var font: Font = _note.get_theme_font(&"font")
+	var fsize: int = _note.get_theme_font_size(&"font_size")
+	var text_h: float = 40.0
+	if font != null and _note.text != "":
+		text_h = font.get_multiline_string_size(_note.text, HORIZONTAL_ALIGNMENT_LEFT, text_w, fsize).y
+	_note.custom_minimum_size.y = maxf(36.0, ceilf(text_h))
 
 
 func _fit_amount_label() -> void:
@@ -423,6 +473,7 @@ func _refresh() -> void:
 			_status.text = ""
 	_note.text = _line("batch_away_note")
 	_note.tooltip_text = _note.text
+	_place_away_note()
 	_detail.visible = running or not compact
 	_status.visible = _status.text != ""
 	_note.visible = not _status.visible

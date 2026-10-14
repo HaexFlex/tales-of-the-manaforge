@@ -5709,6 +5709,15 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		await process_frame
 		detail = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/Detail") as Label
 		failed += _assert(detail != null and detail.text.find("Amberbind") >= 0 and detail.text.find("Sapsteel") < 0, "press names Amberbind, not Sapsteel")
+		var away: Label = room.get_node_or_null("UI/RecipePanel/BatchPanel/Body/AwayNote") as Label
+		failed += _assert(away != null and away.clip_text == false and away.autowrap_mode != TextServer.AUTOWRAP_OFF, "away note wraps instead of clipping")
+		failed += _assert(away != null and away.text.ends_with("working the station."), "away note keeps the full sentence")
+		if away != null:
+			var away_font: Font = away.get_theme_font(&"font")
+			var away_need: float = away.size.y
+			if away_font != null:
+				away_need = away_font.get_multiline_string_size(away.text, HORIZONTAL_ALIGNMENT_LEFT, maxf(away.size.x, 160.0), away.get_theme_font_size(&"font_size")).y
+			failed += _assert(away.size.y + 1.0 >= away_need, "away note is tall enough for the wrapped line (got %s need %s)" % [str(away.size), str(away_need)])
 		room.free()
 	audio.call("set_forge_room_mix", false)
 	jobs.call("set_scene_changes_enabled", true)
