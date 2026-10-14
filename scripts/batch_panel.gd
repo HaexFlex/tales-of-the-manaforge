@@ -306,13 +306,6 @@ func _place_away_note() -> void:
 		_action_row.move_child(_note, 0)
 	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	if compact:
-		_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		_note.autowrap_mode = TextServer.AUTOWRAP_OFF
-		_note.clip_text = true
-		_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		_note.custom_minimum_size = Vector2(120, 36)
-		return
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_note.clip_text = false
@@ -323,8 +316,7 @@ func _place_away_note() -> void:
 func refit_away_note(width: float) -> void:
 	_apply_density()
 	_place_away_note()
-	if not compact:
-		_fit_away_note(width)
+	_fit_away_note(width)
 
 
 func _note_column_width(width: float) -> float:
@@ -342,7 +334,7 @@ func _note_column_width(width: float) -> float:
 
 
 func _fit_away_note(width: float) -> void:
-	if _note == null or compact:
+	if _note == null:
 		return
 	var text_w: float = _note_column_width(width)
 	_note.custom_minimum_size.x = text_w

@@ -8666,6 +8666,18 @@ func _workbench_click_panel(tree_root: Window) -> int:
 	failed += _assert(not paused, "clicking the workbench does not pause")
 	var panel: Node = hud.get_node_or_null("BenchPanel/BatchPanel")
 	failed += _assert(panel != null and str(panel.call("spot_id")) == "workbench", "the opened panel is the workbench batch")
+	await process_frame
+	var bench_note: Label = hud.get_node_or_null("BenchPanel/BatchPanel/Body/ActionRow/AwayNote") as Label
+	failed += _assert(bench_note != null and bench_note.clip_text == false and bench_note.autowrap_mode != TextServer.AUTOWRAP_OFF, "workbench away note wraps instead of clipping")
+	failed += _assert(bench_note != null and bench_note.text.ends_with("working the station."), "workbench away note keeps the full sentence")
+	if bench_note != null:
+		var bench_font: Font = bench_note.get_theme_font(&"font")
+		var bench_need: float = bench_note.size.y
+		if bench_font != null:
+			bench_need = bench_font.get_multiline_string_size(bench_note.text, HORIZONTAL_ALIGNMENT_LEFT, maxf(bench_note.size.x, 160.0), bench_note.get_theme_font_size(&"font_size")).y
+		failed += _assert(bench_note.size.y + 1.0 >= bench_need, "workbench away note is tall enough for two lines (got %s need %s)" % [str(bench_note.size), str(bench_need)])
+		var bench_batch: Control = panel as Control
+		failed += _assert(bench_batch != null and bench_batch.get_global_rect().grow(1.0).encloses(bench_note.get_global_rect()), "workbench away note stays inside the batch")
 	hud.call("close_bench")
 	bench.free()
 	hud.free()
