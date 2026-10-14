@@ -102,8 +102,8 @@ func _build() -> void:
 	_pace.name = "Pace"
 	_pace.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pace.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_pace.add_theme_font_size_override("font_size", 19)
-	_pace.add_theme_color_override("font_color", Color8(62, 42, 24))
+	_pace.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_style_readout(_pace, GameTheme.TITLE_HERO_SIZE)
 	_panel.add_child(_pace)
 
 	_hint = Label.new()
@@ -155,6 +155,15 @@ func _build() -> void:
 	_again.position = Vector2(SUMMARY_BTN_X + SUMMARY_BTN.x + SUMMARY_BTN_GAP, SUMMARY_BTN_Y)
 	_again.pressed.connect(_on_again)
 	_summary.add_child(_again)
+
+
+func _style_readout(lbl: Label, px: int) -> void:
+	var face: Font = load(GameTheme.PRIMARY_FONT_PATH) as Font if px >= GameTheme.TITLE_HERO_SIZE else GameTheme.body_font()
+	lbl.add_theme_font_override("font", face)
+	lbl.add_theme_font_size_override("font_size", px)
+	lbl.add_theme_color_override("font_color", GameTheme.INK)
+	lbl.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
+	lbl.add_theme_constant_override("outline_size", 4 if px >= GameTheme.TITLE_HERO_SIZE else 2)
 
 
 func _summary_button(node_name: String, normal_file: String, hover_file: String) -> TextureButton:
@@ -319,8 +328,8 @@ func _layout_window() -> void:
 	Ui540.fit_kit_window(_panel, MinigameCatalog.WINDOW_SIZE, true)
 	var sz: Vector2 = _panel.size
 	Ui540.place_close_button(_close, sz.x)
-	_pace.position = Vector2(sz.x - 24.0 - Ui540.TAP_MIN_PX - 120.0, 28.0)
-	_pace.size = Vector2(110, 28)
+	_pace.size = Vector2(148, 48)
+	_pace.position = Vector2(_close.position.x - 8.0 - _pace.size.x, 18.0)
 	var play_h: float = minf(MinigameCatalog.PLAY_SIZE.y, sz.y - MinigameCatalog.PLAY_ORIGIN.y - 36.0)
 	_play.position = MinigameCatalog.PLAY_ORIGIN
 	_play.size = Vector2(MinigameCatalog.PLAY_SIZE.x, play_h)
@@ -339,12 +348,13 @@ func _spawn_pop(k_seconds: float) -> void:
 	var pop := Label.new()
 	pop.name = "PacePop"
 	pop.text = "+%.1fs" % k_seconds
-	pop.position = Vector2(MinigameCatalog.PLAY_SIZE.x * 0.5 - 36.0, 36.0)
-	pop.size = Vector2(90, 28)
+	pop.size = Vector2(220, 52)
+	pop.position = Vector2(MinigameCatalog.PLAY_SIZE.x * 0.5 - pop.size.x * 0.5, 28.0)
+	pop.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pop.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pop.z_index = 4
-	pop.add_theme_font_size_override("font_size", 19)
-	pop.add_theme_color_override("font_color", Color8(62, 42, 24))
+	pop.z_index = 30
+	_style_readout(pop, GameTheme.TITLE_HERO_SIZE)
 	_play.add_child(pop)
 	var tw: Tween = create_tween()
 	tw.tween_property(pop, "position:y", pop.position.y - 26.0, 0.55)
