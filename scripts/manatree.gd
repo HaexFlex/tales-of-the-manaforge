@@ -198,9 +198,10 @@ func do_water() -> void:
 			hero = keepers[0]
 	if hero == null or not hero.has_method("start_water_channel"):
 		return
-	hero.call("start_water_channel", self)
+	## The channel's gain line is the toast that stays. Ancient used to replace it.
 	if GameState.stage_id == &"ancient":
 		GameState.status_message.emit(ContentStrings.get_text("tree_water_ancient_ok"))
+	hero.call("start_water_channel", self)
 
 
 func do_pay_stage() -> String:

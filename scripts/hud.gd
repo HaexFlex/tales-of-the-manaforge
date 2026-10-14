@@ -1546,6 +1546,8 @@ func _show_toast(text: String) -> void:
 	status_label.text = line
 	status_label.visible = true
 	status_label.modulate.a = 1.0
+	status_label.self_modulate.a = 1.0
+	_layout_toast_r4(Ui540.viewport_size(), Ui540.SAFE_MARGIN_PX, 0.0)
 	if toast_shade:
 		toast_shade.visible = true
 		toast_shade.modulate.a = 0.92

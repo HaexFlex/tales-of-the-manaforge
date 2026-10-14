@@ -397,7 +397,12 @@ func tick_hero_water(actor: String, delta: float) -> void:
 		return
 	while acc >= pulse:
 		acc -= pulse
-		apply_water_pulse(true, true, actor_water_mult(actor))
+		var gained: Dictionary = apply_water_pulse(true, true, actor_water_mult(actor))
+		if bool(gained.get("ok", false)):
+			status_message.emit(ContentStrings.get_text("tree_water_pulse_hud", {
+				"shards": int(gained.get("shards", 0)),
+				"essence": int(gained.get("essence", 0)),
+			}))
 	_hero_water_accum[actor] = acc
 
 

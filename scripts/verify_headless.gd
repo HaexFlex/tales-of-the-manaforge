@@ -9020,6 +9020,9 @@ func _manatree_water_rmb_cancel(tree_root: Window, game_state: Node) -> int:
 		keeper.global_position = solved.get("position", keeper.global_position)
 		keeper.call("start_water_channel", mana)
 		await process_frame
+		var water_toast: Label = live.get_node_or_null("HUD/Panel/StatusLabel") as Label
+		var water_line: String = water_toast.text if water_toast != null else ""
+		failed += _assert(water_toast != null and water_toast.visible and water_line.find("Manashards") >= 0 and water_line.find("Essence") >= 0, "watering toasts the shards and essence (got %s)" % water_line)
 		failed += _assert(bool(keeper.call("is_channeling")), "keeper channels water")
 		failed += _assert(bool(mana.get("_watering")), "tree shows watering")
 		mana.call("apply_player_command")
