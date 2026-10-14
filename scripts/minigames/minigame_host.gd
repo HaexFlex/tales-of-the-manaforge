@@ -2,6 +2,8 @@ extends CanvasLayer
 ## Lend-a-hand overlay. The hub keeps running underneath. Nothing here is saved.
 
 const ARRIVE_PX: float = 72.0
+## The resource chips occupy the top 64 px. The window, plank included, starts under that.
+const HUD_BAR_PX: float = 64.0
 ## card.png parchment starts at x=40. Text sits 16 px inside that, clear of the wood.
 const SUMMARY_COVER := Rect2(42, 46, 376, 166)
 const SUMMARY_BODY := Rect2(56, 58, 348, 142)
@@ -67,7 +69,7 @@ func _build() -> void:
 
 	_dim = ColorRect.new()
 	_dim.name = "Dim"
-	_dim.color = Color(0.05, 0.04, 0.03, 0.45)
+	_dim.color = Color(0.05, 0.04, 0.03, 0.58)
 	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_dim.visible = false
@@ -325,8 +327,18 @@ func open_game(game_id: String, worker: String, target_id: String) -> bool:
 
 
 func _layout_window() -> void:
-	Ui540.fit_kit_window(_panel, MinigameCatalog.WINDOW_SIZE, true)
-	var sz: Vector2 = _panel.size
+	var vs: Vector2 = Ui540.viewport_size()
+	var top: float = HUD_BAR_PX + Ui540.PLANK_RISE
+	var max_h: float = maxf(120.0, vs.y - Ui540.SAFE_MARGIN_PX - top)
+	var max_w: float = maxf(120.0, vs.x - Ui540.SAFE_MARGIN_PX * 2.0)
+	var sz := Vector2(
+		minf(MinigameCatalog.WINDOW_SIZE.x, max_w),
+		minf(MinigameCatalog.WINDOW_SIZE.y, max_h)
+	)
+	_panel.custom_minimum_size = Vector2.ZERO
+	_panel.size = sz
+	_panel.custom_minimum_size = sz
+	_panel.position = Vector2(roundf((vs.x - sz.x) * 0.5), roundf(top))
 	Ui540.place_close_button(_close, sz.x)
 	_pace.size = Vector2(148, 48)
 	_pace.position = Vector2(_close.position.x - 8.0 - _pace.size.x, 18.0)
