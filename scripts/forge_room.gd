@@ -76,6 +76,8 @@ func _ready() -> void:
 	if has_node("/root/Reach") and not Reach.party_changed.is_connected(_on_reach_party_changed):
 		Reach.party_changed.connect(_on_reach_party_changed)
 	_focus_pending_actor()
+	if not get_viewport().size_changed.is_connected(_layout_station_panel):
+		get_viewport().size_changed.connect(_layout_station_panel)
 	if hud and hud.has_method("maybe_show_elaia_footsteps"):
 		hud.call("maybe_show_elaia_footsteps")
 
@@ -395,41 +397,74 @@ func _open_recipes(station_id: String) -> void:
 			panel.bind_recipe(ids[0])
 	_layout_station_panel()
 	_refresh_station_job()
+	_relayout_hud()
 
 
-## Station recipe window stays inside the 540p safe area. The old offsets started at
-## x 860 and then stretched the panel to y 760, which left it off-screen.
+## Station recipe window: kit frame and parchment, kept above the status toast.
 func _layout_station_panel() -> void:
 	if recipe_panel == null:
 		return
-	var sz: Vector2 = Ui540.fit_kit_window(recipe_panel, Vector2(420, 460), false)
+	Ui540.apply_kit_frame_panel(recipe_panel, "forge_station")
+	var sz: Vector2 = Ui540.fit_kit_window(recipe_panel, Vector2(440, 400), true)
+	_pin_station_above_toast()
+	sz = recipe_panel.size
 	if recipe_title:
-		recipe_title.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		recipe_title.position = Vector2(16, 12)
-		recipe_title.size = Vector2(sz.x - 148.0, 28)
-	var list_y: float = 48.0
+		if recipe_title.text == "":
+			recipe_title.text = "Station"
+		Ui540.place_title_plank(recipe_title, sz.x)
+	var inset: float = 28.0
+	var inner_w: float = sz.x - inset * 2.0
+	var list_y: float = inset
 	if _job_label != null:
-		_job_label.position = Vector2(16, 44)
-		_job_label.size = Vector2(sz.x - 32.0, 20)
+		_job_label.position = Vector2(inset, inset)
+		_job_label.size = Vector2(inner_w, 20)
 		if _job_border:
-			_job_border.position = Vector2(15, 66)
-			_job_border.size = Vector2(sz.x - 30.0, 10)
+			_job_border.position = Vector2(inset - 1.0, inset + 22.0)
+			_job_border.size = Vector2(inner_w + 2.0, 10)
 		if _job_track:
-			_job_track.position = Vector2(16, 67)
-			_job_track.size = Vector2(sz.x - 32.0, 8)
+			_job_track.position = Vector2(inset, inset + 23.0)
+			_job_track.size = Vector2(inner_w, 8)
 		if _job_fill:
-			_job_fill.position = Vector2(16, 67)
-		list_y = 84.0
+			_job_fill.position = Vector2(inset, inset + 23.0)
+		list_y = inset + 40.0
 	if recipe_list:
 		recipe_list.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		recipe_list.position = Vector2(16, list_y)
-		recipe_list.size = Vector2(sz.x - 32.0, 120)
+		recipe_list.clip_contents = true
+		recipe_list.position = Vector2(inset, list_y)
+		recipe_list.size = Vector2(inner_w, 112)
+	var repeat_btn: Control = recipe_panel.get_node_or_null("RepeatToggle") as Control
+	if repeat_btn:
+		repeat_btn.position = Vector2(sz.x - inset - 140.0, inset)
+		repeat_btn.size = Vector2(140, 36)
 	var batch: Control = recipe_panel.get_node_or_null("BatchPanel") as Control
 	if batch:
-		var batch_y: float = list_y + 128.0
+		var batch_y: float = list_y + 120.0
 		batch.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		batch.position = Vector2(12, batch_y)
-		batch.size = Vector2(sz.x - 24.0, maxf(80.0, sz.y - batch_y - 12.0))
+		batch.clip_contents = true
+		batch.position = Vector2(inset - 4.0, batch_y)
+		batch.size = Vector2(inner_w + 8.0, maxf(120.0, sz.y - batch_y - inset))
+
+
+## The toast lives on the bottom band. A centred 400 px window would cover it.
+func _pin_station_above_toast() -> void:
+	if recipe_panel == null:
+		return
+	var vs: Vector2 = Ui540.viewport_size()
+	var safe: float = Ui540.SAFE_MARGIN_PX
+	var toast_top: float = vs.y - safe - Ui540.TAP_MIN_PX - 8.0 - 32.0
+	var top: float = safe + Ui540.PLANK_RISE
+	var limit: float = toast_top - 8.0
+	var h: float = minf(recipe_panel.size.y, maxf(200.0, limit - top))
+	if top + h > limit:
+		h = maxf(160.0, limit - top)
+	recipe_panel.position = Vector2(recipe_panel.position.x, top)
+	recipe_panel.size.y = h
+	recipe_panel.custom_minimum_size.y = h
+
+
+func _relayout_hud() -> void:
+	if hud and hud.has_method("_layout_hud540"):
+		hud.call("_layout_hud540")
 
 
 func _on_recipe_pressed(station_id: String, recipe_id: String) -> void:
@@ -523,6 +558,7 @@ func _hide_recipes() -> void:
 		recipe_panel.visible = false
 	_panel_station = ""
 	_refresh_station_job()
+	_relayout_hud()
 	if hud and hud.has_method("maybe_show_elaia_footsteps"):
 		hud.call("maybe_show_elaia_footsteps")
 
@@ -534,8 +570,7 @@ func _ensure_station_meter() -> void:
 	_job_label.name = "JobProgress"
 	_job_label.position = Vector2(12, 36)
 	_job_label.size = Vector2(348, 20)
-	_job_label.add_theme_font_size_override("font_size", 14)
-	_job_label.add_theme_color_override("font_color", Color(0.93, 0.9, 0.78, 1))
+	GameTheme.style_ink_label(_job_label)
 	_job_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	recipe_panel.add_child(_job_label)
 	_job_border = ColorRect.new()

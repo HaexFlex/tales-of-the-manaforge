@@ -70,6 +70,7 @@ func _ensure_built() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	custom_minimum_size = Vector2(340, 148)
 	add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	clip_contents = true
 	var box := VBoxContainer.new()
 	box.name = "Body"
 	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -139,15 +140,17 @@ func _ensure_built() -> void:
 	var act_row := HBoxContainer.new()
 	act_row.name = "ActionRow"
 	act_row.add_theme_constant_override("separation", 12)
-	act_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	act_row.size_flags_vertical = Control.SIZE_SHRINK_END
 	act_row.alignment = BoxContainer.ALIGNMENT_END
 	_note = Label.new()
 	_note.name = "AwayNote"
-	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_note.size_flags_vertical = Control.SIZE_SHRINK_END
 	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_note.custom_minimum_size = Vector2(120, 0)
+	_note.custom_minimum_size = Vector2(120, 36)
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_note.clip_text = true
+	_note.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	GameTheme.style_ink_label(_note, true)
 	act_row.add_child(_note)
 	_cancel = Button.new()
@@ -162,7 +165,7 @@ func _ensure_built() -> void:
 	_make.custom_minimum_size = Vector2(200, 52)
 	_make.size_flags_vertical = Control.SIZE_SHRINK_END
 	_make.pressed.connect(_on_make)
-	GameTheme.style_primary_button(_make)
+	GameTheme.force_primary_button(_make)
 	act_row.add_child(_make)
 	box.add_child(act_row)
 	_build_confirm(box)
@@ -405,6 +408,7 @@ func _refresh() -> void:
 		if _status.text == _line("batch_unstaffed") or _status.text == _line("batch_busy"):
 			_status.text = ""
 	_note.text = _line("batch_away_note")
+	_note.tooltip_text = _note.text
 	_detail.visible = running or not compact
 	_status.visible = _status.text != ""
 	_note.visible = not _status.visible

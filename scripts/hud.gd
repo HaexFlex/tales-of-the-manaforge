@@ -503,10 +503,39 @@ func _layout_toast_r4(vs: Vector2, safe: float, shift: float) -> void:
 	var text_w: float = GameTheme.body_font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.silver_body_size()).x
 	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - safe * 2.0)
 	var toast_x: float = roundf((vs.x - toast_w) * 0.5 + shift)
+	var toast_h: float = 30.0
+	var clear: Vector2 = _toast_clear_of_station(Vector2(toast_x, toast_y), Vector2(toast_w, toast_h), vs)
+	toast_x = clear.x
+	toast_y = clear.y
 	toast_shade.position = Vector2(toast_x, toast_y)
-	toast_shade.size = Vector2(toast_w, 30.0)
+	toast_shade.size = Vector2(toast_w, toast_h)
 	status_label.position = Vector2(toast_x + 40.0, toast_y + 2.0)
 	status_label.size = Vector2(toast_w - 48.0, 26.0)
+
+
+## The station window owns the centre. Slide the toast above it, or below if that fits.
+func _toast_clear_of_station(origin: Vector2, toast_sz: Vector2, vs: Vector2) -> Vector2:
+	var station: Control = _forge_station_panel()
+	if station == null or not station.is_visible_in_tree():
+		return origin
+	var win: Rect2 = station.get_global_rect().grow(6.0)
+	var rect := Rect2(origin, toast_sz)
+	if not rect.intersects(win):
+		return origin
+	var above: float = win.position.y - 8.0 - toast_sz.y
+	if above >= Ui540.SAFE_MARGIN_PX and not Rect2(origin.x, above, toast_sz.x, toast_sz.y).intersects(win):
+		return Vector2(origin.x, above)
+	var below: float = win.end.y + 8.0
+	if below + toast_sz.y <= vs.y - 4.0 and not Rect2(origin.x, below, toast_sz.x, toast_sz.y).intersects(win):
+		return Vector2(origin.x, below)
+	return Vector2(origin.x, clampf(origin.y, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.y - toast_sz.y - 4.0)))
+
+
+func _forge_station_panel() -> Control:
+	var scene: Node = get_tree().current_scene if get_tree() else null
+	if scene == null:
+		return null
+	return scene.get_node_or_null("UI/RecipePanel") as Control
 
 
 ## The bar is exactly as tall as its portrait column and sits on the bottom safe margin,

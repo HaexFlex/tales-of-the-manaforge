@@ -5645,6 +5645,13 @@ func _forge_pass_b(tree_root: Window, game_state: Node, backpack: Node) -> int:
 		var view_sz: Vector2 = tree_root.get_visible_rect().size
 		failed += _assert(station_panel != null and station_panel.position.x >= 0.0 and station_panel.position.y >= 0.0, "station window starts on screen")
 		failed += _assert(station_panel != null and station_panel.position.x + station_panel.size.x <= view_sz.x + 1.0 and station_panel.position.y + station_panel.size.y <= view_sz.y + 1.0, "station window fits the viewport")
+		var station_box: StyleBoxTexture = null
+		if station_panel != null:
+			station_box = station_panel.get_theme_stylebox("panel") as StyleBoxTexture
+		var station_tex: String = station_box.texture.resource_path if station_box != null and station_box.texture != null else ""
+		failed += _assert(station_tex.find("frame_9s_96") >= 0, "station window uses the kit frame")
+		var toast_top: float = view_sz.y - 24.0 - 44.0 - 8.0 - 32.0
+		failed += _assert(station_panel != null and station_panel.position.y + station_panel.size.y <= toast_top - 7.0, "station window stays clear of the toast")
 		room.free()
 	audio.call("set_forge_room_mix", false)
 	jobs.call("set_scene_changes_enabled", true)

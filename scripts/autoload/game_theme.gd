@@ -110,6 +110,25 @@ func style_primary_button(btn: Button) -> void:
 	btn.theme_type_variation = &"PrimaryButton"
 
 
+## Primary face copied onto the button. The variation alone still draws the engine
+## button on some popups; the override is the kit action button at full contrast.
+func force_primary_button(btn: Button) -> void:
+	style_primary_button(btn)
+	if btn == null or _theme == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled", &"focus"]:
+		var box: StyleBox = _theme.get_stylebox(state, &"PrimaryButton")
+		if box:
+			btn.add_theme_stylebox_override(state, box)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.add_theme_color_override(state, CREAM_BTN)
+	btn.add_theme_color_override(&"font_outline_color", OUTLINE)
+	btn.add_theme_constant_override(&"outline_size", 2)
+
+
 func style_title_hero_button(btn: Button) -> void:
 	btn.theme_type_variation = &"TitleMenuButton"
 	btn.add_theme_font_override("font", _primary_font)
