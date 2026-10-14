@@ -2282,10 +2282,28 @@ func _build_speed_bar() -> void:
 	btn.size = SPEED_BUTTON_SIZE
 	btn.position = SPEED_BUTTON_POS
 	btn.add_to_group("battle_ui")
-	_theme_call("style_wood_button", btn)
+	_style_speed_frame(btn)
 	btn.pressed.connect(_on_speed_cycle_pressed)
 	_speed_bar.add_child(btn)
 	_refresh_speed_buttons()
+
+
+## HUD 44 px wood button, so the 1x–8x mark has a kit frame on the arena.
+func _style_speed_frame(btn: Button) -> void:
+	_theme_call("style_wood_button", btn)
+	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
+	if theme == null:
+		return
+	for state: StringName in [&"normal", &"hover", &"pressed", &"hover_pressed", &"disabled", &"focus"]:
+		var box: StyleBox = theme.get_stylebox(state, &"Button")
+		if box:
+			btn.add_theme_stylebox_override(state, box)
+	var cream := Color8(243, 230, 200)
+	for state: StringName in [
+		&"font_color", &"font_hover_color", &"font_pressed_color",
+		&"font_hover_pressed_color", &"font_focus_color", &"font_disabled_color",
+	]:
+		btn.add_theme_color_override(state, cream)
 
 
 func _on_speed_cycle_pressed() -> void:

@@ -15088,6 +15088,11 @@ func _battle_ui_v7(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += _assert(round_banner != null and round_banner.position == BattleViewScript.ROUND_BANNER_POS and round_banner.size == BattleViewScript.ROUND_BANNER_SIZE, "round banner top bar")
 	var speed_cycle: Button = view.get_node_or_null("Arena/SpeedBar/SpeedCycle") as Button
 	failed += _assert(speed_cycle != null and speed_cycle.position == BattleViewScript.SPEED_BUTTON_POS, "one speed button sits left of Close")
+	var speed_face: StyleBoxTexture = null
+	if speed_cycle != null:
+		speed_face = speed_cycle.get_theme_stylebox("normal") as StyleBoxTexture
+	var speed_path: String = speed_face.texture.resource_path if speed_face != null and speed_face.texture != null else ""
+	failed += _assert(speed_cycle != null and is_equal_approx(speed_cycle.size.x, 44.0) and speed_path.find("wood_button_9s_normal") >= 0, "speed button uses the 44px wood frame")
 	var close_btn: Button = view.get_node_or_null("Arena/CloseButton") as Button
 	if close_btn != null and speed_cycle != null:
 		failed += _assert(not close_btn.get_global_rect().intersects(speed_cycle.get_global_rect()), "Close does not cover the speed button")
