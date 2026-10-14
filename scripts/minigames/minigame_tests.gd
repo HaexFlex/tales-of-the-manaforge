@@ -1,0 +1,197 @@
+extends RefCounted
+## Permanent payout and scene checks for the lend-a-hand games.
+## Runs inside verify_headless and scene_sanity, where the autoloads exist.
+
+
+func run_payout() -> int:
+	var failed: int = 0
+	failed += _math()
+	failed += _apply()
+	failed += _save_stays_put()
+	if failed == 0:
+		print("MINIGAME_PAYOUT_OK")
+	return failed
+
+
+func run_scenes() -> int:
+	var failed: int = 0
+	var ids: PackedStringArray = MinigameCatalog.playable_ids()
+	failed += _check(ids.size() == 7, "seven minigame scenes, got %d" % ids.size())
+	for id: String in ids:
+		var path: String = MinigameCatalog.scene_path(id)
+		var packed: PackedScene = load(path) as PackedScene
+		failed += _check(packed != null, "scene loads %s" % id)
+		if packed == null:
+			continue
+		var node: Node = packed.instantiate()
+		failed += _check(node is Minigame, "%s is a Minigame" % id)
+		failed += _check(node.has_method("game_id") and str(node.call("game_id")) == id, "%s game_id" % id)
+		node.free()
+	failed += _check(MinigameCatalog.game_for("crucible") == "", "Forge Glow is not offered")
+	failed += _check(MinigameCatalog.game_for("anvil") == "", "Anvil has no lend-a-hand")
+	failed += _check(MinigameCatalog.game_for("reliquary") == "", "Reliquary has no lend-a-hand")
+	if failed == 0:
+		print("MINIGAME_SCENES_OK")
+	return failed
+
+
+func _math() -> int:
+	var failed: int = 0
+	failed += _check(is_equal_approx(MinigameMath.k_from_r(40.0), 3.0), "ripe k = 3")
+	failed += _check(is_equal_approx(MinigameMath.k_from_r(30.0), 4.0), "stone k = 4")
+	failed += _check(is_equal_approx(MinigameMath.k_from_r(20.0), 6.0), "water k = 6")
+	failed += _check(is_equal_approx(MinigameMath.k_from_r(15.0), 8.0), "press k = 8")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("ripe_catch"), 3.0), "catalog ripe k")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("splitting_stone"), 4.0), "catalog stone k")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("just_enough"), 6.0), "catalog water k")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("steady_press"), 8.0), "catalog press k")
+	var normal: float = MinigameCatalog.woodsong_k(false)
+	var heavy: float = MinigameCatalog.woodsong_k(true)
+	failed += _check(is_equal_approx(heavy, normal * 2.0), "heavy beat is double")
+	var minute: float = 42.0 * normal + 6.0 * heavy
+	failed += _check(is_equal_approx(minute, 120.0), "woodsong perfect minute is +120s (got %.4f)" % minute)
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("steeping"), 16.0), "steeping k = 16")
+	failed += _check(is_equal_approx(MinigameCatalog.steeping_cycle(), 8.0), "steeping pace floor is 8s")
+	failed += _check(is_equal_approx(MinigameMath.k_from_r(60.0 / 8.0), 16.0), "steeping k matches the 8s clock")
+	var phone_k: float = MinigameCatalog.k_for("with_the_grain", true)
+	var desk_k: float = MinigameCatalog.k_for("with_the_grain", false)
+	var phone_avg: float = MinigameCatalog.grain_average_round(true)
+	failed += _check(is_equal_approx(phone_k, MinigameMath.grain_k(phone_avg)), "grain k follows the average round")
+	failed += _check(absf(phone_k - 10.0) < 1.0, "phone grain k is about 10 (got %.3f)" % phone_k)
+	failed += _check(is_equal_approx(desk_k, 8.0), "desktop grain rounds are 4s so k = 8")
+	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(1, true), 6.0), "curvy phone round is 6s")
+	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(0, true), 4.0), "straight phone round stays 4s")
+	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(1, false), 4.0), "curvy desktop round stays 4s")
+	var perfect: float = MinigameMath.pace_multiplier(120.0, 60.0)
+	failed += _check(is_equal_approx(perfect, 3.0), "perfect minute is 3x")
+	var over: float = MinigameMath.pace_multiplier(500.0, 10.0)
+	failed += _check(is_equal_approx(over, 3.0), "pace ceiling holds at 3x")
+	failed += _check(is_equal_approx(MinigameMath.pace_multiplier(0.0, 30.0), 1.0), "a miss leaves the pace at 1x")
+	var partial: float = MinigameMath.pace_multiplier(40.0 * 3.0 * 0.8, 60.0)
+	failed += _check(is_equal_approx(partial, 2.6), "80 percent of ripe catch is 2.6x")
+	return failed
+
+
+func _apply() -> int:
+	var failed: int = 0
+	var frozen: bool = GameState.ancient_frozen
+	var committed: bool = GameState.fruit_committed
+	var stage: StringName = GameState.stage_id
+	var food: int = GameState.get_resource(&"food")
+	var essence: int = GameState.get_resource(&"essence")
+	var shards: int = GameState.get_resource(&"manashards")
+	var wood: int = GameState.get_resource(&"wood")
+	var basket: int = Backpack.get_count("wooden_basket")
+	var can: int = Backpack.get_count("stone_watering_can")
+	var ranks: Dictionary = GameState.upgrade_ranks
+	var knack: int = int(ranks.get("minigame_knack", 0))
+	var forager: int = int(ranks.get("forager", 0))
+	var roots: int = int(ranks.get("deep_roots", 0))
+	var sight: int = int(ranks.get("shard_sight", 0))
+	GameState.ancient_frozen = false
+	GameState.fruit_committed = false
+	GameState.stage_id = &"sapling"
+	GameState.harvest_accum = {}
+	Backpack.set_count("wooden_basket", 0)
+	Backpack.set_count("stone_watering_can", 0)
+	ranks["minigame_knack"] = 5
+	ranks["forager"] = 0
+	ranks["deep_roots"] = 0
+	ranks["shard_sight"] = 0
+	GameState.set_resource(&"food", 0)
+	var bare: Dictionary = MinigamePayout.grant("keeper", "ripe_catch", "food", 3.0)
+	failed += _check(bool(bare.get("ok", false)), "keeper gather grant")
+	failed += _check(is_equal_approx(float(bare.get("units", -1.0)), 1.5), "3s bare gather is 1.5 berries (got %.3f)" % float(bare.get("units", -1.0)))
+	failed += _check(int(ranks.get("minigame_knack", 0)) == 5, "knack rank stayed high for the ignore check")
+	GameState.harvest_accum = {}
+	GameState.set_resource(&"food", 0)
+	Backpack.set_count("wooden_basket", 1)
+	var tooled: Dictionary = MinigamePayout.grant("keeper", "ripe_catch", "food", 3.0)
+	failed += _check(is_equal_approx(float(tooled.get("units", -1.0)), 3.0), "basket doubles gather seconds (got %.3f)" % float(tooled.get("units", -1.0)))
+	GameState.stage_id = &"young"
+	GameState.harvest_accum = {}
+	Backpack.set_count("wooden_basket", 0)
+	var staged: Dictionary = MinigamePayout.grant("elaia", "ripe_catch", "food", 3.0)
+	var expect: float = (3.0 / 2.0) * 1.15 * 0.8
+	failed += _check(is_equal_approx(float(staged.get("units", -1.0)), expect), "stage and companion rate scale the seconds (got %.3f want %.3f)" % [float(staged.get("units", -1.0)), expect])
+	var food_now: int = GameState.get_resource(&"food")
+	var accum_now: float = float((GameState.harvest_accum as Dictionary).get("food", 0.0))
+	var wisp: Dictionary = MinigamePayout.grant("wisp", "ripe_catch", "food", 30.0)
+	failed += _check(not bool(wisp.get("ok", true)), "wisp gather is refused")
+	failed += _check(GameState.get_resource(&"food") == food_now, "wisp grant does not add food")
+	failed += _check(is_equal_approx(float((GameState.harvest_accum as Dictionary).get("food", 0.0)), accum_now), "wisp grant does not touch the accumulator")
+	GameState.stage_id = &"sapling"
+	GameState.set_resource(&"essence", 0)
+	GameState.set_resource(&"manashards", 0)
+	GameState.elaia_water_essence_frac = 0.0
+	var poured: Dictionary = MinigamePayout.grant("keeper", "just_enough", "manatree", 6.0)
+	failed += _check(bool(poured.get("ok", false)), "water grant")
+	failed += _check(int(poured.get("essence", -1)) == 6, "6s of watering is 6 essence (got %d)" % int(poured.get("essence", -1)))
+	failed += _check(int(poured.get("shards", -1)) >= 6 and int(poured.get("shards", -1)) <= 18, "shard roll stays in the normal range")
+	var frac_before: float = GameState.elaia_water_essence_frac
+	var ess_before: int = GameState.get_resource(&"essence")
+	MinigamePayout.grant("keeper", "just_enough", "manatree", 0.4)
+	failed += _check(GameState.get_resource(&"essence") == ess_before, "a short pour does not mint a whole essence")
+	failed += _check(GameState.elaia_water_essence_frac > frac_before + 0.2, "the leftover watering fraction is banked")
+	if ForgeJobs.has_job("mill"):
+		ForgeJobs.cancel_batch("mill")
+	GameState.set_resource(&"wood", 80)
+	var started: String = ForgeJobs.try_begin_batch("mill", "heartwood_bits", 3)
+	failed += _check(started == "ok", "mill batch for the job test (%s)" % started)
+	var before: Dictionary = ForgeJobs.job_state("mill")
+	var wisp_job: Dictionary = MinigamePayout.grant("wisp", "steady_press", "mill", 90.0)
+	var after_wisp: Dictionary = ForgeJobs.job_state("mill")
+	failed += _check(not bool(wisp_job.get("ok", true)), "wisp job time is refused")
+	failed += _check(int(after_wisp.get("done", -1)) == int(before.get("done", -2)), "wisp does not finish the current job")
+	failed += _check(is_equal_approx(float(after_wisp.get("progress", -1.0)), float(before.get("progress", -2.0))), "wisp does not move the current job")
+	var elaia_job: Dictionary = MinigamePayout.grant("elaia", "steady_press", "mill", 10.0)
+	var after_elaia: Dictionary = ForgeJobs.job_state("mill")
+	failed += _check(bool(elaia_job.get("ok", false)), "companion job grant")
+	failed += _check(is_equal_approx(float(elaia_job.get("applied", -1.0)), 8.0), "companion rate scales job seconds")
+	failed += _check(int(after_elaia.get("done", -1)) == 0, "10s at 0.8 does not finish a 60s item")
+	failed += _check(is_equal_approx(float(after_elaia.get("progress", -1.0)), 8.0), "current item moved 8s")
+	var burst: Dictionary = MinigamePayout.grant("keeper", "steady_press", "mill", 90.0)
+	var after_burst: Dictionary = ForgeJobs.job_state("mill")
+	failed += _check(int(burst.get("finished", -1)) == 1, "overflow finishes the current item only")
+	failed += _check(float(burst.get("spilled", 0.0)) > 1.0, "spare seconds do not enter the queue")
+	failed += _check(int(after_burst.get("done", -1)) == 1, "one of three items finished")
+	failed += _check(int(after_burst.get("total", -1)) == 3, "the queue is still three")
+	failed += _check(is_equal_approx(float(after_burst.get("progress", -1.0)), 0.0), "the next item has not started")
+	ForgeJobs.cancel_batch("mill")
+	GameState.ancient_frozen = frozen
+	GameState.fruit_committed = committed
+	GameState.stage_id = stage
+	GameState.set_resource(&"food", food)
+	GameState.set_resource(&"essence", essence)
+	GameState.set_resource(&"manashards", shards)
+	GameState.set_resource(&"wood", wood)
+	Backpack.set_count("wooden_basket", basket)
+	Backpack.set_count("stone_watering_can", can)
+	ranks["minigame_knack"] = knack
+	ranks["forager"] = forager
+	ranks["deep_roots"] = roots
+	ranks["shard_sight"] = sight
+	return failed
+
+
+func _save_stays_put() -> int:
+	var failed: int = 0
+	var blob: Dictionary = GameState.to_save_dict()
+	for key_v: Variant in blob.keys():
+		failed += _check(not str(key_v).begins_with("minigame_"), "save has no minigame session field %s" % str(key_v))
+	var jobs: Dictionary = ForgeJobs.capture_save_fields()
+	failed += _check(not jobs.has("minigame"), "forge save has no minigame field")
+	var migrated: Dictionary = SaveService.migrate_state(14, {"wood": 4, "stage_id": "sapling"})
+	failed += _check(not migrated.is_empty(), "a v14 save still migrates")
+	failed += _check(int(migrated.get("wood", -1)) == 4, "migration keeps the wood")
+	failed += _check(migrated.has("first_minigame_played"), "existing flag still defaults in")
+	failed += _check(not migrated.has("minigame_session"), "migration does not invent a session")
+	failed += _check(int(SaveService.get("SAVE_VERSION")) == 15, "save version stays 15")
+	return failed
+
+
+func _check(ok: bool, label: String) -> int:
+	if ok:
+		return 0
+	printerr("ASSERT FAIL: %s" % label)
+	return 1

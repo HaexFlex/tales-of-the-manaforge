@@ -3891,6 +3891,7 @@ func _run() -> void:
 	failed += _echo_v4_parity()
 	failed += await _battle_ui_v7(tree_root, game_state, save_service)
 	failed += await _battle_icons(tree_root, game_state, save_service)
+	failed += _minigame_checks()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -4806,6 +4807,12 @@ func _forge_tick(jobs: Node, seconds: float) -> void:
 		left -= step
 
 
+func _minigame_checks() -> int:
+	var runner: RefCounted = (load("res://scripts/minigames/minigame_tests.gd") as GDScript).new()
+	var failed: int = int(runner.call("run_payout")) + int(runner.call("run_scenes"))
+	return failed
+
+
 func _wants_check_only() -> bool:
 	if OS.get_environment("MANAFORGE_CHECK_ONLY") == "1":
 		return true
@@ -4850,6 +4857,20 @@ func _check_only_load() -> int:
 		"res://scripts/ui/expedition_shell.gd",
 		"res://scripts/autoload/game_theme.gd",
 		"res://scripts/autoload/game_input.gd",
+		"res://scripts/minigames/minigame_math.gd",
+		"res://scripts/minigames/minigame_catalog.gd",
+		"res://scripts/minigames/minigame_art.gd",
+		"res://scripts/minigames/minigame.gd",
+		"res://scripts/minigames/minigame_payout.gd",
+		"res://scripts/minigames/minigame_host.gd",
+		"res://scripts/minigames/minigame_tests.gd",
+		"res://scripts/minigames/games/ripe_catch.gd",
+		"res://scripts/minigames/games/splitting_stone.gd",
+		"res://scripts/minigames/games/woodsong.gd",
+		"res://scripts/minigames/games/just_enough.gd",
+		"res://scripts/minigames/games/steady_press.gd",
+		"res://scripts/minigames/games/with_the_grain.gd",
+		"res://scripts/minigames/games/steeping.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)

@@ -161,6 +161,7 @@ func _run() -> void:
 	failed += _res540_care_sanity()
 	failed += _res540_debug_sanity()
 	failed += _res540_help_sanity()
+	failed += _minigame_scenes()
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -1330,6 +1331,11 @@ func _elaia_portrait_gate(live: Node) -> int:
 	if body and body.has_method("_apply_presence"):
 		body.call("_apply_presence")
 	return failed
+
+
+func _minigame_scenes() -> int:
+	var runner: RefCounted = (load("res://scripts/minigames/minigame_tests.gd") as GDScript).new()
+	return int(runner.call("run_scenes"))
 
 
 func _content_keys() -> int:

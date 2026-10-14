@@ -65,7 +65,11 @@ func _on_title_hover(inside: bool) -> void:
 	var title: Label = get_node_or_null("Title") as Label
 	if title:
 		title.visible = inside
+		if inside and has_node("/root/MinigameHost") and str(MinigameHost.call("hero_for", "workbench")) != "":
+			title.text = "%s\n%s" % [world_hover_name(), ContentStrings.get_text("minigame_lend_a_hand")]
 	WorldHover.sync(self, inside, world_hover_name())
+	if has_node("/root/MinigameHost"):
+		MinigameHost.call("show_prompt", "workbench", global_position + Vector2(0, -56), inside)
 
 
 func stand_global() -> Vector2:

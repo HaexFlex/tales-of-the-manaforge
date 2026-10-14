@@ -1,0 +1,94 @@
+{
+  "perfect_bonus_sec_per_min": 120,
+  "pace_ceiling": 3.0,
+  "games": {
+    "ripe_catch": {
+      "title": "Ripe Catch",
+      "kind": "gather",
+      "resource": "food",
+      "nodes": ["food"],
+      "r": 40,
+      "spawn_sec": 1.5,
+      "rotten_every": 8,
+      "catch_width": 46,
+      "hint_pc": "Move the basket with the mouse (or A/D, left/right).",
+      "hint_phone": "Drag anywhere to move the basket."
+    },
+    "splitting_stone": {
+      "title": "Splitting Stone",
+      "kind": "gather",
+      "resource": "stone",
+      "nodes": ["stone"],
+      "r": 30,
+      "cycle_sec": 6.0,
+      "preview_sec": 0.6,
+      "window_sec": 0.8,
+      "spots": 3,
+      "hint_pc": "Hit each rune as it lights, in order (or 1, 2, 3).",
+      "hint_phone": "Tap each rune as it lights, in order."
+    },
+    "woodsong": {
+      "title": "Woodsong",
+      "kind": "gather",
+      "resource": "wood",
+      "nodes": ["wood"],
+      "r": 48,
+      "bpm": 48,
+      "window_ms": 180,
+      "heavy_every": 8,
+      "heavy_mult": 2.0,
+      "hint_pc": "Strike on the beat (mouse or Space). Gold beats count double.",
+      "hint_phone": "Tap anywhere on the beat. Gold beats count double."
+    },
+    "just_enough": {
+      "title": "Just Enough",
+      "kind": "water",
+      "resource": "manatree",
+      "nodes": ["manatree"],
+      "r": 20,
+      "cycle_sec": 3.0,
+      "band": 0.2,
+      "band_start": 0.62,
+      "hint_pc": "Hold to pour, let go in the band (mouse or Space).",
+      "hint_phone": "Hold anywhere to pour, let go in the band."
+    },
+    "steady_press": {
+      "title": "Steady Press",
+      "kind": "station",
+      "nodes": ["mill", "press"],
+      "r": 15,
+      "cycle_sec": 4.0,
+      "band": 0.15,
+      "band_start": 0.70,
+      "hint_pc": "Circle the wheel, ease off in the green (or alternate A/D).",
+      "hint_phone": "Circle the wheel to build pressure, ease off in the green."
+    },
+    "with_the_grain": {
+      "title": "With the Grain",
+      "kind": "station",
+      "nodes": ["workbench"],
+      "accuracy": 0.75,
+      "round_sec": 4.0,
+      "round_sec_curvy_phone": 6.0,
+      "shapes": [
+        {"id": "rod", "curvy": false},
+        {"id": "head", "curvy": true},
+        {"id": "plank", "curvy": true}
+      ],
+      "hint_pc": "Drag from the gold ring along the grain.",
+      "hint_phone": "Drag from the gold ring along the grain."
+    },
+    "steeping": {
+      "title": "Steeping",
+      "kind": "station",
+      "nodes": ["brewing", "cauldron"],
+      "k": 16.0,
+      "cycle_sec": 8.0,
+      "herb_min": 3,
+      "herb_max": 5,
+      "herbs": ["Glowcap", "Bitterroot", "Mintleaf", "Sunpetal", "Moonmoss"],
+      "hint_pc": "Watch the order, then pick the herbs (or 1-5). R shows it again.",
+      "hint_phone": "Watch the order, then tap the herbs."
+    }
+  }
+}

@@ -258,6 +258,8 @@ func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_apply_label_visibility()
 	WorldHover.sync(self, inside, world_hover_name())
+	if has_node("/root/MinigameHost"):
+		MinigameHost.call("show_prompt", "manatree", global_position + Vector2(0, -72), inside)
 
 
 func _refresh_label() -> void:
@@ -266,6 +268,8 @@ func _refresh_label() -> void:
 		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
 		if Backpack.owns_watering_can():
 			suffix += "\n" + ContentStrings.get_text("tool_water_hint")
+		if has_node("/root/MinigameHost") and str(MinigameHost.call("hero_for", "manatree")) != "":
+			suffix += "\n" + ContentStrings.get_text("minigame_lend_a_hand")
 	if GameState.selected_wisp_id >= 0:
 		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
 		_apply_label_visibility()

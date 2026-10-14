@@ -1558,6 +1558,50 @@ func _grant_material(item_id: String, amount: int) -> void:
 		Equipment.add_gear(item_id, amount)
 
 
+## k seconds of the played hero only, on the current item. Leftover does not enter the queue.
+func grant_played_job_seconds(station_id: String, actor: String, seconds: float) -> Dictionary:
+	var denied := {"ok": false, "applied": 0.0, "finished": 0, "reason": "", "spilled": 0.0}
+	if actor != "keeper" and actor != "elaia":
+		denied["reason"] = "wisp"
+		return denied
+	if seconds <= 0.0:
+		denied["reason"] = "empty"
+		return denied
+	if has_node("/root/GameState") and GameState.is_world_frozen():
+		denied["reason"] = "frozen"
+		return denied
+	if not _jobs.has(station_id):
+		denied["reason"] = "idle"
+		return denied
+	var rate: float = 1.0
+	if has_node("/root/GameState"):
+		rate = GameState.actor_work_rate(actor, station_id)
+	var job: BatchJob = _read_job(_jobs[station_id])
+	if job.unfinished() <= 0 or job.item_time_s <= 0.0:
+		denied["reason"] = "idle"
+		return denied
+	var room: float = maxf(0.0, job.item_time_s - job.item_elapsed_s)
+	var want: float = seconds * maxf(0.0, rate)
+	var applied: float = minf(want, room)
+	job.item_elapsed_s += applied
+	var finished: int = 0
+	var info: Dictionary = {}
+	if room > 0.0 and job.item_elapsed_s >= job.item_time_s - 0.0001:
+		job.done += 1
+		job.item_elapsed_s = 0.0
+		finished = 1
+		info = _recipe_info(job.recipe_id)
+		_grant_one(info)
+	if job.total > 0 and job.done >= job.total:
+		_jobs.erase(station_id)
+		if finished > 0:
+			_toast_batch_done(info, job.total)
+	else:
+		job.wisps = mini(_wisps_on(station_id), wisp_cap_for(station_id))
+		_jobs[station_id] = job.to_dict()
+	return {"ok": true, "applied": applied, "finished": finished, "reason": "ok", "spilled": want - applied}
+
+
 func _apply_catch_up(spot_id: String, seconds: float, speed: float) -> int:
 	if not _jobs.has(spot_id):
 		return 0

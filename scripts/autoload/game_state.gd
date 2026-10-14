@@ -1164,6 +1164,47 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, re
 	return {"ok": true, "reason": "ok", "shards": shards, "essence": ess}
 
 
+## k seconds of this hero's gather yield (tool interval, stage, Forager, work rate).
+## Fractions stay in harvest_accum. Wisps are not a caller.
+func grant_played_gather_seconds(actor: String, resource_id: StringName, seconds: float) -> Dictionary:
+	if actor != "keeper" and actor != "elaia":
+		return {"ok": false, "reason": "wisp", "units": 0.0, "granted": 0}
+	if is_world_frozen() or fruit_committed or seconds <= 0.0:
+		return {"ok": false, "reason": "frozen", "units": 0.0, "granted": 0}
+	if not resource_id in HARVEST_IDS:
+		return {"ok": false, "reason": "resource", "units": 0.0, "granted": 0}
+	var key: String = String(resource_id)
+	var before: float = float(harvest_accum.get(key, 0.0))
+	var granted: int = accumulate_keeper_harvest(resource_id, seconds, actor_work_rate(actor))
+	var after: float = float(harvest_accum.get(key, 0.0))
+	return {"ok": true, "reason": "ok", "granted": granted, "units": float(granted) + after - before}
+
+
+## k seconds of this hero's watering income. Whole pulses use the normal roll.
+## A leftover fraction is banked through the same accumulators as a short pulse.
+func grant_played_water_seconds(actor: String, seconds: float) -> Dictionary:
+	if actor != "keeper" and actor != "elaia":
+		return {"ok": false, "reason": "wisp", "shards": 0, "essence": 0}
+	if is_world_frozen() or fruit_committed or seconds <= 0.0:
+		return {"ok": false, "reason": "frozen", "shards": 0, "essence": 0}
+	var pulse: float = maxf(get_water_essence_pulse_sec(), 0.05)
+	var mult: float = actor_water_mult(actor)
+	var shards_before: int = get_resource(&"manashards")
+	var ess_before: int = get_resource(&"essence")
+	var left: float = seconds
+	while left >= pulse - 0.00001:
+		apply_water_pulse(true, true, mult)
+		left -= pulse
+	if left > 0.0001:
+		apply_water_pulse(true, true, mult * (left / pulse))
+	return {
+		"ok": true,
+		"reason": "ok",
+		"shards": get_resource(&"manashards") - shards_before,
+		"essence": get_resource(&"essence") - ess_before,
+	}
+
+
 ## Legacy one-shot entry used by older verify paths — delegates to a single water pulse.
 func try_water() -> String:
 	var result: Dictionary = apply_water_pulse()
@@ -1725,6 +1766,8 @@ func register_forge_upgrades(entries: Array) -> void:
 func ascend() -> void:
 	if not fruit_committed:
 		return
+	if has_node("/root/MinigameHost") and MinigameHost.has_method("close_immediate"):
+		MinigameHost.close_immediate()
 	var forge_snap: Dictionary = {}
 	if has_node("/root/ForgeJobs"):
 		forge_snap = ForgeJobs.prepare_ascend()
