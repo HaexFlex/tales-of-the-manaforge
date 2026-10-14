@@ -285,10 +285,14 @@ func _refresh_label() -> void:
 
 func _apply_label_visibility() -> void:
 	## The name shows on hover only. Watering and wisp text stay in the same label.
+	## A lend offer, or an open minigame, hides it so it does not sit on the button.
+	var covered: bool = false
+	if has_node("/root/MinigameHost"):
+		covered = bool(MinigameHost.call("is_open")) or str(MinigameHost.call("hero_for", "manatree")) != ""
 	if label:
-		label.visible = _hovered
+		label.visible = _hovered and not covered
 	if fruit_hint:
-		fruit_hint.visible = _hovered and fruit_hint.text != ""
+		fruit_hint.visible = _hovered and not covered and fruit_hint.text != ""
 
 
 func _stage_meta() -> Dictionary:

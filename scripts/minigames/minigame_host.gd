@@ -492,6 +492,8 @@ func _set_open(open: bool) -> void:
 		return
 	_dim.visible = open
 	_panel.visible = open
+	if open:
+		WorldHover.hide_for_overlay()
 	if not open:
 		_summary.visible = false
 		_summary_up = false

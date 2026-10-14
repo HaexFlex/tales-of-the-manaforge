@@ -18,6 +18,9 @@ static func sync(source: Node, inside: bool, text: String) -> void:
 
 
 static func present(source: Node, text: String) -> void:
+	if _minigame_open():
+		hide_for_overlay()
+		return
 	if source == null or not source.is_inside_tree() or text == "":
 		dismiss(source)
 		return
@@ -43,6 +46,20 @@ static func present(source: Node, text: String) -> void:
 		screen = source.get_viewport().get_mouse_position()
 	_place_near(panel, screen)
 	panel.visible = true
+
+
+static func hide_for_overlay() -> void:
+	_owner_id = 0
+	if _panel != null and is_instance_valid(_panel):
+		_panel.visible = false
+
+
+static func _minigame_open() -> bool:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return false
+	var host: Node = tree.root.get_node_or_null("MinigameHost")
+	return host != null and host.has_method("is_open") and bool(host.call("is_open"))
 
 
 static func dismiss(source: Node) -> void:

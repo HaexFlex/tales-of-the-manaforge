@@ -20,6 +20,7 @@ const BatchWorldBars := preload("res://scripts/batch_world_bars.gd")
 @onready var title: Label = get_node_or_null("Title") as Label
 
 var _bars: BatchWorldBars
+var _title_hover: bool = false
 
 
 func _ready() -> void:
@@ -42,6 +43,15 @@ func _ready() -> void:
 	_refresh_visual()
 
 
+func _apply_title_visibility() -> void:
+	if title == null:
+		return
+	var covered: bool = false
+	if has_node("/root/MinigameHost"):
+		covered = bool(MinigameHost.call("is_open")) or str(MinigameHost.call("hero_for", station_id)) != ""
+	title.visible = _title_hover and not covered
+
+
 func world_hover_name() -> String:
 	if station_id == "":
 		return ""
@@ -49,10 +59,8 @@ func world_hover_name() -> String:
 
 
 func _on_title_hover(inside: bool) -> void:
-	if title:
-		title.visible = inside
-		if inside and has_node("/root/MinigameHost") and str(MinigameHost.call("hero_for", station_id)) != "":
-			title.text = "%s\n%s" % [world_hover_name(), ContentStrings.get_text("minigame_lend_a_hand")]
+	_title_hover = inside
+	_apply_title_visibility()
 	WorldHover.sync(self, inside, world_hover_name())
 	if has_node("/root/MinigameHost"):
 		MinigameHost.call("show_prompt", station_id, global_position + Vector2(0, -56), inside)
@@ -174,8 +182,7 @@ func _refresh_visual() -> void:
 		var named: String = ForgeJobs.station_display(station_id)
 		var speed: float = ForgeJobs.station_speed_mult(station_id)
 		title.text = named if speed <= 0.0 else "%s  %s" % [named, ForgeJobs.station_speed_text(speed)]
-		if has_node("/root/MinigameHost") and str(MinigameHost.call("hero_for", station_id)) != "":
-			title.text = "%s\n%s" % [title.text, ContentStrings.get_text("minigame_lend_a_hand")]
+		_apply_title_visibility()
 	_apply_badge_art(worked)
 	_refresh_meter()
 

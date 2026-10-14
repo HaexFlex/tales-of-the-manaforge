@@ -34,6 +34,7 @@ func run_scenes() -> int:
 	failed += _check(MinigameCatalog.hot_spot_points("crucible").size() == 15, "crucible has the fifteen bubble points")
 	failed += _check(MinigameCatalog.hot_spot_points("reliquary").size() == 9, "reliquary has the nine rune points")
 	failed += _summary()
+	failed += _world_hover()
 	if failed == 0:
 		print("MINIGAME_SCENES_OK")
 	return failed
@@ -84,6 +85,41 @@ func _summary() -> int:
 			failed += _check(done.size.is_equal_approx(again.size), "Done and Play again are the same size (%s vs %s)" % [done.size, again.size])
 			failed += _check(done.size.y >= 44.0 and done.size.x > 0.0, "summary buttons meet the tap size")
 	host.call("close_immediate")
+	GameState.ancient_frozen = frozen
+	return failed
+
+
+func _world_hover() -> int:
+	var failed: int = 0
+	var host: Node = Engine.get_main_loop().root.get_node_or_null("MinigameHost")
+	failed += _check(host != null, "hover check has the minigame host")
+	if host == null:
+		return failed
+	var frozen: bool = GameState.ancient_frozen
+	var prev: Dictionary = ForgeJobs.keeper_task()
+	GameState.ancient_frozen = false
+	ForgeJobs.set_keeper_task("gather", "stone", true)
+	var node: Node = (load("res://scenes/gatherable.tscn") as PackedScene).instantiate()
+	node.set("resource_id", &"stone")
+	node.set("node_key", "stone")
+	Engine.get_main_loop().root.add_child(node)
+	node.call("_on_hover", true)
+	var name_label: Label = node.get_node("Label") as Label
+	failed += _check(name_label != null and not name_label.visible, "Harvest Stone label stays off the Lend a hand button")
+	var prompt: Control = host.get_node("MinigameRoot/LendPrompt") as Control
+	failed += _check(prompt != null and prompt.visible, "Lend a hand shows for the worked stone")
+	var opened: bool = bool(host.call("open_game", "splitting_stone", "keeper", "stone"))
+	failed += _check(opened, "hover check can open Splitting Stone")
+	failed += _check(WorldHover.current_text() == "", "world tooltip hides when a minigame opens")
+	WorldHover.present(node, "Harvest Stone")
+	failed += _check(WorldHover.current_text() == "", "world tooltip stays hidden while a minigame is open")
+	host.call("close_immediate")
+	node.queue_free()
+	WorldHover.shutdown()
+	if bool(prev.get("working", false)):
+		ForgeJobs.set_keeper_task(str(prev.get("kind", "")), str(prev.get("target", "")), true)
+	else:
+		ForgeJobs.note_keeper_idle()
 	GameState.ancient_frozen = frozen
 	return failed
 
