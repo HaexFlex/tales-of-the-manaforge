@@ -257,7 +257,9 @@ func _init() -> void:
 	tip_box.content_margin_top = 8
 	tip_box.content_margin_right = 12
 	tip_box.content_margin_bottom = 8
+	th.set_type_variation("TooltipPanel", "PopupPanel")
 	th.set_stylebox("panel", "TooltipPanel", tip_box)
+	th.set_type_variation("TooltipLabel", "Label")
 	th.set_color("font_color", "TooltipLabel", INK)
 	th.set_font("font", "TooltipLabel", body); th.set_font_size("font_size", "TooltipLabel", 19)
 	th.set_stylebox("panel", "PopupMenu", sbt("popup_9s_32x32.png", [8, 8, 8, 8], [8, 8, 8, 8]))

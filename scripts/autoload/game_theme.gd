@@ -48,6 +48,11 @@ func _on_node_added(node: Node) -> void:
 	if node is Control:
 		apply_control_theme(node as Control)
 	if node is PopupPanel and (node as PopupPanel).theme_type_variation == &"TooltipPanel":
+		# Tooltip popups are their own Window. They do not inherit the root theme,
+		# so the engine default (dark, see-through) wins unless this theme is set.
+		var pop: PopupPanel = node as PopupPanel
+		if _theme != null:
+			pop.theme = _theme
 		call_deferred("_seat_tooltip", node)
 
 
