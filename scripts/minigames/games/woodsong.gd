@@ -6,6 +6,9 @@ extends Minigame
 
 const TUNE_PATH: String = "res://assets/audio/mus_woodsong_alt96.ogg"
 const TUNE_RECT := Rect2(12, 264, 140, 44)
+## r6 puts the beat rail on the top of the play field, clear of the tune button.
+const RAIL_POS := Vector2(320, 32)
+const NOTCH_X: float = 100.0
 
 var _window: float = 0.18
 var _interval: float = 1.25
@@ -16,7 +19,7 @@ var _elapsed: float = 0.0
 var _index: int = 0
 var _open: Array[Dictionary] = []
 var _rail: Sprite2D
-var _notch_x: float = 110.0
+var _notch: Sprite2D
 var _tune_on: bool = true
 var _tune_btn: TextureButton
 var _player: AudioStreamPlayer
@@ -43,10 +46,10 @@ func _ready() -> void:
 	var tree: Sprite2D = MinigameArt.add_sprite(self, "node_tree.png", Vector2(250, 150))
 	tree.scale = Vector2(0.55, 0.55)
 	MinigameArt.add_sprite(self, "keeper_axe_e.png", Vector2(430, 230), 9)
-	_rail = MinigameArt.add_sprite(self, "beat_rail.png", Vector2(320, 286))
-	_rail.z_index = 2
-	var notch: Sprite2D = MinigameArt.add_sprite(self, "beat_notch.png", Vector2(_notch_x, 270))
-	notch.z_index = 3
+	_rail = MinigameArt.add_sprite(self, "beat_rail.png", RAIL_POS)
+	_rail.z_index = 6
+	_notch = MinigameArt.add_sprite(self, "beat_notch.png", Vector2(NOTCH_X, RAIL_POS.y))
+	_notch.z_index = 7
 	_tune_btn = TextureButton.new()
 	_tune_btn.name = "Tune"
 	_tune_btn.position = TUNE_RECT.position
@@ -100,8 +103,9 @@ func _process(delta: float) -> void:
 		var spr: Sprite2D = beat.get("sprite") as Sprite2D
 		if spr != null and is_instance_valid(spr):
 			var ahead: float = when - _elapsed
-			spr.position = Vector2(_notch_x + ahead * 200.0, 270)
-			spr.visible = spr.position.x > 40.0 and spr.position.x < 620.0
+			spr.position = Vector2(NOTCH_X + ahead * 200.0, RAIL_POS.y)
+			## Stay on the rail. The left cap is the notch, and markers must not cover it.
+			spr.visible = spr.position.x > NOTCH_X + 18.0 and spr.position.x < 612.0
 		if bool(beat.get("done", false)):
 			if spr != null and is_instance_valid(spr) and when + 0.4 < _elapsed:
 				spr.queue_free()
@@ -162,7 +166,7 @@ func _strike() -> void:
 
 func _make_marker(index: int) -> Sprite2D:
 	var heavy: bool = index % _heavy_every == _heavy_every - 1
-	var spr: Sprite2D = MinigameArt.add_sprite(self, "beat_heavy.png" if heavy else "beat.png", Vector2(700, 270))
+	var spr: Sprite2D = MinigameArt.add_sprite(self, "beat_heavy.png" if heavy else "beat.png", Vector2(700, RAIL_POS.y))
 	spr.z_index = 4
 	return spr
 
