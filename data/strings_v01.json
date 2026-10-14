@@ -201,7 +201,7 @@
   "backpack_title": "Inventory",
   "backpack_open": "Inventory",
   "backpack_empty": "Nothing crafted yet.",
-  "backpack_hint": "Crafted goods live here — tools, parts, Fertilizer.",
+  "backpack_hint": "Tools, parts, potions and Fertilizer, all you carry.",
   "backpack_tab_all": "All",
   "backpack_tab_raw": "Raw",
   "backpack_tab_refined": "Refined",
