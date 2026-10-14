@@ -1,7 +1,7 @@
 class_name MinigameCatalog
 extends RefCounted
 ## Which node plays which game. Numbers live in data/minigame_tuning.json.
-## Forge Glow is rejected: Crucible, Anvil, and Reliquary are intentionally absent.
+## Hot Spots stands in Forge Glow's place at the Crucible, Anvil, and Reliquary.
 
 const TUNING_PATH: String = "res://data/minigame_tuning.json"
 const WINDOW_SIZE := Vector2(696, 472)
@@ -71,10 +71,6 @@ static func scene_path(game_id: String) -> String:
 
 
 static func game_for(node_id: String) -> String:
-	## TODO: Forge Glow was rejected. Do not map Crucible, Anvil, or Reliquary,
-	## and do not add a replacement, until Design ships one.
-	if node_id == "crucible" or node_id == "anvil" or node_id == "reliquary":
-		return ""
 	for key: Variant in games().keys():
 		var id: String = str(key)
 		var nodes_v: Variant = game(id).get("nodes", [])
@@ -152,3 +148,21 @@ static func grain_average_round(phone: bool) -> float:
 
 static func steeping_cycle() -> float:
 	return maxf(8.0, float(game("steeping").get("cycle_sec", 8.0)))
+
+
+static func hot_spot_points(station: String) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var stations_v: Variant = game("hot_spots").get("stations", {})
+	if typeof(stations_v) != TYPE_DICTIONARY:
+		return out
+	var list_v: Variant = (stations_v as Dictionary).get(station, [])
+	if typeof(list_v) != TYPE_ARRAY:
+		return out
+	for entry: Variant in list_v as Array:
+		if typeof(entry) != TYPE_ARRAY:
+			continue
+		var pair: Array = entry
+		if pair.size() < 2:
+			continue
+		out.append(Vector2(float(pair[0]), float(pair[1])))
+	return out

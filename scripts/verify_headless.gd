@@ -4868,6 +4868,7 @@ func _check_only_load() -> int:
 		"res://scripts/minigames/games/splitting_stone.gd",
 		"res://scripts/minigames/games/woodsong.gd",
 		"res://scripts/minigames/games/just_enough.gd",
+		"res://scripts/minigames/games/hot_spots.gd",
 		"res://scripts/minigames/games/steady_press.gd",
 		"res://scripts/minigames/games/with_the_grain.gd",
 		"res://scripts/minigames/games/steeping.gd",

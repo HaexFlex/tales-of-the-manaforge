@@ -16,7 +16,7 @@ func run_payout() -> int:
 func run_scenes() -> int:
 	var failed: int = 0
 	var ids: PackedStringArray = MinigameCatalog.playable_ids()
-	failed += _check(ids.size() == 7, "seven minigame scenes, got %d" % ids.size())
+	failed += _check(ids.size() == 8, "eight minigame scenes, got %d" % ids.size())
 	for id: String in ids:
 		var path: String = MinigameCatalog.scene_path(id)
 		var packed: PackedScene = load(path) as PackedScene
@@ -27,9 +27,12 @@ func run_scenes() -> int:
 		failed += _check(node is Minigame, "%s is a Minigame" % id)
 		failed += _check(node.has_method("game_id") and str(node.call("game_id")) == id, "%s game_id" % id)
 		node.free()
-	failed += _check(MinigameCatalog.game_for("crucible") == "", "Forge Glow is not offered")
-	failed += _check(MinigameCatalog.game_for("anvil") == "", "Anvil has no lend-a-hand")
-	failed += _check(MinigameCatalog.game_for("reliquary") == "", "Reliquary has no lend-a-hand")
+	failed += _check(MinigameCatalog.game_for("crucible") == "hot_spots", "Hot Spots is offered at the Crucible")
+	failed += _check(MinigameCatalog.game_for("anvil") == "hot_spots", "Hot Spots is offered at the Anvil")
+	failed += _check(MinigameCatalog.game_for("reliquary") == "hot_spots", "Hot Spots is offered at the Reliquary")
+	failed += _check(MinigameCatalog.hot_spot_points("anvil").size() == 7, "anvil has the seven blade points")
+	failed += _check(MinigameCatalog.hot_spot_points("crucible").size() == 15, "crucible has the fifteen bubble points")
+	failed += _check(MinigameCatalog.hot_spot_points("reliquary").size() == 9, "reliquary has the nine rune points")
 	if failed == 0:
 		print("MINIGAME_SCENES_OK")
 	return failed
@@ -45,6 +48,11 @@ func _math() -> int:
 	failed += _check(is_equal_approx(MinigameCatalog.k_for("splitting_stone"), 4.0), "catalog stone k")
 	failed += _check(is_equal_approx(MinigameCatalog.k_for("just_enough"), 6.0), "catalog water k")
 	failed += _check(is_equal_approx(MinigameCatalog.k_for("steady_press"), 8.0), "catalog press k")
+	failed += _check(is_equal_approx(float(MinigameCatalog.game("steady_press").get("cycle_sec", 0.0)), 4.0), "press cycle stays 4s")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("hot_spots"), 5.0), "hot spots k = 5")
+	failed += _check(is_equal_approx(MinigameCatalog.r_of("hot_spots"), 24.0), "hot spots r = 24")
+	failed += _check(is_equal_approx(MinigameMath.k_from_r(24.0), 5.0), "hot spots k matches r")
+	failed += _check(is_equal_approx(float(MinigameCatalog.game("hot_spots").get("life_sec", 0.0)), 2.5), "hot spots live for one spawn")
 	var normal: float = MinigameCatalog.woodsong_k(false)
 	var heavy: float = MinigameCatalog.woodsong_k(true)
 	failed += _check(is_equal_approx(heavy, normal * 2.0), "heavy beat is double")
