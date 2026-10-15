@@ -38,6 +38,7 @@ func run_scenes() -> int:
 	failed += _grain_shapes()
 	failed += _steeping_debug()
 	failed += _grade_marks()
+	failed += _just_enough_band()
 	failed += _check(MinigameCatalog.game_for("brewing") == "steeping", "steeping stays mapped to brewing")
 	failed += _check(not MinigameCatalog.is_reachable("steeping"), "steeping has no world station, so it stays unreachable")
 	failed += _summary()
@@ -200,6 +201,19 @@ func _grade_marks() -> int:
 	return failed
 
 
+func _just_enough_band() -> int:
+	var failed: int = 0
+	var node: Node = (load("res://scenes/minigames/just_enough.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	node.set("_clock", 0.0)
+	failed += _check(is_equal_approx(float(node.call("_band_lo")), 0.61), "water band starts at 0.61")
+	failed += _check(is_equal_approx(float(node.call("_band_hi")), 0.71), "water band starts at 0.71")
+	node.set("_clock", 1.5)
+	failed += _check(is_equal_approx(float(node.call("_band_mid")), 0.78), "water band drifts up to 0.78")
+	node.free()
+	return failed
+
+
 func _pip_file(parent: Node, node_name: String) -> String:
 	if parent == null:
 		return ""
@@ -316,11 +330,13 @@ func _math() -> int:
 	var failed: int = 0
 	failed += _check(is_equal_approx(MinigameMath.k_from_r(40.0), 3.0), "ripe k = 3")
 	failed += _check(is_equal_approx(MinigameMath.k_from_r(30.0), 4.0), "stone k = 4")
-	failed += _check(is_equal_approx(MinigameMath.k_from_r(20.0), 6.0), "water k = 6")
+	failed += _check(is_equal_approx(MinigameMath.k_from_r(20.0), 6.0), "k_from_r(20) is 6")
 	failed += _check(is_equal_approx(MinigameMath.k_from_r(15.0), 8.0), "k_from_r(15) is 8")
 	failed += _check(is_equal_approx(MinigameCatalog.k_for("ripe_catch"), 3.0), "catalog ripe k")
 	failed += _check(is_equal_approx(MinigameCatalog.k_for("splitting_stone"), 4.0), "catalog stone k")
-	failed += _check(is_equal_approx(MinigameCatalog.k_for("just_enough"), 6.0), "catalog water k")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("just_enough"), 3.6), "catalog water k is the prototype 3.6")
+	failed += _check(is_equal_approx(float(MinigameCatalog.game("just_enough").get("cycle_sec", 0.0)), 1.8), "water cycle is the prototype 1.8s")
+	failed += _check(is_equal_approx(60.0 / 1.8 * 3.6, 120.0), "a perfect water minute is still +120s")
 	failed += _check(is_equal_approx(MinigameCatalog.k_for("steady_press"), 15.0), "catalog press k is the prototype 15")
 	failed += _check(is_equal_approx(float(MinigameCatalog.game("steady_press").get("cycle_sec", 0.0)), 7.5), "press cycle is the prototype 7.5s")
 	failed += _check(is_equal_approx(60.0 / 7.5 * 15.0, 120.0), "a perfect press minute is still +120s")
