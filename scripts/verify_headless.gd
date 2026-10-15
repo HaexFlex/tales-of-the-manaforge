@@ -10524,6 +10524,22 @@ func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, g
 	game_state.call("advance_open_play", 1.0)
 	failed += _assert(is_equal_approx(float(game_state.get("run_time_sec")) - run0, 8.0), "open frame advances play at 8x")
 	failed += _assert(is_equal_approx(float(game_state.get("active_since_load_sec")) - idle0, 1.0), "idle clock stays 1x at 8x")
+	## Watering reads the play-speed multiplier once. 2x is two pulses per real second, not four.
+	var fruit_was: bool = bool(game_state.get("fruit_committed"))
+	game_state.set("fruit_committed", false)
+	game_state.call("set_play_speed", 2)
+	var water_scaled: float = float(game_state.call("active_play_delta", 1.0))
+	failed += _assert(is_equal_approx(water_scaled, 2.0), "2x watering scales a real second to 2s, not 4s (got %s)" % water_scaled)
+	var water_before: int = int(game_state.get("essence"))
+	game_state.call("tick_hero_water", "keeper", water_scaled)
+	var water_pulses: int = int(floor(water_scaled / float(game_state.call("get_water_essence_pulse_sec"))))
+	var water_each: int = int(game_state.call("get_water_essence_amount"))
+	var water_gained: int = int(game_state.get("essence")) - water_before
+	failed += _assert(water_gained == water_pulses * water_each, "one real second of watering at 2x pays %d pulses, not double that (got %d)" % [water_pulses, water_gained])
+	if is_equal_approx(water_scaled, 2.0) and water_gained == water_pulses * water_each:
+		print("WATER_SPEED_ONCE_OK")
+	game_state.set("fruit_committed", fruit_was)
+	game_state.call("set_play_speed", 8)
 	var curve: float = float(game_state.call("offline_effective_seconds", 1800.0))
 	var idle: float = float(game_state.call("idle_catch_up_seconds", 1800.0))
 	failed += _assert(is_equal_approx(curve, 180.0), "30 min offline curve is 180s at 1x (got %s)" % curve)
