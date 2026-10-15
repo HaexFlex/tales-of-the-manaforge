@@ -111,20 +111,51 @@ func _finish() -> void:
 		miss()
 
 
+## Same rule as the prototype: the worse of "samples stay on the path" and
+## "the path is covered", in panel space. Tolerance is 0.05 of the panel.
+const TOLERANCE: float = 0.05
+
+
 func _accuracy() -> float:
-	if _points.is_empty() or _stroke.size() < 2:
+	if _points.size() < 2 or _stroke.is_empty():
 		return 0.0
-	var hit: int = 0
-	var reach: float = 28.0 if _phone else 22.0
-	for point: Vector2 in _points:
-		var near: bool = false
-		for sample: Vector2 in _stroke:
-			if sample.distance_to(point) <= reach:
-				near = true
+	var path: PackedVector2Array = _to_panel(_points)
+	var stroke: PackedVector2Array = _to_panel(_stroke)
+	var on_path: int = 0
+	for sample: Vector2 in stroke:
+		var best: float = 1000000.0
+		for i: int in path.size() - 1:
+			best = minf(best, _dist_to_segment(sample, path[i], path[i + 1]))
+		if best <= TOLERANCE:
+			on_path += 1
+	var covered: int = 0
+	for point: Vector2 in path:
+		for sample: Vector2 in stroke:
+			if sample.distance_to(point) <= TOLERANCE:
+				covered += 1
 				break
-		if near:
-			hit += 1
-	return float(hit) / float(_points.size())
+	var on_ratio: float = float(on_path) / float(stroke.size())
+	var cover_ratio: float = float(covered) / float(path.size())
+	return minf(on_ratio, cover_ratio)
+
+
+func _to_panel(pts: PackedVector2Array) -> PackedVector2Array:
+	var out: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in pts:
+		out.append(Vector2(
+			(point.x - PANEL_ORIGIN.x) / PANEL_SIZE.x,
+			(point.y - PANEL_ORIGIN.y) / PANEL_SIZE.y
+		))
+	return out
+
+
+func _dist_to_segment(p: Vector2, a: Vector2, b: Vector2) -> float:
+	var ab: Vector2 = b - a
+	var length_sq: float = ab.length_squared()
+	var t: float = 0.0
+	if length_sq > 0.000001:
+		t = clampf((p - a).dot(ab) / length_sq, 0.0, 1.0)
+	return p.distance_to(a + ab * t)
 
 
 func _load_shape() -> void:

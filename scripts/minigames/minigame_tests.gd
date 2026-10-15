@@ -36,6 +36,7 @@ func run_scenes() -> int:
 	failed += _hot_spots_switch()
 	failed += _woodsong_volume()
 	failed += _grain_shapes()
+	failed += _grain_accuracy()
 	failed += _ripe_catch()
 	failed += _steeping_debug()
 	failed += _grade_marks()
@@ -162,6 +163,58 @@ func _grain_shapes() -> int:
 	var rod: PackedVector2Array = node.call("_path_for", "rod")
 	var origin := Vector2(148.0 + 0.277365 * 424.0, 34.0 + 0.422701 * 272.0)
 	failed += _check(rod.size() > 0 and rod[0].distance_to(origin) < 0.05, "rod uses the prototype seed")
+	node.free()
+	return failed
+
+
+func _grain_accuracy() -> int:
+	var failed: int = 0
+	var node: Node = (load("res://scenes/minigames/with_the_grain.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	node.set("_shape_i", 0)
+	var figure: PackedVector2Array = node.call("_path_for", "figure8")
+	node.set("_points", figure)
+	node.set("_stroke", figure)
+	var exact: float = float(node.call("_accuracy"))
+	failed += _check(is_equal_approx(exact, 1.0), "an exact grain stroke scores 1.00 (got %.3f)" % exact)
+	var nudged: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in figure:
+		nudged.append(point + Vector2(0.03 * 424.0, 0.0))
+	node.set("_stroke", nudged)
+	var near: float = float(node.call("_accuracy"))
+	failed += _check(is_equal_approx(near, 1.0), "a 0.03 offset grain stroke still scores 1.00 (got %.3f)" % near)
+	var spiral: PackedVector2Array = node.call("_path_for", "spiral")
+	node.set("_points", spiral)
+	var shifted: PackedVector2Array = PackedVector2Array()
+	for point: Vector2 in spiral:
+		shifted.append(point + Vector2(0.08 * 424.0, 0.0))
+	node.set("_stroke", shifted)
+	var offset: float = float(node.call("_accuracy"))
+	failed += _check(is_equal_approx(offset, 0.5), "a 0.08 offset grain stroke scores 0.50 (got %.3f)" % offset)
+	failed += _check(offset < 0.75, "a 0.08 offset grain stroke fails")
+	var partial: PackedVector2Array = PackedVector2Array()
+	for i: int in mini(23, spiral.size()):
+		partial.append(spiral[i])
+	node.set("_stroke", partial)
+	var early: float = float(node.call("_accuracy"))
+	failed += _check(is_equal_approx(early, 23.0 / 32.0), "the first 70%% of a grain stroke scores 0.719 (got %.3f)" % early)
+	node.set("_points", figure)
+	var scribble: PackedVector2Array = PackedVector2Array()
+	var cols: int = 28
+	var rows: int = 19
+	for row: int in rows:
+		var y_n: float = float(row) / float(rows - 1)
+		for col: int in cols + 1:
+			var x_n: float = float(col) / float(cols)
+			if row % 2 == 1:
+				x_n = 1.0 - x_n
+			scribble.append(Vector2(148.0 + x_n * 424.0, 34.0 + y_n * 272.0))
+	node.set("_stroke", scribble)
+	var messy: float = float(node.call("_accuracy"))
+	failed += _check(absf(messy - 0.196) < 0.001, "a whole-panel grain scribble scores 0.196 (got %.3f)" % messy)
+	failed += _check(messy < 0.75, "a whole-panel grain scribble fails")
+	if failed == 0:
+		print("GRAIN_ACCURACY_OK")
 	node.free()
 	return failed
 
