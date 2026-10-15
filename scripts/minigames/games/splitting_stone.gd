@@ -8,6 +8,7 @@ var _preview: float = 0.6
 var _window: float = 0.8
 var _t: float = 0.0
 var _spots: Array[Sprite2D] = []
+var _numbers: Array[Label] = []
 var _resolved: Array[bool] = []
 var _hit: Array[bool] = []
 var _miss_from: int = 0
@@ -31,13 +32,26 @@ func _ready() -> void:
 	MinigameArt.add_sprite(self, "node_stone.png", Vector2(360, 168))
 	_keeper = MinigameArt.add_sprite(self, "keeper_pick_e2.png", Vector2(173, 190), 9)
 	_keeper.z_index = 2
-	var points: Array[Vector2] = [Vector2(292, 112), Vector2(430, 128), Vector2(352, 214)]
-	for i: int in points.size():
-		var spot: Sprite2D = MinigameArt.add_sprite(self, "spot_dim.png", _clamp_spot(points[i]))
+	for i: int in 3:
+		var spot: Sprite2D = MinigameArt.add_sprite(self, "spot_dim.png", Vector2.ZERO)
+		spot.name = "RuneSpot%d" % (i + 1)
 		spot.z_index = 2
 		_spots.append(spot)
+		var number := Label.new()
+		number.name = "Rune%d" % (i + 1)
+		number.text = str(i + 1)
+		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		number.size = Vector2(32, 24)
+		number.z_index = 4
+		number.add_theme_font_size_override("font_size", 20)
+		number.add_theme_color_override("font_color", Color8(255, 244, 192))
+		add_child(number)
+		_numbers.append(number)
 		_resolved.append(false)
 		_hit.append(false)
+	_roll_spots()
 
 
 func _process(delta: float) -> void:
@@ -136,6 +150,9 @@ func _paint() -> void:
 		var tex: Texture2D = MinigameArt.texture(file)
 		if tex != null:
 			_spots[i].texture = tex
+		if i < _numbers.size():
+			var ink: Color = Color8(226, 255, 250) if i == lit else Color8(255, 244, 192)
+			_numbers[i].add_theme_color_override("font_color", ink)
 
 
 func _grade_passed() -> void:
@@ -162,7 +179,47 @@ func _reset_spots() -> void:
 	for i: int in _spots.size():
 		_resolved[i] = false
 		_hit[i] = false
+	_roll_spots()
 
 
-func _clamp_spot(pos: Vector2) -> Vector2:
-	return Vector2(clampf(pos.x, 48.0, 592.0), clampf(pos.y, 48.0, 272.0))
+## Clustered on the stone face, at least 60 px apart. The number is the strike order.
+const CLUSTER := Vector2(320, 224)
+const CLUSTER_RX: float = 62.0
+const CLUSTER_RY: float = 52.0
+const CLUSTER_SEP: float = 60.0
+
+
+func _roll_spots() -> void:
+	var placed: Array[Vector2] = []
+	for _attempt: int in 40:
+		placed = _try_cluster()
+		if placed.size() == _spots.size():
+			break
+	while placed.size() < _spots.size():
+		var n: int = placed.size()
+		placed.append(Vector2(224.0 + 76.8 * float(n), 160.0))
+	for i: int in _spots.size():
+		_spots[i].position = placed[i]
+		if i < _numbers.size():
+			_numbers[i].position = placed[i] + Vector2(-16, -10)
+
+
+func _try_cluster() -> Array[Vector2]:
+	var placed: Array[Vector2] = []
+	var guard: int = 0
+	while placed.size() < _spots.size() and guard < 400:
+		guard += 1
+		var angle: float = randf() * TAU
+		var radius: float = sqrt(randf())
+		var point := Vector2(
+			CLUSTER.x + CLUSTER_RX * radius * cos(angle),
+			CLUSTER.y + CLUSTER_RY * radius * sin(angle)
+		)
+		var clear: bool = true
+		for other: Vector2 in placed:
+			if other.distance_to(point) < CLUSTER_SEP:
+				clear = false
+				break
+		if clear:
+			placed.append(point)
+	return placed

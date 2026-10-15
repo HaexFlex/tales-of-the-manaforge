@@ -39,6 +39,7 @@ func run_scenes() -> int:
 	failed += _grain_accuracy()
 	failed += _steady_press_tuning()
 	failed += _keeper_frames()
+	failed += _stone_runes()
 	failed += _ripe_catch()
 	failed += _steeping_debug()
 	failed += _grade_marks()
@@ -286,6 +287,51 @@ func _keeper_sheet(scene_path: String, sprite_name: String, frames: int, frame_w
 	var width: int = spr.texture.get_width() if spr != null and spr.texture != null else 0
 	failed += _check(spr != null and frames > 0 and width / frames == frame_w, "%s frame is %d px wide" % [sprite_name, frame_w])
 	node.free()
+	return failed
+
+
+func _stone_runes() -> int:
+	var failed: int = 0
+	var node: Node = (load("res://scenes/minigames/splitting_stone.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	var first: Array[Vector2] = []
+	for i: int in 3:
+		var number: Label = node.get_node_or_null("Rune%d" % (i + 1)) as Label
+		failed += _check(number != null and number.text == str(i + 1), "splitting stone rune %d shows its number" % (i + 1))
+	var spots: Array[Node] = []
+	for child: Node in node.get_children():
+		if child is Sprite2D and str(child.name).begins_with("RuneSpot"):
+			spots.append(child)
+			first.append((child as Node2D).position)
+	failed += _check(spots.size() == 3, "splitting stone has three runes")
+	failed += _rune_spread(first)
+	var differed: bool = false
+	for _try: int in 6:
+		node.call("_roll_spots")
+		var again: Array[Vector2] = []
+		for child: Node in spots:
+			again.append((child as Node2D).position)
+		for i: int in mini(first.size(), again.size()):
+			if first[i].distance_to(again[i]) > 1.0:
+				differed = true
+		failed += _rune_spread(again)
+		if differed:
+			break
+	failed += _check(differed, "splitting stone runes move between runs")
+	if failed == 0:
+		print("STONE_RUNES_OK")
+	node.free()
+	return failed
+
+
+func _rune_spread(points: Array[Vector2]) -> int:
+	var failed: int = 0
+	for i: int in points.size():
+		var nx: float = (points[i].x - 320.0) / 62.0
+		var ny: float = (points[i].y - 224.0) / 52.0
+		failed += _check(nx * nx + ny * ny <= 1.001, "rune %d stays on the stone face" % (i + 1))
+		for j: int in range(i + 1, points.size()):
+			failed += _check(points[i].distance_to(points[j]) >= 60.0, "runes stay 60 px apart")
 	return failed
 
 
