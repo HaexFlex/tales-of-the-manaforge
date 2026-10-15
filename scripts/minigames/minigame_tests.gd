@@ -306,17 +306,38 @@ func _steeping_debug() -> int:
 				game = child
 	failed += _check(game != null, "steeping scene is open from the debug entry")
 	if game != null:
-		failed += _check(is_equal_approx(float(game.get("_k")), 21.2), "open steeping pays 21.2")
+		failed += _check(is_equal_approx(float(game.get("_k")), 16.0), "open steeping pays 16")
 		failed += _check(is_equal_approx(float(game.get("_show_each")), 1.2), "steeping shows each herb for 1.2s")
 		failed += _check(is_equal_approx(float(game.get("_hold")), 1.0), "steeping holds the order for 1s")
 		failed += _check(is_equal_approx(float(game.get("_input_sec")), 10.0), "steeping gives 10s to pick")
 		failed += _check(int(game.get("_replays_max")) == 1, "steeping allows one replay")
 		failed += _check(is_equal_approx(float(game.get("_gap")), 0.8), "steeping waits 0.8s before the next order")
-		failed += _check(game.get_node_or_null("TimerFill") == null and game.get_node_or_null("TimerTrack") == null, "steeping draws no timer line across the order")
+		var track: ColorRect = game.get_node_or_null("TimerTrack") as ColorRect
+		var fill: ColorRect = game.get_node_or_null("TimerFill") as ColorRect
+		var readout: Label = game.get_node_or_null("TimerReadout") as Label
+		failed += _check(track != null and fill != null, "steeping draws the input timer")
+		game.set("_phase", "input")
+		game.set("_input_left", 5.0)
+		game.set("_step", 0)
+		game.set("_resolved", false)
+		game.call("_paint")
+		failed += _check(fill != null and is_equal_approx(fill.size.x, 176.0), "the timer bar matches the seconds left")
+		failed += _check(readout != null and readout.visible and readout.text == "5.0", "the timer reads the seconds left")
+		var order: Array = game.get("_order")
+		for herb_v: Variant in order:
+			game.call("_pick", int(herb_v))
+		failed += _check(int(host.get("_successes")) == 1, "a perfect debug steeping credits a success")
+		failed += _check(is_equal_approx(float(host.get("_earned")), 0.0), "a debug steeping does not pay job seconds")
+		failed += _check(is_equal_approx(float(host.get("_pace_seconds")), 16.0), "a debug steeping still adds pace seconds")
+		host.set("_debug_play", false)
+		host.call("note_success", 16.0, 1.0)
+		failed += _check(int(host.get("_successes")) == 1, "a steeping success without a job stays off the card outside debug")
 		var replay: CanvasItem = game.get_node_or_null("Replay") as CanvasItem
 		failed += _check(replay != null and not replay.visible, "the grey replay square stays hidden until a replay is offered")
 	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
 	failed += _check(panel_src.find("Open Steeping") >= 0, "debug panel lists Steeping")
+	if failed == 0:
+		print("STEEPING_TIMER_OK")
 	host.call("close_immediate")
 	GameState.ancient_frozen = frozen
 	return failed
@@ -695,9 +716,9 @@ func _math() -> int:
 	failed += _check(is_equal_approx(heavy, normal * 2.0), "heavy beat is double")
 	var minute: float = 42.0 * normal + 6.0 * heavy
 	failed += _check(is_equal_approx(minute, 120.0), "woodsong perfect minute is +120s (got %.4f)" % minute)
-	failed += _check(is_equal_approx(MinigameCatalog.k_for("steeping"), 21.2), "steeping k is the prototype 21.2")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("steeping"), 16.0), "steeping k is 16")
 	failed += _check(is_equal_approx(MinigameCatalog.steeping_cycle(), 10.6), "steeping nominal cycle is 10.6s")
-	failed += _check(is_equal_approx(60.0 / 10.6 * 21.2, 120.0), "a perfect steeping minute is still +120s")
+	failed += _check(is_equal_approx(60.0 / 10.6 * 16.0, 90.5660377358), "a perfect steeping minute follows k 16")
 	var phone_k: float = MinigameCatalog.k_for("with_the_grain", true)
 	var desk_k: float = MinigameCatalog.k_for("with_the_grain", false)
 	var phone_avg: float = MinigameCatalog.grain_average_round(true)

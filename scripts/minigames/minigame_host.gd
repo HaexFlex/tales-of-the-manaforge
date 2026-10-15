@@ -73,6 +73,8 @@ var _walk_target: String = ""
 var _walk_worker: String = ""
 var _walk_approach: Vector2 = Vector2.ZERO
 var _walk_t: float = 0.0
+## Debug opens (Steeping) have no live job, so a success still counts on the card.
+var _debug_play: bool = false
 
 
 func _ready() -> void:
@@ -456,13 +458,16 @@ func note_success(k_seconds: float, weight: float = 1.0) -> void:
 	if not _open or _summary_up or k_seconds <= 0.0:
 		return
 	var result: Dictionary = MinigamePayout.grant(_worker, _game_id, _target_id, k_seconds)
-	if not bool(result.get("ok", false)):
+	var paid: bool = bool(result.get("ok", false))
+	## A debug game has nothing to pay. The card still records the success.
+	if not paid and not _debug_play:
 		return
 	_successes += 1
 	_streak += 1
 	_best_streak = maxi(_best_streak, _streak)
 	_pace_seconds += k_seconds
-	_earned += float(result.get("applied", k_seconds))
+	if paid:
+		_earned += float(result.get("applied", k_seconds))
 	_push_grade(2 if weight > 1.0 else 1)
 	_refresh_pace()
 	_spawn_pop(k_seconds)
@@ -529,6 +534,7 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 	if packed == null:
 		return false
 	_clear_game()
+	_debug_play = from_debug
 	_game_id = game_id
 	_worker = worker
 	_target_id = target_id
@@ -896,6 +902,7 @@ func _clear_game() -> void:
 		_game.visible = false
 		_game.queue_free()
 	_game = null
+	_debug_play = false
 
 
 func _set_open(open: bool) -> void:

@@ -1,11 +1,13 @@
 class_name Steeping
 extends Minigame
 ## Herbs are shown, held, then picked. The world never offers this game.
-## Show 1.2s per herb, hold 1s, input 10s, one replay, then a 0.8s gap. k is 21.2.
+## Show 1.2s per herb, hold 1s, input 10s, one replay, then a 0.8s gap. k is 16.
 
 const HERB_COUNT: int = 5
+const TIMER_POS := Vector2(210, 80)
+const TIMER_SIZE := Vector2(352, 8)
 
-var _k: float = 21.2
+var _k: float = 16.0
 var _show_each: float = 1.2
 var _hold: float = 1.0
 var _input_sec: float = 10.0
@@ -23,6 +25,8 @@ var _order_icons: Array[TextureRect] = []
 var _cauldron: Sprite2D
 var _drag_herb: int = -1
 var _replay_btn: TextureButton
+var _timer_fill: ColorRect
+var _timer_read: Label
 var _rng := RandomNumberGenerator.new()
 
 
@@ -81,6 +85,7 @@ func _ready() -> void:
 	_replay_btn.pressed.connect(_replay)
 	_replay_btn.visible = false
 	add_child(_replay_btn)
+	_build_timer()
 	_new_order()
 	_paint()
 
@@ -248,6 +253,7 @@ func _paint() -> void:
 		var tex: Texture2D = MinigameArt.texture(file)
 		if tex != null:
 			frame.texture = tex
+	_paint_timer()
 	if _replay_btn != null:
 		var live: bool = _phase == "input" and _replays_left > 0
 		_replay_btn.visible = live
@@ -258,3 +264,56 @@ func _paint() -> void:
 			_replay_btn.texture_pressed = face
 			_replay_btn.disabled = false
 			_replay_btn.tooltip_text = "See the order again"
+
+
+func _build_timer() -> void:
+	var border := ColorRect.new()
+	border.name = "TimerBorder"
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	border.position = TIMER_POS - Vector2(1, 1)
+	border.size = TIMER_SIZE + Vector2(2, 2)
+	border.color = Color8(26, 15, 8)
+	border.z_index = 4
+	add_child(border)
+	var track := ColorRect.new()
+	track.name = "TimerTrack"
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	track.position = TIMER_POS
+	track.size = TIMER_SIZE
+	track.color = Color8(52, 36, 24)
+	track.z_index = 5
+	add_child(track)
+	_timer_fill = ColorRect.new()
+	_timer_fill.name = "TimerFill"
+	_timer_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_timer_fill.position = TIMER_POS
+	_timer_fill.size = TIMER_SIZE
+	_timer_fill.color = Color8(143, 227, 230)
+	_timer_fill.z_index = 6
+	add_child(_timer_fill)
+	_timer_read = Label.new()
+	_timer_read.name = "TimerReadout"
+	_timer_read.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_timer_read.position = Vector2(TIMER_POS.x + TIMER_SIZE.x + 6.0, TIMER_POS.y - 6.0)
+	_timer_read.size = Vector2(48, 20)
+	_timer_read.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_timer_read.add_theme_font_size_override("font_size", 16)
+	_timer_read.add_theme_color_override("font_color", Color8(250, 238, 204))
+	_timer_read.z_index = 6
+	add_child(_timer_read)
+
+
+func _paint_timer() -> void:
+	if _timer_fill == null:
+		return
+	var frac: float = 1.0
+	if _phase == "input":
+		frac = clampf(_input_left / _input_sec, 0.0, 1.0)
+	elif _phase == "gap":
+		frac = 0.0
+	_timer_fill.size = Vector2(TIMER_SIZE.x * frac, TIMER_SIZE.y)
+	_timer_fill.color = Color8(224, 150, 58) if frac < 0.3 else Color8(143, 227, 230)
+	if _timer_read == null:
+		return
+	_timer_read.visible = _phase == "input"
+	_timer_read.text = "%.1f" % _input_left
