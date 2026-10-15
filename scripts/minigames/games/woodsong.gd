@@ -53,10 +53,19 @@ func _ready() -> void:
 	var tree: Sprite2D = MinigameArt.add_sprite(self, "node_tree.png", Vector2(250, 150))
 	tree.scale = Vector2(0.55, 0.55)
 	MinigameArt.add_sprite(self, "keeper_axe_e.png", Vector2(430, 230), 9)
+	## The rail art is dark brown. A cream plate keeps it readable on the tree.
+	var plate := ColorRect.new()
+	plate.name = "RailPlate"
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.color = Color8(250, 242, 220)
+	plate.position = Vector2(RAIL_POS.x - 308.0, RAIL_POS.y - 28.0)
+	plate.size = Vector2(616, 56)
+	plate.z_index = 5
+	add_child(plate)
 	_rail = MinigameArt.add_sprite(self, "beat_rail.png", RAIL_POS)
 	_rail.z_index = 6
 	_notch = MinigameArt.add_sprite(self, "beat_notch.png", Vector2(NOTCH_X, RAIL_POS.y))
-	_notch.z_index = 7
+	_notch.z_index = 8
 	_tune_btn = TextureButton.new()
 	_tune_btn.name = "Tune"
 	_tune_btn.position = TUNE_RECT.position
@@ -70,6 +79,7 @@ func _ready() -> void:
 	add_child(_tune_btn)
 	_paint_tune()
 	_build_volume()
+	_seat_chrome()
 	_player = AudioStreamPlayer.new()
 	_player.name = "Alt96"
 	_player.bus = "Music"
@@ -84,8 +94,53 @@ func begin() -> void:
 
 
 func shutdown() -> void:
+	_reclaim_chrome()
 	super.shutdown()
 	_stop_tune()
+
+
+## Music On and the volume plate sit in the header strip, not on the play field.
+func _seat_chrome() -> void:
+	var play := get_parent() as Control
+	if play == null or str(play.name) != "Play":
+		return
+	var window := play.get_parent() as Control
+	if window == null:
+		return
+	var strip_y: float = play.position.y
+	var next_y: float = strip_y + 48.0
+	var budget: float = window.size.y - next_y - 34.0
+	var fitted: float = clampf(budget / maxf(size.y, 1.0), 0.5, maxf(play.scale.x, 0.5))
+	play.position.y = next_y
+	play.scale = Vector2(fitted, fitted)
+	_park_chrome(_tune_btn, window, Vector2(play.position.x, strip_y))
+	var volume := get_node_or_null("Volume") as Control
+	_park_chrome(volume, window, Vector2(play.position.x + TUNE_RECT.size.x + 8.0, strip_y))
+
+
+func _park_chrome(node: Control, window: Control, at: Vector2) -> void:
+	if node == null:
+		return
+	var parent := node.get_parent()
+	if parent != null and parent != window:
+		parent.remove_child(node)
+		window.add_child(node)
+	node.position = at
+	node.z_index = 8
+
+
+func _reclaim_chrome() -> void:
+	for node_name: String in ["Tune", "Volume"]:
+		var node := get_node_or_null(node_name) as Control
+		if node == null:
+			var window := get_parent().get_parent() if get_parent() != null else null
+			if window != null:
+				node = window.get_node_or_null(node_name) as Control
+		if node == null or node.get_parent() == self:
+			continue
+		var parent := node.get_parent()
+		parent.remove_child(node)
+		add_child(node)
 
 
 func _exit_tree() -> void:
@@ -133,7 +188,7 @@ func _gui_input(event: InputEvent) -> void:
 	if not playing or not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event as InputEventMouseButton
-	if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and not TUNE_RECT.has_point(mb.position) and not VOL_RECT.has_point(mb.position):
+	if mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT:
 		_strike()
 
 
@@ -181,7 +236,7 @@ func _strike() -> void:
 func _make_marker(index: int) -> Sprite2D:
 	var heavy: bool = index % _heavy_every == _heavy_every - 1
 	var spr: Sprite2D = MinigameArt.add_sprite(self, "beat_heavy.png" if heavy else "beat.png", Vector2(700, RAIL_POS.y))
-	spr.z_index = 4
+	spr.z_index = 7
 	return spr
 
 

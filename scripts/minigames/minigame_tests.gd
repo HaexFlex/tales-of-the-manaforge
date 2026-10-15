@@ -69,10 +69,12 @@ func _woodsong_volume() -> int:
 	var node: Node = (load("res://scenes/minigames/woodsong.tscn") as PackedScene).instantiate()
 	Engine.get_main_loop().root.add_child(node)
 	var vol: Control = node.get_node_or_null("Volume") as Control
-	failed += _check(vol != null and vol.position.is_equal_approx(Vector2(160, 264)), "woodsong volume plate sits beside the tune button")
+	failed += _check(vol != null, "woodsong builds a volume plate")
 	failed += _check(node.get_node_or_null("Volume/Fill") != null and node.get_node_or_null("Volume/Grab") != null, "woodsong volume has fill and grab")
 	var rail: Sprite2D = node.get_node_or_null("beat_rail") as Sprite2D
+	var rail_plate: ColorRect = node.get_node_or_null("RailPlate") as ColorRect
 	failed += _check(rail != null and rail.position.y < 80.0, "woodsong beat rail stays at the top")
+	failed += _check(rail_plate != null and rail_plate.color.r > 0.85, "the woodsong rail sits on a light plate")
 	var before: float = Woodsong._saved_volume
 	node.call("begin")
 	var key := InputEventKey.new()
@@ -83,6 +85,25 @@ func _woodsong_volume() -> int:
 	Woodsong._saved_volume = before
 	node.call("_paint_volume")
 	node.free()
+	var host: Node = Engine.get_main_loop().root.get_node_or_null("MinigameHost")
+	failed += _check(host != null, "woodsong chrome check has the host")
+	if host == null:
+		return failed
+	var frozen: bool = GameState.ancient_frozen
+	GameState.ancient_frozen = false
+	host.call("close_immediate")
+	var opened: bool = bool(host.call("open_game", "woodsong", "keeper", "wood"))
+	failed += _check(opened, "woodsong opens so the music controls can leave the play field")
+	if opened:
+		var window: Node = host.get_node_or_null("MinigameRoot/Window")
+		var play: Control = window.get_node_or_null("Play") as Control if window != null else null
+		var seated: Control = window.get_node_or_null("Volume") as Control if window != null else null
+		var tune: Control = window.get_node_or_null("Tune") as Control if window != null else null
+		failed += _check(seated != null and tune != null, "music and volume sit on the window, not the play field")
+		failed += _check(play != null and seated != null and seated.position.y + seated.size.y <= play.position.y, "volume stays above the play field")
+		failed += _check(play != null and tune != null and tune.position.y + tune.size.y <= play.position.y, "Music On stays above the play field")
+		host.call("close_immediate")
+	GameState.ancient_frozen = frozen
 	return failed
 
 
