@@ -60,6 +60,15 @@ static func resource_id(game_id: String) -> String:
 
 
 static func flavour(game_id: String) -> String:
+	## Approved copy lives in the string table. The tuning row is the fallback.
+	var key := "mg_%s" % game_id
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var strings := tree.root.get_node_or_null("ContentStrings")
+		if strings != null and strings.has_method("get_text"):
+			var got: String = str(strings.call("get_text", key))
+			if got != "" and got != key:
+				return got
 	return str(game(game_id).get("flavour", ""))
 
 

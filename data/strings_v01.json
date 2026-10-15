@@ -874,5 +874,7 @@
   "foe_wilt_wisp_name": "Wilt Wisp",
   "foe_wilt_wisp_desc": "A spark twisted by the Withering. Calm it, and it is free again.",
   "foe_wilt_wisp_calmed": "The Wilt Wisp is Calmed. Its light clears, and it drifts free.",
-  "minigame_lend_a_hand": "Lend a hand"
+  "minigame_lend_a_hand": "Lend a hand",
+  "mg_hot_spots": "Find the glow, and the metal remembers its shape.",
+  "mg_steady_press": "A calm hand keeps the pressure kind."
 }

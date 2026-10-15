@@ -435,6 +435,13 @@ func _summary() -> int:
 	var footer: Label = window.get_node_or_null("Hint") as Label
 	failed += _check(footer != null and not footer.visible, "the window hint hides once Results is up")
 	failed += _check(MinigameCatalog.flavour("splitting_stone") == "Every stone has a way it wants to break. Follow the cracks.", "the splitting stone flavour is the full sentence")
+	var strings: Node = Engine.get_main_loop().root.get_node_or_null("ContentStrings") if Engine.get_main_loop() != null else null
+	var hot_line := "Find the glow, and the metal remembers its shape."
+	var press_line := "A calm hand keeps the pressure kind."
+	failed += _check(strings != null and str(strings.call("get_text", "mg_hot_spots")) == hot_line, "Hot Spots flavour is in the string table")
+	failed += _check(strings != null and str(strings.call("get_text", "mg_steady_press")) == press_line, "Steady Press flavour is in the string table")
+	failed += _check(MinigameCatalog.flavour("hot_spots") == hot_line, "Hot Spots shows the approved flavour")
+	failed += _check(MinigameCatalog.flavour("steady_press") == press_line, "Steady Press shows the approved flavour")
 	if summary != null:
 		var body: Label = summary.get_node_or_null("SummaryBody") as Label
 		var flavour: String = MinigameCatalog.flavour("ripe_catch")

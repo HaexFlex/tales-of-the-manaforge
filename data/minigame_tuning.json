@@ -79,7 +79,7 @@
         "crucible": [[195, 48], [300, 45], [395, 65], [470, 105], [365, 135], [300, 125], [170, 165], [245, 165], [530, 165], [345, 240], [220, 290], [450, 245], [130, 205], [510, 215], [380, 285]],
         "reliquary": [[205, 72], [300, 75], [385, 90], [478, 105], [158, 148], [238, 165], [320, 180], [405, 190], [488, 195]]
       },
-      "flavour": "Strike the metal while it still glows.",
+      "flavour": "Find the glow, and the metal remembers its shape.",
       "hint_pc": "Strike the hot spots before they cool (mouse).",
       "hint_phone": "Tap the hot spots before they cool."
     },
@@ -102,7 +102,7 @@
       "band_center": 0.6,
       "drift_amp": 0.14,
       "drift_period": 10.0,
-      "flavour": "Turn it slow and round. Feel the weight build, and let go before it is too much.",
+      "flavour": "A calm hand keeps the pressure kind.",
       "hint_pc": "Circle the wheel, ease off in the green (or alternate A/D).",
       "hint_phone": "Circle the wheel to build pressure, ease off in the green."
     },
