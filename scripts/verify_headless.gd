@@ -4396,12 +4396,14 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var echo_fled: Control = battle_view.get_node_or_null("EchoFledWindow") as Control
 		var fled_view_w: float = battle_view.get_viewport().get_visible_rect().size.x
 		var echo_fled_x: float = roundf((fled_view_w - 520.0) * 0.5)
-		failed += _assert(echo_fled != null and is_equal_approx(echo_fled.position.y, 92.0) and is_equal_approx(echo_fled.size.x, 520.0) and is_equal_approx(echo_fled.size.y, 420.0), "echo fled window is 520x420 at y 92")
+		failed += _assert(echo_fled != null and is_equal_approx(echo_fled.position.y, 92.0) and is_equal_approx(echo_fled.size.x, 520.0) and is_equal_approx(echo_fled.size.y, 380.0), "echo fled window is 520x380 at y 92")
+		if echo_fled != null and is_equal_approx(echo_fled.size.y, 380.0):
+			print("ECHO_FLED_HEIGHT_OK")
 		failed += _assert(echo_fled != null and is_equal_approx(echo_fled.position.x, echo_fled_x), "echo fled window stays at y 92 instead of centring vertically")
 		var echo_body: Label = battle_view.get_node_or_null("EchoFledWindow/EchoFledBody") as Label
 		failed += _assert(echo_body != null and str(echo_body.text).find("clearing still needs you") >= 0, "echo fled uses the live flee line")
 		var echo_back: Button = battle_view.get_node_or_null("EchoFledWindow/EchoFledReturn") as Button
-		failed += _assert(echo_back != null and echo_back.text == "Return to the tree" and is_equal_approx(echo_back.position.y, 332.0), "echo return sits on the bottom padding")
+		failed += _assert(echo_back != null and echo_back.text == "Return to the tree" and is_equal_approx(echo_back.position.y, 292.0), "echo return sits on the bottom padding")
 		var echo_close: Button = battle_view.get_node_or_null("EchoFledWindow/EchoFledClose") as Button
 		failed += _assert(echo_close != null and echo_close.text == "" and is_equal_approx(echo_close.position.y, 44.0), "echo × sits on the 24 px padding")
 		failed += _assert(bool(battle_view.call("speech_between_portraits")), "echo chamber layout is unchanged under the fled window")

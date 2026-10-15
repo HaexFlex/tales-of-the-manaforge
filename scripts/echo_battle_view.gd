@@ -1424,7 +1424,7 @@ func _clear_rewards() -> void:
 	_refresh_status_chip()
 
 
-const ECHO_FLED_H: float = 420.0
+const ECHO_FLED_H: float = 380.0
 const ECHO_FLED_ART: String = "res://assets/ui/extras/fled_art_120x72.png"
 const ECHO_FLED_WARN: String = "res://assets/ui/extras/icon_warn_amber_kit_18x16.png"
 
