@@ -370,16 +370,29 @@ func _battle_view() -> int:
 	await process_frame
 	failed += _check(bool(view.call("speech_between_portraits")), "speech between portraits")
 	var ssize: Vector2 = view.call("speech_band_size")
-	var csize: Vector2 = view.call("command_band_size")
-	var lsize: Vector2 = view.call("log_band_size")
 	failed += _check(ssize.y >= 60.0 and ssize.y <= 85.0, "speech band")
-	failed += _check(absf(csize.x - 540.0) < 0.5 and absf(csize.y - 90.0) < 0.5, "command band")
-	failed += _check(lsize.y >= 65.0 and lsize.y <= 90.0, "log band")
 	var psize: Vector2 = view.call("portrait_size")
 	failed += _check(absf(psize.x - 256.0) < 0.5, "portrait 256")
 	failed += _check(bool(view.call("is_chamber_shown")), "entry opens the chamber")
 	failed += _check(not bool(view.call("is_flee_shown")), "chamber hides Flee")
 	view.call("begin_face_off")
+	var menu: Control = view.get_node_or_null("EchoActionMenu") as Control
+	failed += _check(menu != null and str(menu.get_meta("built_by", "")) == "res://scripts/battle/battle_view.gd", "echo menu is built by battle_view")
+	var slot_names: PackedStringArray = PackedStringArray()
+	if menu:
+		for child: Node in menu.get_children():
+			if child is Button and child.has_meta("echo_slot"):
+				slot_names.append(str(child.name))
+	failed += _check(",".join(slot_names) == "StrikeButton,AbilityButton,SalveButton,BraceButton,FleeButton,SpareButton", "Strike / Ability / Items / Brace / Flee / Spare")
+	var ability_btn: Button = view.get_node_or_null("EchoActionMenu/AbilityButton") as Button
+	failed += _check(ability_btn != null and ability_btn.disabled and not BattleView.keeper_abilities_exist(), "Ability stays disabled")
+	var spare_btn: Button = view.get_node_or_null("EchoActionMenu/SpareButton") as Button
+	failed += _check(spare_btn != null and spare_btn.disabled, "Spare disabled until the falter")
+	var bar: Control = view.get_node_or_null("EchoActionMenu/EchoBottomBar") as Control
+	failed += _check(bar != null and absf(bar.size.x - 904.0) < 0.5 and absf(bar.size.y - 144.0) < 0.5 and EchoTheme.panel_ok(bar.size), "bottom bar 904x144 on the tile grid")
+	var echo_log: Control = view.get_node_or_null("EchoActionMenu/EchoLog") as Control
+	failed += _check(echo_log != null and absf(echo_log.size.x - 412.0) < 0.5 and absf(echo_log.size.y - 100.0) < 0.5, "battle log 412x100")
+	failed += _echo_salve_rule()
 	failed += _check(bool(view.call("keeper_uses_idle_texture")), "keeper portrait")
 	failed += _check(bool(view.call("echo_uses_elaia_texture")), "elaia portrait")
 	failed += _check(bool(view.call("is_arrow_toggle_shown")), "hybrid toggle shown")
@@ -392,6 +405,35 @@ func _battle_view() -> int:
 	echo.set("battle", null)
 	echo.set("in_battle", false)
 	await process_frame
+	return failed
+
+
+func _echo_salve_rule() -> int:
+	var failed: int = 0
+	var pack: Node = root.get_node("Backpack")
+	var before: int = int(pack.call("get_count", "heart_salve"))
+	pack.call("set_count", "heart_salve", 5)
+	var duel := EchoBattle.new()
+	duel.configure(
+		{"might": 1, "arcana": 1, "resilience": 40, "ward": 40, "vitality": 40, "swiftness": 20, "fate": 1},
+		{"display_name": "Elaia", "stats": {"might": 1, "arcana": 1, "swiftness": 1, "vitality": 4, "resilience": 1, "ward": 1, "fate": 1}}
+	)
+	duel.set_seed(1)
+	failed += _check(duel.salves_left() == 2, "salve allowance is 2 even when the pack holds more")
+	failed += _check(duel.choose("salve") != "no_salve", "first salve spends")
+	failed += _check(duel.choose("salve") != "no_salve", "second salve spends")
+	failed += _check(duel.choose("salve") == "no_salve", "third salve is refused")
+	failed += _check(duel.salves_used == 2 and int(pack.call("get_count", "heart_salve")) == 3, "two salves leave the pack")
+	var braced := EchoBattle.new()
+	braced.configure(
+		{"might": 1, "arcana": 1, "resilience": 40, "ward": 40, "vitality": 40, "swiftness": 20, "fate": 1},
+		{"display_name": "Elaia", "stats": {"might": 1, "arcana": 1, "swiftness": 1, "vitality": 8, "resilience": 1, "ward": 1, "fate": 1}}
+	)
+	braced.set_seed(2)
+	var echo_before: int = braced.echo_hp
+	braced.choose("brace")
+	failed += _check(braced.echo_hp == echo_before, "Brace spends the Strike")
+	pack.call("set_count", "heart_salve", before)
 	return failed
 
 

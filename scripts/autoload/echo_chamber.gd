@@ -242,6 +242,7 @@ func dismiss_battle_without_reward() -> void:
 
 
 func _teardown_view() -> void:
+	_settle_salves()
 	in_battle = false
 	reentry = false
 	battle = null
@@ -249,6 +250,22 @@ func _teardown_view() -> void:
 	if _battle_ui != null and is_instance_valid(_battle_ui):
 		_battle_ui.queue_free()
 	_battle_ui = null
+
+
+func _settle_salves() -> void:
+	## A load restores the pack from disk. Charge the salves this fight already drank.
+	if battle == null or battle.salves_remembered < 0:
+		return
+	var bag: Node = get_node_or_null("/root/Backpack")
+	if bag == null:
+		return
+	var now: int = int(bag.call("get_count", "heart_salve"))
+	if now <= battle.salves_remembered:
+		return
+	var charge: int = mini(battle.salves_used, now - battle.salves_remembered)
+	if charge > 0:
+		bag.call("try_spend", "heart_salve", charge)
+		battle.salves_remembered = int(bag.call("get_count", "heart_salve"))
 
 
 func _wake_at_tree() -> void:

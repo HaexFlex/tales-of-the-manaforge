@@ -47,6 +47,9 @@ var _chamber_panel: Panel = null
 var _leave_btn: Button = null
 var _face_btn: Button = null
 var _close_btn: Button = null
+var _ability_btn: Button = null
+var _brace_btn: Button = null
+var _salve_btn: Button = null
 var _title_plate: Panel = null
 var _echo_ghost: TextureRect = null
 var _mercy_shown: bool = false
@@ -349,8 +352,119 @@ func _hide_chamber_chrome() -> void:
 
 func _show_fight_chrome() -> void:
 	_hide_chamber_chrome()
+	_ensure_echo_menu()
 	if _command_band:
-		_command_band.visible = true
+		_command_band.visible = false
+
+
+func _ensure_echo_menu() -> void:
+	if get_node_or_null("EchoActionMenu") != null:
+		return
+	for node_name: String in ["StrikeButton", "FleeButton", "SpareButton", "ArrowToggle"]:
+		var legacy: Node = get_node_or_null(node_name)
+		if legacy:
+			legacy.name = "Legacy" + node_name
+			if legacy is CanvasItem:
+				(legacy as CanvasItem).visible = false
+	for node_name: String in ["LogBg", "LogTitle", "KeeperHpBack", "KeeperHpFill", "EchoHpBack", "EchoHpFill", "KeeperHpText", "EchoHpText"]:
+		var old: CanvasItem = get_node_or_null(node_name) as CanvasItem
+		if old:
+			old.visible = false
+	var hybrid: bool = _battle != null and _battle.strike_kind == "hybrid"
+	var built: Dictionary = BattleView.build_echo_menu(self, hybrid)
+	_strike = built["strike"] as Button
+	_flee = built["flee"] as Button
+	_spare = built["spare"] as Button
+	_arrow = built["chip"] as Button
+	_log = built["log"] as Label
+	_ability_btn = built["ability"] as Button
+	_brace_btn = built["brace"] as Button
+	_salve_btn = built["items"] as Button
+	if _strike and not _strike.pressed.is_connected(_on_strike):
+		_strike.pressed.connect(_on_strike)
+	if _flee and not _flee.pressed.is_connected(_on_flee):
+		_flee.pressed.connect(_on_flee)
+	if _spare and not _spare.pressed.is_connected(_on_spare):
+		_spare.pressed.connect(_on_spare)
+	if _arrow and not _arrow.pressed.is_connected(_on_arrow):
+		_arrow.pressed.connect(_on_arrow)
+	if _brace_btn and not _brace_btn.pressed.is_connected(_on_brace):
+		_brace_btn.pressed.connect(_on_brace)
+	if _salve_btn and not _salve_btn.pressed.is_connected(_on_salve):
+		_salve_btn.pressed.connect(_on_salve)
+	_build_hp_bars()
+	_refresh_bars(false)
+
+
+func _build_hp_bars() -> void:
+	if get_node_or_null("KeeperHpBar") != null:
+		return
+	_keeper_hp_fill = _make_hp_bar("Keeper", EchoTheme.KEEPER_CX, false)
+	_echo_hp_fill = _make_hp_bar("Echo", EchoTheme.ECHO_CX, true)
+
+
+func _make_hp_bar(who: String, cx: float, foe: bool) -> ColorRect:
+	var ox: float = EchoTheme.shift()
+	var frame := NinePatchRect.new()
+	frame.name = who + "HpBar"
+	frame.texture = load(EchoTheme.ART + "ink_hp_frame_9s_16x14.png")
+	frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	frame.patch_margin_left = 2
+	frame.patch_margin_top = 2
+	frame.patch_margin_right = 2
+	frame.patch_margin_bottom = 2
+	frame.position = Vector2(ox + cx - 90.0, 344)
+	frame.size = Vector2(180, 14)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(frame)
+	var fill := ColorRect.new()
+	fill.name = who + "HpFill"
+	fill.position = Vector2(2, 2)
+	fill.size = Vector2(176, 10)
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fill.color = EchoTheme.KOI if foe else EchoTheme.CYAN
+	frame.add_child(fill)
+	var lbl := Label.new()
+	lbl.name = who + "HpText"
+	lbl.position = Vector2(ox + cx - 90.0, 366)
+	lbl.size = Vector2(180, 22)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(lbl, false)
+	add_child(lbl)
+	if who == "Keeper":
+		_keeper_hp_label = lbl
+	else:
+		_echo_hp_label = lbl
+	return fill
+
+
+func _on_brace() -> void:
+	_choose("brace")
+
+
+func _on_salve() -> void:
+	_choose("salve")
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _phase != "fight" or _waiting_return or _battle == null:
+		return
+	if not (event is InputEventKey):
+		return
+	var key: InputEventKey = event as InputEventKey
+	if not key.pressed or key.echo:
+		return
+	if key.keycode >= KEY_1 and key.keycode <= KEY_6:
+		var row: Array[Button] = [_strike, _ability_btn, _salve_btn, _brace_btn, _flee, _spare]
+		var slot: int = int(key.keycode - KEY_1)
+		var btn: Button = row[slot]
+		if _offered(btn):
+			btn.pressed.emit()
+		get_viewport().set_input_as_handled()
+	elif key.keycode == KEY_TAB or key.keycode == KEY_Q:
+		_on_arrow()
+		get_viewport().set_input_as_handled()
 
 
 func _hide_fight_chrome() -> void:
@@ -405,15 +519,19 @@ func _process(delta: float) -> void:
 
 
 func is_flee_shown() -> bool:
-	return _flee != null and _flee.visible
+	return _offered(_flee)
 
 
 func is_spare_shown() -> bool:
-	return _spare != null and _spare.visible
+	return _offered(_spare)
 
 
 func is_strike_shown() -> bool:
-	return _strike != null and _strike.visible
+	return _offered(_strike)
+
+
+func _offered(btn: Button) -> bool:
+	return btn != null and btn.visible and not btn.disabled
 
 
 func is_arrow_toggle_shown() -> bool:
@@ -459,10 +577,16 @@ func echo_uses_key_texture() -> bool:
 
 
 func command_band_size() -> Vector2:
+	var bar: Control = get_node_or_null("EchoActionMenu/EchoBottomBar") as Control
+	if bar != null:
+		return bar.size
 	return COMMAND_SIZE if _command_band == null else _command_band.size
 
 
 func log_band_size() -> Vector2:
+	var log_panel: Control = get_node_or_null("EchoActionMenu/EchoLog") as Control
+	if log_panel != null:
+		return log_panel.size
 	return LOG_SIZE
 
 
@@ -657,6 +781,12 @@ func _offer_return(outcome: String) -> void:
 	_spare.visible = false
 	if _arrow:
 		_arrow.visible = false
+	if _ability_btn:
+		_ability_btn.visible = false
+	if _brace_btn:
+		_brace_btn.visible = false
+	if _salve_btn:
+		_salve_btn.visible = false
 	if _log:
 		_log.text = _pending_toast
 	## Only the flee result is the You Fled window. Spare and defeat keep the command-band return.
@@ -882,13 +1012,22 @@ func _refresh_actions() -> void:
 		_hide_fight_chrome()
 		_show_chamber_chrome()
 		return
+	_ensure_echo_menu()
 	var actions: PackedStringArray = _battle.available_actions()
-	_strike.visible = actions.has("strike")
-	_flee.visible = actions.has("flee")
-	_spare.visible = actions.has("spare")
+	_offer_slot(_strike, actions.has("strike"), ContentStrings.get_text("battle_strike"))
+	_offer_slot(_flee, actions.has("flee"), ContentStrings.get_text("battle_flee"))
+	_offer_slot(_spare, actions.has("spare"), ContentStrings.get_text("battle_spare"))
+	_offer_slot(_brace_btn, actions.has("brace"), "Brace")
+	if _ability_btn:
+		_ability_btn.visible = true
+		_ability_btn.disabled = not BattleView.keeper_abilities_exist()
+		_ability_btn.text = "Ability"
+	if _salve_btn:
+		var left: int = _battle.salves_left()
+		_salve_btn.visible = true
+		_salve_btn.disabled = left <= 0 or not actions.has("salve") or _waiting_return
+		_salve_btn.text = "Salve %d" % left
 	_return_btn.visible = false
-	if _strike:
-		_strike.text = ContentStrings.get_text("battle_strike")
 	if _arrow:
 		var hybrid: bool = _battle.strike_kind == "hybrid" and _battle.outcome == ""
 		_arrow.visible = hybrid
@@ -898,13 +1037,30 @@ func _refresh_actions() -> void:
 			_arrow.tooltip_text = ContentStrings.get_text("battle_mode_hint")
 
 
+func _offer_slot(btn: Button, on: bool, label: String) -> void:
+	if btn == null:
+		return
+	btn.visible = _phase == "fight"
+	btn.disabled = not on or _waiting_return
+	if label != "":
+		btn.text = label
+
+
 func _refresh_bars(flash: bool) -> void:
 	if _battle == null:
 		return
 	var keeper_ratio: float = float(_battle.keeper_hp) / float(maxi(1, _battle.keeper_max_hp))
 	var echo_ratio: float = float(_battle.echo_hp) / float(maxi(1, _battle.echo_max_hp))
-	_keeper_hp_fill.size = Vector2(PORTRAIT.x * clampf(keeper_ratio, 0.0, 1.0), 14.0)
-	_echo_hp_fill.size = Vector2(PORTRAIT.x * clampf(echo_ratio, 0.0, 1.0), 14.0)
+	var keeper_w: float = 176.0 if _keeper_hp_fill != null and _keeper_hp_fill.get_parent() is NinePatchRect else PORTRAIT.x
+	var echo_w: float = 176.0 if _echo_hp_fill != null and _echo_hp_fill.get_parent() is NinePatchRect else PORTRAIT.x
+	if _keeper_hp_fill:
+		_keeper_hp_fill.size = Vector2(keeper_w * clampf(keeper_ratio, 0.0, 1.0), 10.0 if keeper_w == 176.0 else 14.0)
+		if keeper_w == 176.0:
+			_keeper_hp_fill.color = EchoTheme.AMBER if keeper_ratio < 0.35 else EchoTheme.CYAN
+	if _echo_hp_fill:
+		_echo_hp_fill.size = Vector2(echo_w * clampf(echo_ratio, 0.0, 1.0), 10.0 if echo_w == 176.0 else 14.0)
+		if echo_w == 176.0:
+			_echo_hp_fill.color = EchoTheme.KOI
 	_keeper_hp_label.text = ContentStrings.get_text("battle_hp", {
 		"current": _battle.keeper_hp,
 		"max": _battle.keeper_max_hp,

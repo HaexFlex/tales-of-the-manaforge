@@ -2791,8 +2791,15 @@ func _show_action_menu(actor_id: String) -> void:
 		_playback.notify_party_turn()
 
 
+static func keeper_abilities_exist() -> bool:
+	## No abilities exist yet, in the arena or in an Echo. One gate for both menus.
+	return false
+
+
 func _has_abilities() -> bool:
 	## No abilities exist yet: every slot is a disabled "—". The picker stays shut until one is real.
+	if not keeper_abilities_exist():
+		return false
 	for ab: Button in _ability_buttons:
 		if not ab.disabled:
 			return true
@@ -3415,6 +3422,158 @@ func _input(event: InputEvent) -> void:
 		return
 	close_overlay()
 	get_viewport().set_input_as_handled()
+
+
+## Echo duels use this menu. Slot 6 is Spare. The adventure menu keeps Strike for me.
+const ECHO_ACTION_SLOTS: PackedStringArray = ["strike", "ability", "items", "brace", "flee", "spare"]
+
+
+static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
+	var root := Control.new()
+	root.name = "EchoActionMenu"
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.set_meta("built_by", "res://scripts/battle/battle_view.gd")
+	parent.add_child(root)
+	var ox: float = EchoTheme.shift()
+	var bar := Panel.new()
+	bar.name = "EchoBottomBar"
+	var bar_box: Rect2 = EchoTheme.at(EchoTheme.BOTTOM_BAR)
+	bar.position = bar_box.position
+	bar.size = bar_box.size
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.paint_panel(bar, false)
+	root.add_child(bar)
+	var phone: bool = Ui540.is_phone_export()
+	var buttons: Dictionary = {}
+	var icons: Dictionary = {
+		"strike": "res://assets_extra/shared/icon_stone_sword.png",
+		"ability": "res://assets/art/battle/ui/icon_ability_32.png",
+		"items": "res://assets_extra/shared/icon_heart_salve.png",
+		"brace": "res://assets/art/battle/ui/icon_brace_32.png",
+		"flee": "res://assets/art/battle/ui/icon_flee_32.png",
+		"spare": "res://assets/art/ui/icons/icon_oakheart_knot.png",
+	}
+	var names: Dictionary = {
+		"strike": "StrikeButton",
+		"ability": "AbilityButton",
+		"items": "SalveButton",
+		"brace": "BraceButton",
+		"flee": "FleeButton",
+		"spare": "SpareButton",
+	}
+	var labels: Dictionary = {
+		"strike": "Strike",
+		"ability": "Ability",
+		"items": "Salve",
+		"brace": "Brace",
+		"flee": "Flee",
+		"spare": "Spare",
+	}
+	for i: int in ECHO_ACTION_SLOTS.size():
+		var slot: String = ECHO_ACTION_SLOTS[i]
+		var btn := Button.new()
+		btn.name = str(names[slot])
+		btn.text = str(labels[slot])
+		var col: int = i % 3
+		var row: int = int(i / 3)
+		btn.position = Vector2(ox + 44.0 + 152.0 * float(col), 394.0 + 56.0 * float(row))
+		btn.size = Vector2(144, 44)
+		btn.custom_minimum_size = Vector2(144, 44)
+		btn.focus_mode = Control.FOCUS_ALL
+		btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if ResourceLoader.exists(str(icons[slot])):
+			btn.icon = load(str(icons[slot])) as Texture2D
+		btn.expand_icon = false
+		btn.add_theme_constant_override("icon_max_width", 32)
+		EchoTheme.paint_button(btn, false)
+		btn.set_meta("echo_slot", i + 1)
+		if not phone:
+			var cap := Label.new()
+			cap.name = "Keycap"
+			cap.text = str(i + 1)
+			cap.position = Vector2(btn.size.x - 20.0, 4)
+			cap.size = Vector2(22, 20)
+			cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			EchoTheme.style_body(cap, false)
+			var cap_bg := NinePatchRect.new()
+			cap_bg.name = "KeycapPlate"
+			cap_bg.texture = load(EchoTheme.ART + "ink_keycap_9s_22x20.png")
+			cap_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			cap_bg.patch_margin_left = 3
+			cap_bg.patch_margin_top = 3
+			cap_bg.patch_margin_right = 3
+			cap_bg.patch_margin_bottom = 3
+			cap_bg.position = cap.position
+			cap_bg.size = Vector2(22, 20)
+			cap_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(cap_bg)
+			btn.add_child(cap)
+		else:
+			btn.tooltip_text = ""
+		root.add_child(btn)
+		buttons[slot] = btn
+	var strike: Button = buttons["strike"] as Button
+	var chip := Button.new()
+	chip.name = "ArrowToggle"
+	chip.text = "Phy"
+	chip.position = Vector2(ox + 144.0, 394.0)
+	chip.size = Vector2(44, 44)
+	chip.custom_minimum_size = Vector2(44, 44)
+	chip.visible = hybrid
+	chip.focus_mode = Control.FOCUS_ALL
+	EchoTheme.paint_button(chip, false)
+	for state_name: String in ["normal", "hover", "pressed", "disabled"]:
+		var face := StyleBoxTexture.new()
+		face.texture = load(EchoTheme.ART + "chip_physmag_%s_44x44.png" % state_name)
+		chip.add_theme_stylebox_override(state_name, face)
+	if hybrid and strike != null:
+		strike.size = Vector2(96, 44)
+		strike.custom_minimum_size = Vector2(96, 44)
+	var hint := Label.new()
+	hint.name = "ChipHint"
+	hint.text = "Mag" if phone else "Tab"
+	hint.position = Vector2(0, 24)
+	hint.size = Vector2(44, 16)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(hint, true)
+	hint.add_theme_font_size_override("font_size", 19)
+	chip.add_child(hint)
+	root.add_child(chip)
+	buttons["chip"] = chip
+	var ability: Button = buttons["ability"] as Button
+	if ability != null:
+		ability.disabled = not keeper_abilities_exist()
+	var log_panel := Panel.new()
+	log_panel.name = "EchoLog"
+	log_panel.position = Vector2(ox + 504.0, 394.0)
+	log_panel.size = Vector2(412, 100)
+	log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var log_box := StyleBoxTexture.new()
+	log_box.texture = load(EchoTheme.ART + "ink_log_panel_9s_12.png")
+	log_box.texture_margin_left = 2
+	log_box.texture_margin_top = 2
+	log_box.texture_margin_right = 2
+	log_box.texture_margin_bottom = 2
+	log_box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+	log_box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+	log_panel.add_theme_stylebox_override("panel", log_box)
+	log_panel.self_modulate = Color(1, 1, 1, EchoTheme.PANEL_ALPHA)
+	root.add_child(log_panel)
+	var log := Label.new()
+	log.name = "Log"
+	log.position = Vector2(8, 8)
+	log.size = Vector2(396, 84)
+	log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	log.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(log, false)
+	log_panel.add_child(log)
+	buttons["log"] = log
+	buttons["log_panel"] = log_panel
+	buttons["bar"] = bar
+	buttons["root"] = root
+	return buttons
 
 
 func _over_arena_control(event: InputEventMouse) -> bool:

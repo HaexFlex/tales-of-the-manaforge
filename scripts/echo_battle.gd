@@ -38,6 +38,10 @@ var rootbound: bool = false
 var first_hit_used: bool = false
 var timed_out: bool = false
 var rootbind_every: int = 0
+var salves_used: int = 0
+var keeper_brace: bool = false
+## Pack count after the last salve spend, so a load cannot quietly refund them.
+var salves_remembered: int = -1
 var turn_log: Array[Dictionary] = []
 
 var _dice: BattleRng = BattleRng.new()
@@ -155,6 +159,9 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 	rootbound = false
 	first_hit_used = false
 	timed_out = false
+	salves_used = 0
+	keeper_brace = false
+	salves_remembered = -1
 	turn_log = []
 
 
@@ -170,8 +177,8 @@ func available_actions() -> PackedStringArray:
 	if outcome != "":
 		return PackedStringArray()
 	if spare_window:
-		return PackedStringArray(["strike", "spare"])
-	return PackedStringArray(["strike", "flee"])
+		return PackedStringArray(["strike", "brace", "salve", "spare"])
+	return PackedStringArray(["strike", "brace", "salve", "flee"])
 
 
 func choose(action: String) -> String:
@@ -187,14 +194,74 @@ func choose(action: String) -> String:
 		if action == "strike":
 			_strike_to_finish()
 			return "defeat"
+		if action == "brace":
+			return _brace()
+		if action == "salve" or action == "item":
+			return _salve()
 		return "invalid"
 	if action == "flee":
 		return _flee()
 	if action == "strike":
 		return _strike_round()
+	if action == "brace":
+		return _brace()
+	if action == "salve" or action == "item":
+		return _salve()
 	if action == "spare":
 		return "locked"
 	return "invalid"
+
+
+func salves_left() -> int:
+	var pack: int = 0
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var bag: Node = tree.root.get_node_or_null("Backpack")
+		if bag != null and bag.has_method("get_count"):
+			pack = int(bag.call("get_count", "heart_salve"))
+	return mini(EchoTheme.SALVE_MAX - salves_used, pack)
+
+
+func _spend_salve() -> bool:
+	if salves_used >= EchoTheme.SALVE_MAX:
+		return false
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return false
+	var bag: Node = tree.root.get_node_or_null("Backpack")
+	if bag == null or not bag.has_method("try_spend"):
+		return false
+	if not bool(bag.call("try_spend", "heart_salve", 1)):
+		return false
+	salves_used += 1
+	salves_remembered = int(bag.call("get_count", "heart_salve"))
+	return true
+
+
+func _brace() -> String:
+	## Costs the Strike. The next landed Echo hit is halved (minimum 1).
+	keeper_brace = true
+	round += 1
+	_log_line("battle_log_brace")
+	_echo_turn()
+	if outcome != "":
+		return outcome
+	_maybe_timeout()
+	return "continue"
+
+
+func _salve() -> String:
+	if not _spend_salve():
+		return "no_salve"
+	var heal: int = BattleResolver.round_half_up(keeper_max_hp, 3, 10)
+	keeper_hp = mini(keeper_max_hp, keeper_hp + heal)
+	_log_line("battle_log_salve", {"amount": heal})
+	round += 1
+	_echo_turn()
+	if outcome != "":
+		return outcome
+	_maybe_timeout()
+	return "continue"
 
 
 func _flee() -> String:
@@ -368,6 +435,9 @@ func _echo_turn() -> void:
 	var res: Dictionary = _resolve_swing("echo", mode, keeper, keeper_hp, keeper_max_hp, "party")
 	var resolver_damage: int = int(res.get("damage", 0))
 	var damage: int = resolver_damage
+	if keeper_brace and damage > 0:
+		damage = maxi(1, BattleResolver.round_half_up(damage, 1, 2))
+		keeper_brace = false
 	var first_hit_floor: bool = false
 	if damage > 0 and not first_hit_used:
 		first_hit_used = true
