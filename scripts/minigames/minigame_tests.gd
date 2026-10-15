@@ -59,7 +59,9 @@ func _hot_spots_switch() -> int:
 	var plate_path: String = str(plate.texture.resource_path) if plate != null and plate.texture != null else ""
 	failed += _check(plate_path.ends_with("close_reliquary.png"), "switcher shows the reliquary plate")
 	node.call("_drop_miss", {"x": 40.0, "y": 40.0, "sprite": null})
-	failed += _check(node.get_node_or_null("MissPip") != null, "an expired spot leaves a miss pip")
+	var miss: Sprite2D = node.get_node_or_null("MissPip") as Sprite2D
+	var miss_path: String = str(miss.texture.resource_path) if miss != null and miss.texture != null else ""
+	failed += _check(miss_path.ends_with("spot_miss.png"), "an expired spot leaves the crossed miss mark, not a success pip")
 	node.free()
 	return failed
 

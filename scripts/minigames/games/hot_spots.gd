@@ -140,7 +140,7 @@ func _drop_miss(spot: Dictionary) -> void:
 	if spr != null and is_instance_valid(spr):
 		spr.queue_free()
 	var where := Vector2(float(spot.get("x", 0.0)), float(spot.get("y", 0.0)))
-	var pip: Sprite2D = MinigameArt.add_sprite(self, "pip_miss.png", where)
+	var pip: Sprite2D = MinigameArt.add_sprite(self, "spot_miss.png", where)
 	pip.name = "MissPip"
 	pip.z_index = 5
 	_misses.append({"t0": _clock, "sprite": pip})
