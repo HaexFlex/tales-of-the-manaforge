@@ -2,7 +2,8 @@ class_name RipeCatch
 extends Minigame
 ## Basket under a fixed 1.5s clock. Rotten berries are extra and never pay.
 
-const FALL: float = 220.0
+## 48 px spawn to the 278 px landing line in 1.6 s.
+const FALL: float = 143.75
 const BASKET_Y: float = 286.0
 
 var _k: float = 3.0
@@ -93,8 +94,10 @@ func _land(berry: Sprite2D) -> void:
 	var basket_x: float = _basket.position.x if _basket != null else 0.0
 	var in_basket: bool = absf(berry.position.x - basket_x) <= _catch_half
 	var rotten: bool = bool(berry.get_meta("rotten", false))
-	if in_basket and not rotten:
-		succeed(_k, 1.0, berry.position)
-	else:
-		miss()
+	## Rotten berries pay nothing and are not misses, caught or ignored.
+	if not rotten:
+		if in_basket:
+			succeed(_k, 1.0, berry.position)
+		else:
+			miss()
 	berry.queue_free()

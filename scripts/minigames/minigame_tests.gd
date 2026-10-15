@@ -36,6 +36,7 @@ func run_scenes() -> int:
 	failed += _hot_spots_switch()
 	failed += _woodsong_volume()
 	failed += _grain_shapes()
+	failed += _ripe_catch()
 	failed += _steeping_debug()
 	failed += _grade_marks()
 	failed += _just_enough_band()
@@ -162,6 +163,60 @@ func _grain_shapes() -> int:
 	var origin := Vector2(148.0 + 0.277365 * 424.0, 34.0 + 0.422701 * 272.0)
 	failed += _check(rod.size() > 0 and rod[0].distance_to(origin) < 0.05, "rod uses the prototype seed")
 	node.free()
+	return failed
+
+
+func _ripe_catch() -> int:
+	var failed: int = 0
+	var host: Node = Engine.get_main_loop().root.get_node_or_null("MinigameHost")
+	failed += _check(host != null, "ripe catch check has the minigame host")
+	if host == null:
+		return failed
+	var frozen: bool = GameState.ancient_frozen
+	GameState.ancient_frozen = false
+	host.call("close_immediate")
+	failed += _check(bool(host.call("debug_open", "ripe_catch")), "debug can open ripe catch")
+	var game: Node = null
+	var play: Node = host.get_node_or_null("MinigameRoot/Window/Play")
+	if play != null:
+		for child: Node in play.get_children():
+			if child is RipeCatch:
+				game = child
+	failed += _check(game != null, "ripe catch scene is open")
+	if game != null:
+		var fall: float = 143.75
+		var drop: float = 278.0 - 48.0
+		failed += _check(is_equal_approx(drop / fall, 1.6), "ripe berries take 1.6s to land")
+		var basket: Node2D = game.get_node_or_null("basket") as Node2D
+		failed += _check(basket != null, "ripe catch has a basket")
+		if basket != null:
+			basket.position = Vector2(320, 286)
+			game.call("_spawn", true)
+			var falling: Array = game.get("_falling")
+			failed += _check(falling.size() == 1, "a rotten berry spawned")
+			if falling.size() == 1:
+				var rotten: Sprite2D = falling[0]
+				rotten.position = Vector2(basket.position.x, 278)
+				game.call("_land", rotten)
+				failed += _check(int(host.get("_misses")) == 0, "a rotten berry in the basket is not a miss")
+			game.call("_spawn", true)
+			falling = game.get("_falling")
+			if falling.size() >= 1:
+				var ignored: Sprite2D = falling[falling.size() - 1]
+				ignored.position = Vector2(basket.position.x + 80.0, 278)
+				game.call("_land", ignored)
+				failed += _check(int(host.get("_misses")) == 0, "a rotten berry outside the basket is not a miss")
+			game.call("_spawn", false)
+			falling = game.get("_falling")
+			if falling.size() >= 1:
+				var ripe: Sprite2D = falling[falling.size() - 1]
+				ripe.position = Vector2(basket.position.x + 80.0, 278)
+				game.call("_land", ripe)
+				failed += _check(int(host.get("_misses")) == 1, "a missed ripe berry still counts")
+		if failed == 0:
+			print("RIPE_CATCH_FALL_OK")
+	host.call("close_immediate")
+	GameState.ancient_frozen = frozen
 	return failed
 
 
