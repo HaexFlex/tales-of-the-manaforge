@@ -462,9 +462,17 @@ func _battle_view() -> int:
 	var rewards_back: Button = view.get_node_or_null("EchoRewards/RewardsReturn") as Button
 	var reward_row: Control = view.get_node_or_null("EchoRewards/RewardRow0") as Control
 	var reward_value: Label = view.get_node_or_null("EchoRewards/RewardRow0/Value") as Label
-	failed += _check(rewards != null and EchoTheme.panel_ok(rewards.size) and is_equal_approx(rewards.self_modulate.a, 0.88), "rewards window tiles at 40+8n")
+	failed += _check(rewards != null and EchoTheme.panel_ok(rewards.size) and is_equal_approx(rewards.self_modulate.a, 1.0), "rewards window is an opaque tile")
+	failed += _check(view.get_node_or_null("EchoRewardsDim") != null, "rewards dims the chamber behind the window")
 	failed += _check(rewards_back != null and rewards_back.text == "Return to the tree", "rewards return to the tree")
-	failed += _check(view.get_node_or_null("EchoRewards/RewardsClose") != null, "rewards keeps the ×")
+	var rewards_close: Button = view.get_node_or_null("EchoRewards/RewardsClose") as Button
+	var close_glyph: TextureRect = view.get_node_or_null("EchoRewards/RewardsClose/CloseGlyph") as TextureRect
+	failed += _check(rewards_close != null, "rewards keeps the ×")
+	failed += _check(rewards_close != null and rewards_close.position.y <= 10.0 and close_glyph != null and close_glyph.size.y <= 16.0, "rewards × sits high and the glyph is small")
+	var rewards_footer: Label = view.get_node_or_null("EchoRewards/RewardsFooter") as Label
+	var rewards_flavour: Label = view.get_node_or_null("EchoRewards/RewardsFlavour") as Label
+	failed += _check(rewards_footer != null and rewards_footer.text.find("Manatree") >= 0, "rewards footer names the wake")
+	failed += _check(reward_row != null and rewards_flavour != null and reward_row.position.y <= rewards_flavour.position.y + rewards_flavour.size.y + 10.0, "reward rows sit just under the flavour")
 	failed += _check(reward_row != null and EchoTheme.panel_ok(reward_row.size) and is_equal_approx(reward_row.self_modulate.a, 1.0), "reward rows tile without stacking the fade")
 	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") == EchoTheme.GOLD, "reward values are gold")
 	view.call("_clear_rewards")

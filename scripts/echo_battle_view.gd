@@ -1247,6 +1247,14 @@ func _show_rewards(outcome: String) -> void:
 		menu.visible = false
 	if _close_btn:
 		_close_btn.visible = false
+	if _title_plate:
+		_title_plate.visible = false
+	var dim := ColorRect.new()
+	dim.name = "EchoRewardsDim"
+	dim.color = Color(0, 0, 0, 0.72)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
 	var ox: float = EchoTheme.shift()
 	var panel := Panel.new()
 	panel.name = "EchoRewards"
@@ -1255,6 +1263,8 @@ func _show_rewards(outcome: String) -> void:
 	panel.size = Vector2(560, 464)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	EchoTheme.paint_panel(panel, false)
+	## The ink fill is opaque. 0.88 lets the chamber plank, portraits, and HP bars through.
+	panel.self_modulate.a = 1.0
 	add_child(panel)
 	var title := Label.new()
 	title.name = "RewardsTitle"
@@ -1267,16 +1277,20 @@ func _show_rewards(outcome: String) -> void:
 	panel.add_child(title)
 	var close := Button.new()
 	close.name = "RewardsClose"
-	close.position = Vector2(468, 14)
+	close.position = Vector2(500, 8)
 	close.size = Vector2(44, 44)
 	close.custom_minimum_size = close.size
 	EchoTheme.paint_button(close, true)
 	var x_icon := TextureRect.new()
+	x_icon.name = "CloseGlyph"
 	x_icon.texture = load(EchoTheme.ART + "icon_close_x_24.png")
 	x_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	x_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	x_icon.position = Vector2(10, 10)
-	x_icon.size = Vector2(24, 24)
+	x_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	x_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	## The glyph sits high in the face. A 24 px mark centred in the button reads low.
+	x_icon.position = Vector2(14, 6)
+	x_icon.size = Vector2(16, 16)
 	close.add_child(x_icon)
 	close.pressed.connect(_on_return)
 	panel.add_child(close)
@@ -1284,17 +1298,23 @@ func _show_rewards(outcome: String) -> void:
 	flavour.name = "RewardsFlavour"
 	flavour.text = _flavour_for_outcome(outcome)
 	flavour.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	flavour.position = Vector2(40, 78)
-	flavour.size = Vector2(480, 48)
+	flavour.position = Vector2(40, 72)
+	var flavour_font: Font = load(EchoTheme.BODY_FONT) as Font
+	var flavour_lines: int = 1
+	if flavour_font != null and flavour.text != "":
+		var measured: Vector2 = flavour_font.get_multiline_string_size(flavour.text, HORIZONTAL_ALIGNMENT_LEFT, 480.0, EchoTheme.BODY_SIZE)
+		flavour_lines = maxi(1, int(ceil(measured.y / flavour_font.get_height(EchoTheme.BODY_SIZE))))
+	flavour.size = Vector2(480, 22.0 * flavour_lines)
 	flavour.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_body(flavour, true)
 	panel.add_child(flavour)
+	var row_y: float = flavour.position.y + flavour.size.y + 8.0
 	var rows: Array = _reward_rows(outcome)
 	for row_i: int in rows.size():
 		var spec: Array = rows[row_i]
 		var row := Panel.new()
 		row.name = "RewardRow%d" % row_i
-		row.position = Vector2(28, 150 + row_i * 50)
+		row.position = Vector2(28, row_y + row_i * 50)
 		## 44 is off the tile. 48 is the nearest 40+8n and still sits on the 50 px pitch.
 		row.size = Vector2(504, 48)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1318,6 +1338,15 @@ func _show_rewards(outcome: String) -> void:
 		EchoTheme.style_body(right, false)
 		right.add_theme_color_override("font_color", EchoTheme.GOLD)
 		row.add_child(right)
+	var footer := Label.new()
+	footer.name = "RewardsFooter"
+	footer.text = ContentStrings.get_text("echo_rewards_footer")
+	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	footer.position = Vector2(40, row_y + rows.size() * 50.0 + 4.0)
+	footer.size = Vector2(480, 22)
+	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(footer, true)
+	panel.add_child(footer)
 	var back := Button.new()
 	back.name = "RewardsReturn"
 	back.text = ContentStrings.get_text("battle_return")
@@ -1349,9 +1378,10 @@ func _reward_rows(outcome: String) -> Array:
 
 
 func _clear_rewards() -> void:
-	var node: Node = get_node_or_null("EchoRewards")
-	if node:
-		node.queue_free()
+	for node_name: String in ["EchoRewardsDim", "EchoRewards"]:
+		var node: Node = get_node_or_null(node_name)
+		if node:
+			node.queue_free()
 
 
 const ECHO_FLED_H: float = 420.0
