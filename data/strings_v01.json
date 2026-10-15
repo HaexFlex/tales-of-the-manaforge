@@ -593,6 +593,8 @@
   "battle_mode_hint": "Choose how this weapon bites.",
   "battle_log_mode_phys": "You shift to a physical strike.",
   "battle_log_mode_mag": "You shift to a magical strike.",
+  "echo_speech_hint": "Tap the box or ▼ · Space / Enter\nMenu unlocks on the last page.",
+  "echo_speech_page": "Page {page}/{pages} · {chars} chars",
   "echo_01_narrator": "An echo of a woman who once stood where you stand. She does not raise her voice.",
   "echo_01_intro": "You should not have opened this. We all tried to save the clearing. Every one of us. The Key will not leave with you. I will not watch another Keeper fail with it in their hands.",
   "echo_01_return": "You came back. Good. Or foolish. Show me which.",

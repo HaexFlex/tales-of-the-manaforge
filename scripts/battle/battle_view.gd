@@ -3476,9 +3476,10 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		btn.text = str(labels[slot])
 		var col: int = i % 3
 		var row: int = int(i / 3)
+		var slot_w: float = 96.0 if hybrid and slot == "strike" else 144.0
 		btn.position = Vector2(ox + 44.0 + 152.0 * float(col), 394.0 + 56.0 * float(row))
-		btn.size = Vector2(144, 44)
-		btn.custom_minimum_size = Vector2(144, 44)
+		btn.size = Vector2(slot_w, 44)
+		btn.custom_minimum_size = Vector2(slot_w, 44)
 		btn.focus_mode = Control.FOCUS_ALL
 		btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		if ResourceLoader.exists(str(icons[slot])):
@@ -3487,6 +3488,10 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		btn.add_theme_constant_override("icon_max_width", 32)
 		EchoTheme.paint_button(btn, false)
 		btn.set_meta("echo_slot", i + 1)
+		if hybrid and slot == "strike":
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.add_theme_constant_override("icon_max_width", 20)
+			btn.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 		if not phone:
 			var cap := Label.new()
 			cap.name = "Keycap"
@@ -3517,7 +3522,8 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 	var chip := Button.new()
 	chip.name = "ArrowToggle"
 	chip.text = "Phy"
-	chip.position = Vector2(ox + 144.0, 394.0)
+	## Clear of the 96 px Strike label. The old x sat on the word.
+	chip.position = Vector2(ox + 148.0, 394.0)
 	chip.size = Vector2(44, 44)
 	chip.custom_minimum_size = Vector2(44, 44)
 	chip.visible = hybrid
@@ -3527,9 +3533,6 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		var face := StyleBoxTexture.new()
 		face.texture = load(EchoTheme.ART + "chip_physmag_%s_44x44.png" % state_name)
 		chip.add_theme_stylebox_override(state_name, face)
-	if hybrid and strike != null:
-		strike.size = Vector2(96, 44)
-		strike.custom_minimum_size = Vector2(96, 44)
 	var hint := Label.new()
 	hint.name = "ChipHint"
 	hint.text = "Mag" if phone else "Tab"

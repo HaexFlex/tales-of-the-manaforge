@@ -732,6 +732,11 @@ func _refresh_status_chip() -> void:
 		_status_chip.visible = true
 		_status_label.text = "Round %d" % (_battle.round + 1)
 		return
+	## reentry is the only attempt flag. A third visit still reads Attempt 2.
+	if _phase == "speech" and EchoChamber.reentry:
+		_status_chip.visible = true
+		_status_label.text = "Attempt 2"
+		return
 	_status_chip.visible = false
 
 
@@ -1512,6 +1517,7 @@ func _refresh_actions() -> void:
 		_strike_focused = false
 		_ensure_echo_menu()
 		_lock_menu()
+		_refresh_log()
 		_refresh_status_chip()
 		return
 	_ensure_echo_menu()
@@ -1523,11 +1529,13 @@ func _refresh_actions() -> void:
 	if _ability_btn:
 		_ability_btn.visible = true
 		_ability_btn.disabled = not BattleView.keeper_abilities_exist()
+		_ability_btn.modulate = Color(0.45, 0.55, 0.55, 1) if _ability_btn.disabled else Color.WHITE
 		_ability_btn.text = "Ability"
 	if _salve_btn:
 		var left: int = _battle.salves_left()
 		_salve_btn.visible = true
 		_salve_btn.disabled = left <= 0 or not actions.has("salve") or _waiting_return
+		_salve_btn.modulate = Color(0.45, 0.55, 0.55, 1) if _salve_btn.disabled else Color.WHITE
 		_salve_btn.text = "Salve %d" % left
 	_return_btn.visible = false
 	if _arrow:
@@ -1550,6 +1558,7 @@ func _lock_menu() -> void:
 			continue
 		btn.visible = true
 		btn.disabled = true
+		btn.modulate = Color(0.45, 0.55, 0.55, 1)
 
 
 func _offer_slot(btn: Button, on: bool, label: String) -> void:
@@ -1557,6 +1566,7 @@ func _offer_slot(btn: Button, on: bool, label: String) -> void:
 		return
 	btn.visible = _phase == "fight"
 	btn.disabled = not on or _waiting_return
+	btn.modulate = Color(0.45, 0.55, 0.55, 1) if btn.disabled else Color.WHITE
 	if label != "":
 		btn.text = label
 
@@ -1591,6 +1601,30 @@ func _refresh_bars(flash: bool) -> void:
 func _refresh_log() -> void:
 	if _battle == null or _log == null:
 		return
+	var header: CanvasItem = get_node_or_null("EchoActionMenu/EchoLog/LogHeader") as CanvasItem
+	var in_menu: bool = _log.get_parent() != null and _log.get_parent().name == "EchoLog"
+	if _phase == "speech":
+		if header:
+			header.visible = false
+		if in_menu:
+			_log.position = Vector2(8, 8)
+			_log.size = Vector2(396, 84)
+		var page_no: int = _page_i + 1
+		var page_total: int = maxi(1, _pages.size())
+		_log.text = "%s\n%s" % [
+			ContentStrings.get_text("echo_speech_hint"),
+			ContentStrings.get_text("echo_speech_page", {
+				"page": page_no,
+				"pages": page_total,
+				"chars": page_text().length(),
+			}),
+		]
+		return
+	if header:
+		header.visible = true
+	if in_menu:
+		_log.position = Vector2(8, 24)
+		_log.size = Vector2(396, 68)
 	if _phase != "fight":
 		return
 	var lines: PackedStringArray = _battle.log

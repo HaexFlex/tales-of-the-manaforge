@@ -393,6 +393,20 @@ func _battle_view() -> int:
 	failed += _check(legacy_band == null or not legacy_band.visible, "chamber card has no wider band behind it")
 	view.call("begin_face_off")
 	failed += _check(not bool(view.call("is_flee_shown")), "menu stays locked through the speech")
+	var locked_ability: Button = view.get_node_or_null("EchoActionMenu/AbilityButton") as Button
+	var locked_salve: Button = view.get_node_or_null("EchoActionMenu/SalveButton") as Button
+	var phys_chip: Control = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Control
+	var strike_btn: Control = view.get_node_or_null("EchoActionMenu/StrikeButton") as Control
+	failed += _check(locked_ability != null and locked_ability.disabled and locked_ability.modulate.r < 0.7, "Ability is dim while the speech locks the menu")
+	failed += _check(locked_salve != null and locked_salve.disabled and locked_salve.modulate.r < 0.7, "Salve is dim while the speech locks the menu")
+	failed += _check(phys_chip != null and strike_btn != null and phys_chip.position.x >= strike_btn.position.x + strike_btn.size.x - 0.5, "Phys chip sits clear of Strike")
+	failed += _check(str(view.call("log_text")).find("Tap the box") >= 0 and str(view.call("log_text")).find("Page ") >= 0, "speech log explains the page")
+	echo.set("reentry", true)
+	view.call("_refresh_status_chip")
+	var attempt: Label = view.get_node_or_null("EchoStatusChip/Label") as Label
+	failed += _check(attempt != null and attempt.visible and attempt.text == "Attempt 2", "later attempt shows Attempt 2")
+	echo.set("reentry", false)
+	view.call("_refresh_status_chip")
 	view.call("finish_speech")
 	failed += _check(bool(view.call("is_flee_shown")), "last page opens the menu")
 	await process_frame
