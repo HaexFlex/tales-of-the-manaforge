@@ -853,6 +853,11 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 	if not _actor_in_this_scene():
 		GameState.status_message.emit(ContentStrings.get_text("hud_activity_idle"))
 		return
+	## A right-click while watering used to solve the Manatree as the Forge door,
+	## which walked him there, dropped the channel, and opened the tending window.
+	if type_id == "manatree" and target is Manatree and _watering_this(target as Manatree):
+		cancel_water_trip()
+		return
 	var key: String = claim_key if claim_key != "" else type_id
 	if not _claim_target(key):
 		return
@@ -1207,6 +1212,30 @@ func _begin_water_channel(tree: Manatree) -> void:
 	publish_task("water", "manatree", true)
 	_do_water_pulse()
 	_channel_accum = 0.0
+
+
+func _watering_this(tree: Manatree) -> bool:
+	if tree == null:
+		return false
+	if _channel_kind == ChannelKind.WATER and _channel_target == tree:
+		return true
+	return _water_pending and _work_target == tree
+
+
+func cancel_water_trip() -> void:
+	## Stop watering where he stands. Do not retarget onto the Forge door.
+	if _channel_kind != ChannelKind.WATER and not _water_pending:
+		return
+	_water_pending = false
+	_pending_interact = null
+	_moving = false
+	_route_points.clear()
+	velocity = Vector2.ZERO
+	_target = global_position
+	cancel_channel()
+	_clear_work_order()
+	clear_published_task()
+	_update_anim(Vector2.ZERO)
 
 
 func cancel_channel(emit_status: bool = true) -> void:
