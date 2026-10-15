@@ -36,6 +36,7 @@ var _close: BaseButton
 var _play: Control
 var _summary: Control
 var _summary_body: Label
+var _summary_rows: Array[Label] = []
 var _done: BaseButton
 var _again: BaseButton
 var _prompt: Button
@@ -49,6 +50,9 @@ var _elapsed: float = 0.0
 var _pace_seconds: float = 0.0
 var _earned: float = 0.0
 var _successes: int = 0
+var _misses: int = 0
+var _streak: int = 0
+var _best_streak: int = 0
 var _grades: Array[int] = []
 var _pips: Array[TextureRect] = []
 var _card_pips: Array[TextureRect] = []
@@ -221,15 +225,17 @@ func _build() -> void:
 	cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_summary.add_child(cover)
 
-	_summary_body = Label.new()
-	_summary_body.name = "SummaryBody"
-	_summary_body.position = SUMMARY_BODY.position
-	_summary_body.size = SUMMARY_BODY.size
-	_summary_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_summary_body.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_summary_body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	GameTheme.style_ink_label(_summary_body)
+	_summary_body = _summary_line("SummaryBody", 48.0)
 	_summary.add_child(_summary_body)
+	_summary_rows = [
+		_summary_line("RowSuccesses", 74.0),
+		_summary_line("RowMisses", 100.0),
+		_summary_line("RowStreak", 126.0),
+		_summary_line("RowPace", 152.0),
+		_summary_line("RowBonus", 176.0),
+	]
+	for row: Label in _summary_rows:
+		_summary.add_child(row)
 
 	_done = _summary_button("Done", "btn_done_n.png", "btn_done_h.png")
 	_done.position = Vector2(SUMMARY_BTN_X, SUMMARY_BTN_Y)
@@ -240,6 +246,20 @@ func _build() -> void:
 	_again.pressed.connect(_on_again)
 	_summary.add_child(_again)
 	_card_pips = _make_pips(_summary, Vector2(155, 196), 12.0, 15.0)
+
+
+func _summary_line(node_name: String, y: float) -> Label:
+	var lbl := Label.new()
+	lbl.name = node_name
+	lbl.position = Vector2(48, y)
+	lbl.size = Vector2(364, 22)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.clip_text = true
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.z_index = 2
+	GameTheme.style_ink_label(lbl)
+	return lbl
 
 
 func _ink_label(text: String, node_name: String) -> Label:
@@ -403,6 +423,8 @@ func note_success(k_seconds: float, weight: float = 1.0) -> void:
 	if not bool(result.get("ok", false)):
 		return
 	_successes += 1
+	_streak += 1
+	_best_streak = maxi(_best_streak, _streak)
 	_pace_seconds += k_seconds
 	_earned += float(result.get("applied", k_seconds))
 	_push_grade(2 if weight > 1.0 else 1)
@@ -413,6 +435,8 @@ func note_success(k_seconds: float, weight: float = 1.0) -> void:
 func note_miss() -> void:
 	if not _open or _summary_up:
 		return
+	_misses += 1
+	_streak = 0
 	_push_grade(0)
 
 
@@ -476,6 +500,9 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 	_pace_seconds = 0.0
 	_earned = 0.0
 	_successes = 0
+	_misses = 0
+	_streak = 0
+	_best_streak = 0
 	_summary_up = false
 	_grades.clear()
 	_layout_window()
@@ -484,6 +511,7 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 	_title.text = MinigameCatalog.title(game_id)
 	Ui540.place_title_plank(_title, _panel.size.x)
 	_hint.text = MinigameCatalog.hint(game_id, Ui540.is_phone_export())
+	_hint.visible = true
 	_summary.visible = false
 	_play.visible = true
 	var node: Node = packed.instantiate()
@@ -640,9 +668,15 @@ func _show_summary() -> void:
 		_game.visible = false
 	_play.visible = false
 	_summary_up = true
+	_hint.visible = false
 	var pace: float = MinigameMath.pace_multiplier(_pace_seconds, _elapsed)
-	var line: String = _bonus_line()
-	_summary_body.text = "%s\n%d tended\nPace ×%.1f" % [line, _successes, pace]
+	_summary_body.text = _hint.text
+	if _summary_rows.size() == 5:
+		_summary_rows[0].text = "Successes  %d" % _successes
+		_summary_rows[1].text = "Misses  %d" % _misses
+		_summary_rows[2].text = "Best streak  %d" % _best_streak
+		_summary_rows[3].text = "Pace  ×%.1f" % pace
+		_summary_rows[4].text = _bonus_line()
 	_summary.visible = true
 	_panel.move_child(_summary, -1)
 

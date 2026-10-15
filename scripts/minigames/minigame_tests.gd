@@ -270,6 +270,9 @@ func _summary() -> int:
 	var window: Node = host.get_node("MinigameRoot/Window")
 	var play: Control = window.get_node("Play") as Control
 	failed += _check(play.visible, "play layer shows while the game is running")
+	host.call("note_success", 3.0, 1.0)
+	host.call("note_success", 3.0, 1.0)
+	host.call("note_miss")
 	var closer: BaseButton = window.get_node("Close") as BaseButton
 	closer.pressed.emit()
 	var summaries: Array[Node] = []
@@ -285,13 +288,29 @@ func _summary() -> int:
 	failed += _check(not game_visible, "the game itself is hidden under the summary")
 	failed += _check(not _tree_text_has(host, "Feel test"), "feel-test placeholder is gone")
 	failed += _check(window.get_node_or_null("Successes") != null, "the header shows Successes")
-	var card_body: Label = summary.get_node_or_null("SummaryBody") as Label if summary != null else null
-	failed += _check(card_body == null or card_body.text.find("Successes") < 0, "the card does not repeat the header successes")
+	var footer: Label = window.get_node_or_null("Hint") as Label
+	failed += _check(footer != null and not footer.visible, "the flavour line leaves the window footer")
 	if summary != null:
 		var body: Label = summary.get_node_or_null("SummaryBody") as Label
-		failed += _check(body != null and body.text.begins_with("Bonus"), "summary text is the host bonus")
+		failed += _check(body != null and footer != null and body.text == footer.text and body.text != "", "the flavour line sits inside Results")
+		failed += _check(body != null and body.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "the flavour line is centred")
 		failed += _check(body != null and body.position.x >= 48.0, "summary text starts inside the frame (x %.0f)" % (body.position.x if body else -1.0))
 		failed += _check(body != null and body.position.x + body.size.x <= 412.0, "summary text ends inside the frame")
+		var expect: Dictionary = {
+			"RowSuccesses": "Successes  2",
+			"RowMisses": "Misses  1",
+			"RowStreak": "Best streak  2",
+			"RowPace": "Pace  ×",
+		}
+		for row_name: String in expect.keys():
+			var row: Label = summary.get_node_or_null(row_name) as Label
+			var want: String = str(expect[row_name])
+			failed += _check(row != null and row.text.begins_with(want), "%s reads '%s', got '%s'" % [row_name, want, row.text if row != null else ""])
+			failed += _check(row != null and row.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "%s is centred" % row_name)
+			failed += _check(row != null and int(row.get_theme_font_size(&"font_size")) == 19, "%s is 19px" % row_name)
+			failed += _check(row != null and row.position.x >= 48.0 and row.position.x + row.size.x <= 412.0, "%s stays inside the frame" % row_name)
+		var bonus: Label = summary.get_node_or_null("RowBonus") as Label
+		failed += _check(bonus != null and bonus.text.begins_with("Bonus"), "the bonus line stays on the card")
 		var done: Control = summary.get_node_or_null("Done") as Control
 		var again: Control = summary.get_node_or_null("PlayAgain") as Control
 		failed += _check(done != null and again != null, "summary has Done and Play again")
