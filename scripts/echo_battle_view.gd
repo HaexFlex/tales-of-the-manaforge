@@ -742,6 +742,10 @@ func _refresh_status_chip() -> void:
 	_ensure_status_chip()
 	if _status_chip == null:
 		return
+	## The card is narrower than the chip. Leave the chip hidden until the card closes.
+	if get_node_or_null("EchoRewards") != null:
+		_status_chip.visible = false
+		return
 	if _phase == "fight" and _battle != null:
 		_status_chip.visible = true
 		_status_label.text = "Round %d" % (_battle.round + 1)
@@ -1267,29 +1271,36 @@ func _show_rewards(outcome: String) -> void:
 	var ox: float = EchoTheme.shift()
 	var panel := Panel.new()
 	panel.name = "EchoRewards"
-	## 816×496 covers the title plate (y 26) and both fighters (x 72–888).
-	## Both sides sit on the 40+8n tile.
-	panel.position = Vector2(ox + 72.0, 16.0)
-	panel.size = Vector2(816, 496)
+	## Mockup card x200..760, y40..498. 458 is off the 40+8n tile; 464 is the next fit.
+	panel.position = Vector2(ox + 200.0, 40.0)
+	panel.size = Vector2(560, 464)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	EchoTheme.paint_panel(panel, false)
-	## The ink fill is opaque. 0.88 lets the chamber plank, portraits, and HP bars through.
+	## The ink fill is opaque. The dim behind it is the dark backdrop.
 	panel.self_modulate.a = 1.0
 	add_child(panel)
+	dim.move_to_front()
+	panel.move_to_front()
+	## The title plank starts at y26, above this card. Hide it so the dim is what shows.
+	if _title_plate:
+		_title_plate.visible = false
+	_refresh_status_chip()
 	var title := Label.new()
 	title.name = "RewardsTitle"
 	title.text = "Echo Spared" if outcome == "spare" else "Echo Defeated"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.position = Vector2(48, 34)
-	title.size = Vector2(panel.size.x - 96.0, 40)
+	## Screen centre y75 is local y35. Keep the label clear of the × at local x493.
+	title.position = Vector2(80, 15)
+	title.size = Vector2(400, 40)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_title(title, true)
 	panel.add_child(title)
 	var close := Button.new()
 	close.name = "RewardsClose"
-	close.position = Vector2(panel.size.x - 60.0, 8)
-	close.size = Vector2(44, 44)
+	## Screen 693..735, y55..97.
+	close.position = Vector2(493, 15)
+	close.size = Vector2(42, 42)
 	close.custom_minimum_size = close.size
 	EchoTheme.paint_button(close, true)
 	var x_icon := TextureRect.new()
@@ -1299,8 +1310,7 @@ func _show_rewards(outcome: String) -> void:
 	x_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	x_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	x_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	## The glyph sits high in the face. A 24 px mark centred in the button reads low.
-	x_icon.position = Vector2(14, 6)
+	x_icon.position = Vector2(13, 13)
 	x_icon.size = Vector2(16, 16)
 	close.add_child(x_icon)
 	close.pressed.connect(_on_return)
@@ -1309,27 +1319,27 @@ func _show_rewards(outcome: String) -> void:
 	flavour.name = "RewardsFlavour"
 	flavour.text = _flavour_for_outcome(outcome)
 	flavour.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	flavour.position = Vector2(48, 80)
+	## Screen y118. Rows start at local y150, so the line stays above them.
+	flavour.position = Vector2(48, 78)
 	var flavour_w: float = panel.size.x - 96.0
 	var flavour_font: Font = load(EchoTheme.BODY_FONT) as Font
 	var flavour_lines: int = 1
 	if flavour_font != null and flavour.text != "":
 		var measured: Vector2 = flavour_font.get_multiline_string_size(flavour.text, HORIZONTAL_ALIGNMENT_LEFT, flavour_w, EchoTheme.BODY_SIZE)
 		flavour_lines = maxi(1, int(ceil(measured.y / flavour_font.get_height(EchoTheme.BODY_SIZE))))
-	## Rows are locked at y 190. Keep the flavour above that line.
-	flavour.size = Vector2(flavour_w, minf(22.0 * flavour_lines, 102.0))
+	flavour.size = Vector2(flavour_w, minf(22.0 * flavour_lines, 64.0))
 	flavour.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_body(flavour, true)
 	panel.add_child(flavour)
 	var rows: Array = _reward_rows(outcome)
-	var row_w: float = panel.size.x - 56.0
+	## Screen x228..732 (local 28, width 504), y190+50i, 44 tall.
+	var row_w: float = 504.0
 	for row_i: int in rows.size():
 		var spec: Array = rows[row_i]
 		var row := Panel.new()
 		row.name = "RewardRow%d" % row_i
-		row.position = Vector2(28, 190.0 + row_i * 50.0)
-		## 44 is off the tile. 48 is the nearest 40+8n and still sits on the 50 px pitch.
-		row.size = Vector2(row_w, 48)
+		row.position = Vector2(28, 150.0 + row_i * 50.0)
+		row.size = Vector2(row_w, 44)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		EchoTheme.paint_panel(row, true)
 		row.self_modulate.a = 1.0
@@ -1337,8 +1347,8 @@ func _show_rewards(outcome: String) -> void:
 		var left := Label.new()
 		left.name = "Label"
 		left.text = str(spec[0])
-		left.position = Vector2(16, 12)
-		left.size = Vector2(280, 24)
+		left.position = Vector2(16, 10)
+		left.size = Vector2(270, 24)
 		left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		EchoTheme.style_body(left, false)
 		row.add_child(left)
@@ -1346,8 +1356,9 @@ func _show_rewards(outcome: String) -> void:
 		right.name = "Value"
 		right.text = str(spec[1])
 		right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		right.position = Vector2(300, 12)
-		right.size = Vector2(row_w - 316.0, 24)
+		right.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		right.position = Vector2(290, 10)
+		right.size = Vector2(row_w - 306.0, 24)
 		right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		EchoTheme.style_body(right, false)
 		right.add_theme_color_override("font_color", _reward_value_color(str(spec[2]) if spec.size() > 2 else "pearl"))
@@ -1356,7 +1367,8 @@ func _show_rewards(outcome: String) -> void:
 	footer.name = "RewardsFooter"
 	footer.text = ContentStrings.get_text("echo_rewards_footer")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer.position = Vector2(48, 190.0 + rows.size() * 50.0 + 6.0)
+	## Screen y401 on a four-row card. Local 150 + n*50 + 11.
+	footer.position = Vector2(48, 150.0 + rows.size() * 50.0 + 11.0)
 	footer.size = Vector2(panel.size.x - 96.0, 22)
 	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_body(footer, true)
@@ -1364,9 +1376,10 @@ func _show_rewards(outcome: String) -> void:
 	var back := Button.new()
 	back.name = "RewardsReturn"
 	back.text = ContentStrings.get_text("battle_return")
-	back.position = Vector2((panel.size.x - 300.0) * 0.5, 428)
-	back.size = Vector2(300, 52)
-	back.custom_minimum_size = Vector2(300, 52)
+	## Screen x328..632, y422..478.
+	back.position = Vector2(128, 382)
+	back.size = Vector2(304, 56)
+	back.custom_minimum_size = Vector2(304, 56)
 	EchoTheme.paint_button(back, true)
 	back.pressed.connect(_on_return)
 	panel.add_child(back)
@@ -1405,7 +1418,10 @@ func _clear_rewards() -> void:
 	for node_name: String in ["EchoRewardsDim", "EchoRewards"]:
 		var node: Node = get_node_or_null(node_name)
 		if node:
-			node.queue_free()
+			node.free()
+	if _title_plate:
+		_title_plate.visible = true
+	_refresh_status_chip()
 
 
 const ECHO_FLED_H: float = 420.0

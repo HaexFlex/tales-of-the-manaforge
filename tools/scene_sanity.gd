@@ -468,7 +468,7 @@ func _battle_view() -> int:
 	var rewards_close: Button = view.get_node_or_null("EchoRewards/RewardsClose") as Button
 	var close_glyph: TextureRect = view.get_node_or_null("EchoRewards/RewardsClose/CloseGlyph") as TextureRect
 	failed += _check(rewards_close != null, "rewards keeps the ×")
-	failed += _check(rewards_close != null and rewards_close.position.y <= 10.0 and close_glyph != null and close_glyph.size.y <= 16.0, "rewards × sits high and the glyph is small")
+	failed += _check(rewards_close != null and is_equal_approx(rewards_close.position.x, 493.0) and is_equal_approx(rewards_close.position.y, 15.0) and close_glyph != null and close_glyph.size.y <= 16.0, "rewards × matches the card corner and the glyph is small")
 	var rewards_footer: Label = view.get_node_or_null("EchoRewards/RewardsFooter") as Label
 	var rewards_flavour: Label = view.get_node_or_null("EchoRewards/RewardsFlavour") as Label
 	var rewards_title: Label = view.get_node_or_null("EchoRewards/RewardsTitle") as Label
@@ -477,11 +477,16 @@ func _battle_view() -> int:
 	var niche_value: Label = view.get_node_or_null("EchoRewards/RewardRow2/Value") as Label
 	var redeemed_value: Label = view.get_node_or_null("EchoRewards/RewardRow3/Value") as Label
 	var row1: Control = view.get_node_or_null("EchoRewards/RewardRow1") as Control
+	var rewards_dim: Control = view.get_node_or_null("EchoRewardsDim") as Control
+	failed += _check(rewards != null and is_equal_approx(rewards.position.x, EchoTheme.shift() + 200.0) and is_equal_approx(rewards.position.y, 40.0) and is_equal_approx(rewards.size.x, 560.0) and is_equal_approx(rewards.size.y, 464.0), "rewards card is 560x464 at x200 y40")
 	failed += _check(rewards_footer != null and rewards_footer.text.find("Manatree") >= 0, "rewards footer names the wake")
-	failed += _check(rewards_title != null and is_equal_approx(rewards_title.position.y, 34.0), "rewards title sits at y 34")
-	failed += _check(reward_row != null and is_equal_approx(reward_row.position.y, 190.0) and row1 != null and is_equal_approx(row1.position.y, 240.0), "reward rows lock to y 190 plus 50")
-	failed += _check(rewards_flavour != null and rewards_flavour.position.y + rewards_flavour.size.y <= 190.0, "reward flavour stays above the locked rows")
-	failed += _check(reward_row != null and EchoTheme.panel_ok(reward_row.size) and is_equal_approx(reward_row.self_modulate.a, 1.0), "reward rows tile without stacking the fade")
+	failed += _check(rewards_title != null and is_equal_approx(rewards_title.position.y + rewards_title.size.y * 0.5, 35.0), "rewards title centres on screen y 75")
+	failed += _check(rewards_flavour != null and is_equal_approx(rewards_flavour.position.y, 78.0) and rewards_flavour.position.y + rewards_flavour.size.y <= 150.0, "reward flavour sits on screen y 118 above the rows")
+	failed += _check(reward_row != null and is_equal_approx(reward_row.position.x, 28.0) and is_equal_approx(reward_row.position.y, 150.0) and is_equal_approx(reward_row.size.x, 504.0) and is_equal_approx(reward_row.size.y, 44.0), "first reward row is screen x228 y190, 44 tall")
+	failed += _check(row1 != null and is_equal_approx(row1.position.y, 200.0), "reward rows step by 50")
+	failed += _check(rewards_footer != null and is_equal_approx(rewards_footer.position.y, 361.0), "rewards footer sits on screen y 401")
+	failed += _check(rewards_back != null and is_equal_approx(rewards_back.position.x, 128.0) and is_equal_approx(rewards_back.position.y, 382.0) and is_equal_approx(rewards_back.size.x, 304.0) and is_equal_approx(rewards_back.size.y, 56.0), "Return matches screen x328 y422")
+	failed += _check(reward_row != null and is_equal_approx(reward_row.self_modulate.a, 1.0), "reward rows do not stack the fade")
 	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") == EchoTheme.CYAN, "manashard value is cyan")
 	failed += _check(key_value != null and key_value.get_theme_color("font_color") == EchoTheme.AMBER, "forge key gains stay amber")
 	failed += _check(reward_label != null and reward_label.get_theme_color("font_color") == EchoTheme.PEARL, "reward labels are pearl")
@@ -489,9 +494,10 @@ func _battle_view() -> int:
 	failed += _check(redeemed_value != null and redeemed_value.get_theme_color("font_color") == EchoTheme.PEARL and redeemed_value.text == "redeemed", "redeemed is pearl")
 	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") != EchoTheme.GOLD, "rewards do not use gold")
 	var title_plate: Control = view.get_node_or_null("EchoTitlePlate") as Control
-	var keeper_portrait: Control = view.get_node_or_null("KeeperPortrait") as Control
-	var echo_portrait: Control = view.get_node_or_null("EchoPortrait") as Control
-	failed += _check(_control_covers(rewards, title_plate) and _control_covers(rewards, keeper_portrait) and _control_covers(rewards, echo_portrait), "rewards window covers the title plate and both fighters")
+	var round_while_open: CanvasItem = view.get_node_or_null("EchoStatusChip") as CanvasItem
+	failed += _check(title_plate != null and not title_plate.visible, "rewards hides the chamber title plank")
+	failed += _check(rewards_dim != null and title_plate != null and rewards_dim.get_index() > title_plate.get_index(), "rewards backdrop draws over the chamber plank")
+	failed += _check(round_while_open == null or not round_while_open.visible, "rewards hides the round chip")
 	view.call("_clear_rewards")
 	view.set("_waiting_return", false)
 	view.set("_pending_outcome", "")
