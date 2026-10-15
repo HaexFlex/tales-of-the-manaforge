@@ -21,6 +21,8 @@ var _resolved: bool = false
 var _pour: float = 0.0
 var _fill_rect: ColorRect
 var _band_rect: ColorRect
+var _band_top: ColorRect
+var _band_bot: ColorRect
 
 
 func game_id() -> String:
@@ -45,10 +47,14 @@ func _ready() -> void:
 	var gauge: Sprite2D = MinigameArt.add_sprite(self, "gauge_just.png", GAUGE_POS + GAUGE_SIZE * 0.5)
 	gauge.z_index = 2
 	_band_rect = ColorRect.new()
-	_band_rect.color = Color(0.45, 0.62, 0.32, 0.55)
+	_band_rect.name = "Band"
+	## Opaque green plus gold brackets. The old translucent olive disappeared on the dark gauge.
+	_band_rect.color = Color8(120, 184, 80)
 	_band_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_band_rect.z_index = 3
 	add_child(_band_rect)
+	_band_top = _band_mark("BandTop")
+	_band_bot = _band_mark("BandBot")
 	_fill_rect = ColorRect.new()
 	_fill_rect.color = Color8(86, 122, 92)
 	_fill_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -132,9 +138,24 @@ func _layout_gauge() -> void:
 	var band_y: float = inner.position.y + inner.size.y * (1.0 - _band_hi())
 	_band_rect.position = Vector2(inner.position.x, band_y)
 	_band_rect.size = Vector2(inner.size.x, band_h)
+	var mark := Vector2(inner.size.x + 14.0, 3.0)
+	_band_top.position = Vector2(inner.position.x - 6.0, band_y)
+	_band_top.size = mark
+	_band_bot.position = Vector2(inner.position.x - 6.0, band_y + band_h - mark.y)
+	_band_bot.size = mark
 	var fill_h: float = inner.size.y * clampf(_fill, 0.0, 1.0)
 	_fill_rect.position = Vector2(inner.position.x + 6.0, inner.end.y - fill_h)
 	_fill_rect.size = Vector2(inner.size.x - 12.0, fill_h)
+
+
+func _band_mark(node_name: String) -> ColorRect:
+	var mark := ColorRect.new()
+	mark.name = node_name
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.color = Color8(250, 214, 100)
+	mark.z_index = 4
+	add_child(mark)
+	return mark
 
 
 func _band_mid() -> float:

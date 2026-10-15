@@ -279,6 +279,11 @@ func _just_enough_band() -> int:
 	failed += _check(is_equal_approx(float(node.call("_band_hi")), 0.71), "water band starts at 0.71")
 	node.set("_clock", 1.5)
 	failed += _check(is_equal_approx(float(node.call("_band_mid")), 0.78), "water band drifts up to 0.78")
+	node.call("_layout_gauge")
+	var band: ColorRect = node.get_node_or_null("Band") as ColorRect
+	var bracket: ColorRect = node.get_node_or_null("BandTop") as ColorRect
+	failed += _check(band != null and band.color.a > 0.95 and band.color.g > 0.55, "the water band is a solid green")
+	failed += _check(bracket != null and bracket.color.r > 0.9 and bracket.size.y >= 3.0, "gold brackets mark the water band")
 	node.free()
 	return failed
 
