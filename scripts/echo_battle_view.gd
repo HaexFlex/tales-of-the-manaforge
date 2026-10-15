@@ -47,6 +47,13 @@ var _chamber_panel: Panel = null
 var _leave_btn: Button = null
 var _face_btn: Button = null
 var _close_btn: Button = null
+var _speech_box: TextureRect = null
+var _page_label: Label = null
+var _page_btn: Button = null
+var _skip_btn: Button = null
+var _speech_source: String = ""
+var _pages: PackedStringArray = PackedStringArray()
+var _page_i: int = 0
 var _ability_btn: Button = null
 var _brace_btn: Button = null
 var _salve_btn: Button = null
@@ -173,12 +180,9 @@ func _apply_540_layout() -> void:
 		_echo_portrait.size = PORTRAIT
 	_place_echo_ghost()
 	_place_ripples()
+	_layout_speech_box(ox)
 	if _speech_bg:
-		_speech_bg.position = SPEECH_POS + Vector2(ox, 0)
-		_speech_bg.size = SPEECH_SIZE
-	if _speech:
-		_speech.position = SPEECH_POS + Vector2(ox + 8, 4)
-		_speech.size = SPEECH_SIZE - Vector2(16, 8)
+		_speech_bg.visible = false
 	if _command_band:
 		var band_x: float = ox + (960.0 - COMMAND_SIZE.x) * 0.5
 		_command_band.position = Vector2(band_x, 450.0)
@@ -319,10 +323,136 @@ func is_chamber_shown() -> bool:
 	return _phase == "chamber" and _chamber_panel != null and _chamber_panel.visible
 
 
+func _layout_speech_box(ox: float) -> void:
+	var box_rect: Rect2 = EchoTheme.SPEECH_BOX
+	if _speech_box == null:
+		_speech_box = TextureRect.new()
+		_speech_box.name = "SpeechBox"
+		_speech_box.mouse_filter = Control.MOUSE_FILTER_STOP
+		_speech_box.texture = load(EchoTheme.SPEECH_TEX)
+		_speech_box.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_speech_box.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_speech_box.stretch_mode = TextureRect.STRETCH_SCALE
+		_speech_box.gui_input.connect(_on_speech_input)
+		add_child(_speech_box)
+		if _speech:
+			_speech.reparent(_speech_box)
+		_page_label = Label.new()
+		_page_label.name = "PageCount"
+		_page_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		_page_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		EchoTheme.style_body(_page_label, true)
+		_speech_box.add_child(_page_label)
+		_page_btn = Button.new()
+		_page_btn.name = "PageNext"
+		_page_btn.focus_mode = Control.FOCUS_ALL
+		_page_btn.custom_minimum_size = Vector2(44, 44)
+		EchoTheme.paint_button(_page_btn, true)
+		var arrow := TextureRect.new()
+		arrow.texture = load(EchoTheme.ART + "arrow_page_down_16x10.png")
+		arrow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		arrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		arrow.position = Vector2(14, 17)
+		arrow.size = Vector2(16, 10)
+		_page_btn.add_child(arrow)
+		_page_btn.pressed.connect(advance_speech)
+		_speech_box.add_child(_page_btn)
+		_skip_btn = Button.new()
+		_skip_btn.name = "SkipSpeech"
+		_skip_btn.text = "Skip"
+		_skip_btn.custom_minimum_size = Vector2(104, 44)
+		EchoTheme.paint_button(_skip_btn, false)
+		var skip_icon := TextureRect.new()
+		skip_icon.texture = load(EchoTheme.ART + "arrow_skip_18x12.png")
+		skip_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		skip_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		skip_icon.position = Vector2(62, 16)
+		skip_icon.size = Vector2(18, 12)
+		_skip_btn.add_child(skip_icon)
+		_skip_btn.pressed.connect(_skip_speech)
+		_speech_box.add_child(_skip_btn)
+	_speech_box.position = box_rect.position + Vector2(ox, 0)
+	_speech_box.size = box_rect.size
+	if _speech:
+		_speech.position = Vector2(12, 10)
+		_speech.size = Vector2(EchoTheme.SPEECH_TEXT_W, 60)
+		_speech.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_speech.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_speech.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+		EchoTheme.style_body(_speech, false)
+	if _page_label:
+		_page_label.position = Vector2(300, 104)
+		_page_label.size = Vector2(72, 20)
+	if _page_btn:
+		_page_btn.position = Vector2(382, 82)
+		_page_btn.size = Vector2(44, 44)
+	if _skip_btn:
+		_skip_btn.position = Vector2(8, 82)
+		_skip_btn.size = Vector2(104, 44)
+
+
+func _set_speech(text: String) -> void:
+	_speech_source = text
+	_pages = EchoTheme.paginate(text)
+	if _pages.is_empty():
+		_pages.append(text)
+	_page_i = 0
+	_show_page()
+
+
+func _show_page() -> void:
+	if _speech == null:
+		return
+	var shown: String = page_text() if not _pages.is_empty() else _speech_source
+	_speech.text = shown
+	var many: bool = _pages.size() > 1 or _phase == "speech"
+	if _page_label:
+		_page_label.visible = many and _phase != "fight"
+		_page_label.text = "%d/%d" % [_page_i + 1, maxi(1, _pages.size())]
+	if _page_btn:
+		_page_btn.visible = _phase == "speech" or (_phase == "chamber" and _pages.size() > 1)
+	if _skip_btn:
+		var paging: bool = _phase == "speech" or _phase == "chamber"
+		_skip_btn.visible = paging and EchoChamber.reentry
+
+
+func _skip_speech() -> void:
+	if _pages.is_empty():
+		return
+	_page_i = _pages.size() - 1
+	_show_page()
+
+
+func _on_speech_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		var mouse: InputEventMouseButton = event as InputEventMouseButton
+		if mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT and _phase == "speech":
+			advance_speech()
+
+
 func begin_face_off() -> void:
-	_phase = "fight"
+	_phase = "speech"
 	_show_fight_chrome()
+	_show_page()
 	_refresh_actions()
+
+
+func finish_speech() -> void:
+	if not _pages.is_empty():
+		_page_i = _pages.size() - 1
+	_phase = "fight"
+	_show_page()
+	_refresh_actions()
+
+
+func advance_speech() -> void:
+	if _phase != "speech":
+		return
+	if _page_i + 1 < _pages.size():
+		_page_i += 1
+		_show_page()
+		return
+	finish_speech()
 
 
 func _on_chamber_leave() -> void:
@@ -448,12 +578,18 @@ func _on_salve() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _phase != "fight" or _waiting_return or _battle == null:
+	if _battle == null or _waiting_return:
 		return
 	if not (event is InputEventKey):
 		return
 	var key: InputEventKey = event as InputEventKey
 	if not key.pressed or key.echo:
+		return
+	if _phase == "speech" and (key.keycode == KEY_SPACE or key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER):
+		advance_speech()
+		get_viewport().set_input_as_handled()
+		return
+	if _phase != "fight":
 		return
 	if key.keycode >= KEY_1 and key.keycode <= KEY_6:
 		var row: Array[Button] = [_strike, _ability_btn, _salve_btn, _brace_btn, _flee, _spare]
@@ -543,7 +679,19 @@ func arrow_toggle_text() -> String:
 
 
 func speech_text() -> String:
+	if _speech_source != "":
+		return _speech_source
 	return _speech.text if _speech else ""
+
+
+func page_count() -> int:
+	return _pages.size()
+
+
+func page_text() -> String:
+	if _page_i < 0 or _page_i >= _pages.size():
+		return ""
+	return _pages[_page_i]
 
 
 func log_text() -> String:
@@ -591,34 +739,43 @@ func log_band_size() -> Vector2:
 
 
 func speech_band_size() -> Vector2:
+	if _speech_box:
+		return _speech_box.size
 	if _speech_bg:
 		return _speech_bg.size
-	return SPEECH_SIZE
+	return EchoTheme.SPEECH_BOX.size
 
 
 func speech_top() -> float:
-	return _speech.position.y if _speech else -1.0
+	if _speech == null:
+		return -1.0
+	return _speech.get_global_rect().position.y
 
 
 func speech_between_portraits() -> bool:
-	if _speech_bg == null or _speech == null or _log == null or _keeper_portrait == null or _echo_portrait == null:
+	var box: Control = _speech_box if _speech_box != null else _speech_bg
+	if box == null or _speech == null or _log == null or _keeper_portrait == null:
 		return false
-	var gap_left: float = _keeper_portrait.position.x + _keeper_portrait.size.x
-	var gap_right: float = _echo_portrait.position.x
-	var box_left: float = _speech_bg.position.x
-	var box_right: float = box_left + _speech_bg.size.x
-	var box_top: float = _speech_bg.position.y
-	var box_bottom: float = box_top + _speech_bg.size.y
+	var ox: float = EchoTheme.shift()
+	var box_left: float = box.position.x
+	var box_right: float = box_left + box.size.x
+	var box_top: float = box.position.y
+	var box_bottom: float = box_top + box.size.y
 	var portrait_top: float = _keeper_portrait.position.y
 	var portrait_bottom: float = portrait_top + _keeper_portrait.size.y
-	var in_gap: bool = box_left >= gap_left - 0.5 and box_right <= gap_right + 0.5
+	## Opaque keeper art ends at x 230; Elaia's key sprite starts at x 704.
+	var in_gap: bool = box_left >= ox + 230.0 - 0.5 and box_right <= ox + 704.0 + 0.5
 	var in_band: bool = box_top >= portrait_top - 0.5 and box_bottom <= portrait_bottom + 0.5
-	var above_log: bool = _speech.position.y < _log.position.y and box_bottom <= _log.position.y + 0.5
+	var log_y: float = _log.get_global_rect().position.y
+	var speech_y: float = _speech.get_global_rect().position.y
+	var above_log: bool = speech_y < log_y and box_bottom <= log_y + 0.5
 	return in_gap and in_band and above_log
 
 
 func log_top() -> float:
-	return _log.position.y if _log else -1.0
+	if _log == null:
+		return -1.0
+	return _log.get_global_rect().position.y
 
 
 func _enemy_name() -> String:
@@ -672,42 +829,42 @@ func _show_opening() -> void:
 		_show_bramble_opening()
 		return
 	if EchoChamber.reentry:
-		_speech.text = ContentStrings.get_text("echo_01_return")
+		_set_speech(ContentStrings.get_text("echo_01_return"))
 	elif not GameState.echo_01_narrator_heard:
-		_speech.text = "%s\n%s" % [
+		_set_speech("%s\n%s" % [
 			ContentStrings.get_text("echo_01_narrator"),
 			ContentStrings.get_text("echo_01_intro"),
-		]
+		])
 		GameState.echo_01_narrator_heard = true
 	else:
-		_speech.text = ContentStrings.get_text("echo_01_intro")
+		_set_speech(ContentStrings.get_text("echo_01_intro"))
 	_set_mercy_visible(false)
 
 
 func _show_bramble_opening() -> void:
 	if EchoChamber.reentry:
 		if GameState.echo_02_outcome == "flee":
-			_speech.text = ContentStrings.get_text("echo_02_return_flee")
+			_set_speech(ContentStrings.get_text("echo_02_return_flee"))
 		elif GameState.echo_02_outcome == "ko":
-			_speech.text = ContentStrings.get_text("echo_02_return_lost")
+			_set_speech(ContentStrings.get_text("echo_02_return_lost"))
 		else:
-			_speech.text = ContentStrings.get_text("echo_02_return")
+			_set_speech(ContentStrings.get_text("echo_02_return"))
 	elif GameState.echo_02_outcome == "ko":
-		_speech.text = ContentStrings.get_text("echo_02_return_lost")
+		_set_speech(ContentStrings.get_text("echo_02_return_lost"))
 	elif not GameState.echo_02_narrator_heard:
-		_speech.text = "%s\n%s" % [
+		_set_speech("%s\n%s" % [
 			ContentStrings.get_text("echo_02_narrator"),
 			ContentStrings.get_text("echo_02_intro"),
-		]
+		])
 		GameState.echo_02_narrator_heard = true
 	else:
-		_speech.text = ContentStrings.get_text("echo_02_intro")
+		_set_speech(ContentStrings.get_text("echo_02_intro"))
 	_set_mercy_visible(false)
 
 
 func _show_mercy() -> void:
 	_mercy_shown = true
-	_speech.text = _echo_line("mercy")
+	_set_speech(_echo_line("mercy"))
 	_set_mercy_visible(true)
 
 
@@ -750,7 +907,7 @@ func _choose(action: String) -> void:
 	_battle.choose(action)
 	var outcome: String = _battle.outcome
 	if action == "strike" and _battle.last_keeper_damage == 0 and before_echo == _battle.echo_hp and outcome == "":
-		_speech.text = ContentStrings.get_text("battle_log_fists")
+		_set_speech(ContentStrings.get_text("battle_log_fists"))
 	if outcome == "ko":
 		EchoChamber.finish_battle("ko")
 		return
@@ -766,7 +923,7 @@ func _choose(action: String) -> void:
 		_apply_elaia_portrait()
 		_offer_return(outcome)
 		return
-	_speech.text = ContentStrings.get_text("battle_your_turn")
+	_set_speech(ContentStrings.get_text("battle_your_turn"))
 	_refresh_actions()
 
 
@@ -775,7 +932,7 @@ func _offer_return(outcome: String) -> void:
 	_pending_outcome = outcome
 	_set_mercy_visible(false)
 	_pending_toast = _outcome_toast(outcome)
-	_speech.text = _flavour_for_outcome(outcome)
+	_set_speech(_flavour_for_outcome(outcome))
 	_strike.visible = false
 	_flee.visible = false
 	_spare.visible = false
@@ -1012,6 +1169,10 @@ func _refresh_actions() -> void:
 		_hide_fight_chrome()
 		_show_chamber_chrome()
 		return
+	if _phase == "speech":
+		_ensure_echo_menu()
+		_lock_menu()
+		return
 	_ensure_echo_menu()
 	var actions: PackedStringArray = _battle.available_actions()
 	_offer_slot(_strike, actions.has("strike"), ContentStrings.get_text("battle_strike"))
@@ -1035,6 +1196,14 @@ func _refresh_actions() -> void:
 			var magical: bool = _battle.arrow_mode == "magical"
 			_arrow.text = ContentStrings.get_text("battle_toggle_mag" if magical else "battle_toggle_phys")
 			_arrow.tooltip_text = ContentStrings.get_text("battle_mode_hint")
+
+
+func _lock_menu() -> void:
+	for btn: Button in [_strike, _ability_btn, _salve_btn, _brace_btn, _flee, _spare, _arrow]:
+		if btn == null:
+			continue
+		btn.visible = true
+		btn.disabled = true
 
 
 func _offer_slot(btn: Button, on: bool, label: String) -> void:

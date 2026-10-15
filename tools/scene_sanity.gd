@@ -370,12 +370,22 @@ func _battle_view() -> int:
 	await process_frame
 	failed += _check(bool(view.call("speech_between_portraits")), "speech between portraits")
 	var ssize: Vector2 = view.call("speech_band_size")
-	failed += _check(ssize.y >= 60.0 and ssize.y <= 85.0, "speech band")
+	failed += _check(absf(ssize.x - 432.0) < 0.5 and absf(ssize.y - 132.0) < 0.5, "speech box 432x132")
+	var intro: String = str(strings.call("get_text", "echo_02_intro"))
+	var pages: PackedStringArray = EchoTheme.paginate(intro)
+	var body_font: Font = load(EchoTheme.BODY_FONT)
+	failed += _check(pages.size() == 2, "Bramble intro pages into two (got %d)" % pages.size())
+	if pages.size() >= 1:
+		failed += _check(pages[0].length() <= EchoTheme.PAGE_CHARS_MAX and pages[0].length() >= 160, "first page is about 200 characters (%d)" % pages[0].length())
+		failed += _check(EchoTheme.line_count(pages[0], body_font) <= EchoTheme.SPEECH_LINES, "first page is 3 lines")
 	var psize: Vector2 = view.call("portrait_size")
 	failed += _check(absf(psize.x - 256.0) < 0.5, "portrait 256")
 	failed += _check(bool(view.call("is_chamber_shown")), "entry opens the chamber")
 	failed += _check(not bool(view.call("is_flee_shown")), "chamber hides Flee")
 	view.call("begin_face_off")
+	failed += _check(not bool(view.call("is_flee_shown")), "menu stays locked through the speech")
+	view.call("finish_speech")
+	failed += _check(bool(view.call("is_flee_shown")), "last page opens the menu")
 	var menu: Control = view.get_node_or_null("EchoActionMenu") as Control
 	failed += _check(menu != null and str(menu.get_meta("built_by", "")) == "res://scripts/battle/battle_view.gd", "echo menu is built by battle_view")
 	var slot_names: PackedStringArray = PackedStringArray()

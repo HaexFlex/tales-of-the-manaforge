@@ -4038,7 +4038,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(float(view.call("speech_top")) < float(view.call("log_top")), "flavour above battle log")
 	failed += _assert(bool(view.call("speech_between_portraits")), "flavour box sits between the portraits")
 	var ssize: Vector2 = view.call("speech_band_size")
-	failed += _assert(ssize.y >= 60.0 and ssize.y <= 85.0, "flavour band 60-85")
+	failed += _assert(abs(ssize.x - 432.0) < 0.5 and abs(ssize.y - 132.0) < 0.5, "speech box 432x132")
 	var lsize: Vector2 = view.call("log_band_size")
 	failed += _assert(abs(lsize.x - 412.0) < 0.5 and abs(lsize.y - 100.0) < 0.5, "battle log 412x100")
 	var csize: Vector2 = view.call("command_band_size")
@@ -4300,6 +4300,8 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(battle_view != null and not bool(battle_view.call("is_flee_shown")), "chamber does not offer Flee")
 		if battle_view:
 			battle_view.call("begin_face_off")
+			failed += _assert(not bool(battle_view.call("is_flee_shown")), "speech keeps the menu locked")
+			battle_view.call("finish_speech")
 		failed += _assert(battle_view != null and bool(battle_view.call("is_flee_shown")), "battle offers Flee outside the window")
 		failed += _assert(not bool(battle_view.call("is_spare_shown")), "Spare stays hidden above 10%")
 		failed += _assert(str(battle_view.call("speech_text")).find("does not raise her voice") >= 0, "opening narrator")
