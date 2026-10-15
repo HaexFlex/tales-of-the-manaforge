@@ -126,6 +126,23 @@ func _grain_shapes() -> int:
 			if not panel.grow(1.0).has_point(p):
 				inside = false
 		failed += _check(inside, "%s stays on the workpiece" % want[i])
+	var grass: Sprite2D = node.get_node_or_null("bg_grass") as Sprite2D
+	var grass_path: String = str(grass.texture.resource_path) if grass != null and grass.texture != null else ""
+	failed += _check(grass_path.ends_with("bg_grass.png"), "grain uses the clearing, not the forge rug")
+	failed += _check(node.get_node_or_null("bg_forge") == null, "the forge rug is not in the grain scene")
+	failed += _check(node.clip_contents, "grain clips art that would stick out of the play window")
+	var bench: Sprite2D = node.get_node_or_null("st_bench") as Sprite2D
+	if bench == null:
+		failed += _check(false, "grain keeps the workbench")
+	else:
+		var sx: float = bench.scale.x
+		var sy: float = bench.scale.y
+		var left: float = bench.position.x + (2.0 - 96.0) * sx
+		var right: float = bench.position.x + (185.0 - 96.0) * sx
+		var top: float = bench.position.y + (66.0 - 96.0) * sy
+		var bottom: float = bench.position.y + (190.0 - 96.0) * sy
+		var board := Rect2(148, 34, 424, 272)
+		failed += _check(board.encloses(Rect2(left, top, right - left, bottom - top)), "the workbench stays inside the board (%.0f,%.0f)-(%.0f,%.0f)" % [left, top, right, bottom])
 	node.set("_shape_i", 0)
 	var rod: PackedVector2Array = node.call("_path_for", "rod")
 	var origin := Vector2(148.0 + 0.277365 * 424.0, 34.0 + 0.422701 * 272.0)

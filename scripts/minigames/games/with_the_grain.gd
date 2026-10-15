@@ -24,12 +24,14 @@ func game_id() -> String:
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	clip_contents = true
 	_phone = Ui540.is_phone_export()
 	_k = MinigameCatalog.k_for("with_the_grain", _phone)
 	_need = float(MinigameCatalog.game("with_the_grain").get("accuracy", 0.75))
-	MinigameArt.add_sprite(self, "bg_forge.png", Vector2(320, 160))
-	var bench: Sprite2D = MinigameArt.add_sprite(self, "st_bench.png", Vector2(110, 80))
-	bench.scale = Vector2(0.45, 0.45)
+	MinigameArt.add_sprite(self, "bg_grass.png", Vector2(320, 160))
+	## Opaque table stays inside the workpiece. The sprite's empty margin is above the board.
+	var bench: Sprite2D = MinigameArt.add_sprite(self, "st_bench.png", Vector2(220, 65))
+	bench.scale = Vector2(0.55, 0.55)
 	var plank: Sprite2D = MinigameArt.add_sprite(self, "workpiece.png", Vector2(360, 170))
 	plank.z_index = 1
 	_dots = Node2D.new()
