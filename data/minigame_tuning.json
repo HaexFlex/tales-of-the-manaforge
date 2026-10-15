@@ -11,6 +11,7 @@
       "spawn_sec": 1.5,
       "rotten_every": 8,
       "catch_width": 46,
+      "flavour": "Catch the ripe ones. Let the rotten ones fall.",
       "hint_pc": "Move the basket with the mouse (or A/D, left/right).",
       "hint_phone": "Drag anywhere to move the basket."
     },
@@ -24,6 +25,7 @@
       "preview_sec": 0.6,
       "window_sec": 0.8,
       "spots": 3,
+      "flavour": "Every stone has a way it wants to break. Follow the cracks.",
       "hint_pc": "Hit each rune as it lights, in order (or 1, 2, 3).",
       "hint_phone": "Tap each rune as it lights, in order."
     },
@@ -39,6 +41,7 @@
       "heavy_mult": 2.0,
       "tune": "mus_woodsong_alt96.ogg",
       "tune_loop_sec": 20.0,
+      "flavour": "Swing with the forest's beat. Lean in on the heavy ones.",
       "hint_pc": "Strike on the beat (mouse or Space). Gold beats count double.",
       "hint_phone": "Tap anywhere on the beat. Gold beats count double."
     },
@@ -56,6 +59,7 @@
       "band_center": 0.66,
       "drift_amp": 0.12,
       "drift_period": 6.0,
+      "flavour": "Too little and it thirsts. Too much and it drowns. Pour just enough.",
       "hint_pc": "Hold to pour, let go in the band (mouse or Space).",
       "hint_phone": "Hold anywhere to pour, let go in the band."
     },
@@ -75,6 +79,7 @@
         "crucible": [[195, 48], [300, 45], [395, 65], [470, 105], [365, 135], [300, 125], [170, 165], [245, 165], [530, 165], [345, 240], [220, 290], [450, 245], [130, 205], [510, 215], [380, 285]],
         "reliquary": [[205, 72], [300, 75], [385, 90], [478, 105], [158, 148], [238, 165], [320, 180], [405, 190], [488, 195]]
       },
+      "flavour": "Strike the metal while it still glows.",
       "hint_pc": "Strike the hot spots before they cool (mouse).",
       "hint_phone": "Tap the hot spots before they cool."
     },
@@ -97,6 +102,7 @@
       "band_center": 0.6,
       "drift_amp": 0.14,
       "drift_period": 10.0,
+      "flavour": "Turn it slow and round. Feel the weight build, and let go before it is too much.",
       "hint_pc": "Circle the wheel, ease off in the green (or alternate A/D).",
       "hint_phone": "Circle the wheel to build pressure, ease off in the green."
     },
@@ -129,6 +135,7 @@
         {"id": "crescent", "curvy": true},
         {"id": "bell", "curvy": true}
       ],
+      "flavour": "Wood remembers how it grew. Follow the grain in one stroke.",
       "hint_pc": "Drag from the gold ring along the grain.",
       "hint_phone": "Drag from the gold ring along the grain."
     },
@@ -147,6 +154,7 @@
       "replays": 1,
       "next_gap_sec": 0.8,
       "herbs": ["Glowcap", "Bitterroot", "Mintleaf", "Sunpetal", "Moonmoss"],
+      "flavour": "One herb at a time, in the right order. Small brews, done well.",
       "hint_pc": "Watch the order, then pick the herbs (or 1-5). R shows it again.",
       "hint_phone": "Watch the order, then tap the herbs."
     }

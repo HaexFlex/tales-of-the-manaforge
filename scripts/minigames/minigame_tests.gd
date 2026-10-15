@@ -219,6 +219,7 @@ func _grade_marks() -> int:
 	var blot: Control = window.get_node_or_null("WinPlate/FeelTestCover") as Control
 	failed += _check(blot != null, "the baked feel-test line stays covered")
 	failed += _check(blot != null and blot.anchor_left < 0.1 and blot.anchor_right > 0.9, "the old instruction line is covered across the footer")
+	failed += _check(blot != null and blot.anchor_top <= 408.0 / 472.0 and blot.anchor_bottom >= 440.0 / 472.0, "the baked flavour line is covered across the footer")
 	var pace_lbl: Label = window.get_node_or_null("Pace") as Label
 	var bar: Control = window.get_node_or_null("PaceBar") as Control
 	var closer: Control = window.get_node_or_null("Close") as Control
@@ -337,11 +338,17 @@ func _summary() -> int:
 	failed += _check(not _tree_text_has(host, "Feel test"), "feel-test placeholder is gone")
 	failed += _check(window.get_node_or_null("Successes") != null, "the header shows Successes")
 	var footer: Label = window.get_node_or_null("Hint") as Label
-	failed += _check(footer != null and not footer.visible, "the flavour line leaves the window footer")
+	failed += _check(footer != null and not footer.visible, "the window hint hides once Results is up")
+	failed += _check(MinigameCatalog.flavour("splitting_stone") == "Every stone has a way it wants to break. Follow the cracks.", "the splitting stone flavour is the full sentence")
 	if summary != null:
 		var body: Label = summary.get_node_or_null("SummaryBody") as Label
-		failed += _check(body != null and footer != null and body.text == footer.text and body.text != "", "the flavour line sits inside Results")
+		var flavour: String = MinigameCatalog.flavour("ripe_catch")
+		failed += _check(body != null and body.get_parent() == summary and body.text == flavour and flavour != "", "the flavour line sits inside Results")
 		failed += _check(body != null and body.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "the flavour line is centred")
+		failed += _check(body != null and not body.clip_text and body.autowrap_mode != TextServer.AUTOWRAP_OFF, "the flavour wraps instead of being cut off")
+		failed += _check(body != null and body.position.y >= 40.0 and body.position.y < 70.0, "the flavour sits under the Results title")
+		var successes: Label = summary.get_node_or_null("RowSuccesses") as Label
+		failed += _check(body != null and successes != null and body.position.y + body.size.y <= successes.position.y, "the flavour stays above the totals")
 		failed += _check(body != null and body.position.x >= 48.0, "summary text starts inside the frame (x %.0f)" % (body.position.x if body else -1.0))
 		failed += _check(body != null and body.position.x + body.size.x <= 412.0, "summary text ends inside the frame")
 		var expect: Dictionary = {

@@ -110,16 +110,16 @@ func _build() -> void:
 	_win_plate.stretch_mode = TextureRect.STRETCH_SCALE
 	_win_plate.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_panel.add_child(_win_plate)
-	## The plate bakes the old instruction and "Feel test: no rewards." on one footer row.
-	## Cover that whole row. The live hint is the only line that remains.
+	## The plate bakes the flavour, the old instruction, and "Feel test: no rewards."
+	## across the footer. Cover that whole band. The live hint is the only line that remains.
 	var blot := ColorRect.new()
 	blot.name = "FeelTestCover"
 	blot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	blot.color = PARCHMENT
 	blot.anchor_left = 12.0 / 696.0
-	blot.anchor_top = 420.0 / 472.0
+	blot.anchor_top = 406.0 / 472.0
 	blot.anchor_right = 684.0 / 696.0
-	blot.anchor_bottom = 446.0 / 472.0
+	blot.anchor_bottom = 448.0 / 472.0
 	blot.offset_left = 0.0
 	blot.offset_top = 0.0
 	blot.offset_right = 0.0
@@ -226,13 +226,16 @@ func _build() -> void:
 	_summary.add_child(cover)
 
 	_summary_body = _summary_line("SummaryBody", 48.0)
+	_summary_body.size = Vector2(364, 34)
+	_summary_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_summary_body.clip_text = false
 	_summary.add_child(_summary_body)
 	_summary_rows = [
-		_summary_line("RowSuccesses", 74.0),
-		_summary_line("RowMisses", 100.0),
-		_summary_line("RowStreak", 126.0),
+		_summary_line("RowSuccesses", 86.0),
+		_summary_line("RowMisses", 108.0),
+		_summary_line("RowStreak", 130.0),
 		_summary_line("RowPace", 152.0),
-		_summary_line("RowBonus", 176.0),
+		_summary_line("RowBonus", 174.0),
 	]
 	for row: Label in _summary_rows:
 		_summary.add_child(row)
@@ -245,7 +248,7 @@ func _build() -> void:
 	_again.position = Vector2(SUMMARY_BTN_X + SUMMARY_BTN.x + SUMMARY_BTN_GAP, SUMMARY_BTN_Y)
 	_again.pressed.connect(_on_again)
 	_summary.add_child(_again)
-	_card_pips = _make_pips(_summary, Vector2(155, 196), 12.0, 15.0)
+	_card_pips = _make_pips(_summary, Vector2(155, 198), 12.0, 15.0)
 
 
 func _summary_line(node_name: String, y: float) -> Label:
@@ -670,7 +673,7 @@ func _show_summary() -> void:
 	_summary_up = true
 	_hint.visible = false
 	var pace: float = MinigameMath.pace_multiplier(_pace_seconds, _elapsed)
-	_summary_body.text = _hint.text
+	_summary_body.text = MinigameCatalog.flavour(_game_id)
 	if _summary_rows.size() == 5:
 		_summary_rows[0].text = "Successes  %d" % _successes
 		_summary_rows[1].text = "Misses  %d" % _misses

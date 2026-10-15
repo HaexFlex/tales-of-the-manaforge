@@ -59,6 +59,10 @@ static func resource_id(game_id: String) -> String:
 	return str(game(game_id).get("resource", ""))
 
 
+static func flavour(game_id: String) -> String:
+	return str(game(game_id).get("flavour", ""))
+
+
 static func hint(game_id: String, phone: bool) -> String:
 	var row: Dictionary = game(game_id)
 	if phone:
