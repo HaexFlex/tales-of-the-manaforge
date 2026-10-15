@@ -124,13 +124,17 @@ func _ensure_built() -> void:
 	meta.add_child(_count_label)
 	_current_label = Label.new()
 	_current_label.name = "CurrentLabel"
-	GameTheme.style_ink_label(_current_label)
+	_current_label.custom_minimum_size = Vector2(0, 36)
+	_current_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	GameTheme.style_heading_label(_current_label)
 	box.add_child(_current_label)
 	_current_bar = _bar("CurrentBar")
 	box.add_child(_current_bar)
 	_total_label = Label.new()
 	_total_label.name = "TotalLabel"
-	GameTheme.style_ink_label(_total_label)
+	_total_label.custom_minimum_size = Vector2(0, 36)
+	_total_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	GameTheme.style_heading_label(_total_label)
 	box.add_child(_total_label)
 	_total_bar = _bar("TotalBar")
 	box.add_child(_total_bar)

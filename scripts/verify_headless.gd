@@ -9493,6 +9493,18 @@ func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node)
 	total = panel.find_child("TotalLabel", true, false) as Label
 	failed += _assert(current != null and current.text.find("1m 00s") >= 0, "forge current bar shows the item time (got %s)" % (current.text if current else ""))
 	failed += _assert(total != null and total.text.find("1m 00s") >= 0, "forge batch bar shows the remaining time (got %s)" % (total.text if total else ""))
+	var heading_bench: Node = panel_scene.instantiate()
+	tree_root.add_child(heading_bench)
+	heading_bench.set("compact", true)
+	heading_bench.call("setup", "workbench")
+	var bench_count: Label = heading_bench.find_child("Count", true, false) as Label
+	var bench_px: int = int(bench_count.get_theme_font_size("font_size")) if bench_count != null else 0
+	var forge_px: int = int(current.get_theme_font_size("font_size")) if current != null else 0
+	var total_px: int = int(total.get_theme_font_size("font_size")) if total != null else 0
+	failed += _assert(bench_px == 38 and forge_px == bench_px and total_px == bench_px, "forge time line uses the workbench heading (got %d, bench %d)" % [forge_px, bench_px])
+	if bench_px == 38 and forge_px == bench_px and total_px == bench_px:
+		print("FORGE_TIME_LINE_OK")
+	heading_bench.free()
 	var tip: String = str(jobs.call("bar_tooltip", "crucible", "current"))
 	game_state.call("set_resource", &"wood", 6)
 	jobs.call("note_keeper_idle")
