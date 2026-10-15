@@ -3461,29 +3461,25 @@ func _ensure_join_band() -> void:
 	_join_band.offset_bottom = -16.0
 	_join_band.mouse_filter = Control.MOUSE_FILTER_STOP
 	_join_band.z_index = 30
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.09, 0.15, 0.13, 0.94)
-	style.set_corner_radius_all(2)
-	_join_band.add_theme_stylebox_override("panel", style)
 	_join_band.gui_input.connect(_on_join_band_input)
 	_join_name = Label.new()
 	_join_name.name = "Speaker"
-	_join_name.position = Vector2(16, 10)
-	_join_name.size = Vector2(488, 22)
+	_join_name.position = Vector2(28, 16)
+	_join_name.size = Vector2(464, 28)
 	_join_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_join_name.add_theme_font_size_override("font_size", 15)
-	_join_name.add_theme_color_override("font_color", Color(0.88, 0.92, 0.86))
+	GameTheme.style_plank_label(_join_name)
 	_join_band.add_child(_join_name)
 	_join_line = Label.new()
 	_join_line.name = "Line"
-	_join_line.position = Vector2(16, 36)
-	_join_line.size = Vector2(488, 120)
+	_join_line.position = Vector2(28, 48)
+	_join_line.size = Vector2(464, 108)
 	_join_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_join_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_join_line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_join_line.add_theme_font_size_override("font_size", 12)
-	_join_line.add_theme_color_override("font_color", Color(0.86, 0.91, 0.84))
+	GameTheme.style_ink_label(_join_line)
 	_join_band.add_child(_join_line)
+	## Same bark frame and parchment as the other clearing windows.
+	Ui540.apply_kit_panel(_join_band, "elaia_join", _join_name)
 	add_child(_join_band)
 	_join_band.visible = false
 

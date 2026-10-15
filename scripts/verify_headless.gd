@@ -5221,6 +5221,12 @@ func _elaia_join_flow_check(tree_root: Window, game_state: Node, save_service: N
 		hud.call("maybe_show_elaia_join")
 	await process_frame
 	failed += _assert(hud != null and hud.has_method("is_elaia_join_open") and bool(hud.call("is_elaia_join_open")), "join band opens in the Clearing")
+	var join_band: Panel = hud.get_node_or_null("ElaiaJoinBand") as Panel if hud else null
+	var join_box: StyleBox = join_band.get_theme_stylebox("panel") if join_band != null else null
+	var join_tex: String = join_box.texture.resource_path if join_box is StyleBoxTexture and (join_box as StyleBoxTexture).texture != null else ""
+	failed += _assert(join_box is StyleBoxTexture and join_tex.find("frame_9s") >= 0, "Elaia join uses the bark-and-parchment frame (got %s)" % join_tex)
+	if join_box is StyleBoxTexture and join_tex.find("frame_9s") >= 0:
+		print("ELAIA_JOIN_THEME_OK")
 	for _line: int in 5:
 		if hud != null and hud.has_method("_advance_join_line"):
 			hud.call("_advance_join_line")
