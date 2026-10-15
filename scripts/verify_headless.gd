@@ -4251,6 +4251,15 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var fee_panel: Control = tree_root.get_node_or_null("EchoPortalConfirm/Panel") as Control
 		failed += _assert(yes_btn != null and yes_btn.disabled, "confirm yes disabled when short")
 		failed += _assert(no_btn != null and no_btn.text == "Not now" and not no_btn.disabled, "Not now is enabled")
+		failed += _assert(yes_btn != null and no_btn != null and no_btn.position.x > yes_btn.position.x, "Not now is the right-hand button")
+		failed += _assert(yes_btn != null and yes_btn.size.y >= 44.0 and no_btn.size.y >= 44.0, "fee buttons are at least 44 px")
+		if fee_panel:
+			var fee_box: StyleBox = fee_panel.get_theme_stylebox("panel")
+			var fee_tex: Texture2D = (fee_box as StyleBoxTexture).texture if fee_box is StyleBoxTexture else null
+			failed += _assert(fee_tex != null and str(fee_tex.resource_path).find("frame_9s_96") >= 0, "portal fee stays on the hub frame")
+		var fee_note: Label = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Note") as Label
+		failed += _assert(fee_note != null and fee_note.visible and str(fee_note.text).find("Not enough Essence") >= 0, "amber can't-afford line")
+		failed += _assert(fee_note != null and fee_note.get_theme_color("font_color") == Ui540.WARNING_AMBER, "can't-afford uses kit amber")
 		if no_btn and fee_panel:
 			var panel_h: float = fee_panel.offset_bottom - fee_panel.offset_top
 			if panel_h < 1.0:

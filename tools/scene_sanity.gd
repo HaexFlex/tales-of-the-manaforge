@@ -140,6 +140,7 @@ func _run() -> void:
 
 	failed += _weapons()
 	failed += await _battle_view()
+	failed += await _portal_fee_confirm()
 
 	game.set("arrow_mode", "magical")
 	game.call("apply_save_dict", {"arrow_mode": "physical"})
@@ -442,6 +443,50 @@ func _battle_view() -> int:
 	view.queue_free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)
+	await process_frame
+	return failed
+
+
+func _portal_fee_confirm() -> int:
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var essence_before: int = int(game.get("essence"))
+	var unlocked: bool = bool(game.get("portal_unlocked"))
+	var resolved: bool = bool(game.get("echo_01_resolved"))
+	var paid: bool = bool(game.get("portal_fee_paid"))
+	game.set("portal_unlocked", true)
+	game.set("echo_01_resolved", false)
+	game.set("portal_fee_paid", false)
+	game.call("set_resource", &"essence", 10)
+	var portal: Node = (load("res://scenes/echo_portal.tscn") as PackedScene).instantiate()
+	root.add_child(portal)
+	await process_frame
+	failed += _check(str(portal.call("begin_entry")) == "reject", "short fee keeps the hub confirm open")
+	var panel: Panel = root.get_node_or_null("EchoPortalConfirm/Panel") as Panel
+	var yes: Button = root.get_node_or_null("EchoPortalConfirm/Panel/Yes") as Button
+	var no: Button = root.get_node_or_null("EchoPortalConfirm/Panel/No") as Button
+	var note: Label = root.get_node_or_null("EchoPortalConfirm/Panel/Note") as Label
+	var warn: TextureRect = root.get_node_or_null("EchoPortalConfirm/Panel/FeeWarn") as TextureRect
+	var box: StyleBox = panel.get_theme_stylebox("panel") if panel else null
+	var tex: Texture2D = (box as StyleBoxTexture).texture if box is StyleBoxTexture else null
+	failed += _check(tex != null and str(tex.resource_path).find("frame_9s_96") >= 0, "portal fee stays on the hub frame")
+	failed += _check(panel != null and panel.get_node_or_null("VineFrame") != null, "portal fee keeps the hub vines")
+	failed += _check(yes != null and no != null and no.position.x > yes.position.x, "Not now is the right-hand button")
+	failed += _check(yes != null and no != null and yes.disabled and yes.size.y >= 44.0 and no.size.y >= 44.0, "fee buttons are at least 44 px")
+	failed += _check(panel != null and no != null and no.text == "Not now" and no.position.y + no.size.y <= panel.size.y + 1.0, "Not now sits inside the fee panel")
+	failed += _check(note != null and note.visible and note.text.find("Not enough Essence") >= 0, "amber can't-afford line")
+	failed += _check(note != null and note.get_theme_color("font_color") == Ui540.WARNING_AMBER, "can't-afford uses kit amber")
+	failed += _check(warn != null and warn.visible and warn.texture != null and str(warn.texture.resource_path).find("icon_warn_amber_kit") >= 0, "kit amber warning icon")
+	failed += _check(panel != null and panel.get_node_or_null("Close") == null, "the fee confirm has no ×")
+	var cap: TextureRect = no.get_node_or_null("EscKeycap") as TextureRect if no else null
+	failed += _check(cap != null and cap.visible, "Esc keycap on Not now")
+	portal.cancel_fee()
+	failed += _check(not bool(portal.call("is_fee_confirm_open")), "Not now's cancel closes the fee UI")
+	portal.queue_free()
+	game.set("portal_unlocked", unlocked)
+	game.set("echo_01_resolved", resolved)
+	game.set("portal_fee_paid", paid)
+	game.call("set_resource", &"essence", essence_before)
 	await process_frame
 	return failed
 
