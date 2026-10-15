@@ -37,6 +37,7 @@ func run_scenes() -> int:
 	failed += _woodsong_volume()
 	failed += _grain_shapes()
 	failed += _grain_accuracy()
+	failed += _steady_press_tuning()
 	failed += _ripe_catch()
 	failed += _steeping_debug()
 	failed += _grade_marks()
@@ -216,6 +217,19 @@ func _grain_accuracy() -> int:
 	if failed == 0:
 		print("GRAIN_ACCURACY_OK")
 	node.free()
+	return failed
+
+
+func _steady_press_tuning() -> int:
+	var failed: int = 0
+	var row: Dictionary = MinigameCatalog.game("steady_press")
+	failed += _check(is_equal_approx(float(row.get("cycle_sec", 0.0)), 4.0), "Steady Press cycle is 4.0s")
+	failed += _check(is_equal_approx(float(row.get("k", 0.0)), 8.0), "Steady Press k is 8")
+	failed += _check(is_equal_approx(float(row.get("r", 0.0)), 15.0), "Steady Press r is 15")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("steady_press"), 8.0), "Steady Press pays k 8")
+	failed += _check(is_equal_approx(60.0 / 4.0 * MinigameCatalog.k_for("steady_press"), 120.0), "a perfect Steady Press minute is +120s")
+	if failed == 0:
+		print("STEADY_PRESS_TUNING_OK")
 	return failed
 
 
@@ -668,9 +682,10 @@ func _math() -> int:
 	failed += _check(is_equal_approx(MinigameCatalog.k_for("just_enough"), 3.6), "catalog water k is the prototype 3.6")
 	failed += _check(is_equal_approx(float(MinigameCatalog.game("just_enough").get("cycle_sec", 0.0)), 1.8), "water cycle is the prototype 1.8s")
 	failed += _check(is_equal_approx(60.0 / 1.8 * 3.6, 120.0), "a perfect water minute is still +120s")
-	failed += _check(is_equal_approx(MinigameCatalog.k_for("steady_press"), 15.0), "catalog press k is the prototype 15")
-	failed += _check(is_equal_approx(float(MinigameCatalog.game("steady_press").get("cycle_sec", 0.0)), 7.5), "press cycle is the prototype 7.5s")
-	failed += _check(is_equal_approx(60.0 / 7.5 * 15.0, 120.0), "a perfect press minute is still +120s")
+	failed += _check(is_equal_approx(MinigameCatalog.k_for("steady_press"), 8.0), "catalog press k is 8")
+	failed += _check(is_equal_approx(MinigameCatalog.r_of("steady_press"), 15.0), "catalog press r is 15")
+	failed += _check(is_equal_approx(float(MinigameCatalog.game("steady_press").get("cycle_sec", 0.0)), 4.0), "press cycle is 4.0s")
+	failed += _check(is_equal_approx(60.0 / 4.0 * 8.0, 120.0), "a perfect press minute is still +120s")
 	failed += _check(is_equal_approx(MinigameCatalog.k_for("hot_spots"), 5.0), "hot spots k = 5")
 	failed += _check(is_equal_approx(MinigameCatalog.r_of("hot_spots"), 24.0), "hot spots r = 24")
 	failed += _check(is_equal_approx(MinigameMath.k_from_r(24.0), 5.0), "hot spots k matches r")
