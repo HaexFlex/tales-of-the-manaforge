@@ -746,14 +746,14 @@ func _refresh_status_chip() -> void:
 	if get_node_or_null("EchoRewards") != null:
 		_status_chip.visible = false
 		return
+	## reentry is the only attempt flag. A third visit still reads Attempt 2.
+	if EchoChamber.reentry and (_phase == "speech" or _phase == "fight"):
+		_status_chip.visible = true
+		_status_label.text = "Attempt 2"
+		return
 	if _phase == "fight" and _battle != null:
 		_status_chip.visible = true
 		_status_label.text = "Round %d" % (_battle.round + 1)
-		return
-	## reentry is the only attempt flag. A third visit still reads Attempt 2.
-	if _phase == "speech" and EchoChamber.reentry:
-		_status_chip.visible = true
-		_status_label.text = "Attempt 2"
 		return
 	_status_chip.visible = false
 

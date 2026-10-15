@@ -427,6 +427,13 @@ func _battle_view() -> int:
 	failed += _check(strike_focus != null and strike_focus.name == "StrikeButton", "Strike takes the focus ring")
 	var round_chip: Label = view.get_node_or_null("EchoStatusChip/Label") as Label
 	failed += _check(round_chip != null and round_chip.visible and round_chip.text == "Round 1", "Round chip uses the battle round")
+	echo.set("reentry", true)
+	view.call("_refresh_status_chip")
+	var later_fight: Label = view.get_node_or_null("EchoStatusChip/Label") as Label
+	failed += _check(later_fight != null and later_fight.visible and later_fight.text == "Attempt 2", "a later fight shows Attempt 2 instead of Round 1")
+	echo.set("reentry", false)
+	view.call("_refresh_status_chip")
+	failed += _check(later_fight != null and later_fight.text == "Round 1", "clearing reentry restores the round chip")
 	failed += _check(str(view.call("log_text")).find("Your turn") >= 0, "battle log shows a line")
 	view.call("_set_speech", "Your turn")
 	var short_speech: Vector2 = view.call("speech_band_size")
