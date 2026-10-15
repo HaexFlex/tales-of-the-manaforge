@@ -11,11 +11,26 @@ const SUMMARY_BTN := Vector2(160, 52)
 const SUMMARY_BTN_X: float = 62.0
 const SUMMARY_BTN_Y: float = 222.0
 const SUMMARY_BTN_GAP: float = 16.0
+## Shortcut row is the 44 px buttons sat on the 24 px safe margin. The window stays above it.
+const HUD_SHORTCUT_GAP: float = 6.0
+const HEADER_ROW_Y: float = 20.0
+const HEADER_ROW_H: float = 22.0
+const PIP_PX: float = 19.0
+const PIP_STEP: float = 22.0
+const PACE_BAR_H: float = 8.0
+const PACE_TICK_H: float = 16.0
+const PARCHMENT: Color = Color8(231, 212, 166)
+const POP_CHIP: Color = Color8(250, 242, 220)
 
 var _dim: ColorRect
 var _panel: Panel
 var _title: Label
+var _succ_word: Label
+var _succ_count: Label
+var _pace_word: Label
 var _pace: Label
+var _pace_bar: ColorRect
+var _pace_fill: TextureRect
 var _hint: Label
 var _close: BaseButton
 var _play: Control
@@ -91,20 +106,35 @@ func _build() -> void:
 	_win_plate.stretch_mode = TextureRect.STRETCH_SCALE
 	_win_plate.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_panel.add_child(_win_plate)
-	## The plate art still says "Feel test: no rewards." Cover that caption.
+	## The plate bakes the old instruction and "Feel test: no rewards." on one footer row.
+	## Cover that whole row. The live hint is the only line that remains.
 	var blot := ColorRect.new()
 	blot.name = "FeelTestCover"
 	blot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	blot.color = Color8(231, 212, 166)
-	blot.anchor_left = 560.0 / 696.0
-	blot.anchor_top = 448.0 / 472.0
-	blot.anchor_right = 676.0 / 696.0
-	blot.anchor_bottom = 466.0 / 472.0
+	blot.color = PARCHMENT
+	blot.anchor_left = 12.0 / 696.0
+	blot.anchor_top = 420.0 / 472.0
+	blot.anchor_right = 684.0 / 696.0
+	blot.anchor_bottom = 446.0 / 472.0
 	blot.offset_left = 0.0
 	blot.offset_top = 0.0
 	blot.offset_right = 0.0
 	blot.offset_bottom = 0.0
 	_win_plate.add_child(blot)
+	## Baked Successes / Pace / pace bar, so the live 19 px header is not drawn twice.
+	var header_blot := ColorRect.new()
+	header_blot.name = "HeaderCover"
+	header_blot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header_blot.color = PARCHMENT
+	header_blot.anchor_left = 14.0 / 696.0
+	header_blot.anchor_top = 26.0 / 472.0
+	header_blot.anchor_right = 616.0 / 696.0
+	header_blot.anchor_bottom = 52.0 / 472.0
+	header_blot.offset_left = 0.0
+	header_blot.offset_top = 0.0
+	header_blot.offset_right = 0.0
+	header_blot.offset_bottom = 0.0
+	_win_plate.add_child(header_blot)
 
 	_title = Label.new()
 	_title.name = "Title"
@@ -125,25 +155,51 @@ func _build() -> void:
 	_panel.add_child(_close)
 	_close.pressed.connect(_on_close)
 
-	_pace = Label.new()
-	_pace.name = "Pace"
-	_pace.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_pace.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_pace.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_style_readout(_pace, GameTheme.TITLE_HERO_SIZE)
+	_succ_word = _ink_label("Successes", "Successes")
+	_succ_count = _ink_label("0", "SuccessCount")
+	_pace_word = _ink_label("Pace", "PaceWord")
+	_pace = _ink_label("×1.0", "Pace")
+	_pace.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_panel.add_child(_succ_word)
+	_panel.add_child(_succ_count)
+	_panel.add_child(_pace_word)
 	_panel.add_child(_pace)
-	_pips = _make_pips(_panel, Vector2(128, 34))
+	_pace_bar = ColorRect.new()
+	_pace_bar.name = "PaceBar"
+	_pace_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pace_bar.color = Color8(52, 36, 24)
+	_pace_bar.z_index = 4
+	_panel.add_child(_pace_bar)
+	_pace_fill = TextureRect.new()
+	_pace_fill.name = "Fill"
+	_pace_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pace_fill.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_pace_fill.stretch_mode = TextureRect.STRETCH_SCALE
+	_pace_fill.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_pace_fill.z_index = 1
+	_pace_bar.add_child(_pace_fill)
+	for i: int in 3:
+		var tick := ColorRect.new()
+		tick.name = "Tick%d" % i
+		tick.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tick.color = Color8(62, 42, 24)
+		tick.size = Vector2(3, PACE_TICK_H)
+		tick.z_index = 2
+		_pace_bar.add_child(tick)
+	_pips = _make_pips(_panel, Vector2(128, 34), PIP_PX, PIP_STEP)
 
 	_hint = Label.new()
 	_hint.name = "Hint"
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_hint.add_theme_font_size_override("font_size", 19)
-	_hint.add_theme_color_override("font_color", Color8(90, 62, 40))
+	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hint.z_index = 5
+	GameTheme.style_ink_label(_hint, true)
 	_panel.add_child(_hint)
 
 	_play = Control.new()
 	_play.name = "Play"
 	_play.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_play.clip_contents = true
 	_panel.add_child(_play)
 
 	_summary = TextureRect.new()
@@ -183,20 +239,31 @@ func _build() -> void:
 	_again.position = Vector2(SUMMARY_BTN_X + SUMMARY_BTN.x + SUMMARY_BTN_GAP, SUMMARY_BTN_Y)
 	_again.pressed.connect(_on_again)
 	_summary.add_child(_again)
-	_card_pips = _make_pips(_summary, Vector2(155, 196))
+	_card_pips = _make_pips(_summary, Vector2(155, 196), 12.0, 15.0)
 
 
-func _make_pips(parent: Node, origin: Vector2) -> Array[TextureRect]:
+func _ink_label(text: String, node_name: String) -> Label:
+	var lbl := Label.new()
+	lbl.name = node_name
+	lbl.text = text
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.z_index = 5
+	GameTheme.style_ink_label(lbl)
+	return lbl
+
+
+func _make_pips(parent: Node, origin: Vector2, pip_px: float, step: float) -> Array[TextureRect]:
 	var out: Array[TextureRect] = []
 	for i: int in 10:
 		var pip := TextureRect.new()
 		pip.name = "GradePip%d" % i
 		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		pip.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		pip.stretch_mode = TextureRect.STRETCH_KEEP
+		pip.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		pip.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		pip.position = origin + Vector2(float(i) * 15.0, 0.0)
-		pip.size = Vector2(12, 12)
+		pip.position = origin + Vector2(float(i) * step, 0.0)
+		pip.size = Vector2(pip_px, pip_px)
 		pip.z_index = 6
 		parent.add_child(pip)
 		out.append(pip)
@@ -242,13 +309,17 @@ func _paint_grades() -> void:
 			_card_pips[i].texture = tex
 
 
-func _style_readout(lbl: Label, px: int) -> void:
-	var face: Font = load(GameTheme.PRIMARY_FONT_PATH) as Font if px >= GameTheme.TITLE_HERO_SIZE else GameTheme.body_font()
-	lbl.add_theme_font_override("font", face)
-	lbl.add_theme_font_size_override("font_size", px)
-	lbl.add_theme_color_override("font_color", GameTheme.INK)
-	lbl.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
-	lbl.add_theme_constant_override("outline_size", 4 if px >= GameTheme.TITLE_HERO_SIZE else 2)
+func _text_width(text: String) -> float:
+	var font: Font = GameTheme.body_font()
+	if font == null:
+		return float(text.length()) * 10.0
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.BODY_SIZE).x
+
+
+func _fit_ink(lbl: Label, x: float, y: float, h: float) -> void:
+	var w: float = ceilf(_text_width(lbl.text)) + 2.0
+	lbl.position = Vector2(x, y)
+	lbl.size = Vector2(w, h)
 
 
 func _summary_button(node_name: String, normal_file: String, hover_file: String) -> TextureButton:
@@ -437,7 +508,9 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 func _layout_window() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
 	var top: float = HUD_BAR_PX + Ui540.PLANK_RISE
-	var max_h: float = maxf(120.0, vs.y - Ui540.SAFE_MARGIN_PX - top)
+	var shortcut_top: float = vs.y - Ui540.SAFE_MARGIN_PX - Ui540.TAP_MIN_PX
+	var max_bottom: float = shortcut_top - HUD_SHORTCUT_GAP
+	var max_h: float = maxf(120.0, max_bottom - top)
 	var max_w: float = maxf(120.0, vs.x - Ui540.SAFE_MARGIN_PX * 2.0)
 	var sz := Vector2(
 		minf(MinigameCatalog.WINDOW_SIZE.x, max_w),
@@ -448,13 +521,17 @@ func _layout_window() -> void:
 	_panel.custom_minimum_size = sz
 	_panel.position = Vector2(roundf((vs.x - sz.x) * 0.5), roundf(top))
 	Ui540.place_close_button(_close, sz.x)
-	_pace.size = Vector2(148, 48)
-	_pace.position = Vector2(_close.position.x - 8.0 - _pace.size.x, 18.0)
-	var play_h: float = minf(MinigameCatalog.PLAY_SIZE.y, sz.y - MinigameCatalog.PLAY_ORIGIN.y - 36.0)
+	_layout_header()
+	var footer_h: float = 34.0
+	var budget: float = sz.y - MinigameCatalog.PLAY_ORIGIN.y - footer_h
+	var play_scale: float = 1.0
+	if budget < MinigameCatalog.PLAY_SIZE.y:
+		play_scale = maxf(0.5, budget / MinigameCatalog.PLAY_SIZE.y)
 	_play.position = MinigameCatalog.PLAY_ORIGIN
-	_play.size = Vector2(MinigameCatalog.PLAY_SIZE.x, play_h)
-	_hint.position = Vector2(28, sz.y - 32.0)
-	_hint.size = Vector2(sz.x - 56.0, 24)
+	_play.size = MinigameCatalog.PLAY_SIZE
+	_play.scale = Vector2(play_scale, play_scale)
+	_hint.position = Vector2(28, sz.y - 30.0)
+	_hint.size = Vector2(sz.x - 56.0, 22)
 	_summary.position = ((sz - Vector2(460, 308)) * 0.5).round()
 	_summary.size = Vector2(460, 308)
 	if _win_plate != null:
@@ -462,25 +539,97 @@ func _layout_window() -> void:
 		_win_plate.size = sz
 
 
+func _layout_header() -> void:
+	var row_y: float = HEADER_ROW_Y
+	var row_h: float = HEADER_ROW_H
+	var gap: float = 6.0
+	var x: float = 16.0
+	_fit_ink(_succ_word, x, row_y, row_h)
+	x += _succ_word.size.x + gap
+	_fit_ink(_succ_count, x, row_y, row_h)
+	_succ_count.size.x = maxf(_succ_count.size.x, _text_width("99") + 2.0)
+	x += _succ_count.size.x + gap
+	var pip_y: float = row_y + (row_h - PIP_PX) * 0.5
+	for i: int in _pips.size():
+		_pips[i].position = Vector2(x + float(i) * PIP_STEP, pip_y)
+		_pips[i].size = Vector2(PIP_PX, PIP_PX)
+	x += 9.0 * PIP_STEP + PIP_PX + gap
+	_fit_ink(_pace_word, x, row_y, row_h)
+	x += _pace_word.size.x + gap
+	var readout_w: float = maxf(_text_width("×3.0") + 4.0, 36.0)
+	var room: float = _close.position.x - 8.0 - readout_w - 8.0 - x
+	var bar_w: float = clampf(room, 48.0, 132.0)
+	_pace_bar.position = Vector2(x, row_y + (row_h - PACE_BAR_H) * 0.5)
+	_pace_bar.size = Vector2(bar_w, PACE_BAR_H)
+	var tick_y: float = (PACE_BAR_H - PACE_TICK_H) * 0.5
+	for i: int in 3:
+		var tick: ColorRect = _pace_bar.get_node("Tick%d" % i) as ColorRect
+		var along: float = 0.0 if i == 0 else (0.5 if i == 1 else 1.0)
+		tick.position = Vector2(roundf(along * bar_w) - 1.0, tick_y)
+		tick.size = Vector2(3, PACE_TICK_H)
+	_pace.position = Vector2(x + bar_w + 8.0, row_y)
+	_pace.size = Vector2(readout_w, row_h)
+	_refresh_pace()
+
+
 func _refresh_pace() -> void:
 	var pace: float = MinigameMath.pace_multiplier(_pace_seconds, _elapsed)
+	if _succ_count != null:
+		_succ_count.text = str(_successes)
+	if _pace == null or _pace_bar == null:
+		return
 	_pace.text = "×%.1f" % pace
+	var frac: float = clampf(pace / 3.0, 0.0, 1.0)
+	var fill_w: float = _pace_bar.size.x * frac
+	_pace_fill.position = Vector2.ZERO
+	_pace_fill.size = Vector2(fill_w, PACE_BAR_H)
+	_pace_fill.visible = fill_w >= 1.0
+	var file: String = "kit_pace_fill_gold.png" if pace >= 2.95 else "kit_pace_fill_good.png"
+	_pace_fill.texture = MinigameArt.texture(file)
 
 
 func _spawn_pop(k_seconds: float) -> void:
-	var pop := Label.new()
+	var previous: Node = _panel.get_node_or_null("PacePop")
+	if previous != null:
+		previous.queue_free()
+	var text: String = "+%.1fs" % k_seconds
+	var pop := Control.new()
 	pop.name = "PacePop"
-	pop.text = "+%.1fs" % k_seconds
-	pop.size = Vector2(220, 52)
-	pop.position = Vector2(MinigameCatalog.PLAY_SIZE.x * 0.5 - pop.size.x * 0.5, 28.0)
-	pop.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pop.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pop.z_index = 30
-	_style_readout(pop, GameTheme.TITLE_HERO_SIZE)
-	_play.add_child(pop)
+	pop.z_index = 40
+	var width: float = ceilf(_text_width(text)) + 18.0
+	var height: float = 22.0
+	pop.size = Vector2(width, height)
+	## Header parchment, under the readout row and above the play field.
+	var y: float = minf(HEADER_ROW_Y + HEADER_ROW_H + 2.0, _play.position.y - height - 2.0)
+	pop.position = Vector2(roundf((_panel.size.x - width) * 0.5), y)
+	var chip := ColorRect.new()
+	chip.name = "Chip"
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.color = POP_CHIP
+	chip.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pop.add_child(chip)
+	var edge := ColorRect.new()
+	edge.name = "Edge"
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	edge.color = Color8(90, 62, 40)
+	edge.position = Vector2.ZERO
+	edge.size = Vector2(width, 1)
+	pop.add_child(edge)
+	var label := Label.new()
+	label.name = "Value"
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	GameTheme.style_ink_label(label)
+	label.add_theme_color_override("font_outline_color", Color8(255, 248, 230))
+	label.add_theme_constant_override("outline_size", 3)
+	pop.add_child(label)
+	_panel.add_child(pop)
 	var tw: Tween = create_tween()
-	tw.tween_property(pop, "position:y", pop.position.y - 26.0, 0.55)
+	tw.tween_property(pop, "position:y", maxf(HEADER_ROW_Y + HEADER_ROW_H + 1.0, pop.position.y - 4.0), 0.55)
 	tw.parallel().tween_property(pop, "modulate:a", 0.0, 0.55)
 	tw.tween_callback(pop.queue_free)
 

@@ -173,8 +173,36 @@ func _grade_marks() -> int:
 		var atlas: AtlasTexture = plate.texture as AtlasTexture
 		plate_path = str(atlas.atlas.resource_path) if atlas.atlas != null else ""
 	failed += _check(plate_path.ends_with("win_ripe_catch_pc.png"), "the window uses the ripe catch win plate")
-	failed += _check(window.get_node_or_null("WinPlate/FeelTestCover") != null, "the baked feel-test line stays covered")
+	var blot: Control = window.get_node_or_null("WinPlate/FeelTestCover") as Control
+	failed += _check(blot != null, "the baked feel-test line stays covered")
+	failed += _check(blot != null and blot.anchor_left < 0.1 and blot.anchor_right > 0.9, "the old instruction line is covered across the footer")
+	var pace_lbl: Label = window.get_node_or_null("Pace") as Label
+	var bar: Control = window.get_node_or_null("PaceBar") as Control
+	var closer: Control = window.get_node_or_null("Close") as Control
+	failed += _check(pace_lbl != null and int(pace_lbl.get_theme_font_size(&"font_size")) == 19, "the pace readout is 19px")
+	failed += _check(window.get_node_or_null("Successes") != null and window.get_node_or_null("PaceWord") != null, "Successes and Pace are labeled")
+	var pip0: Control = window.get_node_or_null("GradePip0") as Control
+	failed += _check(pip0 != null and is_equal_approx(pip0.size.y, 19.0), "grade pips are 19px")
+	var ticks: int = 0
+	if bar != null:
+		for child: Node in bar.get_children():
+			if str(child.name).begins_with("Tick"):
+				var tick: Control = child as Control
+				ticks += 1
+				failed += _check(tick != null and tick.size.y > bar.size.y, "pace ticks stick out of the bar")
+	failed += _check(ticks == 3, "the pace bar has three ticks")
+	failed += _check(bar != null and pace_lbl != null and bar.position.x + bar.size.x <= pace_lbl.position.x - 4.0, "the pace readout clears the bar")
+	failed += _check(pace_lbl != null and closer != null and pace_lbl.position.x + pace_lbl.size.x <= closer.position.x - 4.0, "the pace readout clears the close button")
+	var vs: Vector2 = Ui540.viewport_size()
+	var shortcut_top: float = vs.y - Ui540.SAFE_MARGIN_PX - Ui540.TAP_MIN_PX
+	var window_ctl: Control = window as Control
+	var bottom: float = window_ctl.position.y + window_ctl.size.y if window_ctl != null else 9999.0
+	failed += _check(bottom <= shortcut_top - 4.0, "the window stays above the HUD buttons (bottom %.0f)" % bottom)
 	host.call("note_success", 3.0, 2.0)
+	var pop: Control = window.get_node_or_null("PacePop") as Control
+	var play: Control = window.get_node_or_null("Play") as Control
+	failed += _check(pop != null and pop.get_node_or_null("Chip") != null, "the +k pop sits on a parchment chip")
+	failed += _check(pop != null and play != null and pop.position.y + pop.size.y <= play.position.y + 1.0, "the +k pop stays above the play art")
 	host.call("note_miss")
 	host.call("note_success", 3.0, 1.0)
 	failed += _check(_pip_file(window, "GradePip0") == "pip_perfect.png", "a heavy success is a perfect pip")
@@ -256,7 +284,9 @@ func _summary() -> int:
 			game_visible = true
 	failed += _check(not game_visible, "the game itself is hidden under the summary")
 	failed += _check(not _tree_text_has(host, "Feel test"), "feel-test placeholder is gone")
-	failed += _check(not _tree_text_has(host, "Successes"), "baked successes list is not a second summary")
+	failed += _check(window.get_node_or_null("Successes") != null, "the header shows Successes")
+	var card_body: Label = summary.get_node_or_null("SummaryBody") as Label if summary != null else null
+	failed += _check(card_body == null or card_body.text.find("Successes") < 0, "the card does not repeat the header successes")
 	if summary != null:
 		var body: Label = summary.get_node_or_null("SummaryBody") as Label
 		failed += _check(body != null and body.text.begins_with("Bonus"), "summary text is the host bonus")
