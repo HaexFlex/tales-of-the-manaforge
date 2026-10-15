@@ -376,7 +376,10 @@ func _battle_view() -> int:
 	failed += _check(absf(csize.x - 540.0) < 0.5 and absf(csize.y - 90.0) < 0.5, "command band")
 	failed += _check(lsize.y >= 65.0 and lsize.y <= 90.0, "log band")
 	var psize: Vector2 = view.call("portrait_size")
-	failed += _check(absf(psize.x - 288.0) < 0.5, "portrait 288")
+	failed += _check(absf(psize.x - 256.0) < 0.5, "portrait 256")
+	failed += _check(bool(view.call("is_chamber_shown")), "entry opens the chamber")
+	failed += _check(not bool(view.call("is_flee_shown")), "chamber hides Flee")
+	view.call("begin_face_off")
 	failed += _check(bool(view.call("keeper_uses_idle_texture")), "keeper portrait")
 	failed += _check(bool(view.call("echo_uses_elaia_texture")), "elaia portrait")
 	failed += _check(bool(view.call("is_arrow_toggle_shown")), "hybrid toggle shown")
@@ -436,13 +439,24 @@ func _chamber_plate(view: Node) -> int:
 	else:
 		failed += _check(art != null and not art.visible, "chamber art hidden without a plate")
 	failed += _check(
-		keeper != null and keeper.position == Vector2(42, 86) and keeper.size == Vector2(288, 288),
+		keeper != null and keeper.position == Vector2(72, 94) and keeper.size == Vector2(256, 256),
 		"keeper portrait box"
 	)
 	failed += _check(
-		echo_portrait != null and echo_portrait.position == Vector2(630, 86) and echo_portrait.size == Vector2(288, 288),
+		echo_portrait != null and echo_portrait.position == Vector2(632, 94) and echo_portrait.size == Vector2(256, 256),
 		"elaia portrait box"
 	)
+	var plate_panel: Panel = view.get_node_or_null("EchoTitlePlate") as Panel
+	var chamber_panel: Panel = view.get_node_or_null("ChamberPanel") as Panel
+	failed += _check(plate_panel != null and EchoTheme.panel_ok(plate_panel.size), "title plate tiles at 40+8n")
+	failed += _check(chamber_panel != null and EchoTheme.panel_ok(chamber_panel.size), "chamber panel tiles at 40+8n")
+	failed += _check(plate_panel != null and is_equal_approx(plate_panel.self_modulate.a, EchoTheme.PANEL_ALPHA), "title plate opacity 0.88")
+	failed += _check(chamber_panel != null and is_equal_approx(chamber_panel.self_modulate.a, EchoTheme.PANEL_ALPHA), "chamber panel opacity 0.88")
+	failed += _check(EchoTheme.jersey_legible(19) and EchoTheme.jersey_legible(37), "Jersey 10 legible at 19 and 37")
+	failed += _check(is_equal_approx(EchoTheme.shift_for_width(1200.0), 120.0), "20:9 shifts the chamber +120")
+	failed += _check(EchoTheme.SPEECH_BOX.size == Vector2(432, 132), "speech box is 432x132")
+	failed += _check(EchoTheme.MENU_SLOTS.size() == 6 and EchoTheme.MENU_SLOTS[5] == "spare", "Spare is slot 6")
+	failed += _check(EchoTheme.SALVE_MAX == 2, "Heart Salve max is 2")
 	return failed
 
 

@@ -4,21 +4,21 @@ class_name EchoBattleView
 ## Separate battle surface. Keeper stands on idle v4 east frame 0; Elaia front right.
 ## Flavour text box sits between the portraits and above the battle log.
 
-const PORTRAIT: Vector2 = Vector2(288, 288)
-const KEEPER_PORTRAIT_POS: Vector2 = Vector2(42, 86)
-const ECHO_PORTRAIT_POS: Vector2 = Vector2(630, 86)
+const PORTRAIT: Vector2 = Vector2(EchoTheme.SPRITE, EchoTheme.SPRITE)
+const KEEPER_PORTRAIT_POS: Vector2 = Vector2(EchoTheme.KEEPER_CX - EchoTheme.SPRITE * 0.5, EchoTheme.SPRITE_Y)
+const ECHO_PORTRAIT_POS: Vector2 = Vector2(EchoTheme.ECHO_CX - EchoTheme.SPRITE * 0.5, EchoTheme.SPRITE_Y)
 const COMMAND_SIZE: Vector2 = Vector2(540, 90)
 const LOG_SIZE: Vector2 = Vector2(780, 75)
 const LOG_BG_POS: Vector2 = Vector2(90, 375)
 const SPEECH_POS: Vector2 = Vector2(342, 192)
 const SPEECH_SIZE: Vector2 = Vector2(276, 75)
-const CHAMBER_CROP: Rect2 = Rect2(160, 90, 960, 540)
+const CHAMBER_CROP: Rect2 = EchoTheme.CROP_16
 const KEEPER_IDLE: String = "res://assets/art/echo/battle_keeper_idle_e.png"
 const ELAIA_IDLE: String = "res://assets/art/echo/battle_elaia_idle_w.png"
 const ELAIA_KEY: String = "res://assets/art/echo/battle_elaia_key_w.png"
 const ELAIA_FRONT: String = ELAIA_IDLE
 ## Opaque 1280×720 plate (centre-cropped to 960×540). Background + Ground stay underneath until this file exists.
-const CHAMBER_BG: String = "res://assets/art/echo/echo_chamber_bg.png"
+const CHAMBER_BG: String = EchoTheme.PLATE
 
 var _battle: EchoBattle
 @onready var _bg: ColorRect = $Background
@@ -42,6 +42,13 @@ var _battle: EchoBattle
 @onready var _spare: Button = $SpareButton
 @onready var _return_btn: Button = $ReturnButton
 @onready var _arrow: Button = $ArrowToggle
+var _phase: String = "chamber"
+var _chamber_panel: Panel = null
+var _leave_btn: Button = null
+var _face_btn: Button = null
+var _close_btn: Button = null
+var _title_plate: Panel = null
+var _echo_ghost: TextureRect = null
 var _mercy_shown: bool = false
 var _waiting_return: bool = false
 var _pending_outcome: String = ""
@@ -62,7 +69,8 @@ func _ready() -> void:
 	_apply_540_layout()
 	_apply_portraits()
 	_raise_names()
-	_lighten_panels()
+	_build_chamber_chrome()
+	_hide_legacy_frames()
 	if Engine.is_editor_hint():
 		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -110,6 +118,7 @@ func _apply_elaia_portrait() -> void:
 		_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_place_echo_ghost()
 		return
 	var path: String = ELAIA_KEY if _elaia_holds_key() else ELAIA_IDLE
 	var tex: Texture2D = load(path) as Texture2D
@@ -118,15 +127,23 @@ func _apply_elaia_portrait() -> void:
 	_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_place_echo_ghost()
 
 
 func _raise_names() -> void:
-	for node_name: String in ["KeeperName", "EchoName"]:
-		var lbl: Label = get_node_or_null(node_name) as Label
-		if lbl == null:
-			continue
-		lbl.offset_top = 70.0
-		lbl.offset_bottom = 90.0
+	var ox: float = EchoTheme.shift()
+	var keeper_name: Label = get_node_or_null("KeeperName") as Label
+	var echo_name: Label = get_node_or_null("EchoName") as Label
+	if keeper_name:
+		keeper_name.position = Vector2(ox + EchoTheme.KEEPER_CX - 80.0, 90)
+		keeper_name.size = Vector2(160, 22)
+		keeper_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		EchoTheme.style_body(keeper_name, false)
+	if echo_name:
+		echo_name.position = Vector2(ox + EchoTheme.ECHO_CX - 90.0, 90)
+		echo_name.size = Vector2(180, 22)
+		echo_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		EchoTheme.style_title(echo_name, false)
 
 
 func _lighten_panels() -> void:
@@ -144,29 +161,211 @@ func _lighten_panels() -> void:
 
 
 func _apply_540_layout() -> void:
+	var ox: float = EchoTheme.shift()
 	if _keeper_portrait:
-		_keeper_portrait.position = KEEPER_PORTRAIT_POS
+		_keeper_portrait.position = KEEPER_PORTRAIT_POS + Vector2(ox, 0)
 		_keeper_portrait.size = PORTRAIT
 	if _echo_portrait:
-		_echo_portrait.position = ECHO_PORTRAIT_POS
+		_echo_portrait.position = ECHO_PORTRAIT_POS + Vector2(ox, 0)
 		_echo_portrait.size = PORTRAIT
+	_place_echo_ghost()
+	_place_ripples()
 	if _speech_bg:
-		_speech_bg.position = SPEECH_POS
+		_speech_bg.position = SPEECH_POS + Vector2(ox, 0)
 		_speech_bg.size = SPEECH_SIZE
 	if _speech:
-		_speech.position = SPEECH_POS + Vector2(8, 4)
+		_speech.position = SPEECH_POS + Vector2(ox + 8, 4)
 		_speech.size = SPEECH_SIZE - Vector2(16, 8)
 	if _command_band:
-		var band_x: float = (960.0 - COMMAND_SIZE.x) * 0.5
+		var band_x: float = ox + (960.0 - COMMAND_SIZE.x) * 0.5
 		_command_band.position = Vector2(band_x, 450.0)
 		_command_band.size = COMMAND_SIZE
 	var log_bg: ColorRect = get_node_or_null("LogBg") as ColorRect
 	if log_bg:
-		log_bg.position = LOG_BG_POS
+		log_bg.position = LOG_BG_POS + Vector2(ox, 0)
 		log_bg.size = LOG_SIZE
 	if _log:
-		_log.position = LOG_BG_POS + Vector2(12, 20)
+		_log.position = LOG_BG_POS + Vector2(ox + 12, 20)
 		_log.size = LOG_SIZE - Vector2(24, 28)
+
+
+func _hide_legacy_frames() -> void:
+	for node_name: String in ["KeeperPortraitFrame", "EchoPortraitFrame", "Title"]:
+		var node: CanvasItem = get_node_or_null(node_name) as CanvasItem
+		if node:
+			node.visible = false
+
+
+func _place_echo_ghost() -> void:
+	if _echo_portrait == null:
+		return
+	if _echo_ghost == null:
+		_echo_ghost = TextureRect.new()
+		_echo_ghost.name = "EchoGhost"
+		_echo_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_echo_ghost.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_echo_ghost.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_echo_ghost.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_echo_ghost.modulate = Color(1, 1, 1, 0.25)
+		_echo_ghost.z_index = -1
+		add_child(_echo_ghost)
+	_echo_ghost.texture = _echo_portrait.texture
+	_echo_ghost.position = _echo_portrait.position + Vector2(4, -2)
+	_echo_ghost.size = _echo_portrait.size
+
+
+func _place_ripples() -> void:
+	var ox: float = EchoTheme.shift()
+	for who: String in ["Keeper", "Echo"]:
+		var cx: float = EchoTheme.KEEPER_CX if who == "Keeper" else EchoTheme.ECHO_CX
+		var node_name: String = who + "Ripple"
+		var ripple: TextureRect = get_node_or_null(node_name) as TextureRect
+		if ripple == null:
+			ripple = TextureRect.new()
+			ripple.name = node_name
+			ripple.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			ripple.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			ripple.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			ripple.texture = load(EchoTheme.ART + "fx_ripple_0_220x44.png")
+			add_child(ripple)
+			move_child(ripple, _chamber_art.get_index() + 1 if _chamber_art else 0)
+		ripple.position = Vector2(ox + cx - 110.0, EchoTheme.FEET_Y - 22.0)
+		ripple.size = Vector2(220, 44)
+
+
+func _build_chamber_chrome() -> void:
+	var ox: float = EchoTheme.shift()
+	var title_font: Font = EchoTheme.jersey_font(EchoTheme.TITLE_SIZE)
+	var title_text: String = "Echo Chamber"
+	var text_w: float = title_font.get_string_size(title_text, HORIZONTAL_ALIGNMENT_LEFT, -1, EchoTheme.TITLE_SIZE).x
+	var plate_w: float = EchoTheme.snap_panel(text_w + 56.0)
+	var plate_h: float = EchoTheme.snap_panel(50.0)
+	_title_plate = Panel.new()
+	_title_plate.name = "EchoTitlePlate"
+	_title_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_plate.position = Vector2(ox + (EchoTheme.DESIGN_W - plate_w) * 0.5, 26)
+	_title_plate.size = Vector2(plate_w, plate_h)
+	EchoTheme.paint_panel(_title_plate, true)
+	add_child(_title_plate)
+	var title := Label.new()
+	title.name = "EchoTitle"
+	title.text = title_text
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.position = Vector2.ZERO
+	title.size = _title_plate.size
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_title(title, true)
+	_title_plate.add_child(title)
+	_close_btn = Button.new()
+	_close_btn.name = "EchoClose"
+	_close_btn.focus_mode = Control.FOCUS_ALL
+	var close_box: Rect2 = EchoTheme.at(EchoTheme.CLOSE_BTN)
+	_close_btn.position = close_box.position
+	_close_btn.size = close_box.size
+	_close_btn.custom_minimum_size = close_box.size
+	EchoTheme.paint_button(_close_btn, true)
+	var x_icon := TextureRect.new()
+	x_icon.texture = load(EchoTheme.ART + "icon_close_x_24.png")
+	x_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	x_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	x_icon.position = Vector2(10, 10)
+	x_icon.size = Vector2(24, 24)
+	_close_btn.add_child(x_icon)
+	_close_btn.pressed.connect(_on_chamber_leave)
+	add_child(_close_btn)
+	var panel_box: Rect2 = EchoTheme.at(EchoTheme.CHAMBER_PANEL)
+	_chamber_panel = Panel.new()
+	_chamber_panel.name = "ChamberPanel"
+	_chamber_panel.position = panel_box.position
+	_chamber_panel.size = panel_box.size
+	EchoTheme.paint_panel(_chamber_panel, false)
+	add_child(_chamber_panel)
+	var fee := Label.new()
+	fee.name = "ChamberFee"
+	fee.text = "Fee paid · saving is off inside"
+	fee.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fee.position = Vector2(16, 8)
+	fee.size = Vector2(panel_box.size.x - 32.0, 22)
+	fee.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(fee, true)
+	_chamber_panel.add_child(fee)
+	var leave_box: Rect2 = EchoTheme.at(EchoTheme.LEAVE_BTN)
+	_leave_btn = Button.new()
+	_leave_btn.name = "LeaveButton"
+	_leave_btn.text = "Leave"
+	_leave_btn.position = leave_box.position
+	_leave_btn.size = leave_box.size
+	_leave_btn.custom_minimum_size = leave_box.size
+	EchoTheme.paint_button(_leave_btn, false)
+	_leave_btn.pressed.connect(_on_chamber_leave)
+	add_child(_leave_btn)
+	var face_box: Rect2 = EchoTheme.at(EchoTheme.FACE_BTN)
+	_face_btn = Button.new()
+	_face_btn.name = "FaceButton"
+	_face_btn.text = "Face the Echo"
+	_face_btn.position = face_box.position
+	_face_btn.size = face_box.size
+	_face_btn.custom_minimum_size = face_box.size
+	EchoTheme.paint_button(_face_btn, true)
+	_face_btn.pressed.connect(begin_face_off)
+	add_child(_face_btn)
+
+
+func is_chamber_shown() -> bool:
+	return _phase == "chamber" and _chamber_panel != null and _chamber_panel.visible
+
+
+func begin_face_off() -> void:
+	_phase = "fight"
+	_show_fight_chrome()
+	_refresh_actions()
+
+
+func _on_chamber_leave() -> void:
+	## Leave confirm arrives with the later commit. Never flee from the title ×.
+	_phase = "leave"
+
+
+func _show_chamber_chrome() -> void:
+	if _chamber_panel:
+		_chamber_panel.visible = true
+	if _leave_btn:
+		_leave_btn.visible = true
+	if _face_btn:
+		_face_btn.visible = true
+	if _close_btn:
+		_close_btn.visible = true
+
+
+func _hide_chamber_chrome() -> void:
+	if _chamber_panel:
+		_chamber_panel.visible = false
+	if _leave_btn:
+		_leave_btn.visible = false
+	if _face_btn:
+		_face_btn.visible = false
+
+
+func _show_fight_chrome() -> void:
+	_hide_chamber_chrome()
+	if _command_band:
+		_command_band.visible = true
+
+
+func _hide_fight_chrome() -> void:
+	if _strike:
+		_strike.visible = false
+	if _flee:
+		_flee.visible = false
+	if _spare:
+		_spare.visible = false
+	if _arrow:
+		_arrow.visible = false
+	if _return_btn:
+		_return_btn.visible = false
+	if _command_band:
+		_command_band.visible = false
 
 
 func _apply_chamber_plate() -> void:
@@ -178,7 +377,8 @@ func _apply_chamber_plate() -> void:
 		if full != null:
 			var atlas := AtlasTexture.new()
 			atlas.atlas = full
-			atlas.region = CHAMBER_CROP
+			var wide: bool = Ui540.viewport_size().x >= 1100.0
+			atlas.region = EchoTheme.CROP_20 if wide else EchoTheme.CROP_16
 			plate = atlas
 	_chamber_art.texture = plate
 	_chamber_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -277,16 +477,16 @@ func speech_top() -> float:
 
 
 func speech_between_portraits() -> bool:
-	if _speech_bg == null or _speech == null or _log == null:
+	if _speech_bg == null or _speech == null or _log == null or _keeper_portrait == null or _echo_portrait == null:
 		return false
-	var gap_left: float = KEEPER_PORTRAIT_POS.x + PORTRAIT.x
-	var gap_right: float = ECHO_PORTRAIT_POS.x
+	var gap_left: float = _keeper_portrait.position.x + _keeper_portrait.size.x
+	var gap_right: float = _echo_portrait.position.x
 	var box_left: float = _speech_bg.position.x
 	var box_right: float = box_left + _speech_bg.size.x
 	var box_top: float = _speech_bg.position.y
 	var box_bottom: float = box_top + _speech_bg.size.y
-	var portrait_top: float = KEEPER_PORTRAIT_POS.y
-	var portrait_bottom: float = portrait_top + PORTRAIT.y
+	var portrait_top: float = _keeper_portrait.position.y
+	var portrait_bottom: float = portrait_top + _keeper_portrait.size.y
 	var in_gap: bool = box_left >= gap_left - 0.5 and box_right <= gap_right + 0.5
 	var in_band: bool = box_top >= portrait_top - 0.5 and box_bottom <= portrait_bottom + 0.5
 	var above_log: bool = _speech.position.y < _log.position.y and box_bottom <= _log.position.y + 0.5
@@ -332,10 +532,14 @@ func _bind() -> void:
 	_refresh_log()
 	_apply_elaia_portrait()
 	if _battle.spare_window and _battle.outcome == "":
+		_phase = "fight"
 		_show_mercy()
+		_show_fight_chrome()
 		_refresh_actions()
 		return
+	_phase = "chamber"
 	_show_opening()
+	_show_chamber_chrome()
 	_refresh_actions()
 
 
@@ -673,6 +877,10 @@ func _on_return() -> void:
 
 func _refresh_actions() -> void:
 	if _battle == null:
+		return
+	if _phase == "chamber":
+		_hide_fight_chrome()
+		_show_chamber_chrome()
 		return
 	var actions: PackedStringArray = _battle.available_actions()
 	_strike.visible = actions.has("strike")
