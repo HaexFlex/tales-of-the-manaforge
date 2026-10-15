@@ -469,21 +469,21 @@ func _layout_hud540() -> void:
 		_speed_button.position = Vector2(speed_x - tap - 4.0, safe)
 		_speed_button.size = Vector2(tap, tap)
 	var shortcut_y: float = vs.y - safe - tap
-	var show_nav: bool = _nav_button != null and _nav_button.visible
-	var shortcut_n: float = 4.0 if show_nav else 3.0
+	## Four fixed slots: forge switch, character, backpack, adventure board.
+	## A hidden slot stays empty so the forge switch and the board never trade places.
+	var shortcut_n: float = 4.0
 	var shortcut_x: float = vs.x - safe - shortcut_n * tap - (shortcut_n - 1.0) * 8.0 + shift
-	var slot: float = 0.0
-	if show_nav:
+	var step: float = tap + 8.0
+	if _nav_button != null:
 		_nav_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		_nav_button.position = Vector2(shortcut_x, shortcut_y)
 		_nav_button.size = Vector2(tap, tap)
-		slot = 1.0
-	character_button.position = Vector2(shortcut_x + slot * (tap + 8.0), shortcut_y)
+	character_button.position = Vector2(shortcut_x + step, shortcut_y)
 	character_button.size = Vector2(tap, tap)
-	backpack_button.position = Vector2(shortcut_x + (slot + 1.0) * (tap + 8.0), shortcut_y)
+	backpack_button.position = Vector2(shortcut_x + step * 2.0, shortcut_y)
 	backpack_button.size = Vector2(tap, tap)
 	if _board_button:
-		_board_button.position = Vector2(shortcut_x + (slot + 2.0) * (tap + 8.0), shortcut_y)
+		_board_button.position = Vector2(shortcut_x + step * 3.0, shortcut_y)
 		_board_button.size = Vector2(tap, tap)
 	_center_hud_icons()
 	_layout_party_bar_r4(vs, safe, shift)
@@ -595,6 +595,7 @@ func _ensure_board_button() -> void:
 	_board_icon.custom_minimum_size = Vector2(30, 30)
 	_board_icon.texture = load(HUD_BOARD_ICON) as Texture2D
 	_board_button.add_child(_board_icon)
+	_board_button.visible = false
 	panel.add_child(_board_button)
 	Ui540.style_wood_icon_button(_board_button)
 
@@ -2965,6 +2966,14 @@ func _refresh_nav_button() -> void:
 			_apply_nav_board_face(destination)
 	if was != show_nav:
 		_layout_hud540()
+	_refresh_board_button()
+
+
+func _refresh_board_button() -> void:
+	if _board_button == null:
+		return
+	## Adventuring unlocks with Bramble's Echo, the same gate as the north road.
+	_board_button.visible = GameState.echo_02_resolved
 
 
 func _on_nav_pressed() -> void:

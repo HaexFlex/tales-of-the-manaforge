@@ -9988,6 +9988,25 @@ func _expedition_board_tease(tree_root: Window, game_state: Node, save_service: 
 		seen.append(text)
 	game_state.status_message.connect(grab)
 	failed += _assert(not bool(game_state.get("echo_02_resolved")), "road starts shut")
+	var board_btn: Button = hud.get_node_or_null("Panel/BoardButton") as Button if hud else null
+	var nav_btn: Button = hud.get_node_or_null("Panel/HubForgeNav") as Button if hud else null
+	var char_btn: Button = hud.get_node_or_null("Panel/CharacterButton") as Button if hud else null
+	failed += _assert(board_btn != null and not board_btn.visible, "adventure board button waits until the road is open")
+	if board_btn != null and nav_btn != null and char_btn != null and hud != null:
+		var board_at: Vector2 = board_btn.position
+		var nav_at: Vector2 = nav_btn.position
+		game_state.set("forge_visited", true)
+		hud.call("_refresh_nav_button")
+		failed += _assert(nav_btn.visible, "forge switch shows once the forge has been visited")
+		failed += _assert(board_btn.position.distance_to(board_at) < 1.0, "the board button does not move when the forge switch appears")
+		failed += _assert(nav_btn.position.distance_to(nav_at) < 1.0, "the forge switch keeps its own slot")
+		failed += _assert(nav_btn.position.x + nav_btn.size.x <= char_btn.position.x and char_btn.position.x + char_btn.size.x <= board_btn.position.x, "the forge switch stays left of the board button")
+		game_state.set("echo_02_resolved", true)
+		hud.call("_refresh_nav_button")
+		failed += _assert(board_btn.visible and board_btn.position.distance_to(board_at) < 1.0, "the board button appears in its own slot once adventuring is unlocked")
+		game_state.set("echo_02_resolved", false)
+		game_state.set("forge_visited", false)
+		hud.call("_refresh_nav_button")
 	failed += _assert(str(wall.call("begin_entry")) == "tease" and seen.has(tease), "the wall teases with path_east_tease")
 	seen.clear()
 	# Right-click the board with the Keeper selected. The Keeper walks over and the tease shows.
