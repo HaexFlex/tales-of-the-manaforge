@@ -364,6 +364,11 @@ func _summary() -> int:
 			game_visible = true
 	failed += _check(not game_visible, "the game itself is hidden under the summary")
 	failed += _check(not _tree_text_has(host, "Feel test"), "feel-test placeholder is gone")
+	if summary != null:
+		var parchment: ColorRect = summary.get_node_or_null("Parchment") as ColorRect
+		var baked_feel := Rect2(160, 168, 150, 24)
+		var covered: bool = parchment != null and parchment.color.a > 0.99 and Rect2(parchment.position, parchment.size).encloses(baked_feel)
+		failed += _check(covered, "the results card covers its baked feel-test line")
 	failed += _check(window.get_node_or_null("Successes") != null, "the header shows Successes")
 	var footer: Label = window.get_node_or_null("Hint") as Label
 	failed += _check(footer != null and not footer.visible, "the window hint hides once Results is up")

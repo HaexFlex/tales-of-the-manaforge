@@ -215,7 +215,7 @@ func _build() -> void:
 	_summary.z_index = 20
 	_panel.add_child(_summary)
 	## card.png bakes an empty Successes/Misses list and "Feel test: no rewards."
-	## The parchment cover leaves one summary: the host's bonus, inside the frame.
+	## at about (168, 176). The parchment cover leaves one summary, inside the frame.
 	var cover := ColorRect.new()
 	cover.name = "Parchment"
 	cover.color = Color8(231, 212, 166)
