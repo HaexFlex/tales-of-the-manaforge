@@ -969,6 +969,7 @@ func _run() -> void:
 
 	if OS.get_environment("MANAFORGE_FORGE_ENTRY") == "1":
 		var entry_failed: int = await _forge_entry_one_click(tree_root, game_state, save_service)
+		entry_failed += await _forge_entry_after_elaia(tree_root, game_state, save_service)
 		if entry_failed > 0:
 			print("FORGE_ENTRY_ONE_CLICK_FAIL: %d" % entry_failed)
 			quit(1)
@@ -3785,6 +3786,7 @@ func _run() -> void:
 	failed += await _manatree_water_rmb_cancel(tree_root, game_state)
 	failed += await _craft_duration_labels(tree_root, game_state, backpack)
 	failed += await _forge_entry_one_click(tree_root, game_state, save_service)
+	failed += await _forge_entry_after_elaia(tree_root, game_state, save_service)
 	failed += await _batch_refund(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_offline(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_ascend_wipe(tree_root, game_state, save_service, backpack, content_strings)
@@ -8550,6 +8552,63 @@ func _forge_entry_one_click(tree_root: Window, game_state: Node, save_service: N
 	paused = false
 	if failed == 0:
 		print("FORGE_ENTRY_ONE_CLICK_OK")
+	return failed
+
+
+func _forge_entry_after_elaia(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Joining Elaia pulls the Keeper back to the clearing after the forge has already been visited.
+	## Enter Forge must still move him in. The corner switch stays a view change.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for entry after Elaia")
+	if jobs == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	change_scene_to_file(_HUB_SCENE)
+	var stable: String = await _await_stable_scene()
+	failed += _assert(stable == _HUB_SCENE, "elaia entry check starts in the clearing")
+	var live: Node = current_scene
+	if live == null:
+		return failed + 1
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	game_state.set("stage_id", &"elder")
+	game_state.emit_signal("stage_changed", &"elder")
+	game_state.set("forge_key", true)
+	game_state.set("forge_visited", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	game_state.set("elaia_footsteps_seen", true)
+	var stand: Vector2 = jobs.call("clearing_door_stand")
+	_place_actor(game_state, "keeper", "clearing", stand)
+	_place_actor(game_state, "elaia", "clearing", jobs.call("elaia_join_stand"))
+	game_state.call("select_keeper")
+	await process_frame
+	failed += _assert(bool(game_state.call("elaia_in_party")), "Elaia has joined before the re-entry")
+	var entered: String = str(hud.call("open_forge_entry")) if hud != null else ""
+	failed += _assert(entered == "entered", "Enter Forge after Elaia joins (got %s)" % entered)
+	var hopped: String = await _await_stable_scene()
+	failed += _assert(hopped == _FORGE_SCENE, "Enter Forge after Elaia opens the forge (scene %s)" % hopped)
+	failed += _assert(str(game_state.get("keeper_area")) == "forge", "the Keeper enters the forge after Elaia has joined")
+	var keeper_body: Node2D = get_first_node_in_group("keeper") as Node2D
+	var arch: Vector2 = jobs.call("forge_arch_spawn")
+	failed += _assert(keeper_body != null and keeper_body.visible and keeper_body.global_position.distance_to(arch) <= 24.0, "the Keeper is at the forge door after Elaia has joined")
+	failed += _assert(str(game_state.get("elaia_area")) == "clearing", "Elaia stays in the clearing when the Keeper enters")
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("FORGE_ENTRY_AFTER_ELAIA_OK")
 	return failed
 
 

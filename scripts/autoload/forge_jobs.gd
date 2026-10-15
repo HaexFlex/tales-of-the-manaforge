@@ -426,11 +426,18 @@ func try_enter_forge() -> String:
 
 
 func travel_to_forge() -> String:
-	## View switch. Walking through the door is what moves a character.
-	if not has_node("/root/GameState") or not GameState.forge_visited:
-		return try_enter_forge()
-	if GameState.is_world_frozen() or (has_node("/root/EchoChamber") and EchoChamber.in_battle):
+	## First entry, and any later entry while the Keeper is still outside, moves him in.
+	## The corner switch stays a view change; this is the Enter Forge button.
+	if has_node("/root/GameState") and GameState.is_world_frozen():
 		return "denied"
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return "denied"
+	var keeper_in: bool = has_node("/root/GameState") and GameState.keeper_area == "forge"
+	if not keeper_in:
+		if can_enter_forge():
+			return try_enter_forge()
+		if not has_node("/root/GameState") or not GameState.forge_visited:
+			return "denied"
 	switch_view(true)
 	return "entered"
 
