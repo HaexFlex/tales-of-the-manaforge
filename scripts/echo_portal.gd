@@ -212,10 +212,19 @@ func begin_entry() -> String:
 	var ctx: String = EchoChamber.hub_portal_context()
 	if ctx == "":
 		return "closed"
-	## Walking in always asks. The fee is still paid only once.
-	var already: bool = GameState.echo_02_fee_paid if ctx == "echo2" else GameState.portal_fee_paid
+	## A paid walk-in starts the encounter. The first visit still asks for the fee,
+	## and that fee is charged only inside confirm_fee.
+	if ctx == "echo2":
+		if GameState.echo_02_fee_paid:
+			_close_confirm()
+			EchoChamber.open_bramble(true)
+			return "enter"
+	elif GameState.portal_fee_paid:
+		_close_confirm()
+		EchoChamber.open_battle(true)
+		return "enter"
 	var fee: int = EchoChamber.BRAMBLE_FEE if ctx == "echo2" else EchoChamber.FEE
-	var can_pay: bool = already or GameState.essence >= fee
+	var can_pay: bool = GameState.essence >= fee
 	_open_confirm(can_pay)
 	if not can_pay:
 		GameAudio.play_ui_deny()

@@ -282,9 +282,12 @@ func begin_entry() -> String:
 	if not EchoChamber.bramble_gate_open():
 		GameState.status_message.emit(ContentStrings.get_text("path_east_tease"))
 		return "tease"
-	## Walking in always asks. The fee is still paid only once.
-	var already: bool = GameState.echo_02_fee_paid
-	var can_pay: bool = already or GameState.essence >= EchoChamber.BRAMBLE_FEE
+	## A paid walk-in starts the encounter. The first visit still asks for the fee.
+	if GameState.echo_02_fee_paid:
+		_close_confirm()
+		EchoChamber.open_bramble(true)
+		return "enter"
+	var can_pay: bool = GameState.essence >= EchoChamber.BRAMBLE_FEE
 	_open_confirm(can_pay)
 	if not can_pay:
 		GameAudio.play_ui_deny()
