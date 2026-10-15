@@ -399,6 +399,8 @@ func _battle_view() -> int:
 	var strike_btn: Control = view.get_node_or_null("EchoActionMenu/StrikeButton") as Control
 	failed += _check(locked_ability != null and locked_ability.disabled and locked_ability.modulate.r < 0.7, "Ability is dim while the speech locks the menu")
 	failed += _check(locked_salve != null and locked_salve.disabled and locked_salve.modulate.r < 0.7, "Salve is dim while the speech locks the menu")
+	var locked_spare: Button = view.get_node_or_null("EchoActionMenu/SpareButton") as Button
+	failed += _check(_hotkey_badge_dim(locked_ability) and _hotkey_badge_dim(locked_salve) and _hotkey_badge_dim(locked_spare), "locked Ability, Salve, and Spare dim their hotkey badges")
 	var strike_font: Font = strike_btn.get_theme_font("font") if strike_btn is Button else null
 	var strike_px: int = (strike_btn as Button).get_theme_font_size("font_size") if strike_btn is Button else 19
 	var strike_word: float = strike_font.get_string_size(strike_btn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, strike_px).x if strike_font != null else 99.0
@@ -1686,6 +1688,16 @@ func _content_keys() -> int:
 	for key: String in shop:
 		failed += _check((forge as Dictionary).has(key) and str((forge as Dictionary)[key]) != key, key)
 	return failed
+
+
+func _hotkey_badge_dim(btn: Button) -> bool:
+	if btn == null or not btn.disabled:
+		return false
+	var cap: CanvasItem = btn.get_node_or_null("Keycap") as CanvasItem
+	var plate: CanvasItem = btn.get_node_or_null("KeycapPlate") as CanvasItem
+	if cap == null or plate == null:
+		return false
+	return cap.modulate.r < 0.7 and plate.modulate.r < 0.7 and cap.modulate.g < 0.75
 
 
 func _control_covers(window: Control, target: Control) -> bool:

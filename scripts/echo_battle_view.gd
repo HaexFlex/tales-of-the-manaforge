@@ -1619,13 +1619,13 @@ func _refresh_actions() -> void:
 	if _ability_btn:
 		_ability_btn.visible = true
 		_ability_btn.disabled = not BattleView.keeper_abilities_exist()
-		_ability_btn.modulate = Color(0.45, 0.55, 0.55, 1) if _ability_btn.disabled else Color.WHITE
+		_paint_slot_dim(_ability_btn, _ability_btn.disabled)
 		_ability_btn.text = "Ability"
 	if _salve_btn:
 		var left: int = _battle.salves_left()
 		_salve_btn.visible = true
 		_salve_btn.disabled = left <= 0 or not actions.has("salve") or _waiting_return
-		_salve_btn.modulate = Color(0.45, 0.55, 0.55, 1) if _salve_btn.disabled else Color.WHITE
+		_paint_slot_dim(_salve_btn, _salve_btn.disabled)
 		_salve_btn.text = "Salve %d" % left
 	_return_btn.visible = false
 	if _arrow:
@@ -1667,6 +1667,12 @@ func _paint_slot_dim(btn: Button, dim: bool) -> void:
 	if btn == null:
 		return
 	btn.modulate = Color(0.45, 0.55, 0.55, 1) if dim else Color.WHITE
+	## The badge art is brighter than the disabled face, so it needs its own dim.
+	var badge := Color(0.38, 0.42, 0.42, 1) if dim else Color.WHITE
+	for node_name: String in ["Keycap", "KeycapPlate"]:
+		var node: CanvasItem = btn.get_node_or_null(node_name) as CanvasItem
+		if node:
+			node.modulate = badge
 
 
 func _refresh_bars(flash: bool) -> void:
