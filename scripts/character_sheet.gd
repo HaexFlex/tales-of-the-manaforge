@@ -19,17 +19,18 @@ const PAD: float = 24.0
 const HEADER_H: float = 44.0
 const BODY_TOP: float = 86.0
 const BODY_H: float = 382.0
-const HOST_POS: Vector2 = Vector2(24, 86)
+## Clear of the 44 px portrait rail at x = 24, so the bust is not covered.
+const HOST_POS: Vector2 = Vector2(76, 86)
 const PORTRAIT_SIZE: Vector2 = Vector2(276, 382)
 const SPRITE_SIZE: Vector2 = Vector2(144, 351)
 const SPRITE_POS: Vector2 = Vector2(66, 15)
 const FIGURE_SCALE: float = 3.0
-const GEAR_X: float = 316.0
+const GEAR_X: float = 368.0
 const GEAR_W: float = 270.0
 const TABS_Y: float = 88.0
 const GEAR_ROW_H: float = 46.0
 const GEAR_ROW_PITCH: float = 50.0
-const STATS_X: float = 604.0
+const STATS_X: float = 656.0
 const DOLL_BG: Color = Color8(26, 36, 28)
 const STAT_RULE: Color = Color(0.243, 0.165, 0.094, 0.2)
 const BEVEL_PATH: String = "res://assets/ui/theme/play_bevel_9s_6x6.png"
@@ -523,10 +524,11 @@ func _build() -> void:
 	mid.add_child(_gear_tab_line)
 
 	var list_y: float = TABS_Y + 56.0
+	var column_h: float = BODY_H - 44.0
 	var scroll := ScrollContainer.new()
 	scroll.name = "GearScroll"
 	scroll.position = Vector2(0, list_y)
-	scroll.size = Vector2(GEAR_W, BODY_H - list_y)
+	scroll.size = Vector2(GEAR_W, column_h - list_y)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	scroll.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(BEVEL_PATH, Vector4i(2, 2, 2, 2), Vector4(2, 2, 2, 2)))
@@ -659,6 +661,7 @@ func _install_portrait_list(sheet: Control) -> void:
 	## Below the subtitle line (header ends at PAD + HEADER_H). The gear column starts under the tabs.
 	pages.position = Vector2(GEAR_X, PAD + HEADER_H + 16.0)
 	pages.add_theme_constant_override("separation", 8)
+	pages.visible = false
 	sheet.add_child(pages)
 	for spec: Array in [["PageGear", "Gear", "gear"], ["PageStats", "Stats", "stats"]]:
 		var tab := Button.new()
@@ -816,14 +819,14 @@ func _apply_sheet_page() -> void:
 		return
 	var gear: CanvasItem = sheet.get_node_or_null("GearColumn") as CanvasItem
 	var stats: CanvasItem = sheet.get_node_or_null("Stats") as CanvasItem
+	## Gear and stats stay on the sheet together. The old switch hid one of them.
 	if gear:
-		gear.visible = _sheet_page != "stats"
+		gear.visible = true
 	if stats:
-		stats.visible = _sheet_page == "stats"
-	for spec: Array in [["PageGear", "gear"], ["PageStats", "stats"]]:
-		var tab: BaseButton = sheet.get_node_or_null("SheetPages/%s" % str(spec[0])) as BaseButton
-		if tab:
-			tab.set_pressed_no_signal(_sheet_page == str(spec[1]))
+		stats.visible = true
+	var pages: CanvasItem = sheet.get_node_or_null("SheetPages") as CanvasItem
+	if pages:
+		pages.visible = false
 
 
 func _apply_actor_chrome() -> void:

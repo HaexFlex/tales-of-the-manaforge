@@ -3564,9 +3564,22 @@ func _run() -> void:
 		failed += _assert(head_square != null and head_cap != null and head_cap.position.y >= head_square.position.y + head_square.size.y - 0.5, "head Locked sits under the square")
 		var hotkey_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/HotkeyHint") as Label
 		failed += _assert(hotkey_lbl != null and str(hotkey_lbl.text) == "C — Character", "sheet hotkey hint")
-		var sheet_hint: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Hint") as Control
 		var sheet_pages: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/SheetPages") as Control
-		failed += _assert(sheet_hint != null and sheet_pages != null and sheet_pages.position.y >= sheet_hint.position.y + sheet_hint.size.y - 1.0, "Gear/Stats tabs sit below the subtitle")
+		var sheet_root: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet") as Control
+		var portrait_host: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost") as Control
+		var portrait_rail: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitRail") as Control
+		var gear_column: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn") as Control
+		var stats_column: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats") as Control
+		var gear_scroll: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearScroll") as Control
+		var layout_at: int = failed
+		failed += _assert(sheet_pages != null and not sheet_pages.visible, "the Gear/Stats switch is gone")
+		failed += _assert(gear_column != null and gear_column.visible and stats_column != null and stats_column.visible, "gear and stats both stay on the sheet")
+		failed += _assert(portrait_host != null and portrait_rail != null and portrait_host.position.x >= portrait_rail.position.x + 44.0, "the portrait rail does not cover the gear picture")
+		failed += _assert(gear_column != null and portrait_host != null and gear_column.position.x >= portrait_host.position.x + portrait_host.size.x, "the gear list sits to the right of the picture")
+		failed += _assert(stats_column != null and stats_column.size.x <= 240.0, "the stats column is narrowed")
+		failed += _assert(sheet_root != null and gear_column != null and gear_scroll != null and gear_column.position.y + gear_scroll.position.y + gear_scroll.size.y <= sheet_root.size.y + 0.5, "the gear scroll fits the sheet window")
+		if failed == layout_at:
+			print("CHAR_SHEET_LAYOUT_OK")
 		failed += _assert(char_btn != null and str(char_btn.tooltip_text) == "C — Character", "HUD hotkey hint")
 		var gear_title_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearTitle") as Label
 		failed += _assert(gear_title_lbl != null and str(gear_title_lbl.text) == "Gear", "gear column title")
