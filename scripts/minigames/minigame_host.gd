@@ -292,6 +292,9 @@ func _make_pips(parent: Node, origin: Vector2, pip_px: float, step: float) -> Ar
 	return out
 
 
+## Win plates are the window backdrop for the whole session (package README:
+## full-size window plates). The result state is the card, not a second plate.
+## The package has no win_hot_spots art, so Hot Spots keeps Forge Glow's plate.
 func _apply_win_plate(game_id: String) -> void:
 	if _win_plate == null:
 		return

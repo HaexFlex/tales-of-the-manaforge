@@ -291,7 +291,8 @@ func _grade_marks() -> int:
 	if hot_plate != null and hot_plate.texture is AtlasTexture:
 		var hot_atlas: AtlasTexture = hot_plate.texture as AtlasTexture
 		hot_path = str(hot_atlas.atlas.resource_path) if hot_atlas.atlas != null else ""
-	failed += _check(hot_path.ends_with("win_forge_glow_pc.png"), "Hot Spots uses the forge glow win plate")
+	failed += _check(not FileAccess.file_exists("res://assets/ui/minigames/win_hot_spots_pc.png"), "the package has no Hot Spots win plate to swap in")
+	failed += _check(hot_path.ends_with("win_forge_glow_pc.png"), "Hot Spots keeps the forge glow window plate")
 	host.call("close_immediate")
 	GameState.ancient_frozen = frozen
 	GameState.stage_id = stage
