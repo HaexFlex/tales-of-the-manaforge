@@ -45,7 +45,8 @@ const CHAMBER_PANEL: Rect2 = Rect2(216, 400, 528, 104)
 const LEAVE_BTN: Rect2 = Rect2(236, 440, 168, 44)
 const FACE_BTN: Rect2 = Rect2(444, 436, 280, 52)
 const CLOSE_BTN: Rect2 = Rect2(892, 26, 44, 44)
-const ATTEMPT_CHIP: Rect2 = Rect2(28, 28, 132, 44)
+## Top-left status chip. Kept clear of the centred title plate.
+const ATTEMPT_CHIP: Rect2 = Rect2(12, 12, 132, 44)
 const KEEPER_CX: float = 200.0
 const ECHO_CX: float = 760.0
 const FEET_Y: float = 340.0

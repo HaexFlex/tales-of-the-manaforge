@@ -434,6 +434,12 @@ func _battle_view() -> int:
 	echo.set("reentry", false)
 	view.call("_refresh_status_chip")
 	failed += _check(later_fight != null and later_fight.text == "Round 1", "clearing reentry restores the round chip")
+	var status_chip: Control = view.get_node_or_null("EchoStatusChip") as Control
+	var live_plate: Control = view.get_node_or_null("EchoTitlePlate") as Control
+	var chip_gap: float = 0.0
+	if status_chip != null and live_plate != null:
+		chip_gap = live_plate.position.x - (status_chip.position.x + status_chip.size.x)
+	failed += _check(status_chip != null and live_plate != null and chip_gap >= 24.0 and not status_chip.get_rect().intersects(live_plate.get_rect()), "Round chip clears the title plank (gap %s)" % chip_gap)
 	failed += _check(str(view.call("log_text")).find("Your turn") >= 0, "battle log shows a line")
 	view.call("_set_speech", "Your turn")
 	var short_speech: Vector2 = view.call("speech_band_size")
