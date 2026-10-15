@@ -109,10 +109,11 @@ func _seat_chrome() -> void:
 		return
 	var strip_y: float = play.position.y
 	var next_y: float = strip_y + 48.0
-	var budget: float = window.size.y - next_y - 34.0
-	var fitted: float = clampf(budget / maxf(size.y, 1.0), 0.5, maxf(play.scale.x, 0.5))
+	var content_bottom: float = play.position.y + play.size.y * play.scale.y
+	var budget: float = content_bottom - next_y
+	var fitted_y: float = clampf(budget / maxf(size.y, 1.0), 0.5, play.scale.y)
 	play.position.y = next_y
-	play.scale = Vector2(fitted, fitted)
+	play.scale = Vector2(play.scale.x, fitted_y)
 	_park_chrome(_tune_btn, window, Vector2(play.position.x, strip_y))
 	var volume := get_node_or_null("Volume") as Control
 	_park_chrome(volume, window, Vector2(play.position.x + TUNE_RECT.size.x + 8.0, strip_y))

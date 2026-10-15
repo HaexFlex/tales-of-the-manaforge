@@ -104,6 +104,9 @@ func _woodsong_volume() -> int:
 		failed += _check(seated != null and tune != null, "music and volume sit on the window, not the play field")
 		failed += _check(play != null and seated != null and seated.position.y + seated.size.y <= play.position.y, "volume stays above the play field")
 		failed += _check(play != null and tune != null and tune.position.y + tune.size.y <= play.position.y, "Music On stays above the play field")
+		var window_ctl: Control = window as Control
+		var host_fit_x: float = window_ctl.size.x / MinigameCatalog.WINDOW_SIZE.x if window_ctl != null else 1.0
+		failed += _check(play != null and is_equal_approx(play.scale.x, host_fit_x), "woodsong keeps the play field full width")
 		host.call("close_immediate")
 	GameState.ancient_frozen = frozen
 	return failed
@@ -242,6 +245,14 @@ func _grade_marks() -> int:
 	var window_ctl: Control = window as Control
 	var bottom: float = window_ctl.position.y + window_ctl.size.y if window_ctl != null else 9999.0
 	failed += _check(bottom <= shortcut_top - 4.0, "the window stays above the HUD buttons (bottom %.0f)" % bottom)
+	var play_field: Control = window.get_node_or_null("Play") as Control
+	if play_field != null and window_ctl != null:
+		var fit := Vector2(window_ctl.size.x / MinigameCatalog.WINDOW_SIZE.x, window_ctl.size.y / MinigameCatalog.WINDOW_SIZE.y)
+		var visual := Rect2(play_field.position, play_field.size * play_field.scale)
+		var content := Rect2(MinigameCatalog.PLAY_ORIGIN * fit, MinigameCatalog.PLAY_SIZE * fit)
+		failed += _check(visual.position.distance_to(content.position) < 1.0 and visual.size.distance_to(content.size) < 1.0, "the play field fills the window content rect")
+		var right_gap: float = window_ctl.size.x - visual.end.x
+		failed += _check(right_gap < 40.0, "no empty strip on the right of the play field (%.0f px)" % right_gap)
 	host.call("note_success", 3.0, 2.0)
 	var pop: Control = window.get_node_or_null("PacePop") as Control
 	var play: Control = window.get_node_or_null("Play") as Control

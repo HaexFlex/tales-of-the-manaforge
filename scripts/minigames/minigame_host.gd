@@ -553,14 +553,13 @@ func _layout_window() -> void:
 	_panel.position = Vector2(roundf((vs.x - sz.x) * 0.5), roundf(top))
 	Ui540.place_close_button(_close, sz.x)
 	_layout_header()
-	var footer_h: float = 34.0
-	var budget: float = sz.y - MinigameCatalog.PLAY_ORIGIN.y - footer_h
-	var play_scale: float = 1.0
-	if budget < MinigameCatalog.PLAY_SIZE.y:
-		play_scale = maxf(0.5, budget / MinigameCatalog.PLAY_SIZE.y)
-	_play.position = MinigameCatalog.PLAY_ORIGIN
+	## The plate is stretched onto this window. The play field is the plate's
+	## content well, so it has to use the same stretch or a second frame and
+	## an empty strip show beside it.
+	var fit := Vector2(sz.x / MinigameCatalog.WINDOW_SIZE.x, sz.y / MinigameCatalog.WINDOW_SIZE.y)
+	_play.position = MinigameCatalog.PLAY_ORIGIN * fit
 	_play.size = MinigameCatalog.PLAY_SIZE
-	_play.scale = Vector2(play_scale, play_scale)
+	_play.scale = fit
 	_hint.position = Vector2(28, sz.y - 30.0)
 	_hint.size = Vector2(sz.x - 56.0, 22)
 	_summary.position = ((sz - Vector2(460, 308)) * 0.5).round()
