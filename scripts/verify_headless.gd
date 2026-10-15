@@ -2808,6 +2808,7 @@ func _run() -> void:
 		if list_node and list_node.get_child_count() > 0:
 			var row0: Control = list_node.get_child(0) as Control
 			failed += _assert(row0 != null and abs(row0.custom_minimum_size.y - 48.0) < 0.1, "row height 48")
+			failed += _assert(row0 != null and str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 			var described: int = 0
 			for child: Node in list_node.get_children():
 				if child is Control and str((child as Control).tooltip_text) != "":
@@ -2848,7 +2849,6 @@ func _run() -> void:
 			if list_node.get_node_or_null("party_banner") == null or (list_node.get_node_or_null("party_banner") as Node).is_queued_for_deletion():
 				print("KINDRED_BANNER_LOCK_OK")
 			failed += _assert((list_node.get_node_or_null("SummaryLocked") != null) == (locked_want > 0), "hidden locked blessings collapse into one summary row (%d hidden)" % locked_want)
-			failed += _assert(str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")
 		failed += _assert(not bool(w_post_ui.get("ok", true)), "water blocked after UI commit")
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub BGM stays on during ascension pause")
