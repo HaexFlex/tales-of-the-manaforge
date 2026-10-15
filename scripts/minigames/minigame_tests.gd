@@ -107,6 +107,13 @@ func _woodsong_volume() -> int:
 		var window_ctl: Control = window as Control
 		var host_fit_x: float = window_ctl.size.x / MinigameCatalog.WINDOW_SIZE.x if window_ctl != null else 1.0
 		failed += _check(play != null and is_equal_approx(play.scale.x, host_fit_x), "woodsong keeps the play field full width")
+		var foot: ColorRect = null
+		if play != null:
+			for child: Node in play.get_children():
+				if child is Minigame and str(child.call("game_id")) == "woodsong":
+					foot = child.get_node_or_null("PlayFoot") as ColorRect
+					break
+		failed += _check(foot != null and foot.size.y >= 4.0, "woodsong covers the bottom play seam")
 		host.call("close_immediate")
 	GameState.ancient_frozen = frozen
 	return failed
@@ -357,6 +364,7 @@ func _summary() -> int:
 	failed += _check(summaries.size() == 1, "one summary node, got %d" % summaries.size())
 	var summary: Control = summaries[0] as Control if summaries.size() == 1 else null
 	failed += _check(summary != null and summary.visible, "the host summary is showing")
+	failed += _check(window.get_node_or_null("PacePop") == null, "no +k chip stays visible once Results is up")
 	failed += _check(not play.visible, "play layer hides under the summary")
 	var game_visible: bool = false
 	for child: Node in play.get_children():

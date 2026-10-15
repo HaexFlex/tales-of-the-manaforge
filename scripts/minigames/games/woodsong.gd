@@ -64,8 +64,17 @@ func _ready() -> void:
 	add_child(plate)
 	_rail = MinigameArt.add_sprite(self, "beat_rail.png", RAIL_POS)
 	_rail.z_index = 6
-	_notch = MinigameArt.add_sprite(self, "beat_notch.png", Vector2(NOTCH_X, RAIL_POS.y))
+	_notch = MinigameArt.add_sprite(self, "beat_notch.png", Vector2(NOTCH_X, RAIL_POS.y - 2.0))
 	_notch.z_index = 8
+	## The stretched window plate can peek through the bottom clip as a cream seam.
+	var foot := ColorRect.new()
+	foot.name = "PlayFoot"
+	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	foot.color = Color8(106, 170, 46)
+	foot.position = Vector2(0, 316)
+	foot.size = Vector2(640, 6)
+	foot.z_index = 12
+	add_child(foot)
 	_tune_btn = TextureButton.new()
 	_tune_btn.name = "Tune"
 	_tune_btn.position = TUNE_RECT.position

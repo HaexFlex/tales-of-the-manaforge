@@ -620,10 +620,19 @@ func _refresh_pace() -> void:
 	_pace_fill.texture = MinigameArt.texture(file)
 
 
+func _clear_pace_pops() -> void:
+	if _panel == null:
+		return
+	for child: Node in _panel.get_children():
+		if child.name != "PacePop":
+			continue
+		if child is CanvasItem:
+			(child as CanvasItem).visible = false
+		child.free()
+
+
 func _spawn_pop(k_seconds: float) -> void:
-	var previous: Node = _panel.get_node_or_null("PacePop")
-	if previous != null:
-		previous.queue_free()
+	_clear_pace_pops()
 	var text: String = "+%.1fs" % k_seconds
 	var pop := Control.new()
 	pop.name = "PacePop"
@@ -675,6 +684,7 @@ func _spawn_pop(k_seconds: float) -> void:
 
 
 func _show_summary() -> void:
+	_clear_pace_pops()
 	if _game != null:
 		_game.shutdown()
 		_game.visible = false
