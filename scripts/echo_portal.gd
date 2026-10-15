@@ -456,7 +456,7 @@ func _paint_safe_focus() -> void:
 		return
 	_no.focus_mode = Control.FOCUS_ALL
 	var box := StyleBoxTexture.new()
-	box.texture = load("res://assets/ui/theme/focus_ring_9s_16x16.png") as Texture2D
+	box.texture = load("res://assets/ui/echo/ink_focus_ring_9s_16x16.png") as Texture2D
 	box.texture_margin_left = 5
 	box.texture_margin_top = 5
 	box.texture_margin_right = 5

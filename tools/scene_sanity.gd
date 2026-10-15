@@ -578,7 +578,7 @@ func _portal_fee_confirm() -> int:
 	failed += _check(panel != null and panel.position.y + panel.size.y <= toast_top - 12.0, "fee confirm stays clear of the toast")
 	var focus_box: StyleBox = no.get_theme_stylebox(&"focus") if no else null
 	var focus_tex: Texture2D = (focus_box as StyleBoxTexture).texture if focus_box is StyleBoxTexture else null
-	failed += _check(focus_tex != null and str(focus_tex.resource_path).find("focus_ring") >= 0, "Not now uses the cyan focus ring")
+	failed += _check(focus_tex != null and str(focus_tex.resource_path).find("ink_focus_ring") >= 0, "Not now uses the cyan focus ring")
 	await process_frame
 	failed += _check(no != null and no.has_focus(), "Not now holds focus")
 	portal.cancel_fee()
