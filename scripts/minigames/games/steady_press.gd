@@ -229,6 +229,8 @@ func _finish(ok: bool) -> void:
 	_has_ang = false
 	if ok:
 		succeed(_k)
+	else:
+		miss()
 
 
 func _reset_round() -> void:

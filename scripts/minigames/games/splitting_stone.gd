@@ -10,6 +10,7 @@ var _t: float = 0.0
 var _spots: Array[Sprite2D] = []
 var _resolved: Array[bool] = []
 var _hit: Array[bool] = []
+var _miss_from: int = 0
 
 
 func game_id() -> String:
@@ -39,7 +40,9 @@ func _process(delta: float) -> void:
 	if not playing:
 		return
 	_t += delta
+	_grade_passed()
 	if _t >= _cycle:
+		_grade_rest()
 		_t = 0.0
 		_reset_spots()
 	_paint()
@@ -76,6 +79,8 @@ func _strike(index: int) -> void:
 	_hit[lit] = index == lit
 	if _hit[lit]:
 		succeed(_k)
+	else:
+		miss()
 	_paint()
 
 
@@ -115,7 +120,27 @@ func _paint() -> void:
 			_spots[i].texture = tex
 
 
+func _grade_passed() -> void:
+	var lit: int = _lit_index()
+	if lit < 0:
+		return
+	while _miss_from < lit and _miss_from < _resolved.size():
+		if not _resolved[_miss_from]:
+			_resolved[_miss_from] = true
+			miss()
+		_miss_from += 1
+
+
+func _grade_rest() -> void:
+	for i: int in range(_miss_from, _resolved.size()):
+		if not _resolved[i]:
+			_resolved[i] = true
+			miss()
+	_miss_from = 0
+
+
 func _reset_spots() -> void:
+	_miss_from = 0
 	for i: int in _spots.size():
 		_resolved[i] = false
 		_hit[i] = false

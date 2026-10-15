@@ -54,8 +54,12 @@ func _process(delta: float) -> void:
 		return
 	_t += delta
 	if _t >= _round:
-		if _drawing and not _resolved:
-			_finish()
+		if not _resolved:
+			if _drawing:
+				_finish()
+			else:
+				_resolved = true
+				miss()
 		_t = 0.0
 		_shape_i += 1
 		_load_shape()
@@ -100,6 +104,8 @@ func _finish() -> void:
 	_resolved = true
 	if _accuracy() >= _need:
 		succeed(_k)
+	else:
+		miss()
 
 
 func _accuracy() -> float:

@@ -21,12 +21,20 @@ func shutdown() -> void:
 	playing = false
 
 
-func succeed(k_seconds: float) -> void:
+func succeed(k_seconds: float, weight: float = 1.0) -> void:
 	if not playing or k_seconds <= 0.0:
 		return
 	var host: Node = get_node_or_null("/root/MinigameHost")
 	if host != null and host.has_method("note_success"):
-		host.call("note_success", k_seconds)
+		host.call("note_success", k_seconds, weight)
+
+
+func miss() -> void:
+	if not playing:
+		return
+	var host: Node = get_node_or_null("/root/MinigameHost")
+	if host != null and host.has_method("note_miss"):
+		host.call("note_miss")
 
 
 func on_key(_event: InputEvent) -> void:

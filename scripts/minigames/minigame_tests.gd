@@ -37,6 +37,7 @@ func run_scenes() -> int:
 	failed += _woodsong_volume()
 	failed += _grain_shapes()
 	failed += _steeping_debug()
+	failed += _grade_marks()
 	failed += _check(MinigameCatalog.game_for("brewing") == "steeping", "steeping stays mapped to brewing")
 	failed += _check(not MinigameCatalog.is_reachable("steeping"), "steeping has no world station, so it stays unreachable")
 	failed += _summary()
@@ -141,6 +142,72 @@ func _steeping_debug() -> int:
 	host.call("close_immediate")
 	GameState.ancient_frozen = frozen
 	return failed
+
+
+func _grade_marks() -> int:
+	var failed: int = 0
+	var host: Node = Engine.get_main_loop().root.get_node_or_null("MinigameHost")
+	failed += _check(host != null, "grade check has the minigame host")
+	if host == null:
+		return failed
+	var frozen: bool = GameState.ancient_frozen
+	var stage: StringName = GameState.stage_id
+	var food: int = GameState.get_resource(&"food")
+	var accum: Dictionary = (GameState.harvest_accum as Dictionary).duplicate()
+	GameState.ancient_frozen = false
+	GameState.stage_id = &"sapling"
+	host.call("close_immediate")
+	var opened: bool = bool(host.call("open_game", "ripe_catch", "keeper", "food"))
+	failed += _check(opened, "grade check can open a game")
+	if not opened:
+		GameState.ancient_frozen = frozen
+		GameState.stage_id = stage
+		GameState.harvest_accum = accum
+		GameState.set_resource(&"food", food)
+		return failed
+	var window: Node = host.get_node_or_null("MinigameRoot/Window")
+	var plate: TextureRect = window.get_node_or_null("WinPlate") as TextureRect if window != null else null
+	var plate_path: String = ""
+	if plate != null and plate.texture is AtlasTexture:
+		var atlas: AtlasTexture = plate.texture as AtlasTexture
+		plate_path = str(atlas.atlas.resource_path) if atlas.atlas != null else ""
+	failed += _check(plate_path.ends_with("win_ripe_catch_pc.png"), "the window uses the ripe catch win plate")
+	failed += _check(window.get_node_or_null("WinPlate/FeelTestCover") != null, "the baked feel-test line stays covered")
+	host.call("note_success", 3.0, 2.0)
+	host.call("note_miss")
+	host.call("note_success", 3.0, 1.0)
+	failed += _check(_pip_file(window, "GradePip0") == "pip_perfect.png", "a heavy success is a perfect pip")
+	failed += _check(_pip_file(window, "GradePip1") == "pip_miss.png", "a miss is a grey pip")
+	failed += _check(_pip_file(window, "GradePip2") == "pip_good.png", "a normal success is a good pip")
+	failed += _check(_pip_file(window, "GradePip3") == "pip_empty.png", "unused grades stay empty")
+	var summary: Node = window.get_node_or_null("Summary") if window != null else null
+	failed += _check(summary != null and summary.get_node_or_null("PlayAgain") != null, "Play again is already on the card")
+	failed += _check(_pip_file(summary, "GradePip1") == "pip_miss.png", "the card shows the same grades")
+	failed += _check(host.find_child("StreakGlow", true, false) == null, "there is no streak glow to add")
+	host.call("close_immediate")
+	failed += _check(bool(host.call("open_game", "hot_spots", "keeper", "anvil")), "hot spots still opens")
+	var hot_plate: TextureRect = host.get_node_or_null("MinigameRoot/Window/WinPlate") as TextureRect
+	var hot_path: String = ""
+	if hot_plate != null and hot_plate.texture is AtlasTexture:
+		var hot_atlas: AtlasTexture = hot_plate.texture as AtlasTexture
+		hot_path = str(hot_atlas.atlas.resource_path) if hot_atlas.atlas != null else ""
+	failed += _check(hot_path.ends_with("win_forge_glow_pc.png"), "Hot Spots uses the forge glow win plate")
+	host.call("close_immediate")
+	GameState.ancient_frozen = frozen
+	GameState.stage_id = stage
+	GameState.harvest_accum = accum
+	GameState.set_resource(&"food", food)
+	return failed
+
+
+func _pip_file(parent: Node, node_name: String) -> String:
+	if parent == null:
+		return ""
+	var pip: TextureRect = parent.get_node_or_null(node_name) as TextureRect
+	if pip == null or pip.texture == null:
+		return ""
+	var path: String = str(pip.texture.resource_path)
+	return path.get_file()
 
 
 func _summary() -> int:

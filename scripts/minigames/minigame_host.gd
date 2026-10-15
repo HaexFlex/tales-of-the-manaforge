@@ -34,6 +34,10 @@ var _elapsed: float = 0.0
 var _pace_seconds: float = 0.0
 var _earned: float = 0.0
 var _successes: int = 0
+var _grades: Array[int] = []
+var _pips: Array[TextureRect] = []
+var _card_pips: Array[TextureRect] = []
+var _win_plate: TextureRect
 var _prompt_on: bool = false
 var _prompt_target: String = ""
 var _prompt_world: Vector2 = Vector2.ZERO
@@ -80,6 +84,27 @@ func _build() -> void:
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(_panel)
 	Ui540.apply_kit_panel(_panel, "minigame")
+	_win_plate = TextureRect.new()
+	_win_plate.name = "WinPlate"
+	_win_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_win_plate.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_win_plate.stretch_mode = TextureRect.STRETCH_SCALE
+	_win_plate.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_panel.add_child(_win_plate)
+	## The plate art still says "Feel test: no rewards." Cover that caption.
+	var blot := ColorRect.new()
+	blot.name = "FeelTestCover"
+	blot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	blot.color = Color8(231, 212, 166)
+	blot.anchor_left = 560.0 / 696.0
+	blot.anchor_top = 448.0 / 472.0
+	blot.anchor_right = 676.0 / 696.0
+	blot.anchor_bottom = 466.0 / 472.0
+	blot.offset_left = 0.0
+	blot.offset_top = 0.0
+	blot.offset_right = 0.0
+	blot.offset_bottom = 0.0
+	_win_plate.add_child(blot)
 
 	_title = Label.new()
 	_title.name = "Title"
@@ -107,6 +132,7 @@ func _build() -> void:
 	_pace.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_style_readout(_pace, GameTheme.TITLE_HERO_SIZE)
 	_panel.add_child(_pace)
+	_pips = _make_pips(_panel, Vector2(128, 34))
 
 	_hint = Label.new()
 	_hint.name = "Hint"
@@ -157,6 +183,63 @@ func _build() -> void:
 	_again.position = Vector2(SUMMARY_BTN_X + SUMMARY_BTN.x + SUMMARY_BTN_GAP, SUMMARY_BTN_Y)
 	_again.pressed.connect(_on_again)
 	_summary.add_child(_again)
+	_card_pips = _make_pips(_summary, Vector2(155, 196))
+
+
+func _make_pips(parent: Node, origin: Vector2) -> Array[TextureRect]:
+	var out: Array[TextureRect] = []
+	for i: int in 10:
+		var pip := TextureRect.new()
+		pip.name = "GradePip%d" % i
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pip.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pip.stretch_mode = TextureRect.STRETCH_KEEP
+		pip.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		pip.position = origin + Vector2(float(i) * 15.0, 0.0)
+		pip.size = Vector2(12, 12)
+		pip.z_index = 6
+		parent.add_child(pip)
+		out.append(pip)
+	return out
+
+
+func _apply_win_plate(game_id: String) -> void:
+	if _win_plate == null:
+		return
+	var art_id: String = "forge_glow" if game_id == "hot_spots" else game_id
+	var suffix: String = "ph" if Ui540.is_phone_export() else "pc"
+	var tex: Texture2D = MinigameArt.texture("win_%s_%s.png" % [art_id, suffix])
+	if tex == null:
+		_win_plate.texture = null
+		return
+	var atlas := AtlasTexture.new()
+	atlas.atlas = tex
+	atlas.region = Rect2(132, 44, 696, 472)
+	_win_plate.texture = atlas
+
+
+func _push_grade(grade: int) -> void:
+	_grades.append(clampi(grade, 0, 2))
+	while _grades.size() > 10:
+		_grades.remove_at(0)
+	_paint_grades()
+
+
+func _paint_grades() -> void:
+	for i: int in 10:
+		var grade: int = _grades[i] if i < _grades.size() else -1
+		var file: String = "pip_empty.png"
+		if grade == 0:
+			file = "pip_miss.png"
+		elif grade == 1:
+			file = "pip_good.png"
+		elif grade == 2:
+			file = "pip_perfect.png"
+		var tex: Texture2D = MinigameArt.texture(file)
+		if i < _pips.size() and _pips[i] != null:
+			_pips[i].texture = tex
+		if i < _card_pips.size() and _card_pips[i] != null:
+			_card_pips[i].texture = tex
 
 
 func _style_readout(lbl: Label, px: int) -> void:
@@ -242,7 +325,7 @@ func hero_for(target_id: String) -> String:
 	return ""
 
 
-func note_success(k_seconds: float) -> void:
+func note_success(k_seconds: float, weight: float = 1.0) -> void:
 	if not _open or _summary_up or k_seconds <= 0.0:
 		return
 	var result: Dictionary = MinigamePayout.grant(_worker, _game_id, _target_id, k_seconds)
@@ -251,8 +334,15 @@ func note_success(k_seconds: float) -> void:
 	_successes += 1
 	_pace_seconds += k_seconds
 	_earned += float(result.get("applied", k_seconds))
+	_push_grade(2 if weight > 1.0 else 1)
 	_refresh_pace()
 	_spawn_pop(k_seconds)
+
+
+func note_miss() -> void:
+	if not _open or _summary_up:
+		return
+	_push_grade(0)
 
 
 func is_open() -> bool:
@@ -316,7 +406,10 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 	_earned = 0.0
 	_successes = 0
 	_summary_up = false
+	_grades.clear()
 	_layout_window()
+	_apply_win_plate(game_id)
+	_paint_grades()
 	_title.text = MinigameCatalog.title(game_id)
 	Ui540.place_title_plank(_title, _panel.size.x)
 	_hint.text = MinigameCatalog.hint(game_id, Ui540.is_phone_export())
@@ -364,6 +457,9 @@ func _layout_window() -> void:
 	_hint.size = Vector2(sz.x - 56.0, 24)
 	_summary.position = ((sz - Vector2(460, 308)) * 0.5).round()
 	_summary.size = Vector2(460, 308)
+	if _win_plate != null:
+		_win_plate.position = Vector2.ZERO
+		_win_plate.size = sz
 
 
 func _refresh_pace() -> void:
@@ -497,6 +593,7 @@ func _keeper() -> Node2D:
 func _clear_game() -> void:
 	if _game != null and is_instance_valid(_game):
 		_game.shutdown()
+		_game.visible = false
 		_game.queue_free()
 	_game = null
 

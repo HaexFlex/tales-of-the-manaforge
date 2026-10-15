@@ -135,6 +135,7 @@ func _clear_live_spots() -> void:
 
 
 func _drop_miss(spot: Dictionary) -> void:
+	miss()
 	var spr: Sprite2D = spot.get("sprite") as Sprite2D
 	if spr != null and is_instance_valid(spr):
 		spr.queue_free()

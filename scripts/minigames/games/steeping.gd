@@ -194,6 +194,8 @@ func _end_round(ok: bool) -> void:
 	_drag_herb = -1
 	if ok:
 		succeed(_k)
+	else:
+		miss()
 	_paint()
 
 

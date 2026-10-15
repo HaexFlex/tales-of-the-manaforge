@@ -55,6 +55,7 @@ func _process(delta: float) -> void:
 	if _t >= _cycle:
 		if not _resolved:
 			_resolved = true
+			miss()
 		_t = 0.0
 		_fill = 0.0
 		_resolved = false
@@ -64,6 +65,7 @@ func _process(delta: float) -> void:
 		_fill = minf(1.0, _fill + delta / 1.65)
 		if _fill >= 1.0:
 			_resolved = true
+			miss()
 	if _resolved and _pour > 0.0:
 		_pour = maxf(0.0, _pour - delta)
 	_layout_gauge()
@@ -111,6 +113,7 @@ func _release() -> void:
 		_pour = 0.6
 	else:
 		_pour = 0.0
+		miss()
 
 
 func _layout_gauge() -> void:

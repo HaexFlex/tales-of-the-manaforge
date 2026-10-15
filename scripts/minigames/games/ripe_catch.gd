@@ -95,4 +95,6 @@ func _land(berry: Sprite2D) -> void:
 	var rotten: bool = bool(berry.get_meta("rotten", false))
 	if in_basket and not rotten:
 		succeed(_k)
+	else:
+		miss()
 	berry.queue_free()
