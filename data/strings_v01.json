@@ -543,6 +543,8 @@
   "portal_title": "Echo Chamber",
   "portal_prompt": "Step through?",
   "portal_hint": "A quiet threshold after Ascend. Pay Essence once to enter.",
+  "portal_fee_balance": "Essence ×{cost} · You have {have}",
+  "portal_fee_once": "Paid once per attempt. Re-entry is free after a Flee.",
   "portal_fee": "Essence ×{cost}",
   "portal_fee_default": "Essence ×30",
   "portal_confirm": "Spend {cost} Essence to enter the Echo Chamber?",

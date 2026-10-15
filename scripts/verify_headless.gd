@@ -4260,6 +4260,17 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var fee_note: Label = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Note") as Label
 		failed += _assert(fee_note != null and fee_note.visible and str(fee_note.text).find("Not enough Essence") >= 0, "amber can't-afford line")
 		failed += _assert(fee_note != null and fee_note.get_theme_color("font_color") == Ui540.WARNING_AMBER, "can't-afford uses kit amber")
+		var fee_body: Label = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Body") as Label
+		failed += _assert(fee_body != null and str(fee_body.text).find("You have") >= 0 and str(fee_body.text).find("Paid once") >= 0, "fee confirm names the balance and the once-only hint")
+		var fee_cap: TextureRect = no_btn.get_node_or_null("EscKeycap") as TextureRect if no_btn else null
+		failed += _assert(fee_cap != null and fee_cap.position.y + fee_cap.size.y <= 0.0, "Esc keycap sits above Not now")
+		if fee_panel:
+			var fee_view_h: float = fee_panel.get_viewport().get_visible_rect().size.y
+			var toast_top: float = fee_view_h - 24.0 - 44.0 - 8.0 - 32.0
+			failed += _assert(fee_panel.position.y + fee_panel.size.y <= toast_top - 12.0, "fee confirm stays clear of the toast")
+		var fee_focus: StyleBox = no_btn.get_theme_stylebox(&"focus") if no_btn else null
+		var fee_focus_tex: Texture2D = (fee_focus as StyleBoxTexture).texture if fee_focus is StyleBoxTexture else null
+		failed += _assert(fee_focus_tex != null and str(fee_focus_tex.resource_path).find("focus_ring") >= 0, "Not now uses the cyan focus ring")
 		if no_btn and fee_panel:
 			var panel_h: float = fee_panel.offset_bottom - fee_panel.offset_top
 			if panel_h < 1.0:

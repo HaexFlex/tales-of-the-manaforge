@@ -516,6 +516,17 @@ func _portal_fee_confirm() -> int:
 	failed += _check(panel != null and panel.get_node_or_null("Close") == null, "the fee confirm has no ×")
 	var cap: TextureRect = no.get_node_or_null("EscKeycap") as TextureRect if no else null
 	failed += _check(cap != null and cap.visible, "Esc keycap on Not now")
+	failed += _check(cap != null and cap.position.y + cap.size.y <= 0.0, "Esc keycap sits above Not now")
+	var fee_body: Label = root.get_node_or_null("EchoPortalConfirm/Panel/Body") as Label
+	failed += _check(fee_body != null and fee_body.text.find("You have") >= 0 and fee_body.text.find("Paid once") >= 0, "fee confirm names the balance and the once-only hint")
+	var fee_view_h: float = panel.get_viewport().get_visible_rect().size.y if panel else 540.0
+	var toast_top: float = fee_view_h - 24.0 - 44.0 - 8.0 - 32.0
+	failed += _check(panel != null and panel.position.y + panel.size.y <= toast_top - 12.0, "fee confirm stays clear of the toast")
+	var focus_box: StyleBox = no.get_theme_stylebox(&"focus") if no else null
+	var focus_tex: Texture2D = (focus_box as StyleBoxTexture).texture if focus_box is StyleBoxTexture else null
+	failed += _check(focus_tex != null and str(focus_tex.resource_path).find("focus_ring") >= 0, "Not now uses the cyan focus ring")
+	await process_frame
+	failed += _check(no != null and no.has_focus(), "Not now holds focus")
 	portal.cancel_fee()
 	failed += _check(not bool(portal.call("is_fee_confirm_open")), "Not now's cancel closes the fee UI")
 	portal.queue_free()

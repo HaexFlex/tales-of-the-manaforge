@@ -298,39 +298,29 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 
 
+func _fee_copy(cost: int) -> String:
+	return "%s\n%s\n%s" % [
+		ContentStrings.get_text("portal_confirm", {"cost": cost}),
+		ContentStrings.get_text("portal_fee_balance", {"cost": cost, "have": GameState.essence}),
+		ContentStrings.get_text("portal_fee_once"),
+	]
+
+
 func _fill_bramble_confirm(can_pay: bool) -> void:
-	## Same copy as the thorn wall's Bramble confirm.
+	## Same examine line as the thorn wall, then the shared fee copy.
 	var cost: int = EchoChamber.BRAMBLE_FEE
 	_title.text = ContentStrings.get_text("bramble_name")
-	_note.text = ""
-	if can_pay:
-		_body.text = "%s\n%s\n%s" % [
-			ContentStrings.get_text("echo_bramble_examine"),
-			ContentStrings.get_text("portal_confirm", {"cost": cost}),
-			ContentStrings.get_text("portal_fee", {"cost": cost}),
-		]
-		_yes.disabled = false
-	else:
-		_body.text = ContentStrings.get_text("echo_bramble_examine")
-		_note.text = ContentStrings.get_text("portal_cant_afford", {"cost": cost})
-		_yes.disabled = true
+	_body.text = "%s\n%s" % [ContentStrings.get_text("echo_bramble_examine"), _fee_copy(cost)]
+	_note.text = "" if can_pay else ContentStrings.get_text("portal_cant_afford", {"cost": cost})
+	_yes.disabled = not can_pay
 
 
 func _fill_elaia_confirm(can_pay: bool) -> void:
 	_title.text = ContentStrings.get_text("portal_title")
 	var cost: int = EchoChamber.FEE
-	_note.text = ""
-	if can_pay:
-		_body.text = "%s\n%s\n%s" % [
-			ContentStrings.get_text("portal_prompt"),
-			ContentStrings.get_text("portal_confirm", {"cost": cost}),
-			ContentStrings.get_text("portal_hint"),
-		]
-		_yes.disabled = false
-	else:
-		_body.text = ContentStrings.get_text("portal_confirm", {"cost": cost})
-		_note.text = ContentStrings.get_text("portal_cant_afford", {"cost": cost})
-		_yes.disabled = true
+	_body.text = _fee_copy(cost)
+	_note.text = "" if can_pay else ContentStrings.get_text("portal_cant_afford", {"cost": cost})
+	_yes.disabled = not can_pay
 
 
 func _close_confirm() -> void:
@@ -394,8 +384,11 @@ func _layout_confirm() -> void:
 	if _panel == null or not is_instance_valid(_panel):
 		return
 	Ui540.layout_confirm(_panel, _title, _body, _yes, _no, _note)
+	_make_room_for_keycap()
 	_place_fee_warn()
 	_place_esc_keycap()
+	_lift_clear_of_toast()
+	_paint_safe_focus()
 
 
 func _place_fee_warn() -> void:
@@ -412,6 +405,66 @@ func _place_fee_warn() -> void:
 	_warn.position = Vector2(text_left - 22.0, _note.position.y + 2.0)
 
 
+func _keycap_size() -> Vector2:
+	if _no == null:
+		return Vector2(28, 20)
+	var cap: TextureRect = _no.get_node_or_null("EscKeycap") as TextureRect
+	if cap != null and cap.texture != null:
+		return cap.texture.get_size()
+	return Vector2(28, 20)
+
+
+func _make_room_for_keycap() -> void:
+	## The keycap hangs above Not now. Push the buttons down until it clears the copy.
+	if _panel == null or _no == null or Ui540.is_phone_export():
+		return
+	var content_bottom: float = 0.0
+	for lbl: Label in [_body, _note]:
+		if lbl != null and lbl.visible:
+			content_bottom = maxf(content_bottom, lbl.position.y + lbl.size.y)
+	var cap_top: float = _no.position.y - _keycap_size().y - 2.0
+	if cap_top >= content_bottom + 4.0:
+		return
+	var shift: float = content_bottom + 4.0 - cap_top
+	if _yes:
+		_yes.position.y += shift
+	_no.position.y += shift
+	_panel.size.y += shift
+	_panel.custom_minimum_size.y = _panel.size.y
+	Ui540.center_kit_panel(_panel)
+
+
+func _lift_clear_of_toast() -> void:
+	## Boot toast sits at the bottom safe band. Keep the dialog a full gap above it.
+	if _panel == null:
+		return
+	var vs: Vector2 = Ui540.viewport_size()
+	var toast_top: float = vs.y - Ui540.SAFE_MARGIN_PX - Ui540.TAP_MIN_PX - 8.0 - 32.0
+	var limit: float = toast_top - 12.0
+	var bottom: float = _panel.position.y + _panel.size.y
+	if bottom <= limit:
+		return
+	var plank_floor: float = Ui540.SAFE_MARGIN_PX + Ui540.HUD_RESOURCE_BAND_H + 4.0 + Ui540.PLANK_RISE
+	_panel.position.y = maxf(plank_floor, limit - _panel.size.y)
+
+
+func _paint_safe_focus() -> void:
+	if _no == null:
+		return
+	_no.focus_mode = Control.FOCUS_ALL
+	var box := StyleBoxTexture.new()
+	box.texture = load("res://assets/ui/theme/focus_ring_9s_16x16.png") as Texture2D
+	box.texture_margin_left = 5
+	box.texture_margin_top = 5
+	box.texture_margin_right = 5
+	box.texture_margin_bottom = 5
+	box.expand_margin_left = 3
+	box.expand_margin_top = 3
+	box.expand_margin_right = 3
+	box.expand_margin_bottom = 3
+	_no.add_theme_stylebox_override(&"focus", box)
+
+
 func _place_esc_keycap() -> void:
 	if _no == null:
 		return
@@ -421,7 +474,7 @@ func _place_esc_keycap() -> void:
 	cap.visible = not Ui540.is_phone_export()
 	if cap.texture:
 		cap.size = cap.texture.get_size()
-	cap.position = Vector2(_no.size.x - cap.size.x - 8.0, -cap.size.y + 6.0)
+	cap.position = Vector2(_no.size.x - cap.size.x - 8.0, -cap.size.y - 2.0)
 
 
 func _rebind_confirm() -> void:
