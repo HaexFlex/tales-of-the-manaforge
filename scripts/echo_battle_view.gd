@@ -1391,6 +1391,12 @@ const ECHO_FLED_WARN: String = "res://assets/ui/extras/icon_warn_amber_kit_18x16
 
 func _show_fled_window() -> void:
 	_clear_fled_window()
+	## The chamber × and the ink log band sit outside this hub window.
+	if _close_btn:
+		_close_btn.visible = false
+	var menu: CanvasItem = get_node_or_null("EchoActionMenu") as CanvasItem
+	if menu:
+		menu.visible = false
 	var dim := ColorRect.new()
 	dim.name = "EchoFledDim"
 	dim.color = Color(0, 0, 0, 0.5)

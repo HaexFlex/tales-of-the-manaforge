@@ -478,11 +478,21 @@ func _battle_view() -> int:
 	view.call("_clear_rewards")
 	view.set("_waiting_return", false)
 	view.set("_pending_outcome", "")
+	var chamber_close_before: CanvasItem = view.get_node_or_null("EchoClose") as CanvasItem
+	var fled_menu_before: CanvasItem = view.get_node_or_null("EchoActionMenu") as CanvasItem
+	if chamber_close_before:
+		chamber_close_before.visible = true
+	if fled_menu_before:
+		fled_menu_before.visible = true
 	view.call("_offer_return", "flee")
 	var fled: Panel = view.get_node_or_null("EchoFledWindow") as Panel
 	var fled_box: StyleBox = fled.get_theme_stylebox("panel") if fled else null
 	var fled_tex: Texture2D = (fled_box as StyleBoxTexture).texture if fled_box is StyleBoxTexture else null
 	failed += _check(fled_tex != null and str(fled_tex.resource_path).find("frame_9s_96") >= 0, "Echo Fled stays on the hub frame")
+	var chamber_close: CanvasItem = view.get_node_or_null("EchoClose") as CanvasItem
+	var fled_menu: CanvasItem = view.get_node_or_null("EchoActionMenu") as CanvasItem
+	failed += _check(chamber_close == null or not chamber_close.visible, "fled window hides the chamber ×")
+	failed += _check(fled_menu == null or not fled_menu.visible, "fled window hides the battle log band")
 	failed += _chamber_plate(view)
 	view.queue_free()
 	echo.set("battle", null)
