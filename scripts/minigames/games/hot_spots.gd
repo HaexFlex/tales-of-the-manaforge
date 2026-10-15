@@ -94,7 +94,8 @@ func _build_switcher() -> void:
 		var station_id: String = SWITCH_IDS[i]
 		var button := TextureButton.new()
 		button.name = "Station_%s" % station_id
-		button.position = Vector2(12.0, 12.0 + float(i) * 52.0)
+		## Clear of the play-well bevel. The plate frame owns the left edge.
+		button.position = Vector2(36.0, 20.0 + float(i) * 52.0)
 		button.size = Vector2(112, 44)
 		button.custom_minimum_size = button.size
 		button.ignore_texture_size = true

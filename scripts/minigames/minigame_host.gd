@@ -20,6 +20,11 @@ const PIP_STEP: float = 22.0
 const PACE_BAR_H: float = 8.0
 const PACE_TICK_H: float = 16.0
 const PARCHMENT: Color = Color8(231, 212, 166)
+const BAR_TRACK: Color = Color8(52, 36, 24)
+## win_hot_spots bakes Forge Glow's pace track here (696×472 crop). No words.
+const PLATE_BAR := Rect2(438, 34, 132, 8)
+const PLATE_TEXT_INSET: float = 32.0
+const PLATE_FOOTER_BOTTOM: float = 446.0
 
 var _dim: ColorRect
 var _panel: Panel
@@ -309,11 +314,7 @@ func _make_pips(parent: Node, origin: Vector2, pip_px: float, step: float) -> Ar
 func _apply_win_plate(game_id: String) -> void:
 	if _win_plate == null:
 		return
-	var live_text: bool = MinigameCatalog.plate_draws_live_text(game_id)
-	if _plate_footer_cover != null:
-		_plate_footer_cover.visible = not live_text
-	if _plate_header_cover != null:
-		_plate_header_cover.visible = not live_text
+	_sync_plate_covers()
 	var suffix: String = "ph" if Ui540.is_phone_export() else "pc"
 	var tex: Texture2D = MinigameArt.texture("win_%s_%s.png" % [game_id, suffix])
 	if tex == null:
@@ -323,6 +324,20 @@ func _apply_win_plate(game_id: String) -> void:
 	atlas.atlas = tex
 	atlas.region = Rect2(132, 44, 696, 472)
 	_win_plate.texture = atlas
+
+
+## While Hot Spots is playing, the baked pace track stays and the footer is empty.
+## The summary covers that track, the same way the other plates hide theirs.
+func _sync_plate_covers() -> void:
+	var playing_hot: bool = _game_id == "hot_spots" and not _summary_up
+	if _plate_header_cover != null:
+		_plate_header_cover.visible = not playing_hot
+	if _plate_footer_cover != null:
+		_plate_footer_cover.visible = _game_id != "hot_spots"
+
+
+func _use_plate_bar() -> bool:
+	return _game_id == "hot_spots" and not _summary_up
 
 
 func _push_grade(grade: int) -> void:
@@ -530,9 +545,9 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 	_paint_grades()
 	_title.text = MinigameCatalog.title(game_id)
 	Ui540.place_title_plank(_title, _panel.size.x)
-	var live_text: bool = MinigameCatalog.plate_draws_live_text(game_id)
-	_flavour.text = MinigameCatalog.flavour(game_id)
-	_flavour.visible = live_text and _flavour.text != ""
+	if _flavour != null:
+		_flavour.text = MinigameCatalog.flavour(game_id)
+		_flavour.visible = false
 	_hint.text = MinigameCatalog.hint(game_id, Ui540.is_phone_export())
 	_hint.visible = true
 	_summary.visible = false
@@ -580,12 +595,15 @@ func _layout_window() -> void:
 	_play.position = MinigameCatalog.PLAY_ORIGIN * fit
 	_play.size = MinigameCatalog.PLAY_SIZE
 	_play.scale = fit
-	var footer_w: float = sz.x - 56.0
-	_hint.position = Vector2(28, sz.y - 30.0)
-	_hint.size = Vector2(footer_w, 22)
+	if _game_id == "hot_spots":
+		var hint_y: float = PLATE_FOOTER_BOTTOM * fit.y - HEADER_ROW_H
+		_hint.position = Vector2(PLATE_TEXT_INSET * fit.x, hint_y)
+		_hint.size = Vector2(sz.x - PLATE_TEXT_INSET * fit.x * 2.0, HEADER_ROW_H)
+	else:
+		_hint.position = Vector2(28, sz.y - 30.0)
+		_hint.size = Vector2(sz.x - 56.0, 22)
 	if _flavour != null:
-		_flavour.position = Vector2(28, sz.y - 54.0)
-		_flavour.size = Vector2(footer_w, 22)
+		_flavour.visible = false
 	_summary.position = ((sz - Vector2(460, 308)) * 0.5).round()
 	_summary.size = Vector2(460, 308)
 	if _win_plate != null:
@@ -597,7 +615,11 @@ func _layout_header() -> void:
 	var row_y: float = HEADER_ROW_Y
 	var row_h: float = HEADER_ROW_H
 	var gap: float = 6.0
-	var x: float = 16.0
+	var x: float = PLATE_TEXT_INSET if _game_id == "hot_spots" else 16.0
+	if _use_plate_bar():
+		_layout_plate_bar(x, row_h, gap)
+		return
+	_show_bar_track(true)
 	_fit_ink(_succ_word, x, row_y, row_h)
 	x += _succ_word.size.x + gap
 	_fit_ink(_succ_count, x, row_y, row_h)
@@ -624,6 +646,46 @@ func _layout_header() -> void:
 	_pace.position = Vector2(x + bar_w + 8.0, row_y)
 	_pace.size = Vector2(readout_w, row_h)
 	_refresh_pace()
+
+
+## Fill sits in the plate's track. The track and its ticks stay the plate's.
+func _layout_plate_bar(x: float, row_h: float, gap: float) -> void:
+	var fit := Vector2(
+		_panel.size.x / MinigameCatalog.WINDOW_SIZE.x,
+		_panel.size.y / MinigameCatalog.WINDOW_SIZE.y
+	)
+	var slot := Rect2(PLATE_BAR.position * fit, PLATE_BAR.size * fit)
+	var row_y: float = slot.position.y + (slot.size.y - row_h) * 0.5
+	_fit_ink(_succ_word, x, row_y, row_h)
+	x += _succ_word.size.x + gap
+	_fit_ink(_succ_count, x, row_y, row_h)
+	_succ_count.size.x = maxf(_succ_count.size.x, _text_width("99") + 2.0)
+	x += _succ_count.size.x + gap
+	var pip_y: float = row_y + (row_h - PIP_PX) * 0.5
+	for i: int in _pips.size():
+		_pips[i].position = Vector2(x + float(i) * PIP_STEP, pip_y)
+		_pips[i].size = Vector2(PIP_PX, PIP_PX)
+	_fit_ink(_pace_word, 0.0, row_y, row_h)
+	_pace_word.position.x = slot.position.x - _pace_word.size.x - gap
+	_show_bar_track(false)
+	_pace_bar.position = slot.position
+	_pace_bar.size = slot.size
+	var readout_w: float = maxf(_text_width("×3.0") + 4.0, 36.0)
+	var frame_right: float = _panel.size.x - PLATE_TEXT_INSET * fit.x
+	var readout_x: float = minf(slot.end.x + gap, minf(_close.position.x - 8.0, frame_right) - readout_w)
+	_pace.position = Vector2(readout_x, row_y)
+	_pace.size = Vector2(readout_w, row_h)
+	_refresh_pace()
+
+
+func _show_bar_track(drawn: bool) -> void:
+	if _pace_bar == null:
+		return
+	_pace_bar.color = BAR_TRACK if drawn else Color(0, 0, 0, 0)
+	for i: int in 3:
+		var tick: CanvasItem = _pace_bar.get_node_or_null("Tick%d" % i) as CanvasItem
+		if tick != null:
+			tick.visible = drawn
 
 
 func _refresh_pace() -> void:
@@ -712,6 +774,8 @@ func _show_summary() -> void:
 		_game.visible = false
 	_play.visible = false
 	_summary_up = true
+	_sync_plate_covers()
+	_layout_header()
 	_hint.visible = false
 	if _flavour != null:
 		_flavour.visible = false

@@ -53,7 +53,9 @@ func _hot_spots_switch() -> int:
 	var node: Node = (load("res://scenes/minigames/hot_spots.tscn") as PackedScene).instantiate()
 	Engine.get_main_loop().root.add_child(node)
 	for station_id: String in ["anvil", "crucible", "reliquary"]:
-		failed += _check(node.get_node_or_null("Station_%s" % station_id) != null, "hot spots switcher has %s" % station_id)
+		var station: Control = node.get_node_or_null("Station_%s" % station_id) as Control
+		failed += _check(station != null, "hot spots switcher has %s" % station_id)
+		failed += _check(station != null and station.position.x >= 24.0, "the %s switch sits inside the play well" % station_id)
 	node.call("_switch_station", "reliquary")
 	var plate: Sprite2D = node.get_node_or_null("Plate") as Sprite2D
 	var plate_path: String = str(plate.texture.resource_path) if plate != null and plate.texture != null else ""
@@ -300,19 +302,63 @@ func _grade_marks() -> int:
 		hot_path = str(hot_atlas.atlas.resource_path) if hot_atlas.atlas != null else ""
 	failed += _check(FileAccess.file_exists("res://assets/ui/minigames/win_hot_spots_pc.png"), "Hot Spots ships its own win plate")
 	failed += _check(hot_path.ends_with("win_hot_spots_pc.png"), "Hot Spots uses its win plate")
+	var hot_window: Control = host.get_node_or_null("MinigameRoot/Window") as Control
+	var hot_header: CanvasItem = hot_plate.get_node_or_null("HeaderCover") as CanvasItem if hot_plate != null else null
 	var hot_footer: CanvasItem = hot_plate.get_node_or_null("FeelTestCover") as CanvasItem if hot_plate != null else null
-	failed += _check(hot_footer != null and not hot_footer.visible, "Hot Spots leaves the footer open for live text")
-	var hot_window: Node = host.get_node_or_null("MinigameRoot/Window")
+	failed += _check(hot_header != null and not hot_header.visible, "Hot Spots uses the plate's pace track while playing")
+	failed += _check(hot_footer != null and not hot_footer.visible, "Hot Spots leaves the empty footer for one hint")
+	var hot_bar: ColorRect = hot_window.get_node_or_null("PaceBar") as ColorRect if hot_window != null else null
+	var hot_fit := Vector2(hot_window.size.x / MinigameCatalog.WINDOW_SIZE.x, hot_window.size.y / MinigameCatalog.WINDOW_SIZE.y) if hot_window != null else Vector2.ONE
+	var hot_slot := Rect2(Vector2(438, 34) * hot_fit, Vector2(132, 8) * hot_fit)
+	failed += _check(hot_bar != null and hot_bar.color.a < 0.01, "Hot Spots does not draw a second pace track")
+	failed += _check(hot_bar != null and hot_bar.get_node_or_null("Tick0") != null and not (hot_bar.get_node("Tick0") as CanvasItem).visible, "Hot Spots does not draw a second set of pace ticks")
+	failed += _check(hot_bar != null and hot_bar.position.distance_to(hot_slot.position) < 1.5 and hot_bar.size.distance_to(hot_slot.size) < 1.5, "the live fill sits in the plate's pace slot")
+	var hot_succ: Label = hot_window.get_node_or_null("Successes") as Label if hot_window != null else null
+	failed += _check(hot_succ != null and hot_succ.position.x >= 30.0, "Successes starts inside the frame")
 	var hot_flavour: Label = hot_window.get_node_or_null("Flavour") as Label if hot_window != null else null
-	failed += _check(
-		hot_flavour != null and hot_flavour.visible and hot_flavour.text == MinigameCatalog.flavour("hot_spots"),
-		"Hot Spots draws its flavour line at runtime"
-	)
+	var hot_hint: Label = hot_window.get_node_or_null("Hint") as Label if hot_window != null else null
+	failed += _check(hot_flavour == null or not hot_flavour.visible, "the flavour stays off the play footer")
+	failed += _check(hot_hint != null and hot_hint.visible and hot_hint.text != "", "one hint line sits in the footer")
+	failed += _plate_labels_inside(hot_window)
+	var hot_play: Control = hot_window.get_node_or_null("Play") as Control if hot_window != null else null
+	var station: Control = hot_play.find_child("Station_anvil", true, false) as Control if hot_play != null else null
+	if hot_play != null and station != null:
+		var station_at: Vector2 = hot_play.position + station.position * hot_play.scale
+		failed += _check(station_at.x >= hot_play.position.x + 24.0 * hot_play.scale.x, "the station switcher clears the plate's left edge")
+	var hot_close: BaseButton = hot_window.get_node_or_null("Close") as BaseButton if hot_window != null else null
+	if hot_close != null:
+		hot_close.pressed.emit()
+	var hot_play_after: CanvasItem = hot_window.get_node_or_null("Play") as CanvasItem if hot_window != null else null
+	failed += _check(hot_play_after != null and not hot_play_after.visible, "Hot Spots hides the play layer under Results")
+	failed += _check(hot_header != null and hot_header.visible, "Results covers the plate's pace track")
+	failed += _plate_labels_inside(hot_window)
 	host.call("close_immediate")
 	GameState.ancient_frozen = frozen
 	GameState.stage_id = stage
 	GameState.harvest_accum = accum
 	GameState.set_resource(&"food", food)
+	return failed
+
+
+## Inner parchment of the 696×472 plate, clear of the wooden frame.
+func _plate_labels_inside(window: Control) -> int:
+	var failed: int = 0
+	if window == null:
+		return _check(false, "label frame check has a window")
+	var fit := Vector2(window.size.x / MinigameCatalog.WINDOW_SIZE.x, window.size.y / MinigameCatalog.WINDOW_SIZE.y)
+	var inner := Rect2(Vector2(28, 16) * fit, Vector2(640, 430) * fit)
+	for child: Node in window.get_children():
+		var lbl: Label = child as Label
+		if lbl == null or not lbl.visible or str(lbl.name) == "Title":
+			continue
+		var rect := Rect2(lbl.position, lbl.size)
+		var inside: bool = (
+			rect.position.x >= inner.position.x - 1.0
+			and rect.position.y >= inner.position.y - 1.0
+			and rect.end.x <= inner.end.x + 1.0
+			and rect.end.y <= inner.end.y + 1.0
+		)
+		failed += _check(inside, "%s stays inside the plate frame (%s vs %s)" % [lbl.name, rect, inner])
 	return failed
 
 
