@@ -197,7 +197,12 @@ func _apply_540_layout() -> void:
 
 
 func _hide_legacy_frames() -> void:
-	for node_name: String in ["KeeperPortraitFrame", "EchoPortraitFrame", "Title"]:
+	for node_name: String in [
+		"KeeperPortraitFrame", "EchoPortraitFrame", "Title",
+		"LogBg", "LogTitle", "Log", "CommandBand",
+		"KeeperHpBack", "KeeperHpFill", "EchoHpBack", "EchoHpFill",
+		"KeeperHpText", "EchoHpText",
+	]:
 		var node: CanvasItem = get_node_or_null(node_name) as CanvasItem
 		if node:
 			node.visible = false

@@ -383,6 +383,14 @@ func _battle_view() -> int:
 	failed += _check(absf(psize.x - 256.0) < 0.5, "portrait 256")
 	failed += _check(bool(view.call("is_chamber_shown")), "entry opens the chamber")
 	failed += _check(not bool(view.call("is_flee_shown")), "chamber hides Flee")
+	var legacy_log: CanvasItem = view.get_node_or_null("LogBg") as CanvasItem
+	var legacy_hp: CanvasItem = view.get_node_or_null("KeeperHpBack") as CanvasItem
+	var legacy_title: CanvasItem = view.get_node_or_null("LogTitle") as CanvasItem
+	var legacy_band: CanvasItem = view.get_node_or_null("CommandBand") as CanvasItem
+	failed += _check(legacy_log == null or not legacy_log.visible, "chamber hides the battle log band")
+	failed += _check(legacy_hp == null or not legacy_hp.visible, "chamber hides the battle HP bars")
+	failed += _check(legacy_title == null or not legacy_title.visible, "chamber hides the Battle label")
+	failed += _check(legacy_band == null or not legacy_band.visible, "chamber card has no wider band behind it")
 	view.call("begin_face_off")
 	failed += _check(not bool(view.call("is_flee_shown")), "menu stays locked through the speech")
 	view.call("finish_speech")
