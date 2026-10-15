@@ -181,11 +181,12 @@ func _refresh() -> void:
 			stat_line,
 			ContentStrings.get_text("runestone_cost", {"cost": cost}),
 		]
-	label.visible = _hovered
+	## The papyrus names the stone. The floating line used to sit on the sprite.
+	label.visible = false
 
 
 func world_hover_name() -> String:
-	return ContentStrings.get_text("runestone_title")
+	return "%s %s" % [ContentStrings.get_text("runestone_title"), KeeperStats.stat_display_name(String(stat_id))]
 
 
 func _on_hover(inside: bool) -> void:

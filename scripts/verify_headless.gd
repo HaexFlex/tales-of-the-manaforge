@@ -6512,11 +6512,27 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	var host := Node2D.new()
 	tree_root.add_child(host)
 	WorldHover.present(host, str(strings.call("get_text", "hover_forge_door")))
-	var tip: PanelContainer = WorldHover.panel()
+	var tip: Panel = WorldHover.panel()
 	var tip_box: StyleBoxTexture = tip.get_theme_stylebox(&"panel") as StyleBoxTexture if tip != null else null
 	var tip_path: String = tip_box.texture.resource_path if tip_box != null and tip_box.texture != null else ""
 	failed += _assert(WorldHover.current_text() == "Forge Door", "world hover shows the forge door name (got %s)" % WorldHover.current_text())
 	failed += _assert(tip_path.find("toast_9s_40x30") >= 0, "world hover draws the papyrus scroll (got %s)" % tip_path)
+	var tip_label: Label = tip.get_node_or_null("Text") as Label if tip != null else null
+	if tip != null and tip_label != null and tip_box != null:
+		var text_rect := Rect2(tip_label.position, tip_label.size)
+		var content := Rect2(
+			tip_box.content_margin_left,
+			tip_box.content_margin_top,
+			tip.size.x - tip_box.content_margin_left - tip_box.content_margin_right,
+			tip.size.y - tip_box.content_margin_top - tip_box.content_margin_bottom
+		)
+		failed += _assert(content.encloses(text_rect), "world hover text sits inside the papyrus (text %s content %s)" % [str(text_rect), str(content)])
+	else:
+		failed += _assert(false, "world hover text sits inside the papyrus")
+	var rune: Node = (load("res://scripts/runestone.gd") as GDScript).new()
+	rune.set("stat_id", &"arcana")
+	failed += _assert(str(rune.call("world_hover_name")) == "Runestone Arcana", "runestone hover names the stat (got %s)" % str(rune.call("world_hover_name")))
+	rune.free()
 	WorldHover.dismiss(host)
 	failed += _assert(WorldHover.current_text() == "", "world hover hides when the pointer leaves")
 	var other := Node2D.new()
@@ -6535,6 +6551,8 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	station.free()
 	bench.free()
 	prop.free()
+	if failed == 0:
+		print("WORLD_HOVER_PAPYRUS_OK")
 	return failed
 
 

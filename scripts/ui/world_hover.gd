@@ -4,8 +4,10 @@ extends RefCounted
 ## TooltipPanel style. Area2D nodes cannot own a Control tooltip, so this panel
 ## sits on a canvas layer and follows the pointer.
 
+const THEME_PATH: String = "res://assets/ui/manaforge_theme.tres"
+
 static var _layer: CanvasLayer
-static var _panel: PanelContainer
+static var _panel: Panel
 static var _label: Label
 static var _owner_id: int = 0
 
@@ -33,13 +35,20 @@ static func present(source: Node, text: String) -> void:
 	if font != null:
 		text_sz = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 	var box: StyleBox = panel.get_theme_stylebox(&"panel")
-	var pad := Vector2(20, 8)
+	var left: float = 16.0
+	var top: float = 10.0
+	var right: float = 16.0
+	var bottom: float = 10.0
 	if box != null:
-		pad = Vector2(
-			box.get_content_margin(SIDE_LEFT) + box.get_content_margin(SIDE_RIGHT),
-			box.get_content_margin(SIDE_TOP) + box.get_content_margin(SIDE_BOTTOM),
-		)
-	panel.size = Vector2(maxf(48.0, text_sz.x + pad.x), maxf(Ui540.TOOLTIP_MIN_H, text_sz.y + pad.y))
+		left = box.get_content_margin(SIDE_LEFT)
+		top = box.get_content_margin(SIDE_TOP)
+		right = box.get_content_margin(SIDE_RIGHT)
+		bottom = box.get_content_margin(SIDE_BOTTOM)
+	## The papyrus is a Panel, not a container, so the line is pinned inside the
+	## content margins. A container was leaving the glyphs on the rolled edge.
+	_label.position = Vector2(left, top)
+	_label.size = text_sz
+	panel.size = Vector2(maxf(48.0, text_sz.x + left + right), maxf(Ui540.TOOLTIP_MIN_H, text_sz.y + top + bottom))
 	panel.custom_minimum_size = panel.size
 	var screen := Vector2.ZERO
 	if source.get_viewport():
@@ -76,7 +85,7 @@ static func current_text() -> String:
 	return _label.text
 
 
-static func panel() -> PanelContainer:
+static func panel() -> Panel:
 	return _panel
 
 
@@ -89,19 +98,21 @@ static func shutdown() -> void:
 	_label = null
 
 
-static func _ensure(tree: SceneTree) -> PanelContainer:
+static func _ensure(tree: SceneTree) -> Panel:
 	if _panel != null and is_instance_valid(_panel):
 		return _panel
 	_layer = CanvasLayer.new()
 	_layer.name = "WorldHoverLayer"
 	_layer.layer = 120
-	_panel = PanelContainer.new()
+	_panel = Panel.new()
 	_panel.name = "WorldHoverTip"
+	_panel.theme = load(THEME_PATH) as Theme
 	_panel.theme_type_variation = &"TooltipPanel"
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.visible = false
 	_label = Label.new()
 	_label.name = "Text"
+	_label.theme = _panel.theme
 	_label.theme_type_variation = &"TooltipLabel"
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.add_child(_label)

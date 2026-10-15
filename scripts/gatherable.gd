@@ -260,14 +260,8 @@ func _sync_lend_prompt(inside: bool) -> void:
 
 
 func _label_should_show() -> bool:
-	if not _hovered:
-		return false
-	## The Lend a hand button is the prompt. The tiny node name would sit on it.
-	if _lend_line() != "":
-		return false
-	if has_node("/root/MinigameHost") and bool(MinigameHost.call("is_open")):
-		return false
-	return true
+	## The papyrus hover names the node. The floating line sat on the sprite.
+	return false
 
 
 func wisp_orbit_center() -> Vector2:

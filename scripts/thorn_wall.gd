@@ -209,7 +209,8 @@ func _on_hover(inside: bool) -> void:
 func _refresh_label() -> void:
 	if label == null:
 		return
-	label.visible = _hovered
+	## The papyrus hover names the road. The floating line sat on the thorns.
+	label.visible = false
 	if path_is_open():
 		if GameState.echo_02_outcome == "defeat":
 			label.text = ContentStrings.get_text("echo_02_rest")
