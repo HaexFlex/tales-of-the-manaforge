@@ -2829,11 +2829,24 @@ func _run() -> void:
 				var maxed_now: bool = int(game_state.call("get_upgrade_rank", upgrade_id)) >= int(game_state.call("upgrade_max_rank", upgrade_id))
 				if bool(game_state.get("shop_hide_maxed")) and maxed_now:
 					continue
-				if bool(game_state.get("shop_hide_locked")) and not bool(game_state.call("is_upgrade_unlocked", upgrade_id)) and upgrade_id != "party_banner":
+				if bool(game_state.get("shop_hide_locked")) and not bool(game_state.call("is_upgrade_unlocked", upgrade_id)):
 					locked_want += 1
 					continue
 				shown_want += 1
 			failed += _assert(blessing_rows == shown_want and icon_rows == shown_want, "every shown blessing row has its 32 icon (%d/%d, want %d)" % [icon_rows, blessing_rows, shown_want])
+			failed += _assert(list_node.get_node_or_null("party_banner") == null, "Kindred Banner stays hidden until adventuring is unlocked")
+			game_state.set("echo_02_resolved", true)
+			test_hud.call("_rebuild_upgrades")
+			await process_frame
+			var banner_on: Node = list_node.get_node_or_null("party_banner")
+			failed += _assert(banner_on != null and not banner_on.is_queued_for_deletion(), "Kindred Banner appears once adventuring is unlocked")
+			game_state.set("echo_02_resolved", false)
+			test_hud.call("_rebuild_upgrades")
+			await process_frame
+			var banner_off: Node = list_node.get_node_or_null("party_banner")
+			failed += _assert(banner_off == null or banner_off.is_queued_for_deletion(), "Kindred Banner hides again when the road is shut")
+			if list_node.get_node_or_null("party_banner") == null or (list_node.get_node_or_null("party_banner") as Node).is_queued_for_deletion():
+				print("KINDRED_BANNER_LOCK_OK")
 			failed += _assert((list_node.get_node_or_null("SummaryLocked") != null) == (locked_want > 0), "hidden locked blessings collapse into one summary row (%d hidden)" % locked_want)
 			failed += _assert(str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")

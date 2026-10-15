@@ -4598,11 +4598,11 @@ func _rebuild_upgrades() -> void:
 		var rank: int = GameState.get_upgrade_rank(uid)
 		var unlocked: bool = GameState.is_upgrade_unlocked(uid)
 		var maxed: bool = rank >= GameState.upgrade_max_rank(uid)
-		var always_show: bool = uid == "party_banner"
 		if GameState.shop_hide_maxed and maxed:
 			maxed_hidden += 1
 			continue
-		if GameState.shop_hide_locked and not unlocked and not always_show:
+		## Kindred Banner unlocks with adventuring, the same gate as the other locked rows.
+		if GameState.shop_hide_locked and not unlocked:
 			locked_hidden += 1
 			continue
 		upgrade_list.add_child(_make_upgrade_row(uid, d, rank, unlocked, maxed))
@@ -4619,6 +4619,7 @@ func _rebuild_upgrades() -> void:
 func _make_upgrade_row(uid: String, d: Dictionary, rank: int, unlocked: bool, maxed: bool) -> PanelContainer:
 	var cost: int = GameState.get_upgrade_cost(uid)
 	var row := PanelContainer.new()
+	row.name = uid
 	row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 	row.add_theme_stylebox_override("panel", _shop_row_style())
 	var desc: String = _upgrade_description(uid, d)
