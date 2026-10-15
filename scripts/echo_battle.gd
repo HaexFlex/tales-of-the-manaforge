@@ -1,6 +1,7 @@
 class_name EchoBattle
 extends RefCounted
-## 1v1 turn resolution for Echo duels. No scene, no save, no mid-fight persist.
+## 1v1 turn resolution for Echo duels. No scene. The only mid-fight write is the
+## Heart Salve leaving the pack, so a hard kill cannot refund it.
 ## Damage uses BATTLE_SCENE_DRAFT v4 §4 (`BattleResolver` + `BattleRng`).
 
 const ECHO_ID: String = "echo_keeper_01"
@@ -235,6 +236,9 @@ func _spend_salve() -> bool:
 		return false
 	salves_used += 1
 	salves_remembered = int(bag.call("get_count", "heart_salve"))
+	var saver: Node = tree.root.get_node_or_null("SaveService")
+	if saver != null and saver.has_method("save_echo_pack"):
+		saver.call("save_echo_pack")
 	return true
 
 

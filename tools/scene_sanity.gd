@@ -559,7 +559,11 @@ func _portal_fee_confirm() -> int:
 func _echo_salve_rule() -> int:
 	var failed: int = 0
 	var pack: Node = root.get_node("Backpack")
+	var save: Node = root.get_node("SaveService")
 	var before: int = int(pack.call("get_count", "heart_salve"))
+	var was_session: bool = bool(save.get("session_active"))
+	var autosave_snap: Dictionary = _snapshot_autosaves(save)
+	save.call("note_session_started")
 	pack.call("set_count", "heart_salve", 5)
 	var duel := EchoBattle.new()
 	duel.configure(
@@ -572,6 +576,10 @@ func _echo_salve_rule() -> int:
 	failed += _check(duel.choose("salve") != "no_salve", "second salve spends")
 	failed += _check(duel.choose("salve") == "no_salve", "third salve is refused")
 	failed += _check(duel.salves_used == 2 and int(pack.call("get_count", "heart_salve")) == 3, "two salves leave the pack")
+	failed += _check(_newest_autosave_salves(save) == 3, "salve spend is in the save")
+	_restore_autosaves(autosave_snap)
+	if not was_session:
+		save.call("note_session_ended")
 	var braced := EchoBattle.new()
 	braced.configure(
 		{"might": 1, "arcana": 1, "resilience": 40, "ward": 40, "vitality": 40, "swiftness": 20, "fate": 1},
@@ -583,6 +591,59 @@ func _echo_salve_rule() -> int:
 	failed += _check(braced.echo_hp == echo_before, "Brace spends the Strike")
 	pack.call("set_count", "heart_salve", before)
 	return failed
+
+
+func _snapshot_autosaves(save: Node) -> Dictionary:
+	var snap: Dictionary = {}
+	for slot: int in range(1, 4):
+		var path: String = str(save.call("autosave_path", slot))
+		if FileAccess.file_exists(path):
+			snap[path] = FileAccess.get_file_as_bytes(path)
+		else:
+			snap[path] = PackedByteArray()
+	return snap
+
+
+func _restore_autosaves(snap: Dictionary) -> void:
+	for path_v: Variant in snap.keys():
+		var path: String = str(path_v)
+		var bytes: PackedByteArray = snap[path_v]
+		if bytes.is_empty():
+			DirAccess.remove_absolute(path)
+		else:
+			var file := FileAccess.open(path, FileAccess.WRITE)
+			if file != null:
+				file.store_buffer(bytes)
+				file.close()
+
+
+func _newest_autosave_salves(save: Node) -> int:
+	var newest_path: String = ""
+	var newest_ts: float = -1.0
+	var version: int = -1
+	for slot: int in range(1, 4):
+		var info: Dictionary = save.call("get_autosave_info", slot)
+		if not bool(info.get("filled", false)):
+			continue
+		var ts: float = float(info.get("timestamp", 0.0))
+		if ts > newest_ts:
+			newest_ts = ts
+			newest_path = str(save.call("autosave_path", slot))
+	if newest_path == "":
+		return -1
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(newest_path))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return -1
+	version = int((parsed as Dictionary).get("save_version", -1))
+	if version != 15:
+		return -1
+	var state_v: Variant = (parsed as Dictionary).get("state", {})
+	if typeof(state_v) != TYPE_DICTIONARY:
+		return -1
+	var bag_v: Variant = (state_v as Dictionary).get("backpack", {})
+	if typeof(bag_v) != TYPE_DICTIONARY:
+		return -1
+	return int((bag_v as Dictionary).get("heart_salve", -1))
 
 
 func _art_fit(live: Node) -> int:

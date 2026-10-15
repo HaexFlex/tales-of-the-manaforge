@@ -144,6 +144,25 @@ func save_autosave(force: bool = false) -> bool:
 	return ok
 
 
+func save_echo_pack() -> bool:
+	## A Heart Salve is already gone from the pack. Write that pack with the
+	## existing autosave payload so a hard kill cannot put the dose back.
+	## SAVE_VERSION stays 15. No new field.
+	if not session_active or catchup_running:
+		return false
+	if has_node("/root/Reach") and Reach.catching_up:
+		return false
+	var slot: int = _next_autosave_slot()
+	if slot <= 0:
+		return false
+	_autosave_serial += 1
+	var stamped: float = Time.get_unix_time_from_system() + float(_autosave_serial) * 0.001
+	var ok: bool = _write_payload(autosave_path(slot), slot, "autosave", stamped)
+	if ok:
+		_last_autosave_msec = Time.get_ticks_msec()
+	return ok
+
+
 func save_on_quit() -> bool:
 	if not session_active or _battle_blocks_save():
 		return false
