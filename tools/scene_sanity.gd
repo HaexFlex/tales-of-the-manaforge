@@ -420,6 +420,19 @@ func _battle_view() -> int:
 	failed += _check(stay != null and stay.custom_minimum_size.y >= 44.0 and flee_btn.custom_minimum_size.x >= 44.0, "leave buttons are at least 44 px")
 	view.call("_confirm_stay")
 	failed += _check(not bool(view.call("leave_confirm_open")), "Stay closes the confirm")
+	view.call("_offer_return", "spare")
+	var rewards: Control = view.get_node_or_null("EchoRewards") as Control
+	var rewards_back: Button = view.get_node_or_null("EchoRewards/RewardsReturn") as Button
+	var reward_row: Control = view.get_node_or_null("EchoRewards/RewardRow0") as Control
+	var reward_value: Label = view.get_node_or_null("EchoRewards/RewardRow0/Value") as Label
+	failed += _check(rewards != null and EchoTheme.panel_ok(rewards.size) and is_equal_approx(rewards.self_modulate.a, 0.88), "rewards window tiles at 40+8n")
+	failed += _check(rewards_back != null and rewards_back.text == "Return to the tree", "rewards return to the tree")
+	failed += _check(view.get_node_or_null("EchoRewards/RewardsClose") != null, "rewards keeps the ×")
+	failed += _check(reward_row != null and EchoTheme.panel_ok(reward_row.size) and is_equal_approx(reward_row.self_modulate.a, 1.0), "reward rows tile without stacking the fade")
+	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") == EchoTheme.GOLD, "reward values are gold")
+	view.call("_clear_rewards")
+	view.set("_waiting_return", false)
+	view.set("_pending_outcome", "")
 	view.call("_offer_return", "flee")
 	var fled: Panel = view.get_node_or_null("EchoFledWindow") as Panel
 	var fled_box: StyleBox = fled.get_theme_stylebox("panel") if fled else null

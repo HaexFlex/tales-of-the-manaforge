@@ -691,12 +691,17 @@ func _on_salve() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _battle == null or _waiting_return:
+	if _battle == null:
 		return
 	if not (event is InputEventKey):
 		return
 	var key: InputEventKey = event as InputEventKey
 	if not key.pressed or key.echo:
+		return
+	if _waiting_return:
+		if key.keycode == KEY_ESCAPE and get_node_or_null("EchoRewards") != null:
+			_on_return()
+			get_viewport().set_input_as_handled()
 		return
 	if key.keycode == KEY_ESCAPE:
 		if _phase == "leave":
@@ -1066,12 +1071,12 @@ func _offer_return(outcome: String) -> void:
 		_salve_btn.visible = false
 	if _log:
 		_log.text = _pending_toast
-	## Only the flee result is the You Fled window. Spare and defeat keep the command-band return.
+	## Flee uses the hub You Fled window. Spare and defeat use the ink rewards window.
+	_return_btn.visible = false
 	if outcome == "flee":
-		_return_btn.visible = false
 		_show_fled_window()
 		return
-	_return_btn.visible = true
+	_show_rewards(outcome)
 
 
 func _flavour_for_outcome(outcome: String) -> String:
@@ -1118,6 +1123,122 @@ func _outcome_toast(outcome: String) -> String:
 
 ## Echo You Fled (extras v8c). Position only: 520×420 at y 92, 24 px inside the parchment.
 ## The chamber, portraits, and the spare/defeat return stay as they are.
+func _show_rewards(outcome: String) -> void:
+	_clear_rewards()
+	if _speech_box:
+		_speech_box.visible = false
+	var menu: CanvasItem = get_node_or_null("EchoActionMenu") as CanvasItem
+	if menu:
+		menu.visible = false
+	if _close_btn:
+		_close_btn.visible = false
+	var ox: float = EchoTheme.shift()
+	var panel := Panel.new()
+	panel.name = "EchoRewards"
+	## 460 is off the 8 px tile. 464 keeps the wave seamless.
+	panel.position = Vector2(ox + 200.0, 40)
+	panel.size = Vector2(560, 464)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	EchoTheme.paint_panel(panel, false)
+	add_child(panel)
+	var title := Label.new()
+	title.name = "RewardsTitle"
+	title.text = "Echo Spared" if outcome == "spare" else "Echo Defeated"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(40, 28)
+	title.size = Vector2(400, 40)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_title(title, true)
+	panel.add_child(title)
+	var close := Button.new()
+	close.name = "RewardsClose"
+	close.position = Vector2(468, 14)
+	close.size = Vector2(44, 44)
+	close.custom_minimum_size = close.size
+	EchoTheme.paint_button(close, true)
+	var x_icon := TextureRect.new()
+	x_icon.texture = load(EchoTheme.ART + "icon_close_x_24.png")
+	x_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	x_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	x_icon.position = Vector2(10, 10)
+	x_icon.size = Vector2(24, 24)
+	close.add_child(x_icon)
+	close.pressed.connect(_on_return)
+	panel.add_child(close)
+	var flavour := Label.new()
+	flavour.name = "RewardsFlavour"
+	flavour.text = _flavour_for_outcome(outcome)
+	flavour.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	flavour.position = Vector2(40, 78)
+	flavour.size = Vector2(480, 48)
+	flavour.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(flavour, true)
+	panel.add_child(flavour)
+	var rows: Array = _reward_rows(outcome)
+	for row_i: int in rows.size():
+		var spec: Array = rows[row_i]
+		var row := Panel.new()
+		row.name = "RewardRow%d" % row_i
+		row.position = Vector2(28, 150 + row_i * 50)
+		## 44 is off the tile. 48 is the nearest 40+8n and still sits on the 50 px pitch.
+		row.size = Vector2(504, 48)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		EchoTheme.paint_panel(row, true)
+		row.self_modulate.a = 1.0
+		panel.add_child(row)
+		var left := Label.new()
+		left.text = str(spec[0])
+		left.position = Vector2(16, 12)
+		left.size = Vector2(240, 24)
+		left.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		EchoTheme.style_body(left, false)
+		row.add_child(left)
+		var right := Label.new()
+		right.name = "Value"
+		right.text = str(spec[1])
+		right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		right.position = Vector2(220, 12)
+		right.size = Vector2(268, 24)
+		right.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		EchoTheme.style_body(right, false)
+		right.add_theme_color_override("font_color", EchoTheme.GOLD)
+		row.add_child(right)
+	var back := Button.new()
+	back.name = "RewardsReturn"
+	back.text = ContentStrings.get_text("battle_return")
+	back.position = Vector2(130, 382)
+	back.size = Vector2(300, 52)
+	back.custom_minimum_size = Vector2(300, 52)
+	EchoTheme.paint_button(back, true)
+	back.pressed.connect(_on_return)
+	panel.add_child(back)
+	back.call_deferred("grab_focus")
+	Ui540.hide_name_tags_under(panel)
+
+
+func _reward_rows(outcome: String) -> Array:
+	if _is_bramble():
+		return [[_pending_toast, ""]]
+	var shards: int = EchoChamber.snapshot_payout(outcome)
+	var rows: Array = [
+		[ContentStrings.get_text("hud_manashards"), "+%d" % shards],
+		[
+			"Forge Key (relic)",
+			"+1 %s  +1 %s" % [ContentStrings.get_text("stat_swiftness"), ContentStrings.get_text("stat_fate")],
+		],
+		["Relic niche", "unlocked"],
+	]
+	if outcome == "spare":
+		rows.append([_enemy_name(), "redeemed"])
+	return rows
+
+
+func _clear_rewards() -> void:
+	var node: Node = get_node_or_null("EchoRewards")
+	if node:
+		node.queue_free()
+
+
 const ECHO_FLED_H: float = 420.0
 const ECHO_FLED_ART: String = "res://assets/ui/extras/fled_art_120x72.png"
 const ECHO_FLED_WARN: String = "res://assets/ui/extras/icon_warn_amber_kit_18x16.png"
