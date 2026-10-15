@@ -455,9 +455,122 @@ func advance_speech() -> void:
 	finish_speech()
 
 
+var _leave_layer: Control = null
+var _phase_before_leave: String = ""
+
+
 func _on_chamber_leave() -> void:
-	## Leave confirm arrives with the later commit. Never flee from the title ×.
+	_open_leave_confirm()
+
+
+func _open_leave_confirm() -> void:
+	if _waiting_return or _leave_layer != null:
+		return
+	_phase_before_leave = _phase
 	_phase = "leave"
+	var ox: float = EchoTheme.shift()
+	var dim := ColorRect.new()
+	dim.name = "LeaveDim"
+	dim.color = EchoTheme.DIM
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	var panel := Panel.new()
+	panel.name = "LeaveConfirm"
+	panel.position = Vector2(ox + 220.0, 146)
+	panel.size = Vector2(520, 248)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	EchoTheme.paint_panel(panel, false)
+	add_child(panel)
+	_leave_layer = panel
+	var title := Label.new()
+	title.name = "LeaveTitle"
+	title.text = "Leave the Chamber?"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(32, 34)
+	title.size = Vector2(456, 40)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_title(title, true)
+	panel.add_child(title)
+	var body := Label.new()
+	body.name = "LeaveBody"
+	body.text = "The fight ends and you return to the trailhead."
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.position = Vector2(32, 74)
+	body.size = Vector2(456, 60)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(body, false)
+	panel.add_child(body)
+	var warn := Label.new()
+	warn.name = "LeaveWarn"
+	warn.text = "The Essence fee stays paid."
+	warn.position = Vector2(56, 140)
+	warn.size = Vector2(432, 22)
+	warn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(warn, false)
+	warn.add_theme_color_override("font_color", EchoTheme.AMBER)
+	panel.add_child(warn)
+	var mark := TextureRect.new()
+	mark.texture = load(EchoTheme.ART + "icon_warn_amber_18x16.png")
+	mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.position = Vector2(32, 143)
+	mark.size = Vector2(18, 16)
+	panel.add_child(mark)
+	var flee := Button.new()
+	flee.name = "LeaveFlee"
+	flee.text = "Flee"
+	flee.position = Vector2(32, 222)
+	flee.size = Vector2(168, 44)
+	flee.custom_minimum_size = flee.size
+	EchoTheme.paint_button(flee, false)
+	flee.pressed.connect(_confirm_flee)
+	panel.add_child(flee)
+	var stay := Button.new()
+	stay.name = "LeaveStay"
+	stay.text = "Stay"
+	stay.position = Vector2(232, 216)
+	stay.size = Vector2(236, 56)
+	stay.custom_minimum_size = Vector2(236, 44)
+	EchoTheme.paint_button(stay, true)
+	stay.pressed.connect(_confirm_stay)
+	panel.add_child(stay)
+	if _close_btn:
+		_close_btn.visible = false
+	stay.call_deferred("grab_focus")
+
+
+func _confirm_stay() -> void:
+	_close_leave_confirm()
+	_phase = _phase_before_leave if _phase_before_leave != "" else "chamber"
+	if _phase == "chamber":
+		_show_chamber_chrome()
+	elif _phase == "speech":
+		_refresh_actions()
+	else:
+		_phase = "fight"
+		_refresh_actions()
+	_show_page()
+
+
+func _confirm_flee() -> void:
+	_close_leave_confirm()
+	_phase = "fight"
+	_choose("flee")
+
+
+func _close_leave_confirm() -> void:
+	for node_name: String in ["LeaveDim", "LeaveConfirm"]:
+		var node: Node = get_node_or_null(node_name)
+		if node:
+			node.queue_free()
+	_leave_layer = null
+	if _close_btn and _phase != "fight":
+		_close_btn.visible = true
+
+
+func leave_confirm_open() -> bool:
+	return _leave_layer != null and is_instance_valid(_leave_layer)
 
 
 func _show_chamber_chrome() -> void:
@@ -584,6 +697,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	var key: InputEventKey = event as InputEventKey
 	if not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_ESCAPE:
+		if _phase == "leave":
+			_confirm_stay()
+		else:
+			_open_leave_confirm()
+		get_viewport().set_input_as_handled()
 		return
 	if _phase == "speech" and (key.keycode == KEY_SPACE or key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER):
 		advance_speech()

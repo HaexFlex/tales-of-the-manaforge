@@ -410,6 +410,21 @@ func _battle_view() -> int:
 	view.call("_on_arrow")
 	failed += _check(str(game.get("arrow_mode")) == "magical", "toggle writes GameState")
 	failed += _check(str(view.call("arrow_toggle_text")) == str(strings.call("get_text", "battle_toggle_mag")), "toggle reads Mag")
+	view.call("_open_leave_confirm")
+	var leave: Control = view.get_node_or_null("LeaveConfirm") as Control
+	var stay: Button = view.get_node_or_null("LeaveConfirm/LeaveStay") as Button
+	var flee_btn: Button = view.get_node_or_null("LeaveConfirm/LeaveFlee") as Button
+	failed += _check(leave != null and EchoTheme.panel_ok(leave.size) and is_equal_approx(leave.self_modulate.a, 0.88), "leave confirm is an ink panel on the tile grid")
+	failed += _check(stay != null and flee_btn != null and stay.position.x > flee_btn.position.x, "Stay is the right-hand button")
+	failed += _check(view.get_node_or_null("LeaveConfirm/EchoClose") == null, "the leave confirm has no ×")
+	failed += _check(stay != null and stay.custom_minimum_size.y >= 44.0 and flee_btn.custom_minimum_size.x >= 44.0, "leave buttons are at least 44 px")
+	view.call("_confirm_stay")
+	failed += _check(not bool(view.call("leave_confirm_open")), "Stay closes the confirm")
+	view.call("_offer_return", "flee")
+	var fled: Panel = view.get_node_or_null("EchoFledWindow") as Panel
+	var fled_box: StyleBox = fled.get_theme_stylebox("panel") if fled else null
+	var fled_tex: Texture2D = (fled_box as StyleBoxTexture).texture if fled_box is StyleBoxTexture else null
+	failed += _check(fled_tex != null and str(fled_tex.resource_path).find("frame_9s_96") >= 0, "Echo Fled stays on the hub frame")
 	failed += _chamber_plate(view)
 	view.queue_free()
 	echo.set("battle", null)
