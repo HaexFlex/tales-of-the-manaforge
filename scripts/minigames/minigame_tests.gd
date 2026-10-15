@@ -253,11 +253,27 @@ func _grade_marks() -> int:
 		failed += _check(visual.position.distance_to(content.position) < 1.0 and visual.size.distance_to(content.size) < 1.0, "the play field fills the window content rect")
 		var right_gap: float = window_ctl.size.x - visual.end.x
 		failed += _check(right_gap < 40.0, "no empty strip on the right of the play field (%.0f px)" % right_gap)
+	var game: Minigame = null
+	var play: Control = window.get_node_or_null("Play") as Control
+	if play != null:
+		for child: Node in play.get_children():
+			if child is Minigame:
+				game = child as Minigame
+	if game != null:
+		game.feedback_at = Vector2(180, 90)
 	host.call("note_success", 3.0, 2.0)
 	var pop: Control = window.get_node_or_null("PacePop") as Control
-	var play: Control = window.get_node_or_null("Play") as Control
-	failed += _check(pop != null and pop.get_node_or_null("Chip") != null, "the +k pop sits on a parchment chip")
-	failed += _check(pop != null and play != null and pop.position.y + pop.size.y <= play.position.y + 1.0, "the +k pop stays above the play art")
+	var chip: ColorRect = pop.get_node_or_null("Chip") as ColorRect if pop != null else null
+	var value: Label = pop.get_node_or_null("Value") as Label if pop != null else null
+	failed += _check(chip != null and chip.color.is_equal_approx(Color8(231, 212, 166)), "the +k pop sits on a parchment chip")
+	failed += _check(value != null and int(value.get_theme_font_size(&"font_size")) == 19, "the +k pop is 19px")
+	failed += _check(value != null and value.get_theme_color(&"font_color").r < 0.4, "the +k pop is dark ink")
+	failed += _check(value != null and int(value.get_theme_constant(&"outline_size")) == 0, "the +k pop has no pale outline")
+	failed += _check(pop != null and pop.scale.x > 1.05, "the +k pop starts scaled up")
+	if pop != null and play != null and game != null:
+		var anchor: Vector2 = play.position + Vector2(game.feedback_at.x * play.scale.x, game.feedback_at.y * play.scale.y)
+		var pop_mid: Vector2 = pop.position + pop.size * 0.5
+		failed += _check(pop_mid.distance_to(anchor) < 80.0, "the +k pop sits near the success")
 	host.call("note_miss")
 	host.call("note_success", 3.0, 1.0)
 	failed += _check(_pip_file(window, "GradePip0") == "pip_perfect.png", "a heavy success is a perfect pip")

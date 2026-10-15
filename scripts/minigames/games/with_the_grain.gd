@@ -105,7 +105,8 @@ func _finish() -> void:
 	_drawing = false
 	_resolved = true
 	if _accuracy() >= _need:
-		succeed(_k)
+		var at: Vector2 = _stroke[_stroke.size() - 1] if _stroke.size() > 0 else Vector2(320, 160)
+		succeed(_k, 1.0, at)
 	else:
 		miss()
 

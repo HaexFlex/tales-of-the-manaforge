@@ -94,7 +94,7 @@ func _land(berry: Sprite2D) -> void:
 	var in_basket: bool = absf(berry.position.x - basket_x) <= _catch_half
 	var rotten: bool = bool(berry.get_meta("rotten", false))
 	if in_basket and not rotten:
-		succeed(_k)
+		succeed(_k, 1.0, berry.position)
 	else:
 		miss()
 	berry.queue_free()

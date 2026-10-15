@@ -228,7 +228,7 @@ func _strike() -> void:
 	hit["done"] = true
 	_open[best] = hit
 	var heavy: bool = int(hit.get("i", 0)) % _heavy_every == _heavy_every - 1
-	succeed(MinigameCatalog.woodsong_k(heavy), 2.0 if heavy else 1.0)
+	succeed(MinigameCatalog.woodsong_k(heavy), 2.0 if heavy else 1.0, Vector2(NOTCH_X, RAIL_POS.y))
 	var spr: Sprite2D = hit.get("sprite") as Sprite2D
 	if spr != null and is_instance_valid(spr):
 		spr.modulate = Color(1.15, 1.1, 0.85)

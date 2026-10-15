@@ -247,4 +247,4 @@ func _strike(at: Vector2) -> void:
 	var burst: Sprite2D = MinigameArt.add_sprite(self, "sparks_4f.png", where, 4)
 	burst.z_index = 4
 	_sparks.append({"t0": _clock, "sprite": burst})
-	succeed(_k)
+	succeed(_k, 1.0, where)

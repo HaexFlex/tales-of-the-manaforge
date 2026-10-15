@@ -125,7 +125,7 @@ func _release() -> void:
 		return
 	_resolved = true
 	if _fill >= _band_lo() and _fill <= _band_hi():
-		succeed(_k)
+		succeed(_k, 1.0, _band_rect.position + _band_rect.size * 0.5)
 		_pour = _pour_sec
 	else:
 		_pour = 0.0

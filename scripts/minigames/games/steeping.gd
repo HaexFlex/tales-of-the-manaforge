@@ -178,7 +178,8 @@ func _end_round(ok: bool) -> void:
 	_phase_t = 0.0
 	_drag_herb = -1
 	if ok:
-		succeed(_k)
+		var at: Vector2 = _cauldron.position if _cauldron != null else Vector2(320, 150)
+		succeed(_k, 1.0, at)
 	else:
 		miss()
 	_paint()

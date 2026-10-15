@@ -78,7 +78,7 @@ func _strike(index: int) -> void:
 	_resolved[lit] = true
 	_hit[lit] = index == lit
 	if _hit[lit]:
-		succeed(_k)
+		succeed(_k, 1.0, _spots[lit].position)
 	else:
 		miss()
 	_paint()

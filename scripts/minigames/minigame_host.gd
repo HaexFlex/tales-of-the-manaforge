@@ -20,7 +20,6 @@ const PIP_STEP: float = 22.0
 const PACE_BAR_H: float = 8.0
 const PACE_TICK_H: float = 16.0
 const PARCHMENT: Color = Color8(231, 212, 166)
-const POP_CHIP: Color = Color8(250, 242, 220)
 
 var _dim: ColorRect
 var _panel: Panel
@@ -627,25 +626,32 @@ func _spawn_pop(k_seconds: float) -> void:
 	pop.name = "PacePop"
 	pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	pop.z_index = 40
-	var width: float = ceilf(_text_width(text)) + 18.0
-	var height: float = 22.0
+	var width: float = ceilf(_text_width(text)) + 22.0
+	var height: float = 32.0
 	pop.size = Vector2(width, height)
-	## Header parchment, under the readout row and above the play field.
-	var y: float = minf(HEADER_ROW_Y + HEADER_ROW_H + 2.0, _play.position.y - height - 2.0)
-	pop.position = Vector2(roundf((_panel.size.x - width) * 0.5), y)
-	var chip := ColorRect.new()
-	chip.name = "Chip"
-	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chip.color = POP_CHIP
-	chip.set_anchors_preset(Control.PRESET_FULL_RECT)
-	pop.add_child(chip)
+	pop.pivot_offset = pop.size * 0.5
+	var local: Vector2 = Vector2(320, 120)
+	if _game != null:
+		local = _game.feedback_at
+	var anchor: Vector2 = _play.position + Vector2(local.x * _play.scale.x, local.y * _play.scale.y)
+	var visual := Rect2(_play.position, _play.size * _play.scale)
+	var pos := Vector2(anchor.x - width * 0.5, anchor.y - height - 4.0)
+	pos.x = clampf(pos.x, visual.position.x + 4.0, maxf(visual.position.x + 4.0, visual.end.x - width - 4.0))
+	pos.y = clampf(pos.y, visual.position.y + 4.0, maxf(visual.position.y + 4.0, visual.end.y - height - 4.0))
+	pop.position = pos.round()
 	var edge := ColorRect.new()
 	edge.name = "Edge"
 	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	edge.color = Color8(90, 62, 40)
-	edge.position = Vector2.ZERO
-	edge.size = Vector2(width, 1)
+	edge.color = Color8(62, 42, 24)
+	edge.set_anchors_preset(Control.PRESET_FULL_RECT)
 	pop.add_child(edge)
+	var chip := ColorRect.new()
+	chip.name = "Chip"
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.color = PARCHMENT
+	chip.position = Vector2(1, 1)
+	chip.size = Vector2(width - 2.0, height - 2.0)
+	pop.add_child(chip)
 	var label := Label.new()
 	label.name = "Value"
 	label.text = text
@@ -654,13 +660,14 @@ func _spawn_pop(k_seconds: float) -> void:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	GameTheme.style_ink_label(label)
-	label.add_theme_color_override("font_outline_color", Color8(255, 248, 230))
-	label.add_theme_constant_override("outline_size", 3)
+	label.add_theme_constant_override("outline_size", 0)
 	pop.add_child(label)
 	_panel.add_child(pop)
+	pop.scale = Vector2(1.22, 1.22)
 	var tw: Tween = create_tween()
-	tw.tween_property(pop, "position:y", maxf(HEADER_ROW_Y + HEADER_ROW_H + 1.0, pop.position.y - 4.0), 0.55)
-	tw.parallel().tween_property(pop, "modulate:a", 0.0, 0.55)
+	tw.tween_property(pop, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(pop, "position:y", pop.position.y - 12.0, 0.45)
+	tw.tween_property(pop, "modulate:a", 0.0, 0.2)
 	tw.tween_callback(pop.queue_free)
 
 

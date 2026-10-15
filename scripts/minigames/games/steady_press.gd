@@ -228,7 +228,7 @@ func _finish(ok: bool) -> void:
 	_drag = false
 	_has_ang = false
 	if ok:
-		succeed(_k)
+		succeed(_k, 1.0, DIAL_TL + DIAL_C)
 	else:
 		miss()
 
