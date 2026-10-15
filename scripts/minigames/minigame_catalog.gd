@@ -63,6 +63,11 @@ static func flavour(game_id: String) -> String:
 	return str(game(game_id).get("flavour", ""))
 
 
+## Text-free win plates (e.g. Hot Spots) draw title, header labels, flavour, and hint live.
+static func plate_draws_live_text(game_id: String) -> bool:
+	return game_id == "hot_spots"
+
+
 static func hint(game_id: String, phone: bool) -> String:
 	var row: Dictionary = game(game_id)
 	if phone:

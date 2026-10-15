@@ -30,6 +30,7 @@ var _pace_word: Label
 var _pace: Label
 var _pace_bar: ColorRect
 var _pace_fill: TextureRect
+var _flavour: Label
 var _hint: Label
 var _close: BaseButton
 var _play: Control
@@ -56,6 +57,8 @@ var _grades: Array[int] = []
 var _pips: Array[TextureRect] = []
 var _card_pips: Array[TextureRect] = []
 var _win_plate: TextureRect
+var _plate_footer_cover: ColorRect
+var _plate_header_cover: ColorRect
 var _prompt_on: bool = false
 var _prompt_target: String = ""
 var _prompt_world: Vector2 = Vector2.ZERO
@@ -111,33 +114,33 @@ func _build() -> void:
 	_panel.add_child(_win_plate)
 	## The plate bakes the flavour, the old instruction, and "Feel test: no rewards."
 	## across the footer. Cover that whole band. The live hint is the only line that remains.
-	var blot := ColorRect.new()
-	blot.name = "FeelTestCover"
-	blot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	blot.color = PARCHMENT
-	blot.anchor_left = 12.0 / 696.0
-	blot.anchor_top = 406.0 / 472.0
-	blot.anchor_right = 684.0 / 696.0
-	blot.anchor_bottom = 448.0 / 472.0
-	blot.offset_left = 0.0
-	blot.offset_top = 0.0
-	blot.offset_right = 0.0
-	blot.offset_bottom = 0.0
-	_win_plate.add_child(blot)
+	_plate_footer_cover = ColorRect.new()
+	_plate_footer_cover.name = "FeelTestCover"
+	_plate_footer_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plate_footer_cover.color = PARCHMENT
+	_plate_footer_cover.anchor_left = 12.0 / 696.0
+	_plate_footer_cover.anchor_top = 406.0 / 472.0
+	_plate_footer_cover.anchor_right = 684.0 / 696.0
+	_plate_footer_cover.anchor_bottom = 448.0 / 472.0
+	_plate_footer_cover.offset_left = 0.0
+	_plate_footer_cover.offset_top = 0.0
+	_plate_footer_cover.offset_right = 0.0
+	_plate_footer_cover.offset_bottom = 0.0
+	_win_plate.add_child(_plate_footer_cover)
 	## Baked Successes / Pace / pace bar, so the live 19 px header is not drawn twice.
-	var header_blot := ColorRect.new()
-	header_blot.name = "HeaderCover"
-	header_blot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header_blot.color = PARCHMENT
-	header_blot.anchor_left = 14.0 / 696.0
-	header_blot.anchor_top = 26.0 / 472.0
-	header_blot.anchor_right = 616.0 / 696.0
-	header_blot.anchor_bottom = 52.0 / 472.0
-	header_blot.offset_left = 0.0
-	header_blot.offset_top = 0.0
-	header_blot.offset_right = 0.0
-	header_blot.offset_bottom = 0.0
-	_win_plate.add_child(header_blot)
+	_plate_header_cover = ColorRect.new()
+	_plate_header_cover.name = "HeaderCover"
+	_plate_header_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plate_header_cover.color = PARCHMENT
+	_plate_header_cover.anchor_left = 14.0 / 696.0
+	_plate_header_cover.anchor_top = 26.0 / 472.0
+	_plate_header_cover.anchor_right = 616.0 / 696.0
+	_plate_header_cover.anchor_bottom = 52.0 / 472.0
+	_plate_header_cover.offset_left = 0.0
+	_plate_header_cover.offset_top = 0.0
+	_plate_header_cover.offset_right = 0.0
+	_plate_header_cover.offset_bottom = 0.0
+	_win_plate.add_child(_plate_header_cover)
 
 	_title = Label.new()
 	_title.name = "Title"
@@ -190,6 +193,15 @@ func _build() -> void:
 		tick.z_index = 2
 		_pace_bar.add_child(tick)
 	_pips = _make_pips(_panel, Vector2(128, 34), PIP_PX, PIP_STEP)
+
+	_flavour = Label.new()
+	_flavour.name = "Flavour"
+	_flavour.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flavour.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_flavour.visible = false
+	_flavour.z_index = 5
+	GameTheme.style_ink_label(_flavour, true)
+	_panel.add_child(_flavour)
 
 	_hint = Label.new()
 	_hint.name = "Hint"
@@ -294,13 +306,16 @@ func _make_pips(parent: Node, origin: Vector2, pip_px: float, step: float) -> Ar
 
 ## Win plates are the window backdrop for the whole session (package README:
 ## full-size window plates). The result state is the card, not a second plate.
-## The package has no win_hot_spots art, so Hot Spots keeps Forge Glow's plate.
 func _apply_win_plate(game_id: String) -> void:
 	if _win_plate == null:
 		return
-	var art_id: String = "forge_glow" if game_id == "hot_spots" else game_id
+	var live_text: bool = MinigameCatalog.plate_draws_live_text(game_id)
+	if _plate_footer_cover != null:
+		_plate_footer_cover.visible = not live_text
+	if _plate_header_cover != null:
+		_plate_header_cover.visible = not live_text
 	var suffix: String = "ph" if Ui540.is_phone_export() else "pc"
-	var tex: Texture2D = MinigameArt.texture("win_%s_%s.png" % [art_id, suffix])
+	var tex: Texture2D = MinigameArt.texture("win_%s_%s.png" % [game_id, suffix])
 	if tex == null:
 		_win_plate.texture = null
 		return
@@ -515,6 +530,9 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 	_paint_grades()
 	_title.text = MinigameCatalog.title(game_id)
 	Ui540.place_title_plank(_title, _panel.size.x)
+	var live_text: bool = MinigameCatalog.plate_draws_live_text(game_id)
+	_flavour.text = MinigameCatalog.flavour(game_id)
+	_flavour.visible = live_text and _flavour.text != ""
 	_hint.text = MinigameCatalog.hint(game_id, Ui540.is_phone_export())
 	_hint.visible = true
 	_summary.visible = false
@@ -562,8 +580,12 @@ func _layout_window() -> void:
 	_play.position = MinigameCatalog.PLAY_ORIGIN * fit
 	_play.size = MinigameCatalog.PLAY_SIZE
 	_play.scale = fit
+	var footer_w: float = sz.x - 56.0
 	_hint.position = Vector2(28, sz.y - 30.0)
-	_hint.size = Vector2(sz.x - 56.0, 22)
+	_hint.size = Vector2(footer_w, 22)
+	if _flavour != null:
+		_flavour.position = Vector2(28, sz.y - 54.0)
+		_flavour.size = Vector2(footer_w, 22)
 	_summary.position = ((sz - Vector2(460, 308)) * 0.5).round()
 	_summary.size = Vector2(460, 308)
 	if _win_plate != null:
@@ -691,6 +713,8 @@ func _show_summary() -> void:
 	_play.visible = false
 	_summary_up = true
 	_hint.visible = false
+	if _flavour != null:
+		_flavour.visible = false
 	var pace: float = MinigameMath.pace_multiplier(_pace_seconds, _elapsed)
 	_summary_body.text = MinigameCatalog.flavour(_game_id)
 	if _summary_rows.size() == 5:

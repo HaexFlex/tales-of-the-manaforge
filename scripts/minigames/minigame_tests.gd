@@ -298,8 +298,16 @@ func _grade_marks() -> int:
 	if hot_plate != null and hot_plate.texture is AtlasTexture:
 		var hot_atlas: AtlasTexture = hot_plate.texture as AtlasTexture
 		hot_path = str(hot_atlas.atlas.resource_path) if hot_atlas.atlas != null else ""
-	failed += _check(not FileAccess.file_exists("res://assets/ui/minigames/win_hot_spots_pc.png"), "the package has no Hot Spots win plate to swap in")
-	failed += _check(hot_path.ends_with("win_forge_glow_pc.png"), "Hot Spots keeps the forge glow window plate")
+	failed += _check(FileAccess.file_exists("res://assets/ui/minigames/win_hot_spots_pc.png"), "Hot Spots ships its own win plate")
+	failed += _check(hot_path.ends_with("win_hot_spots_pc.png"), "Hot Spots uses its win plate")
+	var hot_footer: CanvasItem = hot_plate.get_node_or_null("FeelTestCover") as CanvasItem if hot_plate != null else null
+	failed += _check(hot_footer != null and not hot_footer.visible, "Hot Spots leaves the footer open for live text")
+	var hot_window: Node = host.get_node_or_null("MinigameRoot/Window")
+	var hot_flavour: Label = hot_window.get_node_or_null("Flavour") as Label if hot_window != null else null
+	failed += _check(
+		hot_flavour != null and hot_flavour.visible and hot_flavour.text == MinigameCatalog.flavour("hot_spots"),
+		"Hot Spots draws its flavour line at runtime"
+	)
 	host.call("close_immediate")
 	GameState.ancient_frozen = frozen
 	GameState.stage_id = stage
