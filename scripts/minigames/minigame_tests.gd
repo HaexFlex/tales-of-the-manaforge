@@ -176,6 +176,9 @@ func _steeping_debug() -> int:
 		failed += _check(is_equal_approx(float(game.get("_input_sec")), 10.0), "steeping gives 10s to pick")
 		failed += _check(int(game.get("_replays_max")) == 1, "steeping allows one replay")
 		failed += _check(is_equal_approx(float(game.get("_gap")), 0.8), "steeping waits 0.8s before the next order")
+		failed += _check(game.get_node_or_null("TimerFill") == null and game.get_node_or_null("TimerTrack") == null, "steeping draws no timer line across the order")
+		var replay: CanvasItem = game.get_node_or_null("Replay") as CanvasItem
+		failed += _check(replay != null and not replay.visible, "the grey replay square stays hidden until a replay is offered")
 	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
 	failed += _check(panel_src.find("Open Steeping") >= 0, "debug panel lists Steeping")
 	host.call("close_immediate")

@@ -23,7 +23,6 @@ var _order_icons: Array[TextureRect] = []
 var _cauldron: Sprite2D
 var _drag_herb: int = -1
 var _replay_btn: TextureButton
-var _bar_fill: ColorRect
 var _rng := RandomNumberGenerator.new()
 
 
@@ -71,22 +70,6 @@ func _ready() -> void:
 		frame.z_index = 2
 		slot.set_meta("frame", frame)
 		_slots.append(slot)
-	var track := ColorRect.new()
-	track.name = "TimerTrack"
-	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	track.color = Color8(52, 36, 24)
-	track.position = Vector2(210, 80)
-	track.size = Vector2(352, 8)
-	track.z_index = 4
-	add_child(track)
-	_bar_fill = ColorRect.new()
-	_bar_fill.name = "TimerFill"
-	_bar_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bar_fill.color = Color8(143, 227, 230)
-	_bar_fill.position = Vector2(210, 80)
-	_bar_fill.size = Vector2(352, 8)
-	_bar_fill.z_index = 5
-	add_child(_bar_fill)
 	_replay_btn = TextureButton.new()
 	_replay_btn.name = "Replay"
 	_replay_btn.position = Vector2(588, 26)
@@ -96,8 +79,10 @@ func _ready() -> void:
 	_replay_btn.focus_mode = Control.FOCUS_NONE
 	_replay_btn.z_index = 6
 	_replay_btn.pressed.connect(_replay)
+	_replay_btn.visible = false
 	add_child(_replay_btn)
 	_new_order()
+	_paint()
 
 
 func _process(delta: float) -> void:
@@ -262,19 +247,13 @@ func _paint() -> void:
 		var tex: Texture2D = MinigameArt.texture(file)
 		if tex != null:
 			frame.texture = tex
-	if _bar_fill != null:
-		var frac: float = 1.0
-		if _phase == "input":
-			frac = clampf(_input_left / _input_sec, 0.0, 1.0)
-		elif _phase == "gap":
-			frac = 0.0
-		_bar_fill.size = Vector2(roundf(352.0 * frac), 8.0)
-		_bar_fill.color = Color8(224, 150, 58) if frac < 0.3 else Color8(143, 227, 230)
 	if _replay_btn != null:
 		var live: bool = _phase == "input" and _replays_left > 0
-		var face: Texture2D = MinigameArt.texture("btn_replay.png" if live else "btn_replay_off.png")
-		_replay_btn.texture_normal = face
-		_replay_btn.texture_hover = face
-		_replay_btn.texture_pressed = face
-		_replay_btn.disabled = not live
-		_replay_btn.tooltip_text = "See the order again" if live else "Replay spent"
+		_replay_btn.visible = live
+		if live:
+			var face: Texture2D = MinigameArt.texture("btn_replay.png")
+			_replay_btn.texture_normal = face
+			_replay_btn.texture_hover = face
+			_replay_btn.texture_pressed = face
+			_replay_btn.disabled = false
+			_replay_btn.tooltip_text = "See the order again"
