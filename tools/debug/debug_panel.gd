@@ -215,6 +215,7 @@ func _build_ui() -> void:
 		Ui540.anchor_rect_safe(tab, PAD + float(i) * (tab_w + TAB_GAP), TABS_Y, tab_w, ROW_H)
 		tabs.set_tab_title(i, TAB_LABELS[i])
 		_tab_buttons.append(tab)
+	_tabs.tab_changed.connect(_sync_tab_highlight)
 	_select_tab(0)
 
 
@@ -230,6 +231,10 @@ func _select_tab(index: int) -> void:
 	if _tabs == null or index < 0 or index >= _tabs.get_tab_count():
 		return
 	_tabs.current_tab = index
+	_sync_tab_highlight(index)
+
+
+func _sync_tab_highlight(index: int) -> void:
 	for i: int in _tab_buttons.size():
 		_tab_buttons[i].set_pressed_no_signal(i == index)
 

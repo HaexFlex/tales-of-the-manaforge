@@ -6658,6 +6658,18 @@ func _debug_panel_ok(tree_root: Window) -> int:
 			bramble_btn = b
 			break
 	failed += _assert(bramble_btn != null and bramble_btn.disabled, "bramble disabled")
+	if tabs != null:
+		var overlays: int = -1
+		for i: int in tabs.get_tab_count():
+			if tabs.get_tab_title(i) == "Overlays":
+				overlays = i
+		var tree_tab: Button = panel.find_child("TabTree", true, false) as Button
+		var overlays_tab: Button = panel.find_child("TabOverlays", true, false) as Button
+		failed += _assert(overlays >= 0 and tree_tab != null and overlays_tab != null, "debug tabs include Tree and Overlays")
+		if overlays >= 0:
+			tabs.current_tab = overlays
+			failed += _assert(tabs.current_tab == overlays and overlays_tab != null and overlays_tab.button_pressed, "setting current_tab highlights Overlays")
+			failed += _assert(tree_tab != null and not tree_tab.button_pressed, "setting current_tab clears the Tree highlight")
 	panel.queue_free()
 	return failed
 
