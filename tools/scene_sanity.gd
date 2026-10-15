@@ -395,6 +395,15 @@ func _battle_view() -> int:
 	failed += _check(not bool(view.call("is_flee_shown")), "menu stays locked through the speech")
 	view.call("finish_speech")
 	failed += _check(bool(view.call("is_flee_shown")), "last page opens the menu")
+	await process_frame
+	var strike_focus: Control = view.get_viewport().gui_get_focus_owner() as Control
+	failed += _check(strike_focus != null and strike_focus.name == "StrikeButton", "Strike takes the focus ring")
+	var round_chip: Label = view.get_node_or_null("EchoStatusChip/Label") as Label
+	failed += _check(round_chip != null and round_chip.visible and round_chip.text == "Round 1", "Round chip uses the battle round")
+	failed += _check(str(view.call("log_text")).find("Your turn") >= 0, "battle log shows a line")
+	view.call("_set_speech", "Your turn")
+	var short_speech: Vector2 = view.call("speech_band_size")
+	failed += _check(absf(short_speech.x - 432.0) < 0.5 and absf(short_speech.y - 48.0) < 0.5, "one battle line uses a short speech box")
 	var menu: Control = view.get_node_or_null("EchoActionMenu") as Control
 	failed += _check(menu != null and str(menu.get_meta("built_by", "")) == "res://scripts/battle/battle_view.gd", "echo menu is built by battle_view")
 	var slot_names: PackedStringArray = PackedStringArray()

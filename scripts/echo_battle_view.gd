@@ -47,7 +47,11 @@ var _chamber_panel: Panel = null
 var _leave_btn: Button = null
 var _face_btn: Button = null
 var _close_btn: Button = null
-var _speech_box: TextureRect = null
+var _speech_box: Control = null
+var _speech_art: TextureRect = null
+var _status_chip: Panel = null
+var _status_label: Label = null
+var _strike_focused: bool = false
 var _page_label: Label = null
 var _page_btn: Button = null
 var _skip_btn: Button = null
@@ -331,15 +335,22 @@ func is_chamber_shown() -> bool:
 func _layout_speech_box(ox: float) -> void:
 	var box_rect: Rect2 = EchoTheme.SPEECH_BOX
 	if _speech_box == null:
-		_speech_box = TextureRect.new()
+		_speech_box = Control.new()
 		_speech_box.name = "SpeechBox"
+		_speech_box.clip_contents = true
 		_speech_box.mouse_filter = Control.MOUSE_FILTER_STOP
-		_speech_box.texture = load(EchoTheme.SPEECH_TEX)
-		_speech_box.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		_speech_box.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		_speech_box.stretch_mode = TextureRect.STRETCH_SCALE
 		_speech_box.gui_input.connect(_on_speech_input)
 		add_child(_speech_box)
+		_speech_art = TextureRect.new()
+		_speech_art.name = "SpeechArt"
+		_speech_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_speech_art.texture = load(EchoTheme.SPEECH_TEX)
+		_speech_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		_speech_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_speech_art.stretch_mode = TextureRect.STRETCH_SCALE
+		_speech_art.position = Vector2.ZERO
+		_speech_art.size = box_rect.size
+		_speech_box.add_child(_speech_art)
 		if _speech:
 			_speech.reparent(_speech_box)
 		_page_label = Label.new()
@@ -378,6 +389,7 @@ func _layout_speech_box(ox: float) -> void:
 		_speech_box.add_child(_skip_btn)
 	_speech_box.position = box_rect.position + Vector2(ox, 0)
 	_speech_box.size = box_rect.size
+	_fit_speech_height()
 	if _speech:
 		_speech.position = Vector2(12, 10)
 		_speech.size = Vector2(EchoTheme.SPEECH_TEXT_W, 60)
@@ -419,6 +431,22 @@ func _show_page() -> void:
 	if _skip_btn:
 		var paging: bool = _phase == "speech" or _phase == "chamber"
 		_skip_btn.visible = paging and EchoChamber.reentry
+	_fit_speech_height()
+	_refresh_status_chip()
+
+
+func _fit_speech_height() -> void:
+	if _speech_box == null:
+		return
+	var height: float = EchoTheme.SPEECH_BOX.size.y
+	if _phase == "fight" and _speech != null:
+		var font: Font = load(EchoTheme.BODY_FONT) as Font
+		var lines: int = maxi(1, EchoTheme.line_count(_speech.text, font))
+		if lines <= 1:
+			height = 48.0
+		elif lines == 2:
+			height = 72.0
+	_speech_box.size.y = height
 
 
 func _skip_speech() -> void:
@@ -642,6 +670,69 @@ func _ensure_echo_menu() -> void:
 		_salve_btn.pressed.connect(_on_salve)
 	_build_hp_bars()
 	_refresh_bars(false)
+	_ensure_log_header()
+	_refresh_log()
+	_ensure_status_chip()
+
+
+func _ensure_log_header() -> void:
+	var panel: Control = get_node_or_null("EchoActionMenu/EchoLog") as Control
+	if panel == null or panel.get_node_or_null("LogHeader") != null:
+		return
+	var header := Label.new()
+	header.name = "LogHeader"
+	header.text = ContentStrings.get_text("battle_log_title")
+	header.position = Vector2(8, 4)
+	header.size = Vector2(396, 20)
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(header, false)
+	header.add_theme_color_override("font_color", EchoTheme.AMBER)
+	panel.add_child(header)
+	if _log:
+		_log.position = Vector2(8, 24)
+		_log.size = Vector2(396, 68)
+
+
+func _ensure_status_chip() -> void:
+	if _status_chip != null:
+		return
+	var box: Rect2 = EchoTheme.at(EchoTheme.ATTEMPT_CHIP)
+	_status_chip = Panel.new()
+	_status_chip.name = "EchoStatusChip"
+	_status_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_chip.position = box.position
+	_status_chip.size = box.size
+	var art := TextureRect.new()
+	art.texture = load(EchoTheme.ART + "chip_attempt_132x44.png")
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.position = Vector2.ZERO
+	art.size = box.size
+	_status_chip.add_child(art)
+	_status_label = Label.new()
+	_status_label.name = "Label"
+	_status_label.position = Vector2.ZERO
+	_status_label.size = box.size
+	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(_status_label, false)
+	_status_chip.add_child(_status_label)
+	_status_chip.visible = false
+	add_child(_status_chip)
+
+
+func _refresh_status_chip() -> void:
+	_ensure_status_chip()
+	if _status_chip == null:
+		return
+	if _phase == "fight" and _battle != null:
+		_status_chip.visible = true
+		_status_label.text = "Round %d" % (_battle.round + 1)
+		return
+	_status_chip.visible = false
 
 
 func _build_hp_bars() -> void:
@@ -1412,12 +1503,16 @@ func _refresh_actions() -> void:
 	if _battle == null:
 		return
 	if _phase == "chamber":
+		_strike_focused = false
 		_hide_fight_chrome()
 		_show_chamber_chrome()
+		_refresh_status_chip()
 		return
 	if _phase == "speech":
+		_strike_focused = false
 		_ensure_echo_menu()
 		_lock_menu()
+		_refresh_status_chip()
 		return
 	_ensure_echo_menu()
 	var actions: PackedStringArray = _battle.available_actions()
@@ -1442,6 +1537,11 @@ func _refresh_actions() -> void:
 			var magical: bool = _battle.arrow_mode == "magical"
 			_arrow.text = ContentStrings.get_text("battle_toggle_mag" if magical else "battle_toggle_phys")
 			_arrow.tooltip_text = ContentStrings.get_text("battle_mode_hint")
+	_refresh_log()
+	_refresh_status_chip()
+	if not _strike_focused and _offered(_strike):
+		_strike_focused = true
+		_strike.grab_focus.call_deferred()
 
 
 func _lock_menu() -> void:
@@ -1491,11 +1591,15 @@ func _refresh_bars(flash: bool) -> void:
 func _refresh_log() -> void:
 	if _battle == null or _log == null:
 		return
+	if _phase != "fight":
+		return
 	var lines: PackedStringArray = _battle.log
-	var start: int = maxi(0, lines.size() - 4)
+	var start: int = maxi(0, lines.size() - 3)
 	var shown: PackedStringArray = PackedStringArray()
 	for i: int in range(start, lines.size()):
 		shown.append(lines[i])
+	if shown.is_empty():
+		shown.append(ContentStrings.get_text("battle_your_turn"))
 	_log.text = "\n".join(shown)
 
 
