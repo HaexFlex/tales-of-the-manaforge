@@ -447,6 +447,11 @@ func _battle_view() -> int:
 	var stay: Button = view.get_node_or_null("LeaveConfirm/LeaveStay") as Button
 	var flee_btn: Button = view.get_node_or_null("LeaveConfirm/LeaveFlee") as Button
 	failed += _check(leave != null and EchoTheme.panel_ok(leave.size) and is_equal_approx(leave.self_modulate.a, 0.88), "leave confirm is an ink panel on the tile grid")
+	failed += _check(stay != null and flee_btn != null and stay.position.y + stay.size.y <= leave.size.y and flee_btn.position.y + flee_btn.size.y <= leave.size.y, "Flee and Stay sit inside the panel")
+	var leave_body: Label = view.get_node_or_null("LeaveConfirm/LeaveBody") as Label
+	failed += _check(leave_body != null and leave_body.text.find("counts as Flee") >= 0, "leave copy says it counts as Flee")
+	var esc_cap: CanvasItem = view.get_node_or_null("LeaveConfirm/LeaveStay/EscKeycap") as CanvasItem
+	failed += _check(esc_cap != null and esc_cap.visible, "Stay shows the Esc keycap")
 	failed += _check(stay != null and flee_btn != null and stay.position.x > flee_btn.position.x, "Stay is the right-hand button")
 	failed += _check(view.get_node_or_null("LeaveConfirm/EchoClose") == null, "the leave confirm has no ×")
 	failed += _check(stay != null and stay.custom_minimum_size.y >= 44.0 and flee_btn.custom_minimum_size.x >= 44.0, "leave buttons are at least 44 px")

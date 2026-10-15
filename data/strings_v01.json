@@ -593,6 +593,8 @@
   "battle_mode_hint": "Choose how this weapon bites.",
   "battle_log_mode_phys": "You shift to a physical strike.",
   "battle_log_mode_mag": "You shift to a magical strike.",
+  "echo_leave_body": "Leaving now counts as Flee. Run, then. The arch keeps your Essence. The snares keep the road.",
+  "echo_leave_warn": "No rewards for this attempt.",
   "echo_speech_hint": "Tap the box or ▼ · Space / Enter\nMenu unlocks on the last page.",
   "echo_speech_page": "Page {page}/{pages} · {chars} chars",
   "echo_01_narrator": "An echo of a woman who once stood where you stand. She does not raise her voice.",

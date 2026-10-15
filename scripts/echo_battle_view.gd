@@ -510,8 +510,9 @@ func _open_leave_confirm() -> void:
 	add_child(dim)
 	var panel := Panel.new()
 	panel.name = "LeaveConfirm"
-	panel.position = Vector2(ox + 220.0, 146)
-	panel.size = Vector2(520, 248)
+	panel.position = Vector2(ox + 220.0, 126)
+	## 288 keeps Flee and Stay inside the frame. 248 let them straddle the border.
+	panel.size = Vector2(520, 288)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	EchoTheme.paint_panel(panel, false)
 	add_child(panel)
@@ -527,17 +528,17 @@ func _open_leave_confirm() -> void:
 	panel.add_child(title)
 	var body := Label.new()
 	body.name = "LeaveBody"
-	body.text = "The fight ends and you return to the trailhead."
+	body.text = ContentStrings.get_text("echo_leave_body")
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.position = Vector2(32, 74)
-	body.size = Vector2(456, 60)
+	body.position = Vector2(32, 68)
+	body.size = Vector2(456, 48)
 	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_body(body, false)
 	panel.add_child(body)
 	var warn := Label.new()
 	warn.name = "LeaveWarn"
-	warn.text = "The Essence fee stays paid."
-	warn.position = Vector2(56, 140)
+	warn.text = ContentStrings.get_text("echo_leave_warn")
+	warn.position = Vector2(56, 120)
 	warn.size = Vector2(432, 22)
 	warn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_body(warn, false)
@@ -547,13 +548,13 @@ func _open_leave_confirm() -> void:
 	mark.texture = load(EchoTheme.ART + "icon_warn_amber_18x16.png")
 	mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	mark.position = Vector2(32, 143)
+	mark.position = Vector2(32, 123)
 	mark.size = Vector2(18, 16)
 	panel.add_child(mark)
 	var flee := Button.new()
 	flee.name = "LeaveFlee"
 	flee.text = "Flee"
-	flee.position = Vector2(32, 222)
+	flee.position = Vector2(32, 212)
 	flee.size = Vector2(168, 44)
 	flee.custom_minimum_size = flee.size
 	EchoTheme.paint_button(flee, false)
@@ -562,12 +563,25 @@ func _open_leave_confirm() -> void:
 	var stay := Button.new()
 	stay.name = "LeaveStay"
 	stay.text = "Stay"
-	stay.position = Vector2(232, 216)
+	stay.position = Vector2(232, 200)
 	stay.size = Vector2(236, 56)
 	stay.custom_minimum_size = Vector2(236, 44)
 	EchoTheme.paint_button(stay, true)
 	stay.pressed.connect(_confirm_stay)
 	panel.add_child(stay)
+	var cap := TextureRect.new()
+	cap.name = "EscKeycap"
+	cap.texture = load("res://assets/ui/theme/keycap_esc.png")
+	cap.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cap.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	if cap.texture:
+		cap.size = cap.texture.get_size()
+	else:
+		cap.size = Vector2(28, 15)
+	cap.position = Vector2(stay.size.x - cap.size.x - 8.0, -cap.size.y - 2.0)
+	cap.visible = not Ui540.is_phone_export()
+	stay.add_child(cap)
 	if _close_btn:
 		_close_btn.visible = false
 	stay.call_deferred("grab_focus")
