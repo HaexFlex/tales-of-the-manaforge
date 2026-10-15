@@ -3476,7 +3476,8 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		btn.text = str(labels[slot])
 		var col: int = i % 3
 		var row: int = int(i / 3)
-		var slot_w: float = 96.0 if hybrid and slot == "strike" else 144.0
+		## Hybrid Strike leaves a gap for the Phy chip. 104 fits the word and the 1 badge.
+		var slot_w: float = 104.0 if hybrid and slot == "strike" else 144.0
 		btn.position = Vector2(ox + 44.0 + 152.0 * float(col), 394.0 + 56.0 * float(row))
 		btn.size = Vector2(slot_w, 44)
 		btn.custom_minimum_size = Vector2(slot_w, 44)
@@ -3491,7 +3492,16 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		if hybrid and slot == "strike":
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			btn.add_theme_constant_override("icon_max_width", 20)
+			btn.add_theme_constant_override("h_separation", 4)
 			btn.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+			## Keep "Strike" left of the hotkey badge.
+			for state_name: String in ["normal", "hover", "pressed", "disabled", "focus", "hover_pressed"]:
+				var face: StyleBox = btn.get_theme_stylebox(state_name)
+				if face == null:
+					continue
+				var inset: StyleBox = face.duplicate()
+				inset.content_margin_right = 28
+				btn.add_theme_stylebox_override(state_name, inset)
 		if not phone:
 			var cap := Label.new()
 			cap.name = "Keycap"
@@ -3522,8 +3532,8 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 	var chip := Button.new()
 	chip.name = "ArrowToggle"
 	chip.text = "Phy"
-	## Clear of the 96 px Strike label. The old x sat on the word.
-	chip.position = Vector2(ox + 148.0, 394.0)
+	## Strike ends at ox+148. The chip stays 44 px (tap minimum) and stops before Ability.
+	chip.position = Vector2(ox + 150.0, 394.0)
 	chip.size = Vector2(44, 44)
 	chip.custom_minimum_size = Vector2(44, 44)
 	chip.visible = hybrid
@@ -3537,7 +3547,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 	hint.name = "ChipHint"
 	hint.text = "Mag" if phone else "Tab"
 	hint.position = Vector2(0, 24)
-	hint.size = Vector2(44, 16)
+	hint.size = Vector2(chip.size.x, 16)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_body(hint, true)

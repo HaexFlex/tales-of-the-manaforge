@@ -399,7 +399,18 @@ func _battle_view() -> int:
 	var strike_btn: Control = view.get_node_or_null("EchoActionMenu/StrikeButton") as Control
 	failed += _check(locked_ability != null and locked_ability.disabled and locked_ability.modulate.r < 0.7, "Ability is dim while the speech locks the menu")
 	failed += _check(locked_salve != null and locked_salve.disabled and locked_salve.modulate.r < 0.7, "Salve is dim while the speech locks the menu")
-	failed += _check(phys_chip != null and strike_btn != null and phys_chip.position.x >= strike_btn.position.x + strike_btn.size.x - 0.5, "Phys chip sits clear of Strike")
+	var strike_font: Font = strike_btn.get_theme_font("font") if strike_btn is Button else null
+	var strike_px: int = (strike_btn as Button).get_theme_font_size("font_size") if strike_btn is Button else 19
+	var strike_word: float = strike_font.get_string_size(strike_btn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, strike_px).x if strike_font != null else 99.0
+	var strike_cap: Control = strike_btn.get_node_or_null("Keycap") if strike_btn else null
+	var strike_box: StyleBox = (strike_btn as Button).get_theme_stylebox("disabled") if strike_btn is Button else null
+	var strike_text_left: float = 0.0
+	if strike_box != null and strike_btn is Button:
+		strike_text_left = strike_box.get_content_margin(SIDE_LEFT) + float((strike_btn as Button).get_theme_constant("icon_max_width")) + float((strike_btn as Button).get_theme_constant("h_separation"))
+	var ability_slot: Control = view.get_node_or_null("EchoActionMenu/AbilityButton") as Control
+	failed += _check(phys_chip != null and strike_btn != null and not phys_chip.get_rect().intersects(strike_btn.get_rect()) and phys_chip.position.x >= strike_btn.position.x + strike_btn.size.x - 0.5, "Phys chip sits clear of Strike")
+	failed += _check(ability_slot != null and phys_chip != null and phys_chip.position.x + phys_chip.size.x <= ability_slot.position.x + 0.5, "Phys chip stops before Ability")
+	failed += _check(strike_cap != null and strike_text_left + strike_word <= strike_cap.position.x - 1.0, "Strike label shows in full beside the hotkey")
 	failed += _check(str(view.call("log_text")).find("Tap the box") >= 0 and str(view.call("log_text")).find("Page ") >= 0, "speech log explains the page")
 	echo.set("reentry", true)
 	view.call("_refresh_status_chip")

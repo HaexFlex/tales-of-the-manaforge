@@ -1643,12 +1643,14 @@ func _refresh_actions() -> void:
 
 
 func _lock_menu() -> void:
+	var hybrid: bool = _battle != null and _battle.strike_kind == "hybrid"
 	for btn: Button in [_strike, _ability_btn, _salve_btn, _brace_btn, _flee, _spare, _arrow]:
 		if btn == null:
 			continue
-		btn.visible = true
+		## A physical Strike is the full slot. The Phy chip would cover its label.
+		btn.visible = btn != _arrow or hybrid
 		btn.disabled = true
-		btn.modulate = Color(0.45, 0.55, 0.55, 1)
+		_paint_slot_dim(btn, true)
 
 
 func _offer_slot(btn: Button, on: bool, label: String) -> void:
@@ -1656,9 +1658,15 @@ func _offer_slot(btn: Button, on: bool, label: String) -> void:
 		return
 	btn.visible = _phase == "fight"
 	btn.disabled = not on or _waiting_return
-	btn.modulate = Color(0.45, 0.55, 0.55, 1) if btn.disabled else Color.WHITE
+	_paint_slot_dim(btn, btn.disabled)
 	if label != "":
 		btn.text = label
+
+
+func _paint_slot_dim(btn: Button, dim: bool) -> void:
+	if btn == null:
+		return
+	btn.modulate = Color(0.45, 0.55, 0.55, 1) if dim else Color.WHITE
 
 
 func _refresh_bars(flash: bool) -> void:
