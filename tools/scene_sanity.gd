@@ -471,10 +471,27 @@ func _battle_view() -> int:
 	failed += _check(rewards_close != null and rewards_close.position.y <= 10.0 and close_glyph != null and close_glyph.size.y <= 16.0, "rewards × sits high and the glyph is small")
 	var rewards_footer: Label = view.get_node_or_null("EchoRewards/RewardsFooter") as Label
 	var rewards_flavour: Label = view.get_node_or_null("EchoRewards/RewardsFlavour") as Label
+	var rewards_title: Label = view.get_node_or_null("EchoRewards/RewardsTitle") as Label
+	var reward_label: Label = view.get_node_or_null("EchoRewards/RewardRow0/Label") as Label
+	var key_value: Label = view.get_node_or_null("EchoRewards/RewardRow1/Value") as Label
+	var niche_value: Label = view.get_node_or_null("EchoRewards/RewardRow2/Value") as Label
+	var redeemed_value: Label = view.get_node_or_null("EchoRewards/RewardRow3/Value") as Label
+	var row1: Control = view.get_node_or_null("EchoRewards/RewardRow1") as Control
 	failed += _check(rewards_footer != null and rewards_footer.text.find("Manatree") >= 0, "rewards footer names the wake")
-	failed += _check(reward_row != null and rewards_flavour != null and reward_row.position.y <= rewards_flavour.position.y + rewards_flavour.size.y + 10.0, "reward rows sit just under the flavour")
+	failed += _check(rewards_title != null and is_equal_approx(rewards_title.position.y, 34.0), "rewards title sits at y 34")
+	failed += _check(reward_row != null and is_equal_approx(reward_row.position.y, 190.0) and row1 != null and is_equal_approx(row1.position.y, 240.0), "reward rows lock to y 190 plus 50")
+	failed += _check(rewards_flavour != null and rewards_flavour.position.y + rewards_flavour.size.y <= 190.0, "reward flavour stays above the locked rows")
 	failed += _check(reward_row != null and EchoTheme.panel_ok(reward_row.size) and is_equal_approx(reward_row.self_modulate.a, 1.0), "reward rows tile without stacking the fade")
-	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") == EchoTheme.GOLD, "reward values are gold")
+	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") == EchoTheme.CYAN, "manashard value is cyan")
+	failed += _check(key_value != null and key_value.get_theme_color("font_color") == EchoTheme.AMBER, "forge key gains stay amber")
+	failed += _check(reward_label != null and reward_label.get_theme_color("font_color") == EchoTheme.PEARL, "reward labels are pearl")
+	failed += _check(niche_value != null and niche_value.get_theme_color("font_color") == EchoTheme.PEARL and niche_value.text == "unlocked", "unlocked is pearl")
+	failed += _check(redeemed_value != null and redeemed_value.get_theme_color("font_color") == EchoTheme.PEARL and redeemed_value.text == "redeemed", "redeemed is pearl")
+	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") != EchoTheme.GOLD, "rewards do not use gold")
+	var title_plate: Control = view.get_node_or_null("EchoTitlePlate") as Control
+	var keeper_portrait: Control = view.get_node_or_null("KeeperPortrait") as Control
+	var echo_portrait: Control = view.get_node_or_null("EchoPortrait") as Control
+	failed += _check(_control_covers(rewards, title_plate) and _control_covers(rewards, keeper_portrait) and _control_covers(rewards, echo_portrait), "rewards window covers the title plate and both fighters")
 	view.call("_clear_rewards")
 	view.set("_waiting_return", false)
 	view.set("_pending_outcome", "")
@@ -1652,6 +1669,17 @@ func _content_keys() -> int:
 	for key: String in shop:
 		failed += _check((forge as Dictionary).has(key) and str((forge as Dictionary)[key]) != key, key)
 	return failed
+
+
+func _control_covers(window: Control, target: Control) -> bool:
+	if window == null or target == null:
+		return false
+	var outer := Rect2(window.position, window.size)
+	var inner := Rect2(target.position, target.size)
+	return outer.position.x <= inner.position.x + 0.5 \
+		and outer.position.y <= inner.position.y + 0.5 \
+		and outer.end.x + 0.5 >= inner.end.x \
+		and outer.end.y + 0.5 >= inner.end.y
 
 
 func _check(ok: bool, label: String) -> int:

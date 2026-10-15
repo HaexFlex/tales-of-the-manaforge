@@ -1258,8 +1258,6 @@ func _show_rewards(outcome: String) -> void:
 		menu.visible = false
 	if _close_btn:
 		_close_btn.visible = false
-	if _title_plate:
-		_title_plate.visible = false
 	var dim := ColorRect.new()
 	dim.name = "EchoRewardsDim"
 	dim.color = Color(0, 0, 0, 0.72)
@@ -1269,9 +1267,10 @@ func _show_rewards(outcome: String) -> void:
 	var ox: float = EchoTheme.shift()
 	var panel := Panel.new()
 	panel.name = "EchoRewards"
-	## 460 is off the 8 px tile. 464 keeps the wave seamless.
-	panel.position = Vector2(ox + 200.0, 40)
-	panel.size = Vector2(560, 464)
+	## 816×496 covers the title plate (y 26) and both fighters (x 72–888).
+	## Both sides sit on the 40+8n tile.
+	panel.position = Vector2(ox + 72.0, 16.0)
+	panel.size = Vector2(816, 496)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	EchoTheme.paint_panel(panel, false)
 	## The ink fill is opaque. 0.88 lets the chamber plank, portraits, and HP bars through.
@@ -1281,14 +1280,15 @@ func _show_rewards(outcome: String) -> void:
 	title.name = "RewardsTitle"
 	title.text = "Echo Spared" if outcome == "spare" else "Echo Defeated"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.position = Vector2(40, 28)
-	title.size = Vector2(400, 40)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.position = Vector2(48, 34)
+	title.size = Vector2(panel.size.x - 96.0, 40)
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_title(title, true)
 	panel.add_child(title)
 	var close := Button.new()
 	close.name = "RewardsClose"
-	close.position = Vector2(500, 8)
+	close.position = Vector2(panel.size.x - 60.0, 8)
 	close.size = Vector2(44, 44)
 	close.custom_minimum_size = close.size
 	EchoTheme.paint_button(close, true)
@@ -1309,33 +1309,36 @@ func _show_rewards(outcome: String) -> void:
 	flavour.name = "RewardsFlavour"
 	flavour.text = _flavour_for_outcome(outcome)
 	flavour.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	flavour.position = Vector2(40, 72)
+	flavour.position = Vector2(48, 80)
+	var flavour_w: float = panel.size.x - 96.0
 	var flavour_font: Font = load(EchoTheme.BODY_FONT) as Font
 	var flavour_lines: int = 1
 	if flavour_font != null and flavour.text != "":
-		var measured: Vector2 = flavour_font.get_multiline_string_size(flavour.text, HORIZONTAL_ALIGNMENT_LEFT, 480.0, EchoTheme.BODY_SIZE)
+		var measured: Vector2 = flavour_font.get_multiline_string_size(flavour.text, HORIZONTAL_ALIGNMENT_LEFT, flavour_w, EchoTheme.BODY_SIZE)
 		flavour_lines = maxi(1, int(ceil(measured.y / flavour_font.get_height(EchoTheme.BODY_SIZE))))
-	flavour.size = Vector2(480, 22.0 * flavour_lines)
+	## Rows are locked at y 190. Keep the flavour above that line.
+	flavour.size = Vector2(flavour_w, minf(22.0 * flavour_lines, 102.0))
 	flavour.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_body(flavour, true)
 	panel.add_child(flavour)
-	var row_y: float = flavour.position.y + flavour.size.y + 8.0
 	var rows: Array = _reward_rows(outcome)
+	var row_w: float = panel.size.x - 56.0
 	for row_i: int in rows.size():
 		var spec: Array = rows[row_i]
 		var row := Panel.new()
 		row.name = "RewardRow%d" % row_i
-		row.position = Vector2(28, row_y + row_i * 50)
+		row.position = Vector2(28, 190.0 + row_i * 50.0)
 		## 44 is off the tile. 48 is the nearest 40+8n and still sits on the 50 px pitch.
-		row.size = Vector2(504, 48)
+		row.size = Vector2(row_w, 48)
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		EchoTheme.paint_panel(row, true)
 		row.self_modulate.a = 1.0
 		panel.add_child(row)
 		var left := Label.new()
+		left.name = "Label"
 		left.text = str(spec[0])
 		left.position = Vector2(16, 12)
-		left.size = Vector2(240, 24)
+		left.size = Vector2(280, 24)
 		left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		EchoTheme.style_body(left, false)
 		row.add_child(left)
@@ -1343,25 +1346,25 @@ func _show_rewards(outcome: String) -> void:
 		right.name = "Value"
 		right.text = str(spec[1])
 		right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		right.position = Vector2(220, 12)
-		right.size = Vector2(268, 24)
+		right.position = Vector2(300, 12)
+		right.size = Vector2(row_w - 316.0, 24)
 		right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		EchoTheme.style_body(right, false)
-		right.add_theme_color_override("font_color", EchoTheme.GOLD)
+		right.add_theme_color_override("font_color", _reward_value_color(str(spec[2]) if spec.size() > 2 else "pearl"))
 		row.add_child(right)
 	var footer := Label.new()
 	footer.name = "RewardsFooter"
 	footer.text = ContentStrings.get_text("echo_rewards_footer")
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	footer.position = Vector2(40, row_y + rows.size() * 50.0 + 4.0)
-	footer.size = Vector2(480, 22)
+	footer.position = Vector2(48, 190.0 + rows.size() * 50.0 + 6.0)
+	footer.size = Vector2(panel.size.x - 96.0, 22)
 	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	EchoTheme.style_body(footer, true)
 	panel.add_child(footer)
 	var back := Button.new()
 	back.name = "RewardsReturn"
 	back.text = ContentStrings.get_text("battle_return")
-	back.position = Vector2(130, 382)
+	back.position = Vector2((panel.size.x - 300.0) * 0.5, 428)
 	back.size = Vector2(300, 52)
 	back.custom_minimum_size = Vector2(300, 52)
 	EchoTheme.paint_button(back, true)
@@ -1371,20 +1374,30 @@ func _show_rewards(outcome: String) -> void:
 	Ui540.hide_name_tags_under(panel)
 
 
+func _reward_value_color(tone: String) -> Color:
+	## Gold stays on focus, the page arrow, and the mercy banner.
+	if tone == "cyan":
+		return EchoTheme.CYAN
+	if tone == "amber":
+		return EchoTheme.AMBER
+	return EchoTheme.PEARL
+
+
 func _reward_rows(outcome: String) -> Array:
 	if _is_bramble():
-		return [[_pending_toast, ""]]
+		return [[_pending_toast, "", "pearl"]]
 	var shards: int = EchoChamber.snapshot_payout(outcome)
 	var rows: Array = [
-		[ContentStrings.get_text("hud_manashards"), "+%d" % shards],
+		[ContentStrings.get_text("hud_manashards"), "+%d" % shards, "cyan"],
 		[
 			"Forge Key (relic)",
 			"+1 %s  +1 %s" % [ContentStrings.get_text("stat_swiftness"), ContentStrings.get_text("stat_fate")],
+			"amber",
 		],
-		["Relic niche", "unlocked"],
+		["Relic niche", "unlocked", "pearl"],
 	]
 	if outcome == "spare":
-		rows.append([_enemy_name(), "redeemed"])
+		rows.append([_enemy_name(), "redeemed", "pearl"])
 	return rows
 
 
