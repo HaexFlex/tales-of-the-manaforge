@@ -287,6 +287,9 @@ func _open_confirm(can_pay: bool) -> void:
 func _input(event: InputEvent) -> void:
 	if not is_fee_confirm_open():
 		return
+	var menu: Node = get_tree().get_first_node_in_group("pause_menu") if get_tree() else null
+	if menu != null and menu.has_method("is_open") and bool(menu.call("is_open")):
+		return
 	if not (event is InputEventKey):
 		return
 	var key: InputEventKey = event as InputEventKey

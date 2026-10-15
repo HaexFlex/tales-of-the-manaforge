@@ -4299,6 +4299,21 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub bed before the echo")
 		failed += _assert(str(portal.call("begin_entry")) == "confirm", "30 Essence opens the fee confirm")
 		failed += _assert(int(game_state.get("essence")) == 30, "confirm alone does not spend")
+		var pause_button: Button = hud.get_node_or_null("Panel/PauseButton") as Button
+		failed += _assert(pause_button != null and pause_button.visible, "pause stays visible over the fee confirm")
+		pause_menu.call("open_pause")
+		failed += _assert(bool(portal.call("is_fee_confirm_open")) and int(game_state.get("essence")) == 30 and not bool(echo.get("in_battle")), "pause does not skip the fee")
+		var pause_new: Button = pause_menu.get_node_or_null("Panel/BtnNewGame") as Button
+		var pause_load: Button = pause_menu.get_node_or_null("Panel/BtnLoad") as Button
+		var pause_exit: Button = pause_menu.get_node_or_null("Panel/BtnExit") as Button
+		failed += _assert(pause_new != null and pause_new.disabled and pause_load != null and pause_load.disabled and pause_exit != null and pause_exit.disabled, "pause cannot new-game, load, or exit over the fee")
+		pause_menu.call("_on_new_game_pressed")
+		pause_menu.call("_on_load_pressed")
+		pause_menu.call("_on_exit_pressed")
+		pause_menu.call("_on_quit_game_pressed")
+		failed += _assert(bool(portal.call("is_fee_confirm_open")) and int(game_state.get("essence")) == 30 and not bool(echo.get("in_battle")), "pause actions leave the fee confirm waiting")
+		pause_menu.call("resume_game")
+		failed += _assert(not bool(pause_menu.call("is_open")) and bool(portal.call("is_fee_confirm_open")), "resume returns to the fee confirm")
 		game_audio.call("clear_played_log")
 		failed += _assert(str(portal.call("confirm_fee")) == "enter", "confirm enters the battle")
 		failed += _assert(not bool(game_audio.call("did_play", &"mus_fruit_sting")), "no fruit sting on the fee")
@@ -4329,10 +4344,25 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var echo_name_lbl: Label = battle_view.get_node_or_null("EchoName") as Label
 		failed += _assert(echo_name_lbl != null and echo_name_lbl.text.find("Elaia") >= 0, "opening names Elaia")
 		var pause_save: Button = pause_menu.get_node_or_null("Panel/BtnSave") as Button
+		var fight_pause_button: Button = hud.get_node_or_null("Panel/PauseButton") as Button
+		failed += _assert(fight_pause_button != null and fight_pause_button.visible, "pause stays visible in the echo")
 		pause_menu.call("open_pause")
 		failed += _assert(pause_save != null and pause_save.disabled, "Save disabled while the echo is open")
+		failed += _assert(bool(echo.get("in_battle")) and bool(game_state.get("portal_fee_paid")) and not bool(game_state.get("echo_01_resolved")), "opening pause does not skip the fight")
+		pause_menu.call("_on_new_game_pressed")
+		pause_menu.call("_do_load_slot", "manual", 1)
+		pause_menu.call("_on_exit_pressed")
+		pause_menu.call("_on_quit_game_pressed")
+		failed += _assert(bool(echo.get("in_battle")) and bool(game_state.get("portal_fee_paid")) and not bool(game_state.get("echo_01_resolved")) and int(game_state.get("essence")) == 0, "pause cannot skip the fee or the fight")
 		pause_menu.call("resume_game")
 		failed += _assert(bool(game_audio.call("is_hub_suspended")), "pause resume does not restart the bed")
+		battle_view.call("_open_leave_confirm")
+		await process_frame
+		var leave_stay: Button = battle_view.get_node_or_null("LeaveConfirm/LeaveStay") as Button
+		var leave_flee: Button = battle_view.get_node_or_null("LeaveConfirm/LeaveFlee") as Button
+		failed += _assert(bool(battle_view.call("leave_confirm_open")) and leave_stay != null and leave_flee != null and leave_stay.position.x > leave_flee.position.x and leave_stay.has_focus(), "Esc leave confirm still defaults to Stay")
+		battle_view.call("_confirm_stay")
+		failed += _assert(not bool(battle_view.call("leave_confirm_open")) and bool(echo.get("in_battle")) and bool(game_state.get("portal_fee_paid")), "Stay keeps the fight and the fee")
 		battle_view.call("_offer_return", "flee")
 		await process_frame
 		var echo_fled: Control = battle_view.get_node_or_null("EchoFledWindow") as Control
@@ -4347,6 +4377,11 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var echo_close: Button = battle_view.get_node_or_null("EchoFledWindow/EchoFledClose") as Button
 		failed += _assert(echo_close != null and echo_close.text == "" and is_equal_approx(echo_close.position.y, 44.0), "echo × sits on the 24 px padding")
 		failed += _assert(bool(battle_view.call("speech_between_portraits")), "echo chamber layout is unchanged under the fled window")
+		pause_menu.call("open_pause")
+		pause_menu.call("_on_new_game_pressed")
+		pause_menu.call("_do_load_slot", "manual", 1)
+		failed += _assert(bool(echo.get("in_battle")) and bool(game_state.get("portal_fee_paid")) and not bool(game_state.get("forge_key")) and battle_view.get_node_or_null("EchoFledWindow") != null, "pause does not skip the fled result")
+		pause_menu.call("resume_game")
 		echo.call("finish_battle", "flee")
 		await process_frame
 		failed += _assert(not bool(echo.get("in_battle")), "flee leaves the battle")
@@ -4366,9 +4401,9 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_state.set("forge_key", true)
 		echo.set("in_battle", true)
 		pause_menu.call("_do_load_slot", "manual", 1)
-		failed += _assert(not bool(echo.get("in_battle")), "load abandons the fight")
-		failed += _assert(int(game_state.get("manashards")) == 4 and not bool(game_state.get("forge_key")), "load does not keep battle rewards")
-		failed += _assert(bool(game_state.get("portal_fee_paid")), "loaded fee stays paid")
+		failed += _assert(bool(echo.get("in_battle")), "load does not abandon the echo")
+		failed += _assert(int(game_state.get("manashards")) == 90 and bool(game_state.get("forge_key")), "load does not apply while the echo is open")
+		failed += _assert(bool(game_state.get("portal_fee_paid")), "the fee stays paid when load is refused")
 	var leftover_battle: Node = tree_root.get_node_or_null("EchoBattle")
 	if leftover_battle:
 		leftover_battle.free()

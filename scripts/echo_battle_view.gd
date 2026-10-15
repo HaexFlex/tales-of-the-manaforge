@@ -805,8 +805,19 @@ func _on_salve() -> void:
 	_choose("salve")
 
 
+func _pause_is_open() -> bool:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return false
+	var menu: Node = tree.get_first_node_in_group("pause_menu")
+	return menu != null and menu.has_method("is_open") and bool(menu.call("is_open"))
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _battle == null:
+		return
+	## Pause only freezes. Esc while it is open resumes it, and does not flee.
+	if _pause_is_open():
 		return
 	if not (event is InputEventKey):
 		return

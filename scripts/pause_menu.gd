@@ -176,6 +176,8 @@ func _ensure_quit_game_button() -> void:
 
 
 func _on_quit_game_pressed() -> void:
+	if _echo_pause_holds():
+		return
 	_show_confirm(
 		&"quit",
 		ContentStrings.get_text("pause_quit_game_confirm"),
@@ -830,7 +832,7 @@ func open_pause() -> void:
 	visible = true
 	backdrop.visible = true
 	panel.visible = true
-	btn_save.disabled = EchoChamber.in_battle
+	_apply_echo_pause_locks()
 	btn_resume.grab_focus.call_deferred()
 	_notify_pause_button()
 	if EchoChamber.in_battle:
@@ -860,7 +862,27 @@ func resume_game() -> void:
 	GameAudio.play_ui_close()
 
 
+func _echo_pause_holds() -> bool:
+	## Pause may open over an Echo. It must not spend the fee, discard a result,
+	## or leave the fight. Resume is the way back. x / Esc still open Leave.
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return true
+	return EchoPortal.is_fee_confirm_open()
+
+
+func _apply_echo_pause_locks() -> void:
+	var hold: bool = _echo_pause_holds()
+	btn_save.disabled = hold
+	btn_new_game.disabled = hold
+	btn_load.disabled = hold
+	btn_exit.disabled = hold
+	if btn_quit_game != null:
+		btn_quit_game.disabled = hold
+
+
 func _on_new_game_pressed() -> void:
+	if _echo_pause_holds():
+		return
 	_show_confirm(
 		&"new_game",
 		ContentStrings.get_text("pause_new_game_confirm"),
@@ -874,11 +896,15 @@ func _on_save_pressed() -> void:
 		status_toast.emit(ContentStrings.get_text("battle_save_disabled"))
 		GameAudio.play_ui_cancel()
 		return
+	if _echo_pause_holds():
+		return
 	_slot_mode = SlotMode.SAVE
 	_show_slots(ContentStrings.get_text("pause_save"))
 
 
 func _on_load_pressed() -> void:
+	if _echo_pause_holds():
+		return
 	_slot_mode = SlotMode.LOAD
 	_show_slots(ContentStrings.get_text("pause_load"))
 
@@ -921,6 +947,8 @@ func _on_options_reset() -> void:
 
 
 func _on_exit_pressed() -> void:
+	if _echo_pause_holds():
+		return
 	_show_confirm(
 		&"exit",
 		ContentStrings.get_text("pause_exit_confirm"),
@@ -1154,6 +1182,8 @@ func _on_slot_pressed(kind: String, slot: int) -> void:
 
 
 func _do_save_slot(slot: int) -> void:
+	if _echo_pause_holds():
+		return
 	var ok: bool = SaveService.save_game(slot)
 	if ok:
 		GameAudio.play_ui_confirm()
@@ -1165,6 +1195,8 @@ func _do_save_slot(slot: int) -> void:
 
 
 func _do_load_slot(kind: String, slot: int) -> void:
+	if not standalone and _echo_pause_holds():
+		return
 	var filled: bool = SaveService.has_autosave(slot) if kind == "autosave" else SaveService.has_slot(slot)
 	if standalone:
 		if not filled:
@@ -1255,6 +1287,8 @@ func _on_confirm_yes() -> void:
 	var slot: int = _pending_slot
 	var kind_now: String = _pending_kind
 	_hide_confirm()
+	if _echo_pause_holds() and (action == &"new_game" or action == &"quit" or action == &"exit"):
+		return
 	match action:
 		&"new_game":
 			_do_new_game()
