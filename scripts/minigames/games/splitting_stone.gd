@@ -11,6 +11,9 @@ var _spots: Array[Sprite2D] = []
 var _resolved: Array[bool] = []
 var _hit: Array[bool] = []
 var _miss_from: int = 0
+var _keeper: Sprite2D
+var _clock: float = 0.0
+var _swing_at: float = -10.0
 
 
 func game_id() -> String:
@@ -26,7 +29,8 @@ func _ready() -> void:
 	_window = float(row.get("window_sec", 0.8))
 	MinigameArt.add_sprite(self, "bg_grass.png", Vector2(320, 160))
 	MinigameArt.add_sprite(self, "node_stone.png", Vector2(360, 168))
-	MinigameArt.add_sprite(self, "keeper_pick_e.png", Vector2(150, 230), 9)
+	_keeper = MinigameArt.add_sprite(self, "keeper_pick_e2.png", Vector2(173, 190), 9)
+	_keeper.z_index = 2
 	var points: Array[Vector2] = [Vector2(292, 112), Vector2(430, 128), Vector2(352, 214)]
 	for i: int in points.size():
 		var spot: Sprite2D = MinigameArt.add_sprite(self, "spot_dim.png", _clamp_spot(points[i]))
@@ -39,6 +43,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not playing:
 		return
+	_clock += delta
 	_t += delta
 	_grade_passed()
 	if _t >= _cycle:
@@ -46,6 +51,7 @@ func _process(delta: float) -> void:
 		_t = 0.0
 		_reset_spots()
 	_paint()
+	_paint_keeper()
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -78,10 +84,12 @@ func _strike(index: int) -> void:
 	_resolved[lit] = true
 	_hit[lit] = index == lit
 	if _hit[lit]:
+		_swing_at = _clock
 		succeed(_k, 1.0, _spots[lit].position)
 	else:
 		miss()
 	_paint()
+	_paint_keeper()
 
 
 func _lit_index() -> int:
@@ -103,6 +111,16 @@ func _spot_at(pos: Vector2) -> int:
 			best_d = d
 			best = i
 	return best
+
+
+func _paint_keeper() -> void:
+	if _keeper == null:
+		return
+	var age: float = _clock - _swing_at
+	if age >= 0.0 and age < 0.45:
+		_keeper.frame = mini(8, int(floor(age / 0.05)))
+	else:
+		_keeper.frame = 0
 
 
 func _paint() -> void:

@@ -34,6 +34,8 @@ var _loops: int = 0
 var _last_pos: float = 0.0
 var _heard: bool = false
 var _await_audio: bool = false
+var _keeper: Sprite2D
+var _swing_at: float = -10.0
 
 
 func game_id() -> String:
@@ -52,7 +54,8 @@ func _ready() -> void:
 	MinigameArt.add_sprite(self, "bg_grass.png", Vector2(320, 160))
 	var tree: Sprite2D = MinigameArt.add_sprite(self, "node_tree.png", Vector2(250, 150))
 	tree.scale = Vector2(0.55, 0.55)
-	MinigameArt.add_sprite(self, "keeper_axe_e.png", Vector2(430, 230), 9)
+	_keeper = MinigameArt.add_sprite(self, "keeper_axe_e.png", Vector2(401, 254), 9)
+	_keeper.z_index = 2
 	## The rail art is dark brown. A cream plate keeps it readable on the tree.
 	var plate := ColorRect.new()
 	plate.name = "RailPlate"
@@ -192,6 +195,7 @@ func _process(delta: float) -> void:
 				spr.modulate = Color(1, 1, 1, 0.35)
 		kept.append(beat)
 	_open = kept
+	_paint_keeper()
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -237,10 +241,22 @@ func _strike() -> void:
 	hit["done"] = true
 	_open[best] = hit
 	var heavy: bool = int(hit.get("i", 0)) % _heavy_every == _heavy_every - 1
+	_swing_at = _elapsed
 	succeed(MinigameCatalog.woodsong_k(heavy), 2.0 if heavy else 1.0, Vector2(NOTCH_X, RAIL_POS.y))
+	_paint_keeper()
 	var spr: Sprite2D = hit.get("sprite") as Sprite2D
 	if spr != null and is_instance_valid(spr):
 		spr.modulate = Color(1.15, 1.1, 0.85)
+
+
+func _paint_keeper() -> void:
+	if _keeper == null:
+		return
+	var age: float = _elapsed - _swing_at
+	if age >= 0.0 and age < 0.45:
+		_keeper.frame = mini(8, int(floor(age / 0.05)))
+	else:
+		_keeper.frame = 0
 
 
 func _make_marker(index: int) -> Sprite2D:

@@ -27,6 +27,9 @@ var _drag_herb: int = -1
 var _replay_btn: TextureButton
 var _timer_fill: ColorRect
 var _timer_read: Label
+var _keeper: Sprite2D
+var _clock: float = 0.0
+var _flash_at: float = -10.0
 var _rng := RandomNumberGenerator.new()
 
 
@@ -47,6 +50,8 @@ func _ready() -> void:
 	MinigameArt.add_sprite(self, "bg_forge.png", Vector2(320, 160))
 	_cauldron = MinigameArt.add_sprite(self, "st_cauldron.png", Vector2(320, 150))
 	_cauldron.z_index = 1
+	_keeper = MinigameArt.add_sprite(self, "keeper_berries_e.png", Vector2(41, 254), 4)
+	_keeper.z_index = 2
 	var bubble: Sprite2D = MinigameArt.add_sprite(self, "order_bubble.png", Vector2(320, 42))
 	bubble.z_index = 2
 	for i: int in HERB_COUNT:
@@ -93,6 +98,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not playing:
 		return
+	_clock += delta
 	_phase_t += delta
 	if _phase == "show" and _phase_t >= _show_each * float(maxi(_order.size(), 1)):
 		_phase = "hold"
@@ -106,6 +112,7 @@ func _process(delta: float) -> void:
 			_end_round(false)
 	elif _phase == "gap" and _phase_t >= _gap:
 		_new_order()
+	_paint_keeper()
 	_paint()
 
 
@@ -158,6 +165,7 @@ func _pick(index: int) -> void:
 	if index != _order[_step]:
 		_end_round(false)
 		return
+	_flash_at = _clock
 	_step += 1
 	if _step >= _order.size():
 		_end_round(true)
@@ -224,6 +232,13 @@ func _slot_at(pos: Vector2) -> int:
 		if Rect2(_slots[i].position, _slots[i].size).has_point(pos):
 			return i
 	return -1
+
+
+func _paint_keeper() -> void:
+	if _keeper == null:
+		return
+	var age: float = _clock - _flash_at
+	_keeper.frame = 2 if age >= 0.0 and age < 0.3 else 0
 
 
 func _paint() -> void:

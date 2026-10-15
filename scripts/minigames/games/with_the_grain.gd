@@ -15,6 +15,7 @@ var _resolved: bool = false
 var _dots: Node2D
 var _ink: Line2D
 var _ring: Sprite2D
+var _keeper: Sprite2D
 var _phone: bool = false
 
 
@@ -48,6 +49,8 @@ func _ready() -> void:
 	_ring.z_index = 4
 	var pen: Sprite2D = MinigameArt.add_sprite(self, "pen.png", Vector2(560, 250))
 	pen.z_index = 4
+	_keeper = MinigameArt.add_sprite(self, "keeper_station_n.png", Vector2(104, 258), 4)
+	_keeper.z_index = 2
 	_load_shape()
 
 
@@ -55,6 +58,8 @@ func _process(delta: float) -> void:
 	if not playing:
 		return
 	_t += delta
+	if _keeper != null:
+		_keeper.frame = posmod(int(floor(_t * 8.0)), 4) if _drawing else 0
 	if _t >= _round:
 		if not _resolved:
 			if _drawing:

@@ -23,6 +23,7 @@ var _fill_rect: ColorRect
 var _band_rect: ColorRect
 var _band_top: ColorRect
 var _band_bot: ColorRect
+var _keeper: Sprite2D
 
 
 func game_id() -> String:
@@ -43,7 +44,8 @@ func _ready() -> void:
 	MinigameArt.add_sprite(self, "bg_grass.png", Vector2(320, 160))
 	var sapling: Sprite2D = MinigameArt.add_sprite(self, "node_sapling.png", Vector2(430, 150))
 	sapling.scale = Vector2(0.55, 0.55)
-	MinigameArt.add_sprite(self, "keeper_water_e.png", Vector2(250, 240), 4)
+	_keeper = MinigameArt.add_sprite(self, "keeper_water_e.png", Vector2(236, 254), 4)
+	_keeper.z_index = 2
 	var gauge: Sprite2D = MinigameArt.add_sprite(self, "gauge_just.png", GAUGE_POS + GAUGE_SIZE * 0.5)
 	gauge.z_index = 2
 	_band_rect = ColorRect.new()
@@ -84,6 +86,7 @@ func _process(delta: float) -> void:
 			miss()
 	if _resolved and _pour > 0.0:
 		_pour = maxf(0.0, _pour - delta)
+	_paint_keeper()
 	_layout_gauge()
 
 
@@ -130,6 +133,15 @@ func _release() -> void:
 	else:
 		_pour = 0.0
 		miss()
+
+
+func _paint_keeper() -> void:
+	if _keeper == null:
+		return
+	if _holding or _pour > 0.0:
+		_keeper.frame = mini(3, 1 + int(floor(_clock * 4.0)) % 3)
+	else:
+		_keeper.frame = 0
 
 
 func _layout_gauge() -> void:

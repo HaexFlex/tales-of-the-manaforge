@@ -13,7 +13,12 @@ var _catch_half: float = 23.0
 var _spawn_t: float = 0.0
 var _spawn_i: int = 0
 var _basket: Sprite2D
+var _keeper: Sprite2D
 var _falling: Array[Sprite2D] = []
+var _anim_t: float = 0.0
+var _face: float = 1.0
+var _moved_at: float = -10.0
+var _prev_x: float = -1.0
 
 
 func game_id() -> String:
@@ -31,16 +36,19 @@ func _ready() -> void:
 	var canopy: Sprite2D = MinigameArt.add_sprite(self, "canopy.png", Vector2(320, 28))
 	canopy.z_index = 2
 	MinigameArt.add_sprite(self, "node_berry.png", Vector2(78, 168))
-	var keeper: Sprite2D = MinigameArt.add_sprite(self, "keeper_berries_e.png", Vector2(250, 250), 4)
-	keeper.z_index = 2
+	_keeper = MinigameArt.add_sprite(self, "keeper_walk_e.png", Vector2(300, 268), 8)
+	_keeper.z_index = 2
 	_basket = MinigameArt.add_sprite(self, "basket.png", Vector2(320, BASKET_Y))
 	_basket.z_index = 4
+	_place_keeper()
 
 
 func _process(delta: float) -> void:
 	if not playing:
 		return
+	_anim_t += delta
 	_slide_basket(delta)
+	_place_keeper()
 	_spawn_t += delta
 	while _spawn_t >= _spawn_sec:
 		_spawn_t -= _spawn_sec
@@ -74,6 +82,22 @@ func _slide_basket(delta: float) -> void:
 		dir += 1.0
 	x += dir * 320.0 * delta
 	_basket.position.x = clampf(x, 36.0, 604.0)
+
+
+## Walk frames follow the basket. Frame 0 stands; 1–7 step. Facing left mirrors the sheet.
+func _place_keeper() -> void:
+	if _keeper == null or _basket == null:
+		return
+	var x: float = _basket.position.x
+	if _prev_x >= 0.0 and absf(x - _prev_x) > 0.3:
+		_face = 1.0 if x > _prev_x else -1.0
+		_moved_at = _anim_t
+	_prev_x = x
+	var moving: bool = _anim_t - _moved_at < 0.12
+	_keeper.frame = (1 + int(floor(_anim_t * 10.0)) % 7) if moving else 0
+	_keeper.scale = Vector2(_face, 1.0)
+	var side: float = -20.0 if _face > 0.0 else 20.0
+	_keeper.position = Vector2(x + side, _basket.position.y - 18.0)
 
 
 func _spawn(rotten: bool) -> void:

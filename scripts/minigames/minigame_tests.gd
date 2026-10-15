@@ -38,6 +38,7 @@ func run_scenes() -> int:
 	failed += _grain_shapes()
 	failed += _grain_accuracy()
 	failed += _steady_press_tuning()
+	failed += _keeper_frames()
 	failed += _ripe_catch()
 	failed += _steeping_debug()
 	failed += _grade_marks()
@@ -230,6 +231,61 @@ func _steady_press_tuning() -> int:
 	failed += _check(is_equal_approx(60.0 / 4.0 * MinigameCatalog.k_for("steady_press"), 120.0), "a perfect Steady Press minute is +120s")
 	if failed == 0:
 		print("STEADY_PRESS_TUNING_OK")
+	return failed
+
+
+func _keeper_frames() -> int:
+	var failed: int = 0
+	failed += _keeper_sheet("res://scenes/minigames/ripe_catch.tscn", "keeper_walk_e", 8, 128)
+	failed += _keeper_sheet("res://scenes/minigames/splitting_stone.tscn", "keeper_pick_e2", 9, 384)
+	failed += _keeper_sheet("res://scenes/minigames/woodsong.tscn", "keeper_axe_e", 9, 192)
+	failed += _keeper_sheet("res://scenes/minigames/just_enough.tscn", "keeper_water_e", 4, 208)
+	failed += _keeper_sheet("res://scenes/minigames/with_the_grain.tscn", "keeper_station_n", 4, 128)
+	failed += _keeper_sheet("res://scenes/minigames/steeping.tscn", "keeper_berries_e", 4, 192)
+	var ripe: Node = (load("res://scenes/minigames/ripe_catch.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(ripe)
+	ripe.set("_prev_x", 200.0)
+	ripe.set("_anim_t", 0.05)
+	var basket: Node2D = ripe.get_node_or_null("basket") as Node2D
+	if basket != null:
+		basket.position = Vector2(280, 286)
+	ripe.call("_place_keeper")
+	var walker: Sprite2D = ripe.get_node_or_null("keeper_walk_e") as Sprite2D
+	failed += _check(walker != null and is_equal_approx(walker.position.x, 260.0), "the ripe catch keeper walks with the basket")
+	failed += _check(walker != null and walker.frame > 0, "the ripe catch keeper steps while the basket moves")
+	ripe.free()
+	var stone: Node = (load("res://scenes/minigames/splitting_stone.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(stone)
+	stone.set("_clock", 0.1)
+	stone.set("_swing_at", 0.0)
+	stone.call("_paint_keeper")
+	var pick: Sprite2D = stone.get_node_or_null("keeper_pick_e2") as Sprite2D
+	failed += _check(pick != null and pick.frame == 2, "the splitting stone keeper swings the pick")
+	stone.free()
+	var water: Node = (load("res://scenes/minigames/just_enough.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(water)
+	water.set("_holding", true)
+	water.set("_clock", 0.0)
+	water.call("_paint_keeper")
+	var can: Sprite2D = water.get_node_or_null("keeper_water_e") as Sprite2D
+	failed += _check(can != null and can.frame == 1, "the just enough keeper pours")
+	water.free()
+	if failed == 0:
+		print("KEEPER_FRAMES_OK")
+	return failed
+
+
+func _keeper_sheet(scene_path: String, sprite_name: String, frames: int, frame_w: int) -> int:
+	var failed: int = 0
+	var node: Node = (load(scene_path) as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	var spr: Sprite2D = node.get_node_or_null(sprite_name) as Sprite2D
+	var path: String = str(spr.texture.resource_path) if spr != null and spr.texture != null else ""
+	failed += _check(spr != null and path.ends_with(sprite_name + ".png"), "%s uses %s" % [scene_path.get_file(), sprite_name])
+	failed += _check(spr != null and spr.hframes == frames, "%s has %d frames" % [sprite_name, frames])
+	var width: int = spr.texture.get_width() if spr != null and spr.texture != null else 0
+	failed += _check(spr != null and frames > 0 and width / frames == frame_w, "%s frame is %d px wide" % [sprite_name, frame_w])
+	node.free()
 	return failed
 
 
