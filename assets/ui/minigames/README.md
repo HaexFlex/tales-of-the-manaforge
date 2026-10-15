@@ -6,7 +6,7 @@ These are copies of `ui_restyle/mockups/minigames540/r6_art/`, made by `build_mi
 - **Locked mockups / rules:** `ui_restyle/mockups/minigames540/minigames540_notes.md` (r2-r6 and the "Design answers" section: Steeping k 16 with cycle 8.0 s, With the Grain timing per shape, the Splitting Stone spot clamp). Prototypes: `proto_r5/` + r6 `minigames_all.html`.
 - **Not 9-slices:** these are fixed-size sprites; the windows and buttons are already 9-sliced from theme_pkg (`frame_9s_96`, `wood_button_9s_*`). The baked `win_*_pc/_ph` frames are full-size window plates.
 - `reference/*.jpg` are the mockups' world backdrops. **Do not ship them**; the game draws its own world.
-- **Hot Spots plate (package addition):** `win_hot_spots_pc/_ph` replace the borrowed `win_forge_glow_*` for Hot Spots. Same frame, vines (seed `mg_forge_glow`), title plank (sized for "Hot Spots"), pace track and play-area bevel, pixel-identical to `win_forge_glow_*` minus all text. Made by `tools/make_win_hot_spots.py`; re-run it after `build_minigames_pkg.py`, which rebuilds from r6_art and does not know these files. Side-by-side: `preview/win_hot_spots_vs_forge_glow.png`.
+- **Hot Spots plate (package addition):** `win_hot_spots_pc/_ph` replace the borrowed `win_forge_glow_*` for Hot Spots. Same frame, vines (seed `mg_forge_glow`), title plank (sized for "Hot Spots"), and play-area bevel, with the pace track left off (the hole is plate x568–704, y75–91). The host draws that bar live. The earlier `tools/make_win_hot_spots.py` bake still includes the track; do not copy it back over these files.
 - Preview: `preview/minigames_pkg_contact.png`. Builder: `tools/build_minigames_pkg.py`. Check: `preview/verify.txt`.
 
 ## Files (146 PNG + 4 reference)
@@ -176,7 +176,7 @@ These are copies of `ui_restyle/mockups/minigames540/r6_art/`, made by `build_mi
 | `assets/ui/minigames/vol_plate.png` | 196x44 | theme slider (options540: slider_track/fill/grabber) on a kit WB plate |
 | `assets/ui/minigames/win_forge_glow_pc.png` | 960x540 |  |
 | `assets/ui/minigames/win_forge_glow_ph.png` | 960x540 |  |
-| `assets/ui/minigames/win_hot_spots_pc.png` | 960x540 | Hot Spots plate, text-free (title plank, labels, flavour and hint drawn live; flavour from Lore) |
+| `assets/ui/minigames/win_hot_spots_pc.png` | 960x540 | Hot Spots plate, text-free, no baked pace track (title, labels, flavour, hint, and the pace bar are drawn live) |
 | `assets/ui/minigames/win_hot_spots_ph.png` | 960x540 | same as _pc (pc/ph differ only in baked hint text, none here) |
 | `assets/ui/minigames/win_just_enough_pc.png` | 960x540 |  |
 | `assets/ui/minigames/win_just_enough_ph.png` | 960x540 |  |

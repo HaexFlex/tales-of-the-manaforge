@@ -305,14 +305,16 @@ func _grade_marks() -> int:
 	var hot_window: Control = host.get_node_or_null("MinigameRoot/Window") as Control
 	var hot_header: CanvasItem = hot_plate.get_node_or_null("HeaderCover") as CanvasItem if hot_plate != null else null
 	var hot_footer: CanvasItem = hot_plate.get_node_or_null("FeelTestCover") as CanvasItem if hot_plate != null else null
-	failed += _check(hot_header != null and not hot_header.visible, "Hot Spots uses the plate's pace track while playing")
+	failed += _check(hot_header != null and not hot_header.visible, "Hot Spots leaves the blank header uncovered")
 	failed += _check(hot_footer != null and not hot_footer.visible, "Hot Spots leaves the empty footer for one hint")
 	var hot_bar: ColorRect = hot_window.get_node_or_null("PaceBar") as ColorRect if hot_window != null else null
 	var hot_fit := Vector2(hot_window.size.x / MinigameCatalog.WINDOW_SIZE.x, hot_window.size.y / MinigameCatalog.WINDOW_SIZE.y) if hot_window != null else Vector2.ONE
-	var hot_slot := Rect2(Vector2(438, 34) * hot_fit, Vector2(132, 8) * hot_fit)
-	failed += _check(hot_bar != null and hot_bar.color.a < 0.01, "Hot Spots does not draw a second pace track")
-	failed += _check(hot_bar != null and hot_bar.get_node_or_null("Tick0") != null and not (hot_bar.get_node("Tick0") as CanvasItem).visible, "Hot Spots does not draw a second set of pace ticks")
-	failed += _check(hot_bar != null and hot_bar.position.distance_to(hot_slot.position) < 1.5 and hot_bar.size.distance_to(hot_slot.size) < 1.5, "the live fill sits in the plate's pace slot")
+	var hot_slot := Rect2(Vector2(438, 35) * hot_fit, Vector2(132, 8) * hot_fit)
+	var hot_tick: CanvasItem = hot_bar.get_node_or_null("Tick0") as CanvasItem if hot_bar != null else null
+	failed += _check(hot_bar != null and hot_bar.color.a > 0.9, "Hot Spots draws the pace track live")
+	failed += _check(hot_tick != null and hot_tick.visible and (hot_tick as Control).size.y > hot_bar.size.y, "Hot Spots draws the pace ticks live")
+	failed += _check(hot_bar != null and hot_bar.position.distance_to(hot_slot.position) < 1.5 and hot_bar.size.distance_to(hot_slot.size) < 1.5, "the live pace bar sits in the cleared plate slot")
+	failed += _plate_has_no_baked_track()
 	var hot_succ: Label = hot_window.get_node_or_null("Successes") as Label if hot_window != null else null
 	failed += _check(hot_succ != null and hot_succ.position.x >= 30.0, "Successes starts inside the frame")
 	var hot_flavour: Label = hot_window.get_node_or_null("Flavour") as Label if hot_window != null else null
@@ -330,13 +332,28 @@ func _grade_marks() -> int:
 		hot_close.pressed.emit()
 	var hot_play_after: CanvasItem = hot_window.get_node_or_null("Play") as CanvasItem if hot_window != null else null
 	failed += _check(hot_play_after != null and not hot_play_after.visible, "Hot Spots hides the play layer under Results")
-	failed += _check(hot_header != null and hot_header.visible, "Results covers the plate's pace track")
+	failed += _check(hot_header != null and not hot_header.visible, "Results leaves the blank plate uncovered")
+	failed += _check(hot_bar != null and hot_bar.color.a > 0.9, "Results keeps the live pace bar")
 	failed += _plate_labels_inside(hot_window)
 	host.call("close_immediate")
 	GameState.ancient_frozen = frozen
 	GameState.stage_id = stage
 	GameState.harvest_accum = accum
 	GameState.set_resource(&"food", food)
+	return failed
+
+
+## The re-export clears the baked track at plate x568–704, y75–91.
+func _plate_has_no_baked_track() -> int:
+	var failed: int = 0
+	for file: String in ["win_hot_spots_pc.png", "win_hot_spots_ph.png"]:
+		var tex: Texture2D = load("res://assets/ui/minigames/%s" % file) as Texture2D
+		var img: Image = tex.get_image() if tex != null else null
+		failed += _check(img != null and img.get_width() == 960, "%s is the 960 plate" % file)
+		if img == null:
+			continue
+		var px: Color = img.get_pixel(600, 80)
+		failed += _check(px.r > 0.85 and px.g > 0.75 and px.b > 0.55, "%s has no baked pace track" % file)
 	return failed
 
 

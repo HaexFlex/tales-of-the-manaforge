@@ -21,8 +21,9 @@ const PACE_BAR_H: float = 8.0
 const PACE_TICK_H: float = 16.0
 const PARCHMENT: Color = Color8(231, 212, 166)
 const BAR_TRACK: Color = Color8(52, 36, 24)
-## win_hot_spots bakes Forge Glow's pace track here (696×472 crop). No words.
-const PLATE_BAR := Rect2(438, 34, 132, 8)
+## Cleared pace slot on the 960×540 plate, x568–704 y75–91, in 696×472 crop space.
+## The 132×8 track sits in that 136×16 hole so the 16px ticks fill it.
+const PLATE_BAR := Rect2(438, 35, 132, 8)
 const PLATE_TEXT_INSET: float = 32.0
 const PLATE_FOOTER_BOTTOM: float = 446.0
 
@@ -326,14 +327,14 @@ func _apply_win_plate(game_id: String) -> void:
 	_win_plate.texture = atlas
 
 
-## While Hot Spots is playing, the baked pace track stays and the footer is empty.
-## The summary covers that track, the same way the other plates hide theirs.
+## Hot Spots bakes neither a header nor a pace track, so both blots stay off.
+## Other plates still hide their baked header and the footer feel-test line.
 func _sync_plate_covers() -> void:
-	var playing_hot: bool = _game_id == "hot_spots" and not _summary_up
+	var bare: bool = _game_id == "hot_spots"
 	if _plate_header_cover != null:
-		_plate_header_cover.visible = not playing_hot
+		_plate_header_cover.visible = not bare
 	if _plate_footer_cover != null:
-		_plate_footer_cover.visible = _game_id != "hot_spots"
+		_plate_footer_cover.visible = not bare
 
 
 func _use_plate_bar() -> bool:
@@ -648,7 +649,7 @@ func _layout_header() -> void:
 	_refresh_pace()
 
 
-## Fill sits in the plate's track. The track and its ticks stay the plate's.
+## The plate no longer bakes a track, so the live bar and its ticks fill the slot.
 func _layout_plate_bar(x: float, row_h: float, gap: float) -> void:
 	var fit := Vector2(
 		_panel.size.x / MinigameCatalog.WINDOW_SIZE.x,
@@ -667,9 +668,15 @@ func _layout_plate_bar(x: float, row_h: float, gap: float) -> void:
 		_pips[i].size = Vector2(PIP_PX, PIP_PX)
 	_fit_ink(_pace_word, 0.0, row_y, row_h)
 	_pace_word.position.x = slot.position.x - _pace_word.size.x - gap
-	_show_bar_track(false)
+	_show_bar_track(true)
 	_pace_bar.position = slot.position
 	_pace_bar.size = slot.size
+	var tick_y: float = (slot.size.y - PACE_TICK_H) * 0.5
+	for i: int in 3:
+		var tick: ColorRect = _pace_bar.get_node("Tick%d" % i) as ColorRect
+		var along: float = 0.0 if i == 0 else (0.5 if i == 1 else 1.0)
+		tick.position = Vector2(roundf(along * slot.size.x) - 1.0, tick_y)
+		tick.size = Vector2(3, PACE_TICK_H)
 	var readout_w: float = maxf(_text_width("×3.0") + 4.0, 36.0)
 	var frame_right: float = _panel.size.x - PLATE_TEXT_INSET * fit.x
 	var readout_x: float = minf(slot.end.x + gap, minf(_close.position.x - 8.0, frame_right) - readout_w)
