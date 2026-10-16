@@ -301,6 +301,18 @@ func actor_work_rate(actor: String, station_id: String = "") -> float:
 	return float(row.get("work_rate", 1.0))
 
 
+func actor_craft_rate(actor: String) -> float:
+	## Crafting uses the shared work rate until a companion carries its own craft_rate.
+	var row: Dictionary = _companion_row(actor)
+	if row.has("craft_rate"):
+		return float(row.get("craft_rate", 1.0))
+	return float(row.get("work_rate", 1.0))
+
+
+func actor_brew_rate(actor: String) -> float:
+	return float(_companion_row(actor).get("brew_rate", 1.0))
+
+
 func actor_water_mult(actor: String) -> float:
 	return float(_companion_row(actor).get("water_reward_mult", 1.0))
 

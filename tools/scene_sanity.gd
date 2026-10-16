@@ -143,6 +143,7 @@ func _run() -> void:
 	failed += _bramble_shards()
 	failed += _floating_names()
 	failed += _hover_rest()
+	failed += _trait_speed_rows()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -415,6 +416,51 @@ func _hover_rest() -> int:
 	WorldHover.shutdown()
 	if failed == 0:
 		print("HOVER_REST_OK")
+	return failed
+
+
+func _trait_speed_rows() -> int:
+	var failed: int = 0
+	var strings: Node = root.get_node("ContentStrings")
+	var sheet := CharacterSheet.new()
+	root.add_child(sheet)
+	sheet.call("open_trait_popup")
+	var panel: Node = sheet.get_node_or_null("TraitPopup/Panel")
+	failed += _trait_row(panel, strings, "Work", "char_sheet_trait_work", "1.0×", true)
+	failed += _trait_row(panel, strings, "Craft", "char_sheet_trait_craft", "1.0×", true)
+	failed += _trait_row(panel, strings, "Water", "char_sheet_trait_water", "1.0×", true)
+	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "", false)
+	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
+	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "", false)
+	sheet.set("_actor_id", "elaia")
+	sheet.call("open_trait_popup")
+	failed += _trait_row(panel, strings, "Work", "char_sheet_trait_work", "0.8×", true)
+	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "1.5×", true)
+	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
+	sheet.set("_actor_id", "bramble")
+	sheet.call("open_trait_popup")
+	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "1.0×", true)
+	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "", false)
+	sheet.set("_actor_id", "puff")
+	sheet.call("open_trait_popup")
+	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "1.0×", true)
+	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
+	sheet.queue_free()
+	if failed == 0:
+		print("TRAIT_SPEEDS_OK")
+	return failed
+
+
+func _trait_row(panel: Node, strings: Node, row_name: String, key: String, value: String, shown: bool) -> int:
+	var row: CanvasItem = panel.get_node_or_null("Row%s" % row_name) as CanvasItem if panel != null else null
+	var failed: int = _check(row != null and row.visible == shown, "trait row %s shown=%s" % [row_name, str(shown)])
+	if row == null or not shown:
+		return failed
+	var name_lbl: Label = row.get_node_or_null("Name") as Label
+	var value_lbl: Label = row.get_node_or_null("Value") as Label
+	var expect: String = str(strings.call("get_text", key))
+	failed += _check(name_lbl != null and name_lbl.text == expect, "trait label %s (got %s)" % [expect, name_lbl.text if name_lbl else ""])
+	failed += _check(value_lbl != null and value_lbl.text == value, "trait number %s (got %s)" % [value, value_lbl.text if value_lbl else ""])
 	return failed
 
 
@@ -1956,8 +2002,9 @@ func _content_keys() -> int:
 		"char_sheet_elaia_water", "char_sheet_elaia_water_role",
 		"char_sheet_elaia_move", "char_sheet_elaia_move_role",
 		"char_sheet_trait_label", "char_sheet_keeper_trait", "char_sheet_elaia_trait",
-		"char_sheet_trait_popup_title", "char_sheet_trait_work", "char_sheet_trait_reliquary",
-		"char_sheet_trait_water", "char_sheet_trait_move",
+		"char_sheet_trait_popup_title", "char_sheet_trait_work", "char_sheet_trait_craft",
+		"char_sheet_trait_reliquary", "char_sheet_trait_water", "char_sheet_trait_move",
+		"char_sheet_trait_brew",
 		"batch_make", "batch_max", "batch_cancel", "batch_amount",
 		"batch_bar_current", "batch_bar_total",
 		"batch_tooltip_current", "batch_tooltip_total", "batch_tooltip_paused",

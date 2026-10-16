@@ -967,7 +967,7 @@ func _build_trait_popup() -> void:
 	sub.add_theme_color_override("font_color", INK)
 	panel.add_child(sub)
 	var y: float = 92.0
-	for row_name: String in ["Work", "Reliquary", "Water", "Pace"]:
+	for row_name: String in ["Work", "Craft", "Water", "Reliquary", "Pace", "Brew"]:
 		var row := Control.new()
 		row.name = "Row%s" % row_name
 		row.position = Vector2(20, y)
@@ -1018,14 +1018,49 @@ func _fill_trait_popup() -> void:
 		title.text = strings.get_text("char_sheet_trait_popup_title")
 	if sub:
 		sub.text = _trait_sentence()
-	var work: float = float(gs.call("actor_work_rate", actor, ""))
-	var relic: float = float(gs.call("actor_work_rate", actor, "reliquary"))
-	var water: float = float(gs.call("actor_water_mult", actor))
-	var pace: float = float(gs.call("actor_move_mult", actor))
-	_set_trait_row(panel, "Work", "char_sheet_trait_work", work)
-	_set_trait_row(panel, "Reliquary", "char_sheet_trait_reliquary", relic)
-	_set_trait_row(panel, "Water", "char_sheet_trait_water", water)
-	_set_trait_row(panel, "Pace", "char_sheet_trait_move", pace)
+	var y: float = 92.0
+	for spec: Dictionary in _trait_row_specs(actor):
+		var row: Control = panel.get_node_or_null("Row%s" % str(spec.get("row", ""))) as Control
+		if row == null:
+			continue
+		var show: bool = bool(spec.get("show", false))
+		row.visible = show
+		if not show:
+			continue
+		row.position.y = y
+		_set_trait_row(panel, str(spec.get("row", "")), str(spec.get("key", "")), float(spec.get("value", 1.0)))
+		y += 36.0
+	var host: Control = panel as Control
+	if host != null:
+		host.size.y = y + 16.0
+	_place_trait_popup()
+
+
+func _trait_row_specs(actor: String) -> Array[Dictionary]:
+	## Relic special is Elaia's. Walking speed is Bramble's. Brewing waits for Puff.
+	## The Keeper has no walking speed.
+	var gs = CharacterSheet._auto("GameState")
+	var work: float = 1.0
+	var craft: float = 1.0
+	var water: float = 1.0
+	var relic: float = 1.0
+	var pace: float = 1.0
+	var brew: float = 1.0
+	if gs != null:
+		work = float(gs.call("actor_work_rate", actor, ""))
+		craft = float(gs.call("actor_craft_rate", actor))
+		water = float(gs.call("actor_water_mult", actor))
+		relic = float(gs.call("actor_work_rate", actor, "reliquary"))
+		pace = float(gs.call("actor_move_mult", actor))
+		brew = float(gs.call("actor_brew_rate", actor))
+	return [
+		{"row": "Work", "key": "char_sheet_trait_work", "value": work, "show": true},
+		{"row": "Craft", "key": "char_sheet_trait_craft", "value": craft, "show": true},
+		{"row": "Water", "key": "char_sheet_trait_water", "value": water, "show": true},
+		{"row": "Reliquary", "key": "char_sheet_trait_reliquary", "value": relic, "show": actor == "elaia"},
+		{"row": "Pace", "key": "char_sheet_trait_move", "value": pace, "show": actor == "bramble"},
+		{"row": "Brew", "key": "char_sheet_trait_brew", "value": brew, "show": actor == "puff"},
+	]
 
 
 func _set_trait_row(panel: Node, row_name: String, key: String, value: float) -> void:
@@ -1041,7 +1076,7 @@ func _place_trait_popup() -> void:
 	var panel: Control = get_node_or_null("TraitPopup/Panel") as Control
 	if panel == null:
 		return
-	var panel_size := Vector2(380, 268)
+	var panel_size := Vector2(380, panel.size.y if panel.size.y > 80.0 else 268.0)
 	panel.size = panel_size
 	var btn: Control = find_child("TraitButton", true, false) as Control
 	var origin := Vector2(16, 16)
