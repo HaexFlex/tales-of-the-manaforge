@@ -1107,19 +1107,42 @@ func offline_effective_seconds(closed_sec: float) -> float:
 
 func apply_offline_seconds(closed_sec: float) -> Dictionary:
 	## Fresh-curve closure. Gathering still uses the curve. Crafting uses the raw gap.
-	if closed_sec <= 0.0 or _offline_blocked():
+	if closed_sec <= 0.0:
 		return _empty_offline()
-	return _grant_offline(offline_effective_seconds(closed_sec), closed_sec)
+	if _offline_blocked():
+		var blocked: Dictionary = _empty_offline()
+		blocked["raw_sec"] = closed_sec
+		blocked["blocked"] = true
+		blocked["shard_mult"] = _offline_shard_mult()
+		return blocked
+	var granted: Dictionary = _grant_offline(offline_effective_seconds(closed_sec), closed_sec)
+	granted["raw_sec"] = closed_sec
+	granted["curve_reset"] = true
+	return granted
 
 
 func apply_saved_offline_gap(gap_sec: float) -> Dictionary:
 	## Load path. Continues the curve unless this session already played offline_reset_active_sec.
 	if gap_sec <= 0.0 or not has_node("/root/GameState"):
-		return _empty_offline()
+		var skipped: Dictionary = _empty_offline()
+		skipped["raw_sec"] = maxf(0.0, gap_sec)
+		return skipped
+	var reset: bool = GameState.active_since_load_sec + 0.0001 >= GameState.offline_reset_active_sec()
+	var blocked_now: bool = _offline_blocked()
 	var eff: float = GameState.commit_offline_gap(gap_sec)
-	if eff <= 0.0 or _offline_blocked():
-		return _empty_offline()
-	return _grant_offline(eff, gap_sec)
+	if blocked_now or eff <= 0.0:
+		var empty: Dictionary = _empty_offline()
+		empty["raw_sec"] = gap_sec
+		empty["effective_sec"] = eff
+		empty["blocked"] = blocked_now
+		empty["curve_reset"] = reset and not blocked_now
+		empty["shard_mult"] = _offline_shard_mult()
+		return empty
+	var granted: Dictionary = _grant_offline(eff, gap_sec)
+	granted["raw_sec"] = gap_sec
+	granted["blocked"] = false
+	granted["curve_reset"] = reset
+	return granted
 
 
 func _offline_blocked() -> bool:
@@ -1128,14 +1151,58 @@ func _offline_blocked() -> bool:
 	return GameState.fruit_committed or GameState.stage_id == &"ancient"
 
 
+func _empty_bag() -> Dictionary:
+	return {"wood": 0, "stone": 0, "food": 0, "manashards": 0, "essence": 0}
+
+
 func _empty_offline() -> Dictionary:
 	return {
 		"effective_sec": 0.0,
+		"raw_sec": 0.0,
 		"shards": 0,
 		"essence": 0,
 		"harvest": 0,
+		"wood": 0,
+		"stone": 0,
+		"food": 0,
+		"manashards": 0,
+		"keeper": _empty_bag(),
+		"elaia": _empty_bag(),
+		"wisps": _empty_bag(),
+		"wisp_count": 0,
+		"keeper_kind": "",
+		"keeper_task": "",
+		"elaia_kind": "",
+		"elaia_task": "",
 		"forge_completed": 0,
+		"forge_stations": {},
+		"blocked": false,
+		"curve_reset": false,
+		"shard_mult": 0.25,
 	}
+
+
+func _offline_shard_mult() -> float:
+	if has_node("/root/GameState"):
+		return GameState.offline_shard_mult()
+	return 0.25
+
+
+func _note_offline_gain(result: Dictionary, who: String, resource_id: String, amount: int) -> void:
+	if amount <= 0 or resource_id == "":
+		return
+	var bag_v: Variant = result.get(who, {})
+	var bag: Dictionary = bag_v if typeof(bag_v) == TYPE_DICTIONARY else _empty_bag()
+	bag[resource_id] = int(bag.get(resource_id, 0)) + amount
+	result[who] = bag
+	if resource_id == "wood" or resource_id == "stone" or resource_id == "food":
+		result[resource_id] = int(result.get(resource_id, 0)) + amount
+		result["harvest"] = int(result.get("harvest", 0)) + amount
+	elif resource_id == "manashards":
+		result["manashards"] = int(result.get("manashards", 0)) + amount
+		result["shards"] = int(result.get("shards", 0)) + amount
+	elif resource_id == "essence":
+		result["essence"] = int(result.get("essence", 0)) + amount
 
 
 func _grant_offline(eff: float, raw_sec: float = -1.0) -> Dictionary:
@@ -1143,18 +1210,23 @@ func _grant_offline(eff: float, raw_sec: float = -1.0) -> Dictionary:
 	if eff <= 0.0 or _offline_blocked():
 		return result
 	result["effective_sec"] = eff
+	result["raw_sec"] = raw_sec if raw_sec >= 0.0 else eff
+	result["shard_mult"] = _offline_shard_mult()
 	var was_silent: bool = _silent
 	_silent = true
 	var keeper_was: bool = _keeper_working
 	var keeper_station_was: String = _keeper_station
 	if bool(_keeper_task.get("working", false)):
 		var kind: String = _keeper_task_kind()
+		result["keeper_kind"] = kind
+		result["keeper_task"] = str(_keeper_task.get("target", ""))
 		if kind == "water":
 			var water: Dictionary = _offline_water(eff)
-			result["shards"] = int(water.get("shards", 0))
-			result["essence"] = int(water.get("essence", 0))
+			_note_offline_gain(result, "keeper", "manashards", int(water.get("shards", 0)))
+			_note_offline_gain(result, "keeper", "essence", int(water.get("essence", 0)))
 		elif kind == "harvest":
-			result["harvest"] = _offline_harvest(eff, str(_keeper_task.get("target", "")))
+			var keeper_rid: StringName = _harvest_resource(str(_keeper_task.get("target", "")))
+			_note_offline_gain(result, "keeper", String(keeper_rid), _offline_harvest(eff, str(_keeper_task.get("target", ""))))
 		elif kind == "forge" or kind == "bench":
 			var station: String = str(_keeper_task.get("target", ""))
 			if is_craft_spot(station):
@@ -1162,22 +1234,27 @@ func _grant_offline(eff: float, raw_sec: float = -1.0) -> Dictionary:
 				_keeper_working = true
 	if bool(_elaia_task.get("working", false)):
 		var elaia_kind: String = str(_elaia_task.get("kind", ""))
+		result["elaia_kind"] = elaia_kind
+		result["elaia_task"] = str(_elaia_task.get("target", ""))
 		var elaia_rate: float = 0.8
 		if has_node("/root/GameState"):
 			elaia_rate = GameState.actor_work_rate("elaia", str(_elaia_task.get("target", "")) if elaia_kind == "forge" else "")
 		if elaia_kind == "water":
 			var elaia_water: Dictionary = _offline_water(eff, GameState.actor_water_mult("elaia") if has_node("/root/GameState") else elaia_rate)
-			result["shards"] = int(result.get("shards", 0)) + int(elaia_water.get("shards", 0))
-			result["essence"] = int(result.get("essence", 0)) + int(elaia_water.get("essence", 0))
+			_note_offline_gain(result, "elaia", "manashards", int(elaia_water.get("shards", 0)))
+			_note_offline_gain(result, "elaia", "essence", int(elaia_water.get("essence", 0)))
 		elif elaia_kind == "harvest":
-			result["harvest"] = int(result.get("harvest", 0)) + _offline_harvest(eff, str(_elaia_task.get("target", "")), elaia_rate)
+			var elaia_rid: StringName = _harvest_resource(str(_elaia_task.get("target", "")))
+			_note_offline_gain(result, "elaia", String(elaia_rid), _offline_harvest(eff, str(_elaia_task.get("target", "")), elaia_rate))
 		elif elaia_kind == "forge" or elaia_kind == "bench":
 			var elaia_station: String = str(_elaia_task.get("target", ""))
 			if is_craft_spot(elaia_station):
 				_elaia_station = elaia_station
 				_elaia_working = true
 	var craft_sec: float = raw_sec if raw_sec >= 0.0 else eff
-	result["forge_completed"] = _catch_up_craft(craft_sec)
+	var craft: Dictionary = _catch_up_craft(craft_sec)
+	result["forge_completed"] = int(craft.get("total", 0))
+	result["forge_stations"] = craft.get("stations", {})
 	_offline_wisp_grants(eff, result)
 	_silent = was_silent
 	_keeper_working = false
@@ -1634,13 +1711,22 @@ func _apply_catch_up(spot_id: String, seconds: float, speed: float) -> int:
 	return finished
 
 
-func _catch_up_craft(seconds: float) -> int:
+func _catch_up_craft(seconds: float) -> Dictionary:
+	var stations: Dictionary = {}
 	var gained: int = 0
 	for spot_id: String in _craft_spots():
 		if not _jobs.has(spot_id):
 			continue
-		gained += _apply_catch_up(spot_id, seconds, station_speed_mult(spot_id))
-	return gained
+		var before: BatchJob = _read_job(_jobs[spot_id])
+		var item_name: String = str(_recipe_info(before.recipe_id).get("name", before.recipe_id))
+		var finished: int = _apply_catch_up(spot_id, seconds, station_speed_mult(spot_id))
+		var working: bool = _jobs.has(spot_id)
+		if working:
+			var left: BatchJob = _read_job(_jobs[spot_id])
+			item_name = str(_recipe_info(left.recipe_id).get("name", item_name))
+		stations[spot_id] = {"finished": finished, "name": item_name, "working": working}
+		gained += finished
+	return {"total": gained, "stations": stations}
 
 
 func _grant_one(info: Dictionary) -> void:
@@ -1839,7 +1925,7 @@ func _offline_water(eff: float, reward_mult: float = 1.0) -> Dictionary:
 	var shard_max: int = GameState.param_int("WATER_SHARD_MAX", 3)
 	var mid: float = (float(shard_min) + float(shard_max)) * 0.5
 	var roll: float = (mid + GameState.get_effect_total("water_shard_bonus")) * float(GameState.get_water_shard_roll_mult())
-	var shard_units: float = roll * float(pulses) * reward_mult
+	var shard_units: float = roll * float(pulses) * reward_mult * _offline_shard_mult()
 	var shards: int = GameState.accumulate_harvest(&"manashards", shard_units)
 	var essence: int = 0
 	if is_equal_approx(reward_mult, 1.0):
@@ -1885,8 +1971,8 @@ func _offline_wisp_grants(eff: float, result: Dictionary) -> void:
 		if rid == &"":
 			continue
 		var amount: int = GameState.apply_offline_wisp_harvest(eff, rid)
-		if rid == &"manashards":
-			result["shards"] = int(result.get("shards", 0)) + amount
+		_note_offline_gain(result, "wisps", String(rid), amount)
+		result["wisp_count"] = int(result.get("wisp_count", 0)) + 1
 
 
 func _count_after_advance(eff: float) -> int:
@@ -1916,6 +2002,9 @@ func _gear_count() -> int:
 
 
 func _queue_offline_toast(result: Dictionary) -> void:
+	## A long absence uses the away panel. Shorter gaps keep the one-line toast.
+	if has_node("/root/GameState") and float(result.get("raw_sec", 0.0)) + 0.001 >= GameState.OFFLINE_PANEL_MIN_SEC:
+		return
 	var bits: PackedStringArray = PackedStringArray()
 	if int(result.get("shards", 0)) > 0:
 		bits.append("+%d Manashards" % int(result.get("shards", 0)))

@@ -39,6 +39,8 @@ var _save_id_rng := RandomNumberGenerator.new()
 var catchup_running: bool = false
 ## Set when a load pass runs: "forge" then "reach".
 var last_catchup_order: Array[String] = []
+## Runtime only. The away panel reads this after load. Not written into the save.
+var pending_offline_report: Dictionary = {}
 
 
 func _ready() -> void:
@@ -996,21 +998,105 @@ func _apply_offline_catchup(root: Dictionary) -> void:
 		return
 	var ts: float = float(root.get("timestamp", 0.0))
 	if ts <= 1.0:
+		pending_offline_report = {}
 		return
 	var closed: float = Time.get_unix_time_from_system() - ts
 	if closed < 1.0:
+		pending_offline_report = {}
 		return
 	## Forge first, then the expedition. Saves stay blocked until both return.
 	catchup_running = true
 	var order: Array[String] = []
-	ForgeJobs.apply_saved_offline_gap(closed)
+	var reach_before: Dictionary = {}
+	if has_node("/root/Reach"):
+		reach_before = Reach.capture_offline_snapshot()
+	var forge: Dictionary = ForgeJobs.apply_saved_offline_gap(closed)
 	order.append("forge")
 	## Road time is the raw gap. Play speed and Rush do not stretch a closed game.
+	var reach_after: Dictionary = reach_before
 	if has_node("/root/Reach"):
 		Reach.apply_offline_seconds(closed)
 		order.append("reach")
+		reach_after = Reach.capture_offline_snapshot()
 	last_catchup_order = order
 	catchup_running = false
+	pending_offline_report = _compose_offline_report(forge, reach_before, reach_after, closed)
+
+
+func _compose_offline_report(forge: Dictionary, before: Dictionary, after: Dictionary, raw_sec: float) -> Dictionary:
+	var report: Dictionary = forge.duplicate(true)
+	report["raw_sec"] = raw_sec
+	if has_node("/root/GameState"):
+		report["shard_mult"] = GameState.offline_shard_mult()
+	report["expedition"] = _expedition_offline_delta(before, after)
+	var min_sec: float = GameState.OFFLINE_PANEL_MIN_SEC if has_node("/root/GameState") else 600.0
+	report["show"] = raw_sec + 0.001 >= min_sec and _offline_report_has_news(report)
+	return report
+
+
+func _expedition_offline_delta(before: Dictionary, after: Dictionary) -> Dictionary:
+	var before_n: int = int(before.get("room_count", 0))
+	var after_log_v: Variant = after.get("log", [])
+	var after_log: Array = after_log_v if typeof(after_log_v) == TYPE_ARRAY else []
+	var wins: int = 0
+	var losses: int = 0
+	var room_no: int = 0
+	for i: int in range(before_n, after_log.size()):
+		var entry_v: Variant = after_log[i]
+		if typeof(entry_v) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = entry_v
+		var outcome: String = str(entry.get("outcome", ""))
+		room_no = int(entry.get("room", room_no))
+		if outcome == "win":
+			wins += 1
+		elif outcome == "overwhelmed" or outcome == "flee":
+			losses += 1
+	var was_running: bool = bool(before.get("running", false))
+	var still_running: bool = bool(after.get("running", false))
+	var reason: String = ""
+	if was_running and not still_running:
+		reason = str(after.get("reason", ""))
+	var loot: Dictionary = {}
+	if reason != "":
+		var banked_v: Variant = after.get("banked", {})
+		if typeof(banked_v) == TYPE_DICTIONARY:
+			loot = (banked_v as Dictionary).duplicate()
+	return {
+		"rooms": maxi(0, after_log.size() - before_n),
+		"wins": wins,
+		"losses": losses,
+		"room": room_no,
+		"exp": maxi(0, int(after.get("exp_gained", 0)) - int(before.get("exp_gained", 0))),
+		"reason": reason,
+		"waiting": still_running and str(after.get("phase", "")) == "manual",
+		"loot": loot,
+	}
+
+
+func _offline_report_has_news(report: Dictionary) -> bool:
+	if bool(report.get("blocked", false)):
+		return true
+	for key: String in ["wood", "stone", "food", "manashards", "essence"]:
+		if int(report.get(key, 0)) > 0:
+			return true
+	if int(report.get("forge_completed", 0)) > 0:
+		return true
+	var stations_v: Variant = report.get("forge_stations", {})
+	if typeof(stations_v) == TYPE_DICTIONARY:
+		for row_v: Variant in (stations_v as Dictionary).values():
+			if typeof(row_v) == TYPE_DICTIONARY and bool((row_v as Dictionary).get("working", false)):
+				return true
+			if typeof(row_v) == TYPE_DICTIONARY and int((row_v as Dictionary).get("finished", 0)) > 0:
+				return true
+	var trip_v: Variant = report.get("expedition", {})
+	if typeof(trip_v) == TYPE_DICTIONARY:
+		var trip: Dictionary = trip_v
+		if int(trip.get("rooms", 0)) > 0 or str(trip.get("reason", "")) != "" or bool(trip.get("waiting", false)):
+			return true
+	if str(report.get("keeper_kind", "")) == "":
+		return true
+	return false
 
 
 func _migrate_equipped_key_to_inventory(out: Dictionary) -> void:

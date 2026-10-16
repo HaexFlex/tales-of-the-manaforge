@@ -1140,6 +1140,8 @@ func apply_offline_wisp_harvest(eff_sec: float, resource_id: StringName) -> int:
 	var interval: float = maxf(get_wisp_pulse_sec(), 0.05)
 	var grant_per: float = float(param_int("WISP_PULSE_GRANT", 1))
 	var units: float = (eff_sec / interval) * grant_per * offline_harvest_factor()
+	if resource_id == &"manashards":
+		units *= offline_shard_mult()
 	return accumulate_harvest(resource_id, units)
 
 
@@ -1636,6 +1638,10 @@ func ancient_duration_minutes() -> int:
 func offline_reset_active_sec() -> float:
 	_ensure_idle_tuning()
 	return maxf(0.0, float(_idle_tuning.get("offline_reset_active_sec", 180.0)))
+
+
+## The away panel waits for this much real time. Placeholder until Haex locks it.
+const OFFLINE_PANEL_MIN_SEC: float = 600.0
 
 
 func tick_ancient(delta: float) -> void:
