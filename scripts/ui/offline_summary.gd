@@ -704,10 +704,11 @@ func _style_header(btn: Button, open: bool) -> void:
 
 
 func _style_ink(lbl: Label, muted: bool) -> void:
+	## Mockup sample: row and headline ink #3E2A18, hint #9A7E52, on parchment #E7D4A6 / odd row #DEC696.
 	if has_node("/root/GameTheme"):
-		GameTheme.style_ink_label(lbl, muted)
-		return
+		GameTheme.style_body_label(lbl)
 	lbl.add_theme_color_override("font_color", MUTED if muted else INK)
+	lbl.add_theme_constant_override("outline_size", 0)
 
 
 func _style_cream(lbl: Label, muted: bool) -> void:

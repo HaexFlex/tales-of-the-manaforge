@@ -2841,6 +2841,7 @@ func _offline_layout(game: Node) -> int:
 			failed += _offline_summary_fits(panel, "left", font, false)
 			failed += _offline_summary_tip(panel, "left", font, true)
 			failed += _offline_summary_tip(panel, "workers", font, false)
+			failed += _offline_row_colors(panel)
 			var hint: Label = panel.find_child("ShardHint", true, false) as Label
 			var hint_w: float = font.get_string_size(hint.text if hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
 			failed += _check(hint != null and hint.text == "Ascension upgrades raise this" and hint.size.x + 0.5 >= hint_w, "full ascension hint at %s" % vs)
@@ -2961,6 +2962,19 @@ func _offline_continue_box(panel: Node, vs: Vector2i) -> int:
 	return failed
 
 
+func _offline_row_colors(panel: Node) -> int:
+	var failed: int = 0
+	var title: Label = panel.find_child("SectionTitle", true, false) as Label
+	var summary: Label = panel.find_child("Summary", true, false) as Label
+	var hint: Label = panel.find_child("ShardHint", true, false) as Label
+	var headline: Label = panel.find_child("Headline", true, false) as Label
+	failed += _check(title != null and title.get_theme_color("font_color") == Color8(250, 238, 204), "section titles use the mockup cream")
+	failed += _check(summary != null and summary.get_theme_color("font_color") == Color8(214, 190, 138), "summaries use the mockup cream on wood")
+	failed += _check(hint != null and hint.get_theme_color("font_color") == Color8(154, 126, 82), "the ascension hint uses the mockup muted ink")
+	failed += _check(headline != null and headline.get_theme_color("font_color") == Color8(62, 42, 24), "the headline uses the mockup ink")
+	return failed
+
+
 func _offline_summary_tip(panel: Node, section_id: String, font: Font, cut: bool) -> int:
 	var host: Node = panel.find_child(section_id, true, false)
 	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
@@ -3044,6 +3058,8 @@ func _offline_values_fit(panel: Node, font: Font) -> int:
 		seen += 1
 		var text_w: float = font.get_string_size(value.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
 		failed += _check(value.size.x + 0.5 >= text_w, "long value %s is fully visible" % value.text)
+		var row_name: Label = row_v.get_node_or_null("RowName") as Label
+		failed += _check(row_name != null and row_name.get_theme_color("font_color") == Color8(62, 42, 24) and value.get_theme_color("font_color") == Color8(62, 42, 24), "detail row text is the mockup ink")
 	return failed + _check(seen >= 5, "long gathered rows stay on screen (%d)" % seen)
 
 
