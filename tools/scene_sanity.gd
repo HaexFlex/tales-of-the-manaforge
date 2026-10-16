@@ -344,6 +344,48 @@ func _replay_keeper_strike(mode: String, might: int, arcana: int, fate: int, def
 	return int(res.get("damage", -1))
 
 
+func _echo_end_confirm(view: Node) -> int:
+	var failed: int = 0
+	var battle := EchoBattle.new()
+	battle.configure(
+		{"might": 1, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1},
+		{"display_name": "Elaia", "stats": {"swiftness": 1, "vitality": 30}}
+	)
+	battle.spare_window = false
+	battle.outcome = ""
+	view.set("_battle", battle)
+	view.set("_waiting_return", false)
+	view.set("_phase", "fight")
+	view.call("_on_strike")
+	failed += _check(not bool(view.call("end_confirm_open")), "a normal strike does not ask")
+	failed += _check(str(battle.outcome) == "", "a normal strike does not end the fight")
+	battle.spare_window = true
+	battle.outcome = ""
+	view.call("_on_strike")
+	failed += _check(bool(view.call("end_confirm_open")), "the killing strike asks first")
+	failed += _check(str(view.call("end_confirm_text")).find("Strike") >= 0, "the ask names Strike")
+	failed += _check(str(battle.outcome) == "", "the ask does not strike yet")
+	view.call("_on_strike")
+	failed += _check(str(battle.outcome) == "" and bool(view.call("end_confirm_open")), "mashing Strike does not confirm")
+	view.call("_on_brace")
+	view.call("_on_salve")
+	view.call("_on_flee")
+	failed += _check(str(battle.outcome) == "", "brace, salve, and flee do not confirm the end")
+	view.call("_dismiss_end")
+	failed += _check(not bool(view.call("end_confirm_open")) and str(battle.outcome) == "", "Not now keeps the fight going")
+	view.call("_on_spare")
+	failed += _check(bool(view.call("end_confirm_open")) and str(view.call("end_confirm_text")).find("Spare") >= 0, "spare asks too")
+	failed += _check(str(battle.outcome) == "", "the spare ask does not spare yet")
+	view.call("_dismiss_end")
+	view.call("_on_strike")
+	view.call("_confirm_end")
+	failed += _check(str(battle.outcome) == "defeat", "Yes on Strike ends the fight")
+	failed += _check(not bool(view.call("end_confirm_open")), "Yes closes the ask")
+	if failed == 0:
+		print("ECHO_END_CONFIRM_OK")
+	return failed
+
+
 func _battle_view() -> int:
 	var failed: int = 0
 	var game: Node = root.get_node("GameState")
@@ -550,6 +592,7 @@ func _battle_view() -> int:
 	failed += _check(chamber_close == null or not chamber_close.visible, "fled window hides the chamber ×")
 	failed += _check(fled_menu == null or not fled_menu.visible, "fled window hides the battle log band")
 	failed += _chamber_plate(view)
+	failed += _echo_end_confirm(view)
 	view.queue_free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)

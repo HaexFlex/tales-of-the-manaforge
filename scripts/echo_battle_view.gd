@@ -66,6 +66,9 @@ var _echo_ghost: TextureRect = null
 var _mercy_shown: bool = false
 var _waiting_return: bool = false
 var _pending_outcome: String = ""
+var _end_layer: Control = null
+var _end_action: String = ""
+var _phase_before_end: String = ""
 var _pending_toast: String = ""
 var _pulse: float = 0.0
 var _name_tag_root: Node = null
@@ -802,10 +805,14 @@ func _make_hp_bar(who: String, cx: float, foe: bool) -> ColorRect:
 
 
 func _on_brace() -> void:
+	if end_confirm_open():
+		return
 	_choose("brace")
 
 
 func _on_salve() -> void:
+	if end_confirm_open():
+		return
 	_choose("salve")
 
 
@@ -822,6 +829,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	## Pause only freezes. Esc while it is open resumes it, and does not flee.
 	if _pause_is_open():
+		return
+	if end_confirm_open():
+		if event is InputEventKey:
+			var end_key: InputEventKey = event as InputEventKey
+			if end_key.pressed and not end_key.echo and end_key.keycode == KEY_ESCAPE:
+				_dismiss_end()
+				get_viewport().set_input_as_handled()
 		return
 	if not (event is InputEventKey):
 		return
@@ -1132,15 +1146,135 @@ func _set_mercy_visible(show: bool) -> void:
 
 
 func _on_strike() -> void:
+	if end_confirm_open():
+		return
+	if _ending_choice("strike"):
+		_open_end_confirm("strike")
+		return
 	_choose("strike")
 
 
 func _on_flee() -> void:
+	if end_confirm_open():
+		return
 	_choose("flee")
 
 
 func _on_spare() -> void:
+	if end_confirm_open():
+		return
+	if _ending_choice("spare"):
+		_open_end_confirm("spare")
+		return
 	_choose("spare")
+
+
+## Spare and the last Strike finish the fight. Brace and Salve do not.
+func _ending_choice(action: String) -> bool:
+	return (
+		_battle != null
+		and not _waiting_return
+		and _phase == "fight"
+		and _battle.outcome == ""
+		and _battle.spare_window
+		and (action == "strike" or action == "spare")
+	)
+
+
+func end_confirm_open() -> bool:
+	return _end_layer != null and is_instance_valid(_end_layer)
+
+
+func end_confirm_text() -> String:
+	if not end_confirm_open():
+		return ""
+	var body: Label = _end_layer.get_node_or_null("EndBody") as Label
+	return body.text if body != null else ""
+
+
+func _open_end_confirm(action: String) -> void:
+	if _waiting_return or _battle == null or end_confirm_open():
+		return
+	_phase_before_end = _phase
+	_phase = "end"
+	_end_action = action
+	var ox: float = EchoTheme.shift()
+	var dim := ColorRect.new()
+	dim.name = "EndDim"
+	dim.color = EchoTheme.DIM
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(dim)
+	var panel := Panel.new()
+	panel.name = "EndConfirm"
+	panel.position = Vector2(ox + 220.0, 150)
+	panel.size = Vector2(520, 220)
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	EchoTheme.paint_panel(panel, false)
+	add_child(panel)
+	_end_layer = panel
+	var title := Label.new()
+	title.name = "EndTitle"
+	title.text = ContentStrings.get_text("echo_end_title")
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.position = Vector2(32, 28)
+	title.size = Vector2(456, 36)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_title(title, true)
+	panel.add_child(title)
+	var body := Label.new()
+	body.name = "EndBody"
+	var line_key: String = "echo_end_spare" if action == "spare" else "echo_end_strike"
+	body.text = ContentStrings.get_text(line_key, {"enemy": _enemy_name()})
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.position = Vector2(32, 76)
+	body.size = Vector2(456, 52)
+	body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(body, false)
+	panel.add_child(body)
+	var no := Button.new()
+	no.name = "EndNo"
+	no.text = ContentStrings.get_text("portal_confirm_no")
+	no.position = Vector2(32, 144)
+	no.size = Vector2(200, 44)
+	no.custom_minimum_size = no.size
+	EchoTheme.paint_button(no, true)
+	no.pressed.connect(_dismiss_end)
+	panel.add_child(no)
+	var yes := Button.new()
+	yes.name = "EndYes"
+	yes.text = ContentStrings.get_text("echo_end_yes")
+	yes.position = Vector2(288, 144)
+	yes.size = Vector2(200, 44)
+	yes.custom_minimum_size = yes.size
+	EchoTheme.paint_button(yes, false)
+	yes.pressed.connect(_confirm_end)
+	panel.add_child(yes)
+	no.call_deferred("grab_focus")
+
+
+func _confirm_end() -> void:
+	var action: String = _end_action
+	_close_end_confirm()
+	_phase = "fight"
+	if action == "strike" or action == "spare":
+		_choose(action)
+
+
+func _dismiss_end() -> void:
+	_close_end_confirm()
+	_phase = _phase_before_end if _phase_before_end == "fight" else "fight"
+	_end_action = ""
+	_refresh_actions()
+
+
+func _close_end_confirm() -> void:
+	for node_name: String in ["EndDim", "EndConfirm"]:
+		var node: Node = get_node_or_null(node_name)
+		if node:
+			node.queue_free()
+	_end_layer = null
 
 
 func _on_arrow() -> void:

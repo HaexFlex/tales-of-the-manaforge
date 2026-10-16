@@ -3915,6 +3915,7 @@ func _run() -> void:
 	failed += await _handoff_idle(tree_root, game_state, save_service)
 	failed += await _debug_adventure_ok(tree_root, game_state, save_service)
 	failed += _reach_legacy_gone(tree_root, game_state, save_service)
+	failed += _echo_end_confirm_ok(tree_root)
 	failed += _echo_v4_math(tree_root)
 	failed += _echo_v4_parity()
 	failed += await _battle_ui_v7(tree_root, game_state, save_service)
@@ -4554,6 +4555,61 @@ func _echo_run_replay(fx: Dictionary, replay: Dictionary, elaia_def: Dictionary)
 	while battle.outcome == "" and not battle.spare_window:
 		battle.choose("strike")
 	return battle
+
+
+func _echo_end_confirm_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _assert(echo != null and packed != null, "end confirm can build a battle view")
+	if echo == null or packed == null:
+		return failed
+	var saved_battle: Variant = echo.get("battle")
+	var saved_in: bool = bool(echo.get("in_battle"))
+	var saved_ctx: String = str(echo.get("battle_context"))
+	echo.set("battle", null)
+	echo.set("in_battle", false)
+	var view: Node = packed.instantiate()
+	tree_root.add_child(view)
+	var battle := EchoBattle.new()
+	battle.configure(
+		{"might": 1, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1},
+		{"display_name": "Elaia", "stats": {"swiftness": 1, "vitality": 30}}
+	)
+	view.set("_battle", battle)
+	view.set("_waiting_return", false)
+	view.set("_phase", "fight")
+	view.call("_on_strike")
+	failed += _assert(not bool(view.call("end_confirm_open")), "a normal strike does not ask")
+	failed += _assert(str(battle.outcome) == "", "a normal strike does not end the fight")
+	battle.spare_window = true
+	battle.outcome = ""
+	view.call("_on_strike")
+	failed += _assert(bool(view.call("end_confirm_open")), "the killing strike asks first")
+	failed += _assert(str(view.call("end_confirm_text")).find("Strike") >= 0, "the ask names Strike")
+	failed += _assert(str(battle.outcome) == "", "the ask does not strike yet")
+	view.call("_on_strike")
+	failed += _assert(str(battle.outcome) == "" and bool(view.call("end_confirm_open")), "mashing Strike does not confirm")
+	view.call("_on_brace")
+	view.call("_on_salve")
+	view.call("_on_flee")
+	failed += _assert(str(battle.outcome) == "", "brace, salve, and flee do not confirm the end")
+	view.call("_dismiss_end")
+	failed += _assert(not bool(view.call("end_confirm_open")) and str(battle.outcome) == "", "Not now keeps the fight going")
+	view.call("_on_spare")
+	failed += _assert(bool(view.call("end_confirm_open")) and str(view.call("end_confirm_text")).find("Spare") >= 0, "spare asks too")
+	view.call("_dismiss_end")
+	view.call("_on_strike")
+	view.call("_confirm_end")
+	failed += _assert(str(battle.outcome) == "defeat", "Yes on Strike ends the fight")
+	failed += _assert(not bool(view.call("end_confirm_open")), "Yes closes the ask")
+	view.queue_free()
+	echo.set("battle", saved_battle)
+	echo.set("in_battle", saved_in)
+	echo.set("battle_context", saved_ctx)
+	if failed == 0:
+		print("ECHO_END_CONFIRM_OK")
+	return failed
 
 
 func _echo_v4_math(tree_root: Window) -> int:
