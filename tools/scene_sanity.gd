@@ -59,6 +59,7 @@ func _run() -> void:
 	failed += _near(live, "World/Runestones/Runestone_might", Vector2(2000, 1000))
 	failed += _near(live, "World/Runestones/Runestone_arcana", Vector2(3200, 1600))
 	failed += _near(live, "World/Runestones/Runestone_resilience", Vector2(3300, 2500))
+	failed += _resilience_tree(live)
 	failed += _near(live, "World/Runestones/Runestone_ward", Vector2(2700, 2950))
 	failed += _near(live, "World/Runestones/Runestone_vitality", Vector2(1800, 2950))
 	failed += _near(live, "World/Runestones/Runestone_swiftness", Vector2(900, 2400))
@@ -353,6 +354,20 @@ func _replay_keeper_strike(mode: String, might: int, arcana: int, fate: int, def
 		0, 1, 1, dice
 	)
 	return int(res.get("damage", -1))
+
+
+func _resilience_tree(live: Node) -> int:
+	## 40 px east and 24 px south of where this crown sat on the Resilience stone.
+	var failed: int = 0
+	var prop: Node2D = live.get_node_or_null("World/ArtTree_0017") as Node2D
+	failed += _check(prop != null, "resilience decorative tree")
+	if prop != null:
+		var moved: Vector2 = prop.position - Vector2(3401.2980, 2740.3648)
+		failed += _check(moved.x > 24.0 and moved.y > 16.0, "tree moved south-east (%.1f, %.1f)" % [moved.x, moved.y])
+		failed += _check(prop.position.distance_to(Vector2(3441.2980, 2764.3648)) < 1.0, "tree sits at the shifted spot")
+	if failed == 0:
+		print("RESILIENCE_TREE_OK")
+	return failed
 
 
 func _floating_names() -> int:

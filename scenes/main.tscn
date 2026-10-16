@@ -12447,7 +12447,7 @@ prop_kind = "tree"
 metadata/prop_kind = "tree"
 [node name="ArtTree_0017" type="Node2D" parent="World" unique_id=1610001057 instance=ExtResource("15_yq6so")]
 y_sort_enabled = true
-position = Vector2(3401.2980, 2740.3648)
+position = Vector2(3441.2980, 2764.3648)
 script = ExtResource("14_2f3dj")
 texture_path = "res://assets/art/hub/trees/ring_tree_old_02.png"
 sprite_scale = 1.0
