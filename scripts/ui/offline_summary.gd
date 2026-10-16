@@ -213,6 +213,7 @@ func _layout() -> void:
 	if _continue:
 		_continue.position = Vector2(roundf((w - 300.0) * 0.5), WINDOW_H - INSET - 44.0)
 		_continue.size = Vector2(300, 44)
+	_layout_rows()
 
 
 func _fill() -> void:
@@ -289,10 +290,12 @@ func _add_section(section_id: String, title_key: String, icon_file: String, summ
 	icon.size = Vector2(24, 24)
 	header.add_child(icon)
 	var title := Label.new()
+	title.name = "SectionTitle"
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	title.text = ContentStrings.get_text(title_key) if has_node("/root/ContentStrings") else title_key
 	title.position = Vector2(62, 10)
-	title.size = Vector2(120, 24)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.clip_text = false
 	_style_cream(title, false)
 	header.add_child(title)
 	var sum := Label.new()
@@ -327,10 +330,7 @@ func _add_section(section_id: String, title_key: String, icon_file: String, summ
 		row_i += 1
 	host.add_child(details)
 	_sections.add_child(host)
-	var content_w: float = _card.size.x - INSET * 2.0 - 8.0
-	sum.position = Vector2(144, 10)
-	var tag_room: float = 150.0 if show_tag else 12.0
-	sum.size = Vector2(maxf(40.0, content_w - 144.0 - tag_room), 24)
+	sum.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_style_cream(sum, true)
 
 
@@ -397,16 +397,70 @@ func _place_tag(parent: Control, text: String) -> Label:
 	label.size = Vector2(width, 22)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.offset_left = 0.0
+	label.offset_top = 0.0
+	label.offset_right = 0.0
+	label.offset_bottom = 0.0
 	chip.add_child(label)
 	parent.add_child(chip)
-	chip.position = Vector2(maxf(0.0, parent.size.x - width - 8.0), 11)
-	if parent.size.x < 8.0:
-		chip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		chip.offset_left = -width - 8.0
-		chip.offset_right = -8.0
-		chip.offset_top = 11.0
-		chip.offset_bottom = 33.0
 	return label
+
+
+func _layout_rows() -> void:
+	if _sections == null or _body == null:
+		return
+	var row_w: float = _body.size.x
+	if row_w < 8.0:
+		return
+	_sections.custom_minimum_size.x = row_w
+	for host_v: Node in _sections.get_children():
+		var header: Button = host_v.get_node_or_null("Header") as Button
+		if header == null:
+			continue
+		header.custom_minimum_size = Vector2(row_w, HEADER_H)
+		var title: Label = header.get_node_or_null("SectionTitle") as Label
+		var summary: Label = header.get_node_or_null("Summary") as Label
+		var chip: Control = header.get_node_or_null("ShardChip") as Control
+		var title_w: float = 48.0
+		if title:
+			title_w = ceilf(_text_width(title))
+			title.position = Vector2(62, 10)
+			title.size = Vector2(title_w, 24)
+		var summary_x: float = 62.0 + title_w + 12.0
+		var right_limit: float = row_w - 12.0
+		if chip != null and chip.visible:
+			var chip_w: float = maxf(chip.custom_minimum_size.x, chip.size.x)
+			_pin_top_left(chip)
+			chip.position = Vector2(row_w - chip_w - 8.0, 11)
+			chip.size = Vector2(chip_w, 22)
+			right_limit = chip.position.x - 8.0
+		if summary:
+			summary.position = Vector2(summary_x, 10)
+			summary.size = Vector2(maxf(24.0, right_limit - summary_x), 24)
+			summary.clip_text = true
+			summary.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			summary.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
+func _text_width(lbl: Label) -> float:
+	var font: Font = lbl.get_theme_font("font")
+	var size: int = lbl.get_theme_font_size("font_size")
+	if font == null or size <= 0:
+		return 80.0
+	return font.get_string_size(lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+
+
+func _pin_top_left(ctrl: Control) -> void:
+	ctrl.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	ctrl.anchor_right = 0.0
+	ctrl.anchor_bottom = 0.0
+	ctrl.offset_left = 0.0
+	ctrl.offset_top = 0.0
+	ctrl.offset_right = 0.0
+	ctrl.offset_bottom = 0.0
+	ctrl.grow_horizontal = Control.GROW_DIRECTION_END
+	ctrl.grow_vertical = Control.GROW_DIRECTION_END
 
 
 func _toggle_section(section_id: String) -> void:
