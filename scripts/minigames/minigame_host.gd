@@ -597,6 +597,8 @@ func _layout_window() -> void:
 	_panel.custom_minimum_size = sz
 	_panel.position = Vector2(roundf((vs.x - sz.x) * 0.5), roundf(top))
 	Ui540.place_close_button(_close, sz.x)
+	## Every win plate bakes close_n.png at window y=18. The kit places it at y=20, which hangs the live button over the frame's lower edge.
+	_close.position.y -= 2.0
 	_layout_header()
 	## The plate is stretched onto this window. The play field is the plate's
 	## content well, so it has to use the same stretch or a second frame and

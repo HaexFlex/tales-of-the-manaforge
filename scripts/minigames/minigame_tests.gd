@@ -42,6 +42,7 @@ func run_scenes() -> int:
 	failed += _keeper_frames()
 	failed += _woodsong_stand()
 	failed += _minigame_audio()
+	failed += _minigame_close()
 	failed += _stone_runes()
 	failed += _ripe_catch()
 	failed += _steeping_debug()
@@ -366,6 +367,27 @@ func _minigame_audio() -> int:
 	failed += _check(not bool(audio.call("minigame_audio_held")), "closing Woodsong restores world audio")
 	if failed == 0:
 		print("MINIGAME_AUDIO_OK")
+	return failed
+
+
+func _minigame_close() -> int:
+	var failed: int = 0
+	var host: Node = Engine.get_main_loop().root.get_node_or_null("MinigameHost")
+	failed += _check(host != null, "close-button check has the minigame host")
+	if host == null:
+		return failed
+	host.call("close_immediate")
+	failed += _check(bool(host.call("debug_open", "with_the_grain")), "With the Grain opens for the close button")
+	var closer: Control = host.get_node_or_null("MinigameRoot/Window/Close") as Control
+	var window: Control = host.get_node_or_null("MinigameRoot/Window") as Control
+	failed += _check(closer != null and window != null, "the shared host has a close button")
+	if closer != null and window != null:
+		var kit_y: float = 20.0
+		failed += _check(is_equal_approx(closer.position.y, kit_y - 2.0), "the close button sits 2 px above the kit default (y %.0f)" % closer.position.y)
+		failed += _check(is_equal_approx(closer.position.x, window.size.x - 24.0 - 44.0), "the close button keeps the kit's right inset")
+	host.call("close_immediate")
+	if failed == 0:
+		print("MINIGAME_CLOSE_OK")
 	return failed
 
 
