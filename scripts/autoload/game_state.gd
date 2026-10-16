@@ -1837,6 +1837,68 @@ func ascend() -> void:
 			status_message.emit(wipe)
 		else:
 			status_message.emit(ContentStrings.get_text("ascend_backpack_wipe_toast"))
+	gather_party_at_manatree()
+
+
+const ASCEND_GATHER_KEEPER := Vector2(-56, 48)
+const ASCEND_GATHER_ELAIA := Vector2(56, 48)
+
+
+func ascend_gather_spot(actor: String) -> Vector2:
+	## South of the sill, one on each side, so the party stands around the trunk.
+	var origin := Vector2(2160, 2106)
+	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("manatree_origin"):
+		origin = ForgeJobs.manatree_origin()
+	if actor == "elaia":
+		return origin + ASCEND_GATHER_ELAIA
+	return origin + ASCEND_GATHER_KEEPER
+
+
+func gather_party_at_manatree() -> void:
+	## Jobs are already idle. The bodies stop the channel they were playing and come to the tree.
+	var keeper_spot: Vector2 = ascend_gather_spot("keeper")
+	var elaia_spot: Vector2 = ascend_gather_spot("elaia")
+	var tree := get_tree()
+	var bring_elaia: bool = elaia_in_party()
+	if tree != null:
+		for node: Node in tree.get_nodes_in_group("keeper"):
+			if node.has_method("gather_at"):
+				node.call("gather_at", keeper_spot)
+		if bring_elaia:
+			for node: Node in tree.get_nodes_in_group("companion"):
+				if node.has_method("gather_at"):
+					node.call("gather_at", elaia_spot)
+	keeper_area = "clearing"
+	keeper_has_pos = true
+	keeper_pos = keeper_spot
+	keeper_facing = "north"
+	if bring_elaia:
+		elaia_area = "clearing"
+		elaia_has_pos = true
+		elaia_pos = elaia_spot
+		elaia_facing = "north"
+	if tree != null:
+		_show_gathered_bodies(tree)
+		var current: Node = tree.current_scene
+		if current != null and str(current.scene_file_path).ends_with("forge_room.tscn"):
+			if has_node("/root/ForgeJobs"):
+				ForgeJobs.switch_view(false, true)
+
+
+func _show_gathered_bodies(tree: SceneTree) -> void:
+	## A body that is already walking stays on that walk. Anyone left in the Forge is hidden.
+	for node: Node in tree.get_nodes_in_group("keeper"):
+		if bool(node.get("_moving")):
+			continue
+		if node.has_method("apply_keeper_presence"):
+			node.call("apply_keeper_presence")
+	if not elaia_in_party():
+		return
+	for node: Node in tree.get_nodes_in_group("companion"):
+		if bool(node.get("_moving")):
+			continue
+		if node.has_method("_apply_presence"):
+			node.call("_apply_presence")
 
 
 func to_save_dict() -> Dictionary:

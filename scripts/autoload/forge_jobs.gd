@@ -555,14 +555,15 @@ func set_station_repeat(station_id: String, enabled: bool) -> void:
 	_repeat_override[station_id] = enabled
 
 
-func switch_view(to_forge: bool) -> void:
+func switch_view(to_forge: bool, quiet: bool = false) -> void:
 	## Scene and camera only. Does not move the Keeper, Elaia, or any Wisp.
 	if has_node("/root/GameState") and GameState.is_world_frozen():
 		return
 	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
 		return
 	_return_to_clearing = false
-	_play(&"sfx_door_bark")
+	if not quiet:
+		_play(&"sfx_door_bark")
 	if to_forge:
 		if has_node("/root/GameAudio"):
 			GameAudio.set_forge_room_mix(true, audio_lowpass_hz(), audio_reverb_room(), audio_music_db())

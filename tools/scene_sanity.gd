@@ -151,6 +151,7 @@ func _run() -> void:
 	failed += _footsteps_theme()
 	failed += _ancient_orbit()
 	failed += await _slot_rename()
+	failed += await _ascend_gather()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -592,6 +593,97 @@ func _ancient_orbit() -> int:
 	mana.queue_free()
 	if failed == 0:
 		print("ANCIENT_ORBIT_OK")
+	return failed
+
+
+func _ascend_gather() -> int:
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var jobs: Node = root.get_node("ForgeJobs")
+	var save: Node = root.get_node("SaveService")
+	var snap: Dictionary = game.call("to_save_dict")
+	game.call("reset_for_new_game")
+	game.set("fruit_committed", true)
+	game.set("keeper_area", "forge")
+	game.set("keeper_pos", Vector2(12, 12))
+	game.set("elaia_area", "forge")
+	game.set("elaia_pos", Vector2(20, 20))
+	jobs.call("set_keeper_task", "forge", "crucible", true)
+	jobs.call("set_elaia_task", "water", "manatree", true)
+	game.set("wisp_count", 1)
+	(game.get("wisp_assignments") as Dictionary)["0"] = "manatree"
+	game.call("ascend")
+	var keeper_task: Dictionary = jobs.call("keeper_task")
+	var elaia_task: Dictionary = jobs.call("elaia_task")
+	failed += _check(not bool(keeper_task.get("working", true)), "ascend stops the Keeper's job")
+	failed += _check(not bool(elaia_task.get("working", true)), "ascend stops Elaia's job")
+	failed += _check((game.get("wisp_assignments") as Dictionary).is_empty(), "ascend takes every wisp off its work")
+	failed += _check(str(game.get("elaia_area")) == "forge", "Elaia stays put until she has joined")
+	failed += _check(str(game.get("keeper_area")) == "clearing", "the Keeper comes back to the clearing")
+	var origin: Vector2 = jobs.call("manatree_origin")
+	var kspot: Vector2 = game.call("ascend_gather_spot", "keeper")
+	var espot: Vector2 = game.call("ascend_gather_spot", "elaia")
+	failed += _check(kspot.x < origin.x and espot.x > origin.x and kspot.y > origin.y and espot.y > origin.y, "they stand south of the trunk, one on each side")
+	failed += _check((game.get("keeper_pos") as Vector2).distance_to(kspot) < 1.0, "the Keeper's place is beside the tree")
+	game.call("reset_for_new_game")
+	game.set("fruit_committed", true)
+	game.set("echo_01_redeemed", true)
+	game.set("first_relic_crafted", true)
+	game.set("elaia_join_seen", true)
+	game.set("keeper_area", "forge")
+	game.set("elaia_area", "forge")
+	game.call("ascend")
+	failed += _check(str(game.get("elaia_area")) == "clearing" and (game.get("elaia_pos") as Vector2).distance_to(game.call("ascend_gather_spot", "elaia")) < 1.0, "a joined Elaia is sent to the tree")
+	save.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed != null else null
+	if live == null:
+		failed += _check(false, "clearing loads for the gather")
+	else:
+		root.add_child(live)
+		await process_frame
+		game.set("welcome_shown", true)
+		game.set("echo_01_redeemed", true)
+		game.set("first_relic_crafted", true)
+		game.set("elaia_join_seen", true)
+		game.set("fruit_committed", false)
+		game.set("elaia_area", "clearing")
+		game.set("keeper_area", "clearing")
+		var keeper: Node2D = get_first_node_in_group("keeper") as Node2D
+		var elaia: Node2D = get_first_node_in_group("elaia") as Node2D
+		var trees: Array[Node] = get_nodes_in_group("manatree")
+		var manatree: Node = trees[0] if not trees.is_empty() else null
+		failed += _check(keeper != null and elaia != null and manatree != null, "the party and the tree are in the clearing")
+		if keeper != null and elaia != null and manatree != null:
+			elaia.call("_apply_presence")
+			keeper.call("apply_keeper_presence")
+			var stand: Vector2 = keeper.call("work_destination", manatree, "manatree")
+			keeper.global_position = stand
+			stand = keeper.call("work_destination", manatree, "manatree")
+			keeper.global_position = stand
+			keeper.call("start_water_channel", manatree)
+			var watered: bool = bool(manatree.get("_watering"))
+			failed += _check(watered, "the Keeper was watering")
+			var tree_at: Vector2 = (manatree as Node2D).global_position
+			keeper.global_position = tree_at + Vector2(-240, 200)
+			elaia.global_position = tree_at + Vector2(240, 200)
+			elaia.call("begin_work_loop")
+			jobs.call("set_elaia_task", "harvest", "wood", true)
+			game.set("fruit_committed", true)
+			game.call("ascend")
+			var want_k: Vector2 = game.call("ascend_gather_spot", "keeper")
+			var want_e: Vector2 = game.call("ascend_gather_spot", "elaia")
+			failed += _check(not bool(manatree.get("_watering")) and int(keeper.get("_channel_kind")) == 0, "ascend stops the watering")
+			failed += _check(bool(keeper.get("_moving")) and (keeper.get("_target") as Vector2).distance_to(want_k) < 1.0, "the Keeper walks to the tree")
+			failed += _check(not bool(keeper.get("_work_loop")), "the Keeper is no longer working")
+			failed += _check(bool(elaia.get("_moving")) and (elaia.get("_target") as Vector2).distance_to(want_e) < 1.0, "Elaia walks to the tree")
+			var after: Dictionary = jobs.call("elaia_task")
+			failed += _check(not bool(after.get("working", true)) and not bool(elaia.get("_work_loop")), "Elaia stops her harvest")
+		live.queue_free()
+		await process_frame
+	game.call("apply_save_dict", snap)
+	if failed == 0:
+		print("ASCEND_GATHER_OK")
 	return failed
 
 

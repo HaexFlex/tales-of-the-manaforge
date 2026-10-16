@@ -14,6 +14,8 @@ signal channel_changed(kind: StringName, active: bool)
 
 var _target: Vector2 = Vector2.ZERO
 var _moving: bool = false
+## Ascend walks the party to the tree, then they turn to face it.
+var _face_on_arrive: String = ""
 var _route_points: Array[Vector2] = []
 var _pending_interact: Node = null
 
@@ -347,6 +349,9 @@ func _physics_process(delta: float) -> void:
 			_moving = false
 			velocity = Vector2.ZERO
 			move_and_slide()
+			if _face_on_arrive != "":
+				_facing = _face_on_arrive
+				_face_on_arrive = ""
 			_update_anim(Vector2.ZERO)
 			if _water_pending:
 				_water_pending = false
@@ -1093,6 +1098,27 @@ func _ensure_work_spot(target: Node2D, type_id: String) -> Vector2:
 	var solved: Dictionary = _solve_for(target, type_id)
 	_apply_solved(target, type_id, solved)
 	return _work_spot
+
+
+func gather_at(spot: Vector2) -> void:
+	## Drop the current job, then walk to the tree if this body is the one on screen.
+	halt()
+	cancel_reach_pose()
+	_face_on_arrive = "north"
+	if not _present_in_clearing():
+		_face_on_arrive = ""
+		return
+	move_to(spot, null)
+
+
+func _present_in_clearing() -> bool:
+	if not is_inside_tree() or scene_home() != "clearing" or not visible:
+		return false
+	if not has_node("/root/GameState"):
+		return false
+	if actor_id() == "elaia":
+		return GameState.elaia_in_party() and GameState.elaia_area == "clearing"
+	return GameState.keeper_area == "clearing"
 
 
 func halt() -> void:
