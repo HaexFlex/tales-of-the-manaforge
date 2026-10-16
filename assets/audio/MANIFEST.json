@@ -337,18 +337,7 @@
       "file_peak_dbfs": -17.0,
       "base_db": 0.0,
       "play_offset_db": -12.0,
-      "notes": "play_water_pulse(): each water channel pulse (keeper.gd). Cue id stays sfx_water_pulse. Old sfx_water_pulse.ogg stays on disk."
-    },
-    "sfx_gather_water_soft": {
-      "file": "sfx_gather_water_soft.ogg",
-      "path": "res://assets/audio/sfx_gather_water_soft.ogg",
-      "bus": "SFX_World",
-      "loop": false,
-      "duration_sec": 0.45,
-      "file_peak_dbfs": -17.0,
-      "base_db": 0.0,
-      "play_offset_db": -12.0,
-      "notes": "Same file as sfx_water_pulse. Watering fires that cue id, not this one."
+      "notes": "play_water_pulse(): each water channel pulse (keeper.gd). Cue id stays sfx_water_pulse. File is sfx_gather_water_soft.ogg (soft splash). The old sfx_water_pulse.ogg was moved to assets/library/legacy/audio_water_pulse_2026-10-16/ (REPLACED.md)."
     },
     "sfx_channel_start": {
       "file": "sfx_channel_start.ogg",
@@ -684,9 +673,18 @@
       "exported": false,
       "referenced_by_cue": false,
       "reason": "old 16 s procedural hub bed; no cue"
+    },
+    {
+      "file": "sfx_water_pulse.ogg",
+      "from_path": "assets/audio/sfx_water_pulse.ogg",
+      "to_path": "assets/library/legacy/audio_water_pulse_2026-10-16/sfx_water_pulse.ogg",
+      "bytes": 7558,
+      "exported": false,
+      "referenced_by_cue": false,
+      "reason": "too loud/obnoxious per Haex; replaced by sfx_gather_water_soft.ogg (cue id sfx_water_pulse now points there)"
     }
   ],
-  "legacy_total_bytes": 37122625,
+  "legacy_total_bytes": 37130183,
   "legacy_export": "assets/library/legacy/ carries an empty .gdignore (not imported, not res://, never exported) plus export_presets.cfg exclude_filter=\"assets/library/legacy/*\" as a backstop. Moved with git mv, not deleted.",
   "local_pack_only_legacy": [
     {
