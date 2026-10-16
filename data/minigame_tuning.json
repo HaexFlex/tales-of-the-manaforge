@@ -111,8 +111,8 @@
       "kind": "station",
       "nodes": ["workbench"],
       "accuracy": 0.75,
-      "round_sec": 4.0,
-      "round_sec_curvy_phone": 6.0,
+      "round_sec": 4.8,
+      "round_sec_curvy_phone": 7.2,
       "shapes": [
         {"id": "rod", "curvy": false},
         {"id": "head", "curvy": true},

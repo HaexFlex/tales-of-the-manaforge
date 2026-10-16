@@ -164,7 +164,7 @@ func _grain_shapes() -> int:
 		var top: float = bench.position.y + (66.0 - 96.0) * sy
 		var bottom: float = bench.position.y + (190.0 - 96.0) * sy
 		var board := Rect2(148, 34, 424, 272)
-		failed += _check(board.encloses(Rect2(left, top, right - left, bottom - top)), "the workbench stays inside the board (%.0f,%.0f)-(%.0f,%.0f)" % [left, top, right, bottom])
+		failed += _check(right < board.position.x and left >= 0.0, "the workbench sits left of the drawing board (%.0f,%.0f)-(%.0f,%.0f)" % [left, top, right, bottom])
 	node.set("_shape_i", 0)
 	var rod: PackedVector2Array = node.call("_path_for", "rod")
 	var origin := Vector2(148.0 + 0.277365 * 424.0, 34.0 + 0.422701 * 272.0)
@@ -240,6 +240,8 @@ func _grain_bench() -> int:
 		var bench_rect := Rect2(bench.position - bench_size * 0.5, bench_size)
 		var keeper_rect := Rect2(keeper.position - keeper_size * 0.5, keeper_size)
 		failed += _check(bench_rect.intersects(keeper_rect), "the grain bench overlaps the keeper")
+		failed += _check(bench_rect.end.x < 148.0, "the grain bench is left of the drawing area")
+		failed += _check(keeper_rect.end.x < 148.0, "the grain keeper is left of the drawing area")
 	node.free()
 	var ripe: Node = (load("res://scenes/minigames/ripe_catch.tscn") as PackedScene).instantiate()
 	Engine.get_main_loop().root.add_child(ripe)
@@ -973,12 +975,12 @@ func _math() -> int:
 	for entry_v: Variant in MinigameCatalog.grain_shapes():
 		if typeof(entry_v) == TYPE_DICTIONARY and not bool((entry_v as Dictionary).get("curvy", false)):
 			straight += 1
-	failed += _check(straight == 1, "only the rod stays a 4s phone round")
-	failed += _check(is_equal_approx(phone_k, 11.8), "phone grain k is 11.8 with nineteen curvy rounds (got %.3f)" % phone_k)
-	failed += _check(is_equal_approx(desk_k, 8.0), "desktop grain rounds are 4s so k = 8")
-	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(1, true), 6.0), "curvy phone round is 6s")
-	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(0, true), 4.0), "straight phone round stays 4s")
-	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(1, false), 4.0), "curvy desktop round stays 4s")
+	failed += _check(straight == 1, "only the rod stays the shorter phone round")
+	failed += _check(is_equal_approx(phone_k, 14.16), "phone grain k is 14.16 after the longer rounds (got %.3f)" % phone_k)
+	failed += _check(is_equal_approx(desk_k, 9.6), "desktop grain rounds are 4.8s so k = 9.6")
+	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(1, true), 7.2), "curvy phone round is 7.2s")
+	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(0, true), 4.8), "straight phone round is 4.8s")
+	failed += _check(is_equal_approx(MinigameCatalog.grain_round_seconds(1, false), 4.8), "curvy desktop round is 4.8s")
 	var perfect: float = MinigameMath.pace_multiplier(120.0, 60.0)
 	failed += _check(is_equal_approx(perfect, 3.0), "perfect minute is 3x")
 	var over: float = MinigameMath.pace_multiplier(500.0, 10.0)
