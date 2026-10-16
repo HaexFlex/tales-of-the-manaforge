@@ -148,6 +148,7 @@ func _run() -> void:
 	failed += _forge_arch_raise()
 	failed += _forge_wisp_ring()
 	failed += _footsteps_theme()
+	failed += _ancient_orbit()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -556,6 +557,25 @@ func _footsteps_theme() -> int:
 	hud.queue_free()
 	if failed == 0:
 		print("FOOTSTEPS_THEME_OK")
+	return failed
+
+
+func _ancient_orbit() -> int:
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var previous: StringName = game.get("stage_id")
+	var mana: Node = (load("res://scenes/manatree.tscn") as PackedScene).instantiate()
+	root.add_child(mana)
+	game.set("stage_id", StringName("elder"))
+	var elder: Vector2 = mana.call("wisp_orbit_radii")
+	game.set("stage_id", StringName("ancient"))
+	var ancient: Vector2 = mana.call("wisp_orbit_radii")
+	game.set("stage_id", previous)
+	failed += _check(is_equal_approx(ancient.x, elder.x) and is_equal_approx(ancient.y, elder.y), "ancient wisp circle matches the elder")
+	failed += _check(ancient.x >= 280.0, "ancient circle keeps the elder width")
+	mana.queue_free()
+	if failed == 0:
+		print("ANCIENT_ORBIT_OK")
 	return failed
 
 

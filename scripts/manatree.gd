@@ -523,7 +523,7 @@ func wisp_orbit_radius() -> float:
 
 
 func wisp_orbit_radii() -> Vector2:
-	if String(GameState.stage_id) == "elder":
+	if String(GameState.stage_id) == "elder" or String(GameState.stage_id) == "ancient":
 		return Vector2(280.0, 140.0)
 	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
 	var ry: float = sz.x * 0.5 + 14.0

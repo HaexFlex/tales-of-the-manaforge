@@ -9338,10 +9338,10 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 			elder_rx = elder_radii.x
 			elder_ry = elder_radii.y
 		game_state.set("stage_id", StringName("ancient"))
-		var ancient_r: float = float(mana.call("wisp_orbit_radius"))
+		var ancient_radii: Vector2 = mana.call("wisp_orbit_radii") if mana.has_method("wisp_orbit_radii") else Vector2(float(mana.call("wisp_orbit_radius")), float(mana.call("wisp_orbit_radius")))
 		game_state.set("stage_id", StringName("sapling"))
 		failed += _assert(elder_rx >= 280.0 and elder_rx >= mature_r * 3.0, "elder manatree orbit is much larger (rx %.1f vs mature ry %.1f)" % [elder_rx, mature_r])
-		failed += _assert(ancient_r < 120.0 and absf(ancient_r - elder_ry) > 100.0, "ancient keeps the trunk orbit (%.1f)" % ancient_r)
+		failed += _assert(is_equal_approx(ancient_radii.x, elder_rx) and is_equal_approx(ancient_radii.y, elder_ry), "ancient wisp circle matches the elder (%.1f, %.1f)" % [ancient_radii.x, ancient_radii.y])
 	jobs.call("set_in_forge_override", -1)
 	change_scene_to_file(_FORGE_SCENE)
 	failed += await _expect_scene("wisp forge", _FORGE_SCENE)
