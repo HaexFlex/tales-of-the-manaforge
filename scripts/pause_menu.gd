@@ -74,6 +74,7 @@ const CONFIRM_TITLES: Dictionary = {
 	&"exit": "pause_exit_confirm_title",
 	&"quit": "pause_quit_game_confirm_title",
 	&"overwrite": "pause_slot_overwrite_title",
+	&"load_slot": "pause_slot_load_title",
 	&"rebind_swap": "options_rebind_conflict_title",
 	&"delete_slot": "pause_slot_delete_title",
 }
@@ -1243,7 +1244,19 @@ func _on_slot_pressed(kind: String, slot: int) -> void:
 		else:
 			_do_save_slot(slot)
 	elif _slot_mode == SlotMode.LOAD:
-		_do_load_slot(kind, slot)
+		var filled: bool = SaveService.has_autosave(slot) if kind == "autosave" else SaveService.has_slot(slot)
+		if not filled:
+			_do_load_slot(kind, slot)
+			return
+		_pending_slot = slot
+		_pending_kind = kind
+		_return_to_slots = true
+		_show_confirm(
+			&"load_slot",
+			ContentStrings.get_text("pause_slot_load_confirm"),
+			ContentStrings.get_text("pause_slot_load_yes"),
+			ContentStrings.get_text("pause_slot_load_no"),
+		)
 
 
 func _do_save_slot(slot: int) -> void:
@@ -1375,6 +1388,10 @@ func _on_confirm_yes() -> void:
 		&"overwrite":
 			if slot >= 1:
 				_do_save_slot(slot)
+		&"load_slot":
+			if slot >= 1 and kind_now != "":
+				_do_load_slot(kind_now, slot)
+				_pending_kind = ""
 		&"rebind_swap":
 			if _rebind_listen != "" and _rebind_pending_other != "":
 				var old_key: Key = Binds.keycode(_rebind_listen)

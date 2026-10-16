@@ -149,6 +149,7 @@ func _run() -> void:
 	failed += _forge_arch_raise()
 	failed += _forge_wisp_ring()
 	failed += _manual_save_guard()
+	failed += _load_confirm()
 	failed += await _bench_cancel()
 	failed += _footsteps_theme()
 	failed += _ancient_orbit()
@@ -615,6 +616,54 @@ func _manual_save_guard() -> int:
 		DirAccess.remove_absolute(path)
 	if failed == 0:
 		print("MANUAL_SAVE_GUARD_OK")
+	return failed
+
+
+func _load_confirm() -> int:
+	var failed: int = 0
+	var save: Node = root.get_node("SaveService")
+	var path: String = str(save.call("slot_path", 7))
+	var backup: String = FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	var had: bool = FileAccess.file_exists(path)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	failed += _check(file != null, "load confirm can mark slot 7")
+	if file != null:
+		file.store_string(JSON.stringify({
+			"save_version": 15,
+			"timestamp": 2,
+			"slot": 7,
+			"kind": "manual",
+			"state": {"stage_id": "elder"},
+		}))
+		file.close()
+	var pm: Node = (load("res://scenes/pause_menu.tscn") as PackedScene).instantiate()
+	root.add_child(pm)
+	pm.set("_slot_mode", 2)
+	pm.call("_show_slots", "Load")
+	pm.call("_on_slot_pressed", "manual", 0)
+	var confirm: CanvasItem = pm.get_node_or_null("ConfirmPanel") as CanvasItem
+	failed += _check(confirm != null and not confirm.visible, "an empty slot does not ask")
+	var btn: Button = _live_slot_button(pm, "manual", 7)
+	failed += _check(btn != null, "load lists the filled manual slot")
+	if btn != null:
+		btn.pressed.emit()
+	failed += _check(confirm != null and confirm.visible, "loading a save asks first")
+	failed += _check(str(pm.get("_confirm_action")) == "load_slot", "the ask is a load confirm")
+	var body: Label = pm.get_node_or_null("ConfirmPanel/ConfirmLabel") as Label
+	failed += _check(body != null and body.text.find("Load this memory") >= 0, "the ask names the load")
+	pm.call("_on_confirm_no")
+	failed += _check(confirm != null and not confirm.visible, "Stay leaves the save unloaded")
+	failed += _check(FileAccess.file_exists(path), "Stay does not delete the slot")
+	pm.free()
+	if had:
+		var restore := FileAccess.open(path, FileAccess.WRITE)
+		if restore != null:
+			restore.store_string(backup)
+			restore.close()
+	else:
+		DirAccess.remove_absolute(path)
+	if failed == 0:
+		print("LOAD_CONFIRM_OK")
 	return failed
 
 
