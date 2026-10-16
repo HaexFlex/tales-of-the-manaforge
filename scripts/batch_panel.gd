@@ -286,6 +286,16 @@ func _apply_density() -> void:
 			_count_label.custom_minimum_size = Vector2(0, 20)
 	if _make != null:
 		_make.custom_minimum_size = Vector2(200, 52) if compact else Vector2(120, 52)
+	## The workbench batch slot is short. Tall running labels push Cancel past the clip.
+	var line_h: float = 20.0 if compact else 36.0
+	if _current_label != null:
+		_current_label.custom_minimum_size.y = line_h
+	if _total_label != null:
+		_total_label.custom_minimum_size.y = line_h
+	if _current_bar != null:
+		_current_bar.custom_minimum_size.y = 10.0 if compact else 12.0
+	if _total_bar != null:
+		_total_bar.custom_minimum_size.y = 10.0 if compact else 12.0
 
 
 func _place_status() -> void:
@@ -426,7 +436,19 @@ func _on_cancel() -> void:
 		return
 	_confirming = true
 	_confirm.visible = true
+	_pin_confirm()
 	_refresh()
+
+
+func _pin_confirm() -> void:
+	## The confirm used to trail the button row and get clipped, so Cancel looked dead.
+	if _confirm == null:
+		return
+	if _confirm.get_parent() != self:
+		_confirm.reparent(self)
+	_confirm.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_confirm.z_index = 5
+	_confirm.mouse_filter = Control.MOUSE_FILTER_STOP
 
 
 func _on_confirm_yes() -> void:
@@ -520,10 +542,11 @@ func _refresh() -> void:
 	_note.text = _line("batch_away_note")
 	_note.tooltip_text = _note.text
 	_place_away_note()
-	_detail.visible = running or not compact
+	_detail.visible = running and not compact
 	_status.visible = _status.text != ""
 	_note.visible = not _status.visible
 	_place_status()
 	_confirm.visible = _confirming and running
 	if _confirm.visible:
+		_pin_confirm()
 		_confirm_body.text = _line("batch_cancel_confirm_body", {"refund": ForgeJobs.refund_text(_spot_id)})

@@ -18,11 +18,12 @@ func unfinished() -> int:
 
 
 static func refund_qty(unfinished_count: int, per_item: int) -> int:
-	## ceil(unfinished * per_item / 2). The item in progress counts as unfinished.
+	## floor(unfinished * per_item / 2). The item in progress counts as unfinished.
+	## Finished items are already in the inventory and are not part of this refund.
 	if unfinished_count <= 0 or per_item <= 0:
 		return 0
 	var n: int = unfinished_count * per_item
-	return int(float(n + 1) / 2.0)
+	return int(n / 2)
 
 
 func per_item_cost() -> Dictionary:

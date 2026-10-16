@@ -148,6 +148,7 @@ func _run() -> void:
 	failed += _water_splash()
 	failed += _forge_arch_raise()
 	failed += _forge_wisp_ring()
+	failed += await _bench_cancel()
 	failed += _footsteps_theme()
 	failed += _ancient_orbit()
 	failed += _elaia_mirror_art()
@@ -575,6 +576,65 @@ func _forge_wisp_ring() -> int:
 	wisp.queue_free()
 	if failed == 0:
 		print("FORGE_WISP_RING_OK")
+	return failed
+
+
+func _bench_cancel() -> int:
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var jobs: Node = root.get_node("ForgeJobs")
+	var pack: Node = root.get_node("Backpack")
+	var wood_was: int = int(game.call("get_resource", &"wood"))
+	var planks_was: int = int(pack.call("get_count", "wooden_planks"))
+	var prev: Dictionary = jobs.call("keeper_task")
+	if jobs.has_method("set_autosave_enabled"):
+		jobs.call("set_autosave_enabled", false)
+	if bool(jobs.call("has_job", "workbench")):
+		jobs.call("cancel_batch", "workbench")
+	game.call("set_resource", &"wood", 9)
+	pack.call("set_count", "wooden_planks", 0)
+	failed += _check(str(jobs.call("try_begin_batch", "workbench", "wooden_planks", 3)) == "ok", "a workbench batch can start")
+	var panel: Node = (load("res://scenes/ui/batch_panel.tscn") as PackedScene).instantiate()
+	panel.set("compact", true)
+	panel.size = Vector2(400, 148)
+	panel.custom_minimum_size = Vector2(400, 148)
+	root.add_child(panel)
+	panel.call("setup", "workbench")
+	await process_frame
+	var cancel: Button = panel.find_child("Cancel", true, false) as Button
+	failed += _check(cancel != null and cancel.visible and not cancel.disabled, "the workbench Cancel button is on screen")
+	if cancel != null:
+		var host: Control = panel as Control
+		failed += _check(host.get_global_rect().encloses(cancel.get_global_rect()), "Cancel sits inside the workbench batch slot")
+		cancel.pressed.emit()
+	var confirm: Control = panel.find_child("CancelConfirm", true, false) as Control
+	var yes: Button = panel.find_child("ConfirmYes", true, false) as Button
+	failed += _check(confirm != null and confirm.visible, "Cancel opens the confirm")
+	if confirm != null:
+		failed += _check((panel as Control).get_global_rect().encloses(confirm.get_global_rect()), "the confirm stays inside the batch slot")
+	if yes != null:
+		yes.pressed.emit()
+	failed += _check(not bool(jobs.call("has_job", "workbench")), "confirming cancel clears the batch")
+	failed += _check(int(game.call("get_resource", &"wood")) == 4, "cancel returns half the unused wood, rounded down")
+	failed += _check(int(pack.call("get_count", "wooden_planks")) == 0, "nothing finished means no planks come back")
+	jobs.call("set_keeper_working", "workbench", true)
+	game.call("set_resource", &"wood", 6)
+	failed += _check(str(jobs.call("try_begin_batch", "workbench", "wooden_planks", 2)) == "ok", "a second batch starts")
+	jobs.call("advance_seconds", 6.0)
+	failed += _check(int(pack.call("get_count", "wooden_planks")) == 1, "the finished plank is already made")
+	jobs.call("cancel_batch", "workbench")
+	failed += _check(int(pack.call("get_count", "wooden_planks")) == 1, "cancel keeps the plank that was already made")
+	failed += _check(int(game.call("get_resource", &"wood")) == 1, "half of the leftover plank's wood rounds down")
+	panel.queue_free()
+	game.call("set_resource", &"wood", wood_was)
+	if bool(prev.get("working", false)):
+		jobs.call("set_keeper_task", str(prev.get("kind", "")), str(prev.get("target", "")), true)
+	else:
+		jobs.call("note_keeper_idle")
+	if pack.has_method("set_count"):
+		pack.call("set_count", "wooden_planks", planks_was)
+	if failed == 0:
+		print("BENCH_CANCEL_OK")
 	return failed
 
 
