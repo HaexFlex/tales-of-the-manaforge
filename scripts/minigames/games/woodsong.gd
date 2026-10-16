@@ -36,6 +36,10 @@ var _heard: bool = false
 var _await_audio: bool = false
 var _keeper: Sprite2D
 var _swing_at: float = -10.0
+## Keeper on the left, tree just right of centre, so swing frame 2 meets the trunk.
+const KEEPER_POS := Vector2(278, 248)
+const TREE_POS := Vector2(408, 156)
+const AXE_TIP := Vector2(63, -19)
 
 
 func game_id() -> String:
@@ -52,9 +56,9 @@ func _ready() -> void:
 	_loop_sec = maxf(1.0, float(row.get("tune_loop_sec", 20.0)))
 	_next_t = _interval
 	MinigameArt.add_sprite(self, "bg_grass.png", Vector2(320, 160))
-	var tree: Sprite2D = MinigameArt.add_sprite(self, "node_tree.png", Vector2(250, 150))
-	tree.scale = Vector2(0.55, 0.55)
-	_keeper = MinigameArt.add_sprite(self, "keeper_axe_e.png", Vector2(401, 254), 9)
+	var tree: Sprite2D = MinigameArt.add_sprite(self, "node_tree.png", TREE_POS)
+	tree.scale = Vector2.ONE
+	_keeper = MinigameArt.add_sprite(self, "keeper_axe_e.png", KEEPER_POS, 9)
 	_keeper.z_index = 2
 	## The rail art is dark brown. A cream plate keeps it readable on the tree.
 	var plate := ColorRect.new()

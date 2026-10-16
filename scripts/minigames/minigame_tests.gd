@@ -39,6 +39,7 @@ func run_scenes() -> int:
 	failed += _grain_accuracy()
 	failed += _steady_press_tuning()
 	failed += _keeper_frames()
+	failed += _woodsong_stand()
 	failed += _stone_runes()
 	failed += _ripe_catch()
 	failed += _steeping_debug()
@@ -273,6 +274,26 @@ func _keeper_frames() -> int:
 	water.free()
 	if failed == 0:
 		print("KEEPER_FRAMES_OK")
+	return failed
+
+
+func _woodsong_stand() -> int:
+	var failed: int = 0
+	var node: Node = (load("res://scenes/minigames/woodsong.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	var keeper: Sprite2D = node.get_node_or_null("keeper_axe_e") as Sprite2D
+	var tree: Sprite2D = node.get_node_or_null("node_tree") as Sprite2D
+	failed += _check(keeper != null and tree != null, "woodsong has the keeper and the tree")
+	if keeper != null and tree != null:
+		failed += _check(keeper.position.x < tree.position.x, "the woodsong keeper stands left of the tree")
+		failed += _check(tree.position.x > 320.0 and tree.position.x < 480.0, "the woodsong tree sits just right of centre")
+		failed += _check(is_equal_approx(tree.scale.x, 1.0) and is_equal_approx(tree.scale.y, 1.0), "the woodsong tree is full size")
+		var tip: Vector2 = keeper.position + Woodsong.AXE_TIP
+		var trunk := Rect2(tree.position.x - 82.0, tree.position.y - 40.0, 162.0, 160.0)
+		failed += _check(trunk.has_point(tip), "the axe tip meets the trunk")
+	if failed == 0:
+		print("WOODSONG_STAND_OK")
+	node.free()
 	return failed
 
 
