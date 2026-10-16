@@ -3792,6 +3792,7 @@ func _run() -> void:
 	failed += _elaia_companion_asserts(tree_root, game_state, backpack)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += _offline_away_panel(tree_root, game_state, save_service, backpack, content_strings)
+	failed += await _offline_layout_ok(tree_root, game_state)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
@@ -4980,6 +4981,189 @@ func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node
 		print("OFFLINE_CURVE_OK")
 		print("OFFLINE_AWAY_OK")
 	return failed
+
+
+func _offline_layout_ok(tree_root: Window, game_state: Node) -> int:
+	var failed: int = 0
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var host := CanvasLayer.new()
+	host.layer = 20
+	tree_root.add_child(host)
+	var panel: Node = load("res://scripts/ui/offline_summary.gd").new()
+	host.add_child(panel)
+	var banner := ColorRect.new()
+	banner.z_index = 50
+	banner.mouse_filter = Control.MOUSE_FILTER_STOP
+	host.add_child(banner)
+	await tree_root.get_tree().process_frame
+	var font: Font = load("res://assets/fonts/font_body_silver19.tres")
+	var spans: Array = [
+		{"raw": 120.0, "eff": 120.0, "essence": 120, "shards": 60, "away": "2m", "worth": "2 min"},
+		{"raw": 28800.0, "eff": 2400.0, "essence": 2400, "shards": 1200, "away": "8h", "worth": "40 min"},
+		{"raw": 172800.0, "eff": 4200.0, "essence": 4200, "shards": 2100, "away": "2d", "worth": "1h 10 min"},
+	]
+	for vs: Vector2i in [Vector2i(960, 540), Vector2i(1280, 720)]:
+		tree_root.content_scale_size = vs
+		await tree_root.get_tree().process_frame
+		for span_v: Variant in spans:
+			var span: Dictionary = span_v
+			panel.call("present", _offline_watch(span))
+			await tree_root.get_tree().process_frame
+			failed += _offline_continue_box(panel, vs)
+			failed += _offline_summary_fits(panel, "gathered", font, true)
+			failed += _offline_summary_fits(panel, "workers", font, true)
+			failed += _offline_summary_fits(panel, "forge", font, true)
+			failed += _offline_summary_fits(panel, "expedition", font, true)
+			failed += _offline_summary_fits(panel, "left", font, false)
+			var hint: Label = panel.find_child("ShardHint", true, false) as Label
+			var hint_w: float = font.get_string_size(hint.text if hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+			failed += _assert(hint != null and hint.text == "Ascension upgrades raise this" and hint.size.x + 0.5 >= hint_w, "full ascension hint at %s" % vs)
+			var body: ScrollContainer = panel.find_child("Body", true, false) as ScrollContainer
+			failed += _assert(body != null and body.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_SHOW_NEVER and not body.get_v_scroll_bar().visible, "collapsed list does not scroll at %s" % vs)
+			var headline: String = str(panel.call("headline_text"))
+			failed += _assert(headline.find(str(span["away"])) >= 0 and headline.find(str(span["worth"])) >= 0, "headline for %s" % span["away"])
+			var gathered: String = _offline_summary_text(panel, "gathered")
+			failed += _assert(gathered.find("Stone") < 0 and gathered.find("Food") < 0 and gathered.find("Wood") < 0, "zero wood stone and food stay off the summary")
+		var zero: Dictionary = _offline_watch(spans[1])
+		zero["wood"] = 218
+		zero["forge_completed"] = 0
+		zero["forge_stations"] = {}
+		panel.call("present", zero)
+		await tree_root.get_tree().process_frame
+		failed += _offline_continue_box(panel, vs)
+		failed += _assert(not bool(panel.call("section_visible", "forge")), "an empty forge section stays hidden")
+		var zero_sum: String = _offline_summary_text(panel, "gathered")
+		failed += _assert(zero_sum.find("Wood") >= 0 and zero_sum.find("Stone") < 0 and zero_sum.find("Food") < 0, "a zero resource row is hidden")
+		game_state.set("ancient_remaining_sec", 14.0 * 60.0)
+		var blocked: Dictionary = _offline_watch(spans[1])
+		blocked["blocked"] = true
+		blocked["essence"] = 0
+		blocked["manashards"] = 0
+		blocked["forge_completed"] = 0
+		blocked["forge_stations"] = {}
+		panel.call("present", blocked)
+		await tree_root.get_tree().process_frame
+		failed += _offline_continue_box(panel, vs)
+		var note: String = str(panel.call("ancient_note_text"))
+		failed += _assert(not bool(panel.call("section_visible", "gathered")), "Ancient hides Gathered")
+		failed += _assert(str(panel.call("shard_tag_text")) == "", "Ancient hides the tag")
+		failed += _assert(note.find("bloom") >= 0 and note.find("min left") >= 0, "Ancient note keeps the bloom line (%s)" % note)
+		failed += _assert(bool(panel.call("section_visible", "expedition")) and bool(panel.call("section_visible", "left")), "Ancient still shows the road and what is waiting")
+		var lengthy: Dictionary = _offline_watch(spans[2])
+		lengthy["shard_mult"] = 1.0
+		lengthy["essence"] = 34560
+		lengthy["manashards"] = 138240
+		lengthy["wood"] = 123456
+		lengthy["stone"] = 99999
+		lengthy["food"] = 1234567
+		panel.call("present", lengthy)
+		await tree_root.get_tree().process_frame
+		failed += _offline_continue_box(panel, vs)
+		var header: Button = panel.find_child("gathered", true, false).get_node("Header") as Button
+		header.pressed.emit()
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		failed += _offline_continue_box(panel, vs)
+		var chip: Control = panel.find_child("ShardChip", true, false) as Control
+		var row: Control = chip.get_parent() as Control if chip else null
+		failed += _assert(chip != null and row != null and chip.size.x < row.size.x * 0.5 and chip.size.x < 160.0, "the Manashards tag stays a chip, not a band")
+		var open_hint: Label = row.get_node_or_null("ShardHint") as Label if row else null
+		var open_w: float = font.get_string_size(open_hint.text if open_hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _assert(open_hint != null and open_hint.text == "Ascension upgrades raise this" and open_hint.size.x + 0.5 >= open_w, "expanded hint is the full line")
+		failed += _offline_values_fit(panel, font)
+		var cont: Control = panel.find_child("ContinueButton", true, false) as Control
+		banner.position = cont.get_global_rect().position - Vector2(24, 12)
+		banner.size = cont.size + Vector2(48, 24)
+		await tree_root.get_tree().process_frame
+		var ev := InputEventMouseMotion.new()
+		ev.position = cont.get_global_rect().get_center()
+		ev.global_position = ev.position
+		tree_root.push_input(ev)
+		await tree_root.get_tree().process_frame
+		var hit: Control = tree_root.gui_get_hovered_control()
+		failed += _assert(hit != null and hit.name == "ContinueButton", "Continue stays clickable above the status banner at %s (hit %s)" % [vs, hit.name if hit else "none"])
+	game_state.set("ancient_remaining_sec", 0.0)
+	tree_root.content_scale_size = saved_scale
+	host.queue_free()
+	if failed == 0:
+		print("OFFLINE_LAYOUT_OK")
+	return failed
+
+
+func _offline_watch(span: Dictionary) -> Dictionary:
+	return {
+		"show": true,
+		"raw_sec": float(span["raw"]),
+		"effective_sec": float(span["eff"]),
+		"shard_mult": 0.25,
+		"blocked": false,
+		"essence": int(span["essence"]),
+		"manashards": int(span["shards"]),
+		"wood": 0,
+		"stone": 0,
+		"food": 0,
+		"keeper_kind": "water",
+		"keeper_task": "manatree",
+		"wisp_count": 2,
+		"forge_completed": 1,
+		"forge_stations": {"bench": {"finished": 1, "name": "Stone Axe", "working": false}},
+		"expedition": {"waiting": true},
+	}
+
+
+func _offline_continue_box(panel: Node, vs: Vector2i) -> int:
+	var card: Control = panel.find_child("OfflineCard", true, false) as Control
+	var cont: Control = panel.find_child("ContinueButton", true, false) as Control
+	var body: Control = panel.find_child("Body", true, false) as Control
+	var failed: int = _assert(card != null and cont != null and cont.visible and cont.is_visible_in_tree(), "Continue is visible at %s" % vs)
+	if card == null or cont == null or body == null:
+		return failed + 1
+	var view := Rect2(Vector2.ZERO, Vector2(vs))
+	var cont_r: Rect2 = cont.get_global_rect()
+	failed += _assert(card.get_global_rect().encloses(cont_r), "Continue sits inside the away panel at %s" % vs)
+	failed += _assert(view.encloses(cont_r), "Continue sits inside %s" % vs)
+	failed += _assert(not body.get_global_rect().intersects(cont_r), "the list does not cover Continue at %s" % vs)
+	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "away panel stays 600 wide at %s" % vs)
+	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "away panel stays at y 92")
+	return failed
+
+
+func _offline_summary_text(panel: Node, section_id: String) -> String:
+	var host: Node = panel.find_child(section_id, true, false)
+	if host == null:
+		return ""
+	var summary: Label = host.get_node_or_null("Header/Summary") as Label
+	if summary == null:
+		return ""
+	return summary.text
+
+
+func _offline_summary_fits(panel: Node, section_id: String, font: Font, whole: bool) -> int:
+	var host: Node = panel.find_child(section_id, true, false)
+	var summary: Label = host.get_node_or_null("Header/Summary") as Label if host else null
+	if summary == null:
+		return _assert(false, "summary %s" % section_id)
+	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	if whole:
+		return _assert(summary.size.x + 0.5 >= text_w and summary.size.x > 80.0, "%s summary is fully visible (slot %.0f text %.0f)" % [section_id, summary.size.x, text_w])
+	return _assert(summary.size.x > 200.0, "%s summary keeps a real row (slot %.0f)" % [section_id, summary.size.x])
+
+
+func _offline_values_fit(panel: Node, font: Font) -> int:
+	var host: Node = panel.find_child("gathered", true, false)
+	var details: Node = host.get_node_or_null("Details") if host else null
+	if details == null:
+		return _assert(false, "expanded gathered rows")
+	var failed: int = 0
+	var seen: int = 0
+	for row_v: Node in details.get_children():
+		var value: Label = row_v.get_node_or_null("RowValue") as Label
+		if value == null or value.text == "":
+			continue
+		seen += 1
+		var text_w: float = font.get_string_size(value.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _assert(value.size.x + 0.5 >= text_w, "long value %s is fully visible" % value.text)
+	return failed + _assert(seen >= 5, "long gathered rows stay on screen (%d)" % seen)
 
 
 func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
