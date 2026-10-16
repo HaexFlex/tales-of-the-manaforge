@@ -4962,8 +4962,11 @@ func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node
 	failed += _assert(not bool(panel.call("section_visible", "gathered")), "an Ancient absence hides Gathered")
 	failed += _assert(str(panel.call("shard_tag_text")) == "", "an Ancient absence hides the tag")
 	var note: String = str(panel.call("ancient_note_text"))
-	var term: String = str(content_strings.call("get_text", "offline_ancient_term"))
-	failed += _assert(note.find(term) >= 0 and note.find("min left") >= 0, "the Ancient note uses the one term key (%s)" % note)
+	var blocked_line: String = str(content_strings.call("get_text", "offline_ancient_blocked"))
+	failed += _assert(blocked_line.find("The Ancient bloom is unchanged") >= 0 and blocked_line.find("{term}") < 0, "bloom is written in the Ancient line")
+	failed += _assert(note.find("bloom") >= 0 and note.find("min left") >= 0, "the Ancient note uses the live bloom line (%s)" % note)
+	failed += _assert(str(content_strings.call("get_text", "minigame_steady_press_flavour")) == "A calm hand keeps the pressure kind.", "Steady Press flavour is the one key")
+	failed += _assert(str(content_strings.call("get_text", "minigame_hot_spots_flavour")) == "Find the glow, and the metal remembers its shape.", "Hot Spots flavour is unchanged")
 	var continue_btn: Button = panel.find_child("ContinueButton", true, false) as Button
 	failed += _assert(continue_btn != null and continue_btn.text == "Continue", "one Continue button")
 	if continue_btn:

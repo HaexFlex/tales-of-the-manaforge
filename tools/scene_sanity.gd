@@ -2747,9 +2747,54 @@ func _offline_curve(game: Node) -> int:
 	game.set("upgrade_ranks", ranks)
 	failed += _check(is_equal_approx(float(game.call("offline_shard_mult")), 1.0), "15 ranks is x1.00")
 	var table: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
-	failed += _check(table.find("\"offline_ancient_term\": \"bloom\"") >= 0, "bloom lives in one key")
+	var parsed: Variant = JSON.parse_string(table)
+	var final_copy: Dictionary = {
+		"offline_title": "While you were away",
+		"offline_headline": "You were gone {away}. The clearing worked on.",
+		"offline_worth": "That was worth about {worth} of play.",
+		"offline_explain": "A day away is worth about an hour of play; each further day adds 10 minutes.",
+		"offline_verdict_good": "The clearing kept faith while you slept.",
+		"offline_verdict_short": "A short rest. The clearing barely noticed.",
+		"offline_sec_gathered": "Gathered",
+		"offline_line_essence": "Essence {n}",
+		"offline_line_manashards": "Manashards {n}",
+		"offline_line_wood": "Wood {n}",
+		"offline_line_stone": "Stone {n}",
+		"offline_line_food": "Food {n}",
+		"offline_shard_tag": "Manashards x{mult}",
+		"offline_shard_hint": "Ascension upgrades raise this",
+		"offline_sec_workers": "Workers",
+		"offline_worker_keeper": "You kept to your work at {task}.",
+		"offline_worker_elaia": "Elaia tended {task} beside you.",
+		"offline_worker_wisps": "{count} Wisps kept working.",
+		"offline_sec_forge": "Forge",
+		"offline_forge_done": "The Forge finished {count} while you rested.",
+		"offline_forge_working": "The fire kept burning. {item} is still taking shape.",
+		"offline_sec_expedition": "Expedition",
+		"offline_exp_done": "The party returned from the road with {loot}.",
+		"offline_exp_rooms": "They pressed through {rooms} rooms. Foes were Calmed along the way.",
+		"offline_exp_failed": "The party was Overwhelmed in room {room}. The pack returned to the forest.",
+		"offline_exp_flee": "The party slipped away to the trailhead with half the pack.",
+		"offline_exp_waiting": "A fight waits for you on the road.",
+		"offline_sec_left": "Still waiting",
+		"offline_left_idle": "Your hands were idle for a while. The clearing waits for orders.",
+		"offline_left_forge_empty": "The Forge fell quiet. It is ready for new work.",
+		"offline_ancient_blocked": "The Manatree was Ancient, so the clearing rested. The Ancient bloom is unchanged: {minutes} min left.",
+		"offline_continue": "Continue",
+		"minigame_hot_spots_flavour": "Find the glow, and the metal remembers its shape.",
+		"minigame_steady_press_flavour": "A calm hand keeps the pressure kind.",
+	}
+	failed += _check(typeof(parsed) == TYPE_DICTIONARY, "string table parses")
+	if typeof(parsed) == TYPE_DICTIONARY:
+		var strings: Dictionary = parsed
+		failed += _check(not strings.has("offline_ancient_term"), "bloom is written in the Ancient line")
+		failed += _check(not strings.has("mg_steady_press") and not strings.has("minigame_steady_press_flavour_A"), "Steady Press has one flavour key")
+		for key_v: Variant in final_copy.keys():
+			var key: String = str(key_v)
+			failed += _check(str(strings.get(key, "")) == str(final_copy[key]), "final copy %s" % key)
 	if failed == 0:
 		print("OFFLINE_CURVE_OK")
+		print("OFFLINE_STRINGS_OK")
 	game.call("reset_for_new_game")
 	return failed
 

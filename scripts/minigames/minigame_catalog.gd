@@ -60,8 +60,13 @@ static func resource_id(game_id: String) -> String:
 
 
 static func flavour(game_id: String) -> String:
-	## Approved copy lives in the string table. The tuning row is the fallback.
+	## Hot Spots and Steady Press use the final string-table keys. Other games
+	## still fall through to the tuning row when they have no table line.
 	var key := "mg_%s" % game_id
+	if game_id == "hot_spots":
+		key = "minigame_hot_spots_flavour"
+	elif game_id == "steady_press":
+		key = "minigame_steady_press_flavour"
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
 		var strings := tree.root.get_node_or_null("ContentStrings")

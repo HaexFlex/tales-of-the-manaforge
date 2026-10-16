@@ -867,8 +867,8 @@ func _summary() -> int:
 	var strings: Node = Engine.get_main_loop().root.get_node_or_null("ContentStrings") if Engine.get_main_loop() != null else null
 	var hot_line := "Find the glow, and the metal remembers its shape."
 	var press_line := "A calm hand keeps the pressure kind."
-	failed += _check(strings != null and str(strings.call("get_text", "mg_hot_spots")) == hot_line, "Hot Spots flavour is in the string table")
-	failed += _check(strings != null and str(strings.call("get_text", "mg_steady_press")) == press_line, "Steady Press flavour is in the string table")
+	failed += _check(strings != null and str(strings.call("get_text", "minigame_hot_spots_flavour")) == hot_line, "Hot Spots flavour is in the string table")
+	failed += _check(strings != null and str(strings.call("get_text", "minigame_steady_press_flavour")) == press_line, "Steady Press flavour is the one key")
 	failed += _check(MinigameCatalog.flavour("hot_spots") == hot_line, "Hot Spots shows the approved flavour")
 	failed += _check(MinigameCatalog.flavour("steady_press") == press_line, "Steady Press shows the approved flavour")
 	if summary != null:

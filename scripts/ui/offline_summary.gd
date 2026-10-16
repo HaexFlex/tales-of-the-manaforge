@@ -250,14 +250,10 @@ func _add_ancient_note() -> void:
 	var minutes: int = 0
 	if has_node("/root/GameState"):
 		minutes = maxi(0, int(round(GameState.ancient_remaining_sec / 60.0)))
-	var term: String = "bloom"
 	if has_node("/root/ContentStrings"):
-		var keyed: String = ContentStrings.get_text("offline_ancient_term")
-		if keyed != "offline_ancient_term":
-			term = keyed
-		label.text = ContentStrings.get_text("offline_ancient_blocked", {"term": term, "minutes": minutes})
+		label.text = ContentStrings.get_text("offline_ancient_blocked", {"minutes": minutes})
 	else:
-		label.text = term
+		label.text = "The Manatree was Ancient, so the clearing rested. The Ancient bloom is unchanged: %d min left." % minutes
 	wrap.add_child(label)
 	_sections.add_child(wrap)
 

@@ -886,8 +886,6 @@
   "foe_wilt_wisp_desc": "A spark twisted by the Withering. Calm it, and it is free again.",
   "foe_wilt_wisp_calmed": "The Wilt Wisp is Calmed. Its light clears, and it drifts free.",
   "minigame_lend_a_hand": "Lend a hand",
-  "mg_hot_spots": "Find the glow, and the metal remembers its shape.",
-  "mg_steady_press": "A calm hand keeps the pressure kind.",
   "offline_title": "While you were away",
   "offline_headline": "You were gone {away}. The clearing worked on.",
   "offline_worth": "That was worth about {worth} of play.",
@@ -918,7 +916,8 @@
   "offline_sec_left": "Still waiting",
   "offline_left_idle": "Your hands were idle for a while. The clearing waits for orders.",
   "offline_left_forge_empty": "The Forge fell quiet. It is ready for new work.",
-  "offline_ancient_term": "bloom",
-  "offline_ancient_blocked": "The Manatree was Ancient, so the clearing rested. Your {term} is unchanged: {minutes} min left.",
-  "offline_continue": "Continue"
+  "offline_ancient_blocked": "The Manatree was Ancient, so the clearing rested. The Ancient bloom is unchanged: {minutes} min left.",
+  "offline_continue": "Continue",
+  "minigame_hot_spots_flavour": "Find the glow, and the metal remembers its shape.",
+  "minigame_steady_press_flavour": "A calm hand keeps the pressure kind."
 }
