@@ -541,12 +541,35 @@ func _forge_wisp_ring() -> int:
 	var radii: Vector2 = station.call("wisp_orbit_radii")
 	failed += _check(radii.x < 90.0 and radii.y < 90.0, "forge station ring is tight (%.1f, %.1f)" % [radii.x, radii.y])
 	failed += _check(bool(station.call("wisp_sorts_with_feet")), "forge station uses the clearing depth rule")
+	var station_z: int = (station as CanvasItem).z_index
 	var north: int = int(wisp.call("_ring_z", station, -PI * 0.5))
 	var south: int = int(wisp.call("_ring_z", station, PI * 0.5))
 	var tree_north: int = int(wisp.call("_ring_z", tree, -PI * 0.5))
 	var tree_south: int = int(wisp.call("_ring_z", tree, PI * 0.5))
-	failed += _check(north == tree_north and north < 0, "a forge wisp hides behind like a clearing wisp")
-	failed += _check(south == tree_south and south > 0, "a forge wisp in front sorts like a clearing wisp")
+	failed += _check(tree_north < 0 and tree_south > 0, "a clearing wisp still uses z -1 and 1")
+	failed += _check(north < station_z and south > station_z, "a forge wisp stays behind the upper half and in front of the lower half")
+	var tied: bool = false
+	for step: int in 8:
+		var angle: float = float(step) * TAU / 8.0
+		var zed: int = int(wisp.call("_ring_z", station, angle))
+		if zed == station_z:
+			tied = true
+		var upper: bool = sin(angle) < 0.0
+		failed += _check((zed < station_z) == upper, "forge ring depth follows the upper half at %.2f" % angle)
+	failed += _check(not tied, "a forge wisp never shares the station z, so it cannot vanish mid-ring")
+	var room: Node = (load("res://scenes/forge_room.tscn") as PackedScene).instantiate()
+	root.add_child(room)
+	var game: Node = root.get_node("GameState")
+	var had: int = int(game.get("wisp_count"))
+	game.set("wisp_count", maxi(had, 1))
+	room.call("_sync_wisps")
+	var clicked: bool = false
+	for child: Node in room.get_children():
+		if child.has_signal("wisp_clicked") and child.is_connected("wisp_clicked", Callable(room, "_on_wisp_clicked")):
+			clicked = true
+	failed += _check(clicked, "the forge connects wisp_clicked the way the clearing does")
+	game.set("wisp_count", had)
+	room.queue_free()
 	station.queue_free()
 	tree.queue_free()
 	wisp.queue_free()
