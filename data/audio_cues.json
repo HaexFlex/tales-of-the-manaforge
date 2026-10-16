@@ -156,6 +156,12 @@
       "loop": false,
       "path": "res://assets/audio/sfx_water_pulse.ogg"
     },
+    "sfx_gather_water_soft": {
+      "bus": "SFX_World",
+      "loop": false,
+      "path": "res://assets/audio/sfx_gather_water_soft.ogg",
+      "volume_db": -12.0
+    },
     "sfx_channel_start": {
       "bus": "SFX_UI",
       "loop": false,

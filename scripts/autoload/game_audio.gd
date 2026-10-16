@@ -604,7 +604,8 @@ func play_tree_water_ok() -> void:
 
 
 func play_water_pulse() -> void:
-	play_quiet(&"sfx_water_pulse", -10.0)
+	## Soft splash. The cue file and its volume_db come from audio.
+	play(&"sfx_gather_water_soft")
 
 
 func play_channel_start() -> void:

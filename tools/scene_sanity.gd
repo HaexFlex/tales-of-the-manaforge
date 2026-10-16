@@ -144,6 +144,7 @@ func _run() -> void:
 	failed += _floating_names()
 	failed += _hover_rest()
 	failed += _trait_speed_rows()
+	failed += _water_splash()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -448,6 +449,28 @@ func _trait_speed_rows() -> int:
 	sheet.queue_free()
 	if failed == 0:
 		print("TRAIT_SPEEDS_OK")
+	return failed
+
+
+func _water_splash() -> int:
+	var failed: int = 0
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cues: Dictionary = parsed.get("cues", {}) if typeof(parsed) == TYPE_DICTIONARY else {}
+	var cue: Dictionary = cues.get("sfx_gather_water_soft", {}) if typeof(cues.get("sfx_gather_water_soft", {})) == TYPE_DICTIONARY else {}
+	var path: String = str(cue.get("path", ""))
+	failed += _check(path.ends_with("sfx_gather_water_soft.ogg"), "watering cue points at the soft splash")
+	failed += _check(ResourceLoader.exists(path), "soft splash file is in the repo")
+	failed += _check(is_equal_approx(float(cue.get("volume_db", 0.0)), -12.0), "soft splash uses the audio offset")
+	var audio: Node = root.get_node_or_null("GameAudio")
+	failed += _check(audio != null, "GameAudio for the splash")
+	if audio != null:
+		audio.call("clear_played_log")
+		audio.call("play_water_pulse")
+		failed += _check(bool(audio.call("did_play", &"sfx_gather_water_soft")), "watering plays the soft splash")
+		failed += _check(not bool(audio.call("did_play", &"sfx_water_pulse")), "watering no longer plays the old pulse")
+		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -12.0), "watering plays at the cue volume")
+	if failed == 0:
+		print("WATER_SPLASH_OK")
 	return failed
 
 
