@@ -167,6 +167,7 @@ var _gear_tab_all_btn: Button
 var _gear_cat_btn: Button
 var _gear_tab_line: ColorRect
 var _note_serial: int = 0
+var _trait_wait: Timer
 
 
 func _ready() -> void:
@@ -587,7 +588,7 @@ func _build() -> void:
 	trait_btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	trait_btn.text = strings.get_text("char_sheet_keeper_trait")
 	_paint_trait_button(trait_btn)
-	trait_btn.mouse_entered.connect(open_trait_popup)
+	trait_btn.mouse_entered.connect(_arm_trait_hover)
 	trait_btn.mouse_exited.connect(close_trait_popup)
 	trait_row.add_child(trait_btn)
 
@@ -888,7 +889,31 @@ func _sheet_figure_path() -> String:
 	return ELAIA_SHEET_FIGURE if _actor_id == "elaia" else PORTRAIT_PATH
 
 
+func _arm_trait_hover() -> void:
+	## Same rest as every other hover. A tap holds the pointer down, so this wait is the hold too.
+	if _trait_wait == null or not is_instance_valid(_trait_wait):
+		_trait_wait = Timer.new()
+		_trait_wait.name = "TraitHoverRest"
+		_trait_wait.one_shot = true
+		_trait_wait.timeout.connect(open_trait_popup)
+		add_child(_trait_wait)
+	_trait_wait.wait_time = WorldHover.rest_sec()
+	_trait_wait.start()
+
+
+func trait_rest_pending() -> bool:
+	return _trait_wait != null and is_instance_valid(_trait_wait) and not _trait_wait.is_stopped()
+
+
+func complete_trait_rest() -> void:
+	if _trait_wait != null and is_instance_valid(_trait_wait):
+		_trait_wait.stop()
+	open_trait_popup()
+
+
 func open_trait_popup() -> void:
+	if _trait_wait != null and is_instance_valid(_trait_wait):
+		_trait_wait.stop()
 	var pop: Control = get_node_or_null("TraitPopup") as Control
 	if pop == null:
 		return
@@ -898,6 +923,8 @@ func open_trait_popup() -> void:
 
 
 func close_trait_popup() -> void:
+	if _trait_wait != null and is_instance_valid(_trait_wait):
+		_trait_wait.stop()
 	var pop: CanvasItem = get_node_or_null("TraitPopup") as CanvasItem
 	if pop:
 		pop.visible = false

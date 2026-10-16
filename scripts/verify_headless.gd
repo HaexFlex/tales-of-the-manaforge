@@ -6684,6 +6684,9 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	var host := Node2D.new()
 	tree_root.add_child(host)
 	WorldHover.present(host, str(strings.call("get_text", "hover_forge_door")))
+	failed += _assert(WorldHover.current_text() == "", "world hover waits before it shows (got %s)" % WorldHover.current_text())
+	failed += _assert(is_equal_approx(WorldHover.rest_sec(), 0.6), "hover rest is 0.6s")
+	WorldHover.complete_rest()
 	var tip: Panel = WorldHover.panel()
 	var tip_box: StyleBoxTexture = tip.get_theme_stylebox(&"panel") as StyleBoxTexture if tip != null else null
 	var tip_path: String = tip_box.texture.resource_path if tip_box != null and tip_box.texture != null else ""
@@ -6710,7 +6713,9 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	var other := Node2D.new()
 	tree_root.add_child(other)
 	WorldHover.present(other, "Wisp")
+	failed += _assert(WorldHover.current_text() == "", "a new hover waits out its own rest")
 	WorldHover.dismiss(host)
+	WorldHover.complete_rest()
 	failed += _assert(WorldHover.current_text() == "Wisp", "leaving a different object keeps the current hover")
 	WorldHover.shutdown()
 	host.free()

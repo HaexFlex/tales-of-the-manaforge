@@ -142,6 +142,7 @@ func _run() -> void:
 	failed += _weapons()
 	failed += _bramble_shards()
 	failed += _floating_names()
+	failed += _hover_rest()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -380,6 +381,40 @@ func _floating_names() -> int:
 		node.queue_free()
 	if failed == 0:
 		print("FLOATING_NAMES_OK")
+	return failed
+
+
+func _hover_rest() -> int:
+	var failed: int = 0
+	WorldHover.install()
+	failed += _check(is_equal_approx(WorldHover.rest_sec(), 0.6), "hover rest is 0.6s")
+	failed += _check(
+		is_equal_approx(float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec", 0.0)), 0.6),
+		"control tooltips share the 0.6s rest"
+	)
+	var host := Node2D.new()
+	root.add_child(host)
+	WorldHover.present(host, "Harvest Stone")
+	failed += _check(WorldHover.current_text() == "", "world hover stays blank until the rest ends")
+	WorldHover.complete_rest()
+	failed += _check(WorldHover.current_text() == "Harvest Stone", "world hover shows after the rest")
+	WorldHover.dismiss(host)
+	failed += _check(WorldHover.current_text() == "", "world hover hides when the pointer leaves")
+	var sheet := CharacterSheet.new()
+	root.add_child(sheet)
+	var pop: CanvasItem = sheet.get_node_or_null("TraitPopup") as CanvasItem
+	failed += _check(pop != null and not pop.visible, "trait window starts hidden")
+	sheet.call("_arm_trait_hover")
+	failed += _check(bool(sheet.call("trait_rest_pending")) and pop != null and not pop.visible, "trait hover waits 0.6s")
+	sheet.call("complete_trait_rest")
+	failed += _check(pop != null and pop.visible and not bool(sheet.call("trait_rest_pending")), "trait hover opens after the rest")
+	sheet.call("close_trait_popup")
+	failed += _check(pop != null and not pop.visible, "trait hover closes when the pointer leaves")
+	sheet.queue_free()
+	host.queue_free()
+	WorldHover.shutdown()
+	if failed == 0:
+		print("HOVER_REST_OK")
 	return failed
 
 
