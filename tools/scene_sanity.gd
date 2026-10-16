@@ -504,7 +504,7 @@ func _water_splash() -> int:
 
 
 func _forge_arch_raise() -> int:
-	## 32 px up. The mouth bottom was on the party bar; this leaves about 11 px of floor above it.
+	## 35 px up from the original (another 3 px). The mouth clears the one-slot HUD.
 	var failed: int = 0
 	var packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
 	failed += _check(packed != null, "forge room for the arch raise")
@@ -514,11 +514,11 @@ func _forge_arch_raise() -> int:
 	root.add_child(room)
 	var arch: Sprite2D = room.get_node_or_null("ArchFront") as Sprite2D
 	var door: Node2D = room.get_node_or_null("ExitDoor") as Node2D
-	failed += _check(arch != null and is_equal_approx(arch.position.y, 1055.0), "arch moved up 32 px (y %s)" % str(arch.position.y if arch else 0))
-	failed += _check(door != null and is_equal_approx(door.position.y, 1092.0), "exit stays with the raised arch")
+	failed += _check(arch != null and is_equal_approx(arch.position.y, 1052.0), "arch moved up another 3 px (y %s)" % str(arch.position.y if arch else 0))
+	failed += _check(door != null and is_equal_approx(door.position.y, 1089.0), "exit stays with the raised arch")
 	var jobs: Node = root.get_node_or_null("ForgeJobs")
 	var spawn_y: float = float(jobs.call("forge_arch_spawn").y) if jobs != null else 0.0
-	failed += _check(is_equal_approx(spawn_y, 1016.0), "keeper spawn stays on the raised lip")
+	failed += _check(is_equal_approx(spawn_y, 1013.0), "keeper spawn stays on the raised lip")
 	if arch != null:
 		var mouth_bottom: float = arch.position.y + 66.0
 		var screen_bottom: float = mouth_bottom - 660.0
