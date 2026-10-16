@@ -29,6 +29,7 @@ var _body: ScrollContainer
 var _sections: VBoxContainer
 var _continue: Button
 var _pause_was_visible: bool = true
+var _inner_w: float = 512.0
 
 
 func _ready() -> void:
@@ -158,8 +159,9 @@ func _build_shell() -> void:
 	_style_ink(_headline, false)
 	_body = ScrollContainer.new()
 	_body.name = "Body"
+	_body.clip_contents = true
 	_body.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_body.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_body.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
 	_card.add_child(_body)
 	_sections = VBoxContainer.new()
 	_sections.name = "Sections"
@@ -171,6 +173,7 @@ func _build_shell() -> void:
 	_card.add_child(_continue)
 	if has_node("/root/GameTheme"):
 		GameTheme.force_primary_button(_continue)
+	_continue.z_index = 2
 	_continue.pressed.connect(dismiss)
 
 
@@ -207,9 +210,10 @@ func _layout() -> void:
 		_headline.position = Vector2(INSET, INSET + 4.0)
 		_headline.size = Vector2(content_w - 56.0, 36.0)
 	if _body:
+		_inner_w = content_w
 		_body.position = Vector2(INSET, INSET + 48.0)
 		_body.size = Vector2(content_w, BODY_H)
-		_sections.custom_minimum_size = Vector2(content_w - 8.0, 0)
+		_sections.custom_minimum_size = Vector2(0, 0)
 	if _continue:
 		_continue.position = Vector2(roundf((w - 300.0) * 0.5), WINDOW_H - INSET - 44.0)
 		_continue.size = Vector2(300, 44)
@@ -410,15 +414,21 @@ func _place_tag(parent: Control, text: String) -> Label:
 func _layout_rows() -> void:
 	if _sections == null or _body == null:
 		return
-	var row_w: float = _body.size.x
+	var content_h: float = _sections_height()
+	var scrolling: bool = content_h > BODY_H + 0.5
+	_body.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if scrolling else ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	# ScrollContainer's minimum width is the child plus an 8 px pad, and plus the
+	# bar when it is showing. Stay under the body so the list cannot grow over Continue.
+	var row_w: float = _inner_w - (20.0 if scrolling else 8.0)
 	if row_w < 8.0:
 		return
-	_sections.custom_minimum_size.x = row_w
+	_sections.custom_minimum_size = Vector2(row_w, 0)
+	_body.size = Vector2(_inner_w, BODY_H)
 	for host_v: Node in _sections.get_children():
 		var header: Button = host_v.get_node_or_null("Header") as Button
 		if header == null:
 			continue
-		header.custom_minimum_size = Vector2(row_w, HEADER_H)
+		header.custom_minimum_size = Vector2(0, HEADER_H)
 		var title: Label = header.get_node_or_null("SectionTitle") as Label
 		var summary: Label = header.get_node_or_null("Summary") as Label
 		var chip: Control = header.get_node_or_null("ShardChip") as Control
@@ -441,6 +451,19 @@ func _layout_rows() -> void:
 			summary.clip_text = true
 			summary.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			summary.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
+
+func _sections_height() -> float:
+	var total: float = 0.0
+	if _sections == null:
+		return total
+	for host_v: Node in _sections.get_children():
+		if not (host_v is Control) or not (host_v as Control).visible:
+			continue
+		for child: Node in host_v.get_children():
+			if child is Control and (child as Control).visible:
+				total += (child as Control).get_combined_minimum_size().y
+	return total
 
 
 func _text_width(lbl: Label) -> float:
