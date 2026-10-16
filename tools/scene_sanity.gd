@@ -381,8 +381,15 @@ func _battle_view() -> int:
 		failed += _check(EchoTheme.line_count(pages[0], body_font) <= EchoTheme.SPEECH_LINES, "first page is 3 lines")
 	var psize: Vector2 = view.call("portrait_size")
 	failed += _check(absf(psize.x - 256.0) < 0.5, "portrait 256")
-	failed += _check(bool(view.call("is_chamber_shown")), "entry opens the chamber")
-	failed += _check(not bool(view.call("is_flee_shown")), "chamber hides Flee")
+	failed += _check(not bool(view.call("is_chamber_shown")), "entry skips the fee-paid window")
+	var face_btn: CanvasItem = view.get_node_or_null("FaceButton") as CanvasItem
+	var chamber_panel: CanvasItem = view.get_node_or_null("ChamberPanel") as CanvasItem
+	failed += _check(face_btn == null or not face_btn.visible, "Face the Echo stays hidden")
+	failed += _check(chamber_panel == null or not chamber_panel.visible, "the fee-paid panel stays hidden")
+	failed += _check(str(view.get("_phase")) == "speech", "entry opens on the fight dialogue")
+	failed += _check(not bool(view.call("is_flee_shown")), "the opening dialogue hides Flee")
+	if not bool(view.call("is_chamber_shown")) and str(view.get("_phase")) == "speech":
+		print("ECHO_DIRECT_FIGHT_OK")
 	var legacy_log: CanvasItem = view.get_node_or_null("LogBg") as CanvasItem
 	var legacy_hp: CanvasItem = view.get_node_or_null("KeeperHpBack") as CanvasItem
 	var legacy_title: CanvasItem = view.get_node_or_null("LogTitle") as CanvasItem

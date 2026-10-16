@@ -305,7 +305,6 @@ func confirm_fee() -> String:
 			return paid
 		SaveService.save_game()
 	_close_confirm()
-	GameState.status_message.emit(ContentStrings.get_text("portal_enter_ok"))
 	EchoChamber.open_bramble(already)
 	return "enter"
 

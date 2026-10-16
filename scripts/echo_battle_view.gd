@@ -1073,10 +1073,9 @@ func _bind() -> void:
 		_show_fight_chrome()
 		_refresh_actions()
 		return
-	_phase = "chamber"
+	## The fee-paid card is gone. Entry opens on the fight dialogue.
 	_show_opening()
-	_show_chamber_chrome()
-	_refresh_actions()
+	begin_face_off()
 
 
 func _show_opening() -> void:

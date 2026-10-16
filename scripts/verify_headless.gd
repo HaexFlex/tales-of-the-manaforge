@@ -4359,8 +4359,15 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(bool(game_audio.call("did_play", &"sfx_ui_cancel")), "battle save deny is sfx_ui_cancel")
 		failed += _assert(not bool(game_audio.call("did_play", &"sfx_tree_deny")), "battle save deny is not the tree deny")
 		var battle_view: Node = tree_root.get_node_or_null("EchoBattle")
-		failed += _assert(battle_view != null and bool(battle_view.call("is_chamber_shown")), "entry opens the chamber")
-		failed += _assert(battle_view != null and not bool(battle_view.call("is_flee_shown")), "chamber does not offer Flee")
+		var face_btn: Button = battle_view.get_node_or_null("FaceButton") as Button if battle_view else null
+		var chamber_panel: Control = battle_view.get_node_or_null("ChamberPanel") as Control if battle_view else null
+		failed += _assert(battle_view != null and not bool(battle_view.call("is_chamber_shown")), "entry skips the fee-paid window")
+		failed += _assert(face_btn == null or not face_btn.visible, "Face the Echo stays hidden")
+		failed += _assert(chamber_panel == null or not chamber_panel.visible, "the fee-paid panel stays hidden")
+		failed += _assert(battle_view != null and str(battle_view.get("_phase")) == "speech", "entry opens on the fight dialogue")
+		failed += _assert(battle_view != null and not bool(battle_view.call("is_flee_shown")), "the opening dialogue does not offer Flee")
+		if battle_view != null and not bool(battle_view.call("is_chamber_shown")) and str(battle_view.get("_phase")) == "speech":
+			print("ECHO_DIRECT_FIGHT_OK")
 		if battle_view:
 			battle_view.call("begin_face_off")
 			failed += _assert(not bool(battle_view.call("is_flee_shown")), "speech keeps the menu locked")
