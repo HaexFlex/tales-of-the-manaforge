@@ -162,7 +162,9 @@ func _build_shell() -> void:
 	close.pressed.connect(dismiss)
 	_headline = Label.new()
 	_headline.name = "Headline"
-	_headline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_headline.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_headline.clip_text = false
+	_headline.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	_headline.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(_headline)
 	_style_ink(_headline, false)
@@ -222,7 +224,7 @@ func _layout() -> void:
 		close.size = Vector2(44, 44)
 	if _headline:
 		_headline.position = Vector2(INSET, INSET + 4.0)
-		_headline.size = Vector2(content_w - 56.0, 36.0)
+		_fit_headline(content_w - 56.0)
 	if _body:
 		_inner_w = content_w
 		_body.position = Vector2(INSET, INSET + 48.0)
@@ -522,6 +524,31 @@ func _layout_detail(panel: Panel, row_w: float) -> void:
 	if hint:
 		_fit_hint(hint, maxf(40.0, row_w - name_x - 10.0))
 		hint.position = Vector2(name_x, 28)
+
+
+func _fit_headline(max_w: float) -> void:
+	## The final two sentences stay whole. Shrink the face so 8 h and longer still sit on one line.
+	if _headline == null:
+		return
+	_headline.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_headline.clip_text = false
+	_headline.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_headline.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var size: int = 19
+	var width: float = _label_width(_headline, size)
+	while size > 13 and width > max_w + 0.5:
+		size -= 1
+		width = _label_width(_headline, size)
+	_headline.add_theme_font_size_override("font_size", size)
+	_headline.custom_minimum_size = Vector2(0, 24)
+	_headline.size = Vector2(maxf(24.0, max_w), 36.0)
+
+
+func _label_width(lbl: Label, size: int) -> float:
+	var font: Font = lbl.get_theme_font("font")
+	if font == null or lbl.text == "":
+		return 0.0
+	return font.get_string_size(lbl.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 
 
 func _fit_hint(hint: Label, row_w: float) -> void:

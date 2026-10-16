@@ -5028,6 +5028,7 @@ func _offline_layout_ok(tree_root: Window, game_state: Node) -> int:
 			failed += _assert(body != null and body.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_SHOW_NEVER and not body.get_v_scroll_bar().visible, "collapsed list does not scroll at %s" % vs)
 			var headline: String = str(panel.call("headline_text"))
 			failed += _assert(headline.find(str(span["away"])) >= 0 and headline.find(str(span["worth"])) >= 0, "headline for %s" % span["away"])
+			failed += _offline_headline_line(panel, str(span["away"]))
 			var gathered: String = _offline_summary_text(panel, "gathered")
 			failed += _assert(gathered.find("Stone") < 0 and gathered.find("Food") < 0 and gathered.find("Wood") < 0, "zero wood stone and food stay off the summary")
 		var zero: Dictionary = _offline_watch(spans[1])
@@ -5132,6 +5133,16 @@ func _offline_continue_box(panel: Node, vs: Vector2i) -> int:
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "away panel stays 600 wide at %s" % vs)
 	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "away panel stays at y 92")
 	return failed
+
+
+func _offline_headline_line(panel: Node, away: String) -> int:
+	var headline: Label = panel.find_child("Headline", true, false) as Label
+	if headline == null:
+		return _assert(false, "headline label for %s" % away)
+	var face: Font = headline.get_theme_font("font")
+	var size: int = headline.get_theme_font_size("font_size")
+	var text_w: float = face.get_string_size(headline.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x if face else 0.0
+	return _assert(headline.get_line_count() <= 1 and headline.autowrap_mode == TextServer.AUTOWRAP_OFF and text_w <= headline.size.x + 0.5, "headline stays one line at %s (font %d, text %.0f, slot %.0f)" % [away, size, text_w, headline.size.x])
 
 
 func _offline_summary_text(panel: Node, section_id: String) -> String:
