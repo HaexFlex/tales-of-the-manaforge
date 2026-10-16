@@ -31,6 +31,8 @@ var _sections: VBoxContainer
 var _continue: Button
 var _pause_was_visible: bool = true
 var _inner_w: float = 512.0
+## -1 follows the export. Tests set 0 or 1 to check the 16:9 and 20:9 sheets.
+var _force_phone: int = -1
 
 
 func _ready() -> void:
@@ -87,6 +89,17 @@ func dismiss() -> void:
 
 func is_open() -> bool:
 	return visible
+
+
+func use_phone_sheet(on: bool) -> void:
+	_force_phone = 1 if on else 0
+	_layout()
+
+
+func _is_phone_sheet() -> bool:
+	if _force_phone >= 0:
+		return _force_phone == 1
+	return Ui540.is_phone_export()
 
 
 func card_position() -> Vector2:
@@ -203,7 +216,7 @@ func _layout() -> void:
 	offset_right = 0.0
 	offset_bottom = 0.0
 	var vs: Vector2 = Ui540.viewport_size()
-	var phone: bool = Ui540.is_phone_export()
+	var phone: bool = _is_phone_sheet()
 	var w: float = PHONE_W if phone else PC_W
 	var x: float = (24.0 if phone else (vs.x - w) * 0.5) + (Ui540.center_shift_x() if phone else 0.0)
 	if not phone:

@@ -2826,20 +2826,33 @@ func _offline_layout(game: Node) -> int:
 		{"raw": 28800.0, "eff": 2400.0, "essence": 2400, "shards": 1200, "away": "8h", "worth": "40 min"},
 		{"raw": 172800.0, "eff": 4200.0, "essence": 4200, "shards": 2100, "away": "2d", "worth": "1h 10 min"},
 	]
-	for vs: Vector2i in [Vector2i(960, 540), Vector2i(1280, 720)]:
+	var layouts: Array = [
+		{"vs": Vector2i(960, 540), "phone": false, "w": 600.0, "x": 180.0},
+		{"vs": Vector2i(1280, 720), "phone": false, "w": 600.0, "x": 340.0},
+		{"vs": Vector2i(960, 540), "phone": true, "w": 912.0, "x": 24.0},
+		{"vs": Vector2i(1200, 540), "phone": true, "w": 912.0, "x": 144.0},
+	]
+	for layout_v: Variant in layouts:
+		var layout: Dictionary = layout_v
+		var vs: Vector2i = layout["vs"]
+		var phone: bool = bool(layout["phone"])
+		var card_w: float = float(layout["w"])
+		var card_x: float = float(layout["x"])
 		root.content_scale_size = vs
+		await process_frame
+		panel.call("use_phone_sheet", phone)
 		await process_frame
 		for span_v: Variant in spans:
 			var span: Dictionary = span_v
 			panel.call("present", _offline_watch(span))
 			await process_frame
-			failed += _offline_continue_box(panel, vs)
+			failed += _offline_continue_box(panel, vs, card_w, card_x)
 			failed += _offline_summary_fits(panel, "gathered", font, true)
 			failed += _offline_summary_fits(panel, "workers", font, true)
 			failed += _offline_summary_fits(panel, "forge", font, true)
 			failed += _offline_summary_fits(panel, "expedition", font, true)
 			failed += _offline_summary_fits(panel, "left", font, false)
-			failed += _offline_summary_tip(panel, "left", font, true)
+			failed += _offline_summary_tip(panel, "left", font, not phone)
 			failed += _offline_summary_tip(panel, "workers", font, false)
 			failed += _offline_row_colors(panel)
 			var hint: Label = panel.find_child("ShardHint", true, false) as Label
@@ -2860,7 +2873,7 @@ func _offline_layout(game: Node) -> int:
 		zero["forge_stations"] = {}
 		panel.call("present", zero)
 		await process_frame
-		failed += _offline_continue_box(panel, vs)
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
 		failed += _check(not bool(panel.call("section_visible", "forge")), "an empty forge section stays hidden")
 		var zero_sum: String = _offline_summary_text(panel, "gathered")
 		failed += _check(zero_sum.find("Wood") >= 0 and zero_sum.find("Stone") < 0 and zero_sum.find("Food") < 0, "a zero resource row is hidden")
@@ -2873,7 +2886,7 @@ func _offline_layout(game: Node) -> int:
 		blocked["forge_stations"] = {}
 		panel.call("present", blocked)
 		await process_frame
-		failed += _offline_continue_box(panel, vs)
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
 		var note: String = str(panel.call("ancient_note_text"))
 		failed += _check(not bool(panel.call("section_visible", "gathered")), "Ancient hides Gathered")
 		failed += _check(str(panel.call("shard_tag_text")) == "", "Ancient hides the tag")
@@ -2888,14 +2901,14 @@ func _offline_layout(game: Node) -> int:
 		lengthy["food"] = 1234567
 		panel.call("present", lengthy)
 		await process_frame
-		failed += _offline_continue_box(panel, vs)
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
 		failed += _offline_gathered_scroll(panel, font)
 		failed += _offline_summary_fits(panel, "left", font, false)
 		var header: Button = panel.find_child("gathered", true, false).get_node("Header") as Button
 		header.pressed.emit()
 		await process_frame
 		await process_frame
-		failed += _offline_continue_box(panel, vs)
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
 		var chip: Control = panel.find_child("ShardChip", true, false) as Control
 		var row: Control = chip.get_parent() as Control if chip else null
 		failed += _check(chip != null and row != null and chip.size.x < row.size.x * 0.5 and chip.size.x < 160.0, "the Manashards tag stays a chip, not a band")
@@ -2916,6 +2929,7 @@ func _offline_layout(game: Node) -> int:
 		var hit: Control = root.gui_get_hovered_control()
 		failed += _check(hit != null and hit.name == "ContinueButton", "Continue stays clickable above the status banner at %s (hit %s)" % [vs, hit.name if hit else "none"])
 	game.set("ancient_remaining_sec", 0.0)
+	panel.call("use_phone_sheet", false)
 	root.content_scale_size = saved_scale
 	host.queue_free()
 	if failed == 0:
@@ -2944,10 +2958,11 @@ func _offline_watch(span: Dictionary) -> Dictionary:
 	}
 
 
-func _offline_continue_box(panel: Node, vs: Vector2i) -> int:
+func _offline_continue_box(panel: Node, vs: Vector2i, card_w: float = 600.0, card_x: float = -1.0) -> int:
 	var failed: int = 0
 	var card: Control = panel.find_child("OfflineCard", true, false) as Control
 	var cont: Control = panel.find_child("ContinueButton", true, false) as Control
+	var close: Control = panel.find_child("CloseButton", true, false) as Control
 	var body: Control = panel.find_child("Body", true, false) as Control
 	failed += _check(card != null and cont != null and cont.visible and cont.is_visible_in_tree(), "Continue is visible at %s" % vs)
 	if card == null or cont == null or body == null:
@@ -2955,10 +2970,14 @@ func _offline_continue_box(panel: Node, vs: Vector2i) -> int:
 	var view := Rect2(Vector2.ZERO, Vector2(vs))
 	var cont_r: Rect2 = cont.get_global_rect()
 	failed += _check(card.get_global_rect().encloses(cont_r), "Continue sits inside the away panel at %s" % vs)
+	failed += _check(close != null and card.get_global_rect().encloses(close.get_global_rect()), "Close sits inside the away panel at %s" % vs)
 	failed += _check(view.encloses(cont_r), "Continue sits inside %s" % vs)
 	failed += _check(not body.get_global_rect().intersects(cont_r), "the list does not cover Continue at %s" % vs)
-	failed += _check(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "away panel stays 600 wide at %s" % vs)
-	failed += _check(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "away panel stays at y 92")
+	var card_pos: Vector2 = panel.call("card_position")
+	failed += _check(is_equal_approx((panel.call("card_size") as Vector2).x, card_w), "away panel is %.0f wide at %s phone-sheet %s" % [card_w, vs, card_w > 700.0])
+	failed += _check(card_x < 0.0 or is_equal_approx(card_pos.x, card_x), "away panel x is %.0f at %s (got %.0f)" % [card_x, vs, card_pos.x])
+	failed += _check(card_pos.x >= 24.0 - 0.5 and card_pos.x + card_w <= float(vs.x) - 24.0 + 0.5, "away panel stays inside the 24 px side margins at %s" % vs)
+	failed += _check(is_equal_approx(card_pos.y, 92.0), "away panel stays at y 92")
 	return failed
 
 
@@ -3041,7 +3060,8 @@ func _offline_gathered_scroll(panel: Node, font: Font) -> int:
 		return _check(false, "gathered summary scrolls inside its row")
 	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
 	var shows_all: bool = summary.size.x + 0.5 >= text_w and summary.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING and summary.text.find("…") < 0 and summary.text.find("Food") >= 0
-	return _check(shows_all and clip.clip_contents and summary.size.x > clip.size.x + 8.0, "gathered shows every item inside the row (text %.0f label %.0f slot %.0f)" % [text_w, summary.size.x, clip.size.x])
+	var in_row: bool = text_w <= clip.size.x + 0.5 or summary.size.x > clip.size.x + 8.0
+	return _check(shows_all and clip.clip_contents and in_row, "gathered shows every item inside the row (text %.0f label %.0f slot %.0f)" % [text_w, summary.size.x, clip.size.x])
 
 
 func _offline_values_fit(panel: Node, font: Font) -> int:
