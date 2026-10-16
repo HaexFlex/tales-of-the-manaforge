@@ -604,8 +604,8 @@ func play_tree_water_ok() -> void:
 
 
 func play_water_pulse() -> void:
-	## Soft splash. The cue file and its volume_db come from audio.
-	play(&"sfx_gather_water_soft")
+	## Cue id stays sfx_water_pulse. The file is the soft splash. Offset was -10.
+	play_quiet(&"sfx_water_pulse", -12.0)
 
 
 func play_channel_start() -> void:

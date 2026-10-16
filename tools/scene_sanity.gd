@@ -475,22 +475,29 @@ func _trait_speed_rows() -> int:
 
 
 func _water_splash() -> int:
+	## Cue id stays sfx_water_pulse. The file is the soft splash, bus SFX_World, offset -12.
 	var failed: int = 0
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
 	var cues: Dictionary = parsed.get("cues", {}) if typeof(parsed) == TYPE_DICTIONARY else {}
-	var cue: Dictionary = cues.get("sfx_gather_water_soft", {}) if typeof(cues.get("sfx_gather_water_soft", {})) == TYPE_DICTIONARY else {}
+	var cue: Dictionary = cues.get("sfx_water_pulse", {}) if typeof(cues.get("sfx_water_pulse", {})) == TYPE_DICTIONARY else {}
 	var path: String = str(cue.get("path", ""))
-	failed += _check(path.ends_with("sfx_gather_water_soft.ogg"), "watering cue points at the soft splash")
+	failed += _check(path.ends_with("sfx_gather_water_soft.ogg"), "sfx_water_pulse points at the soft splash")
+	failed += _check(str(cue.get("bus", "")) == "SFX_World", "sfx_water_pulse bus is SFX_World")
 	failed += _check(ResourceLoader.exists(path), "soft splash file is in the repo")
-	failed += _check(is_equal_approx(float(cue.get("volume_db", 0.0)), -12.0), "soft splash uses the audio offset")
+	var manifest: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/MANIFEST.json"))
+	var manifest_cues: Dictionary = manifest.get("cues", {}) if typeof(manifest) == TYPE_DICTIONARY else {}
+	var listed: Dictionary = manifest_cues.get("sfx_water_pulse", {}) if typeof(manifest_cues.get("sfx_water_pulse", {})) == TYPE_DICTIONARY else {}
+	failed += _check(str(listed.get("path", "")).ends_with("sfx_gather_water_soft.ogg"), "manifest pulse path is the soft splash")
+	failed += _check(str(listed.get("bus", "")) == "SFX_World", "manifest pulse bus is SFX_World")
+	failed += _check(is_equal_approx(float(listed.get("play_offset_db", 0.0)), -12.0), "manifest pulse offset is -12")
 	var audio: Node = root.get_node_or_null("GameAudio")
 	failed += _check(audio != null, "GameAudio for the splash")
 	if audio != null:
 		audio.call("clear_played_log")
 		audio.call("play_water_pulse")
-		failed += _check(bool(audio.call("did_play", &"sfx_gather_water_soft")), "watering plays the soft splash")
-		failed += _check(not bool(audio.call("did_play", &"sfx_water_pulse")), "watering no longer plays the old pulse")
-		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -12.0), "watering plays at the cue volume")
+		failed += _check(bool(audio.call("did_play", &"sfx_water_pulse")), "watering plays sfx_water_pulse")
+		failed += _check(not bool(audio.call("did_play", &"sfx_gather_water_soft")), "watering keeps the pulse cue id")
+		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -12.0), "watering plays at -12 dB")
 	if failed == 0:
 		print("WATER_SPLASH_OK")
 	return failed
