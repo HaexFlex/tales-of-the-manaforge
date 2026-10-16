@@ -15,6 +15,11 @@ var _miss_from: int = 0
 var _keeper: Sprite2D
 var _clock: float = 0.0
 var _swing_at: float = -10.0
+var _labels: Array[int] = [1, 2, 3]
+## Impact of swing frame 6, relative to the sprite centre. The sheet is 384×272.
+const KEEPER_POS := Vector2(228, 158)
+const STONE_POS := Vector2(360, 168)
+const PICK_TIP := Vector2(127, 12)
 
 
 func game_id() -> String:
@@ -29,8 +34,8 @@ func _ready() -> void:
 	_preview = float(row.get("preview_sec", 0.6))
 	_window = float(row.get("window_sec", 0.8))
 	MinigameArt.add_sprite(self, "bg_grass.png", Vector2(320, 160))
-	MinigameArt.add_sprite(self, "node_stone.png", Vector2(360, 168))
-	_keeper = MinigameArt.add_sprite(self, "keeper_pick_e2.png", Vector2(173, 190), 9)
+	MinigameArt.add_sprite(self, "node_stone.png", STONE_POS)
+	_keeper = MinigameArt.add_sprite(self, "keeper_pick_e2.png", KEEPER_POS, 9)
 	_keeper.z_index = 2
 	for i: int in 3:
 		var spot: Sprite2D = MinigameArt.add_sprite(self, "spot_dim.png", Vector2.ZERO)
@@ -39,7 +44,7 @@ func _ready() -> void:
 		_spots.append(spot)
 		var number := Label.new()
 		number.name = "Rune%d" % (i + 1)
-		number.text = str(i + 1)
+		number.text = ""
 		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -84,11 +89,11 @@ func on_key(event: InputEvent) -> void:
 	if not key.pressed or key.echo:
 		return
 	if key.keycode == KEY_1:
-		_strike(0)
+		_strike(_labels.find(1))
 	elif key.keycode == KEY_2:
-		_strike(1)
+		_strike(_labels.find(2))
 	elif key.keycode == KEY_3:
-		_strike(2)
+		_strike(_labels.find(3))
 
 
 func _strike(index: int) -> void:
@@ -182,7 +187,8 @@ func _reset_spots() -> void:
 	_roll_spots()
 
 
-## Clustered on the stone face, at least 60 px apart. The number is the strike order.
+## Clustered on the stone face, at least 60 px apart.
+## Each boulder labels the cracks with a fresh permutation of 1, 2, 3.
 const CLUSTER := Vector2(320, 224)
 const CLUSTER_RX: float = 62.0
 const CLUSTER_RY: float = 52.0
@@ -198,9 +204,12 @@ func _roll_spots() -> void:
 	while placed.size() < _spots.size():
 		var n: int = placed.size()
 		placed.append(Vector2(224.0 + 76.8 * float(n), 160.0))
+	_labels = [1, 2, 3]
+	_labels.shuffle()
 	for i: int in _spots.size():
 		_spots[i].position = placed[i]
 		if i < _numbers.size():
+			_numbers[i].text = str(_labels[i])
 			_numbers[i].position = placed[i] + Vector2(-16, -10)
 
 

@@ -295,9 +295,36 @@ func _stone_runes() -> int:
 	var node: Node = (load("res://scenes/minigames/splitting_stone.tscn") as PackedScene).instantiate()
 	Engine.get_main_loop().root.add_child(node)
 	var first: Array[Vector2] = []
+	var shown: PackedStringArray = PackedStringArray()
 	for i: int in 3:
 		var number: Label = node.get_node_or_null("Rune%d" % (i + 1)) as Label
-		failed += _check(number != null and number.text == str(i + 1), "splitting stone rune %d shows its number" % (i + 1))
+		failed += _check(number != null and number.text != "", "splitting stone rune %d shows its number" % (i + 1))
+		if number != null:
+			shown.append(number.text)
+	var sorted_labels: PackedStringArray = shown.duplicate()
+	sorted_labels.sort()
+	failed += _check(",".join(sorted_labels) == "1,2,3", "splitting stone numbers are 1, 2 and 3")
+	var keeper: Sprite2D = node.get_node_or_null("keeper_pick_e2") as Sprite2D
+	var stone_spr: Sprite2D = node.get_node_or_null("node_stone") as Sprite2D
+	var tip: Vector2 = SplittingStone.KEEPER_POS + SplittingStone.PICK_TIP
+	var stone_rect := Rect2(SplittingStone.STONE_POS - Vector2(92, 96), Vector2(184, 192))
+	failed += _check(keeper != null and keeper.position.distance_to(SplittingStone.KEEPER_POS) < 1.0, "the pick keeper stands on the stone")
+	failed += _check(keeper != null and keeper.position.y < 180.0 and keeper.position.x > 200.0, "the pick keeper is closer and higher")
+	failed += _check(stone_spr != null and stone_rect.has_point(tip), "the pick tip lands on the stone")
+	var orders: Dictionary = {}
+	var not_plain: bool = false
+	for _spin: int in 16:
+		var parts: PackedStringArray = PackedStringArray()
+		for n: int in 3:
+			var lbl: Label = node.get_node_or_null("Rune%d" % (n + 1)) as Label
+			parts.append(lbl.text if lbl != null else "")
+		var key: String = ",".join(parts)
+		orders[key] = true
+		if key != "1,2,3":
+			not_plain = true
+		node.call("_reset_spots")
+	failed += _check(orders.size() > 1, "the crack order changes between boulders")
+	failed += _check(not_plain, "the crack order is not always 1, 2, 3")
 	var spots: Array[Node] = []
 	for child: Node in node.get_children():
 		if child is Sprite2D and str(child.name).begins_with("RuneSpot"):
@@ -320,6 +347,7 @@ func _stone_runes() -> int:
 	failed += _check(differed, "splitting stone runes move between runs")
 	if failed == 0:
 		print("STONE_RUNES_OK")
+		print("STONE_PICK_ORDER_OK")
 	node.free()
 	return failed
 
