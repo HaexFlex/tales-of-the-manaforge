@@ -604,8 +604,8 @@ func play_tree_water_ok() -> void:
 
 
 func play_water_pulse() -> void:
-	## Cue id stays sfx_water_pulse. The file is the soft splash. Offset was -10.
-	play_quiet(&"sfx_water_pulse", -12.0)
+	## Cue id stays sfx_water_pulse. The file is the soft splash. Offset is -18 (about half as loud as -12).
+	play_quiet(&"sfx_water_pulse", -18.0)
 
 
 func play_channel_start() -> void:

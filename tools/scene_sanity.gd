@@ -475,7 +475,7 @@ func _trait_speed_rows() -> int:
 
 
 func _water_splash() -> int:
-	## Cue id stays sfx_water_pulse. The file is the soft splash, bus SFX_World, offset -12.
+	## Cue id stays sfx_water_pulse. The file is the soft splash, bus SFX_World, offset -18.
 	var failed: int = 0
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
 	var cues: Dictionary = parsed.get("cues", {}) if typeof(parsed) == TYPE_DICTIONARY else {}
@@ -489,7 +489,7 @@ func _water_splash() -> int:
 	var listed: Dictionary = manifest_cues.get("sfx_water_pulse", {}) if typeof(manifest_cues.get("sfx_water_pulse", {})) == TYPE_DICTIONARY else {}
 	failed += _check(str(listed.get("path", "")).ends_with("sfx_gather_water_soft.ogg"), "manifest pulse path is the soft splash")
 	failed += _check(str(listed.get("bus", "")) == "SFX_World", "manifest pulse bus is SFX_World")
-	failed += _check(is_equal_approx(float(listed.get("play_offset_db", 0.0)), -12.0), "manifest pulse offset is -12")
+	failed += _check(is_equal_approx(float(listed.get("play_offset_db", 0.0)), -18.0), "manifest pulse offset is -18")
 	var audio: Node = root.get_node_or_null("GameAudio")
 	failed += _check(audio != null, "GameAudio for the splash")
 	if audio != null:
@@ -497,7 +497,7 @@ func _water_splash() -> int:
 		audio.call("play_water_pulse")
 		failed += _check(bool(audio.call("did_play", &"sfx_water_pulse")), "watering plays sfx_water_pulse")
 		failed += _check(not bool(audio.call("did_play", &"sfx_gather_water_soft")), "watering keeps the pulse cue id")
-		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -12.0), "watering plays at -12 dB")
+		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -18.0), "watering plays at -18 dB")
 	if failed == 0:
 		print("WATER_SPLASH_OK")
 	return failed
