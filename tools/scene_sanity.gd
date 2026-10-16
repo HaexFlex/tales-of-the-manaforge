@@ -150,6 +150,7 @@ func _run() -> void:
 	failed += _forge_wisp_ring()
 	failed += _footsteps_theme()
 	failed += _ancient_orbit()
+	failed += _elaia_mirror_art()
 	failed += await _slot_rename()
 	failed += await _ascend_gather()
 	failed += await _room_cleared_window()
@@ -692,6 +693,42 @@ func _ascend_gather() -> int:
 	game.call("apply_save_dict", snap)
 	if failed == 0:
 		print("ASCEND_GATHER_OK")
+	return failed
+
+
+func _elaia_mirror_art() -> int:
+	## idle_w is a pixel flip of idle_e. Soles stay on row 123. No new sheet.
+	var failed: int = 0
+	var names: PackedStringArray = PackedStringArray([
+		"res://assets/art/battle/party/battle_elaia_idle_e.png",
+		"res://assets/art/battle/party/battle_elaia_attack.png",
+		"res://assets/art/battle/party/battle_elaia_brace.png",
+		"res://assets/art/battle/party/battle_elaia_hurt.png",
+		"res://assets/art/battle/party/battle_elaia_ko.png",
+	])
+	for path: String in names:
+		var sheet := Image.new()
+		failed += _check(sheet.load(ProjectSettings.globalize_path(path)) == OK and sheet.get_width() == 128 and sheet.get_height() == 128, "Elaia sheet 128x128 %s" % path.get_file())
+	var east := Image.new()
+	var west := Image.new()
+	var east_ok: bool = east.load(ProjectSettings.globalize_path("res://assets/art/battle/party/battle_elaia_idle_e.png")) == OK
+	var west_ok: bool = west.load(ProjectSettings.globalize_path("res://assets/art/echo/battle_elaia_idle_w.png")) == OK
+	failed += _check(east_ok and west_ok, "Elaia idle pair loads")
+	if east_ok and west_ok:
+		var flipped: Image = east.duplicate()
+		flipped.flip_x()
+		var same: bool = true
+		var sole: int = -1
+		for y: int in range(east.get_height()):
+			for x: int in range(east.get_width()):
+				if east.get_pixel(x, y).a > 0.0:
+					sole = y
+				if flipped.get_pixel(x, y) != west.get_pixel(x, y):
+					same = false
+		failed += _check(same, "idle_w is flip_h of idle_e about x=64")
+		failed += _check(sole == 123, "Elaia soles sit on row 123 (got %d)" % sole)
+	if failed == 0:
+		print("ELAIA_MIRROR_ART_OK")
 	return failed
 
 
