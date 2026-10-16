@@ -99,7 +99,7 @@ func _apply_editor_preview() -> void:
 		_apply_sheet_frame()
 	if label:
 		label.text = String(stat_id).capitalize()
-		label.visible = true
+		label.visible = false
 
 
 func sheet_cell() -> Vector2i:

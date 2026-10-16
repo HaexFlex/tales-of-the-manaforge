@@ -49,7 +49,7 @@ func _apply_title_visibility() -> void:
 	var covered: bool = false
 	if has_node("/root/MinigameHost"):
 		covered = bool(MinigameHost.call("is_open")) or str(MinigameHost.call("hero_for", station_id)) != ""
-	title.visible = _title_hover and not covered
+	title.visible = false
 
 
 func world_hover_name() -> String:

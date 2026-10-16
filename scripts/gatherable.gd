@@ -70,7 +70,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		if label:
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			label.visible = true
+			label.visible = false
 		return
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)

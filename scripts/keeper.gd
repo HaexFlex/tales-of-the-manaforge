@@ -1441,10 +1441,11 @@ func _on_selection_changed() -> void:
 		select_ring.visible = false
 	_apply_outline(actor_selected())
 	if label:
+		## Not editor-only. This used to appear in play, in black, above the sprite.
 		if actor_selected():
 			label.text = actor_label_selected()
 			modulate = Color(1.08, 1.12, 1.0, 1.0)
 		else:
 			label.text = actor_label_idle()
 			modulate = Color.WHITE
-		label.visible = _hovered
+		label.visible = false

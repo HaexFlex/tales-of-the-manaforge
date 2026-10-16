@@ -454,7 +454,7 @@ func _refresh_label() -> void:
 		label.text = ContentStrings.get_text("wisp_assigned_hud", {"target": target})
 	else:
 		label.text = ContentStrings.get_text("wisp_idle_hud")
-	label.visible = _hovered or GameState.is_wisp_selected(wisp_id)
+	label.visible = false
 
 
 func _apply_outline(show_outline: bool) -> void:

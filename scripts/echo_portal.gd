@@ -40,7 +40,7 @@ func _ready() -> void:
 				if labeled != "":
 					shown = labeled
 			label.text = shown
-			label.visible = true
+			label.visible = false
 		return
 	add_to_group("echo_portal")
 	add_to_group("interactable")
@@ -131,7 +131,7 @@ func refresh_visibility() -> void:
 		_hovered = false
 	if label:
 		label.text = ContentStrings.get_text("portal_label")
-		label.visible = _hovered and show_it
+		label.visible = false
 
 
 func _set_walk_enabled(on: bool) -> void:
@@ -162,7 +162,7 @@ func world_hover_name() -> String:
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	if label:
-		label.visible = _hovered and visible
+		label.visible = false
 	WorldHover.sync(self, inside and visible, world_hover_name())
 
 

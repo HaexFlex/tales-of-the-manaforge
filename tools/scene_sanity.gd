@@ -141,6 +141,7 @@ func _run() -> void:
 
 	failed += _weapons()
 	failed += _bramble_shards()
+	failed += _floating_names()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -345,6 +346,41 @@ func _replay_keeper_strike(mode: String, might: int, arcana: int, fate: int, def
 		0, 1, 1, dice
 	)
 	return int(res.get("damage", -1))
+
+
+func _floating_names() -> int:
+	## The black Keeper line is not editor-only. Play shows it while the cursor is over the sprite.
+	var failed: int = 0
+	var samples: Array[String] = [
+		"res://scenes/keeper.tscn",
+		"res://scenes/wisp.tscn",
+		"res://scenes/echo_portal.tscn",
+		"res://scenes/bramble_warden.tscn",
+		"res://scenes/keepers_bench.tscn",
+		"res://scenes/forge/anvil.tscn",
+		"res://scenes/gatherable.tscn",
+		"res://scenes/manatree.tscn",
+		"res://scenes/runestone.tscn",
+	]
+	for path: String in samples:
+		var packed: PackedScene = load(path) as PackedScene
+		failed += _check(packed != null, "floating name scene %s" % path)
+		if packed == null:
+			continue
+		var node: Node = packed.instantiate()
+		root.add_child(node)
+		if node.has_method("_on_hover"):
+			node.call("_on_hover", true)
+		if node.has_method("_on_title_hover"):
+			node.call("_on_title_hover", true)
+		var floating: Label = node.get_node_or_null("Label") as Label
+		if floating == null:
+			floating = node.get_node_or_null("Title") as Label
+		failed += _check(floating != null and not floating.visible, "no floating name on %s" % path.get_file())
+		node.queue_free()
+	if failed == 0:
+		print("FLOATING_NAMES_OK")
+	return failed
 
 
 func _room_cleared_window() -> int:

@@ -387,7 +387,7 @@ func _refresh_visual() -> void:
 	if Engine.is_editor_hint():
 		if label:
 			label.text = String(stage).capitalize()
-			label.visible = true
+			label.visible = false
 	else:
 		_refresh_label()
 	label.position = Vector2(-80, -door.y * scale_v - 36)
