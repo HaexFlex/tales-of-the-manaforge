@@ -498,7 +498,7 @@ func manatree_origin() -> Vector2:
 
 
 func forge_arch_spawn() -> Vector2:
-	return _tuning_vec("forge_arch_spawn", Vector2(800, 1048))
+	return _tuning_vec("forge_arch_spawn", Vector2(800, 1016))
 
 
 func clearing_door_stand() -> Vector2:

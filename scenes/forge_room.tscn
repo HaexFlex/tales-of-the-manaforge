@@ -30,7 +30,7 @@ texture = ExtResource("2_plate")
 [node name="ArchFront" type="Sprite2D" parent="."]
 z_index = 10
 texture_filter = 0
-position = Vector2(805, 1087)
+position = Vector2(805, 1055)
 scale = Vector2(1, 1)
 texture = ExtResource("13_arch")
 
@@ -64,7 +64,7 @@ position = Vector2(940, 480)
 position = Vector2(1100, 640)
 
 [node name="ExitDoor" type="Area2D" parent="."]
-position = Vector2(800, 1124)
+position = Vector2(800, 1092)
 collision_layer = 0
 collision_mask = 2
 monitoring = true

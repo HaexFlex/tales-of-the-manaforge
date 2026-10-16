@@ -8223,11 +8223,11 @@ func _forge_arch_draw_order(tree_root: Window) -> int:
 	var elaia_item: CanvasItem = elaia as CanvasItem
 	failed += _assert(_effective_z(arch) > _effective_z(keeper_item), "live arch z stays above the keeper")
 	failed += _assert(_effective_z(arch) > _effective_z(elaia_item), "live arch z stays above elaia")
-	var covered: int = _arch_body_overlap(arch, Vector2(811, 1170))
+	var covered: int = _arch_body_overlap(arch, Vector2(811, 1138))
 	failed += _assert(covered > 20, "arch frame covers the doorway sill (opaque samples %d)" % covered)
 	var deep: int = _arch_body_overlap(arch, Vector2(800, 700))
 	failed += _assert(deep == 0, "arch frame does not cover a keeper deep in the room (samples %d)" % deep)
-	var lip: int = _arch_body_overlap(arch, Vector2(800, 1160))
+	var lip: int = _arch_body_overlap(arch, Vector2(800, 1128))
 	failed += _assert(lip > 40, "arch lip still covers a keeper in the doorway (samples %d)" % lip)
 	failed += _assert(_draws_over(arch, keeper_item), "rendered order keeps the arch over the keeper at the spawn")
 	failed += _arch_fill_and_floor(arch)

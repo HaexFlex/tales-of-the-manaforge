@@ -145,6 +145,7 @@ func _run() -> void:
 	failed += _hover_rest()
 	failed += _trait_speed_rows()
 	failed += _water_splash()
+	failed += _forge_arch_raise()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -471,6 +472,33 @@ func _water_splash() -> int:
 		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -12.0), "watering plays at the cue volume")
 	if failed == 0:
 		print("WATER_SPLASH_OK")
+	return failed
+
+
+func _forge_arch_raise() -> int:
+	## 32 px up. The mouth bottom was on the party bar; this leaves about 11 px of floor above it.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
+	failed += _check(packed != null, "forge room for the arch raise")
+	if packed == null:
+		return failed
+	var room: Node2D = packed.instantiate() as Node2D
+	root.add_child(room)
+	var arch: Sprite2D = room.get_node_or_null("ArchFront") as Sprite2D
+	var door: Node2D = room.get_node_or_null("ExitDoor") as Node2D
+	failed += _check(arch != null and is_equal_approx(arch.position.y, 1055.0), "arch moved up 32 px (y %s)" % str(arch.position.y if arch else 0))
+	failed += _check(door != null and is_equal_approx(door.position.y, 1092.0), "exit stays with the raised arch")
+	var jobs: Node = root.get_node_or_null("ForgeJobs")
+	var spawn_y: float = float(jobs.call("forge_arch_spawn").y) if jobs != null else 0.0
+	failed += _check(is_equal_approx(spawn_y, 1016.0), "keeper spawn stays on the raised lip")
+	if arch != null:
+		var mouth_bottom: float = arch.position.y + 66.0
+		var screen_bottom: float = mouth_bottom - 660.0
+		var hud_top: float = 540.0 - 24.0 - 44.0
+		failed += _check(screen_bottom <= hud_top - 8.0, "arch opening clears the bottom HUD (screen %.0f hud %.0f)" % [screen_bottom, hud_top])
+	room.queue_free()
+	if failed == 0:
+		print("FORGE_ARCH_RAISE_OK")
 	return failed
 
 
