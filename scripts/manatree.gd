@@ -146,10 +146,7 @@ func work_footprint() -> Rect2:
 
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
-	## Watering, including the walk to the stand, stays put. It does not become a door order.
-	if _stop_water_click():
-		get_viewport().set_input_as_handled()
-		return
+	## Watering stops, then he walks to the tree and the tending window opens on arrival.
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
 		var result: String = GameState.command_selected_wisps(node_id)
@@ -161,31 +158,6 @@ func apply_player_command() -> void:
 		GameState.status_message.emit(ContentStrings.get_text("keeper_required_tree"))
 		return
 	GameState.command_selected_hero(self, "manatree")
-
-
-func _stop_water_click() -> bool:
-	var stopped := false
-	var scene := get_tree()
-	if scene != null:
-		for group_name: String in ["keeper", "elaia"]:
-			for node: Node in scene.get_nodes_in_group(group_name):
-				if not _hero_watering_this(node):
-					continue
-				if node.has_method("cancel_water_trip"):
-					node.call("cancel_water_trip")
-					stopped = true
-	if _watering:
-		set_watering(false)
-		stopped = true
-	return stopped
-
-
-func _hero_watering_this(node: Node) -> bool:
-	if node.has_method("get_channel_kind") and str(node.call("get_channel_kind")) == "water":
-		var channel_target: Node = node.call("get_channel_target") if node.has_method("get_channel_target") else null
-		if channel_target == self:
-			return true
-	return bool(node.get("_water_pending")) and node.get("_work_target") == self
 
 
 func on_interact(_keeper: Node) -> void:

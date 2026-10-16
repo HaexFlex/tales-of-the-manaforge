@@ -9490,6 +9490,8 @@ func _manatree_water_rmb_cancel(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(live != null, "hub for water RMB cancel")
 	if live == null:
 		return failed
+	game_state.set("welcome_shown", true)
+	game_state.set("welcome_presented", true)
 	tree_root.add_child(live)
 	await process_frame
 	await process_frame
@@ -9511,45 +9513,65 @@ func _manatree_water_rmb_cancel(tree_root: Window, game_state: Node) -> int:
 		failed += _assert(bool(mana.get("_watering")), "tree shows watering")
 		var watered_at: Vector2 = keeper.global_position
 		var care: CanvasItem = live.get_node_or_null("HUD/CarePanel") as CanvasItem
+		var door_spot: Dictionary = keeper_cls.solve_work_spot(footprint, mana.global_position, "door", Callable())
+		var door_at: Vector2 = door_spot.get("position", mana.global_position)
 		mana.call("apply_player_command")
 		await process_frame
-		failed += _assert(not bool(keeper.call("is_channeling")), "RMB cancels water channel")
+		failed += _assert(not bool(keeper.call("is_channeling")), "RMB stops the water channel")
 		failed += _assert(not bool(mana.get("_watering")), "tree watering flag clears")
-		failed += _assert(keeper.global_position.distance_to(watered_at) < 1.0, "RMB while watering does not walk to the Forge door")
-		failed += _assert(care == null or not care.visible, "RMB while watering does not open the tending window")
+		failed += _assert(bool(keeper.get("_moving")), "RMB while watering walks him to the tree")
+		failed += _assert(str(keeper.get("_work_type")) == "door", "the walk aims at the tree, not a station")
+		failed += await _await_tree_tend(keeper, care, door_at, watered_at)
+		if care != null:
+			care.visible = false
+		keeper.global_position = watered_at
 		mana.call("do_water")
 		await process_frame
 		failed += _assert(bool(keeper.call("is_channeling")), "Water button resumes channel")
-		## Still walking to the stand: the same click used to retarget the door and open care.
+		## Still walking to the stand: the click leaves that path and goes to the tree.
 		keeper.call("cancel_water_trip")
-		var door_spot: Dictionary = keeper_cls.solve_work_spot(footprint, mana.global_position, "door", Callable())
-		var door_at: Vector2 = door_spot.get("position", mana.global_position)
 		keeper.global_position = watered_at + Vector2(-220, 40)
 		var trip_from: Vector2 = keeper.global_position
 		keeper.call("start_water_channel", mana)
 		await process_frame
 		failed += _assert(bool(keeper.get("_water_pending")), "water click starts the walk to the stand")
 		mana.call("apply_player_command")
-		for _step: int in 20:
-			await physics_frame
-		failed += _assert(not bool(keeper.get("_moving")), "RMB during the water walk stops in place")
-		failed += _assert(keeper.global_position.distance_to(trip_from) < 24.0, "RMB during the water walk does not send him to the door")
-		failed += _assert(keeper.global_position.distance_to(door_at) > 80.0, "he is not standing at the Forge door")
-		failed += _assert(str(keeper.get("_work_type")) != "door", "the water walk is not replaced by a door order")
-		failed += _assert(not bool(keeper.call("is_channeling")), "the door retarget does not keep watering")
-		failed += _assert(care == null or not care.visible, "the door retarget does not open the tending window")
-		## Even a direct work order while watering must not solve the door.
+		await process_frame
+		failed += _assert(not bool(keeper.get("_water_pending")), "RMB during the water walk drops the channel")
+		failed += _assert(bool(keeper.get("_moving")), "RMB during the water walk keeps him moving")
+		var aimed: Vector2 = keeper.get("_work_spot")
+		failed += _assert(aimed.distance_to(door_at) < 1.0, "he heads toward the tree (aim %s goal %s)" % [str(aimed), str(door_at)])
+		failed += _assert(str(keeper.get("_work_type")) == "door", "the water walk becomes a walk to the tree")
+		failed += _assert(not bool(keeper.call("is_channeling")), "he is not still watering on the way")
+		failed += await _await_tree_tend(keeper, care, door_at, trip_from)
+		if care != null:
+			care.visible = false
+		## A direct work order while watering does the same walk and opens tending.
 		keeper.global_position = watered_at
 		keeper.call("start_water_channel", mana)
 		await process_frame
 		keeper.call("command_work", mana, "manatree")
-		for _step: int in 8:
-			await physics_frame
-		failed += _assert(keeper.global_position.distance_to(watered_at) < 1.0, "a work order while watering stays off the Forge door")
-		failed += _assert(care == null or not care.visible, "a work order while watering leaves the tending window shut")
+		await process_frame
+		failed += _assert(not bool(keeper.call("is_channeling")), "a work order stops watering")
+		failed += _assert(bool(keeper.get("_moving")) or keeper.global_position.distance_to(door_at) <= 16.0, "a work order walks him to the tree")
+		failed += await _await_tree_tend(keeper, care, door_at, watered_at)
 	live.queue_free()
 	if failed == 0:
 		print("MANATREE_WATER_TREE_RMB_OK")
+	return failed
+
+
+func _await_tree_tend(keeper: Node, care: CanvasItem, door_at: Vector2, started: Vector2) -> int:
+	var failed: int = 0
+	for _step: int in 240:
+		if not bool(keeper.get("_moving")) and keeper.global_position.distance_to(door_at) <= 20.0:
+			break
+		await physics_frame
+	failed += _assert(
+		keeper.global_position.distance_to(door_at) <= 20.0,
+		"he stands at the tree (from %s now %s goal %s)" % [str(started), str(keeper.global_position), str(door_at)]
+	)
+	failed += _assert(care != null and care.visible, "tending window opens at the tree")
 	return failed
 
 
