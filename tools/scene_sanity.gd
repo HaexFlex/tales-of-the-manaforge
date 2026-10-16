@@ -472,6 +472,13 @@ func _adventure_mode_chip() -> int:
 	failed += _check(str(plain.get("attack", "")) == "physical", "a physical weapon stays Might")
 	if had != "" and had != "stone_sword":
 		gear.call("try_equip", had)
+	fight.loadout = {"heart_salve": 2}
+	view.call("_update_salve_button")
+	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+	var items_ok: bool = salve_btn != null and salve_btn.text == "Items" and salve_btn.tooltip_text.find("Heart Salve") >= 0 and salve_btn.tooltip_text.find("×2") >= 0
+	failed += _check(items_ok, "the third action button says Items")
+	if items_ok:
+		print("ITEMS_BUTTON_OK")
 	view.queue_free()
 	if failed == 0 and _echo_chip_ready:
 		print("HYBRID_CHIP_OK")

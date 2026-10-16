@@ -560,6 +560,7 @@
   "echo_end_yes": "Yes",
   "battle_title": "Echo Chamber",
   "battle_vs": "vs {enemy}",
+  "adv_menu_items": "Items",
   "battle_strike": "Strike",
   "battle_flee": "Flee",
   "battle_spare": "Spare",

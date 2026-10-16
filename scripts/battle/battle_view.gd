@@ -2962,14 +2962,14 @@ func _update_salve_button() -> void:
 		return
 	var salve_name: String = _text("item_heart_salve", "Heart Salve")
 	var count: int = int(_fight.loadout.get("heart_salve", 0))
-	_salve_button.text = _text("adv_item_count", "%s ×%d" % [salve_name, count], {"item": salve_name, "count": count})
+	_salve_button.text = _text("adv_menu_items", "Items")
 	_fit_action_label(_salve_button)
 	var cap_hit: bool = _fight.salves_used >= 2
 	_salve_button.disabled = count < 1 or cap_hit
 	if count < 1:
 		_salve_button.tooltip_text = _text("adv_item_none_packed", "None packed")
 	else:
-		_salve_button.tooltip_text = ""
+		_salve_button.tooltip_text = _text("adv_item_count", "%s ×%d" % [salve_name, count], {"item": salve_name, "count": count})
 
 
 func _refresh_idle_button() -> void:

@@ -16229,7 +16229,7 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 		failed += _assert(ab != null and ab.disabled and ab.text == "—", "ability %d empty" % (n + 1))
 		failed += _assert(ab != null and ab.tooltip_text.find("Weave") >= 0, "ability %d tooltip" % (n + 1))
 	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
-	failed += _assert(salve_btn != null and salve_btn.text.find("Heart Salve") >= 0 and salve_btn.text.find("×2") >= 0, "salve shows ×2")
+	failed += _assert(salve_btn != null and salve_btn.text == "Items" and salve_btn.tooltip_text.find("Heart Salve") >= 0 and salve_btn.tooltip_text.find("×2") >= 0, "items button keeps the salve count in the tip")
 	failed += _assert(ability_row != null and not (ability_row as CanvasItem).is_visible_in_tree(), "no empty ability row is visible")
 	failed += _battle_menu_in_bottom_bar(view, "first party turn")
 	var sfm_toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
