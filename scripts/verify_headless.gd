@@ -5167,11 +5167,44 @@ func _offline_row_colors(panel: Node) -> int:
 	var summary: Label = panel.find_child("Summary", true, false) as Label
 	var hint: Label = panel.find_child("ShardHint", true, false) as Label
 	var headline: Label = panel.find_child("Headline", true, false) as Label
-	failed += _assert(title != null and title.get_theme_color("font_color") == Color8(250, 238, 204), "section titles use the mockup cream")
-	failed += _assert(summary != null and summary.get_theme_color("font_color") == Color8(214, 190, 138), "summaries use the mockup cream on wood")
+	var cream := Color8(250, 238, 204)
+	var wood: Color = _offline_wood_fill()
+	## offline540_pc_1_collapsed.png: row fill #96653A, cream glyphs on that row #FAEECC.
+	var mock_ratio: float = _contrast_ratio(cream, Color8(150, 101, 58))
+	var got: Color = summary.get_theme_color("font_color") if summary else Color(0, 0, 0, 0)
+	var ratio: float = _contrast_ratio(got, wood)
+	failed += _assert(title != null and title.get_theme_color("font_color") == cream, "section titles use the mockup cream")
+	failed += _assert(summary != null and got == cream, "summaries use the mockup cream on wood")
+	failed += _assert(ratio + 0.01 >= mock_ratio, "summary contrast on the wood row is %.2f, mockup cream is %.2f (wood %s)" % [ratio, mock_ratio, wood])
 	failed += _assert(hint != null and hint.get_theme_color("font_color") == Color8(154, 126, 82), "the ascension hint uses the mockup muted ink")
 	failed += _assert(headline != null and headline.get_theme_color("font_color") == Color8(62, 42, 24), "the headline uses the mockup ink")
 	return failed
+
+
+func _offline_wood_fill() -> Color:
+	var tex: Texture2D = load("res://assets/ui/theme/wood_button_9s_normal_32x28.png") as Texture2D
+	if tex == null:
+		return Color8(150, 101, 58)
+	var img: Image = tex.get_image()
+	if img == null or img.is_empty():
+		return Color8(150, 101, 58)
+	return img.get_pixel(mini(16, img.get_width() - 1), mini(14, img.get_height() - 1))
+
+
+func _contrast_ratio(fg: Color, bg: Color) -> float:
+	var lf: float = _srgb_luminance(fg)
+	var lb: float = _srgb_luminance(bg)
+	return (maxf(lf, lb) + 0.05) / (minf(lf, lb) + 0.05)
+
+
+func _srgb_luminance(c: Color) -> float:
+	return 0.2126 * _srgb_channel(c.r) + 0.7152 * _srgb_channel(c.g) + 0.0722 * _srgb_channel(c.b)
+
+
+func _srgb_channel(v: float) -> float:
+	if v <= 0.04045:
+		return v / 12.92
+	return pow((v + 0.055) / 1.055, 2.4)
 
 
 func _offline_summary_tip(panel: Node, section_id: String, font: Font, cut: bool) -> int:

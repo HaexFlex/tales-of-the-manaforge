@@ -17,7 +17,6 @@ const HINT_H: float = 16.0
 const INK: Color = Color8(62, 42, 24)
 const MUTED: Color = Color8(154, 126, 82)
 const CREAM: Color = Color8(250, 238, 204)
-const CREAM_MUTED: Color = Color8(214, 190, 138)
 const CYAN: Color = Color8(143, 227, 230)
 const OUTLINE: Color = Color8(26, 15, 8)
 
@@ -330,7 +329,7 @@ func _add_section(section_id: String, title_key: String, icon_file: String, summ
 	title.position = Vector2(62, 10)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	title.clip_text = false
-	_style_cream(title, false)
+	_style_cream(title)
 	header.add_child(title)
 	var clip := Control.new()
 	clip.name = "SummaryClip"
@@ -376,7 +375,7 @@ func _add_section(section_id: String, title_key: String, icon_file: String, summ
 	host.add_child(details)
 	_sections.add_child(host)
 	sum.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_style_cream(sum, true)
+	_style_cream(sum)
 
 
 func _detail_row(row: Dictionary, index: int, gathered_open: bool) -> Control:
@@ -724,10 +723,12 @@ func _style_ink(lbl: Label, muted: bool) -> void:
 	lbl.add_theme_constant_override("outline_size", 0)
 
 
-func _style_cream(lbl: Label, muted: bool) -> void:
+func _style_cream(lbl: Label) -> void:
+	## Brown-row lettering. Sampled offline540_pc_1_collapsed.png: row fill #96653A,
+	## cream glyphs #FAEECC (about 4.3:1). The tan #D6BE8A on that fill is about 2.7:1.
 	if has_node("/root/GameTheme"):
 		GameTheme.style_body_label(lbl)
-	lbl.add_theme_color_override("font_color", CREAM_MUTED if muted else CREAM)
+	lbl.add_theme_color_override("font_color", CREAM)
 	lbl.add_theme_color_override("font_outline_color", OUTLINE)
 	lbl.add_theme_constant_override("outline_size", 1)
 
