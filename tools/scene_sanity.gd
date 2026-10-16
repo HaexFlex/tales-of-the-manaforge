@@ -141,6 +141,7 @@ func _run() -> void:
 
 	failed += _weapons()
 	failed += _bramble_shards()
+	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
 
@@ -344,6 +345,54 @@ func _replay_keeper_strike(mode: String, might: int, arcana: int, fate: int, def
 		0, 1, 1, dice
 	)
 	return int(res.get("damage", -1))
+
+
+func _room_cleared_window() -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+	failed += _check(packed != null, "room cleared battle scene")
+	if packed == null:
+		return failed
+	var view: Node = packed.instantiate()
+	root.add_child(view)
+	await process_frame
+	var host := Node2D.new()
+	host.name = "RoomClearedNameHost"
+	root.add_child(host)
+	var tag := Label.new()
+	tag.name = "NameLabel"
+	tag.text = "Keeper"
+	tag.size = Vector2(80, 22)
+	host.add_child(tag)
+	view.call("_show_end_panel", "win")
+	await process_frame
+	var panel: Panel = view.get_node_or_null("Arena/EndPanel") as Panel
+	if panel != null:
+		tag.global_position = panel.get_global_rect().position + Vector2(48, 48)
+		view.call("_conceal_names_under", panel)
+	failed += _check(panel != null, "room cleared panel")
+	if panel == null:
+		view.queue_free()
+		host.queue_free()
+		return failed
+	var box: StyleBox = panel.get_theme_stylebox("panel")
+	var tex: Texture2D = (box as StyleBoxTexture).texture if box is StyleBoxTexture else null
+	failed += _check(tex != null and str(tex.resource_path).find("frame_9s_96") >= 0, "room cleared uses the kit frame")
+	failed += _check(panel.z_index >= 20, "room cleared draws above the arena")
+	var inner: Rect2 = Rect2(panel.position + Vector2(28, 28), panel.size - Vector2(56, 56))
+	for node_name: String in ["EndTitle", "EndDetail", "EndExp", "EndButtons"]:
+		var child: Control = panel.get_node_or_null(node_name) as Control
+		var child_rect: Rect2 = Rect2(panel.position + child.position, child.size) if child != null else Rect2()
+		failed += _check(child != null and inner.encloses(child_rect), "%s sits inside the room cleared frame" % node_name)
+	var title: Label = panel.get_node_or_null("EndTitle") as Label
+	failed += _check(title != null and title.text == "Room cleared", "room cleared title")
+	failed += _check(not tag.visible and tag.has_meta("fled_hidden"), "room cleared covers the Keeper name tag")
+	view.queue_free()
+	host.queue_free()
+	await process_frame
+	if failed == 0:
+		print("ROOM_CLEARED_THEME_OK")
+	return failed
 
 
 func _bramble_shards() -> int:

@@ -3208,37 +3208,51 @@ func _show_end_panel(outcome: String) -> void:
 	var panel := Panel.new()
 	panel.name = "EndPanel"
 	panel.add_to_group("battle_ui")
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.z_index = 40
 	var panel_w: float = 520.0
-	var panel_h: float = 280.0
+	var panel_h: float = 320.0
 	panel.position = Vector2((ARENA_SIZE.x - panel_w) * 0.5, BOTTOM_BAR_RECT.position.y - 8.0 - panel_h)
 	panel.size = Vector2(panel_w, panel_h)
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_bottom", 10)
-	panel.add_child(margin)
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 8)
-	margin.add_child(body)
+	Ui540.apply_kit_frame_panel(panel, "room_cleared")
+	## The kit frame eats the outer 28 px. Keep every line inside that border.
+	var inset: float = 40.0
+	var inner_w: float = panel_w - inset * 2.0
 	var title := Label.new()
 	title.name = "EndTitle"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(title)
+	title.position = Vector2(inset, 36)
+	title.size = Vector2(inner_w, 32)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(title)
+	_theme_call("style_ink_label", title)
 	var detail := Label.new()
 	detail.name = "EndDetail"
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_child(detail)
+	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	detail.position = Vector2(inset, 76)
+	detail.size = Vector2(inner_w, 72)
+	detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(detail)
+	_theme_call("style_ink_label", detail)
 	var exp_line := Label.new()
 	exp_line.name = "EndExp"
-	body.add_child(exp_line)
+	exp_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	exp_line.position = Vector2(inset, 156)
+	exp_line.size = Vector2(inner_w, 28)
+	exp_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(exp_line)
+	_theme_call("style_ink_label", exp_line)
 	var buttons := HBoxContainer.new()
+	buttons.name = "EndButtons"
 	buttons.add_theme_constant_override("separation", 8)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	body.add_child(buttons)
+	buttons.position = Vector2(inset, panel_h - inset - 44.0)
+	buttons.size = Vector2(inner_w, 44)
+	panel.add_child(buttons)
 	_end_panel = panel
 	_arena.add_child(panel)
+	_conceal_names_under(panel)
 	match outcome:
 		"win":
 			title.text = _text("adv_end_victory_title", "Room cleared")
@@ -3290,6 +3304,30 @@ func _show_end_panel(outcome: String) -> void:
 			back_f.pressed.connect(_on_end_back_pressed)
 		_:
 			detail.text = outcome
+	if _end_panel != null and is_instance_valid(_end_panel):
+		_polish_end_buttons(buttons)
+
+
+func _polish_end_buttons(row: HBoxContainer) -> void:
+	if row == null:
+		return
+	var count: int = row.get_child_count()
+	if count <= 0:
+		return
+	var gap: float = 8.0
+	var inner: float = row.size.x
+	var each: float = 128.0
+	if count == 1:
+		each = minf(320.0, inner)
+	else:
+		each = minf(140.0, floor((inner - gap * float(count - 1)) / float(count)))
+	for child: Node in row.get_children():
+		var btn: Button = child as Button
+		if btn == null:
+			continue
+		btn.custom_minimum_size = Vector2(each, 44.0)
+		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_theme_call("style_wood_button", btn)
 
 
 ## Adventure flee result (extras v8c, variant 3b). Echo keeps its own window.
