@@ -2839,6 +2839,8 @@ func _offline_layout(game: Node) -> int:
 			failed += _offline_summary_fits(panel, "forge", font, true)
 			failed += _offline_summary_fits(panel, "expedition", font, true)
 			failed += _offline_summary_fits(panel, "left", font, false)
+			failed += _offline_summary_tip(panel, "left", font, true)
+			failed += _offline_summary_tip(panel, "workers", font, false)
 			var hint: Label = panel.find_child("ShardHint", true, false) as Label
 			var hint_w: float = font.get_string_size(hint.text if hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
 			failed += _check(hint != null and hint.text == "Ascension upgrades raise this" and hint.size.x + 0.5 >= hint_w, "full ascension hint at %s" % vs)
@@ -2957,6 +2959,21 @@ func _offline_continue_box(panel: Node, vs: Vector2i) -> int:
 	failed += _check(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "away panel stays 600 wide at %s" % vs)
 	failed += _check(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "away panel stays at y 92")
 	return failed
+
+
+func _offline_summary_tip(panel: Node, section_id: String, font: Font, cut: bool) -> int:
+	var host: Node = panel.find_child(section_id, true, false)
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
+	var header: Button = host.find_child("Header", true, false) as Button if host else null
+	var clip: Control = host.find_child("SummaryClip", true, false) as Control if host else null
+	if summary == null or header == null or clip == null:
+		return _check(false, "%s summary tooltip" % section_id)
+	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	var delay: float = float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec"))
+	var delay_ok: bool = is_equal_approx(delay, WorldHover.REST_SEC)
+	if cut:
+		return _check(text_w > clip.size.x + 0.5 and delay_ok and header.tooltip_text == summary.text and summary.text != "", "%s cut-off summary tips the full line after %.1fs" % [section_id, delay])
+	return _check(text_w <= clip.size.x + 0.5 and delay_ok and header.tooltip_text == "", "%s summary that fits has no tooltip" % section_id)
 
 
 func _offline_headline_line(panel: Node, away: String) -> int:

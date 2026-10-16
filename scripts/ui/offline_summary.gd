@@ -511,6 +511,7 @@ func _layout_rows() -> void:
 				scroll_x = clampf(scroll_x, 0.0, maxf(0.0, summary.size.x - slot_w))
 				clip.set_meta("scroll_x", scroll_x)
 				summary.position = Vector2(-scroll_x, 0)
+			_fit_summary_tooltip(header, clip, summary, slot_w)
 		var hint: Label = host_v.get_node_or_null("ShardHint") as Label
 		_fit_hint(hint, row_w)
 		var details: Node = host_v.get_node_or_null("Details")
@@ -633,6 +634,20 @@ func _pin_top_left(ctrl: Control) -> void:
 	ctrl.offset_bottom = 0.0
 	ctrl.grow_horizontal = Control.GROW_DIRECTION_END
 	ctrl.grow_vertical = Control.GROW_DIRECTION_END
+
+
+func _fit_summary_tooltip(header: Button, clip: Control, summary: Label, slot_w: float) -> void:
+	## Hover and a long-press both wait on the shared rest. A line that fits has no tip.
+	WorldHover.install()
+	var full: String = ""
+	if summary != null and _text_width(summary) > slot_w + 0.5:
+		full = summary.text
+	if header:
+		header.tooltip_text = full
+	if clip:
+		clip.tooltip_text = full
+	if summary:
+		summary.tooltip_text = full
 
 
 func _on_summary_clip_input(event: InputEvent, header: Button, clip: Control) -> void:
