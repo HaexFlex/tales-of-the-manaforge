@@ -23,6 +23,7 @@ const OUTLINE: Color = Color8(26, 15, 8)
 
 var _report: Dictionary = {}
 var _open_sections: Dictionary = {}
+var _card_layer: CanvasLayer
 var _card: Panel
 var _headline: Label
 var _body: ScrollContainer
@@ -44,6 +45,7 @@ func _ready() -> void:
 	offset_bottom = 0.0
 	z_index = 0
 	_build_shell()
+	visibility_changed.connect(_sync_card_layer)
 	if not get_viewport().size_changed.is_connected(_layout):
 		get_viewport().size_changed.connect(_layout)
 
@@ -136,10 +138,17 @@ func _blocked_by_modal() -> bool:
 
 
 func _build_shell() -> void:
+	_card_layer = CanvasLayer.new()
+	_card_layer.name = "CardLayer"
+	# Just above the HUD canvas (layer 20) so the card covers status banners.
+	# Pause, battle, and the forge stay on higher layers.
+	_card_layer.layer = 21
+	_card_layer.visible = false
+	add_child(_card_layer)
 	_card = Panel.new()
 	_card.name = "OfflineCard"
 	_card.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_card)
+	_card_layer.add_child(_card)
 	Ui540.apply_kit_frame_panel(_card, "offline_summary")
 	var title := Label.new()
 	title.name = "Title"
@@ -175,6 +184,11 @@ func _build_shell() -> void:
 		GameTheme.force_primary_button(_continue)
 	_continue.z_index = 2
 	_continue.pressed.connect(dismiss)
+
+
+func _sync_card_layer() -> void:
+	if _card_layer:
+		_card_layer.visible = visible
 
 
 func _layout() -> void:
