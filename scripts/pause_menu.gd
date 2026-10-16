@@ -810,6 +810,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					hud.call("close_bench")
 				elif hud != null and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 					hud.call("close_backpack")
+				elif hud != null and hud.has_method("offline_summary_open") and bool(hud.call("offline_summary_open")):
+					hud.call("dismiss_offline_summary")
 				elif _expedition_board_open():
 					_close_expedition_board()
 				else:

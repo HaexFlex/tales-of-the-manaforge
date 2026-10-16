@@ -218,6 +218,7 @@ var _help_tab_phone: Button
 var _help_body: VBoxContainer
 var _help_close: Button
 var _help_tab: String = "pc"
+var _offline_summary: ColorRect
 
 
 func _ready() -> void:
@@ -228,6 +229,7 @@ func _ready() -> void:
 	fruit_confirm_panel.visible = false
 	care_panel.visible = false
 	welcome_panel.visible = false
+	_ensure_offline_summary()
 	call_deferred("_layout_welcome_panel")
 	if not get_viewport().size_changed.is_connected(_layout_welcome_panel):
 		get_viewport().size_changed.connect(_layout_welcome_panel)
@@ -1265,6 +1267,8 @@ func _apply_wood_chrome() -> void:
 
 
 func _process(_delta: float) -> void:
+	if _offline_summary != null and _offline_summary.has_method("tick_queue"):
+		_offline_summary.call("tick_queue")
 	_refresh_ancient_countdown()
 	_refresh_nav_button()
 	_refresh_frozen_banner()
@@ -1384,6 +1388,27 @@ func _refresh_dim() -> void:
 
 func bind_manatree(tree: Manatree) -> void:
 	_manatree = tree
+
+
+func _ensure_offline_summary() -> void:
+	if _offline_summary != null and is_instance_valid(_offline_summary):
+		return
+	var script: Script = load("res://scripts/ui/offline_summary.gd")
+	if script == null:
+		return
+	_offline_summary = script.new() as ColorRect
+	_offline_summary.name = "OfflineSummary"
+	add_child(_offline_summary)
+	move_child(_offline_summary, 0)
+
+
+func offline_summary_open() -> bool:
+	return _offline_summary != null and is_instance_valid(_offline_summary) and _offline_summary.visible
+
+
+func dismiss_offline_summary() -> void:
+	if _offline_summary != null and _offline_summary.has_method("dismiss"):
+		_offline_summary.call("dismiss")
 
 
 func maybe_show_welcome() -> void:
