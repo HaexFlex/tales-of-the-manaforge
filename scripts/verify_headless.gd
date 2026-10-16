@@ -2082,7 +2082,7 @@ func _run() -> void:
 
 	var cues: PackedStringArray = game_audio.call("list_cue_ids")
 	failed += _assert(cues.size() >= 28, "audio cue table too small (%d)" % cues.size())
-	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_water_pulse.ogg"), "sfx_water_pulse missing")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_gather_water_soft.ogg"), "sfx_gather_water_soft missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_stage_up.ogg"), "sfx_stage_up missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_channel_start.ogg"), "sfx_channel_start missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex.mp3"), "hub haex.mp3 missing")
