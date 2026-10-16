@@ -186,6 +186,7 @@ func _build_shell() -> void:
 		GameTheme.force_primary_button(_continue)
 	_continue.z_index = 2
 	_continue.pressed.connect(dismiss)
+	_theme_body_scroll()
 
 
 func _sync_card_layer() -> void:
@@ -465,6 +466,7 @@ func _layout_rows() -> void:
 		return
 	_sections.custom_minimum_size = Vector2(row_w, 0)
 	_body.size = Vector2(_inner_w, BODY_H)
+	_theme_body_scroll()
 	for host_v: Node in _sections.get_children():
 		var header: Button = host_v.get_node_or_null("Header") as Button
 		if header == null:
@@ -548,6 +550,19 @@ func _layout_detail(panel: Panel, row_w: float) -> void:
 	if hint:
 		_fit_hint(hint, maxf(40.0, row_w - name_x - 10.0))
 		hint.position = Vector2(name_x, 28)
+
+
+func _theme_body_scroll() -> void:
+	if _body == null:
+		return
+	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
+	var bar: VScrollBar = _body.get_v_scroll_bar()
+	if theme == null or bar == null:
+		return
+	for state_name: String in ["scroll", "grabber", "grabber_highlight", "grabber_pressed"]:
+		var box: StyleBox = theme.get_stylebox(state_name, &"VScrollBar")
+		if box:
+			bar.add_theme_stylebox_override(state_name, box)
 
 
 func _fit_headline(max_w: float) -> void:

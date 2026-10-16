@@ -5081,6 +5081,7 @@ func _offline_layout_ok(tree_root: Window, game_state: Node) -> int:
 		var open_w: float = font.get_string_size(open_hint.text if open_hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
 		failed += _assert(open_hint != null and open_hint.text == "Ascension upgrades raise this" and open_hint.size.x + 0.5 >= open_w, "expanded hint is the full line")
 		failed += _offline_values_fit(panel, font)
+		failed += _offline_kit_scrollbar(panel)
 		var cont: Control = panel.find_child("ContinueButton", true, false) as Control
 		banner.position = cont.get_global_rect().position - Vector2(24, 12)
 		banner.size = cont.size + Vector2(48, 24)
@@ -5167,6 +5168,18 @@ func _offline_summary_fits(panel: Node, section_id: String, font: Font, whole: b
 	if whole:
 		return _assert(summary.size.x + 0.5 >= text_w and summary.size.x > 80.0, "%s summary is fully visible (slot %.0f text %.0f)" % [section_id, summary.size.x, text_w])
 	return _assert(summary.size.x > 200.0, "%s summary keeps a real row (slot %.0f)" % [section_id, summary.size.x])
+
+
+func _offline_kit_scrollbar(panel: Node) -> int:
+	var body: ScrollContainer = panel.find_child("Body", true, false) as ScrollContainer
+	if body == null:
+		return _assert(false, "themed away scrollbar")
+	var bar: VScrollBar = body.get_v_scroll_bar()
+	var grab: StyleBox = bar.get_theme_stylebox(&"grabber") if bar else null
+	var track: StyleBox = bar.get_theme_stylebox(&"scroll") if bar else null
+	var grab_path: String = str((grab as StyleBoxTexture).texture.resource_path) if grab is StyleBoxTexture else ""
+	var track_path: String = str((track as StyleBoxTexture).texture.resource_path) if track is StyleBoxTexture else ""
+	return _assert(bar != null and bar.visible and grab_path.find("scroll_thumb") >= 0 and track_path.find("scroll_track") >= 0, "the list scrollbar uses the kit thumb (%s)" % grab_path)
 
 
 func _offline_gathered_scroll(panel: Node, font: Font) -> int:
