@@ -348,10 +348,20 @@ func _minigame_audio() -> int:
 	var world_idx: int = AudioServer.get_bus_index("SFX_World")
 	failed += _check(world_idx >= 0 and not AudioServer.is_bus_mute(world_idx), "SFX returns after the minigame")
 	failed += _check(not bool(audio.call("is_hub_suspended")), "the hub bed resumes after the minigame")
-	failed += _check(bool(host.call("debug_open", "ripe_catch")), "opening a minigame holds world audio")
-	failed += _check(bool(audio.call("minigame_audio_held")), "the host holds world audio while the game is open")
+	failed += _check(bool(host.call("debug_open", "ripe_catch")), "a gathering minigame opens")
+	failed += _check(not bool(audio.call("minigame_audio_held")), "gathering minigames leave world audio playing")
+	audio.call("clear_played_log")
+	audio.call("play", &"sfx_ui_confirm")
+	failed += _check(bool(audio.call("did_play", &"sfx_ui_confirm")), "world cues still play during a gathering minigame")
 	host.call("close_immediate")
-	failed += _check(not bool(audio.call("minigame_audio_held")), "closing the minigame restores world audio")
+	failed += _check(bool(host.call("debug_open", "woodsong")), "Woodsong opens")
+	failed += _check(bool(audio.call("minigame_audio_held")), "Woodsong holds world audio while it is open")
+	for bus_name_open: String in ["SFX_UI", "SFX_World", "SFX_Progress"]:
+		var open_idx: int = AudioServer.get_bus_index(bus_name_open)
+		failed += _check(open_idx >= 0 and AudioServer.is_bus_mute(open_idx), "%s is muted during Woodsong" % bus_name_open)
+	failed += _check(music_idx >= 0 and not AudioServer.is_bus_mute(music_idx), "Woodsong leaves the Music bus open")
+	host.call("close_immediate")
+	failed += _check(not bool(audio.call("minigame_audio_held")), "closing Woodsong restores world audio")
 	if failed == 0:
 		print("MINIGAME_AUDIO_OK")
 	return failed

@@ -572,7 +572,8 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 	_play.add_child(_game)
 	_panel.move_child(_summary, -1)
 	_game.bind_target(target_id)
-	if has_node("/root/GameAudio"):
+	## Only Woodsong replaces the world's sound. The other games keep SFX and the hub.
+	if game_id == "woodsong" and has_node("/root/GameAudio"):
 		GameAudio.hold_world_for_minigame()
 	_game.begin()
 	_set_open(true)
