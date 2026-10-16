@@ -339,6 +339,8 @@ func _ring_offset(node: Node2D, angle: float, radius_y: float) -> Vector2:
 
 
 func _ring_z(node: Node2D, angle: float) -> int:
+	if node != null and node.has_method("wisp_sorts_with_feet") and bool(node.call("wisp_sorts_with_feet")):
+		return -1 if sin(angle) < 0.0 else 1
 	if _ring_draws_clear(node):
 		## Behind only once the wisp is on the north side of the art.
 		## Sides and the south arc stay in front of the station.

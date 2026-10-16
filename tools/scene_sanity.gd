@@ -146,6 +146,7 @@ func _run() -> void:
 	failed += _trait_speed_rows()
 	failed += _water_splash()
 	failed += _forge_arch_raise()
+	failed += _forge_wisp_ring()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -499,6 +500,31 @@ func _forge_arch_raise() -> int:
 	room.queue_free()
 	if failed == 0:
 		print("FORGE_ARCH_RAISE_OK")
+	return failed
+
+
+func _forge_wisp_ring() -> int:
+	var failed: int = 0
+	var station: Node2D = (load("res://scenes/forge/crucible.tscn") as PackedScene).instantiate() as Node2D
+	var tree: Node2D = (load("res://scenes/gatherable.tscn") as PackedScene).instantiate() as Node2D
+	var wisp: Node2D = (load("res://scenes/wisp.tscn") as PackedScene).instantiate() as Node2D
+	root.add_child(station)
+	root.add_child(tree)
+	root.add_child(wisp)
+	var radii: Vector2 = station.call("wisp_orbit_radii")
+	failed += _check(radii.x < 90.0 and radii.y < 90.0, "forge station ring is tight (%.1f, %.1f)" % [radii.x, radii.y])
+	failed += _check(bool(station.call("wisp_sorts_with_feet")), "forge station uses the clearing depth rule")
+	var north: int = int(wisp.call("_ring_z", station, -PI * 0.5))
+	var south: int = int(wisp.call("_ring_z", station, PI * 0.5))
+	var tree_north: int = int(wisp.call("_ring_z", tree, -PI * 0.5))
+	var tree_south: int = int(wisp.call("_ring_z", tree, PI * 0.5))
+	failed += _check(north == tree_north and north < 0, "a forge wisp hides behind like a clearing wisp")
+	failed += _check(south == tree_south and south > 0, "a forge wisp in front sorts like a clearing wisp")
+	station.queue_free()
+	tree.queue_free()
+	wisp.queue_free()
+	if failed == 0:
+		print("FORGE_WISP_RING_OK")
 	return failed
 
 

@@ -115,6 +115,12 @@ func work_footprint() -> Rect2:
 
 
 func wisp_orbit_draws_in_front() -> bool:
+	## Keeps the ring on the painted station. Depth uses wisp_sorts_with_feet.
+	return true
+
+
+func wisp_sorts_with_feet() -> bool:
+	## Clearing rule: the back half goes behind, the near half shares the feet band.
 	return true
 
 
@@ -132,8 +138,16 @@ func wisp_orbit_center() -> Vector2:
 
 
 func wisp_orbit_radius() -> float:
-	var shown: Vector2 = _sprite_shown_size()
-	return maxf(shown.x, shown.y) * 0.5 + 40.0
+	## The painted station, not the 192 px canvas plus a wide pad.
+	var shown: Vector2 = _sprite_opaque_size()
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.wisp_orbit_radius_for_size(shown)
+	return maxf(shown.x, shown.y) * 0.5 + 14.0
+
+
+func wisp_orbit_radii() -> Vector2:
+	var radius: float = wisp_orbit_radius()
+	return Vector2(radius, radius)
 
 
 func _sprite_shown_size() -> Vector2:
@@ -141,6 +155,21 @@ func _sprite_shown_size() -> Vector2:
 		return Vector2(128, 128)
 	var frame := Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
 	return Vector2(frame.x * absf(sprite.scale.x), frame.y * absf(sprite.scale.y))
+
+
+func _sprite_opaque_size() -> Vector2:
+	var shown: Vector2 = _sprite_shown_size()
+	if sprite == null or sprite.texture == null:
+		return shown
+	var img: Image = sprite.texture.get_image()
+	if img == null:
+		return shown
+	if img.is_compressed():
+		img.decompress()
+	var used: Rect2i = img.get_used_rect()
+	if used.size.x < 4 or used.size.y < 4:
+		return shown
+	return Vector2(used.size) * Vector2(absf(sprite.scale.x), absf(sprite.scale.y))
 
 
 func stand_global() -> Vector2:

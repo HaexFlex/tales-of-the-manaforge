@@ -9359,22 +9359,29 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 	if station != null and wisp != null:
 		var orbit_center: Vector2 = station.call("wisp_orbit_center")
 		var ry_station: float = float(station.call("wisp_orbit_radius"))
-		var rx_station: float = ry_station * 2.0
+		var rx_station: float = ry_station
+		if station.has_method("wisp_orbit_radii"):
+			var station_radii: Vector2 = station.call("wisp_orbit_radii")
+			rx_station = station_radii.x
+			ry_station = station_radii.y
+		failed += _assert(rx_station < 90.0 and ry_station < 90.0, "station ring is tight (%.1f x %.1f)" % [rx_station, ry_station])
+		var keeper_z: int = int((room.get_node_or_null("Keeper") as CanvasItem).z_index) if room.get_node_or_null("Keeper") is CanvasItem else 1
 		jobs.call("debug_set_wisp_orbit_phase", 0.0)
 		wisp.call("place_on_shared_orbit")
-		failed += _assert(int(wisp.z_index) >= 1, "east side stays in front")
+		failed += _assert(int(wisp.z_index) == keeper_z, "east side shares the keeper's sort band")
 		failed += _assert(wisp.global_position.x > orbit_center.x + rx_station * 0.85, "east side sits on the ellipse arc")
 		jobs.call("debug_set_wisp_orbit_phase", PI)
 		wisp.call("place_on_shared_orbit")
-		failed += _assert(int(wisp.z_index) >= 1, "west side stays in front")
+		failed += _assert(int(wisp.z_index) == keeper_z, "west side shares the keeper's sort band")
 		failed += _assert(wisp.global_position.x < orbit_center.x - rx_station * 0.85, "west side sits on the ellipse arc")
 		jobs.call("debug_set_wisp_orbit_phase", PI * 0.5)
 		wisp.call("place_on_shared_orbit")
-		failed += _assert(int(wisp.z_index) >= 2, "south side draws in front of the station")
-		failed += _assert(wisp.global_position.y > station.global_position.y, "south side is in front of the station feet")
+		failed += _assert(int(wisp.z_index) == keeper_z, "south side sorts with the station and the keeper")
+		failed += _assert(wisp.global_position.y > orbit_center.y + ry_station * 0.85, "south side is the near arc")
 		failed += _assert(wisp.visible, "south side stays visible")
 		jobs.call("debug_set_wisp_orbit_phase", -PI * 0.5)
 		wisp.call("place_on_shared_orbit")
+		failed += _assert(int(wisp.z_index) < 0, "north side hides behind the station and the keeper")
 		failed += _assert(wisp.global_position.y < orbit_center.y - ry_station * 0.85, "north arc keeps the top orbit point")
 	_drop_current_scene()
 	game_state.call("reset_for_new_game")
