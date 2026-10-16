@@ -147,6 +147,7 @@ func _run() -> void:
 	failed += _water_splash()
 	failed += _forge_arch_raise()
 	failed += _forge_wisp_ring()
+	failed += _footsteps_theme()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -525,6 +526,36 @@ func _forge_wisp_ring() -> int:
 	wisp.queue_free()
 	if failed == 0:
 		print("FORGE_WISP_RING_OK")
+	return failed
+
+
+func _footsteps_theme() -> int:
+	var failed: int = 0
+	var hud: Node = (load("res://scenes/hud.tscn") as PackedScene).instantiate()
+	root.add_child(hud)
+	hud.call("_ensure_footsteps_popup")
+	var pop: Panel = hud.get_node_or_null("ElaiaFootsteps") as Panel
+	failed += _check(pop != null, "footsteps window exists")
+	if pop != null:
+		var box: StyleBoxTexture = pop.get_theme_stylebox(&"panel") as StyleBoxTexture
+		var path: String = box.texture.resource_path if box != null and box.texture != null else ""
+		failed += _check(path.find("frame_9s_96") >= 0, "footsteps window uses bark and parchment")
+		var body: Label = pop.get_node_or_null("Body") as Label
+		var go: Button = pop.get_node_or_null("Go") as Button
+		var speaker: Label = pop.get_node_or_null("Speaker") as Label
+		var strings: Node = root.get_node("ContentStrings")
+		failed += _check(speaker != null and speaker.text == str(strings.call("get_text", "wisp_name")), "footsteps names the Wisp")
+		failed += _check(body != null and body.text == str(strings.call("get_text", "forge_elaia_footsteps")), "footsteps keeps the line")
+		failed += _check(go != null and go.text == str(strings.call("get_text", "forge_elaia_footsteps_ok")), "footsteps keeps Go and see")
+		var inner := Rect2(28, 28, pop.size.x - 56, pop.size.y - 56)
+		if body != null:
+			failed += _check(inner.encloses(Rect2(body.position, body.size)), "footsteps text sits inside the frame")
+		if go != null:
+			failed += _check(inner.encloses(Rect2(go.position, go.size)), "Go and see sits inside the frame")
+			failed += _check(go.size.y >= 44.0, "Go and see is a full tap target")
+	hud.queue_free()
+	if failed == 0:
+		print("FOOTSTEPS_THEME_OK")
 	return failed
 
 

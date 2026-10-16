@@ -3381,33 +3381,39 @@ func _ensure_footsteps_popup() -> void:
 	_footsteps_popup.anchor_right = 0.5
 	_footsteps_popup.anchor_top = 0.5
 	_footsteps_popup.anchor_bottom = 0.5
-	_footsteps_popup.offset_left = -240.0
-	_footsteps_popup.offset_top = -90.0
-	_footsteps_popup.offset_right = 240.0
-	_footsteps_popup.offset_bottom = 90.0
+	_footsteps_popup.offset_left = -260.0
+	_footsteps_popup.offset_top = -120.0
+	_footsteps_popup.offset_right = 260.0
+	_footsteps_popup.offset_bottom = 120.0
 	_footsteps_popup.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.13, 0.11, 0.96)
-	sb.border_color = Color(0.45, 0.58, 0.48, 1)
-	sb.set_border_width_all(2)
-	_footsteps_popup.add_theme_stylebox_override("panel", sb)
+	_footsteps_popup.z_index = 40
+	var speaker := Label.new()
+	speaker.name = "Speaker"
+	speaker.position = Vector2(40, 16)
+	speaker.size = Vector2(440, 36)
+	speaker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	speaker.text = ContentStrings.get_text("wisp_name")
+	GameTheme.style_plank_label(speaker)
+	_footsteps_popup.add_child(speaker)
 	var body := Label.new()
 	body.name = "Body"
-	body.position = Vector2(16, 16)
-	body.size = Vector2(448, 80)
+	body.position = Vector2(40, 64)
+	body.size = Vector2(440, 72)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	body.text = ContentStrings.get_text("forge_elaia_footsteps")
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_color_override("font_color", Color(0.88, 0.92, 0.84, 1))
+	GameTheme.style_ink_label(body)
 	_footsteps_popup.add_child(body)
 	var go := Button.new()
 	go.name = "Go"
-	go.position = Vector2(150, 110)
-	go.size = Vector2(180, 40)
+	go.position = Vector2(170, 156)
+	go.size = Vector2(180, 44)
 	go.text = ContentStrings.get_text("forge_elaia_footsteps_ok")
 	go.pressed.connect(_on_footsteps_go)
+	GameTheme.style_primary_button(go)
 	_footsteps_popup.add_child(go)
+	Ui540.apply_kit_panel(_footsteps_popup, "elaia_footsteps", speaker)
 	_footsteps_popup.visible = false
 	add_child(_footsteps_popup)
 
