@@ -30,9 +30,10 @@ func _ready() -> void:
 	_k = MinigameCatalog.k_for("with_the_grain", _phone)
 	_need = float(MinigameCatalog.game("with_the_grain").get("accuracy", 0.75))
 	MinigameArt.add_sprite(self, "bg_grass.png", Vector2(320, 160))
-	## Opaque table stays inside the workpiece. The sprite's empty margin is above the board.
-	var bench: Sprite2D = MinigameArt.add_sprite(self, "st_bench.png", Vector2(220, 65))
+	## The bench stays inside the board and draws over the Keeper, so he reads as working there.
+	var bench: Sprite2D = MinigameArt.add_sprite(self, "st_bench.png", Vector2(210, 228))
 	bench.scale = Vector2(0.55, 0.55)
+	bench.z_index = 3
 	var plank: Sprite2D = MinigameArt.add_sprite(self, "workpiece.png", Vector2(360, 170))
 	plank.z_index = 1
 	_dots = Node2D.new()
@@ -49,7 +50,7 @@ func _ready() -> void:
 	_ring.z_index = 4
 	var pen: Sprite2D = MinigameArt.add_sprite(self, "pen.png", Vector2(560, 250))
 	pen.z_index = 4
-	_keeper = MinigameArt.add_sprite(self, "keeper_station_n.png", Vector2(104, 258), 4)
+	_keeper = MinigameArt.add_sprite(self, "keeper_station_n.png", Vector2(176, 246), 4)
 	_keeper.z_index = 2
 	_load_shape()
 

@@ -36,6 +36,7 @@ func run_scenes() -> int:
 	failed += _hot_spots_switch()
 	failed += _woodsong_volume()
 	failed += _grain_shapes()
+	failed += _grain_bench()
 	failed += _grain_accuracy()
 	failed += _steady_press_tuning()
 	failed += _keeper_frames()
@@ -221,6 +222,33 @@ func _grain_accuracy() -> int:
 	if failed == 0:
 		print("GRAIN_ACCURACY_OK")
 	node.free()
+	return failed
+
+
+func _grain_bench() -> int:
+	var failed: int = 0
+	var node: Node = (load("res://scenes/minigames/with_the_grain.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(node)
+	var bench: Sprite2D = node.get_node_or_null("st_bench") as Sprite2D
+	var keeper: Sprite2D = node.get_node_or_null("keeper_station_n") as Sprite2D
+	failed += _check(bench != null and keeper != null, "grain has a bench and a keeper")
+	if bench != null and keeper != null:
+		failed += _check(bench.z_index > keeper.z_index, "the grain bench draws in front of the keeper")
+		var bench_size: Vector2 = bench.texture.get_size() * bench.scale if bench.texture != null else Vector2.ZERO
+		var keeper_size: Vector2 = keeper.texture.get_size() / float(maxi(keeper.hframes, 1)) if keeper.texture != null else Vector2.ZERO
+		keeper_size.y = keeper.texture.get_height() if keeper.texture != null else 0.0
+		var bench_rect := Rect2(bench.position - bench_size * 0.5, bench_size)
+		var keeper_rect := Rect2(keeper.position - keeper_size * 0.5, keeper_size)
+		failed += _check(bench_rect.intersects(keeper_rect), "the grain bench overlaps the keeper")
+	node.free()
+	var ripe: Node = (load("res://scenes/minigames/ripe_catch.tscn") as PackedScene).instantiate()
+	Engine.get_main_loop().root.add_child(ripe)
+	var berry: Sprite2D = ripe.get_node_or_null("node_berry") as Sprite2D
+	var walker: Sprite2D = ripe.get_node_or_null("keeper_walk_e") as Sprite2D
+	failed += _check(berry != null and walker != null and berry.z_index <= walker.z_index, "berry harvest still draws the keeper in front")
+	ripe.free()
+	if failed == 0:
+		print("GRAIN_BENCH_OK")
 	return failed
 
 
