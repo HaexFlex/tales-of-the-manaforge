@@ -937,6 +937,21 @@ func get_upgrade_rank(upgrade_id: String) -> int:
 	return int(upgrade_ranks.get(upgrade_id, 0))
 
 
+func total_upgrade_ranks_owned() -> int:
+	## Each bought rank counts. A stale key that is not in the blessing list does not.
+	var n: int = 0
+	for entry: Variant in upgrades_data:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		n += maxi(0, get_upgrade_rank(str((entry as Dictionary).get("id", ""))))
+	return n
+
+
+func offline_shard_mult() -> float:
+	## Offline Manashards only. Derived from ranks. Not stored.
+	return minf(1.0, 0.25 + 0.05 * float(total_upgrade_ranks_owned()))
+
+
 func get_upgrade_def(upgrade_id: String) -> Dictionary:
 	for entry: Variant in upgrades_data:
 		if typeof(entry) != TYPE_DICTIONARY:
@@ -1725,12 +1740,15 @@ func _offline_tiers_with_quiet_hours(tiers: Array) -> Array:
 
 
 func _default_offline_tiers() -> Array:
+	## Mirror of data/forge_tuning.json offline_tiers. 2 min at full rate, then the locked steps.
 	return [
-		[0.5, 0.1],
-		[2.0, 1.0 / 60.0],
-		[8.0, 1.0 / 250.0],
-		[24.0, 1.0 / 600.0],
-		[-1.0, 1.0 / 3000.0],
+		[1.0 / 30.0, 1.0],
+		[1.0 / 6.0, 3.0 / 8.0],
+		[0.5, 0.25],
+		[2.0, 1.0 / 9.0],
+		[8.0, 1.0 / 18.0],
+		[24.0, 1.0 / 48.0],
+		[-1.0, 1.0 / 144.0],
 	]
 
 
