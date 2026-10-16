@@ -899,9 +899,50 @@ func _bramble_shards() -> int:
 	game.set("echo_02_fee_paid", paid)
 	game.set("forge_key", key)
 	echo.set("battle_context", "")
+	failed += _bramble_spare_window(echo)
 	if failed == 0:
 		print("BRAMBLE_SHARDS_OK")
 	return failed
+
+
+func _bramble_spare_window(echo: Node) -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _check(packed != null, "bramble spare window has the echo scene")
+	if packed == null:
+		return failed
+	echo.set("battle_context", "echo2")
+	var view: Node = packed.instantiate()
+	root.add_child(view)
+	view.call("_offer_return", "spare")
+	var row_label: Label = view.get_node_or_null("EchoRewards/RewardRow0/Label") as Label
+	var story: Label = view.get_node_or_null("EchoRewards/RewardRow1/Label") as Label
+	failed += _check(row_label != null and row_label.text.find("Manashards") >= 0, "the spare reward row names Manashards")
+	failed += _check(story != null and story.text.find("Manashards") < 0, "the spare story does not name Manashards again")
+	failed += _check(story != null and story.text.find("spared") >= 0, "the spare story still says he is spared")
+	var mentions: int = 0
+	if view.get_node_or_null("EchoRewards") != null:
+		mentions = _manashard_mentions(view.get_node_or_null("EchoRewards"))
+	failed += _check(mentions == 1, "the spared window says Manashards once (got %d)" % mentions)
+	view.free()
+	echo.set("battle_context", "")
+	return failed
+
+
+func _manashard_mentions(node: Node) -> int:
+	var count: int = 0
+	if node is Label:
+		var text: String = (node as Label).text
+		var from: int = 0
+		while true:
+			var at: int = text.find("Manashards", from)
+			if at < 0:
+				break
+			count += 1
+			from = at + 10
+	for child: Node in node.get_children():
+		count += _manashard_mentions(child)
+	return count
 
 
 func _adventure_mode_chip() -> int:

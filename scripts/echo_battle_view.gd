@@ -1534,9 +1534,13 @@ func _reward_value_color(tone: String) -> Color:
 func _reward_rows(outcome: String) -> Array:
 	if _is_bramble():
 		var bramble_shards: int = EchoChamber.snapshot_payout(outcome)
+		## The reward row already names Manashards. The story line must not say it again.
+		var story: String = _pending_toast
+		var shards_line: String = ContentStrings.get_text("battle_shards_gain", {"amount": bramble_shards})
+		story = story.replace("\n" + shards_line, "").replace(shards_line, "").strip_edges()
 		return [
 			[ContentStrings.get_text("hud_manashards"), "+%d" % bramble_shards, "cyan"],
-			[_pending_toast, "", "pearl"],
+			[story, "", "pearl"],
 		]
 	var shards: int = EchoChamber.snapshot_payout(outcome)
 	var rows: Array = [
