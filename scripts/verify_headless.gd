@@ -16306,7 +16306,7 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 				salve_target.emit_signal("pressed")
 			await process_frame
 			salve_btn = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
-			failed += _assert(salve_btn != null and salve_btn.text.find("×1") >= 0, "salve count drops to ×1")
+			failed += _assert(salve_btn != null and salve_btn.text == "Items" and salve_btn.tooltip_text.find("×1") >= 0, "salve count drops to ×1")
 			var keeper_hp: int = int(fight.fighter_dict("keeper").get("hp", 0))
 			failed += _assert(keeper_hp > 5, "salve heals Keeper")
 			salve_done = true

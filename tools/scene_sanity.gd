@@ -681,6 +681,14 @@ func _ascend_gather() -> int:
 			failed += _check(not bool(after.get("working", true)) and not bool(elaia.get("_work_loop")), "Elaia stops her harvest")
 		live.queue_free()
 		await process_frame
+		var forge_packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
+		var forge: Node = forge_packed.instantiate() if forge_packed != null else null
+		if forge != null:
+			root.add_child(forge)
+			await process_frame
+			var spawn: Node2D = forge.get_node_or_null("Keeper") as Node2D
+			failed += _check(spawn != null and spawn.global_position.distance_to(Vector2(800, 860)) < 1.0, "a gathered clearing pose does not move the forge spawn")
+			forge.free()
 	game.call("apply_save_dict", snap)
 	if failed == 0:
 		print("ASCEND_GATHER_OK")

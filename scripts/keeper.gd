@@ -470,8 +470,15 @@ static func walk_anim_for_velocity(vel: Vector2, current: String = "south") -> S
 
 
 func scene_home() -> String:
+	## The Forge group is added in the room's _ready, which runs after this body.
+	## The scene path is already set, so a spawn does not inherit the clearing pose.
 	if is_inside_tree() and get_tree().get_first_node_in_group("forge_room") != null:
 		return "forge"
+	var cursor: Node = self
+	while cursor != null:
+		if str(cursor.scene_file_path).ends_with("forge_room.tscn"):
+			return "forge"
+		cursor = cursor.get_parent()
 	return "clearing"
 
 
