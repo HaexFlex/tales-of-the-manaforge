@@ -17,6 +17,10 @@ const KEEPER_IDLE: String = "res://assets/art/echo/battle_keeper_idle_e.png"
 const ELAIA_IDLE: String = "res://assets/art/echo/battle_elaia_idle_w.png"
 const ELAIA_KEY: String = "res://assets/art/echo/battle_elaia_key_w.png"
 const ELAIA_FRONT: String = ELAIA_IDLE
+## Strike gap 1.0s, then the hurt hold. Poses stay on this view.
+const PARTY_DIR: String = "res://assets/art/battle/party/"
+const GAP_STRIKE_SEC: float = 1.0
+const HURT_HOLD_SEC: float = 0.75
 ## Opaque 1280×720 plate (centre-cropped to 960×540). Background + Ground stay underneath until this file exists.
 const CHAMBER_BG: String = EchoTheme.PLATE
 
@@ -72,6 +76,12 @@ var _phase_before_end: String = ""
 var _pending_toast: String = ""
 var _pulse: float = 0.0
 var _name_tag_root: Node = null
+var _instant_turns: bool = false
+var _turn_busy: bool = false
+var _pose_queue: Array[Dictionary] = []
+var _pose_left: float = 0.0
+var _pose_action: String = ""
+var _pose_echo_hp: int = 0
 
 
 func _exit_tree() -> void:
@@ -92,6 +102,7 @@ func _ready() -> void:
 		return
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 50
+	_instant_turns = DisplayServer.get_name() == "headless" or OS.has_feature("headless")
 	_apply_button_copy()
 	_bind()
 
@@ -103,6 +114,7 @@ func _apply_portraits() -> void:
 		_keeper_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_keeper_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_keeper_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_mirror_portrait(_keeper_portrait, false)
 	_apply_elaia_portrait()
 
 
@@ -135,6 +147,7 @@ func _apply_elaia_portrait() -> void:
 		_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_mirror_portrait(_echo_portrait, false)
 		_place_echo_ghost()
 		return
 	var path: String = ELAIA_KEY if _elaia_holds_key() else ELAIA_IDLE
@@ -144,6 +157,7 @@ func _apply_elaia_portrait() -> void:
 	_echo_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_echo_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_echo_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_mirror_portrait(_echo_portrait, false)
 	_place_echo_ghost()
 
 
@@ -805,13 +819,13 @@ func _make_hp_bar(who: String, cx: float, foe: bool) -> ColorRect:
 
 
 func _on_brace() -> void:
-	if end_confirm_open():
+	if _turn_busy or end_confirm_open():
 		return
 	_choose("brace")
 
 
 func _on_salve() -> void:
-	if end_confirm_open():
+	if _turn_busy or end_confirm_open():
 		return
 	_choose("salve")
 
@@ -921,6 +935,14 @@ func _process(delta: float) -> void:
 	if _ground and (_chamber_art == null or not _chamber_art.visible):
 		var ground_shift: float = 0.96 + 0.04 * sin(_pulse * 0.7)
 		_ground.modulate = Color(ground_shift, ground_shift, ground_shift, 1.0)
+	if not _turn_busy:
+		return
+	if _instant_turns:
+		_finish_pose_queue()
+		return
+	_pose_left -= delta
+	if _pose_left <= 0.0:
+		_advance_pose()
 
 
 func is_flee_shown() -> bool:
@@ -1146,7 +1168,7 @@ func _set_mercy_visible(show: bool) -> void:
 
 
 func _on_strike() -> void:
-	if end_confirm_open():
+	if _turn_busy or end_confirm_open():
 		return
 	if _ending_choice("strike"):
 		_open_end_confirm("strike")
@@ -1155,13 +1177,13 @@ func _on_strike() -> void:
 
 
 func _on_flee() -> void:
-	if end_confirm_open():
+	if _turn_busy or end_confirm_open():
 		return
 	_choose("flee")
 
 
 func _on_spare() -> void:
-	if end_confirm_open():
+	if _turn_busy or end_confirm_open():
 		return
 	if _ending_choice("spare"):
 		_open_end_confirm("spare")
@@ -1278,7 +1300,7 @@ func _close_end_confirm() -> void:
 
 
 func _on_arrow() -> void:
-	if _battle == null or _waiting_return or _battle.strike_kind != "hybrid":
+	if _turn_busy or _battle == null or _waiting_return or _battle.strike_kind != "hybrid":
 		return
 	GameAudio.play_ui_confirm()
 	var mode: String = _battle.toggle_arrow_mode()
@@ -1287,20 +1309,180 @@ func _on_arrow() -> void:
 	_refresh_log()
 
 
+func set_instant_turns(on: bool) -> void:
+	_instant_turns = on
+
+
+func turn_busy() -> bool:
+	return _turn_busy
+
+
+func portrait_texture_path(who: String) -> String:
+	var rect: TextureRect = _portrait_for(who)
+	if rect == null or rect.texture == null:
+		return ""
+	return str(rect.texture.resource_path)
+
+
+func portrait_flipped(who: String) -> bool:
+	var rect: TextureRect = _portrait_for(who)
+	return rect != null and rect.scale.x < 0.0
+
+
+func portrait_pivot_x(who: String) -> float:
+	var rect: TextureRect = _portrait_for(who)
+	if rect == null:
+		return -1.0
+	return rect.pivot_offset.x
+
+
 func _choose(action: String) -> void:
-	if _battle == null or _waiting_return:
+	if _battle == null or _waiting_return or _turn_busy:
+		return
+	if _battle.pending_half() != "":
 		return
 	GameAudio.play_ui_confirm()
 	var before_echo: int = _battle.echo_hp
-	_battle.choose(action)
+	var log_before: int = _battle.turn_log.size()
+	_battle.present_halves = true
+	_battle.instant_present = _instant_turns
+	var result: String = _battle.choose(action)
+	if result == "invalid" or result == "locked" or result == "no_flee" or result == "resolved":
+		return
+	_pose_action = action
+	_pose_echo_hp = before_echo
+	var acted: bool = result != "no_salve"
+	if acted:
+		_enqueue_half(action, log_before, true, result)
+	if result == "presenting":
+		_turn_busy = true
+		_refresh_bars(true)
+		_refresh_log()
+		_begin_pose()
+		return
+	if _instant_turns:
+		_drain_poses()
+		_settle_turn()
+		return
+	if _pose_queue.is_empty():
+		_settle_turn()
+		return
+	_turn_busy = true
+	_refresh_bars(true)
+	_refresh_log()
+	_begin_pose()
+
+
+func _enqueue_half(action: String, log_before: int, first_half: bool, result: String) -> void:
+	if _battle == null:
+		return
+	if first_half and action == "brace" and result != "no_salve":
+		_queue_pose("keeper", "brace", GAP_STRIKE_SEC)
+		_queue_pose("keeper", "idle", 0.0)
+	elif first_half and action == "salve" and result != "no_salve":
+		_queue_pose("keeper", "idle", GAP_STRIKE_SEC)
+	var i: int = log_before
+	while i < _battle.turn_log.size():
+		_enqueue_turn(_battle.turn_log[i])
+		i += 1
+	if first_half and action == "strike" and log_before == _battle.turn_log.size() and result == "defeat":
+		_queue_pose("keeper", "attack", GAP_STRIKE_SEC)
+		if _battle.last_keeper_damage > 0:
+			_queue_pose("echo", "ko", HURT_HOLD_SEC)
+			_queue_pose("echo", "idle", 0.0)
+		_queue_pose("keeper", "idle", 0.0)
+
+
+func _enqueue_turn(entry: Dictionary) -> void:
+	var actor: String = str(entry.get("actor", ""))
+	if actor != "keeper" and actor != "echo":
+		return
+	var damage: int = 0 if bool(entry.get("rootbind", false)) else int(entry.get("damage", 0))
+	var target: String = "echo" if actor == "keeper" else "keeper"
+	_queue_pose(actor, "attack", GAP_STRIKE_SEC)
+	if damage > 0:
+		var hurt: String = "hurt"
+		if target == "echo" and _battle.echo_hp <= 0:
+			hurt = "ko"
+		elif target == "keeper" and _battle.keeper_hp <= 0:
+			hurt = "ko"
+		_queue_pose(target, hurt, HURT_HOLD_SEC)
+		_queue_pose(target, "idle", 0.0)
+	_queue_pose(actor, "idle", 0.0)
+
+
+func _queue_pose(who: String, pose: String, hold: float) -> void:
+	_pose_queue.append({"who": who, "pose": pose, "hold": hold})
+
+
+func _begin_pose() -> void:
+	_advance_pose()
+
+
+func _advance_pose() -> void:
+	if _pose_queue.is_empty():
+		_on_half_shown()
+		return
+	var step: Dictionary = _pose_queue.pop_front()
+	_apply_combat_pose(str(step.get("who", "")), str(step.get("pose", "idle")))
+	_pose_left = float(step.get("hold", 0.0))
+	if _pose_left <= 0.0:
+		_advance_pose()
+
+
+func _on_half_shown() -> void:
+	if _battle != null and _battle.pending_half() != "":
+		var log_before: int = _battle.turn_log.size()
+		var result: String = _battle.finish_presented_half()
+		_refresh_bars(true)
+		_refresh_log()
+		_enqueue_half("", log_before, false, result)
+		if not _pose_queue.is_empty():
+			_advance_pose()
+			return
+	_settle_turn()
+
+
+func _drain_poses() -> void:
+	while not _pose_queue.is_empty():
+		var step: Dictionary = _pose_queue.pop_front()
+		_apply_combat_pose(str(step.get("who", "")), str(step.get("pose", "idle")))
+	_pose_left = 0.0
+
+
+func _finish_pose_queue() -> void:
+	if not _turn_busy:
+		return
+	_turn_busy = false
+	_drain_poses()
+	while _battle != null and _battle.pending_half() != "":
+		var log_before: int = _battle.turn_log.size()
+		var result: String = _battle.finish_presented_half()
+		_refresh_bars(true)
+		_refresh_log()
+		_enqueue_half("", log_before, false, result)
+		_drain_poses()
+	_settle_turn()
+
+
+func _settle_turn() -> void:
+	_turn_busy = false
+	_pose_queue.clear()
+	_pose_left = 0.0
+	if _battle == null:
+		return
+	var action: String = _pose_action
+	var before_echo: int = _pose_echo_hp
 	var outcome: String = _battle.outcome
 	if action == "strike" and _battle.last_keeper_damage == 0 and before_echo == _battle.echo_hp and outcome == "":
 		_set_speech(ContentStrings.get_text("battle_log_fists"))
 	if outcome == "ko":
+		_apply_combat_pose("keeper", "ko")
 		EchoChamber.finish_battle("ko")
 		return
 	_refresh_bars(true)
 	_refresh_log()
+	_apply_combat_pose("keeper", "idle")
 	_apply_elaia_portrait()
 	if _battle.spare_window and outcome == "":
 		if not _mercy_shown:
@@ -1313,6 +1495,66 @@ func _choose(action: String) -> void:
 		return
 	_set_speech(ContentStrings.get_text("battle_your_turn"))
 	_refresh_actions()
+
+
+func _portrait_for(who: String) -> TextureRect:
+	return _keeper_portrait if who == "keeper" else _echo_portrait
+
+
+func _apply_combat_pose(who: String, pose: String) -> void:
+	var rect: TextureRect = _portrait_for(who)
+	if rect == null:
+		return
+	if pose == "idle":
+		if who == "echo":
+			var idle_path: String = _echo_idle_path()
+			var idle_tex: Texture2D = load(idle_path) as Texture2D
+			if idle_tex:
+				rect.texture = idle_tex
+			_mirror_portrait(rect, false)
+			return
+		var keeper_idle: Texture2D = load(KEEPER_IDLE) as Texture2D
+		if keeper_idle:
+			rect.texture = keeper_idle
+		_mirror_portrait(rect, false)
+		return
+	var path: String = _party_pose_path(who, pose)
+	var tex: Texture2D = load(path) as Texture2D
+	if tex:
+		rect.texture = tex
+		rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	## East sheets face right. The Echo stands on the right, so flip about the
+	## midline (source x=64 on a 128px sheet drawn in the 256px portrait).
+	_mirror_portrait(rect, who == "echo")
+
+
+func _echo_idle_path() -> String:
+	if _is_bramble():
+		if _battle != null and _battle.foe_art_path != "":
+			return _battle.foe_art_path
+		return PARTY_DIR + "battle_bramble_idle_e.png"
+	return ELAIA_IDLE
+
+
+func _party_pose_path(who: String, pose: String) -> String:
+	var sheet: String = pose
+	if sheet != "attack" and sheet != "brace" and sheet != "hurt" and sheet != "ko":
+		sheet = "attack"
+	if who == "keeper":
+		return PARTY_DIR + "battle_keeper_%s.png" % sheet
+	if _is_bramble():
+		return PARTY_DIR + "battle_bramble_%s.png" % sheet
+	return PARTY_DIR + "battle_elaia_%s.png" % sheet
+
+
+func _mirror_portrait(rect: TextureRect, flip: bool) -> void:
+	if rect == null:
+		return
+	var span: Vector2 = rect.size
+	if span.x < 1.0:
+		span = PORTRAIT
+	rect.pivot_offset = span * 0.5
+	rect.scale = Vector2(-1.0, 1.0) if flip else Vector2.ONE
 
 
 func _offer_return(outcome: String) -> void:

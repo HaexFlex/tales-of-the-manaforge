@@ -158,6 +158,7 @@ func _run() -> void:
 	failed += await _ascend_gather()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
+	failed += await _echo_turn_flow()
 	failed += await _portal_fee_confirm()
 
 	game.set("arrow_mode", "magical")
@@ -1171,6 +1172,179 @@ func _adventure_mode_chip() -> int:
 	view.queue_free()
 	if failed == 0 and _echo_chip_ready:
 		print("HYBRID_CHIP_OK")
+	return failed
+
+
+func _echo_rootbind_count(battle: EchoBattle) -> int:
+	var count: int = 0
+	for entry: Dictionary in battle.turn_log:
+		if bool(entry.get("rootbind", false)):
+			count += 1
+	return count
+
+
+func _echo_turn_flow() -> int:
+	var failed: int = 0
+	var view_src: String = FileAccess.get_file_as_string("res://scripts/echo_battle_view.gd")
+	var rules_src: String = FileAccess.get_file_as_string("res://scripts/echo_battle.gd")
+	failed += _check(view_src.find("BattlePlayback") < 0 and view_src.find("FightState") < 0, "EchoBattleView keeps its own pose player")
+	failed += _check(rules_src.find("BattlePlayback") < 0 and rules_src.find("FightState") < 0, "EchoBattle keeps its own turn split")
+	var tie := EchoBattle.new()
+	tie.configure(
+		{"might": 1, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 6, "fate": 1},
+		{"display_name": "Elaia", "stats": {"swiftness": 6, "vitality": 8}}
+	)
+	failed += _check(tie.keeper_acts_first(), "a Swiftness tie goes to the Keeper")
+	var direct := EchoBattle.new()
+	direct.configure(
+		{"might": 1, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1},
+		{"display_name": "Elaia", "stats": {"swiftness": 1, "vitality": 8}}
+	)
+	direct.set_seed(4)
+	var direct_result: String = direct.choose("strike")
+	failed += _check(direct_result != "presenting" and direct.pending_half() == "", "a direct choose stays one call")
+	var mercy_seed: int = -1
+	var mercy_hp: int = -1
+	var mercy_log: String = ""
+	var keeper_fast: Dictionary = {"might": 8, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1}
+	var echo_slow: Dictionary = {"display_name": "Elaia", "stats": {"might": 1, "arcana": 1, "resilience": 1, "ward": 1, "vitality": 8, "swiftness": 1, "fate": 1}}
+	for s: int in range(1, 50):
+		var probe := EchoBattle.new()
+		probe.configure(keeper_fast, echo_slow)
+		probe.set_seed(s)
+		probe.echo_max_hp = 10
+		probe.echo_hp = 2
+		if probe.choose("strike") == "spare_window" and probe.echo_hp >= 1 and probe.enemy_turns == 0 and probe.pending_half() == "":
+			mercy_seed = s
+			mercy_hp = probe.echo_hp
+			mercy_log = str(probe.turn_log)
+			break
+	failed += _check(mercy_seed > 0, "a strike can open the mercy floor")
+	if mercy_seed > 0:
+		var floored := EchoBattle.new()
+		floored.configure(keeper_fast, echo_slow)
+		floored.set_seed(mercy_seed)
+		floored.echo_max_hp = 10
+		floored.echo_hp = 2
+		floored.present_halves = true
+		floored.instant_present = false
+		var floored_result: String = floored.choose("strike")
+		failed += _check(floored_result == "spare_window" and floored.spare_window and floored.echo_hp == mercy_hp and floored.echo_hp >= 1, "the mercy floor still leaves her standing")
+		failed += _check(floored.pending_half() == "" and floored.enemy_turns == 0, "the mercy floor does not hand the Echo a turn")
+		failed += _check(str(floored.turn_log) == mercy_log, "a presented mercy floor matches one choose()")
+	var tank_keeper: Dictionary = {"might": 1, "arcana": 1, "resilience": 12, "ward": 12, "vitality": 12, "swiftness": 1, "fate": 1}
+	var tank_echo: Dictionary = {
+		"display_name": "Elaia",
+		"rootbind_every": 3,
+		"stats": {"might": 1, "arcana": 1, "resilience": 12, "ward": 12, "vitality": 12, "swiftness": 9, "fate": 1},
+	}
+	var live := EchoBattle.new()
+	var twin := EchoBattle.new()
+	live.configure(tank_keeper, tank_echo)
+	twin.configure(tank_keeper, tank_echo)
+	live.set_seed(11)
+	twin.set_seed(11)
+	live.keeper_max_hp = 5000
+	live.keeper_hp = 5000
+	live.echo_max_hp = 5000
+	live.echo_hp = 5000
+	twin.keeper_max_hp = 5000
+	twin.keeper_hp = 5000
+	twin.echo_max_hp = 5000
+	twin.echo_hp = 5000
+	live.present_halves = true
+	var mash_ok: bool = true
+	for _step: int in range(3):
+		var result: String = live.choose("strike")
+		if result != "presenting" or live.pending_half() != "keeper":
+			mash_ok = false
+			break
+		var turns_now: int = live.enemy_turns
+		var round_now: int = live.round
+		var binds_now: int = _echo_rootbind_count(live)
+		if live.choose("strike") != "presenting" or live.enemy_turns != turns_now or live.round != round_now or _echo_rootbind_count(live) != binds_now:
+			mash_ok = false
+			break
+		live.finish_presented_half()
+		twin.choose("strike")
+	failed += _check(mash_ok, "a click during the Echo half does not start another round")
+	failed += _check(_echo_rootbind_count(live) == 1 and _echo_rootbind_count(twin) == 1, "Rootbind fires once, on the third Echo turn")
+	failed += _check(live.enemy_turns == 3 and twin.enemy_turns == 3, "three Echo turns")
+	failed += _check(str(live.turn_log) == str(twin.turn_log), "presented rounds match one choose() each")
+	failed += _check(live.echo_hp == twin.echo_hp and live.keeper_hp == twin.keeper_hp, "presented hp matches one choose() each")
+	failed += _check(live.outcome == "" and not live.spare_window and live.outcome == twin.outcome and live.spare_window == twin.spare_window, "the split does not skip the mercy floor")
+	var echo: Node = root.get_node("EchoChamber")
+	var saved_ctx: String = str(echo.get("battle_context"))
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _check(packed != null, "echo turn flow has the battle scene")
+	if packed == null:
+		return failed
+	var view: Node = packed.instantiate()
+	root.add_child(view)
+	await process_frame
+	var shown := EchoBattle.new()
+	shown.configure(
+		tank_keeper,
+		{"display_name": "Elaia", "stats": {"might": 1, "arcana": 1, "resilience": 12, "ward": 12, "vitality": 12, "swiftness": 9, "fate": 1}}
+	)
+	shown.set_seed(11)
+	shown.keeper_max_hp = 5000
+	shown.keeper_hp = 5000
+	shown.echo_max_hp = 5000
+	shown.echo_hp = 5000
+	view.set("_battle", shown)
+	view.set("_waiting_return", false)
+	view.set("_phase", "fight")
+	view.call("set_instant_turns", false)
+	view.call("_on_strike")
+	var echo_path: String = str(view.call("portrait_texture_path", "echo"))
+	var echo_rect: TextureRect = view.get_node_or_null("EchoPortrait") as TextureRect
+	var pivot: float = float(view.call("portrait_pivot_x", "echo"))
+	failed += _check(bool(view.call("turn_busy")) and shown.pending_half() == "keeper", "the Echo half locks the menu")
+	failed += _check(echo_path.find("battle_elaia_attack") >= 0 and bool(view.call("portrait_flipped", "echo")), "Elaia's attack sheet is flipped")
+	failed += _check(echo_rect != null and is_equal_approx(echo_rect.size.x, 256.0) and is_equal_approx(pivot, 128.0), "Elaia flips about x=64")
+	failed += _check(not bool(view.call("portrait_flipped", "keeper")), "the Keeper is not flipped while Elaia swings")
+	failed += _check(is_equal_approx(float(view.get("_pose_left")), 1.0), "the strike pose holds for 1.0s")
+	var saw_hurt: bool = false
+	var queued: Variant = view.get("_pose_queue")
+	if queued is Array:
+		for step: Variant in queued as Array:
+			if step is Dictionary and (str((step as Dictionary).get("pose", "")) == "hurt" or str((step as Dictionary).get("pose", "")) == "ko"):
+				saw_hurt = true
+	failed += _check(saw_hurt == (shown.last_echo_damage > 0), "a landed blow queues the hurt pose")
+	var locked_round: int = shown.round
+	var locked_turns: int = shown.enemy_turns
+	shown.spare_window = true
+	view.call("_on_strike")
+	view.call("_on_brace")
+	view.call("_on_salve")
+	view.call("_on_flee")
+	view.call("_on_spare")
+	failed += _check(not bool(view.call("end_confirm_open")), "a click during the Echo half does not ask to finish")
+	failed += _check(shown.round == locked_round and shown.enemy_turns == locked_turns and shown.pending_half() == "keeper", "those clicks do not start a second round")
+	shown.spare_window = false
+	view.call("set_instant_turns", true)
+	await process_frame
+	failed += _check(not bool(view.call("turn_busy")) and shown.pending_half() == "" and shown.round == locked_round, "instant mode finishes the round in one frame")
+	var idle_path: String = str(view.call("portrait_texture_path", "echo"))
+	failed += _check(idle_path.find("battle_elaia_idle_w") >= 0 and not bool(view.call("portrait_flipped", "echo")), "Elaia returns to the unflipped idle")
+	var round_before: int = shown.round
+	view.call("_on_strike")
+	await process_frame
+	failed += _check(not bool(view.call("turn_busy")) and shown.pending_half() == "" and shown.round == round_before + 1, "a later instant strike also finishes in one frame")
+	view.call("_apply_combat_pose", "keeper", "attack")
+	failed += _check(str(view.call("portrait_texture_path", "keeper")).find("battle_keeper_attack") >= 0 and not bool(view.call("portrait_flipped", "keeper")), "the Keeper attack sheet stays unflipped")
+	echo.set("battle_context", "echo2")
+	shown.foe_art_path = "res://assets/art/battle/party/battle_bramble_idle_e.png"
+	view.call("_apply_combat_pose", "echo", "attack")
+	failed += _check(str(view.call("portrait_texture_path", "echo")).find("battle_bramble_attack") >= 0 and bool(view.call("portrait_flipped", "echo")), "Bramble's attack sheet is flipped")
+	view.call("_apply_combat_pose", "echo", "idle")
+	var bramble_idle: String = str(view.call("portrait_texture_path", "echo"))
+	failed += _check(bramble_idle.find("battle_bramble_idle_e") >= 0 and not bool(view.call("portrait_flipped", "echo")), "Bramble's idle stays unflipped")
+	view.free()
+	echo.set("battle_context", saved_ctx)
+	if failed == 0:
+		print("ECHO_TURN_FLOW_OK")
 	return failed
 
 

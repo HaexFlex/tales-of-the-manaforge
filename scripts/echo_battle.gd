@@ -44,6 +44,11 @@ var keeper_brace: bool = false
 ## Pack count after the last salve spend, so a load cannot quietly refund them.
 var salves_remembered: int = -1
 var turn_log: Array[Dictionary] = []
+## The view presents one half, then calls finish_presented_half(). Direct choose()
+## stays one call so the parity tests keep the same dice and the same flags.
+var present_halves: bool = false
+var instant_present: bool = false
+var _pending_second: String = ""
 
 var _dice: BattleRng = BattleRng.new()
 
@@ -164,6 +169,9 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 	keeper_brace = false
 	salves_remembered = -1
 	turn_log = []
+	present_halves = false
+	instant_present = false
+	_pending_second = ""
 
 
 func keeper_acts_first() -> bool:
@@ -183,6 +191,8 @@ func available_actions() -> PackedStringArray:
 
 
 func choose(action: String) -> String:
+	if _pending_second != "":
+		return "presenting"
 	if outcome != "":
 		return "resolved"
 	if spare_window:
@@ -242,16 +252,39 @@ func _spend_salve() -> bool:
 	return true
 
 
+func pending_half() -> String:
+	return _pending_second
+
+
+func finish_presented_half() -> String:
+	var which: String = _pending_second
+	_pending_second = ""
+	if which == "echo":
+		return _echo_answers()
+	if which == "keeper":
+		return _keeper_answers()
+	if which == "flee":
+		_finish("flee")
+		_log_line("battle_log_flee")
+		return "flee"
+	return "continue"
+
+
+func _defer_second(which: String) -> bool:
+	if present_halves and not instant_present:
+		_pending_second = which
+		return true
+	return false
+
+
 func _brace() -> String:
 	## Costs the Strike. The next landed Echo hit is halved (minimum 1).
 	keeper_brace = true
 	round += 1
 	_log_line("battle_log_brace")
-	_echo_turn()
-	if outcome != "":
-		return outcome
-	_maybe_timeout()
-	return "continue"
+	if _defer_second("echo"):
+		return "presenting"
+	return _echo_answers()
 
 
 func _salve() -> String:
@@ -261,11 +294,9 @@ func _salve() -> String:
 	keeper_hp = mini(keeper_max_hp, keeper_hp + heal)
 	_log_line("battle_log_salve", {"amount": heal})
 	round += 1
-	_echo_turn()
-	if outcome != "":
-		return outcome
-	_maybe_timeout()
-	return "continue"
+	if _defer_second("echo"):
+		return "presenting"
+	return _echo_answers()
 
 
 func _flee() -> String:
@@ -273,6 +304,8 @@ func _flee() -> String:
 		_echo_turn()
 		if outcome != "":
 			return outcome
+		if _defer_second("flee"):
+			return "presenting"
 	_finish("flee")
 	_log_line("battle_log_flee")
 	return "flee"
@@ -285,16 +318,28 @@ func _strike_round() -> String:
 		if outcome != "" or spare_window:
 			_maybe_timeout()
 			return "spare_window" if spare_window and outcome == "" else outcome
-		_echo_turn()
-		if outcome != "":
-			_maybe_timeout()
-			return outcome
-		_maybe_timeout()
-		return "continue"
+		if _defer_second("echo"):
+			return "presenting"
+		return _echo_answers()
 	_echo_turn()
 	if outcome != "":
 		_maybe_timeout()
 		return outcome
+	if _defer_second("keeper"):
+		return "presenting"
+	return _keeper_answers()
+
+
+func _echo_answers() -> String:
+	_echo_turn()
+	if outcome != "":
+		_maybe_timeout()
+		return outcome
+	_maybe_timeout()
+	return "continue"
+
+
+func _keeper_answers() -> String:
 	_keeper_strike()
 	if spare_window and outcome == "":
 		_maybe_timeout()
