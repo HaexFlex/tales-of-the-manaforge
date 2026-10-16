@@ -381,6 +381,7 @@ func _open_recipes(station_id: String) -> void:
 	if recipe_panel == null or recipe_list == null or not has_node("/root/ForgeJobs"):
 		return
 	_panel_station = station_id
+	set_meta("minigame_panel_station", station_id)
 	recipe_panel.visible = true
 	if recipe_title:
 		recipe_title.text = ForgeJobs.station_display(station_id)
@@ -632,6 +633,7 @@ func _hide_recipes() -> void:
 	if recipe_panel:
 		recipe_panel.visible = false
 	_panel_station = ""
+	set_meta("minigame_panel_station", "")
 	_refresh_station_job()
 	_relayout_hud()
 	if hud and hud.has_method("maybe_show_elaia_footsteps"):

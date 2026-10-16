@@ -933,6 +933,52 @@ func _world_hover() -> int:
 	WorldHover.present(node, "Harvest Stone")
 	failed += _check(WorldHover.current_text() == "", "world tooltip stays hidden while a minigame is open")
 	host.call("close_immediate")
+	var lend_failed: int = 0
+	ForgeJobs.note_keeper_idle()
+	node.call("_on_hover", true)
+	lend_failed += _check(prompt != null and not prompt.visible, "Lend a hand hides when the Keeper is not working the node")
+	ForgeJobs.set_elaia_task("gather", "stone", true)
+	node.call("_on_hover", true)
+	lend_failed += _check(prompt != null and not prompt.visible, "Lend a hand hides while Elaia works the node")
+	ForgeJobs.set_elaia_task("gather", "stone", false)
+	ForgeJobs.set_keeper_task("station", "anvil", true)
+	host.call("show_prompt", "anvil", Vector2(400, 300), true)
+	lend_failed += _check(prompt != null and not prompt.visible, "a station lend does not float over the station sprite")
+	var room := Node2D.new()
+	room.name = "ForgeStub"
+	room.add_to_group("forge_room")
+	room.set_meta("minigame_panel_station", "anvil")
+	var ui := CanvasLayer.new()
+	ui.name = "UI"
+	room.add_child(ui)
+	var recipe := Panel.new()
+	recipe.name = "RecipePanel"
+	recipe.position = Vector2(120, 90)
+	recipe.size = Vector2(440, 400)
+	recipe.visible = true
+	ui.add_child(recipe)
+	Engine.get_main_loop().root.add_child(room)
+	host.call("show_prompt", "anvil", Vector2(400, 300), true)
+	lend_failed += _check(prompt != null and prompt.visible, "Lend a hand shows inside the open station window")
+	if prompt != null:
+		lend_failed += _check(recipe.get_global_rect().encloses(prompt.get_global_rect()), "the station lend sits inside the recipe window")
+	room.queue_free()
+	var bench := Panel.new()
+	bench.name = "BenchPanel"
+	bench.position = Vector2(40, 60)
+	bench.size = Vector2(700, 420)
+	bench.visible = true
+	Engine.get_main_loop().root.add_child(bench)
+	ForgeJobs.set_keeper_task("station", "workbench", true)
+	host.call("show_prompt", "workbench", Vector2(200, 200), true)
+	lend_failed += _check(prompt != null and prompt.visible, "Lend a hand shows inside the workbench window")
+	if prompt != null:
+		lend_failed += _check(bench.get_global_rect().encloses(prompt.get_global_rect()), "the workbench lend sits inside the bench window")
+	bench.queue_free()
+	host.call("show_prompt", "workbench", Vector2(200, 200), false)
+	if lend_failed == 0:
+		print("LEND_HAND_OK")
+	failed += lend_failed
 	node.queue_free()
 	WorldHover.shutdown()
 	if bool(prev.get("working", false)):

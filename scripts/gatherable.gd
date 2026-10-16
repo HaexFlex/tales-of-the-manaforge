@@ -248,7 +248,7 @@ func _on_hover(inside: bool) -> void:
 func _lend_line() -> String:
 	if not has_node("/root/MinigameHost"):
 		return ""
-	if str(MinigameHost.call("hero_for", String(resource_id))) == "":
+	if str(MinigameHost.call("hero_for", String(resource_id))) != "keeper":
 		return ""
 	return ContentStrings.get_text("minigame_lend_a_hand")
 

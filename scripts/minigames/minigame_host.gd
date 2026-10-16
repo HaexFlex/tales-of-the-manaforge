@@ -862,14 +862,23 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _refresh_prompt() -> void:
 	var show: bool = _prompt_on and not _open and not _walk
+	var station_window: Control = null
 	if show:
 		var game_id: String = MinigameCatalog.game_for(_prompt_target)
-		show = game_id != "" and MinigameCatalog.is_reachable(game_id) and hero_for(_prompt_target) != ""
+		## Elaia working the node is not a lend. Only the Keeper's own work offers it.
+		show = game_id != "" and MinigameCatalog.is_reachable(game_id) and hero_for(_prompt_target) == "keeper"
 		if has_node("/root/GameState") and GameState.is_world_frozen():
 			show = false
+		if show and MinigameCatalog.kind(game_id) == "station":
+			station_window = _station_window(_prompt_target)
+			## A world-space button sits on the station sprite and eats its clicks.
+			show = station_window != null
 	_prompt.visible = show
 	_prompt.mouse_filter = Control.MOUSE_FILTER_STOP if show else Control.MOUSE_FILTER_IGNORE
 	if not show:
+		return
+	if station_window != null:
+		_place_prompt_in_window(station_window)
 		return
 	var screen: Vector2 = _screen_of(_prompt_world)
 	var sz: Vector2 = _prompt.get_combined_minimum_size()
@@ -882,6 +891,51 @@ func _refresh_prompt() -> void:
 	var x: float = clampf(screen.x - sz.x * 0.5, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.x - Ui540.SAFE_MARGIN_PX - sz.x))
 	var y: float = clampf(screen.y - sz.y - 12.0, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.y - Ui540.SAFE_MARGIN_PX - sz.y))
 	_prompt.position = Vector2(x, y)
+
+
+## Forge stations use the recipe window. The workbench uses the bench window.
+func _station_window(target_id: String) -> Control:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return null
+	if target_id == "workbench":
+		return _first_visible_named(tree.root, "BenchPanel")
+	for room: Node in tree.get_nodes_in_group("forge_room"):
+		if not room.has_meta("minigame_panel_station"):
+			continue
+		if str(room.get_meta("minigame_panel_station")) != target_id:
+			continue
+		var recipe: Control = room.get_node_or_null("UI/RecipePanel") as Control
+		if recipe != null and recipe.visible and recipe.is_visible_in_tree():
+			return recipe
+	return null
+
+
+func _first_visible_named(node: Node, wanted: String) -> Control:
+	if node is Control and str(node.name) == wanted:
+		var panel: Control = node as Control
+		if panel.visible and panel.is_visible_in_tree():
+			return panel
+	for child: Node in node.get_children():
+		var found: Control = _first_visible_named(child, wanted)
+		if found != null:
+			return found
+	return null
+
+
+func _place_prompt_in_window(panel: Control) -> void:
+	var rect: Rect2 = panel.get_global_rect()
+	var sz: Vector2 = _prompt.size
+	if sz.x < 168.0:
+		sz.x = 168.0
+	sz.y = Ui540.TAP_MIN_PX
+	_prompt.size = sz
+	Ui540.fit_button_font(_prompt, sz.x)
+	var x: float = rect.end.x - 24.0 - Ui540.TAP_MIN_PX - 8.0 - sz.x
+	var y: float = rect.position.y + 20.0
+	x = clampf(x, rect.position.x + 16.0, maxf(rect.position.x + 16.0, rect.end.x - sz.x - 16.0))
+	y = clampf(y, rect.position.y + 16.0, maxf(rect.position.y + 16.0, rect.end.y - sz.y - 16.0))
+	_prompt.global_position = Vector2(x, y)
 
 
 func _screen_of(world: Vector2) -> Vector2:
