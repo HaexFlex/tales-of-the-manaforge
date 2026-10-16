@@ -150,6 +150,7 @@ func _run() -> void:
 	failed += _forge_wisp_ring()
 	failed += _footsteps_theme()
 	failed += _ancient_orbit()
+	failed += await _slot_rename()
 	failed += await _room_cleared_window()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
@@ -591,6 +592,78 @@ func _ancient_orbit() -> int:
 	mana.queue_free()
 	if failed == 0:
 		print("ANCIENT_ORBIT_OK")
+	return failed
+
+
+func _live_slot_button(pm: Node, kind: String, slot: int) -> Button:
+	var box: Node = pm.get_node_or_null("SlotsPanel/SlotScroll/SlotButtons")
+	if box == null:
+		return null
+	for child: Node in box.get_children():
+		if child.is_queued_for_deletion() or not child.has_meta("slot_index"):
+			continue
+		if str(child.get_meta("slot_kind", "")) == kind and int(child.get_meta("slot_index", 0)) == slot:
+			return child as Button
+	return null
+
+
+func _slot_rename() -> int:
+	var failed: int = 0
+	var save: Node = root.get_node("SaveService")
+	var elder: Dictionary = {"kind": "manual", "stage_display": "Elder Tree", "slot_name": ""}
+	failed += _check(str(save.call("record_title", elder)) == "Elder Tree", "a new manual slot still shows the stage")
+	elder["slot_name"] = "North Grove"
+	failed += _check(str(save.call("record_title", elder)) == "North Grove", "a clicked name replaces Elder Tree")
+	elder["kind"] = "autosave"
+	failed += _check(str(save.call("record_title", elder)) == "Elder Tree", "autosave keeps the stage name")
+	var path: String = str(save.call("slot_path", 7))
+	var backup: String = FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	var had: bool = FileAccess.file_exists(path)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		failed += _check(false, "slot 7 can be written")
+	else:
+		file.store_string(JSON.stringify({
+			"save_version": 15,
+			"timestamp": 1,
+			"slot": 7,
+			"kind": "manual",
+			"state": {"stage_id": "elder"},
+		}))
+		file.close()
+		var info: Dictionary = save.call("get_slot_info", 7)
+		failed += _check(str(save.call("record_title", info)) == "Elder Tree", "an old manual file has no custom name")
+		failed += _check(bool(save.call("rename_manual_slot", 7, "North Grove")), "rename writes")
+		info = save.call("get_slot_info", 7)
+		failed += _check(str(info.get("slot_name", "")) == "North Grove", "the name is stored")
+		failed += _check(int(info.get("save_version", 0)) == 15, "rename does not bump SAVE_VERSION")
+		var pause_packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+		var pm: Node = pause_packed.instantiate() if pause_packed != null else null
+		if pm != null:
+			root.add_child(pm)
+			pm.set("_slot_mode", 2)
+			pm.call("_show_slots", "Load")
+			var manual: Button = _live_slot_button(pm, "manual", 7)
+			var edit: LineEdit = manual.get_node_or_null("NameEdit") as LineEdit if manual != null else null
+			failed += _check(edit != null and edit.visible and edit.text == "North Grove" and edit.max_length == 28, "a manual slot renames on click")
+			pm.call("_on_slot_tab", "autosave")
+			var auto_btn: Button = _live_slot_button(pm, "autosave", 1)
+			failed += _check(auto_btn != null and auto_btn.get_node_or_null("NameEdit") == null, "an autosave keeps its automatic name")
+			pm.queue_free()
+		else:
+			failed += _check(false, "pause menu loads")
+		failed += _check(bool(save.call("save_game", 7)), "overwrite keeps the slot")
+		info = save.call("get_slot_info", 7)
+		failed += _check(str(info.get("slot_name", "")) == "North Grove", "saving again keeps the clicked name")
+	if had:
+		var restore := FileAccess.open(path, FileAccess.WRITE)
+		if restore != null:
+			restore.store_string(backup)
+			restore.close()
+	else:
+		DirAccess.remove_absolute(path)
+	if failed == 0:
+		print("SLOT_RENAME_OK")
 	return failed
 
 

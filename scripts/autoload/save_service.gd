@@ -194,6 +194,12 @@ func _write_payload(path: String, slot: int, kind: String, stamped: float = -1.0
 		"kind": kind,
 		"state": GameState.to_save_dict(),
 	}
+	## Optional label. Old files omit it and still read. Autosaves never take one.
+	if kind == "manual":
+		var previous: Dictionary = _read_root(path)
+		var kept: String = str(previous.get("slot_name", "")).strip_edges()
+		if kept != "":
+			payload["slot_name"] = kept
 	var ok: bool = _write_atomic(path, JSON.stringify(payload, "\t"))
 	if not ok:
 		return false
@@ -477,7 +483,34 @@ func _info_from_root(slot: int, kind: String, root: Dictionary) -> Dictionary:
 		"depth": int(state.get("depth", 1)),
 		"save_version": int(root.get("save_version", 0)),
 		"newer": is_newer_than_build(int(root.get("save_version", 0))),
+		"slot_name": str(root.get("slot_name", "")),
 	}
+
+
+func record_title(info: Dictionary) -> String:
+	## A manual slot shows its clicked name. Autosaves stay on the stage name.
+	if str(info.get("kind", "")) == "manual":
+		var custom: String = str(info.get("slot_name", "")).strip_edges()
+		if custom != "":
+			return custom
+	return str(info.get("stage_display", ""))
+
+
+func rename_manual_slot(slot: int, raw_name: String) -> bool:
+	if not is_valid_slot(slot):
+		return false
+	var path: String = slot_path(slot)
+	var root: Dictionary = _read_root(path)
+	if root.is_empty():
+		return false
+	var trimmed: String = raw_name.strip_edges()
+	if trimmed.length() > 28:
+		trimmed = trimmed.substr(0, 28)
+	if trimmed == "":
+		root.erase("slot_name")
+	else:
+		root["slot_name"] = trimmed
+	return _write_atomic(path, JSON.stringify(root, "\t"))
 
 
 func get_most_recent_slot() -> int:

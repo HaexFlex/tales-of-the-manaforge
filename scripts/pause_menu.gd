@@ -1073,6 +1073,26 @@ func _add_slot_button(kind: String, slot: int) -> void:
 	btn.set_meta("slot_kind", kind)
 	btn.set_meta("slot_index", slot)
 	btn.pressed.connect(_on_slot_pressed.bind(kind, slot))
+	if kind == "manual":
+		var edit := LineEdit.new()
+		edit.name = "NameEdit"
+		edit.visible = false
+		edit.flat = true
+		edit.max_length = 28
+		edit.mouse_filter = Control.MOUSE_FILTER_STOP
+		edit.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		edit.position = Vector2(12, 6)
+		edit.size = Vector2(240, 32)
+		edit.add_theme_font_override("font", GameTheme.body_font())
+		edit.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+		edit.add_theme_color_override("font_color", GameTheme.INK)
+		edit.add_theme_color_override("font_placeholder_color", GameTheme.MUTED)
+		var empty := StyleBoxEmpty.new()
+		edit.add_theme_stylebox_override("normal", empty)
+		edit.add_theme_stylebox_override("focus", empty)
+		edit.text_submitted.connect(_commit_slot_name.bind(edit, slot))
+		edit.focus_exited.connect(_commit_slot_name.bind(edit, slot))
+		btn.add_child(edit)
 	var del := Button.new()
 	del.name = "Delete"
 	del.flat = true
@@ -1127,14 +1147,24 @@ func _refresh_slot_labels() -> void:
 			sub.offset_top = -16.0
 			sub.offset_bottom = 16.0
 		var del: Button = btn.get_node_or_null("Delete") as Button
+		var edit: LineEdit = btn.get_node_or_null("NameEdit") as LineEdit
 		if bool(info.get("filled", false)):
-			line = str(info.get("stage_display", ""))
+			line = SaveService.record_title(info)
 			if line == "":
 				line = "Slot %d" % slot
 			sub.text = _slot_subline(info)
 			sub.visible = true
 			if del:
 				del.visible = true
+			if edit != null and kind == "manual":
+				edit.visible = true
+				if not edit.has_focus():
+					edit.text = line
+				btn.text = ""
+			else:
+				btn.text = line
+				if edit:
+					edit.visible = false
 		else:
 			line = "Slot %d — %s" % [slot, ContentStrings.get_text("pause_slot_empty")]
 			if kind == "autosave":
@@ -1145,7 +1175,25 @@ func _refresh_slot_labels() -> void:
 			sub.visible = false
 			if del:
 				del.visible = false
-		btn.text = line
+			if edit:
+				edit.visible = false
+			btn.text = line
+
+
+func _commit_slot_name(edit: LineEdit, slot: int) -> void:
+	if edit == null or not edit.visible:
+		return
+	var info: Dictionary = SaveService.get_slot_info(slot)
+	if not bool(info.get("filled", false)):
+		return
+	var next: String = edit.text.strip_edges()
+	var shown: String = SaveService.record_title(info)
+	## Leaving the field on the name already shown must not freeze the stage label.
+	if next != shown:
+		SaveService.rename_manual_slot(slot, next)
+		info = SaveService.get_slot_info(slot)
+	if not edit.has_focus():
+		edit.text = SaveService.record_title(info)
 
 
 func _slot_subline(info: Dictionary) -> String:
