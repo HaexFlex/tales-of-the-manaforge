@@ -319,6 +319,10 @@ func _add_section(section_id: String, title_key: String, icon_file: String, summ
 		hint_line.name = "ShardHint"
 		hint_line.text = ContentStrings.get_text("offline_shard_hint") if has_node("/root/ContentStrings") else ""
 		hint_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		hint_line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hint_line.clip_text = false
+		hint_line.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		hint_line.autowrap_mode = TextServer.AUTOWRAP_OFF
 		_style_ink(hint_line, true)
 		hint_line.custom_minimum_size = Vector2(0, HINT_H)
 		host.add_child(hint_line)
@@ -371,6 +375,10 @@ func _detail_row(row: Dictionary, index: int, gathered_open: bool) -> Control:
 		hint.position = Vector2(14, 28)
 		hint.size = Vector2(400, 18)
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		hint.clip_text = false
+		hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 		panel.add_child(hint)
 	return panel
 
@@ -451,6 +459,20 @@ func _layout_rows() -> void:
 			summary.clip_text = true
 			summary.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			summary.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var hint: Label = host_v.get_node_or_null("ShardHint") as Label
+		_fit_hint(hint, row_w)
+
+
+func _fit_hint(hint: Label, row_w: float) -> void:
+	if hint == null:
+		return
+	hint.clip_text = false
+	hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint.custom_minimum_size = Vector2(0, HINT_H)
+	hint.size = Vector2(row_w, HINT_H)
 
 
 func _sections_height() -> float:
