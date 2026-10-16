@@ -346,39 +346,49 @@ func _detail_row(row: Dictionary, index: int, gathered_open: bool) -> Control:
 	var kind: String = str(row.get("kind", "text"))
 	var tall: bool = kind == "manashards" and gathered_open
 	var h: float = SHARD_ROW_H if tall else ROW_H
-	var panel := PanelContainer.new()
+	var panel := Panel.new()
+	panel.name = "DetailRow"
+	panel.set_meta("kind", kind)
 	panel.custom_minimum_size = Vector2(0, h)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var tex: String = ART + "list_row_9s_odd_24x24.png" if index % 2 == 1 else THEME_UI + "list_row_9s_even_24x24.png"
 	panel.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(tex, Vector4i(2, 2, 2, 2)))
+	var icon_path := "%sicon_%s.png" % [ICONS, kind]
+	if FileAccess.file_exists(icon_path):
+		var icon := TextureRect.new()
+		icon.name = "RowIcon"
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.texture = load(icon_path)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.size = Vector2(24, 24)
+		panel.add_child(icon)
 	var label := Label.new()
+	label.name = "RowName"
 	label.text = str(row.get("text", ""))
-	label.position = Vector2(14, 6)
+	label.clip_text = true
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_style_ink(label, false)
 	panel.add_child(label)
 	var value: String = str(row.get("value", ""))
 	if value != "":
 		var val := Label.new()
+		val.name = "RowValue"
 		val.text = value
 		val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		val.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		val.clip_text = false
+		val.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_style_ink(val, false)
-		val.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		val.position = Vector2(-120, 6)
-		val.size = Vector2(108, 22)
 		panel.add_child(val)
 	if kind == "manashards" and gathered_open and _shard_tag() != "":
-		var tag := _place_tag(panel, _shard_tag())
-		tag.position = Vector2(220, 6)
+		_place_tag(panel, _shard_tag())
 		var hint := Label.new()
 		hint.name = "ShardHint"
 		hint.text = ContentStrings.get_text("offline_shard_hint") if has_node("/root/ContentStrings") else ""
 		_style_ink(hint, true)
-		hint.position = Vector2(14, 28)
-		hint.size = Vector2(400, 18)
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		hint.clip_text = false
-		hint.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
-		hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 		panel.add_child(hint)
 	return panel
 
@@ -461,6 +471,43 @@ func _layout_rows() -> void:
 			summary.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		var hint: Label = host_v.get_node_or_null("ShardHint") as Label
 		_fit_hint(hint, row_w)
+		var details: Node = host_v.get_node_or_null("Details")
+		if details:
+			for row_v: Node in details.get_children():
+				if row_v is Panel:
+					_layout_detail(row_v as Panel, row_w)
+
+
+func _layout_detail(panel: Panel, row_w: float) -> void:
+	var icon: Control = panel.get_node_or_null("RowIcon") as Control
+	var name: Label = panel.get_node_or_null("RowName") as Label
+	var value: Label = panel.get_node_or_null("RowValue") as Label
+	var chip: Control = panel.get_node_or_null("ShardChip") as Control
+	var hint: Label = panel.get_node_or_null("ShardHint") as Label
+	var name_x: float = 40.0 if icon != null else 14.0
+	var text_y: float = 4.0 if hint != null else 6.0
+	if icon:
+		icon.position = Vector2(8, text_y)
+		icon.size = Vector2(24, 24)
+	var right: float = row_w - 10.0
+	if chip != null and chip.visible:
+		var chip_w: float = maxf(chip.custom_minimum_size.x, 22.0)
+		_pin_top_left(chip)
+		chip.position = Vector2(right - chip_w, text_y)
+		chip.size = Vector2(chip_w, 22)
+		right = chip.position.x - 6.0
+	if value:
+		var value_w: float = ceilf(_text_width(value)) + 2.0
+		_pin_top_left(value)
+		value.position = Vector2(right - value_w, text_y)
+		value.size = Vector2(value_w, 22)
+		right = value.position.x - 8.0
+	if name:
+		name.position = Vector2(name_x, text_y)
+		name.size = Vector2(maxf(40.0, right - name_x), 22)
+	if hint:
+		_fit_hint(hint, maxf(40.0, row_w - name_x - 10.0))
+		hint.position = Vector2(name_x, 28)
 
 
 func _fit_hint(hint: Label, row_w: float) -> void:
@@ -510,7 +557,7 @@ func _pin_top_left(ctrl: Control) -> void:
 
 func _toggle_section(section_id: String) -> void:
 	_open_sections[section_id] = not bool(_open_sections.get(section_id, false))
-	_fill()
+	call_deferred("_fill")
 
 
 func _style_header(btn: Button, open: bool) -> void:
