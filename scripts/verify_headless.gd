@@ -5066,6 +5066,7 @@ func _offline_layout_ok(tree_root: Window, game_state: Node) -> int:
 		panel.call("present", lengthy)
 		await tree_root.get_tree().process_frame
 		failed += _offline_continue_box(panel, vs)
+		failed += _offline_gathered_scroll(panel, font)
 		var header: Button = panel.find_child("gathered", true, false).get_node("Header") as Button
 		header.pressed.emit()
 		await tree_root.get_tree().process_frame
@@ -5149,7 +5150,7 @@ func _offline_summary_text(panel: Node, section_id: String) -> String:
 	var host: Node = panel.find_child(section_id, true, false)
 	if host == null:
 		return ""
-	var summary: Label = host.get_node_or_null("Header/Summary") as Label
+	var summary: Label = host.find_child("Summary", true, false) as Label
 	if summary == null:
 		return ""
 	return summary.text
@@ -5157,13 +5158,24 @@ func _offline_summary_text(panel: Node, section_id: String) -> String:
 
 func _offline_summary_fits(panel: Node, section_id: String, font: Font, whole: bool) -> int:
 	var host: Node = panel.find_child(section_id, true, false)
-	var summary: Label = host.get_node_or_null("Header/Summary") as Label if host else null
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
 	if summary == null:
 		return _assert(false, "summary %s" % section_id)
 	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
 	if whole:
 		return _assert(summary.size.x + 0.5 >= text_w and summary.size.x > 80.0, "%s summary is fully visible (slot %.0f text %.0f)" % [section_id, summary.size.x, text_w])
 	return _assert(summary.size.x > 200.0, "%s summary keeps a real row (slot %.0f)" % [section_id, summary.size.x])
+
+
+func _offline_gathered_scroll(panel: Node, font: Font) -> int:
+	var host: Node = panel.find_child("gathered", true, false)
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
+	var clip: Control = host.find_child("SummaryClip", true, false) as Control if host else null
+	if summary == null or clip == null:
+		return _assert(false, "gathered summary scrolls inside its row")
+	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	var shows_all: bool = summary.size.x + 0.5 >= text_w and summary.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING and summary.text.find("…") < 0 and summary.text.find("Food") >= 0
+	return _assert(shows_all and clip.clip_contents and summary.size.x > clip.size.x + 8.0, "gathered shows every item inside the row (text %.0f label %.0f slot %.0f)" % [text_w, summary.size.x, clip.size.x])
 
 
 func _offline_values_fit(panel: Node, font: Font) -> int:
