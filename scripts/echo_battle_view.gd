@@ -1362,8 +1362,10 @@ func _outcome_toast(outcome: String) -> String:
 				parts.append(ContentStrings.get_text("battle_flee_ok"))
 			"spare":
 				parts.append(ContentStrings.get_text("adventure_echo2_toast_spare"))
+				parts.append(ContentStrings.get_text("battle_shards_gain", {"amount": EchoChamber.snapshot_payout("spare")}))
 			"defeat":
 				parts.append(ContentStrings.get_text("adventure_echo2_toast_defeat"))
+				parts.append(ContentStrings.get_text("battle_shards_gain", {"amount": EchoChamber.snapshot_payout("defeat")}))
 		return "\n".join(parts)
 	match outcome:
 		"flee":
@@ -1531,7 +1533,11 @@ func _reward_value_color(tone: String) -> Color:
 
 func _reward_rows(outcome: String) -> Array:
 	if _is_bramble():
-		return [[_pending_toast, "", "pearl"]]
+		var bramble_shards: int = EchoChamber.snapshot_payout(outcome)
+		return [
+			[ContentStrings.get_text("hud_manashards"), "+%d" % bramble_shards, "cyan"],
+			[_pending_toast, "", "pearl"],
+		]
 	var shards: int = EchoChamber.snapshot_payout(outcome)
 	var rows: Array = [
 		[ContentStrings.get_text("hud_manashards"), "+%d" % shards, "cyan"],

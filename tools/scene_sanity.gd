@@ -140,6 +140,7 @@ func _run() -> void:
 	await process_frame
 
 	failed += _weapons()
+	failed += _bramble_shards()
 	failed += await _battle_view()
 	failed += await _portal_fee_confirm()
 
@@ -343,6 +344,38 @@ func _replay_keeper_strike(mode: String, might: int, arcana: int, fate: int, def
 		0, 1, 1, dice
 	)
 	return int(res.get("damage", -1))
+
+
+func _bramble_shards() -> int:
+	var failed: int = 0
+	var echo: Node = root.get_node("EchoChamber")
+	var game: Node = root.get_node("GameState")
+	var before: int = int(game.call("get_resource", &"manashards"))
+	var resolved: bool = bool(game.get("echo_02_resolved"))
+	var outcome_was: String = str(game.get("echo_02_outcome"))
+	var paid: bool = bool(game.get("echo_02_fee_paid"))
+	var key: bool = bool(game.get("forge_key"))
+	echo.set("battle_context", "echo2")
+	var expect_spare: int = int(echo.call("snapshot_payout", "spare"))
+	var spare_pay: Dictionary = echo.call("apply_outcome", "spare")
+	failed += _check(expect_spare > 0 and int(spare_pay.get("shards", -1)) == expect_spare, "Bramble spare uses Elaia's shard formula")
+	failed += _check(int(game.call("get_resource", &"manashards")) == before + expect_spare, "Bramble spare adds the shards")
+	failed += _check(not bool(game.get("forge_key")), "Bramble spare does not grant the Forge Key")
+	echo.set("battle_context", "echo2")
+	var expect_defeat: int = int(echo.call("snapshot_payout", "defeat"))
+	var mid: int = int(game.call("get_resource", &"manashards"))
+	var defeat_pay: Dictionary = echo.call("apply_outcome", "defeat")
+	failed += _check(expect_defeat > 0 and int(defeat_pay.get("shards", -1)) == expect_defeat, "Bramble defeat uses Elaia's shard formula")
+	failed += _check(int(game.call("get_resource", &"manashards")) == mid + expect_defeat, "Bramble defeat adds the shards")
+	game.call("set_resource", &"manashards", before)
+	game.set("echo_02_resolved", resolved)
+	game.set("echo_02_outcome", outcome_was)
+	game.set("echo_02_fee_paid", paid)
+	game.set("forge_key", key)
+	echo.set("battle_context", "")
+	if failed == 0:
+		print("BRAMBLE_SHARDS_OK")
+	return failed
 
 
 func _adventure_mode_chip() -> int:

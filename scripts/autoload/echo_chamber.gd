@@ -201,7 +201,11 @@ func apply_outcome(outcome: String) -> Dictionary:
 
 
 func _apply_bramble(outcome: String) -> Dictionary:
+	var shards: int = 0
 	if outcome == "spare" or outcome == "defeat":
+		shards = snapshot_payout(outcome)
+		if shards > 0:
+			GameState.add_resource(&"manashards", shards)
 		GameState.echo_02_resolved = true
 		GameState.echo_02_fee_paid = false
 		GameState.echo_02_outcome = outcome
@@ -216,7 +220,7 @@ func _apply_bramble(outcome: String) -> Dictionary:
 	elif outcome == "flee":
 		GameState.echo_02_outcome = "flee"
 	GameState.echo_flags_changed.emit()
-	return {"outcome": outcome, "shards": 0}
+	return {"outcome": outcome, "shards": shards}
 
 
 func finish_battle(outcome: String) -> void:
