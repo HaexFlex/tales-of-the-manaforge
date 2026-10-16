@@ -183,7 +183,17 @@ func _battle_blocks_save() -> bool:
 	return has_node("/root/EchoChamber") and EchoChamber.in_battle
 
 
+func manual_path_is_autosave(path: String) -> bool:
+	for slot: int in range(1, AUTOSAVE_SLOT_COUNT + 1):
+		if path == autosave_path(slot):
+			return true
+	return false
+
+
 func _write_payload(path: String, slot: int, kind: String, stamped: float = -1.0) -> bool:
+	if kind == "manual" and manual_path_is_autosave(path):
+		push_error("SaveService: a manual save cannot overwrite an autosave")
+		return false
 	var when: float = stamped if stamped >= 0.0 else Time.get_unix_time_from_system()
 	var save_id: int = _fresh_save_id()
 	var payload: Dictionary = {

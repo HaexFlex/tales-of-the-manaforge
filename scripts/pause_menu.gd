@@ -965,6 +965,7 @@ func _show_slots(title: String) -> void:
 	_refresh_slot_labels()
 	panel.visible = false
 	_layout_slots()
+	_sync_save_tabs()
 	slots_panel.visible = true
 	GameAudio.play_ui_open()
 
@@ -1020,11 +1021,25 @@ func _ensure_slot_tabs() -> void:
 	Ui540.configure_kit_close_button(closer)
 
 
+func _sync_save_tabs() -> void:
+	var autosave_tab: Button = slots_panel.get_node_or_null("TabAutosave") as Button if slots_panel != null else null
+	var manual_tab: Button = slots_panel.get_node_or_null("TabManual") as Button if slots_panel != null else null
+	var saving: bool = _slot_mode == SlotMode.SAVE
+	if autosave_tab != null:
+		autosave_tab.disabled = saving
+		if saving:
+			autosave_tab.button_pressed = false
+	if saving and manual_tab != null:
+		manual_tab.button_pressed = true
+
+
 func _on_slot_tab(tab_id: String) -> void:
 	if _slot_mode == SlotMode.SAVE and tab_id == "autosave":
-		_slot_tab = "autosave"
-	else:
-		_slot_tab = tab_id
+		_slot_tab = "manual"
+		_sync_save_tabs()
+		GameAudio.play_ui_cancel()
+		return
+	_slot_tab = tab_id
 	_rebuild_slot_rows(_slot_tab == "autosave")
 	_refresh_slot_labels()
 	_layout_slots()
@@ -1034,6 +1049,8 @@ func _rebuild_slot_rows(include_autosave: bool) -> void:
 	for child: Node in slot_buttons.get_children():
 		child.queue_free()
 	_slot_btns.clear()
+	if _slot_mode == SlotMode.SAVE:
+		include_autosave = false
 	if include_autosave:
 		for slot: int in range(1, SaveService.AUTOSAVE_SLOT_COUNT + 1):
 			_add_slot_button("autosave", slot)

@@ -148,6 +148,7 @@ func _run() -> void:
 	failed += _water_splash()
 	failed += _forge_arch_raise()
 	failed += _forge_wisp_ring()
+	failed += _manual_save_guard()
 	failed += await _bench_cancel()
 	failed += _footsteps_theme()
 	failed += _ancient_orbit()
@@ -576,6 +577,44 @@ func _forge_wisp_ring() -> int:
 	wisp.queue_free()
 	if failed == 0:
 		print("FORGE_WISP_RING_OK")
+	return failed
+
+
+func _manual_save_guard() -> int:
+	var failed: int = 0
+	var save: Node = root.get_node("SaveService")
+	var path: String = str(save.call("autosave_path", 1))
+	var backup: String = FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	var had: bool = FileAccess.file_exists(path)
+	var sentinel := "{\"kind\":\"autosave\",\"sentinel\":1}"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	failed += _check(file != null, "autosave slot 1 can be marked")
+	if file != null:
+		file.store_string(sentinel)
+		file.close()
+	failed += _check(not bool(save.call("_write_payload", path, 1, "manual")), "a manual write refuses an autosave path")
+	failed += _check(FileAccess.get_file_as_string(path) == sentinel, "the autosave file is unchanged")
+	var pause_packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var pm: Node = pause_packed.instantiate()
+	root.add_child(pm)
+	pm.set("_slot_mode", 1)
+	pm.call("_show_slots", "Save")
+	var autosave_tab: Button = pm.get_node_or_null("SlotsPanel/TabAutosave") as Button
+	failed += _check(autosave_tab != null and autosave_tab.disabled, "Save disables the Autosaves tab")
+	pm.call("_on_slot_tab", "autosave")
+	failed += _check(str(pm.get("_slot_tab")) == "manual", "Save stays on the manual tab")
+	failed += _check(_live_slot_button(pm, "autosave", 1) == null, "Save does not list autosave slots")
+	failed += _check(_live_slot_button(pm, "manual", 1) != null, "Save still lists manual slots")
+	pm.free()
+	if had:
+		var restore := FileAccess.open(path, FileAccess.WRITE)
+		if restore != null:
+			restore.store_string(backup)
+			restore.close()
+	else:
+		DirAccess.remove_absolute(path)
+	if failed == 0:
+		print("MANUAL_SAVE_GUARD_OK")
 	return failed
 
 
