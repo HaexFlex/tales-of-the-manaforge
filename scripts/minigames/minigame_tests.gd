@@ -402,20 +402,44 @@ func _stone_runes() -> int:
 	failed += _check(keeper != null and keeper.position.distance_to(SplittingStone.KEEPER_POS) < 1.0, "the pick keeper stands on the stone")
 	failed += _check(keeper != null and keeper.position.y < 180.0 and keeper.position.x > 200.0, "the pick keeper is closer and higher")
 	failed += _check(stone_spr != null and stone_rect.has_point(tip), "the pick tip lands on the stone")
+	var font_px: int = 0
+	var left_to_right: bool = true
+	var xs: Array[float] = []
+	for n: int in 3:
+		var lbl: Label = node.get_node_or_null("Rune%d" % (n + 1)) as Label
+		if lbl == null:
+			left_to_right = false
+			continue
+		font_px = lbl.get_theme_font_size("font_size")
+		xs.append(lbl.position.x)
+		if lbl.text != str(n + 1):
+			left_to_right = false
+	for n: int in range(1, xs.size()):
+		if xs[n] <= xs[n - 1]:
+			left_to_right = false
+	failed += _check(left_to_right, "crack numbers read 1, 2, 3 from left to right")
+	failed += _check(font_px >= 26, "crack numbers are larger than the old 20 px type")
 	var orders: Dictionary = {}
 	var not_plain: bool = false
-	for _spin: int in 16:
-		var parts: PackedStringArray = PackedStringArray()
-		for n: int in 3:
-			var lbl: Label = node.get_node_or_null("Rune%d" % (n + 1)) as Label
-			parts.append(lbl.text if lbl != null else "")
-		var key: String = ",".join(parts)
+	for _spin: int in 24:
+		var order_v: Variant = node.get("_order")
+		var key: String = str(order_v)
 		orders[key] = true
-		if key != "1,2,3":
+		if key != "[0, 1, 2]":
 			not_plain = true
+		var shown_plain: bool = true
+		for n: int in 3:
+			var again_lbl: Label = node.get_node_or_null("Rune%d" % (n + 1)) as Label
+			if again_lbl == null or again_lbl.text != str(n + 1):
+				shown_plain = false
+		failed += _check(shown_plain, "displayed crack numbers stay positional")
+		node.set("_t", 0.6 + 0.4)
+		var lit: int = int(node.call("_lit_index"))
+		var order: Array = order_v as Array
+		failed += _check(order.size() == 3 and lit == int(order[0]), "the first beat lights the first hit, not the leftmost crack")
 		node.call("_reset_spots")
-	failed += _check(orders.size() > 1, "the crack order changes between boulders")
-	failed += _check(not_plain, "the crack order is not always 1, 2, 3")
+	failed += _check(orders.size() > 1, "the hit order changes between boulders")
+	failed += _check(not_plain, "the hit order is not always left, middle, right")
 	var spots: Array[Node] = []
 	for child: Node in node.get_children():
 		if child is Sprite2D and str(child.name).begins_with("RuneSpot"):

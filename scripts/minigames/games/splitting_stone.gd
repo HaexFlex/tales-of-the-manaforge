@@ -16,6 +16,9 @@ var _keeper: Sprite2D
 var _clock: float = 0.0
 var _swing_at: float = -10.0
 var _labels: Array[int] = [1, 2, 3]
+## Which spot lights on each beat. A fresh permutation every boulder.
+var _order: Array[int] = [0, 1, 2]
+const RUNE_FONT: int = 26
 ## Impact of swing frame 6, relative to the sprite centre. The sheet is 384×272.
 const KEEPER_POS := Vector2(228, 158)
 const STONE_POS := Vector2(360, 168)
@@ -48,9 +51,9 @@ func _ready() -> void:
 		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		number.size = Vector2(32, 24)
+		number.size = Vector2(40, 32)
 		number.z_index = 4
-		number.add_theme_font_size_override("font_size", 20)
+		number.add_theme_font_size_override("font_size", RUNE_FONT)
 		number.add_theme_color_override("font_color", Color8(255, 244, 192))
 		add_child(number)
 		_numbers.append(number)
@@ -111,14 +114,21 @@ func _strike(index: int) -> void:
 	_paint_keeper()
 
 
-func _lit_index() -> int:
+func _time_slot() -> int:
 	if _t < _preview:
 		return -1
 	var at: float = _t - _preview
 	var index: int = int(floor(at / _window))
-	if index < 0 or index >= _spots.size():
+	if index < 0 or index >= _order.size():
 		return -1
 	return index
+
+
+func _lit_index() -> int:
+	var slot: int = _time_slot()
+	if slot < 0:
+		return -1
+	return _order[slot]
 
 
 func _spot_at(pos: Vector2) -> int:
@@ -161,22 +171,26 @@ func _paint() -> void:
 
 
 func _grade_passed() -> void:
-	var lit: int = _lit_index()
-	if lit < 0:
+	var slot: int = _time_slot()
+	if slot < 0:
 		return
-	while _miss_from < lit and _miss_from < _resolved.size():
-		if not _resolved[_miss_from]:
-			_resolved[_miss_from] = true
-			miss()
+	while _miss_from < slot and _miss_from < _order.size():
+		_miss_slot(_miss_from)
 		_miss_from += 1
 
 
 func _grade_rest() -> void:
-	for i: int in range(_miss_from, _resolved.size()):
-		if not _resolved[i]:
-			_resolved[i] = true
-			miss()
+	for slot: int in range(_miss_from, _order.size()):
+		_miss_slot(slot)
 	_miss_from = 0
+
+
+func _miss_slot(slot: int) -> void:
+	var spot: int = _order[slot]
+	if spot < 0 or spot >= _resolved.size() or _resolved[spot]:
+		return
+	_resolved[spot] = true
+	miss()
 
 
 func _reset_spots() -> void:
@@ -188,7 +202,8 @@ func _reset_spots() -> void:
 
 
 ## Clustered on the stone face, at least 60 px apart.
-## Each boulder labels the cracks with a fresh permutation of 1, 2, 3.
+## Numbers follow position: 1 leftmost, 2 middle, 3 rightmost.
+## The hit order is a fresh permutation of those positions.
 const CLUSTER := Vector2(320, 224)
 const CLUSTER_RX: float = 62.0
 const CLUSTER_RY: float = 52.0
@@ -204,13 +219,17 @@ func _roll_spots() -> void:
 	while placed.size() < _spots.size():
 		var n: int = placed.size()
 		placed.append(Vector2(224.0 + 76.8 * float(n), 160.0))
+	placed.sort_custom(func(a: Vector2, b: Vector2) -> bool:
+		return a.x < b.x or (is_equal_approx(a.x, b.x) and a.y < b.y)
+	)
 	_labels = [1, 2, 3]
-	_labels.shuffle()
+	_order = [0, 1, 2]
+	_order.shuffle()
 	for i: int in _spots.size():
 		_spots[i].position = placed[i]
 		if i < _numbers.size():
 			_numbers[i].text = str(_labels[i])
-			_numbers[i].position = placed[i] + Vector2(-16, -10)
+			_numbers[i].position = placed[i] + Vector2(-20, -16)
 
 
 func _try_cluster() -> Array[Vector2]:
