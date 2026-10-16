@@ -572,6 +572,8 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 	_play.add_child(_game)
 	_panel.move_child(_summary, -1)
 	_game.bind_target(target_id)
+	if has_node("/root/GameAudio"):
+		GameAudio.hold_world_for_minigame()
 	_game.begin()
 	_set_open(true)
 	_refresh_pace()
@@ -903,6 +905,8 @@ func _clear_game() -> void:
 		_game.queue_free()
 	_game = null
 	_debug_play = false
+	if has_node("/root/GameAudio"):
+		GameAudio.release_world_after_minigame()
 
 
 func _set_open(open: bool) -> void:

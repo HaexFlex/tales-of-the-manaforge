@@ -40,6 +40,7 @@ func run_scenes() -> int:
 	failed += _steady_press_tuning()
 	failed += _keeper_frames()
 	failed += _woodsong_stand()
+	failed += _minigame_audio()
 	failed += _stone_runes()
 	failed += _ripe_catch()
 	failed += _steeping_debug()
@@ -294,6 +295,37 @@ func _woodsong_stand() -> int:
 	if failed == 0:
 		print("WOODSONG_STAND_OK")
 	node.free()
+	return failed
+
+
+func _minigame_audio() -> int:
+	var failed: int = 0
+	var audio: Node = Engine.get_main_loop().root.get_node_or_null("GameAudio")
+	var host: Node = Engine.get_main_loop().root.get_node_or_null("MinigameHost")
+	failed += _check(audio != null and host != null, "minigame audio has the host and the router")
+	if audio == null or host == null:
+		return failed
+	host.call("close_immediate")
+	audio.call("hold_world_for_minigame")
+	var music_idx: int = AudioServer.get_bus_index("Music")
+	failed += _check(music_idx >= 0 and not AudioServer.is_bus_mute(music_idx), "Woodsong's Music bus stays open")
+	for bus_name: String in ["SFX_UI", "SFX_World", "SFX_Progress"]:
+		var idx: int = AudioServer.get_bus_index(bus_name)
+		failed += _check(idx >= 0 and AudioServer.is_bus_mute(idx), "%s is muted during a minigame" % bus_name)
+	failed += _check(bool(audio.call("is_hub_suspended")), "the hub bed is held during a minigame")
+	audio.call("clear_played_log")
+	audio.call("play", &"sfx_ui_confirm")
+	failed += _check(not bool(audio.call("did_play", &"sfx_ui_confirm")), "world cues do not play during a minigame")
+	audio.call("release_world_after_minigame")
+	var world_idx: int = AudioServer.get_bus_index("SFX_World")
+	failed += _check(world_idx >= 0 and not AudioServer.is_bus_mute(world_idx), "SFX returns after the minigame")
+	failed += _check(not bool(audio.call("is_hub_suspended")), "the hub bed resumes after the minigame")
+	failed += _check(bool(host.call("debug_open", "ripe_catch")), "opening a minigame holds world audio")
+	failed += _check(bool(audio.call("minigame_audio_held")), "the host holds world audio while the game is open")
+	host.call("close_immediate")
+	failed += _check(not bool(audio.call("minigame_audio_held")), "closing the minigame restores world audio")
+	if failed == 0:
+		print("MINIGAME_AUDIO_OK")
 	return failed
 
 

@@ -35,6 +35,9 @@ var _hub_playing: bool = false
 var _hub_suspended: bool = false
 ## Woodsong pauses the hub bed while its own loop is audible, then lets it resume.
 var _bed_held_for_tune: bool = false
+## A minigame mutes world music and every SFX bus. The Music bus stays up for Woodsong.
+var _minigame_hold: bool = false
+var _minigame_took_hub: bool = false
 var _fruit_ready_played_cycle: bool = false
 var _fruit_ready_after_stage: bool = false
 var _fruit_delay_token: int = 0
@@ -308,7 +311,46 @@ func _remove_bus_effect(bus_name: String, effect: AudioEffect) -> void:
 			AudioServer.remove_bus_effect(idx, i)
 
 
+func hold_world_for_minigame() -> void:
+	if _minigame_hold:
+		return
+	_minigame_hold = true
+	_minigame_took_hub = not _hub_suspended
+	if _minigame_took_hub:
+		suspend_hub_for_battle()
+	for voice: AudioStreamPlayer in _sfx_pool:
+		if voice.playing:
+			voice.stop()
+	for voice: AudioStreamPlayer in _progress_pool:
+		if voice.playing:
+			voice.stop()
+	_mute_minigame_sfx()
+
+
+func release_world_after_minigame() -> void:
+	if not _minigame_hold:
+		return
+	_minigame_hold = false
+	apply_volumes()
+	if _minigame_took_hub:
+		_minigame_took_hub = false
+		resume_hub_after_battle()
+
+
+func minigame_audio_held() -> bool:
+	return _minigame_hold
+
+
+func _mute_minigame_sfx() -> void:
+	for bus_name: String in SFX_BUS_NAMES:
+		var idx: int = AudioServer.get_bus_index(bus_name)
+		if idx >= 0:
+			AudioServer.set_bus_mute(idx, true)
+
+
 func play(cue_id: StringName, offset_db: float = 0.0, pitch: float = 1.0) -> void:
+	if _minigame_hold:
+		return
 	var key: String = String(cue_id)
 	var bus: String = _cue_bus(key)
 	var base_db: float = 0.0
@@ -798,6 +840,8 @@ func apply_volumes() -> void:
 	_apply_bus_volume("Music", music_lin, MUSIC_BUS_DEFAULT_DB)
 	for bus_name: String in SFX_BUS_NAMES:
 		_apply_bus_volume(bus_name, sfx_lin, SFX_BUS_DEFAULT_DB)
+	if _minigame_hold:
+		_mute_minigame_sfx()
 
 
 func apply_display() -> void:
