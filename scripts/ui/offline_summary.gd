@@ -341,11 +341,11 @@ func _add_section(section_id: String, title_key: String, icon_file: String, summ
 	sum.name = "Summary"
 	sum.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sum.text = summary
+	sum.set_meta("full_text", summary)
 	sum.clip_text = true
 	sum.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	sum.visible = true
 	clip.add_child(sum)
-	clip.gui_input.connect(_on_summary_clip_input.bind(header, clip))
 	var show_tag: bool = section_id == "gathered" and _shard_tag() != "" and not open
 	if show_tag:
 		_place_tag(header, _shard_tag())
@@ -503,26 +503,22 @@ func _layout_rows() -> void:
 			right_limit = chip.position.x - 8.0
 		if summary:
 			var slot_w: float = maxf(24.0, right_limit - summary_x)
-			var text_w: float = ceilf(_text_width(summary))
 			var gathered: bool = str(host_v.name) == "gathered"
+			if gathered:
+				var full_line: String = str(summary.get_meta("full_text", summary.text))
+				summary.text = _fit_gathered_line(full_line, slot_w, summary)
 			if clip:
 				clip.position = Vector2(summary_x, 10)
 				clip.size = Vector2(slot_w, 24)
 				clip.custom_minimum_size = Vector2(0, 24)
-			# Gathered never ellipsizes. A line wider than the slot scrolls inside the row.
-			var show_all: bool = gathered
-			summary.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING if show_all else TextServer.OVERRUN_TRIM_ELLIPSIS
+			# Gathered drops whole trailing items and marks the rest. Other rows ellipsize.
+			summary.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING if gathered else TextServer.OVERRUN_TRIM_ELLIPSIS
 			summary.clip_text = true
 			summary.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			summary.position = Vector2(0, 0)
-			summary.size = Vector2(maxf(slot_w, text_w) if show_all else slot_w, 24)
+			summary.size = Vector2(slot_w, 24)
 			if clip:
-				var overflow: bool = show_all and text_w > slot_w + 0.5
-				clip.mouse_filter = Control.MOUSE_FILTER_STOP if overflow else Control.MOUSE_FILTER_IGNORE
-				var scroll_x: float = float(clip.get_meta("scroll_x", 0.0))
-				scroll_x = clampf(scroll_x, 0.0, maxf(0.0, summary.size.x - slot_w))
-				clip.set_meta("scroll_x", scroll_x)
-				summary.position = Vector2(-scroll_x, 0)
+				clip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			_fit_summary_tooltip(header, clip, summary, slot_w)
 		var hint: Label = host_v.get_node_or_null("ShardHint") as Label
 		_fit_hint(hint, row_w)
@@ -652,8 +648,12 @@ func _fit_summary_tooltip(header: Button, clip: Control, summary: Label, slot_w:
 	## Hover and a long-press both wait on the shared rest. A line that fits has no tip.
 	WorldHover.install()
 	var full: String = ""
-	if summary != null and _text_width(summary) > slot_w + 0.5:
-		full = summary.text
+	if summary != null:
+		var stored: String = str(summary.get_meta("full_text", ""))
+		if stored != "" and stored != summary.text:
+			full = stored
+		elif _text_width(summary) > slot_w + 0.5:
+			full = summary.text
 	if header:
 		header.tooltip_text = full
 	if clip:
@@ -662,40 +662,32 @@ func _fit_summary_tooltip(header: Button, clip: Control, summary: Label, slot_w:
 		summary.tooltip_text = full
 
 
-func _on_summary_clip_input(event: InputEvent, header: Button, clip: Control) -> void:
-	var summary: Label = clip.get_node_or_null("Summary") as Label
-	if summary == null or summary.size.x <= clip.size.x + 0.5:
-		return
-	if event is InputEventMouseButton:
-		var mouse: InputEventMouseButton = event as InputEventMouseButton
-		if mouse.button_index == MOUSE_BUTTON_WHEEL_UP or mouse.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			var step: float = 28.0 if mouse.button_index == MOUSE_BUTTON_WHEEL_DOWN else -28.0
-			_scroll_summary(clip, summary, step)
-			clip.accept_event()
-			return
-		if mouse.button_index == MOUSE_BUTTON_LEFT:
-			if mouse.pressed:
-				clip.set_meta("press_x", mouse.position.x)
-				clip.set_meta("dragged", false)
-			elif not bool(clip.get_meta("dragged", false)) and header != null:
-				header.pressed.emit()
-			clip.accept_event()
-			return
-	if event is InputEventMouseMotion:
-		var motion: InputEventMouseMotion = event as InputEventMouseMotion
-		if (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
-			return
-		if absf(motion.position.x - float(clip.get_meta("press_x", motion.position.x))) > 4.0:
-			clip.set_meta("dragged", true)
-		_scroll_summary(clip, summary, -motion.relative.x)
-		clip.accept_event()
+func _fit_gathered_line(full: String, slot_w: float, sample: Label) -> String:
+	## Keep a prefix of whole items. Trailing items that do not fit become "+4…".
+	if full == "" or _line_width(sample, full) <= slot_w + 0.5:
+		return full
+	var items: PackedStringArray = full.split("  ", false)
+	if items.size() <= 1:
+		return full
+	var marker_only: String = "+%d…" % items.size()
+	for keep: int in range(items.size() - 1, -1, -1):
+		var hidden: int = items.size() - keep
+		var parts := PackedStringArray()
+		for i: int in keep:
+			parts.append(items[i])
+		parts.append("+%d…" % hidden)
+		var line: String = "  ".join(parts)
+		if _line_width(sample, line) <= slot_w + 0.5:
+			return line
+	return marker_only
 
 
-func _scroll_summary(clip: Control, summary: Label, delta: float) -> void:
-	var limit: float = maxf(0.0, summary.size.x - clip.size.x)
-	var next: float = clampf(float(clip.get_meta("scroll_x", 0.0)) + delta, 0.0, limit)
-	clip.set_meta("scroll_x", next)
-	summary.position = Vector2(-next, 0.0)
+func _line_width(lbl: Label, text: String) -> float:
+	var font: Font = lbl.get_theme_font("font")
+	var size: int = lbl.get_theme_font_size("font_size")
+	if font == null or size <= 0 or text == "":
+		return 0.0
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 
 
 func _toggle_section(section_id: String) -> void:

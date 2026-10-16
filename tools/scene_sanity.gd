@@ -2865,6 +2865,7 @@ func _offline_layout(game: Node) -> int:
 			failed += _offline_headline_line(panel, str(span["away"]))
 			var gathered: String = _offline_summary_text(panel, "gathered")
 			failed += _check(gathered.find("Stone") < 0 and gathered.find("Food") < 0 and gathered.find("Wood") < 0, "zero wood stone and food stay off the summary")
+			failed += _check(gathered.find("…") < 0, "a short gathered line stays whole")
 			var left_title: Label = (panel.find_child("left", true, false) as Node).find_child("SectionTitle", true, false) as Label
 			failed += _check(left_title != null and left_title.text == "Left over", "the last section reads Left over")
 		var zero: Dictionary = _offline_watch(spans[1])
@@ -2877,6 +2878,7 @@ func _offline_layout(game: Node) -> int:
 		failed += _check(not bool(panel.call("section_visible", "forge")), "an empty forge section stays hidden")
 		var zero_sum: String = _offline_summary_text(panel, "gathered")
 		failed += _check(zero_sum.find("Wood") >= 0 and zero_sum.find("Stone") < 0 and zero_sum.find("Food") < 0, "a zero resource row is hidden")
+		failed += _check(zero_sum.find("…") < 0, "wood still fits on the gathered line")
 		game.set("ancient_remaining_sec", 14.0 * 60.0)
 		var blocked: Dictionary = _offline_watch(spans[1])
 		blocked["blocked"] = true
@@ -3089,12 +3091,52 @@ func _offline_gathered_scroll(panel: Node, font: Font) -> int:
 	var host: Node = panel.find_child("gathered", true, false)
 	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
 	var clip: Control = host.find_child("SummaryClip", true, false) as Control if host else null
-	if summary == null or clip == null:
-		return _check(false, "gathered summary scrolls inside its row")
-	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
-	var shows_all: bool = summary.size.x + 0.5 >= text_w and summary.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING and summary.text.find("…") < 0 and summary.text.find("Food") >= 0
-	var in_row: bool = text_w <= clip.size.x + 0.5 or summary.size.x > clip.size.x + 8.0
-	return _check(shows_all and clip.clip_contents and in_row, "gathered shows every item inside the row (text %.0f label %.0f slot %.0f)" % [text_w, summary.size.x, clip.size.x])
+	var header: Button = host.find_child("Header", true, false) as Button if host else null
+	if summary == null or clip == null or header == null:
+		return _check(false, "gathered summary ends on a whole item")
+	var shown: String = summary.text
+	var full: String = header.tooltip_text if header.tooltip_text != "" else shown
+	var shown_w: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	var failed: int = _check(shown_w <= clip.size.x + 0.5 and clip.clip_contents, "gathered summary fits the row (text %.0f slot %.0f '%s')" % [shown_w, clip.size.x, shown])
+	var full_items: PackedStringArray = full.split("  ", false)
+	var shown_items: PackedStringArray = shown.split("  ", false)
+	var dropped: int = -1
+	var kept := PackedStringArray()
+	if shown_items.size() > 0:
+		dropped = _offline_more_marker(shown_items[shown_items.size() - 1])
+		kept = shown_items.slice(0, shown_items.size() - 1) if dropped >= 0 else shown_items
+	var prefix_ok: bool = kept.size() <= full_items.size()
+	if prefix_ok:
+		for i: int in kept.size():
+			if kept[i] != full_items[i]:
+				prefix_ok = false
+	failed += _check(prefix_ok and summary.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING, "gathered keeps a prefix of whole items ('%s')" % shown)
+	if dropped > 0:
+		var hidden: int = full_items.size() - kept.size()
+		failed += _check(dropped == hidden, "gathered marker counts the dropped items (+%d, hidden %d)" % [dropped, hidden])
+		failed += _check(header.tooltip_text == full and full != shown and summary.tooltip_text == full, "gathered tooltip keeps the full line")
+		var delay: float = float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec"))
+		failed += _check(is_equal_approx(delay, WorldHover.REST_SEC), "gathered tooltip uses the shared hover delay")
+		var longer := PackedStringArray()
+		longer.append_array(kept)
+		if kept.size() < full_items.size():
+			longer.append(full_items[kept.size()])
+		if hidden > 1:
+			longer.append("+%d…" % (hidden - 1))
+		var longer_w: float = font.get_string_size("  ".join(longer), HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _check(longer_w > clip.size.x + 0.5, "gathered drops only the items that do not fit")
+	else:
+		failed += _check(shown == full and header.tooltip_text == "" and shown.find("…") < 0, "a gathered line that fits has no marker")
+	return failed
+
+
+func _offline_more_marker(token: String) -> int:
+	if token.length() < 3 or not token.begins_with("+") or not token.ends_with("…"):
+		return -1
+	var mid: String = token.substr(1, token.length() - 2)
+	if not mid.is_valid_int():
+		return -1
+	return mid.to_int()
 
 
 func _offline_values_fit(panel: Node, font: Font) -> int:
