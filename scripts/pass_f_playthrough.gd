@@ -597,6 +597,7 @@ func _offline_wisp_grants_for_file(file_root: Dictionary, original: Dictionary) 
 	var grant_per: float = float(GS.call("param_int", "WISP_PULSE_GRANT", 1))
 	var factor: float = 1.0 + _file_effect_total(original, "gather_mult_bonus")
 	var units_each: float = (eff / maxf(interval, 0.05)) * grant_per * factor
+	var shard_mult: float = minf(1.0, 0.25 + 0.05 * float(_file_total_upgrade_ranks(original)))
 	var fj: Node = root.get_node_or_null("ForgeJobs")
 	var assigns_v: Variant = original.get("wisp_assignments", {})
 	var assigns: Dictionary = assigns_v if typeof(assigns_v) == TYPE_DICTIONARY else {}
@@ -613,13 +614,28 @@ func _offline_wisp_grants_for_file(file_root: Dictionary, original: Dictionary) 
 		var rid: String = String(GS.call("resource_for_node_id", nid))
 		if rid == "":
 			continue
-		var acc: float = float(accum.get(rid, 0.0)) + units_each
+		var units: float = units_each
+		if rid == "manashards":
+			units *= shard_mult
+		var acc: float = float(accum.get(rid, 0.0)) + units
 		var whole: int = int(floor(acc))
 		if whole < 0:
 			whole = 0
 		accum[rid] = acc - float(whole)
 		out[rid] = int(out.get(rid, 0)) + whole
 	return out
+
+
+func _file_total_upgrade_ranks(original: Dictionary) -> int:
+	var n: int = 0
+	var data: Variant = GS.get("upgrades_data")
+	if typeof(data) != TYPE_ARRAY:
+		return 0
+	for entry: Variant in (data as Array):
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		n += _file_upgrade_rank(original, str((entry as Dictionary).get("id", "")))
+	return n
 
 
 func _file_upgrade_rank(original: Dictionary, upgrade_id: String) -> int:

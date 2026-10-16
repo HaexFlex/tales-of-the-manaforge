@@ -3791,6 +3791,7 @@ func _run() -> void:
 	failed += await _rod_not_weapon_ok(tree_root, equipment)
 	failed += _elaia_companion_asserts(tree_root, game_state, backpack)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
+	failed += _offline_away_panel(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
@@ -4806,6 +4807,178 @@ func _echo_totals(might: int, swift: int, ward: int = 5) -> Dictionary:
 	}
 
 
+func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
+	## Locked curve anchors, the Manashard multiplier, and the away panel.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "offline away needs ForgeJobs")
+	if jobs == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	var anchors: Array = [
+		[120.0, 120.0, "2 min"],
+		[600.0, 300.0, "10 min"],
+		[1800.0, 600.0, "30 min"],
+		[7200.0, 1200.0, "2 h"],
+		[28800.0, 2400.0, "8 h"],
+		[86400.0, 3600.0, "24 h"],
+		[172800.0, 4200.0, "48 h"],
+		[259200.0, 4800.0, "3 d"],
+		[604800.0, 7200.0, "7 d"],
+	]
+	for pair: Array in anchors:
+		var got: float = float(game_state.call("offline_effective_seconds", float(pair[0])))
+		failed += _assert(absf(got - float(pair[1])) < 0.02, "%s away is %s effective s (got %s)" % [pair[2], pair[1], got])
+	game_state.call("reset_for_new_game")
+	failed += _assert(int(game_state.call("total_upgrade_ranks_owned")) == 0, "a new game owns no ranks")
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 0.25), "0 ranks → x0.25")
+	var ranks: Dictionary = game_state.get("upgrade_ranks")
+	ranks["shard_sight"] = 5
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(int(game_state.call("total_upgrade_ranks_owned")) == 5, "five ranks on one blessing count as five")
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 0.50), "5 ranks → x0.50")
+	ranks["shard_sight"] = 10
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 0.75), "10 ranks → x0.75")
+	ranks["shard_sight"] = 15
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 1.0), "15 ranks → x1.00")
+	ranks["quiet_hours"] = 20
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 1.0), "past 15 ranks stays x1.00")
+	game_state.call("reset_for_new_game")
+	var online: Dictionary = game_state.call("apply_water_pulse")
+	var online_shards: int = int(online.get("shards", -1))
+	failed += _assert(online_shards >= 1 and online_shards <= 3, "online watering ignores the offline multiplier (got %d)" % online_shards)
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "water", "manatree", true)
+	var day: Dictionary = jobs.call("apply_offline_seconds", 86400.0)
+	failed += _assert(int(day.get("shards", -1)) == 1800, "24h watering at 0 ranks without the can is 1800 shards")
+	failed += _assert(int(day.get("essence", -1)) == 3600, "24h watering essence ignores the multiplier")
+	var wood_low: int = 0
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	wood_low = int(game_state.get("wood")) + int((jobs.call("apply_offline_seconds", 86400.0) as Dictionary).get("wood", 0))
+	game_state.call("reset_for_new_game")
+	ranks = game_state.get("upgrade_ranks")
+	ranks["shard_sight"] = 15
+	game_state.set("upgrade_ranks", ranks)
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	var wood_high: int = int((jobs.call("apply_offline_seconds", 86400.0) as Dictionary).get("wood", -1))
+	failed += _assert(wood_low > 0 and wood_low == wood_high, "offline wood ignores the shard multiplier (%d vs %d)" % [wood_low, wood_high])
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "stone_watering_can", 1)
+	jobs.call("set_keeper_task", "water", "manatree", true)
+	var with_can: Dictionary = jobs.call("apply_offline_seconds", 86400.0)
+	failed += _assert(int(with_can.get("shards", -1)) == 3600, "24h with the can at 0 ranks is 3600 shards")
+	failed += _assert(int(with_can.get("essence", -1)) == 3600, "24h essence with the can is 3600")
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "stone_watering_can", 1)
+	ranks = game_state.get("upgrade_ranks")
+	ranks["keeper_stride"] = 15
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 1.0), "stride ranks still fill the multiplier")
+	jobs.call("set_keeper_task", "water", "manatree", true)
+	var capped: Dictionary = jobs.call("apply_offline_seconds", 86400.0)
+	failed += _assert(int(capped.get("shards", -1)) == 14400, "24h with the can at 15 ranks is 14400 shards (got %d)" % int(capped.get("shards", -1)))
+	failed += _assert(int(capped.get("essence", -1)) == 3600, "15 ranks do not change essence")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_elaia_task", "water", "manatree", true)
+	var elaia_day: Dictionary = jobs.call("apply_offline_seconds", 86400.0)
+	var elaia_bag: Dictionary = elaia_day.get("elaia", {}) as Dictionary
+	failed += _assert(int(elaia_bag.get("manashards", -1)) > 0 and int(elaia_bag.get("manashards", 0)) < 3600, "Elaia's offline shards use her rate and the multiplier")
+	failed += _assert(int(elaia_day.get("keeper", {}).get("manashards", 0)) == 0, "an Elaia-only watch does not pay the Keeper")
+	game_state.call("reset_for_new_game")
+	ranks = game_state.get("upgrade_ranks")
+	ranks["keeper_stride"] = 5
+	game_state.set("upgrade_ranks", ranks)
+	var mult_before: float = float(game_state.call("offline_shard_mult"))
+	failed += _assert(is_equal_approx(mult_before, 0.50), "five stride ranks are x0.50 before Ascend")
+	game_state.call("_set_stage", &"ancient")
+	game_state.call("harvest_fruit")
+	game_state.call("ascend")
+	failed += _assert(int(game_state.call("get_upgrade_rank", "keeper_stride")) == 5, "Ascend keeps the ranks behind the multiplier")
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 0.50), "Ascend keeps the offline multiplier")
+	var qh: Dictionary = game_state.get("upgrade_ranks")
+	qh["quiet_hours"] = 1
+	game_state.set("upgrade_ranks", qh)
+	var quiet: float = float(game_state.call("offline_effective_seconds", 1200.0))
+	failed += _assert(absf(quiet - 1065.0) < 0.05, "Quiet Hours rank 1 still lengthens only the first tier (got %s)" % quiet)
+	var script: Script = load("res://scripts/ui/offline_summary.gd")
+	failed += _assert(script != null, "away panel script")
+	if script == null:
+		return failed
+	var panel: Node = script.new()
+	tree_root.add_child(panel)
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var echo_was: bool = echo != null and bool(echo.get("in_battle"))
+	if echo != null:
+		echo.set("in_battle", true)
+	save_service.set("pending_offline_report", {"show": true, "raw_sec": 3600.0, "manashards": 1, "shard_mult": 0.25})
+	panel.call("tick_queue")
+	failed += _assert(not bool(panel.call("is_open")), "a fight holds the away panel")
+	if echo != null:
+		echo.set("in_battle", false)
+	panel.call("tick_queue")
+	failed += _assert(bool(panel.call("is_open")), "the panel opens once the fight is gone")
+	panel.call("dismiss")
+	var report: Dictionary = {
+		"show": true,
+		"raw_sec": 8.0 * 3600.0 + 12.0 * 60.0,
+		"effective_sec": 2400.0,
+		"shard_mult": 0.35,
+		"blocked": false,
+		"essence": 142,
+		"manashards": 36,
+		"wood": 218,
+		"stone": 0,
+		"food": 0,
+		"keeper_kind": "water",
+		"keeper_task": "manatree",
+		"wisp_count": 3,
+		"forge_completed": 0,
+		"forge_stations": {},
+		"expedition": {},
+	}
+	panel.call("present", report)
+	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "the away window sits at y 92")
+	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).y, 424.0), "the away window is 424 tall")
+	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "the away window is 600 wide")
+	var headline: String = str(panel.call("headline_text"))
+	failed += _assert(headline.find("You were gone") >= 0 and headline.find("worth about") >= 0, "headline uses the draft sentences")
+	failed += _assert(str(panel.call("shard_tag_text")) == "Manashards x0.35", "the tag shows the multiplier (%s)" % str(panel.call("shard_tag_text")))
+	failed += _assert(bool(panel.call("section_visible", "gathered")), "gathered is shown")
+	failed += _assert(not bool(panel.call("section_visible", "forge")), "an empty forge section stays hidden")
+	failed += _assert(bool(panel.call("section_visible", "left")), "still waiting is shown")
+	var explain: String = str(content_strings.call("get_text", "offline_explain"))
+	failed += _assert(explain.find("capped") < 0 and explain.find("10 minutes") >= 0, "the locked day sentence")
+	var blocked_report: Dictionary = report.duplicate(true)
+	blocked_report["blocked"] = true
+	blocked_report["manashards"] = 0
+	blocked_report["essence"] = 0
+	blocked_report["wood"] = 0
+	panel.call("present", blocked_report)
+	failed += _assert(not bool(panel.call("section_visible", "gathered")), "an Ancient absence hides Gathered")
+	failed += _assert(str(panel.call("shard_tag_text")) == "", "an Ancient absence hides the tag")
+	var note: String = str(panel.call("ancient_note_text"))
+	var term: String = str(content_strings.call("get_text", "offline_ancient_term"))
+	failed += _assert(note.find(term) >= 0 and note.find("min left") >= 0, "the Ancient note uses the one term key (%s)" % note)
+	var continue_btn: Button = panel.find_child("ContinueButton", true, false) as Button
+	failed += _assert(continue_btn != null and continue_btn.text == "Continue", "one Continue button")
+	if continue_btn:
+		continue_btn.emit_signal("pressed")
+	failed += _assert(not bool(panel.call("is_open")), "Continue dismisses the panel")
+	panel.queue_free()
+	if echo != null:
+		echo.set("in_battle", echo_was)
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("OFFLINE_CURVE_OK")
+		print("OFFLINE_AWAY_OK")
+	return failed
+
+
 func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
 	var failed: int = 0
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
@@ -4848,10 +5021,10 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	var h2: float = 2.0 * 3600.0
 	var h8: float = 8.0 * 3600.0
 	var h24: float = 24.0 * 3600.0
-	failed += _assert(absf(float(game_state.call("offline_effective_seconds", m30)) - 180.0) < 0.02, "tier 30min → 180")
-	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h2)) - 270.0) < 0.02, "tier 2h → 270")
-	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h8)) - 356.4) < 0.02, "tier 8h → 356.4")
-	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h24)) - 452.4) < 0.02, "tier 24h → 452.4")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", m30)) - 600.0) < 0.02, "tier 30min → 600")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h2)) - 1200.0) < 0.02, "tier 2h → 1200")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h8)) - 2400.0) < 0.02, "tier 8h → 2400")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h24)) - 3600.0) < 0.02, "tier 24h → 3600")
 	## Nothing moves offline while Ancient.
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 4)
@@ -4910,8 +5083,8 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	game_state.set("offline_closed_sec", 1200.0)
 	game_state.set("active_since_load_sec", 60.0)
 	var continued: Variant = jobs.call("apply_saved_offline_gap", 1200.0)
-	failed += _assert(typeof(continued) == TYPE_DICTIONARY and int((continued as Dictionary).get("harvest", -1)) == 35, "reopen under 180s prices minutes 20-40")
-	failed += _assert(int(game_state.get("wood")) == 35, "continued curve banks 35 wood")
+	failed += _assert(typeof(continued) == TYPE_DICTIONARY and int((continued as Dictionary).get("harvest", -1)) == 108, "reopen under 180s prices minutes 20-40")
+	failed += _assert(int(game_state.get("wood")) == 108, "continued curve banks 108 wood")
 	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 2400.0) < 0.01, "continued curve stores 40 minutes")
 	failed += _assert(absf(float(game_state.get("active_since_load_sec"))) < 0.01, "load clears active time")
 	game_state.call("reset_for_new_game")
@@ -4919,8 +5092,8 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	game_state.set("offline_closed_sec", 1200.0)
 	game_state.set("active_since_load_sec", 180.0)
 	var restarted: Variant = jobs.call("apply_saved_offline_gap", 1200.0)
-	failed += _assert(typeof(restarted) == TYPE_DICTIONARY and int((restarted as Dictionary).get("harvest", -1)) == 60, "180s of play restarts the curve")
-	failed += _assert(int(game_state.get("wood")) == 60, "reset curve banks 60 wood")
+	failed += _assert(typeof(restarted) == TYPE_DICTIONARY and int((restarted as Dictionary).get("harvest", -1)) == 225, "180s of play restarts the curve")
+	failed += _assert(int(game_state.get("wood")) == 225, "reset curve banks 225 wood")
 	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 1200.0) < 0.01, "reset curve stores only the new closure")
 	game_state.call("reset_for_new_game")
 	save_service.call("delete_save")
@@ -5541,27 +5714,27 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 	var m30: float = 30.0 * 60.0
 	var h2: float = 2.0 * 3600.0
 	failed += _assert(absf(float(jobs.call("offline_effective_seconds", 0.0))) < 0.001, "offline zero")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", m30)) - 180.0) < 0.02, "offline 30min is 180s")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h2)) - 270.0) < 0.02, "offline 2h is 270s")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h8)) - 356.4) < 0.02, "offline 8h is 356.4s")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24)) - 452.4) < 0.02, "offline 24h is 452.4s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", m30)) - 600.0) < 0.02, "offline 30min is 600s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h2)) - 1200.0) < 0.02, "offline 2h is 1200s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h8)) - 2400.0) < 0.02, "offline 8h is 2400s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24)) - 3600.0) < 0.02, "offline 24h is 3600s")
 	jobs.call("set_keeper_task", "water", "manatree", true)
 	var water: Variant = jobs.call("apply_offline_seconds", h8)
-	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("shards", -1)) == 712, "offline water shards use the midpoint")
-	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("essence", -1)) == 356, "offline water essence follows the curve")
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("shards", -1)) == 1200, "offline water shards use the midpoint at x0.25")
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("essence", -1)) == 2400, "offline water essence follows the curve")
 	var task: Variant = jobs.call("keeper_task")
 	failed += _assert(typeof(task) == TYPE_DICTIONARY and not bool((task as Dictionary).get("working", true)), "offline clears the keeper task")
 	game_state.call("reset_for_new_game")
 	jobs.call("set_keeper_task", "harvest", "wood", true)
 	var gathered: Variant = jobs.call("apply_offline_seconds", 20.0)
-	failed += _assert(typeof(gathered) == TYPE_DICTIONARY and int((gathered as Dictionary).get("harvest", -1)) == 1, "20s closed harvest banks one wood")
-	failed += _assert(int(game_state.get("wood")) == 1, "offline harvest banks wood")
+	failed += _assert(typeof(gathered) == TYPE_DICTIONARY and int((gathered as Dictionary).get("harvest", -1)) == 10, "20s closed harvest banks ten wood")
+	failed += _assert(int(game_state.get("wood")) == 10, "offline harvest banks wood")
 	game_state.call("reset_for_new_game")
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	game_state.call("try_assign_wisp", 0, "manatree")
 	var wisp_off: Variant = jobs.call("apply_offline_seconds", h8)
-	failed += _assert(typeof(wisp_off) == TYPE_DICTIONARY and int((wisp_off as Dictionary).get("shards", -1)) == 17, "manatree wisp 8h banks 17 shards")
+	failed += _assert(typeof(wisp_off) == TYPE_DICTIONARY and int((wisp_off as Dictionary).get("shards", -1)) == 30, "manatree wisp 8h banks 30 shards at x0.25")
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"stone", 40)
 	failed += _assert(str(jobs.call("try_begin_job", "crucible", "sapsteel")) == "ok", "crucible starts")
@@ -10754,7 +10927,7 @@ func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, g
 	game_state.call("set_play_speed", 8)
 	var curve: float = float(game_state.call("offline_effective_seconds", 1800.0))
 	var idle: float = float(game_state.call("idle_catch_up_seconds", 1800.0))
-	failed += _assert(is_equal_approx(curve, 180.0), "30 min offline curve is 180s at 1x (got %s)" % curve)
+	failed += _assert(is_equal_approx(curve, 600.0), "30 min offline curve is 600s at 1x (got %s)" % curve)
 	failed += _assert(is_equal_approx(idle, curve), "idle catch-up matches the 1x curve")
 	var eight_hours: float = float(game_state.call("offline_effective_seconds", 1800.0 * 8.0))
 	failed += _assert(not is_equal_approx(curve, eight_hours), "8x must not stretch the offline curve")

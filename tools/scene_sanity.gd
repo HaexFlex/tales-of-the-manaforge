@@ -182,6 +182,7 @@ func _run() -> void:
 	failed += _res540_debug_sanity()
 	failed += _res540_help_sanity()
 	failed += _minigame_scenes()
+	failed += _offline_curve(game)
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -2718,6 +2719,39 @@ func _elaia_portrait_gate(live: Node) -> int:
 func _minigame_scenes() -> int:
 	var runner: RefCounted = (load("res://scripts/minigames/minigame_tests.gd") as GDScript).new()
 	return int(runner.call("run_scenes"))
+
+
+func _offline_curve(game: Node) -> int:
+	var failed: int = 0
+	var anchors: Array = [
+		[120.0, 120.0],
+		[600.0, 300.0],
+		[1800.0, 600.0],
+		[7200.0, 1200.0],
+		[28800.0, 2400.0],
+		[86400.0, 3600.0],
+		[172800.0, 4200.0],
+		[259200.0, 4800.0],
+		[604800.0, 7200.0],
+	]
+	for pair: Array in anchors:
+		var got: float = float(game.call("offline_effective_seconds", float(pair[0])))
+		failed += _check(absf(got - float(pair[1])) < 0.02, "offline %ss → %s (got %s)" % [pair[0], pair[1], got])
+	game.call("reset_for_new_game")
+	failed += _check(is_equal_approx(float(game.call("offline_shard_mult")), 0.25), "0 ranks is x0.25")
+	var ranks: Dictionary = game.get("upgrade_ranks")
+	ranks["shard_sight"] = 5
+	game.set("upgrade_ranks", ranks)
+	failed += _check(is_equal_approx(float(game.call("offline_shard_mult")), 0.50), "5 ranks is x0.50")
+	ranks["shard_sight"] = 15
+	game.set("upgrade_ranks", ranks)
+	failed += _check(is_equal_approx(float(game.call("offline_shard_mult")), 1.0), "15 ranks is x1.00")
+	var table: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	failed += _check(table.find("\"offline_ancient_term\": \"bloom\"") >= 0, "bloom lives in one key")
+	if failed == 0:
+		print("OFFLINE_CURVE_OK")
+	game.call("reset_for_new_game")
+	return failed
 
 
 func _content_keys() -> int:
