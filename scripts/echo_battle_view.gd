@@ -1762,8 +1762,10 @@ func _refresh_actions() -> void:
 		_salve_btn.text = "Salve %d" % left
 	_return_btn.visible = false
 	if _arrow:
-		var hybrid: bool = _battle.strike_kind == "hybrid" and _battle.outcome == ""
+		var hybrid: bool = _battle.strike_kind == "hybrid" and _battle.outcome == "" and _phase == "fight"
 		_arrow.visible = hybrid
+		_arrow.disabled = not hybrid or _waiting_return
+		_paint_slot_dim(_arrow, _arrow.disabled)
 		if hybrid:
 			var magical: bool = _battle.arrow_mode == "magical"
 			_arrow.text = ContentStrings.get_text("battle_toggle_mag" if magical else "battle_toggle_phys")

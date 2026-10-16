@@ -239,6 +239,7 @@ var _log_follow_tail: bool = true
 var _result_label: Label = null
 var _target_layer: Control = null
 var _strike_for_me_toggle: Button = null
+var _mode_chip: Button = null
 var _playback: BattlePlayback = null
 var _speed_bar: Control = null
 var _speed_buttons: Dictionary = {}
@@ -2490,6 +2491,7 @@ func _build_fight_hud() -> void:
 	_target_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_arena.add_child(_target_layer)
 	_update_salve_button()
+	_ensure_mode_chip()
 
 
 func _on_start_fight_pressed() -> void:
@@ -2730,6 +2732,111 @@ func _log_line_color(line_text: String) -> Color:
 	return LOG_INK
 
 
+func _ensure_mode_chip() -> void:
+	if _mode_chip != null or _arena == null:
+		return
+	var chip := Button.new()
+	chip.name = "ArrowToggle"
+	chip.text = "Phy"
+	chip.focus_mode = Control.FOCUS_ALL
+	chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	chip.custom_minimum_size = Vector2(44, 44)
+	chip.size = Vector2(44, 44)
+	chip.z_index = 7
+	chip.visible = false
+	chip.pressed.connect(_on_mode_chip_pressed)
+	for state_name: String in ["normal", "hover", "pressed", "disabled"]:
+		var face := StyleBoxTexture.new()
+		face.texture = load(EchoTheme.ART + "chip_physmag_%s_44x44.png" % state_name)
+		chip.add_theme_stylebox_override(state_name, face)
+	var hint := Label.new()
+	hint.name = "ChipHint"
+	hint.text = "Tab"
+	hint.position = Vector2(0, 24)
+	hint.size = Vector2(44, 16)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(hint, true)
+	hint.add_theme_font_size_override("font_size", 19)
+	chip.add_child(hint)
+	_arena.add_child(chip)
+	_mode_chip = chip
+
+
+func mode_chip_shown() -> bool:
+	return _mode_chip != null and _mode_chip.visible and not _mode_chip.disabled
+
+
+func mode_chip_text() -> String:
+	return _mode_chip.text if _mode_chip != null else ""
+
+
+func _keeper_hybrid_weapon() -> bool:
+	var gear: Node = get_node_or_null("/root/Equipment")
+	if gear == null or not gear.has_method("equipped_strike_kind"):
+		return false
+	return str(gear.call("equipped_strike_kind")) == "hybrid"
+
+
+func _refresh_mode_chip() -> void:
+	_ensure_mode_chip()
+	if _mode_chip == null:
+		return
+	var menu_up: bool = _action_menu != null and _action_menu.visible
+	var strike_up: bool = _strike_button != null and _strike_button.visible
+	var show: bool = menu_up and strike_up and _keeper_hybrid_weapon()
+	_mode_chip.visible = show
+	_mode_chip.disabled = not show
+	if not show:
+		_restore_strike_face()
+		return
+	_strike_button.size = Vector2(100, 44)
+	_strike_button.custom_minimum_size = Vector2(100, 44)
+	_strike_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_strike_button.add_theme_constant_override("icon_max_width", 0)
+	_strike_button.add_theme_font_override("font", load(BODY_FONT_PATH) as Font)
+	_strike_button.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
+	var cap: CanvasItem = _strike_button.get_node_or_null("Keycap") as CanvasItem
+	if cap:
+		cap.visible = false
+	_mode_chip.position = _action_menu.position + _strike_button.position + Vector2(104, 0)
+	var magical: bool = false
+	var gs: Node = get_node_or_null("/root/GameState")
+	if gs != null:
+		magical = str(gs.get("arrow_mode")) == "magical"
+	_mode_chip.text = _text("battle_toggle_mag" if magical else "battle_toggle_phys", "Mag" if magical else "Phy")
+	_mode_chip.tooltip_text = _text("battle_mode_hint", "Choose how this weapon bites.")
+
+
+func _restore_strike_face() -> void:
+	if _strike_button == null:
+		return
+	_strike_button.size = ACTION_BUTTON_SIZE
+	_strike_button.custom_minimum_size = ACTION_BUTTON_SIZE
+	_strike_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_strike_button.add_theme_constant_override("icon_max_width", 32)
+	var cap: CanvasItem = _strike_button.get_node_or_null("Keycap") as CanvasItem
+	if cap:
+		cap.visible = true
+	_fit_action_label(_strike_button)
+
+
+func _on_mode_chip_pressed() -> void:
+	if not _keeper_hybrid_weapon():
+		return
+	var gs: Node = get_node_or_null("/root/GameState")
+	if gs == null:
+		return
+	var was_magical: bool = str(gs.get("arrow_mode")) == "magical"
+	gs.set("arrow_mode", "physical" if was_magical else "magical")
+	if _fight != null:
+		_fight.set_member_attack("keeper", "physical" if was_magical else "magic")
+	var audio: Node = get_node_or_null("/root/GameAudio")
+	if audio != null and audio.has_method("play_ui_confirm"):
+		audio.call("play_ui_confirm")
+	_refresh_mode_chip()
+
+
 func _hide_action_menu() -> void:
 	if _action_menu != null:
 		_action_menu.visible = false
@@ -2737,6 +2844,7 @@ func _hide_action_menu() -> void:
 		_side_actions.visible = false
 	if _ability_row != null:
 		_ability_row.visible = false
+	_refresh_mode_chip()
 
 
 func _show_strike_for_me_toggle_only() -> void:
@@ -2750,6 +2858,7 @@ func _show_strike_for_me_toggle_only() -> void:
 		_side_actions.visible = false
 	if _ability_row != null:
 		_ability_row.visible = false
+	_refresh_mode_chip()
 
 
 func _show_action_menu(actor_id: String) -> void:
@@ -2784,6 +2893,7 @@ func _show_action_menu(actor_id: String) -> void:
 	if _strike_for_me_toggle != null:
 		_strike_for_me_toggle.visible = true
 		_sync_action_button_style(_strike_for_me_toggle)
+	_refresh_mode_chip()
 	for menu_btn: Button in [_strike_button, _ability_button, _salve_button, _brace_button, _flee_button]:
 		if menu_btn != null:
 			_sync_action_button_style(menu_btn)
@@ -3410,6 +3520,10 @@ func _input(event: InputEvent) -> void:
 		return
 	var key: InputEventKey = event as InputEventKey
 	if not key.pressed or key.echo:
+		return
+	if key.keycode == KEY_TAB and _mode_chip != null and _mode_chip.visible and not _mode_chip.disabled:
+		_on_mode_chip_pressed()
+		get_viewport().set_input_as_handled()
 		return
 	if key.keycode >= KEY_1 and key.keycode <= KEY_6:
 		if _try_action_hotkey(int(key.keycode - KEY_1)):

@@ -64,6 +64,10 @@ static func _sheet_stats_for(actor: String) -> Dictionary:
 			attack = "magic"
 		elif str(item_def.get("damage_kind", "")) == "physical":
 			attack = "physical"
+		elif str(item_def.get("damage_kind", "")) == "hybrid":
+			var mode_node: Node = _autoload("GameState")
+			var mode: String = str(mode_node.get("arrow_mode")) if mode_node != null else "physical"
+			attack = "magic" if mode == "magical" else "physical"
 	stats["attack"] = attack
 	return stats
 

@@ -1,4 +1,5 @@
 extends SceneTree
+var _echo_chip_ready: bool = false
 ## Short hub + Echo Chamber load check. Not the long VERIFY suite.
 ## Autoload names are not in scope for --script, so this looks them up on the root.
 ## Run: godot --headless --path <project> --script res://tools/scene_sanity.gd
@@ -344,6 +345,57 @@ func _replay_keeper_strike(mode: String, might: int, arcana: int, fate: int, def
 	return int(res.get("damage", -1))
 
 
+func _adventure_mode_chip() -> int:
+	var failed: int = 0
+	var gear: Node = root.get_node("Equipment")
+	var game: Node = root.get_node("GameState")
+	var packed: PackedScene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+	failed += _check(packed != null, "adventure battle scene")
+	if packed == null:
+		return failed
+	game.set("arrow_mode", "physical")
+	var view: Node = packed.instantiate()
+	root.add_child(view)
+	var fight := FightState.new()
+	fight.add_member("keeper", {"might": 5, "arcana": 8, "vitality": 6, "attack": "physical"}, 0, "front", "keeper")
+	view.set("_fight", fight)
+	view.set("_target_mode", "")
+	var strike: CanvasItem = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as CanvasItem
+	var menu: CanvasItem = view.get_node_or_null("Arena/ActionMenu") as CanvasItem
+	if menu:
+		menu.visible = true
+	if strike:
+		strike.visible = true
+	view.call("_refresh_mode_chip")
+	var armed: bool = str(gear.call("equipped_strike_kind")) == "hybrid"
+	failed += _check(armed and bool(view.call("mode_chip_shown")), "adventure shows the hybrid chip")
+	failed += _check(str(view.call("mode_chip_text")) == "Phys", "adventure chip starts on Might")
+	var chip: Button = view.get_node_or_null("Arena/ArrowToggle") as Button
+	failed += _check(chip != null and not chip.disabled and chip.custom_minimum_size.x >= 44.0, "adventure chip meets the tap size")
+	view.call("_on_mode_chip_pressed")
+	var row: Dictionary = fight.fighter_dict("keeper")
+	failed += _check(str(game.get("arrow_mode")) == "magical" and str(row.get("attack", "")) == "magic", "adventure chip selects Arcana")
+	failed += _check(str(view.call("mode_chip_text")) == "Mag", "adventure chip reads Mag")
+	var sheet: Dictionary = SlotEngine.member_stats("keeper")
+	failed += _check(str(sheet.get("attack", "")) == "magic", "a hybrid weapon strikes with Arcana")
+	game.set("arrow_mode", "physical")
+	var physical_sheet: Dictionary = SlotEngine.member_stats("keeper")
+	failed += _check(str(physical_sheet.get("attack", "")) == "physical", "a hybrid weapon strikes with Might")
+	var had: String = str(gear.call("equipped_id", "weapon"))
+	gear.call("grant_item", "stone_sword")
+	failed += _check(str(gear.call("try_equip", "stone_sword")) == "ok", "stone sword equips for the chip hide")
+	view.call("_refresh_mode_chip")
+	failed += _check(not bool(view.call("mode_chip_shown")), "a physical weapon hides the chip")
+	var plain: Dictionary = SlotEngine.member_stats("keeper")
+	failed += _check(str(plain.get("attack", "")) == "physical", "a physical weapon stays Might")
+	if had != "" and had != "stone_sword":
+		gear.call("try_equip", had)
+	view.queue_free()
+	if failed == 0 and _echo_chip_ready:
+		print("HYBRID_CHIP_OK")
+	return failed
+
+
 func _echo_end_confirm(view: Node) -> int:
 	var failed: int = 0
 	var battle := EchoBattle.new()
@@ -471,6 +523,9 @@ func _battle_view() -> int:
 	view.call("_refresh_status_chip")
 	view.call("finish_speech")
 	failed += _check(bool(view.call("is_flee_shown")), "last page opens the menu")
+	var live_chip: Button = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Button
+	var echo_chip_on: bool = live_chip != null and live_chip.visible and not live_chip.disabled and live_chip.modulate == Color.WHITE
+	failed += _check(echo_chip_on, "hybrid chip is selectable once the fight starts")
 	await process_frame
 	var strike_focus: Control = view.get_viewport().gui_get_focus_owner() as Control
 	failed += _check(strike_focus != null and strike_focus.name == "StrikeButton", "Strike takes the focus ring")
@@ -490,6 +545,16 @@ func _battle_view() -> int:
 		chip_gap = live_plate.position.x - (status_chip.position.x + status_chip.size.x)
 	failed += _check(status_chip != null and live_plate != null and chip_gap >= 24.0 and not status_chip.get_rect().intersects(live_plate.get_rect()), "Round chip clears the title plank (gap %s)" % chip_gap)
 	failed += _check(str(view.call("log_text")).find("Your turn") >= 0, "battle log shows a line")
+	var mode_before: String = str(battle.arrow_mode)
+	view.call("_on_arrow")
+	var echo_toggled: bool = str(battle.arrow_mode) != mode_before and str(battle.arrow_mode) == str(game.get("arrow_mode"))
+	failed += _check(echo_toggled, "hybrid chip toggles Arcana and Might")
+	view.call("_on_arrow")
+	var echo_restored: bool = str(battle.arrow_mode) == mode_before
+	failed += _check(echo_restored, "hybrid chip toggles back")
+	var live_chip_now: Button = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Button
+	echo_chip_on = live_chip_now != null and live_chip_now.visible and not live_chip_now.disabled
+	_echo_chip_ready = echo_chip_on and echo_toggled and echo_restored
 	view.call("_set_speech", "Your turn")
 	var short_speech: Vector2 = view.call("speech_band_size")
 	failed += _check(absf(short_speech.x - 432.0) < 0.5 and absf(short_speech.y - 48.0) < 0.5, "one battle line uses a short speech box")
@@ -597,6 +662,7 @@ func _battle_view() -> int:
 	echo.set("battle", null)
 	echo.set("in_battle", false)
 	await process_frame
+	failed += await _adventure_mode_chip()
 	return failed
 
 

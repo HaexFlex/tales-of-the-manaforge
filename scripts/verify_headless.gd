@@ -3921,6 +3921,7 @@ func _run() -> void:
 	failed += await _battle_ui_v7(tree_root, game_state, save_service)
 	failed += await _battle_icons(tree_root, game_state, save_service)
 	failed += _minigame_checks()
+	failed += _hybrid_chip_ok(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -4555,6 +4556,77 @@ func _echo_run_replay(fx: Dictionary, replay: Dictionary, elaia_def: Dictionary)
 	while battle.outcome == "" and not battle.spare_window:
 		battle.choose("strike")
 	return battle
+
+
+func _hybrid_chip_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var gear: Node = tree_root.get_node_or_null("Equipment")
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _assert(echo != null and gear != null and game_state != null and packed != null, "hybrid chip fixtures")
+	if failed > 0:
+		return failed
+	var saved_battle: Variant = echo.get("battle")
+	var saved_in: bool = bool(echo.get("in_battle"))
+	var saved_mode: String = str(game_state.get("arrow_mode"))
+	var saved_weapon: String = str(gear.call("equipped_id", "weapon"))
+	echo.set("battle", null)
+	echo.set("in_battle", false)
+	game_state.set("arrow_mode", "physical")
+	var view: Node = packed.instantiate()
+	tree_root.add_child(view)
+	var battle := EchoBattle.new()
+	battle.strike_kind = "hybrid"
+	battle.arrow_mode = "physical"
+	battle.outcome = ""
+	view.set("_battle", battle)
+	view.set("_waiting_return", false)
+	view.set("_phase", "fight")
+	view.call("_refresh_actions")
+	var chip: Button = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Button
+	failed += _assert(chip != null and chip.visible and not chip.disabled and chip.modulate == Color.WHITE, "echo hybrid chip is selectable")
+	view.call("_on_arrow")
+	failed += _assert(str(battle.arrow_mode) == "magical" and str(game_state.get("arrow_mode")) == "magical", "echo chip selects Arcana")
+	view.queue_free()
+	echo.set("battle", saved_battle)
+	echo.set("in_battle", saved_in)
+	var arena_packed: PackedScene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+	failed += _assert(arena_packed != null, "adventure battle scene")
+	if arena_packed == null:
+		return failed
+	gear.call("grant_item", "thornbow")
+	failed += _assert(str(gear.call("try_equip", "thornbow")) == "ok", "equip a hybrid weapon")
+	game_state.set("arrow_mode", "physical")
+	var arena: Node = arena_packed.instantiate()
+	tree_root.add_child(arena)
+	var fight := FightState.new()
+	fight.add_member("keeper", {"might": 5, "arcana": 8, "vitality": 6, "attack": "physical"}, 0, "front", "keeper")
+	arena.set("_fight", fight)
+	arena.set("_target_mode", "")
+	var menu: CanvasItem = arena.get_node_or_null("Arena/ActionMenu") as CanvasItem
+	var strike: CanvasItem = arena.get_node_or_null("Arena/ActionMenu/StrikeButton") as CanvasItem
+	if menu:
+		menu.visible = true
+	if strike:
+		strike.visible = true
+	arena.call("_refresh_mode_chip")
+	failed += _assert(bool(arena.call("mode_chip_shown")) and str(arena.call("mode_chip_text")) == "Phys", "adventure shows the Might chip")
+	arena.call("_on_mode_chip_pressed")
+	var row: Dictionary = fight.fighter_dict("keeper")
+	failed += _assert(str(game_state.get("arrow_mode")) == "magical" and str(row.get("attack", "")) == "magic", "adventure chip selects Arcana")
+	var sheet: Dictionary = SlotEngine.member_stats("keeper")
+	failed += _assert(str(sheet.get("attack", "")) == "magic", "hybrid weapon strikes with Arcana")
+	arena.queue_free()
+	game_state.set("arrow_mode", saved_mode)
+	if saved_weapon != "" and saved_weapon != "thornbow":
+		gear.call("try_equip", saved_weapon)
+	elif saved_weapon == "":
+		gear.call("grant_item", "stone_sword")
+		gear.call("try_equip", "stone_sword")
+	if failed == 0:
+		print("HYBRID_CHIP_OK")
+	return failed
 
 
 func _echo_end_confirm_ok(tree_root: Window) -> int:
