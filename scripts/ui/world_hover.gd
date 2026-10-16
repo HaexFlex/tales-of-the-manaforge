@@ -6,7 +6,7 @@ extends RefCounted
 
 const THEME_PATH: String = "res://assets/ui/manaforge_theme.tres"
 ## Mouse rest and a tap-and-hold use this one wait. Control tooltips read the same value.
-const REST_SEC: float = 0.6
+const REST_SEC: float = 0.8
 
 static var _layer: CanvasLayer
 static var _panel: Panel

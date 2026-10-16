@@ -411,10 +411,10 @@ func _floating_names() -> int:
 func _hover_rest() -> int:
 	var failed: int = 0
 	WorldHover.install()
-	failed += _check(is_equal_approx(WorldHover.rest_sec(), 0.6), "hover rest is 0.6s")
+	failed += _check(is_equal_approx(WorldHover.rest_sec(), 0.8), "hover rest is 0.8s")
 	failed += _check(
-		is_equal_approx(float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec", 0.0)), 0.6),
-		"control tooltips share the 0.6s rest"
+		is_equal_approx(float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec", 0.0)), 0.8),
+		"control tooltips share the 0.8s rest"
 	)
 	var host := Node2D.new()
 	root.add_child(host)
@@ -429,7 +429,7 @@ func _hover_rest() -> int:
 	var pop: CanvasItem = sheet.get_node_or_null("TraitPopup") as CanvasItem
 	failed += _check(pop != null and not pop.visible, "trait window starts hidden")
 	sheet.call("_arm_trait_hover")
-	failed += _check(bool(sheet.call("trait_rest_pending")) and pop != null and not pop.visible, "trait hover waits 0.6s")
+	failed += _check(bool(sheet.call("trait_rest_pending")) and pop != null and not pop.visible, "trait hover waits 0.8s")
 	sheet.call("complete_trait_rest")
 	failed += _check(pop != null and pop.visible and not bool(sheet.call("trait_rest_pending")), "trait hover opens after the rest")
 	sheet.call("close_trait_popup")
