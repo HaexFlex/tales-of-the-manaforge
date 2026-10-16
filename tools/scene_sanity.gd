@@ -2739,6 +2739,12 @@ func _offline_curve(game: Node) -> int:
 		var got: float = float(game.call("offline_effective_seconds", float(pair[0])))
 		failed += _check(absf(got - float(pair[1])) < 0.02, "offline %ss → %s (got %s)" % [pair[0], pair[1], got])
 	game.call("reset_for_new_game")
+	var gate_map: Dictionary = game.get_script().get_script_constant_map()
+	failed += _check(is_equal_approx(float(gate_map.get("OFFLINE_PANEL_MIN_SEC", -1.0)), 600.0), "the away panel waits a confirmed 10 minutes")
+	var gate_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_state.gd")
+	var gate_at: int = gate_src.find("OFFLINE_PANEL_MIN_SEC")
+	var gate_note: String = gate_src.substr(maxi(0, gate_at - 160), 200)
+	failed += _check(gate_at >= 0 and gate_note.find("Placeholder") < 0 and gate_note.find("placeholder") < 0, "the 10 minute gate is confirmed")
 	failed += _check(is_equal_approx(float(game.call("offline_shard_mult")), 0.25), "0 ranks is x0.25")
 	var ranks: Dictionary = game.get("upgrade_ranks")
 	ranks["shard_sight"] = 5

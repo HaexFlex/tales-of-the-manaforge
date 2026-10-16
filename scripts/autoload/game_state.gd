@@ -1640,7 +1640,7 @@ func offline_reset_active_sec() -> float:
 	return maxf(0.0, float(_idle_tuning.get("offline_reset_active_sec", 180.0)))
 
 
-## The away panel waits for this much real time. Placeholder until Haex locks it.
+## Confirmed by Haex. The away panel waits for this much real time.
 const OFFLINE_PANEL_MIN_SEC: float = 600.0
 
 
