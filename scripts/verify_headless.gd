@@ -4957,7 +4957,7 @@ func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node
 	failed += _assert(str(panel.call("shard_tag_text")) == "Manashards x0.35", "the tag shows the multiplier (%s)" % str(panel.call("shard_tag_text")))
 	failed += _assert(bool(panel.call("section_visible", "gathered")), "gathered is shown")
 	failed += _assert(not bool(panel.call("section_visible", "forge")), "an empty forge section stays hidden")
-	failed += _assert(bool(panel.call("section_visible", "left")), "still waiting is shown")
+	failed += _assert(bool(panel.call("section_visible", "left")), "left over is shown")
 	var explain: String = str(content_strings.call("get_text", "offline_explain"))
 	failed += _assert(explain.find("capped") < 0 and explain.find("10 minutes") >= 0, "the locked day sentence")
 	var blocked_report: Dictionary = report.duplicate(true)
@@ -5031,6 +5031,8 @@ func _offline_layout_ok(tree_root: Window, game_state: Node) -> int:
 			failed += _offline_headline_line(panel, str(span["away"]))
 			var gathered: String = _offline_summary_text(panel, "gathered")
 			failed += _assert(gathered.find("Stone") < 0 and gathered.find("Food") < 0 and gathered.find("Wood") < 0, "zero wood stone and food stay off the summary")
+			var left_title: Label = (panel.find_child("left", true, false) as Node).find_child("SectionTitle", true, false) as Label
+			failed += _assert(left_title != null and left_title.text == "Left over", "the last section reads Left over")
 		var zero: Dictionary = _offline_watch(spans[1])
 		zero["wood"] = 218
 		zero["forge_completed"] = 0

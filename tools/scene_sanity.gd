@@ -2783,7 +2783,7 @@ func _offline_curve(game: Node) -> int:
 		"offline_exp_failed": "The party was Overwhelmed in room {room}. The pack returned to the forest.",
 		"offline_exp_flee": "The party slipped away to the trailhead with half the pack.",
 		"offline_exp_waiting": "A fight waits for you on the road.",
-		"offline_sec_left": "Still waiting",
+		"offline_sec_left": "Left over",
 		"offline_left_idle": "Your hands were idle for a while. The clearing waits for orders.",
 		"offline_left_forge_empty": "The Forge fell quiet. It is ready for new work.",
 		"offline_ancient_blocked": "The Manatree was Ancient, so the clearing rested. The Ancient bloom is unchanged: {minutes} min left.",
@@ -2849,6 +2849,8 @@ func _offline_layout(game: Node) -> int:
 			failed += _offline_headline_line(panel, str(span["away"]))
 			var gathered: String = _offline_summary_text(panel, "gathered")
 			failed += _check(gathered.find("Stone") < 0 and gathered.find("Food") < 0 and gathered.find("Wood") < 0, "zero wood stone and food stay off the summary")
+			var left_title: Label = (panel.find_child("left", true, false) as Node).find_child("SectionTitle", true, false) as Label
+			failed += _check(left_title != null and left_title.text == "Left over", "the last section reads Left over")
 		var zero: Dictionary = _offline_watch(spans[1])
 		zero["wood"] = 218
 		zero["forge_completed"] = 0
