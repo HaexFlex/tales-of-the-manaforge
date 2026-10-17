@@ -13,6 +13,12 @@ run/main_scene="res://scenes/title_screen.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/ui/icon_256.png"
 config/windows_native_icon="res://assets/ui/icon.ico"
+; Android only. A base boot_splash/image would replace the Windows splash too.
+; 4.7.2 resolves these when the android feature is active. #00061d is the splash plate.
+boot_splash/image.android="res://assets/ui/android/splash/splash_1200x540.png"
+boot_splash/fullsize.android=false
+boot_splash/use_filter.android=false
+boot_splash/bg_color.android=Color(0, 0.023529411764705882, 0.11372549019607843, 1)
 
 [autoload]
 

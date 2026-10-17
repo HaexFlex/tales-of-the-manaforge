@@ -84,6 +84,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_ANDROID_ICON") == "1":
+		var icon_only: int = _android_icon_splash_ok()
+		if icon_only > 0:
+			print("ANDROID_ICON_SPLASH_FAIL: %d" % icon_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -3974,6 +3983,7 @@ func _run() -> void:
 	failed += _hybrid_chip_ok(tree_root)
 	failed += _compat_renderer_ok()
 	failed += _android_preset_ok()
+	failed += _android_icon_splash_ok()
 	failed += _manatree_tiles_ok(tree_root, game_state)
 	failed += _lifecycle_checks(tree_root, game_state, save_service)
 	failed += await _safe_area_layout_ok(tree_root)
@@ -21367,9 +21377,6 @@ func _compat_renderer_ok() -> int:
 	return failed
 
 
-const ANDROID_ICON_BG := Color8(22, 36, 28)
-
-
 func _android_preset_ok() -> int:
 	## Android pass 1 preset. Windows presets stay the two desktop entries.
 	var failed: int = 0
@@ -21392,42 +21399,71 @@ func _android_preset_ok() -> int:
 		failed += _assert(block.find(piece) >= 0, "Android exclude filter has %s" % piece)
 	var orient: int = int(ProjectSettings.get_setting("display/window/handheld/orientation", -1))
 	failed += _assert(orient == DisplayServer.SCREEN_SENSOR_LANDSCAPE, "handheld orientation is sensor landscape (got %d)" % orient)
-	var portrait: Image = Image.new()
-	failed += _assert(portrait.load(ProjectSettings.globalize_path("res://assets/art/portraits/keeper_portrait.png")) == OK, "keeper portrait loads")
-	failed += _android_icon_matches(portrait, "res://assets/ui/android/main_192.png", 192, true)
-	failed += _android_icon_matches(portrait, "res://assets/ui/android/adaptive_foreground_432.png", 432, false)
-	var back: Texture2D = load("res://assets/ui/android/adaptive_background_432.png") as Texture2D
-	var back_img: Image = back.get_image() if back != null else null
-	failed += _assert(back_img != null and back_img.get_width() == 432 and back_img.get_height() == 432, "adaptive background is 432")
-	if back_img != null:
-		failed += _assert(back_img.get_pixel(0, 0).is_equal_approx(ANDROID_ICON_BG) and back_img.get_pixel(200, 200).is_equal_approx(ANDROID_ICON_BG), "adaptive background is the flat placeholder")
+	failed += _assert(block.find("launcher_icons/main_192x192=\"res://assets/ui/android/legacy/ic_launcher_192.png\"") >= 0, "main launcher icon is the clean 192")
+	failed += _assert(block.find("launcher_icons/adaptive_foreground_432x432=\"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png\"") >= 0, "adaptive foreground is the clean 432")
+	failed += _assert(block.find("launcher_icons/adaptive_background_432x432=\"res://assets/ui/android/adaptive/ic_launcher_background_432.png\"") >= 0, "adaptive background is the clean 432")
+	failed += _assert(block.find("launcher_icons/adaptive_monochrome_432x432=\"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png\"") >= 0, "adaptive monochrome is the clean 432")
 	if failed == 0:
 		print("ANDROID_PRESET_OK")
 	return failed
 
 
-func _android_icon_matches(portrait: Image, path: String, side: int, opaque_bg: bool) -> int:
+func _android_icon_splash_ok() -> int:
+	## Art's clean Keeper icons and the 20:9 splash. Windows keeps the default boot splash.
 	var failed: int = 0
-	var got := Image.new()
-	if got.load(ProjectSettings.globalize_path(path)) != OK:
-		got = null
-	failed += _assert(got != null and got.get_width() == side and got.get_height() == side, "%s is %d square" % [path, side])
-	if portrait == null or got == null or portrait.get_width() < 1:
-		return failed
-	var expect: Image = portrait.duplicate()
-	expect.resize(side, side, Image.INTERPOLATE_NEAREST)
-	if opaque_bg:
-		var canvas := Image.create(side, side, false, Image.FORMAT_RGBA8)
-		canvas.fill(ANDROID_ICON_BG)
-		canvas.blend_rect(expect, Rect2i(0, 0, side, side), Vector2i.ZERO)
-		expect = canvas
-	var mismatch: int = 0
-	var step: int = 8
-	for y: int in range(0, side, step):
-		for x: int in range(0, side, step):
-			if not got.get_pixel(x, y).is_equal_approx(expect.get_pixel(x, y)):
-				mismatch += 1
-	failed += _assert(mismatch == 0, "%s is a nearest scale of the Keeper portrait (%d sample mismatches)" % [path, mismatch])
+	var expect: Dictionary = {
+		"res://assets/ui/android/adaptive/ic_launcher_background_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/legacy/ic_launcher_48.png": Vector2i(48, 48),
+		"res://assets/ui/android/legacy/ic_launcher_72.png": Vector2i(72, 72),
+		"res://assets/ui/android/legacy/ic_launcher_96.png": Vector2i(96, 96),
+		"res://assets/ui/android/legacy/ic_launcher_144.png": Vector2i(144, 144),
+		"res://assets/ui/android/legacy/ic_launcher_192.png": Vector2i(192, 192),
+		"res://assets/ui/android/legacy/ic_launcher_round_192.png": Vector2i(192, 192),
+		"res://assets/ui/android/legacy/ic_launcher_store_512.png": Vector2i(512, 512),
+		"res://assets/ui/android/splash/splash_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_bg_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_bg_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_keeper_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_keeper_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_logo_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_logo_960x540.png": Vector2i(960, 540),
+	}
+	for path: String in expect.keys():
+		var size: Vector2i = expect[path]
+		failed += _assert(FileAccess.file_exists(path), "%s exists" % path)
+		var img := Image.new()
+		var loaded: bool = img.load(ProjectSettings.globalize_path(path)) == OK
+		failed += _assert(loaded and img.get_width() == size.x and img.get_height() == size.y, "%s is %d x %d" % [path, size.x, size.y])
+		var imp: String = FileAccess.get_file_as_string(path + ".import")
+		failed += _assert(imp.find("compress/mode=0") >= 0 and imp.find("mipmaps/generate=false") >= 0, "%s imports lossless with no mipmaps" % path)
+	var presets: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	var android_at: int = presets.find("name=\"Android Test (Experimental)\"")
+	var block: String = presets.substr(android_at) if android_at >= 0 else ""
+	var refs: PackedStringArray = PackedStringArray([
+		"launcher_icons/main_192x192=\"res://assets/ui/android/legacy/ic_launcher_192.png\"",
+		"launcher_icons/adaptive_foreground_432x432=\"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png\"",
+		"launcher_icons/adaptive_background_432x432=\"res://assets/ui/android/adaptive/ic_launcher_background_432.png\"",
+		"launcher_icons/adaptive_monochrome_432x432=\"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png\"",
+	])
+	for ref: String in refs:
+		var quoted: String = ref.substr(ref.find("\"") + 1)
+		quoted = quoted.trim_suffix("\"")
+		failed += _assert(block.find(ref) >= 0 and FileAccess.file_exists(quoted), "preset resolves %s" % quoted)
+	var project: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project.find("config/icon=\"res://assets/ui/icon_256.png\"") >= 0, "desktop icon stays icon_256")
+	failed += _assert(project.find("boot_splash/image=") < 0, "Windows boot splash image is not overridden")
+	failed += _assert(project.find("boot_splash/image.android=\"res://assets/ui/android/splash/splash_1200x540.png\"") >= 0, "Android splash is the 1200x540 composite")
+	failed += _assert(project.find("boot_splash/fullsize.android=false") >= 0, "Android splash is not fullsize")
+	failed += _assert(project.find("boot_splash/use_filter.android=false") >= 0, "Android splash is nearest")
+	var splash_bg := Color(0, 0.023529411764705882, 0.11372549019607843, 1)
+	failed += _assert(splash_bg.is_equal_approx(Color.html("00061d")), "splash bg matches #00061d")
+	failed += _assert(project.find("boot_splash/bg_color.android=Color(0, 0.023529411764705882, 0.11372549019607843, 1)") >= 0, "Android splash bg is #00061d")
+	failed += _assert(not FileAccess.file_exists("res://assets/ui/android/main_192.png"), "placeholder main icon left the live folder")
+	if failed == 0:
+		print("ANDROID_ICON_SPLASH_OK")
 	return failed
 
 
