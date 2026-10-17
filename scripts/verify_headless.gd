@@ -103,6 +103,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_LONGPRESS_HINT_WIDTH") == "1":
+		var hint_width_only: int = await _longpress_hint_width_ok(tree_root)
+		if hint_width_only > 0:
+			print("LONGPRESS_HINT_WIDTH_FAIL: %d" % hint_width_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -3999,6 +4008,7 @@ func _run() -> void:
 	failed += await _safe_area_layout_ok(tree_root)
 	failed += _touch_hint_ok(tree_root, game_state)
 	failed += await _tooltip_scroll_ok(tree_root)
+	failed += await _longpress_hint_width_ok(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -7206,6 +7216,73 @@ func _tooltip_scroll_ok(tree_root: Window) -> int:
 	if failed == 0:
 		print("TOOLTIP_SCROLL_OK")
 	return failed
+
+
+func _longpress_hint_width_ok(tree_root: Window) -> int:
+	## A wide world tooltip must not leave the shared panel stuck wider than the 200 px hint.
+	var failed: int = 0
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.size = Vector2i(960, 540)
+	tree_root.content_scale_size = Vector2i(960, 540)
+	await process_frame
+	var host := Node2D.new()
+	tree_root.add_child(host)
+	var wide: String = "The eastern clearing holds a fallen heartwood the Keeper cannot carry\nsecond line of the world tooltip\nthird line of the world tooltip"
+	WorldHover.present(host, wide)
+	WorldHover.complete_rest()
+	await process_frame
+	var tip: Panel = WorldHover.panel()
+	var wide_size: Vector2 = _world_hover_text_size(tip, wide)
+	failed += _assert(tip != null and tip.visible and tip.size.is_equal_approx(wide_size), "3-line world tooltip sizes to its text (got %s want %s)" % [str(tip.size) if tip != null else "missing", str(wide_size)])
+	failed += _assert(tip != null and tip.size.x > 200.0, "3-line world tooltip is wider than the hint (got %s)" % (str(tip.size) if tip != null else "missing"))
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input != null:
+		failed += _assert(bool(input.call("present_long_press_hint", Vector2(400, 300))), "long-press hint opens after a wide tooltip")
+	else:
+		failed += _assert(WorldHover.show_anchored_hint("Hold to look\ncloser, or to\ngive an order.", Vector2(400, 300), Vector2(200, 78)), "long-press hint opens after a wide tooltip")
+	await process_frame
+	var hint: Panel = WorldHover.panel()
+	failed += _assert(hint != null and hint.size.is_equal_approx(Vector2(200, 78)), "long-press hint is 200 x 78 after a wide tooltip (got %s)" % (str(hint.size) if hint != null else "missing"))
+	var short_text: String = "Runestone Arcana"
+	WorldHover.present(host, short_text)
+	WorldHover.complete_rest()
+	await process_frame
+	var again: Panel = WorldHover.panel()
+	var short_size: Vector2 = _world_hover_text_size(again, short_text)
+	failed += _assert(again != null and again.visible and again.size.is_equal_approx(short_size), "1-line world tooltip sizes to its text after the hint (got %s want %s)" % [str(again.size) if again != null else "missing", str(short_size)])
+	failed += _assert(again != null and again.size.x < 200.0, "1-line world tooltip is not stuck at the hint width (got %s)" % (str(again.size) if again != null else "missing"))
+	WorldHover.shutdown()
+	host.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("LONGPRESS_HINT_WIDTH_OK")
+	return failed
+
+
+func _world_hover_text_size(panel: Panel, text: String) -> Vector2:
+	var label: Label = panel.get_node_or_null("Text") as Label if panel != null else null
+	var font: Font = label.get_theme_font(&"font") if label != null else null
+	var font_size: int = label.get_theme_font_size(&"font_size") if label != null else 16
+	var text_sz := Vector2(80, 19)
+	if font != null:
+		text_sz = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var left: float = 16.0
+	var top: float = 10.0
+	var right: float = 16.0
+	var bottom: float = 10.0
+	var box: StyleBox = panel.get_theme_stylebox(&"panel") if panel != null else null
+	if box != null:
+		left = box.get_content_margin(SIDE_LEFT)
+		top = box.get_content_margin(SIDE_TOP)
+		right = box.get_content_margin(SIDE_RIGHT)
+		bottom = box.get_content_margin(SIDE_BOTTOM)
+	var lines: int = maxi(1, text.count("\n") + 1)
+	return Vector2(
+		maxf(Ui540.TOOLTIP_MIN_W, text_sz.x + left + right),
+		maxf(Ui540.TOOLTIP_MIN_H, float(lines) * 20.0 + top + bottom),
+	)
 
 
 func _tooltip_parchment_ok(tree_root: Window) -> int:

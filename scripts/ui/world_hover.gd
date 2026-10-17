@@ -126,6 +126,10 @@ static func _reveal(source: Node, text: String) -> void:
 	var lines: int = maxi(1, text.count("\n") + 1)
 	var height: float = maxf(Ui540.TOOLTIP_MIN_H, float(lines) * 20.0 + top + bottom)
 	var width: float = maxf(Ui540.TOOLTIP_MIN_W, text_sz.x + left + right)
+	## The long-press hint uses this same panel. Drop its 200 px minimum first,
+	## or a short tooltip stays as wide as the hint.
+	panel.custom_minimum_size = Vector2.ZERO
+	panel.size = Vector2.ZERO
 	panel.size = Vector2(width, height)
 	panel.custom_minimum_size = panel.size
 	_place_near(panel, _pointer(source))
@@ -196,6 +200,10 @@ static func show_anchored_hint(text: String, screen_pos: Vector2, panel_size: Ve
 		top = box.get_content_margin(SIDE_TOP)
 		right = box.get_content_margin(SIDE_RIGHT)
 		bottom = box.get_content_margin(SIDE_BOTTOM)
+	## A longer world tooltip leaves its size on this shared panel. Clear that
+	## minimum before the hint, or the panel stays wider than 200.
+	panel.custom_minimum_size = Vector2.ZERO
+	panel.size = Vector2.ZERO
 	panel.size = panel_size
 	panel.custom_minimum_size = panel_size
 	_label.position = Vector2(left, top)
