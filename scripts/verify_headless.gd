@@ -66,6 +66,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_SAFE_AREA") == "1":
+		var safe_only: int = await _safe_area_layout_ok(tree_root)
+		if safe_only > 0:
+			print("SAFE_AREA_FAIL: %d" % safe_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -3958,6 +3967,7 @@ func _run() -> void:
 	failed += _android_preset_ok()
 	failed += _manatree_tiles_ok(tree_root, game_state)
 	failed += _lifecycle_checks(tree_root, game_state, save_service)
+	failed += await _safe_area_layout_ok(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -21727,6 +21737,121 @@ func _back_button_pause_ok(tree_root: Window, save_service: Node) -> int:
 	if failed == 0:
 		print("BACK_BUTTON_PAUSE_OK")
 	return failed
+
+
+func _safe_area_layout_ok(tree_root: Window) -> int:
+	## Tablet logical views. Integer scale of the device pixels is 1200x540, 960x600, 1280x960.
+	var failed: int = 0
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(str(ProjectSettings.get_setting("display/window/stretch/scale_mode", "")) == "integer", "scale mode stays integer")
+	failed += _assert(project_text.find("scale_mode.mobile") < 0, "no fractional mobile scale override")
+	Ui540.clear_debug_insets()
+	var insets: Vector4 = Ui540.safe_insets()
+	failed += _assert(insets.length() < 0.01, "desktop safe area is the full window")
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var saved_window: Vector2i = tree_root.size
+	var views: Array[Dictionary] = [
+		{"vs": Vector2i(1200, 540), "label": "2400x1080"},
+		{"vs": Vector2i(960, 600), "label": "1920x1200"},
+		{"vs": Vector2i(1280, 960), "label": "1280x960"},
+	]
+	var hud_packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var title_packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var pause_packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var hud: Node = hud_packed.instantiate() if hud_packed != null else null
+	var title: Node = title_packed.instantiate() if title_packed != null else null
+	var menu: Node = pause_packed.instantiate() if pause_packed != null else null
+	var away: Node = load("res://scripts/ui/offline_summary.gd").new()
+	if hud != null:
+		tree_root.add_child(hud)
+	if title != null:
+		tree_root.add_child(title)
+	if menu != null:
+		tree_root.add_child(menu)
+	tree_root.add_child(away)
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	for view: Dictionary in views:
+		var vs: Vector2i = view["vs"]
+		var label: String = str(view["label"])
+		tree_root.size = vs
+		tree_root.content_scale_size = vs
+		await tree_root.get_tree().process_frame
+		failed += _assert(Ui540.viewport_size().is_equal_approx(Vector2(vs)), "logical viewport is %s (got %s)" % [vs, Ui540.viewport_size()])
+		if menu != null and menu.has_method("resume_game"):
+			menu.call("resume_game")
+		if hud != null and hud.has_method("_layout_hud540"):
+			hud.call("_layout_hud540")
+		if title != null and title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		away.call("present", {"show": true, "raw_sec": 600.0, "effective_sec": 60.0, "keeper_kind": "water", "manashards": 1, "shard_mult": 0.25})
+		if host != null and host.has_method("_layout_window"):
+			host.call("_layout_window")
+		await tree_root.get_tree().process_frame
+		var safe: Rect2 = Ui540.safe_rect().grow(1.0)
+		if hud != null:
+			failed += _assert_inside(hud.get_node_or_null("Panel/IconShade") as Control, safe, "resource bar %s" % label)
+			failed += _assert_inside(hud.get("pause_button") as Control, safe, "pause button %s" % label)
+			failed += _assert_inside(hud.get_node_or_null("Panel/CharacterButton") as Control, safe, "character button %s" % label)
+			failed += _assert_inside(hud.get_node_or_null("Panel/BackpackButton") as Control, safe, "backpack button %s" % label)
+		if menu != null:
+			menu.call("open_pause")
+			await tree_root.get_tree().process_frame
+		if title != null:
+			failed += _assert_inside(title.get_node_or_null("Logo") as Control, safe, "title logo %s" % label)
+			failed += _assert_inside(title.get_node_or_null("Menu") as Control, safe, "title menu %s" % label)
+			failed += _assert_inside(title.get_node_or_null("Version") as Control, safe, "title version %s" % label)
+		if menu != null:
+			failed += _assert_inside(menu.get_node_or_null("Panel") as Control, safe, "pause panel %s" % label)
+			var plank: Control = menu.get_node_or_null("Panel/Title") as Control
+			failed += _assert_inside(plank, safe, "pause title %s" % label)
+		var card: Control = away.find_child("OfflineCard", true, false) as Control
+		failed += _assert_inside(card, safe, "away card %s" % label)
+		if host != null:
+			var window: Control = host.find_child("Window", true, false) as Control
+			failed += _assert_inside(window, safe, "minigame window %s" % label)
+	tree_root.size = Vector2i(1200, 540)
+	tree_root.content_scale_size = Vector2i(1200, 540)
+	await tree_root.get_tree().process_frame
+	Ui540.set_debug_insets(Vector4(48, 36, 28, 20))
+	var shade: Control = null
+	var pause_btn: Control = null
+	var pack_btn: Control = null
+	if hud != null:
+		if menu != null and menu.has_method("resume_game"):
+			menu.call("resume_game")
+		hud.call("_layout_hud540")
+		shade = hud.get_node_or_null("Panel/IconShade") as Control
+		pause_btn = hud.get("pause_button") as Control
+		pack_btn = hud.get_node_or_null("Panel/BackpackButton") as Control
+	failed += _assert(shade != null and shade.position.x >= 48.0 - 0.1 and shade.position.y >= 36.0 - 0.1, "a notch pushes the resource bar inside the safe area")
+	failed += _assert(pause_btn != null and pause_btn.get_global_rect().end.x <= 1200.0 - 28.0 + 0.5, "a notch keeps the pause button inside the right inset")
+	var view_now: Vector2 = Ui540.viewport_size()
+	var pack_end: float = pack_btn.get_global_rect().end.y if pack_btn != null else -1.0
+	failed += _assert(view_now.is_equal_approx(Vector2(1200, 540)), "notch check uses the 20:9 logical view (got %s)" % view_now)
+	failed += _assert(pack_btn != null and pack_end <= view_now.y - Ui540.margin_bottom() + 0.5, "a notch keeps the bottom buttons above the lower inset (end %.1f margin %.1f)" % [pack_end, Ui540.margin_bottom()])
+	Ui540.clear_debug_insets()
+	if menu != null and menu.has_method("resume_game"):
+		menu.call("resume_game")
+	paused = false
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if hud != null:
+		hud.queue_free()
+	if title != null:
+		title.queue_free()
+	if menu != null:
+		menu.queue_free()
+	away.queue_free()
+	if failed == 0:
+		print("SAFE_AREA_LAYOUT_OK")
+	return failed
+
+
+func _assert_inside(ctrl: Control, safe: Rect2, label: String) -> int:
+	if ctrl == null:
+		return _assert(false, "%s is missing" % label)
+	var rect: Rect2 = ctrl.get_global_rect()
+	return _assert(safe.encloses(rect), "%s %s is outside %s" % [label, rect, safe])
 
 
 func _compat_scan_scenes(root_path: String, banned: PackedStringArray) -> PackedStringArray:

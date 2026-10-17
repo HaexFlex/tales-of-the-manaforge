@@ -583,11 +583,11 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 
 func _layout_window() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
-	var top: float = HUD_BAR_PX + Ui540.PLANK_RISE
-	var shortcut_top: float = vs.y - Ui540.SAFE_MARGIN_PX - Ui540.TAP_MIN_PX
+	var top: float = maxf(HUD_BAR_PX, Ui540.margin_top() + 40.0) + Ui540.PLANK_RISE
+	var shortcut_top: float = vs.y - Ui540.margin_bottom() - Ui540.TAP_MIN_PX
 	var max_bottom: float = shortcut_top - HUD_SHORTCUT_GAP
 	var max_h: float = maxf(120.0, max_bottom - top)
-	var max_w: float = maxf(120.0, vs.x - Ui540.SAFE_MARGIN_PX * 2.0)
+	var max_w: float = maxf(120.0, vs.x - Ui540.margin_left() - Ui540.margin_right())
 	var sz := Vector2(
 		minf(MinigameCatalog.WINDOW_SIZE.x, max_w),
 		minf(MinigameCatalog.WINDOW_SIZE.y, max_h)
@@ -888,8 +888,8 @@ func _refresh_prompt() -> void:
 	_prompt.size = sz
 	Ui540.fit_button_font(_prompt, sz.x)
 	var vs: Vector2 = Ui540.viewport_size()
-	var x: float = clampf(screen.x - sz.x * 0.5, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.x - Ui540.SAFE_MARGIN_PX - sz.x))
-	var y: float = clampf(screen.y - sz.y - 12.0, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.y - Ui540.SAFE_MARGIN_PX - sz.y))
+	var x: float = clampf(screen.x - sz.x * 0.5, Ui540.margin_left(), maxf(Ui540.margin_left(), vs.x - Ui540.margin_right() - sz.x))
+	var y: float = clampf(screen.y - sz.y - 12.0, Ui540.margin_top(), maxf(Ui540.margin_top(), vs.y - Ui540.margin_bottom() - sz.y))
 	_prompt.position = Vector2(x, y)
 
 

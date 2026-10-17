@@ -41,6 +41,9 @@ window/size/window_width_override=960
 window/size/window_height_override=540
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+; Integer on desktop and on mobile. 2400x1080, 1920x1200 and 1280x960 all
+; divide evenly (logical 1200x540, 960x600, 1280x960), so a tablet does not
+; letterbox. A fractional mobile override would blur 1 art px = 1 screen px.
 window/stretch/scale_mode="integer"
 ; Godot 4.7 reads this at Android export (no preset screen/orientation key).
 ; 4 = DisplayServer.SCREEN_SENSOR_LANDSCAPE. Desktop windows ignore it. iOS stays parked.

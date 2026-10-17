@@ -3,6 +3,8 @@ extends RefCounted
 ## Shared 540p layout helpers (safe margins, phone export, 20:9 window shift).
 
 const SAFE_MARGIN_PX: float = 24.0
+## Tests inject a notch. Negative means "read DisplayServer".
+static var _debug_insets: Vector4 = Vector4(-1, -1, -1, -1)
 const TOOLTIP_GAP_PX: float = 6.0
 const TOOLTIP_MIN_H: float = 30.0
 const HUD_RESOURCE_BAND_H: float = 48.0
@@ -15,6 +17,60 @@ const WARNING_AMBER: Color = Color8(176, 112, 20)
 
 static func is_phone_export() -> bool:
 	return OS.has_feature("mobile")
+
+
+static func set_debug_insets(insets: Vector4) -> void:
+	_debug_insets = insets
+
+
+static func clear_debug_insets() -> void:
+	_debug_insets = Vector4(-1, -1, -1, -1)
+
+
+## Screen safe area in logical viewport pixels (left, top, right, bottom).
+## A full-window safe area (desktop, and headless) is zero on every side.
+static func safe_insets() -> Vector4:
+	if _debug_insets.x >= 0.0:
+		return _debug_insets
+	var area: Rect2i = DisplayServer.get_display_safe_area()
+	if area.size.x < 1 or area.size.y < 1:
+		return Vector4.ZERO
+	var win: Vector2i = DisplayServer.window_get_size()
+	if win.x < 1 or win.y < 1:
+		return Vector4.ZERO
+	if area.position == Vector2i.ZERO and area.size == win:
+		return Vector4.ZERO
+	var vs: Vector2 = viewport_size()
+	var sx: float = vs.x / float(win.x)
+	var sy: float = vs.y / float(win.y)
+	var left: float = float(area.position.x) * sx
+	var top: float = float(area.position.y) * sy
+	var right: float = float(win.x - area.end.x) * sx
+	var bottom: float = float(win.y - area.end.y) * sy
+	return Vector4(maxf(0.0, left), maxf(0.0, top), maxf(0.0, right), maxf(0.0, bottom))
+
+
+static func margin_left() -> float:
+	return maxf(SAFE_MARGIN_PX, safe_insets().x)
+
+
+static func margin_top() -> float:
+	return maxf(SAFE_MARGIN_PX, safe_insets().y)
+
+
+static func margin_right() -> float:
+	return maxf(SAFE_MARGIN_PX, safe_insets().z)
+
+
+static func margin_bottom() -> float:
+	return maxf(SAFE_MARGIN_PX, safe_insets().w)
+
+
+static func safe_rect() -> Rect2:
+	var vs: Vector2 = viewport_size()
+	var left: float = margin_left()
+	var top: float = margin_top()
+	return Rect2(left, top, maxf(0.0, vs.x - left - margin_right()), maxf(0.0, vs.y - top - margin_bottom()))
 
 
 ## Logical (stretched) size. `root.size` is the window in physical pixels, which is 2× or more
@@ -41,12 +97,12 @@ static func center_shift_x() -> float:
 
 
 static func kit_top_inset() -> float:
-	return SAFE_MARGIN_PX + HUD_RESOURCE_BAND_H + SAFE_MARGIN_PX
+	return margin_top() + HUD_RESOURCE_BAND_H + SAFE_MARGIN_PX
 
 
 static func kit_content_size() -> Vector2:
 	var vs: Vector2 = viewport_size()
-	return Vector2(vs.x, maxf(0.0, vs.y - kit_top_inset() - SAFE_MARGIN_PX))
+	return Vector2(vs.x, maxf(0.0, vs.y - kit_top_inset() - margin_bottom()))
 
 
 ## Hover tip: parchment panel, 6 px under the control. A bottom-row button has no
@@ -60,18 +116,22 @@ static func place_tooltip(popup: Window, anchor: Control) -> void:
 		sz.y = TOOLTIP_MIN_H
 		popup.size = sz
 	var vs: Vector2 = viewport_size()
-	var pos := Vector2(SAFE_MARGIN_PX, SAFE_MARGIN_PX)
+	var left: float = margin_left()
+	var top: float = margin_top()
+	var right: float = margin_right()
+	var bottom: float = margin_bottom()
+	var pos := Vector2(left, top)
 	if anchor != null and is_instance_valid(anchor):
 		var rect: Rect2 = anchor.get_global_rect()
 		var below: float = rect.end.y + TOOLTIP_GAP_PX
 		var above: float = rect.position.y - TOOLTIP_GAP_PX - sz.y
 		var y: float = below
-		if below + sz.y > vs.y - SAFE_MARGIN_PX:
+		if below + sz.y > vs.y - bottom:
 			y = above
 		pos = Vector2(rect.position.x, y)
-	var max_x: float = maxf(SAFE_MARGIN_PX, vs.x - SAFE_MARGIN_PX - sz.x)
-	var max_y: float = maxf(SAFE_MARGIN_PX, vs.y - SAFE_MARGIN_PX - sz.y)
-	popup.position = Vector2(clampf(pos.x, SAFE_MARGIN_PX, max_x), clampf(pos.y, SAFE_MARGIN_PX, max_y))
+	var max_x: float = maxf(left, vs.x - right - sz.x)
+	var max_y: float = maxf(top, vs.y - bottom - sz.y)
+	popup.position = Vector2(clampf(pos.x, left, max_x), clampf(pos.y, top, max_y))
 
 
 ## Four pips under a speed button. `active` is the lit step, or -1 when none match.
@@ -119,10 +179,15 @@ static func center_kit_panel(ctrl: Control, has_plank: bool = true) -> void:
 	var sz: Vector2 = ctrl.size
 	if sz.x <= 0.0 or sz.y <= 0.0:
 		sz = ctrl.get_combined_minimum_size()
+	var left: float = margin_left()
+	var top: float = margin_top()
+	var right: float = margin_right()
+	var bottom: float = margin_bottom()
 	var top_room: float = PLANK_RISE if has_plank else 0.0
-	var y: float = (vs.y - sz.y + top_room) * 0.5
-	y = clampf(y, SAFE_MARGIN_PX + top_room, maxf(SAFE_MARGIN_PX + top_room, vs.y - SAFE_MARGIN_PX - sz.y))
-	ctrl.position = Vector2(roundf((vs.x - sz.x) * 0.5), roundf(y))
+	var y: float = top + (vs.y - top - bottom - sz.y + top_room) * 0.5
+	y = clampf(y, top + top_room, maxf(top + top_room, vs.y - bottom - sz.y))
+	var x: float = left + (vs.x - left - right - sz.x) * 0.5
+	ctrl.position = Vector2(roundf(x), roundf(y))
 
 
 const PLANK_RISE: float = 22.0
@@ -190,11 +255,11 @@ static func restore_name_tags(root: Node) -> void:
 
 ## Tallest window that fits 540 inside the safe margins (with room for a plank).
 static func max_window_h(has_plank: bool = true) -> float:
-	return viewport_size().y - SAFE_MARGIN_PX * 2.0 - (PLANK_RISE if has_plank else 0.0)
+	return viewport_size().y - margin_top() - margin_bottom() - (PLANK_RISE if has_plank else 0.0)
 
 
 static func max_window_w() -> float:
-	return viewport_size().x - SAFE_MARGIN_PX * 2.0
+	return viewport_size().x - margin_left() - margin_right()
 
 
 ## Sizes a kit window to `want`, clamped to the safe area, then centres it.

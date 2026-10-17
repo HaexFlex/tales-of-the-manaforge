@@ -85,20 +85,22 @@ func _layout_title540() -> void:
 		bg.offset_bottom = 0.0
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	var top: float = Ui540.margin_top()
+	var left: float = Ui540.margin_left()
 	if logo:
 		logo.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		logo.position = Vector2(LOGO_POS.x + shift, LOGO_POS.y)
+		logo.position = Vector2(maxf(LOGO_POS.x + shift, left), maxf(LOGO_POS.y, top))
 		logo.size = logo.texture.get_size() if logo.texture else logo.size
 	_ensure_menu_frame()
 	menu.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	menu.size = Vector2.ZERO
 	var menu_size: Vector2 = menu.get_combined_minimum_size()
-	menu.position = Vector2(MENU_POS.x + shift, MENU_POS.y)
+	menu.position = Vector2(maxf(MENU_POS.x + shift, left), maxf(MENU_POS.y, top))
 	menu.size = menu_size
 	_menu_frame.position = menu.position - Vector2(MENU_FRAME_PAD.x, MENU_FRAME_PAD.y)
 	_menu_frame.size = menu_size + Vector2(MENU_FRAME_PAD.x + MENU_FRAME_PAD.z, MENU_FRAME_PAD.y + MENU_FRAME_PAD.w)
 	_version_label.size = Vector2(240.0, 24.0)
-	_version_label.position = Vector2(vs.x - 12.0 - 240.0, vs.y - 10.0 - 24.0)
+	_version_label.position = Vector2(vs.x - Ui540.margin_right() - 240.0, vs.y - Ui540.margin_bottom() - 24.0)
 
 
 func _ensure_menu_frame() -> void:

@@ -436,7 +436,11 @@ func _apply_hud540_chrome() -> void:
 
 func _layout_hud540() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
-	var safe: float = Ui540.SAFE_MARGIN_PX
+	var left: float = Ui540.margin_left()
+	var right: float = Ui540.margin_right()
+	var top: float = Ui540.margin_top()
+	var bottom: float = Ui540.margin_bottom()
+	var safe: float = bottom
 	## HUD chrome hugs the screen edges on every aspect (hud540 20:9 mockup).
 	var shift: float = 0.0
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -449,32 +453,32 @@ func _layout_hud540() -> void:
 	var bar_w: float = 16.0 + 5.0 * 72.0 + 96.0
 	var shade: Control = panel.get_node_or_null("IconShade") as Control
 	if shade:
-		shade.position = Vector2(safe + shift, safe)
+		shade.position = Vector2(left + shift, top)
 		shade.size = Vector2(bar_w, bar_h)
 	var row: Control = $Panel/IconRow as Control
 	if row:
-		row.position = Vector2(safe + 8.0 + shift, safe + 4.0)
+		row.position = Vector2(left + 8.0 + shift, top + 4.0)
 		row.size = Vector2(bar_w - 16.0, bar_h - 8.0)
 	var tap: float = Ui540.TAP_MIN_PX
 	var pause_sz: float = 40.0 if Ui540.is_phone_export() else tap
-	var pause_x: float = vs.x - safe - pause_sz + shift
-	pause_button.position = Vector2(pause_x, safe)
+	var pause_x: float = vs.x - right - pause_sz + shift
+	pause_button.position = Vector2(pause_x, top)
 	pause_button.size = Vector2(pause_sz, pause_sz)
 	if ascension_reopen_button.visible:
-		ascension_reopen_button.position = Vector2(pause_x - tap - 8.0, safe)
+		ascension_reopen_button.position = Vector2(pause_x - tap - 8.0, top)
 		ascension_reopen_button.size = Vector2(tap, tap)
 	var speed_x: float = pause_x - 8.0 - tap
 	if _play_speed_button:
-		_play_speed_button.position = Vector2(speed_x, safe)
+		_play_speed_button.position = Vector2(speed_x, top)
 		_play_speed_button.size = Vector2(tap, tap)
 	if _speed_button:
-		_speed_button.position = Vector2(speed_x - tap - 4.0, safe)
+		_speed_button.position = Vector2(speed_x - tap - 4.0, top)
 		_speed_button.size = Vector2(tap, tap)
-	var shortcut_y: float = vs.y - safe - tap
+	var shortcut_y: float = vs.y - bottom - tap
 	## Four fixed slots: forge switch, character, backpack, adventure board.
 	## A hidden slot stays empty so the forge switch and the board never trade places.
 	var shortcut_n: float = 4.0
-	var shortcut_x: float = vs.x - safe - shortcut_n * tap - (shortcut_n - 1.0) * 8.0 + shift
+	var shortcut_x: float = vs.x - right - shortcut_n * tap - (shortcut_n - 1.0) * 8.0 + shift
 	var step: float = tap + 8.0
 	if _nav_button != null:
 		_nav_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -515,14 +519,14 @@ func _center_hud_icon(icon: Control, host: Control) -> void:
 	icon.size = glyph
 
 
-func _layout_toast_r4(vs: Vector2, safe: float, shift: float) -> void:
+func _layout_toast_r4(vs: Vector2, _safe: float, shift: float) -> void:
 	if status_label == null or toast_shade == null:
 		return
 	var tap: float = Ui540.TAP_MIN_PX
-	var toast_y: float = vs.y - safe - tap - 8.0 - 32.0
+	var toast_y: float = vs.y - Ui540.margin_bottom() - tap - 8.0 - 32.0
 	var line: String = status_label.text
 	var text_w: float = GameTheme.body_font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.silver_body_size()).x
-	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - safe * 2.0)
+	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - Ui540.margin_left() - Ui540.margin_right())
 	var toast_x: float = roundf((vs.x - toast_w) * 0.5 + shift)
 	var toast_h: float = 30.0
 	var clear: Vector2 = _toast_clear_of_station(Vector2(toast_x, toast_y), Vector2(toast_w, toast_h), vs)
@@ -544,12 +548,12 @@ func _toast_clear_of_station(origin: Vector2, toast_sz: Vector2, vs: Vector2) ->
 	if not rect.intersects(win):
 		return origin
 	var above: float = win.position.y - 8.0 - toast_sz.y
-	if above >= Ui540.SAFE_MARGIN_PX and not Rect2(origin.x, above, toast_sz.x, toast_sz.y).intersects(win):
+	if above >= Ui540.margin_top() and not Rect2(origin.x, above, toast_sz.x, toast_sz.y).intersects(win):
 		return Vector2(origin.x, above)
 	var below: float = win.end.y + 8.0
-	if below + toast_sz.y <= vs.y - 4.0 and not Rect2(origin.x, below, toast_sz.x, toast_sz.y).intersects(win):
+	if below + toast_sz.y <= vs.y - Ui540.margin_bottom() and not Rect2(origin.x, below, toast_sz.x, toast_sz.y).intersects(win):
 		return Vector2(origin.x, below)
-	return Vector2(origin.x, clampf(origin.y, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.y - toast_sz.y - 4.0)))
+	return Vector2(origin.x, clampf(origin.y, Ui540.margin_top(), maxf(Ui540.margin_top(), vs.y - Ui540.margin_bottom() - toast_sz.y)))
 
 
 func _forge_station_panel() -> Control:
@@ -561,11 +565,11 @@ func _forge_station_panel() -> Control:
 
 ## The bar is exactly as tall as its portrait column and sits on the bottom safe margin,
 ## so the column starts at y 0 and the activity labels share the portrait row offsets.
-func _layout_party_bar_r4(vs: Vector2, safe: float, _shift: float) -> void:
+func _layout_party_bar_r4(vs: Vector2, _safe: float, _shift: float) -> void:
 	if _party_bar == null:
 		return
-	var col_x: float = 30.0
-	var bottom: float = vs.y - safe
+	var col_x: float = maxf(30.0, Ui540.margin_left())
+	var bottom: float = vs.y - Ui540.margin_bottom()
 	var col_h: float = PARTY_SLOT
 	if _party_column:
 		var rows: int = 0

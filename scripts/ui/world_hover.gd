@@ -213,11 +213,15 @@ static func _place_near(panel: Control, screen_pos: Vector2) -> void:
 	var below: float = screen_pos.y + 20.0 + Ui540.TOOLTIP_GAP_PX
 	var above: float = screen_pos.y - 20.0 - Ui540.TOOLTIP_GAP_PX - sz.y
 	var y: float = below
-	if below + sz.y > vs.y - Ui540.SAFE_MARGIN_PX and above >= Ui540.SAFE_MARGIN_PX:
+	var left: float = Ui540.margin_left()
+	var top: float = Ui540.margin_top()
+	var right: float = Ui540.margin_right()
+	var bottom: float = Ui540.margin_bottom()
+	if below + sz.y > vs.y - bottom and above >= top:
 		y = above
-	var max_x: float = maxf(Ui540.SAFE_MARGIN_PX, vs.x - Ui540.SAFE_MARGIN_PX - sz.x)
-	var max_y: float = maxf(Ui540.SAFE_MARGIN_PX, vs.y - Ui540.SAFE_MARGIN_PX - sz.y)
+	var max_x: float = maxf(left, vs.x - right - sz.x)
+	var max_y: float = maxf(top, vs.y - bottom - sz.y)
 	panel.position = Vector2(
-		clampf(screen_pos.x, Ui540.SAFE_MARGIN_PX, max_x),
-		clampf(y, Ui540.SAFE_MARGIN_PX, max_y),
+		clampf(screen_pos.x, left, max_x),
+		clampf(y, top, max_y),
 	)
