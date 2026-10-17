@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cqi87027757to"
-path="res://.godot/imported/manatree_mature_strip_glow.png-d4d87e74c59d7fc55252d13396584b91.ctex"
+uid="uid://cug2prubiqoyo"
+path="res://.godot/imported/manatree_elder_strip_t1.png-920140fc6e4ff9c32708ac7c844a49fe.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/art/manatree/native/anim/glow/manatree_mature_strip_glow.png"
-dest_files=["res://.godot/imported/manatree_mature_strip_glow.png-d4d87e74c59d7fc55252d13396584b91.ctex"]
+source_file="res://assets/art/manatree/native/anim/tiles/manatree_elder_strip_t1.png"
+dest_files=["res://.godot/imported/manatree_elder_strip_t1.png-920140fc6e4ff9c32708ac7c844a49fe.ctex"]
 
 [params]
 

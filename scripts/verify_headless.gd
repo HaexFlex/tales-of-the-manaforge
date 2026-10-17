@@ -48,6 +48,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_MANATREE_TILES") == "1":
+		var tiles_only: int = _manatree_tiles_ok(tree_root, game_state)
+		if tiles_only > 0:
+			print("MANATREE_TILES_FAIL: %d" % tiles_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -1430,11 +1439,14 @@ func _run() -> void:
 						var asz: Variant = ed.get("size", [])
 						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 1024 and int((asz as Array)[1]) == 1024, "meta ancient frame 1024")
 						failed += _assert(int(ed.get("frames", 0)) == 8, "ancient strip has 8 frames")
+						failed += _assert(int(ed.get("tile_frames", 0)) == 2, "ancient strip is tiled at 2 frames")
 						failed += _assert(absf(float(ed.get("display_scale", 0.0)) - 1.0) < 0.01, "ancient display_scale 1")
-						var ancient_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_ancient_strip.png") as Texture2D
-						var elder_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_elder_strip.png") as Texture2D
-						failed += _assert(ancient_strip != null and ancient_strip.get_width() == 8192 and ancient_strip.get_height() == 1024, "ancient strip 8192x1024")
-						failed += _assert(elder_strip != null and elder_strip.get_width() == 8192 and elder_strip.get_height() == 1024, "elder strip 8192x1024")
+						failed += _assert(not FileAccess.file_exists("res://assets/art/manatree/native/anim/manatree_ancient_strip.png"), "ancient strip left the live art folder")
+						failed += _assert(not FileAccess.file_exists("res://assets/art/manatree/native/anim/manatree_elder_strip.png"), "elder strip left the live art folder")
+						var ancient_tile: Texture2D = load("res://assets/art/manatree/native/anim/glow/tiles/manatree_ancient_strip_glow_t0.png") as Texture2D
+						var elder_tile: Texture2D = load("res://assets/art/manatree/native/anim/glow/tiles/manatree_elder_strip_glow_t0.png") as Texture2D
+						failed += _assert(ancient_tile != null and ancient_tile.get_width() == 2048 and ancient_tile.get_height() == 1024, "ancient glow tile 2048x1024")
+						failed += _assert(elder_tile != null and elder_tile.get_width() == 2048 and elder_tile.get_height() == 1024, "elder glow tile 2048x1024")
 
 	# Art harvest nodes
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_tree.png"), "harvest_tree art")
@@ -3935,6 +3947,7 @@ func _run() -> void:
 	failed += _hybrid_chip_ok(tree_root)
 	failed += _compat_renderer_ok()
 	failed += _android_preset_ok()
+	failed += _manatree_tiles_ok(tree_root, game_state)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -21386,6 +21399,133 @@ func _android_icon_matches(portrait: Image, path: String, side: int, opaque_bg: 
 				mismatch += 1
 	failed += _assert(mismatch == 0, "%s is a nearest scale of the Keeper portrait (%d sample mismatches)" % [path, mismatch])
 	return failed
+
+
+func _manatree_tiles_ok(tree_root: Window, game_state: Node) -> int:
+	## Android pass 1. Tiles match the retired strips pixel for pixel, and nothing
+	## the Android preset would pack is wider than 4096.
+	var failed: int = 0
+	var etc2: bool = bool(ProjectSettings.get_setting("rendering/textures/vram_compression/import_etc2_astc", false))
+	failed += _assert(etc2, "import_etc2_astc is on for mobile")
+	var presets: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	var android_at: int = presets.find("name=\"Android Test (Experimental)\"")
+	var desktop: String = presets.substr(0, android_at) if android_at > 0 else presets
+	failed += _assert(desktop.count("texture_format/etc2=false") == 2, "both Windows presets leave ETC2 off")
+	failed += _assert(desktop.count("texture_format/s3tc=true") == 2 and desktop.count("texture_format/bptc=true") == 2, "both Windows presets keep S3TC and BPTC")
+	var cases: Array[Dictionary] = [
+		{"src": "manatree_elder_strip.png", "prefix": "manatree_elder_strip", "glow": false, "tw": 2048, "th": 1024},
+		{"src": "manatree_ancient_strip.png", "prefix": "manatree_ancient_strip", "glow": false, "tw": 2048, "th": 1024},
+		{"src": "manatree_mature_strip.png", "prefix": "manatree_mature_strip", "glow": false, "tw": 1472, "th": 736},
+		{"src": "manatree_elder_strip_glow.png", "prefix": "manatree_elder_strip_glow", "glow": true, "tw": 2048, "th": 1024},
+		{"src": "manatree_ancient_strip_glow.png", "prefix": "manatree_ancient_strip_glow", "glow": true, "tw": 2048, "th": 1024},
+		{"src": "manatree_mature_strip_glow.png", "prefix": "manatree_mature_strip_glow", "glow": true, "tw": 1472, "th": 736},
+	]
+	for spec: Dictionary in cases:
+		failed += _manatree_tile_pixels(spec)
+	var wide: PackedStringArray = PackedStringArray()
+	_manatree_scan_png_width("res://assets/art", wide)
+	_manatree_scan_png_width("res://assets/ui", wide)
+	_manatree_scan_png_width("res://assets_extra", wide)
+	failed += _assert(wide.is_empty(), "exported texture wider than 4096 (%s)" % ", ".join(wide))
+	var packed: PackedScene = load("res://scenes/manatree.tscn") as PackedScene
+	failed += _assert(packed != null, "manatree scene loads")
+	if packed != null and game_state != null:
+		var saved_stage: StringName = game_state.get("stage_id")
+		var checks: Array[Dictionary] = [
+			{"stage": &"elder", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_elder_strip_glow_t1.png", "frame": 3, "local": 1, "w": 2048},
+			{"stage": &"ancient", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_ancient_strip_glow_t1.png", "frame": 3, "local": 1, "w": 2048},
+			{"stage": &"mature", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_mature_strip_glow_t1.png", "frame": 3, "local": 1, "w": 1472},
+		]
+		for check: Dictionary in checks:
+			game_state.set("stage_id", check["stage"])
+			var tree: Node2D = packed.instantiate() as Node2D
+			tree_root.add_child(tree)
+			var sprite: Sprite2D = tree.get_node_or_null("Sprite") as Sprite2D
+			var expect: Texture2D = load(str(check["tile"])) as Texture2D
+			failed += _assert(sprite != null and sprite.hframes == 2, "%s uses 2 hframes per tile" % str(check["stage"]))
+			failed += _assert(sprite != null and sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "%s stays nearest" % str(check["stage"]))
+			tree.call("_show_frame", int(check["frame"]))
+			failed += _assert(sprite != null and sprite.texture == expect and sprite.frame == int(check["local"]), "%s frame %d shows tile 1" % [str(check["stage"]), int(check["frame"])])
+			failed += _assert(sprite != null and sprite.texture != null and sprite.texture.get_width() == int(check["w"]), "%s tile width %d" % [str(check["stage"]), int(check["w"])])
+			tree_root.remove_child(tree)
+			tree.free()
+		game_state.set("stage_id", saved_stage)
+	if failed == 0:
+		print("MANATREE_TILES_OK")
+	return failed
+
+
+func _manatree_tile_pixels(spec: Dictionary) -> int:
+	var failed: int = 0
+	var legacy: String = ProjectSettings.globalize_path("res://assets/library/legacy/manatree_strips_2026-10-17/%s" % str(spec["src"]))
+	var src := Image.new()
+	failed += _assert(src.load(legacy) == OK, "legacy strip loads %s" % str(spec["src"]))
+	if src.get_width() < 1:
+		return failed
+	src.convert(Image.FORMAT_RGBA8)
+	var src_w: int = src.get_width()
+	var src_h: int = src.get_height()
+	var tw: int = int(spec["tw"])
+	var th: int = int(spec["th"])
+	failed += _assert(src_w == tw * 4 and src_h == th, "%s is 4 tiles of %dx%d (got %dx%d)" % [str(spec["src"]), tw, th, src_w, src_h])
+	var src_bytes: PackedByteArray = src.get_data()
+	var folder: String = "res://assets/art/manatree/native/anim/glow/tiles" if bool(spec["glow"]) else "res://assets/art/manatree/native/anim/tiles"
+	for i: int in 4:
+		var tile_path: String = "%s/%s_t%d.png" % [folder, str(spec["prefix"]), i]
+		var tile := Image.new()
+		if tile.load(ProjectSettings.globalize_path(tile_path)) != OK:
+			failed += _assert(false, "tile loads %s" % tile_path)
+			continue
+		tile.convert(Image.FORMAT_RGBA8)
+		failed += _assert(tile.get_width() == tw and tile.get_height() == th and tile.get_width() <= 2048, "%s tile %d is %dx%d" % [str(spec["prefix"]), i, tw, th])
+		var tile_bytes: PackedByteArray = tile.get_data()
+		var mismatch: bool = false
+		var row_bytes: int = tw * 4
+		for y: int in th:
+			var src_off: int = (y * src_w + i * tw) * 4
+			var tile_off: int = y * row_bytes
+			if src_bytes.slice(src_off, src_off + row_bytes) != tile_bytes.slice(tile_off, tile_off + row_bytes):
+				mismatch = true
+				break
+		failed += _assert(not mismatch, "%s tile %d matches the original pixels" % [str(spec["prefix"]), i])
+	return failed
+
+
+func _manatree_scan_png_width(root_path: String, wide: PackedStringArray) -> void:
+	var dir := DirAccess.open(root_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var name: String = dir.get_next()
+	while name != "":
+		if name == "." or name == ".." or name == "library" or name == "refs" or name == "_archive":
+			name = dir.get_next()
+			continue
+		var path: String = root_path.path_join(name)
+		if dir.current_is_dir():
+			_manatree_scan_png_width(path, wide)
+		elif name.ends_with(".png"):
+			var width: int = _png_ihdr_width(path)
+			if width > 4096:
+				wide.append("%s (%d)" % [path, width])
+		name = dir.get_next()
+	dir.list_dir_end()
+
+
+func _png_ihdr_width(res_path: String) -> int:
+	var file := FileAccess.open(res_path, FileAccess.READ)
+	if file == null:
+		return -1
+	var sig: PackedByteArray = file.get_buffer(8)
+	file.get_buffer(4)
+	var ctype: PackedByteArray = file.get_buffer(4)
+	var wbytes: PackedByteArray = file.get_buffer(4)
+	file.close()
+	if sig.size() < 8 or ctype.size() < 4 or wbytes.size() < 4:
+		return -1
+	if ctype.get_string_from_ascii() != "IHDR":
+		return -1
+	return (int(wbytes[0]) << 24) | (int(wbytes[1]) << 16) | (int(wbytes[2]) << 8) | int(wbytes[3])
 
 
 func _compat_scan_scenes(root_path: String, banned: PackedStringArray) -> PackedStringArray:

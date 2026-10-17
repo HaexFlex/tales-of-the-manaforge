@@ -62,3 +62,5 @@ theme/custom="res://assets/ui/manaforge_theme.tres"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0
+; Mobile import only. Windows presets keep texture_format/etc2=false and S3TC/BPTC.
+textures/vram_compression/import_etc2_astc=true
