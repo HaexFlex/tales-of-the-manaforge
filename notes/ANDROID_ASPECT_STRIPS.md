@@ -18,7 +18,7 @@ The world does not leave an empty band at zoom 1 on these three views:
 
 - **Hub forest** is 4320×3780 with a 120 px camera inset. All three logical views fit inside the map, so the extra height shows more forest.
 - **Forge room** is 1600×1200. All three logical views fit at zoom 1.
-- **Title background** `assets_extra/title/title_bg_1200x540.png` uses keep-aspect covered. 16:10 and 4:3 crop the left and right of that 20:9 plate. There is no empty bar. The sides of the painting are what get cut.
+- **Title background** `assets_extra/title/title_bg_wide_1440x900.png` is drawn 1:1 and centred. 1280×800 and 1200×540 sit inside it. A 1280×960 view is taller than 900, so the clear colour shows above and below the painting.
 - **Battle** and the **pause backdrop** are full-rect colour fills.
 
 ## Where Art would supply strips

@@ -75,6 +75,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TITLE_WIDE") == "1":
+		var title_only: int = await _title_wide_ok(tree_root)
+		if title_only > 0:
+			print("TITLE_WIDE_FAIL: %d" % title_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_VIEWPORT_EXPAND") == "1":
 		var view_only: int = await _viewport_expand_ok(tree_root)
 		if view_only > 0:
@@ -4016,6 +4025,7 @@ func _run() -> void:
 	failed += _lifecycle_checks(tree_root, game_state, save_service)
 	failed += await _safe_area_layout_ok(tree_root)
 	failed += await _viewport_expand_ok(tree_root)
+	failed += await _title_wide_ok(tree_root)
 	failed += _touch_hint_ok(tree_root, game_state)
 	failed += await _tooltip_scroll_ok(tree_root)
 	failed += await _longpress_hint_width_ok(tree_root)
@@ -21949,6 +21959,63 @@ func _back_button_pause_ok(tree_root: Window, save_service: Node) -> int:
 	return failed
 
 
+func _title_wide_ok(tree_root: Window) -> int:
+	## 1440×900 painting, 1:1 and centred. Logo, menu, and version sit on the shifted 960×540 frame.
+	var failed: int = 0
+	var scene_text: String = FileAccess.get_file_as_string("res://scenes/title_screen.tscn")
+	failed += _assert(scene_text.find("res://assets_extra/title/title_bg_wide_1440x900.png") >= 0, "title scene uses the wide painting")
+	failed += _assert(scene_text.find("title_bg_1200x540.png") < 0 and scene_text.find("title_bg_960x540.png") < 0, "title scene no longer points at the old plates")
+	var wide := Image.new()
+	var old := Image.new()
+	failed += _assert(wide.load("res://assets_extra/title/title_bg_wide_1440x900.png") == OK, "wide title image loads")
+	failed += _assert(wide.get_width() == 1440 and wide.get_height() == 900, "wide title is 1440x900")
+	failed += _assert(old.load("res://assets/library/legacy/title_2026-10-17/title_bg_960x540.png") == OK, "legacy 960 title image loads")
+	if wide.get_width() == 1440 and old.get_width() == 960:
+		var centre: Image = wide.get_region(Rect2i(240, 180, 960, 540))
+		centre.convert(Image.FORMAT_RGB8)
+		old.convert(Image.FORMAT_RGB8)
+		failed += _assert(centre.get_data() == old.get_data(), "wide painting centre 960x540 matches the old title")
+	var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var title: Node = packed.instantiate() if packed != null else null
+	failed += _assert(title != null, "title scene instantiates")
+	if title == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(title)
+	var views: Array[Vector2i] = [Vector2i(960, 540), Vector2i(1200, 540), Vector2i(1280, 800), Vector2i(1280, 960)]
+	for vs: Vector2i in views:
+		tree_root.size = vs
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		await tree_root.get_tree().process_frame
+		var view: Vector2 = Ui540.viewport_size()
+		var shift: Vector2 = Ui540.center_shift()
+		var bg: TextureRect = title.get_node_or_null("Background") as TextureRect
+		failed += _assert(bg != null and bg.stretch_mode != TextureRect.STRETCH_KEEP_ASPECT_COVERED, "title background is not keep-aspect covered")
+		failed += _assert(bg != null and bg.size.is_equal_approx(Vector2(1440, 900)), "title background is drawn at 1440x900 (got %s)" % (str(bg.size) if bg != null else "missing"))
+		var bg_pos: Vector2 = ((view - Vector2(1440, 900)) * 0.5)
+		failed += _assert(bg != null and bg.position.is_equal_approx(bg_pos), "title background is centred (got %s want %s)" % [str(bg.position) if bg != null else "missing", bg_pos])
+		var logo: Control = title.get_node_or_null("Logo") as Control
+		var menu: Control = title.get_node_or_null("Menu") as Control
+		var version: Control = title.get_node_or_null("Version") as Control
+		failed += _assert(logo != null and logo.position.is_equal_approx(Vector2(52, 24) + shift), "title logo is (52, 24) plus the shift at %s (got %s)" % [view, str(logo.position) if logo != null else "missing"])
+		failed += _assert(menu != null and menu.position.is_equal_approx(Vector2(136, 146) + shift), "title menu is (136, 146) plus the shift at %s (got %s)" % [view, str(menu.position) if menu != null else "missing"])
+		var ver_pos: Vector2 = Vector2(904, 503) + shift
+		if version != null:
+			ver_pos.x = minf(ver_pos.x, maxf(0.0, view.x - version.size.x))
+			ver_pos.y = minf(ver_pos.y, maxf(0.0, view.y - version.size.y))
+		failed += _assert(version != null and version.position.is_equal_approx(ver_pos), "title version follows (904, 503) plus the shift at %s (got %s want %s)" % [view, str(version.position) if version != null else "missing", ver_pos])
+	title.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TITLE_WIDE_OK")
+	return failed
+
+
 func _viewport_expand_ok(tree_root: Window) -> int:
 	## Logical viewport is window/integer scale. No fractional scale, no bars.
 	var failed: int = 0
@@ -22068,7 +22135,9 @@ func _safe_area_layout_ok(tree_root: Window) -> int:
 		if title != null:
 			failed += _assert_inside(title.get_node_or_null("Logo") as Control, safe, "title logo %s" % label)
 			failed += _assert_inside(title.get_node_or_null("Menu") as Control, safe, "title menu %s" % label)
-			failed += _assert_inside(title.get_node_or_null("Version") as Control, safe, "title version %s" % label)
+			var version: Control = title.get_node_or_null("Version") as Control
+			var version_rect: Rect2 = version.get_global_rect() if version != null else Rect2()
+			failed += _assert(version != null and Rect2(Vector2.ZERO, Vector2(vs)).grow(1.0).encloses(version_rect), "title version stays on the %s viewport (got %s)" % [label, version_rect])
 		if menu != null:
 			failed += _assert_inside(menu.get_node_or_null("Panel") as Control, safe, "pause panel %s" % label)
 			var plank: Control = menu.get_node_or_null("Panel/Title") as Control
