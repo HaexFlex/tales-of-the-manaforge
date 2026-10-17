@@ -12,7 +12,6 @@ const LOG_SIZE: Vector2 = Vector2(780, 75)
 const LOG_BG_POS: Vector2 = Vector2(90, 375)
 const SPEECH_POS: Vector2 = Vector2(342, 192)
 const SPEECH_SIZE: Vector2 = Vector2(276, 75)
-const CHAMBER_CROP: Rect2 = EchoTheme.CROP_16
 const KEEPER_IDLE: String = "res://assets/art/echo/battle_keeper_idle_e.png"
 const ELAIA_IDLE: String = "res://assets/art/echo/battle_elaia_idle_w.png"
 const ELAIA_KEY: String = "res://assets/art/echo/battle_elaia_key_w.png"
@@ -21,7 +20,7 @@ const ELAIA_FRONT: String = ELAIA_IDLE
 const PARTY_DIR: String = "res://assets/art/battle/party/"
 const GAP_STRIKE_SEC: float = 1.0
 const HURT_HOLD_SEC: float = 0.75
-## Opaque 1280×720 plate (centre-cropped to 960×540). Background + Ground stay underneath until this file exists.
+## Opaque 1440×960 plate, drawn 1:1. Background + Ground stay underneath until this file exists.
 const CHAMBER_BG: String = EchoTheme.PLATE
 
 var _battle: EchoBattle
@@ -192,6 +191,7 @@ func _lighten_panels() -> void:
 
 
 func _apply_540_layout() -> void:
+	_apply_chamber_plate()
 	var ox: float = EchoTheme.shift()
 	if _keeper_portrait:
 		_keeper_portrait.position = KEEPER_PORTRAIT_POS + Vector2(ox, Ui540.center_shift_y())
@@ -906,16 +906,34 @@ func _apply_chamber_plate() -> void:
 		return
 	var plate: Texture2D = null
 	if FileAccess.file_exists(CHAMBER_BG):
-		var full: Texture2D = load(CHAMBER_BG) as Texture2D
-		if full != null:
-			var atlas := AtlasTexture.new()
-			atlas.atlas = full
-			var wide: bool = Ui540.viewport_size().x >= 1100.0
-			atlas.region = EchoTheme.CROP_20 if wide else EchoTheme.CROP_16
-			plate = atlas
+		plate = load(CHAMBER_BG) as Texture2D
+	_chamber_art.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_chamber_art.offset_left = 0.0
+	_chamber_art.offset_top = 0.0
+	_chamber_art.offset_right = 0.0
+	_chamber_art.offset_bottom = 0.0
+	_chamber_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_chamber_art.stretch_mode = TextureRect.STRETCH_KEEP
 	_chamber_art.texture = plate
 	_chamber_art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_chamber_art.visible = plate != null
+	var tex_size: Vector2 = EchoTheme.PLATE_SIZE
+	if plate != null:
+		tex_size = plate.get_size()
+	_chamber_art.size = tex_size
+	## One offset: the 960×540 design frame is (240, 210) on the plate, which is
+	## the old plate at +80,+120 plus its crop at +160,+90. Overlays already sit
+	## on that frame via center_shift, so they are not moved one by one.
+	var frame: Control = get_node_or_null("DesignFrame") as Control
+	if frame == null:
+		frame = Control.new()
+		frame.name = "DesignFrame"
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(frame)
+		move_child(frame, _chamber_art.get_index() + 1)
+	frame.position = Ui540.center_shift()
+	frame.size = Vector2(EchoTheme.DESIGN_W, 540.0)
+	_chamber_art.position = frame.position - EchoTheme.DESIGN_IN_PLATE
 	if _bg:
 		_bg.visible = true
 	if _ground:

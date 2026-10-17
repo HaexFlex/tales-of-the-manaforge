@@ -1805,7 +1805,8 @@ func _chamber_plate(view: Node) -> int:
 	if FileAccess.file_exists(plate_path):
 		failed += _check(art != null and art.visible and art.texture != null, "chamber plate visible")
 		if art and art.texture:
-			failed += _check(art.texture.get_width() == 960 and art.texture.get_height() == 540, "plate crop is 960x540")
+			failed += _check(art.texture.get_width() == 1440 and art.texture.get_height() == 960, "plate is the 1440x960 master")
+			failed += _check(art.stretch_mode == TextureRect.STRETCH_KEEP, "plate is drawn 1:1")
 	else:
 		failed += _check(art != null and not art.visible, "chamber art hidden without a plate")
 	failed += _check(

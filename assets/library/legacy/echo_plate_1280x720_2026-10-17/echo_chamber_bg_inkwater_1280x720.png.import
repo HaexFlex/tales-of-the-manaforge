@@ -10,7 +10,7 @@ metadata={
 
 [deps]
 
-source_file="res://assets/ui/echo/echo_chamber_bg_inkwater_1280x720.png"
+source_file="res://assets/library/legacy/echo_plate_1280x720_2026-10-17/echo_chamber_bg_inkwater_1280x720.png"
 dest_files=["res://.godot/imported/echo_chamber_bg_inkwater_1280x720.png-c05b92ed237ff0773b25abaa078ff3e4.ctex"]
 
 [params]
