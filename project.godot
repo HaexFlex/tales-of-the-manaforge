@@ -9,7 +9,7 @@ config/name="Tales of the Manaforge"
 config/description="Cozy top-down pixel adventure. Restart Edition prototype: Keeper, Manatree, gather, prestige."
 config/version="0.1.1-restart"
 run/main_scene="res://scenes/title_screen.tscn"
-config/features=PackedStringArray("4.7", "Forward Plus")
+config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/ui/icon_256.png"
 config/windows_native_icon="res://assets/ui/icon.ico"
 
@@ -54,4 +54,8 @@ theme/custom="res://assets/ui/manaforge_theme.tres"
 
 [rendering]
 
+; Playtest renderer is Compatibility on desktop and on mobile. Windows export
+; presets are unchanged (S3TC stays available for this renderer).
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0

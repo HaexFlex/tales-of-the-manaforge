@@ -3924,6 +3924,7 @@ func _run() -> void:
 	failed += await _battle_icons(tree_root, game_state, save_service)
 	failed += _minigame_checks()
 	failed += _hybrid_chip_ok(tree_root)
+	failed += _compat_renderer_ok()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -21279,3 +21280,61 @@ func _handoff_idle_body(tree_root: Window, game_state: Node, save_service: Node)
 	if failed == 0:
 		print("HANDOFF_IDLE_OK")
 	return failed
+
+
+func _compat_renderer_ok() -> int:
+	## Android pass 1. Compatibility is the project renderer and the mobile override.
+	## The one authored canvas shader and the forest-floor shader must still load.
+	var failed: int = 0
+	var method: String = str(ProjectSettings.get_setting("rendering/renderer/rendering_method", ""))
+	var mobile: String = str(ProjectSettings.get_setting("rendering/renderer/rendering_method.mobile", ""))
+	failed += _assert(method == "gl_compatibility", "rendering_method is gl_compatibility (got %s)" % method)
+	failed += _assert(mobile == "gl_compatibility", "mobile rendering_method is gl_compatibility (got %s)" % mobile)
+	var outline: Shader = load("res://assets/art/ui/select_outline.gdshader") as Shader
+	failed += _assert(outline != null, "select outline shader loads under Compatibility")
+	if outline != null:
+		var mat := ShaderMaterial.new()
+		mat.shader = outline
+		failed += _assert(mat.shader == outline and outline.get_mode() == Shader.MODE_CANVAS_ITEM, "select outline is a canvas_item shader")
+	var main_script: GDScript = load("res://scripts/main.gd") as GDScript
+	var floor_code: String = ""
+	if main_script != null:
+		floor_code = str(main_script.get_script_constant_map().get("FOREST_FLOOR_SHADER", ""))
+	failed += _assert(floor_code.find("shader_type canvas_item;") >= 0, "forest floor shader is canvas_item")
+	failed += _assert(floor_code.find("hint_screen_texture") < 0 and floor_code.find("hint_depth_texture") < 0, "forest floor shader does not sample the screen or depth")
+	if floor_code != "":
+		var floor := Shader.new()
+		floor.code = floor_code
+		failed += _assert(floor.get_mode() == Shader.MODE_CANVAS_ITEM, "forest floor shader compiles as canvas_item")
+	var banned: PackedStringArray = PackedStringArray(["WorldEnvironment", "Light2D", "GPUParticles2D", "GPUParticles3D", "CanvasModulate"])
+	var scene_hits: PackedStringArray = _compat_scan_scenes("res://scenes", banned)
+	failed += _assert(scene_hits.is_empty(), "no glow/light/GPU-particle nodes in scenes (%s)" % ", ".join(scene_hits))
+	if failed == 0:
+		print("COMPAT_RENDERER_OK")
+	return failed
+
+
+func _compat_scan_scenes(root_path: String, banned: PackedStringArray) -> PackedStringArray:
+	var hits: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open(root_path)
+	if dir == null:
+		return hits
+	dir.list_dir_begin()
+	var name: String = dir.get_next()
+	while name != "":
+		if name == "." or name == "..":
+			name = dir.get_next()
+			continue
+		var path: String = root_path.path_join(name)
+		if dir.current_is_dir():
+			var nested: PackedStringArray = _compat_scan_scenes(path, banned)
+			for hit: String in nested:
+				hits.append(hit)
+		elif name.ends_with(".tscn"):
+			var text: String = FileAccess.get_file_as_string(path)
+			for kind: String in banned:
+				if text.find("type=\"%s\"" % kind) >= 0:
+					hits.append("%s:%s" % [path, kind])
+		name = dir.get_next()
+	dir.list_dir_end()
+	return hits
