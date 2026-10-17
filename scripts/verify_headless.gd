@@ -57,6 +57,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_LIFECYCLE") == "1":
+		var life_only: int = _lifecycle_checks(tree_root, game_state, save_service)
+		if life_only > 0:
+			print("LIFECYCLE_FAIL: %d" % life_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -3948,6 +3957,7 @@ func _run() -> void:
 	failed += _compat_renderer_ok()
 	failed += _android_preset_ok()
 	failed += _manatree_tiles_ok(tree_root, game_state)
+	failed += _lifecycle_checks(tree_root, game_state, save_service)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -21526,6 +21536,197 @@ func _png_ihdr_width(res_path: String) -> int:
 	if ctype.get_string_from_ascii() != "IHDR":
 		return -1
 	return (int(wbytes[0]) << 24) | (int(wbytes[1]) << 16) | (int(wbytes[2]) << 8) | int(wbytes[3])
+
+
+func _lifecycle_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	failed += _lifecycle_autosave_ok(save_service)
+	failed += _resume_away_ok(tree_root, game_state, save_service)
+	failed += _back_button_pause_ok(tree_root, save_service)
+	return failed
+
+
+func _lifecycle_autosave_ok(save_service: Node) -> int:
+	## Pause flushes one autosave inside the 1.2s coalesce. Manual slots stay put.
+	var failed: int = 0
+	var echo: Node = save_service.get_node_or_null("/root/EchoChamber")
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if echo != null:
+		echo.set("in_battle", false)
+	var was_session: bool = bool(save_service.get("session_active"))
+	var master: int = AudioServer.get_bus_index("Master")
+	var mute_before: bool = AudioServer.is_bus_mute(master) if master >= 0 else false
+	var paused_before: bool = bool(save_service.get_tree().paused)
+	save_service.set("catchup_running", false)
+	save_service.call("note_session_started")
+	save_service.call("set_autosave_coalesce", 1.2)
+	var manual_before: PackedStringArray = _manual_slot_texts(save_service)
+	save_service.call("save_game", 1)
+	manual_before = _manual_slot_texts(save_service)
+	save_service.call("debug_set_last_autosave_age", 0.2)
+	var stamps_before: float = _autosave_stamp_sum(save_service)
+	save_service.call("handle_application_paused")
+	var stamps_paused: float = _autosave_stamp_sum(save_service)
+	failed += _assert(stamps_paused > stamps_before + 0.0001, "pause flushes an autosave inside the 1.2s coalesce")
+	save_service.call("handle_application_focus_out")
+	var stamps_focus: float = _autosave_stamp_sum(save_service)
+	failed += _assert(is_equal_approx(stamps_focus, stamps_paused), "focus-out during the same pause does not write a second autosave")
+	var manual_after: PackedStringArray = _manual_slot_texts(save_service)
+	failed += _assert(manual_after == manual_before, "pause autosave leaves manual slots untouched")
+	if master >= 0:
+		failed += _assert(AudioServer.is_bus_mute(master), "background mutes the Master bus")
+	failed += _assert(bool(save_service.get_tree().paused), "background pauses the tree")
+	save_service.call("handle_application_resumed")
+	if master >= 0:
+		failed += _assert(AudioServer.is_bus_mute(master) == mute_before, "resume restores the Master mute without rewriting settings")
+	failed += _assert(bool(save_service.get_tree().paused) == paused_before, "resume restores the previous tree pause")
+	save_service.call("debug_set_last_autosave_age", 0.2)
+	var before_back: float = _autosave_stamp_sum(save_service)
+	save_service.call("handle_back_request")
+	var after_back: float = _autosave_stamp_sum(save_service)
+	failed += _assert(is_equal_approx(after_back, before_back), "back respects the 1.2s coalesce")
+	save_service.call("debug_set_last_autosave_age", 2.0)
+	save_service.call("handle_back_request")
+	var later_back: float = _autosave_stamp_sum(save_service)
+	failed += _assert(later_back > after_back + 0.0001, "back writes an autosave once the coalesce window has passed")
+	var manual_final: PackedStringArray = _manual_slot_texts(save_service)
+	failed += _assert(manual_final == manual_before, "back autosave leaves manual slots untouched")
+	save_service.call("set_autosave_coalesce", 1.2)
+	if was_session:
+		save_service.call("note_session_started")
+	else:
+		save_service.call("note_session_ended")
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	save_service.get_tree().paused = paused_before
+	if master >= 0:
+		AudioServer.set_bus_mute(master, mute_before)
+	if failed == 0:
+		print("LIFECYCLE_AUTOSAVE_OK")
+	return failed
+
+
+func _manual_slot_texts(save_service: Node) -> PackedStringArray:
+	var texts: PackedStringArray = PackedStringArray()
+	for slot: int in range(1, 8):
+		var path: String = str(save_service.call("slot_path", slot))
+		texts.append(FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else "")
+	return texts
+
+
+func _resume_away_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Ten minutes away shows the panel once. A shorter gap does not, and the gap is not applied twice.
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if echo != null:
+		echo.set("in_battle", false)
+	var saved_stage: StringName = game_state.get("stage_id")
+	var saved_fruit: bool = bool(game_state.get("fruit_committed"))
+	var saved_closed: float = float(game_state.get("offline_closed_sec"))
+	var saved_active: float = float(game_state.get("active_since_load_sec"))
+	game_state.set("stage_id", &"sapling")
+	game_state.set("fruit_committed", false)
+	game_state.set("active_since_load_sec", 0.0)
+	save_service.call("note_session_started")
+	save_service.set("pending_offline_report", {})
+	var panel_script: Script = load("res://scripts/ui/offline_summary.gd")
+	var panel: CanvasItem = panel_script.new() as CanvasItem
+	tree_root.add_child(panel)
+	var origin: float = 1_700_000_000.0
+	var closed_0: float = float(game_state.get("offline_closed_sec"))
+	save_service.call("debug_set_unix_now", origin)
+	save_service.call("handle_application_paused")
+	save_service.call("debug_set_unix_now", origin + 30.0)
+	save_service.call("handle_application_resumed")
+	var closed_short: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(absf(closed_short - (closed_0 + 30.0)) < 0.05, "a 30s resume applies the gap once (got %.2f)" % closed_short)
+	failed += _assert(not bool((save_service.get("pending_offline_report") as Dictionary).get("show", false)), "under 10 minutes does not show the away screen")
+	failed += _assert(_visible_offline_count(tree_root) == 0, "away panel stays hidden under 10 minutes")
+	save_service.call("debug_set_unix_now", origin + 30.0)
+	save_service.call("handle_application_paused")
+	save_service.call("debug_set_unix_now", origin + 30.0 + 600.0)
+	save_service.call("handle_application_resumed")
+	var closed_long: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(absf(closed_long - (closed_0 + 630.0)) < 0.05, "a 10 minute resume applies that gap once (got %.2f)" % closed_long)
+	var report: Dictionary = save_service.get("pending_offline_report")
+	failed += _assert(bool(report.get("show", false)), "10 minutes away shows the away screen")
+	failed += _assert(_visible_offline_count(tree_root) == 1, "While you were away opens once")
+	save_service.call("handle_application_resumed")
+	var closed_again: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(is_equal_approx(closed_again, closed_long), "a second resume does not apply the gap again")
+	failed += _assert(_visible_offline_count(tree_root) == 1, "a second resume does not open a second away screen")
+	for summary: Node in tree_root.find_children("OfflineSummary", "", true, false):
+		if summary.has_method("dismiss"):
+			summary.call("dismiss")
+	tree_root.remove_child(panel)
+	panel.free()
+	game_state.set("stage_id", saved_stage)
+	game_state.set("fruit_committed", saved_fruit)
+	game_state.set("offline_closed_sec", saved_closed)
+	game_state.set("active_since_load_sec", saved_active)
+	save_service.set("pending_offline_report", {})
+	save_service.call("debug_set_unix_now", -1.0)
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	save_service.get_tree().paused = false
+	if failed == 0:
+		print("RESUME_AWAY_OK")
+	return failed
+
+
+func _visible_offline_count(tree_root: Window) -> int:
+	var shown: int = 0
+	for summary: Node in tree_root.find_children("OfflineSummary", "", true, false):
+		if summary is CanvasItem and (summary as CanvasItem).visible:
+			shown += 1
+	return shown
+
+
+func _back_button_pause_ok(tree_root: Window, save_service: Node) -> int:
+	## Back toggles Pause. Quit to Title is already on that menu, with a confirm. Quit Game stays a PC row.
+	var failed: int = 0
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("config/auto_accept_quit=false") >= 0, "auto_accept_quit is off")
+	failed += _assert(not bool(ProjectSettings.get_setting("application/config/auto_accept_quit", true)), "project refuses the automatic quit")
+	var save_text: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
+	failed += _assert(save_text.find("set_auto_accept_quit(false)") >= 0, "mobile turns auto-accept quit off at runtime")
+	var pause_text: String = FileAccess.get_file_as_string("res://scripts/pause_menu.gd")
+	failed += _assert(pause_text.find("pause_exit") >= 0 and pause_text.find("hide_on_phone(btn_quit_game)") >= 0, "Quit to Title stays; Quit Game is the phone-hidden row")
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	failed += _assert(packed != null, "pause menu loads for the back button")
+	if packed == null:
+		return failed
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var was_fruit: bool = bool(game_state.get("fruit_committed")) if game_state != null else false
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if game_state != null:
+		game_state.set("fruit_committed", false)
+	if echo != null:
+		echo.set("in_battle", false)
+	var menu: Node = packed.instantiate()
+	tree_root.add_child(menu)
+	var exit_btn: Button = menu.get_node_or_null("Panel/BtnExit") as Button
+	var quit_btn: Button = menu.get_node_or_null("Panel/BtnQuitGame") as Button
+	failed += _assert(exit_btn != null and exit_btn.text == "Quit to Title", "phone Pause already has Quit to Title")
+	failed += _assert(quit_btn != null, "Quit Game button exists and stays hidden on phone via hide_on_phone")
+	failed += _assert(not bool(menu.call("is_open")), "pause starts closed")
+	save_service.call("handle_back_request")
+	failed += _assert(bool(menu.call("is_open")), "back opens Pause")
+	failed += _assert(save_service.get_tree() != null, "back does not quit the app")
+	save_service.call("handle_back_request")
+	failed += _assert(not bool(menu.call("is_open")), "back closes Pause when it is already open")
+	tree_root.remove_child(menu)
+	menu.free()
+	save_service.get_tree().paused = false
+	if game_state != null:
+		game_state.set("fruit_committed", was_fruit)
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	if failed == 0:
+		print("BACK_BUTTON_PAUSE_OK")
+	return failed
 
 
 func _compat_scan_scenes(root_path: String, banned: PackedStringArray) -> PackedStringArray:
