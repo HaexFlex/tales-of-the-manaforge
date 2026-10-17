@@ -26,6 +26,9 @@ const BAR_TRACK: Color = Color8(52, 36, 24)
 const PLATE_BAR := Rect2(438, 35, 132, 8)
 const PLATE_TEXT_INSET: float = 32.0
 const PLATE_FOOTER_BOTTOM: float = 446.0
+const HINT_LINE_H: float = 24.0
+## Clearance between the hint box and the plate's inner frame edge.
+const HINT_ABOVE_FRAME: float = 10.0
 
 var _dim: ColorRect
 var _panel: Panel
@@ -583,11 +586,11 @@ func _open_game(game_id: String, worker: String, target_id: String, from_debug: 
 
 func _layout_window() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
-	var top: float = HUD_BAR_PX + Ui540.PLANK_RISE
-	var shortcut_top: float = vs.y - Ui540.SAFE_MARGIN_PX - Ui540.TAP_MIN_PX
+	var top: float = maxf(HUD_BAR_PX, Ui540.margin_top() + 40.0) + Ui540.PLANK_RISE
+	var shortcut_top: float = vs.y - Ui540.margin_bottom() - Ui540.TAP_MIN_PX
 	var max_bottom: float = shortcut_top - HUD_SHORTCUT_GAP
 	var max_h: float = maxf(120.0, max_bottom - top)
-	var max_w: float = maxf(120.0, vs.x - Ui540.SAFE_MARGIN_PX * 2.0)
+	var max_w: float = maxf(120.0, vs.x - Ui540.margin_left() - Ui540.margin_right())
 	var sz := Vector2(
 		minf(MinigameCatalog.WINDOW_SIZE.x, max_w),
 		minf(MinigameCatalog.WINDOW_SIZE.y, max_h)
@@ -607,13 +610,13 @@ func _layout_window() -> void:
 	_play.position = MinigameCatalog.PLAY_ORIGIN * fit
 	_play.size = MinigameCatalog.PLAY_SIZE
 	_play.scale = fit
+	var hint_y: float = PLATE_FOOTER_BOTTOM * fit.y - HINT_ABOVE_FRAME - HINT_LINE_H
 	if _game_id == "hot_spots":
-		var hint_y: float = PLATE_FOOTER_BOTTOM * fit.y - HEADER_ROW_H
 		_hint.position = Vector2(PLATE_TEXT_INSET * fit.x, hint_y)
-		_hint.size = Vector2(sz.x - PLATE_TEXT_INSET * fit.x * 2.0, HEADER_ROW_H)
+		_hint.size = Vector2(sz.x - PLATE_TEXT_INSET * fit.x * 2.0, HINT_LINE_H)
 	else:
-		_hint.position = Vector2(28, sz.y - 30.0)
-		_hint.size = Vector2(sz.x - 56.0, 22)
+		_hint.position = Vector2(28, hint_y)
+		_hint.size = Vector2(sz.x - 56.0, HINT_LINE_H)
 	if _flavour != null:
 		_flavour.visible = false
 	_summary.position = ((sz - Vector2(460, 308)) * 0.5).round()
@@ -888,8 +891,8 @@ func _refresh_prompt() -> void:
 	_prompt.size = sz
 	Ui540.fit_button_font(_prompt, sz.x)
 	var vs: Vector2 = Ui540.viewport_size()
-	var x: float = clampf(screen.x - sz.x * 0.5, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.x - Ui540.SAFE_MARGIN_PX - sz.x))
-	var y: float = clampf(screen.y - sz.y - 12.0, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.y - Ui540.SAFE_MARGIN_PX - sz.y))
+	var x: float = clampf(screen.x - sz.x * 0.5, Ui540.margin_left(), maxf(Ui540.margin_left(), vs.x - Ui540.margin_right() - sz.x))
+	var y: float = clampf(screen.y - sz.y - 12.0, Ui540.margin_top(), maxf(Ui540.margin_top(), vs.y - Ui540.margin_bottom() - sz.y))
 	_prompt.position = Vector2(x, y)
 
 

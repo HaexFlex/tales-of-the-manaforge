@@ -41,18 +41,37 @@ var catchup_running: bool = false
 var last_catchup_order: Array[String] = []
 ## Runtime only. The away panel reads this after load. Not written into the save.
 var pending_offline_report: Dictionary = {}
+## Background hold. Pause and focus-out share one flush. Not a save field.
+var _background_held: bool = false
+var _master_mute_before: bool = false
+var _tree_paused_before: bool = false
+## Wall clock seen at the last pause or resume. A debug override feeds tests.
+var _lifecycle_seen_unix: float = 0.0
+var _unix_now_override: float = -1.0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_save_id_rng.randomize()
 	migrate_legacy_save_if_needed()
+	if OS.has_feature("mobile"):
+		get_tree().set_auto_accept_quit(false)
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		save_on_quit()
 		get_tree().quit()
+	elif what == NOTIFICATION_APPLICATION_PAUSED:
+		handle_application_paused()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		handle_application_focus_out()
+	elif what == NOTIFICATION_APPLICATION_RESUMED:
+		handle_application_resumed()
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		handle_application_focus_in()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		handle_back_request()
 
 
 func slot_path(slot: int) -> String:
@@ -171,6 +190,98 @@ func save_on_quit() -> bool:
 	## Window close always writes, even inside the event-save throttle.
 	_last_autosave_msec = -100000000
 	return save_autosave(true)
+
+
+func debug_set_unix_now(unix_sec: float) -> void:
+	## Tests only. File stamps stay on the real wall clock. The gap uses this.
+	_unix_now_override = unix_sec
+
+
+func handle_application_paused() -> void:
+	_hold_background()
+
+
+func handle_application_focus_out() -> void:
+	_hold_background()
+
+
+func handle_application_resumed() -> void:
+	_release_background()
+
+
+func handle_application_focus_in() -> void:
+	_release_background()
+
+
+func handle_back_request() -> void:
+	## Android back. Opens Pause, or closes it when it is already open. Never quits.
+	var tree := get_tree()
+	if tree != null:
+		tree.set_auto_accept_quit(false)
+		var menu: Node = tree.get_first_node_in_group("pause_menu")
+		if menu != null and menu.has_method("is_open") and bool(menu.call("is_open")):
+			if menu.has_method("resume_game"):
+				menu.call("resume_game")
+		elif menu != null and menu.has_method("open_pause"):
+			menu.call("open_pause")
+	## Same rotating autosaves. force skips the 60s throttle and keeps the 1.2s coalesce.
+	save_autosave(true)
+
+
+func _unix_now() -> float:
+	if _unix_now_override >= 0.0:
+		return _unix_now_override
+	return Time.get_unix_time_from_system()
+
+
+func _hold_background() -> void:
+	## Pause and focus-out in one backgrounding share a single forced autosave.
+	if _background_held:
+		return
+	_background_held = true
+	_lifecycle_seen_unix = _unix_now()
+	var tree := get_tree()
+	_tree_paused_before = tree.paused if tree != null else false
+	var master: int = AudioServer.get_bus_index("Master")
+	if master >= 0:
+		_master_mute_before = AudioServer.is_bus_mute(master)
+		AudioServer.set_bus_mute(master, true)
+	if tree != null:
+		tree.paused = true
+	## Flush even inside the 1.2s coalesce. The save stamp is the real wall clock.
+	_last_autosave_msec = -100000000
+	save_autosave(true)
+
+
+func _release_background() -> void:
+	if not _background_held:
+		return
+	_background_held = false
+	var gap: float = _unix_now() - _lifecycle_seen_unix
+	if session_active and gap >= 1.0:
+		_apply_offline_gap(gap)
+	_lifecycle_seen_unix = _unix_now()
+	if session_active:
+		_last_autosave_msec = -100000000
+		save_autosave(true)
+	var master: int = AudioServer.get_bus_index("Master")
+	if master >= 0:
+		AudioServer.set_bus_mute(master, _master_mute_before)
+	var tree := get_tree()
+	if tree != null:
+		tree.paused = _tree_paused_before
+	_present_offline_if_due()
+
+
+func _present_offline_if_due() -> void:
+	if pending_offline_report.is_empty() or not bool(pending_offline_report.get("show", false)):
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
+	var summary: Node = tree.root.find_child("OfflineSummary", true, false)
+	if summary != null and summary.has_method("tick_queue"):
+		summary.call("tick_queue")
 
 
 func debug_set_last_autosave_age(seconds: float) -> void:
@@ -1003,6 +1114,12 @@ func _apply_offline_catchup(root: Dictionary) -> void:
 	var closed: float = Time.get_unix_time_from_system() - ts
 	if closed < 1.0:
 		pending_offline_report = {}
+		return
+	_apply_offline_gap(closed)
+
+
+func _apply_offline_gap(closed: float) -> void:
+	if not has_node("/root/ForgeJobs"):
 		return
 	## Forge first, then the expedition. Saves stay blocked until both return.
 	catchup_running = true

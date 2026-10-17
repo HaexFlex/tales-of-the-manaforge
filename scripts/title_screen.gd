@@ -3,8 +3,10 @@ extends Control
 
 const MAIN_SCENE: String = "res://scenes/main.tscn"
 const KIT_DIALOG: PackedScene = preload("res://scenes/ui/kit_dialog.tscn")
-const LOGO_POS: Vector2 = Vector2(52, 22)
-const MENU_POS: Vector2 = Vector2(166, 168)
+const LOGO_POS: Vector2 = Vector2(52, 24)
+const MENU_POS: Vector2 = Vector2(136, 146)
+const VERSION_POS: Vector2 = Vector2(904, 503)
+const WIDE_BG_SIZE: Vector2 = Vector2(1440, 960)
 ## Frame padding around the menu column: left, top, right, bottom.
 const MENU_FRAME_PAD: Vector4 = Vector4(28, 20, 28, 22)
 const WOOD_FILL: Color = Color8(104, 66, 38)
@@ -71,34 +73,48 @@ func _ready() -> void:
 	call_deferred("_arm_menu_when_idle")
 
 
-## The background covers the whole logical viewport (cropped at 16:9, full art at 20:9);
-## only the logo and the menu frame follow the 960 design canvas.
+## Wide painting is 1440×960, drawn 1:1 and centred. Logo, menu, and version stay on the
+## 960×540 frame: design point plus ((vw-960)/2, (vh-540)/2).
 func _layout_title540() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
-	var shift: float = Ui540.center_shift_x()
+	var shift: Vector2 = Ui540.center_shift()
 	var bg: TextureRect = get_node_or_null("Background") as TextureRect
 	if bg:
-		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		bg.offset_left = 0.0
 		bg.offset_top = 0.0
 		bg.offset_right = 0.0
 		bg.offset_bottom = 0.0
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.stretch_mode = TextureRect.STRETCH_KEEP
+		var tex_size: Vector2 = WIDE_BG_SIZE
+		if bg.texture:
+			tex_size = bg.texture.get_size()
+		bg.size = tex_size
+		bg.position = ((vs - tex_size) * 0.5)
 	if logo:
 		logo.set_anchors_preset(Control.PRESET_TOP_LEFT)
-		logo.position = Vector2(LOGO_POS.x + shift, LOGO_POS.y)
+		logo.position = LOGO_POS + shift
 		logo.size = logo.texture.get_size() if logo.texture else logo.size
 	_ensure_menu_frame()
 	menu.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	menu.size = Vector2.ZERO
 	var menu_size: Vector2 = menu.get_combined_minimum_size()
-	menu.position = Vector2(MENU_POS.x + shift, MENU_POS.y)
+	menu.position = MENU_POS + shift
 	menu.size = menu_size
 	_menu_frame.position = menu.position - Vector2(MENU_FRAME_PAD.x, MENU_FRAME_PAD.y)
 	_menu_frame.size = menu_size + Vector2(MENU_FRAME_PAD.x + MENU_FRAME_PAD.z, MENU_FRAME_PAD.y + MENU_FRAME_PAD.w)
-	_version_label.size = Vector2(240.0, 24.0)
-	_version_label.position = Vector2(vs.x - 12.0 - 240.0, vs.y - 10.0 - 24.0)
+	var ver_w: float = 78.0
+	var font: Font = _version_label.get_theme_font(&"font")
+	if font != null:
+		ver_w = font.get_string_size(_version_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, _version_label.get_theme_font_size(&"font_size")).x
+	_version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_version_label.size = Vector2(maxf(1.0, ver_w), 24.0)
+	var ver_pos: Vector2 = VERSION_POS + shift
+	## Keep the whole string on the viewport. On a 960-wide view the 78 px line starts left of 904.
+	ver_pos.x = minf(ver_pos.x, maxf(0.0, vs.x - _version_label.size.x))
+	ver_pos.y = minf(ver_pos.y, maxf(0.0, vs.y - _version_label.size.y))
+	_version_label.position = ver_pos
 
 
 func _ensure_menu_frame() -> void:

@@ -245,23 +245,21 @@ func _init() -> void:
 	th.set_color("font_outline_color", "ProgressBar", CREAM)
 
 	# ---- Tooltip / Popup
-	## The Keeper activity parchment (toast_9s). Same 9-slice the status tag used.
+	## Scroll-edge papyrus. Caps tile (they are not stretched). Toasts keep toast_9s.
 	var tip_box := StyleBoxTexture.new()
-	tip_box.texture = load("res://assets/ui/theme/toast_9s_40x30.png") as Texture2D
+	tip_box.texture = load("res://assets/ui/longpress/tooltip_scroll_9s_51x38.png") as Texture2D
 	if tip_box.texture == null:
-		_missing.append("toast_9s_40x30.png")
-	## Rolls and the right-hand handle live in the side slices. Only the centre stretches.
+		_missing.append("tooltip_scroll_9s_51x38.png")
 	tip_box.texture_margin_left = 12
-	tip_box.texture_margin_top = 8
-	tip_box.texture_margin_right = 12
-	tip_box.texture_margin_bottom = 8
-	tip_box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-	tip_box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH
-	## Content sits inside the rolls, so glyphs clear the left edge and the handle.
+	tip_box.texture_margin_top = 16
+	tip_box.texture_margin_right = 15
+	tip_box.texture_margin_bottom = 10
+	tip_box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+	tip_box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	tip_box.content_margin_left = 16
-	tip_box.content_margin_top = 10
+	tip_box.content_margin_top = 9
 	tip_box.content_margin_right = 16
-	tip_box.content_margin_bottom = 10
+	tip_box.content_margin_bottom = 9
 	th.set_type_variation("TooltipPanel", "PopupPanel")
 	th.set_stylebox("panel", "TooltipPanel", tip_box)
 	th.set_type_variation("TooltipLabel", "Label")

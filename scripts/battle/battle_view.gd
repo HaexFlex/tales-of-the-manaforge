@@ -3587,6 +3587,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 	root.set_meta("built_by", "res://scripts/battle/battle_view.gd")
 	parent.add_child(root)
 	var ox: float = EchoTheme.shift()
+	var oy: float = Ui540.center_shift_y()
 	var bar := Panel.new()
 	bar.name = "EchoBottomBar"
 	var bar_box: Rect2 = EchoTheme.at(EchoTheme.BOTTOM_BAR)
@@ -3630,7 +3631,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		var row: int = int(i / 3)
 		## Hybrid Strike leaves a gap for the Phy chip. 104 fits the word and the 1 badge.
 		var slot_w: float = 104.0 if hybrid and slot == "strike" else 144.0
-		btn.position = Vector2(ox + 44.0 + 152.0 * float(col), 394.0 + 56.0 * float(row))
+		btn.position = Vector2(ox + 44.0 + 152.0 * float(col), oy + 394.0 + 56.0 * float(row))
 		btn.size = Vector2(slot_w, 44)
 		btn.custom_minimum_size = Vector2(slot_w, 44)
 		btn.focus_mode = Control.FOCUS_ALL
@@ -3685,7 +3686,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 	chip.name = "ArrowToggle"
 	chip.text = "Phy"
 	## Strike ends at ox+148. The chip stays 44 px (tap minimum) and stops before Ability.
-	chip.position = Vector2(ox + 150.0, 394.0)
+	chip.position = Vector2(ox + 150.0, oy + 394.0)
 	chip.size = Vector2(44, 44)
 	chip.custom_minimum_size = Vector2(44, 44)
 	chip.visible = hybrid
@@ -3712,7 +3713,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		ability.disabled = not keeper_abilities_exist()
 	var log_panel := Panel.new()
 	log_panel.name = "EchoLog"
-	log_panel.position = Vector2(ox + 504.0, 394.0)
+	log_panel.position = Vector2(ox + 504.0, oy + 394.0)
 	log_panel.size = Vector2(412, 100)
 	log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var log_box := StyleBoxTexture.new()

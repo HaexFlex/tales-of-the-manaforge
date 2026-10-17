@@ -52,6 +52,8 @@ var fill_screen: bool = true
 ## Hub camera step. 2 / 1 / 0.5, and 0.25 when the forest fills that view.
 var camera_zoom: float = 1.0
 var use_speedup_button: bool = false
+## First touch session showed the long-press tip. Settings file only, not the save.
+var touch_hold_hint_seen: bool = false
 var _forge_mix_on: bool = false
 var _forge_music_offset_db: float = 0.0
 var _forge_lowpass: AudioEffectLowPassFilter
@@ -88,6 +90,11 @@ func _ready() -> void:
 	_sting_player.finished.connect(_on_sting_finished)
 	load_settings()
 	apply_volumes()
+	if DisplayServer.get_name() != "headless":
+		var win: Window = get_window()
+		if win != null and not win.size_changed.is_connected(_on_window_resized):
+			win.size_changed.connect(_on_window_resized)
+		Ui540.apply_integer_viewport(win)
 	call_deferred("play_hub_music")
 	call_deferred("_connect_game_signals")
 	if not cue_played.is_connected(_on_cue_logged):
@@ -845,6 +852,10 @@ func apply_volumes() -> void:
 		_mute_minigame_sfx()
 
 
+func _on_window_resized() -> void:
+	Ui540.apply_integer_viewport(get_window())
+
+
 func apply_display() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
@@ -853,10 +864,8 @@ func apply_display() -> void:
 	var win: Window = get_window() if is_inside_tree() else null
 	if win == null:
 		return
-	if fill_screen:
-		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
-	else:
-		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+	## Black bars are gone. Integer scale, logical size = window / scale, on every screen.
+	Ui540.apply_integer_viewport(win)
 
 
 func _apply_bus_volume(bus_name: String, linear: float, base_db: float) -> void:
@@ -887,6 +896,7 @@ func load_settings() -> void:
 	fullscreen_on = bool(cfg.get_value("display", "fullscreen", false))
 	fill_screen = bool(cfg.get_value("display", "fill_screen", true))
 	camera_zoom = float(cfg.get_value("display", "camera_zoom", 1.0))
+	touch_hold_hint_seen = bool(cfg.get_value("touch", "hold_hint_seen", false))
 	apply_display()
 	if MUSIC_VOLUME_ZERO_MEANS_DEFAULT and music_volume_linear <= 0.001:
 		music_volume_linear = 1.0
@@ -903,7 +913,13 @@ func save_settings() -> void:
 	cfg.set_value("display", "fullscreen", fullscreen_on)
 	cfg.set_value("display", "fill_screen", fill_screen)
 	cfg.set_value("display", "camera_zoom", camera_zoom)
+	cfg.set_value("touch", "hold_hint_seen", touch_hold_hint_seen)
 	cfg.save(SETTINGS_PATH)
+
+
+func mark_touch_hold_hint_seen() -> void:
+	touch_hold_hint_seen = true
+	save_settings()
 
 
 func get_camera_zoom() -> float:

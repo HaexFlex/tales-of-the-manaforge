@@ -1,20 +1,45 @@
 extends Node
 ## Shared pointer actions for mouse, keyboard, and touch (540p phone groundwork).
 
-const LONG_PRESS_SEC: float = 0.5
 const MOVE_SLOP_PX: float = 18.0
+## 3-line scroll hint (20 px per line + 18). Lore final copy lives in ui.longpress_hint.
+const HOLD_HINT_SIZE: Vector2 = Vector2(200, 78)
 
 var _touch_index: int = -1
 var _touch_start_ms: int = 0
 var _touch_pos: Vector2 = Vector2.ZERO
 var _long_press_fired: bool = false
+var _hold_panel_open: bool = false
 
 
 func _ready() -> void:
 	_ensure_input_actions()
+	for arg: String in OS.get_cmdline_user_args():
+		if arg == "--emulate-touch":
+			Input.emulate_touch_from_mouse = true
+
+
+func long_press_wait() -> float:
+	## Same wait as the mouse-rest tooltip. No second constant.
+	return WorldHover.rest_sec()
+
+
+func show_hold_hint_if_needed(force: bool = false) -> bool:
+	## Once per install, on a phone or a touch launch. The seen flag lives in settings.
+	if not has_node("/root/GameAudio") or not has_node("/root/ContentStrings") or not has_node("/root/GameState"):
+		return false
+	if bool(GameAudio.get("touch_hold_hint_seen")):
+		return false
+	var touch: bool = force or OS.has_feature("mobile") or DisplayServer.is_touchscreen_available() or Input.emulate_touch_from_mouse
+	if not touch:
+		return false
+	GameState.status_message.emit(ContentStrings.get_text("touch_hold_hint"))
+	GameAudio.mark_touch_hold_hint_seen()
+	return true
 
 
 func _ensure_input_actions() -> void:
+	# 0.5 is the action deadzone, not a hold. The long-press wait is long_press_wait() (0.8 s).
 	if not InputMap.has_action("game_command"):
 		InputMap.add_action("game_command", 0.5)
 		var rmb := InputEventMouseButton.new()
@@ -33,7 +58,7 @@ func _ensure_input_actions() -> void:
 func _process(_delta: float) -> void:
 	if _touch_index < 0 or _long_press_fired:
 		return
-	if Time.get_ticks_msec() - _touch_start_ms >= int(LONG_PRESS_SEC * 1000.0):
+	if Time.get_ticks_msec() - _touch_start_ms >= int(long_press_wait() * 1000.0):
 		_long_press_fired = true
 		_dispatch_long_press(_touch_pos)
 
@@ -50,12 +75,12 @@ func _input(event: InputEvent) -> void:
 			if not _long_press_fired:
 				# Short tap: let Godot deliver normal gui/world clicks.
 				pass
-			_touch_index = -1
+			_end_touch()
 		return
 	if event is InputEventScreenDrag and (event as InputEventScreenDrag).index == _touch_index:
 		var drag: InputEventScreenDrag = event as InputEventScreenDrag
 		if drag.position.distance_to(_touch_pos) > MOVE_SLOP_PX:
-			_touch_index = -1
+			_end_touch()
 		return
 	if event.is_action_pressed("game_inspect"):
 		inspect_at_screen(get_viewport().get_mouse_position())
@@ -93,12 +118,31 @@ func inspect_at_screen(screen_pos: Vector2) -> void:
 
 
 func _dispatch_long_press(screen_pos: Vector2) -> void:
+	## Fires only after long_press_wait() (0.8 s). The 0.5 on the input actions is a deadzone.
 	var tip: String = _tooltip_at_screen(screen_pos)
 	if tip != "":
-		if has_node("/root/GameState"):
-			GameState.status_message.emit(tip)
+		_hold_panel_open = present_long_press_hint(screen_pos)
 		return
 	_route_world_command(screen_pos)
+
+
+func present_long_press_hint(screen_pos: Vector2) -> bool:
+	## Lore final body in ui.longpress_hint. Toast only if the panel cannot open.
+	var text: String = "ui.longpress_hint"
+	if has_node("/root/ContentStrings"):
+		text = str(ContentStrings.get_text("ui.longpress_hint"))
+	if WorldHover.show_anchored_hint(text, screen_pos, HOLD_HINT_SIZE):
+		return true
+	if has_node("/root/GameState"):
+		GameState.status_message.emit(text)
+	return false
+
+
+func _end_touch() -> void:
+	_touch_index = -1
+	if _hold_panel_open:
+		_hold_panel_open = false
+		WorldHover.dismiss_hold()
 
 
 func _tooltip_at_screen(screen_pos: Vector2) -> String:

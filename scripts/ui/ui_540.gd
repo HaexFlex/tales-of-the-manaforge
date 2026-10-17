@@ -3,8 +3,13 @@ extends RefCounted
 ## Shared 540p layout helpers (safe margins, phone export, 20:9 window shift).
 
 const SAFE_MARGIN_PX: float = 24.0
+## Tests inject a notch. Negative means "read DisplayServer".
+static var _debug_insets: Vector4 = Vector4(-1, -1, -1, -1)
 const TOOLTIP_GAP_PX: float = 6.0
-const TOOLTIP_MIN_H: float = 30.0
+## One Silver 19 line (20 px) plus the scroll content margins (9 + 9).
+const TOOLTIP_MIN_H: float = 38.0
+const TOOLTIP_MIN_W: float = 51.0
+const TOOLTIP_FADE_SEC: float = 0.12
 const HUD_RESOURCE_BAND_H: float = 48.0
 const TAP_MIN_PX: float = 44.0
 const WIDE_ASPECT_SHIFT_PX: float = 120.0
@@ -17,6 +22,60 @@ static func is_phone_export() -> bool:
 	return OS.has_feature("mobile")
 
 
+static func set_debug_insets(insets: Vector4) -> void:
+	_debug_insets = insets
+
+
+static func clear_debug_insets() -> void:
+	_debug_insets = Vector4(-1, -1, -1, -1)
+
+
+## Screen safe area in logical viewport pixels (left, top, right, bottom).
+## A full-window safe area (desktop, and headless) is zero on every side.
+static func safe_insets() -> Vector4:
+	if _debug_insets.x >= 0.0:
+		return _debug_insets
+	var area: Rect2i = DisplayServer.get_display_safe_area()
+	if area.size.x < 1 or area.size.y < 1:
+		return Vector4.ZERO
+	var win: Vector2i = DisplayServer.window_get_size()
+	if win.x < 1 or win.y < 1:
+		return Vector4.ZERO
+	if area.position == Vector2i.ZERO and area.size == win:
+		return Vector4.ZERO
+	var vs: Vector2 = viewport_size()
+	var sx: float = vs.x / float(win.x)
+	var sy: float = vs.y / float(win.y)
+	var left: float = float(area.position.x) * sx
+	var top: float = float(area.position.y) * sy
+	var right: float = float(win.x - area.end.x) * sx
+	var bottom: float = float(win.y - area.end.y) * sy
+	return Vector4(maxf(0.0, left), maxf(0.0, top), maxf(0.0, right), maxf(0.0, bottom))
+
+
+static func margin_left() -> float:
+	return maxf(SAFE_MARGIN_PX, safe_insets().x)
+
+
+static func margin_top() -> float:
+	return maxf(SAFE_MARGIN_PX, safe_insets().y)
+
+
+static func margin_right() -> float:
+	return maxf(SAFE_MARGIN_PX, safe_insets().z)
+
+
+static func margin_bottom() -> float:
+	return maxf(SAFE_MARGIN_PX, safe_insets().w)
+
+
+static func safe_rect() -> Rect2:
+	var vs: Vector2 = viewport_size()
+	var left: float = margin_left()
+	var top: float = margin_top()
+	return Rect2(left, top, maxf(0.0, vs.x - left - margin_right()), maxf(0.0, vs.y - top - margin_bottom()))
+
+
 ## Logical (stretched) size. `root.size` is the window in physical pixels, which is 2× or more
 ## on a scaled window and would push every 540p layout off screen.
 static func viewport_size() -> Vector2:
@@ -26,6 +85,45 @@ static func viewport_size() -> Vector2:
 	return tree.root.get_visible_rect().size
 
 
+## Largest integer scale that still fits the 960×540 design in the window. Never fractional.
+static func integer_scale_for(window_px: Vector2) -> int:
+	if window_px.x < 1.0 or window_px.y < 1.0:
+		return 1
+	var sx: int = int(floor(window_px.x / BASE_W))
+	var sy: int = int(floor(window_px.y / BASE_H))
+	return maxi(1, mini(maxi(sx, 0), maxi(sy, 0)))
+
+
+## Logical viewport is the window divided by that integer scale.
+## 2560×1600 → 1280×800, 1280×960 → 1280×960, 2400×1080 → 1200×540.
+static func logical_size_for(window_px: Vector2) -> Vector2i:
+	var scale: int = integer_scale_for(window_px)
+	return Vector2i(maxi(1, int(window_px.x / float(scale))), maxi(1, int(window_px.y / float(scale))))
+
+
+## Godot's expand + integer scale letterboxes when the expanded size is not an integer
+## multiple of 960×540 (1280×960 became 960×720, 2560×1600 became 960×600).
+## Setting the content size to window/scale makes the stretch factor an integer and drops the bars.
+static func apply_integer_viewport(win: Window = null) -> void:
+	if win == null:
+		var tree: SceneTree = Engine.get_main_loop() as SceneTree
+		if tree == null:
+			return
+		win = tree.root
+	if win == null:
+		return
+	var window_px: Vector2i = win.size
+	if window_px.x < 2 or window_px.y < 2:
+		return
+	var logical: Vector2i = logical_size_for(Vector2(window_px))
+	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_INTEGER
+	win.content_scale_factor = 1.0
+	if win.content_scale_size != logical:
+		win.content_scale_size = logical
+
+
 static func is_wide_aspect() -> bool:
 	var vs: Vector2 = viewport_size()
 	if vs.y <= 0.0:
@@ -33,20 +131,41 @@ static func is_wide_aspect() -> bool:
 	return vs.x / vs.y > (20.0 / 9.0) - 0.02
 
 
-## Offset of the 960-wide design canvas inside a wider logical viewport (120 on 20:9).
-## Only for elements the mockups pin to the 960 canvas (title logo and menu).
-## Centred windows and edge-anchored HUD chrome must not add it.
+## Size the centred 960×540 frame is shifted by. Headless boots a 64 px window, and expand
+## turns the base into a square; tests that only set content_scale_size mean that size.
+static func _shift_viewport() -> Vector2:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return Vector2(BASE_W, BASE_H)
+	var win: Window = tree.root
+	if win.size.x <= 64 and win.size.y <= 64:
+		var css := Vector2(win.content_scale_size)
+		if css.x >= 64.0 and css.y >= 64.0:
+			return css
+	return viewport_size()
+
+
+## ((vw-960)/2, (vh-540)/2). Design-space UI adds this. Edge HUD uses the safe margins instead.
+static func center_shift() -> Vector2:
+	var vs: Vector2 = _shift_viewport()
+	return Vector2((vs.x - BASE_W) * 0.5, (vs.y - BASE_H) * 0.5)
+
+
 static func center_shift_x() -> float:
-	return maxf(0.0, (viewport_size().x - BASE_W) * 0.5)
+	return center_shift().x
+
+
+static func center_shift_y() -> float:
+	return center_shift().y
 
 
 static func kit_top_inset() -> float:
-	return SAFE_MARGIN_PX + HUD_RESOURCE_BAND_H + SAFE_MARGIN_PX
+	return margin_top() + HUD_RESOURCE_BAND_H + SAFE_MARGIN_PX
 
 
 static func kit_content_size() -> Vector2:
 	var vs: Vector2 = viewport_size()
-	return Vector2(vs.x, maxf(0.0, vs.y - kit_top_inset() - SAFE_MARGIN_PX))
+	return Vector2(vs.x, maxf(0.0, vs.y - kit_top_inset() - margin_bottom()))
 
 
 ## Hover tip: parchment panel, 6 px under the control. A bottom-row button has no
@@ -56,22 +175,50 @@ static func place_tooltip(popup: Window, anchor: Control) -> void:
 	if popup == null:
 		return
 	var sz: Vector2 = popup.size
+	if sz.x < TOOLTIP_MIN_W:
+		sz.x = TOOLTIP_MIN_W
 	if sz.y < TOOLTIP_MIN_H:
 		sz.y = TOOLTIP_MIN_H
-		popup.size = sz
+	popup.size = sz
 	var vs: Vector2 = viewport_size()
-	var pos := Vector2(SAFE_MARGIN_PX, SAFE_MARGIN_PX)
+	var left: float = margin_left()
+	var top: float = margin_top()
+	var right: float = margin_right()
+	var bottom: float = margin_bottom()
+	var pos := Vector2(left, top)
 	if anchor != null and is_instance_valid(anchor):
 		var rect: Rect2 = anchor.get_global_rect()
 		var below: float = rect.end.y + TOOLTIP_GAP_PX
 		var above: float = rect.position.y - TOOLTIP_GAP_PX - sz.y
 		var y: float = below
-		if below + sz.y > vs.y - SAFE_MARGIN_PX:
+		if below + sz.y > vs.y - bottom:
 			y = above
 		pos = Vector2(rect.position.x, y)
-	var max_x: float = maxf(SAFE_MARGIN_PX, vs.x - SAFE_MARGIN_PX - sz.x)
-	var max_y: float = maxf(SAFE_MARGIN_PX, vs.y - SAFE_MARGIN_PX - sz.y)
-	popup.position = Vector2(clampf(pos.x, SAFE_MARGIN_PX, max_x), clampf(pos.y, SAFE_MARGIN_PX, max_y))
+	var max_x: float = maxf(left, vs.x - right - sz.x)
+	var max_y: float = maxf(top, vs.y - bottom - sz.y)
+	popup.position = Vector2(clampf(pos.x, left, max_x), clampf(pos.y, top, max_y))
+
+
+## 0.12 s fade. A Window has no modulate, so its canvas children (the scroll panel) fade.
+static func fade_in_tooltip(node: Node) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	var targets: Array[CanvasItem] = []
+	if node is CanvasItem:
+		targets.append(node as CanvasItem)
+	else:
+		for child: Node in node.get_children(true):
+			if child is CanvasItem:
+				targets.append(child as CanvasItem)
+	for item: CanvasItem in targets:
+		if item.has_meta(&"tip_fade"):
+			var old: Variant = item.get_meta(&"tip_fade")
+			if old is Tween and (old as Tween).is_valid():
+				(old as Tween).kill()
+		item.modulate.a = 0.0
+		var tw: Tween = item.create_tween()
+		item.set_meta(&"tip_fade", tw)
+		tw.tween_property(item, "modulate:a", 1.0, TOOLTIP_FADE_SEC)
 
 
 ## Four pips under a speed button. `active` is the lit step, or -1 when none match.
@@ -119,10 +266,15 @@ static func center_kit_panel(ctrl: Control, has_plank: bool = true) -> void:
 	var sz: Vector2 = ctrl.size
 	if sz.x <= 0.0 or sz.y <= 0.0:
 		sz = ctrl.get_combined_minimum_size()
+	var left: float = margin_left()
+	var top: float = margin_top()
+	var right: float = margin_right()
+	var bottom: float = margin_bottom()
 	var top_room: float = PLANK_RISE if has_plank else 0.0
-	var y: float = (vs.y - sz.y + top_room) * 0.5
-	y = clampf(y, SAFE_MARGIN_PX + top_room, maxf(SAFE_MARGIN_PX + top_room, vs.y - SAFE_MARGIN_PX - sz.y))
-	ctrl.position = Vector2(roundf((vs.x - sz.x) * 0.5), roundf(y))
+	var y: float = top + (vs.y - top - bottom - sz.y + top_room) * 0.5
+	y = clampf(y, top + top_room, maxf(top + top_room, vs.y - bottom - sz.y))
+	var x: float = left + (vs.x - left - right - sz.x) * 0.5
+	ctrl.position = Vector2(roundf(x), roundf(y))
 
 
 const PLANK_RISE: float = 22.0
@@ -190,11 +342,11 @@ static func restore_name_tags(root: Node) -> void:
 
 ## Tallest window that fits 540 inside the safe margins (with room for a plank).
 static func max_window_h(has_plank: bool = true) -> float:
-	return viewport_size().y - SAFE_MARGIN_PX * 2.0 - (PLANK_RISE if has_plank else 0.0)
+	return viewport_size().y - margin_top() - margin_bottom() - (PLANK_RISE if has_plank else 0.0)
 
 
 static func max_window_w() -> float:
-	return viewport_size().x - SAFE_MARGIN_PX * 2.0
+	return viewport_size().x - margin_left() - margin_right()
 
 
 ## Sizes a kit window to `want`, clamped to the safe area, then centres it.

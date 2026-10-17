@@ -59,7 +59,14 @@
   },
   {
    "stage_id": "mature",
-   "file": "native/anim/glow/manatree_mature_strip_glow.png",
+   "file": "native/anim/glow/tiles/manatree_mature_strip_glow_t0.png",
+   "tiles": [
+    "native/anim/glow/tiles/manatree_mature_strip_glow_t0.png",
+    "native/anim/glow/tiles/manatree_mature_strip_glow_t1.png",
+    "native/anim/glow/tiles/manatree_mature_strip_glow_t2.png",
+    "native/anim/glow/tiles/manatree_mature_strip_glow_t3.png"
+   ],
+   "tile_frames": 2,
    "size": [
     736,
     736
@@ -85,7 +92,14 @@
   },
   {
    "stage_id": "elder",
-   "file": "native/anim/glow/manatree_elder_strip_glow.png",
+   "file": "native/anim/glow/tiles/manatree_elder_strip_glow_t0.png",
+   "tiles": [
+    "native/anim/glow/tiles/manatree_elder_strip_glow_t0.png",
+    "native/anim/glow/tiles/manatree_elder_strip_glow_t1.png",
+    "native/anim/glow/tiles/manatree_elder_strip_glow_t2.png",
+    "native/anim/glow/tiles/manatree_elder_strip_glow_t3.png"
+   ],
+   "tile_frames": 2,
    "size": [
     1024,
     1024
@@ -111,7 +125,14 @@
   },
   {
    "stage_id": "ancient",
-   "file": "native/anim/glow/manatree_ancient_strip_glow.png",
+   "file": "native/anim/glow/tiles/manatree_ancient_strip_glow_t0.png",
+   "tiles": [
+    "native/anim/glow/tiles/manatree_ancient_strip_glow_t0.png",
+    "native/anim/glow/tiles/manatree_ancient_strip_glow_t1.png",
+    "native/anim/glow/tiles/manatree_ancient_strip_glow_t2.png",
+    "native/anim/glow/tiles/manatree_ancient_strip_glow_t3.png"
+   ],
+   "tile_frames": 2,
    "size": [
     1024,
     1024

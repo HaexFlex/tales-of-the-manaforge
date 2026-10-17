@@ -380,6 +380,8 @@
   "controls_lmb_deselect": "Left-click empty ground: deselect",
   "controls_camera_pan": "Arrows: pan camera",
   "controls_hint": "LMB selects. RMB commands. Arrows pan the camera. LMB on empty ground deselects.",
+  "touch_hold_hint": "Tip: press and hold to give a command",
+  "ui.longpress_hint": "Hold to look\ncloser, or to\ngive an order.",
   "keeper_move_prompt": "Right-click the ground to walk.",
   "keeper_away_select": "The Keeper is out on an expedition.",
   "member_away_select": "{name} is out on an expedition.",

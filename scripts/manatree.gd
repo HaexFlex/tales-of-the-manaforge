@@ -25,6 +25,10 @@ var _meta_stages: Dictionary = {}
 var _anim_frames: int = 1
 var _anim_fps: float = 7.0
 var _anim_time: float = 0.0
+## Wide strips are split on frame boundaries. Empty means one texture, hframes = frames.
+var _tile_textures: Array[Texture2D] = []
+var _frames_per_tile: int = 1
+var _shown_tile: int = -1
 
 const META_PATH: String = "res://assets/art/manatree/native/manatree_meta.json"
 const STAGE_TEXTURES: Dictionary = {
@@ -229,8 +233,27 @@ func _process(delta: float) -> void:
 		return
 	_anim_time += delta
 	var frame: int = int(_anim_time * _anim_fps) % _anim_frames
-	if sprite.frame != frame:
-		sprite.frame = frame
+	_show_frame(frame)
+
+
+## One frame of the stage strip. Tiled stages swap a ≤2048-wide texture and use a local hframe.
+func _show_frame(frame: int) -> void:
+	if sprite == null:
+		return
+	if _tile_textures.size() <= 1 or _frames_per_tile <= 0:
+		if sprite.frame != frame:
+			sprite.frame = frame
+		return
+	var per: int = _frames_per_tile
+	var tile_i: int = clampi(int(frame / float(per)), 0, _tile_textures.size() - 1)
+	var local_frame: int = frame % per
+	if tile_i != _shown_tile:
+		sprite.texture = _tile_textures[tile_i]
+		sprite.hframes = per
+		sprite.vframes = 1
+		_shown_tile = tile_i
+	if sprite.frame != local_frame:
+		sprite.frame = local_frame
 
 
 func _on_fruit_changed(ready: bool) -> void:
@@ -345,10 +368,30 @@ func _refresh_visual() -> void:
 	_anim_fps = float(meta.get("fps", 7.0))
 	if _anim_fps < 1.0:
 		_anim_fps = 7.0
-	sprite.hframes = frames
-	sprite.vframes = 1
-	sprite.texture = tex
-	sprite.frame = 0
+	_tile_textures.clear()
+	_frames_per_tile = 1
+	_shown_tile = -1
+	var tiles_v: Variant = meta.get("tiles", [])
+	if typeof(tiles_v) == TYPE_ARRAY:
+		for tile_name: Variant in tiles_v:
+			var ttex: Texture2D = load("res://assets/art/manatree/%s" % str(tile_name)) as Texture2D
+			if ttex == null:
+				_tile_textures.clear()
+				break
+			_tile_textures.append(ttex)
+	if _tile_textures.size() > 1:
+		_frames_per_tile = maxi(1, int(meta.get("tile_frames", 1)))
+		sprite.hframes = _frames_per_tile
+		sprite.vframes = 1
+		sprite.texture = _tile_textures[0]
+		sprite.frame = 0
+		_shown_tile = 0
+	else:
+		_tile_textures.clear()
+		sprite.hframes = frames
+		sprite.vframes = 1
+		sprite.texture = tex
+		sprite.frame = 0
 	_anim_time = 0.0
 	var scale_v: float = _display_scale(stage)
 	sprite.scale = Vector2(scale_v, scale_v)

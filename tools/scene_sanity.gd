@@ -1572,7 +1572,7 @@ func _battle_view() -> int:
 	var redeemed_value: Label = view.get_node_or_null("EchoRewards/RewardRow3/Value") as Label
 	var row1: Control = view.get_node_or_null("EchoRewards/RewardRow1") as Control
 	var rewards_dim: Control = view.get_node_or_null("EchoRewardsDim") as Control
-	failed += _check(rewards != null and is_equal_approx(rewards.position.x, EchoTheme.shift() + 200.0) and is_equal_approx(rewards.position.y, 40.0) and is_equal_approx(rewards.size.x, 560.0) and is_equal_approx(rewards.size.y, 464.0), "rewards card is 560x464 at x200 y40")
+	failed += _check(rewards != null and is_equal_approx(rewards.position.x, EchoTheme.shift() + 200.0) and is_equal_approx(rewards.position.y, 40.0 + Ui540.center_shift_y()) and is_equal_approx(rewards.size.x, 560.0) and is_equal_approx(rewards.size.y, 464.0), "rewards card is 560x464 at x200, y 40 plus the centred-frame shift")
 	failed += _check(rewards_footer != null and rewards_footer.text.find("Manatree") >= 0, "rewards footer names the wake")
 	failed += _check(rewards_title != null and is_equal_approx(rewards_title.position.y + rewards_title.size.y * 0.5, 35.0), "rewards title centres on screen y 75")
 	failed += _check(rewards_flavour != null and is_equal_approx(rewards_flavour.position.y, 78.0) and rewards_flavour.position.y + rewards_flavour.size.y <= 150.0, "reward flavour sits on screen y 118 above the rows")
@@ -1805,7 +1805,8 @@ func _chamber_plate(view: Node) -> int:
 	if FileAccess.file_exists(plate_path):
 		failed += _check(art != null and art.visible and art.texture != null, "chamber plate visible")
 		if art and art.texture:
-			failed += _check(art.texture.get_width() == 960 and art.texture.get_height() == 540, "plate crop is 960x540")
+			failed += _check(art.texture.get_width() == 1440 and art.texture.get_height() == 960, "plate is the 1440x960 master")
+			failed += _check(art.stretch_mode == TextureRect.STRETCH_KEEP, "plate is drawn 1:1")
 	else:
 		failed += _check(art != null and not art.visible, "chamber art hidden without a plate")
 	failed += _check(
@@ -2957,7 +2958,7 @@ func _offline_continue_box(panel: Node, vs: Vector2i, card_w: float = 600.0, car
 	failed += _check(is_equal_approx((panel.call("card_size") as Vector2).x, card_w), "away panel is %.0f wide at %s phone-sheet %s" % [card_w, vs, card_w > 700.0])
 	failed += _check(card_x < 0.0 or is_equal_approx(card_pos.x, card_x), "away panel x is %.0f at %s (got %.0f)" % [card_x, vs, card_pos.x])
 	failed += _check(card_pos.x >= 24.0 - 0.5 and card_pos.x + card_w <= float(vs.x) - 24.0 + 0.5, "away panel stays inside the 24 px side margins at %s" % vs)
-	failed += _check(is_equal_approx(card_pos.y, 92.0), "away panel stays at y 92")
+	failed += _check(is_equal_approx(card_pos.y, 92.0 + Ui540.center_shift_y()), "away panel y is 92 plus the centred-frame shift (got %.0f)" % card_pos.y)
 	return failed
 
 

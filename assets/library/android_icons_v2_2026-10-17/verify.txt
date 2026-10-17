@@ -1,0 +1,27 @@
+OK  size icons/legacy/ic_launcher_48.png = (48, 48)
+OK  size icons/legacy/ic_launcher_96.png = (96, 96)
+OK  size icons/legacy/ic_launcher_144.png = (144, 144)
+OK  size icons/legacy/ic_launcher_192.png = (192, 192)
+OK  size icons/legacy/ic_launcher_72.png = (72, 72)
+OK  size icons/legacy/ic_launcher_store_512.png = (512, 512)
+OK  size icons/legacy/ic_launcher_round_192.png = (192, 192)
+OK  size icons/adaptive/ic_launcher_background_432.png = (432, 432)
+OK  size icons/adaptive/ic_launcher_foreground_432.png = (432, 432)
+OK  size icons/adaptive/ic_launcher_monochrome_432.png = (432, 432)
+OK  hard alpha 10/10
+OK  legacy 96 = master x2 exactly (same framing, integer, nearest)
+OK  legacy 144 = master x3 exactly (same framing, integer, nearest)
+OK  legacy 192 = master x4 exactly (same framing, integer, nearest)
+OK  legacy 72 = master at x1.5 nearest (same framing; only non-integer file)
+OK  48: opaque square, corners flat bg colour (no vignette / rounded corners): {(84, 146, 64), (86, 58, 34), (128, 88, 52)}
+OK  72: opaque square, corners flat bg colour (no vignette / rounded corners): {(84, 146, 64), (86, 58, 34), (128, 88, 52)}
+OK  96: opaque square, corners flat bg colour (no vignette / rounded corners): {(84, 146, 64), (86, 58, 34), (128, 88, 52)}
+OK  144: opaque square, corners flat bg colour (no vignette / rounded corners): {(84, 146, 64), (86, 58, 34), (128, 88, 52)}
+OK  192: opaque square, corners flat bg colour (no vignette / rounded corners): {(84, 146, 64), (86, 58, 34), (128, 88, 52)}
+OK  512: opaque square, corners flat bg colour (no vignette / rounded corners): {(84, 146, 64), (86, 58, 34), (128, 88, 52)}
+OK  Keeper relative height equal at all sizes: 48: 0.90, 72: 0.90, 96: 0.90, 144: 0.90, 192: 0.90
+OK  adaptive fg: farthest pixel 140.0 px <= 144 (72 dp circle mask clips only background); bbox (118, 77, 313, 317) inside 73..359
+OK  monochrome: 0 enclosed holes (0 = solid), bbox (118, 77, 313, 317); silhouette = fg alpha: True
+OK  round 192: corner alpha 0 and the bust is fully inside the circle (no non-bg pixel cut by the edge)
+OK  round: bust bbox rows 30..167 cols 36..152 of 192
+RESULT: PASS

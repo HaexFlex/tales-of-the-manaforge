@@ -39,6 +39,124 @@ func _run() -> void:
 		quit(1)
 		return
 
+	if OS.get_environment("MANAFORGE_ANDROID_PRESET") == "1":
+		var android_only: int = _android_preset_ok()
+		if android_only > 0:
+			print("ANDROID_PRESET_FAIL: %d" % android_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MANATREE_TILES") == "1":
+		var tiles_only: int = _manatree_tiles_ok(tree_root, game_state)
+		if tiles_only > 0:
+			print("MANATREE_TILES_FAIL: %d" % tiles_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_LIFECYCLE") == "1":
+		var life_only: int = _lifecycle_checks(tree_root, game_state, save_service)
+		if life_only > 0:
+			print("LIFECYCLE_FAIL: %d" % life_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAFE_AREA") == "1":
+		var safe_only: int = await _safe_area_layout_ok(tree_root)
+		if safe_only > 0:
+			print("SAFE_AREA_FAIL: %d" % safe_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TITLE_WIDE") == "1":
+		var title_only: int = await _title_wide_ok(tree_root)
+		if title_only > 0:
+			print("TITLE_WIDE_FAIL: %d" % title_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TITLE_WIDE_SIZES") == "1":
+		var title_sizes_only: int = await _title_wide_sizes_ok(tree_root)
+		if title_sizes_only > 0:
+			print("TITLE_WIDE_SIZES_FAIL: %d" % title_sizes_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ECHO_WIDE") == "1":
+		var echo_wide_only: int = await _echo_wide_plate_ok(tree_root)
+		if echo_wide_only > 0:
+			print("ECHO_WIDE_PLATE_FAIL: %d" % echo_wide_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HUD_SAFE") == "1":
+		var hud_safe_only: int = await _hud_inside_safe_area_ok(tree_root)
+		if hud_safe_only > 0:
+			print("HUD_INSIDE_SAFE_AREA_FAIL: %d" % hud_safe_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_VIEWPORT_EXPAND") == "1":
+		var view_only: int = await _viewport_expand_ok(tree_root)
+		if view_only > 0:
+			print("VIEWPORT_EXPAND_FAIL: %d" % view_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOUCH") == "1":
+		var touch_only: int = _touch_hint_ok(tree_root, game_state)
+		if touch_only > 0:
+			print("TOUCH_HINT_FAIL: %d" % touch_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ANDROID_ICON") == "1":
+		var icon_only: int = _android_icon_splash_ok()
+		if icon_only > 0:
+			print("ANDROID_ICON_SPLASH_FAIL: %d" % icon_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOOLTIP_SCROLL") == "1":
+		var scroll_only: int = await _tooltip_scroll_ok(tree_root)
+		scroll_only += await _tooltip_parchment_ok(tree_root)
+		if scroll_only > 0:
+			print("TOOLTIP_SCROLL_FAIL: %d" % scroll_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_LONGPRESS_HINT_WIDTH") == "1":
+		var hint_width_only: int = await _longpress_hint_width_ok(tree_root)
+		if hint_width_only > 0:
+			print("LONGPRESS_HINT_WIDTH_FAIL: %d" % hint_width_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -1421,11 +1539,14 @@ func _run() -> void:
 						var asz: Variant = ed.get("size", [])
 						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 1024 and int((asz as Array)[1]) == 1024, "meta ancient frame 1024")
 						failed += _assert(int(ed.get("frames", 0)) == 8, "ancient strip has 8 frames")
+						failed += _assert(int(ed.get("tile_frames", 0)) == 2, "ancient strip is tiled at 2 frames")
 						failed += _assert(absf(float(ed.get("display_scale", 0.0)) - 1.0) < 0.01, "ancient display_scale 1")
-						var ancient_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_ancient_strip.png") as Texture2D
-						var elder_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_elder_strip.png") as Texture2D
-						failed += _assert(ancient_strip != null and ancient_strip.get_width() == 8192 and ancient_strip.get_height() == 1024, "ancient strip 8192x1024")
-						failed += _assert(elder_strip != null and elder_strip.get_width() == 8192 and elder_strip.get_height() == 1024, "elder strip 8192x1024")
+						failed += _assert(not FileAccess.file_exists("res://assets/art/manatree/native/anim/manatree_ancient_strip.png"), "ancient strip left the live art folder")
+						failed += _assert(not FileAccess.file_exists("res://assets/art/manatree/native/anim/manatree_elder_strip.png"), "elder strip left the live art folder")
+						var ancient_tile: Texture2D = load("res://assets/art/manatree/native/anim/glow/tiles/manatree_ancient_strip_glow_t0.png") as Texture2D
+						var elder_tile: Texture2D = load("res://assets/art/manatree/native/anim/glow/tiles/manatree_elder_strip_glow_t0.png") as Texture2D
+						failed += _assert(ancient_tile != null and ancient_tile.get_width() == 2048 and ancient_tile.get_height() == 1024, "ancient glow tile 2048x1024")
+						failed += _assert(elder_tile != null and elder_tile.get_width() == 2048 and elder_tile.get_height() == 1024, "elder glow tile 2048x1024")
 
 	# Art harvest nodes
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_tree.png"), "harvest_tree art")
@@ -3924,6 +4045,20 @@ func _run() -> void:
 	failed += await _battle_icons(tree_root, game_state, save_service)
 	failed += _minigame_checks()
 	failed += _hybrid_chip_ok(tree_root)
+	failed += _compat_renderer_ok()
+	failed += _android_preset_ok()
+	failed += _android_icon_splash_ok()
+	failed += _manatree_tiles_ok(tree_root, game_state)
+	failed += _lifecycle_checks(tree_root, game_state, save_service)
+	failed += await _safe_area_layout_ok(tree_root)
+	failed += await _viewport_expand_ok(tree_root)
+	failed += await _title_wide_ok(tree_root)
+	failed += await _title_wide_sizes_ok(tree_root)
+	failed += await _echo_wide_plate_ok(tree_root)
+	failed += await _hud_inside_safe_area_ok(tree_root)
+	failed += _touch_hint_ok(tree_root, game_state)
+	failed += await _tooltip_scroll_ok(tree_root)
+	failed += await _longpress_hint_width_ok(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -4949,7 +5084,7 @@ func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node
 		"expedition": {},
 	}
 	panel.call("present", report)
-	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "the away window sits at y 92")
+	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0 + Ui540.center_shift_y()), "the away window sits at y 92 plus the centred-frame shift")
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).y, 424.0), "the away window is 424 tall")
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "the away window is 600 wide")
 	var headline: String = str(panel.call("headline_text"))
@@ -5160,7 +5295,7 @@ func _offline_continue_box(panel: Node, vs: Vector2i, card_w: float = 600.0, car
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, card_w), "away panel is %.0f wide at %s phone-sheet %s" % [card_w, vs, card_w > 700.0])
 	failed += _assert(card_x < 0.0 or is_equal_approx(card_pos.x, card_x), "away panel x is %.0f at %s (got %.0f)" % [card_x, vs, card_pos.x])
 	failed += _assert(card_pos.x >= 24.0 - 0.5 and card_pos.x + card_w <= float(vs.x) - 24.0 + 0.5, "away panel stays inside the 24 px side margins at %s" % vs)
-	failed += _assert(is_equal_approx(card_pos.y, 92.0), "away panel stays at y 92")
+	failed += _assert(is_equal_approx(card_pos.y, 92.0 + Ui540.center_shift_y()), "away panel y is 92 plus the centred-frame shift (got %.0f)" % card_pos.y)
 	return failed
 
 
@@ -7067,6 +7202,139 @@ func _keeper_work_spot_asserts() -> int:
 	return failed
 
 
+func _tooltip_scroll_ok(tree_root: Window) -> int:
+	## Scroll-edge tooltips: asset, tile margins, 38 px min, fade, long-press panel, themed windows.
+	var failed: int = 0
+	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
+	var box: StyleBoxTexture = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture if theme != null else null
+	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
+	failed += _assert(path.find("res://assets/ui/longpress/tooltip_scroll_9s_51x38.png") >= 0, "scroll tooltip path (got %s)" % path)
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 16.0 and box.texture_margin_right == 15.0 and box.texture_margin_bottom == 10.0, "scroll texture margins 12/16/15/10")
+	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_TILE and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_TILE, "scroll axis stretch is Tile")
+	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 9.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 9.0, "scroll content margins 16/9/16/9")
+	failed += _assert(is_equal_approx(Ui540.TOOLTIP_MIN_H, 38.0) and is_equal_approx(Ui540.TOOLTIP_MIN_W, 51.0), "tooltip min size is 51 x 38")
+	failed += _assert(is_equal_approx(Ui540.TOOLTIP_FADE_SEC, 0.12), "tooltip fade is 0.12 s")
+	var hover_src: String = FileAccess.get_file_as_string("res://scripts/ui/world_hover.gd")
+	failed += _assert(hover_src.find("Ui540.TOOLTIP_MIN_H") >= 0 and hover_src.find("fade_in_tooltip") >= 0, "world hover uses the min height and the fade")
+	var input_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_src.find("present_long_press_hint") >= 0 and input_src.find("ui.longpress_hint") >= 0, "long-press opens the hint panel from one strings key")
+	failed += _assert(input_src.find("long_press_wait") >= 0 and input_src.find("0.5 is the action deadzone") >= 0, "0.5 stays the deadzone; the panel waits on the 0.8 s hold")
+	var theme_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_theme.gd")
+	failed += _assert(theme_src.find("tools/debug/") >= 0 and theme_src.find("_apply_window_theme") >= 0, "window theme hook skips the debug panel")
+	var recipe_src: String = FileAccess.get_file_as_string("res://scripts/forge_recipe_button.gd")
+	failed += _assert(recipe_src.find("StyleBoxEmpty") >= 0, "forge recipe tooltip container stays empty")
+	var toast_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _assert(toast_src.find("toast_9s_40x30") >= 0 and toast_src.find("BagDetailPopup") >= 0, "toasts and the bag detail popup are unchanged")
+	var trait_src: String = FileAccess.get_file_as_string("res://scripts/character_sheet.gd")
+	failed += _assert(trait_src.find("TraitPopup") >= 0 and trait_src.find("trait_popup") >= 0 and trait_src.find("tooltip_scroll") < 0, "trait hover stays a kit window")
+	var strings: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	failed += _assert(strings.find("\"ui.longpress_hint\": \"Hold to look\\ncloser, or to\\ngive an order.\"") >= 0, "long-press copy is the Lore final line")
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null and is_equal_approx(float(input.call("long_press_wait")), 0.8), "long-press wait is 0.8 s")
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.size = Vector2i(960, 540)
+	tree_root.content_scale_size = Vector2i(960, 540)
+	await process_frame
+	if input != null:
+		failed += _assert(bool(input.call("present_long_press_hint", Vector2(400, 300))), "long-press panel can show")
+	var hint: Panel = WorldHover.panel()
+	failed += _assert(hint != null and hint.visible and hint.size.is_equal_approx(Vector2(200, 78)), "long-press panel is 200 x 78 (got %s)" % (str(hint.size) if hint != null else "missing"))
+	var hint_label: Label = hint.get_node_or_null("Text") as Label if hint != null else null
+	failed += _assert(hint_label != null and hint_label.text == "Hold to look\ncloser, or to\ngive an order.", "long-press panel shows the Lore final line")
+	if hint != null:
+		var safe: Rect2 = Ui540.safe_rect()
+		failed += _assert(safe.encloses(Rect2(hint.position, hint.size)), "long-press panel sits inside the safe area %s" % str(hint.position))
+		failed += _assert(hint.modulate.a < 0.05, "long-press panel fades in from transparent")
+		await create_timer(0.15).timeout
+		failed += _assert(hint.modulate.a > 0.9, "long-press panel finishes the fade")
+		WorldHover.dismiss_hold()
+	var pop := PopupPanel.new()
+	pop.theme_type_variation = &"TooltipPanel"
+	pop.visible = false
+	tree_root.add_child(pop)
+	var menu := PopupMenu.new()
+	tree_root.add_child(menu)
+	await process_frame
+	var app_theme: Theme = tree_root.theme
+	failed += _assert(pop.theme == app_theme and app_theme != null, "a tooltip window receives the app theme")
+	failed += _assert(menu.theme == app_theme, "a popup menu receives the app theme")
+	pop.free()
+	menu.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TOOLTIP_SCROLL_OK")
+	return failed
+
+
+func _longpress_hint_width_ok(tree_root: Window) -> int:
+	## A wide world tooltip must not leave the shared panel stuck wider than the 200 px hint.
+	var failed: int = 0
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.size = Vector2i(960, 540)
+	tree_root.content_scale_size = Vector2i(960, 540)
+	await process_frame
+	var host := Node2D.new()
+	tree_root.add_child(host)
+	var wide: String = "The eastern clearing holds a fallen heartwood the Keeper cannot carry\nsecond line of the world tooltip\nthird line of the world tooltip"
+	WorldHover.present(host, wide)
+	WorldHover.complete_rest()
+	await process_frame
+	var tip: Panel = WorldHover.panel()
+	var wide_size: Vector2 = _world_hover_text_size(tip, wide)
+	failed += _assert(tip != null and tip.visible and tip.size.is_equal_approx(wide_size), "3-line world tooltip sizes to its text (got %s want %s)" % [str(tip.size) if tip != null else "missing", str(wide_size)])
+	failed += _assert(tip != null and tip.size.x > 200.0, "3-line world tooltip is wider than the hint (got %s)" % (str(tip.size) if tip != null else "missing"))
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input != null:
+		failed += _assert(bool(input.call("present_long_press_hint", Vector2(400, 300))), "long-press hint opens after a wide tooltip")
+	else:
+		failed += _assert(WorldHover.show_anchored_hint("Hold to look\ncloser, or to\ngive an order.", Vector2(400, 300), Vector2(200, 78)), "long-press hint opens after a wide tooltip")
+	await process_frame
+	var hint: Panel = WorldHover.panel()
+	failed += _assert(hint != null and hint.size.is_equal_approx(Vector2(200, 78)), "long-press hint is 200 x 78 after a wide tooltip (got %s)" % (str(hint.size) if hint != null else "missing"))
+	var short_text: String = "Runestone Arcana"
+	WorldHover.present(host, short_text)
+	WorldHover.complete_rest()
+	await process_frame
+	var again: Panel = WorldHover.panel()
+	var short_size: Vector2 = _world_hover_text_size(again, short_text)
+	failed += _assert(again != null and again.visible and again.size.is_equal_approx(short_size), "1-line world tooltip sizes to its text after the hint (got %s want %s)" % [str(again.size) if again != null else "missing", str(short_size)])
+	failed += _assert(again != null and again.size.x < 200.0, "1-line world tooltip is not stuck at the hint width (got %s)" % (str(again.size) if again != null else "missing"))
+	WorldHover.shutdown()
+	host.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("LONGPRESS_HINT_WIDTH_OK")
+	return failed
+
+
+func _world_hover_text_size(panel: Panel, text: String) -> Vector2:
+	var label: Label = panel.get_node_or_null("Text") as Label if panel != null else null
+	var font: Font = label.get_theme_font(&"font") if label != null else null
+	var font_size: int = label.get_theme_font_size(&"font_size") if label != null else 16
+	var text_sz := Vector2(80, 19)
+	if font != null:
+		text_sz = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var left: float = 16.0
+	var top: float = 10.0
+	var right: float = 16.0
+	var bottom: float = 10.0
+	var box: StyleBox = panel.get_theme_stylebox(&"panel") if panel != null else null
+	if box != null:
+		left = box.get_content_margin(SIDE_LEFT)
+		top = box.get_content_margin(SIDE_TOP)
+		right = box.get_content_margin(SIDE_RIGHT)
+		bottom = box.get_content_margin(SIDE_BOTTOM)
+	var lines: int = maxi(1, text.count("\n") + 1)
+	return Vector2(
+		maxf(Ui540.TOOLTIP_MIN_W, text_sz.x + left + right),
+		maxf(Ui540.TOOLTIP_MIN_H, float(lines) * 20.0 + top + bottom),
+	)
+
+
 func _tooltip_parchment_ok(tree_root: Window) -> int:
 	var failed: int = 0
 	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
@@ -7074,11 +7342,11 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	if theme != null:
 		box = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture
 	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
-	failed += _assert(path.find("toast_9s_40x30") >= 0, "tooltip panel uses the activity papyrus scroll")
-	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 8.0 and box.texture_margin_right == 12.0 and box.texture_margin_bottom == 8.0, "tooltip texture margins keep the rolls at 12/8/12/8")
-	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH, "tooltip nine-slice stretches only the middle")
-	failed += _assert(box != null and box.content_margin_left >= box.texture_margin_left and box.content_margin_right >= box.texture_margin_right and box.content_margin_top >= box.texture_margin_top and box.content_margin_bottom >= box.texture_margin_bottom, "tooltip content sits inside the rolled ends")
-	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 10.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 10.0, "tooltip content margins are 16/10/16/10")
+	failed += _assert(path.find("tooltip_scroll_9s_51x38") >= 0, "tooltip panel uses the scroll-edge papyrus")
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 16.0 and box.texture_margin_right == 15.0 and box.texture_margin_bottom == 10.0, "tooltip texture margins are 12/16/15/10")
+	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_TILE and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_TILE, "tooltip nine-slice tiles both axes")
+	failed += _assert(box != null and box.content_margin_left >= 16.0 and box.content_margin_right >= 16.0 and box.content_margin_top >= 9.0 and box.content_margin_bottom >= 9.0, "tooltip content sits inside the scroll caps")
+	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 9.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 9.0, "tooltip content margins are 16/9/16/9")
 	var host := Control.new()
 	host.position = Vector2(100, 80)
 	host.size = Vector2(44, 44)
@@ -7088,7 +7356,7 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	tree_root.add_child(pop)
 	Ui540.place_tooltip(pop, host)
 	failed += _assert(is_equal_approx(pop.position.x, 100.0) and is_equal_approx(pop.position.y, 130.0), "tooltip sits 6 px under the control (got %s)" % str(pop.position))
-	failed += _assert(pop.size.y >= 29.9, "tooltip is at least 30 px high")
+	failed += _assert(pop.size.y >= Ui540.TOOLTIP_MIN_H - 0.1, "tooltip is at least 38 px high")
 	host.position = Vector2(900, 500)
 	pop.size = Vector2(200, 40)
 	Ui540.place_tooltip(pop, host)
@@ -7132,15 +7400,15 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	tip_btn.add_child(shown)
 	var applied: StyleBoxTexture = shown.get_theme_stylebox("panel") as StyleBoxTexture
 	var applied_path: String = applied.texture.resource_path if applied != null and applied.texture != null else ""
-	failed += _assert(applied_path.find("toast_9s_40x30") >= 0, "applied tooltip stylebox is the activity papyrus scroll (got %s)" % applied_path)
-	failed += _assert(applied != null and applied.texture_margin_left == 12.0 and applied.texture_margin_top == 8.0 and applied.texture_margin_right == 12.0 and applied.texture_margin_bottom == 8.0, "applied tooltip margins are 12/8/12/8")
+	failed += _assert(applied_path.find("tooltip_scroll_9s_51x38") >= 0, "applied tooltip stylebox is the scroll-edge papyrus (got %s)" % applied_path)
+	failed += _assert(applied != null and applied.texture_margin_left == 12.0 and applied.texture_margin_top == 16.0 and applied.texture_margin_right == 15.0 and applied.texture_margin_bottom == 10.0, "applied tooltip margins are 12/16/15/10")
 	var drawn: StyleBoxTexture = null
 	for idx: int in shown.get_child_count(true):
 		var inner: Node = shown.get_child(idx, true)
 		if inner is Panel:
 			drawn = (inner as Panel).get_theme_stylebox("panel") as StyleBoxTexture
 	var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
-	failed += _assert(drawn_path.find("toast_9s_40x30") >= 0, "tooltip panel draws the activity papyrus scroll (got %s)" % drawn_path)
+	failed += _assert(drawn_path.find("tooltip_scroll_9s_51x38") >= 0, "tooltip panel draws the scroll-edge papyrus (got %s)" % drawn_path)
 	failed += _assert(tip_label.get_theme_color("font_color").is_equal_approx(Color8(62, 42, 24)), "tooltip label ink is applied")
 	failed += await _tooltip_text_inside_margins(tree_root, theme)
 	tip_btn.free()
@@ -7174,9 +7442,9 @@ func _tooltip_text_inside_margins(tree_root: Window, theme: Theme) -> int:
 		panel.size.y - box.content_margin_top - box.content_margin_bottom
 	)
 	failed += _assert(content.encloses(text_rect), "C — Character sits inside the content margins (text %s content %s)" % [str(text_rect), str(content)])
-	failed += _assert(text_rect.position.x >= box.texture_margin_left - 0.1, "tooltip text clears the left roll (x %.1f)" % text_rect.position.x)
-	failed += _assert(text_rect.end.x <= panel.size.x - box.texture_margin_right + 0.1, "tooltip text clears the handle (right %.1f panel %.1f)" % [text_rect.end.x, panel.size.x])
-	failed += _assert(text_rect.position.y >= box.texture_margin_top - 0.1 and text_rect.end.y <= panel.size.y - box.texture_margin_bottom + 0.1, "tooltip text clears the top and bottom edges")
+	failed += _assert(text_rect.position.x >= box.content_margin_left - 0.1, "tooltip text starts at the 16 px content margin (x %.1f)" % text_rect.position.x)
+	failed += _assert(text_rect.end.x <= panel.size.x - box.content_margin_right + 0.1, "tooltip text stays inside the right content margin (right %.1f panel %.1f)" % [text_rect.end.x, panel.size.x])
+	failed += _assert(text_rect.position.y >= box.content_margin_top - 0.1 and text_rect.end.y <= panel.size.y - box.content_margin_bottom + 0.1, "tooltip text stays inside the vertical content margins")
 	panel.free()
 	return failed
 
@@ -7224,7 +7492,7 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	var tip_box: StyleBoxTexture = tip.get_theme_stylebox(&"panel") as StyleBoxTexture if tip != null else null
 	var tip_path: String = tip_box.texture.resource_path if tip_box != null and tip_box.texture != null else ""
 	failed += _assert(WorldHover.current_text() == "Forge Door", "world hover shows the forge door name (got %s)" % WorldHover.current_text())
-	failed += _assert(tip_path.find("toast_9s_40x30") >= 0, "world hover draws the papyrus scroll (got %s)" % tip_path)
+	failed += _assert(tip_path.find("tooltip_scroll_9s_51x38") >= 0, "world hover draws the scroll-edge papyrus (got %s)" % tip_path)
 	var tip_label: Label = tip.get_node_or_null("Text") as Label if tip != null else null
 	if tip != null and tip_label != null and tip_box != null:
 		var text_rect := Rect2(tip_label.position, tip_label.size)
@@ -21279,3 +21547,964 @@ func _handoff_idle_body(tree_root: Window, game_state: Node, save_service: Node)
 	if failed == 0:
 		print("HANDOFF_IDLE_OK")
 	return failed
+
+
+func _compat_renderer_ok() -> int:
+	## Android pass 1. Compatibility is the project renderer and the mobile override.
+	## The one authored canvas shader and the forest-floor shader must still load.
+	var failed: int = 0
+	var method: String = str(ProjectSettings.get_setting("rendering/renderer/rendering_method", ""))
+	var mobile: String = str(ProjectSettings.get_setting("rendering/renderer/rendering_method.mobile", ""))
+	failed += _assert(method == "gl_compatibility", "rendering_method is gl_compatibility (got %s)" % method)
+	failed += _assert(mobile == "gl_compatibility", "mobile rendering_method is gl_compatibility (got %s)" % mobile)
+	var outline: Shader = load("res://assets/art/ui/select_outline.gdshader") as Shader
+	failed += _assert(outline != null, "select outline shader loads under Compatibility")
+	if outline != null:
+		var mat := ShaderMaterial.new()
+		mat.shader = outline
+		failed += _assert(mat.shader == outline and outline.get_mode() == Shader.MODE_CANVAS_ITEM, "select outline is a canvas_item shader")
+	var main_script: GDScript = load("res://scripts/main.gd") as GDScript
+	var floor_code: String = ""
+	if main_script != null:
+		floor_code = str(main_script.get_script_constant_map().get("FOREST_FLOOR_SHADER", ""))
+	failed += _assert(floor_code.find("shader_type canvas_item;") >= 0, "forest floor shader is canvas_item")
+	failed += _assert(floor_code.find("hint_screen_texture") < 0 and floor_code.find("hint_depth_texture") < 0, "forest floor shader does not sample the screen or depth")
+	if floor_code != "":
+		var floor := Shader.new()
+		floor.code = floor_code
+		failed += _assert(floor.get_mode() == Shader.MODE_CANVAS_ITEM, "forest floor shader compiles as canvas_item")
+	var banned: PackedStringArray = PackedStringArray(["WorldEnvironment", "Light2D", "GPUParticles2D", "GPUParticles3D", "CanvasModulate"])
+	var scene_hits: PackedStringArray = _compat_scan_scenes("res://scenes", banned)
+	failed += _assert(scene_hits.is_empty(), "no glow/light/GPU-particle nodes in scenes (%s)" % ", ".join(scene_hits))
+	if failed == 0:
+		print("COMPAT_RENDERER_OK")
+	return failed
+
+
+func _android_preset_ok() -> int:
+	## Android pass 1 preset. Windows presets stay the two desktop entries.
+	var failed: int = 0
+	var text: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	failed += _assert(text.find("name=\"Windows Testing / Experimental\"") >= 0, "Windows Experimental preset remains")
+	failed += _assert(text.find("name=\"Windows Release / Stable\"") >= 0, "Windows Stable preset remains")
+	var android_at: int = text.find("name=\"Android Test (Experimental)\"")
+	failed += _assert(android_at >= 0, "Android Test preset exists")
+	var block: String = text.substr(android_at) if android_at >= 0 else ""
+	failed += _assert(block.find("platform=\"Android\"") >= 0, "preset platform is Android")
+	failed += _assert(block.find("custom_features=\"manaforge_debug\"") >= 0, "Android preset keeps manaforge_debug")
+	failed += _assert(block.find("package/unique_name=\"com.haexflex.manaforge\"") >= 0, "package id com.haexflex.manaforge")
+	failed += _assert(block.find("package/name=\"Tales of the Manaforge\"") >= 0, "Android app name")
+	failed += _assert(block.find("version/code=1") >= 0 and block.find("version/name=\"0.1.2\"") >= 0, "version code 1 name 0.1.2")
+	failed += _assert(block.find("architectures/arm64-v8a=true") >= 0, "arm64-v8a on")
+	failed += _assert(block.find("architectures/armeabi-v7a=false") >= 0 and block.find("architectures/x86=false") >= 0 and block.find("architectures/x86_64=false") >= 0, "only arm64-v8a")
+	failed += _assert(block.find("gradle_build/use_gradle_build=false") >= 0, "gradle build off")
+	failed += _assert(block.find("keystore/debug=\"\"") >= 0 and block.find("keystore/debug_user=\"\"") >= 0 and block.find("keystore/debug_password=\"\"") >= 0, "debug keystore left empty for the box")
+	for piece: String in ["*.md", "docs/*", "Assets upload/*", "assets/library/*"]:
+		failed += _assert(block.find(piece) >= 0, "Android exclude filter has %s" % piece)
+	var orient: int = int(ProjectSettings.get_setting("display/window/handheld/orientation", -1))
+	failed += _assert(orient == DisplayServer.SCREEN_SENSOR_LANDSCAPE, "handheld orientation is sensor landscape (got %d)" % orient)
+	failed += _assert(block.find("launcher_icons/main_192x192=\"res://assets/ui/android/legacy/ic_launcher_192.png\"") >= 0, "main launcher icon is the clean 192")
+	failed += _assert(block.find("launcher_icons/adaptive_foreground_432x432=\"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png\"") >= 0, "adaptive foreground is the clean 432")
+	failed += _assert(block.find("launcher_icons/adaptive_background_432x432=\"res://assets/ui/android/adaptive/ic_launcher_background_432.png\"") >= 0, "adaptive background is the clean 432")
+	failed += _assert(block.find("launcher_icons/adaptive_monochrome_432x432=\"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png\"") >= 0, "adaptive monochrome is the clean 432")
+	if failed == 0:
+		print("ANDROID_PRESET_OK")
+	return failed
+
+
+func _android_icon_splash_ok() -> int:
+	## Art's clean Keeper icons and the 20:9 splash. Windows keeps the default boot splash.
+	var failed: int = 0
+	var expect: Dictionary = {
+		"res://assets/ui/android/adaptive/ic_launcher_background_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/legacy/ic_launcher_48.png": Vector2i(48, 48),
+		"res://assets/ui/android/legacy/ic_launcher_72.png": Vector2i(72, 72),
+		"res://assets/ui/android/legacy/ic_launcher_96.png": Vector2i(96, 96),
+		"res://assets/ui/android/legacy/ic_launcher_144.png": Vector2i(144, 144),
+		"res://assets/ui/android/legacy/ic_launcher_192.png": Vector2i(192, 192),
+		"res://assets/ui/android/legacy/ic_launcher_round_192.png": Vector2i(192, 192),
+		"res://assets/ui/android/legacy/ic_launcher_store_512.png": Vector2i(512, 512),
+		"res://assets/ui/android/splash/splash_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_bg_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_bg_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_keeper_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_keeper_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_logo_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_logo_960x540.png": Vector2i(960, 540),
+	}
+	for path: String in expect.keys():
+		var size: Vector2i = expect[path]
+		failed += _assert(FileAccess.file_exists(path), "%s exists" % path)
+		var img := Image.new()
+		var loaded: bool = img.load(ProjectSettings.globalize_path(path)) == OK
+		failed += _assert(loaded and img.get_width() == size.x and img.get_height() == size.y, "%s is %d x %d" % [path, size.x, size.y])
+		var imp: String = FileAccess.get_file_as_string(path + ".import")
+		failed += _assert(imp.find("compress/mode=0") >= 0 and imp.find("mipmaps/generate=false") >= 0, "%s imports lossless with no mipmaps" % path)
+	var presets: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	var android_at: int = presets.find("name=\"Android Test (Experimental)\"")
+	var block: String = presets.substr(android_at) if android_at >= 0 else ""
+	var refs: PackedStringArray = PackedStringArray([
+		"launcher_icons/main_192x192=\"res://assets/ui/android/legacy/ic_launcher_192.png\"",
+		"launcher_icons/adaptive_foreground_432x432=\"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png\"",
+		"launcher_icons/adaptive_background_432x432=\"res://assets/ui/android/adaptive/ic_launcher_background_432.png\"",
+		"launcher_icons/adaptive_monochrome_432x432=\"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png\"",
+	])
+	for ref: String in refs:
+		var quoted: String = ref.substr(ref.find("\"") + 1)
+		quoted = quoted.trim_suffix("\"")
+		failed += _assert(block.find(ref) >= 0 and FileAccess.file_exists(quoted), "preset resolves %s" % quoted)
+	var project: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project.find("config/icon=\"res://assets/ui/icon_256.png\"") >= 0, "desktop icon stays icon_256")
+	failed += _assert(project.find("boot_splash/image=") < 0, "Windows boot splash image is not overridden")
+	failed += _assert(project.find("boot_splash/image.android=\"res://assets/ui/android/splash/splash_1200x540.png\"") >= 0, "Android splash is the 1200x540 composite")
+	failed += _assert(project.find("boot_splash/fullsize.android=false") >= 0, "Android splash is not fullsize")
+	failed += _assert(project.find("boot_splash/use_filter.android=false") >= 0, "Android splash is nearest")
+	var splash_bg := Color(0, 0.023529411764705882, 0.11372549019607843, 1)
+	failed += _assert(splash_bg.is_equal_approx(Color.html("00061d")), "splash bg matches #00061d")
+	failed += _assert(project.find("boot_splash/bg_color.android=Color(0, 0.023529411764705882, 0.11372549019607843, 1)") >= 0, "Android splash bg is #00061d")
+	failed += _assert(not FileAccess.file_exists("res://assets/ui/android/main_192.png"), "placeholder main icon left the live folder")
+	if failed == 0:
+		print("ANDROID_ICON_SPLASH_OK")
+	return failed
+
+
+func _manatree_tiles_ok(tree_root: Window, game_state: Node) -> int:
+	## Android pass 1. Tiles match the retired strips pixel for pixel, and nothing
+	## the Android preset would pack is wider than 4096.
+	var failed: int = 0
+	var etc2: bool = bool(ProjectSettings.get_setting("rendering/textures/vram_compression/import_etc2_astc", false))
+	failed += _assert(etc2, "import_etc2_astc is on for mobile")
+	var presets: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	var android_at: int = presets.find("name=\"Android Test (Experimental)\"")
+	var desktop: String = presets.substr(0, android_at) if android_at > 0 else presets
+	failed += _assert(desktop.count("texture_format/etc2=false") == 2, "both Windows presets leave ETC2 off")
+	failed += _assert(desktop.count("texture_format/s3tc=true") == 2 and desktop.count("texture_format/bptc=true") == 2, "both Windows presets keep S3TC and BPTC")
+	var cases: Array[Dictionary] = [
+		{"src": "manatree_elder_strip.png", "prefix": "manatree_elder_strip", "glow": false, "tw": 2048, "th": 1024},
+		{"src": "manatree_ancient_strip.png", "prefix": "manatree_ancient_strip", "glow": false, "tw": 2048, "th": 1024},
+		{"src": "manatree_mature_strip.png", "prefix": "manatree_mature_strip", "glow": false, "tw": 1472, "th": 736},
+		{"src": "manatree_elder_strip_glow.png", "prefix": "manatree_elder_strip_glow", "glow": true, "tw": 2048, "th": 1024},
+		{"src": "manatree_ancient_strip_glow.png", "prefix": "manatree_ancient_strip_glow", "glow": true, "tw": 2048, "th": 1024},
+		{"src": "manatree_mature_strip_glow.png", "prefix": "manatree_mature_strip_glow", "glow": true, "tw": 1472, "th": 736},
+	]
+	for spec: Dictionary in cases:
+		failed += _manatree_tile_pixels(spec)
+	var wide: PackedStringArray = PackedStringArray()
+	_manatree_scan_png_width("res://assets/art", wide)
+	_manatree_scan_png_width("res://assets/ui", wide)
+	_manatree_scan_png_width("res://assets_extra", wide)
+	failed += _assert(wide.is_empty(), "exported texture wider than 4096 (%s)" % ", ".join(wide))
+	var packed: PackedScene = load("res://scenes/manatree.tscn") as PackedScene
+	failed += _assert(packed != null, "manatree scene loads")
+	if packed != null and game_state != null:
+		var saved_stage: StringName = game_state.get("stage_id")
+		var checks: Array[Dictionary] = [
+			{"stage": &"elder", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_elder_strip_glow_t1.png", "frame": 3, "local": 1, "w": 2048},
+			{"stage": &"ancient", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_ancient_strip_glow_t1.png", "frame": 3, "local": 1, "w": 2048},
+			{"stage": &"mature", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_mature_strip_glow_t1.png", "frame": 3, "local": 1, "w": 1472},
+		]
+		for check: Dictionary in checks:
+			game_state.set("stage_id", check["stage"])
+			var tree: Node2D = packed.instantiate() as Node2D
+			tree_root.add_child(tree)
+			var sprite: Sprite2D = tree.get_node_or_null("Sprite") as Sprite2D
+			var expect: Texture2D = load(str(check["tile"])) as Texture2D
+			failed += _assert(sprite != null and sprite.hframes == 2, "%s uses 2 hframes per tile" % str(check["stage"]))
+			failed += _assert(sprite != null and sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "%s stays nearest" % str(check["stage"]))
+			tree.call("_show_frame", int(check["frame"]))
+			failed += _assert(sprite != null and sprite.texture == expect and sprite.frame == int(check["local"]), "%s frame %d shows tile 1" % [str(check["stage"]), int(check["frame"])])
+			failed += _assert(sprite != null and sprite.texture != null and sprite.texture.get_width() == int(check["w"]), "%s tile width %d" % [str(check["stage"]), int(check["w"])])
+			tree_root.remove_child(tree)
+			tree.free()
+		game_state.set("stage_id", saved_stage)
+	if failed == 0:
+		print("MANATREE_TILES_OK")
+	return failed
+
+
+func _manatree_tile_pixels(spec: Dictionary) -> int:
+	var failed: int = 0
+	var legacy: String = ProjectSettings.globalize_path("res://assets/library/legacy/manatree_strips_2026-10-17/%s" % str(spec["src"]))
+	var src := Image.new()
+	failed += _assert(src.load(legacy) == OK, "legacy strip loads %s" % str(spec["src"]))
+	if src.get_width() < 1:
+		return failed
+	src.convert(Image.FORMAT_RGBA8)
+	var src_w: int = src.get_width()
+	var src_h: int = src.get_height()
+	var tw: int = int(spec["tw"])
+	var th: int = int(spec["th"])
+	failed += _assert(src_w == tw * 4 and src_h == th, "%s is 4 tiles of %dx%d (got %dx%d)" % [str(spec["src"]), tw, th, src_w, src_h])
+	var src_bytes: PackedByteArray = src.get_data()
+	var folder: String = "res://assets/art/manatree/native/anim/glow/tiles" if bool(spec["glow"]) else "res://assets/art/manatree/native/anim/tiles"
+	for i: int in 4:
+		var tile_path: String = "%s/%s_t%d.png" % [folder, str(spec["prefix"]), i]
+		var tile := Image.new()
+		if tile.load(ProjectSettings.globalize_path(tile_path)) != OK:
+			failed += _assert(false, "tile loads %s" % tile_path)
+			continue
+		tile.convert(Image.FORMAT_RGBA8)
+		failed += _assert(tile.get_width() == tw and tile.get_height() == th and tile.get_width() <= 2048, "%s tile %d is %dx%d" % [str(spec["prefix"]), i, tw, th])
+		var tile_bytes: PackedByteArray = tile.get_data()
+		var mismatch: bool = false
+		var row_bytes: int = tw * 4
+		for y: int in th:
+			var src_off: int = (y * src_w + i * tw) * 4
+			var tile_off: int = y * row_bytes
+			if src_bytes.slice(src_off, src_off + row_bytes) != tile_bytes.slice(tile_off, tile_off + row_bytes):
+				mismatch = true
+				break
+		failed += _assert(not mismatch, "%s tile %d matches the original pixels" % [str(spec["prefix"]), i])
+	return failed
+
+
+func _manatree_scan_png_width(root_path: String, wide: PackedStringArray) -> void:
+	var dir := DirAccess.open(root_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var name: String = dir.get_next()
+	while name != "":
+		if name == "." or name == ".." or name == "library" or name == "refs" or name == "_archive":
+			name = dir.get_next()
+			continue
+		var path: String = root_path.path_join(name)
+		if dir.current_is_dir():
+			_manatree_scan_png_width(path, wide)
+		elif name.ends_with(".png"):
+			var width: int = _png_ihdr_width(path)
+			if width > 4096:
+				wide.append("%s (%d)" % [path, width])
+		name = dir.get_next()
+	dir.list_dir_end()
+
+
+func _png_ihdr_width(res_path: String) -> int:
+	var file := FileAccess.open(res_path, FileAccess.READ)
+	if file == null:
+		return -1
+	var sig: PackedByteArray = file.get_buffer(8)
+	file.get_buffer(4)
+	var ctype: PackedByteArray = file.get_buffer(4)
+	var wbytes: PackedByteArray = file.get_buffer(4)
+	file.close()
+	if sig.size() < 8 or ctype.size() < 4 or wbytes.size() < 4:
+		return -1
+	if ctype.get_string_from_ascii() != "IHDR":
+		return -1
+	return (int(wbytes[0]) << 24) | (int(wbytes[1]) << 16) | (int(wbytes[2]) << 8) | int(wbytes[3])
+
+
+func _lifecycle_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	failed += _lifecycle_autosave_ok(save_service)
+	failed += _resume_away_ok(tree_root, game_state, save_service)
+	failed += _back_button_pause_ok(tree_root, save_service)
+	return failed
+
+
+func _lifecycle_autosave_ok(save_service: Node) -> int:
+	## Pause flushes one autosave inside the 1.2s coalesce. Manual slots stay put.
+	var failed: int = 0
+	var echo: Node = save_service.get_node_or_null("/root/EchoChamber")
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if echo != null:
+		echo.set("in_battle", false)
+	var was_session: bool = bool(save_service.get("session_active"))
+	var master: int = AudioServer.get_bus_index("Master")
+	var mute_before: bool = AudioServer.is_bus_mute(master) if master >= 0 else false
+	var paused_before: bool = bool(save_service.get_tree().paused)
+	save_service.set("catchup_running", false)
+	save_service.call("note_session_started")
+	save_service.call("set_autosave_coalesce", 1.2)
+	var manual_before: PackedStringArray = _manual_slot_texts(save_service)
+	save_service.call("save_game", 1)
+	manual_before = _manual_slot_texts(save_service)
+	save_service.call("debug_set_last_autosave_age", 0.2)
+	var stamps_before: float = _autosave_stamp_sum(save_service)
+	save_service.call("handle_application_paused")
+	var stamps_paused: float = _autosave_stamp_sum(save_service)
+	failed += _assert(stamps_paused > stamps_before + 0.0001, "pause flushes an autosave inside the 1.2s coalesce")
+	save_service.call("handle_application_focus_out")
+	var stamps_focus: float = _autosave_stamp_sum(save_service)
+	failed += _assert(is_equal_approx(stamps_focus, stamps_paused), "focus-out during the same pause does not write a second autosave")
+	var manual_after: PackedStringArray = _manual_slot_texts(save_service)
+	failed += _assert(manual_after == manual_before, "pause autosave leaves manual slots untouched")
+	if master >= 0:
+		failed += _assert(AudioServer.is_bus_mute(master), "background mutes the Master bus")
+	failed += _assert(bool(save_service.get_tree().paused), "background pauses the tree")
+	save_service.call("handle_application_resumed")
+	if master >= 0:
+		failed += _assert(AudioServer.is_bus_mute(master) == mute_before, "resume restores the Master mute without rewriting settings")
+	failed += _assert(bool(save_service.get_tree().paused) == paused_before, "resume restores the previous tree pause")
+	save_service.call("debug_set_last_autosave_age", 0.2)
+	var before_back: float = _autosave_stamp_sum(save_service)
+	save_service.call("handle_back_request")
+	var after_back: float = _autosave_stamp_sum(save_service)
+	failed += _assert(is_equal_approx(after_back, before_back), "back respects the 1.2s coalesce")
+	save_service.call("debug_set_last_autosave_age", 2.0)
+	save_service.call("handle_back_request")
+	var later_back: float = _autosave_stamp_sum(save_service)
+	failed += _assert(later_back > after_back + 0.0001, "back writes an autosave once the coalesce window has passed")
+	var manual_final: PackedStringArray = _manual_slot_texts(save_service)
+	failed += _assert(manual_final == manual_before, "back autosave leaves manual slots untouched")
+	save_service.call("set_autosave_coalesce", 1.2)
+	if was_session:
+		save_service.call("note_session_started")
+	else:
+		save_service.call("note_session_ended")
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	save_service.get_tree().paused = paused_before
+	if master >= 0:
+		AudioServer.set_bus_mute(master, mute_before)
+	if failed == 0:
+		print("LIFECYCLE_AUTOSAVE_OK")
+	return failed
+
+
+func _manual_slot_texts(save_service: Node) -> PackedStringArray:
+	var texts: PackedStringArray = PackedStringArray()
+	for slot: int in range(1, 8):
+		var path: String = str(save_service.call("slot_path", slot))
+		texts.append(FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else "")
+	return texts
+
+
+func _resume_away_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Ten minutes away shows the panel once. A shorter gap does not, and the gap is not applied twice.
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if echo != null:
+		echo.set("in_battle", false)
+	var saved_stage: StringName = game_state.get("stage_id")
+	var saved_fruit: bool = bool(game_state.get("fruit_committed"))
+	var saved_closed: float = float(game_state.get("offline_closed_sec"))
+	var saved_active: float = float(game_state.get("active_since_load_sec"))
+	game_state.set("stage_id", &"sapling")
+	game_state.set("fruit_committed", false)
+	game_state.set("active_since_load_sec", 0.0)
+	save_service.call("note_session_started")
+	save_service.set("pending_offline_report", {})
+	var panel_script: Script = load("res://scripts/ui/offline_summary.gd")
+	var panel: CanvasItem = panel_script.new() as CanvasItem
+	tree_root.add_child(panel)
+	var origin: float = 1_700_000_000.0
+	var closed_0: float = float(game_state.get("offline_closed_sec"))
+	save_service.call("debug_set_unix_now", origin)
+	save_service.call("handle_application_paused")
+	save_service.call("debug_set_unix_now", origin + 30.0)
+	save_service.call("handle_application_resumed")
+	var closed_short: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(absf(closed_short - (closed_0 + 30.0)) < 0.05, "a 30s resume applies the gap once (got %.2f)" % closed_short)
+	failed += _assert(not bool((save_service.get("pending_offline_report") as Dictionary).get("show", false)), "under 10 minutes does not show the away screen")
+	failed += _assert(_visible_offline_count(tree_root) == 0, "away panel stays hidden under 10 minutes")
+	save_service.call("debug_set_unix_now", origin + 30.0)
+	save_service.call("handle_application_paused")
+	save_service.call("debug_set_unix_now", origin + 30.0 + 600.0)
+	save_service.call("handle_application_resumed")
+	var closed_long: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(absf(closed_long - (closed_0 + 630.0)) < 0.05, "a 10 minute resume applies that gap once (got %.2f)" % closed_long)
+	var report: Dictionary = save_service.get("pending_offline_report")
+	failed += _assert(bool(report.get("show", false)), "10 minutes away shows the away screen")
+	failed += _assert(_visible_offline_count(tree_root) == 1, "While you were away opens once")
+	save_service.call("handle_application_resumed")
+	var closed_again: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(is_equal_approx(closed_again, closed_long), "a second resume does not apply the gap again")
+	failed += _assert(_visible_offline_count(tree_root) == 1, "a second resume does not open a second away screen")
+	for summary: Node in tree_root.find_children("OfflineSummary", "", true, false):
+		if summary.has_method("dismiss"):
+			summary.call("dismiss")
+	tree_root.remove_child(panel)
+	panel.free()
+	game_state.set("stage_id", saved_stage)
+	game_state.set("fruit_committed", saved_fruit)
+	game_state.set("offline_closed_sec", saved_closed)
+	game_state.set("active_since_load_sec", saved_active)
+	save_service.set("pending_offline_report", {})
+	save_service.call("debug_set_unix_now", -1.0)
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	save_service.get_tree().paused = false
+	if failed == 0:
+		print("RESUME_AWAY_OK")
+	return failed
+
+
+func _visible_offline_count(tree_root: Window) -> int:
+	var shown: int = 0
+	for summary: Node in tree_root.find_children("OfflineSummary", "", true, false):
+		if summary is CanvasItem and (summary as CanvasItem).visible:
+			shown += 1
+	return shown
+
+
+func _back_button_pause_ok(tree_root: Window, save_service: Node) -> int:
+	## Back toggles Pause. Quit to Title is already on that menu, with a confirm. Quit Game stays a PC row.
+	var failed: int = 0
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("config/auto_accept_quit=false") >= 0, "auto_accept_quit is off")
+	failed += _assert(not bool(ProjectSettings.get_setting("application/config/auto_accept_quit", true)), "project refuses the automatic quit")
+	var save_text: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
+	failed += _assert(save_text.find("set_auto_accept_quit(false)") >= 0, "mobile turns auto-accept quit off at runtime")
+	var pause_text: String = FileAccess.get_file_as_string("res://scripts/pause_menu.gd")
+	failed += _assert(pause_text.find("pause_exit") >= 0 and pause_text.find("hide_on_phone(btn_quit_game)") >= 0, "Quit to Title stays; Quit Game is the phone-hidden row")
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	failed += _assert(packed != null, "pause menu loads for the back button")
+	if packed == null:
+		return failed
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var was_fruit: bool = bool(game_state.get("fruit_committed")) if game_state != null else false
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if game_state != null:
+		game_state.set("fruit_committed", false)
+	if echo != null:
+		echo.set("in_battle", false)
+	var menu: Node = packed.instantiate()
+	tree_root.add_child(menu)
+	var exit_btn: Button = menu.get_node_or_null("Panel/BtnExit") as Button
+	var quit_btn: Button = menu.get_node_or_null("Panel/BtnQuitGame") as Button
+	failed += _assert(exit_btn != null and exit_btn.text == "Quit to Title", "phone Pause already has Quit to Title")
+	failed += _assert(quit_btn != null, "Quit Game button exists and stays hidden on phone via hide_on_phone")
+	failed += _assert(not bool(menu.call("is_open")), "pause starts closed")
+	save_service.call("handle_back_request")
+	failed += _assert(bool(menu.call("is_open")), "back opens Pause")
+	failed += _assert(save_service.get_tree() != null, "back does not quit the app")
+	save_service.call("handle_back_request")
+	failed += _assert(not bool(menu.call("is_open")), "back closes Pause when it is already open")
+	tree_root.remove_child(menu)
+	menu.free()
+	save_service.get_tree().paused = false
+	if game_state != null:
+		game_state.set("fruit_committed", was_fruit)
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	if failed == 0:
+		print("BACK_BUTTON_PAUSE_OK")
+	return failed
+
+
+func _hud_inside_safe_area_ok(tree_root: Window) -> int:
+	## Visible HUD controls stay inside the 24 px safe rect. Digits stay Silver 19.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var hud: Node = packed.instantiate() if packed != null else null
+	failed += _assert(hud != null, "hud scene instantiates for the safe-area walk")
+	if hud == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(hud)
+	var views: Array[Dictionary] = [
+		{"win": Vector2i(2400, 1080), "vs": Vector2i(1200, 540)},
+		{"win": Vector2i(1920, 1200), "vs": Vector2i(960, 600)},
+		{"win": Vector2i(1280, 960), "vs": Vector2i(1280, 960)},
+		{"win": Vector2i(2560, 1600), "vs": Vector2i(1280, 800)},
+	]
+	for view: Dictionary in views:
+		var win_px: Vector2i = view["win"]
+		var vs: Vector2i = view["vs"]
+		tree_root.size = win_px
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if hud.has_method("_layout_hud540"):
+			hud.call("_layout_hud540")
+		await tree_root.get_tree().process_frame
+		var view_sz: Vector2 = Ui540.viewport_size()
+		failed += _assert(view_sz.is_equal_approx(Vector2(vs)), "hud viewport is %s (got %s)" % [vs, view_sz])
+		var safe: Rect2 = Ui540.safe_rect().grow(1.0)
+		failed += _walk_hud_inside(hud, safe, view_sz, str(win_px))
+		var pause: Control = hud.get_node_or_null("Panel/PauseButton") as Control
+		var help: Control = hud.get_node_or_null("Panel/HelpButton") as Control
+		var icon: Control = hud.get_node_or_null("Panel/PauseButton/Icon") as Control
+		failed += _assert(pause != null and pause.size.is_equal_approx(Vector2(44, 44)), "pause is 44 px at %s" % win_px)
+		var pause_x: float = view_sz.x - Ui540.margin_right() - 44.0
+		failed += _assert(pause != null and is_equal_approx(pause.position.x, pause_x), "pause keeps the 24 px right margin at %s" % win_px)
+		failed += _assert(icon != null and icon.custom_minimum_size.is_equal_approx(Vector2(32, 32)), "pause icon is 32 px")
+		if pause != null and icon != null:
+			var glyph := icon.custom_minimum_size
+			failed += _assert(icon.position.is_equal_approx(((pause.size - glyph) * 0.5).round()), "pause icon is centred")
+		failed += _assert(help != null and help.size.is_equal_approx(Vector2(44, 44)), "help is 44 px at %s" % win_px)
+		failed += _assert(help != null and pause != null and help.position.is_equal_approx(Vector2(pause.position.x - 8.0 - 44.0, pause.position.y)), "help sits 8 px left of pause at %s" % win_px)
+		var digits: Label = hud.get_node_or_null("Panel/IconRow/ShardChip/NumShards") as Label
+		var scale: int = Ui540.integer_scale_for(Vector2(win_px))
+		failed += _assert(digits != null and int(digits.get_theme_font_size(&"font_size")) == 19, "resource digits stay Silver 19 at %s" % win_px)
+		failed += _assert(digits != null and digits.scale.is_equal_approx(Vector2.ONE), "resource digits are not scaled at %s" % win_px)
+		if digits != null:
+			print("HUD_DIGITS %s logical 19 scale %d -> %d px on screen" % [win_px, scale, 19 * scale])
+		var idle: Label = hud.get_node_or_null("PartyBar/KeeperActivity") as Label
+		failed += _assert(idle != null, "idle activity label exists")
+		if idle != null:
+			idle.text = "Idle"
+			var idle_font: Font = idle.get_theme_font(&"font")
+			var idle_size: int = int(idle.get_theme_font_size(&"font_size"))
+			var idle_w: float = idle_font.get_string_size("Idle", HORIZONTAL_ALIGNMENT_LEFT, -1, idle_size).x if idle_font != null else 999.0
+			var embolden: float = 0.0
+			if idle_font is FontVariation:
+				embolden = (idle_font as FontVariation).variation_embolden
+			var body: Font = tree_root.get_node("GameTheme").call("body_font")
+			failed += _assert(idle_size == 19 and idle_font == body and is_zero_approx(embolden), "idle label is plain Silver 19")
+			failed += _assert(int(idle.get_theme_constant(&"outline_size")) == 4, "idle label outline is 4")
+			failed += _assert(idle.scale.is_equal_approx(Vector2.ONE) and idle.size.x <= 210.0 and idle_w <= 210.0, "idle label fits 210 px (text %.1f)" % idle_w)
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	failed += _assert(host != null, "minigame host is loaded for the hint line")
+	if host != null:
+		tree_root.size = Vector2i(1280, 960)
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		for game_id: String in ["ripe_catch", "hot_spots"]:
+			host.set("_game_id", game_id)
+			host.call("_layout_window")
+			var window: Control = host.get_node_or_null("MinigameRoot/Window") as Control
+			var hint: Control = host.get_node_or_null("MinigameRoot/Window/Hint") as Control
+			var play: Control = host.get_node_or_null("MinigameRoot/Window/Play") as Control
+			failed += _assert(window != null and window.size.y <= MinigameCatalog.WINDOW_SIZE.y + 0.5, "%s window does not grow" % game_id)
+			if window != null and hint != null:
+				var fit_y: float = window.size.y / MinigameCatalog.WINDOW_SIZE.y
+				var inner_bottom: float = 446.0 * fit_y
+				failed += _assert(is_equal_approx(hint.size.y, 24.0), "%s hint is 24 px tall" % game_id)
+				failed += _assert(hint.position.y + hint.size.y <= inner_bottom - 10.0 + 0.5, "%s hint is at least 10 px above the frame (bottom %.1f edge %.1f)" % [game_id, hint.position.y + hint.size.y, inner_bottom])
+			if play != null and hint != null:
+				var play_bottom: float = play.position.y + play.size.y * play.scale.y
+				failed += _assert(hint.position.y + 0.5 >= play_bottom, "%s hint stays below the play field" % game_id)
+		var header: Label = host.get_node_or_null("MinigameRoot/Window/Successes") as Label
+		failed += _assert(header != null and int(header.get_theme_font_size(&"font_size")) == 19, "minigame header stays Silver 19")
+	hud.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("HUD_INSIDE_SAFE_AREA_OK")
+	return failed
+
+
+func _walk_hud_inside(node: Node, safe: Rect2, view: Vector2, label: String) -> int:
+	var failed: int = 0
+	if node is Control:
+		var ctrl: Control = node as Control
+		if ctrl.is_visible_in_tree():
+			var rect: Rect2 = ctrl.get_global_rect()
+			var fills: bool = rect.size.x >= view.x - 1.0 and rect.size.y >= view.y - 1.0
+			if not fills and rect.size.x >= 1.0 and rect.size.y >= 1.0:
+				if not safe.encloses(rect):
+					failed += _assert(false, "%s %s sits outside the safe area (%s vs %s)" % [label, str(ctrl.get_path()), rect, safe])
+	for child: Node in node.get_children():
+		failed += _walk_hud_inside(child, safe, view, label)
+	return failed
+
+
+func _title_wide_sizes_ok(tree_root: Window) -> int:
+	## Device windows. The 1440×960 plate stays 1:1; chrome follows the 960×540 frame.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var title: Node = packed.instantiate() if packed != null else null
+	failed += _assert(title != null, "title scene instantiates for the size check")
+	if title == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(title)
+	var windows: Array[Vector2i] = [Vector2i(2400, 1080), Vector2i(1920, 1200), Vector2i(1280, 960), Vector2i(2560, 1600)]
+	for win: Vector2i in windows:
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		await tree_root.get_tree().process_frame
+		var view: Vector2 = Ui540.viewport_size()
+		var shift: Vector2 = Ui540.center_shift()
+		var bg: TextureRect = title.get_node_or_null("Background") as TextureRect
+		var bg_pos: Vector2 = (view - Vector2(1440, 960)) * 0.5
+		failed += _assert(bg != null and bg.size.is_equal_approx(Vector2(1440, 960)) and bg.stretch_mode == TextureRect.STRETCH_KEEP, "title plate is 1440x960 and unstretched at %s" % win)
+		failed += _assert(bg != null and bg.position.is_equal_approx(bg_pos), "title plate is centred at %s (got %s want %s)" % [win, str(bg.position) if bg != null else "missing", bg_pos])
+		var logo: Control = title.get_node_or_null("Logo") as Control
+		var menu: Control = title.get_node_or_null("Menu") as Control
+		var version: Control = title.get_node_or_null("Version") as Control
+		failed += _assert(logo != null and logo.position.is_equal_approx(Vector2(52, 24) + shift), "title logo offset at %s" % win)
+		failed += _assert(menu != null and menu.position.is_equal_approx(Vector2(136, 146) + shift), "title menu offset at %s" % win)
+		var ver_pos: Vector2 = Vector2(904, 503) + shift
+		if version != null:
+			ver_pos.x = minf(ver_pos.x, maxf(0.0, view.x - version.size.x))
+			ver_pos.y = minf(ver_pos.y, maxf(0.0, view.y - version.size.y))
+		failed += _assert(version != null and version.position.is_equal_approx(ver_pos), "title version offset at %s" % win)
+	title.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TITLE_WIDE_SIZES_OK")
+	return failed
+
+
+func _echo_wide_plate_ok(tree_root: Window) -> int:
+	## 1440×960 plate, 1:1, covering the viewport. Overlays stay on the centred 960×540 frame.
+	var failed: int = 0
+	failed += _assert(EchoTheme.DESIGN_IN_PLATE.is_equal_approx(EchoTheme.PLATE_OLD_ORIGIN + Vector2(160, 90)), "design origin is the old plate at +80,+120 plus the 960 crop")
+	var wide := Image.new()
+	var old := Image.new()
+	failed += _assert(wide.load("res://assets/ui/echo/echo_chamber_bg_inkwater_1440x960.png") == OK, "wide echo plate loads")
+	failed += _assert(wide.get_width() == 1440 and wide.get_height() == 960, "wide echo plate is 1440x960")
+	failed += _assert(old.load("res://assets/library/legacy/echo_plate_1280x720_2026-10-17/echo_chamber_bg_inkwater_1280x720.png") == OK, "legacy echo plate loads")
+	if wide.get_width() == 1440 and old.get_width() == 1280:
+		var nest: Image = wide.get_region(Rect2i(80, 120, 1280, 720))
+		nest.convert(Image.FORMAT_RGB8)
+		old.convert(Image.FORMAT_RGB8)
+		failed += _assert(nest.get_data() == old.get_data(), "old echo plate sits unchanged at +80,+120")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _assert(packed != null, "echo battle scene loads")
+	if packed == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var windows: Array[Vector2i] = [Vector2i(2400, 1080), Vector2i(1920, 1200), Vector2i(1280, 960), Vector2i(2560, 1600)]
+	for win: Vector2i in windows:
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		var view: Node = packed.instantiate()
+		tree_root.add_child(view)
+		await tree_root.get_tree().process_frame
+		var shift: Vector2 = Ui540.center_shift()
+		var viewport: Vector2 = Ui540.viewport_size()
+		var art: TextureRect = view.get_node_or_null("ChamberArt") as TextureRect
+		var plate_pos: Vector2 = (viewport - Vector2(1440, 960)) * 0.5
+		failed += _assert(art != null and not (art.texture is AtlasTexture), "echo plate is uncropped at %s" % win)
+		failed += _assert(art != null and art.stretch_mode == TextureRect.STRETCH_KEEP and art.size.is_equal_approx(Vector2(1440, 960)), "echo plate is 1:1 1440x960 at %s" % win)
+		failed += _assert(art != null and art.texture != null and art.texture.get_size().is_equal_approx(art.size), "echo plate is not stretched at %s" % win)
+		failed += _assert(art != null and art.position.is_equal_approx(plate_pos), "echo plate is centred at %s" % win)
+		if art != null:
+			failed += _assert(Rect2(art.position, art.size).grow(0.5).encloses(Rect2(Vector2.ZERO, viewport)), "echo plate covers %s" % win)
+		var frame: Control = view.get_node_or_null("DesignFrame") as Control
+		failed += _assert(frame != null and frame.position.is_equal_approx(shift) and frame.size.is_equal_approx(Vector2(960, 540)), "design frame is the centred 960x540 at %s" % win)
+		var speech: Control = view.get_node_or_null("SpeechBox") as Control
+		failed += _assert(speech != null and speech.position.is_equal_approx(EchoTheme.SPEECH_BOX.position + shift), "speech stays on the design frame at %s" % win)
+		view.call("_build_hp_bars")
+		var hp: Control = view.get_node_or_null("KeeperHpBar") as Control
+		failed += _assert(hp != null and hp.position.is_equal_approx(Vector2(shift.x + EchoTheme.KEEPER_CX - 90.0, 344.0 + shift.y)), "HP bar stays on the design frame at %s" % win)
+		BattleView.build_echo_menu(view, true)
+		var chip: Control = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Control
+		failed += _assert(chip != null and chip.position.is_equal_approx(Vector2(shift.x + 150.0, shift.y + 394.0)), "hybrid chip stays on the design frame at %s" % win)
+		view.call("_show_rewards", "spare")
+		var rewards: Control = view.get_node_or_null("EchoRewards") as Control
+		failed += _assert(rewards != null and rewards.position.is_equal_approx(Vector2(shift.x + 200.0, 40.0 + shift.y)), "rewards card stays on the design frame at %s" % win)
+		var battle := EchoBattle.new()
+		battle.outcome = ""
+		view.set("_battle", battle)
+		view.set("_waiting_return", false)
+		view.call("_open_end_confirm", "spare")
+		var ask: Control = view.get_node_or_null("EndConfirm") as Control
+		failed += _assert(ask != null and ask.position.is_equal_approx(Vector2(shift.x + 220.0, 150.0 + shift.y)), "Spare/Strike confirm stays on the design frame at %s" % win)
+		view.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("ECHO_WIDE_PLATE_OK")
+	return failed
+
+
+func _title_wide_ok(tree_root: Window) -> int:
+	## 1440×960 painting, 1:1 and centred. Logo, menu, and version sit on the shifted 960×540 frame.
+	var failed: int = 0
+	var scene_text: String = FileAccess.get_file_as_string("res://scenes/title_screen.tscn")
+	failed += _assert(scene_text.find("res://assets_extra/title/title_bg_wide_1440x960.png") >= 0, "title scene uses the wide painting")
+	failed += _assert(scene_text.find("title_bg_wide_1440x900.png") < 0 and scene_text.find("title_bg_1200x540.png") < 0 and scene_text.find("title_bg_960x540.png") < 0, "title scene no longer points at the old plates")
+	var wide := Image.new()
+	var old := Image.new()
+	failed += _assert(wide.load("res://assets_extra/title/title_bg_wide_1440x960.png") == OK, "wide title image loads")
+	failed += _assert(wide.get_width() == 1440 and wide.get_height() == 960, "wide title is 1440x960")
+	failed += _assert(old.load("res://assets/library/legacy/title_2026-10-17/title_bg_960x540.png") == OK, "legacy 960 title image loads")
+	if wide.get_width() == 1440 and old.get_width() == 960:
+		var centre: Image = wide.get_region(Rect2i(240, 210, 960, 540))
+		centre.convert(Image.FORMAT_RGB8)
+		old.convert(Image.FORMAT_RGB8)
+		failed += _assert(centre.get_data() == old.get_data(), "wide painting centre 960x540 matches the old title")
+	var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var title: Node = packed.instantiate() if packed != null else null
+	failed += _assert(title != null, "title scene instantiates")
+	if title == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(title)
+	var views: Array[Vector2i] = [Vector2i(960, 540), Vector2i(1200, 540), Vector2i(1280, 800), Vector2i(1280, 960)]
+	for vs: Vector2i in views:
+		tree_root.size = vs
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		await tree_root.get_tree().process_frame
+		var view: Vector2 = Ui540.viewport_size()
+		var shift: Vector2 = Ui540.center_shift()
+		var bg: TextureRect = title.get_node_or_null("Background") as TextureRect
+		failed += _assert(bg != null and bg.stretch_mode != TextureRect.STRETCH_KEEP_ASPECT_COVERED, "title background is not keep-aspect covered")
+		failed += _assert(bg != null and bg.size.is_equal_approx(Vector2(1440, 960)), "title background is drawn at 1440x960 (got %s)" % (str(bg.size) if bg != null else "missing"))
+		failed += _assert(bg != null and bg.stretch_mode == TextureRect.STRETCH_KEEP, "title background is not stretched")
+		var bg_pos: Vector2 = ((view - Vector2(1440, 960)) * 0.5)
+		failed += _assert(bg != null and bg.position.is_equal_approx(bg_pos), "title background is centred (got %s want %s)" % [str(bg.position) if bg != null else "missing", bg_pos])
+		var logo: Control = title.get_node_or_null("Logo") as Control
+		var menu: Control = title.get_node_or_null("Menu") as Control
+		var version: Control = title.get_node_or_null("Version") as Control
+		failed += _assert(logo != null and logo.position.is_equal_approx(Vector2(52, 24) + shift), "title logo is (52, 24) plus the shift at %s (got %s)" % [view, str(logo.position) if logo != null else "missing"])
+		failed += _assert(menu != null and menu.position.is_equal_approx(Vector2(136, 146) + shift), "title menu is (136, 146) plus the shift at %s (got %s)" % [view, str(menu.position) if menu != null else "missing"])
+		var ver_pos: Vector2 = Vector2(904, 503) + shift
+		if version != null:
+			ver_pos.x = minf(ver_pos.x, maxf(0.0, view.x - version.size.x))
+			ver_pos.y = minf(ver_pos.y, maxf(0.0, view.y - version.size.y))
+		failed += _assert(version != null and version.position.is_equal_approx(ver_pos), "title version follows (904, 503) plus the shift at %s (got %s want %s)" % [view, str(version.position) if version != null else "missing", ver_pos])
+	title.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TITLE_WIDE_OK")
+	return failed
+
+
+func _viewport_expand_ok(tree_root: Window) -> int:
+	## Logical viewport is window/integer scale. No fractional scale, no bars.
+	var failed: int = 0
+	failed += _assert(str(ProjectSettings.get_setting("display/window/stretch/scale_mode", "")) == "integer", "scale mode stays integer")
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var saved_window: Vector2i = tree_root.size
+	var cases: Array[Dictionary] = [
+		{"win": Vector2i(2400, 1080), "scale": 2, "vs": Vector2i(1200, 540)},
+		{"win": Vector2i(1920, 1200), "scale": 2, "vs": Vector2i(960, 600)},
+		{"win": Vector2i(1280, 960), "scale": 1, "vs": Vector2i(1280, 960)},
+		{"win": Vector2i(2560, 1600), "scale": 2, "vs": Vector2i(1280, 800)},
+	]
+	for case_v: Dictionary in cases:
+		var win: Vector2i = case_v["win"]
+		var vs: Vector2i = case_v["vs"]
+		var scale: int = int(case_v["scale"])
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		var got: Vector2 = Ui540.viewport_size()
+		failed += _assert(Ui540.integer_scale_for(Vector2(win)) == scale, "%s integer scale is %d" % [win, scale])
+		failed += _assert(got.is_equal_approx(Vector2(vs)), "%s viewport is window/scale %s (got %s)" % [win, vs, got])
+		failed += _assert(tree_root.content_scale_stretch == Window.CONTENT_SCALE_STRETCH_INTEGER, "%s stretch stays integer" % win)
+		var shift: Vector2 = Ui540.center_shift()
+		var expect := Vector2((got.x - 960.0) * 0.5, (got.y - 540.0) * 0.5)
+		failed += _assert(shift.is_equal_approx(expect), "%s centre shift is %s (got %s)" % [win, expect, shift])
+	_report_backdrop_edges()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("VIEWPORT_EXPAND_OK")
+	return failed
+
+
+func _report_backdrop_edges() -> void:
+	## Centred 1:1. A positive shortfall is a strip; art is not painted here.
+	var views: Array[Vector2] = [Vector2(1280, 800), Vector2(1280, 960)]
+	var arts: Array[Dictionary] = [
+		{"name": "hub world", "size": Vector2(3960, 3420)},
+		{"name": "hub play", "size": Vector2(4320, 3780)},
+		{"name": "forge plate", "path": "res://assets/art/forge/forge_bark_chamber_bg.png"},
+		{"name": "arena backdrop", "path": "res://assets/art/battle/arena/arena_forest_bg_a.png"},
+		{"name": "arena foreground", "path": "res://assets/art/battle/arena/arena_forest_fg.png"},
+		{"name": "echo plate", "path": EchoTheme.PLATE},
+	]
+	for art_v: Dictionary in arts:
+		var art: Dictionary = art_v
+		var sz: Vector2 = art.get("size", Vector2.ZERO)
+		if art.has("path"):
+			var tex: Texture2D = load(str(art["path"])) as Texture2D
+			sz = tex.get_size() if tex != null else Vector2.ZERO
+		for view: Vector2 in views:
+			var short := Vector2(maxf(0.0, view.x - sz.x), maxf(0.0, view.y - sz.y))
+			if short.x > 0.5 or short.y > 0.5:
+				print("BACKDROP_EDGE %s art %s view %s short %s (strip %.0f x %.0f each side)" % [art["name"], sz, view, short, short.x * 0.5, short.y * 0.5])
+
+
+func _safe_area_layout_ok(tree_root: Window) -> int:
+	## Device pixels become window/scale: 1200x540, 960x600, 1280x960, 1280x800.
+	var failed: int = 0
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(str(ProjectSettings.get_setting("display/window/stretch/scale_mode", "")) == "integer", "scale mode stays integer")
+	failed += _assert(project_text.find("scale_mode.mobile") < 0, "no fractional mobile scale override")
+	Ui540.clear_debug_insets()
+	var insets: Vector4 = Ui540.safe_insets()
+	failed += _assert(insets.length() < 0.01, "desktop safe area is the full window")
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var saved_window: Vector2i = tree_root.size
+	var views: Array[Dictionary] = [
+		{"win": Vector2i(2400, 1080), "vs": Vector2i(1200, 540), "label": "2400x1080"},
+		{"win": Vector2i(1920, 1200), "vs": Vector2i(960, 600), "label": "1920x1200"},
+		{"win": Vector2i(1280, 960), "vs": Vector2i(1280, 960), "label": "1280x960"},
+		{"win": Vector2i(2560, 1600), "vs": Vector2i(1280, 800), "label": "2560x1600"},
+	]
+	var hud_packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var title_packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var pause_packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var hud: Node = hud_packed.instantiate() if hud_packed != null else null
+	var title: Node = title_packed.instantiate() if title_packed != null else null
+	var menu: Node = pause_packed.instantiate() if pause_packed != null else null
+	var away: Node = load("res://scripts/ui/offline_summary.gd").new()
+	if hud != null:
+		tree_root.add_child(hud)
+	if title != null:
+		tree_root.add_child(title)
+	if menu != null:
+		tree_root.add_child(menu)
+	tree_root.add_child(away)
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	for view: Dictionary in views:
+		var win_px: Vector2i = view["win"]
+		var vs: Vector2i = view["vs"]
+		var label: String = str(view["label"])
+		tree_root.size = win_px
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		failed += _assert(Ui540.viewport_size().is_equal_approx(Vector2(vs)), "logical viewport is %s (got %s)" % [vs, Ui540.viewport_size()])
+		if menu != null and menu.has_method("resume_game"):
+			menu.call("resume_game")
+		if hud != null and hud.has_method("_layout_hud540"):
+			hud.call("_layout_hud540")
+		if title != null and title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		away.call("present", {"show": true, "raw_sec": 600.0, "effective_sec": 60.0, "keeper_kind": "water", "manashards": 1, "shard_mult": 0.25})
+		if host != null and host.has_method("_layout_window"):
+			host.call("_layout_window")
+		await tree_root.get_tree().process_frame
+		var safe: Rect2 = Ui540.safe_rect().grow(1.0)
+		if hud != null:
+			failed += _assert_inside(hud.get_node_or_null("Panel/IconShade") as Control, safe, "resource bar %s" % label)
+			failed += _assert_inside(hud.get("pause_button") as Control, safe, "pause button %s" % label)
+			failed += _assert_inside(hud.get_node_or_null("Panel/CharacterButton") as Control, safe, "character button %s" % label)
+			failed += _assert_inside(hud.get_node_or_null("Panel/BackpackButton") as Control, safe, "backpack button %s" % label)
+		if menu != null:
+			menu.call("open_pause")
+			await tree_root.get_tree().process_frame
+		if title != null:
+			failed += _assert_inside(title.get_node_or_null("Logo") as Control, safe, "title logo %s" % label)
+			failed += _assert_inside(title.get_node_or_null("Menu") as Control, safe, "title menu %s" % label)
+			var version: Control = title.get_node_or_null("Version") as Control
+			var version_rect: Rect2 = version.get_global_rect() if version != null else Rect2()
+			failed += _assert(version != null and Rect2(Vector2.ZERO, Vector2(vs)).grow(1.0).encloses(version_rect), "title version stays on the %s viewport (got %s)" % [label, version_rect])
+		if menu != null:
+			failed += _assert_inside(menu.get_node_or_null("Panel") as Control, safe, "pause panel %s" % label)
+			var plank: Control = menu.get_node_or_null("Panel/Title") as Control
+			failed += _assert_inside(plank, safe, "pause title %s" % label)
+		var card: Control = away.find_child("OfflineCard", true, false) as Control
+		failed += _assert_inside(card, safe, "away card %s" % label)
+		if host != null:
+			var window: Control = host.find_child("Window", true, false) as Control
+			failed += _assert_inside(window, safe, "minigame window %s" % label)
+	tree_root.size = Vector2i(2400, 1080)
+	Ui540.apply_integer_viewport(tree_root)
+	await tree_root.get_tree().process_frame
+	Ui540.set_debug_insets(Vector4(48, 36, 28, 20))
+	var shade: Control = null
+	var pause_btn: Control = null
+	var pack_btn: Control = null
+	if hud != null:
+		if menu != null and menu.has_method("resume_game"):
+			menu.call("resume_game")
+		hud.call("_layout_hud540")
+		shade = hud.get_node_or_null("Panel/IconShade") as Control
+		pause_btn = hud.get("pause_button") as Control
+		pack_btn = hud.get_node_or_null("Panel/BackpackButton") as Control
+	failed += _assert(shade != null and shade.position.x >= 48.0 - 0.1 and shade.position.y >= 36.0 - 0.1, "a notch pushes the resource bar inside the safe area")
+	failed += _assert(pause_btn != null and pause_btn.get_global_rect().end.x <= 1200.0 - 28.0 + 0.5, "a notch keeps the pause button inside the right inset")
+	var view_now: Vector2 = Ui540.viewport_size()
+	var pack_end: float = pack_btn.get_global_rect().end.y if pack_btn != null else -1.0
+	failed += _assert(view_now.is_equal_approx(Vector2(1200, 540)), "notch check uses the 20:9 logical view (got %s)" % view_now)
+	failed += _assert(pack_btn != null and pack_end <= view_now.y - Ui540.margin_bottom() + 0.5, "a notch keeps the bottom buttons above the lower inset (end %.1f margin %.1f)" % [pack_end, Ui540.margin_bottom()])
+	Ui540.clear_debug_insets()
+	if menu != null and menu.has_method("resume_game"):
+		menu.call("resume_game")
+	paused = false
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if hud != null:
+		hud.queue_free()
+	if title != null:
+		title.queue_free()
+	if menu != null:
+		menu.queue_free()
+	away.queue_free()
+	if failed == 0:
+		print("SAFE_AREA_LAYOUT_OK")
+	return failed
+
+
+func _touch_hint_ok(tree_root: Window, game_state: Node) -> int:
+	## Long-press uses the hover wait. The tip is one toast, stored in settings, not the save.
+	var failed: int = 0
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	var audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(input != null and is_equal_approx(float(input.call("long_press_wait")), WorldHover.REST_SEC), "long-press uses the 0.8s hover wait")
+	failed += _assert(is_equal_approx(WorldHover.REST_SEC, 0.8), "hover wait is 0.8s")
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("LONG_PRESS_SEC") < 0, "no second long-press constant")
+	failed += _assert(input_text.find("--emulate-touch") >= 0, "emulate-touch is a launch argument")
+	failed += _assert(not Input.emulate_touch_from_mouse, "emulate touch from mouse stays off by default")
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("emulate_touch_from_mouse") < 0, "the project does not enable emulate touch")
+	var help_text: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _assert(help_text.find("Long-press (½ s)") < 0 and help_text.find("Long-press") >= 0, "phone help no longer says half a second")
+	var strings: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	failed += _assert(strings.find("\"touch_hold_hint\": \"Tip: press and hold to give a command\"") >= 0, "touch hint string is in the string table")
+	var notes: String = FileAccess.get_file_as_string("res://notes/ANDROID_HOTKEY_ONLY_ACTIONS.md")
+	failed += _assert(notes.find("Arrow keys") >= 0 and notes.find("--emulate-touch") >= 0, "hotkey notes list the camera pan and the launch flag")
+	if input == null or audio == null or game_state == null:
+		return failed + 1
+	var was_seen: bool = bool(audio.get("touch_hold_hint_seen"))
+	audio.set("touch_hold_hint_seen", false)
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	failed += _assert(bool(input.call("show_hold_hint_if_needed", true)), "the first touch session shows the hint")
+	failed += _assert(heard.size() == 1 and heard[0] == "Tip: press and hold to give a command", "the toast is the plain hold tip")
+	failed += _assert(bool(audio.get("touch_hold_hint_seen")), "the hint is marked seen")
+	failed += _assert(not bool(input.call("show_hold_hint_if_needed", true)), "the hint does not show twice")
+	failed += _assert(heard.size() == 1, "a second session does not toast again")
+	var settings: String = FileAccess.get_file_as_string("user://manaforge_settings.cfg")
+	failed += _assert(settings.find("hold_hint_seen") >= 0, "the seen flag is in settings")
+	var saved: String = JSON.stringify(game_state.call("to_save_dict"))
+	failed += _assert(saved.find("hold_hint_seen") < 0 and saved.find("touch_hold_hint") < 0, "the seen flag is not part of the save")
+	game_state.disconnect("status_message", grab)
+	audio.set("touch_hold_hint_seen", was_seen)
+	audio.call("save_settings")
+	if failed == 0:
+		print("TOUCH_HINT_OK")
+	return failed
+
+
+func _assert_inside(ctrl: Control, safe: Rect2, label: String) -> int:
+	if ctrl == null:
+		return _assert(false, "%s is missing" % label)
+	var rect: Rect2 = ctrl.get_global_rect()
+	return _assert(safe.encloses(rect), "%s %s is outside %s" % [label, rect, safe])
+
+
+func _compat_scan_scenes(root_path: String, banned: PackedStringArray) -> PackedStringArray:
+	var hits: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open(root_path)
+	if dir == null:
+		return hits
+	dir.list_dir_begin()
+	var name: String = dir.get_next()
+	while name != "":
+		if name == "." or name == "..":
+			name = dir.get_next()
+			continue
+		var path: String = root_path.path_join(name)
+		if dir.current_is_dir():
+			var nested: PackedStringArray = _compat_scan_scenes(path, banned)
+			for hit: String in nested:
+				hits.append(hit)
+		elif name.ends_with(".tscn"):
+			var text: String = FileAccess.get_file_as_string(path)
+			for kind: String in banned:
+				if text.find("type=\"%s\"" % kind) >= 0:
+					hits.append("%s:%s" % [path, kind])
+		name = dir.get_next()
+	dir.list_dir_end()
+	return hits
