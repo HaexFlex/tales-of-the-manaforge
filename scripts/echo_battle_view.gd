@@ -166,12 +166,12 @@ func _raise_names() -> void:
 	var keeper_name: Label = get_node_or_null("KeeperName") as Label
 	var echo_name: Label = get_node_or_null("EchoName") as Label
 	if keeper_name:
-		keeper_name.position = Vector2(ox + EchoTheme.KEEPER_CX - 80.0, 90)
+		keeper_name.position = Vector2(ox + EchoTheme.KEEPER_CX - 80.0, 90.0 + Ui540.center_shift_y())
 		keeper_name.size = Vector2(160, 22)
 		keeper_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		EchoTheme.style_body(keeper_name, false)
 	if echo_name:
-		echo_name.position = Vector2(ox + EchoTheme.ECHO_CX - 90.0, 90)
+		echo_name.position = Vector2(ox + EchoTheme.ECHO_CX - 90.0, 90.0 + Ui540.center_shift_y())
 		echo_name.size = Vector2(180, 22)
 		echo_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		EchoTheme.style_title(echo_name, false)
@@ -194,10 +194,10 @@ func _lighten_panels() -> void:
 func _apply_540_layout() -> void:
 	var ox: float = EchoTheme.shift()
 	if _keeper_portrait:
-		_keeper_portrait.position = KEEPER_PORTRAIT_POS + Vector2(ox, 0)
+		_keeper_portrait.position = KEEPER_PORTRAIT_POS + Vector2(ox, Ui540.center_shift_y())
 		_keeper_portrait.size = PORTRAIT
 	if _echo_portrait:
-		_echo_portrait.position = ECHO_PORTRAIT_POS + Vector2(ox, 0)
+		_echo_portrait.position = ECHO_PORTRAIT_POS + Vector2(ox, Ui540.center_shift_y())
 		_echo_portrait.size = PORTRAIT
 	_place_echo_ghost()
 	_place_ripples()
@@ -206,14 +206,14 @@ func _apply_540_layout() -> void:
 		_speech_bg.visible = false
 	if _command_band:
 		var band_x: float = ox + (960.0 - COMMAND_SIZE.x) * 0.5
-		_command_band.position = Vector2(band_x, 450.0)
+		_command_band.position = Vector2(band_x, 450.0 + Ui540.center_shift_y())
 		_command_band.size = COMMAND_SIZE
 	var log_bg: ColorRect = get_node_or_null("LogBg") as ColorRect
 	if log_bg:
-		log_bg.position = LOG_BG_POS + Vector2(ox, 0)
+		log_bg.position = LOG_BG_POS + Vector2(ox, Ui540.center_shift_y())
 		log_bg.size = LOG_SIZE
 	if _log:
-		_log.position = LOG_BG_POS + Vector2(ox + 12, 20)
+		_log.position = LOG_BG_POS + Vector2(ox + 12, 20.0 + Ui540.center_shift_y())
 		_log.size = LOG_SIZE - Vector2(24, 28)
 
 
@@ -262,7 +262,7 @@ func _place_ripples() -> void:
 			ripple.texture = load(EchoTheme.ART + "fx_ripple_0_220x44.png")
 			add_child(ripple)
 			move_child(ripple, _chamber_art.get_index() + 1 if _chamber_art else 0)
-		ripple.position = Vector2(ox + cx - 110.0, EchoTheme.FEET_Y - 22.0)
+		ripple.position = Vector2(ox + cx - 110.0, EchoTheme.FEET_Y - 22.0 + Ui540.center_shift_y())
 		ripple.size = Vector2(220, 44)
 
 
@@ -276,7 +276,7 @@ func _build_chamber_chrome() -> void:
 	_title_plate = Panel.new()
 	_title_plate.name = "EchoTitlePlate"
 	_title_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title_plate.position = Vector2(ox + (EchoTheme.DESIGN_W - plate_w) * 0.5, 26)
+	_title_plate.position = Vector2(ox + (EchoTheme.DESIGN_W - plate_w) * 0.5, 26.0 + Ui540.center_shift_y())
 	_title_plate.size = Vector2(plate_w, plate_h)
 	EchoTheme.paint_panel(_title_plate, true)
 	add_child(_title_plate)
@@ -404,7 +404,7 @@ func _layout_speech_box(ox: float) -> void:
 		_skip_btn.add_child(skip_icon)
 		_skip_btn.pressed.connect(_skip_speech)
 		_speech_box.add_child(_skip_btn)
-	_speech_box.position = box_rect.position + Vector2(ox, 0)
+	_speech_box.position = box_rect.position + Vector2(ox, Ui540.center_shift_y())
 	_speech_box.size = box_rect.size
 	_fit_speech_height()
 	if _speech:
@@ -527,7 +527,7 @@ func _open_leave_confirm() -> void:
 	add_child(dim)
 	var panel := Panel.new()
 	panel.name = "LeaveConfirm"
-	panel.position = Vector2(ox + 220.0, 126)
+	panel.position = Vector2(ox + 220.0, 126.0 + Ui540.center_shift_y())
 	## 288 keeps Flee and Stay inside the frame. 248 let them straddle the border.
 	panel.size = Vector2(520, 288)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -792,7 +792,7 @@ func _make_hp_bar(who: String, cx: float, foe: bool) -> ColorRect:
 	frame.patch_margin_top = 2
 	frame.patch_margin_right = 2
 	frame.patch_margin_bottom = 2
-	frame.position = Vector2(ox + cx - 90.0, 344)
+	frame.position = Vector2(ox + cx - 90.0, 344.0 + Ui540.center_shift_y())
 	frame.size = Vector2(180, 14)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(frame)
@@ -805,7 +805,7 @@ func _make_hp_bar(who: String, cx: float, foe: bool) -> ColorRect:
 	frame.add_child(fill)
 	var lbl := Label.new()
 	lbl.name = who + "HpText"
-	lbl.position = Vector2(ox + cx - 90.0, 366)
+	lbl.position = Vector2(ox + cx - 90.0, 366.0 + Ui540.center_shift_y())
 	lbl.size = Vector2(180, 22)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1229,7 +1229,7 @@ func _open_end_confirm(action: String) -> void:
 	add_child(dim)
 	var panel := Panel.new()
 	panel.name = "EndConfirm"
-	panel.position = Vector2(ox + 220.0, 150)
+	panel.position = Vector2(ox + 220.0, 150.0 + Ui540.center_shift_y())
 	panel.size = Vector2(520, 220)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	EchoTheme.paint_panel(panel, false)
@@ -1649,7 +1649,7 @@ func _show_rewards(outcome: String) -> void:
 	var panel := Panel.new()
 	panel.name = "EchoRewards"
 	## Mockup card x200..760, y40..498. 458 is off the 40+8n tile; 464 is the next fit.
-	panel.position = Vector2(ox + 200.0, 40.0)
+	panel.position = Vector2(ox + 200.0, 40.0 + Ui540.center_shift_y())
 	panel.size = Vector2(560, 464)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	EchoTheme.paint_panel(panel, false)

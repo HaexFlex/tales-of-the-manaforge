@@ -68,7 +68,7 @@ static func shift() -> float:
 
 
 static func at(design: Rect2) -> Rect2:
-	return Rect2(design.position + Vector2(shift(), 0), design.size)
+	return Rect2(design.position + Ui540.center_shift(), design.size)
 
 
 static func tiles(px: float) -> bool:

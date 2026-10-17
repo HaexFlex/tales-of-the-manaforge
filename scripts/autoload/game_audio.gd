@@ -90,6 +90,11 @@ func _ready() -> void:
 	_sting_player.finished.connect(_on_sting_finished)
 	load_settings()
 	apply_volumes()
+	if DisplayServer.get_name() != "headless":
+		var win: Window = get_window()
+		if win != null and not win.size_changed.is_connected(_on_window_resized):
+			win.size_changed.connect(_on_window_resized)
+		Ui540.apply_integer_viewport(win)
 	call_deferred("play_hub_music")
 	call_deferred("_connect_game_signals")
 	if not cue_played.is_connected(_on_cue_logged):
@@ -847,6 +852,10 @@ func apply_volumes() -> void:
 		_mute_minigame_sfx()
 
 
+func _on_window_resized() -> void:
+	Ui540.apply_integer_viewport(get_window())
+
+
 func apply_display() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
@@ -855,10 +864,8 @@ func apply_display() -> void:
 	var win: Window = get_window() if is_inside_tree() else null
 	if win == null:
 		return
-	if fill_screen:
-		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
-	else:
-		win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+	## Black bars are gone. Integer scale, logical size = window / scale, on every screen.
+	Ui540.apply_integer_viewport(win)
 
 
 func _apply_bus_volume(bus_name: String, linear: float, base_db: float) -> void:

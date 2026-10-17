@@ -85,6 +85,45 @@ static func viewport_size() -> Vector2:
 	return tree.root.get_visible_rect().size
 
 
+## Largest integer scale that still fits the 960×540 design in the window. Never fractional.
+static func integer_scale_for(window_px: Vector2) -> int:
+	if window_px.x < 1.0 or window_px.y < 1.0:
+		return 1
+	var sx: int = int(floor(window_px.x / BASE_W))
+	var sy: int = int(floor(window_px.y / BASE_H))
+	return maxi(1, mini(maxi(sx, 0), maxi(sy, 0)))
+
+
+## Logical viewport is the window divided by that integer scale.
+## 2560×1600 → 1280×800, 1280×960 → 1280×960, 2400×1080 → 1200×540.
+static func logical_size_for(window_px: Vector2) -> Vector2i:
+	var scale: int = integer_scale_for(window_px)
+	return Vector2i(maxi(1, int(window_px.x / float(scale))), maxi(1, int(window_px.y / float(scale))))
+
+
+## Godot's expand + integer scale letterboxes when the expanded size is not an integer
+## multiple of 960×540 (1280×960 became 960×720, 2560×1600 became 960×600).
+## Setting the content size to window/scale makes the stretch factor an integer and drops the bars.
+static func apply_integer_viewport(win: Window = null) -> void:
+	if win == null:
+		var tree: SceneTree = Engine.get_main_loop() as SceneTree
+		if tree == null:
+			return
+		win = tree.root
+	if win == null:
+		return
+	var window_px: Vector2i = win.size
+	if window_px.x < 2 or window_px.y < 2:
+		return
+	var logical: Vector2i = logical_size_for(Vector2(window_px))
+	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_INTEGER
+	win.content_scale_factor = 1.0
+	if win.content_scale_size != logical:
+		win.content_scale_size = logical
+
+
 static func is_wide_aspect() -> bool:
 	var vs: Vector2 = viewport_size()
 	if vs.y <= 0.0:
@@ -92,11 +131,32 @@ static func is_wide_aspect() -> bool:
 	return vs.x / vs.y > (20.0 / 9.0) - 0.02
 
 
-## Offset of the 960-wide design canvas inside a wider logical viewport (120 on 20:9).
-## Only for elements the mockups pin to the 960 canvas (title logo and menu).
-## Centred windows and edge-anchored HUD chrome must not add it.
+## Size the centred 960×540 frame is shifted by. Headless boots a 64 px window, and expand
+## turns the base into a square; tests that only set content_scale_size mean that size.
+static func _shift_viewport() -> Vector2:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return Vector2(BASE_W, BASE_H)
+	var win: Window = tree.root
+	if win.size.x <= 64 and win.size.y <= 64:
+		var css := Vector2(win.content_scale_size)
+		if css.x >= 64.0 and css.y >= 64.0:
+			return css
+	return viewport_size()
+
+
+## ((vw-960)/2, (vh-540)/2). Design-space UI adds this. Edge HUD uses the safe margins instead.
+static func center_shift() -> Vector2:
+	var vs: Vector2 = _shift_viewport()
+	return Vector2((vs.x - BASE_W) * 0.5, (vs.y - BASE_H) * 0.5)
+
+
 static func center_shift_x() -> float:
-	return maxf(0.0, (viewport_size().x - BASE_W) * 0.5)
+	return center_shift().x
+
+
+static func center_shift_y() -> float:
+	return center_shift().y
 
 
 static func kit_top_inset() -> float:

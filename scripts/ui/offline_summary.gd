@@ -219,11 +219,12 @@ func _layout() -> void:
 	var w: float = PHONE_W if phone else PC_W
 	var left: float = Ui540.margin_left()
 	var right: float = Ui540.margin_right()
-	var x: float = (left if phone else (vs.x - w) * 0.5) + (Ui540.center_shift_x() if phone else 0.0)
+	var shift: Vector2 = Ui540.center_shift()
+	var x: float = (left if phone else (vs.x - w) * 0.5) + (shift.x if phone else 0.0)
 	if not phone:
 		x = roundf((vs.x - w) * 0.5)
 	x = clampf(x, left, maxf(left, vs.x - w - right))
-	var y: float = maxf(WINDOW_Y, Ui540.margin_top())
+	var y: float = maxf(WINDOW_Y + shift.y, Ui540.margin_top())
 	_card.position = Vector2(roundf(x), y)
 	_card.size = Vector2(w, WINDOW_H)
 	var title: Label = _card.get_node_or_null("Title") as Label

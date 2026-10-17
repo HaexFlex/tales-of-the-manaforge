@@ -75,6 +75,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_VIEWPORT_EXPAND") == "1":
+		var view_only: int = await _viewport_expand_ok(tree_root)
+		if view_only > 0:
+			print("VIEWPORT_EXPAND_FAIL: %d" % view_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_TOUCH") == "1":
 		var touch_only: int = _touch_hint_ok(tree_root, game_state)
 		if touch_only > 0:
@@ -4006,6 +4015,7 @@ func _run() -> void:
 	failed += _manatree_tiles_ok(tree_root, game_state)
 	failed += _lifecycle_checks(tree_root, game_state, save_service)
 	failed += await _safe_area_layout_ok(tree_root)
+	failed += await _viewport_expand_ok(tree_root)
 	failed += _touch_hint_ok(tree_root, game_state)
 	failed += await _tooltip_scroll_ok(tree_root)
 	failed += await _longpress_hint_width_ok(tree_root)
@@ -5034,7 +5044,7 @@ func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node
 		"expedition": {},
 	}
 	panel.call("present", report)
-	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "the away window sits at y 92")
+	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0 + Ui540.center_shift_y()), "the away window sits at y 92 plus the centred-frame shift")
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).y, 424.0), "the away window is 424 tall")
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "the away window is 600 wide")
 	var headline: String = str(panel.call("headline_text"))
@@ -5245,7 +5255,7 @@ func _offline_continue_box(panel: Node, vs: Vector2i, card_w: float = 600.0, car
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, card_w), "away panel is %.0f wide at %s phone-sheet %s" % [card_w, vs, card_w > 700.0])
 	failed += _assert(card_x < 0.0 or is_equal_approx(card_pos.x, card_x), "away panel x is %.0f at %s (got %.0f)" % [card_x, vs, card_pos.x])
 	failed += _assert(card_pos.x >= 24.0 - 0.5 and card_pos.x + card_w <= float(vs.x) - 24.0 + 0.5, "away panel stays inside the 24 px side margins at %s" % vs)
-	failed += _assert(is_equal_approx(card_pos.y, 92.0), "away panel stays at y 92")
+	failed += _assert(is_equal_approx(card_pos.y, 92.0 + Ui540.center_shift_y()), "away panel y is 92 plus the centred-frame shift (got %.0f)" % card_pos.y)
 	return failed
 
 
@@ -21939,8 +21949,65 @@ func _back_button_pause_ok(tree_root: Window, save_service: Node) -> int:
 	return failed
 
 
+func _viewport_expand_ok(tree_root: Window) -> int:
+	## Logical viewport is window/integer scale. No fractional scale, no bars.
+	var failed: int = 0
+	failed += _assert(str(ProjectSettings.get_setting("display/window/stretch/scale_mode", "")) == "integer", "scale mode stays integer")
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var saved_window: Vector2i = tree_root.size
+	var cases: Array[Dictionary] = [
+		{"win": Vector2i(2400, 1080), "scale": 2, "vs": Vector2i(1200, 540)},
+		{"win": Vector2i(1920, 1200), "scale": 2, "vs": Vector2i(960, 600)},
+		{"win": Vector2i(1280, 960), "scale": 1, "vs": Vector2i(1280, 960)},
+		{"win": Vector2i(2560, 1600), "scale": 2, "vs": Vector2i(1280, 800)},
+	]
+	for case_v: Dictionary in cases:
+		var win: Vector2i = case_v["win"]
+		var vs: Vector2i = case_v["vs"]
+		var scale: int = int(case_v["scale"])
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		var got: Vector2 = Ui540.viewport_size()
+		failed += _assert(Ui540.integer_scale_for(Vector2(win)) == scale, "%s integer scale is %d" % [win, scale])
+		failed += _assert(got.is_equal_approx(Vector2(vs)), "%s viewport is window/scale %s (got %s)" % [win, vs, got])
+		failed += _assert(tree_root.content_scale_stretch == Window.CONTENT_SCALE_STRETCH_INTEGER, "%s stretch stays integer" % win)
+		var shift: Vector2 = Ui540.center_shift()
+		var expect := Vector2((got.x - 960.0) * 0.5, (got.y - 540.0) * 0.5)
+		failed += _assert(shift.is_equal_approx(expect), "%s centre shift is %s (got %s)" % [win, expect, shift])
+	_report_backdrop_edges()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("VIEWPORT_EXPAND_OK")
+	return failed
+
+
+func _report_backdrop_edges() -> void:
+	## Centred 1:1. A positive shortfall is a strip; art is not painted here.
+	var views: Array[Vector2] = [Vector2(1280, 800), Vector2(1280, 960)]
+	var arts: Array[Dictionary] = [
+		{"name": "hub world", "size": Vector2(3960, 3420)},
+		{"name": "hub play", "size": Vector2(4320, 3780)},
+		{"name": "forge plate", "path": "res://assets/art/forge/forge_bark_chamber_bg.png"},
+		{"name": "arena backdrop", "path": "res://assets/art/battle/arena/arena_forest_bg_a.png"},
+		{"name": "arena foreground", "path": "res://assets/art/battle/arena/arena_forest_fg.png"},
+		{"name": "echo plate", "path": EchoTheme.PLATE},
+	]
+	for art_v: Dictionary in arts:
+		var art: Dictionary = art_v
+		var sz: Vector2 = art.get("size", Vector2.ZERO)
+		if art.has("path"):
+			var tex: Texture2D = load(str(art["path"])) as Texture2D
+			sz = tex.get_size() if tex != null else Vector2.ZERO
+		for view: Vector2 in views:
+			var short := Vector2(maxf(0.0, view.x - sz.x), maxf(0.0, view.y - sz.y))
+			if short.x > 0.5 or short.y > 0.5:
+				print("BACKDROP_EDGE %s art %s view %s short %s (strip %.0f x %.0f each side)" % [art["name"], sz, view, short, short.x * 0.5, short.y * 0.5])
+
+
 func _safe_area_layout_ok(tree_root: Window) -> int:
-	## Tablet logical views. Integer scale of the device pixels is 1200x540, 960x600, 1280x960.
+	## Device pixels become window/scale: 1200x540, 960x600, 1280x960, 1280x800.
 	var failed: int = 0
 	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
 	failed += _assert(str(ProjectSettings.get_setting("display/window/stretch/scale_mode", "")) == "integer", "scale mode stays integer")
@@ -21951,9 +22018,10 @@ func _safe_area_layout_ok(tree_root: Window) -> int:
 	var saved_scale: Vector2i = tree_root.content_scale_size
 	var saved_window: Vector2i = tree_root.size
 	var views: Array[Dictionary] = [
-		{"vs": Vector2i(1200, 540), "label": "2400x1080"},
-		{"vs": Vector2i(960, 600), "label": "1920x1200"},
-		{"vs": Vector2i(1280, 960), "label": "1280x960"},
+		{"win": Vector2i(2400, 1080), "vs": Vector2i(1200, 540), "label": "2400x1080"},
+		{"win": Vector2i(1920, 1200), "vs": Vector2i(960, 600), "label": "1920x1200"},
+		{"win": Vector2i(1280, 960), "vs": Vector2i(1280, 960), "label": "1280x960"},
+		{"win": Vector2i(2560, 1600), "vs": Vector2i(1280, 800), "label": "2560x1600"},
 	]
 	var hud_packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
 	var title_packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
@@ -21971,10 +22039,11 @@ func _safe_area_layout_ok(tree_root: Window) -> int:
 	tree_root.add_child(away)
 	var host: Node = tree_root.get_node_or_null("MinigameHost")
 	for view: Dictionary in views:
+		var win_px: Vector2i = view["win"]
 		var vs: Vector2i = view["vs"]
 		var label: String = str(view["label"])
-		tree_root.size = vs
-		tree_root.content_scale_size = vs
+		tree_root.size = win_px
+		Ui540.apply_integer_viewport(tree_root)
 		await tree_root.get_tree().process_frame
 		failed += _assert(Ui540.viewport_size().is_equal_approx(Vector2(vs)), "logical viewport is %s (got %s)" % [vs, Ui540.viewport_size()])
 		if menu != null and menu.has_method("resume_game"):
@@ -22009,8 +22078,8 @@ func _safe_area_layout_ok(tree_root: Window) -> int:
 		if host != null:
 			var window: Control = host.find_child("Window", true, false) as Control
 			failed += _assert_inside(window, safe, "minigame window %s" % label)
-	tree_root.size = Vector2i(1200, 540)
-	tree_root.content_scale_size = Vector2i(1200, 540)
+	tree_root.size = Vector2i(2400, 1080)
+	Ui540.apply_integer_viewport(tree_root)
 	await tree_root.get_tree().process_frame
 	Ui540.set_debug_insets(Vector4(48, 36, 28, 20))
 	var shade: Control = null
