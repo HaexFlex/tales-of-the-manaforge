@@ -39,6 +39,15 @@ func _run() -> void:
 		quit(1)
 		return
 
+	if OS.get_environment("MANAFORGE_ANDROID_PRESET") == "1":
+		var android_only: int = _android_preset_ok()
+		if android_only > 0:
+			print("ANDROID_PRESET_FAIL: %d" % android_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -3925,6 +3934,7 @@ func _run() -> void:
 	failed += _minigame_checks()
 	failed += _hybrid_chip_ok(tree_root)
 	failed += _compat_renderer_ok()
+	failed += _android_preset_ok()
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -21311,6 +21321,70 @@ func _compat_renderer_ok() -> int:
 	failed += _assert(scene_hits.is_empty(), "no glow/light/GPU-particle nodes in scenes (%s)" % ", ".join(scene_hits))
 	if failed == 0:
 		print("COMPAT_RENDERER_OK")
+	return failed
+
+
+const ANDROID_ICON_BG := Color8(22, 36, 28)
+
+
+func _android_preset_ok() -> int:
+	## Android pass 1 preset. Windows presets stay the two desktop entries.
+	var failed: int = 0
+	var text: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	failed += _assert(text.find("name=\"Windows Testing / Experimental\"") >= 0, "Windows Experimental preset remains")
+	failed += _assert(text.find("name=\"Windows Release / Stable\"") >= 0, "Windows Stable preset remains")
+	var android_at: int = text.find("name=\"Android Test (Experimental)\"")
+	failed += _assert(android_at >= 0, "Android Test preset exists")
+	var block: String = text.substr(android_at) if android_at >= 0 else ""
+	failed += _assert(block.find("platform=\"Android\"") >= 0, "preset platform is Android")
+	failed += _assert(block.find("custom_features=\"manaforge_debug\"") >= 0, "Android preset keeps manaforge_debug")
+	failed += _assert(block.find("package/unique_name=\"com.haexflex.manaforge\"") >= 0, "package id com.haexflex.manaforge")
+	failed += _assert(block.find("package/name=\"Tales of the Manaforge\"") >= 0, "Android app name")
+	failed += _assert(block.find("version/code=1") >= 0 and block.find("version/name=\"0.1.2\"") >= 0, "version code 1 name 0.1.2")
+	failed += _assert(block.find("architectures/arm64-v8a=true") >= 0, "arm64-v8a on")
+	failed += _assert(block.find("architectures/armeabi-v7a=false") >= 0 and block.find("architectures/x86=false") >= 0 and block.find("architectures/x86_64=false") >= 0, "only arm64-v8a")
+	failed += _assert(block.find("gradle_build/use_gradle_build=false") >= 0, "gradle build off")
+	failed += _assert(block.find("keystore/debug=\"\"") >= 0 and block.find("keystore/debug_user=\"\"") >= 0 and block.find("keystore/debug_password=\"\"") >= 0, "debug keystore left empty for the box")
+	for piece: String in ["*.md", "docs/*", "Assets upload/*", "assets/library/*"]:
+		failed += _assert(block.find(piece) >= 0, "Android exclude filter has %s" % piece)
+	var orient: int = int(ProjectSettings.get_setting("display/window/handheld/orientation", -1))
+	failed += _assert(orient == DisplayServer.SCREEN_SENSOR_LANDSCAPE, "handheld orientation is sensor landscape (got %d)" % orient)
+	var portrait: Image = Image.new()
+	failed += _assert(portrait.load(ProjectSettings.globalize_path("res://assets/art/portraits/keeper_portrait.png")) == OK, "keeper portrait loads")
+	failed += _android_icon_matches(portrait, "res://assets/ui/android/main_192.png", 192, true)
+	failed += _android_icon_matches(portrait, "res://assets/ui/android/adaptive_foreground_432.png", 432, false)
+	var back: Texture2D = load("res://assets/ui/android/adaptive_background_432.png") as Texture2D
+	var back_img: Image = back.get_image() if back != null else null
+	failed += _assert(back_img != null and back_img.get_width() == 432 and back_img.get_height() == 432, "adaptive background is 432")
+	if back_img != null:
+		failed += _assert(back_img.get_pixel(0, 0).is_equal_approx(ANDROID_ICON_BG) and back_img.get_pixel(200, 200).is_equal_approx(ANDROID_ICON_BG), "adaptive background is the flat placeholder")
+	if failed == 0:
+		print("ANDROID_PRESET_OK")
+	return failed
+
+
+func _android_icon_matches(portrait: Image, path: String, side: int, opaque_bg: bool) -> int:
+	var failed: int = 0
+	var got := Image.new()
+	if got.load(ProjectSettings.globalize_path(path)) != OK:
+		got = null
+	failed += _assert(got != null and got.get_width() == side and got.get_height() == side, "%s is %d square" % [path, side])
+	if portrait == null or got == null or portrait.get_width() < 1:
+		return failed
+	var expect: Image = portrait.duplicate()
+	expect.resize(side, side, Image.INTERPOLATE_NEAREST)
+	if opaque_bg:
+		var canvas := Image.create(side, side, false, Image.FORMAT_RGBA8)
+		canvas.fill(ANDROID_ICON_BG)
+		canvas.blend_rect(expect, Rect2i(0, 0, side, side), Vector2i.ZERO)
+		expect = canvas
+	var mismatch: int = 0
+	var step: int = 8
+	for y: int in range(0, side, step):
+		for x: int in range(0, side, step):
+			if not got.get_pixel(x, y).is_equal_approx(expect.get_pixel(x, y)):
+				mismatch += 1
+	failed += _assert(mismatch == 0, "%s is a nearest scale of the Keeper portrait (%d sample mismatches)" % [path, mismatch])
 	return failed
 
 

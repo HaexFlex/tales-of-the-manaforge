@@ -41,6 +41,9 @@ window/size/window_height_override=540
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/stretch/scale_mode="integer"
+; Godot 4.7 reads this at Android export (no preset screen/orientation key).
+; 4 = DisplayServer.SCREEN_SENSOR_LANDSCAPE. Desktop windows ignore it. iOS stays parked.
+window/handheld/orientation=4
 
 [gui]
 
