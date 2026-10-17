@@ -120,12 +120,17 @@ static func _reveal(source: Node, text: String) -> void:
 		bottom = box.get_content_margin(SIDE_BOTTOM)
 	## The papyrus is a Panel, not a container, so the line is pinned inside the
 	## content margins. A container was leaving the glyphs on the rolled edge.
+	_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_label.position = Vector2(left, top)
 	_label.size = text_sz
-	panel.size = Vector2(maxf(48.0, text_sz.x + left + right), maxf(Ui540.TOOLTIP_MIN_H, text_sz.y + top + bottom))
+	var lines: int = maxi(1, text.count("\n") + 1)
+	var height: float = maxf(Ui540.TOOLTIP_MIN_H, float(lines) * 20.0 + top + bottom)
+	var width: float = maxf(Ui540.TOOLTIP_MIN_W, text_sz.x + left + right)
+	panel.size = Vector2(width, height)
 	panel.custom_minimum_size = panel.size
 	_place_near(panel, _pointer(source))
 	panel.visible = true
+	Ui540.fade_in_tooltip(panel)
 
 
 static func _pointer(source: Node) -> Vector2:
@@ -167,6 +172,45 @@ static func current_text() -> String:
 
 static func panel() -> Panel:
 	return _panel
+
+
+## Long-press hint. The caller already waited out the 0.8 s rest. Size is the 3-line scroll.
+static func show_anchored_hint(text: String, screen_pos: Vector2, panel_size: Vector2) -> bool:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null or text == "":
+		return false
+	var panel := _ensure(tree)
+	if panel == null or _label == null:
+		return false
+	_clear_pending()
+	_owner_id = 0
+	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_label.text = text
+	var box: StyleBox = panel.get_theme_stylebox(&"panel")
+	var left: float = 16.0
+	var top: float = 9.0
+	var right: float = 16.0
+	var bottom: float = 9.0
+	if box != null:
+		left = box.get_content_margin(SIDE_LEFT)
+		top = box.get_content_margin(SIDE_TOP)
+		right = box.get_content_margin(SIDE_RIGHT)
+		bottom = box.get_content_margin(SIDE_BOTTOM)
+	panel.size = panel_size
+	panel.custom_minimum_size = panel_size
+	_label.position = Vector2(left, top)
+	_label.size = Vector2(maxf(1.0, panel_size.x - left - right), maxf(1.0, panel_size.y - top - bottom))
+	_place_near(panel, screen_pos)
+	panel.visible = true
+	Ui540.fade_in_tooltip(panel)
+	return true
+
+
+static func dismiss_hold() -> void:
+	_owner_id = 0
+	_clear_pending()
+	if _panel != null and is_instance_valid(_panel):
+		_panel.visible = false
 
 
 static func shutdown() -> void:

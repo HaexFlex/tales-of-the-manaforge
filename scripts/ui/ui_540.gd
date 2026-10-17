@@ -6,7 +6,10 @@ const SAFE_MARGIN_PX: float = 24.0
 ## Tests inject a notch. Negative means "read DisplayServer".
 static var _debug_insets: Vector4 = Vector4(-1, -1, -1, -1)
 const TOOLTIP_GAP_PX: float = 6.0
-const TOOLTIP_MIN_H: float = 30.0
+## One Silver 19 line (20 px) plus the scroll content margins (9 + 9).
+const TOOLTIP_MIN_H: float = 38.0
+const TOOLTIP_MIN_W: float = 51.0
+const TOOLTIP_FADE_SEC: float = 0.12
 const HUD_RESOURCE_BAND_H: float = 48.0
 const TAP_MIN_PX: float = 44.0
 const WIDE_ASPECT_SHIFT_PX: float = 120.0
@@ -112,9 +115,11 @@ static func place_tooltip(popup: Window, anchor: Control) -> void:
 	if popup == null:
 		return
 	var sz: Vector2 = popup.size
+	if sz.x < TOOLTIP_MIN_W:
+		sz.x = TOOLTIP_MIN_W
 	if sz.y < TOOLTIP_MIN_H:
 		sz.y = TOOLTIP_MIN_H
-		popup.size = sz
+	popup.size = sz
 	var vs: Vector2 = viewport_size()
 	var left: float = margin_left()
 	var top: float = margin_top()
@@ -132,6 +137,28 @@ static func place_tooltip(popup: Window, anchor: Control) -> void:
 	var max_x: float = maxf(left, vs.x - right - sz.x)
 	var max_y: float = maxf(top, vs.y - bottom - sz.y)
 	popup.position = Vector2(clampf(pos.x, left, max_x), clampf(pos.y, top, max_y))
+
+
+## 0.12 s fade. A Window has no modulate, so its canvas children (the scroll panel) fade.
+static func fade_in_tooltip(node: Node) -> void:
+	if node == null or not is_instance_valid(node):
+		return
+	var targets: Array[CanvasItem] = []
+	if node is CanvasItem:
+		targets.append(node as CanvasItem)
+	else:
+		for child: Node in node.get_children(true):
+			if child is CanvasItem:
+				targets.append(child as CanvasItem)
+	for item: CanvasItem in targets:
+		if item.has_meta(&"tip_fade"):
+			var old: Variant = item.get_meta(&"tip_fade")
+			if old is Tween and (old as Tween).is_valid():
+				(old as Tween).kill()
+		item.modulate.a = 0.0
+		var tw: Tween = item.create_tween()
+		item.set_meta(&"tip_fade", tw)
+		tw.tween_property(item, "modulate:a", 1.0, TOOLTIP_FADE_SEC)
 
 
 ## Four pips under a speed button. `active` is the lit step, or -1 when none match.

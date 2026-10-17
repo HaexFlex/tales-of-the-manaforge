@@ -93,6 +93,16 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TOOLTIP_SCROLL") == "1":
+		var scroll_only: int = await _tooltip_scroll_ok(tree_root)
+		scroll_only += await _tooltip_parchment_ok(tree_root)
+		if scroll_only > 0:
+			print("TOOLTIP_SCROLL_FAIL: %d" % scroll_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -3988,6 +3998,7 @@ func _run() -> void:
 	failed += _lifecycle_checks(tree_root, game_state, save_service)
 	failed += await _safe_area_layout_ok(tree_root)
 	failed += _touch_hint_ok(tree_root, game_state)
+	failed += await _tooltip_scroll_ok(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -7131,6 +7142,72 @@ func _keeper_work_spot_asserts() -> int:
 	return failed
 
 
+func _tooltip_scroll_ok(tree_root: Window) -> int:
+	## Scroll-edge tooltips: asset, tile margins, 38 px min, fade, long-press panel, themed windows.
+	var failed: int = 0
+	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
+	var box: StyleBoxTexture = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture if theme != null else null
+	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
+	failed += _assert(path.find("res://assets/ui/longpress/tooltip_scroll_9s_51x38.png") >= 0, "scroll tooltip path (got %s)" % path)
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 16.0 and box.texture_margin_right == 15.0 and box.texture_margin_bottom == 10.0, "scroll texture margins 12/16/15/10")
+	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_TILE and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_TILE, "scroll axis stretch is Tile")
+	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 9.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 9.0, "scroll content margins 16/9/16/9")
+	failed += _assert(is_equal_approx(Ui540.TOOLTIP_MIN_H, 38.0) and is_equal_approx(Ui540.TOOLTIP_MIN_W, 51.0), "tooltip min size is 51 x 38")
+	failed += _assert(is_equal_approx(Ui540.TOOLTIP_FADE_SEC, 0.12), "tooltip fade is 0.12 s")
+	var hover_src: String = FileAccess.get_file_as_string("res://scripts/ui/world_hover.gd")
+	failed += _assert(hover_src.find("Ui540.TOOLTIP_MIN_H") >= 0 and hover_src.find("fade_in_tooltip") >= 0, "world hover uses the min height and the fade")
+	var input_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_src.find("present_long_press_hint") >= 0 and input_src.find("ui.longpress_hint") >= 0, "long-press opens the hint panel from one strings key")
+	failed += _assert(input_src.find("long_press_wait") >= 0 and input_src.find("0.5 is the action deadzone") >= 0, "0.5 stays the deadzone; the panel waits on the 0.8 s hold")
+	var theme_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_theme.gd")
+	failed += _assert(theme_src.find("tools/debug/") >= 0 and theme_src.find("_apply_window_theme") >= 0, "window theme hook skips the debug panel")
+	var recipe_src: String = FileAccess.get_file_as_string("res://scripts/forge_recipe_button.gd")
+	failed += _assert(recipe_src.find("StyleBoxEmpty") >= 0, "forge recipe tooltip container stays empty")
+	var toast_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _assert(toast_src.find("toast_9s_40x30") >= 0 and toast_src.find("BagDetailPopup") >= 0, "toasts and the bag detail popup are unchanged")
+	var trait_src: String = FileAccess.get_file_as_string("res://scripts/character_sheet.gd")
+	failed += _assert(trait_src.find("TraitPopup") >= 0 and trait_src.find("trait_popup") >= 0 and trait_src.find("tooltip_scroll") < 0, "trait hover stays a kit window")
+	var strings: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	failed += _assert(strings.find("\"ui.longpress_hint\"") >= 0 and strings.find("Placeholder for Lore") >= 0, "long-press copy is one placeholder key")
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null and is_equal_approx(float(input.call("long_press_wait")), 0.8), "long-press wait is 0.8 s")
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.size = Vector2i(960, 540)
+	tree_root.content_scale_size = Vector2i(960, 540)
+	await process_frame
+	if input != null:
+		failed += _assert(bool(input.call("present_long_press_hint", Vector2(400, 300))), "long-press panel can show")
+	var hint: Panel = WorldHover.panel()
+	failed += _assert(hint != null and hint.visible and hint.size.is_equal_approx(Vector2(200, 78)), "long-press panel is 200 x 78 (got %s)" % (str(hint.size) if hint != null else "missing"))
+	var hint_label: Label = hint.get_node_or_null("Text") as Label if hint != null else null
+	failed += _assert(hint_label != null and hint_label.text.find("Placeholder for Lore") >= 0, "long-press panel shows the placeholder")
+	if hint != null:
+		var safe: Rect2 = Ui540.safe_rect()
+		failed += _assert(safe.encloses(Rect2(hint.position, hint.size)), "long-press panel sits inside the safe area %s" % str(hint.position))
+		failed += _assert(hint.modulate.a < 0.05, "long-press panel fades in from transparent")
+		await create_timer(0.15).timeout
+		failed += _assert(hint.modulate.a > 0.9, "long-press panel finishes the fade")
+		WorldHover.dismiss_hold()
+	var pop := PopupPanel.new()
+	pop.theme_type_variation = &"TooltipPanel"
+	pop.visible = false
+	tree_root.add_child(pop)
+	var menu := PopupMenu.new()
+	tree_root.add_child(menu)
+	await process_frame
+	var app_theme: Theme = tree_root.theme
+	failed += _assert(pop.theme == app_theme and app_theme != null, "a tooltip window receives the app theme")
+	failed += _assert(menu.theme == app_theme, "a popup menu receives the app theme")
+	pop.free()
+	menu.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TOOLTIP_SCROLL_OK")
+	return failed
+
+
 func _tooltip_parchment_ok(tree_root: Window) -> int:
 	var failed: int = 0
 	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
@@ -7138,11 +7215,11 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	if theme != null:
 		box = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture
 	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
-	failed += _assert(path.find("toast_9s_40x30") >= 0, "tooltip panel uses the activity papyrus scroll")
-	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 8.0 and box.texture_margin_right == 12.0 and box.texture_margin_bottom == 8.0, "tooltip texture margins keep the rolls at 12/8/12/8")
-	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH, "tooltip nine-slice stretches only the middle")
-	failed += _assert(box != null and box.content_margin_left >= box.texture_margin_left and box.content_margin_right >= box.texture_margin_right and box.content_margin_top >= box.texture_margin_top and box.content_margin_bottom >= box.texture_margin_bottom, "tooltip content sits inside the rolled ends")
-	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 10.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 10.0, "tooltip content margins are 16/10/16/10")
+	failed += _assert(path.find("tooltip_scroll_9s_51x38") >= 0, "tooltip panel uses the scroll-edge papyrus")
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 16.0 and box.texture_margin_right == 15.0 and box.texture_margin_bottom == 10.0, "tooltip texture margins are 12/16/15/10")
+	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_TILE and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_TILE, "tooltip nine-slice tiles both axes")
+	failed += _assert(box != null and box.content_margin_left >= 16.0 and box.content_margin_right >= 16.0 and box.content_margin_top >= 9.0 and box.content_margin_bottom >= 9.0, "tooltip content sits inside the scroll caps")
+	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 9.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 9.0, "tooltip content margins are 16/9/16/9")
 	var host := Control.new()
 	host.position = Vector2(100, 80)
 	host.size = Vector2(44, 44)
@@ -7152,7 +7229,7 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	tree_root.add_child(pop)
 	Ui540.place_tooltip(pop, host)
 	failed += _assert(is_equal_approx(pop.position.x, 100.0) and is_equal_approx(pop.position.y, 130.0), "tooltip sits 6 px under the control (got %s)" % str(pop.position))
-	failed += _assert(pop.size.y >= 29.9, "tooltip is at least 30 px high")
+	failed += _assert(pop.size.y >= Ui540.TOOLTIP_MIN_H - 0.1, "tooltip is at least 38 px high")
 	host.position = Vector2(900, 500)
 	pop.size = Vector2(200, 40)
 	Ui540.place_tooltip(pop, host)
@@ -7196,15 +7273,15 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	tip_btn.add_child(shown)
 	var applied: StyleBoxTexture = shown.get_theme_stylebox("panel") as StyleBoxTexture
 	var applied_path: String = applied.texture.resource_path if applied != null and applied.texture != null else ""
-	failed += _assert(applied_path.find("toast_9s_40x30") >= 0, "applied tooltip stylebox is the activity papyrus scroll (got %s)" % applied_path)
-	failed += _assert(applied != null and applied.texture_margin_left == 12.0 and applied.texture_margin_top == 8.0 and applied.texture_margin_right == 12.0 and applied.texture_margin_bottom == 8.0, "applied tooltip margins are 12/8/12/8")
+	failed += _assert(applied_path.find("tooltip_scroll_9s_51x38") >= 0, "applied tooltip stylebox is the scroll-edge papyrus (got %s)" % applied_path)
+	failed += _assert(applied != null and applied.texture_margin_left == 12.0 and applied.texture_margin_top == 16.0 and applied.texture_margin_right == 15.0 and applied.texture_margin_bottom == 10.0, "applied tooltip margins are 12/16/15/10")
 	var drawn: StyleBoxTexture = null
 	for idx: int in shown.get_child_count(true):
 		var inner: Node = shown.get_child(idx, true)
 		if inner is Panel:
 			drawn = (inner as Panel).get_theme_stylebox("panel") as StyleBoxTexture
 	var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
-	failed += _assert(drawn_path.find("toast_9s_40x30") >= 0, "tooltip panel draws the activity papyrus scroll (got %s)" % drawn_path)
+	failed += _assert(drawn_path.find("tooltip_scroll_9s_51x38") >= 0, "tooltip panel draws the scroll-edge papyrus (got %s)" % drawn_path)
 	failed += _assert(tip_label.get_theme_color("font_color").is_equal_approx(Color8(62, 42, 24)), "tooltip label ink is applied")
 	failed += await _tooltip_text_inside_margins(tree_root, theme)
 	tip_btn.free()
@@ -7238,9 +7315,9 @@ func _tooltip_text_inside_margins(tree_root: Window, theme: Theme) -> int:
 		panel.size.y - box.content_margin_top - box.content_margin_bottom
 	)
 	failed += _assert(content.encloses(text_rect), "C — Character sits inside the content margins (text %s content %s)" % [str(text_rect), str(content)])
-	failed += _assert(text_rect.position.x >= box.texture_margin_left - 0.1, "tooltip text clears the left roll (x %.1f)" % text_rect.position.x)
-	failed += _assert(text_rect.end.x <= panel.size.x - box.texture_margin_right + 0.1, "tooltip text clears the handle (right %.1f panel %.1f)" % [text_rect.end.x, panel.size.x])
-	failed += _assert(text_rect.position.y >= box.texture_margin_top - 0.1 and text_rect.end.y <= panel.size.y - box.texture_margin_bottom + 0.1, "tooltip text clears the top and bottom edges")
+	failed += _assert(text_rect.position.x >= box.content_margin_left - 0.1, "tooltip text starts at the 16 px content margin (x %.1f)" % text_rect.position.x)
+	failed += _assert(text_rect.end.x <= panel.size.x - box.content_margin_right + 0.1, "tooltip text stays inside the right content margin (right %.1f panel %.1f)" % [text_rect.end.x, panel.size.x])
+	failed += _assert(text_rect.position.y >= box.content_margin_top - 0.1 and text_rect.end.y <= panel.size.y - box.content_margin_bottom + 0.1, "tooltip text stays inside the vertical content margins")
 	panel.free()
 	return failed
 
@@ -7288,7 +7365,7 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	var tip_box: StyleBoxTexture = tip.get_theme_stylebox(&"panel") as StyleBoxTexture if tip != null else null
 	var tip_path: String = tip_box.texture.resource_path if tip_box != null and tip_box.texture != null else ""
 	failed += _assert(WorldHover.current_text() == "Forge Door", "world hover shows the forge door name (got %s)" % WorldHover.current_text())
-	failed += _assert(tip_path.find("toast_9s_40x30") >= 0, "world hover draws the papyrus scroll (got %s)" % tip_path)
+	failed += _assert(tip_path.find("tooltip_scroll_9s_51x38") >= 0, "world hover draws the scroll-edge papyrus (got %s)" % tip_path)
 	var tip_label: Label = tip.get_node_or_null("Text") as Label if tip != null else null
 	if tip != null and tip_label != null and tip_box != null:
 		var text_rect := Rect2(tip_label.position, tip_label.size)

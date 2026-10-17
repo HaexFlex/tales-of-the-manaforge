@@ -48,23 +48,51 @@ func apply_app_theme() -> void:
 func _on_node_added(node: Node) -> void:
 	if node is Control:
 		apply_control_theme(node as Control)
-	if node is PopupPanel and (node as PopupPanel).theme_type_variation == &"TooltipPanel":
-		# Tooltip popups are their own Window. They do not inherit the root theme,
-		# so the engine default (dark, see-through) wins unless this theme is set.
-		var pop: PopupPanel = node as PopupPanel
-		if _theme != null:
-			pop.theme = _theme
-		call_deferred("_seat_tooltip", node)
+	if node is Window and node != get_tree().root:
+		# Theme immediately so the first draw is not the engine square.
+		# Seat after popup(), which runs once add_child returns.
+		_apply_window_theme(node, false)
+		call_deferred("_apply_window_theme_id", node.get_instance_id(), true)
 
 
-func _seat_tooltip(node: Node) -> void:
-	var popup: PopupPanel = node as PopupPanel
-	if popup == null or not is_instance_valid(popup) or not popup.visible:
+func _apply_window_theme_id(id: int, seat: bool) -> void:
+	var found: Object = instance_from_id(id)
+	if found == null or not is_instance_valid(found):
 		return
-	Ui540.place_tooltip(popup, popup.get_parent() as Control)
+	_apply_window_theme(found as Node, seat)
+
+
+func _apply_window_theme(node: Node, seat: bool) -> void:
+	var win: Window = node as Window
+	if win == null or not is_instance_valid(win) or win == get_tree().root:
+		return
+	if _is_debug_only(win):
+		return
+	if _theme != null and win.theme != _theme:
+		win.theme = _theme
+	if not seat or not (win is PopupPanel):
+		return
+	var pop: PopupPanel = win as PopupPanel
+	if pop.theme_type_variation != &"TooltipPanel" or not pop.visible:
+		return
+	Ui540.place_tooltip(pop, pop.get_parent() as Control)
+	Ui540.fade_in_tooltip(pop)
+
+
+func _is_debug_only(node: Node) -> bool:
+	var cursor: Node = node
+	while cursor != null:
+		var scr: Script = cursor.get_script() as Script
+		if scr != null and str(scr.resource_path).find("tools/debug/") >= 0:
+			return true
+		cursor = cursor.get_parent()
+	return false
 
 
 func sweep_theme(root: Node) -> void:
+	# Windows already in the tree (option lists built during _ready) missed node_added.
+	if root is Window and root != get_tree().root:
+		_apply_window_theme(root, false)
 	if root is Control:
 		apply_control_theme(root as Control)
 	for child: Node in root.get_children():

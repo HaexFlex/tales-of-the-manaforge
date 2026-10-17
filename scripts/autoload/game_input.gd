@@ -2,11 +2,14 @@ extends Node
 ## Shared pointer actions for mouse, keyboard, and touch (540p phone groundwork).
 
 const MOVE_SLOP_PX: float = 18.0
+## 3-line scroll hint (20 px per line + 18). Placeholder copy lives in ui.longpress_hint.
+const HOLD_HINT_SIZE: Vector2 = Vector2(200, 78)
 
 var _touch_index: int = -1
 var _touch_start_ms: int = 0
 var _touch_pos: Vector2 = Vector2.ZERO
 var _long_press_fired: bool = false
+var _hold_panel_open: bool = false
 
 
 func _ready() -> void:
@@ -36,6 +39,7 @@ func show_hold_hint_if_needed(force: bool = false) -> bool:
 
 
 func _ensure_input_actions() -> void:
+	# 0.5 is the action deadzone, not a hold. The long-press wait is long_press_wait() (0.8 s).
 	if not InputMap.has_action("game_command"):
 		InputMap.add_action("game_command", 0.5)
 		var rmb := InputEventMouseButton.new()
@@ -71,12 +75,12 @@ func _input(event: InputEvent) -> void:
 			if not _long_press_fired:
 				# Short tap: let Godot deliver normal gui/world clicks.
 				pass
-			_touch_index = -1
+			_end_touch()
 		return
 	if event is InputEventScreenDrag and (event as InputEventScreenDrag).index == _touch_index:
 		var drag: InputEventScreenDrag = event as InputEventScreenDrag
 		if drag.position.distance_to(_touch_pos) > MOVE_SLOP_PX:
-			_touch_index = -1
+			_end_touch()
 		return
 	if event.is_action_pressed("game_inspect"):
 		inspect_at_screen(get_viewport().get_mouse_position())
@@ -114,12 +118,31 @@ func inspect_at_screen(screen_pos: Vector2) -> void:
 
 
 func _dispatch_long_press(screen_pos: Vector2) -> void:
+	## Fires only after long_press_wait() (0.8 s). The 0.5 on the input actions is a deadzone.
 	var tip: String = _tooltip_at_screen(screen_pos)
 	if tip != "":
-		if has_node("/root/GameState"):
-			GameState.status_message.emit(tip)
+		_hold_panel_open = present_long_press_hint(screen_pos)
 		return
 	_route_world_command(screen_pos)
+
+
+func present_long_press_hint(screen_pos: Vector2) -> bool:
+	## Placeholder body. Lore replaces the one strings key. Toast only if the panel cannot open.
+	var text: String = "ui.longpress_hint"
+	if has_node("/root/ContentStrings"):
+		text = str(ContentStrings.get_text("ui.longpress_hint"))
+	if WorldHover.show_anchored_hint(text, screen_pos, HOLD_HINT_SIZE):
+		return true
+	if has_node("/root/GameState"):
+		GameState.status_message.emit(text)
+	return false
+
+
+func _end_touch() -> void:
+	_touch_index = -1
+	if _hold_panel_open:
+		_hold_panel_open = false
+		WorldHover.dismiss_hold()
 
 
 func _tooltip_at_screen(screen_pos: Vector2) -> String:

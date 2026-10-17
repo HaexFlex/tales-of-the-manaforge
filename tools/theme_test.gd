@@ -59,7 +59,7 @@ func _sampler() -> void:
 	for i in 10: list.add_child(_label("Row %d   Cycle %d · Sapling · played %d h" % [i + 1, i, i * 3]))
 	pc.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	focused.grab_focus.call_deferred()
-	# tooltip look (TooltipPanel + TooltipLabel) and a popup menu
+	# tooltip look (TooltipPanel scroll 9-slice + TooltipLabel) and a popup menu
 	var tip := PanelContainer.new(); tip.theme_type_variation = "TooltipPanel"; tip.position = Vector2(760, 60); add_child(tip)
 	var tl := Label.new(); tl.theme_type_variation = "TooltipLabel"; tl.text = "Essence 46\nGrows with every careful watering."; tip.add_child(tl)
 	var pm := PopupMenu.new(); pm.add_item("Load"); pm.add_item("Save"); pm.add_separator(); pm.add_item("Delete"); pm.set_item_disabled(3, true); add_child(pm)
