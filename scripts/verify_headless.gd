@@ -3792,7 +3792,7 @@ func _run() -> void:
 	failed += _elaia_companion_asserts(tree_root, game_state, backpack)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
 	failed += _offline_away_panel(tree_root, game_state, save_service, backpack, content_strings)
-	failed += await _offline_layout_ok(tree_root, game_state)
+	failed += await _offline_layout_ok(tree_root, game_state, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
@@ -4989,7 +4989,7 @@ func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node
 	return failed
 
 
-func _offline_layout_ok(tree_root: Window, game_state: Node) -> int:
+func _offline_layout_ok(tree_root: Window, game_state: Node, content_strings: Node) -> int:
 	var failed: int = 0
 	var saved_scale: Vector2i = tree_root.content_scale_size
 	var host := CanvasLayer.new()
@@ -5049,7 +5049,8 @@ func _offline_layout_ok(tree_root: Window, game_state: Node) -> int:
 			failed += _assert(gathered.find("Stone") < 0 and gathered.find("Food") < 0 and gathered.find("Wood") < 0, "zero wood stone and food stay off the summary")
 			failed += _assert(gathered.find("…") < 0, "a short gathered line stays whole")
 			var left_title: Label = (panel.find_child("left", true, false) as Node).find_child("SectionTitle", true, false) as Label
-			failed += _assert(left_title != null and left_title.text == "Left over", "the last section reads Left over")
+			var left_sec: String = str(content_strings.call("get_text", "offline_sec_left"))
+			failed += _assert(left_title != null and left_title.text == left_sec, "the last section title comes from v2 FINAL")
 		var zero: Dictionary = _offline_watch(spans[1])
 		zero["wood"] = 218
 		zero["forge_completed"] = 0
