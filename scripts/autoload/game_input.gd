@@ -1,7 +1,6 @@
 extends Node
 ## Shared pointer actions for mouse, keyboard, and touch (540p phone groundwork).
 
-const LONG_PRESS_SEC: float = 0.5
 const MOVE_SLOP_PX: float = 18.0
 
 var _touch_index: int = -1
@@ -12,6 +11,28 @@ var _long_press_fired: bool = false
 
 func _ready() -> void:
 	_ensure_input_actions()
+	for arg: String in OS.get_cmdline_user_args():
+		if arg == "--emulate-touch":
+			Input.emulate_touch_from_mouse = true
+
+
+func long_press_wait() -> float:
+	## Same wait as the mouse-rest tooltip. No second constant.
+	return WorldHover.rest_sec()
+
+
+func show_hold_hint_if_needed(force: bool = false) -> bool:
+	## Once per install, on a phone or a touch launch. The seen flag lives in settings.
+	if not has_node("/root/GameAudio") or not has_node("/root/ContentStrings") or not has_node("/root/GameState"):
+		return false
+	if bool(GameAudio.get("touch_hold_hint_seen")):
+		return false
+	var touch: bool = force or OS.has_feature("mobile") or DisplayServer.is_touchscreen_available() or Input.emulate_touch_from_mouse
+	if not touch:
+		return false
+	GameState.status_message.emit(ContentStrings.get_text("touch_hold_hint"))
+	GameAudio.mark_touch_hold_hint_seen()
+	return true
 
 
 func _ensure_input_actions() -> void:
@@ -33,7 +54,7 @@ func _ensure_input_actions() -> void:
 func _process(_delta: float) -> void:
 	if _touch_index < 0 or _long_press_fired:
 		return
-	if Time.get_ticks_msec() - _touch_start_ms >= int(LONG_PRESS_SEC * 1000.0):
+	if Time.get_ticks_msec() - _touch_start_ms >= int(long_press_wait() * 1000.0):
 		_long_press_fired = true
 		_dispatch_long_press(_touch_pos)
 

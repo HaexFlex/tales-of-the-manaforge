@@ -365,6 +365,8 @@ func _ready() -> void:
 		Ui540.style_wood_icon_button(help_button)
 		if not help_button.pressed.is_connected(_toggle_help_panel):
 			help_button.pressed.connect(_toggle_help_panel)
+	if has_node("/root/GameInput") and GameInput.has_method("show_hold_hint_if_needed"):
+		GameInput.call("show_hold_hint_if_needed")
 
 
 ## HUD chrome draws under every HUD window: z 0 and tree order right after the Panel,
@@ -934,7 +936,7 @@ func _help_rows() -> Array[Dictionary]:
 	if _help_tab == "phone":
 		return [
 			{"key": "Tap", "action": "Select · press buttons"},
-			{"key": "Long-press (½ s)", "action": "Show what it is; on open ground: command"},
+			{"key": "Long-press", "action": "Show what it is; on open ground: command"},
 			{"key": "Pause button", "action": "Pause menu (top right)"},
 		]
 	return [

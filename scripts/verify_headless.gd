@@ -75,6 +75,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TOUCH") == "1":
+		var touch_only: int = _touch_hint_ok(tree_root, game_state)
+		if touch_only > 0:
+			print("TOUCH_HINT_FAIL: %d" % touch_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if _wants_check_only():
 		failed += _check_only_load()
 		if failed > 0:
@@ -3968,6 +3977,7 @@ func _run() -> void:
 	failed += _manatree_tiles_ok(tree_root, game_state)
 	failed += _lifecycle_checks(tree_root, game_state, save_service)
 	failed += await _safe_area_layout_ok(tree_root)
+	failed += _touch_hint_ok(tree_root, game_state)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -21844,6 +21854,50 @@ func _safe_area_layout_ok(tree_root: Window) -> int:
 	away.queue_free()
 	if failed == 0:
 		print("SAFE_AREA_LAYOUT_OK")
+	return failed
+
+
+func _touch_hint_ok(tree_root: Window, game_state: Node) -> int:
+	## Long-press uses the hover wait. The tip is one toast, stored in settings, not the save.
+	var failed: int = 0
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	var audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(input != null and is_equal_approx(float(input.call("long_press_wait")), WorldHover.REST_SEC), "long-press uses the 0.8s hover wait")
+	failed += _assert(is_equal_approx(WorldHover.REST_SEC, 0.8), "hover wait is 0.8s")
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("LONG_PRESS_SEC") < 0, "no second long-press constant")
+	failed += _assert(input_text.find("--emulate-touch") >= 0, "emulate-touch is a launch argument")
+	failed += _assert(not Input.emulate_touch_from_mouse, "emulate touch from mouse stays off by default")
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("emulate_touch_from_mouse") < 0, "the project does not enable emulate touch")
+	var help_text: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _assert(help_text.find("Long-press (½ s)") < 0 and help_text.find("Long-press") >= 0, "phone help no longer says half a second")
+	var strings: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	failed += _assert(strings.find("\"touch_hold_hint\": \"Tip: press and hold to give a command\"") >= 0, "touch hint string is in the string table")
+	var notes: String = FileAccess.get_file_as_string("res://notes/ANDROID_HOTKEY_ONLY_ACTIONS.md")
+	failed += _assert(notes.find("Arrow keys") >= 0 and notes.find("--emulate-touch") >= 0, "hotkey notes list the camera pan and the launch flag")
+	if input == null or audio == null or game_state == null:
+		return failed + 1
+	var was_seen: bool = bool(audio.get("touch_hold_hint_seen"))
+	audio.set("touch_hold_hint_seen", false)
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	failed += _assert(bool(input.call("show_hold_hint_if_needed", true)), "the first touch session shows the hint")
+	failed += _assert(heard.size() == 1 and heard[0] == "Tip: press and hold to give a command", "the toast is the plain hold tip")
+	failed += _assert(bool(audio.get("touch_hold_hint_seen")), "the hint is marked seen")
+	failed += _assert(not bool(input.call("show_hold_hint_if_needed", true)), "the hint does not show twice")
+	failed += _assert(heard.size() == 1, "a second session does not toast again")
+	var settings: String = FileAccess.get_file_as_string("user://manaforge_settings.cfg")
+	failed += _assert(settings.find("hold_hint_seen") >= 0, "the seen flag is in settings")
+	var saved: String = JSON.stringify(game_state.call("to_save_dict"))
+	failed += _assert(saved.find("hold_hint_seen") < 0 and saved.find("touch_hold_hint") < 0, "the seen flag is not part of the save")
+	game_state.disconnect("status_message", grab)
+	audio.set("touch_hold_hint_seen", was_seen)
+	audio.call("save_settings")
+	if failed == 0:
+		print("TOUCH_HINT_OK")
 	return failed
 
 
