@@ -7168,7 +7168,7 @@ func _tooltip_scroll_ok(tree_root: Window) -> int:
 	var trait_src: String = FileAccess.get_file_as_string("res://scripts/character_sheet.gd")
 	failed += _assert(trait_src.find("TraitPopup") >= 0 and trait_src.find("trait_popup") >= 0 and trait_src.find("tooltip_scroll") < 0, "trait hover stays a kit window")
 	var strings: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
-	failed += _assert(strings.find("\"ui.longpress_hint\"") >= 0 and strings.find("Placeholder for Lore") >= 0, "long-press copy is one placeholder key")
+	failed += _assert(strings.find("\"ui.longpress_hint\": \"Hold to look\\ncloser, or to\\ngive an order.\"") >= 0, "long-press copy is the Lore final line")
 	var input: Node = tree_root.get_node_or_null("GameInput")
 	failed += _assert(input != null and is_equal_approx(float(input.call("long_press_wait")), 0.8), "long-press wait is 0.8 s")
 	var saved_window: Vector2i = tree_root.size
@@ -7181,7 +7181,7 @@ func _tooltip_scroll_ok(tree_root: Window) -> int:
 	var hint: Panel = WorldHover.panel()
 	failed += _assert(hint != null and hint.visible and hint.size.is_equal_approx(Vector2(200, 78)), "long-press panel is 200 x 78 (got %s)" % (str(hint.size) if hint != null else "missing"))
 	var hint_label: Label = hint.get_node_or_null("Text") as Label if hint != null else null
-	failed += _assert(hint_label != null and hint_label.text.find("Placeholder for Lore") >= 0, "long-press panel shows the placeholder")
+	failed += _assert(hint_label != null and hint_label.text == "Hold to look\ncloser, or to\ngive an order.", "long-press panel shows the Lore final line")
 	if hint != null:
 		var safe: Rect2 = Ui540.safe_rect()
 		failed += _assert(safe.encloses(Rect2(hint.position, hint.size)), "long-press panel sits inside the safe area %s" % str(hint.position))

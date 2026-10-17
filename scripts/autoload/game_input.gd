@@ -2,7 +2,7 @@ extends Node
 ## Shared pointer actions for mouse, keyboard, and touch (540p phone groundwork).
 
 const MOVE_SLOP_PX: float = 18.0
-## 3-line scroll hint (20 px per line + 18). Placeholder copy lives in ui.longpress_hint.
+## 3-line scroll hint (20 px per line + 18). Lore final copy lives in ui.longpress_hint.
 const HOLD_HINT_SIZE: Vector2 = Vector2(200, 78)
 
 var _touch_index: int = -1
@@ -127,7 +127,7 @@ func _dispatch_long_press(screen_pos: Vector2) -> void:
 
 
 func present_long_press_hint(screen_pos: Vector2) -> bool:
-	## Placeholder body. Lore replaces the one strings key. Toast only if the panel cannot open.
+	## Lore final body in ui.longpress_hint. Toast only if the panel cannot open.
 	var text: String = "ui.longpress_hint"
 	if has_node("/root/ContentStrings"):
 		text = str(ContentStrings.get_text("ui.longpress_hint"))
