@@ -3,11 +3,9 @@
 - 1200x540 painting at (120,210); 960x540 centre at (240,210): both asserted byte-identical to the legacy plates. Same procedural style as 1440x900 (sky/canopy top 210 px, forest floor bottom 210 px, forest sides 120 px, dithered vignette, hard pixels, no logo).
 - Code: draw at `((vw-1440)/2, (vh-960)/2)`; logo/menu offset `((vw-960)/2, (vh-540)/2)` unchanged.
 
-## Code must switch the reference (NOT done here)
-- `scenes/title_screen.tscn:4`: `res://assets_extra/title/title_bg_wide_1440x900.png` -> `res://assets_extra/title/title_bg_wide_1440x960.png` (+ the size/position constants that assume 1440x900 in `scripts/title_screen.gd`, if any).
-- `scripts/verify_headless.gd:22084` and `:22088` also name the 1440x900 file.
-- Godot will create the new .import on first import.
+## Code
+`scenes/title_screen.tscn` Background loads `res://assets_extra/title/title_bg_wide_1440x960.png`. It is drawn 1:1 (`STRETCH_KEEP`) at `((vw-1440)/2, (vh-960)/2)`. Logo (52, 24), menu (136, 146) and version (904, 503) still add `((vw-960)/2, (vh-540)/2)`. Godot generated `title_bg_wide_1440x960.png.import` on first import.
 
-## Legacy: PENDING until Code switches
-`assets_extra/title/title_bg_wide_1440x900.png` (+ .import) stays in place because it is still referenced. After the switch: `git mv` both to `assets/library/legacy/title_wide_1440x900_2026-10-17/` with a REPLACED.md.
+## Legacy
+`title_bg_wide_1440x900.png` and its `.import` live in `assets/library/legacy/title_wide_1440x900_2026-10-17/`. See `REPLACED.md` there. Nothing in the game loads that plate.
 Preview: `title_wide960_preview_1280x960_x1.png` (no gray strip), `title_wide960_centre_check.png`.

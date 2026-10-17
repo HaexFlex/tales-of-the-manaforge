@@ -22078,18 +22078,18 @@ func _walk_hud_inside(node: Node, safe: Rect2, view: Vector2, label: String) -> 
 
 
 func _title_wide_ok(tree_root: Window) -> int:
-	## 1440×900 painting, 1:1 and centred. Logo, menu, and version sit on the shifted 960×540 frame.
+	## 1440×960 painting, 1:1 and centred. Logo, menu, and version sit on the shifted 960×540 frame.
 	var failed: int = 0
 	var scene_text: String = FileAccess.get_file_as_string("res://scenes/title_screen.tscn")
-	failed += _assert(scene_text.find("res://assets_extra/title/title_bg_wide_1440x900.png") >= 0, "title scene uses the wide painting")
-	failed += _assert(scene_text.find("title_bg_1200x540.png") < 0 and scene_text.find("title_bg_960x540.png") < 0, "title scene no longer points at the old plates")
+	failed += _assert(scene_text.find("res://assets_extra/title/title_bg_wide_1440x960.png") >= 0, "title scene uses the wide painting")
+	failed += _assert(scene_text.find("title_bg_wide_1440x900.png") < 0 and scene_text.find("title_bg_1200x540.png") < 0 and scene_text.find("title_bg_960x540.png") < 0, "title scene no longer points at the old plates")
 	var wide := Image.new()
 	var old := Image.new()
-	failed += _assert(wide.load("res://assets_extra/title/title_bg_wide_1440x900.png") == OK, "wide title image loads")
-	failed += _assert(wide.get_width() == 1440 and wide.get_height() == 900, "wide title is 1440x900")
+	failed += _assert(wide.load("res://assets_extra/title/title_bg_wide_1440x960.png") == OK, "wide title image loads")
+	failed += _assert(wide.get_width() == 1440 and wide.get_height() == 960, "wide title is 1440x960")
 	failed += _assert(old.load("res://assets/library/legacy/title_2026-10-17/title_bg_960x540.png") == OK, "legacy 960 title image loads")
 	if wide.get_width() == 1440 and old.get_width() == 960:
-		var centre: Image = wide.get_region(Rect2i(240, 180, 960, 540))
+		var centre: Image = wide.get_region(Rect2i(240, 210, 960, 540))
 		centre.convert(Image.FORMAT_RGB8)
 		old.convert(Image.FORMAT_RGB8)
 		failed += _assert(centre.get_data() == old.get_data(), "wide painting centre 960x540 matches the old title")
@@ -22113,8 +22113,9 @@ func _title_wide_ok(tree_root: Window) -> int:
 		var shift: Vector2 = Ui540.center_shift()
 		var bg: TextureRect = title.get_node_or_null("Background") as TextureRect
 		failed += _assert(bg != null and bg.stretch_mode != TextureRect.STRETCH_KEEP_ASPECT_COVERED, "title background is not keep-aspect covered")
-		failed += _assert(bg != null and bg.size.is_equal_approx(Vector2(1440, 900)), "title background is drawn at 1440x900 (got %s)" % (str(bg.size) if bg != null else "missing"))
-		var bg_pos: Vector2 = ((view - Vector2(1440, 900)) * 0.5)
+		failed += _assert(bg != null and bg.size.is_equal_approx(Vector2(1440, 960)), "title background is drawn at 1440x960 (got %s)" % (str(bg.size) if bg != null else "missing"))
+		failed += _assert(bg != null and bg.stretch_mode == TextureRect.STRETCH_KEEP, "title background is not stretched")
+		var bg_pos: Vector2 = ((view - Vector2(1440, 960)) * 0.5)
 		failed += _assert(bg != null and bg.position.is_equal_approx(bg_pos), "title background is centred (got %s want %s)" % [str(bg.position) if bg != null else "missing", bg_pos])
 		var logo: Control = title.get_node_or_null("Logo") as Control
 		var menu: Control = title.get_node_or_null("Menu") as Control

@@ -6,7 +6,7 @@ const KIT_DIALOG: PackedScene = preload("res://scenes/ui/kit_dialog.tscn")
 const LOGO_POS: Vector2 = Vector2(52, 24)
 const MENU_POS: Vector2 = Vector2(136, 146)
 const VERSION_POS: Vector2 = Vector2(904, 503)
-const WIDE_BG_SIZE: Vector2 = Vector2(1440, 900)
+const WIDE_BG_SIZE: Vector2 = Vector2(1440, 960)
 ## Frame padding around the menu column: left, top, right, bottom.
 const MENU_FRAME_PAD: Vector4 = Vector4(28, 20, 28, 22)
 const WOOD_FILL: Color = Color8(104, 66, 38)
@@ -73,7 +73,7 @@ func _ready() -> void:
 	call_deferred("_arm_menu_when_idle")
 
 
-## Wide painting is 1440×900, drawn 1:1 and centred. Logo, menu, and version stay on the
+## Wide painting is 1440×960, drawn 1:1 and centred. Logo, menu, and version stay on the
 ## 960×540 frame: design point plus ((vw-960)/2, (vh-540)/2).
 func _layout_title540() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
@@ -86,7 +86,7 @@ func _layout_title540() -> void:
 		bg.offset_right = 0.0
 		bg.offset_bottom = 0.0
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		bg.stretch_mode = TextureRect.STRETCH_SCALE
+		bg.stretch_mode = TextureRect.STRETCH_KEEP
 		var tex_size: Vector2 = WIDE_BG_SIZE
 		if bg.texture:
 			tex_size = bg.texture.get_size()
