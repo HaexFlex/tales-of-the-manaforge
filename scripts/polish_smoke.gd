@@ -90,7 +90,7 @@ func _run() -> void:
 	_aim(live, shape.global_position)
 	await process_frame
 	await _hover_world(live, shape.global_position)
-	_check(_label_visible(live, "World/HarvestTree"), "harvest label shows on hover")
+	_check(not _label_visible(live, "World/HarvestTree"), "harvest label stays off the sprite; the papyrus names it")
 	_check(not _label_visible(live, "World/HarvestStone"), "stone label stays hidden while hovering the tree")
 	await _shot(live, "pt_hover_label.png")
 	await _hover_world(live, shape.global_position + Vector2(420, 0))

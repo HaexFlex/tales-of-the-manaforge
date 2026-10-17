@@ -17,6 +17,7 @@ const BatchWorldBars := preload("res://scripts/batch_world_bars.gd")
 var _awaiting_arrival: bool = false
 var _awaiting_actor: String = ""
 var _busy: bool = false
+var _title_hover: bool = false
 var _bars: BatchWorldBars
 
 
@@ -62,10 +63,16 @@ func world_hover_name() -> String:
 
 
 func _on_title_hover(inside: bool) -> void:
+	_title_hover = inside
 	var title: Label = get_node_or_null("Title") as Label
 	if title:
-		title.visible = inside
+		var covered: bool = false
+		if has_node("/root/MinigameHost"):
+			covered = bool(MinigameHost.call("is_open")) or str(MinigameHost.call("hero_for", "workbench")) != ""
+		title.visible = false
 	WorldHover.sync(self, inside, world_hover_name())
+	if has_node("/root/MinigameHost"):
+		MinigameHost.call("show_prompt", "workbench", global_position + Vector2(0, -56), inside)
 
 
 func stand_global() -> Vector2:

@@ -1,4 +1,5 @@
 extends SceneTree
+var _echo_chip_ready: bool = false
 ## Short hub + Echo Chamber load check. Not the long VERIFY suite.
 ## Autoload names are not in scope for --script, so this looks them up on the root.
 ## Run: godot --headless --path <project> --script res://tools/scene_sanity.gd
@@ -58,6 +59,7 @@ func _run() -> void:
 	failed += _near(live, "World/Runestones/Runestone_might", Vector2(2000, 1000))
 	failed += _near(live, "World/Runestones/Runestone_arcana", Vector2(3200, 1600))
 	failed += _near(live, "World/Runestones/Runestone_resilience", Vector2(3300, 2500))
+	failed += _resilience_tree(live)
 	failed += _near(live, "World/Runestones/Runestone_ward", Vector2(2700, 2950))
 	failed += _near(live, "World/Runestones/Runestone_vitality", Vector2(1800, 2950))
 	failed += _near(live, "World/Runestones/Runestone_swiftness", Vector2(900, 2400))
@@ -139,7 +141,25 @@ func _run() -> void:
 	await process_frame
 
 	failed += _weapons()
+	failed += _bramble_shards()
+	failed += _floating_names()
+	failed += _hover_rest()
+	failed += _trait_speed_rows()
+	failed += _water_splash()
+	failed += _forge_arch_raise()
+	failed += _forge_wisp_ring()
+	failed += _manual_save_guard()
+	failed += _load_confirm()
+	failed += await _bench_cancel()
+	failed += _footsteps_theme()
+	failed += _ancient_orbit()
+	failed += _elaia_mirror_art()
+	failed += await _slot_rename()
+	failed += await _ascend_gather()
+	failed += await _room_cleared_window()
 	failed += await _battle_view()
+	failed += await _echo_turn_flow()
+	failed += await _portal_fee_confirm()
 
 	game.set("arrow_mode", "magical")
 	game.call("apply_save_dict", {"arrow_mode": "physical"})
@@ -161,6 +181,9 @@ func _run() -> void:
 	failed += _res540_care_sanity()
 	failed += _res540_debug_sanity()
 	failed += _res540_help_sanity()
+	failed += _minigame_scenes()
+	failed += _offline_curve(game)
+	failed += await _offline_layout(game)
 
 	if failed == 0:
 		print("SANITY_OK")
@@ -342,6 +365,1033 @@ func _replay_keeper_strike(mode: String, might: int, arcana: int, fate: int, def
 	return int(res.get("damage", -1))
 
 
+func _resilience_tree(live: Node) -> int:
+	## 40 px east and 24 px south of where this crown sat on the Resilience stone.
+	var failed: int = 0
+	var prop: Node2D = live.get_node_or_null("World/ArtTree_0017") as Node2D
+	failed += _check(prop != null, "resilience decorative tree")
+	if prop != null:
+		var moved: Vector2 = prop.position - Vector2(3401.2980, 2740.3648)
+		failed += _check(moved.x > 24.0 and moved.y > 16.0, "tree moved south-east (%.1f, %.1f)" % [moved.x, moved.y])
+		failed += _check(prop.position.distance_to(Vector2(3441.2980, 2764.3648)) < 1.0, "tree sits at the shifted spot")
+	if failed == 0:
+		print("RESILIENCE_TREE_OK")
+	return failed
+
+
+func _floating_names() -> int:
+	## The black Keeper line is not editor-only. Play shows it while the cursor is over the sprite.
+	var failed: int = 0
+	var samples: Array[String] = [
+		"res://scenes/keeper.tscn",
+		"res://scenes/wisp.tscn",
+		"res://scenes/echo_portal.tscn",
+		"res://scenes/bramble_warden.tscn",
+		"res://scenes/keepers_bench.tscn",
+		"res://scenes/forge/anvil.tscn",
+		"res://scenes/gatherable.tscn",
+		"res://scenes/manatree.tscn",
+		"res://scenes/runestone.tscn",
+	]
+	for path: String in samples:
+		var packed: PackedScene = load(path) as PackedScene
+		failed += _check(packed != null, "floating name scene %s" % path)
+		if packed == null:
+			continue
+		var node: Node = packed.instantiate()
+		root.add_child(node)
+		if node.has_method("_on_hover"):
+			node.call("_on_hover", true)
+		if node.has_method("_on_title_hover"):
+			node.call("_on_title_hover", true)
+		var floating: Label = node.get_node_or_null("Label") as Label
+		if floating == null:
+			floating = node.get_node_or_null("Title") as Label
+		failed += _check(floating != null and not floating.visible, "no floating name on %s" % path.get_file())
+		node.queue_free()
+	if failed == 0:
+		print("FLOATING_NAMES_OK")
+	return failed
+
+
+func _hover_rest() -> int:
+	var failed: int = 0
+	WorldHover.install()
+	failed += _check(is_equal_approx(WorldHover.rest_sec(), 0.8), "hover rest is 0.8s")
+	failed += _check(
+		is_equal_approx(float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec", 0.0)), 0.8),
+		"control tooltips share the 0.8s rest"
+	)
+	var host := Node2D.new()
+	root.add_child(host)
+	WorldHover.present(host, "Harvest Stone")
+	failed += _check(WorldHover.current_text() == "", "world hover stays blank until the rest ends")
+	WorldHover.complete_rest()
+	failed += _check(WorldHover.current_text() == "Harvest Stone", "world hover shows after the rest")
+	WorldHover.dismiss(host)
+	failed += _check(WorldHover.current_text() == "", "world hover hides when the pointer leaves")
+	var sheet := CharacterSheet.new()
+	root.add_child(sheet)
+	var pop: CanvasItem = sheet.get_node_or_null("TraitPopup") as CanvasItem
+	failed += _check(pop != null and not pop.visible, "trait window starts hidden")
+	sheet.call("_arm_trait_hover")
+	failed += _check(bool(sheet.call("trait_rest_pending")) and pop != null and not pop.visible, "trait hover waits 0.8s")
+	sheet.call("complete_trait_rest")
+	failed += _check(pop != null and pop.visible and not bool(sheet.call("trait_rest_pending")), "trait hover opens after the rest")
+	sheet.call("close_trait_popup")
+	failed += _check(pop != null and not pop.visible, "trait hover closes when the pointer leaves")
+	sheet.queue_free()
+	host.queue_free()
+	WorldHover.shutdown()
+	if failed == 0:
+		print("HOVER_REST_OK")
+	return failed
+
+
+func _trait_speed_rows() -> int:
+	var failed: int = 0
+	var strings: Node = root.get_node("ContentStrings")
+	var sheet := CharacterSheet.new()
+	root.add_child(sheet)
+	sheet.call("open_trait_popup")
+	var panel: Node = sheet.get_node_or_null("TraitPopup/Panel")
+	failed += _trait_row(panel, strings, "Work", "char_sheet_trait_work", "1.0×", true)
+	failed += _trait_row(panel, strings, "Craft", "char_sheet_trait_craft", "1.0×", true)
+	failed += _trait_row(panel, strings, "Water", "char_sheet_trait_water", "1.0×", true)
+	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "", false)
+	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
+	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "", false)
+	sheet.set("_actor_id", "elaia")
+	sheet.call("open_trait_popup")
+	failed += _trait_row(panel, strings, "Work", "char_sheet_trait_work", "0.8×", true)
+	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "1.5×", true)
+	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
+	sheet.set("_actor_id", "bramble")
+	sheet.call("open_trait_popup")
+	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "1.0×", true)
+	failed += _trait_row(panel, strings, "Reliquary", "char_sheet_trait_reliquary", "", false)
+	sheet.set("_actor_id", "puff")
+	sheet.call("open_trait_popup")
+	failed += _trait_row(panel, strings, "Brew", "char_sheet_trait_brew", "1.0×", true)
+	failed += _trait_row(panel, strings, "Pace", "char_sheet_trait_move", "", false)
+	sheet.queue_free()
+	if failed == 0:
+		print("TRAIT_SPEEDS_OK")
+	return failed
+
+
+func _water_splash() -> int:
+	## Cue id stays sfx_water_pulse. The file is the soft splash, bus SFX_World, offset -18.
+	var failed: int = 0
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/audio_cues.json"))
+	var cues: Dictionary = parsed.get("cues", {}) if typeof(parsed) == TYPE_DICTIONARY else {}
+	var cue: Dictionary = cues.get("sfx_water_pulse", {}) if typeof(cues.get("sfx_water_pulse", {})) == TYPE_DICTIONARY else {}
+	var path: String = str(cue.get("path", ""))
+	failed += _check(path.ends_with("sfx_gather_water_soft.ogg"), "sfx_water_pulse points at the soft splash")
+	failed += _check(str(cue.get("bus", "")) == "SFX_World", "sfx_water_pulse bus is SFX_World")
+	failed += _check(ResourceLoader.exists(path), "soft splash file is in the repo")
+	var manifest: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/MANIFEST.json"))
+	var manifest_cues: Dictionary = manifest.get("cues", {}) if typeof(manifest) == TYPE_DICTIONARY else {}
+	var listed: Dictionary = manifest_cues.get("sfx_water_pulse", {}) if typeof(manifest_cues.get("sfx_water_pulse", {})) == TYPE_DICTIONARY else {}
+	failed += _check(str(listed.get("path", "")).ends_with("sfx_gather_water_soft.ogg"), "manifest pulse path is the soft splash")
+	failed += _check(str(listed.get("bus", "")) == "SFX_World", "manifest pulse bus is SFX_World")
+	failed += _check(is_equal_approx(float(listed.get("play_offset_db", 0.0)), -18.0), "manifest pulse offset is -18")
+	var audio: Node = root.get_node_or_null("GameAudio")
+	failed += _check(audio != null, "GameAudio for the splash")
+	if audio != null:
+		audio.call("clear_played_log")
+		audio.call("play_water_pulse")
+		failed += _check(bool(audio.call("did_play", &"sfx_water_pulse")), "watering plays sfx_water_pulse")
+		failed += _check(not bool(audio.call("did_play", &"sfx_gather_water_soft")), "watering keeps the pulse cue id")
+		failed += _check(is_equal_approx(float(audio.get("last_cue_volume_db")), -18.0), "watering plays at -18 dB")
+	if failed == 0:
+		print("WATER_SPLASH_OK")
+	return failed
+
+
+func _forge_arch_raise() -> int:
+	## 35 px up from the original (another 3 px). The mouth clears the one-slot HUD.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
+	failed += _check(packed != null, "forge room for the arch raise")
+	if packed == null:
+		return failed
+	var room: Node2D = packed.instantiate() as Node2D
+	root.add_child(room)
+	var arch: Sprite2D = room.get_node_or_null("ArchFront") as Sprite2D
+	var door: Node2D = room.get_node_or_null("ExitDoor") as Node2D
+	failed += _check(arch != null and is_equal_approx(arch.position.y, 1052.0), "arch moved up another 3 px (y %s)" % str(arch.position.y if arch else 0))
+	failed += _check(door != null and is_equal_approx(door.position.y, 1089.0), "exit stays with the raised arch")
+	var jobs: Node = root.get_node_or_null("ForgeJobs")
+	var spawn_y: float = float(jobs.call("forge_arch_spawn").y) if jobs != null else 0.0
+	failed += _check(is_equal_approx(spawn_y, 1013.0), "keeper spawn stays on the raised lip")
+	if arch != null:
+		var mouth_bottom: float = arch.position.y + 66.0
+		var screen_bottom: float = mouth_bottom - 660.0
+		var hud_top: float = 540.0 - 24.0 - 44.0
+		failed += _check(screen_bottom <= hud_top - 8.0, "arch opening clears the bottom HUD (screen %.0f hud %.0f)" % [screen_bottom, hud_top])
+	room.queue_free()
+	if failed == 0:
+		print("FORGE_ARCH_RAISE_OK")
+	return failed
+
+
+func _forge_wisp_ring() -> int:
+	var failed: int = 0
+	var station: Node2D = (load("res://scenes/forge/crucible.tscn") as PackedScene).instantiate() as Node2D
+	var tree: Node2D = (load("res://scenes/gatherable.tscn") as PackedScene).instantiate() as Node2D
+	var wisp: Node2D = (load("res://scenes/wisp.tscn") as PackedScene).instantiate() as Node2D
+	root.add_child(station)
+	root.add_child(tree)
+	root.add_child(wisp)
+	var radii: Vector2 = station.call("wisp_orbit_radii")
+	failed += _check(radii.x < 90.0 and radii.y < 90.0, "forge station ring is tight (%.1f, %.1f)" % [radii.x, radii.y])
+	failed += _check(bool(station.call("wisp_sorts_with_feet")), "forge station uses the clearing depth rule")
+	var station_z: int = (station as CanvasItem).z_index
+	var north: int = int(wisp.call("_ring_z", station, -PI * 0.5))
+	var south: int = int(wisp.call("_ring_z", station, PI * 0.5))
+	var tree_north: int = int(wisp.call("_ring_z", tree, -PI * 0.5))
+	var tree_south: int = int(wisp.call("_ring_z", tree, PI * 0.5))
+	failed += _check(tree_north < 0 and tree_south > 0, "a clearing wisp still uses z -1 and 1")
+	failed += _check(north < station_z and south > station_z, "a forge wisp stays behind the upper half and in front of the lower half")
+	var tied: bool = false
+	for step: int in 8:
+		var angle: float = float(step) * TAU / 8.0
+		var zed: int = int(wisp.call("_ring_z", station, angle))
+		if zed == station_z:
+			tied = true
+		var upper: bool = sin(angle) < 0.0
+		failed += _check((zed < station_z) == upper, "forge ring depth follows the upper half at %.2f" % angle)
+	failed += _check(not tied, "a forge wisp never shares the station z, so it cannot vanish mid-ring")
+	var room: Node = (load("res://scenes/forge_room.tscn") as PackedScene).instantiate()
+	root.add_child(room)
+	var game: Node = root.get_node("GameState")
+	var had: int = int(game.get("wisp_count"))
+	game.set("wisp_count", maxi(had, 1))
+	room.call("_sync_wisps")
+	var clicked: bool = false
+	for child: Node in room.get_children():
+		if child.has_signal("wisp_clicked") and child.is_connected("wisp_clicked", Callable(room, "_on_wisp_clicked")):
+			clicked = true
+	failed += _check(clicked, "the forge connects wisp_clicked the way the clearing does")
+	game.set("wisp_count", had)
+	room.queue_free()
+	station.queue_free()
+	tree.queue_free()
+	wisp.queue_free()
+	if failed == 0:
+		print("FORGE_WISP_RING_OK")
+	return failed
+
+
+func _manual_save_guard() -> int:
+	var failed: int = 0
+	var save: Node = root.get_node("SaveService")
+	var path: String = str(save.call("autosave_path", 1))
+	var backup: String = FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	var had: bool = FileAccess.file_exists(path)
+	var sentinel := "{\"kind\":\"autosave\",\"sentinel\":1}"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	failed += _check(file != null, "autosave slot 1 can be marked")
+	if file != null:
+		file.store_string(sentinel)
+		file.close()
+	failed += _check(not bool(save.call("_write_payload", path, 1, "manual")), "a manual write refuses an autosave path")
+	failed += _check(FileAccess.get_file_as_string(path) == sentinel, "the autosave file is unchanged")
+	var pause_packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var pm: Node = pause_packed.instantiate()
+	root.add_child(pm)
+	pm.set("_slot_mode", 1)
+	pm.call("_show_slots", "Save")
+	var autosave_tab: Button = pm.get_node_or_null("SlotsPanel/TabAutosave") as Button
+	failed += _check(autosave_tab != null and autosave_tab.disabled, "Save disables the Autosaves tab")
+	pm.call("_on_slot_tab", "autosave")
+	failed += _check(str(pm.get("_slot_tab")) == "manual", "Save stays on the manual tab")
+	failed += _check(_live_slot_button(pm, "autosave", 1) == null, "Save does not list autosave slots")
+	failed += _check(_live_slot_button(pm, "manual", 1) != null, "Save still lists manual slots")
+	pm.free()
+	if had:
+		var restore := FileAccess.open(path, FileAccess.WRITE)
+		if restore != null:
+			restore.store_string(backup)
+			restore.close()
+	else:
+		DirAccess.remove_absolute(path)
+	if failed == 0:
+		print("MANUAL_SAVE_GUARD_OK")
+	return failed
+
+
+func _load_confirm() -> int:
+	var failed: int = 0
+	var save: Node = root.get_node("SaveService")
+	var path: String = str(save.call("slot_path", 7))
+	var backup: String = FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	var had: bool = FileAccess.file_exists(path)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	failed += _check(file != null, "load confirm can mark slot 7")
+	if file != null:
+		file.store_string(JSON.stringify({
+			"save_version": 15,
+			"timestamp": 2,
+			"slot": 7,
+			"kind": "manual",
+			"state": {"stage_id": "elder"},
+		}))
+		file.close()
+	var pm: Node = (load("res://scenes/pause_menu.tscn") as PackedScene).instantiate()
+	root.add_child(pm)
+	pm.set("_slot_mode", 2)
+	pm.call("_show_slots", "Load")
+	pm.call("_on_slot_pressed", "manual", 0)
+	var confirm: CanvasItem = pm.get_node_or_null("ConfirmPanel") as CanvasItem
+	failed += _check(confirm != null and not confirm.visible, "an empty slot does not ask")
+	var btn: Button = _live_slot_button(pm, "manual", 7)
+	failed += _check(btn != null, "load lists the filled manual slot")
+	if btn != null:
+		btn.pressed.emit()
+	failed += _check(confirm != null and confirm.visible, "loading a save asks first")
+	failed += _check(str(pm.get("_confirm_action")) == "load_slot", "the ask is a load confirm")
+	var body: Label = pm.get_node_or_null("ConfirmPanel/ConfirmLabel") as Label
+	failed += _check(body != null and body.text.find("Load this memory") >= 0, "the ask names the load")
+	pm.call("_on_confirm_no")
+	failed += _check(confirm != null and not confirm.visible, "Stay leaves the save unloaded")
+	failed += _check(FileAccess.file_exists(path), "Stay does not delete the slot")
+	pm.free()
+	if had:
+		var restore := FileAccess.open(path, FileAccess.WRITE)
+		if restore != null:
+			restore.store_string(backup)
+			restore.close()
+	else:
+		DirAccess.remove_absolute(path)
+	if failed == 0:
+		print("LOAD_CONFIRM_OK")
+	return failed
+
+
+func _bench_cancel() -> int:
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var jobs: Node = root.get_node("ForgeJobs")
+	var pack: Node = root.get_node("Backpack")
+	var wood_was: int = int(game.call("get_resource", &"wood"))
+	var planks_was: int = int(pack.call("get_count", "wooden_planks"))
+	var prev: Dictionary = jobs.call("keeper_task")
+	if jobs.has_method("set_autosave_enabled"):
+		jobs.call("set_autosave_enabled", false)
+	if bool(jobs.call("has_job", "workbench")):
+		jobs.call("cancel_batch", "workbench")
+	game.call("set_resource", &"wood", 9)
+	pack.call("set_count", "wooden_planks", 0)
+	failed += _check(str(jobs.call("try_begin_batch", "workbench", "wooden_planks", 3)) == "ok", "a workbench batch can start")
+	var panel: Node = (load("res://scenes/ui/batch_panel.tscn") as PackedScene).instantiate()
+	panel.set("compact", true)
+	panel.size = Vector2(400, 148)
+	panel.custom_minimum_size = Vector2(400, 148)
+	root.add_child(panel)
+	panel.call("setup", "workbench")
+	await process_frame
+	var cancel: Button = panel.find_child("Cancel", true, false) as Button
+	failed += _check(cancel != null and cancel.visible and not cancel.disabled, "the workbench Cancel button is on screen")
+	if cancel != null:
+		var host: Control = panel as Control
+		failed += _check(host.get_global_rect().encloses(cancel.get_global_rect()), "Cancel sits inside the workbench batch slot")
+		cancel.pressed.emit()
+	var confirm: Control = panel.find_child("CancelConfirm", true, false) as Control
+	var yes: Button = panel.find_child("ConfirmYes", true, false) as Button
+	failed += _check(confirm != null and confirm.visible, "Cancel opens the confirm")
+	if confirm != null:
+		failed += _check((panel as Control).get_global_rect().encloses(confirm.get_global_rect()), "the confirm stays inside the batch slot")
+	if yes != null:
+		yes.pressed.emit()
+	failed += _check(not bool(jobs.call("has_job", "workbench")), "confirming cancel clears the batch")
+	failed += _check(int(game.call("get_resource", &"wood")) == 4, "cancel returns half the unused wood, rounded down")
+	failed += _check(int(pack.call("get_count", "wooden_planks")) == 0, "nothing finished means no planks come back")
+	jobs.call("set_keeper_working", "workbench", true)
+	game.call("set_resource", &"wood", 6)
+	failed += _check(str(jobs.call("try_begin_batch", "workbench", "wooden_planks", 2)) == "ok", "a second batch starts")
+	jobs.call("advance_seconds", 6.0)
+	failed += _check(int(pack.call("get_count", "wooden_planks")) == 1, "the finished plank is already made")
+	jobs.call("cancel_batch", "workbench")
+	failed += _check(int(pack.call("get_count", "wooden_planks")) == 1, "cancel keeps the plank that was already made")
+	failed += _check(int(game.call("get_resource", &"wood")) == 1, "half of the leftover plank's wood rounds down")
+	panel.queue_free()
+	game.call("set_resource", &"wood", wood_was)
+	if bool(prev.get("working", false)):
+		jobs.call("set_keeper_task", str(prev.get("kind", "")), str(prev.get("target", "")), true)
+	else:
+		jobs.call("note_keeper_idle")
+	if pack.has_method("set_count"):
+		pack.call("set_count", "wooden_planks", planks_was)
+	if failed == 0:
+		print("BENCH_CANCEL_OK")
+	return failed
+
+
+func _footsteps_theme() -> int:
+	var failed: int = 0
+	var hud: Node = (load("res://scenes/hud.tscn") as PackedScene).instantiate()
+	root.add_child(hud)
+	hud.call("_ensure_footsteps_popup")
+	var pop: Panel = hud.get_node_or_null("ElaiaFootsteps") as Panel
+	failed += _check(pop != null, "footsteps window exists")
+	if pop != null:
+		var box: StyleBoxTexture = pop.get_theme_stylebox(&"panel") as StyleBoxTexture
+		var path: String = box.texture.resource_path if box != null and box.texture != null else ""
+		failed += _check(path.find("frame_9s_96") >= 0, "footsteps window uses bark and parchment")
+		var body: Label = pop.get_node_or_null("Body") as Label
+		var go: Button = pop.get_node_or_null("Go") as Button
+		var speaker: Label = pop.get_node_or_null("Speaker") as Label
+		var strings: Node = root.get_node("ContentStrings")
+		failed += _check(speaker != null and speaker.text == str(strings.call("get_text", "wisp_name")), "footsteps names the Wisp")
+		failed += _check(body != null and body.text == str(strings.call("get_text", "forge_elaia_footsteps")), "footsteps keeps the line")
+		failed += _check(go != null and go.text == str(strings.call("get_text", "forge_elaia_footsteps_ok")), "footsteps keeps Go and see")
+		var inner := Rect2(28, 28, pop.size.x - 56, pop.size.y - 56)
+		if body != null:
+			failed += _check(inner.encloses(Rect2(body.position, body.size)), "footsteps text sits inside the frame")
+		if go != null:
+			failed += _check(inner.encloses(Rect2(go.position, go.size)), "Go and see sits inside the frame")
+			failed += _check(go.size.y >= 44.0, "Go and see is a full tap target")
+	hud.queue_free()
+	if failed == 0:
+		print("FOOTSTEPS_THEME_OK")
+	return failed
+
+
+func _ancient_orbit() -> int:
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var previous: StringName = game.get("stage_id")
+	var mana: Node = (load("res://scenes/manatree.tscn") as PackedScene).instantiate()
+	root.add_child(mana)
+	game.set("stage_id", StringName("elder"))
+	var elder: Vector2 = mana.call("wisp_orbit_radii")
+	game.set("stage_id", StringName("ancient"))
+	var ancient: Vector2 = mana.call("wisp_orbit_radii")
+	game.set("stage_id", previous)
+	failed += _check(is_equal_approx(ancient.x, elder.x) and is_equal_approx(ancient.y, elder.y), "ancient wisp circle matches the elder")
+	failed += _check(ancient.x >= 280.0, "ancient circle keeps the elder width")
+	mana.queue_free()
+	if failed == 0:
+		print("ANCIENT_ORBIT_OK")
+	return failed
+
+
+func _ascend_gather() -> int:
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var jobs: Node = root.get_node("ForgeJobs")
+	var save: Node = root.get_node("SaveService")
+	var snap: Dictionary = game.call("to_save_dict")
+	game.call("reset_for_new_game")
+	game.set("fruit_committed", true)
+	game.set("keeper_area", "forge")
+	game.set("keeper_pos", Vector2(12, 12))
+	game.set("elaia_area", "forge")
+	game.set("elaia_pos", Vector2(20, 20))
+	jobs.call("set_keeper_task", "forge", "crucible", true)
+	jobs.call("set_elaia_task", "water", "manatree", true)
+	game.set("wisp_count", 1)
+	(game.get("wisp_assignments") as Dictionary)["0"] = "manatree"
+	game.call("ascend")
+	var keeper_task: Dictionary = jobs.call("keeper_task")
+	var elaia_task: Dictionary = jobs.call("elaia_task")
+	failed += _check(not bool(keeper_task.get("working", true)), "ascend stops the Keeper's job")
+	failed += _check(not bool(elaia_task.get("working", true)), "ascend stops Elaia's job")
+	failed += _check((game.get("wisp_assignments") as Dictionary).is_empty(), "ascend takes every wisp off its work")
+	failed += _check(str(game.get("elaia_area")) == "forge", "Elaia stays put until she has joined")
+	failed += _check(str(game.get("keeper_area")) == "clearing", "the Keeper comes back to the clearing")
+	var origin: Vector2 = jobs.call("manatree_origin")
+	var kspot: Vector2 = game.call("ascend_gather_spot", "keeper")
+	var espot: Vector2 = game.call("ascend_gather_spot", "elaia")
+	failed += _check(kspot.x < origin.x and espot.x > origin.x and kspot.y > origin.y and espot.y > origin.y, "they stand south of the trunk, one on each side")
+	failed += _check((game.get("keeper_pos") as Vector2).distance_to(kspot) < 1.0, "the Keeper's place is beside the tree")
+	game.call("reset_for_new_game")
+	game.set("fruit_committed", true)
+	game.set("echo_01_redeemed", true)
+	game.set("first_relic_crafted", true)
+	game.set("elaia_join_seen", true)
+	game.set("keeper_area", "forge")
+	game.set("elaia_area", "forge")
+	game.call("ascend")
+	failed += _check(str(game.get("elaia_area")) == "clearing" and (game.get("elaia_pos") as Vector2).distance_to(game.call("ascend_gather_spot", "elaia")) < 1.0, "a joined Elaia is sent to the tree")
+	save.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed != null else null
+	if live == null:
+		failed += _check(false, "clearing loads for the gather")
+	else:
+		root.add_child(live)
+		await process_frame
+		game.set("welcome_shown", true)
+		game.set("echo_01_redeemed", true)
+		game.set("first_relic_crafted", true)
+		game.set("elaia_join_seen", true)
+		game.set("fruit_committed", false)
+		game.set("elaia_area", "clearing")
+		game.set("keeper_area", "clearing")
+		var keeper: Node2D = get_first_node_in_group("keeper") as Node2D
+		var elaia: Node2D = get_first_node_in_group("elaia") as Node2D
+		var trees: Array[Node] = get_nodes_in_group("manatree")
+		var manatree: Node = trees[0] if not trees.is_empty() else null
+		failed += _check(keeper != null and elaia != null and manatree != null, "the party and the tree are in the clearing")
+		if keeper != null and elaia != null and manatree != null:
+			elaia.call("_apply_presence")
+			keeper.call("apply_keeper_presence")
+			var stand: Vector2 = keeper.call("work_destination", manatree, "manatree")
+			keeper.global_position = stand
+			stand = keeper.call("work_destination", manatree, "manatree")
+			keeper.global_position = stand
+			keeper.call("start_water_channel", manatree)
+			var watered: bool = bool(manatree.get("_watering"))
+			failed += _check(watered, "the Keeper was watering")
+			var tree_at: Vector2 = (manatree as Node2D).global_position
+			keeper.global_position = tree_at + Vector2(-240, 200)
+			elaia.global_position = tree_at + Vector2(240, 200)
+			elaia.call("begin_work_loop")
+			jobs.call("set_elaia_task", "harvest", "wood", true)
+			game.set("fruit_committed", true)
+			game.call("ascend")
+			var want_k: Vector2 = game.call("ascend_gather_spot", "keeper")
+			var want_e: Vector2 = game.call("ascend_gather_spot", "elaia")
+			failed += _check(not bool(manatree.get("_watering")) and int(keeper.get("_channel_kind")) == 0, "ascend stops the watering")
+			failed += _check(bool(keeper.get("_moving")) and (keeper.get("_target") as Vector2).distance_to(want_k) < 1.0, "the Keeper walks to the tree")
+			failed += _check(not bool(keeper.get("_work_loop")), "the Keeper is no longer working")
+			failed += _check(bool(elaia.get("_moving")) and (elaia.get("_target") as Vector2).distance_to(want_e) < 1.0, "Elaia walks to the tree")
+			var after: Dictionary = jobs.call("elaia_task")
+			failed += _check(not bool(after.get("working", true)) and not bool(elaia.get("_work_loop")), "Elaia stops her harvest")
+		live.queue_free()
+		await process_frame
+		var forge_packed: PackedScene = load("res://scenes/forge_room.tscn") as PackedScene
+		var forge: Node = forge_packed.instantiate() if forge_packed != null else null
+		if forge != null:
+			root.add_child(forge)
+			await process_frame
+			var spawn: Node2D = forge.get_node_or_null("Keeper") as Node2D
+			failed += _check(spawn != null and spawn.global_position.distance_to(Vector2(800, 860)) < 1.0, "a gathered clearing pose does not move the forge spawn")
+			forge.free()
+	game.call("apply_save_dict", snap)
+	if failed == 0:
+		print("ASCEND_GATHER_OK")
+	return failed
+
+
+func _elaia_mirror_art() -> int:
+	## idle_w is a pixel flip of idle_e. Soles stay on row 123. No new sheet.
+	var failed: int = 0
+	var names: PackedStringArray = PackedStringArray([
+		"res://assets/art/battle/party/battle_elaia_idle_e.png",
+		"res://assets/art/battle/party/battle_elaia_attack.png",
+		"res://assets/art/battle/party/battle_elaia_brace.png",
+		"res://assets/art/battle/party/battle_elaia_hurt.png",
+		"res://assets/art/battle/party/battle_elaia_ko.png",
+	])
+	for path: String in names:
+		var sheet := Image.new()
+		failed += _check(sheet.load(ProjectSettings.globalize_path(path)) == OK and sheet.get_width() == 128 and sheet.get_height() == 128, "Elaia sheet 128x128 %s" % path.get_file())
+	var east := Image.new()
+	var west := Image.new()
+	var east_ok: bool = east.load(ProjectSettings.globalize_path("res://assets/art/battle/party/battle_elaia_idle_e.png")) == OK
+	var west_ok: bool = west.load(ProjectSettings.globalize_path("res://assets/art/echo/battle_elaia_idle_w.png")) == OK
+	failed += _check(east_ok and west_ok, "Elaia idle pair loads")
+	if east_ok and west_ok:
+		var flipped: Image = east.duplicate()
+		flipped.flip_x()
+		var same: bool = true
+		var sole: int = -1
+		for y: int in range(east.get_height()):
+			for x: int in range(east.get_width()):
+				if east.get_pixel(x, y).a > 0.0:
+					sole = y
+				if flipped.get_pixel(x, y) != west.get_pixel(x, y):
+					same = false
+		failed += _check(same, "idle_w is flip_h of idle_e about x=64")
+		failed += _check(sole == 123, "Elaia soles sit on row 123 (got %d)" % sole)
+	if failed == 0:
+		print("ELAIA_MIRROR_ART_OK")
+	return failed
+
+
+func _live_slot_button(pm: Node, kind: String, slot: int) -> Button:
+	var box: Node = pm.get_node_or_null("SlotsPanel/SlotScroll/SlotButtons")
+	if box == null:
+		return null
+	for child: Node in box.get_children():
+		if child.is_queued_for_deletion() or not child.has_meta("slot_index"):
+			continue
+		if str(child.get_meta("slot_kind", "")) == kind and int(child.get_meta("slot_index", 0)) == slot:
+			return child as Button
+	return null
+
+
+func _slot_rename() -> int:
+	var failed: int = 0
+	var save: Node = root.get_node("SaveService")
+	var elder: Dictionary = {"kind": "manual", "stage_display": "Elder Tree", "slot_name": ""}
+	failed += _check(str(save.call("record_title", elder)) == "Elder Tree", "a new manual slot still shows the stage")
+	elder["slot_name"] = "North Grove"
+	failed += _check(str(save.call("record_title", elder)) == "North Grove", "a clicked name replaces Elder Tree")
+	elder["kind"] = "autosave"
+	failed += _check(str(save.call("record_title", elder)) == "Elder Tree", "autosave keeps the stage name")
+	var path: String = str(save.call("slot_path", 7))
+	var backup: String = FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else ""
+	var had: bool = FileAccess.file_exists(path)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		failed += _check(false, "slot 7 can be written")
+	else:
+		file.store_string(JSON.stringify({
+			"save_version": 15,
+			"timestamp": 1,
+			"slot": 7,
+			"kind": "manual",
+			"state": {"stage_id": "elder"},
+		}))
+		file.close()
+		var info: Dictionary = save.call("get_slot_info", 7)
+		failed += _check(str(save.call("record_title", info)) == "Elder Tree", "an old manual file has no custom name")
+		failed += _check(bool(save.call("rename_manual_slot", 7, "North Grove")), "rename writes")
+		info = save.call("get_slot_info", 7)
+		failed += _check(str(info.get("slot_name", "")) == "North Grove", "the name is stored")
+		failed += _check(int(info.get("save_version", 0)) == 15, "rename does not bump SAVE_VERSION")
+		var pause_packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+		var pm: Node = pause_packed.instantiate() if pause_packed != null else null
+		if pm != null:
+			root.add_child(pm)
+			pm.set("_slot_mode", 2)
+			pm.call("_show_slots", "Load")
+			var manual: Button = _live_slot_button(pm, "manual", 7)
+			var edit: LineEdit = manual.get_node_or_null("NameEdit") as LineEdit if manual != null else null
+			failed += _check(edit != null and edit.visible and edit.text == "North Grove" and edit.max_length == 28, "a manual slot renames on click")
+			pm.call("_on_slot_tab", "autosave")
+			var auto_btn: Button = _live_slot_button(pm, "autosave", 1)
+			failed += _check(auto_btn != null and auto_btn.get_node_or_null("NameEdit") == null, "an autosave keeps its automatic name")
+			pm.queue_free()
+		else:
+			failed += _check(false, "pause menu loads")
+		failed += _check(bool(save.call("save_game", 7)), "overwrite keeps the slot")
+		info = save.call("get_slot_info", 7)
+		failed += _check(str(info.get("slot_name", "")) == "North Grove", "saving again keeps the clicked name")
+	if had:
+		var restore := FileAccess.open(path, FileAccess.WRITE)
+		if restore != null:
+			restore.store_string(backup)
+			restore.close()
+	else:
+		DirAccess.remove_absolute(path)
+	if failed == 0:
+		print("SLOT_RENAME_OK")
+	return failed
+
+
+func _trait_row(panel: Node, strings: Node, row_name: String, key: String, value: String, shown: bool) -> int:
+	var row: CanvasItem = panel.get_node_or_null("Row%s" % row_name) as CanvasItem if panel != null else null
+	var failed: int = _check(row != null and row.visible == shown, "trait row %s shown=%s" % [row_name, str(shown)])
+	if row == null or not shown:
+		return failed
+	var name_lbl: Label = row.get_node_or_null("Name") as Label
+	var value_lbl: Label = row.get_node_or_null("Value") as Label
+	var expect: String = str(strings.call("get_text", key))
+	failed += _check(name_lbl != null and name_lbl.text == expect, "trait label %s (got %s)" % [expect, name_lbl.text if name_lbl else ""])
+	failed += _check(value_lbl != null and value_lbl.text == value, "trait number %s (got %s)" % [value, value_lbl.text if value_lbl else ""])
+	return failed
+
+
+func _room_cleared_window() -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+	failed += _check(packed != null, "room cleared battle scene")
+	if packed == null:
+		return failed
+	var view: Node = packed.instantiate()
+	root.add_child(view)
+	await process_frame
+	var host := Node2D.new()
+	host.name = "RoomClearedNameHost"
+	root.add_child(host)
+	var tag := Label.new()
+	tag.name = "NameLabel"
+	tag.text = "Keeper"
+	tag.size = Vector2(80, 22)
+	host.add_child(tag)
+	view.call("_show_end_panel", "win")
+	await process_frame
+	var panel: Panel = view.get_node_or_null("Arena/EndPanel") as Panel
+	if panel != null:
+		tag.global_position = panel.get_global_rect().position + Vector2(48, 48)
+		view.call("_conceal_names_under", panel)
+	failed += _check(panel != null, "room cleared panel")
+	if panel == null:
+		view.queue_free()
+		host.queue_free()
+		return failed
+	var box: StyleBox = panel.get_theme_stylebox("panel")
+	var tex: Texture2D = (box as StyleBoxTexture).texture if box is StyleBoxTexture else null
+	failed += _check(tex != null and str(tex.resource_path).find("frame_9s_96") >= 0, "room cleared uses the kit frame")
+	failed += _check(panel.z_index >= 20, "room cleared draws above the arena")
+	var inner: Rect2 = Rect2(panel.position + Vector2(28, 28), panel.size - Vector2(56, 56))
+	for node_name: String in ["EndTitle", "EndDetail", "EndExp", "EndButtons"]:
+		var child: Control = panel.get_node_or_null(node_name) as Control
+		var child_rect: Rect2 = Rect2(panel.position + child.position, child.size) if child != null else Rect2()
+		failed += _check(child != null and inner.encloses(child_rect), "%s sits inside the room cleared frame" % node_name)
+	var title: Label = panel.get_node_or_null("EndTitle") as Label
+	failed += _check(title != null and title.text == "Room cleared", "room cleared title")
+	failed += _check(not tag.visible and tag.has_meta("fled_hidden"), "room cleared covers the Keeper name tag")
+	view.queue_free()
+	host.queue_free()
+	await process_frame
+	if failed == 0:
+		print("ROOM_CLEARED_THEME_OK")
+	return failed
+
+
+func _bramble_shards() -> int:
+	var failed: int = 0
+	var echo: Node = root.get_node("EchoChamber")
+	var game: Node = root.get_node("GameState")
+	var before: int = int(game.call("get_resource", &"manashards"))
+	var resolved: bool = bool(game.get("echo_02_resolved"))
+	var outcome_was: String = str(game.get("echo_02_outcome"))
+	var paid: bool = bool(game.get("echo_02_fee_paid"))
+	var key: bool = bool(game.get("forge_key"))
+	echo.set("battle_context", "echo2")
+	var expect_spare: int = int(echo.call("snapshot_payout", "spare"))
+	var spare_pay: Dictionary = echo.call("apply_outcome", "spare")
+	failed += _check(expect_spare > 0 and int(spare_pay.get("shards", -1)) == expect_spare, "Bramble spare uses Elaia's shard formula")
+	failed += _check(int(game.call("get_resource", &"manashards")) == before + expect_spare, "Bramble spare adds the shards")
+	failed += _check(not bool(game.get("forge_key")), "Bramble spare does not grant the Forge Key")
+	echo.set("battle_context", "echo2")
+	var expect_defeat: int = int(echo.call("snapshot_payout", "defeat"))
+	var mid: int = int(game.call("get_resource", &"manashards"))
+	var defeat_pay: Dictionary = echo.call("apply_outcome", "defeat")
+	failed += _check(expect_defeat > 0 and int(defeat_pay.get("shards", -1)) == expect_defeat, "Bramble defeat uses Elaia's shard formula")
+	failed += _check(int(game.call("get_resource", &"manashards")) == mid + expect_defeat, "Bramble defeat adds the shards")
+	game.call("set_resource", &"manashards", before)
+	game.set("echo_02_resolved", resolved)
+	game.set("echo_02_outcome", outcome_was)
+	game.set("echo_02_fee_paid", paid)
+	game.set("forge_key", key)
+	echo.set("battle_context", "")
+	failed += _bramble_spare_window(echo)
+	if failed == 0:
+		print("BRAMBLE_SHARDS_OK")
+	return failed
+
+
+func _bramble_spare_window(echo: Node) -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _check(packed != null, "bramble spare window has the echo scene")
+	if packed == null:
+		return failed
+	echo.set("battle_context", "echo2")
+	var view: Node = packed.instantiate()
+	root.add_child(view)
+	view.call("_offer_return", "spare")
+	var row_label: Label = view.get_node_or_null("EchoRewards/RewardRow0/Label") as Label
+	var story: Label = view.get_node_or_null("EchoRewards/RewardRow1/Label") as Label
+	failed += _check(row_label != null and row_label.text.find("Manashards") >= 0, "the spare reward row names Manashards")
+	failed += _check(story != null and story.text.find("Manashards") < 0, "the spare story does not name Manashards again")
+	failed += _check(story != null and story.text.find("spared") >= 0, "the spare story still says he is spared")
+	var mentions: int = 0
+	if view.get_node_or_null("EchoRewards") != null:
+		mentions = _manashard_mentions(view.get_node_or_null("EchoRewards"))
+	failed += _check(mentions == 1, "the spared window says Manashards once (got %d)" % mentions)
+	view.free()
+	echo.set("battle_context", "")
+	return failed
+
+
+func _manashard_mentions(node: Node) -> int:
+	var count: int = 0
+	if node is Label:
+		var text: String = (node as Label).text
+		var from: int = 0
+		while true:
+			var at: int = text.find("Manashards", from)
+			if at < 0:
+				break
+			count += 1
+			from = at + 10
+	for child: Node in node.get_children():
+		count += _manashard_mentions(child)
+	return count
+
+
+func _adventure_mode_chip() -> int:
+	var failed: int = 0
+	var gear: Node = root.get_node("Equipment")
+	var game: Node = root.get_node("GameState")
+	var packed: PackedScene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+	failed += _check(packed != null, "adventure battle scene")
+	if packed == null:
+		return failed
+	game.set("arrow_mode", "physical")
+	var view: Node = packed.instantiate()
+	root.add_child(view)
+	var fight := FightState.new()
+	fight.add_member("keeper", {"might": 5, "arcana": 8, "vitality": 6, "attack": "physical"}, 0, "front", "keeper")
+	view.set("_fight", fight)
+	view.set("_target_mode", "")
+	var strike: CanvasItem = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as CanvasItem
+	var menu: CanvasItem = view.get_node_or_null("Arena/ActionMenu") as CanvasItem
+	if menu:
+		menu.visible = true
+	if strike:
+		strike.visible = true
+	view.call("_refresh_mode_chip")
+	var armed: bool = str(gear.call("equipped_strike_kind")) == "hybrid"
+	failed += _check(armed and bool(view.call("mode_chip_shown")), "adventure shows the hybrid chip")
+	failed += _check(str(view.call("mode_chip_text")) == "Phys", "adventure chip starts on Might")
+	var chip: Button = view.get_node_or_null("Arena/ArrowToggle") as Button
+	failed += _check(chip != null and not chip.disabled and chip.custom_minimum_size.x >= 44.0, "adventure chip meets the tap size")
+	view.call("_on_mode_chip_pressed")
+	var row: Dictionary = fight.fighter_dict("keeper")
+	failed += _check(str(game.get("arrow_mode")) == "magical" and str(row.get("attack", "")) == "magic", "adventure chip selects Arcana")
+	failed += _check(str(view.call("mode_chip_text")) == "Mag", "adventure chip reads Mag")
+	var sheet: Dictionary = SlotEngine.member_stats("keeper")
+	failed += _check(str(sheet.get("attack", "")) == "magic", "a hybrid weapon strikes with Arcana")
+	game.set("arrow_mode", "physical")
+	var physical_sheet: Dictionary = SlotEngine.member_stats("keeper")
+	failed += _check(str(physical_sheet.get("attack", "")) == "physical", "a hybrid weapon strikes with Might")
+	var had: String = str(gear.call("equipped_id", "weapon"))
+	gear.call("grant_item", "stone_sword")
+	failed += _check(str(gear.call("try_equip", "stone_sword")) == "ok", "stone sword equips for the chip hide")
+	view.call("_refresh_mode_chip")
+	failed += _check(not bool(view.call("mode_chip_shown")), "a physical weapon hides the chip")
+	var plain: Dictionary = SlotEngine.member_stats("keeper")
+	failed += _check(str(plain.get("attack", "")) == "physical", "a physical weapon stays Might")
+	if had != "" and had != "stone_sword":
+		gear.call("try_equip", had)
+	fight.loadout = {"heart_salve": 2}
+	view.call("_update_salve_button")
+	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
+	var items_ok: bool = salve_btn != null and salve_btn.text == "Items" and salve_btn.tooltip_text.find("Heart Salve") >= 0 and salve_btn.tooltip_text.find("×2") >= 0
+	failed += _check(items_ok, "the third action button says Items")
+	if items_ok:
+		print("ITEMS_BUTTON_OK")
+	view.queue_free()
+	if failed == 0 and _echo_chip_ready:
+		print("HYBRID_CHIP_OK")
+	return failed
+
+
+func _echo_rootbind_count(battle: EchoBattle) -> int:
+	var count: int = 0
+	for entry: Dictionary in battle.turn_log:
+		if bool(entry.get("rootbind", false)):
+			count += 1
+	return count
+
+
+func _echo_turn_flow() -> int:
+	var failed: int = 0
+	var view_src: String = FileAccess.get_file_as_string("res://scripts/echo_battle_view.gd")
+	var rules_src: String = FileAccess.get_file_as_string("res://scripts/echo_battle.gd")
+	failed += _check(view_src.find("BattlePlayback") < 0 and view_src.find("FightState") < 0, "EchoBattleView keeps its own pose player")
+	failed += _check(rules_src.find("BattlePlayback") < 0 and rules_src.find("FightState") < 0, "EchoBattle keeps its own turn split")
+	var tie := EchoBattle.new()
+	tie.configure(
+		{"might": 1, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 6, "fate": 1},
+		{"display_name": "Elaia", "stats": {"swiftness": 6, "vitality": 8}}
+	)
+	failed += _check(tie.keeper_acts_first(), "a Swiftness tie goes to the Keeper")
+	var direct := EchoBattle.new()
+	direct.configure(
+		{"might": 1, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1},
+		{"display_name": "Elaia", "stats": {"swiftness": 1, "vitality": 8}}
+	)
+	direct.set_seed(4)
+	var direct_result: String = direct.choose("strike")
+	failed += _check(direct_result != "presenting" and direct.pending_half() == "", "a direct choose stays one call")
+	var mercy_seed: int = -1
+	var mercy_hp: int = -1
+	var mercy_log: String = ""
+	var keeper_fast: Dictionary = {"might": 8, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1}
+	var echo_slow: Dictionary = {"display_name": "Elaia", "stats": {"might": 1, "arcana": 1, "resilience": 1, "ward": 1, "vitality": 8, "swiftness": 1, "fate": 1}}
+	for s: int in range(1, 50):
+		var probe := EchoBattle.new()
+		probe.configure(keeper_fast, echo_slow)
+		probe.set_seed(s)
+		probe.echo_max_hp = 10
+		probe.echo_hp = 2
+		if probe.choose("strike") == "spare_window" and probe.echo_hp >= 1 and probe.enemy_turns == 0 and probe.pending_half() == "":
+			mercy_seed = s
+			mercy_hp = probe.echo_hp
+			mercy_log = str(probe.turn_log)
+			break
+	failed += _check(mercy_seed > 0, "a strike can open the mercy floor")
+	if mercy_seed > 0:
+		var floored := EchoBattle.new()
+		floored.configure(keeper_fast, echo_slow)
+		floored.set_seed(mercy_seed)
+		floored.echo_max_hp = 10
+		floored.echo_hp = 2
+		floored.present_halves = true
+		floored.instant_present = false
+		var floored_result: String = floored.choose("strike")
+		failed += _check(floored_result == "spare_window" and floored.spare_window and floored.echo_hp == mercy_hp and floored.echo_hp >= 1, "the mercy floor still leaves her standing")
+		failed += _check(floored.pending_half() == "" and floored.enemy_turns == 0, "the mercy floor does not hand the Echo a turn")
+		failed += _check(str(floored.turn_log) == mercy_log, "a presented mercy floor matches one choose()")
+	var tank_keeper: Dictionary = {"might": 1, "arcana": 1, "resilience": 12, "ward": 12, "vitality": 12, "swiftness": 1, "fate": 1}
+	var tank_echo: Dictionary = {
+		"display_name": "Elaia",
+		"rootbind_every": 3,
+		"stats": {"might": 1, "arcana": 1, "resilience": 12, "ward": 12, "vitality": 12, "swiftness": 9, "fate": 1},
+	}
+	var live := EchoBattle.new()
+	var twin := EchoBattle.new()
+	live.configure(tank_keeper, tank_echo)
+	twin.configure(tank_keeper, tank_echo)
+	live.set_seed(11)
+	twin.set_seed(11)
+	live.keeper_max_hp = 5000
+	live.keeper_hp = 5000
+	live.echo_max_hp = 5000
+	live.echo_hp = 5000
+	twin.keeper_max_hp = 5000
+	twin.keeper_hp = 5000
+	twin.echo_max_hp = 5000
+	twin.echo_hp = 5000
+	live.present_halves = true
+	var mash_ok: bool = true
+	for _step: int in range(3):
+		var result: String = live.choose("strike")
+		if result != "presenting" or live.pending_half() != "keeper":
+			mash_ok = false
+			break
+		var turns_now: int = live.enemy_turns
+		var round_now: int = live.round
+		var binds_now: int = _echo_rootbind_count(live)
+		if live.choose("strike") != "presenting" or live.enemy_turns != turns_now or live.round != round_now or _echo_rootbind_count(live) != binds_now:
+			mash_ok = false
+			break
+		live.finish_presented_half()
+		twin.choose("strike")
+	failed += _check(mash_ok, "a click during the Echo half does not start another round")
+	failed += _check(_echo_rootbind_count(live) == 1 and _echo_rootbind_count(twin) == 1, "Rootbind fires once, on the third Echo turn")
+	failed += _check(live.enemy_turns == 3 and twin.enemy_turns == 3, "three Echo turns")
+	failed += _check(str(live.turn_log) == str(twin.turn_log), "presented rounds match one choose() each")
+	failed += _check(live.echo_hp == twin.echo_hp and live.keeper_hp == twin.keeper_hp, "presented hp matches one choose() each")
+	failed += _check(live.outcome == "" and not live.spare_window and live.outcome == twin.outcome and live.spare_window == twin.spare_window, "the split does not skip the mercy floor")
+	var echo: Node = root.get_node("EchoChamber")
+	var saved_ctx: String = str(echo.get("battle_context"))
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _check(packed != null, "echo turn flow has the battle scene")
+	if packed == null:
+		return failed
+	var view: Node = packed.instantiate()
+	root.add_child(view)
+	await process_frame
+	var shown := EchoBattle.new()
+	shown.configure(
+		tank_keeper,
+		{"display_name": "Elaia", "stats": {"might": 1, "arcana": 1, "resilience": 12, "ward": 12, "vitality": 12, "swiftness": 9, "fate": 1}}
+	)
+	shown.set_seed(11)
+	shown.keeper_max_hp = 5000
+	shown.keeper_hp = 5000
+	shown.echo_max_hp = 5000
+	shown.echo_hp = 5000
+	view.set("_battle", shown)
+	view.set("_waiting_return", false)
+	view.set("_phase", "fight")
+	view.call("set_instant_turns", false)
+	view.call("_on_strike")
+	var echo_path: String = str(view.call("portrait_texture_path", "echo"))
+	var echo_rect: TextureRect = view.get_node_or_null("EchoPortrait") as TextureRect
+	var pivot: float = float(view.call("portrait_pivot_x", "echo"))
+	failed += _check(bool(view.call("turn_busy")) and shown.pending_half() == "keeper", "the Echo half locks the menu")
+	failed += _check(echo_path.find("battle_elaia_attack") >= 0 and bool(view.call("portrait_flipped", "echo")), "Elaia's attack sheet is flipped")
+	failed += _check(echo_rect != null and is_equal_approx(echo_rect.size.x, 256.0) and is_equal_approx(pivot, 128.0), "Elaia flips about x=64")
+	failed += _check(not bool(view.call("portrait_flipped", "keeper")), "the Keeper is not flipped while Elaia swings")
+	failed += _check(is_equal_approx(float(view.get("_pose_left")), 1.0), "the strike pose holds for 1.0s")
+	var saw_hurt: bool = false
+	var queued: Variant = view.get("_pose_queue")
+	if queued is Array:
+		for step: Variant in queued as Array:
+			if step is Dictionary and (str((step as Dictionary).get("pose", "")) == "hurt" or str((step as Dictionary).get("pose", "")) == "ko"):
+				saw_hurt = true
+	failed += _check(saw_hurt == (shown.last_echo_damage > 0), "a landed blow queues the hurt pose")
+	var locked_round: int = shown.round
+	var locked_turns: int = shown.enemy_turns
+	shown.spare_window = true
+	view.call("_on_strike")
+	view.call("_on_brace")
+	view.call("_on_salve")
+	view.call("_on_flee")
+	view.call("_on_spare")
+	failed += _check(not bool(view.call("end_confirm_open")), "a click during the Echo half does not ask to finish")
+	failed += _check(shown.round == locked_round and shown.enemy_turns == locked_turns and shown.pending_half() == "keeper", "those clicks do not start a second round")
+	shown.spare_window = false
+	view.call("set_instant_turns", true)
+	await process_frame
+	failed += _check(not bool(view.call("turn_busy")) and shown.pending_half() == "" and shown.round == locked_round, "instant mode finishes the round in one frame")
+	var idle_path: String = str(view.call("portrait_texture_path", "echo"))
+	failed += _check(idle_path.find("battle_elaia_idle_w") >= 0 and not bool(view.call("portrait_flipped", "echo")), "Elaia returns to the unflipped idle")
+	var round_before: int = shown.round
+	view.call("_on_strike")
+	await process_frame
+	failed += _check(not bool(view.call("turn_busy")) and shown.pending_half() == "" and shown.round == round_before + 1, "a later instant strike also finishes in one frame")
+	view.call("_apply_combat_pose", "keeper", "attack")
+	failed += _check(str(view.call("portrait_texture_path", "keeper")).find("battle_keeper_attack") >= 0 and not bool(view.call("portrait_flipped", "keeper")), "the Keeper attack sheet stays unflipped")
+	echo.set("battle_context", "echo2")
+	shown.foe_art_path = "res://assets/art/battle/party/battle_bramble_idle_e.png"
+	view.call("_apply_combat_pose", "echo", "attack")
+	failed += _check(str(view.call("portrait_texture_path", "echo")).find("battle_bramble_attack") >= 0 and bool(view.call("portrait_flipped", "echo")), "Bramble's attack sheet is flipped")
+	view.call("_apply_combat_pose", "echo", "idle")
+	var bramble_idle: String = str(view.call("portrait_texture_path", "echo"))
+	failed += _check(bramble_idle.find("battle_bramble_idle_e") >= 0 and not bool(view.call("portrait_flipped", "echo")), "Bramble's idle stays unflipped")
+	view.free()
+	echo.set("battle_context", saved_ctx)
+	if failed == 0:
+		print("ECHO_TURN_FLOW_OK")
+	return failed
+
+
+func _echo_end_confirm(view: Node) -> int:
+	var failed: int = 0
+	var battle := EchoBattle.new()
+	battle.configure(
+		{"might": 1, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1},
+		{"display_name": "Elaia", "stats": {"swiftness": 1, "vitality": 30}}
+	)
+	battle.spare_window = false
+	battle.outcome = ""
+	view.set("_battle", battle)
+	view.set("_waiting_return", false)
+	view.set("_phase", "fight")
+	view.call("_on_strike")
+	failed += _check(not bool(view.call("end_confirm_open")), "a normal strike does not ask")
+	failed += _check(str(battle.outcome) == "", "a normal strike does not end the fight")
+	battle.spare_window = true
+	battle.outcome = ""
+	view.call("_on_strike")
+	failed += _check(bool(view.call("end_confirm_open")), "the killing strike asks first")
+	failed += _check(str(view.call("end_confirm_text")).find("Strike") >= 0, "the ask names Strike")
+	failed += _check(str(battle.outcome) == "", "the ask does not strike yet")
+	view.call("_on_strike")
+	failed += _check(str(battle.outcome) == "" and bool(view.call("end_confirm_open")), "mashing Strike does not confirm")
+	view.call("_on_brace")
+	view.call("_on_salve")
+	view.call("_on_flee")
+	failed += _check(str(battle.outcome) == "", "brace, salve, and flee do not confirm the end")
+	view.call("_dismiss_end")
+	failed += _check(not bool(view.call("end_confirm_open")) and str(battle.outcome) == "", "Not now keeps the fight going")
+	view.call("_on_spare")
+	failed += _check(bool(view.call("end_confirm_open")) and str(view.call("end_confirm_text")).find("Spare") >= 0, "spare asks too")
+	failed += _check(str(battle.outcome) == "", "the spare ask does not spare yet")
+	view.call("_dismiss_end")
+	view.call("_on_strike")
+	view.call("_confirm_end")
+	failed += _check(str(battle.outcome) == "defeat", "Yes on Strike ends the fight")
+	failed += _check(not bool(view.call("end_confirm_open")), "Yes closes the ask")
+	if failed == 0:
+		print("ECHO_END_CONFIRM_OK")
+	return failed
+
+
 func _battle_view() -> int:
 	var failed: int = 0
 	var game: Node = root.get_node("GameState")
@@ -369,13 +1419,116 @@ func _battle_view() -> int:
 	await process_frame
 	failed += _check(bool(view.call("speech_between_portraits")), "speech between portraits")
 	var ssize: Vector2 = view.call("speech_band_size")
-	var csize: Vector2 = view.call("command_band_size")
-	var lsize: Vector2 = view.call("log_band_size")
-	failed += _check(ssize.y >= 60.0 and ssize.y <= 85.0, "speech band")
-	failed += _check(absf(csize.x - 540.0) < 0.5 and absf(csize.y - 90.0) < 0.5, "command band")
-	failed += _check(lsize.y >= 65.0 and lsize.y <= 90.0, "log band")
+	failed += _check(absf(ssize.x - 432.0) < 0.5 and absf(ssize.y - 132.0) < 0.5, "speech box 432x132")
+	var intro: String = str(strings.call("get_text", "echo_02_intro"))
+	var pages: PackedStringArray = EchoTheme.paginate(intro)
+	var body_font: Font = load(EchoTheme.BODY_FONT)
+	failed += _check(pages.size() == 2, "Bramble intro pages into two (got %d)" % pages.size())
+	if pages.size() >= 1:
+		failed += _check(pages[0].length() <= EchoTheme.PAGE_CHARS_MAX and pages[0].length() >= 160, "first page is about 200 characters (%d)" % pages[0].length())
+		failed += _check(EchoTheme.line_count(pages[0], body_font) <= EchoTheme.SPEECH_LINES, "first page is 3 lines")
 	var psize: Vector2 = view.call("portrait_size")
-	failed += _check(absf(psize.x - 288.0) < 0.5, "portrait 288")
+	failed += _check(absf(psize.x - 256.0) < 0.5, "portrait 256")
+	failed += _check(not bool(view.call("is_chamber_shown")), "entry skips the fee-paid window")
+	var face_btn: CanvasItem = view.get_node_or_null("FaceButton") as CanvasItem
+	var chamber_panel: CanvasItem = view.get_node_or_null("ChamberPanel") as CanvasItem
+	failed += _check(face_btn == null or not face_btn.visible, "Face the Echo stays hidden")
+	failed += _check(chamber_panel == null or not chamber_panel.visible, "the fee-paid panel stays hidden")
+	failed += _check(str(view.get("_phase")) == "speech", "entry opens on the fight dialogue")
+	failed += _check(not bool(view.call("is_flee_shown")), "the opening dialogue hides Flee")
+	if not bool(view.call("is_chamber_shown")) and str(view.get("_phase")) == "speech":
+		print("ECHO_DIRECT_FIGHT_OK")
+	var legacy_log: CanvasItem = view.get_node_or_null("LogBg") as CanvasItem
+	var legacy_hp: CanvasItem = view.get_node_or_null("KeeperHpBack") as CanvasItem
+	var legacy_title: CanvasItem = view.get_node_or_null("LogTitle") as CanvasItem
+	var legacy_band: CanvasItem = view.get_node_or_null("CommandBand") as CanvasItem
+	failed += _check(legacy_log == null or not legacy_log.visible, "chamber hides the battle log band")
+	failed += _check(legacy_hp == null or not legacy_hp.visible, "chamber hides the battle HP bars")
+	failed += _check(legacy_title == null or not legacy_title.visible, "chamber hides the Battle label")
+	failed += _check(legacy_band == null or not legacy_band.visible, "chamber card has no wider band behind it")
+	view.call("begin_face_off")
+	failed += _check(not bool(view.call("is_flee_shown")), "menu stays locked through the speech")
+	var locked_ability: Button = view.get_node_or_null("EchoActionMenu/AbilityButton") as Button
+	var locked_salve: Button = view.get_node_or_null("EchoActionMenu/SalveButton") as Button
+	var phys_chip: Control = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Control
+	var strike_btn: Control = view.get_node_or_null("EchoActionMenu/StrikeButton") as Control
+	failed += _check(locked_ability != null and locked_ability.disabled and locked_ability.modulate.r < 0.7, "Ability is dim while the speech locks the menu")
+	failed += _check(locked_salve != null and locked_salve.disabled and locked_salve.modulate.r < 0.7, "Salve is dim while the speech locks the menu")
+	var locked_spare: Button = view.get_node_or_null("EchoActionMenu/SpareButton") as Button
+	failed += _check(_hotkey_badge_dim(locked_ability) and _hotkey_badge_dim(locked_salve) and _hotkey_badge_dim(locked_spare), "locked Ability, Salve, and Spare dim their hotkey badges")
+	var strike_font: Font = strike_btn.get_theme_font("font") if strike_btn is Button else null
+	var strike_px: int = (strike_btn as Button).get_theme_font_size("font_size") if strike_btn is Button else 19
+	var strike_word: float = strike_font.get_string_size(strike_btn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, strike_px).x if strike_font != null else 99.0
+	var strike_cap: Control = strike_btn.get_node_or_null("Keycap") if strike_btn else null
+	var strike_box: StyleBox = (strike_btn as Button).get_theme_stylebox("disabled") if strike_btn is Button else null
+	var strike_text_left: float = 0.0
+	if strike_box != null and strike_btn is Button:
+		strike_text_left = strike_box.get_content_margin(SIDE_LEFT) + float((strike_btn as Button).get_theme_constant("icon_max_width")) + float((strike_btn as Button).get_theme_constant("h_separation"))
+	var ability_slot: Control = view.get_node_or_null("EchoActionMenu/AbilityButton") as Control
+	failed += _check(phys_chip != null and strike_btn != null and not phys_chip.get_rect().intersects(strike_btn.get_rect()) and phys_chip.position.x >= strike_btn.position.x + strike_btn.size.x - 0.5, "Phys chip sits clear of Strike")
+	failed += _check(ability_slot != null and phys_chip != null and phys_chip.position.x + phys_chip.size.x <= ability_slot.position.x + 0.5, "Phys chip stops before Ability")
+	failed += _check(strike_cap != null and strike_text_left + strike_word <= strike_cap.position.x - 1.0, "Strike label shows in full beside the hotkey")
+	failed += _check(str(view.call("log_text")).find("Tap the box") >= 0 and str(view.call("log_text")).find("Page ") >= 0, "speech log explains the page")
+	echo.set("reentry", true)
+	view.call("_refresh_status_chip")
+	var attempt: Label = view.get_node_or_null("EchoStatusChip/Label") as Label
+	failed += _check(attempt != null and attempt.visible and attempt.text == "Attempt 2", "later attempt shows Attempt 2")
+	echo.set("reentry", false)
+	view.call("_refresh_status_chip")
+	view.call("finish_speech")
+	failed += _check(bool(view.call("is_flee_shown")), "last page opens the menu")
+	var live_chip: Button = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Button
+	var echo_chip_on: bool = live_chip != null and live_chip.visible and not live_chip.disabled and live_chip.modulate == Color.WHITE
+	failed += _check(echo_chip_on, "hybrid chip is selectable once the fight starts")
+	await process_frame
+	var strike_focus: Control = view.get_viewport().gui_get_focus_owner() as Control
+	failed += _check(strike_focus != null and strike_focus.name == "StrikeButton", "Strike takes the focus ring")
+	var round_chip: Label = view.get_node_or_null("EchoStatusChip/Label") as Label
+	failed += _check(round_chip != null and round_chip.visible and round_chip.text == "Round 1", "Round chip uses the battle round")
+	echo.set("reentry", true)
+	view.call("_refresh_status_chip")
+	var later_fight: Label = view.get_node_or_null("EchoStatusChip/Label") as Label
+	failed += _check(later_fight != null and later_fight.visible and later_fight.text == "Attempt 2", "a later fight shows Attempt 2 instead of Round 1")
+	echo.set("reentry", false)
+	view.call("_refresh_status_chip")
+	failed += _check(later_fight != null and later_fight.text == "Round 1", "clearing reentry restores the round chip")
+	var status_chip: Control = view.get_node_or_null("EchoStatusChip") as Control
+	var live_plate: Control = view.get_node_or_null("EchoTitlePlate") as Control
+	var chip_gap: float = 0.0
+	if status_chip != null and live_plate != null:
+		chip_gap = live_plate.position.x - (status_chip.position.x + status_chip.size.x)
+	failed += _check(status_chip != null and live_plate != null and chip_gap >= 24.0 and not status_chip.get_rect().intersects(live_plate.get_rect()), "Round chip clears the title plank (gap %s)" % chip_gap)
+	failed += _check(str(view.call("log_text")).find("Your turn") >= 0, "battle log shows a line")
+	var mode_before: String = str(battle.arrow_mode)
+	view.call("_on_arrow")
+	var echo_toggled: bool = str(battle.arrow_mode) != mode_before and str(battle.arrow_mode) == str(game.get("arrow_mode"))
+	failed += _check(echo_toggled, "hybrid chip toggles Arcana and Might")
+	view.call("_on_arrow")
+	var echo_restored: bool = str(battle.arrow_mode) == mode_before
+	failed += _check(echo_restored, "hybrid chip toggles back")
+	var live_chip_now: Button = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Button
+	echo_chip_on = live_chip_now != null and live_chip_now.visible and not live_chip_now.disabled
+	_echo_chip_ready = echo_chip_on and echo_toggled and echo_restored
+	view.call("_set_speech", "Your turn")
+	var short_speech: Vector2 = view.call("speech_band_size")
+	failed += _check(absf(short_speech.x - 432.0) < 0.5 and absf(short_speech.y - 48.0) < 0.5, "one battle line uses a short speech box")
+	var menu: Control = view.get_node_or_null("EchoActionMenu") as Control
+	failed += _check(menu != null and str(menu.get_meta("built_by", "")) == "res://scripts/battle/battle_view.gd", "echo menu is built by battle_view")
+	var slot_names: PackedStringArray = PackedStringArray()
+	if menu:
+		for child: Node in menu.get_children():
+			if child is Button and child.has_meta("echo_slot"):
+				slot_names.append(str(child.name))
+	failed += _check(",".join(slot_names) == "StrikeButton,AbilityButton,SalveButton,BraceButton,FleeButton,SpareButton", "Strike / Ability / Items / Brace / Flee / Spare")
+	var ability_btn: Button = view.get_node_or_null("EchoActionMenu/AbilityButton") as Button
+	failed += _check(ability_btn != null and ability_btn.disabled and not BattleView.keeper_abilities_exist(), "Ability stays disabled")
+	var spare_btn: Button = view.get_node_or_null("EchoActionMenu/SpareButton") as Button
+	failed += _check(spare_btn != null and spare_btn.disabled, "Spare disabled until the falter")
+	var bar: Control = view.get_node_or_null("EchoActionMenu/EchoBottomBar") as Control
+	failed += _check(bar != null and absf(bar.size.x - 904.0) < 0.5 and absf(bar.size.y - 144.0) < 0.5 and EchoTheme.panel_ok(bar.size), "bottom bar 904x144 on the tile grid")
+	var echo_log: Control = view.get_node_or_null("EchoActionMenu/EchoLog") as Control
+	failed += _check(echo_log != null and absf(echo_log.size.x - 412.0) < 0.5 and absf(echo_log.size.y - 100.0) < 0.5, "battle log 412x100")
+	failed += _echo_salve_rule()
 	failed += _check(bool(view.call("keeper_uses_idle_texture")), "keeper portrait")
 	failed += _check(bool(view.call("echo_uses_elaia_texture")), "elaia portrait")
 	failed += _check(bool(view.call("is_arrow_toggle_shown")), "hybrid toggle shown")
@@ -383,12 +1536,233 @@ func _battle_view() -> int:
 	view.call("_on_arrow")
 	failed += _check(str(game.get("arrow_mode")) == "magical", "toggle writes GameState")
 	failed += _check(str(view.call("arrow_toggle_text")) == str(strings.call("get_text", "battle_toggle_mag")), "toggle reads Mag")
+	view.call("_open_leave_confirm")
+	var leave: Control = view.get_node_or_null("LeaveConfirm") as Control
+	var stay: Button = view.get_node_or_null("LeaveConfirm/LeaveStay") as Button
+	var flee_btn: Button = view.get_node_or_null("LeaveConfirm/LeaveFlee") as Button
+	failed += _check(leave != null and EchoTheme.panel_ok(leave.size) and is_equal_approx(leave.self_modulate.a, 0.88), "leave confirm is an ink panel on the tile grid")
+	failed += _check(stay != null and flee_btn != null and stay.position.y + stay.size.y <= leave.size.y and flee_btn.position.y + flee_btn.size.y <= leave.size.y, "Flee and Stay sit inside the panel")
+	var leave_body: Label = view.get_node_or_null("LeaveConfirm/LeaveBody") as Label
+	failed += _check(leave_body != null and leave_body.text.find("counts as Flee") >= 0, "leave copy says it counts as Flee")
+	var esc_cap: CanvasItem = view.get_node_or_null("LeaveConfirm/LeaveStay/EscKeycap") as CanvasItem
+	failed += _check(esc_cap != null and esc_cap.visible, "Stay shows the Esc keycap")
+	failed += _check(stay != null and flee_btn != null and stay.position.x > flee_btn.position.x, "Stay is the right-hand button")
+	failed += _check(view.get_node_or_null("LeaveConfirm/EchoClose") == null, "the leave confirm has no ×")
+	failed += _check(stay != null and stay.custom_minimum_size.y >= 44.0 and flee_btn.custom_minimum_size.x >= 44.0, "leave buttons are at least 44 px")
+	view.call("_confirm_stay")
+	failed += _check(not bool(view.call("leave_confirm_open")), "Stay closes the confirm")
+	view.call("_offer_return", "spare")
+	var rewards: Control = view.get_node_or_null("EchoRewards") as Control
+	var rewards_back: Button = view.get_node_or_null("EchoRewards/RewardsReturn") as Button
+	var reward_row: Control = view.get_node_or_null("EchoRewards/RewardRow0") as Control
+	var reward_value: Label = view.get_node_or_null("EchoRewards/RewardRow0/Value") as Label
+	failed += _check(rewards != null and EchoTheme.panel_ok(rewards.size) and is_equal_approx(rewards.self_modulate.a, 1.0), "rewards window is an opaque tile")
+	failed += _check(view.get_node_or_null("EchoRewardsDim") != null, "rewards dims the chamber behind the window")
+	failed += _check(rewards_back != null and rewards_back.text == "Return to the tree", "rewards return to the tree")
+	var rewards_close: Button = view.get_node_or_null("EchoRewards/RewardsClose") as Button
+	var close_glyph: TextureRect = view.get_node_or_null("EchoRewards/RewardsClose/CloseGlyph") as TextureRect
+	failed += _check(rewards_close != null, "rewards keeps the ×")
+	failed += _check(rewards_close != null and is_equal_approx(rewards_close.position.x, 493.0) and is_equal_approx(rewards_close.position.y, 15.0) and close_glyph != null and close_glyph.size.y <= 16.0, "rewards × matches the card corner and the glyph is small")
+	var rewards_footer: Label = view.get_node_or_null("EchoRewards/RewardsFooter") as Label
+	var rewards_flavour: Label = view.get_node_or_null("EchoRewards/RewardsFlavour") as Label
+	var rewards_title: Label = view.get_node_or_null("EchoRewards/RewardsTitle") as Label
+	var reward_label: Label = view.get_node_or_null("EchoRewards/RewardRow0/Label") as Label
+	var key_value: Label = view.get_node_or_null("EchoRewards/RewardRow1/Value") as Label
+	var niche_value: Label = view.get_node_or_null("EchoRewards/RewardRow2/Value") as Label
+	var redeemed_value: Label = view.get_node_or_null("EchoRewards/RewardRow3/Value") as Label
+	var row1: Control = view.get_node_or_null("EchoRewards/RewardRow1") as Control
+	var rewards_dim: Control = view.get_node_or_null("EchoRewardsDim") as Control
+	failed += _check(rewards != null and is_equal_approx(rewards.position.x, EchoTheme.shift() + 200.0) and is_equal_approx(rewards.position.y, 40.0) and is_equal_approx(rewards.size.x, 560.0) and is_equal_approx(rewards.size.y, 464.0), "rewards card is 560x464 at x200 y40")
+	failed += _check(rewards_footer != null and rewards_footer.text.find("Manatree") >= 0, "rewards footer names the wake")
+	failed += _check(rewards_title != null and is_equal_approx(rewards_title.position.y + rewards_title.size.y * 0.5, 35.0), "rewards title centres on screen y 75")
+	failed += _check(rewards_flavour != null and is_equal_approx(rewards_flavour.position.y, 78.0) and rewards_flavour.position.y + rewards_flavour.size.y <= 150.0, "reward flavour sits on screen y 118 above the rows")
+	failed += _check(reward_row != null and is_equal_approx(reward_row.position.x, 28.0) and is_equal_approx(reward_row.position.y, 150.0) and is_equal_approx(reward_row.size.x, 504.0) and is_equal_approx(reward_row.size.y, 44.0), "first reward row is screen x228 y190, 44 tall")
+	failed += _check(row1 != null and is_equal_approx(row1.position.y, 200.0), "reward rows step by 50")
+	failed += _check(rewards_footer != null and is_equal_approx(rewards_footer.position.y, 361.0), "rewards footer sits on screen y 401")
+	failed += _check(rewards_back != null and is_equal_approx(rewards_back.position.x, 128.0) and is_equal_approx(rewards_back.position.y, 382.0) and is_equal_approx(rewards_back.size.x, 304.0) and is_equal_approx(rewards_back.size.y, 56.0), "Return matches screen x328 y422")
+	failed += _check(reward_row != null and is_equal_approx(reward_row.self_modulate.a, 1.0), "reward rows do not stack the fade")
+	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") == EchoTheme.CYAN, "manashard value is cyan")
+	failed += _check(key_value != null and key_value.get_theme_color("font_color") == EchoTheme.AMBER, "forge key gains stay amber")
+	failed += _check(reward_label != null and reward_label.get_theme_color("font_color") == EchoTheme.PEARL, "reward labels are pearl")
+	failed += _check(niche_value != null and niche_value.get_theme_color("font_color") == EchoTheme.PEARL and niche_value.text == "unlocked", "unlocked is pearl")
+	failed += _check(redeemed_value != null and redeemed_value.get_theme_color("font_color") == EchoTheme.PEARL and redeemed_value.text == "redeemed", "redeemed is pearl")
+	failed += _check(reward_value != null and reward_value.get_theme_color("font_color") != EchoTheme.GOLD, "rewards do not use gold")
+	var title_plate: Control = view.get_node_or_null("EchoTitlePlate") as Control
+	var round_while_open: CanvasItem = view.get_node_or_null("EchoStatusChip") as CanvasItem
+	failed += _check(title_plate != null and not title_plate.visible, "rewards hides the chamber title plank")
+	failed += _check(rewards_dim != null and title_plate != null and rewards_dim.get_index() > title_plate.get_index(), "rewards backdrop draws over the chamber plank")
+	failed += _check(round_while_open == null or not round_while_open.visible, "rewards hides the round chip")
+	view.call("_clear_rewards")
+	view.set("_waiting_return", false)
+	view.set("_pending_outcome", "")
+	var chamber_close_before: CanvasItem = view.get_node_or_null("EchoClose") as CanvasItem
+	var fled_menu_before: CanvasItem = view.get_node_or_null("EchoActionMenu") as CanvasItem
+	if chamber_close_before:
+		chamber_close_before.visible = true
+	if fled_menu_before:
+		fled_menu_before.visible = true
+	view.call("_offer_return", "flee")
+	var fled: Panel = view.get_node_or_null("EchoFledWindow") as Panel
+	var fled_box: StyleBox = fled.get_theme_stylebox("panel") if fled else null
+	var fled_tex: Texture2D = (fled_box as StyleBoxTexture).texture if fled_box is StyleBoxTexture else null
+	failed += _check(fled_tex != null and str(fled_tex.resource_path).find("frame_9s_96") >= 0, "Echo Fled stays on the hub frame")
+	var chamber_close: CanvasItem = view.get_node_or_null("EchoClose") as CanvasItem
+	var fled_menu: CanvasItem = view.get_node_or_null("EchoActionMenu") as CanvasItem
+	failed += _check(chamber_close == null or not chamber_close.visible, "fled window hides the chamber ×")
+	failed += _check(fled_menu == null or not fled_menu.visible, "fled window hides the battle log band")
 	failed += _chamber_plate(view)
+	failed += _echo_end_confirm(view)
 	view.queue_free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)
 	await process_frame
+	failed += await _adventure_mode_chip()
 	return failed
+
+
+func _portal_fee_confirm() -> int:
+	var failed: int = 0
+	var game: Node = root.get_node("GameState")
+	var essence_before: int = int(game.get("essence"))
+	var unlocked: bool = bool(game.get("portal_unlocked"))
+	var resolved: bool = bool(game.get("echo_01_resolved"))
+	var paid: bool = bool(game.get("portal_fee_paid"))
+	game.set("portal_unlocked", true)
+	game.set("echo_01_resolved", false)
+	game.set("portal_fee_paid", false)
+	game.call("set_resource", &"essence", 10)
+	var portal: Node = (load("res://scenes/echo_portal.tscn") as PackedScene).instantiate()
+	root.add_child(portal)
+	await process_frame
+	failed += _check(str(portal.call("begin_entry")) == "reject", "short fee keeps the hub confirm open")
+	var panel: Panel = root.get_node_or_null("EchoPortalConfirm/Panel") as Panel
+	var yes: Button = root.get_node_or_null("EchoPortalConfirm/Panel/Yes") as Button
+	var no: Button = root.get_node_or_null("EchoPortalConfirm/Panel/No") as Button
+	var note: Label = root.get_node_or_null("EchoPortalConfirm/Panel/Note") as Label
+	var warn: TextureRect = root.get_node_or_null("EchoPortalConfirm/Panel/FeeWarn") as TextureRect
+	var box: StyleBox = panel.get_theme_stylebox("panel") if panel else null
+	var tex: Texture2D = (box as StyleBoxTexture).texture if box is StyleBoxTexture else null
+	failed += _check(tex != null and str(tex.resource_path).find("frame_9s_96") >= 0, "portal fee stays on the hub frame")
+	failed += _check(panel != null and panel.get_node_or_null("VineFrame") != null, "portal fee keeps the hub vines")
+	failed += _check(yes != null and no != null and no.position.x > yes.position.x, "Not now is the right-hand button")
+	failed += _check(yes != null and no != null and yes.disabled and yes.size.y >= 44.0 and no.size.y >= 44.0, "fee buttons are at least 44 px")
+	failed += _check(panel != null and no != null and no.text == "Not now" and no.position.y + no.size.y <= panel.size.y + 1.0, "Not now sits inside the fee panel")
+	failed += _check(note != null and note.visible and note.text.find("Not enough Essence") >= 0, "amber can't-afford line")
+	failed += _check(note != null and note.get_theme_color("font_color") == Ui540.WARNING_AMBER, "can't-afford uses kit amber")
+	failed += _check(warn != null and warn.visible and warn.texture != null and str(warn.texture.resource_path).find("icon_warn_amber_kit") >= 0, "kit amber warning icon")
+	failed += _check(panel != null and panel.get_node_or_null("Close") == null, "the fee confirm has no ×")
+	var cap: TextureRect = no.get_node_or_null("EscKeycap") as TextureRect if no else null
+	failed += _check(cap != null and cap.visible, "Esc keycap on Not now")
+	failed += _check(cap != null and cap.position.y + cap.size.y <= 0.0, "Esc keycap sits above Not now")
+	var fee_body: Label = root.get_node_or_null("EchoPortalConfirm/Panel/Body") as Label
+	failed += _check(fee_body != null and fee_body.text.find("You have") >= 0 and fee_body.text.find("Paid once") >= 0, "fee confirm names the balance and the once-only hint")
+	var fee_view_h: float = panel.get_viewport().get_visible_rect().size.y if panel else 540.0
+	var toast_top: float = fee_view_h - 24.0 - 44.0 - 8.0 - 32.0
+	failed += _check(panel != null and panel.position.y + panel.size.y <= toast_top - 12.0, "fee confirm stays clear of the toast")
+	var focus_box: StyleBox = no.get_theme_stylebox(&"focus") if no else null
+	var focus_tex: Texture2D = (focus_box as StyleBoxTexture).texture if focus_box is StyleBoxTexture else null
+	failed += _check(focus_tex != null and str(focus_tex.resource_path).find("ink_focus_ring") >= 0, "Not now uses the cyan focus ring")
+	await process_frame
+	failed += _check(no != null and no.has_focus(), "Not now holds focus")
+	portal.cancel_fee()
+	failed += _check(not bool(portal.call("is_fee_confirm_open")), "Not now's cancel closes the fee UI")
+	portal.queue_free()
+	game.set("portal_unlocked", unlocked)
+	game.set("echo_01_resolved", resolved)
+	game.set("portal_fee_paid", paid)
+	game.call("set_resource", &"essence", essence_before)
+	await process_frame
+	return failed
+
+
+func _echo_salve_rule() -> int:
+	var failed: int = 0
+	var pack: Node = root.get_node("Backpack")
+	var save: Node = root.get_node("SaveService")
+	var before: int = int(pack.call("get_count", "heart_salve"))
+	var was_session: bool = bool(save.get("session_active"))
+	var autosave_snap: Dictionary = _snapshot_autosaves(save)
+	save.call("note_session_started")
+	pack.call("set_count", "heart_salve", 5)
+	var duel := EchoBattle.new()
+	duel.configure(
+		{"might": 1, "arcana": 1, "resilience": 40, "ward": 40, "vitality": 40, "swiftness": 20, "fate": 1},
+		{"display_name": "Elaia", "stats": {"might": 1, "arcana": 1, "swiftness": 1, "vitality": 4, "resilience": 1, "ward": 1, "fate": 1}}
+	)
+	duel.set_seed(1)
+	failed += _check(duel.salves_left() == 2, "salve allowance is 2 even when the pack holds more")
+	failed += _check(duel.choose("salve") != "no_salve", "first salve spends")
+	failed += _check(duel.choose("salve") != "no_salve", "second salve spends")
+	failed += _check(duel.choose("salve") == "no_salve", "third salve is refused")
+	failed += _check(duel.salves_used == 2 and int(pack.call("get_count", "heart_salve")) == 3, "two salves leave the pack")
+	failed += _check(_newest_autosave_salves(save) == 3, "salve spend is in the save")
+	_restore_autosaves(autosave_snap)
+	if not was_session:
+		save.call("note_session_ended")
+	var braced := EchoBattle.new()
+	braced.configure(
+		{"might": 1, "arcana": 1, "resilience": 40, "ward": 40, "vitality": 40, "swiftness": 20, "fate": 1},
+		{"display_name": "Elaia", "stats": {"might": 1, "arcana": 1, "swiftness": 1, "vitality": 8, "resilience": 1, "ward": 1, "fate": 1}}
+	)
+	braced.set_seed(2)
+	var echo_before: int = braced.echo_hp
+	braced.choose("brace")
+	failed += _check(braced.echo_hp == echo_before, "Brace spends the Strike")
+	pack.call("set_count", "heart_salve", before)
+	return failed
+
+
+func _snapshot_autosaves(save: Node) -> Dictionary:
+	var snap: Dictionary = {}
+	for slot: int in range(1, 4):
+		var path: String = str(save.call("autosave_path", slot))
+		if FileAccess.file_exists(path):
+			snap[path] = FileAccess.get_file_as_bytes(path)
+		else:
+			snap[path] = PackedByteArray()
+	return snap
+
+
+func _restore_autosaves(snap: Dictionary) -> void:
+	for path_v: Variant in snap.keys():
+		var path: String = str(path_v)
+		var bytes: PackedByteArray = snap[path_v]
+		if bytes.is_empty():
+			DirAccess.remove_absolute(path)
+		else:
+			var file := FileAccess.open(path, FileAccess.WRITE)
+			if file != null:
+				file.store_buffer(bytes)
+				file.close()
+
+
+func _newest_autosave_salves(save: Node) -> int:
+	var newest_path: String = ""
+	var newest_ts: float = -1.0
+	var version: int = -1
+	for slot: int in range(1, 4):
+		var info: Dictionary = save.call("get_autosave_info", slot)
+		if not bool(info.get("filled", false)):
+			continue
+		var ts: float = float(info.get("timestamp", 0.0))
+		if ts > newest_ts:
+			newest_ts = ts
+			newest_path = str(save.call("autosave_path", slot))
+	if newest_path == "":
+		return -1
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(newest_path))
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return -1
+	version = int((parsed as Dictionary).get("save_version", -1))
+	if version != 15:
+		return -1
+	var state_v: Variant = (parsed as Dictionary).get("state", {})
+	if typeof(state_v) != TYPE_DICTIONARY:
+		return -1
+	var bag_v: Variant = (state_v as Dictionary).get("backpack", {})
+	if typeof(bag_v) != TYPE_DICTIONARY:
+		return -1
+	return int((bag_v as Dictionary).get("heart_salve", -1))
 
 
 func _art_fit(live: Node) -> int:
@@ -435,13 +1809,24 @@ func _chamber_plate(view: Node) -> int:
 	else:
 		failed += _check(art != null and not art.visible, "chamber art hidden without a plate")
 	failed += _check(
-		keeper != null and keeper.position == Vector2(42, 86) and keeper.size == Vector2(288, 288),
+		keeper != null and keeper.position == Vector2(72, 94) and keeper.size == Vector2(256, 256),
 		"keeper portrait box"
 	)
 	failed += _check(
-		echo_portrait != null and echo_portrait.position == Vector2(630, 86) and echo_portrait.size == Vector2(288, 288),
+		echo_portrait != null and echo_portrait.position == Vector2(632, 94) and echo_portrait.size == Vector2(256, 256),
 		"elaia portrait box"
 	)
+	var plate_panel: Panel = view.get_node_or_null("EchoTitlePlate") as Panel
+	var chamber_panel: Panel = view.get_node_or_null("ChamberPanel") as Panel
+	failed += _check(plate_panel != null and EchoTheme.panel_ok(plate_panel.size), "title plate tiles at 40+8n")
+	failed += _check(chamber_panel != null and EchoTheme.panel_ok(chamber_panel.size), "chamber panel tiles at 40+8n")
+	failed += _check(plate_panel != null and is_equal_approx(plate_panel.self_modulate.a, EchoTheme.PANEL_ALPHA), "title plate opacity 0.88")
+	failed += _check(chamber_panel != null and is_equal_approx(chamber_panel.self_modulate.a, EchoTheme.PANEL_ALPHA), "chamber panel opacity 0.88")
+	failed += _check(EchoTheme.jersey_legible(19) and EchoTheme.jersey_legible(37), "Jersey 10 legible at 19 and 37")
+	failed += _check(is_equal_approx(EchoTheme.shift_for_width(1200.0), 120.0), "20:9 shifts the chamber +120")
+	failed += _check(EchoTheme.SPEECH_BOX.size == Vector2(432, 132), "speech box is 432x132")
+	failed += _check(EchoTheme.MENU_SLOTS.size() == 6 and EchoTheme.MENU_SLOTS[5] == "spare", "Spare is slot 6")
+	failed += _check(EchoTheme.SALVE_MAX == 2, "Heart Salve max is 2")
 	return failed
 
 
@@ -1332,6 +2717,425 @@ func _elaia_portrait_gate(live: Node) -> int:
 	return failed
 
 
+func _minigame_scenes() -> int:
+	var runner: RefCounted = (load("res://scripts/minigames/minigame_tests.gd") as GDScript).new()
+	return int(runner.call("run_scenes"))
+
+
+func _offline_curve(game: Node) -> int:
+	var failed: int = 0
+	var anchors: Array = [
+		[120.0, 120.0],
+		[600.0, 300.0],
+		[1800.0, 600.0],
+		[7200.0, 1200.0],
+		[28800.0, 2400.0],
+		[86400.0, 3600.0],
+		[172800.0, 4200.0],
+		[259200.0, 4800.0],
+		[604800.0, 7200.0],
+	]
+	for pair: Array in anchors:
+		var got: float = float(game.call("offline_effective_seconds", float(pair[0])))
+		failed += _check(absf(got - float(pair[1])) < 0.02, "offline %ss → %s (got %s)" % [pair[0], pair[1], got])
+	game.call("reset_for_new_game")
+	var gate_map: Dictionary = game.get_script().get_script_constant_map()
+	failed += _check(is_equal_approx(float(gate_map.get("OFFLINE_PANEL_MIN_SEC", -1.0)), 600.0), "the away panel waits a confirmed 10 minutes")
+	var gate_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_state.gd")
+	var gate_at: int = gate_src.find("OFFLINE_PANEL_MIN_SEC")
+	var gate_note: String = gate_src.substr(maxi(0, gate_at - 160), 200)
+	failed += _check(gate_at >= 0 and gate_note.find("Placeholder") < 0 and gate_note.find("placeholder") < 0, "the 10 minute gate is confirmed")
+	failed += _check(is_equal_approx(float(game.call("offline_shard_mult")), 0.25), "0 ranks is x0.25")
+	var ranks: Dictionary = game.get("upgrade_ranks")
+	ranks["shard_sight"] = 5
+	game.set("upgrade_ranks", ranks)
+	failed += _check(is_equal_approx(float(game.call("offline_shard_mult")), 0.50), "5 ranks is x0.50")
+	ranks["shard_sight"] = 15
+	game.set("upgrade_ranks", ranks)
+	failed += _check(is_equal_approx(float(game.call("offline_shard_mult")), 1.0), "15 ranks is x1.00")
+	var table: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	var parsed: Variant = JSON.parse_string(table)
+	var final_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/offline_summary_v2_FINAL.json"))
+	var final_copy: Dictionary = final_raw if typeof(final_raw) == TYPE_DICTIONARY else {}
+	failed += _check(final_copy.size() == 34, "offline_summary_v2_FINAL has 34 keys")
+	failed += _check(typeof(parsed) == TYPE_DICTIONARY, "string table parses")
+	if typeof(parsed) == TYPE_DICTIONARY:
+		var strings: Dictionary = parsed
+		failed += _check(not strings.has("offline_ancient_term"), "bloom is written in the Ancient line")
+		failed += _check(not strings.has("mg_steady_press") and not strings.has("minigame_steady_press_flavour_A"), "Steady Press has one flavour key")
+		for key_v: Variant in final_copy.keys():
+			var key: String = str(key_v)
+			failed += _check(str(strings.get(key, "")) == str(final_copy[key]), "strings_v01 %s matches v2 FINAL" % key)
+		var content: Node = root.get_node_or_null("ContentStrings")
+		if content != null:
+			for key_v: Variant in final_copy.keys():
+				var key: String = str(key_v)
+				failed += _check(str(content.call("get_text", key)) == str(final_copy[key]), "ContentStrings %s matches v2 FINAL" % key)
+	if failed == 0:
+		print("OFFLINE_CURVE_OK")
+		print("OFFLINE_STRINGS_OK")
+	game.call("reset_for_new_game")
+	return failed
+
+
+func _offline_summary_v2_final() -> Dictionary:
+	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/offline_summary_v2_FINAL.json"))
+	return raw if typeof(raw) == TYPE_DICTIONARY else {}
+
+
+func _offline_layout(game: Node) -> int:
+	var failed: int = 0
+	var saved_scale: Vector2i = root.content_scale_size
+	var host := CanvasLayer.new()
+	host.layer = 20
+	root.add_child(host)
+	var panel: Node = load("res://scripts/ui/offline_summary.gd").new()
+	host.add_child(panel)
+	var banner := ColorRect.new()
+	banner.z_index = 50
+	banner.mouse_filter = Control.MOUSE_FILTER_STOP
+	banner.color = Color(0, 0, 0, 0.55)
+	host.add_child(banner)
+	await process_frame
+	var font: Font = load("res://assets/fonts/font_body_silver19.tres")
+	var spans: Array = [
+		{"raw": 120.0, "eff": 120.0, "essence": 120, "shards": 60, "away": "2m", "worth": "2 min"},
+		{"raw": 28800.0, "eff": 2400.0, "essence": 2400, "shards": 1200, "away": "8h", "worth": "40 min"},
+		{"raw": 172800.0, "eff": 4200.0, "essence": 4200, "shards": 2100, "away": "2d", "worth": "1h 10 min"},
+	]
+	var layouts: Array = [
+		{"vs": Vector2i(960, 540), "phone": false, "w": 600.0, "x": 180.0},
+		{"vs": Vector2i(1280, 720), "phone": false, "w": 600.0, "x": 340.0},
+		{"vs": Vector2i(960, 540), "phone": true, "w": 912.0, "x": 24.0},
+		{"vs": Vector2i(1200, 540), "phone": true, "w": 912.0, "x": 144.0},
+	]
+	for layout_v: Variant in layouts:
+		var layout: Dictionary = layout_v
+		var vs: Vector2i = layout["vs"]
+		var phone: bool = bool(layout["phone"])
+		var card_w: float = float(layout["w"])
+		var card_x: float = float(layout["x"])
+		root.content_scale_size = vs
+		await process_frame
+		panel.call("use_phone_sheet", phone)
+		await process_frame
+		for span_v: Variant in spans:
+			var span: Dictionary = span_v
+			panel.call("present", _offline_watch(span))
+			await process_frame
+			failed += _offline_continue_box(panel, vs, card_w, card_x)
+			failed += _offline_summary_fits(panel, "gathered", font, true)
+			failed += _offline_summary_fits(panel, "workers", font, true)
+			failed += _offline_summary_fits(panel, "forge", font, true)
+			failed += _offline_summary_fits(panel, "expedition", font, true)
+			failed += _offline_summary_fits(panel, "left", font, false)
+			failed += _offline_summary_tip(panel, "left", font, not phone)
+			failed += _offline_summary_tip(panel, "workers", font, false)
+			failed += _offline_row_colors(panel)
+			var hint: Label = panel.find_child("ShardHint", true, false) as Label
+			var hint_w: float = font.get_string_size(hint.text if hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+			failed += _check(hint != null and hint.text == "Ascension upgrades raise this" and hint.size.x + 0.5 >= hint_w, "full ascension hint at %s" % vs)
+			var body: ScrollContainer = panel.find_child("Body", true, false) as ScrollContainer
+			failed += _check(body != null and body.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_SHOW_NEVER and not body.get_v_scroll_bar().visible, "collapsed list does not scroll at %s" % vs)
+			var headline: String = str(panel.call("headline_text"))
+			failed += _check(headline.find(str(span["away"])) >= 0 and headline.find(str(span["worth"])) >= 0, "headline for %s" % span["away"])
+			failed += _offline_headline_line(panel, str(span["away"]))
+			var gathered: String = _offline_summary_text(panel, "gathered")
+			failed += _check(gathered.find("Stone") < 0 and gathered.find("Food") < 0 and gathered.find("Wood") < 0, "zero wood stone and food stay off the summary")
+			failed += _check(gathered.find("…") < 0, "a short gathered line stays whole")
+			var left_title: Label = (panel.find_child("left", true, false) as Node).find_child("SectionTitle", true, false) as Label
+			var left_sec: String = str(_offline_summary_v2_final().get("offline_sec_left", ""))
+			failed += _check(left_title != null and left_sec != "" and left_title.text == left_sec, "the last section title comes from v2 FINAL")
+		var zero: Dictionary = _offline_watch(spans[1])
+		zero["wood"] = 218
+		zero["forge_completed"] = 0
+		zero["forge_stations"] = {}
+		panel.call("present", zero)
+		await process_frame
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
+		failed += _check(not bool(panel.call("section_visible", "forge")), "an empty forge section stays hidden")
+		var zero_sum: String = _offline_summary_text(panel, "gathered")
+		failed += _check(zero_sum.find("Wood") >= 0 and zero_sum.find("Stone") < 0 and zero_sum.find("Food") < 0, "a zero resource row is hidden")
+		failed += _check(zero_sum.find("…") < 0, "wood still fits on the gathered line")
+		game.set("ancient_remaining_sec", 14.0 * 60.0)
+		var blocked: Dictionary = _offline_watch(spans[1])
+		blocked["blocked"] = true
+		blocked["essence"] = 0
+		blocked["manashards"] = 0
+		blocked["forge_completed"] = 0
+		blocked["forge_stations"] = {}
+		panel.call("present", blocked)
+		await process_frame
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
+		var note: String = str(panel.call("ancient_note_text"))
+		failed += _check(not bool(panel.call("section_visible", "gathered")), "Ancient hides Gathered")
+		failed += _check(str(panel.call("shard_tag_text")) == "", "Ancient hides the tag")
+		failed += _check(note.find("bloom") >= 0 and note.find("min left") >= 0, "Ancient note keeps the bloom line (%s)" % note)
+		failed += _check(bool(panel.call("section_visible", "expedition")) and bool(panel.call("section_visible", "left")), "Ancient still shows the road and what is waiting")
+		var lengthy: Dictionary = _offline_watch(spans[2])
+		lengthy["shard_mult"] = 1.0
+		lengthy["essence"] = 34560
+		lengthy["manashards"] = 138240
+		lengthy["wood"] = 123456
+		lengthy["stone"] = 99999
+		lengthy["food"] = 1234567
+		panel.call("present", lengthy)
+		await process_frame
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
+		failed += _offline_gathered_scroll(panel, font)
+		failed += _offline_summary_fits(panel, "left", font, false)
+		var header: Button = panel.find_child("gathered", true, false).get_node("Header") as Button
+		header.pressed.emit()
+		await process_frame
+		await process_frame
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
+		var chip: Control = panel.find_child("ShardChip", true, false) as Control
+		var row: Control = chip.get_parent() as Control if chip else null
+		failed += _check(chip != null and row != null and chip.size.x < row.size.x * 0.5 and chip.size.x < 160.0, "the Manashards tag stays a chip, not a band")
+		var open_hint: Label = row.get_node_or_null("ShardHint") as Label if row else null
+		var open_w: float = font.get_string_size(open_hint.text if open_hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _check(open_hint != null and open_hint.text == "Ascension upgrades raise this" and open_hint.size.x + 0.5 >= open_w, "expanded hint is the full line")
+		failed += _offline_values_fit(panel, font)
+		failed += _offline_kit_scrollbar(panel)
+		var cont: Control = panel.find_child("ContinueButton", true, false) as Control
+		banner.position = cont.get_global_rect().position - Vector2(24, 12)
+		banner.size = cont.size + Vector2(48, 24)
+		await process_frame
+		var ev := InputEventMouseMotion.new()
+		ev.position = cont.get_global_rect().get_center()
+		ev.global_position = ev.position
+		root.push_input(ev)
+		await process_frame
+		var hit: Control = root.gui_get_hovered_control()
+		failed += _check(hit != null and hit.name == "ContinueButton", "Continue stays clickable above the status banner at %s (hit %s)" % [vs, hit.name if hit else "none"])
+	game.set("ancient_remaining_sec", 0.0)
+	panel.call("use_phone_sheet", false)
+	root.content_scale_size = saved_scale
+	host.queue_free()
+	if failed == 0:
+		print("OFFLINE_LAYOUT_OK")
+	return failed
+
+
+func _offline_watch(span: Dictionary) -> Dictionary:
+	return {
+		"show": true,
+		"raw_sec": float(span["raw"]),
+		"effective_sec": float(span["eff"]),
+		"shard_mult": 0.25,
+		"blocked": false,
+		"essence": int(span["essence"]),
+		"manashards": int(span["shards"]),
+		"wood": 0,
+		"stone": 0,
+		"food": 0,
+		"keeper_kind": "water",
+		"keeper_task": "manatree",
+		"wisp_count": 2,
+		"forge_completed": 1,
+		"forge_stations": {"bench": {"finished": 1, "name": "Stone Axe", "working": false}},
+		"expedition": {"waiting": true},
+	}
+
+
+func _offline_continue_box(panel: Node, vs: Vector2i, card_w: float = 600.0, card_x: float = -1.0) -> int:
+	var failed: int = 0
+	var card: Control = panel.find_child("OfflineCard", true, false) as Control
+	var cont: Control = panel.find_child("ContinueButton", true, false) as Control
+	var close: Control = panel.find_child("CloseButton", true, false) as Control
+	var body: Control = panel.find_child("Body", true, false) as Control
+	failed += _check(card != null and cont != null and cont.visible and cont.is_visible_in_tree(), "Continue is visible at %s" % vs)
+	if card == null or cont == null or body == null:
+		return failed + 1
+	var view := Rect2(Vector2.ZERO, Vector2(vs))
+	var cont_r: Rect2 = cont.get_global_rect()
+	failed += _check(card.get_global_rect().encloses(cont_r), "Continue sits inside the away panel at %s" % vs)
+	failed += _check(close != null and card.get_global_rect().encloses(close.get_global_rect()), "Close sits inside the away panel at %s" % vs)
+	failed += _check(view.encloses(cont_r), "Continue sits inside %s" % vs)
+	failed += _check(not body.get_global_rect().intersects(cont_r), "the list does not cover Continue at %s" % vs)
+	var card_pos: Vector2 = panel.call("card_position")
+	failed += _check(is_equal_approx((panel.call("card_size") as Vector2).x, card_w), "away panel is %.0f wide at %s phone-sheet %s" % [card_w, vs, card_w > 700.0])
+	failed += _check(card_x < 0.0 or is_equal_approx(card_pos.x, card_x), "away panel x is %.0f at %s (got %.0f)" % [card_x, vs, card_pos.x])
+	failed += _check(card_pos.x >= 24.0 - 0.5 and card_pos.x + card_w <= float(vs.x) - 24.0 + 0.5, "away panel stays inside the 24 px side margins at %s" % vs)
+	failed += _check(is_equal_approx(card_pos.y, 92.0), "away panel stays at y 92")
+	return failed
+
+
+func _offline_row_colors(panel: Node) -> int:
+	var failed: int = 0
+	var title: Label = panel.find_child("SectionTitle", true, false) as Label
+	var summary: Label = panel.find_child("Summary", true, false) as Label
+	var hint: Label = panel.find_child("ShardHint", true, false) as Label
+	var headline: Label = panel.find_child("Headline", true, false) as Label
+	var cream := Color8(250, 238, 204)
+	var wood: Color = _offline_wood_fill()
+	## offline540_pc_1_collapsed.png: row fill #96653A, cream glyphs on that row #FAEECC.
+	var mock_ratio: float = _contrast_ratio(cream, Color8(150, 101, 58))
+	var got: Color = summary.get_theme_color("font_color") if summary else Color(0, 0, 0, 0)
+	var ratio: float = _contrast_ratio(got, wood)
+	failed += _check(title != null and title.get_theme_color("font_color") == cream, "section titles use the mockup cream")
+	failed += _check(summary != null and got == cream, "summaries use the mockup cream on wood")
+	failed += _check(ratio + 0.01 >= mock_ratio, "summary contrast on the wood row is %.2f, mockup cream is %.2f (wood %s)" % [ratio, mock_ratio, wood])
+	failed += _check(hint != null and hint.get_theme_color("font_color") == Color8(154, 126, 82), "the ascension hint uses the mockup muted ink")
+	failed += _check(headline != null and headline.get_theme_color("font_color") == Color8(62, 42, 24), "the headline uses the mockup ink")
+	return failed
+
+
+func _offline_wood_fill() -> Color:
+	var tex: Texture2D = load("res://assets/ui/theme/wood_button_9s_normal_32x28.png") as Texture2D
+	if tex == null:
+		return Color8(150, 101, 58)
+	var img: Image = tex.get_image()
+	if img == null or img.is_empty():
+		return Color8(150, 101, 58)
+	return img.get_pixel(mini(16, img.get_width() - 1), mini(14, img.get_height() - 1))
+
+
+func _contrast_ratio(fg: Color, bg: Color) -> float:
+	var lf: float = _srgb_luminance(fg)
+	var lb: float = _srgb_luminance(bg)
+	return (maxf(lf, lb) + 0.05) / (minf(lf, lb) + 0.05)
+
+
+func _srgb_luminance(c: Color) -> float:
+	return 0.2126 * _srgb_channel(c.r) + 0.7152 * _srgb_channel(c.g) + 0.0722 * _srgb_channel(c.b)
+
+
+func _srgb_channel(v: float) -> float:
+	if v <= 0.04045:
+		return v / 12.92
+	return pow((v + 0.055) / 1.055, 2.4)
+
+
+func _offline_summary_tip(panel: Node, section_id: String, font: Font, cut: bool) -> int:
+	var host: Node = panel.find_child(section_id, true, false)
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
+	var header: Button = host.find_child("Header", true, false) as Button if host else null
+	var clip: Control = host.find_child("SummaryClip", true, false) as Control if host else null
+	if summary == null or header == null or clip == null:
+		return _check(false, "%s summary tooltip" % section_id)
+	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	var delay: float = float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec"))
+	var delay_ok: bool = is_equal_approx(delay, WorldHover.REST_SEC)
+	if cut:
+		return _check(text_w > clip.size.x + 0.5 and delay_ok and header.tooltip_text == summary.text and summary.text != "", "%s cut-off summary tips the full line after %.1fs" % [section_id, delay])
+	return _check(text_w <= clip.size.x + 0.5 and delay_ok and header.tooltip_text == "", "%s summary that fits has no tooltip" % section_id)
+
+
+func _offline_headline_line(panel: Node, away: String) -> int:
+	var headline: Label = panel.find_child("Headline", true, false) as Label
+	if headline == null:
+		return _check(false, "headline label for %s" % away)
+	var face: Font = headline.get_theme_font("font")
+	var size: int = headline.get_theme_font_size("font_size")
+	var text_w: float = face.get_string_size(headline.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x if face else 0.0
+	return _check(headline.get_line_count() <= 1 and headline.autowrap_mode == TextServer.AUTOWRAP_OFF and text_w <= headline.size.x + 0.5, "headline stays one line at %s (font %d, text %.0f, slot %.0f)" % [away, size, text_w, headline.size.x])
+
+
+func _offline_summary_text(panel: Node, section_id: String) -> String:
+	var host: Node = panel.find_child(section_id, true, false)
+	if host == null:
+		return ""
+	var summary: Label = host.find_child("Summary", true, false) as Label
+	if summary == null:
+		return ""
+	return summary.text
+
+
+func _offline_summary_fits(panel: Node, section_id: String, font: Font, whole: bool) -> int:
+	var host: Node = panel.find_child(section_id, true, false)
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
+	if summary == null:
+		return _check(false, "summary %s" % section_id)
+	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	if whole:
+		return _check(summary.size.x + 0.5 >= text_w and summary.size.x > 80.0, "%s summary is fully visible (slot %.0f text %.0f)" % [section_id, summary.size.x, text_w])
+	return _check(summary.size.x > 200.0, "%s summary keeps a real row (slot %.0f)" % [section_id, summary.size.x])
+
+
+func _offline_kit_scrollbar(panel: Node) -> int:
+	var body: ScrollContainer = panel.find_child("Body", true, false) as ScrollContainer
+	if body == null:
+		return _check(false, "themed away scrollbar")
+	var bar: VScrollBar = body.get_v_scroll_bar()
+	var grab: StyleBox = bar.get_theme_stylebox(&"grabber") if bar else null
+	var track: StyleBox = bar.get_theme_stylebox(&"scroll") if bar else null
+	var grab_path: String = str((grab as StyleBoxTexture).texture.resource_path) if grab is StyleBoxTexture else ""
+	var track_path: String = str((track as StyleBoxTexture).texture.resource_path) if track is StyleBoxTexture else ""
+	return _check(bar != null and bar.visible and grab_path.find("scroll_thumb") >= 0 and track_path.find("scroll_track") >= 0, "the list scrollbar uses the kit thumb (%s)" % grab_path)
+
+
+func _offline_gathered_scroll(panel: Node, font: Font) -> int:
+	var host: Node = panel.find_child("gathered", true, false)
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
+	var clip: Control = host.find_child("SummaryClip", true, false) as Control if host else null
+	var header: Button = host.find_child("Header", true, false) as Button if host else null
+	if summary == null or clip == null or header == null:
+		return _check(false, "gathered summary ends on a whole item")
+	var shown: String = summary.text
+	var full: String = header.tooltip_text if header.tooltip_text != "" else shown
+	var shown_w: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	var failed: int = _check(shown_w <= clip.size.x + 0.5 and clip.clip_contents, "gathered summary fits the row (text %.0f slot %.0f '%s')" % [shown_w, clip.size.x, shown])
+	var full_items: PackedStringArray = full.split("  ", false)
+	var shown_items: PackedStringArray = shown.split("  ", false)
+	var dropped: int = -1
+	var kept := PackedStringArray()
+	if shown_items.size() > 0:
+		dropped = _offline_more_marker(shown_items[shown_items.size() - 1])
+		kept = shown_items.slice(0, shown_items.size() - 1) if dropped >= 0 else shown_items
+	var prefix_ok: bool = kept.size() <= full_items.size()
+	if prefix_ok:
+		for i: int in kept.size():
+			if kept[i] != full_items[i]:
+				prefix_ok = false
+	failed += _check(prefix_ok and summary.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING, "gathered keeps a prefix of whole items ('%s')" % shown)
+	if dropped > 0:
+		var hidden: int = full_items.size() - kept.size()
+		failed += _check(dropped == hidden, "gathered marker counts the dropped items (+%d, hidden %d)" % [dropped, hidden])
+		failed += _check(header.tooltip_text == full and full != shown and summary.tooltip_text == full, "gathered tooltip keeps the full line")
+		var delay: float = float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec"))
+		failed += _check(is_equal_approx(delay, WorldHover.REST_SEC), "gathered tooltip uses the shared hover delay")
+		var longer := PackedStringArray()
+		longer.append_array(kept)
+		if kept.size() < full_items.size():
+			longer.append(full_items[kept.size()])
+		if hidden > 1:
+			longer.append("+%d…" % (hidden - 1))
+		var longer_w: float = font.get_string_size("  ".join(longer), HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _check(longer_w > clip.size.x + 0.5, "gathered drops only the items that do not fit")
+	else:
+		failed += _check(shown == full and header.tooltip_text == "" and shown.find("…") < 0, "a gathered line that fits has no marker")
+	return failed
+
+
+func _offline_more_marker(token: String) -> int:
+	if token.length() < 3 or not token.begins_with("+") or not token.ends_with("…"):
+		return -1
+	var mid: String = token.substr(1, token.length() - 2)
+	if not mid.is_valid_int():
+		return -1
+	return mid.to_int()
+
+
+func _offline_values_fit(panel: Node, font: Font) -> int:
+	var failed: int = 0
+	var host: Node = panel.find_child("gathered", true, false)
+	var details: Node = host.get_node_or_null("Details") if host else null
+	if details == null:
+		return _check(false, "expanded gathered rows")
+	var seen: int = 0
+	for row_v: Node in details.get_children():
+		var value: Label = row_v.get_node_or_null("RowValue") as Label
+		if value == null or value.text == "":
+			continue
+		seen += 1
+		var text_w: float = font.get_string_size(value.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _check(value.size.x + 0.5 >= text_w, "long value %s is fully visible" % value.text)
+		var row_name: Label = row_v.get_node_or_null("RowName") as Label
+		failed += _check(row_name != null and row_name.get_theme_color("font_color") == Color8(62, 42, 24) and value.get_theme_color("font_color") == Color8(62, 42, 24), "detail row text is the mockup ink")
+	return failed + _check(seen >= 5, "long gathered rows stay on screen (%d)" % seen)
+
+
 func _content_keys() -> int:
 	var failed: int = 0
 	var strings: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/strings_v01.json"))
@@ -1360,8 +3164,9 @@ func _content_keys() -> int:
 		"char_sheet_elaia_water", "char_sheet_elaia_water_role",
 		"char_sheet_elaia_move", "char_sheet_elaia_move_role",
 		"char_sheet_trait_label", "char_sheet_keeper_trait", "char_sheet_elaia_trait",
-		"char_sheet_trait_popup_title", "char_sheet_trait_work", "char_sheet_trait_reliquary",
-		"char_sheet_trait_water", "char_sheet_trait_move",
+		"char_sheet_trait_popup_title", "char_sheet_trait_work", "char_sheet_trait_craft",
+		"char_sheet_trait_reliquary", "char_sheet_trait_water", "char_sheet_trait_move",
+		"char_sheet_trait_brew",
 		"batch_make", "batch_max", "batch_cancel", "batch_amount",
 		"batch_bar_current", "batch_bar_total",
 		"batch_tooltip_current", "batch_tooltip_total", "batch_tooltip_paused",
@@ -1381,6 +3186,27 @@ func _content_keys() -> int:
 	for key: String in shop:
 		failed += _check((forge as Dictionary).has(key) and str((forge as Dictionary)[key]) != key, key)
 	return failed
+
+
+func _hotkey_badge_dim(btn: Button) -> bool:
+	if btn == null or not btn.disabled:
+		return false
+	var cap: CanvasItem = btn.get_node_or_null("Keycap") as CanvasItem
+	var plate: CanvasItem = btn.get_node_or_null("KeycapPlate") as CanvasItem
+	if cap == null or plate == null:
+		return false
+	return cap.modulate.r < 0.7 and plate.modulate.r < 0.7 and cap.modulate.g < 0.75
+
+
+func _control_covers(window: Control, target: Control) -> bool:
+	if window == null or target == null:
+		return false
+	var outer := Rect2(window.position, window.size)
+	var inner := Rect2(target.position, target.size)
+	return outer.position.x <= inner.position.x + 0.5 \
+		and outer.position.y <= inner.position.y + 0.5 \
+		and outer.end.x + 0.5 >= inner.end.x \
+		and outer.end.y + 0.5 >= inner.end.y
 
 
 func _check(ok: bool, label: String) -> int:

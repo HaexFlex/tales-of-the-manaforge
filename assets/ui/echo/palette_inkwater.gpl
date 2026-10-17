@@ -1,0 +1,26 @@
+GIMP Palette
+Name: Echo Ink-Water
+Columns: 6
+#
+  4  13  16	ink_black
+ 15  58  64	deep
+ 31 107 107	teal
+111 199 184	aqua
+241 234 216	pearl
+ 11  34  39	panel
+127 224 208	edge
+ 31 107 107	edge2
+255 138 107	koi
+255 208 138	gold
+255 179  71	amber
+ 47 168 154	glow
+ 18  58  64	btn
+ 29  90  96	btn_hi
+ 12  44  49	btn_dn
+ 12  36  40	btn_dis
+143 184 176	muted
+127 224 208	hp
+ 47 154 140	hp2
+255 138 107	foe_hp
+184  74  58	foe_hp2
+143 227 230	mana_cyan

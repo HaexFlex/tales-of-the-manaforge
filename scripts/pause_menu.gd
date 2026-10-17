@@ -74,6 +74,7 @@ const CONFIRM_TITLES: Dictionary = {
 	&"exit": "pause_exit_confirm_title",
 	&"quit": "pause_quit_game_confirm_title",
 	&"overwrite": "pause_slot_overwrite_title",
+	&"load_slot": "pause_slot_load_title",
 	&"rebind_swap": "options_rebind_conflict_title",
 	&"delete_slot": "pause_slot_delete_title",
 }
@@ -176,6 +177,8 @@ func _ensure_quit_game_button() -> void:
 
 
 func _on_quit_game_pressed() -> void:
+	if _echo_pause_holds():
+		return
 	_show_confirm(
 		&"quit",
 		ContentStrings.get_text("pause_quit_game_confirm"),
@@ -807,6 +810,8 @@ func _unhandled_input(event: InputEvent) -> void:
 					hud.call("close_bench")
 				elif hud != null and hud.has_method("is_backpack_open") and bool(hud.call("is_backpack_open")):
 					hud.call("close_backpack")
+				elif hud != null and hud.has_method("offline_summary_open") and bool(hud.call("offline_summary_open")):
+					hud.call("dismiss_offline_summary")
 				elif _expedition_board_open():
 					_close_expedition_board()
 				else:
@@ -830,7 +835,7 @@ func open_pause() -> void:
 	visible = true
 	backdrop.visible = true
 	panel.visible = true
-	btn_save.disabled = EchoChamber.in_battle
+	_apply_echo_pause_locks()
 	btn_resume.grab_focus.call_deferred()
 	_notify_pause_button()
 	if EchoChamber.in_battle:
@@ -860,7 +865,27 @@ func resume_game() -> void:
 	GameAudio.play_ui_close()
 
 
+func _echo_pause_holds() -> bool:
+	## Pause may open over an Echo. It must not spend the fee, discard a result,
+	## or leave the fight. Resume is the way back. x / Esc still open Leave.
+	if has_node("/root/EchoChamber") and EchoChamber.in_battle:
+		return true
+	return EchoPortal.is_fee_confirm_open()
+
+
+func _apply_echo_pause_locks() -> void:
+	var hold: bool = _echo_pause_holds()
+	btn_save.disabled = hold
+	btn_new_game.disabled = hold
+	btn_load.disabled = hold
+	btn_exit.disabled = hold
+	if btn_quit_game != null:
+		btn_quit_game.disabled = hold
+
+
 func _on_new_game_pressed() -> void:
+	if _echo_pause_holds():
+		return
 	_show_confirm(
 		&"new_game",
 		ContentStrings.get_text("pause_new_game_confirm"),
@@ -874,11 +899,15 @@ func _on_save_pressed() -> void:
 		status_toast.emit(ContentStrings.get_text("battle_save_disabled"))
 		GameAudio.play_ui_cancel()
 		return
+	if _echo_pause_holds():
+		return
 	_slot_mode = SlotMode.SAVE
 	_show_slots(ContentStrings.get_text("pause_save"))
 
 
 func _on_load_pressed() -> void:
+	if _echo_pause_holds():
+		return
 	_slot_mode = SlotMode.LOAD
 	_show_slots(ContentStrings.get_text("pause_load"))
 
@@ -921,6 +950,8 @@ func _on_options_reset() -> void:
 
 
 func _on_exit_pressed() -> void:
+	if _echo_pause_holds():
+		return
 	_show_confirm(
 		&"exit",
 		ContentStrings.get_text("pause_exit_confirm"),
@@ -937,6 +968,7 @@ func _show_slots(title: String) -> void:
 	_refresh_slot_labels()
 	panel.visible = false
 	_layout_slots()
+	_sync_save_tabs()
 	slots_panel.visible = true
 	GameAudio.play_ui_open()
 
@@ -992,11 +1024,25 @@ func _ensure_slot_tabs() -> void:
 	Ui540.configure_kit_close_button(closer)
 
 
+func _sync_save_tabs() -> void:
+	var autosave_tab: Button = slots_panel.get_node_or_null("TabAutosave") as Button if slots_panel != null else null
+	var manual_tab: Button = slots_panel.get_node_or_null("TabManual") as Button if slots_panel != null else null
+	var saving: bool = _slot_mode == SlotMode.SAVE
+	if autosave_tab != null:
+		autosave_tab.disabled = saving
+		if saving:
+			autosave_tab.button_pressed = false
+	if saving and manual_tab != null:
+		manual_tab.button_pressed = true
+
+
 func _on_slot_tab(tab_id: String) -> void:
 	if _slot_mode == SlotMode.SAVE and tab_id == "autosave":
-		_slot_tab = "autosave"
-	else:
-		_slot_tab = tab_id
+		_slot_tab = "manual"
+		_sync_save_tabs()
+		GameAudio.play_ui_cancel()
+		return
+	_slot_tab = tab_id
 	_rebuild_slot_rows(_slot_tab == "autosave")
 	_refresh_slot_labels()
 	_layout_slots()
@@ -1006,6 +1052,8 @@ func _rebuild_slot_rows(include_autosave: bool) -> void:
 	for child: Node in slot_buttons.get_children():
 		child.queue_free()
 	_slot_btns.clear()
+	if _slot_mode == SlotMode.SAVE:
+		include_autosave = false
 	if include_autosave:
 		for slot: int in range(1, SaveService.AUTOSAVE_SLOT_COUNT + 1):
 			_add_slot_button("autosave", slot)
@@ -1045,6 +1093,26 @@ func _add_slot_button(kind: String, slot: int) -> void:
 	btn.set_meta("slot_kind", kind)
 	btn.set_meta("slot_index", slot)
 	btn.pressed.connect(_on_slot_pressed.bind(kind, slot))
+	if kind == "manual":
+		var edit := LineEdit.new()
+		edit.name = "NameEdit"
+		edit.visible = false
+		edit.flat = true
+		edit.max_length = 28
+		edit.mouse_filter = Control.MOUSE_FILTER_STOP
+		edit.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		edit.position = Vector2(12, 6)
+		edit.size = Vector2(240, 32)
+		edit.add_theme_font_override("font", GameTheme.body_font())
+		edit.add_theme_font_size_override("font_size", GameTheme.BODY_SIZE)
+		edit.add_theme_color_override("font_color", GameTheme.INK)
+		edit.add_theme_color_override("font_placeholder_color", GameTheme.MUTED)
+		var empty := StyleBoxEmpty.new()
+		edit.add_theme_stylebox_override("normal", empty)
+		edit.add_theme_stylebox_override("focus", empty)
+		edit.text_submitted.connect(_commit_slot_name.bind(edit, slot))
+		edit.focus_exited.connect(_commit_slot_name.bind(edit, slot))
+		btn.add_child(edit)
 	var del := Button.new()
 	del.name = "Delete"
 	del.flat = true
@@ -1099,14 +1167,24 @@ func _refresh_slot_labels() -> void:
 			sub.offset_top = -16.0
 			sub.offset_bottom = 16.0
 		var del: Button = btn.get_node_or_null("Delete") as Button
+		var edit: LineEdit = btn.get_node_or_null("NameEdit") as LineEdit
 		if bool(info.get("filled", false)):
-			line = str(info.get("stage_display", ""))
+			line = SaveService.record_title(info)
 			if line == "":
 				line = "Slot %d" % slot
 			sub.text = _slot_subline(info)
 			sub.visible = true
 			if del:
 				del.visible = true
+			if edit != null and kind == "manual":
+				edit.visible = true
+				if not edit.has_focus():
+					edit.text = line
+				btn.text = ""
+			else:
+				btn.text = line
+				if edit:
+					edit.visible = false
 		else:
 			line = "Slot %d — %s" % [slot, ContentStrings.get_text("pause_slot_empty")]
 			if kind == "autosave":
@@ -1117,7 +1195,25 @@ func _refresh_slot_labels() -> void:
 			sub.visible = false
 			if del:
 				del.visible = false
-		btn.text = line
+			if edit:
+				edit.visible = false
+			btn.text = line
+
+
+func _commit_slot_name(edit: LineEdit, slot: int) -> void:
+	if edit == null or not edit.visible:
+		return
+	var info: Dictionary = SaveService.get_slot_info(slot)
+	if not bool(info.get("filled", false)):
+		return
+	var next: String = edit.text.strip_edges()
+	var shown: String = SaveService.record_title(info)
+	## Leaving the field on the name already shown must not freeze the stage label.
+	if next != shown:
+		SaveService.rename_manual_slot(slot, next)
+		info = SaveService.get_slot_info(slot)
+	if not edit.has_focus():
+		edit.text = SaveService.record_title(info)
 
 
 func _slot_subline(info: Dictionary) -> String:
@@ -1150,10 +1246,24 @@ func _on_slot_pressed(kind: String, slot: int) -> void:
 		else:
 			_do_save_slot(slot)
 	elif _slot_mode == SlotMode.LOAD:
-		_do_load_slot(kind, slot)
+		var filled: bool = SaveService.has_autosave(slot) if kind == "autosave" else SaveService.has_slot(slot)
+		if not filled:
+			_do_load_slot(kind, slot)
+			return
+		_pending_slot = slot
+		_pending_kind = kind
+		_return_to_slots = true
+		_show_confirm(
+			&"load_slot",
+			ContentStrings.get_text("pause_slot_load_confirm"),
+			ContentStrings.get_text("pause_slot_load_yes"),
+			ContentStrings.get_text("pause_slot_load_no"),
+		)
 
 
 func _do_save_slot(slot: int) -> void:
+	if _echo_pause_holds():
+		return
 	var ok: bool = SaveService.save_game(slot)
 	if ok:
 		GameAudio.play_ui_confirm()
@@ -1165,6 +1275,8 @@ func _do_save_slot(slot: int) -> void:
 
 
 func _do_load_slot(kind: String, slot: int) -> void:
+	if not standalone and _echo_pause_holds():
+		return
 	var filled: bool = SaveService.has_autosave(slot) if kind == "autosave" else SaveService.has_slot(slot)
 	if standalone:
 		if not filled:
@@ -1255,6 +1367,8 @@ func _on_confirm_yes() -> void:
 	var slot: int = _pending_slot
 	var kind_now: String = _pending_kind
 	_hide_confirm()
+	if _echo_pause_holds() and (action == &"new_game" or action == &"quit" or action == &"exit"):
+		return
 	match action:
 		&"new_game":
 			_do_new_game()
@@ -1276,6 +1390,10 @@ func _on_confirm_yes() -> void:
 		&"overwrite":
 			if slot >= 1:
 				_do_save_slot(slot)
+		&"load_slot":
+			if slot >= 1 and kind_now != "":
+				_do_load_slot(kind_now, slot)
+				_pending_kind = ""
 		&"rebind_swap":
 			if _rebind_listen != "" and _rebind_pending_other != "":
 				var old_key: Key = Binds.keycode(_rebind_listen)

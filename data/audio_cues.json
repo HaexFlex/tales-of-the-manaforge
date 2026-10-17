@@ -154,7 +154,7 @@
     "sfx_water_pulse": {
       "bus": "SFX_World",
       "loop": false,
-      "path": "res://assets/audio/sfx_water_pulse.ogg"
+      "path": "res://assets/audio/sfx_gather_water_soft.ogg"
     },
     "sfx_channel_start": {
       "bus": "SFX_UI",

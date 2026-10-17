@@ -49,7 +49,7 @@ func _run() -> void:
 			quit(0)
 		return
 
-	failed += _tooltip_parchment_ok(tree_root)
+	failed += await _tooltip_parchment_ok(tree_root)
 	failed += _title_plank_drawn()
 
 	# Workbench stand. The full suite still runs this near the end.
@@ -969,6 +969,7 @@ func _run() -> void:
 
 	if OS.get_environment("MANAFORGE_FORGE_ENTRY") == "1":
 		var entry_failed: int = await _forge_entry_one_click(tree_root, game_state, save_service)
+		entry_failed += await _forge_entry_after_elaia(tree_root, game_state, save_service)
 		if entry_failed > 0:
 			print("FORGE_ENTRY_ONE_CLICK_FAIL: %d" % entry_failed)
 			quit(1)
@@ -2081,7 +2082,7 @@ func _run() -> void:
 
 	var cues: PackedStringArray = game_audio.call("list_cue_ids")
 	failed += _assert(cues.size() >= 28, "audio cue table too small (%d)" % cues.size())
-	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_water_pulse.ogg"), "sfx_water_pulse missing")
+	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_gather_water_soft.ogg"), "sfx_gather_water_soft missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_stage_up.ogg"), "sfx_stage_up missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/sfx_channel_start.ogg"), "sfx_channel_start missing")
 	failed += _assert(ResourceLoader.exists("res://assets/audio/mus_hub_forest_haex.mp3"), "hub haex.mp3 missing")
@@ -2807,6 +2808,7 @@ func _run() -> void:
 		if list_node and list_node.get_child_count() > 0:
 			var row0: Control = list_node.get_child(0) as Control
 			failed += _assert(row0 != null and abs(row0.custom_minimum_size.y - 48.0) < 0.1, "row height 48")
+			failed += _assert(row0 != null and str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 			var described: int = 0
 			for child: Node in list_node.get_children():
 				if child is Control and str((child as Control).tooltip_text) != "":
@@ -2828,13 +2830,25 @@ func _run() -> void:
 				var maxed_now: bool = int(game_state.call("get_upgrade_rank", upgrade_id)) >= int(game_state.call("upgrade_max_rank", upgrade_id))
 				if bool(game_state.get("shop_hide_maxed")) and maxed_now:
 					continue
-				if bool(game_state.get("shop_hide_locked")) and not bool(game_state.call("is_upgrade_unlocked", upgrade_id)) and upgrade_id != "party_banner":
+				if bool(game_state.get("shop_hide_locked")) and not bool(game_state.call("is_upgrade_unlocked", upgrade_id)):
 					locked_want += 1
 					continue
 				shown_want += 1
 			failed += _assert(blessing_rows == shown_want and icon_rows == shown_want, "every shown blessing row has its 32 icon (%d/%d, want %d)" % [icon_rows, blessing_rows, shown_want])
+			failed += _assert(list_node.get_node_or_null("party_banner") == null, "Kindred Banner stays hidden until adventuring is unlocked")
+			game_state.set("echo_02_resolved", true)
+			test_hud.call("_rebuild_upgrades")
+			await process_frame
+			var banner_on: Node = list_node.get_node_or_null("party_banner")
+			failed += _assert(banner_on != null and not banner_on.is_queued_for_deletion(), "Kindred Banner appears once adventuring is unlocked")
+			game_state.set("echo_02_resolved", false)
+			test_hud.call("_rebuild_upgrades")
+			await process_frame
+			var banner_off: Node = list_node.get_node_or_null("party_banner")
+			failed += _assert(banner_off == null or banner_off.is_queued_for_deletion(), "Kindred Banner hides again when the road is shut")
+			if list_node.get_node_or_null("party_banner") == null or (list_node.get_node_or_null("party_banner") as Node).is_queued_for_deletion():
+				print("KINDRED_BANNER_LOCK_OK")
 			failed += _assert((list_node.get_node_or_null("SummaryLocked") != null) == (locked_want > 0), "hidden locked blessings collapse into one summary row (%d hidden)" % locked_want)
-			failed += _assert(str(row0.tooltip_text).length() > 8, "blessing tooltip is a short description")
 		var w_post_ui: Dictionary = game_state.call("apply_water_pulse")
 		failed += _assert(not bool(w_post_ui.get("ok", true)), "water blocked after UI commit")
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub BGM stays on during ascension pause")
@@ -3563,9 +3577,22 @@ func _run() -> void:
 		failed += _assert(head_square != null and head_cap != null and head_cap.position.y >= head_square.position.y + head_square.size.y - 0.5, "head Locked sits under the square")
 		var hotkey_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/HotkeyHint") as Label
 		failed += _assert(hotkey_lbl != null and str(hotkey_lbl.text) == "C — Character", "sheet hotkey hint")
-		var sheet_hint: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Hint") as Control
 		var sheet_pages: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/SheetPages") as Control
-		failed += _assert(sheet_hint != null and sheet_pages != null and sheet_pages.position.y >= sheet_hint.position.y + sheet_hint.size.y - 1.0, "Gear/Stats tabs sit below the subtitle")
+		var sheet_root: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet") as Control
+		var portrait_host: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitHost") as Control
+		var portrait_rail: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/PortraitRail") as Control
+		var gear_column: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn") as Control
+		var stats_column: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/Stats") as Control
+		var gear_scroll: Control = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearScroll") as Control
+		var layout_at: int = failed
+		failed += _assert(sheet_pages != null and not sheet_pages.visible, "the Gear/Stats switch is gone")
+		failed += _assert(gear_column != null and gear_column.visible and stats_column != null and stats_column.visible, "gear and stats both stay on the sheet")
+		failed += _assert(portrait_host != null and portrait_rail != null and portrait_host.position.x >= portrait_rail.position.x + 44.0, "the portrait rail does not cover the gear picture")
+		failed += _assert(gear_column != null and portrait_host != null and gear_column.position.x >= portrait_host.position.x + portrait_host.size.x, "the gear list sits to the right of the picture")
+		failed += _assert(stats_column != null and stats_column.size.x <= 240.0, "the stats column is narrowed")
+		failed += _assert(sheet_root != null and gear_column != null and gear_scroll != null and gear_column.position.y + gear_scroll.position.y + gear_scroll.size.y <= sheet_root.size.y + 0.5, "the gear scroll fits the sheet window")
+		if failed == layout_at:
+			print("CHAR_SHEET_LAYOUT_OK")
 		failed += _assert(char_btn != null and str(char_btn.tooltip_text) == "C — Character", "HUD hotkey hint")
 		var gear_title_lbl: Label = sheet_hud.get_node_or_null("CharacterSheet/SheetFit/Sheet/GearColumn/GearTitle") as Label
 		failed += _assert(gear_title_lbl != null and str(gear_title_lbl.text) == "Gear", "gear column title")
@@ -3764,6 +3791,8 @@ func _run() -> void:
 	failed += await _rod_not_weapon_ok(tree_root, equipment)
 	failed += _elaia_companion_asserts(tree_root, game_state, backpack)
 	failed += _pass_e_idle(tree_root, game_state, save_service, backpack, content_strings)
+	failed += _offline_away_panel(tree_root, game_state, save_service, backpack, content_strings)
+	failed += await _offline_layout_ok(tree_root, game_state, content_strings)
 	failed += await _forge_pass_b(tree_root, game_state, backpack)
 	failed += await _forge_pass_c(tree_root, game_state, backpack)
 	failed += await _waypoint_pass(tree_root, game_state, save_service, backpack, content_strings, game_audio)
@@ -3785,6 +3814,7 @@ func _run() -> void:
 	failed += await _manatree_water_rmb_cancel(tree_root, game_state)
 	failed += await _craft_duration_labels(tree_root, game_state, backpack)
 	failed += await _forge_entry_one_click(tree_root, game_state, save_service)
+	failed += await _forge_entry_after_elaia(tree_root, game_state, save_service)
 	failed += await _batch_refund(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_offline(tree_root, game_state, save_service, backpack, content_strings)
 	failed += await _batch_ascend_wipe(tree_root, game_state, save_service, backpack, content_strings)
@@ -3887,10 +3917,13 @@ func _run() -> void:
 	failed += await _handoff_idle(tree_root, game_state, save_service)
 	failed += await _debug_adventure_ok(tree_root, game_state, save_service)
 	failed += _reach_legacy_gone(tree_root, game_state, save_service)
+	failed += _echo_end_confirm_ok(tree_root)
 	failed += _echo_v4_math(tree_root)
 	failed += _echo_v4_parity()
 	failed += await _battle_ui_v7(tree_root, game_state, save_service)
 	failed += await _battle_icons(tree_root, game_state, save_service)
+	failed += _minigame_checks()
+	failed += _hybrid_chip_ok(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -4029,7 +4062,7 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(str(view.call("speech_text")).find("Wait. Please") >= 0, "mercy flavour in the window")
 	failed += _assert(str(view.call("speech_text")).find("worth following") >= 0, "mercy uses the full line")
 	var psize: Vector2 = view.call("portrait_size")
-	failed += _assert(abs(psize.x - 288.0) < 0.5 and abs(psize.y - 288.0) < 0.5, "portraits 288x288")
+	failed += _assert(abs(psize.x - 256.0) < 0.5 and abs(psize.y - 256.0) < 0.5, "portraits 256x256")
 	failed += _assert(bool(view.call("keeper_uses_idle_texture")), "keeper portrait uses battle_keeper_idle_e")
 	failed += _assert(bool(view.call("echo_uses_key_texture")), "spare window uses battle_elaia_key_w")
 	failed += _assert(FileAccess.file_exists("res://assets/art/echo/battle_elaia_idle_w.png"), "battle_elaia_idle_w.png shipped")
@@ -4037,11 +4070,11 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 	failed += _assert(float(view.call("speech_top")) < float(view.call("log_top")), "flavour above battle log")
 	failed += _assert(bool(view.call("speech_between_portraits")), "flavour box sits between the portraits")
 	var ssize: Vector2 = view.call("speech_band_size")
-	failed += _assert(ssize.y >= 60.0 and ssize.y <= 85.0, "flavour band 60-85")
+	failed += _assert(abs(ssize.x - 432.0) < 0.5 and abs(ssize.y - 132.0) < 0.5, "speech box 432x132")
 	var lsize: Vector2 = view.call("log_band_size")
-	failed += _assert(lsize.y >= 65.0 and lsize.y <= 90.0, "battle log band 65-90")
+	failed += _assert(abs(lsize.x - 412.0) < 0.5 and abs(lsize.y - 100.0) < 0.5, "battle log 412x100")
 	var csize: Vector2 = view.call("command_band_size")
-	failed += _assert(abs(csize.x - 540.0) < 0.5 and abs(csize.y - 90.0) < 0.5, "command band 540x90")
+	failed += _assert(abs(csize.x - 904.0) < 0.5 and abs(csize.y - 144.0) < 0.5, "bottom bar 904x144")
 	view.free()
 	echo.set("battle", null)
 	echo.set("in_battle", false)
@@ -4250,6 +4283,26 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var fee_panel: Control = tree_root.get_node_or_null("EchoPortalConfirm/Panel") as Control
 		failed += _assert(yes_btn != null and yes_btn.disabled, "confirm yes disabled when short")
 		failed += _assert(no_btn != null and no_btn.text == "Not now" and not no_btn.disabled, "Not now is enabled")
+		failed += _assert(yes_btn != null and no_btn != null and no_btn.position.x > yes_btn.position.x, "Not now is the right-hand button")
+		failed += _assert(yes_btn != null and yes_btn.size.y >= 44.0 and no_btn.size.y >= 44.0, "fee buttons are at least 44 px")
+		if fee_panel:
+			var fee_box: StyleBox = fee_panel.get_theme_stylebox("panel")
+			var fee_tex: Texture2D = (fee_box as StyleBoxTexture).texture if fee_box is StyleBoxTexture else null
+			failed += _assert(fee_tex != null and str(fee_tex.resource_path).find("frame_9s_96") >= 0, "portal fee stays on the hub frame")
+		var fee_note: Label = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Note") as Label
+		failed += _assert(fee_note != null and fee_note.visible and str(fee_note.text).find("Not enough Essence") >= 0, "amber can't-afford line")
+		failed += _assert(fee_note != null and fee_note.get_theme_color("font_color") == Ui540.WARNING_AMBER, "can't-afford uses kit amber")
+		var fee_body: Label = tree_root.get_node_or_null("EchoPortalConfirm/Panel/Body") as Label
+		failed += _assert(fee_body != null and str(fee_body.text).find("You have") >= 0 and str(fee_body.text).find("Paid once") >= 0, "fee confirm names the balance and the once-only hint")
+		var fee_cap: TextureRect = no_btn.get_node_or_null("EscKeycap") as TextureRect if no_btn else null
+		failed += _assert(fee_cap != null and fee_cap.position.y + fee_cap.size.y <= 0.0, "Esc keycap sits above Not now")
+		if fee_panel:
+			var fee_view_h: float = fee_panel.get_viewport().get_visible_rect().size.y
+			var toast_top: float = fee_view_h - 24.0 - 44.0 - 8.0 - 32.0
+			failed += _assert(fee_panel.position.y + fee_panel.size.y <= toast_top - 12.0, "fee confirm stays clear of the toast")
+		var fee_focus: StyleBox = no_btn.get_theme_stylebox(&"focus") if no_btn else null
+		var fee_focus_tex: Texture2D = (fee_focus as StyleBoxTexture).texture if fee_focus is StyleBoxTexture else null
+		failed += _assert(fee_focus_tex != null and str(fee_focus_tex.resource_path).find("focus_ring") >= 0, "Not now uses the cyan focus ring")
 		if no_btn and fee_panel:
 			var panel_h: float = fee_panel.offset_bottom - fee_panel.offset_top
 			if panel_h < 1.0:
@@ -4278,6 +4331,21 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(bool(game_audio.call("is_hub_music_playing")), "hub bed before the echo")
 		failed += _assert(str(portal.call("begin_entry")) == "confirm", "30 Essence opens the fee confirm")
 		failed += _assert(int(game_state.get("essence")) == 30, "confirm alone does not spend")
+		var pause_button: Button = hud.get_node_or_null("Panel/PauseButton") as Button
+		failed += _assert(pause_button != null and pause_button.visible, "pause stays visible over the fee confirm")
+		pause_menu.call("open_pause")
+		failed += _assert(bool(portal.call("is_fee_confirm_open")) and int(game_state.get("essence")) == 30 and not bool(echo.get("in_battle")), "pause does not skip the fee")
+		var pause_new: Button = pause_menu.get_node_or_null("Panel/BtnNewGame") as Button
+		var pause_load: Button = pause_menu.get_node_or_null("Panel/BtnLoad") as Button
+		var pause_exit: Button = pause_menu.get_node_or_null("Panel/BtnExit") as Button
+		failed += _assert(pause_new != null and pause_new.disabled and pause_load != null and pause_load.disabled and pause_exit != null and pause_exit.disabled, "pause cannot new-game, load, or exit over the fee")
+		pause_menu.call("_on_new_game_pressed")
+		pause_menu.call("_on_load_pressed")
+		pause_menu.call("_on_exit_pressed")
+		pause_menu.call("_on_quit_game_pressed")
+		failed += _assert(bool(portal.call("is_fee_confirm_open")) and int(game_state.get("essence")) == 30 and not bool(echo.get("in_battle")), "pause actions leave the fee confirm waiting")
+		pause_menu.call("resume_game")
+		failed += _assert(not bool(pause_menu.call("is_open")) and bool(portal.call("is_fee_confirm_open")), "resume returns to the fee confirm")
 		game_audio.call("clear_played_log")
 		failed += _assert(str(portal.call("confirm_fee")) == "enter", "confirm enters the battle")
 		failed += _assert(not bool(game_audio.call("did_play", &"mus_fruit_sting")), "no fruit sting on the fee")
@@ -4295,6 +4363,19 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		failed += _assert(bool(game_audio.call("did_play", &"sfx_ui_cancel")), "battle save deny is sfx_ui_cancel")
 		failed += _assert(not bool(game_audio.call("did_play", &"sfx_tree_deny")), "battle save deny is not the tree deny")
 		var battle_view: Node = tree_root.get_node_or_null("EchoBattle")
+		var face_btn: Button = battle_view.get_node_or_null("FaceButton") as Button if battle_view else null
+		var chamber_panel: Control = battle_view.get_node_or_null("ChamberPanel") as Control if battle_view else null
+		failed += _assert(battle_view != null and not bool(battle_view.call("is_chamber_shown")), "entry skips the fee-paid window")
+		failed += _assert(face_btn == null or not face_btn.visible, "Face the Echo stays hidden")
+		failed += _assert(chamber_panel == null or not chamber_panel.visible, "the fee-paid panel stays hidden")
+		failed += _assert(battle_view != null and str(battle_view.get("_phase")) == "speech", "entry opens on the fight dialogue")
+		failed += _assert(battle_view != null and not bool(battle_view.call("is_flee_shown")), "the opening dialogue does not offer Flee")
+		if battle_view != null and not bool(battle_view.call("is_chamber_shown")) and str(battle_view.get("_phase")) == "speech":
+			print("ECHO_DIRECT_FIGHT_OK")
+		if battle_view:
+			battle_view.call("begin_face_off")
+			failed += _assert(not bool(battle_view.call("is_flee_shown")), "speech keeps the menu locked")
+			battle_view.call("finish_speech")
 		failed += _assert(battle_view != null and bool(battle_view.call("is_flee_shown")), "battle offers Flee outside the window")
 		failed += _assert(not bool(battle_view.call("is_spare_shown")), "Spare stays hidden above 10%")
 		failed += _assert(str(battle_view.call("speech_text")).find("does not raise her voice") >= 0, "opening narrator")
@@ -4302,32 +4383,57 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		var echo_name_lbl: Label = battle_view.get_node_or_null("EchoName") as Label
 		failed += _assert(echo_name_lbl != null and echo_name_lbl.text.find("Elaia") >= 0, "opening names Elaia")
 		var pause_save: Button = pause_menu.get_node_or_null("Panel/BtnSave") as Button
+		var fight_pause_button: Button = hud.get_node_or_null("Panel/PauseButton") as Button
+		failed += _assert(fight_pause_button != null and fight_pause_button.visible, "pause stays visible in the echo")
 		pause_menu.call("open_pause")
 		failed += _assert(pause_save != null and pause_save.disabled, "Save disabled while the echo is open")
+		failed += _assert(bool(echo.get("in_battle")) and bool(game_state.get("portal_fee_paid")) and not bool(game_state.get("echo_01_resolved")), "opening pause does not skip the fight")
+		pause_menu.call("_on_new_game_pressed")
+		pause_menu.call("_do_load_slot", "manual", 1)
+		pause_menu.call("_on_exit_pressed")
+		pause_menu.call("_on_quit_game_pressed")
+		failed += _assert(bool(echo.get("in_battle")) and bool(game_state.get("portal_fee_paid")) and not bool(game_state.get("echo_01_resolved")) and int(game_state.get("essence")) == 0, "pause cannot skip the fee or the fight")
 		pause_menu.call("resume_game")
 		failed += _assert(bool(game_audio.call("is_hub_suspended")), "pause resume does not restart the bed")
+		battle_view.call("_open_leave_confirm")
+		await process_frame
+		var leave_stay: Button = battle_view.get_node_or_null("LeaveConfirm/LeaveStay") as Button
+		var leave_flee: Button = battle_view.get_node_or_null("LeaveConfirm/LeaveFlee") as Button
+		failed += _assert(bool(battle_view.call("leave_confirm_open")) and leave_stay != null and leave_flee != null and leave_stay.position.x > leave_flee.position.x and leave_stay.has_focus(), "Esc leave confirm still defaults to Stay")
+		battle_view.call("_confirm_stay")
+		failed += _assert(not bool(battle_view.call("leave_confirm_open")) and bool(echo.get("in_battle")) and bool(game_state.get("portal_fee_paid")), "Stay keeps the fight and the fee")
 		battle_view.call("_offer_return", "flee")
 		await process_frame
 		var echo_fled: Control = battle_view.get_node_or_null("EchoFledWindow") as Control
 		var fled_view_w: float = battle_view.get_viewport().get_visible_rect().size.x
 		var echo_fled_x: float = roundf((fled_view_w - 520.0) * 0.5)
-		failed += _assert(echo_fled != null and is_equal_approx(echo_fled.position.y, 92.0) and is_equal_approx(echo_fled.size.x, 520.0) and is_equal_approx(echo_fled.size.y, 420.0), "echo fled window is 520x420 at y 92")
+		failed += _assert(echo_fled != null and is_equal_approx(echo_fled.position.y, 92.0) and is_equal_approx(echo_fled.size.x, 520.0) and is_equal_approx(echo_fled.size.y, 380.0), "echo fled window is 520x380 at y 92")
+		if echo_fled != null and is_equal_approx(echo_fled.size.y, 380.0):
+			print("ECHO_FLED_HEIGHT_OK")
 		failed += _assert(echo_fled != null and is_equal_approx(echo_fled.position.x, echo_fled_x), "echo fled window stays at y 92 instead of centring vertically")
 		var echo_body: Label = battle_view.get_node_or_null("EchoFledWindow/EchoFledBody") as Label
 		failed += _assert(echo_body != null and str(echo_body.text).find("clearing still needs you") >= 0, "echo fled uses the live flee line")
 		var echo_back: Button = battle_view.get_node_or_null("EchoFledWindow/EchoFledReturn") as Button
-		failed += _assert(echo_back != null and echo_back.text == "Return to the tree" and is_equal_approx(echo_back.position.y, 332.0), "echo return sits on the bottom padding")
+		failed += _assert(echo_back != null and echo_back.text == "Return to the tree" and is_equal_approx(echo_back.position.y, 292.0), "echo return sits on the bottom padding")
 		var echo_close: Button = battle_view.get_node_or_null("EchoFledWindow/EchoFledClose") as Button
 		failed += _assert(echo_close != null and echo_close.text == "" and is_equal_approx(echo_close.position.y, 44.0), "echo × sits on the 24 px padding")
 		failed += _assert(bool(battle_view.call("speech_between_portraits")), "echo chamber layout is unchanged under the fled window")
+		pause_menu.call("open_pause")
+		pause_menu.call("_on_new_game_pressed")
+		pause_menu.call("_do_load_slot", "manual", 1)
+		failed += _assert(bool(echo.get("in_battle")) and bool(game_state.get("portal_fee_paid")) and not bool(game_state.get("forge_key")) and battle_view.get_node_or_null("EchoFledWindow") != null, "pause does not skip the fled result")
+		pause_menu.call("resume_game")
 		echo.call("finish_battle", "flee")
 		await process_frame
 		failed += _assert(not bool(echo.get("in_battle")), "flee leaves the battle")
 		failed += _assert(bool(game_state.get("portal_fee_paid")) and not bool(game_state.get("forge_key")), "flee keeps the paid fee")
 		failed += _assert(not bool(game_audio.call("is_hub_suspended")) and bool(game_audio.call("is_hub_music_playing")), "hub bed resumes after the echo")
 		game_state.call("set_resource", &"essence", 4)
-		failed += _assert(str(portal.call("begin_entry")) == "enter", "re-entry skips the fee")
-		failed += _assert(int(game_state.get("essence")) == 4, "re-entry does not spend")
+		failed += _assert(str(portal.call("begin_entry")) == "enter", "a paid echo starts with no confirm")
+		failed += _assert(not bool(portal.call("is_fee_confirm_open")), "re-entry opens no confirm")
+		failed += _assert(int(game_state.get("essence")) == 4 and bool(echo.get("in_battle")), "re-entry does not spend")
+		if int(game_state.get("essence")) == 4 and bool(echo.get("in_battle")) and not bool(portal.call("is_fee_confirm_open")):
+			print("FACE_ECHO_DIRECT_OK")
 		var return_view: Node = tree_root.get_node_or_null("EchoBattle")
 		failed += _assert(return_view != null and str(return_view.call("speech_text")).find("You came back") >= 0, "re-entry return flavour")
 		echo.call("finish_battle", "flee")
@@ -4339,9 +4445,9 @@ func _verify_echo(tree_root: Window, game_state: Node, save_service: Node, conte
 		game_state.set("forge_key", true)
 		echo.set("in_battle", true)
 		pause_menu.call("_do_load_slot", "manual", 1)
-		failed += _assert(not bool(echo.get("in_battle")), "load abandons the fight")
-		failed += _assert(int(game_state.get("manashards")) == 4 and not bool(game_state.get("forge_key")), "load does not keep battle rewards")
-		failed += _assert(bool(game_state.get("portal_fee_paid")), "loaded fee stays paid")
+		failed += _assert(bool(echo.get("in_battle")), "load does not abandon the echo")
+		failed += _assert(int(game_state.get("manashards")) == 90 and bool(game_state.get("forge_key")), "load does not apply while the echo is open")
+		failed += _assert(bool(game_state.get("portal_fee_paid")), "the fee stays paid when load is refused")
 	var leftover_battle: Node = tree_root.get_node_or_null("EchoBattle")
 	if leftover_battle:
 		leftover_battle.free()
@@ -4452,6 +4558,132 @@ func _echo_run_replay(fx: Dictionary, replay: Dictionary, elaia_def: Dictionary)
 	while battle.outcome == "" and not battle.spare_window:
 		battle.choose("strike")
 	return battle
+
+
+func _hybrid_chip_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var gear: Node = tree_root.get_node_or_null("Equipment")
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _assert(echo != null and gear != null and game_state != null and packed != null, "hybrid chip fixtures")
+	if failed > 0:
+		return failed
+	var saved_battle: Variant = echo.get("battle")
+	var saved_in: bool = bool(echo.get("in_battle"))
+	var saved_mode: String = str(game_state.get("arrow_mode"))
+	var saved_weapon: String = str(gear.call("equipped_id", "weapon"))
+	echo.set("battle", null)
+	echo.set("in_battle", false)
+	game_state.set("arrow_mode", "physical")
+	var view: Node = packed.instantiate()
+	tree_root.add_child(view)
+	var battle := EchoBattle.new()
+	battle.strike_kind = "hybrid"
+	battle.arrow_mode = "physical"
+	battle.outcome = ""
+	view.set("_battle", battle)
+	view.set("_waiting_return", false)
+	view.set("_phase", "fight")
+	view.call("_refresh_actions")
+	var chip: Button = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Button
+	failed += _assert(chip != null and chip.visible and not chip.disabled and chip.modulate == Color.WHITE, "echo hybrid chip is selectable")
+	view.call("_on_arrow")
+	failed += _assert(str(battle.arrow_mode) == "magical" and str(game_state.get("arrow_mode")) == "magical", "echo chip selects Arcana")
+	view.queue_free()
+	echo.set("battle", saved_battle)
+	echo.set("in_battle", saved_in)
+	var arena_packed: PackedScene = load("res://scenes/battle/battle_scene.tscn") as PackedScene
+	failed += _assert(arena_packed != null, "adventure battle scene")
+	if arena_packed == null:
+		return failed
+	gear.call("grant_item", "thornbow")
+	failed += _assert(str(gear.call("try_equip", "thornbow")) == "ok", "equip a hybrid weapon")
+	game_state.set("arrow_mode", "physical")
+	var arena: Node = arena_packed.instantiate()
+	tree_root.add_child(arena)
+	var fight := FightState.new()
+	fight.add_member("keeper", {"might": 5, "arcana": 8, "vitality": 6, "attack": "physical"}, 0, "front", "keeper")
+	arena.set("_fight", fight)
+	arena.set("_target_mode", "")
+	var menu: CanvasItem = arena.get_node_or_null("Arena/ActionMenu") as CanvasItem
+	var strike: CanvasItem = arena.get_node_or_null("Arena/ActionMenu/StrikeButton") as CanvasItem
+	if menu:
+		menu.visible = true
+	if strike:
+		strike.visible = true
+	arena.call("_refresh_mode_chip")
+	failed += _assert(bool(arena.call("mode_chip_shown")) and str(arena.call("mode_chip_text")) == "Phys", "adventure shows the Might chip")
+	arena.call("_on_mode_chip_pressed")
+	var row: Dictionary = fight.fighter_dict("keeper")
+	failed += _assert(str(game_state.get("arrow_mode")) == "magical" and str(row.get("attack", "")) == "magic", "adventure chip selects Arcana")
+	var sheet: Dictionary = SlotEngine.member_stats("keeper")
+	failed += _assert(str(sheet.get("attack", "")) == "magic", "hybrid weapon strikes with Arcana")
+	arena.queue_free()
+	game_state.set("arrow_mode", saved_mode)
+	if saved_weapon != "" and saved_weapon != "thornbow":
+		gear.call("try_equip", saved_weapon)
+	elif saved_weapon == "":
+		gear.call("grant_item", "stone_sword")
+		gear.call("try_equip", "stone_sword")
+	if failed == 0:
+		print("HYBRID_CHIP_OK")
+	return failed
+
+
+func _echo_end_confirm_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _assert(echo != null and packed != null, "end confirm can build a battle view")
+	if echo == null or packed == null:
+		return failed
+	var saved_battle: Variant = echo.get("battle")
+	var saved_in: bool = bool(echo.get("in_battle"))
+	var saved_ctx: String = str(echo.get("battle_context"))
+	echo.set("battle", null)
+	echo.set("in_battle", false)
+	var view: Node = packed.instantiate()
+	tree_root.add_child(view)
+	var battle := EchoBattle.new()
+	battle.configure(
+		{"might": 1, "arcana": 1, "resilience": 8, "ward": 8, "vitality": 8, "swiftness": 8, "fate": 1},
+		{"display_name": "Elaia", "stats": {"swiftness": 1, "vitality": 30}}
+	)
+	view.set("_battle", battle)
+	view.set("_waiting_return", false)
+	view.set("_phase", "fight")
+	view.call("_on_strike")
+	failed += _assert(not bool(view.call("end_confirm_open")), "a normal strike does not ask")
+	failed += _assert(str(battle.outcome) == "", "a normal strike does not end the fight")
+	battle.spare_window = true
+	battle.outcome = ""
+	view.call("_on_strike")
+	failed += _assert(bool(view.call("end_confirm_open")), "the killing strike asks first")
+	failed += _assert(str(view.call("end_confirm_text")).find("Strike") >= 0, "the ask names Strike")
+	failed += _assert(str(battle.outcome) == "", "the ask does not strike yet")
+	view.call("_on_strike")
+	failed += _assert(str(battle.outcome) == "" and bool(view.call("end_confirm_open")), "mashing Strike does not confirm")
+	view.call("_on_brace")
+	view.call("_on_salve")
+	view.call("_on_flee")
+	failed += _assert(str(battle.outcome) == "", "brace, salve, and flee do not confirm the end")
+	view.call("_dismiss_end")
+	failed += _assert(not bool(view.call("end_confirm_open")) and str(battle.outcome) == "", "Not now keeps the fight going")
+	view.call("_on_spare")
+	failed += _assert(bool(view.call("end_confirm_open")) and str(view.call("end_confirm_text")).find("Spare") >= 0, "spare asks too")
+	view.call("_dismiss_end")
+	view.call("_on_strike")
+	view.call("_confirm_end")
+	failed += _assert(str(battle.outcome) == "defeat", "Yes on Strike ends the fight")
+	failed += _assert(not bool(view.call("end_confirm_open")), "Yes closes the ask")
+	view.queue_free()
+	echo.set("battle", saved_battle)
+	echo.set("in_battle", saved_in)
+	echo.set("battle_context", saved_ctx)
+	if failed == 0:
+		print("ECHO_END_CONFIRM_OK")
+	return failed
 
 
 func _echo_v4_math(tree_root: Window) -> int:
@@ -4576,6 +4808,537 @@ func _echo_totals(might: int, swift: int, ward: int = 5) -> Dictionary:
 	}
 
 
+func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
+	## Locked curve anchors, the Manashard multiplier, and the away panel.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "offline away needs ForgeJobs")
+	if jobs == null:
+		return failed
+	jobs.call("set_autosave_enabled", false)
+	jobs.call("set_dev_speed_override", 1.0)
+	var anchors: Array = [
+		[120.0, 120.0, "2 min"],
+		[600.0, 300.0, "10 min"],
+		[1800.0, 600.0, "30 min"],
+		[7200.0, 1200.0, "2 h"],
+		[28800.0, 2400.0, "8 h"],
+		[86400.0, 3600.0, "24 h"],
+		[172800.0, 4200.0, "48 h"],
+		[259200.0, 4800.0, "3 d"],
+		[604800.0, 7200.0, "7 d"],
+	]
+	for pair: Array in anchors:
+		var got: float = float(game_state.call("offline_effective_seconds", float(pair[0])))
+		failed += _assert(absf(got - float(pair[1])) < 0.02, "%s away is %s effective s (got %s)" % [pair[2], pair[1], got])
+	game_state.call("reset_for_new_game")
+	var gate_map: Dictionary = game_state.get_script().get_script_constant_map()
+	failed += _assert(is_equal_approx(float(gate_map.get("OFFLINE_PANEL_MIN_SEC", -1.0)), 600.0), "the away panel waits a confirmed 10 minutes")
+	var gate_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_state.gd")
+	var gate_at: int = gate_src.find("OFFLINE_PANEL_MIN_SEC")
+	var gate_note: String = gate_src.substr(maxi(0, gate_at - 160), 200)
+	failed += _assert(gate_at >= 0 and gate_note.find("Placeholder") < 0 and gate_note.find("placeholder") < 0, "the 10 minute gate is confirmed")
+	failed += _assert(int(game_state.call("total_upgrade_ranks_owned")) == 0, "a new game owns no ranks")
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 0.25), "0 ranks → x0.25")
+	var ranks: Dictionary = game_state.get("upgrade_ranks")
+	ranks["shard_sight"] = 5
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(int(game_state.call("total_upgrade_ranks_owned")) == 5, "five ranks on one blessing count as five")
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 0.50), "5 ranks → x0.50")
+	ranks["shard_sight"] = 10
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 0.75), "10 ranks → x0.75")
+	ranks["shard_sight"] = 15
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 1.0), "15 ranks → x1.00")
+	ranks["quiet_hours"] = 20
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 1.0), "past 15 ranks stays x1.00")
+	game_state.call("reset_for_new_game")
+	var online: Dictionary = game_state.call("apply_water_pulse")
+	var online_shards: int = int(online.get("shards", -1))
+	failed += _assert(online_shards >= 1 and online_shards <= 3, "online watering ignores the offline multiplier (got %d)" % online_shards)
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "water", "manatree", true)
+	var day: Dictionary = jobs.call("apply_offline_seconds", 86400.0)
+	failed += _assert(int(day.get("shards", -1)) == 1800, "24h watering at 0 ranks without the can is 1800 shards")
+	failed += _assert(int(day.get("essence", -1)) == 3600, "24h watering essence ignores the multiplier")
+	var wood_low: int = 0
+	game_state.call("reset_for_new_game")
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	wood_low = int(game_state.get("wood")) + int((jobs.call("apply_offline_seconds", 86400.0) as Dictionary).get("wood", 0))
+	game_state.call("reset_for_new_game")
+	ranks = game_state.get("upgrade_ranks")
+	ranks["shard_sight"] = 15
+	game_state.set("upgrade_ranks", ranks)
+	jobs.call("set_keeper_task", "harvest", "wood", true)
+	var wood_high: int = int((jobs.call("apply_offline_seconds", 86400.0) as Dictionary).get("wood", -1))
+	failed += _assert(wood_low > 0 and wood_low == wood_high, "offline wood ignores the shard multiplier (%d vs %d)" % [wood_low, wood_high])
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "stone_watering_can", 1)
+	jobs.call("set_keeper_task", "water", "manatree", true)
+	var with_can: Dictionary = jobs.call("apply_offline_seconds", 86400.0)
+	failed += _assert(int(with_can.get("shards", -1)) == 3600, "24h with the can at 0 ranks is 3600 shards")
+	failed += _assert(int(with_can.get("essence", -1)) == 3600, "24h essence with the can is 3600")
+	game_state.call("reset_for_new_game")
+	backpack.call("set_count", "stone_watering_can", 1)
+	ranks = game_state.get("upgrade_ranks")
+	ranks["keeper_stride"] = 15
+	game_state.set("upgrade_ranks", ranks)
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 1.0), "stride ranks still fill the multiplier")
+	jobs.call("set_keeper_task", "water", "manatree", true)
+	var capped: Dictionary = jobs.call("apply_offline_seconds", 86400.0)
+	failed += _assert(int(capped.get("shards", -1)) == 14400, "24h with the can at 15 ranks is 14400 shards (got %d)" % int(capped.get("shards", -1)))
+	failed += _assert(int(capped.get("essence", -1)) == 3600, "15 ranks do not change essence")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_elaia_task", "water", "manatree", true)
+	var elaia_day: Dictionary = jobs.call("apply_offline_seconds", 86400.0)
+	var elaia_bag: Dictionary = elaia_day.get("elaia", {}) as Dictionary
+	failed += _assert(int(elaia_bag.get("manashards", -1)) > 0 and int(elaia_bag.get("manashards", 0)) < 3600, "Elaia's offline shards use her rate and the multiplier")
+	failed += _assert(int(elaia_day.get("keeper", {}).get("manashards", 0)) == 0, "an Elaia-only watch does not pay the Keeper")
+	game_state.call("reset_for_new_game")
+	ranks = game_state.get("upgrade_ranks")
+	ranks["keeper_stride"] = 5
+	game_state.set("upgrade_ranks", ranks)
+	var mult_before: float = float(game_state.call("offline_shard_mult"))
+	failed += _assert(is_equal_approx(mult_before, 0.50), "five stride ranks are x0.50 before Ascend")
+	game_state.call("_set_stage", &"ancient")
+	game_state.call("harvest_fruit")
+	game_state.call("ascend")
+	failed += _assert(int(game_state.call("get_upgrade_rank", "keeper_stride")) == 5, "Ascend keeps the ranks behind the multiplier")
+	failed += _assert(is_equal_approx(float(game_state.call("offline_shard_mult")), 0.50), "Ascend keeps the offline multiplier")
+	var qh: Dictionary = game_state.get("upgrade_ranks")
+	qh["quiet_hours"] = 1
+	game_state.set("upgrade_ranks", qh)
+	var quiet: float = float(game_state.call("offline_effective_seconds", 1200.0))
+	failed += _assert(absf(quiet - 1065.0) < 0.05, "Quiet Hours rank 1 still lengthens only the first tier (got %s)" % quiet)
+	var script: Script = load("res://scripts/ui/offline_summary.gd")
+	failed += _assert(script != null, "away panel script")
+	if script == null:
+		return failed
+	var panel: Node = script.new()
+	tree_root.add_child(panel)
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var echo_was: bool = echo != null and bool(echo.get("in_battle"))
+	if echo != null:
+		echo.set("in_battle", true)
+	save_service.set("pending_offline_report", {"show": true, "raw_sec": 3600.0, "manashards": 1, "shard_mult": 0.25})
+	panel.call("tick_queue")
+	failed += _assert(not bool(panel.call("is_open")), "a fight holds the away panel")
+	if echo != null:
+		echo.set("in_battle", false)
+	panel.call("tick_queue")
+	failed += _assert(bool(panel.call("is_open")), "the panel opens once the fight is gone")
+	panel.call("dismiss")
+	var report: Dictionary = {
+		"show": true,
+		"raw_sec": 8.0 * 3600.0 + 12.0 * 60.0,
+		"effective_sec": 2400.0,
+		"shard_mult": 0.35,
+		"blocked": false,
+		"essence": 142,
+		"manashards": 36,
+		"wood": 218,
+		"stone": 0,
+		"food": 0,
+		"keeper_kind": "water",
+		"keeper_task": "manatree",
+		"wisp_count": 3,
+		"forge_completed": 0,
+		"forge_stations": {},
+		"expedition": {},
+	}
+	panel.call("present", report)
+	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "the away window sits at y 92")
+	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).y, 424.0), "the away window is 424 tall")
+	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "the away window is 600 wide")
+	var headline: String = str(panel.call("headline_text"))
+	failed += _assert(headline.find("You were gone") >= 0 and headline.find("worth about") >= 0, "headline uses the draft sentences")
+	failed += _assert(str(panel.call("shard_tag_text")) == "Manashards x0.35", "the tag shows the multiplier (%s)" % str(panel.call("shard_tag_text")))
+	failed += _assert(bool(panel.call("section_visible", "gathered")), "gathered is shown")
+	failed += _assert(not bool(panel.call("section_visible", "forge")), "an empty forge section stays hidden")
+	failed += _assert(bool(panel.call("section_visible", "left")), "left over is shown")
+	var explain: String = str(content_strings.call("get_text", "offline_explain"))
+	failed += _assert(explain.find("capped") < 0 and explain.find("10 minutes") >= 0, "the locked day sentence")
+	var blocked_report: Dictionary = report.duplicate(true)
+	blocked_report["blocked"] = true
+	blocked_report["manashards"] = 0
+	blocked_report["essence"] = 0
+	blocked_report["wood"] = 0
+	panel.call("present", blocked_report)
+	failed += _assert(not bool(panel.call("section_visible", "gathered")), "an Ancient absence hides Gathered")
+	failed += _assert(str(panel.call("shard_tag_text")) == "", "an Ancient absence hides the tag")
+	var note: String = str(panel.call("ancient_note_text"))
+	var blocked_line: String = str(content_strings.call("get_text", "offline_ancient_blocked"))
+	failed += _assert(blocked_line.find("The Ancient bloom is unchanged") >= 0 and blocked_line.find("{term}") < 0, "bloom is written in the Ancient line")
+	failed += _assert(note.find("bloom") >= 0 and note.find("min left") >= 0, "the Ancient note uses the live bloom line (%s)" % note)
+	failed += _assert(str(content_strings.call("get_text", "minigame_steady_press_flavour")) == "A calm hand keeps the pressure kind.", "Steady Press flavour is the one key")
+	failed += _assert(str(content_strings.call("get_text", "minigame_hot_spots_flavour")) == "Find the glow, and the metal remembers its shape.", "Hot Spots flavour is unchanged")
+	var continue_btn: Button = panel.find_child("ContinueButton", true, false) as Button
+	failed += _assert(continue_btn != null and continue_btn.text == "Continue", "one Continue button")
+	if continue_btn:
+		continue_btn.emit_signal("pressed")
+	failed += _assert(not bool(panel.call("is_open")), "Continue dismisses the panel")
+	panel.queue_free()
+	if echo != null:
+		echo.set("in_battle", echo_was)
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("OFFLINE_CURVE_OK")
+		print("OFFLINE_AWAY_OK")
+	return failed
+
+
+func _offline_layout_ok(tree_root: Window, game_state: Node, content_strings: Node) -> int:
+	var failed: int = 0
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var host := CanvasLayer.new()
+	host.layer = 20
+	tree_root.add_child(host)
+	var panel: Node = load("res://scripts/ui/offline_summary.gd").new()
+	host.add_child(panel)
+	var banner := ColorRect.new()
+	banner.z_index = 50
+	banner.mouse_filter = Control.MOUSE_FILTER_STOP
+	host.add_child(banner)
+	await tree_root.get_tree().process_frame
+	var font: Font = load("res://assets/fonts/font_body_silver19.tres")
+	var spans: Array = [
+		{"raw": 120.0, "eff": 120.0, "essence": 120, "shards": 60, "away": "2m", "worth": "2 min"},
+		{"raw": 28800.0, "eff": 2400.0, "essence": 2400, "shards": 1200, "away": "8h", "worth": "40 min"},
+		{"raw": 172800.0, "eff": 4200.0, "essence": 4200, "shards": 2100, "away": "2d", "worth": "1h 10 min"},
+	]
+	var layouts: Array = [
+		{"vs": Vector2i(960, 540), "phone": false, "w": 600.0, "x": 180.0},
+		{"vs": Vector2i(1280, 720), "phone": false, "w": 600.0, "x": 340.0},
+		{"vs": Vector2i(960, 540), "phone": true, "w": 912.0, "x": 24.0},
+		{"vs": Vector2i(1200, 540), "phone": true, "w": 912.0, "x": 144.0},
+	]
+	for layout_v: Variant in layouts:
+		var layout: Dictionary = layout_v
+		var vs: Vector2i = layout["vs"]
+		var phone: bool = bool(layout["phone"])
+		var card_w: float = float(layout["w"])
+		var card_x: float = float(layout["x"])
+		tree_root.content_scale_size = vs
+		await tree_root.get_tree().process_frame
+		panel.call("use_phone_sheet", phone)
+		await tree_root.get_tree().process_frame
+		for span_v: Variant in spans:
+			var span: Dictionary = span_v
+			panel.call("present", _offline_watch(span))
+			await tree_root.get_tree().process_frame
+			failed += _offline_continue_box(panel, vs, card_w, card_x)
+			failed += _offline_summary_fits(panel, "gathered", font, true)
+			failed += _offline_summary_fits(panel, "workers", font, true)
+			failed += _offline_summary_fits(panel, "forge", font, true)
+			failed += _offline_summary_fits(panel, "expedition", font, true)
+			failed += _offline_summary_fits(panel, "left", font, false)
+			failed += _offline_summary_tip(panel, "left", font, not phone)
+			failed += _offline_summary_tip(panel, "workers", font, false)
+			failed += _offline_row_colors(panel)
+			var hint: Label = panel.find_child("ShardHint", true, false) as Label
+			var hint_w: float = font.get_string_size(hint.text if hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+			failed += _assert(hint != null and hint.text == "Ascension upgrades raise this" and hint.size.x + 0.5 >= hint_w, "full ascension hint at %s" % vs)
+			var body: ScrollContainer = panel.find_child("Body", true, false) as ScrollContainer
+			failed += _assert(body != null and body.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_SHOW_NEVER and not body.get_v_scroll_bar().visible, "collapsed list does not scroll at %s" % vs)
+			var headline: String = str(panel.call("headline_text"))
+			failed += _assert(headline.find(str(span["away"])) >= 0 and headline.find(str(span["worth"])) >= 0, "headline for %s" % span["away"])
+			failed += _offline_headline_line(panel, str(span["away"]))
+			var gathered: String = _offline_summary_text(panel, "gathered")
+			failed += _assert(gathered.find("Stone") < 0 and gathered.find("Food") < 0 and gathered.find("Wood") < 0, "zero wood stone and food stay off the summary")
+			failed += _assert(gathered.find("…") < 0, "a short gathered line stays whole")
+			var left_title: Label = (panel.find_child("left", true, false) as Node).find_child("SectionTitle", true, false) as Label
+			var left_sec: String = str(content_strings.call("get_text", "offline_sec_left"))
+			failed += _assert(left_title != null and left_title.text == left_sec, "the last section title comes from v2 FINAL")
+		var zero: Dictionary = _offline_watch(spans[1])
+		zero["wood"] = 218
+		zero["forge_completed"] = 0
+		zero["forge_stations"] = {}
+		panel.call("present", zero)
+		await tree_root.get_tree().process_frame
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
+		failed += _assert(not bool(panel.call("section_visible", "forge")), "an empty forge section stays hidden")
+		var zero_sum: String = _offline_summary_text(panel, "gathered")
+		failed += _assert(zero_sum.find("Wood") >= 0 and zero_sum.find("Stone") < 0 and zero_sum.find("Food") < 0, "a zero resource row is hidden")
+		failed += _assert(zero_sum.find("…") < 0, "wood still fits on the gathered line")
+		game_state.set("ancient_remaining_sec", 14.0 * 60.0)
+		var blocked: Dictionary = _offline_watch(spans[1])
+		blocked["blocked"] = true
+		blocked["essence"] = 0
+		blocked["manashards"] = 0
+		blocked["forge_completed"] = 0
+		blocked["forge_stations"] = {}
+		panel.call("present", blocked)
+		await tree_root.get_tree().process_frame
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
+		var note: String = str(panel.call("ancient_note_text"))
+		failed += _assert(not bool(panel.call("section_visible", "gathered")), "Ancient hides Gathered")
+		failed += _assert(str(panel.call("shard_tag_text")) == "", "Ancient hides the tag")
+		failed += _assert(note.find("bloom") >= 0 and note.find("min left") >= 0, "Ancient note keeps the bloom line (%s)" % note)
+		failed += _assert(bool(panel.call("section_visible", "expedition")) and bool(panel.call("section_visible", "left")), "Ancient still shows the road and what is waiting")
+		var lengthy: Dictionary = _offline_watch(spans[2])
+		lengthy["shard_mult"] = 1.0
+		lengthy["essence"] = 34560
+		lengthy["manashards"] = 138240
+		lengthy["wood"] = 123456
+		lengthy["stone"] = 99999
+		lengthy["food"] = 1234567
+		panel.call("present", lengthy)
+		await tree_root.get_tree().process_frame
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
+		failed += _offline_gathered_scroll(panel, font)
+		var header: Button = panel.find_child("gathered", true, false).get_node("Header") as Button
+		header.pressed.emit()
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		failed += _offline_continue_box(panel, vs, card_w, card_x)
+		var chip: Control = panel.find_child("ShardChip", true, false) as Control
+		var row: Control = chip.get_parent() as Control if chip else null
+		failed += _assert(chip != null and row != null and chip.size.x < row.size.x * 0.5 and chip.size.x < 160.0, "the Manashards tag stays a chip, not a band")
+		var open_hint: Label = row.get_node_or_null("ShardHint") as Label if row else null
+		var open_w: float = font.get_string_size(open_hint.text if open_hint else "", HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _assert(open_hint != null and open_hint.text == "Ascension upgrades raise this" and open_hint.size.x + 0.5 >= open_w, "expanded hint is the full line")
+		failed += _offline_values_fit(panel, font)
+		failed += _offline_kit_scrollbar(panel)
+		var cont: Control = panel.find_child("ContinueButton", true, false) as Control
+		banner.position = cont.get_global_rect().position - Vector2(24, 12)
+		banner.size = cont.size + Vector2(48, 24)
+		await tree_root.get_tree().process_frame
+		var ev := InputEventMouseMotion.new()
+		ev.position = cont.get_global_rect().get_center()
+		ev.global_position = ev.position
+		tree_root.push_input(ev)
+		await tree_root.get_tree().process_frame
+		var hit: Control = tree_root.gui_get_hovered_control()
+		failed += _assert(hit != null and hit.name == "ContinueButton", "Continue stays clickable above the status banner at %s (hit %s)" % [vs, hit.name if hit else "none"])
+	game_state.set("ancient_remaining_sec", 0.0)
+	panel.call("use_phone_sheet", false)
+	tree_root.content_scale_size = saved_scale
+	host.queue_free()
+	if failed == 0:
+		print("OFFLINE_LAYOUT_OK")
+	return failed
+
+
+func _offline_watch(span: Dictionary) -> Dictionary:
+	return {
+		"show": true,
+		"raw_sec": float(span["raw"]),
+		"effective_sec": float(span["eff"]),
+		"shard_mult": 0.25,
+		"blocked": false,
+		"essence": int(span["essence"]),
+		"manashards": int(span["shards"]),
+		"wood": 0,
+		"stone": 0,
+		"food": 0,
+		"keeper_kind": "water",
+		"keeper_task": "manatree",
+		"wisp_count": 2,
+		"forge_completed": 1,
+		"forge_stations": {"bench": {"finished": 1, "name": "Stone Axe", "working": false}},
+		"expedition": {"waiting": true},
+	}
+
+
+func _offline_continue_box(panel: Node, vs: Vector2i, card_w: float = 600.0, card_x: float = -1.0) -> int:
+	var card: Control = panel.find_child("OfflineCard", true, false) as Control
+	var cont: Control = panel.find_child("ContinueButton", true, false) as Control
+	var close: Control = panel.find_child("CloseButton", true, false) as Control
+	var body: Control = panel.find_child("Body", true, false) as Control
+	var failed: int = _assert(card != null and cont != null and cont.visible and cont.is_visible_in_tree(), "Continue is visible at %s" % vs)
+	if card == null or cont == null or body == null:
+		return failed + 1
+	var view := Rect2(Vector2.ZERO, Vector2(vs))
+	var cont_r: Rect2 = cont.get_global_rect()
+	failed += _assert(card.get_global_rect().encloses(cont_r), "Continue sits inside the away panel at %s" % vs)
+	failed += _assert(close != null and card.get_global_rect().encloses(close.get_global_rect()), "Close sits inside the away panel at %s" % vs)
+	failed += _assert(view.encloses(cont_r), "Continue sits inside %s" % vs)
+	failed += _assert(not body.get_global_rect().intersects(cont_r), "the list does not cover Continue at %s" % vs)
+	var card_pos: Vector2 = panel.call("card_position")
+	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, card_w), "away panel is %.0f wide at %s phone-sheet %s" % [card_w, vs, card_w > 700.0])
+	failed += _assert(card_x < 0.0 or is_equal_approx(card_pos.x, card_x), "away panel x is %.0f at %s (got %.0f)" % [card_x, vs, card_pos.x])
+	failed += _assert(card_pos.x >= 24.0 - 0.5 and card_pos.x + card_w <= float(vs.x) - 24.0 + 0.5, "away panel stays inside the 24 px side margins at %s" % vs)
+	failed += _assert(is_equal_approx(card_pos.y, 92.0), "away panel stays at y 92")
+	return failed
+
+
+func _offline_row_colors(panel: Node) -> int:
+	var failed: int = 0
+	var title: Label = panel.find_child("SectionTitle", true, false) as Label
+	var summary: Label = panel.find_child("Summary", true, false) as Label
+	var hint: Label = panel.find_child("ShardHint", true, false) as Label
+	var headline: Label = panel.find_child("Headline", true, false) as Label
+	var cream := Color8(250, 238, 204)
+	var wood: Color = _offline_wood_fill()
+	## offline540_pc_1_collapsed.png: row fill #96653A, cream glyphs on that row #FAEECC.
+	var mock_ratio: float = _contrast_ratio(cream, Color8(150, 101, 58))
+	var got: Color = summary.get_theme_color("font_color") if summary else Color(0, 0, 0, 0)
+	var ratio: float = _contrast_ratio(got, wood)
+	failed += _assert(title != null and title.get_theme_color("font_color") == cream, "section titles use the mockup cream")
+	failed += _assert(summary != null and got == cream, "summaries use the mockup cream on wood")
+	failed += _assert(ratio + 0.01 >= mock_ratio, "summary contrast on the wood row is %.2f, mockup cream is %.2f (wood %s)" % [ratio, mock_ratio, wood])
+	failed += _assert(hint != null and hint.get_theme_color("font_color") == Color8(154, 126, 82), "the ascension hint uses the mockup muted ink")
+	failed += _assert(headline != null and headline.get_theme_color("font_color") == Color8(62, 42, 24), "the headline uses the mockup ink")
+	return failed
+
+
+func _offline_wood_fill() -> Color:
+	var tex: Texture2D = load("res://assets/ui/theme/wood_button_9s_normal_32x28.png") as Texture2D
+	if tex == null:
+		return Color8(150, 101, 58)
+	var img: Image = tex.get_image()
+	if img == null or img.is_empty():
+		return Color8(150, 101, 58)
+	return img.get_pixel(mini(16, img.get_width() - 1), mini(14, img.get_height() - 1))
+
+
+func _contrast_ratio(fg: Color, bg: Color) -> float:
+	var lf: float = _srgb_luminance(fg)
+	var lb: float = _srgb_luminance(bg)
+	return (maxf(lf, lb) + 0.05) / (minf(lf, lb) + 0.05)
+
+
+func _srgb_luminance(c: Color) -> float:
+	return 0.2126 * _srgb_channel(c.r) + 0.7152 * _srgb_channel(c.g) + 0.0722 * _srgb_channel(c.b)
+
+
+func _srgb_channel(v: float) -> float:
+	if v <= 0.04045:
+		return v / 12.92
+	return pow((v + 0.055) / 1.055, 2.4)
+
+
+func _offline_summary_tip(panel: Node, section_id: String, font: Font, cut: bool) -> int:
+	var host: Node = panel.find_child(section_id, true, false)
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
+	var header: Button = host.find_child("Header", true, false) as Button if host else null
+	var clip: Control = host.find_child("SummaryClip", true, false) as Control if host else null
+	if summary == null or header == null or clip == null:
+		return _assert(false, "%s summary tooltip" % section_id)
+	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	var delay: float = float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec"))
+	var delay_ok: bool = is_equal_approx(delay, WorldHover.REST_SEC)
+	if cut:
+		return _assert(text_w > clip.size.x + 0.5 and delay_ok and header.tooltip_text == summary.text and summary.text != "", "%s cut-off summary tips the full line after %.1fs" % [section_id, delay])
+	return _assert(text_w <= clip.size.x + 0.5 and delay_ok and header.tooltip_text == "", "%s summary that fits has no tooltip" % section_id)
+
+
+func _offline_headline_line(panel: Node, away: String) -> int:
+	var headline: Label = panel.find_child("Headline", true, false) as Label
+	if headline == null:
+		return _assert(false, "headline label for %s" % away)
+	var face: Font = headline.get_theme_font("font")
+	var size: int = headline.get_theme_font_size("font_size")
+	var text_w: float = face.get_string_size(headline.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x if face else 0.0
+	return _assert(headline.get_line_count() <= 1 and headline.autowrap_mode == TextServer.AUTOWRAP_OFF and text_w <= headline.size.x + 0.5, "headline stays one line at %s (font %d, text %.0f, slot %.0f)" % [away, size, text_w, headline.size.x])
+
+
+func _offline_summary_text(panel: Node, section_id: String) -> String:
+	var host: Node = panel.find_child(section_id, true, false)
+	if host == null:
+		return ""
+	var summary: Label = host.find_child("Summary", true, false) as Label
+	if summary == null:
+		return ""
+	return summary.text
+
+
+func _offline_summary_fits(panel: Node, section_id: String, font: Font, whole: bool) -> int:
+	var host: Node = panel.find_child(section_id, true, false)
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
+	if summary == null:
+		return _assert(false, "summary %s" % section_id)
+	var text_w: float = font.get_string_size(summary.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	if whole:
+		return _assert(summary.size.x + 0.5 >= text_w and summary.size.x > 80.0, "%s summary is fully visible (slot %.0f text %.0f)" % [section_id, summary.size.x, text_w])
+	return _assert(summary.size.x > 200.0, "%s summary keeps a real row (slot %.0f)" % [section_id, summary.size.x])
+
+
+func _offline_kit_scrollbar(panel: Node) -> int:
+	var body: ScrollContainer = panel.find_child("Body", true, false) as ScrollContainer
+	if body == null:
+		return _assert(false, "themed away scrollbar")
+	var bar: VScrollBar = body.get_v_scroll_bar()
+	var grab: StyleBox = bar.get_theme_stylebox(&"grabber") if bar else null
+	var track: StyleBox = bar.get_theme_stylebox(&"scroll") if bar else null
+	var grab_path: String = str((grab as StyleBoxTexture).texture.resource_path) if grab is StyleBoxTexture else ""
+	var track_path: String = str((track as StyleBoxTexture).texture.resource_path) if track is StyleBoxTexture else ""
+	return _assert(bar != null and bar.visible and grab_path.find("scroll_thumb") >= 0 and track_path.find("scroll_track") >= 0, "the list scrollbar uses the kit thumb (%s)" % grab_path)
+
+
+func _offline_gathered_scroll(panel: Node, font: Font) -> int:
+	var host: Node = panel.find_child("gathered", true, false)
+	var summary: Label = host.find_child("Summary", true, false) as Label if host else null
+	var clip: Control = host.find_child("SummaryClip", true, false) as Control if host else null
+	var header: Button = host.find_child("Header", true, false) as Button if host else null
+	if summary == null or clip == null or header == null:
+		return _assert(false, "gathered summary ends on a whole item")
+	var shown: String = summary.text
+	var full: String = header.tooltip_text if header.tooltip_text != "" else shown
+	var shown_w: float = font.get_string_size(shown, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+	var failed: int = _assert(shown_w <= clip.size.x + 0.5 and clip.clip_contents, "gathered summary fits the row (text %.0f slot %.0f '%s')" % [shown_w, clip.size.x, shown])
+	var full_items: PackedStringArray = full.split("  ", false)
+	var shown_items: PackedStringArray = shown.split("  ", false)
+	var dropped: int = -1
+	var kept := PackedStringArray()
+	if shown_items.size() > 0:
+		dropped = _offline_more_marker(shown_items[shown_items.size() - 1])
+		kept = shown_items.slice(0, shown_items.size() - 1) if dropped >= 0 else shown_items
+	var prefix_ok: bool = kept.size() <= full_items.size()
+	if prefix_ok:
+		for i: int in kept.size():
+			if kept[i] != full_items[i]:
+				prefix_ok = false
+	failed += _assert(prefix_ok and summary.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING, "gathered keeps a prefix of whole items ('%s')" % shown)
+	if dropped > 0:
+		var hidden: int = full_items.size() - kept.size()
+		failed += _assert(dropped == hidden, "gathered marker counts the dropped items (+%d, hidden %d)" % [dropped, hidden])
+		failed += _assert(header.tooltip_text == full and full != shown and summary.tooltip_text == full, "gathered tooltip keeps the full line")
+		var delay: float = float(ProjectSettings.get_setting("gui/timers/tooltip_delay_sec"))
+		failed += _assert(is_equal_approx(delay, WorldHover.REST_SEC), "gathered tooltip uses the shared hover delay")
+		var longer := PackedStringArray()
+		longer.append_array(kept)
+		if kept.size() < full_items.size():
+			longer.append(full_items[kept.size()])
+		if hidden > 1:
+			longer.append("+%d…" % (hidden - 1))
+		var longer_w: float = font.get_string_size("  ".join(longer), HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _assert(longer_w > clip.size.x + 0.5, "gathered drops only the items that do not fit")
+	else:
+		failed += _assert(shown == full and header.tooltip_text == "" and shown.find("…") < 0, "a gathered line that fits has no marker")
+	return failed
+
+
+func _offline_more_marker(token: String) -> int:
+	if token.length() < 3 or not token.begins_with("+") or not token.ends_with("…"):
+		return -1
+	var mid: String = token.substr(1, token.length() - 2)
+	if not mid.is_valid_int():
+		return -1
+	return mid.to_int()
+
+
+func _offline_values_fit(panel: Node, font: Font) -> int:
+	var host: Node = panel.find_child("gathered", true, false)
+	var details: Node = host.get_node_or_null("Details") if host else null
+	if details == null:
+		return _assert(false, "expanded gathered rows")
+	var failed: int = 0
+	var seen: int = 0
+	for row_v: Node in details.get_children():
+		var value: Label = row_v.get_node_or_null("RowValue") as Label
+		if value == null or value.text == "":
+			continue
+		seen += 1
+		var text_w: float = font.get_string_size(value.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x
+		failed += _assert(value.size.x + 0.5 >= text_w, "long value %s is fully visible" % value.text)
+		var row_name: Label = row_v.get_node_or_null("RowName") as Label
+		failed += _assert(row_name != null and row_name.get_theme_color("font_color") == Color8(62, 42, 24) and value.get_theme_color("font_color") == Color8(62, 42, 24), "detail row text is the mockup ink")
+	return failed + _assert(seen >= 5, "long gathered rows stay on screen (%d)" % seen)
+
+
 func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backpack: Node, content_strings: Node) -> int:
 	var failed: int = 0
 	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
@@ -4618,10 +5381,10 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	var h2: float = 2.0 * 3600.0
 	var h8: float = 8.0 * 3600.0
 	var h24: float = 24.0 * 3600.0
-	failed += _assert(absf(float(game_state.call("offline_effective_seconds", m30)) - 180.0) < 0.02, "tier 30min → 180")
-	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h2)) - 270.0) < 0.02, "tier 2h → 270")
-	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h8)) - 356.4) < 0.02, "tier 8h → 356.4")
-	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h24)) - 452.4) < 0.02, "tier 24h → 452.4")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", m30)) - 600.0) < 0.02, "tier 30min → 600")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h2)) - 1200.0) < 0.02, "tier 2h → 1200")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h8)) - 2400.0) < 0.02, "tier 8h → 2400")
+	failed += _assert(absf(float(game_state.call("offline_effective_seconds", h24)) - 3600.0) < 0.02, "tier 24h → 3600")
 	## Nothing moves offline while Ancient.
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"wood", 4)
@@ -4680,8 +5443,8 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	game_state.set("offline_closed_sec", 1200.0)
 	game_state.set("active_since_load_sec", 60.0)
 	var continued: Variant = jobs.call("apply_saved_offline_gap", 1200.0)
-	failed += _assert(typeof(continued) == TYPE_DICTIONARY and int((continued as Dictionary).get("harvest", -1)) == 35, "reopen under 180s prices minutes 20-40")
-	failed += _assert(int(game_state.get("wood")) == 35, "continued curve banks 35 wood")
+	failed += _assert(typeof(continued) == TYPE_DICTIONARY and int((continued as Dictionary).get("harvest", -1)) == 108, "reopen under 180s prices minutes 20-40")
+	failed += _assert(int(game_state.get("wood")) == 108, "continued curve banks 108 wood")
 	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 2400.0) < 0.01, "continued curve stores 40 minutes")
 	failed += _assert(absf(float(game_state.get("active_since_load_sec"))) < 0.01, "load clears active time")
 	game_state.call("reset_for_new_game")
@@ -4689,8 +5452,8 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	game_state.set("offline_closed_sec", 1200.0)
 	game_state.set("active_since_load_sec", 180.0)
 	var restarted: Variant = jobs.call("apply_saved_offline_gap", 1200.0)
-	failed += _assert(typeof(restarted) == TYPE_DICTIONARY and int((restarted as Dictionary).get("harvest", -1)) == 60, "180s of play restarts the curve")
-	failed += _assert(int(game_state.get("wood")) == 60, "reset curve banks 60 wood")
+	failed += _assert(typeof(restarted) == TYPE_DICTIONARY and int((restarted as Dictionary).get("harvest", -1)) == 225, "180s of play restarts the curve")
+	failed += _assert(int(game_state.get("wood")) == 225, "reset curve banks 225 wood")
 	failed += _assert(absf(float(game_state.get("offline_closed_sec")) - 1200.0) < 0.01, "reset curve stores only the new closure")
 	game_state.call("reset_for_new_game")
 	save_service.call("delete_save")
@@ -4806,6 +5569,12 @@ func _forge_tick(jobs: Node, seconds: float) -> void:
 		left -= step
 
 
+func _minigame_checks() -> int:
+	var runner: RefCounted = (load("res://scripts/minigames/minigame_tests.gd") as GDScript).new()
+	var failed: int = int(runner.call("run_payout")) + int(runner.call("run_scenes"))
+	return failed
+
+
 func _wants_check_only() -> bool:
 	if OS.get_environment("MANAFORGE_CHECK_ONLY") == "1":
 		return true
@@ -4850,6 +5619,21 @@ func _check_only_load() -> int:
 		"res://scripts/ui/expedition_shell.gd",
 		"res://scripts/autoload/game_theme.gd",
 		"res://scripts/autoload/game_input.gd",
+		"res://scripts/minigames/minigame_math.gd",
+		"res://scripts/minigames/minigame_catalog.gd",
+		"res://scripts/minigames/minigame_art.gd",
+		"res://scripts/minigames/minigame.gd",
+		"res://scripts/minigames/minigame_payout.gd",
+		"res://scripts/minigames/minigame_host.gd",
+		"res://scripts/minigames/minigame_tests.gd",
+		"res://scripts/minigames/games/ripe_catch.gd",
+		"res://scripts/minigames/games/splitting_stone.gd",
+		"res://scripts/minigames/games/woodsong.gd",
+		"res://scripts/minigames/games/just_enough.gd",
+		"res://scripts/minigames/games/hot_spots.gd",
+		"res://scripts/minigames/games/steady_press.gd",
+		"res://scripts/minigames/games/with_the_grain.gd",
+		"res://scripts/minigames/games/steeping.gd",
 	])
 	for path: String in paths:
 		var loaded: Resource = load(path)
@@ -5106,6 +5890,12 @@ func _elaia_join_flow_check(tree_root: Window, game_state: Node, save_service: N
 		hud.call("maybe_show_elaia_join")
 	await process_frame
 	failed += _assert(hud != null and hud.has_method("is_elaia_join_open") and bool(hud.call("is_elaia_join_open")), "join band opens in the Clearing")
+	var join_band: Panel = hud.get_node_or_null("ElaiaJoinBand") as Panel if hud else null
+	var join_box: StyleBox = join_band.get_theme_stylebox("panel") if join_band != null else null
+	var join_tex: String = join_box.texture.resource_path if join_box is StyleBoxTexture and (join_box as StyleBoxTexture).texture != null else ""
+	failed += _assert(join_box is StyleBoxTexture and join_tex.find("frame_9s") >= 0, "Elaia join uses the bark-and-parchment frame (got %s)" % join_tex)
+	if join_box is StyleBoxTexture and join_tex.find("frame_9s") >= 0:
+		print("ELAIA_JOIN_THEME_OK")
 	for _line: int in 5:
 		if hud != null and hud.has_method("_advance_join_line"):
 			hud.call("_advance_join_line")
@@ -5284,27 +6074,27 @@ func _forge_pass_a(tree_root: Window, game_state: Node, save_service: Node, back
 	var m30: float = 30.0 * 60.0
 	var h2: float = 2.0 * 3600.0
 	failed += _assert(absf(float(jobs.call("offline_effective_seconds", 0.0))) < 0.001, "offline zero")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", m30)) - 180.0) < 0.02, "offline 30min is 180s")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h2)) - 270.0) < 0.02, "offline 2h is 270s")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h8)) - 356.4) < 0.02, "offline 8h is 356.4s")
-	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24)) - 452.4) < 0.02, "offline 24h is 452.4s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", m30)) - 600.0) < 0.02, "offline 30min is 600s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h2)) - 1200.0) < 0.02, "offline 2h is 1200s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h8)) - 2400.0) < 0.02, "offline 8h is 2400s")
+	failed += _assert(absf(float(jobs.call("offline_effective_seconds", h24)) - 3600.0) < 0.02, "offline 24h is 3600s")
 	jobs.call("set_keeper_task", "water", "manatree", true)
 	var water: Variant = jobs.call("apply_offline_seconds", h8)
-	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("shards", -1)) == 712, "offline water shards use the midpoint")
-	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("essence", -1)) == 356, "offline water essence follows the curve")
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("shards", -1)) == 1200, "offline water shards use the midpoint at x0.25")
+	failed += _assert(typeof(water) == TYPE_DICTIONARY and int((water as Dictionary).get("essence", -1)) == 2400, "offline water essence follows the curve")
 	var task: Variant = jobs.call("keeper_task")
 	failed += _assert(typeof(task) == TYPE_DICTIONARY and not bool((task as Dictionary).get("working", true)), "offline clears the keeper task")
 	game_state.call("reset_for_new_game")
 	jobs.call("set_keeper_task", "harvest", "wood", true)
 	var gathered: Variant = jobs.call("apply_offline_seconds", 20.0)
-	failed += _assert(typeof(gathered) == TYPE_DICTIONARY and int((gathered as Dictionary).get("harvest", -1)) == 1, "20s closed harvest banks one wood")
-	failed += _assert(int(game_state.get("wood")) == 1, "offline harvest banks wood")
+	failed += _assert(typeof(gathered) == TYPE_DICTIONARY and int((gathered as Dictionary).get("harvest", -1)) == 10, "20s closed harvest banks ten wood")
+	failed += _assert(int(game_state.get("wood")) == 10, "offline harvest banks wood")
 	game_state.call("reset_for_new_game")
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	game_state.call("try_assign_wisp", 0, "manatree")
 	var wisp_off: Variant = jobs.call("apply_offline_seconds", h8)
-	failed += _assert(typeof(wisp_off) == TYPE_DICTIONARY and int((wisp_off as Dictionary).get("shards", -1)) == 17, "manatree wisp 8h banks 17 shards")
+	failed += _assert(typeof(wisp_off) == TYPE_DICTIONARY and int((wisp_off as Dictionary).get("shards", -1)) == 30, "manatree wisp 8h banks 30 shards at x0.25")
 	game_state.call("reset_for_new_game")
 	game_state.call("set_resource", &"stone", 40)
 	failed += _assert(str(jobs.call("try_begin_job", "crucible", "sapsteel")) == "ok", "crucible starts")
@@ -6285,8 +7075,10 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 		box = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture
 	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
 	failed += _assert(path.find("toast_9s_40x30") >= 0, "tooltip panel uses the activity papyrus scroll")
-	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 8.0 and box.texture_margin_right == 12.0 and box.texture_margin_bottom == 8.0, "tooltip texture margins are 12/8/12/8")
-	failed += _assert(box != null and box.content_margin_left == 10.0 and box.content_margin_top == 4.0 and box.content_margin_right == 10.0 and box.content_margin_bottom == 4.0, "tooltip content margins are 10/4/10/4")
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 8.0 and box.texture_margin_right == 12.0 and box.texture_margin_bottom == 8.0, "tooltip texture margins keep the rolls at 12/8/12/8")
+	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH, "tooltip nine-slice stretches only the middle")
+	failed += _assert(box != null and box.content_margin_left >= box.texture_margin_left and box.content_margin_right >= box.texture_margin_right and box.content_margin_top >= box.texture_margin_top and box.content_margin_bottom >= box.texture_margin_bottom, "tooltip content sits inside the rolled ends")
+	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 10.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 10.0, "tooltip content margins are 16/10/16/10")
 	var host := Control.new()
 	host.position = Vector2(100, 80)
 	host.size = Vector2(44, 44)
@@ -6308,9 +7100,20 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	host.size = Vector2(44, 44)
 	pop.size = Vector2(140, 36)
 	Ui540.place_tooltip(pop, host)
-	failed += _assert(pop.position.y + pop.size.y <= host.position.y + 0.5, "tooltip sits above a bottom-row button (got %s)" % str(pop.position))
+	var gap: float = host.position.y - (pop.position.y + pop.size.y)
+	failed += _assert(gap >= Ui540.TOOLTIP_GAP_PX - 0.5, "bottom-row tooltip opens above with a few px of gap (got %.1f)" % gap)
+	failed += _assert(pop.position.y >= Ui540.SAFE_MARGIN_PX - 0.1 and pop.position.y + pop.size.y <= vs.y - Ui540.SAFE_MARGIN_PX + 0.1, "bottom-row tooltip stays inside the safe margin vertically")
 	var neighbour := Rect2(Vector2(752, row_y), Vector2(44, 44))
 	failed += _assert(not Rect2(pop.position, pop.size).intersects(neighbour), "tooltip clears the neighbouring HUD icon")
+	host.position = Vector2(vs.x - 30.0, row_y)
+	pop.size = Vector2(220, 36)
+	Ui540.place_tooltip(pop, host)
+	failed += _assert(pop.position.x >= Ui540.SAFE_MARGIN_PX - 0.1 and pop.position.x + pop.size.x <= vs.x - Ui540.SAFE_MARGIN_PX + 0.1, "wide bottom-row tooltip clamps inside the 24 px margin (got %s)" % str(pop.position))
+	failed += _assert(host.position.y - (pop.position.y + pop.size.y) >= Ui540.TOOLTIP_GAP_PX - 0.5, "clamped bottom-row tooltip keeps its gap")
+	pop.size = Vector2(120, vs.y - 80.0)
+	Ui540.place_tooltip(pop, host)
+	failed += _assert(is_equal_approx(pop.position.y, Ui540.SAFE_MARGIN_PX), "a tall bottom-row tooltip clamps to the top safe margin (got %.1f)" % pop.position.y)
+	failed += _assert(pop.position.y + pop.size.y <= vs.y - Ui540.SAFE_MARGIN_PX + 0.5, "a tall bottom-row tooltip stays above the bottom safe margin")
 	pop.free()
 	host.free()
 	## The engine builds a TooltipPanel popup and adds it under the control.
@@ -6339,8 +7142,42 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
 	failed += _assert(drawn_path.find("toast_9s_40x30") >= 0, "tooltip panel draws the activity papyrus scroll (got %s)" % drawn_path)
 	failed += _assert(tip_label.get_theme_color("font_color").is_equal_approx(Color8(62, 42, 24)), "tooltip label ink is applied")
+	failed += await _tooltip_text_inside_margins(tree_root, theme)
 	tip_btn.free()
 	failed += _world_hover_names_ok(tree_root)
+	return failed
+
+
+func _tooltip_text_inside_margins(tree_root: Window, theme: Theme) -> int:
+	var failed: int = 0
+	var panel := PanelContainer.new()
+	panel.name = "TooltipTextProbe"
+	panel.theme = theme
+	panel.theme_type_variation = &"TooltipPanel"
+	var label := Label.new()
+	label.theme = theme
+	label.theme_type_variation = &"TooltipLabel"
+	label.text = "C — Character"
+	panel.add_child(label)
+	tree_root.add_child(panel)
+	await process_frame
+	var box: StyleBoxTexture = panel.get_theme_stylebox(&"panel") as StyleBoxTexture
+	failed += _assert(box != null, "probe tooltip has the papyrus stylebox")
+	if box == null:
+		panel.free()
+		return failed
+	var text_rect := Rect2(label.position, label.size)
+	var content := Rect2(
+		box.content_margin_left,
+		box.content_margin_top,
+		panel.size.x - box.content_margin_left - box.content_margin_right,
+		panel.size.y - box.content_margin_top - box.content_margin_bottom
+	)
+	failed += _assert(content.encloses(text_rect), "C — Character sits inside the content margins (text %s content %s)" % [str(text_rect), str(content)])
+	failed += _assert(text_rect.position.x >= box.texture_margin_left - 0.1, "tooltip text clears the left roll (x %.1f)" % text_rect.position.x)
+	failed += _assert(text_rect.end.x <= panel.size.x - box.texture_margin_right + 0.1, "tooltip text clears the handle (right %.1f panel %.1f)" % [text_rect.end.x, panel.size.x])
+	failed += _assert(text_rect.position.y >= box.texture_margin_top - 0.1 and text_rect.end.y <= panel.size.y - box.texture_margin_bottom + 0.1, "tooltip text clears the top and bottom edges")
+	panel.free()
 	return failed
 
 
@@ -6380,17 +7217,38 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	var host := Node2D.new()
 	tree_root.add_child(host)
 	WorldHover.present(host, str(strings.call("get_text", "hover_forge_door")))
-	var tip: PanelContainer = WorldHover.panel()
+	failed += _assert(WorldHover.current_text() == "", "world hover waits before it shows (got %s)" % WorldHover.current_text())
+	failed += _assert(is_equal_approx(WorldHover.rest_sec(), 0.8), "hover rest is 0.8s")
+	WorldHover.complete_rest()
+	var tip: Panel = WorldHover.panel()
 	var tip_box: StyleBoxTexture = tip.get_theme_stylebox(&"panel") as StyleBoxTexture if tip != null else null
 	var tip_path: String = tip_box.texture.resource_path if tip_box != null and tip_box.texture != null else ""
 	failed += _assert(WorldHover.current_text() == "Forge Door", "world hover shows the forge door name (got %s)" % WorldHover.current_text())
 	failed += _assert(tip_path.find("toast_9s_40x30") >= 0, "world hover draws the papyrus scroll (got %s)" % tip_path)
+	var tip_label: Label = tip.get_node_or_null("Text") as Label if tip != null else null
+	if tip != null and tip_label != null and tip_box != null:
+		var text_rect := Rect2(tip_label.position, tip_label.size)
+		var content := Rect2(
+			tip_box.content_margin_left,
+			tip_box.content_margin_top,
+			tip.size.x - tip_box.content_margin_left - tip_box.content_margin_right,
+			tip.size.y - tip_box.content_margin_top - tip_box.content_margin_bottom
+		)
+		failed += _assert(content.encloses(text_rect), "world hover text sits inside the papyrus (text %s content %s)" % [str(text_rect), str(content)])
+	else:
+		failed += _assert(false, "world hover text sits inside the papyrus")
+	var rune: Node = (load("res://scripts/runestone.gd") as GDScript).new()
+	rune.set("stat_id", &"arcana")
+	failed += _assert(str(rune.call("world_hover_name")) == "Runestone Arcana", "runestone hover names the stat (got %s)" % str(rune.call("world_hover_name")))
+	rune.free()
 	WorldHover.dismiss(host)
 	failed += _assert(WorldHover.current_text() == "", "world hover hides when the pointer leaves")
 	var other := Node2D.new()
 	tree_root.add_child(other)
 	WorldHover.present(other, "Wisp")
+	failed += _assert(WorldHover.current_text() == "", "a new hover waits out its own rest")
 	WorldHover.dismiss(host)
+	WorldHover.complete_rest()
 	failed += _assert(WorldHover.current_text() == "Wisp", "leaving a different object keeps the current hover")
 	WorldHover.shutdown()
 	host.free()
@@ -6403,6 +7261,8 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	station.free()
 	bench.free()
 	prop.free()
+	if failed == 0:
+		print("WORLD_HOVER_PAPYRUS_OK")
 	return failed
 
 
@@ -6589,6 +7449,18 @@ func _debug_panel_ok(tree_root: Window) -> int:
 			bramble_btn = b
 			break
 	failed += _assert(bramble_btn != null and bramble_btn.disabled, "bramble disabled")
+	if tabs != null:
+		var overlays: int = -1
+		for i: int in tabs.get_tab_count():
+			if tabs.get_tab_title(i) == "Overlays":
+				overlays = i
+		var tree_tab: Button = panel.find_child("TabTree", true, false) as Button
+		var overlays_tab: Button = panel.find_child("TabOverlays", true, false) as Button
+		failed += _assert(overlays >= 0 and tree_tab != null and overlays_tab != null, "debug tabs include Tree and Overlays")
+		if overlays >= 0:
+			tabs.current_tab = overlays
+			failed += _assert(tabs.current_tab == overlays and overlays_tab != null and overlays_tab.button_pressed, "setting current_tab highlights Overlays")
+			failed += _assert(tree_tab != null and not tree_tab.button_pressed, "setting current_tab clears the Tree highlight")
 	panel.queue_free()
 	return failed
 
@@ -7884,11 +8756,11 @@ func _forge_arch_draw_order(tree_root: Window) -> int:
 	var elaia_item: CanvasItem = elaia as CanvasItem
 	failed += _assert(_effective_z(arch) > _effective_z(keeper_item), "live arch z stays above the keeper")
 	failed += _assert(_effective_z(arch) > _effective_z(elaia_item), "live arch z stays above elaia")
-	var covered: int = _arch_body_overlap(arch, Vector2(811, 1170))
+	var covered: int = _arch_body_overlap(arch, Vector2(811, 1135))
 	failed += _assert(covered > 20, "arch frame covers the doorway sill (opaque samples %d)" % covered)
 	var deep: int = _arch_body_overlap(arch, Vector2(800, 700))
 	failed += _assert(deep == 0, "arch frame does not cover a keeper deep in the room (samples %d)" % deep)
-	var lip: int = _arch_body_overlap(arch, Vector2(800, 1160))
+	var lip: int = _arch_body_overlap(arch, Vector2(800, 1125))
 	failed += _assert(lip > 40, "arch lip still covers a keeper in the doorway (samples %d)" % lip)
 	failed += _assert(_draws_over(arch, keeper_item), "rendered order keeps the arch over the keeper at the spawn")
 	failed += _arch_fill_and_floor(arch)
@@ -8411,6 +9283,63 @@ func _forge_entry_one_click(tree_root: Window, game_state: Node, save_service: N
 	return failed
 
 
+func _forge_entry_after_elaia(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Joining Elaia pulls the Keeper back to the clearing after the forge has already been visited.
+	## Enter Forge must still move him in. The corner switch stays a view change.
+	var failed: int = 0
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null, "ForgeJobs for entry after Elaia")
+	if jobs == null:
+		return failed
+	game_state.call("reset_for_new_game")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	jobs.call("set_scene_changes_enabled", true)
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	change_scene_to_file(_HUB_SCENE)
+	var stable: String = await _await_stable_scene()
+	failed += _assert(stable == _HUB_SCENE, "elaia entry check starts in the clearing")
+	var live: Node = current_scene
+	if live == null:
+		return failed + 1
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("hide_welcome"):
+		hud.call("hide_welcome")
+	game_state.set("welcome_shown", true)
+	game_state.set("stage_id", &"elder")
+	game_state.emit_signal("stage_changed", &"elder")
+	game_state.set("forge_key", true)
+	game_state.set("forge_visited", true)
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+	game_state.set("elaia_footsteps_seen", true)
+	var stand: Vector2 = jobs.call("clearing_door_stand")
+	_place_actor(game_state, "keeper", "clearing", stand)
+	_place_actor(game_state, "elaia", "clearing", jobs.call("elaia_join_stand"))
+	game_state.call("select_keeper")
+	await process_frame
+	failed += _assert(bool(game_state.call("elaia_in_party")), "Elaia has joined before the re-entry")
+	var entered: String = str(hud.call("open_forge_entry")) if hud != null else ""
+	failed += _assert(entered == "entered", "Enter Forge after Elaia joins (got %s)" % entered)
+	var hopped: String = await _await_stable_scene()
+	failed += _assert(hopped == _FORGE_SCENE, "Enter Forge after Elaia opens the forge (scene %s)" % hopped)
+	failed += _assert(str(game_state.get("keeper_area")) == "forge", "the Keeper enters the forge after Elaia has joined")
+	var keeper_body: Node2D = get_first_node_in_group("keeper") as Node2D
+	var arch: Vector2 = jobs.call("forge_arch_spawn")
+	failed += _assert(keeper_body != null and keeper_body.visible and keeper_body.global_position.distance_to(arch) <= 24.0, "the Keeper is at the forge door after Elaia has joined")
+	failed += _assert(str(game_state.get("elaia_area")) == "clearing", "Elaia stays in the clearing when the Keeper enters")
+	_drop_current_scene()
+	save_service.call("note_session_ended")
+	game_state.call("reset_for_new_game")
+	jobs.call("set_in_forge_override", -1)
+	paused = false
+	if failed == 0:
+		print("FORGE_ENTRY_AFTER_ELAIA_OK")
+	return failed
+
+
 func _actor_box_hits(live: Node, pos: Vector2, actor_id: String) -> bool:
 	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
 	if space == null:
@@ -8478,10 +9407,10 @@ func _batch_refund(tree_root: Window, game_state: Node, save_service: Node, back
 	var batch_script: GDScript = load("res://scripts/batch_job.gd") as GDScript
 	failed += _assert(batch_script != null, "batch job script loads")
 	if batch_script != null:
-		failed += _assert(int(batch_script.call("refund_qty", 1, 1)) == 1, "odd 1 rounds up to 1")
-		failed += _assert(int(batch_script.call("refund_qty", 3, 1)) == 2, "odd 3 rounds up to 2")
+		failed += _assert(int(batch_script.call("refund_qty", 1, 1)) == 0, "odd 1 rounds down to 0")
+		failed += _assert(int(batch_script.call("refund_qty", 3, 1)) == 1, "odd 3 rounds down to 1")
 		failed += _assert(int(batch_script.call("refund_qty", 1, 20)) == 10, "half of 20 is 10")
-		failed += _assert(int(batch_script.call("refund_qty", 3, 20)) == 30, "half of 60 rounds up to 30")
+		failed += _assert(int(batch_script.call("refund_qty", 3, 20)) == 30, "half of 60 is 30")
 	game_state.call("reset_for_new_game")
 	backpack.call("reset_for_new_game")
 	game_state.call("set_resource", &"stone", 40)
@@ -8520,7 +9449,7 @@ func _batch_refund(tree_root: Window, game_state: Node, save_service: Node, back
 	failed += _assert(str(jobs.call("try_begin_batch", "workbench", "wooden_planks", 3)) == "ok", "three planks are paid up front")
 	failed += _assert(int(game_state.get("wood")) == 0, "plank batch spends 9 wood")
 	failed += _assert(str(jobs.call("cancel_batch", "workbench")) == "ok", "cancel returns materials")
-	failed += _assert(int(game_state.get("wood")) == 5, "odd plank wood refund rounds up to 5")
+	failed += _assert(int(game_state.get("wood")) == 4, "odd plank wood refund rounds down to 4")
 	failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 0, "cancel grants no finished planks")
 	game_state.call("reset_for_new_game")
 	backpack.call("reset_for_new_game")
@@ -8532,7 +9461,7 @@ func _batch_refund(tree_root: Window, game_state: Node, save_service: Node, back
 	var state: Dictionary = jobs.call("job_state", "workbench")
 	failed += _assert(int(state.get("done", -1)) == 1 and int(state.get("remaining_count", -1)) == 1, "the in-progress plank is unfinished")
 	jobs.call("cancel_batch", "workbench")
-	failed += _assert(int(game_state.get("wood")) == 2, "refund uses the unfinished item, not the finished one")
+	failed += _assert(int(game_state.get("wood")) == 1, "refund uses half the unfinished item, rounded down")
 	failed += _assert(int(backpack.call("get_count", "wooden_planks")) == 1, "cancel keeps the finished plank")
 	game_state.call("reset_for_new_game")
 	backpack.call("reset_for_new_game")
@@ -8942,10 +9871,10 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 			elder_rx = elder_radii.x
 			elder_ry = elder_radii.y
 		game_state.set("stage_id", StringName("ancient"))
-		var ancient_r: float = float(mana.call("wisp_orbit_radius"))
+		var ancient_radii: Vector2 = mana.call("wisp_orbit_radii") if mana.has_method("wisp_orbit_radii") else Vector2(float(mana.call("wisp_orbit_radius")), float(mana.call("wisp_orbit_radius")))
 		game_state.set("stage_id", StringName("sapling"))
 		failed += _assert(elder_rx >= 280.0 and elder_rx >= mature_r * 3.0, "elder manatree orbit is much larger (rx %.1f vs mature ry %.1f)" % [elder_rx, mature_r])
-		failed += _assert(ancient_r < 120.0 and absf(ancient_r - elder_ry) > 100.0, "ancient keeps the trunk orbit (%.1f)" % ancient_r)
+		failed += _assert(is_equal_approx(ancient_radii.x, elder_rx) and is_equal_approx(ancient_radii.y, elder_ry), "ancient wisp circle matches the elder (%.1f, %.1f)" % [ancient_radii.x, ancient_radii.y])
 	jobs.call("set_in_forge_override", -1)
 	change_scene_to_file(_FORGE_SCENE)
 	failed += await _expect_scene("wisp forge", _FORGE_SCENE)
@@ -8963,23 +9892,37 @@ func _workbench_wisp_visible(tree_root: Window, game_state: Node, save_service: 
 	if station != null and wisp != null:
 		var orbit_center: Vector2 = station.call("wisp_orbit_center")
 		var ry_station: float = float(station.call("wisp_orbit_radius"))
-		var rx_station: float = ry_station * 2.0
+		var rx_station: float = ry_station
+		if station.has_method("wisp_orbit_radii"):
+			var station_radii: Vector2 = station.call("wisp_orbit_radii")
+			rx_station = station_radii.x
+			ry_station = station_radii.y
+		failed += _assert(rx_station < 90.0 and ry_station < 90.0, "station ring is tight (%.1f x %.1f)" % [rx_station, ry_station])
+		var keeper_z: int = int((room.get_node_or_null("Keeper") as CanvasItem).z_index) if room.get_node_or_null("Keeper") is CanvasItem else 1
+		var station_z: int = int((station as CanvasItem).z_index)
 		jobs.call("debug_set_wisp_orbit_phase", 0.0)
 		wisp.call("place_on_shared_orbit")
-		failed += _assert(int(wisp.z_index) >= 1, "east side stays in front")
+		failed += _assert(int(wisp.z_index) > station_z, "east side stays in front of the station")
 		failed += _assert(wisp.global_position.x > orbit_center.x + rx_station * 0.85, "east side sits on the ellipse arc")
 		jobs.call("debug_set_wisp_orbit_phase", PI)
 		wisp.call("place_on_shared_orbit")
-		failed += _assert(int(wisp.z_index) >= 1, "west side stays in front")
+		failed += _assert(int(wisp.z_index) > station_z, "west side stays in front of the station")
 		failed += _assert(wisp.global_position.x < orbit_center.x - rx_station * 0.85, "west side sits on the ellipse arc")
 		jobs.call("debug_set_wisp_orbit_phase", PI * 0.5)
 		wisp.call("place_on_shared_orbit")
-		failed += _assert(int(wisp.z_index) >= 2, "south side draws in front of the station")
-		failed += _assert(wisp.global_position.y > station.global_position.y, "south side is in front of the station feet")
+		failed += _assert(int(wisp.z_index) > station_z, "south side stays in front of the station")
+		failed += _assert(wisp.global_position.y > orbit_center.y + ry_station * 0.85, "south side is the near arc")
 		failed += _assert(wisp.visible, "south side stays visible")
 		jobs.call("debug_set_wisp_orbit_phase", -PI * 0.5)
 		wisp.call("place_on_shared_orbit")
+		failed += _assert(int(wisp.z_index) < station_z and int(wisp.z_index) < keeper_z, "north side hides behind the station and the keeper")
 		failed += _assert(wisp.global_position.y < orbit_center.y - ry_station * 0.85, "north arc keeps the top orbit point")
+		jobs.call("debug_set_wisp_orbit_phase", -0.3)
+		wisp.call("place_on_shared_orbit")
+		failed += _assert(int(wisp.z_index) < station_z, "the whole upper half stays behind the station")
+		jobs.call("debug_set_wisp_orbit_phase", 0.3)
+		wisp.call("place_on_shared_orbit")
+		failed += _assert(int(wisp.z_index) > station_z, "the whole lower half stays in front of the station")
 	_drop_current_scene()
 	game_state.call("reset_for_new_game")
 	jobs.call("reset_for_new_game")
@@ -9094,6 +10037,8 @@ func _manatree_water_rmb_cancel(tree_root: Window, game_state: Node) -> int:
 	failed += _assert(live != null, "hub for water RMB cancel")
 	if live == null:
 		return failed
+	game_state.set("welcome_shown", true)
+	game_state.set("welcome_presented", true)
 	tree_root.add_child(live)
 	await process_frame
 	await process_frame
@@ -9113,13 +10058,67 @@ func _manatree_water_rmb_cancel(tree_root: Window, game_state: Node) -> int:
 		failed += _assert(water_toast != null and water_toast.visible and water_line.find("Manashards") >= 0 and water_line.find("Essence") >= 0, "watering toasts the shards and essence (got %s)" % water_line)
 		failed += _assert(bool(keeper.call("is_channeling")), "keeper channels water")
 		failed += _assert(bool(mana.get("_watering")), "tree shows watering")
+		var watered_at: Vector2 = keeper.global_position
+		var care: CanvasItem = live.get_node_or_null("HUD/CarePanel") as CanvasItem
+		var door_spot: Dictionary = keeper_cls.solve_work_spot(footprint, mana.global_position, "door", Callable())
+		var door_at: Vector2 = door_spot.get("position", mana.global_position)
 		mana.call("apply_player_command")
-		failed += _assert(not bool(keeper.call("is_channeling")), "RMB cancels water channel")
+		await process_frame
+		failed += _assert(not bool(keeper.call("is_channeling")), "RMB stops the water channel")
 		failed += _assert(not bool(mana.get("_watering")), "tree watering flag clears")
+		failed += _assert(bool(keeper.get("_moving")), "RMB while watering walks him to the tree")
+		failed += _assert(str(keeper.get("_work_type")) == "door", "the walk aims at the tree, not a station")
+		failed += await _await_tree_tend(keeper, care, door_at, watered_at)
+		if care != null:
+			care.visible = false
+		keeper.global_position = watered_at
 		mana.call("do_water")
 		await process_frame
 		failed += _assert(bool(keeper.call("is_channeling")), "Water button resumes channel")
+		## Still walking to the stand: the click leaves that path and goes to the tree.
+		keeper.call("cancel_water_trip")
+		keeper.global_position = watered_at + Vector2(-220, 40)
+		var trip_from: Vector2 = keeper.global_position
+		keeper.call("start_water_channel", mana)
+		await process_frame
+		failed += _assert(bool(keeper.get("_water_pending")), "water click starts the walk to the stand")
+		mana.call("apply_player_command")
+		await process_frame
+		failed += _assert(not bool(keeper.get("_water_pending")), "RMB during the water walk drops the channel")
+		failed += _assert(bool(keeper.get("_moving")), "RMB during the water walk keeps him moving")
+		var aimed: Vector2 = keeper.get("_work_spot")
+		failed += _assert(aimed.distance_to(door_at) < 1.0, "he heads toward the tree (aim %s goal %s)" % [str(aimed), str(door_at)])
+		failed += _assert(str(keeper.get("_work_type")) == "door", "the water walk becomes a walk to the tree")
+		failed += _assert(not bool(keeper.call("is_channeling")), "he is not still watering on the way")
+		failed += await _await_tree_tend(keeper, care, door_at, trip_from)
+		if care != null:
+			care.visible = false
+		## A direct work order while watering does the same walk and opens tending.
+		keeper.global_position = watered_at
+		keeper.call("start_water_channel", mana)
+		await process_frame
+		keeper.call("command_work", mana, "manatree")
+		await process_frame
+		failed += _assert(not bool(keeper.call("is_channeling")), "a work order stops watering")
+		failed += _assert(bool(keeper.get("_moving")) or keeper.global_position.distance_to(door_at) <= 16.0, "a work order walks him to the tree")
+		failed += await _await_tree_tend(keeper, care, door_at, watered_at)
 	live.queue_free()
+	if failed == 0:
+		print("MANATREE_WATER_TREE_RMB_OK")
+	return failed
+
+
+func _await_tree_tend(keeper: Node, care: CanvasItem, door_at: Vector2, started: Vector2) -> int:
+	var failed: int = 0
+	for _step: int in 240:
+		if not bool(keeper.get("_moving")) and keeper.global_position.distance_to(door_at) <= 20.0:
+			break
+		await physics_frame
+	failed += _assert(
+		keeper.global_position.distance_to(door_at) <= 20.0,
+		"he stands at the tree (from %s now %s goal %s)" % [str(started), str(keeper.global_position), str(door_at)]
+	)
+	failed += _assert(care != null and care.visible, "tending window opens at the tree")
 	return failed
 
 
@@ -9202,6 +10201,18 @@ func _craft_duration_labels(tree_root: Window, game_state: Node, backpack: Node)
 	total = panel.find_child("TotalLabel", true, false) as Label
 	failed += _assert(current != null and current.text.find("1m 00s") >= 0, "forge current bar shows the item time (got %s)" % (current.text if current else ""))
 	failed += _assert(total != null and total.text.find("1m 00s") >= 0, "forge batch bar shows the remaining time (got %s)" % (total.text if total else ""))
+	var heading_bench: Node = panel_scene.instantiate()
+	tree_root.add_child(heading_bench)
+	heading_bench.set("compact", true)
+	heading_bench.call("setup", "workbench")
+	var bench_count: Label = heading_bench.find_child("Count", true, false) as Label
+	var bench_px: int = int(bench_count.get_theme_font_size("font_size")) if bench_count != null else 0
+	var forge_px: int = int(current.get_theme_font_size("font_size")) if current != null else 0
+	var total_px: int = int(total.get_theme_font_size("font_size")) if total != null else 0
+	failed += _assert(bench_px == 38 and forge_px == bench_px and total_px == bench_px, "forge time line uses the workbench heading (got %d, bench %d)" % [forge_px, bench_px])
+	if bench_px == 38 and forge_px == bench_px and total_px == bench_px:
+		print("FORGE_TIME_LINE_OK")
+	heading_bench.free()
 	var tip: String = str(jobs.call("bar_tooltip", "crucible", "current"))
 	game_state.call("set_resource", &"wood", 6)
 	jobs.call("note_keeper_idle")
@@ -9498,15 +10509,24 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	failed += _assert(not bool(game_state.get("echo_02_fee_paid")) and str(game_state.get("echo_02_outcome")) == "ko", "a loss clears the Bramble fee")
 	game_state.set("forge_key", false)
 	echo.set("battle_context", "echo2")
+	var expect_spare: int = int(echo.call("snapshot_payout", "spare"))
+	var shards_before: int = int(game_state.call("get_resource", &"manashards"))
 	var spare_pay: Dictionary = echo.call("apply_outcome", "spare")
-	failed += _assert(int(spare_pay.get("shards", -1)) == 0, "Bramble spare pays no shards")
+	failed += _assert(expect_spare > 0 and int(spare_pay.get("shards", -1)) == expect_spare, "Bramble spare pays Elaia's shard formula")
+	failed += _assert(int(game_state.call("get_resource", &"manashards")) == shards_before + expect_spare, "Bramble spare adds the shards")
 	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "spare", "spare opens the road")
 	failed += _assert(not bool(game_state.get("forge_key")), "Bramble spare does not grant the Forge Key")
 	game_state.set("echo_02_resolved", false)
 	game_state.set("echo_02_outcome", "")
 	echo.set("battle_context", "echo2")
-	echo.call("apply_outcome", "defeat")
+	var expect_defeat: int = int(echo.call("snapshot_payout", "defeat"))
+	var shards_mid: int = int(game_state.call("get_resource", &"manashards"))
+	var defeat_pay: Dictionary = echo.call("apply_outcome", "defeat")
+	failed += _assert(expect_defeat > 0 and int(defeat_pay.get("shards", -1)) == expect_defeat, "Bramble defeat pays Elaia's shard formula")
+	failed += _assert(int(game_state.call("get_resource", &"manashards")) == shards_mid + expect_defeat, "Bramble defeat adds the shards")
 	failed += _assert(bool(game_state.get("echo_02_resolved")) and str(game_state.get("echo_02_outcome")) == "defeat", "defeat opens the road")
+	if expect_spare > 0 and int(spare_pay.get("shards", -1)) == expect_spare and int(defeat_pay.get("shards", -1)) == expect_defeat and not bool(game_state.get("forge_key")):
+		print("BRAMBLE_SHARDS_OK")
 	if failed == before_fee:
 		print("BRAMBLE_ECHO_FEE_OK")
 	game_state.call("reset_for_new_game")
@@ -9571,7 +10591,11 @@ func _adventure_batch1(tree_root: Window, game_state: Node, save_service: Node, 
 	failed += _assert(str(wall.call("begin_entry")) == "confirm", "weapon opens the Echo confirm")
 	wall.call("cancel_fee")
 	failed += _assert(str(echo.call("try_pay_bramble")) == "paid", "scene pays 50")
-	failed += _assert(str(wall.call("begin_entry")) == "enter", "paid fee re-enters")
+	game_state.call("set_resource", &"essence", 7)
+	failed += _assert(str(wall.call("begin_entry")) == "enter", "a paid Bramble echo starts with no confirm")
+	var thorn_confirm: Node = tree_root.get_node_or_null("ThornEchoConfirm")
+	failed += _assert(thorn_confirm == null or not thorn_confirm.visible, "a paid Bramble echo opens no confirm")
+	failed += _assert(int(game_state.get("essence")) == 7 and bool(echo.get("in_battle")), "Bramble re-entry does not spend")
 	echo.call("finish_battle", "spare")
 	await process_frame
 	failed += _assert(bool(game_state.get("echo_02_resolved")), "spare resolved in the clearing")
@@ -9787,6 +10811,25 @@ func _expedition_board_tease(tree_root: Window, game_state: Node, save_service: 
 		seen.append(text)
 	game_state.status_message.connect(grab)
 	failed += _assert(not bool(game_state.get("echo_02_resolved")), "road starts shut")
+	var board_btn: Button = hud.get_node_or_null("Panel/BoardButton") as Button if hud else null
+	var nav_btn: Button = hud.get_node_or_null("Panel/HubForgeNav") as Button if hud else null
+	var char_btn: Button = hud.get_node_or_null("Panel/CharacterButton") as Button if hud else null
+	failed += _assert(board_btn != null and not board_btn.visible, "adventure board button waits until the road is open")
+	if board_btn != null and nav_btn != null and char_btn != null and hud != null:
+		var board_at: Vector2 = board_btn.position
+		var nav_at: Vector2 = nav_btn.position
+		game_state.set("forge_visited", true)
+		hud.call("_refresh_nav_button")
+		failed += _assert(nav_btn.visible, "forge switch shows once the forge has been visited")
+		failed += _assert(board_btn.position.distance_to(board_at) < 1.0, "the board button does not move when the forge switch appears")
+		failed += _assert(nav_btn.position.distance_to(nav_at) < 1.0, "the forge switch keeps its own slot")
+		failed += _assert(nav_btn.position.x + nav_btn.size.x <= char_btn.position.x and char_btn.position.x + char_btn.size.x <= board_btn.position.x, "the forge switch stays left of the board button")
+		game_state.set("echo_02_resolved", true)
+		hud.call("_refresh_nav_button")
+		failed += _assert(board_btn.visible and board_btn.position.distance_to(board_at) < 1.0, "the board button appears in its own slot once adventuring is unlocked")
+		game_state.set("echo_02_resolved", false)
+		game_state.set("forge_visited", false)
+		hud.call("_refresh_nav_button")
 	failed += _assert(str(wall.call("begin_entry")) == "tease" and seen.has(tease), "the wall teases with path_east_tease")
 	seen.clear()
 	# Right-click the board with the Keeper selected. The Keeper walks over and the tease shows.
@@ -10226,9 +11269,25 @@ func _speed_button_ok(tree_root: Window, game_state: Node, save_service: Node, g
 	game_state.call("advance_open_play", 1.0)
 	failed += _assert(is_equal_approx(float(game_state.get("run_time_sec")) - run0, 8.0), "open frame advances play at 8x")
 	failed += _assert(is_equal_approx(float(game_state.get("active_since_load_sec")) - idle0, 1.0), "idle clock stays 1x at 8x")
+	## Watering reads the play-speed multiplier once. 2x is two pulses per real second, not four.
+	var fruit_was: bool = bool(game_state.get("fruit_committed"))
+	game_state.set("fruit_committed", false)
+	game_state.call("set_play_speed", 2)
+	var water_scaled: float = float(game_state.call("active_play_delta", 1.0))
+	failed += _assert(is_equal_approx(water_scaled, 2.0), "2x watering scales a real second to 2s, not 4s (got %s)" % water_scaled)
+	var water_before: int = int(game_state.get("essence"))
+	game_state.call("tick_hero_water", "keeper", water_scaled)
+	var water_pulses: int = int(floor(water_scaled / float(game_state.call("get_water_essence_pulse_sec"))))
+	var water_each: int = int(game_state.call("get_water_essence_amount"))
+	var water_gained: int = int(game_state.get("essence")) - water_before
+	failed += _assert(water_gained == water_pulses * water_each, "one real second of watering at 2x pays %d pulses, not double that (got %d)" % [water_pulses, water_gained])
+	if is_equal_approx(water_scaled, 2.0) and water_gained == water_pulses * water_each:
+		print("WATER_SPEED_ONCE_OK")
+	game_state.set("fruit_committed", fruit_was)
+	game_state.call("set_play_speed", 8)
 	var curve: float = float(game_state.call("offline_effective_seconds", 1800.0))
 	var idle: float = float(game_state.call("idle_catch_up_seconds", 1800.0))
-	failed += _assert(is_equal_approx(curve, 180.0), "30 min offline curve is 180s at 1x (got %s)" % curve)
+	failed += _assert(is_equal_approx(curve, 600.0), "30 min offline curve is 600s at 1x (got %s)" % curve)
 	failed += _assert(is_equal_approx(idle, curve), "idle catch-up matches the 1x curve")
 	var eight_hours: float = float(game_state.call("offline_effective_seconds", 1800.0 * 8.0))
 	failed += _assert(not is_equal_approx(curve, eight_hours), "8x must not stretch the offline curve")
@@ -15744,7 +16803,7 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 		failed += _assert(ab != null and ab.disabled and ab.text == "—", "ability %d empty" % (n + 1))
 		failed += _assert(ab != null and ab.tooltip_text.find("Weave") >= 0, "ability %d tooltip" % (n + 1))
 	var salve_btn: Button = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
-	failed += _assert(salve_btn != null and salve_btn.text.find("Heart Salve") >= 0 and salve_btn.text.find("×2") >= 0, "salve shows ×2")
+	failed += _assert(salve_btn != null and salve_btn.text == "Items" and salve_btn.tooltip_text.find("Heart Salve") >= 0 and salve_btn.tooltip_text.find("×2") >= 0, "items button keeps the salve count in the tip")
 	failed += _assert(ability_row != null and not (ability_row as CanvasItem).is_visible_in_tree(), "no empty ability row is visible")
 	failed += _battle_menu_in_bottom_bar(view, "first party turn")
 	var sfm_toggle: Button = view.get_node_or_null("Arena/ActionMenu/StrikeForMeToggle") as Button
@@ -15787,7 +16846,7 @@ func _battle_menu(tree_root: Window, game_state: Node, save_service: Node) -> in
 				salve_target.emit_signal("pressed")
 			await process_frame
 			salve_btn = view.get_node_or_null("Arena/ActionMenu/SalveButton") as Button
-			failed += _assert(salve_btn != null and salve_btn.text.find("×1") >= 0, "salve count drops to ×1")
+			failed += _assert(salve_btn != null and salve_btn.text == "Items" and salve_btn.tooltip_text.find("×1") >= 0, "salve count drops to ×1")
 			var keeper_hp: int = int(fight.fighter_dict("keeper").get("hp", 0))
 			failed += _assert(keeper_hp > 5, "salve heals Keeper")
 			salve_done = true

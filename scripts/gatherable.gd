@@ -70,7 +70,7 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		if label:
 			label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			label.visible = true
+			label.visible = false
 		return
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label.text = ContentStrings.get_text("node_%s_prompt" % node_key)
@@ -218,6 +218,9 @@ func _refresh_prompt() -> void:
 		return
 	if _channeling:
 		label.text = ContentStrings.get_text("node_%s_busy" % node_key)
+		var lend: String = _lend_line()
+		if lend != "":
+			label.text = "%s\n%s" % [label.text, lend]
 		_apply_label_visibility()
 		return
 	if GameState.selected_wisp_id >= 0:
@@ -239,10 +242,26 @@ func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_apply_label_visibility()
 	WorldHover.sync(self, inside, world_hover_name())
+	_sync_lend_prompt(inside)
+
+
+func _lend_line() -> String:
+	if not has_node("/root/MinigameHost"):
+		return ""
+	if str(MinigameHost.call("hero_for", String(resource_id))) != "keeper":
+		return ""
+	return ContentStrings.get_text("minigame_lend_a_hand")
+
+
+func _sync_lend_prompt(inside: bool) -> void:
+	if not has_node("/root/MinigameHost"):
+		return
+	MinigameHost.call("show_prompt", String(resource_id), global_position + Vector2(0, -48), inside)
 
 
 func _label_should_show() -> bool:
-	return _hovered
+	## The papyrus hover names the node. The floating line sat on the sprite.
+	return false
 
 
 func wisp_orbit_center() -> Vector2:

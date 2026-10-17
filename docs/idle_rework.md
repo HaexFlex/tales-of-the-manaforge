@@ -49,21 +49,23 @@ The Pass E placeholder keys `ancient_grow_confirm_*` and `ancient_countdown_hud`
 
 ## 4. Offline curve
 
-One curve covers harvest, watering, Wisps, and the Forge. It replaces the Forge's 1/20, 1/100, and 1/1000 tiers. The Forge's additive speed (Keeper 1, companion 1, each Wisp 0.1, cap 4) still applies on top of the curved seconds. There is no `OFFLINE_WATER_MULT` and no gather-multiplier floor.
+Gathering, watering, and Wisps use one curve. Forge crafting stays on the raw closed gap. The Forge's additive speed (Keeper 1, companion 1, each Wisp 0.1, cap 4) still applies on top of that raw craft time. There is no `OFFLINE_WATER_MULT` and no gather-multiplier floor. Offline Manashards are then scaled by `offline_shard_mult` (0.25 + 0.05 per Ascension rank, max 1).
 
-Config is `offline_tiers` in `data/forge_tuning.json`: `[end_hours, rate]`. A final `end_hours` of −1 is the open tail.
+Config is `offline_tiers` in `data/forge_tuning.json`: `[end_hours, rate]`. A final `end_hours` of −1 is the open tail. The same numbers are mirrored in `GameState._default_offline_tiers`.
 
 | Closed time | Rate | Effective seconds at the boundary |
 |---|---|---|
-| 0–30 min | 1/10 | 180 |
-| to 2 h | 1/60 | 270 |
-| to 8 h | 1/250 | 356.4 |
-| to 24 h | 1/600 | 452.4 |
-| after 24 h | 1/3000 | — |
+| 0–2 min | 1 | 120 |
+| to 10 min | 3/8 | 300 |
+| to 30 min | 1/4 | 600 |
+| to 2 h | 1/9 | 1,200 |
+| to 8 h | 1/18 | 2,400 |
+| to 24 h | 1/48 | 3,600 |
+| each further 24 h | 1/144 | +600 |
 
 ### Curve reset
 
-There is no 4-hour cooldown. The curve restarts at the fresh 1/10 tier only when the player has actively played for at least `offline_reset_active_sec` (180) since the last load. Active time counts only while the game is open and unpaused.
+There is no 4-hour cooldown. The curve restarts at the fresh full-rate tier only when the player has actively played for at least `offline_reset_active_sec` (180) since the last load. Active time counts only while the game is open and unpaused.
 
 If they reopen and close again sooner, the next closure continues from the cumulative closed time. Example: close 20 minutes, reopen for 1 minute, close 20 minutes. The second closure is priced as minutes 20–40, not 0–20.
 

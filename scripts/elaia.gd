@@ -201,7 +201,7 @@ func _entry_point() -> Vector2:
 			return ForgeJobs.forge_arch_spawn()
 		return ForgeJobs.clearing_door_stand()
 	if home_area == "forge":
-		return Vector2(800, 1048)
+		return Vector2(800, 1013)
 	return global_position
 
 

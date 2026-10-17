@@ -30,6 +30,7 @@ func _ready() -> void:
 	_primary_font = load(PRIMARY_FONT_PATH) as Font
 	_title_font = load(TITLE_FONT_PATH) as Font
 	_apply_mouse_cursor()
+	WorldHover.install()
 	call_deferred("apply_app_theme")
 
 

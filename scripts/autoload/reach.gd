@@ -489,6 +489,35 @@ func catch_up(seconds: float, source: String) -> Dictionary:
 	return last_catchup
 
 
+func capture_offline_snapshot() -> Dictionary:
+	## Point-in-time view so a catch-up can report rooms, EXP, and how the run ended.
+	var pack_items: Dictionary = {}
+	if pack != null:
+		var packed: Dictionary = pack.to_dict()
+		var items_v: Variant = packed.get("items", {})
+		if typeof(items_v) == TYPE_DICTIONARY:
+			pack_items = (items_v as Dictionary).duplicate()
+	var log: Array = []
+	for entry: Dictionary in room_log:
+		log.append({"room": int(entry.get("room", 0)), "outcome": str(entry.get("outcome", ""))})
+	var banked: Dictionary = {}
+	var banked_v: Variant = last_summary.get("banked", {})
+	if typeof(banked_v) == TYPE_DICTIONARY:
+		banked = (banked_v as Dictionary).duplicate()
+	return {
+		"running": running,
+		"phase": phase,
+		"room_count": room_log.size(),
+		"rooms_attempted": rooms_attempted,
+		"exp_gained": exp_gained,
+		"dojo_exp": dojo_exp,
+		"pack": pack_items,
+		"reason": str(last_summary.get("reason", "")),
+		"banked": banked,
+		"log": log,
+	}
+
+
 func advance_clock(seconds: float) -> void:
 	## One slot at a time. Idle rooms resolve only when the 12 minutes are up.
 	## Manual rooms ignore the clock. Elapsed is display only and never ends a run.

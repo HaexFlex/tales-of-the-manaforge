@@ -1,6 +1,7 @@
 class_name EchoBattle
 extends RefCounted
-## 1v1 turn resolution for Echo duels. No scene, no save, no mid-fight persist.
+## 1v1 turn resolution for Echo duels. No scene. The only mid-fight write is the
+## Heart Salve leaving the pack, so a hard kill cannot refund it.
 ## Damage uses BATTLE_SCENE_DRAFT v4 §4 (`BattleResolver` + `BattleRng`).
 
 const ECHO_ID: String = "echo_keeper_01"
@@ -38,7 +39,16 @@ var rootbound: bool = false
 var first_hit_used: bool = false
 var timed_out: bool = false
 var rootbind_every: int = 0
+var salves_used: int = 0
+var keeper_brace: bool = false
+## Pack count after the last salve spend, so a load cannot quietly refund them.
+var salves_remembered: int = -1
 var turn_log: Array[Dictionary] = []
+## The view presents one half, then calls finish_presented_half(). Direct choose()
+## stays one call so the parity tests keep the same dice and the same flags.
+var present_halves: bool = false
+var instant_present: bool = false
+var _pending_second: String = ""
 
 var _dice: BattleRng = BattleRng.new()
 
@@ -155,7 +165,13 @@ func configure(keeper_totals: Dictionary, echo_def: Dictionary) -> void:
 	rootbound = false
 	first_hit_used = false
 	timed_out = false
+	salves_used = 0
+	keeper_brace = false
+	salves_remembered = -1
 	turn_log = []
+	present_halves = false
+	instant_present = false
+	_pending_second = ""
 
 
 func keeper_acts_first() -> bool:
@@ -170,11 +186,13 @@ func available_actions() -> PackedStringArray:
 	if outcome != "":
 		return PackedStringArray()
 	if spare_window:
-		return PackedStringArray(["strike", "spare"])
-	return PackedStringArray(["strike", "flee"])
+		return PackedStringArray(["strike", "brace", "salve", "spare"])
+	return PackedStringArray(["strike", "brace", "salve", "flee"])
 
 
 func choose(action: String) -> String:
+	if _pending_second != "":
+		return "presenting"
 	if outcome != "":
 		return "resolved"
 	if spare_window:
@@ -187,14 +205,98 @@ func choose(action: String) -> String:
 		if action == "strike":
 			_strike_to_finish()
 			return "defeat"
+		if action == "brace":
+			return _brace()
+		if action == "salve" or action == "item":
+			return _salve()
 		return "invalid"
 	if action == "flee":
 		return _flee()
 	if action == "strike":
 		return _strike_round()
+	if action == "brace":
+		return _brace()
+	if action == "salve" or action == "item":
+		return _salve()
 	if action == "spare":
 		return "locked"
 	return "invalid"
+
+
+func salves_left() -> int:
+	var pack: int = 0
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var bag: Node = tree.root.get_node_or_null("Backpack")
+		if bag != null and bag.has_method("get_count"):
+			pack = int(bag.call("get_count", "heart_salve"))
+	return mini(EchoTheme.SALVE_MAX - salves_used, pack)
+
+
+func _spend_salve() -> bool:
+	if salves_used >= EchoTheme.SALVE_MAX:
+		return false
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return false
+	var bag: Node = tree.root.get_node_or_null("Backpack")
+	if bag == null or not bag.has_method("try_spend"):
+		return false
+	if not bool(bag.call("try_spend", "heart_salve", 1)):
+		return false
+	salves_used += 1
+	salves_remembered = int(bag.call("get_count", "heart_salve"))
+	var saver: Node = tree.root.get_node_or_null("SaveService")
+	if saver != null and saver.has_method("save_echo_pack"):
+		saver.call("save_echo_pack")
+	return true
+
+
+func pending_half() -> String:
+	return _pending_second
+
+
+func finish_presented_half() -> String:
+	var which: String = _pending_second
+	_pending_second = ""
+	if which == "echo":
+		return _echo_answers()
+	if which == "keeper":
+		return _keeper_answers()
+	if which == "flee":
+		_finish("flee")
+		_log_line("battle_log_flee")
+		return "flee"
+	return "continue"
+
+
+func _defer_second(which: String) -> bool:
+	if present_halves and not instant_present:
+		_pending_second = which
+		return true
+	return false
+
+
+func _brace() -> String:
+	## Costs the Strike. The next landed Echo hit is halved (minimum 1).
+	keeper_brace = true
+	round += 1
+	_log_line("battle_log_brace")
+	if _defer_second("echo"):
+		return "presenting"
+	return _echo_answers()
+
+
+func _salve() -> String:
+	if not _spend_salve():
+		return "no_salve"
+	var heal: int = BattleResolver.round_half_up(keeper_max_hp, 3, 10)
+	keeper_hp = mini(keeper_max_hp, keeper_hp + heal)
+	_log_line("battle_log_salve", {"amount": heal})
+	round += 1
+	if _defer_second("echo"):
+		return "presenting"
+	return _echo_answers()
 
 
 func _flee() -> String:
@@ -202,6 +304,8 @@ func _flee() -> String:
 		_echo_turn()
 		if outcome != "":
 			return outcome
+		if _defer_second("flee"):
+			return "presenting"
 	_finish("flee")
 	_log_line("battle_log_flee")
 	return "flee"
@@ -214,16 +318,28 @@ func _strike_round() -> String:
 		if outcome != "" or spare_window:
 			_maybe_timeout()
 			return "spare_window" if spare_window and outcome == "" else outcome
-		_echo_turn()
-		if outcome != "":
-			_maybe_timeout()
-			return outcome
-		_maybe_timeout()
-		return "continue"
+		if _defer_second("echo"):
+			return "presenting"
+		return _echo_answers()
 	_echo_turn()
 	if outcome != "":
 		_maybe_timeout()
 		return outcome
+	if _defer_second("keeper"):
+		return "presenting"
+	return _keeper_answers()
+
+
+func _echo_answers() -> String:
+	_echo_turn()
+	if outcome != "":
+		_maybe_timeout()
+		return outcome
+	_maybe_timeout()
+	return "continue"
+
+
+func _keeper_answers() -> String:
 	_keeper_strike()
 	if spare_window and outcome == "":
 		_maybe_timeout()
@@ -368,6 +484,9 @@ func _echo_turn() -> void:
 	var res: Dictionary = _resolve_swing("echo", mode, keeper, keeper_hp, keeper_max_hp, "party")
 	var resolver_damage: int = int(res.get("damage", 0))
 	var damage: int = resolver_damage
+	if keeper_brace and damage > 0:
+		damage = maxi(1, BattleResolver.round_half_up(damage, 1, 2))
+		keeper_brace = false
 	var first_hit_floor: bool = false
 	if damage > 0 and not first_hit_used:
 		first_hit_used = true

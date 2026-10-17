@@ -339,6 +339,19 @@ func _ring_offset(node: Node2D, angle: float, radius_y: float) -> Vector2:
 
 
 func _ring_z(node: Node2D, angle: float) -> int:
+	var local: int = _ring_z_local(node, angle)
+	## Forge stations sit at z 1. The same -1/1 the clearing uses would tie the
+	## south arc with the station, and y-sort then hides the wisp until its feet
+	## pass the station. Shift by the station's z so the whole upper half stays
+	## behind and the whole lower half stays in front.
+	if node is CanvasItem and node.has_method("wisp_sorts_with_feet") and bool(node.call("wisp_sorts_with_feet")):
+		return (node as CanvasItem).z_index + local
+	return local
+
+
+func _ring_z_local(node: Node2D, angle: float) -> int:
+	if node != null and node.has_method("wisp_sorts_with_feet") and bool(node.call("wisp_sorts_with_feet")):
+		return -1 if sin(angle) < 0.0 else 1
 	if _ring_draws_clear(node):
 		## Behind only once the wisp is on the north side of the art.
 		## Sides and the south arc stay in front of the station.
@@ -454,7 +467,7 @@ func _refresh_label() -> void:
 		label.text = ContentStrings.get_text("wisp_assigned_hud", {"target": target})
 	else:
 		label.text = ContentStrings.get_text("wisp_idle_hud")
-	label.visible = _hovered or GameState.is_wisp_selected(wisp_id)
+	label.visible = false
 
 
 func _apply_outline(show_outline: bool) -> void:

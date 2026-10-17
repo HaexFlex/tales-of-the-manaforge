@@ -218,6 +218,7 @@ var _help_tab_phone: Button
 var _help_body: VBoxContainer
 var _help_close: Button
 var _help_tab: String = "pc"
+var _offline_summary: ColorRect
 
 
 func _ready() -> void:
@@ -228,6 +229,7 @@ func _ready() -> void:
 	fruit_confirm_panel.visible = false
 	care_panel.visible = false
 	welcome_panel.visible = false
+	_ensure_offline_summary()
 	call_deferred("_layout_welcome_panel")
 	if not get_viewport().size_changed.is_connected(_layout_welcome_panel):
 		get_viewport().size_changed.connect(_layout_welcome_panel)
@@ -469,21 +471,21 @@ func _layout_hud540() -> void:
 		_speed_button.position = Vector2(speed_x - tap - 4.0, safe)
 		_speed_button.size = Vector2(tap, tap)
 	var shortcut_y: float = vs.y - safe - tap
-	var show_nav: bool = _nav_button != null and _nav_button.visible
-	var shortcut_n: float = 4.0 if show_nav else 3.0
+	## Four fixed slots: forge switch, character, backpack, adventure board.
+	## A hidden slot stays empty so the forge switch and the board never trade places.
+	var shortcut_n: float = 4.0
 	var shortcut_x: float = vs.x - safe - shortcut_n * tap - (shortcut_n - 1.0) * 8.0 + shift
-	var slot: float = 0.0
-	if show_nav:
+	var step: float = tap + 8.0
+	if _nav_button != null:
 		_nav_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		_nav_button.position = Vector2(shortcut_x, shortcut_y)
 		_nav_button.size = Vector2(tap, tap)
-		slot = 1.0
-	character_button.position = Vector2(shortcut_x + slot * (tap + 8.0), shortcut_y)
+	character_button.position = Vector2(shortcut_x + step, shortcut_y)
 	character_button.size = Vector2(tap, tap)
-	backpack_button.position = Vector2(shortcut_x + (slot + 1.0) * (tap + 8.0), shortcut_y)
+	backpack_button.position = Vector2(shortcut_x + step * 2.0, shortcut_y)
 	backpack_button.size = Vector2(tap, tap)
 	if _board_button:
-		_board_button.position = Vector2(shortcut_x + (slot + 2.0) * (tap + 8.0), shortcut_y)
+		_board_button.position = Vector2(shortcut_x + step * 3.0, shortcut_y)
 		_board_button.size = Vector2(tap, tap)
 	_center_hud_icons()
 	_layout_party_bar_r4(vs, safe, shift)
@@ -595,6 +597,7 @@ func _ensure_board_button() -> void:
 	_board_icon.custom_minimum_size = Vector2(30, 30)
 	_board_icon.texture = load(HUD_BOARD_ICON) as Texture2D
 	_board_button.add_child(_board_icon)
+	_board_button.visible = false
 	panel.add_child(_board_button)
 	Ui540.style_wood_icon_button(_board_button)
 
@@ -1264,6 +1267,8 @@ func _apply_wood_chrome() -> void:
 
 
 func _process(_delta: float) -> void:
+	if _offline_summary != null and _offline_summary.has_method("tick_queue"):
+		_offline_summary.call("tick_queue")
 	_refresh_ancient_countdown()
 	_refresh_nav_button()
 	_refresh_frozen_banner()
@@ -1383,6 +1388,27 @@ func _refresh_dim() -> void:
 
 func bind_manatree(tree: Manatree) -> void:
 	_manatree = tree
+
+
+func _ensure_offline_summary() -> void:
+	if _offline_summary != null and is_instance_valid(_offline_summary):
+		return
+	var script: Script = load("res://scripts/ui/offline_summary.gd")
+	if script == null:
+		return
+	_offline_summary = script.new() as ColorRect
+	_offline_summary.name = "OfflineSummary"
+	add_child(_offline_summary)
+	move_child(_offline_summary, 0)
+
+
+func offline_summary_open() -> bool:
+	return _offline_summary != null and is_instance_valid(_offline_summary) and _offline_summary.visible
+
+
+func dismiss_offline_summary() -> void:
+	if _offline_summary != null and _offline_summary.has_method("dismiss"):
+		_offline_summary.call("dismiss")
 
 
 func maybe_show_welcome() -> void:
@@ -2965,6 +2991,14 @@ func _refresh_nav_button() -> void:
 			_apply_nav_board_face(destination)
 	if was != show_nav:
 		_layout_hud540()
+	_refresh_board_button()
+
+
+func _refresh_board_button() -> void:
+	if _board_button == null:
+		return
+	## Adventuring unlocks with Bramble's Echo, the same gate as the north road.
+	_board_button.visible = GameState.echo_02_resolved
 
 
 func _on_nav_pressed() -> void:
@@ -3372,33 +3406,39 @@ func _ensure_footsteps_popup() -> void:
 	_footsteps_popup.anchor_right = 0.5
 	_footsteps_popup.anchor_top = 0.5
 	_footsteps_popup.anchor_bottom = 0.5
-	_footsteps_popup.offset_left = -240.0
-	_footsteps_popup.offset_top = -90.0
-	_footsteps_popup.offset_right = 240.0
-	_footsteps_popup.offset_bottom = 90.0
+	_footsteps_popup.offset_left = -260.0
+	_footsteps_popup.offset_top = -120.0
+	_footsteps_popup.offset_right = 260.0
+	_footsteps_popup.offset_bottom = 120.0
 	_footsteps_popup.mouse_filter = Control.MOUSE_FILTER_STOP
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.08, 0.13, 0.11, 0.96)
-	sb.border_color = Color(0.45, 0.58, 0.48, 1)
-	sb.set_border_width_all(2)
-	_footsteps_popup.add_theme_stylebox_override("panel", sb)
+	_footsteps_popup.z_index = 40
+	var speaker := Label.new()
+	speaker.name = "Speaker"
+	speaker.position = Vector2(40, 16)
+	speaker.size = Vector2(440, 36)
+	speaker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	speaker.text = ContentStrings.get_text("wisp_name")
+	GameTheme.style_plank_label(speaker)
+	_footsteps_popup.add_child(speaker)
 	var body := Label.new()
 	body.name = "Body"
-	body.position = Vector2(16, 16)
-	body.size = Vector2(448, 80)
+	body.position = Vector2(40, 64)
+	body.size = Vector2(440, 72)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	body.text = ContentStrings.get_text("forge_elaia_footsteps")
-	body.add_theme_font_size_override("font_size", 16)
-	body.add_theme_color_override("font_color", Color(0.88, 0.92, 0.84, 1))
+	GameTheme.style_ink_label(body)
 	_footsteps_popup.add_child(body)
 	var go := Button.new()
 	go.name = "Go"
-	go.position = Vector2(150, 110)
-	go.size = Vector2(180, 40)
+	go.position = Vector2(170, 156)
+	go.size = Vector2(180, 44)
 	go.text = ContentStrings.get_text("forge_elaia_footsteps_ok")
 	go.pressed.connect(_on_footsteps_go)
+	GameTheme.style_primary_button(go)
 	_footsteps_popup.add_child(go)
+	Ui540.apply_kit_panel(_footsteps_popup, "elaia_footsteps", speaker)
 	_footsteps_popup.visible = false
 	add_child(_footsteps_popup)
 
@@ -3452,29 +3492,25 @@ func _ensure_join_band() -> void:
 	_join_band.offset_bottom = -16.0
 	_join_band.mouse_filter = Control.MOUSE_FILTER_STOP
 	_join_band.z_index = 30
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.09, 0.15, 0.13, 0.94)
-	style.set_corner_radius_all(2)
-	_join_band.add_theme_stylebox_override("panel", style)
 	_join_band.gui_input.connect(_on_join_band_input)
 	_join_name = Label.new()
 	_join_name.name = "Speaker"
-	_join_name.position = Vector2(16, 10)
-	_join_name.size = Vector2(488, 22)
+	_join_name.position = Vector2(28, 16)
+	_join_name.size = Vector2(464, 28)
 	_join_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_join_name.add_theme_font_size_override("font_size", 15)
-	_join_name.add_theme_color_override("font_color", Color(0.88, 0.92, 0.86))
+	GameTheme.style_plank_label(_join_name)
 	_join_band.add_child(_join_name)
 	_join_line = Label.new()
 	_join_line.name = "Line"
-	_join_line.position = Vector2(16, 36)
-	_join_line.size = Vector2(488, 120)
+	_join_line.position = Vector2(28, 48)
+	_join_line.size = Vector2(464, 108)
 	_join_line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_join_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_join_line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_join_line.add_theme_font_size_override("font_size", 12)
-	_join_line.add_theme_color_override("font_color", Color(0.86, 0.91, 0.84))
+	GameTheme.style_ink_label(_join_line)
 	_join_band.add_child(_join_line)
+	## Same bark frame and parchment as the other clearing windows.
+	Ui540.apply_kit_panel(_join_band, "elaia_join", _join_name)
 	add_child(_join_band)
 	_join_band.visible = false
 
@@ -4589,11 +4625,11 @@ func _rebuild_upgrades() -> void:
 		var rank: int = GameState.get_upgrade_rank(uid)
 		var unlocked: bool = GameState.is_upgrade_unlocked(uid)
 		var maxed: bool = rank >= GameState.upgrade_max_rank(uid)
-		var always_show: bool = uid == "party_banner"
 		if GameState.shop_hide_maxed and maxed:
 			maxed_hidden += 1
 			continue
-		if GameState.shop_hide_locked and not unlocked and not always_show:
+		## Kindred Banner unlocks with adventuring, the same gate as the other locked rows.
+		if GameState.shop_hide_locked and not unlocked:
 			locked_hidden += 1
 			continue
 		upgrade_list.add_child(_make_upgrade_row(uid, d, rank, unlocked, maxed))
@@ -4610,6 +4646,7 @@ func _rebuild_upgrades() -> void:
 func _make_upgrade_row(uid: String, d: Dictionary, rank: int, unlocked: bool, maxed: bool) -> PanelContainer:
 	var cost: int = GameState.get_upgrade_cost(uid)
 	var row := PanelContainer.new()
+	row.name = uid
 	row.custom_minimum_size = Vector2(0, SHOP_ROW_H)
 	row.add_theme_stylebox_override("panel", _shop_row_style())
 	var desc: String = _upgrade_description(uid, d)

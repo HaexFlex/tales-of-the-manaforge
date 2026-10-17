@@ -20,6 +20,7 @@ const BatchWorldBars := preload("res://scripts/batch_world_bars.gd")
 @onready var title: Label = get_node_or_null("Title") as Label
 
 var _bars: BatchWorldBars
+var _title_hover: bool = false
 
 
 func _ready() -> void:
@@ -42,6 +43,15 @@ func _ready() -> void:
 	_refresh_visual()
 
 
+func _apply_title_visibility() -> void:
+	if title == null:
+		return
+	var covered: bool = false
+	if has_node("/root/MinigameHost"):
+		covered = bool(MinigameHost.call("is_open")) or str(MinigameHost.call("hero_for", station_id)) != ""
+	title.visible = false
+
+
 func world_hover_name() -> String:
 	if station_id == "":
 		return ""
@@ -49,9 +59,11 @@ func world_hover_name() -> String:
 
 
 func _on_title_hover(inside: bool) -> void:
-	if title:
-		title.visible = inside
+	_title_hover = inside
+	_apply_title_visibility()
 	WorldHover.sync(self, inside, world_hover_name())
+	if has_node("/root/MinigameHost"):
+		MinigameHost.call("show_prompt", station_id, global_position + Vector2(0, -56), inside)
 
 
 func _ensure_walk_body() -> void:
@@ -103,6 +115,12 @@ func work_footprint() -> Rect2:
 
 
 func wisp_orbit_draws_in_front() -> bool:
+	## Keeps the ring on the painted station. Depth uses wisp_sorts_with_feet.
+	return true
+
+
+func wisp_sorts_with_feet() -> bool:
+	## Clearing rule: the back half goes behind, the near half shares the feet band.
 	return true
 
 
@@ -120,8 +138,16 @@ func wisp_orbit_center() -> Vector2:
 
 
 func wisp_orbit_radius() -> float:
-	var shown: Vector2 = _sprite_shown_size()
-	return maxf(shown.x, shown.y) * 0.5 + 40.0
+	## The painted station, not the 192 px canvas plus a wide pad.
+	var shown: Vector2 = _sprite_opaque_size()
+	if has_node("/root/ForgeJobs"):
+		return ForgeJobs.wisp_orbit_radius_for_size(shown)
+	return maxf(shown.x, shown.y) * 0.5 + 14.0
+
+
+func wisp_orbit_radii() -> Vector2:
+	var radius: float = wisp_orbit_radius()
+	return Vector2(radius, radius)
 
 
 func _sprite_shown_size() -> Vector2:
@@ -129,6 +155,21 @@ func _sprite_shown_size() -> Vector2:
 		return Vector2(128, 128)
 	var frame := Vector2(float(sprite.texture.get_width()), float(sprite.texture.get_height()))
 	return Vector2(frame.x * absf(sprite.scale.x), frame.y * absf(sprite.scale.y))
+
+
+func _sprite_opaque_size() -> Vector2:
+	var shown: Vector2 = _sprite_shown_size()
+	if sprite == null or sprite.texture == null:
+		return shown
+	var img: Image = sprite.texture.get_image()
+	if img == null:
+		return shown
+	if img.is_compressed():
+		img.decompress()
+	var used: Rect2i = img.get_used_rect()
+	if used.size.x < 4 or used.size.y < 4:
+		return shown
+	return Vector2(used.size) * Vector2(absf(sprite.scale.x), absf(sprite.scale.y))
 
 
 func stand_global() -> Vector2:
@@ -170,6 +211,7 @@ func _refresh_visual() -> void:
 		var named: String = ForgeJobs.station_display(station_id)
 		var speed: float = ForgeJobs.station_speed_mult(station_id)
 		title.text = named if speed <= 0.0 else "%s  %s" % [named, ForgeJobs.station_speed_text(speed)]
+		_apply_title_visibility()
 	_apply_badge_art(worked)
 	_refresh_meter()
 

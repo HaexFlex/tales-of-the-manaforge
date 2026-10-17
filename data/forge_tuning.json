@@ -25,11 +25,13 @@
   "ancient_duration_sec": 600,
   "offline_reset_active_sec": 180,
   "offline_tiers": [
-    [0.5, 0.1],
-    [2, 0.016666666666666666],
-    [8, 0.004],
-    [24, 0.0016666666666666668],
-    [-1, 0.0003333333333333333]
+    [0.03333333333333333, 1.0],
+    [0.16666666666666666, 0.375],
+    [0.5, 0.25],
+    [2, 0.1111111111111111],
+    [8, 0.05555555555555555],
+    [24, 0.020833333333333332],
+    [-1, 0.006944444444444444]
   ],
   "upcycle_tick_db": -8,
   "big_done_min_interval_sec": 3,
@@ -38,7 +40,7 @@
   "reverb_room_size": 0.35,
   "autosave_sec": 300,
   "station_work_anim_speed": 0.5,
-  "forge_arch_spawn": [800, 1048],
+  "forge_arch_spawn": [800, 1013],
   "clearing_door_stand": [0, 28],
   "elaia_join_east": [84, 6],
   "wisp_work_radius": 34,

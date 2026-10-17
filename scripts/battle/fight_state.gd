@@ -52,6 +52,14 @@ func set_combat_seed(seed_value: int) -> void:
 	_scripted_dice = null
 
 
+func set_member_attack(member: String, attack: String) -> void:
+	var kind: String = "magic" if (attack == "magic" or attack == "magical" or attack == "mag") else "physical"
+	for key: Variant in _fighters.keys():
+		var who := _fighter(str(key))
+		if who != null and who.member == member:
+			who.attack = kind
+
+
 func add_member(
 	member: String,
 	stats: Dictionary,

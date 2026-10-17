@@ -301,6 +301,18 @@ func actor_work_rate(actor: String, station_id: String = "") -> float:
 	return float(row.get("work_rate", 1.0))
 
 
+func actor_craft_rate(actor: String) -> float:
+	## Crafting uses the shared work rate until a companion carries its own craft_rate.
+	var row: Dictionary = _companion_row(actor)
+	if row.has("craft_rate"):
+		return float(row.get("craft_rate", 1.0))
+	return float(row.get("work_rate", 1.0))
+
+
+func actor_brew_rate(actor: String) -> float:
+	return float(_companion_row(actor).get("brew_rate", 1.0))
+
+
 func actor_water_mult(actor: String) -> float:
 	return float(_companion_row(actor).get("water_reward_mult", 1.0))
 
@@ -925,6 +937,21 @@ func get_upgrade_rank(upgrade_id: String) -> int:
 	return int(upgrade_ranks.get(upgrade_id, 0))
 
 
+func total_upgrade_ranks_owned() -> int:
+	## Each bought rank counts. A stale key that is not in the blessing list does not.
+	var n: int = 0
+	for entry: Variant in upgrades_data:
+		if typeof(entry) != TYPE_DICTIONARY:
+			continue
+		n += maxi(0, get_upgrade_rank(str((entry as Dictionary).get("id", ""))))
+	return n
+
+
+func offline_shard_mult() -> float:
+	## Offline Manashards only. Derived from ranks. Not stored.
+	return minf(1.0, 0.25 + 0.05 * float(total_upgrade_ranks_owned()))
+
+
 func get_upgrade_def(upgrade_id: String) -> Dictionary:
 	for entry: Variant in upgrades_data:
 		if typeof(entry) != TYPE_DICTIONARY:
@@ -1113,6 +1140,8 @@ func apply_offline_wisp_harvest(eff_sec: float, resource_id: StringName) -> int:
 	var interval: float = maxf(get_wisp_pulse_sec(), 0.05)
 	var grant_per: float = float(param_int("WISP_PULSE_GRANT", 1))
 	var units: float = (eff_sec / interval) * grant_per * offline_harvest_factor()
+	if resource_id == &"manashards":
+		units *= offline_shard_mult()
 	return accumulate_harvest(resource_id, units)
 
 
@@ -1162,6 +1191,47 @@ func apply_water_pulse(grant_shards: bool = true, grant_essence: bool = true, re
 		lifetime_essence_from_water += ess
 	lifetime_waters += 1
 	return {"ok": true, "reason": "ok", "shards": shards, "essence": ess}
+
+
+## k seconds of this hero's gather yield (tool interval, stage, Forager, work rate).
+## Fractions stay in harvest_accum. Wisps are not a caller.
+func grant_played_gather_seconds(actor: String, resource_id: StringName, seconds: float) -> Dictionary:
+	if actor != "keeper" and actor != "elaia":
+		return {"ok": false, "reason": "wisp", "units": 0.0, "granted": 0}
+	if is_world_frozen() or fruit_committed or seconds <= 0.0:
+		return {"ok": false, "reason": "frozen", "units": 0.0, "granted": 0}
+	if not resource_id in HARVEST_IDS:
+		return {"ok": false, "reason": "resource", "units": 0.0, "granted": 0}
+	var key: String = String(resource_id)
+	var before: float = float(harvest_accum.get(key, 0.0))
+	var granted: int = accumulate_keeper_harvest(resource_id, seconds, actor_work_rate(actor))
+	var after: float = float(harvest_accum.get(key, 0.0))
+	return {"ok": true, "reason": "ok", "granted": granted, "units": float(granted) + after - before}
+
+
+## k seconds of this hero's watering income. Whole pulses use the normal roll.
+## A leftover fraction is banked through the same accumulators as a short pulse.
+func grant_played_water_seconds(actor: String, seconds: float) -> Dictionary:
+	if actor != "keeper" and actor != "elaia":
+		return {"ok": false, "reason": "wisp", "shards": 0, "essence": 0}
+	if is_world_frozen() or fruit_committed or seconds <= 0.0:
+		return {"ok": false, "reason": "frozen", "shards": 0, "essence": 0}
+	var pulse: float = maxf(get_water_essence_pulse_sec(), 0.05)
+	var mult: float = actor_water_mult(actor)
+	var shards_before: int = get_resource(&"manashards")
+	var ess_before: int = get_resource(&"essence")
+	var left: float = seconds
+	while left >= pulse - 0.00001:
+		apply_water_pulse(true, true, mult)
+		left -= pulse
+	if left > 0.0001:
+		apply_water_pulse(true, true, mult * (left / pulse))
+	return {
+		"ok": true,
+		"reason": "ok",
+		"shards": get_resource(&"manashards") - shards_before,
+		"essence": get_resource(&"essence") - ess_before,
+	}
 
 
 ## Legacy one-shot entry used by older verify paths — delegates to a single water pulse.
@@ -1570,6 +1640,10 @@ func offline_reset_active_sec() -> float:
 	return maxf(0.0, float(_idle_tuning.get("offline_reset_active_sec", 180.0)))
 
 
+## Confirmed by Haex. The away panel waits for this much real time.
+const OFFLINE_PANEL_MIN_SEC: float = 600.0
+
+
 func tick_ancient(delta: float) -> void:
 	## Open and unpaused only — _process does not run while the tree is paused, and offline never calls this.
 	if stage_id != &"ancient" or fruit_committed or delta <= 0.0:
@@ -1672,12 +1746,15 @@ func _offline_tiers_with_quiet_hours(tiers: Array) -> Array:
 
 
 func _default_offline_tiers() -> Array:
+	## Mirror of data/forge_tuning.json offline_tiers. 2 min at full rate, then the locked steps.
 	return [
-		[0.5, 0.1],
-		[2.0, 1.0 / 60.0],
-		[8.0, 1.0 / 250.0],
-		[24.0, 1.0 / 600.0],
-		[-1.0, 1.0 / 3000.0],
+		[1.0 / 30.0, 1.0],
+		[1.0 / 6.0, 3.0 / 8.0],
+		[0.5, 0.25],
+		[2.0, 1.0 / 9.0],
+		[8.0, 1.0 / 18.0],
+		[24.0, 1.0 / 48.0],
+		[-1.0, 1.0 / 144.0],
 	]
 
 
@@ -1725,6 +1802,8 @@ func register_forge_upgrades(entries: Array) -> void:
 func ascend() -> void:
 	if not fruit_committed:
 		return
+	if has_node("/root/MinigameHost") and MinigameHost.has_method("close_immediate"):
+		MinigameHost.close_immediate()
 	var forge_snap: Dictionary = {}
 	if has_node("/root/ForgeJobs"):
 		forge_snap = ForgeJobs.prepare_ascend()
@@ -1782,6 +1861,68 @@ func ascend() -> void:
 			status_message.emit(wipe)
 		else:
 			status_message.emit(ContentStrings.get_text("ascend_backpack_wipe_toast"))
+	gather_party_at_manatree()
+
+
+const ASCEND_GATHER_KEEPER := Vector2(-56, 48)
+const ASCEND_GATHER_ELAIA := Vector2(56, 48)
+
+
+func ascend_gather_spot(actor: String) -> Vector2:
+	## South of the sill, one on each side, so the party stands around the trunk.
+	var origin := Vector2(2160, 2106)
+	if has_node("/root/ForgeJobs") and ForgeJobs.has_method("manatree_origin"):
+		origin = ForgeJobs.manatree_origin()
+	if actor == "elaia":
+		return origin + ASCEND_GATHER_ELAIA
+	return origin + ASCEND_GATHER_KEEPER
+
+
+func gather_party_at_manatree() -> void:
+	## Jobs are already idle. The bodies stop the channel they were playing and come to the tree.
+	var keeper_spot: Vector2 = ascend_gather_spot("keeper")
+	var elaia_spot: Vector2 = ascend_gather_spot("elaia")
+	var tree := get_tree()
+	var bring_elaia: bool = elaia_in_party()
+	if tree != null:
+		for node: Node in tree.get_nodes_in_group("keeper"):
+			if node.has_method("gather_at"):
+				node.call("gather_at", keeper_spot)
+		if bring_elaia:
+			for node: Node in tree.get_nodes_in_group("companion"):
+				if node.has_method("gather_at"):
+					node.call("gather_at", elaia_spot)
+	keeper_area = "clearing"
+	keeper_has_pos = true
+	keeper_pos = keeper_spot
+	keeper_facing = "north"
+	if bring_elaia:
+		elaia_area = "clearing"
+		elaia_has_pos = true
+		elaia_pos = elaia_spot
+		elaia_facing = "north"
+	if tree != null:
+		_show_gathered_bodies(tree)
+		var current: Node = tree.current_scene
+		if current != null and str(current.scene_file_path).ends_with("forge_room.tscn"):
+			if has_node("/root/ForgeJobs"):
+				ForgeJobs.switch_view(false, true)
+
+
+func _show_gathered_bodies(tree: SceneTree) -> void:
+	## A body that is already walking stays on that walk. Anyone left in the Forge is hidden.
+	for node: Node in tree.get_nodes_in_group("keeper"):
+		if bool(node.get("_moving")):
+			continue
+		if node.has_method("apply_keeper_presence"):
+			node.call("apply_keeper_presence")
+	if not elaia_in_party():
+		return
+	for node: Node in tree.get_nodes_in_group("companion"):
+		if bool(node.get("_moving")):
+			continue
+		if node.has_method("_apply_presence"):
+			node.call("_apply_presence")
 
 
 func to_save_dict() -> Dictionary:

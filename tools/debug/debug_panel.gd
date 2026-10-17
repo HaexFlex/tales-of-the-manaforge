@@ -215,6 +215,7 @@ func _build_ui() -> void:
 		Ui540.anchor_rect_safe(tab, PAD + float(i) * (tab_w + TAB_GAP), TABS_Y, tab_w, ROW_H)
 		tabs.set_tab_title(i, TAB_LABELS[i])
 		_tab_buttons.append(tab)
+	_tabs.tab_changed.connect(_sync_tab_highlight)
 	_select_tab(0)
 
 
@@ -230,6 +231,10 @@ func _select_tab(index: int) -> void:
 	if _tabs == null or index < 0 or index >= _tabs.get_tab_count():
 		return
 	_tabs.current_tab = index
+	_sync_tab_highlight(index)
+
+
+func _sync_tab_highlight(index: int) -> void:
 	for i: int in _tab_buttons.size():
 		_tab_buttons[i].set_pressed_no_signal(i == index)
 
@@ -558,6 +563,13 @@ func _build_tab_runes(tabs: TabContainer) -> void:
 func _build_tab_overlays(tabs: TabContainer) -> void:
 	var box := _tab_scroll(tabs, "Visual / Debug overlays")
 	_add_button(box, "Toggle debug panel (close)", _on_close_pressed)
+	_add_button(box, "Open Steeping", func() -> void:
+		if not has_node("/root/MinigameHost"):
+			_set_status("Steeping needs the minigame host.")
+			return
+		var opened: bool = bool(MinigameHost.call("debug_open", "steeping"))
+		_set_status("Steeping opened." if opened else "Could not open Steeping.")
+	)
 	_add_button(box, "Open AnimPreview scene", func() -> void:
 		var path: String = "res://tools/AnimPreview.tscn"
 		if ResourceLoader.exists(path):

@@ -411,7 +411,8 @@ func world_hover_name() -> String:
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	if label:
-		label.visible = _hovered
+		## The papyrus hover names the board. The floating line sat on the post.
+		label.visible = false
 		label.text = ContentStrings.get_text("expedition_board_examine")
 	WorldHover.sync(self, inside, world_hover_name())
 

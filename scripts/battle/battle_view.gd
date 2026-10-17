@@ -239,6 +239,7 @@ var _log_follow_tail: bool = true
 var _result_label: Label = null
 var _target_layer: Control = null
 var _strike_for_me_toggle: Button = null
+var _mode_chip: Button = null
 var _playback: BattlePlayback = null
 var _speed_bar: Control = null
 var _speed_buttons: Dictionary = {}
@@ -2490,6 +2491,7 @@ func _build_fight_hud() -> void:
 	_target_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_arena.add_child(_target_layer)
 	_update_salve_button()
+	_ensure_mode_chip()
 
 
 func _on_start_fight_pressed() -> void:
@@ -2730,6 +2732,111 @@ func _log_line_color(line_text: String) -> Color:
 	return LOG_INK
 
 
+func _ensure_mode_chip() -> void:
+	if _mode_chip != null or _arena == null:
+		return
+	var chip := Button.new()
+	chip.name = "ArrowToggle"
+	chip.text = "Phy"
+	chip.focus_mode = Control.FOCUS_ALL
+	chip.mouse_filter = Control.MOUSE_FILTER_STOP
+	chip.custom_minimum_size = Vector2(44, 44)
+	chip.size = Vector2(44, 44)
+	chip.z_index = 7
+	chip.visible = false
+	chip.pressed.connect(_on_mode_chip_pressed)
+	for state_name: String in ["normal", "hover", "pressed", "disabled"]:
+		var face := StyleBoxTexture.new()
+		face.texture = load(EchoTheme.ART + "chip_physmag_%s_44x44.png" % state_name)
+		chip.add_theme_stylebox_override(state_name, face)
+	var hint := Label.new()
+	hint.name = "ChipHint"
+	hint.text = "Tab"
+	hint.position = Vector2(0, 24)
+	hint.size = Vector2(44, 16)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(hint, true)
+	hint.add_theme_font_size_override("font_size", 19)
+	chip.add_child(hint)
+	_arena.add_child(chip)
+	_mode_chip = chip
+
+
+func mode_chip_shown() -> bool:
+	return _mode_chip != null and _mode_chip.visible and not _mode_chip.disabled
+
+
+func mode_chip_text() -> String:
+	return _mode_chip.text if _mode_chip != null else ""
+
+
+func _keeper_hybrid_weapon() -> bool:
+	var gear: Node = get_node_or_null("/root/Equipment")
+	if gear == null or not gear.has_method("equipped_strike_kind"):
+		return false
+	return str(gear.call("equipped_strike_kind")) == "hybrid"
+
+
+func _refresh_mode_chip() -> void:
+	_ensure_mode_chip()
+	if _mode_chip == null:
+		return
+	var menu_up: bool = _action_menu != null and _action_menu.visible
+	var strike_up: bool = _strike_button != null and _strike_button.visible
+	var show: bool = menu_up and strike_up and _keeper_hybrid_weapon()
+	_mode_chip.visible = show
+	_mode_chip.disabled = not show
+	if not show:
+		_restore_strike_face()
+		return
+	_strike_button.size = Vector2(100, 44)
+	_strike_button.custom_minimum_size = Vector2(100, 44)
+	_strike_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_strike_button.add_theme_constant_override("icon_max_width", 0)
+	_strike_button.add_theme_font_override("font", load(BODY_FONT_PATH) as Font)
+	_strike_button.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
+	var cap: CanvasItem = _strike_button.get_node_or_null("Keycap") as CanvasItem
+	if cap:
+		cap.visible = false
+	_mode_chip.position = _action_menu.position + _strike_button.position + Vector2(104, 0)
+	var magical: bool = false
+	var gs: Node = get_node_or_null("/root/GameState")
+	if gs != null:
+		magical = str(gs.get("arrow_mode")) == "magical"
+	_mode_chip.text = _text("battle_toggle_mag" if magical else "battle_toggle_phys", "Mag" if magical else "Phy")
+	_mode_chip.tooltip_text = _text("battle_mode_hint", "Choose how this weapon bites.")
+
+
+func _restore_strike_face() -> void:
+	if _strike_button == null:
+		return
+	_strike_button.size = ACTION_BUTTON_SIZE
+	_strike_button.custom_minimum_size = ACTION_BUTTON_SIZE
+	_strike_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_strike_button.add_theme_constant_override("icon_max_width", 32)
+	var cap: CanvasItem = _strike_button.get_node_or_null("Keycap") as CanvasItem
+	if cap:
+		cap.visible = true
+	_fit_action_label(_strike_button)
+
+
+func _on_mode_chip_pressed() -> void:
+	if not _keeper_hybrid_weapon():
+		return
+	var gs: Node = get_node_or_null("/root/GameState")
+	if gs == null:
+		return
+	var was_magical: bool = str(gs.get("arrow_mode")) == "magical"
+	gs.set("arrow_mode", "physical" if was_magical else "magical")
+	if _fight != null:
+		_fight.set_member_attack("keeper", "physical" if was_magical else "magic")
+	var audio: Node = get_node_or_null("/root/GameAudio")
+	if audio != null and audio.has_method("play_ui_confirm"):
+		audio.call("play_ui_confirm")
+	_refresh_mode_chip()
+
+
 func _hide_action_menu() -> void:
 	if _action_menu != null:
 		_action_menu.visible = false
@@ -2737,6 +2844,7 @@ func _hide_action_menu() -> void:
 		_side_actions.visible = false
 	if _ability_row != null:
 		_ability_row.visible = false
+	_refresh_mode_chip()
 
 
 func _show_strike_for_me_toggle_only() -> void:
@@ -2750,6 +2858,7 @@ func _show_strike_for_me_toggle_only() -> void:
 		_side_actions.visible = false
 	if _ability_row != null:
 		_ability_row.visible = false
+	_refresh_mode_chip()
 
 
 func _show_action_menu(actor_id: String) -> void:
@@ -2784,6 +2893,7 @@ func _show_action_menu(actor_id: String) -> void:
 	if _strike_for_me_toggle != null:
 		_strike_for_me_toggle.visible = true
 		_sync_action_button_style(_strike_for_me_toggle)
+	_refresh_mode_chip()
 	for menu_btn: Button in [_strike_button, _ability_button, _salve_button, _brace_button, _flee_button]:
 		if menu_btn != null:
 			_sync_action_button_style(menu_btn)
@@ -2791,8 +2901,15 @@ func _show_action_menu(actor_id: String) -> void:
 		_playback.notify_party_turn()
 
 
+static func keeper_abilities_exist() -> bool:
+	## No abilities exist yet, in the arena or in an Echo. One gate for both menus.
+	return false
+
+
 func _has_abilities() -> bool:
 	## No abilities exist yet: every slot is a disabled "—". The picker stays shut until one is real.
+	if not keeper_abilities_exist():
+		return false
 	for ab: Button in _ability_buttons:
 		if not ab.disabled:
 			return true
@@ -2845,14 +2962,14 @@ func _update_salve_button() -> void:
 		return
 	var salve_name: String = _text("item_heart_salve", "Heart Salve")
 	var count: int = int(_fight.loadout.get("heart_salve", 0))
-	_salve_button.text = _text("adv_item_count", "%s ×%d" % [salve_name, count], {"item": salve_name, "count": count})
+	_salve_button.text = _text("adv_menu_items", "Items")
 	_fit_action_label(_salve_button)
 	var cap_hit: bool = _fight.salves_used >= 2
 	_salve_button.disabled = count < 1 or cap_hit
 	if count < 1:
 		_salve_button.tooltip_text = _text("adv_item_none_packed", "None packed")
 	else:
-		_salve_button.tooltip_text = ""
+		_salve_button.tooltip_text = _text("adv_item_count", "%s ×%d" % [salve_name, count], {"item": salve_name, "count": count})
 
 
 func _refresh_idle_button() -> void:
@@ -3091,37 +3208,51 @@ func _show_end_panel(outcome: String) -> void:
 	var panel := Panel.new()
 	panel.name = "EndPanel"
 	panel.add_to_group("battle_ui")
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.z_index = 40
 	var panel_w: float = 520.0
-	var panel_h: float = 280.0
+	var panel_h: float = 320.0
 	panel.position = Vector2((ARENA_SIZE.x - panel_w) * 0.5, BOTTOM_BAR_RECT.position.y - 8.0 - panel_h)
 	panel.size = Vector2(panel_w, panel_h)
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_top", 10)
-	margin.add_theme_constant_override("margin_bottom", 10)
-	panel.add_child(margin)
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 8)
-	margin.add_child(body)
+	Ui540.apply_kit_frame_panel(panel, "room_cleared")
+	## The kit frame eats the outer 28 px. Keep every line inside that border.
+	var inset: float = 40.0
+	var inner_w: float = panel_w - inset * 2.0
 	var title := Label.new()
 	title.name = "EndTitle"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(title)
+	title.position = Vector2(inset, 36)
+	title.size = Vector2(inner_w, 32)
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(title)
+	_theme_call("style_ink_label", title)
 	var detail := Label.new()
 	detail.name = "EndDetail"
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body.add_child(detail)
+	detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	detail.position = Vector2(inset, 76)
+	detail.size = Vector2(inner_w, 72)
+	detail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(detail)
+	_theme_call("style_ink_label", detail)
 	var exp_line := Label.new()
 	exp_line.name = "EndExp"
-	body.add_child(exp_line)
+	exp_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	exp_line.position = Vector2(inset, 156)
+	exp_line.size = Vector2(inner_w, 28)
+	exp_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(exp_line)
+	_theme_call("style_ink_label", exp_line)
 	var buttons := HBoxContainer.new()
+	buttons.name = "EndButtons"
 	buttons.add_theme_constant_override("separation", 8)
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	body.add_child(buttons)
+	buttons.position = Vector2(inset, panel_h - inset - 44.0)
+	buttons.size = Vector2(inner_w, 44)
+	panel.add_child(buttons)
 	_end_panel = panel
 	_arena.add_child(panel)
+	_conceal_names_under(panel)
 	match outcome:
 		"win":
 			title.text = _text("adv_end_victory_title", "Room cleared")
@@ -3173,6 +3304,30 @@ func _show_end_panel(outcome: String) -> void:
 			back_f.pressed.connect(_on_end_back_pressed)
 		_:
 			detail.text = outcome
+	if _end_panel != null and is_instance_valid(_end_panel):
+		_polish_end_buttons(buttons)
+
+
+func _polish_end_buttons(row: HBoxContainer) -> void:
+	if row == null:
+		return
+	var count: int = row.get_child_count()
+	if count <= 0:
+		return
+	var gap: float = 8.0
+	var inner: float = row.size.x
+	var each: float = 128.0
+	if count == 1:
+		each = minf(320.0, inner)
+	else:
+		each = minf(140.0, floor((inner - gap * float(count - 1)) / float(count)))
+	for child: Node in row.get_children():
+		var btn: Button = child as Button
+		if btn == null:
+			continue
+		btn.custom_minimum_size = Vector2(each, 44.0)
+		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_theme_call("style_wood_button", btn)
 
 
 ## Adventure flee result (extras v8c, variant 3b). Echo keeps its own window.
@@ -3404,6 +3559,10 @@ func _input(event: InputEvent) -> void:
 	var key: InputEventKey = event as InputEventKey
 	if not key.pressed or key.echo:
 		return
+	if key.keycode == KEY_TAB and _mode_chip != null and _mode_chip.visible and not _mode_chip.disabled:
+		_on_mode_chip_pressed()
+		get_viewport().set_input_as_handled()
+		return
 	if key.keycode >= KEY_1 and key.keycode <= KEY_6:
 		if _try_action_hotkey(int(key.keycode - KEY_1)):
 			get_viewport().set_input_as_handled()
@@ -3415,6 +3574,171 @@ func _input(event: InputEvent) -> void:
 		return
 	close_overlay()
 	get_viewport().set_input_as_handled()
+
+
+## Echo duels use this menu. Slot 6 is Spare. The adventure menu keeps Strike for me.
+const ECHO_ACTION_SLOTS: PackedStringArray = ["strike", "ability", "items", "brace", "flee", "spare"]
+
+
+static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
+	var root := Control.new()
+	root.name = "EchoActionMenu"
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.set_meta("built_by", "res://scripts/battle/battle_view.gd")
+	parent.add_child(root)
+	var ox: float = EchoTheme.shift()
+	var bar := Panel.new()
+	bar.name = "EchoBottomBar"
+	var bar_box: Rect2 = EchoTheme.at(EchoTheme.BOTTOM_BAR)
+	bar.position = bar_box.position
+	bar.size = bar_box.size
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.paint_panel(bar, false)
+	root.add_child(bar)
+	var phone: bool = Ui540.is_phone_export()
+	var buttons: Dictionary = {}
+	var icons: Dictionary = {
+		"strike": "res://assets_extra/shared/icon_stone_sword.png",
+		"ability": "res://assets/art/battle/ui/icon_ability_32.png",
+		"items": "res://assets_extra/shared/icon_heart_salve.png",
+		"brace": "res://assets/art/battle/ui/icon_brace_32.png",
+		"flee": "res://assets/art/battle/ui/icon_flee_32.png",
+		"spare": "res://assets/art/ui/icons/icon_oakheart_knot.png",
+	}
+	var names: Dictionary = {
+		"strike": "StrikeButton",
+		"ability": "AbilityButton",
+		"items": "SalveButton",
+		"brace": "BraceButton",
+		"flee": "FleeButton",
+		"spare": "SpareButton",
+	}
+	var labels: Dictionary = {
+		"strike": "Strike",
+		"ability": "Ability",
+		"items": "Salve",
+		"brace": "Brace",
+		"flee": "Flee",
+		"spare": "Spare",
+	}
+	for i: int in ECHO_ACTION_SLOTS.size():
+		var slot: String = ECHO_ACTION_SLOTS[i]
+		var btn := Button.new()
+		btn.name = str(names[slot])
+		btn.text = str(labels[slot])
+		var col: int = i % 3
+		var row: int = int(i / 3)
+		## Hybrid Strike leaves a gap for the Phy chip. 104 fits the word and the 1 badge.
+		var slot_w: float = 104.0 if hybrid and slot == "strike" else 144.0
+		btn.position = Vector2(ox + 44.0 + 152.0 * float(col), 394.0 + 56.0 * float(row))
+		btn.size = Vector2(slot_w, 44)
+		btn.custom_minimum_size = Vector2(slot_w, 44)
+		btn.focus_mode = Control.FOCUS_ALL
+		btn.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		if ResourceLoader.exists(str(icons[slot])):
+			btn.icon = load(str(icons[slot])) as Texture2D
+		btn.expand_icon = false
+		btn.add_theme_constant_override("icon_max_width", 32)
+		EchoTheme.paint_button(btn, false)
+		btn.set_meta("echo_slot", i + 1)
+		if hybrid and slot == "strike":
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			btn.add_theme_constant_override("icon_max_width", 20)
+			btn.add_theme_constant_override("h_separation", 4)
+			btn.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+			## Keep "Strike" left of the hotkey badge.
+			for state_name: String in ["normal", "hover", "pressed", "disabled", "focus", "hover_pressed"]:
+				var face: StyleBox = btn.get_theme_stylebox(state_name)
+				if face == null:
+					continue
+				var inset: StyleBox = face.duplicate()
+				inset.content_margin_right = 28
+				btn.add_theme_stylebox_override(state_name, inset)
+		if not phone:
+			var cap := Label.new()
+			cap.name = "Keycap"
+			cap.text = str(i + 1)
+			cap.position = Vector2(btn.size.x - 20.0, 4)
+			cap.size = Vector2(22, 20)
+			cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			EchoTheme.style_body(cap, false)
+			var cap_bg := NinePatchRect.new()
+			cap_bg.name = "KeycapPlate"
+			cap_bg.texture = load(EchoTheme.ART + "ink_keycap_9s_22x20.png")
+			cap_bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			cap_bg.patch_margin_left = 3
+			cap_bg.patch_margin_top = 3
+			cap_bg.patch_margin_right = 3
+			cap_bg.patch_margin_bottom = 3
+			cap_bg.position = cap.position
+			cap_bg.size = Vector2(22, 20)
+			cap_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(cap_bg)
+			btn.add_child(cap)
+		else:
+			btn.tooltip_text = ""
+		root.add_child(btn)
+		buttons[slot] = btn
+	var strike: Button = buttons["strike"] as Button
+	var chip := Button.new()
+	chip.name = "ArrowToggle"
+	chip.text = "Phy"
+	## Strike ends at ox+148. The chip stays 44 px (tap minimum) and stops before Ability.
+	chip.position = Vector2(ox + 150.0, 394.0)
+	chip.size = Vector2(44, 44)
+	chip.custom_minimum_size = Vector2(44, 44)
+	chip.visible = hybrid
+	chip.focus_mode = Control.FOCUS_ALL
+	EchoTheme.paint_button(chip, false)
+	for state_name: String in ["normal", "hover", "pressed", "disabled"]:
+		var face := StyleBoxTexture.new()
+		face.texture = load(EchoTheme.ART + "chip_physmag_%s_44x44.png" % state_name)
+		chip.add_theme_stylebox_override(state_name, face)
+	var hint := Label.new()
+	hint.name = "ChipHint"
+	hint.text = "Mag" if phone else "Tab"
+	hint.position = Vector2(0, 24)
+	hint.size = Vector2(chip.size.x, 16)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(hint, true)
+	hint.add_theme_font_size_override("font_size", 19)
+	chip.add_child(hint)
+	root.add_child(chip)
+	buttons["chip"] = chip
+	var ability: Button = buttons["ability"] as Button
+	if ability != null:
+		ability.disabled = not keeper_abilities_exist()
+	var log_panel := Panel.new()
+	log_panel.name = "EchoLog"
+	log_panel.position = Vector2(ox + 504.0, 394.0)
+	log_panel.size = Vector2(412, 100)
+	log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var log_box := StyleBoxTexture.new()
+	log_box.texture = load(EchoTheme.ART + "ink_log_panel_9s_12.png")
+	log_box.texture_margin_left = 2
+	log_box.texture_margin_top = 2
+	log_box.texture_margin_right = 2
+	log_box.texture_margin_bottom = 2
+	log_box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+	log_box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+	log_panel.add_theme_stylebox_override("panel", log_box)
+	log_panel.self_modulate = Color(1, 1, 1, EchoTheme.PANEL_ALPHA)
+	root.add_child(log_panel)
+	var log := Label.new()
+	log.name = "Log"
+	log.position = Vector2(8, 8)
+	log.size = Vector2(396, 84)
+	log.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	log.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	EchoTheme.style_body(log, false)
+	log_panel.add_child(log)
+	buttons["log"] = log
+	buttons["log_panel"] = log_panel
+	buttons["bar"] = bar
+	buttons["root"] = root
+	return buttons
 
 
 func _over_arena_control(event: InputEventMouse) -> bool:

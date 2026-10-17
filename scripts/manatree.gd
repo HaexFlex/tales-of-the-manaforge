@@ -146,14 +146,7 @@ func work_footprint() -> Rect2:
 
 func apply_player_command() -> void:
 	## RMB: wisp assign to Manatree, and the selected hero walks to tend it.
-	var hero: Node = GameState.find_selected_hero()
-	if hero != null and hero.has_method("get_channel_kind") and str(hero.call("get_channel_kind")) == "water":
-		var channel_target: Node = hero.call("get_channel_target") if hero.has_method("get_channel_target") else null
-		if channel_target == self and hero.has_method("cancel_channel"):
-			hero.call("cancel_channel")
-			set_watering(false)
-			get_viewport().set_input_as_handled()
-			return
+	## Watering stops, then he walks to the tree and the tending window opens on arrival.
 	if not GameState.selected_wisp_list().is_empty():
 		var node_id: String = GameState.NODE_ID_MANATREE
 		var result: String = GameState.command_selected_wisps(node_id)
@@ -258,6 +251,8 @@ func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	_apply_label_visibility()
 	WorldHover.sync(self, inside, world_hover_name())
+	if has_node("/root/MinigameHost"):
+		MinigameHost.call("show_prompt", "manatree", global_position + Vector2(0, -72), inside)
 
 
 func _refresh_label() -> void:
@@ -266,6 +261,8 @@ func _refresh_label() -> void:
 		suffix = "\n" + ContentStrings.get_text("tree_water_channel_hud")
 		if Backpack.owns_watering_can():
 			suffix += "\n" + ContentStrings.get_text("tool_water_hint")
+		if has_node("/root/MinigameHost") and str(MinigameHost.call("hero_for", "manatree")) == "keeper":
+			suffix += "\n" + ContentStrings.get_text("minigame_lend_a_hand")
 	if GameState.selected_wisp_id >= 0:
 		label.text = "%s%s" % [ContentStrings.get_text("wisp_assign_to_manatree"), suffix]
 		_apply_label_visibility()
@@ -280,11 +277,11 @@ func _refresh_label() -> void:
 
 
 func _apply_label_visibility() -> void:
-	## The name shows on hover only. Watering and wisp text stay in the same label.
+	## The papyrus hover names the tree. The floating stage line sat on the crown.
 	if label:
-		label.visible = _hovered
+		label.visible = false
 	if fruit_hint:
-		fruit_hint.visible = _hovered and fruit_hint.text != ""
+		fruit_hint.visible = false
 
 
 func _stage_meta() -> Dictionary:
@@ -362,7 +359,7 @@ func _refresh_visual() -> void:
 	if Engine.is_editor_hint():
 		if label:
 			label.text = String(stage).capitalize()
-			label.visible = true
+			label.visible = false
 	else:
 		_refresh_label()
 	label.position = Vector2(-80, -door.y * scale_v - 36)
@@ -526,7 +523,7 @@ func wisp_orbit_radius() -> float:
 
 
 func wisp_orbit_radii() -> Vector2:
-	if String(GameState.stage_id) == "elder":
+	if String(GameState.stage_id) == "elder" or String(GameState.stage_id) == "ancient":
 		return Vector2(280.0, 140.0)
 	var sz: Vector2 = TRUNK_SIZE.get(String(GameState.stage_id), Vector2(28, 40))
 	var ry: float = sz.x * 0.5 + 14.0

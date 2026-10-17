@@ -19,17 +19,18 @@ const PAD: float = 24.0
 const HEADER_H: float = 44.0
 const BODY_TOP: float = 86.0
 const BODY_H: float = 382.0
-const HOST_POS: Vector2 = Vector2(24, 86)
+## Clear of the 44 px portrait rail at x = 24, so the bust is not covered.
+const HOST_POS: Vector2 = Vector2(76, 86)
 const PORTRAIT_SIZE: Vector2 = Vector2(276, 382)
 const SPRITE_SIZE: Vector2 = Vector2(144, 351)
 const SPRITE_POS: Vector2 = Vector2(66, 15)
 const FIGURE_SCALE: float = 3.0
-const GEAR_X: float = 316.0
+const GEAR_X: float = 368.0
 const GEAR_W: float = 270.0
 const TABS_Y: float = 88.0
 const GEAR_ROW_H: float = 46.0
 const GEAR_ROW_PITCH: float = 50.0
-const STATS_X: float = 604.0
+const STATS_X: float = 656.0
 const DOLL_BG: Color = Color8(26, 36, 28)
 const STAT_RULE: Color = Color(0.243, 0.165, 0.094, 0.2)
 const BEVEL_PATH: String = "res://assets/ui/theme/play_bevel_9s_6x6.png"
@@ -166,6 +167,7 @@ var _gear_tab_all_btn: Button
 var _gear_cat_btn: Button
 var _gear_tab_line: ColorRect
 var _note_serial: int = 0
+var _trait_wait: Timer
 
 
 func _ready() -> void:
@@ -523,10 +525,11 @@ func _build() -> void:
 	mid.add_child(_gear_tab_line)
 
 	var list_y: float = TABS_Y + 56.0
+	var column_h: float = BODY_H - 44.0
 	var scroll := ScrollContainer.new()
 	scroll.name = "GearScroll"
 	scroll.position = Vector2(0, list_y)
-	scroll.size = Vector2(GEAR_W, BODY_H - list_y)
+	scroll.size = Vector2(GEAR_W, column_h - list_y)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
 	scroll.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(BEVEL_PATH, Vector4i(2, 2, 2, 2), Vector4(2, 2, 2, 2)))
@@ -585,7 +588,7 @@ func _build() -> void:
 	trait_btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	trait_btn.text = strings.get_text("char_sheet_keeper_trait")
 	_paint_trait_button(trait_btn)
-	trait_btn.mouse_entered.connect(open_trait_popup)
+	trait_btn.mouse_entered.connect(_arm_trait_hover)
 	trait_btn.mouse_exited.connect(close_trait_popup)
 	trait_row.add_child(trait_btn)
 
@@ -659,6 +662,7 @@ func _install_portrait_list(sheet: Control) -> void:
 	## Below the subtitle line (header ends at PAD + HEADER_H). The gear column starts under the tabs.
 	pages.position = Vector2(GEAR_X, PAD + HEADER_H + 16.0)
 	pages.add_theme_constant_override("separation", 8)
+	pages.visible = false
 	sheet.add_child(pages)
 	for spec: Array in [["PageGear", "Gear", "gear"], ["PageStats", "Stats", "stats"]]:
 		var tab := Button.new()
@@ -816,14 +820,14 @@ func _apply_sheet_page() -> void:
 		return
 	var gear: CanvasItem = sheet.get_node_or_null("GearColumn") as CanvasItem
 	var stats: CanvasItem = sheet.get_node_or_null("Stats") as CanvasItem
+	## Gear and stats stay on the sheet together. The old switch hid one of them.
 	if gear:
-		gear.visible = _sheet_page != "stats"
+		gear.visible = true
 	if stats:
-		stats.visible = _sheet_page == "stats"
-	for spec: Array in [["PageGear", "gear"], ["PageStats", "stats"]]:
-		var tab: BaseButton = sheet.get_node_or_null("SheetPages/%s" % str(spec[0])) as BaseButton
-		if tab:
-			tab.set_pressed_no_signal(_sheet_page == str(spec[1]))
+		stats.visible = true
+	var pages: CanvasItem = sheet.get_node_or_null("SheetPages") as CanvasItem
+	if pages:
+		pages.visible = false
 
 
 func _apply_actor_chrome() -> void:
@@ -885,7 +889,31 @@ func _sheet_figure_path() -> String:
 	return ELAIA_SHEET_FIGURE if _actor_id == "elaia" else PORTRAIT_PATH
 
 
+func _arm_trait_hover() -> void:
+	## Same rest as every other hover. A tap holds the pointer down, so this wait is the hold too.
+	if _trait_wait == null or not is_instance_valid(_trait_wait):
+		_trait_wait = Timer.new()
+		_trait_wait.name = "TraitHoverRest"
+		_trait_wait.one_shot = true
+		_trait_wait.timeout.connect(open_trait_popup)
+		add_child(_trait_wait)
+	_trait_wait.wait_time = WorldHover.rest_sec()
+	_trait_wait.start()
+
+
+func trait_rest_pending() -> bool:
+	return _trait_wait != null and is_instance_valid(_trait_wait) and not _trait_wait.is_stopped()
+
+
+func complete_trait_rest() -> void:
+	if _trait_wait != null and is_instance_valid(_trait_wait):
+		_trait_wait.stop()
+	open_trait_popup()
+
+
 func open_trait_popup() -> void:
+	if _trait_wait != null and is_instance_valid(_trait_wait):
+		_trait_wait.stop()
 	var pop: Control = get_node_or_null("TraitPopup") as Control
 	if pop == null:
 		return
@@ -895,6 +923,8 @@ func open_trait_popup() -> void:
 
 
 func close_trait_popup() -> void:
+	if _trait_wait != null and is_instance_valid(_trait_wait):
+		_trait_wait.stop()
 	var pop: CanvasItem = get_node_or_null("TraitPopup") as CanvasItem
 	if pop:
 		pop.visible = false
@@ -937,7 +967,7 @@ func _build_trait_popup() -> void:
 	sub.add_theme_color_override("font_color", INK)
 	panel.add_child(sub)
 	var y: float = 92.0
-	for row_name: String in ["Work", "Reliquary", "Water", "Pace"]:
+	for row_name: String in ["Work", "Craft", "Water", "Reliquary", "Pace", "Brew"]:
 		var row := Control.new()
 		row.name = "Row%s" % row_name
 		row.position = Vector2(20, y)
@@ -988,14 +1018,49 @@ func _fill_trait_popup() -> void:
 		title.text = strings.get_text("char_sheet_trait_popup_title")
 	if sub:
 		sub.text = _trait_sentence()
-	var work: float = float(gs.call("actor_work_rate", actor, ""))
-	var relic: float = float(gs.call("actor_work_rate", actor, "reliquary"))
-	var water: float = float(gs.call("actor_water_mult", actor))
-	var pace: float = float(gs.call("actor_move_mult", actor))
-	_set_trait_row(panel, "Work", "char_sheet_trait_work", work)
-	_set_trait_row(panel, "Reliquary", "char_sheet_trait_reliquary", relic)
-	_set_trait_row(panel, "Water", "char_sheet_trait_water", water)
-	_set_trait_row(panel, "Pace", "char_sheet_trait_move", pace)
+	var y: float = 92.0
+	for spec: Dictionary in _trait_row_specs(actor):
+		var row: Control = panel.get_node_or_null("Row%s" % str(spec.get("row", ""))) as Control
+		if row == null:
+			continue
+		var show: bool = bool(spec.get("show", false))
+		row.visible = show
+		if not show:
+			continue
+		row.position.y = y
+		_set_trait_row(panel, str(spec.get("row", "")), str(spec.get("key", "")), float(spec.get("value", 1.0)))
+		y += 36.0
+	var host: Control = panel as Control
+	if host != null:
+		host.size.y = y + 16.0
+	_place_trait_popup()
+
+
+func _trait_row_specs(actor: String) -> Array[Dictionary]:
+	## Relic special is Elaia's. Walking speed is Bramble's. Brewing waits for Puff.
+	## The Keeper has no walking speed.
+	var gs = CharacterSheet._auto("GameState")
+	var work: float = 1.0
+	var craft: float = 1.0
+	var water: float = 1.0
+	var relic: float = 1.0
+	var pace: float = 1.0
+	var brew: float = 1.0
+	if gs != null:
+		work = float(gs.call("actor_work_rate", actor, ""))
+		craft = float(gs.call("actor_craft_rate", actor))
+		water = float(gs.call("actor_water_mult", actor))
+		relic = float(gs.call("actor_work_rate", actor, "reliquary"))
+		pace = float(gs.call("actor_move_mult", actor))
+		brew = float(gs.call("actor_brew_rate", actor))
+	return [
+		{"row": "Work", "key": "char_sheet_trait_work", "value": work, "show": true},
+		{"row": "Craft", "key": "char_sheet_trait_craft", "value": craft, "show": true},
+		{"row": "Water", "key": "char_sheet_trait_water", "value": water, "show": true},
+		{"row": "Reliquary", "key": "char_sheet_trait_reliquary", "value": relic, "show": actor == "elaia"},
+		{"row": "Pace", "key": "char_sheet_trait_move", "value": pace, "show": actor == "bramble"},
+		{"row": "Brew", "key": "char_sheet_trait_brew", "value": brew, "show": actor == "puff"},
+	]
 
 
 func _set_trait_row(panel: Node, row_name: String, key: String, value: float) -> void:
@@ -1011,7 +1076,7 @@ func _place_trait_popup() -> void:
 	var panel: Control = get_node_or_null("TraitPopup/Panel") as Control
 	if panel == null:
 		return
-	var panel_size := Vector2(380, 268)
+	var panel_size := Vector2(380, panel.size.y if panel.size.y > 80.0 else 268.0)
 	panel.size = panel_size
 	var btn: Control = find_child("TraitButton", true, false) as Control
 	var origin := Vector2(16, 16)

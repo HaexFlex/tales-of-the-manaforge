@@ -14,6 +14,8 @@ signal channel_changed(kind: StringName, active: bool)
 
 var _target: Vector2 = Vector2.ZERO
 var _moving: bool = false
+## Ascend walks the party to the tree, then they turn to face it.
+var _face_on_arrive: String = ""
 var _route_points: Array[Vector2] = []
 var _pending_interact: Node = null
 
@@ -347,6 +349,9 @@ func _physics_process(delta: float) -> void:
 			_moving = false
 			velocity = Vector2.ZERO
 			move_and_slide()
+			if _face_on_arrive != "":
+				_facing = _face_on_arrive
+				_face_on_arrive = ""
 			_update_anim(Vector2.ZERO)
 			if _water_pending:
 				_water_pending = false
@@ -465,8 +470,15 @@ static func walk_anim_for_velocity(vel: Vector2, current: String = "south") -> S
 
 
 func scene_home() -> String:
+	## The Forge group is added in the room's _ready, which runs after this body.
+	## The scene path is already set, so a spawn does not inherit the clearing pose.
 	if is_inside_tree() and get_tree().get_first_node_in_group("forge_room") != null:
 		return "forge"
+	var cursor: Node = self
+	while cursor != null:
+		if str(cursor.scene_file_path).ends_with("forge_room.tscn"):
+			return "forge"
+		cursor = cursor.get_parent()
 	return "clearing"
 
 
@@ -853,6 +865,9 @@ func command_work(target: Node2D, type_id: String, claim_key: String = "") -> vo
 	if not _actor_in_this_scene():
 		GameState.status_message.emit(ContentStrings.get_text("hud_activity_idle"))
 		return
+	## Watering stops, then the same click walks him to the tree and opens tending.
+	if type_id == "manatree" and target is Manatree and _watering_this(target as Manatree):
+		cancel_water_trip()
 	var key: String = claim_key if claim_key != "" else type_id
 	if not _claim_target(key):
 		return
@@ -1092,6 +1107,27 @@ func _ensure_work_spot(target: Node2D, type_id: String) -> Vector2:
 	return _work_spot
 
 
+func gather_at(spot: Vector2) -> void:
+	## Drop the current job, then walk to the tree if this body is the one on screen.
+	halt()
+	cancel_reach_pose()
+	_face_on_arrive = "north"
+	if not _present_in_clearing():
+		_face_on_arrive = ""
+		return
+	move_to(spot, null)
+
+
+func _present_in_clearing() -> bool:
+	if not is_inside_tree() or scene_home() != "clearing" or not visible:
+		return false
+	if not has_node("/root/GameState"):
+		return false
+	if actor_id() == "elaia":
+		return GameState.elaia_in_party() and GameState.elaia_area == "clearing"
+	return GameState.keeper_area == "clearing"
+
+
 func halt() -> void:
 	_moving = false
 	_route_points.clear()
@@ -1207,6 +1243,30 @@ func _begin_water_channel(tree: Manatree) -> void:
 	publish_task("water", "manatree", true)
 	_do_water_pulse()
 	_channel_accum = 0.0
+
+
+func _watering_this(tree: Manatree) -> bool:
+	if tree == null:
+		return false
+	if _channel_kind == ChannelKind.WATER and _channel_target == tree:
+		return true
+	return _water_pending and _work_target == tree
+
+
+func cancel_water_trip() -> void:
+	## Drop the channel where he stands. The caller walks him on if the click should.
+	if _channel_kind != ChannelKind.WATER and not _water_pending:
+		return
+	_water_pending = false
+	_pending_interact = null
+	_moving = false
+	_route_points.clear()
+	velocity = Vector2.ZERO
+	_target = global_position
+	cancel_channel()
+	_clear_work_order()
+	clear_published_task()
+	_update_anim(Vector2.ZERO)
 
 
 func cancel_channel(emit_status: bool = true) -> void:
@@ -1412,10 +1472,11 @@ func _on_selection_changed() -> void:
 		select_ring.visible = false
 	_apply_outline(actor_selected())
 	if label:
+		## Not editor-only. This used to appear in play, in black, above the sprite.
 		if actor_selected():
 			label.text = actor_label_selected()
 			modulate = Color(1.08, 1.12, 1.0, 1.0)
 		else:
 			label.text = actor_label_idle()
 			modulate = Color.WHITE
-		label.visible = _hovered
+		label.visible = false

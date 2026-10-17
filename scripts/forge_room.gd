@@ -381,6 +381,7 @@ func _open_recipes(station_id: String) -> void:
 	if recipe_panel == null or recipe_list == null or not has_node("/root/ForgeJobs"):
 		return
 	_panel_station = station_id
+	set_meta("minigame_panel_station", station_id)
 	recipe_panel.visible = true
 	if recipe_title:
 		recipe_title.text = ForgeJobs.station_display(station_id)
@@ -632,6 +633,7 @@ func _hide_recipes() -> void:
 	if recipe_panel:
 		recipe_panel.visible = false
 	_panel_station = ""
+	set_meta("minigame_panel_station", "")
 	_refresh_station_job()
 	_relayout_hud()
 	if hud and hud.has_method("maybe_show_elaia_footsteps"):
@@ -781,7 +783,20 @@ func _sync_wisps() -> void:
 		if orb.has_method("setup"):
 			orb.call("setup", i)
 		add_child(orb)
+		if orb.has_signal("wisp_clicked"):
+			orb.connect("wisp_clicked", _on_wisp_clicked)
 		_wisp_nodes[i] = orb
+
+
+func _on_wisp_clicked(wisp_id: int) -> void:
+	## Same select as the clearing. A click does not require the Keeper.
+	GameState.select_wisp(wisp_id)
+	if GameState.selected_wisp_id == wisp_id:
+		GameState.status_message.emit("%s  ·  %s  ·  %s" % [
+			ContentStrings.get_text("wisp_orbit_hint"),
+			ContentStrings.get_text("wisp_assign_hint"),
+			ContentStrings.get_text("wisp_node_shared_hint"),
+		])
 
 
 func _find_station(station_id: String) -> ForgeStation:

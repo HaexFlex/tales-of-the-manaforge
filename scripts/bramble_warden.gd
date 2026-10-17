@@ -84,7 +84,7 @@ func refresh_presence() -> void:
 	input_pickable = show_it
 	monitorable = show_it
 	if label:
-		label.visible = _hovered and show_it
+		label.visible = false
 		label.text = ContentStrings.get_text("bramble_name")
 
 
@@ -95,7 +95,7 @@ func world_hover_name() -> String:
 func _on_hover(inside: bool) -> void:
 	_hovered = inside
 	if label:
-		label.visible = _hovered and visible
+		label.visible = false
 	WorldHover.sync(self, inside and visible, world_hover_name())
 
 
