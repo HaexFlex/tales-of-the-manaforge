@@ -462,14 +462,19 @@ func _layout_hud540() -> void:
 		row.position = Vector2(left + 8.0 + shift, top + 4.0)
 		row.size = Vector2(bar_w - 16.0, bar_h - 8.0)
 	var tap: float = Ui540.TAP_MIN_PX
-	var pause_sz: float = 40.0 if Ui540.is_phone_export() else tap
+	var pause_sz: float = tap
 	var pause_x: float = vs.x - right - pause_sz + shift
 	pause_button.position = Vector2(pause_x, top)
 	pause_button.size = Vector2(pause_sz, pause_sz)
+	var help_x: float = pause_x - 8.0 - tap
+	if help_button:
+		help_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		help_button.position = Vector2(help_x, top)
+		help_button.size = Vector2(tap, tap)
 	if ascension_reopen_button.visible:
-		ascension_reopen_button.position = Vector2(pause_x - tap - 8.0, top)
+		ascension_reopen_button.position = Vector2(help_x - tap - 8.0, top)
 		ascension_reopen_button.size = Vector2(tap, tap)
-	var speed_x: float = pause_x - 8.0 - tap
+	var speed_x: float = help_x - 8.0 - tap
 	if _play_speed_button:
 		_play_speed_button.position = Vector2(speed_x, top)
 		_play_speed_button.size = Vector2(tap, tap)
@@ -3124,20 +3129,13 @@ func _make_activity_label(node_name: String, y: float) -> Label:
 	return lbl
 
 
-var _world_bold_font: FontVariation
-
-
-## Wisps and Idle sit on the grass. Silver 19 faux-bold, cream, with a dark rim.
+## Wisps and Idle sit on the grass. Plain Silver 19, cream, outline 4. No embolden.
 func _style_world_label(label: Label) -> void:
-	if _world_bold_font == null:
-		_world_bold_font = FontVariation.new()
-		_world_bold_font.base_font = GameTheme.body_font()
-		_world_bold_font.variation_embolden = 1.0
-	label.add_theme_font_override("font", _world_bold_font)
+	label.add_theme_font_override("font", GameTheme.body_font())
 	label.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
 	label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
 	label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
-	label.add_theme_constant_override("outline_size", 6)
+	label.add_theme_constant_override("outline_size", 4)
 	label.add_theme_constant_override("line_spacing", -2)
 	label.remove_theme_color_override("font_shadow_color")
 

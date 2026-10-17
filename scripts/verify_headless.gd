@@ -84,6 +84,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_HUD_SAFE") == "1":
+		var hud_safe_only: int = await _hud_inside_safe_area_ok(tree_root)
+		if hud_safe_only > 0:
+			print("HUD_INSIDE_SAFE_AREA_FAIL: %d" % hud_safe_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_VIEWPORT_EXPAND") == "1":
 		var view_only: int = await _viewport_expand_ok(tree_root)
 		if view_only > 0:
@@ -4026,6 +4035,7 @@ func _run() -> void:
 	failed += await _safe_area_layout_ok(tree_root)
 	failed += await _viewport_expand_ok(tree_root)
 	failed += await _title_wide_ok(tree_root)
+	failed += await _hud_inside_safe_area_ok(tree_root)
 	failed += _touch_hint_ok(tree_root, game_state)
 	failed += await _tooltip_scroll_ok(tree_root)
 	failed += await _longpress_hint_width_ok(tree_root)
@@ -21956,6 +21966,114 @@ func _back_button_pause_ok(tree_root: Window, save_service: Node) -> int:
 		echo.set("in_battle", was_battle)
 	if failed == 0:
 		print("BACK_BUTTON_PAUSE_OK")
+	return failed
+
+
+func _hud_inside_safe_area_ok(tree_root: Window) -> int:
+	## Visible HUD controls stay inside the 24 px safe rect. Digits stay Silver 19.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var hud: Node = packed.instantiate() if packed != null else null
+	failed += _assert(hud != null, "hud scene instantiates for the safe-area walk")
+	if hud == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(hud)
+	var views: Array[Dictionary] = [
+		{"win": Vector2i(2400, 1080), "vs": Vector2i(1200, 540)},
+		{"win": Vector2i(1920, 1200), "vs": Vector2i(960, 600)},
+		{"win": Vector2i(1280, 960), "vs": Vector2i(1280, 960)},
+		{"win": Vector2i(2560, 1600), "vs": Vector2i(1280, 800)},
+	]
+	for view: Dictionary in views:
+		var win_px: Vector2i = view["win"]
+		var vs: Vector2i = view["vs"]
+		tree_root.size = win_px
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if hud.has_method("_layout_hud540"):
+			hud.call("_layout_hud540")
+		await tree_root.get_tree().process_frame
+		var view_sz: Vector2 = Ui540.viewport_size()
+		failed += _assert(view_sz.is_equal_approx(Vector2(vs)), "hud viewport is %s (got %s)" % [vs, view_sz])
+		var safe: Rect2 = Ui540.safe_rect().grow(1.0)
+		failed += _walk_hud_inside(hud, safe, view_sz, str(win_px))
+		var pause: Control = hud.get_node_or_null("Panel/PauseButton") as Control
+		var help: Control = hud.get_node_or_null("Panel/HelpButton") as Control
+		var icon: Control = hud.get_node_or_null("Panel/PauseButton/Icon") as Control
+		failed += _assert(pause != null and pause.size.is_equal_approx(Vector2(44, 44)), "pause is 44 px at %s" % win_px)
+		var pause_x: float = view_sz.x - Ui540.margin_right() - 44.0
+		failed += _assert(pause != null and is_equal_approx(pause.position.x, pause_x), "pause keeps the 24 px right margin at %s" % win_px)
+		failed += _assert(icon != null and icon.custom_minimum_size.is_equal_approx(Vector2(32, 32)), "pause icon is 32 px")
+		if pause != null and icon != null:
+			var glyph := icon.custom_minimum_size
+			failed += _assert(icon.position.is_equal_approx(((pause.size - glyph) * 0.5).round()), "pause icon is centred")
+		failed += _assert(help != null and help.size.is_equal_approx(Vector2(44, 44)), "help is 44 px at %s" % win_px)
+		failed += _assert(help != null and pause != null and help.position.is_equal_approx(Vector2(pause.position.x - 8.0 - 44.0, pause.position.y)), "help sits 8 px left of pause at %s" % win_px)
+		var digits: Label = hud.get_node_or_null("Panel/IconRow/ShardChip/NumShards") as Label
+		var scale: int = Ui540.integer_scale_for(Vector2(win_px))
+		failed += _assert(digits != null and int(digits.get_theme_font_size(&"font_size")) == 19, "resource digits stay Silver 19 at %s" % win_px)
+		failed += _assert(digits != null and digits.scale.is_equal_approx(Vector2.ONE), "resource digits are not scaled at %s" % win_px)
+		if digits != null:
+			print("HUD_DIGITS %s logical 19 scale %d -> %d px on screen" % [win_px, scale, 19 * scale])
+		var idle: Label = hud.get_node_or_null("PartyBar/KeeperActivity") as Label
+		failed += _assert(idle != null, "idle activity label exists")
+		if idle != null:
+			idle.text = "Idle"
+			var idle_font: Font = idle.get_theme_font(&"font")
+			var idle_size: int = int(idle.get_theme_font_size(&"font_size"))
+			var idle_w: float = idle_font.get_string_size("Idle", HORIZONTAL_ALIGNMENT_LEFT, -1, idle_size).x if idle_font != null else 999.0
+			var embolden: float = 0.0
+			if idle_font is FontVariation:
+				embolden = (idle_font as FontVariation).variation_embolden
+			var body: Font = tree_root.get_node("GameTheme").call("body_font")
+			failed += _assert(idle_size == 19 and idle_font == body and is_zero_approx(embolden), "idle label is plain Silver 19")
+			failed += _assert(int(idle.get_theme_constant(&"outline_size")) == 4, "idle label outline is 4")
+			failed += _assert(idle.scale.is_equal_approx(Vector2.ONE) and idle.size.x <= 210.0 and idle_w <= 210.0, "idle label fits 210 px (text %.1f)" % idle_w)
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	failed += _assert(host != null, "minigame host is loaded for the hint line")
+	if host != null:
+		tree_root.size = Vector2i(1280, 960)
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		for game_id: String in ["ripe_catch", "hot_spots"]:
+			host.set("_game_id", game_id)
+			host.call("_layout_window")
+			var window: Control = host.get_node_or_null("MinigameRoot/Window") as Control
+			var hint: Control = host.get_node_or_null("MinigameRoot/Window/Hint") as Control
+			var play: Control = host.get_node_or_null("MinigameRoot/Window/Play") as Control
+			failed += _assert(window != null and window.size.y <= MinigameCatalog.WINDOW_SIZE.y + 0.5, "%s window does not grow" % game_id)
+			if window != null and hint != null:
+				var fit_y: float = window.size.y / MinigameCatalog.WINDOW_SIZE.y
+				var inner_bottom: float = 446.0 * fit_y
+				failed += _assert(is_equal_approx(hint.size.y, 24.0), "%s hint is 24 px tall" % game_id)
+				failed += _assert(hint.position.y + hint.size.y <= inner_bottom - 10.0 + 0.5, "%s hint is at least 10 px above the frame (bottom %.1f edge %.1f)" % [game_id, hint.position.y + hint.size.y, inner_bottom])
+			if play != null and hint != null:
+				var play_bottom: float = play.position.y + play.size.y * play.scale.y
+				failed += _assert(hint.position.y + 0.5 >= play_bottom, "%s hint stays below the play field" % game_id)
+		var header: Label = host.get_node_or_null("MinigameRoot/Window/Successes") as Label
+		failed += _assert(header != null and int(header.get_theme_font_size(&"font_size")) == 19, "minigame header stays Silver 19")
+	hud.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("HUD_INSIDE_SAFE_AREA_OK")
+	return failed
+
+
+func _walk_hud_inside(node: Node, safe: Rect2, view: Vector2, label: String) -> int:
+	var failed: int = 0
+	if node is Control:
+		var ctrl: Control = node as Control
+		if ctrl.is_visible_in_tree():
+			var rect: Rect2 = ctrl.get_global_rect()
+			var fills: bool = rect.size.x >= view.x - 1.0 and rect.size.y >= view.y - 1.0
+			if not fills and rect.size.x >= 1.0 and rect.size.y >= 1.0:
+				if not safe.encloses(rect):
+					failed += _assert(false, "%s %s sits outside the safe area (%s vs %s)" % [label, str(ctrl.get_path()), rect, safe])
+	for child: Node in node.get_children():
+		failed += _walk_hud_inside(child, safe, view, label)
 	return failed
 
 

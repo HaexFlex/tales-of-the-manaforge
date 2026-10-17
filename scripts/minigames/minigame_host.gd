@@ -26,6 +26,9 @@ const BAR_TRACK: Color = Color8(52, 36, 24)
 const PLATE_BAR := Rect2(438, 35, 132, 8)
 const PLATE_TEXT_INSET: float = 32.0
 const PLATE_FOOTER_BOTTOM: float = 446.0
+const HINT_LINE_H: float = 24.0
+## Clearance between the hint box and the plate's inner frame edge.
+const HINT_ABOVE_FRAME: float = 10.0
 
 var _dim: ColorRect
 var _panel: Panel
@@ -607,13 +610,13 @@ func _layout_window() -> void:
 	_play.position = MinigameCatalog.PLAY_ORIGIN * fit
 	_play.size = MinigameCatalog.PLAY_SIZE
 	_play.scale = fit
+	var hint_y: float = PLATE_FOOTER_BOTTOM * fit.y - HINT_ABOVE_FRAME - HINT_LINE_H
 	if _game_id == "hot_spots":
-		var hint_y: float = PLATE_FOOTER_BOTTOM * fit.y - HEADER_ROW_H
 		_hint.position = Vector2(PLATE_TEXT_INSET * fit.x, hint_y)
-		_hint.size = Vector2(sz.x - PLATE_TEXT_INSET * fit.x * 2.0, HEADER_ROW_H)
+		_hint.size = Vector2(sz.x - PLATE_TEXT_INSET * fit.x * 2.0, HINT_LINE_H)
 	else:
-		_hint.position = Vector2(28, sz.y - 30.0)
-		_hint.size = Vector2(sz.x - 56.0, 22)
+		_hint.position = Vector2(28, hint_y)
+		_hint.size = Vector2(sz.x - 56.0, HINT_LINE_H)
 	if _flavour != null:
 		_flavour.visible = false
 	_summary.position = ((sz - Vector2(460, 308)) * 0.5).round()
