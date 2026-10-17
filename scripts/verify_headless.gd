@@ -84,6 +84,24 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TITLE_WIDE_SIZES") == "1":
+		var title_sizes_only: int = await _title_wide_sizes_ok(tree_root)
+		if title_sizes_only > 0:
+			print("TITLE_WIDE_SIZES_FAIL: %d" % title_sizes_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ECHO_WIDE") == "1":
+		var echo_wide_only: int = await _echo_wide_plate_ok(tree_root)
+		if echo_wide_only > 0:
+			print("ECHO_WIDE_PLATE_FAIL: %d" % echo_wide_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_HUD_SAFE") == "1":
 		var hud_safe_only: int = await _hud_inside_safe_area_ok(tree_root)
 		if hud_safe_only > 0:
@@ -4035,6 +4053,8 @@ func _run() -> void:
 	failed += await _safe_area_layout_ok(tree_root)
 	failed += await _viewport_expand_ok(tree_root)
 	failed += await _title_wide_ok(tree_root)
+	failed += await _title_wide_sizes_ok(tree_root)
+	failed += await _echo_wide_plate_ok(tree_root)
 	failed += await _hud_inside_safe_area_ok(tree_root)
 	failed += _touch_hint_ok(tree_root, game_state)
 	failed += await _tooltip_scroll_ok(tree_root)
@@ -22074,6 +22094,115 @@ func _walk_hud_inside(node: Node, safe: Rect2, view: Vector2, label: String) -> 
 					failed += _assert(false, "%s %s sits outside the safe area (%s vs %s)" % [label, str(ctrl.get_path()), rect, safe])
 	for child: Node in node.get_children():
 		failed += _walk_hud_inside(child, safe, view, label)
+	return failed
+
+
+func _title_wide_sizes_ok(tree_root: Window) -> int:
+	## Device windows. The 1440×960 plate stays 1:1; chrome follows the 960×540 frame.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var title: Node = packed.instantiate() if packed != null else null
+	failed += _assert(title != null, "title scene instantiates for the size check")
+	if title == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(title)
+	var windows: Array[Vector2i] = [Vector2i(2400, 1080), Vector2i(1920, 1200), Vector2i(1280, 960), Vector2i(2560, 1600)]
+	for win: Vector2i in windows:
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		await tree_root.get_tree().process_frame
+		var view: Vector2 = Ui540.viewport_size()
+		var shift: Vector2 = Ui540.center_shift()
+		var bg: TextureRect = title.get_node_or_null("Background") as TextureRect
+		var bg_pos: Vector2 = (view - Vector2(1440, 960)) * 0.5
+		failed += _assert(bg != null and bg.size.is_equal_approx(Vector2(1440, 960)) and bg.stretch_mode == TextureRect.STRETCH_KEEP, "title plate is 1440x960 and unstretched at %s" % win)
+		failed += _assert(bg != null and bg.position.is_equal_approx(bg_pos), "title plate is centred at %s (got %s want %s)" % [win, str(bg.position) if bg != null else "missing", bg_pos])
+		var logo: Control = title.get_node_or_null("Logo") as Control
+		var menu: Control = title.get_node_or_null("Menu") as Control
+		var version: Control = title.get_node_or_null("Version") as Control
+		failed += _assert(logo != null and logo.position.is_equal_approx(Vector2(52, 24) + shift), "title logo offset at %s" % win)
+		failed += _assert(menu != null and menu.position.is_equal_approx(Vector2(136, 146) + shift), "title menu offset at %s" % win)
+		var ver_pos: Vector2 = Vector2(904, 503) + shift
+		if version != null:
+			ver_pos.x = minf(ver_pos.x, maxf(0.0, view.x - version.size.x))
+			ver_pos.y = minf(ver_pos.y, maxf(0.0, view.y - version.size.y))
+		failed += _assert(version != null and version.position.is_equal_approx(ver_pos), "title version offset at %s" % win)
+	title.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TITLE_WIDE_SIZES_OK")
+	return failed
+
+
+func _echo_wide_plate_ok(tree_root: Window) -> int:
+	## 1440×960 plate, 1:1, covering the viewport. Overlays stay on the centred 960×540 frame.
+	var failed: int = 0
+	failed += _assert(EchoTheme.DESIGN_IN_PLATE.is_equal_approx(EchoTheme.PLATE_OLD_ORIGIN + Vector2(160, 90)), "design origin is the old plate at +80,+120 plus the 960 crop")
+	var wide := Image.new()
+	var old := Image.new()
+	failed += _assert(wide.load("res://assets/ui/echo/echo_chamber_bg_inkwater_1440x960.png") == OK, "wide echo plate loads")
+	failed += _assert(wide.get_width() == 1440 and wide.get_height() == 960, "wide echo plate is 1440x960")
+	failed += _assert(old.load("res://assets/library/legacy/echo_plate_1280x720_2026-10-17/echo_chamber_bg_inkwater_1280x720.png") == OK, "legacy echo plate loads")
+	if wide.get_width() == 1440 and old.get_width() == 1280:
+		var nest: Image = wide.get_region(Rect2i(80, 120, 1280, 720))
+		nest.convert(Image.FORMAT_RGB8)
+		old.convert(Image.FORMAT_RGB8)
+		failed += _assert(nest.get_data() == old.get_data(), "old echo plate sits unchanged at +80,+120")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _assert(packed != null, "echo battle scene loads")
+	if packed == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var windows: Array[Vector2i] = [Vector2i(2400, 1080), Vector2i(1920, 1200), Vector2i(1280, 960), Vector2i(2560, 1600)]
+	for win: Vector2i in windows:
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		var view: Node = packed.instantiate()
+		tree_root.add_child(view)
+		await tree_root.get_tree().process_frame
+		var shift: Vector2 = Ui540.center_shift()
+		var viewport: Vector2 = Ui540.viewport_size()
+		var art: TextureRect = view.get_node_or_null("ChamberArt") as TextureRect
+		var plate_pos: Vector2 = (viewport - Vector2(1440, 960)) * 0.5
+		failed += _assert(art != null and not (art.texture is AtlasTexture), "echo plate is uncropped at %s" % win)
+		failed += _assert(art != null and art.stretch_mode == TextureRect.STRETCH_KEEP and art.size.is_equal_approx(Vector2(1440, 960)), "echo plate is 1:1 1440x960 at %s" % win)
+		failed += _assert(art != null and art.texture != null and art.texture.get_size().is_equal_approx(art.size), "echo plate is not stretched at %s" % win)
+		failed += _assert(art != null and art.position.is_equal_approx(plate_pos), "echo plate is centred at %s" % win)
+		if art != null:
+			failed += _assert(Rect2(art.position, art.size).grow(0.5).encloses(Rect2(Vector2.ZERO, viewport)), "echo plate covers %s" % win)
+		var frame: Control = view.get_node_or_null("DesignFrame") as Control
+		failed += _assert(frame != null and frame.position.is_equal_approx(shift) and frame.size.is_equal_approx(Vector2(960, 540)), "design frame is the centred 960x540 at %s" % win)
+		var speech: Control = view.get_node_or_null("SpeechBox") as Control
+		failed += _assert(speech != null and speech.position.is_equal_approx(EchoTheme.SPEECH_BOX.position + shift), "speech stays on the design frame at %s" % win)
+		view.call("_build_hp_bars")
+		var hp: Control = view.get_node_or_null("KeeperHpBar") as Control
+		failed += _assert(hp != null and hp.position.is_equal_approx(Vector2(shift.x + EchoTheme.KEEPER_CX - 90.0, 344.0 + shift.y)), "HP bar stays on the design frame at %s" % win)
+		BattleView.build_echo_menu(view, true)
+		var chip: Control = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Control
+		failed += _assert(chip != null and chip.position.is_equal_approx(Vector2(shift.x + 150.0, shift.y + 394.0)), "hybrid chip stays on the design frame at %s" % win)
+		view.call("_show_rewards", "spare")
+		var rewards: Control = view.get_node_or_null("EchoRewards") as Control
+		failed += _assert(rewards != null and rewards.position.is_equal_approx(Vector2(shift.x + 200.0, 40.0 + shift.y)), "rewards card stays on the design frame at %s" % win)
+		var battle := EchoBattle.new()
+		battle.outcome = ""
+		view.set("_battle", battle)
+		view.set("_waiting_return", false)
+		view.call("_open_end_confirm", "spare")
+		var ask: Control = view.get_node_or_null("EndConfirm") as Control
+		failed += _assert(ask != null and ask.position.is_equal_approx(Vector2(shift.x + 220.0, 150.0 + shift.y)), "Spare/Strike confirm stays on the design frame at %s" % win)
+		view.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("ECHO_WIDE_PLATE_OK")
 	return failed
 
 
