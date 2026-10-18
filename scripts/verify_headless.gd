@@ -102,6 +102,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_EXPORT_SAFE") == "1":
+		var export_safe_only: int = await _export_safe_resources_ok(tree_root)
+		if export_safe_only > 0:
+			print("EXPORT_SAFE_RESOURCES_FAIL: %d" % export_safe_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_HUD_SAFE") == "1":
 		var hud_safe_only: int = await _hud_inside_safe_area_ok(tree_root)
 		if hud_safe_only > 0:
@@ -4055,6 +4064,7 @@ func _run() -> void:
 	failed += await _title_wide_ok(tree_root)
 	failed += await _title_wide_sizes_ok(tree_root)
 	failed += await _echo_wide_plate_ok(tree_root)
+	failed += await _export_safe_resources_ok(tree_root)
 	failed += await _hud_inside_safe_area_ok(tree_root)
 	failed += _touch_hint_ok(tree_root, game_state)
 	failed += await _tooltip_scroll_ok(tree_root)
@@ -22097,6 +22107,193 @@ func _walk_hud_inside(node: Node, safe: Rect2, view: Vector2, label: String) -> 
 	return failed
 
 
+func _imported_image(path: String) -> Image:
+	var tex: Texture2D = load(path) as Texture2D
+	if tex == null:
+		return null
+	var image: Image = tex.get_image()
+	if image != null and image.is_compressed():
+		image.decompress()
+	return image
+
+
+func _export_safe_resources_ok(tree_root: Window) -> int:
+	## Imported res:// art is a .ctex in the PCK. FileAccess.file_exists on the source png is false there.
+	var failed: int = 0
+	failed += _export_safe_scan_scripts()
+	failed += _assert(ResourceLoader.exists(EchoTheme.PLATE), "echo plate ResourceLoader.exists")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	var view: Node = packed.instantiate() if packed != null else null
+	failed += _assert(view != null, "echo battle instantiates for the export resource check")
+	if view != null:
+		tree_root.add_child(view)
+		var art: TextureRect = view.get_node_or_null("ChamberArt") as TextureRect
+		failed += _assert(art != null and art.texture != null, "ChamberArt texture is non-null via ResourceLoader")
+		view.free()
+	var summary: Node = load("res://scripts/ui/offline_summary.gd").new()
+	tree_root.add_child(summary)
+	var kinds: PackedStringArray = PackedStringArray(["essence", "manashards", "wood", "stone", "food"])
+	for kind: String in kinds:
+		var icon_path := "res://assets_extra/shared/icon_%s.png" % kind
+		failed += _assert(ResourceLoader.exists(icon_path), "offline icon ResourceLoader.exists %s" % kind)
+		var row: Control = summary.call("_detail_row", {"kind": kind, "text": kind, "value": "+1"}, 0, false) as Control
+		var icon: TextureRect = null
+		if row != null:
+			icon = row.get_node_or_null("RowIcon") as TextureRect
+		failed += _assert(icon != null and icon.texture != null, "offline %s row icon loads" % kind)
+	summary.free()
+	if failed == 0:
+		print("EXPORT_SAFE_RESOURCES_OK")
+	return failed
+
+
+func _export_safe_scan_scripts() -> int:
+	var failed: int = 0
+	var paths: PackedStringArray = _export_safe_script_paths()
+	var texts: Dictionary = {}
+	for path: String in paths:
+		texts[path] = FileAccess.get_file_as_string(path)
+	var bad: Dictionary = _export_safe_bad_consts(texts)
+	var ext_re := RegEx.create_from_string("\\.(?:png|webp|jpg|jpeg|ogg|wav|tscn|tres)\\b")
+	var call_re := RegEx.create_from_string("FileAccess\\.file_exists\\s*\\(([^)]*)\\)")
+	for path: String in paths:
+		var lines: PackedStringArray = str(texts[path]).split("\n")
+		for i: int in lines.size():
+			if lines[i].find("FileAccess.file_exists") < 0:
+				continue
+			if _export_safe_whitelisted(lines, i):
+				continue
+			var hit: String = _export_safe_call_hit(lines, i, call_re, ext_re, bad)
+			if hit != "":
+				failed += _assert(false, "export-unsafe FileAccess.file_exists %s:%d %s" % [path, i + 1, hit])
+	failed += _assert(not paths.is_empty(), "shipping script scan saw scripts")
+	return failed
+
+
+func _export_safe_script_paths() -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	var pending: Array[String] = ["res://scripts"]
+	while not pending.is_empty():
+		var dir_path: String = pending.pop_back()
+		var dir := DirAccess.open(dir_path)
+		if dir == null:
+			continue
+		dir.list_dir_begin()
+		var file_name := dir.get_next()
+		while file_name != "":
+			if not file_name.begins_with("."):
+				var full := dir_path.path_join(file_name)
+				if dir.current_is_dir():
+					pending.append(full)
+				elif file_name.ends_with(".gd") and _export_safe_is_shipping(file_name):
+					out.append(full)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+	return out
+
+
+func _export_safe_is_shipping(file_name: String) -> bool:
+	if file_name == "verify_headless.gd" or file_name == "minigame_tests.gd":
+		return false
+	if file_name == "playtest_ship.gd" or file_name == "playtest_quit.gd":
+		return false
+	if file_name == "pass_f_playthrough.gd" or file_name == "polish_smoke.gd":
+		return false
+	if file_name.begins_with("capture_"):
+		return false
+	return true
+
+
+func _export_safe_bad_consts(texts: Dictionary) -> Dictionary:
+	var bad: Dictionary = {}
+	var alias: Dictionary = {}
+	var direct_re := RegEx.create_from_string("(?m)^const\\s+([A-Za-z_][A-Za-z0-9_]*)\\b[^\\n]*\\.(?:png|webp|jpg|jpeg|ogg|wav|tscn|tres)\\b")
+	var alias_re := RegEx.create_from_string("(?m)^const\\s+([A-Za-z_][A-Za-z0-9_]*)\\b[^\\n]*?(?::=|=)\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?)\\s*$")
+	for path: String in texts.keys():
+		var text: String = str(texts[path])
+		for match_v: Variant in direct_re.search_all(text):
+			var direct: RegExMatch = match_v as RegExMatch
+			bad[direct.get_string(1)] = true
+		for alias_v: Variant in alias_re.search_all(text):
+			var aliased: RegExMatch = alias_v as RegExMatch
+			var name: String = aliased.get_string(1)
+			if not bad.has(name):
+				alias[name] = aliased.get_string(2)
+	var changed := true
+	while changed:
+		changed = false
+		for name: String in alias.keys():
+			if bad.has(name):
+				continue
+			var target: String = str(alias[name])
+			var leaf: String = target.get_slice(".", target.get_slice_count(".") - 1)
+			if bad.has(leaf) or bad.has(target):
+				bad[name] = true
+				changed = true
+	return bad
+
+
+func _export_safe_whitelisted(lines: PackedStringArray, index: int) -> bool:
+	## EXPORT_SAFE_RAW on the call, or on the comment directly above it, keeps a raw editor read.
+	if lines[index].find("EXPORT_SAFE_RAW") >= 0:
+		return true
+	var above: int = index - 1
+	while above >= 0 and lines[above].strip_edges() == "":
+		above -= 1
+	return above >= 0 and lines[above].find("EXPORT_SAFE_RAW") >= 0
+
+
+func _export_safe_call_hit(lines: PackedStringArray, index: int, call_re: RegEx, ext_re: RegEx, bad: Dictionary) -> String:
+	var found: RegExMatch = call_re.search(lines[index])
+	if found == null:
+		return "unparsed FileAccess.file_exists"
+	var arg: String = found.get_string(1).strip_edges()
+	if ext_re.search(arg) != null:
+		return "argument names an imported resource (%s)" % arg
+	for token: String in _export_safe_idents(arg):
+		if bad.has(token):
+			return "argument %s is an imported resource" % token
+	if arg.find(" ") < 0 and arg.is_valid_identifier():
+		var assign: String = _export_safe_assign_rhs(lines, index, arg)
+		if assign != "" and (ext_re.search(assign) != null or _export_safe_rhs_bad(assign, bad)):
+			return "argument %s is built from an imported resource" % arg
+	var follow := ""
+	var end: int = mini(index + 3, lines.size())
+	for k: int in range(index, end):
+		follow += lines[k]
+	if follow.find("load_png_from_buffer") >= 0:
+		return "reads a source image with FileAccess"
+	return ""
+
+
+func _export_safe_idents(expr: String) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	var word_re := RegEx.create_from_string("[A-Za-z_][A-Za-z0-9_]*")
+	for match_v: Variant in word_re.search_all(expr):
+		var word: String = (match_v as RegExMatch).get_string(0)
+		out.append(word)
+	return out
+
+
+func _export_safe_rhs_bad(rhs: String, bad: Dictionary) -> bool:
+	for token: String in _export_safe_idents(rhs):
+		if bad.has(token):
+			return true
+	return false
+
+
+func _export_safe_assign_rhs(lines: PackedStringArray, index: int, ident: String) -> String:
+	var assign_re := RegEx.create_from_string("(?:^|\\s)(?:var\\s+)?%s\\s*(?::\\s*[A-Za-z0-9_]+)?\\s*(?::=|=)\\s*(.*)$" % ident)
+	var start: int = maxi(0, index - 40)
+	for j: int in range(index - 1, start - 1, -1):
+		if lines[j].strip_edges().begins_with("func "):
+			break
+		var match: RegExMatch = assign_re.search(lines[j])
+		if match != null:
+			return match.get_string(1)
+	return ""
+
+
 func _title_wide_sizes_ok(tree_root: Window) -> int:
 	## Device windows. The 1440×960 plate stays 1:1; chrome follows the 960×540 frame.
 	var failed: int = 0
@@ -22144,12 +22341,12 @@ func _echo_wide_plate_ok(tree_root: Window) -> int:
 	## 1440×960 plate, 1:1, covering the viewport. Overlays stay on the centred 960×540 frame.
 	var failed: int = 0
 	failed += _assert(EchoTheme.DESIGN_IN_PLATE.is_equal_approx(EchoTheme.PLATE_OLD_ORIGIN + Vector2(160, 90)), "design origin is the old plate at +80,+120 plus the 960 crop")
-	var wide := Image.new()
-	var old := Image.new()
-	failed += _assert(wide.load("res://assets/ui/echo/echo_chamber_bg_inkwater_1440x960.png") == OK, "wide echo plate loads")
-	failed += _assert(wide.get_width() == 1440 and wide.get_height() == 960, "wide echo plate is 1440x960")
-	failed += _assert(old.load("res://assets/library/legacy/echo_plate_1280x720_2026-10-17/echo_chamber_bg_inkwater_1280x720.png") == OK, "legacy echo plate loads")
-	if wide.get_width() == 1440 and old.get_width() == 1280:
+	var wide: Image = _imported_image("res://assets/ui/echo/echo_chamber_bg_inkwater_1440x960.png")
+	var old: Image = _imported_image("res://assets/library/legacy/echo_plate_1280x720_2026-10-17/echo_chamber_bg_inkwater_1280x720.png")
+	failed += _assert(wide != null and not wide.is_empty(), "wide echo plate loads")
+	failed += _assert(wide != null and wide.get_width() == 1440 and wide.get_height() == 960, "wide echo plate is 1440x960")
+	failed += _assert(old != null and not old.is_empty(), "legacy echo plate loads")
+	if wide != null and wide.get_width() == 1440 and old != null and old.get_width() == 1280:
 		var nest: Image = wide.get_region(Rect2i(80, 120, 1280, 720))
 		nest.convert(Image.FORMAT_RGB8)
 		old.convert(Image.FORMAT_RGB8)
@@ -22212,12 +22409,12 @@ func _title_wide_ok(tree_root: Window) -> int:
 	var scene_text: String = FileAccess.get_file_as_string("res://scenes/title_screen.tscn")
 	failed += _assert(scene_text.find("res://assets_extra/title/title_bg_wide_1440x960.png") >= 0, "title scene uses the wide painting")
 	failed += _assert(scene_text.find("title_bg_wide_1440x900.png") < 0 and scene_text.find("title_bg_1200x540.png") < 0 and scene_text.find("title_bg_960x540.png") < 0, "title scene no longer points at the old plates")
-	var wide := Image.new()
-	var old := Image.new()
-	failed += _assert(wide.load("res://assets_extra/title/title_bg_wide_1440x960.png") == OK, "wide title image loads")
-	failed += _assert(wide.get_width() == 1440 and wide.get_height() == 960, "wide title is 1440x960")
-	failed += _assert(old.load("res://assets/library/legacy/title_2026-10-17/title_bg_960x540.png") == OK, "legacy 960 title image loads")
-	if wide.get_width() == 1440 and old.get_width() == 960:
+	var wide: Image = _imported_image("res://assets_extra/title/title_bg_wide_1440x960.png")
+	var old: Image = _imported_image("res://assets/library/legacy/title_2026-10-17/title_bg_960x540.png")
+	failed += _assert(wide != null and not wide.is_empty(), "wide title image loads")
+	failed += _assert(wide != null and wide.get_width() == 1440 and wide.get_height() == 960, "wide title is 1440x960")
+	failed += _assert(old != null and not old.is_empty(), "legacy 960 title image loads")
+	if wide != null and wide.get_width() == 1440 and old != null and old.get_width() == 960:
 		var centre: Image = wide.get_region(Rect2i(240, 210, 960, 540))
 		centre.convert(Image.FORMAT_RGB8)
 		old.convert(Image.FORMAT_RGB8)
