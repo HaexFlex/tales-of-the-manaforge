@@ -905,7 +905,7 @@ func _apply_chamber_plate() -> void:
 	if _chamber_art == null:
 		return
 	var plate: Texture2D = null
-	if FileAccess.file_exists(CHAMBER_BG):
+	if ResourceLoader.exists(CHAMBER_BG):
 		plate = load(CHAMBER_BG) as Texture2D
 	_chamber_art.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	_chamber_art.offset_left = 0.0

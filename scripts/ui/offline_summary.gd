@@ -394,7 +394,7 @@ func _detail_row(row: Dictionary, index: int, gathered_open: bool) -> Control:
 	var tex: String = ART + "list_row_9s_odd_24x24.png" if index % 2 == 1 else THEME_UI + "list_row_9s_even_24x24.png"
 	panel.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(tex, Vector4i(2, 2, 2, 2)))
 	var icon_path := "%sicon_%s.png" % [ICONS, kind]
-	if FileAccess.file_exists(icon_path):
+	if ResourceLoader.exists(icon_path):
 		var icon := TextureRect.new()
 		icon.name = "RowIcon"
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE

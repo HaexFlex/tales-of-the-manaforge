@@ -654,6 +654,7 @@ static func texture_used_rect(tex: Texture2D) -> Rect2:
 		return _used_rect_cache[key] as Rect2
 	var rect := Rect2(Vector2.ZERO, tex.get_size())
 	var image: Image = tex.get_image()
+	# EXPORT_SAFE_RAW: editor source PNG only. An export packs the .ctex, so this branch does not run there; the frame is tex.get_image().
 	if (image == null or image.is_empty()) and key != "" and FileAccess.file_exists(key):
 		image = Image.new()
 		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(key)) != OK:
@@ -1786,6 +1787,7 @@ func _fighter_frame_image(tex: Texture2D) -> Image:
 		return null
 	var image: Image = tex.get_image()
 	var key: String = tex.resource_path
+	# EXPORT_SAFE_RAW: editor source PNG only. An export packs the .ctex, so this branch does not run there; the frame is tex.get_image().
 	if (image == null or image.is_empty()) and key != "" and FileAccess.file_exists(key):
 		image = Image.new()
 		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(key)) != OK:
