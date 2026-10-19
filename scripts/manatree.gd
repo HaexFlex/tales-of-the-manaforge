@@ -123,6 +123,8 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if GameInput.yields_touch_double_tap(mb):
+				return
 			if _click_is_door():
 				_request_door()
 			# LMB on the tree is not empty ground — swallow so Main does not deselect.

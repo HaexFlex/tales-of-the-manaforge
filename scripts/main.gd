@@ -978,6 +978,30 @@ func world_input_blocked() -> bool:
 	return pause_menu.is_open()
 
 
+func _touch_unhandled(event: InputEvent) -> void:
+	## A ground tap keeps the selection. A second tap becomes a right-click.
+	_touch_try_double(event)
+
+
+func _touch_try_double(event: InputEvent) -> bool:
+	if not GameInput.is_double_tap(event):
+		return false
+	if _touch_double_suppressed() or _gui_blocks_drag():
+		if _touch_double_suppressed():
+			get_viewport().set_input_as_handled()
+		return true
+	get_viewport().set_input_as_handled()
+	GameInput.call_deferred("inject_right_click", GameInput.pointer_position(event))
+	return true
+
+
+func _touch_double_suppressed() -> bool:
+	if world_input_blocked():
+		return true
+	var host: Node = get_tree().root.get_node_or_null("MinigameHost")
+	return host != null and host.has_method("is_open") and bool(host.call("is_open"))
+
+
 func _input(event: InputEvent) -> void:
 	if GameInput.blocks_scene_mouse(event):
 		return
@@ -991,6 +1015,7 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if GameInput.blocks_scene_mouse(event):
+		_touch_unhandled(event)
 		return
 	if _handle_zoom_input(event):
 		return

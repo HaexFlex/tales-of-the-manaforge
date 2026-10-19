@@ -1850,7 +1850,7 @@ func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> voi
 		_portrait_clear(unit)
 	else:
 		party_click(unit)
-	if mb.double_click:
+	if mb.double_click or GameInput.is_double_tap(mb):
 		party_focus(unit)
 	## The click is the portrait, not a ground order. Do not walk or clear the job.
 	if is_instance_valid(slot):

@@ -19,12 +19,16 @@ var _moved: bool = false
 var _multi: bool = false
 var _gesture_dead: bool = false
 var _double: bool = false
+## The emulated mouse echo of a touch double arrives after _double has cleared.
+var _double_echo: bool = false
+var _double_echo_pos: Vector2 = Vector2.ZERO
 var _last_was_tap: bool = false
 var _last_release_ms: int = -100000
 var _last_release_pos: Vector2 = Vector2.ZERO
 var _swallow_release: bool = false
 var _swallowed_last_release: bool = false
 var _injecting: bool = false
+var _defer_gen: int = 0
 ## Finger indexes currently down. Index 0 is the only one that owns a gesture.
 var _down: Dictionary = {}
 
@@ -68,15 +72,27 @@ func blocks_scene_mouse(event: InputEvent) -> bool:
 
 
 func is_double_tap(event: InputEvent) -> bool:
-	if not _double or not touch_mode() or event == null:
+	if not touch_mode() or event == null:
 		return false
-	if event is InputEventMouseButton:
-		var mb: InputEventMouseButton = event as InputEventMouseButton
-		return mb.pressed and mb.button_index == MOUSE_BUTTON_LEFT and mb.device == InputEvent.DEVICE_ID_EMULATION
-	if event is InputEventScreenTouch:
-		var touch: InputEventScreenTouch = event as InputEventScreenTouch
-		return touch.pressed and touch.index == 0
-	return false
+	if _double:
+		if event is InputEventMouseButton:
+			var live: InputEventMouseButton = event as InputEventMouseButton
+			if live.pressed and live.button_index == MOUSE_BUTTON_LEFT and live.device == InputEvent.DEVICE_ID_EMULATION:
+				return true
+		elif event is InputEventScreenTouch:
+			var touch: InputEventScreenTouch = event as InputEventScreenTouch
+			if touch.pressed and touch.index == 0:
+				return true
+	return _is_double_echo(event)
+
+
+func _is_double_echo(event: InputEvent) -> bool:
+	if not _double_echo or not (event is InputEventMouseButton):
+		return false
+	var echo: InputEventMouseButton = event as InputEventMouseButton
+	if not echo.pressed or echo.button_index != MOUSE_BUTTON_LEFT or echo.device != InputEvent.DEVICE_ID_EMULATION:
+		return false
+	return echo.position.distance_to(_double_echo_pos) <= DOUBLE_TAP_PX
 
 
 func last_release_was_tap() -> bool:
@@ -115,6 +131,54 @@ func last_release_swallowed() -> bool:
 	return _swallowed_last_release
 
 
+func yields_touch_double_tap(event: InputEvent) -> bool:
+	## The second tap falls through so the world can turn it into a right-click.
+	return is_double_tap(event)
+
+
+func defer_touch_tap(action: Callable) -> void:
+	## Touch openers wait 280 ms so a second tap can cancel the left action.
+	if not action.is_valid():
+		return
+	if not touch_mode():
+		action.call()
+		return
+	_defer_gen += 1
+	var token: int = _defer_gen
+	var timer: SceneTreeTimer = get_tree().create_timer(0.28)
+	timer.timeout.connect(func() -> void:
+		if token != _defer_gen or not action.is_valid():
+			return
+		action.call()
+	)
+
+
+func inject_right_click(screen_pos: Vector2) -> void:
+	## Synthetic right-click, device 0, so the existing command paths run.
+	var vp: Viewport = get_viewport()
+	if vp == null:
+		return
+	_injecting = true
+	var motion := InputEventMouseMotion.new()
+	motion.device = 0
+	motion.position = screen_pos
+	motion.global_position = screen_pos
+	vp.push_input(motion)
+	var press := InputEventMouseButton.new()
+	press.device = 0
+	press.button_index = MOUSE_BUTTON_RIGHT
+	press.pressed = true
+	press.button_mask = MOUSE_BUTTON_MASK_RIGHT
+	press.position = screen_pos
+	press.global_position = screen_pos
+	vp.push_input(press)
+	var release: InputEventMouseButton = press.duplicate() as InputEventMouseButton
+	release.pressed = false
+	release.button_mask = 0
+	vp.push_input(release)
+	_injecting = false
+
+
 func show_hold_hint_if_needed(force: bool = false) -> bool:
 	## Once per install, on a phone or a touch launch. The seen flag lives in settings.
 	if not has_node("/root/GameAudio") or not has_node("/root/ContentStrings") or not has_node("/root/GameState"):
@@ -135,6 +199,10 @@ func _ensure_input_actions() -> void:
 		InputMap.add_action("game_command", 0.5)
 		var rmb := InputEventMouseButton.new()
 		rmb.button_index = MOUSE_BUTTON_RIGHT
+		# Godot 4.7 defaults a mouse event to DEVICE_ID_MOUSE (32) and rewrites a
+		# stored device 0 into that. Matching does not rewrite an incoming event,
+		# so device 0 would miss. -1 is InputMap's all-devices id and still matches 32.
+		rmb.device = -1
 		InputMap.action_add_event("game_command", rmb)
 		var key_g := InputEventKey.new()
 		key_g.keycode = KEY_G
@@ -190,16 +258,22 @@ func _handle_touch_event(event: InputEvent) -> bool:
 		if mb.button_index != MOUSE_BUTTON_LEFT:
 			return false
 		if mb.pressed:
+			if _is_double_echo(mb):
+				# Echo of the touch double. Do not start another tap.
+				return true
 			if not _finger0_down:
 				_begin_primary(mb.position)
 			else:
 				_touch_current = mb.position
 		else:
+			var echo_release: bool = _double_echo and not _finger0_down
 			if _swallow_release:
 				_swallow_primary_release()
 			if _finger0_down:
 				_touch_current = mb.position
 				_end_primary()
+			if echo_release:
+				_double_echo = false
 		return true
 	if event is InputEventMouseMotion:
 		var motion: InputEventMouseMotion = event as InputEventMouseMotion
@@ -236,8 +310,12 @@ func _note_finger_up(index: int) -> void:
 func _begin_primary(pos: Vector2) -> void:
 	var now: int = Time.get_ticks_msec()
 	_double = false
+	_double_echo = false
 	if not _multi and not _gesture_dead and _last_was_tap and (now - _last_release_ms) <= DOUBLE_TAP_MS and pos.distance_to(_last_release_pos) <= DOUBLE_TAP_PX:
 		_double = true
+		_double_echo = true
+		_double_echo_pos = pos
+		_defer_gen += 1
 	_finger0_down = true
 	_touch_index = 0
 	_touch_start_ms = now

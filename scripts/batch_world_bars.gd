@@ -78,7 +78,15 @@ func _on_gui_input(event: InputEvent) -> void:
 	var mb: InputEventMouseButton = event
 	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
-	if _host != null and _host.has_method("_on_left_click"):
+	if GameInput.yields_touch_double_tap(mb):
+		return
+	if GameInput.touch_mode() and GameInput.is_touch_pointer(mb):
+		var host: Node = _host
+		GameInput.defer_touch_tap(func() -> void:
+			if host != null and is_instance_valid(host) and host.has_method("_on_left_click"):
+				host.call("_on_left_click")
+		)
+	elif _host != null and _host.has_method("_on_left_click"):
 		_host.call("_on_left_click")
 	_root.accept_event()
 

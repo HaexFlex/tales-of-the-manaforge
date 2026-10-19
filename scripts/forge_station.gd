@@ -243,7 +243,12 @@ func _input_event(_viewport: Viewport, event: InputEvent, _shape_idx: int) -> vo
 	if not mb.pressed:
 		return
 	if mb.button_index == MOUSE_BUTTON_LEFT:
-		_on_left_click()
+		if GameInput.yields_touch_double_tap(mb):
+			return
+		if GameInput.touch_mode() and GameInput.is_touch_pointer(mb):
+			GameInput.defer_touch_tap(_on_left_click)
+		else:
+			_on_left_click()
 		get_viewport().set_input_as_handled()
 	elif GameInput.is_command(mb):
 		_on_right_click()

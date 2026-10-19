@@ -109,7 +109,8 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if GameInput.blocks_scene_mouse(event):
-		_touch_ground_release(event)
+		if not _touch_try_double(event):
+			_touch_ground_release(event)
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event
@@ -143,6 +144,25 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_marquee(_drag_from)
 		elif _drag_active:
 			_finish_marquee(get_global_mouse_position())
+
+
+func _touch_try_double(event: InputEvent) -> bool:
+	if not GameInput.is_double_tap(event):
+		return false
+	if _touch_double_suppressed() or _gui_blocks_drag():
+		if _touch_double_suppressed():
+			get_viewport().set_input_as_handled()
+		return true
+	get_viewport().set_input_as_handled()
+	GameInput.call_deferred("inject_right_click", GameInput.pointer_position(event))
+	return true
+
+
+func _touch_double_suppressed() -> bool:
+	if _ui_blocks() or EchoChamber.in_battle or BattleView.is_open():
+		return true
+	var host: Node = get_tree().root.get_node_or_null("MinigameHost")
+	return host != null and host.has_method("is_open") and bool(host.call("is_open"))
 
 
 func _touch_ground_release(event: InputEvent) -> void:
