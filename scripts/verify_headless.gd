@@ -22644,6 +22644,7 @@ func _touch_nav_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	var failed: int = 0
 	failed += await _touch_pinch_ok(tree_root, save_service)
 	failed += await _touch_core_ok(tree_root)
+	failed += await _touch_longpress_ok(tree_root, game_state, save_service)
 	return failed
 
 
@@ -22963,6 +22964,225 @@ func _touch_tap_no_late_tooltip_ok(tree_root: Window, input: Node) -> int:
 	if failed == 0:
 		print("TOUCH_TAP_NO_LATE_TOOLTIP_OK")
 	return failed
+
+
+func _touch_longpress_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	failed += await _touch_longpress_tooltip_ok(tree_root, input)
+	failed += await _touch_longpress_no_command_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_longpress_no_button_press_ok(tree_root, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_hold_at(input: Node, screen_pos: Vector2) -> void:
+	_touch_release_fingers(input)
+	input.set("_last_was_tap", false)
+	_touch_screen(input, 0, true, screen_pos)
+	input.set("_touch_start_ms", Time.get_ticks_msec() - 900)
+	input.set("_touch_current", screen_pos)
+	input.call("_process", 0.016)
+
+
+func _touch_longpress_tooltip_ok(tree_root: Window, input: Node) -> int:
+	## Long-press shows the world name, or that control's own tip. Not the generic hint.
+	var failed: int = 0
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("_route_world_command") < 0, "long-press no longer routes a world command")
+	failed += _assert(input_text.find("present_long_press_hint") >= 0 and input_text.find("ui.longpress_hint") >= 0, "the hint helper and its string key stay for the one-time panel")
+	var scr := GDScript.new()
+	scr.source_code = "extends Area2D\nfunc world_hover_name() -> String:\n\treturn \"Harvest Wood\"\n"
+	failed += _assert(scr.reload() == OK, "world hover stub compiles")
+	var area := Area2D.new()
+	area.set_script(scr)
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(36, 36)
+	shape.shape = rect
+	area.add_child(shape)
+	tree_root.add_child(area)
+	var screen := Vector2(240, 180)
+	area.global_position = input.call("_screen_to_world", screen)
+	await tree_root.get_tree().physics_frame
+	await tree_root.get_tree().physics_frame
+	_touch_hold_at(input, screen)
+	var panel: Panel = WorldHover.panel()
+	failed += _assert(WorldHover.current_text() == "Harvest Wood", "long-press on a world object shows its name (got %s)" % WorldHover.current_text())
+	failed += _assert(panel != null and panel.theme_type_variation == &"TooltipPanel", "the world name uses the papyrus tooltip")
+	failed += _assert(WorldHover.current_text().find("Hold to look") < 0, "a world long-press is not the generic hint")
+	WorldHover.dismiss_hold()
+	var btn := Button.new()
+	btn.text = "Gate"
+	btn.tooltip_text = "Open the gate"
+	btn.position = Vector2(480, 160)
+	btn.size = Vector2(140, 44)
+	tree_root.add_child(btn)
+	await tree_root.get_tree().process_frame
+	_touch_hold_at(input, btn.get_global_rect().get_center())
+	failed += _assert(WorldHover.current_text() == "Open the gate", "long-press on a control shows its tooltip (got %s)" % WorldHover.current_text())
+	failed += _assert(WorldHover.current_text().find("Hold to look") < 0, "a control long-press is not the generic hint")
+	WorldHover.dismiss_hold()
+	var recipe: Button = (load("res://scripts/forge_recipe_button.gd") as GDScript).new() as Button
+	recipe.set("recipe_id", "touch_nav_recipe")
+	recipe.tooltip_text = "plain-tip"
+	recipe.position = Vector2(480, 240)
+	recipe.size = Vector2(180, 44)
+	tree_root.add_child(recipe)
+	await tree_root.get_tree().process_frame
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var expected := "touch_nav_recipe"
+	if jobs != null:
+		expected = _touch_strip_bbcode(str(jobs.call("recipe_hover_bbcode", "touch_nav_recipe")))
+	_touch_hold_at(input, recipe.get_global_rect().get_center())
+	failed += _assert(WorldHover.current_text() == expected, "long-press uses the recipe button's custom tip (got %s)" % WorldHover.current_text())
+	failed += _assert(WorldHover.current_text() != "plain-tip", "the custom tip wins over tooltip_text")
+	_touch_screen(input, 0, false, recipe.get_global_rect().get_center())
+	WorldHover.dismiss_hold()
+	recipe.free()
+	btn.free()
+	area.free()
+	if failed == 0:
+		print("TOUCH_LONGPRESS_TOOLTIP_OK")
+	return failed
+
+
+func _touch_strip_bbcode(text: String) -> String:
+	var rx := RegEx.new()
+	if rx.compile("\\[[^\\]]*\\]") != OK:
+		return text.strip_edges()
+	return rx.sub(text, "", true).strip_edges()
+
+
+func _touch_longpress_no_command_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	## A long-press on open ground does not walk the Keeper or unassign a Wisp.
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for the long-press command check")
+	if live == null:
+		return failed
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(keeper != null, "hub keeper exists")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	var origin: Vector2 = keeper.global_position
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	var view: Vector2 = live.call("_viewport_view")
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	var zoom: Vector2 = cam.zoom if cam != null else Vector2.ONE
+	var cam_pos: Vector2 = cam.global_position if cam != null else Vector2.ZERO
+	var ground: Vector2 = origin + Vector2(240, 60)
+	var screen: Vector2 = (ground - cam_pos) * zoom + view * 0.5
+	_touch_hold_at(input, screen)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(keeper.get("_moving")), "a ground long-press does not walk the Keeper")
+	failed += _assert(keeper.global_position.distance_to(origin) <= 1.0, "the Keeper stays put")
+	failed += _assert(bool(game_state.get("keeper_selected")), "the Keeper stays selected")
+	var walked := false
+	for line: String in heard:
+		if line.find("unassign") >= 0 or line.find("Walk") >= 0:
+			walked = true
+	failed += _assert(not walked, "a ground long-press does not toast a command")
+	game_state.disconnect("status_message", grab)
+	_touch_screen(input, 0, false, screen)
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_LONGPRESS_NO_COMMAND_OK")
+	return failed
+
+
+func _touch_longpress_no_button_press_ok(tree_root: Window, input: Node) -> int:
+	## The release after a long-press does not activate the button, and it does not stay pressed.
+	var failed: int = 0
+	var saved_window: Vector2i = tree_root.size
+	tree_root.size = Vector2i(1280, 960)
+	Ui540.apply_integer_viewport(tree_root)
+	var btn := Button.new()
+	btn.text = "Go"
+	btn.tooltip_text = "Go on"
+	btn.position = Vector2(200, 200)
+	btn.size = Vector2(160, 48)
+	tree_root.add_child(btn)
+	await tree_root.get_tree().process_frame
+	var hits: Array[int] = [0]
+	btn.pressed.connect(func() -> void: hits[0] = hits[0] + 1)
+	var at: Vector2 = btn.get_global_rect().get_center()
+	_touch_push_left(tree_root, at, true)
+	_touch_push_left(tree_root, at, false)
+	await tree_root.get_tree().process_frame
+	failed += _assert(hits[0] == 1, "a short tap still presses the button (got %d)" % hits[0])
+	hits[0] = 0
+	_touch_push_left(tree_root, at, true)
+	input.set("_touch_start_ms", Time.get_ticks_msec() - 900)
+	input.call("_process", 0.016)
+	failed += _assert(WorldHover.current_text() == "Go on", "the held button shows its own tip")
+	_touch_push_left(tree_root, at, false)
+	await tree_root.get_tree().process_frame
+	var draw: int = btn.get_draw_mode()
+	failed += _assert(hits[0] == 0, "the release after a long-press does not press the button (got %d)" % hits[0])
+	failed += _assert(draw != BaseButton.DRAW_PRESSED and draw != BaseButton.DRAW_HOVER_PRESSED, "the button does not stay pressed (draw %d)" % draw)
+	failed += _assert(bool(input.call("last_release_swallowed")), "the long-press release was swallowed")
+	WorldHover.dismiss_hold()
+	btn.free()
+	tree_root.size = saved_window
+	if failed == 0:
+		print("TOUCH_LONGPRESS_NO_BUTTON_PRESS_OK")
+	return failed
+
+
+func _touch_push_left(tree_root: Window, at: Vector2, pressed: bool) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	motion.position = at
+	motion.global_position = at
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+	tree_root.push_input(motion)
+	var mb := InputEventMouseButton.new()
+	mb.device = InputEvent.DEVICE_ID_EMULATION
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = pressed
+	mb.position = at
+	mb.global_position = at
+	tree_root.push_input(mb)
+
+
+func _touch_boot_hub(tree_root: Window, save_service: Node) -> Node:
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed == null:
+		return null
+	var live: Node = packed.instantiate()
+	tree_root.size = Vector2i(1280, 960)
+	Ui540.apply_integer_viewport(tree_root)
+	tree_root.add_child(live)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null:
+		var welcome: CanvasItem = hud.get("welcome_panel") as CanvasItem
+		if welcome != null:
+			welcome.visible = false
+	return live
+
+
+func _touch_free_hub(tree_root: Window, live: Node, save_service: Node) -> void:
+	if live != null:
+		live.free()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	tree_root.size = Vector2i(1280, 960)
 
 
 func _touch_hint_ok(tree_root: Window, game_state: Node) -> int:

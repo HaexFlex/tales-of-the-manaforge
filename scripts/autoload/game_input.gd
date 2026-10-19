@@ -295,10 +295,19 @@ func _unpress_hovered_button() -> void:
 	var vp: Viewport = get_viewport()
 	if vp == null:
 		return
-	var node: Node = vp.gui_get_hovered_control()
+	_unpress_control(vp.gui_get_hovered_control())
+	_unpress_control(_control_at(_touch_current))
+
+
+func _unpress_control(ctrl: Control) -> void:
+	var node: Node = ctrl
 	while node != null:
 		if node is BaseButton:
-			(node as BaseButton).notification(Control.NOTIFICATION_MOUSE_EXIT)
+			var button: BaseButton = node as BaseButton
+			# Mouse exit only clears the hover. The pressed look is press_attempt,
+			# which scroll-begin drops without emitting pressed.
+			button.notification(Control.NOTIFICATION_MOUSE_EXIT)
+			button.notification(Control.NOTIFICATION_SCROLL_BEGIN)
 			return
 		node = node.get_parent()
 
@@ -344,12 +353,26 @@ func inspect_at_screen(screen_pos: Vector2) -> void:
 
 
 func _dispatch_long_press(screen_pos: Vector2) -> void:
-	## Fires only after long_press_wait() (0.8 s). The 0.5 on the input actions is a deadzone.
+	## Fires only after long_press_wait() (0.8 s). Hover only: no walk, no press.
 	var tip: String = _tooltip_at_screen(screen_pos)
 	if tip != "":
-		_hold_panel_open = present_long_press_hint(screen_pos)
+		_hold_panel_open = WorldHover.show_anchored_hint(tip, screen_pos, _anchored_size(tip))
 		return
-	_route_world_command(screen_pos)
+	var source: Node = _world_named_at(screen_pos)
+	if source == null:
+		return
+	var world_name: String = str(source.call("world_hover_name")).strip_edges()
+	if world_name == "":
+		return
+	WorldHover.present(source, world_name)
+	WorldHover.complete_rest()
+	_hold_panel_open = true
+
+
+func _anchored_size(text: String) -> Vector2:
+	var lines: int = maxi(1, text.count("\n") + 1)
+	var height: float = maxf(Ui540.TOOLTIP_MIN_H, float(lines) * 20.0 + 18.0)
+	return Vector2(HOLD_HINT_SIZE.x, height)
 
 
 func present_long_press_hint(screen_pos: Vector2) -> bool:
@@ -369,7 +392,7 @@ func _tooltip_at_screen(screen_pos: Vector2) -> String:
 	if vp == null:
 		return ""
 	var hovered: Control = vp.gui_get_hovered_control()
-	if hovered == null:
+	if hovered == null or not _control_contains(hovered, screen_pos):
 		hovered = _control_at(screen_pos)
 	if hovered == null:
 		return ""
@@ -377,29 +400,98 @@ func _tooltip_at_screen(screen_pos: Vector2) -> String:
 	while node != null:
 		if node is Control:
 			var ctrl: Control = node as Control
+			var custom: String = _custom_tooltip_text(ctrl)
+			if custom != "":
+				return custom
 			if str(ctrl.tooltip_text).strip_edges() != "":
 				return str(ctrl.tooltip_text)
 		node = node.get_parent()
 	return ""
 
 
+func _custom_tooltip_text(ctrl: Control) -> String:
+	## Forge recipe rows build their tip in _make_custom_tooltip. Use that text.
+	if ctrl == null or not ctrl.has_method("_make_custom_tooltip"):
+		return ""
+	var made: Variant = ctrl.call("_make_custom_tooltip", ctrl.tooltip_text)
+	var text := ""
+	if made is Node:
+		text = _plain_from_tooltip(made as Node)
+		(made as Node).free()
+	return text.strip_edges()
+
+
+func _plain_from_tooltip(node: Node) -> String:
+	if node is RichTextLabel:
+		return _strip_bbcode((node as RichTextLabel).text)
+	if node is Label:
+		return (node as Label).text
+	for child: Node in node.get_children():
+		var nested: String = _plain_from_tooltip(child)
+		if nested != "":
+			return nested
+	return ""
+
+
+func _strip_bbcode(text: String) -> String:
+	var rx := RegEx.new()
+	if rx.compile("\\[[^\\]]*\\]") != OK:
+		return text
+	return rx.sub(text, "", true)
+
+
 func _control_at(screen_pos: Vector2) -> Control:
 	var vp: Viewport = get_viewport()
 	if vp == null:
 		return null
-	return vp.gui_get_hovered_control() if vp.gui_get_hovered_control() != null else null
+	return _deepest_control(vp, screen_pos)
 
 
-func _route_world_command(screen_pos: Vector2) -> void:
-	var main: Node = get_tree().get_first_node_in_group("main_root")
-	if main == null or not main.has_method("handle_rmb_ground"):
-		return
-	var world_pos: Vector2 = screen_pos
-	if main is Node2D:
-		var cam: Camera2D = main.get_node_or_null("Camera2D") as Camera2D
-		if cam != null:
-			world_pos = cam.get_global_mouse_position()
-	main.call("handle_rmb_ground", world_pos)
+func _deepest_control(node: Node, screen_pos: Vector2) -> Control:
+	var found: Control = null
+	for child: Node in node.get_children():
+		var nested: Control = _deepest_control(child, screen_pos)
+		if nested != null:
+			found = nested
+	if found != null:
+		return found
+	if node is Control and _control_contains(node as Control, screen_pos):
+		return node as Control
+	return null
+
+
+func _control_contains(ctrl: Control, screen_pos: Vector2) -> bool:
+	if ctrl == null or not ctrl.visible or ctrl.mouse_filter == Control.MOUSE_FILTER_IGNORE:
+		return false
+	return ctrl.get_global_rect().has_point(screen_pos)
+
+
+func _world_named_at(screen_pos: Vector2) -> Node:
+	var vp: Viewport = get_viewport()
+	if vp == null or vp.world_2d == null:
+		return null
+	var space: PhysicsDirectSpaceState2D = vp.world_2d.direct_space_state
+	if space == null:
+		return null
+	var query := PhysicsPointQueryParameters2D.new()
+	query.position = _screen_to_world(screen_pos)
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	query.collision_mask = 0x7FFFFFFF
+	var hits: Array[Dictionary] = space.intersect_point(query, 16)
+	for hit: Dictionary in hits:
+		var collider: Variant = hit.get("collider")
+		if collider is Node and (collider as Node).has_method("world_hover_name"):
+			if str((collider as Node).call("world_hover_name")).strip_edges() != "":
+				return collider as Node
+	return null
+
+
+func _screen_to_world(screen_pos: Vector2) -> Vector2:
+	var vp: Viewport = get_viewport()
+	if vp == null:
+		return screen_pos
+	return vp.get_canvas_transform().affine_inverse() * screen_pos
 
 
 func configure_scroll_container(scroll: ScrollContainer) -> void:
