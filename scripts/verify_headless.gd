@@ -156,6 +156,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TOUCH_HELP_FITS") == "1":
+		var help_fit: int = await _options_touch_help_fits_ok(tree_root)
+		if help_fit > 0:
+			print("OPTIONS_TOUCH_HELP_FITS_FAIL: %d" % help_fit)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ANDROID_ICON") == "1":
 		var icon_only: int = _android_icon_splash_ok()
 		if icon_only > 0:
@@ -23981,9 +23990,11 @@ func _touch_options_rebind_ok(tree_root: Window) -> int:
 	menu.set("_options_tab", "controls")
 	menu.call("_layout_options")
 	var rebind: CanvasItem = menu.get_node_or_null("OptionsPanel/Rebind_pause") as CanvasItem
-	var help: CanvasItem = menu.get_node_or_null("OptionsPanel/TouchHelp") as CanvasItem
+	var help_scroll: CanvasItem = menu.get_node_or_null("OptionsPanel/TouchHelpScroll") as CanvasItem
+	var help: CanvasItem = menu.get_node_or_null("OptionsPanel/TouchHelpScroll/TouchHelp") as CanvasItem
 	failed += _assert(rebind != null and not rebind.visible, "touch mode hides key rebinding")
-	failed += _assert(help != null and help.visible, "touch mode shows the touch help")
+	failed += _assert(help_scroll != null and help_scroll.visible, "touch mode shows the touch help scroll")
+	failed += _assert(help != null, "touch mode keeps the touch help rows")
 	menu.set("_options_tab", "audio")
 	menu.call("_layout_options")
 	var slider: CanvasItem = menu.get_node_or_null("OptionsPanel/MasterSlider") as CanvasItem
@@ -24236,9 +24247,9 @@ func _pc_mouse_unchanged_ok(tree_root: Window, game_state: Node, save_service: N
 		pause.set("_options_tab", "controls")
 		pause.call("_layout_options")
 		var rebind: CanvasItem = pause.get_node_or_null("OptionsPanel/Rebind_pause") as CanvasItem
-		var help: CanvasItem = pause.get_node_or_null("OptionsPanel/TouchHelp") as CanvasItem
+		var help_scroll: CanvasItem = pause.get_node_or_null("OptionsPanel/TouchHelpScroll") as CanvasItem
 		failed += _assert(rebind != null and rebind.visible, "key rebinding stays visible for the mouse")
-		failed += _assert(help != null and not help.visible, "the touch help stays hidden for the mouse")
+		failed += _assert(help_scroll == null or not help_scroll.visible, "the touch help stays hidden for the mouse")
 	var layer := CanvasLayer.new()
 	layer.layer = 200
 	var pad := Button.new()
@@ -24289,6 +24300,106 @@ func _touch_press_event(device: int) -> InputEventMouseButton:
 	return mb
 
 
+func _options_panel_inner_rect(panel: Control) -> Rect2:
+	var g: Rect2 = panel.get_global_rect()
+	var top: float = 72.0 + 44.0 + 8.0 + 14.0
+	var pad: float = 36.0
+	var w: float = panel.size.x - pad * 2.0
+	var h: float = panel.size.y - top - 24.0
+	return Rect2(g.position + Vector2(pad, top), Vector2(w, h))
+
+
+func _options_touch_help_fits_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var menu: Node = packed.instantiate() if packed != null else null
+	failed += _assert(menu != null, "pause menu loads for touch help fit")
+	if menu == null:
+		return failed
+	tree_root.add_child(menu)
+	var viewports: Array[Vector2i] = [
+		Vector2i(960, 540),
+		Vector2i(1200, 540),
+		Vector2i(960, 600),
+		Vector2i(1280, 800),
+		Vector2i(1280, 960),
+	]
+	var banned: PackedStringArray = PackedStringArray([
+		"options_touch_walk",
+		"options_touch_use",
+		"options_touch_drag",
+	])
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	for vp: Vector2i in viewports:
+		tree_root.size = vp
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		menu.set("_options_tab", "controls")
+		menu.call("_layout_options")
+		await tree_root.get_tree().process_frame
+		var panel: Control = menu.get_node_or_null("OptionsPanel") as Control
+		var scroll: ScrollContainer = menu.get_node_or_null("OptionsPanel/TouchHelpScroll") as ScrollContainer
+		var touch: VBoxContainer = scroll.get_node_or_null("TouchHelp") as VBoxContainer if scroll != null else null
+		failed += _assert(panel != null and scroll != null and touch != null, "touch controls chrome at %s" % vp)
+		if panel == null or scroll == null or touch == null:
+			continue
+		failed += _assert(touch.get_child_count() == 7, "touch help shows seven rows at %s (got %d)" % [vp, touch.get_child_count()])
+		for key: String in banned:
+			for child: Node in touch.get_children():
+				failed += _assert(str(child.get_meta(&"string_key", "")) != key, "touch help omits %s at %s" % [key, vp])
+		var inner: Rect2 = _options_panel_inner_rect(panel)
+		var scroll_g: Rect2 = scroll.get_global_rect()
+		var panel_g: Rect2 = panel.get_global_rect()
+		failed += _assert(scroll_g.position.y >= inner.position.y - 1.0, "touch help scroll starts inside the panel at %s" % vp)
+		failed += _assert(scroll_g.end.y <= panel_g.end.y - 20.0, "touch help scroll ends inside the panel at %s" % vp)
+		failed += _assert(scroll_g.position.x >= inner.position.x - 1.0 and scroll_g.end.x <= inner.end.x + 20.0, "touch help scroll fits horizontally at %s" % vp)
+		for i: int in touch.get_child_count():
+			_options_scroll_touch_help_row(scroll, touch, i)
+			await tree_root.get_tree().process_frame
+			var line: Label = touch.get_child(i) as Label
+			if line == null:
+				continue
+			var line_g: Rect2 = line.get_global_rect()
+			var clip: Rect2 = line_g.intersection(scroll_g)
+			failed += _assert(clip.size.y >= 8.0, "touch help row %d is visible in the scroll at %s" % [i, vp])
+			failed += _assert(panel_g.end.y >= clip.end.y - 1.0, "touch help row %d stays above the panel bottom at %s" % [i, vp])
+		Input.emulate_touch_from_mouse = false
+		menu.call("_layout_options")
+		await tree_root.get_tree().process_frame
+		var pc_rects: Dictionary = _options_pc_rebind_rects(menu)
+		menu.call("_layout_options")
+		await tree_root.get_tree().process_frame
+		var again: Dictionary = _options_pc_rebind_rects(menu)
+		failed += _assert(pc_rects == again, "PC rebind layout is stable at %s" % vp)
+		Input.emulate_touch_from_mouse = true
+	Input.emulate_touch_from_mouse = was_emulated
+	menu.free()
+	if failed == 0:
+		print("OPTIONS_TOUCH_HELP_FITS_OK")
+	return failed
+
+
+func _options_scroll_touch_help_row(scroll: ScrollContainer, touch: VBoxContainer, index: int) -> void:
+	var sep: float = float(touch.get_theme_constant(&"separation", &"VBoxContainer"))
+	var offset: float = 0.0
+	for i: int in index:
+		var row: Control = touch.get_child(i) as Control
+		if row != null:
+			offset += row.size.y + sep
+	scroll.scroll_vertical = offset
+
+
+func _options_pc_rebind_rects(menu: Node) -> Dictionary:
+	var out: Dictionary = {}
+	for action: String in ["pause", "character", "inventory"]:
+		var row: Control = menu.get_node_or_null("OptionsPanel/Rebind_%s" % action) as Control
+		if row == null:
+			continue
+		out[action] = {"position": row.position, "size": row.size, "visible": row.visible}
+	return out
+
+
 func _touch_copy_ok(tree_root: Window, content_strings: Node) -> int:
 	## Lore FINAL touch copy: 22 keys in the touch table, PC roots unchanged from b26bbf9.
 	var failed: int = 0
@@ -24325,6 +24436,7 @@ func _touch_copy_ok(tree_root: Window, content_strings: Node) -> int:
 		var got: String = str(content_strings.call("get_text", touch_key))
 		failed += _assert(got == want, "touch copy for %s (got %s want %s)" % [touch_key, got, want])
 	failed += await _longpress_hint_width_ok(tree_root)
+	failed += await _options_touch_help_fits_ok(tree_root)
 	Input.emulate_touch_from_mouse = was_emulated
 	if failed == 0:
 		print("TOUCH_COPY_OK")
