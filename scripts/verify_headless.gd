@@ -129,6 +129,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TOUCH_NAV") == "1":
+		var nav_only: int = await _touch_nav_ok(tree_root, game_state, save_service)
+		if nav_only > 0:
+			print("TOUCH_NAV_FAIL: %d" % nav_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_TOUCH") == "1":
 		var touch_only: int = _touch_hint_ok(tree_root, game_state)
 		if touch_only > 0:
@@ -4067,6 +4076,7 @@ func _run() -> void:
 	failed += await _export_safe_resources_ok(tree_root)
 	failed += await _hud_inside_safe_area_ok(tree_root)
 	failed += _touch_hint_ok(tree_root, game_state)
+	failed += await _touch_nav_ok(tree_root, game_state, save_service)
 	failed += await _tooltip_scroll_ok(tree_root)
 	failed += await _longpress_hint_width_ok(tree_root)
 
@@ -22627,6 +22637,76 @@ func _safe_area_layout_ok(tree_root: Window) -> int:
 	away.queue_free()
 	if failed == 0:
 		print("SAFE_AREA_LAYOUT_OK")
+	return failed
+
+
+func _touch_nav_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	failed += await _touch_pinch_ok(tree_root, save_service)
+	return failed
+
+
+func _touch_pinch_ok(tree_root: Window, save_service: Node) -> int:
+	## Pinch steps 0.5/1/2 and keeps the world point under the fingers.
+	var failed: int = 0
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("pointing/android/enable_pan_and_scale_gestures=true") >= 0, "android pan and scale gestures are on")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed != null else null
+	failed += _assert(live != null, "hub loads for pinch")
+	if live == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	tree_root.size = Vector2i(1280, 960)
+	Ui540.apply_integer_viewport(tree_root)
+	tree_root.add_child(live)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null:
+		var welcome: CanvasItem = hud.get("welcome_panel") as CanvasItem
+		if welcome != null:
+			welcome.visible = false
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	failed += _assert(cam != null, "hub camera exists")
+	if cam == null:
+		live.free()
+		tree_root.size = saved_window
+		return failed
+	live.call("set_camera_zoom", 1.0, false)
+	cam.position = live.get("clearing_center")
+	live.call("_clamp_camera")
+	var focus := Vector2(420, 280)
+	var before: Vector2 = live.call("_screen_to_world", focus)
+	var mag := InputEventMagnifyGesture.new()
+	mag.factor = 1.2
+	mag.position = focus
+	live.call("_unhandled_input", mag)
+	var after: Vector2 = live.call("_screen_to_world", focus)
+	failed += _assert(is_equal_approx(float(live.get("camera_zoom")), 2.0), "pinch in steps 1 to 2 (got %s)" % str(live.get("camera_zoom")))
+	failed += _assert(before.distance_to(after) <= 1.5, "pinch in keeps the focus point (moved %s)" % str(before.distance_to(after)))
+	mag.factor = 0.8
+	live.call("_unhandled_input", mag)
+	var back: Vector2 = live.call("_screen_to_world", focus)
+	failed += _assert(is_equal_approx(float(live.get("camera_zoom")), 1.0), "pinch out steps 2 to 1")
+	failed += _assert(before.distance_to(back) <= 1.5, "pinch out keeps the focus point")
+	cam.position = live.call("camera_min")
+	live.call("_clamp_camera")
+	mag.factor = 1.2
+	mag.position = Vector2(8, 8)
+	live.call("_unhandled_input", mag)
+	var lo: Vector2 = live.call("camera_min")
+	var hi: Vector2 = live.call("camera_max")
+	var clamped: Vector2 = cam.position
+	failed += _assert(clamped.x >= lo.x - 0.5 and clamped.y >= lo.y - 0.5 and clamped.x <= hi.x + 0.5 and clamped.y <= hi.y + 0.5, "pinch stays inside the camera clamp (pos %s lo %s hi %s)" % [clamped, lo, hi])
+	live.free()
+	tree_root.size = saved_window
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("TOUCH_PINCH_OK")
 	return failed
 
 

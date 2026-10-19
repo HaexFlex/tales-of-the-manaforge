@@ -455,6 +455,24 @@ func set_camera_zoom(level: float, persist: bool = true) -> void:
 		GameAudio.set_camera_zoom(picked)
 
 
+func _screen_to_world(screen_pos: Vector2) -> Vector2:
+	var zoom: float = _zoom_factor()
+	if zoom <= 0.001:
+		zoom = 1.0
+	return camera.global_position + (screen_pos - _viewport_view() * 0.5) / zoom
+
+
+func _step_zoom_about(screen_pos: Vector2, dir: int) -> void:
+	## Pinch keeps the world point under the fingers. Wheel zoom stays centred.
+	if camera == null:
+		step_camera_zoom(dir)
+		return
+	var world_before: Vector2 = _screen_to_world(screen_pos)
+	step_camera_zoom(dir)
+	camera.position += world_before - _screen_to_world(screen_pos)
+	_clamp_camera()
+
+
 func step_camera_zoom(dir: int) -> void:
 	var steps := camera_zoom_steps()
 	if steps.is_empty():
@@ -490,10 +508,10 @@ func _handle_zoom_input(event: InputEvent) -> bool:
 		var mag := event as InputEventMagnifyGesture
 		_pinch_accum *= mag.factor
 		if _pinch_accum >= 1.15:
-			step_camera_zoom(1)
+			_step_zoom_about(mag.position, 1)
 			_pinch_accum = 1.0
 		elif _pinch_accum <= 0.87:
-			step_camera_zoom(-1)
+			_step_zoom_about(mag.position, -1)
 			_pinch_accum = 1.0
 		get_viewport().set_input_as_handled()
 		return true

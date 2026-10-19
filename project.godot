@@ -37,6 +37,11 @@ GameTheme="*res://scripts/autoload/game_theme.gd"
 GameInput="*res://scripts/autoload/game_input.gd"
 MinigameHost="*res://scripts/minigames/minigame_host.gd"
 
+[input_devices]
+
+; Pinch on Android. The hub zoom handler is main.gd _handle_zoom_input.
+pointing/android/enable_pan_and_scale_gestures=true
+
 [display]
 
 mouse_cursor/custom_image="res://assets/ui/theme/pointer_12x17.png"
