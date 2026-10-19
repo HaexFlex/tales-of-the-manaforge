@@ -99,7 +99,57 @@ func _process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if GameInput.blocks_scene_mouse(event):
+		if not _touch_drive_marquee(event):
+			_touch_pan(event)
 		return
+
+
+func _touch_drive_marquee(event: InputEvent) -> bool:
+	if not GameInput.touch_marquee_armed() and not _drag_active:
+		return false
+	var phase: String = GameInput.touch_drag_phase(event)
+	if phase == "" or _ui_blocks():
+		return false
+	if phase == "press":
+		if _gui_blocks_drag():
+			return false
+		_drag_active = true
+		_drag_from = _touch_event_world(event)
+		_update_marquee(_drag_from)
+		return true
+	if phase == "move":
+		if _drag_active:
+			_update_marquee(_touch_event_world(event))
+		return _drag_active
+	if not _drag_active:
+		return false
+	var world: Vector2 = _touch_event_world(event)
+	if _drag_from.distance_to(world) >= CLICK_SLOP:
+		_finish_marquee(world)
+		GameInput.disarm_touch_marquee()
+	else:
+		_drag_active = false
+		if _marquee:
+			_marquee.visible = false
+	return true
+
+
+func _touch_event_world(event: InputEvent) -> Vector2:
+	var screen: Vector2 = GameInput.pointer_position(event)
+	if camera == null:
+		return screen
+	return camera.get_canvas_transform().affine_inverse() * screen
+
+
+func _touch_pan(event: InputEvent) -> void:
+	if _ui_blocks() or _gui_blocks_drag() or camera == null:
+		return
+	var slide: Vector2 = GameInput.touch_pan_delta(event)
+	if slide == Vector2.ZERO:
+		return
+	var zoom: float = camera.zoom.x if camera.zoom.x > 0.001 else 1.0
+	camera.position -= slide / zoom
+	_clamp_camera()
 	if not (event is InputEventMouseButton):
 		return
 	var released: InputEventMouseButton = event

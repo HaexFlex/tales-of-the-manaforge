@@ -22647,6 +22647,8 @@ func _touch_nav_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += await _touch_longpress_ok(tree_root, game_state, save_service)
 	failed += await _touch_selection_ok(tree_root, game_state, save_service)
 	failed += await _touch_double_ok(tree_root, game_state, save_service)
+	failed += await _touch_pan_ok(tree_root, save_service)
+	failed += await _touch_marquee_ok(tree_root, game_state, save_service)
 	return failed
 
 
@@ -23648,6 +23650,187 @@ func _touch_portrait_double_tap_ok(tree_root: Window, game_state: Node, save_ser
 	_touch_free_hub(tree_root, live, save_service)
 	if failed == 0:
 		print("TOUCH_PORTRAIT_DOUBLE_TAP_OK")
+	return failed
+
+
+func _touch_pan_ok(tree_root: Window, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	failed += await _touch_pan_camera_ok(tree_root, save_service, input)
+	failed += await _touch_pan_no_marquee_ok(tree_root, save_service, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_slide(tree_root: Window, from: Vector2, to: Vector2) -> void:
+	_touch_push_left(tree_root, from, true)
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	motion.position = to
+	motion.global_position = to
+	motion.relative = to - from
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	tree_root.push_input(motion)
+	_touch_push_left(tree_root, to, false)
+
+
+func _touch_pan_camera_ok(tree_root: Window, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D if live != null else null
+	failed += _assert(cam != null, "hub camera exists for the pan")
+	if cam == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	if live.has_method("focus_actor"):
+		live.call("focus_actor", "keeper")
+	await tree_root.get_tree().process_frame
+	var origin: Vector2 = cam.position
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(480, 420), Vector2(490, 420))
+	failed += _assert(cam.position.distance_to(origin) <= 1.0, "a drag inside 18 px does not pan")
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(480, 420), Vector2(600, 420))
+	var zoom: float = cam.zoom.x if cam.zoom.x > 0.001 else 1.0
+	failed += _assert(absf(cam.position.x - (origin.x - 120.0 / zoom)) <= 1.5, "a one-finger drag pans by -relative/zoom (at %s)" % cam.position)
+	failed += _assert(absf(cam.position.y - origin.y) <= 1.5, "the pan keeps the other axis")
+	var held: Vector2 = cam.position
+	_touch_release_fingers(input)
+	_touch_screen(input, 0, true, Vector2(480, 420))
+	_touch_screen(input, 1, true, Vector2(520, 460))
+	_touch_slide(tree_root, Vector2(480, 420), Vector2(640, 420))
+	failed += _assert(cam.position.distance_to(held) <= 1.0, "a second finger freezes the pan")
+	_touch_screen(input, 0, false, Vector2(640, 420))
+	_touch_screen(input, 1, false, Vector2(520, 460))
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	var forge_cam: Camera2D = forge.get_node_or_null("Camera2D") as Camera2D if forge != null else null
+	failed += _assert(forge_cam != null, "forge camera exists for the pan")
+	if forge_cam == null:
+		_touch_free_hub(tree_root, forge, save_service)
+		return failed
+	var forge_at: Vector2 = forge_cam.position
+	var forge_zoom: float = forge_cam.zoom.x if forge_cam.zoom.x > 0.001 else 1.0
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(400, 300), Vector2(520, 300))
+	failed += _assert(absf(forge_cam.position.x - (forge_at.x - 120.0 / forge_zoom)) <= 1.5, "the forge drag pans by -relative/zoom (at %s)" % forge_cam.position)
+	_touch_free_hub(tree_root, forge, save_service)
+	if failed == 0:
+		print("TOUCH_PAN_OK")
+	return failed
+
+
+func _touch_pan_no_marquee_ok(tree_root: Window, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for the pan marquee")
+	if live == null:
+		return failed
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(200, 200), Vector2(420, 360))
+	var box: CanvasItem = live.get_node_or_null("Marquee") as CanvasItem
+	failed += _assert(not bool(live.get("_drag_active")), "a touch drag does not start the hub marquee")
+	failed += _assert(box == null or not box.visible, "the hub marquee stays hidden")
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	failed += _assert(forge != null, "forge loads for the pan marquee")
+	if forge != null:
+		_touch_release_fingers(input)
+		_touch_slide(tree_root, Vector2(220, 240), Vector2(460, 400))
+		var forge_box: CanvasItem = forge.get_node_or_null("Marquee") as CanvasItem
+		failed += _assert(not bool(forge.get("_drag_active")), "a touch drag does not start the forge marquee")
+		failed += _assert(forge_box == null or not forge_box.visible, "the forge marquee stays hidden")
+		_touch_free_hub(tree_root, forge, save_service)
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_PAN_NO_MARQUEE_OK")
+	return failed
+
+
+func _touch_marquee_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var hud: Node = live.get_node_or_null("HUD") if live != null else null
+	var button: Button = hud.get_node_or_null("TouchBoxSelect") as Button if hud != null else null
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live != null else null
+	failed += _assert(button != null and keeper != null, "the touch box-select button exists")
+	if button == null or keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	await tree_root.get_tree().process_frame
+	failed += _assert(button.visible and button.text == "Box select", "the box-select button shows the placeholder")
+	Input.emulate_touch_from_mouse = false
+	await tree_root.get_tree().process_frame
+	failed += _assert(not button.visible, "the box-select button hides when touch mode is off")
+	Input.emulate_touch_from_mouse = true
+	await tree_root.get_tree().process_frame
+	failed += _assert(button.visible, "the box-select button returns in touch mode")
+	if live.has_method("focus_actor"):
+		live.call("focus_actor", "keeper")
+	await tree_root.get_tree().process_frame
+	game_state.call("clear_selection")
+	_touch_release_fingers(input)
+	_touch_left_click(tree_root, button.get_global_rect().get_center(), InputEvent.DEVICE_ID_EMULATION)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(input.call("touch_marquee_armed")), "tapping box select arms the next drag")
+	var center: Vector2 = _touch_world_screen(live, keeper.global_position)
+	_touch_push_left(tree_root, center + Vector2(-40, -40), true)
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	motion.position = center + Vector2(60, 50)
+	motion.global_position = motion.position
+	motion.relative = Vector2(100, 90)
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	tree_root.push_input(motion)
+	var box: CanvasItem = live.get_node_or_null("Marquee") as CanvasItem
+	failed += _assert(box != null and box.visible, "the armed drag draws the hub marquee")
+	_touch_push_left(tree_root, motion.position, false)
+	failed += _assert(bool(game_state.get("keeper_selected")), "the marquee selects the Keeper")
+	failed += _assert(not bool(input.call("touch_marquee_armed")), "the marquee turns itself off")
+	failed += _assert(box == null or not box.visible, "the marquee hides after the drag")
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	var cam_at: Vector2 = cam.position if cam != null else Vector2.ZERO
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(480, 300), Vector2(600, 300))
+	failed += _assert(not bool(live.get("_drag_active")), "the next drag is a pan, not a marquee")
+	if cam != null:
+		failed += _assert(cam.position.distance_to(cam_at) > 20.0, "the following drag pans the camera")
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	var forge_hud: Node = forge.get_node_or_null("HUD") if forge != null else null
+	var forge_button: Button = forge_hud.get_node_or_null("TouchBoxSelect") as Button if forge_hud != null else null
+	var forge_keeper: Node2D = forge.get_node_or_null("Keeper") as Node2D if forge != null else null
+	failed += _assert(forge_button != null and forge_button.visible, "the forge box-select button is visible")
+	if forge_button != null and forge_keeper != null:
+		await tree_root.get_tree().process_frame
+		if forge.has_method("focus_actor"):
+			forge.call("focus_actor", "keeper")
+		await tree_root.get_tree().process_frame
+		game_state.call("clear_selection")
+		_touch_release_fingers(input)
+		_touch_left_click(tree_root, forge_button.get_global_rect().get_center(), InputEvent.DEVICE_ID_EMULATION)
+		await tree_root.get_tree().process_frame
+		var forge_center: Vector2 = _touch_world_screen(forge, forge_keeper.global_position)
+		_touch_slide(tree_root, forge_center + Vector2(-40, -40), forge_center + Vector2(60, 50))
+		failed += _assert(bool(game_state.get("keeper_selected")), "the forge marquee selects the Keeper")
+		failed += _assert(not bool(input.call("touch_marquee_armed")), "the forge marquee turns itself off")
+	_touch_free_hub(tree_root, forge, save_service)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("TOUCH_MARQUEE_TOGGLE_OK")
 	return failed
 
 

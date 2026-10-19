@@ -19,6 +19,7 @@ const BatchPanel := preload("res://scripts/batch_panel.gd")
 @onready var toast_shade: Control = $Panel/ToastShade
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var help_button: Button = $Panel/HelpButton
+var _box_button: Button
 @onready var help_icon: TextureRect = $Panel/HelpButton/HelpIcon
 @onready var pause_button: Button = $Panel/PauseButton
 @onready var character_button: Button = $Panel/CharacterButton
@@ -481,6 +482,7 @@ func _layout_hud540() -> void:
 	if _speed_button:
 		_speed_button.position = Vector2(speed_x - tap - 4.0, top)
 		_speed_button.size = Vector2(tap, tap)
+	_layout_box_button(left, top + bar_h + 8.0, tap)
 	var shortcut_y: float = vs.y - bottom - tap
 	## Four fixed slots: forge switch, character, backpack, adventure board.
 	## A hidden slot stays empty so the forge switch and the board never trade places.
@@ -504,6 +506,38 @@ func _layout_hud540() -> void:
 
 
 ## Child glyphs were authored for a 40 px button. On the 44 px tap target they sat up-left.
+func _layout_box_button(x: float, y: float, tap: float) -> void:
+	if _box_button == null:
+		_box_button = Button.new()
+		_box_button.name = "TouchBoxSelect"
+		_box_button.toggle_mode = true
+		_box_button.focus_mode = Control.FOCUS_NONE
+		_box_button.text = ContentStrings.get_text("ui.touch_box_select")
+		GameTheme.style_wood_button(_box_button)
+		_box_button.toggled.connect(_on_box_select_toggled)
+		add_child(_box_button)
+	_box_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_box_button.position = Vector2(x, y)
+	_box_button.size = Vector2(132.0, tap)
+	_sync_box_button()
+
+
+func _sync_box_button() -> void:
+	if _box_button == null:
+		return
+	_box_button.visible = GameInput.touch_mode()
+	var armed: bool = GameInput.touch_marquee_armed()
+	if _box_button.button_pressed != armed:
+		_box_button.set_pressed_no_signal(armed)
+
+
+func _on_box_select_toggled(on: bool) -> void:
+	if on:
+		GameInput.arm_touch_marquee()
+	else:
+		GameInput.disarm_touch_marquee()
+
+
 func _center_hud_icons() -> void:
 	_center_hud_icon(pause_icon, pause_button)
 	_center_hud_icon(character_icon, character_button)
@@ -1278,6 +1312,7 @@ func _apply_wood_chrome() -> void:
 
 
 func _process(_delta: float) -> void:
+	_sync_box_button()
 	if _offline_summary != null and _offline_summary.has_method("tick_queue"):
 		_offline_summary.call("tick_queue")
 	_refresh_ancient_countdown()

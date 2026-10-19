@@ -29,6 +29,7 @@ var _swallow_release: bool = false
 var _swallowed_last_release: bool = false
 var _injecting: bool = false
 var _defer_gen: int = 0
+var _marquee_armed: bool = false
 ## Finger indexes currently down. Index 0 is the only one that owns a gesture.
 var _down: Dictionary = {}
 
@@ -119,12 +120,74 @@ func multi_touch_cancelled() -> bool:
 	return _gesture_dead or _multi
 
 
+func arm_touch_marquee() -> void:
+	if touch_mode():
+		_marquee_armed = true
+
+
+func disarm_touch_marquee() -> void:
+	_marquee_armed = false
+
+
+func touch_marquee_armed() -> bool:
+	return touch_mode() and _marquee_armed
+
+
+func touch_drag_phase(event: InputEvent) -> String:
+	if event is InputEventScreenTouch:
+		var touch: InputEventScreenTouch = event as InputEventScreenTouch
+		if touch.index != 0:
+			return ""
+		return "press" if touch.pressed else "release"
+	if event is InputEventScreenDrag:
+		var drag: InputEventScreenDrag = event as InputEventScreenDrag
+		return "move" if drag.index == 0 else ""
+	if not is_touch_pointer(event):
+		return ""
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.button_index != MOUSE_BUTTON_LEFT:
+			return ""
+		return "press" if mb.pressed else "release"
+	if event is InputEventMouseMotion:
+		var motion: InputEventMouseMotion = event as InputEventMouseMotion
+		if (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+			return ""
+		return "move"
+	return ""
+
+
 func touch_pan_frozen() -> bool:
 	if _multi:
 		return true
 	if _down.has(0):
 		return _down.size() > 1
 	return not _down.is_empty()
+
+
+func touch_pan_delta(event: InputEvent) -> Vector2:
+	## Screen pixels to pan once the first finger leaves the slop. Zero while pinched.
+	if not touch_mode() or _injecting or touch_pan_frozen() or not _finger0_down or _gesture_dead or _long_press_fired:
+		return Vector2.ZERO
+	var relative := Vector2.ZERO
+	var pos := _touch_current
+	if event is InputEventScreenDrag:
+		var drag: InputEventScreenDrag = event as InputEventScreenDrag
+		if drag.index != 0:
+			return Vector2.ZERO
+		relative = drag.relative
+		pos = drag.position
+	elif event is InputEventMouseMotion and is_touch_pointer(event):
+		var motion: InputEventMouseMotion = event as InputEventMouseMotion
+		if (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+			return Vector2.ZERO
+		relative = motion.relative
+		pos = motion.position
+	else:
+		return Vector2.ZERO
+	if not _moved and pos.distance_to(_touch_pos) <= MOVE_SLOP_PX:
+		return Vector2.ZERO
+	return relative
 
 
 func last_release_swallowed() -> bool:
@@ -413,10 +476,12 @@ func is_command(event: InputEvent, require_pressed: bool = true) -> bool:
 
 
 func pointer_position(event: InputEvent) -> Vector2:
-	if event is InputEventMouseButton:
-		return (event as InputEventMouseButton).position
+	if event is InputEventMouse:
+		return (event as InputEventMouse).position
 	if event is InputEventScreenTouch:
 		return (event as InputEventScreenTouch).position
+	if event is InputEventScreenDrag:
+		return (event as InputEventScreenDrag).position
 	if event is InputEventKey:
 		return get_viewport().get_mouse_position()
 	return get_viewport().get_mouse_position()
