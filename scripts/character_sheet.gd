@@ -171,6 +171,7 @@ var _trait_wait: Timer
 
 
 func _ready() -> void:
+	add_to_group("character_sheet")
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	offset_left = 0.0
@@ -899,6 +900,12 @@ func _arm_trait_hover() -> void:
 		add_child(_trait_wait)
 	_trait_wait.wait_time = WorldHover.rest_sec()
 	_trait_wait.start()
+
+
+func cancel_trait_hover() -> void:
+	## A quick tap cancels the trait popup before the rest wait ends.
+	if _trait_wait != null and is_instance_valid(_trait_wait):
+		_trait_wait.stop()
 
 
 func trait_rest_pending() -> bool:

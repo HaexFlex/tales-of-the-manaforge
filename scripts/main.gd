@@ -979,6 +979,8 @@ func world_input_blocked() -> bool:
 
 
 func _input(event: InputEvent) -> void:
+	if GameInput.blocks_scene_mouse(event):
+		return
 	if not (event is InputEventMouseButton):
 		return
 	var mb: InputEventMouseButton = event
@@ -988,6 +990,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if GameInput.blocks_scene_mouse(event):
+		return
 	if _handle_zoom_input(event):
 		return
 	if event is InputEventMouseMotion and _drag_active:

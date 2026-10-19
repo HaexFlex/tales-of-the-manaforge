@@ -22643,6 +22643,7 @@ func _safe_area_layout_ok(tree_root: Window) -> int:
 func _touch_nav_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	failed += await _touch_pinch_ok(tree_root, save_service)
+	failed += await _touch_core_ok(tree_root)
 	return failed
 
 
@@ -22707,6 +22708,260 @@ func _touch_pinch_ok(tree_root: Window, save_service: Node) -> int:
 	save_service.set("boot_intent", "auto")
 	if failed == 0:
 		print("TOUCH_PINCH_OK")
+	return failed
+
+
+func _touch_core_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null, "GameInput autoload is present")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	failed += _touch_tap_slop_ok(input)
+	failed += _touch_double_tap_window_ok(input)
+	failed += await _touch_two_finger_guard_ok(tree_root, input)
+	failed += await _touch_tap_no_late_tooltip_ok(tree_root, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_screen(input: Node, index: int, pressed: bool, pos: Vector2) -> void:
+	var ev := InputEventScreenTouch.new()
+	ev.index = index
+	ev.pressed = pressed
+	ev.position = pos
+	input.call("_input", ev)
+
+
+func _touch_drag(input: Node, index: int, pos: Vector2) -> void:
+	var drag := InputEventScreenDrag.new()
+	drag.index = index
+	drag.position = pos
+	input.call("_input", drag)
+
+
+func _touch_release_fingers(input: Node) -> void:
+	_touch_screen(input, 0, false, Vector2.ZERO)
+	_touch_screen(input, 1, false, Vector2.ZERO)
+	input.set("_finger0_down", false)
+	input.set("_multi", false)
+	input.set("_gesture_dead", false)
+	input.set("_double", false)
+	input.set("_swallow_release", false)
+
+
+func _touch_tap_slop_ok(input: Node) -> int:
+	## A tap is a press under 0.8 s that moves at most 18 px. Real mouse stays a mouse.
+	var failed: int = 0
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("const MOVE_SLOP_PX: float = 18.0") >= 0, "move slop is 18 px")
+	failed += _assert(bool(input.call("touch_mode")), "emulate-touch turns touch mode on")
+	var screen := InputEventScreenTouch.new()
+	screen.position = Vector2(12, 12)
+	var emulated := InputEventMouseButton.new()
+	emulated.device = InputEvent.DEVICE_ID_EMULATION
+	emulated.button_index = MOUSE_BUTTON_LEFT
+	emulated.pressed = true
+	emulated.position = Vector2(12, 12)
+	var wheel := InputEventMouseButton.new()
+	wheel.device = InputEvent.DEVICE_ID_EMULATION
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	var real := InputEventMouseButton.new()
+	real.device = 0
+	real.button_index = MOUSE_BUTTON_LEFT
+	real.pressed = true
+	real.position = Vector2(12, 12)
+	failed += _assert(bool(input.call("is_touch_pointer", screen)), "a screen touch is a touch pointer")
+	failed += _assert(bool(input.call("is_touch_pointer", emulated)), "an emulated mouse is a touch pointer")
+	failed += _assert(not bool(input.call("is_touch_pointer", real)), "a real mouse is not a touch pointer")
+	failed += _assert(bool(input.call("blocks_scene_mouse", emulated)), "touch mode blocks emulated mouse in the scene")
+	failed += _assert(not bool(input.call("blocks_scene_mouse", real)), "touch mode leaves a real mouse on the mouse path")
+	failed += _assert(not bool(input.call("blocks_scene_mouse", wheel)), "emulated wheel zoom is not blocked")
+	failed += _assert(not bool(input.call("blocks_scene_mouse", InputEventMagnifyGesture.new())), "pinch is not a touch pointer")
+	_touch_release_fingers(input)
+	_touch_screen(input, 0, true, Vector2(10, 10))
+	_touch_screen(input, 0, false, Vector2(10, 10))
+	failed += _assert(bool(input.call("last_release_was_tap")), "a still press under 0.8 s is a tap")
+	_touch_screen(input, 0, true, Vector2(0, 0))
+	_touch_drag(input, 0, Vector2(18, 0))
+	_touch_screen(input, 0, false, Vector2(18, 0))
+	failed += _assert(bool(input.call("last_release_was_tap")), "18 px of movement is still a tap")
+	_touch_screen(input, 0, true, Vector2(0, 40))
+	_touch_drag(input, 0, Vector2(19, 40))
+	_touch_screen(input, 0, false, Vector2(19, 40))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "19 px of movement is not a tap")
+	_touch_screen(input, 0, true, Vector2(0, 80))
+	input.set("_touch_start_ms", Time.get_ticks_msec() - 800)
+	input.call("_process", 0.016)
+	failed += _assert(bool(input.call("long_press_did_fire")), "a press of 0.8 s is a long-press")
+	_touch_screen(input, 0, false, Vector2(0, 80))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "a long-press release is not a tap")
+	failed += _assert(bool(input.call("last_release_swallowed")), "a long-press swallows the next release")
+	emulated.position = Vector2(30, 120)
+	emulated.pressed = true
+	input.call("_input", emulated)
+	emulated.pressed = false
+	input.call("_input", emulated)
+	failed += _assert(bool(input.call("last_release_was_tap")), "an emulated left click inside the slop is a tap")
+	_touch_drag(input, 0, Vector2(80, 160))
+	_touch_screen(input, 0, true, Vector2(0, 160))
+	_touch_drag(input, 0, Vector2(40, 160))
+	_touch_screen(input, 0, false, Vector2(40, 160))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "cleared the tap flag before the real mouse")
+	real.pressed = true
+	input.call("_input", real)
+	real.pressed = false
+	input.call("_input", real)
+	failed += _assert(not bool(input.call("last_release_was_tap")), "a real mouse click is not a touch tap")
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = false
+	failed += _assert(not bool(input.call("touch_mode")), "touch mode is off without the launch flag")
+	failed += _assert(not bool(input.call("blocks_scene_mouse", emulated)), "emulated events do not block the scene when touch mode is off")
+	_touch_screen(input, 0, true, Vector2(4, 4))
+	_touch_screen(input, 0, false, Vector2(4, 4))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "screen touches are ignored when touch mode is off")
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("TOUCH_TAP_SLOP_OK")
+	return failed
+
+
+func _touch_double_tap_window_ok(input: Node) -> int:
+	## The second press within 300 ms and 32 px is a double-tap. Godot's flag is not read.
+	var failed: int = 0
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("const DOUBLE_TAP_MS: int = 300") >= 0, "double-tap window is 300 ms")
+	failed += _assert(input_text.find("const DOUBLE_TAP_PX: float = 32.0") >= 0, "double-tap distance is 32 px")
+	_touch_release_fingers(input)
+	input.set("_last_was_tap", false)
+	_touch_screen(input, 0, true, Vector2(900, 100))
+	_touch_screen(input, 0, false, Vector2(900, 100))
+	var second := InputEventScreenTouch.new()
+	second.index = 0
+	second.pressed = true
+	second.position = Vector2(900, 110)
+	input.call("_input", second)
+	failed += _assert(bool(input.call("press_is_double_tap")), "a second press inside 300 ms and 32 px is a double-tap")
+	failed += _assert(bool(input.call("is_double_tap", second)), "is_double_tap sees that screen press")
+	_touch_screen(input, 0, false, Vector2(900, 110))
+	_touch_screen(input, 0, true, Vector2(200, 200))
+	_touch_drag(input, 0, Vector2(260, 200))
+	_touch_screen(input, 0, false, Vector2(260, 200))
+	_touch_screen(input, 0, true, Vector2(400, 200))
+	_touch_screen(input, 0, false, Vector2(400, 200))
+	input.set("_last_release_ms", Time.get_ticks_msec() - 300)
+	var edge := InputEventMouseButton.new()
+	edge.device = InputEvent.DEVICE_ID_EMULATION
+	edge.button_index = MOUSE_BUTTON_LEFT
+	edge.pressed = true
+	edge.double_click = false
+	edge.position = Vector2(400, 200)
+	input.call("_input", edge)
+	failed += _assert(not edge.double_click, "the detector does not read Godot's double_click flag")
+	failed += _assert(bool(input.call("is_double_tap", edge)), "a press 300 ms after release is still a double-tap")
+	edge.pressed = false
+	input.call("_input", edge)
+	_touch_screen(input, 0, true, Vector2(400, 400))
+	_touch_screen(input, 0, false, Vector2(400, 400))
+	input.set("_last_release_ms", Time.get_ticks_msec() - 301)
+	var late := InputEventScreenTouch.new()
+	late.index = 0
+	late.pressed = true
+	late.position = Vector2(400, 400)
+	input.call("_input", late)
+	failed += _assert(not bool(input.call("press_is_double_tap")), "a press 301 ms after release is a new tap")
+	_touch_screen(input, 0, false, Vector2(400, 400))
+	_touch_screen(input, 0, true, Vector2(10, 300))
+	_touch_screen(input, 0, false, Vector2(10, 300))
+	var far := InputEventScreenTouch.new()
+	far.index = 0
+	far.pressed = true
+	far.position = Vector2(43, 300)
+	input.call("_input", far)
+	failed += _assert(not bool(input.call("press_is_double_tap")), "a press 33 px away is not a double-tap")
+	_touch_screen(input, 0, false, Vector2(43, 300))
+	_touch_screen(input, 0, true, Vector2(10, 360))
+	_touch_screen(input, 0, false, Vector2(10, 360))
+	var near := InputEventScreenTouch.new()
+	near.index = 0
+	near.pressed = true
+	near.position = Vector2(42, 360)
+	input.call("_input", near)
+	failed += _assert(bool(input.call("press_is_double_tap")), "a press 32 px away is a double-tap")
+	_touch_screen(input, 0, false, Vector2(42, 360))
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_WINDOW_OK")
+	return failed
+
+
+func _touch_two_finger_guard_ok(tree_root: Window, input: Node) -> int:
+	## Index 0 owns the gesture. A second finger does not retarget the timer.
+	var failed: int = 0
+	_touch_release_fingers(input)
+	input.set("_touch_start_ms", 42)
+	input.set("_last_was_tap", false)
+	_touch_screen(input, 1, true, Vector2(20, 20))
+	failed += _assert(not bool(input.call("primary_down")), "finger 1 does not start the gesture")
+	failed += _assert(int(input.call("gesture_start_ms")) == 42, "finger 1 does not start the clock")
+	_touch_screen(input, 1, false, Vector2(20, 20))
+	_touch_screen(input, 0, true, Vector2(50, 50))
+	var started: int = int(input.call("gesture_start_ms"))
+	input.set("_touch_start_ms", started - 5000)
+	_touch_screen(input, 1, true, Vector2(80, 50))
+	failed += _assert(int(input.call("gesture_start_ms")) == started - 5000, "finger 1 does not retarget the timer")
+	failed += _assert(int(input.get("_touch_index")) == 0, "the tracked finger stays index 0")
+	failed += _assert(bool(input.call("multi_touch_cancelled")), "a second finger cancels the gesture")
+	failed += _assert(bool(input.call("touch_pan_frozen")), "pan freezes while two fingers are down")
+	await tree_root.get_tree().process_frame
+	input.call("_process", 0.016)
+	failed += _assert(not bool(input.call("long_press_did_fire")), "a second finger cancels the long-press")
+	_touch_screen(input, 0, false, Vector2(50, 50))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "a second finger cancels the tap")
+	_touch_screen(input, 1, false, Vector2(80, 50))
+	failed += _assert(not bool(input.call("touch_pan_frozen")), "pan unfreezes after the extra finger lifts")
+	_touch_screen(input, 0, true, Vector2(50, 90))
+	_touch_screen(input, 0, false, Vector2(50, 90))
+	failed += _assert(bool(input.call("last_release_was_tap")), "a later one-finger tap still counts")
+	if failed == 0:
+		print("TOUCH_TWO_FINGER_GUARD_OK")
+	return failed
+
+
+func _touch_tap_no_late_tooltip_ok(tree_root: Window, input: Node) -> int:
+	## A quick tap cancels a pending world hover and the trait popup.
+	var failed: int = 0
+	_touch_release_fingers(input)
+	input.set("_last_was_tap", false)
+	var marker := Node2D.new()
+	marker.name = "HoverMarker"
+	tree_root.add_child(marker)
+	WorldHover.present(marker, "Moss")
+	WorldHover.complete_rest()
+	failed += _assert(WorldHover.current_text() == "Moss", "a finished rest still shows the world tooltip")
+	WorldHover.dismiss(marker)
+	WorldHover.present(marker, "Moss")
+	_touch_screen(input, 0, true, Vector2(600, 40))
+	_touch_screen(input, 0, false, Vector2(600, 40))
+	WorldHover.complete_rest()
+	failed += _assert(WorldHover.current_text() == "", "a quick tap cancels the pending world tooltip")
+	var sheet := CharacterSheet.new()
+	tree_root.add_child(sheet)
+	await tree_root.get_tree().process_frame
+	sheet.call("_arm_trait_hover")
+	failed += _assert(bool(sheet.call("trait_rest_pending")), "the trait popup rest is armed")
+	_touch_screen(input, 0, true, Vector2(620, 40))
+	_touch_screen(input, 0, false, Vector2(620, 40))
+	failed += _assert(not bool(sheet.call("trait_rest_pending")), "a quick tap cancels the trait popup")
+	sheet.free()
+	marker.free()
+	WorldHover.shutdown()
+	if failed == 0:
+		print("TOUCH_TAP_NO_LATE_TOOLTIP_OK")
 	return failed
 
 

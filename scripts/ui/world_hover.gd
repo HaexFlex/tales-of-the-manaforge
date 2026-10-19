@@ -91,6 +91,11 @@ static func _on_rest() -> void:
 	_reveal(source, text)
 
 
+static func cancel_pending() -> void:
+	## A quick tap must not let a rest tooltip open afterwards.
+	_clear_pending()
+
+
 static func _clear_pending() -> void:
 	_pending_source = null
 	_pending_id = 0

@@ -98,6 +98,8 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if GameInput.blocks_scene_mouse(event):
+		return
 	if not (event is InputEventMouseButton):
 		return
 	var released: InputEventMouseButton = event
@@ -106,6 +108,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if GameInput.blocks_scene_mouse(event):
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event
 		if key.keycode == KEY_ESCAPE:
