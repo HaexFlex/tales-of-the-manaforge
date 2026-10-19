@@ -158,8 +158,18 @@ func _run() -> void:
 
 	if OS.get_environment("MANAFORGE_TOUCH_HELP_FITS") == "1":
 		var help_fit: int = await _options_touch_help_fits_ok(tree_root)
+		help_fit += await _options_pc_panel_unchanged_ok(tree_root)
 		if help_fit > 0:
 			print("OPTIONS_TOUCH_HELP_FITS_FAIL: %d" % help_fit)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_OPTIONS_PC_PANEL") == "1":
+		var pc_panel: int = await _options_pc_panel_unchanged_ok(tree_root)
+		if pc_panel > 0:
+			print("OPTIONS_PC_PANEL_UNCHANGED_FAIL: %d" % pc_panel)
 			quit(1)
 		else:
 			quit(0)
@@ -24300,6 +24310,48 @@ func _touch_press_event(device: int) -> InputEventMouseButton:
 	return mb
 
 
+func _options_pc_panel_unchanged_ok(tree_root: Window) -> int:
+	## PC Controls options panel matches b26bbf9 _fit_window sizing (560 x 306 content).
+	var failed: int = 0
+	var expected: Dictionary = {
+		Vector2i(960, 540): {"position": Vector2(200.0, 128.0), "size": Vector2(560.0, 306.0)},
+		Vector2i(1200, 540): {"position": Vector2(320.0, 128.0), "size": Vector2(560.0, 306.0)},
+		Vector2i(960, 600): {"position": Vector2(200.0, 158.0), "size": Vector2(560.0, 306.0)},
+		Vector2i(1280, 800): {"position": Vector2(360.0, 258.0), "size": Vector2(560.0, 306.0)},
+		Vector2i(1280, 960): {"position": Vector2(360.0, 338.0), "size": Vector2(560.0, 306.0)},
+	}
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var menu: Node = packed.instantiate() if packed != null else null
+	failed += _assert(menu != null, "pause menu loads for the PC panel check")
+	if menu == null:
+		return failed
+	tree_root.add_child(menu)
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = false
+	for vp: Vector2i in expected.keys():
+		tree_root.size = vp
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		menu.set("_options_tab", "controls")
+		menu.call("_layout_options")
+		await tree_root.get_tree().process_frame
+		var panel: Control = menu.get_node_or_null("OptionsPanel") as Control
+		var spec: Dictionary = expected[vp]
+		var want_pos: Vector2 = spec["position"] as Vector2
+		var want_size: Vector2 = spec["size"] as Vector2
+		failed += _assert(panel != null, "options panel exists at %s" % vp)
+		if panel == null:
+			continue
+		failed += _assert(panel.position.is_equal_approx(want_pos), "PC options position at %s (got %s want %s)" % [vp, panel.position, want_pos])
+		failed += _assert(panel.size.is_equal_approx(want_size), "PC options size at %s (got %s want %s)" % [vp, panel.size, want_size])
+		failed += _assert(panel.custom_minimum_size.is_equal_approx(Vector2.ZERO), "PC options minimum size stays clear at %s" % vp)
+	Input.emulate_touch_from_mouse = was_emulated
+	menu.free()
+	if failed == 0:
+		print("OPTIONS_PC_PANEL_UNCHANGED_OK")
+	return failed
+
+
 func _options_panel_inner_rect(panel: Control) -> Rect2:
 	var g: Rect2 = panel.get_global_rect()
 	var top: float = 72.0 + 44.0 + 8.0 + 14.0
@@ -24437,6 +24489,7 @@ func _touch_copy_ok(tree_root: Window, content_strings: Node) -> int:
 		failed += _assert(got == want, "touch copy for %s (got %s want %s)" % [touch_key, got, want])
 	failed += await _longpress_hint_width_ok(tree_root)
 	failed += await _options_touch_help_fits_ok(tree_root)
+	failed += await _options_pc_panel_unchanged_ok(tree_root)
 	Input.emulate_touch_from_mouse = was_emulated
 	if failed == 0:
 		print("TOUCH_COPY_OK")
