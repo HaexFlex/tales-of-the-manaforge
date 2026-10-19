@@ -22645,6 +22645,7 @@ func _touch_nav_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += await _touch_pinch_ok(tree_root, save_service)
 	failed += await _touch_core_ok(tree_root)
 	failed += await _touch_longpress_ok(tree_root, game_state, save_service)
+	failed += await _touch_selection_ok(tree_root, game_state, save_service)
 	return failed
 
 
@@ -23183,6 +23184,186 @@ func _touch_free_hub(tree_root: Window, live: Node, save_service: Node) -> void:
 	save_service.call("note_session_ended")
 	save_service.set("boot_intent", "auto")
 	tree_root.size = Vector2i(1280, 960)
+
+
+func _touch_selection_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	failed += await _touch_ground_tap_keeps_selection_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_tap_again_deselects_ok(tree_root, game_state, save_service, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_world_screen(live: Node, world_pos: Vector2) -> Vector2:
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	var view: Vector2 = live.call("_viewport_view") if live.has_method("_viewport_view") else live.get_viewport().get_visible_rect().size
+	var zoom: Vector2 = cam.zoom if cam != null else Vector2.ONE
+	var origin: Vector2 = cam.global_position if cam != null else Vector2.ZERO
+	return (world_pos - origin) * zoom + view * 0.5
+
+
+func _touch_left_click(tree_root: Window, at: Vector2, device: int) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.device = device
+	motion.position = at
+	motion.global_position = at
+	tree_root.push_input(motion)
+	var press := InputEventMouseButton.new()
+	press.device = device
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = at
+	press.global_position = at
+	tree_root.push_input(press)
+	press.pressed = false
+	tree_root.push_input(press)
+
+
+func _touch_ground_tap_keeps_selection_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	## Touch ground keeps the selection. A real mouse click still clears it.
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for the ground tap")
+	if live == null:
+		return failed
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(keeper != null, "hub keeper exists for the ground tap")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	input.set("_last_was_tap", false)
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	var ground: Vector2 = _touch_world_screen(live, keeper.global_position + Vector2(420, 80))
+	_touch_left_click(tree_root, ground, InputEvent.DEVICE_ID_EMULATION)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(game_state.get("keeper_selected")), "a touch ground tap keeps the Keeper selected")
+	var cleared := false
+	for line: String in heard:
+		if line.find("selection") >= 0 or line.to_lower().find("deselect") >= 0:
+			cleared = true
+	failed += _assert(not cleared, "a touch ground tap does not toast a clear")
+	heard.clear()
+	input.set("_last_was_tap", false)
+	_touch_left_click(tree_root, ground, 0)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(game_state.get("keeper_selected")), "a real mouse ground click still clears the selection")
+	game_state.disconnect("status_message", grab)
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	failed += _assert(forge != null, "forge loads for the ground tap")
+	if forge != null:
+		game_state.call("select_keeper")
+		forge.call("open_station_panel", "anvil")
+		await tree_root.get_tree().process_frame
+		var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
+		failed += _assert(panel != null and panel.visible, "the forge recipe list is open")
+		input.set("_last_was_tap", false)
+		var forge_keeper: Node2D = forge.get_node_or_null("Keeper") as Node2D
+		var origin: Vector2 = forge_keeper.global_position if forge_keeper != null else Vector2(400, 300)
+		var spot: Vector2 = _touch_world_screen(forge, origin + Vector2(360, 40))
+		if panel != null and panel.get_global_rect().has_point(spot):
+			spot = Vector2(24, 24)
+		_touch_left_click(tree_root, spot, InputEvent.DEVICE_ID_EMULATION)
+		await tree_root.get_tree().process_frame
+		failed += _assert(panel == null or not panel.visible, "a forge ground tap hides the recipe list")
+		failed += _assert(bool(game_state.get("keeper_selected")), "a forge ground tap keeps the selection")
+		_touch_free_hub(tree_root, forge, save_service)
+	if failed == 0:
+		print("TOUCH_GROUND_TAP_KEEPS_SELECTION_OK")
+	return failed
+
+
+func _touch_boot_scene(tree_root: Window, save_service: Node, path: String) -> Node:
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load(path) as PackedScene
+	if packed == null:
+		return null
+	var live: Node = packed.instantiate()
+	tree_root.size = Vector2i(1280, 960)
+	Ui540.apply_integer_viewport(tree_root)
+	tree_root.add_child(live)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	return live
+
+
+func _touch_tap_again_deselects_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	## Touch on the selected Keeper, Wisp, or portrait clears it. A real mouse does not.
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for tap-again")
+	if live == null:
+		return failed
+	var keeper: Node = live.get_node_or_null("World/Keeper")
+	failed += _assert(keeper != null, "hub keeper exists for tap-again")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	input.set("_last_was_tap", false)
+	keeper.call("_on_click_area_input", null, _touch_press_event(InputEvent.DEVICE_ID_EMULATION), 0)
+	failed += _assert(not bool(game_state.get("keeper_selected")), "a touch tap on the selected Keeper deselects")
+	game_state.call("select_keeper")
+	input.set("_last_was_tap", false)
+	keeper.call("_on_click_area_input", null, _touch_press_event(0), 0)
+	failed += _assert(bool(game_state.get("keeper_selected")), "a real mouse tap on the selected Keeper stays selected")
+	game_state.set("wisp_count", 1)
+	live.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	var wisp: Node = tree_root.get_tree().get_first_node_in_group("wisp")
+	failed += _assert(wisp != null, "a wisp exists for tap-again")
+	if wisp != null:
+		game_state.call("select_wisp", 0)
+		input.set("_last_was_tap", false)
+		wisp.call("_on_input_event", null, _touch_press_event(InputEvent.DEVICE_ID_EMULATION), 0)
+		failed += _assert(int(game_state.get("selected_wisp_id")) < 0, "a touch tap on the selected Wisp deselects")
+		game_state.call("select_wisp", 0)
+		input.set("_last_was_tap", false)
+		wisp.call("_on_input_event", null, _touch_press_event(0), 0)
+		failed += _assert(int(game_state.get("selected_wisp_id")) == 0, "a real mouse tap on the selected Wisp stays selected")
+	var hud: Node = live.get_node_or_null("HUD")
+	var slot: Control = hud.get("_slot_keeper") as Control if hud != null else null
+	failed += _assert(hud != null and slot != null, "the Keeper portrait exists")
+	if hud != null and slot != null:
+		game_state.call("select_keeper")
+		input.set("_last_was_tap", false)
+		hud.call("_on_party_slot_input", _touch_press_event(InputEvent.DEVICE_ID_EMULATION), "keeper", slot)
+		failed += _assert(not bool(game_state.get("keeper_selected")), "a touch tap on the selected portrait deselects")
+		game_state.call("select_keeper")
+		input.set("_last_was_tap", false)
+		hud.call("_on_party_slot_input", _touch_press_event(0), "keeper", slot)
+		failed += _assert(bool(game_state.get("keeper_selected")), "a real mouse tap on the selected portrait stays selected")
+		game_state.set("wisp_count", 1)
+		game_state.call("select_wisp", 0)
+		input.set("_last_was_tap", false)
+		hud.call("_on_party_slot_input", _touch_press_event(InputEvent.DEVICE_ID_EMULATION), "wisp", slot)
+		failed += _assert(int(game_state.get("selected_wisp_id")) < 0, "a touch tap on the selected Wisp portrait deselects")
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_TAP_AGAIN_DESELECTS_OK")
+	return failed
+
+
+func _touch_press_event(device: int) -> InputEventMouseButton:
+	var mb := InputEventMouseButton.new()
+	mb.device = device
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = true
+	mb.position = Vector2(16, 16)
+	mb.global_position = mb.position
+	return mb
 
 
 func _touch_hint_ok(tree_root: Window, game_state: Node) -> int:

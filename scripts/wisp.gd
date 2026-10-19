@@ -183,6 +183,10 @@ func get_motion_kind() -> StringName:
 			return &"orbit"
 
 
+func _solely_selected() -> bool:
+	return GameState.selected_wisp_id == wisp_id and not GameState.keeper_selected and str(GameState.selected_companion_id) == "" and GameState.selected_wisp_ids.size() <= 1
+
+
 func is_orbiting_assigned_target() -> bool:
 	## Assigned (including fly tween toward the node).
 	return GameState.get_wisp_assignment(wisp_id) != ""
@@ -202,7 +206,12 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			wisp_clicked.emit(wisp_id)
+			if GameInput.is_double_tap(mb):
+				return
+			if GameInput.touch_mode() and GameInput.is_touch_pointer(mb) and _solely_selected():
+				GameState.clear_wisp_selection()
+			else:
+				wisp_clicked.emit(wisp_id)
 			get_viewport().set_input_as_handled()
 		elif GameInput.is_command(mb):
 			get_viewport().set_input_as_handled()

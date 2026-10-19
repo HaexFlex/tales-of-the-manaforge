@@ -1846,7 +1846,10 @@ func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> voi
 	## Grab the viewport before a view swap. The swap is deferred, and this node
 	## can already be leaving the tree by the time the handler finishes.
 	var viewport: Viewport = get_viewport()
-	party_click(unit)
+	if GameInput.touch_mode() and GameInput.is_touch_pointer(mb) and not GameInput.is_double_tap(mb) and _portrait_solely_selected(unit):
+		_portrait_clear(unit)
+	else:
+		party_click(unit)
 	if mb.double_click:
 		party_focus(unit)
 	## The click is the portrait, not a ground order. Do not walk or clear the job.
@@ -1854,6 +1857,27 @@ func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> voi
 		slot.accept_event()
 	if viewport != null and is_instance_valid(viewport):
 		viewport.set_input_as_handled()
+
+
+func _portrait_solely_selected(unit: String) -> bool:
+	var wisps_clear: bool = GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty()
+	if unit == "keeper":
+		return GameState.keeper_selected and wisps_clear and str(GameState.selected_companion_id) == ""
+	if unit == "elaia":
+		return str(GameState.selected_companion_id) == "elaia" and not GameState.keeper_selected and wisps_clear
+	if unit == "wisp":
+		return GameState.selected_wisp_id >= 0 and not GameState.keeper_selected and str(GameState.selected_companion_id) == ""
+	return false
+
+
+func _portrait_clear(unit: String) -> void:
+	if unit == "keeper":
+		GameState.set_keeper_selected(false)
+	elif unit == "elaia":
+		GameState.selected_companion_id = ""
+		GameState.selection_changed.emit()
+	elif unit == "wisp":
+		GameState.clear_wisp_selection()
 
 
 func party_click(unit: String) -> void:

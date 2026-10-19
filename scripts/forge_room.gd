@@ -109,6 +109,7 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if GameInput.blocks_scene_mouse(event):
+		_touch_ground_release(event)
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event
@@ -142,6 +143,27 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_marquee(_drag_from)
 		elif _drag_active:
 			_finish_marquee(get_global_mouse_position())
+
+
+func _touch_ground_release(event: InputEvent) -> void:
+	## A ground tap hides the recipe list and leaves the selection alone.
+	if not _touch_left_release(event) or not GameInput.last_release_was_tap():
+		return
+	if _ui_blocks() or _gui_blocks_drag():
+		return
+	if _interactable_under_point(get_global_mouse_position()):
+		return
+	_hide_recipes()
+
+
+func _touch_left_release(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		return mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed
+	if event is InputEventScreenTouch:
+		var touch: InputEventScreenTouch = event as InputEventScreenTouch
+		return not touch.pressed and touch.index == 0
+	return false
 
 
 func _on_escape() -> void:
