@@ -303,6 +303,17 @@ func _run() -> void:
 			quit(0)
 		return
 
+	# Wisps idle debug snapshot. The full suite still runs this with the other snapshots.
+	# MANAFORGE_DEBUG_SAVE_WISPS=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_DEBUG_SAVE_WISPS") == "1":
+		var wisps_only: int = await _debug_save_wisps_ok(tree_root, game_state, save_service)
+		if wisps_only > 0:
+			print("DEBUG_SAVE_WISPS_FAIL: %d" % wisps_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	# Bundle 1 regressions. The full suite runs them after the reach checks.
 	# Battle Bundle 2 data checks. The full suite runs them after the Bundle 1 regressions.
 	if OS.get_environment("MANAFORGE_BEAST_DATA") == "1":
@@ -3996,6 +4007,7 @@ func _run() -> void:
 	failed += await _echo2_portal_visible(tree_root, game_state, save_service)
 	failed += await _expedition_board_tease(tree_root, game_state, save_service)
 	failed += await _debug_snapshots_reach(tree_root, game_state, save_service)
+	failed += await _debug_save_wisps_ok(tree_root, game_state, save_service)
 	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 	failed += _reach_checks(tree_root, game_state, save_service)
 	failed += await _reach_mix_reload(tree_root, game_state, save_service)
@@ -8240,6 +8252,7 @@ func _stripped_paths() -> PackedStringArray:
 		"tools/debug/snapshots/north_road_open.json",
 		"tools/debug/snapshots/pre_boss.json",
 		"tools/debug/snapshots/veteran_reacher.json",
+		"tools/debug/snapshots/wisps_idle.json",
 	])
 
 
@@ -11340,6 +11353,91 @@ func _snapshot_hub_check(tree_root: Window, game_state: Node, save_service: Node
 	return failed
 
 
+const _WISPS_IDLE_LABEL: String = "Wisps idle"
+const _WISPS_IDLE_PATH: String = "res://tools/debug/snapshots/wisps_idle.json"
+const _WISPS_IDLE_DISK: String = "tools/debug/snapshots/wisps_idle.json"
+
+
+func _debug_save_wisps_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Debug-panel snapshot for the tablet Wisp checks. Two idle Wisps, gatherables,
+	## the Manatree, and a Forge the Keeper can enter. Stable strips the file.
+	var failed: int = 0
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	failed += _assert(panel_src.find("\"%s\": \"%s\"" % [_WISPS_IDLE_LABEL, _WISPS_IDLE_PATH]) >= 0, "debug saves list %s" % _WISPS_IDLE_LABEL)
+	var panel: Node = _debug_panel_open_for_test(tree_root)
+	failed += _assert(_debug_panel_button(panel, _WISPS_IDLE_LABEL) != null, "the debug saves list shows %s" % _WISPS_IDLE_LABEL)
+	_debug_panel_free(tree_root)
+	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
+	var stable_exclude: PackedStringArray = _exclude_tokens(str((presets.get("Windows Release / Stable", {}) as Dictionary).get("exclude", "")))
+	var testing_exclude: PackedStringArray = _exclude_tokens(str((presets.get("Windows Testing / Experimental", {}) as Dictionary).get("exclude", "")))
+	var android_exclude: PackedStringArray = _exclude_tokens(str((presets.get("Android Test (Experimental)", {}) as Dictionary).get("exclude", "")))
+	failed += _assert(stable_exclude.has("tools/*") and stable_exclude.has(_WISPS_IDLE_DISK), "release strips %s" % _WISPS_IDLE_LABEL)
+	failed += _assert(not testing_exclude.has(_WISPS_IDLE_DISK) and not testing_exclude.has("tools/*"), "PC debug keeps %s" % _WISPS_IDLE_LABEL)
+	failed += _assert(not android_exclude.has(_WISPS_IDLE_DISK) and not android_exclude.has("tools/*"), "Android debug keeps %s" % _WISPS_IDLE_LABEL)
+	var raw: Dictionary = _json_dict(_WISPS_IDLE_PATH)
+	failed += _assert(str(raw.get("label", "")) == _WISPS_IDLE_LABEL and str(raw.get("kind", "")) == "debug", "snapshot label is %s" % _WISPS_IDLE_LABEL)
+	failed += _probe_one(game_state, _WISPS_IDLE_PATH, 15, true)
+	var count: int = int(game_state.get("wisp_count"))
+	failed += _assert(count >= 2, "at least two Wisps are unlocked (got %d)" % count)
+	failed += _assert(int(game_state.call("wisp_free_count")) == count, "every unlocked Wisp is idle")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null and bool(jobs.call("can_enter_forge")), "the Forge can be entered from this save")
+	save_service.call("note_session_started")
+	save_service.set("boot_intent", "forge_return")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "Wisps idle loads the hub")
+	if live == null:
+		game_state.call("reset_for_new_game")
+		return failed
+	var keeper: CanvasItem = tree_root.get_tree().get_first_node_in_group("keeper") as CanvasItem
+	failed += _assert(keeper != null and keeper.is_visible_in_tree() and not bool(game_state.call("member_away", "keeper")), "the Keeper is in the clearing")
+	var wisps: Array[Node] = tree_root.get_tree().get_nodes_in_group("wisp")
+	failed += _assert(wisps.size() >= 2, "two Wisp bodies are in the clearing (got %d)" % wisps.size())
+	var idle_bodies: int = 0
+	for wisp: Node in wisps:
+		var shown: bool = not (wisp is CanvasItem) or (wisp as CanvasItem).is_visible_in_tree()
+		if shown and str(game_state.call("get_wisp_assignment", int(wisp.get("wisp_id")))) == "":
+			idle_bodies += 1
+	failed += _assert(idle_bodies >= 2, "two Wisps are present and idle (got %d)" % idle_bodies)
+	var kinds: Dictionary = {"wood": "tree", "stone": "stone", "food": "berries"}
+	for key: String in kinds:
+		var gather: Node = _touch_gatherable_named(tree_root, key)
+		failed += _assert(_debug_node_reachable(live, gather, key), "the %s is reachable" % str(kinds[key]))
+	var manatree: Node = tree_root.get_tree().get_first_node_in_group("manatree")
+	failed += _assert(_debug_node_reachable(live, manatree, "manatree"), "the Manatree is reachable")
+	var nav: CanvasItem = live.find_child("HubForgeNav", true, false) as CanvasItem
+	var stand: Vector2 = jobs.call("clearing_door_stand") if jobs != null else Vector2.ZERO
+	failed += _assert(nav != null and nav.visible and jobs != null and bool(jobs.call("can_enter_forge")) and not _actor_box_hits(live, stand, "keeper"), "the Forge is reachable")
+	live.free()
+	await process_frame
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("DEBUG_SAVE_WISPS_OK")
+	return failed
+
+
+func _debug_node_reachable(live: Node, node: Node, type_id: String) -> bool:
+	if live == null or node == null or not node.is_inside_tree():
+		return false
+	if node is CanvasItem and not (node as CanvasItem).is_visible_in_tree():
+		return false
+	if node is CollisionObject2D and not (node as CollisionObject2D).input_pickable:
+		return false
+	var shape: CollisionShape2D = node.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if shape == null or shape.disabled:
+		return false
+	if not bool(live.call("_interactable_under_point", shape.global_position)):
+		return false
+	if not node.has_method("work_footprint") or not (node is Node2D):
+		return false
+	var keeper_cls = load("res://scripts/keeper.gd")
+	var solved: Dictionary = keeper_cls.solve_work_spot(node.call("work_footprint"), (node as Node2D).global_position, type_id, Callable(), "", "keeper")
+	var pos: Vector2 = solved.get("position", Vector2.ZERO)
+	return not bool(solved.get("fallback", true)) and not _actor_box_hits(live, pos, "keeper")
+
+
 ## Job 34: the Experimental debug panel's expedition tools and the Mid-fight snapshot.
 const _MID_FIGHT_PATH: String = "res://tools/debug/snapshots/mid_fight.json"
 const _MID_FIGHT_SAVE_ID: int = 340034
@@ -12611,7 +12709,7 @@ func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service:
 	failed += _assert(press_body.find("load_snapshot_state(") >= 0, "the snapshot button uses the migrating loader")
 	failed += _assert(_func_body(panel_src, "static func load_snapshot_state").find("migrate_state") >= 0, "the loader calls SaveService.migrate_state")
 	var snapshots: Dictionary = panel_script.get_script_constant_map().get("SNAPSHOTS", {}) as Dictionary
-	failed += _assert(snapshots.size() == 9, "nine debug snapshots (got %d)" % snapshots.size())
+	failed += _assert(snapshots.size() == 10, "ten debug snapshots (got %d)" % snapshots.size())
 	## Mid-fight's loader writes the adventure file; put the old one back afterwards.
 	var adv_path: String = _adventure_path(save_service)
 	var adv_was: Variant = _user_file_text(adv_path)
