@@ -218,6 +218,10 @@ func defer_touch_tap(action: Callable) -> void:
 
 func inject_right_click(screen_pos: Vector2) -> void:
 	## Synthetic right-click, device 0, so the existing command paths run.
+	## screen_pos is already the viewport point the touch landed on. push_input()
+	## otherwise runs it through the stretch inverse again, so on a 2× window the
+	## click misses every world Area2D. The real mouse is still on the node, so
+	## the ground path bails out and the double-tap does nothing.
 	var vp: Viewport = get_viewport()
 	if vp == null:
 		return
@@ -226,7 +230,7 @@ func inject_right_click(screen_pos: Vector2) -> void:
 	motion.device = 0
 	motion.position = screen_pos
 	motion.global_position = screen_pos
-	vp.push_input(motion)
+	vp.push_input(motion, true)
 	var press := InputEventMouseButton.new()
 	press.device = 0
 	press.button_index = MOUSE_BUTTON_RIGHT
@@ -234,11 +238,11 @@ func inject_right_click(screen_pos: Vector2) -> void:
 	press.button_mask = MOUSE_BUTTON_MASK_RIGHT
 	press.position = screen_pos
 	press.global_position = screen_pos
-	vp.push_input(press)
+	vp.push_input(press, true)
 	var release: InputEventMouseButton = press.duplicate() as InputEventMouseButton
 	release.pressed = false
 	release.button_mask = 0
-	vp.push_input(release)
+	vp.push_input(release, true)
 	_injecting = false
 
 

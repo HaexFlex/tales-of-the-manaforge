@@ -7,6 +7,8 @@ const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
+## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
+const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ## Regression rule: every bug Haex reports that has been fixed before, or that
@@ -23191,7 +23193,7 @@ func _touch_push_left(tree_root: Window, at: Vector2, pressed: bool) -> void:
 	tree_root.push_input(mb)
 
 
-func _touch_boot_hub(tree_root: Window, save_service: Node) -> Node:
+func _touch_boot_hub(tree_root: Window, save_service: Node, window: Vector2i = Vector2i(1280, 960)) -> Node:
 	tree_root.get_tree().paused = false
 	save_service.call("note_session_ended")
 	save_service.set("boot_intent", "new")
@@ -23199,7 +23201,7 @@ func _touch_boot_hub(tree_root: Window, save_service: Node) -> Node:
 	if packed == null:
 		return null
 	var live: Node = packed.instantiate()
-	tree_root.size = Vector2i(1280, 960)
+	tree_root.size = window
 	Ui540.apply_integer_viewport(tree_root)
 	tree_root.add_child(live)
 	await tree_root.get_tree().process_frame
@@ -23341,14 +23343,14 @@ func _touch_ground_tap_keeps_selection_ok(tree_root: Window, game_state: Node, s
 	return failed
 
 
-func _touch_boot_scene(tree_root: Window, save_service: Node, path: String) -> Node:
+func _touch_boot_scene(tree_root: Window, save_service: Node, path: String, window: Vector2i = Vector2i(1280, 960)) -> Node:
 	save_service.call("note_session_ended")
 	save_service.set("boot_intent", "new")
 	var packed: PackedScene = load(path) as PackedScene
 	if packed == null:
 		return null
 	var live: Node = packed.instantiate()
-	tree_root.size = Vector2i(1280, 960)
+	tree_root.size = window
 	Ui540.apply_integer_viewport(tree_root)
 	tree_root.add_child(live)
 	await tree_root.get_tree().process_frame
@@ -23416,21 +23418,33 @@ func _touch_tap_again_deselects_ok(tree_root: Window, game_state: Node, save_ser
 func _touch_double_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	var failed: int = 0
 	var was_emulated: bool = Input.emulate_touch_from_mouse
+	var was_mouse: bool = Input.emulate_mouse_from_touch
 	Input.emulate_touch_from_mouse = true
+	Input.emulate_mouse_from_touch = true
 	var input: Node = tree_root.get_node_or_null("GameInput")
 	if input == null:
 		Input.emulate_touch_from_mouse = was_emulated
+		Input.emulate_mouse_from_touch = was_mouse
 		return failed + 1
 	failed += await _touch_double_tap_walk_ok(tree_root, game_state, save_service, input)
 	failed += await _touch_double_tap_harvest_ok(tree_root, game_state, save_service, input)
 	failed += await _touch_double_tap_station_ok(tree_root, game_state, save_service, input)
 	failed += await _touch_double_tap_bench_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_double_tap_objects_ok(tree_root, game_state, save_service, input)
 	failed += await _touch_double_tap_blocked_ok(tree_root, game_state, save_service, input)
 	failed += await _touch_no_translate_minigame_ok(tree_root, game_state, save_service, input)
 	failed += await _touch_no_translate_battle_ok(tree_root, game_state, save_service, input)
 	failed += await _touch_portrait_double_tap_ok(tree_root, game_state, save_service, input)
 	_touch_release_fingers(input)
 	Input.emulate_touch_from_mouse = was_emulated
+	Input.emulate_mouse_from_touch = was_mouse
+	## parse_input_event moves the headless pointer. Later mouse checks still assume (0, 0).
+	var home := InputEventMouseMotion.new()
+	home.device = 0
+	home.position = Vector2.ZERO
+	home.global_position = Vector2.ZERO
+	Input.parse_input_event(home)
+	Input.flush_buffered_events()
 	return failed
 
 
@@ -23438,12 +23452,34 @@ func _touch_arm_single(input: Node) -> void:
 	input.set("_last_was_tap", false)
 	input.set("_last_release_ms", -100000)
 	input.set("_double", false)
+	## Every aimed tap shares the screen centre, inside the 32 px echo of the
+	## previous double. A new gesture in this harness is not that echo.
+	input.set("_double_echo", false)
+
+
+func _touch_parse_finger(tree_root: Window, logical: Vector2, pressed: bool) -> void:
+	## Window pixels, the space Android delivers. Godot's touch-to-mouse emulation
+	## turns this into the left click. The test must not build that mouse event.
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = pressed
+	touch.position = tree_root.get_final_transform() * logical
+	Input.parse_input_event(touch)
+	Input.flush_buffered_events()
+
+
+func _touch_single_at(tree_root: Window, input: Node, at: Vector2) -> void:
+	_touch_arm_single(input)
+	_touch_parse_finger(tree_root, at, true)
+	_touch_parse_finger(tree_root, at, false)
 
 
 func _touch_double_at(tree_root: Window, input: Node, at: Vector2) -> void:
 	_touch_arm_single(input)
-	_touch_left_click(tree_root, at, InputEvent.DEVICE_ID_EMULATION)
-	_touch_left_click(tree_root, at, InputEvent.DEVICE_ID_EMULATION)
+	_touch_parse_finger(tree_root, at, true)
+	_touch_parse_finger(tree_root, at, false)
+	_touch_parse_finger(tree_root, at, true)
+	_touch_parse_finger(tree_root, at, false)
 
 
 func _touch_shape_world(node: Node) -> Vector2:
@@ -23459,7 +23495,7 @@ func _touch_shape_screen(live: Node, node: Node) -> Vector2:
 
 func _touch_double_tap_walk_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
 	var failed: int = 0
-	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
 	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live != null else null
 	failed += _assert(keeper != null, "hub keeper exists for the double-tap walk")
 	if keeper == null:
@@ -23479,7 +23515,7 @@ func _touch_double_tap_walk_ok(tree_root: Window, game_state: Node, save_service
 
 func _touch_double_tap_harvest_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
 	var failed: int = 0
-	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
 	var keeper: Node = live.get_node_or_null("World/Keeper") if live != null else null
 	var node: Node = tree_root.get_tree().get_first_node_in_group("gatherable") if live != null else null
 	failed += _assert(keeper != null and node != null, "a gatherable exists for the double-tap harvest")
@@ -23500,7 +23536,7 @@ func _touch_double_tap_harvest_ok(tree_root: Window, game_state: Node, save_serv
 
 func _touch_double_tap_station_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
 	var failed: int = 0
-	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn", TOUCH_DEVICE_WINDOW)
 	failed += _assert(forge != null, "forge loads for the station double-tap")
 	if forge == null:
 		return failed
@@ -23513,8 +23549,7 @@ func _touch_double_tap_station_ok(tree_root: Window, game_state: Node, save_serv
 	forge.call("_sync_wisps")
 	game_state.call("select_wisp", 0)
 	var at: Vector2 = await _touch_aim(forge, _touch_shape_world(station))
-	_touch_arm_single(input)
-	_touch_left_click(tree_root, at, InputEvent.DEVICE_ID_EMULATION)
+	_touch_single_at(tree_root, input, at)
 	await tree_root.get_tree().create_timer(0.36).timeout
 	var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
 	failed += _assert(panel != null and panel.visible, "a single station tap opens the recipe list after the wait")
@@ -23533,7 +23568,7 @@ func _touch_double_tap_station_ok(tree_root: Window, game_state: Node, save_serv
 
 func _touch_double_tap_bench_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
 	var failed: int = 0
-	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
 	var bench: Node = tree_root.get_tree().get_first_node_in_group("keepers_bench") if live != null else null
 	failed += _assert(bench != null, "the Keeper's bench exists")
 	if bench == null:
@@ -23556,9 +23591,267 @@ func _touch_double_tap_bench_ok(tree_root: Window, game_state: Node, save_servic
 	return failed
 
 
+func _touch_names_at(live: Node, world: Vector2) -> String:
+	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
+	if space == null:
+		return ""
+	var query := PhysicsPointQueryParameters2D.new()
+	query.position = world
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	query.collision_mask = 4
+	var hits: Array[Dictionary] = space.intersect_point(query, 8)
+	var names: PackedStringArray = PackedStringArray()
+	for hit: Dictionary in hits:
+		var collider: Variant = hit.get("collider")
+		if collider is Node:
+			names.append((collider as Node).name)
+	return " ".join(names)
+
+
+func _touch_gatherable_named(tree_root: Window, key: String) -> Node:
+	for node: Node in tree_root.get_tree().get_nodes_in_group("gatherable"):
+		if str(node.get("node_key")) == key:
+			return node
+	return null
+
+
+func _touch_silence_wisps(tree_root: Window, pickable: bool) -> void:
+	for node: Node in tree_root.get_tree().get_nodes_in_group("wisp"):
+		if node is CollisionObject2D:
+			(node as CollisionObject2D).input_pickable = pickable
+
+
+func _touch_bring_to_view(live: Node, node: Node) -> void:
+	## Camera clamp can leave a node off the window. Slide it under the lens.
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if cam == null or not (node is Node2D):
+		return
+	var body: Node2D = node as Node2D
+	body.global_position += cam.position - _touch_shape_world(node)
+
+
+func _touch_mute_except(tree_root: Window, keep: Node) -> Array[CollisionObject2D]:
+	## Parked nodes stack under the lens. Drop every other pick shape for this tap.
+	var muted: Array[CollisionObject2D] = []
+	for other: Node in tree_root.get_tree().get_nodes_in_group("interactable"):
+		if other == keep or not (other is CollisionObject2D):
+			continue
+		var body: CollisionObject2D = other as CollisionObject2D
+		if not body.input_pickable:
+			continue
+		body.input_pickable = false
+		var shapes: Array[CollisionShape2D] = []
+		for child: Node in body.find_children("*", "CollisionShape2D", true, false):
+			var shape: CollisionShape2D = child as CollisionShape2D
+			if shape.disabled:
+				continue
+			shape.disabled = true
+			shapes.append(shape)
+		body.set_meta("touch_muted_shapes", shapes)
+		muted.append(body)
+	return muted
+
+
+func _touch_unmute(muted: Array[CollisionObject2D]) -> void:
+	for body: CollisionObject2D in muted:
+		if not is_instance_valid(body):
+			continue
+		body.input_pickable = true
+		var stored: Variant = body.get_meta("touch_muted_shapes", [])
+		if stored is Array:
+			for child: Variant in stored:
+				if child is CollisionShape2D and is_instance_valid(child):
+					(child as CollisionShape2D).disabled = false
+		body.remove_meta("touch_muted_shapes")
+
+
+func _touch_keeper_order(tree_root: Window, live: Node, game_state: Node, input: Node, node: Node) -> void:
+	## Keeper selected, this node alone under the lens, then a real double-tap.
+	_touch_silence_wisps(tree_root, false)
+	_touch_bring_to_view(live, node)
+	var keeper: Node2D = tree_root.get_tree().get_first_node_in_group("keeper") as Node2D
+	if keeper != null and node is Node2D:
+		keeper.global_position = (node as Node2D).global_position + Vector2(-900, 260)
+		if keeper.has_method("halt"):
+			keeper.call("halt")
+	var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, node)
+	game_state.call("clear_wisp_selection")
+	game_state.call("select_keeper")
+	await tree_root.get_tree().process_frame
+	var at: Vector2 = await _touch_aim(live, _touch_shape_world(node))
+	_touch_double_at(tree_root, input, at)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().create_timer(0.1).timeout
+	_touch_unmute(muted)
+
+
+func _touch_double_tap_objects_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	## Every world object, through ScreenTouch on a 2× viewport, matches a PC right-click.
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	var keeper: Node = tree_root.get_tree().get_first_node_in_group("keeper") if live != null else null
+	var keeper_home: Vector2 = (keeper as Node2D).global_position if keeper is Node2D else Vector2.ZERO
+	failed += _assert(live != null and keeper != null, "hub loads for object double-taps")
+	if live == null or keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	var kinds: Dictionary = {"wood": "tree", "stone": "stone", "food": "berries"}
+	for key: String in kinds:
+		var gather: Node = _touch_gatherable_named(tree_root, key)
+		failed += _assert(gather != null, "a %s gatherable exists" % str(kinds[key]))
+		if gather == null:
+			continue
+		await _touch_keeper_order(tree_root, live, game_state, input, gather)
+		failed += _assert(keeper.get("_pending_interact") == gather, "a double-tap on %s orders a harvest" % str(kinds[key]))
+	var manatree: Node = tree_root.get_tree().get_first_node_in_group("manatree")
+	failed += _assert(manatree != null, "the Manatree exists")
+	if manatree != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, manatree)
+		failed += _assert(keeper.get("_pending_interact") == manatree, "a double-tap on the Manatree orders a tend")
+	var stone_node: Node = tree_root.get_tree().get_first_node_in_group("runestone")
+	failed += _assert(stone_node != null, "a runestone exists")
+	if stone_node != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, stone_node)
+		failed += _assert(keeper.get("_pending_interact") == stone_node, "a double-tap on a runestone orders the spend walk")
+	var thorn: Node = tree_root.get_tree().get_first_node_in_group("thorn_wall")
+	failed += _assert(thorn != null, "the thorn wall exists")
+	if thorn != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, thorn)
+		failed += _assert(keeper.get("_pending_interact") == thorn, "a double-tap on the thorn wall orders the walk")
+	var portal: Node = tree_root.get_tree().get_first_node_in_group("echo_portal")
+	failed += _assert(portal != null, "the Echo portal exists")
+	if portal != null:
+		game_state.set("portal_unlocked", true)
+		if portal.has_method("refresh_visibility"):
+			portal.call("refresh_visibility")
+		await _touch_keeper_order(tree_root, live, game_state, input, portal)
+		failed += _assert(keeper.get("_pending_interact") == portal, "a double-tap on the Echo portal orders the walk")
+	var board: Node = tree_root.get_tree().get_first_node_in_group("expedition_board")
+	failed += _assert(board != null, "the expedition board exists")
+	if board != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, board)
+		failed += _assert(keeper.get("_pending_interact") == board, "a double-tap on the expedition board orders the walk (pending %s under %s)" % [str(keeper.get("_pending_interact")), _touch_names_at(live, _touch_shape_world(board))])
+	var bramble: Node = tree_root.get_tree().get_first_node_in_group("bramble_warden")
+	failed += _assert(bramble != null, "the Bramble Warden exists")
+	if bramble != null:
+		var reach: Node = tree_root.get_node_or_null("Reach")
+		if reach != null:
+			reach.set("reaches_cleared", 30)
+		game_state.set("echo_02_outcome", "spare")
+		if bramble.has_method("refresh_presence"):
+			bramble.call("refresh_presence")
+		await _touch_keeper_order(tree_root, live, game_state, input, bramble)
+		failed += _assert(keeper.get("_pending_interact") == bramble, "a double-tap on the Bramble Warden orders the walk")
+	var bench: Node = tree_root.get_tree().get_first_node_in_group("keepers_bench")
+	failed += _assert(bench != null, "the Keeper's bench exists for the walk order")
+	if bench != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, bench)
+		failed += _assert(keeper.get("_pending_interact") == bench, "a double-tap on the Keeper's bench walks him there")
+	var held: Dictionary = game_state.get("wisp_assignments")
+	held.clear()
+	game_state.set("wisp_count", 1)
+	live.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	var wisp: Node = tree_root.get_tree().get_first_node_in_group("wisp")
+	var wood: Node = _touch_gatherable_named(tree_root, "wood")
+	failed += _assert(wisp != null and wood != null and manatree != null, "a Wisp can be sent to a node and the Manatree")
+	if wisp != null and wood != null and manatree != null:
+		_touch_silence_wisps(tree_root, true)
+		if keeper is Node2D:
+			(keeper as Node2D).global_position = keeper_home
+			if keeper.has_method("halt"):
+				keeper.call("halt")
+		var muted: Array[CollisionObject2D] = []
+		for other: Node in tree_root.get_tree().get_nodes_in_group("interactable"):
+			if other == wisp or not (other is CollisionObject2D):
+				continue
+			var body: CollisionObject2D = other as CollisionObject2D
+			if not body.input_pickable:
+				continue
+			body.input_pickable = false
+			muted.append(body)
+		await tree_root.get_tree().process_frame
+		game_state.call("clear_selection")
+		await _touch_aim(live, _touch_shape_world(wisp))
+		var wisp_at: Vector2 = _touch_world_screen(live, _touch_shape_world(wisp))
+		_touch_single_at(tree_root, input, wisp_at)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		for body: CollisionObject2D in muted:
+			body.input_pickable = true
+		failed += _assert(int(game_state.get("selected_wisp_id")) == 0, "a tap on a Wisp selects it")
+		_touch_silence_wisps(tree_root, false)
+		_touch_bring_to_view(live, wood)
+		var wood_muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, wood)
+		await tree_root.get_tree().process_frame
+		var wood_at: Vector2 = await _touch_aim(live, _touch_shape_world(wood))
+		_touch_double_at(tree_root, input, wood_at)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().create_timer(0.1).timeout
+		_touch_unmute(wood_muted)
+		var tree_id: String = str(game_state.call("node_id_for_resource", wood.get("resource_id")))
+		failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == tree_id, "a double-tap on a tree assigns the tapped Wisp (got %s)" % str(game_state.call("get_wisp_assignment", 0)))
+		game_state.call("select_wisp", 0)
+		_touch_bring_to_view(live, manatree)
+		var tree_muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, manatree)
+		await tree_root.get_tree().process_frame
+		var tree_at: Vector2 = await _touch_aim(live, _touch_shape_world(manatree))
+		_touch_double_at(tree_root, input, tree_at)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().create_timer(0.1).timeout
+		_touch_unmute(tree_muted)
+		failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "a double-tap on the Manatree assigns the tapped Wisp (got %s under %s)" % [str(game_state.call("get_wisp_assignment", 0)), _touch_names_at(live, _touch_shape_world(manatree))])
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn", TOUCH_DEVICE_WINDOW)
+	failed += _assert(forge != null, "forge loads for station object double-taps")
+	if forge == null:
+		if failed == 0:
+			print("TOUCH_DOUBLE_TAP_OBJECTS_OK")
+		return failed
+	var stations: Array[Node] = tree_root.get_tree().get_nodes_in_group("forge_station")
+	failed += _assert(stations.size() >= 5, "every forge station is in the room (got %d)" % stations.size())
+	game_state.set("wisp_count", 1)
+	forge.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	game_state.call("clear_selection")
+	game_state.call("select_wisp", 0)
+	_touch_silence_wisps(tree_root, false)
+	for station: Node in stations:
+		var sid: String = str(station.get("station_id"))
+		_touch_bring_to_view(forge, station)
+		var station_muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, station)
+		await tree_root.get_tree().process_frame
+		game_state.call("select_wisp", 0)
+		var at: Vector2 = await _touch_aim(forge, _touch_shape_world(station))
+		_touch_double_at(tree_root, input, at)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().create_timer(0.1).timeout
+		_touch_unmute(station_muted)
+		failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == sid, "a double-tap on %s assigns the Wisp (got %s)" % [sid, str(game_state.call("get_wisp_assignment", 0))])
+	game_state.call("clear_wisp_selection")
+	for station: Node in stations:
+		if forge.has_method("_hide_recipes"):
+			forge.call("_hide_recipes")
+		var sid: String = str(station.get("station_id"))
+		await _touch_keeper_order(tree_root, forge, game_state, input, station)
+		var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
+		var forge_keeper: Node = tree_root.get_tree().get_first_node_in_group("keeper")
+		failed += _assert(forge_keeper != null and bool(forge_keeper.get("_moving")), "a double-tap on %s walks the Keeper (moving %s under %s)" % [sid, str(forge_keeper.get("_moving") if forge_keeper != null else false), _touch_names_at(forge, _touch_shape_world(station))])
+		failed += _assert(panel != null and panel.visible and str(forge.get("_dest_station")) == sid, "a double-tap on %s opens its recipes (dest %s)" % [sid, str(forge.get("_dest_station"))])
+	_touch_free_hub(tree_root, forge, save_service)
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_OBJECTS_OK")
+	return failed
+
+
 func _touch_double_tap_blocked_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
 	var failed: int = 0
-	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
 	var keeper: Node = live.get_node_or_null("World/Keeper") if live != null else null
 	var hud: Node = live.get_node_or_null("HUD") if live != null else null
 	var welcome: CanvasItem = hud.get("welcome_panel") as CanvasItem if hud != null else null
