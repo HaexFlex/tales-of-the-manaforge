@@ -382,7 +382,6 @@
   "controls_hint": "LMB selects. RMB commands. Arrows pan the camera. LMB on empty ground deselects.",
   "touch_hold_hint": "Tip: press and hold to give a command",
   "ui.longpress_hint": "Hold to look\ncloser, or to\ngive an order.",
-  "ui.touch_box_select": "Box select",
   "keeper_move_prompt": "Right-click the ground to walk.",
   "keeper_away_select": "The Keeper is out on an expedition.",
   "member_away_select": "{name} is out on an expedition.",
@@ -922,5 +921,29 @@
   "offline_ancient_blocked": "The Manatree was Ancient, so the clearing rested. The Ancient bloom is unchanged: {minutes} min left.",
   "offline_continue": "Continue",
   "minigame_hot_spots_flavour": "Find the glow, and the metal remembers its shape.",
-  "minigame_steady_press_flavour": "A calm hand keeps the pressure kind."
+  "minigame_steady_press_flavour": "A calm hand keeps the pressure kind.",
+  "touch": {
+    "keeper_select_hint": "Tap the Keeper to choose them. Double-tap to walk, harvest, or tend.",
+    "controls_hint": "Tap selects. Double-tap gives an order. Hold to see a name. Drag to look around. Pinch to zoom.",
+    "touch_hold_hint": "Tip: double-tap to give an order",
+    "ui.longpress_hint": "Hold to look\ncloser at what\nyou find.",
+    "keeper_move_prompt": "Double-tap the ground to walk.",
+    "keeper_required": "Choose the Keeper first (tap).",
+    "keeper_required_harvest": "Choose the Keeper, then double-tap the tree, stone, or berries.",
+    "keeper_required_tree": "Choose the Keeper, then double-tap the Manatree.",
+    "wisp_select_hint": "Tap a Wisp, then double-tap a gather spot or the Manatree.",
+    "wisp_assign_hint": "Double-tap a harvest spot or the Manatree.",
+    "wisp_unassign_ground": "Double-tap empty ground to call the Wisp back.",
+    "keeper_deselect_toast": "Cleared.",
+    "options_touch_walk": "Double-tap the ground to walk.",
+    "options_touch_use": "Tap a thing to choose or use it.",
+    "options_touch_drag": "Drag with one finger to look around.",
+    "help_touch_tap": "Tap: choose or use a thing. Tap your choice again to let go.",
+    "help_touch_double_tap": "Double-tap: walk, harvest, tend, or send a Wisp.",
+    "help_touch_long_press": "Long-press: see a name and what it does.",
+    "help_touch_drag": "Drag: look around the clearing.",
+    "help_touch_pinch": "Pinch: zoom in or out.",
+    "help_touch_box": "Box button: then drag to choose several at once.",
+    "touch_box_select_button": "Box select"
+  }
 }

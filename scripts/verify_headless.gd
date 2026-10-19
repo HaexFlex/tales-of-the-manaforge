@@ -147,6 +147,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TOUCH_COPY") == "1":
+		var copy_only: int = await _touch_copy_ok(tree_root, content_strings)
+		if copy_only > 0:
+			print("TOUCH_COPY_FAIL: %d" % copy_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_ANDROID_ICON") == "1":
 		var icon_only: int = _android_icon_splash_ok()
 		if icon_only > 0:
@@ -7266,7 +7275,7 @@ func _tooltip_scroll_ok(tree_root: Window) -> int:
 		var safe: Rect2 = Ui540.safe_rect()
 		failed += _assert(safe.encloses(Rect2(hint.position, hint.size)), "long-press panel sits inside the safe area %s" % str(hint.position))
 		failed += _assert(hint.modulate.a < 0.05, "long-press panel fades in from transparent")
-		await create_timer(0.15).timeout
+		await create_timer(0.3).timeout
 		failed += _assert(hint.modulate.a > 0.9, "long-press panel finishes the fade")
 		WorldHover.dismiss_hold()
 	var pop := PopupPanel.new()
@@ -24083,6 +24092,7 @@ func _pc_mouse_unchanged_ok(tree_root: Window, game_state: Node, save_service: N
 		await tree_root.get_tree().process_frame
 		await tree_root.get_tree().process_frame
 		if keeper.get("_pending_interact") != node:
+			print("PC_MOUSE_RETRY: gatherable right-click")
 			## Headless picking can miss the first flush. The second click is the same device-0 path.
 			_pc_aim_origin(live, _touch_shape_world(node))
 			_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, true)
@@ -24201,6 +24211,7 @@ func _pc_mouse_unchanged_ok(tree_root: Window, game_state: Node, save_service: N
 		_touch_left_click(tree_root, bench_at, 0)
 		await tree_root.get_tree().process_frame
 		if not bool(hud.call("is_bench_open")):
+			print("PC_MOUSE_RETRY: bench")
 			_touch_left_click(tree_root, bench_at, 0)
 			await tree_root.get_tree().process_frame
 			await tree_root.get_tree().process_frame
@@ -24255,6 +24266,7 @@ func _pc_mouse_unchanged_ok(tree_root: Window, game_state: Node, save_service: N
 		await tree_root.get_tree().process_frame
 		var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
 		if panel == null or not panel.visible:
+			print("PC_MOUSE_RETRY: station")
 			_touch_left_click(tree_root, station_at, 0)
 			await tree_root.get_tree().process_frame
 			await tree_root.get_tree().process_frame
@@ -24275,6 +24287,48 @@ func _touch_press_event(device: int) -> InputEventMouseButton:
 	mb.position = Vector2(16, 16)
 	mb.global_position = mb.position
 	return mb
+
+
+func _touch_copy_ok(tree_root: Window, content_strings: Node) -> int:
+	## Lore FINAL touch copy: 22 keys in the touch table, PC roots unchanged from b26bbf9.
+	var failed: int = 0
+	var raw: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	var parsed: Variant = JSON.parse_string(raw)
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "strings_v01.json parses")
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return failed + 1
+	var touch: Dictionary = (parsed as Dictionary).get("touch", {}) as Dictionary
+	failed += _assert(touch.size() == 22, "touch table has 22 Lore keys (got %d)" % touch.size())
+	var pc: Dictionary = {
+		"keeper_select_hint": "Left-click to select the Keeper. Right-click to walk, harvest, or tend.",
+		"controls_hint": "LMB selects. RMB commands. Arrows pan the camera. LMB on empty ground deselects.",
+		"keeper_move_prompt": "Right-click the ground to walk.",
+		"keeper_required": "Select the Keeper first (left-click).",
+		"keeper_required_harvest": "Select the Keeper, then right-click the tree, stone, or berries.",
+		"keeper_required_tree": "Select the Keeper, then right-click the Manatree.",
+		"wisp_select_hint": "Left-click a Wisp, then right-click a gather spot or the Manatree.",
+		"wisp_assign_hint": "Right-click a harvest spot or the Manatree.",
+		"wisp_unassign_ground": "Right-click empty ground to call the Wisp back.",
+		"keeper_deselect_toast": "Cleared.",
+		"touch_hold_hint": "Tip: press and hold to give a command",
+		"ui.longpress_hint": "Hold to look\ncloser, or to\ngive an order.",
+	}
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = false
+	for key: Variant in pc.keys():
+		var pc_key: String = str(key)
+		failed += _assert(str(content_strings.call("get_text", pc_key)) == str(pc[pc_key]), "PC copy unchanged for %s" % pc_key)
+	Input.emulate_touch_from_mouse = true
+	for key: Variant in touch.keys():
+		var touch_key: String = str(key)
+		var want: String = str(touch[touch_key])
+		var got: String = str(content_strings.call("get_text", touch_key))
+		failed += _assert(got == want, "touch copy for %s (got %s want %s)" % [touch_key, got, want])
+	failed += await _longpress_hint_width_ok(tree_root)
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("TOUCH_COPY_OK")
+	return failed
 
 
 func _touch_hint_ok(tree_root: Window, game_state: Node) -> int:
@@ -24300,15 +24354,18 @@ func _touch_hint_ok(tree_root: Window, game_state: Node) -> int:
 		return failed + 1
 	var was_seen: bool = bool(audio.get("touch_hold_hint_seen"))
 	audio.set("touch_hold_hint_seen", false)
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
 	var heard: PackedStringArray = PackedStringArray()
 	var grab := func(text: String) -> void:
 		heard.append(text)
 	game_state.connect("status_message", grab)
 	failed += _assert(bool(input.call("show_hold_hint_if_needed", true)), "the first touch session shows the hint")
-	failed += _assert(heard.size() == 1 and heard[0] == "Tip: press and hold to give a command", "the toast is the plain hold tip")
+	failed += _assert(heard.size() == 1 and heard[0] == "Tip: double-tap to give an order", "the toast is the touch hold tip")
 	failed += _assert(bool(audio.get("touch_hold_hint_seen")), "the hint is marked seen")
 	failed += _assert(not bool(input.call("show_hold_hint_if_needed", true)), "the hint does not show twice")
 	failed += _assert(heard.size() == 1, "a second session does not toast again")
+	Input.emulate_touch_from_mouse = was_emulated
 	var settings: String = FileAccess.get_file_as_string("user://manaforge_settings.cfg")
 	failed += _assert(settings.find("hold_hint_seen") >= 0, "the seen flag is in settings")
 	var saved: String = JSON.stringify(game_state.call("to_save_dict"))

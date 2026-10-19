@@ -512,7 +512,7 @@ func _layout_box_button(x: float, y: float, tap: float) -> void:
 		_box_button.name = "TouchBoxSelect"
 		_box_button.toggle_mode = true
 		_box_button.focus_mode = Control.FOCUS_NONE
-		_box_button.text = ContentStrings.get_text("ui.touch_box_select")
+		_box_button.text = ContentStrings.get_text("touch_box_select_button")
 		GameTheme.style_wood_button(_box_button)
 		_box_button.toggled.connect(_on_box_select_toggled)
 		add_child(_box_button)

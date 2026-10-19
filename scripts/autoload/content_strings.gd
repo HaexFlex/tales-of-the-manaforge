@@ -5,6 +5,7 @@ extends Node
 const OFFLINE_SUMMARY_FINAL: String = "res://data/offline_summary_v2_FINAL.json"
 
 var _table: Dictionary = {}
+var _touch: Dictionary = {}
 
 
 func _ready() -> void:
@@ -15,7 +16,11 @@ func _ready() -> void:
 	var parsed: Variant = JSON.parse_string(file.get_as_text())
 	file.close()
 	if typeof(parsed) == TYPE_DICTIONARY:
-		_table = parsed
+		var root: Dictionary = parsed as Dictionary
+		if root.has("touch") and typeof(root["touch"]) == TYPE_DICTIONARY:
+			_touch = root["touch"] as Dictionary
+		_table = root.duplicate(true)
+		_table.erase("touch")
 	_merge_offline_summary_final()
 
 
@@ -34,7 +39,17 @@ func _merge_offline_summary_final() -> void:
 
 
 func get_text(key: String, tokens: Dictionary = {}) -> String:
-	var raw: String = str(_table.get(key, key))
+	var raw: String
+	if _touch_mode() and _touch.has(key):
+		raw = str(_touch[key])
+	else:
+		raw = str(_table.get(key, key))
 	for t: Variant in tokens.keys():
 		raw = raw.replace("{%s}" % str(t), str(tokens[t]))
 	return raw
+
+
+func _touch_mode() -> bool:
+	if not has_node("/root/GameInput"):
+		return false
+	return GameInput.touch_mode()

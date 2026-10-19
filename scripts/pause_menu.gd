@@ -390,7 +390,18 @@ func _ensure_options_chrome() -> void:
 	touch.name = "TouchHelp"
 	touch.add_theme_constant_override("separation", 6)
 	options_panel.add_child(touch)
-	for key: String in ["options_touch_walk", "options_touch_use", "options_touch_pause", "options_touch_drag"]:
+	for key: String in [
+		"options_touch_walk",
+		"options_touch_use",
+		"options_touch_pause",
+		"options_touch_drag",
+		"help_touch_tap",
+		"help_touch_double_tap",
+		"help_touch_long_press",
+		"help_touch_drag",
+		"help_touch_pinch",
+		"help_touch_box",
+	]:
 		var line := Label.new()
 		line.text = ContentStrings.get_text(key)
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
