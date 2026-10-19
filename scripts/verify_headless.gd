@@ -22649,6 +22649,8 @@ func _touch_nav_ok(tree_root: Window, game_state: Node, save_service: Node) -> i
 	failed += await _touch_double_ok(tree_root, game_state, save_service)
 	failed += await _touch_pan_ok(tree_root, save_service)
 	failed += await _touch_marquee_ok(tree_root, game_state, save_service)
+	failed += await _touch_polish_ok(tree_root)
+	failed += await _pc_mouse_unchanged_ok(tree_root, game_state, save_service)
 	return failed
 
 
@@ -23241,11 +23243,16 @@ func _touch_left_click(tree_root: Window, at: Vector2, device: int) -> void:
 	press.device = device
 	press.button_index = MOUSE_BUTTON_LEFT
 	press.pressed = true
+	press.button_mask = MOUSE_BUTTON_MASK_LEFT
 	press.position = at
 	press.global_position = at
 	tree_root.push_input(press)
-	press.pressed = false
-	tree_root.push_input(press)
+	# Picking flushes on the next frame and keeps this object. A second push of the
+	# same event would turn the queued press into a release.
+	var release: InputEventMouseButton = press.duplicate() as InputEventMouseButton
+	release.pressed = false
+	release.button_mask = 0
+	tree_root.push_input(release)
 
 
 func _touch_ground_tap_keeps_selection_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
@@ -23831,6 +23838,432 @@ func _touch_marquee_ok(tree_root: Window, game_state: Node, save_service: Node) 
 	Input.emulate_touch_from_mouse = was_emulated
 	if failed == 0:
 		print("TOUCH_MARQUEE_TOGGLE_OK")
+	return failed
+
+
+func _touch_polish_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	failed += await _touch_gear_preview_ok(tree_root, input)
+	failed += await _touch_log_scroll_ok(tree_root)
+	failed += await _touch_options_rebind_ok(tree_root)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_gear_preview_ok(tree_root: Window, input: Node) -> int:
+	## Long-press on a gear row opens the compare preview before the row tip.
+	var failed: int = 0
+	var sheet := CharacterSheet.new()
+	var row := CharacterSheet.GearRow.new()
+	row.item_id = "touch_nav_blade"
+	row.host = sheet
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.tooltip_text = "Blade tip"
+	row.position = Vector2(300, 320)
+	row.size = Vector2(220, 48)
+	var layer := CanvasLayer.new()
+	layer.layer = 200
+	layer.add_child(row)
+	tree_root.add_child(layer)
+	await tree_root.get_tree().process_frame
+	var at: Vector2 = row.get_global_rect().get_center()
+	_touch_hold_at(input, at)
+	failed += _assert(str(sheet.get("_hover_item_id")) == "touch_nav_blade", "a long-press on a gear row previews that item (got %s)" % str(sheet.get("_hover_item_id")))
+	failed += _assert(WorldHover.current_text() == "Blade tip", "the gear row still shows its own tip (got %s)" % WorldHover.current_text())
+	_touch_screen(input, 0, false, at)
+	WorldHover.dismiss_hold()
+	layer.free()
+	sheet.free()
+	if failed == 0:
+		print("TOUCH_GEAR_PREVIEW_OK")
+	return failed
+
+
+func _touch_log_scroll_ok(tree_root: Window) -> int:
+	## A touch scroll away from the bottom stops auto-follow. Wheel behaviour stays.
+	var failed: int = 0
+	var view_script: GDScript = load("res://scripts/battle/battle_view.gd") as GDScript
+	var view: Node = view_script.new() if view_script != null else null
+	failed += _assert(view != null, "the battle view script loads")
+	if view == null:
+		return failed
+	var scroll := ScrollContainer.new()
+	scroll.size = Vector2(180, 64)
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	var filler := Control.new()
+	filler.custom_minimum_size = Vector2(160, 420)
+	scroll.add_child(filler)
+	tree_root.add_child(scroll)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var bar: VScrollBar = scroll.get_v_scroll_bar()
+	failed += _assert(bar != null and bar.max_value > 2.0, "the log bar has room to scroll (max %s)" % str(bar.max_value if bar != null else -1.0))
+	if bar == null or bar.max_value <= 2.0:
+		scroll.free()
+		view.free()
+		return failed
+	view.set("_log_scroll", scroll)
+	bar.value = 0.0
+	view.set("_log_follow_tail", true)
+	Input.emulate_touch_from_mouse = false
+	var drag := InputEventScreenDrag.new()
+	drag.index = 0
+	drag.position = Vector2(40, 40)
+	drag.relative = Vector2(0, -48)
+	view.call("_on_log_scroll_gui_input", drag)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(view.get("_log_follow_tail")), "a screen drag does not stop follow when touch mode is off")
+	Input.emulate_touch_from_mouse = true
+	view.call("_on_log_scroll_gui_input", drag)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(view.get("_log_follow_tail")), "a touch scroll away from the bottom stops auto-follow")
+	bar.value = bar.max_value
+	view.set("_log_follow_tail", true)
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	motion.position = Vector2(40, 20)
+	motion.relative = Vector2(0, -20)
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	view.call("_on_log_scroll_gui_input", motion)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(view.get("_log_follow_tail")), "a touch scroll parked at the bottom keeps auto-follow")
+	var empty := ScrollContainer.new()
+	empty.size = Vector2(180, 64)
+	tree_root.add_child(empty)
+	await tree_root.get_tree().process_frame
+	view.set("_log_scroll", empty)
+	view.set("_log_follow_tail", true)
+	view.call("_on_log_scroll_gui_input", drag)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(view.get("_log_follow_tail")), "an empty log stays followed")
+	view.set("_log_scroll", scroll)
+	view.set("_log_follow_tail", true)
+	var wheel := InputEventMouseButton.new()
+	wheel.device = 0
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	view.call("_on_log_scroll_gui_input", wheel)
+	failed += _assert(not bool(view.get("_log_follow_tail")), "wheel up still stops auto-follow")
+	empty.free()
+	scroll.free()
+	view.free()
+	if failed == 0:
+		print("TOUCH_LOG_SCROLL_OK")
+	return failed
+
+
+func _touch_options_rebind_ok(tree_root: Window) -> int:
+	## Touch mode hides key rebinding and shows the existing touch help. Audio stays.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var menu: Node = packed.instantiate() if packed != null else null
+	failed += _assert(menu != null, "the pause menu loads for the touch options")
+	if menu == null:
+		return failed
+	tree_root.add_child(menu)
+	await tree_root.get_tree().process_frame
+	menu.set("_options_tab", "controls")
+	menu.call("_layout_options")
+	var rebind: CanvasItem = menu.get_node_or_null("OptionsPanel/Rebind_pause") as CanvasItem
+	var help: CanvasItem = menu.get_node_or_null("OptionsPanel/TouchHelp") as CanvasItem
+	failed += _assert(rebind != null and not rebind.visible, "touch mode hides key rebinding")
+	failed += _assert(help != null and help.visible, "touch mode shows the touch help")
+	menu.set("_options_tab", "audio")
+	menu.call("_layout_options")
+	var slider: CanvasItem = menu.get_node_or_null("OptionsPanel/MasterSlider") as CanvasItem
+	var display: CanvasItem = menu.get_node_or_null("OptionsPanel/DisplayBlock") as CanvasItem
+	failed += _assert(slider != null and slider.visible, "touch mode still shows the audio sliders")
+	failed += _assert(display != null and display.visible, "touch mode does not hide the audio display options")
+	menu.free()
+	return failed
+
+
+func _pc_mouse(tree_root: Window, at: Vector2, button: int, pressed: bool, double_click: bool = false) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.device = 0
+	motion.position = at
+	motion.global_position = at
+	tree_root.push_input(motion)
+	var mb := InputEventMouseButton.new()
+	mb.device = 0
+	mb.button_index = button
+	mb.pressed = pressed
+	mb.double_click = double_click
+	mb.factor = 1.0
+	mb.position = at
+	mb.global_position = at
+	if pressed and button == MOUSE_BUTTON_LEFT:
+		mb.button_mask = MOUSE_BUTTON_MASK_LEFT
+	elif pressed and button == MOUSE_BUTTON_RIGHT:
+		mb.button_mask = MOUSE_BUTTON_MASK_RIGHT
+	tree_root.push_input(mb)
+
+
+func _pc_aim_origin(live: Node, world: Vector2) -> void:
+	## Put world under the headless pointer, which stays at screen (0, 0).
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return
+	var view: Vector2 = live.call("_viewport_view") if live.has_method("_viewport_view") else Vector2(live.get_viewport().get_visible_rect().size)
+	var zoom: float = cam.zoom.x if cam.zoom.x > 0.001 else 1.0
+	cam.position = world + view * 0.5 / zoom
+	if cam.has_method("force_update_scroll"):
+		cam.force_update_scroll()
+
+
+func _pc_nearest_wisp(live: Node, origin: Vector2) -> Node2D:
+	var best: Node2D = null
+	var best_d: float = 1.0e12
+	for node: Node in live.get_tree().get_nodes_in_group("wisp"):
+		if not (node is Node2D):
+			continue
+		var body: Node2D = node as Node2D
+		if not body.visible:
+			continue
+		var dist: float = body.global_position.distance_to(origin)
+		if dist < best_d:
+			best_d = dist
+			best = body
+	return best
+
+
+func _pc_mouse_unchanged_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Device-0 mouse, touch mode off, keeps today's click, drag, and hover paths.
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = false
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null and not bool(input.call("touch_mode")), "touch mode is off for the mouse checks")
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for the mouse checks")
+	if live == null or input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	await tree_root.get_tree().process_frame
+	var hud: Node = live.get_node_or_null("HUD")
+	var box: CanvasItem = hud.get_node_or_null("TouchBoxSelect") as CanvasItem if hud != null else null
+	failed += _assert(box != null and not box.visible, "the box-select button stays hidden for the mouse")
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(keeper != null, "hub keeper exists for the mouse checks")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	game_state.call("select_keeper")
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	var ground: Vector2 = await _touch_aim(live, keeper.global_position + Vector2(420, 80))
+	_pc_mouse(tree_root, ground, MOUSE_BUTTON_LEFT, true)
+	_pc_mouse(tree_root, ground + Vector2(4, 0), MOUSE_BUTTON_LEFT, false)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(game_state.get("keeper_selected")), "a left click under 6 px on ground clears the selection")
+	failed += _assert(not heard.is_empty(), "a left click on ground toasts the clear")
+	game_state.disconnect("status_message", grab)
+	var node: Node = tree_root.get_tree().get_first_node_in_group("gatherable")
+	failed += _assert(node != null, "a gatherable exists")
+	if node != null:
+		game_state.call("select_keeper")
+		keeper.global_position = (node as Node2D).global_position + Vector2(-900, 200)
+		keeper.call("halt")
+		await tree_root.get_tree().process_frame
+		## Headless keeps the pointer at screen (0, 0). Park the gatherable there so the
+		## device-0 right-click and the ground fallback see the same point.
+		_pc_aim_origin(live, _touch_shape_world(node))
+		_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, true)
+		_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, false)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		if keeper.get("_pending_interact") != node:
+			## Headless picking can miss the first flush. The second click is the same device-0 path.
+			_pc_aim_origin(live, _touch_shape_world(node))
+			_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, true)
+			_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, false)
+			await tree_root.get_tree().process_frame
+			await tree_root.get_tree().process_frame
+		failed += _assert(keeper.get("_pending_interact") == node, "a right-click on a gatherable calls apply_player_command")
+	game_state.set("wisp_count", 1)
+	live.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	var wisp: Node2D = _pc_nearest_wisp(live, keeper.global_position)
+	failed += _assert(wisp != null and int(game_state.get("wisp_count")) > 0, "a wisp is on the hub")
+	if wisp != null:
+		wisp.set_process(false)
+		wisp.set_physics_process(false)
+		keeper.global_position = Vector2(2080, 2460)
+		keeper.call("halt")
+		wisp.global_position = keeper.global_position + Vector2(140, 0)
+	if wisp != null:
+		## Headless leaves the pointer at screen (0, 0). Slide the camera so that
+		## corner, then the opposite corner, sits under it. The drag still goes
+		## through the real left-button path.
+		var press_world := Vector2(minf(keeper.global_position.x, wisp.global_position.x), minf(keeper.global_position.y, wisp.global_position.y)) - Vector2(70, 70)
+		var release_world := Vector2(maxf(keeper.global_position.x, wisp.global_position.x), maxf(keeper.global_position.y, wisp.global_position.y)) + Vector2(70, 70)
+		game_state.call("clear_selection")
+		_pc_aim_origin(live, press_world)
+		_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_LEFT, true)
+		_pc_aim_origin(live, release_world)
+		var drag_motion := InputEventMouseMotion.new()
+		drag_motion.device = 0
+		drag_motion.position = Vector2.ZERO
+		drag_motion.global_position = Vector2.ZERO
+		drag_motion.relative = Vector2(80, 40)
+		drag_motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		tree_root.push_input(drag_motion)
+		_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_LEFT, false)
+		await tree_root.get_tree().process_frame
+		var picked: Array = game_state.call("selected_wisp_list")
+		failed += _assert(bool(game_state.get("keeper_selected")), "a left drag box-selects the Keeper")
+		failed += _assert(picked.has(int(wisp.get("wisp_id"))), "a left drag box-selects the Wisp (got %s mouse %s)" % [str(picked), live.get_global_mouse_position()])
+		var wid: int = int(wisp.get("wisp_id"))
+		var assigns: Dictionary = game_state.get("wisp_assignments")
+		assigns[str(wid)] = "wood"
+		game_state.call("select_group", [wid], true)
+		keeper.call("halt")
+		var walk_at: Vector2 = await _touch_aim(live, keeper.global_position + Vector2(220, 40))
+		_pc_mouse(tree_root, walk_at, MOUSE_BUTTON_RIGHT, true)
+		_pc_mouse(tree_root, walk_at, MOUSE_BUTTON_RIGHT, false)
+		await tree_root.get_tree().process_frame
+		failed += _assert(bool(keeper.get("_moving")), "a right-click on ground walks the selected Keeper")
+		failed += _assert(str(assigns.get(str(wid), "")) == "", "a right-click on ground unassigns the selected Wisp")
+	game_state.call("select_keeper")
+	keeper.call("halt")
+	var still: Vector2 = await _touch_aim(live, keeper.global_position + Vector2(260, 30))
+	_pc_mouse(tree_root, still, MOUSE_BUTTON_LEFT, true, true)
+	_pc_mouse(tree_root, still, MOUSE_BUTTON_LEFT, false)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(keeper.get("_moving")), "a real left double-click on ground does not walk")
+	var slot: Control = hud.get("_slot_keeper") as Control if hud != null else null
+	var cam_focus: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if slot != null and cam_focus != null:
+		var tree: SceneTree = tree_root.get_tree()
+		var prev_scene: Node = tree.current_scene
+		tree.current_scene = live
+		cam_focus.position = keeper.global_position + Vector2(640, 240)
+		if live.has_method("_clamp_camera"):
+			live.call("_clamp_camera")
+		var bar: CanvasItem = slot.get_parent().get_parent() as CanvasItem
+		if bar != null:
+			bar.visible = true
+		_pc_mouse(tree_root, slot.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true, true)
+		_pc_mouse(tree_root, slot.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+		await tree_root.get_tree().process_frame
+		var want: Vector2 = live.call("_clamped_camera_pos", keeper.global_position)
+		failed += _assert(cam_focus.position.distance_to(want) <= 1.5, "a portrait double-click centres the camera (at %s want %s)" % [cam_focus.position, want])
+		if is_instance_valid(prev_scene) and prev_scene != live:
+			tree.current_scene = prev_scene
+		elif tree.current_scene == live:
+			tree.current_scene = null
+	else:
+		failed += _assert(false, "portrait double-click has a slot and a camera")
+	if live.has_method("set_camera_zoom"):
+		live.set("_wheel_accum", 0.0)
+		live.set("_drag_active", false)
+		live.call("set_camera_zoom", 1.0, false)
+		var clear_motion := InputEventMouseMotion.new()
+		clear_motion.device = 0
+		clear_motion.position = Vector2(640, 200)
+		clear_motion.global_position = clear_motion.position
+		tree_root.push_input(clear_motion)
+		var wheel := InputEventMouseButton.new()
+		wheel.device = 0
+		wheel.pressed = true
+		wheel.factor = 1.0
+		wheel.position = Vector2(640, 200)
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+		live.call("_unhandled_input", wheel)
+		failed += _assert(is_equal_approx(float(live.get("camera_zoom")), 2.0), "wheel up steps the zoom 1 to 2 (got %s)" % str(live.get("camera_zoom")))
+		wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+		live.call("_unhandled_input", wheel)
+		failed += _assert(is_equal_approx(float(live.get("camera_zoom")), 1.0), "wheel down steps the zoom 2 to 1 (got %s)" % str(live.get("camera_zoom")))
+	if node != null:
+		WorldHover.dismiss(node)
+		node.set("input_pickable", false)
+		node.call("_on_hover", true)
+		var expect: String = str(node.call("world_hover_name"))
+		failed += _assert(WorldHover.current_text() == "", "the Area2D tooltip waits out the 0.8 s rest")
+		await tree_root.get_tree().create_timer(0.95).timeout
+		failed += _assert(WorldHover.current_text() != "" and (WorldHover.current_text() == expect or WorldHover.current_text().find("Tree") >= 0), "an Area2D hover shows its tooltip after 0.8 s (got %s want %s)" % [WorldHover.current_text(), expect])
+		WorldHover.dismiss(node)
+		node.set("input_pickable", true)
+	var bench: Node = tree_root.get_tree().get_first_node_in_group("keepers_bench")
+	failed += _assert(bench != null, "the keeper's bench exists")
+	if bench != null and hud != null and hud.has_method("is_bench_open"):
+		var bench_at: Vector2 = await _touch_aim(live, _touch_shape_world(bench))
+		_touch_left_click(tree_root, bench_at, 0)
+		await tree_root.get_tree().process_frame
+		if not bool(hud.call("is_bench_open")):
+			_touch_left_click(tree_root, bench_at, 0)
+			await tree_root.get_tree().process_frame
+			await tree_root.get_tree().process_frame
+		failed += _assert(bool(hud.call("is_bench_open")), "the bench opens at once, with no tap delay")
+		if hud.has_method("close_bench"):
+			hud.call("close_bench")
+	var hold := Button.new()
+	hold.tooltip_text = "Should stay hidden"
+	hold.position = Vector2(40, 40)
+	hold.size = Vector2(80, 40)
+	tree_root.add_child(hold)
+	await tree_root.get_tree().process_frame
+	_pc_mouse(tree_root, hold.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
+	input.set("_touch_start_ms", Time.get_ticks_msec() - 900)
+	input.call("_process", 0.016)
+	failed += _assert(not bool(input.call("primary_down")), "a real mouse press does not start a long-press")
+	failed += _assert(WorldHover.current_text() != "Should stay hidden", "a real mouse hold does not open a long-press tip")
+	_pc_mouse(tree_root, hold.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+	hold.free()
+	var pause: Node = live.get_node_or_null("PauseMenu")
+	if pause != null:
+		pause.set("_options_tab", "controls")
+		pause.call("_layout_options")
+		var rebind: CanvasItem = pause.get_node_or_null("OptionsPanel/Rebind_pause") as CanvasItem
+		var help: CanvasItem = pause.get_node_or_null("OptionsPanel/TouchHelp") as CanvasItem
+		failed += _assert(rebind != null and rebind.visible, "key rebinding stays visible for the mouse")
+		failed += _assert(help != null and not help.visible, "the touch help stays hidden for the mouse")
+	var layer := CanvasLayer.new()
+	layer.layer = 200
+	var pad := Button.new()
+	pad.text = "Go"
+	pad.position = Vector2(860, 80)
+	pad.size = Vector2(120, 44)
+	layer.add_child(pad)
+	tree_root.add_child(layer)
+	await tree_root.get_tree().process_frame
+	var hits: Array[int] = [0]
+	pad.pressed.connect(func() -> void: hits[0] = hits[0] + 1)
+	_pc_mouse(tree_root, pad.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
+	_pc_mouse(tree_root, pad.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+	await tree_root.get_tree().process_frame
+	failed += _assert(hits[0] == 1, "a left release on a HUD button still fires it (got %d)" % hits[0])
+	layer.free()
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	var station: Node = tree_root.get_tree().get_first_node_in_group("forge_station") if forge != null else null
+	failed += _assert(forge != null and station != null, "a forge station exists")
+	if forge != null and station != null:
+		var station_at: Vector2 = await _touch_aim(forge, _touch_shape_world(station))
+		_touch_left_click(tree_root, station_at, 0)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
+		if panel == null or not panel.visible:
+			_touch_left_click(tree_root, station_at, 0)
+			await tree_root.get_tree().process_frame
+			await tree_root.get_tree().process_frame
+			panel = forge.get("recipe_panel") as CanvasItem
+		failed += _assert(panel != null and panel.visible, "the station opens at once, with no tap delay")
+	_touch_free_hub(tree_root, forge, save_service)
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("PC_MOUSE_UNCHANGED_OK")
 	return failed
 
 

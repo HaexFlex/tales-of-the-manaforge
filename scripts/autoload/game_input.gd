@@ -497,6 +497,7 @@ func inspect_at_screen(screen_pos: Vector2) -> void:
 
 func _dispatch_long_press(screen_pos: Vector2) -> void:
 	## Fires only after long_press_wait() (0.8 s). Hover only: no walk, no press.
+	_preview_gear_under(screen_pos)
 	var tip: String = _tooltip_at_screen(screen_pos)
 	if tip != "":
 		_hold_panel_open = WorldHover.show_anchored_hint(tip, screen_pos, _anchored_size(tip))
@@ -510,6 +511,20 @@ func _dispatch_long_press(screen_pos: Vector2) -> void:
 	WorldHover.present(source, world_name)
 	WorldHover.complete_rest()
 	_hold_panel_open = true
+
+
+func _preview_gear_under(screen_pos: Vector2) -> void:
+	## A gear row's tip would return before the compare preview. Set it first.
+	if not touch_mode():
+		return
+	var node: Node = _control_at(screen_pos)
+	while node != null:
+		var raw: Variant = node.get("item_id")
+		var host: Variant = node.get("host")
+		if raw is String and str(raw) != "" and host is Node and (host as Node).has_method("set_hover_item"):
+			(host as Node).call("set_hover_item", str(raw))
+			return
+		node = node.get_parent()
 
 
 func _anchored_size(text: String) -> Vector2:

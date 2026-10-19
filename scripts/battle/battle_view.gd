@@ -2682,6 +2682,19 @@ func _on_log_scroll_gui_input(event: InputEvent) -> void:
 			_log_follow_tail = false
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			call_deferred("_sync_log_follow_from_scroll")
+		return
+	var loop: SceneTree = Engine.get_main_loop() as SceneTree
+	var input: Node = loop.root.get_node_or_null("GameInput") if loop != null else null
+	if input == null or not bool(input.call("touch_mode")):
+		return
+	var touch_scroll: bool = false
+	if event is InputEventScreenDrag:
+		touch_scroll = (event as InputEventScreenDrag).index == 0
+	elif event is InputEventMouseMotion:
+		var motion: InputEventMouseMotion = event as InputEventMouseMotion
+		touch_scroll = motion.device == InputEvent.DEVICE_ID_EMULATION and (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0
+	if touch_scroll:
+		call_deferred("_sync_log_follow_from_scroll")
 
 
 func _sync_log_follow_from_scroll() -> void:
@@ -2690,7 +2703,9 @@ func _sync_log_follow_from_scroll() -> void:
 	var bar: VScrollBar = _log_scroll.get_v_scroll_bar()
 	if bar == null:
 		return
-	_log_follow_tail = bar.max_value <= 0.0 or bar.value >= bar.max_value - 2.0
+	## page is the visible slice, so the end sits at max - page, not at max.
+	var end: float = bar.max_value - maxf(bar.page, 0.0)
+	_log_follow_tail = bar.max_value <= 0.0 or bar.value >= end - 2.0
 
 
 func _scroll_log_to_end() -> void:

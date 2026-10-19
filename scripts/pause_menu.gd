@@ -289,7 +289,7 @@ func _layout_options() -> void:
 	var phone: bool = Ui540.is_phone_export()
 	y = _layout_audio_page(y, inner, w, show_audio, phone)
 	y = _layout_gameplay_page(y, inner, show_play)
-	y = _layout_controls_page(y, inner, show_keys, phone)
+	y = _layout_controls_page(y, inner, show_keys, phone or GameInput.touch_mode())
 	_fit_window(options_panel, Vector2(w, y + 24.0))
 	Ui540.place_title_plank(options_title, w)
 
