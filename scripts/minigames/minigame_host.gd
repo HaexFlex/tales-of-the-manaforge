@@ -101,6 +101,7 @@ func _build() -> void:
 	_prompt.custom_minimum_size = Vector2(168, Ui540.TAP_MIN_PX)
 	_prompt.focus_mode = Control.FOCUS_NONE
 	_prompt.pressed.connect(_on_prompt_pressed)
+	_prompt.mouse_exited.connect(_on_prompt_mouse_exited)
 	root.add_child(_prompt)
 
 	_dim = ColorRect.new()
@@ -415,7 +416,28 @@ func show_prompt(target_id: String, world: Vector2, show: bool) -> void:
 		_prompt_world = world
 		_prompt_on = true
 	elif _prompt_target == target_id:
+		## A touch tap's emulated mouse drops the node's physics hover before the
+		## click is delivered, and that hover-exit asks to hide Lend a hand while
+		## the finger is still on the button. Keep it up so the button takes the tap.
+		if _touch_keeps_prompt():
+			return
 		_prompt_on = false
+	_refresh_prompt()
+
+
+func _touch_keeps_prompt() -> bool:
+	if not GameInput.touch_mode() or _prompt == null or not _prompt.visible:
+		return false
+	var vp: Viewport = get_viewport()
+	if vp == null:
+		return false
+	return _prompt.get_global_rect().has_point(vp.get_mouse_position())
+
+
+func _on_prompt_mouse_exited() -> void:
+	if not GameInput.touch_mode() or not _prompt_on or _touch_keeps_prompt():
+		return
+	_prompt_on = false
 	_refresh_prompt()
 
 

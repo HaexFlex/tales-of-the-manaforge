@@ -107,8 +107,15 @@ func _layout_dialog() -> void:
 	var btn_w: float = maxf(170.0, _button_width(_action_text))
 	btn_w = maxf(btn_w, _button_width(_safe_text))
 	var total_w: float = minf(DIALOG_W_MAX, maxf(DIALOG_W, btn_w * 2.0 + 48.0 + 80.0))
-	_win.custom_minimum_size = Vector2(total_w, 0)
-	_win.size = Vector2(total_w, minf(DIALOG_H_MAX, _estimate_height(total_w, body_h, use_scroll)))
+	var win_h: float = minf(DIALOG_H_MAX, _estimate_height(total_w, body_h, use_scroll))
+	if GameInput.touch_mode():
+		## Centre anchors plus a 0 minimum height collapse the window when a later
+		## resize assigns position. Touch pins the real size. Mouse keeps the old layout.
+		_win.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		_win.custom_minimum_size = Vector2(total_w, win_h)
+	else:
+		_win.custom_minimum_size = Vector2(total_w, 0)
+	_win.size = Vector2(total_w, win_h)
 	_action.custom_minimum_size = Vector2(btn_w, BTN_H)
 	_safe.custom_minimum_size = Vector2(btn_w, BTN_H)
 	_win.center_on_viewport = true
@@ -145,6 +152,10 @@ func _button_width(label: String) -> float:
 		return w38
 	var body_font: Font = load("res://assets/fonts/font_body_silver19.tres") as Font
 	return body_font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 19).x + 32.0
+
+
+func cancel() -> void:
+	_answer(false)
 
 
 func _answer(ok: bool) -> void:

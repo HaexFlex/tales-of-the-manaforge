@@ -305,7 +305,14 @@ func _layout_options() -> void:
 	y = _layout_controls_page(y, inner, show_keys, phone or GameInput.touch_mode())
 	var want: Vector2 = Vector2(w, y + 24.0)
 	if phone or GameInput.touch_mode():
-		Ui540.fit_kit_window(options_panel, want)
+		## fit_kit_window assigns position. Centre anchors turn that into a 0-size window.
+		options_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		var fitted: Vector2 = Ui540.fit_kit_window(options_panel, want)
+		var frame: Panel = options_panel.get_node_or_null("Frame") as Panel
+		if frame:
+			frame.set_anchors_preset(Control.PRESET_TOP_LEFT)
+			frame.position = Vector2.ZERO
+			frame.size = fitted
 	else:
 		_fit_window(options_panel, want)
 	Ui540.place_title_plank(options_title, w)
@@ -857,6 +864,31 @@ func _close_expedition_board() -> void:
 			return
 
 
+## Android back and a synthesized ui_cancel. Escape still owns the keyboard path.
+func dismiss_for_back() -> bool:
+	if confirm_panel != null and confirm_panel.visible:
+		_hide_confirm()
+		return true
+	if standalone:
+		if (options_panel != null and options_panel.visible) or (slots_panel != null and slots_panel.visible):
+			close_standalone()
+			return true
+		return false
+	if options_panel != null and options_panel.visible:
+		_hide_options()
+		return true
+	if slots_panel != null and slots_panel.visible:
+		_hide_slots()
+		return true
+	if _open:
+		resume_game()
+		return true
+	if _expedition_board_open():
+		_close_expedition_board()
+		return true
+	return false
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _rebind_listen != "" and event is InputEventKey and event.pressed and not event.echo:
 		var listen: InputEventKey = event as InputEventKey
@@ -866,6 +898,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			_offer_rebind(listen.keycode)
 		get_viewport().set_input_as_handled()
+		return
+	## Keyboard Escape stays on the key path below, including opening pause.
+	## A non-key ui_cancel (Android back) only closes a window that is already open.
+	if event.is_action_pressed("ui_cancel") and not (event is InputEventKey):
+		if dismiss_for_back():
+			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event

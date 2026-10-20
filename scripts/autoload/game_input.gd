@@ -32,13 +32,68 @@ var _defer_gen: int = 0
 var _marquee_armed: bool = false
 ## Finger indexes currently down. Index 0 is the only one that owns a gesture.
 var _down: Dictionary = {}
+var _back_frame: int = -1
 
 
 func _ready() -> void:
 	_ensure_input_actions()
+	_install_android_back()
 	for arg: String in OS.get_cmdline_user_args():
 		if arg == "--emulate-touch":
 			Input.emulate_touch_from_mouse = true
+
+
+func _install_android_back() -> void:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return
+	## The default handler quits on the signal. Modals have to close first.
+	tree.quit_on_go_back = false
+	var root: Window = tree.root
+	if root == null:
+		return
+	if not root.go_back_requested.is_connected(on_android_back):
+		root.go_back_requested.connect(on_android_back)
+	## notification() on the root does not emit go_back_requested, and it is not
+	## delivered to children. A script on the window itself sees it.
+	if root.get_script() == null:
+		var back_script: Script = load("res://scripts/ui/root_back.gd") as Script
+		if back_script != null:
+			root.set_script(back_script)
+
+
+func on_android_back() -> void:
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return
+	tree.quit_on_go_back = false
+	var frame: int = Engine.get_process_frames()
+	if frame == _back_frame:
+		return
+	_back_frame = frame
+	if _dismiss_back_modal(tree.root):
+		return
+	tree.quit()
+
+
+func _dismiss_back_modal(node: Node) -> bool:
+	if node is KitDialog:
+		var dialog: KitDialog = node as KitDialog
+		if dialog.is_visible_in_tree():
+			dialog.cancel()
+			return true
+	if node is PauseMenu:
+		var menu: PauseMenu = node as PauseMenu
+		if menu.visible and menu.dismiss_for_back():
+			return true
+	if node != null and node.has_method("is_open") and node.has_method("close_immediate") and str(node.name) == "MinigameHost":
+		if bool(node.call("is_open")):
+			node.call("close_immediate")
+			return true
+	for child: Node in node.get_children():
+		if _dismiss_back_modal(child):
+			return true
+	return false
 
 
 func long_press_wait() -> float:

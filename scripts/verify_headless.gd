@@ -158,6 +158,24 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TOUCH_PANEL_BUTTON") == "1":
+		var panel_tap: int = await _touch_panel_button_tap_ok(tree_root, game_state, save_service)
+		if panel_tap > 0:
+			print("TOUCH_PANEL_BUTTON_TAP_FAIL: %d" % panel_tap)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TITLE_NEW_GAME_TOUCH") == "1":
+		var title_touch: int = await _title_new_game_touch_ok(tree_root, save_service)
+		if title_touch > 0:
+			print("TITLE_NEW_GAME_TOUCH_FAIL: %d" % title_touch)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_TOUCH_HELP_FITS") == "1":
 		var help_fit: int = await _options_touch_help_fits_ok(tree_root)
 		help_fit += await _options_pc_panel_unchanged_ok(tree_root)
@@ -5816,6 +5834,8 @@ func _check_only_load() -> int:
 		"res://scripts/ui/expedition_shell.gd",
 		"res://scripts/autoload/game_theme.gd",
 		"res://scripts/autoload/game_input.gd",
+		"res://scripts/ui/root_back.gd",
+		"res://scripts/ui/kit_dialog.gd",
 		"res://scripts/minigames/minigame_math.gd",
 		"res://scripts/minigames/minigame_catalog.gd",
 		"res://scripts/minigames/minigame_art.gd",
@@ -24939,6 +24959,410 @@ func _assert_inside(ctrl: Control, safe: Rect2, label: String) -> int:
 		return _assert(false, "%s is missing" % label)
 	var rect: Rect2 = ctrl.get_global_rect()
 	return _assert(safe.encloses(rect), "%s %s is outside %s" % [label, rect, safe])
+
+
+const TITLE_TOUCH_WINDOW: Vector2i = Vector2i(2400, 1080)
+
+
+func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A finger on a HUD or panel button presses that button. The emulated mouse
+	## must not turn the tap into a world deselect. ScreenTouch index 0, 2× scale.
+	var failed: int = 0
+	var was_touch: bool = Input.emulate_touch_from_mouse
+	var was_mouse: bool = Input.emulate_mouse_from_touch
+	Input.emulate_touch_from_mouse = true
+	Input.emulate_mouse_from_touch = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_touch
+		Input.emulate_mouse_from_touch = was_mouse
+		return 1
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	failed += _assert(live != null, "hub loads for panel button taps")
+	if live == null:
+		Input.emulate_touch_from_mouse = was_touch
+		Input.emulate_mouse_from_touch = was_mouse
+		return failed
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	var prompt: Button = tree_root.get_node_or_null("MinigameHost/MinigameRoot/LendPrompt") as Button
+	failed += _assert(jobs != null and host != null and prompt != null, "lend prompt exists")
+	if jobs == null or host == null or prompt == null:
+		_touch_free_hub(tree_root, live, save_service)
+		Input.emulate_touch_from_mouse = was_touch
+		Input.emulate_mouse_from_touch = was_mouse
+		return failed
+	var lend_hits: Array = [0]
+	prompt.pressed.connect(func() -> void: lend_hits[0] += 1)
+	for key: String in ["stone", "wood", "food"]:
+		var node: Node = _touch_gatherable_named(tree_root, key)
+		failed += _assert(node != null, "a %s node exists for the lend tap" % key)
+		if node == null:
+			continue
+		failed += await _touch_lend_opens(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, node, "gather", str(node.get("resource_id")), key)
+	var manatree: Node = tree_root.get_tree().get_first_node_in_group("manatree")
+	failed += _assert(manatree != null, "the Manatree exists for the lend tap")
+	if manatree != null:
+		failed += await _touch_lend_opens(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, manatree, "water", "manatree", "Manatree")
+	var runestone: Node = tree_root.get_tree().get_first_node_in_group("runestone")
+	failed += _assert(runestone != null, "a runestone exists")
+	if runestone != null and runestone.has_method("begin_spend"):
+		game_state.call("select_keeper")
+		runestone.call("begin_spend")
+		await tree_root.get_tree().process_frame
+		var no_btn: Button = runestone.get("_no") as Button
+		var panel_open: bool = runestone.has_method("is_spend_confirm_open") and bool(runestone.call("is_spend_confirm_open"))
+		failed += _assert(panel_open and no_btn != null and no_btn.visible, "the runestone confirm is open")
+		if no_btn != null and panel_open:
+			var presses: int = await _touch_count_press(tree_root, input, no_btn)
+			failed += _assert(presses == 1, "a tap on the runestone Not now button presses it (got %d)" % presses)
+			failed += _assert(not bool(runestone.call("is_spend_confirm_open")), "the runestone panel closes on that tap")
+			failed += _assert(bool(game_state.get("keeper_selected")), "the runestone tap does not deselect the Keeper")
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("open_bench_panel"):
+		game_state.call("select_keeper")
+		hud.call("open_bench_panel")
+		await tree_root.get_tree().process_frame
+		var bench_close: Button = hud.get_node_or_null("BenchPanel/Header/BenchCloseButton") as Button
+		failed += _assert(bench_close != null and bench_close.visible, "the Keeper's bench close button is up")
+		if bench_close != null:
+			var presses: int = await _touch_count_press(tree_root, input, bench_close)
+			failed += _assert(presses == 1, "a tap on the bench close button presses it (got %d)" % presses)
+			failed += _assert(not bool(hud.call("is_bench_open")), "the bench panel closes")
+			failed += _assert(bool(game_state.get("keeper_selected")), "the bench tap does not deselect the Keeper")
+	var board: Node = tree_root.get_tree().get_first_node_in_group("expedition_board")
+	failed += _assert(board != null, "the expedition board exists")
+	if board != null and board.has_method("open_shell"):
+		game_state.call("select_keeper")
+		board.call("open_shell")
+		await tree_root.get_tree().process_frame
+		var close_btn: Button = board.get("_close_btn") as Button
+		failed += _assert(close_btn != null and close_btn.visible, "the expedition close button is up")
+		if close_btn != null:
+			var presses: int = await _touch_count_press(tree_root, input, close_btn)
+			failed += _assert(presses == 1, "a tap on the expedition close button presses it (got %d)" % presses)
+			failed += _assert(not bool(board.call("shell_open")), "the expedition board closes")
+			failed += _assert(bool(game_state.get("keeper_selected")), "the expedition tap does not deselect the Keeper")
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn", TOUCH_DEVICE_WINDOW)
+	failed += _assert(forge != null, "the forge loads for station button taps")
+	if forge != null:
+		var stations: Array[Node] = tree_root.get_tree().get_nodes_in_group("forge_station")
+		failed += _assert(stations.size() >= 5, "every forge station is present (got %d)" % stations.size())
+		for station: Node in stations:
+			var station_id: String = str(station.get("station_id"))
+			if station_id == "" or not forge.has_method("open_station_panel"):
+				continue
+			forge.call("open_station_panel", station_id)
+			await tree_root.get_tree().process_frame
+			var row: Button = _touch_first_enabled_button(forge.get("recipe_panel") as Node)
+			if row == null:
+				row = forge.get_node_or_null("UI/RecipePanel/RepeatToggle") as Button
+			failed += _assert(row != null and row.visible and not row.disabled, "station %s has a panel button" % station_id)
+			if row != null and row.visible and not row.disabled:
+				game_state.call("select_keeper")
+				var presses: int = await _touch_count_press(tree_root, input, row)
+				failed += _assert(presses == 1, "a tap on the %s panel button presses it (got %d)" % [station_id, presses])
+				failed += _assert(bool(game_state.get("keeper_selected")), "the %s panel tap does not deselect the Keeper" % station_id)
+			if forge.has_method("_hide_recipes"):
+				forge.call("_hide_recipes")
+		var first: Node = stations[0] if not stations.is_empty() else null
+		if first != null:
+			var station_id: String = str(first.get("station_id"))
+			jobs = tree_root.get_node_or_null("ForgeJobs")
+			host = tree_root.get_node_or_null("MinigameHost")
+			prompt = tree_root.get_node_or_null("MinigameHost/MinigameRoot/LendPrompt") as Button
+			if jobs != null and host != null and prompt != null and station_id != "":
+				var station_hits: Array = [0]
+				prompt.pressed.connect(func() -> void: station_hits[0] += 1)
+				forge.call("open_station_panel", station_id)
+				failed += await _touch_lend_opens(tree_root, forge, game_state, input, jobs, host, prompt, station_hits, first, "craft", station_id, station_id)
+				if forge.has_method("_hide_recipes"):
+					forge.call("_hide_recipes")
+		_touch_free_hub(tree_root, forge, save_service)
+	Input.emulate_touch_from_mouse = was_touch
+	Input.emulate_mouse_from_touch = was_mouse
+	if failed == 0:
+		print("TOUCH_PANEL_BUTTON_TAP_OK")
+	return failed
+
+
+func _touch_lend_opens(tree_root: Window, live: Node, game_state: Node, input: Node, jobs: Node, host: Node, prompt: Button, hits: Array, node: Node, kind: String, target: String, label: String) -> int:
+	var failed: int = 0
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	jobs.call("set_keeper_task", kind, target, true)
+	_touch_silence_wisps(tree_root, false)
+	var keeper: Node2D = tree_root.get_tree().get_first_node_in_group("keeper") as Node2D
+	if keeper != null and node is Node2D:
+		keeper.global_position = (node as Node2D).global_position + Vector2(-900, 260)
+		if keeper.has_method("halt"):
+			keeper.call("halt")
+	var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, node)
+	game_state.call("select_keeper")
+	await _touch_aim(live, _touch_shape_world(node))
+	tree_root.notify_mouse_entered()
+	var world: Vector2 = (node as Node2D).global_position if node is Node2D else Vector2.ZERO
+	jobs.call("set_keeper_task", kind, target, true)
+	host.call("show_prompt", target, world, true)
+	await tree_root.get_tree().process_frame
+	## The Keeper's own process can clear a task it did not start. Put it back
+	## immediately before the finger, or the prompt hides in that gap.
+	jobs.call("set_keeper_task", kind, target, true)
+	host.call("show_prompt", target, world, true)
+	failed += _assert(prompt.visible, "Lend a hand is showing on %s (hero %s open %s on %s game %s)" % [label, str(host.call("hero_for", target)), str(host.call("is_open")), str(host.get("_prompt_on")), str(host.get("_prompt_target"))])
+	if not prompt.visible:
+		_touch_unmute(muted)
+		jobs.call("set_keeper_task", kind, target, false)
+		return failed
+	## The first finger can open the game. Closing it leaves the node hovered, and
+	## the next finger is the one that currently falls through to the world.
+	hits[0] = 0
+	_touch_arm_single(input)
+	_touch_single_at(tree_root, input, prompt.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	await tree_root.get_tree().process_frame
+	jobs.call("set_keeper_task", kind, target, true)
+	host.call("show_prompt", target, world, true)
+	failed += _assert(prompt.visible, "Lend a hand comes back on %s" % label)
+	hits[0] = 0
+	game_state.call("select_keeper")
+	_touch_arm_single(input)
+	_touch_single_at(tree_root, input, prompt.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	failed += _assert(int(hits[0]) == 1, "a tap on Lend a hand at %s presses the button (got %d)" % [label, int(hits[0])])
+	failed += _assert(bool(host.call("is_open")), "Lend a hand at %s opens the minigame" % label)
+	failed += _assert(bool(game_state.get("keeper_selected")), "the %s lend tap does not deselect the Keeper" % label)
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	jobs.call("set_keeper_task", kind, target, false)
+	_touch_unmute(muted)
+	await tree_root.get_tree().process_frame
+	return failed
+
+
+func _touch_physics_hover(tree_root: Window, live: Node, node: Node) -> void:
+	## Park the cursor on the node so its hover (and the Lend button) is real.
+	var at: Vector2 = await _touch_aim(live, _touch_shape_world(node))
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	motion.global_position = at
+	Input.parse_input_event(motion)
+	Input.flush_buffered_events()
+	await tree_root.get_tree().physics_frame
+	await tree_root.get_tree().process_frame
+
+
+func _touch_count_press(tree_root: Window, input: Node, button: Button) -> int:
+	var hits: Array = [0]
+	button.pressed.connect(func() -> void: hits[0] += 1)
+	await tree_root.get_tree().process_frame
+	_touch_arm_single(input)
+	_touch_single_at(tree_root, input, button.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	return int(hits[0])
+
+
+func _touch_first_enabled_button(root: Node) -> Button:
+	if root == null:
+		return null
+	if root is Button:
+		var btn: Button = root as Button
+		if btn.visible and not btn.disabled and btn.get_global_rect().size.x > 1.0 and btn.get_global_rect().size.y > 1.0:
+			return btn
+	for child: Node in root.get_children():
+		var found: Button = _touch_first_enabled_button(child)
+		if found != null:
+			return found
+	return null
+
+
+func _title_new_game_touch_ok(tree_root: Window, save_service: Node) -> int:
+	## New Game after a fresh launch and after Quit to Title. Touch, 2400×1080.
+	## The confirm must have its copy and a real size, and Android back must close it.
+	var failed: int = 0
+	var was_touch: bool = Input.emulate_touch_from_mouse
+	var was_mouse: bool = Input.emulate_mouse_from_touch
+	Input.emulate_touch_from_mouse = true
+	Input.emulate_mouse_from_touch = true
+	save_service.call("delete_save")
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null, "GameInput exists for the title touch check")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_touch
+		Input.emulate_mouse_from_touch = was_mouse
+		return failed
+	var seeded: Node = await _touch_boot_hub(tree_root, save_service, TITLE_TOUCH_WINDOW)
+	failed += _assert(seeded != null, "a session exists to write the title save")
+	if seeded != null:
+		failed += _assert(bool(save_service.call("save_game", 1)), "a manual save is written")
+		_touch_free_hub(tree_root, seeded, save_service)
+	failed += _assert(bool(save_service.call("has_save")), "the title has a save to confirm")
+	failed += await _title_touch_windows(tree_root, input, "fresh launch")
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TITLE_TOUCH_WINDOW)
+	failed += _assert(live != null, "the hub loads for Quit to Title")
+	if live != null:
+		var pause: Node = live.get_node_or_null("PauseMenu")
+		failed += _assert(pause != null, "the pause menu exists")
+		if pause != null and pause.has_method("open_pause"):
+			pause.call("open_pause")
+			await tree_root.get_tree().process_frame
+			var exit_btn: Button = pause.get_node_or_null("Panel/BtnExit") as Button
+			failed += _assert(exit_btn != null and exit_btn.visible, "Quit to Title is on the pause menu")
+			if exit_btn != null:
+				_touch_arm_single(input)
+				_touch_single_at(tree_root, input, exit_btn.get_global_rect().get_center())
+				await tree_root.get_tree().process_frame
+				var yes: Button = pause.get_node_or_null("ConfirmPanel/ConfirmYes") as Button
+				failed += _assert(yes != null and yes.visible, "Quit to Title asks for confirmation")
+				if yes != null and yes.visible:
+					_touch_arm_single(input)
+					_touch_single_at(tree_root, input, yes.get_global_rect().get_center())
+		for _i: int in 8:
+			await tree_root.get_tree().process_frame
+	tree_root.get_tree().paused = false
+	_touch_parse_finger(tree_root, Vector2.ZERO, false)
+	var scene_now: Node = tree_root.get_tree().current_scene
+	var title_back: bool = scene_now != null and str(scene_now.scene_file_path).ends_with("title_screen.tscn")
+	if not title_back:
+		var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+		if packed != null:
+			tree_root.get_tree().change_scene_to_packed(packed)
+			for _i: int in 8:
+				await tree_root.get_tree().process_frame
+			title_back = tree_root.get_tree().current_scene != null
+	failed += _assert(title_back, "Quit to Title returns to the title")
+	if title_back:
+		failed += await _title_touch_windows(tree_root, input, "Quit to Title")
+	save_service.call("delete_save")
+	Input.emulate_touch_from_mouse = was_touch
+	Input.emulate_mouse_from_touch = was_mouse
+	tree_root.size = Vector2i(1280, 960)
+	if failed == 0:
+		print("TITLE_NEW_GAME_TOUCH_OK")
+	return failed
+
+
+func _title_keep_current(tree_root: Window) -> void:
+	## Boot helpers add scenes beside the current one. A leftover title sits on
+	## top of the next one and steals the taps.
+	var current: Node = tree_root.get_tree().current_scene
+	var extra: Array[Node] = []
+	for child: Node in tree_root.get_children():
+		if child == current:
+			continue
+		if str(child.scene_file_path).ends_with(".tscn"):
+			extra.append(child)
+	for child: Node in extra:
+		child.free()
+
+
+func _title_touch_windows(tree_root: Window, input: Node, path_name: String) -> int:
+	var failed: int = 0
+	_title_keep_current(tree_root)
+	var title: Node = tree_root.get_tree().current_scene
+	if title == null or not str(title.scene_file_path).ends_with("title_screen.tscn"):
+		var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+		title = packed.instantiate() if packed != null else null
+		if title == null:
+			return failed + 1
+		tree_root.size = TITLE_TOUCH_WINDOW
+		Ui540.apply_integer_viewport(tree_root)
+		tree_root.add_child(title)
+	else:
+		tree_root.size = TITLE_TOUCH_WINDOW
+		Ui540.apply_integer_viewport(tree_root)
+	var new_btn: Button = title.get_node_or_null("Menu/BtnNewGame") as Button
+	failed += _assert(new_btn != null, "%s New Game button exists" % path_name)
+	if new_btn == null:
+		return failed
+	## Headless frames after a scene change carry almost no delta, so the title
+	## fade can sit just above its arm threshold. Scale time only for this wait.
+	var prev_scale: float = Engine.time_scale
+	Engine.time_scale = 200.0
+	var armed: bool = false
+	for _i: int in 120:
+		await tree_root.get_tree().process_frame
+		if new_btn.mouse_filter == Control.MOUSE_FILTER_STOP:
+			armed = true
+			break
+	Engine.time_scale = prev_scale
+	failed += _assert(armed, "%s title menu arms for touch (filter %s fade %s armed %s paused %s)" % [path_name, str(new_btn.mouse_filter), str(title.get("_fade")), str(title.get("_armed")), str(tree_root.get_tree().paused)])
+	if not armed:
+		return failed
+	var continue_btn: Button = title.get_node_or_null("Menu/BtnContinue") as Button
+	failed += _assert(continue_btn != null and continue_btn.visible and continue_btn.text != "", "%s Continue has its label" % path_name)
+	var quit_btn: Button = title.get_node_or_null("Menu/BtnQuit") as Button
+	failed += _assert(quit_btn != null, "%s Quit button exists" % path_name)
+	if quit_btn != null:
+		failed += _assert(quit_btn.visible == (not Ui540.is_phone_export()), "%s Quit is hidden only on a phone export" % path_name)
+	failed += await _title_open_and_back(tree_root, input, title, new_btn, "New Game", path_name)
+	var load_btn: Button = title.get_node_or_null("Menu/BtnLoad") as Button
+	if load_btn != null:
+		_touch_arm_single(input)
+		_touch_single_at(tree_root, input, load_btn.get_global_rect().get_center())
+		await tree_root.get_tree().process_frame
+		var pause: Node = title.get_node_or_null("PauseMenu")
+		var slots: Control = pause.get_node_or_null("SlotsPanel") as Control if pause != null else null
+		var slots_title: Label = pause.get_node_or_null("SlotsPanel/SlotsTitle") as Label if pause != null else null
+		failed += _assert(slots != null and slots.visible and slots.size.x > 1.0 and slots.size.y > 1.0, "%s Load window has a size" % path_name)
+		failed += _assert(slots_title != null and slots_title.text != "", "%s Load window has its title" % path_name)
+		_title_send_back(tree_root)
+		await tree_root.get_tree().process_frame
+		failed += _assert(slots == null or not slots.visible, "%s back closes Load" % path_name)
+	var options_btn: Button = title.get_node_or_null("Menu/BtnOptions") as Button
+	if options_btn != null:
+		_touch_arm_single(input)
+		_touch_single_at(tree_root, input, options_btn.get_global_rect().get_center())
+		await tree_root.get_tree().process_frame
+		var pause: Node = title.get_node_or_null("PauseMenu")
+		var options: Control = pause.get_node_or_null("OptionsPanel") as Control if pause != null else null
+		failed += _assert(options != null and options.visible and options.size.x > 1.0 and options.size.y > 1.0, "%s Options window has a size (got %s vis %s)" % [path_name, str(options.size) if options != null else "missing", str(options.visible) if options != null else "missing"])
+		var music: Label = pause.get_node_or_null("OptionsPanel/MusicLabel") as Label if pause != null else null
+		failed += _assert(music != null and music.text != "", "%s Options window has its labels" % path_name)
+		_title_send_back(tree_root)
+		await tree_root.get_tree().process_frame
+		failed += _assert(options == null or not options.visible, "%s back closes Options" % path_name)
+	if quit_btn != null and quit_btn.visible:
+		failed += await _title_open_and_back(tree_root, input, title, quit_btn, "Quit", path_name)
+	return failed
+
+
+func _title_open_and_back(tree_root: Window, input: Node, title: Node, button: Button, window_name: String, path_name: String) -> int:
+	var failed: int = 0
+	_touch_arm_single(input)
+	_touch_single_at(tree_root, input, button.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var dialog: Control = title.get("_active_dialog") as Control
+	failed += _assert(dialog != null and dialog.visible, "%s %s opens a window" % [path_name, window_name])
+	if dialog == null:
+		return failed
+	var win: Control = dialog.get_node_or_null("Window") as Control
+	var body: Label = dialog.get_node_or_null("Window/Content/VBox/Body") as Label
+	var action: Button = dialog.get_node_or_null("Window/Content/VBox/Buttons/Action") as Button
+	var safe: Button = dialog.get_node_or_null("Window/Content/VBox/Buttons/Safe") as Button
+	failed += _assert(win != null and win.visible and win.size.x > 1.0 and win.size.y > 1.0, "%s %s window has a visible size (got %s)" % [path_name, window_name, str(win.size) if win != null else "missing"])
+	failed += _assert(body != null and body.text.strip_edges() != "" and body.visible, "%s %s window has its text" % [path_name, window_name])
+	failed += _assert(action != null and action.text.strip_edges() != "" and action.size.y > 1.0, "%s %s has its action button" % [path_name, window_name])
+	failed += _assert(safe != null and safe.text.strip_edges() != "" and safe.size.y > 1.0, "%s %s has its safe button" % [path_name, window_name])
+	_title_send_back(tree_root)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var still: Node = title.get("_active_dialog") as Node
+	var closed: bool = still == null or not is_instance_valid(still) or not (still as CanvasItem).visible
+	failed += _assert(closed, "%s back closes %s" % [path_name, window_name])
+	if not closed and still != null and is_instance_valid(still):
+		still.queue_free()
+		title.set("_active_dialog", null)
+		await tree_root.get_tree().process_frame
+	return failed
+
+
+func _title_send_back(tree_root: Window) -> void:
+	tree_root.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
 
 
 func _compat_scan_scenes(root_path: String, banned: PackedStringArray) -> PackedStringArray:
