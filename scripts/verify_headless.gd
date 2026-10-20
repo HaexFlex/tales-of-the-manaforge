@@ -176,6 +176,16 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_EXPORT_SCENE_INTEGRITY") == "1":
+		var export_scenes: int = _export_scene_integrity_ok()
+		if export_scenes > 0:
+			print("EXPORT_SCENE_INTEGRITY_FAIL: %d" % export_scenes)
+			quit(1)
+		else:
+			print("EXPORT_SCENE_INTEGRITY_OK")
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_TOUCH_HELP_FITS") == "1":
 		var help_fit: int = await _options_touch_help_fits_ok(tree_root)
 		help_fit += await _options_pc_panel_unchanged_ok(tree_root)
@@ -5836,6 +5846,7 @@ func _check_only_load() -> int:
 		"res://scripts/autoload/game_input.gd",
 		"res://scripts/ui/root_back.gd",
 		"res://scripts/ui/kit_dialog.gd",
+		"res://scripts/title_screen.gd",
 		"res://scripts/minigames/minigame_math.gd",
 		"res://scripts/minigames/minigame_catalog.gd",
 		"res://scripts/minigames/minigame_art.gd",
@@ -25534,6 +25545,13 @@ func _title_touch_windows(tree_root: Window, input: Node, path_name: String) -> 
 	else:
 		tree_root.size = TITLE_TOUCH_WINDOW
 		Ui540.apply_integer_viewport(tree_root)
+	## The text loader keeps children that binary export drops. The confirm the
+	## player sees on device is this packed scene, not the .tscn instantiate.
+	var exported_dialog: PackedScene = _binary_export_scene("res://scenes/ui/kit_dialog.tscn")
+	failed += _assert(exported_dialog != null, "%s binary kit dialog converts" % path_name)
+	if exported_dialog == null:
+		return failed
+	title.set("dialog_scene", exported_dialog)
 	var new_btn: Button = title.get_node_or_null("Menu/BtnNewGame") as Button
 	failed += _assert(new_btn != null, "%s New Game button exists" % path_name)
 	if new_btn == null:
@@ -25649,3 +25667,159 @@ func _compat_scan_scenes(root_path: String, banned: PackedStringArray) -> Packed
 		name = dir.get_next()
 	dir.list_dir_end()
 	return hits
+
+
+func _export_scene_integrity_ok() -> int:
+	## Binary export repacks each scene through PackedScene.pack. Saving the
+	## loaded .tscn does not: that write keeps the text loader's node list.
+	## pack() drops children and property overrides under an instance that has
+	## no [editable path] entry. The instantiated paths and flip_h must match.
+	## An editable instance also writes its own children into the binary state;
+	## those extras are already in the instantiated tree.
+	var failed: int = 0
+	var files: PackedStringArray = PackedStringArray()
+	_collect_tscn("res://", files)
+	files.sort()
+	failed += _assert(files.size() > 0, "export integrity finds scene files")
+	for path: String in files:
+		failed += _export_scene_matches(path)
+	return failed
+
+
+func _collect_tscn(dir_path: String, out: PackedStringArray) -> void:
+	var listing: DirAccess = DirAccess.open(dir_path)
+	if listing == null:
+		return
+	listing.list_dir_begin()
+	var name: String = listing.get_next()
+	while name != "":
+		if not name.begins_with("."):
+			var child_path: String = dir_path.path_join(name)
+			if listing.current_is_dir():
+				_collect_tscn(child_path, out)
+			elif name.ends_with(".tscn"):
+				out.append(child_path)
+		name = listing.get_next()
+	listing.list_dir_end()
+
+
+func _binary_export_scene(path: String) -> PackedScene:
+	var text_scene: PackedScene = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+	if text_scene == null:
+		return null
+	var live: Node = text_scene.instantiate()
+	var packed: PackedScene = PackedScene.new()
+	var pack_err: int = packed.pack(live)
+	live.free()
+	if pack_err != OK:
+		return null
+	var tmp: String = "user://export_scene_integrity/" + path.trim_prefix("res://").replace("/", "__") + ".scn"
+	DirAccess.make_dir_recursive_absolute("user://export_scene_integrity")
+	if ResourceSaver.save(packed, tmp) != OK:
+		return null
+	return ResourceLoader.load(tmp, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+
+
+func _export_scene_matches(path: String) -> int:
+	var text_scene: PackedScene = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+	if text_scene == null:
+		print("EXPORT_SCENE_INTEGRITY load fail %s" % path)
+		return 1
+	var binary_scene: PackedScene = _binary_export_scene(path)
+	if binary_scene == null:
+		print("EXPORT_SCENE_INTEGRITY pack fail %s" % path)
+		return 1
+	var text_state: PackedStringArray = _scene_state_paths(text_scene.get_state())
+	var bin_state: PackedStringArray = _scene_state_paths(binary_scene.get_state())
+	var state_missing: PackedStringArray = _paths_only_in(text_state, bin_state)
+	var state_extra: PackedStringArray = _paths_only_in(bin_state, text_state)
+	var text_node: Node = text_scene.instantiate()
+	var bin_node: Node = binary_scene.instantiate()
+	var text_live: PackedStringArray = _live_node_paths(text_node)
+	var bin_live: PackedStringArray = _live_node_paths(bin_node)
+	var live_missing: PackedStringArray = _paths_only_in(text_live, bin_live)
+	var live_extra: PackedStringArray = _paths_only_in(bin_live, text_live)
+	var flip_miss: PackedStringArray = _flip_h_diff(text_node, bin_node)
+	text_node.free()
+	bin_node.free()
+	if state_missing.is_empty() and live_missing.is_empty() and live_extra.is_empty() and flip_miss.is_empty():
+		return 0
+	print("EXPORT_SCENE_INTEGRITY mismatch %s text_nodes=%d binary_nodes=%d missing=%d extra=%d live_text=%d live_binary=%d live_missing=%d live_extra=%d flip_h=%d" % [path, text_state.size(), bin_state.size(), state_missing.size(), state_extra.size(), text_live.size(), bin_live.size(), live_missing.size(), live_extra.size(), flip_miss.size()])
+	_print_export_rows("missing", state_missing)
+	_print_export_rows("extra", state_extra)
+	_print_export_rows("live_missing", live_missing)
+	_print_export_rows("live_extra", live_extra)
+	_print_export_rows("flip_h", flip_miss)
+	return 1
+
+
+func _print_export_rows(label: String, rows: PackedStringArray) -> void:
+	var shown: int = 0
+	for row: String in rows:
+		if shown >= 12:
+			print("  %s ... %d more" % [label, rows.size() - shown])
+			break
+		print("  %s %s" % [label, row])
+		shown += 1
+
+
+func _scene_state_paths(state: SceneState) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	for i: int in state.get_node_count():
+		var path: String = str(state.get_node_path(i))
+		if path.begins_with("./"):
+			path = path.substr(2)
+		if path.is_empty():
+			path = str(state.get_node_name(i))
+		out.append(path)
+	return out
+
+
+func _live_node_paths(node: Node) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	_walk_live_paths(node, node, out)
+	return out
+
+
+func _walk_live_paths(node: Node, root_node: Node, out: PackedStringArray) -> void:
+	out.append(str(root_node.get_path_to(node)))
+	for child: Node in node.get_children():
+		_walk_live_paths(child, root_node, out)
+
+
+func _paths_only_in(left: PackedStringArray, right: PackedStringArray) -> PackedStringArray:
+	var have: Dictionary = {}
+	for path: String in right:
+		have[path] = int(have.get(path, 0)) + 1
+	var seen: Dictionary = {}
+	var out: PackedStringArray = PackedStringArray()
+	for path: String in left:
+		var used: int = int(seen.get(path, 0))
+		seen[path] = used + 1
+		if used >= int(have.get(path, 0)):
+			out.append(path)
+	return out
+
+
+func _flip_h_map(node: Node, root_node: Node, out: Dictionary) -> void:
+	var path: String = str(root_node.get_path_to(node))
+	if "flip_h" in node:
+		out[path] = bool(node.get("flip_h"))
+	for child: Node in node.get_children():
+		_flip_h_map(child, root_node, out)
+
+
+func _flip_h_diff(text_node: Node, bin_node: Node) -> PackedStringArray:
+	var text_flips: Dictionary = {}
+	var bin_flips: Dictionary = {}
+	_flip_h_map(text_node, text_node, text_flips)
+	_flip_h_map(bin_node, bin_node, bin_flips)
+	var out: PackedStringArray = PackedStringArray()
+	for path: String in text_flips.keys():
+		if not bin_flips.has(path) or bool(bin_flips[path]) != bool(text_flips[path]):
+			var bin_value: String = str(bin_flips[path]) if bin_flips.has(path) else "absent"
+			out.append("%s text=%s binary=%s" % [path, str(text_flips[path]), bin_value])
+	for path: String in bin_flips.keys():
+		if not text_flips.has(path):
+			out.append("%s text=absent binary=%s" % [path, str(bin_flips[path])])
+	return out

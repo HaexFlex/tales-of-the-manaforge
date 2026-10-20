@@ -3,6 +3,8 @@ extends Control
 
 const MAIN_SCENE: String = "res://scenes/main.tscn"
 const KIT_DIALOG: PackedScene = preload("res://scenes/ui/kit_dialog.tscn")
+## The title touch check swaps this for the binary export of the same scene.
+var dialog_scene: PackedScene = KIT_DIALOG
 const LOGO_POS: Vector2 = Vector2(52, 24)
 const MENU_POS: Vector2 = Vector2(136, 146)
 const VERSION_POS: Vector2 = Vector2(904, 503)
@@ -353,7 +355,7 @@ func _on_slot_chosen(slot: int, kind: String) -> void:
 
 func _show_confirm(action: String, body: String, yes: String, no: String) -> void:
 	_confirm_action = action
-	var dialog: KitDialog = KIT_DIALOG.instantiate() as KitDialog
+	var dialog: KitDialog = dialog_scene.instantiate() as KitDialog
 	_active_dialog = dialog
 	var popup_layer: CanvasLayer = get_node_or_null("PopupLayer") as CanvasLayer
 	if popup_layer == null:
