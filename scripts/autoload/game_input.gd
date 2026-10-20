@@ -534,6 +534,17 @@ func is_command(event: InputEvent, require_pressed: bool = true) -> bool:
 	return false
 
 
+func touch_point() -> Vector2:
+	## Last touch or emulated-mouse point. Updated in _input, so a hide deferred
+	## from the physics hover-drop sees the finger, not the previous hover.
+	if _finger0_down:
+		return _touch_current
+	var vp: Viewport = get_viewport()
+	if vp == null:
+		return _touch_current
+	return vp.get_mouse_position()
+
+
 func pointer_position(event: InputEvent) -> Vector2:
 	if event is InputEventMouse:
 		return (event as InputEventMouse).position

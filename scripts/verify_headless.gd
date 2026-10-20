@@ -24962,11 +24962,15 @@ func _assert_inside(ctrl: Control, safe: Rect2, label: String) -> int:
 
 
 const TITLE_TOUCH_WINDOW: Vector2i = Vector2i(2400, 1080)
+## Long enough to catch a timing race, short of the 0.8 s long-press.
+const PANEL_TAP_REPEATS: int = 20
+const PANEL_TAP_HOLD_MS: int = 120
 
 
 func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
-	## A finger on a HUD or panel button presses that button. The emulated mouse
-	## must not turn the tap into a world deselect. ScreenTouch index 0, 2× scale.
+	## A finger on a HUD or panel button presses that button. Each button is tapped
+	## 20 times, mixing short taps, a hold under 0.8 s, and a frame gap between the
+	## ScreenTouch and the emulated mouse. ScreenTouch index 0, 2× scale.
 	var failed: int = 0
 	var was_touch: bool = Input.emulate_touch_from_mouse
 	var was_mouse: bool = Input.emulate_mouse_from_touch
@@ -24999,86 +25003,63 @@ func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_servic
 		failed += _assert(node != null, "a %s node exists for the lend tap" % key)
 		if node == null:
 			continue
-		failed += await _touch_lend_opens(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, node, "gather", str(node.get("resource_id")), key)
+		failed += await _touch_lend_repeat(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, node, str(node.get("resource_id")), key, null)
 	var manatree: Node = tree_root.get_tree().get_first_node_in_group("manatree")
 	failed += _assert(manatree != null, "the Manatree exists for the lend tap")
 	if manatree != null:
-		failed += await _touch_lend_opens(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, manatree, "water", "manatree", "Manatree")
+		failed += await _touch_lend_repeat(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, manatree, "manatree", "Manatree", null)
 	var runestone: Node = tree_root.get_tree().get_first_node_in_group("runestone")
 	failed += _assert(runestone != null, "a runestone exists")
 	if runestone != null and runestone.has_method("begin_spend"):
-		game_state.call("select_keeper")
-		runestone.call("begin_spend")
-		await tree_root.get_tree().process_frame
-		var no_btn: Button = runestone.get("_no") as Button
-		var panel_open: bool = runestone.has_method("is_spend_confirm_open") and bool(runestone.call("is_spend_confirm_open"))
-		failed += _assert(panel_open and no_btn != null and no_btn.visible, "the runestone confirm is open")
-		if no_btn != null and panel_open:
-			var presses: int = await _touch_count_press(tree_root, input, no_btn)
-			failed += _assert(presses == 1, "a tap on the runestone Not now button presses it (got %d)" % presses)
-			failed += _assert(not bool(runestone.call("is_spend_confirm_open")), "the runestone panel closes on that tap")
-			failed += _assert(bool(game_state.get("keeper_selected")), "the runestone tap does not deselect the Keeper")
+		failed += await _touch_repeat_button(tree_root, input, game_state, host, "runestone", func() -> void:
+			runestone.call("begin_spend")
+		, func() -> Button:
+			return runestone.get("_no") as Button
+		)
 	var hud: Node = live.get_node_or_null("HUD")
 	if hud != null and hud.has_method("open_bench_panel"):
-		game_state.call("select_keeper")
-		hud.call("open_bench_panel")
-		await tree_root.get_tree().process_frame
-		var bench_close: Button = hud.get_node_or_null("BenchPanel/Header/BenchCloseButton") as Button
-		failed += _assert(bench_close != null and bench_close.visible, "the Keeper's bench close button is up")
-		if bench_close != null:
-			var presses: int = await _touch_count_press(tree_root, input, bench_close)
-			failed += _assert(presses == 1, "a tap on the bench close button presses it (got %d)" % presses)
-			failed += _assert(not bool(hud.call("is_bench_open")), "the bench panel closes")
-			failed += _assert(bool(game_state.get("keeper_selected")), "the bench tap does not deselect the Keeper")
+		failed += await _touch_repeat_button(tree_root, input, game_state, host, "bench", func() -> void:
+			hud.call("open_bench_panel")
+		, func() -> Button:
+			return hud.get_node_or_null("BenchPanel/Header/BenchCloseButton") as Button
+		)
 	var board: Node = tree_root.get_tree().get_first_node_in_group("expedition_board")
 	failed += _assert(board != null, "the expedition board exists")
 	if board != null and board.has_method("open_shell"):
-		game_state.call("select_keeper")
-		board.call("open_shell")
-		await tree_root.get_tree().process_frame
-		var close_btn: Button = board.get("_close_btn") as Button
-		failed += _assert(close_btn != null and close_btn.visible, "the expedition close button is up")
-		if close_btn != null:
-			var presses: int = await _touch_count_press(tree_root, input, close_btn)
-			failed += _assert(presses == 1, "a tap on the expedition close button presses it (got %d)" % presses)
-			failed += _assert(not bool(board.call("shell_open")), "the expedition board closes")
-			failed += _assert(bool(game_state.get("keeper_selected")), "the expedition tap does not deselect the Keeper")
+		failed += await _touch_repeat_button(tree_root, input, game_state, host, "expedition", func() -> void:
+			board.call("open_shell")
+		, func() -> Button:
+			return board.get("_close_btn") as Button
+		)
 	_touch_free_hub(tree_root, live, save_service)
 	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn", TOUCH_DEVICE_WINDOW)
 	failed += _assert(forge != null, "the forge loads for station button taps")
 	if forge != null:
 		var stations: Array[Node] = tree_root.get_tree().get_nodes_in_group("forge_station")
 		failed += _assert(stations.size() >= 5, "every forge station is present (got %d)" % stations.size())
+		jobs = tree_root.get_node_or_null("ForgeJobs")
+		host = tree_root.get_node_or_null("MinigameHost")
+		prompt = tree_root.get_node_or_null("MinigameHost/MinigameRoot/LendPrompt") as Button
 		for station: Node in stations:
 			var station_id: String = str(station.get("station_id"))
 			if station_id == "" or not forge.has_method("open_station_panel"):
 				continue
-			forge.call("open_station_panel", station_id)
-			await tree_root.get_tree().process_frame
-			var row: Button = _touch_first_enabled_button(forge.get("recipe_panel") as Node)
-			if row == null:
-				row = forge.get_node_or_null("UI/RecipePanel/RepeatToggle") as Button
-			failed += _assert(row != null and row.visible and not row.disabled, "station %s has a panel button" % station_id)
-			if row != null and row.visible and not row.disabled:
-				game_state.call("select_keeper")
-				var presses: int = await _touch_count_press(tree_root, input, row)
-				failed += _assert(presses == 1, "a tap on the %s panel button presses it (got %d)" % [station_id, presses])
-				failed += _assert(bool(game_state.get("keeper_selected")), "the %s panel tap does not deselect the Keeper" % station_id)
+			var captured_id: String = station_id
+			failed += await _touch_repeat_button(tree_root, input, game_state, host, "%s panel" % captured_id, func() -> void:
+				forge.call("open_station_panel", captured_id)
+			, func() -> Button:
+				var row: Button = _touch_first_enabled_button(forge.get("recipe_panel") as Node)
+				if row == null:
+					row = forge.get_node_or_null("UI/RecipePanel/RepeatToggle") as Button
+				return row
+			)
+			var recipe_panel: Control = forge.get("recipe_panel") as Control
+			if jobs != null and host != null and prompt != null and recipe_panel != null:
+				forge.call("open_station_panel", station_id)
+				await tree_root.get_tree().process_frame
+				failed += await _touch_lend_repeat(tree_root, forge, game_state, input, jobs, host, prompt, lend_hits, station, station_id, station_id, recipe_panel)
 			if forge.has_method("_hide_recipes"):
 				forge.call("_hide_recipes")
-		var first: Node = stations[0] if not stations.is_empty() else null
-		if first != null:
-			var station_id: String = str(first.get("station_id"))
-			jobs = tree_root.get_node_or_null("ForgeJobs")
-			host = tree_root.get_node_or_null("MinigameHost")
-			prompt = tree_root.get_node_or_null("MinigameHost/MinigameRoot/LendPrompt") as Button
-			if jobs != null and host != null and prompt != null and station_id != "":
-				var station_hits: Array = [0]
-				prompt.pressed.connect(func() -> void: station_hits[0] += 1)
-				forge.call("open_station_panel", station_id)
-				failed += await _touch_lend_opens(tree_root, forge, game_state, input, jobs, host, prompt, station_hits, first, "craft", station_id, station_id)
-				if forge.has_method("_hide_recipes"):
-					forge.call("_hide_recipes")
 		_touch_free_hub(tree_root, forge, save_service)
 	Input.emulate_touch_from_mouse = was_touch
 	Input.emulate_mouse_from_touch = was_mouse
@@ -25087,11 +25068,12 @@ func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_servic
 	return failed
 
 
-func _touch_lend_opens(tree_root: Window, live: Node, game_state: Node, input: Node, jobs: Node, host: Node, prompt: Button, hits: Array, node: Node, kind: String, target: String, label: String) -> int:
-	var failed: int = 0
+func _touch_lend_repeat(tree_root: Window, live: Node, game_state: Node, input: Node, jobs: Node, host: Node, prompt: Button, hits: Array, node: Node, target: String, label: String, panel: Control) -> int:
+	## Gatherables are always entered from the node's physics hover, which is the
+	## tap that drops the button. Forge trials alternate that with the pointer
+	## already on the recipe panel, the case where the same button stays up.
 	if host.has_method("close_immediate"):
 		host.call("close_immediate")
-	jobs.call("set_keeper_task", kind, target, true)
 	_touch_silence_wisps(tree_root, false)
 	var keeper: Node2D = tree_root.get_tree().get_first_node_in_group("keeper") as Node2D
 	if keeper != null and node is Node2D:
@@ -25099,48 +25081,180 @@ func _touch_lend_opens(tree_root: Window, live: Node, game_state: Node, input: N
 		if keeper.has_method("halt"):
 			keeper.call("halt")
 	var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, node)
-	game_state.call("select_keeper")
 	await _touch_aim(live, _touch_shape_world(node))
 	tree_root.notify_mouse_entered()
 	var world: Vector2 = (node as Node2D).global_position if node is Node2D else Vector2.ZERO
-	jobs.call("set_keeper_task", kind, target, true)
-	host.call("show_prompt", target, world, true)
-	await tree_root.get_tree().process_frame
-	## The Keeper's own process can clear a task it did not start. Put it back
-	## immediately before the finger, or the prompt hides in that gap.
-	jobs.call("set_keeper_task", kind, target, true)
-	host.call("show_prompt", target, world, true)
-	failed += _assert(prompt.visible, "Lend a hand is showing on %s (hero %s open %s on %s game %s)" % [label, str(host.call("hero_for", target)), str(host.call("is_open")), str(host.get("_prompt_on")), str(host.get("_prompt_target"))])
-	if not prompt.visible:
-		_touch_unmute(muted)
-		jobs.call("set_keeper_task", kind, target, false)
-		return failed
-	## The first finger can open the game. Closing it leaves the node hovered, and
-	## the next finger is the one that currently falls through to the world.
-	hits[0] = 0
-	_touch_arm_single(input)
-	_touch_single_at(tree_root, input, prompt.get_global_rect().get_center())
-	await tree_root.get_tree().process_frame
-	if host.has_method("close_immediate"):
-		host.call("close_immediate")
-	await tree_root.get_tree().process_frame
-	jobs.call("set_keeper_task", kind, target, true)
-	host.call("show_prompt", target, world, true)
-	failed += _assert(prompt.visible, "Lend a hand comes back on %s" % label)
-	hits[0] = 0
-	game_state.call("select_keeper")
-	_touch_arm_single(input)
-	_touch_single_at(tree_root, input, prompt.get_global_rect().get_center())
-	await tree_root.get_tree().process_frame
-	failed += _assert(int(hits[0]) == 1, "a tap on Lend a hand at %s presses the button (got %d)" % [label, int(hits[0])])
-	failed += _assert(bool(host.call("is_open")), "Lend a hand at %s opens the minigame" % label)
-	failed += _assert(bool(game_state.get("keeper_selected")), "the %s lend tap does not deselect the Keeper" % label)
+	## "gather" / "craft" are not kinds the Keeper clears on halt. "water" is.
+	var kind: String = "craft" if panel != null else "gather"
+	var misses: int = 0
+	for trial: int in PANEL_TAP_REPEATS:
+		if host.has_method("close_immediate"):
+			host.call("close_immediate")
+		if panel != null and live.has_method("open_station_panel"):
+			live.call("open_station_panel", target)
+		await tree_root.get_tree().process_frame
+		var from_panel: bool = panel != null and (trial % 2) == 1
+		if from_panel:
+			var corner: Vector2 = panel.get_global_rect().position + Vector2(18, 18)
+			if prompt.visible and prompt.get_global_rect().has_point(corner):
+				var rect: Rect2 = panel.get_global_rect()
+				corner = Vector2(rect.position.x + 18.0, rect.end.y - 18.0)
+			await _touch_hover_screen(tree_root, corner, false, null)
+		else:
+			var at_node: Vector2 = _touch_world_screen(live, _touch_shape_world(node))
+			if prompt.visible and prompt.get_global_rect().has_point(at_node):
+				at_node = Vector2(at_node.x, prompt.get_global_rect().end.y + 10.0)
+			await _touch_hover_screen(tree_root, at_node, true, panel)
+		jobs.call("set_keeper_task", kind, target, true)
+		host.call("show_prompt", target, world, true)
+		await tree_root.get_tree().process_frame
+		jobs.call("set_keeper_task", kind, target, true)
+		host.call("show_prompt", target, world, true)
+		if not prompt.visible:
+			misses += 1
+			var panel_up: bool = panel != null and panel.visible
+			print("TOUCH_PANEL_TAP_MISS %s trial=%d mode=%d prompt-hidden hero=%s open=%s walk=%s panel=%s" % [label, trial, trial % 5, str(host.call("hero_for", target)), str(host.call("is_open")), str(host.get("_walk")), str(panel_up)])
+			continue
+		hits[0] = 0
+		game_state.call("select_keeper")
+		await _touch_varied_tap(tree_root, input, prompt.get_global_rect().get_center(), trial)
+		## Hiding the button inside pressed re-emits once. A miss is no press.
+		var pressed: bool = int(hits[0]) >= 1
+		var opened: bool = bool(host.call("is_open"))
+		var selected: bool = bool(game_state.get("keeper_selected"))
+		if not pressed or not opened or not selected:
+			misses += 1
+			print("TOUCH_PANEL_TAP_MISS %s trial=%d mode=%d presses=%d open=%s selected=%s" % [label, trial, trial % 5, int(hits[0]), str(opened), str(selected)])
 	if host.has_method("close_immediate"):
 		host.call("close_immediate")
 	jobs.call("set_keeper_task", kind, target, false)
 	_touch_unmute(muted)
+	_touch_silence_wisps(tree_root, true)
 	await tree_root.get_tree().process_frame
-	return failed
+	return _touch_report_taps(label, misses)
+
+
+func _touch_repeat_button(tree_root: Window, input: Node, game_state: Node, host: Node, label: String, open_panel: Callable, pick: Callable) -> int:
+	var misses: int = 0
+	for trial: int in PANEL_TAP_REPEATS:
+		if host != null and host.has_method("close_immediate"):
+			host.call("close_immediate")
+		game_state.call("select_keeper")
+		open_panel.call()
+		## queue_free of the previous rows lands at the end of the frame.
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		var button: Button = pick.call() as Button
+		if button == null or not is_instance_valid(button) or not button.visible or button.disabled:
+			misses += 1
+			print("TOUCH_PANEL_TAP_MISS %s trial=%d mode=%d missing" % [label, trial, trial % 5])
+			continue
+		var hits: Array = [0]
+		var on_press := func() -> void:
+			hits[0] += 1
+		button.pressed.connect(on_press)
+		await _touch_varied_tap(tree_root, input, button.get_global_rect().get_center(), trial)
+		if is_instance_valid(button) and button.pressed.is_connected(on_press):
+			button.pressed.disconnect(on_press)
+		var selected: bool = bool(game_state.get("keeper_selected"))
+		if int(hits[0]) < 1 or not selected:
+			misses += 1
+			print("TOUCH_PANEL_TAP_MISS %s trial=%d mode=%d presses=%d selected=%s" % [label, trial, trial % 5, int(hits[0]), str(selected)])
+	return _touch_report_taps(label, misses)
+
+
+func _touch_report_taps(label: String, misses: int) -> int:
+	print("TOUCH_PANEL_TAP_COUNT %s %d/%d" % [label, misses, PANEL_TAP_REPEATS])
+	return _assert(misses == 0, "%s missed %d of %d touch taps" % [label, misses, PANEL_TAP_REPEATS])
+
+
+func _touch_varied_tap(tree_root: Window, input: Node, at: Vector2, trial: int) -> void:
+	## 0 paired short tap, 1 a frame between press and release, 2 touch leads the
+	## mouse by a frame, 3 mouse leads the touch by a frame, 4 a 120 ms hold.
+	_touch_arm_single(input)
+	var mode: int = trial % 5
+	var was_mouse: bool = Input.emulate_mouse_from_touch
+	if mode == 2 or mode == 3:
+		Input.emulate_mouse_from_touch = false
+	if mode == 0:
+		_touch_parse_finger(tree_root, at, true)
+		_touch_parse_finger(tree_root, at, false)
+	elif mode == 1:
+		_touch_parse_finger(tree_root, at, true)
+		await tree_root.get_tree().process_frame
+		_touch_parse_finger(tree_root, at, false)
+	elif mode == 2:
+		_touch_parse_finger(tree_root, at, true)
+		await tree_root.get_tree().process_frame
+		_touch_parse_mouse(tree_root, at, true)
+		_touch_parse_finger(tree_root, at, false)
+		_touch_parse_mouse(tree_root, at, false)
+	elif mode == 3:
+		_touch_parse_mouse(tree_root, at, true)
+		await tree_root.get_tree().process_frame
+		_touch_parse_finger(tree_root, at, true)
+		_touch_parse_mouse(tree_root, at, false)
+		_touch_parse_finger(tree_root, at, false)
+	else:
+		_touch_parse_finger(tree_root, at, true)
+		var started: int = Time.get_ticks_msec()
+		while Time.get_ticks_msec() - started < PANEL_TAP_HOLD_MS:
+			await tree_root.get_tree().process_frame
+			if Time.get_ticks_msec() - started > 700:
+				break
+		_touch_parse_finger(tree_root, at, false)
+	Input.emulate_mouse_from_touch = was_mouse
+	await tree_root.get_tree().process_frame
+
+
+func _touch_parse_mouse(tree_root: Window, logical: Vector2, pressed: bool) -> void:
+	var mb := InputEventMouseButton.new()
+	mb.device = InputEvent.DEVICE_ID_EMULATION
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = pressed
+	mb.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+	var window_px: Vector2 = tree_root.get_final_transform() * logical
+	mb.position = window_px
+	mb.global_position = window_px
+	Input.parse_input_event(mb)
+	Input.flush_buffered_events()
+
+
+func _touch_parse_motion(tree_root: Window, logical: Vector2) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	var window_px: Vector2 = tree_root.get_final_transform() * logical
+	motion.position = window_px
+	motion.global_position = window_px
+	Input.parse_input_event(motion)
+	Input.flush_buffered_events()
+
+
+func _touch_hover_screen(tree_root: Window, logical: Vector2, physics_pick: bool, panel: Control) -> void:
+	## A physics entry has to reach the collider. The recipe panel would swallow
+	## that motion, so it ignores the pointer until the pick lands.
+	var saved: Array = []
+	if physics_pick and panel != null:
+		_touch_push_ignore(panel, saved)
+	tree_root.notify_mouse_entered()
+	_touch_parse_motion(tree_root, logical)
+	if physics_pick:
+		await tree_root.get_tree().physics_frame
+	await tree_root.get_tree().process_frame
+	for row: Variant in saved:
+		var entry: Dictionary = row
+		var ctrl: Control = entry.get("ctrl") as Control
+		if ctrl != null and is_instance_valid(ctrl):
+			ctrl.mouse_filter = entry.get("filter", Control.MOUSE_FILTER_STOP) as Control.MouseFilter
+
+
+func _touch_push_ignore(node: Node, saved: Array) -> void:
+	if node is Control:
+		var ctrl: Control = node as Control
+		saved.append({"ctrl": ctrl, "filter": ctrl.mouse_filter})
+		ctrl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child: Node in node.get_children():
+		_touch_push_ignore(child, saved)
 
 
 func _touch_physics_hover(tree_root: Window, live: Node, node: Node) -> void:
@@ -25168,7 +25282,7 @@ func _touch_count_press(tree_root: Window, input: Node, button: Button) -> int:
 func _touch_first_enabled_button(root: Node) -> Button:
 	if root == null:
 		return null
-	if root is Button:
+	if root is Button and not root.is_queued_for_deletion():
 		var btn: Button = root as Button
 		if btn.visible and not btn.disabled and btn.get_global_rect().size.x > 1.0 and btn.get_global_rect().size.y > 1.0:
 			return btn

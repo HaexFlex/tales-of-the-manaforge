@@ -71,6 +71,8 @@ var _plate_header_cover: ColorRect
 var _prompt_on: bool = false
 var _prompt_target: String = ""
 var _prompt_world: Vector2 = Vector2.ZERO
+## Bumps cancel a hide that was deferred across the emulated-mouse / touch pair.
+var _touch_hide_token: int = 0
 var _walk: bool = false
 var _walk_target: String = ""
 var _walk_worker: String = ""
@@ -412,31 +414,48 @@ func _process(delta: float) -> void:
 
 func show_prompt(target_id: String, world: Vector2, show: bool) -> void:
 	if show:
+		_touch_hide_token += 1
 		_prompt_target = target_id
 		_prompt_world = world
 		_prompt_on = true
 	elif _prompt_target == target_id:
-		## A touch tap's emulated mouse drops the node's physics hover before the
-		## click is delivered, and that hover-exit asks to hide Lend a hand while
-		## the finger is still on the button. Keep it up so the button takes the tap.
-		if _touch_keeps_prompt():
+		## The emulated mouse drops the node's physics hover before GUI sees the
+		## click, and that hover-exit asks to hide the button. On a device the
+		## viewport mouse is still the previous point, so a same-frame hit test
+		## hides a button the finger is on. Leave it up for this event and decide
+		## after the touch position has been recorded.
+		if _defer_touch_prompt_hide():
 			return
 		_prompt_on = false
 	_refresh_prompt()
 
 
-func _touch_keeps_prompt() -> bool:
+func _defer_touch_prompt_hide() -> bool:
 	if not GameInput.touch_mode() or _prompt == null or not _prompt.visible:
 		return false
-	var vp: Viewport = get_viewport()
-	if vp == null:
-		return false
-	return _prompt.get_global_rect().has_point(vp.get_mouse_position())
+	_touch_hide_token += 1
+	var token: int = _touch_hide_token
+	call_deferred("_finish_touch_prompt_hide", token)
+	return true
+
+
+func _finish_touch_prompt_hide(token: int) -> void:
+	if token != _touch_hide_token or not _prompt_on:
+		return
+	if _prompt != null and _prompt.visible and _prompt.get_global_rect().has_point(GameInput.touch_point()):
+		return
+	_prompt_on = false
+	_refresh_prompt()
 
 
 func _on_prompt_mouse_exited() -> void:
-	if not GameInput.touch_mode() or not _prompt_on or _touch_keeps_prompt():
+	## Moving the button under an active finger emits mouse_exited and would
+	## drop the press before release. PC mouse never takes this path.
+	if not GameInput.touch_mode() or not _prompt_on or GameInput.primary_down():
 		return
+	if _prompt != null and _prompt.get_global_rect().has_point(GameInput.touch_point()):
+		return
+	_touch_hide_token += 1
 	_prompt_on = false
 	_refresh_prompt()
 
@@ -1003,4 +1022,5 @@ func _set_open(open: bool) -> void:
 		_summary.visible = false
 		_summary_up = false
 		_prompt_on = false
+		_touch_hide_token += 1
 		_play.visible = false
