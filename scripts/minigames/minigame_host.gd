@@ -420,10 +420,13 @@ func show_prompt(target_id: String, world: Vector2, show: bool) -> void:
 		_prompt_on = true
 	elif _prompt_target == target_id:
 		## The emulated mouse drops the node's physics hover before GUI sees the
-		## click, and that hover-exit asks to hide the button. On a device the
-		## viewport mouse is still the previous point, so a same-frame hit test
-		## hides a button the finger is on. Leave it up for this event and decide
-		## after the touch position has been recorded.
+		## click, and that hover-exit asks to hide the button. The first Forge
+		## visit can still land while the pointer is on the recipe panel, so
+		## nothing is dropped. Closing the minigame does not clear that physics
+		## hover, and every later walk-up is dropped the same way. On a device
+		## the viewport mouse is still the previous point, so a same-frame hit
+		## test hides a button the finger is on. Leave it up for this event and
+		## decide after the touch position has been recorded.
 		if _defer_touch_prompt_hide():
 			return
 		_prompt_on = false

@@ -24964,13 +24964,16 @@ func _assert_inside(ctrl: Control, safe: Rect2, label: String) -> int:
 const TITLE_TOUCH_WINDOW: Vector2i = Vector2i(2400, 1080)
 ## Long enough to catch a timing race, short of the 0.8 s long-press.
 const PANEL_TAP_REPEATS: int = 20
+const PANEL_TAP_CYCLES: int = 20
 const PANEL_TAP_HOLD_MS: int = 120
 
 
 func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
 	## A finger on a HUD or panel button presses that button. Each button is tapped
 	## 20 times, mixing short taps, a hold under 0.8 s, and a frame gap between the
-	## ScreenTouch and the emulated mouse. ScreenTouch index 0, 2× scale.
+	## ScreenTouch and the emulated mouse. The same session then opens, uses, closes
+	## and reopens each Lend button 20 times, for the Keeper and for Elaia.
+	## ScreenTouch index 0, 2× scale.
 	var failed: int = 0
 	var was_touch: bool = Input.emulate_touch_from_mouse
 	var was_mouse: bool = Input.emulate_mouse_from_touch
@@ -25003,10 +25006,15 @@ func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_servic
 		failed += _assert(node != null, "a %s node exists for the lend tap" % key)
 		if node == null:
 			continue
-		failed += await _touch_lend_repeat(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, node, str(node.get("resource_id")), key, null)
+		var resource: String = str(node.get("resource_id"))
+		for hero_name: String in ["keeper", "elaia"]:
+			failed += await _touch_lend_session(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, node, resource, key, null, hero_name)
+		failed += await _touch_lend_repeat(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, node, resource, key, null)
 	var manatree: Node = tree_root.get_tree().get_first_node_in_group("manatree")
 	failed += _assert(manatree != null, "the Manatree exists for the lend tap")
 	if manatree != null:
+		for hero_name: String in ["keeper", "elaia"]:
+			failed += await _touch_lend_session(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, manatree, "manatree", "Manatree", null, hero_name)
 		failed += await _touch_lend_repeat(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, manatree, "manatree", "Manatree", null)
 	var runestone: Node = tree_root.get_tree().get_first_node_in_group("runestone")
 	failed += _assert(runestone != null, "a runestone exists")
@@ -25055,8 +25063,8 @@ func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_servic
 			)
 			var recipe_panel: Control = forge.get("recipe_panel") as Control
 			if jobs != null and host != null and prompt != null and recipe_panel != null:
-				forge.call("open_station_panel", station_id)
-				await tree_root.get_tree().process_frame
+				for hero_name: String in ["keeper", "elaia"]:
+					failed += await _touch_lend_session(tree_root, forge, game_state, input, jobs, host, prompt, lend_hits, station, station_id, station_id, recipe_panel, hero_name)
 				failed += await _touch_lend_repeat(tree_root, forge, game_state, input, jobs, host, prompt, lend_hits, station, station_id, station_id, recipe_panel)
 			if forge.has_method("_hide_recipes"):
 				forge.call("_hide_recipes")
@@ -25066,6 +25074,141 @@ func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_servic
 	if failed == 0:
 		print("TOUCH_PANEL_BUTTON_TAP_OK")
 	return failed
+
+
+func _touch_lend_session(tree_root: Window, live: Node, game_state: Node, input: Node, jobs: Node, host: Node, prompt: Button, hits: Array, node: Node, target: String, label: String, panel: Control, hero: String) -> int:
+	## One visit, then twenty more, without clearing the defer token, the swallow
+	## flag, or the mouse button. The first Forge cycle is the pointer already on
+	## the recipe panel. Every later cycle leaves and walks back up to the station.
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	_touch_join_elaia(game_state)
+	_touch_silence_wisps(tree_root, false)
+	var away: Vector2 = (node as Node2D).global_position + Vector2(-900, 260) if node is Node2D else Vector2.ZERO
+	for actor_name: String in ["keeper", "elaia"]:
+		var actor: Node2D = tree_root.get_tree().get_first_node_in_group(actor_name) as Node2D
+		if actor == null:
+			continue
+		var drop: float = 40.0 if actor_name == "elaia" else 0.0
+		actor.global_position = away + Vector2(0, drop)
+		if actor.has_method("halt"):
+			actor.call("halt")
+	var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, node)
+	await _touch_aim(live, _touch_shape_world(node))
+	tree_root.notify_mouse_entered()
+	var world: Vector2 = (node as Node2D).global_position if node is Node2D else Vector2.ZERO
+	## "gather" / "craft" survive a halt. The button is the Keeper's own work.
+	var kind: String = "craft" if panel != null else "gather"
+	jobs.call("set_keeper_task", kind, target, true)
+	_touch_select_hero(game_state, hero)
+	var first_fail: int = -1
+	for cycle: int in PANEL_TAP_CYCLES:
+		var at_panel: bool = panel != null and cycle == 0
+		if panel != null and live.has_method("open_station_panel"):
+			if not at_panel and live.has_method("_hide_recipes"):
+				live.call("_hide_recipes")
+				await tree_root.get_tree().process_frame
+				_touch_parse_motion(tree_root, _touch_blank_spot(panel))
+				await tree_root.get_tree().process_frame
+				await _touch_hover_screen(tree_root, _touch_world_screen(live, _touch_shape_world(node)), true, null)
+			live.call("open_station_panel", target)
+			await tree_root.get_tree().process_frame
+			await tree_root.get_tree().process_frame
+			if at_panel:
+				var corner: Vector2 = panel.get_global_rect().position + Vector2(18, 18)
+				await _touch_hover_screen(tree_root, corner, false, null)
+		else:
+			_touch_parse_motion(tree_root, Vector2(24, 24))
+			await tree_root.get_tree().process_frame
+			var at_node: Vector2 = _touch_world_screen(live, _touch_shape_world(node))
+			if prompt.visible and prompt.get_global_rect().has_point(at_node):
+				at_node = Vector2(at_node.x, prompt.get_global_rect().end.y + 10.0)
+			await _touch_hover_screen(tree_root, at_node, true, null)
+		if str(host.call("hero_for", target)) != "keeper":
+			jobs.call("set_keeper_task", kind, target, true)
+		host.call("show_prompt", target, world, true)
+		await tree_root.get_tree().process_frame
+		var reason: String = ""
+		if not prompt.visible:
+			reason = "prompt-hidden hero=%s" % str(host.call("hero_for", target))
+		else:
+			hits[0] = 0
+			await _touch_varied_tap(tree_root, input, prompt.get_global_rect().get_center(), cycle, false)
+			var pressed: bool = int(hits[0]) >= 1
+			var opened: bool = bool(host.call("is_open"))
+			var selected: bool = _touch_hero_selected(game_state, hero)
+			if not pressed or not opened or not selected:
+				reason = "presses=%d open=%s selected=%s" % [int(hits[0]), str(opened), str(selected)]
+			elif not await _touch_close_minigame(tree_root, host):
+				reason = "close-stuck"
+				if host.has_method("close_immediate"):
+					host.call("close_immediate")
+		if reason != "" and first_fail < 0:
+			first_fail = cycle
+			print("TOUCH_PANEL_TAP_CYCLE_MISS %s %s cycle=%d %s" % [label, hero, cycle, reason])
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	jobs.call("set_keeper_task", kind, target, false)
+	_touch_unmute(muted)
+	_touch_silence_wisps(tree_root, true)
+	if panel != null and live.has_method("_hide_recipes"):
+		live.call("_hide_recipes")
+	await tree_root.get_tree().process_frame
+	var shown: String = str(first_fail) if first_fail >= 0 else "none"
+	print("TOUCH_PANEL_TAP_CYCLE %s %s first=%s" % [label, hero, shown])
+	return _assert(first_fail < 0, "%s as %s failed on repeat-use cycle %s" % [label, hero, shown])
+
+
+func _touch_blank_spot(panel: Control) -> Vector2:
+	var spot := Vector2(24, 24)
+	if panel != null and panel.get_global_rect().has_point(spot):
+		spot = Vector2(24, panel.get_global_rect().end.y + 30.0)
+	return spot
+
+
+func _touch_join_elaia(game_state: Node) -> void:
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+
+
+func _touch_select_hero(game_state: Node, hero: String) -> void:
+	if hero == "elaia":
+		game_state.call("select_companion", "elaia")
+		return
+	game_state.call("select_keeper")
+
+
+func _touch_hero_selected(game_state: Node, hero: String) -> bool:
+	if hero == "elaia":
+		return str(game_state.get("selected_companion_id")) == "elaia" and not bool(game_state.get("keeper_selected"))
+	return bool(game_state.get("keeper_selected"))
+
+
+func _touch_close_minigame(tree_root: Window, host: Node) -> bool:
+	## The same Close the player taps. Summary first, then Done.
+	var closer: Control = host.get_node_or_null("MinigameRoot/Window/Close") as Control
+	if closer != null and closer.is_visible_in_tree():
+		_touch_parse_finger(tree_root, closer.get_global_rect().get_center(), true)
+		_touch_parse_finger(tree_root, closer.get_global_rect().get_center(), false)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+	if not bool(host.call("is_open")):
+		return true
+	var done: Control = host.get_node_or_null("MinigameRoot/Window/Summary/Done") as Control
+	if done != null and done.is_visible_in_tree():
+		_touch_parse_finger(tree_root, done.get_global_rect().get_center(), true)
+		_touch_parse_finger(tree_root, done.get_global_rect().get_center(), false)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+	if not bool(host.call("is_open")):
+		return true
+	if closer != null and closer.is_visible_in_tree():
+		_touch_parse_finger(tree_root, closer.get_global_rect().get_center(), true)
+		_touch_parse_finger(tree_root, closer.get_global_rect().get_center(), false)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+	return not bool(host.call("is_open"))
 
 
 func _touch_lend_repeat(tree_root: Window, live: Node, game_state: Node, input: Node, jobs: Node, host: Node, prompt: Button, hits: Array, node: Node, target: String, label: String, panel: Control) -> int:
@@ -25168,10 +25311,13 @@ func _touch_report_taps(label: String, misses: int) -> int:
 	return _assert(misses == 0, "%s missed %d of %d touch taps" % [label, misses, PANEL_TAP_REPEATS])
 
 
-func _touch_varied_tap(tree_root: Window, input: Node, at: Vector2, trial: int) -> void:
+func _touch_varied_tap(tree_root: Window, input: Node, at: Vector2, trial: int, arm: bool = true) -> void:
 	## 0 paired short tap, 1 a frame between press and release, 2 touch leads the
 	## mouse by a frame, 3 mouse leads the touch by a frame, 4 a 120 ms hold.
-	_touch_arm_single(input)
+	## A repeat-use session leaves arm false so a leftover defer, swallow, or
+	## button mask is still there for the next cycle.
+	if arm:
+		_touch_arm_single(input)
 	var mode: int = trial % 5
 	var was_mouse: bool = Input.emulate_mouse_from_touch
 	if mode == 2 or mode == 3:
