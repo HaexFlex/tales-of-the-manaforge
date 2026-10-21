@@ -131,6 +131,15 @@ func _run() -> void:
 			quit(0)
 		return
 
+	if OS.get_environment("MANAFORGE_TOUCH_WISP_STRESS") == "1":
+		var stress_only: int = await _touch_wisp_stress_ok(tree_root, game_state, save_service)
+		if stress_only > 0:
+			print("TOUCH_WISP_STRESS_FAIL: %d" % stress_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
 	if OS.get_environment("MANAFORGE_TOUCH_NAV") == "1":
 		var nav_only: int = await _touch_nav_ok(tree_root, game_state, save_service)
 		if nav_only > 0:
@@ -23611,6 +23620,23 @@ func _touch_double_at(tree_root: Window, input: Node, at: Vector2) -> void:
 	_touch_parse_finger(tree_root, at, false)
 
 
+func _touch_settle_picking(tree: SceneTree) -> void:
+	## World taps reach Area2D/CollisionObject2D input_event only through physics
+	## picking, which runs on a physics tick. A headless run is not frame capped,
+	## so two process frames can pass with no physics tick at all and the tap is
+	## then picked later, after the assert and after the mutes are lifted. Wait
+	## for real physics ticks instead of counting process frames.
+	if OS.get_environment("MANAFORGE_TOUCH_LEGACY_WAIT") == "1":
+		await tree.process_frame
+		await tree.process_frame
+		return
+	var start: int = Engine.get_physics_frames()
+	await tree.process_frame
+	while Engine.get_physics_frames() < start + 2:
+		await tree.physics_frame
+	await tree.process_frame
+
+
 func _touch_shape_world(node: Node) -> Vector2:
 	var shape: Node2D = node.get_node_or_null("CollisionShape2D") as Node2D
 	if shape == null:
@@ -23633,8 +23659,7 @@ func _touch_double_tap_walk_ok(tree_root: Window, game_state: Node, save_service
 	game_state.call("select_keeper")
 	var at: Vector2 = await _touch_aim(live, keeper.global_position + Vector2(200, 40))
 	_touch_double_at(tree_root, input, at)
-	await tree_root.get_tree().process_frame
-	await tree_root.get_tree().process_frame
+	await _touch_settle_picking(tree_root.get_tree())
 	failed += _assert(bool(keeper.get("_moving")), "a world double-tap walks the selected Keeper")
 	_touch_free_hub(tree_root, live, save_service)
 	if failed == 0:
@@ -23653,8 +23678,7 @@ func _touch_double_tap_harvest_ok(tree_root: Window, game_state: Node, save_serv
 		return failed
 	game_state.call("select_keeper")
 	_touch_double_at(tree_root, input, await _touch_aim(live, _touch_shape_world(node)))
-	await tree_root.get_tree().process_frame
-	await tree_root.get_tree().process_frame
+	await _touch_settle_picking(tree_root.get_tree())
 	var pending: Variant = keeper.get("_pending_interact")
 	failed += _assert(pending == node, "a double-tap on a gatherable harvests it")
 	_touch_free_hub(tree_root, live, save_service)
@@ -23810,10 +23834,110 @@ func _touch_keeper_order(tree_root: Window, live: Node, game_state: Node, input:
 	await tree_root.get_tree().process_frame
 	var at: Vector2 = await _touch_aim(live, _touch_shape_world(node))
 	_touch_double_at(tree_root, input, at)
-	await tree_root.get_tree().process_frame
-	await tree_root.get_tree().process_frame
+	await _touch_settle_picking(tree_root.get_tree())
 	await tree_root.get_tree().create_timer(0.1).timeout
 	_touch_unmute(muted)
+
+
+func _touch_wisp_stress_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Real ScreenTouch on the 2x device window: 24 Wisp select taps and 24
+	## Wisp-to-tree double-tap assigns, half on a new hub, half after the
+	## wisps_idle debug snapshot.
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null, "GameInput exists for the Wisp stress")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	var totals: Array[int] = [0, 0, 0, 0]
+	for phase: String in ["new", "wisps_idle"]:
+		failed += await _touch_wisp_stress_phase(tree_root, game_state, save_service, input, phase, 12, totals)
+	print("TOUCH_WISP_STRESS select %d/%d assign %d/%d" % [totals[0], totals[1], totals[2], totals[3]])
+	failed += _assert(totals[1] >= 20 and totals[3] >= 20, "at least 20 select taps and 20 assigns ran")
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("TOUCH_WISP_STRESS_OK")
+	return failed
+
+
+func _touch_wisp_stress_phase(tree_root: Window, game_state: Node, save_service: Node, input: Node, phase: String, rounds: int, totals: Array[int]) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	failed += _assert(live != null, "hub loads for the Wisp stress (%s)" % phase)
+	if live == null:
+		return failed
+	failed += _assert(is_equal_approx(tree_root.get_final_transform().x.x, 2.0), "the device window renders at 2x (%s)" % phase)
+	if phase == "wisps_idle":
+		var panel_script: Script = load("res://tools/debug/debug_panel.gd") as Script
+		var loaded: Dictionary = panel_script.call("load_snapshot_state", _WISPS_IDLE_PATH) if panel_script != null else {}
+		var migrated: Dictionary = loaded.get("state", {}) as Dictionary
+		failed += _assert(not migrated.is_empty(), "the wisps_idle snapshot loads for the stress")
+		if not migrated.is_empty():
+			game_state.call("apply_save_dict", migrated)
+	else:
+		game_state.set("wisp_count", 3)
+	var held: Dictionary = game_state.get("wisp_assignments")
+	held.clear()
+	live.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	var keeper: Node2D = tree_root.get_tree().get_first_node_in_group("keeper") as Node2D
+	var wood: Node = _touch_gatherable_named(tree_root, "wood")
+	var wisps: Array[Node] = tree_root.get_tree().get_nodes_in_group("wisp")
+	failed += _assert(wisps.size() > 0 and wood != null, "Wisps and a tree exist for the stress (%s, %d Wisps)" % [phase, wisps.size()])
+	if wisps.is_empty() or wood == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	var tree_id: String = str(game_state.call("node_id_for_resource", wood.get("resource_id")))
+	var select_fail: int = 0
+	var assign_fail: int = 0
+	for r: int in rounds:
+		held.clear()
+		var wisp: Node = wisps[r % wisps.size()]
+		var wid: int = int(wisp.get("wisp_id"))
+		if keeper != null and keeper.has_method("halt"):
+			keeper.call("halt")
+		## Only this Wisp is pickable; it holds still for the tap.
+		_touch_silence_wisps(tree_root, false)
+		var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, wisp)
+		(wisp as CollisionObject2D).input_pickable = true
+		wisp.set_process(false)
+		wisp.set_physics_process(false)
+		game_state.call("clear_selection")
+		await tree_root.get_tree().process_frame
+		var wisp_at: Vector2 = await _touch_aim(live, _touch_shape_world(wisp))
+		_touch_single_at(tree_root, input, wisp_at)
+		await _touch_settle_picking(tree_root.get_tree())
+		var got_sel: int = int(game_state.get("selected_wisp_id"))
+		_touch_unmute(muted)
+		wisp.set_process(true)
+		wisp.set_physics_process(true)
+		totals[1] += 1
+		if got_sel == wid:
+			totals[0] += 1
+		else:
+			select_fail += 1
+			game_state.call("select_wisp", wid)
+		_touch_bring_to_view(live, wood)
+		var wood_muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, wood)
+		await tree_root.get_tree().process_frame
+		var wood_at: Vector2 = await _touch_aim(live, _touch_shape_world(wood))
+		_touch_double_at(tree_root, input, wood_at)
+		await _touch_settle_picking(tree_root.get_tree())
+		await tree_root.get_tree().create_timer(0.1).timeout
+		_touch_unmute(wood_muted)
+		totals[3] += 1
+		if str(game_state.call("get_wisp_assignment", wid)) == tree_id:
+			totals[2] += 1
+		else:
+			assign_fail += 1
+	failed += _assert(select_fail == 0, "every touch tap on a Wisp selects it (%s: %d of %d missed)" % [phase, select_fail, rounds])
+	failed += _assert(assign_fail == 0, "every tree double-tap assigns the tapped Wisp (%s: %d of %d missed)" % [phase, assign_fail, rounds])
+	held.clear()
+	_touch_free_hub(tree_root, live, save_service)
+	return failed
 
 
 func _touch_double_tap_objects_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
@@ -23906,8 +24030,7 @@ func _touch_double_tap_objects_ok(tree_root: Window, game_state: Node, save_serv
 		await _touch_aim(live, _touch_shape_world(wisp))
 		var wisp_at: Vector2 = _touch_world_screen(live, _touch_shape_world(wisp))
 		_touch_single_at(tree_root, input, wisp_at)
-		await tree_root.get_tree().process_frame
-		await tree_root.get_tree().process_frame
+		await _touch_settle_picking(tree_root.get_tree())
 		for body: CollisionObject2D in muted:
 			body.input_pickable = true
 		failed += _assert(int(game_state.get("selected_wisp_id")) == 0, "a tap on a Wisp selects it")
@@ -23917,8 +24040,7 @@ func _touch_double_tap_objects_ok(tree_root: Window, game_state: Node, save_serv
 		await tree_root.get_tree().process_frame
 		var wood_at: Vector2 = await _touch_aim(live, _touch_shape_world(wood))
 		_touch_double_at(tree_root, input, wood_at)
-		await tree_root.get_tree().process_frame
-		await tree_root.get_tree().process_frame
+		await _touch_settle_picking(tree_root.get_tree())
 		await tree_root.get_tree().create_timer(0.1).timeout
 		_touch_unmute(wood_muted)
 		var tree_id: String = str(game_state.call("node_id_for_resource", wood.get("resource_id")))
@@ -23929,8 +24051,7 @@ func _touch_double_tap_objects_ok(tree_root: Window, game_state: Node, save_serv
 		await tree_root.get_tree().process_frame
 		var tree_at: Vector2 = await _touch_aim(live, _touch_shape_world(manatree))
 		_touch_double_at(tree_root, input, tree_at)
-		await tree_root.get_tree().process_frame
-		await tree_root.get_tree().process_frame
+		await _touch_settle_picking(tree_root.get_tree())
 		await tree_root.get_tree().create_timer(0.1).timeout
 		_touch_unmute(tree_muted)
 		failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "a double-tap on the Manatree assigns the tapped Wisp (got %s under %s)" % [str(game_state.call("get_wisp_assignment", 0)), _touch_names_at(live, _touch_shape_world(manatree))])
@@ -23957,8 +24078,7 @@ func _touch_double_tap_objects_ok(tree_root: Window, game_state: Node, save_serv
 		game_state.call("select_wisp", 0)
 		var at: Vector2 = await _touch_aim(forge, _touch_shape_world(station))
 		_touch_double_at(tree_root, input, at)
-		await tree_root.get_tree().process_frame
-		await tree_root.get_tree().process_frame
+		await _touch_settle_picking(tree_root.get_tree())
 		await tree_root.get_tree().create_timer(0.1).timeout
 		_touch_unmute(station_muted)
 		failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == sid, "a double-tap on %s assigns the Wisp (got %s)" % [sid, str(game_state.call("get_wisp_assignment", 0))])
