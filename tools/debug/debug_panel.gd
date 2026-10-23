@@ -15,11 +15,12 @@ const SNAPSHOTS: Dictionary = {
 	"Pre-boss": "res://tools/debug/snapshots/pre_boss.json",
 	"Veteran reacher": "res://tools/debug/snapshots/veteran_reacher.json",
 	"Mid-fight": "res://tools/debug/snapshots/mid_fight.json",
+	"Wisps idle": "res://tools/debug/snapshots/wisps_idle.json",
 }
 const SNAPSHOT_ORDER: PackedStringArray = [
 	"Pre-Echo", "Forge unlocked", "Elaia joined", "Ancient ready",
 	"Echo 2 ready", "North road open", "Pre-boss", "Veteran reacher",
-	"Mid-fight",
+	"Mid-fight", "Wisps idle",
 ]
 const FORCE_LABELS: Dictionary = {
 	"flee": "Flee",

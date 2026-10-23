@@ -6,7 +6,11 @@ const ART: String = "res://assets/ui/echo/"
 const PANEL: String = ART + "ink_panel_9s_48.png"
 const PANEL_PLAIN: String = ART + "ink_panel_plain_9s_48.png"
 const SPEECH_TEX: String = ART + "speech_box_432x132.png"
-const PLATE: String = ART + "echo_chamber_bg_inkwater_1280x720.png"
+const PLATE: String = ART + "echo_chamber_bg_inkwater_1440x960.png"
+const PLATE_SIZE: Vector2 = Vector2(1440, 960)
+## Old 1280×720 plate inside the master, plus that plate's 960×540 crop at (160, 90).
+const PLATE_OLD_ORIGIN: Vector2 = Vector2(80, 120)
+const DESIGN_IN_PLATE: Vector2 = Vector2(240, 210)
 const JERSEY: String = "res://assets/fonts/font_echo_title_jersey.tres"
 const BODY_FONT: String = "res://assets/fonts/font_body_silver19.tres"
 const PRIMARY_FONT: String = "res://assets/fonts/font_primary_silver38_bold.tres"
@@ -52,8 +56,6 @@ const ECHO_CX: float = 760.0
 const FEET_Y: float = 340.0
 const SPRITE: float = 256.0
 const SPRITE_Y: float = 94.0
-const CROP_16: Rect2 = Rect2(160, 90, 960, 540)
-const CROP_20: Rect2 = Rect2(40, 90, 1200, 540)
 
 const SALVE_MAX: int = 2
 const MENU_SLOTS: PackedStringArray = ["strike", "ability", "items", "brace", "flee", "spare"]
@@ -68,7 +70,7 @@ static func shift() -> float:
 
 
 static func at(design: Rect2) -> Rect2:
-	return Rect2(design.position + Vector2(shift(), 0), design.size)
+	return Rect2(design.position + Ui540.center_shift(), design.size)
 
 
 static func tiles(px: float) -> bool:

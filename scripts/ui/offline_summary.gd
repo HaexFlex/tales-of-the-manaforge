@@ -217,11 +217,15 @@ func _layout() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
 	var phone: bool = _is_phone_sheet()
 	var w: float = PHONE_W if phone else PC_W
-	var x: float = (24.0 if phone else (vs.x - w) * 0.5) + (Ui540.center_shift_x() if phone else 0.0)
+	var left: float = Ui540.margin_left()
+	var right: float = Ui540.margin_right()
+	var shift: Vector2 = Ui540.center_shift()
+	var x: float = (left if phone else (vs.x - w) * 0.5) + (shift.x if phone else 0.0)
 	if not phone:
 		x = roundf((vs.x - w) * 0.5)
-	x = clampf(x, 24.0, maxf(24.0, vs.x - w - 24.0))
-	_card.position = Vector2(roundf(x), WINDOW_Y)
+	x = clampf(x, left, maxf(left, vs.x - w - right))
+	var y: float = maxf(WINDOW_Y + shift.y, Ui540.margin_top())
+	_card.position = Vector2(roundf(x), y)
 	_card.size = Vector2(w, WINDOW_H)
 	var title: Label = _card.get_node_or_null("Title") as Label
 	if title:
@@ -390,7 +394,7 @@ func _detail_row(row: Dictionary, index: int, gathered_open: bool) -> Control:
 	var tex: String = ART + "list_row_9s_odd_24x24.png" if index % 2 == 1 else THEME_UI + "list_row_9s_even_24x24.png"
 	panel.add_theme_stylebox_override("panel", Ui540.kit_stylebox_9s(tex, Vector4i(2, 2, 2, 2)))
 	var icon_path := "%sicon_%s.png" % [ICONS, kind]
-	if FileAccess.file_exists(icon_path):
+	if ResourceLoader.exists(icon_path):
 		var icon := TextureRect.new()
 		icon.name = "RowIcon"
 		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE

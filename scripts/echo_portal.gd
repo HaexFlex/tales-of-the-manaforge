@@ -262,6 +262,8 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 	if not mb.pressed:
 		return
 	if mb.button_index == MOUSE_BUTTON_LEFT:
+		if GameInput.yields_touch_double_tap(mb):
+			return
 		get_viewport().set_input_as_handled()
 		return
 	if GameInput.is_command(mb):

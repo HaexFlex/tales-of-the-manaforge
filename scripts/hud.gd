@@ -19,6 +19,7 @@ const BatchPanel := preload("res://scripts/batch_panel.gd")
 @onready var toast_shade: Control = $Panel/ToastShade
 @onready var selection_hint: Label = $Panel/SelectionHint
 @onready var help_button: Button = $Panel/HelpButton
+var _box_button: Button
 @onready var help_icon: TextureRect = $Panel/HelpButton/HelpIcon
 @onready var pause_button: Button = $Panel/PauseButton
 @onready var character_button: Button = $Panel/CharacterButton
@@ -365,6 +366,8 @@ func _ready() -> void:
 		Ui540.style_wood_icon_button(help_button)
 		if not help_button.pressed.is_connected(_toggle_help_panel):
 			help_button.pressed.connect(_toggle_help_panel)
+	if has_node("/root/GameInput") and GameInput.has_method("show_hold_hint_if_needed"):
+		GameInput.call("show_hold_hint_if_needed")
 
 
 ## HUD chrome draws under every HUD window: z 0 and tree order right after the Panel,
@@ -436,7 +439,11 @@ func _apply_hud540_chrome() -> void:
 
 func _layout_hud540() -> void:
 	var vs: Vector2 = Ui540.viewport_size()
-	var safe: float = Ui540.SAFE_MARGIN_PX
+	var left: float = Ui540.margin_left()
+	var right: float = Ui540.margin_right()
+	var top: float = Ui540.margin_top()
+	var bottom: float = Ui540.margin_bottom()
+	var safe: float = bottom
 	## HUD chrome hugs the screen edges on every aspect (hud540 20:9 mockup).
 	var shift: float = 0.0
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -449,32 +456,38 @@ func _layout_hud540() -> void:
 	var bar_w: float = 16.0 + 5.0 * 72.0 + 96.0
 	var shade: Control = panel.get_node_or_null("IconShade") as Control
 	if shade:
-		shade.position = Vector2(safe + shift, safe)
+		shade.position = Vector2(left + shift, top)
 		shade.size = Vector2(bar_w, bar_h)
 	var row: Control = $Panel/IconRow as Control
 	if row:
-		row.position = Vector2(safe + 8.0 + shift, safe + 4.0)
+		row.position = Vector2(left + 8.0 + shift, top + 4.0)
 		row.size = Vector2(bar_w - 16.0, bar_h - 8.0)
 	var tap: float = Ui540.TAP_MIN_PX
-	var pause_sz: float = 40.0 if Ui540.is_phone_export() else tap
-	var pause_x: float = vs.x - safe - pause_sz + shift
-	pause_button.position = Vector2(pause_x, safe)
+	var pause_sz: float = tap
+	var pause_x: float = vs.x - right - pause_sz + shift
+	pause_button.position = Vector2(pause_x, top)
 	pause_button.size = Vector2(pause_sz, pause_sz)
+	var help_x: float = pause_x - 8.0 - tap
+	if help_button:
+		help_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		help_button.position = Vector2(help_x, top)
+		help_button.size = Vector2(tap, tap)
 	if ascension_reopen_button.visible:
-		ascension_reopen_button.position = Vector2(pause_x - tap - 8.0, safe)
+		ascension_reopen_button.position = Vector2(help_x - tap - 8.0, top)
 		ascension_reopen_button.size = Vector2(tap, tap)
-	var speed_x: float = pause_x - 8.0 - tap
+	var speed_x: float = help_x - 8.0 - tap
 	if _play_speed_button:
-		_play_speed_button.position = Vector2(speed_x, safe)
+		_play_speed_button.position = Vector2(speed_x, top)
 		_play_speed_button.size = Vector2(tap, tap)
 	if _speed_button:
-		_speed_button.position = Vector2(speed_x - tap - 4.0, safe)
+		_speed_button.position = Vector2(speed_x - tap - 4.0, top)
 		_speed_button.size = Vector2(tap, tap)
-	var shortcut_y: float = vs.y - safe - tap
+	_layout_box_button(left, top + bar_h + 8.0, tap)
+	var shortcut_y: float = vs.y - bottom - tap
 	## Four fixed slots: forge switch, character, backpack, adventure board.
 	## A hidden slot stays empty so the forge switch and the board never trade places.
 	var shortcut_n: float = 4.0
-	var shortcut_x: float = vs.x - safe - shortcut_n * tap - (shortcut_n - 1.0) * 8.0 + shift
+	var shortcut_x: float = vs.x - right - shortcut_n * tap - (shortcut_n - 1.0) * 8.0 + shift
 	var step: float = tap + 8.0
 	if _nav_button != null:
 		_nav_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -493,6 +506,38 @@ func _layout_hud540() -> void:
 
 
 ## Child glyphs were authored for a 40 px button. On the 44 px tap target they sat up-left.
+func _layout_box_button(x: float, y: float, tap: float) -> void:
+	if _box_button == null:
+		_box_button = Button.new()
+		_box_button.name = "TouchBoxSelect"
+		_box_button.toggle_mode = true
+		_box_button.focus_mode = Control.FOCUS_NONE
+		_box_button.text = ContentStrings.get_text("touch_box_select_button")
+		GameTheme.style_wood_button(_box_button)
+		_box_button.toggled.connect(_on_box_select_toggled)
+		add_child(_box_button)
+	_box_button.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_box_button.position = Vector2(x, y)
+	_box_button.size = Vector2(132.0, tap)
+	_sync_box_button()
+
+
+func _sync_box_button() -> void:
+	if _box_button == null:
+		return
+	_box_button.visible = GameInput.touch_mode()
+	var armed: bool = GameInput.touch_marquee_armed()
+	if _box_button.button_pressed != armed:
+		_box_button.set_pressed_no_signal(armed)
+
+
+func _on_box_select_toggled(on: bool) -> void:
+	if on:
+		GameInput.arm_touch_marquee()
+	else:
+		GameInput.disarm_touch_marquee()
+
+
 func _center_hud_icons() -> void:
 	_center_hud_icon(pause_icon, pause_button)
 	_center_hud_icon(character_icon, character_button)
@@ -515,14 +560,14 @@ func _center_hud_icon(icon: Control, host: Control) -> void:
 	icon.size = glyph
 
 
-func _layout_toast_r4(vs: Vector2, safe: float, shift: float) -> void:
+func _layout_toast_r4(vs: Vector2, _safe: float, shift: float) -> void:
 	if status_label == null or toast_shade == null:
 		return
 	var tap: float = Ui540.TAP_MIN_PX
-	var toast_y: float = vs.y - safe - tap - 8.0 - 32.0
+	var toast_y: float = vs.y - Ui540.margin_bottom() - tap - 8.0 - 32.0
 	var line: String = status_label.text
 	var text_w: float = GameTheme.body_font().get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.silver_body_size()).x
-	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - safe * 2.0)
+	var toast_w: float = clampf(text_w + 64.0, 180.0, vs.x - Ui540.margin_left() - Ui540.margin_right())
 	var toast_x: float = roundf((vs.x - toast_w) * 0.5 + shift)
 	var toast_h: float = 30.0
 	var clear: Vector2 = _toast_clear_of_station(Vector2(toast_x, toast_y), Vector2(toast_w, toast_h), vs)
@@ -544,12 +589,12 @@ func _toast_clear_of_station(origin: Vector2, toast_sz: Vector2, vs: Vector2) ->
 	if not rect.intersects(win):
 		return origin
 	var above: float = win.position.y - 8.0 - toast_sz.y
-	if above >= Ui540.SAFE_MARGIN_PX and not Rect2(origin.x, above, toast_sz.x, toast_sz.y).intersects(win):
+	if above >= Ui540.margin_top() and not Rect2(origin.x, above, toast_sz.x, toast_sz.y).intersects(win):
 		return Vector2(origin.x, above)
 	var below: float = win.end.y + 8.0
-	if below + toast_sz.y <= vs.y - 4.0 and not Rect2(origin.x, below, toast_sz.x, toast_sz.y).intersects(win):
+	if below + toast_sz.y <= vs.y - Ui540.margin_bottom() and not Rect2(origin.x, below, toast_sz.x, toast_sz.y).intersects(win):
 		return Vector2(origin.x, below)
-	return Vector2(origin.x, clampf(origin.y, Ui540.SAFE_MARGIN_PX, maxf(Ui540.SAFE_MARGIN_PX, vs.y - toast_sz.y - 4.0)))
+	return Vector2(origin.x, clampf(origin.y, Ui540.margin_top(), maxf(Ui540.margin_top(), vs.y - Ui540.margin_bottom() - toast_sz.y)))
 
 
 func _forge_station_panel() -> Control:
@@ -561,11 +606,11 @@ func _forge_station_panel() -> Control:
 
 ## The bar is exactly as tall as its portrait column and sits on the bottom safe margin,
 ## so the column starts at y 0 and the activity labels share the portrait row offsets.
-func _layout_party_bar_r4(vs: Vector2, safe: float, _shift: float) -> void:
+func _layout_party_bar_r4(vs: Vector2, _safe: float, _shift: float) -> void:
 	if _party_bar == null:
 		return
-	var col_x: float = 30.0
-	var bottom: float = vs.y - safe
+	var col_x: float = maxf(30.0, Ui540.margin_left())
+	var bottom: float = vs.y - Ui540.margin_bottom()
 	var col_h: float = PARTY_SLOT
 	if _party_column:
 		var rows: int = 0
@@ -930,7 +975,7 @@ func _help_rows() -> Array[Dictionary]:
 	if _help_tab == "phone":
 		return [
 			{"key": "Tap", "action": "Select · press buttons"},
-			{"key": "Long-press (½ s)", "action": "Show what it is; on open ground: command"},
+			{"key": "Long-press", "action": "Show what it is; on open ground: command"},
 			{"key": "Pause button", "action": "Pause menu (top right)"},
 		]
 	return [
@@ -1267,6 +1312,7 @@ func _apply_wood_chrome() -> void:
 
 
 func _process(_delta: float) -> void:
+	_sync_box_button()
 	if _offline_summary != null and _offline_summary.has_method("tick_queue"):
 		_offline_summary.call("tick_queue")
 	_refresh_ancient_countdown()
@@ -1835,14 +1881,38 @@ func _on_party_slot_input(event: InputEvent, unit: String, slot: Control) -> voi
 	## Grab the viewport before a view swap. The swap is deferred, and this node
 	## can already be leaving the tree by the time the handler finishes.
 	var viewport: Viewport = get_viewport()
-	party_click(unit)
-	if mb.double_click:
+	if GameInput.touch_mode() and GameInput.is_touch_pointer(mb) and not GameInput.is_double_tap(mb) and _portrait_solely_selected(unit):
+		_portrait_clear(unit)
+	else:
+		party_click(unit)
+	if mb.double_click or GameInput.is_double_tap(mb):
 		party_focus(unit)
 	## The click is the portrait, not a ground order. Do not walk or clear the job.
 	if is_instance_valid(slot):
 		slot.accept_event()
 	if viewport != null and is_instance_valid(viewport):
 		viewport.set_input_as_handled()
+
+
+func _portrait_solely_selected(unit: String) -> bool:
+	var wisps_clear: bool = GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty()
+	if unit == "keeper":
+		return GameState.keeper_selected and wisps_clear and str(GameState.selected_companion_id) == ""
+	if unit == "elaia":
+		return str(GameState.selected_companion_id) == "elaia" and not GameState.keeper_selected and wisps_clear
+	if unit == "wisp":
+		return GameState.selected_wisp_id >= 0 and not GameState.keeper_selected and str(GameState.selected_companion_id) == ""
+	return false
+
+
+func _portrait_clear(unit: String) -> void:
+	if unit == "keeper":
+		GameState.set_keeper_selected(false)
+	elif unit == "elaia":
+		GameState.selected_companion_id = ""
+		GameState.selection_changed.emit()
+	elif unit == "wisp":
+		GameState.clear_wisp_selection()
 
 
 func party_click(unit: String) -> void:
@@ -3118,20 +3188,13 @@ func _make_activity_label(node_name: String, y: float) -> Label:
 	return lbl
 
 
-var _world_bold_font: FontVariation
-
-
-## Wisps and Idle sit on the grass. Silver 19 faux-bold, cream, with a dark rim.
+## Wisps and Idle sit on the grass. Plain Silver 19, cream, outline 4. No embolden.
 func _style_world_label(label: Label) -> void:
-	if _world_bold_font == null:
-		_world_bold_font = FontVariation.new()
-		_world_bold_font.base_font = GameTheme.body_font()
-		_world_bold_font.variation_embolden = 1.0
-	label.add_theme_font_override("font", _world_bold_font)
+	label.add_theme_font_override("font", GameTheme.body_font())
 	label.add_theme_font_size_override("font_size", GameTheme.silver_body_size())
 	label.add_theme_color_override("font_color", GameTheme.CREAM_BTN)
 	label.add_theme_color_override("font_outline_color", GameTheme.OUTLINE)
-	label.add_theme_constant_override("outline_size", 6)
+	label.add_theme_constant_override("outline_size", 4)
 	label.add_theme_constant_override("line_spacing", -2)
 	label.remove_theme_color_override("font_shadow_color")
 

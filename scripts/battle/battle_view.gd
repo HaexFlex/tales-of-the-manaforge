@@ -654,6 +654,7 @@ static func texture_used_rect(tex: Texture2D) -> Rect2:
 		return _used_rect_cache[key] as Rect2
 	var rect := Rect2(Vector2.ZERO, tex.get_size())
 	var image: Image = tex.get_image()
+	# EXPORT_SAFE_RAW: editor source PNG only. An export packs the .ctex, so this branch does not run there; the frame is tex.get_image().
 	if (image == null or image.is_empty()) and key != "" and FileAccess.file_exists(key):
 		image = Image.new()
 		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(key)) != OK:
@@ -1786,6 +1787,7 @@ func _fighter_frame_image(tex: Texture2D) -> Image:
 		return null
 	var image: Image = tex.get_image()
 	var key: String = tex.resource_path
+	# EXPORT_SAFE_RAW: editor source PNG only. An export packs the .ctex, so this branch does not run there; the frame is tex.get_image().
 	if (image == null or image.is_empty()) and key != "" and FileAccess.file_exists(key):
 		image = Image.new()
 		if image.load_png_from_buffer(FileAccess.get_file_as_bytes(key)) != OK:
@@ -2680,6 +2682,19 @@ func _on_log_scroll_gui_input(event: InputEvent) -> void:
 			_log_follow_tail = false
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			call_deferred("_sync_log_follow_from_scroll")
+		return
+	var loop: SceneTree = Engine.get_main_loop() as SceneTree
+	var input: Node = loop.root.get_node_or_null("GameInput") if loop != null else null
+	if input == null or not bool(input.call("touch_mode")):
+		return
+	var touch_scroll: bool = false
+	if event is InputEventScreenDrag:
+		touch_scroll = (event as InputEventScreenDrag).index == 0
+	elif event is InputEventMouseMotion:
+		var motion: InputEventMouseMotion = event as InputEventMouseMotion
+		touch_scroll = motion.device == InputEvent.DEVICE_ID_EMULATION and (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0
+	if touch_scroll:
+		call_deferred("_sync_log_follow_from_scroll")
 
 
 func _sync_log_follow_from_scroll() -> void:
@@ -2688,7 +2703,9 @@ func _sync_log_follow_from_scroll() -> void:
 	var bar: VScrollBar = _log_scroll.get_v_scroll_bar()
 	if bar == null:
 		return
-	_log_follow_tail = bar.max_value <= 0.0 or bar.value >= bar.max_value - 2.0
+	## page is the visible slice, so the end sits at max - page, not at max.
+	var end: float = bar.max_value - maxf(bar.page, 0.0)
+	_log_follow_tail = bar.max_value <= 0.0 or bar.value >= end - 2.0
 
 
 func _scroll_log_to_end() -> void:
@@ -3587,6 +3604,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 	root.set_meta("built_by", "res://scripts/battle/battle_view.gd")
 	parent.add_child(root)
 	var ox: float = EchoTheme.shift()
+	var oy: float = Ui540.center_shift_y()
 	var bar := Panel.new()
 	bar.name = "EchoBottomBar"
 	var bar_box: Rect2 = EchoTheme.at(EchoTheme.BOTTOM_BAR)
@@ -3630,7 +3648,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		var row: int = int(i / 3)
 		## Hybrid Strike leaves a gap for the Phy chip. 104 fits the word and the 1 badge.
 		var slot_w: float = 104.0 if hybrid and slot == "strike" else 144.0
-		btn.position = Vector2(ox + 44.0 + 152.0 * float(col), 394.0 + 56.0 * float(row))
+		btn.position = Vector2(ox + 44.0 + 152.0 * float(col), oy + 394.0 + 56.0 * float(row))
 		btn.size = Vector2(slot_w, 44)
 		btn.custom_minimum_size = Vector2(slot_w, 44)
 		btn.focus_mode = Control.FOCUS_ALL
@@ -3685,7 +3703,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 	chip.name = "ArrowToggle"
 	chip.text = "Phy"
 	## Strike ends at ox+148. The chip stays 44 px (tap minimum) and stops before Ability.
-	chip.position = Vector2(ox + 150.0, 394.0)
+	chip.position = Vector2(ox + 150.0, oy + 394.0)
 	chip.size = Vector2(44, 44)
 	chip.custom_minimum_size = Vector2(44, 44)
 	chip.visible = hybrid
@@ -3712,7 +3730,7 @@ static func build_echo_menu(parent: Node, hybrid: bool) -> Dictionary:
 		ability.disabled = not keeper_abilities_exist()
 	var log_panel := Panel.new()
 	log_panel.name = "EchoLog"
-	log_panel.position = Vector2(ox + 504.0, 394.0)
+	log_panel.position = Vector2(ox + 504.0, oy + 394.0)
 	log_panel.size = Vector2(412, 100)
 	log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var log_box := StyleBoxTexture.new()

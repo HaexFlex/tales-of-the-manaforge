@@ -7,6 +7,8 @@ const BattleRngScript := preload("res://scripts/battle/battle_rng.gd")
 const BattleResolverScript := preload("res://scripts/battle/resolver.gd")
 const BattleViewScript := preload("res://scripts/battle/battle_view.gd")
 const BattlePlaybackScript := preload("res://scripts/battle/battle_playback.gd")
+## 2560×1920 is a 2× integer viewport (logical 1280×960), the scale a tablet uses.
+const TOUCH_DEVICE_WINDOW: Vector2i = Vector2i(2560, 1920)
 ## Headless verification: Echo, Forge v2, waypoint freeze, autosaves, SAVE_VERSION 10.
 ## Hub and Forge scene changes are part of this run (SCENE_TRANSITIONS_OK).
 ## Regression rule: every bug Haex reports that has been fixed before, or that
@@ -37,6 +39,207 @@ func _run() -> void:
 	if failed > 0:
 		print("VERIFY_FAIL: %d assertion(s) failed (early)" % failed)
 		quit(1)
+		return
+
+	if OS.get_environment("MANAFORGE_ANDROID_PRESET") == "1":
+		var android_only: int = _android_preset_ok()
+		if android_only > 0:
+			print("ANDROID_PRESET_FAIL: %d" % android_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_MANATREE_TILES") == "1":
+		var tiles_only: int = _manatree_tiles_ok(tree_root, game_state)
+		if tiles_only > 0:
+			print("MANATREE_TILES_FAIL: %d" % tiles_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_LIFECYCLE") == "1":
+		var life_only: int = _lifecycle_checks(tree_root, game_state, save_service)
+		if life_only > 0:
+			print("LIFECYCLE_FAIL: %d" % life_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_SAFE_AREA") == "1":
+		var safe_only: int = await _safe_area_layout_ok(tree_root)
+		if safe_only > 0:
+			print("SAFE_AREA_FAIL: %d" % safe_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TITLE_WIDE") == "1":
+		var title_only: int = await _title_wide_ok(tree_root)
+		if title_only > 0:
+			print("TITLE_WIDE_FAIL: %d" % title_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TITLE_WIDE_SIZES") == "1":
+		var title_sizes_only: int = await _title_wide_sizes_ok(tree_root)
+		if title_sizes_only > 0:
+			print("TITLE_WIDE_SIZES_FAIL: %d" % title_sizes_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ECHO_WIDE") == "1":
+		var echo_wide_only: int = await _echo_wide_plate_ok(tree_root)
+		if echo_wide_only > 0:
+			print("ECHO_WIDE_PLATE_FAIL: %d" % echo_wide_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_EXPORT_SAFE") == "1":
+		var export_safe_only: int = await _export_safe_resources_ok(tree_root)
+		if export_safe_only > 0:
+			print("EXPORT_SAFE_RESOURCES_FAIL: %d" % export_safe_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_HUD_SAFE") == "1":
+		var hud_safe_only: int = await _hud_inside_safe_area_ok(tree_root)
+		if hud_safe_only > 0:
+			print("HUD_INSIDE_SAFE_AREA_FAIL: %d" % hud_safe_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_VIEWPORT_EXPAND") == "1":
+		var view_only: int = await _viewport_expand_ok(tree_root)
+		if view_only > 0:
+			print("VIEWPORT_EXPAND_FAIL: %d" % view_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOUCH_WISP_STRESS") == "1":
+		var stress_only: int = await _touch_wisp_stress_ok(tree_root, game_state, save_service)
+		if stress_only > 0:
+			print("TOUCH_WISP_STRESS_FAIL: %d" % stress_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOUCH_NAV") == "1":
+		var nav_only: int = await _touch_nav_ok(tree_root, game_state, save_service)
+		if nav_only > 0:
+			print("TOUCH_NAV_FAIL: %d" % nav_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOUCH") == "1":
+		var touch_only: int = _touch_hint_ok(tree_root, game_state)
+		if touch_only > 0:
+			print("TOUCH_HINT_FAIL: %d" % touch_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOUCH_COPY") == "1":
+		var copy_only: int = await _touch_copy_ok(tree_root, content_strings)
+		if copy_only > 0:
+			print("TOUCH_COPY_FAIL: %d" % copy_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOUCH_PANEL_BUTTON") == "1":
+		var panel_tap: int = await _touch_panel_button_tap_ok(tree_root, game_state, save_service)
+		if panel_tap > 0:
+			print("TOUCH_PANEL_BUTTON_TAP_FAIL: %d" % panel_tap)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TITLE_NEW_GAME_TOUCH") == "1":
+		var title_touch: int = await _title_new_game_touch_ok(tree_root, save_service)
+		if title_touch > 0:
+			print("TITLE_NEW_GAME_TOUCH_FAIL: %d" % title_touch)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_EXPORT_SCENE_INTEGRITY") == "1":
+		var export_scenes: int = _export_scene_integrity_ok()
+		if export_scenes > 0:
+			print("EXPORT_SCENE_INTEGRITY_FAIL: %d" % export_scenes)
+			quit(1)
+		else:
+			print("EXPORT_SCENE_INTEGRITY_OK")
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOUCH_HELP_FITS") == "1":
+		var help_fit: int = await _options_touch_help_fits_ok(tree_root)
+		help_fit += await _options_pc_panel_unchanged_ok(tree_root)
+		if help_fit > 0:
+			print("OPTIONS_TOUCH_HELP_FITS_FAIL: %d" % help_fit)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_OPTIONS_PC_PANEL") == "1":
+		var pc_panel: int = await _options_pc_panel_unchanged_ok(tree_root)
+		if pc_panel > 0:
+			print("OPTIONS_PC_PANEL_UNCHANGED_FAIL: %d" % pc_panel)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_ANDROID_ICON") == "1":
+		var icon_only: int = _android_icon_splash_ok()
+		if icon_only > 0:
+			print("ANDROID_ICON_SPLASH_FAIL: %d" % icon_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_TOOLTIP_SCROLL") == "1":
+		var scroll_only: int = await _tooltip_scroll_ok(tree_root)
+		scroll_only += await _tooltip_parchment_ok(tree_root)
+		if scroll_only > 0:
+			print("TOOLTIP_SCROLL_FAIL: %d" % scroll_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	if OS.get_environment("MANAFORGE_LONGPRESS_HINT_WIDTH") == "1":
+		var hint_width_only: int = await _longpress_hint_width_ok(tree_root)
+		if hint_width_only > 0:
+			print("LONGPRESS_HINT_WIDTH_FAIL: %d" % hint_width_only)
+			quit(1)
+		else:
+			quit(0)
 		return
 
 	if _wants_check_only():
@@ -132,6 +335,17 @@ func _run() -> void:
 		var snaps_only: int = await _debug_snapshots_reach(tree_root, game_state, save_service)
 		if snaps_only > 0:
 			print("DEBUG_SNAPSHOTS_REACH_FAIL: %d" % snaps_only)
+			quit(1)
+		else:
+			quit(0)
+		return
+
+	# Wisps idle debug snapshot. The full suite still runs this with the other snapshots.
+	# MANAFORGE_DEBUG_SAVE_WISPS=1 skips every other assertion.
+	if OS.get_environment("MANAFORGE_DEBUG_SAVE_WISPS") == "1":
+		var wisps_only: int = await _debug_save_wisps_ok(tree_root, game_state, save_service)
+		if wisps_only > 0:
+			print("DEBUG_SAVE_WISPS_FAIL: %d" % wisps_only)
 			quit(1)
 		else:
 			quit(0)
@@ -1421,11 +1635,14 @@ func _run() -> void:
 						var asz: Variant = ed.get("size", [])
 						failed += _assert(typeof(asz) == TYPE_ARRAY and int((asz as Array)[0]) == 1024 and int((asz as Array)[1]) == 1024, "meta ancient frame 1024")
 						failed += _assert(int(ed.get("frames", 0)) == 8, "ancient strip has 8 frames")
+						failed += _assert(int(ed.get("tile_frames", 0)) == 2, "ancient strip is tiled at 2 frames")
 						failed += _assert(absf(float(ed.get("display_scale", 0.0)) - 1.0) < 0.01, "ancient display_scale 1")
-						var ancient_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_ancient_strip.png") as Texture2D
-						var elder_strip: Texture2D = load("res://assets/art/manatree/native/anim/manatree_elder_strip.png") as Texture2D
-						failed += _assert(ancient_strip != null and ancient_strip.get_width() == 8192 and ancient_strip.get_height() == 1024, "ancient strip 8192x1024")
-						failed += _assert(elder_strip != null and elder_strip.get_width() == 8192 and elder_strip.get_height() == 1024, "elder strip 8192x1024")
+						failed += _assert(not FileAccess.file_exists("res://assets/art/manatree/native/anim/manatree_ancient_strip.png"), "ancient strip left the live art folder")
+						failed += _assert(not FileAccess.file_exists("res://assets/art/manatree/native/anim/manatree_elder_strip.png"), "elder strip left the live art folder")
+						var ancient_tile: Texture2D = load("res://assets/art/manatree/native/anim/glow/tiles/manatree_ancient_strip_glow_t0.png") as Texture2D
+						var elder_tile: Texture2D = load("res://assets/art/manatree/native/anim/glow/tiles/manatree_elder_strip_glow_t0.png") as Texture2D
+						failed += _assert(ancient_tile != null and ancient_tile.get_width() == 2048 and ancient_tile.get_height() == 1024, "ancient glow tile 2048x1024")
+						failed += _assert(elder_tile != null and elder_tile.get_width() == 2048 and elder_tile.get_height() == 1024, "elder glow tile 2048x1024")
 
 	# Art harvest nodes
 	failed += _assert(ResourceLoader.exists("res://assets/art/props/harvest_tree.png"), "harvest_tree art")
@@ -3827,6 +4044,7 @@ func _run() -> void:
 	failed += await _echo2_portal_visible(tree_root, game_state, save_service)
 	failed += await _expedition_board_tease(tree_root, game_state, save_service)
 	failed += await _debug_snapshots_reach(tree_root, game_state, save_service)
+	failed += await _debug_save_wisps_ok(tree_root, game_state, save_service)
 	failed += await _speed_button_ok(tree_root, game_state, save_service, game_audio)
 	failed += _reach_checks(tree_root, game_state, save_service)
 	failed += await _reach_mix_reload(tree_root, game_state, save_service)
@@ -3924,6 +4142,22 @@ func _run() -> void:
 	failed += await _battle_icons(tree_root, game_state, save_service)
 	failed += _minigame_checks()
 	failed += _hybrid_chip_ok(tree_root)
+	failed += _compat_renderer_ok()
+	failed += _android_preset_ok()
+	failed += _android_icon_splash_ok()
+	failed += _manatree_tiles_ok(tree_root, game_state)
+	failed += _lifecycle_checks(tree_root, game_state, save_service)
+	failed += await _safe_area_layout_ok(tree_root)
+	failed += await _viewport_expand_ok(tree_root)
+	failed += await _title_wide_ok(tree_root)
+	failed += await _title_wide_sizes_ok(tree_root)
+	failed += await _echo_wide_plate_ok(tree_root)
+	failed += await _export_safe_resources_ok(tree_root)
+	failed += await _hud_inside_safe_area_ok(tree_root)
+	failed += _touch_hint_ok(tree_root, game_state)
+	failed += await _touch_nav_ok(tree_root, game_state, save_service)
+	failed += await _tooltip_scroll_ok(tree_root)
+	failed += await _longpress_hint_width_ok(tree_root)
 
 	if failed == 0:
 		print("VERIFY_OK: all headless assertions passed")
@@ -4949,7 +5183,7 @@ func _offline_away_panel(tree_root: Window, game_state: Node, save_service: Node
 		"expedition": {},
 	}
 	panel.call("present", report)
-	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0), "the away window sits at y 92")
+	failed += _assert(is_equal_approx((panel.call("card_position") as Vector2).y, 92.0 + Ui540.center_shift_y()), "the away window sits at y 92 plus the centred-frame shift")
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).y, 424.0), "the away window is 424 tall")
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, 600.0), "the away window is 600 wide")
 	var headline: String = str(panel.call("headline_text"))
@@ -5160,7 +5394,7 @@ func _offline_continue_box(panel: Node, vs: Vector2i, card_w: float = 600.0, car
 	failed += _assert(is_equal_approx((panel.call("card_size") as Vector2).x, card_w), "away panel is %.0f wide at %s phone-sheet %s" % [card_w, vs, card_w > 700.0])
 	failed += _assert(card_x < 0.0 or is_equal_approx(card_pos.x, card_x), "away panel x is %.0f at %s (got %.0f)" % [card_x, vs, card_pos.x])
 	failed += _assert(card_pos.x >= 24.0 - 0.5 and card_pos.x + card_w <= float(vs.x) - 24.0 + 0.5, "away panel stays inside the 24 px side margins at %s" % vs)
-	failed += _assert(is_equal_approx(card_pos.y, 92.0), "away panel stays at y 92")
+	failed += _assert(is_equal_approx(card_pos.y, 92.0 + Ui540.center_shift_y()), "away panel y is 92 plus the centred-frame shift (got %.0f)" % card_pos.y)
 	return failed
 
 
@@ -5619,6 +5853,9 @@ func _check_only_load() -> int:
 		"res://scripts/ui/expedition_shell.gd",
 		"res://scripts/autoload/game_theme.gd",
 		"res://scripts/autoload/game_input.gd",
+		"res://scripts/ui/root_back.gd",
+		"res://scripts/ui/kit_dialog.gd",
+		"res://scripts/title_screen.gd",
 		"res://scripts/minigames/minigame_math.gd",
 		"res://scripts/minigames/minigame_catalog.gd",
 		"res://scripts/minigames/minigame_art.gd",
@@ -7067,6 +7304,139 @@ func _keeper_work_spot_asserts() -> int:
 	return failed
 
 
+func _tooltip_scroll_ok(tree_root: Window) -> int:
+	## Scroll-edge tooltips: asset, tile margins, 38 px min, fade, long-press panel, themed windows.
+	var failed: int = 0
+	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
+	var box: StyleBoxTexture = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture if theme != null else null
+	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
+	failed += _assert(path.find("res://assets/ui/longpress/tooltip_scroll_9s_51x38.png") >= 0, "scroll tooltip path (got %s)" % path)
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 16.0 and box.texture_margin_right == 15.0 and box.texture_margin_bottom == 10.0, "scroll texture margins 12/16/15/10")
+	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_TILE and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_TILE, "scroll axis stretch is Tile")
+	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 9.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 9.0, "scroll content margins 16/9/16/9")
+	failed += _assert(is_equal_approx(Ui540.TOOLTIP_MIN_H, 38.0) and is_equal_approx(Ui540.TOOLTIP_MIN_W, 51.0), "tooltip min size is 51 x 38")
+	failed += _assert(is_equal_approx(Ui540.TOOLTIP_FADE_SEC, 0.12), "tooltip fade is 0.12 s")
+	var hover_src: String = FileAccess.get_file_as_string("res://scripts/ui/world_hover.gd")
+	failed += _assert(hover_src.find("Ui540.TOOLTIP_MIN_H") >= 0 and hover_src.find("fade_in_tooltip") >= 0, "world hover uses the min height and the fade")
+	var input_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_src.find("present_long_press_hint") >= 0 and input_src.find("ui.longpress_hint") >= 0, "long-press opens the hint panel from one strings key")
+	failed += _assert(input_src.find("long_press_wait") >= 0 and input_src.find("0.5 is the action deadzone") >= 0, "0.5 stays the deadzone; the panel waits on the 0.8 s hold")
+	var theme_src: String = FileAccess.get_file_as_string("res://scripts/autoload/game_theme.gd")
+	failed += _assert(theme_src.find("tools/debug/") >= 0 and theme_src.find("_apply_window_theme") >= 0, "window theme hook skips the debug panel")
+	var recipe_src: String = FileAccess.get_file_as_string("res://scripts/forge_recipe_button.gd")
+	failed += _assert(recipe_src.find("StyleBoxEmpty") >= 0, "forge recipe tooltip container stays empty")
+	var toast_src: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _assert(toast_src.find("toast_9s_40x30") >= 0 and toast_src.find("BagDetailPopup") >= 0, "toasts and the bag detail popup are unchanged")
+	var trait_src: String = FileAccess.get_file_as_string("res://scripts/character_sheet.gd")
+	failed += _assert(trait_src.find("TraitPopup") >= 0 and trait_src.find("trait_popup") >= 0 and trait_src.find("tooltip_scroll") < 0, "trait hover stays a kit window")
+	var strings: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	failed += _assert(strings.find("\"ui.longpress_hint\": \"Hold to look\\ncloser, or to\\ngive an order.\"") >= 0, "long-press copy is the Lore final line")
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null and is_equal_approx(float(input.call("long_press_wait")), 0.8), "long-press wait is 0.8 s")
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.size = Vector2i(960, 540)
+	tree_root.content_scale_size = Vector2i(960, 540)
+	await process_frame
+	if input != null:
+		failed += _assert(bool(input.call("present_long_press_hint", Vector2(400, 300))), "long-press panel can show")
+	var hint: Panel = WorldHover.panel()
+	failed += _assert(hint != null and hint.visible and hint.size.is_equal_approx(Vector2(200, 78)), "long-press panel is 200 x 78 (got %s)" % (str(hint.size) if hint != null else "missing"))
+	var hint_label: Label = hint.get_node_or_null("Text") as Label if hint != null else null
+	failed += _assert(hint_label != null and hint_label.text == "Hold to look\ncloser, or to\ngive an order.", "long-press panel shows the Lore final line")
+	if hint != null:
+		var safe: Rect2 = Ui540.safe_rect()
+		failed += _assert(safe.encloses(Rect2(hint.position, hint.size)), "long-press panel sits inside the safe area %s" % str(hint.position))
+		failed += _assert(hint.modulate.a < 0.05, "long-press panel fades in from transparent")
+		await create_timer(0.3).timeout
+		failed += _assert(hint.modulate.a > 0.9, "long-press panel finishes the fade")
+		WorldHover.dismiss_hold()
+	var pop := PopupPanel.new()
+	pop.theme_type_variation = &"TooltipPanel"
+	pop.visible = false
+	tree_root.add_child(pop)
+	var menu := PopupMenu.new()
+	tree_root.add_child(menu)
+	await process_frame
+	var app_theme: Theme = tree_root.theme
+	failed += _assert(pop.theme == app_theme and app_theme != null, "a tooltip window receives the app theme")
+	failed += _assert(menu.theme == app_theme, "a popup menu receives the app theme")
+	pop.free()
+	menu.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TOOLTIP_SCROLL_OK")
+	return failed
+
+
+func _longpress_hint_width_ok(tree_root: Window) -> int:
+	## A wide world tooltip must not leave the shared panel stuck wider than the 200 px hint.
+	var failed: int = 0
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.size = Vector2i(960, 540)
+	tree_root.content_scale_size = Vector2i(960, 540)
+	await process_frame
+	var host := Node2D.new()
+	tree_root.add_child(host)
+	var wide: String = "The eastern clearing holds a fallen heartwood the Keeper cannot carry\nsecond line of the world tooltip\nthird line of the world tooltip"
+	WorldHover.present(host, wide)
+	WorldHover.complete_rest()
+	await process_frame
+	var tip: Panel = WorldHover.panel()
+	var wide_size: Vector2 = _world_hover_text_size(tip, wide)
+	failed += _assert(tip != null and tip.visible and tip.size.is_equal_approx(wide_size), "3-line world tooltip sizes to its text (got %s want %s)" % [str(tip.size) if tip != null else "missing", str(wide_size)])
+	failed += _assert(tip != null and tip.size.x > 200.0, "3-line world tooltip is wider than the hint (got %s)" % (str(tip.size) if tip != null else "missing"))
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input != null:
+		failed += _assert(bool(input.call("present_long_press_hint", Vector2(400, 300))), "long-press hint opens after a wide tooltip")
+	else:
+		failed += _assert(WorldHover.show_anchored_hint("Hold to look\ncloser, or to\ngive an order.", Vector2(400, 300), Vector2(200, 78)), "long-press hint opens after a wide tooltip")
+	await process_frame
+	var hint: Panel = WorldHover.panel()
+	failed += _assert(hint != null and hint.size.is_equal_approx(Vector2(200, 78)), "long-press hint is 200 x 78 after a wide tooltip (got %s)" % (str(hint.size) if hint != null else "missing"))
+	var short_text: String = "Runestone Arcana"
+	WorldHover.present(host, short_text)
+	WorldHover.complete_rest()
+	await process_frame
+	var again: Panel = WorldHover.panel()
+	var short_size: Vector2 = _world_hover_text_size(again, short_text)
+	failed += _assert(again != null and again.visible and again.size.is_equal_approx(short_size), "1-line world tooltip sizes to its text after the hint (got %s want %s)" % [str(again.size) if again != null else "missing", str(short_size)])
+	failed += _assert(again != null and again.size.x < 200.0, "1-line world tooltip is not stuck at the hint width (got %s)" % (str(again.size) if again != null else "missing"))
+	WorldHover.shutdown()
+	host.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("LONGPRESS_HINT_WIDTH_OK")
+	return failed
+
+
+func _world_hover_text_size(panel: Panel, text: String) -> Vector2:
+	var label: Label = panel.get_node_or_null("Text") as Label if panel != null else null
+	var font: Font = label.get_theme_font(&"font") if label != null else null
+	var font_size: int = label.get_theme_font_size(&"font_size") if label != null else 16
+	var text_sz := Vector2(80, 19)
+	if font != null:
+		text_sz = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	var left: float = 16.0
+	var top: float = 10.0
+	var right: float = 16.0
+	var bottom: float = 10.0
+	var box: StyleBox = panel.get_theme_stylebox(&"panel") if panel != null else null
+	if box != null:
+		left = box.get_content_margin(SIDE_LEFT)
+		top = box.get_content_margin(SIDE_TOP)
+		right = box.get_content_margin(SIDE_RIGHT)
+		bottom = box.get_content_margin(SIDE_BOTTOM)
+	var lines: int = maxi(1, text.count("\n") + 1)
+	return Vector2(
+		maxf(Ui540.TOOLTIP_MIN_W, text_sz.x + left + right),
+		maxf(Ui540.TOOLTIP_MIN_H, float(lines) * 20.0 + top + bottom),
+	)
+
+
 func _tooltip_parchment_ok(tree_root: Window) -> int:
 	var failed: int = 0
 	var theme: Theme = load("res://assets/ui/manaforge_theme.tres") as Theme
@@ -7074,11 +7444,11 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	if theme != null:
 		box = theme.get_stylebox("panel", "TooltipPanel") as StyleBoxTexture
 	var path: String = box.texture.resource_path if box != null and box.texture != null else ""
-	failed += _assert(path.find("toast_9s_40x30") >= 0, "tooltip panel uses the activity papyrus scroll")
-	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 8.0 and box.texture_margin_right == 12.0 and box.texture_margin_bottom == 8.0, "tooltip texture margins keep the rolls at 12/8/12/8")
-	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_STRETCH, "tooltip nine-slice stretches only the middle")
-	failed += _assert(box != null and box.content_margin_left >= box.texture_margin_left and box.content_margin_right >= box.texture_margin_right and box.content_margin_top >= box.texture_margin_top and box.content_margin_bottom >= box.texture_margin_bottom, "tooltip content sits inside the rolled ends")
-	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 10.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 10.0, "tooltip content margins are 16/10/16/10")
+	failed += _assert(path.find("tooltip_scroll_9s_51x38") >= 0, "tooltip panel uses the scroll-edge papyrus")
+	failed += _assert(box != null and box.texture_margin_left == 12.0 and box.texture_margin_top == 16.0 and box.texture_margin_right == 15.0 and box.texture_margin_bottom == 10.0, "tooltip texture margins are 12/16/15/10")
+	failed += _assert(box != null and box.axis_stretch_horizontal == StyleBoxTexture.AXIS_STRETCH_MODE_TILE and box.axis_stretch_vertical == StyleBoxTexture.AXIS_STRETCH_MODE_TILE, "tooltip nine-slice tiles both axes")
+	failed += _assert(box != null and box.content_margin_left >= 16.0 and box.content_margin_right >= 16.0 and box.content_margin_top >= 9.0 and box.content_margin_bottom >= 9.0, "tooltip content sits inside the scroll caps")
+	failed += _assert(box != null and box.content_margin_left == 16.0 and box.content_margin_top == 9.0 and box.content_margin_right == 16.0 and box.content_margin_bottom == 9.0, "tooltip content margins are 16/9/16/9")
 	var host := Control.new()
 	host.position = Vector2(100, 80)
 	host.size = Vector2(44, 44)
@@ -7088,7 +7458,7 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	tree_root.add_child(pop)
 	Ui540.place_tooltip(pop, host)
 	failed += _assert(is_equal_approx(pop.position.x, 100.0) and is_equal_approx(pop.position.y, 130.0), "tooltip sits 6 px under the control (got %s)" % str(pop.position))
-	failed += _assert(pop.size.y >= 29.9, "tooltip is at least 30 px high")
+	failed += _assert(pop.size.y >= Ui540.TOOLTIP_MIN_H - 0.1, "tooltip is at least 38 px high")
 	host.position = Vector2(900, 500)
 	pop.size = Vector2(200, 40)
 	Ui540.place_tooltip(pop, host)
@@ -7132,15 +7502,15 @@ func _tooltip_parchment_ok(tree_root: Window) -> int:
 	tip_btn.add_child(shown)
 	var applied: StyleBoxTexture = shown.get_theme_stylebox("panel") as StyleBoxTexture
 	var applied_path: String = applied.texture.resource_path if applied != null and applied.texture != null else ""
-	failed += _assert(applied_path.find("toast_9s_40x30") >= 0, "applied tooltip stylebox is the activity papyrus scroll (got %s)" % applied_path)
-	failed += _assert(applied != null and applied.texture_margin_left == 12.0 and applied.texture_margin_top == 8.0 and applied.texture_margin_right == 12.0 and applied.texture_margin_bottom == 8.0, "applied tooltip margins are 12/8/12/8")
+	failed += _assert(applied_path.find("tooltip_scroll_9s_51x38") >= 0, "applied tooltip stylebox is the scroll-edge papyrus (got %s)" % applied_path)
+	failed += _assert(applied != null and applied.texture_margin_left == 12.0 and applied.texture_margin_top == 16.0 and applied.texture_margin_right == 15.0 and applied.texture_margin_bottom == 10.0, "applied tooltip margins are 12/16/15/10")
 	var drawn: StyleBoxTexture = null
 	for idx: int in shown.get_child_count(true):
 		var inner: Node = shown.get_child(idx, true)
 		if inner is Panel:
 			drawn = (inner as Panel).get_theme_stylebox("panel") as StyleBoxTexture
 	var drawn_path: String = drawn.texture.resource_path if drawn != null and drawn.texture != null else ""
-	failed += _assert(drawn_path.find("toast_9s_40x30") >= 0, "tooltip panel draws the activity papyrus scroll (got %s)" % drawn_path)
+	failed += _assert(drawn_path.find("tooltip_scroll_9s_51x38") >= 0, "tooltip panel draws the scroll-edge papyrus (got %s)" % drawn_path)
 	failed += _assert(tip_label.get_theme_color("font_color").is_equal_approx(Color8(62, 42, 24)), "tooltip label ink is applied")
 	failed += await _tooltip_text_inside_margins(tree_root, theme)
 	tip_btn.free()
@@ -7174,9 +7544,9 @@ func _tooltip_text_inside_margins(tree_root: Window, theme: Theme) -> int:
 		panel.size.y - box.content_margin_top - box.content_margin_bottom
 	)
 	failed += _assert(content.encloses(text_rect), "C — Character sits inside the content margins (text %s content %s)" % [str(text_rect), str(content)])
-	failed += _assert(text_rect.position.x >= box.texture_margin_left - 0.1, "tooltip text clears the left roll (x %.1f)" % text_rect.position.x)
-	failed += _assert(text_rect.end.x <= panel.size.x - box.texture_margin_right + 0.1, "tooltip text clears the handle (right %.1f panel %.1f)" % [text_rect.end.x, panel.size.x])
-	failed += _assert(text_rect.position.y >= box.texture_margin_top - 0.1 and text_rect.end.y <= panel.size.y - box.texture_margin_bottom + 0.1, "tooltip text clears the top and bottom edges")
+	failed += _assert(text_rect.position.x >= box.content_margin_left - 0.1, "tooltip text starts at the 16 px content margin (x %.1f)" % text_rect.position.x)
+	failed += _assert(text_rect.end.x <= panel.size.x - box.content_margin_right + 0.1, "tooltip text stays inside the right content margin (right %.1f panel %.1f)" % [text_rect.end.x, panel.size.x])
+	failed += _assert(text_rect.position.y >= box.content_margin_top - 0.1 and text_rect.end.y <= panel.size.y - box.content_margin_bottom + 0.1, "tooltip text stays inside the vertical content margins")
 	panel.free()
 	return failed
 
@@ -7224,7 +7594,7 @@ func _world_hover_names_ok(tree_root: Window) -> int:
 	var tip_box: StyleBoxTexture = tip.get_theme_stylebox(&"panel") as StyleBoxTexture if tip != null else null
 	var tip_path: String = tip_box.texture.resource_path if tip_box != null and tip_box.texture != null else ""
 	failed += _assert(WorldHover.current_text() == "Forge Door", "world hover shows the forge door name (got %s)" % WorldHover.current_text())
-	failed += _assert(tip_path.find("toast_9s_40x30") >= 0, "world hover draws the papyrus scroll (got %s)" % tip_path)
+	failed += _assert(tip_path.find("tooltip_scroll_9s_51x38") >= 0, "world hover draws the scroll-edge papyrus (got %s)" % tip_path)
 	var tip_label: Label = tip.get_node_or_null("Text") as Label if tip != null else null
 	if tip != null and tip_label != null and tip_box != null:
 		var text_rect := Rect2(tip_label.position, tip_label.size)
@@ -7922,6 +8292,7 @@ func _stripped_paths() -> PackedStringArray:
 		"tools/debug/snapshots/north_road_open.json",
 		"tools/debug/snapshots/pre_boss.json",
 		"tools/debug/snapshots/veteran_reacher.json",
+		"tools/debug/snapshots/wisps_idle.json",
 	])
 
 
@@ -11022,6 +11393,91 @@ func _snapshot_hub_check(tree_root: Window, game_state: Node, save_service: Node
 	return failed
 
 
+const _WISPS_IDLE_LABEL: String = "Wisps idle"
+const _WISPS_IDLE_PATH: String = "res://tools/debug/snapshots/wisps_idle.json"
+const _WISPS_IDLE_DISK: String = "tools/debug/snapshots/wisps_idle.json"
+
+
+func _debug_save_wisps_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Debug-panel snapshot for the tablet Wisp checks. Two idle Wisps, gatherables,
+	## the Manatree, and a Forge the Keeper can enter. Stable strips the file.
+	var failed: int = 0
+	var panel_src: String = FileAccess.get_file_as_string("res://tools/debug/debug_panel.gd")
+	failed += _assert(panel_src.find("\"%s\": \"%s\"" % [_WISPS_IDLE_LABEL, _WISPS_IDLE_PATH]) >= 0, "debug saves list %s" % _WISPS_IDLE_LABEL)
+	var panel: Node = _debug_panel_open_for_test(tree_root)
+	failed += _assert(_debug_panel_button(panel, _WISPS_IDLE_LABEL) != null, "the debug saves list shows %s" % _WISPS_IDLE_LABEL)
+	_debug_panel_free(tree_root)
+	var presets: Dictionary = _parse_export_presets(FileAccess.get_file_as_string("res://export_presets.cfg"))
+	var stable_exclude: PackedStringArray = _exclude_tokens(str((presets.get("Windows Release / Stable", {}) as Dictionary).get("exclude", "")))
+	var testing_exclude: PackedStringArray = _exclude_tokens(str((presets.get("Windows Testing / Experimental", {}) as Dictionary).get("exclude", "")))
+	var android_exclude: PackedStringArray = _exclude_tokens(str((presets.get("Android Test (Experimental)", {}) as Dictionary).get("exclude", "")))
+	failed += _assert(stable_exclude.has("tools/*") and stable_exclude.has(_WISPS_IDLE_DISK), "release strips %s" % _WISPS_IDLE_LABEL)
+	failed += _assert(not testing_exclude.has(_WISPS_IDLE_DISK) and not testing_exclude.has("tools/*"), "PC debug keeps %s" % _WISPS_IDLE_LABEL)
+	failed += _assert(not android_exclude.has(_WISPS_IDLE_DISK) and not android_exclude.has("tools/*"), "Android debug keeps %s" % _WISPS_IDLE_LABEL)
+	var raw: Dictionary = _json_dict(_WISPS_IDLE_PATH)
+	failed += _assert(str(raw.get("label", "")) == _WISPS_IDLE_LABEL and str(raw.get("kind", "")) == "debug", "snapshot label is %s" % _WISPS_IDLE_LABEL)
+	failed += _probe_one(game_state, _WISPS_IDLE_PATH, 15, true)
+	var count: int = int(game_state.get("wisp_count"))
+	failed += _assert(count >= 2, "at least two Wisps are unlocked (got %d)" % count)
+	failed += _assert(int(game_state.call("wisp_free_count")) == count, "every unlocked Wisp is idle")
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	failed += _assert(jobs != null and bool(jobs.call("can_enter_forge")), "the Forge can be entered from this save")
+	save_service.call("note_session_started")
+	save_service.set("boot_intent", "forge_return")
+	var live: Node = await _echo2_boot_hub(tree_root)
+	failed += _assert(live != null, "Wisps idle loads the hub")
+	if live == null:
+		game_state.call("reset_for_new_game")
+		return failed
+	var keeper: CanvasItem = tree_root.get_tree().get_first_node_in_group("keeper") as CanvasItem
+	failed += _assert(keeper != null and keeper.is_visible_in_tree() and not bool(game_state.call("member_away", "keeper")), "the Keeper is in the clearing")
+	var wisps: Array[Node] = tree_root.get_tree().get_nodes_in_group("wisp")
+	failed += _assert(wisps.size() >= 2, "two Wisp bodies are in the clearing (got %d)" % wisps.size())
+	var idle_bodies: int = 0
+	for wisp: Node in wisps:
+		var shown: bool = not (wisp is CanvasItem) or (wisp as CanvasItem).is_visible_in_tree()
+		if shown and str(game_state.call("get_wisp_assignment", int(wisp.get("wisp_id")))) == "":
+			idle_bodies += 1
+	failed += _assert(idle_bodies >= 2, "two Wisps are present and idle (got %d)" % idle_bodies)
+	var kinds: Dictionary = {"wood": "tree", "stone": "stone", "food": "berries"}
+	for key: String in kinds:
+		var gather: Node = _touch_gatherable_named(tree_root, key)
+		failed += _assert(_debug_node_reachable(live, gather, key), "the %s is reachable" % str(kinds[key]))
+	var manatree: Node = tree_root.get_tree().get_first_node_in_group("manatree")
+	failed += _assert(_debug_node_reachable(live, manatree, "manatree"), "the Manatree is reachable")
+	var nav: CanvasItem = live.find_child("HubForgeNav", true, false) as CanvasItem
+	var stand: Vector2 = jobs.call("clearing_door_stand") if jobs != null else Vector2.ZERO
+	failed += _assert(nav != null and nav.visible and jobs != null and bool(jobs.call("can_enter_forge")) and not _actor_box_hits(live, stand, "keeper"), "the Forge is reachable")
+	live.free()
+	await process_frame
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	game_state.call("reset_for_new_game")
+	if failed == 0:
+		print("DEBUG_SAVE_WISPS_OK")
+	return failed
+
+
+func _debug_node_reachable(live: Node, node: Node, type_id: String) -> bool:
+	if live == null or node == null or not node.is_inside_tree():
+		return false
+	if node is CanvasItem and not (node as CanvasItem).is_visible_in_tree():
+		return false
+	if node is CollisionObject2D and not (node as CollisionObject2D).input_pickable:
+		return false
+	var shape: CollisionShape2D = node.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if shape == null or shape.disabled:
+		return false
+	if not bool(live.call("_interactable_under_point", shape.global_position)):
+		return false
+	if not node.has_method("work_footprint") or not (node is Node2D):
+		return false
+	var keeper_cls = load("res://scripts/keeper.gd")
+	var solved: Dictionary = keeper_cls.solve_work_spot(node.call("work_footprint"), (node as Node2D).global_position, type_id, Callable(), "", "keeper")
+	var pos: Vector2 = solved.get("position", Vector2.ZERO)
+	return not bool(solved.get("fallback", true)) and not _actor_box_hits(live, pos, "keeper")
+
+
 ## Job 34: the Experimental debug panel's expedition tools and the Mid-fight snapshot.
 const _MID_FIGHT_PATH: String = "res://tools/debug/snapshots/mid_fight.json"
 const _MID_FIGHT_SAVE_ID: int = 340034
@@ -12293,7 +12749,7 @@ func _debug_snapshots_migrate(tree_root: Window, game_state: Node, save_service:
 	failed += _assert(press_body.find("load_snapshot_state(") >= 0, "the snapshot button uses the migrating loader")
 	failed += _assert(_func_body(panel_src, "static func load_snapshot_state").find("migrate_state") >= 0, "the loader calls SaveService.migrate_state")
 	var snapshots: Dictionary = panel_script.get_script_constant_map().get("SNAPSHOTS", {}) as Dictionary
-	failed += _assert(snapshots.size() == 9, "nine debug snapshots (got %d)" % snapshots.size())
+	failed += _assert(snapshots.size() == 10, "ten debug snapshots (got %d)" % snapshots.size())
 	## Mid-fight's loader writes the adventure file; put the old one back afterwards.
 	var adv_path: String = _adventure_path(save_service)
 	var adv_was: Variant = _user_file_text(adv_path)
@@ -21279,3 +21735,4211 @@ func _handoff_idle_body(tree_root: Window, game_state: Node, save_service: Node)
 	if failed == 0:
 		print("HANDOFF_IDLE_OK")
 	return failed
+
+
+func _compat_renderer_ok() -> int:
+	## Android pass 1. Compatibility is the project renderer and the mobile override.
+	## The one authored canvas shader and the forest-floor shader must still load.
+	var failed: int = 0
+	var method: String = str(ProjectSettings.get_setting("rendering/renderer/rendering_method", ""))
+	var mobile: String = str(ProjectSettings.get_setting("rendering/renderer/rendering_method.mobile", ""))
+	failed += _assert(method == "gl_compatibility", "rendering_method is gl_compatibility (got %s)" % method)
+	failed += _assert(mobile == "gl_compatibility", "mobile rendering_method is gl_compatibility (got %s)" % mobile)
+	var outline: Shader = load("res://assets/art/ui/select_outline.gdshader") as Shader
+	failed += _assert(outline != null, "select outline shader loads under Compatibility")
+	if outline != null:
+		var mat := ShaderMaterial.new()
+		mat.shader = outline
+		failed += _assert(mat.shader == outline and outline.get_mode() == Shader.MODE_CANVAS_ITEM, "select outline is a canvas_item shader")
+	var main_script: GDScript = load("res://scripts/main.gd") as GDScript
+	var floor_code: String = ""
+	if main_script != null:
+		floor_code = str(main_script.get_script_constant_map().get("FOREST_FLOOR_SHADER", ""))
+	failed += _assert(floor_code.find("shader_type canvas_item;") >= 0, "forest floor shader is canvas_item")
+	failed += _assert(floor_code.find("hint_screen_texture") < 0 and floor_code.find("hint_depth_texture") < 0, "forest floor shader does not sample the screen or depth")
+	if floor_code != "":
+		var floor := Shader.new()
+		floor.code = floor_code
+		failed += _assert(floor.get_mode() == Shader.MODE_CANVAS_ITEM, "forest floor shader compiles as canvas_item")
+	var banned: PackedStringArray = PackedStringArray(["WorldEnvironment", "Light2D", "GPUParticles2D", "GPUParticles3D", "CanvasModulate"])
+	var scene_hits: PackedStringArray = _compat_scan_scenes("res://scenes", banned)
+	failed += _assert(scene_hits.is_empty(), "no glow/light/GPU-particle nodes in scenes (%s)" % ", ".join(scene_hits))
+	if failed == 0:
+		print("COMPAT_RENDERER_OK")
+	return failed
+
+
+func _android_preset_ok() -> int:
+	## Android pass 1 preset. Windows presets stay the two desktop entries.
+	var failed: int = 0
+	var text: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	failed += _assert(text.find("name=\"Windows Testing / Experimental\"") >= 0, "Windows Experimental preset remains")
+	failed += _assert(text.find("name=\"Windows Release / Stable\"") >= 0, "Windows Stable preset remains")
+	var android_at: int = text.find("name=\"Android Test (Experimental)\"")
+	failed += _assert(android_at >= 0, "Android Test preset exists")
+	var block: String = text.substr(android_at) if android_at >= 0 else ""
+	failed += _assert(block.find("platform=\"Android\"") >= 0, "preset platform is Android")
+	failed += _assert(block.find("custom_features=\"manaforge_debug\"") >= 0, "Android preset keeps manaforge_debug")
+	failed += _assert(block.find("package/unique_name=\"com.haexflex.manaforge\"") >= 0, "package id com.haexflex.manaforge")
+	failed += _assert(block.find("package/name=\"Tales of the Manaforge\"") >= 0, "Android app name")
+	failed += _assert(block.find("version/code=1") >= 0 and block.find("version/name=\"0.1.2\"") >= 0, "version code 1 name 0.1.2")
+	failed += _assert(block.find("architectures/arm64-v8a=true") >= 0, "arm64-v8a on")
+	failed += _assert(block.find("architectures/armeabi-v7a=false") >= 0 and block.find("architectures/x86=false") >= 0 and block.find("architectures/x86_64=false") >= 0, "only arm64-v8a")
+	failed += _assert(block.find("gradle_build/use_gradle_build=false") >= 0, "gradle build off")
+	failed += _assert(block.find("keystore/debug=\"\"") >= 0 and block.find("keystore/debug_user=\"\"") >= 0 and block.find("keystore/debug_password=\"\"") >= 0, "debug keystore left empty for the box")
+	for piece: String in ["*.md", "docs/*", "Assets upload/*", "assets/library/*"]:
+		failed += _assert(block.find(piece) >= 0, "Android exclude filter has %s" % piece)
+	var orient: int = int(ProjectSettings.get_setting("display/window/handheld/orientation", -1))
+	failed += _assert(orient == DisplayServer.SCREEN_SENSOR_LANDSCAPE, "handheld orientation is sensor landscape (got %d)" % orient)
+	failed += _assert(block.find("launcher_icons/main_192x192=\"res://assets/ui/android/legacy/ic_launcher_192.png\"") >= 0, "main launcher icon is the clean 192")
+	failed += _assert(block.find("launcher_icons/adaptive_foreground_432x432=\"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png\"") >= 0, "adaptive foreground is the clean 432")
+	failed += _assert(block.find("launcher_icons/adaptive_background_432x432=\"res://assets/ui/android/adaptive/ic_launcher_background_432.png\"") >= 0, "adaptive background is the clean 432")
+	failed += _assert(block.find("launcher_icons/adaptive_monochrome_432x432=\"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png\"") >= 0, "adaptive monochrome is the clean 432")
+	if failed == 0:
+		print("ANDROID_PRESET_OK")
+	return failed
+
+
+func _android_icon_splash_ok() -> int:
+	## Art's clean Keeper icons and the 20:9 splash. Windows keeps the default boot splash.
+	var failed: int = 0
+	var expect: Dictionary = {
+		"res://assets/ui/android/adaptive/ic_launcher_background_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png": Vector2i(432, 432),
+		"res://assets/ui/android/legacy/ic_launcher_48.png": Vector2i(48, 48),
+		"res://assets/ui/android/legacy/ic_launcher_72.png": Vector2i(72, 72),
+		"res://assets/ui/android/legacy/ic_launcher_96.png": Vector2i(96, 96),
+		"res://assets/ui/android/legacy/ic_launcher_144.png": Vector2i(144, 144),
+		"res://assets/ui/android/legacy/ic_launcher_192.png": Vector2i(192, 192),
+		"res://assets/ui/android/legacy/ic_launcher_round_192.png": Vector2i(192, 192),
+		"res://assets/ui/android/legacy/ic_launcher_store_512.png": Vector2i(512, 512),
+		"res://assets/ui/android/splash/splash_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_bg_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_bg_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_keeper_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_keeper_960x540.png": Vector2i(960, 540),
+		"res://assets/ui/android/splash/splash_logo_1200x540.png": Vector2i(1200, 540),
+		"res://assets/ui/android/splash/splash_logo_960x540.png": Vector2i(960, 540),
+	}
+	for path: String in expect.keys():
+		var size: Vector2i = expect[path]
+		failed += _assert(FileAccess.file_exists(path), "%s exists" % path)
+		var img := Image.new()
+		var loaded: bool = img.load(ProjectSettings.globalize_path(path)) == OK
+		failed += _assert(loaded and img.get_width() == size.x and img.get_height() == size.y, "%s is %d x %d" % [path, size.x, size.y])
+		var imp: String = FileAccess.get_file_as_string(path + ".import")
+		failed += _assert(imp.find("compress/mode=0") >= 0 and imp.find("mipmaps/generate=false") >= 0, "%s imports lossless with no mipmaps" % path)
+	var presets: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	var android_at: int = presets.find("name=\"Android Test (Experimental)\"")
+	var block: String = presets.substr(android_at) if android_at >= 0 else ""
+	var refs: PackedStringArray = PackedStringArray([
+		"launcher_icons/main_192x192=\"res://assets/ui/android/legacy/ic_launcher_192.png\"",
+		"launcher_icons/adaptive_foreground_432x432=\"res://assets/ui/android/adaptive/ic_launcher_foreground_432.png\"",
+		"launcher_icons/adaptive_background_432x432=\"res://assets/ui/android/adaptive/ic_launcher_background_432.png\"",
+		"launcher_icons/adaptive_monochrome_432x432=\"res://assets/ui/android/adaptive/ic_launcher_monochrome_432.png\"",
+	])
+	for ref: String in refs:
+		var quoted: String = ref.substr(ref.find("\"") + 1)
+		quoted = quoted.trim_suffix("\"")
+		failed += _assert(block.find(ref) >= 0 and FileAccess.file_exists(quoted), "preset resolves %s" % quoted)
+	var project: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project.find("config/icon=\"res://assets/ui/icon_256.png\"") >= 0, "desktop icon stays icon_256")
+	failed += _assert(project.find("boot_splash/image=") < 0, "Windows boot splash image is not overridden")
+	failed += _assert(project.find("boot_splash/image.android=\"res://assets/ui/android/splash/splash_1200x540.png\"") >= 0, "Android splash is the 1200x540 composite")
+	failed += _assert(project.find("boot_splash/fullsize.android=false") >= 0, "Android splash is not fullsize")
+	failed += _assert(project.find("boot_splash/use_filter.android=false") >= 0, "Android splash is nearest")
+	var splash_bg := Color(0, 0.023529411764705882, 0.11372549019607843, 1)
+	failed += _assert(splash_bg.is_equal_approx(Color.html("00061d")), "splash bg matches #00061d")
+	failed += _assert(project.find("boot_splash/bg_color.android=Color(0, 0.023529411764705882, 0.11372549019607843, 1)") >= 0, "Android splash bg is #00061d")
+	failed += _assert(not FileAccess.file_exists("res://assets/ui/android/main_192.png"), "placeholder main icon left the live folder")
+	if failed == 0:
+		print("ANDROID_ICON_SPLASH_OK")
+	return failed
+
+
+func _manatree_tiles_ok(tree_root: Window, game_state: Node) -> int:
+	## Android pass 1. Tiles match the retired strips pixel for pixel, and nothing
+	## the Android preset would pack is wider than 4096.
+	var failed: int = 0
+	var etc2: bool = bool(ProjectSettings.get_setting("rendering/textures/vram_compression/import_etc2_astc", false))
+	failed += _assert(etc2, "import_etc2_astc is on for mobile")
+	var presets: String = FileAccess.get_file_as_string("res://export_presets.cfg")
+	var android_at: int = presets.find("name=\"Android Test (Experimental)\"")
+	var desktop: String = presets.substr(0, android_at) if android_at > 0 else presets
+	failed += _assert(desktop.count("texture_format/etc2=false") == 2, "both Windows presets leave ETC2 off")
+	failed += _assert(desktop.count("texture_format/s3tc=true") == 2 and desktop.count("texture_format/bptc=true") == 2, "both Windows presets keep S3TC and BPTC")
+	var cases: Array[Dictionary] = [
+		{"src": "manatree_elder_strip.png", "prefix": "manatree_elder_strip", "glow": false, "tw": 2048, "th": 1024},
+		{"src": "manatree_ancient_strip.png", "prefix": "manatree_ancient_strip", "glow": false, "tw": 2048, "th": 1024},
+		{"src": "manatree_mature_strip.png", "prefix": "manatree_mature_strip", "glow": false, "tw": 1472, "th": 736},
+		{"src": "manatree_elder_strip_glow.png", "prefix": "manatree_elder_strip_glow", "glow": true, "tw": 2048, "th": 1024},
+		{"src": "manatree_ancient_strip_glow.png", "prefix": "manatree_ancient_strip_glow", "glow": true, "tw": 2048, "th": 1024},
+		{"src": "manatree_mature_strip_glow.png", "prefix": "manatree_mature_strip_glow", "glow": true, "tw": 1472, "th": 736},
+	]
+	for spec: Dictionary in cases:
+		failed += _manatree_tile_pixels(spec)
+	var wide: PackedStringArray = PackedStringArray()
+	_manatree_scan_png_width("res://assets/art", wide)
+	_manatree_scan_png_width("res://assets/ui", wide)
+	_manatree_scan_png_width("res://assets_extra", wide)
+	failed += _assert(wide.is_empty(), "exported texture wider than 4096 (%s)" % ", ".join(wide))
+	var packed: PackedScene = load("res://scenes/manatree.tscn") as PackedScene
+	failed += _assert(packed != null, "manatree scene loads")
+	if packed != null and game_state != null:
+		var saved_stage: StringName = game_state.get("stage_id")
+		var checks: Array[Dictionary] = [
+			{"stage": &"elder", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_elder_strip_glow_t1.png", "frame": 3, "local": 1, "w": 2048},
+			{"stage": &"ancient", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_ancient_strip_glow_t1.png", "frame": 3, "local": 1, "w": 2048},
+			{"stage": &"mature", "tile": "res://assets/art/manatree/native/anim/glow/tiles/manatree_mature_strip_glow_t1.png", "frame": 3, "local": 1, "w": 1472},
+		]
+		for check: Dictionary in checks:
+			game_state.set("stage_id", check["stage"])
+			var tree: Node2D = packed.instantiate() as Node2D
+			tree_root.add_child(tree)
+			var sprite: Sprite2D = tree.get_node_or_null("Sprite") as Sprite2D
+			var expect: Texture2D = load(str(check["tile"])) as Texture2D
+			failed += _assert(sprite != null and sprite.hframes == 2, "%s uses 2 hframes per tile" % str(check["stage"]))
+			failed += _assert(sprite != null and sprite.texture_filter == CanvasItem.TEXTURE_FILTER_NEAREST, "%s stays nearest" % str(check["stage"]))
+			tree.call("_show_frame", int(check["frame"]))
+			failed += _assert(sprite != null and sprite.texture == expect and sprite.frame == int(check["local"]), "%s frame %d shows tile 1" % [str(check["stage"]), int(check["frame"])])
+			failed += _assert(sprite != null and sprite.texture != null and sprite.texture.get_width() == int(check["w"]), "%s tile width %d" % [str(check["stage"]), int(check["w"])])
+			tree_root.remove_child(tree)
+			tree.free()
+		game_state.set("stage_id", saved_stage)
+	if failed == 0:
+		print("MANATREE_TILES_OK")
+	return failed
+
+
+func _manatree_tile_pixels(spec: Dictionary) -> int:
+	var failed: int = 0
+	var legacy: String = ProjectSettings.globalize_path("res://assets/library/legacy/manatree_strips_2026-10-17/%s" % str(spec["src"]))
+	var src := Image.new()
+	failed += _assert(src.load(legacy) == OK, "legacy strip loads %s" % str(spec["src"]))
+	if src.get_width() < 1:
+		return failed
+	src.convert(Image.FORMAT_RGBA8)
+	var src_w: int = src.get_width()
+	var src_h: int = src.get_height()
+	var tw: int = int(spec["tw"])
+	var th: int = int(spec["th"])
+	failed += _assert(src_w == tw * 4 and src_h == th, "%s is 4 tiles of %dx%d (got %dx%d)" % [str(spec["src"]), tw, th, src_w, src_h])
+	var src_bytes: PackedByteArray = src.get_data()
+	var folder: String = "res://assets/art/manatree/native/anim/glow/tiles" if bool(spec["glow"]) else "res://assets/art/manatree/native/anim/tiles"
+	for i: int in 4:
+		var tile_path: String = "%s/%s_t%d.png" % [folder, str(spec["prefix"]), i]
+		var tile := Image.new()
+		if tile.load(ProjectSettings.globalize_path(tile_path)) != OK:
+			failed += _assert(false, "tile loads %s" % tile_path)
+			continue
+		tile.convert(Image.FORMAT_RGBA8)
+		failed += _assert(tile.get_width() == tw and tile.get_height() == th and tile.get_width() <= 2048, "%s tile %d is %dx%d" % [str(spec["prefix"]), i, tw, th])
+		var tile_bytes: PackedByteArray = tile.get_data()
+		var mismatch: bool = false
+		var row_bytes: int = tw * 4
+		for y: int in th:
+			var src_off: int = (y * src_w + i * tw) * 4
+			var tile_off: int = y * row_bytes
+			if src_bytes.slice(src_off, src_off + row_bytes) != tile_bytes.slice(tile_off, tile_off + row_bytes):
+				mismatch = true
+				break
+		failed += _assert(not mismatch, "%s tile %d matches the original pixels" % [str(spec["prefix"]), i])
+	return failed
+
+
+func _manatree_scan_png_width(root_path: String, wide: PackedStringArray) -> void:
+	var dir := DirAccess.open(root_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var name: String = dir.get_next()
+	while name != "":
+		if name == "." or name == ".." or name == "library" or name == "refs" or name == "_archive":
+			name = dir.get_next()
+			continue
+		var path: String = root_path.path_join(name)
+		if dir.current_is_dir():
+			_manatree_scan_png_width(path, wide)
+		elif name.ends_with(".png"):
+			var width: int = _png_ihdr_width(path)
+			if width > 4096:
+				wide.append("%s (%d)" % [path, width])
+		name = dir.get_next()
+	dir.list_dir_end()
+
+
+func _png_ihdr_width(res_path: String) -> int:
+	var file := FileAccess.open(res_path, FileAccess.READ)
+	if file == null:
+		return -1
+	var sig: PackedByteArray = file.get_buffer(8)
+	file.get_buffer(4)
+	var ctype: PackedByteArray = file.get_buffer(4)
+	var wbytes: PackedByteArray = file.get_buffer(4)
+	file.close()
+	if sig.size() < 8 or ctype.size() < 4 or wbytes.size() < 4:
+		return -1
+	if ctype.get_string_from_ascii() != "IHDR":
+		return -1
+	return (int(wbytes[0]) << 24) | (int(wbytes[1]) << 16) | (int(wbytes[2]) << 8) | int(wbytes[3])
+
+
+func _lifecycle_checks(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	failed += _lifecycle_autosave_ok(save_service)
+	failed += _resume_away_ok(tree_root, game_state, save_service)
+	failed += _back_button_pause_ok(tree_root, save_service)
+	return failed
+
+
+func _lifecycle_autosave_ok(save_service: Node) -> int:
+	## Pause flushes one autosave inside the 1.2s coalesce. Manual slots stay put.
+	var failed: int = 0
+	var echo: Node = save_service.get_node_or_null("/root/EchoChamber")
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if echo != null:
+		echo.set("in_battle", false)
+	var was_session: bool = bool(save_service.get("session_active"))
+	var master: int = AudioServer.get_bus_index("Master")
+	var mute_before: bool = AudioServer.is_bus_mute(master) if master >= 0 else false
+	var paused_before: bool = bool(save_service.get_tree().paused)
+	save_service.set("catchup_running", false)
+	save_service.call("note_session_started")
+	save_service.call("set_autosave_coalesce", 1.2)
+	var manual_before: PackedStringArray = _manual_slot_texts(save_service)
+	save_service.call("save_game", 1)
+	manual_before = _manual_slot_texts(save_service)
+	save_service.call("debug_set_last_autosave_age", 0.2)
+	var stamps_before: float = _autosave_stamp_sum(save_service)
+	save_service.call("handle_application_paused")
+	var stamps_paused: float = _autosave_stamp_sum(save_service)
+	failed += _assert(stamps_paused > stamps_before + 0.0001, "pause flushes an autosave inside the 1.2s coalesce")
+	save_service.call("handle_application_focus_out")
+	var stamps_focus: float = _autosave_stamp_sum(save_service)
+	failed += _assert(is_equal_approx(stamps_focus, stamps_paused), "focus-out during the same pause does not write a second autosave")
+	var manual_after: PackedStringArray = _manual_slot_texts(save_service)
+	failed += _assert(manual_after == manual_before, "pause autosave leaves manual slots untouched")
+	if master >= 0:
+		failed += _assert(AudioServer.is_bus_mute(master), "background mutes the Master bus")
+	failed += _assert(bool(save_service.get_tree().paused), "background pauses the tree")
+	save_service.call("handle_application_resumed")
+	if master >= 0:
+		failed += _assert(AudioServer.is_bus_mute(master) == mute_before, "resume restores the Master mute without rewriting settings")
+	failed += _assert(bool(save_service.get_tree().paused) == paused_before, "resume restores the previous tree pause")
+	save_service.call("debug_set_last_autosave_age", 0.2)
+	var before_back: float = _autosave_stamp_sum(save_service)
+	save_service.call("handle_back_request")
+	var after_back: float = _autosave_stamp_sum(save_service)
+	failed += _assert(is_equal_approx(after_back, before_back), "back respects the 1.2s coalesce")
+	save_service.call("debug_set_last_autosave_age", 2.0)
+	save_service.call("handle_back_request")
+	var later_back: float = _autosave_stamp_sum(save_service)
+	failed += _assert(later_back > after_back + 0.0001, "back writes an autosave once the coalesce window has passed")
+	var manual_final: PackedStringArray = _manual_slot_texts(save_service)
+	failed += _assert(manual_final == manual_before, "back autosave leaves manual slots untouched")
+	save_service.call("set_autosave_coalesce", 1.2)
+	if was_session:
+		save_service.call("note_session_started")
+	else:
+		save_service.call("note_session_ended")
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	save_service.get_tree().paused = paused_before
+	if master >= 0:
+		AudioServer.set_bus_mute(master, mute_before)
+	if failed == 0:
+		print("LIFECYCLE_AUTOSAVE_OK")
+	return failed
+
+
+func _manual_slot_texts(save_service: Node) -> PackedStringArray:
+	var texts: PackedStringArray = PackedStringArray()
+	for slot: int in range(1, 8):
+		var path: String = str(save_service.call("slot_path", slot))
+		texts.append(FileAccess.get_file_as_string(path) if FileAccess.file_exists(path) else "")
+	return texts
+
+
+func _resume_away_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Ten minutes away shows the panel once. A shorter gap does not, and the gap is not applied twice.
+	var failed: int = 0
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if echo != null:
+		echo.set("in_battle", false)
+	var saved_stage: StringName = game_state.get("stage_id")
+	var saved_fruit: bool = bool(game_state.get("fruit_committed"))
+	var saved_closed: float = float(game_state.get("offline_closed_sec"))
+	var saved_active: float = float(game_state.get("active_since_load_sec"))
+	game_state.set("stage_id", &"sapling")
+	game_state.set("fruit_committed", false)
+	game_state.set("active_since_load_sec", 0.0)
+	save_service.call("note_session_started")
+	save_service.set("pending_offline_report", {})
+	var panel_script: Script = load("res://scripts/ui/offline_summary.gd")
+	var panel: CanvasItem = panel_script.new() as CanvasItem
+	tree_root.add_child(panel)
+	var origin: float = 1_700_000_000.0
+	var closed_0: float = float(game_state.get("offline_closed_sec"))
+	save_service.call("debug_set_unix_now", origin)
+	save_service.call("handle_application_paused")
+	save_service.call("debug_set_unix_now", origin + 30.0)
+	save_service.call("handle_application_resumed")
+	var closed_short: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(absf(closed_short - (closed_0 + 30.0)) < 0.05, "a 30s resume applies the gap once (got %.2f)" % closed_short)
+	failed += _assert(not bool((save_service.get("pending_offline_report") as Dictionary).get("show", false)), "under 10 minutes does not show the away screen")
+	failed += _assert(_visible_offline_count(tree_root) == 0, "away panel stays hidden under 10 minutes")
+	save_service.call("debug_set_unix_now", origin + 30.0)
+	save_service.call("handle_application_paused")
+	save_service.call("debug_set_unix_now", origin + 30.0 + 600.0)
+	save_service.call("handle_application_resumed")
+	var closed_long: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(absf(closed_long - (closed_0 + 630.0)) < 0.05, "a 10 minute resume applies that gap once (got %.2f)" % closed_long)
+	var report: Dictionary = save_service.get("pending_offline_report")
+	failed += _assert(bool(report.get("show", false)), "10 minutes away shows the away screen")
+	failed += _assert(_visible_offline_count(tree_root) == 1, "While you were away opens once")
+	save_service.call("handle_application_resumed")
+	var closed_again: float = float(game_state.get("offline_closed_sec"))
+	failed += _assert(is_equal_approx(closed_again, closed_long), "a second resume does not apply the gap again")
+	failed += _assert(_visible_offline_count(tree_root) == 1, "a second resume does not open a second away screen")
+	for summary: Node in tree_root.find_children("OfflineSummary", "", true, false):
+		if summary.has_method("dismiss"):
+			summary.call("dismiss")
+	tree_root.remove_child(panel)
+	panel.free()
+	game_state.set("stage_id", saved_stage)
+	game_state.set("fruit_committed", saved_fruit)
+	game_state.set("offline_closed_sec", saved_closed)
+	game_state.set("active_since_load_sec", saved_active)
+	save_service.set("pending_offline_report", {})
+	save_service.call("debug_set_unix_now", -1.0)
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	save_service.get_tree().paused = false
+	if failed == 0:
+		print("RESUME_AWAY_OK")
+	return failed
+
+
+func _visible_offline_count(tree_root: Window) -> int:
+	var shown: int = 0
+	for summary: Node in tree_root.find_children("OfflineSummary", "", true, false):
+		if summary is CanvasItem and (summary as CanvasItem).visible:
+			shown += 1
+	return shown
+
+
+func _back_button_pause_ok(tree_root: Window, save_service: Node) -> int:
+	## Back toggles Pause. Quit to Title is already on that menu, with a confirm. Quit Game stays a PC row.
+	var failed: int = 0
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("config/auto_accept_quit=false") >= 0, "auto_accept_quit is off")
+	failed += _assert(not bool(ProjectSettings.get_setting("application/config/auto_accept_quit", true)), "project refuses the automatic quit")
+	var save_text: String = FileAccess.get_file_as_string("res://scripts/autoload/save_service.gd")
+	failed += _assert(save_text.find("set_auto_accept_quit(false)") >= 0, "mobile turns auto-accept quit off at runtime")
+	var pause_text: String = FileAccess.get_file_as_string("res://scripts/pause_menu.gd")
+	failed += _assert(pause_text.find("pause_exit") >= 0 and pause_text.find("hide_on_phone(btn_quit_game)") >= 0, "Quit to Title stays; Quit Game is the phone-hidden row")
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	failed += _assert(packed != null, "pause menu loads for the back button")
+	if packed == null:
+		return failed
+	var game_state: Node = tree_root.get_node_or_null("GameState")
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	var was_fruit: bool = bool(game_state.get("fruit_committed")) if game_state != null else false
+	var was_battle: bool = bool(echo.get("in_battle")) if echo != null else false
+	if game_state != null:
+		game_state.set("fruit_committed", false)
+	if echo != null:
+		echo.set("in_battle", false)
+	var menu: Node = packed.instantiate()
+	tree_root.add_child(menu)
+	var exit_btn: Button = menu.get_node_or_null("Panel/BtnExit") as Button
+	var quit_btn: Button = menu.get_node_or_null("Panel/BtnQuitGame") as Button
+	failed += _assert(exit_btn != null and exit_btn.text == "Quit to Title", "phone Pause already has Quit to Title")
+	failed += _assert(quit_btn != null, "Quit Game button exists and stays hidden on phone via hide_on_phone")
+	failed += _assert(not bool(menu.call("is_open")), "pause starts closed")
+	save_service.call("handle_back_request")
+	failed += _assert(bool(menu.call("is_open")), "back opens Pause")
+	failed += _assert(save_service.get_tree() != null, "back does not quit the app")
+	save_service.call("handle_back_request")
+	failed += _assert(not bool(menu.call("is_open")), "back closes Pause when it is already open")
+	tree_root.remove_child(menu)
+	menu.free()
+	save_service.get_tree().paused = false
+	if game_state != null:
+		game_state.set("fruit_committed", was_fruit)
+	if echo != null:
+		echo.set("in_battle", was_battle)
+	if failed == 0:
+		print("BACK_BUTTON_PAUSE_OK")
+	return failed
+
+
+func _hud_inside_safe_area_ok(tree_root: Window) -> int:
+	## Visible HUD controls stay inside the 24 px safe rect. Digits stay Silver 19.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var hud: Node = packed.instantiate() if packed != null else null
+	failed += _assert(hud != null, "hud scene instantiates for the safe-area walk")
+	if hud == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(hud)
+	var views: Array[Dictionary] = [
+		{"win": Vector2i(2400, 1080), "vs": Vector2i(1200, 540)},
+		{"win": Vector2i(1920, 1200), "vs": Vector2i(960, 600)},
+		{"win": Vector2i(1280, 960), "vs": Vector2i(1280, 960)},
+		{"win": Vector2i(2560, 1600), "vs": Vector2i(1280, 800)},
+	]
+	for view: Dictionary in views:
+		var win_px: Vector2i = view["win"]
+		var vs: Vector2i = view["vs"]
+		tree_root.size = win_px
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if hud.has_method("_layout_hud540"):
+			hud.call("_layout_hud540")
+		await tree_root.get_tree().process_frame
+		var view_sz: Vector2 = Ui540.viewport_size()
+		failed += _assert(view_sz.is_equal_approx(Vector2(vs)), "hud viewport is %s (got %s)" % [vs, view_sz])
+		var safe: Rect2 = Ui540.safe_rect().grow(1.0)
+		failed += _walk_hud_inside(hud, safe, view_sz, str(win_px))
+		var pause: Control = hud.get_node_or_null("Panel/PauseButton") as Control
+		var help: Control = hud.get_node_or_null("Panel/HelpButton") as Control
+		var icon: Control = hud.get_node_or_null("Panel/PauseButton/Icon") as Control
+		failed += _assert(pause != null and pause.size.is_equal_approx(Vector2(44, 44)), "pause is 44 px at %s" % win_px)
+		var pause_x: float = view_sz.x - Ui540.margin_right() - 44.0
+		failed += _assert(pause != null and is_equal_approx(pause.position.x, pause_x), "pause keeps the 24 px right margin at %s" % win_px)
+		failed += _assert(icon != null and icon.custom_minimum_size.is_equal_approx(Vector2(32, 32)), "pause icon is 32 px")
+		if pause != null and icon != null:
+			var glyph := icon.custom_minimum_size
+			failed += _assert(icon.position.is_equal_approx(((pause.size - glyph) * 0.5).round()), "pause icon is centred")
+		failed += _assert(help != null and help.size.is_equal_approx(Vector2(44, 44)), "help is 44 px at %s" % win_px)
+		failed += _assert(help != null and pause != null and help.position.is_equal_approx(Vector2(pause.position.x - 8.0 - 44.0, pause.position.y)), "help sits 8 px left of pause at %s" % win_px)
+		var digits: Label = hud.get_node_or_null("Panel/IconRow/ShardChip/NumShards") as Label
+		var scale: int = Ui540.integer_scale_for(Vector2(win_px))
+		failed += _assert(digits != null and int(digits.get_theme_font_size(&"font_size")) == 19, "resource digits stay Silver 19 at %s" % win_px)
+		failed += _assert(digits != null and digits.scale.is_equal_approx(Vector2.ONE), "resource digits are not scaled at %s" % win_px)
+		if digits != null:
+			print("HUD_DIGITS %s logical 19 scale %d -> %d px on screen" % [win_px, scale, 19 * scale])
+		var idle: Label = hud.get_node_or_null("PartyBar/KeeperActivity") as Label
+		failed += _assert(idle != null, "idle activity label exists")
+		if idle != null:
+			idle.text = "Idle"
+			var idle_font: Font = idle.get_theme_font(&"font")
+			var idle_size: int = int(idle.get_theme_font_size(&"font_size"))
+			var idle_w: float = idle_font.get_string_size("Idle", HORIZONTAL_ALIGNMENT_LEFT, -1, idle_size).x if idle_font != null else 999.0
+			var embolden: float = 0.0
+			if idle_font is FontVariation:
+				embolden = (idle_font as FontVariation).variation_embolden
+			var body: Font = tree_root.get_node("GameTheme").call("body_font")
+			failed += _assert(idle_size == 19 and idle_font == body and is_zero_approx(embolden), "idle label is plain Silver 19")
+			failed += _assert(int(idle.get_theme_constant(&"outline_size")) == 4, "idle label outline is 4")
+			failed += _assert(idle.scale.is_equal_approx(Vector2.ONE) and idle.size.x <= 210.0 and idle_w <= 210.0, "idle label fits 210 px (text %.1f)" % idle_w)
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	failed += _assert(host != null, "minigame host is loaded for the hint line")
+	if host != null:
+		tree_root.size = Vector2i(1280, 960)
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		for game_id: String in ["ripe_catch", "hot_spots"]:
+			host.set("_game_id", game_id)
+			host.call("_layout_window")
+			var window: Control = host.get_node_or_null("MinigameRoot/Window") as Control
+			var hint: Control = host.get_node_or_null("MinigameRoot/Window/Hint") as Control
+			var play: Control = host.get_node_or_null("MinigameRoot/Window/Play") as Control
+			failed += _assert(window != null and window.size.y <= MinigameCatalog.WINDOW_SIZE.y + 0.5, "%s window does not grow" % game_id)
+			if window != null and hint != null:
+				var fit_y: float = window.size.y / MinigameCatalog.WINDOW_SIZE.y
+				var inner_bottom: float = 446.0 * fit_y
+				failed += _assert(is_equal_approx(hint.size.y, 24.0), "%s hint is 24 px tall" % game_id)
+				failed += _assert(hint.position.y + hint.size.y <= inner_bottom - 10.0 + 0.5, "%s hint is at least 10 px above the frame (bottom %.1f edge %.1f)" % [game_id, hint.position.y + hint.size.y, inner_bottom])
+			if play != null and hint != null:
+				var play_bottom: float = play.position.y + play.size.y * play.scale.y
+				failed += _assert(hint.position.y + 0.5 >= play_bottom, "%s hint stays below the play field" % game_id)
+		var header: Label = host.get_node_or_null("MinigameRoot/Window/Successes") as Label
+		failed += _assert(header != null and int(header.get_theme_font_size(&"font_size")) == 19, "minigame header stays Silver 19")
+	hud.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("HUD_INSIDE_SAFE_AREA_OK")
+	return failed
+
+
+func _walk_hud_inside(node: Node, safe: Rect2, view: Vector2, label: String) -> int:
+	var failed: int = 0
+	if node is Control:
+		var ctrl: Control = node as Control
+		if ctrl.is_visible_in_tree():
+			var rect: Rect2 = ctrl.get_global_rect()
+			var fills: bool = rect.size.x >= view.x - 1.0 and rect.size.y >= view.y - 1.0
+			if not fills and rect.size.x >= 1.0 and rect.size.y >= 1.0:
+				if not safe.encloses(rect):
+					failed += _assert(false, "%s %s sits outside the safe area (%s vs %s)" % [label, str(ctrl.get_path()), rect, safe])
+	for child: Node in node.get_children():
+		failed += _walk_hud_inside(child, safe, view, label)
+	return failed
+
+
+func _imported_image(path: String) -> Image:
+	var tex: Texture2D = load(path) as Texture2D
+	if tex == null:
+		return null
+	var image: Image = tex.get_image()
+	if image != null and image.is_compressed():
+		image.decompress()
+	return image
+
+
+func _export_safe_resources_ok(tree_root: Window) -> int:
+	## Imported res:// art is a .ctex in the PCK. FileAccess.file_exists on the source png is false there.
+	var failed: int = 0
+	failed += _export_safe_scan_scripts()
+	failed += _assert(ResourceLoader.exists(EchoTheme.PLATE), "echo plate ResourceLoader.exists")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	var view: Node = packed.instantiate() if packed != null else null
+	failed += _assert(view != null, "echo battle instantiates for the export resource check")
+	if view != null:
+		tree_root.add_child(view)
+		var art: TextureRect = view.get_node_or_null("ChamberArt") as TextureRect
+		failed += _assert(art != null and art.texture != null, "ChamberArt texture is non-null via ResourceLoader")
+		view.free()
+	var summary: Node = load("res://scripts/ui/offline_summary.gd").new()
+	tree_root.add_child(summary)
+	var kinds: PackedStringArray = PackedStringArray(["essence", "manashards", "wood", "stone", "food"])
+	for kind: String in kinds:
+		var icon_path := "res://assets_extra/shared/icon_%s.png" % kind
+		failed += _assert(ResourceLoader.exists(icon_path), "offline icon ResourceLoader.exists %s" % kind)
+		var row: Control = summary.call("_detail_row", {"kind": kind, "text": kind, "value": "+1"}, 0, false) as Control
+		var icon: TextureRect = null
+		if row != null:
+			icon = row.get_node_or_null("RowIcon") as TextureRect
+		failed += _assert(icon != null and icon.texture != null, "offline %s row icon loads" % kind)
+	summary.free()
+	if failed == 0:
+		print("EXPORT_SAFE_RESOURCES_OK")
+	return failed
+
+
+func _export_safe_scan_scripts() -> int:
+	var failed: int = 0
+	var paths: PackedStringArray = _export_safe_script_paths()
+	var texts: Dictionary = {}
+	for path: String in paths:
+		texts[path] = FileAccess.get_file_as_string(path)
+	var bad: Dictionary = _export_safe_bad_consts(texts)
+	var ext_re := RegEx.create_from_string("\\.(?:png|webp|jpg|jpeg|ogg|wav|tscn|tres)\\b")
+	var call_re := RegEx.create_from_string("FileAccess\\.file_exists\\s*\\(([^)]*)\\)")
+	for path: String in paths:
+		var lines: PackedStringArray = str(texts[path]).split("\n")
+		for i: int in lines.size():
+			if lines[i].find("FileAccess.file_exists") < 0:
+				continue
+			if _export_safe_whitelisted(lines, i):
+				continue
+			var hit: String = _export_safe_call_hit(lines, i, call_re, ext_re, bad)
+			if hit != "":
+				failed += _assert(false, "export-unsafe FileAccess.file_exists %s:%d %s" % [path, i + 1, hit])
+	failed += _assert(not paths.is_empty(), "shipping script scan saw scripts")
+	return failed
+
+
+func _export_safe_script_paths() -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	var pending: Array[String] = ["res://scripts"]
+	while not pending.is_empty():
+		var dir_path: String = pending.pop_back()
+		var dir := DirAccess.open(dir_path)
+		if dir == null:
+			continue
+		dir.list_dir_begin()
+		var file_name := dir.get_next()
+		while file_name != "":
+			if not file_name.begins_with("."):
+				var full := dir_path.path_join(file_name)
+				if dir.current_is_dir():
+					pending.append(full)
+				elif file_name.ends_with(".gd") and _export_safe_is_shipping(file_name):
+					out.append(full)
+			file_name = dir.get_next()
+		dir.list_dir_end()
+	return out
+
+
+func _export_safe_is_shipping(file_name: String) -> bool:
+	if file_name == "verify_headless.gd" or file_name == "minigame_tests.gd":
+		return false
+	if file_name == "playtest_ship.gd" or file_name == "playtest_quit.gd":
+		return false
+	if file_name == "pass_f_playthrough.gd" or file_name == "polish_smoke.gd":
+		return false
+	if file_name.begins_with("capture_"):
+		return false
+	return true
+
+
+func _export_safe_bad_consts(texts: Dictionary) -> Dictionary:
+	var bad: Dictionary = {}
+	var alias: Dictionary = {}
+	var direct_re := RegEx.create_from_string("(?m)^const\\s+([A-Za-z_][A-Za-z0-9_]*)\\b[^\\n]*\\.(?:png|webp|jpg|jpeg|ogg|wav|tscn|tres)\\b")
+	var alias_re := RegEx.create_from_string("(?m)^const\\s+([A-Za-z_][A-Za-z0-9_]*)\\b[^\\n]*?(?::=|=)\\s*([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)?)\\s*$")
+	for path: String in texts.keys():
+		var text: String = str(texts[path])
+		for match_v: Variant in direct_re.search_all(text):
+			var direct: RegExMatch = match_v as RegExMatch
+			bad[direct.get_string(1)] = true
+		for alias_v: Variant in alias_re.search_all(text):
+			var aliased: RegExMatch = alias_v as RegExMatch
+			var name: String = aliased.get_string(1)
+			if not bad.has(name):
+				alias[name] = aliased.get_string(2)
+	var changed := true
+	while changed:
+		changed = false
+		for name: String in alias.keys():
+			if bad.has(name):
+				continue
+			var target: String = str(alias[name])
+			var leaf: String = target.get_slice(".", target.get_slice_count(".") - 1)
+			if bad.has(leaf) or bad.has(target):
+				bad[name] = true
+				changed = true
+	return bad
+
+
+func _export_safe_whitelisted(lines: PackedStringArray, index: int) -> bool:
+	## EXPORT_SAFE_RAW on the call, or on the comment directly above it, keeps a raw editor read.
+	if lines[index].find("EXPORT_SAFE_RAW") >= 0:
+		return true
+	var above: int = index - 1
+	while above >= 0 and lines[above].strip_edges() == "":
+		above -= 1
+	return above >= 0 and lines[above].find("EXPORT_SAFE_RAW") >= 0
+
+
+func _export_safe_call_hit(lines: PackedStringArray, index: int, call_re: RegEx, ext_re: RegEx, bad: Dictionary) -> String:
+	var found: RegExMatch = call_re.search(lines[index])
+	if found == null:
+		return "unparsed FileAccess.file_exists"
+	var arg: String = found.get_string(1).strip_edges()
+	if ext_re.search(arg) != null:
+		return "argument names an imported resource (%s)" % arg
+	for token: String in _export_safe_idents(arg):
+		if bad.has(token):
+			return "argument %s is an imported resource" % token
+	if arg.find(" ") < 0 and arg.is_valid_identifier():
+		var assign: String = _export_safe_assign_rhs(lines, index, arg)
+		if assign != "" and (ext_re.search(assign) != null or _export_safe_rhs_bad(assign, bad)):
+			return "argument %s is built from an imported resource" % arg
+	var follow := ""
+	var end: int = mini(index + 3, lines.size())
+	for k: int in range(index, end):
+		follow += lines[k]
+	if follow.find("load_png_from_buffer") >= 0:
+		return "reads a source image with FileAccess"
+	return ""
+
+
+func _export_safe_idents(expr: String) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	var word_re := RegEx.create_from_string("[A-Za-z_][A-Za-z0-9_]*")
+	for match_v: Variant in word_re.search_all(expr):
+		var word: String = (match_v as RegExMatch).get_string(0)
+		out.append(word)
+	return out
+
+
+func _export_safe_rhs_bad(rhs: String, bad: Dictionary) -> bool:
+	for token: String in _export_safe_idents(rhs):
+		if bad.has(token):
+			return true
+	return false
+
+
+func _export_safe_assign_rhs(lines: PackedStringArray, index: int, ident: String) -> String:
+	var assign_re := RegEx.create_from_string("(?:^|\\s)(?:var\\s+)?%s\\s*(?::\\s*[A-Za-z0-9_]+)?\\s*(?::=|=)\\s*(.*)$" % ident)
+	var start: int = maxi(0, index - 40)
+	for j: int in range(index - 1, start - 1, -1):
+		if lines[j].strip_edges().begins_with("func "):
+			break
+		var match: RegExMatch = assign_re.search(lines[j])
+		if match != null:
+			return match.get_string(1)
+	return ""
+
+
+func _title_wide_sizes_ok(tree_root: Window) -> int:
+	## Device windows. The 1440×960 plate stays 1:1; chrome follows the 960×540 frame.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var title: Node = packed.instantiate() if packed != null else null
+	failed += _assert(title != null, "title scene instantiates for the size check")
+	if title == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(title)
+	var windows: Array[Vector2i] = [Vector2i(2400, 1080), Vector2i(1920, 1200), Vector2i(1280, 960), Vector2i(2560, 1600)]
+	for win: Vector2i in windows:
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		await tree_root.get_tree().process_frame
+		var view: Vector2 = Ui540.viewport_size()
+		var shift: Vector2 = Ui540.center_shift()
+		var bg: TextureRect = title.get_node_or_null("Background") as TextureRect
+		var bg_pos: Vector2 = (view - Vector2(1440, 960)) * 0.5
+		failed += _assert(bg != null and bg.size.is_equal_approx(Vector2(1440, 960)) and bg.stretch_mode == TextureRect.STRETCH_KEEP, "title plate is 1440x960 and unstretched at %s" % win)
+		failed += _assert(bg != null and bg.position.is_equal_approx(bg_pos), "title plate is centred at %s (got %s want %s)" % [win, str(bg.position) if bg != null else "missing", bg_pos])
+		var logo: Control = title.get_node_or_null("Logo") as Control
+		var menu: Control = title.get_node_or_null("Menu") as Control
+		var version: Control = title.get_node_or_null("Version") as Control
+		failed += _assert(logo != null and logo.position.is_equal_approx(Vector2(52, 24) + shift), "title logo offset at %s" % win)
+		failed += _assert(menu != null and menu.position.is_equal_approx(Vector2(136, 146) + shift), "title menu offset at %s" % win)
+		var ver_pos: Vector2 = Vector2(904, 503) + shift
+		if version != null:
+			ver_pos.x = minf(ver_pos.x, maxf(0.0, view.x - version.size.x))
+			ver_pos.y = minf(ver_pos.y, maxf(0.0, view.y - version.size.y))
+		failed += _assert(version != null and version.position.is_equal_approx(ver_pos), "title version offset at %s" % win)
+	title.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TITLE_WIDE_SIZES_OK")
+	return failed
+
+
+func _echo_wide_plate_ok(tree_root: Window) -> int:
+	## 1440×960 plate, 1:1, covering the viewport. Overlays stay on the centred 960×540 frame.
+	var failed: int = 0
+	failed += _assert(EchoTheme.DESIGN_IN_PLATE.is_equal_approx(EchoTheme.PLATE_OLD_ORIGIN + Vector2(160, 90)), "design origin is the old plate at +80,+120 plus the 960 crop")
+	var wide: Image = _imported_image("res://assets/ui/echo/echo_chamber_bg_inkwater_1440x960.png")
+	var old: Image = _imported_image("res://assets/library/legacy/echo_plate_1280x720_2026-10-17/echo_chamber_bg_inkwater_1280x720.png")
+	failed += _assert(wide != null and not wide.is_empty(), "wide echo plate loads")
+	failed += _assert(wide != null and wide.get_width() == 1440 and wide.get_height() == 960, "wide echo plate is 1440x960")
+	failed += _assert(old != null and not old.is_empty(), "legacy echo plate loads")
+	if wide != null and wide.get_width() == 1440 and old != null and old.get_width() == 1280:
+		var nest: Image = wide.get_region(Rect2i(80, 120, 1280, 720))
+		nest.convert(Image.FORMAT_RGB8)
+		old.convert(Image.FORMAT_RGB8)
+		failed += _assert(nest.get_data() == old.get_data(), "old echo plate sits unchanged at +80,+120")
+	var packed: PackedScene = load("res://scenes/echo_battle.tscn") as PackedScene
+	failed += _assert(packed != null, "echo battle scene loads")
+	if packed == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var windows: Array[Vector2i] = [Vector2i(2400, 1080), Vector2i(1920, 1200), Vector2i(1280, 960), Vector2i(2560, 1600)]
+	for win: Vector2i in windows:
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		var view: Node = packed.instantiate()
+		tree_root.add_child(view)
+		await tree_root.get_tree().process_frame
+		var shift: Vector2 = Ui540.center_shift()
+		var viewport: Vector2 = Ui540.viewport_size()
+		var art: TextureRect = view.get_node_or_null("ChamberArt") as TextureRect
+		var plate_pos: Vector2 = (viewport - Vector2(1440, 960)) * 0.5
+		failed += _assert(art != null and not (art.texture is AtlasTexture), "echo plate is uncropped at %s" % win)
+		failed += _assert(art != null and art.stretch_mode == TextureRect.STRETCH_KEEP and art.size.is_equal_approx(Vector2(1440, 960)), "echo plate is 1:1 1440x960 at %s" % win)
+		failed += _assert(art != null and art.texture != null and art.texture.get_size().is_equal_approx(art.size), "echo plate is not stretched at %s" % win)
+		failed += _assert(art != null and art.position.is_equal_approx(plate_pos), "echo plate is centred at %s" % win)
+		if art != null:
+			failed += _assert(Rect2(art.position, art.size).grow(0.5).encloses(Rect2(Vector2.ZERO, viewport)), "echo plate covers %s" % win)
+		var frame: Control = view.get_node_or_null("DesignFrame") as Control
+		failed += _assert(frame != null and frame.position.is_equal_approx(shift) and frame.size.is_equal_approx(Vector2(960, 540)), "design frame is the centred 960x540 at %s" % win)
+		var speech: Control = view.get_node_or_null("SpeechBox") as Control
+		failed += _assert(speech != null and speech.position.is_equal_approx(EchoTheme.SPEECH_BOX.position + shift), "speech stays on the design frame at %s" % win)
+		view.call("_build_hp_bars")
+		var hp: Control = view.get_node_or_null("KeeperHpBar") as Control
+		failed += _assert(hp != null and hp.position.is_equal_approx(Vector2(shift.x + EchoTheme.KEEPER_CX - 90.0, 344.0 + shift.y)), "HP bar stays on the design frame at %s" % win)
+		BattleView.build_echo_menu(view, true)
+		var chip: Control = view.get_node_or_null("EchoActionMenu/ArrowToggle") as Control
+		failed += _assert(chip != null and chip.position.is_equal_approx(Vector2(shift.x + 150.0, shift.y + 394.0)), "hybrid chip stays on the design frame at %s" % win)
+		view.call("_show_rewards", "spare")
+		var rewards: Control = view.get_node_or_null("EchoRewards") as Control
+		failed += _assert(rewards != null and rewards.position.is_equal_approx(Vector2(shift.x + 200.0, 40.0 + shift.y)), "rewards card stays on the design frame at %s" % win)
+		var battle := EchoBattle.new()
+		battle.outcome = ""
+		view.set("_battle", battle)
+		view.set("_waiting_return", false)
+		view.call("_open_end_confirm", "spare")
+		var ask: Control = view.get_node_or_null("EndConfirm") as Control
+		failed += _assert(ask != null and ask.position.is_equal_approx(Vector2(shift.x + 220.0, 150.0 + shift.y)), "Spare/Strike confirm stays on the design frame at %s" % win)
+		view.free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("ECHO_WIDE_PLATE_OK")
+	return failed
+
+
+func _title_wide_ok(tree_root: Window) -> int:
+	## 1440×960 painting, 1:1 and centred. Logo, menu, and version sit on the shifted 960×540 frame.
+	var failed: int = 0
+	var scene_text: String = FileAccess.get_file_as_string("res://scenes/title_screen.tscn")
+	failed += _assert(scene_text.find("res://assets_extra/title/title_bg_wide_1440x960.png") >= 0, "title scene uses the wide painting")
+	failed += _assert(scene_text.find("title_bg_wide_1440x900.png") < 0 and scene_text.find("title_bg_1200x540.png") < 0 and scene_text.find("title_bg_960x540.png") < 0, "title scene no longer points at the old plates")
+	var wide: Image = _imported_image("res://assets_extra/title/title_bg_wide_1440x960.png")
+	var old: Image = _imported_image("res://assets/library/legacy/title_2026-10-17/title_bg_960x540.png")
+	failed += _assert(wide != null and not wide.is_empty(), "wide title image loads")
+	failed += _assert(wide != null and wide.get_width() == 1440 and wide.get_height() == 960, "wide title is 1440x960")
+	failed += _assert(old != null and not old.is_empty(), "legacy 960 title image loads")
+	if wide != null and wide.get_width() == 1440 and old != null and old.get_width() == 960:
+		var centre: Image = wide.get_region(Rect2i(240, 210, 960, 540))
+		centre.convert(Image.FORMAT_RGB8)
+		old.convert(Image.FORMAT_RGB8)
+		failed += _assert(centre.get_data() == old.get_data(), "wide painting centre 960x540 matches the old title")
+	var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var title: Node = packed.instantiate() if packed != null else null
+	failed += _assert(title != null, "title scene instantiates")
+	if title == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	tree_root.add_child(title)
+	var views: Array[Vector2i] = [Vector2i(960, 540), Vector2i(1200, 540), Vector2i(1280, 800), Vector2i(1280, 960)]
+	for vs: Vector2i in views:
+		tree_root.size = vs
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		if title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		await tree_root.get_tree().process_frame
+		var view: Vector2 = Ui540.viewport_size()
+		var shift: Vector2 = Ui540.center_shift()
+		var bg: TextureRect = title.get_node_or_null("Background") as TextureRect
+		failed += _assert(bg != null and bg.stretch_mode != TextureRect.STRETCH_KEEP_ASPECT_COVERED, "title background is not keep-aspect covered")
+		failed += _assert(bg != null and bg.size.is_equal_approx(Vector2(1440, 960)), "title background is drawn at 1440x960 (got %s)" % (str(bg.size) if bg != null else "missing"))
+		failed += _assert(bg != null and bg.stretch_mode == TextureRect.STRETCH_KEEP, "title background is not stretched")
+		var bg_pos: Vector2 = ((view - Vector2(1440, 960)) * 0.5)
+		failed += _assert(bg != null and bg.position.is_equal_approx(bg_pos), "title background is centred (got %s want %s)" % [str(bg.position) if bg != null else "missing", bg_pos])
+		var logo: Control = title.get_node_or_null("Logo") as Control
+		var menu: Control = title.get_node_or_null("Menu") as Control
+		var version: Control = title.get_node_or_null("Version") as Control
+		failed += _assert(logo != null and logo.position.is_equal_approx(Vector2(52, 24) + shift), "title logo is (52, 24) plus the shift at %s (got %s)" % [view, str(logo.position) if logo != null else "missing"])
+		failed += _assert(menu != null and menu.position.is_equal_approx(Vector2(136, 146) + shift), "title menu is (136, 146) plus the shift at %s (got %s)" % [view, str(menu.position) if menu != null else "missing"])
+		var ver_pos: Vector2 = Vector2(904, 503) + shift
+		if version != null:
+			ver_pos.x = minf(ver_pos.x, maxf(0.0, view.x - version.size.x))
+			ver_pos.y = minf(ver_pos.y, maxf(0.0, view.y - version.size.y))
+		failed += _assert(version != null and version.position.is_equal_approx(ver_pos), "title version follows (904, 503) plus the shift at %s (got %s want %s)" % [view, str(version.position) if version != null else "missing", ver_pos])
+	title.queue_free()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("TITLE_WIDE_OK")
+	return failed
+
+
+func _viewport_expand_ok(tree_root: Window) -> int:
+	## Logical viewport is window/integer scale. No fractional scale, no bars.
+	var failed: int = 0
+	failed += _assert(str(ProjectSettings.get_setting("display/window/stretch/scale_mode", "")) == "integer", "scale mode stays integer")
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var saved_window: Vector2i = tree_root.size
+	var cases: Array[Dictionary] = [
+		{"win": Vector2i(2400, 1080), "scale": 2, "vs": Vector2i(1200, 540)},
+		{"win": Vector2i(1920, 1200), "scale": 2, "vs": Vector2i(960, 600)},
+		{"win": Vector2i(1280, 960), "scale": 1, "vs": Vector2i(1280, 960)},
+		{"win": Vector2i(2560, 1600), "scale": 2, "vs": Vector2i(1280, 800)},
+	]
+	for case_v: Dictionary in cases:
+		var win: Vector2i = case_v["win"]
+		var vs: Vector2i = case_v["vs"]
+		var scale: int = int(case_v["scale"])
+		tree_root.size = win
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		var got: Vector2 = Ui540.viewport_size()
+		failed += _assert(Ui540.integer_scale_for(Vector2(win)) == scale, "%s integer scale is %d" % [win, scale])
+		failed += _assert(got.is_equal_approx(Vector2(vs)), "%s viewport is window/scale %s (got %s)" % [win, vs, got])
+		failed += _assert(tree_root.content_scale_stretch == Window.CONTENT_SCALE_STRETCH_INTEGER, "%s stretch stays integer" % win)
+		var shift: Vector2 = Ui540.center_shift()
+		var expect := Vector2((got.x - 960.0) * 0.5, (got.y - 540.0) * 0.5)
+		failed += _assert(shift.is_equal_approx(expect), "%s centre shift is %s (got %s)" % [win, expect, shift])
+	_report_backdrop_edges()
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if failed == 0:
+		print("VIEWPORT_EXPAND_OK")
+	return failed
+
+
+func _report_backdrop_edges() -> void:
+	## Centred 1:1. A positive shortfall is a strip; art is not painted here.
+	var views: Array[Vector2] = [Vector2(1280, 800), Vector2(1280, 960)]
+	var arts: Array[Dictionary] = [
+		{"name": "hub world", "size": Vector2(3960, 3420)},
+		{"name": "hub play", "size": Vector2(4320, 3780)},
+		{"name": "forge plate", "path": "res://assets/art/forge/forge_bark_chamber_bg.png"},
+		{"name": "arena backdrop", "path": "res://assets/art/battle/arena/arena_forest_bg_a.png"},
+		{"name": "arena foreground", "path": "res://assets/art/battle/arena/arena_forest_fg.png"},
+		{"name": "echo plate", "path": EchoTheme.PLATE},
+	]
+	for art_v: Dictionary in arts:
+		var art: Dictionary = art_v
+		var sz: Vector2 = art.get("size", Vector2.ZERO)
+		if art.has("path"):
+			var tex: Texture2D = load(str(art["path"])) as Texture2D
+			sz = tex.get_size() if tex != null else Vector2.ZERO
+		for view: Vector2 in views:
+			var short := Vector2(maxf(0.0, view.x - sz.x), maxf(0.0, view.y - sz.y))
+			if short.x > 0.5 or short.y > 0.5:
+				print("BACKDROP_EDGE %s art %s view %s short %s (strip %.0f x %.0f each side)" % [art["name"], sz, view, short, short.x * 0.5, short.y * 0.5])
+
+
+func _safe_area_layout_ok(tree_root: Window) -> int:
+	## Device pixels become window/scale: 1200x540, 960x600, 1280x960, 1280x800.
+	var failed: int = 0
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(str(ProjectSettings.get_setting("display/window/stretch/scale_mode", "")) == "integer", "scale mode stays integer")
+	failed += _assert(project_text.find("scale_mode.mobile") < 0, "no fractional mobile scale override")
+	Ui540.clear_debug_insets()
+	var insets: Vector4 = Ui540.safe_insets()
+	failed += _assert(insets.length() < 0.01, "desktop safe area is the full window")
+	var saved_scale: Vector2i = tree_root.content_scale_size
+	var saved_window: Vector2i = tree_root.size
+	var views: Array[Dictionary] = [
+		{"win": Vector2i(2400, 1080), "vs": Vector2i(1200, 540), "label": "2400x1080"},
+		{"win": Vector2i(1920, 1200), "vs": Vector2i(960, 600), "label": "1920x1200"},
+		{"win": Vector2i(1280, 960), "vs": Vector2i(1280, 960), "label": "1280x960"},
+		{"win": Vector2i(2560, 1600), "vs": Vector2i(1280, 800), "label": "2560x1600"},
+	]
+	var hud_packed: PackedScene = load("res://scenes/hud.tscn") as PackedScene
+	var title_packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+	var pause_packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var hud: Node = hud_packed.instantiate() if hud_packed != null else null
+	var title: Node = title_packed.instantiate() if title_packed != null else null
+	var menu: Node = pause_packed.instantiate() if pause_packed != null else null
+	var away: Node = load("res://scripts/ui/offline_summary.gd").new()
+	if hud != null:
+		tree_root.add_child(hud)
+	if title != null:
+		tree_root.add_child(title)
+	if menu != null:
+		tree_root.add_child(menu)
+	tree_root.add_child(away)
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	for view: Dictionary in views:
+		var win_px: Vector2i = view["win"]
+		var vs: Vector2i = view["vs"]
+		var label: String = str(view["label"])
+		tree_root.size = win_px
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		failed += _assert(Ui540.viewport_size().is_equal_approx(Vector2(vs)), "logical viewport is %s (got %s)" % [vs, Ui540.viewport_size()])
+		if menu != null and menu.has_method("resume_game"):
+			menu.call("resume_game")
+		if hud != null and hud.has_method("_layout_hud540"):
+			hud.call("_layout_hud540")
+		if title != null and title.has_method("_layout_title540"):
+			title.call("_layout_title540")
+		away.call("present", {"show": true, "raw_sec": 600.0, "effective_sec": 60.0, "keeper_kind": "water", "manashards": 1, "shard_mult": 0.25})
+		if host != null and host.has_method("_layout_window"):
+			host.call("_layout_window")
+		await tree_root.get_tree().process_frame
+		var safe: Rect2 = Ui540.safe_rect().grow(1.0)
+		if hud != null:
+			failed += _assert_inside(hud.get_node_or_null("Panel/IconShade") as Control, safe, "resource bar %s" % label)
+			failed += _assert_inside(hud.get("pause_button") as Control, safe, "pause button %s" % label)
+			failed += _assert_inside(hud.get_node_or_null("Panel/CharacterButton") as Control, safe, "character button %s" % label)
+			failed += _assert_inside(hud.get_node_or_null("Panel/BackpackButton") as Control, safe, "backpack button %s" % label)
+		if menu != null:
+			menu.call("open_pause")
+			await tree_root.get_tree().process_frame
+		if title != null:
+			failed += _assert_inside(title.get_node_or_null("Logo") as Control, safe, "title logo %s" % label)
+			failed += _assert_inside(title.get_node_or_null("Menu") as Control, safe, "title menu %s" % label)
+			var version: Control = title.get_node_or_null("Version") as Control
+			var version_rect: Rect2 = version.get_global_rect() if version != null else Rect2()
+			failed += _assert(version != null and Rect2(Vector2.ZERO, Vector2(vs)).grow(1.0).encloses(version_rect), "title version stays on the %s viewport (got %s)" % [label, version_rect])
+		if menu != null:
+			failed += _assert_inside(menu.get_node_or_null("Panel") as Control, safe, "pause panel %s" % label)
+			var plank: Control = menu.get_node_or_null("Panel/Title") as Control
+			failed += _assert_inside(plank, safe, "pause title %s" % label)
+		var card: Control = away.find_child("OfflineCard", true, false) as Control
+		failed += _assert_inside(card, safe, "away card %s" % label)
+		if host != null:
+			var window: Control = host.find_child("Window", true, false) as Control
+			failed += _assert_inside(window, safe, "minigame window %s" % label)
+	tree_root.size = Vector2i(2400, 1080)
+	Ui540.apply_integer_viewport(tree_root)
+	await tree_root.get_tree().process_frame
+	Ui540.set_debug_insets(Vector4(48, 36, 28, 20))
+	var shade: Control = null
+	var pause_btn: Control = null
+	var pack_btn: Control = null
+	if hud != null:
+		if menu != null and menu.has_method("resume_game"):
+			menu.call("resume_game")
+		hud.call("_layout_hud540")
+		shade = hud.get_node_or_null("Panel/IconShade") as Control
+		pause_btn = hud.get("pause_button") as Control
+		pack_btn = hud.get_node_or_null("Panel/BackpackButton") as Control
+	failed += _assert(shade != null and shade.position.x >= 48.0 - 0.1 and shade.position.y >= 36.0 - 0.1, "a notch pushes the resource bar inside the safe area")
+	failed += _assert(pause_btn != null and pause_btn.get_global_rect().end.x <= 1200.0 - 28.0 + 0.5, "a notch keeps the pause button inside the right inset")
+	var view_now: Vector2 = Ui540.viewport_size()
+	var pack_end: float = pack_btn.get_global_rect().end.y if pack_btn != null else -1.0
+	failed += _assert(view_now.is_equal_approx(Vector2(1200, 540)), "notch check uses the 20:9 logical view (got %s)" % view_now)
+	failed += _assert(pack_btn != null and pack_end <= view_now.y - Ui540.margin_bottom() + 0.5, "a notch keeps the bottom buttons above the lower inset (end %.1f margin %.1f)" % [pack_end, Ui540.margin_bottom()])
+	Ui540.clear_debug_insets()
+	if menu != null and menu.has_method("resume_game"):
+		menu.call("resume_game")
+	paused = false
+	tree_root.size = saved_window
+	tree_root.content_scale_size = saved_scale
+	if hud != null:
+		hud.queue_free()
+	if title != null:
+		title.queue_free()
+	if menu != null:
+		menu.queue_free()
+	away.queue_free()
+	if failed == 0:
+		print("SAFE_AREA_LAYOUT_OK")
+	return failed
+
+
+func _touch_nav_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	failed += await _touch_pinch_ok(tree_root, save_service)
+	failed += await _touch_core_ok(tree_root)
+	failed += await _touch_longpress_ok(tree_root, game_state, save_service)
+	failed += await _touch_selection_ok(tree_root, game_state, save_service)
+	failed += await _touch_double_ok(tree_root, game_state, save_service)
+	failed += await _touch_pan_ok(tree_root, save_service)
+	failed += await _touch_marquee_ok(tree_root, game_state, save_service)
+	failed += await _touch_polish_ok(tree_root)
+	failed += await _pc_mouse_unchanged_ok(tree_root, game_state, save_service)
+	return failed
+
+
+func _touch_pinch_ok(tree_root: Window, save_service: Node) -> int:
+	## Pinch steps 0.5/1/2 and keeps the world point under the fingers.
+	var failed: int = 0
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("pointing/android/enable_pan_and_scale_gestures=true") >= 0, "android pan and scale gestures are on")
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	var live: Node = packed.instantiate() if packed != null else null
+	failed += _assert(live != null, "hub loads for pinch")
+	if live == null:
+		return failed
+	var saved_window: Vector2i = tree_root.size
+	tree_root.size = Vector2i(1280, 960)
+	Ui540.apply_integer_viewport(tree_root)
+	tree_root.add_child(live)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null:
+		var welcome: CanvasItem = hud.get("welcome_panel") as CanvasItem
+		if welcome != null:
+			welcome.visible = false
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	failed += _assert(cam != null, "hub camera exists")
+	if cam == null:
+		live.free()
+		tree_root.size = saved_window
+		return failed
+	live.call("set_camera_zoom", 1.0, false)
+	cam.position = live.get("clearing_center")
+	live.call("_clamp_camera")
+	var focus := Vector2(420, 280)
+	var before: Vector2 = live.call("_screen_to_world", focus)
+	var mag := InputEventMagnifyGesture.new()
+	mag.factor = 1.2
+	mag.position = focus
+	live.call("_unhandled_input", mag)
+	var after: Vector2 = live.call("_screen_to_world", focus)
+	failed += _assert(is_equal_approx(float(live.get("camera_zoom")), 2.0), "pinch in steps 1 to 2 (got %s)" % str(live.get("camera_zoom")))
+	failed += _assert(before.distance_to(after) <= 1.5, "pinch in keeps the focus point (moved %s)" % str(before.distance_to(after)))
+	mag.factor = 0.8
+	live.call("_unhandled_input", mag)
+	var back: Vector2 = live.call("_screen_to_world", focus)
+	failed += _assert(is_equal_approx(float(live.get("camera_zoom")), 1.0), "pinch out steps 2 to 1")
+	failed += _assert(before.distance_to(back) <= 1.5, "pinch out keeps the focus point")
+	cam.position = live.call("camera_min")
+	live.call("_clamp_camera")
+	mag.factor = 1.2
+	mag.position = Vector2(8, 8)
+	live.call("_unhandled_input", mag)
+	var lo: Vector2 = live.call("camera_min")
+	var hi: Vector2 = live.call("camera_max")
+	var clamped: Vector2 = cam.position
+	failed += _assert(clamped.x >= lo.x - 0.5 and clamped.y >= lo.y - 0.5 and clamped.x <= hi.x + 0.5 and clamped.y <= hi.y + 0.5, "pinch stays inside the camera clamp (pos %s lo %s hi %s)" % [clamped, lo, hi])
+	live.free()
+	tree_root.size = saved_window
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	if failed == 0:
+		print("TOUCH_PINCH_OK")
+	return failed
+
+
+func _touch_core_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null, "GameInput autoload is present")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	failed += _touch_tap_slop_ok(input)
+	failed += _touch_double_tap_window_ok(input)
+	failed += await _touch_two_finger_guard_ok(tree_root, input)
+	failed += await _touch_tap_no_late_tooltip_ok(tree_root, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_screen(input: Node, index: int, pressed: bool, pos: Vector2) -> void:
+	var ev := InputEventScreenTouch.new()
+	ev.index = index
+	ev.pressed = pressed
+	ev.position = pos
+	input.call("_input", ev)
+
+
+func _touch_drag(input: Node, index: int, pos: Vector2) -> void:
+	var drag := InputEventScreenDrag.new()
+	drag.index = index
+	drag.position = pos
+	input.call("_input", drag)
+
+
+func _touch_release_fingers(input: Node) -> void:
+	_touch_screen(input, 0, false, Vector2.ZERO)
+	_touch_screen(input, 1, false, Vector2.ZERO)
+	input.set("_finger0_down", false)
+	input.set("_multi", false)
+	input.set("_gesture_dead", false)
+	input.set("_double", false)
+	input.set("_swallow_release", false)
+
+
+func _touch_tap_slop_ok(input: Node) -> int:
+	## A tap is a press under 0.8 s that moves at most 18 px. Real mouse stays a mouse.
+	var failed: int = 0
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("const MOVE_SLOP_PX: float = 18.0") >= 0, "move slop is 18 px")
+	failed += _assert(bool(input.call("touch_mode")), "emulate-touch turns touch mode on")
+	var screen := InputEventScreenTouch.new()
+	screen.position = Vector2(12, 12)
+	var emulated := InputEventMouseButton.new()
+	emulated.device = InputEvent.DEVICE_ID_EMULATION
+	emulated.button_index = MOUSE_BUTTON_LEFT
+	emulated.pressed = true
+	emulated.position = Vector2(12, 12)
+	var wheel := InputEventMouseButton.new()
+	wheel.device = InputEvent.DEVICE_ID_EMULATION
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	var real := InputEventMouseButton.new()
+	real.device = 0
+	real.button_index = MOUSE_BUTTON_LEFT
+	real.pressed = true
+	real.position = Vector2(12, 12)
+	failed += _assert(bool(input.call("is_touch_pointer", screen)), "a screen touch is a touch pointer")
+	failed += _assert(bool(input.call("is_touch_pointer", emulated)), "an emulated mouse is a touch pointer")
+	failed += _assert(not bool(input.call("is_touch_pointer", real)), "a real mouse is not a touch pointer")
+	failed += _assert(bool(input.call("blocks_scene_mouse", emulated)), "touch mode blocks emulated mouse in the scene")
+	failed += _assert(not bool(input.call("blocks_scene_mouse", real)), "touch mode leaves a real mouse on the mouse path")
+	failed += _assert(not bool(input.call("blocks_scene_mouse", wheel)), "emulated wheel zoom is not blocked")
+	failed += _assert(not bool(input.call("blocks_scene_mouse", InputEventMagnifyGesture.new())), "pinch is not a touch pointer")
+	_touch_release_fingers(input)
+	_touch_screen(input, 0, true, Vector2(10, 10))
+	_touch_screen(input, 0, false, Vector2(10, 10))
+	failed += _assert(bool(input.call("last_release_was_tap")), "a still press under 0.8 s is a tap")
+	_touch_screen(input, 0, true, Vector2(0, 0))
+	_touch_drag(input, 0, Vector2(18, 0))
+	_touch_screen(input, 0, false, Vector2(18, 0))
+	failed += _assert(bool(input.call("last_release_was_tap")), "18 px of movement is still a tap")
+	_touch_screen(input, 0, true, Vector2(0, 40))
+	_touch_drag(input, 0, Vector2(19, 40))
+	_touch_screen(input, 0, false, Vector2(19, 40))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "19 px of movement is not a tap")
+	_touch_screen(input, 0, true, Vector2(0, 80))
+	input.set("_touch_start_ms", Time.get_ticks_msec() - 800)
+	input.call("_process", 0.016)
+	failed += _assert(bool(input.call("long_press_did_fire")), "a press of 0.8 s is a long-press")
+	_touch_screen(input, 0, false, Vector2(0, 80))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "a long-press release is not a tap")
+	failed += _assert(bool(input.call("last_release_swallowed")), "a long-press swallows the next release")
+	emulated.position = Vector2(30, 120)
+	emulated.pressed = true
+	input.call("_input", emulated)
+	emulated.pressed = false
+	input.call("_input", emulated)
+	failed += _assert(bool(input.call("last_release_was_tap")), "an emulated left click inside the slop is a tap")
+	_touch_drag(input, 0, Vector2(80, 160))
+	_touch_screen(input, 0, true, Vector2(0, 160))
+	_touch_drag(input, 0, Vector2(40, 160))
+	_touch_screen(input, 0, false, Vector2(40, 160))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "cleared the tap flag before the real mouse")
+	real.pressed = true
+	input.call("_input", real)
+	real.pressed = false
+	input.call("_input", real)
+	failed += _assert(not bool(input.call("last_release_was_tap")), "a real mouse click is not a touch tap")
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = false
+	failed += _assert(not bool(input.call("touch_mode")), "touch mode is off without the launch flag")
+	failed += _assert(not bool(input.call("blocks_scene_mouse", emulated)), "emulated events do not block the scene when touch mode is off")
+	_touch_screen(input, 0, true, Vector2(4, 4))
+	_touch_screen(input, 0, false, Vector2(4, 4))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "screen touches are ignored when touch mode is off")
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("TOUCH_TAP_SLOP_OK")
+	return failed
+
+
+func _touch_double_tap_window_ok(input: Node) -> int:
+	## The second press within 300 ms and 32 px is a double-tap. Godot's flag is not read.
+	var failed: int = 0
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("const DOUBLE_TAP_MS: int = 300") >= 0, "double-tap window is 300 ms")
+	failed += _assert(input_text.find("const DOUBLE_TAP_PX: float = 32.0") >= 0, "double-tap distance is 32 px")
+	_touch_release_fingers(input)
+	input.set("_last_was_tap", false)
+	_touch_screen(input, 0, true, Vector2(900, 100))
+	_touch_screen(input, 0, false, Vector2(900, 100))
+	var second := InputEventScreenTouch.new()
+	second.index = 0
+	second.pressed = true
+	second.position = Vector2(900, 110)
+	input.call("_input", second)
+	failed += _assert(bool(input.call("press_is_double_tap")), "a second press inside 300 ms and 32 px is a double-tap")
+	failed += _assert(bool(input.call("is_double_tap", second)), "is_double_tap sees that screen press")
+	_touch_screen(input, 0, false, Vector2(900, 110))
+	_touch_screen(input, 0, true, Vector2(200, 200))
+	_touch_drag(input, 0, Vector2(260, 200))
+	_touch_screen(input, 0, false, Vector2(260, 200))
+	_touch_screen(input, 0, true, Vector2(400, 200))
+	_touch_screen(input, 0, false, Vector2(400, 200))
+	input.set("_last_release_ms", Time.get_ticks_msec() - 300)
+	var edge := InputEventMouseButton.new()
+	edge.device = InputEvent.DEVICE_ID_EMULATION
+	edge.button_index = MOUSE_BUTTON_LEFT
+	edge.pressed = true
+	edge.double_click = false
+	edge.position = Vector2(400, 200)
+	input.call("_input", edge)
+	failed += _assert(not edge.double_click, "the detector does not read Godot's double_click flag")
+	failed += _assert(bool(input.call("is_double_tap", edge)), "a press 300 ms after release is still a double-tap")
+	edge.pressed = false
+	input.call("_input", edge)
+	_touch_screen(input, 0, true, Vector2(400, 400))
+	_touch_screen(input, 0, false, Vector2(400, 400))
+	input.set("_last_release_ms", Time.get_ticks_msec() - 301)
+	var late := InputEventScreenTouch.new()
+	late.index = 0
+	late.pressed = true
+	late.position = Vector2(400, 400)
+	input.call("_input", late)
+	failed += _assert(not bool(input.call("press_is_double_tap")), "a press 301 ms after release is a new tap")
+	_touch_screen(input, 0, false, Vector2(400, 400))
+	_touch_screen(input, 0, true, Vector2(10, 300))
+	_touch_screen(input, 0, false, Vector2(10, 300))
+	var far := InputEventScreenTouch.new()
+	far.index = 0
+	far.pressed = true
+	far.position = Vector2(43, 300)
+	input.call("_input", far)
+	failed += _assert(not bool(input.call("press_is_double_tap")), "a press 33 px away is not a double-tap")
+	_touch_screen(input, 0, false, Vector2(43, 300))
+	_touch_screen(input, 0, true, Vector2(10, 360))
+	_touch_screen(input, 0, false, Vector2(10, 360))
+	var near := InputEventScreenTouch.new()
+	near.index = 0
+	near.pressed = true
+	near.position = Vector2(42, 360)
+	input.call("_input", near)
+	failed += _assert(bool(input.call("press_is_double_tap")), "a press 32 px away is a double-tap")
+	_touch_screen(input, 0, false, Vector2(42, 360))
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_WINDOW_OK")
+	return failed
+
+
+func _touch_two_finger_guard_ok(tree_root: Window, input: Node) -> int:
+	## Index 0 owns the gesture. A second finger does not retarget the timer.
+	var failed: int = 0
+	_touch_release_fingers(input)
+	input.set("_touch_start_ms", 42)
+	input.set("_last_was_tap", false)
+	_touch_screen(input, 1, true, Vector2(20, 20))
+	failed += _assert(not bool(input.call("primary_down")), "finger 1 does not start the gesture")
+	failed += _assert(int(input.call("gesture_start_ms")) == 42, "finger 1 does not start the clock")
+	_touch_screen(input, 1, false, Vector2(20, 20))
+	_touch_screen(input, 0, true, Vector2(50, 50))
+	var started: int = int(input.call("gesture_start_ms"))
+	input.set("_touch_start_ms", started - 5000)
+	_touch_screen(input, 1, true, Vector2(80, 50))
+	failed += _assert(int(input.call("gesture_start_ms")) == started - 5000, "finger 1 does not retarget the timer")
+	failed += _assert(int(input.get("_touch_index")) == 0, "the tracked finger stays index 0")
+	failed += _assert(bool(input.call("multi_touch_cancelled")), "a second finger cancels the gesture")
+	failed += _assert(bool(input.call("touch_pan_frozen")), "pan freezes while two fingers are down")
+	await tree_root.get_tree().process_frame
+	input.call("_process", 0.016)
+	failed += _assert(not bool(input.call("long_press_did_fire")), "a second finger cancels the long-press")
+	_touch_screen(input, 0, false, Vector2(50, 50))
+	failed += _assert(not bool(input.call("last_release_was_tap")), "a second finger cancels the tap")
+	_touch_screen(input, 1, false, Vector2(80, 50))
+	failed += _assert(not bool(input.call("touch_pan_frozen")), "pan unfreezes after the extra finger lifts")
+	_touch_screen(input, 0, true, Vector2(50, 90))
+	_touch_screen(input, 0, false, Vector2(50, 90))
+	failed += _assert(bool(input.call("last_release_was_tap")), "a later one-finger tap still counts")
+	if failed == 0:
+		print("TOUCH_TWO_FINGER_GUARD_OK")
+	return failed
+
+
+func _touch_tap_no_late_tooltip_ok(tree_root: Window, input: Node) -> int:
+	## A quick tap cancels a pending world hover and the trait popup.
+	var failed: int = 0
+	_touch_release_fingers(input)
+	input.set("_last_was_tap", false)
+	var marker := Node2D.new()
+	marker.name = "HoverMarker"
+	tree_root.add_child(marker)
+	WorldHover.present(marker, "Moss")
+	WorldHover.complete_rest()
+	failed += _assert(WorldHover.current_text() == "Moss", "a finished rest still shows the world tooltip")
+	WorldHover.dismiss(marker)
+	WorldHover.present(marker, "Moss")
+	_touch_screen(input, 0, true, Vector2(600, 40))
+	_touch_screen(input, 0, false, Vector2(600, 40))
+	WorldHover.complete_rest()
+	failed += _assert(WorldHover.current_text() == "", "a quick tap cancels the pending world tooltip")
+	var sheet := CharacterSheet.new()
+	tree_root.add_child(sheet)
+	await tree_root.get_tree().process_frame
+	sheet.call("_arm_trait_hover")
+	failed += _assert(bool(sheet.call("trait_rest_pending")), "the trait popup rest is armed")
+	_touch_screen(input, 0, true, Vector2(620, 40))
+	_touch_screen(input, 0, false, Vector2(620, 40))
+	failed += _assert(not bool(sheet.call("trait_rest_pending")), "a quick tap cancels the trait popup")
+	sheet.free()
+	marker.free()
+	WorldHover.shutdown()
+	if failed == 0:
+		print("TOUCH_TAP_NO_LATE_TOOLTIP_OK")
+	return failed
+
+
+func _touch_longpress_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	failed += await _touch_longpress_tooltip_ok(tree_root, input)
+	failed += await _touch_longpress_no_command_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_longpress_no_button_press_ok(tree_root, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_hold_at(input: Node, screen_pos: Vector2) -> void:
+	_touch_release_fingers(input)
+	input.set("_last_was_tap", false)
+	_touch_screen(input, 0, true, screen_pos)
+	input.set("_touch_start_ms", Time.get_ticks_msec() - 900)
+	input.set("_touch_current", screen_pos)
+	input.call("_process", 0.016)
+
+
+func _touch_longpress_tooltip_ok(tree_root: Window, input: Node) -> int:
+	## Long-press shows the world name, or that control's own tip. Not the generic hint.
+	var failed: int = 0
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("_route_world_command") < 0, "long-press no longer routes a world command")
+	failed += _assert(input_text.find("present_long_press_hint") >= 0 and input_text.find("ui.longpress_hint") >= 0, "the hint helper and its string key stay for the one-time panel")
+	var scr := GDScript.new()
+	scr.source_code = "extends Area2D\nfunc world_hover_name() -> String:\n\treturn \"Harvest Wood\"\n"
+	failed += _assert(scr.reload() == OK, "world hover stub compiles")
+	var area := Area2D.new()
+	area.set_script(scr)
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(36, 36)
+	shape.shape = rect
+	area.add_child(shape)
+	tree_root.add_child(area)
+	var screen := Vector2(240, 180)
+	area.global_position = input.call("_screen_to_world", screen)
+	await tree_root.get_tree().physics_frame
+	await tree_root.get_tree().physics_frame
+	_touch_hold_at(input, screen)
+	var panel: Panel = WorldHover.panel()
+	failed += _assert(WorldHover.current_text() == "Harvest Wood", "long-press on a world object shows its name (got %s)" % WorldHover.current_text())
+	failed += _assert(panel != null and panel.theme_type_variation == &"TooltipPanel", "the world name uses the papyrus tooltip")
+	failed += _assert(WorldHover.current_text().find("Hold to look") < 0, "a world long-press is not the generic hint")
+	WorldHover.dismiss_hold()
+	var btn := Button.new()
+	btn.text = "Gate"
+	btn.tooltip_text = "Open the gate"
+	btn.position = Vector2(480, 160)
+	btn.size = Vector2(140, 44)
+	tree_root.add_child(btn)
+	await tree_root.get_tree().process_frame
+	_touch_hold_at(input, btn.get_global_rect().get_center())
+	failed += _assert(WorldHover.current_text() == "Open the gate", "long-press on a control shows its tooltip (got %s)" % WorldHover.current_text())
+	failed += _assert(WorldHover.current_text().find("Hold to look") < 0, "a control long-press is not the generic hint")
+	WorldHover.dismiss_hold()
+	var recipe: Button = (load("res://scripts/forge_recipe_button.gd") as GDScript).new() as Button
+	recipe.set("recipe_id", "touch_nav_recipe")
+	recipe.tooltip_text = "plain-tip"
+	recipe.position = Vector2(480, 240)
+	recipe.size = Vector2(180, 44)
+	tree_root.add_child(recipe)
+	await tree_root.get_tree().process_frame
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var expected := "touch_nav_recipe"
+	if jobs != null:
+		expected = _touch_strip_bbcode(str(jobs.call("recipe_hover_bbcode", "touch_nav_recipe")))
+	_touch_hold_at(input, recipe.get_global_rect().get_center())
+	failed += _assert(WorldHover.current_text() == expected, "long-press uses the recipe button's custom tip (got %s)" % WorldHover.current_text())
+	failed += _assert(WorldHover.current_text() != "plain-tip", "the custom tip wins over tooltip_text")
+	_touch_screen(input, 0, false, recipe.get_global_rect().get_center())
+	WorldHover.dismiss_hold()
+	recipe.free()
+	btn.free()
+	area.free()
+	if failed == 0:
+		print("TOUCH_LONGPRESS_TOOLTIP_OK")
+	return failed
+
+
+func _touch_strip_bbcode(text: String) -> String:
+	var rx := RegEx.new()
+	if rx.compile("\\[[^\\]]*\\]") != OK:
+		return text.strip_edges()
+	return rx.sub(text, "", true).strip_edges()
+
+
+func _touch_longpress_no_command_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	## A long-press on open ground does not walk the Keeper or unassign a Wisp.
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for the long-press command check")
+	if live == null:
+		return failed
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(keeper != null, "hub keeper exists")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	var origin: Vector2 = keeper.global_position
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	var view: Vector2 = live.call("_viewport_view")
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	var zoom: Vector2 = cam.zoom if cam != null else Vector2.ONE
+	var cam_pos: Vector2 = cam.global_position if cam != null else Vector2.ZERO
+	var ground: Vector2 = origin + Vector2(240, 60)
+	var screen: Vector2 = (ground - cam_pos) * zoom + view * 0.5
+	_touch_hold_at(input, screen)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(keeper.get("_moving")), "a ground long-press does not walk the Keeper")
+	failed += _assert(keeper.global_position.distance_to(origin) <= 1.0, "the Keeper stays put")
+	failed += _assert(bool(game_state.get("keeper_selected")), "the Keeper stays selected")
+	var walked := false
+	for line: String in heard:
+		if line.find("unassign") >= 0 or line.find("Walk") >= 0:
+			walked = true
+	failed += _assert(not walked, "a ground long-press does not toast a command")
+	game_state.disconnect("status_message", grab)
+	_touch_screen(input, 0, false, screen)
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_LONGPRESS_NO_COMMAND_OK")
+	return failed
+
+
+func _touch_longpress_no_button_press_ok(tree_root: Window, input: Node) -> int:
+	## The release after a long-press does not activate the button, and it does not stay pressed.
+	var failed: int = 0
+	var saved_window: Vector2i = tree_root.size
+	tree_root.size = Vector2i(1280, 960)
+	Ui540.apply_integer_viewport(tree_root)
+	var btn := Button.new()
+	btn.text = "Go"
+	btn.tooltip_text = "Go on"
+	btn.position = Vector2(200, 200)
+	btn.size = Vector2(160, 48)
+	tree_root.add_child(btn)
+	await tree_root.get_tree().process_frame
+	var hits: Array[int] = [0]
+	btn.pressed.connect(func() -> void: hits[0] = hits[0] + 1)
+	var at: Vector2 = btn.get_global_rect().get_center()
+	_touch_push_left(tree_root, at, true)
+	_touch_push_left(tree_root, at, false)
+	await tree_root.get_tree().process_frame
+	failed += _assert(hits[0] == 1, "a short tap still presses the button (got %d)" % hits[0])
+	hits[0] = 0
+	_touch_push_left(tree_root, at, true)
+	input.set("_touch_start_ms", Time.get_ticks_msec() - 900)
+	input.call("_process", 0.016)
+	failed += _assert(WorldHover.current_text() == "Go on", "the held button shows its own tip")
+	_touch_push_left(tree_root, at, false)
+	await tree_root.get_tree().process_frame
+	var draw: int = btn.get_draw_mode()
+	failed += _assert(hits[0] == 0, "the release after a long-press does not press the button (got %d)" % hits[0])
+	failed += _assert(draw != BaseButton.DRAW_PRESSED and draw != BaseButton.DRAW_HOVER_PRESSED, "the button does not stay pressed (draw %d)" % draw)
+	failed += _assert(bool(input.call("last_release_swallowed")), "the long-press release was swallowed")
+	WorldHover.dismiss_hold()
+	btn.free()
+	tree_root.size = saved_window
+	if failed == 0:
+		print("TOUCH_LONGPRESS_NO_BUTTON_PRESS_OK")
+	return failed
+
+
+func _touch_push_left(tree_root: Window, at: Vector2, pressed: bool) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	motion.position = at
+	motion.global_position = at
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+	tree_root.push_input(motion)
+	var mb := InputEventMouseButton.new()
+	mb.device = InputEvent.DEVICE_ID_EMULATION
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = pressed
+	mb.position = at
+	mb.global_position = at
+	tree_root.push_input(mb)
+
+
+func _touch_boot_hub(tree_root: Window, save_service: Node, window: Vector2i = Vector2i(1280, 960)) -> Node:
+	tree_root.get_tree().paused = false
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
+	if packed == null:
+		return null
+	var live: Node = packed.instantiate()
+	tree_root.size = window
+	Ui540.apply_integer_viewport(tree_root)
+	tree_root.add_child(live)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null:
+		var welcome: CanvasItem = hud.get("welcome_panel") as CanvasItem
+		if welcome != null:
+			welcome.visible = false
+	return live
+
+
+func _touch_free_hub(tree_root: Window, live: Node, save_service: Node) -> void:
+	if live != null:
+		live.free()
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "auto")
+	tree_root.size = Vector2i(1280, 960)
+
+
+func _touch_selection_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	failed += await _touch_ground_tap_keeps_selection_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_tap_again_deselects_ok(tree_root, game_state, save_service, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_world_screen(live: Node, world_pos: Vector2) -> Vector2:
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return world_pos
+	return cam.get_canvas_transform() * world_pos
+
+
+func _touch_aim(live: Node, world_pos: Vector2) -> Vector2:
+	## Park the camera on the point so the click lands inside the window.
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return world_pos
+	if live.has_method("_clamped_camera_pos"):
+		cam.position = live.call("_clamped_camera_pos", world_pos)
+	else:
+		cam.position = world_pos
+	if live.has_method("_clamp_camera"):
+		live.call("_clamp_camera")
+	if cam.has_method("force_update_scroll"):
+		cam.force_update_scroll()
+	await live.get_tree().process_frame
+	if cam.has_method("force_update_scroll"):
+		cam.force_update_scroll()
+	return cam.get_canvas_transform() * world_pos
+
+
+func _touch_left_click(tree_root: Window, at: Vector2, device: int) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.device = device
+	motion.position = at
+	motion.global_position = at
+	tree_root.push_input(motion)
+	var press := InputEventMouseButton.new()
+	press.device = device
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.button_mask = MOUSE_BUTTON_MASK_LEFT
+	press.position = at
+	press.global_position = at
+	tree_root.push_input(press)
+	# Picking flushes on the next frame and keeps this object. A second push of the
+	# same event would turn the queued press into a release.
+	var release: InputEventMouseButton = press.duplicate() as InputEventMouseButton
+	release.pressed = false
+	release.button_mask = 0
+	tree_root.push_input(release)
+
+
+func _touch_ground_tap_keeps_selection_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	## Touch ground keeps the selection. A real mouse click still clears it.
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for the ground tap")
+	if live == null:
+		return failed
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(keeper != null, "hub keeper exists for the ground tap")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	input.set("_last_was_tap", false)
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	var ground: Vector2 = _touch_world_screen(live, keeper.global_position + Vector2(420, 80))
+	_touch_left_click(tree_root, ground, InputEvent.DEVICE_ID_EMULATION)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(game_state.get("keeper_selected")), "a touch ground tap keeps the Keeper selected")
+	var cleared := false
+	for line: String in heard:
+		if line.find("selection") >= 0 or line.to_lower().find("deselect") >= 0:
+			cleared = true
+	failed += _assert(not cleared, "a touch ground tap does not toast a clear")
+	heard.clear()
+	input.set("_last_was_tap", false)
+	_touch_left_click(tree_root, ground, 0)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(game_state.get("keeper_selected")), "a real mouse ground click still clears the selection")
+	game_state.disconnect("status_message", grab)
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	failed += _assert(forge != null, "forge loads for the ground tap")
+	if forge != null:
+		game_state.call("select_keeper")
+		forge.call("open_station_panel", "anvil")
+		await tree_root.get_tree().process_frame
+		var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
+		failed += _assert(panel != null and panel.visible, "the forge recipe list is open")
+		input.set("_last_was_tap", false)
+		var forge_keeper: Node2D = forge.get_node_or_null("Keeper") as Node2D
+		var origin: Vector2 = forge_keeper.global_position if forge_keeper != null else Vector2(400, 300)
+		var spot: Vector2 = _touch_world_screen(forge, origin + Vector2(360, 40))
+		if panel != null and panel.get_global_rect().has_point(spot):
+			spot = Vector2(24, 24)
+		_touch_left_click(tree_root, spot, InputEvent.DEVICE_ID_EMULATION)
+		await tree_root.get_tree().process_frame
+		failed += _assert(panel == null or not panel.visible, "a forge ground tap hides the recipe list")
+		failed += _assert(bool(game_state.get("keeper_selected")), "a forge ground tap keeps the selection")
+		_touch_free_hub(tree_root, forge, save_service)
+	if failed == 0:
+		print("TOUCH_GROUND_TAP_KEEPS_SELECTION_OK")
+	return failed
+
+
+func _touch_boot_scene(tree_root: Window, save_service: Node, path: String, window: Vector2i = Vector2i(1280, 960)) -> Node:
+	save_service.call("note_session_ended")
+	save_service.set("boot_intent", "new")
+	var packed: PackedScene = load(path) as PackedScene
+	if packed == null:
+		return null
+	var live: Node = packed.instantiate()
+	tree_root.size = window
+	Ui540.apply_integer_viewport(tree_root)
+	tree_root.add_child(live)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	return live
+
+
+func _touch_tap_again_deselects_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	## Touch on the selected Keeper, Wisp, or portrait clears it. A real mouse does not.
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for tap-again")
+	if live == null:
+		return failed
+	var keeper: Node = live.get_node_or_null("World/Keeper")
+	failed += _assert(keeper != null, "hub keeper exists for tap-again")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	input.set("_last_was_tap", false)
+	keeper.call("_on_click_area_input", null, _touch_press_event(InputEvent.DEVICE_ID_EMULATION), 0)
+	failed += _assert(not bool(game_state.get("keeper_selected")), "a touch tap on the selected Keeper deselects")
+	game_state.call("select_keeper")
+	input.set("_last_was_tap", false)
+	keeper.call("_on_click_area_input", null, _touch_press_event(0), 0)
+	failed += _assert(bool(game_state.get("keeper_selected")), "a real mouse tap on the selected Keeper stays selected")
+	game_state.set("wisp_count", 1)
+	live.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	var wisp: Node = tree_root.get_tree().get_first_node_in_group("wisp")
+	failed += _assert(wisp != null, "a wisp exists for tap-again")
+	if wisp != null:
+		game_state.call("select_wisp", 0)
+		input.set("_last_was_tap", false)
+		wisp.call("_on_input_event", null, _touch_press_event(InputEvent.DEVICE_ID_EMULATION), 0)
+		failed += _assert(int(game_state.get("selected_wisp_id")) < 0, "a touch tap on the selected Wisp deselects")
+		game_state.call("select_wisp", 0)
+		input.set("_last_was_tap", false)
+		wisp.call("_on_input_event", null, _touch_press_event(0), 0)
+		failed += _assert(int(game_state.get("selected_wisp_id")) == 0, "a real mouse tap on the selected Wisp stays selected")
+	var hud: Node = live.get_node_or_null("HUD")
+	var slot: Control = hud.get("_slot_keeper") as Control if hud != null else null
+	failed += _assert(hud != null and slot != null, "the Keeper portrait exists")
+	if hud != null and slot != null:
+		game_state.call("select_keeper")
+		input.set("_last_was_tap", false)
+		hud.call("_on_party_slot_input", _touch_press_event(InputEvent.DEVICE_ID_EMULATION), "keeper", slot)
+		failed += _assert(not bool(game_state.get("keeper_selected")), "a touch tap on the selected portrait deselects")
+		game_state.call("select_keeper")
+		input.set("_last_was_tap", false)
+		hud.call("_on_party_slot_input", _touch_press_event(0), "keeper", slot)
+		failed += _assert(bool(game_state.get("keeper_selected")), "a real mouse tap on the selected portrait stays selected")
+		game_state.set("wisp_count", 1)
+		game_state.call("select_wisp", 0)
+		input.set("_last_was_tap", false)
+		hud.call("_on_party_slot_input", _touch_press_event(InputEvent.DEVICE_ID_EMULATION), "wisp", slot)
+		failed += _assert(int(game_state.get("selected_wisp_id")) < 0, "a touch tap on the selected Wisp portrait deselects")
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_TAP_AGAIN_DESELECTS_OK")
+	return failed
+
+
+func _touch_double_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	var was_mouse: bool = Input.emulate_mouse_from_touch
+	Input.emulate_touch_from_mouse = true
+	Input.emulate_mouse_from_touch = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		Input.emulate_mouse_from_touch = was_mouse
+		return failed + 1
+	failed += await _touch_double_tap_walk_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_double_tap_harvest_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_double_tap_station_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_double_tap_bench_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_double_tap_objects_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_double_tap_blocked_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_no_translate_minigame_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_no_translate_battle_ok(tree_root, game_state, save_service, input)
+	failed += await _touch_portrait_double_tap_ok(tree_root, game_state, save_service, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	Input.emulate_mouse_from_touch = was_mouse
+	## parse_input_event moves the headless pointer. Later mouse checks still assume (0, 0).
+	var home := InputEventMouseMotion.new()
+	home.device = 0
+	home.position = Vector2.ZERO
+	home.global_position = Vector2.ZERO
+	Input.parse_input_event(home)
+	Input.flush_buffered_events()
+	return failed
+
+
+func _touch_arm_single(input: Node) -> void:
+	input.set("_last_was_tap", false)
+	input.set("_last_release_ms", -100000)
+	input.set("_double", false)
+	## Every aimed tap shares the screen centre, inside the 32 px echo of the
+	## previous double. A new gesture in this harness is not that echo.
+	input.set("_double_echo", false)
+
+
+func _touch_parse_finger(tree_root: Window, logical: Vector2, pressed: bool) -> void:
+	## Window pixels, the space Android delivers. Godot's touch-to-mouse emulation
+	## turns this into the left click. The test must not build that mouse event.
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = pressed
+	touch.position = tree_root.get_final_transform() * logical
+	Input.parse_input_event(touch)
+	Input.flush_buffered_events()
+
+
+func _touch_single_at(tree_root: Window, input: Node, at: Vector2) -> void:
+	_touch_arm_single(input)
+	_touch_parse_finger(tree_root, at, true)
+	_touch_parse_finger(tree_root, at, false)
+
+
+func _touch_double_at(tree_root: Window, input: Node, at: Vector2) -> void:
+	_touch_arm_single(input)
+	_touch_parse_finger(tree_root, at, true)
+	_touch_parse_finger(tree_root, at, false)
+	_touch_parse_finger(tree_root, at, true)
+	_touch_parse_finger(tree_root, at, false)
+
+
+func _touch_settle_picking(tree: SceneTree) -> void:
+	## World taps reach Area2D/CollisionObject2D input_event only through physics
+	## picking, which runs on a physics tick. A headless run is not frame capped,
+	## so two process frames can pass with no physics tick at all and the tap is
+	## then picked later, after the assert and after the mutes are lifted. Wait
+	## for real physics ticks instead of counting process frames.
+	if OS.get_environment("MANAFORGE_TOUCH_LEGACY_WAIT") == "1":
+		await tree.process_frame
+		await tree.process_frame
+		return
+	var start: int = Engine.get_physics_frames()
+	await tree.process_frame
+	while Engine.get_physics_frames() < start + 2:
+		await tree.physics_frame
+	await tree.process_frame
+
+
+func _touch_shape_world(node: Node) -> Vector2:
+	var shape: Node2D = node.get_node_or_null("CollisionShape2D") as Node2D
+	if shape == null:
+		shape = node.find_child("CollisionShape2D", true, false) as Node2D
+	return shape.global_position if shape != null else (node as Node2D).global_position
+
+
+func _touch_shape_screen(live: Node, node: Node) -> Vector2:
+	return _touch_world_screen(live, _touch_shape_world(node))
+
+
+func _touch_double_tap_walk_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live != null else null
+	failed += _assert(keeper != null, "hub keeper exists for the double-tap walk")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	var at: Vector2 = await _touch_aim(live, keeper.global_position + Vector2(200, 40))
+	_touch_double_at(tree_root, input, at)
+	await _touch_settle_picking(tree_root.get_tree())
+	failed += _assert(bool(keeper.get("_moving")), "a world double-tap walks the selected Keeper")
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_WALK_OK")
+	return failed
+
+
+func _touch_double_tap_harvest_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	var keeper: Node = live.get_node_or_null("World/Keeper") if live != null else null
+	var node: Node = tree_root.get_tree().get_first_node_in_group("gatherable") if live != null else null
+	failed += _assert(keeper != null and node != null, "a gatherable exists for the double-tap harvest")
+	if keeper == null or node == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	_touch_double_at(tree_root, input, await _touch_aim(live, _touch_shape_world(node)))
+	await _touch_settle_picking(tree_root.get_tree())
+	var pending: Variant = keeper.get("_pending_interact")
+	failed += _assert(pending == node, "a double-tap on a gatherable harvests it")
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_HARVEST_OK")
+	return failed
+
+
+func _touch_double_tap_station_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn", TOUCH_DEVICE_WINDOW)
+	failed += _assert(forge != null, "forge loads for the station double-tap")
+	if forge == null:
+		return failed
+	var station: Node = tree_root.get_tree().get_first_node_in_group("forge_station")
+	failed += _assert(station != null, "a forge station exists")
+	if station == null:
+		_touch_free_hub(tree_root, forge, save_service)
+		return failed
+	game_state.set("wisp_count", 1)
+	forge.call("_sync_wisps")
+	game_state.call("select_wisp", 0)
+	var at: Vector2 = await _touch_aim(forge, _touch_shape_world(station))
+	_touch_single_at(tree_root, input, at)
+	await tree_root.get_tree().create_timer(0.36).timeout
+	var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
+	failed += _assert(panel != null and panel.visible, "a single station tap opens the recipe list after the wait")
+	panel.visible = false
+	_touch_double_at(tree_root, input, at)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().create_timer(0.36).timeout
+	var station_id: String = str(station.get("station_id"))
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == station_id, "a station double-tap assigns the Wisp (got %s)" % str(game_state.call("get_wisp_assignment", 0)))
+	failed += _assert(panel == null or not panel.visible, "the second tap cancels the station open")
+	_touch_free_hub(tree_root, forge, save_service)
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_STATION_ASSIGN_OK")
+	return failed
+
+
+func _touch_double_tap_bench_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	var bench: Node = tree_root.get_tree().get_first_node_in_group("keepers_bench") if live != null else null
+	failed += _assert(bench != null, "the Keeper's bench exists")
+	if bench == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.set("wisp_count", 1)
+	live.call("_sync_wisps")
+	game_state.call("select_wisp", 0)
+	var at: Vector2 = await _touch_aim(live, _touch_shape_world(bench))
+	_touch_double_at(tree_root, input, at)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().create_timer(0.36).timeout
+	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "workbench", "a bench double-tap assigns the Wisp (got %s)" % str(game_state.call("get_wisp_assignment", 0)))
+	var hud: Node = live.get_node_or_null("HUD")
+	var open: bool = hud != null and hud.has_method("is_bench_open") and bool(hud.call("is_bench_open"))
+	failed += _assert(not open, "the second tap cancels the bench open")
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_BENCH_OK")
+	return failed
+
+
+func _touch_names_at(live: Node, world: Vector2) -> String:
+	var space: PhysicsDirectSpaceState2D = live.get_world_2d().direct_space_state
+	if space == null:
+		return ""
+	var query := PhysicsPointQueryParameters2D.new()
+	query.position = world
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	query.collision_mask = 4
+	var hits: Array[Dictionary] = space.intersect_point(query, 8)
+	var names: PackedStringArray = PackedStringArray()
+	for hit: Dictionary in hits:
+		var collider: Variant = hit.get("collider")
+		if collider is Node:
+			names.append((collider as Node).name)
+	return " ".join(names)
+
+
+func _touch_gatherable_named(tree_root: Window, key: String) -> Node:
+	for node: Node in tree_root.get_tree().get_nodes_in_group("gatherable"):
+		if str(node.get("node_key")) == key:
+			return node
+	return null
+
+
+func _touch_silence_wisps(tree_root: Window, pickable: bool) -> void:
+	for node: Node in tree_root.get_tree().get_nodes_in_group("wisp"):
+		if node is CollisionObject2D:
+			(node as CollisionObject2D).input_pickable = pickable
+
+
+func _touch_bring_to_view(live: Node, node: Node) -> void:
+	## Camera clamp can leave a node off the window. Slide it under the lens.
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if cam == null or not (node is Node2D):
+		return
+	var body: Node2D = node as Node2D
+	body.global_position += cam.position - _touch_shape_world(node)
+
+
+func _touch_mute_except(tree_root: Window, keep: Node) -> Array[CollisionObject2D]:
+	## Parked nodes stack under the lens. Drop every other pick shape for this tap.
+	var muted: Array[CollisionObject2D] = []
+	for other: Node in tree_root.get_tree().get_nodes_in_group("interactable"):
+		if other == keep or not (other is CollisionObject2D):
+			continue
+		var body: CollisionObject2D = other as CollisionObject2D
+		if not body.input_pickable:
+			continue
+		body.input_pickable = false
+		var shapes: Array[CollisionShape2D] = []
+		for child: Node in body.find_children("*", "CollisionShape2D", true, false):
+			var shape: CollisionShape2D = child as CollisionShape2D
+			if shape.disabled:
+				continue
+			shape.disabled = true
+			shapes.append(shape)
+		body.set_meta("touch_muted_shapes", shapes)
+		muted.append(body)
+	return muted
+
+
+func _touch_unmute(muted: Array[CollisionObject2D]) -> void:
+	for body: CollisionObject2D in muted:
+		if not is_instance_valid(body):
+			continue
+		body.input_pickable = true
+		var stored: Variant = body.get_meta("touch_muted_shapes", [])
+		if stored is Array:
+			for child: Variant in stored:
+				if child is CollisionShape2D and is_instance_valid(child):
+					(child as CollisionShape2D).disabled = false
+		body.remove_meta("touch_muted_shapes")
+
+
+func _touch_keeper_order(tree_root: Window, live: Node, game_state: Node, input: Node, node: Node) -> void:
+	## Keeper selected, this node alone under the lens, then a real double-tap.
+	_touch_silence_wisps(tree_root, false)
+	_touch_bring_to_view(live, node)
+	var keeper: Node2D = tree_root.get_tree().get_first_node_in_group("keeper") as Node2D
+	if keeper != null and node is Node2D:
+		keeper.global_position = (node as Node2D).global_position + Vector2(-900, 260)
+		if keeper.has_method("halt"):
+			keeper.call("halt")
+	var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, node)
+	game_state.call("clear_wisp_selection")
+	game_state.call("select_keeper")
+	await tree_root.get_tree().process_frame
+	var at: Vector2 = await _touch_aim(live, _touch_shape_world(node))
+	_touch_double_at(tree_root, input, at)
+	await _touch_settle_picking(tree_root.get_tree())
+	await tree_root.get_tree().create_timer(0.1).timeout
+	_touch_unmute(muted)
+
+
+func _touch_wisp_stress_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Real ScreenTouch on the 2x device window: 24 Wisp select taps and 24
+	## Wisp-to-tree double-tap assigns, half on a new hub, half after the
+	## wisps_idle debug snapshot.
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null, "GameInput exists for the Wisp stress")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	var totals: Array[int] = [0, 0, 0, 0]
+	for phase: String in ["new", "wisps_idle"]:
+		failed += await _touch_wisp_stress_phase(tree_root, game_state, save_service, input, phase, 12, totals)
+	print("TOUCH_WISP_STRESS select %d/%d assign %d/%d" % [totals[0], totals[1], totals[2], totals[3]])
+	failed += _assert(totals[1] >= 20 and totals[3] >= 20, "at least 20 select taps and 20 assigns ran")
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("TOUCH_WISP_STRESS_OK")
+	return failed
+
+
+func _touch_wisp_stress_phase(tree_root: Window, game_state: Node, save_service: Node, input: Node, phase: String, rounds: int, totals: Array[int]) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	failed += _assert(live != null, "hub loads for the Wisp stress (%s)" % phase)
+	if live == null:
+		return failed
+	failed += _assert(is_equal_approx(tree_root.get_final_transform().x.x, 2.0), "the device window renders at 2x (%s)" % phase)
+	if phase == "wisps_idle":
+		var panel_script: Script = load("res://tools/debug/debug_panel.gd") as Script
+		var loaded: Dictionary = panel_script.call("load_snapshot_state", _WISPS_IDLE_PATH) if panel_script != null else {}
+		var migrated: Dictionary = loaded.get("state", {}) as Dictionary
+		failed += _assert(not migrated.is_empty(), "the wisps_idle snapshot loads for the stress")
+		if not migrated.is_empty():
+			game_state.call("apply_save_dict", migrated)
+	else:
+		game_state.set("wisp_count", 3)
+	var held: Dictionary = game_state.get("wisp_assignments")
+	held.clear()
+	live.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	var keeper: Node2D = tree_root.get_tree().get_first_node_in_group("keeper") as Node2D
+	var wood: Node = _touch_gatherable_named(tree_root, "wood")
+	var wisps: Array[Node] = tree_root.get_tree().get_nodes_in_group("wisp")
+	failed += _assert(wisps.size() > 0 and wood != null, "Wisps and a tree exist for the stress (%s, %d Wisps)" % [phase, wisps.size()])
+	if wisps.is_empty() or wood == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	var tree_id: String = str(game_state.call("node_id_for_resource", wood.get("resource_id")))
+	var select_fail: int = 0
+	var assign_fail: int = 0
+	for r: int in rounds:
+		held.clear()
+		var wisp: Node = wisps[r % wisps.size()]
+		var wid: int = int(wisp.get("wisp_id"))
+		if keeper != null and keeper.has_method("halt"):
+			keeper.call("halt")
+		## Only this Wisp is pickable; it holds still for the tap.
+		_touch_silence_wisps(tree_root, false)
+		var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, wisp)
+		(wisp as CollisionObject2D).input_pickable = true
+		wisp.set_process(false)
+		wisp.set_physics_process(false)
+		game_state.call("clear_selection")
+		await tree_root.get_tree().process_frame
+		var wisp_at: Vector2 = await _touch_aim(live, _touch_shape_world(wisp))
+		_touch_single_at(tree_root, input, wisp_at)
+		await _touch_settle_picking(tree_root.get_tree())
+		var got_sel: int = int(game_state.get("selected_wisp_id"))
+		_touch_unmute(muted)
+		wisp.set_process(true)
+		wisp.set_physics_process(true)
+		totals[1] += 1
+		if got_sel == wid:
+			totals[0] += 1
+		else:
+			select_fail += 1
+			game_state.call("select_wisp", wid)
+		_touch_bring_to_view(live, wood)
+		var wood_muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, wood)
+		await tree_root.get_tree().process_frame
+		var wood_at: Vector2 = await _touch_aim(live, _touch_shape_world(wood))
+		_touch_double_at(tree_root, input, wood_at)
+		await _touch_settle_picking(tree_root.get_tree())
+		await tree_root.get_tree().create_timer(0.1).timeout
+		_touch_unmute(wood_muted)
+		totals[3] += 1
+		if str(game_state.call("get_wisp_assignment", wid)) == tree_id:
+			totals[2] += 1
+		else:
+			assign_fail += 1
+	failed += _assert(select_fail == 0, "every touch tap on a Wisp selects it (%s: %d of %d missed)" % [phase, select_fail, rounds])
+	failed += _assert(assign_fail == 0, "every tree double-tap assigns the tapped Wisp (%s: %d of %d missed)" % [phase, assign_fail, rounds])
+	held.clear()
+	_touch_free_hub(tree_root, live, save_service)
+	return failed
+
+
+func _touch_double_tap_objects_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	## Every world object, through ScreenTouch on a 2× viewport, matches a PC right-click.
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	var keeper: Node = tree_root.get_tree().get_first_node_in_group("keeper") if live != null else null
+	var keeper_home: Vector2 = (keeper as Node2D).global_position if keeper is Node2D else Vector2.ZERO
+	failed += _assert(live != null and keeper != null, "hub loads for object double-taps")
+	if live == null or keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	var kinds: Dictionary = {"wood": "tree", "stone": "stone", "food": "berries"}
+	for key: String in kinds:
+		var gather: Node = _touch_gatherable_named(tree_root, key)
+		failed += _assert(gather != null, "a %s gatherable exists" % str(kinds[key]))
+		if gather == null:
+			continue
+		await _touch_keeper_order(tree_root, live, game_state, input, gather)
+		failed += _assert(keeper.get("_pending_interact") == gather, "a double-tap on %s orders a harvest" % str(kinds[key]))
+	var manatree: Node = tree_root.get_tree().get_first_node_in_group("manatree")
+	failed += _assert(manatree != null, "the Manatree exists")
+	if manatree != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, manatree)
+		failed += _assert(keeper.get("_pending_interact") == manatree, "a double-tap on the Manatree orders a tend")
+	var stone_node: Node = tree_root.get_tree().get_first_node_in_group("runestone")
+	failed += _assert(stone_node != null, "a runestone exists")
+	if stone_node != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, stone_node)
+		failed += _assert(keeper.get("_pending_interact") == stone_node, "a double-tap on a runestone orders the spend walk")
+	var thorn: Node = tree_root.get_tree().get_first_node_in_group("thorn_wall")
+	failed += _assert(thorn != null, "the thorn wall exists")
+	if thorn != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, thorn)
+		failed += _assert(keeper.get("_pending_interact") == thorn, "a double-tap on the thorn wall orders the walk")
+	var portal: Node = tree_root.get_tree().get_first_node_in_group("echo_portal")
+	failed += _assert(portal != null, "the Echo portal exists")
+	if portal != null:
+		game_state.set("portal_unlocked", true)
+		if portal.has_method("refresh_visibility"):
+			portal.call("refresh_visibility")
+		await _touch_keeper_order(tree_root, live, game_state, input, portal)
+		failed += _assert(keeper.get("_pending_interact") == portal, "a double-tap on the Echo portal orders the walk")
+	var board: Node = tree_root.get_tree().get_first_node_in_group("expedition_board")
+	failed += _assert(board != null, "the expedition board exists")
+	if board != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, board)
+		failed += _assert(keeper.get("_pending_interact") == board, "a double-tap on the expedition board orders the walk (pending %s under %s)" % [str(keeper.get("_pending_interact")), _touch_names_at(live, _touch_shape_world(board))])
+	var bramble: Node = tree_root.get_tree().get_first_node_in_group("bramble_warden")
+	failed += _assert(bramble != null, "the Bramble Warden exists")
+	if bramble != null:
+		var reach: Node = tree_root.get_node_or_null("Reach")
+		if reach != null:
+			reach.set("reaches_cleared", 30)
+		game_state.set("echo_02_outcome", "spare")
+		if bramble.has_method("refresh_presence"):
+			bramble.call("refresh_presence")
+		await _touch_keeper_order(tree_root, live, game_state, input, bramble)
+		failed += _assert(keeper.get("_pending_interact") == bramble, "a double-tap on the Bramble Warden orders the walk")
+	var bench: Node = tree_root.get_tree().get_first_node_in_group("keepers_bench")
+	failed += _assert(bench != null, "the Keeper's bench exists for the walk order")
+	if bench != null:
+		await _touch_keeper_order(tree_root, live, game_state, input, bench)
+		failed += _assert(keeper.get("_pending_interact") == bench, "a double-tap on the Keeper's bench walks him there")
+	var held: Dictionary = game_state.get("wisp_assignments")
+	held.clear()
+	game_state.set("wisp_count", 1)
+	live.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	var wisp: Node = tree_root.get_tree().get_first_node_in_group("wisp")
+	var wood: Node = _touch_gatherable_named(tree_root, "wood")
+	failed += _assert(wisp != null and wood != null and manatree != null, "a Wisp can be sent to a node and the Manatree")
+	if wisp != null and wood != null and manatree != null:
+		_touch_silence_wisps(tree_root, true)
+		if keeper is Node2D:
+			(keeper as Node2D).global_position = keeper_home
+			if keeper.has_method("halt"):
+				keeper.call("halt")
+		var muted: Array[CollisionObject2D] = []
+		for other: Node in tree_root.get_tree().get_nodes_in_group("interactable"):
+			if other == wisp or not (other is CollisionObject2D):
+				continue
+			var body: CollisionObject2D = other as CollisionObject2D
+			if not body.input_pickable:
+				continue
+			body.input_pickable = false
+			muted.append(body)
+		await tree_root.get_tree().process_frame
+		game_state.call("clear_selection")
+		await _touch_aim(live, _touch_shape_world(wisp))
+		var wisp_at: Vector2 = _touch_world_screen(live, _touch_shape_world(wisp))
+		_touch_single_at(tree_root, input, wisp_at)
+		await _touch_settle_picking(tree_root.get_tree())
+		for body: CollisionObject2D in muted:
+			body.input_pickable = true
+		failed += _assert(int(game_state.get("selected_wisp_id")) == 0, "a tap on a Wisp selects it")
+		_touch_silence_wisps(tree_root, false)
+		_touch_bring_to_view(live, wood)
+		var wood_muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, wood)
+		await tree_root.get_tree().process_frame
+		var wood_at: Vector2 = await _touch_aim(live, _touch_shape_world(wood))
+		_touch_double_at(tree_root, input, wood_at)
+		await _touch_settle_picking(tree_root.get_tree())
+		await tree_root.get_tree().create_timer(0.1).timeout
+		_touch_unmute(wood_muted)
+		var tree_id: String = str(game_state.call("node_id_for_resource", wood.get("resource_id")))
+		failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == tree_id, "a double-tap on a tree assigns the tapped Wisp (got %s)" % str(game_state.call("get_wisp_assignment", 0)))
+		game_state.call("select_wisp", 0)
+		_touch_bring_to_view(live, manatree)
+		var tree_muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, manatree)
+		await tree_root.get_tree().process_frame
+		var tree_at: Vector2 = await _touch_aim(live, _touch_shape_world(manatree))
+		_touch_double_at(tree_root, input, tree_at)
+		await _touch_settle_picking(tree_root.get_tree())
+		await tree_root.get_tree().create_timer(0.1).timeout
+		_touch_unmute(tree_muted)
+		failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "a double-tap on the Manatree assigns the tapped Wisp (got %s under %s)" % [str(game_state.call("get_wisp_assignment", 0)), _touch_names_at(live, _touch_shape_world(manatree))])
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn", TOUCH_DEVICE_WINDOW)
+	failed += _assert(forge != null, "forge loads for station object double-taps")
+	if forge == null:
+		if failed == 0:
+			print("TOUCH_DOUBLE_TAP_OBJECTS_OK")
+		return failed
+	var stations: Array[Node] = tree_root.get_tree().get_nodes_in_group("forge_station")
+	failed += _assert(stations.size() >= 5, "every forge station is in the room (got %d)" % stations.size())
+	game_state.set("wisp_count", 1)
+	forge.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	game_state.call("clear_selection")
+	game_state.call("select_wisp", 0)
+	_touch_silence_wisps(tree_root, false)
+	for station: Node in stations:
+		var sid: String = str(station.get("station_id"))
+		_touch_bring_to_view(forge, station)
+		var station_muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, station)
+		await tree_root.get_tree().process_frame
+		game_state.call("select_wisp", 0)
+		var at: Vector2 = await _touch_aim(forge, _touch_shape_world(station))
+		_touch_double_at(tree_root, input, at)
+		await _touch_settle_picking(tree_root.get_tree())
+		await tree_root.get_tree().create_timer(0.1).timeout
+		_touch_unmute(station_muted)
+		failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == sid, "a double-tap on %s assigns the Wisp (got %s)" % [sid, str(game_state.call("get_wisp_assignment", 0))])
+	game_state.call("clear_wisp_selection")
+	for station: Node in stations:
+		if forge.has_method("_hide_recipes"):
+			forge.call("_hide_recipes")
+		var sid: String = str(station.get("station_id"))
+		await _touch_keeper_order(tree_root, forge, game_state, input, station)
+		var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
+		var forge_keeper: Node = tree_root.get_tree().get_first_node_in_group("keeper")
+		failed += _assert(forge_keeper != null and bool(forge_keeper.get("_moving")), "a double-tap on %s walks the Keeper (moving %s under %s)" % [sid, str(forge_keeper.get("_moving") if forge_keeper != null else false), _touch_names_at(forge, _touch_shape_world(station))])
+		failed += _assert(panel != null and panel.visible and str(forge.get("_dest_station")) == sid, "a double-tap on %s opens its recipes (dest %s)" % [sid, str(forge.get("_dest_station"))])
+	_touch_free_hub(tree_root, forge, save_service)
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_OBJECTS_OK")
+	return failed
+
+
+func _touch_double_tap_blocked_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	var keeper: Node = live.get_node_or_null("World/Keeper") if live != null else null
+	var hud: Node = live.get_node_or_null("HUD") if live != null else null
+	var welcome: CanvasItem = hud.get("welcome_panel") as CanvasItem if hud != null else null
+	failed += _assert(keeper != null and welcome != null, "welcome panel can block a world double-tap")
+	if keeper == null or welcome == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("select_keeper")
+	welcome.visible = true
+	var at: Vector2 = _touch_world_screen(live, (keeper as Node2D).global_position + Vector2(460, 70))
+	_touch_double_at(tree_root, input, at)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(keeper.get("_moving")), "a world double-tap does nothing while a panel is open")
+	welcome.visible = false
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_DOUBLE_TAP_BLOCKED_BY_PANEL_OK")
+	return failed
+
+
+func _touch_no_translate_minigame_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var keeper: Node = live.get_node_or_null("World/Keeper") if live != null else null
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	failed += _assert(keeper != null and host != null, "minigame host exists")
+	if keeper == null or host == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	var was_open: bool = bool(host.call("is_open"))
+	host.set("_open", true)
+	game_state.call("select_keeper")
+	var hits: Array[int] = [0]
+	var layer := CanvasLayer.new()
+	layer.layer = 200
+	var pad := Button.new()
+	pad.text = "Strike"
+	pad.position = Vector2(500, 240)
+	pad.size = Vector2(120, 48)
+	layer.add_child(pad)
+	tree_root.add_child(layer)
+	await tree_root.get_tree().process_frame
+	pad.pressed.connect(func() -> void: hits[0] = hits[0] + 1)
+	_touch_double_at(tree_root, input, pad.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	failed += _assert(hits[0] == 2, "minigame taps stay left clicks (got %d)" % hits[0])
+	failed += _assert(not bool(keeper.get("_moving")), "a minigame double-tap does not walk")
+	layer.free()
+	host.set("_open", was_open)
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_NO_TRANSLATE_IN_MINIGAME_OK")
+	return failed
+
+
+func _touch_no_translate_battle_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var keeper: Node = live.get_node_or_null("World/Keeper") if live != null else null
+	var echo: Node = tree_root.get_node_or_null("EchoChamber")
+	failed += _assert(keeper != null and echo != null, "echo chamber exists")
+	if keeper == null or echo == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	var was_battle: bool = bool(echo.get("in_battle"))
+	echo.set("in_battle", true)
+	game_state.call("select_keeper")
+	var hits: Array[int] = [0]
+	var layer := CanvasLayer.new()
+	layer.layer = 200
+	var pad := Button.new()
+	pad.text = "Fight"
+	pad.position = Vector2(520, 260)
+	pad.size = Vector2(120, 48)
+	layer.add_child(pad)
+	tree_root.add_child(layer)
+	await tree_root.get_tree().process_frame
+	pad.pressed.connect(func() -> void: hits[0] = hits[0] + 1)
+	_touch_double_at(tree_root, input, pad.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	failed += _assert(hits[0] == 2, "battle taps stay left clicks (got %d)" % hits[0])
+	var ground: Vector2 = _touch_world_screen(live, (keeper as Node2D).global_position + Vector2(480, 40))
+	_touch_double_at(tree_root, input, ground)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(keeper.get("_moving")), "a battle double-tap does not walk")
+	echo.set("in_battle", was_battle)
+	layer.free()
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_NO_TRANSLATE_IN_BATTLE_OK")
+	return failed
+
+
+func _touch_portrait_double_tap_ok(tree_root: Window, game_state: Node, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live != null else null
+	var hud: Node = live.get_node_or_null("HUD") if live != null else null
+	var slot: Control = hud.get("_slot_keeper") as Control if hud != null else null
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D if live != null else null
+	failed += _assert(keeper != null and slot != null and cam != null, "portrait double-tap has a camera and a slot")
+	if keeper == null or slot == null or cam == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	game_state.call("clear_selection")
+	var tree: SceneTree = tree_root.get_tree()
+	var prev_scene: Node = tree.current_scene
+	tree.current_scene = live
+	cam.position = keeper.global_position + Vector2(640, 240)
+	if live.has_method("_clamp_camera"):
+		live.call("_clamp_camera")
+	var away: Vector2 = cam.position
+	var bar: CanvasItem = slot.get_parent().get_parent() as CanvasItem
+	if bar != null:
+		bar.visible = true
+	_touch_double_at(tree_root, input, slot.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	var want: Vector2 = live.call("_clamped_camera_pos", keeper.global_position)
+	failed += _assert(cam.position.distance_to(want) <= 1.5, "a portrait double-tap centres the camera (at %s want %s away %s)" % [cam.position, want, away])
+	if is_instance_valid(prev_scene):
+		tree.current_scene = prev_scene
+	elif tree.current_scene == live:
+		tree.current_scene = null
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_PORTRAIT_DOUBLE_TAP_OK")
+	return failed
+
+
+func _touch_pan_ok(tree_root: Window, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	failed += await _touch_pan_camera_ok(tree_root, save_service, input)
+	failed += await _touch_pan_no_marquee_ok(tree_root, save_service, input)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_slide(tree_root: Window, from: Vector2, to: Vector2) -> void:
+	_touch_push_left(tree_root, from, true)
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	motion.position = to
+	motion.global_position = to
+	motion.relative = to - from
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	tree_root.push_input(motion)
+	_touch_push_left(tree_root, to, false)
+
+
+func _touch_pan_camera_ok(tree_root: Window, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D if live != null else null
+	failed += _assert(cam != null, "hub camera exists for the pan")
+	if cam == null:
+		_touch_free_hub(tree_root, live, save_service)
+		return failed
+	if live.has_method("focus_actor"):
+		live.call("focus_actor", "keeper")
+	await tree_root.get_tree().process_frame
+	var origin: Vector2 = cam.position
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(480, 420), Vector2(490, 420))
+	failed += _assert(cam.position.distance_to(origin) <= 1.0, "a drag inside 18 px does not pan")
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(480, 420), Vector2(600, 420))
+	var zoom: float = cam.zoom.x if cam.zoom.x > 0.001 else 1.0
+	failed += _assert(absf(cam.position.x - (origin.x - 120.0 / zoom)) <= 1.5, "a one-finger drag pans by -relative/zoom (at %s)" % cam.position)
+	failed += _assert(absf(cam.position.y - origin.y) <= 1.5, "the pan keeps the other axis")
+	var held: Vector2 = cam.position
+	_touch_release_fingers(input)
+	_touch_screen(input, 0, true, Vector2(480, 420))
+	_touch_screen(input, 1, true, Vector2(520, 460))
+	_touch_slide(tree_root, Vector2(480, 420), Vector2(640, 420))
+	failed += _assert(cam.position.distance_to(held) <= 1.0, "a second finger freezes the pan")
+	_touch_screen(input, 0, false, Vector2(640, 420))
+	_touch_screen(input, 1, false, Vector2(520, 460))
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	var forge_cam: Camera2D = forge.get_node_or_null("Camera2D") as Camera2D if forge != null else null
+	failed += _assert(forge_cam != null, "forge camera exists for the pan")
+	if forge_cam == null:
+		_touch_free_hub(tree_root, forge, save_service)
+		return failed
+	var forge_at: Vector2 = forge_cam.position
+	var forge_zoom: float = forge_cam.zoom.x if forge_cam.zoom.x > 0.001 else 1.0
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(400, 300), Vector2(520, 300))
+	failed += _assert(absf(forge_cam.position.x - (forge_at.x - 120.0 / forge_zoom)) <= 1.5, "the forge drag pans by -relative/zoom (at %s)" % forge_cam.position)
+	_touch_free_hub(tree_root, forge, save_service)
+	if failed == 0:
+		print("TOUCH_PAN_OK")
+	return failed
+
+
+func _touch_pan_no_marquee_ok(tree_root: Window, save_service: Node, input: Node) -> int:
+	var failed: int = 0
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for the pan marquee")
+	if live == null:
+		return failed
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(200, 200), Vector2(420, 360))
+	var box: CanvasItem = live.get_node_or_null("Marquee") as CanvasItem
+	failed += _assert(not bool(live.get("_drag_active")), "a touch drag does not start the hub marquee")
+	failed += _assert(box == null or not box.visible, "the hub marquee stays hidden")
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	failed += _assert(forge != null, "forge loads for the pan marquee")
+	if forge != null:
+		_touch_release_fingers(input)
+		_touch_slide(tree_root, Vector2(220, 240), Vector2(460, 400))
+		var forge_box: CanvasItem = forge.get_node_or_null("Marquee") as CanvasItem
+		failed += _assert(not bool(forge.get("_drag_active")), "a touch drag does not start the forge marquee")
+		failed += _assert(forge_box == null or not forge_box.visible, "the forge marquee stays hidden")
+		_touch_free_hub(tree_root, forge, save_service)
+	_touch_free_hub(tree_root, live, save_service)
+	if failed == 0:
+		print("TOUCH_PAN_NO_MARQUEE_OK")
+	return failed
+
+
+func _touch_marquee_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	var hud: Node = live.get_node_or_null("HUD") if live != null else null
+	var button: Button = hud.get_node_or_null("TouchBoxSelect") as Button if hud != null else null
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D if live != null else null
+	failed += _assert(button != null and keeper != null, "the touch box-select button exists")
+	if button == null or keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	await tree_root.get_tree().process_frame
+	failed += _assert(button.visible and button.text == "Box select", "the box-select button shows the placeholder")
+	Input.emulate_touch_from_mouse = false
+	await tree_root.get_tree().process_frame
+	failed += _assert(not button.visible, "the box-select button hides when touch mode is off")
+	Input.emulate_touch_from_mouse = true
+	await tree_root.get_tree().process_frame
+	failed += _assert(button.visible, "the box-select button returns in touch mode")
+	if live.has_method("focus_actor"):
+		live.call("focus_actor", "keeper")
+	await tree_root.get_tree().process_frame
+	game_state.call("clear_selection")
+	_touch_release_fingers(input)
+	_touch_left_click(tree_root, button.get_global_rect().get_center(), InputEvent.DEVICE_ID_EMULATION)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(input.call("touch_marquee_armed")), "tapping box select arms the next drag")
+	var center: Vector2 = _touch_world_screen(live, keeper.global_position)
+	_touch_push_left(tree_root, center + Vector2(-40, -40), true)
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	motion.position = center + Vector2(60, 50)
+	motion.global_position = motion.position
+	motion.relative = Vector2(100, 90)
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	tree_root.push_input(motion)
+	var box: CanvasItem = live.get_node_or_null("Marquee") as CanvasItem
+	failed += _assert(box != null and box.visible, "the armed drag draws the hub marquee")
+	_touch_push_left(tree_root, motion.position, false)
+	failed += _assert(bool(game_state.get("keeper_selected")), "the marquee selects the Keeper")
+	failed += _assert(not bool(input.call("touch_marquee_armed")), "the marquee turns itself off")
+	failed += _assert(box == null or not box.visible, "the marquee hides after the drag")
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	var cam_at: Vector2 = cam.position if cam != null else Vector2.ZERO
+	_touch_release_fingers(input)
+	_touch_slide(tree_root, Vector2(480, 300), Vector2(600, 300))
+	failed += _assert(not bool(live.get("_drag_active")), "the next drag is a pan, not a marquee")
+	if cam != null:
+		failed += _assert(cam.position.distance_to(cam_at) > 20.0, "the following drag pans the camera")
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	var forge_hud: Node = forge.get_node_or_null("HUD") if forge != null else null
+	var forge_button: Button = forge_hud.get_node_or_null("TouchBoxSelect") as Button if forge_hud != null else null
+	var forge_keeper: Node2D = forge.get_node_or_null("Keeper") as Node2D if forge != null else null
+	failed += _assert(forge_button != null and forge_button.visible, "the forge box-select button is visible")
+	if forge_button != null and forge_keeper != null:
+		await tree_root.get_tree().process_frame
+		if forge.has_method("focus_actor"):
+			forge.call("focus_actor", "keeper")
+		await tree_root.get_tree().process_frame
+		game_state.call("clear_selection")
+		_touch_release_fingers(input)
+		_touch_left_click(tree_root, forge_button.get_global_rect().get_center(), InputEvent.DEVICE_ID_EMULATION)
+		await tree_root.get_tree().process_frame
+		var forge_center: Vector2 = _touch_world_screen(forge, forge_keeper.global_position)
+		_touch_slide(tree_root, forge_center + Vector2(-40, -40), forge_center + Vector2(60, 50))
+		failed += _assert(bool(game_state.get("keeper_selected")), "the forge marquee selects the Keeper")
+		failed += _assert(not bool(input.call("touch_marquee_armed")), "the forge marquee turns itself off")
+	_touch_free_hub(tree_root, forge, save_service)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("TOUCH_MARQUEE_TOGGLE_OK")
+	return failed
+
+
+func _touch_polish_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed + 1
+	failed += await _touch_gear_preview_ok(tree_root, input)
+	failed += await _touch_log_scroll_ok(tree_root)
+	failed += await _touch_options_rebind_ok(tree_root)
+	_touch_release_fingers(input)
+	Input.emulate_touch_from_mouse = was_emulated
+	return failed
+
+
+func _touch_gear_preview_ok(tree_root: Window, input: Node) -> int:
+	## Long-press on a gear row opens the compare preview before the row tip.
+	var failed: int = 0
+	var sheet := CharacterSheet.new()
+	var row := CharacterSheet.GearRow.new()
+	row.item_id = "touch_nav_blade"
+	row.host = sheet
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.tooltip_text = "Blade tip"
+	row.position = Vector2(300, 320)
+	row.size = Vector2(220, 48)
+	var layer := CanvasLayer.new()
+	layer.layer = 200
+	layer.add_child(row)
+	tree_root.add_child(layer)
+	await tree_root.get_tree().process_frame
+	var at: Vector2 = row.get_global_rect().get_center()
+	_touch_hold_at(input, at)
+	failed += _assert(str(sheet.get("_hover_item_id")) == "touch_nav_blade", "a long-press on a gear row previews that item (got %s)" % str(sheet.get("_hover_item_id")))
+	failed += _assert(WorldHover.current_text() == "Blade tip", "the gear row still shows its own tip (got %s)" % WorldHover.current_text())
+	_touch_screen(input, 0, false, at)
+	WorldHover.dismiss_hold()
+	layer.free()
+	sheet.free()
+	if failed == 0:
+		print("TOUCH_GEAR_PREVIEW_OK")
+	return failed
+
+
+func _touch_log_scroll_ok(tree_root: Window) -> int:
+	## A touch scroll away from the bottom stops auto-follow. Wheel behaviour stays.
+	var failed: int = 0
+	var view_script: GDScript = load("res://scripts/battle/battle_view.gd") as GDScript
+	var view: Node = view_script.new() if view_script != null else null
+	failed += _assert(view != null, "the battle view script loads")
+	if view == null:
+		return failed
+	var scroll := ScrollContainer.new()
+	scroll.size = Vector2(180, 64)
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+	var filler := Control.new()
+	filler.custom_minimum_size = Vector2(160, 420)
+	scroll.add_child(filler)
+	tree_root.add_child(scroll)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var bar: VScrollBar = scroll.get_v_scroll_bar()
+	failed += _assert(bar != null and bar.max_value > 2.0, "the log bar has room to scroll (max %s)" % str(bar.max_value if bar != null else -1.0))
+	if bar == null or bar.max_value <= 2.0:
+		scroll.free()
+		view.free()
+		return failed
+	view.set("_log_scroll", scroll)
+	bar.value = 0.0
+	view.set("_log_follow_tail", true)
+	Input.emulate_touch_from_mouse = false
+	var drag := InputEventScreenDrag.new()
+	drag.index = 0
+	drag.position = Vector2(40, 40)
+	drag.relative = Vector2(0, -48)
+	view.call("_on_log_scroll_gui_input", drag)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(view.get("_log_follow_tail")), "a screen drag does not stop follow when touch mode is off")
+	Input.emulate_touch_from_mouse = true
+	view.call("_on_log_scroll_gui_input", drag)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(view.get("_log_follow_tail")), "a touch scroll away from the bottom stops auto-follow")
+	bar.value = bar.max_value
+	view.set("_log_follow_tail", true)
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	motion.position = Vector2(40, 20)
+	motion.relative = Vector2(0, -20)
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	view.call("_on_log_scroll_gui_input", motion)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(view.get("_log_follow_tail")), "a touch scroll parked at the bottom keeps auto-follow")
+	var empty := ScrollContainer.new()
+	empty.size = Vector2(180, 64)
+	tree_root.add_child(empty)
+	await tree_root.get_tree().process_frame
+	view.set("_log_scroll", empty)
+	view.set("_log_follow_tail", true)
+	view.call("_on_log_scroll_gui_input", drag)
+	await tree_root.get_tree().process_frame
+	failed += _assert(bool(view.get("_log_follow_tail")), "an empty log stays followed")
+	view.set("_log_scroll", scroll)
+	view.set("_log_follow_tail", true)
+	var wheel := InputEventMouseButton.new()
+	wheel.device = 0
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.pressed = true
+	view.call("_on_log_scroll_gui_input", wheel)
+	failed += _assert(not bool(view.get("_log_follow_tail")), "wheel up still stops auto-follow")
+	empty.free()
+	scroll.free()
+	view.free()
+	if failed == 0:
+		print("TOUCH_LOG_SCROLL_OK")
+	return failed
+
+
+func _touch_options_rebind_ok(tree_root: Window) -> int:
+	## Touch mode hides key rebinding and shows the existing touch help. Audio stays.
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var menu: Node = packed.instantiate() if packed != null else null
+	failed += _assert(menu != null, "the pause menu loads for the touch options")
+	if menu == null:
+		return failed
+	tree_root.add_child(menu)
+	await tree_root.get_tree().process_frame
+	menu.set("_options_tab", "controls")
+	menu.call("_layout_options")
+	var rebind: CanvasItem = menu.get_node_or_null("OptionsPanel/Rebind_pause") as CanvasItem
+	var help_scroll: CanvasItem = menu.get_node_or_null("OptionsPanel/TouchHelpScroll") as CanvasItem
+	var help: CanvasItem = menu.get_node_or_null("OptionsPanel/TouchHelpScroll/TouchHelp") as CanvasItem
+	failed += _assert(rebind != null and not rebind.visible, "touch mode hides key rebinding")
+	failed += _assert(help_scroll != null and help_scroll.visible, "touch mode shows the touch help scroll")
+	failed += _assert(help != null, "touch mode keeps the touch help rows")
+	menu.set("_options_tab", "audio")
+	menu.call("_layout_options")
+	var slider: CanvasItem = menu.get_node_or_null("OptionsPanel/MasterSlider") as CanvasItem
+	var display: CanvasItem = menu.get_node_or_null("OptionsPanel/DisplayBlock") as CanvasItem
+	failed += _assert(slider != null and slider.visible, "touch mode still shows the audio sliders")
+	failed += _assert(display != null and display.visible, "touch mode does not hide the audio display options")
+	menu.free()
+	return failed
+
+
+func _pc_mouse(tree_root: Window, at: Vector2, button: int, pressed: bool, double_click: bool = false) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.device = 0
+	motion.position = at
+	motion.global_position = at
+	tree_root.push_input(motion)
+	var mb := InputEventMouseButton.new()
+	mb.device = 0
+	mb.button_index = button
+	mb.pressed = pressed
+	mb.double_click = double_click
+	mb.factor = 1.0
+	mb.position = at
+	mb.global_position = at
+	if pressed and button == MOUSE_BUTTON_LEFT:
+		mb.button_mask = MOUSE_BUTTON_MASK_LEFT
+	elif pressed and button == MOUSE_BUTTON_RIGHT:
+		mb.button_mask = MOUSE_BUTTON_MASK_RIGHT
+	tree_root.push_input(mb)
+
+
+func _pc_aim_origin(live: Node, world: Vector2) -> void:
+	## Put world under the headless pointer, which stays at screen (0, 0).
+	var cam: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return
+	var view: Vector2 = live.call("_viewport_view") if live.has_method("_viewport_view") else Vector2(live.get_viewport().get_visible_rect().size)
+	var zoom: float = cam.zoom.x if cam.zoom.x > 0.001 else 1.0
+	cam.position = world + view * 0.5 / zoom
+	if cam.has_method("force_update_scroll"):
+		cam.force_update_scroll()
+
+
+func _pc_nearest_wisp(live: Node, origin: Vector2) -> Node2D:
+	var best: Node2D = null
+	var best_d: float = 1.0e12
+	for node: Node in live.get_tree().get_nodes_in_group("wisp"):
+		if not (node is Node2D):
+			continue
+		var body: Node2D = node as Node2D
+		if not body.visible:
+			continue
+		var dist: float = body.global_position.distance_to(origin)
+		if dist < best_d:
+			best_d = dist
+			best = body
+	return best
+
+
+func _pc_mouse_unchanged_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## Device-0 mouse, touch mode off, keeps today's click, drag, and hover paths.
+	var failed: int = 0
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = false
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null and not bool(input.call("touch_mode")), "touch mode is off for the mouse checks")
+	var live: Node = await _touch_boot_hub(tree_root, save_service)
+	failed += _assert(live != null, "hub loads for the mouse checks")
+	if live == null or input == null:
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	await tree_root.get_tree().process_frame
+	var hud: Node = live.get_node_or_null("HUD")
+	var box: CanvasItem = hud.get_node_or_null("TouchBoxSelect") as CanvasItem if hud != null else null
+	failed += _assert(box != null and not box.visible, "the box-select button stays hidden for the mouse")
+	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
+	failed += _assert(keeper != null, "hub keeper exists for the mouse checks")
+	if keeper == null:
+		_touch_free_hub(tree_root, live, save_service)
+		Input.emulate_touch_from_mouse = was_emulated
+		return failed
+	game_state.call("select_keeper")
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	var ground: Vector2 = await _touch_aim(live, keeper.global_position + Vector2(420, 80))
+	_pc_mouse(tree_root, ground, MOUSE_BUTTON_LEFT, true)
+	_pc_mouse(tree_root, ground + Vector2(4, 0), MOUSE_BUTTON_LEFT, false)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(game_state.get("keeper_selected")), "a left click under 6 px on ground clears the selection")
+	failed += _assert(not heard.is_empty(), "a left click on ground toasts the clear")
+	game_state.disconnect("status_message", grab)
+	var node: Node = tree_root.get_tree().get_first_node_in_group("gatherable")
+	failed += _assert(node != null, "a gatherable exists")
+	if node != null:
+		game_state.call("select_keeper")
+		keeper.global_position = (node as Node2D).global_position + Vector2(-900, 200)
+		keeper.call("halt")
+		await tree_root.get_tree().process_frame
+		## Headless keeps the pointer at screen (0, 0). Park the gatherable there so the
+		## device-0 right-click and the ground fallback see the same point.
+		_pc_aim_origin(live, _touch_shape_world(node))
+		_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, true)
+		_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, false)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		if keeper.get("_pending_interact") != node:
+			print("PC_MOUSE_RETRY: gatherable right-click")
+			## Headless picking can miss the first flush. The second click is the same device-0 path.
+			_pc_aim_origin(live, _touch_shape_world(node))
+			_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, true)
+			_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_RIGHT, false)
+			await tree_root.get_tree().process_frame
+			await tree_root.get_tree().process_frame
+		failed += _assert(keeper.get("_pending_interact") == node, "a right-click on a gatherable calls apply_player_command")
+	game_state.set("wisp_count", 1)
+	live.call("_sync_wisps")
+	await tree_root.get_tree().process_frame
+	var wisp: Node2D = _pc_nearest_wisp(live, keeper.global_position)
+	failed += _assert(wisp != null and int(game_state.get("wisp_count")) > 0, "a wisp is on the hub")
+	if wisp != null:
+		wisp.set_process(false)
+		wisp.set_physics_process(false)
+		keeper.global_position = Vector2(2080, 2460)
+		keeper.call("halt")
+		wisp.global_position = keeper.global_position + Vector2(140, 0)
+	if wisp != null:
+		## Headless leaves the pointer at screen (0, 0). Slide the camera so that
+		## corner, then the opposite corner, sits under it. The drag still goes
+		## through the real left-button path.
+		var press_world := Vector2(minf(keeper.global_position.x, wisp.global_position.x), minf(keeper.global_position.y, wisp.global_position.y)) - Vector2(70, 70)
+		var release_world := Vector2(maxf(keeper.global_position.x, wisp.global_position.x), maxf(keeper.global_position.y, wisp.global_position.y)) + Vector2(70, 70)
+		game_state.call("clear_selection")
+		_pc_aim_origin(live, press_world)
+		_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_LEFT, true)
+		_pc_aim_origin(live, release_world)
+		var drag_motion := InputEventMouseMotion.new()
+		drag_motion.device = 0
+		drag_motion.position = Vector2.ZERO
+		drag_motion.global_position = Vector2.ZERO
+		drag_motion.relative = Vector2(80, 40)
+		drag_motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		tree_root.push_input(drag_motion)
+		_pc_mouse(tree_root, Vector2.ZERO, MOUSE_BUTTON_LEFT, false)
+		await tree_root.get_tree().process_frame
+		var picked: Array = game_state.call("selected_wisp_list")
+		failed += _assert(bool(game_state.get("keeper_selected")), "a left drag box-selects the Keeper")
+		failed += _assert(picked.has(int(wisp.get("wisp_id"))), "a left drag box-selects the Wisp (got %s mouse %s)" % [str(picked), live.get_global_mouse_position()])
+		var wid: int = int(wisp.get("wisp_id"))
+		var assigns: Dictionary = game_state.get("wisp_assignments")
+		assigns[str(wid)] = "wood"
+		game_state.call("select_group", [wid], true)
+		keeper.call("halt")
+		var walk_at: Vector2 = await _touch_aim(live, keeper.global_position + Vector2(220, 40))
+		_pc_mouse(tree_root, walk_at, MOUSE_BUTTON_RIGHT, true)
+		_pc_mouse(tree_root, walk_at, MOUSE_BUTTON_RIGHT, false)
+		await tree_root.get_tree().process_frame
+		failed += _assert(bool(keeper.get("_moving")), "a right-click on ground walks the selected Keeper")
+		failed += _assert(str(assigns.get(str(wid), "")) == "", "a right-click on ground unassigns the selected Wisp")
+	game_state.call("select_keeper")
+	keeper.call("halt")
+	var still: Vector2 = await _touch_aim(live, keeper.global_position + Vector2(260, 30))
+	_pc_mouse(tree_root, still, MOUSE_BUTTON_LEFT, true, true)
+	_pc_mouse(tree_root, still, MOUSE_BUTTON_LEFT, false)
+	await tree_root.get_tree().process_frame
+	failed += _assert(not bool(keeper.get("_moving")), "a real left double-click on ground does not walk")
+	var slot: Control = hud.get("_slot_keeper") as Control if hud != null else null
+	var cam_focus: Camera2D = live.get_node_or_null("Camera2D") as Camera2D
+	if slot != null and cam_focus != null:
+		var tree: SceneTree = tree_root.get_tree()
+		var prev_scene: Node = tree.current_scene
+		tree.current_scene = live
+		cam_focus.position = keeper.global_position + Vector2(640, 240)
+		if live.has_method("_clamp_camera"):
+			live.call("_clamp_camera")
+		var bar: CanvasItem = slot.get_parent().get_parent() as CanvasItem
+		if bar != null:
+			bar.visible = true
+		_pc_mouse(tree_root, slot.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true, true)
+		_pc_mouse(tree_root, slot.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+		await tree_root.get_tree().process_frame
+		var want: Vector2 = live.call("_clamped_camera_pos", keeper.global_position)
+		failed += _assert(cam_focus.position.distance_to(want) <= 1.5, "a portrait double-click centres the camera (at %s want %s)" % [cam_focus.position, want])
+		if is_instance_valid(prev_scene) and prev_scene != live:
+			tree.current_scene = prev_scene
+		elif tree.current_scene == live:
+			tree.current_scene = null
+	else:
+		failed += _assert(false, "portrait double-click has a slot and a camera")
+	if live.has_method("set_camera_zoom"):
+		live.set("_wheel_accum", 0.0)
+		live.set("_drag_active", false)
+		live.call("set_camera_zoom", 1.0, false)
+		var clear_motion := InputEventMouseMotion.new()
+		clear_motion.device = 0
+		clear_motion.position = Vector2(640, 200)
+		clear_motion.global_position = clear_motion.position
+		tree_root.push_input(clear_motion)
+		var wheel := InputEventMouseButton.new()
+		wheel.device = 0
+		wheel.pressed = true
+		wheel.factor = 1.0
+		wheel.position = Vector2(640, 200)
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+		live.call("_unhandled_input", wheel)
+		failed += _assert(is_equal_approx(float(live.get("camera_zoom")), 2.0), "wheel up steps the zoom 1 to 2 (got %s)" % str(live.get("camera_zoom")))
+		wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+		live.call("_unhandled_input", wheel)
+		failed += _assert(is_equal_approx(float(live.get("camera_zoom")), 1.0), "wheel down steps the zoom 2 to 1 (got %s)" % str(live.get("camera_zoom")))
+	if node != null:
+		WorldHover.dismiss(node)
+		node.set("input_pickable", false)
+		node.call("_on_hover", true)
+		var expect: String = str(node.call("world_hover_name"))
+		failed += _assert(WorldHover.current_text() == "", "the Area2D tooltip waits out the 0.8 s rest")
+		await tree_root.get_tree().create_timer(0.95).timeout
+		failed += _assert(WorldHover.current_text() != "" and (WorldHover.current_text() == expect or WorldHover.current_text().find("Tree") >= 0), "an Area2D hover shows its tooltip after 0.8 s (got %s want %s)" % [WorldHover.current_text(), expect])
+		WorldHover.dismiss(node)
+		node.set("input_pickable", true)
+	var bench: Node = tree_root.get_tree().get_first_node_in_group("keepers_bench")
+	failed += _assert(bench != null, "the keeper's bench exists")
+	if bench != null and hud != null and hud.has_method("is_bench_open"):
+		var bench_at: Vector2 = await _touch_aim(live, _touch_shape_world(bench))
+		_touch_left_click(tree_root, bench_at, 0)
+		await tree_root.get_tree().process_frame
+		if not bool(hud.call("is_bench_open")):
+			print("PC_MOUSE_RETRY: bench")
+			_touch_left_click(tree_root, bench_at, 0)
+			await tree_root.get_tree().process_frame
+			await tree_root.get_tree().process_frame
+		failed += _assert(bool(hud.call("is_bench_open")), "the bench opens at once, with no tap delay")
+		if hud.has_method("close_bench"):
+			hud.call("close_bench")
+	var hold := Button.new()
+	hold.tooltip_text = "Should stay hidden"
+	hold.position = Vector2(40, 40)
+	hold.size = Vector2(80, 40)
+	tree_root.add_child(hold)
+	await tree_root.get_tree().process_frame
+	_pc_mouse(tree_root, hold.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
+	input.set("_touch_start_ms", Time.get_ticks_msec() - 900)
+	input.call("_process", 0.016)
+	failed += _assert(not bool(input.call("primary_down")), "a real mouse press does not start a long-press")
+	failed += _assert(WorldHover.current_text() != "Should stay hidden", "a real mouse hold does not open a long-press tip")
+	_pc_mouse(tree_root, hold.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+	hold.free()
+	var pause: Node = live.get_node_or_null("PauseMenu")
+	if pause != null:
+		pause.set("_options_tab", "controls")
+		pause.call("_layout_options")
+		var rebind: CanvasItem = pause.get_node_or_null("OptionsPanel/Rebind_pause") as CanvasItem
+		var help_scroll: CanvasItem = pause.get_node_or_null("OptionsPanel/TouchHelpScroll") as CanvasItem
+		failed += _assert(rebind != null and rebind.visible, "key rebinding stays visible for the mouse")
+		failed += _assert(help_scroll == null or not help_scroll.visible, "the touch help stays hidden for the mouse")
+	var layer := CanvasLayer.new()
+	layer.layer = 200
+	var pad := Button.new()
+	pad.text = "Go"
+	pad.position = Vector2(860, 80)
+	pad.size = Vector2(120, 44)
+	layer.add_child(pad)
+	tree_root.add_child(layer)
+	await tree_root.get_tree().process_frame
+	var hits: Array[int] = [0]
+	pad.pressed.connect(func() -> void: hits[0] = hits[0] + 1)
+	_pc_mouse(tree_root, pad.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, true)
+	_pc_mouse(tree_root, pad.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, false)
+	await tree_root.get_tree().process_frame
+	failed += _assert(hits[0] == 1, "a left release on a HUD button still fires it (got %d)" % hits[0])
+	layer.free()
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn")
+	var station: Node = tree_root.get_tree().get_first_node_in_group("forge_station") if forge != null else null
+	failed += _assert(forge != null and station != null, "a forge station exists")
+	if forge != null and station != null:
+		var station_at: Vector2 = await _touch_aim(forge, _touch_shape_world(station))
+		_touch_left_click(tree_root, station_at, 0)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		var panel: CanvasItem = forge.get("recipe_panel") as CanvasItem
+		if panel == null or not panel.visible:
+			print("PC_MOUSE_RETRY: station")
+			_touch_left_click(tree_root, station_at, 0)
+			await tree_root.get_tree().process_frame
+			await tree_root.get_tree().process_frame
+			panel = forge.get("recipe_panel") as CanvasItem
+		failed += _assert(panel != null and panel.visible, "the station opens at once, with no tap delay")
+	_touch_free_hub(tree_root, forge, save_service)
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("PC_MOUSE_UNCHANGED_OK")
+	return failed
+
+
+func _touch_press_event(device: int) -> InputEventMouseButton:
+	var mb := InputEventMouseButton.new()
+	mb.device = device
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = true
+	mb.position = Vector2(16, 16)
+	mb.global_position = mb.position
+	return mb
+
+
+func _options_pc_panel_unchanged_ok(tree_root: Window) -> int:
+	## PC Controls options panel matches b26bbf9 _fit_window sizing (560 x 306 content).
+	var failed: int = 0
+	var expected: Dictionary = {
+		Vector2i(960, 540): {"position": Vector2(200.0, 128.0), "size": Vector2(560.0, 306.0)},
+		Vector2i(1200, 540): {"position": Vector2(320.0, 128.0), "size": Vector2(560.0, 306.0)},
+		Vector2i(960, 600): {"position": Vector2(200.0, 158.0), "size": Vector2(560.0, 306.0)},
+		Vector2i(1280, 800): {"position": Vector2(360.0, 258.0), "size": Vector2(560.0, 306.0)},
+		Vector2i(1280, 960): {"position": Vector2(360.0, 338.0), "size": Vector2(560.0, 306.0)},
+	}
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var menu: Node = packed.instantiate() if packed != null else null
+	failed += _assert(menu != null, "pause menu loads for the PC panel check")
+	if menu == null:
+		return failed
+	tree_root.add_child(menu)
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = false
+	for vp: Vector2i in expected.keys():
+		tree_root.size = vp
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		menu.set("_options_tab", "controls")
+		menu.call("_layout_options")
+		await tree_root.get_tree().process_frame
+		var panel: Control = menu.get_node_or_null("OptionsPanel") as Control
+		var spec: Dictionary = expected[vp]
+		var want_pos: Vector2 = spec["position"] as Vector2
+		var want_size: Vector2 = spec["size"] as Vector2
+		failed += _assert(panel != null, "options panel exists at %s" % vp)
+		if panel == null:
+			continue
+		failed += _assert(panel.position.is_equal_approx(want_pos), "PC options position at %s (got %s want %s)" % [vp, panel.position, want_pos])
+		failed += _assert(panel.size.is_equal_approx(want_size), "PC options size at %s (got %s want %s)" % [vp, panel.size, want_size])
+		failed += _assert(panel.custom_minimum_size.is_equal_approx(Vector2.ZERO), "PC options minimum size stays clear at %s" % vp)
+	Input.emulate_touch_from_mouse = was_emulated
+	menu.free()
+	if failed == 0:
+		print("OPTIONS_PC_PANEL_UNCHANGED_OK")
+	return failed
+
+
+func _options_panel_inner_rect(panel: Control) -> Rect2:
+	var g: Rect2 = panel.get_global_rect()
+	var top: float = 72.0 + 44.0 + 8.0 + 14.0
+	var pad: float = 36.0
+	var w: float = panel.size.x - pad * 2.0
+	var h: float = panel.size.y - top - 24.0
+	return Rect2(g.position + Vector2(pad, top), Vector2(w, h))
+
+
+func _options_touch_help_fits_ok(tree_root: Window) -> int:
+	var failed: int = 0
+	var packed: PackedScene = load("res://scenes/pause_menu.tscn") as PackedScene
+	var menu: Node = packed.instantiate() if packed != null else null
+	failed += _assert(menu != null, "pause menu loads for touch help fit")
+	if menu == null:
+		return failed
+	tree_root.add_child(menu)
+	var viewports: Array[Vector2i] = [
+		Vector2i(960, 540),
+		Vector2i(1200, 540),
+		Vector2i(960, 600),
+		Vector2i(1280, 800),
+		Vector2i(1280, 960),
+	]
+	var banned: PackedStringArray = PackedStringArray([
+		"options_touch_walk",
+		"options_touch_use",
+		"options_touch_drag",
+	])
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	for vp: Vector2i in viewports:
+		tree_root.size = vp
+		Ui540.apply_integer_viewport(tree_root)
+		await tree_root.get_tree().process_frame
+		menu.set("_options_tab", "controls")
+		menu.call("_layout_options")
+		await tree_root.get_tree().process_frame
+		var panel: Control = menu.get_node_or_null("OptionsPanel") as Control
+		var scroll: ScrollContainer = menu.get_node_or_null("OptionsPanel/TouchHelpScroll") as ScrollContainer
+		var touch: VBoxContainer = scroll.get_node_or_null("TouchHelp") as VBoxContainer if scroll != null else null
+		failed += _assert(panel != null and scroll != null and touch != null, "touch controls chrome at %s" % vp)
+		if panel == null or scroll == null or touch == null:
+			continue
+		failed += _assert(touch.get_child_count() == 7, "touch help shows seven rows at %s (got %d)" % [vp, touch.get_child_count()])
+		for key: String in banned:
+			for child: Node in touch.get_children():
+				failed += _assert(str(child.get_meta(&"string_key", "")) != key, "touch help omits %s at %s" % [key, vp])
+		var inner: Rect2 = _options_panel_inner_rect(panel)
+		var scroll_g: Rect2 = scroll.get_global_rect()
+		var panel_g: Rect2 = panel.get_global_rect()
+		failed += _assert(scroll_g.position.y >= inner.position.y - 1.0, "touch help scroll starts inside the panel at %s" % vp)
+		failed += _assert(scroll_g.end.y <= panel_g.end.y - 20.0, "touch help scroll ends inside the panel at %s" % vp)
+		failed += _assert(scroll_g.position.x >= inner.position.x - 1.0 and scroll_g.end.x <= inner.end.x + 20.0, "touch help scroll fits horizontally at %s" % vp)
+		for i: int in touch.get_child_count():
+			_options_scroll_touch_help_row(scroll, touch, i)
+			await tree_root.get_tree().process_frame
+			var line: Label = touch.get_child(i) as Label
+			if line == null:
+				continue
+			var line_g: Rect2 = line.get_global_rect()
+			var clip: Rect2 = line_g.intersection(scroll_g)
+			failed += _assert(clip.size.y >= 8.0, "touch help row %d is visible in the scroll at %s" % [i, vp])
+			failed += _assert(panel_g.end.y >= clip.end.y - 1.0, "touch help row %d stays above the panel bottom at %s" % [i, vp])
+		Input.emulate_touch_from_mouse = false
+		menu.call("_layout_options")
+		await tree_root.get_tree().process_frame
+		var pc_rects: Dictionary = _options_pc_rebind_rects(menu)
+		menu.call("_layout_options")
+		await tree_root.get_tree().process_frame
+		var again: Dictionary = _options_pc_rebind_rects(menu)
+		failed += _assert(pc_rects == again, "PC rebind layout is stable at %s" % vp)
+		Input.emulate_touch_from_mouse = true
+	Input.emulate_touch_from_mouse = was_emulated
+	menu.free()
+	if failed == 0:
+		print("OPTIONS_TOUCH_HELP_FITS_OK")
+	return failed
+
+
+func _options_scroll_touch_help_row(scroll: ScrollContainer, touch: VBoxContainer, index: int) -> void:
+	var sep: float = float(touch.get_theme_constant(&"separation", &"VBoxContainer"))
+	var offset: float = 0.0
+	for i: int in index:
+		var row: Control = touch.get_child(i) as Control
+		if row != null:
+			offset += row.size.y + sep
+	scroll.scroll_vertical = offset
+
+
+func _options_pc_rebind_rects(menu: Node) -> Dictionary:
+	var out: Dictionary = {}
+	for action: String in ["pause", "character", "inventory"]:
+		var row: Control = menu.get_node_or_null("OptionsPanel/Rebind_%s" % action) as Control
+		if row == null:
+			continue
+		out[action] = {"position": row.position, "size": row.size, "visible": row.visible}
+	return out
+
+
+func _touch_copy_ok(tree_root: Window, content_strings: Node) -> int:
+	## Lore FINAL touch copy: 22 keys in the touch table, PC roots unchanged from b26bbf9.
+	var failed: int = 0
+	var raw: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	var parsed: Variant = JSON.parse_string(raw)
+	failed += _assert(typeof(parsed) == TYPE_DICTIONARY, "strings_v01.json parses")
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return failed + 1
+	var touch: Dictionary = (parsed as Dictionary).get("touch", {}) as Dictionary
+	failed += _assert(touch.size() == 22, "touch table has 22 Lore keys (got %d)" % touch.size())
+	var pc: Dictionary = {
+		"keeper_select_hint": "Left-click to select the Keeper. Right-click to walk, harvest, or tend.",
+		"controls_hint": "LMB selects. RMB commands. Arrows pan the camera. LMB on empty ground deselects.",
+		"keeper_move_prompt": "Right-click the ground to walk.",
+		"keeper_required": "Select the Keeper first (left-click).",
+		"keeper_required_harvest": "Select the Keeper, then right-click the tree, stone, or berries.",
+		"keeper_required_tree": "Select the Keeper, then right-click the Manatree.",
+		"wisp_select_hint": "Left-click a Wisp, then right-click a gather spot or the Manatree.",
+		"wisp_assign_hint": "Right-click a harvest spot or the Manatree.",
+		"wisp_unassign_ground": "Right-click empty ground to call the Wisp back.",
+		"keeper_deselect_toast": "Cleared.",
+		"touch_hold_hint": "Tip: press and hold to give a command",
+		"ui.longpress_hint": "Hold to look\ncloser, or to\ngive an order.",
+	}
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = false
+	for key: Variant in pc.keys():
+		var pc_key: String = str(key)
+		failed += _assert(str(content_strings.call("get_text", pc_key)) == str(pc[pc_key]), "PC copy unchanged for %s" % pc_key)
+	Input.emulate_touch_from_mouse = true
+	for key: Variant in touch.keys():
+		var touch_key: String = str(key)
+		var want: String = str(touch[touch_key])
+		var got: String = str(content_strings.call("get_text", touch_key))
+		failed += _assert(got == want, "touch copy for %s (got %s want %s)" % [touch_key, got, want])
+	failed += await _longpress_hint_width_ok(tree_root)
+	failed += await _options_touch_help_fits_ok(tree_root)
+	failed += await _options_pc_panel_unchanged_ok(tree_root)
+	Input.emulate_touch_from_mouse = was_emulated
+	if failed == 0:
+		print("TOUCH_COPY_OK")
+	return failed
+
+
+func _touch_hint_ok(tree_root: Window, game_state: Node) -> int:
+	## Long-press uses the hover wait. The tip is one toast, stored in settings, not the save.
+	var failed: int = 0
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	var audio: Node = tree_root.get_node_or_null("GameAudio")
+	failed += _assert(input != null and is_equal_approx(float(input.call("long_press_wait")), WorldHover.REST_SEC), "long-press uses the 0.8s hover wait")
+	failed += _assert(is_equal_approx(WorldHover.REST_SEC, 0.8), "hover wait is 0.8s")
+	var input_text: String = FileAccess.get_file_as_string("res://scripts/autoload/game_input.gd")
+	failed += _assert(input_text.find("LONG_PRESS_SEC") < 0, "no second long-press constant")
+	failed += _assert(input_text.find("--emulate-touch") >= 0, "emulate-touch is a launch argument")
+	failed += _assert(not Input.emulate_touch_from_mouse, "emulate touch from mouse stays off by default")
+	var project_text: String = FileAccess.get_file_as_string("res://project.godot")
+	failed += _assert(project_text.find("emulate_touch_from_mouse") < 0, "the project does not enable emulate touch")
+	var help_text: String = FileAccess.get_file_as_string("res://scripts/hud.gd")
+	failed += _assert(help_text.find("Long-press (½ s)") < 0 and help_text.find("Long-press") >= 0, "phone help no longer says half a second")
+	var strings: String = FileAccess.get_file_as_string("res://data/strings_v01.json")
+	failed += _assert(strings.find("\"touch_hold_hint\": \"Tip: press and hold to give a command\"") >= 0, "touch hint string is in the string table")
+	var notes: String = FileAccess.get_file_as_string("res://notes/ANDROID_HOTKEY_ONLY_ACTIONS.md")
+	failed += _assert(notes.find("Arrow keys") >= 0 and notes.find("--emulate-touch") >= 0, "hotkey notes list the camera pan and the launch flag")
+	if input == null or audio == null or game_state == null:
+		return failed + 1
+	var was_seen: bool = bool(audio.get("touch_hold_hint_seen"))
+	audio.set("touch_hold_hint_seen", false)
+	var was_emulated: bool = Input.emulate_touch_from_mouse
+	Input.emulate_touch_from_mouse = true
+	var heard: PackedStringArray = PackedStringArray()
+	var grab := func(text: String) -> void:
+		heard.append(text)
+	game_state.connect("status_message", grab)
+	failed += _assert(bool(input.call("show_hold_hint_if_needed", true)), "the first touch session shows the hint")
+	failed += _assert(heard.size() == 1 and heard[0] == "Tip: double-tap to give an order", "the toast is the touch hold tip")
+	failed += _assert(bool(audio.get("touch_hold_hint_seen")), "the hint is marked seen")
+	failed += _assert(not bool(input.call("show_hold_hint_if_needed", true)), "the hint does not show twice")
+	failed += _assert(heard.size() == 1, "a second session does not toast again")
+	Input.emulate_touch_from_mouse = was_emulated
+	var settings: String = FileAccess.get_file_as_string("user://manaforge_settings.cfg")
+	failed += _assert(settings.find("hold_hint_seen") >= 0, "the seen flag is in settings")
+	var saved: String = JSON.stringify(game_state.call("to_save_dict"))
+	failed += _assert(saved.find("hold_hint_seen") < 0 and saved.find("touch_hold_hint") < 0, "the seen flag is not part of the save")
+	game_state.disconnect("status_message", grab)
+	audio.set("touch_hold_hint_seen", was_seen)
+	audio.call("save_settings")
+	if failed == 0:
+		print("TOUCH_HINT_OK")
+	return failed
+
+
+func _assert_inside(ctrl: Control, safe: Rect2, label: String) -> int:
+	if ctrl == null:
+		return _assert(false, "%s is missing" % label)
+	var rect: Rect2 = ctrl.get_global_rect()
+	return _assert(safe.encloses(rect), "%s %s is outside %s" % [label, rect, safe])
+
+
+const TITLE_TOUCH_WINDOW: Vector2i = Vector2i(2400, 1080)
+## Long enough to catch a timing race, short of the 0.8 s long-press.
+const PANEL_TAP_REPEATS: int = 20
+const PANEL_TAP_CYCLES: int = 20
+const PANEL_TAP_HOLD_MS: int = 120
+
+
+func _touch_panel_button_tap_ok(tree_root: Window, game_state: Node, save_service: Node) -> int:
+	## A finger on a HUD or panel button presses that button. Each button is tapped
+	## 20 times, mixing short taps, a hold under 0.8 s, and a frame gap between the
+	## ScreenTouch and the emulated mouse. The same session then opens, uses, closes
+	## and reopens each Lend button 20 times, for the Keeper and for Elaia.
+	## ScreenTouch index 0, 2× scale.
+	var failed: int = 0
+	var was_touch: bool = Input.emulate_touch_from_mouse
+	var was_mouse: bool = Input.emulate_mouse_from_touch
+	Input.emulate_touch_from_mouse = true
+	Input.emulate_mouse_from_touch = true
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_touch
+		Input.emulate_mouse_from_touch = was_mouse
+		return 1
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TOUCH_DEVICE_WINDOW)
+	failed += _assert(live != null, "hub loads for panel button taps")
+	if live == null:
+		Input.emulate_touch_from_mouse = was_touch
+		Input.emulate_mouse_from_touch = was_mouse
+		return failed
+	var jobs: Node = tree_root.get_node_or_null("ForgeJobs")
+	var host: Node = tree_root.get_node_or_null("MinigameHost")
+	var prompt: Button = tree_root.get_node_or_null("MinigameHost/MinigameRoot/LendPrompt") as Button
+	failed += _assert(jobs != null and host != null and prompt != null, "lend prompt exists")
+	if jobs == null or host == null or prompt == null:
+		_touch_free_hub(tree_root, live, save_service)
+		Input.emulate_touch_from_mouse = was_touch
+		Input.emulate_mouse_from_touch = was_mouse
+		return failed
+	var lend_hits: Array = [0]
+	prompt.pressed.connect(func() -> void: lend_hits[0] += 1)
+	for key: String in ["stone", "wood", "food"]:
+		var node: Node = _touch_gatherable_named(tree_root, key)
+		failed += _assert(node != null, "a %s node exists for the lend tap" % key)
+		if node == null:
+			continue
+		var resource: String = str(node.get("resource_id"))
+		for hero_name: String in ["keeper", "elaia"]:
+			failed += await _touch_lend_session(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, node, resource, key, null, hero_name)
+		failed += await _touch_lend_repeat(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, node, resource, key, null)
+	var manatree: Node = tree_root.get_tree().get_first_node_in_group("manatree")
+	failed += _assert(manatree != null, "the Manatree exists for the lend tap")
+	if manatree != null:
+		for hero_name: String in ["keeper", "elaia"]:
+			failed += await _touch_lend_session(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, manatree, "manatree", "Manatree", null, hero_name)
+		failed += await _touch_lend_repeat(tree_root, live, game_state, input, jobs, host, prompt, lend_hits, manatree, "manatree", "Manatree", null)
+	var runestone: Node = tree_root.get_tree().get_first_node_in_group("runestone")
+	failed += _assert(runestone != null, "a runestone exists")
+	if runestone != null and runestone.has_method("begin_spend"):
+		failed += await _touch_repeat_button(tree_root, input, game_state, host, "runestone", func() -> void:
+			runestone.call("begin_spend")
+		, func() -> Button:
+			return runestone.get("_no") as Button
+		)
+	var hud: Node = live.get_node_or_null("HUD")
+	if hud != null and hud.has_method("open_bench_panel"):
+		failed += await _touch_repeat_button(tree_root, input, game_state, host, "bench", func() -> void:
+			hud.call("open_bench_panel")
+		, func() -> Button:
+			return hud.get_node_or_null("BenchPanel/Header/BenchCloseButton") as Button
+		)
+	var board: Node = tree_root.get_tree().get_first_node_in_group("expedition_board")
+	failed += _assert(board != null, "the expedition board exists")
+	if board != null and board.has_method("open_shell"):
+		failed += await _touch_repeat_button(tree_root, input, game_state, host, "expedition", func() -> void:
+			board.call("open_shell")
+		, func() -> Button:
+			return board.get("_close_btn") as Button
+		)
+	_touch_free_hub(tree_root, live, save_service)
+	var forge: Node = await _touch_boot_scene(tree_root, save_service, "res://scenes/forge_room.tscn", TOUCH_DEVICE_WINDOW)
+	failed += _assert(forge != null, "the forge loads for station button taps")
+	if forge != null:
+		var stations: Array[Node] = tree_root.get_tree().get_nodes_in_group("forge_station")
+		failed += _assert(stations.size() >= 5, "every forge station is present (got %d)" % stations.size())
+		jobs = tree_root.get_node_or_null("ForgeJobs")
+		host = tree_root.get_node_or_null("MinigameHost")
+		prompt = tree_root.get_node_or_null("MinigameHost/MinigameRoot/LendPrompt") as Button
+		for station: Node in stations:
+			var station_id: String = str(station.get("station_id"))
+			if station_id == "" or not forge.has_method("open_station_panel"):
+				continue
+			var captured_id: String = station_id
+			failed += await _touch_repeat_button(tree_root, input, game_state, host, "%s panel" % captured_id, func() -> void:
+				forge.call("open_station_panel", captured_id)
+			, func() -> Button:
+				var row: Button = _touch_first_enabled_button(forge.get("recipe_panel") as Node)
+				if row == null:
+					row = forge.get_node_or_null("UI/RecipePanel/RepeatToggle") as Button
+				return row
+			)
+			var recipe_panel: Control = forge.get("recipe_panel") as Control
+			if jobs != null and host != null and prompt != null and recipe_panel != null:
+				for hero_name: String in ["keeper", "elaia"]:
+					failed += await _touch_lend_session(tree_root, forge, game_state, input, jobs, host, prompt, lend_hits, station, station_id, station_id, recipe_panel, hero_name)
+				failed += await _touch_lend_repeat(tree_root, forge, game_state, input, jobs, host, prompt, lend_hits, station, station_id, station_id, recipe_panel)
+			if forge.has_method("_hide_recipes"):
+				forge.call("_hide_recipes")
+		_touch_free_hub(tree_root, forge, save_service)
+	Input.emulate_touch_from_mouse = was_touch
+	Input.emulate_mouse_from_touch = was_mouse
+	if failed == 0:
+		print("TOUCH_PANEL_BUTTON_TAP_OK")
+	return failed
+
+
+func _touch_lend_session(tree_root: Window, live: Node, game_state: Node, input: Node, jobs: Node, host: Node, prompt: Button, hits: Array, node: Node, target: String, label: String, panel: Control, hero: String) -> int:
+	## One visit, then twenty more, without clearing the defer token, the swallow
+	## flag, or the mouse button. The first Forge cycle is the pointer already on
+	## the recipe panel. Every later cycle leaves and walks back up to the station.
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	_touch_join_elaia(game_state)
+	_touch_silence_wisps(tree_root, false)
+	var away: Vector2 = (node as Node2D).global_position + Vector2(-900, 260) if node is Node2D else Vector2.ZERO
+	for actor_name: String in ["keeper", "elaia"]:
+		var actor: Node2D = tree_root.get_tree().get_first_node_in_group(actor_name) as Node2D
+		if actor == null:
+			continue
+		var drop: float = 40.0 if actor_name == "elaia" else 0.0
+		actor.global_position = away + Vector2(0, drop)
+		if actor.has_method("halt"):
+			actor.call("halt")
+	var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, node)
+	await _touch_aim(live, _touch_shape_world(node))
+	tree_root.notify_mouse_entered()
+	var world: Vector2 = (node as Node2D).global_position if node is Node2D else Vector2.ZERO
+	## "gather" / "craft" survive a halt. The button is the Keeper's own work.
+	var kind: String = "craft" if panel != null else "gather"
+	jobs.call("set_keeper_task", kind, target, true)
+	_touch_select_hero(game_state, hero)
+	var first_fail: int = -1
+	for cycle: int in PANEL_TAP_CYCLES:
+		var at_panel: bool = panel != null and cycle == 0
+		if panel != null and live.has_method("open_station_panel"):
+			if not at_panel and live.has_method("_hide_recipes"):
+				live.call("_hide_recipes")
+				await tree_root.get_tree().process_frame
+				_touch_parse_motion(tree_root, _touch_blank_spot(panel))
+				await tree_root.get_tree().process_frame
+				await _touch_hover_screen(tree_root, _touch_world_screen(live, _touch_shape_world(node)), true, null)
+			live.call("open_station_panel", target)
+			await tree_root.get_tree().process_frame
+			await tree_root.get_tree().process_frame
+			if at_panel:
+				var corner: Vector2 = panel.get_global_rect().position + Vector2(18, 18)
+				await _touch_hover_screen(tree_root, corner, false, null)
+		else:
+			_touch_parse_motion(tree_root, Vector2(24, 24))
+			await tree_root.get_tree().process_frame
+			var at_node: Vector2 = _touch_world_screen(live, _touch_shape_world(node))
+			if prompt.visible and prompt.get_global_rect().has_point(at_node):
+				at_node = Vector2(at_node.x, prompt.get_global_rect().end.y + 10.0)
+			await _touch_hover_screen(tree_root, at_node, true, null)
+		if str(host.call("hero_for", target)) != "keeper":
+			jobs.call("set_keeper_task", kind, target, true)
+		host.call("show_prompt", target, world, true)
+		await tree_root.get_tree().process_frame
+		var reason: String = ""
+		if not prompt.visible:
+			reason = "prompt-hidden hero=%s" % str(host.call("hero_for", target))
+		else:
+			hits[0] = 0
+			await _touch_varied_tap(tree_root, input, prompt.get_global_rect().get_center(), cycle, false)
+			var pressed: bool = int(hits[0]) >= 1
+			var opened: bool = bool(host.call("is_open"))
+			var selected: bool = _touch_hero_selected(game_state, hero)
+			if not pressed or not opened or not selected:
+				reason = "presses=%d open=%s selected=%s" % [int(hits[0]), str(opened), str(selected)]
+			elif not await _touch_close_minigame(tree_root, host):
+				reason = "close-stuck"
+				if host.has_method("close_immediate"):
+					host.call("close_immediate")
+		if reason != "" and first_fail < 0:
+			first_fail = cycle
+			print("TOUCH_PANEL_TAP_CYCLE_MISS %s %s cycle=%d %s" % [label, hero, cycle, reason])
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	jobs.call("set_keeper_task", kind, target, false)
+	_touch_unmute(muted)
+	_touch_silence_wisps(tree_root, true)
+	if panel != null and live.has_method("_hide_recipes"):
+		live.call("_hide_recipes")
+	await tree_root.get_tree().process_frame
+	var shown: String = str(first_fail) if first_fail >= 0 else "none"
+	print("TOUCH_PANEL_TAP_CYCLE %s %s first=%s" % [label, hero, shown])
+	return _assert(first_fail < 0, "%s as %s failed on repeat-use cycle %s" % [label, hero, shown])
+
+
+func _touch_blank_spot(panel: Control) -> Vector2:
+	var spot := Vector2(24, 24)
+	if panel != null and panel.get_global_rect().has_point(spot):
+		spot = Vector2(24, panel.get_global_rect().end.y + 30.0)
+	return spot
+
+
+func _touch_join_elaia(game_state: Node) -> void:
+	game_state.set("echo_01_redeemed", true)
+	game_state.set("first_relic_crafted", true)
+	game_state.set("elaia_join_seen", true)
+
+
+func _touch_select_hero(game_state: Node, hero: String) -> void:
+	if hero == "elaia":
+		game_state.call("select_companion", "elaia")
+		return
+	game_state.call("select_keeper")
+
+
+func _touch_hero_selected(game_state: Node, hero: String) -> bool:
+	if hero == "elaia":
+		return str(game_state.get("selected_companion_id")) == "elaia" and not bool(game_state.get("keeper_selected"))
+	return bool(game_state.get("keeper_selected"))
+
+
+func _touch_close_minigame(tree_root: Window, host: Node) -> bool:
+	## The same Close the player taps. Summary first, then Done.
+	var closer: Control = host.get_node_or_null("MinigameRoot/Window/Close") as Control
+	if closer != null and closer.is_visible_in_tree():
+		_touch_parse_finger(tree_root, closer.get_global_rect().get_center(), true)
+		_touch_parse_finger(tree_root, closer.get_global_rect().get_center(), false)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+	if not bool(host.call("is_open")):
+		return true
+	var done: Control = host.get_node_or_null("MinigameRoot/Window/Summary/Done") as Control
+	if done != null and done.is_visible_in_tree():
+		_touch_parse_finger(tree_root, done.get_global_rect().get_center(), true)
+		_touch_parse_finger(tree_root, done.get_global_rect().get_center(), false)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+	if not bool(host.call("is_open")):
+		return true
+	if closer != null and closer.is_visible_in_tree():
+		_touch_parse_finger(tree_root, closer.get_global_rect().get_center(), true)
+		_touch_parse_finger(tree_root, closer.get_global_rect().get_center(), false)
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+	return not bool(host.call("is_open"))
+
+
+func _touch_lend_repeat(tree_root: Window, live: Node, game_state: Node, input: Node, jobs: Node, host: Node, prompt: Button, hits: Array, node: Node, target: String, label: String, panel: Control) -> int:
+	## Gatherables are always entered from the node's physics hover, which is the
+	## tap that drops the button. Forge trials alternate that with the pointer
+	## already on the recipe panel, the case where the same button stays up.
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	_touch_silence_wisps(tree_root, false)
+	var keeper: Node2D = tree_root.get_tree().get_first_node_in_group("keeper") as Node2D
+	if keeper != null and node is Node2D:
+		keeper.global_position = (node as Node2D).global_position + Vector2(-900, 260)
+		if keeper.has_method("halt"):
+			keeper.call("halt")
+	var muted: Array[CollisionObject2D] = _touch_mute_except(tree_root, node)
+	await _touch_aim(live, _touch_shape_world(node))
+	tree_root.notify_mouse_entered()
+	var world: Vector2 = (node as Node2D).global_position if node is Node2D else Vector2.ZERO
+	## "gather" / "craft" are not kinds the Keeper clears on halt. "water" is.
+	var kind: String = "craft" if panel != null else "gather"
+	var misses: int = 0
+	for trial: int in PANEL_TAP_REPEATS:
+		if host.has_method("close_immediate"):
+			host.call("close_immediate")
+		if panel != null and live.has_method("open_station_panel"):
+			live.call("open_station_panel", target)
+		await tree_root.get_tree().process_frame
+		var from_panel: bool = panel != null and (trial % 2) == 1
+		if from_panel:
+			var corner: Vector2 = panel.get_global_rect().position + Vector2(18, 18)
+			if prompt.visible and prompt.get_global_rect().has_point(corner):
+				var rect: Rect2 = panel.get_global_rect()
+				corner = Vector2(rect.position.x + 18.0, rect.end.y - 18.0)
+			await _touch_hover_screen(tree_root, corner, false, null)
+		else:
+			var at_node: Vector2 = _touch_world_screen(live, _touch_shape_world(node))
+			if prompt.visible and prompt.get_global_rect().has_point(at_node):
+				at_node = Vector2(at_node.x, prompt.get_global_rect().end.y + 10.0)
+			await _touch_hover_screen(tree_root, at_node, true, panel)
+		jobs.call("set_keeper_task", kind, target, true)
+		host.call("show_prompt", target, world, true)
+		await tree_root.get_tree().process_frame
+		jobs.call("set_keeper_task", kind, target, true)
+		host.call("show_prompt", target, world, true)
+		if not prompt.visible:
+			misses += 1
+			var panel_up: bool = panel != null and panel.visible
+			print("TOUCH_PANEL_TAP_MISS %s trial=%d mode=%d prompt-hidden hero=%s open=%s walk=%s panel=%s" % [label, trial, trial % 5, str(host.call("hero_for", target)), str(host.call("is_open")), str(host.get("_walk")), str(panel_up)])
+			continue
+		hits[0] = 0
+		game_state.call("select_keeper")
+		await _touch_varied_tap(tree_root, input, prompt.get_global_rect().get_center(), trial)
+		## Hiding the button inside pressed re-emits once. A miss is no press.
+		var pressed: bool = int(hits[0]) >= 1
+		var opened: bool = bool(host.call("is_open"))
+		var selected: bool = bool(game_state.get("keeper_selected"))
+		if not pressed or not opened or not selected:
+			misses += 1
+			print("TOUCH_PANEL_TAP_MISS %s trial=%d mode=%d presses=%d open=%s selected=%s" % [label, trial, trial % 5, int(hits[0]), str(opened), str(selected)])
+	if host.has_method("close_immediate"):
+		host.call("close_immediate")
+	jobs.call("set_keeper_task", kind, target, false)
+	_touch_unmute(muted)
+	_touch_silence_wisps(tree_root, true)
+	await tree_root.get_tree().process_frame
+	return _touch_report_taps(label, misses)
+
+
+func _touch_repeat_button(tree_root: Window, input: Node, game_state: Node, host: Node, label: String, open_panel: Callable, pick: Callable) -> int:
+	var misses: int = 0
+	for trial: int in PANEL_TAP_REPEATS:
+		if host != null and host.has_method("close_immediate"):
+			host.call("close_immediate")
+		game_state.call("select_keeper")
+		open_panel.call()
+		## queue_free of the previous rows lands at the end of the frame.
+		await tree_root.get_tree().process_frame
+		await tree_root.get_tree().process_frame
+		var button: Button = pick.call() as Button
+		if button == null or not is_instance_valid(button) or not button.visible or button.disabled:
+			misses += 1
+			print("TOUCH_PANEL_TAP_MISS %s trial=%d mode=%d missing" % [label, trial, trial % 5])
+			continue
+		var hits: Array = [0]
+		var on_press := func() -> void:
+			hits[0] += 1
+		button.pressed.connect(on_press)
+		await _touch_varied_tap(tree_root, input, button.get_global_rect().get_center(), trial)
+		if is_instance_valid(button) and button.pressed.is_connected(on_press):
+			button.pressed.disconnect(on_press)
+		var selected: bool = bool(game_state.get("keeper_selected"))
+		if int(hits[0]) < 1 or not selected:
+			misses += 1
+			print("TOUCH_PANEL_TAP_MISS %s trial=%d mode=%d presses=%d selected=%s" % [label, trial, trial % 5, int(hits[0]), str(selected)])
+	return _touch_report_taps(label, misses)
+
+
+func _touch_report_taps(label: String, misses: int) -> int:
+	print("TOUCH_PANEL_TAP_COUNT %s %d/%d" % [label, misses, PANEL_TAP_REPEATS])
+	return _assert(misses == 0, "%s missed %d of %d touch taps" % [label, misses, PANEL_TAP_REPEATS])
+
+
+func _touch_varied_tap(tree_root: Window, input: Node, at: Vector2, trial: int, arm: bool = true) -> void:
+	## 0 paired short tap, 1 a frame between press and release, 2 touch leads the
+	## mouse by a frame, 3 mouse leads the touch by a frame, 4 a 120 ms hold.
+	## A repeat-use session leaves arm false so a leftover defer, swallow, or
+	## button mask is still there for the next cycle.
+	if arm:
+		_touch_arm_single(input)
+	var mode: int = trial % 5
+	var was_mouse: bool = Input.emulate_mouse_from_touch
+	if mode == 2 or mode == 3:
+		Input.emulate_mouse_from_touch = false
+	if mode == 0:
+		_touch_parse_finger(tree_root, at, true)
+		_touch_parse_finger(tree_root, at, false)
+	elif mode == 1:
+		_touch_parse_finger(tree_root, at, true)
+		await tree_root.get_tree().process_frame
+		_touch_parse_finger(tree_root, at, false)
+	elif mode == 2:
+		_touch_parse_finger(tree_root, at, true)
+		await tree_root.get_tree().process_frame
+		_touch_parse_mouse(tree_root, at, true)
+		_touch_parse_finger(tree_root, at, false)
+		_touch_parse_mouse(tree_root, at, false)
+	elif mode == 3:
+		_touch_parse_mouse(tree_root, at, true)
+		await tree_root.get_tree().process_frame
+		_touch_parse_finger(tree_root, at, true)
+		_touch_parse_mouse(tree_root, at, false)
+		_touch_parse_finger(tree_root, at, false)
+	else:
+		_touch_parse_finger(tree_root, at, true)
+		var started: int = Time.get_ticks_msec()
+		while Time.get_ticks_msec() - started < PANEL_TAP_HOLD_MS:
+			await tree_root.get_tree().process_frame
+			if Time.get_ticks_msec() - started > 700:
+				break
+		_touch_parse_finger(tree_root, at, false)
+	Input.emulate_mouse_from_touch = was_mouse
+	await tree_root.get_tree().process_frame
+
+
+func _touch_parse_mouse(tree_root: Window, logical: Vector2, pressed: bool) -> void:
+	var mb := InputEventMouseButton.new()
+	mb.device = InputEvent.DEVICE_ID_EMULATION
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = pressed
+	mb.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+	var window_px: Vector2 = tree_root.get_final_transform() * logical
+	mb.position = window_px
+	mb.global_position = window_px
+	Input.parse_input_event(mb)
+	Input.flush_buffered_events()
+
+
+func _touch_parse_motion(tree_root: Window, logical: Vector2) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.device = InputEvent.DEVICE_ID_EMULATION
+	var window_px: Vector2 = tree_root.get_final_transform() * logical
+	motion.position = window_px
+	motion.global_position = window_px
+	Input.parse_input_event(motion)
+	Input.flush_buffered_events()
+
+
+func _touch_hover_screen(tree_root: Window, logical: Vector2, physics_pick: bool, panel: Control) -> void:
+	## A physics entry has to reach the collider. The recipe panel would swallow
+	## that motion, so it ignores the pointer until the pick lands.
+	var saved: Array = []
+	if physics_pick and panel != null:
+		_touch_push_ignore(panel, saved)
+	tree_root.notify_mouse_entered()
+	_touch_parse_motion(tree_root, logical)
+	if physics_pick:
+		await tree_root.get_tree().physics_frame
+	await tree_root.get_tree().process_frame
+	for row: Variant in saved:
+		var entry: Dictionary = row
+		var ctrl: Control = entry.get("ctrl") as Control
+		if ctrl != null and is_instance_valid(ctrl):
+			ctrl.mouse_filter = entry.get("filter", Control.MOUSE_FILTER_STOP) as Control.MouseFilter
+
+
+func _touch_push_ignore(node: Node, saved: Array) -> void:
+	if node is Control:
+		var ctrl: Control = node as Control
+		saved.append({"ctrl": ctrl, "filter": ctrl.mouse_filter})
+		ctrl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for child: Node in node.get_children():
+		_touch_push_ignore(child, saved)
+
+
+func _touch_physics_hover(tree_root: Window, live: Node, node: Node) -> void:
+	## Park the cursor on the node so its hover (and the Lend button) is real.
+	var at: Vector2 = await _touch_aim(live, _touch_shape_world(node))
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	motion.global_position = at
+	Input.parse_input_event(motion)
+	Input.flush_buffered_events()
+	await tree_root.get_tree().physics_frame
+	await tree_root.get_tree().process_frame
+
+
+func _touch_count_press(tree_root: Window, input: Node, button: Button) -> int:
+	var hits: Array = [0]
+	button.pressed.connect(func() -> void: hits[0] += 1)
+	await tree_root.get_tree().process_frame
+	_touch_arm_single(input)
+	_touch_single_at(tree_root, input, button.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	return int(hits[0])
+
+
+func _touch_first_enabled_button(root: Node) -> Button:
+	if root == null:
+		return null
+	if root is Button and not root.is_queued_for_deletion():
+		var btn: Button = root as Button
+		if btn.visible and not btn.disabled and btn.get_global_rect().size.x > 1.0 and btn.get_global_rect().size.y > 1.0:
+			return btn
+	for child: Node in root.get_children():
+		var found: Button = _touch_first_enabled_button(child)
+		if found != null:
+			return found
+	return null
+
+
+func _title_new_game_touch_ok(tree_root: Window, save_service: Node) -> int:
+	## New Game after a fresh launch and after Quit to Title. Touch, 2400×1080.
+	## The confirm must have its copy and a real size, and Android back must close it.
+	var failed: int = 0
+	var was_touch: bool = Input.emulate_touch_from_mouse
+	var was_mouse: bool = Input.emulate_mouse_from_touch
+	Input.emulate_touch_from_mouse = true
+	Input.emulate_mouse_from_touch = true
+	save_service.call("delete_save")
+	var input: Node = tree_root.get_node_or_null("GameInput")
+	failed += _assert(input != null, "GameInput exists for the title touch check")
+	if input == null:
+		Input.emulate_touch_from_mouse = was_touch
+		Input.emulate_mouse_from_touch = was_mouse
+		return failed
+	var seeded: Node = await _touch_boot_hub(tree_root, save_service, TITLE_TOUCH_WINDOW)
+	failed += _assert(seeded != null, "a session exists to write the title save")
+	if seeded != null:
+		failed += _assert(bool(save_service.call("save_game", 1)), "a manual save is written")
+		_touch_free_hub(tree_root, seeded, save_service)
+	failed += _assert(bool(save_service.call("has_save")), "the title has a save to confirm")
+	failed += await _title_touch_windows(tree_root, input, "fresh launch")
+	var live: Node = await _touch_boot_hub(tree_root, save_service, TITLE_TOUCH_WINDOW)
+	failed += _assert(live != null, "the hub loads for Quit to Title")
+	if live != null:
+		var pause: Node = live.get_node_or_null("PauseMenu")
+		failed += _assert(pause != null, "the pause menu exists")
+		if pause != null and pause.has_method("open_pause"):
+			pause.call("open_pause")
+			await tree_root.get_tree().process_frame
+			var exit_btn: Button = pause.get_node_or_null("Panel/BtnExit") as Button
+			failed += _assert(exit_btn != null and exit_btn.visible, "Quit to Title is on the pause menu")
+			if exit_btn != null:
+				_touch_arm_single(input)
+				_touch_single_at(tree_root, input, exit_btn.get_global_rect().get_center())
+				await tree_root.get_tree().process_frame
+				var yes: Button = pause.get_node_or_null("ConfirmPanel/ConfirmYes") as Button
+				failed += _assert(yes != null and yes.visible, "Quit to Title asks for confirmation")
+				if yes != null and yes.visible:
+					_touch_arm_single(input)
+					_touch_single_at(tree_root, input, yes.get_global_rect().get_center())
+		for _i: int in 8:
+			await tree_root.get_tree().process_frame
+	tree_root.get_tree().paused = false
+	_touch_parse_finger(tree_root, Vector2.ZERO, false)
+	var scene_now: Node = tree_root.get_tree().current_scene
+	var title_back: bool = scene_now != null and str(scene_now.scene_file_path).ends_with("title_screen.tscn")
+	if not title_back:
+		var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+		if packed != null:
+			tree_root.get_tree().change_scene_to_packed(packed)
+			for _i: int in 8:
+				await tree_root.get_tree().process_frame
+			title_back = tree_root.get_tree().current_scene != null
+	failed += _assert(title_back, "Quit to Title returns to the title")
+	if title_back:
+		failed += await _title_touch_windows(tree_root, input, "Quit to Title")
+	save_service.call("delete_save")
+	Input.emulate_touch_from_mouse = was_touch
+	Input.emulate_mouse_from_touch = was_mouse
+	tree_root.size = Vector2i(1280, 960)
+	if failed == 0:
+		print("TITLE_NEW_GAME_TOUCH_OK")
+	return failed
+
+
+func _title_keep_current(tree_root: Window) -> void:
+	## Boot helpers add scenes beside the current one. A leftover title sits on
+	## top of the next one and steals the taps.
+	var current: Node = tree_root.get_tree().current_scene
+	var extra: Array[Node] = []
+	for child: Node in tree_root.get_children():
+		if child == current:
+			continue
+		if str(child.scene_file_path).ends_with(".tscn"):
+			extra.append(child)
+	for child: Node in extra:
+		child.free()
+
+
+func _title_touch_windows(tree_root: Window, input: Node, path_name: String) -> int:
+	var failed: int = 0
+	_title_keep_current(tree_root)
+	var title: Node = tree_root.get_tree().current_scene
+	if title == null or not str(title.scene_file_path).ends_with("title_screen.tscn"):
+		var packed: PackedScene = load("res://scenes/title_screen.tscn") as PackedScene
+		title = packed.instantiate() if packed != null else null
+		if title == null:
+			return failed + 1
+		tree_root.size = TITLE_TOUCH_WINDOW
+		Ui540.apply_integer_viewport(tree_root)
+		tree_root.add_child(title)
+	else:
+		tree_root.size = TITLE_TOUCH_WINDOW
+		Ui540.apply_integer_viewport(tree_root)
+	## The text loader keeps children that binary export drops. The confirm the
+	## player sees on device is this packed scene, not the .tscn instantiate.
+	var exported_dialog: PackedScene = _binary_export_scene("res://scenes/ui/kit_dialog.tscn")
+	failed += _assert(exported_dialog != null, "%s binary kit dialog converts" % path_name)
+	if exported_dialog == null:
+		return failed
+	title.set("dialog_scene", exported_dialog)
+	var new_btn: Button = title.get_node_or_null("Menu/BtnNewGame") as Button
+	failed += _assert(new_btn != null, "%s New Game button exists" % path_name)
+	if new_btn == null:
+		return failed
+	## Headless frames after a scene change carry almost no delta, so the title
+	## fade can sit just above its arm threshold. Scale time only for this wait.
+	var prev_scale: float = Engine.time_scale
+	Engine.time_scale = 200.0
+	var armed: bool = false
+	for _i: int in 120:
+		await tree_root.get_tree().process_frame
+		if new_btn.mouse_filter == Control.MOUSE_FILTER_STOP:
+			armed = true
+			break
+	Engine.time_scale = prev_scale
+	failed += _assert(armed, "%s title menu arms for touch (filter %s fade %s armed %s paused %s)" % [path_name, str(new_btn.mouse_filter), str(title.get("_fade")), str(title.get("_armed")), str(tree_root.get_tree().paused)])
+	if not armed:
+		return failed
+	var continue_btn: Button = title.get_node_or_null("Menu/BtnContinue") as Button
+	failed += _assert(continue_btn != null and continue_btn.visible and continue_btn.text != "", "%s Continue has its label" % path_name)
+	var quit_btn: Button = title.get_node_or_null("Menu/BtnQuit") as Button
+	failed += _assert(quit_btn != null, "%s Quit button exists" % path_name)
+	if quit_btn != null:
+		failed += _assert(quit_btn.visible == (not Ui540.is_phone_export()), "%s Quit is hidden only on a phone export" % path_name)
+	failed += await _title_open_and_back(tree_root, input, title, new_btn, "New Game", path_name)
+	var load_btn: Button = title.get_node_or_null("Menu/BtnLoad") as Button
+	if load_btn != null:
+		_touch_arm_single(input)
+		_touch_single_at(tree_root, input, load_btn.get_global_rect().get_center())
+		await tree_root.get_tree().process_frame
+		var pause: Node = title.get_node_or_null("PauseMenu")
+		var slots: Control = pause.get_node_or_null("SlotsPanel") as Control if pause != null else null
+		var slots_title: Label = pause.get_node_or_null("SlotsPanel/SlotsTitle") as Label if pause != null else null
+		failed += _assert(slots != null and slots.visible and slots.size.x > 1.0 and slots.size.y > 1.0, "%s Load window has a size" % path_name)
+		failed += _assert(slots_title != null and slots_title.text != "", "%s Load window has its title" % path_name)
+		_title_send_back(tree_root)
+		await tree_root.get_tree().process_frame
+		failed += _assert(slots == null or not slots.visible, "%s back closes Load" % path_name)
+	var options_btn: Button = title.get_node_or_null("Menu/BtnOptions") as Button
+	if options_btn != null:
+		_touch_arm_single(input)
+		_touch_single_at(tree_root, input, options_btn.get_global_rect().get_center())
+		await tree_root.get_tree().process_frame
+		var pause: Node = title.get_node_or_null("PauseMenu")
+		var options: Control = pause.get_node_or_null("OptionsPanel") as Control if pause != null else null
+		failed += _assert(options != null and options.visible and options.size.x > 1.0 and options.size.y > 1.0, "%s Options window has a size (got %s vis %s)" % [path_name, str(options.size) if options != null else "missing", str(options.visible) if options != null else "missing"])
+		var music: Label = pause.get_node_or_null("OptionsPanel/MusicLabel") as Label if pause != null else null
+		failed += _assert(music != null and music.text != "", "%s Options window has its labels" % path_name)
+		_title_send_back(tree_root)
+		await tree_root.get_tree().process_frame
+		failed += _assert(options == null or not options.visible, "%s back closes Options" % path_name)
+	if quit_btn != null and quit_btn.visible:
+		failed += await _title_open_and_back(tree_root, input, title, quit_btn, "Quit", path_name)
+	return failed
+
+
+func _title_open_and_back(tree_root: Window, input: Node, title: Node, button: Button, window_name: String, path_name: String) -> int:
+	var failed: int = 0
+	_touch_arm_single(input)
+	_touch_single_at(tree_root, input, button.get_global_rect().get_center())
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var dialog: Control = title.get("_active_dialog") as Control
+	failed += _assert(dialog != null and dialog.visible, "%s %s opens a window" % [path_name, window_name])
+	if dialog == null:
+		return failed
+	var win: Control = dialog.get_node_or_null("Window") as Control
+	var body: Label = dialog.get_node_or_null("Window/Content/VBox/Body") as Label
+	var action: Button = dialog.get_node_or_null("Window/Content/VBox/Buttons/Action") as Button
+	var safe: Button = dialog.get_node_or_null("Window/Content/VBox/Buttons/Safe") as Button
+	failed += _assert(win != null and win.visible and win.size.x > 1.0 and win.size.y > 1.0, "%s %s window has a visible size (got %s)" % [path_name, window_name, str(win.size) if win != null else "missing"])
+	failed += _assert(body != null and body.text.strip_edges() != "" and body.visible, "%s %s window has its text" % [path_name, window_name])
+	failed += _assert(action != null and action.text.strip_edges() != "" and action.size.y > 1.0, "%s %s has its action button" % [path_name, window_name])
+	failed += _assert(safe != null and safe.text.strip_edges() != "" and safe.size.y > 1.0, "%s %s has its safe button" % [path_name, window_name])
+	_title_send_back(tree_root)
+	await tree_root.get_tree().process_frame
+	await tree_root.get_tree().process_frame
+	var still: Node = title.get("_active_dialog") as Node
+	var closed: bool = still == null or not is_instance_valid(still) or not (still as CanvasItem).visible
+	failed += _assert(closed, "%s back closes %s" % [path_name, window_name])
+	if not closed and still != null and is_instance_valid(still):
+		still.queue_free()
+		title.set("_active_dialog", null)
+		await tree_root.get_tree().process_frame
+	return failed
+
+
+func _title_send_back(tree_root: Window) -> void:
+	tree_root.notification(Node.NOTIFICATION_WM_GO_BACK_REQUEST)
+
+
+func _compat_scan_scenes(root_path: String, banned: PackedStringArray) -> PackedStringArray:
+	var hits: PackedStringArray = PackedStringArray()
+	var dir := DirAccess.open(root_path)
+	if dir == null:
+		return hits
+	dir.list_dir_begin()
+	var name: String = dir.get_next()
+	while name != "":
+		if name == "." or name == "..":
+			name = dir.get_next()
+			continue
+		var path: String = root_path.path_join(name)
+		if dir.current_is_dir():
+			var nested: PackedStringArray = _compat_scan_scenes(path, banned)
+			for hit: String in nested:
+				hits.append(hit)
+		elif name.ends_with(".tscn"):
+			var text: String = FileAccess.get_file_as_string(path)
+			for kind: String in banned:
+				if text.find("type=\"%s\"" % kind) >= 0:
+					hits.append("%s:%s" % [path, kind])
+		name = dir.get_next()
+	dir.list_dir_end()
+	return hits
+
+
+func _export_scene_integrity_ok() -> int:
+	## Binary export repacks each scene through PackedScene.pack. Saving the
+	## loaded .tscn does not: that write keeps the text loader's node list.
+	## pack() drops children and property overrides under an instance that has
+	## no [editable path] entry. The instantiated paths and flip_h must match.
+	## An editable instance also writes its own children into the binary state;
+	## those extras are already in the instantiated tree.
+	var failed: int = 0
+	var files: PackedStringArray = PackedStringArray()
+	_collect_tscn("res://", files)
+	files.sort()
+	failed += _assert(files.size() > 0, "export integrity finds scene files")
+	for path: String in files:
+		failed += _export_scene_matches(path)
+	return failed
+
+
+func _collect_tscn(dir_path: String, out: PackedStringArray) -> void:
+	var listing: DirAccess = DirAccess.open(dir_path)
+	if listing == null:
+		return
+	listing.list_dir_begin()
+	var name: String = listing.get_next()
+	while name != "":
+		if not name.begins_with("."):
+			var child_path: String = dir_path.path_join(name)
+			if listing.current_is_dir():
+				_collect_tscn(child_path, out)
+			elif name.ends_with(".tscn"):
+				out.append(child_path)
+		name = listing.get_next()
+	listing.list_dir_end()
+
+
+func _binary_export_scene(path: String) -> PackedScene:
+	var text_scene: PackedScene = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+	if text_scene == null:
+		return null
+	var live: Node = text_scene.instantiate()
+	var packed: PackedScene = PackedScene.new()
+	var pack_err: int = packed.pack(live)
+	live.free()
+	if pack_err != OK:
+		return null
+	var tmp: String = "user://export_scene_integrity/" + path.trim_prefix("res://").replace("/", "__") + ".scn"
+	DirAccess.make_dir_recursive_absolute("user://export_scene_integrity")
+	if ResourceSaver.save(packed, tmp) != OK:
+		return null
+	return ResourceLoader.load(tmp, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+
+
+func _export_scene_matches(path: String) -> int:
+	var text_scene: PackedScene = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+	if text_scene == null:
+		print("EXPORT_SCENE_INTEGRITY load fail %s" % path)
+		return 1
+	var binary_scene: PackedScene = _binary_export_scene(path)
+	if binary_scene == null:
+		print("EXPORT_SCENE_INTEGRITY pack fail %s" % path)
+		return 1
+	var text_state: PackedStringArray = _scene_state_paths(text_scene.get_state())
+	var bin_state: PackedStringArray = _scene_state_paths(binary_scene.get_state())
+	var state_missing: PackedStringArray = _paths_only_in(text_state, bin_state)
+	var state_extra: PackedStringArray = _paths_only_in(bin_state, text_state)
+	var text_node: Node = text_scene.instantiate()
+	var bin_node: Node = binary_scene.instantiate()
+	var text_live: PackedStringArray = _live_node_paths(text_node)
+	var bin_live: PackedStringArray = _live_node_paths(bin_node)
+	var live_missing: PackedStringArray = _paths_only_in(text_live, bin_live)
+	var live_extra: PackedStringArray = _paths_only_in(bin_live, text_live)
+	var flip_miss: PackedStringArray = _flip_h_diff(text_node, bin_node)
+	text_node.free()
+	bin_node.free()
+	if state_missing.is_empty() and live_missing.is_empty() and live_extra.is_empty() and flip_miss.is_empty():
+		return 0
+	print("EXPORT_SCENE_INTEGRITY mismatch %s text_nodes=%d binary_nodes=%d missing=%d extra=%d live_text=%d live_binary=%d live_missing=%d live_extra=%d flip_h=%d" % [path, text_state.size(), bin_state.size(), state_missing.size(), state_extra.size(), text_live.size(), bin_live.size(), live_missing.size(), live_extra.size(), flip_miss.size()])
+	_print_export_rows("missing", state_missing)
+	_print_export_rows("extra", state_extra)
+	_print_export_rows("live_missing", live_missing)
+	_print_export_rows("live_extra", live_extra)
+	_print_export_rows("flip_h", flip_miss)
+	return 1
+
+
+func _print_export_rows(label: String, rows: PackedStringArray) -> void:
+	var shown: int = 0
+	for row: String in rows:
+		if shown >= 12:
+			print("  %s ... %d more" % [label, rows.size() - shown])
+			break
+		print("  %s %s" % [label, row])
+		shown += 1
+
+
+func _scene_state_paths(state: SceneState) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	for i: int in state.get_node_count():
+		var path: String = str(state.get_node_path(i))
+		if path.begins_with("./"):
+			path = path.substr(2)
+		if path.is_empty():
+			path = str(state.get_node_name(i))
+		out.append(path)
+	return out
+
+
+func _live_node_paths(node: Node) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	_walk_live_paths(node, node, out)
+	return out
+
+
+func _walk_live_paths(node: Node, root_node: Node, out: PackedStringArray) -> void:
+	out.append(str(root_node.get_path_to(node)))
+	for child: Node in node.get_children():
+		_walk_live_paths(child, root_node, out)
+
+
+func _paths_only_in(left: PackedStringArray, right: PackedStringArray) -> PackedStringArray:
+	var have: Dictionary = {}
+	for path: String in right:
+		have[path] = int(have.get(path, 0)) + 1
+	var seen: Dictionary = {}
+	var out: PackedStringArray = PackedStringArray()
+	for path: String in left:
+		var used: int = int(seen.get(path, 0))
+		seen[path] = used + 1
+		if used >= int(have.get(path, 0)):
+			out.append(path)
+	return out
+
+
+func _flip_h_map(node: Node, root_node: Node, out: Dictionary) -> void:
+	var path: String = str(root_node.get_path_to(node))
+	if "flip_h" in node:
+		out[path] = bool(node.get("flip_h"))
+	for child: Node in node.get_children():
+		_flip_h_map(child, root_node, out)
+
+
+func _flip_h_diff(text_node: Node, bin_node: Node) -> PackedStringArray:
+	var text_flips: Dictionary = {}
+	var bin_flips: Dictionary = {}
+	_flip_h_map(text_node, text_node, text_flips)
+	_flip_h_map(bin_node, bin_node, bin_flips)
+	var out: PackedStringArray = PackedStringArray()
+	for path: String in text_flips.keys():
+		if not bin_flips.has(path) or bool(bin_flips[path]) != bool(text_flips[path]):
+			var bin_value: String = str(bin_flips[path]) if bin_flips.has(path) else "absent"
+			out.append("%s text=%s binary=%s" % [path, str(text_flips[path]), bin_value])
+	for path: String in bin_flips.keys():
+		if not text_flips.has(path):
+			out.append("%s text=absent binary=%s" % [path, str(bin_flips[path])])
+	return out

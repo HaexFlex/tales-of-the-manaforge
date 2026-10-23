@@ -93,6 +93,23 @@ func actor_select() -> void:
 	GameState.select_keeper()
 
 
+func _touch_deselects(event: InputEvent) -> bool:
+	## A second touch on the actor who is already the only selection clears it.
+	if not actor_selected() or not GameInput.touch_mode() or not GameInput.is_touch_pointer(event):
+		return false
+	if actor_id() == "elaia":
+		return not GameState.keeper_selected and GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty()
+	return GameState.selected_wisp_id < 0 and GameState.selected_wisp_ids.is_empty() and str(GameState.selected_companion_id) == ""
+
+
+func _clear_touch_selection() -> void:
+	if actor_id() == "elaia":
+		GameState.selected_companion_id = ""
+		GameState.selection_changed.emit()
+		return
+	GameState.set_keeper_selected(false)
+
+
 func actor_label_idle() -> String:
 	return ContentStrings.get_text("keeper_select")
 
@@ -1420,11 +1437,16 @@ func _on_click_area_input(_viewport: Node, event: InputEvent, _shape_idx: int) -
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			actor_select()
-			if actor_id() == "keeper":
-				GameState.status_message.emit(ContentStrings.get_text("keeper_select_hint"))
+			if GameInput.is_double_tap(mb):
+				return
+			if _touch_deselects(mb):
+				_clear_touch_selection()
 			else:
-				GameState.status_message.emit(ContentStrings.get_text("echo_elaia_name"))
+				actor_select()
+				if actor_id() == "keeper":
+					GameState.status_message.emit(ContentStrings.get_text("keeper_select_hint"))
+				else:
+					GameState.status_message.emit(ContentStrings.get_text("echo_elaia_name"))
 			get_viewport().set_input_as_handled()
 		elif GameInput.is_command(mb):
 			get_viewport().set_input_as_handled()

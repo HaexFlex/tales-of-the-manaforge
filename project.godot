@@ -6,12 +6,19 @@ config_version=5
 [application]
 
 config/name="Tales of the Manaforge"
+config/auto_accept_quit=false
 config/description="Cozy top-down pixel adventure. Restart Edition prototype: Keeper, Manatree, gather, prestige."
 config/version="0.1.1-restart"
 run/main_scene="res://scenes/title_screen.tscn"
-config/features=PackedStringArray("4.7", "Forward Plus")
+config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://assets/ui/icon_256.png"
 config/windows_native_icon="res://assets/ui/icon.ico"
+; Android only. A base boot_splash/image would replace the Windows splash too.
+; 4.7.2 resolves these when the android feature is active. #00061d is the splash plate.
+boot_splash/image.android="res://assets/ui/android/splash/splash_1200x540.png"
+boot_splash/fullsize.android=false
+boot_splash/use_filter.android=false
+boot_splash/bg_color.android=Color(0, 0.023529411764705882, 0.11372549019607843, 1)
 
 [autoload]
 
@@ -30,6 +37,11 @@ GameTheme="*res://scripts/autoload/game_theme.gd"
 GameInput="*res://scripts/autoload/game_input.gd"
 MinigameHost="*res://scripts/minigames/minigame_host.gd"
 
+[input_devices]
+
+; Pinch on Android. The hub zoom handler is main.gd _handle_zoom_input.
+pointing/android/enable_pan_and_scale_gestures=true
+
 [display]
 
 mouse_cursor/custom_image="res://assets/ui/theme/pointer_12x17.png"
@@ -40,7 +52,14 @@ window/size/window_width_override=960
 window/size/window_height_override=540
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+; Integer only, on desktop and on mobile. The logical viewport is window/scale
+; (Ui540.apply_integer_viewport): 2400x1080 -> 1200x540, 1920x1200 -> 960x600,
+; 1280x960 -> 1280x960, 2560x1600 -> 1280x800. Expand alone letterboxes the
+; last two (960x720 and 960x600). No fractional mobile override.
 window/stretch/scale_mode="integer"
+; Godot 4.7 reads this at Android export (no preset screen/orientation key).
+; 4 = DisplayServer.SCREEN_SENSOR_LANDSCAPE. Desktop windows ignore it. iOS stays parked.
+window/handheld/orientation=4
 
 [gui]
 
@@ -54,4 +73,10 @@ theme/custom="res://assets/ui/manaforge_theme.tres"
 
 [rendering]
 
+; Playtest renderer is Compatibility on desktop and on mobile. Windows export
+; presets are unchanged (S3TC stays available for this renderer).
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0
+; Mobile import only. Windows presets keep texture_format/etc2=false and S3TC/BPTC.
+textures/vram_compression/import_etc2_astc=true

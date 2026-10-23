@@ -2,7 +2,7 @@
 
 Images the locked 540p mockups load that were not in theme_pkg (audit 2026-10-13). Originals are still in their source folders; these are copies.
 Screen use comes from tracing every Image.open while each locked build script ran (outputs were thrown away). `shared/` = used by more than one screen or by a shared helper.
-Alpha: all files below have hard alpha (each pixel's alpha is 0 or 255; no semi-transparent pixels). title_bg_1200x540.png is RGB, so fully opaque.
+Alpha: all files below have hard alpha (each pixel's alpha is 0 or 255; no semi-transparent pixels). title_bg_wide_1440x960.png is RGB, so fully opaque.
 
 | File | Size | Screens | Purpose | Source |
 |---|---|---|---|---|
@@ -89,8 +89,7 @@ Alpha: all files below have hard alpha (each pixel's alpha is 0 or 255; no semi-
 | `assets_extra/shared/icon_wood.png` | 32x32 | ascension, bag, board, char, confirm, debug, help, hud, manatree, options, pause, runestone, saveload, trait, workbench | Item/resource icon 32px | `pr33_local/assets/art/ui/icon_wood.png` |
 | `assets_extra/shared/keeper_portrait.png` | 52x52 | battle, board, char, hud | Portrait shown inside party/HUD frames | `pr33_local/assets/art/portraits/keeper_portrait.png` |
 | `assets_extra/title/logo_cyan_jersey10.png` | 428x118 | title | Cyan Jersey 10 logo layer, transparent | `ui_restyle/mockups/title540_final/layers/logo_cyan_jersey10.png` |
-| `assets_extra/title/title_bg_1200x540.png` | 1200x540 | title | Final 20:9 title painting 1200x540 with painted side strips (centre 960 = title_bg_960x540) | `ui_restyle/mockups/title540_final/layers/title_bg_1200x540.png` |
-| `assets_extra/title/title_bg_960x540.png` | 960x540 | title | 16:9 crop of the title painting (for reference/fallback; centre of the 1200) | `ui_restyle/mockups/title540_final/layers/title_bg_960x540.png` |
+| `assets_extra/title/title_bg_wide_1440x960.png` | 1440x960 | title | Wide title painting, drawn 1:1 and centred. Centre 960x540 at (240, 210) matches the old 960 plate | `assets/library/title_wide_2026-10-17/` |
 | `assets_extra/workbench/hud_watering_can.png` | 32x32 | workbench | Workbench tool icon | `pr33_local/assets/art/ui/icons/hud_watering_can.png` |
 | `assets_extra/workbench/hud_wooden_basket.png` | 32x32 | workbench | Workbench tool icon | `pr33_local/assets/art/ui/icons/hud_wooden_basket.png` |
 | `assets_extra/workbench/icon_axe_head.png` | 32x32 | workbench | Item/resource icon 32px | `pr33_local/assets/art/ui/icons/icon_axe_head.png` |
@@ -105,6 +104,6 @@ Alpha: all files below have hard alpha (each pixel's alpha is 0 or 255; no semi-
 battle arena bg/fg, shadow_m, slot_mark, battle unit sprites (battle/beasts, mossmite, party, echo/battle_keeper_idle_e); keeper_still_south_frame0 (char figure); runestone_arcana/might props; camera_compare/world_composition.png and closer.png (pause/HUD game view); hub trees/bushes/props/tiles/manatree/elaia/keeper sprites used only by the old title540 painting script. All of these live in pr33_local/assets/art or mockups/camera_compare.
 
 ## Notes
-- Title: title540_final has no build script, so where it came from isn't recorded. The 1200 painting's centre 960 px matches title_bg_960x540.png exactly. The 120 px side strips are painted (trees, ferns, fireflies), but a dither band is visible at the seams.
+- Title: the live plate is `title_bg_wide_1440x960.png`. The 1440x900 plate moved to `assets/library/legacy/title_wide_1440x900_2026-10-17/`. The earlier 1200x540 and 960x540 plates are in `assets/library/legacy/title_2026-10-17/`. The live painting's centre 960 px at (240, 210) matches that 960 plate.
 - logo_cyan_jersey10.png is byte-identical to mockups/title540_r2/layers/logo_r2_jersey10.png.
 - Code-drawn pieces (×, blossom, pencil and bin) exist only as code in the build scripts. They were exported unchanged at 1x.

@@ -98,6 +98,58 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if GameInput.blocks_scene_mouse(event):
+		if not _touch_drive_marquee(event):
+			_touch_pan(event)
+		return
+
+
+func _touch_drive_marquee(event: InputEvent) -> bool:
+	if not GameInput.touch_marquee_armed() and not _drag_active:
+		return false
+	var phase: String = GameInput.touch_drag_phase(event)
+	if phase == "" or _ui_blocks():
+		return false
+	if phase == "press":
+		if _gui_blocks_drag():
+			return false
+		_drag_active = true
+		_drag_from = _touch_event_world(event)
+		_update_marquee(_drag_from)
+		return true
+	if phase == "move":
+		if _drag_active:
+			_update_marquee(_touch_event_world(event))
+		return _drag_active
+	if not _drag_active:
+		return false
+	var world: Vector2 = _touch_event_world(event)
+	if _drag_from.distance_to(world) >= CLICK_SLOP:
+		_finish_marquee(world)
+		GameInput.disarm_touch_marquee()
+	else:
+		_drag_active = false
+		if _marquee:
+			_marquee.visible = false
+	return true
+
+
+func _touch_event_world(event: InputEvent) -> Vector2:
+	var screen: Vector2 = GameInput.pointer_position(event)
+	if camera == null:
+		return screen
+	return camera.get_canvas_transform().affine_inverse() * screen
+
+
+func _touch_pan(event: InputEvent) -> void:
+	if _ui_blocks() or _gui_blocks_drag() or camera == null:
+		return
+	var slide: Vector2 = GameInput.touch_pan_delta(event)
+	if slide == Vector2.ZERO:
+		return
+	var zoom: float = camera.zoom.x if camera.zoom.x > 0.001 else 1.0
+	camera.position -= slide / zoom
+	_clamp_camera()
 	if not (event is InputEventMouseButton):
 		return
 	var released: InputEventMouseButton = event
@@ -106,6 +158,10 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if GameInput.blocks_scene_mouse(event):
+		if not _touch_try_double(event):
+			_touch_ground_release(event)
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event
 		if key.keycode == KEY_ESCAPE:
@@ -138,6 +194,46 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_marquee(_drag_from)
 		elif _drag_active:
 			_finish_marquee(get_global_mouse_position())
+
+
+func _touch_try_double(event: InputEvent) -> bool:
+	if not GameInput.is_double_tap(event):
+		return false
+	if _touch_double_suppressed() or _gui_blocks_drag():
+		if _touch_double_suppressed():
+			get_viewport().set_input_as_handled()
+		return true
+	get_viewport().set_input_as_handled()
+	GameInput.call_deferred("inject_right_click", GameInput.pointer_position(event))
+	return true
+
+
+func _touch_double_suppressed() -> bool:
+	if _ui_blocks() or EchoChamber.in_battle or BattleView.is_open():
+		return true
+	var host: Node = get_tree().root.get_node_or_null("MinigameHost")
+	return host != null and host.has_method("is_open") and bool(host.call("is_open"))
+
+
+func _touch_ground_release(event: InputEvent) -> void:
+	## A ground tap hides the recipe list and leaves the selection alone.
+	if not _touch_left_release(event) or not GameInput.last_release_was_tap():
+		return
+	if _ui_blocks() or _gui_blocks_drag():
+		return
+	if _interactable_under_point(get_global_mouse_position()):
+		return
+	_hide_recipes()
+
+
+func _touch_left_release(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		return mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed
+	if event is InputEventScreenTouch:
+		var touch: InputEventScreenTouch = event as InputEventScreenTouch
+		return not touch.pressed and touch.index == 0
+	return false
 
 
 func _on_escape() -> void:
@@ -486,11 +582,11 @@ func _pin_station_above_toast() -> void:
 	if recipe_panel == null:
 		return
 	var vs: Vector2 = Ui540.viewport_size()
-	var safe: float = Ui540.SAFE_MARGIN_PX
+	var safe: float = Ui540.margin_bottom()
 	var toast_top: float = vs.y - safe - Ui540.TAP_MIN_PX - 8.0 - 32.0
 	## The resource shade is 40 px under the safe margin. The plank rises above the frame,
 	## so the frame starts below that shade or its corner covers the last counts.
-	var bar_bottom: float = safe + 40.0
+	var bar_bottom: float = Ui540.margin_top() + 40.0
 	var top: float = bar_bottom + Ui540.PLANK_RISE + 4.0
 	var limit: float = toast_top - 8.0
 	var h: float = minf(recipe_panel.size.y, maxf(200.0, limit - top))

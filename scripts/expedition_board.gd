@@ -424,7 +424,11 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 	if not mb.pressed:
 		return
 	if mb.button_index == MOUSE_BUTTON_LEFT:
-		if GameState.member_away("keeper"):
+		if GameInput.yields_touch_double_tap(mb):
+			return
+		if GameInput.touch_mode() and GameInput.is_touch_pointer(mb) and GameState.member_away("keeper"):
+			GameInput.defer_touch_tap(begin_entry)
+		elif GameState.member_away("keeper"):
 			begin_entry()
 		get_viewport().set_input_as_handled()
 		return

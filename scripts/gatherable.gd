@@ -152,6 +152,8 @@ func _on_input_event(_viewport: Node, event: InputEvent, _shape_idx: int) -> voi
 		if not mb.pressed:
 			return
 		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if GameInput.yields_touch_double_tap(mb):
+				return
 			# LMB on a node is not empty ground — swallow so Main does not deselect.
 			get_viewport().set_input_as_handled()
 			return

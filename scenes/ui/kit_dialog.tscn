@@ -99,3 +99,4 @@ custom_minimum_size = Vector2(190, 44)
 layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "Cancel"
+[editable path="Window"]

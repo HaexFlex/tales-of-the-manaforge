@@ -81,6 +81,19 @@ const CONFIRM_TITLES: Dictionary = {
 const OPTIONS_ROW_H: float = 44.0
 const OPTIONS_LABEL_W: float = 96.0
 const OPTIONS_PCT_W: float = 52.0
+const OPTIONS_CONTENT_TOP: float = 72.0 + 44.0 + 8.0 + 14.0
+
+
+func _touch_help_keys() -> PackedStringArray:
+	return PackedStringArray([
+		"options_touch_pause",
+		"help_touch_tap",
+		"help_touch_double_tap",
+		"help_touch_long_press",
+		"help_touch_drag",
+		"help_touch_pinch",
+		"help_touch_box",
+	])
 
 
 func _ready() -> void:
@@ -289,8 +302,19 @@ func _layout_options() -> void:
 	var phone: bool = Ui540.is_phone_export()
 	y = _layout_audio_page(y, inner, w, show_audio, phone)
 	y = _layout_gameplay_page(y, inner, show_play)
-	y = _layout_controls_page(y, inner, show_keys, phone)
-	_fit_window(options_panel, Vector2(w, y + 24.0))
+	y = _layout_controls_page(y, inner, show_keys, phone or GameInput.touch_mode())
+	var want: Vector2 = Vector2(w, y + 24.0)
+	if phone or GameInput.touch_mode():
+		## fit_kit_window assigns position. Centre anchors turn that into a 0-size window.
+		options_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		var fitted: Vector2 = Ui540.fit_kit_window(options_panel, want)
+		var frame: Panel = options_panel.get_node_or_null("Frame") as Panel
+		if frame:
+			frame.set_anchors_preset(Control.PRESET_TOP_LEFT)
+			frame.position = Vector2.ZERO
+			frame.size = fitted
+	else:
+		_fit_window(options_panel, want)
 	Ui540.place_title_plank(options_title, w)
 
 
@@ -386,16 +410,8 @@ func _ensure_options_chrome() -> void:
 		GameTheme.style_ink_label(key_lbl, false)
 		row.add_child(key_lbl)
 		options_panel.add_child(row)
-	var touch := VBoxContainer.new()
-	touch.name = "TouchHelp"
-	touch.add_theme_constant_override("separation", 6)
-	options_panel.add_child(touch)
-	for key: String in ["options_touch_walk", "options_touch_use", "options_touch_pause", "options_touch_drag"]:
-		var line := Label.new()
-		line.text = ContentStrings.get_text(key)
-		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		GameTheme.style_ink_label(line)
-		touch.add_child(line)
+	_ensure_touch_help_scroll()
+	_sync_touch_help_rows()
 	_refresh_rebind_rows()
 
 
@@ -522,7 +538,64 @@ func _layout_gameplay_page(y: float, inner: float, show: bool) -> float:
 	return y
 
 
+func _ensure_touch_help_scroll() -> void:
+	if options_panel == null:
+		return
+	var scroll: ScrollContainer = options_panel.get_node_or_null("TouchHelpScroll") as ScrollContainer
+	if scroll == null:
+		scroll = ScrollContainer.new()
+		scroll.name = "TouchHelpScroll"
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
+		scroll.visible = false
+		options_panel.add_child(scroll)
+		if has_node("/root/GameInput"):
+			GameInput.configure_scroll_container(scroll)
+	var touch: VBoxContainer = scroll.get_node_or_null("TouchHelp") as VBoxContainer
+	if touch == null:
+		touch = options_panel.get_node_or_null("TouchHelp") as VBoxContainer
+		if touch != null and touch.get_parent() == options_panel:
+			options_panel.remove_child(touch)
+		if touch == null:
+			touch = VBoxContainer.new()
+			touch.name = "TouchHelp"
+			touch.add_theme_constant_override("separation", 6)
+		scroll.add_child(touch)
+
+
+func _sync_touch_help_rows() -> void:
+	var scroll: ScrollContainer = options_panel.get_node_or_null("TouchHelpScroll") as ScrollContainer if options_panel != null else null
+	var touch: VBoxContainer = scroll.get_node_or_null("TouchHelp") as VBoxContainer if scroll != null else null
+	if touch == null:
+		return
+	var keys: PackedStringArray = _touch_help_keys()
+	if touch.get_child_count() == keys.size():
+		var ok: bool = true
+		for i: int in keys.size():
+			var line: Node = touch.get_child(i)
+			if str(line.get_meta(&"string_key", "")) != keys[i]:
+				ok = false
+				break
+		if ok:
+			for i: int in keys.size():
+				var lbl: Label = touch.get_child(i) as Label
+				if lbl != null:
+					lbl.text = ContentStrings.get_text(keys[i])
+			return
+	for child: Node in touch.get_children():
+		child.free()
+	for key: String in keys:
+		var line := Label.new()
+		line.set_meta(&"string_key", key)
+		line.text = ContentStrings.get_text(key)
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		GameTheme.style_ink_label(line)
+		touch.add_child(line)
+
+
 func _layout_controls_page(y: float, inner: float, show: bool, phone: bool) -> float:
+	_ensure_touch_help_scroll()
+	_sync_touch_help_rows()
 	for action: String in ["pause", "character", "inventory"]:
 		var row: Button = options_panel.get_node_or_null("Rebind_%s" % action) as Button
 		if row == null:
@@ -536,14 +609,35 @@ func _layout_controls_page(y: float, inner: float, show: bool, phone: bool) -> f
 				key_lbl.position = Vector2(inner - 180.0, 0)
 				key_lbl.size = Vector2(168.0, OPTIONS_ROW_H)
 			y += OPTIONS_ROW_H + 4.0
-	var touch: Control = options_panel.get_node_or_null("TouchHelp") as Control
-	if touch:
+	var touch_scroll: ScrollContainer = options_panel.get_node_or_null("TouchHelpScroll") as ScrollContainer
+	var touch: VBoxContainer = touch_scroll.get_node_or_null("TouchHelp") as VBoxContainer if touch_scroll != null else null
+	if touch_scroll != null and touch != null:
 		var on_touch: bool = show and phone
-		touch.visible = on_touch
+		touch_scroll.visible = on_touch
 		if on_touch:
-			touch.position = Vector2(PAUSE_PAD_X, y)
-			touch.size = Vector2(inner, 120.0)
-			y += 120.0
+			touch.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			for child: Node in touch.get_children():
+				if child is Control:
+					var row: Control = child as Control
+					row.custom_minimum_size.x = inner
+					row.size.x = inner
+			touch.position = Vector2.ZERO
+			touch.size = Vector2(inner, 0)
+			touch_scroll.position = Vector2(PAUSE_PAD_X, y)
+			var sep: float = float(touch.get_theme_constant(&"separation", &"VBoxContainer"))
+			var natural_h: float = 0.0
+			for i: int in touch.get_child_count():
+				var row: Control = touch.get_child(i) as Control
+				if row == null:
+					continue
+				if i > 0:
+					natural_h += sep
+				natural_h += row.get_minimum_size().y
+			touch.custom_minimum_size = Vector2(inner, natural_h)
+			var max_scroll_h: float = maxf(48.0, Ui540.max_window_h() - y - 24.0)
+			var scroll_h: float = minf(natural_h, max_scroll_h)
+			touch_scroll.size = Vector2(inner, scroll_h)
+			y += scroll_h
 	return y
 
 
@@ -770,6 +864,31 @@ func _close_expedition_board() -> void:
 			return
 
 
+## Android back and a synthesized ui_cancel. Escape still owns the keyboard path.
+func dismiss_for_back() -> bool:
+	if confirm_panel != null and confirm_panel.visible:
+		_hide_confirm()
+		return true
+	if standalone:
+		if (options_panel != null and options_panel.visible) or (slots_panel != null and slots_panel.visible):
+			close_standalone()
+			return true
+		return false
+	if options_panel != null and options_panel.visible:
+		_hide_options()
+		return true
+	if slots_panel != null and slots_panel.visible:
+		_hide_slots()
+		return true
+	if _open:
+		resume_game()
+		return true
+	if _expedition_board_open():
+		_close_expedition_board()
+		return true
+	return false
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _rebind_listen != "" and event is InputEventKey and event.pressed and not event.echo:
 		var listen: InputEventKey = event as InputEventKey
@@ -779,6 +898,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			_offer_rebind(listen.keycode)
 		get_viewport().set_input_as_handled()
+		return
+	## Keyboard Escape stays on the key path below, including opening pause.
+	## A non-key ui_cancel (Android back) only closes a window that is already open.
+	if event.is_action_pressed("ui_cancel") and not (event is InputEventKey):
+		if dismiss_for_back():
+			get_viewport().set_input_as_handled()
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var key: InputEventKey = event
