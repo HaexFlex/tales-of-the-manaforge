@@ -81,6 +81,10 @@ const PLAY_SPEEDS: Array[int] = [1, 2, 4, 8]
 var play_speed: int = 1
 ## Accumulated unpaused sim time (freezes while SceneTree.paused).
 var run_time_sec: float = 0.0
+## Shuffle bag for Manatree whispers (string keys). Saved with the run.
+var tree_whisper_bag: Array = []
+## Next whisper when run_time_sec reaches this value.
+var tree_whisper_next_at: float = TreeWhispers.INTERVAL_SEC
 ## Fractional harvest remainders, one float per resource (wood/stone/food/manashards).
 var harvest_accum: Dictionary = {}
 ## Counts down only while Ancient, the game is open, and the tree is unpaused.
@@ -162,6 +166,8 @@ func _ready() -> void:
 	_ensure_character_sheet_action()
 	if has_node("/root/Backpack") and not Backpack.inventory_changed.is_connected(_on_backpack_changed):
 		Backpack.inventory_changed.connect(_on_backpack_changed)
+	if not stage_changed.is_connected(_on_tree_whisper_stage_changed):
+		stage_changed.connect(_on_tree_whisper_stage_changed)
 
 
 func _ensure_character_sheet_action() -> void:
@@ -236,11 +242,40 @@ func advance_open_play(delta: float) -> void:
 	active_since_load_sec += delta
 	tick_ancient(play_delta)
 	apply_wisp_pulses(play_delta)
+	_tick_tree_whispers()
 
 
 func idle_catch_up_seconds(gap_sec: float) -> float:
 	## Same 1× curve as a closed game. Play speed is not a factor.
 	return offline_effective_seconds(gap_sec)
+
+
+func _reset_tree_whispers() -> void:
+	tree_whisper_bag.clear()
+	tree_whisper_next_at = TreeWhispers.INTERVAL_SEC
+
+
+func _on_tree_whisper_stage_changed(_stage_id: StringName) -> void:
+	TreeWhispers.prune_bag(tree_whisper_bag, stage_id)
+
+
+func _tick_tree_whispers() -> void:
+	if applying_save:
+		return
+	if not _play_session_open():
+		return
+	if run_time_sec + 0.0001 < tree_whisper_next_at:
+		return
+	while tree_whisper_next_at <= run_time_sec:
+		tree_whisper_next_at += TreeWhispers.INTERVAL_SEC
+	_emit_tree_whisper()
+
+
+func _emit_tree_whisper() -> void:
+	var key: String = TreeWhispers.draw_key(tree_whisper_bag, stage_id)
+	if key == "":
+		return
+	status_message.emit(ContentStrings.get_text(key))
 
 
 func _load_tables() -> void:
@@ -1938,6 +1973,8 @@ func to_save_dict() -> Dictionary:
 		"fruit_harvested_pending_ascend": fruit_harvested_pending_ascend,
 		"welcome_shown": welcome_shown,
 		"run_time_sec": run_time_sec,
+		"tree_whisper_bag": tree_whisper_bag.duplicate(true),
+		"tree_whisper_next_at": tree_whisper_next_at,
 		"harvest_accum": harvest_accum.duplicate(true),
 		"ancient_remaining_sec": ancient_remaining_sec,
 		"offline_closed_sec": offline_closed_sec,
@@ -2032,6 +2069,16 @@ func apply_save_dict(data: Dictionary) -> void:
 	active_since_load_sec = maxf(0.0, float(data.get("active_since_load_sec", 0.0)))
 	welcome_shown = bool(data.get("welcome_shown", false))
 	run_time_sec = float(data.get("run_time_sec", 0.0))
+	var whisper_bag_v: Variant = data.get("tree_whisper_bag", [])
+	if typeof(whisper_bag_v) == TYPE_ARRAY:
+		tree_whisper_bag = (whisper_bag_v as Array).duplicate(true)
+	else:
+		tree_whisper_bag.clear()
+	if data.has("tree_whisper_next_at"):
+		tree_whisper_next_at = maxf(TreeWhispers.INTERVAL_SEC, float(data.get("tree_whisper_next_at", TreeWhispers.INTERVAL_SEC)))
+	else:
+		tree_whisper_next_at = maxf(run_time_sec + TreeWhispers.INTERVAL_SEC, TreeWhispers.INTERVAL_SEC)
+	TreeWhispers.prune_bag(tree_whisper_bag, stage_id)
 	ascensions = int(data.get("ascensions", data.get("ascension_count", 0)))
 	portal_unlocked = bool(data.get("portal_unlocked", false)) or ascensions >= 1
 	portal_fee_paid = bool(data.get("portal_fee_paid", false))
@@ -2250,6 +2297,7 @@ func reset_for_new_game() -> void:
 	selected_wisp_ids.clear()
 	selected_companion_id = ""
 	run_time_sec = 0.0
+	_reset_tree_whispers()
 	portal_unlocked = false
 	portal_fee_paid = false
 	echo_01_resolved = false
