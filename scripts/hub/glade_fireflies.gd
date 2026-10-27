@@ -29,7 +29,6 @@ func _strip_material() -> CanvasItemMaterial:
 	mat.particles_anim_h_frames = 4
 	mat.particles_anim_v_frames = 1
 	mat.particles_anim_loop = true
-	mat.particles_anim_offset_max = 1.0
 	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	return mat
 
@@ -57,6 +56,7 @@ func _configure_motes(motes: CPUParticles2D, tex_path: String, tint: Color) -> v
 	motes.scale_amount_max = 1.0
 	motes.anim_speed_min = 0.6
 	motes.anim_speed_max = 1.0
+	motes.anim_offset_max = 1.0
 	motes.color = tint
 	motes.hue_variation_min = -0.04
 	motes.hue_variation_max = 0.06
