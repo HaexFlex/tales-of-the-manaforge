@@ -5,7 +5,8 @@
 |---|---|---|---|
 | rain_streak_strip_2x6x4.png | 8×6 | 4 | soft rain, NEAREST, scale 1 |
 | mist_puff_strip_8x6x4.png | 32×6 | 4 | low mist, dither fade |
-| snow_flake_strip_3x3x4.png | 12×3 | 4 | light snow |
+| snow_flake_small_strip_3x3x4.png | 12×3 | 4 | light snow (small) |
+| snow_flake_large_strip_5x5x4.png | 20×5 | 4 | light snow (large) |
 | blossom_petal_strip_4x4x4.png | 16×4 | 4 | blossom fall (pink; not leaf_fall) |
 | puddle_sparkle_strip_12x8x4.png | 48×8 | 4 | ground sparkles after rain |
 
@@ -233,3 +234,22 @@ Interior opaque coverage (excluding south ~24 px feather, and west ~24 px on
 east/corner/ext) was 99.55–99.85%, not 100%. Retimed same filenames with
 **100% opaque interiors**; ragged feather only on south (north tile) or
 south+west (east/corner/ext). Hard alpha preserved.
+
+## Snow flakes (readable @1x, 2026-10-27)
+
+Old `snow_flake_strip_3x3x4.png` (pure white) → `assets/library/legacy/snow_flake_3x3x4_2026-10-27/` (+ REPLACED.md).
+
+| Sheet | Cell | Strip | Frames |
+|---|---|---|---|
+| `snow_flake_small_strip_3x3x4.png` | 3×3 | 12×3 | 4 horizontal |
+| `snow_flake_large_strip_5x5x4.png` | 5×5 | 20×5 | 4 horizontal |
+
+**Frame layout** (both sizes, left→right):
+0. rest — bright + / diamond with cool-blue outline
+1. soft — same pose, lighter outline / gentler
+2. twinkle — smaller spark (center-weighted)
+3. rotate — X / diagonal pose
+
+Palette: near-white `#f4f8fc` body, darker core `#b8c4d4`, soft cool-blue outline `#7a8ea8` / `#9aacc0`. Hard alpha (0/255). Cozy, not stormy.
+
+Code: mix small + large on the Snow emitter (e.g. two ParticleProcessMaterial textures or random atlas). **Amount and spread stay Design's** — art only swapped the texture readability.
