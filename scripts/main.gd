@@ -129,6 +129,13 @@ func _ready() -> void:
 	hud.maybe_show_welcome()
 	if hud.has_method("maybe_show_elaia_join"):
 		hud.call("maybe_show_elaia_join")
+	_attach_hub_day_night()
+
+
+func _attach_hub_day_night() -> void:
+	var cycle := HubDayNightCycle.new()
+	add_child(cycle)
+	move_child(cycle, 0)
 
 
 func _load_hub_map() -> void:

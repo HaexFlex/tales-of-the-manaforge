@@ -52,6 +52,8 @@ var fill_screen: bool = true
 ## Hub camera step. 2 / 1 / 0.5, and 0.25 when the forest fills that view.
 var camera_zoom: float = 1.0
 var use_speedup_button: bool = false
+## Hub day / dusk / night tint. World only; HUD stays neutral.
+var day_night_enabled: bool = true
 ## First touch session showed the long-press tip. Settings file only, not the save.
 var touch_hold_hint_seen: bool = false
 var _forge_mix_on: bool = false
@@ -897,6 +899,7 @@ func load_settings() -> void:
 	fill_screen = bool(cfg.get_value("display", "fill_screen", true))
 	camera_zoom = float(cfg.get_value("display", "camera_zoom", 1.0))
 	touch_hold_hint_seen = bool(cfg.get_value("touch", "hold_hint_seen", false))
+	day_night_enabled = bool(cfg.get_value("display", "day_night", true))
 	apply_display()
 	if MUSIC_VOLUME_ZERO_MEANS_DEFAULT and music_volume_linear <= 0.001:
 		music_volume_linear = 1.0
@@ -913,6 +916,7 @@ func save_settings() -> void:
 	cfg.set_value("display", "fullscreen", fullscreen_on)
 	cfg.set_value("display", "fill_screen", fill_screen)
 	cfg.set_value("display", "camera_zoom", camera_zoom)
+	cfg.set_value("display", "day_night", day_night_enabled)
 	cfg.set_value("touch", "hold_hint_seen", touch_hold_hint_seen)
 	cfg.save(SETTINGS_PATH)
 
@@ -935,6 +939,11 @@ func set_use_speedup_button(enabled: bool) -> void:
 	use_speedup_button = enabled
 	if not enabled:
 		Engine.time_scale = 1.0
+	save_settings()
+
+
+func set_day_night_enabled(enabled: bool) -> void:
+	day_night_enabled = enabled
 	save_settings()
 
 

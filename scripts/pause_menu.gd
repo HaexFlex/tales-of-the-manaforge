@@ -129,6 +129,7 @@ func _ready() -> void:
 	_audio_sliders_ready = true
 	_sync_audio_sliders_from_game()
 	_build_slot_buttons()
+	_ensure_day_night_toggle()
 	_ensure_speedup_toggle()
 	_ensure_options_chrome()
 
@@ -516,6 +517,12 @@ func _layout_audio_page(y: float, inner: float, w: float, show: bool, phone: boo
 func _layout_gameplay_page(y: float, inner: float, show: bool) -> float:
 	var body_font: Font = GameTheme.body_font()
 	var line_h: float = body_font.get_height(GameTheme.BODY_SIZE)
+	var day_night: CheckButton = options_panel.get_node_or_null("DayNightToggle") as CheckButton
+	if day_night:
+		day_night.visible = show
+		if show:
+			Ui540.anchor_rect_safe(day_night, PAUSE_PAD_X, y, inner, OPTIONS_ROW_H)
+			y += OPTIONS_ROW_H
 	var speed: CheckButton = options_panel.get_node_or_null("SpeedupToggle") as CheckButton
 	if speed:
 		speed.visible = show
@@ -753,6 +760,22 @@ func _apply_strings() -> void:
 
 func _build_slot_buttons() -> void:
 	_rebuild_slot_rows(false)
+
+
+func _ensure_day_night_toggle() -> void:
+	if options_panel == null or options_panel.get_node_or_null("DayNightToggle") != null:
+		return
+	var day_box := CheckButton.new()
+	day_box.name = "DayNightToggle"
+	day_box.text = ContentStrings.get_text("options_day_night_toggle")
+	day_box.button_pressed = GameAudio.day_night_enabled
+	day_box.toggled.connect(_on_day_night_toggled)
+	options_panel.add_child(day_box)
+	_ink_check(day_box)
+
+
+func _on_day_night_toggled(on: bool) -> void:
+	GameAudio.set_day_night_enabled(on)
 
 
 func _ensure_speedup_toggle() -> void:
