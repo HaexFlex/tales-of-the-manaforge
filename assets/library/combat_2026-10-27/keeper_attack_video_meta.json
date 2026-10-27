@@ -3,96 +3,88 @@
     "actor": "keeper",
     "clip": "attack",
     "frame": 0,
-    "hand_x": 98,
-    "hand_y": 40,
+    "hand_x": 96,
+    "hand_y": 33,
     "rot_index": 6,
     "z": "behind",
     "phase": "windup1",
-    "src_frame": 18,
-    "angle_deg": 270
+    "src_frame": 18
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 1,
-    "hand_x": 95,
-    "hand_y": 24,
+    "hand_x": 96,
+    "hand_y": 30,
     "rot_index": 6,
     "z": "behind",
     "phase": "windup2",
-    "src_frame": 42,
-    "angle_deg": 270
+    "src_frame": 42
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 2,
-    "hand_x": 105,
-    "hand_y": 50,
+    "hand_x": 102,
+    "hand_y": 47,
     "rot_index": 7,
     "z": "front",
     "phase": "swing",
-    "src_frame": 63,
-    "angle_deg": 315
+    "src_frame": 63
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 3,
-    "hand_x": 124,
-    "hand_y": 94,
+    "hand_x": 107,
+    "hand_y": 90,
     "rot_index": 1,
     "z": "front",
     "phase": "impact",
-    "src_frame": 78,
-    "angle_deg": 59.0
+    "src_frame": 78
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 4,
-    "hand_x": 114,
-    "hand_y": 93,
+    "hand_x": 104,
+    "hand_y": 94,
     "rot_index": 1,
     "z": "front",
     "phase": "follow1",
-    "src_frame": 84,
-    "angle_deg": 45
+    "src_frame": 84
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 5,
-    "hand_x": 112,
+    "hand_x": 104,
     "hand_y": 96,
     "rot_index": 1,
     "z": "front",
     "phase": "follow2",
-    "src_frame": 96,
-    "angle_deg": 45
+    "src_frame": 96
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 6,
-    "hand_x": 123,
+    "hand_x": 107,
     "hand_y": 86,
     "rot_index": 0,
     "z": "front",
     "phase": "recover1",
-    "src_frame": 117,
-    "angle_deg": 0.0
+    "src_frame": 117
   },
   {
     "actor": "keeper",
     "clip": "attack",
     "frame": 7,
-    "hand_x": 122,
-    "hand_y": 61,
+    "hand_x": 107,
+    "hand_y": 72,
     "rot_index": 0,
     "z": "front",
     "phase": "recover2",
-    "src_frame": 132,
-    "angle_deg": 348.7
+    "src_frame": 132
   }
 ]

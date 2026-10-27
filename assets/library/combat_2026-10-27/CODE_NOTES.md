@@ -109,11 +109,14 @@ Procedural stand-ins moved to `assets/library/legacy/keeper_attack_procedural_20
 
 ### Attack anchors (from video sword → nearest rot_index)
 frame,phase,hand_x,hand_y,rot_index,z,src_frame
-0,windup1,98,40,6,behind,18
-1,windup2,95,24,6,behind,42
-2,swing,105,50,7,front,63
-3,impact,124,94,1,front,78
-4,follow1,114,93,1,front,84
-5,follow2,112,96,1,front,96
-6,recover1,123,86,0,front,117
-7,recover2,122,61,0,front,132
+0,windup1,96,33,6,behind,18
+1,windup2,96,30,6,behind,42
+2,swing,102,47,7,front,63
+3,impact,107,90,1,front,78
+4,follow1,104,94,1,front,84
+5,follow2,104,96,1,front,96
+6,recover1,107,86,0,front,117
+7,recover2,107,72,0,front,132
+
+Pre-rotated sword grips: `assets/art/battle/weapons/rot/grip_offsets.json` (place at hand_x-gx, hand_y-gy).
+Weapon-free bodies: video dagger erased via per-frame boxes; overlay wpn_sword_t* at anchors.
