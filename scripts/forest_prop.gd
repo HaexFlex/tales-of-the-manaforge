@@ -39,10 +39,13 @@ class_name ForestProp
 
 var _glow: Sprite2D
 var _glow_phase: float = 0.0
+var _day_texture_path: String = ""
 
 
 func _ready() -> void:
 	set_process(false)
+	if texture_path != "":
+		_day_texture_path = HubGroundDusk.paired_day_path(texture_path)
 	_apply_visual()
 	if Engine.is_editor_hint():
 		return
@@ -67,6 +70,20 @@ func _ready() -> void:
 		if walk_col != null and walk_col.shape is RectangleShape2D:
 			applied = (walk_col.shape as RectangleShape2D).size
 		set_meta("collider_size", applied)
+
+
+func apply_dusk_variant(use_dusk: bool) -> void:
+	if not ground_deco:
+		return
+	if _day_texture_path == "" and texture_path != "":
+		_day_texture_path = HubGroundDusk.paired_day_path(texture_path)
+	if _day_texture_path == "":
+		return
+	var target: String = _day_texture_path
+	if use_dusk:
+		target = HubGroundDusk.paired_dusk_path(_day_texture_path)
+	if target != texture_path:
+		texture_path = target
 
 
 func world_hover_name() -> String:
