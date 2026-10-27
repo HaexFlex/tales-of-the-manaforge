@@ -13,11 +13,28 @@ static func sample_phase01() -> float:
 	return _driven_phase01
 
 
-## 0 in daylight, ramps through dusk, full at night, fades before dawn.
-static func firefly_strength(phase01: float) -> float:
+static func wrap_phase01(phase01: float) -> float:
 	var p: float = fmod(phase01, 1.0)
 	if p < 0.0:
 		p += 1.0
+	return p
+
+
+## Dusk greeting band (matches firefly ramp).
+static func is_dusk_band(phase01: float) -> bool:
+	var p: float = wrap_phase01(phase01)
+	return p >= 0.32 and p < 0.48
+
+
+## Dawn greeting band (matches firefly fade).
+static func is_dawn_band(phase01: float) -> bool:
+	var p: float = wrap_phase01(phase01)
+	return p >= 0.82 and p < 0.98
+
+
+## 0 in daylight, ramps through dusk, full at night, fades before dawn.
+static func firefly_strength(phase01: float) -> float:
+	var p: float = wrap_phase01(phase01)
 	if p < 0.32:
 		return 0.0
 	if p < 0.48:
