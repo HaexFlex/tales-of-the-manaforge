@@ -104,3 +104,58 @@ Also **nudge** pass-2 tall trees south if easy (same sprites):
 - HemR6_0012 slim: (4160, 240) → **(4160, 430)**
 
 Bushes HemR6_0004–0011 can stay. Keep `FOREST_SEAL leaked=no`. Stay outside clearing ellipse.
+
+## NE canopy backdrop band (Director ring-fix, 2026-10-27)
+
+Prop passes left grass still showing between ring crowns in the NE. New approach:
+one continuous canopy backdrop band behind the ring trees so gaps read as deep
+forest interior, not ground.
+
+### Art (native 1×, hard alpha only — alpha ∈ {0,255})
+
+| file | size (W×H) | role |
+|---|---|---|
+| `assets/art/hub/canopy_band/canopy_band_north_01.png` | **256×288** | repeats along **x** |
+| `assets/art/hub/canopy_band/canopy_band_east_01.png` | **192×256** | repeats along **y** |
+| `assets/art/hub/canopy_band/canopy_band_ne_corner_01.png` | **192×288** | NE join where the two bands meet |
+
+South / inward edges are a ragged leaf silhouette, dithered whole pixels,
+~16–24 px deep (no semi-transparent pixels). Outer edges (north top, east right)
+stay fully opaque against the world edge.
+
+3× seam proofs (Art local): `previews/canopy_band_north_3x.png`,
+`previews/canopy_band_east_3x.png`, `previews/canopy_band_3x_seamcheck.png`.
+Mock under current NE caps: `previews/ne_canopy_band_contact.png`.
+
+### World extents (covers measured NE gaps; slightly bigger than the
+Director minimum x 3300–4140 / y 180–450)
+
+Play area is 4320×3780; camera limits L180 T180 R4140 B3600. NE cam parks
+~(3720, 390). Measured gap world samples clustered around x≈3320–4060,
+y≈130–230 (grass between crowns inside the limits).
+
+| band | x0 .. x1 | y0 .. y1 | notes |
+|---|---|---|---|
+| **North** | **3300 .. 3948** | **162 .. 450** | height = tile H (288). Starts 18 px above cam-limit top for margin. |
+| **NE corner** | **3948 .. 4140** | **162 .. 450** | one corner sprite; same y span as north. |
+| **East** | **3948 .. 4140** | **450 .. 1100** | continues south along the east ring past the NE view so the band does not end in-frame when the camera pans. |
+
+Together the north+corner span **x 3300–4140, y 162–450** (bigger than the
+requested y 180–450 by 18 px on the north side). East extends to **y 1100**.
+
+Tile placement (Sprite2D or TextureRect under a non-Y-sorted node):
+- North: place tiles at `x = 3300 + n*256`, `y = 162`, for `n = 0..2` (covers to 3300+768=4068; clip/overlap under corner as needed). Prefer a single `Sprite2D` with region/repeat if available, else 3 instances.
+- Corner: one sprite at `(3948, 162)`, texture `canopy_band_ne_corner_01.png`. Centered vs top-left: use **top-left** origin for band sprites (not ForestProp foot origin).
+- East: tiles at `x = 3948`, `y = 450 + m*256`, for `m = 0..2` (450..1218; stop by y 1100).
+
+### Z-order / Y-sort
+
+- **Do not** put the band under the `World` Y-sort root (`y_sort_enabled = true`, `z_index = 1`).
+- Place a sibling node of `World`, e.g. `CanopyBand` on the scene root:
+  - `z_index = 0` (Ground / world-edge stay at/below this; ring props in `World` stay at `z_index = 1`)
+  - `y_sort_enabled = false`
+  - no CanvasLayer required; a plain `Node2D` is enough
+- Band draws **behind** ring trees / HemR6 props and **in front of** ground + world edge.
+- Band **does not** participate in Y-sort.
+
+Tracked as its own ring fix — not a weather-PR blocker.
