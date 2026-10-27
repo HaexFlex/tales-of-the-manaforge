@@ -3,6 +3,7 @@ class_name BattlePlayback
 
 signal queue_empty
 
+const CombatAnimsConfigScript := preload("res://scripts/battle/combat_anims_config.gd")
 const RULES_PATH: String = "res://data/audio_cues.json"
 const GAP_STRIKE_SEC: float = 1.0
 const GAP_SHORT_SEC: float = 0.6
@@ -129,7 +130,7 @@ func _tick(dt: float) -> void:
 	if _phase == 0 and local_t >= 0.0:
 		_phase = 1
 		_on_event_start()
-	if _phase == 1 and _needs_react() and local_t >= _scaled(REACT_SEC):
+	if _phase == 1 and _needs_react() and local_t >= _scaled(_react_sec_for_active_event()):
 		_phase = 2
 		_on_target_react()
 	if _phase == 2 and _needs_hurt_end() and local_t >= _scaled(HURT_END_SEC):
@@ -197,7 +198,8 @@ func _needs_hurt_end() -> bool:
 
 func _on_event_start() -> void:
 	var kind: String = str(_event.get("kind", ""))
-	_view.call("playback_reveal_log", _event)
+	if kind not in ["strike", "item", "poison_apply"]:
+		_view.call("playback_reveal_log", _event)
 	match kind:
 		"strike", "poison_apply":
 			_begin_nudge(str(_event.get("actor", "")))
@@ -217,6 +219,9 @@ func _on_event_start() -> void:
 
 
 func _on_target_react() -> void:
+	var kind: String = str(_event.get("kind", ""))
+	if kind in ["strike", "item", "poison_apply"]:
+		_view.call("playback_reveal_log", _event)
 	var target_id: String = str(_event.get("target", ""))
 	if target_id == "":
 		return
@@ -338,10 +343,36 @@ func _on_hurt_end_instant(target_id: String) -> void:
 		_view.call("playback_set_beast_idle", target_id)
 
 
+func _react_sec_for_active_event() -> float:
+	return react_sec_for_event(_event, _weapon_sprite_for_actor(str(_event.get("actor", ""))))
+
+
+func _weapon_sprite_for_actor(actor_id: String) -> String:
+	if _view == null or actor_id == "":
+		return ""
+	return str(_view.call("playback_weapon_sprite_for", actor_id))
+
+
+static func react_sec_for_event(event: Dictionary, actor_weapon_sprite: String) -> float:
+	var kind: String = str(event.get("kind", ""))
+	match kind:
+		"strike":
+			return CombatAnimsConfigScript.strike_react_sec(actor_weapon_sprite)
+		"item":
+			var cast_t: Dictionary = CombatAnimsConfigScript.timing("party", "cast")
+			return float(cast_t.get("hit_ms", 500)) / 1000.0
+		"poison_apply":
+			return REACT_SEC
+		_:
+			return REACT_SEC
+
+
 func _schedule_event_sounds() -> void:
 	if not _sound_allowed():
 		return
-	for cue: Dictionary in cues_for_event(_event, speed):
+	for cue: Dictionary in cues_for_event(
+		_event, speed, _weapon_sprite_for_actor(str(_event.get("actor", ""))),
+	):
 		_scheduled_sounds.append({
 			"at": clock_sec + float(cue.get("at_sec", 0.0)),
 			"id": str(cue.get("id", "")),
@@ -352,7 +383,9 @@ func _schedule_event_sounds() -> void:
 func _play_event_sounds_instant(event: Dictionary) -> void:
 	if not _sound_allowed():
 		return
-	for cue: Dictionary in cues_for_event(event, speed):
+	for cue: Dictionary in cues_for_event(
+		event, speed, _weapon_sprite_for_actor(str(event.get("actor", ""))),
+	):
 		_try_play_cue(str(cue.get("id", "")), float(cue.get("offset_db_base", 0.0)))
 
 
@@ -476,7 +509,11 @@ func _apply_rules(rules: Dictionary) -> void:
 	_throttle_sec = rules.get("throttle_sec", {}) as Dictionary
 
 
-static func cues_for_event(event: Dictionary, speed: int) -> Array[Dictionary]:
+static func cues_for_event(
+	event: Dictionary,
+	speed: int,
+	actor_weapon_sprite: String = "",
+) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	_ensure_rules_static()
 	var rules: Dictionary = _rules_cache
@@ -489,7 +526,7 @@ static func cues_for_event(event: Dictionary, speed: int) -> Array[Dictionary]:
 	var beast_delay: float = float(beast_hurt.get("delay_sec", 0.06))
 	var fast: bool = speed == 2 or speed == 4
 	var kind: String = str(event.get("kind", ""))
-	var react: float = REACT_SEC / float(maxi(1, speed))
+	var react: float = react_sec_for_event(event, actor_weapon_sprite) / float(maxi(1, speed))
 	match kind:
 		"strike":
 			var band: String = str(event.get("band", "hit"))

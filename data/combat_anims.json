@@ -10,6 +10,12 @@
   "tick": {
     "strike_sec": 1.0,
     "react_sec": 0.4,
+    "strike_react_sec_by_family": {
+      "sword": 0.4,
+      "wand": 0.5,
+      "bow": 0.72,
+      "note": "PLACEHOLDER. Bow = attack_bow frame 6 @ 100ms + arrow_flight_sec 0.12. Wand = attack_wand hit_ms 500."
+    },
     "hurt_end_sec": 0.75,
     "gap_short_sec": 0.6,
     "gap_ko_sec": 0.8,
@@ -107,7 +113,7 @@
         "hit_frame": 4,
         "hit_ms": 500,
         "maps_event": "strike",
-        "note": "PLACEHOLDER. Decision 41 impact at 500ms (frame 4); gameplay float still REACT_SEC 0.4."
+        "note": "PLACEHOLDER. Decision 41 impact at 500ms (frame 4); strike_react_sec 0.5 for wand family."
       },
       "attack_bow": {
         "frames": 10,
@@ -118,7 +124,7 @@
         "maps_event": "strike",
         "arrow_release_frame": 6,
         "arrow_flight_sec": 0.12,
-        "note": "PLACEHOLDER. Nocked arrow frames 0-5; release frame 6; visual impact when flight lands."
+        "note": "PLACEHOLDER. Nocked arrow frames 0-5; strike_react_sec = 0.6s release + 0.12s flight."
       },
       "hit": { "frames": 4, "ms_per_frame": 100, "total_ms": 400, "hit_frame": 1, "hit_ms": 0, "maps_event": "react/hurt" },
       "brace": { "frames": 6, "ms_per_frame": 100, "total_ms": 600, "hit_frame": 2, "hit_ms": 200, "maps_event": "brace" },

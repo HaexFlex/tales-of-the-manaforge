@@ -1119,6 +1119,13 @@ func get_playback() -> BattlePlayback:
 	return _playback
 
 
+func playback_weapon_sprite_for(fighter_id: String) -> String:
+	var root: Control = playback_fighter_root(fighter_id)
+	if root == null:
+		return ""
+	return _weapon_sprite_for_root(root)
+
+
 func playback_fighter_root(fighter_id: String) -> Control:
 	return _fighters.get_node_or_null("Fighter_%s" % fighter_id) as Control if _fighters != null else null
 

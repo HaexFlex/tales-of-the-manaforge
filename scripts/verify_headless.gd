@@ -26941,4 +26941,49 @@ func _combat_anims_r6_ok() -> int:
 		var expect_arrow: bool = frame_i <= 5
 		failed += _assert(arrow_on == expect_arrow, "bow arrow nocked frame %d" % frame_i)
 		failed += _assert(anchor_b.has("hand2_x") and anchor_b.has("string_draw"), "bow schema frame %d" % frame_i)
+		var hand2_x: int = int(anchor_b.get("hand2_x", hx_b))
+		var hand2_y: int = int(anchor_b.get("hand2_y", hy_b))
+		var string_draw: float = float(anchor_b.get("string_draw", 0.0))
+		for bow_sprite: String in ["wpn_bow_t0", "wpn_bow_t1", "wpn_bow_t2"]:
+			var pts: PackedVector2Array = CombatAnimsConfigScript.bow_string_points_in_body(
+				hx_b, hy_b, hand2_x, hand2_y, bow_sprite, rot_b, string_draw,
+			)
+			var top_exp: Vector2 = CombatAnimsConfigScript.bow_string_tip_in_body(
+				hx_b, hy_b, bow_sprite, rot_b, "top",
+			)
+			var bot_exp: Vector2 = CombatAnimsConfigScript.bow_string_tip_in_body(
+				hx_b, hy_b, bow_sprite, rot_b, "bottom",
+			)
+			failed += _assert(pts[0].is_equal_approx(top_exp), "bow string top frame %d %s" % [frame_i, bow_sprite])
+			failed += _assert(pts[pts.size() - 1].is_equal_approx(bot_exp), "bow string bottom frame %d %s" % [frame_i, bow_sprite])
+	failed += _assert(
+		not FileAccess.file_exists("res://assets/art/battle/modular/keeper/attack_bow/hand_anchors.json"),
+		"clip-folder bow anchors removed",
+	)
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.strike_react_sec("wpn_sword_t1"), 0.4),
+		"sword strike react 400ms",
+	)
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.strike_react_sec("wpn_wand_t2"), 0.5),
+		"wand strike react 500ms",
+	)
+	failed += _assert(
+		is_equal_approx(CombatAnimsConfigScript.strike_react_sec("wpn_bow_t1"), 0.72),
+		"bow strike react release+flight 720ms",
+	)
+	failed += _assert(
+		not is_equal_approx(CombatAnimsConfigScript.strike_react_sec("wpn_bow_t1"), 0.4),
+		"bow damage not at 400ms",
+	)
+	var bow_strike: Dictionary = {"kind": "strike", "actor": "keeper"}
+	failed += _assert(
+		is_equal_approx(BattlePlaybackScript.react_sec_for_event(bow_strike, "wpn_bow_t1"), 0.72),
+		"playback bow strike react sec",
+	)
+	var sword_strike: Dictionary = {"kind": "strike", "actor": "keeper"}
+	failed += _assert(
+		is_equal_approx(BattlePlaybackScript.react_sec_for_event(sword_strike, "wpn_sword_t1"), 0.4),
+		"playback sword strike react sec",
+	)
 	return failed

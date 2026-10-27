@@ -162,6 +162,27 @@ static func bow_arrow_nocked_visible(clip: String, art_frame: int) -> bool:
 	return clip == "attack_bow" and art_frame >= 0 and art_frame <= 5
 
 
+static func bow_string_tip_in_body(
+	hand_x: int,
+	hand_y: int,
+	sprite_id: String,
+	rot_index: int,
+	which: String,
+) -> Vector2:
+	_ensure_loaded()
+	var pivot: Vector2 = weapon_pivot_for_rot(sprite_id, rot_index)
+	var tips_root: Dictionary = (_grip_offsets.get("string_tips", {}) as Dictionary)
+	var bow_entry: Dictionary = (tips_root.get(sprite_id, {}) as Dictionary)
+	var rots: Dictionary = (bow_entry.get("rots", {}) as Dictionary)
+	var rot_key: String = "r%d" % rot_index
+	var rot_tips: Dictionary = (rots.get(rot_key, {}) as Dictionary)
+	var tip_arr: Variant = rot_tips.get(which, [])
+	if tip_arr is Array and (tip_arr as Array).size() >= 2:
+		var tip: Vector2 = Vector2(float(tip_arr[0]), float(tip_arr[1]))
+		return Vector2(float(hand_x), float(hand_y)) - pivot + tip
+	return Vector2(float(hand_x), float(hand_y))
+
+
 static func bow_string_points_in_body(
 	hand_x: int,
 	hand_y: int,
@@ -171,19 +192,28 @@ static func bow_string_points_in_body(
 	rot_index: int,
 	string_draw: float,
 ) -> PackedVector2Array:
-	var w_top: Vector2 = weapon_top_left_in_body_texture(hand_x, hand_y, sprite_id, rot_index)
-	var pivot: Vector2 = weapon_pivot_for_rot(sprite_id, rot_index)
-	var size: Vector2 = weapon_size_for_rot(sprite_id, rot_index)
-	var grip: Vector2 = w_top + pivot
-	var limb_x: float = w_top.x + pivot.x
-	var upper: Vector2 = Vector2(limb_x, w_top.y)
-	var lower: Vector2 = Vector2(limb_x, w_top.y + size.y - 1.0)
-	var rest_mid: Vector2 = grip + Vector2(-8.0, 0.0)
+	var top: Vector2 = bow_string_tip_in_body(hand_x, hand_y, sprite_id, rot_index, "top")
+	var bottom: Vector2 = bow_string_tip_in_body(hand_x, hand_y, sprite_id, rot_index, "bottom")
+	if string_draw <= 0.0:
+		return PackedVector2Array([top, bottom])
 	var hand2: Vector2 = Vector2(float(hand2_x), float(hand2_y))
-	var mid: Vector2 = rest_mid.lerp(hand2, clampf(string_draw, 0.0, 1.0))
-	if string_draw <= 0.001:
-		return PackedVector2Array([upper, lower])
-	return PackedVector2Array([upper, mid, lower])
+	return PackedVector2Array([top, hand2, bottom])
+
+
+static func strike_react_sec(sprite_id: String) -> float:
+	_ensure_loaded()
+	var family: String = weapon_family_from_sprite(sprite_id)
+	match family:
+		"wand":
+			return float(timing("party", "attack_wand").get("hit_ms", 500)) / 1000.0
+		"bow":
+			var bow_t: Dictionary = timing("party", "attack_bow")
+			var release_frame: int = int(bow_t.get("arrow_release_frame", 6))
+			var ms: int = int(bow_t.get("ms_per_frame", 100))
+			var flight: float = float(bow_t.get("arrow_flight_sec", BOW_ARROW_FLIGHT_SEC))
+			return float(release_frame * ms) / 1000.0 + flight
+		_:
+			return float(timing("party", "attack").get("hit_ms", 400)) / 1000.0
 
 
 static func arrow_angle_rad(hand_x: int, hand_y: int, hand2_x: int, hand2_y: int) -> float:
@@ -302,6 +332,11 @@ static func weapon_grip_matches_hand_exact(
 static func contact_cell_size() -> Vector2i:
 	var side: int = int(BODY_FRAME.x) + CONTACT_CELL_MARGIN * 2
 	return Vector2i(side, side)
+
+
+static func contact_cell_size_scaled(scale: int) -> Vector2i:
+	var base: Vector2i = contact_cell_size()
+	return Vector2i(base.x * scale, base.y * scale)
 
 
 static func craft_weapon_rows_for_contact() -> Array[Dictionary]:
