@@ -228,19 +228,29 @@ func bench_rest_bed_lift_db() -> float:
 	return _bench_rest_bed_lift_db
 
 
+func reset_bench_rest_bed_lift() -> void:
+	if _bench_rest_bed_tween != null and _bench_rest_bed_tween.is_valid():
+		_bench_rest_bed_tween.kill()
+	_apply_bench_rest_bed_lift(0.0)
+
+
 func on_keeper_bench_sat() -> void:
+	if DisplayServer.get_name() == "headless":
+		_apply_bench_rest_bed_lift(BENCH_REST_BED_LIFT_DB)
 	var now: int = Time.get_ticks_msec()
 	if now - _bench_rest_last_play_msec >= int(BENCH_REST_RETRIGGER_SEC * 1000.0):
 		play(&"sfx_bench_rest", 0.0, 1.0)
 		_bench_rest_last_play_msec = now
 	if DisplayServer.get_name() == "headless":
-		_apply_bench_rest_bed_lift(BENCH_REST_BED_LIFT_DB)
 		return
 	_tween_bench_rest_bed(BENCH_REST_BED_LIFT_DB)
 
 
 func on_keeper_bench_stood() -> void:
-	_tween_bench_rest_bed(0.0)
+	if DisplayServer.get_name() == "headless":
+		reset_bench_rest_bed_lift()
+	else:
+		_tween_bench_rest_bed(0.0)
 
 
 func _tween_bench_rest_bed(target_lift_db: float) -> void:

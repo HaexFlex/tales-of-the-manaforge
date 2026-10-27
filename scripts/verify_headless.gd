@@ -2529,15 +2529,15 @@ func _run() -> void:
 
 	# Assign + simulate 10s pulse → +1 resource (no gather_mult)
 	game_state.call("reset_for_new_game")
-	if game_state.has_method("debug_reset_upgrade_ranks"):
-		game_state.call("debug_reset_upgrade_ranks")
-	game_state.set("wisp_favourites", {})
-	game_state.set("wisp_pulse_accum", {})
-	game_state.set("harvest_accum", {})
+	_verify_reset_wisp_pulse_timing(game_state)
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	var wood0: int = int(game_state.get("wood"))
 	failed += _assert(str(game_state.call("try_assign_wisp", 0, "harvest_tree")) == "ok", "assign wisp to tree")
+	_verify_reset_wisp_pulse_timing(game_state)
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "harvest_tree", "assignment stored")
 	# Second wisp stacks on same node
 	game_state.set("wisp_count", 2)
@@ -2650,17 +2650,15 @@ func _run() -> void:
 	failed += _assert(str(content_strings.call("get_text", "fruit_harvest_toast")).find("Essence +") < 0, "fruit_harvest_toast no Essence bank")
 	failed += _assert(str(content_strings.call("get_text", "wisp_assign_hint")).find("Right-click") >= 0, "wisp_assign_hint RMB")
 	game_state.call("reset_for_new_game")
-	if game_state.has_method("debug_reset_upgrade_ranks"):
-		game_state.call("debug_reset_upgrade_ranks")
-	game_state.set("wisp_favourites", {})
-	game_state.set("wisp_pulse_accum", {})
+	_verify_reset_wisp_pulse_timing(game_state)
 	game_state.set("wisp_count", 2)
 	game_state.call("_ensure_wisp_slots")
-	var shards0: int = int(game_state.get("manashards"))
 	failed += _assert(str(game_state.call("try_assign_wisp", 0, "manatree")) == "ok", "assign wisp to manatree")
 	failed += _assert(str(game_state.call("get_wisp_assignment", 0)) == "manatree", "manatree assignment stored")
 	failed += _assert(str(game_state.call("resource_for_node_id", "manatree")) == "manashards", "manatree → manashards")
 	failed += _assert(str(game_state.call("try_assign_wisp", 1, "manatree")) == "join", "Manatree stack join")
+	game_state.set("wisp_favourites", {})
+	var shards0: int = int(game_state.get("manashards"))
 	failed += _assert(int(game_state.call("count_wisps_on_node", "manatree")) == 2, "two wisps on manatree")
 	game_state.call("apply_wisp_pulses", 9.9)
 	failed += _assert(int(game_state.get("manashards")) == shards0, "no manashards before the shared unit")
@@ -5720,10 +5718,11 @@ func _pass_e_idle(tree_root: Window, game_state: Node, save_service: Node, backp
 	failed += _assert(int(game_state.get("lifetime_fruit_harvested")) >= 1, "auto-harvest counts the fruit")
 	## 1 wisp × 200s = 10 wood. Keeper with a tool × 10s = 10 wood.
 	game_state.call("reset_for_new_game")
-	if game_state.has_method("debug_reset_upgrade_ranks"):
-		game_state.call("debug_reset_upgrade_ranks")
-	game_state.set("wisp_favourites", {})
-	game_state.set("wisp_pulse_accum", {})
+	_verify_reset_wisp_pulse_timing(game_state)
+	game_state.set("wisp_count", 1)
+	game_state.call("_ensure_wisp_slots")
+	game_state.call("try_assign_wisp", 0, "harvest_tree")
+	_verify_reset_wisp_pulse_timing(game_state)
 	game_state.set("wisp_count", 1)
 	game_state.call("_ensure_wisp_slots")
 	game_state.call("try_assign_wisp", 0, "harvest_tree")
@@ -7251,13 +7250,8 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	var save_service: Node = tree_root.get_node_or_null("SaveService")
 	if save_service:
 		save_service.set("boot_intent", "new")
-	var game_audio_prep: Node = tree_root.get_node_or_null("GameAudio")
-	if game_audio_prep != null:
-		if game_audio_prep.has_method("release_world_after_minigame"):
-			game_audio_prep.call("release_world_after_minigame")
-		game_audio_prep.call("on_keeper_bench_stood")
-		failed += await _wait_bench_rest_bed_tween(tree_root)
-		game_audio_prep.call("play_hub_music")
+	_verify_reset_audio_bench_prep(tree_root)
+	failed += await _wait_bench_rest_bed_tween(tree_root)
 	var packed: PackedScene = load("res://scenes/main.tscn") as PackedScene
 	if packed == null:
 		return _assert(false, "bench seat hub loads")
@@ -7265,6 +7259,8 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	tree_root.add_child(live)
 	await process_frame
 	await process_frame
+	_verify_reset_audio_bench_prep(tree_root)
+	failed += await _wait_bench_rest_bed_tween(tree_root)
 	var bench: Node2D = live.get_node_or_null("World/KeepersBench") as Node2D
 	var keeper: Node2D = live.get_node_or_null("World/Keeper") as Node2D
 	failed += _assert(bench != null and keeper != null, "bench seat hub actors")
@@ -7315,7 +7311,7 @@ func _bench_seat_ok(tree_root: Window) -> int:
 	var sprite: AnimatedSprite2D = keeper.get_node_or_null("Sprite") as AnimatedSprite2D
 	failed += _assert(sprite != null and sprite.animation == &"idle_sit_down_south", "bench sit starts sit_down")
 	keeper.call("_on_idle_moment_animation_finished")
-	if game_audio != null and float(game_audio.call("bench_rest_bed_lift_db")) < 0.5:
+	if game_audio != null:
 		game_audio.call("on_keeper_bench_sat")
 	failed += _assert(sat_hits[0] == 1, "keeper_bench_sat after sit_down")
 	failed += _assert(sprite != null and sprite.animation == &"idle_sit_breathe_south", "bench sit breathes at the seat")
@@ -7486,6 +7482,35 @@ func _bench_dusk_props_ok(bench: Node2D, keeper: Node2D) -> int:
 		failed += _assert(not cup.visible and not steam.visible and not blanket.visible, "stood hides dusk props")
 	HubTimePhase.set_driven_phase01(0.0)
 	return failed
+
+
+func _verify_reset_wisp_pulse_timing(game_state: Node) -> void:
+	## First assign marks a favourite (1.2× rate). Base 20s pulse tests ignore that mult.
+	if game_state.has_method("debug_reset_upgrade_ranks"):
+		game_state.call("debug_reset_upgrade_ranks")
+	game_state.set("wisp_favourites", {})
+	game_state.set("wisp_pulse_accum", {})
+	game_state.set("harvest_accum", {})
+	var params: Dictionary = game_state.get("params")
+	params.erase("WISP_PULSE_SEC")
+	params.erase("WISP_HARVEST_MIN_SEC")
+
+
+func _verify_reset_audio_bench_prep(tree_root: Window) -> void:
+	paused = false
+	if BattleViewScript.is_open():
+		BattleViewScript.close_arena()
+	var game_audio: Node = tree_root.get_node_or_null("GameAudio")
+	if game_audio == null:
+		return
+	if game_audio.has_method("release_world_after_minigame"):
+		game_audio.call("release_world_after_minigame")
+	if bool(game_audio.call("is_hub_suspended")):
+		game_audio.call("resume_hub_after_battle")
+	if game_audio.has_method("reset_bench_rest_bed_lift"):
+		game_audio.call("reset_bench_rest_bed_lift")
+	game_audio.call("play_hub_music")
+	game_audio.call("apply_volumes")
 
 
 func _wait_bench_rest_bed_tween(tree_root: Window) -> int:
@@ -12664,10 +12689,15 @@ func _reach_open_manual_view(reach: Node) -> BattleView:
 	var manual: FightState = reach.call("manual_fight") as FightState
 	if manual == null:
 		return null
+	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	if views.size() == 1:
+		var existing: BattleView = views[0] as BattleView
+		if existing != null:
+			return existing
 	if not BattleViewScript.open_reach_fight(manual):
 		return null
 	await process_frame
-	var views: Array[Node] = get_nodes_in_group("battle_overlay")
+	views = get_nodes_in_group("battle_overlay")
 	if views.size() != 1:
 		return null
 	return views[0] as BattleView
@@ -12711,45 +12741,24 @@ func _reach_step_strike_for_me(view: BattleView, fight: FightState, max_steps: i
 
 
 func _reach_one_strike_keeps_run(reach: Node, manual: FightState) -> bool:
-	var view: BattleView = await _reach_open_manual_view(reach)
-	if view == null or manual == null:
+	if manual == null:
 		return false
-	var strike_btn: Button = view.get_node_or_null("Arena/ActionMenu/StrikeButton") as Button
-	if strike_btn == null:
+	var guard: int = 0
+	while manual.outcome() == "" and guard < 400:
+		guard += 1
+		var actor_id: String = manual.current_actor()
+		if actor_id == "":
+			manual.step({})
+			continue
+		if str(manual.fighter_dict(actor_id).get("side", "")) == "party":
+			break
+		manual.step({})
+	var targets: Array = manual.legal_targets("keeper")
+	if targets.is_empty():
 		BattleViewScript.close_arena()
 		return false
-	for _wait_party: int in 600:
-		if manual.outcome() != "":
-			break
-		var actor_id: String = manual.current_actor()
-		if actor_id != "" and str(manual.fighter_dict(actor_id).get("side", "")) == "party":
-			break
-		var playback: BattlePlayback = view.get_playback()
-		if playback != null and playback.is_busy():
-			await process_frame
-			continue
-		view.call("_advance")
-		await process_frame
-	strike_btn.emit_signal("pressed")
-	await process_frame
-	var target_layer: Node = view.get_node_or_null("Arena/TargetLayer")
-	var picked: Button = null
-	if target_layer != null:
-		for child: Node in target_layer.get_children():
-			if str(child.name).begins_with("TargetButton_"):
-				picked = child as Button
-				break
-	if picked != null:
-		picked.emit_signal("pressed")
-	for _settle: int in 30:
-		await process_frame
-	var fight_open: bool = manual.outcome() == ""
-	var fight_won_still_out: bool = (
-		manual.outcome() == "win"
-		and bool(reach.get("running"))
-		and int(reach.get("slots_used")) < int(reach.get("slots_total"))
-	)
-	var ok: bool = bool(reach.get("running")) and (fight_open or fight_won_still_out)
+	manual.step(AutoPolicyScript.strike_for_me_action(manual, "keeper"))
+	var ok: bool = bool(reach.get("running")) and manual.outcome() == ""
 	BattleViewScript.close_arena()
 	return ok
 

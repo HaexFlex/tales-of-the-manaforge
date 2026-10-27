@@ -289,6 +289,8 @@ static func open_reach_fight(fight: FightState) -> bool:
 	var reach_view: BattleView = _current as BattleView
 	if reach_view == null:
 		return false
+	if reach_view._fight == fight and fight.outcome() == "":
+		return true
 	reach_view._hide_end_panel()
 	reach_view.set_reach_mode(true)
 	reach_view._reach_outcome_applied = false

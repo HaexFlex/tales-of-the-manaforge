@@ -884,6 +884,13 @@ func _start_fight() -> bool:
 	if room.is_empty():
 		push_error("Reach: refusing to start a fight with no enemies")
 		return false
+	## Join manual after save/load: re-freeze sheets so weapon abilities match equipment.
+	for i: int in party.size():
+		var entry: Dictionary = party[i]
+		var member: String = str(entry.get("member", ""))
+		if member != "":
+			entry["stats"] = SlotEngine.member_stats(member)
+			party[i] = entry
 	_manual = SlotEngine.fight_for_room(party, loadout, room, room_seed)
 	_manual.start_fight()
 	_manual.controller = "manual"
