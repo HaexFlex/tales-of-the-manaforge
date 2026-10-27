@@ -33,9 +33,11 @@ func _process(_delta: float) -> void:
 	var use_dusk: bool = false
 	if not GameAudio.day_night_enabled:
 		color = Color.WHITE
+		HubTimePhase.set_driven_phase01(0.0)
 	else:
 		var elapsed_sec: float = float(Time.get_ticks_msec() - _start_msec) * 0.001
 		var phase: float = fmod(elapsed_sec / CYCLE_SEC, 1.0)
+		HubTimePhase.set_driven_phase01(phase)
 		color = _sample_phase(phase)
 		use_dusk = HubGroundDusk.wants_dusk_textures(phase)
 	_set_dusk_ground_active(use_dusk)

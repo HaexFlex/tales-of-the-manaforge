@@ -133,6 +133,13 @@ func _ready() -> void:
 	_ensure_glade_fireflies()
 
 
+func _attach_hub_day_night() -> void:
+	var cycle := HubDayNightCycle.new()
+	cycle.dusk_ground_changed.connect(_on_hub_dusk_ground_changed)
+	add_child(cycle)
+	move_child(cycle, 0)
+
+
 func _ensure_glade_fireflies() -> void:
 	if get_node_or_null("GladeFireflies") != null:
 		return
@@ -141,13 +148,6 @@ func _ensure_glade_fireflies() -> void:
 	fx.z_index = 2
 	add_child(fx)
 	fx.setup(glade)
-
-
-func _attach_hub_day_night() -> void:
-	var cycle := HubDayNightCycle.new()
-	cycle.dusk_ground_changed.connect(_on_hub_dusk_ground_changed)
-	add_child(cycle)
-	move_child(cycle, 0)
 
 
 func _on_hub_dusk_ground_changed(use_dusk: bool) -> void:
