@@ -1,0 +1,135 @@
+{
+  "source": "wand_try1.mp4",
+  "still": "v3_still.jpg",
+  "live_h": 116,
+  "sole": 123,
+  "feet_x": 63.5,
+  "src_indices": [
+    22,
+    34,
+    52,
+    64,
+    82,
+    94,
+    114,
+    130
+  ],
+  "ms_per_frame": 125,
+  "grip": {
+    "wand": [
+      4,
+      12
+    ]
+  },
+  "tip_unrotated": {
+    "ox": 0,
+    "oy": -9
+  },
+  "picks": [
+    {
+      "actor": "keeper",
+      "clip": "attack_wand",
+      "frame": 0,
+      "phase": "raise",
+      "hand_x": 88,
+      "hand_y": 52,
+      "rot_index": 7,
+      "z": "front",
+      "tip_ox": 0,
+      "tip_oy": -9,
+      "src_frame": 22
+    },
+    {
+      "actor": "keeper",
+      "clip": "attack_wand",
+      "frame": 1,
+      "phase": "raise",
+      "hand_x": 90,
+      "hand_y": 48,
+      "rot_index": 7,
+      "z": "front",
+      "tip_ox": 0,
+      "tip_oy": -9,
+      "src_frame": 34
+    },
+    {
+      "actor": "keeper",
+      "clip": "attack_wand",
+      "frame": 2,
+      "phase": "gather",
+      "hand_x": 90,
+      "hand_y": 46,
+      "rot_index": 7,
+      "z": "front",
+      "tip_ox": 0,
+      "tip_oy": -9,
+      "src_frame": 52
+    },
+    {
+      "actor": "keeper",
+      "clip": "attack_wand",
+      "frame": 3,
+      "phase": "gather",
+      "hand_x": 94,
+      "hand_y": 42,
+      "rot_index": 0,
+      "z": "front",
+      "tip_ox": 0,
+      "tip_oy": -9,
+      "src_frame": 64
+    },
+    {
+      "actor": "keeper",
+      "clip": "attack_wand",
+      "frame": 4,
+      "phase": "release",
+      "hand_x": 102,
+      "hand_y": 48,
+      "rot_index": 0,
+      "z": "front",
+      "tip_ox": 0,
+      "tip_oy": -9,
+      "src_frame": 82
+    },
+    {
+      "actor": "keeper",
+      "clip": "attack_wand",
+      "frame": 5,
+      "phase": "release",
+      "hand_x": 98,
+      "hand_y": 58,
+      "rot_index": 0,
+      "z": "front",
+      "tip_ox": 0,
+      "tip_oy": -9,
+      "src_frame": 94
+    },
+    {
+      "actor": "keeper",
+      "clip": "attack_wand",
+      "frame": 6,
+      "phase": "recover",
+      "hand_x": 78,
+      "hand_y": 72,
+      "rot_index": 0,
+      "z": "front",
+      "tip_ox": 0,
+      "tip_oy": -9,
+      "src_frame": 114
+    },
+    {
+      "actor": "keeper",
+      "clip": "attack_wand",
+      "frame": 7,
+      "phase": "recover",
+      "hand_x": 76,
+      "hand_y": 70,
+      "rot_index": 1,
+      "z": "front",
+      "tip_ox": 0,
+      "tip_oy": -9,
+      "src_frame": 130
+    }
+  ],
+  "note": "still-only Imagine body; empty-hand cast; wand overlay via anchors"
+}
