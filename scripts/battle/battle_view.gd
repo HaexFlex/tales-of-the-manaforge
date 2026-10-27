@@ -768,10 +768,14 @@ func _apply_modular_frame(
 				weapon.texture = load(wpath) as Texture2D
 				var hx: float = float(anchor.get("hand_x", 0.0))
 				var hy: float = float(anchor.get("hand_y", 0.0))
-				if weapon.texture != null:
+				var pivot: Vector2 = CombatAnimsConfig.weapon_pivot_for_rot(weapon_sprite_id, rot_index)
+				var rot_size: Vector2 = CombatAnimsConfig.weapon_size_for_rot(weapon_sprite_id, rot_index)
+				if rot_size.x > 0.0 and rot_size.y > 0.0:
+					weapon.size = rot_size
+				elif weapon.texture != null:
 					weapon.size = weapon.texture.get_size()
-				weapon.pivot_offset = CombatAnimsConfig.WEAPON_GRIP
-				weapon.position = Vector2(-FIGHTER_SOLE.x + hx, -FIGHTER_SOLE.y + hy) - weapon.pivot_offset
+				weapon.pivot_offset = pivot
+				weapon.position = Vector2(-FIGHTER_SOLE.x + hx, -FIGHTER_SOLE.y + hy) - pivot
 				weapon.rotation = CombatAnimsConfig.weapon_rotation_rad(rot_index)
 				var z: String = str(anchor.get("z", "front"))
 				var sprite_idx: int = sprite.get_index()

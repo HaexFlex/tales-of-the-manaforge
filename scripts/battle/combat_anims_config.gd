@@ -3,13 +3,25 @@ class_name CombatAnimsConfig
 
 const DATA_PATH: String = "res://data/combat_anims.json"
 const HAND_ANCHORS_PATH: String = "res://assets/library/combat_2026-10-27/hand_anchors.json"
+const GRIP_OFFSETS_PATH: String = "res://assets/art/battle/weapons/rot/grip_offsets.json"
 const MODULAR_BODY_PATH: String = "res://assets/art/battle/modular/%s/%s/frame_%04d.png"
-const WEAPON_GRIP: Vector2 = Vector2(0.0, 3.0)
 const WEAPON_ROT_PATH: String = "res://assets/art/battle/weapons/rot/%s_r%d.png"
-const KEEPER_ATTACK_ROT_SEQUENCE: Array[int] = [6, 7, 0, 0, 1, 1, 0, 7]
+const KEEPER_ATTACK_ROT_SEQUENCE: Array[int] = [5, 6, 7, 1, 1, 1, 0, 0]
+
+const WEAPON_FAMILY_GRIP: Dictionary = {
+	"sword": Vector2(0.0, 4.0),
+	"wand": Vector2(2.0, 7.0),
+	"bow": Vector2(1.0, 11.0),
+}
+const WEAPON_FAMILY_SIZE: Dictionary = {
+	"sword": Vector2(28.0, 10.0),
+	"wand": Vector2(5.0, 24.0),
+	"bow": Vector2(14.0, 24.0),
+}
 
 static var _data: Dictionary = {}
 static var _anchors: Array = []
+static var _grip_offsets: Dictionary = {}
 static var _item_to_sprite: Dictionary = {}
 static var _loaded: bool = false
 static var _art_frame_cache: Dictionary = {}
@@ -19,6 +31,7 @@ static func reload() -> void:
 	_loaded = false
 	_data.clear()
 	_anchors.clear()
+	_grip_offsets.clear()
 	_item_to_sprite.clear()
 	_art_frame_cache.clear()
 
@@ -31,6 +44,8 @@ static func _ensure_loaded() -> void:
 	_data = raw as Dictionary if raw is Dictionary else {}
 	var anchor_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(HAND_ANCHORS_PATH))
 	_anchors = anchor_raw as Array if anchor_raw is Array else []
+	var grip_raw: Variant = JSON.parse_string(FileAccess.get_file_as_string(GRIP_OFFSETS_PATH))
+	_grip_offsets = grip_raw as Dictionary if grip_raw is Dictionary else {}
 	for _family_key: String in (_data.get("weapon_families", {}) as Dictionary).keys():
 		var family: Dictionary = (_data.get("weapon_families", {}) as Dictionary)[_family_key] as Dictionary
 		for item_v: Variant in family.get("items", []) as Array:
@@ -95,6 +110,16 @@ static func weapon_sprite_id_for_item(item_id: String) -> String:
 	return str(_data.get("bare_hands_sprite_id", "wpn_none"))
 
 
+static func weapon_family_from_sprite(sprite_id: String) -> String:
+	if sprite_id.begins_with("wpn_sword"):
+		return "sword"
+	if sprite_id.begins_with("wpn_wand"):
+		return "wand"
+	if sprite_id.begins_with("wpn_bow"):
+		return "bow"
+	return ""
+
+
 static func weapon_texture_path(sprite_id: String) -> String:
 	_ensure_loaded()
 	if sprite_id == "" or sprite_id == "wpn_none":
@@ -105,6 +130,26 @@ static func weapon_texture_path(sprite_id: String) -> String:
 
 static func weapon_rot_texture_path(sprite_id: String, rot_index: int) -> String:
 	return WEAPON_ROT_PATH % [sprite_id, rot_index]
+
+
+static func weapon_rot_grip_key(sprite_id: String, rot_index: int) -> String:
+	return "%s_r%d" % [sprite_id, rot_index]
+
+
+static func weapon_rot_grip_entry(sprite_id: String, rot_index: int) -> Dictionary:
+	_ensure_loaded()
+	var key: String = weapon_rot_grip_key(sprite_id, rot_index)
+	return (_grip_offsets.get(key, {}) as Dictionary).duplicate()
+
+
+static func weapon_pivot_for_rot(sprite_id: String, rot_index: int) -> Vector2:
+	var entry: Dictionary = weapon_rot_grip_entry(sprite_id, rot_index)
+	return Vector2(float(entry.get("gx", 0.0)), float(entry.get("gy", 0.0)))
+
+
+static func weapon_size_for_rot(sprite_id: String, rot_index: int) -> Vector2:
+	var entry: Dictionary = weapon_rot_grip_entry(sprite_id, rot_index)
+	return Vector2(float(entry.get("w", 0.0)), float(entry.get("h", 0.0)))
 
 
 static func weapon_texture_for_rot(sprite_id: String, rot_index: int) -> String:

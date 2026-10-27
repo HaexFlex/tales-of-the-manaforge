@@ -26744,7 +26744,7 @@ func _combat_anims_r6_ok() -> int:
 	failed += _assert(CombatAnimsConfigScript.has_modular_body("acorn_imp", "calm"), "acorn imp calm modular art")
 	var attack_timing: Dictionary = CombatAnimsConfigScript.timing("party", "attack")
 	failed += _assert(int(attack_timing.get("hit_ms", -1)) == 400, "attack hit_ms 400 at 1x")
-	failed += _assert(int(attack_timing.get("hit_frame", -1)) == 4, "attack hit_frame 4")
+	failed += _assert(int(attack_timing.get("hit_frame", -1)) == 3, "attack hit_frame 3 (impact)")
 	var cast_timing: Dictionary = CombatAnimsConfigScript.timing("party", "cast")
 	failed += _assert(int(cast_timing.get("hit_ms", -1)) == 500, "cast hit_ms 500 at 1x")
 	failed += _assert(
@@ -26753,24 +26753,31 @@ func _combat_anims_r6_ok() -> int:
 	)
 	failed += _assert(
 		is_equal_approx(
-			CombatAnimsConfigScript.wall_sec_for_frame_index(1, 100, 4),
-			0.4,
+			CombatAnimsConfigScript.wall_sec_for_frame_index(1, 100, 3),
+			0.3,
 		),
-		"1x frame 4 wall time 0.4s",
+		"1x frame 3 wall time 0.3s",
 	)
 	failed += _assert(
 		is_equal_approx(
-			CombatAnimsConfigScript.wall_sec_for_frame_index(4, 100, 4),
-			0.1,
+			CombatAnimsConfigScript.wall_sec_for_frame_index(1, 100, 4),
+			0.4,
 		),
-		"4x frame 4 wall time 0.1s",
+		"1x frame 4 wall time 0.4s (impact clock)",
 	)
 	failed += _assert(
-		CombatAnimsConfigScript.display_logical_frame(3, 8, 4, 8) == 0,
+		is_equal_approx(
+			CombatAnimsConfigScript.wall_sec_for_frame_index(4, 100, 3),
+			0.075,
+		),
+		"4x frame 3 wall time 0.075s",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.display_logical_frame(2, 8, 3, 8) == 0,
 		"8x holds keyframe 1 before hit",
 	)
 	failed += _assert(
-		CombatAnimsConfigScript.display_logical_frame(4, 8, 4, 8) == 4,
+		CombatAnimsConfigScript.display_logical_frame(3, 8, 3, 8) == 3,
 		"8x shows hit frame at react",
 	)
 	failed += _assert(
@@ -26790,9 +26797,27 @@ func _combat_anims_r6_ok() -> int:
 		"pre-rotated weapons use node rotation 0",
 	)
 	failed += _assert(
-		CombatAnimsConfigScript.WEAPON_GRIP == Vector2(0.0, 3.0),
-		"weapon grip pixel 0,3",
+		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["sword"] == Vector2(0.0, 4.0),
+		"sword family grip 0,4",
 	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["wand"] == Vector2(2.0, 7.0),
+		"wand family grip 2,7",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_GRIP["bow"] == Vector2(1.0, 11.0),
+		"bow family grip 1,11",
+	)
+	failed += _assert(
+		CombatAnimsConfigScript.WEAPON_FAMILY_SIZE["sword"] == Vector2(28.0, 10.0),
+		"sword native size 28x10",
+	)
+	failed += _assert(
+		FileAccess.file_exists("res://assets/art/battle/weapons/rot/grip_offsets.json"),
+		"grip_offsets.json present",
+	)
+	var grip_entry: Dictionary = CombatAnimsConfigScript.weapon_rot_grip_entry("wpn_sword_t1", 1)
+	failed += _assert(int(grip_entry.get("gx", -1)) == 1 and int(grip_entry.get("gy", -1)) == 1, "per-rot grip from json")
 	var rot_seq: Array[int] = CombatAnimsConfigScript.keeper_attack_rot_indices_from_anchors()
 	failed += _assert(rot_seq.size() == 8, "keeper attack rot sequence length")
 	for i: int in range(8):
@@ -26823,7 +26848,11 @@ func _combat_anims_r6_ok() -> int:
 		not CombatAnimsConfigScript.has_modular_body("stump_ogre", "attack"),
 		"stump_ogre uses hit flash fallback",
 	)
-	var anchor: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 0)
-	failed += _assert(int(anchor.get("hand_x", -1)) == 106, "keeper attack frame 0 hand anchor")
-	failed += _assert(int(anchor.get("rot_index", -1)) == 6, "keeper attack frame 0 rot_index")
+	var anchor0: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 0)
+	failed += _assert(int(anchor0.get("hand_x", -1)) == 43, "keeper attack frame 0 hand_x")
+	failed += _assert(str(anchor0.get("z", "")) == "behind", "keeper attack frame 0 z behind")
+	var anchor2: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 2)
+	failed += _assert(str(anchor2.get("z", "")) == "front", "keeper attack frame 2 z front")
+	var anchor3: Dictionary = CombatAnimsConfigScript.hand_anchor("keeper", "attack", 3)
+	failed += _assert(int(anchor3.get("rot_index", -1)) == 1, "keeper attack impact frame rot_index")
 	return failed

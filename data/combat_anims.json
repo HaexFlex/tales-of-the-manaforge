@@ -96,7 +96,7 @@
   },
   "timings_1x": {
     "party": {
-      "attack": { "frames": 8, "ms_per_frame": 100, "total_ms": 800, "hit_frame": 4, "hit_ms": 400, "maps_event": "strike" },
+      "attack": { "frames": 8, "ms_per_frame": 100, "total_ms": 800, "hit_frame": 3, "hit_ms": 400, "maps_event": "strike" },
       "hit": { "frames": 4, "ms_per_frame": 100, "total_ms": 400, "hit_frame": 1, "hit_ms": 0, "maps_event": "react/hurt" },
       "brace": { "frames": 6, "ms_per_frame": 100, "total_ms": 600, "hit_frame": 2, "hit_ms": 200, "maps_event": "brace" },
       "cast": { "frames": 8, "ms_per_frame": 100, "total_ms": 800, "hit_frame": 5, "hit_ms": 500, "maps_event": "item/ability" },
@@ -107,7 +107,7 @@
       "hit": { "frames": 4, "ms_per_frame": 100, "total_ms": 400, "hit_frame": 1, "hit_ms": 0, "maps_event": "react/hurt" },
       "calm": { "frames": 6, "ms_per_frame": 100, "total_ms": 600, "hit_frame": 3, "hit_ms": 300, "maps_event": "calmed" }
     },
-    "alignment_note": "PLACEHOLDER. Party/enemy attack hit_frame 4 @ 400ms == live REACT_SEC 0.4 so damage float + impact SFX pop on the contact frame. Strip finishes before GAP_STRIKE_SEC 1.0; leftover 200ms holds last frame or idle."
+    "alignment_note": "PLACEHOLDER. Party attack hit_frame 3 (4th frame, 0-indexed) @ 400ms == live REACT_SEC 0.4. Enemy attack hit_frame 4 PLACEHOLDER until per-species strips ship."
   },
   "playback_hooks": {
     "set_fighter_pose": "battle_view.gd:699",
